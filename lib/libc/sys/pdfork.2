@@ -32,7 +32,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 28, 2013
+.Dd April 7, 2014
 .Dt PDFORK 2
 .Os
 .Sh NAME
@@ -45,7 +45,7 @@
 .Lb libc
 .Sh SYNOPSIS
 .In sys/procdesc.h
-.Ft int
+.Ft pid_t
 .Fn pdfork "int *fdp" "int flags"
 .Ft int
 .Fn pdgetpid "int fd" "pid_t *pidp"
@@ -117,6 +117,13 @@ and
 allow waiting for process state transitions; currently only
 .Dv POLLHUP
 is defined, and will be raised when the process dies.
+Process state transitions can also be monitored using
+.Xr kqueue 2
+filter
+.Dv EVFILT_PROCDESC ;
+currently only
+.Dv NOTE_EXIT
+is implemented.
 .Pp
 .Xr close 2
 will close the process descriptor unless
@@ -125,12 +132,6 @@ is set; if the process is still alive and this is
 the last reference to the process descriptor, the process will be terminated
 with the signal
 .Dv SIGKILL .
-.Pp
-.Nm
-and associated functions depend on
-.Cd "options PROCDESC"
-described in
-.Xr procdesc 4 .
 .Sh RETURN VALUES
 .Fn pdfork
 returns a PID, 0 or -1, as

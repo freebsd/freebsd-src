@@ -30,5 +30,6 @@
 #define	_XMSR_H_
 
 int emulate_wrmsr(struct vmctx *ctx, int vcpu, uint32_t code, uint64_t val);
+int emulate_rdmsr(struct vmctx *ctx, int vcpu, uint32_t code, uint64_t *val);
 
 #endif

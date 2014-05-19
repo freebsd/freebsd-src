@@ -47,6 +47,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm.h>
 #include <vm/pmap.h>
 #include <net/if.h>
+#include <net/if_var.h>
 #if __FreeBSD_version > 501000
 #   include <dev/pci/pcivar.h>
 #   include <dev/pci/pcireg.h>

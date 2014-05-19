@@ -49,6 +49,7 @@
 
 #include <net/bpf.h>
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/if_types.h>
 #include <net/if_media.h>
 
@@ -110,6 +111,9 @@ list_del_init(struct list_head *entry)
 }
 
 #define	list_entry(ptr, type, field)	container_of(ptr, type, field)
+
+#define list_first_entry(ptr, type, member) \
+        list_entry((ptr)->next, type, member)
 
 #define	list_for_each(p, head)						\
 	for (p = (head)->next; p != (head); p = p->next)

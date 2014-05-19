@@ -41,6 +41,7 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/drm2/drm_pciids.h>
 
+#include "fb_if.h"
 
 /*
  * KMS wrapper.
@@ -84,6 +85,10 @@ extern int radeon_get_crtc_scanoutpos(struct drm_device *dev, int crtc,
 				      int *vpos, int *hpos);
 extern struct drm_ioctl_desc radeon_ioctls_kms[];
 extern int radeon_max_kms_ioctl;
+#ifdef COMPAT_FREEBSD32
+extern struct drm_ioctl_desc radeon_compat_ioctls[];
+extern int radeon_num_compat_ioctls;
+#endif
 #ifdef DUMBBELL_WIP
 int radeon_mmap(struct file *filp, struct vm_area_struct *vma);
 #endif /* DUMBBELL_WIP */
@@ -338,6 +343,12 @@ static const struct file_operations radeon_driver_kms_fops = {
 };
 #endif /* DUMBBELL_WIP */
 
+static int radeon_sysctl_init(struct drm_device *dev, struct sysctl_ctx_list *ctx,
+			      struct sysctl_oid *top)
+{
+	return drm_add_busid_modesetting(dev, ctx, top);
+}
+
 static struct drm_driver_info kms_driver = {
 	.driver_features =
 	    DRIVER_USE_AGP | DRIVER_USE_MTRR | DRIVER_PCI_DMA | DRIVER_SG |
@@ -367,6 +378,7 @@ static struct drm_driver_info kms_driver = {
 	.irq_postinstall = radeon_driver_irq_postinstall_kms,
 	.irq_uninstall = radeon_driver_irq_uninstall_kms,
 	.irq_handler = radeon_driver_irq_handler_kms,
+	.sysctl_init = radeon_sysctl_init,
 	.ioctls = radeon_ioctls_kms,
 	.gem_init_object = radeon_gem_object_init,
 	.gem_free_object = radeon_gem_object_free,
@@ -458,6 +470,10 @@ radeon_attach(device_t kdev)
 	if (radeon_modeset == 1) {
 		kms_driver.driver_features |= DRIVER_MODESET;
 		kms_driver.max_ioctl = radeon_max_kms_ioctl;
+#ifdef COMPAT_FREEBSD32
+		kms_driver.compat_ioctls = radeon_compat_ioctls;
+		kms_driver.compat_ioctls_nr = &radeon_num_compat_ioctls;
+#endif
 		radeon_register_atpx_handler();
 	}
 	dev->driver = &kms_driver;
@@ -488,6 +504,8 @@ radeon_resume(device_t kdev)
 	return (-ret);
 }
 
+extern struct fb_info *	radeon_fb_helper_getinfo(device_t kdev);
+
 static device_method_t radeon_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		radeon_probe),
@@ -495,6 +513,10 @@ static device_method_t radeon_methods[] = {
 	DEVMETHOD(device_suspend,	radeon_suspend),
 	DEVMETHOD(device_resume,	radeon_resume),
 	DEVMETHOD(device_detach,	drm_detach),
+
+	/* Framebuffer service methods */
+	DEVMETHOD(fb_getinfo,		radeon_fb_helper_getinfo),
+
 	DEVMETHOD_END
 };
 
@@ -512,3 +534,4 @@ MODULE_DEPEND(radeonkms, agp, 1, 1, 1);
 MODULE_DEPEND(radeonkms, iicbus, 1, 1, 1);
 MODULE_DEPEND(radeonkms, iic, 1, 1, 1);
 MODULE_DEPEND(radeonkms, iicbb, 1, 1, 1);
+MODULE_DEPEND(radeonkms, firmware, 1, 1, 1);

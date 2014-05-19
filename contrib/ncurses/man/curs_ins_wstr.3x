@@ -1,5 +1,5 @@
 .\"***************************************************************************
-.\" Copyright (c) 2002,2005 Free Software Foundation, Inc.                   *
+.\" Copyright (c) 2002-2010,2012 Free Software Foundation, Inc.              *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
 .\" copy of this software and associated documentation files (the            *
@@ -26,7 +26,7 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: curs_ins_wstr.3x,v 1.4 2005/05/15 17:02:54 tom Exp $
+.\" $Id: curs_ins_wstr.3x,v 1.7 2012/11/03 23:03:59 tom Exp $
 .TH curs_ins_wstr 3X ""
 .na
 .hy 0
@@ -92,17 +92,15 @@ If the first character in the string is a nonspacing character, these
 functions will fail.
 XSI does not define what will happen if a nonspacing character follows
 a control character.
-.SH RETURN VALUES
+.SH RETURN VALUE
 Upon successful completion, these functions return OK.
 Otherwise, they return ERR.
+.PP
+Functions with a "mv" prefix first perform a cursor movement using
+\fBwmove\fP, and return an error if the position is outside the window,
+or if the window pointer is null.
 .SH SEE ALSO
 \fBcurses\fR(3X),
 \fBcurs_insstr\fR(3X),
 \fBcurs_in_wch\fR(3X),
 \fBcurs_ins_wch\fR(3X).
-.\"#
-.\"# The following sets edit modes for GNU EMACS
-.\"# Local Variables:
-.\"# mode:nroff
-.\"# fill-column:79
-.\"# End:

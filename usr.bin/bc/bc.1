@@ -1,5 +1,5 @@
 .\"	$FreeBSD$
-.\"	$OpenBSD: bc.1,v 1.25 2010/01/02 19:48:56 schwarze Exp $
+.\"	$OpenBSD: bc.1,v 1.30 2014/01/14 07:42:42 jmc Exp $
 .\"
 .\" Copyright (C) Caldera International Inc.  2001-2002.
 .\" All rights reserved.
@@ -35,7 +35,7 @@
 .\"
 .\"	@(#)bc.1	6.8 (Berkeley) 8/8/91
 .\"
-.Dd January 22, 2010
+.Dd April 16, 2014
 .Dt BC 1
 .Os
 .Sh NAME
@@ -43,7 +43,7 @@
 .Nd arbitrary-precision arithmetic language and calculator
 .Sh SYNOPSIS
 .Nm bc
-.Op Fl chlqv
+.Op Fl chlv
 .Op Fl e Ar expression
 .Op Ar file ...
 .Sh DESCRIPTION
@@ -140,8 +140,7 @@ The following arithmetic and logical operators can be used.
 The semantics of the operators is the same as in the C language.
 They are listed in order of decreasing precedence.
 Operators in the same group have the same precedence.
-.Bl -column -offset indent "= += \-= *= /= %= ^=" "Associativity" \
-"multiply, divide, modulus"
+.Bl -column "= += \-= *= /= %= ^=" "Associativity" "multiply, divide, modulus" -offset indent
 .It Sy "Operator" Ta Sy "Associativity" Ta Sy "Description"
 .It "++ \-\-" Ta "none" Ta "increment, decrement"
 .It "\-" Ta "none" Ta "unary minus"
@@ -160,7 +159,7 @@ Note the following:
 .It
 The relational operators may appear in any expression.
 The
-.St -p1003.2
+.St -p1003.1-2008
 standard only allows them in the conditional expression of an
 .Sq if ,
 .Sq while
@@ -342,6 +341,22 @@ $ bc -l -e 'scale = 500; 2 * a(2^10000)' -e quit
 .Ed
 .Pp
 prints an approximation of pi.
+.Sh COMMAND LINE EDITING
+.Nm
+supports interactive command line editing, via the
+.Xr editline 3
+library.
+It is enabled by default if input is from a tty.
+Previous lines can be recalled and edited with the arrow keys,
+and other GNU Emacs-style editing keys may be used as well.
+.Pp
+The
+.Xr editline 3
+library is configured with a
+.Pa .editrc
+file \- refer to
+.Xr editrc 5
+for more information.
 .Sh FILES
 .Bl -tag -width /usr/share/misc/bc.library -compact
 .It Pa /usr/share/misc/bc.library
@@ -349,11 +364,16 @@ math library, read when the
 .Fl l
 option is specified on the command line.
 .El
+.Sh COMPATIBILITY
+The
+.Fl q
+and
+.Fl Fl quiet
+options are no-ops for compatibility with some other implementations of
+.Nm
+and their use is discouraged.
 .Sh SEE ALSO
 .Xr dc 1
-.Pp
-"BC \- An Arbitrary Precision Desk-Calculator Language",
-.Pa /usr/share/doc/usd/06.bc/ .
 .Sh STANDARDS
 The
 .Nm
@@ -362,7 +382,8 @@ utility is compliant with the
 specification.
 .Pp
 The flags
-.Op Fl ce
+.Op Fl ce ,
+as well as the parts noted above,
 are extensions to that specification.
 .Sh HISTORY
 The

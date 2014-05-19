@@ -261,11 +261,13 @@ ar724x_pci_fixup(device_t dev, long flash_addr, int len)
 	uint32_t bar0, reg, val;
 	uint16_t *cal_data = (uint16_t *) MIPS_PHYS_TO_KSEG1(flash_addr);
 
+#if 0
 	if (cal_data[0] != AR5416_EEPROM_MAGIC) {
 		device_printf(dev, "%s: Invalid calibration data from 0x%x\n",
 		    __func__, (uintptr_t) flash_addr);
 		return;
 	}
+#endif
 
 	/* Save bar(0) address - just to flush bar(0) (SoC WAR) ? */
 	bar0 = ar724x_pci_read_config(dev, 0, 0, 0, PCIR_BAR(0), 4);
@@ -349,7 +351,7 @@ static int
 ar724x_pci_probe(device_t dev)
 {
 
-	return (0);
+	return (BUS_PROBE_NOWILDCARD);
 }
 
 static int

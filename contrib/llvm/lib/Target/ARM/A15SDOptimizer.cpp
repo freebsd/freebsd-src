@@ -418,7 +418,8 @@ SmallVector<unsigned, 8> A15SDOptimizer::getReadDPRs(MachineInstr *MI) {
     if (!MO.isReg() || !MO.isUse())
       continue;
     if (!usesRegClass(MO, &ARM::DPRRegClass) &&
-        !usesRegClass(MO, &ARM::QPRRegClass))
+        !usesRegClass(MO, &ARM::QPRRegClass) &&
+        !usesRegClass(MO, &ARM::DPairRegClass)) // Treat DPair as QPR
       continue;
 
     Defs.push_back(MO.getReg());
@@ -538,7 +539,10 @@ A15SDOptimizer::optimizeAllLanesPattern(MachineInstr *MI, unsigned Reg) {
   InsertPt++;
   unsigned Out;
 
-  if (MRI->getRegClass(Reg)->hasSuperClassEq(&ARM::QPRRegClass)) {
+  // DPair has the same length as QPR and also has two DPRs as subreg.
+  // Treat DPair as QPR.
+  if (MRI->getRegClass(Reg)->hasSuperClassEq(&ARM::QPRRegClass) ||
+      MRI->getRegClass(Reg)->hasSuperClassEq(&ARM::DPairRegClass)) {
     unsigned DSub0 = createExtractSubreg(MBB, InsertPt, DL, Reg,
                                          ARM::dsub_0, &ARM::DPRRegClass);
     unsigned DSub1 = createExtractSubreg(MBB, InsertPt, DL, Reg,
@@ -571,7 +575,9 @@ A15SDOptimizer::optimizeAllLanesPattern(MachineInstr *MI, unsigned Reg) {
       default: llvm_unreachable("Unknown preferred lane!");
     }
 
-    bool UsesQPR = usesRegClass(MI->getOperand(0), &ARM::QPRRegClass);
+    // Treat DPair as QPR
+    bool UsesQPR = usesRegClass(MI->getOperand(0), &ARM::QPRRegClass) ||
+                   usesRegClass(MI->getOperand(0), &ARM::DPairRegClass);
 
     Out = createImplicitDef(MBB, InsertPt, DL);
     Out = createInsertSubreg(MBB, InsertPt, DL, Out, PrefLane, Reg);
@@ -615,7 +621,7 @@ bool A15SDOptimizer::runOnInstruction(MachineInstr *MI) {
   SmallVector<unsigned, 8> Defs = getReadDPRs(MI);
   bool Modified = false;
 
-  for (SmallVector<unsigned, 8>::iterator I = Defs.begin(), E = Defs.end();
+  for (SmallVectorImpl<unsigned>::iterator I = Defs.begin(), E = Defs.end();
      I != E; ++I) {
     // Follow the def-use chain for this DPR through COPYs, and also through
     // PHIs (which are essentially multi-way COPYs). It is because of PHIs that
@@ -630,7 +636,7 @@ bool A15SDOptimizer::runOnInstruction(MachineInstr *MI) {
 
     elideCopiesAndPHIs(Def, DefSrcs);
 
-    for (SmallVector<MachineInstr*, 8>::iterator II = DefSrcs.begin(),
+    for (SmallVectorImpl<MachineInstr *>::iterator II = DefSrcs.begin(),
       EE = DefSrcs.end(); II != EE; ++II) {
       MachineInstr *MI = *II;
 
@@ -655,8 +661,15 @@ bool A15SDOptimizer::runOnInstruction(MachineInstr *MI) {
 
       if (NewReg != 0) {
         Modified = true;
-        for (SmallVector<MachineOperand*, 8>::const_iterator I = Uses.begin(),
+        for (SmallVectorImpl<MachineOperand *>::const_iterator I = Uses.begin(),
                E = Uses.end(); I != E; ++I) {
+          // Make sure to constrain the register class of the new register to
+          // match what we're replacing. Otherwise we can optimize a DPR_VFP2
+          // reference into a plain DPR, and that will end poorly. NewReg is
+          // always virtual here, so there will always be a matching subclass
+          // to find.
+          MRI->constrainRegClass(NewReg, MRI->getRegClass((*I)->getReg()));
+
           DEBUG(dbgs() << "Replacing operand "
                        << **I << " with "
                        << PrintReg(NewReg) << "\n");

@@ -54,6 +54,7 @@
 #define	FLAG_DO_TOP			0x00010000	/* -T */
 #define	FLAG_DO_ANALYSIS		0x00020000	/* -g or -G or -m or -T */
 #define	FLAGS_HAS_CPUMASK		0x00040000	/* -c */
+#define	FLAG_HAS_DURATION		0x00080000	/* -l secs */
 
 #define	DEFAULT_SAMPLE_COUNT		65536
 #define	DEFAULT_WAIT_INTERVAL		5.0
@@ -91,6 +92,7 @@
 #define PMCSTAT_PL_GPROF	2
 #define PMCSTAT_PL_ANNOTATE	3
 #define PMCSTAT_PL_CALLTREE	4
+#define PMCSTAT_PL_ANNOTATE_CG	5
 
 #define PMCSTAT_TOP_DELTA 	0
 #define PMCSTAT_TOP_ACCUM	1
@@ -148,6 +150,7 @@ struct pmcstat_args {
 	int	pa_toptty;		/* output to tty or file */
 	int	pa_topcolor;		/* terminal support color */
 	int	pa_mergepmc;		/* merge PMC with same name */
+	double	pa_duration;		/* time duration */
 	int	pa_argc;
 	char	**pa_argv;
 	STAILQ_HEAD(, pmcstat_ev) pa_events;

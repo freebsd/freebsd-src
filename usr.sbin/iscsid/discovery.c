@@ -62,8 +62,6 @@ text_receive(struct connection *conn)
 	 */
 	if ((bhstr->bhstr_flags & BHSTR_FLAGS_CONTINUE) != 0)
 		log_errx(1, "received Text PDU with unsupported \"C\" flag");
-	if (response->pdu_data_len == 0)
-		log_errx(1, "received Text PDU with empty data segment");
 	if (ntohl(bhstr->bhstr_statsn) != conn->conn_statsn + 1) {
 		log_errx(1, "received Text PDU with wrong StatSN: "
 		    "is %d, should be %d", ntohl(bhstr->bhstr_statsn),
@@ -146,7 +144,7 @@ kernel_add(const struct connection *conn, const char *target)
 	int error;
 
 	memset(&isa, 0, sizeof(isa));
-	memcpy(&isa.isa_conf, &conn->conn_conf, sizeof(isa));
+	memcpy(&isa.isa_conf, &conn->conn_conf, sizeof(isa.isa_conf));
 	strlcpy(isa.isa_conf.isc_target, target,
 	    sizeof(isa.isa_conf.isc_target));
 	isa.isa_conf.isc_discovery = 0;
@@ -212,6 +210,7 @@ discovery(struct connection *conn)
 	log_debugx("discovery done; logging out");
 	request = logout_new_request(conn);
 	pdu_send(request);
+	pdu_delete(request);
 	request = NULL;
 
 	log_debugx("waiting for Logout Response");

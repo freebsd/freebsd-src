@@ -269,6 +269,16 @@ Communication::StopReadThread (Error *error_ptr)
     return status;
 }
 
+bool
+Communication::JoinReadThread (Error *error_ptr)
+{
+    if (!IS_VALID_LLDB_HOST_THREAD(m_read_thread))
+        return true;
+
+    bool success = Host::ThreadJoin (m_read_thread, NULL, error_ptr);
+    m_read_thread = LLDB_INVALID_HOST_THREAD;
+    return success;
+}
 
 size_t
 Communication::GetCachedBytes (void *dst, size_t dst_len)
@@ -333,8 +343,8 @@ Communication::ReadThreadIsRunning ()
     return m_read_thread_enabled;
 }
 
-void *
-Communication::ReadThread (void *p)
+lldb::thread_result_t
+Communication::ReadThread (lldb::thread_arg_t p)
 {
     Communication *comm = (Communication *)p;
 

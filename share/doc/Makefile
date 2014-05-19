@@ -1,21 +1,16 @@
 #	From: @(#)Makefile	8.1 (Berkeley) 6/5/93
 # $FreeBSD$
 
-.include <bsd.own.mk>
+.include <src.opts.mk>
 
 SUBDIR=	${_IPv6} \
 	${_atf} \
-	${_bind9} \
 	legal \
 	${_llvm} \
 	${_roffdocs}
 
-.if ${MK_ATF} != "no"
+.if ${MK_TESTS} != "no"
 _atf= atf
-.endif
-
-.if ${MK_BIND} != "no"
-_bind9=	bind9
 .endif
 
 .if ${MK_CLANG} != "no"

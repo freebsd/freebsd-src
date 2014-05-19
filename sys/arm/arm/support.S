@@ -87,7 +87,6 @@
  */
 
 #include <machine/asm.h>
-#include <machine/asmacros.h>
 __FBSDID("$FreeBSD$");
 
 #include "assym.s"
@@ -939,7 +938,7 @@ END(memmove)
 ENTRY(memcpy)
 	/* save leaf functions having to store this away */
 	/* Do not check arm_memcpy if we're running from flash */
-#ifdef FLASHADDR
+#if defined(FLASHADDR) && defined(PHYSADDR)
 #if FLASHADDR > PHYSADDR
 	ldr	r3, =FLASHADDR
 	cmp	r3, pc

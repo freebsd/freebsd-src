@@ -11,8 +11,6 @@
 /*
  * Simple demo program to illustrate the handling of FreeBSD's
  * libusb20.
- *
- * XXX
  */
 
 /*
@@ -38,11 +36,14 @@
 #include <stdlib.h>
 #include <sysexits.h>
 #include <unistd.h>
+#include <string.h>
 
 #include <libusb20.h>
 #include <libusb20_desc.h>
 
 #include <sys/queue.h>
+
+#include "util.h"
 
 /*
  * If you want to see the details of the internal datastructures
@@ -86,7 +87,7 @@ doit(struct libusb20_device *dev)
    */
   if ((rv = libusb20_dev_open(dev, 1)) != 0)
     {
-      fprintf(stderr, "libusb20_dev_open: %s\n", usb_error(rv));
+      fprintf(stderr, "libusb20_dev_open: %s\n", libusb20_strerror(rv));
       return;
     }
 
@@ -96,7 +97,7 @@ doit(struct libusb20_device *dev)
    */
   if ((rv = libusb20_dev_set_config_index(dev, 0)) != 0)
     {
-      fprintf(stderr, "libusb20_dev_set_config_index: %s\n", usb_error(rv));
+      fprintf(stderr, "libusb20_dev_set_config_index: %s\n", libusb20_strerror(rv));
       return;
     }
 
@@ -126,7 +127,7 @@ doit(struct libusb20_device *dev)
 					  0 /* flags */)) != 0)
 	{
 	  fprintf(stderr,
-		  "libusb20_dev_request_sync: %s\n", usb_error(rv));
+		  "libusb20_dev_request_sync: %s\n", libusb20_strerror(rv));
 	}
       printf("sent %d bytes\n", actlen);
       if ((setup.bmRequestType & 0x80) != 0)
@@ -146,7 +147,7 @@ doit(struct libusb20_device *dev)
 
       if (xfr_intr == NULL)
 	{
-	  fprintf(stderr, "libusb20_tr_get_pointer: %s\n", usb_error(rv));
+	  fprintf(stderr, "libusb20_tr_get_pointer: %s\n", libusb20_strerror(rv));
 	  return;
 	}
 
@@ -155,7 +156,7 @@ doit(struct libusb20_device *dev)
        */
       if ((rv = libusb20_tr_open(xfr_intr, 0, 1, intr_ep)) != 0)
 	{
-	  fprintf(stderr, "libusb20_tr_open: %s\n", usb_error(rv));
+	  fprintf(stderr, "libusb20_tr_open: %s\n", libusb20_strerror(rv));
 	  return;
 	}
 
@@ -165,7 +166,7 @@ doit(struct libusb20_device *dev)
       if ((rv = libusb20_tr_bulk_intr_sync(xfr_intr, in_buf, BUFLEN, &rlen, TIMEOUT))
 	  != 0)
 	{
-	  fprintf(stderr, "libusb20_tr_bulk_intr_sync: %s\n", usb_error(rv));
+	  fprintf(stderr, "libusb20_tr_bulk_intr_sync: %s\n", libusb20_strerror(rv));
 	}
       printf("received %d bytes\n", rlen);
       if (rlen > 0)

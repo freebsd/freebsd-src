@@ -1,4 +1,4 @@
-# $FreeBSD: head/lib/libz/Versions.def 205486 2010-03-22 22:12:27Z delphij $
+# $FreeBSD$
 
 ZLIB_1.2.4.0 {
 };

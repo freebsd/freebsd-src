@@ -57,6 +57,7 @@ static struct vmm_msr vmm_msr[] = {
 	{ MSR_PAT,      VMM_MSR_F_EMULATE | VMM_MSR_F_INVALID },
 	{ MSR_BIOS_SIGN,VMM_MSR_F_EMULATE },
 	{ MSR_MCG_CAP,	VMM_MSR_F_EMULATE | VMM_MSR_F_READONLY },
+	{ MSR_IA32_PLATFORM_ID, VMM_MSR_F_EMULATE | VMM_MSR_F_READONLY },
 	{ MSR_IA32_MISC_ENABLE, VMM_MSR_F_EMULATE | VMM_MSR_F_READONLY },
 };
 
@@ -129,7 +130,10 @@ guest_msrs_init(struct vm *vm, int cpu)
 			misc |= (1 << 12) | (1 << 11);
 			misc &= ~((1 << 18) | (1 << 16));
 			guest_msrs[i] = misc;
-                        break;
+			break;
+		case MSR_IA32_PLATFORM_ID:
+			guest_msrs[i] = 0;
+			break;
 		default:
 			panic("guest_msrs_init: missing initialization for msr "
 			      "0x%0x", vmm_msr[i].num);
@@ -150,13 +154,13 @@ msr_num_to_idx(u_int num)
 }
 
 int
-emulate_wrmsr(struct vm *vm, int cpu, u_int num, uint64_t val)
+emulate_wrmsr(struct vm *vm, int cpu, u_int num, uint64_t val, bool *retu)
 {
 	int idx;
 	uint64_t *guest_msrs;
 
 	if (lapic_msr(num))
-		return (lapic_wrmsr(vm, cpu, num, val));
+		return (lapic_wrmsr(vm, cpu, num, val, retu));
 
 	idx = msr_num_to_idx(num);
 	if (idx < 0 || invalid_msr(idx))
@@ -177,14 +181,14 @@ emulate_wrmsr(struct vm *vm, int cpu, u_int num, uint64_t val)
 }
 
 int
-emulate_rdmsr(struct vm *vm, int cpu, u_int num)
+emulate_rdmsr(struct vm *vm, int cpu, u_int num, bool *retu)
 {
 	int error, idx;
 	uint32_t eax, edx;
 	uint64_t result, *guest_msrs;
 
 	if (lapic_msr(num)) {
-		error = lapic_rdmsr(vm, cpu, num, &result);
+		error = lapic_rdmsr(vm, cpu, num, &result, retu);
 		goto done;
 	}
 

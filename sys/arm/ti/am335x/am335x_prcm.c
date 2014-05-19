@@ -39,7 +39,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/watchdog.h>
 #include <machine/bus.h>
 #include <machine/cpu.h>
-#include <machine/frame.h>
 #include <machine/intr.h>
 
 #include <arm/ti/tivar.h>
@@ -108,6 +107,7 @@ __FBSDID("$FreeBSD$");
 #define CM_WKUP_CM_CLKDCOLDO_DPLL_PER	(CM_WKUP + 0x07C)
 #define CM_WKUP_CM_CLKMODE_DPLL_DISP	(CM_WKUP + 0x098)
 #define CM_WKUP_I2C0_CLKCTRL		(CM_WKUP + 0x0B8)
+#define CM_WKUP_ADC_TSC_CLKCTRL		(CM_WKUP + 0x0BC)
 
 #define CM_DPLL				0x500
 #define CLKSEL_TIMER7_CLK		(CM_DPLL + 0x004)
@@ -261,6 +261,9 @@ struct ti_clock_dev ti_clk_devmap[] = {
 	AM335X_GENERIC_CLOCK_DEV(I2C1_CLK),
 	AM335X_GENERIC_CLOCK_DEV(I2C2_CLK),
 
+	/* TSC_ADC */
+	AM335X_GENERIC_CLOCK_DEV(TSC_ADC_CLK),
+
 	/* EDMA */
 	AM335X_GENERIC_CLOCK_DEV(EDMA_TPCC_CLK),
 	AM335X_GENERIC_CLOCK_DEV(EDMA_TPTC0_CLK),
@@ -338,6 +341,9 @@ static struct am335x_clk_details g_am335x_clk_details[] = {
 	_CLK_DETAIL(I2C1_CLK, CM_PER_I2C1_CLKCTRL, 0),
 	_CLK_DETAIL(I2C2_CLK, CM_PER_I2C2_CLKCTRL, 0),
 
+	/* TSC_ADC module */
+	_CLK_DETAIL(TSC_ADC_CLK, CM_WKUP_ADC_TSC_CLKCTRL, 0),
+
 	/* EDMA modules */
 	_CLK_DETAIL(EDMA_TPCC_CLK, CM_PER_TPCC_CLKCTRL, 0),
 	_CLK_DETAIL(EDMA_TPTC0_CLK, CM_PER_TPTC0_CLKCTRL, 0),
@@ -371,6 +377,10 @@ void am335x_prcm_setup_dmtimer(int);
 static int
 am335x_prcm_probe(device_t dev)
 {
+
+	if (!ofw_bus_status_okay(dev))
+		return (ENXIO);
+
 	if (ofw_bus_is_compatible(dev, "am335x,prcm")) {
 		device_set_desc(dev, "AM335x Power and Clock Management");
 		return(BUS_PROBE_DEFAULT);

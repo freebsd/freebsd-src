@@ -87,11 +87,16 @@ getlogin_r(char *logname, int namelen)
 	char	*result;
 	int	len;
 	int	status;
-	
+
+	if (namelen < 1)
+		return (ERANGE);
+	logname[0] = '\0';
+
 	THREAD_LOCK();
 	result = getlogin_basic(&status);
-	if (status == 0) {
-		if ((len = strlen(result) + 1) > namelen)
+	if (status == 0 && result != NULL) {
+		len = strlen(result) + 1;
+		if (len > namelen)
 			status = ERANGE;
 		else
 			strncpy(logname, result, len);

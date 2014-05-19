@@ -2,6 +2,7 @@
 
 /*
  * Copyright (c) 1997, 1998, 1999, 2002 The NetBSD Foundation, Inc.
+ * Copyright 2013 John-Mark Gurney <jmg@FreeBSD.org>
  * All rights reserved.
  *
  * This code is derived from software contributed to The NetBSD Foundation
@@ -50,15 +51,26 @@ humanize_number(char *buf, size_t len, int64_t quotient,
 {
 	const char *prefixes, *sep;
 	int	i, r, remainder, s1, s2, sign;
+	int	divisordeccut;
 	int64_t	divisor, max;
 	size_t	baselen;
 
-	assert(buf != NULL);
-	assert(suffix != NULL);
-	assert(scale >= 0);
-	assert(scale < maxscale || (((scale & (HN_AUTOSCALE | HN_GETSCALE)) != 0)));
-	assert(!((flags & HN_DIVISOR_1000) && (flags & HN_IEC_PREFIXES)));
+	/* Since so many callers don't check -1, NUL terminate the buffer */
+	if (len > 0)
+		buf[0] = '\0';
 
+	/* validate args */
+	if (buf == NULL || suffix == NULL)
+		return (-1);
+	if (scale < 0)
+		return (-1);
+	else if (scale >= maxscale &&
+	    ((scale & ~(HN_AUTOSCALE|HN_GETSCALE)) != 0))
+		return (-1);
+	if ((flags & HN_DIVISOR_1000) && (flags & HN_IEC_PREFIXES))
+		return (-1);
+
+	/* setup parameters */
 	remainder = 0;
 
 	if (flags & HN_IEC_PREFIXES) {
@@ -73,34 +85,32 @@ humanize_number(char *buf, size_t len, int64_t quotient,
 		 * an assertion earlier).
 		 */
 		divisor = 1024;
+		divisordeccut = 973;	/* ceil(.95 * 1024) */
 		if (flags & HN_B)
 			prefixes = "B\0\0Ki\0Mi\0Gi\0Ti\0Pi\0Ei";
 		else
 			prefixes = "\0\0\0Ki\0Mi\0Gi\0Ti\0Pi\0Ei";
 	} else {
 		baselen = 1;
-		if (flags & HN_DIVISOR_1000)
+		if (flags & HN_DIVISOR_1000) {
 			divisor = 1000;
-		else
+			divisordeccut = 950;
+			if (flags & HN_B)
+				prefixes = "B\0\0k\0\0M\0\0G\0\0T\0\0P\0\0E";
+			else
+				prefixes = "\0\0\0k\0\0M\0\0G\0\0T\0\0P\0\0E";
+		} else {
 			divisor = 1024;
-
-		if (flags & HN_B)
-			prefixes = "B\0\0k\0\0M\0\0G\0\0T\0\0P\0\0E";
-		else
-			prefixes = "\0\0\0k\0\0M\0\0G\0\0T\0\0P\0\0E";
+			divisordeccut = 973;	/* ceil(.95 * 1024) */
+			if (flags & HN_B)
+				prefixes = "B\0\0K\0\0M\0\0G\0\0T\0\0P\0\0E";
+			else
+				prefixes = "\0\0\0K\0\0M\0\0G\0\0T\0\0P\0\0E";
+		}
 	}
 
 #define	SCALE2PREFIX(scale)	(&prefixes[(scale) * 3])
 
-	if (scale < 0 || (scale >= maxscale &&
-	    (scale & (HN_AUTOSCALE | HN_GETSCALE)) == 0))
-		return (-1);
-
-	if (buf == NULL || suffix == NULL)
-		return (-1);
-
-	if (len > 0)
-		buf[0] = '\0';
 	if (quotient < 0) {
 		sign = -1;
 		quotient = -quotient;
@@ -132,8 +142,8 @@ humanize_number(char *buf, size_t len, int64_t quotient,
 		 * divide once more.
 		 */
 		for (i = 0;
-		    (quotient >= max || (quotient == max - 1 && remainder >= 950)) &&
-		    i < maxscale; i++) {
+		    (quotient >= max || (quotient == max - 1 &&
+		    remainder >= divisordeccut)) && i < maxscale; i++) {
 			remainder = quotient % divisor;
 			quotient /= divisor;
 		}
@@ -148,20 +158,22 @@ humanize_number(char *buf, size_t len, int64_t quotient,
 	}
 
 	/* If a value <= 9.9 after rounding and ... */
-	if (quotient <= 9 && remainder < 950 && i > 0 && flags & HN_DECIMAL) {
-		/* baselen + \0 + .N */
-		if (len < baselen + 1 + 2)
-			return (-1);
-		s1 = (int)quotient + ((remainder + 50) / 1000);
-		s2 = ((remainder + 50) / 100) % 10;
+	/*
+	 * XXX - should we make sure there is enough space for the decimal
+	 * place and if not, don't do HN_DECIMAL?
+	 */
+	if (((quotient == 9 && remainder < divisordeccut) || quotient < 9) &&
+	    i > 0 && flags & HN_DECIMAL) {
+		s1 = (int)quotient + ((remainder * 10 + divisor / 2) /
+		    divisor / 10);
+		s2 = ((remainder * 10 + divisor / 2) / divisor) % 10;
 		r = snprintf(buf, len, "%d%s%d%s%s%s",
 		    sign * s1, localeconv()->decimal_point, s2,
 		    sep, SCALE2PREFIX(i), suffix);
 	} else
 		r = snprintf(buf, len, "%" PRId64 "%s%s%s",
-		    sign * (quotient + (remainder + 50) / 1000),
+		    sign * (quotient + (remainder + divisor / 2) / divisor),
 		    sep, SCALE2PREFIX(i), suffix);
 
 	return (r);
 }
-

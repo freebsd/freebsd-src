@@ -10,11 +10,23 @@
 #ifndef LLDB_SBDebugger_h_
 #define LLDB_SBDebugger_h_
 
-#include "lldb/API/SBDefines.h"
 #include <stdio.h>
+
+#include "lldb/API/SBDefines.h"
+#include "lldb/API/SBPlatform.h"
 
 namespace lldb {
 
+    
+class SBInputReader
+{
+public:
+    SBInputReader();
+    ~SBInputReader();
+    SBError Initialize(lldb::SBDebugger&, unsigned long (*)(void*, lldb::SBInputReader*, lldb::InputReaderAction, char const*, unsigned long), void*, lldb::InputReaderGranularity, char const*, char const*, bool);
+    void SetIsDone(bool);
+    bool IsActive() const;
+};
 class SBDebugger
 {
 public:
@@ -153,6 +165,12 @@ public:
     void
     SetSelectedTarget (SBTarget& target);
 
+    lldb::SBPlatform
+    GetSelectedPlatform();
+
+    void
+    SetSelectedPlatform(lldb::SBPlatform &platform);
+
     lldb::SBSourceManager
     GetSourceManager ();
 
@@ -222,12 +240,6 @@ public:
     
     void
     PushInputReader (lldb::SBInputReader &reader);
-
-    void
-    NotifyTopInputReader (lldb::InputReaderAction notification);
-
-    bool
-    InputReaderIsTopReader (const lldb::SBInputReader &reader);
 
     const char *
     GetInstanceName  ();
@@ -304,6 +316,10 @@ public:
     SBTypeSynthetic
     GetSyntheticForType (SBTypeNameSpecifier);
 #endif
+
+    void
+    RunCommandInterpreter (bool auto_handle_events,
+                           bool spawn_thread);
 
 private:
 

@@ -65,6 +65,9 @@ void LLVMAddLoopIdiomPass(LLVMPassManagerRef PM);
 /** See llvm::createLoopRotatePass function. */
 void LLVMAddLoopRotatePass(LLVMPassManagerRef PM);
 
+/** See llvm::createLoopRerollPass function. */
+void LLVMAddLoopRerollPass(LLVMPassManagerRef PM);
+
 /** See llvm::createLoopUnrollPass function. */
 void LLVMAddLoopUnrollPass(LLVMPassManagerRef PM);
 
@@ -73,6 +76,9 @@ void LLVMAddLoopUnswitchPass(LLVMPassManagerRef PM);
 
 /** See llvm::createMemCpyOptPass function. */
 void LLVMAddMemCpyOptPass(LLVMPassManagerRef PM);
+
+/** See llvm::createPartiallyInlineLibCallsPass function. */
+void LLVMAddPartiallyInlineLibCallsPass(LLVMPassManagerRef PM);
 
 /** See llvm::createPromoteMemoryToRegisterPass function. */
 void LLVMAddPromoteMemoryToRegisterPass(LLVMPassManagerRef PM);

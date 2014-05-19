@@ -16,6 +16,7 @@
 
 #include "clang/Basic/LLVM.h"
 #include "clang/Basic/SourceManager.h"
+#include "clang/Lex/ModuleMap.h"
 
 namespace clang {
 class HeaderMap;
@@ -129,6 +130,11 @@ public:
     return (SrcMgr::CharacteristicKind)DirCharacteristic;
   }
 
+  /// \brief Whether this describes a system header directory.
+  bool isSystemHeaderDirectory() const {
+    return getDirCharacteristic() != SrcMgr::C_User;
+  }
+
   /// \brief Whether this header map is building a framework or not.
   bool isIndexHeaderMap() const { 
     return isHeaderMap() && IsIndexHeaderMap; 
@@ -158,7 +164,7 @@ public:
   const FileEntry *LookupFile(StringRef Filename, HeaderSearch &HS,
                               SmallVectorImpl<char> *SearchPath,
                               SmallVectorImpl<char> *RelativePath,
-                              Module **SuggestedModule,
+                              ModuleMap::KnownHeader *SuggestedModule,
                               bool &InUserSpecifiedSystemFramework) const;
 
 private:
@@ -166,7 +172,7 @@ private:
       StringRef Filename, HeaderSearch &HS,
       SmallVectorImpl<char> *SearchPath,
       SmallVectorImpl<char> *RelativePath,
-      Module **SuggestedModule,
+      ModuleMap::KnownHeader *SuggestedModule,
       bool &InUserSpecifiedSystemHeader) const;
 
 };

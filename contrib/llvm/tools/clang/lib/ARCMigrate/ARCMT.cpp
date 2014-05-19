@@ -150,7 +150,7 @@ static bool HasARCRuntime(CompilerInvocation &origCI) {
   // and avoid unrelated complications.
   llvm::Triple triple(origCI.getTargetOpts().Triple);
 
-  if (triple.getOS() == llvm::Triple::IOS)
+  if (triple.isiOS())
     return triple.getOSMajorVersion() >= 5;
 
   if (triple.getOS() == llvm::Triple::Darwin)
@@ -321,10 +321,6 @@ bool arcmt::checkForManualIssues(CompilerInvocation &origCI,
   DiagClient->EndSourceFile();
   errRec.FinishCapture();
 
-  // If we are migrating code that gets the '-fobjc-arc' flag, make sure
-  // to remove it so that we don't get errors from normal compilation.
-  origCI.getLangOpts()->ObjCAutoRefCount = false;
-
   return capturedDiags.hasErrors() || testAct.hasReportedErrors();
 }
 
@@ -374,9 +370,6 @@ static bool applyTransforms(CompilerInvocation &origCI,
     origCI.getLangOpts()->ObjCAutoRefCount = true;
     return migration.getRemapper().overwriteOriginal(*Diags);
   } else {
-    // If we are migrating code that gets the '-fobjc-arc' flag, make sure
-    // to remove it so that we don't get errors from normal compilation.
-    origCI.getLangOpts()->ObjCAutoRefCount = false;
     return migration.getRemapper().flushToDisk(outputDir, *Diags);
   }
 }
@@ -545,7 +538,7 @@ MigrationProcess::RewriteListener::~RewriteListener() { }
 MigrationProcess::MigrationProcess(const CompilerInvocation &CI,
                                    DiagnosticConsumer *diagClient,
                                    StringRef outputDir)
-  : OrigCI(CI), DiagClient(diagClient) {
+  : OrigCI(CI), DiagClient(diagClient), HadARCErrors(false) {
   if (!outputDir.empty()) {
     IntrusiveRefCntPtr<DiagnosticIDs> DiagID(new DiagnosticIDs());
     IntrusiveRefCntPtr<DiagnosticsEngine> Diags(
@@ -587,6 +580,8 @@ bool MigrationProcess::applyTransform(TransformFn trans,
     return true;
   }
   Unit->setOwnsRemappedFileBuffers(false); // FileRemapper manages that.
+
+  HadARCErrors = HadARCErrors || capturedDiags.hasErrors();
 
   // Don't filter diagnostics anymore.
   Diags->setClient(DiagClient, /*ShouldOwnClient=*/false);

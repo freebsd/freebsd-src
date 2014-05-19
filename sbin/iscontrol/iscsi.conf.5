@@ -24,18 +24,20 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 5, 2007
+.Dd December 17, 2013
 .Dt ISCSI.CONF 5
 .Os
 .Sh NAME
 .Nm iscsi.conf
-.Nd key options to be negotiated in an iSCSI session
+.Nd iSCSI initiator configuration file
 .Sh DESCRIPTION
 The file
 .Nm ,
-is read by the
+is used by the
+.Xr iscsictl 8
+and
 .Xr iscontrol 8
-program.
+utilities.
 It contains declarations and parameter/key-options.
 The syntax is very simple,
 .D1 Li variable = value;
@@ -69,9 +71,6 @@ Default is none.
 .It Cm DataDigest
 same as for HeaderDigest, but on the data part of the iSCSI PDU.
 (not yet tested)
-.It Cm MaxConnections
-is the number of simultaneous connections per session,
-currently only 1.
 .It Cm TargetName
 is the name by which the target is known, not to be confused with
 target address, either obtained via the target administrator, or
@@ -81,8 +80,6 @@ from a
 if not specified, defaults to
 .Sy iqn.2005-01.il.ac.huji.cs:
 .Aq hostname .
-.It Cm TargetAlias / InitiatorAlias
-not implemented.
 .It Cm TargetAddress
 is of the form
 .Sy domainname[:port][,portal-group-tag]
@@ -93,35 +90,16 @@ dotted-decimal IPv4 address, or a bracketed IPv6 address as specified
 in [RFC2732].
 .Ed
 Note: portal-group-tag is unused at the moment.
-.It Cm TargetPortalGroupTag
-.Em not implemented yet.
-.It Cm InitialR2T
-.Em not implemented yet.
-.It Cm ImmediateData
 .Em not implemented yet.
 .It Cm MaxRecvDataSegmentLength
 the maximum data segment length in
 bytes it can receive in an iSCSI PDU, default is 8192.
-.It Cm MaxBurstLength
-.Em not implemented yet.
-.It Cm FirstBurstLength
-.Em not implemented yet.
-.It Cm DefaultTime2Wait
-.Em not implemented yet.
-.It Cm DefaultTime2Retain
-.Em not implemented yet.
 .It Cm MaxOutstandingR2T
 is used to calculate/negotiate the
 .Em tag opening ,
 can be overridden by the
 .Sy tag
 option.
-.It Cm DataPDUInOrder
-.Em not implemented yet.
-.It Cm DataSequenceInOrder
-.Em not implemented yet.
-.It Cm ErrorRecoveryLevel
-Only level 0 is supported.
 .It Cm SessionType
 either Discovery or Normal, default is Normal, see the
 .Fl d
@@ -167,10 +145,9 @@ the chap-name, defaults to
 .Em hostname .
 .It Cm chapDigest
 can be MD5 or SHA1.
-.It Cm tgtChapSecret/tgtChapName
-same as the none
-.Em tgt
-counterpart, but to authenticate the target.
+.It Cm tgtChapName/tgtChapSecret
+name and secret used for mutual CHAP; by default, mutual CHAP
+is not used.
 .El
 .Sh FILES
 .Bl -tag -width indent
@@ -196,9 +173,6 @@ chaptest {
    tags		= 256
 }
 .Ed
-.Sh ERRORS
-The parsing is very primitive, so do not expect - at the moment - any
-error messages.
 .Sh SEE ALSO
 .Xr iscsi_initiator 4 ,
 .Xr iscsictl 8 ,

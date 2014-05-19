@@ -46,6 +46,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/syslog.h>
 
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/if_types.h>
 #include <net/route.h>
 #include <net/vnet.h>
@@ -347,6 +348,7 @@ stdreply:	icmpelen = max(8, min(V_icmp_quotelen, ntohs(oip->ip_len) - oiphlen));
 	nip->ip_hl = 5;
 	nip->ip_p = IPPROTO_ICMP;
 	nip->ip_tos = 0;
+	nip->ip_off = 0;
 	icmp_reflect(m);
 
 freeit:

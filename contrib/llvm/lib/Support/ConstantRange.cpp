@@ -38,13 +38,14 @@ ConstantRange::ConstantRange(uint32_t BitWidth, bool Full) {
 
 /// Initialize a range to hold the single specified value.
 ///
-ConstantRange::ConstantRange(const APInt &V) : Lower(V), Upper(V + 1) {}
+ConstantRange::ConstantRange(APIntMoveTy V)
+    : Lower(llvm_move(V)), Upper(Lower + 1) {}
 
-ConstantRange::ConstantRange(const APInt &L, const APInt &U) :
-  Lower(L), Upper(U) {
-  assert(L.getBitWidth() == U.getBitWidth() &&
+ConstantRange::ConstantRange(APIntMoveTy L, APIntMoveTy U)
+    : Lower(llvm_move(L)), Upper(llvm_move(U)) {
+  assert(Lower.getBitWidth() == Upper.getBitWidth() &&
          "ConstantRange with unequal bit widths");
-  assert((L != U || (L.isMaxValue() || L.isMinValue())) &&
+  assert((Lower != Upper || (Lower.isMaxValue() || Lower.isMinValue())) &&
          "Lower == Upper, but they aren't min or max value!");
 }
 
@@ -143,9 +144,6 @@ bool ConstantRange::isSignWrappedSet() const {
 /// getSetSize - Return the number of elements in this set.
 ///
 APInt ConstantRange::getSetSize() const {
-  if (isEmptySet())
-    return APInt(getBitWidth()+1, 0);
-
   if (isFullSet()) {
     APInt Size(getBitWidth()+1, 0);
     Size.setBit(getBitWidth());
@@ -432,7 +430,7 @@ ConstantRange ConstantRange::zeroExtend(uint32_t DstTySize) const {
     APInt LowerExt(DstTySize, 0);
     if (!Upper) // special case: [X, 0) -- not really wrapping around
       LowerExt = Lower.zext(DstTySize);
-    return ConstantRange(LowerExt, APInt(DstTySize, 1).shl(SrcTySize));
+    return ConstantRange(LowerExt, APInt::getOneBitSet(DstTySize, SrcTySize));
   }
 
   return ConstantRange(Lower.zext(DstTySize), Upper.zext(DstTySize));
@@ -447,6 +445,11 @@ ConstantRange ConstantRange::signExtend(uint32_t DstTySize) const {
 
   unsigned SrcTySize = getBitWidth();
   assert(SrcTySize < DstTySize && "Not a value extension");
+
+  // special case: [X, INT_MIN) -- not really wrapping around
+  if (Upper.isMinSignedValue())
+    return ConstantRange(Lower.sext(DstTySize), Upper.zext(DstTySize));
+
   if (isFullSet() || isSignWrappedSet()) {
     return ConstantRange(APInt::getHighBitsSet(DstTySize,DstTySize-SrcTySize+1),
                          APInt::getLowBitsSet(DstTySize, SrcTySize-1) + 1);

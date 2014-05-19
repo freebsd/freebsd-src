@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 21, 2013
+.Dd October 15, 2013
 .Dt BSDINSTALL 8
 .Os
 .Sh NAME
@@ -33,6 +33,7 @@
 .Nd system installer
 .Sh SYNOPSIS
 .Nm
+.Op Ar options
 .Op Ar target
 .Op Ar ...
 .Sh DESCRIPTION
@@ -49,6 +50,18 @@ invoked with no arguments, it will invoke the
 target, which provides a standard interactive installation, invoking the
 others in sequence. To perform a scripted installation, these subtargets
 can be invoked separately by an installation script.
+.Sh OPTIONS
+.Nm
+supports the following options, global to all targets:
+.Bl -tag -width indent+
+.It Fl D Ar file
+Provide a path for the installation log file
+.Pq overrides Ev BSDINSTALL_LOG .
+See
+.Sx ENVIRONMENT VARIABLES
+for more information on
+.Ev BSDINSTALL_LOG .
+.El
 .Sh TARGETS
 Most of the following targets are only useful for scripting the installer.
 For interactive use, most users will be interested only in the
@@ -60,6 +73,10 @@ targets.
 .Bl -tag -width ".Cm jail Ar destination"
 .It Cm auto
 Run the standard interactive installation, including disk partitioning.
+.It Cm entropy
+Reads a small amount of data from
+.Pa /dev/random
+and stores it in a file in the new system's root directory.
 .It Cm jail Ar destination
 Sets up a new chroot system at
 .Pa destination ,
@@ -104,6 +121,21 @@ installations. Partitions disks, runs
 .Xr newfs 8 ,
 and writes the new system's
 .Pa fstab .
+.It Cm zfsboot
+Provides the installer's
+.Pq experimental
+interactive/scriptable ZFS partitioner for multi-disk installations.
+Creates a single
+.Ic zpool
+with datasets and writes to the new system's
+.Pa rc.conf ,
+.Pa loader.conf ,
+and
+.Pa fstab .
+Supports
+.Xr geli 8 ,
+.Xr gnop 8 ,
+and many other features.
 .It Cm partedit
 Provides the installer's interactive manual disk partitioner, with support
 for multi disk setups, non-UFS file systems, and manual selection of
@@ -250,6 +282,14 @@ will be stored until the
 target is executed. If this directory does not already exist, it will be
 created. Default:
 .Pa /tmp/bsdinstall_etc
+.It Ev BSDINSTALL_TMPBOOT
+Directory where files destined for the new system's
+.Pa /boot
+will be stored until the
+.Cm config
+target is executed. If this directory does not already exist, it will be
+created. Default:
+.Pa /tmp/bsdinstall_boot
 .El
 .Sh SCRIPTING
 .Nm
@@ -303,6 +343,15 @@ the preamble can contain a variable
 which is passed to the
 .Cm scriptedpart
 target to control disk setup.
+Alternatively,
+instead of
+.Ev PARTITIONS ,
+the preamble can contain the variable
+.Ev ZFSBOOT_DATASETS
+which is parsed by the
+.Pq experimental
+.Cm zfsboot
+target to control ZFS datasets/options of the boot pool setup.
 .Ss SETUP SCRIPT
 Following the preamble is an optional shell script, beginning with a #!
 declaration. This script will be run at the end of the installation process

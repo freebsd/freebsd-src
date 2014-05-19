@@ -190,7 +190,6 @@ class ConvergingVLIWScheduler : public MachineSchedStrategy {
 
   VLIWMachineScheduler *DAG;
   const TargetSchedModel *SchedModel;
-  const TargetRegisterInfo *TRI;
 
   // State of the top and bottom scheduled instruction boundaries.
   SchedBoundary Top;
@@ -205,7 +204,7 @@ public:
   };
 
   ConvergingVLIWScheduler():
-    DAG(0), SchedModel(0), TRI(0), Top(TopQID, "TopQ"), Bot(BotQID, "BotQ") {}
+    DAG(0), SchedModel(0), Top(TopQID, "TopQ"), Bot(BotQID, "BotQ") {}
 
   virtual void initialize(ScheduleDAGMI *dag);
 
@@ -234,7 +233,7 @@ protected:
                                SchedCandidate &Candidate);
 #ifndef NDEBUG
   void traceCandidate(const char *Label, const ReadyQueue &Q, SUnit *SU,
-                      PressureElement P = PressureElement());
+                      PressureChange P = PressureChange());
 #endif
 };
 

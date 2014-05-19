@@ -270,6 +270,7 @@ iir_init(struct gdt_softc *gdt)
         gccb->gc_map_flag = TRUE;
 	gccb->gc_scratch = &gdt->sc_gcscratch[GDT_SCRATCH_SZ * i];
         gccb->gc_scratch_busbase = gdt->sc_gcscratch_busbase + GDT_SCRATCH_SZ * i;
+	callout_handle_init(&gccb->gc_timeout_ch);
         SLIST_INSERT_HEAD(&gdt->sc_free_gccb, gccb, sle);
     }
     gdt->sc_init_level++;
@@ -1239,7 +1240,7 @@ gdtexecuteccb(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
     
     ccb->ccb_h.status |= CAM_SIM_QUEUED;
     /* timeout handling */
-    ccb->ccb_h.timeout_ch =
+    gccb->gc_timeout_ch =
         timeout(iir_timeout, (caddr_t)gccb,
                 (ccb->ccb_h.timeout * hz) / 1000);
 
@@ -1747,7 +1748,7 @@ gdt_sync_event(struct gdt_softc *gdt, int service,
         printf("\n");
         return (0);
     } else {
-        untimeout(iir_timeout, gccb, ccb->ccb_h.timeout_ch);
+        untimeout(iir_timeout, gccb, gccb->gc_timeout_ch);
         if (gdt->sc_status == GDT_S_BSY) {
             GDT_DPRINTF(GDT_D_DEBUG, ("gdt_sync_event(%p) gccb %p busy\n", 
                                       gdt, gccb));

@@ -102,7 +102,20 @@ __FBSDID("$FreeBSD$");
 
 #define PIPE "/var/run/devd.pipe"
 #define CF "/etc/devd.conf"
-#define SYSCTL "hw.bus.devctl_disable"
+#define SYSCTL "hw.bus.devctl_queue"
+
+/*
+ * Since the client socket is nonblocking, we must increase its send buffer to
+ * handle brief event storms.  On FreeBSD, AF_UNIX sockets don't have a receive
+ * buffer, so the client can't increate the buffersize by itself.
+ *
+ * For example, when creating a ZFS pool, devd emits one 165 character
+ * resource.fs.zfs.statechange message for each vdev in the pool.  A 64k
+ * buffer has enough space for almost 400 drives, which would be very large but
+ * not impossibly large pool.  A 128k buffer has enough space for 794 drives,
+ * which is more than can fit in a rack with modern technology.
+ */
+#define CLIENT_BUFSIZE 131072
 
 using namespace std;
 
@@ -116,8 +129,9 @@ static const char detach = '-';
 
 static struct pidfh *pfh;
 
-int dflag;
-int nflag;
+static int no_daemon = 0;
+static int daemonize_quick = 0;
+static int quiet_mode = 0;
 static unsigned total_events = 0;
 static volatile sig_atomic_t got_siginfo = 0;
 static volatile sig_atomic_t romeo_must_die = 0;
@@ -248,7 +262,7 @@ bool
 action::do_action(config &c)
 {
 	string s = c.expand_string(_cmd.c_str());
-	devdlog(LOG_NOTICE, "Executing '%s'\n", s.c_str());
+	devdlog(LOG_INFO, "Executing '%s'\n", s.c_str());
 	my_system(s.c_str());
 	return (true);
 }
@@ -278,7 +292,7 @@ match::do_match(config &c)
 	 * can consume excessive amounts of systime inside of connect().  Only
 	 * log when we're in -d mode.
 	 */
-	if (dflag) {
+	if (no_daemon) {
 		devdlog(LOG_DEBUG, "Testing %s=%s against %s, invert=%d\n",
 		    _var.c_str(), value.c_str(), _re.c_str(), _inv);
 	}
@@ -388,7 +402,7 @@ var_list::set_variable(const string &var, const string &val)
 	 * can consume excessive amounts of systime inside of connect().  Only
 	 * log when we're in -d mode.
 	 */
-	if (dflag)
+	if (no_daemon)
 		devdlog(LOG_DEBUG, "setting %s=%s\n", var.c_str(), val.c_str());
 	_vars[var] = val;
 }
@@ -759,7 +773,7 @@ process_event(char *buffer)
 	char *sp;
 
 	sp = buffer + 1;
-	devdlog(LOG_DEBUG, "Processing event '%s'\n", buffer);
+	devdlog(LOG_INFO, "Processing event '%s'\n", buffer);
 	type = *buffer++;
 	cfg.push_var_table();
 	// No match doesn't have a device, and the format is a little
@@ -892,6 +906,7 @@ void
 new_client(int fd)
 {
 	int s;
+	int sndbuf_size;
 
 	/*
 	 * First go reap any zombie clients, then accept the connection, and
@@ -901,10 +916,15 @@ new_client(int fd)
 	check_clients();
 	s = accept(fd, NULL, NULL);
 	if (s != -1) {
+		sndbuf_size = CLIENT_BUFSIZE;
+		if (setsockopt(s, SOL_SOCKET, SO_SNDBUF, &sndbuf_size,
+		    sizeof(sndbuf_size)))
+			err(1, "setsockopt");
 		shutdown(s, SHUT_RD);
 		clients.push_back(s);
 		++num_clients;
-	}
+	} else
+		err(1, "accept");
 }
 
 static void
@@ -926,7 +946,7 @@ event_loop(void)
 	accepting = 1;
 	max_fd = max(fd, server_fd) + 1;
 	while (!romeo_must_die) {
-		if (!once && !dflag && !nflag) {
+		if (!once && !no_daemon && !daemonize_quick) {
 			// Check to see if we have any events pending.
 			tv.tv_sec = 0;
 			tv.tv_usec = 0;
@@ -970,7 +990,7 @@ event_loop(void)
 		}
 		rv = select(max_fd, &fds, NULL, NULL, &tv);
 		if (got_siginfo) {
-			devdlog(LOG_INFO, "Events received so far=%u\n",
+			devdlog(LOG_NOTICE, "Events received so far=%u\n",
 			    total_events);
 			got_siginfo = 0;
 		}
@@ -1111,7 +1131,7 @@ siginfohand(int)
 }
 
 /*
- * Local logging function.  Prints to syslog if we're daemonized; syslog
+ * Local logging function.  Prints to syslog if we're daemonized; stderr
  * otherwise.
  */
 static void
@@ -1120,9 +1140,9 @@ devdlog(int priority, const char* fmt, ...)
 	va_list argp;
 
 	va_start(argp, fmt);
-	if (dflag)
+	if (no_daemon)
 		vfprintf(stderr, fmt, argp);
-	else
+	else if ((! quiet_mode) || (priority <= LOG_WARNING))
 		vsyslog(priority, fmt, argp);
 	va_end(argp);
 }
@@ -1130,7 +1150,7 @@ devdlog(int priority, const char* fmt, ...)
 static void
 usage()
 {
-	fprintf(stderr, "usage: %s [-dn] [-l connlimit] [-f file]\n",
+	fprintf(stderr, "usage: %s [-dnq] [-l connlimit] [-f file]\n",
 	    getprogname());
 	exit(1);
 }
@@ -1144,9 +1164,9 @@ check_devd_enabled()
 	len = sizeof(val);
 	if (sysctlbyname(SYSCTL, &val, &len, NULL, 0) != 0)
 		errx(1, "devctl sysctl missing from kernel!");
-	if (val) {
-		warnx("Setting " SYSCTL " to 0");
-		val = 0;
+	if (val == 0) {
+		warnx("Setting " SYSCTL " to 1000");
+		val = 1000;
 		sysctlbyname(SYSCTL, NULL, NULL, &val, sizeof(val));
 	}
 }
@@ -1160,10 +1180,10 @@ main(int argc, char **argv)
 	int ch;
 
 	check_devd_enabled();
-	while ((ch = getopt(argc, argv, "df:l:n")) != -1) {
+	while ((ch = getopt(argc, argv, "df:l:nq")) != -1) {
 		switch (ch) {
 		case 'd':
-			dflag++;
+			no_daemon = 1;
 			break;
 		case 'f':
 			configfile = optarg;
@@ -1172,7 +1192,10 @@ main(int argc, char **argv)
 			max_clients = MAX(1, strtoul(optarg, NULL, 0));
 			break;
 		case 'n':
-			nflag++;
+			daemonize_quick = 1;
+			break;
+		case 'q':
+			quiet_mode = 1;
 			break;
 		default:
 			usage();
@@ -1180,7 +1203,7 @@ main(int argc, char **argv)
 	}
 
 	cfg.parse();
-	if (!dflag && nflag) {
+	if (!no_daemon && daemonize_quick) {
 		cfg.open_pidfile();
 		daemon(0, 0);
 		cfg.write_pidfile();

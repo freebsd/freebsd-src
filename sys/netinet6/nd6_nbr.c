@@ -232,41 +232,28 @@ nd6_ns_input(struct mbuf *m, int off, int icmp6len)
 
 	/* (2) check. */
 	if (ifa == NULL) {
-		struct rtentry *rt;
-		struct sockaddr_in6 tsin6;
-		int need_proxy;
-#ifdef RADIX_MPATH
 		struct route_in6 ro;
-#endif
+		int need_proxy;
 
-		bzero(&tsin6, sizeof tsin6);
-		tsin6.sin6_len = sizeof(struct sockaddr_in6);
-		tsin6.sin6_family = AF_INET6;
-		tsin6.sin6_addr = taddr6;
+		bzero(&ro, sizeof(ro));
+		ro.ro_dst.sin6_len = sizeof(struct sockaddr_in6);
+		ro.ro_dst.sin6_family = AF_INET6;
+		ro.ro_dst.sin6_addr = taddr6;
 
 		/* Always use the default FIB. */
 #ifdef RADIX_MPATH
-		bzero(&ro, sizeof(ro));
-		ro.ro_dst = tsin6;
-		rtalloc_mpath_fib((struct route *)&ro, RTF_ANNOUNCE,
+		rtalloc_mpath_fib((struct route *)&ro, ntohl(taddr6.s6_addr32[3]),
 		    RT_DEFAULT_FIB);
-		rt = ro.ro_rt;
 #else
-		rt = in6_rtalloc1((struct sockaddr *)&tsin6, 0, 0,
-		    RT_DEFAULT_FIB);
+		in6_rtalloc(&ro, RT_DEFAULT_FIB);
 #endif
-		need_proxy = (rt && (rt->rt_flags & RTF_ANNOUNCE) != 0 &&
-		    rt->rt_gateway->sa_family == AF_LINK);
-		if (rt != NULL) {
-			/*
-			 * Make a copy while we can be sure that rt_gateway
-			 * is still stable before unlocking to avoid lock
-			 * order problems.  proxydl will only be used if
-			 * proxy will be set in the next block.
-			 */
+		need_proxy = (ro.ro_rt &&
+		    (ro.ro_rt->rt_flags & RTF_ANNOUNCE) != 0 &&
+		    ro.ro_rt->rt_gateway->sa_family == AF_LINK);
+		if (ro.ro_rt != NULL) {
 			if (need_proxy)
-				proxydl = *SDL(rt->rt_gateway);
-			RTFREE_LOCKED(rt);
+				proxydl = *SDL(ro.ro_rt->rt_gateway);
+			RTFREE(ro.ro_rt);
 		}
 		if (need_proxy) {
 			/*
@@ -736,9 +723,9 @@ nd6_na_input(struct mbuf *m, int off, int icmp6len)
 	 * If no neighbor cache entry is found, NA SHOULD silently be
 	 * discarded.
 	 */
-	IF_AFDATA_LOCK(ifp);
+	IF_AFDATA_RLOCK(ifp);
 	ln = nd6_lookup(&taddr6, LLE_EXCLUSIVE, ifp);
-	IF_AFDATA_UNLOCK(ifp);
+	IF_AFDATA_RUNLOCK(ifp);
 	if (ln == NULL) {
 		goto freeit;
 	}
@@ -1325,12 +1312,23 @@ nd6_dad_timer(struct dadq *dp)
 {
 	CURVNET_SET(dp->dad_vnet);
 	struct ifaddr *ifa = dp->dad_ifa;
+	struct ifnet *ifp = dp->dad_ifa->ifa_ifp;
 	struct in6_ifaddr *ia = (struct in6_ifaddr *)ifa;
 	char ip6buf[INET6_ADDRSTRLEN];
 
 	/* Sanity check */
 	if (ia == NULL) {
 		log(LOG_ERR, "nd6_dad_timer: called with null parameter\n");
+		goto done;
+	}
+	if (ND_IFINFO(ifp)->flags & ND6_IFF_IFDISABLED) {
+		/* Do not need DAD for ifdisabled interface. */
+		TAILQ_REMOVE(&V_dadq, (struct dadq *)dp, dad_list);
+		log(LOG_ERR, "nd6_dad_timer: cancel DAD on %s because of "
+		    "ND6_IFF_IFDISABLED.\n", ifp->if_xname);
+		free(dp, M_IP6NDP);
+		dp = NULL;
+		ifa_free(ifa);
 		goto done;
 	}
 	if (ia->ia6_flags & IN6_IFF_DUPLICATED) {
@@ -1397,9 +1395,12 @@ nd6_dad_timer(struct dadq *dp)
 		} else {
 			/*
 			 * We are done with DAD.  No NA came, no NS came.
-			 * No duplicate address found.
+			 * No duplicate address found.  Check IFDISABLED flag
+			 * again in case that it is changed between the
+			 * beginning of this function and here.
 			 */
-			ia->ia6_flags &= ~IN6_IFF_TENTATIVE;
+			if ((ND_IFINFO(ifp)->flags & ND6_IFF_IFDISABLED) == 0)
+				ia->ia6_flags &= ~IN6_IFF_TENTATIVE;
 
 			nd6log((LOG_DEBUG,
 			    "%s: DAD complete for %s - no duplicates found\n",

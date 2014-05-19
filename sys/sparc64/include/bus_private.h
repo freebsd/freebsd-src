@@ -40,8 +40,7 @@ int sparc64_bus_mem_map(bus_space_tag_t tag, bus_addr_t addr, bus_size_t size,
     int flags, vm_offset_t vaddr, bus_space_handle_t *hp);
 int sparc64_bus_mem_unmap(bus_space_tag_t tag, bus_space_handle_t handle,
     bus_size_t size);
-bus_space_tag_t sparc64_alloc_bus_tag(void *cookie,
-    struct bus_space_tag *ptag, int type, void *barrier);
+bus_space_tag_t sparc64_alloc_bus_tag(void *cookie, int type);
 bus_space_handle_t sparc64_fake_bustag(int space, bus_addr_t addr,
     struct bus_space_tag *ptag);
 

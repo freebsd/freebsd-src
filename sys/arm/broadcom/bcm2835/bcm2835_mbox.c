@@ -39,7 +39,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/watchdog.h>
 #include <machine/bus.h>
 #include <machine/cpu.h>
-#include <machine/frame.h>
 #include <machine/intr.h>
 
 #include <dev/fdt/fdt_common.h>
@@ -129,6 +128,9 @@ static int
 bcm_mbox_probe(device_t dev)
 {
 
+	if (!ofw_bus_status_okay(dev))
+		return (ENXIO);
+
 	if (ofw_bus_is_compatible(dev, "broadcom,bcm2835-mbox")) {
 		device_set_desc(dev, "BCM2835 VideoCore Mailbox");
 		return(BUS_PROBE_DEFAULT);
@@ -168,7 +170,7 @@ bcm_mbox_attach(device_t dev)
 		return (ENXIO);
 	}
 
-	mtx_init(&sc->lock, "vcio mbox", MTX_DEF, 0);
+	mtx_init(&sc->lock, "vcio mbox", NULL, MTX_DEF);
 	for (i = 0; i < BCM2835_MBOX_CHANS; i++) {
 		sc->valid[0] = 0;
 		sc->msg[0] = 0;

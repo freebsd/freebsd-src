@@ -44,14 +44,14 @@ SDT_PROVIDER_DECLARE(udp);
 SDT_PROBE_DECLARE(ip, , , receive);
 SDT_PROBE_DECLARE(ip, , , send);
 
-SDT_PROBE_DECLARE(tcp, , , accept_established);
-SDT_PROBE_DECLARE(tcp, , , accept_refused);
-SDT_PROBE_DECLARE(tcp, , , connect_established);
-SDT_PROBE_DECLARE(tcp, , , connect_refused);
-SDT_PROBE_DECLARE(tcp, , , connect_request);
+SDT_PROBE_DECLARE(tcp, , , accept__established);
+SDT_PROBE_DECLARE(tcp, , , accept__refused);
+SDT_PROBE_DECLARE(tcp, , , connect__established);
+SDT_PROBE_DECLARE(tcp, , , connect__refused);
+SDT_PROBE_DECLARE(tcp, , , connect__request);
 SDT_PROBE_DECLARE(tcp, , , receive);
 SDT_PROBE_DECLARE(tcp, , , send);
-SDT_PROBE_DECLARE(tcp, , , state_change);
+SDT_PROBE_DECLARE(tcp, , , state__change);
 
 SDT_PROBE_DECLARE(udp, , , receive);
 SDT_PROBE_DECLARE(udp, , , send);

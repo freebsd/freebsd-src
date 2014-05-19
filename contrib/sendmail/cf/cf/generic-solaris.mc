@@ -1,6 +1,6 @@
 divert(-1)
 #
-# Copyright (c) 1998, 1999, 2001 Sendmail, Inc. and its suppliers.
+# Copyright (c) 1998, 1999, 2001 Proofpoint, Inc. and its suppliers.
 #	All rights reserved.
 # Copyright (c) 1983 Eric P. Allman.  All rights reserved.
 # Copyright (c) 1988, 1993
@@ -22,7 +22,7 @@ divert(-1)
 #
 
 divert(0)dnl
-VERSIONID(`$Id: generic-solaris.mc,v 8.13 2001/06/27 21:46:30 gshapiro Exp $')
+VERSIONID(`$Id: generic-solaris.mc,v 8.14 2013/11/22 20:51:08 ca Exp $')
 OSTYPE(solaris2)dnl
 DOMAIN(generic)dnl
 MAILER(local)dnl

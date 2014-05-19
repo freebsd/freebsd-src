@@ -1666,7 +1666,8 @@ dollar_label_name (register long n,	/* we just saw "n$:" : n a number.  */
       *q = i % 10 + '0';
       i /= 10;
     }
-  while ((*p++ = *--q) != '\0');;
+  while ((*p++ = *--q) != '\0')
+	;;
 
   /* The label, as a '\0' ended string, starts at symbol_name_build.  */
   return symbol_name_build;
@@ -1837,7 +1838,8 @@ fb_label_name (long n,	/* We just saw "n:", "nf" or "nb" : n a number.  */
       *q = i % 10 + '0';
       i /= 10;
     }
-  while ((*p++ = *--q) != '\0');;
+  while ((*p++ = *--q) != '\0')
+	;;
 
   /* The label, as a '\0' ended string, starts at symbol_name_build.  */
   return (symbol_name_build);

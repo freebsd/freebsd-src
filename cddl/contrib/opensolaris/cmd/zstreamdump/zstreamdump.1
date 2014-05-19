@@ -18,10 +18,11 @@
 .\" information: Portions Copyright [yyyy] [name of copyright owner]
 .\"
 .\" Copyright (c) 2009, Sun Microsystems, Inc. All Rights Reserved.
+.\" Copyright (c) 2013, Delphix. All Rights Reserved.
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 26, 2011
+.Dd December 31, 2013
 .Dt ZSTREAMDUMP 8
 .Os
 .Sh NAME
@@ -30,6 +31,7 @@
 .Sh SYNOPSIS
 .Nm
 .Op Fl C
+.Op Fl d
 .Op Fl v
 .Sh DESCRIPTION
 The
@@ -43,6 +45,8 @@ The following options are supported:
 .Bl -tag -width indent
 .It Fl C
 Suppress the validation of checksums.
+.It Fl d
+Dump contents of blocks modified, implies verbose.
 .It Fl v
 Verbose. Dump all headers, not only begin and end headers.
 .El

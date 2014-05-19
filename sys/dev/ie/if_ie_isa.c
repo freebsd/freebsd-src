@@ -41,7 +41,10 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/lock.h>
 #include <sys/kernel.h>
+#include <sys/malloc.h>
+#include <sys/mutex.h>
 #include <sys/socket.h>
 
 #include <sys/module.h>
@@ -54,7 +57,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/md_var.h>
 
 #include <net/if.h>
-#include <net/if_arp.h>
 #include <net/if_media.h>
 
 #include <isa/isavar.h>

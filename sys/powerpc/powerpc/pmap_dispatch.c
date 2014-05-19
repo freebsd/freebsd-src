@@ -116,14 +116,6 @@ pmap_clear_modify(vm_page_t m)
 }
 
 void
-pmap_clear_reference(vm_page_t m)
-{
-
-	CTR2(KTR_PMAP, "%s(%p)", __func__, m);
-	MMU_CLEAR_REFERENCE(mmu_obj, m);
-}
-
-void
 pmap_copy(pmap_t dst_pmap, pmap_t src_pmap, vm_offset_t dst_addr,
     vm_size_t len, vm_offset_t src_addr)
 {

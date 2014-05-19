@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2004,2005 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2010,2012 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -29,12 +29,14 @@
 /****************************************************************************
  *  Author: Zeyd M. Ben-Halim <zmbenhal@netcom.com> 1995                    *
  *     and: Eric S. Raymond <esr@snark.thyrsus.com>                         *
+ *     and: Juergen Pfeifer                         1996-1999,2008          *
+ *     and: Thomas E. Dickey                                                *
  ****************************************************************************/
 
 /* panel.c -- implementation of panels library, some core routines */
 #include "panel.priv.h"
 
-MODULE_ID("$Id: panel.c,v 1.23 2005/02/19 18:04:31 tom Exp $")
+MODULE_ID("$Id: panel.c,v 1.26 2012/02/23 10:02:15 tom Exp $")
 
 /*+-------------------------------------------------------------------------
 	_nc_retrace_panel (pan)
@@ -43,7 +45,7 @@ MODULE_ID("$Id: panel.c,v 1.23 2005/02/19 18:04:31 tom Exp $")
 NCURSES_EXPORT(PANEL *)
 _nc_retrace_panel(PANEL * pan)
 {
-  T((T_RETURN("%p"), pan));
+  T((T_RETURN("%p"), (void *)pan));
   return pan;
 }
 #endif
@@ -59,9 +61,9 @@ _nc_my_visbuf(const void *ptr)
   char temp[32];
 
   if (ptr != 0)
-    sprintf(temp, "ptr:%p", ptr);
+    _nc_SPRINTF(temp, _nc_SLIMIT(sizeof(temp)) "ptr:%p", ptr);
   else
-    strcpy(temp, "<null>");
+    _nc_STRCPY(temp, "<null>", sizeof(temp));
   return _nc_visbuf(temp);
 }
 #endif
@@ -91,7 +93,9 @@ _nc_dStack(const char *fmt, int num, const PANEL * pan)
 {
   char s80[80];
 
-  sprintf(s80, fmt, num, pan);
+  GetPanelHook(pan);
+
+  _nc_SPRINTF(s80, _nc_SLIMIT(sizeof(s80)) fmt, num, pan);
   _tracef("%s b=%s t=%s", s80,
 	  (_nc_bottom_panel) ? USER_PTR(_nc_bottom_panel->user) : "--",
 	  (_nc_top_panel) ? USER_PTR(_nc_top_panel->user) : "--");
@@ -139,7 +143,7 @@ _nc_Touchline(const PANEL * pan, int start, int count)
 {
   char s80[80];
 
-  sprintf(s80, "Touchline s=%d c=%d", start, count);
+  _nc_SPRINTF(s80, _nc_SLIMIT(sizeof(s80)) "Touchline s=%d c=%d", start, count);
   dPanel(s80, pan);
   touchline(pan->win, start, count);
 }

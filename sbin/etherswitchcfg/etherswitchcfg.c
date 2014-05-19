@@ -274,7 +274,7 @@ set_vlangroup_vid(struct cfg *cfg, char *argv[])
 	etherswitch_vlangroup_t vg;
 	
 	v = strtol(argv[1], NULL, 0);
-	if (v < 0 || v >= IEEE802DOT1Q_VID_MAX)
+	if (v < 0 || v > IEEE802DOT1Q_VID_MAX)
 		errx(EX_USAGE, "vlan must be between 0 and %d", IEEE802DOT1Q_VID_MAX);
 	vg.es_vlangroup = cfg->unit;
 	if (ioctl(cfg->fd, IOETHERSWITCHGETVLANGROUP, &vg) != 0)
@@ -623,7 +623,7 @@ main(int argc, char *argv[])
 				print_info(&cfg);
 			} else if (sscanf(argv[0], "port%d", &cfg.unit) == 1) {
 				if (cfg.unit < 0 || cfg.unit >= cfg.info.es_nports)
-					errx(EX_USAGE, "port unit must be between 0 and %d", cfg.info.es_nports);
+					errx(EX_USAGE, "port unit must be between 0 and %d", cfg.info.es_nports - 1);
 				newmode(&cfg, MODE_PORT);
 			} else if (sscanf(argv[0], "vlangroup%d", &cfg.unit) == 1) {
 				if (cfg.unit < 0 || cfg.unit >= cfg.info.es_nvlangroups)

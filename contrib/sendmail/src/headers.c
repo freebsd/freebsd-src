@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998-2004, 2006, 2007 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 1998-2004, 2006, 2007 Proofpoint, Inc. and its suppliers.
  *	All rights reserved.
  * Copyright (c) 1983, 1995-1997 Eric P. Allman.  All rights reserved.
  * Copyright (c) 1988, 1993
@@ -14,7 +14,7 @@
 #include <sendmail.h>
 #include <sm/sendmail.h>
 
-SM_RCSID("@(#)$Id: headers.c,v 8.318 2012/06/14 23:54:02 ca Exp $")
+SM_RCSID("@(#)$Id: headers.c,v 8.320 2013/11/22 20:51:55 ca Exp $")
 
 static HDR	*allocheader __P((char *, char *, int, SM_RPOOL_T *, bool));
 static size_t	fix_mime_header __P((HDR *, ENVELOPE *));
@@ -377,17 +377,18 @@ hse:
 	if (!bitset(pflag, CHHDR_DEF) && !headeronly &&
 	    !bitset(EF_QUEUERUN, e->e_flags) && sm_strcasecmp(fname, p) == 0)
 	{
-		if (tTd(31, 2))
-		{
-			sm_dprintf("comparing header from (%s) against default (%s or %s)\n",
-				fvalue, e->e_from.q_paddr, e->e_from.q_user);
-		}
 		if (e->e_from.q_paddr != NULL &&
 		    e->e_from.q_mailer != NULL &&
 		    bitnset(M_LOCALMAILER, e->e_from.q_mailer->m_flags) &&
 		    (strcmp(fvalue, e->e_from.q_paddr) == 0 ||
 		     strcmp(fvalue, e->e_from.q_user) == 0))
 			dropfrom = true;
+		if (tTd(31, 2))
+		{
+			sm_dprintf("comparing header from (%s) against default (%s or %s), drop=%d\n",
+				fvalue, e->e_from.q_paddr, e->e_from.q_user,
+				dropfrom);
+		}
 	}
 
 	/* delete default value for this header */
@@ -406,6 +407,19 @@ hse:
 			{
 				/* make this look like the user entered it */
 				h->h_flags |= H_USER;
+
+				/*
+				**  If the MH hack is selected, allow to turn
+				**  it off via a mailer flag to avoid problems
+				**  with setups that remove the F flag from
+				**  the RCPT mailer.
+				*/
+
+		    		if (bitnset(M_NOMHHACK,
+					    e->e_from.q_mailer->m_flags))
+				{
+					h->h_flags &= ~H_CHECK;
+				}
 				return hi->hi_flags;
 			}
 			h->h_value = NULL;

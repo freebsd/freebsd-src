@@ -75,7 +75,7 @@ Encapsulated datagrams are
 prepended an outer datagram and a GRE header.
 The GRE header specifies
 the type of the encapsulated datagram and thus allows for tunneling other
-protocols than IP like e.g.\& AppleTalk.
+protocols than IP.
 GRE mode is also the default tunnel mode on Cisco routers.
 This is also the default mode of operation of the
 .Nm
@@ -169,8 +169,7 @@ Get the GRE key currently used for outgoing packets.
 Note that the IP addresses of the tunnel endpoints may be the same as the
 ones defined with
 .Xr ifconfig 8
-for the interface (as if IP is encapsulated), but need not be, as e.g.\& when
-encapsulating AppleTalk.
+for the interface (as if IP is encapsulated), but need not be.
 .Sh EXAMPLES
 Configuration example:
 .Bd -literal
@@ -294,7 +293,6 @@ The kernel must be set to forward datagrams by setting the
 .Xr sysctl 8
 variable to non-zero.
 .Sh SEE ALSO
-.\" Xr atalk 4 ,
 .Xr gif 4 ,
 .Xr inet 4 ,
 .Xr ip 4 ,

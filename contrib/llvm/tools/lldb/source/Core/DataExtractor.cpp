@@ -37,6 +37,7 @@
 #include "lldb/Symbol/ClangASTContext.h"
 #include "lldb/Target/ExecutionContext.h"
 #include "lldb/Target/ExecutionContextScope.h"
+#include "lldb/Target/SectionLoadList.h"
 #include "lldb/Target/Target.h"
 
 using namespace lldb;
@@ -45,69 +46,97 @@ using namespace lldb_private;
 static inline uint16_t 
 ReadInt16(const unsigned char* ptr, offset_t offset)
 {
-    return *(uint16_t *)(ptr + offset);
+    uint16_t value;
+    memcpy (&value, ptr + offset, 2);
+    return value;
 }
+
 static inline uint32_t
 ReadInt32 (const unsigned char* ptr, offset_t offset)
 {
-    return *(uint32_t *)(ptr + offset);
+    uint32_t value;
+    memcpy (&value, ptr + offset, 4);
+    return value;
 }
 
 static inline uint64_t 
 ReadInt64(const unsigned char* ptr, offset_t offset)
 {
-    return *(uint64_t *)(ptr + offset);
+    uint64_t value;
+    memcpy (&value, ptr + offset, 8);
+    return value;
 }
 
 static inline uint16_t
 ReadInt16(const void* ptr)
 {
-    return *(uint16_t *)(ptr);
+    uint16_t value;
+    memcpy (&value, ptr, 2);
+    return value;
 }
+
 static inline uint32_t
 ReadInt32 (const void* ptr)
 {
-    return *(uint32_t *)(ptr);
+    uint32_t value;
+    memcpy (&value, ptr, 4);
+    return value;
 }
 
 static inline uint64_t
 ReadInt64(const void* ptr)
 {
-    return *(uint64_t *)(ptr);
+    uint64_t value;
+    memcpy (&value, ptr, 8);
+    return value;
 }
 
 static inline uint16_t
 ReadSwapInt16(const unsigned char* ptr, offset_t offset)
 {
-    return llvm::ByteSwap_16(*(uint16_t *)(ptr + offset));
+    uint16_t value;
+    memcpy (&value, ptr + offset, 2);
+    return llvm::ByteSwap_16(value);
 }
 
 static inline uint32_t
 ReadSwapInt32 (const unsigned char* ptr, offset_t offset)
 {
-    return llvm::ByteSwap_32(*(uint32_t *)(ptr + offset));
+    uint32_t value;
+    memcpy (&value, ptr + offset, 4);
+    return llvm::ByteSwap_32(value);
 }
+
 static inline uint64_t 
 ReadSwapInt64(const unsigned char* ptr, offset_t offset) 
 {
-  return llvm::ByteSwap_64(*(uint64_t *)(ptr + offset));
+    uint64_t value;
+    memcpy (&value, ptr + offset, 8);
+    return llvm::ByteSwap_64(value);
 }
 
 static inline uint16_t
 ReadSwapInt16(const void* ptr)
 {
-    return llvm::ByteSwap_16(*(uint16_t *)(ptr));
+    uint16_t value;
+    memcpy (&value, ptr, 2);
+    return llvm::ByteSwap_16(value);
 }
 
 static inline uint32_t
 ReadSwapInt32 (const void* ptr)
 {
-    return llvm::ByteSwap_32(*(uint32_t *)(ptr));
+    uint32_t value;
+    memcpy (&value, ptr, 4);
+    return llvm::ByteSwap_32(value);
 }
+
 static inline uint64_t
 ReadSwapInt64(const void* ptr)
 {
-    return llvm::ByteSwap_64(*(uint64_t *)(ptr));
+    uint64_t value;
+    memcpy (&value, ptr, 8);
+    return llvm::ByteSwap_64(value);
 }
 
 #define NON_PRINTABLE_CHAR '.'
@@ -502,13 +531,17 @@ uint32_t
 DataExtractor::GetU32 (offset_t *offset_ptr) const
 {
     uint32_t val = 0;
-    const uint32_t *data = (const uint32_t *)GetData (offset_ptr, sizeof(val));
+    const uint8_t *data = (const uint8_t *)GetData (offset_ptr, sizeof(val));
     if (data)
     {
         if (m_byte_order != lldb::endian::InlHostByteOrder())
+        {
             val = ReadSwapInt32 (data);
+        }
         else
-            val = *data;
+        {
+            memcpy (&val, data, 4);
+        }
     }
     return val;
 }
@@ -561,13 +594,17 @@ uint64_t
 DataExtractor::GetU64 (offset_t *offset_ptr) const
 {
     uint64_t val = 0;
-    const uint64_t *data = (const uint64_t *)GetData (offset_ptr, sizeof(val));
+    const uint8_t *data = (const uint8_t *)GetData (offset_ptr, sizeof(val));
     if (data)
     {
         if (m_byte_order != lldb::endian::InlHostByteOrder())
+        {
             val = ReadSwapInt64 (data);
+        }
         else
-            val = *data;
+        {
+            memcpy (&val, data, 8);
+        }
     }
     return val;
 }
@@ -935,11 +972,30 @@ DataExtractor::ExtractBytes (offset_t offset, offset_t length, ByteOrder dst_byt
     {
         if (dst_byte_order != GetByteOrder())
         {
+            // Validate that only a word- or register-sized dst is byte swapped
+            assert (length == 1 || length == 2 || length == 4 || length == 8 ||
+                    length == 10 || length == 16 || length == 32);
+
             for (uint32_t i=0; i<length; ++i)
                 ((uint8_t*)dst)[i] = src[length - i - 1];
         }
         else
             ::memcpy (dst, src, length);
+        return length;
+    }
+    return 0;
+}
+
+// Extract data as it exists in target memory
+lldb::offset_t
+DataExtractor::CopyData (offset_t offset,
+                         offset_t length,
+                         void *dst) const
+{
+    const uint8_t *src = PeekData (offset, length);
+    if (src)
+    {
+        ::memcpy (dst, src, length);
         return length;
     }
     return 0;
@@ -963,7 +1019,12 @@ DataExtractor::CopyByteOrderedData (offset_t src_offset,
     assert (dst_void_ptr != NULL);
     assert (dst_len > 0);
     assert (dst_byte_order == eByteOrderBig || dst_byte_order == eByteOrderLittle);
-    
+
+    // Validate that only a word- or register-sized dst is byte swapped
+    assert (dst_byte_order == m_byte_order || dst_len == 1 || dst_len == 2 ||
+            dst_len == 4 || dst_len == 8 || dst_len == 10 || dst_len == 16 ||
+            dst_len == 32);
+
     // Must have valid byte orders set in this object and for destination
     if (!(dst_byte_order == eByteOrderBig || dst_byte_order == eByteOrderLittle) ||
         !(m_byte_order == eByteOrderBig || m_byte_order == eByteOrderLittle))
@@ -1330,18 +1391,22 @@ DumpAPInt (Stream *s, const DataExtractor &data, lldb::offset_t offset, lldb::of
 
 static float half2float (uint16_t half)
 {
+#ifdef _MSC_VER
+    llvm_unreachable("half2float not implemented for MSVC");
+#else
     union{ float       f; uint32_t    u;}u;
     int32_t v = (int16_t) half;
     
     if( 0 == (v & 0x7c00))
     {
         u.u = v & 0x80007FFFU;
-        return u.f * 0x1.0p125f;
+        return u.f * ldexpf(1, 125);
     }
     
     v <<= 13;
     u.u = v | 0x70000000U;
-    return u.f * 0x1.0p-112f;
+    return u.f * ldexpf(1, -112);
+#endif
 }
 
 lldb::offset_t
@@ -1703,29 +1768,35 @@ DataExtractor::Dump (Stream *s,
         case eFormatHexUppercase:
             {
                 bool wantsuppercase  = (item_format == eFormatHexUppercase);
-                if (item_byte_size <= 8)
+                switch (item_byte_size)
                 {
+                case 1:
+                case 2:
+                case 4:
+                case 8:
                     s->Printf(wantsuppercase ? "0x%*.*" PRIX64 : "0x%*.*" PRIx64, (int)(2 * item_byte_size), (int)(2 * item_byte_size), GetMaxU64Bitfield(&offset, item_byte_size, item_bit_size, item_bit_offset));
-                }
-                else
-                {
-                    assert (item_bit_size == 0 && item_bit_offset == 0);
-                    s->PutCString("0x");
-                    const uint8_t *bytes = (const uint8_t* )GetData(&offset, item_byte_size);
-                    if (bytes)
+                    break;
+                default:
                     {
-                        uint32_t idx;
-                        if (m_byte_order == eByteOrderBig)
+                        assert (item_bit_size == 0 && item_bit_offset == 0);
+                        const uint8_t *bytes = (const uint8_t* )GetData(&offset, item_byte_size);
+                        if (bytes)
                         {
-                            for (idx = 0; idx < item_byte_size; ++idx)
-                                s->Printf(wantsuppercase ? "%2.2X" : "%2.2x", bytes[idx]);
-                        }
-                        else
-                        {
-                            for (idx = 0; idx < item_byte_size; ++idx)
-                                s->Printf(wantsuppercase ? "%2.2X" : "%2.2x", bytes[item_byte_size - 1 - idx]);
+                            s->PutCString("0x");
+                            uint32_t idx;
+                                if (m_byte_order == eByteOrderBig)
+                            {
+                                for (idx = 0; idx < item_byte_size; ++idx)
+                                    s->Printf(wantsuppercase ? "%2.2X" : "%2.2x", bytes[idx]);
+                            }
+                            else
+                            {
+                                for (idx = 0; idx < item_byte_size; ++idx)
+                                    s->Printf(wantsuppercase ? "%2.2X" : "%2.2x", bytes[item_byte_size - 1 - idx]);
+                            }
                         }
                     }
+                    break;
                 }
             }
             break;
@@ -1774,6 +1845,7 @@ DataExtractor::Dump (Stream *s,
                                     case ArchSpec::eCore_x86_32_i486:
                                     case ArchSpec::eCore_x86_32_i486sx:
                                     case ArchSpec::eCore_x86_64_x86_64:
+                                    case ArchSpec::eCore_x86_64_x86_64h:
                                         // clang will assert when contructing the apfloat if we use a 16 byte integer value
                                         if (GetAPInt (*this, &offset, 10, apint))
                                         {

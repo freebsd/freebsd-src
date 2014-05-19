@@ -88,6 +88,17 @@ __FBSDID("$FreeBSD$");
 #define	NSFBUFS		(512 + maxusers * 16)
 #endif
 
+static int nsfbufs;
+static int nsfbufspeak;
+static int nsfbufsused;
+
+SYSCTL_INT(_kern_ipc, OID_AUTO, nsfbufs, CTLFLAG_RDTUN, &nsfbufs, 0,
+    "Maximum number of sendfile(2) sf_bufs available");
+SYSCTL_INT(_kern_ipc, OID_AUTO, nsfbufspeak, CTLFLAG_RD, &nsfbufspeak, 0,
+    "Number of sendfile(2) sf_bufs at peak usage");
+SYSCTL_INT(_kern_ipc, OID_AUTO, nsfbufsused, CTLFLAG_RD, &nsfbufsused, 0,
+    "Number of sendfile(2) sf_bufs in use");
+
 static void	sf_buf_init(void *arg);
 SYSINIT(sock_sf, SI_SUB_MBUF, SI_ORDER_ANY, sf_buf_init, NULL);
 
@@ -537,5 +548,5 @@ uma_small_free(void *mem, int size, u_int8_t flags)
 	m = PHYS_TO_VM_PAGE(TLB_DIRECT_TO_PHYS((vm_offset_t)mem));
 	m->wire_count--;
 	vm_page_free(m);
-	atomic_subtract_int(&cnt.v_wire_count, 1);
+	atomic_subtract_int(&vm_cnt.v_wire_count, 1);
 }

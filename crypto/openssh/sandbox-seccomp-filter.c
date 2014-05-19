@@ -91,12 +91,16 @@ static const struct sock_filter preauth_insns[] = {
 	SC_DENY(open, EACCES),
 	SC_ALLOW(getpid),
 	SC_ALLOW(gettimeofday),
+	SC_ALLOW(clock_gettime),
 #ifdef __NR_time /* not defined on EABI ARM */
 	SC_ALLOW(time),
 #endif
 	SC_ALLOW(read),
 	SC_ALLOW(write),
 	SC_ALLOW(close),
+#ifdef __NR_shutdown /* not defined on archs that go via socketcall(2) */
+	SC_ALLOW(shutdown),
+#endif
 	SC_ALLOW(brk),
 	SC_ALLOW(poll),
 #ifdef __NR__newselect
@@ -131,7 +135,7 @@ struct ssh_sandbox {
 };
 
 struct ssh_sandbox *
-ssh_sandbox_init(void)
+ssh_sandbox_init(struct monitor *monitor)
 {
 	struct ssh_sandbox *box;
 

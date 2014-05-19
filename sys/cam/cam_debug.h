@@ -61,13 +61,13 @@ typedef enum {
 #endif
 
 #ifndef CAM_DEBUG_BUS
-#define CAM_DEBUG_BUS		(-1)
+#define CAM_DEBUG_BUS		CAM_BUS_WILDCARD
 #endif
 #ifndef CAM_DEBUG_TARGET
-#define CAM_DEBUG_TARGET	(-1)
+#define CAM_DEBUG_TARGET	CAM_TARGET_WILDCARD
 #endif
 #ifndef CAM_DEBUG_LUN
-#define CAM_DEBUG_LUN		(-1)
+#define CAM_DEBUG_LUN		CAM_LUN_WILDCARD
 #endif
 
 #ifndef CAM_DEBUG_DELAY

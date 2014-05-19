@@ -104,7 +104,7 @@ char **argv;
   case 3:
     whoami_arg.client_address.address_type = IP_ADDR_TYPE;
     the_inet_addr = inet_addr(argv[2]);
-    if ( the_inet_addr == -1)
+    if ( the_inet_addr == INADDR_NONE)
       errx(2, "bogus addr %s", argv[2]);
     bcopy(&the_inet_addr,&whoami_arg.client_address.bp_address_u.ip_addr,4);
 

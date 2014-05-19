@@ -34,6 +34,7 @@
 #include "lldb/Core/ValueObjectSyntheticFilter.h"
 
 #include "lldb/DataFormatters/DataVisualization.h"
+#include "lldb/DataFormatters/ValueObjectPrinter.h"
 
 #include "lldb/Host/Endian.h"
 
@@ -49,6 +50,7 @@
 #include "lldb/Target/ObjCLanguageRuntime.h"
 #include "lldb/Target/Process.h"
 #include "lldb/Target/RegisterContext.h"
+#include "lldb/Target/SectionLoadList.h"
 #include "lldb/Target/Target.h"
 #include "lldb/Target/Thread.h"
 
@@ -170,13 +172,12 @@ ValueObject::UpdateValueIfNeeded (bool update_format)
     // we have an error or not
     if (GetIsConstant())
     {
-        // if you were asked to update your formatters, but did not get a chance to do it
-        // clear your own values (this serves the purpose of faking a stop-id for frozen
-        // objects (which are regarded as constant, but could have changes behind their backs
-        // because of the frozen-pointer depth limit)
-		// TODO: decouple summary from value and then remove this code and only force-clear the summary
+        // if you are constant, things might still have changed behind your back
+        // (e.g. you are a frozen object and things have changed deeper than you cared to freeze-dry yourself)
+        // in this case, your value has not changed, but "computed" entries might have, so you might now have
+        // a different summary, or a different object description. clear these so we will recompute them
         if (update_format && !did_change_formats)
-            ClearUserVisibleData(eClearUserVisibleDataItemsSummary);
+            ClearUserVisibleData(eClearUserVisibleDataItemsSummary | eClearUserVisibleDataItemsDescription);
         return m_error.Success();
     }
 
@@ -245,7 +246,7 @@ ValueObject::UpdateFormatsIfNeeded()
     
     if ( (m_last_format_mgr_revision != DataVisualization::GetCurrentRevision()))
     {
-        SetValueFormat(DataVisualization::ValueFormats::GetFormat (*this, eNoDynamicValues));
+        SetValueFormat(DataVisualization::GetFormat (*this, eNoDynamicValues));
         SetSummaryFormat(DataVisualization::GetSummaryFormat (*this, GetDynamicValueType()));
 #ifndef LLDB_DISABLE_PYTHON
         SetSyntheticChildren(DataVisualization::GetSyntheticChildren (*this, GetDynamicValueType()));
@@ -272,6 +273,7 @@ ValueObject::SetNeedsUpdate ()
 void
 ValueObject::ClearDynamicTypeInformation ()
 {
+    m_children_count_valid = false;
     m_did_calculate_complete_objc_class_type = false;
     m_last_format_mgr_revision = 0;
     m_override_type = ClangASTType();
@@ -357,6 +359,12 @@ ClangASTType
 ValueObject::GetClangType ()
 {
     return MaybeCalculateCompleteType();
+}
+
+TypeImpl
+ValueObject::GetTypeImpl ()
+{
+    return TypeImpl(GetClangType());
 }
 
 DataExtractor &
@@ -592,6 +600,86 @@ ValueObject::GetChildAtIndexPath (const std::vector< std::pair<size_t, bool> > &
             return root;
         }
     }
+    return root;
+}
+
+lldb::ValueObjectSP
+ValueObject::GetChildAtNamePath (const std::initializer_list<ConstString> &names,
+                                 ConstString* name_of_error)
+{
+    if (names.size() == 0)
+        return GetSP();
+    ValueObjectSP root(GetSP());
+    for (ConstString name : names)
+    {
+        root = root->GetChildMemberWithName(name, true);
+        if (!root)
+        {
+            if (name_of_error)
+                *name_of_error = name;
+            return root;
+        }
+    }
+    return root;
+}
+
+lldb::ValueObjectSP
+ValueObject::GetChildAtNamePath (const std::vector<ConstString> &names,
+                                 ConstString* name_of_error)
+{
+    if (names.size() == 0)
+        return GetSP();
+    ValueObjectSP root(GetSP());
+    for (ConstString name : names)
+    {
+        root = root->GetChildMemberWithName(name, true);
+        if (!root)
+        {
+            if (name_of_error)
+                *name_of_error = name;
+            return root;
+        }
+    }
+    return root;
+}
+
+lldb::ValueObjectSP
+ValueObject::GetChildAtNamePath (const std::initializer_list< std::pair<ConstString, bool> > &names,
+                                 ConstString* name_of_error)
+{
+    if (names.size() == 0)
+        return GetSP();
+    ValueObjectSP root(GetSP());
+    for (std::pair<ConstString, bool> name : names)
+    {
+        root = root->GetChildMemberWithName(name.first, name.second);
+        if (!root)
+        {
+            if (name_of_error)
+                *name_of_error = name.first;
+            return root;
+        }
+    }
+    return root;
+}
+
+lldb::ValueObjectSP
+ValueObject::GetChildAtNamePath (const std::vector< std::pair<ConstString, bool> > &names,
+                                 ConstString* name_of_error)
+{
+    if (names.size() == 0)
+        return GetSP();
+        ValueObjectSP root(GetSP());
+        for (std::pair<ConstString, bool> name : names)
+        {
+            root = root->GetChildMemberWithName(name.first, name.second);
+            if (!root)
+            {
+                if (name_of_error)
+                    *name_of_error = name.first;
+                    return root;
+            }
+        }
     return root;
 }
 
@@ -890,14 +978,14 @@ ValueObject::GetPointeeData (DataExtractor& data,
             ValueObjectSP pointee_sp = Dereference(error);
             if (error.Fail() || pointee_sp.get() == NULL)
                 return 0;
-            return pointee_sp->GetDataExtractor().Copy(data);
+            return pointee_sp->GetData(data);
         }
         else
         {
             ValueObjectSP child_sp = GetChildAtIndex(0, true);
             if (child_sp.get() == NULL)
                 return 0;
-            return child_sp->GetDataExtractor().Copy(data);
+            return child_sp->GetData(data);
         }
         return true;
     }
@@ -943,7 +1031,7 @@ ValueObject::GetPointeeData (DataExtractor& data,
                     {
                         heap_buf_ptr->SetByteSize(bytes);
                         size_t bytes_read = process->ReadMemory(addr + offset, heap_buf_ptr->GetBytes(), bytes, error);
-                        if (error.Success())
+                        if (error.Success() || bytes_read > 0)
                         {
                             data.SetData(data_sp);
                             return bytes_read;
@@ -1301,87 +1389,20 @@ ValueObject::GetObjectDescription ()
 }
 
 bool
+ValueObject::GetValueAsCString (const lldb_private::TypeFormatImpl& format,
+                                std::string& destination)
+{
+    if (UpdateValueIfNeeded(false))
+        return format.FormatObject(this,destination);
+    else
+        return false;
+}
+
+bool
 ValueObject::GetValueAsCString (lldb::Format format,
                                 std::string& destination)
 {
-    if (GetClangType().IsAggregateType () == false && UpdateValueIfNeeded(false))
-    {
-        const Value::ContextType context_type = m_value.GetContextType();
-        
-        if (context_type == Value::eContextTypeRegisterInfo)
-        {
-            const RegisterInfo *reg_info = m_value.GetRegisterInfo();
-            if (reg_info)
-            {
-                ExecutionContext exe_ctx (GetExecutionContextRef());
-                
-                StreamString reg_sstr;
-                m_data.Dump (&reg_sstr,
-                             0,
-                             format,
-                             reg_info->byte_size,
-                             1,
-                             UINT32_MAX,
-                             LLDB_INVALID_ADDRESS,
-                             0,
-                             0,
-                             exe_ctx.GetBestExecutionContextScope());
-                destination.swap(reg_sstr.GetString());
-            }
-        }
-        else
-        {
-            ClangASTType clang_type = GetClangType ();
-            if (clang_type)
-            {
-                 // put custom bytes to display in this DataExtractor to override the default value logic
-                lldb_private::DataExtractor special_format_data;
-                if (format == eFormatCString)
-                {
-                    Flags type_flags(clang_type.GetTypeInfo(NULL));
-                    if (type_flags.Test(ClangASTType::eTypeIsPointer) && !type_flags.Test(ClangASTType::eTypeIsObjC))
-                    {
-                        // if we are dumping a pointer as a c-string, get the pointee data as a string
-                        TargetSP target_sp(GetTargetSP());
-                        if (target_sp)
-                        {
-                            size_t max_len = target_sp->GetMaximumSizeOfStringSummary();
-                            Error error;
-                            DataBufferSP buffer_sp(new DataBufferHeap(max_len+1,0));
-                            Address address(GetPointerValue());
-                            if (target_sp->ReadCStringFromMemory(address, (char*)buffer_sp->GetBytes(), max_len, error) && error.Success())
-                                special_format_data.SetData(buffer_sp);
-                        }
-                    }
-                }
-                
-                StreamString sstr;
-                ExecutionContext exe_ctx (GetExecutionContextRef());
-                clang_type.DumpTypeValue (&sstr,                         // The stream to use for display
-                                          format,                        // Format to display this type with
-                                          special_format_data.GetByteSize() ?
-                                          special_format_data: m_data,   // Data to extract from
-                                          0,                             // Byte offset into "m_data"
-                                          GetByteSize(),                 // Byte size of item in "m_data"
-                                          GetBitfieldBitSize(),          // Bitfield bit size
-                                          GetBitfieldBitOffset(),        // Bitfield bit offset
-                                          exe_ctx.GetBestExecutionContextScope());
-                // Don't set the m_error to anything here otherwise
-                // we won't be able to re-format as anything else. The
-                // code for ClangASTType::DumpTypeValue() should always
-                // return something, even if that something contains
-                // an error messsage. "m_error" is used to detect errors
-                // when reading the valid object, not for formatting errors.
-                if (sstr.GetString().empty())
-                    destination.clear();
-                else
-                    destination.swap(sstr.GetString());
-            }
-        }
-        return !destination.empty();
-    }
-    else
-        return false;
+    return GetValueAsCString(TypeFormatImpl_Format(format),destination);
 }
 
 const char *
@@ -1389,11 +1410,12 @@ ValueObject::GetValueAsCString ()
 {
     if (UpdateValueIfNeeded(true))
     {
+        lldb::TypeFormatImplSP format_sp;
         lldb::Format my_format = GetFormat();
         if (my_format == lldb::eFormatDefault)
         {
             if (m_type_format_sp)
-                my_format = m_type_format_sp->GetFormat();
+                format_sp = m_type_format_sp;
             else
             {
                 if (m_is_bitfield_for_scalar)
@@ -1416,7 +1438,9 @@ ValueObject::GetValueAsCString ()
         if (my_format != m_last_format || m_value_str.empty())
         {
             m_last_format = my_format;
-            if (GetValueAsCString(my_format, m_value_str))
+            if (!format_sp)
+                format_sp.reset(new TypeFormatImpl_Format(my_format));
+            if (GetValueAsCString(*format_sp.get(), m_value_str))
             {
                 if (!m_value_did_change && m_old_value_valid)
                 {
@@ -1453,6 +1477,27 @@ ValueObject::GetValueAsUnsigned (uint64_t fail_value, bool *success)
     if (success)
         *success = false;
     return fail_value;
+}
+
+int64_t
+ValueObject::GetValueAsSigned (int64_t fail_value, bool *success)
+{
+    // If our byte size is zero this is an aggregate type that has children
+    if (!GetClangType().IsAggregateType())
+    {
+        Scalar scalar;
+        if (ResolveValue (scalar))
+        {
+            if (success)
+                *success = true;
+                return scalar.SLongLong(fail_value);
+        }
+        // fallthrough, otherwise...
+    }
+    
+    if (success)
+        *success = false;
+        return fail_value;
 }
 
 // if any more "special cases" are added to ValueObject::DumpPrintableRepresentation() please keep
@@ -1501,7 +1546,8 @@ bool
 ValueObject::DumpPrintableRepresentation(Stream& s,
                                          ValueObjectRepresentationStyle val_obj_display,
                                          Format custom_format,
-                                         PrintableRepresentationSpecialCases special)
+                                         PrintableRepresentationSpecialCases special,
+                                         bool do_dump_error)
 {
 
     Flags flags(GetTypeInfo());
@@ -1700,7 +1746,12 @@ ValueObject::DumpPrintableRepresentation(Stream& s,
         else
         {
             if (m_error.Fail())
-                s.Printf("<%s>", m_error.AsCString());
+            {
+                if (do_dump_error)
+                    s.Printf("<%s>", m_error.AsCString());
+                else
+                    return false;
+            }
             else if (val_obj_display == eValueObjectRepresentationStyleSummary)
                 s.PutCString("<no summary available>");
             else if (val_obj_display == eValueObjectRepresentationStyleValue)
@@ -2211,7 +2262,7 @@ ValueObject::CalculateSyntheticValue (bool use_synthetic)
         return;
     
     TargetSP target_sp(GetTargetSP());
-    if (target_sp && (target_sp->GetEnableSyntheticValue() == false || target_sp->GetSuppressSyntheticValue() == true))
+    if (target_sp && target_sp->GetEnableSyntheticValue() == false)
     {
         m_synthetic_value = NULL;
         return;
@@ -3342,329 +3393,39 @@ ValueObject::ExpandArraySliceExpression(const char* expression_cstr,
     }
 }
 
-static void
-DumpValueObject_Impl (Stream &s,
-                      ValueObject *valobj,
-                      const ValueObject::DumpValueObjectOptions& options,
-                      uint32_t ptr_depth,
-                      uint32_t curr_depth)
+void
+ValueObject::LogValueObject (Log *log)
 {
-    if (valobj)
-    {
-        bool update_success = valobj->UpdateValueIfNeeded (true);
-
-        const char *root_valobj_name = 
-            options.m_root_valobj_name.empty() ? 
-                valobj->GetName().AsCString() :
-                options.m_root_valobj_name.c_str();
-        
-        if (update_success && options.m_use_dynamic != eNoDynamicValues)
-        {
-            ValueObject *dynamic_value = valobj->GetDynamicValue(options.m_use_dynamic).get();
-            if (dynamic_value)
-                valobj = dynamic_value;
-        }
-        
-        ClangASTType clang_type = valobj->GetClangType();
-        const Flags type_flags (clang_type.GetTypeInfo ());
-        const char *err_cstr = NULL;
-        const bool has_children = type_flags.Test (ClangASTType::eTypeHasChildren);
-        const bool has_value = type_flags.Test (ClangASTType::eTypeHasValue);
-        
-        const bool print_valobj = options.m_flat_output == false || has_value;
-        
-        if (print_valobj)
-        {
-            if (options.m_show_location)
-            {
-                s.Printf("%s: ", valobj->GetLocationAsCString());
-            }
-
-            s.Indent();
-            
-            bool show_type = true;
-            // if we are at the root-level and been asked to hide the root's type, then hide it
-            if (curr_depth == 0 && options.m_hide_root_type)
-                show_type = false;
-            else
-            // otherwise decide according to the usual rules (asked to show types - always at the root level)
-                show_type = options.m_show_types || (curr_depth == 0 && !options.m_flat_output);
-            
-            if (show_type)
-            {
-                // Some ValueObjects don't have types (like registers sets). Only print
-                // the type if there is one to print
-                ConstString qualified_type_name(valobj->GetQualifiedTypeName());
-                if (qualified_type_name)
-                    s.Printf("(%s) ", qualified_type_name.GetCString());
-            }
-
-            if (options.m_flat_output)
-            {
-                // If we are showing types, also qualify the C++ base classes 
-                const bool qualify_cxx_base_classes = options.m_show_types;
-                if (!options.m_hide_name)
-                {
-                    valobj->GetExpressionPath(s, qualify_cxx_base_classes);
-                    s.PutCString(" =");
-                }
-            }
-            else if (!options.m_hide_name)
-            {
-                const char *name_cstr = root_valobj_name ? root_valobj_name : valobj->GetName().AsCString("");
-                s.Printf ("%s =", name_cstr);
-            }
-
-            if (!options.m_scope_already_checked && !valobj->IsInScope())
-            {
-                err_cstr = "out of scope";
-            }
-        }
-        
-        std::string summary_str;
-        std::string value_str;
-        const char *val_cstr = NULL;
-        const char *sum_cstr = NULL;
-        TypeSummaryImpl* entry = options.m_summary_sp ? options.m_summary_sp.get() : valobj->GetSummaryFormat().get();
-        
-        if (options.m_omit_summary_depth > 0)
-            entry = NULL;
-        
-        bool is_nil = valobj->IsObjCNil();
-        
-        if (err_cstr == NULL)
-        {
-            if (options.m_format != eFormatDefault && options.m_format != valobj->GetFormat())
-            {
-                valobj->GetValueAsCString(options.m_format,
-                                          value_str);
-            }
-            else
-            {
-                val_cstr = valobj->GetValueAsCString();
-                if (val_cstr)
-                    value_str = val_cstr;
-            }
-            err_cstr = valobj->GetError().AsCString();
-        }
-
-        if (err_cstr)
-        {
-            s.Printf (" <%s>\n", err_cstr);
-        }
-        else
-        {
-            const bool is_ref = type_flags.Test (ClangASTType::eTypeIsReference);
-            if (print_valobj)
-            {
-                if (is_nil)
-                    sum_cstr = "nil";
-                else if (options.m_omit_summary_depth == 0)
-                {
-                    if (options.m_summary_sp)
-                    {
-                        valobj->GetSummaryAsCString(entry, summary_str);
-                        sum_cstr = summary_str.c_str();
-                    }
-                    else
-                        sum_cstr = valobj->GetSummaryAsCString();
-                }
-
-                // Make sure we have a value and make sure the summary didn't
-                // specify that the value should not be printed - and do not print
-                // the value if this thing is nil
-                // (but show the value if the user passes a format explicitly)
-                if (!is_nil && !value_str.empty() && (entry == NULL || (entry->DoesPrintValue() || options.m_format != eFormatDefault) || sum_cstr == NULL) && !options.m_hide_value)
-                    s.Printf(" %s", value_str.c_str());
-
-                if (sum_cstr)
-                    s.Printf(" %s", sum_cstr);
-                
-                // let's avoid the overly verbose no description error for a nil thing
-                if (options.m_use_objc && !is_nil)
-                {
-                    if (!options.m_hide_value || !options.m_hide_name)
-                        s.Printf(" ");
-                    const char *object_desc = valobj->GetObjectDescription();
-                    if (object_desc)
-                        s.Printf("%s\n", object_desc);
-                    else
-                        s.Printf ("[no Objective-C description available]\n");
-                    return;
-                }
-            }
-
-            if (curr_depth < options.m_max_depth)
-            {
-                // We will show children for all concrete types. We won't show
-                // pointer contents unless a pointer depth has been specified.
-                // We won't reference contents unless the reference is the 
-                // root object (depth of zero).
-                bool print_children = true;
-
-                // Use a new temporary pointer depth in case we override the
-                // current pointer depth below...
-                uint32_t curr_ptr_depth = ptr_depth;
-
-                const bool is_ptr = type_flags.Test (ClangASTType::eTypeIsPointer);
-                if (is_ptr || is_ref)
-                {
-                    // We have a pointer or reference whose value is an address.
-                    // Make sure that address is not NULL
-                    AddressType ptr_address_type;
-                    if (valobj->GetPointerValue (&ptr_address_type) == 0)
-                        print_children = false;
-
-                    else if (is_ref && curr_depth == 0)
-                    {
-                        // If this is the root object (depth is zero) that we are showing
-                        // and it is a reference, and no pointer depth has been supplied
-                        // print out what it references. Don't do this at deeper depths
-                        // otherwise we can end up with infinite recursion...
-                        curr_ptr_depth = 1;
-                    }
-                    
-                    if (curr_ptr_depth == 0)
-                        print_children = false;
-                }
-                
-                if (print_children && (!entry || entry->DoesPrintChildren() || !sum_cstr))
-                {
-                    ValueObjectSP synth_valobj_sp = valobj->GetSyntheticValue (options.m_use_synthetic);
-                    ValueObject* synth_valobj = (synth_valobj_sp ? synth_valobj_sp.get() : valobj);
-                    
-                    size_t num_children = synth_valobj->GetNumChildren();
-                    bool print_dotdotdot = false;
-                    if (num_children)
-                    {
-                        if (options.m_flat_output)
-                        {
-                            if (print_valobj)
-                                s.EOL();
-                        }
-                        else
-                        {
-                            if (print_valobj)
-                                s.PutCString(is_ref ? ": {\n" : " {\n");
-                            s.IndentMore();
-                        }
-                        
-                        const size_t max_num_children = valobj->GetTargetSP()->GetMaximumNumberOfChildrenToDisplay();
-                        
-                        if (num_children > max_num_children && !options.m_ignore_cap)
-                        {
-                            num_children = max_num_children;
-                            print_dotdotdot = true;
-                        }
-
-                        ValueObject::DumpValueObjectOptions child_options(options);
-                        child_options.SetFormat(options.m_format).SetSummary().SetRootValueObjectName();
-                        child_options.SetScopeChecked(true).SetHideName(options.m_hide_name).SetHideValue(options.m_hide_value)
-                        .SetOmitSummaryDepth(child_options.m_omit_summary_depth > 1 ? child_options.m_omit_summary_depth - 1 : 0);
-                        for (size_t idx=0; idx<num_children; ++idx)
-                        {
-                            ValueObjectSP child_sp(synth_valobj->GetChildAtIndex(idx, true));
-                            if (child_sp.get())
-                            {
-                                DumpValueObject_Impl (s,
-                                                      child_sp.get(),
-                                                      child_options,
-                                                      (is_ptr || is_ref) ? curr_ptr_depth - 1 : curr_ptr_depth,
-                                                      curr_depth + 1);
-                            }
-                        }
-
-                        if (!options.m_flat_output)
-                        {
-                            if (print_dotdotdot)
-                            {
-                                ExecutionContext exe_ctx (valobj->GetExecutionContextRef());
-                                Target *target = exe_ctx.GetTargetPtr();
-                                if (target)
-                                    target->GetDebugger().GetCommandInterpreter().ChildrenTruncated();
-                                s.Indent("...\n");
-                            }
-                            s.IndentLess();
-                            s.Indent("}\n");
-                        }
-                    }
-                    else if (has_children)
-                    {
-                        // Aggregate, no children...
-                        if (print_valobj)
-                            s.PutCString(" {}\n");
-                    }
-                    else
-                    {
-                        if (print_valobj)
-                            s.EOL();
-                    }
-
-                }
-                else
-                {  
-                    s.EOL();
-                }
-            }
-            else
-            {
-                if (has_children && print_valobj)
-                {
-                    s.PutCString("{...}\n");
-                }
-            }
-        }
-    }
+    if (log)
+        return LogValueObject (log, DumpValueObjectOptions::DefaultOptions());
 }
 
 void
-ValueObject::LogValueObject (Log *log,
-                             ValueObject *valobj)
+ValueObject::LogValueObject (Log *log, const DumpValueObjectOptions& options)
 {
-    if (log && valobj)
-        return LogValueObject (log, valobj, DumpValueObjectOptions::DefaultOptions());
-}
-
-void
-ValueObject::LogValueObject (Log *log,
-                             ValueObject *valobj,
-                             const DumpValueObjectOptions& options)
-{
-    if (log && valobj)
+    if (log)
     {
         StreamString s;
-        ValueObject::DumpValueObject (s, valobj, options);
+        Dump (s, options);
         if (s.GetSize())
             log->PutCString(s.GetData());
     }
 }
 
 void
-ValueObject::DumpValueObject (Stream &s,
-                              ValueObject *valobj)
+ValueObject::Dump (Stream &s)
 {
     
-    if (!valobj)
-        return;
-    
-    DumpValueObject_Impl(s,
-                         valobj,
-                         DumpValueObjectOptions::DefaultOptions(),
-                         0,
-                         0);
+    ValueObjectPrinter printer(this,&s,DumpValueObjectOptions::DefaultOptions());
+    printer.PrintValueObject();
 }
 
 void
-ValueObject::DumpValueObject (Stream &s,
-                              ValueObject *valobj,
-                              const DumpValueObjectOptions& options)
+ValueObject::Dump (Stream &s,
+                   const DumpValueObjectOptions& options)
 {
-    DumpValueObject_Impl(s,
-                         valobj,
-                         options,
-                         options.m_max_ptr_depth, // max pointer depth allowed, we will go down from here
-                         0 // current object depth is 0 since we are just starting
-                         );
+    ValueObjectPrinter printer(this,&s,options);
+    printer.PrintValueObject();
 }
 
 ValueObjectSP
@@ -3697,7 +3458,8 @@ ValueObject::CreateConstantValue (const ConstString &name)
     
     if (!valobj_sp)
     {
-        valobj_sp = ValueObjectConstResult::Create (NULL, m_error);
+        ExecutionContext exe_ctx (GetExecutionContextRef());
+        valobj_sp = ValueObjectConstResult::Create (exe_ctx.GetBestExecutionContextScope(), m_error);
     }
     return valobj_sp;
 }
@@ -3951,7 +3713,8 @@ ValueObject::EvaluationPoint::SyncWithProcessState()
 {
 
     // Start with the target, if it is NULL, then we're obviously not going to get any further:
-    ExecutionContext exe_ctx(m_exe_ctx_ref.Lock());
+    const bool thread_and_frame_only_if_stopped = true;
+    ExecutionContext exe_ctx(m_exe_ctx_ref.Lock(thread_and_frame_only_if_stopped));
     
     if (exe_ctx.GetTargetPtr() == NULL)
         return false;

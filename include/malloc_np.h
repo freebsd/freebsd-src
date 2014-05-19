@@ -46,6 +46,18 @@ int	mallctlnametomib(const char *name, size_t *mibp, size_t *miblenp);
 int	mallctlbymib(const size_t *mib, size_t miblen, void *oldp,
     size_t *oldlenp, void *newp, size_t newlen);
 
+#define	MALLOCX_LG_ALIGN(la)	(la)
+#define	MALLOCX_ALIGN(a)	(ffsl(a)-1)
+#define	MALLOCX_ZERO		((int)0x40)
+#define	MALLOCX_ARENA(a)	((int)(((a)+1) << 8))
+
+void	*mallocx(size_t size, int flags);
+void	*rallocx(void *ptr, size_t size, int flags);
+size_t	xallocx(void *ptr, size_t size, size_t extra, int flags);
+size_t	sallocx(const void *ptr, int flags);
+void	dallocx(void *ptr, int flags);
+size_t	nallocx(size_t size, int flags);
+
 #define	ALLOCM_LG_ALIGN(la)	(la)
 #define	ALLOCM_ALIGN(a)	(ffsl(a)-1)
 #define	ALLOCM_ZERO	((int)0x40)
@@ -68,6 +80,12 @@ void *	__realloc(void *, size_t);
 void	__free(void *);
 int	__posix_memalign(void **, size_t, size_t);
 size_t	__malloc_usable_size(const void *);
+void	*__mallocx(size_t size, int flags);
+void	*__rallocx(void *ptr, size_t size, int flags);
+size_t	__xallocx(void *ptr, size_t size, size_t extra, int flags);
+size_t	__sallocx(const void *ptr, int flags);
+void	__dallocx(void *ptr, int flags);
+size_t	__nallocx(size_t size, int flags);
 int	__allocm(void **, size_t *, size_t, int) __nonnull(1);
 int	__rallocm(void **, size_t *, size_t, size_t, int) __nonnull(1);
 int	__sallocm(const void *, size_t *, int) __nonnull(1);

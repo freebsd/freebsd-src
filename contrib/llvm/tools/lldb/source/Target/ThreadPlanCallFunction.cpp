@@ -55,8 +55,6 @@ ThreadPlanCallFunction::ConstructorSetup (Thread &thread,
     if (!abi)
         return false;
     
-    TargetSP target_sp (thread.CalculateTarget());
-
     Log *log(lldb_private::GetLogIfAnyCategoriesSet (LIBLLDB_LOG_STEP));
     
     SetBreakpoints();
@@ -74,7 +72,7 @@ ThreadPlanCallFunction::ConstructorSetup (Thread &thread,
         return false;
     }
     
-    Module *exe_module = target_sp->GetExecutableModulePointer();
+    Module *exe_module = GetTarget().GetExecutableModulePointer();
 
     if (exe_module == NULL)
     {
@@ -107,7 +105,7 @@ ThreadPlanCallFunction::ConstructorSetup (Thread &thread,
         }
     }
     
-    start_load_addr = m_start_addr.GetLoadAddress (target_sp.get());
+    start_load_addr = m_start_addr.GetLoadAddress (&GetTarget());
     
     // Checkpoint the thread state so we can restore it later.
     if (log && log->GetVerbose())
@@ -120,7 +118,7 @@ ThreadPlanCallFunction::ConstructorSetup (Thread &thread,
             log->Printf ("ThreadPlanCallFunction(%p): %s.", this, m_constructor_errors.GetData());
         return false;
     }
-    function_load_addr = m_function_addr.GetLoadAddress (target_sp.get());
+    function_load_addr = m_function_addr.GetLoadAddress (&GetTarget());
     
     return true;
 }
@@ -128,88 +126,22 @@ ThreadPlanCallFunction::ConstructorSetup (Thread &thread,
 ThreadPlanCallFunction::ThreadPlanCallFunction (Thread &thread,
                                                 const Address &function,
                                                 const ClangASTType &return_type,
-                                                addr_t arg,
-                                                bool stop_other_threads,
-                                                bool unwind_on_error,
-                                                bool ignore_breakpoints,
-                                                addr_t *this_arg,
-                                                addr_t *cmd_arg) :
+                                                llvm::ArrayRef<addr_t> args,
+                                                const EvaluateExpressionOptions &options) :
     ThreadPlan (ThreadPlan::eKindCallFunction, "Call function plan", thread, eVoteNoOpinion, eVoteNoOpinion),
     m_valid (false),
-    m_stop_other_threads (stop_other_threads),
+    m_stop_other_threads (options.GetStopOthers()),
+    m_unwind_on_error (options.DoesUnwindOnError()),
+    m_ignore_breakpoints (options.DoesIgnoreBreakpoints()),
+    m_debug_execution (options.GetDebug()),
+    m_trap_exceptions (options.GetTrapExceptions()),
     m_function_addr (function),
     m_function_sp (0),
     m_return_type (return_type),
     m_takedown_done (false),
-    m_stop_address (LLDB_INVALID_ADDRESS),
-    m_unwind_on_error (unwind_on_error),
-    m_ignore_breakpoints (ignore_breakpoints)
-{
-    lldb::addr_t start_load_addr;
-    ABI *abi;
-    lldb::addr_t function_load_addr;
-    if (!ConstructorSetup (thread, abi, start_load_addr, function_load_addr))
-        return;
-        
-    if (this_arg && cmd_arg)
-    {
-        if (!abi->PrepareTrivialCall (thread, 
-                                      m_function_sp, 
-                                      function_load_addr, 
-                                      start_load_addr, 
-                                      this_arg,
-                                      cmd_arg,
-                                      &arg))
-            return;
-    }
-    else if (this_arg)
-    {
-        if (!abi->PrepareTrivialCall (thread, 
-                                      m_function_sp, 
-                                      function_load_addr, 
-                                      start_load_addr, 
-                                      this_arg,
-                                      &arg))
-            return;
-    }
-    else
-    {
-        if (!abi->PrepareTrivialCall (thread, 
-                                      m_function_sp, 
-                                      function_load_addr, 
-                                      start_load_addr, 
-                                      &arg))
-            return;
-    }
-    
-    ReportRegisterState ("Function call was set up.  Register state was:");
-    
-    m_valid = true;    
-}
-
-
-ThreadPlanCallFunction::ThreadPlanCallFunction (Thread &thread,
-                                                const Address &function,
-                                                const ClangASTType &return_type,
-                                                bool stop_other_threads,
-                                                bool unwind_on_error,
-                                                bool ignore_breakpoints,
-                                                addr_t *arg1_ptr,
-                                                addr_t *arg2_ptr,
-                                                addr_t *arg3_ptr,
-                                                addr_t *arg4_ptr,
-                                                addr_t *arg5_ptr,
-                                                addr_t *arg6_ptr) :
-    ThreadPlan (ThreadPlan::eKindCallFunction, "Call function plan", thread, eVoteNoOpinion, eVoteNoOpinion),
-    m_valid (false),
-    m_stop_other_threads (stop_other_threads),
-    m_function_addr (function),
-    m_function_sp (0),
-    m_return_type (return_type),
-    m_takedown_done (false),
-    m_stop_address (LLDB_INVALID_ADDRESS),
-    m_unwind_on_error (unwind_on_error),
-    m_ignore_breakpoints (ignore_breakpoints)
+    m_should_clear_objc_exception_bp(false),
+    m_should_clear_cxx_exception_bp (false),
+    m_stop_address (LLDB_INVALID_ADDRESS)
 {
     lldb::addr_t start_load_addr;
     ABI *abi;
@@ -217,19 +149,12 @@ ThreadPlanCallFunction::ThreadPlanCallFunction (Thread &thread,
     if (!ConstructorSetup (thread, abi, start_load_addr, function_load_addr))
         return;
     
-    if (!abi->PrepareTrivialCall (thread, 
-                                  m_function_sp,
-                                  function_load_addr, 
-                                  start_load_addr, 
-                                  arg1_ptr,
-                                  arg2_ptr,
-                                  arg3_ptr,
-                                  arg4_ptr,
-                                  arg5_ptr,
-                                  arg6_ptr))
-    {
-            return;
-    }
+    if (!abi->PrepareTrivialCall(thread,
+                                 m_function_sp,
+                                 function_load_addr,
+                                 start_load_addr,
+                                 args))
+        return;
     
     ReportRegisterState ("Function call was set up.  Register state was:");
     
@@ -299,7 +224,11 @@ ThreadPlanCallFunction::DoTakedown (bool success)
         m_takedown_done = true;
         m_stop_address = m_thread.GetStackFrameAtIndex(0)->GetRegisterContext()->GetPC();
         m_real_stop_info_sp = GetPrivateStopInfo ();
-        m_thread.RestoreRegisterStateFromCheckpoint(m_stored_thread_state);
+        if (!m_thread.RestoreRegisterStateFromCheckpoint(m_stored_thread_state))
+        {
+            if (log)
+                log->Printf("ThreadPlanCallFunction(%p): DoTakedown failed to restore register state", this);
+        }
         SetPlanComplete(success);
         ClearBreakpoints();
         if (log && log->GetVerbose())
@@ -560,25 +489,34 @@ void
 ThreadPlanCallFunction::SetBreakpoints ()
 {
     ProcessSP process_sp (m_thread.CalculateProcess());
-    if (process_sp)
+    if (m_trap_exceptions && process_sp)
     {
         m_cxx_language_runtime = process_sp->GetLanguageRuntime(eLanguageTypeC_plus_plus);
         m_objc_language_runtime = process_sp->GetLanguageRuntime(eLanguageTypeObjC);
     
         if (m_cxx_language_runtime)
+        {
+            m_should_clear_cxx_exception_bp = !m_cxx_language_runtime->ExceptionBreakpointsAreSet();
             m_cxx_language_runtime->SetExceptionBreakpoints();
+        }
         if (m_objc_language_runtime)
+        {
+            m_should_clear_objc_exception_bp = !m_objc_language_runtime->ExceptionBreakpointsAreSet();
             m_objc_language_runtime->SetExceptionBreakpoints();
+        }
     }
 }
 
 void
 ThreadPlanCallFunction::ClearBreakpoints ()
 {
-    if (m_cxx_language_runtime)
-        m_cxx_language_runtime->ClearExceptionBreakpoints();
-    if (m_objc_language_runtime)
-        m_objc_language_runtime->ClearExceptionBreakpoints();
+    if (m_trap_exceptions)
+    {
+        if (m_cxx_language_runtime && m_should_clear_cxx_exception_bp)
+            m_cxx_language_runtime->ClearExceptionBreakpoints();
+        if (m_objc_language_runtime && m_should_clear_objc_exception_bp)
+            m_objc_language_runtime->ClearExceptionBreakpoints();
+    }
 }
 
 bool
@@ -586,21 +524,24 @@ ThreadPlanCallFunction::BreakpointsExplainStop()
 {
     StopInfoSP stop_info_sp = GetPrivateStopInfo ();
     
-    if ((m_cxx_language_runtime &&
-            m_cxx_language_runtime->ExceptionBreakpointsExplainStop(stop_info_sp))
-       ||(m_objc_language_runtime &&
-            m_objc_language_runtime->ExceptionBreakpointsExplainStop(stop_info_sp)))
+    if (m_trap_exceptions)
     {
-        Log *log(lldb_private::GetLogIfAnyCategoriesSet (LIBLLDB_LOG_STEP));
-        if (log)
-            log->Printf ("ThreadPlanCallFunction::BreakpointsExplainStop - Hit an exception breakpoint, setting plan complete.");
-        
-        SetPlanComplete(false);
-        
-        // If the user has set the ObjC language breakpoint, it would normally get priority over our internal
-        // catcher breakpoint, but in this case we can't let that happen, so force the ShouldStop here.
-        stop_info_sp->OverrideShouldStop (true);
-        return true;
+        if ((m_cxx_language_runtime &&
+                m_cxx_language_runtime->ExceptionBreakpointsExplainStop(stop_info_sp))
+           ||(m_objc_language_runtime &&
+                m_objc_language_runtime->ExceptionBreakpointsExplainStop(stop_info_sp)))
+        {
+            Log *log(lldb_private::GetLogIfAnyCategoriesSet (LIBLLDB_LOG_STEP));
+            if (log)
+                log->Printf ("ThreadPlanCallFunction::BreakpointsExplainStop - Hit an exception breakpoint, setting plan complete.");
+            
+            SetPlanComplete(false);
+            
+            // If the user has set the ObjC language breakpoint, it would normally get priority over our internal
+            // catcher breakpoint, but in this case we can't let that happen, so force the ShouldStop here.
+            stop_info_sp->OverrideShouldStop (true);
+            return true;
+        }
     }
     
     return false;

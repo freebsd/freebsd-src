@@ -1,5 +1,7 @@
 .\" $FreeBSD$
-.TH "LLVM-AR" "1" "2013-04-11" "3.3" "LLVM"
+.\" Man page generated from reStructuredText.
+.
+.TH "LLVM-AR" "1" "2014-01-01" "3.4" "LLVM"
 .SH NAME
 llvm-ar \- LLVM archiver
 .
@@ -29,14 +31,12 @@ level margin: \\n[rst2man-indent\\n[rst2man-indent-level]]
 .\" new: \\n[rst2man-indent\\n[rst2man-indent-level]]
 .in \\n[rst2man-indent\\n[rst2man-indent-level]]u
 ..
-.\" Man page generated from reStructuredText.
-.
 .SH SYNOPSIS
 .sp
 \fBllvm\-ar\fP [\-]{dmpqrtx}[Rabfikou] [relpos] [count] <archive> [files...]
 .SH DESCRIPTION
 .sp
-The \fBllvm\-ar\fP command is similar to the common Unix utility, \fBar\fP. It
+The \fBllvm\-ar\fP command is similar to the common Unix utility, \fBar\fP\&. It
 archives several files together into a single file. The intent for this is
 to produce archive libraries by LLVM bitcode that can be linked into an
 LLVM program. However, the archive can contain any kind of file. By default,
@@ -44,66 +44,26 @@ LLVM program. However, the archive can contain any kind of file. By default,
 only the symbol table needs to be consulted, not each individual file member
 of the archive.
 .sp
-The \fBllvm\-ar\fP command can be used to \fIread\fP both SVR4 and BSD style archive
-files. However, it cannot be used to write them.  While the \fBllvm\-ar\fP command
-produces files that are \fIalmost\fP identical to the format used by other \fBar\fP
-implementations, it has two significant departures in order to make the
-archive appropriate for LLVM. The first departure is that \fBllvm\-ar\fP only
-uses BSD4.4 style long path names (stored immediately after the header) and
-never contains a string table for long names. The second departure is that the
-symbol table is formated for efficient construction of an in\-memory data
-structure that permits rapid (red\-black tree) lookups. Consequently, archives
-produced with \fBllvm\-ar\fP usually won\(aqt be readable or editable with any
-\fBar\fP implementation or useful for linking.  Using the \fBf\fP modifier to flatten
-file names will make the archive readable by other \fBar\fP implementations
-but not for linking because the symbol table format for LLVM is unique. If an
+The \fBllvm\-ar\fP command can be used to \fIread\fP SVR4, GNU and BSD style archive
+files. However, right now it can only write in the GNU format. If an
 SVR4 or BSD style archive is used with the \fBr\fP (replace) or \fBq\fP (quick
-update) operations, the archive will be reconstructed in LLVM format. This
-means that the string table will be dropped (in deference to BSD 4.4 long names)
-and an LLVM symbol table will be added (by default). The system symbol table
-will be retained.
+update) operations, the archive will be reconstructed in GNU format.
 .sp
 Here\(aqs where \fBllvm\-ar\fP departs from previous \fBar\fP implementations:
 .sp
 \fISymbol Table\fP
 .INDENT 0.0
 .INDENT 3.5
-Since \fBllvm\-ar\fP is intended to archive bitcode files, the symbol table
-won\(aqt make much sense to anything but LLVM. Consequently, the symbol table\(aqs
-format has been simplified. It consists simply of a sequence of pairs
-of a file member index number as an LSB 4byte integer and a null\-terminated
-string.
+Since \fBllvm\-ar\fP supports bitcode files. The symbol table it creates
+is in GNU format and includes both native and bitcode files.
 .UNINDENT
 .UNINDENT
 .sp
 \fILong Paths\fP
 .INDENT 0.0
 .INDENT 3.5
-Some \fBar\fP implementations (SVR4) use a separate file member to record long
-path names (> 15 characters). \fBllvm\-ar\fP takes the BSD 4.4 and Mac OS X
-approach which is to simply store the full path name immediately preceding
-the data for the file. The path name is null terminated and may contain the
-slash (/) character.
-.UNINDENT
-.UNINDENT
-.sp
-\fIDirectory Recursion\fP
-.INDENT 0.0
-.INDENT 3.5
-Most \fBar\fP implementations do not recurse through directories but simply
-ignore directories if they are presented to the program in the \fIfiles\fP
-option. \fBllvm\-ar\fP, however, can recurse through directory structures and
-add all the files under a directory, if requested.
-.UNINDENT
-.UNINDENT
-.sp
-\fITOC Verbose Output\fP
-.INDENT 0.0
-.INDENT 3.5
-When \fBllvm\-ar\fP prints out the verbose table of contents (\fBtv\fP option), it
-precedes the usual output with a character indicating the basic kind of
-content in the file. A blank means the file is a regular file. A \(aqB\(aq means
-the file is an LLVM bitcode file. An \(aqS\(aq means the file is the symbol table.
+Currently \fBllvm\-ar\fP can read GNU and BSD long file names, but only writes
+archives with the GNU format.
 .UNINDENT
 .UNINDENT
 .SH OPTIONS
@@ -117,7 +77,7 @@ determine how \fBllvm\-ar\fP should process the archive file.
 .sp
 The Operations and Modifiers are explained in the sections below. The minimal
 set of options is at least one operator and the name of the archive. Typically
-archive files end with a \fB.a\fP suffix, but this is not required. Following
+archive files end with a \fB\&.a\fP suffix, but this is not required. Following
 the \fIarchive\-name\fP comes a list of \fIfiles\fP that indicate the specific members
 of the archive to operate on. If the \fIfiles\fP option is not specified, it
 generally means either "none" or "all" members, depending on the operation.
@@ -144,22 +104,21 @@ archive is not modified.
 .UNINDENT
 .UNINDENT
 .sp
-p[k]
+p
 .INDENT 0.0
 .INDENT 3.5
-Print files to the standard output. The \fIk\fP modifier applies to this
-operation. This operation simply prints the \fIfiles\fP indicated to the
-standard output. If no \fIfiles\fP are specified, the entire archive is printed.
-Printing bitcode files is ill\-advised as they might confuse your terminal
-settings. The \fIp\fP operation never modifies the archive.
+Print files to the standard output. This operation simply prints the
+\fIfiles\fP indicated to the standard output. If no \fIfiles\fP are
+specified, the entire  archive is printed.  Printing bitcode files is
+ill\-advised as they might confuse your terminal settings. The \fIp\fP
+operation never modifies the archive.
 .UNINDENT
 .UNINDENT
 .sp
-q[Rf]
+q
 .INDENT 0.0
 .INDENT 3.5
-Quickly append files to the end of the archive. The \fIR\fP, and \fIf\fP
-modifiers apply to this operation.  This operation quickly adds the
+Quickly append files to the end of the archive.  This operation quickly adds the
 \fIfiles\fP to the archive without checking for duplicates that should be
 removed first. If no \fIfiles\fP are specified, the archive is not modified.
 Because of the way that \fBllvm\-ar\fP constructs the archive file, its dubious
@@ -167,10 +126,10 @@ whether the \fIq\fP operation is any faster than the \fIr\fP operation.
 .UNINDENT
 .UNINDENT
 .sp
-r[Rabfu]
+r[abu]
 .INDENT 0.0
 .INDENT 3.5
-Replace or insert file members. The \fIR\fP, \fIa\fP, \fIb\fP, \fIf\fP, and \fIu\fP
+Replace or insert file members. The \fIa\fP, \fIb\fP,  and \fIu\fP
 modifiers apply to this operation. This operation will replace existing
 \fIfiles\fP or insert them at the end of the archive if they do not exist. If no
 \fIfiles\fP are specified, the archive is not modified.
@@ -223,38 +182,10 @@ identical to the \fIi\fP modifier.
 .UNINDENT
 .UNINDENT
 .sp
-[f]
-.INDENT 0.0
-.INDENT 3.5
-Normally, \fBllvm\-ar\fP stores the full path name to a file as presented to it on
-the command line. With this option, truncated (15 characters max) names are
-used. This ensures name compatibility with older versions of \fBar\fP but may also
-thwart correct extraction of the files (duplicates may overwrite). If used with
-the \fIR\fP option, the directory recursion will be performed but the file names
-will all be flattened to simple file names.
-.UNINDENT
-.UNINDENT
-.sp
 [i]
 .INDENT 0.0
 .INDENT 3.5
 A synonym for the \fIb\fP option.
-.UNINDENT
-.UNINDENT
-.sp
-[k]
-.INDENT 0.0
-.INDENT 3.5
-Normally, \fBllvm\-ar\fP will not print the contents of bitcode files when the
-\fIp\fP operation is used. This modifier defeats the default and allows the
-bitcode members to be printed.
-.UNINDENT
-.UNINDENT
-.sp
-[N]
-.INDENT 0.0
-.INDENT 3.5
-This option is ignored by \fBllvm\-ar\fP but provided for compatibility.
 .UNINDENT
 .UNINDENT
 .sp
@@ -263,24 +194,6 @@ This option is ignored by \fBllvm\-ar\fP but provided for compatibility.
 .INDENT 3.5
 When extracting files, this option will cause \fBllvm\-ar\fP to preserve the
 original modification times of the files it writes.
-.UNINDENT
-.UNINDENT
-.sp
-[P]
-.INDENT 0.0
-.INDENT 3.5
-use full path names when matching
-.UNINDENT
-.UNINDENT
-.sp
-[R]
-.INDENT 0.0
-.INDENT 3.5
-This modifier instructions the \fIr\fP option to recursively process directories.
-Without \fIR\fP, directories are ignored and only those \fIfiles\fP that refer to
-files will be added to the archive. When \fIR\fP is used, any directories specified
-with \fIfiles\fP will be scanned (recursively) to find files to be added to the
-archive. Any file whose name begins with a dot will not be added.
 .UNINDENT
 .UNINDENT
 .sp
@@ -310,8 +223,7 @@ archive is being created. Using this modifier turns off that warning.
 This modifier requests that an archive index (or symbol table) be added to the
 archive. This is the default mode of operation. The symbol table will contain
 all the externally visible functions and global variables defined by all the
-bitcode files in the archive. Using this modifier is more efficient that using
-llvm\-ranlib|llvm\-ranlib which also creates the symbol table.
+bitcode files in the archive.
 .UNINDENT
 .UNINDENT
 .sp
@@ -335,7 +247,7 @@ what is being done.
 .SH STANDARDS
 .sp
 The \fBllvm\-ar\fP utility is intended to provide a superset of the IEEE Std 1003.2
-(POSIX.2) functionality for \fBar\fP. \fBllvm\-ar\fP can read both SVR4 and BSD4.4 (or
+(POSIX.2) functionality for \fBar\fP\&. \fBllvm\-ar\fP can read both SVR4 and BSD4.4 (or
 Mac OS X) archives. If the \fBf\fP modifier is given to the \fBx\fP or \fBr\fP operations
 then \fBllvm\-ar\fP will write SVR4 compatible archives. Without this modifier,
 \fBllvm\-ar\fP will write BSD4.4 compatible archives that have long names
@@ -428,12 +340,6 @@ utility in identifying archive files that have been corrupted.
 .UNINDENT
 .UNINDENT
 .sp
-The LLVM symbol table has the special name "#_LLVM_SYM_TAB_#". It is presumed
-that no regular archive member file will want this name. The LLVM symbol table
-is simply composed of a sequence of triplets: byte offset, length of symbol,
-and the symbol itself. Symbols are not null or newline terminated. Here are
-the details on each of these items:
-.sp
 offset \- vbr encoded 32\-bit integer
 .INDENT 0.0
 .INDENT 3.5
@@ -461,7 +367,7 @@ symbol \- character array
 .INDENT 0.0
 .INDENT 3.5
 The symbol item provides the text of the symbol that is associated with the
-\fIoffset\fP. The symbol is not terminated by any character. Its length is provided
+\fIoffset\fP\&. The symbol is not terminated by any character. Its length is provided
 by the \fIlength\fP field. Note that is allowed (but unwise) to use non\-printing
 characters (even 0x00) in the symbol. This allows for multiple encodings of
 symbol names.
@@ -475,7 +381,7 @@ exit code of 2. Miscellaneous or unknown errors result in an
 exit code of 3.
 .SH SEE ALSO
 .sp
-llvm\-ranlib|llvm\-ranlib, ar(1)
+ar(1)
 .SH AUTHOR
 Maintained by The LLVM Team (http://llvm.org/).
 .SH COPYRIGHT

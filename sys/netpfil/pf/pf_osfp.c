@@ -21,6 +21,9 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/kernel.h>
+#include <sys/lock.h>
+#include <sys/mbuf.h>
+#include <sys/rwlock.h>
 #include <sys/socket.h>
 
 #include <netinet/in.h>
@@ -28,10 +31,10 @@ __FBSDID("$FreeBSD$");
 #include <netinet/tcp.h>
 
 #include <net/if.h>
+#include <net/vnet.h>
 #include <net/pfvar.h>
 
 #include <netinet/ip6.h>
-#include <netinet6/in6_var.h>
 
 static MALLOC_DEFINE(M_PFOSFP, "pf_osfp", "pf(4) operating system fingerprints");
 #define	DPFPRINTF(format, x...)		\

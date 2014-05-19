@@ -117,6 +117,7 @@ __FBSDID("$FreeBSD$");
 #include <net/bpf.h>
 #include <net/ethernet.h>
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/if_arp.h>
 #include <net/if_dl.h>
 #include <net/if_media.h>
@@ -3749,9 +3750,6 @@ msk_intr(void *xsc)
 	if ((status & Y2_IS_STAT_BMU) != 0 && domore == 0)
 		CSR_WRITE_4(sc, STAT_CTRL, SC_STAT_CLR_IRQ);
 
-	/* Clear TWSI IRQ. */
-	if ((status & Y2_IS_TWSI_RDY) != 0)
-		CSR_WRITE_4(sc, B2_I2C_IRQ, 1);
 	/* Reenable interrupts. */
 	CSR_WRITE_4(sc, B0_Y2_SP_ICR, 2);
 
@@ -4070,11 +4068,11 @@ msk_init_locked(struct msk_if_softc *sc_if)
 	CSR_WRITE_4(sc, B0_IMSK, sc->msk_intrmask);
 	CSR_READ_4(sc, B0_IMSK);
 
-	sc_if->msk_flags &= ~MSK_FLAG_LINK;
-	mii_mediachg(mii);
-
 	ifp->if_drv_flags |= IFF_DRV_RUNNING;
 	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
+
+	sc_if->msk_flags &= ~MSK_FLAG_LINK;
+	mii_mediachg(mii);
 
 	callout_reset(&sc_if->msk_tick_ch, hz, msk_tick, sc_if);
 }

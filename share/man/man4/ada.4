@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 8, 2012
+.Dd February 21, 2014
 .Dt ADA 4
 .Os
 .Sh NAME
@@ -126,11 +126,16 @@ The default is currently enabled.
 .It Va kern.cam.ada.write_cache
 .It Va kern.cam.ada. Ns Ar X Ns Va .write_cache
 .Pp
-These variables determines whether device write cache should be enabled
+These variables determine whether device write cache should be enabled
 globally or per-device or disabled.
 Set to 1 to enable write cache, 0 to disable, -1 to leave it as-is.
-Values modified in runtime take effect only after device reset.
-The global default is currently enabled.
+Values modified at runtime take effect only after device reset 
+.Pq using the reset subcommand of Xr camcontrol 8 .
+Because of that, this setting should be changed in
+.Pa /boot/loader.conf
+instead of
+.Pa /etc/sysctl.conf .
+The global default is currently 1.
 The per-device default is to leave it as-is (follow global setting).
 .El
 .Sh FILES

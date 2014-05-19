@@ -108,6 +108,7 @@ PACKAGE_VERSION=@PACKAGE_VERSION@
 
 CC = @CC@
 CXX = @CXX@
+CPP = @CPP@
 EXEEXT = @EXEEXT@
 
 SHELL = @SHELL@
@@ -176,6 +177,7 @@ CXXMAINTAINERFLAGS = @CXXMAINTAINERFLAGS@
 CPPFLAGS = @CPPFLAGS@ $(EXTRA_CPPFLAGS)
 LDFLAGS = @LDFLAGS@ $(EXTRA_LDFLAGS)
 SWIG_LDFLAGS = @SWIG_LDFLAGS@ $(EXTRA_SWIG_LDFLAGS)
+SWIG_CPPFLAGS = @SWIG_CPPFLAGS@ $(EXTRA_CPPFLAGS)
 
 COMPILE = $(CC) $(CMODEFLAGS) $(CPPFLAGS) $(CMAINTAINERFLAGS) $(CFLAGS) $(INCLUDES)
 COMPILE_CXX = $(CXX) $(CXXMODEFLAGS) $(CPPFLAGS) $(CXXMAINTAINERFLAGS) $(CXXFLAGS) $(INCLUDES)
@@ -197,6 +199,19 @@ COMPILE_SWIG_RB = $(LIBTOOL) $(LTFLAGS) --mode=compile $(SWIG_RB_COMPILE) $(CPPF
 COMPILE_JAVAHL_CXX = $(LIBTOOL) $(LTCXXFLAGS) --mode=compile $(COMPILE_CXX) $(LT_CFLAGS) $(JAVAHL_INCLUDES) -o $@ -c
 COMPILE_JAVAHL_JAVAC = $(JAVAC) $(JAVAC_FLAGS)
 COMPILE_JAVAHL_JAVAH = $(JAVAH)
+
+# export an env variable so that the tests can run without being installed
+TEST_SHLIB_VAR_JAVAHL=\
+  if [ "@SVN_APR_SHLIB_PATH_VAR@" = "DYLD_LIBRARY_PATH" ]; then \
+    for d in $(abs_builddir)/subversion/libsvn_*; do \
+      if [ -n "$$DYLD_LIBRARY_PATH" ]; then \
+        @SVN_APR_SHLIB_PATH_VAR@="$$@SVN_APR_SHLIB_PATH_VAR@:$$d/.libs"; \
+      else \
+        @SVN_APR_SHLIB_PATH_VAR@="$$d/.libs"; \
+      fi; \
+    done; \
+    export @SVN_APR_SHLIB_PATH_VAR@; \
+  fi;
 
 # special compilation for files destined for cxxhl
 COMPILE_CXXHL_CXX = $(LIBTOOL) $(LTCXXFLAGS) --mode=compile $(COMPILE_CXX) $(LT_CFLAGS) $(CXXHL_INCLUDES) -o $@ -c
@@ -331,7 +346,7 @@ INSTALL_EXTRA_SWIG_RB=\
 # export an env variable so that the tests can run without being installed
 TEST_SHLIB_VAR_SWIG_RB=\
   if [ "@SVN_APR_SHLIB_PATH_VAR@" = "DYLD_LIBRARY_PATH" ]; then \
-    for d in $(SWIG_PY_DIR)/libsvn_swig_rb $(SWIG_PY_DIR)/../../../libsvn_*; do \
+    for d in $(SWIG_RB_DIR)/libsvn_swig_ruby $(SWIG_RB_DIR)/../../../libsvn_*; do \
       if [ -n "$$DYLD_LIBRARY_PATH" ]; then \
         @SVN_APR_SHLIB_PATH_VAR@="$$@SVN_APR_SHLIB_PATH_VAR@:$$d/.libs"; \
       else \
@@ -340,8 +355,8 @@ TEST_SHLIB_VAR_SWIG_RB=\
     done; \
     export @SVN_APR_SHLIB_PATH_VAR@; \
   fi;
- 
-APXS = @APXS@ 
+
+APXS = @APXS@
 
 PYTHON = @PYTHON@
 PERL = @PERL@
@@ -464,11 +479,13 @@ clean-javahl:
 
 check-tigris-javahl: javahl-compat
 	@FIX_JAVAHL_LIB@
-	$(JAVA) "-Dtest.rootdir=$(javahl_test_rootdir)" "-Dtest.srcdir=$(javahl_test_srcdir)" "-Dtest.rooturl=$(BASE_URL)" "-Dtest.fstype=$(FS_TYPE)" -Djava.library.path=@JAVAHL_OBJDIR@:$(libdir) -classpath $(javahl_compat_tests_PATH):$(javahl_tests_CLASSPATH) "-Dtest.tests=$(JAVAHL_TESTS)" org.tigris.subversion.javahl.RunTests
+	$(TEST_SHLIB_VAR_JAVAHL) \
+	$(JAVA) "-Dtest.rootdir=$(javahl_test_rootdir)" "-Dtest.srcdir=$(javahl_test_srcdir)" "-Dtest.rooturl=$(BASE_URL)" "-Dtest.fstype=$(FS_TYPE)" "-Djava.library.path=@JAVAHL_OBJDIR@:$(libdir)" -classpath "$(javahl_compat_tests_PATH):$(javahl_tests_CLASSPATH)" "-Dtest.tests=$(JAVAHL_TESTS)" org.tigris.subversion.javahl.RunTests
 
 check-apache-javahl: javahl
 	@FIX_JAVAHL_LIB@
-	$(JAVA) "-Dtest.rootdir=$(javahl_test_rootdir)" "-Dtest.srcdir=$(javahl_test_srcdir)" "-Dtest.rooturl=$(BASE_URL)" "-Dtest.fstype=$(FS_TYPE)" -Djava.library.path=@JAVAHL_OBJDIR@:$(libdir) -classpath $(javahl_tests_PATH):$(javahl_tests_CLASSPATH) "-Dtest.tests=$(JAVAHL_TESTS)" org.apache.subversion.javahl.RunTests
+	$(TEST_SHLIB_VAR_JAVAHL) \
+	$(JAVA) "-Dtest.rootdir=$(javahl_test_rootdir)" "-Dtest.srcdir=$(javahl_test_srcdir)" "-Dtest.rooturl=$(BASE_URL)" "-Dtest.fstype=$(FS_TYPE)" "-Djava.library.path=@JAVAHL_OBJDIR@:$(libdir)" -classpath "$(javahl_tests_PATH):$(javahl_tests_CLASSPATH)" "-Dtest.tests=$(JAVAHL_TESTS)" org.apache.subversion.javahl.RunTests
 
 check-javahl: check-apache-javahl
 
@@ -871,7 +888,7 @@ install-swig-rb-doc:
 
 # ctypes-python make targets
 ctypes-python: local-all
-	$(SHELL) $(abs_srcdir)/build/run_ctypesgen.sh "$(LT_EXECUTE)" "$(CPPFLAGS)" "$(EXTRA_CTYPES_LDFLAGS)" "$(PYTHON)" "$(CTYPESGEN)" "$(abs_srcdir)" "$(abs_builddir)" "$(libdir)" "$(SVN_APR_CONFIG)" "$(SVN_APRUTIL_CONFIG)"
+	$(SHELL) $(abs_srcdir)/build/run_ctypesgen.sh "$(LT_EXECUTE)" "$(CPPFLAGS)" "$(EXTRA_CTYPES_LDFLAGS)" "$(PYTHON)" "$(CTYPESGEN)" "$(abs_srcdir)" "$(abs_builddir)" "$(libdir)" "$(SVN_APR_CONFIG)" "$(SVN_APRUTIL_CONFIG)" "$(CPP)"
 
 install-ctypes-python: ctypes-python
 	cd $(CTYPES_PYTHON_SRC_DIR); \

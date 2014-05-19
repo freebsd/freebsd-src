@@ -1,5 +1,6 @@
 /*-
- * Copyright (c) 2012 NetApp, Inc.
+ * Copyright (c) 2014 Advanced Computing Technologies LLC
+ * Written by: John H. Baldwin <jhb@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -11,10 +12,10 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY NETAPP, INC ``AS IS'' AND
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED.  IN NO EVENT SHALL NETAPP, INC OR CONTRIBUTORS BE LIABLE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
  * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
  * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
  * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
@@ -29,10 +30,10 @@
 #ifndef _IOAPIC_H_
 #define	_IOAPIC_H_
 
-struct vmctx;
-
-void	ioapic_init(int num);
-void	ioapic_deassert_pin(struct vmctx *ctx, int pin);
-void	ioapic_assert_pin(struct vmctx *ctx, int pin);
+/*
+ * Allocate a PCI IRQ from the I/O APIC.
+ */
+void	ioapic_init(struct vmctx *ctx);
+int	ioapic_pci_alloc_irq(void);
 
 #endif

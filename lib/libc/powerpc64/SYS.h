@@ -36,7 +36,7 @@
 #define	_SYSCALL(name)						\
 	.text;							\
 	.align 2;						\
-	li	0,(__CONCAT(SYS_, name));			\
+	li	0,(SYS_##name);					\
 	sc
 
 #define	SYSCALL(name)						\
@@ -51,17 +51,17 @@
 	ld	%r0,16(%r1);					\
 	mtlr	%r0;						\
 	blr;							\
-ENTRY(__CONCAT(__sys_, name));						\
-	WEAK_REFERENCE(__CONCAT(__sys_, name), name);			\
-	WEAK_REFERENCE(__CONCAT(__sys_, name), __CONCAT(_, name)); 	\
-	_SYSCALL(name);							\
+ENTRY(__sys_##name);						\
+	WEAK_REFERENCE(__sys_##name, name);			\
+	WEAK_REFERENCE(__sys_##name, _##name);			\
+	_SYSCALL(name);						\
 	bso	2b
 
 #define	PSEUDO(name)						\
 	.text;							\
 	.align 2;						\
-ENTRY(__CONCAT(__sys_, name));					\
-	WEAK_REFERENCE(__CONCAT(__sys_, name), __CONCAT(_, name));   \
+ENTRY(__sys_##name);						\
+	WEAK_REFERENCE(__sys_##name, _##name);			\
 	_SYSCALL(name);						\
 	bnslr;							\
 	mflr	%r0;						\
@@ -77,9 +77,9 @@ ENTRY(__CONCAT(__sys_, name));					\
 #define	RSYSCALL(name)						\
 	.text;							\
 	.align 2;						\
-ENTRY(__CONCAT(__sys_, name));					\
-	WEAK_REFERENCE(__CONCAT(__sys_, name), name);		\
-	WEAK_REFERENCE(__CONCAT(__sys_, name), __CONCAT(_, name));\
+ENTRY(__sys_##name);						\
+	WEAK_REFERENCE(__sys_##name, name);			\
+	WEAK_REFERENCE(__sys_##name, _##name);			\
 	_SYSCALL(name);						\
 	bnslr;							\
 								\

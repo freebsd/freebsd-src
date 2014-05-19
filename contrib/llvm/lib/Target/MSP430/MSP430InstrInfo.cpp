@@ -22,14 +22,17 @@
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/TargetRegistry.h"
 
-#define GET_INSTRINFO_CTOR
+#define GET_INSTRINFO_CTOR_DTOR
 #include "MSP430GenInstrInfo.inc"
 
 using namespace llvm;
 
+// Pin the vtable to this file.
+void MSP430InstrInfo::anchor() {}
+
 MSP430InstrInfo::MSP430InstrInfo(MSP430TargetMachine &tm)
   : MSP430GenInstrInfo(MSP430::ADJCALLSTACKDOWN, MSP430::ADJCALLSTACKUP),
-    RI(tm, *this) {}
+    RI(tm) {}
 
 void MSP430InstrInfo::storeRegToStackSlot(MachineBasicBlock &MBB,
                                           MachineBasicBlock::iterator MI,

@@ -212,6 +212,7 @@ xlate_alloc_handle(xlate_handle_node_t **ret,
 {
   apr_status_t apr_err;
   apr_xlate_t *handle;
+  const char *name;
 
   /* The error handling doesn't support the following cases, since we don't
      use them currently.  Catch this here. */
@@ -224,8 +225,10 @@ xlate_alloc_handle(xlate_handle_node_t **ret,
 #if defined(WIN32)
   apr_err = svn_subr__win32_xlate_open((win32_xlate_t **)&handle, topage,
                                        frompage, pool);
+  name = "win32-xlate: ";
 #else
   apr_err = apr_xlate_open(&handle, topage, frompage, pool);
+  name = "APR: ";
 #endif
 
   if (APR_STATUS_IS_EINVAL(apr_err) || APR_STATUS_IS_ENOTIMPL(apr_err))
@@ -254,9 +257,9 @@ xlate_alloc_handle(xlate_handle_node_t **ret,
          later.  APR_STRERR will be in the local encoding, not in UTF-8, though.
        */
       svn_strerror(apr_err, apr_strerr, sizeof(apr_strerr));
-      return svn_error_create(apr_err, 
-                              svn_error_create(apr_err, NULL, apr_strerr),
-                              errstr);
+      return svn_error_createf(SVN_ERR_PLUGIN_LOAD_FAILURE, 
+                               svn_error_create(apr_err, NULL, apr_strerr),
+                               "%s%s", name, errstr);
     }
 
   /* Allocate and initialize the node. */

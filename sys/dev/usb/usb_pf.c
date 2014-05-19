@@ -45,6 +45,7 @@
 #include <sys/socket.h>
 #include <sys/sockio.h>
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/if_types.h>
 #include <net/if_clone.h>
 #include <net/bpf.h>
@@ -394,7 +395,7 @@ usbpf_xfertap(struct usb_xfer *xfer, int type)
 	bus = xfer->xroot->bus;
 
 	/* sanity checks */
-	if (bus->ifp == NULL)
+	if (bus->ifp == NULL || bus->ifp->if_bpf == NULL)
 		return;
 	if (!bpf_peers_present(bus->ifp->if_bpf))
 		return;

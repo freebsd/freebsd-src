@@ -28,11 +28,12 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
-#include <sys/kernel.h>
-#include <sys/socket.h>
-
-#include <sys/module.h>
 #include <sys/bus.h>
+#include <sys/kernel.h>
+#include <sys/module.h>
+#include <sys/socket.h>
+#include <sys/systm.h>
+#include <sys/taskqueue.h>
 
 #include <machine/bus.h>
 #include <machine/resource.h>
@@ -62,6 +63,9 @@ static int
 smc_fdt_probe(device_t dev)
 {
 	struct	smc_softc *sc;
+
+	if (!ofw_bus_status_okay(dev))
+		return (ENXIO);
 
 	if (ofw_bus_is_compatible(dev, "smsc,lan91c111")) {
 		sc = device_get_softc(dev);

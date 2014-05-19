@@ -7118,7 +7118,7 @@ process_symbol_table (FILE *file)
 
 	      n = print_vma (si, DEC_5);
 	      if (n < 5)
-		fputs ("     " + n, stdout);
+		fputs (&"     "[n], stdout);
 	      printf (" %3lu: ", hn);
 	      print_vma (psym->st_value, LONG_HEX);
 	      putchar (' ');
@@ -9169,6 +9169,8 @@ get_freebsd_note_type (unsigned e_type)
 	return _("NT_FREEBSD_ABI_TAG");
       case NT_FREEBSD_NOINIT_TAG:
 	return _("NT_FREEBSD_NOINIT_TAG");
+      case NT_FREEBSD_ARCH_TAG:
+	return _("NT_FREEBSD_ARCH_TAG");
       default:
 	break;
       }

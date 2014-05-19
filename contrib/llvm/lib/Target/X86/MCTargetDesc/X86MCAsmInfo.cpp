@@ -59,14 +59,23 @@ X86MCAsmInfoDarwin::X86MCAsmInfoDarwin(const Triple &T) {
   // for .S files on other systems.  Perhaps this is because the file system
   // wasn't always case preserving or something.
   CommentString = "##";
-  PCSymbol = ".";
 
   SupportsDebugInformation = true;
-  DwarfUsesInlineInfoSection = true;
   UseDataRegionDirectives = MarkedJTDataRegions;
 
   // Exceptions handling
   ExceptionsType = ExceptionHandling::DwarfCFI;
+
+  // FIXME: this should not depend on the target OS version, but on the ld64
+  // version in use.  From at least >= ld64-97.17 (Xcode 3.2.6) the abs-ified
+  // FDE relocs may be used.
+  DwarfFDESymbolsUseAbsDiff = T.isMacOSX() && !T.isMacOSXVersionLT(10, 6);
+
+  // old assembler lacks some directives
+  // FIXME: this should really be a check on the assembler characteristics
+  // rather than OS version
+  if (T.isMacOSX() && T.isMacOSXVersionLT(10, 6))
+    HasWeakDefCanBeHiddenDirective = false;
 }
 
 X86_64MCAsmInfoDarwin::X86_64MCAsmInfoDarwin(const Triple &Triple)
@@ -92,8 +101,6 @@ X86ELFMCAsmInfo::X86ELFMCAsmInfo(const Triple &T) {
   TextAlignFillValue = 0x90;
 
   PrivateGlobalPrefix = ".L";
-  WeakRefDirective = "\t.weak\t";
-  PCSymbol = ".";
 
   // Set up DWARF directives
   HasLEB128 = true;  // Target asm supports leb128 directives (little-endian)
@@ -139,6 +146,8 @@ X86MCAsmInfoMicrosoft::X86MCAsmInfoMicrosoft(const Triple &Triple) {
   AssemblerDialect = AsmWriterFlavor;
 
   TextAlignFillValue = 0x90;
+
+  AllowAtInName = true;
 }
 
 void X86MCAsmInfoGNUCOFF::anchor() { }

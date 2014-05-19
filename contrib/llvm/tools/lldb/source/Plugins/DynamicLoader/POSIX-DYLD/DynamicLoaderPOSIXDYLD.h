@@ -61,6 +61,9 @@ public:
     virtual lldb_private::Error
     CanLoadImage();
 
+    virtual lldb::addr_t
+    GetThreadLocalData (const lldb::ModuleSP module, const lldb::ThreadSP thread);
+
     //------------------------------------------------------------------
     // PluginInterface protocol
     //------------------------------------------------------------------
@@ -95,6 +98,9 @@ protected:
     /// Rendezvous breakpoint.
     lldb::break_id_t m_dyld_bid;
 
+    /// Loaded module list. (link map for each module)
+    std::map<lldb::ModuleWP, lldb::addr_t, std::owner_less<lldb::ModuleWP>> m_loaded_modules;
+
     /// Enables a breakpoint on a function called by the runtime
     /// linker each time a module is loaded or unloaded.
     void
@@ -117,15 +123,19 @@ protected:
     ///
     /// @param module The module to traverse.
     ///
+    /// @param link_map_addr The virtual address of the link map for the @p module.
+    ///
     /// @param base_addr The virtual base address @p module is loaded at.
-    void
-    UpdateLoadedSections(lldb::ModuleSP module, 
-                         lldb::addr_t base_addr = 0);
+    virtual void
+    UpdateLoadedSections(lldb::ModuleSP module,
+                         lldb::addr_t link_map_addr,
+                         lldb::addr_t base_addr);
 
-    /// Locates or creates a module given by @p file and updates/loads the
-    /// resulting module at the virtual base address @p base_addr.
-    lldb::ModuleSP
-    LoadModuleAtAddress(const lldb_private::FileSpec &file, lldb::addr_t base_addr);
+    /// Removes the loaded sections from the target in @p module.
+    ///
+    /// @param module The module to traverse.
+    virtual void
+    UnloadSections(const lldb::ModuleSP module);
 
     /// Resolves the entry point for the current inferior process and sets a
     /// breakpoint at that address.
@@ -157,11 +167,6 @@ protected:
     /// success and LLDB_INVALID_ADDRESS on failure.
     lldb::addr_t
     GetEntryPoint();
-
-    /// Checks to see if the target module has changed, updates the target
-    /// accordingly and returns the target executable module.
-    lldb::ModuleSP
-    GetTargetExecutable();
 
 private:
     DISALLOW_COPY_AND_ASSIGN(DynamicLoaderPOSIXDYLD);

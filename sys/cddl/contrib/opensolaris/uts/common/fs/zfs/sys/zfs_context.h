@@ -24,7 +24,7 @@
  */
 /*
  * Copyright 2011 Nexenta Systems, Inc.  All rights reserved.
- * Copyright (c) 2012 by Delphix. All rights reserved.
+ * Copyright (c) 2013 by Delphix. All rights reserved.
  */
 
 #ifndef _SYS_ZFS_CONTEXT_H
@@ -94,10 +94,11 @@ extern "C" {
 #include <sys/sunddi.h>
 #ifdef illumos
 #include <sys/cyclic.h>
+#include <sys/callo.h>
 #else	/* FreeBSD */
 #include <sys/callout.h>
 #endif
-
+#include <sys/disp.h>
 #include <machine/stdarg.h>
 
 #include <vm/vm.h>

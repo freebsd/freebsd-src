@@ -52,15 +52,11 @@
 #define	NETISR_IP	1
 #define	NETISR_IGMP	2		/* IGMPv3 output queue */
 #define	NETISR_ROUTE	3		/* routing socket */
-#define	NETISR_AARP	4		/* Appletalk ARP */
-#define	NETISR_ATALK2	5		/* Appletalk phase 2 */
-#define	NETISR_ATALK1	6		/* Appletalk phase 1 */
-#define	NETISR_ARP	7		/* same as AF_LINK */
-#define	NETISR_IPX	8		/* same as AF_IPX */
-#define	NETISR_ETHER	9		/* ethernet input */
-#define	NETISR_IPV6	10
-#define	NETISR_NATM	11
-#define	NETISR_EPAIR	12		/* if_epair(4) */
+#define	NETISR_ARP	4		/* same as AF_LINK */
+#define	NETISR_ETHER	5		/* ethernet input */
+#define	NETISR_IPV6	6
+#define	NETISR_NATM	7
+#define	NETISR_EPAIR	8		/* if_epair(4) */
 
 /*
  * Protocol ordering and affinity policy constants.  See the detailed

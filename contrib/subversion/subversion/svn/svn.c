@@ -56,6 +56,7 @@
 
 #include "private/svn_opt_private.h"
 #include "private/svn_cmdline_private.h"
+#include "private/svn_subr_private.h"
 
 #include "svn_private_config.h"
 
@@ -1640,7 +1641,7 @@ check_lib_versions(void)
     };
   SVN_VERSION_DEFINE(my_version);
 
-  return svn_ver_check_list(&my_version, checklist);
+  return svn_ver_check_list2(&my_version, checklist, svn_ver_equal);
 }
 
 
@@ -2937,6 +2938,10 @@ sub_main(int argc, const char *argv[], apr_pool_t *pool)
                          "because authentication is performed by SSH, not "
                          "Subversion"));
         }
+
+      /* Ensure that stdout is flushed, so the user will see any write errors.
+         This makes sure that output is not silently lost. */
+      err = svn_error_compose_create(err, svn_cmdline_fflush(stdout));
 
       return EXIT_ERROR(err);
     }

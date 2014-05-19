@@ -572,7 +572,7 @@ void radeon_unregister_atpx_handler(void);
 #	define RS480_GTW_LAC_EN	        (1 << 25)
 #	define RS480_2LEVEL_GART	(0 << 30)
 #	define RS480_1LEVEL_GART	(1 << 30)
-#	define RS480_PDC_EN	        (1 << 31)
+#	define RS480_PDC_EN	        (1U << 31)
 #define RS480_GART_BASE                 0x2c
 #define RS480_GART_CACHE_CNTRL          0x2e
 #	define RS480_GART_CACHE_INVALIDATE (1 << 0) /* wait for it to clear */
@@ -688,7 +688,7 @@ void radeon_unregister_atpx_handler(void);
 #       define R300_SUBPIXEL_1_12       (0 << 16)
 #       define R300_SUBPIXEL_1_16       (1 << 16)
 #define R300_DST_PIPE_CONFIG            0x170c
-#       define R300_PIPE_AUTO_CONFIG    (1 << 31)
+#       define R300_PIPE_AUTO_CONFIG    (1U << 31)
 #define R300_RB2D_DSTCACHE_MODE         0x3428
 #       define R300_DC_AUTOFLUSH_ENABLE (1 << 8)
 #       define R300_DC_DC_DISABLE_IGNORE_PE (1 << 17)
@@ -720,8 +720,8 @@ void radeon_unregister_atpx_handler(void);
 #define RADEON_DST_PITCH_OFFSET_C	0x1c80
 #	define RADEON_DST_TILE_LINEAR		(0 << 30)
 #	define RADEON_DST_TILE_MACRO		(1 << 30)
-#	define RADEON_DST_TILE_MICRO		(2 << 30)
-#	define RADEON_DST_TILE_BOTH		(3 << 30)
+#	define RADEON_DST_TILE_MICRO		(2U << 30)
+#	define RADEON_DST_TILE_BOTH		(3U << 30)
 
 #define RADEON_SCRATCH_REG0		0x15e0
 #define RADEON_SCRATCH_REG1		0x15e4
@@ -815,7 +815,7 @@ extern u32 radeon_get_scratch(drm_radeon_private_t *dev_priv, int index);
 #	define R300_RB2D_DC_FLUSH		(3 << 0)
 #	define R300_RB2D_DC_FREE		(3 << 2)
 #	define R300_RB2D_DC_FLUSH_ALL		0xf
-#	define R300_RB2D_DC_BUSY		(1 << 31)
+#	define R300_RB2D_DC_BUSY		(1U << 31)
 #define RADEON_RB3D_CNTL		0x1c3c
 #	define RADEON_ALPHA_BLEND_ENABLE	(1 << 0)
 #	define RADEON_PLANE_MASK_ENABLE		(1 << 1)
@@ -837,16 +837,16 @@ extern u32 radeon_get_scratch(drm_radeon_private_t *dev_priv, int index);
 #	define RADEON_RB3D_ZC_FLUSH		(1 << 0)
 #	define RADEON_RB3D_ZC_FREE		(1 << 2)
 #	define RADEON_RB3D_ZC_FLUSH_ALL		0x5
-#	define RADEON_RB3D_ZC_BUSY		(1 << 31)
+#	define RADEON_RB3D_ZC_BUSY		(1U << 31)
 #define R300_ZB_ZCACHE_CTLSTAT                  0x4f18
 #	define R300_ZC_FLUSH		        (1 << 0)
 #	define R300_ZC_FREE		        (1 << 1)
-#	define R300_ZC_BUSY		        (1 << 31)
+#	define R300_ZC_BUSY		        (1U << 31)
 #define RADEON_RB3D_DSTCACHE_CTLSTAT	0x325c
 #	define RADEON_RB3D_DC_FLUSH		(3 << 0)
 #	define RADEON_RB3D_DC_FREE		(3 << 2)
 #	define RADEON_RB3D_DC_FLUSH_ALL		0xf
-#	define RADEON_RB3D_DC_BUSY		(1 << 31)
+#	define RADEON_RB3D_DC_BUSY		(1U << 31)
 #define R300_RB3D_DSTCACHE_CTLSTAT              0x4e4c
 #	define R300_RB3D_DC_FLUSH		(2 << 0)
 #	define R300_RB3D_DC_FREE		(2 << 2)
@@ -862,7 +862,7 @@ extern u32 radeon_get_scratch(drm_radeon_private_t *dev_priv, int index);
 #	define RADEON_Z_COMPRESSION_ENABLE	(1 << 28)
 #	define RADEON_FORCE_Z_DIRTY		(1 << 29)
 #	define RADEON_Z_WRITE_ENABLE		(1 << 30)
-#	define RADEON_Z_DECOMPRESSION_ENABLE	(1 << 31)
+#	define RADEON_Z_DECOMPRESSION_ENABLE	(1U << 31)
 #define RADEON_RBBM_SOFT_RESET		0x00f0
 #	define RADEON_SOFT_RESET_CP		(1 <<  0)
 #	define RADEON_SOFT_RESET_HI		(1 <<  1)
@@ -916,7 +916,7 @@ extern u32 radeon_get_scratch(drm_radeon_private_t *dev_priv, int index);
 #	define RADEON_TIM_BUSY		(1 << 25) /* not used on r300 */
 #	define RADEON_GA_BUSY		(1 << 26)
 #	define RADEON_CBA2D_BUSY	(1 << 27)
-#	define RADEON_RBBM_ACTIVE	(1 << 31)
+#	define RADEON_RBBM_ACTIVE	(1U << 31)
 #define RADEON_RE_LINE_PATTERN		0x1cd0
 #define RADEON_RE_MISC			0x26c4
 #define RADEON_RE_TOP_LEFT		0x26c0
@@ -1030,7 +1030,7 @@ extern u32 radeon_get_scratch(drm_radeon_private_t *dev_priv, int index);
 #define RADEON_CP_RB_CNTL		0x0704
 #	define RADEON_BUF_SWAP_32BIT		(2 << 16)
 #	define RADEON_RB_NO_UPDATE		(1 << 27)
-#	define RADEON_RB_RPTR_WR_ENA		(1 << 31)
+#	define RADEON_RB_RPTR_WR_ENA		(1U << 31)
 #define RADEON_CP_RB_RPTR_ADDR		0x070c
 #define RADEON_CP_RB_RPTR		0x0710
 #define RADEON_CP_RB_WPTR		0x0714
@@ -1166,7 +1166,7 @@ extern u32 radeon_get_scratch(drm_radeon_private_t *dev_priv, int index);
 #define RADEON_CP_PACKET1_REG0_MASK	0x000007ff
 #define RADEON_CP_PACKET1_REG1_MASK	0x003ff800
 
-#define RADEON_VTX_Z_PRESENT			(1 << 31)
+#define RADEON_VTX_Z_PRESENT			(1U << 31)
 #define RADEON_VTX_PKCOLOR_PRESENT		(1 << 3)
 
 #define RADEON_PRIM_TYPE_NONE			(0 << 0)
@@ -1497,7 +1497,7 @@ extern u32 radeon_get_scratch(drm_radeon_private_t *dev_priv, int index);
 #define R600_GRBM_STATUS                                       0x8010
 #       define R600_CMDFIFO_AVAIL_MASK                         0x1f
 #       define R700_CMDFIFO_AVAIL_MASK                         0xf
-#       define R600_GUI_ACTIVE                                 (1 << 31)
+#       define R600_GUI_ACTIVE                                 (1U << 31)
 #define R600_GRBM_STATUS2                                      0x8014
 #define R600_GRBM_SOFT_RESET                                   0x8020
 #       define R600_SOFT_RESET_CP                              (1 << 0)
@@ -1520,7 +1520,7 @@ extern u32 radeon_get_scratch(drm_radeon_private_t *dev_priv, int index);
 #       define R600_RB_BLKSZ(x)                                ((x) << 8)
 #	define R600_BUF_SWAP_32BIT		               (2 << 16)
 #       define R600_RB_NO_UPDATE                               (1 << 27)
-#       define R600_RB_RPTR_WR_ENA                             (1 << 31)
+#       define R600_RB_RPTR_WR_ENA                             (1U << 31)
 #define R600_CP_RB_RPTR_WR                                     0xc108
 #define R600_CP_RB_RPTR_ADDR                                   0xc10c
 #define R600_CP_RB_RPTR_ADDR_HI                                0xc110
@@ -1593,7 +1593,7 @@ extern u32 radeon_get_scratch(drm_radeon_private_t *dev_priv, int index);
 #define R600_SX_MISC                                           0x28350
 
 #define R600_DB_DEBUG                                          0x9830
-#       define R600_PREZ_MUST_WAIT_FOR_POSTZ_DONE              (1 << 31)
+#       define R600_PREZ_MUST_WAIT_FOR_POSTZ_DONE              (1U << 31)
 #define R600_DB_WATERMARKS                                     0x9838
 #       define R600_DEPTH_FREE(x)                              ((x) << 0)
 #       define R600_DEPTH_FLUSH(x)                             ((x) << 5)
@@ -1699,7 +1699,7 @@ extern u32 radeon_get_scratch(drm_radeon_private_t *dev_priv, int index);
 #       define R600_SYNC_WALKER                                (1 << 25)
 #       define R600_SYNC_ALIGNER                               (1 << 26)
 #       define R600_BILINEAR_PRECISION_6_BIT                   (0 << 31)
-#       define R600_BILINEAR_PRECISION_8_BIT                   (1 << 31)
+#       define R600_BILINEAR_PRECISION_8_BIT                   (1U << 31)
 
 #define R700_TCP_CNTL                                          0x9610
 
@@ -1773,7 +1773,7 @@ extern u32 radeon_get_scratch(drm_radeon_private_t *dev_priv, int index);
 #       define R600_PERSP_GRADIENT_ENA                         (1 << 28)
 #       define R600_LINEAR_GRADIENT_ENA                        (1 << 29)
 #       define R600_POSITION_SAMPLE                            (1 << 30)
-#       define R600_BARYC_AT_SAMPLE_ENA                        (1 << 31)
+#       define R600_BARYC_AT_SAMPLE_ENA                        (1U << 31)
 #define R600_SPI_PS_IN_CONTROL_1                               0x286d0
 #       define R600_GEN_INDEX_PIX                              (1 << 0)
 #       define R600_GEN_INDEX_PIX_ADDR(x)                      ((x) << 1)

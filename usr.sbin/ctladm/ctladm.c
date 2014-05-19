@@ -184,8 +184,8 @@ static struct ctladm_opts option_table[] = {
 	{"inject", CTLADM_CMD_ERR_INJECT, CTLADM_ARG_NEED_TL, "cd:i:p:r:s:"},
 	{"inquiry", CTLADM_CMD_INQUIRY, CTLADM_ARG_NEED_TL, NULL},
 	{"islist", CTLADM_CMD_ISLIST, CTLADM_ARG_NONE, "vx"},
-	{"islogout", CTLADM_CMD_ISLOGOUT, CTLADM_ARG_NONE, "ah:c:i:"},
-	{"isterminate", CTLADM_CMD_ISTERMINATE, CTLADM_ARG_NONE, "ah:c:i:"},
+	{"islogout", CTLADM_CMD_ISLOGOUT, CTLADM_ARG_NONE, "ac:i:p:"},
+	{"isterminate", CTLADM_CMD_ISTERMINATE, CTLADM_ARG_NONE, "ac:i:p:"},
 	{"lunlist", CTLADM_CMD_LUNLIST, CTLADM_ARG_NONE, NULL},
 	{"modesense", CTLADM_CMD_MODESENSE, CTLADM_ARG_NEED_TL, "P:S:dlm:c:"},
 	{"modify", CTLADM_CMD_MODIFY, CTLADM_ARG_NONE, "b:l:s:"},
@@ -700,7 +700,7 @@ cctl_port(int fd, int argc, char **argv, char *combinedopt)
 	} else if ((targ_port == -1) && (port_type == CTL_PORT_NONE))
 		port_type = CTL_PORT_ALL;
 
-	bzero(&entry, sizeof(&entry));
+	bzero(&entry, sizeof(entry));
 
 	/*
 	 * These are needed for all but list/dump mode.
@@ -3442,7 +3442,7 @@ cctl_islist_start_element(void *user_data, const char *name, const char **attr)
 	islist = (struct cctl_islist_data *)user_data;
 	cur_conn = islist->cur_conn;
 	islist->level++;
-	if ((u_int)islist->level > (sizeof(islist->cur_sb) /
+	if ((u_int)islist->level >= (sizeof(islist->cur_sb) /
 	    sizeof(islist->cur_sb[0])))
 		errx(1, "%s: too many nesting levels, %zd max", __func__,
 		     sizeof(islist->cur_sb) / sizeof(islist->cur_sb[0]));
@@ -3633,21 +3633,21 @@ retry:
 
 	if (verbose != 0) {
 		STAILQ_FOREACH(conn, &islist.conn_list, links) {
-			printf("Session ID:      %d\n", conn->connection_id);
-			printf("Initiator name:  %s\n", conn->initiator);
-			printf("Initiator addr:  %s\n", conn->initiator_addr);
-			printf("Initiator alias: %s\n", conn->initiator_alias);
-			printf("Target name:     %s\n", conn->target);
-			printf("Target alias:    %s\n", conn->target_alias);
-			printf("Header digest:   %s\n", conn->header_digest);
-			printf("Data digest:     %s\n", conn->data_digest);
-			printf("DataSegmentLen:  %s\n", conn->max_data_segment_length);
-			printf("ImmediateData:   %s\n", conn->immediate_data ? "Yes" : "No");
-			printf("iSER (RDMA):     %s\n", conn->iser ? "Yes" : "No");
+			printf("Session ID:       %d\n", conn->connection_id);
+			printf("Initiator name:   %s\n", conn->initiator);
+			printf("Initiator portal: %s\n", conn->initiator_addr);
+			printf("Initiator alias:  %s\n", conn->initiator_alias);
+			printf("Target name:      %s\n", conn->target);
+			printf("Target alias:     %s\n", conn->target_alias);
+			printf("Header digest:    %s\n", conn->header_digest);
+			printf("Data digest:      %s\n", conn->data_digest);
+			printf("DataSegmentLen:   %s\n", conn->max_data_segment_length);
+			printf("ImmediateData:    %s\n", conn->immediate_data ? "Yes" : "No");
+			printf("iSER (RDMA):      %s\n", conn->iser ? "Yes" : "No");
 			printf("\n");
 		}
 	} else {
-		printf("%4s %-16s %-36s %-36s\n", "ID", "Address", "Initiator name",
+		printf("%4s %-16s %-36s %-36s\n", "ID", "Portal", "Initiator name",
 		    "Target name");
 		STAILQ_FOREACH(conn, &islist.conn_list, links) {
 			printf("%4u %-16s %-36s %-36s\n",
@@ -3675,12 +3675,6 @@ cctl_islogout(int fd, int argc, char **argv, char *combinedopt)
 			all = 1;
 			nargs++;
 			break;
-		case 'h':
-			initiator_addr = strdup(optarg);
-			if (initiator_addr == NULL)
-				err(1, "%s: strdup", __func__);
-			nargs++;
-			break;
 		case 'c':
 			connection_id = strtoul(optarg, NULL, 0);
 			nargs++;
@@ -3691,16 +3685,22 @@ cctl_islogout(int fd, int argc, char **argv, char *combinedopt)
 				err(1, "%s: strdup", __func__);
 			nargs++;
 			break;
+		case 'p':
+			initiator_addr = strdup(optarg);
+			if (initiator_addr == NULL)
+				err(1, "%s: strdup", __func__);
+			nargs++;
+			break;
 		default:
 			break;
 		}
 	}
 
 	if (nargs == 0)
-		errx(1, "%s: either -a, -h, -c, or -i must be specified",
+		errx(1, "%s: either -a, -c, -i, or -p must be specified",
 		    __func__);
 	if (nargs > 1)
-		errx(1, "%s: only one of -a, -h, -c, or -i may be specified",
+		errx(1, "%s: only one of -a, -c, -i, or -p may be specified",
 		    __func__);
 
 	bzero(&req, sizeof(req));
@@ -3748,12 +3748,6 @@ cctl_isterminate(int fd, int argc, char **argv, char *combinedopt)
 			all = 1;
 			nargs++;
 			break;
-		case 'h':
-			initiator_addr = strdup(optarg);
-			if (initiator_addr == NULL)
-				err(1, "%s: strdup", __func__);
-			nargs++;
-			break;
 		case 'c':
 			connection_id = strtoul(optarg, NULL, 0);
 			nargs++;
@@ -3764,16 +3758,22 @@ cctl_isterminate(int fd, int argc, char **argv, char *combinedopt)
 				err(1, "%s: strdup", __func__);
 			nargs++;
 			break;
+		case 'p':
+			initiator_addr = strdup(optarg);
+			if (initiator_addr == NULL)
+				err(1, "%s: strdup", __func__);
+			nargs++;
+			break;
 		default:
 			break;
 		}
 	}
 
 	if (nargs == 0)
-		errx(1, "%s: either -a, -h, -c, or -i must be specified",
+		errx(1, "%s: either -a, -c, -i, or -p must be specified",
 		    __func__);
 	if (nargs > 1)
-		errx(1, "%s: only one of -a, -h, -c, or -i may be specified",
+		errx(1, "%s: only one of -a, -c, -i, or -p may be specified",
 		    __func__);
 
 	bzero(&req, sizeof(req));
@@ -3848,7 +3848,7 @@ cctl_start_element(void *user_data, const char *name, const char **attr)
 	devlist = (struct cctl_devlist_data *)user_data;
 	cur_lun = devlist->cur_lun;
 	devlist->level++;
-	if ((u_int)devlist->level > (sizeof(devlist->cur_sb) /
+	if ((u_int)devlist->level >= (sizeof(devlist->cur_sb) /
 	    sizeof(devlist->cur_sb[0])))
 		errx(1, "%s: too many nesting levels, %zd max", __func__,
 		     sizeof(devlist->cur_sb) / sizeof(devlist->cur_sb[0]));
@@ -4121,8 +4121,8 @@ usage(int error)
 "         ctladm port        <-l | -o <on|off> | [-w wwnn][-W wwpn]>\n"
 "                            [-p targ_port] [-t port_type] [-q] [-x]\n"
 "         ctladm islist      [-v | -x]\n"
-"         ctladm islogout    <-A | -a addr | -c connection-id | -n name>\n"
-"         ctladm isterminate <-A | -a addr | -c connection-id | -n name>\n"
+"         ctladm islogout    <-a | -c connection-id | -i name | -p portal>\n"
+"         ctladm isterminate <-a | -c connection-id | -i name | -p portal>\n"
 "         ctladm dumpooa\n"
 "         ctladm dumpstructs\n"
 "         ctladm help\n"

@@ -97,6 +97,7 @@
 
 #include <arpa/inet.h>
 
+#include <ctype.h>
 #include <netdb.h>
 #include <errno.h>
 #include <nlist.h>
@@ -108,11 +109,6 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include "gmt2local.h"
-
-/* packing rule for routing socket */
-#define ROUNDUP(a) \
-	((a) > 0 ? (1 + (((a) - 1) | (sizeof(long) - 1))) : sizeof(long))
-#define ADVANCE(x, n) (x += ROUNDUP((n)->sa_len))
 
 #define NEXTADDR(w, s) \
 	if (rtm->rtm_addrs & (w)) { \
@@ -131,12 +127,12 @@ char host_buf[NI_MAXHOST];		/* getnameinfo() */
 char ifix_buf[IFNAMSIZ];		/* if_indextoname() */
 
 int main(int, char **);
-int file(char *);
+static int file(char *);
 void getsocket(void);
 int set(int, char **);
 void get(char *);
 int delete(char *);
-void dump(struct in6_addr *, int);
+void dump(struct sockaddr_in6 *, int);
 static struct in6_nbrinfo *getnbrinfo(struct in6_addr *, int, int);
 static char *ether_str(struct sockaddr_dl *);
 int ndp_ether_aton(char *, u_char *);
@@ -168,9 +164,7 @@ int mode = 0;
 char *arg = NULL;
 
 int
-main(argc, argv)
-	int argc;
-	char **argv;
+main(int argc, char **argv)
 {
 	int ch;
 
@@ -196,7 +190,8 @@ main(argc, argv)
 			break;
 		case 'd':
 		case 'f':
-		case 'i' :
+			exit(file(optarg) ? 1 : 0);
+		case 'i':
 			if (mode) {
 				usage();
 				/*NOTREACHED*/
@@ -319,18 +314,15 @@ main(argc, argv)
 /*
  * Process a file to set standard ndp entries
  */
-int
-file(name)
-	char *name;
+static int
+file(char *name)
 {
 	FILE *fp;
 	int i, retval;
-	char line[100], arg[5][50], *args[5];
+	char line[100], arg[5][50], *args[5], *p;
 
-	if ((fp = fopen(name, "r")) == NULL) {
-		fprintf(stderr, "ndp: cannot open %s\n", name);
-		exit(1);
-	}
+	if ((fp = fopen(name, "r")) == NULL)
+		err(1, "cannot open %s", name);
 	args[0] = &arg[0][0];
 	args[1] = &arg[1][0];
 	args[2] = &arg[2][0];
@@ -338,10 +330,15 @@ file(name)
 	args[4] = &arg[4][0];
 	retval = 0;
 	while (fgets(line, sizeof(line), fp) != NULL) {
+		if ((p = strchr(line, '#')) != NULL)
+			*p = '\0';
+		for (p = line; isblank(*p); p++);
+		if (*p == '\n' || *p == '\0')
+			continue;
 		i = sscanf(line, "%49s %49s %49s %49s %49s",
 		    arg[0], arg[1], arg[2], arg[3], arg[4]);
 		if (i < 2) {
-			fprintf(stderr, "ndp: bad line: %s\n", line);
+			warnx("bad line: %s", line);
 			retval = 1;
 			continue;
 		}
@@ -378,9 +375,7 @@ struct	{
  * Set an individual neighbor cache entry
  */
 int
-set(argc, argv)
-	int argc;
-	char **argv;
+set(int argc, char **argv)
 {
 	register struct sockaddr_in6 *sin = &sin_m;
 	register struct sockaddr_dl *sdl;
@@ -426,7 +421,7 @@ set(argc, argv)
 		/* NOTREACHED */
 	}
 	sin = (struct sockaddr_in6 *)(rtm + 1);
-	sdl = (struct sockaddr_dl *)(ROUNDUP(sin->sin6_len) + (char *)sin);
+	sdl = (struct sockaddr_dl *)(ALIGN(sin->sin6_len) + (char *)sin);
 	if (IN6_ARE_ADDR_EQUAL(&sin->sin6_addr, &sin_m.sin6_addr)) {
 		if (sdl->sdl_family == AF_LINK &&
 		    !(rtm->rtm_flags & RTF_GATEWAY)) {
@@ -455,8 +450,7 @@ overwrite:
  * Display an individual neighbor cache entry
  */
 void
-get(host)
-	char *host;
+get(char *host)
 {
 	struct sockaddr_in6 *sin = &sin_m;
 	struct addrinfo hints, *res;
@@ -472,7 +466,9 @@ get(host)
 		return;
 	}
 	sin->sin6_addr = ((struct sockaddr_in6 *)res->ai_addr)->sin6_addr;
-	dump(&sin->sin6_addr, 0);
+	sin->sin6_scope_id =
+	    ((struct sockaddr_in6 *)res->ai_addr)->sin6_scope_id;
+	dump(sin, 0);
 	if (found_entry == 0) {
 		getnameinfo((struct sockaddr *)sin, sin->sin6_len, host_buf,
 		    sizeof(host_buf), NULL ,0,
@@ -486,8 +482,7 @@ get(host)
  * Delete a neighbor cache entry
  */
 int
-delete(host)
-	char *host;
+delete(char *host)
 {
 	struct sockaddr_in6 *sin = &sin_m;
 	register struct rt_msghdr *rtm = &m_rtmsg.m_rtm;
@@ -515,7 +510,7 @@ delete(host)
 		/* NOTREACHED */
 	}
 	sin = (struct sockaddr_in6 *)(rtm + 1);
-	sdl = (struct sockaddr_dl *)(ROUNDUP(sin->sin6_len) + (char *)sin);
+	sdl = (struct sockaddr_dl *)(ALIGN(sin->sin6_len) + (char *)sin);
 	if (IN6_ARE_ADDR_EQUAL(&sin->sin6_addr, &sin_m.sin6_addr)) {
 		if (sdl->sdl_family == AF_LINK &&
 		    !(rtm->rtm_flags & RTF_GATEWAY)) {
@@ -555,9 +550,7 @@ delete:
  * Dump the entire neighbor cache
  */
 void
-dump(addr, cflag)
-	struct in6_addr *addr;
-	int cflag;
+dump(struct sockaddr_in6 *addr, int cflag)
 {
 	int mib[6];
 	size_t needed;
@@ -607,7 +600,7 @@ again:;
 
 		rtm = (struct rt_msghdr *)next;
 		sin = (struct sockaddr_in6 *)(rtm + 1);
-		sdl = (struct sockaddr_dl *)((char *)sin + ROUNDUP(sin->sin6_len));
+		sdl = (struct sockaddr_dl *)((char *)sin + ALIGN(sin->sin6_len));
 
 		/*
 		 * Some OSes can produce a route that has the LINK flag but
@@ -629,7 +622,9 @@ again:;
 			continue;
 
 		if (addr) {
-			if (!IN6_ARE_ADDR_EQUAL(addr, &sin->sin6_addr))
+			if (IN6_ARE_ADDR_EQUAL(&addr->sin6_addr,
+			    &sin->sin6_addr) == 0 ||
+			    addr->sin6_scope_id != sin->sin6_scope_id)
 				continue;
 			found_entry = 1;
 		} else if (IN6_IS_ADDR_MULTICAST(&sin->sin6_addr))
@@ -762,10 +757,7 @@ again:;
 }
 
 static struct in6_nbrinfo *
-getnbrinfo(addr, ifindex, warning)
-	struct in6_addr *addr;
-	int ifindex;
-	int warning;
+getnbrinfo(struct in6_addr *addr, int ifindex, int warning)
 {
 	static struct in6_nbrinfo nbi;
 	int s;
@@ -806,9 +798,7 @@ ether_str(struct sockaddr_dl *sdl)
 }
 
 int
-ndp_ether_aton(a, n)
-	char *a;
-	u_char *n;
+ndp_ether_aton(char *a, u_char *n)
 {
 	int i, o[6];
 
@@ -840,8 +830,7 @@ usage()
 }
 
 int
-rtmsg(cmd)
-	int cmd;
+rtmsg(int cmd)
 {
 	static int seq;
 	int rlen;
@@ -906,10 +895,7 @@ doit:
 }
 
 void
-ifinfo(ifname, argc, argv)
-	char *ifname;
-	int argc;
-	char **argv;
+ifinfo(char *ifname, int argc, char **argv)
 {
 	struct in6_ndireq nd;
 	int i, s;
@@ -1478,8 +1464,7 @@ harmonize_rtr()
 
 #ifdef SIOCSDEFIFACE_IN6	/* XXX: check SIOCGDEFIFACE_IN6 as well? */
 static void
-setdefif(ifname)
-	char *ifname;
+setdefif(char *ifname)
 {
 	struct in6_ndifreq ndifreq;
 	unsigned int ifindex;
@@ -1532,8 +1517,7 @@ getdefif()
 #endif
 
 static char *
-sec2str(total)
-	time_t total;
+sec2str(time_t total)
 {
 	static char result[256];
 	int days, hours, mins, secs;
@@ -1578,8 +1562,7 @@ sec2str(total)
  * from tcpdump/util.c
  */
 static void
-ts_print(tvp)
-	const struct timeval *tvp;
+ts_print(const struct timeval *tvp)
 {
 	int s;
 

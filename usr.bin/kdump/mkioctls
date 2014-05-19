@@ -21,7 +21,8 @@ LC_ALL=C; export LC_ALL
 # XXX should we use an ANSI cpp?
 ioctl_includes=$(
 	cd $includedir
-	find -H -s * -name '*.h' | grep -v '.*disk.*\.h' | \
+	find -H -s * -name '*.h' | \
+	egrep -v '(.*disk.*|net/pfvar|net/if_pfsync)\.h' | \
 		xargs egrep -l \
 '^#[ 	]*define[ 	]+[A-Za-z_][A-Za-z0-9_]*[ 	]+_IO[^a-z0-9_]' |
 		awk '{printf("#include <%s>\\n", $1)}'
@@ -54,7 +55,10 @@ BEGIN {
 	print "#include <net/ethernet.h>"
 	print "#include <net/if.h>"
 	print "#include <net/if_var.h>"
+	print "#ifdef PF"
 	print "#include <net/pfvar.h>"
+	print "#include <net/if_pfsync.h>"
+	print "#endif"
 	print "#include <net/route.h>"
 	print "#include <netinet/in.h>"
 	print "#include <netinet/ip_mroute.h>"

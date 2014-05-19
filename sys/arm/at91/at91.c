@@ -24,6 +24,8 @@
  * SUCH DAMAGE.
  */
 
+#include "opt_platform.h"
+
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
@@ -42,17 +44,12 @@ __FBSDID("$FreeBSD$");
 
 #define	_ARM32_BUS_DMA_PRIVATE
 #include <machine/bus.h>
+#include <machine/devmap.h>
 #include <machine/intr.h>
 
 #include <arm/at91/at91var.h>
 #include <arm/at91/at91_pmcvar.h>
 #include <arm/at91/at91_aicreg.h>
-
-static struct at91_softc *at91_softc;
-
-static void at91_eoi(void *);
-
-extern const struct pmap_devmap at91_devmap[];
 
 uint32_t at91_master_clock;
 
@@ -64,14 +61,16 @@ at91_bs_map(void *t, bus_addr_t bpa, bus_size_t size, int flags,
 
 	pa = trunc_page(bpa);
 	if (pa >= AT91_PA_BASE + 0xff00000) {
-		*bshp = pa - AT91_PA_BASE + AT91_BASE;
+		*bshp = bpa - AT91_PA_BASE + AT91_BASE;
 		return (0);
 	}
-	if (pa >= AT91_BASE + 0xff00000)
+	if (pa >= AT91_BASE + 0xff00000) {
+		*bshp = bpa;
 		return (0);
+	}
 	endpa = round_page(bpa + size);
 
-	*bshp = (vm_offset_t)pmap_mapdev(pa, endpa - pa);
+	*bshp = (vm_offset_t)pmap_mapdev(pa, endpa - pa) + (bpa - pa);
 
 	return (0);
 }
@@ -81,8 +80,12 @@ at91_bs_unmap(void *t, bus_space_handle_t h, bus_size_t size)
 {
 	vm_offset_t va, endva;
 
+	if (t == 0)
+		return;
 	va = trunc_page((vm_offset_t)t);
-	endva = va + round_page(size);
+	if (va >= AT91_BASE && va <= AT91_BASE + 0xff00000)
+		return;
+	endva = round_page((vm_offset_t)t + size);
 
 	/* Free the kernel virtual mapping. */
 	kva_free(va, endva - va);
@@ -226,13 +229,18 @@ struct bus_space at91_bs_tag = {
 	NULL,
 };
 
+#ifndef FDT
+
+static struct at91_softc *at91_softc;
+
+static void at91_eoi(void *);
+
 static int
 at91_probe(device_t dev)
 {
 
-	device_set_desc(dev, "AT91 device bus");
-	arm_post_filter = at91_eoi;
-	return (0);
+	device_set_desc(dev, soc_info.name);
+	return (BUS_PROBE_NOWILDCARD);
 }
 
 static void
@@ -258,8 +266,8 @@ static int
 at91_attach(device_t dev)
 {
 	struct at91_softc *sc = device_get_softc(dev);
-	const struct pmap_devmap *pdevmap;
-	int i;
+
+	arm_post_filter = at91_eoi;
 
 	at91_softc = sc;
 	sc->sc_st = &at91_bs_tag;
@@ -277,34 +285,15 @@ at91_attach(device_t dev)
 	sc->sc_mem_rman.rm_descr = "AT91 Memory";
 	if (rman_init(&sc->sc_mem_rman) != 0)
 		panic("at91_attach: failed to set up memory rman");
-	for (pdevmap = at91_devmap; pdevmap->pd_va != 0; pdevmap++) {
-		if (rman_manage_region(&sc->sc_mem_rman, pdevmap->pd_va,
-		    pdevmap->pd_va + pdevmap->pd_size - 1) != 0)
-			panic("at91_attach: failed to set up memory rman");
-	}
-
 	/*
-	 * Setup the interrupt table.
+	 * Manage the physical space, defined as being everything that isn't
+	 * DRAM.
 	 */
-	if (soc_info.soc_data == NULL || soc_info.soc_data->soc_irq_prio == NULL)
-		panic("Interrupt priority table missing\n");
-	for (i = 0; i < 32; i++) {
-		bus_space_write_4(sc->sc_st, sc->sc_aic_sh, IC_SVR +
-		    i * 4, i);
-		/* Priority. */
-		bus_space_write_4(sc->sc_st, sc->sc_aic_sh, IC_SMR + i * 4,
-		    soc_info.soc_data->soc_irq_prio[i]);
-		if (i < 8)
-			bus_space_write_4(sc->sc_st, sc->sc_aic_sh, IC_EOICR,
-			    1);
-	}
-
-	bus_space_write_4(sc->sc_st, sc->sc_aic_sh, IC_SPU, 32);
-	/* No debug. */
-	bus_space_write_4(sc->sc_st, sc->sc_aic_sh, IC_DCR, 0);
-	/* Disable and clear all interrupts. */
-	bus_space_write_4(sc->sc_st, sc->sc_aic_sh, IC_IDCR, 0xffffffff);
-	bus_space_write_4(sc->sc_st, sc->sc_aic_sh, IC_ICCR, 0xffffffff);
+	if (rman_manage_region(&sc->sc_mem_rman, 0, PHYSADDR - 1) != 0)
+		panic("at91_attach: failed to set up memory rman");
+	if (rman_manage_region(&sc->sc_mem_rman, PHYSADDR + (256 << 20),
+	    0xfffffffful) != 0)
+		panic("at91_attach: failed to set up memory rman");
 
         /*
          * Add this device's children...
@@ -326,6 +315,7 @@ at91_alloc_resource(device_t dev, device_t child, int type, int *rid,
 	struct resource_list_entry *rle;
 	struct at91_ivar *ivar = device_get_ivars(child);
 	struct resource_list *rl = &ivar->resources;
+	bus_space_handle_t bsh;
 
 	if (device_get_parent(child) != dev)
 		return (BUS_ALLOC_RESOURCE(device_get_parent(dev), child,
@@ -351,8 +341,10 @@ at91_alloc_resource(device_t dev, device_t child, int type, int *rid,
 		rle->res = rman_reserve_resource(&sc->sc_mem_rman,
 		    start, end, count, flags, child);
 		if (rle->res != NULL) {
+			bus_space_map(&at91_bs_tag, start,
+			    rman_get_size(rle->res), 0, &bsh);
 			rman_set_bustag(rle->res, &at91_bs_tag);
-			rman_set_bushandle(rle->res, start);
+			rman_set_bushandle(rle->res, bsh);
 		}
 		break;
 	}
@@ -462,42 +454,6 @@ at91_print_child(device_t dev, device_t child)
 	return (retval);
 }
 
-void
-arm_mask_irq(uintptr_t nb)
-{
-	
-	bus_space_write_4(at91_softc->sc_st,
-	    at91_softc->sc_aic_sh, IC_IDCR, 1 << nb);
-}
-
-int
-arm_get_next_irq(int last __unused)
-{
-	int status;
-	int irq;
-	
-	irq = bus_space_read_4(at91_softc->sc_st,
-	    at91_softc->sc_aic_sh, IC_IVR);
-	status = bus_space_read_4(at91_softc->sc_st,
-	    at91_softc->sc_aic_sh, IC_ISR);
-	if (status == 0) {
-		bus_space_write_4(at91_softc->sc_st,
-		    at91_softc->sc_aic_sh, IC_EOICR, 1);
-		return (-1);
-	}
-	return (irq);
-}
-
-void
-arm_unmask_irq(uintptr_t nb)
-{
-	
-	bus_space_write_4(at91_softc->sc_st,
-	at91_softc->sc_aic_sh, IC_IECR, 1 << nb);
-	bus_space_write_4(at91_softc->sc_st, at91_softc->sc_aic_sh,
-	    IC_EOICR, 0);
-}
-
 static void
 at91_eoi(void *unused)
 {
@@ -534,8 +490,14 @@ at91_add_child(device_t dev, int prio, const char *name, int unit,
 		bus_set_resource(kid, SYS_RES_IRQ, 1, irq1, 1);
 	if (irq2 != 0)
 		bus_set_resource(kid, SYS_RES_IRQ, 2, irq2, 1);
-	if (addr != 0 && addr < AT91_BASE) 
-		addr += AT91_BASE;
+	/*
+	 * Special case for on-board devices. These have their address
+	 * defined relative to AT91_PA_BASE in all the register files we
+	 * have. We could change this, but that's a lot of effort which
+	 * will be obsoleted when FDT arrives.
+	 */
+	if (addr != 0 && addr < 0x10000000 && addr >= 0x0f000000) 
+		addr += AT91_PA_BASE;
 	if (addr != 0)
 		bus_set_resource(kid, SYS_RES_MEMORY, 0, addr, size);
 }
@@ -568,3 +530,4 @@ static driver_t at91_driver = {
 static devclass_t at91_devclass;
 
 DRIVER_MODULE(atmelarm, nexus, at91_driver, at91_devclass, 0, 0);
+#endif

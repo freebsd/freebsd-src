@@ -57,12 +57,8 @@ $FreeBSD$
 #define	IF_Kbps(x)	((uintmax_t)(x) * 1000)	/* kilobits/sec. */
 #define	IF_Mbps(x)	(IF_Kbps((x) * 1000))	/* megabits/sec. */
 #define	IF_Gbps(x)	(IF_Mbps((x) * 1000))	/* gigabits/sec. */
-static __inline void
-if_initbaudrate(struct ifnet *ifp, uintmax_t baud)
-{
-	ifp->if_baudrate = baud;
-}
 #endif
+
 #ifndef VLAN_CAPABILITIES
 #define VLAN_CAPABILITIES(ifp)
 #define mxge_vlans_active(sc) (sc)->ifp->if_nvlans

@@ -313,24 +313,24 @@ APU_DECLARE_DATA extern apr_pool_t *apr_hook_global_pool;
 
 /**
  * A global variable to determine if debugging information about the
- * hooks functions should be printed
+ * hooks functions should be printed.
  */ 
 APU_DECLARE_DATA extern int apr_hook_debug_enabled;
 
 /**
- * The name of the module that is currently registering a function
+ * The name of the module that is currently registering a function.
  */ 
 APU_DECLARE_DATA extern const char *apr_hook_debug_current;
 
 /**
- * Register a hook function to be sorted
+ * Register a hook function to be sorted.
  * @param szHookName The name of the Hook the function is registered for
  * @param aHooks The array which stores all of the functions for this hook
  */
 APU_DECLARE(void) apr_hook_sort_register(const char *szHookName, 
                                         apr_array_header_t **aHooks);
 /**
- * Sort all of the registerd functions for a given hook
+ * Sort all of the registered functions for a given hook.
  */
 APU_DECLARE(void) apr_hook_sort_all(void);
 

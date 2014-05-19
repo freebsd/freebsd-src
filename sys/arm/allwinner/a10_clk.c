@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2013 Ganbold Tsagaankhuu <ganbold@gmail.com>
+ * Copyright (c) 2013 Ganbold Tsagaankhuu <ganbold@freebsd.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -41,7 +41,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/watchdog.h>
 #include <machine/bus.h>
 #include <machine/cpu.h>
-#include <machine/frame.h>
 #include <machine/intr.h>
 
 #include <dev/fdt/fdt_common.h>
@@ -70,6 +69,10 @@ static struct a10_ccm_softc *a10_ccm_sc = NULL;
 static int
 a10_ccm_probe(device_t dev)
 {
+
+	if (!ofw_bus_status_okay(dev))
+		return (ENXIO);
+
 	if (ofw_bus_is_compatible(dev, "allwinner,sun4i-ccm")) {
 		device_set_desc(dev, "Allwinner Clock Control Module");
 		return(BUS_PROBE_DEFAULT);
@@ -124,7 +127,7 @@ a10_clk_usb_activate(void)
 	uint32_t reg_value;
 
 	if (sc == NULL)
-		return ENXIO;
+		return (ENXIO);
 
 	/* Gating AHB clock for USB */
 	reg_value = ccm_read_4(sc, CCM_AHB_GATING0);
@@ -151,7 +154,7 @@ a10_clk_usb_deactivate(void)
 	uint32_t reg_value;
 
 	if (sc == NULL)
-		return ENXIO;
+		return (ENXIO);
 
 	/* Disable clock for USB */
 	reg_value = ccm_read_4(sc, CCM_USB_CLK);
@@ -165,6 +168,22 @@ a10_clk_usb_deactivate(void)
 	reg_value = ccm_read_4(sc, CCM_AHB_GATING0);
 	reg_value &= ~CCM_AHB_GATING_USB0; /* disable AHB clock gate usb0 */
 	reg_value &= ~CCM_AHB_GATING_EHCI1; /* disable AHB clock gate ehci1 */
+	ccm_write_4(sc, CCM_AHB_GATING0, reg_value);
+
+	return (0);
+}
+
+int
+a10_clk_emac_activate(void) {
+	struct a10_ccm_softc *sc = a10_ccm_sc;
+	uint32_t reg_value;
+
+	if (sc == NULL)
+		return (ENXIO);
+
+	/* Gating AHB clock for EMAC */
+	reg_value = ccm_read_4(sc, CCM_AHB_GATING0);
+	reg_value |= CCM_AHB_GATING_EMAC;
 	ccm_write_4(sc, CCM_AHB_GATING0, reg_value);
 
 	return (0);

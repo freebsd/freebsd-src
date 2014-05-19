@@ -87,6 +87,9 @@ param_sysinit(struct kernel_param *param)
 #define	module_param(var, type, mode)					\
 	module_param_named(var, var, type, mode)
 
+#define module_param_array(var, type, addr_argc, mode)                  \
+        module_param_named(var, var, type, mode)
+
 #define	MODULE_PARM_DESC(name, desc)
 
 static inline int

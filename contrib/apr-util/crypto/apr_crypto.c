@@ -100,7 +100,9 @@ APU_DECLARE(apr_status_t) apr_crypto_init(apr_pool_t *pool)
     }
 
     /* Top level pool scope, need process-scope lifetime */
-    for (parent = pool; parent; parent = apr_pool_parent_get(pool))
+    for (parent = apr_pool_parent_get(pool);
+         parent && parent != pool;
+         parent = apr_pool_parent_get(pool))
         pool = parent;
 #if APU_DSO_BUILD
     /* deprecate in 2.0 - permit implicit initialization */
@@ -176,7 +178,7 @@ APU_DECLARE(apr_status_t) apr_crypto_get_driver(
 
 #if defined(NETWARE)
     apr_snprintf(modname, sizeof(modname), "crypto%s.nlm", name);
-#elif defined(WIN32)
+#elif defined(WIN32) || defined(__CYGWIN__)
     apr_snprintf(modname, sizeof(modname),
             "apr_crypto_%s-" APU_STRINGIFY(APU_MAJOR_VERSION) ".dll", name);
 #else

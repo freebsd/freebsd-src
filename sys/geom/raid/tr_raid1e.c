@@ -134,7 +134,8 @@ static struct g_raid_tr_class g_raid_tr_raid1e_class = {
 	g_raid_tr_raid1e_methods,
 	sizeof(struct g_raid_tr_raid1e_object),
 	.trc_enable = 1,
-	.trc_priority = 200
+	.trc_priority = 200,
+	.trc_accept_unmapped = 1
 };
 
 static void g_raid_tr_raid1e_rebuild_abort(struct g_raid_tr_object *tr);
@@ -701,7 +702,10 @@ g_raid_tr_iostart_raid1e_read(struct g_raid_tr_object *tr, struct bio *bp)
 	int best;
 
 	vol = tr->tro_volume;
-	addr = bp->bio_data;
+	if ((bp->bio_flags & BIO_UNMAPPED) != 0)
+		addr = NULL;
+	else
+		addr = bp->bio_data;
 	strip_size = vol->v_strip_size;
 	V2P(vol, bp->bio_offset, &no, &offset, &start);
 	remain = bp->bio_length;
@@ -721,8 +725,15 @@ g_raid_tr_iostart_raid1e_read(struct g_raid_tr_object *tr, struct bio *bp)
 		if (cbp == NULL)
 			goto failure;
 		cbp->bio_offset = offset + start;
-		cbp->bio_data = addr;
 		cbp->bio_length = length;
+		if ((bp->bio_flags & BIO_UNMAPPED) != 0) {
+			cbp->bio_ma_offset += (uintptr_t)addr;
+			cbp->bio_ma += cbp->bio_ma_offset / PAGE_SIZE;
+			cbp->bio_ma_offset %= PAGE_SIZE;
+			cbp->bio_ma_n = round_page(cbp->bio_ma_offset +
+			    cbp->bio_length) / PAGE_SIZE;
+		} else
+			cbp->bio_data = addr;
 		cbp->bio_caller1 = &vol->v_subdisks[no];
 		bioq_insert_tail(&queue, cbp);
 		no += N - best;
@@ -734,20 +745,15 @@ g_raid_tr_iostart_raid1e_read(struct g_raid_tr_object *tr, struct bio *bp)
 		addr += length;
 		start = 0;
 	}
-	for (cbp = bioq_first(&queue); cbp != NULL;
-	    cbp = bioq_first(&queue)) {
-		bioq_remove(&queue, cbp);
+	while ((cbp = bioq_takefirst(&queue)) != NULL) {
 		sd = cbp->bio_caller1;
 		cbp->bio_caller1 = NULL;
 		g_raid_subdisk_iostart(sd, cbp);
 	}
 	return;
 failure:
-	for (cbp = bioq_first(&queue); cbp != NULL;
-	    cbp = bioq_first(&queue)) {
-		bioq_remove(&queue, cbp);
+	while ((cbp = bioq_takefirst(&queue)) != NULL)
 		g_destroy_bio(cbp);
-	}
 	if (bp->bio_error == 0)
 		bp->bio_error = ENOMEM;
 	g_raid_iodone(bp, bp->bio_error);
@@ -766,7 +772,10 @@ g_raid_tr_iostart_raid1e_write(struct g_raid_tr_object *tr, struct bio *bp)
 	int i;
 
 	vol = tr->tro_volume;
-	addr = bp->bio_data;
+	if ((bp->bio_flags & BIO_UNMAPPED) != 0)
+		addr = NULL;
+	else
+		addr = bp->bio_data;
 	strip_size = vol->v_strip_size;
 	V2P(vol, bp->bio_offset, &no, &offset, &start);
 	remain = bp->bio_length;
@@ -791,8 +800,16 @@ g_raid_tr_iostart_raid1e_write(struct g_raid_tr_object *tr, struct bio *bp)
 			if (cbp == NULL)
 				goto failure;
 			cbp->bio_offset = offset + start;
-			cbp->bio_data = addr;
 			cbp->bio_length = length;
+			if ((bp->bio_flags & BIO_UNMAPPED) != 0 &&
+			    bp->bio_cmd != BIO_DELETE) {
+				cbp->bio_ma_offset += (uintptr_t)addr;
+				cbp->bio_ma += cbp->bio_ma_offset / PAGE_SIZE;
+				cbp->bio_ma_offset %= PAGE_SIZE;
+				cbp->bio_ma_n = round_page(cbp->bio_ma_offset +
+				    cbp->bio_length) / PAGE_SIZE;
+			} else
+				cbp->bio_data = addr;
 			cbp->bio_caller1 = sd;
 			bioq_insert_tail(&queue, cbp);
 nextdisk:
@@ -806,20 +823,15 @@ nextdisk:
 			addr += length;
 		start = 0;
 	}
-	for (cbp = bioq_first(&queue); cbp != NULL;
-	    cbp = bioq_first(&queue)) {
-		bioq_remove(&queue, cbp);
+	while ((cbp = bioq_takefirst(&queue)) != NULL) {
 		sd = cbp->bio_caller1;
 		cbp->bio_caller1 = NULL;
 		g_raid_subdisk_iostart(sd, cbp);
 	}
 	return;
 failure:
-	for (cbp = bioq_first(&queue); cbp != NULL;
-	    cbp = bioq_first(&queue)) {
-		bioq_remove(&queue, cbp);
+	while ((cbp = bioq_takefirst(&queue)) != NULL)
 		g_destroy_bio(cbp);
-	}
 	if (bp->bio_error == 0)
 		bp->bio_error = ENOMEM;
 	g_raid_iodone(bp, bp->bio_error);
@@ -1030,13 +1042,16 @@ rebuild_round_done:
 			cbp->bio_offset = offset + start;
 			cbp->bio_length = bp->bio_length;
 			cbp->bio_data = bp->bio_data;
+			cbp->bio_ma = bp->bio_ma;
+			cbp->bio_ma_offset = bp->bio_ma_offset;
+			cbp->bio_ma_n = bp->bio_ma_n;
 			g_destroy_bio(bp);
 			nsd = &vol->v_subdisks[disk];
 			G_RAID_LOGREQ(2, cbp, "Retrying read from %d",
 			    nsd->sd_pos);
 			if (do_write)
 				mask |= 1 << 31;
-			if ((mask & (1 << 31)) != 0)
+			if ((mask & (1U << 31)) != 0)
 				sd->sd_recovery++;
 			cbp->bio_caller2 = (void *)mask;
 			if (do_write) {
@@ -1059,7 +1074,7 @@ rebuild_round_done:
 	}
 	if (bp->bio_cmd == BIO_READ &&
 	    bp->bio_error == 0 &&
-	    (mask & (1 << 31)) != 0) {
+	    (mask & (1U << 31)) != 0) {
 		G_RAID_LOGREQ(3, bp, "Recovered data from other drive");
 
 		/* Restore what we were doing. */
@@ -1086,7 +1101,7 @@ rebuild_round_done:
 			return;
 		}
 	}
-	if ((mask & (1 << 31)) != 0) {
+	if ((mask & (1U << 31)) != 0) {
 		/*
 		 * We're done with a recovery, mark the range as unlocked.
 		 * For any write errors, we agressively fail the disk since

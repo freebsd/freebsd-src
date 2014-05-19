@@ -10,7 +10,7 @@
 #include "config.h"
 
 #ifndef lint
-static const char sccsid[] = "$Id: ex_print.c,v 10.25 2011/12/12 22:12:20 zy Exp $";
+static const char sccsid[] = "$Id: ex_print.c,v 10.26 2013/11/02 02:11:07 zy Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -213,7 +213,7 @@ ex_prchars(SCR *sp, const CHAR_T *p, size_t *colp, size_t len,
 	gp = sp->gp;
 	ts = O_VAL(sp, O_TABSTOP);
 	for (col = *colp; len--;)
-		if ((ch = *p++) == '\t' && !LF_ISSET(E_C_LIST))
+		if ((ch = *p++) == L('\t') && !LF_ISSET(E_C_LIST))
 			for (tlen = ts - col % ts;
 			    col < sp->cols && tlen--; ++col) {
 				(void)ex_printf(sp,
@@ -223,21 +223,32 @@ ex_prchars(SCR *sp, const CHAR_T *p, size_t *colp, size_t len,
 			}
 		else {
 			kp = KEY_NAME(sp, ch);
-			tlen = KEY_LEN(sp, ch);
-			if (!repeatc  && col + tlen < sp->cols) {
+			tlen = KEY_COL(sp, ch);
+
+			/*
+			 * Start a new line if the last character does not fit
+			 * into the current line.  The implicit new lines are
+			 * not interruptible.
+			 */
+			if (col + tlen > sp->cols) {
+				col = 0;
+				(void)ex_puts(sp, "\n");
+			}
+
+			col += tlen;
+			if (!repeatc) {
 				(void)ex_puts(sp, kp);
-				col += tlen;
-			} else
-				for (; tlen--; ++kp, ++col) {
-					if (col == sp->cols) {
-						col = 0;
-						(void)ex_puts(sp, "\n");
-					}
-					(void)ex_printf(sp,
-					    "%c", repeatc ? repeatc : *kp);
-					if (INTERRUPTED(sp))
-						goto intr;
-				}
+				if (INTERRUPTED(sp))
+					goto intr;
+			} else while (tlen--) {
+				(void)ex_printf(sp, "%c", repeatc);
+				if (INTERRUPTED(sp))
+					goto intr;
+			}
+			if (col == sp->cols) {
+				col = 0;
+				(void)ex_puts(sp, "\n");
+			}
 		}
 intr:	*colp = col;
 	return (0);

@@ -270,7 +270,6 @@ struct ath_hal_5212 {
 	uint32_t	ah_intrTxqs;		/* tx q interrupt state */
 						/* decomp mask array */
 	uint8_t		ah_decompMask[HAL_DECOMP_MASK_SIZE];
-	HAL_POWER_MODE	ah_powerMode;
 	HAL_ANT_SETTING ah_antControl;		/* antenna setting */
 	HAL_BOOL	ah_diversity;		/* fast diversity setting */
 	enum {
@@ -335,6 +334,16 @@ struct ath_hal_5212 {
 
 	uint8_t		ah_txTrigLev;		/* current Tx trigger level */
 	uint8_t		ah_maxTxTrigLev;	/* max tx trigger level */
+
+	/*
+	 * Channel Tx, Rx, Rx Clear State
+	 */
+	uint32_t	ah_cycleCount;
+	uint32_t	ah_ctlBusy;
+	uint32_t	ah_rxBusy;
+	uint32_t	ah_txBusy;
+	uint32_t	ah_rx_chainmask;
+	uint32_t	ah_tx_chainmask;
 };
 #define	AH5212(_ah)	((struct ath_hal_5212 *)(_ah))
 

@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.include <bsd.own.mk>
+.include <src.opts.mk>
 
 .PATH: ${.CURDIR}/../../../contrib/bsnmp/snmpd
 
@@ -13,11 +13,14 @@ SUBDIR=	${_snmp_atm} \
 	snmp_hast \
 	snmp_hostres \
 	snmp_mibII \
-	snmp_pf \
 	snmp_target \
 	snmp_usm \
 	snmp_vacm \
 	snmp_wlan
+
+.if ${MK_PF} != "no"
+SUBDIR+=snmp_pf
+.endif
 
 .if ${MK_NETGRAPH_SUPPORT} != "no"
 SUBDIR+=snmp_netgraph

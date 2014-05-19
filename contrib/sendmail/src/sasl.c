@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001-2002 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 2001-2002 Proofpoint, Inc. and its suppliers.
  *	All rights reserved.
  *
  * By using this file, you agree to the terms and conditions set
@@ -9,7 +9,7 @@
  */
 
 #include <sm/gen.h>
-SM_RCSID("@(#)$Id: sasl.c,v 8.23 2012/11/27 18:53:13 gshapiro Exp $")
+SM_RCSID("@(#)$Id: sasl.c,v 8.24 2013/11/22 20:51:56 ca Exp $")
 
 #if SASL
 # include <stdlib.h>

@@ -66,6 +66,8 @@ public:
     SOB_Trapping    // -ftrapv
   };
 
+  enum AddrSpaceMapMangling { ASMM_Target, ASMM_On, ASMM_Off };
+
 public:
   clang::ObjCRuntime ObjCRuntime;
 
@@ -94,6 +96,11 @@ public:
   
   bool isSignedOverflowDefined() const {
     return getSignedOverflowBehavior() == SOB_Defined;
+  }
+  
+  bool isSubscriptPointerArithmetic() const {
+    return ObjCRuntime.isSubscriptPointerArithmetic() &&
+           !ObjCSubscriptingLegacyRuntime;
   }
 
   /// \brief Reset all of the options that are not considered when building a

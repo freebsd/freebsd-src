@@ -127,7 +127,7 @@ options 	BLKDEV_IOSIZE=8192
 # devices and DFLTPHYS for the rest. Some applications have better
 # performance with larger raw I/O access sizes. Note that certain VM
 # parameters are derived from these values and making them too large
-# can make an an unbootable kernel.
+# can make an unbootable kernel.
 #
 # The defaults are 64K and 128K respectively.
 options 	DFLTPHYS=(64*1024)
@@ -176,6 +176,7 @@ options 	GEOM_SHSEC		# Shared secret.
 options 	GEOM_STRIPE		# Disk striping.
 options 	GEOM_SUNLABEL		# Sun/Solaris partitioning
 options 	GEOM_UZIP		# Read-only compressed disks
+options 	GEOM_VINUM		# Vinum logical volume manager
 options 	GEOM_VIRSTOR		# Virtual storage.
 options 	GEOM_VOL		# Volume names from UFS superblock
 options 	GEOM_ZERO		# Performance testing helper.
@@ -446,6 +447,15 @@ options 	DEBUG_MEMGUARD
 options 	DEBUG_REDZONE
 
 #
+# EARLY_PRINTF enables support for calling a special printf (eprintf)
+# very early in the kernel (before cn_init() has been called).  This
+# should only be used for debugging purposes early in boot.  Normally,
+# it is not defined.  It is commented out here because this feature
+# isn't generally available. And the required eputc() isn't defined.
+#
+#options	EARLY_PRINTF
+
+#
 # KTRACE enables the system-call tracing facility ktrace(2).  To be more
 # SMP-friendly, KTRACE uses a worker thread to process most trace events
 # asynchronously to the thread generating the event.  This requires a
@@ -597,11 +607,6 @@ options 	IPSEC			#IP security (requires device crypto)
 #
 options		IPSEC_NAT_T		#NAT-T support, UDP encap of ESP
 
-options 	IPX			#IPX/SPX communications protocols
-
-options 	NETATALK		#Appletalk communications protocols
-options 	NETATALKDEBUG		#Appletalk debugging
-
 #
 # SMB/CIFS requester
 # NETSMB enables support for SMB protocol, it requires LIBMCHAIN and LIBICONV
@@ -728,7 +733,6 @@ options 	NETGRAPH_DEVICE
 options 	NETGRAPH_ECHO
 options 	NETGRAPH_EIFACE
 options 	NETGRAPH_ETHER
-options 	NETGRAPH_FEC
 options 	NETGRAPH_FRAME_RELAY
 options 	NETGRAPH_GIF
 options 	NETGRAPH_GIF_DEMUX
@@ -877,14 +881,6 @@ options 	XBONEHACK
 #  The `stf' device implements 6to4 encapsulation.
 device		faith
 device		stf
-
-#  The `ef' device provides support for multiple ethernet frame types
-#  specified via ETHER_* options. See ef(4) for details.
-device		ef
-options 	ETHER_II		# enable Ethernet_II frame
-options 	ETHER_8023		# enable Ethernet_802.3 (Novell) frame
-options 	ETHER_8022		# enable Ethernet_802.2 frame
-options 	ETHER_SNAP		# enable Ethernet_802.2/SNAP frame
 
 # The pf packet filter consists of three devices:
 #  The `pf' device provides /dev/pf and the firewall code itself.
@@ -1072,7 +1068,7 @@ options 	MD_ROOT
 options 	QUOTA			#enable disk quotas
 
 # If you are running a machine just as a fileserver for PC and MAC
-# users, using SAMBA or Netatalk, you may consider setting this option
+# users, using SAMBA, you may consider setting this option
 # and keeping all those users' directories on a filesystem that is
 # mounted with the suiddir option. This gives new files the same
 # ownership as the directory (similar to group). It's a security hole
@@ -1167,9 +1163,6 @@ options 	MAC_TEST
 # Support for Capsicum
 options 	CAPABILITIES	# fine-grained rights on file descriptors
 options 	CAPABILITY_MODE	# sandboxes with no global namespace access
-
-# Support for process descriptors
-options		PROCDESC
 
 
 #####################################################################
@@ -1281,8 +1274,7 @@ hint.sa.1.target="6"
 # to incoming commands that do not otherwise have a logical unit assigned
 # to them.
 #
-# The "unknown" device (uk? in pre-2.0.5) is now part of the base SCSI
-# configuration as the "pass" driver.
+# The pass driver provides a passthrough API to access the CAM subsystem.
 
 device		scbus		#base SCSI code
 device		ch		#SCSI media changers
@@ -1895,7 +1887,7 @@ device		xmphy		# XaQti XMAC II
 #	BCM570x family of controllers, including the 3Com 3c996-T,
 #	the Netgear GA302T, the SysKonnect SK-9D21 and SK-9D41, and
 #	the embedded gigE NICs on Dell PowerEdge 2550 servers.
-# bxe:	Broadcom NetXtreme II (BCM57710/57711/57711E) PCIe 10b Ethernet
+# bxe:	Broadcom NetXtreme II (BCM5771X/BCM578XX) PCIe 10Gb Ethernet
 #       adapters.
 # bwi:	Broadcom BCM430* and BCM431* family of wireless adapters.
 # bwn:	Broadcom BCM43xx family of wireless adapters.
@@ -2080,7 +2072,6 @@ device		wb		# Winbond W89C840F
 device		xl		# 3Com 3c90x (``Boomerang'', ``Cyclone'')
 
 # PCI Ethernet NICs.
-device		bxe		# Broadcom BCM57710/BCM57711/BCM57711E 10Gb Ethernet
 device		cxgbe		# Chelsio T4 10GbE PCIe adapter
 device		de		# DEC/Intel DC21x4x (``Tulip'')
 device		em		# Intel Pro/1000 Gigabit Ethernet
@@ -2657,6 +2648,9 @@ device		umct
 device		umodem
 # USB mouse
 device		ums
+# USB touchpad(s)
+device		atp
+device		wsp
 # eGalax USB touch screen
 device		uep
 # Diamond Rio 500 MP3 player
@@ -2692,6 +2686,8 @@ device		aue
 # ASIX Electronics AX88172 USB 2.0 ethernet driver. Used in the
 # LinkSys USB200M and various other adapters.
 device		axe
+# ASIX Electronics AX88178A/AX88179 USB 2.0/3.0 gigabit ethernet driver.
+device		axge
 
 #
 # Devices which communicate using Ethernet over USB, particularly
@@ -2740,6 +2736,8 @@ device		upgt
 # Ralink Technology RT2500USB wireless driver
 device		ural
 #
+# RNDIS USB ethernet driver
+device		urndis
 # Realtek RTL8187B/L wireless driver
 device		urtw
 #
@@ -2963,3 +2961,8 @@ options 	RCTL
 options 	BROOKTREE_ALLOC_PAGES=(217*4+1)
 options 	MAXFILES=999
 
+# Random number generator
+options 	RANDOM_YARROW	# Yarrow RNG
+##options 	RANDOM_FORTUNA	# Fortuna RNG - not yet implemented
+options 	RANDOM_DEBUG	# Debugging messages
+options 	RANDOM_RWFILE	# Read and write entropy cache

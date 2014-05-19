@@ -1,4 +1,4 @@
-/* $OpenBSD: ssh-ecdsa.c,v 1.5 2012/01/08 13:17:11 miod Exp $ */
+/* $OpenBSD: ssh-ecdsa.c,v 1.10 2014/02/03 23:28:00 djm Exp $ */
 /*
  * Copyright (c) 2000 Markus Friedl.  All rights reserved.
  * Copyright (c) 2010 Damien Miller.  All rights reserved.
@@ -42,30 +42,37 @@
 #include "compat.h"
 #include "log.h"
 #include "key.h"
+#include "digest.h"
 
 int
 ssh_ecdsa_sign(const Key *key, u_char **sigp, u_int *lenp,
     const u_char *data, u_int datalen)
 {
 	ECDSA_SIG *sig;
-	const EVP_MD *evp_md;
-	EVP_MD_CTX md;
-	u_char digest[EVP_MAX_MD_SIZE];
+	int hash_alg;
+	u_char digest[SSH_DIGEST_MAX_LENGTH];
 	u_int len, dlen;
 	Buffer b, bb;
 
-	if (key == NULL || key->ecdsa == NULL ||
-	    (key->type != KEY_ECDSA && key->type != KEY_ECDSA_CERT)) {
+	if (key == NULL || key_type_plain(key->type) != KEY_ECDSA ||
+	    key->ecdsa == NULL) {
 		error("%s: no ECDSA key", __func__);
 		return -1;
 	}
-	evp_md = key_ec_nid_to_evpmd(key->ecdsa_nid);
-	EVP_DigestInit(&md, evp_md);
-	EVP_DigestUpdate(&md, data, datalen);
-	EVP_DigestFinal(&md, digest, &dlen);
+
+	hash_alg = key_ec_nid_to_hash_alg(key->ecdsa_nid);
+	if ((dlen = ssh_digest_bytes(hash_alg)) == 0) {
+		error("%s: bad hash algorithm %d", __func__, hash_alg);
+		return -1;
+	}
+	if (ssh_digest_memory(hash_alg, data, datalen,
+	    digest, sizeof(digest)) != 0) {
+		error("%s: digest_memory failed", __func__);
+		return -1;
+	}
 
 	sig = ECDSA_do_sign(digest, dlen, key->ecdsa);
-	memset(digest, 'd', sizeof(digest));
+	explicit_bzero(digest, sizeof(digest));
 
 	if (sig == NULL) {
 		error("%s: sign failed", __func__);
@@ -97,20 +104,18 @@ ssh_ecdsa_verify(const Key *key, const u_char *signature, u_int signaturelen,
     const u_char *data, u_int datalen)
 {
 	ECDSA_SIG *sig;
-	const EVP_MD *evp_md;
-	EVP_MD_CTX md;
-	u_char digest[EVP_MAX_MD_SIZE], *sigblob;
+	int hash_alg;
+	u_char digest[SSH_DIGEST_MAX_LENGTH], *sigblob;
 	u_int len, dlen;
 	int rlen, ret;
 	Buffer b, bb;
 	char *ktype;
 
-	if (key == NULL || key->ecdsa == NULL ||
-	    (key->type != KEY_ECDSA && key->type != KEY_ECDSA_CERT)) {
+	if (key == NULL || key_type_plain(key->type) != KEY_ECDSA ||
+	    key->ecdsa == NULL) {
 		error("%s: no ECDSA key", __func__);
 		return -1;
 	}
-	evp_md = key_ec_nid_to_evpmd(key->ecdsa_nid);
 
 	/* fetch signature */
 	buffer_init(&b);
@@ -119,25 +124,22 @@ ssh_ecdsa_verify(const Key *key, const u_char *signature, u_int signaturelen,
 	if (strcmp(key_ssh_name_plain(key), ktype) != 0) {
 		error("%s: cannot handle type %s", __func__, ktype);
 		buffer_free(&b);
-		xfree(ktype);
+		free(ktype);
 		return -1;
 	}
-	xfree(ktype);
+	free(ktype);
 	sigblob = buffer_get_string(&b, &len);
 	rlen = buffer_len(&b);
 	buffer_free(&b);
 	if (rlen != 0) {
 		error("%s: remaining bytes in signature %d", __func__, rlen);
-		xfree(sigblob);
+		free(sigblob);
 		return -1;
 	}
 
 	/* parse signature */
 	if ((sig = ECDSA_SIG_new()) == NULL)
 		fatal("%s: ECDSA_SIG_new failed", __func__);
-	if ((sig->r = BN_new()) == NULL ||
-	    (sig->s = BN_new()) == NULL)
-		fatal("%s: BN_new failed", __func__);
 
 	buffer_init(&bb);
 	buffer_append(&bb, sigblob, len);
@@ -148,16 +150,23 @@ ssh_ecdsa_verify(const Key *key, const u_char *signature, u_int signaturelen,
 	buffer_free(&bb);
 
 	/* clean up */
-	memset(sigblob, 0, len);
-	xfree(sigblob);
+	explicit_bzero(sigblob, len);
+	free(sigblob);
 
 	/* hash the data */
-	EVP_DigestInit(&md, evp_md);
-	EVP_DigestUpdate(&md, data, datalen);
-	EVP_DigestFinal(&md, digest, &dlen);
+	hash_alg = key_ec_nid_to_hash_alg(key->ecdsa_nid);
+	if ((dlen = ssh_digest_bytes(hash_alg)) == 0) {
+		error("%s: bad hash algorithm %d", __func__, hash_alg);
+		return -1;
+	}
+	if (ssh_digest_memory(hash_alg, data, datalen,
+	    digest, sizeof(digest)) != 0) {
+		error("%s: digest_memory failed", __func__);
+		return -1;
+	}
 
 	ret = ECDSA_do_verify(digest, dlen, sig, key->ecdsa);
-	memset(digest, 'd', sizeof(digest));
+	explicit_bzero(digest, sizeof(digest));
 
 	ECDSA_SIG_free(sig);
 

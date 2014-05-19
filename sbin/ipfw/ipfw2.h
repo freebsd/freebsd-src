@@ -228,6 +228,8 @@ char const *match_value(struct _s_x *p, int value);
 
 int do_cmd(int optname, void *optval, uintptr_t optlen);
 
+uint32_t ipfw_get_tables_max(void);
+
 struct in6_addr;
 void n2mask(struct in6_addr *mask, int n);
 int contigmask(uint8_t *p, int len);
@@ -266,11 +268,14 @@ void ipfw_flush(int force);
 void ipfw_zero(int ac, char *av[], int optname);
 void ipfw_list(int ac, char *av[], int show_counters);
 
+#ifdef PF
 /* altq.c */
 void altq_set_enabled(int enabled);
 u_int32_t altq_name_to_qid(const char *name);
-
 void print_altq_cmd(struct _ipfw_insn_altq *altqptr);
+#else
+#define NO_ALTQ
+#endif
 
 /* dummynet.c */
 void dummynet_list(int ac, char *av[], int show_counters);

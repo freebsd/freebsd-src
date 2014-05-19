@@ -44,6 +44,7 @@
 #include <sys/sysctl.h>
 
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/if_clone.h>
 #include <net/if_types.h>
 #include <net/pfil.h>
@@ -168,7 +169,7 @@ enc_modevent(module_t mod, int type, void *data)
 	case MOD_LOAD:
 		mtx_init(&enc_mtx, "enc mtx", NULL, MTX_DEF);
 		enc_cloner = if_clone_simple(encname, enc_clone_create,
-		    enc_clone_destroy, 0);
+		    enc_clone_destroy, 1);
 		break;
 	case MOD_UNLOAD:
 		printf("enc module unload - not possible for this module\n");

@@ -309,6 +309,10 @@ am335x_pwm_sysctl_period(SYSCTL_HANDLER_ARGS)
 static int
 am335x_pwm_probe(device_t dev)
 {
+
+	if (!ofw_bus_status_okay(dev))
+		return (ENXIO);
+
 	if (!ofw_bus_is_compatible(dev, "ti,am335x-pwm"))
 		return (ENXIO);
 

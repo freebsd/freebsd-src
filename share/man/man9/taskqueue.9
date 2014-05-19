@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 4, 2012
+.Dd January 24, 2014
 .Dt TASKQUEUE 9
 .Os
 .Sh NAME
@@ -86,6 +86,12 @@ struct timeout_task;
 .Fn taskqueue_drain "struct taskqueue *queue" "struct task *task"
 .Ft void
 .Fn taskqueue_drain_timeout "struct taskqueue *queue" "struct timeout_task *timeout_task"
+.Ft void
+.Fn taskqueue_drain_all "struct taskqueue *queue"
+.Ft void
+.Fn taskqueue_block "struct taskqueue *queue"
+.Ft void
+.Fn taskqueue_unblock "struct taskqueue *queue"
 .Ft int
 .Fn taskqueue_member "struct taskqueue *queue" "struct thread *td"
 .Ft void
@@ -255,6 +261,73 @@ function is used to wait for the scheduled task to finish.
 There is no guarantee that the task will not be
 enqueued after call to
 .Fn taskqueue_drain .
+If the caller wants to put the task into a known state,
+then before calling
+.Fn taskqueue_drain
+the caller should use out-of-band means to ensure that the task
+would not be enqueued.
+For example, if the task is enqueued by an interrupt filter, then
+the interrupt could be disabled.
+.Pp
+The
+.Fn taskqueue_drain_all
+function is used to wait for all pending and running tasks that
+are enqueued on the taskqueue to finish.
+The caller must arrange that the tasks are not re-enqueued.
+Note that
+.Fn taskqueue_drain_all
+currently does not handle tasks with delayed enqueueing.
+.Pp
+The
+.Fn taskqueue_block
+function blocks the taskqueue.
+It prevents any enqueued but not running tasks from being executed.
+Future calls to
+.Fn taskqueue_enqueue
+will enqueue tasks, but the tasks will not be run until
+.Fn taskqueue_unblock
+is called.
+Please note that
+.Fn taskqueue_block
+does not wait for any currently running tasks to finish.
+Thus, the
+.Fn taskqueue_block
+does not provide a guarantee that
+.Fn taskqueue_run
+is not running after
+.Fn taskqueue_block
+returns, but it does provide a guarantee that
+.Fn taskqueue_run
+will not be called again
+until
+.Fn taskqueue_unblock
+is called.
+If the caller requires a guarantee that
+.Fn taskqueue_run
+is not running, then this must be arranged by the caller.
+Note that if
+.Fn taskqueue_drain
+is called on a task that is enqueued on a taskqueue that is blocked by
+.Fn taskqueue_block ,
+then
+.Fn taskqueue_drain
+can not return until the taskqueue is unblocked.
+This can result in a deadlock if the thread blocked in
+.Fn taskqueue_drain
+is the thread that is supposed to call
+.Fn taskqueue_unblock .
+Thus, use of
+.Fn taskqueue_drain
+after
+.Fn taskqueue_block
+is discouraged, because the state of the task can not be known in advance.
+The same caveat applies to
+.Fn taskqueue_drain_all .
+.Pp
+The
+.Fn taskqueue_unblock
+function unblocks the previously blocked taskqueue.
+All enqueued tasks can be run after this call.
 .Pp
 The
 .Fn taskqueue_member

@@ -1,10 +1,10 @@
 # $FreeBSD$
 
 
-NO_MAN=
-WITHOUT_SSP=
+MAN=
 
 .include <bsd.own.mk>
+MK_SSP=		no
 
 PROG=		test
 INTERNALPROG=

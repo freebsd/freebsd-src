@@ -1,8 +1,15 @@
 # $FreeBSD$
+.include <bsd.own.mk>
+
+TOP=	${.CURDIR}/../../contrib/elftoolchain
+SRCDIR=	${TOP}/libelf
+
+.PATH:	${SRCDIR}
 
 LIB=	elf
 
-SRCS=	elf_begin.c						\
+SRCS=	elf.c							\
+	elf_begin.c						\
 	elf_cntl.c						\
 	elf_end.c elf_errmsg.c elf_errno.c			\
 	elf_data.c						\
@@ -16,6 +23,7 @@ SRCS=	elf_begin.c						\
 	elf_kind.c						\
 	elf_memory.c						\
 	elf_next.c						\
+	elf_open.c						\
 	elf_rand.c						\
 	elf_rawfile.c						\
 	elf_phnum.c						\
@@ -40,7 +48,6 @@ SRCS=	elf_begin.c						\
 	gelf_syminfo.c						\
 	gelf_symshndx.c						\
 	gelf_xlate.c						\
-	libelf.c						\
 	libelf_align.c						\
 	libelf_allocate.c					\
 	libelf_ar.c						\
@@ -49,11 +56,14 @@ SRCS=	elf_begin.c						\
 	libelf_data.c						\
 	libelf_ehdr.c						\
 	libelf_extended.c					\
+	libelf_memory.c						\
+	libelf_open.c						\
 	libelf_phdr.c						\
 	libelf_shdr.c						\
 	libelf_xlate.c						\
 	${GENSRCS}
-INCS=	libelf.h gelf.h
+
+INCS=		libelf.h gelf.h
 
 #
 # We need to link against the correct version of these files. One
@@ -66,13 +76,13 @@ SRCS+=	sys/elf32.h sys/elf64.h sys/elf_common.h
 GENSRCS=	libelf_fsize.c libelf_msize.c libelf_convert.c
 CLEANFILES=	${GENSRCS}
 CLEANDIRS=	sys
-CFLAGS+=	-I${.CURDIR} -I.
+CFLAGS+=	-I. -I${SRCDIR} -I${TOP}/common
 
 sys/elf32.h sys/elf64.h sys/elf_common.h: ${.CURDIR}/../../sys/${.TARGET}
 	mkdir -p ${.OBJDIR}/sys
 	ln -sf ${.CURDIR}/../../sys/${.TARGET} ${.TARGET}
 
-SHLIB_MAJOR=	1
+SHLIB_MAJOR=	2
 
 MAN=	elf.3							\
 	elf_begin.3						\
@@ -97,6 +107,7 @@ MAN=	elf.3							\
 	elf_kind.3						\
 	elf_memory.3						\
 	elf_next.3						\
+	elf_open.3						\
 	elf_rawfile.3						\
 	elf_rand.3						\
 	elf_strptr.3						\
@@ -124,6 +135,7 @@ MAN=	elf.3							\
 
 MLINKS+= \
 	elf_errmsg.3 elf_errno.3		\
+	elf_flagdata.3 elf_flagarhdr.3		\
 	elf_flagdata.3 elf_flagehdr.3		\
 	elf_flagdata.3 elf_flagelf.3		\
 	elf_flagdata.3 elf_flagphdr.3		\
@@ -135,6 +147,7 @@ MLINKS+= \
 	elf_getscn.3 elf_newscn.3		\
 	elf_getscn.3 elf_nextscn.3		\
 	elf_getshstrndx.3 elf_setshstrndx.3	\
+	elf_open.3 elf_openmemory.3             \
 	gelf_getcap.3 gelf_update_cap.3		\
 	gelf_getdyn.3 gelf_update_dyn.3		\
 	gelf_getmove.3 gelf_update_move.3	\
@@ -160,12 +173,7 @@ MLINKS+= \
 	gelf_xlatetof.3	elf${E}_xlatetom.3
 .endfor
 
-VERSION_MAP=		${.CURDIR}/Version.map
-
-LIBELF_TEST_HOOKS?=	1
-.if defined(LIBELF_TEST_HOOKS) && (${LIBELF_TEST_HOOKS} > 0)
-CFLAGS+= -DLIBELF_TEST_HOOKS
-.endif
+VERSION_MAP=           ${SRCDIR}/Version.map
 
 libelf_convert.c:	elf_types.m4 libelf_convert.m4
 libelf_fsize.c:		elf_types.m4 libelf_fsize.m4
@@ -176,4 +184,5 @@ libelf_msize.c:		elf_types.m4 libelf_msize.m4
 # Keep the .SUFFIXES line after the include of bsd.lib.mk
 .SUFFIXES:	.m4 .c
 .m4.c:
-	m4 -D SRCDIR=${.CURDIR} ${.IMPSRC} > ${.TARGET}
+	m4 -D SRCDIR=${SRCDIR} ${M4FLAGS} ${.IMPSRC} > ${.TARGET}
+

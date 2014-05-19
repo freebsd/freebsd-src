@@ -652,7 +652,7 @@ asn_put_objid(struct asn_buf *b, const struct asn_oid *oid)
 			err = ASN_ERR_RANGE;
 		}
 		if (oid->subs[0] > 2 ||
-		    (oid->subs[0] < 2 && oid->subs[0] >= 40)) {
+		    (oid->subs[0] < 2 && oid->subs[1] >= 40)) {
 			asn_error(NULL, "oid out of range (%u,%u)",
 			    oid->subs[0], oid->subs[1]);
 			err = ASN_ERR_RANGE;

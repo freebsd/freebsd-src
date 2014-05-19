@@ -510,13 +510,8 @@ cpuctl_modevent(module_t mod __unused, int type, void *data __unused)
 		}
 		if (bootverbose)
 			printf("cpuctl: access to MSR registers/cpuid info.\n");
-		cpuctl_devs = (struct cdev **)malloc(sizeof(void *) * mp_ncpus,
-		    M_CPUCTL, M_WAITOK | M_ZERO);
-		if (cpuctl_devs == NULL) {
-			DPRINTF("[cpuctl,%d]: cannot allocate memory\n",
-			    __LINE__);
-			return (ENOMEM);
-		}
+		cpuctl_devs = malloc(sizeof(*cpuctl_devs) * mp_ncpus, M_CPUCTL,
+		    M_WAITOK | M_ZERO);
 		for (cpu = 0; cpu < mp_ncpus; cpu++)
 			if (cpu_enabled(cpu))
 				cpuctl_devs[cpu] = make_dev(&cpuctl_cdevsw, cpu,

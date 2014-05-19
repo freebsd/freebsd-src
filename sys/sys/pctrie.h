@@ -83,14 +83,14 @@ name##_PCTRIE_LOOKUP_LE(struct pctrie *ptree, uint64_t key)		\
 	return name##_PCTRIE_VAL2PTR(pctrie_lookup_le(ptree, key));	\
 }									\
 									\
-static __inline struct type *						\
+static __inline __unused struct type *					\
 name##_PCTRIE_LOOKUP_GE(struct pctrie *ptree, uint64_t key)		\
 {									\
 									\
 	return name##_PCTRIE_VAL2PTR(pctrie_lookup_ge(ptree, key));	\
 }									\
 									\
-static __inline void							\
+static __inline __unused void						\
 name##_PCTRIE_RECLAIM(struct pctrie *ptree)				\
 {									\
 									\

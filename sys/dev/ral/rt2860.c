@@ -46,6 +46,7 @@ __FBSDID("$FreeBSD$");
 
 #include <net/bpf.h>
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/if_arp.h>
 #include <net/ethernet.h>
 #include <net/if_dl.h>
@@ -1284,9 +1285,9 @@ rt2860_rx_intr(struct rt2860_softc *sc)
 
 		wh = mtod(m, struct ieee80211_frame *);
 #ifdef HW_CRYPTO
-		if (wh->i_fc[1] & IEEE80211_FC1_WEP) {
+		if (wh->i_fc[1] & IEEE80211_FC1_PROTECTED) {
 			/* frame is decrypted by hardware */
-			wh->i_fc[1] &= ~IEEE80211_FC1_WEP;
+			wh->i_fc[1] &= ~IEEE80211_FC1_PROTECTED;
 		}
 #endif
 
@@ -1492,7 +1493,7 @@ rt2860_tx(struct rt2860_softc *sc, struct mbuf *m, struct ieee80211_node *ni)
 
 	wh = mtod(m, struct ieee80211_frame *);
 
-	if (wh->i_fc[1] & IEEE80211_FC1_WEP) {
+	if (wh->i_fc[1] & IEEE80211_FC1_PROTECTED) {
 		k = ieee80211_crypto_encap(ni, m);
 		if (k == NULL) {
 			m_freem(m);

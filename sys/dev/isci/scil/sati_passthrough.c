@@ -441,6 +441,13 @@ SATI_STATUS sati_passthrough_16_translate_command(
       sati_set_ata_lba_mid_exp(register_fis, sati_get_cdb_byte(cdb, 9));
       sati_set_ata_lba_high_exp(register_fis, sati_get_cdb_byte(cdb, 11));
    }
+
+   if (PASSTHROUGH_CDB_CK_COND(cdb) ||
+       PASSTHROUGH_CDB_PROTOCOL(cdb) == PASSTHROUGH_RETURN_RESPONSE)
+   {
+      sequence->is_translate_response_required = TRUE;
+   }
+
    sati_set_ata_features(register_fis, sati_get_cdb_byte(cdb, 4));
    sati_set_ata_sector_count(register_fis, sati_get_cdb_byte(cdb, 6));
    sati_set_ata_lba_low(register_fis, sati_get_cdb_byte(cdb, 8));
@@ -483,6 +490,8 @@ SATI_STATUS sati_passthrough_translate_response(
       return SATI_FAILURE_CHECK_RESPONSE_DATA;
    }
 
+   sequence->state = SATI_SEQUENCE_STATE_FINAL;
+
    // If the user set the check condition bit, fill out the sense data
    if (PASSTHROUGH_CDB_CK_COND(cdb) ||
        PASSTHROUGH_CDB_PROTOCOL(cdb) == PASSTHROUGH_RETURN_RESPONSE)
@@ -496,9 +505,8 @@ SATI_STATUS sati_passthrough_translate_response(
          SCSI_ASC_NO_ADDITIONAL_SENSE,
          SCSI_ASCQ_ATA_PASS_THROUGH_INFORMATION_AVAILABLE
       );
+      return SATI_FAILURE_CHECK_RESPONSE_DATA;
    }
-
-   sequence->state = SATI_SEQUENCE_STATE_FINAL;
 
    return SATI_COMPLETE;
 }

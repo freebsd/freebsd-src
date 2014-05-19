@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.include <bsd.own.mk>
+.include <src.opts.mk>
 
 GCCVER=	4.2
 GCCDIR=	${.CURDIR}/../../../contrib/gcc
@@ -51,12 +51,9 @@ CLEANFILES+=	unwind.h
 
 VERSION_MAP=	${.CURDIR}/Version.map
 
+CXXFLAGS.clang+= -stdlib=libstdc++
 
 .include <bsd.lib.mk>
 
 # Filter out libc++-specific flags, and -std= flags above c++98 or gnu++98.
 CXXFLAGS:=	${CXXFLAGS:N-stdlib=libc++:N-std=c++[01][13x]:N-std=gnu++[01][13x]}
-
-.if ${COMPILER_TYPE} == "clang"
-CXXFLAGS+=	-stdlib=libstdc++
-.endif

@@ -474,6 +474,7 @@ proc0_init(void *dummy __unused)
 
 	p->p_sysent = &null_sysvec;
 	p->p_flag = P_SYSTEM | P_INMEM;
+	p->p_flag2 = 0;
 	p->p_state = PRS_NORMAL;
 	knlist_init_mtx(&p->p_klist, &p->p_mtx);
 	STAILQ_INIT(&p->p_ktr);
@@ -543,7 +544,7 @@ proc0_init(void *dummy __unused)
 	p->p_limit->pl_rlimit[RLIMIT_STACK].rlim_cur = dflssiz;
 	p->p_limit->pl_rlimit[RLIMIT_STACK].rlim_max = maxssiz;
 	/* Cast to avoid overflow on i386/PAE. */
-	pageablemem = ptoa((vm_paddr_t)cnt.v_free_count);
+	pageablemem = ptoa((vm_paddr_t)vm_cnt.v_free_count);
 	p->p_limit->pl_rlimit[RLIMIT_RSS].rlim_cur =
 	    p->p_limit->pl_rlimit[RLIMIT_RSS].rlim_max = pageablemem;
 	p->p_limit->pl_rlimit[RLIMIT_MEMLOCK].rlim_cur = pageablemem / 3;

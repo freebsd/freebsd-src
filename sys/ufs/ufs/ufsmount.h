@@ -31,7 +31,7 @@
  */
 
 #ifndef _UFS_UFS_UFSMOUNT_H_
-#define _UFS_UFS_UFSMOUNT_H_
+#define	_UFS_UFS_UFSMOUNT_H_
 
 #include <sys/buf.h>	/* XXX For struct workhead. */
 
@@ -78,19 +78,7 @@ struct ufsmount {
 	u_long	um_seqinc;			/* inc between seq blocks */
 	struct	mtx um_lock;			/* Protects ufsmount & fs */
 	pid_t	um_fsckpid;			/* PID permitted fsck sysctls */
-	long	um_numindirdeps;		/* outstanding indirdeps */
-	struct	workhead softdep_workitem_pending; /* softdep work queue */
-	struct	worklist *softdep_worklist_tail; /* Tail pointer for above */
-	struct	workhead softdep_journal_pending; /* journal work queue */
-	struct	worklist *softdep_journal_tail;	/* Tail pointer for above */
-	struct	jblocks *softdep_jblocks;	/* Journal block information */
-	struct	inodedeplst softdep_unlinked;	/* Unlinked inodes */
-	struct	bmsafemaphd softdep_dirtycg;	/* Dirty CGs */
-	int	softdep_on_journal;		/* Items on the journal list */
-	int	softdep_on_worklist;		/* Items on the worklist */
-	int	softdep_deps;			/* Total dependency count */
-	int	softdep_accdeps;		/* accumulated dep count */
-	int	softdep_req;			/* Wakeup when deps hits 0. */
+	struct	mount_softdeps *um_softdep;	/* softdep mgmt structure */
 	struct	vnode *um_quotas[MAXQUOTAS];	/* pointer to quota files */
 	struct	ucred *um_cred[MAXQUOTAS];	/* quota file access cred */
 	time_t	um_btime[MAXQUOTAS];		/* block quota time limit */
@@ -110,13 +98,13 @@ struct ufsmount {
 	void	(*um_snapgone)(struct inode *);
 };
 
-#define UFS_BALLOC(aa, bb, cc, dd, ee, ff) VFSTOUFS((aa)->v_mount)->um_balloc(aa, bb, cc, dd, ee, ff)
-#define UFS_BLKATOFF(aa, bb, cc, dd) VFSTOUFS((aa)->v_mount)->um_blkatoff(aa, bb, cc, dd)
-#define UFS_TRUNCATE(aa, bb, cc, dd) VFSTOUFS((aa)->v_mount)->um_truncate(aa, bb, cc, dd)
-#define UFS_UPDATE(aa, bb) VFSTOUFS((aa)->v_mount)->um_update(aa, bb)
-#define UFS_VALLOC(aa, bb, cc, dd) VFSTOUFS((aa)->v_mount)->um_valloc(aa, bb, cc, dd)
-#define UFS_VFREE(aa, bb, cc) VFSTOUFS((aa)->v_mount)->um_vfree(aa, bb, cc)
-#define UFS_IFREE(aa, bb) ((aa)->um_ifree(aa, bb))
+#define	UFS_BALLOC(aa, bb, cc, dd, ee, ff) VFSTOUFS((aa)->v_mount)->um_balloc(aa, bb, cc, dd, ee, ff)
+#define	UFS_BLKATOFF(aa, bb, cc, dd) VFSTOUFS((aa)->v_mount)->um_blkatoff(aa, bb, cc, dd)
+#define	UFS_TRUNCATE(aa, bb, cc, dd) VFSTOUFS((aa)->v_mount)->um_truncate(aa, bb, cc, dd)
+#define	UFS_UPDATE(aa, bb) VFSTOUFS((aa)->v_mount)->um_update(aa, bb)
+#define	UFS_VALLOC(aa, bb, cc, dd) VFSTOUFS((aa)->v_mount)->um_valloc(aa, bb, cc, dd)
+#define	UFS_VFREE(aa, bb, cc) VFSTOUFS((aa)->v_mount)->um_vfree(aa, bb, cc)
+#define	UFS_IFREE(aa, bb) ((aa)->um_ifree(aa, bb))
 #define	UFS_RDONLY(aa) ((aa)->i_ump->um_rdonly(aa))
 #define	UFS_SNAPGONE(aa) ((aa)->i_ump->um_snapgone(aa))
 
@@ -127,25 +115,25 @@ struct ufsmount {
 /*
  * Filesystem types
  */
-#define UFS1	1
-#define UFS2	2
+#define	UFS1	1
+#define	UFS2	2
 
 /*
  * Flags describing the state of quotas.
  */
 #define	QTF_OPENING	0x01			/* Q_QUOTAON in progress */
 #define	QTF_CLOSING	0x02			/* Q_QUOTAOFF in progress */
-#define QTF_64BIT	0x04			/* 64-bit quota file */
+#define	QTF_64BIT	0x04			/* 64-bit quota file */
 
 /* Convert mount ptr to ufsmount ptr. */
-#define VFSTOUFS(mp)	((struct ufsmount *)((mp)->mnt_data))
+#define	VFSTOUFS(mp)	((struct ufsmount *)((mp)->mnt_data))
 #define	UFSTOVFS(ump)	(ump)->um_mountp
 
 /*
  * Macros to access filesystem parameters in the ufsmount structure.
  * Used by ufs_bmap.
  */
-#define MNINDIR(ump)			((ump)->um_nindir)
+#define	MNINDIR(ump)			((ump)->um_nindir)
 #define	blkptrtodb(ump, b)		((b) << (ump)->um_bptrtodb)
 #define	is_sequential(ump, a, b)	((b) == (a) + ump->um_seqinc)
 #endif /* _KERNEL */

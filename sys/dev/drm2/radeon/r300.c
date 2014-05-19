@@ -1041,7 +1041,7 @@ static int r300_packet0_check(struct radeon_cs_parser *p,
 		track->textures[i].height = tmp + 1;
 		tmp = (idx_value >> 26) & 0xF;
 		track->textures[i].num_levels = tmp;
-		tmp = idx_value & (1 << 31);
+		tmp = idx_value & (1U << 31);
 		track->textures[i].use_pitch = !!tmp;
 		tmp = (idx_value >> 22) & 0xF;
 		track->textures[i].txdepth = tmp;

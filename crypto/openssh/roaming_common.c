@@ -1,4 +1,4 @@
-/* $OpenBSD: roaming_common.c,v 1.9 2011/12/07 05:44:38 djm Exp $ */
+/* $OpenBSD: roaming_common.c,v 1.12 2014/01/09 23:20:00 djm Exp $ */
 /*
  * Copyright (c) 2004-2009 AppGate Network Security AB
  *
@@ -36,6 +36,7 @@
 #include "cipher.h"
 #include "buffer.h"
 #include "roaming.h"
+#include "digest.h"
 
 static size_t out_buf_size = 0;
 static char *out_buf = NULL;
@@ -49,7 +50,7 @@ int roaming_enabled = 0;
 int resume_in_progress = 0;
 
 int
-get_snd_buf_size()
+get_snd_buf_size(void)
 {
 	int fd = packet_get_connection_out();
 	int optval;
@@ -61,7 +62,7 @@ get_snd_buf_size()
 }
 
 int
-get_recv_buf_size()
+get_recv_buf_size(void)
 {
 	int fd = packet_get_connection_in();
 	int optval;
@@ -225,9 +226,7 @@ resend_bytes(int fd, u_int64_t *offset)
 void
 calculate_new_key(u_int64_t *key, u_int64_t cookie, u_int64_t challenge)
 {
-	const EVP_MD *md = EVP_sha1();
-	EVP_MD_CTX ctx;
-	char hash[EVP_MAX_MD_SIZE];
+	u_char hash[SSH_DIGEST_MAX_LENGTH];
 	Buffer b;
 
 	buffer_init(&b);
@@ -235,12 +234,11 @@ calculate_new_key(u_int64_t *key, u_int64_t cookie, u_int64_t challenge)
 	buffer_put_int64(&b, cookie);
 	buffer_put_int64(&b, challenge);
 
-	EVP_DigestInit(&ctx, md);
-	EVP_DigestUpdate(&ctx, buffer_ptr(&b), buffer_len(&b));
-	EVP_DigestFinal(&ctx, hash, NULL);
+	if (ssh_digest_buffer(SSH_DIGEST_SHA1, &b, hash, sizeof(hash)) != 0)
+		fatal("%s: digest_buffer failed", __func__);
 
 	buffer_clear(&b);
-	buffer_append(&b, hash, EVP_MD_size(md));
+	buffer_append(&b, hash, ssh_digest_bytes(SSH_DIGEST_SHA1));
 	*key = buffer_get_int64(&b);
 	buffer_free(&b);
 }

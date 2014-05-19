@@ -65,6 +65,7 @@
 #define _NETINET6_IN6_VAR_H_
 
 #include <sys/tree.h>
+#include <sys/counter.h>
 
 #ifdef _KERNEL
 #include <sys/fnv_hash.h>
@@ -98,9 +99,6 @@ struct scope6_id;
 struct lltable;
 struct mld_ifinfo;
 
-#ifdef _KERNEL
-#include <sys/counter.h>
-
 struct in6_ifextra {
 	counter_u64_t *in6_ifstat;
 	counter_u64_t *icmp6_ifstat;
@@ -109,20 +107,10 @@ struct in6_ifextra {
 	struct lltable *lltable;
 	struct mld_ifinfo *mld_ifinfo;
 };
-#else
-
-struct in6_ifextra {
-	void *in6_ifstat;
-	void *icmp6_ifstat;
-	struct nd_ifinfo *nd_ifinfo;
-	struct scope6_id *scope6_id;
-	struct lltable *lltable;
-	struct mld_ifinfo *mld_ifinfo;
-};
-#endif /* !_KERNEL */
 
 #define	LLTABLE6(ifp)	(((struct in6_ifextra *)(ifp)->if_afdata[AF_INET6])->lltable)
 
+#if defined(_KERNEL) || defined(_WANT_IFADDR)
 struct	in6_ifaddr {
 	struct	ifaddr ia_ifa;		/* protocol-independent info */
 #define	ia_ifp		ia_ifa.ifa_ifp
@@ -153,6 +141,7 @@ struct	in6_ifaddr {
 /* List of in6_ifaddr's. */
 TAILQ_HEAD(in6_ifaddrhead, in6_ifaddr);
 LIST_HEAD(in6_ifaddrlisthead, in6_ifaddr);
+#endif
 
 /* control structure to manage address selection policy */
 struct in6_addrpolicy {
@@ -420,6 +409,12 @@ struct	in6_rrenumreq {
 	(((d)->s6_addr32[1] ^ (a)->s6_addr32[1]) & (m)->s6_addr32[1]) == 0 && \
 	(((d)->s6_addr32[2] ^ (a)->s6_addr32[2]) & (m)->s6_addr32[2]) == 0 && \
 	(((d)->s6_addr32[3] ^ (a)->s6_addr32[3]) & (m)->s6_addr32[3]) == 0 )
+#define IN6_MASK_ADDR(a, m)	do { \
+	(a)->s6_addr32[0] &= (m)->s6_addr32[0]; \
+	(a)->s6_addr32[1] &= (m)->s6_addr32[1]; \
+	(a)->s6_addr32[2] &= (m)->s6_addr32[2]; \
+	(a)->s6_addr32[3] &= (m)->s6_addr32[3]; \
+} while (0)
 #endif
 
 #define SIOCSIFADDR_IN6		 _IOW('i', 12, struct in6_ifreq)
@@ -804,6 +799,8 @@ int	in6_control(struct socket *, u_long, caddr_t, struct ifnet *,
 	struct thread *);
 int	in6_update_ifa(struct ifnet *, struct in6_aliasreq *,
 	struct in6_ifaddr *, int);
+void	in6_prepare_ifra(struct in6_aliasreq *, const struct in6_addr *,
+	const struct in6_addr *);
 void	in6_purgeaddr(struct ifaddr *);
 int	in6if_do_dad(struct ifnet *);
 void	in6_purgeif(struct ifnet *);
@@ -825,12 +822,11 @@ int	in6_prefix_ioctl(struct socket *, u_long, caddr_t,
 int	in6_prefix_add_ifid(int, struct in6_ifaddr *);
 void	in6_prefix_remove_ifid(int, struct in6_ifaddr *);
 void	in6_purgeprefix(struct ifnet *);
-void	in6_ifremloop(struct ifaddr *);
-void	in6_ifaddloop(struct ifaddr *);
 
 int	in6_is_addr_deprecated(struct sockaddr_in6 *);
 int	in6_src_ioctl(u_long, caddr_t);
 
+void	in6_newaddrmsg(struct in6_ifaddr *, int);
 /*
  * Extended API for IPv6 FIB support.
  */

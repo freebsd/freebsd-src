@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998-2011 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 1998-2011 Proofpoint, Inc. and its suppliers.
  *	All rights reserved.
  * Copyright (c) 1983, 1995-1997 Eric P. Allman.  All rights reserved.
  * Copyright (c) 1988, 1993
@@ -10,7 +10,7 @@
  * the sendmail distribution.
  *
  *
- *	$Id: conf.h,v 1.144 2011/05/03 16:24:00 ca Exp $
+ *	$Id: conf.h,v 1.147 2013/11/22 20:51:31 ca Exp $
  */
 
 /*
@@ -1532,6 +1532,8 @@ extern void		*malloc();
 #   if defined(__GLIBC__) && defined(__GLIBC_MINOR__)
 #    define GLIBC_VERSION ((__GLIBC__ << 8) + __GLIBC_MINOR__)
 #    if (GLIBC_VERSION >= 0x201)
+#     define SOCKADDR_LEN_T     socklen_t
+#     define SOCKOPT_LEN_T      socklen_t
 #     undef IPPROTO_ICMPV6	/* linux #defines, glibc enums */
 #    else /* (GLIBC_VERSION >= 0x201) */
 #     include <linux/in6.h>	/* IPv6 support */
@@ -2963,6 +2965,11 @@ typedef void		(*sigfunc_t) __P((int));
 #  define SM_INT32	int32_t
 # endif /* ! SM_INT32 */
 
+/* XXX  16 bit type */
+# ifndef SM_UINT16
+#  define SM_UINT16	uint16_t
+# endif /* ! SM_UINT16 */
+
 /*
 **  SVr4 and similar systems use different routines for setjmp/longjmp
 **  with signal support
@@ -3044,5 +3051,7 @@ struct sm_align
 #  define SM_ALIGN_SIZE offsetof(struct sm_align, al_u)
 # endif /* ! SM_ALIGN_SIZE */
 # define SM_ALIGN_BITS (SM_ALIGN_SIZE - 1)
+
+char *sm_inet6_ntop __P((const void *, char *, size_t));
 
 #endif /* ! SM_CONF_H */

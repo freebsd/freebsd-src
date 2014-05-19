@@ -140,7 +140,7 @@ __FBSDID("$FreeBSD$");
 #ifdef DEV_APIC
 #include <sys/bus.h>
 #include <machine/intr_machdep.h>
-#include <machine/apicvar.h>
+#include <x86/apicvar.h>
 #endif
 #include <machine/cpu.h>
 #include <machine/cputypes.h>
@@ -256,11 +256,10 @@ struct sysmaps {
 	caddr_t	CADDR2;
 };
 static struct sysmaps sysmaps_pcpu[MAXCPU];
-pt_entry_t *CMAP1 = 0;
-static pt_entry_t *CMAP3;
+pt_entry_t *CMAP3;
 static pd_entry_t *KPTD;
-caddr_t CADDR1 = 0, ptvmmap = 0;
-static caddr_t CADDR3;
+caddr_t ptvmmap = 0;
+caddr_t CADDR3;
 struct msgbuf *msgbufp = 0;
 
 /*
@@ -434,7 +433,6 @@ pmap_bootstrap(vm_paddr_t firstaddr)
 		SYSMAP(caddr_t, sysmaps->CMAP1, sysmaps->CADDR1, 1)
 		SYSMAP(caddr_t, sysmaps->CMAP2, sysmaps->CADDR2, 1)
 	}
-	SYSMAP(caddr_t, CMAP1, CADDR1, 1)
 	SYSMAP(caddr_t, CMAP3, CADDR3, 1)
 
 	/*
@@ -746,18 +744,24 @@ pmap_init(void)
 	 * numbers of pv entries.
 	 */
 	TUNABLE_INT_FETCH("vm.pmap.shpgperproc", &shpgperproc);
-	pv_entry_max = shpgperproc * maxproc + cnt.v_page_count;
+	pv_entry_max = shpgperproc * maxproc + vm_cnt.v_page_count;
 	TUNABLE_INT_FETCH("vm.pmap.pv_entries", &pv_entry_max);
 	pv_entry_max = roundup(pv_entry_max, _NPCPV);
 	pv_entry_high_water = 9 * (pv_entry_max / 10);
 
 	/*
-	 * If the kernel is running in a virtual machine on an AMD Family 10h
-	 * processor, then it must assume that MCA is enabled by the virtual
-	 * machine monitor.
+	 * If the kernel is running on a virtual machine, then it must assume
+	 * that MCA is enabled by the hypervisor.  Moreover, the kernel must
+	 * be prepared for the hypervisor changing the vendor and family that
+	 * are reported by CPUID.  Consequently, the workaround for AMD Family
+	 * 10h Erratum 383 is enabled if the processor's feature set does not
+	 * include at least one feature that is only supported by older Intel
+	 * or newer AMD processors.
 	 */
-	if (vm_guest == VM_GUEST_VM && cpu_vendor_id == CPU_VENDOR_AMD &&
-	    CPUID_TO_FAMILY(cpu_id) == 0x10)
+	if (vm_guest == VM_GUEST_VM && (cpu_feature & CPUID_SS) == 0 &&
+	    (cpu_feature2 & (CPUID2_SSSE3 | CPUID2_SSE41 | CPUID2_AESNI |
+	    CPUID2_AVX | CPUID2_XSAVE)) == 0 && (amd_feature2 & (AMDID2_XOP |
+	    AMDID2_FMA4)) == 0)
 		workaround_erratum383 = 1;
 
 	/*
@@ -1670,7 +1674,7 @@ _pmap_unwire_ptp(pmap_t pmap, vm_page_t m, struct spglist *free)
 	 * the page table page is globally performed before TLB shoot-
 	 * down is begun.
 	 */
-	atomic_subtract_rel_int(&cnt.v_wire_count, 1);
+	atomic_subtract_rel_int(&vm_cnt.v_wire_count, 1);
 
 	/*
 	 * Do an invltlb to make the invalidated mapping
@@ -2046,7 +2050,7 @@ pmap_release(pmap_t pmap)
 		    ("pmap_release: got wrong ptd page"));
 #endif
 		m->wire_count--;
-		atomic_subtract_int(&cnt.v_wire_count, 1);
+		atomic_subtract_int(&vm_cnt.v_wire_count, 1);
 		vm_page_free_zero(m);
 	}
 }
@@ -2309,7 +2313,7 @@ out:
 		SLIST_REMOVE_HEAD(&free, plinks.s.ss);
 		/* Recycle a freed page table page. */
 		m_pc->wire_count = 1;
-		atomic_add_int(&cnt.v_wire_count, 1);
+		atomic_add_int(&vm_cnt.v_wire_count, 1);
 	}
 	pmap_free_zero_pages(&free);
 	return (m_pc);
@@ -2858,7 +2862,7 @@ pmap_remove_pde(pmap_t pmap, pd_entry_t *pdq, vm_offset_t sva,
 			    ("pmap_remove_pde: pte page wire count error"));
 			mpte->wire_count = 0;
 			pmap_add_delayed_free_list(mpte, free, FALSE);
-			atomic_subtract_int(&cnt.v_wire_count, 1);
+			atomic_subtract_int(&vm_cnt.v_wire_count, 1);
 		}
 	}
 }
@@ -4062,6 +4066,8 @@ pmap_copy(pmap_t dst_pmap, pmap_t src_pmap, vm_offset_t dst_addr, vm_size_t len,
 			continue;
 			
 		if (srcptepaddr & PG_PS) {
+			if ((addr & PDRMASK) != 0 || addr + NBPDR > end_addr)
+				continue;
 			if (dst_pmap->pm_pdir[ptepindex] == 0 &&
 			    ((srcptepaddr & PG_MANAGED) == 0 ||
 			    pmap_pv_insert_pde(dst_pmap, addr, srcptepaddr &
@@ -4517,7 +4523,7 @@ pmap_remove_pages(pmap_t pmap)
 						    ("pmap_remove_pages: pte page wire count error"));
 						mpte->wire_count = 0;
 						pmap_add_delayed_free_list(mpte, &free, FALSE);
-						atomic_subtract_int(&cnt.v_wire_count, 1);
+						atomic_subtract_int(&vm_cnt.v_wire_count, 1);
 					}
 				} else {
 					pmap->pm_stats.resident_count--;
@@ -5038,73 +5044,6 @@ small_mappings:
 			 * 32 bits. 
 			 */
 			atomic_clear_int((u_int *)pte, PG_M);
-			pmap_invalidate_page(pmap, pv->pv_va);
-		}
-		PMAP_UNLOCK(pmap);
-	}
-	sched_unpin();
-	rw_wunlock(&pvh_global_lock);
-}
-
-/*
- *	pmap_clear_reference:
- *
- *	Clear the reference bit on the specified physical page.
- */
-void
-pmap_clear_reference(vm_page_t m)
-{
-	struct md_page *pvh;
-	pv_entry_t next_pv, pv;
-	pmap_t pmap;
-	pd_entry_t oldpde, *pde;
-	pt_entry_t *pte;
-	vm_offset_t va;
-
-	KASSERT((m->oflags & VPO_UNMANAGED) == 0,
-	    ("pmap_clear_reference: page %p is not managed", m));
-	rw_wlock(&pvh_global_lock);
-	sched_pin();
-	if ((m->flags & PG_FICTITIOUS) != 0)
-		goto small_mappings;
-	pvh = pa_to_pvh(VM_PAGE_TO_PHYS(m));
-	TAILQ_FOREACH_SAFE(pv, &pvh->pv_list, pv_next, next_pv) {
-		va = pv->pv_va;
-		pmap = PV_PMAP(pv);
-		PMAP_LOCK(pmap);
-		pde = pmap_pde(pmap, va);
-		oldpde = *pde;
-		if ((oldpde & PG_A) != 0) {
-			if (pmap_demote_pde(pmap, pde, va)) {
-				/*
-				 * Remove the mapping to a single page so
-				 * that a subsequent access may repromote.
-				 * Since the underlying page table page is
-				 * fully populated, this removal never frees
-				 * a page table page.
-				 */
-				va += VM_PAGE_TO_PHYS(m) - (oldpde &
-				    PG_PS_FRAME);
-				pmap_remove_page(pmap, va, NULL);
-			}
-		}
-		PMAP_UNLOCK(pmap);
-	}
-small_mappings:
-	TAILQ_FOREACH(pv, &m->md.pv_list, pv_next) {
-		pmap = PV_PMAP(pv);
-		PMAP_LOCK(pmap);
-		pde = pmap_pde(pmap, pv->pv_va);
-		KASSERT((*pde & PG_PS) == 0, ("pmap_clear_reference: found"
-		    " a 4mpage in page %p's pv list", m));
-		pte = pmap_pte_quick(pmap, pv->pv_va);
-		if ((*pte & PG_A) != 0) {
-			/*
-			 * Regardless of whether a pte is 32 or 64 bits
-			 * in size, PG_A is among the least significant
-			 * 32 bits. 
-			 */
-			atomic_clear_int((u_int *)pte, PG_A);
 			pmap_invalidate_page(pmap, pv->pv_va);
 		}
 		PMAP_UNLOCK(pmap);

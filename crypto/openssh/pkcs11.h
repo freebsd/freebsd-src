@@ -1,4 +1,4 @@
-/* $OpenBSD: pkcs11.h,v 1.2 2010/02/24 06:12:53 djm Exp $ */
+/* $OpenBSD: pkcs11.h,v 1.3 2013/11/26 19:15:09 deraadt Exp $ */
 /* pkcs11.h
    Copyright 2006, 2007 g10 Code GmbH
    Copyright 2006 Andreas Jellinghaus
@@ -319,7 +319,7 @@ typedef unsigned long ck_object_class_t;
 #define CKO_HW_FEATURE		(5)
 #define CKO_DOMAIN_PARAMETERS	(6)
 #define CKO_MECHANISM		(7)
-#define CKO_VENDOR_DEFINED	((unsigned long) (1 << 31))
+#define CKO_VENDOR_DEFINED	(1U << 31)
 
 
 typedef unsigned long ck_hw_feature_type_t;
@@ -327,7 +327,7 @@ typedef unsigned long ck_hw_feature_type_t;
 #define CKH_MONOTONIC_COUNTER	(1)
 #define CKH_CLOCK		(2)
 #define CKH_USER_INTERFACE	(3)
-#define CKH_VENDOR_DEFINED	((unsigned long) (1 << 31))
+#define CKH_VENDOR_DEFINED	(1U << 31)
 
 
 typedef unsigned long ck_key_type_t;
@@ -357,14 +357,14 @@ typedef unsigned long ck_key_type_t;
 #define CKK_AES			(0x1f)
 #define CKK_BLOWFISH		(0x20)
 #define CKK_TWOFISH		(0x21)
-#define CKK_VENDOR_DEFINED	((unsigned long) (1 << 31))
+#define CKK_VENDOR_DEFINED	(1U << 31)
 
 typedef unsigned long ck_certificate_type_t;
 
 #define CKC_X_509		(0)
 #define CKC_X_509_ATTR_CERT	(1)
 #define CKC_WTLS		(2)
-#define CKC_VENDOR_DEFINED	((unsigned long) (1 << 31))
+#define CKC_VENDOR_DEFINED	(1U << 31)
 
 
 typedef unsigned long ck_attribute_type_t;
@@ -453,7 +453,7 @@ typedef unsigned long ck_attribute_type_t;
 #define CKA_WRAP_TEMPLATE		(CKF_ARRAY_ATTRIBUTE | 0x211)
 #define CKA_UNWRAP_TEMPLATE		(CKF_ARRAY_ATTRIBUTE | 0x212)
 #define CKA_ALLOWED_MECHANISMS		(CKF_ARRAY_ATTRIBUTE | 0x600)
-#define CKA_VENDOR_DEFINED		((unsigned long) (1 << 31))
+#define CKA_VENDOR_DEFINED		(1U << 31)
 
 
 struct ck_attribute
@@ -672,7 +672,7 @@ typedef unsigned long ck_mechanism_type_t;
 #define CKM_DSA_PARAMETER_GEN		(0x2000)
 #define CKM_DH_PKCS_PARAMETER_GEN	(0x2001)
 #define CKM_X9_42_DH_PARAMETER_GEN	(0x2002)
-#define CKM_VENDOR_DEFINED		((unsigned long) (1 << 31))
+#define CKM_VENDOR_DEFINED		(1U << 31)
 
 
 struct ck_mechanism
@@ -703,7 +703,7 @@ struct ck_mechanism_info
 #define CKF_WRAP		(1 << 17)
 #define CKF_UNWRAP		(1 << 18)
 #define CKF_DERIVE		(1 << 19)
-#define CKF_EXTENSION		((unsigned long) (1 << 31))
+#define CKF_EXTENSION		(1U << 31)
 
 
 /* Flags for C_WaitForSlotEvent.  */
@@ -1179,7 +1179,7 @@ struct ck_c_initialize_args
 #define CKR_MUTEX_BAD				(0x1a0)
 #define CKR_MUTEX_NOT_LOCKED			(0x1a1)
 #define CKR_FUNCTION_REJECTED			(0x200)
-#define CKR_VENDOR_DEFINED			((unsigned long) (1 << 31))
+#define CKR_VENDOR_DEFINED			(1U << 31)
 
 
 

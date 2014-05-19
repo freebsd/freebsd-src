@@ -179,8 +179,19 @@ symtab_init(void)
 	size_t		sz;
 #endif
 
+#if defined(__FreeBSD__)
+	if ((fd = open("/dev/ksyms", O_RDONLY)) == -1) {
+		if (errno == ENOENT && modfind("ksyms") == -1) {
+			kldload("ksyms");
+			fd = open("/dev/ksyms", O_RDONLY);
+		}
+		if (fd == -1)
+			return (-1);
+	}
+#else
 	if ((fd = open("/dev/ksyms", O_RDONLY)) == -1)
 		return (-1);
+#endif
 
 #if defined(sun)
 	(void) elf_version(EV_CURRENT);

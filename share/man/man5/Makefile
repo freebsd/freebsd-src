@@ -1,12 +1,11 @@
 #	@(#)Makefile	8.1 (Berkeley) 6/5/93
 #	$FreeBSD$
 
-.include <bsd.own.mk>
+.include <src.opts.mk>
 
 #MISSING: dump.5 plot.5
 MAN=	acct.5 \
 	ar.5 \
-	${_atf_formats.5} \
 	a.out.5 \
 	bluetooth.device.conf.5 \
 	bluetooth.hosts.5 \
@@ -79,12 +78,6 @@ MLINKS+=portindex.5 INDEX.5
 MLINKS+=quota.user.5 quota.group.5
 MLINKS+=rc.conf.5 rc.conf.local.5
 MLINKS+=resolver.5 resolv.conf.5
-
-.if ${MK_ATF} != "no"
-ATF=			${.CURDIR}/../../../contrib/atf
-.PATH:			${ATF}/doc
-_atf_formats.5=		atf-formats.5
-.endif
 
 .if ${MK_FREEBSD_UPDATE} != "no"
 MAN+=	freebsd-update.conf.5

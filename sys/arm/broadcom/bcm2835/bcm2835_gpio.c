@@ -45,7 +45,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/cpufunc.h>
 #include <machine/resource.h>
 #include <machine/fdt.h>
-#include <machine/frame.h>
 #include <machine/intr.h>
 
 #include <dev/fdt/fdt_common.h>
@@ -55,8 +54,6 @@ __FBSDID("$FreeBSD$");
 #include <arm/broadcom/bcm2835/bcm2835_gpio.h>
 
 #include "gpio_if.h"
-
-#undef	DEBUG
 
 #ifdef DEBUG
 #define dprintf(fmt, args...) do { printf("%s(): ", __func__);   \
@@ -592,7 +589,7 @@ bcm_gpio_sysctl_init(struct bcm_gpio_softc *sc)
  	tree_node = device_get_sysctl_tree(sc->sc_dev);
  	tree = SYSCTL_CHILDREN(tree_node);
 	pin_node = SYSCTL_ADD_NODE(ctx, tree, OID_AUTO, "pin",
-	    CTLFLAG_RW, NULL, "GPIO Pins");
+	    CTLFLAG_RD, NULL, "GPIO Pins");
 	pin_tree = SYSCTL_CHILDREN(pin_node);
 
 	for (i = 0; i < sc->sc_gpio_npins; i++) {
@@ -677,6 +674,10 @@ bcm_gpio_get_reserved_pins(struct bcm_gpio_softc *sc)
 static int
 bcm_gpio_probe(device_t dev)
 {
+
+	if (!ofw_bus_status_okay(dev))
+		return (ENXIO);
+
 	if (!ofw_bus_is_compatible(dev, "broadcom,bcm2835-gpio"))
 		return (ENXIO);
 
@@ -765,6 +766,14 @@ bcm_gpio_detach(device_t dev)
 	return (EBUSY);
 }
 
+static phandle_t
+bcm_gpio_get_node(device_t bus, device_t dev)
+{
+
+	/* We only have one child, the GPIO bus, which needs our own node. */
+	return (ofw_bus_get_node(bus));
+}
+
 static device_method_t bcm_gpio_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		bcm_gpio_probe),
@@ -780,6 +789,9 @@ static device_method_t bcm_gpio_methods[] = {
 	DEVMETHOD(gpio_pin_get,		bcm_gpio_pin_get),
 	DEVMETHOD(gpio_pin_set,		bcm_gpio_pin_set),
 	DEVMETHOD(gpio_pin_toggle,	bcm_gpio_pin_toggle),
+
+	/* ofw_bus interface */
+	DEVMETHOD(ofw_bus_get_node,	bcm_gpio_get_node),
 
 	DEVMETHOD_END
 };

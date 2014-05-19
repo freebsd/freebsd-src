@@ -48,7 +48,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/capability.h>
+#include <sys/capsicum.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
@@ -56,6 +56,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/filedesc.h>
 #include <sys/priv.h>
 #include <sys/proc.h>
+#include <sys/procctl.h>
 #include <sys/racct.h>
 #include <sys/resource.h>
 #include <sys/resourcevar.h>
@@ -68,6 +69,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mount.h>
 #include <sys/conf.h>
 #include <sys/stat.h>
+#include <sys/syscallsubr.h>
 #include <sys/sysent.h>
 #include <sys/vmmeter.h>
 
@@ -554,7 +556,7 @@ sys_msync(td, uap)
 	case KERN_SUCCESS:
 		return (0);
 	case KERN_INVALID_ADDRESS:
-		return (EINVAL);	/* Sun returns ENOMEM? */
+		return (ENOMEM);
 	case KERN_INVALID_ARGUMENT:
 		return (EBUSY);
 	case KERN_FAILURE:
@@ -739,23 +741,18 @@ sys_madvise(td, uap)
 {
 	vm_offset_t start, end;
 	vm_map_t map;
-	struct proc *p;
-	int error;
+	int flags;
 
 	/*
 	 * Check for our special case, advising the swap pager we are
 	 * "immortal."
 	 */
 	if (uap->behav == MADV_PROTECT) {
-		error = priv_check(td, PRIV_VM_MADV_PROTECT);
-		if (error == 0) {
-			p = td->td_proc;
-			PROC_LOCK(p);
-			p->p_flag |= P_PROTECTED;
-			PROC_UNLOCK(p);
-		}
-		return (error);
+		flags = PPROT_SET;
+		return (kern_procctl(td, P_PID, td->td_proc->p_pid,
+		    PROC_SPROTECT, &flags));
 	}
+
 	/*
 	 * Check for illegal behavior
 	 */
@@ -1093,7 +1090,7 @@ vm_mlock(struct proc *proc, struct ucred *cred, const void *addr0, size_t len)
 		return (ENOMEM);
 	}
 	PROC_UNLOCK(proc);
-	if (npages + cnt.v_wire_count > vm_page_max_wired)
+	if (npages + vm_cnt.v_wire_count > vm_page_max_wired)
 		return (EAGAIN);
 #ifdef RACCT
 	PROC_LOCK(proc);

@@ -29,14 +29,15 @@
 #include <string>
 #include <vector>
 
-namespace clang {
-
-class CompilerInvocation;
-class DiagnosticsEngine;
-
-namespace driver {
+namespace llvm {
+namespace opt {
 class ArgList;
 }
+}
+
+namespace clang {
+class CompilerInvocation;
+class DiagnosticsEngine;
 
 /// \brief Fill out Opts based on the options given in Args.
 ///
@@ -45,9 +46,9 @@ class ArgList;
 ///
 /// When errors are encountered, return false and, if Diags is non-null,
 /// report the error(s).
-bool ParseDiagnosticArgs(DiagnosticOptions &Opts, driver::ArgList &Args,
+bool ParseDiagnosticArgs(DiagnosticOptions &Opts, llvm::opt::ArgList &Args,
                          DiagnosticsEngine *Diags = 0);
-  
+
 class CompilerInvocationBase : public RefCountedBase<CompilerInvocation> {
 protected:
   /// Options controlling the language variant.

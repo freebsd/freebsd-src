@@ -82,8 +82,8 @@ struct	soft_segment_descriptor {
  * region descriptors, used to load gdt/idt tables before segments yet exist.
  */
 struct region_descriptor {
-	unsigned long rd_limit:16;		/* segment extent */
-	unsigned long rd_base:64 __packed;	/* base address  */
+	uint64_t rd_limit:16;		/* segment extent */
+	uint64_t rd_base:64 __packed;	/* base address  */
 } __packed;
 
 #ifdef _KERNEL

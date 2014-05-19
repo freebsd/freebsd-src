@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+.include <bsd.own.mk>
+
 .PATH:	${.CURDIR}/../../../dev/drm2/radeon
 
 KMOD	= radeonkms
@@ -86,7 +88,10 @@ SRCS	+=								\
 	si.c								\
 	si_blit_shaders.c
 
-#radeon_ioc32.c
+.if ${MACHINE_CPUARCH} == "amd64"
+SRCS	+= radeon_ioc32.c
+.endif
+
 #radeon_prime.c
 #--radeon_trace_points.c
 
@@ -94,14 +99,15 @@ SRCS	+=								\
 	opt_acpi.h							\
 	opt_compat.h							\
 	opt_drm.h							\
+	opt_syscons.h							\
 	acpi_if.h							\
 	bus_if.h							\
+	fb_if.h								\
 	device_if.h							\
 	iicbb_if.h							\
 	iicbus_if.h							\
 	pci_if.h
 
-CFLAGS  += -I${.CURDIR}/../../../dev/drm2/radeon			\
-	   -fms-extensions
+CFLAGS  += -I${.CURDIR}/../../../dev/drm2/radeon ${GCC_MS_EXTENSIONS}
 
 .include <bsd.kmod.mk>

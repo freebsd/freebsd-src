@@ -297,7 +297,7 @@ ipf_p_tftp_backchannel(fin, aps, nat)
 	tftpinfo_t *ti;
 	udphdr_t udp;
 	fr_info_t fi;
-	u_short slen;
+	u_short slen = 0; /* silence gcc */
 	nat_t *nat2;
 	int nflags;
 	ip_t *ip;

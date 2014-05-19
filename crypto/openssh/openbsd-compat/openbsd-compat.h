@@ -1,4 +1,4 @@
-/* $Id: openbsd-compat.h,v 1.55 2013/02/15 01:20:42 dtucker Exp $ */
+/* $Id: openbsd-compat.h,v 1.61 2014/02/04 00:18:23 djm Exp $ */
 
 /*
  * Copyright (c) 1999-2003 Damien Miller.  All rights reserved.
@@ -44,6 +44,7 @@
 #include "vis.h"
 #include "getrrsetbyname.h"
 #include "sha2.h"
+#include "blf.h"
 
 #ifndef HAVE_BASENAME
 char *basename(const char *path);
@@ -111,6 +112,10 @@ char *dirname(const char *path);
 int	fmt_scaled(long long number, char *result);
 #endif
 
+#ifndef HAVE_SCAN_SCALED
+int	scan_scaled(char *, long long *);
+#endif
+
 #if defined(BROKEN_INET_NTOA) || !defined(HAVE_INET_NTOA)
 char *inet_ntoa(struct in_addr in);
 #endif
@@ -139,6 +144,7 @@ int getgrouplist(const char *, gid_t, gid_t *, int *);
 
 #if !defined(HAVE_GETOPT) || !defined(HAVE_GETOPT_OPTRESET)
 int BSDgetopt(int argc, char * const *argv, const char *opts);
+#include "openbsd-compat/getopt.h"
 #endif
 
 #if defined(HAVE_DECL_WRITEV) && HAVE_DECL_WRITEV == 0
@@ -156,9 +162,13 @@ int writev(int, struct iovec *, int);
 
 #ifndef HAVE_GETPEEREID
 int getpeereid(int , uid_t *, gid_t *);
-#endif 
+#endif
 
-#ifndef HAVE_ARC4RANDOM
+#ifdef HAVE_ARC4RANDOM
+# ifndef HAVE_ARC4RANDOM_STIR
+#  define arc4random_stir()
+# endif
+#else
 unsigned int arc4random(void);
 void arc4random_stir(void);
 #endif /* !HAVE_ARC4RANDOM */
@@ -202,6 +212,11 @@ unsigned long long strtoull(const char *, char **, int);
 long long strtonum(const char *, long long, long long, const char **);
 #endif
 
+/* multibyte character support */
+#ifndef HAVE_MBLEN
+# define mblen(x, y)	1
+#endif
+
 #if !defined(HAVE_VASPRINTF) || !defined(HAVE_VSNPRINTF)
 # include <stdarg.h>
 #endif
@@ -224,6 +239,15 @@ char *group_from_gid(gid_t, int);
 
 #ifndef HAVE_TIMINGSAFE_BCMP
 int timingsafe_bcmp(const void *, const void *, size_t);
+#endif
+
+#ifndef HAVE_BCRYPT_PBKDF
+int	bcrypt_pbkdf(const char *, size_t, const u_int8_t *, size_t,
+    u_int8_t *, size_t, unsigned int);
+#endif
+
+#ifndef HAVE_EXPLICIT_BZERO
+void explicit_bzero(void *p, size_t n);
 #endif
 
 void *xmmap(size_t size);

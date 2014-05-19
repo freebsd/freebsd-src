@@ -114,9 +114,9 @@ struct apr_dbd_t
     char lastError[MAX_ERROR_STRING];
     int defaultBufferSize;      /* used for CLOBs in text mode, 
                                  * and when fld size is indeterminate */
-    int transaction_mode;
-    int dboptions;              /* driver options re SQLGetData */
-    int default_transaction_mode;
+    intptr_t transaction_mode;
+    intptr_t dboptions;         /* driver options re SQLGetData */
+    intptr_t default_transaction_mode;
     int can_commit;             /* controls end_trans behavior */
 };
 
@@ -359,7 +359,7 @@ static SQLRETURN odbc_set_result_column(int icol, apr_dbd_results_t *res,
                                         SQLHANDLE stmt)
 {
     SQLRETURN rc;
-    int maxsize, textsize, realsize, type, isunsigned = 1;
+    intptr_t maxsize, textsize, realsize, type, isunsigned = 1;
 
     /* discover the sql type */
     rc = SQLColAttribute(stmt, icol + 1, SQL_DESC_UNSIGNED, NULL, 0, NULL,
@@ -409,7 +409,7 @@ static SQLRETURN odbc_set_result_column(int icol, apr_dbd_results_t *res,
       type = SQL_C_CHAR;
     }
 
-    res->coltypes[icol] = type;
+    res->coltypes[icol] = (SQLSMALLINT)type;
 
     /* size if retrieved as text */
     rc = SQLColAttribute(stmt, icol + 1, SQL_DESC_DISPLAY_SIZE, NULL, 0,
@@ -441,12 +441,12 @@ static SQLRETURN odbc_set_result_column(int icol, apr_dbd_results_t *res,
 
         res->colptrs[icol] =  NULL;
         res->colstate[icol] = COL_AVAIL;
-        res->colsizes[icol] = maxsize;
+        res->colsizes[icol] = (SQLINTEGER)maxsize;
         rc = SQL_SUCCESS;
     }
     else {
         res->colptrs[icol] = apr_pcalloc(res->pool, maxsize);
-        res->colsizes[icol] = maxsize;
+        res->colsizes[icol] = (SQLINTEGER)maxsize;
         if (res->apr_dbd->dboptions & SQL_GD_BOUND) {
             /* we are allowed to call SQLGetData if we need to */
             rc = SQLBindCol(stmt, icol + 1, res->coltypes[icol], 
@@ -747,7 +747,7 @@ static void *odbc_get(const apr_dbd_row_t *row, const int col,
     SQLRETURN rc;
     SQLLEN indicator;
     int state = row->res->colstate[col];
-    int options = row->res->apr_dbd->dboptions;
+    intptr_t options = row->res->apr_dbd->dboptions;
 
     switch (state) {
     case (COL_UNAVAIL):
@@ -817,13 +817,13 @@ static apr_status_t odbc_parse_params(apr_pool_t *pool, const char *params,
                                int *connect, SQLCHAR **datasource, 
                                SQLCHAR **user, SQLCHAR **password, 
                                int *defaultBufferSize, int *nattrs,
-                               int **attrs, int **attrvals)
+                               int **attrs, intptr_t **attrvals)
 {
     char *seps, *last, *next, *name[MAX_PARAMS], *val[MAX_PARAMS];
     int nparams = 0, i, j;
 
     *attrs = apr_pcalloc(pool, MAX_PARAMS * sizeof(char *));
-    *attrvals = apr_pcalloc(pool, MAX_PARAMS * sizeof(int));
+    *attrvals = apr_pcalloc(pool, MAX_PARAMS * sizeof(intptr_t));
     *nattrs = 0;
     seps = DEFAULTSEPS;
     name[nparams] = apr_strtok(apr_pstrdup(pool, params), seps, &last);
@@ -1062,7 +1062,8 @@ static apr_dbd_t *odbc_open(apr_pool_t *pool, const char *params, const char **e
     SQLHANDLE err_h = NULL;
     SQLCHAR  *datasource = (SQLCHAR *)"", *user = (SQLCHAR *)"",
              *password = (SQLCHAR *)"";
-    int nattrs = 0, *attrs = NULL, *attrvals = NULL, connect = 0;
+    int nattrs = 0, *attrs = NULL,  connect = 0;
+    intptr_t *attrvals = NULL;
 
     err_step = "SQLAllocHandle (SQL_HANDLE_DBC)";
     err_htype = SQL_HANDLE_ENV;
@@ -1116,10 +1117,10 @@ static apr_dbd_t *odbc_open(apr_pool_t *pool, const char *params, const char **e
         handle->default_transaction_mode = 0;
         handle->can_commit = APR_DBD_TRANSACTION_IGNORE_ERRORS;
         SQLGetInfo(hdbc, SQL_DEFAULT_TXN_ISOLATION,
-                   &(handle->default_transaction_mode), sizeof(int), NULL);
+                   &(handle->default_transaction_mode), sizeof(intptr_t), NULL);
         handle->transaction_mode = handle->default_transaction_mode;
         SQLGetInfo(hdbc, SQL_GETDATA_EXTENSIONS ,&(handle->dboptions),
-                   sizeof(int), NULL);
+                   sizeof(intptr_t), NULL);
         apr_pool_cleanup_register(pool, handle, odbc_close_cleanup, apr_pool_cleanup_null);
         return handle;
     }

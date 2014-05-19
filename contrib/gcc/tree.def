@@ -177,6 +177,11 @@ DEFTREECODE (POINTER_TYPE, "pointer_type", tcc_type, 0)
    automatically to the value it points to.  Used in C++.  */
 DEFTREECODE (REFERENCE_TYPE, "reference_type", tcc_type, 0)
 
+/* APPLE LOCAL begin radar 5732232 - blocks */
+/* All pointer-to-block types have code BLOCK_POINTER_TYPE.
+   The TREE_TYPE points to the node for the type pointed to.  */
+DEFTREECODE (BLOCK_POINTER_TYPE, "block_pointer_type", tcc_type, 0)
+/* APPLE LOCAL end radar 5732232 - blocks */
 /* The ordering of the following codes is optimized for the checking
    macros in tree.h.  Changing the order will degrade the speed of the
    compiler.  COMPLEX_TYPE, VECTOR_TYPE, ARRAY_TYPE.  */

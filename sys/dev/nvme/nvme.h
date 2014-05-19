@@ -535,7 +535,7 @@ struct nvme_controller_data {
 	uint8_t			reserved6[1024];
 
 	/* bytes 3072-4095: vendor specific */
-	uint8_t			reserved7[1024];
+	uint8_t			vs[1024];
 } __packed __aligned(4);
 
 struct nvme_namespace_data {
@@ -720,7 +720,7 @@ struct nvme_io_test {
 	uint32_t		time;	/* in seconds */
 	uint32_t		num_threads;
 	uint32_t		flags;
-	uint32_t		io_completed[NVME_TEST_MAX_THREADS];
+	uint64_t		io_completed[NVME_TEST_MAX_THREADS];
 };
 
 enum nvme_io_test_flags {

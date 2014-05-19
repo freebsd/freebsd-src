@@ -101,10 +101,10 @@ sctp_connectx(int sd, const struct sockaddr *addrs, int addrcnt,
     sctp_assoc_t * id)
 {
 	char *buf;
-	int i, ret, cnt, *aa;
+	int i, ret, *aa;
 	char *cpto;
 	const struct sockaddr *at;
-	size_t len = sizeof(int);
+	size_t len;
 
 	/* validate the address count and list */
 	if ((addrs == NULL) || (addrcnt <= 0)) {
@@ -115,8 +115,8 @@ sctp_connectx(int sd, const struct sockaddr *addrs, int addrcnt,
 		errno = E2BIG;
 		return (-1);
 	}
+	len = sizeof(int);
 	at = addrs;
-	cnt = 0;
 	cpto = buf + sizeof(int);
 	/* validate all the addresses and get the size */
 	for (i = 0; i < addrcnt; i++) {
@@ -161,6 +161,7 @@ sctp_connectx(int sd, const struct sockaddr *addrs, int addrcnt,
 	if ((ret == 0) && (id != NULL)) {
 		*id = *(sctp_assoc_t *) buf;
 	}
+	free(buf);
 	return (ret);
 }
 
@@ -232,18 +233,10 @@ sctp_bindx(int sd, struct sockaddr *addrs, int addrcnt, int flags)
 			break;
 		default:
 			/* Invalid address family specified. */
-			errno = EINVAL;
+			errno = EAFNOSUPPORT;
 			return (-1);
 		}
 		sa = (struct sockaddr *)((caddr_t)sa + sa->sa_len);
-	}
-	/*
-	 * Now if there was a port mentioned, assure that the first address
-	 * has that port to make sure it fails or succeeds correctly.
-	 */
-	if (sport) {
-		sin = (struct sockaddr_in *)sa;
-		sin->sin_port = sport;
 	}
 	argsz = sizeof(struct sctp_getaddresses) +
 	    sizeof(struct sockaddr_storage);
@@ -256,6 +249,23 @@ sctp_bindx(int sd, struct sockaddr *addrs, int addrcnt, int flags)
 		memset(gaddrs, 0, argsz);
 		gaddrs->sget_assoc_id = 0;
 		memcpy(gaddrs->addr, sa, sa->sa_len);
+		/*
+		 * Now, if there was a port mentioned, assure that the first
+		 * address has that port to make sure it fails or succeeds
+		 * correctly.
+		 */
+		if ((i == 0) && (sport != 0)) {
+			switch (gaddrs->addr->sa_family) {
+			case AF_INET:
+				sin = (struct sockaddr_in *)gaddrs->addr;
+				sin->sin_port = sport;
+				break;
+			case AF_INET6:
+				sin6 = (struct sockaddr_in6 *)gaddrs->addr;
+				sin6->sin6_port = sport;
+				break;
+			}
+		}
 		if (setsockopt(sd, IPPROTO_SCTP, flags, gaddrs,
 		    (socklen_t) argsz) != 0) {
 			free(gaddrs);

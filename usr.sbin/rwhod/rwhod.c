@@ -43,7 +43,7 @@ static char sccsid[] = "@(#)rwhod.c	8.1 (Berkeley) 6/6/93";
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <sys/capability.h>
+#include <sys/capsicum.h>
 #include <sys/param.h>
 #include <sys/socket.h>
 #include <sys/stat.h>
@@ -281,7 +281,7 @@ main(int argc, char *argv[])
 		} else if (pid_child_receiver == -1) {
 			if (errno == ENOSYS) {
 				syslog(LOG_ERR,
-				    "The pdfork(2) system call is not available; recompile the kernel with options PROCDESC");
+				    "The pdfork(2) system call is not available - kernel too old.");
 			} else {
 				syslog(LOG_ERR, "pdfork: %m");
 			}

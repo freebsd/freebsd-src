@@ -58,17 +58,20 @@ enum FoundationClass {
   FC_NSArray,
   FC_NSDictionary,
   FC_NSEnumerator,
+  FC_NSNull,
   FC_NSOrderedSet,
   FC_NSSet,
   FC_NSString
 };
 
-static FoundationClass findKnownClass(const ObjCInterfaceDecl *ID) {
+static FoundationClass findKnownClass(const ObjCInterfaceDecl *ID,
+                                      bool IncludeSuperclasses = true) {
   static llvm::StringMap<FoundationClass> Classes;
   if (Classes.empty()) {
     Classes["NSArray"] = FC_NSArray;
     Classes["NSDictionary"] = FC_NSDictionary;
     Classes["NSEnumerator"] = FC_NSEnumerator;
+    Classes["NSNull"] = FC_NSNull;
     Classes["NSOrderedSet"] = FC_NSOrderedSet;
     Classes["NSSet"] = FC_NSSet;
     Classes["NSString"] = FC_NSString;
@@ -76,7 +79,7 @@ static FoundationClass findKnownClass(const ObjCInterfaceDecl *ID) {
 
   // FIXME: Should we cache this at all?
   FoundationClass result = Classes.lookup(ID->getIdentifier()->getName());
-  if (result == FC_None)
+  if (result == FC_None && IncludeSuperclasses)
     if (const ObjCInterfaceDecl *Super = ID->getSuperClass())
       return findKnownClass(Super);
 
@@ -88,20 +91,49 @@ static FoundationClass findKnownClass(const ObjCInterfaceDecl *ID) {
 //===----------------------------------------------------------------------===//
 
 namespace {
-  class NilArgChecker : public Checker<check::PreObjCMessage> {
+  class NilArgChecker : public Checker<check::PreObjCMessage,
+                                       check::PostStmt<ObjCDictionaryLiteral>,
+                                       check::PostStmt<ObjCArrayLiteral> > {
     mutable OwningPtr<APIMisuse> BT;
 
-    void WarnIfNilArg(CheckerContext &C,
-                    const ObjCMethodCall &msg, unsigned Arg,
-                    FoundationClass Class,
-                    bool CanBeSubscript = false) const;
+    void warnIfNilExpr(const Expr *E,
+                       const char *Msg,
+                       CheckerContext &C) const;
+
+    void warnIfNilArg(CheckerContext &C,
+                      const ObjCMethodCall &msg, unsigned Arg,
+                      FoundationClass Class,
+                      bool CanBeSubscript = false) const;
+
+    void generateBugReport(ExplodedNode *N,
+                           StringRef Msg,
+                           SourceRange Range,
+                           const Expr *Expr,
+                           CheckerContext &C) const;
 
   public:
     void checkPreObjCMessage(const ObjCMethodCall &M, CheckerContext &C) const;
+    void checkPostStmt(const ObjCDictionaryLiteral *DL,
+                       CheckerContext &C) const;
+    void checkPostStmt(const ObjCArrayLiteral *AL,
+                       CheckerContext &C) const;
   };
 }
 
-void NilArgChecker::WarnIfNilArg(CheckerContext &C,
+void NilArgChecker::warnIfNilExpr(const Expr *E,
+                                  const char *Msg,
+                                  CheckerContext &C) const {
+  ProgramStateRef State = C.getState();
+  if (State->isNull(C.getSVal(E)).isConstrainedTrue()) {
+
+    if (ExplodedNode *N = C.generateSink()) {
+      generateBugReport(N, Msg, E->getSourceRange(), E, C);
+    }
+    
+  }
+}
+
+void NilArgChecker::warnIfNilArg(CheckerContext &C,
                                  const ObjCMethodCall &msg,
                                  unsigned int Arg,
                                  FoundationClass Class,
@@ -111,9 +143,6 @@ void NilArgChecker::WarnIfNilArg(CheckerContext &C,
   if (!State->isNull(msg.getArgSVal(Arg)).isConstrainedTrue())
       return;
       
-  if (!BT)
-    BT.reset(new APIMisuse("nil argument"));
-
   if (ExplodedNode *N = C.generateSink()) {
     SmallString<128> sbuf;
     llvm::raw_svector_ostream os(sbuf);
@@ -147,12 +176,24 @@ void NilArgChecker::WarnIfNilArg(CheckerContext &C,
         << msg.getSelector().getAsString() << "' cannot be nil";
       }
     }
-
-    BugReport *R = new BugReport(*BT, os.str(), N);
-    R->addRange(msg.getArgSourceRange(Arg));
-    bugreporter::trackNullOrUndefValue(N, msg.getArgExpr(Arg), *R);
-    C.emitReport(R);
+    
+    generateBugReport(N, os.str(), msg.getArgSourceRange(Arg),
+                      msg.getArgExpr(Arg), C);
   }
+}
+
+void NilArgChecker::generateBugReport(ExplodedNode *N,
+                                      StringRef Msg,
+                                      SourceRange Range,
+                                      const Expr *E,
+                                      CheckerContext &C) const {
+  if (!BT)
+    BT.reset(new APIMisuse("nil argument"));
+
+  BugReport *R = new BugReport(*BT, Msg, N);
+  R->addRange(Range);
+  bugreporter::trackNullOrUndefValue(N, E, *R);
+  C.emitReport(R);
 }
 
 void NilArgChecker::checkPreObjCMessage(const ObjCMethodCall &msg,
@@ -223,26 +264,43 @@ void NilArgChecker::checkPreObjCMessage(const ObjCMethodCall &msg,
     if (S.getNameForSlot(0).equals("dictionaryWithObject") &&
         S.getNameForSlot(1).equals("forKey")) {
       Arg = 0;
-      WarnIfNilArg(C, msg, /* Arg */1, Class);
+      warnIfNilArg(C, msg, /* Arg */1, Class);
     } else if (S.getNameForSlot(0).equals("setObject") &&
                S.getNameForSlot(1).equals("forKey")) {
       Arg = 0;
-      WarnIfNilArg(C, msg, /* Arg */1, Class);
+      warnIfNilArg(C, msg, /* Arg */1, Class);
     } else if (S.getNameForSlot(0).equals("setObject") &&
                S.getNameForSlot(1).equals("forKeyedSubscript")) {
       CanBeSubscript = true;
       Arg = 0;
-      WarnIfNilArg(C, msg, /* Arg */1, Class, CanBeSubscript);
+      warnIfNilArg(C, msg, /* Arg */1, Class, CanBeSubscript);
     } else if (S.getNameForSlot(0).equals("removeObjectForKey")) {
       Arg = 0;
     }
   }
 
-
   // If argument is '0', report a warning.
   if ((Arg != InvalidArgIndex))
-    WarnIfNilArg(C, msg, Arg, Class, CanBeSubscript);
+    warnIfNilArg(C, msg, Arg, Class, CanBeSubscript);
 
+}
+
+void NilArgChecker::checkPostStmt(const ObjCArrayLiteral *AL,
+                                  CheckerContext &C) const {
+  unsigned NumOfElements = AL->getNumElements();
+  for (unsigned i = 0; i < NumOfElements; ++i) {
+    warnIfNilExpr(AL->getElement(i), "Array element cannot be nil", C);
+  }
+}
+
+void NilArgChecker::checkPostStmt(const ObjCDictionaryLiteral *DL,
+                                  CheckerContext &C) const {
+  unsigned NumOfElements = DL->getNumElements();
+  for (unsigned i = 0; i < NumOfElements; ++i) {
+    ObjCDictionaryElement Element = DL->getKeyValueElement(i);
+    warnIfNilExpr(Element.Key, "Dictionary key cannot be nil", C);
+    warnIfNilExpr(Element.Value, "Dictionary value cannot be nil", C);
+  }
 }
 
 //===----------------------------------------------------------------------===//
@@ -729,12 +787,31 @@ void VariadicMethodTypeChecker::checkPreObjCMessage(const ObjCMethodCall &msg,
 // Improves the modeling of loops over Cocoa collections.
 //===----------------------------------------------------------------------===//
 
+// The map from container symbol to the container count symbol.
+// We currently will remember the last countainer count symbol encountered.
+REGISTER_MAP_WITH_PROGRAMSTATE(ContainerCountMap, SymbolRef, SymbolRef)
+REGISTER_MAP_WITH_PROGRAMSTATE(ContainerNonEmptyMap, SymbolRef, bool)
+
 namespace {
 class ObjCLoopChecker
-  : public Checker<check::PostStmt<ObjCForCollectionStmt> > {
-  
+  : public Checker<check::PostStmt<ObjCForCollectionStmt>,
+                   check::PostObjCMessage,
+                   check::DeadSymbols,
+                   check::PointerEscape > {
+  mutable IdentifierInfo *CountSelectorII;
+
+  bool isCollectionCountMethod(const ObjCMethodCall &M,
+                               CheckerContext &C) const;
+
 public:
+  ObjCLoopChecker() : CountSelectorII(0) {}
   void checkPostStmt(const ObjCForCollectionStmt *FCS, CheckerContext &C) const;
+  void checkPostObjCMessage(const ObjCMethodCall &M, CheckerContext &C) const;
+  void checkDeadSymbols(SymbolReaper &SymReaper, CheckerContext &C) const;
+  ProgramStateRef checkPointerEscape(ProgramStateRef State,
+                                     const InvalidatedSymbols &Escaped,
+                                     const CallEvent *Call,
+                                     PointerEscapeKind Kind) const;
 };
 }
 
@@ -819,21 +896,238 @@ static ProgramStateRef checkElementNonNil(CheckerContext &C,
   return State->assume(Val.castAs<DefinedOrUnknownSVal>(), true);
 }
 
+/// Returns NULL state if the collection is known to contain elements
+/// (or is known not to contain elements if the Assumption parameter is false.)
+static ProgramStateRef
+assumeCollectionNonEmpty(CheckerContext &C, ProgramStateRef State,
+                         SymbolRef CollectionS, bool Assumption) {
+  if (!State || !CollectionS)
+    return State;
+
+  const SymbolRef *CountS = State->get<ContainerCountMap>(CollectionS);
+  if (!CountS) {
+    const bool *KnownNonEmpty = State->get<ContainerNonEmptyMap>(CollectionS);
+    if (!KnownNonEmpty)
+      return State->set<ContainerNonEmptyMap>(CollectionS, Assumption);
+    return (Assumption == *KnownNonEmpty) ? State : NULL;
+  }
+
+  SValBuilder &SvalBuilder = C.getSValBuilder();
+  SVal CountGreaterThanZeroVal =
+    SvalBuilder.evalBinOp(State, BO_GT,
+                          nonloc::SymbolVal(*CountS),
+                          SvalBuilder.makeIntVal(0, (*CountS)->getType()),
+                          SvalBuilder.getConditionType());
+  Optional<DefinedSVal> CountGreaterThanZero =
+    CountGreaterThanZeroVal.getAs<DefinedSVal>();
+  if (!CountGreaterThanZero) {
+    // The SValBuilder cannot construct a valid SVal for this condition.
+    // This means we cannot properly reason about it.
+    return State;
+  }
+
+  return State->assume(*CountGreaterThanZero, Assumption);
+}
+
+static ProgramStateRef
+assumeCollectionNonEmpty(CheckerContext &C, ProgramStateRef State,
+                         const ObjCForCollectionStmt *FCS,
+                         bool Assumption) {
+  if (!State)
+    return NULL;
+
+  SymbolRef CollectionS =
+    State->getSVal(FCS->getCollection(), C.getLocationContext()).getAsSymbol();
+  return assumeCollectionNonEmpty(C, State, CollectionS, Assumption);
+}
+
+
+/// If the fist block edge is a back edge, we are reentering the loop.
+static bool alreadyExecutedAtLeastOneLoopIteration(const ExplodedNode *N,
+                                             const ObjCForCollectionStmt *FCS) {
+  if (!N)
+    return false;
+
+  ProgramPoint P = N->getLocation();
+  if (Optional<BlockEdge> BE = P.getAs<BlockEdge>()) {
+    if (BE->getSrc()->getLoopTarget() == FCS)
+      return true;
+    return false;
+  }
+
+  // Keep looking for a block edge.
+  for (ExplodedNode::const_pred_iterator I = N->pred_begin(),
+                                         E = N->pred_end(); I != E; ++I) {
+    if (alreadyExecutedAtLeastOneLoopIteration(*I, FCS))
+      return true;
+  }
+
+  return false;
+}
+
 void ObjCLoopChecker::checkPostStmt(const ObjCForCollectionStmt *FCS,
                                     CheckerContext &C) const {
+  ProgramStateRef State = C.getState();
+
   // Check if this is the branch for the end of the loop.
   SVal CollectionSentinel = C.getSVal(FCS);
-  if (CollectionSentinel.isZeroConstant())
-    return;
+  if (CollectionSentinel.isZeroConstant()) {
+    if (!alreadyExecutedAtLeastOneLoopIteration(C.getPredecessor(), FCS))
+      State = assumeCollectionNonEmpty(C, State, FCS, /*Assumption*/false);
 
-  ProgramStateRef State = C.getState();
-  State = checkCollectionNonNil(C, State, FCS);
-  State = checkElementNonNil(C, State, FCS);
-
+  // Otherwise, this is a branch that goes through the loop body.
+  } else {
+    State = checkCollectionNonNil(C, State, FCS);
+    State = checkElementNonNil(C, State, FCS);
+    State = assumeCollectionNonEmpty(C, State, FCS, /*Assumption*/true);
+  }
+  
   if (!State)
     C.generateSink();
   else if (State != C.getState())
     C.addTransition(State);
+}
+
+bool ObjCLoopChecker::isCollectionCountMethod(const ObjCMethodCall &M,
+                                              CheckerContext &C) const {
+  Selector S = M.getSelector();
+  // Initialize the identifiers on first use.
+  if (!CountSelectorII)
+    CountSelectorII = &C.getASTContext().Idents.get("count");
+
+  // If the method returns collection count, record the value.
+  if (S.isUnarySelector() &&
+      (S.getIdentifierInfoForSlot(0) == CountSelectorII))
+    return true;
+  
+  return false;
+}
+
+void ObjCLoopChecker::checkPostObjCMessage(const ObjCMethodCall &M,
+                                           CheckerContext &C) const {
+  if (!M.isInstanceMessage())
+    return;
+
+  const ObjCInterfaceDecl *ClassID = M.getReceiverInterface();
+  if (!ClassID)
+    return;
+
+  FoundationClass Class = findKnownClass(ClassID);
+  if (Class != FC_NSDictionary &&
+      Class != FC_NSArray &&
+      Class != FC_NSSet &&
+      Class != FC_NSOrderedSet)
+    return;
+
+  SymbolRef ContainerS = M.getReceiverSVal().getAsSymbol();
+  if (!ContainerS)
+    return;
+
+  // If we are processing a call to "count", get the symbolic value returned by
+  // a call to "count" and add it to the map.
+  if (!isCollectionCountMethod(M, C))
+    return;
+  
+  const Expr *MsgExpr = M.getOriginExpr();
+  SymbolRef CountS = C.getSVal(MsgExpr).getAsSymbol();
+  if (CountS) {
+    ProgramStateRef State = C.getState();
+
+    C.getSymbolManager().addSymbolDependency(ContainerS, CountS);
+    State = State->set<ContainerCountMap>(ContainerS, CountS);
+
+    if (const bool *NonEmpty = State->get<ContainerNonEmptyMap>(ContainerS)) {
+      State = State->remove<ContainerNonEmptyMap>(ContainerS);
+      State = assumeCollectionNonEmpty(C, State, ContainerS, *NonEmpty);
+    }
+
+    C.addTransition(State);
+  }
+  return;
+}
+
+static SymbolRef getMethodReceiverIfKnownImmutable(const CallEvent *Call) {
+  const ObjCMethodCall *Message = dyn_cast_or_null<ObjCMethodCall>(Call);
+  if (!Message)
+    return 0;
+
+  const ObjCMethodDecl *MD = Message->getDecl();
+  if (!MD)
+    return 0;
+
+  const ObjCInterfaceDecl *StaticClass;
+  if (isa<ObjCProtocolDecl>(MD->getDeclContext())) {
+    // We can't find out where the method was declared without doing more work.
+    // Instead, see if the receiver is statically typed as a known immutable
+    // collection.
+    StaticClass = Message->getOriginExpr()->getReceiverInterface();
+  } else {
+    StaticClass = MD->getClassInterface();
+  }
+
+  if (!StaticClass)
+    return 0;
+
+  switch (findKnownClass(StaticClass, /*IncludeSuper=*/false)) {
+  case FC_None:
+    return 0;
+  case FC_NSArray:
+  case FC_NSDictionary:
+  case FC_NSEnumerator:
+  case FC_NSNull:
+  case FC_NSOrderedSet:
+  case FC_NSSet:
+  case FC_NSString:
+    break;
+  }
+
+  return Message->getReceiverSVal().getAsSymbol();
+}
+
+ProgramStateRef
+ObjCLoopChecker::checkPointerEscape(ProgramStateRef State,
+                                    const InvalidatedSymbols &Escaped,
+                                    const CallEvent *Call,
+                                    PointerEscapeKind Kind) const {
+  SymbolRef ImmutableReceiver = getMethodReceiverIfKnownImmutable(Call);
+
+  // Remove the invalidated symbols form the collection count map.
+  for (InvalidatedSymbols::const_iterator I = Escaped.begin(),
+       E = Escaped.end();
+       I != E; ++I) {
+    SymbolRef Sym = *I;
+
+    // Don't invalidate this symbol's count if we know the method being called
+    // is declared on an immutable class. This isn't completely correct if the
+    // receiver is also passed as an argument, but in most uses of NSArray,
+    // NSDictionary, etc. this isn't likely to happen in a dangerous way.
+    if (Sym == ImmutableReceiver)
+      continue;
+
+    // The symbol escaped. Pessimistically, assume that the count could have
+    // changed.
+    State = State->remove<ContainerCountMap>(Sym);
+    State = State->remove<ContainerNonEmptyMap>(Sym);
+  }
+  return State;
+}
+
+void ObjCLoopChecker::checkDeadSymbols(SymbolReaper &SymReaper,
+                                       CheckerContext &C) const {
+  ProgramStateRef State = C.getState();
+
+  // Remove the dead symbols from the collection count map.
+  ContainerCountMapTy Tracked = State->get<ContainerCountMap>();
+  for (ContainerCountMapTy::iterator I = Tracked.begin(),
+                                     E = Tracked.end(); I != E; ++I) {
+    SymbolRef Sym = I->first;
+    if (SymReaper.isDead(Sym)) {
+      State = State->remove<ContainerCountMap>(Sym);
+      State = State->remove<ContainerNonEmptyMap>(Sym);
+    }
+  }
+
+  C.addTransition(State);
 }
 
 namespace {
@@ -845,6 +1139,7 @@ class ObjCNonNilReturnValueChecker
     mutable bool Initialized;
     mutable Selector ObjectAtIndex;
     mutable Selector ObjectAtIndexedSubscript;
+    mutable Selector NullSelector;
 
 public:
   ObjCNonNilReturnValueChecker() : Initialized(false) {}
@@ -870,6 +1165,7 @@ void ObjCNonNilReturnValueChecker::checkPostObjCMessage(const ObjCMethodCall &M,
     ASTContext &Ctx = C.getASTContext();
     ObjectAtIndex = GetUnarySelector("objectAtIndex", Ctx);
     ObjectAtIndexedSubscript = GetUnarySelector("objectAtIndexedSubscript", Ctx);
+    NullSelector = GetNullarySelector("null", Ctx);
   }
 
   // Check the receiver type.
@@ -889,13 +1185,22 @@ void ObjCNonNilReturnValueChecker::checkPostObjCMessage(const ObjCMethodCall &M,
       State = assumeExprIsNonNull(M.getOriginExpr(), State, C);
     }
 
+    FoundationClass Cl = findKnownClass(Interface);
+
     // Objects returned from
     // [NSArray|NSOrderedSet]::[ObjectAtIndex|ObjectAtIndexedSubscript]
     // are never 'nil'.
-    FoundationClass Cl = findKnownClass(Interface);
     if (Cl == FC_NSArray || Cl == FC_NSOrderedSet) {
       Selector Sel = M.getSelector();
       if (Sel == ObjectAtIndex || Sel == ObjectAtIndexedSubscript) {
+        // Go ahead and assume the value is non-nil.
+        State = assumeExprIsNonNull(M.getOriginExpr(), State, C);
+      }
+    }
+
+    // Objects returned from [NSNull null] are not nil.
+    if (Cl == FC_NSNull) {
+      if (M.getSelector() == NullSelector) {
         // Go ahead and assume the value is non-nil.
         State = assumeExprIsNonNull(M.getOriginExpr(), State, C);
       }

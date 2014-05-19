@@ -143,12 +143,10 @@ fifo_open(ap)
 	fp = ap->a_fp;
 	td = ap->a_td;
 	ASSERT_VOP_ELOCKED(vp, "fifo_open");
-	if (fp == NULL)
+	if (fp == NULL || (ap->a_mode & FEXEC) != 0)
 		return (EINVAL);
 	if ((fip = vp->v_fifoinfo) == NULL) {
-		error = pipe_named_ctor(&fpipe, td);
-		if (error != 0)
-			return (error);
+		pipe_named_ctor(&fpipe, td);
 		fip = malloc(sizeof(*fip), M_VNODE, M_WAITOK);
 		fip->fi_pipe = fpipe;
 		fpipe->pipe_wgen = fip->fi_readers = fip->fi_writers = 0;

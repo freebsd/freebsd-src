@@ -1,5 +1,5 @@
 .\"***************************************************************************
-.\" Copyright (c) 1998-2002,2003 Free Software Foundation, Inc.              *
+.\" Copyright (c) 1998-2003,2010 Free Software Foundation, Inc.              *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
 .\" copy of this software and associated documentation files (the            *
@@ -26,12 +26,12 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: curs_bkgd.3x,v 1.19 2003/12/27 18:50:40 tom Exp $
+.\" $Id: curs_bkgd.3x,v 1.22 2010/12/04 18:36:44 tom Exp $
 .TH curs_bkgd 3X ""
 .SH NAME
 \fBbkgdset\fR, \fBwbkgdset\fR,
 \fBbkgd\fR, \fBwbkgd\fR,
-\fBgetbkgd\fR - \fBcurses\fR window background manipulation routines
+\fBgetbkgd\fR \- \fBcurses\fR window background manipulation routines
 .SH SYNOPSIS
 \fB#include <curses.h>\fR
 .PP
@@ -83,16 +83,10 @@ but this appears to be an error.
 Note that \fBbkgdset\fR and \fBbkgd\fR may be macros.
 .SH PORTABILITY
 These functions are described in the XSI Curses standard, Issue 4.
-It specifies that \fBbkgd\fR and \fBwbkgd\fR return \fBERR\fR on failure.
+It specifies that \fBbkgd\fR and \fBwbkgd\fR return \fBERR\fR on failure,
 but gives no failure conditions.
 .SH SEE ALSO
 \fBcurses\fR(3X),
 \fBcurs_addch\fR(3X),
 \fBcurs_attr\fR(3X),
 \fBcurs_outopts\fR(3X)
-.\"#
-.\"# The following sets edit modes for GNU EMACS
-.\"# Local Variables:
-.\"# mode:nroff
-.\"# fill-column:79
-.\"# End:

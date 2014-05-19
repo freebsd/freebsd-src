@@ -1,6 +1,6 @@
 divert(-1)
 #
-# Copyright (c) 2001-2002, 2005 Sendmail, Inc. and its suppliers.
+# Copyright (c) 2001-2002, 2005 Proofpoint, Inc. and its suppliers.
 #	All rights reserved.
 #
 # By using this file, you agree to the terms and conditions set
@@ -59,7 +59,7 @@ dnl ##	address returned does not begin 127, then the mail is
 dnl ##	processed as if the HACK line were not present.
 
 divert(0)
-VERSIONID(`$Id: dnsblaccess.m4,v 1.6 2005/07/25 23:32:05 ca Exp $')
+VERSIONID(`$Id: dnsblaccess.m4,v 1.7 2013/11/22 20:51:18 ca Exp $')
 ifdef(`_ACCESS_TABLE_', `dnl',
 	`errprint(`*** ERROR: dnsblaccess requires FEATURE(`access_db')
 ')')

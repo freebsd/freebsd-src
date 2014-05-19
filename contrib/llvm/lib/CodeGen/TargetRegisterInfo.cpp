@@ -23,10 +23,12 @@ using namespace llvm;
 TargetRegisterInfo::TargetRegisterInfo(const TargetRegisterInfoDesc *ID,
                              regclass_iterator RCB, regclass_iterator RCE,
                              const char *const *SRINames,
-                             const unsigned *SRILaneMasks)
+                             const unsigned *SRILaneMasks,
+                             unsigned SRICoveringLanes)
   : InfoDesc(ID), SubRegIndexNames(SRINames),
     SubRegIndexLaneMasks(SRILaneMasks),
-    RegClassBegin(RCB), RegClassEnd(RCE) {
+    RegClassBegin(RCB), RegClassEnd(RCE),
+    CoveringLanes(SRICoveringLanes) {
 }
 
 TargetRegisterInfo::~TargetRegisterInfo() {}
@@ -71,6 +73,14 @@ void PrintRegUnit::print(raw_ostream &OS) const {
     OS << '~' << TRI->getName(*Roots);
 }
 
+void PrintVRegOrUnit::print(raw_ostream &OS) const {
+  if (TRI && TRI->isVirtualRegister(Unit)) {
+    OS << "%vreg" << TargetRegisterInfo::virtReg2Index(Unit);
+    return;
+  }
+  PrintRegUnit::print(OS);
+}
+
 /// getAllocatableClass - Return the maximal subclass of the given register
 /// class that is alloctable, or NULL.
 const TargetRegisterClass *
@@ -83,7 +93,7 @@ TargetRegisterInfo::getAllocatableClass(const TargetRegisterClass *RC) const {
        Base < BaseE; Base += 32) {
     unsigned Idx = Base;
     for (unsigned Mask = *SubClass++; Mask; Mask >>= 1) {
-      unsigned Offset = CountTrailingZeros_32(Mask);
+      unsigned Offset = countTrailingZeros(Mask);
       const TargetRegisterClass *SubRC = getRegClass(Idx + Offset);
       if (SubRC->isAllocatable())
         return SubRC;
@@ -153,7 +163,7 @@ const TargetRegisterClass *firstCommonClass(const uint32_t *A,
                                             const TargetRegisterInfo *TRI) {
   for (unsigned I = 0, E = TRI->getNumRegClasses(); I < E; I += 32)
     if (unsigned Common = *A++ & *B++)
-      return TRI->getRegClass(I + CountTrailingZeros_32(Common));
+      return TRI->getRegClass(I + countTrailingZeros(Common));
   return 0;
 }
 

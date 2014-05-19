@@ -1,6 +1,6 @@
 PUSHDIVERT(-1)
 #
-# Copyright (c) 1998-2001 Sendmail, Inc. and its suppliers.
+# Copyright (c) 1998-2001 Proofpoint, Inc. and its suppliers.
 #	All rights reserved.
 # Copyright (c) 1983 Eric P. Allman.  All rights reserved.
 # Copyright (c) 1988, 1993
@@ -24,7 +24,7 @@ POPDIVERT
 ###   UUCP Mailer specification   ###
 #####################################
 
-VERSIONID(`$Id: uucp.m4,v 8.44 2001/08/24 19:49:08 ca Exp $')
+VERSIONID(`$Id: uucp.m4,v 8.45 2013/11/22 20:51:14 ca Exp $')
 
 #
 #  envelope and header sender rewriting

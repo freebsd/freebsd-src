@@ -19,16 +19,142 @@
 #include "llvm/CodeGen/MachineModuleInfoImpls.h"
 #include "llvm/CodeGen/TargetLoweringObjectFileImpl.h"
 #include "llvm/MC/MCExpr.h"
+#include "llvm/MC/MCInstBuilder.h"
 #include "llvm/MC/MCStreamer.h"
 #include "llvm/Support/TargetRegistry.h"
 #include "llvm/Target/Mangler.h"
 
 using namespace llvm;
 
+// Return an RI instruction like MI with opcode Opcode, but with the
+// GR64 register operands turned into GR32s.
+static MCInst lowerRILow(const MachineInstr *MI, unsigned Opcode) {
+  if (MI->isCompare())
+    return MCInstBuilder(Opcode)
+      .addReg(SystemZMC::getRegAsGR32(MI->getOperand(0).getReg()))
+      .addImm(MI->getOperand(1).getImm());
+  else
+    return MCInstBuilder(Opcode)
+      .addReg(SystemZMC::getRegAsGR32(MI->getOperand(0).getReg()))
+      .addReg(SystemZMC::getRegAsGR32(MI->getOperand(1).getReg()))
+      .addImm(MI->getOperand(2).getImm());
+}
+
+// Return an RI instruction like MI with opcode Opcode, but with the
+// GR64 register operands turned into GRH32s.
+static MCInst lowerRIHigh(const MachineInstr *MI, unsigned Opcode) {
+  if (MI->isCompare())
+    return MCInstBuilder(Opcode)
+      .addReg(SystemZMC::getRegAsGRH32(MI->getOperand(0).getReg()))
+      .addImm(MI->getOperand(1).getImm());
+  else
+    return MCInstBuilder(Opcode)
+      .addReg(SystemZMC::getRegAsGRH32(MI->getOperand(0).getReg()))
+      .addReg(SystemZMC::getRegAsGRH32(MI->getOperand(1).getReg()))
+      .addImm(MI->getOperand(2).getImm());
+}
+
+// Return an RI instruction like MI with opcode Opcode, but with the
+// R2 register turned into a GR64.
+static MCInst lowerRIEfLow(const MachineInstr *MI, unsigned Opcode) {
+  return MCInstBuilder(Opcode)
+    .addReg(MI->getOperand(0).getReg())
+    .addReg(MI->getOperand(1).getReg())
+    .addReg(SystemZMC::getRegAsGR64(MI->getOperand(2).getReg()))
+    .addImm(MI->getOperand(3).getImm())
+    .addImm(MI->getOperand(4).getImm())
+    .addImm(MI->getOperand(5).getImm());
+}
+
 void SystemZAsmPrinter::EmitInstruction(const MachineInstr *MI) {
-  SystemZMCInstLower Lower(Mang, MF->getContext(), *this);
+  SystemZMCInstLower Lower(MF->getContext(), *this);
   MCInst LoweredMI;
-  Lower.lower(MI, LoweredMI);
+  switch (MI->getOpcode()) {
+  case SystemZ::Return:
+    LoweredMI = MCInstBuilder(SystemZ::BR).addReg(SystemZ::R14D);
+    break;
+
+  case SystemZ::CallBRASL:
+    LoweredMI = MCInstBuilder(SystemZ::BRASL)
+      .addReg(SystemZ::R14D)
+      .addExpr(Lower.getExpr(MI->getOperand(0), MCSymbolRefExpr::VK_PLT));
+    break;
+
+  case SystemZ::CallBASR:
+    LoweredMI = MCInstBuilder(SystemZ::BASR)
+      .addReg(SystemZ::R14D)
+      .addReg(MI->getOperand(0).getReg());
+    break;
+
+  case SystemZ::CallJG:
+    LoweredMI = MCInstBuilder(SystemZ::JG)
+      .addExpr(Lower.getExpr(MI->getOperand(0), MCSymbolRefExpr::VK_PLT));
+    break;
+
+  case SystemZ::CallBR:
+    LoweredMI = MCInstBuilder(SystemZ::BR).addReg(SystemZ::R1D);
+    break;
+
+  case SystemZ::IILF64:
+    LoweredMI = MCInstBuilder(SystemZ::IILF)
+      .addReg(SystemZMC::getRegAsGR32(MI->getOperand(0).getReg()))
+      .addImm(MI->getOperand(2).getImm());
+    break;
+
+  case SystemZ::IIHF64:
+    LoweredMI = MCInstBuilder(SystemZ::IIHF)
+      .addReg(SystemZMC::getRegAsGRH32(MI->getOperand(0).getReg()))
+      .addImm(MI->getOperand(2).getImm());
+    break;
+
+  case SystemZ::RISBHH:
+  case SystemZ::RISBHL:
+    LoweredMI = lowerRIEfLow(MI, SystemZ::RISBHG);
+    break;
+
+  case SystemZ::RISBLH:
+  case SystemZ::RISBLL:
+    LoweredMI = lowerRIEfLow(MI, SystemZ::RISBLG);
+    break;
+
+#define LOWER_LOW(NAME)                                                 \
+  case SystemZ::NAME##64: LoweredMI = lowerRILow(MI, SystemZ::NAME); break
+
+  LOWER_LOW(IILL);
+  LOWER_LOW(IILH);
+  LOWER_LOW(TMLL);
+  LOWER_LOW(TMLH);
+  LOWER_LOW(NILL);
+  LOWER_LOW(NILH);
+  LOWER_LOW(NILF);
+  LOWER_LOW(OILL);
+  LOWER_LOW(OILH);
+  LOWER_LOW(OILF);
+  LOWER_LOW(XILF);
+
+#undef LOWER_LOW
+
+#define LOWER_HIGH(NAME) \
+  case SystemZ::NAME##64: LoweredMI = lowerRIHigh(MI, SystemZ::NAME); break
+
+  LOWER_HIGH(IIHL);
+  LOWER_HIGH(IIHH);
+  LOWER_HIGH(TMHL);
+  LOWER_HIGH(TMHH);
+  LOWER_HIGH(NIHL);
+  LOWER_HIGH(NIHH);
+  LOWER_HIGH(NIHF);
+  LOWER_HIGH(OIHL);
+  LOWER_HIGH(OIHH);
+  LOWER_HIGH(OIHF);
+  LOWER_HIGH(XIHF);
+
+#undef LOWER_HIGH
+
+  default:
+    Lower.lower(MI, LoweredMI);
+    break;
+  }
   OutStreamer.EmitInstruction(LoweredMI);
 }
 
@@ -48,7 +174,7 @@ EmitMachineConstantPoolValue(MachineConstantPoolValue *MCPV) {
     static_cast<SystemZConstantPoolValue*>(MCPV);
 
   const MCExpr *Expr =
-    MCSymbolRefExpr::Create(Mang->getSymbol(ZCPV->getGlobalValue()),
+    MCSymbolRefExpr::Create(getSymbol(ZCPV->getGlobalValue()),
                             getModifierVariantKind(ZCPV->getModifier()),
                             OutContext);
   uint64_t Size = TM.getDataLayout()->getTypeAllocSize(ZCPV->getType());
@@ -66,7 +192,7 @@ bool SystemZAsmPrinter::PrintAsmOperand(const MachineInstr *MI,
       return true;
     OS << -int64_t(MI->getOperand(OpNo).getImm());
   } else {
-    SystemZMCInstLower Lower(Mang, MF->getContext(), *this);
+    SystemZMCInstLower Lower(MF->getContext(), *this);
     MCOperand MO(Lower.lowerOperand(MI->getOperand(OpNo)));
     SystemZInstPrinter::printOperand(MO, OS);
   }
@@ -100,7 +226,7 @@ void SystemZAsmPrinter::EmitEndOfAsmFile(Module &M) {
       for (unsigned i = 0, e = Stubs.size(); i != e; ++i) {
         OutStreamer.EmitLabel(Stubs[i].first);
         OutStreamer.EmitSymbolValue(Stubs[i].second.getPointer(),
-                                    TD->getPointerSize(0), 0);
+                                    TD->getPointerSize(0));
       }
       Stubs.clear();
     }

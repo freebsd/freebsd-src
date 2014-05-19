@@ -74,6 +74,25 @@ static struct bufarea cgblk;	/* backup buffer for cylinder group blocks */
 static TAILQ_HEAD(buflist, bufarea) bufhead;	/* head of buffer cache list */
 static int numbufs;				/* size of buffer cache */
 static char *buftype[BT_NUMBUFTYPES] = BT_NAMES;
+static struct bufarea *cgbufs;	/* header for cylinder group cache */
+static int flushtries;		/* number of tries to reclaim memory */
+
+void
+fsutilinit(void)
+{
+	diskreads = totaldiskreads = totalreads = 0;
+	bzero(&startpass, sizeof(struct timespec));
+	bzero(&finishpass, sizeof(struct timespec));
+	bzero(&slowio_starttime, sizeof(struct timeval));
+	slowio_delay_usec = 10000;
+	slowio_pollcnt = 0;
+	bzero(&cgblk, sizeof(struct bufarea));
+	TAILQ_INIT(&bufhead);
+	numbufs = 0;
+	/* buftype ? */
+	cgbufs = NULL;
+	flushtries = 0;
+}
 
 int
 ftypeok(union dinode *dp)
@@ -206,7 +225,7 @@ cgget(int cg)
 	struct cg *cgp;
 
 	if (cgbufs == NULL) {
-		cgbufs = Calloc(sblock.fs_ncg, sizeof(struct bufarea));
+		cgbufs = calloc(sblock.fs_ncg, sizeof(struct bufarea));
 		if (cgbufs == NULL)
 			errx(EEXIT, "cannot allocate cylinder group buffers");
 	}
@@ -235,6 +254,8 @@ flushentry(void)
 {
 	struct bufarea *cgbp;
 
+	if (flushtries == sblock.fs_ncg || cgbufs == NULL)
+		return (0);
 	cgbp = &cgbufs[flushtries++];
 	if (cgbp->b_un.b_cg == NULL)
 		return (0);
@@ -415,13 +436,15 @@ ckfini(int markclean)
 	}
 	if (numbufs != cnt)
 		errx(EEXIT, "panic: lost %d buffers", numbufs - cnt);
-	for (cnt = 0; cnt < sblock.fs_ncg; cnt++) {
-		if (cgbufs[cnt].b_un.b_cg == NULL)
-			continue;
-		flush(fswritefd, &cgbufs[cnt]);
-		free(cgbufs[cnt].b_un.b_cg);
+	if (cgbufs != NULL) {
+		for (cnt = 0; cnt < sblock.fs_ncg; cnt++) {
+			if (cgbufs[cnt].b_un.b_cg == NULL)
+				continue;
+			flush(fswritefd, &cgbufs[cnt]);
+			free(cgbufs[cnt].b_un.b_cg);
+		}
+		free(cgbufs);
 	}
-	free(cgbufs);
 	pbp = pdirbp = (struct bufarea *)0;
 	if (cursnapshot == 0 && sblock.fs_clean != markclean) {
 		if ((sblock.fs_clean = markclean) != 0) {

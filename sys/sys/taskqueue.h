@@ -81,6 +81,7 @@ int	taskqueue_cancel_timeout(struct taskqueue *queue,
 void	taskqueue_drain(struct taskqueue *queue, struct task *task);
 void	taskqueue_drain_timeout(struct taskqueue *queue,
 	    struct timeout_task *timeout_task);
+void	taskqueue_drain_all(struct taskqueue *queue);
 void	taskqueue_free(struct taskqueue *queue);
 void	taskqueue_run(struct taskqueue *queue);
 void	taskqueue_block(struct taskqueue *queue);

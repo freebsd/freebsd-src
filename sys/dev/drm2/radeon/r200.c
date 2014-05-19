@@ -116,7 +116,7 @@ int r200_copy_dma(struct radeon_device *rdev,
 		radeon_ring_write(ring, PACKET0(0x720, 2));
 		radeon_ring_write(ring, src_offset);
 		radeon_ring_write(ring, dst_offset);
-		radeon_ring_write(ring, cur_size | (1 << 31) | (1 << 30));
+		radeon_ring_write(ring, cur_size | (1U << 31) | (1 << 30));
 		src_offset += cur_size;
 		dst_offset += cur_size;
 	}

@@ -242,13 +242,11 @@ aac_cam_event(struct aac_softc *sc, struct aac_event *event, void *arg)
 static int
 aac_cam_probe(device_t dev)
 {
-	struct aac_softc *sc;
 	struct aac_cam *camsc;
 
 	camsc = (struct aac_cam *)device_get_softc(dev);
 	if (!camsc->inf)
 		return (0);
-	sc = camsc->inf->aac_sc;
 	fwprintf(sc, HBA_FLAGS_DBG_FUNCTION_ENTRY_B, "");
 	return (0);
 }
@@ -709,7 +707,7 @@ aac_container_special_command(struct cam_sim *sim, union ccb *ccb,
 		"Container READ_CAPACITY id %d lun %d len %d", 
 		ccb->ccb_h.target_id, ccb->ccb_h.target_lun,
 		ccb->csio.dxfer_len);
-		scsi_ulto4b(co->co_mntobj.ObjExtension.BlockSize, p->length);
+		scsi_ulto4b(co->co_mntobj.ObjExtension.BlockDevice.BlockSize, p->length);
 		/* check if greater than 2TB */
 		if (co->co_mntobj.CapacityHigh) {
 			if (sc->flags & AAC_FLAGS_LBA_64BIT)
@@ -737,9 +735,20 @@ aac_container_special_command(struct cam_sim *sim, union ccb *ccb,
 			xpt_done(ccb);
 			return;	
 		}
-		scsi_ulto4b(co->co_mntobj.ObjExtension.BlockSize, p->length);
+		scsi_ulto4b(co->co_mntobj.ObjExtension.BlockDevice.BlockSize, p->length);
 		scsi_ulto4b(co->co_mntobj.CapacityHigh, p->addr);
 		scsi_ulto4b(co->co_mntobj.Capacity-1, &p->addr[4]);
+
+		if (ccb->csio.dxfer_len >= 14) {		
+			u_int32_t mapping = co->co_mntobj.ObjExtension.BlockDevice.bdLgclPhysMap;
+			p->prot_lbppbe = 0;
+			while (mapping > 1) {
+				mapping >>= 1;
+				p->prot_lbppbe++;
+			}
+			p->prot_lbppbe &= 0x0f;
+		}
+
 		ccb->ccb_h.status = CAM_REQ_CMP;
 		break;
 	}
@@ -769,7 +778,7 @@ aac_container_special_command(struct cam_sim *sim, union ccb *ccb,
 			p->hd.block_descr_len = 
 				sizeof(struct scsi_mode_block_descr);	
 			p->hd.datalen += p->hd.block_descr_len;
-			scsi_ulto3b(co->co_mntobj.ObjExtension.BlockSize, p->bd.block_len);
+			scsi_ulto3b(co->co_mntobj.ObjExtension.BlockDevice.BlockSize, p->bd.block_len);
 			if (co->co_mntobj.Capacity > 0xffffff ||
 				co->co_mntobj.CapacityHigh) {
 				p->bd.num_blocks[0] = 0xff;
@@ -1122,11 +1131,9 @@ aac_cam_poll(struct cam_sim *sim)
 static void
 aac_container_complete(struct aac_command *cm)
 {
-	struct	aac_softc *sc;
 	union	ccb *ccb;
 	u_int32_t status;
 
-	sc = cm->cm_sc;
 	fwprintf(sc, HBA_FLAGS_DBG_FUNCTION_ENTRY_B, "");
 	ccb = cm->cm_ccb;
 	status = ((u_int32_t *)cm->cm_fib->data)[0];
@@ -1213,11 +1220,20 @@ aac_cam_complete(struct aac_command *cm)
 				   */
 				  if ((device == T_DIRECT && 
 				    !(sc->aac_feature_bits & AAC_SUPPL_SUPPORTED_JBOD)) ||
-				    (device == T_PROCESSOR) ||
-				    (sc->flags & AAC_FLAGS_CAM_PASSONLY)) 
+				    (device == T_PROCESSOR)) 
 				    ccb->csio.data_ptr[0] =
 				  	((device & 0xe0) | T_NODEVICE);
 					
+				  /* handle phys. components of a log. drive */
+				  if (ccb->csio.data_ptr[0] & 0x20) {
+					if (sc->hint_flags & 8) {
+					  /* expose phys. device (daXX) */
+					  ccb->csio.data_ptr[0] &= 0xdf;
+					} else {
+					  /* phys. device only visible through pass device (passXX) */
+					  ccb->csio.data_ptr[0] |= 0x10;
+					}
+				  }
 				} else if (ccb->ccb_h.status == CAM_SEL_TIMEOUT &&
 				  ccb->ccb_h.target_lun != 0) {
 				  /* fix for INQUIRYs on Lun>0 */

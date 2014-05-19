@@ -193,7 +193,7 @@ dev_refthread(struct cdev *dev, int *ref)
 	if (csw != NULL) {
 		cdp = cdev2priv(dev);
 		if ((cdp->cdp_flags & CDP_SCHED_DTR) == 0)
-			dev->si_threadcount++;
+			atomic_add_long(&dev->si_threadcount, 1);
 		else
 			csw = NULL;
 	}
@@ -234,7 +234,7 @@ devvn_refthread(struct vnode *vp, struct cdev **devp, int *ref)
 	if ((cdp->cdp_flags & CDP_SCHED_DTR) == 0) {
 		csw = dev->si_devsw;
 		if (csw != NULL)
-			dev->si_threadcount++;
+			atomic_add_long(&dev->si_threadcount, 1);
 	}
 	dev_unlock();
 	if (csw != NULL) {
@@ -251,11 +251,9 @@ dev_relthread(struct cdev *dev, int ref)
 	mtx_assert(&devmtx, MA_NOTOWNED);
 	if (!ref)
 		return;
-	dev_lock();
 	KASSERT(dev->si_threadcount > 0,
 	    ("%s threadcount is wrong", dev->si_name));
-	dev->si_threadcount--;
-	dev_unlock();
+	atomic_subtract_rel_long(&dev->si_threadcount, 1);
 }
 
 int

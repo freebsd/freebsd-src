@@ -5,7 +5,7 @@
 BINDIR?=	/usr/bin
 
 PROG=		bootparttest
-NO_MAN=
+MAN=
 
 SRCS=		bootparttest.c crc32.c malloc.c part.c
 

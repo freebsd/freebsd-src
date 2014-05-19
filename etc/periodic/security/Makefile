@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.include <bsd.own.mk>
+.include <src.opts.mk>
 
 FILES=	100.chksetuid \
 	110.neggrpperm \
@@ -27,10 +27,6 @@ FILES+=	500.ipfwdenied \
 
 .if ${MK_PF} != "no"
 FILES+=	520.pfdenied
-.endif
-
-.if ${MK_PKGTOOLS} != "no"
-FILES+=	460.chkportsum
 .endif
 
 .include <bsd.prog.mk>

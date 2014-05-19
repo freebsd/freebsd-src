@@ -38,7 +38,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/timeet.h>
 #include <machine/bus.h>
 #include <machine/cpu.h>
-#include <machine/frame.h>
 #include <machine/intr.h>
 
 #include <dev/fdt/fdt_common.h>
@@ -111,6 +110,9 @@ static struct timecounter lpc_timecounter = {
 static int
 lpc_timer_probe(device_t dev)
 {
+
+	if (!ofw_bus_status_okay(dev))
+		return (ENXIO);
 
 	if (!ofw_bus_is_compatible(dev, "lpc,timer"))
 		return (ENXIO);
@@ -275,12 +277,6 @@ static unsigned
 lpc_get_timecount(struct timecounter *tc)
 {
 	return timer1_read_4(timer_softc, LPC_TIMER_TC);
-}
-
-void
-cpu_initclocks(void)
-{
-	cpu_initclocks_bsp();
 }
 
 void

@@ -78,21 +78,21 @@ DWARFDebugPubnamesSet::InitNameIndexes() const
 
 
 bool
-DWARFDebugPubnamesSet::Extract(const DataExtractor& data, lldb::offset_t *offset_ptr)
+DWARFDebugPubnamesSet::Extract(const DWARFDataExtractor& data, lldb::offset_t *offset_ptr)
 {
     if (data.ValidOffset(*offset_ptr))
     {
         m_descriptors.clear();
         m_offset = *offset_ptr;
-        m_header.length     = data.GetU32(offset_ptr);
+        m_header.length     = data.GetDWARFInitialLength(offset_ptr);
         m_header.version    = data.GetU16(offset_ptr);
-        m_header.die_offset = data.GetU32(offset_ptr);
-        m_header.die_length = data.GetU32(offset_ptr);
+        m_header.die_offset = data.GetDWARFOffset(offset_ptr);
+        m_header.die_length = data.GetDWARFOffset(offset_ptr);
 
         Descriptor pubnameDesc;
         while (data.ValidOffset(*offset_ptr))
         {
-            pubnameDesc.offset  = data.GetU32(offset_ptr);
+            pubnameDesc.offset  = data.GetDWARFOffset(offset_ptr);
 
             if (pubnameDesc.offset)
             {

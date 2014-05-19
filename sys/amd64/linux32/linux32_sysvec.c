@@ -587,17 +587,7 @@ linux_sigreturn(struct thread *td, struct linux_sigreturn_args *args)
 	 */
 #define	EFLAGS_SECURE(ef, oef)	((((ef) ^ (oef)) & ~PSL_USERCHANGE) == 0)
 	eflags = frame.sf_sc.sc_eflags;
-	/*
-	 * XXX do allow users to change the privileged flag PSL_RF.  The
-	 * cpu sets PSL_RF in tf_eflags for faults.  Debuggers should
-	 * sometimes set it there too.  tf_eflags is kept in the signal
-	 * context during signal handling and there is no other place
-	 * to remember it, so the PSL_RF bit may be corrupted by the
-	 * signal handler without us knowing.  Corruption of the PSL_RF
-	 * bit at worst causes one more or one less debugger trap, so
-	 * allowing it is fairly harmless.
-	 */
-	if (!EFLAGS_SECURE(eflags & ~PSL_RF, regs->tf_rflags & ~PSL_RF))
+	if (!EFLAGS_SECURE(eflags, regs->tf_rflags))
 		return(EINVAL);
 
 	/*
@@ -689,17 +679,7 @@ linux_rt_sigreturn(struct thread *td, struct linux_rt_sigreturn_args *args)
 	 */
 #define	EFLAGS_SECURE(ef, oef)	((((ef) ^ (oef)) & ~PSL_USERCHANGE) == 0)
 	eflags = context->sc_eflags;
-	/*
-	 * XXX do allow users to change the privileged flag PSL_RF.  The
-	 * cpu sets PSL_RF in tf_eflags for faults.  Debuggers should
-	 * sometimes set it there too.  tf_eflags is kept in the signal
-	 * context during signal handling and there is no other place
-	 * to remember it, so the PSL_RF bit may be corrupted by the
-	 * signal handler without us knowing.  Corruption of the PSL_RF
-	 * bit at worst causes one more or one less debugger trap, so
-	 * allowing it is fairly harmless.
-	 */
-	if (!EFLAGS_SECURE(eflags & ~PSL_RF, regs->tf_rflags & ~PSL_RF))
+	if (!EFLAGS_SECURE(eflags, regs->tf_rflags))
 		return(EINVAL);
 
 	/*

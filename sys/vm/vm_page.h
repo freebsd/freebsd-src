@@ -321,11 +321,9 @@ extern struct mtx_padalign pa_lock[];
  * freeing, the modification must be protected by the vm_page lock.
  */
 #define	PG_CACHED	0x0001		/* page is cached */
-#define	PG_FREE		0x0002		/* page is free */
 #define	PG_FICTITIOUS	0x0004		/* physical page doesn't exist */
 #define	PG_ZERO		0x0008		/* page is zeroed */
 #define	PG_MARKER	0x0010		/* special queue marker page */
-#define	PG_SLAB		0x0020		/* object pointer is actually a slab */
 #define	PG_WINATCFLS	0x0040		/* flush dirty page on inactive q */
 #define	PG_NODUMP	0x0080		/* don't include this page in a dump */
 #define	PG_UNHOLDFREE	0x0100		/* delayed free of a held page */
@@ -372,8 +370,6 @@ extern int vm_page_zero_count;
 extern vm_page_t vm_page_array;		/* First resident page in table */
 extern long vm_page_array_size;		/* number of vm_page_t's */
 extern long first_page;			/* first physical page number */
-
-#define	VM_PAGE_IS_FREE(m)	(((m)->flags & PG_FREE) != 0)
 
 #define VM_PAGE_TO_PHYS(entry)	((entry)->phys_addr)
 

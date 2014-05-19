@@ -2,12 +2,12 @@
 
 .PATH:  ${.CURDIR}/../../../dev/hyperv/netvsc
 
-KMOD    = hv_netvsc
+KMOD=	hv_netvsc
+SRCS=	hv_net_vsc.c \
+	hv_netvsc_drv_freebsd.c \
+	hv_rndis_filter.c
+SRCS+=	bus_if.h device_if.h
 
-SRCS    = hv_net_vsc.c \
-	  hv_netvsc_drv_freebsd.c \
-	  hv_rndis_filter.c
-
-CFLAGS 	+= -I${.CURDIR}/../../../dev/hyperv/netvsc
+CFLAGS+= -I${.CURDIR}/../../../dev/hyperv/netvsc
 
 .include <bsd.kmod.mk>

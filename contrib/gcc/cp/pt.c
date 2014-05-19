@@ -7835,6 +7835,11 @@ tsubst (tree t, tree args, tsubst_flags_t complain, tree in_decl)
 					     complain);
       }
 
+      /* APPLE LOCAL begin blocks 6204446 */
+    case BLOCK_POINTER_TYPE:
+      return t;
+      /* APPLE LOCAL end blocks 6204446 */
+
     default:
       sorry ("use of %qs in template",
 	     tree_code_name [(int) TREE_CODE (t)]);
@@ -8593,8 +8598,11 @@ tsubst_expr (tree t, tree args, tsubst_flags_t complain, tree in_decl,
       }
 
     case FOR_STMT:
-      stmt = begin_for_stmt ();
-			  RECUR (FOR_INIT_STMT (t));
+/* APPLE LOCAL begin for-fsf-4_4 3274130 5295549 */ \
+      tmp = RECUR (FOR_ATTRIBUTES (t));
+      stmt = begin_for_stmt (tmp);
+      RECUR (FOR_INIT_STMT (t));
+/* APPLE LOCAL end for-fsf-4_4 3274130 5295549 */ \
       finish_for_init_stmt (stmt);
       tmp = RECUR (FOR_COND (t));
       finish_for_cond (tmp, stmt);
@@ -8605,7 +8613,10 @@ tsubst_expr (tree t, tree args, tsubst_flags_t complain, tree in_decl,
       break;
 
     case WHILE_STMT:
-      stmt = begin_while_stmt ();
+/* APPLE LOCAL begin for-fsf-4_4 3274130 5295549 */ \
+      tmp = RECUR (WHILE_ATTRIBUTES (t));
+      stmt = begin_while_stmt (tmp);
+/* APPLE LOCAL end for-fsf-4_4 3274130 5295549 */ \
       tmp = RECUR (WHILE_COND (t));
       finish_while_stmt_cond (tmp, stmt);
       RECUR (WHILE_BODY (t));
@@ -8613,7 +8624,10 @@ tsubst_expr (tree t, tree args, tsubst_flags_t complain, tree in_decl,
       break;
 
     case DO_STMT:
-      stmt = begin_do_stmt ();
+/* APPLE LOCAL begin for-fsf-4_4 3274130 5295549 */ \
+      tmp = RECUR (DO_ATTRIBUTES (t));
+      stmt = begin_do_stmt (tmp);
+/* APPLE LOCAL end for-fsf-4_4 3274130 5295549 */ \
       RECUR (DO_BODY (t));
       finish_do_body (stmt);
       tmp = RECUR (DO_COND (t));
@@ -8925,7 +8939,7 @@ tsubst_copy_and_build (tree t,
 				     /*template_arg_p=*/false,
 				     &error_msg);
 	if (error_msg)
-	  error (error_msg);
+	  error ("%s", error_msg);
 	if (!function_p && TREE_CODE (decl) == IDENTIFIER_NODE)
 	  decl = unqualified_name_lookup_error (decl);
 	return decl;
@@ -9078,7 +9092,13 @@ tsubst_copy_and_build (tree t,
       return build_x_binary_op
 	(TREE_CODE (t),
 	 RECUR (TREE_OPERAND (t, 0)),
+	 (TREE_NO_WARNING (TREE_OPERAND (t, 0))
+	  ? ERROR_MARK
+	  : TREE_CODE (TREE_OPERAND (t, 0))),
 	 RECUR (TREE_OPERAND (t, 1)),
+	 (TREE_NO_WARNING (TREE_OPERAND (t, 1))
+	  ? ERROR_MARK
+	  : TREE_CODE (TREE_OPERAND (t, 1))),
 	 /*overloaded_p=*/NULL);
 
     case SCOPE_REF:
@@ -9087,7 +9107,14 @@ tsubst_copy_and_build (tree t,
     case ARRAY_REF:
       op1 = tsubst_non_call_postfix_expression (TREE_OPERAND (t, 0),
 						args, complain, in_decl);
-      return build_x_binary_op (ARRAY_REF, op1, RECUR (TREE_OPERAND (t, 1)),
+      return build_x_binary_op (ARRAY_REF, op1,
+				(TREE_NO_WARNING (TREE_OPERAND (t, 0))
+				 ? ERROR_MARK
+				 : TREE_CODE (TREE_OPERAND (t, 0))),
+				RECUR (TREE_OPERAND (t, 1)),
+				(TREE_NO_WARNING (TREE_OPERAND (t, 1))
+				 ? ERROR_MARK
+				 : TREE_CODE (TREE_OPERAND (t, 1))),
 				/*overloaded_p=*/NULL);
 
     case SIZEOF_EXPR:

@@ -1,6 +1,6 @@
 /******************************************************************************
 
-  Copyright (c) 2001-2010, Intel Corporation 
+  Copyright (c) 2001-2013, Intel Corporation 
   All rights reserved.
   
   Redistribution and use in source and binary forms, with or without 
@@ -41,48 +41,50 @@
 
 struct e1000_hw;
 
-#define E1000_DEV_ID_82576_VF                 0x10CA
-#define E1000_DEV_ID_I350_VF                  0x1520
+#define E1000_DEV_ID_82576_VF		0x10CA
+#define E1000_DEV_ID_I350_VF		0x1520
 
-#define E1000_VF_INIT_TIMEOUT 200 /* Number of retries to clear RSTI */
+#define E1000_VF_INIT_TIMEOUT		200 /* Num of retries to clear RSTI */
 
 /* Additional Descriptor Control definitions */
-#define E1000_TXDCTL_QUEUE_ENABLE  0x02000000 /* Enable specific Tx Queue */
-#define E1000_RXDCTL_QUEUE_ENABLE  0x02000000 /* Enable specific Rx Queue */
+#define E1000_TXDCTL_QUEUE_ENABLE	0x02000000 /* Ena specific Tx Queue */
+#define E1000_RXDCTL_QUEUE_ENABLE	0x02000000 /* Ena specific Rx Queue */
 
 /* SRRCTL bit definitions */
-#define E1000_SRRCTL_BSIZEPKT_SHIFT                     10 /* Shift _right_ */
-#define E1000_SRRCTL_BSIZEHDRSIZE_MASK                  0x00000F00
-#define E1000_SRRCTL_BSIZEHDRSIZE_SHIFT                 2  /* Shift _left_ */
-#define E1000_SRRCTL_DESCTYPE_LEGACY                    0x00000000
-#define E1000_SRRCTL_DESCTYPE_ADV_ONEBUF                0x02000000
-#define E1000_SRRCTL_DESCTYPE_HDR_SPLIT                 0x04000000
-#define E1000_SRRCTL_DESCTYPE_HDR_SPLIT_ALWAYS          0x0A000000
-#define E1000_SRRCTL_DESCTYPE_HDR_REPLICATION           0x06000000
+#define E1000_SRRCTL(_n)	((_n) < 4 ? (0x0280C + ((_n) * 0x100)) : \
+				 (0x0C00C + ((_n) * 0x40)))
+#define E1000_SRRCTL_BSIZEPKT_SHIFT		10 /* Shift _right_ */
+#define E1000_SRRCTL_BSIZEHDRSIZE_MASK		0x00000F00
+#define E1000_SRRCTL_BSIZEHDRSIZE_SHIFT		2  /* Shift _left_ */
+#define E1000_SRRCTL_DESCTYPE_LEGACY		0x00000000
+#define E1000_SRRCTL_DESCTYPE_ADV_ONEBUF	0x02000000
+#define E1000_SRRCTL_DESCTYPE_HDR_SPLIT		0x04000000
+#define E1000_SRRCTL_DESCTYPE_HDR_SPLIT_ALWAYS	0x0A000000
+#define E1000_SRRCTL_DESCTYPE_HDR_REPLICATION	0x06000000
 #define E1000_SRRCTL_DESCTYPE_HDR_REPLICATION_LARGE_PKT 0x08000000
-#define E1000_SRRCTL_DESCTYPE_MASK                      0x0E000000
-#define E1000_SRRCTL_DROP_EN                            0x80000000
+#define E1000_SRRCTL_DESCTYPE_MASK		0x0E000000
+#define E1000_SRRCTL_DROP_EN			0x80000000
 
-#define E1000_SRRCTL_BSIZEPKT_MASK      0x0000007F
-#define E1000_SRRCTL_BSIZEHDR_MASK      0x00003F00
+#define E1000_SRRCTL_BSIZEPKT_MASK	0x0000007F
+#define E1000_SRRCTL_BSIZEHDR_MASK	0x00003F00
 
 /* Interrupt Defines */
-#define E1000_EICR     0x01580  /* Ext. Interrupt Cause Read - R/clr */
-#define E1000_EITR(_n) (0x01680 + ((_n) << 2))
-#define E1000_EICS     0x01520  /* Ext. Interrupt Cause Set - W0 */
-#define E1000_EIMS     0x01524  /* Ext. Interrupt Mask Set/Read - RW */
-#define E1000_EIMC     0x01528  /* Ext. Interrupt Mask Clear - WO */
-#define E1000_EIAC     0x0152C  /* Ext. Interrupt Auto Clear - RW */
-#define E1000_EIAM     0x01530  /* Ext. Interrupt Ack Auto Clear Mask - RW */
-#define E1000_IVAR0    0x01700  /* Interrupt Vector Allocation (array) - RW */
-#define E1000_IVAR_MISC 0x01740 /* IVAR for "other" causes - RW */
-#define E1000_IVAR_VALID        0x80
+#define E1000_EICR		0x01580 /* Ext. Interrupt Cause Read - R/clr */
+#define E1000_EITR(_n)		(0x01680 + ((_n) << 2))
+#define E1000_EICS		0x01520 /* Ext. Intr Cause Set -W0 */
+#define E1000_EIMS		0x01524 /* Ext. Intr Mask Set/Read -RW */
+#define E1000_EIMC		0x01528 /* Ext. Intr Mask Clear -WO */
+#define E1000_EIAC		0x0152C /* Ext. Intr Auto Clear -RW */
+#define E1000_EIAM		0x01530 /* Ext. Intr Ack Auto Clear Mask -RW */
+#define E1000_IVAR0		0x01700 /* Intr Vector Alloc (array) -RW */
+#define E1000_IVAR_MISC		0x01740 /* IVAR for "other" causes -RW */
+#define E1000_IVAR_VALID	0x80
 
 /* Receive Descriptor - Advanced */
 union e1000_adv_rx_desc {
 	struct {
-		u64 pkt_addr;             /* Packet buffer address */
-		u64 hdr_addr;             /* Header buffer address */
+		u64 pkt_addr; /* Packet buffer address */
+		u64 hdr_addr; /* Header buffer address */
 	} read;
 	struct {
 		struct {
@@ -96,23 +98,23 @@ union e1000_adv_rx_desc {
 				} hs_rss;
 			} lo_dword;
 			union {
-				u32 rss;          /* RSS Hash */
+				u32 rss; /* RSS Hash */
 				struct {
-					u16 ip_id;    /* IP id */
-					u16 csum;     /* Packet Checksum */
+					u16 ip_id; /* IP id */
+					u16 csum; /* Packet Checksum */
 				} csum_ip;
 			} hi_dword;
 		} lower;
 		struct {
-			u32 status_error;     /* ext status/error */
-			u16 length;           /* Packet length */
-			u16 vlan;             /* VLAN tag */
+			u32 status_error; /* ext status/error */
+			u16 length; /* Packet length */
+			u16 vlan; /* VLAN tag */
 		} upper;
 	} wb;  /* writeback */
 };
 
-#define E1000_RXDADV_HDRBUFLEN_MASK      0x7FE0
-#define E1000_RXDADV_HDRBUFLEN_SHIFT     5
+#define E1000_RXDADV_HDRBUFLEN_MASK	0x7FE0
+#define E1000_RXDADV_HDRBUFLEN_SHIFT	5
 
 /* Transmit Descriptor - Advanced */
 union e1000_adv_tx_desc {
@@ -129,15 +131,15 @@ union e1000_adv_tx_desc {
 };
 
 /* Adv Transmit Descriptor Config Masks */
-#define E1000_ADVTXD_DTYP_CTXT    0x00200000 /* Advanced Context Descriptor */
-#define E1000_ADVTXD_DTYP_DATA    0x00300000 /* Advanced Data Descriptor */
-#define E1000_ADVTXD_DCMD_EOP     0x01000000 /* End of Packet */
-#define E1000_ADVTXD_DCMD_IFCS    0x02000000 /* Insert FCS (Ethernet CRC) */
-#define E1000_ADVTXD_DCMD_RS      0x08000000 /* Report Status */
-#define E1000_ADVTXD_DCMD_DEXT    0x20000000 /* Descriptor extension (1=Adv) */
-#define E1000_ADVTXD_DCMD_VLE     0x40000000 /* VLAN pkt enable */
-#define E1000_ADVTXD_DCMD_TSE     0x80000000 /* TCP Seg enable */
-#define E1000_ADVTXD_PAYLEN_SHIFT    14 /* Adv desc PAYLEN shift */
+#define E1000_ADVTXD_DTYP_CTXT	0x00200000 /* Advanced Context Descriptor */
+#define E1000_ADVTXD_DTYP_DATA	0x00300000 /* Advanced Data Descriptor */
+#define E1000_ADVTXD_DCMD_EOP	0x01000000 /* End of Packet */
+#define E1000_ADVTXD_DCMD_IFCS	0x02000000 /* Insert FCS (Ethernet CRC) */
+#define E1000_ADVTXD_DCMD_RS	0x08000000 /* Report Status */
+#define E1000_ADVTXD_DCMD_DEXT	0x20000000 /* Descriptor extension (1=Adv) */
+#define E1000_ADVTXD_DCMD_VLE	0x40000000 /* VLAN pkt enable */
+#define E1000_ADVTXD_DCMD_TSE	0x80000000 /* TCP Seg enable */
+#define E1000_ADVTXD_PAYLEN_SHIFT	14 /* Adv desc PAYLEN shift */
 
 /* Context descriptors */
 struct e1000_adv_tx_context_desc {
@@ -147,11 +149,11 @@ struct e1000_adv_tx_context_desc {
 	u32 mss_l4len_idx;
 };
 
-#define E1000_ADVTXD_MACLEN_SHIFT    9  /* Adv ctxt desc mac len shift */
-#define E1000_ADVTXD_TUCMD_IPV4    0x00000400  /* IP Packet Type: 1=IPv4 */
-#define E1000_ADVTXD_TUCMD_L4T_TCP 0x00000800  /* L4 Packet TYPE of TCP */
-#define E1000_ADVTXD_L4LEN_SHIFT     8  /* Adv ctxt L4LEN shift */
-#define E1000_ADVTXD_MSS_SHIFT      16  /* Adv ctxt MSS shift */
+#define E1000_ADVTXD_MACLEN_SHIFT	9  /* Adv ctxt desc mac len shift */
+#define E1000_ADVTXD_TUCMD_IPV4		0x00000400  /* IP Packet Type: 1=IPv4 */
+#define E1000_ADVTXD_TUCMD_L4T_TCP	0x00000800  /* L4 Packet TYPE of TCP */
+#define E1000_ADVTXD_L4LEN_SHIFT	8  /* Adv ctxt L4LEN shift */
+#define E1000_ADVTXD_MSS_SHIFT		16  /* Adv ctxt MSS shift */
 
 enum e1000_mac_type {
 	e1000_undefined = 0,

@@ -37,9 +37,6 @@
 /* Everything below this point is not included by assembler (.S) files. */
 #ifndef __ASSEMBLY__
 
-/* Force a proper event-channel callback from Xen. */
-void force_evtchn_callback(void);
-
 /* REP NOP (PAUSE) is a good thing to insert into busy-wait loops. */
 static inline void rep_nop(void)
 {
@@ -48,7 +45,6 @@ static inline void rep_nop(void)
 #define cpu_relax() rep_nop()
 
 #ifndef XENHVM
-void xc_printf(const char *fmt, ...);
 
 #ifdef SMP
 extern int gdtset;

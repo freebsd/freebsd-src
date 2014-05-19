@@ -77,6 +77,7 @@ xenpci_irq_init(device_t device, struct xenpci_softc *scp)
 	if (error)
 		return error;
 
+#ifdef SMP
 	/*
 	 * When using the PCI event delivery callback we cannot assign
 	 * events to specific vCPUs, so all events are delivered to vCPU#0 by
@@ -88,6 +89,7 @@ xenpci_irq_init(device_t device, struct xenpci_softc *scp)
 	                      scp->res_irq, 0);
 	if (error)
 		return error;
+#endif
 
 	xen_hvm_set_callback(device);
 	return (0);
@@ -309,28 +311,12 @@ xenpci_detach(device_t dev)
 static int
 xenpci_suspend(device_t dev)
 {
-	struct xenpci_softc *scp = device_get_softc(dev);
-	device_t parent = device_get_parent(dev);
-
-	if (scp->intr_cookie != NULL) {
-		if (BUS_TEARDOWN_INTR(parent, dev, scp->res_irq,
-		    scp->intr_cookie) != 0)
-			printf("intr teardown failed.. continuing\n");
-		scp->intr_cookie = NULL;
-	}
-
 	return (bus_generic_suspend(dev));
 }
 
 static int
 xenpci_resume(device_t dev)
 {
-	struct xenpci_softc *scp = device_get_softc(dev);
-	device_t parent = device_get_parent(dev);
-
-	BUS_SETUP_INTR(parent, dev, scp->res_irq,
-	    INTR_MPSAFE|INTR_TYPE_MISC, xenpci_intr_filter, NULL,
-	    /*trap_frame*/NULL, &scp->intr_cookie);
 	xen_hvm_set_callback(dev);
 	return (bus_generic_resume(dev));
 }

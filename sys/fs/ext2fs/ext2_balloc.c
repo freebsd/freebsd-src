@@ -80,7 +80,7 @@ ext2_balloc(struct inode *ip, e2fs_lbn_t lbn, int size, struct ucred *cred,
 	 * If so, increment next_alloc fields to allow ext2_blkpref 
 	 * to make a good guess
 	 */
-        if (lbn == ip->i_next_alloc_block + 1) {
+	if (lbn == ip->i_next_alloc_block + 1) {
 		ip->i_next_alloc_block++;
 		ip->i_next_alloc_goal++;
 	}
@@ -167,7 +167,7 @@ ext2_balloc(struct inode *ip, e2fs_lbn_t lbn, int size, struct ucred *cred,
 		EXT2_LOCK(ump);
 		pref = ext2_blkpref(ip, lbn, indirs[0].in_off + 
 					     EXT2_NDIR_BLOCKS, &ip->i_db[0], 0);
-	        if ((error = ext2_alloc(ip, lbn, pref, fs->e2fs_bsize, cred,
+		if ((error = ext2_alloc(ip, lbn, pref, fs->e2fs_bsize, cred,
 			&newb)))
 			return (error);
 		nb = newb;

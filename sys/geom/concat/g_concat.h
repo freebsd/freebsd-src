@@ -83,6 +83,7 @@ struct g_concat_softc {
 
 	struct g_concat_disk *sc_disks;
 	uint16_t	 sc_ndisks;
+	struct mtx	 sc_lock;
 };
 #define	sc_name	sc_geom->name
 #endif	/* _KERNEL */

@@ -14,7 +14,7 @@
 
 #include "lldb/Host/macosx/Config.h"
 
-#elif defined(__linux__)
+#elif defined(__linux__) || defined(__GNU__)
 
 #include "lldb/Host/linux/Config.h"
 
@@ -25,6 +25,10 @@
 #elif defined(__MINGW__) || defined (__MINGW32__)
 
 #include "lldb/Host/mingw/Config.h"
+
+#elif defined(_MSC_VER)
+
+#include "lldb/Host/msvc/Config.h"
 
 #else
 

@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.include <bsd.own.mk>
+.include <src.opts.mk>
 
 KMOD=	ng_ipfw
 SRCS= 	ng_ipfw.c opt_inet.h opt_inet6.h

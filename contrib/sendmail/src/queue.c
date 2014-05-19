@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998-2009, 2011, 2012 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 1998-2009, 2011, 2012 Proofpoint, Inc. and its suppliers.
  *	All rights reserved.
  * Copyright (c) 1983, 1995-1997 Eric P. Allman.  All rights reserved.
  * Copyright (c) 1988, 1993
@@ -14,7 +14,7 @@
 #include <sendmail.h>
 #include <sm/sem.h>
 
-SM_RCSID("@(#)$Id: queue.c,v 8.998 2013/03/12 15:24:53 ca Exp $")
+SM_RCSID("@(#)$Id: queue.c,v 8.1000 2013/11/22 20:51:56 ca Exp $")
 
 #include <dirent.h>
 
@@ -2940,7 +2940,7 @@ gatherq(qgrp, qdir, doall, full, more, pnentries)
 **
 **	First the old WorkQ is cleared away. Then the WorkList is sorted
 **	for all items so that important (higher sorting value) items are not
-**	trunctated off. Then the most important items are moved from
+**	truncated off. Then the most important items are moved from
 **	WorkList to WorkQ. The lower count of 'max' or MaxListCount items
 **	are moved.
 **

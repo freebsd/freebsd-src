@@ -74,6 +74,7 @@ __FBSDID("$FreeBSD$");
 #define	DEFSPRI		(LOG_KERN|LOG_CRIT)
 #define	TIMERINTVL	30		/* interval for checking flush, mark */
 #define	TTYMSGTIME	1		/* timeout passed to ttymsg */
+#define	RCVBUF_MINSIZE	(80 * 1024)	/* minimum size of dgram rcv buffer */
 
 #include <sys/param.h>
 #include <sys/ioctl.h>
@@ -336,7 +337,7 @@ static void	unmapped(struct sockaddr *);
 static void	wallmsg(struct filed *, struct iovec *, const int iovlen);
 static int	waitdaemon(int, int, int);
 static void	timedout(int);
-static void	double_rbuf(int);
+static void	increase_rcvbuf(int);
 
 int
 main(int argc, char *argv[])
@@ -547,8 +548,8 @@ main(int argc, char *argv[])
 				STAILQ_REMOVE(&funixes, fx, funix, next);
 				continue;
 			}
-			double_rbuf(fx->s);
 		}
+		increase_rcvbuf(fx->s);
 	}
 	if (SecureMode <= 1)
 		finet = socksetup(family, bindhostname);
@@ -1241,8 +1242,10 @@ fprintlog(struct filed *f, int flags, const char *msg)
 				switch (errno) {
 				case ENOBUFS:
 				case ENETDOWN:
+				case ENETUNREACH:
 				case EHOSTUNREACH:
 				case EHOSTDOWN:
+				case EADDRNOTAVAIL:
 					break;
 				/* case EBADF: */
 				/* case EACCES: */
@@ -1253,7 +1256,7 @@ fprintlog(struct filed *f, int flags, const char *msg)
 				/* case ENOBUFS: */
 				/* case ECONNREFUSED: */
 				default:
-					dprintf("removing entry\n");
+					dprintf("removing entry: errno=%d\n", e);
 					f->f_type = F_UNUSED;
 					break;
 				}
@@ -2720,7 +2723,7 @@ socksetup(int af, char *bindhostname)
 			}
 
 			if (!SecureMode)
-				double_rbuf(*s);
+				increase_rcvbuf(*s);
 		}
 
 		(*socks)++;
@@ -2741,12 +2744,16 @@ socksetup(int af, char *bindhostname)
 }
 
 static void
-double_rbuf(int fd)
+increase_rcvbuf(int fd)
 {
-	socklen_t slen, len;
+	socklen_t len, slen;
+
+	slen = sizeof(len);
 
 	if (getsockopt(fd, SOL_SOCKET, SO_RCVBUF, &len, &slen) == 0) {
-		len *= 2;
-		setsockopt(fd, SOL_SOCKET, SO_RCVBUF, &len, slen);
+		if (len < RCVBUF_MINSIZE) {
+			len = RCVBUF_MINSIZE;
+			setsockopt(fd, SOL_SOCKET, SO_RCVBUF, &len, sizeof(len));
+		}
 	}
 }

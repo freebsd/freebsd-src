@@ -192,6 +192,7 @@ struct xhci_stream_ctx {
 
 struct xhci_trb {
 	volatile uint64_t	qwTrb0;
+#define	XHCI_TRB_0_DIR_IN_MASK		(0x80ULL << 0)
 #define	XHCI_TRB_0_WLENGTH_MASK		(0xFFFFULL << 48)
 	volatile uint32_t	dwTrb2;
 #define	XHCI_TRB_2_ERROR_GET(x)		(((x) >> 24) & 0xFF)
@@ -431,6 +432,8 @@ union xhci_hub_desc {
 	uint8_t				temp[128];
 };
 
+typedef int (xhci_port_route_t)(device_t, uint32_t, uint32_t);
+
 struct xhci_softc {
 	struct xhci_hw_softc	sc_hw;
 	/* base device */
@@ -439,6 +442,8 @@ struct xhci_softc {
 	struct usb_bus_msg	sc_config_msg[2];
 
 	struct usb_callout	sc_callout;
+
+	xhci_port_route_t	*sc_port_route;
 
 	union xhci_hub_desc	sc_hub_desc;
 
@@ -476,6 +481,7 @@ struct xhci_softc {
 	uint16_t		sc_erst_max;
 	uint16_t		sc_event_idx;
 	uint16_t		sc_command_idx;
+	uint16_t		sc_imod_default;
 
 	uint8_t			sc_event_ccs;
 	uint8_t			sc_command_ccs;
@@ -502,7 +508,6 @@ struct xhci_softc {
 
 /* prototypes */
 
-uint32_t	xhci_get_port_route(void);
 uint8_t 	xhci_use_polling(void);
 usb_error_t xhci_halt_controller(struct xhci_softc *);
 usb_error_t xhci_init(struct xhci_softc *, device_t);

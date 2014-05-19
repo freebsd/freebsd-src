@@ -9,98 +9,10 @@
 #ifndef CLANG_LEX_UNICODECHARSETS_H
 #define CLANG_LEX_UNICODECHARSETS_H
 
-#include "llvm/ADT/ArrayRef.h"
-#include "llvm/ADT/SmallPtrSet.h"
-#include "llvm/Support/Compiler.h"
-#include "llvm/Support/Debug.h"
-#include "llvm/Support/Mutex.h"
-#include "llvm/Support/MutexGuard.h"
-#include "llvm/Support/raw_ostream.h"
-
-namespace {
-  struct UnicodeCharRange {
-    uint32_t Lower;
-    uint32_t Upper;
-  };
-  typedef llvm::ArrayRef<UnicodeCharRange> UnicodeCharSet;
-
-  typedef llvm::SmallPtrSet<const UnicodeCharRange *, 16> ValidatedCharSetsTy;
-}
-
-static inline ValidatedCharSetsTy &getValidatedCharSets() {
-  static ValidatedCharSetsTy Validated;
-  return Validated;
-}
-
-/// Returns true if each of the ranges in \p CharSet is a proper closed range
-/// [min, max], and if the ranges themselves are ordered and non-overlapping.
-static inline bool isValidCharSet(UnicodeCharSet CharSet) {
-#ifndef NDEBUG
-  static llvm::sys::Mutex ValidationMutex;
-
-  // Check the validation cache.
-  {
-    llvm::MutexGuard Guard(ValidationMutex);
-    if (getValidatedCharSets().count(CharSet.data()))
-      return true;
-  }
-
-  // Walk through the ranges.
-  uint32_t Prev = 0;
-  for (UnicodeCharSet::iterator I = CharSet.begin(), E = CharSet.end();
-       I != E; ++I) {
-    if (Prev >= I->Lower) {
-      DEBUG(llvm::dbgs() << "Upper bound 0x");
-      DEBUG(llvm::dbgs().write_hex(Prev));
-      DEBUG(llvm::dbgs() << " should be less than succeeding lower bound 0x");
-      DEBUG(llvm::dbgs().write_hex(I->Lower) << "\n");
-      return false;
-    }
-    if (I->Upper < I->Lower) {
-      DEBUG(llvm::dbgs() << "Upper bound 0x");
-      DEBUG(llvm::dbgs().write_hex(I->Lower));
-      DEBUG(llvm::dbgs() << " should not be less than lower bound 0x");
-      DEBUG(llvm::dbgs().write_hex(I->Upper) << "\n");
-      return false;
-    }
-    Prev = I->Upper;
-  }
-
-  // Update the validation cache.
-  {
-    llvm::MutexGuard Guard(ValidationMutex);
-    getValidatedCharSets().insert(CharSet.data());
-  }
-#endif
-  return true;
-}
-
-/// Returns true if the Unicode code point \p C is within the set of
-/// characters specified by \p CharSet.
-LLVM_READONLY static inline bool isCharInSet(uint32_t C,
-                                             UnicodeCharSet CharSet) {
-  assert(isValidCharSet(CharSet));
-
-  size_t LowPoint = 0;
-  size_t HighPoint = CharSet.size();
-
-  // Binary search the set of char ranges.
-  while (HighPoint != LowPoint) {
-    size_t MidPoint = (HighPoint + LowPoint) / 2;
-    if (C < CharSet[MidPoint].Lower)
-      HighPoint = MidPoint;
-    else if (C > CharSet[MidPoint].Upper)
-      LowPoint = MidPoint + 1;
-    else
-      return true;
-  }
-
-  return false;
-}
-
+#include "llvm/Support/UnicodeCharRanges.h"
 
 // C11 D.1, C++11 [charname.allowed]
-static const UnicodeCharRange C11AllowedIDChars[] = {
+static const llvm::sys::UnicodeCharRange C11AllowedIDCharRanges[] = {
   // 1
   { 0x00A8, 0x00A8 }, { 0x00AA, 0x00AA }, { 0x00AD, 0x00AD },
   { 0x00AF, 0x00AF }, { 0x00B2, 0x00B5 }, { 0x00B7, 0x00BA },
@@ -132,7 +44,7 @@ static const UnicodeCharRange C11AllowedIDChars[] = {
 // C++03 [extendid]
 // Note that this is not the same as C++98, but we don't distinguish C++98
 // and C++03 in Clang.
-static const UnicodeCharRange CXX03AllowedIDChars[] = {
+static const llvm::sys::UnicodeCharRange CXX03AllowedIDCharRanges[] = {
   // Latin
   { 0x00C0, 0x00D6 }, { 0x00D8, 0x00F6 }, { 0x00F8, 0x01F5 },
   { 0x01FA, 0x0217 }, { 0x0250, 0x02A8 },
@@ -251,7 +163,7 @@ static const UnicodeCharRange CXX03AllowedIDChars[] = {
 };
 
 // C99 Annex D
-static const UnicodeCharRange C99AllowedIDChars[] = {
+static const llvm::sys::UnicodeCharRange C99AllowedIDCharRanges[] = {
   // Latin (1)
   { 0x00AA, 0x00AA },
 
@@ -470,7 +382,7 @@ static const UnicodeCharRange C99AllowedIDChars[] = {
 };
 
 // C11 D.2, C++11 [charname.disallowed]
-static const UnicodeCharRange C11DisallowedInitialIDChars[] = {
+static const llvm::sys::UnicodeCharRange C11DisallowedInitialIDCharRanges[] = {
   { 0x0300, 0x036F }, { 0x1DC0, 0x1DFF }, { 0x20D0, 0x20FF },
   { 0xFE20, 0xFE2F }
 };
@@ -478,7 +390,7 @@ static const UnicodeCharRange C11DisallowedInitialIDChars[] = {
 // C99 6.4.2.1p3: The initial character [of an identifier] shall not be a
 // universal character name designating a digit.
 // C99 Annex D defines these characters as "Digits".
-static const UnicodeCharRange C99DisallowedInitialIDChars[] = {
+static const llvm::sys::UnicodeCharRange C99DisallowedInitialIDCharRanges[] = {
   { 0x0660, 0x0669 }, { 0x06F0, 0x06F9 }, { 0x0966, 0x096F },
   { 0x09E6, 0x09EF }, { 0x0A66, 0x0A6F }, { 0x0AE6, 0x0AEF },
   { 0x0B66, 0x0B6F }, { 0x0BE7, 0x0BEF }, { 0x0C66, 0x0C6F },
@@ -487,7 +399,7 @@ static const UnicodeCharRange C99DisallowedInitialIDChars[] = {
 };
 
 // Unicode v6.2, chapter 6.2, table 6-2.
-static const UnicodeCharRange UnicodeWhitespaceChars[] = {
+static const llvm::sys::UnicodeCharRange UnicodeWhitespaceCharRanges[] = {
   { 0x0085, 0x0085 }, { 0x00A0, 0x00A0 }, { 0x1680, 0x1680 },
   { 0x180E, 0x180E }, { 0x2000, 0x200A }, { 0x2028, 0x2029 },
   { 0x202F, 0x202F }, { 0x205F, 0x205F }, { 0x3000, 0x3000 }

@@ -19,6 +19,8 @@
 #include "clang/Rewrite/Core/Rewriter.h"
 #include "clang/Tooling/Refactoring.h"
 #include "llvm/Support/raw_os_ostream.h"
+#include "llvm/Support/FileSystem.h"
+#include "llvm/Support/Path.h"
 
 namespace clang {
 namespace tooling {
@@ -26,12 +28,12 @@ namespace tooling {
 static const char * const InvalidLocation = "";
 
 Replacement::Replacement()
-  : FilePath(InvalidLocation), Offset(0), Length(0) {}
+  : FilePath(InvalidLocation) {}
 
-Replacement::Replacement(StringRef FilePath, unsigned Offset,
-                         unsigned Length, StringRef ReplacementText)
-  : FilePath(FilePath), Offset(Offset),
-    Length(Length), ReplacementText(ReplacementText) {}
+Replacement::Replacement(StringRef FilePath, unsigned Offset, unsigned Length,
+                         StringRef ReplacementText)
+    : FilePath(FilePath), ReplacementRange(Offset, Length),
+      ReplacementText(ReplacementText) {}
 
 Replacement::Replacement(SourceManager &Sources, SourceLocation Start,
                          unsigned Length, StringRef ReplacementText) {
@@ -62,11 +64,12 @@ bool Replacement::apply(Rewriter &Rewrite) const {
   // the remapping API is not public in the RewriteBuffer.
   const SourceLocation Start =
     SM.getLocForStartOfFile(ID).
-    getLocWithOffset(Offset);
+    getLocWithOffset(ReplacementRange.getOffset());
   // ReplaceText returns false on success.
   // ReplaceText only fails if the source location is not a file location, in
   // which case we already returned false earlier.
-  bool RewriteSucceeded = !Rewrite.ReplaceText(Start, Length, ReplacementText);
+  bool RewriteSucceeded = !Rewrite.ReplaceText(
+      Start, ReplacementRange.getLength(), ReplacementText);
   assert(RewriteSucceeded);
   return RewriteSucceeded;
 }
@@ -74,17 +77,26 @@ bool Replacement::apply(Rewriter &Rewrite) const {
 std::string Replacement::toString() const {
   std::string result;
   llvm::raw_string_ostream stream(result);
-  stream << FilePath << ": " << Offset << ":+" << Length
-         << ":\"" << ReplacementText << "\"";
+  stream << FilePath << ": " << ReplacementRange.getOffset() << ":+"
+         << ReplacementRange.getLength() << ":\"" << ReplacementText << "\"";
   return result;
 }
 
-bool Replacement::Less::operator()(const Replacement &R1,
-                                   const Replacement &R2) const {
-  if (R1.FilePath != R2.FilePath) return R1.FilePath < R2.FilePath;
-  if (R1.Offset != R2.Offset) return R1.Offset < R2.Offset;
-  if (R1.Length != R2.Length) return R1.Length < R2.Length;
-  return R1.ReplacementText < R2.ReplacementText;
+bool operator<(const Replacement &LHS, const Replacement &RHS) {
+  if (LHS.getOffset() != RHS.getOffset())
+    return LHS.getOffset() < RHS.getOffset();
+  if (LHS.getLength() != RHS.getLength())
+    return LHS.getLength() < RHS.getLength();
+  if (LHS.getFilePath() != RHS.getFilePath())
+    return LHS.getFilePath() < RHS.getFilePath();
+  return LHS.getReplacementText() < RHS.getReplacementText();
+}
+
+bool operator==(const Replacement &LHS, const Replacement &RHS) {
+  return LHS.getOffset() == RHS.getOffset() &&
+         LHS.getLength() == RHS.getLength() &&
+         LHS.getFilePath() == RHS.getFilePath() &&
+         LHS.getReplacementText() == RHS.getReplacementText();
 }
 
 void Replacement::setFromSourceLocation(SourceManager &Sources,
@@ -93,9 +105,16 @@ void Replacement::setFromSourceLocation(SourceManager &Sources,
   const std::pair<FileID, unsigned> DecomposedLocation =
       Sources.getDecomposedLoc(Start);
   const FileEntry *Entry = Sources.getFileEntryForID(DecomposedLocation.first);
-  this->FilePath = Entry != NULL ? Entry->getName() : InvalidLocation;
-  this->Offset = DecomposedLocation.second;
-  this->Length = Length;
+  if (Entry != NULL) {
+    // Make FilePath absolute so replacements can be applied correctly when
+    // relative paths for files are used.
+    llvm::SmallString<256> FilePath(Entry->getName());
+    llvm::error_code EC = llvm::sys::fs::make_absolute(FilePath);
+    this->FilePath = EC ? FilePath.c_str() : Entry->getName();
+  } else {
+    this->FilePath = InvalidLocation;
+  }
+  this->ReplacementRange = Range(DecomposedLocation.second, Length);
   this->ReplacementText = ReplacementText;
 }
 
@@ -121,7 +140,7 @@ void Replacement::setFromSourceRange(SourceManager &Sources,
                         getRangeSize(Sources, Range), ReplacementText);
 }
 
-bool applyAllReplacements(Replacements &Replaces, Rewriter &Rewrite) {
+bool applyAllReplacements(const Replacements &Replaces, Rewriter &Rewrite) {
   bool Result = true;
   for (Replacements::const_iterator I = Replaces.begin(),
                                     E = Replaces.end();
@@ -134,6 +153,121 @@ bool applyAllReplacements(Replacements &Replaces, Rewriter &Rewrite) {
   }
   return Result;
 }
+
+// FIXME: Remove this function when Replacements is implemented as std::vector
+// instead of std::set.
+bool applyAllReplacements(const std::vector<Replacement> &Replaces,
+                          Rewriter &Rewrite) {
+  bool Result = true;
+  for (std::vector<Replacement>::const_iterator I = Replaces.begin(),
+                                                E = Replaces.end();
+       I != E; ++I) {
+    if (I->isApplicable()) {
+      Result = I->apply(Rewrite) && Result;
+    } else {
+      Result = false;
+    }
+  }
+  return Result;
+}
+
+std::string applyAllReplacements(StringRef Code, const Replacements &Replaces) {
+  FileManager Files((FileSystemOptions()));
+  DiagnosticsEngine Diagnostics(
+      IntrusiveRefCntPtr<DiagnosticIDs>(new DiagnosticIDs),
+      new DiagnosticOptions);
+  Diagnostics.setClient(new TextDiagnosticPrinter(
+      llvm::outs(), &Diagnostics.getDiagnosticOptions()));
+  SourceManager SourceMgr(Diagnostics, Files);
+  Rewriter Rewrite(SourceMgr, LangOptions());
+  llvm::MemoryBuffer *Buf = llvm::MemoryBuffer::getMemBuffer(Code, "<stdin>");
+  const clang::FileEntry *Entry =
+      Files.getVirtualFile("<stdin>", Buf->getBufferSize(), 0);
+  SourceMgr.overrideFileContents(Entry, Buf);
+  FileID ID =
+      SourceMgr.createFileID(Entry, SourceLocation(), clang::SrcMgr::C_User);
+  for (Replacements::const_iterator I = Replaces.begin(), E = Replaces.end();
+       I != E; ++I) {
+    Replacement Replace("<stdin>", I->getOffset(), I->getLength(),
+                        I->getReplacementText());
+    if (!Replace.apply(Rewrite))
+      return "";
+  }
+  std::string Result;
+  llvm::raw_string_ostream OS(Result);
+  Rewrite.getEditBuffer(ID).write(OS);
+  OS.flush();
+  return Result;
+}
+
+unsigned shiftedCodePosition(const Replacements &Replaces, unsigned Position) {
+  unsigned NewPosition = Position;
+  for (Replacements::iterator I = Replaces.begin(), E = Replaces.end(); I != E;
+       ++I) {
+    if (I->getOffset() >= Position)
+      break;
+    if (I->getOffset() + I->getLength() > Position)
+      NewPosition += I->getOffset() + I->getLength() - Position;
+    NewPosition += I->getReplacementText().size() - I->getLength();
+  }
+  return NewPosition;
+}
+
+// FIXME: Remove this function when Replacements is implemented as std::vector
+// instead of std::set.
+unsigned shiftedCodePosition(const std::vector<Replacement> &Replaces,
+                             unsigned Position) {
+  unsigned NewPosition = Position;
+  for (std::vector<Replacement>::const_iterator I = Replaces.begin(),
+                                                E = Replaces.end();
+       I != E; ++I) {
+    if (I->getOffset() >= Position)
+      break;
+    if (I->getOffset() + I->getLength() > Position)
+      NewPosition += I->getOffset() + I->getLength() - Position;
+    NewPosition += I->getReplacementText().size() - I->getLength();
+  }
+  return NewPosition;
+}
+
+void deduplicate(std::vector<Replacement> &Replaces,
+                 std::vector<Range> &Conflicts) {
+  if (Replaces.empty())
+    return;
+
+  // Deduplicate
+  std::sort(Replaces.begin(), Replaces.end());
+  std::vector<Replacement>::iterator End =
+      std::unique(Replaces.begin(), Replaces.end());
+  Replaces.erase(End, Replaces.end());
+
+  // Detect conflicts
+  Range ConflictRange(Replaces.front().getOffset(),
+                      Replaces.front().getLength());
+  unsigned ConflictStart = 0;
+  unsigned ConflictLength = 1;
+  for (unsigned i = 1; i < Replaces.size(); ++i) {
+    Range Current(Replaces[i].getOffset(), Replaces[i].getLength());
+    if (ConflictRange.overlapsWith(Current)) {
+      // Extend conflicted range
+      ConflictRange = Range(ConflictRange.getOffset(),
+                            std::max(ConflictRange.getLength(),
+                                     Current.getOffset() + Current.getLength() -
+                                         ConflictRange.getOffset()));
+      ++ConflictLength;
+    } else {
+      if (ConflictLength > 1)
+        Conflicts.push_back(Range(ConflictStart, ConflictLength));
+      ConflictRange = Current;
+      ConflictStart = i;
+      ConflictLength = 1;
+    }
+  }
+
+  if (ConflictLength > 1)
+    Conflicts.push_back(Range(ConflictStart, ConflictLength));
+}
+
 
 RefactoringTool::RefactoringTool(const CompilationDatabase &Compilations,
                                  ArrayRef<std::string> SourcePaths)
@@ -167,23 +301,7 @@ bool RefactoringTool::applyAllReplacements(Rewriter &Rewrite) {
 }
 
 int RefactoringTool::saveRewrittenFiles(Rewriter &Rewrite) {
-  for (Rewriter::buffer_iterator I = Rewrite.buffer_begin(),
-                                 E = Rewrite.buffer_end();
-       I != E; ++I) {
-    // FIXME: This code is copied from the FixItRewriter.cpp - I think it should
-    // go into directly into Rewriter (there we also have the Diagnostics to
-    // handle the error cases better).
-    const FileEntry *Entry =
-        Rewrite.getSourceMgr().getFileEntryForID(I->first);
-    std::string ErrorInfo;
-    llvm::raw_fd_ostream FileStream(
-        Entry->getName(), ErrorInfo, llvm::raw_fd_ostream::F_Binary);
-    if (!ErrorInfo.empty())
-      return 1;
-    I->second.write(FileStream);
-    FileStream.flush();
-  }
-  return 0;
+  return Rewrite.overwriteChangedFiles() ? 1 : 0;
 }
 
 } // end namespace tooling

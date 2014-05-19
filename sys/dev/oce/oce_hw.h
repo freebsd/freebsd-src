@@ -59,6 +59,30 @@
 #define	INTR_EN				0x20000000
 #define	IMAGE_TRANSFER_SIZE		(32 * 1024)	/* 32K at a time */
 
+
+/********* UE Status and Mask Registers ***/
+#define PCICFG_UE_STATUS_LOW                    0xA0
+#define PCICFG_UE_STATUS_HIGH                   0xA4
+#define PCICFG_UE_STATUS_LOW_MASK               0xA8
+
+/* Lancer SLIPORT registers */
+#define SLIPORT_STATUS_OFFSET           0x404
+#define SLIPORT_CONTROL_OFFSET          0x408
+#define SLIPORT_ERROR1_OFFSET           0x40C
+#define SLIPORT_ERROR2_OFFSET           0x410
+#define PHYSDEV_CONTROL_OFFSET          0x414
+
+#define SLIPORT_STATUS_ERR_MASK         0x80000000
+#define SLIPORT_STATUS_DIP_MASK         0x02000000
+#define SLIPORT_STATUS_RN_MASK          0x01000000
+#define SLIPORT_STATUS_RDY_MASK         0x00800000
+#define SLI_PORT_CONTROL_IP_MASK        0x08000000
+#define PHYSDEV_CONTROL_FW_RESET_MASK   0x00000002
+#define PHYSDEV_CONTROL_DD_MASK         0x00000004
+#define PHYSDEV_CONTROL_INP_MASK        0x40000000
+
+#define SLIPORT_ERROR_NO_RESOURCE1      0x2
+#define SLIPORT_ERROR_NO_RESOURCE2      0x9
 /* CSR register offsets */
 #define	MPU_EP_CONTROL			0
 #define	MPU_EP_SEMAPHORE_BE3		0xac
@@ -1553,7 +1577,8 @@ struct mbx_common_read_write_flashrom {
 	uint32_t flash_op_type;
 	uint32_t data_buffer_size;
 	uint32_t data_offset;
-	uint8_t  data_buffer[4];	/* + IMAGE_TRANSFER_SIZE */
+	uint8_t  data_buffer[32768];	/* + IMAGE_TRANSFER_SIZE */
+	uint8_t  rsvd[4];
 };
 
 struct oce_phy_info {
@@ -2079,7 +2104,8 @@ struct flash_file_hdr {
 	uint32_t antidote;
 	uint32_t num_imgs;
 	uint8_t  build[24];
-	uint8_t  rsvd[32];
+	uint8_t  asic_type_rev;
+	uint8_t  rsvd[31];
 };
 
 struct image_hdr {
@@ -3681,4 +3707,3 @@ enum OCE_QUEUE_RX_STATS {
 	QUEUE_RX_BUFFER_ERRORS = 8,
 	QUEUE_RX_N_WORDS = 10
 };
-

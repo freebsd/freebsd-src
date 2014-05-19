@@ -1,5 +1,7 @@
 #  $FreeBSD$
 
+.include <src.opts.mk>
+
 # We get a lot of the std lib functions from here.
 .PATH: ${.CURDIR}/../../at91/libat91
 
@@ -15,7 +17,10 @@ FILES=${P}
 SRCS=arm_init.S boot2.c ${BOOT_FLAVOR:tl}_board.c
 SRCS+=memchr.c memcmp.c memcpy.c memmem.c memset.c printf.c strcmp.c strcpy.c
 SRCS+=strlen.c ashldi3.c divsi3.S muldi3.c
-NO_MAN=
+.if ${MK_ARM_EABI} != "no"
+SRCS+=aeabi_unwind.c
+.endif
+MAN=
 
 KERNPHYSADDR=0x180000
 KERNVIRTADDR=${KERNPHYSADDR}

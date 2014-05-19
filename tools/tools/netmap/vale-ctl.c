@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2013 Michio Honda. All rights reserved.
+ * Copyright (C) 2013-2014 Michio Honda. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -33,6 +33,7 @@
 #include <unistd.h>	/* close */
 #include <sys/ioctl.h>	/* ioctl */
 #include <sys/param.h>
+#include <sys/socket.h>	/* apple needs sockaddr */
 #include <net/if.h>	/* ifreq */
 #include <net/netmap.h>
 #include <net/netmap_user.h>
@@ -69,20 +70,22 @@ bdg_ctl(const char *name, int nr_cmd, int nr_arg)
 			nr_arg = 0;
 		nmr.nr_arg1 = nr_arg;
 		error = ioctl(fd, NIOCREGIF, &nmr);
-		if (error == -1)
-			D("Unable to %s %s to the bridge", nr_cmd ==
+		if (error == -1) {
+			ND("Unable to %s %s to the bridge", nr_cmd ==
 			    NETMAP_BDG_DETACH?"detach":"attach", name);
-		else
-			D("Success to %s %s to the bridge\n", nr_cmd ==
+			perror(name);
+		} else
+			ND("Success to %s %s to the bridge", nr_cmd ==
 			    NETMAP_BDG_DETACH?"detach":"attach", name);
 		break;
 
 	case NETMAP_BDG_LIST:
 		if (strlen(nmr.nr_name)) { /* name to bridge/port info */
 			error = ioctl(fd, NIOCGINFO, &nmr);
-			if (error)
-				D("Unable to obtain info for %s", name);
-			else
+			if (error) {
+				ND("Unable to obtain info for %s", name);
+				perror(name);
+			} else
 				D("%s at bridge:%d port:%d", name, nmr.nr_arg1,
 				    nmr.nr_arg2);
 			break;
@@ -101,9 +104,10 @@ bdg_ctl(const char *name, int nr_cmd, int nr_arg)
 	default: /* GINFO */
 		nmr.nr_cmd = nmr.nr_arg1 = nmr.nr_arg2 = 0;
 		error = ioctl(fd, NIOCGINFO, &nmr);
-		if (error)
-			D("Unable to get if info for %s", name);
-		else
+		if (error) {
+			ND("Unable to get if info for %s", name);
+			perror(name);
+		} else
 			D("%s: %d queues.", name, nmr.nr_rx_rings);
 		break;
 	}
@@ -118,7 +122,7 @@ main(int argc, char *argv[])
 	const char *command = basename(argv[0]);
 	char *name = NULL;
 
-	if (argc != 3 && argc != 1 /* list all */ ) {
+	if (argc > 3) {
 usage:
 		fprintf(stderr,
 			"Usage:\n"
@@ -127,12 +131,13 @@ usage:
 			"\t-d interface	interface name to be detached\n"
 			"\t-a interface	interface name to be attached\n"
 			"\t-h interface	interface name to be attached with the host stack\n"
-			"\t-l list all or specified bridge's interfaces\n"
+			"\t-l list all or specified bridge's interfaces (default)\n"
 			"", command);
 		return 0;
 	}
 
-	while ((ch = getopt(argc, argv, "d:a:h:g:l:")) != -1) {
+	while ((ch = getopt(argc, argv, "d:a:h:g:l")) != -1) {
+		name = optarg; /* default */
 		switch (ch) {
 		default:
 			fprintf(stderr, "bad option %c %s", ch, optarg);
@@ -152,12 +157,16 @@ usage:
 			break;
 		case 'l':
 			nr_cmd = NETMAP_BDG_LIST;
+			if (optind < argc && argv[optind][0] == '-')
+				name = NULL;
 			break;
 		}
-		name = optarg;
+		if (optind != argc) {
+			// fprintf(stderr, "optind %d argc %d\n", optind, argc);
+			goto usage;
+		}
 	}
 	if (argc == 1)
 		nr_cmd = NETMAP_BDG_LIST;
-	bdg_ctl(name, nr_cmd, nr_arg);
-	return 0;
+	return bdg_ctl(name, nr_cmd, nr_arg) ? 1 : 0;
 }

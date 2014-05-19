@@ -37,6 +37,7 @@ static char sccsid[] = "@(#)atexit.c	8.2 (Berkeley) 7/3/94";
 __FBSDID("$FreeBSD$");
 
 #include "namespace.h"
+#include <errno.h>
 #include <link.h>
 #include <stddef.h>
 #include <stdlib.h>
@@ -44,8 +45,15 @@ __FBSDID("$FreeBSD$");
 #include <pthread.h>
 #include "atexit.h"
 #include "un-namespace.h"
+#include "block_abi.h"
 
 #include "libc_private.h"
+
+/**
+ * The _Block_copy() function is provided by the block runtime.
+ */
+__attribute__((weak)) void*
+_Block_copy(void*);
 
 #define	ATEXIT_FN_EMPTY	0
 #define	ATEXIT_FN_STD	1
@@ -72,6 +80,7 @@ struct atexit {
 };
 
 static struct atexit *__atexit;		/* points to head of LIFO stack */
+typedef DECLARE_BLOCK(void, atexit_block, void);
 
 /*
  * Register the function described by 'fptr' to be called at application
@@ -125,7 +134,32 @@ atexit(void (*func)(void))
 	fn.fn_arg = NULL;
 	fn.fn_dso = NULL;
 
- 	error = atexit_register(&fn);	
+	error = atexit_register(&fn);
+	return (error);
+}
+
+/**
+ * Register a block to be performed at exit.
+ */
+int
+atexit_b(atexit_block func)
+{
+	struct atexit_fn fn;
+	int error;
+	if (_Block_copy == 0) {
+		errno = ENOSYS;
+		return -1;
+	}
+	func = _Block_copy(func);
+
+	// Blocks are not C++ destructors, but they have the same signature (a
+	// single void* parameter), so we can pretend that they are.
+	fn.fn_type = ATEXIT_FN_CXA;
+	fn.fn_ptr.cxa_func = (void(*)(void*))GET_BLOCK_FUNCTION(func);
+	fn.fn_arg = func;
+	fn.fn_dso = NULL;
+
+	error = atexit_register(&fn);
 	return (error);
 }
 
@@ -144,12 +178,14 @@ __cxa_atexit(void (*func)(void *), void *arg, void *dso)
 	fn.fn_arg = arg;
 	fn.fn_dso = dso;
 
- 	error = atexit_register(&fn);	
+	error = atexit_register(&fn);
 	return (error);
 }
 
 #pragma weak __pthread_cxa_finalize
 void __pthread_cxa_finalize(const struct dl_phdr_info *);
+
+static int global_exit;
 
 /*
  * Call all handlers registered with __cxa_atexit for the shared
@@ -164,10 +200,12 @@ __cxa_finalize(void *dso)
 	struct atexit_fn fn;
 	int n, has_phdr;
 
-	if (dso != NULL)
+	if (dso != NULL) {
 		has_phdr = _rtld_addr_phdr(dso, &phdr_info);
-	else
+	} else {
 		has_phdr = 0;
+		global_exit = 1;
+	}
 
 	_MUTEX_LOCK(&atexit_mutex);
 	for (p = __atexit; p; p = p->next) {
@@ -177,8 +215,9 @@ __cxa_finalize(void *dso)
 			fn = p->fns[n];
 			if (dso != NULL && dso != fn.fn_dso) {
 				/* wrong DSO ? */
-				if (!has_phdr || !__elf_phdr_match_addr(
-				    &phdr_info, fn.fn_ptr.cxa_func))
+				if (!has_phdr || global_exit ||
+				    !__elf_phdr_match_addr(&phdr_info,
+				    fn.fn_ptr.cxa_func))
 					continue;
 			}
 			/*
@@ -200,6 +239,6 @@ __cxa_finalize(void *dso)
 	if (dso == NULL)
 		_MUTEX_DESTROY(&atexit_mutex);
 
-	if (has_phdr && &__pthread_cxa_finalize != NULL)
+	if (has_phdr && !global_exit && &__pthread_cxa_finalize != NULL)
 		__pthread_cxa_finalize(&phdr_info);
 }

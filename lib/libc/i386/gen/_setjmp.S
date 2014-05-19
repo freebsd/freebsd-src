@@ -60,8 +60,7 @@ ENTRY(_setjmp)
 	ret
 END(_setjmp)
 
-	.weak	CNAME(_longjmp)
-	.set	CNAME(_longjmp),CNAME(___longjmp)
+	WEAK_REFERENCE(___longjmp, _longjmp)
 ENTRY(___longjmp)
 	movl	4(%esp),%edx
 	movl	8(%esp),%eax

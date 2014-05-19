@@ -32,6 +32,37 @@ class SourceLocation;
 
 namespace tooling {
 
+/// \brief A source range independent of the \c SourceManager.
+class Range {
+public:
+  Range() : Offset(0), Length(0) {}
+  Range(unsigned Offset, unsigned Length) : Offset(Offset), Length(Length) {}
+
+  /// \brief Accessors.
+  /// @{
+  unsigned getOffset() const { return Offset; }
+  unsigned getLength() const { return Length; }
+  /// @}
+
+  /// \name Range Predicates
+  /// @{
+  /// \brief Whether this range overlaps with \p RHS or not.
+  bool overlapsWith(Range RHS) const {
+    return Offset + Length > RHS.Offset && Offset < RHS.Offset + RHS.Length;
+  }
+
+  /// \brief Whether this range contains \p RHS or not.
+  bool contains(Range RHS) const {
+    return RHS.Offset >= Offset &&
+           (RHS.Offset + RHS.Length) <= (Offset + Length);
+  }
+  /// @}
+
+private:
+  unsigned Offset;
+  unsigned Length;
+};
+
 /// \brief A text replacement.
 ///
 /// Represents a SourceManager independent replacement of a range of text in a
@@ -72,8 +103,8 @@ public:
   /// \brief Accessors.
   /// @{
   StringRef getFilePath() const { return FilePath; }
-  unsigned getOffset() const { return Offset; }
-  unsigned getLength() const { return Length; }
+  unsigned getOffset() const { return ReplacementRange.getOffset(); }
+  unsigned getLength() const { return ReplacementRange.getLength(); }
   StringRef getReplacementText() const { return ReplacementText; }
   /// @}
 
@@ -83,12 +114,6 @@ public:
   /// \brief Returns a human readable string representation.
   std::string toString() const;
 
-  /// \brief Comparator to be able to use Replacement in std::set for uniquing.
-  class Less {
-  public:
-    bool operator()(const Replacement &R1, const Replacement &R2) const;
-  };
-
  private:
   void setFromSourceLocation(SourceManager &Sources, SourceLocation Start,
                              unsigned Length, StringRef ReplacementText);
@@ -96,14 +121,19 @@ public:
                           StringRef ReplacementText);
 
   std::string FilePath;
-  unsigned Offset;
-  unsigned Length;
+  Range ReplacementRange;
   std::string ReplacementText;
 };
 
+/// \brief Less-than operator between two Replacements.
+bool operator<(const Replacement &LHS, const Replacement &RHS);
+
+/// \brief Equal-to operator between two Replacements.
+bool operator==(const Replacement &LHS, const Replacement &RHS);
+
 /// \brief A set of Replacements.
 /// FIXME: Change to a vector and deduplicate in the RefactoringTool.
-typedef std::set<Replacement, Replacement::Less> Replacements;
+typedef std::set<Replacement> Replacements;
 
 /// \brief Apply all replacements in \p Replaces to the Rewriter \p Rewrite.
 ///
@@ -111,7 +141,56 @@ typedef std::set<Replacement, Replacement::Less> Replacements;
 /// other applications.
 ///
 /// \returns true if all replacements apply. false otherwise.
-bool applyAllReplacements(Replacements &Replaces, Rewriter &Rewrite);
+bool applyAllReplacements(const Replacements &Replaces, Rewriter &Rewrite);
+
+/// \brief Apply all replacements in \p Replaces to the Rewriter \p Rewrite.
+///
+/// Replacement applications happen independently of the success of
+/// other applications.
+///
+/// \returns true if all replacements apply. false otherwise.
+bool applyAllReplacements(const std::vector<Replacement> &Replaces,
+                          Rewriter &Rewrite);
+
+/// \brief Applies all replacements in \p Replaces to \p Code.
+///
+/// This completely ignores the path stored in each replacement. If one or more
+/// replacements cannot be applied, this returns an empty \c string.
+std::string applyAllReplacements(StringRef Code, const Replacements &Replaces);
+
+/// \brief Calculates how a code \p Position is shifted when \p Replaces are
+/// applied.
+unsigned shiftedCodePosition(const Replacements& Replaces, unsigned Position);
+
+/// \brief Calculates how a code \p Position is shifted when \p Replaces are
+/// applied.
+///
+/// \pre Replaces[i].getOffset() <= Replaces[i+1].getOffset().
+unsigned shiftedCodePosition(const std::vector<Replacement> &Replaces,
+                             unsigned Position);
+
+/// \brief Removes duplicate Replacements and reports if Replacements conflict
+/// with one another.
+///
+/// \post Replaces[i].getOffset() <= Replaces[i+1].getOffset().
+///
+/// This function sorts \p Replaces so that conflicts can be reported simply by
+/// offset into \p Replaces and number of elements in the conflict.
+void deduplicate(std::vector<Replacement> &Replaces,
+                 std::vector<Range> &Conflicts);
+
+/// \brief Collection of Replacements generated from a single translation unit.
+struct TranslationUnitReplacements {
+  /// Name of the main source for the translation unit.
+  std::string MainSourceFile;
+
+  /// A freeform chunk of text to describe the context of the replacements.
+  /// Will be printed, for example, when detecting conflicts during replacement
+  /// deduplication.
+  std::string Context;
+
+  std::vector<Replacement> Replacements;
+};
 
 /// \brief A tool to run refactorings.
 ///

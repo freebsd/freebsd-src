@@ -324,7 +324,7 @@ ipf_log_soft_fini(softc, arg)
 # endif
 			MUTEX_ENTER(&softl->ipl_mutex[i]);
 		}
-		MUTEX_EXIT(&softl->ipl_mutex[i]);
+		MUTEX_DESTROY(&softl->ipl_mutex[i]);
 	}
 
 	return 0;

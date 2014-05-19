@@ -28,6 +28,7 @@
 #include "llvm/CodeGen/Passes.h"
 #include "llvm/CodeGen/VirtRegMap.h"
 #include "llvm/IR/Value.h"
+#include "llvm/Support/BlockFrequency.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/ErrorHandling.h"
@@ -50,6 +51,14 @@ INITIALIZE_PASS_DEPENDENCY(MachineDominatorTree)
 INITIALIZE_PASS_DEPENDENCY(SlotIndexes)
 INITIALIZE_PASS_END(LiveIntervals, "liveintervals",
                 "Live Interval Analysis", false, false)
+
+#ifndef NDEBUG
+static cl::opt<bool> EnablePrecomputePhysRegs(
+  "precompute-phys-liveness", cl::Hidden,
+  cl::desc("Eagerly compute live intervals for all physreg units."));
+#else
+static bool EnablePrecomputePhysRegs = false;
+#endif // NDEBUG
 
 void LiveIntervals::getAnalysisUsage(AnalysisUsage &AU) const {
   AU.setPreservesCFG();
@@ -86,15 +95,15 @@ void LiveIntervals::releaseMemory() {
   RegMaskBits.clear();
   RegMaskBlocks.clear();
 
-  for (unsigned i = 0, e = RegUnitIntervals.size(); i != e; ++i)
-    delete RegUnitIntervals[i];
-  RegUnitIntervals.clear();
+  for (unsigned i = 0, e = RegUnitRanges.size(); i != e; ++i)
+    delete RegUnitRanges[i];
+  RegUnitRanges.clear();
 
   // Release VNInfo memory regions, VNInfo objects don't need to be dtor'd.
   VNInfoAllocator.Reset();
 }
 
-/// runOnMachineFunction - Register allocate the whole function
+/// runOnMachineFunction - calculates LiveIntervals
 ///
 bool LiveIntervals::runOnMachineFunction(MachineFunction &fn) {
   MF = &fn;
@@ -115,6 +124,12 @@ bool LiveIntervals::runOnMachineFunction(MachineFunction &fn) {
   computeRegMasks();
   computeLiveInRegUnits();
 
+  if (EnablePrecomputePhysRegs) {
+    // For stress testing, precompute live ranges of all physical register
+    // units, including reserved registers.
+    for (unsigned i = 0, e = TRI->getNumRegUnits(); i != e; ++i)
+      getRegUnit(i);
+  }
   DEBUG(dump());
   return true;
 }
@@ -124,15 +139,15 @@ void LiveIntervals::print(raw_ostream &OS, const Module* ) const {
   OS << "********** INTERVALS **********\n";
 
   // Dump the regunits.
-  for (unsigned i = 0, e = RegUnitIntervals.size(); i != e; ++i)
-    if (LiveInterval *LI = RegUnitIntervals[i])
-      OS << PrintRegUnit(i, TRI) << " = " << *LI << '\n';
+  for (unsigned i = 0, e = RegUnitRanges.size(); i != e; ++i)
+    if (LiveRange *LR = RegUnitRanges[i])
+      OS << PrintRegUnit(i, TRI) << ' ' << *LR << '\n';
 
   // Dump the virtregs.
   for (unsigned i = 0, e = MRI->getNumVirtRegs(); i != e; ++i) {
     unsigned Reg = TargetRegisterInfo::index2VirtReg(i);
     if (hasInterval(Reg))
-      OS << PrintReg(Reg) << " = " << getInterval(Reg) << '\n';
+      OS << getInterval(Reg) << '\n';
   }
 
   OS << "RegMasks:";
@@ -155,16 +170,17 @@ void LiveIntervals::dumpInstrs() const {
 #endif
 
 LiveInterval* LiveIntervals::createInterval(unsigned reg) {
-  float Weight = TargetRegisterInfo::isPhysicalRegister(reg) ? HUGE_VALF : 0.0F;
+  float Weight = TargetRegisterInfo::isPhysicalRegister(reg) ?
+                  llvm::huge_valf : 0.0F;
   return new LiveInterval(reg, Weight);
 }
 
 
 /// computeVirtRegInterval - Compute the live interval of a virtual register,
 /// based on defs and uses.
-void LiveIntervals::computeVirtRegInterval(LiveInterval *LI) {
+void LiveIntervals::computeVirtRegInterval(LiveInterval &LI) {
   assert(LRCalc && "LRCalc not initialized.");
-  assert(LI->empty() && "Should only compute empty intervals.");
+  assert(LI.empty() && "Should only compute empty intervals.");
   LRCalc->reset(MF, getSlotIndexes(), DomTree, &getVNInfoAllocator());
   LRCalc->createDeadDefs(LI);
   LRCalc->extendToUses(LI);
@@ -175,9 +191,7 @@ void LiveIntervals::computeVirtRegs() {
     unsigned Reg = TargetRegisterInfo::index2VirtReg(i);
     if (MRI->reg_nodbg_empty(Reg))
       continue;
-    LiveInterval *LI = createInterval(Reg);
-    VirtRegIntervals[Reg] = LI;
-    computeVirtRegInterval(LI);
+    createAndComputeVirtRegInterval(Reg);
   }
 }
 
@@ -214,12 +228,10 @@ void LiveIntervals::computeRegMasks() {
 // interference.
 //
 
-/// computeRegUnitInterval - Compute the live interval of a register unit, based
-/// on the uses and defs of aliasing registers.  The interval should be empty,
+/// computeRegUnitInterval - Compute the live range of a register unit, based
+/// on the uses and defs of aliasing registers.  The range should be empty,
 /// or contain only dead phi-defs from ABI blocks.
-void LiveIntervals::computeRegUnitInterval(LiveInterval *LI) {
-  unsigned Unit = LI->reg;
-
+void LiveIntervals::computeRegUnitRange(LiveRange &LR, unsigned Unit) {
   assert(LRCalc && "LRCalc not initialized.");
   LRCalc->reset(MF, getSlotIndexes(), DomTree, &getVNInfoAllocator());
 
@@ -229,25 +241,21 @@ void LiveIntervals::computeRegUnitInterval(LiveInterval *LI) {
   // idempotent. It is very rare for a register unit to have multiple roots, so
   // uniquing super-registers is probably not worthwhile.
   for (MCRegUnitRootIterator Roots(Unit, TRI); Roots.isValid(); ++Roots) {
-    unsigned Root = *Roots;
-    if (!MRI->reg_empty(Root))
-      LRCalc->createDeadDefs(LI, Root);
-    for (MCSuperRegIterator Supers(Root, TRI); Supers.isValid(); ++Supers) {
+    for (MCSuperRegIterator Supers(*Roots, TRI, /*IncludeSelf=*/true);
+         Supers.isValid(); ++Supers) {
       if (!MRI->reg_empty(*Supers))
-        LRCalc->createDeadDefs(LI, *Supers);
+        LRCalc->createDeadDefs(LR, *Supers);
     }
   }
 
-  // Now extend LI to reach all uses.
+  // Now extend LR to reach all uses.
   // Ignore uses of reserved registers. We only track defs of those.
   for (MCRegUnitRootIterator Roots(Unit, TRI); Roots.isValid(); ++Roots) {
-    unsigned Root = *Roots;
-    if (!MRI->isReserved(Root) && !MRI->reg_empty(Root))
-      LRCalc->extendToUses(LI, Root);
-    for (MCSuperRegIterator Supers(Root, TRI); Supers.isValid(); ++Supers) {
+    for (MCSuperRegIterator Supers(*Roots, TRI, /*IncludeSelf=*/true);
+         Supers.isValid(); ++Supers) {
       unsigned Reg = *Supers;
       if (!MRI->isReserved(Reg) && !MRI->reg_empty(Reg))
-        LRCalc->extendToUses(LI, Reg);
+        LRCalc->extendToUses(LR, Reg);
     }
   }
 }
@@ -258,11 +266,11 @@ void LiveIntervals::computeRegUnitInterval(LiveInterval *LI) {
 /// without a corresponding def when entering the entry block or a landing pad.
 ///
 void LiveIntervals::computeLiveInRegUnits() {
-  RegUnitIntervals.resize(TRI->getNumRegUnits());
+  RegUnitRanges.resize(TRI->getNumRegUnits());
   DEBUG(dbgs() << "Computing live-in reg-units in ABI blocks.\n");
 
-  // Keep track of the intervals allocated.
-  SmallVector<LiveInterval*, 8> NewIntvs;
+  // Keep track of the live range sets allocated.
+  SmallVector<unsigned, 8> NewRanges;
 
   // Check all basic blocks for live-ins.
   for (MachineFunction::const_iterator MFI = MF->begin(), MFE = MF->end();
@@ -280,23 +288,25 @@ void LiveIntervals::computeLiveInRegUnits() {
          LIE = MBB->livein_end(); LII != LIE; ++LII) {
       for (MCRegUnitIterator Units(*LII, TRI); Units.isValid(); ++Units) {
         unsigned Unit = *Units;
-        LiveInterval *Intv = RegUnitIntervals[Unit];
-        if (!Intv) {
-          Intv = RegUnitIntervals[Unit] = new LiveInterval(Unit, HUGE_VALF);
-          NewIntvs.push_back(Intv);
+        LiveRange *LR = RegUnitRanges[Unit];
+        if (!LR) {
+          LR = RegUnitRanges[Unit] = new LiveRange();
+          NewRanges.push_back(Unit);
         }
-        VNInfo *VNI = Intv->createDeadDef(Begin, getVNInfoAllocator());
+        VNInfo *VNI = LR->createDeadDef(Begin, getVNInfoAllocator());
         (void)VNI;
         DEBUG(dbgs() << ' ' << PrintRegUnit(Unit, TRI) << '#' << VNI->id);
       }
     }
     DEBUG(dbgs() << '\n');
   }
-  DEBUG(dbgs() << "Created " << NewIntvs.size() << " new intervals.\n");
+  DEBUG(dbgs() << "Created " << NewRanges.size() << " new intervals.\n");
 
-  // Compute the 'normal' part of the intervals.
-  for (unsigned i = 0, e = NewIntvs.size(); i != e; ++i)
-    computeRegUnitInterval(NewIntvs[i]);
+  // Compute the 'normal' part of the ranges.
+  for (unsigned i = 0, e = NewRanges.size(); i != e; ++i) {
+    unsigned Unit = NewRanges[i];
+    computeRegUnitRange(*RegUnitRanges[Unit], Unit);
+  }
 }
 
 
@@ -320,7 +330,7 @@ bool LiveIntervals::shrinkToUses(LiveInterval *li,
     if (UseMI->isDebugValue() || !UseMI->readsVirtualRegister(li->reg))
       continue;
     SlotIndex Idx = getInstructionIndex(UseMI).getRegSlot();
-    LiveRangeQuery LRQ(*li, Idx);
+    LiveQueryResult LRQ = li->Query(Idx);
     VNInfo *VNI = LRQ.valueIn();
     if (!VNI) {
       // This shouldn't happen: readsVirtualRegister returns true, but there is
@@ -339,14 +349,14 @@ bool LiveIntervals::shrinkToUses(LiveInterval *li,
     WorkList.push_back(std::make_pair(Idx, VNI));
   }
 
-  // Create a new live interval with only minimal live segments per def.
-  LiveInterval NewLI(li->reg, 0);
+  // Create new live ranges with only minimal live segments per def.
+  LiveRange NewLR;
   for (LiveInterval::vni_iterator I = li->vni_begin(), E = li->vni_end();
        I != E; ++I) {
     VNInfo *VNI = *I;
     if (VNI->isUnused())
       continue;
-    NewLI.addRange(LiveRange(VNI->def, VNI->def.getDeadSlot(), VNI));
+    NewLR.addSegment(LiveRange::Segment(VNI->def, VNI->def.getDeadSlot(), VNI));
   }
 
   // Keep track of the PHIs that are in use.
@@ -361,7 +371,7 @@ bool LiveIntervals::shrinkToUses(LiveInterval *li,
     SlotIndex BlockStart = getMBBStartIdx(MBB);
 
     // Extend the live range for VNI to be live at Idx.
-    if (VNInfo *ExtVNI = NewLI.extendInBlock(BlockStart, Idx)) {
+    if (VNInfo *ExtVNI = NewLR.extendInBlock(BlockStart, Idx)) {
       (void)ExtVNI;
       assert(ExtVNI == VNI && "Unexpected existing value number");
       // Is this a PHIDef we haven't seen before?
@@ -382,7 +392,7 @@ bool LiveIntervals::shrinkToUses(LiveInterval *li,
 
     // VNI is live-in to MBB.
     DEBUG(dbgs() << " live-in at " << BlockStart << '\n');
-    NewLI.addRange(LiveRange(BlockStart, Idx, VNI));
+    NewLR.addSegment(LiveRange::Segment(BlockStart, Idx, VNI));
 
     // Make sure VNI is live-out from the predecessors.
     for (MachineBasicBlock::const_pred_iterator PI = MBB->pred_begin(),
@@ -403,14 +413,14 @@ bool LiveIntervals::shrinkToUses(LiveInterval *li,
     VNInfo *VNI = *I;
     if (VNI->isUnused())
       continue;
-    LiveInterval::iterator LII = NewLI.FindLiveRangeContaining(VNI->def);
-    assert(LII != NewLI.end() && "Missing live range for PHI");
-    if (LII->end != VNI->def.getDeadSlot())
+    LiveRange::iterator LRI = NewLR.FindSegmentContaining(VNI->def);
+    assert(LRI != NewLR.end() && "Missing segment for PHI");
+    if (LRI->end != VNI->def.getDeadSlot())
       continue;
     if (VNI->isPHIDef()) {
       // This is a dead PHI. Remove it.
       VNI->markUnused();
-      NewLI.removeRange(*LII);
+      NewLR.removeSegment(LRI->start, LRI->end);
       DEBUG(dbgs() << "Dead PHI at " << VNI->def << " may separate interval\n");
       CanSeparate = true;
     } else {
@@ -425,23 +435,23 @@ bool LiveIntervals::shrinkToUses(LiveInterval *li,
     }
   }
 
-  // Move the trimmed ranges back.
-  li->ranges.swap(NewLI.ranges);
+  // Move the trimmed segments back.
+  li->segments.swap(NewLR.segments);
   DEBUG(dbgs() << "Shrunk: " << *li << '\n');
   return CanSeparate;
 }
 
-void LiveIntervals::extendToIndices(LiveInterval *LI,
+void LiveIntervals::extendToIndices(LiveRange &LR,
                                     ArrayRef<SlotIndex> Indices) {
   assert(LRCalc && "LRCalc not initialized.");
   LRCalc->reset(MF, getSlotIndexes(), DomTree, &getVNInfoAllocator());
   for (unsigned i = 0, e = Indices.size(); i != e; ++i)
-    LRCalc->extend(LI, Indices[i]);
+    LRCalc->extend(LR, Indices[i]);
 }
 
 void LiveIntervals::pruneValue(LiveInterval *LI, SlotIndex Kill,
                                SmallVectorImpl<SlotIndex> *EndPoints) {
-  LiveRangeQuery LRQ(*LI, Kill);
+  LiveQueryResult LRQ = LI->Query(Kill);
   VNInfo *VNI = LRQ.valueOut();
   if (!VNI)
     return;
@@ -452,13 +462,13 @@ void LiveIntervals::pruneValue(LiveInterval *LI, SlotIndex Kill,
 
   // If VNI isn't live out from KillMBB, the value is trivially pruned.
   if (LRQ.endPoint() < MBBEnd) {
-    LI->removeRange(Kill, LRQ.endPoint());
+    LI->removeSegment(Kill, LRQ.endPoint());
     if (EndPoints) EndPoints->push_back(LRQ.endPoint());
     return;
   }
 
   // VNI is live out of KillMBB.
-  LI->removeRange(Kill, MBBEnd);
+  LI->removeSegment(Kill, MBBEnd);
   if (EndPoints) EndPoints->push_back(MBBEnd);
 
   // Find all blocks that are reachable from KillMBB without leaving VNI's live
@@ -476,23 +486,23 @@ void LiveIntervals::pruneValue(LiveInterval *LI, SlotIndex Kill,
 
       // Check if VNI is live in to MBB.
       tie(MBBStart, MBBEnd) = Indexes->getMBBRange(MBB);
-      LiveRangeQuery LRQ(*LI, MBBStart);
+      LiveQueryResult LRQ = LI->Query(MBBStart);
       if (LRQ.valueIn() != VNI) {
-        // This block isn't part of the VNI live range. Prune the search.
+        // This block isn't part of the VNI segment. Prune the search.
         I.skipChildren();
         continue;
       }
 
       // Prune the search if VNI is killed in MBB.
       if (LRQ.endPoint() < MBBEnd) {
-        LI->removeRange(MBBStart, LRQ.endPoint());
+        LI->removeSegment(MBBStart, LRQ.endPoint());
         if (EndPoints) EndPoints->push_back(LRQ.endPoint());
         I.skipChildren();
         continue;
       }
 
       // VNI is live through MBB.
-      LI->removeRange(MBBStart, MBBEnd);
+      LI->removeSegment(MBBStart, MBBEnd);
       if (EndPoints) EndPoints->push_back(MBBEnd);
       ++I;
     }
@@ -505,7 +515,7 @@ void LiveIntervals::pruneValue(LiveInterval *LI, SlotIndex Kill,
 
 void LiveIntervals::addKillFlags(const VirtRegMap *VRM) {
   // Keep track of regunit ranges.
-  SmallVector<std::pair<LiveInterval*, LiveInterval::iterator>, 8> RU;
+  SmallVector<std::pair<LiveRange*, LiveRange::iterator>, 8> RU;
 
   for (unsigned i = 0, e = MRI->getNumVirtRegs(); i != e; ++i) {
     unsigned Reg = TargetRegisterInfo::index2VirtReg(i);
@@ -520,13 +530,14 @@ void LiveIntervals::addKillFlags(const VirtRegMap *VRM) {
     RU.clear();
     for (MCRegUnitIterator Units(VRM->getPhys(Reg), TRI); Units.isValid();
          ++Units) {
-      LiveInterval *RUInt = &getRegUnit(*Units);
-      if (RUInt->empty())
+      LiveRange &RURanges = getRegUnit(*Units);
+      if (RURanges.empty())
         continue;
-      RU.push_back(std::make_pair(RUInt, RUInt->find(LI->begin()->end)));
+      RU.push_back(std::make_pair(&RURanges, RURanges.find(LI->begin()->end)));
     }
 
-    // Every instruction that kills Reg corresponds to a live range end point.
+    // Every instruction that kills Reg corresponds to a segment range end
+    // point.
     for (LiveInterval::iterator RI = LI->begin(), RE = LI->end(); RI != RE;
          ++RI) {
       // A block index indicates an MBB edge.
@@ -536,7 +547,7 @@ void LiveIntervals::addKillFlags(const VirtRegMap *VRM) {
       if (!MI)
         continue;
 
-      // Check if any of the reguints are live beyond the end of RI. That could
+      // Check if any of the regunits are live beyond the end of RI. That could
       // happen when a physreg is defined as a copy of a virtreg:
       //
       //   %EAX = COPY %vreg5
@@ -546,12 +557,12 @@ void LiveIntervals::addKillFlags(const VirtRegMap *VRM) {
       // There should be no kill flag on FOO when %vreg5 is rewritten as %EAX.
       bool CancelKill = false;
       for (unsigned u = 0, e = RU.size(); u != e; ++u) {
-        LiveInterval *RInt = RU[u].first;
-        LiveInterval::iterator &I = RU[u].second;
-        if (I == RInt->end())
+        LiveRange &RRanges = *RU[u].first;
+        LiveRange::iterator &I = RU[u].second;
+        if (I == RRanges.end())
           continue;
-        I = RInt->advanceTo(I, RI->end);
-        if (I == RInt->end() || I->start >= RI->end)
+        I = RRanges.advanceTo(I, RI->end);
+        if (I == RRanges.end() || I->start >= RI->end)
           continue;
         // I is overlapping RI.
         CancelKill = true;
@@ -609,35 +620,23 @@ LiveIntervals::hasPHIKill(const LiveInterval &LI, const VNInfo *VNI) const {
 }
 
 float
-LiveIntervals::getSpillWeight(bool isDef, bool isUse, unsigned loopDepth) {
-  // Limit the loop depth ridiculousness.
-  if (loopDepth > 200)
-    loopDepth = 200;
-
-  // The loop depth is used to roughly estimate the number of times the
-  // instruction is executed. Something like 10^d is simple, but will quickly
-  // overflow a float. This expression behaves like 10^d for small d, but is
-  // more tempered for large d. At d=200 we get 6.7e33 which leaves a bit of
-  // headroom before overflow.
-  // By the way, powf() might be unavailable here. For consistency,
-  // We may take pow(double,double).
-  float lc = std::pow(1 + (100.0 / (loopDepth + 10)), (double)loopDepth);
-
-  return (isDef + isUse) * lc;
+LiveIntervals::getSpillWeight(bool isDef, bool isUse, BlockFrequency freq) {
+  const float Scale = 1.0f / BlockFrequency::getEntryFrequency();
+  return (isDef + isUse) * (freq.getFrequency() * Scale);
 }
 
-LiveRange LiveIntervals::addLiveRangeToEndOfBlock(unsigned reg,
-                                                  MachineInstr* startInst) {
-  LiveInterval& Interval = getOrCreateInterval(reg);
+LiveRange::Segment
+LiveIntervals::addSegmentToEndOfBlock(unsigned reg, MachineInstr* startInst) {
+  LiveInterval& Interval = createEmptyInterval(reg);
   VNInfo* VN = Interval.getNextValue(
     SlotIndex(getInstructionIndex(startInst).getRegSlot()),
     getVNInfoAllocator());
-  LiveRange LR(
+  LiveRange::Segment S(
      SlotIndex(getInstructionIndex(startInst).getRegSlot()),
      getMBBEndIdx(startInst->getParent()), VN);
-  Interval.addRange(LR);
+  Interval.addSegment(S);
 
-  return LR;
+  return S;
 }
 
 
@@ -712,7 +711,7 @@ private:
   const TargetRegisterInfo& TRI;
   SlotIndex OldIdx;
   SlotIndex NewIdx;
-  SmallPtrSet<LiveInterval*, 8> Updated;
+  SmallPtrSet<LiveRange*, 8> Updated;
   bool UpdateFlags;
 
 public:
@@ -726,7 +725,7 @@ public:
   // physregs, even those that aren't needed for regalloc, in order to update
   // kill flags. This is wasteful. Eventually, LiveVariables will strip all kill
   // flags, and postRA passes will use a live register utility instead.
-  LiveInterval *getRegUnitLI(unsigned Unit) {
+  LiveRange *getRegUnitLI(unsigned Unit) {
     if (UpdateFlags)
       return &LIS.getRegUnit(Unit);
     return LIS.getCachedRegUnit(Unit);
@@ -751,15 +750,16 @@ public:
       if (!Reg)
         continue;
       if (TargetRegisterInfo::isVirtualRegister(Reg)) {
-        updateRange(LIS.getInterval(Reg));
+        LiveInterval &LI = LIS.getInterval(Reg);
+        updateRange(LI, Reg);
         continue;
       }
 
       // For physregs, only update the regunits that actually have a
       // precomputed live range.
       for (MCRegUnitIterator Units(Reg, &TRI); Units.isValid(); ++Units)
-        if (LiveInterval *LI = getRegUnitLI(*Units))
-          updateRange(*LI);
+        if (LiveRange *LR = getRegUnitLI(*Units))
+          updateRange(*LR, *Units);
     }
     if (hasRegMask)
       updateRegMaskSlots();
@@ -768,26 +768,26 @@ public:
 private:
   /// Update a single live range, assuming an instruction has been moved from
   /// OldIdx to NewIdx.
-  void updateRange(LiveInterval &LI) {
-    if (!Updated.insert(&LI))
+  void updateRange(LiveRange &LR, unsigned Reg) {
+    if (!Updated.insert(&LR))
       return;
     DEBUG({
       dbgs() << "     ";
-      if (TargetRegisterInfo::isVirtualRegister(LI.reg))
-        dbgs() << PrintReg(LI.reg);
+      if (TargetRegisterInfo::isVirtualRegister(Reg))
+        dbgs() << PrintReg(Reg);
       else
-        dbgs() << PrintRegUnit(LI.reg, &TRI);
-      dbgs() << ":\t" << LI << '\n';
+        dbgs() << PrintRegUnit(Reg, &TRI);
+      dbgs() << ":\t" << LR << '\n';
     });
     if (SlotIndex::isEarlierInstr(OldIdx, NewIdx))
-      handleMoveDown(LI);
+      handleMoveDown(LR);
     else
-      handleMoveUp(LI);
-    DEBUG(dbgs() << "        -->\t" << LI << '\n');
-    LI.verify();
+      handleMoveUp(LR, Reg);
+    DEBUG(dbgs() << "        -->\t" << LR << '\n');
+    LR.verify();
   }
 
-  /// Update LI to reflect an instruction has been moved downwards from OldIdx
+  /// Update LR to reflect an instruction has been moved downwards from OldIdx
   /// to NewIdx.
   ///
   /// 1. Live def at OldIdx:
@@ -801,17 +801,17 @@ private:
   ///    Move def to NewIdx, possibly across another live value.
   ///
   /// 4. Def at OldIdx AND at NewIdx:
-  ///    Remove live range [OldIdx;NewIdx) and value defined at OldIdx.
+  ///    Remove segment [OldIdx;NewIdx) and value defined at OldIdx.
   ///    (Happens when bundling multiple defs together).
   ///
   /// 5. Value read at OldIdx, killed before NewIdx:
   ///    Extend kill to NewIdx.
   ///
-  void handleMoveDown(LiveInterval &LI) {
+  void handleMoveDown(LiveRange &LR) {
     // First look for a kill at OldIdx.
-    LiveInterval::iterator I = LI.find(OldIdx.getBaseIndex());
-    LiveInterval::iterator E = LI.end();
-    // Is LI even live at OldIdx?
+    LiveRange::iterator I = LR.find(OldIdx.getBaseIndex());
+    LiveRange::iterator E = LR.end();
+    // Is LR even live at OldIdx?
     if (I == E || SlotIndex::isEarlierInstr(OldIdx, I->start))
       return;
 
@@ -828,7 +828,7 @@ private:
         for (MIBundleOperands MO(KillMI); MO.isValid(); ++MO)
           if (MO->isReg() && MO->isUse())
             MO->setIsKill(false);
-      // Adjust I->end to reach NewIdx. This may temporarily make LI invalid by
+      // Adjust I->end to reach NewIdx. This may temporarily make LR invalid by
       // overlapping ranges. Case 5 above.
       I->end = NewIdx.getRegSlot(I->end.isEarlyClobber());
       // If this was a kill, there may also be a def. Otherwise we're done.
@@ -857,24 +857,25 @@ private:
     assert((I->end == OldIdx.getDeadSlot() ||
             SlotIndex::isSameInstr(I->end, NewIdx)) &&
             "Cannot move def below kill");
-    LiveInterval::iterator NewI = LI.advanceTo(I, NewIdx.getRegSlot());
+    LiveRange::iterator NewI = LR.advanceTo(I, NewIdx.getRegSlot());
     if (NewI != E && SlotIndex::isSameInstr(NewI->start, NewIdx)) {
       // There is an existing def at NewIdx, case 4 above. The def at OldIdx is
       // coalesced into that value.
       assert(NewI->valno != DefVNI && "Multiple defs of value?");
-      LI.removeValNo(DefVNI);
+      LR.removeValNo(DefVNI);
       return;
     }
     // There was no existing def at NewIdx. Turn *I into a dead def at NewIdx.
-    // If the def at OldIdx was dead, we allow it to be moved across other LI
+    // If the def at OldIdx was dead, we allow it to be moved across other LR
     // values. The new range should be placed immediately before NewI, move any
     // intermediate ranges up.
     assert(NewI != I && "Inconsistent iterators");
     std::copy(llvm::next(I), NewI, I);
-    *llvm::prior(NewI) = LiveRange(DefVNI->def, NewIdx.getDeadSlot(), DefVNI);
+    *llvm::prior(NewI)
+      = LiveRange::Segment(DefVNI->def, NewIdx.getDeadSlot(), DefVNI);
   }
 
-  /// Update LI to reflect an instruction has been moved upwards from OldIdx
+  /// Update LR to reflect an instruction has been moved upwards from OldIdx
   /// to NewIdx.
   ///
   /// 1. Live def at OldIdx:
@@ -894,11 +895,11 @@ private:
   ///    Hoist kill to NewIdx, then scan for last kill between NewIdx and
   ///    OldIdx.
   ///
-  void handleMoveUp(LiveInterval &LI) {
+  void handleMoveUp(LiveRange &LR, unsigned Reg) {
     // First look for a kill at OldIdx.
-    LiveInterval::iterator I = LI.find(OldIdx.getBaseIndex());
-    LiveInterval::iterator E = LI.end();
-    // Is LI even live at OldIdx?
+    LiveRange::iterator I = LR.find(OldIdx.getBaseIndex());
+    LiveRange::iterator E = LR.end();
+    // Is LR even live at OldIdx?
     if (I == E || SlotIndex::isEarlierInstr(OldIdx, I->start))
       return;
 
@@ -915,7 +916,7 @@ private:
       if (I == E || !SlotIndex::isSameInstr(I->start, OldIdx)) {
         // No def, search for the new kill.
         // This can never be an early clobber kill since there is no def.
-        llvm::prior(I)->end = findLastUseBefore(LI.reg).getRegSlot();
+        llvm::prior(I)->end = findLastUseBefore(Reg).getRegSlot();
         return;
       }
     }
@@ -927,18 +928,18 @@ private:
     DefVNI->def = NewIdx.getRegSlot(I->start.isEarlyClobber());
 
     // Check for an existing def at NewIdx.
-    LiveInterval::iterator NewI = LI.find(NewIdx.getRegSlot());
+    LiveRange::iterator NewI = LR.find(NewIdx.getRegSlot());
     if (SlotIndex::isSameInstr(NewI->start, NewIdx)) {
       assert(NewI->valno != DefVNI && "Same value defined more than once?");
       // There is an existing def at NewIdx.
       if (I->end.isDead()) {
         // Case 3: Remove the dead def at OldIdx.
-        LI.removeValNo(DefVNI);
+        LR.removeValNo(DefVNI);
         return;
       }
       // Case 4: Replace def at NewIdx with live def at OldIdx.
       I->start = DefVNI->def;
-      LI.removeValNo(NewI->valno);
+      LR.removeValNo(NewI->valno);
       return;
     }
 
@@ -949,10 +950,10 @@ private:
       return;
     }
 
-    // DefVNI is a dead def. It may have been moved across other values in LI,
+    // DefVNI is a dead def. It may have been moved across other values in LR,
     // so move I up to NewI. Slide [NewI;I) down one position.
     std::copy_backward(NewI, I, llvm::next(I));
-    *NewI = LiveRange(DefVNI->def, NewIdx.getDeadSlot(), DefVNI);
+    *NewI = LiveRange::Segment(DefVNI->def, NewIdx.getDeadSlot(), DefVNI);
   }
 
   void updateRegMaskSlots() {
@@ -1075,8 +1076,7 @@ LiveIntervals::repairIntervalsInRange(MachineBasicBlock *MBB,
       if (MOI->isReg() &&
           TargetRegisterInfo::isVirtualRegister(MOI->getReg()) &&
           !hasInterval(MOI->getReg())) {
-        LiveInterval &LI = getOrCreateInterval(MOI->getReg());
-        computeVirtRegInterval(&LI);
+        createAndComputeVirtRegInterval(MOI->getReg());
       }
     }
   }
@@ -1123,9 +1123,9 @@ LiveIntervals::repairIntervalsInRange(MachineBasicBlock *MBB,
               if (LII != LI.begin())
                 prevStart = llvm::prior(LII)->start;
 
-              // FIXME: This could be more efficient if there was a removeRange
-              // method that returned an iterator.
-              LI.removeRange(*LII, true);
+              // FIXME: This could be more efficient if there was a
+              // removeSegment method that returned an iterator.
+              LI.removeSegment(*LII, true);
               if (prevStart.isValid())
                 LII = LI.find(prevStart);
               else
@@ -1144,13 +1144,14 @@ LiveIntervals::repairIntervalsInRange(MachineBasicBlock *MBB,
           if (!lastUseIdx.isValid()) {
             VNInfo *VNI = LI.getNextValue(instrIdx.getRegSlot(),
                                           VNInfoAllocator);
-            LiveRange LR(instrIdx.getRegSlot(), instrIdx.getDeadSlot(), VNI);
-            LII = LI.addRange(LR);
+            LiveRange::Segment S(instrIdx.getRegSlot(),
+                                 instrIdx.getDeadSlot(), VNI);
+            LII = LI.addSegment(S);
           } else if (LII->start != instrIdx.getRegSlot()) {
             VNInfo *VNI = LI.getNextValue(instrIdx.getRegSlot(),
                                           VNInfoAllocator);
-            LiveRange LR(instrIdx.getRegSlot(), lastUseIdx, VNI);
-            LII = LI.addRange(LR);
+            LiveRange::Segment S(instrIdx.getRegSlot(), lastUseIdx, VNI);
+            LII = LI.addSegment(S);
           }
 
           if (MO.getSubReg() && !MO.isUndef())

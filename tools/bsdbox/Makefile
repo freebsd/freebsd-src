@@ -1,7 +1,7 @@
 #$FreeBSD$
 #	@(#)Makefile	8.1 (Berkeley) 6/2/93
 
-NO_MAN=
+MAN=
 
 .include <bsd.own.mk>
 MK_SSP=	no
@@ -72,9 +72,6 @@ CRUNCH_SRCDIRS+= sbin
 
 CRUNCH_LIBS+= -lalias -lcam -lcurses -ldevstat -lipsec
 # Don't forget this - ifconfig, etc -adrian
-.if ${MK_IPX} != "no"
-CRUNCH_LIBS+= -lipx
-.endif
 CRUNCH_LIBS+= -lgeom -lbsdxml -ljail -lkiconv -lmd -lsbuf -lufs
 
 ##################################################################

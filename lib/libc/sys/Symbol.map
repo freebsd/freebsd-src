@@ -395,6 +395,7 @@ FBSD_1.3 {
 	ffclock_setestimate;
 	pipe2;
 	posix_fadvise;
+	procctl;
 	wait6;
 };
 
@@ -822,6 +823,8 @@ FBSDprivate_1.0 {
 	__sys_poll;
 	_preadv;
 	__sys_preadv;
+	_procctl;
+	__sys_procctl;
 	_profil;
 	__sys_profil;
 	_pselect;

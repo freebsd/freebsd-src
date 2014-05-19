@@ -5,6 +5,7 @@
     ${MACHINE_ARCH} == "ia64" || \
     ${MACHINE_ARCH} == "arm"  || \
     ${MACHINE_ARCH} == "armv6"  || \
+    ${MACHINE_ARCH} == "armv6hf"  || \
     ${MACHINE_ARCH:Mmips*el} != ""
 TARGET_ENDIANNESS= 1234
 .elif ${MACHINE_ARCH} == "powerpc" || \

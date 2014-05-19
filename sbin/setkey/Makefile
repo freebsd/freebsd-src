@@ -27,7 +27,7 @@
 #
 # $FreeBSD$
 
-.include <bsd.own.mk>
+.include <src.opts.mk>
 
 PROG=	setkey
 MAN=	setkey.8

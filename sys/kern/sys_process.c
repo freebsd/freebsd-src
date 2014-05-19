@@ -41,7 +41,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/syscallsubr.h>
 #include <sys/sysent.h>
 #include <sys/sysproto.h>
+#include <sys/priv.h>
 #include <sys/proc.h>
+#include <sys/procctl.h>
 #include <sys/vnode.h>
 #include <sys/ptrace.h>
 #include <sys/rwlock.h>
@@ -1239,4 +1241,197 @@ stopevent(struct proc *p, unsigned int event, unsigned int val)
 		wakeup(&p->p_stype);	/* Wake up any PIOCWAIT'ing procs */
 		msleep(&p->p_step, &p->p_mtx, PWAIT, "stopevent", 0);
 	} while (p->p_step);
+}
+
+static int
+protect_setchild(struct thread *td, struct proc *p, int flags)
+{
+
+	PROC_LOCK_ASSERT(p, MA_OWNED);
+	if (p->p_flag & P_SYSTEM || p_cansee(td, p) != 0)
+		return (0);
+	if (flags & PPROT_SET) {
+		p->p_flag |= P_PROTECTED;
+		if (flags & PPROT_INHERIT)
+			p->p_flag2 |= P2_INHERIT_PROTECTED;
+	} else {
+		p->p_flag &= ~P_PROTECTED;
+		p->p_flag2 &= ~P2_INHERIT_PROTECTED;
+	}
+	return (1);
+}
+
+static int
+protect_setchildren(struct thread *td, struct proc *top, int flags)
+{
+	struct proc *p;
+	int ret;
+
+	p = top;
+	ret = 0;
+	sx_assert(&proctree_lock, SX_LOCKED);
+	for (;;) {
+		ret |= protect_setchild(td, p, flags);
+		PROC_UNLOCK(p);
+		/*
+		 * If this process has children, descend to them next,
+		 * otherwise do any siblings, and if done with this level,
+		 * follow back up the tree (but not past top).
+		 */
+		if (!LIST_EMPTY(&p->p_children))
+			p = LIST_FIRST(&p->p_children);
+		else for (;;) {
+			if (p == top) {
+				PROC_LOCK(p);
+				return (ret);
+			}
+			if (LIST_NEXT(p, p_sibling)) {
+				p = LIST_NEXT(p, p_sibling);
+				break;
+			}
+			p = p->p_pptr;
+		}
+		PROC_LOCK(p);
+	}
+}
+
+static int
+protect_set(struct thread *td, struct proc *p, int flags)
+{
+	int error, ret;
+
+	switch (PPROT_OP(flags)) {
+	case PPROT_SET:
+	case PPROT_CLEAR:
+		break;
+	default:
+		return (EINVAL);
+	}
+
+	if ((PPROT_FLAGS(flags) & ~(PPROT_DESCEND | PPROT_INHERIT)) != 0)
+		return (EINVAL);
+
+	error = priv_check(td, PRIV_VM_MADV_PROTECT);
+	if (error)
+		return (error);
+
+	if (flags & PPROT_DESCEND)
+		ret = protect_setchildren(td, p, flags);
+	else
+		ret = protect_setchild(td, p, flags);
+	if (ret == 0)
+		return (EPERM);
+	return (0);
+}
+
+#ifndef _SYS_SYSPROTO_H_
+struct procctl_args {
+	idtype_t idtype;
+	id_t	id;
+	int	com;
+	void	*data;
+};
+#endif
+/* ARGSUSED */
+int
+sys_procctl(struct thread *td, struct procctl_args *uap)
+{
+	int error, flags;
+	void *data;
+
+	switch (uap->com) {
+	case PROC_SPROTECT:
+		error = copyin(uap->data, &flags, sizeof(flags));
+		if (error)
+			return (error);
+		data = &flags;
+		break;
+	default:
+		return (EINVAL);
+	}
+
+	return (kern_procctl(td, uap->idtype, uap->id, uap->com, data));
+}
+
+static int
+kern_procctl_single(struct thread *td, struct proc *p, int com, void *data)
+{
+
+	PROC_LOCK_ASSERT(p, MA_OWNED);
+	switch (com) {
+	case PROC_SPROTECT:
+		return (protect_set(td, p, *(int *)data));
+	default:
+		return (EINVAL);
+	}
+}
+
+int
+kern_procctl(struct thread *td, idtype_t idtype, id_t id, int com, void *data)
+{
+	struct pgrp *pg;
+	struct proc *p;
+	int error, first_error, ok;
+
+	sx_slock(&proctree_lock);
+	switch (idtype) {
+	case P_PID:
+		p = pfind(id);
+		if (p == NULL) {
+			error = ESRCH;
+			break;
+		}
+		if (p->p_state == PRS_NEW)
+			error = ESRCH;
+		else
+			error = p_cansee(td, p);
+		if (error == 0)
+			error = kern_procctl_single(td, p, com, data);
+		PROC_UNLOCK(p);
+		break;
+	case P_PGID:
+		/*
+		 * Attempt to apply the operation to all members of the
+		 * group.  Ignore processes in the group that can't be
+		 * seen.  Ignore errors so long as at least one process is
+		 * able to complete the request successfully.
+		 */
+		pg = pgfind(id);
+		if (pg == NULL) {
+			error = ESRCH;
+			break;
+		}
+		PGRP_UNLOCK(pg);
+		ok = 0;
+		first_error = 0;
+		LIST_FOREACH(p, &pg->pg_members, p_pglist) {
+			PROC_LOCK(p);
+			if (p->p_state == PRS_NEW || p_cansee(td, p) != 0) {
+				PROC_UNLOCK(p);
+				continue;
+			}
+			error = kern_procctl_single(td, p, com, data);
+			PROC_UNLOCK(p);
+			if (error == 0)
+				ok = 1;
+			else if (first_error == 0)
+				first_error = error;
+		}
+		if (ok)
+			error = 0;
+		else if (first_error != 0)
+			error = first_error;
+		else
+			/*
+			 * Was not able to see any processes in the
+			 * process group.
+			 */
+			error = ESRCH;
+		break;
+	default:
+		error = EINVAL;
+		break;
+	}
+	sx_sunlock(&proctree_lock);
+	return (error);
 }

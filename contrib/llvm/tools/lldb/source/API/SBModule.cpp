@@ -69,7 +69,7 @@ SBModule::SBModule (lldb::SBProcess &process, lldb::addr_t header_addr) :
         {
             Target &target = process_sp->GetTarget();
             bool changed = false;
-            m_opaque_sp->SetLoadAddress(target, 0, changed);
+            m_opaque_sp->SetLoadAddress(target, 0, true, changed);
             target.GetImages().Append(m_opaque_sp);
         }
     }
@@ -162,6 +162,27 @@ SBModule::SetPlatformFileSpec (const lldb::SBFileSpec &platform_file)
     return result;
 }
 
+lldb::SBFileSpec
+SBModule::GetRemoteInstallFileSpec ()
+{
+    SBFileSpec sb_file_spec;
+    ModuleSP module_sp (GetSP ());
+    if (module_sp)
+        sb_file_spec.SetFileSpec (module_sp->GetRemoteInstallFileSpec());
+    return sb_file_spec;
+}
+
+bool
+SBModule::SetRemoteInstallFileSpec (lldb::SBFileSpec &file)
+{
+    ModuleSP module_sp (GetSP ());
+    if (module_sp)
+    {
+        module_sp->SetRemoteInstallFileSpec(file.ref());
+        return true;
+    }
+    return false;
+}
 
 
 const uint8_t *
@@ -556,6 +577,23 @@ SBModule::FindTypes (const char *type)
     }
 
     return retval;
+}
+
+lldb::SBType
+SBModule::GetTypeByID (lldb::user_id_t uid)
+{
+    ModuleSP module_sp (GetSP ());
+    if (module_sp)
+    {
+        SymbolVendor* vendor = module_sp->GetSymbolVendor();
+        if (vendor)
+        {
+            Type *type_ptr = vendor->ResolveTypeUID(uid);
+            if (type_ptr)
+                return SBType(type_ptr->shared_from_this());
+        }
+    }
+    return SBType();
 }
 
 lldb::SBTypeList

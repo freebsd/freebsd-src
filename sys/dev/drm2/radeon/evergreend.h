@@ -61,7 +61,7 @@ __FBSDID("$FreeBSD$");
 #define		INSTANCE_INDEX(x)			((x) << 0)
 #define		SE_INDEX(x)     			((x) << 16)
 #define		INSTANCE_BROADCAST_WRITES      		(1 << 30)
-#define		SE_BROADCAST_WRITES      		(1 << 31)
+#define		SE_BROADCAST_WRITES      		(1U << 31)
 #define RLC_GFX_INDEX           			0x3fC4
 #define CC_GC_SHADER_PIPE_CONFIG			0x8950
 #define		WRITE_DIS      				(1 << 0)
@@ -125,7 +125,7 @@ __FBSDID("$FreeBSD$");
 #define		RB_BUFSZ(x)					((x) << 0)
 #define		RB_BLKSZ(x)					((x) << 8)
 #define		RB_NO_UPDATE					(1 << 27)
-#define		RB_RPTR_WR_ENA					(1 << 31)
+#define		RB_RPTR_WR_ENA					(1U << 31)
 #define		BUF_SWAP_32BIT					(2 << 16)
 #define	CP_RB_RPTR					0x8700
 #define	CP_RB_RPTR_ADDR					0xC10C
@@ -187,7 +187,7 @@ __FBSDID("$FreeBSD$");
 #       define HDMI_ACR_X1                   1
 #       define HDMI_ACR_X2                   2
 #       define HDMI_ACR_X4                   4
-#       define HDMI_ACR_AUDIO_PRIORITY       (1 << 31)
+#       define HDMI_ACR_AUDIO_PRIORITY       (1U << 31)
 #define HDMI_VBI_PACKET_CONTROL              0x7040
 #       define HDMI_NULL_SEND                (1 << 0)
 #       define HDMI_GC_SEND                  (1 << 4)
@@ -322,7 +322,7 @@ __FBSDID("$FreeBSD$");
 #       define AFMT_AUDIO_CRC_EN             (1 << 0)
 #define AFMT_RAMP_CONTROL0                   0x7110
 #       define AFMT_RAMP_MAX_COUNT(x)        (((x) & 0xffffff) << 0)
-#       define AFMT_RAMP_DATA_SIGN           (1 << 31)
+#       define AFMT_RAMP_DATA_SIGN           (1U << 31)
 #define AFMT_RAMP_CONTROL1                   0x7114
 #       define AFMT_RAMP_MIN_COUNT(x)        (((x) & 0xffffff) << 0)
 #       define AFMT_AUDIO_TEST_CH_DISABLE(x) (((x) & 0xff) << 24)
@@ -406,7 +406,7 @@ __FBSDID("$FreeBSD$");
 #       define PIN1_AUDIO_ENABLED                         (1 << 25)
 #       define PIN2_AUDIO_ENABLED                         (1 << 26)
 #       define PIN3_AUDIO_ENABLED                         (1 << 27)
-#       define AUDIO_ENABLED                              (1 << 31)
+#       define AUDIO_ENABLED                              (1U << 31)
 
 
 #define	GC_USER_SHADER_PIPE_CONFIG			0x8954
@@ -452,7 +452,7 @@ __FBSDID("$FreeBSD$");
 #define		CP_COHERENCY_BUSY      				(1 << 28)
 #define		CP_BUSY 					(1 << 29)
 #define		CB_BUSY 					(1 << 30)
-#define		GUI_ACTIVE					(1 << 31)
+#define		GUI_ACTIVE					(1U << 31)
 #define	GRBM_STATUS_SE0					0x8014
 #define	GRBM_STATUS_SE1					0x8018
 #define		SE_SX_CLEAN					(1 << 0)
@@ -464,7 +464,7 @@ __FBSDID("$FreeBSD$");
 #define		SE_SH_BUSY					(1 << 28)
 #define		SE_SC_BUSY					(1 << 29)
 #define		SE_DB_BUSY					(1 << 30)
-#define		SE_CB_BUSY					(1 << 31)
+#define		SE_CB_BUSY					(1U << 31)
 /* evergreen */
 #define	CG_THERMAL_CTRL					0x72c
 #define		TOFFSET_MASK			        0x00003FE0
@@ -771,7 +771,7 @@ __FBSDID("$FreeBSD$");
 #       define IH_WPTR_WRITEBACK_ENABLE                   (1 << 8)
 #       define IH_WPTR_WRITEBACK_TIMER(x)                 ((x) << 9) /* log2 */
 #       define IH_WPTR_OVERFLOW_ENABLE                    (1 << 16)
-#       define IH_WPTR_OVERFLOW_CLEAR                     (1 << 31)
+#       define IH_WPTR_OVERFLOW_CLEAR                     (1U << 31)
 #define IH_RB_BASE                                        0x3e04
 #define IH_RB_RPTR                                        0x3e08
 #define IH_RB_WPTR                                        0x3e0c
@@ -797,13 +797,13 @@ __FBSDID("$FreeBSD$");
 #       define TIME_STAMP_INT_ENABLE                    (1 << 26)
 #       define IB2_INT_ENABLE                           (1 << 29)
 #       define IB1_INT_ENABLE                           (1 << 30)
-#       define RB_INT_ENABLE                            (1 << 31)
+#       define RB_INT_ENABLE                            (1U << 31)
 #define CP_INT_STATUS                                   0xc128
 #       define SCRATCH_INT_STAT                         (1 << 25)
 #       define TIME_STAMP_INT_STAT                      (1 << 26)
 #       define IB2_INT_STAT                             (1 << 29)
 #       define IB1_INT_STAT                             (1 << 30)
-#       define RB_INT_STAT                              (1 << 31)
+#       define RB_INT_STAT                              (1U << 31)
 
 #define GRBM_INT_CNTL                                   0x8060
 #       define RDERR_INT_ENABLE                         (1 << 0)
@@ -1062,7 +1062,7 @@ __FBSDID("$FreeBSD$");
 		 * 1 - GDS
 		 * 2 - DATA
 		 */
-#              define PACKET3_CP_DMA_CP_SYNC       (1 << 31)
+#              define PACKET3_CP_DMA_CP_SYNC       (1U << 31)
 /* COMMAND */
 #              define PACKET3_CP_DMA_DIS_WC        (1 << 21)
 #              define PACKET3_CP_DMA_CMD_SRC_SWAP(x) ((x) << 23)

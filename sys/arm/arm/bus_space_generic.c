@@ -50,6 +50,8 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_extern.h>
 
 #include <machine/bus.h>
+#include <machine/cpufunc.h>
+#include <machine/devmap.h>
 
 /* Prototypes for all the bus_space structure functions */
 bs_protos(generic);
@@ -58,36 +60,16 @@ int
 generic_bs_map(void *t, bus_addr_t bpa, bus_size_t size, int flags,
     bus_space_handle_t *bshp)
 {
-	const struct pmap_devmap *pd;
-	vm_paddr_t startpa, endpa, pa, offset;
-	vm_offset_t va;
-	pt_entry_t *pte;
+	void *va;
 
-	if ((pd = pmap_devmap_find_pa(bpa, size)) != NULL) {
-		/* Device was statically mapped. */
-		*bshp = pd->pd_va + (bpa - pd->pd_pa);
-		return (0);
-	}
-
-	endpa = round_page(bpa + size);
-	offset = bpa & PAGE_MASK;
-	startpa = trunc_page(bpa);
-
-	va = kva_alloc(endpa - startpa);
-	if (va == 0)
+	/*
+	 * We don't even examine the passed-in flags.  For ARM, the CACHEABLE
+	 * flag doesn't make sense (we create PTE_DEVICE mappings), and the
+	 * LINEAR flag is just implied because we use kva_alloc(size).
+	 */
+	if ((va = pmap_mapdev(bpa, size)) == NULL)
 		return (ENOMEM);
-
-	*bshp = va + offset;
-
-	for (pa = startpa; pa < endpa; pa += PAGE_SIZE, va += PAGE_SIZE) {
-		pmap_kenter(va, pa);
-		pte = vtopte(va);
-		if (!(flags & BUS_SPACE_MAP_CACHEABLE)) {
-			*pte &= ~L2_S_CACHE_MASK;
-			PTE_SYNC(pte);
-		}
-	}
-
+	*bshp = (bus_space_handle_t)va;
 	return (0);
 }
 
@@ -104,21 +86,8 @@ generic_bs_alloc(void *t, bus_addr_t rstart, bus_addr_t rend, bus_size_t size,
 void
 generic_bs_unmap(void *t, bus_space_handle_t h, bus_size_t size)
 {
-	vm_offset_t va, endva, origva;
 
-	if (pmap_devmap_find_va((vm_offset_t)h, size) != NULL) {
-		/* Device was statically mapped; nothing to do. */
-		return;
-	}
-
-	endva = round_page((vm_offset_t)h + size);
-	origva = va = trunc_page((vm_offset_t)h);
-
-	while (va < endva) {
-		pmap_kremove(va);
-		va += PAGE_SIZE;
-	}
-	kva_free(origva, endva - origva);
+	pmap_unmapdev((vm_offset_t)h, size);
 }
 
 void
@@ -142,5 +111,16 @@ generic_bs_barrier(void *t, bus_space_handle_t bsh, bus_size_t offset,
     bus_size_t len, int flags)
 {
 
-	/* Nothing to do. */
+	/*
+	 * dsb() will drain the L1 write buffer and establish a memory access
+	 * barrier point on platforms where that has meaning.  On a write we
+	 * also need to drain the L2 write buffer, because most on-chip memory
+	 * mapped devices are downstream of the L2 cache.  Note that this needs
+	 * to be done even for memory mapped as Device type, because while
+	 * Device memory is not cached, writes to it are still buffered.
+	 */
+	dsb();
+	if (flags & BUS_SPACE_BARRIER_WRITE) {
+		cpu_l2cache_drain_writebuf();
+	}
 }

@@ -65,7 +65,6 @@ __FBSDID("$FreeBSD$");
 #include <cam/ctl/ctl.h>
 #include <cam/ctl/ctl_frontend.h>
 #include <cam/ctl/ctl_frontend_internal.h>
-#include <cam/ctl/ctl_mem_pool.h>
 #include <cam/ctl/ctl_debug.h>
 
 #define	io_ptr		spriv_ptr1
@@ -504,13 +503,8 @@ static void
 cfcs_done(union ctl_io *io)
 {
 	union ccb *ccb;
-	struct cfcs_softc *softc;
-	struct cam_sim *sim;
 
 	ccb = io->io_hdr.ctl_private[CTL_PRIV_FRONTEND].ptr;
-
-	sim = xpt_path_sim(ccb->ccb_h.path);
-	softc = (struct cfcs_softc *)cam_sim_softc(sim);
 
 	/*
 	 * At this point we should have status.  If we don't, that's a bug.
@@ -550,10 +544,7 @@ cfcs_done(union ctl_io *io)
 		break;
 	}
 
-	mtx_lock(sim->mtx);
 	xpt_done(ccb);
-	mtx_unlock(sim->mtx);
-
 	ctl_free_io(io);
 }
 

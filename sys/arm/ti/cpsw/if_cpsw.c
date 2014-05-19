@@ -64,6 +64,7 @@ __FBSDID("$FreeBSD$");
 #include <net/if_dl.h>
 #include <net/if_media.h>
 #include <net/if_types.h>
+#include <net/if_var.h>
 #include <net/if_vlan_var.h>
 
 #include <netinet/in_systm.h>
@@ -443,6 +444,9 @@ cpsw_dump_queue(struct cpsw_softc *sc, struct cpsw_slots *q)
 static int
 cpsw_probe(device_t dev)
 {
+
+	if (!ofw_bus_status_okay(dev))
+		return (ENXIO);
 
 	if (!ofw_bus_is_compatible(dev, "ti,cpsw"))
 		return (ENXIO);

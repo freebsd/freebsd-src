@@ -176,6 +176,7 @@ struct listen_ctx {
 	struct inpcb *inp;		/* listening socket's inp */
 	struct sge_wrq *ctrlq;
 	struct sge_ofld_rxq *ofld_rxq;
+	struct clip_entry *ce;
 	TAILQ_HEAD(, synq_entry) synq;
 };
 

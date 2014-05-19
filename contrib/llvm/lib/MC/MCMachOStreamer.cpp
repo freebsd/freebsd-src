@@ -1,3 +1,4 @@
+//===-- MCMachOStreamer.cpp - MachO Streamer ------------------------------===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -36,7 +37,7 @@ private:
 public:
   MCMachOStreamer(MCContext &Context, MCAsmBackend &MAB, raw_ostream &OS,
                   MCCodeEmitter *Emitter)
-      : MCObjectStreamer(SK_MachOStreamer, Context, MAB, OS, Emitter) {}
+      : MCObjectStreamer(Context, 0, MAB, OS, Emitter) {}
 
   /// @name MCStreamer Interface
   /// @{
@@ -51,7 +52,7 @@ public:
   virtual void EmitLinkerOptions(ArrayRef<std::string> Options);
   virtual void EmitDataRegion(MCDataRegionType Kind);
   virtual void EmitThumbFunc(MCSymbol *Func);
-  virtual void EmitSymbolAttribute(MCSymbol *Symbol, MCSymbolAttr Attribute);
+  virtual bool EmitSymbolAttribute(MCSymbol *Symbol, MCSymbolAttr Attribute);
   virtual void EmitSymbolDesc(MCSymbol *Symbol, unsigned DescValue);
   virtual void EmitCommonSymbol(MCSymbol *Symbol, uint64_t Size,
                                 unsigned ByteAlignment);
@@ -81,16 +82,14 @@ public:
     // FIXME: Just ignore the .file; it isn't important enough to fail the
     // entire assembly.
 
-    //report_fatal_error("unsupported directive: '.file'");
+    // report_fatal_error("unsupported directive: '.file'");
+  }
+
+  virtual void EmitIdent(StringRef IdentString) {
+    llvm_unreachable("macho doesn't support this directive");
   }
 
   virtual void FinishImpl();
-
-  /// @}
-
-  static bool classof(const MCStreamer *S) {
-    return S->getKind() == SK_MachOStreamer;
-  }
 };
 
 } // end anonymous namespace.
@@ -122,7 +121,7 @@ void MCMachOStreamer::EmitLabel(MCSymbol *Symbol) {
   assert(Symbol->isUndefined() && "Cannot define a symbol twice!");
 
   // isSymbolLinkerVisible uses the section.
-  Symbol->setSection(*getCurrentSection().first);
+  AssignSection(Symbol, getCurrentSection().first);
   // We have to create a new fragment if this is an atom defining symbol,
   // fragments cannot span atoms.
   if (getAssembler().isSymbolLinkerVisible(*Symbol))
@@ -217,7 +216,7 @@ void MCMachOStreamer::EmitThumbFunc(MCSymbol *Symbol) {
   SD.setFlags(SD.getFlags() | SF_ThumbFunc);
 }
 
-void MCMachOStreamer::EmitSymbolAttribute(MCSymbol *Symbol,
+bool MCMachOStreamer::EmitSymbolAttribute(MCSymbol *Symbol,
                                           MCSymbolAttr Attribute) {
   // Indirect symbols are handled differently, to match how 'as' handles
   // them. This makes writing matching .o files easier.
@@ -228,7 +227,7 @@ void MCMachOStreamer::EmitSymbolAttribute(MCSymbol *Symbol,
     ISD.Symbol = Symbol;
     ISD.SectionData = getCurrentSectionData();
     getAssembler().getIndirectSymbols().push_back(ISD);
-    return;
+    return true;
   }
 
   // Adding a symbol attribute always introduces the symbol, note that an
@@ -257,7 +256,7 @@ void MCMachOStreamer::EmitSymbolAttribute(MCSymbol *Symbol,
   case MCSA_Protected:
   case MCSA_Weak:
   case MCSA_Local:
-    llvm_unreachable("Invalid symbol attribute for Mach-O!");
+    return false;
 
   case MCSA_Global:
     SD.setExternal(true);
@@ -309,6 +308,8 @@ void MCMachOStreamer::EmitSymbolAttribute(MCSymbol *Symbol,
     SD.setFlags(SD.getFlags() | SF_WeakDefinition | SF_WeakReference);
     break;
   }
+
+  return true;
 }
 
 void MCMachOStreamer::EmitSymbolDesc(MCSymbol *Symbol, unsigned DescValue) {
@@ -323,6 +324,8 @@ void MCMachOStreamer::EmitCommonSymbol(MCSymbol *Symbol, uint64_t Size,
                                        unsigned ByteAlignment) {
   // FIXME: Darwin 'as' does appear to allow redef of a .comm by itself.
   assert(Symbol->isUndefined() && "Cannot define a symbol twice!");
+
+  AssignSection(Symbol, NULL);
 
   MCSymbolData &SD = getAssembler().getOrCreateSymbolData(*Symbol);
   SD.setExternal(true);
@@ -346,7 +349,8 @@ void MCMachOStreamer::EmitZerofill(const MCSection *Section, MCSymbol *Symbol,
   if (!Symbol)
     return;
 
-  // FIXME: Assert that this section has the zerofill type.
+  // On darwin all virtual sections have zerofill type.
+  assert(Section->isVirtualSection() && "Section does not have zerofill type!");
 
   assert(Symbol->isUndefined() && "Cannot define a symbol twice!");
 
@@ -359,7 +363,7 @@ void MCMachOStreamer::EmitZerofill(const MCSection *Section, MCSymbol *Symbol,
   MCFragment *F = new MCFillFragment(0, 0, Size, &SectData);
   SD.setFragment(F);
 
-  Symbol->setSection(*Section);
+  AssignSection(Symbol, Section);
 
   // Update the maximum alignment on the zero fill section if necessary.
   if (ByteAlignment > SectData.getAlignment())
@@ -392,7 +396,7 @@ void MCMachOStreamer::EmitInstToData(const MCInst &Inst) {
 }
 
 void MCMachOStreamer::FinishImpl() {
-  EmitFrames(true);
+  EmitFrames(&getAssembler().getBackend(), true);
 
   // We have to set the fragment atom associations so we can relax properly for
   // Mach-O.

@@ -1,5 +1,5 @@
 /*
- *  $Id: arrows.c,v 1.50 2013/05/24 00:05:21 tom Exp $
+ *  $Id: arrows.c,v 1.51 2013/09/02 15:10:09 tom Exp $
  *
  *  arrows.c -- draw arrows to indicate end-of-range for lists
  *
@@ -74,9 +74,10 @@ dlg_draw_helpline(WINDOW *win, bool decorations)
     int bottom;
 
     if (dialog_vars.help_line != 0
+	&& dialog_vars.help_line[0] != 0
 	&& (bottom = getmaxy(win) - 1) > 0) {
 	chtype attr = A_NORMAL;
-	const int *cols = dlg_index_columns(dialog_vars.help_line);
+	int cols = dlg_count_columns(dialog_vars.help_line);
 	int other = decorations ? (ON_LEFT + ON_RIGHT) : 0;
 	int avail = (getmaxx(win) - other - 2);
 	int limit = dlg_count_real_columns(dialog_vars.help_line) + 2;
@@ -86,7 +87,7 @@ dlg_draw_helpline(WINDOW *win, bool decorations)
 	    other = decorations ? ON_LEFT : 0;
 	    (void) wmove(win, bottom, other + (avail - limit) / 2);
 	    waddch(win, '[');
-	    dlg_print_text(win, dialog_vars.help_line, cols[limit], &attr);
+	    dlg_print_text(win, dialog_vars.help_line, cols, &attr);
 	    waddch(win, ']');
 	    wmove(win, cur_y, cur_x);
 	}

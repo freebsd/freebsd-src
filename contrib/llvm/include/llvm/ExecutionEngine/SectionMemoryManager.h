@@ -16,7 +16,7 @@
 #define LLVM_EXECUTIONENGINE_SECTIONMEMORYMANAGER_H
 
 #include "llvm/ADT/SmallVector.h"
-#include "llvm/ExecutionEngine/JITMemoryManager.h"
+#include "llvm/ExecutionEngine/RuntimeDyld.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/Memory.h"
 
@@ -33,9 +33,9 @@ namespace llvm {
 /// Any client using this memory manager MUST ensure that section-specific
 /// page permissions have been applied before attempting to execute functions
 /// in the JITed object.  Permissions can be applied either by calling
-/// MCJIT::finalizeObject or by calling SectionMemoryManager::applyPermissions
+/// MCJIT::finalizeObject or by calling SectionMemoryManager::finalizeMemory
 /// directly.  Clients of MCJIT should call MCJIT::finalizeObject.
-class SectionMemoryManager : public JITMemoryManager {
+class SectionMemoryManager : public RTDyldMemoryManager {
   SectionMemoryManager(const SectionMemoryManager&) LLVM_DELETED_FUNCTION;
   void operator=(const SectionMemoryManager&) LLVM_DELETED_FUNCTION;
 
@@ -49,7 +49,8 @@ public:
   /// The value of \p Alignment must be a power of two.  If \p Alignment is zero
   /// a default alignment of 16 will be used.
   virtual uint8_t *allocateCodeSection(uintptr_t Size, unsigned Alignment,
-                                       unsigned SectionID);
+                                       unsigned SectionID,
+                                       StringRef SectionName);
 
   /// \brief Allocates a memory block of (at least) the given size suitable for
   /// executable code.
@@ -58,30 +59,21 @@ public:
   /// a default alignment of 16 will be used.
   virtual uint8_t *allocateDataSection(uintptr_t Size, unsigned Alignment,
                                        unsigned SectionID,
+                                       StringRef SectionName,
                                        bool isReadOnly);
 
-  /// \brief Applies section-specific memory permissions.
+  /// \brief Update section-specific memory permissions and other attributes.
   ///
   /// This method is called when object loading is complete and section page
   /// permissions can be applied.  It is up to the memory manager implementation
   /// to decide whether or not to act on this method.  The memory manager will
   /// typically allocate all sections as read-write and then apply specific
   /// permissions when this method is called.  Code sections cannot be executed
-  /// until this function has been called.
+  /// until this function has been called.  In addition, any cache coherency
+  /// operations needed to reliably use the memory are also performed.
   ///
   /// \returns true if an error occurred, false otherwise.
-  virtual bool applyPermissions(std::string *ErrMsg = 0);
-
-  void registerEHFrames(StringRef SectionData);
-
-  /// This method returns the address of the specified function. As such it is
-  /// only useful for resolving library symbols, not code generated symbols.
-  ///
-  /// If \p AbortOnFailure is false and no function with the given name is
-  /// found, this function returns a null pointer. Otherwise, it prints a
-  /// message to stderr and aborts.
-  virtual void *getPointerToNamedFunction(const std::string &Name,
-                                          bool AbortOnFailure = true);
+  virtual bool finalizeMemory(std::string *ErrMsg = 0);
 
   /// \brief Invalidate instruction cache for code sections.
   ///
@@ -89,7 +81,7 @@ public:
   /// explicit cache flush, otherwise JIT code manipulations (like resolved
   /// relocations) will get to the data cache but not to the instruction cache.
   ///
-  /// This method is called from applyPermissions.
+  /// This method is called from finalizeMemory.
   virtual void invalidateInstructionCache();
 
 private:
@@ -108,66 +100,6 @@ private:
   MemoryGroup CodeMem;
   MemoryGroup RWDataMem;
   MemoryGroup RODataMem;
-
-public:
-  ///
-  /// Functions below are not used by MCJIT or RuntimeDyld, but must be
-  /// implemented because they are declared as pure virtuals in the base class.
-  ///
-
-  virtual void setMemoryWritable() {
-    llvm_unreachable("Unexpected call!");
-  }
-  virtual void setMemoryExecutable() {
-    llvm_unreachable("Unexpected call!");
-  }
-  virtual void setPoisonMemory(bool poison) {
-    llvm_unreachable("Unexpected call!");
-  }
-  virtual void AllocateGOT() {
-    llvm_unreachable("Unexpected call!");
-  }
-  virtual uint8_t *getGOTBase() const {
-    llvm_unreachable("Unexpected call!");
-    return 0;
-  }
-  virtual uint8_t *startFunctionBody(const Function *F,
-                                     uintptr_t &ActualSize){
-    llvm_unreachable("Unexpected call!");
-    return 0;
-  }
-  virtual uint8_t *allocateStub(const GlobalValue *F, unsigned StubSize,
-                                unsigned Alignment) {
-    llvm_unreachable("Unexpected call!");
-    return 0;
-  }
-  virtual void endFunctionBody(const Function *F, uint8_t *FunctionStart,
-                               uint8_t *FunctionEnd) {
-    llvm_unreachable("Unexpected call!");
-  }
-  virtual uint8_t *allocateSpace(intptr_t Size, unsigned Alignment) {
-    llvm_unreachable("Unexpected call!");
-    return 0;
-  }
-  virtual uint8_t *allocateGlobal(uintptr_t Size, unsigned Alignment) {
-    llvm_unreachable("Unexpected call!");
-    return 0;
-  }
-  virtual void deallocateFunctionBody(void *Body) {
-    llvm_unreachable("Unexpected call!");
-  }
-  virtual uint8_t *startExceptionTable(const Function *F,
-                                       uintptr_t &ActualSize) {
-    llvm_unreachable("Unexpected call!");
-    return 0;
-  }
-  virtual void endExceptionTable(const Function *F, uint8_t *TableStart,
-                                 uint8_t *TableEnd, uint8_t *FrameRegister) {
-    llvm_unreachable("Unexpected call!");
-  }
-  virtual void deallocateExceptionTable(void *ET) {
-    llvm_unreachable("Unexpected call!");
-  }
 };
 
 }

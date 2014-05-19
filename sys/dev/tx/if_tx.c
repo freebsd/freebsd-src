@@ -49,6 +49,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/queue.h>
 
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/if_arp.h>
 #include <net/ethernet.h>
 #include <net/if_dl.h>
@@ -1150,12 +1151,10 @@ epic_ifmedia_sts(struct ifnet *ifp, struct ifmediareq *ifmr)
 {
 	epic_softc_t *sc;
 	struct mii_data *mii;
-	struct ifmedia *ifm;
 
 	sc = ifp->if_softc;
 	mii = device_get_softc(sc->miibus);
 	EPIC_LOCK(sc);
-	ifm = &mii->mii_media;
 
 	/* Nothing should be selected if interface is down. */
 	if ((ifp->if_flags & IFF_UP) == 0) {

@@ -96,10 +96,14 @@ main(int argc, char *argv[])
 
 		case 'A': /* days after current date */
 			f_dayAfter = atoi(optarg);
+			if (f_dayAfter < 0)
+				errx(1, "number of days must be positive");
 			break;
 
 		case 'B': /* days before current date */
 			f_dayBefore = atoi(optarg);
+			if (f_dayBefore < 0)
+				errx(1, "number of days must be positive");
 			break;
 
 		case 'D': /* debug output of sun and moon info */

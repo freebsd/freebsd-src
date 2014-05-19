@@ -72,6 +72,14 @@ public:
     // lldb_private::Platform functions
     //------------------------------------------------------------
     virtual lldb_private::Error
+    RunShellCommand (const char *command,
+                     const char *working_dir,
+                     int *status_ptr,
+                     int *signo_ptr,
+                     std::string *command_output,
+                     uint32_t timeout_sec);
+
+    virtual lldb_private::Error
     ResolveExecutable (const lldb_private::FileSpec &exe_file,
                        const lldb_private::ArchSpec &arch,
                        lldb::ModuleSP &module_sp,
@@ -136,8 +144,8 @@ public:
 
     // Only on PlatformMacOSX:
     virtual lldb_private::Error
-    GetFile (const lldb_private::FileSpec &platform_file,
-             const lldb_private::UUID* uuid, lldb_private::FileSpec &local_file);
+    GetFileWithUUID (const lldb_private::FileSpec &platform_file,
+                     const lldb_private::UUID* uuid, lldb_private::FileSpec &local_file);
 
     lldb_private::Error
     GetSharedModule (const lldb_private::ModuleSpec &module_spec,
@@ -151,6 +159,9 @@ public:
 
     virtual void
     GetStatus (lldb_private::Stream &strm);
+
+    virtual void
+    CalculateTrapHandlerSymbolNames ();
 
 protected:
     lldb::PlatformSP m_remote_platform_sp; // Allow multiple ways to connect to a remote freebsd OS

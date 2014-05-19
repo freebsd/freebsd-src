@@ -1,6 +1,6 @@
 divert(-1)
 #
-# Copyright (c) 2000 Sendmail, Inc. and its suppliers.
+# Copyright (c) 2000 Proofpoint, Inc. and its suppliers.
 #	All rights reserved.
 #
 # By using this file, you agree to the terms and conditions set
@@ -10,7 +10,7 @@ divert(-1)
 #
 
 divert(0)
-VERSIONID(`$Id: preserve_local_plus_detail.m4,v 8.1 2000/04/10 05:48:05 gshapiro Exp $')
+VERSIONID(`$Id: preserve_local_plus_detail.m4,v 8.2 2013/11/22 20:51:11 ca Exp $')
 divert(-1)
 
 define(`_PRESERVE_LOCAL_PLUS_DETAIL_', `1')

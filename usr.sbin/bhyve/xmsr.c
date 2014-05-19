@@ -43,6 +43,21 @@ int
 emulate_wrmsr(struct vmctx *ctx, int vcpu, uint32_t code, uint64_t val)
 {
 
-	printf("Unknown WRMSR code %x, val %lx, cpu %d\n", code, val, vcpu);
-	exit(1);
+	switch (code) {
+	case 0xd04:			/* Sandy Bridge uncore PMC MSRs */
+	case 0xc24:
+		return (0);
+	case 0x79:
+		return (0);		/* IA32_BIOS_UPDT_TRIG MSR */
+	default:
+		break;
+	}
+	return (-1);
+}
+
+int
+emulate_rdmsr(struct vmctx *ctx, int vcpu, uint32_t code, uint64_t *val)
+{
+
+	return (-1);
 }

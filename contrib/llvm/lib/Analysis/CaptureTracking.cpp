@@ -146,8 +146,14 @@ void llvm::PointerMayBeCaptured(const Value *V, CaptureTracker *Tracker) {
     case Instruction::PHI:
     case Instruction::Select:
       // The original value is not captured via this if the new value isn't.
+      Count = 0;
       for (Instruction::use_iterator UI = I->use_begin(), UE = I->use_end();
            UI != UE; ++UI) {
+        // If there are lots of uses, conservatively say that the value
+        // is captured to avoid taking too much compile time.
+        if (Count++ >= Threshold)
+          return Tracker->tooManyUses();
+
         Use *U = &UI.getUse();
         if (Visited.insert(U))
           if (Tracker->shouldExplore(U))
@@ -158,10 +164,10 @@ void llvm::PointerMayBeCaptured(const Value *V, CaptureTracker *Tracker) {
       // Don't count comparisons of a no-alias return value against null as
       // captures. This allows us to ignore comparisons of malloc results
       // with null, for example.
-      if (isNoAliasCall(V->stripPointerCasts()))
-        if (ConstantPointerNull *CPN =
-              dyn_cast<ConstantPointerNull>(I->getOperand(1)))
-          if (CPN->getType()->getAddressSpace() == 0)
+      if (ConstantPointerNull *CPN =
+          dyn_cast<ConstantPointerNull>(I->getOperand(1)))
+        if (CPN->getType()->getAddressSpace() == 0)
+          if (isNoAliasCall(V->stripPointerCasts()))
             break;
       // Otherwise, be conservative. There are crazy ways to capture pointers
       // using comparisons.

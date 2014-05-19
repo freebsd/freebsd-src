@@ -15,6 +15,8 @@
 
 using namespace lldb_private;
 
+#ifndef _WIN32
+
 //----------------------------------------------------------------------
 // Default constructor
 //
@@ -47,21 +49,17 @@ Condition::Broadcast ()
 }
 
 //----------------------------------------------------------------------
-// Get accessor to the pthread condition object
-//----------------------------------------------------------------------
-pthread_cond_t *
-Condition::GetCondition ()
-{
-    return &m_condition;
-}
-
-//----------------------------------------------------------------------
 // Unblocks one thread waiting for the condition variable
 //----------------------------------------------------------------------
 int
 Condition::Signal ()
 {
     return ::pthread_cond_signal (&m_condition);
+}
+
+/* convert struct timeval to ms(milliseconds) */
+static unsigned long int tv2ms(struct timeval a) {
+    return ((a.tv_sec * 1000) + (a.tv_usec / 1000));
 }
 
 //----------------------------------------------------------------------
@@ -100,7 +98,16 @@ Condition::Wait (Mutex &mutex, const TimeValue *abstime, bool *timed_out)
             *timed_out = false;
     }
 
-
     return err;
 }
 
+#endif
+
+//----------------------------------------------------------------------
+// Get accessor to the pthread condition object
+//----------------------------------------------------------------------
+lldb::condition_t *
+Condition::GetCondition()
+{
+    return &m_condition;
+}

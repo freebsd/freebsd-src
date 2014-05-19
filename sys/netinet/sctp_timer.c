@@ -147,24 +147,12 @@ sctp_threshold_management(struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 	 */
 	if (stcb->asoc.overall_error_count > threshold) {
 		/* Abort notification sends a ULP notify */
-		struct mbuf *oper;
+		struct mbuf *op_err;
 
-		oper = sctp_get_mbuf_for_msg((sizeof(struct sctp_paramhdr) + sizeof(uint32_t)),
-		    0, M_NOWAIT, 1, MT_DATA);
-		if (oper) {
-			struct sctp_paramhdr *ph;
-			uint32_t *ippp;
-
-			SCTP_BUF_LEN(oper) = sizeof(struct sctp_paramhdr) +
-			    sizeof(uint32_t);
-			ph = mtod(oper, struct sctp_paramhdr *);
-			ph->param_type = htons(SCTP_CAUSE_PROTOCOL_VIOLATION);
-			ph->param_length = htons(SCTP_BUF_LEN(oper));
-			ippp = (uint32_t *) (ph + 1);
-			*ippp = htonl(SCTP_FROM_SCTP_TIMER + SCTP_LOC_1);
-		}
+		op_err = sctp_generate_cause(SCTP_CAUSE_PROTOCOL_VIOLATION,
+		    "Association error couter exceeded");
 		inp->last_abort_code = SCTP_FROM_SCTP_TIMER + SCTP_LOC_1;
-		sctp_abort_an_association(inp, stcb, oper, SCTP_SO_NOT_LOCKED);
+		sctp_abort_an_association(inp, stcb, op_err, SCTP_SO_NOT_LOCKED);
 		return (1);
 	}
 	return (0);
@@ -552,7 +540,7 @@ start_again:
 	TAILQ_FOREACH_SAFE(chk, &stcb->asoc.sent_queue, sctp_next, nchk) {
 		if (SCTP_TSN_GE(stcb->asoc.last_acked_seq, chk->rec.data.TSN_seq)) {
 			/* Strange case our list got out of order? */
-			SCTP_PRINTF("Our list is out of order? last_acked:%x chk:%x",
+			SCTP_PRINTF("Our list is out of order? last_acked:%x chk:%x\n",
 			    (unsigned int)stcb->asoc.last_acked_seq, (unsigned int)chk->rec.data.TSN_seq);
 			recovery_cnt++;
 #ifdef INVARIANTS
@@ -1051,24 +1039,12 @@ sctp_cookie_timer(struct sctp_inpcb *inp,
 	if (cookie == NULL) {
 		if (SCTP_GET_STATE(&stcb->asoc) == SCTP_STATE_COOKIE_ECHOED) {
 			/* FOOBAR! */
-			struct mbuf *oper;
+			struct mbuf *op_err;
 
-			oper = sctp_get_mbuf_for_msg((sizeof(struct sctp_paramhdr) + sizeof(uint32_t)),
-			    0, M_NOWAIT, 1, MT_DATA);
-			if (oper) {
-				struct sctp_paramhdr *ph;
-				uint32_t *ippp;
-
-				SCTP_BUF_LEN(oper) = sizeof(struct sctp_paramhdr) +
-				    sizeof(uint32_t);
-				ph = mtod(oper, struct sctp_paramhdr *);
-				ph->param_type = htons(SCTP_CAUSE_PROTOCOL_VIOLATION);
-				ph->param_length = htons(SCTP_BUF_LEN(oper));
-				ippp = (uint32_t *) (ph + 1);
-				*ippp = htonl(SCTP_FROM_SCTP_TIMER + SCTP_LOC_3);
-			}
+			op_err = sctp_generate_cause(SCTP_CAUSE_PROTOCOL_VIOLATION,
+			    "Cookie timer expired, but no cookie");
 			inp->last_abort_code = SCTP_FROM_SCTP_TIMER + SCTP_LOC_4;
-			sctp_abort_an_association(inp, stcb, oper, SCTP_SO_NOT_LOCKED);
+			sctp_abort_an_association(inp, stcb, op_err, SCTP_SO_NOT_LOCKED);
 		} else {
 #ifdef INVARIANTS
 			panic("Cookie timer expires in wrong state?");

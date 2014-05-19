@@ -30,6 +30,7 @@ makeoptions	WITH_CTF=1
 options 	POWERMAC		#NewWorld Apple PowerMacs
 options 	PS3			#Sony Playstation 3
 options 	MAMBO			#IBM Mambo Full System Simulator
+options 	PSERIES			#PAPR-compliant systems (e.g. IBM p)
 
 options 	SCHED_ULE		#ULE scheduler
 options 	PREEMPTION		#Enable kernel thread preemption
@@ -118,12 +119,9 @@ device		sa		# Sequential Access (tape etc)
 device		cd		# CD
 device		pass		# Passthrough device (direct ATA/SCSI access)
 
-# syscons is the default console driver, resembling an SCO console
-device		sc
+# vt is the default console driver, resembling an SCO console
+device		vt		# Core console driver
 device		kbdmux
-options 	SC_OFWFB	# OFW frame buffer
-options 	SC_DFLT_FONT	# compile font in
-makeoptions	SC_DFLT_FONT=cp437
 
 # Serial (COM) ports
 device		scc
@@ -131,7 +129,11 @@ device		uart
 device		uart_z8530
 
 # Ethernet hardware
+device		em		# Intel PRO/1000 Gigabit Ethernet Family
+device		igb		# Intel PRO/1000 PCIE Server Gigabit Family
+device		ixgbe		# Intel PRO/10GbE PCIE Ethernet Family
 device		glc		# Sony Playstation 3 Ethernet
+device		llan		# IBM pSeries Virtual Ethernet
 
 # PCI Ethernet NICs that use the common MII bus controller code.
 device		miibus		# MII bus support
@@ -139,6 +141,8 @@ device		bge		# Broadcom BCM570xx Gigabit Ethernet
 device		gem		# Sun GEM/Sun ERI/Apple GMAC
 device		dc		# DEC/Intel 21143 and various workalikes
 device		fxp		# Intel EtherExpress PRO/100B (82557, 82558)
+device		re		# RealTek 8139C+/8169/8169S/8110S
+device		rl		# RealTek 8129/8139
 
 # Pseudo devices.
 device		loop		# Network loopback
@@ -178,8 +182,8 @@ device		cue		# CATC USB Ethernet
 device		kue		# Kawasaki LSI USB Ethernet
 
 # Wireless NIC cards
-options		IEEE80211_SUPPORT_MESH
-options		AH_SUPPORT_AR5416
+options 	IEEE80211_SUPPORT_MESH
+options 	AH_SUPPORT_AR5416
 
 # FireWire support
 device		firewire	# FireWire bus code

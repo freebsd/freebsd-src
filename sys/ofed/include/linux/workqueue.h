@@ -80,7 +80,7 @@ do {									\
 	callout_init(&(_work)->timer, CALLOUT_MPSAFE);			\
 } while (0)
 
-#define	INIT_DELAYED_WORK_DEFERRABLE	INIT_DELAYED_WORK
+#define	INIT_DEFERRABLE_WORK	INIT_DELAYED_WORK
 
 #define	schedule_work(work)						\
 do {									\
@@ -119,6 +119,14 @@ queue_delayed_work(struct workqueue_struct *wq, struct delayed_work *work,
 		_delayed_work_fn((void *)work);
 
 	return (!pending);
+}
+
+static inline bool schedule_delayed_work(struct delayed_work *dwork,
+                                         unsigned long delay)
+{
+        struct workqueue_struct wq;
+        wq.taskqueue = taskqueue_thread;
+        return queue_delayed_work(&wq, dwork, delay);
 }
 
 static inline struct workqueue_struct *
@@ -188,6 +196,17 @@ cancel_delayed_work(struct delayed_work *work)
 		return (taskqueue_cancel(work->work.taskqueue,
 		    &work->work.work_task, NULL) == 0);
 	return 0;
+}
+
+static inline int
+cancel_delayed_work_sync(struct delayed_work *work)
+{
+
+        callout_drain(&work->timer);
+        if (work->work.taskqueue &&
+            taskqueue_cancel(work->work.taskqueue, &work->work.work_task, NULL))
+                taskqueue_drain(work->work.taskqueue, &work->work.work_task);
+        return 0;
 }
 
 #endif	/* _LINUX_WORKQUEUE_H_ */

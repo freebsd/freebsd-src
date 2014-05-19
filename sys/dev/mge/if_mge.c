@@ -50,6 +50,7 @@ __FBSDID("$FreeBSD$");
 #include <net/ethernet.h>
 #include <net/bpf.h>
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/if_arp.h>
 #include <net/if_dl.h>
 #include <net/if_media.h>
@@ -1385,6 +1386,9 @@ mge_miibus_writereg(device_t dev, int phy, int reg, int value)
 static int
 mge_probe(device_t dev)
 {
+
+	if (!ofw_bus_status_okay(dev))
+		return (ENXIO);
 
 	if (!ofw_bus_is_compatible(dev, "mrvl,ge"))
 		return (ENXIO);

@@ -14,16 +14,16 @@
 #ifndef XCORETARGETASMINFO_H
 #define XCORETARGETASMINFO_H
 
-#include "llvm/MC/MCAsmInfo.h"
+#include "llvm/MC/MCAsmInfoELF.h"
 
 namespace llvm {
   class StringRef;
   class Target;
 
-  class XCoreMCAsmInfo : public MCAsmInfo {
+  class XCoreMCAsmInfo : public MCAsmInfoELF {
     virtual void anchor();
   public:
-    explicit XCoreMCAsmInfo(const Target &T, StringRef TT);
+    explicit XCoreMCAsmInfo(StringRef TT);
   };
 
 } // namespace llvm

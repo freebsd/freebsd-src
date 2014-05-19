@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 12, 2009
+.Dd May 17, 2014
 .Dt GSTAT 8
 .Os
 .Sh NAME
@@ -32,7 +32,7 @@
 .Nd print statistics about GEOM disks
 .Sh SYNOPSIS
 .Nm
-.Op Fl abcd
+.Op Fl abcdo
 .Op Fl f Ar filter
 .Op Fl I Ar interval
 .Sh DESCRIPTION
@@ -69,6 +69,9 @@ Only devices with the names matching
 will be displayed.
 The format of the regular expression is described in
 .Xr re_format 7 .
+.It Fl o
+Enable display of statistics for other operations
+.Pq Dv BIO_FLUSH .
 .It Fl I Ar interval
 Refresh the
 .Nm

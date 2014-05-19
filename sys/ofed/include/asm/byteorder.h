@@ -30,6 +30,7 @@
 
 #include <sys/types.h>
 #include <sys/endian.h>
+#include <asm/types.h>
 
 #if BYTE_ORDER == LITTLE_ENDIAN
 #define	__LITTLE_ENDIAN

@@ -57,6 +57,11 @@ private:
   virtual bool selectAddrRegImm(SDValue Addr, SDValue &Base,
                                 SDValue &Offset) const;
 
+  // Complex Pattern.
+  /// (reg + reg).
+  virtual bool selectAddrRegReg(SDValue Addr, SDValue &Base,
+                                SDValue &Offset) const;
+
   /// Fall back on this function if all else fails.
   virtual bool selectAddrDefault(SDValue Addr, SDValue &Base,
                                  SDValue &Offset) const;
@@ -65,8 +70,41 @@ private:
   virtual bool selectIntAddr(SDValue Addr, SDValue &Base,
                              SDValue &Offset) const;
 
+  virtual bool selectIntAddrMM(SDValue Addr, SDValue &Base,
+                               SDValue &Offset) const;
+
   virtual bool selectAddr16(SDNode *Parent, SDValue N, SDValue &Base,
                             SDValue &Offset, SDValue &Alias);
+
+  /// \brief Select constant vector splats.
+  virtual bool selectVSplat(SDNode *N, APInt &Imm) const;
+  /// \brief Select constant vector splats whose value fits in a uimm1.
+  virtual bool selectVSplatUimm1(SDValue N, SDValue &Imm) const;
+  /// \brief Select constant vector splats whose value fits in a uimm2.
+  virtual bool selectVSplatUimm2(SDValue N, SDValue &Imm) const;
+  /// \brief Select constant vector splats whose value fits in a uimm3.
+  virtual bool selectVSplatUimm3(SDValue N, SDValue &Imm) const;
+  /// \brief Select constant vector splats whose value fits in a uimm4.
+  virtual bool selectVSplatUimm4(SDValue N, SDValue &Imm) const;
+  /// \brief Select constant vector splats whose value fits in a uimm5.
+  virtual bool selectVSplatUimm5(SDValue N, SDValue &Imm) const;
+  /// \brief Select constant vector splats whose value fits in a uimm6.
+  virtual bool selectVSplatUimm6(SDValue N, SDValue &Imm) const;
+  /// \brief Select constant vector splats whose value fits in a uimm8.
+  virtual bool selectVSplatUimm8(SDValue N, SDValue &Imm) const;
+  /// \brief Select constant vector splats whose value fits in a simm5.
+  virtual bool selectVSplatSimm5(SDValue N, SDValue &Imm) const;
+  /// \brief Select constant vector splats whose value is a power of 2.
+  virtual bool selectVSplatUimmPow2(SDValue N, SDValue &Imm) const;
+  /// \brief Select constant vector splats whose value is the inverse of a
+  /// power of 2.
+  virtual bool selectVSplatUimmInvPow2(SDValue N, SDValue &Imm) const;
+  /// \brief Select constant vector splats whose value is a run of set bits
+  /// ending at the most significant bit
+  virtual bool selectVSplatMaskL(SDValue N, SDValue &Imm) const;
+  /// \brief Select constant vector splats whose value is a run of set bits
+  /// starting at bit zero.
+  virtual bool selectVSplatMaskR(SDValue N, SDValue &Imm) const;
 
   virtual SDNode *Select(SDNode *N);
 

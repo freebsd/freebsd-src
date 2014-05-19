@@ -41,7 +41,6 @@
  * Also supported:  IP in IP encaps (proto 55) as of RFC 2004
  */
 
-#include "opt_atalk.h"
 #include "opt_inet.h"
 #include "opt_inet6.h"
 
@@ -62,6 +61,7 @@
 
 #include <net/ethernet.h>
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/if_clone.h>
 #include <net/if_types.h>
 #include <net/route.h>
@@ -439,11 +439,6 @@ gre_output(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
 			etype = ETHERTYPE_IPV6;
 			break;
 #endif
-#ifdef NETATALK
-		case AF_APPLETALK:
-			etype = ETHERTYPE_ATALK;
-			break;
-#endif
 		default:
 			_IF_DROP(&ifp->if_snd);
 			m_freem(m);
@@ -518,7 +513,6 @@ static int
 gre_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 {
 	struct ifreq *ifr = (struct ifreq *)data;
-	struct if_laddrreq *lifr = (struct if_laddrreq *)data;
 	struct in_aliasreq *aifr = (struct in_aliasreq *)data;
 	struct gre_softc *sc = ifp->if_softc;
 	struct sockaddr_in si;
@@ -733,27 +727,6 @@ gre_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		sc->g_src = aifr->ifra_addr.sin_addr;
 		sc->g_dst = aifr->ifra_dstaddr.sin_addr;
 		goto recompute;
-	case SIOCSLIFPHYADDR:
-		/*
-		 * XXXRW: Isn't this priv_check() redundant to the ifnet
-		 * layer check?
-		 */
-		if ((error = priv_check(curthread, PRIV_NET_SETIFPHYS)) != 0)
-			break;
-		if (lifr->addr.ss_family != AF_INET ||
-		    lifr->dstaddr.ss_family != AF_INET) {
-			error = EAFNOSUPPORT;
-			break;
-		}
-		if (lifr->addr.ss_len != sizeof(si) ||
-		    lifr->dstaddr.ss_len != sizeof(si)) {
-			error = EINVAL;
-			break;
-		}
-		sc->g_src = (satosin(&lifr->addr))->sin_addr;
-		sc->g_dst =
-		    (satosin(&lifr->dstaddr))->sin_addr;
-		goto recompute;
 	case SIOCDIFPHYADDR:
 		/*
 		 * XXXRW: Isn't this priv_check() redundant to the ifnet
@@ -764,26 +737,6 @@ gre_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		sc->g_src.s_addr = INADDR_ANY;
 		sc->g_dst.s_addr = INADDR_ANY;
 		goto recompute;
-	case SIOCGLIFPHYADDR:
-		if (sc->g_src.s_addr == INADDR_ANY ||
-		    sc->g_dst.s_addr == INADDR_ANY) {
-			error = EADDRNOTAVAIL;
-			break;
-		}
-		memset(&si, 0, sizeof(si));
-		si.sin_family = AF_INET;
-		si.sin_len = sizeof(struct sockaddr_in);
-		si.sin_addr.s_addr = sc->g_src.s_addr;
-		error = prison_if(curthread->td_ucred, (struct sockaddr *)&si);
-		if (error != 0)
-			break;
-		memcpy(&lifr->addr, &si, sizeof(si));
-		si.sin_addr.s_addr = sc->g_dst.s_addr;
-		error = prison_if(curthread->td_ucred, (struct sockaddr *)&si);
-		if (error != 0)
-			break;
-		memcpy(&lifr->dstaddr, &si, sizeof(si));
-		break;
 	case SIOCGIFPSRCADDR:
 #ifdef INET6
 	case SIOCGIFPSRCADDR_IN6:

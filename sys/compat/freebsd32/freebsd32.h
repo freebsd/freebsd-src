@@ -175,6 +175,7 @@ struct stat32 {
 	u_int32_t st_blksize;
 	u_int32_t st_flags;
 	u_int32_t st_gen;
+	int32_t	st_lspare;
 	struct timespec32 st_birthtim;
 	unsigned int :(8 / 2) * (16 - (int)sizeof(struct timespec32));
 	unsigned int :(8 / 2) * (16 - (int)sizeof(struct timespec32));
@@ -342,6 +343,7 @@ struct kinfo_proc32 {
 	char	ki_loginclass[LOGINCLASSLEN+1];
 	char	ki_sparestrings[50];
 	int	ki_spareints[KI_NSPARE_INT];
+	int	ki_flag2;
 	int	ki_fibnum;
 	u_int	ki_cr_flags;
 	int	ki_jid;
@@ -358,6 +360,12 @@ struct kinfo_proc32 {
 	int	ki_sparelongs[KI_NSPARE_LONG];
 	int	ki_sflag;
 	int	ki_tdflags;
+};
+
+struct kinfo_sigtramp32 {
+	uint32_t ksigtramp_start;
+	uint32_t ksigtramp_end;
+	uint32_t ksigtramp_spare[4];
 };
 
 struct kld32_file_stat_1 {

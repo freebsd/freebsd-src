@@ -412,7 +412,7 @@ struct aac_softc
 #define AAC_FLAGS_RAW_IO	(1 << 12)	/* Raw I/O interface */
 #define AAC_FLAGS_ARRAY_64BIT	(1 << 13)	/* 64-bit array size */
 #define	AAC_FLAGS_LBA_64BIT	(1 << 14)	/* 64-bit LBA support */
-#define	AAC_FLAGS_NOMSI		(1 << 31)	/* Broken MSI */
+#define	AAC_FLAGS_NOMSI		(1U << 31)	/* Broken MSI */
 
 	u_int32_t		supported_options;
 	u_int32_t		scsi_method_id;

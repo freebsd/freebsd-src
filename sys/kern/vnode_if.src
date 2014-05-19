@@ -477,7 +477,7 @@ vop_getpages {
 };
 
 
-%% putpages	vp	E E E
+%% putpages	vp	L L L
 
 vop_putpages {
 	IN struct vnode *vp;

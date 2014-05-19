@@ -44,6 +44,7 @@ static char sccsid[] = "@(#) hosts_access.c 1.21 97/02/12 02:13:22";
 #ifdef INET6
 #include <netdb.h>
 #endif
+#include <stdlib.h>
 
 extern char *fgets();
 extern int errno;
@@ -101,6 +102,11 @@ static int masked_match6();
 /* Size of logical line buffer. */
 
 #define	BUFLEN 2048
+
+/* definition to be used from workarounds.c */
+#ifdef NETGROUP
+int     yp_get_default_domain(char  **);
+#endif
 
 /* hosts_access - host access control facility */
 
@@ -269,7 +275,7 @@ struct request_info *request;
 
 static int hostfile_match(path, host)
 char   *path;
-struct hosts_info *host;
+struct host_info *host;
 {
     char    tok[BUFSIZ];
     int     match = NO;

@@ -2,7 +2,7 @@
 # $FreeBSD$
 
 # locale sources
-.PATH: ${.CURDIR}/${LIBC_ARCH}/locale ${.CURDIR}/locale
+.PATH: ${LIBC_SRCTOP}/${LIBC_ARCH}/locale ${LIBC_SRCTOP}/locale
 
 SRCS+=	ascii.c big5.c btowc.c collate.c collcmp.c euc.c fix_grouping.c \
 	gb18030.c gb2312.c gbk.c ctype.c isctype.c iswctype.c \
@@ -29,7 +29,7 @@ SRCS+=	c16rtomb_iconv.c c32rtomb_iconv.c mbrtoc16_iconv.c mbrtoc32_iconv.c
 SRCS+=	c16rtomb.c c32rtomb.c mbrtoc16.c mbrtoc32.c
 .endif
 
-SYM_MAPS+=${.CURDIR}/locale/Symbol.map
+SYM_MAPS+=${LIBC_SRCTOP}/locale/Symbol.map
 
 MAN+=	btowc.3 \
 	ctype_l.3 \

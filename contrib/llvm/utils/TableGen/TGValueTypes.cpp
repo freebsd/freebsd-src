@@ -35,11 +35,15 @@ public:
   }
   Type(TypeKind K) : Kind(K) {}
   virtual unsigned getSizeInBits() const = 0;
-  virtual ~Type() {}
+  virtual ~Type();
 };
+
+// Provide out-of-line definition to prevent weak vtable.
+Type::~Type() {}
 
 }
 
+namespace {
 class ExtendedIntegerType : public Type {
   unsigned BitWidth;
 public:
@@ -48,7 +52,7 @@ public:
   static bool classof(const Type *T) {
     return T->getKind() == TK_ExtendedIntegerType;
   }
-  unsigned getSizeInBits() const {
+  virtual unsigned getSizeInBits() const {
     return getBitWidth();
   }
   unsigned getBitWidth() const {
@@ -65,7 +69,7 @@ public:
   static bool classof(const Type *T) {
     return T->getKind() == TK_ExtendedVectorType;
   }
-  unsigned getSizeInBits() const {
+  virtual unsigned getSizeInBits() const {
     return getNumElements() * getElementType().getSizeInBits();
   }
   EVT getElementType() const {
@@ -75,6 +79,7 @@ public:
     return NumElements;
   }
 };
+} // end anonymous namespace
 
 static std::map<unsigned, const Type *>
   ExtendedIntegerTypeMap;

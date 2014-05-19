@@ -25,7 +25,6 @@
 
 #include "opt_inet.h"
 #include "opt_inet6.h"
-#include "opt_ipx.h"
 
 #include <sys/systm.h>
 #include <sys/kernel.h>
@@ -40,6 +39,7 @@
 #include <sys/md5.h>
 
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/netisr.h>
 #include <net/if_types.h>
 #include <net/route.h>
@@ -63,11 +63,6 @@
 #endif
 
 #include <netinet/if_ether.h>
-
-#ifdef IPX
-#include <netipx/ipx.h>
-#include <netipx/ipx_if.h>
-#endif
 
 #include <net/if_sppp.h>
 
@@ -671,14 +666,6 @@ sppp_input(struct ifnet *ifp, struct mbuf *m)
 			do_account++;
 			break;
 #endif
-#ifdef IPX
-		case PPP_IPX:
-			/* IPX IPXCP not implemented yet */
-			if (sp->pp_phase == PHASE_NETWORK)
-				isr = NETISR_IPX;
-			do_account++;
-			break;
-#endif
 		}
 		break;
 	case CISCO_MULTICAST:
@@ -711,12 +698,6 @@ sppp_input(struct ifnet *ifp, struct mbuf *m)
 #ifdef INET6
 		case ETHERTYPE_IPV6:
 			isr = NETISR_IPV6;
-			do_account++;
-			break;
-#endif
-#ifdef IPX
-		case ETHERTYPE_IPX:
-			isr = NETISR_IPX;
 			do_account++;
 			break;
 #endif
@@ -981,12 +962,6 @@ nobufs:		if (debug)
 			if (sp->state[IDX_IPV6CP] != STATE_OPENED)
 				rv = ENETDOWN;
 		}
-		break;
-#endif
-#ifdef IPX
-	case AF_IPX:     /* Novell IPX Protocol */
-		h->protocol = htons (sp->pp_mode == IFF_CISCO ?
-			ETHERTYPE_IPX : PPP_IPX);
 		break;
 #endif
 	default:

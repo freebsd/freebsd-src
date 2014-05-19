@@ -35,8 +35,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "opt_kdtrace.h"
-
 /*
  * These functions support the macros and help fiddle mbuf chains for
  * the nfs op functions. They do things like create the rpc header and

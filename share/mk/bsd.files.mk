@@ -14,9 +14,9 @@ buildfiles: ${${group}}
 
 all: buildfiles
 
-.if !target(installfiles)
 .for group in ${FILESGROUPS}
 .if defined(${group}) && !empty(${group})
+installfiles: installfiles-${group}
 
 ${group}OWN?=	${SHAREOWN}
 ${group}GRP?=	${SHAREGRP}
@@ -37,7 +37,7 @@ ${group}NAME_${file:T}?=	${${group}NAME}
 .else
 ${group}NAME_${file:T}?=	${file:T}
 .endif
-installfiles: _${group}INS_${file:T}
+installfiles-${group}: _${group}INS_${file:T}
 _${group}INS_${file:T}: ${file}
 	${INSTALL} -o ${${group}OWN_${.ALLSRC:T}} \
 	    -g ${${group}GRP_${.ALLSRC:T}} -m ${${group}MODE_${.ALLSRC:T}} \
@@ -48,7 +48,7 @@ _${group}FILES+= ${file}
 .endif
 .endfor
 .if !empty(_${group}FILES)
-installfiles: _${group}INS
+installfiles-${group}: _${group}INS
 _${group}INS: ${_${group}FILES}
 .if defined(${group}NAME)
 	${INSTALL} -o ${${group}OWN} -g ${${group}GRP} \
@@ -62,8 +62,6 @@ _${group}INS: ${_${group}FILES}
 
 .endif # defined(${group}) && !empty(${group})
 .endfor
-
-.endif # !target(installfiles)
 
 realinstall: installfiles
 .ORDER: beforeinstall installfiles

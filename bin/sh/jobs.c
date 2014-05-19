@@ -95,9 +95,9 @@ static void restartjob(struct job *);
 #endif
 static void freejob(struct job *);
 static int waitcmdloop(struct job *);
-static struct job *getjob_nonotfound(char *);
-static struct job *getjob(char *);
-pid_t getjobpgrp(char *);
+static struct job *getjob_nonotfound(const char *);
+static struct job *getjob(const char *);
+pid_t killjob(const char *, int);
 static pid_t dowait(int, struct job *);
 static void checkzombies(void);
 static void cmdtxt(union node *);
@@ -558,7 +558,7 @@ jobidcmd(int argc __unused, char **argv __unused)
  */
 
 static struct job *
-getjob_nonotfound(char *name)
+getjob_nonotfound(const char *name)
 {
 	int jobno;
 	struct job *found, *jp;
@@ -628,7 +628,7 @@ currentjob:	if ((jp = getcurjob(NULL)) == NULL)
 
 
 static struct job *
-getjob(char *name)
+getjob(const char *name)
 {
 	struct job *jp;
 
@@ -639,13 +639,26 @@ getjob(char *name)
 }
 
 
-pid_t
-getjobpgrp(char *name)
+int
+killjob(const char *name, int sig)
 {
 	struct job *jp;
+	int i, ret;
 
 	jp = getjob(name);
-	return -jp->ps[0].pid;
+	if (jp->state == JOBDONE)
+		return 0;
+	if (jp->jobctl)
+		return kill(-jp->ps[0].pid, sig);
+	ret = -1;
+	errno = ESRCH;
+	for (i = 0; i < jp->nprocs; i++)
+		if (jp->ps[i].status == -1 || WIFSTOPPED(jp->ps[i].status)) {
+			if (kill(jp->ps[i].pid, sig) == 0)
+				ret = 0;
+		} else
+			ret = 0;
+	return ret;
 }
 
 /*
@@ -978,7 +991,6 @@ int
 waitforjob(struct job *jp, int *origstatus)
 {
 #if JOBS
-	pid_t mypgrp = getpgrp();
 	int propagate_int = jp->jobctl && jp->foreground;
 #endif
 	int status;
@@ -992,7 +1004,7 @@ waitforjob(struct job *jp, int *origstatus)
 			dotrap();
 #if JOBS
 	if (jp->jobctl) {
-		if (tcsetpgrp(ttyfd, mypgrp) < 0)
+		if (tcsetpgrp(ttyfd, rootpid) < 0)
 			error("tcsetpgrp failed, errno=%d\n", errno);
 	}
 	if (jp->state == JOBSTOPPED)
@@ -1109,7 +1121,8 @@ dowait(int mode, struct job *job)
 			for (sp = jp->ps ; sp < jp->ps + jp->nprocs ; sp++) {
 				if (sp->pid == -1)
 					continue;
-				if (sp->pid == pid) {
+				if (sp->pid == pid && (sp->status == -1 ||
+				    WIFSTOPPED(sp->status))) {
 					TRACE(("Changing status of proc %d from 0x%x to 0x%x\n",
 						   (int)pid, sp->status,
 						   status));

@@ -1,6 +1,6 @@
 .\" -*- nroff-fill -*-
 .\" $FreeBSD$
-.Dd June 25, 2009
+.Dd October 1, 2013
 .Dt PICOBSD 8
 .Os
 .Sh NAME
@@ -20,7 +20,7 @@ utility is a script which produces a minimal implementation of
 which typically fits on a small media such as a floppy disk,
 or can be downloaded as a
 single image file from some media such as CDROM, flash memory, or through
-.Xr etherboot .
+etherboot.
 .Pp
 The
 .Nm
@@ -64,7 +64,7 @@ kernel.
 This is the default behaviour, and is
 extremely useful as the kernel itself can be loaded,
 using
-.Xr etherboot
+etherboot
 or
 .Xr pxeboot 8 ,
 .\"
@@ -378,9 +378,7 @@ If the build is successful, the directory
 .Pa build_dir-bridge/
 will contain a
 .Pa kernel
-that can be downloaded with
-.Xr etherboot ,
-a floppy image called
+that can be downloaded with etherboot, a floppy image called
 .Pa picobsd.bin ,
 plus the products of the compilation in other directories.
 If you want to modify the source tree in
@@ -408,9 +406,9 @@ and the floppy is ready to boot.
 The same process can be used to store the image on a hard disk
 (entire volume or one of the slices):
 .Bd -literal -offset indent
-dd if=picobsd.bin of=/dev/ad2
-dd if=picobsd.bin of=/dev/ad2s3
-dd if=picobsd.bin of=/dev/ad2 oseek=NN
+dd if=picobsd.bin of=/dev/ada2
+dd if=picobsd.bin of=/dev/ada2s3
+dd if=picobsd.bin of=/dev/ada2 oseek=NN
 .Ed
 .Pp
 The first form will install the image on the entire disk, and it
@@ -435,8 +433,8 @@ You have to use the
 command to properly initialize the label (do not ask why!).
 One way to do this is
 .Bd -literal -offset indent
-disklabel -w ad0s2 auto
-disklabel -e ad0s2
+disklabel -w ada0s2 auto
+disklabel -e ada0s2
 .Ed
 .Pp
 and from the editor enter a line corresponding to the actual partition, e.g.\&
@@ -480,9 +478,7 @@ Booting from a floppy is normally rather slow (in the order of 1-2
 minutes), things are much faster if you store your image on
 a hard disk, Compact Flash, or CDROM.
 .Pp
-You can also use
-.Xr etherboot
-to load the preloaded, uncompressed kernel image
+You can also use etherboot to load the preloaded, uncompressed kernel image
 which is a byproduct of the
 .Nm
 build.

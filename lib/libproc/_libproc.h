@@ -46,10 +46,14 @@ struct proc_handle {
 	size_t	rdobjsz;
 	size_t	nobjs;
 	struct lwpstatus lwps;
+	rd_loadobj_t *rdexec;		/* rdobj index of program executable. */
+	char	execname[MAXPATHLEN];	/* Path to program executable. */
 };
 
 #ifdef DEBUG
-#define DPRINTF(fmt, ...) 	warn(fmt, __VA_ARGS__)
+#define	DPRINTF(...) 	warn(__VA_ARGS__)
+#define	DPRINTFX(...)	warnx(__VA_ARGS__)
 #else
-#define DPRINTF(fmt, ...)
+#define	DPRINTF(...)    do { } while (0)
+#define	DPRINTFX(...)   do { } while (0)
 #endif

@@ -4,7 +4,7 @@
 #
 
 # PROVIDE: ntpdate
-# REQUIRE: NETWORKING syslogd named
+# REQUIRE: NETWORKING syslogd
 # KEYWORD: nojail
 
 . /etc/rc.subr

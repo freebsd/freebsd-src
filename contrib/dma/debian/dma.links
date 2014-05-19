@@ -1,0 +1,6 @@
+usr/sbin/dma usr/bin/mailq
+usr/sbin/dma usr/bin/newaliases
+usr/sbin/dma usr/sbin/sendmail
+usr/share/man/man8/dma.8 usr/share/man/man8/mailq.8
+usr/share/man/man8/dma.8 usr/share/man/man8/newaliases.8
+usr/share/man/man8/dma.8 usr/share/man/man8/sendmail.8

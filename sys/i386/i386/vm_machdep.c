@@ -95,7 +95,7 @@ __FBSDID("$FreeBSD$");
 #ifdef PC98
 #include <pc98/cbus/cbus.h>
 #else
-#include <x86/isa/isa.h>
+#include <isa/isareg.h>
 #endif
 
 #ifdef XBOX
@@ -117,6 +117,18 @@ static void	cpu_reset_proxy(void);
 static u_int	cpu_reset_proxyid;
 static volatile u_int	cpu_reset_proxy_active;
 #endif
+
+static int nsfbufs;
+static int nsfbufspeak;
+static int nsfbufsused;
+
+SYSCTL_INT(_kern_ipc, OID_AUTO, nsfbufs, CTLFLAG_RDTUN, &nsfbufs, 0,
+    "Maximum number of sendfile(2) sf_bufs available");
+SYSCTL_INT(_kern_ipc, OID_AUTO, nsfbufspeak, CTLFLAG_RD, &nsfbufspeak, 0,
+    "Number of sendfile(2) sf_bufs at peak usage");
+SYSCTL_INT(_kern_ipc, OID_AUTO, nsfbufsused, CTLFLAG_RD, &nsfbufsused, 0,
+    "Number of sendfile(2) sf_bufs in use");
+
 static void	sf_buf_init(void *arg);
 SYSINIT(sock_sf, SI_SUB_MBUF, SI_ORDER_ANY, sf_buf_init, NULL);
 
@@ -355,7 +367,7 @@ cpu_thread_clean(struct thread *td)
 		 * XXX do we need to move the TSS off the allocated pages
 		 * before freeing them?  (not done here)
 		 */
-		kva_free((vm_offset_t)pcb->pcb_ext,
+		kmem_free(kernel_arena, (vm_offset_t)pcb->pcb_ext,
 		    ctob(IOPAGES + 1));
 		pcb->pcb_ext = NULL;
 	}
@@ -445,7 +457,8 @@ cpu_set_upcall(struct thread *td, struct thread *td0)
 	 * values here.
 	 */
 	bcopy(td0->td_pcb, pcb2, sizeof(*pcb2));
-	pcb2->pcb_flags &= ~(PCB_NPXINITDONE | PCB_NPXUSERINITDONE);
+	pcb2->pcb_flags &= ~(PCB_NPXINITDONE | PCB_NPXUSERINITDONE |
+	    PCB_KERNNPX);
 	pcb2->pcb_save = &pcb2->pcb_user_save;
 
 	/*
@@ -606,7 +619,7 @@ cpu_reset()
 	cpuset_t map;
 	u_int cnt;
 
-	if (smp_active) {
+	if (smp_started) {
 		map = all_cpus;
 		CPU_CLR(PCPU_GET(cpuid), &map);
 		CPU_NAND(&map, &stopped_cpus);

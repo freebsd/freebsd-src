@@ -84,7 +84,7 @@ register_default_iohandler(int start, int size)
 	iop.name = "default";
 	iop.port = start;
 	iop.size = size;
-	iop.flags = IOPORT_F_INOUT;
+	iop.flags = IOPORT_F_INOUT | IOPORT_F_DEFAULT;
 	iop.handler = default_inout;
 
 	register_inout(&iop);
@@ -95,9 +95,10 @@ emulate_inout(struct vmctx *ctx, int vcpu, int in, int port, int bytes,
 	      uint32_t *eax, int strict)
 {
 	int flags;
-	uint32_t mask;
+	uint32_t mask, val;
 	inout_func_t handler;
 	void *arg;
+	int error;
 
 	assert(port < MAX_IOPORTS);
 
@@ -106,28 +107,36 @@ emulate_inout(struct vmctx *ctx, int vcpu, int in, int port, int bytes,
 	if (strict && handler == default_inout)
 		return (-1);
 
+	switch (bytes) {
+	case 1:
+		mask = 0xff;
+		break;
+	case 2:
+		mask = 0xffff;
+		break;
+	default:
+		mask = 0xffffffff;
+		break;
+	}
+
 	if (!in) {
-		switch (bytes) {
-		case 1:
-			mask = 0xff;
-			break;
-		case 2:
-			mask = 0xffff;
-			break;
-		default:
-			mask = 0xffffffff;
-			break;
-		}
-		*eax = *eax & mask;
+		val = *eax & mask;
 	}
 
 	flags = inout_handlers[port].flags;
 	arg = inout_handlers[port].arg;
 
 	if ((in && (flags & IOPORT_F_IN)) || (!in && (flags & IOPORT_F_OUT)))
-		return ((*handler)(ctx, vcpu, in, port, bytes, eax, arg));
+		error = (*handler)(ctx, vcpu, in, port, bytes, &val, arg);
 	else
-		return (-1);
+		error = -1;
+
+	if (!error && in) {
+		*eax &= ~mask;
+		*eax |= val & mask;
+	}
+
+	return (error);
 }
 
 void
@@ -159,7 +168,18 @@ register_inout(struct inout_port *iop)
 	int i;
 
 	VERIFY_IOPORT(iop->port, iop->size);
-	
+
+	/*
+	 * Verify that the new registration is not overwriting an already
+	 * allocated i/o range.
+	 */
+	if ((iop->flags & IOPORT_F_DEFAULT) == 0) {
+		for (i = iop->port; i < iop->port + iop->size; i++) {
+			if ((inout_handlers[i].flags & IOPORT_F_DEFAULT) == 0)
+				return (-1);
+		}
+	}
+
 	for (i = iop->port; i < iop->port + iop->size; i++) {
 		inout_handlers[i].name = iop->name;
 		inout_handlers[i].flags = iop->flags;

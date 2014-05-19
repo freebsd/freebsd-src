@@ -31,6 +31,8 @@
  * Interrupts are dispatched to here from locore asm
  */
 
+#include "opt_hwpmc_hooks.h"
+
 #include <sys/cdefs.h>                  /* RCS ID & Copyright macro defns */
 
 #include <sys/param.h>
@@ -43,6 +45,9 @@
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mutex.h>
+#ifdef HWPMC_HOOKS
+#include <sys/pmckern.h>
+#endif
 #include <sys/proc.h>
 #include <sys/smp.h>
 #include <sys/unistd.h>
@@ -96,6 +101,16 @@ powerpc_interrupt(struct trapframe *framep)
 		atomic_subtract_int(&td->td_intr_nesting_level, 1);
 		critical_exit();
 		break;
+#ifdef HWPMC_HOOKS
+	case EXC_PERF:
+		critical_enter();
+		KASSERT(pmc_intr != NULL, ("Performance exception, but no handler!"));
+		(*pmc_intr)(PCPU_GET(cpuid), framep);
+		if (pmc_hook && (PCPU_GET(curthread)->td_pflags & TDP_CALLCHAIN))
+			pmc_hook(PCPU_GET(curthread), PMC_FN_USER_CALLCHAIN, framep);
+		critical_exit();
+		break;
+#endif
 
 	default:
 		/* Re-enable interrupts if applicable. */

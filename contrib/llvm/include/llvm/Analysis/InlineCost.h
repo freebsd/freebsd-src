@@ -14,7 +14,6 @@
 #ifndef LLVM_ANALYSIS_INLINECOST_H
 #define LLVM_ANALYSIS_INLINECOST_H
 
-#include "llvm/Analysis/CodeMetrics.h"
 #include "llvm/Analysis/CallGraphSCCPass.h"
 #include <cassert>
 #include <climits>
@@ -77,7 +76,7 @@ public:
   }
 
   /// \brief Test whether the inline cost is low enough for inlining.
-  operator bool() const {
+  LLVM_EXPLICIT operator bool() const {
     return Cost < Threshold;
   }
 

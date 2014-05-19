@@ -1,4 +1,4 @@
-/* $OpenBSD: gss-serv.c,v 1.23 2011/08/01 19:18:15 markus Exp $ */
+/* $OpenBSD: gss-serv.c,v 1.26 2014/02/26 20:28:44 djm Exp $ */
 
 /*
  * Copyright (c) 2001-2003 Simon Wilkinson. All rights reserved.
@@ -50,7 +50,7 @@
 
 static ssh_gssapi_client gssapi_client =
     { GSS_C_EMPTY_BUFFER, GSS_C_EMPTY_BUFFER,
-    GSS_C_NO_CREDENTIAL, NULL, {NULL, NULL, NULL}};
+    GSS_C_NO_CREDENTIAL, NULL, {NULL, NULL, NULL, NULL}};
 
 ssh_gssapi_mech gssapi_null_mech =
     { NULL, NULL, {0, NULL}, NULL, NULL, NULL, NULL};
@@ -66,6 +66,25 @@ ssh_gssapi_mech* supported_mechs[]= {
 	&gssapi_null_mech,
 };
 
+/*
+ * ssh_gssapi_supported_oids() can cause sandbox violations, so prepare the
+ * list of supported mechanisms before privsep is set up.
+ */
+static gss_OID_set supported_oids;
+
+void
+ssh_gssapi_prepare_supported_oids(void)
+{
+	ssh_gssapi_supported_oids(&supported_oids);
+}
+
+OM_uint32
+ssh_gssapi_test_oid_supported(OM_uint32 *ms, gss_OID member, int *present)
+{
+	if (supported_oids == NULL)
+		ssh_gssapi_prepare_supported_oids();
+	return gss_test_oid_set_member(ms, member, supported_oids, present);
+}
 
 /*
  * Acquire credentials for a server running on the current host.
@@ -346,7 +365,8 @@ ssh_gssapi_userok(char *user)
 			gss_release_buffer(&lmin, &gssapi_client.displayname);
 			gss_release_buffer(&lmin, &gssapi_client.exportedname);
 			gss_release_cred(&lmin, &gssapi_client.creds);
-			memset(&gssapi_client, 0, sizeof(ssh_gssapi_client));
+			explicit_bzero(&gssapi_client,
+			    sizeof(ssh_gssapi_client));
 			return 0;
 		}
 	else

@@ -56,6 +56,10 @@ dtrace_load(void *dummy)
 	/* Hang our hook for exceptions. */
 	dtrace_invop_init();
 
+	dtrace_taskq = taskq_create("dtrace_taskq", 1, maxclsyspri, 0, 0, 0);
+
+	dtrace_arena = new_unrhdr(1, INT_MAX, &dtrace_unr_mtx);
+
 	/* Register callbacks for linker file load and unload events. */
 	dtrace_kld_load_tag = EVENTHANDLER_REGISTER(kld_load,
 	    dtrace_kld_load, NULL, EVENTHANDLER_PRI_ANY);
@@ -82,8 +86,6 @@ dtrace_load(void *dummy)
 	mutex_enter(&cpu_lock);
 
 	ASSERT(MUTEX_HELD(&cpu_lock));
-
-	dtrace_arena = new_unrhdr(1, INT_MAX, &dtrace_unr_mtx);
 
 	dtrace_state_cache = kmem_cache_create("dtrace_state_cache",
 	    sizeof (dtrace_dstate_percpu_t) * NCPU, DTRACE_STATE_ALIGN,

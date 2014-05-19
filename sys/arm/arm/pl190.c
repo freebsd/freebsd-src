@@ -78,6 +78,10 @@ static struct pl190_intc_softc *pl190_intc_sc = NULL;
 static int
 pl190_intc_probe(device_t dev)
 {
+
+	if (!ofw_bus_status_okay(dev))
+		return (ENXIO);
+
 	if (!ofw_bus_is_compatible(dev, "arm,versatile-vic"))
 		return (ENXIO);
 	device_set_desc(dev, "ARM PL190 VIC");
@@ -113,7 +117,7 @@ pl190_intc_attach(device_t dev)
 	/* Disable all interrupts */
 	intc_vic_write_4(VICINTENCLEAR, 0xffffffff);
 	/* Enable INT31, SIC IRQ */
-	intc_vic_write_4(VICINTENABLE, (1 << 31));
+	intc_vic_write_4(VICINTENABLE, (1U << 31));
 
 	id = 0;
 	for (i = 3; i >= 0; i--) {

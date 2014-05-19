@@ -46,12 +46,11 @@ __FBSDID("$FreeBSD$");
 
 #include "opt_hwpmc_hooks.h"
 #include "opt_ktrace.h"
-#include "opt_kdtrace.h"
 #include "opt_sched.h"
 
 #include <sys/param.h>
 #include <sys/bus.h>
-#include <sys/capability.h>
+#include <sys/capsicum.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
@@ -153,8 +152,13 @@ userret(struct thread *td, struct trapframe *frame)
 	    ("userret: Returning in a critical section"));
 	KASSERT(td->td_locks == 0,
 	    ("userret: Returning with %d locks held", td->td_locks));
+	KASSERT(td->td_rw_rlocks == 0,
+	    ("userret: Returning with %d rwlocks held in read mode",
+	    td->td_rw_rlocks));
 	KASSERT((td->td_pflags & TDP_NOFAULTING) == 0,
 	    ("userret: Returning with pagefaults disabled"));
+	KASSERT((td->td_pflags & TDP_DEVMEMIO) == 0,
+	    ("userret: Returning with /dev/mem i/o leaked"));
 	KASSERT(td->td_no_sleeping == 0,
 	    ("userret: Returning with sleep disabled"));
 	KASSERT(td->td_pinned == 0 || (td->td_pflags & TDP_CALLCHAIN) != 0,

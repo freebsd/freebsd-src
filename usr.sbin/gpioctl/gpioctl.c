@@ -30,6 +30,7 @@ __FBSDID("$FreeBSD$");
 
 #include <fcntl.h>
 #include <getopt.h>
+#include <paths.h>
 #include <stdio.h>
 #include <stdarg.h>
 #include <stdlib.h>
@@ -63,10 +64,10 @@ static void
 usage(void)
 {
 	fprintf(stderr, "Usage:\n");
-	fprintf(stderr, "\tgpioctl -f ctldev -l [-v]\n");
-	fprintf(stderr, "\tgpioctl -f ctldev -t pin\n");
-	fprintf(stderr, "\tgpioctl -f ctldev -c pin flag ...\n");
-	fprintf(stderr, "\tgpioctl -f ctldev pin [0|1]\n");
+	fprintf(stderr, "\tgpioctl [-f ctldev] -l [-v]\n");
+	fprintf(stderr, "\tgpioctl [-f ctldev] -t pin\n");
+	fprintf(stderr, "\tgpioctl [-f ctldev] -c pin flag ...\n");
+	fprintf(stderr, "\tgpioctl [-f ctldev] pin [0|1]\n");
 	exit(1);
 }
 
@@ -185,6 +186,7 @@ main(int argc, char **argv)
 	int i;
 	struct gpio_pin pin;
 	struct gpio_req req;
+	char defctlfile[] = _PATH_DEVGPIOC "0";
 	char *ctlfile = NULL;
 	int pinn, pinv, fd, ch;
 	int flags, flag, ok;
@@ -226,7 +228,7 @@ main(int argc, char **argv)
 		printf("%d/%s\n", i, argv[i]);
 
 	if (ctlfile == NULL)
-		fail("No gpioctl device provided\n");
+		ctlfile = defctlfile;
 
 	fd = open(ctlfile, O_RDONLY);
 	if (fd < 0) {

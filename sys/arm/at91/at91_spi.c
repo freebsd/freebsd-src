@@ -25,6 +25,8 @@
  * SUCH DAMAGE.
  */
 
+#include "opt_platform.h"
+
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
@@ -48,6 +50,12 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/spibus/spi.h>
 #include <dev/spibus/spibusvar.h>
+
+#ifdef FDT
+#include <dev/fdt/fdt_common.h>
+#include <dev/ofw/ofw_bus.h>
+#include <dev/ofw/ofw_bus_subr.h>
+#endif
 
 #include "spibus_if.h"
 
@@ -96,7 +104,10 @@ static void at91_spi_intr(void *arg);
 static int
 at91_spi_probe(device_t dev)
 {
-
+#ifdef FDT
+	if (!ofw_bus_is_compatible(dev, "atmel,at91rm9200-spi"))
+		return (ENXIO);
+#endif
 	device_set_desc(dev, "AT91 SPI");
 	return (0);
 }
@@ -119,6 +130,15 @@ at91_spi_attach(device_t dev)
 	err = at91_spi_activate(dev);
 	if (err)
 		goto out;
+
+#ifdef FDT
+	/*
+	 * Disable devices need to hold their resources, so return now and not attach
+	 * the spibus, setup interrupt handlers, etc.
+	 */
+	if (!ofw_bus_status_okay(dev))
+		return 0;
+#endif
 
 	/*
 	 * Set up the hardware.
@@ -428,5 +448,10 @@ static driver_t at91_spi_driver = {
 	sizeof(struct at91_spi_softc),
 };
 
+#ifdef FDT
+DRIVER_MODULE(at91_spi, simplebus, at91_spi_driver, at91_spi_devclass, NULL,
+    NULL);
+#else
 DRIVER_MODULE(at91_spi, atmelarm, at91_spi_driver, at91_spi_devclass, NULL,
     NULL);
+#endif

@@ -47,7 +47,9 @@ def ext_line_comment : Extension<
   "// comments are not allowed in this language">,
   InGroup<Comment>;
 def ext_no_newline_eof : Extension<"no newline at end of file">, 
-  InGroup<DiagGroup<"newline-eof">>;
+  InGroup<NewlineEOF>;
+def warn_no_newline_eof : Warning<"no newline at end of file">,
+  InGroup<NewlineEOF>, DefaultIgnore;
 
 def warn_cxx98_compat_no_newline_eof : Warning<
   "C++98 requires newline at end of file">,
@@ -157,6 +159,11 @@ def err_invalid_suffix_integer_constant : Error<
   "invalid suffix '%0' on integer constant">;
 def err_invalid_suffix_float_constant : Error<
   "invalid suffix '%0' on floating constant">;
+def warn_cxx11_compat_digit_separator : Warning<
+  "digit separators are incompatible with C++ standards before C++1y">,
+  InGroup<CXXPre1yCompat>, DefaultIgnore;
+def err_digit_separator_not_between_digits : Error<
+  "digit separator cannot appear at %select{start|end}0 of digit sequence">;
 def warn_extraneous_char_constant : Warning<
   "extraneous characters in character constant ignored">;
 def warn_char_constant_too_large : Warning<
@@ -165,7 +172,7 @@ def err_multichar_utf_character_literal : Error<
   "Unicode character literals may not contain multiple characters">;
 def err_exponent_has_no_digits : Error<"exponent has no digits">;
 def ext_imaginary_constant : Extension<
-  "imaginary constants are a GNU extension">, InGroup<GNU>;
+  "imaginary constants are a GNU extension">, InGroup<GNUImaginaryConstant>;
 def err_hexconstant_requires_exponent : Error<
   "hexadecimal floating constants require an exponent">;
 def err_hexconstant_requires_digits : Error<
@@ -173,15 +180,15 @@ def err_hexconstant_requires_digits : Error<
 def ext_hexconstant_invalid : Extension<
   "hexadecimal floating constants are a C99 feature">, InGroup<C99>;
 def ext_binary_literal : Extension<
-  "binary integer literals are a GNU extension">, InGroup<GNU>;
+  "binary integer literals are a GNU extension">, InGroup<GNUBinaryLiteral>;
 def ext_binary_literal_cxx1y : Extension<
   "binary integer literals are a C++1y extension">, InGroup<CXX1y>;
 def warn_cxx11_compat_binary_literal : Warning<
   "binary integer literals are incompatible with C++ standards before C++1y">,
   InGroup<CXXPre1yCompatPedantic>, DefaultIgnore;
 def err_pascal_string_too_long : Error<"Pascal string is too long">;
-def warn_octal_escape_too_large : ExtWarn<"octal escape sequence out of range">;
-def warn_hex_escape_too_large : ExtWarn<"hex escape sequence out of range">;
+def err_octal_escape_too_large : Error<"octal escape sequence out of range">;
+def err_hex_escape_too_large : Error<"hex escape sequence out of range">;
 def ext_string_too_long : Extension<"string literal of length %0 exceeds "
   "maximum length %1 that %select{C90|ISO C99|C++}2 compilers are required to "
   "support">, InGroup<OverlengthStrings>;
@@ -320,7 +327,7 @@ def ext_embedded_directive : Extension<
   InGroup<DiagGroup<"embedded-directive">>;
 def ext_missing_varargs_arg : Extension<
   "must specify at least one argument for '...' parameter of variadic macro">,
-  InGroup<GNU>;
+  InGroup<GNUZeroVariadicMacroArguments>;
 def ext_empty_fnmacro_arg : Extension<
   "empty macro arguments are a C99 feature">, InGroup<C99>;
 def warn_cxx98_compat_empty_fnmacro_arg : Warning<
@@ -406,6 +413,21 @@ def warn_pragma_include_alias_expected_filename :
    ExtWarn<"pragma include_alias expected include filename">,
    InGroup<UnknownPragmas>;
 
+// - #pragma warning(...)
+def warn_pragma_warning_expected :
+  ExtWarn<"#pragma warning expected '%0'">,
+  InGroup<UnknownPragmas>;
+def warn_pragma_warning_spec_invalid :
+  ExtWarn<"#pragma warning expected 'push', 'pop', 'default', 'disable',"
+          " 'error', 'once', 'suppress', 1, 2, 3, or 4">,
+  InGroup<UnknownPragmas>;
+def warn_pragma_warning_push_level :
+  ExtWarn<"#pragma warning(push, level) requires a level between 0 and 4">,
+  InGroup<UnknownPragmas>;
+def warn_pragma_warning_expected_number :
+  ExtWarn<"#pragma warning expected a warning number">,
+  InGroup<UnknownPragmas>;
+
 def err__Pragma_malformed : Error<
   "_Pragma takes a parenthesized string literal">;
 def err_pragma_message_malformed : Error<
@@ -455,11 +477,16 @@ def err_paste_at_start : Error<
   "'##' cannot appear at start of macro expansion">;
 def err_paste_at_end : Error<"'##' cannot appear at end of macro expansion">;
 def ext_paste_comma : Extension<
-  "token pasting of ',' and __VA_ARGS__ is a GNU extension">, InGroup<GNU>;
+  "token pasting of ',' and __VA_ARGS__ is a GNU extension">, InGroup<GNUZeroVariadicMacroArguments>;
 def err_unterm_macro_invoc : Error<
   "unterminated function-like macro invocation">;
 def err_too_many_args_in_macro_invoc : Error<
   "too many arguments provided to function-like macro invocation">;
+def note_suggest_parens_for_macro : Note<
+  "parentheses are required around macro argument containing braced "
+  "initializer list">;
+def note_init_list_at_beginning_of_macro_argument : Note<
+  "cannot use initializer list at the beginning of a macro argument">;
 def err_too_few_args_in_macro_invoc : Error<
   "too few arguments provided to function-like macro invocation">;
 def err_pp_bad_paste : Error<
@@ -475,7 +502,7 @@ def err_pp_line_requires_integer : Error<
   "#line directive requires a positive integer argument">;
 def ext_pp_line_zero : Extension<
   "#line directive with zero argument is a GNU extension">, 
-  InGroup<GNU>;
+  InGroup<GNUZeroLineDirective>;
 def err_pp_line_invalid_filename : Error<
   "invalid filename for #line directive">;
 def warn_pp_line_decimal : Warning<
@@ -520,19 +547,18 @@ def note_mmap_lsquare_match : Note<"to match this ']'">;
 def err_mmap_expected_member : Error<
   "expected umbrella, header, submodule, or module export">;
 def err_mmap_expected_header : Error<"expected a header name after '%0'">;
+def err_mmap_expected_mmap_file : Error<"expected a module map file name">;
 def err_mmap_module_redefinition : Error<
   "redefinition of module '%0'">;
 def note_mmap_prev_definition : Note<"previously defined here">;
-def err_mmap_header_conflict : Error<
-  "header '%0' is already part of module '%1'">;
 def err_mmap_header_not_found : Error<
   "%select{|umbrella }0header '%1' not found">;
 def err_mmap_umbrella_dir_not_found : Error<
   "umbrella directory '%0' not found">;
 def err_mmap_umbrella_clash : Error<
   "umbrella for module '%0' already covers this directory">;
-def err_mmap_export_module_id : Error<
-  "expected an exported module name or '*'">;
+def err_mmap_module_id : Error<
+  "expected a module name or '*'">;
 def err_mmap_expected_library_name : Error<
   "expected %select{library|framework}0 name as a string">;
 def err_mmap_config_macro_submodule : Error<
@@ -579,8 +605,20 @@ def warn_auto_module_import : Warning<
   "import of module '%1'">, InGroup<AutoImport>, DefaultIgnore;
 def warn_uncovered_module_header : Warning<
   "umbrella header for module '%0' does not include header '%1'">, 
-  InGroup<IncompleteUmbrella>;
+  InGroup<IncompleteUmbrella>, DefaultIgnore;
+def warn_forgotten_module_header : Warning<
+  "header '%0' is included in module '%1' but not listed in module map">,
+  InGroup<IncompleteModule>, DefaultIgnore;
 def err_expected_id_building_module : Error<
   "expected a module name in '__building_module' expression">;
-  
+def error_use_of_private_header_outside_module : Error<
+  "use of private header from outside its module: '%0'">;
+def error_undeclared_use_of_module : Error<
+  "use of a module not declared used: '%0'">;
+
+def warn_header_guard : Warning<
+  "%0 is used as a header guard here, followed by #define of a different macro">,
+  InGroup<DiagGroup<"header-guard">>;
+def note_header_guard : Note<
+  "%0 is defined here; did you mean %1?">;  
 }

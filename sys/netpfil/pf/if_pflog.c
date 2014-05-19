@@ -52,9 +52,11 @@ __FBSDID("$FreeBSD$");
 
 #include <net/bpf.h>
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/if_clone.h>
 #include <net/if_pflog.h>
 #include <net/if_types.h>
+#include <net/vnet.h>
 #include <net/pfvar.h>
 
 #if defined(INET) || defined(INET6)

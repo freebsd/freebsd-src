@@ -90,6 +90,7 @@ int			logcount = 0;	/* total ops */
 #define OP_MAPREAD	5
 #define OP_MAPWRITE	6
 #define OP_SKIPPED	7
+#define OP_INVALIDATE	8
 
 int page_size;
 int page_mask;
@@ -107,6 +108,7 @@ unsigned long	testcalls = 0;		/* calls to function "test" */
 
 unsigned long	simulatedopcount = 0;	/* -b flag */
 int	closeprob = 0;			/* -c flag */
+int	invlprob = 0;			/* -i flag */
 int	debug = 0;			/* -d flag */
 unsigned long	debugstart = 0;		/* -D flag */
 unsigned long	maxfilelen = 256 * 1024;	/* -l flag */
@@ -126,10 +128,12 @@ int	randomoplen = 1;		/* -O flag disables it */
 int	seed = 1;			/* -S flag */
 int     mapped_writes = 1;	      /* -W flag disables */
 int 	mapped_reads = 1;		/* -R flag disables it */
+int     mapped_msync = 1;	      /* -U flag disables */
 int	fsxgoodfd = 0;
 FILE *	fsxlogf = NULL;
 int badoff = -1;
 int closeopen = 0;
+int invl = 0;
 
 
 void
@@ -181,14 +185,12 @@ prterr(char *prefix)
 
 
 void
-log4(int operation, int arg0, int arg1, int arg2)
+do_log4(int operation, int arg0, int arg1, int arg2)
 {
 	struct log_entry *le;
 
 	le = &oplog[logptr];
 	le->operation = operation;
-	if (closeopen)
-		le->operation = ~ le->operation;
 	le->args[0] = arg0;
 	le->args[1] = arg1;
 	le->args[2] = arg2;
@@ -200,10 +202,21 @@ log4(int operation, int arg0, int arg1, int arg2)
 
 
 void
+log4(int operation, int arg0, int arg1, int arg2)
+{
+	do_log4(operation, arg0, arg1, arg2);
+	if (closeopen)
+		do_log4(OP_CLOSEOPEN, 0, 0, 0);
+	if (invl)
+		do_log4(OP_INVALIDATE, 0, 0, 0);
+}
+
+
+void
 logdump(void)
 {
-	int	i, count, down;
 	struct log_entry	*lp;
+	int	i, count, down, opnum;
 
 	prt("LOG DUMP (%d total operations):\n", logcount);
 	if (logcount < LOGSIZE) {
@@ -213,15 +226,28 @@ logdump(void)
 		i = logptr;
 		count = LOGSIZE;
 	}
-	for ( ; count > 0; count--) {
-		int opnum;
 
-		opnum = i+1 + (logcount/LOGSIZE)*LOGSIZE;
-		prt("%d(%d mod 256): ", opnum, opnum%256);
+	opnum = i + 1 + (logcount/LOGSIZE)*LOGSIZE;
+	for ( ; count > 0; count--) {
 		lp = &oplog[i];
-		if ((closeopen = lp->operation < 0))
-			lp->operation = ~ lp->operation;
-			
+
+		if (lp->operation == OP_CLOSEOPEN ||
+		    lp->operation == OP_INVALIDATE) {
+			switch (lp->operation) {
+			case OP_CLOSEOPEN:
+				prt("\t\tCLOSE/OPEN\n");
+				break;
+			case OP_INVALIDATE:
+				prt("\t\tMS_INVALIDATE\n");
+				break;
+			}
+			i++;
+			if (i == LOGSIZE)
+				i = 0;
+			continue;
+		}
+
+		prt("%d(%d mod 256): ", opnum, opnum%256);
 		switch (lp->operation) {
 		case OP_MAPREAD:
 			prt("MAPREAD\t0x%x thru 0x%x\t(0x%x bytes)",
@@ -274,9 +300,8 @@ logdump(void)
 			prt("BOGUS LOG ENTRY (operation code = %d)!",
 			    lp->operation);
 		}
-		if (closeopen)
-			prt("\n\t\tCLOSE/OPEN");
 		prt("\n");
+		opnum++;
 		i++;
 		if (i == LOGSIZE)
 			i = 0;
@@ -679,12 +704,12 @@ domapwrite(unsigned offset, unsigned size)
 
 	if ((p = (char *)mmap(0, map_size, PROT_READ | PROT_WRITE,
 			      MAP_FILE | MAP_SHARED, fd,
-			      (off_t)(offset - pg_offset))) == (char *)-1) {
+			      (off_t)(offset - pg_offset))) == MAP_FAILED) {
 		prterr("domapwrite: mmap");
 		report_failure(202);
 	}
 	memcpy(p + pg_offset, good_buf + offset, size);
-	if (msync(p, map_size, 0) != 0) {
+	if (mapped_msync && msync(p, map_size, MS_SYNC) != 0) {
 		prterr("domapwrite: msync");
 		report_failure(203);
 	}
@@ -778,6 +803,36 @@ docloseopen(void)
 
 
 void
+doinvl(void)
+{
+	char *p;
+
+	if (file_size == 0)
+		return;
+	if (testcalls <= simulatedopcount)
+		return;
+	if (debug)
+		prt("%lu msync(MS_INVALIDATE)\n", testcalls);
+
+	if ((p = (char *)mmap(0, file_size, PROT_READ | PROT_WRITE,
+			      MAP_FILE | MAP_SHARED, fd, 0)) == MAP_FAILED) {
+		prterr("doinvl: mmap");
+		report_failure(205);
+	}
+
+	if (msync(p, 0, MS_SYNC | MS_INVALIDATE) != 0) {
+		prterr("doinvl: msync");
+		report_failure(206);
+	}
+
+	if (munmap(p, file_size) != 0) {
+		prterr("doinvl: munmap");
+		report_failure(207);
+	}
+}
+
+
+void
 test(void)
 {
 	unsigned long	offset;
@@ -797,6 +852,8 @@ test(void)
 
 	if (closeprob)
 		closeopen = (rv >> 3) < (1 << 28) / closeprob;
+	if (invlprob)
+		invl = (rv >> 3) < (1 << 28) / invlprob;
 
 	if (debugstart > 0 && testcalls >= debugstart)
 		debug = 1;
@@ -844,6 +901,8 @@ test(void)
 	}
 	if (sizechecks && testcalls > simulatedopcount)
 		check_size();
+	if (invl)
+		doinvl();
 	if (closeopen)
 		docloseopen();
 }
@@ -868,6 +927,7 @@ usage(void)
 	-b opnum: beginning operation number (default 1)\n\
 	-c P: 1 in P chance of file close+open at each op (default infinity)\n\
 	-d: debug output for all operations\n\
+	-i P: 1 in P chance of calling msync(MS_INVALIDATE) (default infinity)\n\
 	-l flen: the upper bound on file size (default 262144)\n\
 	-m startop:endop: monitor (print debug output) specified byte range (default 0:infinity)\n\
 	-n: no verifications of file size\n\
@@ -886,6 +946,7 @@ usage(void)
 	-S seed: for random # generator (default 1) 0 gets timestamp\n\
 	-W: mapped write operations DISabled\n\
 	-R: mapped read operations DISabled)\n\
+	-U: msync after mapped write operations DISabled\n\
 	fname: this filename is REQUIRED (no default)\n");
 	exit(90);
 }
@@ -941,8 +1002,8 @@ main(int argc, char **argv)
 
 	setvbuf(stdout, (char *)0, _IOLBF, 0); /* line buffered stdout */
 
-	while ((ch = getopt(argc, argv, "b:c:dl:m:no:p:qr:s:t:w:D:LN:OP:RS:W"))
-	       != -1)
+	while ((ch = getopt(argc, argv,
+	    "b:c:di:l:m:no:p:qr:s:t:w:D:LN:OP:RS:UW")) != -1)
 		switch (ch) {
 		case 'b':
 			simulatedopcount = getnum(optarg, &endp);
@@ -964,6 +1025,15 @@ main(int argc, char **argv)
 			break;
 		case 'd':
 			debug = 1;
+			break;
+		case 'i':
+			invlprob = getnum(optarg, &endp);
+			if (!quiet)
+				fprintf(stdout,
+					"Chance of MS_INVALIDATE is 1 in %d\n",
+					invlprob);
+			if (invlprob <= 0)
+				usage();
 			break;
 		case 'l':
 			maxfilelen = getnum(optarg, &endp);
@@ -1056,6 +1126,11 @@ main(int argc, char **argv)
 			mapped_writes = 0;
 			if (!quiet)
 				fprintf(stdout, "mapped writes DISABLED\n");
+			break;
+		case 'U':
+			mapped_msync = 0;
+			if (!quiet)
+				fprintf(stdout, "mapped msync DISABLED\n");
 			break;
 
 		default:

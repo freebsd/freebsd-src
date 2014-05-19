@@ -56,8 +56,8 @@ __FBSDID("$FreeBSD$");
 #include <machine/bus.h>
 #include <machine/cpu.h>
 #include <machine/cpufunc.h>
+#include <machine/fdt.h>
 #include <machine/resource.h>
-#include <machine/frame.h>
 #include <machine/intr.h>
 
 #include <dev/fdt/fdt_common.h>
@@ -254,10 +254,13 @@ ipu3_fb_probe(device_t dev)
 {
 	int error;
 
+	if (!ofw_bus_status_okay(dev))
+		return (ENXIO);
+
 	if (!ofw_bus_is_compatible(dev, "fsl,ipu3"))
 		return (ENXIO);
 
-	device_set_desc(dev, "i.MX515 Image Processing Unit (FB)");
+	device_set_desc(dev, "i.MX5x Image Processing Unit v3 (FB)");
 
 	error = sc_probe_unit(device_get_unit(dev), 
 	    device_get_flags(dev) | SC_AUTODETECT_KBD);
@@ -274,15 +277,19 @@ ipu3_fb_attach(device_t dev)
 	struct ipu3sc_softc *sc = device_get_softc(dev);
 	bus_space_tag_t iot;
 	bus_space_handle_t ioh;
+	phandle_t node;
+	pcell_t reg;
 	int err;
+	uintptr_t base;
 
 	if (ipu3sc_softc)
 		return (ENXIO);
 
 	ipu3sc_softc = sc;
 
-	device_printf(dev, "\tclock gate status is %d\n",
-	    imx51_get_clk_gating(IMX51CLK_IPU_HSP_CLK_ROOT));
+	if (bootverbose)
+		device_printf(dev, "clock gate status is %d\n",
+		    imx51_get_clk_gating(IMX51CLK_IPU_HSP_CLK_ROOT));
 
 	sc->dev = dev;
 
@@ -297,58 +304,71 @@ ipu3_fb_attach(device_t dev)
 	sc = device_get_softc(dev);
 	sc->iot = iot = fdtbus_bs_tag;
 
-	device_printf(sc->dev, ": i.MX51 IPUV3 controller\n");
-
+	/*
+	 * Retrieve the device address based on the start address in the
+	 * DTS.  The DTS for i.MX51 specifies 0x5e000000 as the first register
+	 * address, so we just subtract IPU_CM_BASE to get the offset at which
+	 * the IPU device was memory mapped.
+	 * On i.MX53, the offset is 0.
+	 */
+	node = ofw_bus_get_node(dev);
+	if ((OF_getprop(node, "reg", &reg, sizeof(reg))) <= 0)
+		base = 0;
+	else
+		base = fdt32_to_cpu(reg) - IPU_CM_BASE(0);
 	/* map controller registers */
-	err = bus_space_map(iot, IPU_CM_BASE, IPU_CM_SIZE, 0, &ioh);
+	err = bus_space_map(iot, IPU_CM_BASE(base), IPU_CM_SIZE, 0, &ioh);
 	if (err)
 		goto fail_retarn_cm;
 	sc->cm_ioh = ioh;
 
 	/* map Display Multi FIFO Controller registers */
-	err = bus_space_map(iot, IPU_DMFC_BASE, IPU_DMFC_SIZE, 0, &ioh);
+	err = bus_space_map(iot, IPU_DMFC_BASE(base), IPU_DMFC_SIZE, 0, &ioh);
 	if (err)
 		goto fail_retarn_dmfc;
 	sc->dmfc_ioh = ioh;
 
 	/* map Display Interface 0 registers */
-	err = bus_space_map(iot, IPU_DI0_BASE, IPU_DI0_SIZE, 0, &ioh);
+	err = bus_space_map(iot, IPU_DI0_BASE(base), IPU_DI0_SIZE, 0, &ioh);
 	if (err)
 		goto fail_retarn_di0;
 	sc->di0_ioh = ioh;
 
 	/* map Display Interface 1 registers */
-	err = bus_space_map(iot, IPU_DI1_BASE, IPU_DI0_SIZE, 0, &ioh);
+	err = bus_space_map(iot, IPU_DI1_BASE(base), IPU_DI0_SIZE, 0, &ioh);
 	if (err)
 		goto fail_retarn_di1;
 	sc->di1_ioh = ioh;
 
 	/* map Display Processor registers */
-	err = bus_space_map(iot, IPU_DP_BASE, IPU_DP_SIZE, 0, &ioh);
+	err = bus_space_map(iot, IPU_DP_BASE(base), IPU_DP_SIZE, 0, &ioh);
 	if (err)
 		goto fail_retarn_dp;
 	sc->dp_ioh = ioh;
 
 	/* map Display Controller registers */
-	err = bus_space_map(iot, IPU_DC_BASE, IPU_DC_SIZE, 0, &ioh);
+	err = bus_space_map(iot, IPU_DC_BASE(base), IPU_DC_SIZE, 0, &ioh);
 	if (err)
 		goto fail_retarn_dc;
 	sc->dc_ioh = ioh;
 
 	/* map Image DMA Controller registers */
-	err = bus_space_map(iot, IPU_IDMAC_BASE, IPU_IDMAC_SIZE, 0, &ioh);
+	err = bus_space_map(iot, IPU_IDMAC_BASE(base), IPU_IDMAC_SIZE, 0,
+	    &ioh);
 	if (err)
 		goto fail_retarn_idmac;
 	sc->idmac_ioh = ioh;
 
 	/* map CPMEM registers */
-	err = bus_space_map(iot, IPU_CPMEM_BASE, IPU_CPMEM_SIZE, 0, &ioh);
+	err = bus_space_map(iot, IPU_CPMEM_BASE(base), IPU_CPMEM_SIZE, 0,
+	    &ioh);
 	if (err)
 		goto fail_retarn_cpmem;
 	sc->cpmem_ioh = ioh;
 
 	/* map DCTEMPL registers */
-	err = bus_space_map(iot, IPU_DCTMPL_BASE, IPU_DCTMPL_SIZE, 0, &ioh);
+	err = bus_space_map(iot, IPU_DCTMPL_BASE(base), IPU_DCTMPL_SIZE, 0,
+	    &ioh);
 	if (err)
 		goto fail_retarn_dctmpl;
 	sc->dctmpl_ioh = ioh;

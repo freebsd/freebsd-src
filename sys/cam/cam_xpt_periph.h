@@ -47,6 +47,7 @@ void		xpt_announce_periph(struct cam_periph *periph,
 				    char *announce_string);
 void		xpt_announce_quirks(struct cam_periph *periph,
 				    int quirks, char *bit_string);
+void		xpt_denounce_periph(struct cam_periph *periph);
 #endif
 
 #endif /* _CAM_CAM_XPT_PERIPH_H */

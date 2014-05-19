@@ -57,7 +57,7 @@ getstr (char **lineptr, size_t *n, FILE *stream, char terminator, size_t offset)
 
   for (;;)
     {
-      register int c = getc (stream);
+      int c = getc (stream);
 
       /* We always want at least one char left in the buffer, since we
          always (unless we get an error while reading the first char)

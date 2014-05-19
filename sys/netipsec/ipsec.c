@@ -55,6 +55,7 @@
 #include <sys/proc.h>
 
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/route.h>
 #include <net/vnet.h>
 
@@ -559,11 +560,7 @@ ipsec_setspidx(struct mbuf *m, struct secpolicyindex *spidx, int needport)
 		m_copydata(m, 0, sizeof(ipbuf), (caddr_t)&ipbuf);
 		ip = &ipbuf;
 	}
-#ifdef _IP_VHL
-	v = _IP_VHL_V(ip->ip_vhl);
-#else
 	v = ip->ip_v;
-#endif
 	switch (v) {
 	case 4:
 		error = ipsec4_setspidx_ipaddr(m, spidx);
@@ -607,11 +604,7 @@ ipsec4_get_ulp(struct mbuf *m, struct secpolicyindex *spidx, int needport)
 		struct ip *ip = mtod(m, struct ip *);
 		if (ip->ip_off & htons(IP_MF | IP_OFFMASK))
 			goto done;
-#ifdef _IP_VHL
-		off = _IP_VHL_HL(ip->ip_vhl) << 2;
-#else
 		off = ip->ip_hl << 2;
-#endif
 		nxt = ip->ip_p;
 	} else {
 		struct ip ih;
@@ -619,11 +612,7 @@ ipsec4_get_ulp(struct mbuf *m, struct secpolicyindex *spidx, int needport)
 		m_copydata(m, 0, sizeof (struct ip), (caddr_t) &ih);
 		if (ih.ip_off & htons(IP_MF | IP_OFFMASK))
 			goto done;
-#ifdef _IP_VHL
-		off = _IP_VHL_HL(ih.ip_vhl) << 2;
-#else
 		off = ih.ip_hl << 2;
-#endif
 		nxt = ih.ip_p;
 	}
 

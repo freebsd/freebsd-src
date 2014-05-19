@@ -181,13 +181,13 @@ bool Sema::CheckEquivalentExceptionSpec(FunctionDecl *Old, FunctionDecl *New) {
     return false;
   }
 
-  // The failure was something other than an empty exception
+  // The failure was something other than an missing exception
   // specification; return an error.
-  if (!MissingExceptionSpecification && !MissingEmptyExceptionSpecification)
+  if (!MissingExceptionSpecification)
     return true;
 
   const FunctionProtoType *NewProto =
-    New->getType()->getAs<FunctionProtoType>();
+    New->getType()->castAs<FunctionProtoType>();
 
   // The new function declaration is only missing an empty exception
   // specification "throw()". If the throw() specification came from a
@@ -203,123 +203,94 @@ bool Sema::CheckEquivalentExceptionSpec(FunctionDecl *Old, FunctionDecl *New) {
       Old->isExternC()) {
     FunctionProtoType::ExtProtoInfo EPI = NewProto->getExtProtoInfo();
     EPI.ExceptionSpecType = EST_DynamicNone;
-    QualType NewType =
-      Context.getFunctionType(NewProto->getResultType(),
-                              ArrayRef<QualType>(NewProto->arg_type_begin(),
-                                                 NewProto->getNumArgs()),
-                              EPI);
+    QualType NewType = Context.getFunctionType(NewProto->getResultType(),
+                                               NewProto->getArgTypes(), EPI);
     New->setType(NewType);
     return false;
   }
 
-  if (MissingExceptionSpecification && NewProto) {
-    const FunctionProtoType *OldProto =
-      Old->getType()->getAs<FunctionProtoType>();
+  const FunctionProtoType *OldProto =
+    Old->getType()->castAs<FunctionProtoType>();
 
-    FunctionProtoType::ExtProtoInfo EPI = NewProto->getExtProtoInfo();
-    EPI.ExceptionSpecType = OldProto->getExceptionSpecType();
-    if (EPI.ExceptionSpecType == EST_Dynamic) {
-      EPI.NumExceptions = OldProto->getNumExceptions();
-      EPI.Exceptions = OldProto->exception_begin();
-    } else if (EPI.ExceptionSpecType == EST_ComputedNoexcept) {
-      // FIXME: We can't just take the expression from the old prototype. It
-      // likely contains references to the old prototype's parameters.
-    }
-
-    // Update the type of the function with the appropriate exception
-    // specification.
-    QualType NewType =
-      Context.getFunctionType(NewProto->getResultType(),
-                              ArrayRef<QualType>(NewProto->arg_type_begin(),
-                                                 NewProto->getNumArgs()),
-                              EPI);
-    New->setType(NewType);
-
-    // If exceptions are disabled, suppress the warning about missing
-    // exception specifications for new and delete operators.
-    if (!getLangOpts().CXXExceptions) {
-      switch (New->getDeclName().getCXXOverloadedOperator()) {
-      case OO_New:
-      case OO_Array_New:
-      case OO_Delete:
-      case OO_Array_Delete:
-        if (New->getDeclContext()->isTranslationUnit())
-          return false;
-        break;
-
-      default:
-        break;
-      }
-    } 
-
-    // Warn about the lack of exception specification.
-    SmallString<128> ExceptionSpecString;
-    llvm::raw_svector_ostream OS(ExceptionSpecString);
-    switch (OldProto->getExceptionSpecType()) {
-    case EST_DynamicNone:
-      OS << "throw()";
-      break;
-
-    case EST_Dynamic: {
-      OS << "throw(";
-      bool OnFirstException = true;
-      for (FunctionProtoType::exception_iterator E = OldProto->exception_begin(),
-                                              EEnd = OldProto->exception_end();
-           E != EEnd;
-           ++E) {
-        if (OnFirstException)
-          OnFirstException = false;
-        else
-          OS << ", ";
-        
-        OS << E->getAsString(getPrintingPolicy());
-      }
-      OS << ")";
-      break;
-    }
-
-    case EST_BasicNoexcept:
-      OS << "noexcept";
-      break;
-
-    case EST_ComputedNoexcept:
-      OS << "noexcept(";
-      OldProto->getNoexceptExpr()->printPretty(OS, 0, getPrintingPolicy());
-      OS << ")";
-      break;
-
-    default:
-      llvm_unreachable("This spec type is compatible with none.");
-    }
-    OS.flush();
-
-    SourceLocation FixItLoc;
-    if (TypeSourceInfo *TSInfo = New->getTypeSourceInfo()) {
-      TypeLoc TL = TSInfo->getTypeLoc().IgnoreParens();
-      if (FunctionTypeLoc FTLoc = TL.getAs<FunctionTypeLoc>())
-        FixItLoc = PP.getLocForEndOfToken(FTLoc.getLocalRangeEnd());
-    }
-
-    if (FixItLoc.isInvalid())
-      Diag(New->getLocation(), diag::warn_missing_exception_specification)
-        << New << OS.str();
-    else {
-      // FIXME: This will get more complicated with C++0x
-      // late-specified return types.
-      Diag(New->getLocation(), diag::warn_missing_exception_specification)
-        << New << OS.str()
-        << FixItHint::CreateInsertion(FixItLoc, " " + OS.str().str());
-    }
-
-    if (!Old->getLocation().isInvalid())
-      Diag(Old->getLocation(), diag::note_previous_declaration);
-
-    return false;    
+  FunctionProtoType::ExtProtoInfo EPI = NewProto->getExtProtoInfo();
+  EPI.ExceptionSpecType = OldProto->getExceptionSpecType();
+  if (EPI.ExceptionSpecType == EST_Dynamic) {
+    EPI.NumExceptions = OldProto->getNumExceptions();
+    EPI.Exceptions = OldProto->exception_begin();
+  } else if (EPI.ExceptionSpecType == EST_ComputedNoexcept) {
+    // FIXME: We can't just take the expression from the old prototype. It
+    // likely contains references to the old prototype's parameters.
   }
 
-  Diag(New->getLocation(), DiagID);
-  Diag(Old->getLocation(), diag::note_previous_declaration);
-  return true;
+  // Update the type of the function with the appropriate exception
+  // specification.
+  QualType NewType = Context.getFunctionType(NewProto->getResultType(),
+                                             NewProto->getArgTypes(), EPI);
+  New->setType(NewType);
+
+  // Warn about the lack of exception specification.
+  SmallString<128> ExceptionSpecString;
+  llvm::raw_svector_ostream OS(ExceptionSpecString);
+  switch (OldProto->getExceptionSpecType()) {
+  case EST_DynamicNone:
+    OS << "throw()";
+    break;
+
+  case EST_Dynamic: {
+    OS << "throw(";
+    bool OnFirstException = true;
+    for (FunctionProtoType::exception_iterator E = OldProto->exception_begin(),
+                                            EEnd = OldProto->exception_end();
+         E != EEnd;
+         ++E) {
+      if (OnFirstException)
+        OnFirstException = false;
+      else
+        OS << ", ";
+      
+      OS << E->getAsString(getPrintingPolicy());
+    }
+    OS << ")";
+    break;
+  }
+
+  case EST_BasicNoexcept:
+    OS << "noexcept";
+    break;
+
+  case EST_ComputedNoexcept:
+    OS << "noexcept(";
+    OldProto->getNoexceptExpr()->printPretty(OS, 0, getPrintingPolicy());
+    OS << ")";
+    break;
+
+  default:
+    llvm_unreachable("This spec type is compatible with none.");
+  }
+  OS.flush();
+
+  SourceLocation FixItLoc;
+  if (TypeSourceInfo *TSInfo = New->getTypeSourceInfo()) {
+    TypeLoc TL = TSInfo->getTypeLoc().IgnoreParens();
+    if (FunctionTypeLoc FTLoc = TL.getAs<FunctionTypeLoc>())
+      FixItLoc = PP.getLocForEndOfToken(FTLoc.getLocalRangeEnd());
+  }
+
+  if (FixItLoc.isInvalid())
+    Diag(New->getLocation(), diag::warn_missing_exception_specification)
+      << New << OS.str();
+  else {
+    // FIXME: This will get more complicated with C++0x
+    // late-specified return types.
+    Diag(New->getLocation(), diag::warn_missing_exception_specification)
+      << New << OS.str()
+      << FixItHint::CreateInsertion(FixItLoc, " " + OS.str().str());
+  }
+
+  if (!Old->getLocation().isInvalid())
+    Diag(Old->getLocation(), diag::note_previous_declaration);
+
+  return false;
 }
 
 /// CheckEquivalentExceptionSpec - Check if the two types have equivalent
@@ -819,11 +790,8 @@ static CanThrowResult canSubExprsThrow(Sema &S, const Expr *CE) {
   return R;
 }
 
-static CanThrowResult canCalleeThrow(Sema &S, const Expr *E,
-                                           const Decl *D,
-                                           bool NullThrows = true) {
-  if (!D)
-    return NullThrows ? CT_Can : CT_Cannot;
+static CanThrowResult canCalleeThrow(Sema &S, const Expr *E, const Decl *D) {
+  assert(D && "Expected decl");
 
   // See if we can get a function type from the decl somehow.
   const ValueDecl *VD = dyn_cast<ValueDecl>(D);
@@ -927,8 +895,10 @@ CanThrowResult Sema::canThrow(const Expr *E) {
       CT = CT_Dependent;
     else if (isa<CXXPseudoDestructorExpr>(CE->getCallee()->IgnoreParens()))
       CT = CT_Cannot;
-    else
+    else if (CE->getCalleeDecl())
       CT = canCalleeThrow(*this, E, CE->getCalleeDecl());
+    else
+      CT = CT_Can;
     if (CT == CT_Can)
       return CT;
     return mergeCanThrow(CT, canSubExprsThrow(*this, E));
@@ -974,7 +944,9 @@ CanThrowResult Sema::canThrow(const Expr *E) {
                           cast<CXXDeleteExpr>(E)->getOperatorDelete());
       if (const RecordType *RT = DTy->getAs<RecordType>()) {
         const CXXRecordDecl *RD = cast<CXXRecordDecl>(RT->getDecl());
-        CT = mergeCanThrow(CT, canCalleeThrow(*this, E, RD->getDestructor()));
+        const CXXDestructorDecl *DD = RD->getDestructor();
+        if (DD)
+          CT = mergeCanThrow(CT, canCalleeThrow(*this, E, DD));
       }
       if (CT == CT_Can)
         return CT;
@@ -1012,6 +984,7 @@ CanThrowResult Sema::canThrow(const Expr *E) {
   case Expr::CompoundLiteralExprClass:
   case Expr::CXXConstCastExprClass:
   case Expr::CXXReinterpretCastExprClass:
+  case Expr::CXXStdInitializerListExprClass:
   case Expr::DesignatedInitExprClass:
   case Expr::ExprWithCleanupsClass:
   case Expr::ExtVectorElementExprClass:
@@ -1022,6 +995,7 @@ CanThrowResult Sema::canThrow(const Expr *E) {
   case Expr::ParenExprClass:
   case Expr::ParenListExprClass:
   case Expr::ShuffleVectorExprClass:
+  case Expr::ConvertVectorExprClass:
   case Expr::VAArgExprClass:
     return canSubExprsThrow(*this, E);
 
@@ -1052,7 +1026,7 @@ CanThrowResult Sema::canThrow(const Expr *E) {
   case Expr::ChooseExprClass:
     if (E->isTypeDependent() || E->isValueDependent())
       return CT_Dependent;
-    return canThrow(cast<ChooseExpr>(E)->getChosenSubExpr(Context));
+    return canThrow(cast<ChooseExpr>(E)->getChosenSubExpr());
 
   case Expr::GenericSelectionExprClass:
     if (cast<GenericSelectionExpr>(E)->isResultDependent())

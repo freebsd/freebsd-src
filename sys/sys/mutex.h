@@ -229,6 +229,9 @@ void	thread_lock_flags_(struct thread *, int, const char *, int);
 #define __mtx_unlock(mp, tid, opts, file, line) do {			\
 	uintptr_t _tid = (uintptr_t)(tid);				\
 									\
+	if ((mp)->mtx_recurse == 0)					\
+		 LOCKSTAT_PROFILE_RELEASE_LOCK(LS_MTX_UNLOCK_RELEASE,	\
+		    (mp));						\
 	if (!_mtx_release_lock((mp), _tid))				\
 		_mtx_unlock_sleep((mp), (opts), (file), (line));	\
 } while (0)
@@ -320,12 +323,8 @@ struct mtx *mtx_pool_alloc(struct mtx_pool *pool);
 	mtx_unlock_spin(mtx_pool_find((pool), (ptr)))
 
 /*
- * mtxpool_lockbuilder is a pool of sleep locks that is not witness
- * checked and should only be used for building higher level locks.
- *
  * mtxpool_sleep is a general purpose pool of sleep mutexes.
  */
-extern struct mtx_pool *mtxpool_lockbuilder;
 extern struct mtx_pool *mtxpool_sleep;
 
 #ifndef LOCK_DEBUG
@@ -379,7 +378,7 @@ extern struct mtx_pool *mtxpool_sleep;
 	_sleep((chan), &(mtx)->lock_object, (pri), (wmesg),		\
 	    tick_sbt * (timo), 0, C_HARDCLOCK)
 
-#define	mtx_initialized(m)	lock_initalized(&(m)->lock_object)
+#define	mtx_initialized(m)	lock_initialized(&(m)->lock_object)
 
 #define mtx_owned(m)	(((m)->mtx_lock & ~MTX_FLAGMASK) == (uintptr_t)curthread)
 

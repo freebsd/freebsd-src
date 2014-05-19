@@ -59,6 +59,23 @@ public:
   unsigned getBitfield64LSLOpValue(const MCInst &MI, unsigned OpIdx,
                                    SmallVectorImpl<MCFixup> &Fixups) const;
 
+  unsigned getShiftRightImm8(const MCInst &MI, unsigned Op,
+                             SmallVectorImpl<MCFixup> &Fixups) const;
+  unsigned getShiftRightImm16(const MCInst &MI, unsigned Op,
+                              SmallVectorImpl<MCFixup> &Fixups) const;
+  unsigned getShiftRightImm32(const MCInst &MI, unsigned Op,
+                              SmallVectorImpl<MCFixup> &Fixups) const;
+  unsigned getShiftRightImm64(const MCInst &MI, unsigned Op,
+                              SmallVectorImpl<MCFixup> &Fixups) const;
+
+  unsigned getShiftLeftImm8(const MCInst &MI, unsigned Op,
+                            SmallVectorImpl<MCFixup> &Fixups) const;
+  unsigned getShiftLeftImm16(const MCInst &MI, unsigned Op,
+                             SmallVectorImpl<MCFixup> &Fixups) const;
+  unsigned getShiftLeftImm32(const MCInst &MI, unsigned Op,
+                             SmallVectorImpl<MCFixup> &Fixups) const;
+  unsigned getShiftLeftImm64(const MCInst &MI, unsigned Op,
+                             SmallVectorImpl<MCFixup> &Fixups) const;
 
   // Labels are handled mostly the same way: a symbol is needed, and
   // just gets some fixup attached.
@@ -152,10 +169,10 @@ getOffsetUImm12OpValue(const MCInst &MI, unsigned OpIdx,
   switch (Expr->getKind()) {
   default: llvm_unreachable("Unexpected operand modifier");
   case AArch64MCExpr::VK_AARCH64_LO12: {
-    unsigned FixupsBySize[] = { AArch64::fixup_a64_ldst8_lo12,
-                                AArch64::fixup_a64_ldst16_lo12,
-                                AArch64::fixup_a64_ldst32_lo12,
-                                AArch64::fixup_a64_ldst64_lo12,
+    static const unsigned FixupsBySize[] = { AArch64::fixup_a64_ldst8_lo12,
+                                             AArch64::fixup_a64_ldst16_lo12,
+                                             AArch64::fixup_a64_ldst32_lo12,
+                                             AArch64::fixup_a64_ldst64_lo12,
                                 AArch64::fixup_a64_ldst128_lo12 };
     assert(MemSize <= 16 && "Invalid fixup for operation");
     FixupKind = FixupsBySize[Log2_32(MemSize)];
@@ -166,19 +183,23 @@ getOffsetUImm12OpValue(const MCInst &MI, unsigned OpIdx,
     FixupKind = AArch64::fixup_a64_ld64_got_lo12_nc;
     break;
   case AArch64MCExpr::VK_AARCH64_DTPREL_LO12:  {
-    unsigned FixupsBySize[] = { AArch64::fixup_a64_ldst8_dtprel_lo12,
-                                AArch64::fixup_a64_ldst16_dtprel_lo12,
-                                AArch64::fixup_a64_ldst32_dtprel_lo12,
-                                AArch64::fixup_a64_ldst64_dtprel_lo12 };
+    static const unsigned FixupsBySize[] = {
+      AArch64::fixup_a64_ldst8_dtprel_lo12,
+      AArch64::fixup_a64_ldst16_dtprel_lo12,
+      AArch64::fixup_a64_ldst32_dtprel_lo12,
+      AArch64::fixup_a64_ldst64_dtprel_lo12
+    };
     assert(MemSize <= 8 && "Invalid fixup for operation");
     FixupKind = FixupsBySize[Log2_32(MemSize)];
     break;
   }
   case AArch64MCExpr::VK_AARCH64_DTPREL_LO12_NC: {
-    unsigned FixupsBySize[] = { AArch64::fixup_a64_ldst8_dtprel_lo12_nc,
-                                AArch64::fixup_a64_ldst16_dtprel_lo12_nc,
-                                AArch64::fixup_a64_ldst32_dtprel_lo12_nc,
-                                AArch64::fixup_a64_ldst64_dtprel_lo12_nc };
+    static const unsigned FixupsBySize[] = {
+      AArch64::fixup_a64_ldst8_dtprel_lo12_nc,
+      AArch64::fixup_a64_ldst16_dtprel_lo12_nc,
+      AArch64::fixup_a64_ldst32_dtprel_lo12_nc,
+      AArch64::fixup_a64_ldst64_dtprel_lo12_nc
+    };
     assert(MemSize <= 8 && "Invalid fixup for operation");
     FixupKind = FixupsBySize[Log2_32(MemSize)];
     break;
@@ -188,19 +209,23 @@ getOffsetUImm12OpValue(const MCInst &MI, unsigned OpIdx,
     FixupKind = AArch64::fixup_a64_ld64_gottprel_lo12_nc;
     break;
   case AArch64MCExpr::VK_AARCH64_TPREL_LO12:{
-    unsigned FixupsBySize[] = { AArch64::fixup_a64_ldst8_tprel_lo12,
-                                AArch64::fixup_a64_ldst16_tprel_lo12,
-                                AArch64::fixup_a64_ldst32_tprel_lo12,
-                                AArch64::fixup_a64_ldst64_tprel_lo12 };
+    static const unsigned FixupsBySize[] = {
+      AArch64::fixup_a64_ldst8_tprel_lo12,
+      AArch64::fixup_a64_ldst16_tprel_lo12,
+      AArch64::fixup_a64_ldst32_tprel_lo12,
+      AArch64::fixup_a64_ldst64_tprel_lo12
+    };
     assert(MemSize <= 8 && "Invalid fixup for operation");
     FixupKind = FixupsBySize[Log2_32(MemSize)];
     break;
   }
   case AArch64MCExpr::VK_AARCH64_TPREL_LO12_NC: {
-    unsigned FixupsBySize[] = { AArch64::fixup_a64_ldst8_tprel_lo12_nc,
-                                AArch64::fixup_a64_ldst16_tprel_lo12_nc,
-                                AArch64::fixup_a64_ldst32_tprel_lo12_nc,
-                                AArch64::fixup_a64_ldst64_tprel_lo12_nc };
+    static const unsigned FixupsBySize[] = {
+      AArch64::fixup_a64_ldst8_tprel_lo12_nc,
+      AArch64::fixup_a64_ldst16_tprel_lo12_nc,
+      AArch64::fixup_a64_ldst32_tprel_lo12_nc,
+      AArch64::fixup_a64_ldst64_tprel_lo12_nc
+    };
     assert(MemSize <= 8 && "Invalid fixup for operation");
     FixupKind = FixupsBySize[Log2_32(MemSize)];
     break;
@@ -302,6 +327,45 @@ AArch64MCCodeEmitter::getBitfield64LSLOpValue(const MCInst &MI, unsigned OpIdx,
   return ((64 - MO.getImm()) & 0x3f) | (63 - MO.getImm()) << 6;
 }
 
+unsigned AArch64MCCodeEmitter::getShiftRightImm8(
+    const MCInst &MI, unsigned Op, SmallVectorImpl<MCFixup> &Fixups) const {
+  return 8 - MI.getOperand(Op).getImm();
+}
+
+unsigned AArch64MCCodeEmitter::getShiftRightImm16(
+    const MCInst &MI, unsigned Op, SmallVectorImpl<MCFixup> &Fixups) const {
+  return 16 - MI.getOperand(Op).getImm();
+}
+
+unsigned AArch64MCCodeEmitter::getShiftRightImm32(
+    const MCInst &MI, unsigned Op, SmallVectorImpl<MCFixup> &Fixups) const {
+  return 32 - MI.getOperand(Op).getImm();
+}
+
+unsigned AArch64MCCodeEmitter::getShiftRightImm64(
+    const MCInst &MI, unsigned Op, SmallVectorImpl<MCFixup> &Fixups) const {
+  return 64 - MI.getOperand(Op).getImm();
+}
+
+unsigned AArch64MCCodeEmitter::getShiftLeftImm8(
+    const MCInst &MI, unsigned Op, SmallVectorImpl<MCFixup> &Fixups) const {
+  return MI.getOperand(Op).getImm() - 8;
+}
+
+unsigned AArch64MCCodeEmitter::getShiftLeftImm16(
+    const MCInst &MI, unsigned Op, SmallVectorImpl<MCFixup> &Fixups) const {
+  return MI.getOperand(Op).getImm() - 16;
+}
+
+unsigned AArch64MCCodeEmitter::getShiftLeftImm32(
+    const MCInst &MI, unsigned Op, SmallVectorImpl<MCFixup> &Fixups) const {
+  return MI.getOperand(Op).getImm() - 32;
+}
+
+unsigned AArch64MCCodeEmitter::getShiftLeftImm64(
+    const MCInst &MI, unsigned Op, SmallVectorImpl<MCFixup> &Fixups) const {
+  return MI.getOperand(Op).getImm() - 64;
+}
 
 template<AArch64::Fixups fixupDesired> unsigned
 AArch64MCCodeEmitter::getLabelOpValue(const MCInst &MI,
@@ -346,7 +410,7 @@ AArch64MCCodeEmitter::getMachineOpValue(const MCInst &MI,
                                        const MCOperand &MO,
                                        SmallVectorImpl<MCFixup> &Fixups) const {
   if (MO.isReg()) {
-    return Ctx.getRegisterInfo().getEncodingValue(MO.getReg());
+    return Ctx.getRegisterInfo()->getEncodingValue(MO.getReg());
   } else if (MO.isImm()) {
     return static_cast<unsigned>(MO.getImm());
   }

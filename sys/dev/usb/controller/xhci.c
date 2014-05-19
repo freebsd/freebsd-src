@@ -108,6 +108,8 @@ TUNABLE_INT("hw.usb.xhci.xhci_port_route", &xhciroute);
 SYSCTL_INT(_hw_usb_xhci, OID_AUTO, use_polling, CTLFLAG_RW | CTLFLAG_TUN,
     &xhcipolling, 0, "Set to enable software interrupt polling for XHCI controller");
 TUNABLE_INT("hw.usb.xhci.use_polling", &xhcipolling);
+#else
+#define	xhciroute 0
 #endif
 
 #define	XHCI_INTR_ENDPT 1
@@ -158,7 +160,7 @@ static void xhci_ctx_set_le64(struct xhci_softc *sc, volatile uint64_t *ptr, uin
 static uint64_t xhci_ctx_get_le64(struct xhci_softc *sc, volatile uint64_t *ptr);
 #endif
 
-extern struct usb_bus_methods xhci_bus_methods;
+static const struct usb_bus_methods xhci_bus_methods;
 
 #ifdef USB_DEBUG
 static void
@@ -193,16 +195,6 @@ xhci_dump_device(struct xhci_softc *sc, struct xhci_slot_ctx *psl)
 	DPRINTFN(5, "dwSctx3=0x%08x\n", xhci_ctx_get_le32(sc, &psl->dwSctx3));
 }
 #endif
-
-uint32_t
-xhci_get_port_route(void)
-{
-#ifdef USB_DEBUG
-	return (0xFFFFFFFFU ^ ((uint32_t)xhciroute));
-#else
-	return (0xFFFFFFFFU);
-#endif
-}
 
 uint8_t
 xhci_use_polling(void)
@@ -286,6 +278,69 @@ xhci_ctx_get_le64(struct xhci_softc *sc, volatile uint64_t *ptr)
 }
 #endif
 
+static int
+xhci_reset_command_queue_locked(struct xhci_softc *sc)
+{
+	struct usb_page_search buf_res;
+	struct xhci_hw_root *phwr;
+	uint64_t addr;
+	uint32_t temp;
+
+	DPRINTF("\n");
+
+	temp = XREAD4(sc, oper, XHCI_CRCR_LO);
+	if (temp & XHCI_CRCR_LO_CRR) {
+		DPRINTF("Command ring running\n");
+		temp &= ~(XHCI_CRCR_LO_CS | XHCI_CRCR_LO_CA);
+
+		/*
+		 * Try to abort the last command as per section
+		 * 4.6.1.2 "Aborting a Command" of the XHCI
+		 * specification:
+		 */
+
+		/* stop and cancel */
+		XWRITE4(sc, oper, XHCI_CRCR_LO, temp | XHCI_CRCR_LO_CS);
+		XWRITE4(sc, oper, XHCI_CRCR_HI, 0);
+
+		XWRITE4(sc, oper, XHCI_CRCR_LO, temp | XHCI_CRCR_LO_CA);
+		XWRITE4(sc, oper, XHCI_CRCR_HI, 0);
+
+ 		/* wait 250ms */
+ 		usb_pause_mtx(&sc->sc_bus.bus_mtx, hz / 4);
+
+		/* check if command ring is still running */
+		temp = XREAD4(sc, oper, XHCI_CRCR_LO);
+		if (temp & XHCI_CRCR_LO_CRR) {
+			DPRINTF("Comand ring still running\n");
+			return (USB_ERR_IOERROR);
+		}
+	}
+
+	/* reset command ring */
+	sc->sc_command_ccs = 1;
+	sc->sc_command_idx = 0;
+
+	usbd_get_page(&sc->sc_hw.root_pc, 0, &buf_res);
+
+	/* setup command ring control base address */
+	addr = buf_res.physaddr;
+	phwr = buf_res.buffer;
+	addr += (uintptr_t)&((struct xhci_hw_root *)0)->hwr_commands[0];
+
+	DPRINTF("CRCR=0x%016llx\n", (unsigned long long)addr);
+
+	memset(phwr->hwr_commands, 0, sizeof(phwr->hwr_commands));
+	phwr->hwr_commands[XHCI_MAX_COMMANDS - 1].qwTrb0 = htole64(addr);
+
+	usb_pc_cpu_flush(&sc->sc_hw.root_pc);
+
+	XWRITE4(sc, oper, XHCI_CRCR_LO, ((uint32_t)addr) | XHCI_CRCR_LO_RCS);
+	XWRITE4(sc, oper, XHCI_CRCR_HI, (uint32_t)(addr >> 32));
+
+	return (0);
+}
+
 usb_error_t
 xhci_start_controller(struct xhci_softc *sc)
 {
@@ -331,8 +386,8 @@ xhci_start_controller(struct xhci_softc *sc)
 
 	for (i = 0; i != 100; i++) {
 		usb_pause_mtx(NULL, hz / 100);
-		temp = XREAD4(sc, oper, XHCI_USBCMD) &
-		    (XHCI_CMD_HCRST | XHCI_STS_CNR);
+		temp = (XREAD4(sc, oper, XHCI_USBCMD) & XHCI_CMD_HCRST) |
+		    (XREAD4(sc, oper, XHCI_USBSTS) & XHCI_STS_CNR);
 		if (!temp)
 			break;
 	}
@@ -440,8 +495,12 @@ xhci_start_controller(struct xhci_softc *sc)
 
 	XWRITE4(sc, runt, XHCI_ERSTSZ(0), XHCI_ERSTS_SET(temp));
 
+	/* Check if we should use the default IMOD value */
+	if (sc->sc_imod_default == 0)
+		sc->sc_imod_default = XHCI_IMOD_DEFAULT;
+
 	/* Setup interrupt rate */
-	XWRITE4(sc, runt, XHCI_IMOD(0), XHCI_IMOD_DEFAULT);
+	XWRITE4(sc, runt, XHCI_IMOD(0), sc->sc_imod_default);
 
 	usbd_get_page(&sc->sc_hw.root_pc, 0, &buf_res);
 
@@ -505,6 +564,11 @@ xhci_start_controller(struct xhci_softc *sc)
 	/* catch any lost interrupts */
 	xhci_do_poll(&sc->sc_bus);
 
+	if (sc->sc_port_route != NULL) {
+		/* Route all ports to the XHCI by default */
+		sc->sc_port_route(sc->sc_bus.parent,
+		    ~xhciroute, xhciroute);
+	}
 	return (0);
 }
 
@@ -951,7 +1015,7 @@ xhci_check_transfer(struct xhci_softc *sc, struct xhci_trb *trb)
 	}
 }
 
-static void
+static int
 xhci_check_command(struct xhci_softc *sc, struct xhci_trb *trb)
 {
 	if (sc->sc_cmd_addr == trb->qwTrb0) {
@@ -959,16 +1023,19 @@ xhci_check_command(struct xhci_softc *sc, struct xhci_trb *trb)
 		sc->sc_cmd_result[0] = trb->dwTrb2;
 		sc->sc_cmd_result[1] = trb->dwTrb3;
 		cv_signal(&sc->sc_cmd_cv);
+		return (1);	/* command match */
 	}
+	return (0);
 }
 
-static void
+static int
 xhci_interrupt_poll(struct xhci_softc *sc)
 {
 	struct usb_page_search buf_res;
 	struct xhci_hw_root *phwr;
 	uint64_t addr;
 	uint32_t temp;
+	int retval = 0;
 	uint16_t i;
 	uint8_t event;
 	uint8_t j;
@@ -1008,7 +1075,7 @@ xhci_interrupt_poll(struct xhci_softc *sc)
 			xhci_check_transfer(sc, &phwr->hwr_events[i]);
 			break;
 		case XHCI_TRB_EVENT_CMD_COMPLETE:
-			xhci_check_command(sc, &phwr->hwr_events[i]);
+			retval |= xhci_check_command(sc, &phwr->hwr_events[i]);
 			break;
 		default:
 			DPRINTF("Unhandled event = %u\n", event);
@@ -1045,6 +1112,8 @@ xhci_interrupt_poll(struct xhci_softc *sc)
 
 	XWRITE4(sc, runt, XHCI_ERDP_LO(0), (uint32_t)addr);
 	XWRITE4(sc, runt, XHCI_ERDP_HI(0), (uint32_t)(addr >> 32));
+
+	return (retval);
 }
 
 static usb_error_t
@@ -1057,6 +1126,7 @@ xhci_do_command(struct xhci_softc *sc, struct xhci_trb *trb,
 	uint32_t temp;
 	uint8_t i;
 	uint8_t j;
+	uint8_t timeout = 0;
 	int err;
 
 	XHCI_CMD_ASSERT_LOCKED(sc);
@@ -1070,7 +1140,7 @@ xhci_do_command(struct xhci_softc *sc, struct xhci_trb *trb,
 	/* Queue command */
 
 	USB_BUS_LOCK(&sc->sc_bus);
-
+retry:
 	i = sc->sc_command_idx;
 	j = sc->sc_command_ccs;
 
@@ -1132,8 +1202,44 @@ xhci_do_command(struct xhci_softc *sc, struct xhci_trb *trb,
 	err = cv_timedwait(&sc->sc_cmd_cv, &sc->sc_bus.bus_mtx,
 	    USB_MS_TO_TICKS(timeout_ms));
 
-	if (err) {
-		DPRINTFN(0, "Command timeout!\n");
+	/*
+	 * In some error cases event interrupts are not generated.
+	 * Poll one time to see if the command has completed.
+	 */
+	if (err != 0 && xhci_interrupt_poll(sc) != 0) {
+		DPRINTF("Command was completed when polling\n");
+		err = 0;
+	}
+	if (err != 0) {
+		DPRINTF("Command timeout!\n");
+		/*
+		 * After some weeks of continuous operation, it has
+		 * been observed that the ASMedia Technology, ASM1042
+		 * SuperSpeed USB Host Controller can suddenly stop
+		 * accepting commands via the command queue. Try to
+		 * first reset the command queue. If that fails do a
+		 * host controller reset.
+		 */
+		if (timeout == 0 &&
+		    xhci_reset_command_queue_locked(sc) == 0) {
+			temp = le32toh(trb->dwTrb3);
+
+			/*
+			 * Avoid infinite XHCI reset loops if the set
+			 * address command fails to respond due to a
+			 * non-enumerating device:
+			 */
+			if (XHCI_TRB_3_TYPE_GET(temp) == XHCI_TRB_TYPE_ADDRESS_DEVICE &&
+			    (temp & XHCI_TRB_3_BSR_BIT) == 0) {
+				DPRINTF("Set address timeout\n");
+			} else {
+				timeout = 1;
+				goto retry;
+			}
+		} else {
+			DPRINTF("Controller reset!\n");
+			usb_bus_reset_async_locked(&sc->sc_bus);
+		}
 		err = USB_ERR_TIMEOUT;
 		trb->dwTrb2 = 0;
 		trb->dwTrb3 = 0;
@@ -1311,6 +1417,14 @@ xhci_set_address(struct usb_device *udev, struct mtx *mtx, uint16_t address)
 		    (address == 0), index);
 
 		if (err != 0) {
+			temp = le32toh(sc->sc_cmd_result[0]);
+			if (address == 0 && sc->sc_port_route != NULL &&
+			    XHCI_TRB_2_ERROR_GET(temp) ==
+			    XHCI_TRB_ERROR_PARAMETER) {
+				/* LynxPoint XHCI - ports are not switchable */
+				/* Un-route all ports from the XHCI */
+				sc->sc_port_route(sc->sc_bus.parent, 0, ~0);
+			}
 			DPRINTF("Could not set address "
 			    "for slot %u.\n", index);
 			if (address != 0)
@@ -1480,23 +1594,26 @@ void
 xhci_interrupt(struct xhci_softc *sc)
 {
 	uint32_t status;
+	uint32_t temp;
 
 	USB_BUS_LOCK(&sc->sc_bus);
 
 	status = XREAD4(sc, oper, XHCI_USBSTS);
-	if (status == 0)
-		goto done;
 
-	/* acknowledge interrupts */
-
-	XWRITE4(sc, oper, XHCI_USBSTS, status);
-
-	DPRINTFN(16, "real interrupt (status=0x%08x)\n", status);
- 
-	if (status & XHCI_STS_EINT) {
-		/* check for event(s) */
-		xhci_interrupt_poll(sc);
+	/* acknowledge interrupts, if any */
+	if (status != 0) {
+		XWRITE4(sc, oper, XHCI_USBSTS, status);
+		DPRINTFN(16, "real interrupt (status=0x%08x)\n", status);
 	}
+
+	temp = XREAD4(sc, runt, XHCI_IMAN(0));
+
+	/* force clearing of pending interrupts */
+	if (temp & XHCI_IMAN_INTR_PEND)
+		XWRITE4(sc, runt, XHCI_IMAN(0), temp);
+ 
+	/* check for event(s) */
+	xhci_interrupt_poll(sc);
 
 	if (status & (XHCI_STS_PCD | XHCI_STS_HCH |
 	    XHCI_STS_HSE | XHCI_STS_HCE)) {
@@ -1520,7 +1637,6 @@ xhci_interrupt(struct xhci_softc *sc)
 			   __FUNCTION__);
 		}
 	}
-done:
 	USB_BUS_UNLOCK(&sc->sc_bus);
 }
 
@@ -1659,7 +1775,8 @@ restart:
 			/* check wLength */
 			if (td->td_trb[0].qwTrb0 &
 			   htole64(XHCI_TRB_0_WLENGTH_MASK)) {
-				if (td->td_trb[0].qwTrb0 & htole64(1))
+				if (td->td_trb[0].qwTrb0 &
+				    htole64(XHCI_TRB_0_DIR_IN_MASK))
 					dword |= XHCI_TRB_3_TRT_IN;
 				else
 					dword |= XHCI_TRB_3_TRT_OUT;
@@ -1794,7 +1911,16 @@ restart:
 		td->td_trb[x].dwTrb2 = htole32(dword);
 
 		dword = XHCI_TRB_3_TYPE_SET(XHCI_TRB_TYPE_LINK) |
-		    XHCI_TRB_3_CYCLE_BIT | XHCI_TRB_3_IOC_BIT;
+		    XHCI_TRB_3_CYCLE_BIT | XHCI_TRB_3_IOC_BIT |
+		    /*
+		     * CHAIN-BIT: Ensure that a multi-TRB IN-endpoint
+		     * frame only receives a single short packet event
+		     * by setting the CHAIN bit in the LINK field. In
+		     * addition some XHCI controllers have problems
+		     * sending a ZLP unless the CHAIN-BIT is set in
+		     * the LINK TRB.
+		     */
+		    XHCI_TRB_3_CHAIN_BIT;
 
 		td->td_trb[x].dwTrb3 = htole32(dword);
 
@@ -1832,9 +1958,11 @@ restart:
 	}
 
 	/* clear TD SIZE to zero, hence this is the last TRB */
-	/* remove chain bit because this is the last TRB in the chain */
+	/* remove chain bit because this is the last data TRB in the chain */
 	td->td_trb[td->ntrb - 1].dwTrb2 &= ~htole32(XHCI_TRB_2_TDSZ_SET(15));
 	td->td_trb[td->ntrb - 1].dwTrb3 &= ~htole32(XHCI_TRB_3_CHAIN_BIT);
+	/* remove CHAIN-BIT from last LINK TRB */
+	td->td_trb[td->ntrb].dwTrb3 &= ~htole32(XHCI_TRB_3_CHAIN_BIT);
 
 	usb_pc_cpu_flush(td->page_cache);
 
@@ -2503,7 +2631,11 @@ xhci_configure_device(struct usb_device *udev)
 
 	xhci_ctx_set_le32(sc, &pinp->ctx_slot.dwSctx2, temp);
 
-	temp = XHCI_SCTX_3_DEV_ADDR_SET(udev->address) |
+	/*
+	 * These fields should be initialized to zero, according to
+	 * XHCI section 6.2.2 - slot context:
+	 */
+	temp = XHCI_SCTX_3_DEV_ADDR_SET(0) |
 	    XHCI_SCTX_3_SLOT_STATE_SET(0);
 
 	xhci_ctx_set_le32(sc, &pinp->ctx_slot.dwSctx3, temp);
@@ -2967,7 +3099,7 @@ xhci_device_generic_start(struct usb_xfer *xfer)
 		usbd_transfer_timeout_ms(xfer, &xhci_timeout, xfer->timeout);
 }
 
-struct usb_pipe_methods xhci_device_generic_methods =
+static const struct usb_pipe_methods xhci_device_generic_methods =
 {
 	.open = xhci_device_generic_open,
 	.close = xhci_device_generic_close,
@@ -4133,7 +4265,7 @@ xhci_set_endpoint_mode(struct usb_device *udev, struct usb_endpoint *ep,
 	}
 }
 
-struct usb_bus_methods xhci_bus_methods = {
+static const struct usb_bus_methods xhci_bus_methods = {
 	.endpoint_init = xhci_ep_init,
 	.endpoint_uninit = xhci_ep_uninit,
 	.xfer_setup = xhci_xfer_setup,

@@ -230,8 +230,7 @@ struct aac_adapter_init {
 #define AAC_INIT_STRUCT_REVISION_4		4
 #define AAC_INIT_STRUCT_REVISION_6		6
 #define AAC_INIT_STRUCT_REVISION_7		7
-	u_int32_t	MiniPortRevision;
-#define AAC_INIT_STRUCT_MINIPORT_REVISION	1
+	u_int32_t	NoOfMSIXVectors;
 	u_int32_t	FilesystemRevision;
 	u_int32_t	CommHeaderAddress;
 	u_int32_t	FastIoCommAreaAddress;
@@ -675,6 +674,13 @@ struct aac_supplement_adapter_info {
 #define AAC_MONITOR_PANIC	0x00000020
 #define AAC_UP_AND_RUNNING	0x00000080
 #define AAC_KERNEL_PANIC	0x00000100
+
+/*
+ * for dual FW image support
+ */
+#define AAC_FLASH_UPD_PENDING	0x00002000
+#define AAC_FLASH_UPD_SUCCESS	0x00004000
+#define AAC_FLASH_UPD_FAILED	0x00008000
 
 /*
  * Data types relating to control and monitoring of the NVRAM/WriteCache 
@@ -1147,6 +1153,9 @@ typedef enum _VM_COMMANDS {
 #define	CT_CID_TO_32BITS_UID		165
 #define CT_PM_DRIVER_SUPPORT		245
 
+/* General CT_xxx return status */
+#define CT_OK		218
+
 /* CT_PM_DRIVER_SUPPORT parameter */
 typedef enum {
 	AAC_PM_DRIVERSUP_GET_STATUS = 1,
@@ -1188,7 +1197,10 @@ struct aac_mntobj {
 	u_int32_t			ContentState;
 	union {
 		u_int32_t	pad[8];
-		u_int32_t	BlockSize;
+		struct {
+			u_int32_t	BlockSize;
+			u_int32_t	bdLgclPhysMap;
+		} BlockDevice;
 	} ObjExtension;
 	u_int32_t			AlterEgoId;
 	u_int32_t			CapacityHigh;
@@ -1334,6 +1346,7 @@ typedef enum {
 #define	CT_PACKET_SIZE \
 	(AAC_FIB_DATASIZE - sizeof (u_int32_t) - \
 	((sizeof (u_int32_t)) * (MAX_FIB_PARAMS + 1)))
+#define CNT_SIZE			5
 
 struct aac_fsa_ctm {
 	u_int32_t	command;
@@ -1344,6 +1357,19 @@ struct aac_fsa_ctm {
 struct aac_cnt_config {
 	u_int32_t		Command;
 	struct aac_fsa_ctm	CTCommand;
+};
+
+/* check config. */
+enum {
+	CFACT_CONTINUE = 0,	/* continue without pause */
+	CFACT_PAUSE,		/* pause, then continue */
+	CFACT_ABORT		/* abort */
+};
+
+struct aac_cf_status_hdr {
+	u_int32_t	action;
+	u_int32_t	flags;
+	u_int32_t	recordcount;
 };
 
 /*
@@ -1540,7 +1566,8 @@ enum {
  * Register definitions for the Adaptec PMC SRC/SRCv adapters.
  */
 /* accessible via BAR0 */
-#define AAC_SRC_OMR			0xbc	/* outbound message register */
+#define AAC_SRC_OMR		0xbc	/* outbound message register */
+#define AAC_SRC_IOAR		0x18	/* IOA->host interrupt register */
 #define AAC_SRC_IDBR		0x20	/* inbound doorbell register */
 #define AAC_SRC_IISR		0x24	/* inbound interrupt status register */
 #define AAC_SRC_ODBR_R		0x9c	/* outbound doorbell register read */
@@ -1548,7 +1575,8 @@ enum {
 #define AAC_SRC_OIMR		0x34	/* outbound interrupt mask register */
 #define AAC_SRC_IQUE32		0x40	/* inbound queue address 32-bit */
 #define AAC_SRC_IQUE64_L	0xc0	/* inbound queue address 64-bit (low) */
-#define AAC_SRC_IQUE64_H	0xc4	/* inbound queue address 64-bit (high) */
+#define AAC_SRC_IQUE64_H	0xc4	/* inbound queue address 64-bit (high)*/
+#define AAC_SRC_ODBR_MSI	0xc8	/* MSI register for sync./AIF */
 
 #define AAC_SRC_MAILBOX		0x7fc60	/* mailbox (20 bytes) */
 #define AAC_SRCV_MAILBOX	0x1000	/* mailbox (20 bytes) */
@@ -1569,13 +1597,9 @@ enum {
  * Status bits in the doorbell registers.
  */
 #define AAC_DB_SYNC_COMMAND	(1<<0)	/* send/completed synchronous FIB */
-#define AAC_DB_COMMAND_READY	(1<<1)	/* posted one or more commands */
-#define AAC_DB_RESPONSE_READY	(1<<2)	/* one or more commands complete */
-#define AAC_DB_COMMAND_NOT_FULL	(1<<3)	/* command queue not full */
-#define AAC_DB_RESPONSE_NOT_FULL (1<<4)	/* response queue not full */
-#define AAC_DB_AIF_PENDING		(1<<6)	/* pending AIF (new comm. type1) */
+#define AAC_DB_AIF_PENDING	(1<<6)	/* pending AIF (new comm. type1) */
 /* PMC specific outbound doorbell bits */
-#define AAC_DB_RESPONSE_SENT_NS		(1<<1)	/* response sent (not shifted) */
+#define AAC_DB_RESPONSE_SENT_NS		(1<<1)	/* response sent (not shifted)*/
 
 /*
  * The adapter can request the host print a message by setting the
@@ -1588,11 +1612,55 @@ enum {
 #define AAC_PRINTF_DONE		(1<<5)	/* Host completed printf processing */
 
 /*
- * Mask containing the interrupt bits we care about.  We don't anticipate (or
- * want) interrupts not in this mask.
+ * Interrupts
  */
-#define AAC_DB_INTERRUPTS	(AAC_DB_COMMAND_READY  |	\
-				 AAC_DB_RESPONSE_READY |	\
-				 AAC_DB_PRINTF)
-#define AAC_DB_INT_NEW_COMM		0x08  
-#define AAC_DB_INT_NEW_COMM_TYPE1	0x04
+#define AAC_MAX_MSIX		32	/* vectors */
+#define AAC_PCI_MSI_ENABLE	0x8000
+#define AAC_MSI_SYNC_STATUS	0x1000
+
+enum {
+	AAC_ENABLE_INTERRUPT	= 0x0,
+	AAC_DISABLE_INTERRUPT,
+	AAC_ENABLE_MSIX,
+	AAC_DISABLE_MSIX,
+	AAC_CLEAR_AIF_BIT,
+	AAC_CLEAR_SYNC_BIT,
+	AAC_ENABLE_INTX
+};
+
+#define AAC_INT_MODE_INTX		(1<<0)
+#define AAC_INT_MODE_MSI		(1<<1)
+#define AAC_INT_MODE_AIF		(1<<2)
+#define AAC_INT_MODE_SYNC		(1<<3)
+
+#define AAC_INT_ENABLE_TYPE1_INTX	0xfffffffb
+#define AAC_INT_ENABLE_TYPE1_MSIX	0xfffffffa
+#define AAC_INT_DISABLE_ALL		0xffffffff
+
+/* Bit definitions in IOA->Host Interrupt Register */
+#define PMC_TRANSITION_TO_OPERATIONAL	(0x80000000 >> 0)
+#define PMC_IOARCB_TRANSFER_FAILED	(0x80000000 >> 3)
+#define PMC_IOA_UNIT_CHECK		(0x80000000 >> 4)
+#define PMC_NO_HOST_RRQ_FOR_CMD_RESPONSE (0x80000000 >> 5)
+#define PMC_CRITICAL_IOA_OP_IN_PROGRESS	(0x80000000 >> 6)
+#define PMC_IOARRIN_LOST		(0x80000000 >> 27)
+#define PMC_SYSTEM_BUS_MMIO_ERROR	(0x80000000 >> 28)
+#define PMC_IOA_PROCESSOR_IN_ERROR_STATE (0x80000000 >> 29)
+#define PMC_HOST_RRQ_VALID		(0x80000000 >> 30)
+#define PMC_OPERATIONAL_STATUS		(0x80000000 >> 0)
+#define PMC_ALLOW_MSIX_VECTOR0		(0x80000000 >> 31)
+
+#define PMC_IOA_ERROR_INTERRUPTS	(PMC_IOARCB_TRANSFER_FAILED | \
+					 PMC_IOA_UNIT_CHECK | \
+					 PMC_NO_HOST_RRQ_FOR_CMD_RESPONSE | \
+					 PMC_IOARRIN_LOST | \
+					 PMC_SYSTEM_BUS_MMIO_ERROR | \
+					 PMC_IOA_PROCESSOR_IN_ERROR_STATE)
+
+#define PMC_ALL_INTERRUPT_BITS		(PMC_IOA_ERROR_INTERRUPTS | \
+					 PMC_HOST_RRQ_VALID | \
+					 PMC_TRANSITION_TO_OPERATIONAL | \
+					 PMC_ALLOW_MSIX_VECTOR0)
+
+#define PMC_GLOBAL_INT_BIT2		0x00000004
+#define PMC_GLOBAL_INT_BIT0		0x00000001

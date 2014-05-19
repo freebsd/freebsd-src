@@ -106,7 +106,12 @@ next_command(struct cfjail *j)
 			case IP_MOUNT_DEVFS:
 				if (!bool_param(j->intparams[IP_MOUNT_DEVFS]))
 					continue;
-				/* FALLTHROUGH */
+				j->comstring = &dummystring;
+				break;
+			case IP_MOUNT_FDESCFS:
+				if (!bool_param(j->intparams[IP_MOUNT_FDESCFS]))
+					continue;
+				j->comstring = &dummystring;
 			case IP__OP:
 			case IP_STOP_TIMEOUT:
 				j->comstring = &dummystring;
@@ -449,6 +454,32 @@ run_command(struct cfjail *j)
 			*(const char **)&argv[4] = ".";
 			argv[5] = devpath;
 			argv[6] = NULL;
+		}
+		break;
+
+	case IP_MOUNT_FDESCFS:
+		argv = alloca(7 * sizeof(char *));
+		path = string_param(j->intparams[KP_PATH]);
+		if (path == NULL) {
+			jail_warnx(j, "mount.fdescfs: no path");
+			return -1;
+		}
+		devpath = alloca(strlen(path) + 8);
+		sprintf(devpath, "%s/dev/fd", path);
+		if (check_path(j, "mount.fdescfs", devpath, 0,
+		    down ? "fdescfs" : NULL) < 0)
+			return -1;
+		if (down) {
+			*(const char **)&argv[0] = "/sbin/umount";
+			argv[1] = devpath;
+			argv[2] = NULL;
+		} else {
+			*(const char **)&argv[0] = _PATH_MOUNT;
+			*(const char **)&argv[1] = "-t";
+			*(const char **)&argv[2] = "fdescfs";
+			*(const char **)&argv[3] = ".";
+			argv[4] = devpath;
+			argv[5] = NULL;
 		}
 		break;
 

@@ -53,7 +53,7 @@ struct usb_symlink;		/* UGEN */
 #define	USB_UNCFG_FLAG_NONE 0x00
 #define	USB_UNCFG_FLAG_FREE_EP0	0x02		/* endpoint zero is freed */
 
-struct usb_clear_stall_msg {
+struct usb_udev_msg {
 	struct usb_proc_msg hdr;
 	struct usb_device *udev;
 };
@@ -139,7 +139,7 @@ struct usb_hw_ep_scratch {
 	struct usb_hw_ep_scratch_sub *ep_max;
 	struct usb_config_descriptor *cd;
 	struct usb_device *udev;
-	struct usb_bus_methods *methods;
+	const struct usb_bus_methods *methods;
 	uint8_t	bmOutAlloc[(USB_EP_MAX + 15) / 16];
 	uint8_t	bmInAlloc[(USB_EP_MAX + 15) / 16];
 };
@@ -179,8 +179,8 @@ union usb_device_scratch {
  * these structures for every USB device.
  */
 struct usb_device {
-	struct usb_clear_stall_msg cs_msg[2];	/* generic clear stall
-						 * messages */
+	/* generic clear stall message */
+	struct usb_udev_msg cs_msg[2];
 	struct sx enum_sx;
 	struct sx sr_sx;
 	struct mtx device_mtx;
@@ -238,6 +238,9 @@ struct usb_device {
 	uint8_t	driver_added_refcount;	/* our driver added generation count */
 	uint8_t	power_mode;		/* see USB_POWER_XXX */
 	uint8_t re_enumerate_wait;	/* set if re-enum. is in progress */
+#define	USB_RE_ENUM_DONE	0
+#define	USB_RE_ENUM_START	1
+#define	USB_RE_ENUM_PWR_OFF	2
 	uint8_t ifaces_max;		/* number of interfaces present */
 	uint8_t endpoints_max;		/* number of endpoints present */
 
@@ -312,5 +315,11 @@ void	usbd_enum_unlock(struct usb_device *);
 void	usbd_sr_lock(struct usb_device *);
 void	usbd_sr_unlock(struct usb_device *);
 uint8_t usbd_enum_is_locked(struct usb_device *);
+
+#if USB_HAVE_TT_SUPPORT
+void	uhub_tt_buffer_reset_async_locked(struct usb_device *, struct usb_endpoint *);
+#endif
+
+uint8_t uhub_count_active_host_ports(struct usb_device *, enum usb_dev_speed);
 
 #endif					/* _USB_DEVICE_H_ */

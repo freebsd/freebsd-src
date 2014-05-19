@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2004,2005 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2010,2012 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -37,7 +37,7 @@
 
 #include "menu.priv.h"
 
-MODULE_ID("$Id: m_global.c,v 1.23 2005/12/31 21:51:52 tom Exp $")
+MODULE_ID("$Id: m_global.c,v 1.27 2012/06/10 00:09:15 tom Exp $")
 
 static char mark[] = "-";
 /* *INDENT-OFF* */
@@ -117,17 +117,17 @@ ComputeMaximum_NameDesc_Lengths(MENU * menu)
   assert(menu && menu->items);
   for (items = menu->items; *items; items++)
     {
-      check = _nc_Calculate_Text_Width(&((*items)->name));
+      check = (unsigned)_nc_Calculate_Text_Width(&((*items)->name));
       if (check > MaximumNameLength)
 	MaximumNameLength = check;
 
-      check = _nc_Calculate_Text_Width(&((*items)->description));
+      check = (unsigned)_nc_Calculate_Text_Width(&((*items)->description));
       if (check > MaximumDescriptionLength)
 	MaximumDescriptionLength = check;
     }
 
-  menu->namelen = MaximumNameLength;
-  menu->desclen = MaximumDescriptionLength;
+  menu->namelen = (short)MaximumNameLength;
+  menu->desclen = (short)MaximumDescriptionLength;
   T(("ComputeMaximum_NameDesc_Lengths %d,%d", menu->namelen, menu->desclen));
 }
 
@@ -195,7 +195,7 @@ _nc_Connect_Items(MENU * menu, ITEM ** items)
 		{
 		  (*item)->value = FALSE;
 		}
-	      (*item)->index = ItemCount++;
+	      (*item)->index = (short)ItemCount++;
 	      (*item)->imenu = menu;
 	    }
 	}
@@ -206,7 +206,7 @@ _nc_Connect_Items(MENU * menu, ITEM ** items)
   if (ItemCount != 0)
     {
       menu->items = items;
-      menu->nitems = ItemCount;
+      menu->nitems = (short)ItemCount;
       ComputeMaximum_NameDesc_Lengths(menu);
       if ((menu->pattern = typeMalloc(char, (unsigned)(1 + menu->namelen))))
 	{
@@ -253,10 +253,10 @@ _nc_Calculate_Text_Width(const TEXT * item /*FIXME: limit length */ )
 #if USE_WIDEC_SUPPORT
   int result = item->length;
 
-  T((T_CALLED("_nc_menu_text_width(%p)"), item));
+  T((T_CALLED("_nc_menu_text_width(%p)"), (const void *)item));
   if (result != 0 && item->str != 0)
     {
-      int count = mbstowcs(0, item->str, 0);
+      int count = (int)mbstowcs(0, item->str, 0);
       wchar_t *temp = 0;
 
       if (count > 0
@@ -343,7 +343,7 @@ _nc_Calculate_Item_Length_and_Width(MENU * menu)
 
   assert(menu);
 
-  menu->height = 1 + menu->spc_rows * (menu->arows - 1);
+  menu->height = (short)(1 + menu->spc_rows * (menu->arows - 1));
 
   l = calculate_actual_width(menu, TRUE);
   l += menu->marklen;
@@ -354,10 +354,10 @@ _nc_Calculate_Item_Length_and_Width(MENU * menu)
       l += menu->spc_desc;
     }
 
-  menu->itemlen = l;
+  menu->itemlen = (short)l;
   l *= menu->cols;
   l += (menu->cols - 1) * menu->spc_cols;	/* for the padding between the columns */
-  menu->width = l;
+  menu->width = (short)l;
 
   T(("_nc_CalculateItem_Length_and_Width columns %d, item %d, width %d",
      menu->cols,
@@ -388,7 +388,7 @@ _nc_Link_Items(MENU * menu)
       int Last_in_Column;
       bool cycle = (menu->opt & O_NONCYCLIC) ? FALSE : TRUE;
 
-      menu->status &= ~_LINK_NEEDED;
+      ClrStatus(menu, _LINK_NEEDED);
 
       if (menu->opt & O_ROWMAJOR)
 	{
@@ -431,8 +431,8 @@ _nc_Link_Items(MENU * menu)
 		(cycle ? menu->items[(row + 1) < menu->rows ?
 				     Number_Of_Items - 1 : col] :
 		 (ITEM *) 0);
-	      item->x = col;
-	      item->y = row;
+	      item->x = (short)col;
+	      item->y = (short)row;
 	      if (++col == Number_Of_Columns)
 		{
 		  row++;
@@ -482,8 +482,8 @@ _nc_Link_Items(MENU * menu)
 		 (ITEM *) 0
 		);
 
-	      item->x = col;
-	      item->y = row;
+	      item->x = (short)col;
+	      item->y = (short)row;
 	      if ((++row) == Number_Of_Rows)
 		{
 		  col++;
@@ -496,7 +496,7 @@ _nc_Link_Items(MENU * menu)
 
 /*---------------------------------------------------------------------------
 |   Facility      :  libnmenu  
-|   Function      :  void _nc_Show_Menu(const MENU *menu)
+|   Function      :  void _nc_Show_Menu(const MENU* menu)
 |   
 |   Description   :  Update the window that is associated with the menu
 |
@@ -543,8 +543,10 @@ _nc_Show_Menu(const MENU * menu)
 |   Return Values :  -
 +--------------------------------------------------------------------------*/
 NCURSES_EXPORT(void)
-  _nc_New_TopRow_and_CurrentItem
-  (MENU * menu, int new_toprow, ITEM * new_current_item)
+_nc_New_TopRow_and_CurrentItem(
+				MENU * menu,
+				int new_toprow,
+				ITEM * new_current_item)
 {
   ITEM *cur_item;
   bool mterm_called = FALSE;
@@ -566,7 +568,7 @@ NCURSES_EXPORT(void)
 
       cur_item = menu->curitem;
       assert(cur_item);
-      menu->toprow = new_toprow;
+      menu->toprow = (short)new_toprow;
       menu->curitem = new_current_item;
 
       if (mterm_called)
@@ -588,7 +590,7 @@ NCURSES_EXPORT(void)
     }
   else
     {				/* if we are not posted, this is quite simple */
-      menu->toprow = new_toprow;
+      menu->toprow = (short)new_toprow;
       menu->curitem = new_current_item;
     }
 }

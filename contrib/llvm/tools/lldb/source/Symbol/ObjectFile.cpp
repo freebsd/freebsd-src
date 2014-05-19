@@ -423,6 +423,7 @@ ObjectFile::GetAddressClass (addr_t file_addr)
             case eSymbolTypeObjCClass:      return eAddressClassRuntime;
             case eSymbolTypeObjCMetaClass:  return eAddressClassRuntime;
             case eSymbolTypeObjCIVar:       return eAddressClassRuntime;
+            case eSymbolTypeReExported:     return eAddressClassRuntime;
             }
         }
     }
@@ -459,7 +460,8 @@ size_t
 ObjectFile::CopyData (off_t offset, size_t length, void *dst) const
 {
     // The entire file has already been mmap'ed into m_data, so just copy from there
-    return m_data.CopyByteOrderedData (offset, length, dst, length, lldb::endian::InlHostByteOrder());
+    // Note that the data remains in target byte order.
+    return m_data.CopyData (offset, length, dst);
 }
 
 
@@ -501,7 +503,7 @@ ObjectFile::ReadSectionData (const Section *section, off_t section_offset, void 
                 uint64_t section_dst_len = dst_len;
                 if (section_dst_len > section_bytes_left)
                     section_dst_len = section_bytes_left;
-                bzero(dst, section_dst_len);
+                memset(dst, 0, section_dst_len);
                 return section_dst_len;
             }
         }

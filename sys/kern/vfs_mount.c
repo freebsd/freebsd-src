@@ -656,7 +656,7 @@ vfs_donmount(struct thread *td, uint64_t fsflags, struct uio *fsoptions)
 	 * variables will fit in our mp buffers, including the
 	 * terminating NUL.
 	 */
-	if (fstypelen >= MFSNAMELEN - 1 || fspathlen >= MNAMELEN - 1) {
+	if (fstypelen > MFSNAMELEN || fspathlen > MNAMELEN) {
 		error = ENAMETOOLONG;
 		goto bail;
 	}
@@ -748,7 +748,7 @@ sys_mount(td, uap)
 		return (EOPNOTSUPP);
 	}
 
-	ma = mount_argsu(ma, "fstype", uap->type, MNAMELEN);
+	ma = mount_argsu(ma, "fstype", uap->type, MFSNAMELEN);
 	ma = mount_argsu(ma, "fspath", uap->path, MNAMELEN);
 	ma = mount_argb(ma, flags & MNT_RDONLY, "noro");
 	ma = mount_argb(ma, !(flags & MNT_NOSUID), "nosuid");

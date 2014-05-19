@@ -4,11 +4,11 @@
 
 PROG=	wlanstats
 BINDIR=	/usr/local/bin
-NO_MAN=
+MAN=
+USEPRIVATELIB=
 
-SRCS=	statfoo.c wlanstats.c main.c
-.if ${COMPILER_TYPE} == "clang"
-CFLAGS+= -fbracket-depth=512
-.endif
+SRCS=	wlanstats.c main.c
+LDADD=	-lbsdstat
+CFLAGS.clang+= -fbracket-depth=512
 
 .include <bsd.prog.mk>

@@ -373,7 +373,13 @@ typedef  apr_uint32_t            apr_uintptr_t;
 #endif
 
 /* Are we big endian? */
+#if _BYTE_ORDER == _LITTLE_ENDIAN
 #define APR_IS_BIGENDIAN	0
+#elif _BYTE_ORDER == _BIG_ENDIAN
+#define APR_IS_BIGENDIAN	1
+#else
+#error Unknown byte order.
+#endif
 
 /* Mechanisms to properly type numeric literals */
 #define APR_INT64_C(val) INT64_C(val)

@@ -69,6 +69,10 @@ const char *const tree_code_class_strings[] =
   "expression",
 };
 
+/* APPLE LOCAL begin 6353006  */
+tree generic_block_literal_struct_type;
+/* APPLE LOCAL end 6353006  */
+
 /* obstack.[ch] explicitly declined to prototype this.  */
 extern int _obstack_allocated_p (struct obstack *h, void *obj);
 
@@ -541,9 +545,13 @@ make_node_stat (enum tree_code code MEM_STAT_DECL)
 	DECL_IN_SYSTEM_HEADER (t) = in_system_header;
       if (CODE_CONTAINS_STRUCT (code, TS_DECL_COMMON))
 	{
-	  if (code != FUNCTION_DECL)
+	  if (code == FUNCTION_DECL)
+	    {
+	      DECL_ALIGN (t) = FUNCTION_BOUNDARY;
+	      DECL_MODE (t) = FUNCTION_MODE;
+	    }
+	  else
 	    DECL_ALIGN (t) = 1;
-	  DECL_USER_ALIGN (t) = 0;	  
 	  /* We have not yet computed the alias set for this declaration.  */
 	  DECL_POINTER_ALIAS_SET (t) = -1;
 	}
@@ -1881,14 +1889,13 @@ expr_align (tree t)
       align1 = expr_align (TREE_OPERAND (t, 2));
       return MIN (align0, align1);
 
+      /* FIXME: LABEL_DECL and CONST_DECL never have DECL_ALIGN set
+	 meaningfully, it's always 1.  */
     case LABEL_DECL:     case CONST_DECL:
     case VAR_DECL:       case PARM_DECL:   case RESULT_DECL:
-      if (DECL_ALIGN (t) != 0)
-	return DECL_ALIGN (t);
-      break;
-
     case FUNCTION_DECL:
-      return FUNCTION_BOUNDARY;
+      gcc_assert (DECL_ALIGN (t) != 0);
+      return DECL_ALIGN (t);
 
     default:
       break;
@@ -3174,8 +3181,6 @@ build_decl_stat (enum tree_code code, tree name, tree type MEM_STAT_DECL)
 
   if (code == VAR_DECL || code == PARM_DECL || code == RESULT_DECL)
     layout_decl (t, 0);
-  else if (code == FUNCTION_DECL)
-    DECL_MODE (t) = FUNCTION_MODE;
 
   return t;
 }
@@ -5015,6 +5020,31 @@ build_pointer_type (tree to_type)
   return build_pointer_type_for_mode (to_type, ptr_mode, false);
 }
 
+/* APPLE LOCAL begin radar 5732232 - blocks */
+tree
+build_block_pointer_type (tree to_type)
+{
+  tree t;
+
+  /* APPLE LOCAL begin radar 6300081 & 6353006 */
+  if (!generic_block_literal_struct_type)
+      generic_block_literal_struct_type = 
+      lang_hooks.build_generic_block_struct_type ();
+  /* APPLE LOCAL end radar 6300081 & 6353006 */
+
+  t = make_node (BLOCK_POINTER_TYPE);
+
+  TREE_TYPE (t) = to_type;
+  TYPE_MODE (t) = ptr_mode;
+
+  /* Lay out the type.  This function has many callers that are concerned
+     with expression-construction, and this simplifies them all.  */
+  layout_type (t);
+
+  return t;
+}
+/* APPLE LOCAL end radar 5732232 - blocks */
+
 /* Same as build_pointer_type_for_mode, but for REFERENCE_TYPE.  */
 
 tree
@@ -6044,41 +6074,48 @@ clean_symbol_name (char *p)
       *p = '_';
 }
 
-/* Generate a name for a function unique to this translation unit.
+/* Generate a name for a special-purpose function function.
+   The generated name may need to be unique across the whole link.
    TYPE is some string to identify the purpose of this function to the
-   linker or collect2.  */
+   linker or collect2; it must start with an uppercase letter,
+   one of:
+   I - for constructors
+   D - for destructors
+   N - for C++ anonymous namespaces
+   F - for DWARF unwind frame information.  */
 
 tree
-get_file_function_name_long (const char *type)
+get_file_function_name (const char *type)
 {
   char *buf;
   const char *p;
   char *q;
 
+  /* If we already have a name we know to be unique, just use that.  */
   if (first_global_object_name)
+    p = first_global_object_name;
+  /* If the target is handling the constructors/destructors, they
+     will be local to this file and the name is only necessary for
+     debugging purposes.  */
+  else if ((type[0] == 'I' || type[0] == 'D') && targetm.have_ctors_dtors)
     {
-      p = first_global_object_name;
-
-      /* For type 'F', the generated name must be unique not only to this
-	 translation unit but also to any given link.  Since global names
-	 can be overloaded, we concatenate the first global object name
-	 with a string derived from the file name of this object.  */
-      if (!strcmp (type, "F"))
-	{
-	  const char *file = main_input_filename;
-
-	  if (! file)
-	    file = input_filename;
-
-	  q = alloca (strlen (p) + 10);
-	  sprintf (q, "%s_%08X", p, crc32_string (0, file));
-
-	  p = q;
-	}
+      const char *file = main_input_filename;
+      if (! file)
+	file = input_filename;
+      /* Just use the file's basename, because the full pathname
+	 might be quite long.  */
+      p = strrchr (file, '/');
+      if (p)
+	p++;
+      else
+	p = file;
+      p = q = ASTRDUP (p);
+      clean_symbol_name (q);
     }
   else
     {
-      /* We don't have anything that we know to be unique to this translation
+      /* Otherwise, the name must be unique across the entire link.
+	 We don't have anything that we know to be unique to this translation
 	 unit, so use what we do have and throw in some randomness.  */
       unsigned len;
       const char *name = weak_global_object_name;
@@ -6109,20 +6146,6 @@ get_file_function_name_long (const char *type)
   sprintf (buf, FILE_FUNCTION_FORMAT, type, p);
 
   return get_identifier (buf);
-}
-
-/* If KIND=='I', return a suitable global initializer (constructor) name.
-   If KIND=='D', return a suitable global clean-up (destructor) name.  */
-
-tree
-get_file_function_name (int kind)
-{
-  char p[2];
-
-  p[0] = kind;
-  p[1] = 0;
-
-  return get_file_function_name_long (p);
 }
 
 #if defined ENABLE_TREE_CHECKING && (GCC_VERSION >= 2007)
@@ -6584,6 +6607,10 @@ build_common_tree_nodes_2 (int short_double)
   double_ptr_type_node = build_pointer_type (double_type_node);
   long_double_ptr_type_node = build_pointer_type (long_double_type_node);
   integer_ptr_type_node = build_pointer_type (integer_type_node);
+
+  /* Fixed size integer types.  */
+  uint32_type_node = build_nonstandard_integer_type (32, true);
+  uint64_type_node = build_nonstandard_integer_type (64, true);
 
   /* Decimal float types. */
   dfloat32_type_node = make_node (REAL_TYPE);
@@ -7772,5 +7799,6 @@ empty_body_p (tree stmt)
 
   return true;
 }
+
 
 #include "gt-tree.h"

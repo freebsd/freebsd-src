@@ -72,53 +72,10 @@ netgraphprotopr(u_long off, const char *name, int af1 __unused,
 
 	/* If symbol not found, try looking in the KLD module */
 	if (off == 0) {
-		const char *const modname = "ng_socket.ko";
-/* XXX We should get "mpath" from "sysctl kern.module_path" */
-		const char *mpath[] = { "/", "/boot/", "/modules/", NULL };
-		struct nlist sym[] = { { .n_name = "_ngsocklist" },
-				       { .n_name = NULL } };
-		const char **pre;
-		struct kld_file_stat ks;
-		int fileid;
-
-		/* Can't do this for core dumps. */
-		if (!live)
-			return;
-
-		/* See if module is loaded */
-		if ((fileid = kldfind(modname)) < 0) {
-			if (debug)
-				warn("kldfind(%s)", modname);
-			return;
-		}
-
-		/* Get module info */
-		memset(&ks, 0, sizeof(ks));
-		ks.version = sizeof(struct kld_file_stat);
-		if (kldstat(fileid, &ks) < 0) {
-			if (debug)
-				warn("kldstat(%d)", fileid);
-			return;
-		}
-
-		/* Get symbol table from module file */
-		for (pre = mpath; *pre; pre++) {
-			char path[MAXPATHLEN];
-
-			snprintf(path, sizeof(path), "%s%s", *pre, modname);
-			if (nlist(path, sym) == 0)
-				break;
-		}
-
-		/* Did we find it? */
-		if (sym[0].n_value == 0) {
-			if (debug)
-				warnx("%s not found", modname);
-			return;
-		}
-
-		/* Symbol found at load address plus symbol offset */
-		off = (u_long) ks.address + sym[0].n_value;
+		if (debug)
+			fprintf(stderr,
+			    "Error reading symbols from ng_socket.ko");
+		return;
 	}
 
 	/* Get pointer to first socket */

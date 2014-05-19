@@ -161,7 +161,7 @@ sysctl_nmbclusters(SYSCTL_HANDLER_ARGS)
 
 	newnmbclusters = nmbclusters;
 	error = sysctl_handle_int(oidp, &newnmbclusters, 0, req);
-	if (error == 0 && req->newptr) {
+	if (error == 0 && req->newptr && newnmbclusters != nmbclusters) {
 		if (newnmbclusters > nmbclusters &&
 		    nmbufs >= nmbclusters + nmbjumbop + nmbjumbo9 + nmbjumbo16) {
 			nmbclusters = newnmbclusters;
@@ -183,7 +183,7 @@ sysctl_nmbjumbop(SYSCTL_HANDLER_ARGS)
 
 	newnmbjumbop = nmbjumbop;
 	error = sysctl_handle_int(oidp, &newnmbjumbop, 0, req);
-	if (error == 0 && req->newptr) {
+	if (error == 0 && req->newptr && newnmbjumbop != nmbjumbop) {
 		if (newnmbjumbop > nmbjumbop &&
 		    nmbufs >= nmbclusters + nmbjumbop + nmbjumbo9 + nmbjumbo16) {
 			nmbjumbop = newnmbjumbop;
@@ -204,7 +204,7 @@ sysctl_nmbjumbo9(SYSCTL_HANDLER_ARGS)
 
 	newnmbjumbo9 = nmbjumbo9;
 	error = sysctl_handle_int(oidp, &newnmbjumbo9, 0, req);
-	if (error == 0 && req->newptr) {
+	if (error == 0 && req->newptr && newnmbjumbo9 != nmbjumbo9) {
 		if (newnmbjumbo9 > nmbjumbo9 &&
 		    nmbufs >= nmbclusters + nmbjumbop + nmbjumbo9 + nmbjumbo16) {
 			nmbjumbo9 = newnmbjumbo9;
@@ -225,7 +225,7 @@ sysctl_nmbjumbo16(SYSCTL_HANDLER_ARGS)
 
 	newnmbjumbo16 = nmbjumbo16;
 	error = sysctl_handle_int(oidp, &newnmbjumbo16, 0, req);
-	if (error == 0 && req->newptr) {
+	if (error == 0 && req->newptr && newnmbjumbo16 != nmbjumbo16) {
 		if (newnmbjumbo16 > nmbjumbo16 &&
 		    nmbufs >= nmbclusters + nmbjumbop + nmbjumbo9 + nmbjumbo16) {
 			nmbjumbo16 = newnmbjumbo16;
@@ -246,7 +246,7 @@ sysctl_nmbufs(SYSCTL_HANDLER_ARGS)
 
 	newnmbufs = nmbufs;
 	error = sysctl_handle_int(oidp, &newnmbufs, 0, req);
-	if (error == 0 && req->newptr) {
+	if (error == 0 && req->newptr && newnmbufs != nmbufs) {
 		if (newnmbufs > nmbufs) {
 			nmbufs = newnmbufs;
 			nmbufs = uma_zone_set_max(zone_mbuf, nmbufs);
@@ -647,20 +647,7 @@ m_pkthdr_init(struct mbuf *m, int how)
 	int error;
 #endif
 	m->m_data = m->m_pktdat;
-	m->m_pkthdr.rcvif = NULL;
-	SLIST_INIT(&m->m_pkthdr.tags);
-	m->m_pkthdr.len = 0;
-	m->m_pkthdr.flowid = 0;
-	m->m_pkthdr.csum_flags = 0;
-	m->m_pkthdr.fibnum = 0;
-	m->m_pkthdr.cosqos = 0;
-	m->m_pkthdr.rsstype = 0;
-	m->m_pkthdr.l2hlen = 0;
-	m->m_pkthdr.l3hlen = 0;
-	m->m_pkthdr.l4hlen = 0;
-	m->m_pkthdr.l5hlen = 0;
-	m->m_pkthdr.PH_per.sixtyfour[0] = 0;
-	m->m_pkthdr.PH_loc.sixtyfour[0] = 0;
+	bzero(&m->m_pkthdr, sizeof(m->m_pkthdr));
 #ifdef MAC
 	/* If the label init fails, fail the alloc */
 	error = mac_mbuf_init(m, how);

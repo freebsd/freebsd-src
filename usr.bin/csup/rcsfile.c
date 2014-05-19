@@ -26,6 +26,8 @@
  * $FreeBSD$
  */
 
+#include <sys/queue.h>
+
 #include <assert.h>
 #include <err.h>
 #include <errno.h>
@@ -37,7 +39,6 @@
 #include "keyword.h"
 #include "misc.h"
 #include "proto.h"
-#include "queue.h"
 #include "rcsfile.h"
 #include "rcsparse.h"
 #include "stream.h"

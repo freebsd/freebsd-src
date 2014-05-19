@@ -995,7 +995,7 @@ _pmap_unwire_ptp(pmap_t pmap, vm_offset_t va, vm_page_t m)
 	 * If the page is finally unwired, simply free it.
 	 */
 	vm_page_free_zero(m);
-	atomic_subtract_int(&cnt.v_wire_count, 1);
+	atomic_subtract_int(&vm_cnt.v_wire_count, 1);
 }
 
 /*
@@ -1144,7 +1144,7 @@ _pmap_allocpte(pmap_t pmap, unsigned ptepindex, int flags)
 			    flags) == NULL) {
 				/* alloc failed, release current */
 				--m->wire_count;
-				atomic_subtract_int(&cnt.v_wire_count, 1);
+				atomic_subtract_int(&vm_cnt.v_wire_count, 1);
 				vm_page_free_zero(m);
 				return (NULL);
 			}
@@ -1227,7 +1227,7 @@ pmap_release(pmap_t pmap)
 	ptdpg = PHYS_TO_VM_PAGE(MIPS_DIRECT_TO_PHYS(ptdva));
 
 	ptdpg->wire_count--;
-	atomic_subtract_int(&cnt.v_wire_count, 1);
+	atomic_subtract_int(&vm_cnt.v_wire_count, 1);
 	vm_page_free_zero(ptdpg);
 }
 
@@ -3050,24 +3050,6 @@ pmap_is_referenced(vm_page_t m)
 	KASSERT((m->oflags & VPO_UNMANAGED) == 0,
 	    ("pmap_is_referenced: page %p is not managed", m));
 	return ((m->md.pv_flags & PV_TABLE_REF) != 0);
-}
-
-/*
- *	pmap_clear_reference:
- *
- *	Clear the reference bit on the specified physical page.
- */
-void
-pmap_clear_reference(vm_page_t m)
-{
-
-	KASSERT((m->oflags & VPO_UNMANAGED) == 0,
-	    ("pmap_clear_reference: page %p is not managed", m));
-	rw_wlock(&pvh_global_lock);
-	if (m->md.pv_flags & PV_TABLE_REF) {
-		m->md.pv_flags &= ~PV_TABLE_REF;
-	}
-	rw_wunlock(&pvh_global_lock);
 }
 
 /*

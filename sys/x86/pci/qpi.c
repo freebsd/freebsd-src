@@ -45,8 +45,9 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/cputypes.h>
 #include <machine/md_var.h>
-#include <machine/pci_cfgreg.h>
-#include <machine/specialreg.h>
+#include <x86/legacyvar.h>
+#include <x86/pci_cfgreg.h>
+#include <x86/specialreg.h>
 
 #include <dev/pci/pcireg.h>
 #include <dev/pci/pcivar.h>
@@ -237,41 +238,19 @@ qpi_pcib_read_ivar(device_t dev, device_t child, int which, uintptr_t *result)
 	}
 }
 
-static uint32_t
-qpi_pcib_read_config(device_t dev, u_int bus, u_int slot, u_int func,
-    u_int reg, int bytes)
+#if defined(NEW_PCIB) && defined(PCI_RES_BUS)
+static struct resource *
+qpi_pcib_alloc_resource(device_t dev, device_t child, int type, int *rid,
+    u_long start, u_long end, u_long count, u_int flags)
 {
 
-	return (pci_cfgregread(bus, slot, func, reg, bytes));
+	if (type == PCI_RES_BUS)
+		return (pci_domain_alloc_bus(0, child, rid, start, end, count,
+		    flags));
+	return (bus_generic_alloc_resource(dev, child, type, rid, start, end,
+	    count, flags));
 }
-
-static void
-qpi_pcib_write_config(device_t dev, u_int bus, u_int slot, u_int func,
-    u_int reg, uint32_t data, int bytes)
-{
-
-	pci_cfgregwrite(bus, slot, func, reg, data, bytes);
-}
-
-static int
-qpi_pcib_alloc_msi(device_t pcib, device_t dev, int count, int maxcount,
-    int *irqs)
-{
-	device_t bus;
-
-	bus = device_get_parent(pcib);
-	return (PCIB_ALLOC_MSI(device_get_parent(bus), dev, count, maxcount,
-	    irqs));
-}
-
-static int
-qpi_pcib_alloc_msix(device_t pcib, device_t dev, int *irq)
-{
-	device_t bus;
-
-	bus = device_get_parent(pcib);
-	return (PCIB_ALLOC_MSIX(device_get_parent(bus), dev, irq));
-}
+#endif
 
 static int
 qpi_pcib_map_msi(device_t pcib, device_t dev, int irq, uint64_t *addr,
@@ -293,8 +272,14 @@ static device_method_t qpi_pcib_methods[] = {
 
 	/* Bus interface */
 	DEVMETHOD(bus_read_ivar,	qpi_pcib_read_ivar),
+#if defined(NEW_PCIB) && defined(PCI_RES_BUS)
+	DEVMETHOD(bus_alloc_resource,	qpi_pcib_alloc_resource),
+	DEVMETHOD(bus_adjust_resource,	legacy_pcib_adjust_resource),
+	DEVMETHOD(bus_release_resource,	legacy_pcib_release_resource),
+#else
 	DEVMETHOD(bus_alloc_resource,	bus_generic_alloc_resource),
 	DEVMETHOD(bus_release_resource,	bus_generic_release_resource),
+#endif
 	DEVMETHOD(bus_activate_resource, bus_generic_activate_resource),
 	DEVMETHOD(bus_deactivate_resource, bus_generic_deactivate_resource),
 	DEVMETHOD(bus_setup_intr,	bus_generic_setup_intr),
@@ -302,11 +287,11 @@ static device_method_t qpi_pcib_methods[] = {
 
 	/* pcib interface */
 	DEVMETHOD(pcib_maxslots,	pcib_maxslots),
-	DEVMETHOD(pcib_read_config,	qpi_pcib_read_config),
-	DEVMETHOD(pcib_write_config,	qpi_pcib_write_config),
-	DEVMETHOD(pcib_alloc_msi,	qpi_pcib_alloc_msi),
+	DEVMETHOD(pcib_read_config,	legacy_pcib_read_config),
+	DEVMETHOD(pcib_write_config,	legacy_pcib_write_config),
+	DEVMETHOD(pcib_alloc_msi,	legacy_pcib_alloc_msi),
 	DEVMETHOD(pcib_release_msi,	pcib_release_msi),
-	DEVMETHOD(pcib_alloc_msix,	qpi_pcib_alloc_msix),
+	DEVMETHOD(pcib_alloc_msix,	legacy_pcib_alloc_msix),
 	DEVMETHOD(pcib_release_msix,	pcib_release_msix),
 	DEVMETHOD(pcib_map_msi,		qpi_pcib_map_msi),
 

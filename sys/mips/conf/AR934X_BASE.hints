@@ -22,6 +22,10 @@ hint.ehci.0.maddr=0x1b000100
 hint.ehci.0.msize=0x00001000
 hint.ehci.0.irq=1
 
+# pci
+hint.pcib.0.at="nexus0"
+hint.pcib.0.irq=0
+
 hint.arge.0.at="nexus0"
 hint.arge.0.maddr=0x19000000
 hint.arge.0.msize=0x1000

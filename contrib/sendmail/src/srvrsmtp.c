@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998-2010, 2012, 2013 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 1998-2010, 2012, 2013 Proofpoint, Inc. and its suppliers.
  *	All rights reserved.
  * Copyright (c) 1983, 1995-1997 Eric P. Allman.  All rights reserved.
  * Copyright (c) 1988, 1993
@@ -17,7 +17,7 @@
 # include <libmilter/mfdef.h>
 #endif /* MILTER */
 
-SM_RCSID("@(#)$Id: srvrsmtp.c,v 8.1015 2013/03/12 15:24:54 ca Exp $")
+SM_RCSID("@(#)$Id: srvrsmtp.c,v 8.1016 2013/11/22 20:51:56 ca Exp $")
 
 #include <sm/time.h>
 #include <sm/fdset.h>

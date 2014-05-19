@@ -34,6 +34,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/proc.h>
 #include <sys/bus.h>
 #include <sys/conf.h>
+#include <sys/endian.h>
 #include <sys/kernel.h>
 #include <sys/module.h>
 #include <sys/rman.h>
@@ -73,7 +74,7 @@ static int small_program_page(device_t, uint32_t, void *, uint32_t, uint32_t);
 static int small_program_oob(device_t, uint32_t, void *, uint32_t, uint32_t);
 
 static int onfi_is_blk_bad(device_t, uint32_t, uint8_t *);
-static int onfi_read_parameter(struct nand_chip *, struct onfi_params *);
+static int onfi_read_parameter(struct nand_chip *, struct onfi_chip_params *);
 
 static int nand_send_address(device_t, int32_t, int32_t, int8_t);
 
@@ -206,7 +207,7 @@ generic_nand_attach(device_t dev)
 {
 	struct nand_chip *chip;
 	struct nandbus_ivar *ivar;
-	struct onfi_params *onfi_params;
+	struct onfi_chip_params *onfi_chip_params;
 	device_t nandbus, nfc;
 	int err;
 
@@ -225,25 +226,24 @@ generic_nand_attach(device_t dev)
 	chip->nand = device_get_softc(nfc);
 
 	if (ivar->is_onfi) {
-		onfi_params = malloc(sizeof(struct onfi_params),
+		onfi_chip_params = malloc(sizeof(struct onfi_chip_params),
 		    M_NAND, M_WAITOK | M_ZERO);
-		if (onfi_params == NULL)
-			return (ENXIO);
+		if (onfi_chip_params == NULL)
+			return (ENOMEM);
 
-		if (onfi_read_parameter(chip, onfi_params)) {
+		if (onfi_read_parameter(chip, onfi_chip_params)) {
 			nand_debug(NDBG_GEN,"Could not read parameter page!\n");
-			free(onfi_params, M_NAND);
+			free(onfi_chip_params, M_NAND);
 			return (ENXIO);
 		}
 
-		nand_onfi_set_params(chip, onfi_params);
+		nand_onfi_set_params(chip, onfi_chip_params);
 		/* Set proper column and row cycles */
-		ivar->cols = (onfi_params->address_cycles >> 4) & 0xf;
-		ivar->rows = onfi_params->address_cycles & 0xf;
-		free(onfi_params, M_NAND);
+		ivar->cols = (onfi_chip_params->address_cycles >> 4) & 0xf;
+		ivar->rows = onfi_chip_params->address_cycles & 0xf;
+		free(onfi_chip_params, M_NAND);
 
 	} else {
-
 		nand_set_params(chip, ivar->params);
 	}
 
@@ -319,10 +319,32 @@ check_fail(device_t nandbus)
 	return (0);
 }
 
+static uint16_t
+onfi_crc(const void *buf, size_t buflen)
+{
+	int i, j;
+	uint16_t crc;
+	const uint8_t *bufptr;
+
+	bufptr = buf;
+	crc = 0x4f4e;
+	for (j = 0; j < buflen; j++) {
+		crc ^= *bufptr++ << 8;
+		for (i = 0; i < 8; i++)
+			if (crc & 0x8000)
+				crc = (crc << 1) ^ 0x8005;
+			else
+				crc <<= 1;
+	}
+       return crc;
+}
+
 static int
-onfi_read_parameter(struct nand_chip *chip, struct onfi_params *params)
+onfi_read_parameter(struct nand_chip *chip, struct onfi_chip_params *chip_params)
 {
 	device_t nandbus;
+	struct onfi_params params;
+	int found, sigcount, trycopy;
 
 	nand_debug(NDBG_GEN,"read parameter");
 
@@ -339,12 +361,44 @@ onfi_read_parameter(struct nand_chip *chip, struct onfi_params *params)
 	if (NANDBUS_START_COMMAND(nandbus))
 		return (ENXIO);
 
-	NANDBUS_READ_BUFFER(nandbus, params, sizeof(struct onfi_params));
+	/*
+	 * XXX Bogus DELAY, we really need a nandbus_wait_ready() here, but it's
+	 * not accessible from here (static to nandbus).
+	 */
+	DELAY(1000);
 
-	/* TODO */
-	/* Check for signature */
-	/* Check CRC */
-	/* Use redundant page if necessary */
+	/*
+	 * The ONFI spec mandates a minimum of three copies of the parameter
+	 * data, so loop up to 3 times trying to find good data.  Each copy is
+	 * validated by a signature of "ONFI" and a crc. There is a very strange
+	 * rule that the signature is valid if any 2 of the 4 bytes are correct.
+	 */
+	for (found= 0, trycopy = 0; !found && trycopy < 3; trycopy++) {
+		NANDBUS_READ_BUFFER(nandbus, &params, sizeof(struct onfi_params));
+		sigcount  = params.signature[0] == 'O';
+		sigcount += params.signature[1] == 'N';
+		sigcount += params.signature[2] == 'F';
+		sigcount += params.signature[3] == 'I';
+		if (sigcount < 2)
+			continue;
+		if (onfi_crc(&params, 254) != params.crc)
+			continue;
+		found = 1;
+	}
+	if (!found)
+		return (ENXIO);
+
+	chip_params->luns = params.luns;
+	chip_params->blocks_per_lun = le32dec(&params.blocks_per_lun);
+	chip_params->pages_per_block = le32dec(&params.pages_per_block);
+	chip_params->bytes_per_page = le32dec(&params.bytes_per_page);
+	chip_params->spare_bytes_per_page = le32dec(&params.spare_bytes_per_page);
+	chip_params->t_bers = le16dec(&params.t_bers);
+	chip_params->t_prog = le16dec(&params.t_prog);
+	chip_params->t_r = le16dec(&params.t_r);
+	chip_params->t_ccs = le16dec(&params.t_ccs);
+	chip_params->features = le16dec(&params.features);
+	chip_params->address_cycles = params.address_cycles;
 
 	return (0);
 }

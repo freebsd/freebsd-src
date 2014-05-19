@@ -41,6 +41,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/taskqueue.h>
 
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/if_arp.h>
 #include <net/ethernet.h>
 #include <net/if_dl.h>
@@ -78,6 +79,7 @@ static int  nfe_suspend(device_t);
 static int  nfe_resume(device_t);
 static int nfe_shutdown(device_t);
 static int  nfe_can_use_msix(struct nfe_softc *);
+static int  nfe_detect_msik9(struct nfe_softc *);
 static void nfe_power(struct nfe_softc *);
 static int  nfe_miibus_readreg(device_t, int, int);
 static int  nfe_miibus_writereg(device_t, int, int, int);
@@ -333,13 +335,38 @@ nfe_alloc_msix(struct nfe_softc *sc, int count)
 	}
 }
 
+
+static int
+nfe_detect_msik9(struct nfe_softc *sc)
+{
+	static const char *maker = "MSI";
+	static const char *product = "K9N6PGM2-V2 (MS-7309)";
+	char *m, *p;
+	int found;
+
+	found = 0;
+	m = getenv("smbios.planar.maker");
+	p = getenv("smbios.planar.product");
+	if (m != NULL && p != NULL) {
+		if (strcmp(m, maker) == 0 && strcmp(p, product) == 0)
+			found = 1;
+	}
+	if (m != NULL)
+		freeenv(m);
+	if (p != NULL)
+		freeenv(p);
+
+	return (found);
+}
+
+
 static int
 nfe_attach(device_t dev)
 {
 	struct nfe_softc *sc;
 	struct ifnet *ifp;
 	bus_addr_t dma_addr_max;
-	int error = 0, i, msic, reg, rid;
+	int error = 0, i, msic, phyloc, reg, rid;
 
 	sc = device_get_softc(dev);
 	sc->nfe_dev = dev;
@@ -607,8 +634,16 @@ nfe_attach(device_t dev)
 #endif
 
 	/* Do MII setup */
+	phyloc = MII_PHY_ANY;
+	if (sc->nfe_devid == PCI_PRODUCT_NVIDIA_MCP61_LAN1 ||
+	    sc->nfe_devid == PCI_PRODUCT_NVIDIA_MCP61_LAN2 ||
+	    sc->nfe_devid == PCI_PRODUCT_NVIDIA_MCP61_LAN3 ||
+	    sc->nfe_devid == PCI_PRODUCT_NVIDIA_MCP61_LAN4) {
+		if (nfe_detect_msik9(sc) != 0)
+			phyloc = 0;
+	}
 	error = mii_attach(dev, &sc->nfe_miibus, ifp, nfe_ifmedia_upd,
-	    nfe_ifmedia_sts, BMSR_DEFCAPMASK, MII_PHY_ANY, MII_OFFSET_ANY,
+	    nfe_ifmedia_sts, BMSR_DEFCAPMASK, phyloc, MII_OFFSET_ANY,
 	    MIIF_DOPAUSE);
 	if (error != 0) {
 		device_printf(dev, "attaching PHYs failed\n");
@@ -1341,15 +1376,12 @@ nfe_free_rx_ring(struct nfe_softc *sc, struct nfe_rx_ring *ring)
 {
 	struct nfe_rx_data *data;
 	void *desc;
-	int i, descsize;
+	int i;
 
-	if (sc->nfe_flags & NFE_40BIT_ADDR) {
+	if (sc->nfe_flags & NFE_40BIT_ADDR)
 		desc = ring->desc64;
-		descsize = sizeof (struct nfe_desc64);
-	} else {
+	else
 		desc = ring->desc32;
-		descsize = sizeof (struct nfe_desc32);
-	}
 
 	for (i = 0; i < NFE_RX_RING_COUNT; i++) {
 		data = &ring->data[i];
@@ -3205,8 +3237,8 @@ nfe_stats_clear(struct nfe_softc *sc)
 	else
 		return;
 
-	for (i = 0; i < mib_cnt; i += sizeof(uint32_t))
-		NFE_READ(sc, NFE_TX_OCTET + i);
+	for (i = 0; i < mib_cnt; i++)
+		NFE_READ(sc, NFE_TX_OCTET + i * sizeof(uint32_t));
 
 	if ((sc->nfe_flags & NFE_MIB_V3) != 0) {
 		NFE_READ(sc, NFE_TX_UNICAST);
@@ -3260,7 +3292,7 @@ nfe_stats_update(struct nfe_softc *sc)
 	if ((sc->nfe_flags & NFE_MIB_V3) != 0) {
 		stats->tx_unicast += NFE_READ(sc, NFE_TX_UNICAST);
 		stats->tx_multicast += NFE_READ(sc, NFE_TX_MULTICAST);
-		stats->rx_broadcast += NFE_READ(sc, NFE_TX_BROADCAST);
+		stats->tx_broadcast += NFE_READ(sc, NFE_TX_BROADCAST);
 	}
 }
 

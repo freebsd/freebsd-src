@@ -53,10 +53,8 @@ __FBSDID("$FreeBSD$");
 
 #include <net/if.h>
 #include <net/if_var.h>
-#include <net/if_dl.h>
-#include <net/if_clone.h>
 #include <net/if_media.h>
-#include <net/if_types.h>
+#include <net/ethernet.h>
 
 #include <net80211/ieee80211_var.h>
 #include <net80211/ieee80211_freebsd.h>

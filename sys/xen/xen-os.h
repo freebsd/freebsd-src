@@ -50,9 +50,11 @@
 /* Force a proper event-channel callback from Xen. */
 void force_evtchn_callback(void);
 
-extern int gdtset;
-
 extern shared_info_t *HYPERVISOR_shared_info;
+extern start_info_t *HYPERVISOR_start_info;
+
+/* XXX: we need to get rid of this and use HYPERVISOR_start_info directly */
+extern char *console_page;
 
 enum xen_domain_type {
 	XEN_NATIVE,             /* running on bare hardware    */
@@ -79,6 +81,16 @@ xen_hvm_domain(void)
 {
 	return (xen_domain_type == XEN_HVM_DOMAIN);
 }
+
+static inline bool
+xen_initial_domain(void)
+{
+	return (xen_domain() && HYPERVISOR_start_info != NULL &&
+	    (HYPERVISOR_start_info->flags & SIF_INITDOMAIN) != 0);
+}
+
+/* Debug/emergency function, prints directly to hypervisor console */
+void xc_printf(const char *, ...) __printflike(1, 2);
 
 #ifndef xen_mb
 #define xen_mb() mb()

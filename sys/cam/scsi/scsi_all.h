@@ -854,6 +854,20 @@ struct scsi_unmap
 	uint8_t	control;
 };
 
+struct scsi_unmap_header
+{
+	uint8_t	length[2];
+	uint8_t	desc_length[2];
+	uint8_t	reserved[4];
+};
+
+struct scsi_unmap_desc
+{
+	uint8_t	lba[8];
+	uint8_t	length[4];
+	uint8_t	reserved[4];
+};
+
 struct scsi_write_verify_10
 {
 	uint8_t	opcode;
@@ -1451,7 +1465,7 @@ struct scsi_vpd_block_characteristics
 	u_int8_t page_length[2];
 	u_int8_t medium_rotation_rate[2];
 #define SVPD_BDC_RATE_NOT_REPORTED	0x00
-#define SVPD_BDC_RATE_NONE_ROTATING	0x01
+#define SVPD_BDC_RATE_NON_ROTATING	0x01
 	u_int8_t reserved1;
 	u_int8_t nominal_form_factor;
 #define SVPD_BDC_FORM_NOT_REPORTED	0x00
@@ -2313,6 +2327,7 @@ char *		scsi_cdb_string(u_int8_t *cdb_ptr, char *cdb_string,
 				size_t len);
 
 void		scsi_print_inquiry(struct scsi_inquiry_data *inq_data);
+void		scsi_print_inquiry_short(struct scsi_inquiry_data *inq_data);
 
 u_int		scsi_calc_syncsrate(u_int period_factor);
 u_int		scsi_calc_syncparam(u_int period);

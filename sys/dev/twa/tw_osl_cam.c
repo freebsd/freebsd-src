@@ -207,15 +207,17 @@ tw_osli_execute_scsi(struct tw_osli_req_context *req, union ccb *ccb)
 		csio->cdb_io.cdb_bytes[0]);
 
 	if (ccb_h->target_id >= TW_CL_MAX_NUM_UNITS) {
-		tw_osli_dbg_dprintf(3, sc, "Invalid target. PTL = %x %x %x",
-			ccb_h->path_id, ccb_h->target_id, ccb_h->target_lun);
+		tw_osli_dbg_dprintf(3, sc, "Invalid target. PTL = %x %x %jx",
+			ccb_h->path_id, ccb_h->target_id,
+			(uintmax_t)ccb_h->target_lun);
 		ccb_h->status |= CAM_TID_INVALID;
 		xpt_done(ccb);
 		return(1);
 	}
 	if (ccb_h->target_lun >= TW_CL_MAX_NUM_LUNS) {
-		tw_osli_dbg_dprintf(3, sc, "Invalid lun. PTL = %x %x %x",
-			ccb_h->path_id, ccb_h->target_id, ccb_h->target_lun);
+		tw_osli_dbg_dprintf(3, sc, "Invalid lun. PTL = %x %x %jx",
+			ccb_h->path_id, ccb_h->target_id,
+			(uintmax_t)ccb_h->target_lun);
 		ccb_h->status |= CAM_LUN_INVALID;
 		xpt_done(ccb);
 		return(1);

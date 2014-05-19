@@ -1,4 +1,5 @@
-/*
+/*-
+ * Copyright (c) 2014 Ian Lepore <ian@freebsd.org>
  * Copyright (c) 2012 Mark Tinguely
  *
  * All rights reserved.
@@ -34,19 +35,16 @@ __FBSDID("$FreeBSD$");
 #include <sys/proc.h>
 #include <sys/kernel.h>
 
+#include <machine/armreg.h>
+#include <machine/frame.h>
 #include <machine/fp.h>
 #include <machine/pcb.h>
 #include <machine/undefined.h>
 #include <machine/vfp.h>
 
 /* function prototypes */
-unsigned int get_coprocessorACR(void);
-int	vfp_bounce(u_int, u_int, struct trapframe *, int);
-void	vfp_discard(void);
-void	vfp_enable(void);
-void	vfp_restore(struct vfp_state *);
-void	vfp_store(struct vfp_state *);
-void	set_coprocessorACR(u_int);
+static int vfp_bounce(u_int, u_int, struct trapframe *, int);
+static void vfp_restore(struct vfp_state *);
 
 extern int vfp_exists;
 static struct undefined_handler vfp10_uh, vfp11_uh;
@@ -64,7 +62,20 @@ static int is_d32;
     val; \
 })
 
-u_int
+/*
+ * Work around an issue with GCC where the asm it generates is not unified
+ * syntax and fails to assemble because it expects the ldcleq instruction in the
+ * form ldc<c>l, not in the UAL form ldcl<c>, and similar for stcleq.
+ */
+#ifdef __clang__
+#define	LDCLNE  "ldclne "
+#define	STCLNE  "stclne "
+#else
+#define	LDCLNE  "ldcnel "
+#define	STCLNE  "stcnel "
+#endif
+
+static u_int
 get_coprocessorACR(void)
 {
 	u_int val;
@@ -72,7 +83,7 @@ get_coprocessorACR(void)
 	return val;
 }
 
-void
+static void
 set_coprocessorACR(u_int val)
 {
 	__asm __volatile("mcr p15, 0, %0, c1, c0, 2\n\t"
@@ -133,154 +144,147 @@ SYSINIT(vfp, SI_SUB_CPU, SI_ORDER_ANY, vfp_init, NULL);
 /* start VFP unit, restore the vfp registers from the PCB  and retry
  * the instruction
  */
-int
+static int
 vfp_bounce(u_int addr, u_int insn, struct trapframe *frame, int code)
 {
-	u_int fpexc;
+	u_int cpu, fpexc;
 	struct pcb *curpcb;
-	struct thread *vfptd;
+	ksiginfo_t ksi;
 
-	if (!vfp_exists)
-		return 1;		/* vfp does not exist */
-	fpexc = fmrx(VFPEXC);		/* read the vfp exception reg */
-	if (fpexc & VFPEXC_EN) {
-		vfptd = PCPU_GET(vfpcthread);
-		/* did the kernel call the vfp or exception that expect us
-		 * to emulate the command. Newer hardware does not require
-		 * emulation, so we don't emulate yet.
-		 */
-#ifdef SMP
-		/* don't save if newer registers are on another processor */
-		if (vfptd /* && (vfptd == curthread) */ &&
-		   (vfptd->td_pcb->pcb_vfpcpu == PCPU_GET(cpu)))
-#else
-		/* someone did not save their registers, */
-		if (vfptd /* && (vfptd == curthread) */)
-#endif
-			vfp_store(&vfptd->td_pcb->pcb_vfpstate);
+	if ((code & FAULT_USER) == 0)
+		panic("undefined floating point instruction in supervisor mode");
 
-		fpexc &= ~VFPEXC_EN;
-		fmxr(VFPEXC, fpexc);	/* turn vfp hardware off */
-		if (vfptd == curthread) {
-			/* kill the process - we do not handle emulation */
-			killproc(curthread->td_proc, "vfp emulation");
-			return 1;
-		}
-		/* should not happen. someone did not save their context */
-		printf("vfp_bounce: vfpcthread: %p curthread: %p\n",
-			vfptd, curthread);
-	}
-	fpexc |= VFPEXC_EN;
-	fmxr(VFPEXC, fpexc);	/* enable the vfp and repeat command */
-	curpcb = PCPU_GET(curpcb);
-	/* If we were the last process to use the VFP, the process did not
-	 * use a VFP on another processor, then the registers in the VFP
-	 * will still be ours and are current. Eventually, we will make the
-	 * restore smarter.
-	 */
-	vfp_restore(&curpcb->pcb_vfpstate);
-#ifdef SMP
-	curpcb->pcb_vfpcpu = PCPU_GET(cpu);
-#endif
-	PCPU_SET(vfpcthread, PCPU_GET(curthread));
-	return 0;
-}
-
-/* vfs_store is called from from a VFP command to restore the registers and
- * turn on the VFP hardware.
- * Eventually we will use the information that this process was the last
- * to use the VFP hardware and bypass the restore, just turn on the hardware.
- */
-void
-vfp_restore(struct vfp_state *vfpsave)
-{
-	u_int vfpscr = 0;
+	critical_enter();
 
 	/*
-	 * Work around an issue with GCC where the asm it generates is
-	 * not unified syntax and fails to assemble because it expects
-	 * the ldcleq instruction in the form ldc<c>l, not in the UAL
-	 * form ldcl<c>, and similar for stcleq.
+	 * If the VFP is already on and we got an undefined instruction, then
+	 * something tried to executate a truly invalid instruction that maps to
+	 * the VFP.
 	 */
-#ifdef __clang__
-#define	ldclne	"ldclne"
-#define	stclne	"stclne"
-#else
-#define	ldclne	"ldcnel"
-#define	stclne	"stcnel"
-#endif
-	if (vfpsave) {
-		__asm __volatile("ldc	p10, c0, [%1], #128\n" /* d0-d15 */
-			"cmp	%2, #0\n"		/* -D16 or -D32? */
-			ldclne"	p11, c0, [%1], #128\n"	/* d16-d31 */
-			"addeq	%1, %1, #128\n"		/* skip missing regs */
-			"ldr	%0, [%1]\n"		/* set old vfpscr */
-			"mcr	p10, 7, %0, cr1, c0, 0\n"
-			: "=&r" (vfpscr) : "r" (vfpsave), "r" (is_d32) : "cc");
-		PCPU_SET(vfpcthread, PCPU_GET(curthread));
+	fpexc = fmrx(VFPEXC);
+	if (fpexc & VFPEXC_EN) {
+		/* Clear any exceptions */
+		fmxr(VFPEXC, fpexc & ~(VFPEXC_EX | VFPEXC_FP2V));
+
+		/* kill the process - we do not handle emulation */
+		critical_exit();
+
+		if (fpexc & VFPEXC_EX) {
+			/* We have an exception, signal a SIGFPE */
+			ksiginfo_init_trap(&ksi);
+			ksi.ksi_signo = SIGFPE;
+			if (fpexc & VFPEXC_UFC)
+				ksi.ksi_code = FPE_FLTUND;
+			else if (fpexc & VFPEXC_OFC)
+				ksi.ksi_code = FPE_FLTOVF;
+			else if (fpexc & VFPEXC_IOC)
+				ksi.ksi_code = FPE_FLTINV;
+			ksi.ksi_addr = (void *)addr;
+			trapsignal(curthread, &ksi);
+			return 0;
+		}
+
+		return 1;
+	}
+
+	/*
+	 * If the last time this thread used the VFP it was on this core, and
+	 * the last thread to use the VFP on this core was this thread, then the
+	 * VFP state is valid, otherwise restore this thread's state to the VFP.
+	 */
+	fmxr(VFPEXC, fpexc | VFPEXC_EN);
+	curpcb = curthread->td_pcb;
+	cpu = PCPU_GET(cpu);
+	if (curpcb->pcb_vfpcpu != cpu || curthread != PCPU_GET(fpcurthread)) {
+		vfp_restore(&curpcb->pcb_vfpstate);
+		curpcb->pcb_vfpcpu = cpu;
+		PCPU_SET(fpcurthread, curthread);
+	}
+
+	critical_exit();
+	return (0);
+}
+
+/*
+ * Restore the given state to the VFP hardware.
+ */
+static void
+vfp_restore(struct vfp_state *vfpsave)
+{
+	uint32_t fpexc;
+
+	/* On VFPv2 we may need to restore FPINST and FPINST2 */
+	fpexc = vfpsave->fpexec;
+	if (fpexc & VFPEXC_EX) {
+		fmxr(VFPINST, vfpsave->fpinst);
+		if (fpexc & VFPEXC_FP2V)
+			fmxr(VFPINST2, vfpsave->fpinst2);
+	}
+	fmxr(VFPSCR, vfpsave->fpscr);
+
+	__asm __volatile("ldc	p10, c0, [%0], #128\n" /* d0-d15 */
+			"cmp	%1, #0\n"		/* -D16 or -D32? */
+			LDCLNE "p11, c0, [%0], #128\n"	/* d16-d31 */
+			"addeq	%0, %0, #128\n"		/* skip missing regs */
+			: : "r" (vfpsave), "r" (is_d32) : "cc");
+
+	fmxr(VFPEXC, fpexc);
+}
+
+/*
+ * If the VFP is on, save its current state and turn it off if requested to do
+ * so.  If the VFP is not on, does not change the values at *vfpsave.  Caller is
+ * responsible for preventing a context switch while this is running.
+ */
+void
+vfp_store(struct vfp_state *vfpsave, boolean_t disable_vfp)
+{
+	uint32_t fpexc;
+
+	fpexc = fmrx(VFPEXC);		/* Is the vfp enabled? */
+	if (fpexc & VFPEXC_EN) {
+		vfpsave->fpexec = fpexc;
+		vfpsave->fpscr = fmrx(VFPSCR);
+
+		/* On VFPv2 we may need to save FPINST and FPINST2 */
+		if (fpexc & VFPEXC_EX) {
+			vfpsave->fpinst = fmrx(VFPINST);
+			if (fpexc & VFPEXC_FP2V)
+				vfpsave->fpinst2 = fmrx(VFPINST2);
+			fpexc &= ~VFPEXC_EX;
+		}
+
+		__asm __volatile(
+			"stc	p11, c0, [%0], #128\n"  /* d0-d15 */
+			"cmp	%1, #0\n"		/* -D16 or -D32? */
+			STCLNE "p11, c0, [%0], #128\n"	/* d16-d31 */
+			"addeq	%0, %0, #128\n"		/* skip missing regs */
+			: : "r" (vfpsave), "r" (is_d32) : "cc");
+
+		if (disable_vfp)
+			fmxr(VFPEXC , fpexc & ~VFPEXC_EN);
 	}
 }
 
-/* vfs_store is called from switch to save the vfp hardware registers
- * into the pcb before switching to another process.
- * we already know that the new process is different from this old
- * process and that this process last used the VFP registers.
- * Below we check to see if the VFP has been enabled since the last
- * register save.
- * This routine will exit with the VFP turned off. The next VFP user
- * will trap to restore its registers and turn on the VFP hardware.
+/*
+ * The current thread is dying.  If the state currently in the hardware belongs
+ * to the current thread, set fpcurthread to NULL to indicate that the VFP
+ * hardware state does not belong to any thread.  If the VFP is on, turn it off.
+ * Called only from cpu_throw(), so we don't have to worry about a context
+ * switch here.
  */
 void
-vfp_store(struct vfp_state *vfpsave)
+vfp_discard(struct thread *td)
 {
-	u_int tmp, vfpscr = 0;
+	u_int tmp;
 
-	tmp = fmrx(VFPEXC);		/* Is the vfp enabled? */
-	if (vfpsave && tmp & VFPEXC_EN) {
-		__asm __volatile("stc	p11, c0, [%1], #128\n" /* d0-d15 */
-			"cmp	%2, #0\n"		/* -D16 or -D32? */
-			stclne"	p11, c0, [%1], #128\n"	/* d16-d31 */
-			"addeq	%1, %1, #128\n"		/* skip missing regs */
-			"mrc	p10, 7, %0, cr1, c0, 0\n" /* fmxr(VFPSCR) */
-			"str	%0, [%1]\n"		/* save vfpscr */
-			: "=&r" (vfpscr) : "r" (vfpsave), "r" (is_d32) : "cc");
-	}
-#undef ldcleq
-#undef stcleq
-
-#ifndef SMP
-		/* eventually we will use this information for UP also */
-	PCPU_SET(vfpcthread, 0);
-#endif
-	tmp &= ~VFPEXC_EN;	/* disable the vfp hardware */
-	fmxr(VFPEXC , tmp);
-}
-
-/* discard the registers at cpu_thread_free() when fpcurthread == td.
- * Turn off the VFP hardware.
- */
-void
-vfp_discard()
-{
-	u_int tmp = 0;
-
-	PCPU_SET(vfpcthread, 0);	/* permanent forget about reg */
-	tmp = fmrx(VFPEXC);
-	tmp &= ~VFPEXC_EN;		/* turn off VFP hardware */
-	fmxr(VFPEXC, tmp);
-}
-
-/* Enable the VFP hardware without restoring registers.
- * Called when the registers are still in the VFP unit
- */
-void
-vfp_enable()
-{
-	u_int tmp = 0;
+	if (PCPU_GET(fpcurthread) == td)
+		PCPU_SET(fpcurthread, NULL);
 
 	tmp = fmrx(VFPEXC);
-	tmp |= VFPEXC_EN;
-	fmxr(VFPEXC, tmp);
+	if (tmp & VFPEXC_EN)
+		fmxr(VFPEXC, tmp & ~VFPEXC_EN);
 }
+
 #endif
 

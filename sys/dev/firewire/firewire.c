@@ -649,7 +649,7 @@ fw_reset_csr(struct firewire_comm *fc)
 	CSRARC(fc, BANDWIDTH_AV) = 4915;
 	CSRARC(fc, CHANNELS_AV_HI) = 0xffffffff;
 	CSRARC(fc, CHANNELS_AV_LO) = 0xffffffff;
-	CSRARC(fc, IP_CHANNELS) = (1 << 31);
+	CSRARC(fc, IP_CHANNELS) = (1U << 31);
 
 	CSRARC(fc, CONF_ROM) = 0x04 << 24;
 	CSRARC(fc, CONF_ROM + 4) = 0x31333934; /* means strings 1394 */

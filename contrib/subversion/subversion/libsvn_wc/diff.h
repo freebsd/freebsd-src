@@ -38,7 +38,9 @@
 extern "C" {
 #endif /* __cplusplus */
 
-/* Reports the file LOCAL_ABSPATH as ADDED file with relpath RELPATH to
+/* A function to diff locally added and locally copied files.
+  
+   Reports the file LOCAL_ABSPATH as ADDED file with relpath RELPATH to
    PROCESSOR with as parent baton PROCESSOR_PARENT_BATON.
 
    The node is expected to have status svn_wc__db_status_normal, or
@@ -61,7 +63,9 @@ svn_wc__diff_local_only_file(svn_wc__db_t *db,
                              void *cancel_baton,
                              apr_pool_t *scratch_pool);
 
-/* Reports the directory LOCAL_ABSPATH and everything below it (limited by
+/* A function to diff locally added and locally copied directories.
+  
+   Reports the directory LOCAL_ABSPATH and everything below it (limited by
    DEPTH) as added with relpath RELPATH to PROCESSOR with as parent baton
    PROCESSOR_PARENT_BATON.
 

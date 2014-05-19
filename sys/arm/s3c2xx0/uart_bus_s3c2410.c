@@ -35,7 +35,6 @@ static driver_t uart_s3c2410_driver = {
 	sizeof(struct uart_softc),
 };
 
-extern struct uart_class uart_s3c2410_class;
 extern SLIST_HEAD(uart_devinfo_list, uart_devinfo) uart_sysdevs;
 static int
 uart_s3c2410_probe(device_t dev)

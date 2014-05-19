@@ -405,6 +405,9 @@ static const struct limits limits[] = {
 #ifdef RLIMIT_NPTS
 	{ "pseudo-terminals",	(char *)0,	RLIMIT_NPTS,	   1, 'p' },
 #endif
+#ifdef RLIMIT_KQUEUES
+	{ "kqueues",		(char *)0,	RLIMIT_KQUEUES,	   1, 'k' },
+#endif
 	{ (char *) 0,		(char *)0,	0,		   0, '\0' }
 };
 
@@ -421,7 +424,7 @@ ulimitcmd(int argc __unused, char **argv __unused)
 	struct rlimit	limit;
 
 	what = 'f';
-	while ((optc = nextopt("HSatfdsmcnuvlbpw")) != '\0')
+	while ((optc = nextopt("HSatfdsmcnuvlbpwk")) != '\0')
 		switch (optc) {
 		case 'H':
 			how = HARD;

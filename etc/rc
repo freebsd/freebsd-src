@@ -71,6 +71,11 @@ fi
 . /etc/rc.subr
 load_rc_config 'XXX'
 
+# If we receive a SIGALRM, re-source /etc/rc.conf; this allows rc.d
+# scripts to perform "boot-time configuration" including enabling and
+# disabling rc.d scripts which appear later in the boot order.
+trap "_rc_conf_loaded=false; load_rc_config 'XXX'" ALRM
+
 skip="-s nostart"
 if [ `/sbin/sysctl -n security.jail.jailed` -eq 1 ]; then
 	skip="$skip -s nojail"
@@ -82,10 +87,15 @@ if [ `/sbin/sysctl -n security.jail.jailed` -eq 1 ]; then
 	fi
 fi
 
+# If the firstboot sentinel doesn't exist, we want to skip firstboot scripts.
+if ! [ -e ${firstboot_sentinel} ]; then
+	skip_firstboot="-s firstboot"
+fi
+
 # Do a first pass to get everything up to $early_late_divider so that
 # we can do a second pass that includes $local_startup directories
 #
-files=`rcorder ${skip} /etc/rc.d/* 2>/dev/null`
+files=`rcorder ${skip} ${skip_firstboot} /etc/rc.d/* 2>/dev/null`
 
 _rc_elem_done=' '
 for _rc_elem in ${files}; do
@@ -107,7 +117,13 @@ case ${local_startup} in
 *)	find_local_scripts_new ;;
 esac
 
-files=`rcorder ${skip} /etc/rc.d/* ${local_rc} 2>/dev/null`
+# The firstboot sentinel might be on a newly mounted filesystem; look for it
+# again and unset skip_firstboot if we find it.
+if [ -e ${firstboot_sentinel} ]; then
+	skip_firstboot=""
+fi
+
+files=`rcorder ${skip} ${skip_firstboot} /etc/rc.d/* ${local_rc} 2>/dev/null`
 for _rc_elem in ${files}; do
 	case "$_rc_elem_done" in
 	*" $_rc_elem "*)	continue ;;
@@ -115,6 +131,15 @@ for _rc_elem in ${files}; do
 
 	run_rc_script ${_rc_elem} ${_boot}
 done
+
+# Remove the firstboot sentinel, and reboot if it was requested.
+if [ -e ${firstboot_sentinel} ]; then
+	rm ${firstboot_sentinel}
+	if [ -e ${firstboot_sentinel}-reboot ]; then
+		rm ${firstboot_sentinel}-reboot
+		kill -INT 1
+	fi
+fi
 
 echo ''
 date

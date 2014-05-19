@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005-2007 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 2005-2007 Proofpoint, Inc. and its suppliers.
  *      All rights reserved.
  *
  * By using this file, you agree to the terms and conditions set
@@ -8,7 +8,7 @@
  */
 
 #include <sm/gen.h>
-SM_IDSTR(id, "@(#)$Id: t-memstat.c,v 1.9 2007/03/14 21:41:09 ca Exp $")
+SM_IDSTR(id, "@(#)$Id: t-memstat.c,v 1.11 2013/11/22 20:51:43 ca Exp $")
 
 #include <sm/misc.h>
 
@@ -63,6 +63,12 @@ main(argc, argv)
 
 		  case 'r':
 			resource = strdup(optarg);
+			if (resource == NULL)
+			{
+				fprintf(stderr, "strdup(%s) failed\n",
+					optarg);
+				exit(1);
+			}
 			break;
 
 		  case 's':

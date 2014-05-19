@@ -43,7 +43,7 @@
 #define	ISCSI_ADDR_LEN		47	/* INET6_ADDRSTRLEN + '\0' */
 #define	ISCSI_ALIAS_LEN		256	/* XXX: Where did it come from? */
 #define	ISCSI_SECRET_LEN	17	/* 16 + '\0' */
-#define	ISCSI_REASON_LEN	32
+#define	ISCSI_REASON_LEN	64
 
 #define	ISCSI_DIGEST_NONE	0
 #define	ISCSI_DIGEST_CRC32C	1
@@ -91,6 +91,9 @@ struct iscsi_session_state {
 struct iscsi_daemon_request {
 	unsigned int			idr_session_id;
 	struct iscsi_session_conf	idr_conf;
+	uint8_t				idr_spare_isid[6];
+	uint16_t			idr_spare_tsih;
+	uint16_t			idr_spare_cid;
 	int				idr_spare[4];
 };
 
@@ -99,6 +102,8 @@ struct iscsi_daemon_handoff {
 	int				idh_socket;
 	char				idh_target_alias[ISCSI_ALIAS_LEN];
 	uint8_t				idh_isid[6];
+	uint16_t			idr_spare_tsih;
+	uint16_t			idr_spare_cid;
 	uint32_t			idh_statsn;
 	int				idh_header_digest;
 	int				idh_data_digest;
@@ -107,11 +112,13 @@ struct iscsi_daemon_handoff {
 	size_t				idh_max_data_segment_length;
 	size_t				idh_max_burst_length;
 	size_t				idh_first_burst_length;
+	int				idh_spare[4];
 };
 
 struct iscsi_daemon_fail {
 	unsigned int			idf_session_id;
 	char				idf_reason[ISCSI_REASON_LEN];
+	int				idf_spare[4];
 };
 
 #define	ISCSIDWAIT	_IOR('I', 0x01, struct iscsi_daemon_request)
@@ -122,9 +129,9 @@ struct iscsi_daemon_fail {
 
 /*
  * When ICL_KERNEL_PROXY is not defined, the iscsid(8) is responsible
- * for creating the socket, connecting, performing Login Phase using
- * socked in the usual userspace way, and then passing the socket file
- * descriptor to the kernel part using ISCSIDHANDOFF.
+ * for creating the socket, connecting, and performing Login Phase using
+ * the socket in the usual userspace way, and then passing the socket
+ * file descriptor to the kernel part using ISCSIDHANDOFF.
  *
  * When ICL_KERNEL_PROXY is defined, the iscsid(8) creates the session
  * using ISCSICONNECT, performs Login Phase using ISCSISEND/ISCSIRECEIVE
@@ -145,6 +152,7 @@ struct iscsi_daemon_connect {
 	socklen_t			idc_from_addrlen;
 	struct sockaddr			*idc_to_addr;
 	socklen_t			idc_to_addrlen;
+	int				idc_spare[4];
 };
 
 struct iscsi_daemon_send {
@@ -154,6 +162,7 @@ struct iscsi_daemon_send {
 	void				*ids_spare2;
 	size_t				ids_data_segment_len;
 	void				*ids_data_segment;
+	int				ids_spare3[4];
 };
 
 struct iscsi_daemon_receive {
@@ -163,16 +172,12 @@ struct iscsi_daemon_receive {
 	void				*idr_spare2;
 	size_t				idr_data_segment_len;
 	void				*idr_data_segment;
-};
-
-struct iscsi_daemon_close {
-	int				idc_session_id;
+	int				idr_spare3[4];
 };
 
 #define	ISCSIDCONNECT	_IOWR('I', 0x04, struct iscsi_daemon_connect)
 #define	ISCSIDSEND	_IOWR('I', 0x05, struct iscsi_daemon_send)
 #define	ISCSIDRECEIVE	_IOWR('I', 0x06, struct iscsi_daemon_receive)
-#define	ISCSIDCLOSE	_IOWR('I', 0x07, struct iscsi_daemon_close)
 
 #endif /* ICL_KERNEL_PROXY */
 
@@ -182,16 +187,19 @@ struct iscsi_daemon_close {
 
 struct iscsi_session_add {
 	struct iscsi_session_conf	isa_conf;
+	int				isa_spare[4];
 };
 
 struct iscsi_session_remove {
 	unsigned int			isr_session_id;
 	struct iscsi_session_conf	isr_conf;
+	int				isr_spare[4];
 };
 
 struct iscsi_session_list {
 	unsigned int			isl_nentries;
 	struct iscsi_session_state	*isl_pstates;
+	int				isl_spare[4];
 };
 
 #define	ISCSISADD	_IOW('I', 0x11, struct iscsi_session_add)

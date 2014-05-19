@@ -20,6 +20,7 @@
 #include "lldb/Core/Stream.h"
 #include "lldb/Core/StreamFile.h"
 #include "lldb/Interpreter/CommandInterpreter.h"
+#include "lldb/Target/SystemRuntime.h"
 #include "lldb/Target/Thread.h"
 #include "lldb/Target/Process.h"
 #include "lldb/Symbol/SymbolContext.h"
@@ -432,7 +433,6 @@ SBThread::SetThread (const ThreadSP& lldb_object_sp)
     m_opaque_sp->SetThreadSP (lldb_object_sp);
 }
 
-
 lldb::tid_t
 SBThread::GetThreadID () const
 {
@@ -505,6 +505,34 @@ SBThread::GetQueueName () const
         log->Printf ("SBThread(%p)::GetQueueName () => %s", exe_ctx.GetThreadPtr(), name ? name : "NULL");
 
     return name;
+}
+
+lldb::queue_id_t
+SBThread::GetQueueID () const
+{
+    queue_id_t id = LLDB_INVALID_QUEUE_ID;
+    Mutex::Locker api_locker;
+    ExecutionContext exe_ctx (m_opaque_sp.get(), api_locker);
+
+    Log *log(lldb_private::GetLogIfAllCategoriesSet (LIBLLDB_LOG_API));
+    if (exe_ctx.HasThreadScope())
+    {
+        Process::StopLocker stop_locker;
+        if (stop_locker.TryLock(&exe_ctx.GetProcessPtr()->GetRunLock()))
+        {
+            id = exe_ctx.GetThreadPtr()->GetQueueID();
+        }
+        else
+        {
+            if (log)
+                log->Printf ("SBThread(%p)::GetQueueID() => error: process is running", exe_ctx.GetThreadPtr());
+        }
+    }
+    
+    if (log)
+        log->Printf ("SBThread(%p)::GetQueueID () => 0x%" PRIx64, exe_ctx.GetThreadPtr(), id);
+
+    return id;
 }
 
 SBError
@@ -910,6 +938,31 @@ SBThread::StepOverUntil (lldb::SBFrame &sb_frame,
 }
 
 SBError
+SBThread::JumpToLine (lldb::SBFileSpec &file_spec, uint32_t line)
+{
+    Log *log(lldb_private::GetLogIfAllCategoriesSet (LIBLLDB_LOG_API));
+    SBError sb_error;
+
+    Mutex::Locker api_locker;
+    ExecutionContext exe_ctx (m_opaque_sp.get(), api_locker);
+
+    if (log)
+        log->Printf ("SBThread(%p)::JumpToLine (file+line = %s:%u)", exe_ctx.GetThreadPtr(), file_spec->GetPath().c_str(), line);
+
+    if (!exe_ctx.HasThreadScope())
+    {
+        sb_error.SetErrorString("this SBThread object is invalid");
+        return sb_error;
+    }
+
+    Thread *thread = exe_ctx.GetThreadPtr();
+
+    Error err = thread->JumpToLine (file_spec.get(), line, true);
+    sb_error.SetError (err);
+    return sb_error;
+}
+
+SBError
 SBThread::ReturnFromFrame (SBFrame &frame, SBValue &return_value)
 {
     SBError sb_error;
@@ -1226,4 +1279,65 @@ SBThread::GetDescription (SBStream &description) const
         strm.PutCString ("No value");
     
     return true;
+}
+
+SBThread
+SBThread::GetExtendedBacktraceThread (const char *type)
+{
+    Log *log(lldb_private::GetLogIfAllCategoriesSet (LIBLLDB_LOG_API));
+    Mutex::Locker api_locker;
+    ExecutionContext exe_ctx (m_opaque_sp.get(), api_locker);
+    SBThread sb_origin_thread;
+
+    if (exe_ctx.HasThreadScope())
+    {
+        Process::StopLocker stop_locker;
+        if (stop_locker.TryLock(&exe_ctx.GetProcessPtr()->GetRunLock()))
+        {
+            ThreadSP real_thread(exe_ctx.GetThreadSP());
+            if (real_thread)
+            {
+                ConstString type_const (type);
+                Process *process = exe_ctx.GetProcessPtr();
+                if (process)
+                {
+                    SystemRuntime *runtime = process->GetSystemRuntime();
+                    if (runtime)
+                    {
+                        ThreadSP new_thread_sp (runtime->GetExtendedBacktraceThread (real_thread, type_const));
+                        if (new_thread_sp)
+                        {
+                            // Save this in the Process' ExtendedThreadList so a strong pointer retains the
+                            // object.
+                            process->GetExtendedThreadList().AddThread (new_thread_sp);
+                            sb_origin_thread.SetThread (new_thread_sp);
+                            if (log)
+                            {
+                                const char *queue_name = new_thread_sp->GetQueueName();
+                                if (queue_name == NULL)
+                                    queue_name = "";
+                                log->Printf ("SBThread(%p)::GetExtendedBacktraceThread() => new extended Thread created (%p) with queue_id 0x%" PRIx64 " queue name '%s'", exe_ctx.GetThreadPtr(), new_thread_sp.get(), new_thread_sp->GetQueueID(), queue_name);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        else
+        {
+            if (log)
+                log->Printf ("SBThread(%p)::GetExtendedBacktraceThread() => error: process is running", exe_ctx.GetThreadPtr());
+        }
+    }
+
+    return sb_origin_thread;
+}
+
+uint32_t
+SBThread::GetExtendedBacktraceOriginatingIndexID ()
+{
+    ThreadSP thread_sp(m_opaque_sp->GetThreadSP());
+    if (thread_sp)
+        return thread_sp->GetExtendedBacktraceOriginatingIndexID();
+    return LLDB_INVALID_INDEX32;
 }

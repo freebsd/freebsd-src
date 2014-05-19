@@ -332,6 +332,8 @@ void	ieee80211_dturbo_switch(struct ieee80211vap *, int newflags);
 void	ieee80211_swbmiss(void *arg);
 void	ieee80211_beacon_miss(struct ieee80211com *);
 int	ieee80211_new_state(struct ieee80211vap *, enum ieee80211_state, int);
+int	ieee80211_new_state_locked(struct ieee80211vap *, enum ieee80211_state,
+		int);
 void	ieee80211_print_essid(const uint8_t *, int);
 void	ieee80211_dump_pkt(struct ieee80211com *,
 		const uint8_t *, int, int, int);

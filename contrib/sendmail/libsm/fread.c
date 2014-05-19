@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000-2001 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 2000-2001 Proofpoint, Inc. and its suppliers.
  *      All rights reserved.
  * Copyright (c) 1990, 1993
  *	The Regents of the University of California.  All rights reserved.
@@ -13,7 +13,7 @@
  */
 
 #include <sm/gen.h>
-SM_RCSID("@(#)$Id: fread.c,v 1.28 2001/09/11 04:04:48 gshapiro Exp $")
+SM_RCSID("@(#)$Id: fread.c,v 1.29 2013/11/22 20:51:42 ca Exp $")
 #include <string.h>
 #include <errno.h>
 #include <sm/io.h>

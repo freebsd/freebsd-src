@@ -1,0 +1,230 @@
+.\" Copyright (c) 2014 Warren Block
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHORS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHORS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd May 9, 2014
+.Dt "VIRTUAL TERMINALS" 4
+.Os
+.Sh NAME
+.Nm vt
+.Nd virtual terminal console driver
+.Sh SYNOPSIS
+.Cd "options VT_MAXWINDOWS=N"
+.Cd "options VT_ALT_TO_ESC_HACK=1"
+.Cd "options VT_TWOBUTTON_MOUSE"
+.Cd "options VT_FB_DEFAULT_WIDTH=X"
+.Cd "options VT_FB_DEFAULT_HEIGHT=Y"
+.Cd "options SC_NO_CUTPASTE"
+.Cd "options SC_NO_SYSMOUSE"
+.Cd "device vt"
+.Pp
+In
+.Xr loader.conf 5 :
+.Cd hw.vga.textmode=1
+.Sh DESCRIPTION
+The
+.Nm
+device provides multiple virtual terminals with an extensive feature
+set:
+.Bl -item -offset indent
+.It
+Unicode UTF-8 text with double-width characters.
+.It
+Large font maps in graphics mode, including support for Asian
+character sets.
+.It
+Graphics-mode consoles.
+.It
+Integration with
+KMS
+.Pq Kernel Mode Setting
+video drivers for switching between the
+.Em X Window System
+and virtual terminals.
+.El
+.Ss Virtual Terminals
+Multiple virtual terminals are provided on a single computer.
+Up to sixteen virtual terminals can be defined.
+A single virtual terminal is connected to the screen and keyboard
+at a time.
+Key combinations are used to select a virtual terminal.
+Alt-F1 through Alt-F12 correspond to the first twelve virtual terminals.
+If more than twelve virtual terminals are created, Shift-Alt-F1 through
+Shift-Alt-F4 are used to switch to the additional terminals.
+.Ss Copying and Pasting Text with a Mouse
+Copying and pasting text from the screen with a mouse is supported.
+Press and hold down mouse button 1, usually the left button, while
+moving the mouse to select text.
+Selected text is highlighted with reversed foreground and background
+colors.
+To select more text after releasing mouse button 1, press mouse button
+3, usually the right button.
+To paste text that has been selected, press mouse button 2, usually the
+middle button.
+The text is entered as if it were typed at the keyboard.
+The
+.Dv VT_TWOBUTTON_MOUSE
+kernel option can be used with mice that only have two buttons.
+Setting this option makes the second mouse button into the
+paste button.
+See
+.Xr moused 8
+for more information.
+.Ss Scrolling Back
+Output that has scrolled off the screen can be reviewed by pressing the
+Scroll Lock key, then scrolling up and down with the arrow keys.
+The Page Up and Page Down keys scroll up or down a full screen at a
+time.
+The Home and End keys jump to the beginning or end of the scrollback
+buffer.
+When finished reviewing, press the Scroll Lock key again to return to
+normal use.
+.Sh DRIVER CONFIGURATION
+.Ss Kernel Configuration Options
+These kernel options control the
+.Nm
+driver.
+.Bl -tag -width MAXCONS
+.It Dv VT_MAXWINDOWS=N
+Set the number of virtual terminals to be created to
+.Fa N .
+The value defaults to 12.
+.It Dv VT_ALT_TO_ESC_HACK=1
+When the Alt key is held down while pressing another key, send an ESC
+sequence instead of the Alt key.
+.It Dv VT_TWOBUTTON_MOUSE
+If defined, swap the functions of mouse buttons 2 and 3.
+In effect, this makes the right-hand mouse button perform a paste.
+These options are checked in the order shown.
+.It Dv SC_NO_CUTPASTE
+Disable mouse support.
+.It VT_FB_DEFAULT_WIDTH=X
+Set the default width to
+.Fa X .
+.It VT_FB_DEFAULT_HEIGHT=Y
+Set the default height to
+.Fa Y .
+.El
+.Sh BACKWARDS COMPATIBILITY
+Several options are provided for compatibility with the previous
+console device,
+.Xr sc 4 .
+These options will be removed in a future
+.Fx
+version.
+.Bl -column -offset indent ".Sy vt VT_TWOBUTTON_MOUSE" ".Sy SC_TWOBUTTON_MOUSE"
+.It Sy vt Option Name Ta Sy sc Option Name
+.It Dv VT_TWOBUTTON_MOUSE Ta Dv SC_TWOBUTTON_MOUSE
+.It Dv VT_MAXWINDOWS Ta Dv MAXCONS
+.It none Ta Dv SC_NO_CUTPASTE
+.It none Ta Dv SC_NO_SYSMOUSE
+.El
+.Sh START-UP OPERATION WITH X86 BIOS SYSTEMS
+The computer BIOS starts in text mode, and
+the
+.Fx
+.Xr loader 8
+runs, loading the kernel.
+If
+.Va hw.vga.textmode
+is set, the system remains in text mode.
+Otherwise,
+.Nm
+switches to 640x480x16 VGA mode using
+.Fn vt_vga .
+If a KMS
+.Pq Kernel Mode Switching
+video driver is available, the display is switched to high resolution
+and the KMS driver takes over.
+When a KMS driver is not available,
+.Fn vt_vga
+remains active.
+.Sh LOADER TUNABLES
+These settings can be entered at the
+.Xr loader 8
+prompt or in
+.Xr loader.conf 5 .
+.Bl -tag -width indent
+.It Va hw.vga.textmode
+Set to 1 to use virtual terminals in text mode instead of graphics mode.
+Features that require graphics mode, like loadable fonts, will be
+disabled.
+.El
+.Sh FILES
+.Bl -tag -width /usr/share/syscons/keymaps/* -compact
+.It Pa /dev/console
+.It Pa /dev/consolectl
+.It Pa /dev/ttyv*
+virtual terminals
+.It Pa /etc/ttys
+terminal initialization information
+.El
+.Sh SEE ALSO
+.Xr kbdcontrol 1 ,
+.Xr login 1 ,
+.Xr vidcontrol 1 ,
+.Xr atkbd 4 ,
+.Xr atkbdc 4 ,
+.Xr keyboard 4 ,
+.Xr screen 4 ,
+.Xr splash 4 ,
+.Xr syscons 4 ,
+.Xr ukbd 4 ,
+.Xr vga 4 ,
+.Xr kbdmap 5 ,
+.Xr rc.conf 5 ,
+.Xr ttys 5 ,
+.Xr config 8 ,
+.Xr getty 8 ,
+.Xr kbdmux 8 ,
+.Xr kldload 8 ,
+.Xr moused 8
+.\" WB: to be uncommented when an actual release contains vt(4)
+.\" .Sh HISTORY
+.\" The
+.\" Nm
+.\" driver first appeared in
+.\" .Fx 9.3 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+device driver was developed by
+.An Ed Schouten Aq ed@FreeBSD.org ,
+.An Ed Maste Aq emaste@FreeBSD.org ,
+and
+.An Aleksandr Rybalko Aq ray@FreeBSD.org ,
+with sponsorship provided by the
+.Fx
+Foundation.
+This manual page was written by
+.An Warren Block <wblock@FreeBSD.org>.
+.Sh CAVEATS
+Paste buffer size is limited by the system value
+.Brq Dv MAX_INPUT ,
+the number of bytes that can be stored in the terminal
+input queue, usually 1024 bytes
+(see
+.Xr termios 4 ) .

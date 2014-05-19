@@ -111,31 +111,39 @@ _cpp_clean_line (cpp_reader *pfile)
 
   if (!buffer->from_stage3)
     {
+      const uchar *pbackslash = NULL;
+
       /* Short circuit for the common case of an un-escaped line with
 	 no trigraphs.  The primary win here is by not writing any
 	 data back to memory until we have to.  */
       for (;;)
 	{
 	  c = *++s;
-	  if (c == '\n' || c == '\r')
+	  if (__builtin_expect (c == '\n', false)
+	      || __builtin_expect (c == '\r', false))
 	    {
 	      d = (uchar *) s;
 
-	      if (s == buffer->rlimit)
+	      if (__builtin_expect (s == buffer->rlimit, false))
 		goto done;
 
 	      /* DOS line ending? */
-	      if (c == '\r' && s[1] == '\n')
-		s++;
+	      if (__builtin_expect (c == '\r', false)
+		  && s[1] == '\n')
+		{
+		  s++;
+		  if (s == buffer->rlimit)
+		    goto done;
+		}
 
-	      if (s == buffer->rlimit)
+	      if (__builtin_expect (pbackslash == NULL, true))
 		goto done;
 
-	      /* check for escaped newline */
+	      /* Check for escaped newline.  */
 	      p = d;
-	      while (p != buffer->next_line && is_nvspace (p[-1]))
+	      while (is_nvspace (p[-1]))
 		p--;
-	      if (p == buffer->next_line || p[-1] != '\\')
+	      if (p - 1 != pbackslash)
 		goto done;
 
 	      /* Have an escaped newline; process it and proceed to
@@ -145,7 +153,11 @@ _cpp_clean_line (cpp_reader *pfile)
 	      buffer->next_line = p - 1;
 	      break;
 	    }
-	  if (c == '?' && s[1] == '?' && _cpp_trigraph_map[s[2]])
+	  if (__builtin_expect (c == '\\', false))
+	    pbackslash = s;
+	  else if (__builtin_expect (c == '?', false)
+		   && __builtin_expect (s[1] == '?', false)
+		   && _cpp_trigraph_map[s[2]])
 	    {
 	      /* Have a trigraph.  We may or may not have to convert
 		 it.  Add a line note regardless, for -Wtrigraphs.  */
@@ -646,7 +658,12 @@ lex_string (cpp_reader *pfile, cpp_token *token, const uchar *base)
     cpp_error (pfile, CPP_DL_WARNING,
 	       "null character(s) preserved in literal");
 
-  if (type == CPP_OTHER && CPP_OPTION (pfile, lang) != CLK_ASM)
+  /* APPLE LOCAL begin #error with unmatched quotes 5607574 */
+  if (type == CPP_OTHER
+      && CPP_OPTION (pfile, lang) != CLK_ASM
+      && !pfile->state.in_diagnostic
+      && !pfile->state.skipping)
+  /* APPLE LOCAL end #error with unmatched quotes 5607574 */
     cpp_error (pfile, CPP_DL_PEDWARN, "missing terminating %c character",
 	       (int) terminator);
 
@@ -754,6 +771,11 @@ _cpp_lex_token (cpp_reader *pfile)
 	  pfile->cur_run = next_tokenrun (pfile->cur_run);
 	  pfile->cur_token = pfile->cur_run->base;
 	}
+      /* We assume that the current token is somewhere in the current
+	 run.  */
+      if (pfile->cur_token < pfile->cur_run->base
+	  || pfile->cur_token >= pfile->cur_run->limit)
+	abort ();
 
       if (pfile->lookaheads)
 	{
@@ -835,11 +857,16 @@ _cpp_get_fresh_line (cpp_reader *pfile)
 	  && buffer->next_line > buffer->rlimit
 	  && !buffer->from_stage3)
 	{
-	  /* Only warn once.  */
+	  /* Clip to buffer size.  */
 	  buffer->next_line = buffer->rlimit;
-	  cpp_error_with_line (pfile, CPP_DL_PEDWARN, pfile->line_table->highest_line,
-			       CPP_BUF_COLUMN (buffer, buffer->cur),
-			       "no newline at end of file");
+	  /* APPLE LOCAL begin suppress no newline warning.  */
+	  if ( CPP_OPTION (pfile, warn_newline_at_eof))
+	    {
+	      cpp_error_with_line (pfile, CPP_DL_PEDWARN, pfile->line_table->highest_line,
+				   CPP_BUF_COLUMN (buffer, buffer->cur),
+				   "no newline at end of file");
+	    }
+	  /* APPLE LOCAL end suppress no newline warning.  */
 	}
 
       return_at_eof = buffer->return_at_eof;

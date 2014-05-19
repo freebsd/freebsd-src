@@ -43,7 +43,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/watchdog.h>
 #include <machine/bus.h>
 #include <machine/cpu.h>
-#include <machine/frame.h>
 #include <machine/intr.h>
 
 #include <arm/mv/mvreg.h>
@@ -108,6 +107,9 @@ static struct timecounter mv_timer_timecounter = {
 static int
 mv_timer_probe(device_t dev)
 {
+
+	if (!ofw_bus_status_okay(dev))
+		return (ENXIO);
 
 	if (!ofw_bus_is_compatible(dev, "mrvl,timer"))
 		return (ENXIO);
@@ -219,13 +221,6 @@ mv_timer_get_timecount(struct timecounter *tc)
 {
 
 	return (INITIAL_TIMECOUNTER - mv_get_timer(1));
-}
-
-void
-cpu_initclocks(void)
-{
-
-	cpu_initclocks_bsp();
 }
 
 void

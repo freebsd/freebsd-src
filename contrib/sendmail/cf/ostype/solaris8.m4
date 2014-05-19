@@ -1,6 +1,6 @@
 divert(-1)
 #
-# Copyright (c) 2000 Sendmail, Inc. and its suppliers.
+# Copyright (c) 2000 Proofpoint, Inc. and its suppliers.
 #	All rights reserved.
 #
 # By using this file, you agree to the terms and conditions set
@@ -15,7 +15,7 @@ divert(-1)
 #
 
 divert(0)
-VERSIONID(`$Id: solaris8.m4,v 8.2 2000/08/23 16:10:49 gshapiro Exp $')
+VERSIONID(`$Id: solaris8.m4,v 8.3 2013/11/22 20:51:15 ca Exp $')
 divert(-1)
 
 ifdef(`UUCP_MAILER_ARGS',, `define(`UUCP_MAILER_ARGS', `uux - -r -a$g $h!rmail ($u)')')

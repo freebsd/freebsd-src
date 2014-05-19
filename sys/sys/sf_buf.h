@@ -42,10 +42,6 @@
 
 struct vm_page;
 
-extern  int nsfbufs;                    /* Number of sendfile(2) bufs alloced */
-extern  int nsfbufspeak;                /* Peak of nsfbufsused */
-extern  int nsfbufsused;                /* Number of sendfile(2) bufs in use */
-
 struct sfstat {				/* sendfile statistics */
 	uint64_t	sf_iocnt;	/* times sendfile had to do disk I/O */
 	uint64_t	sf_allocfail;	/* times sfbuf allocation failed */

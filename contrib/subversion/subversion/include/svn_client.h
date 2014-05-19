@@ -439,9 +439,17 @@ typedef struct svn_client_commit_info_t
 #define SVN_CLIENT_COMMIT_ITEM_TEXT_MODS   0x04
 #define SVN_CLIENT_COMMIT_ITEM_PROP_MODS   0x08
 #define SVN_CLIENT_COMMIT_ITEM_IS_COPY     0x10
-/** @since New in 1.2. */
+/** One of the flags for a commit item.  The node has a lock token that
+ * should be released after a successful commit and, if the node is also
+ * modified, transferred to the server as part of the commit process.
+ *
+ * @since New in 1.2. */
 #define SVN_CLIENT_COMMIT_ITEM_LOCK_TOKEN  0x20
-/** @since New in 1.8. */
+/** One of the flags for a commit item.  The node is the 'moved here'
+ * side of a local move.  This is used to check and enforce that the
+ * other side of the move is also included in the commit.
+ *
+ * @since New in 1.8. */
 #define SVN_CLIENT_COMMIT_ITEM_MOVED_HERE  0x40
 /** @} */
 
@@ -6449,7 +6457,7 @@ svn_client_open_ra_session2(svn_ra_session_t **session,
                            apr_pool_t *result_pool,
                            apr_pool_t *scratch_pool);
 
-/** Similar to svn_client_open_ra_session(), but with @ wri_abspath
+/** Similar to svn_client_open_ra_session2(), but with @ wri_abspath
  * always passed as NULL, and with the same pool used as both @a
  * result_pool and @a scratch_pool.
  *

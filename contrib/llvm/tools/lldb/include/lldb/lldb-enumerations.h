@@ -46,7 +46,9 @@ namespace lldb {
         eLaunchFlagDisableSTDIO = (1u << 4),  ///< Disable stdio for inferior process (e.g. for a GUI app)
         eLaunchFlagLaunchInTTY  = (1u << 5),  ///< Launch the process in a new TTY if supported by the host 
         eLaunchFlagLaunchInShell= (1u << 6),   ///< Launch the process inside a shell to get shell expansion
-        eLaunchFlagLaunchInSeparateProcessGroup = (1u << 7) ///< Launch the process in a separate process group
+        eLaunchFlagLaunchInSeparateProcessGroup = (1u << 7), ///< Launch the process in a separate process group
+        eLaunchFlagsDontMonitorProcess = (1u << 8)  ///< If you are going to hand the process off (e.g. to debugserver)
+                                                    ///< set this flag so lldb & the handee don't race to reap it.
     } LaunchFlags;
         
     //----------------------------------------------------------------------
@@ -380,6 +382,7 @@ namespace lldb {
         eArgTypeClassName,
         eArgTypeCommandName,
         eArgTypeCount,
+        eArgTypeDescriptionVerbosity,
         eArgTypeDirectoryName,
         eArgTypeDisassemblyFlavor,
         eArgTypeEndAddress,
@@ -406,6 +409,9 @@ namespace lldb {
         eArgTypeOffset,
         eArgTypeOldPathPrefix,
         eArgTypeOneLiner,
+        eArgTypePath,
+        eArgTypePermissionsNumber,
+        eArgTypePermissionsString,
         eArgTypePid,
         eArgTypePlugin,
         eArgTypeProcessName,
@@ -480,7 +486,8 @@ namespace lldb {
         eSymbolTypeUndefined,
         eSymbolTypeObjCClass,
         eSymbolTypeObjCMetaClass,
-        eSymbolTypeObjCIVar
+        eSymbolTypeObjCIVar,
+        eSymbolTypeReExported
     } SymbolType;
     
     typedef enum SectionType
@@ -678,6 +685,61 @@ namespace lldb {
         eAddressClassDebug,
         eAddressClassRuntime
     } AddressClass;
+
+    //----------------------------------------------------------------------
+    // File Permissions
+    //
+    // Designed to mimic the unix file permission bits so they can be
+    // used with functions that set 'mode_t' to certain values for
+    // permissions.
+    //----------------------------------------------------------------------
+    typedef enum FilePermissions
+    {
+        eFilePermissionsUserRead        = (1u << 8),
+        eFilePermissionsUserWrite       = (1u << 7),
+        eFilePermissionsUserExecute     = (1u << 6),
+        eFilePermissionsGroupRead       = (1u << 5),
+        eFilePermissionsGroupWrite      = (1u << 4),
+        eFilePermissionsGroupExecute    = (1u << 3),
+        eFilePermissionsWorldRead       = (1u << 2),
+        eFilePermissionsWorldWrite      = (1u << 1),
+        eFilePermissionsWorldExecute    = (1u << 0),
+        
+        eFilePermissionsUserRW      = (eFilePermissionsUserRead    | eFilePermissionsUserWrite      | 0                             ),
+        eFileFilePermissionsUserRX  = (eFilePermissionsUserRead    | 0                              | eFilePermissionsUserExecute   ),
+        eFilePermissionsUserRWX     = (eFilePermissionsUserRead    | eFilePermissionsUserWrite      | eFilePermissionsUserExecute   ),
+            
+        eFilePermissionsGroupRW     = (eFilePermissionsGroupRead   | eFilePermissionsGroupWrite     | 0                             ),
+        eFilePermissionsGroupRX     = (eFilePermissionsGroupRead   | 0                              | eFilePermissionsGroupExecute  ),
+        eFilePermissionsGroupRWX    = (eFilePermissionsGroupRead   | eFilePermissionsGroupWrite     | eFilePermissionsGroupExecute  ),
+        
+        eFilePermissionsWorldRW     = (eFilePermissionsWorldRead   | eFilePermissionsWorldWrite     | 0                             ),
+        eFilePermissionsWorldRX     = (eFilePermissionsWorldRead   | 0                              | eFilePermissionsWorldExecute  ),
+        eFilePermissionsWorldRWX    = (eFilePermissionsWorldRead   | eFilePermissionsWorldWrite     | eFilePermissionsWorldExecute  ),
+        
+        eFilePermissionsEveryoneR   = (eFilePermissionsUserRead    | eFilePermissionsGroupRead      | eFilePermissionsWorldRead     ),
+        eFilePermissionsEveryoneW   = (eFilePermissionsUserWrite   | eFilePermissionsGroupWrite     | eFilePermissionsWorldWrite    ),
+        eFilePermissionsEveryoneX   = (eFilePermissionsUserExecute | eFilePermissionsGroupExecute   | eFilePermissionsWorldExecute  ),
+        
+        eFilePermissionsEveryoneRW  = (eFilePermissionsEveryoneR   | eFilePermissionsEveryoneW      | 0                             ),
+        eFilePermissionsEveryoneRX  = (eFilePermissionsEveryoneR   | 0                              | eFilePermissionsEveryoneX     ),
+        eFilePermissionsEveryoneRWX = (eFilePermissionsEveryoneR   | eFilePermissionsEveryoneW      | eFilePermissionsEveryoneX     ),
+        eFilePermissionsFileDefault = eFilePermissionsUserRW,
+        eFilePermissionsDirectoryDefault = eFilePermissionsUserRWX,
+    } FilePermissions;
+
+    //----------------------------------------------------------------------
+    // Queue work item types
+    //
+    // The different types of work that can be enqueued on a libdispatch
+    // aka Grand Central Dispatch (GCD) queue.
+    //----------------------------------------------------------------------
+    typedef enum QueueItemKind
+    {
+        eQueueItemKindUnknown = 0,
+        eQueueItemKindFunction,
+        eQueueItemKindBlock
+    } QueueItemKind;
 
 } // namespace lldb
 

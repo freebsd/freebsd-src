@@ -50,6 +50,7 @@ extern int	yylex(void);
 %%
 alias			{ return ALIAS; }
 auth-group		{ return AUTH_GROUP; }
+auth-type		{ return AUTH_TYPE; }
 backend			{ return BACKEND; }
 blocksize		{ return BLOCKSIZE; }
 chap			{ return CHAP; }
@@ -57,6 +58,8 @@ chap-mutual		{ return CHAP_MUTUAL; }
 debug			{ return DEBUG; }
 device-id		{ return DEVICE_ID; }
 discovery-auth-group	{ return DISCOVERY_AUTH_GROUP; }
+initiator-name		{ return INITIATOR_NAME; }
+initiator-portal	{ return INITIATOR_PORTAL; }
 listen			{ return LISTEN; }
 listen-iser		{ return LISTEN_ISER; }
 lun			{ return LUN; }
@@ -82,4 +85,5 @@ timeout			{ return TIMEOUT; }
 #.*$			/* ignore comments */;
 \n			{ lineno++; }
 [ \t]+			/* ignore whitespace */;
+.			{ yylval.str = strdup(yytext); return STR; }
 %%

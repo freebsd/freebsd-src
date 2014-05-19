@@ -38,7 +38,7 @@ no_args_body()
 {
     cat >experr <<EOF
 atf-sh: ERROR: No test program provided
-atf-sh: Type \`atf-sh -h' for more details.
+atf-sh: See atf-sh(1) for usage details.
 EOF
     atf_check -s eq:1 -o ignore -e file:experr atf-sh
 }

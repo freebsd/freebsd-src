@@ -389,13 +389,6 @@ parse_advance(char **conf)
 	(*conf)++;
 }
 
-static __inline int
-parse_isspace(int c)
-{
-
-	return ((c == ' ' || c == '\t' || c == '\n') ? 1 : 0);
-}
-
 static int
 parse_skipto(char **conf, int mc)
 {

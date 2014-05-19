@@ -458,7 +458,7 @@ do {									\
 #	define MGA_BLTMOD_BU24RGB		(15 << 25)
 #	define MGA_PATTERN			(1 << 29)
 #	define MGA_TRANSC			(1 << 30)
-#	define MGA_CLIPDIS			(1 << 31)
+#	define MGA_CLIPDIS			(1U << 31)
 #define MGA_DWGSYNC			0x2c4c
 
 #define MGA_FCOL			0x1c24
@@ -526,7 +526,7 @@ do {									\
 #define MGA_TEXCTL2			0x2c3c
 #	define MGA_DUALTEX			(1 << 7)
 #	define MGA_G400_TC2_MAGIC		(1 << 15)
-#	define MGA_MAP1_ENABLE			(1 << 31)
+#	define MGA_MAP1_ENABLE			(1U << 31)
 #define MGA_TEXFILTER			0x2c58
 #define MGA_TEXHEIGHT			0x2c2c
 #define MGA_TEXORG			0x2c24

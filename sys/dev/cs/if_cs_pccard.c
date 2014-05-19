@@ -29,7 +29,9 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/lock.h>
 #include <sys/kernel.h>
+#include <sys/mutex.h>
 #include <sys/socket.h>
 
 #include <sys/module.h>
@@ -40,7 +42,7 @@ __FBSDID("$FreeBSD$");
  
 #include <net/ethernet.h> 
 #include <net/if.h> 
-#include <net/if_arp.h>
+#include <net/if_media.h>
 
 #include <dev/cs/if_csvar.h>
 #include <dev/cs/if_csreg.h>

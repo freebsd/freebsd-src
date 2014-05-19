@@ -41,20 +41,17 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_apic.h"
-#include "opt_atalk.h"
 #include "opt_atpic.h"
 #include "opt_compat.h"
 #include "opt_cpu.h"
 #include "opt_ddb.h"
 #include "opt_inet.h"
-#include "opt_ipx.h"
 #include "opt_isa.h"
 #include "opt_kstack_pages.h"
 #include "opt_maxmem.h"
 #include "opt_mp_watchdog.h"
 #include "opt_npx.h"
 #include "opt_perfmon.h"
-#include "opt_kdtrace.h"
 
 #include <sys/param.h>
 #include <sys/proc.h>
@@ -130,6 +127,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/sigframe.h>
 #include <machine/specialreg.h>
 #include <machine/vm86.h>
+#include <x86/init.h>
 #ifdef PERFMON
 #include <machine/perfmon.h>
 #endif
@@ -138,7 +136,7 @@ __FBSDID("$FreeBSD$");
 #endif
 
 #ifdef DEV_APIC
-#include <machine/apicvar.h>
+#include <x86/apicvar.h>
 #endif
 
 #ifdef DEV_ISA
@@ -221,6 +219,12 @@ struct mtx icu_lock;
 
 struct mem_range_softc mem_range_softc;
 
+ /* Default init_ops implementation. */
+ struct init_ops init_ops = {
+	.early_clock_source_init =	i8254_init,
+	.early_delay =			i8254_delay,
+ };
+
 static void
 cpu_startup(dummy)
 	void *dummy;
@@ -266,8 +270,8 @@ cpu_startup(dummy)
 	vm_ksubmap_init(&kmi);
 
 	printf("avail memory = %ju (%ju MB)\n",
-	    ptoa((uintmax_t)cnt.v_free_count),
-	    ptoa((uintmax_t)cnt.v_free_count) / 1048576);
+	    ptoa((uintmax_t)vm_cnt.v_free_count),
+	    ptoa((uintmax_t)vm_cnt.v_free_count) / 1048576);
 
 	/*
 	 * Set up buffers, so they can be used to read disk labels.
@@ -690,6 +694,8 @@ sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 
 	regs->tf_esp = (int)sfp;
 	regs->tf_eip = p->p_sysent->sv_sigcode_base;
+	if (regs->tf_eip == 0)
+		regs->tf_eip = p->p_sysent->sv_psstrings - szsigcode;
 	regs->tf_eflags &= ~(PSL_T | PSL_D);
 	regs->tf_cs = _ucodesel;
 	regs->tf_ds = _udatasel;
@@ -773,17 +779,7 @@ osigreturn(td, uap)
 		/*
 		 * Don't allow users to change privileged or reserved flags.
 		 */
-		/*
-		 * XXX do allow users to change the privileged flag PSL_RF.
-		 * The cpu sets PSL_RF in tf_eflags for faults.  Debuggers
-		 * should sometimes set it there too.  tf_eflags is kept in
-		 * the signal context during signal handling and there is no
-		 * other place to remember it, so the PSL_RF bit may be
-		 * corrupted by the signal handler without us knowing.
-		 * Corruption of the PSL_RF bit at worst causes one more or
-		 * one less debugger trap, so allowing it is fairly harmless.
-		 */
-		if (!EFL_SECURE(eflags & ~PSL_RF, regs->tf_eflags & ~PSL_RF)) {
+		if (!EFL_SECURE(eflags, regs->tf_eflags)) {
 	    		return (EINVAL);
 		}
 
@@ -899,17 +895,7 @@ freebsd4_sigreturn(td, uap)
 		/*
 		 * Don't allow users to change privileged or reserved flags.
 		 */
-		/*
-		 * XXX do allow users to change the privileged flag PSL_RF.
-		 * The cpu sets PSL_RF in tf_eflags for faults.  Debuggers
-		 * should sometimes set it there too.  tf_eflags is kept in
-		 * the signal context during signal handling and there is no
-		 * other place to remember it, so the PSL_RF bit may be
-		 * corrupted by the signal handler without us knowing.
-		 * Corruption of the PSL_RF bit at worst causes one more or
-		 * one less debugger trap, so allowing it is fairly harmless.
-		 */
-		if (!EFL_SECURE(eflags & ~PSL_RF, regs->tf_eflags & ~PSL_RF)) {
+		if (!EFL_SECURE(eflags, regs->tf_eflags)) {
 			uprintf("pid %d (%s): freebsd4_sigreturn eflags = 0x%x\n",
 			    td->td_proc->p_pid, td->td_name, eflags);
 	    		return (EINVAL);
@@ -1013,17 +999,7 @@ sys_sigreturn(td, uap)
 		/*
 		 * Don't allow users to change privileged or reserved flags.
 		 */
-		/*
-		 * XXX do allow users to change the privileged flag PSL_RF.
-		 * The cpu sets PSL_RF in tf_eflags for faults.  Debuggers
-		 * should sometimes set it there too.  tf_eflags is kept in
-		 * the signal context during signal handling and there is no
-		 * other place to remember it, so the PSL_RF bit may be
-		 * corrupted by the signal handler without us knowing.
-		 * Corruption of the PSL_RF bit at worst causes one more or
-		 * one less debugger trap, so allowing it is fairly harmless.
-		 */
-		if (!EFL_SECURE(eflags & ~PSL_RF, regs->tf_eflags & ~PSL_RF)) {
+		if (!EFL_SECURE(eflags, regs->tf_eflags)) {
 			uprintf("pid %d (%s): sigreturn eflags = 0x%x\n",
 			    td->td_proc->p_pid, td->td_name, eflags);
 	    		return (EINVAL);
@@ -1259,7 +1235,7 @@ cpu_idle(int busy)
 	/* Call main idle method. */
 	cpu_idle_fn(sbt);
 
-	/* Switch timers mack into active mode. */
+	/* Switch timers back into active mode. */
 	if (!busy) {
 		cpu_activeclock();
 		critical_exit();
@@ -1992,7 +1968,7 @@ getmemsize(int first)
 	phys_avail[pa_indx++] = physmap[0];
 	phys_avail[pa_indx] = physmap[0];
 	dump_avail[da_indx] = physmap[0];
-	pte = CMAP1;
+	pte = CMAP3;
 
 	/*
 	 * Get dcons buffer address
@@ -2013,7 +1989,7 @@ getmemsize(int first)
 			end = trunc_page(physmap[i + 1]);
 		for (pa = round_page(physmap[i]); pa < end; pa += PAGE_SIZE) {
 			int tmp, page_bad, full;
-			int *ptr = (int *)CADDR1;
+			int *ptr = (int *)CADDR3;
 
 			full = FALSE;
 			/*
@@ -2298,7 +2274,7 @@ init386(first)
 	 * Initialize the i8254 before the console so that console
 	 * initialization can use DELAY().
 	 */
-	i8254_init();
+	clock_init();
 
 	/*
 	 * Initialize the console before we print anything out.

@@ -1,12 +1,12 @@
 /*
- * Copyright (c) 2001-2002 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 2001-2002 Proofpoint, Inc. and its suppliers.
  *      All rights reserved.
  *
  * By using this file, you agree to the terms and conditions set
  * forth in the LICENSE file which can be found at the top level of
  * the sendmail distribution.
  *
- *	$Id: mbdb.h,v 1.6 2002/05/24 20:50:14 gshapiro Exp $
+ *	$Id: mbdb.h,v 1.7 2013/11/22 20:51:31 ca Exp $
  */
 
 #ifndef SM_MBDB_H

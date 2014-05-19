@@ -59,7 +59,8 @@ is_scheme_bootable(const char *part_type) {
 		return (1);
 	if (strcmp(platform, "ps3") == 0 && strcmp(part_type, "GPT") == 0)
 		return (1);
-	if (strcmp(platform, "chrp") == 0 && strcmp(part_type, "MBR") == 0)
+	if (strcmp(platform, "chrp") == 0 &&
+	    (strcmp(part_type, "MBR") == 0 || strcmp(part_type, "BSD") == 0))
 		return (1);
 
 	return (0);
@@ -70,6 +71,11 @@ bootpart_size(const char *part_type) {
 	if (strcmp(part_type, "APM") == 0 || strcmp(part_type, "MBR") == 0)
 		return (800*1024);
 	return (0);
+}
+
+const char *
+bootpart_type(const char *scheme) {
+	return ("freebsd-boot");
 }
 
 const char *

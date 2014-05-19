@@ -1,5 +1,5 @@
 /*
- *  $Id: checklist.c,v 1.151 2013/03/23 10:51:48 tom Exp $
+ *  $Id: checklist.c,v 1.153 2013/09/02 17:01:02 tom Exp $
  *
  *  checklist.c -- implements the checklist box
  *
@@ -607,6 +607,7 @@ dialog_checklist(const char *title,
 			    && (dialog_vars.separate_output));
     bool show_status = FALSE;
     int current = 0;
+    char *help_result;
 
     listitems = dlg_calloc(DIALOG_LISTITEM, (size_t) item_no + 1);
     assert_ptr(listitems, "dialog_checklist");
@@ -640,31 +641,16 @@ dialog_checklist(const char *title,
 	show_status = TRUE;
 	break;
     case DLG_EXIT_HELP:
-	dlg_add_result("HELP ");
-	show_status = dialog_vars.help_status;
-	if (USE_ITEM_HELP(listitems[current].help)) {
-	    if (show_status) {
-		if (separate_output) {
-		    dlg_add_string(listitems[current].help);
-		    dlg_add_separator();
-		} else {
-		    dlg_add_quoted(listitems[current].help);
-		}
+	dlg_add_help_listitem(&result, &help_result, &listitems[current]);
+	if ((show_status = dialog_vars.help_status)) {
+	    if (separate_output) {
+		dlg_add_string(help_result);
+		dlg_add_separator();
 	    } else {
-		dlg_add_string(listitems[current].help);
+		dlg_add_quoted(help_result);
 	    }
-	    result = DLG_EXIT_ITEM_HELP;
 	} else {
-	    if (show_status) {
-		if (separate_output) {
-		    dlg_add_string(listitems[current].name);
-		    dlg_add_separator();
-		} else {
-		    dlg_add_quoted(listitems[current].name);
-		}
-	    } else {
-		dlg_add_string(listitems[current].name);
-	    }
+	    dlg_add_string(help_result);
 	}
 	break;
     }

@@ -43,6 +43,8 @@ __FBSDID("$FreeBSD$");
  *
  */
 
+#include "opt_platform.h"
+
 #include <sys/param.h>
 #include <sys/kernel.h>
 #include <sys/systm.h>
@@ -50,6 +52,11 @@ __FBSDID("$FreeBSD$");
 #include <sys/bus.h>
 #include <sys/uio.h>
 
+#ifdef FDT
+#include <dev/ofw/ofw_bus.h>
+#include <dev/ofw/ofw_bus_subr.h>
+#include <dev/fdt/fdt_common.h>
+#endif
 
 #include <dev/iicbus/iiconf.h>
 #include <dev/iicbus/iicbus.h>
@@ -77,6 +84,9 @@ static int iicbb_write(device_t, const char *, int, int *, int);
 static int iicbb_read(device_t, char *, int, int *, int, int);
 static int iicbb_reset(device_t, u_char, u_char, u_char *);
 static int iicbb_transfer(device_t dev, struct iic_msg *msgs, uint32_t nmsgs);
+#ifdef FDT
+static phandle_t iicbb_get_node(device_t, device_t);
+#endif
 
 static device_method_t iicbb_methods[] = {
 	/* device interface */
@@ -97,6 +107,11 @@ static device_method_t iicbb_methods[] = {
 	DEVMETHOD(iicbus_read,		iicbb_read),
 	DEVMETHOD(iicbus_reset,		iicbb_reset),
 	DEVMETHOD(iicbus_transfer,	iicbb_transfer),
+
+#ifdef FDT
+	/* ofw_bus interface */
+	DEVMETHOD(ofw_bus_get_node,	iicbb_get_node),
+#endif
 
 	{ 0, 0 }
 };
@@ -153,6 +168,16 @@ iicbb_detach(device_t dev)
 
 	return (0);
 }
+
+#ifdef FDT
+static phandle_t
+iicbb_get_node(device_t bus, device_t dev)
+{
+
+	/* We only have one child, the I2C bus, which needs our own node. */
+	return (ofw_bus_get_node(bus));
+}
+#endif
 
 static void
 iicbb_child_detached( device_t dev, device_t child )

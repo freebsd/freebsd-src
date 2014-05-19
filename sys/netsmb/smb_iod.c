@@ -87,8 +87,6 @@ smb_iod_invrq(struct smbiod *iod)
 	 */
 	SMB_IOD_RQLOCK(iod);
 	TAILQ_FOREACH(rqp, &iod->iod_rqlist, sr_link) {
-		if (rqp->sr_flags & SMBR_INTERNAL)
-			SMBRQ_SUNLOCK(rqp);
 		rqp->sr_flags |= SMBR_RESTART;
 		smb_iod_rqprocessed(rqp, ENOTCONN);
 	}

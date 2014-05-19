@@ -98,8 +98,11 @@ typedef struct svn_config_t svn_config_t;
 
 #define SVN_CONFIG_CATEGORY_CONFIG          "config"
 #define SVN_CONFIG_SECTION_AUTH                 "auth"
+/** @since New in 1.6. */
 #define SVN_CONFIG_OPTION_PASSWORD_STORES           "password-stores"
+/** @since New in 1.6. */
 #define SVN_CONFIG_OPTION_KWALLET_WALLET            "kwallet-wallet"
+/** @since New in 1.6. */
 #define SVN_CONFIG_OPTION_KWALLET_SVN_APPLICATION_NAME_WITH_PID "kwallet-svn-application-name-with-pid"
 /** @since New in 1.8. */
 #define SVN_CONFIG_OPTION_SSL_CLIENT_CERT_FILE_PROMPT "ssl-client-cert-file-prompt"
@@ -123,7 +126,9 @@ typedef struct svn_config_t svn_config_t;
 #define SVN_CONFIG_OPTION_NO_UNLOCK                 "no-unlock"
 #define SVN_CONFIG_OPTION_MIMETYPES_FILE            "mime-types-file"
 #define SVN_CONFIG_OPTION_PRESERVED_CF_EXTS         "preserved-conflict-file-exts"
+/** @since New in 1.7. */
 #define SVN_CONFIG_OPTION_INTERACTIVE_CONFLICTS     "interactive-conflicts"
+/** @since New in 1.7. */
 #define SVN_CONFIG_OPTION_MEMORY_CACHE_SIZE         "memory-cache-size"
 #define SVN_CONFIG_SECTION_TUNNELS              "tunnels"
 #define SVN_CONFIG_SECTION_AUTO_PROPS           "auto-props"
@@ -168,10 +173,12 @@ typedef struct svn_config_t svn_config_t;
 /* We want this to be printed on two lines in the generated config file,
  * but we don't want the # character to end up in the variable.
  */
+#ifndef DOXYGEN_SHOULD_SKIP_THIS
 #define SVN_CONFIG__DEFAULT_GLOBAL_IGNORES_LINE_1 \
   "*.o *.lo *.la *.al .libs *.so *.so.[0-9]* *.a *.pyc *.pyo __pycache__"
 #define SVN_CONFIG__DEFAULT_GLOBAL_IGNORES_LINE_2 \
   "*.rej *~ #*# .#* .*.swp .DS_Store"
+#endif
 
 #define SVN_CONFIG_DEFAULT_GLOBAL_IGNORES \
   SVN_CONFIG__DEFAULT_GLOBAL_IGNORES_LINE_1 " " \
@@ -731,6 +738,12 @@ typedef svn_error_t *
  * each credential cached within the Subversion auth store located
  * under @a config_dir.  If the callback sets its delete_cred return
  * flag, delete the associated credential.
+ *
+ * If @a config_dir is not NULL, it must point to an alternative
+ * config directory location. If it is NULL, the default location
+ * is used.
+ *
+ * @note @a config_dir may only be NULL in 1.8.2 and later.
  *
  * @note Removing credentials from the config-based disk store will
  * not purge them from any open svn_auth_baton_t instance.  Consider

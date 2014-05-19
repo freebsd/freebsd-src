@@ -80,7 +80,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_map.h>
 #include <vm/vm_param.h>
 
-#include <x86/isa/isa.h>
+#include <isa/isareg.h>
 
 static void	cpu_reset_real(void);
 #ifdef SMP
@@ -341,7 +341,7 @@ cpu_thread_clean(struct thread *td)
 	 * Clean TSS/iomap
 	 */
 	if (pcb->pcb_tssp != NULL) {
-		kva_free((vm_offset_t)pcb->pcb_tssp,
+		kmem_free(kernel_arena, (vm_offset_t)pcb->pcb_tssp,
 		    ctob(IOPAGES + 1));
 		pcb->pcb_tssp = NULL;
 	}
@@ -400,9 +400,13 @@ cpu_set_syscall_retval(struct thread *td, int error)
 		 * for the next iteration.
 		 * %r10 restore is only required for freebsd/amd64 processes,
 		 * but shall be innocent for any ia32 ABI.
+		 *
+		 * Require full context restore to get the arguments
+		 * in the registers reloaded at return to usermode.
 		 */
 		td->td_frame->tf_rip -= td->td_frame->tf_err;
 		td->td_frame->tf_r10 = td->td_frame->tf_rcx;
+		set_pcb_flags(td->td_pcb, PCB_FULL_IRET);
 		break;
 
 	case EJUSTRETURN:
@@ -442,7 +446,8 @@ cpu_set_upcall(struct thread *td, struct thread *td0)
 	 * values here.
 	 */
 	bcopy(td0->td_pcb, pcb2, sizeof(*pcb2));
-	clear_pcb_flags(pcb2, PCB_FPUINITDONE | PCB_USERFPUINITDONE);
+	clear_pcb_flags(pcb2, PCB_FPUINITDONE | PCB_USERFPUINITDONE |
+	    PCB_KERNFPU);
 	pcb2->pcb_save = get_pcb_user_save_pcb(pcb2);
 	bcopy(get_pcb_user_save_td(td0), pcb2->pcb_save,
 	    cpu_max_ext_state_size);
@@ -592,7 +597,7 @@ cpu_reset()
 	cpuset_t map;
 	u_int cnt;
 
-	if (smp_active) {
+	if (smp_started) {
 		map = all_cpus;
 		CPU_CLR(PCPU_GET(cpuid), &map);
 		CPU_NAND(&map, &stopped_cpus);

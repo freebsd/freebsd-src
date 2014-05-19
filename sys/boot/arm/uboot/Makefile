@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.include <bsd.own.mk>
+.include <src.opts.mk>
 
 PROG=		ubldr
 NEWVERSWHAT=	"U-Boot loader" ${MACHINE_ARCH}
@@ -90,7 +90,7 @@ CFLAGS+=	-I.
 
 CLEANFILES+=	vers.c loader.help
 
-CFLAGS+=	-ffreestanding
+CFLAGS+=	-ffreestanding -msoft-float
 
 LDFLAGS=	-nostdlib -static
 LDFLAGS+=	-T ldscript.generated

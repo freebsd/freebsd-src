@@ -31,6 +31,7 @@
 
 typedef uint64_t *counter_u64_t;
 
+#ifdef _KERNEL
 #include <machine/counter.h>
 
 counter_u64_t	counter_u64_alloc(int);
@@ -58,4 +59,5 @@ uint64_t	counter_u64_fetch(counter_u64_t);
 	for (int i = 0; i < (n); i++)				\
 		counter_u64_zero((a)[i]);			\
 } while (0)
+#endif	/* _KERNEL */
 #endif	/* ! __SYS_COUNTER_H__ */

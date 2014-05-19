@@ -29,32 +29,34 @@ makeoptions	KERNVIRTADDR=0xc0100000
 options 	KERNPHYSADDR=0x00100000
 makeoptions	KERNPHYSADDR=0x00100000
 options 	PHYSADDR=0x00000000
-options 	STARTUP_PAGETABLE_ADDR=0x01000000
-options		FREEBSD_BOOT_LOADER
-options		LINUX_BOOT_ABI
+options 	FREEBSD_BOOT_LOADER
+options 	LINUX_BOOT_ABI
 
-makeoptions	DEBUG=-g		#Build kernel with gdb(1) debug symbols
+makeoptions	DEBUG=-g		# Build kernel with gdb(1) debug symbols
 options 	HZ=100
 
-options 	SCHED_4BSD		#4BSD scheduler
-options 	INET			#InterNETworking
-options 	FFS			#Berkeley Fast Filesystem
-options 	SOFTUPDATES		#Enable FFS soft updates support
-options 	UFS_ACL			#Support for access control lists
-options 	UFS_DIRHASH		#Improve performance on big directories
+options 	SCHED_4BSD		# 4BSD scheduler
+options 	INET			# InterNETworking
+options 	FFS			# Berkeley Fast Filesystem
+options 	SOFTUPDATES		# Enable FFS soft updates support
+options 	UFS_ACL			# Support for access control lists
+options 	UFS_DIRHASH		# Improve performance on big directories
 device		snp
 
-options 	PSEUDOFS		#Pseudo-filesystem framework
-options 	COMPAT_43		#Compatible with BSD 4.3 [KEEP THIS!]
-options 	SCSI_DELAY=5000		#Delay (in ms) before probing SCSI
-options 	KTRACE			#ktrace(1) support
-options 	SYSVSHM			#SYSV-style shared memory
-options 	SYSVMSG			#SYSV-style message queues
-options 	SYSVSEM			#SYSV-style semaphores
-options 	_KPOSIX_PRIORITY_SCHEDULING #Posix P1003_1B real-time extensions
+options 	GEOM_PART_BSD		# BSD partition scheme
+options 	GEOM_PART_MBR		# MBR partition scheme
+options 	TMPFS			# Efficient memory filesystem
+options 	PSEUDOFS		# Pseudo-filesystem framework
+options 	COMPAT_43		# Compatible with BSD 4.3 [KEEP THIS!]
+options 	SCSI_DELAY=5000		# Delay (in ms) before probing SCSI
+options 	KTRACE			# ktrace(1) support
+options 	SYSVSHM			# SYSV-style shared memory
+options 	SYSVMSG			# SYSV-style message queues
+options 	SYSVSEM			# SYSV-style semaphores
+options 	_KPOSIX_PRIORITY_SCHEDULING # Posix P1003_1B real-time extensions
 options 	KBD_INSTALL_CDEV	# install a CDEV entry in /dev
 options 	ROOTDEVNAME=\"ufs:da0s1a\"
-options 	VFP		# vfp/neon
+options 	VFP			# vfp/neon
 
 options 	PREEMPTION
 
@@ -74,27 +76,27 @@ device		pty
 device		pci
 
 # SCSI Controllers
-device		sym		# NCR/Symbios/LSI Logic 53C8XX/53C1010/53C1510D
+device		sym			# NCR/Symbios/LSI Logic 53C8XX/53C1010/53C1510D
 
 # ATA/SCSI peripherals
-device		scbus		# SCSI bus (required for ATA/SCSI)
-device		da		# Direct Access (disks)
-device		pass		# Passthrough device (direct ATA/SCSI access)
+device		scbus			# SCSI bus (required for ATA/SCSI)
+device		da			# Direct Access (disks)
+device		pass			# Passthrough device (direct ATA/SCSI access)
 
 # NOTE: serial console is disabled if syscons enabled
 # Comment following lines for headless setup
 device		sc
 device		kbdmux
-options         SC_DFLT_FONT    # compile font in
+options         SC_DFLT_FONT    	# compile font in
 makeoptions     SC_DFLT_FONT=cp437
 
 options 	KDB
-options 	DDB			#Enable the kernel debugger
-options 	INVARIANTS		#Enable calls of extra sanity checking
-options 	INVARIANT_SUPPORT	#Extra sanity checks of internal structures, required by INVARIANTS
+options 	DDB			# Enable the kernel debugger
+options 	INVARIANTS		# Enable calls of extra sanity checking
+options 	INVARIANT_SUPPORT	# Extra sanity checks of internal structures, required by INVARIANTS
 
 device		md
-device		random		# Entropy device
+device		random			# Entropy device
 
 # Flattened Device Tree
 options         FDT

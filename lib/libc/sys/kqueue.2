@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 21, 2013
+.Dd April 7, 2014
 .Dt KQUEUE 2
 .Os
 .Sh NAME
@@ -245,7 +245,7 @@ Arguments may be passed to and from the filter via the
 and
 .Va data
 fields in the kevent structure.
-.Bl -tag -width EVFILT_SIGNAL
+.Bl -tag -width EVFILT_PROCDESC
 .It EVFILT_READ
 Takes a descriptor as the identifier, and returns whenever
 there is data available to read.
@@ -412,6 +412,24 @@ and the child process will not signal a NOTE_CHILD event.
 On return,
 .Va fflags
 contains the events which triggered the filter.
+.It EVFILT_PROCDESC
+Takes the process descriptor created by
+.Xr pdfork 2
+to monitor as the identifier and the events to watch for in
+.Va fflags ,
+and returns when the associated process performs one or more of the
+requested events.
+The events to monitor are:
+.Bl -tag -width XXNOTE_EXIT
+.It NOTE_EXIT
+The process has exited.
+The exit status will be stored in
+.Va data .
+.El
+.Pp
+On return,
+.Va fflags
+contains the events which triggered the filter.
 .It EVFILT_SIGNAL
 Takes the signal number to monitor as the identifier and returns
 when the given signal is delivered to the process.
@@ -532,6 +550,13 @@ system call fails if:
 .Bl -tag -width Er
 .It Bq Er ENOMEM
 The kernel failed to allocate enough memory for the kernel queue.
+.It Bq Er ENOMEM
+The
+.Dv RLIMIT_KQUEUES
+rlimit
+(see
+.Xr getrlimit 2 )
+for the current user would be exceeded.
 .It Bq Er EMFILE
 The per-process descriptor table is full.
 .It Bq Er ENFILE

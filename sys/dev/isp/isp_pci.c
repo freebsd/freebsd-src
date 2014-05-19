@@ -1432,6 +1432,15 @@ isp_pci_wr_reg_2400(ispsoftc_t *isp, int regoff, uint32_t val)
 	case BIU2400_GPIOE:
 	case BIU2400_HSEMA:
 		BXW4(isp, IspVirt2Off(isp, regoff), val);
+#ifdef MEMORYBARRIERW
+		if (regoff == BIU2400_REQINP ||
+		    regoff == BIU2400_RSPOUTP ||
+		    regoff == BIU2400_PRI_REQINP ||
+		    regoff == BIU2400_ATIO_RSPOUTP)
+			MEMORYBARRIERW(isp, SYNC_REG,
+			    IspVirt2Off(isp, regoff), 4, -1)
+		else
+#endif
 		MEMORYBARRIER(isp, SYNC_REG, IspVirt2Off(isp, regoff), 4, -1);
 		break;
 	default:

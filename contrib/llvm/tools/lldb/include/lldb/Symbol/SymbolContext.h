@@ -16,8 +16,8 @@
 #include "lldb/lldb-private.h"
 #include "lldb/Core/Address.h"
 #include "lldb/Core/Mangled.h"
-#include "lldb/Symbol/ClangASTType.h"
 #include "lldb/Symbol/LineEntry.h"
+#include "lldb/Utility/Iterable.h"
 
 namespace lldb_private {
 
@@ -553,6 +553,14 @@ protected:
     // Member variables.
     //------------------------------------------------------------------
     collection m_symbol_contexts; ///< The list of symbol contexts.
+
+public:
+    typedef AdaptedIterable<collection, SymbolContext, vector_adapter> SymbolContextIterable;
+    SymbolContextIterable
+    SymbolContexts()
+    {
+        return SymbolContextIterable(m_symbol_contexts);
+    }
 };
 
 bool operator== (const SymbolContext& lhs, const SymbolContext& rhs);

@@ -154,25 +154,28 @@ g_conftxt(void *p, int flag)
 }
 
 
-static void
-g_conf_print_escaped(struct sbuf *sb, const char *fmt, const char *str)
+void
+g_conf_printf_escaped(struct sbuf *sb, const char *fmt, ...)
 {
 	struct sbuf *s;
 	const u_char *c;
+	va_list ap;
 
 	s = sbuf_new_auto();
+	va_start(ap, fmt);
+	sbuf_vprintf(s, fmt, ap);
+	va_end(ap);
+	sbuf_finish(s);
 
-	for (c = str; *c != '\0'; c++) {
+	for (c = sbuf_data(s); *c != '\0'; c++) {
 		if (*c == '&' || *c == '<' || *c == '>' ||
 		    *c == '\'' || *c == '"' || *c > 0x7e)
-			sbuf_printf(s, "&#x%X;", *c);
+			sbuf_printf(sb, "&#x%X;", *c);
 		else if (*c == '\t' || *c == '\n' || *c == '\r' || *c > 0x1f)
-			sbuf_putc(s, *c);
+			sbuf_putc(sb, *c);
 		else
-			sbuf_putc(s, '?');
+			sbuf_putc(sb, '?');
 	}
-	sbuf_finish(s);
-	sbuf_printf(sb, fmt, sbuf_data(s));
 	sbuf_delete(s);
 }
 
@@ -204,7 +207,9 @@ g_conf_provider(struct sbuf *sb, struct g_provider *pp)
 	sbuf_printf(sb, "\t  <geom ref=\"%p\"/>\n", pp->geom);
 	sbuf_printf(sb, "\t  <mode>r%dw%de%d</mode>\n",
 	    pp->acr, pp->acw, pp->ace);
-	g_conf_print_escaped(sb, "\t  <name>%s</name>\n", pp->name);
+	sbuf_printf(sb, "\t  <name>");
+	g_conf_printf_escaped(sb, "%s", pp->name);
+	sbuf_printf(sb, "</name>\n");
 	sbuf_printf(sb, "\t  <mediasize>%jd</mediasize>\n",
 	    (intmax_t)pp->mediasize);
 	sbuf_printf(sb, "\t  <sectorsize>%u</sectorsize>\n", pp->sectorsize);
@@ -229,7 +234,9 @@ g_conf_geom(struct sbuf *sb, struct g_geom *gp, struct g_provider *pp, struct g_
 
 	sbuf_printf(sb, "    <geom id=\"%p\">\n", gp);
 	sbuf_printf(sb, "      <class ref=\"%p\"/>\n", gp->class);
-	g_conf_print_escaped(sb, "      <name>%s</name>\n", gp->name);
+	sbuf_printf(sb, "      <name>");
+	g_conf_printf_escaped(sb, "%s", gp->name);
+	sbuf_printf(sb, "</name>\n");
 	sbuf_printf(sb, "      <rank>%d</rank>\n", gp->rank);
 	if (gp->flags & G_GEOM_WITHER)
 		sbuf_printf(sb, "      <wither/>\n");
@@ -258,7 +265,9 @@ g_conf_class(struct sbuf *sb, struct g_class *mp, struct g_geom *gp, struct g_pr
 	struct g_geom *gp2;
 
 	sbuf_printf(sb, "  <class id=\"%p\">\n", mp);
-	g_conf_print_escaped(sb, "    <name>%s</name>\n", mp->name);
+	sbuf_printf(sb, "    <name>");
+	g_conf_printf_escaped(sb, "%s", mp->name);
+	sbuf_printf(sb, "</name>\n");
 	LIST_FOREACH(gp2, &mp->geom, geom) {
 		if (gp != NULL && gp != gp2)
 			continue;

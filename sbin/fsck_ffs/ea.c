@@ -65,7 +65,7 @@ eascan(struct inodesc *idesc, struct ufs2_dinode *dp)
 	char dbuf[DIRBLKSIZ];
 
 	printf("Inode %ju extsize %ju\n",
-	   (intmax_t)idesc->id_number, (intmax_t)dp->di_extsize);
+	   (intmax_t)idesc->id_number, (uintmax_t)dp->di_extsize);
 	if (dp->di_extsize == 0)
 		return 0;
 	if (dp->di_extsize <= sblock.fs_fsize)

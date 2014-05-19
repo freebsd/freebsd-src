@@ -400,7 +400,7 @@
 #define EXP_CNFG0_PCI_HOST         (1 << 1)
 #define EXP_CNFG0_PCI_ARB          (1 << 2)
 #define EXP_CNFG0_PCI_66MHZ        (1 << 4)
-#define EXP_CNFG0_MEM_MAP          (1 << 31)
+#define EXP_CNFG0_MEM_MAP          (1U << 31)
 
 /* EXP_CNFG1 bits */
 #define EXP_CNFG1_SW_INT0          (1 << 0)

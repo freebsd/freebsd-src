@@ -65,6 +65,7 @@ __FBSDID("$FreeBSD$");
 #include <net/bpf.h>
 #include <net/ethernet.h>
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/if_clone.h>
 #include <net/if_media.h>
 #include <net/if_var.h>
@@ -823,7 +824,7 @@ epair_clone_create(struct if_clone *ifc, char *name, size_t len, caddr_t params)
 	sca->if_qflush = ifp->if_qflush;
 	ifp->if_qflush = epair_qflush;
 	ifp->if_transmit = epair_transmit;
-	if_initbaudrate(ifp, IF_Gbps(10));	/* arbitrary maximum */
+	ifp->if_baudrate = IF_Gbps(10);	/* arbitrary maximum */
 
 	/* Swap the name and finish initialization of interface <n>b. */
 	*dp = 'b';
@@ -849,7 +850,7 @@ epair_clone_create(struct if_clone *ifc, char *name, size_t len, caddr_t params)
 	scb->if_qflush = ifp->if_qflush;
 	ifp->if_qflush = epair_qflush;
 	ifp->if_transmit = epair_transmit;
-	if_initbaudrate(ifp, IF_Gbps(10));	/* arbitrary maximum */
+	ifp->if_baudrate = IF_Gbps(10);	/* arbitrary maximum */
 
 	/*
 	 * Restore name to <n>a as the ifp for this will go into the

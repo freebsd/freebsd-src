@@ -173,14 +173,14 @@ Instruction *InstCombiner::OptAndOp(Instruction *Op,
       // Adding a one to a single bit bit-field should be turned into an XOR
       // of the bit.  First thing to check is to see if this AND is with a
       // single bit constant.
-      const APInt &AndRHSV = cast<ConstantInt>(AndRHS)->getValue();
+      const APInt &AndRHSV = AndRHS->getValue();
 
       // If there is only one bit set.
       if (AndRHSV.isPowerOf2()) {
         // Ok, at this point, we know that we are masking the result of the
         // ADD down to exactly one bit.  If the constant we are adding has
         // no bits set below this bit, then we can eliminate the ADD.
-        const APInt& AddRHS = cast<ConstantInt>(OpRHS)->getValue();
+        const APInt& AddRHS = OpRHS->getValue();
 
         // Check to see if any bits below the one bit set in AndRHSV are set.
         if ((AddRHS & (AndRHSV-1)) == 0) {
@@ -209,8 +209,7 @@ Instruction *InstCombiner::OptAndOp(Instruction *Op,
     uint32_t BitWidth = AndRHS->getType()->getBitWidth();
     uint32_t OpRHSVal = OpRHS->getLimitedValue(BitWidth);
     APInt ShlMask(APInt::getHighBitsSet(BitWidth, BitWidth-OpRHSVal));
-    ConstantInt *CI = ConstantInt::get(AndRHS->getContext(),
-                                       AndRHS->getValue() & ShlMask);
+    ConstantInt *CI = Builder->getInt(AndRHS->getValue() & ShlMask);
 
     if (CI->getValue() == ShlMask)
       // Masking out bits that the shift already masks.
@@ -230,8 +229,7 @@ Instruction *InstCombiner::OptAndOp(Instruction *Op,
     uint32_t BitWidth = AndRHS->getType()->getBitWidth();
     uint32_t OpRHSVal = OpRHS->getLimitedValue(BitWidth);
     APInt ShrMask(APInt::getLowBitsSet(BitWidth, BitWidth - OpRHSVal));
-    ConstantInt *CI = ConstantInt::get(Op->getContext(),
-                                       AndRHS->getValue() & ShrMask);
+    ConstantInt *CI = Builder->getInt(AndRHS->getValue() & ShrMask);
 
     if (CI->getValue() == ShrMask)
       // Masking out bits that the shift already masks.
@@ -251,8 +249,7 @@ Instruction *InstCombiner::OptAndOp(Instruction *Op,
       uint32_t BitWidth = AndRHS->getType()->getBitWidth();
       uint32_t OpRHSVal = OpRHS->getLimitedValue(BitWidth);
       APInt ShrMask(APInt::getLowBitsSet(BitWidth, BitWidth - OpRHSVal));
-      Constant *C = ConstantInt::get(Op->getContext(),
-                                     AndRHS->getValue() & ShrMask);
+      Constant *C = Builder->getInt(AndRHS->getValue() & ShrMask);
       if (C == AndRHS) {          // Masking out bits shifted in.
         // (Val ashr C1) & C2 -> (Val lshr C1) & C2
         // Make the argument unsigned.
@@ -279,7 +276,7 @@ Value *InstCombiner::InsertRangeTest(Value *V, Constant *Lo, Constant *Hi,
 
   if (Inside) {
     if (Lo == Hi)  // Trivially false.
-      return ConstantInt::getFalse(V->getContext());
+      return Builder->getFalse();
 
     // V >= Min && V < Hi --> V < Hi
     if (cast<ConstantInt>(Lo)->isMinValue(isSigned)) {
@@ -296,7 +293,7 @@ Value *InstCombiner::InsertRangeTest(Value *V, Constant *Lo, Constant *Hi,
   }
 
   if (Lo == Hi)  // Trivially true.
-    return ConstantInt::getTrue(V->getContext());
+    return Builder->getTrue();
 
   // V < Min || V >= Hi -> V > Hi-1
   Hi = SubOne(cast<ConstantInt>(Hi));
@@ -491,6 +488,26 @@ static unsigned getTypeOfMaskedICmp(Value* A, Value* B, Value* C,
   return result;
 }
 
+/// Convert an analysis of a masked ICmp into its equivalent if all boolean
+/// operations had the opposite sense. Since each "NotXXX" flag (recording !=)
+/// is adjacent to the corresponding normal flag (recording ==), this just
+/// involves swapping those bits over.
+static unsigned conjugateICmpMask(unsigned Mask) {
+  unsigned NewMask;
+  NewMask = (Mask & (FoldMskICmp_AMask_AllOnes | FoldMskICmp_BMask_AllOnes |
+                     FoldMskICmp_Mask_AllZeroes | FoldMskICmp_AMask_Mixed |
+                     FoldMskICmp_BMask_Mixed))
+            << 1;
+
+  NewMask |=
+      (Mask & (FoldMskICmp_AMask_NotAllOnes | FoldMskICmp_BMask_NotAllOnes |
+               FoldMskICmp_Mask_NotAllZeroes | FoldMskICmp_AMask_NotMixed |
+               FoldMskICmp_BMask_NotMixed))
+      >> 1;
+
+  return NewMask;
+}
+
 /// decomposeBitTestICmp - Decompose an icmp into the form ((X & Y) pred Z)
 /// if possible. The returned predicate is either == or !=. Returns false if
 /// decomposition fails.
@@ -551,14 +568,22 @@ static unsigned foldLogOpOfMaskedICmpsHelper(Value*& A,
     L21 = L22 = L1 = 0;
   } else {
     // Look for ANDs in the LHS icmp.
-    if (match(L1, m_And(m_Value(L11), m_Value(L12)))) {
-      if (!match(L2, m_And(m_Value(L21), m_Value(L22))))
-        L21 = L22 = 0;
-    } else {
-      if (!match(L2, m_And(m_Value(L11), m_Value(L12))))
-        return 0;
-      std::swap(L1, L2);
+    if (!L1->getType()->isIntegerTy()) {
+      // You can icmp pointers, for example. They really aren't masks.
+      L11 = L12 = 0;
+    } else if (!match(L1, m_And(m_Value(L11), m_Value(L12)))) {
+      // Any icmp can be viewed as being trivially masked; if it allows us to
+      // remove one, it's worth it.
+      L11 = L1;
+      L12 = Constant::getAllOnesValue(L1->getType());
+    }
+
+    if (!L2->getType()->isIntegerTy()) {
+      // You can icmp pointers, for example. They really aren't masks.
       L21 = L22 = 0;
+    } else if (!match(L2, m_And(m_Value(L21), m_Value(L22)))) {
+      L21 = L2;
+      L22 = Constant::getAllOnesValue(L2->getType());
     }
   }
 
@@ -579,7 +604,14 @@ static unsigned foldLogOpOfMaskedICmpsHelper(Value*& A,
       return 0;
     }
     E = R2; R1 = 0; ok = true;
-  } else if (match(R1, m_And(m_Value(R11), m_Value(R12)))) {
+  } else if (R1->getType()->isIntegerTy()) {
+    if (!match(R1, m_And(m_Value(R11), m_Value(R12)))) {
+      // As before, model no mask as a trivial mask if it'll let us do an
+      // optimisation.
+      R11 = R1;
+      R12 = Constant::getAllOnesValue(R1->getType());
+    }
+
     if (R11 == L11 || R11 == L12 || R11 == L21 || R11 == L22) {
       A = R11; D = R12; E = R2; ok = true;
     } else if (R12 == L11 || R12 == L12 || R12 == L21 || R12 == L22) {
@@ -592,7 +624,12 @@ static unsigned foldLogOpOfMaskedICmpsHelper(Value*& A,
     return 0;
 
   // Look for ANDs in on the right side of the RHS icmp.
-  if (!ok && match(R2, m_And(m_Value(R11), m_Value(R12)))) {
+  if (!ok && R2->getType()->isIntegerTy()) {
+    if (!match(R2, m_And(m_Value(R11), m_Value(R12)))) {
+      R11 = R2;
+      R12 = Constant::getAllOnesValue(R2->getType());
+    }
+
     if (R11 == L11 || R11 == L12 || R11 == L21 || R11 == L22) {
       A = R11; D = R12; E = R1; ok = true;
     } else if (R12 == L11 || R12 == L12 || R12 == L21 || R12 == L22) {
@@ -621,8 +658,7 @@ static unsigned foldLogOpOfMaskedICmpsHelper(Value*& A,
 /// foldLogOpOfMaskedICmps:
 /// try to fold (icmp(A & B) ==/!= C) &/| (icmp(A & D) ==/!= E)
 /// into a single (icmp(A & X) ==/!= Y)
-static Value* foldLogOpOfMaskedICmps(ICmpInst *LHS, ICmpInst *RHS,
-                                     ICmpInst::Predicate NEWCC,
+static Value* foldLogOpOfMaskedICmps(ICmpInst *LHS, ICmpInst *RHS, bool IsAnd,
                                      llvm::InstCombiner::BuilderTy* Builder) {
   Value *A = 0, *B = 0, *C = 0, *D = 0, *E = 0;
   ICmpInst::Predicate LHSCC = LHS->getPredicate(), RHSCC = RHS->getPredicate();
@@ -632,8 +668,24 @@ static Value* foldLogOpOfMaskedICmps(ICmpInst *LHS, ICmpInst *RHS,
   assert(ICmpInst::isEquality(LHSCC) && ICmpInst::isEquality(RHSCC) &&
          "foldLogOpOfMaskedICmpsHelper must return an equality predicate.");
 
-  if (NEWCC == ICmpInst::ICMP_NE)
-    mask >>= 1; // treat "Not"-states as normal states
+  // In full generality:
+  //     (icmp (A & B) Op C) | (icmp (A & D) Op E)
+  // ==  ![ (icmp (A & B) !Op C) & (icmp (A & D) !Op E) ]
+  //
+  // If the latter can be converted into (icmp (A & X) Op Y) then the former is
+  // equivalent to (icmp (A & X) !Op Y).
+  //
+  // Therefore, we can pretend for the rest of this function that we're dealing
+  // with the conjunction, provided we flip the sense of any comparisons (both
+  // input and output).
+
+  // In most cases we're going to produce an EQ for the "&&" case.
+  ICmpInst::Predicate NEWCC = IsAnd ? ICmpInst::ICMP_EQ : ICmpInst::ICMP_NE;
+  if (!IsAnd) {
+    // Convert the masking analysis into its equivalent with negated
+    // comparisons.
+    mask = conjugateICmpMask(mask);
+  }
 
   if (mask & FoldMskICmp_Mask_AllZeroes) {
     // (icmp eq (A & B), 0) & (icmp eq (A & D), 0)
@@ -660,6 +712,40 @@ static Value* foldLogOpOfMaskedICmps(ICmpInst *LHS, ICmpInst *RHS,
     Value* newAnd = Builder->CreateAnd(A, newAnd1);
     return Builder->CreateICmp(NEWCC, newAnd, A);
   }
+
+  // Remaining cases assume at least that B and D are constant, and depend on
+  // their actual values. This isn't strictly, necessary, just a "handle the
+  // easy cases for now" decision.
+  ConstantInt *BCst = dyn_cast<ConstantInt>(B);
+  if (BCst == 0) return 0;
+  ConstantInt *DCst = dyn_cast<ConstantInt>(D);
+  if (DCst == 0) return 0;
+
+  if (mask & (FoldMskICmp_Mask_NotAllZeroes | FoldMskICmp_BMask_NotAllOnes)) {
+    // (icmp ne (A & B), 0) & (icmp ne (A & D), 0) and
+    // (icmp ne (A & B), B) & (icmp ne (A & D), D)
+    //     -> (icmp ne (A & B), 0) or (icmp ne (A & D), 0)
+    // Only valid if one of the masks is a superset of the other (check "B&D" is
+    // the same as either B or D).
+    APInt NewMask = BCst->getValue() & DCst->getValue();
+
+    if (NewMask == BCst->getValue())
+      return LHS;
+    else if (NewMask == DCst->getValue())
+      return RHS;
+  }
+  if (mask & FoldMskICmp_AMask_NotAllOnes) {
+    // (icmp ne (A & B), B) & (icmp ne (A & D), D)
+    //     -> (icmp ne (A & B), A) or (icmp ne (A & D), A)
+    // Only valid if one of the masks is a superset of the other (check "B|D" is
+    // the same as either B or D).
+    APInt NewMask = BCst->getValue() | DCst->getValue();
+
+    if (NewMask == BCst->getValue())
+      return LHS;
+    else if (NewMask == DCst->getValue())
+      return RHS;
+  }
   if (mask & FoldMskICmp_BMask_Mixed) {
     // (icmp eq (A & B), C) & (icmp eq (A & D), E)
     // We already know that B & C == C && D & E == E.
@@ -668,14 +754,9 @@ static Value* foldLogOpOfMaskedICmps(ICmpInst *LHS, ICmpInst *RHS,
     // contradict, then we can transform to
     // -> (icmp eq (A & (B|D)), (C|E))
     // Currently, we only handle the case of B, C, D, and E being constant.
-    ConstantInt *BCst = dyn_cast<ConstantInt>(B);
-    if (BCst == 0) return 0;
-    ConstantInt *DCst = dyn_cast<ConstantInt>(D);
-    if (DCst == 0) return 0;
     // we can't simply use C and E, because we might actually handle
     //   (icmp ne (A & B), B) & (icmp eq (A & D), D)
     // with B and D, having a single bit set
-
     ConstantInt *CCst = dyn_cast<ConstantInt>(C);
     if (CCst == 0) return 0;
     if (LHSCC != NEWCC)
@@ -718,7 +799,7 @@ Value *InstCombiner::FoldAndOfICmps(ICmpInst *LHS, ICmpInst *RHS) {
   }
 
   // handle (roughly):  (icmp eq (A & B), C) & (icmp eq (A & D), E)
-  if (Value *V = foldLogOpOfMaskedICmps(LHS, RHS, ICmpInst::ICMP_EQ, Builder))
+  if (Value *V = foldLogOpOfMaskedICmps(LHS, RHS, true, Builder))
     return V;
 
   // This only handles icmp of constants: (icmp1 A, C1) & (icmp2 B, C2).
@@ -852,10 +933,15 @@ Value *InstCombiner::FoldAndOfICmps(ICmpInst *LHS, ICmpInst *RHS) {
     case ICmpInst::ICMP_SGT:        // (X != 13 & X s> 15) -> X s> 15
       return RHS;
     case ICmpInst::ICMP_NE:
+      // Special case to get the ordering right when the values wrap around
+      // zero.
+      if (LHSCst->getValue() == 0 && RHSCst->getValue().isAllOnesValue())
+        std::swap(LHSCst, RHSCst);
       if (LHSCst == SubOne(RHSCst)){// (X != 13 & X != 14) -> X-13 >u 1
         Constant *AddCST = ConstantExpr::getNeg(LHSCst);
         Value *Add = Builder->CreateAdd(Val, AddCST, Val->getName()+".off");
-        return Builder->CreateICmpUGT(Add, ConstantInt::get(Add->getType(), 1));
+        return Builder->CreateICmpUGT(Add, ConstantInt::get(Add->getType(), 1),
+                                      Val->getName()+".cmp");
       }
       break;                        // (X != 13 & X != 15) -> no change
     }
@@ -943,7 +1029,7 @@ Value *InstCombiner::FoldAndOfFCmps(FCmpInst *LHS, FCmpInst *RHS) {
         // If either of the constants are nans, then the whole thing returns
         // false.
         if (LHSC->getValueAPF().isNaN() || RHSC->getValueAPF().isNaN())
-          return ConstantInt::getFalse(LHS->getContext());
+          return Builder->getFalse();
         return Builder->CreateFCmpORD(LHS->getOperand(0), RHS->getOperand(0));
       }
 
@@ -1302,7 +1388,7 @@ Instruction *InstCombiner::visitAnd(BinaryOperator &I) {
 /// always in the local (OverallLeftShift) coordinate space.
 ///
 static bool CollectBSwapParts(Value *V, int OverallLeftShift, uint32_t ByteMask,
-                              SmallVector<Value*, 8> &ByteValues) {
+                              SmallVectorImpl<Value *> &ByteValues) {
   if (Instruction *I = dyn_cast<Instruction>(V)) {
     // If this is an or instruction, it may be an inner node of the bswap.
     if (I->getOpcode() == Instruction::Or) {
@@ -1380,7 +1466,7 @@ static bool CollectBSwapParts(Value *V, int OverallLeftShift, uint32_t ByteMask,
   // into a byteswap.  At least one of the two bytes would not be aligned with
   // their ultimate destination.
   if (!isPowerOf2_32(ByteMask)) return true;
-  unsigned InputByteNo = CountTrailingZeros_32(ByteMask);
+  unsigned InputByteNo = countTrailingZeros(ByteMask);
 
   // 2) The input and ultimate destinations must line up: if byte 3 of an i32
   // is demanded, it needs to go into byte 0 of the result.  This means that the
@@ -1457,9 +1543,59 @@ static Instruction *MatchSelectFromAndOr(Value *A, Value *B,
   return 0;
 }
 
+/// IsOneHotValue - Returns true for "one-hot" values (values where at most
+/// one bit can be set).
+static bool IsOneHotValue(Value *V) {
+  // Match 1<<K.
+  if (BinaryOperator *BO = dyn_cast<BinaryOperator>(V))
+    if (BO->getOpcode() == Instruction::Shl) {
+      ConstantInt *One = dyn_cast<ConstantInt>(BO->getOperand(0));
+      return One && One->isOne();
+    }
+
+  // Check for power of two integer constants.
+  if (ConstantInt *K = dyn_cast<ConstantInt>(V))
+    return K->getValue().isPowerOf2();
+
+  return false;
+}
+
 /// FoldOrOfICmps - Fold (icmp)|(icmp) if possible.
 Value *InstCombiner::FoldOrOfICmps(ICmpInst *LHS, ICmpInst *RHS) {
   ICmpInst::Predicate LHSCC = LHS->getPredicate(), RHSCC = RHS->getPredicate();
+
+  // Fold (iszero(A & K1) | iszero(A & K2)) ->  (A & (K1 | K2)) != (K1 | K2)
+  // if K1 and K2 are a one-bit mask.
+  ConstantInt *LHSCst = dyn_cast<ConstantInt>(LHS->getOperand(1));
+  ConstantInt *RHSCst = dyn_cast<ConstantInt>(RHS->getOperand(1));
+
+  if (LHS->getPredicate() == ICmpInst::ICMP_EQ && LHSCst && LHSCst->isZero() &&
+      RHS->getPredicate() == ICmpInst::ICMP_EQ && RHSCst && RHSCst->isZero()) {
+
+    BinaryOperator *LAnd = dyn_cast<BinaryOperator>(LHS->getOperand(0));
+    BinaryOperator *RAnd = dyn_cast<BinaryOperator>(RHS->getOperand(0));
+    if (LAnd && RAnd && LAnd->hasOneUse() && RHS->hasOneUse() &&
+        LAnd->getOpcode() == Instruction::And &&
+        RAnd->getOpcode() == Instruction::And) {
+
+      Value *Mask = 0;
+      Value *Masked = 0;
+      if (LAnd->getOperand(0) == RAnd->getOperand(0) &&
+          IsOneHotValue(LAnd->getOperand(1)) &&
+          IsOneHotValue(RAnd->getOperand(1))) {
+        Mask = Builder->CreateOr(LAnd->getOperand(1), RAnd->getOperand(1));
+        Masked = Builder->CreateAnd(LAnd->getOperand(0), Mask);
+      } else if (LAnd->getOperand(1) == RAnd->getOperand(1) &&
+                 IsOneHotValue(LAnd->getOperand(0)) &&
+                 IsOneHotValue(RAnd->getOperand(0))) {
+        Mask = Builder->CreateOr(LAnd->getOperand(0), RAnd->getOperand(0));
+        Masked = Builder->CreateAnd(LAnd->getOperand(1), Mask);
+      }
+
+      if (Masked)
+        return Builder->CreateICmp(ICmpInst::ICMP_NE, Masked, Mask);
+    }
+  }
 
   // (icmp1 A, B) | (icmp2 A, B) --> (icmp3 A, B)
   if (PredicatesFoldable(LHSCC, RHSCC)) {
@@ -1477,13 +1613,37 @@ Value *InstCombiner::FoldOrOfICmps(ICmpInst *LHS, ICmpInst *RHS) {
 
   // handle (roughly):
   // (icmp ne (A & B), C) | (icmp ne (A & D), E)
-  if (Value *V = foldLogOpOfMaskedICmps(LHS, RHS, ICmpInst::ICMP_NE, Builder))
+  if (Value *V = foldLogOpOfMaskedICmps(LHS, RHS, false, Builder))
     return V;
 
-  // This only handles icmp of constants: (icmp1 A, C1) | (icmp2 B, C2).
   Value *Val = LHS->getOperand(0), *Val2 = RHS->getOperand(0);
-  ConstantInt *LHSCst = dyn_cast<ConstantInt>(LHS->getOperand(1));
-  ConstantInt *RHSCst = dyn_cast<ConstantInt>(RHS->getOperand(1));
+  if (LHS->hasOneUse() || RHS->hasOneUse()) {
+    // (icmp eq B, 0) | (icmp ult A, B) -> (icmp ule A, B-1)
+    // (icmp eq B, 0) | (icmp ugt B, A) -> (icmp ule A, B-1)
+    Value *A = 0, *B = 0;
+    if (LHSCC == ICmpInst::ICMP_EQ && LHSCst && LHSCst->isZero()) {
+      B = Val;
+      if (RHSCC == ICmpInst::ICMP_ULT && Val == RHS->getOperand(1))
+        A = Val2;
+      else if (RHSCC == ICmpInst::ICMP_UGT && Val == Val2)
+        A = RHS->getOperand(1);
+    }
+    // (icmp ult A, B) | (icmp eq B, 0) -> (icmp ule A, B-1)
+    // (icmp ugt B, A) | (icmp eq B, 0) -> (icmp ule A, B-1)
+    else if (RHSCC == ICmpInst::ICMP_EQ && RHSCst && RHSCst->isZero()) {
+      B = Val2;
+      if (LHSCC == ICmpInst::ICMP_ULT && Val2 == LHS->getOperand(1))
+        A = Val;
+      else if (LHSCC == ICmpInst::ICMP_UGT && Val2 == Val)
+        A = LHS->getOperand(1);
+    }
+    if (A && B)
+      return Builder->CreateICmp(
+          ICmpInst::ICMP_UGE,
+          Builder->CreateAdd(B, ConstantInt::getSigned(B->getType(), -1)), A);
+  }
+
+  // This only handles icmp of constants: (icmp1 A, C1) | (icmp2 B, C2).
   if (LHSCst == 0 || RHSCst == 0) return 0;
 
   if (LHSCst == RHSCst && LHSCC == RHSCC) {
@@ -1588,7 +1748,7 @@ Value *InstCombiner::FoldOrOfICmps(ICmpInst *LHS, ICmpInst *RHS) {
     case ICmpInst::ICMP_NE:          // (X != 13 | X != 15) -> true
     case ICmpInst::ICMP_ULT:         // (X != 13 | X u< 15) -> true
     case ICmpInst::ICMP_SLT:         // (X != 13 | X s< 15) -> true
-      return ConstantInt::getTrue(LHS->getContext());
+      return Builder->getTrue();
     }
   case ICmpInst::ICMP_ULT:
     switch (RHSCC) {
@@ -1640,7 +1800,7 @@ Value *InstCombiner::FoldOrOfICmps(ICmpInst *LHS, ICmpInst *RHS) {
       break;
     case ICmpInst::ICMP_NE:         // (X u> 13 | X != 15) -> true
     case ICmpInst::ICMP_ULT:        // (X u> 13 | X u< 15) -> true
-      return ConstantInt::getTrue(LHS->getContext());
+      return Builder->getTrue();
     case ICmpInst::ICMP_SLT:        // (X u> 13 | X s< 15) -> no change
       break;
     }
@@ -1655,7 +1815,7 @@ Value *InstCombiner::FoldOrOfICmps(ICmpInst *LHS, ICmpInst *RHS) {
       break;
     case ICmpInst::ICMP_NE:         // (X s> 13 | X != 15) -> true
     case ICmpInst::ICMP_SLT:        // (X s> 13 | X s< 15) -> true
-      return ConstantInt::getTrue(LHS->getContext());
+      return Builder->getTrue();
     case ICmpInst::ICMP_ULT:        // (X s> 13 | X u< 15) -> no change
       break;
     }
@@ -1676,7 +1836,7 @@ Value *InstCombiner::FoldOrOfFCmps(FCmpInst *LHS, FCmpInst *RHS) {
         // If either of the constants are nans, then the whole thing returns
         // true.
         if (LHSC->getValueAPF().isNaN() || RHSC->getValueAPF().isNaN())
-          return ConstantInt::getTrue(LHS->getContext());
+          return Builder->getTrue();
 
         // Otherwise, no need to compare the two constants, compare the
         // rest.
@@ -1779,8 +1939,7 @@ Instruction *InstCombiner::visitOr(BinaryOperator &I) {
       Value *Or = Builder->CreateOr(X, RHS);
       Or->takeName(Op0);
       return BinaryOperator::CreateAnd(Or,
-                         ConstantInt::get(I.getContext(),
-                                          RHS->getValue() | C1->getValue()));
+                             Builder->getInt(RHS->getValue() | C1->getValue()));
     }
 
     // (X ^ C1) | C2 --> (X | C2) ^ (C1&~C2)
@@ -1789,8 +1948,7 @@ Instruction *InstCombiner::visitOr(BinaryOperator &I) {
       Value *Or = Builder->CreateOr(X, RHS);
       Or->takeName(Op0);
       return BinaryOperator::CreateXor(Or,
-                 ConstantInt::get(I.getContext(),
-                                  C1->getValue() & ~RHS->getValue()));
+                            Builder->getInt(C1->getValue() & ~RHS->getValue()));
     }
 
     // Try to fold constant and into select arguments.
@@ -1872,15 +2030,13 @@ Instruction *InstCombiner::visitOr(BinaryOperator &I) {
             ((V1 == B && MaskedValueIsZero(V2, ~C1->getValue())) ||  // (V|N)
              (V2 == B && MaskedValueIsZero(V1, ~C1->getValue()))))   // (N|V)
           return BinaryOperator::CreateAnd(A,
-                               ConstantInt::get(A->getContext(),
-                                                C1->getValue()|C2->getValue()));
+                                Builder->getInt(C1->getValue()|C2->getValue()));
         // Or commutes, try both ways.
         if (match(B, m_Or(m_Value(V1), m_Value(V2))) &&
             ((V1 == A && MaskedValueIsZero(V2, ~C2->getValue())) ||  // (V|N)
              (V2 == A && MaskedValueIsZero(V1, ~C2->getValue()))))   // (N|V)
           return BinaryOperator::CreateAnd(B,
-                               ConstantInt::get(B->getContext(),
-                                                C1->getValue()|C2->getValue()));
+                                Builder->getInt(C1->getValue()|C2->getValue()));
 
         // ((V|C3)&C1) | ((V|C4)&C2) --> (V|C3|C4)&(C1|C2)
         // iff (C1&C2) == 0 and (C3&~C1) == 0 and (C4&~C2) == 0.
@@ -1891,8 +2047,7 @@ Instruction *InstCombiner::visitOr(BinaryOperator &I) {
             (C4->getValue() & ~C2->getValue()) == 0) {
           V2 = Builder->CreateOr(V1, ConstantExpr::getOr(C3, C4), "bitfield");
           return BinaryOperator::CreateAnd(V2,
-                               ConstantInt::get(B->getContext(),
-                                                C1->getValue()|C2->getValue()));
+                                Builder->getInt(C1->getValue()|C2->getValue()));
         }
       }
     }
@@ -2160,8 +2315,7 @@ Instruction *InstCombiner::visitXor(BinaryOperator &I) {
         if (CI->hasOneUse() && Op0C->hasOneUse()) {
           Instruction::CastOps Opcode = Op0C->getOpcode();
           if ((Opcode == Instruction::ZExt || Opcode == Instruction::SExt) &&
-              (RHS == ConstantExpr::getCast(Opcode,
-                                           ConstantInt::getTrue(I.getContext()),
+              (RHS == ConstantExpr::getCast(Opcode, Builder->getTrue(),
                                             Op0C->getDestTy()))) {
             CI->setPredicate(CI->getInversePredicate());
             return CastInst::Create(Opcode, CI, Op0C->getType());
@@ -2191,8 +2345,7 @@ Instruction *InstCombiner::visitXor(BinaryOperator &I) {
                                       Op0I->getOperand(0));
           } else if (RHS->getValue().isSignBit()) {
             // (X + C) ^ signbit -> (X + C + signbit)
-            Constant *C = ConstantInt::get(I.getContext(),
-                                           RHS->getValue() + Op0CI->getValue());
+            Constant *C = Builder->getInt(RHS->getValue() + Op0CI->getValue());
             return BinaryOperator::CreateAdd(Op0I->getOperand(0), C);
 
           }

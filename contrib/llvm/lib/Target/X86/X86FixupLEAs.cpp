@@ -125,6 +125,15 @@ FixupLEAPass::postRAConvertToLEA(MachineFunction::iterator &MFI,
       // which requires isImm() to be true
       return 0;
     }
+    break;
+  case X86::ADD16rr:
+  case X86::ADD16rr_DB:
+    if (MI->getOperand(1).getReg() != MI->getOperand(2).getReg()) {
+      // if src1 != src2, then convertToThreeAddress will
+      // need to create a Virtual register, which we cannot do
+      // after register allocation.
+      return 0;
+    }
   }
   return TII->convertToThreeAddress(MFI, MBBI, 0);
 }
@@ -135,8 +144,8 @@ FunctionPass *llvm::createX86FixupLEAs() {
 
 bool FixupLEAPass::runOnMachineFunction(MachineFunction &Func) {
   MF = &Func;
-  TII = Func.getTarget().getInstrInfo();
   TM = &MF->getTarget();
+  TII = TM->getInstrInfo();
 
   DEBUG(dbgs() << "Start X86FixupLEAs\n";);
   // Process all basic blocks.

@@ -64,9 +64,7 @@ static const char _rcsid[] = "$KAME: route6d.c,v 1.104 2003/10/31 00:30:20 itoju
 #include <sys/uio.h>
 #include <net/if.h>
 #include <net/if_var.h>
-#define	_KERNEL	1
 #include <net/route.h>
-#undef _KERNEL
 #include <netinet/in.h>
 #include <netinet/in_var.h>
 #include <netinet/ip6.h>
@@ -1901,10 +1899,6 @@ rtrecv(void)
 			if (!rt_deladdr(ifcp, rta[RTAX_IFA], rta[RTAX_NETMASK]))
 				iface++;
 			break;
-		case RTM_OLDADD:
-		case RTM_OLDDEL:
-			trace(1, "\tnot supported yet, ignored\n");
-			break;
 		}
 
 	}
@@ -2467,17 +2461,9 @@ do { \
 	RTTYPE("REDIRECT", RTM_REDIRECT);
 	RTTYPE("MISS", RTM_MISS);
 	RTTYPE("LOCK", RTM_LOCK);
-	RTTYPE("OLDADD", RTM_OLDADD);
-	RTTYPE("OLDDEL", RTM_OLDDEL);
 	RTTYPE("NEWADDR", RTM_NEWADDR);
 	RTTYPE("DELADDR", RTM_DELADDR);
 	RTTYPE("IFINFO", RTM_IFINFO);
-#ifdef RTM_OLDADD
-	RTTYPE("OLDADD", RTM_OLDADD);
-#endif
-#ifdef RTM_OLDDEL
-	RTTYPE("OLDDEL", RTM_OLDDEL);
-#endif
 #ifdef RTM_OIFINFO
 	RTTYPE("OIFINFO", RTM_OIFINFO);
 #endif
@@ -2518,17 +2504,8 @@ do { \
 #ifdef	RTF_MASK
 	RTFLAG("m", RTF_MASK);
 #endif
-#ifdef RTF_CLONING
-	RTFLAG("C", RTF_CLONING);
-#endif
 #ifdef RTF_CLONED
 	RTFLAG("c", RTF_CLONED);
-#endif
-#ifdef RTF_PRCLONING
-	RTFLAG("c", RTF_PRCLONING);
-#endif
-#ifdef RTF_WASCLONED
-	RTFLAG("W", RTF_WASCLONED);
 #endif
 	RTFLAG("X", RTF_XRESOLVE);
 #ifdef RTF_LLINFO
@@ -2584,9 +2561,6 @@ do { \
 	IFFLAG("POINTOPOINT", IFF_POINTOPOINT);
 #ifdef IFF_NOTRAILERS
 	IFFLAG("NOTRAILERS", IFF_NOTRAILERS);
-#endif
-#ifdef IFF_SMART
-	IFFLAG("SMART", IFF_SMART);
 #endif
 	IFFLAG("RUNNING", IFF_RUNNING);
 	IFFLAG("NOARP", IFF_NOARP);

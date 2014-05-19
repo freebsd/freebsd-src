@@ -26,6 +26,9 @@
 /* Define if you want backtraces on crash */
 #define ENABLE_BACKTRACES 1
 
+/* Define to enable crash handling overrides */
+#define ENABLE_CRASH_OVERRIDES 1
+
 /* Define if position independent code is enabled */
 #define ENABLE_PIC 0
 
@@ -56,14 +59,8 @@
 /* Define to 1 if you have the `argz_stringify' function. */
 /* #undef HAVE_ARGZ_STRINGIFY */
 
-/* Define to 1 if you have the <assert.h> header file. */
-#define HAVE_ASSERT_H 1
-
 /* Define to 1 if you have the `backtrace' function. */
 /* #undef HAVE_BACKTRACE */
-
-/* Define to 1 if you have the `bcopy' function. */
-/* #undef HAVE_BCOPY */
 
 /* Define to 1 if you have the `ceilf' function. */
 #define HAVE_CEILF 1
@@ -79,9 +76,6 @@
 
 /* can use __crashreporter_info__ */
 #define HAVE_CRASHREPORTER_INFO 0
-
-/* Define to 1 if you have the <ctype.h> header file. */
-#define HAVE_CTYPE_H 1
 
 /* Define to 1 if you have the <cxxabi.h> header file. */
 #define HAVE_CXXABI_H 1
@@ -105,9 +99,6 @@
 /* Define if you have the GNU dld library. */
 /* #undef HAVE_DLD */
 
-/* Define to 1 if you have the <dld.h> header file. */
-/* #undef HAVE_DLD_H */
-
 /* Define to 1 if you have the `dlerror' function. */
 #define HAVE_DLERROR 1
 
@@ -116,9 +107,6 @@
 
 /* Define if dlopen() is available on this platform. */
 #define HAVE_DLOPEN 1
-
-/* Define to 1 if you have the <dl.h> header file. */
-/* #undef HAVE_DL_H */
 
 /* Define if the dot program is available */
 /* #undef HAVE_DOT */
@@ -171,6 +159,12 @@
 /* Define to 1 if you have the `fmodf' function. */
 #define HAVE_FMODF 1
 
+/* Define to 1 if you have the `futimens' function. */
+/* #undef HAVE_FUTIMENS */
+
+/* Define to 1 if you have the `futimes' function. */
+#define HAVE_FUTIMES 1
+
 /* Define to 1 if you have the `getcwd' function. */
 #define HAVE_GETCWD 1
 
@@ -191,9 +185,6 @@
 
 /* Define if the gv program is available */
 /* #undef HAVE_GV */
-
-/* Define to 1 if you have the `index' function. */
-/* #undef HAVE_INDEX */
 
 /* Define to 1 if the system has the type `int64_t'. */
 #define HAVE_INT64_T 1
@@ -231,16 +222,16 @@
 /* Define to 1 if you have the `pthread' library (-lpthread). */
 /* #undef HAVE_LIBPTHREAD */
 
+/* Define to 1 if you have the `shell32' library (-lshell32). */
+/* #undef HAVE_LIBSHELL32 */
+
 /* Define to 1 if you have the `udis86' library (-ludis86). */
 /* #undef HAVE_LIBUDIS86 */
 
 /* Define to 1 if you have the `z' library (-lz). */
 #define HAVE_LIBZ 1
 
-/* Define to 1 if you have the <limits.h> header file. */
-#define HAVE_LIMITS_H 1
-
-/* Define if you can use -Wl,-export-dynamic. */
+/* Define if you can use -rdynamic. */
 #define HAVE_LINK_EXPORT_DYNAMIC 1
 
 /* Define to 1 if you have the <link.h> header file. */
@@ -281,12 +272,6 @@
 
 /* Define to 1 if you have the `malloc_zone_statistics' function. */
 /* #undef HAVE_MALLOC_ZONE_STATISTICS */
-
-/* Define to 1 if you have the `memcpy' function. */
-#define HAVE_MEMCPY 1
-
-/* Define to 1 if you have the `memmove' function. */
-#define HAVE_MEMMOVE 1
 
 /* Define to 1 if you have the <memory.h> header file. */
 #define HAVE_MEMORY_H 1
@@ -358,9 +343,6 @@
 /* Define to 1 if you have the `realpath' function. */
 #define HAVE_REALPATH 1
 
-/* Define to 1 if you have the `rindex' function. */
-/* #undef HAVE_RINDEX */
-
 /* Define to 1 if you have the `rintf' function. */
 #define HAVE_RINTF 1
 
@@ -400,9 +382,6 @@
 /* Define to 1 if you have the <stdint.h> header file. */
 #define HAVE_STDINT_H 1
 
-/* Define to 1 if you have the <stdio.h> header file. */
-#define HAVE_STDIO_H 1
-
 /* Define to 1 if you have the <stdlib.h> header file. */
 #define HAVE_STDLIB_H 1
 
@@ -411,15 +390,6 @@
 
 /* Set to 1 if the std::isnan function is found in <cmath> */
 #define HAVE_STD_ISNAN_IN_CMATH 1
-
-/* Define to 1 if you have the `strchr' function. */
-#define HAVE_STRCHR 1
-
-/* Define to 1 if you have the `strcmp' function. */
-#define HAVE_STRCMP 1
-
-/* Define to 1 if you have the `strdup' function. */
-#define HAVE_STRDUP 1
 
 /* Define to 1 if you have the `strerror' function. */
 #define HAVE_STRERROR 1
@@ -432,9 +402,6 @@
 
 /* Define to 1 if you have the <string.h> header file. */
 #define HAVE_STRING_H 1
-
-/* Define to 1 if you have the `strrchr' function. */
-#define HAVE_STRRCHR 1
 
 /* Define to 1 if you have the `strtof' function. */
 #define HAVE_STRTOF 1
@@ -451,9 +418,6 @@
 /* Define to 1 if you have the <sys/dir.h> header file, and it defines `DIR'.
    */
 /* #undef HAVE_SYS_DIR_H */
-
-/* Define to 1 if you have the <sys/dl.h> header file. */
-/* #undef HAVE_SYS_DL_H */
 
 /* Define to 1 if you have the <sys/ioctl.h> header file. */
 #define HAVE_SYS_IOCTL_H 1
@@ -486,6 +450,9 @@
 /* Define to 1 if you have <sys/wait.h> that is POSIX.1 compatible. */
 #define HAVE_SYS_WAIT_H 1
 
+/* Define if the setupterm() function is supported this platform. */
+#define HAVE_TERMINFO 1
+
 /* Define to 1 if you have the <termios.h> header file. */
 #define HAVE_TERMIOS_H 1
 
@@ -507,14 +474,11 @@
 /* Define to 1 if you have the <valgrind/valgrind.h> header file. */
 /* #undef HAVE_VALGRIND_VALGRIND_H */
 
-/* Define to 1 if you have the <windows.h> header file. */
-/* #undef HAVE_WINDOWS_H */
-
 /* Define to 1 if you have the `writev' function. */
 #define HAVE_WRITEV 1
 
-/* Define if the xdot.py program is available */
-/* #undef HAVE_XDOT_PY */
+/* Define if the xdot program is available */
+/* #undef HAVE_XDOT */
 
 /* Define to 1 if you have the <zlib.h> header file. */
 #define HAVE_ZLIB_H 1
@@ -609,9 +573,6 @@
 /* Installation directory for .info files */
 /* #undef LLVM_INFODIR */
 
-/* Installation directory for libraries */
-/* #undef LLVM_LIBDIR */
-
 /* Installation directory for man pages */
 /* #undef LLVM_MANDIR */
 
@@ -666,11 +627,11 @@
 /* Define to path to twopi program if found or 'echo twopi' otherwise */
 /* #undef LLVM_PATH_TWOPI */
 
-/* Define to path to xdot.py program if found or 'echo xdot.py' otherwise */
-/* #undef LLVM_PATH_XDOT_PY */
+/* Define to path to xdot program if found or 'echo xdot' otherwise */
+/* #undef LLVM_PATH_XDOT */
 
 /* Installation prefix directory */
-#define LLVM_PREFIX ""
+#define LLVM_PREFIX "/usr"
 
 /* Define if we have the Intel JIT API runtime support library */
 #define LLVM_USE_INTEL_JITEVENTS 0
@@ -682,7 +643,10 @@
 #define LLVM_VERSION_MAJOR 3
 
 /* Minor version of the LLVM API */
-#define LLVM_VERSION_MINOR 3
+#define LLVM_VERSION_MINOR 4
+
+/* Patch version of the LLVM API */
+#define LLVM_VERSION_PATCH 1
 
 /* Define if the OS needs help to load dependent libraries for dlopen(). */
 #define LTDL_DLOPEN_DEPLIBS 1
@@ -690,10 +654,6 @@
 /* Define to the sub-directory in which libtool stores uninstalled libraries.
    */
 #define LTDL_OBJDIR ".libs/"
-
-/* Define to the name of the environment variable that determines the dynamic
-   library search path. */
-#define LTDL_SHLIBPATH_VAR "LD_LIBRARY_PATH"
 
 /* Define to the extension used for shared libraries, say, ".so". */
 #define LTDL_SHLIB_EXT ".so"
@@ -715,13 +675,13 @@
 #define PACKAGE_NAME "LLVM"
 
 /* Define to the full name and version of this package. */
-#define PACKAGE_STRING "LLVM 3.3"
+#define PACKAGE_STRING "LLVM 3.4.1"
 
 /* Define to the one symbol short name of this package. */
 #define PACKAGE_TARNAME "llvm"
 
 /* Define to the version of this package. */
-#define PACKAGE_VERSION "3.3"
+#define PACKAGE_VERSION "3.4.1"
 
 /* Define as the return type of signal handlers (`int' or `void'). */
 #define RETSIGTYPE void

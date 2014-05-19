@@ -81,6 +81,7 @@ __FBSDID("$FreeBSD$");
 #include "opt_inet6.h"
 
 #include <sys/param.h>
+#include <sys/eventhandler.h>
 #include <sys/mbuf.h>
 #include <sys/malloc.h>
 #include <sys/protosw.h>
@@ -816,7 +817,7 @@ bridge_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		BRIDGE_LOCK(sc);
 		LIST_FOREACH(bif, &sc->sc_iflist, bif_next) {
 			if (bif->bif_ifp->if_mtu != ifr->ifr_mtu) {
-				log(LOG_NOTICE, "%s: invalid MTU: %lu(%s)"
+				log(LOG_NOTICE, "%s: invalid MTU: %u(%s)"
 				    " != %d\n", sc->sc_ifp->if_xname,
 				    bif->bif_ifp->if_mtu,
 				    bif->bif_ifp->if_xname, ifr->ifr_mtu);
@@ -1106,7 +1107,7 @@ bridge_ioctl_add(struct bridge_softc *sc, void *arg)
 	if (LIST_EMPTY(&sc->sc_iflist))
 		sc->sc_ifp->if_mtu = ifs->if_mtu;
 	else if (sc->sc_ifp->if_mtu != ifs->if_mtu) {
-		if_printf(sc->sc_ifp, "invalid MTU: %lu(%s) != %lu\n",
+		if_printf(sc->sc_ifp, "invalid MTU: %u(%s) != %u\n",
 		    ifs->if_mtu, ifs->if_xname, sc->sc_ifp->if_mtu);
 		return (EINVAL);
 	}

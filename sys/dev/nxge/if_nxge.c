@@ -31,6 +31,7 @@
 #include <net/if_arp.h>
 #include <sys/types.h>
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/if_vlan_var.h>
 
 int       copyright_print       = 0;

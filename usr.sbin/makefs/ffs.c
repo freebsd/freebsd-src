@@ -361,6 +361,13 @@ ffs_validate(const char *dir, fsnode *root, fsinfo_t *fsopts)
 	if (ffs_opts->avgfpdir == -1)
 		ffs_opts->avgfpdir = AFPDIR;
 
+	if (roundup(fsopts->minsize, ffs_opts->bsize) > fsopts->maxsize)
+		errx(1, "`%s' minsize of %lld rounded up to ffs bsize of %d "
+		    "exceeds maxsize %lld.  Lower bsize, or round the minimum "
+		    "and maximum sizes to bsize.", dir,
+		    (long long)fsopts->minsize, ffs_opts->bsize,
+		    (long long)fsopts->maxsize);
+
 		/* calculate size of tree */
 	ffs_size_dir(root, fsopts);
 	fsopts->inodes += ROOTINO;		/* include first two inodes */

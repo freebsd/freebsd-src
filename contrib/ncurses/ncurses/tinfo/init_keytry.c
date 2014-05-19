@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1999-2006,2008 Free Software Foundation, Inc.              *
+ * Copyright (c) 1999-2009,2010 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -27,16 +27,9 @@
  ****************************************************************************/
 
 #include <curses.priv.h>
-
-#include <term.h>
-/* keypad_xmit, keypad_local, meta_on, meta_off */
-/* cursor_visible,cursor_normal,cursor_invisible */
-
 #include <tic.h>		/* struct tinfo_fkeys */
 
-#include <term_entry.h>
-
-MODULE_ID("$Id: init_keytry.c,v 1.12 2008/05/24 21:44:51 tom Exp $")
+MODULE_ID("$Id: init_keytry.c,v 1.17 2010/04/24 22:29:56 tom Exp $")
 
 /*
 **      _nc_init_keytry()
@@ -50,7 +43,7 @@ MODULE_ID("$Id: init_keytry.c,v 1.12 2008/05/24 21:44:51 tom Exp $")
  * than cur_term.
  */
 #undef CUR
-#define CUR (sp->_term)->type.
+#define CUR SP_TERMTYPE
 
 #if	BROKEN_LINKER
 #undef	_nc_tinfo_fkeys
@@ -73,7 +66,7 @@ _nc_tinfo_fkeysf(void)
 NCURSES_EXPORT(void)
 _nc_init_keytry(SCREEN *sp)
 {
-    size_t n;
+    unsigned n;
 
     /* The sp->_keytry value is initialized in newterm(), where the sp
      * structure is created, because we can not tell where keypad() or
@@ -97,12 +90,13 @@ _nc_init_keytry(SCREEN *sp)
 	{
 	    TERMTYPE *tp = &(sp->_term->type);
 	    for (n = STRCOUNT; n < NUM_STRINGS(tp); ++n) {
-		const char *name = ExtStrname(tp, n, strnames);
+		const char *name = ExtStrname(tp, (int) n, strnames);
 		char *value = tp->Strings[n];
 		if (name != 0
 		    && *name == 'k'
 		    && value != 0
-		    && key_defined(value) == 0) {
+		    && NCURSES_SP_NAME(key_defined) (NCURSES_SP_ARGx
+						     value) == 0) {
 		    (void) _nc_add_to_try(&(sp->_keytry),
 					  value,
 					  n - STRCOUNT + KEY_MAX);

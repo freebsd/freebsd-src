@@ -884,7 +884,7 @@ _rl_find_completion_word (fp, dp)
       /* We didn't find an unclosed quoted substring upon which to do
          completion, so use the word break characters to find the
          substring on which to complete. */
-      while (rl_point = MB_PREVCHAR (rl_line_buffer, rl_point, MB_FIND_ANY))
+      while ((rl_point = MB_PREVCHAR (rl_line_buffer, rl_point, MB_FIND_ANY)))
 	{
 	  scan = rl_line_buffer[rl_point];
 
@@ -1803,7 +1803,7 @@ rl_completion_matches (text, entry_function)
   match_list = (char **)xmalloc ((match_list_size + 1) * sizeof (char *));
   match_list[1] = (char *)NULL;
 
-  while (string = (*entry_function) (text, matches))
+  while ((string = (*entry_function) (text, matches)))
     {
       if (matches + 1 == match_list_size)
 	match_list = (char **)xrealloc
@@ -1854,7 +1854,7 @@ rl_username_completion_function (text, state)
     }
 
 #if defined (HAVE_GETPWENT)
-  while (entry = getpwent ())
+  while ((entry = getpwent ()))
     {
       /* Null usernames should result in all users as possible completions. */
       if (namelen == 0 || (STREQN (username, entry->pw_name, namelen)))

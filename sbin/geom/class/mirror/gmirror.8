@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 8, 2009
+.Dd December 27, 2013
 .Dt GMIRROR 8
 .Os
 .Sh NAME
@@ -60,6 +60,11 @@
 .Ar name
 .Ar prov ...
 .Nm
+.Cm resize
+.Op Fl v
+.Op Fl s Ar size
+.Ar name
+.Nm
 .Cm insert
 .Op Fl hiv
 .Op Fl p Ar priority
@@ -80,6 +85,10 @@
 .Op Fl v
 .Ar name
 .Ar prov ...
+.Nm
+.Cm destroy
+.Op Fl fv
+.Ar name ...
 .Nm
 .Cm forget
 .Op Fl v
@@ -193,6 +202,16 @@ balance algorithm.
 Rebuild the given mirror components forcibly.
 If autosynchronization was not turned off for the given device, this command
 should be unnecessary.
+.It Cm resize
+Change the size of the given mirror.
+.Pp
+Additional options include:
+.Bl -tag -width ".Fl s Ar size"
+.It Fl s Ar size
+New size of the mirror is expressed in logical block numbers.
+This option can be omitted, then it will be automatically calculated to
+maximum available size.
+.El
 .It Cm insert
 Add the given component(s) to the existing mirror.
 .Pp
@@ -212,6 +231,14 @@ Activate the given component(s), which were marked as inactive before.
 .It Cm deactivate
 Mark the given component(s) as inactive, so it will not be automatically
 connected to the mirror.
+.It Cm destroy
+Stop the given mirror and clear metadata on all its components.
+.Pp
+Additional options include:
+.Bl -tag -width ".Fl f"
+.It Fl f
+Stop the given mirror even if it is opened.
+.El
 .It Cm forget
 Forget about components which are not connected.
 This command is useful when a disk has failed and cannot be reconnected, preventing the
@@ -300,9 +327,7 @@ gmirror activate data da1
 .Sh NOTES
 Doing kernel dumps to
 .Nm
-providers.
-.Pp
-This is possible, but some conditions have to be met.
+providers is possible, but some conditions have to be met.
 First of all, a kernel dump will go only to one component and
 .Nm
 always chooses the component with the highest priority.

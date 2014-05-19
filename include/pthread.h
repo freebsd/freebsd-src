@@ -175,6 +175,7 @@ int		pthread_barrierattr_setpshared(pthread_barrierattr_t *, int);
 			{
 
 #define		pthread_cleanup_pop(execute)					\
+				(void)0;					\
 			}							\
 			__pthread_cleanup_pop_imp(execute);			\
 		}

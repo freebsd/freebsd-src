@@ -9,7 +9,24 @@
 
 #include "ObjectContainerBSDArchive.h"
 
+#ifdef _WIN32
+// Defines from ar, missing on Windows
+#define ARMAG   "!<arch>\n"
+#define SARMAG  8
+#define ARFMAG  "`\n"
+
+typedef struct ar_hdr
+{
+    char ar_name[16];
+    char ar_date[12];
+    char ar_uid[6], ar_gid[6];
+    char ar_mode[8];
+    char ar_size[10];
+    char ar_fmag[2];
+} ar_hdr;
+#else
 #include <ar.h>
+#endif
 
 #include "lldb/Core/ArchSpec.h"
 #include "lldb/Core/DataBuffer.h"
@@ -444,7 +461,7 @@ ObjectContainerBSDArchive::Dump (Stream *s) const
     s->Indent();
     const size_t num_archs = GetNumArchitectures();
     const size_t num_objects = GetNumObjects();
-    s->Printf("ObjectContainerBSDArchive, num_archs = %lu, num_objects = %lu", num_archs, num_objects);
+    s->Printf("ObjectContainerBSDArchive, num_archs = %zu, num_objects = %zu", num_archs, num_objects);
     uint32_t i;
     ArchSpec arch;
     s->IndentMore();

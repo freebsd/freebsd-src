@@ -463,6 +463,7 @@ validate_server_certificate(int cert_valid, X509_STORE_CTX *store_ctx)
             case X509_V_ERR_UNABLE_TO_GET_ISSUER_CERT:
             case X509_V_ERR_CERT_UNTRUSTED:
             case X509_V_ERR_INVALID_CA:
+            case X509_V_ERR_UNABLE_TO_VERIFY_LEAF_SIGNATURE:
                     failures |= SERF_SSL_CERT_UNKNOWNCA;
                     break;
             case X509_V_ERR_CERT_REVOKED:
@@ -958,16 +959,24 @@ static apr_status_t cleanup_ssl(void *data)
 
 #endif
 
-static apr_uint32_t have_init_ssl = 0;
+#if !APR_VERSION_AT_LEAST(1,0,0)
+#define apr_atomic_cas32(mem, with, cmp) apr_atomic_cas(mem, with, cmp)
+#endif
+
+enum ssl_init_e
+{
+   INIT_UNINITIALIZED = 0,
+   INIT_BUSY = 1,
+   INIT_DONE = 2
+};
+
+static volatile apr_uint32_t have_init_ssl = INIT_UNINITIALIZED;
 
 static void init_ssl_libraries(void)
 {
     apr_uint32_t val;
-#if APR_VERSION_AT_LEAST(1,0,0)
-    val = apr_atomic_xchg32(&have_init_ssl, 1);
-#else
-    val = apr_atomic_cas(&have_init_ssl, 1, 0);
-#endif
+
+    val = apr_atomic_cas32(&have_init_ssl, INIT_BUSY, INIT_UNINITIALIZED);
 
     if (!val) {
 #if APR_HAS_THREADS
@@ -1015,6 +1024,19 @@ static void init_ssl_libraries(void)
 
         apr_pool_cleanup_register(ssl_pool, NULL, cleanup_ssl, cleanup_ssl);
 #endif
+        apr_atomic_cas32(&have_init_ssl, INIT_DONE, INIT_BUSY);
+    }
+  else
+    {
+        /* Make sure we don't continue before the initialization in another
+           thread has completed */
+        while (val != INIT_DONE) {
+            apr_sleep(APR_USEC_PER_SEC / 1000);
+      
+            val = apr_atomic_cas32(&have_init_ssl,
+                                   INIT_UNINITIALIZED,
+                                   INIT_UNINITIALIZED);            
+        }
     }
 }
 
@@ -1198,21 +1220,16 @@ void serf_ssl_server_cert_chain_callback_set(
     context->server_cert_userdata = data;
 }
 
-static serf_ssl_context_t *ssl_init_context(void)
+static serf_ssl_context_t *ssl_init_context(serf_bucket_alloc_t *allocator)
 {
     serf_ssl_context_t *ssl_ctx;
-    apr_pool_t *pool;
-    serf_bucket_alloc_t *allocator;
 
     init_ssl_libraries();
-
-    apr_pool_create(&pool, NULL);
-    allocator = serf_bucket_allocator_create(pool, NULL, NULL);
 
     ssl_ctx = serf_bucket_mem_alloc(allocator, sizeof(*ssl_ctx));
 
     ssl_ctx->refcount = 0;
-    ssl_ctx->pool = pool;
+    ssl_ctx->pool = serf_bucket_allocator_get_pool(allocator);
     ssl_ctx->allocator = allocator;
 
     ssl_ctx->ctx = SSL_CTX_new(SSLv23_client_method());
@@ -1269,8 +1286,6 @@ static serf_ssl_context_t *ssl_init_context(void)
 static apr_status_t ssl_free_context(
     serf_ssl_context_t *ssl_ctx)
 {
-    apr_pool_t *p;
-
     /* If never had the pending buckets, don't try to free them. */
     if (ssl_ctx->decrypt.pending != NULL) {
         serf_bucket_destroy(ssl_ctx->decrypt.pending);
@@ -1283,10 +1298,7 @@ static apr_status_t ssl_free_context(
     SSL_free(ssl_ctx->ssl);
     SSL_CTX_free(ssl_ctx->ctx);
 
-    p = ssl_ctx->pool;
-
     serf_bucket_mem_free(ssl_ctx->allocator, ssl_ctx);
-    apr_pool_destroy(p);
 
     return APR_SUCCESS;
 }
@@ -1300,7 +1312,7 @@ static serf_bucket_t * serf_bucket_ssl_create(
 
     ctx = serf_bucket_mem_alloc(allocator, sizeof(*ctx));
     if (!ssl_ctx) {
-        ctx->ssl_ctx = ssl_init_context();
+        ctx->ssl_ctx = ssl_init_context(allocator);
     }
     else {
         ctx->ssl_ctx = ssl_ctx;

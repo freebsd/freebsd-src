@@ -28,21 +28,26 @@ using namespace ento;
 
 namespace {
 class CallAndMessageChecker
-  : public Checker< check::PreStmt<CallExpr>, check::PreObjCMessage,
+  : public Checker< check::PreStmt<CallExpr>,
+                    check::PreStmt<CXXDeleteExpr>,
+                    check::PreObjCMessage,
                     check::PreCall > {
   mutable OwningPtr<BugType> BT_call_null;
   mutable OwningPtr<BugType> BT_call_undef;
   mutable OwningPtr<BugType> BT_cxx_call_null;
   mutable OwningPtr<BugType> BT_cxx_call_undef;
   mutable OwningPtr<BugType> BT_call_arg;
+  mutable OwningPtr<BugType> BT_cxx_delete_undef;
   mutable OwningPtr<BugType> BT_msg_undef;
   mutable OwningPtr<BugType> BT_objc_prop_undef;
   mutable OwningPtr<BugType> BT_objc_subscript_undef;
   mutable OwningPtr<BugType> BT_msg_arg;
   mutable OwningPtr<BugType> BT_msg_ret;
+  mutable OwningPtr<BugType> BT_call_few_args;
 public:
 
   void checkPreStmt(const CallExpr *CE, CheckerContext &C) const;
+  void checkPreStmt(const CXXDeleteExpr *DE, CheckerContext &C) const;
   void checkPreObjCMessage(const ObjCMethodCall &msg, CheckerContext &C) const;
   void checkPreCall(const CallEvent &Call, CheckerContext &C) const;
 
@@ -244,10 +249,35 @@ void CallAndMessageChecker::checkPreStmt(const CallExpr *CE,
       BT_call_null.reset(
         new BuiltinBug("Called function pointer is null (null dereference)"));
     emitBadCall(BT_call_null.get(), C, Callee);
+    return;
   }
 
   C.addTransition(StNonNull);
 }
+
+void CallAndMessageChecker::checkPreStmt(const CXXDeleteExpr *DE,
+                                         CheckerContext &C) const {
+
+  SVal Arg = C.getSVal(DE->getArgument());
+  if (Arg.isUndef()) {
+    StringRef Desc;
+    ExplodedNode *N = C.generateSink();
+    if (!N)
+      return;
+    if (!BT_cxx_delete_undef)
+      BT_cxx_delete_undef.reset(new BuiltinBug("Uninitialized argument value"));
+    if (DE->isArrayFormAsWritten())
+      Desc = "Argument to 'delete[]' is uninitialized";
+    else
+      Desc = "Argument to 'delete' is uninitialized";
+    BugType *BT = BT_cxx_delete_undef.get();
+    BugReport *R = new BugReport(*BT, Desc, N);
+    bugreporter::trackNullOrUndefValue(N, DE, *R);
+    C.emitReport(R);
+    return;
+  }
+}
+
 
 void CallAndMessageChecker::checkPreCall(const CallEvent &Call,
                                          CheckerContext &C) const {
@@ -280,11 +310,33 @@ void CallAndMessageChecker::checkPreCall(const CallEvent &Call,
     State = StNonNull;
   }
 
+  const Decl *D = Call.getDecl();
+  if (const FunctionDecl *FD = dyn_cast_or_null<FunctionDecl>(D)) {
+    // If we have a declaration, we can make sure we pass enough parameters to
+    // the function.
+    unsigned Params = FD->getNumParams();
+    if (Call.getNumArgs() < Params) {
+      ExplodedNode *N = C.generateSink();
+      if (!N)
+        return;
+
+      LazyInit_BT("Function call with too few arguments", BT_call_few_args);
+
+      SmallString<512> Str;
+      llvm::raw_svector_ostream os(Str);
+      os << "Function taking " << Params << " argument"
+         << (Params == 1 ? "" : "s") << " is called with less ("
+         << Call.getNumArgs() << ")";
+
+      BugReport *R = new BugReport(*BT_call_few_args, os.str(), N);
+      C.emitReport(R);
+    }
+  }
+
   // Don't check for uninitialized field values in arguments if the
   // caller has a body that is available and we have the chance to inline it.
   // This is a hack, but is a reasonable compromise betweens sometimes warning
   // and sometimes not depending on if we decide to inline a function.
-  const Decl *D = Call.getDecl();
   const bool checkUninitFields =
     !(C.getAnalysisManager().shouldInlineCall() && (D && D->getBody()));
 
@@ -395,8 +447,7 @@ void CallAndMessageChecker::emitNilReceiverBug(CheckerContext &C,
 
 static bool supportsNilWithFloatRet(const llvm::Triple &triple) {
   return (triple.getVendor() == llvm::Triple::Apple &&
-          (triple.getOS() == llvm::Triple::IOS ||
-           !triple.isMacOSXVersionLT(10,5)));
+          (triple.isiOS() || !triple.isMacOSXVersionLT(10,5)));
 }
 
 void CallAndMessageChecker::HandleNilReceiver(CheckerContext &C,

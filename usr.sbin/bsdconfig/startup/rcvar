@@ -39,8 +39,8 @@ f_include $BSDCFG_SHARE/startup/rcvar.subr
 BSDCFG_LIBE="/usr/libexec/bsdconfig" APP_DIR="140.startup"
 f_include_lang $BSDCFG_LIBE/$APP_DIR/include/messages.subr
 
-ipgm=$( f_index_menusel_keyword $BSDCFG_LIBE/$APP_DIR/INDEX "$pgm" )
-[ $? -eq $SUCCESS -a "$ipgm" ] && pgm="$ipgm"
+f_index_menusel_keyword $BSDCFG_LIBE/$APP_DIR/INDEX "$pgm" ipgm &&
+	pgm="${ipgm:-$pgm}"
 
 ############################################################ GLOBALS
 
@@ -158,7 +158,7 @@ dialog_menu_main()
 	f_dialog_menutag_store "$menu_choice"
 	f_dialog_default_store "$menu_choice"
 
-	if [ $retval -eq $SUCCESS ]; then
+	if [ $retval -eq $DIALOG_OK ]; then
 		local item
 		item=$( eval f_dialog_menutag2item${SHOW_DESC:+_with_help} \
 		         	\"\$menu_choice\" $menu_list )
@@ -210,7 +210,7 @@ while :; do
 	     *) value="YES"
 	esac
 
-	err=$( f_sysrc_set "$rcvar" "$value" 2>&1 ) || f_dialog_msgbox "$err"
+	f_eval_catch "$0" f_sysrc_set 'f_sysrc_set "%s" "%s"' "$rcvar" "$value"
 done
 
 exit $SUCCESS

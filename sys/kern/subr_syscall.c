@@ -40,11 +40,10 @@
 
 #include "opt_capsicum.h"
 #include "opt_ktrace.h"
-#include "opt_kdtrace.h"
 
 __FBSDID("$FreeBSD$");
 
-#include <sys/capability.h>
+#include <sys/capsicum.h>
 #include <sys/ktr.h>
 #ifdef KTRACE
 #include <sys/uio.h>

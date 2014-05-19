@@ -55,6 +55,7 @@ ofw_bus_gen_setup_devinfo(struct ofw_bus_devinfo *obd, phandle_t node)
 	OF_getprop_alloc(node, "compatible", 1, (void **)&obd->obd_compat);
 	OF_getprop_alloc(node, "device_type", 1, (void **)&obd->obd_type);
 	OF_getprop_alloc(node, "model", 1, (void **)&obd->obd_model);
+	OF_getprop_alloc(node, "status", 1, (void **)&obd->obd_status);
 	obd->obd_node = node;
 	return (0);
 }
@@ -73,6 +74,8 @@ ofw_bus_gen_destroy_devinfo(struct ofw_bus_devinfo *obd)
 		free(obd->obd_name, M_OFWPROP);
 	if (obd->obd_type != NULL)
 		free(obd->obd_type, M_OFWPROP);
+	if (obd->obd_status != NULL)
+		free(obd->obd_status, M_OFWPROP);
 }
 
 int
@@ -147,6 +150,30 @@ ofw_bus_gen_get_type(device_t bus, device_t dev)
 	return (obd->obd_type);
 }
 
+const char *
+ofw_bus_get_status(device_t dev)
+{
+	const struct ofw_bus_devinfo *obd;
+
+	obd = OFW_BUS_GET_DEVINFO(device_get_parent(dev), dev);
+	if (obd == NULL)
+		return (NULL);
+
+	return (obd->obd_status);
+}
+
+int
+ofw_bus_status_okay(device_t dev)
+{
+	const char *status;
+
+	status = ofw_bus_get_status(dev);
+	if (status == NULL || strcmp(status, "okay") == 0)
+		return (1);
+	
+	return (0);
+}
+
 int
 ofw_bus_is_compatible(device_t dev, const char *onecompat)
 {
@@ -197,6 +224,21 @@ ofw_bus_is_compatible_strict(device_t dev, const char *compatible)
 	return (0);
 }
 
+const struct ofw_compat_data *
+ofw_bus_search_compatible(device_t dev, const struct ofw_compat_data *compat)
+{
+
+	if (compat == NULL)
+		return NULL;
+
+	for (; compat->ocd_str != NULL; ++compat) {
+		if (ofw_bus_is_compatible(dev, compat->ocd_str))
+			break;
+	}
+
+	return (compat);
+}
+
 int
 ofw_bus_has_prop(device_t dev, const char *propname)
 {
@@ -208,21 +250,20 @@ ofw_bus_has_prop(device_t dev, const char *propname)
 	return (OF_hasprop(node, propname));
 }
 
-#ifndef FDT
 void
 ofw_bus_setup_iinfo(phandle_t node, struct ofw_bus_iinfo *ii, int intrsz)
 {
 	pcell_t addrc;
 	int msksz;
 
-	if (OF_getprop(node, "#address-cells", &addrc, sizeof(addrc)) == -1)
+	if (OF_getencprop(node, "#address-cells", &addrc, sizeof(addrc)) == -1)
 		addrc = 2;
 	ii->opi_addrc = addrc * sizeof(pcell_t);
 
-	ii->opi_imapsz = OF_getprop_alloc(node, "interrupt-map", 1,
+	ii->opi_imapsz = OF_getencprop_alloc(node, "interrupt-map", 1,
 	    (void **)&ii->opi_imap);
 	if (ii->opi_imapsz > 0) {
-		msksz = OF_getprop_alloc(node, "interrupt-map-mask", 1,
+		msksz = OF_getencprop_alloc(node, "interrupt-map-mask", 1,
 		    (void **)&ii->opi_imapmsk);
 		/*
 		 * Failure to get the mask is ignored; a full mask is used
@@ -237,8 +278,9 @@ ofw_bus_setup_iinfo(phandle_t node, struct ofw_bus_iinfo *ii, int intrsz)
 int
 ofw_bus_lookup_imap(phandle_t node, struct ofw_bus_iinfo *ii, void *reg,
     int regsz, void *pintr, int pintrsz, void *mintr, int mintrsz,
-    phandle_t *iparent, void *maskbuf)
+    phandle_t *iparent)
 {
+	uint8_t maskbuf[regsz + pintrsz];
 	int rv;
 
 	if (ii->opi_imapsz <= 0)
@@ -246,9 +288,11 @@ ofw_bus_lookup_imap(phandle_t node, struct ofw_bus_iinfo *ii, void *reg,
 	KASSERT(regsz >= ii->opi_addrc,
 	    ("ofw_bus_lookup_imap: register size too small: %d < %d",
 		regsz, ii->opi_addrc));
-	rv = OF_getprop(node, "reg", reg, regsz);
-	if (rv < regsz)
-		panic("ofw_bus_lookup_imap: could not get reg property");
+	if (node != -1) {
+		rv = OF_getencprop(node, "reg", reg, regsz);
+		if (rv < regsz)
+			panic("ofw_bus_lookup_imap: cannot get reg property");
+	}
 	return (ofw_bus_search_intrmap(pintr, pintrsz, reg, ii->opi_addrc,
 	    ii->opi_imap, ii->opi_imapsz, ii->opi_imapmsk, maskbuf, mintr,
 	    mintrsz, iparent));
@@ -269,7 +313,7 @@ ofw_bus_lookup_imap(phandle_t node, struct ofw_bus_iinfo *ii, void *reg,
  * maskbuf must point to a buffer of length physsz + intrsz.
  * The interrupt is returned in result, which must point to a buffer of length
  * rintrsz (which gives the expected size of the mapped interrupt).
- * Returns 1 if a mapping was found, 0 otherwise.
+ * Returns number of cells in the interrupt if a mapping was found, 0 otherwise.
  */
 int
 ofw_bus_search_intrmap(void *intr, int intrsz, void *regs, int physsz,
@@ -300,8 +344,8 @@ ofw_bus_search_intrmap(void *intr, int intrsz, void *regs, int physsz,
 	i = imapsz;
 	while (i > 0) {
 		bcopy(mptr + physsz + intrsz, &parent, sizeof(parent));
-		if (OF_searchprop(OF_xref_phandle(parent), "#interrupt-cells",
-		    &pintrsz, sizeof(pintrsz)) == -1)
+		if (OF_searchencprop(OF_xref_phandle(parent),
+		    "#interrupt-cells", &pintrsz, sizeof(pintrsz)) == -1)
 			pintrsz = 1;	/* default */
 		pintrsz *= sizeof(pcell_t);
 
@@ -309,23 +353,17 @@ ofw_bus_search_intrmap(void *intr, int intrsz, void *regs, int physsz,
 		tsz = physsz + intrsz + sizeof(phandle_t) + pintrsz;
 		KASSERT(i >= tsz, ("ofw_bus_search_intrmap: truncated map"));
 
-		/*
-		 * XXX: Apple hardware uses a second cell to set information
-		 * on the interrupt trigger type.  This information should
-		 * be used somewhere to program the PIC.
-		 */
-
 		if (bcmp(ref, mptr, physsz + intrsz) == 0) {
 			bcopy(mptr + physsz + intrsz + sizeof(parent),
-			    result, rintrsz);
+			    result, MIN(rintrsz, pintrsz));
 
 			if (iparent != NULL)
 				*iparent = parent;
-			return (1);
+			return (pintrsz/sizeof(pcell_t));
 		}
 		mptr += tsz;
 		i -= tsz;
 	}
 	return (0);
 }
-#endif /* !FDT */
+

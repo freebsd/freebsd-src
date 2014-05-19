@@ -81,8 +81,10 @@ __FBSDID("$FreeBSD$");
 
 #include <net/bpf.h>
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/if_clone.h>
 #include <net/if_types.h>
+#include <net/vnet.h>
 #include <net/pfvar.h>
 #include <net/if_pfsync.h>
 
@@ -436,7 +438,8 @@ pfsync_state_import(struct pfsync_state *sp, u_int8_t flags)
 	else
 		r = &V_pf_default_rule;
 
-	if ((r->max_states && r->states_cur >= r->max_states))
+	if ((r->max_states &&
+	    counter_u64_fetch(r->states_cur) >= r->max_states))
 		goto cleanup;
 
 	/*
@@ -514,18 +517,15 @@ pfsync_state_import(struct pfsync_state *sp, u_int8_t flags)
 	st->pfsync_time = time_uptime;
 	st->sync_state = PFSYNC_S_NONE;
 
-	/* XXX when we have nat_rule/anchors, use STATE_INC_COUNTERS */
-	r->states_cur++;
-	r->states_tot++;
-
 	if (!(flags & PFSYNC_SI_IOCTL))
 		st->state_flags |= PFSTATE_NOSYNC;
 
-	if ((error = pf_state_insert(kif, skw, sks, st)) != 0) {
-		/* XXX when we have nat_rule/anchors, use STATE_DEC_COUNTERS */
-		r->states_cur--;
+	if ((error = pf_state_insert(kif, skw, sks, st)) != 0)
 		goto cleanup_state;
-	}
+
+	/* XXX when we have nat_rule/anchors, use STATE_INC_COUNTERS */
+	counter_u64_add(r->states_cur, 1);
+	counter_u64_add(r->states_tot, 1);
 
 	if (!(flags & PFSYNC_SI_IOCTL)) {
 		st->state_flags &= ~PFSTATE_NOSYNC;
@@ -683,7 +683,7 @@ pfsync_in_clr(struct pfsync_pkt *pkt, struct mbuf *m, int offset, int count)
 		    pfi_kif_find(clr[i].ifname) == NULL)
 			continue;
 
-		for (int i = 0; i <= V_pf_hashmask; i++) {
+		for (int i = 0; i <= pf_hashmask; i++) {
 			struct pf_idhash *ih = &V_pf_idhash[i];
 			struct pf_state *s;
 relock:
@@ -2048,7 +2048,7 @@ pfsync_bulk_update(void *arg)
 	else
 		i = sc->sc_bulk_hashid;
 
-	for (; i <= V_pf_hashmask; i++) {
+	for (; i <= pf_hashmask; i++) {
 		struct pf_idhash *ih = &V_pf_idhash[i];
 
 		if (s != NULL)

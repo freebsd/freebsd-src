@@ -582,6 +582,7 @@ compile_flags(char *p, struct s_subst *s)
 		case 'p':
 			s->p = 1;
 			break;
+		case 'i':
 		case 'I':
 			s->icase = 1;
 			break;

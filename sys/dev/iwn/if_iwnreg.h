@@ -17,6 +17,8 @@
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
+#ifndef	__IF_IWNREG_H__
+#define	__IF_IWNREG_H__
 
 #define	IWN_CT_KILL_THRESHOLD		114	/* in Celsius */
 #define	IWN_CT_KILL_EXIT_THRESHOLD	95	/* in Celsius */
@@ -198,7 +200,7 @@
 #define IWN_RESET_SW			(1 << 7)
 #define IWN_RESET_MASTER_DISABLED	(1 << 8)
 #define IWN_RESET_STOP_MASTER		(1 << 9)
-#define IWN_RESET_LINK_PWR_MGMT_DIS	(1 << 31)
+#define IWN_RESET_LINK_PWR_MGMT_DIS	(1U << 31)
 
 /* Possible flags for register IWN_GP_CNTRL. */
 #define IWN_GP_CNTRL_MAC_ACCESS_ENA	(1 << 0)
@@ -222,6 +224,7 @@
 #define IWN_GP_DRIVER_CALIB_VER6	(1 << 2)
 #define IWN_GP_DRIVER_6050_1X2		(1 << 3)
 #define	IWN_GP_DRIVER_REG_BIT_RADIO_IQ_INVERT	(1 << 7)
+#define	IWN_GP_DRIVER_NONE		0
 
 /* Possible flags for register IWN_UCODE_GP1_CLR. */
 #define IWN_UCODE_GP1_RFKILL		(1 << 1)
@@ -262,7 +265,7 @@ static const struct {
 
 /* Possible flags for register IWN_DRAM_INT_TBL. */
 #define IWN_DRAM_INT_TBL_WRAP_CHECK	(1 << 27)
-#define IWN_DRAM_INT_TBL_ENABLE		(1 << 31)
+#define IWN_DRAM_INT_TBL_ENABLE		(1U << 31)
 
 /* Possible values for register IWN_ANA_PLL. */
 #define IWN_ANA_PLL_INIT	0x00880300
@@ -272,7 +275,7 @@ static const struct {
 
 /* Possible flags for register IWN_BSM_WR_CTRL. */
 #define IWN_BSM_WR_CTRL_START_EN	(1 << 30)
-#define IWN_BSM_WR_CTRL_START		(1 << 31)
+#define IWN_BSM_WR_CTRL_START		(1U << 31)
 
 /* Possible flags for register IWN_INT. */
 #define IWN_INT_ALIVE		(1 <<  0)
@@ -285,7 +288,7 @@ static const struct {
 #define IWN_INT_FH_TX		(1 << 27)
 #define IWN_INT_RX_PERIODIC	(1 << 28)
 #define IWN_INT_HW_ERR		(1 << 29)
-#define IWN_INT_FH_RX		(1 << 31)
+#define IWN_INT_FH_RX		(1U << 31)
 
 /* Shortcut. */
 #define IWN_INT_MASK_DEF						\
@@ -305,7 +308,7 @@ static const struct {
 
 /* Possible flags/values for register IWN_FH_TX_CONFIG. */
 #define IWN_FH_TX_CONFIG_DMA_PAUSE		0
-#define IWN_FH_TX_CONFIG_DMA_ENA		(1 << 31)
+#define IWN_FH_TX_CONFIG_DMA_ENA		(1U << 31)
 #define IWN_FH_TX_CONFIG_CIRQ_HOST_ENDTFD	(1 << 20)
 
 /* Possible flags/values for register IWN_FH_TXBUF_STATUS. */
@@ -320,7 +323,7 @@ static const struct {
 #define IWN_FH_TX_STATUS_IDLE(chnl)	(1 << ((chnl) + 16))
 
 /* Possible flags for register IWN_FH_RX_CONFIG. */
-#define IWN_FH_RX_CONFIG_ENA		(1 << 31)
+#define IWN_FH_RX_CONFIG_ENA		(1U << 31)
 #define IWN_FH_RX_CONFIG_NRBD(x)	((x) << 20)
 #define IWN_FH_RX_CONFIG_RB_SIZE_8K	(1 << 16)
 #define IWN_FH_RX_CONFIG_SINGLE_FRAME	(1 << 15)
@@ -329,7 +332,7 @@ static const struct {
 #define IWN_FH_RX_CONFIG_IGN_RXF_EMPTY	(1 <<  2)
 
 /* Possible flags for register IWN_FH_TX_CONFIG. */
-#define IWN_FH_TX_CONFIG_DMA_ENA	(1 << 31)
+#define IWN_FH_TX_CONFIG_DMA_ENA	(1U << 31)
 #define IWN_FH_TX_CONFIG_DMA_CREDIT_ENA	(1 <<  3)
 
 /* Possible flags for register IWN_EEPROM. */
@@ -377,7 +380,7 @@ static const struct {
 #define IWN_APMG_PCI_STT_L1A_DIS	(1 << 11)
 
 /* Possible flags for register IWN_BSM_DRAM_TEXT_SIZE. */
-#define IWN_FW_UPDATED	(1 << 31)
+#define IWN_FW_UPDATED	(1U << 31)
 
 #define IWN_SCHED_WINSZ		64
 #define IWN_SCHED_LIMIT		64
@@ -882,7 +885,7 @@ struct iwn_scan_essid {
 
 struct iwn_scan_hdr {
 	uint16_t	len;
-	uint8_t		reserved1;
+	uint8_t		scan_flags;
 	uint8_t		nchan;
 	uint16_t	quiet_time;
 	uint16_t	quiet_threshold;
@@ -919,17 +922,53 @@ struct iwn_scan_chan {
 /* Maximum size of a scan command. */
 #define IWN_SCAN_MAXSZ	(MCLBYTES - 4)
 
-#define	IWN_ACTIVE_DWELL_TIME_24	(30)	/* all times in msec */
-#define	IWN_ACTIVE_DWELL_TIME_52	(20)
-#define	IWN_ACTIVE_DWELL_FACTOR_24	(3)
-#define	IWN_ACTIVE_DWELL_FACTOR_52	(2)
+/*
+ * For active scan, listen ACTIVE_DWELL_TIME (msec) on each channel after
+ * sending probe req.  This should be set long enough to hear probe responses
+ * from more than one AP.
+ */
+#define	IWN_ACTIVE_DWELL_TIME_2GHZ	(30)	/* all times in msec */
+#define	IWN_ACTIVE_DWELL_TIME_5GHZ	(20)
+#define	IWN_ACTIVE_DWELL_FACTOR_2GHZ	(3)
+#define	IWN_ACTIVE_DWELL_FACTOR_5GHZ	(2)
 
-#define	IWN_PASSIVE_DWELL_TIME_24	(20)	/* all times in msec */
-#define	IWN_PASSIVE_DWELL_TIME_52	(10)
+/*
+ * For passive scan, listen PASSIVE_DWELL_TIME (msec) on each channel.
+ * Must be set longer than active dwell time.
+ * For the most reliable scan, set > AP beacon interval (typically 100msec).
+ */
+#define	IWN_PASSIVE_DWELL_TIME_2GHZ	(20)	/* all times in msec */
+#define	IWN_PASSIVE_DWELL_TIME_5GHZ	(10)
 #define	IWN_PASSIVE_DWELL_BASE		(100)
 #define	IWN_CHANNEL_TUNE_TIME		(5)
 
 #define	IWN_SCAN_CHAN_TIMEOUT		2
+#define	IWN_MAX_SCAN_CHANNEL		50
+
+/*
+ * If active scanning is requested but a certain channel is
+ * marked passive, we can do active scanning if we detect
+ * transmissions.
+ *
+ * There is an issue with some firmware versions that triggers
+ * a sysassert on a "good CRC threshold" of zero (== disabled),
+ * on a radar channel even though this means that we should NOT
+ * send probes.
+ *
+ * The "good CRC threshold" is the number of frames that we
+ * need to receive during our dwell time on a channel before
+ * sending out probes -- setting this to a huge value will
+ * mean we never reach it, but at the same time work around
+ * the aforementioned issue. Thus use IWL_GOOD_CRC_TH_NEVER
+ * here instead of IWL_GOOD_CRC_TH_DISABLED.
+ *
+ * This was fixed in later versions along with some other
+ * scan changes, and the threshold behaves as a flag in those
+ * versions.
+ */
+#define	IWN_GOOD_CRC_TH_DISABLED	0
+#define	IWN_GOOD_CRC_TH_DEFAULT		htole16(1)
+#define	IWN_GOOD_CRC_TH_NEVER		htole16(0xffff)
 
 /* Structure for command IWN_CMD_TXPOWER (4965AGN only.) */
 #define IWN_RIDX_MAX	32
@@ -1102,6 +1141,12 @@ struct iwn_enhanced_sensitivity_cmd {
 	uint16_t	reserved;
 } __packed;
 
+/*
+ * Define maximal number of calib result send to runtime firmware
+ * PS: TEMP_OFFSET count for 2 (std and v2)
+ */
+#define	IWN5000_PHY_CALIB_MAX_RESULT		8
+
 /* Structures for command IWN_CMD_PHY_CALIB. */
 struct iwn_phy_calib {
 	uint8_t	code;
@@ -1232,6 +1277,7 @@ struct iwn_ucode_info {
 #define IWN_TX_FAIL_FIFO_UNDERRRUN	0x84	/* tx fifo not kept running */
 #define IWN_TX_FAIL_DEST_IN_PS		0x88	/* sta found in power save */
 #define IWN_TX_FAIL_TX_LOCKED		0x90	/* waiting to see traffic */
+#define IWN_TX_FAIL_STA_INVALID		0x8b	/* XXX STA invalid (???) */
 
 struct iwn4965_tx_stat {
 	uint8_t		nframes;
@@ -1463,13 +1509,27 @@ struct iwn_rx_ht_phy_stats {
 	uint32_t	good_ampdu_crc32;
 	uint32_t	ampdu;
 	uint32_t	fragment;
-	uint32_t	reserved;
+	uint32_t	unsupport_mcs;
 } __packed;
 
 struct iwn_rx_stats {
 	struct iwn_rx_phy_stats		ofdm;
 	struct iwn_rx_phy_stats		cck;
 	struct iwn_rx_general_stats	general;
+	struct iwn_rx_ht_phy_stats	ht;
+} __packed;
+
+struct iwn_rx_general_stats_bt {
+	struct iwn_rx_general_stats common;
+	/* additional stats for bt */
+	uint32_t num_bt_kills;
+	uint32_t reserved[2];
+} __packed;
+
+struct iwn_rx_stats_bt {
+	struct iwn_rx_phy_stats		ofdm;
+	struct iwn_rx_phy_stats		cck;
+	struct iwn_rx_general_stats_bt	general_bt;
 	struct iwn_rx_ht_phy_stats	ht;
 } __packed;
 
@@ -1484,7 +1544,7 @@ struct iwn_tx_stats {
 	uint32_t	exp_ack;
 	uint32_t	ack;
 	uint32_t	msdu;
-	uint32_t	busrt_err1;
+	uint32_t	burst_err1;
 	uint32_t	burst_err2;
 	uint32_t	cts_collision;
 	uint32_t	ack_collision;
@@ -1498,15 +1558,21 @@ struct iwn_tx_stats {
 	uint32_t	underrun;
 	uint32_t	bt_ht_kill;
 	uint32_t	rx_ba_resp;
-	uint32_t	reserved[2];
+	/*
+	 * 6000 series only - LSB=ant A, ant B, ant C, MSB=reserved
+	 * TX power on chain in 1/2 dBm.
+	 */
+	uint32_t	tx_power;
+	uint32_t	reserved[1];
 } __packed;
 
 struct iwn_general_stats {
-	uint32_t	temp;
-	uint32_t	temp_m;
+	uint32_t	temp;		/* radio temperature */
+	uint32_t	temp_m;		/* radio voltage */
 	uint32_t	burst_check;
 	uint32_t	burst;
-	uint32_t	reserved1[4];
+	uint32_t	wait_for_silence_timeout_cnt;
+	uint32_t	reserved1[3];
 	uint32_t	sleep;
 	uint32_t	slot_out;
 	uint32_t	slot_idle;
@@ -1517,7 +1583,11 @@ struct iwn_general_stats {
 	uint32_t	probe;
 	uint32_t	reserved2[2];
 	uint32_t	rx_enabled;
-	uint32_t	reserved3[3];
+	/*
+	 * This is the number of times we have to re-tune
+	 * in order to get out of bad PHY status.
+	 */
+	uint32_t	num_of_sos_states;
 } __packed;
 
 struct iwn_stats {
@@ -1525,8 +1595,30 @@ struct iwn_stats {
 	struct iwn_rx_stats		rx;
 	struct iwn_tx_stats		tx;
 	struct iwn_general_stats	general;
+	uint32_t			reserved1[2];
 } __packed;
 
+struct iwn_bt_activity_stats {
+	/* Tx statistics */
+	uint32_t hi_priority_tx_req_cnt;
+	uint32_t hi_priority_tx_denied_cnt;
+	uint32_t lo_priority_tx_req_cnt;
+	uint32_t lo_priority_tx_denied_cnt;
+	/* Rx statistics */
+	uint32_t hi_priority_rx_req_cnt;
+	uint32_t hi_priority_rx_denied_cnt;
+	uint32_t lo_priority_rx_req_cnt;
+	uint32_t lo_priority_rx_denied_cnt;
+} __packed;
+
+struct iwn_stats_bt {
+	uint32_t			flags;
+	struct iwn_rx_stats_bt		rx_bt;
+	struct iwn_tx_stats		tx;
+	struct iwn_general_stats	general;
+	struct iwn_bt_activity_stats	activity;
+	uint32_t			reserved1[2];
+};
 
 /* Firmware error dump. */
 struct iwn_fw_dump {
@@ -1564,7 +1656,7 @@ struct iwn_fw_tlv {
 #define IWN_FW_TLV_INIT_DATA		4
 #define IWN_FW_TLV_BOOT_TEXT		5
 #define IWN_FW_TLV_PBREQ_MAXLEN		6
-#define	IWN_FW_TLV_PAN				7
+#define	IWN_FW_TLV_PAN			7
 #define	IWN_FW_TLV_RUNT_EVTLOG_PTR	8
 #define	IWN_FW_TLV_RUNT_EVTLOG_SIZE	9
 #define	IWN_FW_TLV_RUNT_ERRLOG_PTR	10
@@ -1575,7 +1667,7 @@ struct iwn_fw_tlv {
 #define IWN_FW_TLV_PHY_CALIB		15
 #define	IWN_FW_TLV_WOWLAN_INST		16
 #define	IWN_FW_TLV_WOWLAN_DATA		17
-#define	IWN_FW_TLV_FLAGS			18
+#define	IWN_FW_TLV_FLAGS		18
 
 	uint16_t	alt;
 	uint32_t	len;
@@ -1588,6 +1680,60 @@ struct iwn_fw_tlv {
 #define IWN_FW_BOOT_TEXT_MAXSZ	1024
 #define IWN4965_FWSZ		(IWN4965_FW_TEXT_MAXSZ + IWN4965_FW_DATA_MAXSZ)
 #define IWN5000_FWSZ		IWN5000_FW_TEXT_MAXSZ
+
+/*
+ * Microcode flags TLV (18.)
+ */
+
+/**
+ * enum iwn_ucode_tlv_flag - ucode API flags
+ * @IWN_UCODE_TLV_FLAGS_PAN: This is PAN capable microcode; this previously
+ *      was a separate TLV but moved here to save space.
+ * @IWN_UCODE_TLV_FLAGS_NEWSCAN: new uCode scan behaviour on hidden SSID,
+ *      treats good CRC threshold as a boolean
+ * @IWN_UCODE_TLV_FLAGS_MFP: This uCode image supports MFP (802.11w).
+ * @IWN_UCODE_TLV_FLAGS_P2P: This uCode image supports P2P.
+ * @IWN_UCODE_TLV_FLAGS_DW_BC_TABLE: The SCD byte count table is in DWORDS
+ * @IWN_UCODE_TLV_FLAGS_UAPSD: This uCode image supports uAPSD
+ * @IWN_UCODE_TLV_FLAGS_SHORT_BL: 16 entries of black list instead of 64 in scan
+ *      offload profile config command.
+ * @IWN_UCODE_TLV_FLAGS_RX_ENERGY_API: supports rx signal strength api
+ * @IWN_UCODE_TLV_FLAGS_TIME_EVENT_API_V2: using the new time event API.
+ * @IWN_UCODE_TLV_FLAGS_D3_6_IPV6_ADDRS: D3 image supports up to six
+ *      (rather than two) IPv6 addresses
+ * @IWN_UCODE_TLV_FLAGS_BF_UPDATED: new beacon filtering API
+ * @IWN_UCODE_TLV_FLAGS_NO_BASIC_SSID: not sending a probe with the SSID element
+ *      from the probe request template.
+ * @IWN_UCODE_TLV_FLAGS_D3_CONTINUITY_API: modified D3 API to allow keeping
+ *      connection when going back to D0
+ * @IWN_UCODE_TLV_FLAGS_NEW_NSOFFL_SMALL: new NS offload (small version)
+ * @IWN_UCODE_TLV_FLAGS_NEW_NSOFFL_LARGE: new NS offload (large version)
+ * @IWN_UCODE_TLV_FLAGS_SCHED_SCAN: this uCode image supports scheduled scan.
+ * @IWN_UCODE_TLV_FLAGS_STA_KEY_CMD: new ADD_STA and ADD_STA_KEY command API
+ * @IWN_UCODE_TLV_FLAGS_DEVICE_PS_CMD: support device wide power command
+ *      containing CAM (Continuous Active Mode) indication.
+ */
+enum iwn_ucode_tlv_flag {
+	IWN_UCODE_TLV_FLAGS_PAN			= (1 << 0),
+	IWN_UCODE_TLV_FLAGS_NEWSCAN		= (1 << 1),
+	IWN_UCODE_TLV_FLAGS_MFP			= (1 << 2),
+	IWN_UCODE_TLV_FLAGS_P2P			= (1 << 3),
+	IWN_UCODE_TLV_FLAGS_DW_BC_TABLE		= (1 << 4),
+	IWN_UCODE_TLV_FLAGS_NEWBT_COEX		= (1 << 5),
+	IWN_UCODE_TLV_FLAGS_UAPSD		= (1 << 6),
+	IWN_UCODE_TLV_FLAGS_SHORT_BL		= (1 << 7),
+	IWN_UCODE_TLV_FLAGS_RX_ENERGY_API	= (1 << 8),
+	IWN_UCODE_TLV_FLAGS_TIME_EVENT_API_V2	= (1 << 9),
+	IWN_UCODE_TLV_FLAGS_D3_6_IPV6_ADDRS	= (1 << 10),
+	IWN_UCODE_TLV_FLAGS_BF_UPDATED		= (1 << 11),
+	IWN_UCODE_TLV_FLAGS_NO_BASIC_SSID	= (1 << 12),
+	IWN_UCODE_TLV_FLAGS_D3_CONTINUITY_API	= (1 << 14),
+	IWN_UCODE_TLV_FLAGS_NEW_NSOFFL_SMALL	= (1 << 15),
+	IWN_UCODE_TLV_FLAGS_NEW_NSOFFL_LARGE	= (1 << 16),
+	IWN_UCODE_TLV_FLAGS_SCHED_SCAN		= (1 << 17),
+	IWN_UCODE_TLV_FLAGS_STA_KEY_CMD		= (1 << 19),
+	IWN_UCODE_TLV_FLAGS_DEVICE_PS_CMD	= (1 << 20),
+};
 
 /*
  * Offsets into EEPROM.
@@ -1731,6 +1877,16 @@ static const uint32_t iwn1000_regulatory_bands[IWN_NBANDS] = {
 	IWN5000_EEPROM_NO_HT40,
 };
 
+static const uint32_t iwn2030_regulatory_bands[IWN_NBANDS] = {
+	IWN5000_EEPROM_BAND1,
+	IWN5000_EEPROM_BAND2,
+	IWN5000_EEPROM_BAND3,
+	IWN5000_EEPROM_BAND4,
+	IWN5000_EEPROM_BAND5,
+	IWN6000_EEPROM_BAND6,
+	IWN5000_EEPROM_BAND7
+};
+
 #define IWN_CHAN_BANDS_COUNT	 7
 #define IWN_MAX_CHAN_PER_BAND	14
 static const struct iwn_chan_band {
@@ -1757,8 +1913,8 @@ static const uint8_t iwn_bss_ac_to_queue[] = {
 static const uint8_t iwn_pan_ac_to_queue[] = {
 	5, 4, 6, 7,
 };
-#define IWN1000_OTP_NBLOCKS	3 
-#define IWN6000_OTP_NBLOCKS	4 
+#define IWN1000_OTP_NBLOCKS	3
+#define IWN6000_OTP_NBLOCKS	4
 #define IWN6050_OTP_NBLOCKS	7
 
 /* HW rate indices. */
@@ -1891,6 +2047,7 @@ struct iwn_sensitivity_limits {
 	uint32_t	min_energy_cck;
 	uint32_t	energy_cck;
 	uint32_t	energy_ofdm;
+	uint32_t	barker_mrc;
 };
 
 /*
@@ -1905,7 +2062,8 @@ static const struct iwn_sensitivity_limits iwn4965_sensitivity_limits = {
 	200, 400,
 	 97,
 	100,
-	100
+	100,
+	390
 };
 
 static const struct iwn_sensitivity_limits iwn5000_sensitivity_limits = {
@@ -1917,7 +2075,8 @@ static const struct iwn_sensitivity_limits iwn5000_sensitivity_limits = {
 	170, 400,
 	 95,
 	 95,
-	 95
+	 95,
+	 390
 };
 
 static const struct iwn_sensitivity_limits iwn5150_sensitivity_limits = {
@@ -1929,7 +2088,8 @@ static const struct iwn_sensitivity_limits iwn5150_sensitivity_limits = {
 	170, 400,
 	 95,
 	 95,
-	 95
+	 95,
+	 390,
 };
 
 static const struct iwn_sensitivity_limits iwn1000_sensitivity_limits = {
@@ -1941,7 +2101,8 @@ static const struct iwn_sensitivity_limits iwn1000_sensitivity_limits = {
 	170, 400,
 	 95,
 	 95,
-	 95
+	 95,
+	 390,
 };
 
 static const struct iwn_sensitivity_limits iwn6000_sensitivity_limits = {
@@ -1953,8 +2114,23 @@ static const struct iwn_sensitivity_limits iwn6000_sensitivity_limits = {
 	160, 310,
 	 97,
 	 97,
-	100
+	100,
+	390
 };
+
+static const struct iwn_sensitivity_limits iwn6235_sensitivity_limits = {
+	105, 110,
+	192, 232,
+	 80, 145,
+	128, 232,
+	125, 175,
+	160, 310,
+	100,
+	110,
+	110,
+	336
+};
+
 
 /* Get value from linux kernel 3.2.+ in Drivers/net/wireless/iwlwifi/iwl-2000.c*/
 static const struct iwn_sensitivity_limits iwn2030_sensitivity_limits = {
@@ -2019,7 +2195,7 @@ static const char * const iwn_fw_errmsg[] = {
 	"NMI_INTERRUPT_DATA_ACTION_PT",
 	"NMI_TRM_HW_ER",
 	"NMI_INTERRUPT_TRM",
-	"NMI_INTERRUPT_BREAKPOINT"
+	"NMI_INTERRUPT_BREAKPOINT",
 	"DEBUG_0",
 	"DEBUG_1",
 	"DEBUG_2",
@@ -2052,3 +2228,5 @@ static const char * const iwn_fw_errmsg[] = {
 #define IWN_BARRIER_READ_WRITE(sc)					\
 	bus_space_barrier((sc)->sc_st, (sc)->sc_sh, 0, (sc)->sc_sz,	\
 	    BUS_SPACE_BARRIER_READ | BUS_SPACE_BARRIER_WRITE)
+
+#endif	/* __IF_IWNREG_H__ */

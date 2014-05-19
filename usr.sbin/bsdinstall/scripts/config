@@ -1,6 +1,7 @@
 #!/bin/sh
 #-
 # Copyright (c) 2011 Nathan Whitehorn
+# Copyright (c) 2013 Devin Teske
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -25,12 +26,24 @@
 # SUCH DAMAGE.
 #
 # $FreeBSD$
+#
+############################################################ MAIN
 
 cat $BSDINSTALL_TMPETC/rc.conf.* >> $BSDINSTALL_TMPETC/rc.conf
 rm $BSDINSTALL_TMPETC/rc.conf.*
 
 cp $BSDINSTALL_TMPETC/* $BSDINSTALL_CHROOT/etc
 
-# Set up other things from installed config
-chroot $BSDINSTALL_CHROOT /usr/bin/newaliases
+cat $BSDINSTALL_TMPBOOT/loader.conf.* >> $BSDINSTALL_TMPBOOT/loader.conf
+rm $BSDINSTALL_TMPBOOT/loader.conf.*
 
+cp $BSDINSTALL_TMPBOOT/* $BSDINSTALL_CHROOT/boot
+
+[ "${debugFile#+}" ] && cp "${debugFile#+}" $BSDINSTALL_CHROOT/var/log/
+
+# Set up other things from installed config
+chroot $BSDINSTALL_CHROOT /usr/bin/newaliases > /dev/null 2>&1
+
+################################################################################
+# END
+################################################################################

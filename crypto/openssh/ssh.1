@@ -33,9 +33,9 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $OpenBSD: ssh.1,v 1.330 2012/10/04 13:21:50 markus Exp $
+.\" $OpenBSD: ssh.1,v 1.343 2013/12/07 11:58:46 naddy Exp $
 .\" $FreeBSD$
-.Dd October 4, 2012
+.Dd December 7, 2013
 .Dt SSH 1
 .Os
 .Sh NAME
@@ -48,6 +48,7 @@
 .Op Fl b Ar bind_address
 .Op Fl c Ar cipher_spec
 .Op Fl D Oo Ar bind_address : Oc Ns Ar port
+.Op Fl E Ar log_file
 .Op Fl e Ar escape_char
 .Op Fl F Ar configfile
 .Op Fl I Ar pkcs11
@@ -58,6 +59,7 @@
 .Op Fl O Ar ctl_cmd
 .Op Fl o Ar option
 .Op Fl p Ar port
+.Op Fl Q Cm cipher | cipher-auth | mac | kex | key
 .Op Fl R Oo Ar bind_address : Oc Ns Ar port : Ns Ar host : Ns Ar hostport
 .Op Fl S Ar ctl_path
 .Op Fl W Ar host : Ns Ar port
@@ -218,6 +220,10 @@ indicates that the listening port be bound for local use only, while an
 empty address or
 .Sq *
 indicates that the port should be available from all interfaces.
+.It Fl E Ar log_file
+Append debug logs to
+.Ar log_file
+instead of standard error.
 .It Fl e Ar escape_char
 Sets the escape character for sessions with a pty (default:
 .Ql ~ ) .
@@ -274,7 +280,8 @@ The default is
 .Pa ~/.ssh/identity
 for protocol version 1, and
 .Pa ~/.ssh/id_dsa ,
-.Pa ~/.ssh/id_ecdsa
+.Pa ~/.ssh/id_ecdsa ,
+.Pa ~/.ssh/id_ed25519
 and
 .Pa ~/.ssh/id_rsa
 for protocol version 2.
@@ -411,6 +418,11 @@ For full details of the options listed below, and their possible values, see
 .It AddressFamily
 .It BatchMode
 .It BindAddress
+.It CanonicalDomains
+.It CanonicalizeFallbackLocal
+.It CanonicalizeHostname
+.It CanonicalizeMaxDots
+.It CanonicalizePermittedCNAMEs
 .It ChallengeResponseAuthentication
 .It CheckHostIP
 .It Cipher
@@ -450,6 +462,7 @@ For full details of the options listed below, and their possible values, see
 .It LocalForward
 .It LogLevel
 .It MACs
+.It Match
 .It NoHostAuthenticationForLocalhost
 .It NumberOfPasswordPrompts
 .It PasswordAuthentication
@@ -459,6 +472,7 @@ For full details of the options listed below, and their possible values, see
 .It PreferredAuthentications
 .It Protocol
 .It ProxyCommand
+.It ProxyUseFdpass
 .It PubkeyAuthentication
 .It RekeyLimit
 .It RemoteForward
@@ -484,6 +498,21 @@ For full details of the options listed below, and their possible values, see
 Port to connect to on the remote host.
 This can be specified on a
 per-host basis in the configuration file.
+.It Fl Q Cm cipher | cipher-auth | mac | kex | key
+Queries
+.Nm
+for the algorithms supported for the specified version 2.
+The available features are:
+.Ar cipher
+(supported symmetric ciphers),
+.Ar cipher-auth
+(supported symmetric ciphers that support authenticated encryption),
+.Ar mac
+(supported message integrity codes),
+.Ar kex
+(key exchange algorithms),
+.Ar key
+(key types).
 .It Fl q
 Quiet mode.
 Causes most warning and diagnostic messages to be suppressed.
@@ -731,12 +760,10 @@ key pair for authentication purposes.
 The server knows the public key, and only the user knows the private key.
 .Nm
 implements public key authentication protocol automatically,
-using one of the DSA, ECDSA or RSA algorithms.
+using one of the DSA, ECDSA, ED25519 or RSA algorithms.
 Protocol 1 is restricted to using only RSA keys,
 but protocol 2 may use any.
-The
-.Sx HISTORY
-section of
+The HISTORY section of
 .Xr ssl 8
 contains a brief discussion of the DSA and RSA algorithms.
 .Pp
@@ -760,6 +787,8 @@ This stores the private key in
 (protocol 2 DSA),
 .Pa ~/.ssh/id_ecdsa
 (protocol 2 ECDSA),
+.Pa ~/.ssh/id_ed25519
+(protocol 2 ED25519),
 or
 .Pa ~/.ssh/id_rsa
 (protocol 2 RSA)
@@ -770,6 +799,8 @@ and stores the public key in
 (protocol 2 DSA),
 .Pa ~/.ssh/id_ecdsa.pub
 (protocol 2 ECDSA),
+.Pa ~/.ssh/id_ed25519.pub
+(protocol 2 ED25519),
 or
 .Pa ~/.ssh/id_rsa.pub
 (protocol 2 RSA)
@@ -792,9 +823,7 @@ instead of a set of public/private keys,
 signed certificates are used.
 This has the advantage that a single trusted certification authority
 can be used in place of many public/private keys.
-See the
-.Sx CERTIFICATES
-section of
+See the CERTIFICATES section of
 .Xr ssh-keygen 1
 for more information.
 .Pp
@@ -811,9 +840,12 @@ text, and prompts for a response.
 Protocol 2 allows multiple challenges and responses;
 protocol 1 is restricted to just one challenge/response.
 Examples of challenge-response authentication include
-BSD Authentication (see
+.Bx
+Authentication (see
 .Xr login.conf 5 )
-and PAM (some non-OpenBSD systems).
+and PAM (some
+.Pf non- Ox
+systems).
 .Pp
 Finally, if other authentication methods fail,
 .Nm
@@ -1308,8 +1340,8 @@ secret, but the recommended permissions are read/write/execute for the user,
 and not accessible by others.
 .Pp
 .It Pa ~/.ssh/authorized_keys
-Lists the public keys (DSA/ECDSA/RSA) that can be used for logging in as
-this user.
+Lists the public keys (DSA, ECDSA, ED25519, RSA)
+that can be used for logging in as this user.
 The format of this file is described in the
 .Xr sshd 8
 manual page.
@@ -1321,7 +1353,7 @@ This is the per-user configuration file.
 The file format and configuration options are described in
 .Xr ssh_config 5 .
 Because of the potential for abuse, this file must have strict permissions:
-read/write for the user, and not accessible by others.
+read/write for the user, and not writable by others.
 .Pp
 .It Pa ~/.ssh/environment
 Contains additional definitions for environment variables; see
@@ -1331,6 +1363,7 @@ above.
 .It Pa ~/.ssh/identity
 .It Pa ~/.ssh/id_dsa
 .It Pa ~/.ssh/id_ecdsa
+.It Pa ~/.ssh/id_ed25519
 .It Pa ~/.ssh/id_rsa
 Contains the private key for authentication.
 These files
@@ -1345,6 +1378,7 @@ sensitive part of this file using 3DES.
 .It Pa ~/.ssh/identity.pub
 .It Pa ~/.ssh/id_dsa.pub
 .It Pa ~/.ssh/id_ecdsa.pub
+.It Pa ~/.ssh/id_ed25519.pub
 .It Pa ~/.ssh/id_rsa.pub
 Contains the public key for authentication.
 These files are not
@@ -1384,6 +1418,7 @@ The file format and configuration options are described in
 .It Pa /etc/ssh/ssh_host_key
 .It Pa /etc/ssh/ssh_host_dsa_key
 .It Pa /etc/ssh/ssh_host_ecdsa_key
+.It Pa /etc/ssh/ssh_host_ed25519_key
 .It Pa /etc/ssh/ssh_host_rsa_key
 These files contain the private parts of the host keys
 and are used for host-based authentication.

@@ -77,9 +77,9 @@ main(int argc, char **argv)
 	char fstype[] = "udf";
 	struct iovec *iov;
 	char *cs_disk, *cs_local, *dev, *dir;
-	int ch, i, iovlen, mntflags, udf_flags, verbose;
+	int ch, iovlen, mntflags, udf_flags, verbose;
 
-	i = iovlen = mntflags = udf_flags = verbose = 0;
+	iovlen = mntflags = udf_flags = verbose = 0;
 	cs_disk = cs_local = NULL;
 	iov = NULL;
 	while ((ch = getopt(argc, argv, "o:vC:")) != -1)
@@ -129,7 +129,7 @@ main(int argc, char **argv)
 		build_iovec(&iov, &iovlen, "cs_disk", cs_disk, (size_t)-1);
 		build_iovec(&iov, &iovlen, "cs_local", cs_local, (size_t)-1);
 	}
-	if (nmount(iov, i, mntflags) < 0)
+	if (nmount(iov, iovlen, mntflags) < 0)
 		err(1, "%s", dev);
 	exit(0);
 }

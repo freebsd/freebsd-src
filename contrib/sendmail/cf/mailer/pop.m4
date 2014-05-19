@@ -1,6 +1,6 @@
 PUSHDIVERT(-1)
 #
-# Copyright (c) 1998-2001 Sendmail, Inc. and its suppliers.
+# Copyright (c) 1998-2001 Proofpoint, Inc. and its suppliers.
 #	All rights reserved.
 # Copyright (c) 1983 Eric P. Allman.  All rights reserved.
 # Copyright (c) 1988, 1993
@@ -23,7 +23,7 @@ POPDIVERT
 ###   POP Mailer specification   ###
 ####################################
 
-VERSIONID(`$Id: pop.m4,v 8.22 2001/11/12 23:11:34 ca Exp $')
+VERSIONID(`$Id: pop.m4,v 8.23 2013/11/22 20:51:14 ca Exp $')
 
 Mpop,		P=POP_MAILER_PATH, F=_MODMF_(CONCAT(`lsDFMq', POP_MAILER_FLAGS), `POP'), S=EnvFromL, R=EnvToL/HdrToL,
 		T=DNS/RFC822/X-Unix,_POP_QGRP

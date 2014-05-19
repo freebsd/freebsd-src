@@ -1586,8 +1586,10 @@ btdone(struct bt_softc *bt, struct bt_ccb *bccb, bt_mbi_comp_code_t comp_code)
 					bccb->hccb.target_id,
 					CAM_LUN_WILDCARD);
 		
-		if (error == CAM_REQ_CMP)
+		if (error == CAM_REQ_CMP) {
 			xpt_async(AC_SENT_BDR, path, NULL);
+			xpt_free_path(path);
+		}
 
 		ccb_h = LIST_FIRST(&bt->pending_ccbs);
 		while (ccb_h != NULL) {

@@ -73,6 +73,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/bus.h>
 
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/if_dl.h>
 #include <net/if_media.h>
 #include <net/if_types.h>
@@ -865,12 +866,14 @@ ath_xmit_setup_edma(struct ath_softc *sc)
 	(void) ath_hal_gettxstatuslen(sc->sc_ah, &sc->sc_tx_statuslen);
 	(void) ath_hal_getntxmaps(sc->sc_ah, &sc->sc_tx_nmaps);
 
-	device_printf(sc->sc_dev, "TX descriptor length: %d\n",
-	    sc->sc_tx_desclen);
-	device_printf(sc->sc_dev, "TX status length: %d\n",
-	    sc->sc_tx_statuslen);
-	device_printf(sc->sc_dev, "TX buffers per descriptor: %d\n",
-	    sc->sc_tx_nmaps);
+	if (bootverbose) {
+		device_printf(sc->sc_dev, "TX descriptor length: %d\n",
+		    sc->sc_tx_desclen);
+		device_printf(sc->sc_dev, "TX status length: %d\n",
+		    sc->sc_tx_statuslen);
+		device_printf(sc->sc_dev, "TX buffers per descriptor: %d\n",
+		    sc->sc_tx_nmaps);
+	}
 
 	sc->sc_tx.xmit_setup = ath_edma_dma_txsetup;
 	sc->sc_tx.xmit_teardown = ath_edma_dma_txteardown;

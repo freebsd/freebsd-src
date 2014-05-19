@@ -1,6 +1,0 @@
-syntax("kyuafile", 1)
-
-test_suite("atf")
-
-atf_test_program{name="integration_test"}
-atf_test_program{name="reader_test"}

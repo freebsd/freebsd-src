@@ -55,7 +55,7 @@ terasic_mtl_nexus_probe(device_t dev)
 {
 
 	device_set_desc(dev, "Terasic Multi-touch LCD (MTL)");
-	return (BUS_PROBE_DEFAULT);
+	return (BUS_PROBE_NOWILDCARD);
 }
 
 static int

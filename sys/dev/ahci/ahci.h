@@ -137,6 +137,7 @@
 #define         ATA_SC_IPM_NONE         0x00000000
 #define         ATA_SC_IPM_DIS_PARTIAL  0x00000100
 #define         ATA_SC_IPM_DIS_SLUMBER  0x00000200
+#define         ATA_SC_IPM_DIS_DEVSLEEP 0x00000400
 
 #define ATA_SACTIVE                     16
 
@@ -286,6 +287,17 @@
 #define 	AHCI_P_FBS_ADO_SHIFT 12
 #define 	AHCI_P_FBS_DWE      0x000f0000
 #define 	AHCI_P_FBS_DWE_SHIFT 16
+#define AHCI_P_DEVSLP               0x44
+#define 	AHCI_P_DEVSLP_ADSE  0x00000001
+#define 	AHCI_P_DEVSLP_DSP   0x00000002
+#define 	AHCI_P_DEVSLP_DETO  0x000003fc
+#define 	AHCI_P_DEVSLP_DETO_SHIFT 2
+#define 	AHCI_P_DEVSLP_MDAT  0x00007c00
+#define 	AHCI_P_DEVSLP_MDAT_SHIFT 10
+#define 	AHCI_P_DEVSLP_DITO  0x01ff8000
+#define 	AHCI_P_DEVSLP_DITO_SHIFT 15
+#define 	AHCI_P_DEVSLP_DM    0x0e000000
+#define 	AHCI_P_DEVSLP_DM_SHIFT 25
 
 /* Just to be sure, if building as module. */
 #if MAXPHYS < 512 * 1024
@@ -309,7 +321,7 @@ struct ahci_dma_prd {
     u_int32_t                   dbc;            /* 0 based */
 #define AHCI_PRD_MASK		0x003fffff      /* max 4MB */
 #define AHCI_PRD_MAX		(AHCI_PRD_MASK + 1)
-#define AHCI_PRD_IPC		(1 << 31)
+#define AHCI_PRD_IPC		(1U << 31)
 } __packed;
 
 struct ahci_cmd_tab {
@@ -402,6 +414,7 @@ struct ahci_channel {
 	uint32_t		caps;		/* Controller capabilities */
 	uint32_t		caps2;		/* Controller capabilities */
 	uint32_t		chcaps;		/* Channel capabilities */
+	uint32_t		chscaps;	/* Channel sleep capabilities */
 	int			quirks;
 	int			numslots;	/* Number of present slots */
 	int			pm_level;	/* power management level */
@@ -409,6 +422,8 @@ struct ahci_channel {
 	struct ahci_slot	slot[AHCI_MAX_SLOTS];
 	union ccb		*hold[AHCI_MAX_SLOTS];
 	struct mtx		mtx;		/* state lock */
+	STAILQ_HEAD(, ccb_hdr)	doneq;		/* queue of completed CCBs */
+	int			batch;		/* doneq is in use */
 	int			devices;        /* What is present */
 	int			pm_present;	/* PM presence reported */
 	int			fbs_enabled;	/* FIS-based switching enabled */
@@ -481,6 +496,8 @@ struct ahci_controller {
 	int			ichannels;
 	int			ccc;		/* CCC timeout */
 	int			cccv;		/* CCC vector */
+	int			direct;		/* Direct command completion */
+	int			msi;		/* MSI interupts */
 	struct {
 		void			(*function)(void *);
 		void			*argument;

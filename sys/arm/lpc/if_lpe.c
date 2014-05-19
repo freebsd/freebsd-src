@@ -49,6 +49,7 @@ __FBSDID("$FreeBSD$");
 #include <net/if_dl.h>
 #include <net/if_media.h>
 #include <net/if_types.h>
+#include <net/if_var.h>
 
 #include <net/bpf.h>
 
@@ -63,9 +64,6 @@ __FBSDID("$FreeBSD$");
 #include <arm/lpc/if_lpereg.h>
 
 #include "miibus_if.h"
-
-#define	DEBUG
-#undef	DEBUG
 
 #ifdef DEBUG
 #define debugf(fmt, args...) do { printf("%s(): ", __func__);   \
@@ -191,6 +189,9 @@ static void lpe_ifmedia_sts(struct ifnet *, struct ifmediareq *);
 static int
 lpe_probe(device_t dev)
 {
+
+	if (!ofw_bus_status_okay(dev))
+		return (ENXIO);
 
 	if (!ofw_bus_is_compatible(dev, "lpc,ethernet"))
 		return (ENXIO);

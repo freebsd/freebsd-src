@@ -38,10 +38,8 @@ __FBSDID("$FreeBSD$");
 
 #include "SYS.h"
 
-	.weak	_vfork
-	.set	_vfork,__sys_vfork
-	.weak	vfork
-	.set	vfork,__sys_vfork
+	WEAK_REFERENCE(__sys_vfork, _vfork)
+	WEAK_REFERENCE(__sys_vfork, vfork)
 ENTRY(__sys_vfork)
 	popq	%rsi		/* fetch return address (%rsi preserved) */
 	mov	$SYS_vfork,%rax

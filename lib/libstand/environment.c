@@ -75,7 +75,14 @@ env_setenv(const char *name, int flags, const void *value,
 	 * for one already.
 	 */
 	if ((ev->ev_sethook != NULL) && !(flags & EV_NOHOOK))
-	    return(ev->ev_sethook(ev, flags, value));
+	    return (ev->ev_sethook(ev, flags, value));
+
+	/* If there is data in the variable, discard it. */
+	if (ev->ev_value != NULL && (ev->ev_flags & EV_DYNAMIC) != 0)
+	    free(ev->ev_value);
+	ev->ev_value = NULL;
+	ev->ev_flags &= ~EV_DYNAMIC;
+
     } else {
 
 	/*
@@ -84,6 +91,7 @@ env_setenv(const char *name, int flags, const void *value,
 	ev = malloc(sizeof(struct env_var));
 	ev->ev_name = strdup(name);
 	ev->ev_value = NULL;
+	ev->ev_flags = 0;
 	/* hooks can only be set when the variable is instantiated */
 	ev->ev_sethook = sethook;
 	ev->ev_unsethook = unsethook;
@@ -117,20 +125,15 @@ env_setenv(const char *name, int flags, const void *value,
 	    }
 	}
     }
-    
-    /* If there is data in the variable, discard it */
-    if (ev->ev_value != NULL)
-	free(ev->ev_value);
 
     /* If we have a new value, use it */
     if (flags & EV_VOLATILE) {
 	ev->ev_value = strdup(value);
+	ev->ev_flags |= EV_DYNAMIC;
     } else {
 	ev->ev_value = (char *)value;
+	ev->ev_flags |= flags & EV_DYNAMIC;
     }
-
-    /* Keep the flag components that are relevant */
-    ev->ev_flags = flags & (EV_DYNAMIC);
 
     return(0);
 }
@@ -201,7 +204,7 @@ env_discard(struct env_var *ev)
     if (environ == ev)
 	environ = ev->ev_next;
     free(ev->ev_name);
-    if (ev->ev_flags & EV_DYNAMIC)
+    if (ev->ev_value != NULL && (ev->ev_flags & EV_DYNAMIC) != 0)
 	free(ev->ev_value);
     free(ev);
 }

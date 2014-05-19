@@ -56,6 +56,7 @@ struct cam_path;
 struct async_node {
 	SLIST_ENTRY(async_node)	links;
 	u_int32_t	event_enable;	/* Async Event enables */
+	u_int32_t	event_lock;	/* Take SIM lock for handlers. */
 	void		(*callback)(void *arg, u_int32_t code,
 				    struct cam_path *path, void *args);
 	void		*callback_arg;
@@ -110,6 +111,13 @@ void			xpt_hold_boot(void);
 void			xpt_release_boot(void);
 void			xpt_lock_buses(void);
 void			xpt_unlock_buses(void);
+struct mtx *		xpt_path_mtx(struct cam_path *path);
+#define xpt_path_lock(path)	mtx_lock(xpt_path_mtx(path))
+#define xpt_path_unlock(path)	mtx_unlock(xpt_path_mtx(path))
+#define xpt_path_assert(path, what)	mtx_assert(xpt_path_mtx(path), (what))
+#define xpt_path_owned(path)	mtx_owned(xpt_path_mtx(path))
+#define xpt_path_sleep(path, chan, priority, wmesg, timo)		\
+    msleep((chan), xpt_path_mtx(path), (priority), (wmesg), (timo))
 cam_status		xpt_register_async(int event, ac_callback_t *cbfunc,
 					   void *cbarg, struct cam_path *path);
 cam_status		xpt_compile_path(struct cam_path *new_path,
@@ -117,6 +125,10 @@ cam_status		xpt_compile_path(struct cam_path *new_path,
 					 path_id_t path_id,
 					 target_id_t target_id,
 					 lun_id_t lun_id);
+cam_status		xpt_clone_path(struct cam_path **new_path,
+				      struct cam_path *path);
+void			xpt_copy_path(struct cam_path *new_path,
+				      struct cam_path *path);
 
 void			xpt_release_path(struct cam_path *path);
 

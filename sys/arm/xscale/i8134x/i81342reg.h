@@ -83,7 +83,7 @@
 #define IOP34X_ADMA_PQTE	(1 << 18) /* P+Q Transfer Enable */
 #define IOP34X_ADMA_PTD		(1 << 19) /* P Transfer Disable */
 #define IOP34X_ADMA_ROE		(1 << 30) /* Relaxed Ordering Enable */
-#define IOP34X_ADMA_NSE		(1 << 31) /* No Snoop Enable */
+#define IOP34X_ADMA_NSE		(1U << 31) /* No Snoop Enable */
 
 #define IOP34X_PBBAR0		0x81588 /* PBI Base Address Register 0 */
 #define IOP34X_PBBAR0_ADDRMASK	0xfffff000
@@ -113,7 +113,7 @@
 #define SMC_SDBR		0x8180c /* Base Register */
 #define SMC_SDBR_BASEADDR	(1 << 27)
 #define SMC_SDBR_BASEADDR_MASK	((1 << 27) | (1 << 28) | (1 << 29) | (1 << 30) \
-    				| (1 << 31))
+    				| (1U << 31))
 #define SMC_SDUBR		0x81810 /* Upper Base Register */
 #define SMC_SBSR		0x81814 /* SDRAM Bank Size Register */
 #define SMC_SBSR_BANK_NB	(1 << 2) /* Number of DDR Banks
@@ -128,7 +128,7 @@
 					   0x01000 1GB
 					   */
 #define SMC_SBSR_BANK_SZ_MASK	((1 << 27) | (1 << 28) | (1 << 29) | (1 << 30) \
-    				| (1 << 31))
+    				| (1U << 31))
 
 
 /* Two possible addresses for ATUe depending on configuration. */
@@ -190,7 +190,7 @@
 #define ATU_CR_OUT_EN	(1 << 1)
 #define ATU_PCSR	0x0074 /* PCI Configuration and Status Register */
 #define PCIE_BUSNO(x)	((x & 0xff000000) >> 24)
-#define ATUX_CORE_RST	((1 << 30) | (1 << 31)) /* Core Processor Reset */
+#define ATUX_CORE_RST	((1 << 30) | (1U << 31)) /* Core Processor Reset */
 #define ATUX_P_RSTOUT	(1 << 21) /* Central Resource PCI Bus Reset */
 #define ATUE_CORE_RST	((1 << 9) | (1 << 8)) /* Core Processor Reset */
 #define ATU_ISR		0x0078 /* ATU Interrupt Status Register */
@@ -250,7 +250,7 @@
 #define ATU_OIOWTVR	0x0304 /* Outbound I/O Window Translate Value Reg */
 #define ATU_OUMBAR0	0x0308 /* Outbound Upper Memory Window base addr reg 0*/
 #define ATU_OUMBAR_FUNC	(28)
-#define ATU_OUMBAR_EN	(1 << 31)
+#define ATU_OUMBAR_EN	(1U << 31)
 #define ATU_OUMWTVR0	0x030c /* Outbound Upper 32bit Memory Window Translate Value Register 0 */
 #define ATU_OUMBAR1	0x0310 /* Outbound Upper Memory Window base addr reg1*/
 #define ATU_OUMWTVR1	0x0314 /* Outbound Upper 32bit Memory Window Translate Value Register 1 */

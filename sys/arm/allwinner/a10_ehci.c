@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2012 Ganbold Tsagaankhuu <ganbold@gmail.com>
+ * Copyright (c) 2012 Ganbold Tsagaankhuu <ganbold@freebsd.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -93,6 +93,10 @@ bs_w_1_proto(reversed);
 static int
 a10_ehci_probe(device_t self)
 {
+
+	if (!ofw_bus_status_okay(self))
+		return (ENXIO);
+
 	if (!ofw_bus_is_compatible(self, "allwinner,usb-ehci")) 
 		return (ENXIO);
 

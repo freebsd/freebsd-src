@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2003,2004 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2004,2010 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -37,7 +37,7 @@
 
 #include "menu.priv.h"
 
-MODULE_ID("$Id: m_item_vis.c,v 1.15 2004/12/25 21:40:09 tom Exp $")
+MODULE_ID("$Id: m_item_vis.c,v 1.16 2010/01/23 21:20:10 tom Exp $")
 
 /*---------------------------------------------------------------------------
 |   Facility      :  libnmenu  
@@ -54,7 +54,7 @@ item_visible(const ITEM * item)
 {
   MENU *menu;
 
-  T((T_CALLED("item_visible(%p)"), item));
+  T((T_CALLED("item_visible(%p)"), (const void *)item));
   if (item &&
       (menu = item->imenu) &&
       (menu->status & _POSTED) &&

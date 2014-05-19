@@ -192,7 +192,7 @@ int
 rtas_call_method(cell_t token, int nargs, int nreturns, ...)
 {
 	vm_offset_t argsptr;
-	faultbuf env;
+	faultbuf env, *oldfaultbuf;
 	va_list ap;
 	struct {
 		cell_t token;
@@ -221,6 +221,7 @@ rtas_call_method(cell_t token, int nargs, int nreturns, ...)
 
 	/* Get rid of any stale machine checks that have been waiting.  */
 	__asm __volatile ("sync; isync");
+	oldfaultbuf = curthread->td_pcb->pcb_onfault;
         if (!setfault(env)) {
 		__asm __volatile ("sync");
 		result = rtascall(argsptr, rtas_private_data);
@@ -228,7 +229,7 @@ rtas_call_method(cell_t token, int nargs, int nreturns, ...)
 	} else {
 		result = RTAS_HW_ERROR;
 	}
-	curthread->td_pcb->pcb_onfault = 0;
+	curthread->td_pcb->pcb_onfault = oldfaultbuf;
 	__asm __volatile ("sync");
 
 	rtas_real_unmap(argsptr, &args, sizeof(args));

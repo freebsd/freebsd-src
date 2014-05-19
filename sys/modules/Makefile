@@ -1,6 +1,8 @@
 # $FreeBSD$
 
-.include <bsd.own.mk>
+.include <src.opts.mk>
+
+SUBDIR_PARALLEL=
 
 # Modules that include binary-only blobs of microcode should be selectable by
 # MK_SOURCELESS_UCODE option (see below).
@@ -128,6 +130,7 @@ SUBDIR=	\
 	hwpmc \
 	${_hyperv} \
 	${_i2c} \
+        ${_ibcore} \
 	${_ibcs2} \
 	${_ichwd} \
 	${_ida} \
@@ -135,7 +138,6 @@ SUBDIR=	\
 	if_bridge \
 	if_disc \
 	if_edsc \
-	if_ef \
 	if_epair \
 	if_faith \
 	if_gif \
@@ -148,7 +150,9 @@ SUBDIR=	\
 	if_vlan \
 	${_igb} \
 	${_iir} \
+	${_imgact_binmisc} \
 	${_io} \
+        ${_ipoib} \
 	${_ipdivert} \
 	${_ipfilter} \
 	${_ipfw} \
@@ -184,7 +188,6 @@ SUBDIR=	\
 	libiconv \
 	libmbpool \
 	libmchain \
-	${_lindev} \
 	${_linprocfs} \
 	${_linsysfs} \
 	${_linux} \
@@ -214,9 +217,11 @@ SUBDIR=	\
 	${_mly} \
 	mmc \
 	mmcsd \
+	mpr \
 	mps \
 	mpt \
 	mqueue \
+	mrsas \
 	msdosfs \
 	msdosfs_iconv \
 	${_mse} \
@@ -232,6 +237,7 @@ SUBDIR=	\
 	${_ncp} \
 	${_ncv} \
 	${_ndis} \
+	netfpga10g \
 	${_netgraph} \
 	${_nfe} \
 	nfs_common \
@@ -249,7 +255,6 @@ SUBDIR=	\
 	nullfs \
 	${_ntb} \
 	${_nvd} \
-	${_nve} \
 	${_nvme} \
 	${_nvram} \
 	${_nxge} \
@@ -270,6 +275,7 @@ SUBDIR=	\
 	ppi \
 	pps \
 	procfs \
+	proto \
 	pseudofs \
 	${_pst} \
 	pty  \
@@ -371,6 +377,7 @@ SUBDIR=	\
 
 .if ${MACHINE_CPUARCH} == "i386" || ${MACHINE_CPUARCH} == "amd64"
 _filemon=	filemon
+_imgact_binmisc=	imgact_binmisc
 _vmware=	vmware
 .endif
 
@@ -499,12 +506,17 @@ _fe=		fe
 _glxiic=	glxiic
 _glxsb=		glxsb
 _i2c=		i2c
+.if ${MK_OFED} != "no" || defined(ALL_MODULES)
+_ibcore=        ibcore
+.endif
 _ibcs2=		ibcs2
 _ie=		ie
 _if_ndis=	if_ndis
 _igb=		igb
 _io=		io
-_lindev=	lindev
+.if ${MK_OFED} != "no" || defined(ALL_MODULES)
+_ipoib=         ipoib
+.endif
 _linprocfs=	linprocfs
 _linsysfs=	linsysfs
 _linux=		linux
@@ -524,7 +536,9 @@ _opensolaris=	opensolaris
 _pccard=	pccard
 _pcfclock=	pcfclock
 _pst=		pst
+.if ${MK_OFED} != "no" || defined(ALL_MODULES)
 _rdma=		rdma
+.endif
 _safe=		safe
 _sbni=		sbni
 _scsi_low=	scsi_low
@@ -550,7 +564,9 @@ _acpi=		acpi
 .if ${MK_CRYPT} != "no" || defined(ALL_MODULES)
 _aesni=		aesni
 .endif
+.if ${MK_EISA} != "no"
 _ahb=		ahb
+.endif
 _amdsbwd=	amdsbwd
 _amdtemp=	amdtemp
 _arcmsr=	arcmsr
@@ -575,6 +591,7 @@ _hptmv=		hptmv
 _hptnr=		hptnr
 _hptrr=		hptrr
 .endif
+_hyperv=	hyperv
 _ichwd=		ichwd
 _ida=		ida
 _iir=		iir
@@ -598,9 +615,6 @@ _ixgbe=		ixgbe
 _mly=		mly
 _nfe=		nfe
 _nvd=		nvd
-.if ${MK_SOURCELESS_HOST} != "no"
-_nve=		nve
-.endif
 _nvme=		nvme
 _nvram=		nvram
 _nxge=		nxge
@@ -675,6 +689,9 @@ _hptrr=		hptrr
 .endif
 _hyperv=	hyperv
 _i2c=		i2c
+.if ${MK_OFED} != "no" || defined(ALL_MODULES)
+_ibcore=        ibcore
+.endif
 _ichwd=		ichwd
 _ida=		ida
 _if_ndis=	if_ndis
@@ -682,6 +699,9 @@ _igb=		igb
 _iir=		iir
 _io=		io
 _ipmi=		ipmi
+.if ${MK_OFED} != "no" || defined(ALL_MODULES)
+_ipoib=         ipoib
+.endif
 _ips=		ips
 _ipw=		ipw
 .if ${MK_SOURCELESS_UCODE} != "no"
@@ -698,7 +718,6 @@ _iwnfw=		iwnfw
 .endif
 _ixgb=		ixgb
 _ixgbe=		ixgbe
-_lindev=	lindev
 _linprocfs=	linprocfs
 _linsysfs=	linsysfs
 _linux=		linux
@@ -713,9 +732,6 @@ _ndis=		ndis
 _nfe=		nfe
 _ntb=		ntb
 _nvd=		nvd
-.if ${MK_SOURCELESS_HOST} != "no"
-_nve=		nve
-.endif
 _nvme=		nvme
 _nvram=		nvram
 _nxge=		nxge
@@ -729,7 +745,9 @@ _pccard=	pccard
 _qlxge=		qlxge
 _qlxgb=		qlxgb
 _qlxgbe=	qlxgbe
+.if ${MK_OFED} != "no" || defined(ALL_MODULES)
 _rdma=		rdma
+.endif
 _s3=		s3
 _safe=		safe
 _scsi_low=	scsi_low

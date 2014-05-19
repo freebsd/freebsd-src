@@ -117,10 +117,10 @@
 #include <unistd.h>
 
 struct nlist namelist[] = {
-#define X_TK_NIN	0
-	{ "_tk_nin" },
-#define X_TK_NOUT	1
-	{ "_tk_nout" },
+#define X_TTY_NIN	0
+	{ "_tty_nin" },
+#define X_TTY_NOUT	1
+	{ "_tty_nout" },
 #define X_BOOTTIME	2
 	{ "_boottime" },
 #define X_END		2
@@ -448,9 +448,9 @@ main(int argc, char **argv)
 		long double etime;
 
 		if (Tflag > 0) {
-			if ((readvar(kd, "kern.tty_nin", X_TK_NIN, &cur.tk_nin,
+			if ((readvar(kd, "kern.tty_nin", X_TTY_NIN, &cur.tk_nin,
 			     sizeof(cur.tk_nin)) != 0)
-			 || (readvar(kd, "kern.tty_nout", X_TK_NOUT,
+			 || (readvar(kd, "kern.tty_nout", X_TTY_NOUT,
 			     &cur.tk_nout, sizeof(cur.tk_nout))!= 0)) {
 				Tflag = 0;
 				warnx("disabling TTY statistics");

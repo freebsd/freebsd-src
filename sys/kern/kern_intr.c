@@ -901,7 +901,7 @@ intr_event_schedule_thread(struct intr_event *ie)
 		    p->p_pid, td->td_name);
 		entropy.event = (uintptr_t)ie;
 		entropy.td = ctd;
-		random_harvest(&entropy, sizeof(entropy), 2, 0,
+		random_harvest(&entropy, sizeof(entropy), 2,
 		    RANDOM_INTERRUPT);
 	}
 
@@ -1055,7 +1055,7 @@ intr_event_schedule_thread(struct intr_event *ie, struct intr_thread *it)
 		    p->p_pid, td->td_name);
 		entropy.event = (uintptr_t)ie;
 		entropy.td = ctd;
-		random_harvest(&entropy, sizeof(entropy), 2, 0,
+		random_harvest(&entropy, sizeof(entropy), 2,
 		    RANDOM_INTERRUPT);
 	}
 
@@ -1146,7 +1146,7 @@ swi_sched(void *cookie, int flags)
 		    curproc->p_pid, curthread->td_name);
 		entropy.event = (uintptr_t)ih;
 		entropy.td = curthread;
-		random_harvest(&entropy, sizeof(entropy), 1, 0,
+		random_harvest(&entropy, sizeof(entropy), 1,
 		    RANDOM_SWI);
 	}
 

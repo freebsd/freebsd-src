@@ -1717,6 +1717,15 @@ maybe_dummy_object (tree type, tree* binfop)
       && same_type_p (TYPE_MAIN_VARIANT (TREE_TYPE (current_class_ref)),
 		      current_class_type))
     decl = current_class_ref;
+  /* APPLE LOCAL begin radar 6154598 */
+    else if (cur_block)
+    {
+      tree this_copiedin_var = lookup_name (this_identifier);
+      gcc_assert (!current_class_ref);
+      gcc_assert (this_copiedin_var);
+      decl = build_x_arrow (this_copiedin_var);
+    }  
+  /* APPLE LOCAL end radar 6154598 */
   else
     decl = build_dummy_object (context);
 
@@ -1760,6 +1769,14 @@ pod_type_p (tree t)
   if (CLASSTYPE_NON_POD_P (t))
     return 0;
   return 1;
+}
+
+/* Nonzero iff type T is a class template implicit specialization.  */
+
+bool
+class_tmpl_impl_spec_p (tree t)
+{
+  return CLASS_TYPE_P (t) && CLASSTYPE_TEMPLATE_INSTANTIATION (t);
 }
 
 /* Returns 1 iff zero initialization of type T means actually storing

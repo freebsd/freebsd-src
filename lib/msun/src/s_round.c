@@ -27,25 +27,34 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <math.h>
+#include <float.h>
+
+#include "math.h"
+#include "math_private.h"
 
 double
 round(double x)
 {
 	double t;
+	uint32_t hx;
 
-	if (!isfinite(x))
-		return (x);
+	GET_HIGH_WORD(hx, x);
+	if ((hx & 0x7fffffff) == 0x7ff00000)
+		return (x + x);
 
-	if (x >= 0.0) {
+	if (!(hx & 0x80000000)) {
 		t = floor(x);
 		if (t - x <= -0.5)
-			t += 1.0;
+			t += 1;
 		return (t);
 	} else {
 		t = floor(-x);
 		if (t + x <= -0.5)
-			t += 1.0;
+			t += 1;
 		return (-t);
 	}
 }
+
+#if (LDBL_MANT_DIG == 53)
+__weak_reference(round, roundl);
+#endif

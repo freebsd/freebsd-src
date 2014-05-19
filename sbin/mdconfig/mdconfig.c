@@ -155,6 +155,9 @@ main(int argc, char **argv)
 			} else if (!strcmp(optarg, "swap")) {
 				mdio.md_type = MD_SWAP;
 				mdio.md_options |= MD_CLUSTER | MD_AUTOUNIT | MD_COMPRESS;
+			} else if (!strcmp(optarg, "null")) {
+				mdio.md_type = MD_NULL;
+				mdio.md_options |= MD_CLUSTER | MD_AUTOUNIT | MD_COMPRESS;
 			} else
 				errx(1, "unknown type: %s", optarg);
 			break;
@@ -287,9 +290,10 @@ main(int argc, char **argv)
 			}
 		}
 
-		if ((mdio.md_type == MD_MALLOC || mdio.md_type == MD_SWAP) &&
-		    sflag == NULL)
-			errx(1, "must specify -s for -t malloc or -t swap");
+		if ((mdio.md_type == MD_MALLOC || mdio.md_type == MD_SWAP ||
+		    mdio.md_type == MD_NULL) && sflag == NULL)
+			errx(1, "must specify -s for -t malloc, -t swap, "
+			    "or -t null");
 		if (mdio.md_type == MD_VNODE && mdio.md_file[0] == '\0')
 			errx(1, "must specify -f for -t vnode");
 	} else {
@@ -481,12 +485,18 @@ md_list(const char *units, int opt, const char *fflag)
 		printf("\n");
 	/* XXX: Check if it's enough to clean everything. */
 	geom_stats_snapshot_free(sq);
-	if (((opt & OPT_UNIT) && (fflag == NULL) && ufound) ||
-	    ((opt & OPT_UNIT) == 0 && (fflag != NULL) && ffound) ||
-	    ((opt & OPT_UNIT) && (fflag != NULL) && ufound && ffound))
-		return (0);
-	else
-		return (-1);
+	if (opt & OPT_UNIT) {
+		if (((fflag == NULL) && ufound) ||
+		    ((fflag == NULL) && (units != NULL) && ufound) ||
+		    ((fflag != NULL) && ffound) ||
+		    ((fflag != NULL) && (units != NULL) && ufound && ffound))
+			return (0);
+	} else if (opt & OPT_LIST) {
+		if ((fflag == NULL) ||
+		    ((fflag != NULL) && ffound))
+			return (0);
+	}
+	return (-1);
 }
 
 /*

@@ -84,7 +84,7 @@
  * it in two places: function fill_kinfo_proc in sys/kern/kern_proc.c and
  * function kvm_proclist in lib/libkvm/kvm_proc.c .
  */
-#define	KI_NSPARE_INT	8
+#define	KI_NSPARE_INT	7
 #define	KI_NSPARE_LONG	12
 #define	KI_NSPARE_PTR	6
 
@@ -187,6 +187,7 @@ struct kinfo_proc {
 	 */
 	char	ki_sparestrings[50];	/* spare string space */
 	int	ki_spareints[KI_NSPARE_INT];	/* spare room for growth */
+	int	ki_flag2;		/* P2_* flags */
 	int	ki_fibnum;		/* Default FIB number */
 	u_int	ki_cr_flags;		/* Credential flags */
 	int	ki_jid;			/* Process jail ID */
@@ -270,7 +271,7 @@ struct user {
 #define	KF_FD_TYPE_CWD	-1	/* Current working directory */
 #define	KF_FD_TYPE_ROOT	-2	/* Root directory */
 #define	KF_FD_TYPE_JAIL	-3	/* Jail directory */
-#define	KF_FD_TYPE_TRACE	-4	/* ptrace vnode */
+#define	KF_FD_TYPE_TRACE	-4	/* Ktrace vnode */
 #define	KF_FD_TYPE_TEXT	-5	/* Text vnode */
 #define	KF_FD_TYPE_CTTY	-6	/* Controlling terminal */
 
@@ -319,7 +320,13 @@ struct kinfo_ofile {
 };
 
 #if defined(__amd64__) || defined(__i386__)
-#define	KINFO_FILE_SIZE	1424
+/*
+ * This size should never be changed. If you really need to, you must provide
+ * backward ABI compatibility by allocating a new sysctl MIB that will return
+ * the new structure. The current structure has to be returned by the current
+ * sysctl MIB. See how it is done for the kinfo_ofile structure.
+ */
+#define	KINFO_FILE_SIZE	1392
 #endif
 
 struct kinfo_file {
@@ -390,8 +397,7 @@ struct kinfo_file {
 	uint16_t	kf_pad1;		/* Round to 32 bit alignment. */
 	int		_kf_ispare0;		/* Space for more stuff. */
 	cap_rights_t	kf_cap_rights;		/* Capability rights. */
-	uint64_t	_kf_cap_spare[3];	/* Space for future cap_rights_t. */
-	int		_kf_ispare[4];		/* Space for more stuff. */
+	uint64_t	_kf_cap_spare;		/* Space for future cap_rights_t. */
 	/* Truncated before copyout in sysctl */
 	char		kf_path[PATH_MAX];	/* Path to file, if any. */
 };
@@ -408,6 +414,7 @@ struct kinfo_file {
 #define	KVME_TYPE_PHYS		5
 #define	KVME_TYPE_DEAD		6
 #define	KVME_TYPE_SG		7
+#define	KVME_TYPE_MGTDEVICE	8
 #define	KVME_TYPE_UNKNOWN	255
 
 #define	KVME_PROT_READ		0x00000001
@@ -495,6 +502,12 @@ struct kinfo_kstack {
 	int	 kkst_state;			/* Validity of stack. */
 	char	 kkst_trace[KKST_MAXLEN];	/* String representing stack. */
 	int	 _kkst_ispare[16];		/* Space for more stuff. */
+};
+
+struct kinfo_sigtramp {
+	void	*ksigtramp_start;
+	void	*ksigtramp_end;
+	void	*ksigtramp_spare[4];
 };
 
 #ifdef _KERNEL

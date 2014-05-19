@@ -5,7 +5,7 @@
 
 # This program is required as a bootstrap tool for 'make buildworld'
 PROG=		sgsmsg
-NO_MAN=
+MAN=
 SRCS=		avl.c sgsmsg.c string_table.c findprime.c
 
 WARNS?=		0

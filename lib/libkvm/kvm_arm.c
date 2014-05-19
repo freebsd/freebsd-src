@@ -42,11 +42,15 @@ __FBSDID("$FreeBSD$");
 #include <sys/elf32.h>
 #include <sys/mman.h>
 
+#ifndef CROSS_LIBKVM
 #include <vm/vm.h>
 #include <vm/vm_param.h>
 #include <vm/pmap.h>
-
 #include <machine/pmap.h>
+#else
+#include "../../sys/arm/include/pte.h"
+#include "../../sys/arm/include/vmparam.h"
+#endif
 
 #include <db.h>
 #include <limits.h>

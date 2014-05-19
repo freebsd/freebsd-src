@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# Copyright (c) 1998, 1999 Sendmail, Inc. and its suppliers.
+# Copyright (c) 1998, 1999 Proofpoint, Inc. and its suppliers.
 #	All rights reserved.
 # Copyright (c) 1983 Eric P. Allman.  All rights reserved.
 # Copyright (c) 1988, 1993
@@ -11,7 +11,7 @@
 # the sendmail distribution.
 #
 #
-#	$Id: makeinfo.sh,v 8.14 1999/02/07 07:26:25 gshapiro Exp $
+#	$Id: makeinfo.sh,v 8.15 2013/11/22 20:51:17 ca Exp $
 #
 # $FreeBSD$
 #

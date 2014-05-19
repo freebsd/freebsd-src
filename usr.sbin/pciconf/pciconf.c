@@ -35,6 +35,7 @@ static const char rcsid[] =
 #include <sys/types.h>
 #include <sys/fcntl.h>
 
+#include <assert.h>
 #include <ctype.h>
 #include <err.h>
 #include <inttypes.h>
@@ -67,9 +68,12 @@ struct pci_vendor_info
 
 TAILQ_HEAD(,pci_vendor_info)	pci_vendors;
 
+static struct pcisel getsel(const char *str);
 static void list_bars(int fd, struct pci_conf *p);
-static void list_devs(int verbose, int bars, int caps, int errors);
+static void list_devs(const char *name, int verbose, int bars, int caps,
+    int errors, int vpd);
 static void list_verbose(struct pci_conf *p);
+static void list_vpd(int fd, struct pci_conf *p);
 static const char *guess_class(struct pci_conf *p);
 static const char *guess_subclass(struct pci_conf *p);
 static int load_vendors(void);
@@ -83,10 +87,10 @@ static void
 usage(void)
 {
 	fprintf(stderr, "%s\n%s\n%s\n%s\n",
-		"usage: pciconf -l [-bcev]",
-		"       pciconf -a selector",
-		"       pciconf -r [-b | -h] selector addr[:addr2]",
-		"       pciconf -w [-b | -h] selector addr value");
+		"usage: pciconf -l [-bcevV] [device]",
+		"       pciconf -a device",
+		"       pciconf -r [-b | -h] device addr[:addr2]",
+		"       pciconf -w [-b | -h] device addr value");
 	exit (1);
 }
 
@@ -95,13 +99,13 @@ main(int argc, char **argv)
 {
 	int c;
 	int listmode, readmode, writemode, attachedmode;
-	int bars, caps, errors, verbose;
+	int bars, caps, errors, verbose, vpd;
 	int byte, isshort;
 
 	listmode = readmode = writemode = attachedmode = 0;
-	bars = caps = errors = verbose = byte = isshort = 0;
+	bars = caps = errors = verbose = vpd = byte = isshort = 0;
 
-	while ((c = getopt(argc, argv, "abcehlrwv")) != -1) {
+	while ((c = getopt(argc, argv, "abcehlrwvV")) != -1) {
 		switch(c) {
 		case 'a':
 			attachedmode = 1;
@@ -140,19 +144,24 @@ main(int argc, char **argv)
 			verbose = 1;
 			break;
 
+		case 'V':
+			vpd = 1;
+			break;
+
 		default:
 			usage();
 		}
 	}
 
-	if ((listmode && optind != argc)
+	if ((listmode && optind >= argc + 1)
 	    || (writemode && optind + 3 != argc)
 	    || (readmode && optind + 2 != argc)
 	    || (attachedmode && optind + 1 != argc))
 		usage();
 
 	if (listmode) {
-		list_devs(verbose, bars, caps, errors);
+		list_devs(optind + 1 == argc ? argv[optind] : NULL, verbose,
+		    bars, caps, errors, vpd);
 	} else if (attachedmode) {
 		chkattached(argv[optind]);
 	} else if (readmode) {
@@ -169,11 +178,13 @@ main(int argc, char **argv)
 }
 
 static void
-list_devs(int verbose, int bars, int caps, int errors)
+list_devs(const char *name, int verbose, int bars, int caps, int errors,
+    int vpd)
 {
 	int fd;
 	struct pci_conf_io pc;
 	struct pci_conf conf[255], *p;
+	struct pci_match_conf patterns[1];
 	int none_count = 0;
 
 	if (verbose)
@@ -186,6 +197,16 @@ list_devs(int verbose, int bars, int caps, int errors)
 	bzero(&pc, sizeof(struct pci_conf_io));
 	pc.match_buf_len = sizeof(conf);
 	pc.matches = conf;
+	if (name != NULL) {
+		bzero(&patterns, sizeof(patterns));
+		patterns[0].pc_sel = getsel(name);
+		patterns[0].flags = PCI_GETCONF_MATCH_DOMAIN |
+		    PCI_GETCONF_MATCH_BUS | PCI_GETCONF_MATCH_DEV |
+		    PCI_GETCONF_MATCH_FUNC;
+		pc.num_patterns = 1;
+		pc.pat_buf_len = sizeof(patterns);
+		pc.patterns = patterns;
+	}
 
 	do {
 		if (ioctl(fd, PCIOCGETCONF, &pc) == -1)
@@ -231,6 +252,8 @@ list_devs(int verbose, int bars, int caps, int errors)
 				list_caps(fd, p);
 			if (errors)
 				list_errors(fd, p);
+			if (vpd)
+				list_vpd(fd, p);
 		}
 	} while (pc.status == PCI_GETCONF_MORE_DEVS);
 
@@ -322,6 +345,63 @@ list_verbose(struct pci_conf *p)
 		printf("    class      = %s\n", dp);
 	if ((dp = guess_subclass(p)) != NULL)
 		printf("    subclass   = %s\n", dp);
+}
+
+static void
+list_vpd(int fd, struct pci_conf *p)
+{
+	struct pci_list_vpd_io list;
+	struct pci_vpd_element *vpd, *end;
+
+	list.plvi_sel = p->pc_sel;
+	list.plvi_len = 0;
+	list.plvi_data = NULL;
+	if (ioctl(fd, PCIOCLISTVPD, &list) < 0 || list.plvi_len == 0)
+		return;
+
+	list.plvi_data = malloc(list.plvi_len);
+	if (ioctl(fd, PCIOCLISTVPD, &list) < 0) {
+		free(list.plvi_data);
+		return;
+	}
+
+	vpd = list.plvi_data;
+	end = (struct pci_vpd_element *)((char *)vpd + list.plvi_len);
+	for (; vpd < end; vpd = PVE_NEXT(vpd)) {
+		if (vpd->pve_flags == PVE_FLAG_IDENT) {
+			printf("    VPD ident  = '%.*s'\n",
+			    (int)vpd->pve_datalen, vpd->pve_data);
+			continue;
+		}
+
+		/* Ignore the checksum keyword. */
+		if (!(vpd->pve_flags & PVE_FLAG_RW) &&
+		    memcmp(vpd->pve_keyword, "RV", 2) == 0)
+			continue;
+
+		/* Ignore remaining read-write space. */
+		if (vpd->pve_flags & PVE_FLAG_RW &&
+		    memcmp(vpd->pve_keyword, "RW", 2) == 0)
+			continue;
+
+		/* Handle extended capability keyword. */
+		if (!(vpd->pve_flags & PVE_FLAG_RW) &&
+		    memcmp(vpd->pve_keyword, "CP", 2) == 0) {
+			printf("    VPD ro CP  = ID %02x in map 0x%x[0x%x]\n",
+			    (unsigned int)vpd->pve_data[0],
+			    PCIR_BAR((unsigned int)vpd->pve_data[1]),
+			    (unsigned int)vpd->pve_data[3] << 8 |
+			    (unsigned int)vpd->pve_data[2]);
+			continue;
+		}
+
+		/* Remaining keywords should all have ASCII values. */
+		printf("    VPD %s %c%c  = '%.*s'\n",
+		    vpd->pve_flags & PVE_FLAG_RW ? "rw" : "ro",
+		    vpd->pve_keyword[0], vpd->pve_keyword[1],
+		    (int)vpd->pve_datalen, vpd->pve_data);
+	}
+	free(list.plvi_data);
 }
 
 /*
@@ -557,7 +637,61 @@ read_config(int fd, struct pcisel *sel, long reg, int width)
 }
 
 static struct pcisel
-getsel(const char *str)
+getdevice(const char *name)
+{
+	struct pci_conf_io pc;
+	struct pci_conf conf[1];
+	struct pci_match_conf patterns[1];
+	char *cp;
+	int fd;	
+
+	fd = open(_PATH_DEVPCI, O_RDONLY, 0);
+	if (fd < 0)
+		err(1, "%s", _PATH_DEVPCI);
+
+	bzero(&pc, sizeof(struct pci_conf_io));
+	pc.match_buf_len = sizeof(conf);
+	pc.matches = conf;
+
+	bzero(&patterns, sizeof(patterns));
+
+	/*
+	 * The pattern structure requires the unit to be split out from
+	 * the driver name.  Walk backwards from the end of the name to
+	 * find the start of the unit.
+	 */
+	if (name[0] == '\0')
+		err(1, "Empty device name");
+	cp = strchr(name, '\0');
+	assert(cp != NULL && cp != name);
+	cp--;
+	while (cp != name && isdigit(cp[-1]))
+		cp--;
+	if (cp == name)
+		errx(1, "Invalid device name");
+	if ((size_t)(cp - name) + 1 > sizeof(patterns[0].pd_name))
+		errx(1, "Device name i2s too long");
+	memcpy(patterns[0].pd_name, name, cp - name);
+	patterns[0].pd_unit = strtol(cp, &cp, 10);
+	assert(*cp == '\0');
+	patterns[0].flags = PCI_GETCONF_MATCH_NAME | PCI_GETCONF_MATCH_UNIT;
+	pc.num_patterns = 1;
+	pc.pat_buf_len = sizeof(patterns);
+	pc.patterns = patterns;
+
+	if (ioctl(fd, PCIOCGETCONF, &pc) == -1)
+		err(1, "ioctl(PCIOCGETCONF)");
+	if (pc.status != PCI_GETCONF_LAST_DEVICE &&
+	    pc.status != PCI_GETCONF_MORE_DEVS)
+		errx(1, "error returned from PCIOCGETCONF ioctl");
+	close(fd);
+	if (pc.num_matches == 0)
+		errx(1, "Device not found");
+	return (conf[0].pc_sel);
+}
+
+static struct pcisel
+parsesel(const char *str)
 {
 	char *ep = strchr(str, '@');
 	char *epbase;
@@ -593,6 +727,20 @@ getsel(const char *str)
 	if (*ep != '\x0' || ep == epbase)
 		errx(1, "cannot parse selector %s", str);
 	return sel;
+}
+
+static struct pcisel
+getsel(const char *str)
+{
+
+	/*
+	 * No device names contain colons and selectors always contain
+	 * at least one colon.
+	 */
+	if (strchr(str, ':') == NULL)
+		return (getdevice(str));
+	else
+		return (parsesel(str));
 }
 
 static void

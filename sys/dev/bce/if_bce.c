@@ -1,6 +1,5 @@
 /*-
- * Copyright (c) 2006-2010 Broadcom Corporation
- *	David Christensen <davidch@broadcom.com>.  All rights reserved.
+ * Copyright (c) 2006-2014 QLogic Corporation
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -11,9 +10,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. Neither the name of Broadcom Corporation nor the name of its contributors
- *    may be used to endorse or promote products derived from this software
- *    without specific prior written consent.
  *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS'
  * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
@@ -52,6 +48,54 @@ __FBSDID("$FreeBSD$");
  */
 
 #include "opt_bce.h"
+
+#include <sys/param.h>
+#include <sys/endian.h>
+#include <sys/systm.h>
+#include <sys/sockio.h>
+#include <sys/lock.h>
+#include <sys/mbuf.h>
+#include <sys/malloc.h>
+#include <sys/mutex.h>
+#include <sys/kernel.h>
+#include <sys/module.h>
+#include <sys/socket.h>
+#include <sys/sysctl.h>
+#include <sys/queue.h>
+
+#include <net/bpf.h>
+#include <net/ethernet.h>
+#include <net/if.h>
+#include <net/if_var.h>
+#include <net/if_arp.h>
+#include <net/if_dl.h>
+#include <net/if_media.h>
+
+#include <net/if_types.h>
+#include <net/if_vlan_var.h>
+
+#include <netinet/in_systm.h>
+#include <netinet/in.h>
+#include <netinet/if_ether.h>
+#include <netinet/ip.h>
+#include <netinet/ip6.h>
+#include <netinet/tcp.h>
+#include <netinet/udp.h>
+
+#include <machine/bus.h>
+#include <machine/resource.h>
+#include <sys/bus.h>
+#include <sys/rman.h>
+
+#include <dev/mii/mii.h>
+#include <dev/mii/miivar.h>
+#include "miidevs.h"
+#include <dev/mii/brgphyreg.h>
+
+#include <dev/pci/pcireg.h>
+#include <dev/pci/pcivar.h>
+
+#include "miibus_if.h"
 
 #include <dev/bce/if_bcereg.h>
 #include <dev/bce/if_bcefw.h>
@@ -106,13 +150,13 @@ static const struct bce_type bce_devs[] = {
 	{ BRCM_VENDORID, BRCM_DEVICEID_BCM5706,  HP_VENDORID, 0x1709,
 		"HP NC371i Multifunction Gigabit Server Adapter" },
 	{ BRCM_VENDORID, BRCM_DEVICEID_BCM5706,  PCI_ANY_ID,  PCI_ANY_ID,
-		"Broadcom NetXtreme II BCM5706 1000Base-T" },
+		"QLogic NetXtreme II BCM5706 1000Base-T" },
 
 	/* BCM5706S controllers and OEM boards. */
 	{ BRCM_VENDORID, BRCM_DEVICEID_BCM5706S, HP_VENDORID, 0x3102,
 		"HP NC370F Multifunction Gigabit Server Adapter" },
 	{ BRCM_VENDORID, BRCM_DEVICEID_BCM5706S, PCI_ANY_ID,  PCI_ANY_ID,
-		"Broadcom NetXtreme II BCM5706 1000Base-SX" },
+		"QLogic NetXtreme II BCM5706 1000Base-SX" },
 
 	/* BCM5708C controllers and OEM boards. */
 	{ BRCM_VENDORID, BRCM_DEVICEID_BCM5708,  HP_VENDORID, 0x7037,
@@ -122,7 +166,7 @@ static const struct bce_type bce_devs[] = {
 	{ BRCM_VENDORID, BRCM_DEVICEID_BCM5708,  HP_VENDORID, 0x7045,
 		"HP NC374m PCIe Multifunction Adapter" },
 	{ BRCM_VENDORID, BRCM_DEVICEID_BCM5708,  PCI_ANY_ID,  PCI_ANY_ID,
-		"Broadcom NetXtreme II BCM5708 1000Base-T" },
+		"QLogic NetXtreme II BCM5708 1000Base-T" },
 
 	/* BCM5708S controllers and OEM boards. */
 	{ BRCM_VENDORID, BRCM_DEVICEID_BCM5708S,  HP_VENDORID, 0x1706,
@@ -132,7 +176,7 @@ static const struct bce_type bce_devs[] = {
 	{ BRCM_VENDORID, BRCM_DEVICEID_BCM5708S,  HP_VENDORID, 0x703d,
 		"HP NC373F PCIe Multifunc Giga Server Adapter" },
 	{ BRCM_VENDORID, BRCM_DEVICEID_BCM5708S,  PCI_ANY_ID,  PCI_ANY_ID,
-		"Broadcom NetXtreme II BCM5708 1000Base-SX" },
+		"QLogic NetXtreme II BCM5708 1000Base-SX" },
 
 	/* BCM5709C controllers and OEM boards. */
 	{ BRCM_VENDORID, BRCM_DEVICEID_BCM5709,  HP_VENDORID, 0x7055,
@@ -140,7 +184,7 @@ static const struct bce_type bce_devs[] = {
 	{ BRCM_VENDORID, BRCM_DEVICEID_BCM5709,  HP_VENDORID, 0x7059,
 		"HP NC382T PCIe DP Multifunction Gigabit Server Adapter" },
 	{ BRCM_VENDORID, BRCM_DEVICEID_BCM5709,  PCI_ANY_ID,  PCI_ANY_ID,
-		"Broadcom NetXtreme II BCM5709 1000Base-T" },
+		"QLogic NetXtreme II BCM5709 1000Base-T" },
 
 	/* BCM5709S controllers and OEM boards. */
 	{ BRCM_VENDORID, BRCM_DEVICEID_BCM5709S,  HP_VENDORID, 0x171d,
@@ -148,11 +192,11 @@ static const struct bce_type bce_devs[] = {
 	{ BRCM_VENDORID, BRCM_DEVICEID_BCM5709S,  HP_VENDORID, 0x7056,
 		"HP NC382i DP Multifunction Gigabit Server Adapter" },
 	{ BRCM_VENDORID, BRCM_DEVICEID_BCM5709S,  PCI_ANY_ID,  PCI_ANY_ID,
-		"Broadcom NetXtreme II BCM5709 1000Base-SX" },
+		"QLogic NetXtreme II BCM5709 1000Base-SX" },
 
 	/* BCM5716 controllers and OEM boards. */
 	{ BRCM_VENDORID, BRCM_DEVICEID_BCM5716,  PCI_ANY_ID,  PCI_ANY_ID,
-		"Broadcom NetXtreme II BCM5716 1000Base-T" },
+		"QLogic NetXtreme II BCM5716 1000Base-T" },
 
 	{ 0, 0, 0, 0, NULL }
 };
@@ -5064,9 +5108,11 @@ bce_reset(struct bce_softc *sc, u32 reset_code)
 
 bce_reset_exit:
 	/* Restore EMAC Mode bits needed to keep ASF/IPMI running. */
-	val = REG_RD(sc, BCE_EMAC_MODE);
-	val = (val & ~emac_mode_mask) | emac_mode_save;
-	REG_WR(sc, BCE_EMAC_MODE, val);
+	if (reset_code == BCE_DRV_MSG_CODE_RESET) {
+		val = REG_RD(sc, BCE_EMAC_MODE);
+		val = (val & ~emac_mode_mask) | emac_mode_save;
+		REG_WR(sc, BCE_EMAC_MODE, val);
+	}
 
 	DBEXIT(BCE_VERBOSE_RESET);
 	return (rc);

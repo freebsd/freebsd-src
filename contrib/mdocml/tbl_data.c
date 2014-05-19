@@ -1,4 +1,4 @@
-/*	$Id: tbl_data.c,v 1.24 2011/03/20 16:02:05 kristaps Exp $ */
+/*	$Id: tbl_data.c,v 1.27 2013/06/01 04:56:50 schwarze Exp $ */
 /*
  * Copyright (c) 2009, 2010, 2011 Kristaps Dzonsons <kristaps@bsd.lv>
  * Copyright (c) 2011 Ingo Schwarze <schwarze@openbsd.org>
@@ -49,13 +49,11 @@ data(struct tbl_node *tbl, struct tbl_span *dp,
 		cp = dp->layout->first;
 
 	/* 
-	 * Skip over spanners and vertical lines to data formats, since
+	 * Skip over spanners, since
 	 * we want to match data with data layout cells in the header.
 	 */
 
-	while (cp && (TBL_CELL_VERT == cp->pos || 
-				TBL_CELL_DVERT == cp->pos ||
-				TBL_CELL_SPAN == cp->pos))
+	while (cp && TBL_CELL_SPAN == cp->pos)
 		cp = cp->next;
 
 	/*
@@ -104,7 +102,7 @@ data(struct tbl_node *tbl, struct tbl_span *dp,
 
 	if (*pos - sv == 2 && 'T' == p[sv] && '{' == p[sv + 1]) {
 		tbl->part = TBL_PART_CDATA;
-		return(0);
+		return(1);
 	}
 
 	assert(*pos - sv >= 0);
@@ -187,7 +185,7 @@ newspan(struct tbl_node *tbl, int line, struct tbl_row *rp)
 
 	dp = mandoc_calloc(1, sizeof(struct tbl_span));
 	dp->line = line;
-	dp->tbl = &tbl->opts;
+	dp->opts = &tbl->opts;
 	dp->layout = rp;
 	dp->head = tbl->first_head;
 

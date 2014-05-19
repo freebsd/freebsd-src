@@ -258,7 +258,7 @@
 #define RT2860_TX_DMA_EN		(1 << 0)
 
 /* possible flags for register DELAY_INT_CFG */
-#define RT2860_TXDLY_INT_EN		(1 << 31)
+#define RT2860_TXDLY_INT_EN		(1U << 31)
 #define RT2860_TXMAX_PINT_SHIFT		24
 #define RT2860_TXMAX_PTIME_SHIFT	16
 #define RT2860_RXDLY_INT_EN		(1 << 15)
@@ -270,7 +270,7 @@
 #define RT2860_GPIO_O_SHIFT	0
 
 /* possible flags for register USB_DMA_CFG */
-#define RT2860_USB_TX_BUSY		(1 << 31)
+#define RT2860_USB_TX_BUSY		(1U << 31)
 #define RT2860_USB_RX_BUSY		(1 << 30)
 #define RT2860_USB_EPOUT_VLD_SHIFT	24
 #define RT2860_USB_TX_EN		(1 << 23)
@@ -370,7 +370,7 @@
 #define RT2860_TX0Q_PCNT_MASK	0x000000ff
 
 /* possible flags for register CAP_CTRL */
-#define RT2860_CAP_ADC_FEQ		(1 << 31)
+#define RT2860_CAP_ADC_FEQ		(1U << 31)
 #define RT2860_CAP_START		(1 << 30)
 #define RT2860_MAN_TRIG			(1 << 29)
 #define RT2860_TRIG_OFFSET_SHIFT	16
@@ -381,7 +381,7 @@
 #define RT3070_RF_WRITE		(1 << 16)
 
 /* possible flags for register EFUSE_CTRL */
-#define RT3070_SEL_EFUSE	(1 << 31)
+#define RT3070_SEL_EFUSE	(1U << 31)
 #define RT3070_EFSROM_KICK	(1 << 30)
 #define RT3070_EFSROM_AIN_MASK	0x03ff0000
 #define RT3070_EFSROM_AIN_SHIFT	16
@@ -420,7 +420,7 @@
 #define RT2860_BBP_DATA_SHIFT		0
 
 /* possible flags for register RF_CSR_CFG0 */
-#define RT2860_RF_REG_CTRL		(1 << 31)
+#define RT2860_RF_REG_CTRL		(1U << 31)
 #define RT2860_RF_LE_SEL1		(1 << 30)
 #define RT2860_RF_LE_STBY		(1 << 29)
 #define RT2860_RF_REG_WIDTH_SHIFT	24
@@ -455,7 +455,7 @@
 #define RT2860_SLOT_TIME		0
 
 /* possible flags for register NAV_TIME_CFG */
-#define RT2860_NAV_UPD			(1 << 31)
+#define RT2860_NAV_UPD			(1U << 31)
 #define RT2860_NAV_UPD_VAL_SHIFT	16
 #define RT2860_NAV_CLR_EN		(1 << 15)
 #define RT2860_NAV_TIMER_SHIFT		0
@@ -509,7 +509,7 @@
 #define RT2860_WAKEUP_LEAD_TIME_SHIFT	0
 
 /* possible flags for register TX_PIN_CFG */
-#define RT3593_LNA_PE_G2_POL	(1 << 31)
+#define RT3593_LNA_PE_G2_POL	(1U << 31)
 #define RT3593_LNA_PE_A2_POL	(1 << 30)
 #define RT3593_LNA_PE_G2_EN	(1 << 29)
 #define RT3593_LNA_PE_A2_EN	(1 << 28)

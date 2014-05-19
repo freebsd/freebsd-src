@@ -369,6 +369,9 @@ iso_mountfs(devvp, mp)
 	pribp->b_flags |= B_AGE;
 	brelse(pribp);
 	pribp = NULL;
+	rootp = NULL;
+	pri = NULL;
+	pri_sierra = NULL;
 
 	mp->mnt_data = isomp;
 	mp->mnt_stat.f_fsid.val[0] = dev2udev(dev);
@@ -390,11 +393,11 @@ iso_mountfs(devvp, mp)
 
 	/* Check the Rock Ridge Extension support */
 	if (!(isomp->im_flags & ISOFSMNT_NORRIP)) {
-		if ((error = bread(isomp->im_devvp,
-				  (isomp->root_extent + isonum_711(rootp->ext_attr_length)) <<
-				  (isomp->im_bshift - DEV_BSHIFT),
-				  isomp->logical_block_size, NOCRED, &bp)) != 0)
-		    goto out;
+		if ((error = bread(isomp->im_devvp, (isomp->root_extent +
+		    isonum_711(((struct iso_directory_record *)isomp->root)->
+		    ext_attr_length)) << (isomp->im_bshift - DEV_BSHIFT),
+		    isomp->logical_block_size, NOCRED, &bp)) != 0)
+			goto out;
 
 		rootp = (struct iso_directory_record *)bp->b_data;
 
@@ -411,6 +414,7 @@ iso_mountfs(devvp, mp)
 		bp->b_flags |= B_AGE;
 		brelse(bp);
 		bp = NULL;
+		rootp = NULL;
 	}
 
 	if (isomp->im_flags & ISOFSMNT_KICONV && cd9660_iconv) {
@@ -465,6 +469,7 @@ iso_mountfs(devvp, mp)
 	if (supbp) {
 		brelse(supbp);
 		supbp = NULL;
+		sup = NULL;
 	}
 
 	return 0;

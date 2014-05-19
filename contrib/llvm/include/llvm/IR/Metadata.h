@@ -22,14 +22,15 @@
 #include "llvm/IR/Value.h"
 
 namespace llvm {
-class Constant;
-class Instruction;
 class LLVMContext;
 class Module;
-template <typename T> class SmallVectorImpl;
 template<typename ValueSubClass, typename ItemParentClass>
   class SymbolTableListTraits;
 
+
+enum LLVMConstants LLVM_ENUM_INT_TYPE(uint32_t) {
+  DEBUG_METADATA_VERSION = 1  // Current debug info version number.
+};
 
 //===----------------------------------------------------------------------===//
 /// MDString - a single uniqued string.
@@ -139,7 +140,7 @@ public:
   void replaceOperandWith(unsigned i, Value *NewVal);
 
   /// getOperand - Return specified operand.
-  Value *getOperand(unsigned i) const;
+  Value *getOperand(unsigned i) const LLVM_READONLY;
 
   /// getNumOperands - Return number of MDNode operands.
   unsigned getNumOperands() const { return NumOperands; }
@@ -163,6 +164,9 @@ public:
   static bool classof(const Value *V) {
     return V->getValueID() == MDNodeVal;
   }
+
+  /// Check whether MDNode is a vtable access.
+  bool isTBAAVtableAccess() const;
 
   /// Methods for metadata merging.
   static MDNode *getMostGenericTBAA(MDNode *A, MDNode *B);

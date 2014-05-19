@@ -189,10 +189,6 @@ login_receive(struct connection *conn, bool initial)
 		fail(conn, errorstr);
 		log_errx(1, "target returned error: %s", errorstr);
 	}
-#if 0
-	if (response->pdu_data_len == 0)
-		log_errx(1, "received Login PDU with empty data segment");
-#endif
 	if (initial == false &&
 	    ntohl(bhslr->bhslr_statsn) != conn->conn_statsn + 1) {
 		/*
@@ -504,23 +500,37 @@ login_negotiate(struct connection *conn)
 	login_set_csg(request, BHSLR_STAGE_OPERATIONAL_NEGOTIATION);
 	login_set_nsg(request, BHSLR_STAGE_FULL_FEATURE_PHASE);
 	request_keys = keys_new();
+
+	/*
+	 * The following keys are irrelevant for discovery sessions.
+	 */
 	if (conn->conn_conf.isc_discovery == 0) {
 		if (conn->conn_conf.isc_header_digest != 0)
 			keys_add(request_keys, "HeaderDigest", "CRC32C");
+		else
+			keys_add(request_keys, "HeaderDigest", "None");
 		if (conn->conn_conf.isc_data_digest != 0)
 			keys_add(request_keys, "DataDigest", "CRC32C");
+		else
+			keys_add(request_keys, "DataDigest", "None");
 
 		keys_add(request_keys, "ImmediateData", "Yes");
 		keys_add_int(request_keys, "MaxBurstLength",
 		    ISCSI_MAX_DATA_SEGMENT_LENGTH);
 		keys_add_int(request_keys, "FirstBurstLength",
 		    ISCSI_MAX_DATA_SEGMENT_LENGTH);
+		keys_add(request_keys, "InitialR2T", "Yes");
+	} else {
+		keys_add(request_keys, "HeaderDigest", "None");
+		keys_add(request_keys, "DataDigest", "None");
 	}
-	keys_add(request_keys, "InitialR2T", "Yes");
+
 	keys_add_int(request_keys, "MaxRecvDataSegmentLength",
 	    ISCSI_MAX_DATA_SEGMENT_LENGTH);
 	keys_add(request_keys, "DefaultTime2Wait", "0");
 	keys_add(request_keys, "DefaultTime2Retain", "0");
+	keys_add(request_keys, "ErrorRecoveryLevel", "0");
+	keys_add(request_keys, "MaxOutstandingR2T", "1");
 	keys_save(request_keys, request);
 	keys_delete(request_keys);
 	request_keys = NULL;
@@ -762,7 +772,6 @@ login(struct connection *conn)
 {
 	struct pdu *request, *response;
 	struct keys *request_keys, *response_keys;
-	struct iscsi_bhs_login_request *bhslr;
 	struct iscsi_bhs_login_response *bhslr2;
 	const char *auth_method;
 	int i;
@@ -771,15 +780,27 @@ login(struct connection *conn)
 
 	log_debugx("beginning Login phase; sending Login PDU");
 	request = login_new_request(conn);
-
-	bhslr = (struct iscsi_bhs_login_request *)request->pdu_bhs;
-	bhslr->bhslr_flags |= BHSLR_FLAGS_TRANSIT;
-
 	request_keys = keys_new();
-	if (conn->conn_conf.isc_user[0] == '\0')
+	if (conn->conn_conf.isc_mutual_user[0] != '\0') {
+		keys_add(request_keys, "AuthMethod", "CHAP");
+	} else if (conn->conn_conf.isc_user[0] != '\0') {
+		/*
+		 * Give target a chance to skip authentication if it
+		 * doesn't feel like it.
+		 *
+		 * None is first, CHAP second; this is to work around
+		 * what seems to be LIO (Linux target) bug: otherwise,
+		 * if target is configured with no authentication,
+		 * and we are configured to authenticate, the target
+		 * will erroneously respond with AuthMethod=CHAP
+		 * instead of AuthMethod=None, and will subsequently
+		 * fail the connection.  This usually happens with
+		 * Discovery sessions, which default to no authentication.
+		 */
+		keys_add(request_keys, "AuthMethod", "None,CHAP");
+	} else {
 		keys_add(request_keys, "AuthMethod", "None");
-	else
-		keys_add(request_keys, "AuthMethod", "CHAP,None");
+	}
 	keys_add(request_keys, "InitiatorName",
 	    conn->conn_conf.isc_initiator);
 	if (conn->conn_conf.isc_initiator_alias[0] != '\0') {
@@ -825,9 +846,14 @@ login(struct connection *conn)
 	bhslr2 = (struct iscsi_bhs_login_response *)response->pdu_bhs;
 	if ((bhslr2->bhslr_flags & BHSLR_FLAGS_TRANSIT) != 0 &&
 	    login_nsg(response) == BHSLR_STAGE_OPERATIONAL_NEGOTIATION) {
+		if (conn->conn_conf.isc_mutual_user[0] != '\0') {
+			log_errx(1, "target requested transition "
+			    "to operational negotiation, but we require "
+			    "mutual CHAP");
+		}
+
 		log_debugx("target requested transition "
 		    "to operational negotiation");
-
 		keys_delete(response_keys);
 		pdu_delete(response);
 		login_negotiate(conn);
@@ -838,6 +864,11 @@ login(struct connection *conn)
 	if (auth_method == NULL)
 		log_errx(1, "received response without AuthMethod");
 	if (strcmp(auth_method, "None") == 0) {
+		if (conn->conn_conf.isc_mutual_user[0] != '\0') {
+			log_errx(1, "target does not require authantication, "
+			    "but we require mutual CHAP");
+		}
+
 		log_debugx("target does not require authentication");
 		keys_delete(response_keys);
 		pdu_delete(response);

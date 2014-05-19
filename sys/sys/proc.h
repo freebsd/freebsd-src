@@ -300,7 +300,11 @@ struct thread {
 		TDS_RUNQ,
 		TDS_RUNNING
 	} td_state;			/* (t) thread state */
-	register_t	td_retval[2];	/* (k) Syscall aux returns. */
+	union {
+		register_t	tdu_retval[2];
+		off_t		tdu_off;	
+	} td_uretoff;			/* (k) Syscall aux returns. */
+#define td_retval	td_uretoff.tdu_retval
 	struct callout	td_slpcallout;	/* (h) Callout for sleep. */
 	struct trapframe *td_frame;	/* (k) */
 	struct vm_object *td_kstack_obj;/* (a) Kstack object. */
@@ -424,6 +428,7 @@ do {									\
 #define	TDP_RESETSPUR	0x04000000 /* Reset spurious page fault history. */
 #define	TDP_NERRNO	0x08000000 /* Last errno is already in td_errno */
 #define	TDP_UIOHELD	0x10000000 /* Current uio has pages held in td_ma */
+#define	TDP_DEVMEMIO	0x20000000 /* Accessing memory for /dev/mem */
 
 /*
  * Reasons that the current thread can not be run yet.
@@ -492,11 +497,8 @@ struct proc {
 	struct callout	p_limco;	/* (c) Limit callout handle */
 	struct sigacts	*p_sigacts;	/* (x) Signal actions, state (CPU). */
 
-	/*
-	 * The following don't make too much sense.
-	 * See the td_ or ke_ versions of the same flags.
-	 */
 	int		p_flag;		/* (c) P_* flags. */
+	int		p_flag2;	/* (c) P2_* flags. */
 	enum {
 		PRS_NEW = 0,		/* In creation */
 		PRS_NORMAL,		/* threads can be run. */
@@ -640,6 +642,9 @@ struct proc {
 #define	P_STOPPED	(P_STOPPED_SIG|P_STOPPED_SINGLE|P_STOPPED_TRACE)
 #define	P_SHOULDSTOP(p)	((p)->p_flag & P_STOPPED)
 #define	P_KILLED(p)	((p)->p_flag & P_WKILLED)
+
+/* These flags are kept in p_flag2. */
+#define	P2_INHERIT_PROTECTED 0x00000001 /* New children get P_PROTECTED. */
 
 /*
  * These were process status values (p_stat), now they are only used in
@@ -792,6 +797,8 @@ extern pid_t pid_max;
 #define	THREAD_NO_SLEEPING()		((curthread)->td_no_sleeping++)
 
 #define	THREAD_SLEEPING_OK()		((curthread)->td_no_sleeping--)
+
+#define	THREAD_CAN_SLEEP()		((curthread)->td_no_sleeping == 0)
 
 #define	PIDHASH(pid)	(&pidhashtbl[(pid) & pidhash])
 extern LIST_HEAD(pidhashhead, proc) *pidhashtbl;

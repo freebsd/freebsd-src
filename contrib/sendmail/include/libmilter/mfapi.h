@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999-2004, 2006, 2008, 2012 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 1999-2004, 2006, 2008, 2012 Proofpoint, Inc. and its suppliers.
  *	All rights reserved.
  *
  * By using this file, you agree to the terms and conditions set
@@ -7,7 +7,7 @@
  * the sendmail distribution.
  *
  *
- *	$Id: mfapi.h,v 8.82 2012/11/16 20:25:04 ca Exp $
+ *	$Id: mfapi.h,v 8.83 2013/11/22 20:51:27 ca Exp $
  */
 
 /*

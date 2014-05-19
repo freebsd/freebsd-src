@@ -1,6 +1,6 @@
 '\" t
 .\"***************************************************************************
-.\" Copyright (c) 1998,2006 Free Software Foundation, Inc.                   *
+.\" Copyright (c) 1998-2006,2010 Free Software Foundation, Inc.              *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
 .\" copy of this software and associated documentation files (the            *
@@ -27,11 +27,13 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: curs_inch.3x,v 1.13 2006/12/02 16:58:55 tom Exp $
+.\" $Id: curs_inch.3x,v 1.17 2010/12/04 18:36:44 tom Exp $
 .TH curs_inch 3X ""
 .SH NAME
-\fBinch\fR, \fBwinch\fR, \fBmvinch\fR, \fBmvwinch\fR
-- get a character and attributes from a \fBcurses\fR window
+\fBinch\fR,
+\fBwinch\fR,
+\fBmvinch\fR,
+\fBmvwinch\fR \- get a character and attributes from a \fBcurses\fR window
 .SH SYNOPSIS
 \fB#include <curses.h>\fR
 .sp
@@ -59,6 +61,10 @@ l l .
 \fBA_ATTRIBUTES\fR	Bit-mask to extract attributes
 \fBA_COLOR\fR	Bit-mask to extract color-pair field information
 .TE
+.SH RETURN VALUE
+Functions with a "mv" prefix first perform a cursor movement using
+\fBwmove\fP, and return an error if the position is outside the window,
+or if the window pointer is null.
 .SH NOTES
 Note that all of these routines may be macros.
 .SH PORTABILITY
@@ -69,9 +75,3 @@ These functions are described in the XSI Curses standard, Issue 4.
 Comparable functions in the wide-character (ncursesw) library are
 described in
 \fBcurs_in_wch\fR(3X).
-.\"#
-.\"# The following sets edit modes for GNU EMACS
-.\"# Local Variables:
-.\"# mode:nroff
-.\"# fill-column:79
-.\"# End:

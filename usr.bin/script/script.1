@@ -28,7 +28,7 @@
 .\"	@(#)script.1	8.1 (Berkeley) 6/6/93
 .\" $FreeBSD$
 .\"
-.Dd Oct 27, 2012
+.Dd December 4, 2013
 .Dt SCRIPT 1
 .Os
 .Sh NAME
@@ -37,6 +37,7 @@
 .Sh SYNOPSIS
 .Nm
 .Op Fl adfkpqr
+.Op Fl F Ar pipe
 .Op Fl t Ar time
 .Op Ar file Op Ar command ...
 .Sh DESCRIPTION
@@ -76,6 +77,12 @@ retaining the prior contents.
 When playing back a session with the
 .Fl p
 flag, do not sleep between records when playing back a timestamped session.
+.It Fl F Ar pipe
+Immediately flush output after each write.
+This will allow a user to create a named pipe using
+.Xr mkfifo 1
+and another user may watch the live session using a utility like
+.Xr cat 1 .
 .It Fl f
 Create
 .Ar file.filemon

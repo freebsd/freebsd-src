@@ -63,7 +63,7 @@ extern struct buf_ops buf_ops_bio;
 
 TAILQ_HEAD(buflists, buf);
 
-/* A Buffer splay list */
+/* A Buffer list & trie */
 struct bufv {
 	struct buflists	bv_hd;		/* Sorted blocklist */
 	struct pctrie	bv_root;	/* Buf trie */

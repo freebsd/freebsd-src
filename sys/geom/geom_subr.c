@@ -271,7 +271,7 @@ g_retaste_event(void *arg, int flag)
 	g_topology_assert();
 	if (flag == EV_CANCEL)  /* XXX: can't happen ? */
 		return;
-	if (g_shutdown)
+	if (g_shutdown || g_notaste)
 		return;
 
 	hh = arg;
@@ -540,6 +540,8 @@ g_new_provider_event(void *arg, int flag)
 		    cp->geom->attrchanged != NULL)
 			cp->geom->attrchanged(cp, "GEOM::media");
 	}
+	if (g_notaste)
+		return;
 	LIST_FOREACH(mp, &g_classes, class) {
 		if (mp->taste == NULL)
 			continue;
@@ -910,8 +912,9 @@ g_access(struct g_consumer *cp, int dcr, int dcw, int dce)
 
 	error = pp->geom->access(pp, dcr, dcw, dce);
 	KASSERT(dcr > 0 || dcw > 0 || dce > 0 || error == 0,
-	    ("Geom provider %s::%s failed closing ->access()",
-	    pp->geom->class->name, pp->name));
+	    ("Geom provider %s::%s dcr=%d dcw=%d dce=%d error=%d failed "
+	    "closing ->access()", pp->geom->class->name, pp->name, dcr, dcw,
+	    dce, error));
 	if (!error) {
 		/*
 		 * If we open first write, spoil any partner consumers.
@@ -943,6 +946,13 @@ g_access(struct g_consumer *cp, int dcr, int dcw, int dce)
 
 int
 g_handleattr_int(struct bio *bp, const char *attribute, int val)
+{
+
+	return (g_handleattr(bp, attribute, &val, sizeof val));
+}
+
+int
+g_handleattr_uint16_t(struct bio *bp, const char *attribute, uint16_t val)
 {
 
 	return (g_handleattr(bp, attribute, &val, sizeof val));

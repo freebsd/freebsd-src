@@ -87,6 +87,7 @@ _citrus_UTF7_init_state(_UTF7EncodingInfo * __restrict ei __unused,
 	memset((void *)s, 0, sizeof(*s));
 }
 
+#if 0
 static __inline void
 /*ARGSUSED*/
 _citrus_UTF7_pack_state(_UTF7EncodingInfo * __restrict ei __unused,
@@ -104,6 +105,7 @@ _citrus_UTF7_unpack_state(_UTF7EncodingInfo * __restrict ei __unused,
 
 	memcpy((void *)s, pspriv, sizeof(*s));
 }
+#endif
 
 static const char base64[] =
 	"ABCDEFGHIJKLMNOPQRSTUVWXYZ"
@@ -113,9 +115,9 @@ static const char base64[] =
 static const char direct[] =
 	"ABCDEFGHIJKLMNOPQRSTUVWXYZ"
 	"abcdefghijklmnopqrstuvwxyz"
-	"0123456789(),-./:?";
+	"0123456789'(),-./:?";
 
-static const char option[] = "!\"#$%&';<=>@[]^_`{|}";
+static const char option[] = "!\"#$%&*;<=>@[]^_`{|}";
 static const char spaces[] = " \t\r\n";
 
 #define	BASE64_BIT	6
@@ -165,6 +167,7 @@ _citrus_UTF7_mbtoutf16(_UTF7EncodingInfo * __restrict ei,
 				*nresult = (size_t)-2;
 				*s = s0;
 				sv.chlen = psenc->chlen;
+				memcpy(sv.ch, psenc->ch, sizeof(sv.ch));
 				*psenc = sv;
 				return (0);
 			}
@@ -202,6 +205,9 @@ _citrus_UTF7_mbtoutf16(_UTF7EncodingInfo * __restrict ei,
 						goto ilseq;
 					*u16 = (uint16_t)psenc->ch[i];
 					done = 1;
+				} else {
+					psenc->chlen--;
+					i--;
 				}
 			} else {
 				psenc->cache =
@@ -241,7 +247,6 @@ _citrus_UTF7_mbrtowc_priv(_UTF7EncodingInfo * __restrict ei,
     wchar_t * __restrict pwc, const char ** __restrict s, size_t n,
     _UTF7State * __restrict psenc, size_t * __restrict nresult)
 {
-	const char *s0;
 	uint32_t u32;
 	uint16_t hi, lo;
 	size_t nr, siz;
@@ -252,14 +257,13 @@ _citrus_UTF7_mbrtowc_priv(_UTF7EncodingInfo * __restrict ei,
 		*nresult = (size_t)_ENCODING_IS_STATE_DEPENDENT;
 		return (0);
 	}
-	s0 = *s;
 	if (psenc->surrogate) {
-		hi = (psenc->cache >> 2) & UTF16_MAX;
+		hi = (psenc->cache >> psenc->bits) & UTF16_MAX;
 		if (hi < HISRG_MIN || hi > HISRG_MAX)
 			return (EINVAL);
 		siz = 0;
 	} else {
-		err = _citrus_UTF7_mbtoutf16(ei, &hi, &s0, n, psenc, &nr);
+		err = _citrus_UTF7_mbtoutf16(ei, &hi, s, n, psenc, &nr);
 		if (nr == (size_t)-1 || nr == (size_t)-2) {
 			*nresult = nr;
 			return (err);
@@ -274,7 +278,7 @@ _citrus_UTF7_mbrtowc_priv(_UTF7EncodingInfo * __restrict ei,
 		}
 		psenc->surrogate = 1;
 	}
-	err = _citrus_UTF7_mbtoutf16(ei, &lo, &s0, n, psenc, &nr);
+	err = _citrus_UTF7_mbtoutf16(ei, &lo, s, n, psenc, &nr);
 	if (nr == (size_t)-1 || nr == (size_t)-2) {
 		*nresult = nr;
 		return (err);
@@ -286,7 +290,6 @@ _citrus_UTF7_mbrtowc_priv(_UTF7EncodingInfo * __restrict ei,
 	u32 = (hi << 10 | lo) + SRG_BASE;
 	siz += nr;
 done:
-	*s = s0;
 	if (pwc != NULL)
 		*pwc = (wchar_t)u32;
 	if (u32 == (uint32_t)0) {

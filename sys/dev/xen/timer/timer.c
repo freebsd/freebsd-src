@@ -1,4 +1,4 @@
-/**
+/*-
  * Copyright (c) 2009 Adrian Chadd
  * Copyright (c) 2012 Spectra Logic Corporation
  * All rights reserved.
@@ -45,6 +45,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/smp.h>
 #include <sys/limits.h>
 #include <sys/clock.h>
+#include <sys/proc.h>
 
 #include <xen/xen-os.h>
 #include <xen/features.h>
@@ -57,6 +58,9 @@ __FBSDID("$FreeBSD$");
 #include <machine/cpufunc.h>
 #include <machine/clock.h>
 #include <machine/_inttypes.h>
+#include <machine/smp.h>
+
+#include <dev/xen/timer/timer.h>
 
 #include "clock_if.h"
 
@@ -141,7 +145,7 @@ xentimer_probe(device_t dev)
 	           "VCPUOPs interface unavailable\n");
 #undef XTREQUIRES
 	device_set_desc(dev, "Xen PV Clock");
-	return (0);
+	return (BUS_PROBE_NOWILDCARD);
 }
 
 /*
@@ -229,22 +233,22 @@ xen_fetch_vcpu_tinfo(struct vcpu_time_info *dst, struct vcpu_time_info *src)
 /**
  * \brief Get the current time, in nanoseconds, since the hypervisor booted.
  *
+ * \param vcpu		vcpu_info structure to fetch the time from.
+ *
  * \note This function returns the current CPU's idea of this value, unless
  *       it happens to be less than another CPU's previously determined value.
  */
 static uint64_t
-xen_fetch_vcpu_time(void)
+xen_fetch_vcpu_time(struct vcpu_info *vcpu)
 {
 	struct vcpu_time_info dst;
 	struct vcpu_time_info *src;
 	uint32_t pre_version;
 	uint64_t now;
 	volatile uint64_t last;
-	struct vcpu_info *vcpu = DPCPU_GET(vcpu_info);
 
 	src = &vcpu->time;
 
-	critical_enter();
 	do {
 		pre_version = xen_fetch_vcpu_tinfo(&dst, src);
 		barrier();
@@ -265,16 +269,24 @@ xen_fetch_vcpu_time(void)
 		}
 	} while (!atomic_cmpset_64(&xen_timer_last_time, last, now));
 
-	critical_exit();
-
 	return (now);
 }
 
 static uint32_t
 xentimer_get_timecount(struct timecounter *tc)
 {
+	uint64_t vcpu_time;
 
-	return ((uint32_t)xen_fetch_vcpu_time() & UINT_MAX);
+	/*
+	 * We don't disable preemption here because the worst that can
+	 * happen is reading the vcpu_info area of a different CPU than
+	 * the one we are currently running on, but that would also
+	 * return a valid tc (and we avoid the overhead of
+	 * critical_{enter/exit} calls).
+	 */
+	vcpu_time = xen_fetch_vcpu_time(DPCPU_GET(vcpu_info));
+
+	return (vcpu_time & UINT32_MAX);
 }
 
 /**
@@ -304,7 +316,10 @@ xen_fetch_wallclock(struct timespec *ts)
 static void
 xen_fetch_uptime(struct timespec *ts)
 {
-	uint64_t uptime = xen_fetch_vcpu_time();
+	uint64_t uptime;
+
+	uptime = xen_fetch_vcpu_time(DPCPU_GET(vcpu_info));
+
 	ts->tv_sec = uptime / NSEC_IN_SEC;
 	ts->tv_nsec = uptime % NSEC_IN_SEC;
 }
@@ -316,7 +331,7 @@ xentimer_settime(device_t dev __unused, struct timespec *ts)
 	 * Don't return EINVAL here; just silently fail if the domain isn't
 	 * privileged enough to set the TOD.
 	 */
-	return(0);
+	return (0);
 }
 
 /**
@@ -339,7 +354,7 @@ xentimer_gettime(device_t dev, struct timespec *ts)
 	xen_fetch_uptime(&u_ts);
 	timespecadd(ts, &u_ts);
 
-	return(0);
+	return (0);
 }
 
 /**
@@ -353,7 +368,7 @@ xentimer_intr(void *arg)
 	struct xentimer_softc *sc = (struct xentimer_softc *)arg;
 	struct xentimer_pcpu_data *pcpu = DPCPU_PTR(xentimer_pcpu);
 
-	pcpu->last_processed = xen_fetch_vcpu_time();
+	pcpu->last_processed = xen_fetch_vcpu_time(DPCPU_GET(vcpu_info));
 	if (pcpu->timer != 0 && sc->et.et_active)
 		sc->et.et_event_cb(&sc->et, sc->et.et_arg);
 
@@ -395,9 +410,16 @@ xentimer_et_start(struct eventtimer *et,
 {
 	int error = 0, i = 0;
 	struct xentimer_softc *sc = et->et_priv;
-	int cpu = PCPU_GET(acpi_id);
+	int cpu = PCPU_GET(vcpu_id);
 	struct xentimer_pcpu_data *pcpu = DPCPU_PTR(xentimer_pcpu);
+	struct vcpu_info *vcpu = DPCPU_GET(vcpu_info);
 	uint64_t first_in_ns, next_time;
+#ifdef INVARIANTS
+	struct thread *td = curthread;
+#endif
+
+	KASSERT(td->td_critnest != 0,
+	    ("xentimer_et_start called without preemption disabled"));
 
 	/* See sbttots() for this formula. */
 	first_in_ns = (((first >> 32) * NSEC_IN_SEC) +
@@ -414,7 +436,7 @@ xentimer_et_start(struct eventtimer *et,
 	do {
 		if (++i == 60)
 			panic("can't schedule timer");
-		next_time = xen_fetch_vcpu_time() + first_in_ns;
+		next_time = xen_fetch_vcpu_time(vcpu) + first_in_ns;
 		error = xentimer_vcpu_start_timer(cpu, next_time);
 	} while (error == -ETIME);
 
@@ -432,7 +454,7 @@ xentimer_et_start(struct eventtimer *et,
 static int
 xentimer_et_stop(struct eventtimer *et)
 {
-	int cpu = PCPU_GET(acpi_id);
+	int cpu = PCPU_GET(vcpu_id);
 	struct xentimer_pcpu_data *pcpu = DPCPU_PTR(xentimer_pcpu);
 
 	pcpu->timer = 0;
@@ -457,8 +479,9 @@ xentimer_attach(device_t dev)
 
 	/* Bind an event channel to a VIRQ on each VCPU. */
 	CPU_FOREACH(i) {
-		struct xentimer_pcpu_data *pcpu = DPCPU_ID_PTR(i, xentimer_pcpu);
+		struct xentimer_pcpu_data *pcpu;
 
+		pcpu = DPCPU_ID_PTR(i, xentimer_pcpu);
 		error = HYPERVISOR_vcpu_op(VCPUOP_stop_periodic_timer, i, NULL);
 		if (error) {
 			device_printf(dev, "Error disabling Xen periodic timer "
@@ -493,6 +516,7 @@ xentimer_attach(device_t dev)
 	/* Register the timecounter. */
 	sc->tc.tc_name = "XENTIMER";
 	sc->tc.tc_quality = XENTIMER_QUALITY;
+	sc->tc.tc_flags = TC_FLAGS_SUSPEND_SAFE;
 	/*
 	 * The underlying resolution is in nanoseconds, since the timer info
 	 * scales TSC frequencies using a fraction that represents time in
@@ -523,75 +547,92 @@ xentimer_detach(device_t dev)
 	return (EBUSY);
 }
 
-/**
- * The following device methods are disabled because they wouldn't work
- * properly.
- */
-#ifdef NOTYET
+static void
+xentimer_percpu_resume(void *arg)
+{
+	device_t dev = (device_t) arg;
+	struct xentimer_softc *sc = device_get_softc(dev);
+
+	xentimer_et_start(&sc->et, sc->et.et_min_period, 0);
+}
+
 static int
 xentimer_resume(device_t dev)
 {
-	struct xentimer_softc *sc = device_get_softc(dev);
-	int error = 0;
+	int error;
 	int i;
 
-	device_printf(sc->dev, "%s", __func__);
+	/* Disable the periodic timer */
 	CPU_FOREACH(i) {
-		struct xentimer_pcpu_data *pcpu = DPCPU_ID_PTR(i, xentimer_pcpu);
-
-		/* Skip inactive timers. */
-		if (pcpu->timer == 0)
-			continue;
-
-		/*
-		 * XXX This won't actually work, because Xen requires that
-		 *     singleshot timers be set while running on the given CPU.
-		 */
-		error = xentimer_vcpu_start_timer(i, pcpu->timer);
-		if (error == -ETIME) {
-			/* Event time has already passed; process. */
-			xentimer_intr(sc);
-		} else if (error != 0) {
-			panic("%s: error %d restarting vcpu %d\n",
-			    __func__, error, i);
+		error = HYPERVISOR_vcpu_op(VCPUOP_stop_periodic_timer, i, NULL);
+		if (error != 0) {
+			device_printf(dev,
+			    "Error disabling Xen periodic timer on CPU %d\n",
+			    i);
+			return (error);
 		}
 	}
 
-	return (error);
+	/* Reset the last uptime value */
+	xen_timer_last_time = 0;
+
+	/* Reset the RTC clock */
+	inittodr(time_second);
+
+	/* Kick the timers on all CPUs */
+	smp_rendezvous(NULL, xentimer_percpu_resume, NULL, dev);
+
+	if (bootverbose)
+		device_printf(dev, "resumed operation after suspension\n");
+
+	return (0);
 }
 
 static int
 xentimer_suspend(device_t dev)
 {
-	struct xentimer_softc *sc = device_get_softc(dev);
-	int error = 0;
-	int i;
-
-	device_printf(sc->dev, "%s", __func__);
-	CPU_FOREACH(i) {
-		struct xentimer_pcpu_data *pcpu = DPCPU_ID_PTR(i, xentimer_pcpu);
-
-		/* Skip inactive timers. */
-		if (pcpu->timer == 0)
-			continue;
-		error = xentimer_vcpu_stop_timer(i);
-		if (error)
-			panic("Error %d stopping VCPU %d timer\n", error, i);
-	}
-
-	return (error);
+	return (0);
 }
-#endif
+
+/*
+ * Xen early clock init
+ */
+void
+xen_clock_init(void)
+{
+}
+
+/*
+ * Xen PV DELAY function
+ *
+ * When running on PVH mode we don't have an emulated i8524, so
+ * make use of the Xen time info in order to code a simple DELAY
+ * function that can be used during early boot.
+ */
+void
+xen_delay(int n)
+{
+	struct vcpu_info *vcpu = &HYPERVISOR_shared_info->vcpu_info[0];
+	uint64_t end_ns;
+	uint64_t current;
+
+	end_ns = xen_fetch_vcpu_time(vcpu);
+	end_ns += n * NSEC_IN_USEC;
+
+	for (;;) {
+		current = xen_fetch_vcpu_time(vcpu);
+		if (current >= end_ns)
+			break;
+	}
+}
 
 static device_method_t xentimer_methods[] = {
 	DEVMETHOD(device_identify, xentimer_identify),
 	DEVMETHOD(device_probe, xentimer_probe),
 	DEVMETHOD(device_attach, xentimer_attach),
 	DEVMETHOD(device_detach, xentimer_detach),
-#ifdef NOTYET
 	DEVMETHOD(device_suspend, xentimer_suspend),
 	DEVMETHOD(device_resume, xentimer_resume),
-#endif
 	/* clock interface */
 	DEVMETHOD(clock_gettime, xentimer_gettime),
 	DEVMETHOD(clock_settime, xentimer_settime),

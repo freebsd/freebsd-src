@@ -24,6 +24,8 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
 
 /**
@@ -37,6 +39,7 @@
 #include <sys/socket.h>
 #include <sys/lock.h>
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/if_arp.h>
 #include <machine/bus.h>
 #include <machine/atomic.h>
@@ -179,7 +182,7 @@ hv_nv_init_rx_buffer_with_net_vsp(struct hv_device *device)
 	/* Send the gpadl notification request */
 
 	ret = hv_vmbus_channel_send_packet(device->channel, init_pkt,
-	    sizeof(nvsp_msg), (uint64_t)init_pkt,
+	    sizeof(nvsp_msg), (uint64_t)(uintptr_t)init_pkt,
 	    HV_VMBUS_PACKET_TYPE_DATA_IN_BAND,
 	    HV_VMBUS_DATA_PACKET_FLAG_COMPLETION_REQUESTED);
 	if (ret != 0) {
@@ -277,7 +280,7 @@ hv_nv_init_send_buffer_with_net_vsp(struct hv_device *device)
 	/* Send the gpadl notification request */
 
 	ret = hv_vmbus_channel_send_packet(device->channel, init_pkt,
-	    sizeof(nvsp_msg), (uint64_t)init_pkt,
+	    sizeof(nvsp_msg), (uint64_t)(uintptr_t)init_pkt,
 	    HV_VMBUS_PACKET_TYPE_DATA_IN_BAND,
 	    HV_VMBUS_DATA_PACKET_FLAG_COMPLETION_REQUESTED);
 	if (ret != 0) {
@@ -331,7 +334,7 @@ hv_nv_destroy_rx_buffer(netvsc_dev *net_dev)
 
 		ret = hv_vmbus_channel_send_packet(net_dev->dev->channel,
 		    revoke_pkt, sizeof(nvsp_msg),
-		    (uint64_t)revoke_pkt,
+		    (uint64_t)(uintptr_t)revoke_pkt,
 		    HV_VMBUS_PACKET_TYPE_DATA_IN_BAND, 0);
 
 		/*
@@ -399,7 +402,7 @@ hv_nv_destroy_send_buffer(netvsc_dev *net_dev)
 
 		ret = hv_vmbus_channel_send_packet(net_dev->dev->channel,
 		    revoke_pkt, sizeof(nvsp_msg),
-		    (uint64_t)revoke_pkt,
+		    (uint64_t)(uintptr_t)revoke_pkt,
 		    HV_VMBUS_PACKET_TYPE_DATA_IN_BAND, 0);
 		/*
 		 * If we failed here, we might as well return and have a leak 
@@ -461,7 +464,7 @@ hv_nv_negotiate_nvsp_protocol(struct hv_device *device, netvsc_dev *net_dev,
 
 	/* Send the init request */
 	ret = hv_vmbus_channel_send_packet(device->channel, init_pkt,
-	    sizeof(nvsp_msg), (uint64_t)init_pkt,
+	    sizeof(nvsp_msg), (uint64_t)(uintptr_t)init_pkt,
 	    HV_VMBUS_PACKET_TYPE_DATA_IN_BAND,
 	    HV_VMBUS_DATA_PACKET_FLAG_COMPLETION_REQUESTED);
 	if (ret != 0)
@@ -505,7 +508,7 @@ hv_nv_send_ndis_config(struct hv_device *device, uint32_t mtu)
 
 	/* Send the configuration packet */
 	ret = hv_vmbus_channel_send_packet(device->channel, init_pkt,
-	    sizeof(nvsp_msg), (uint64_t)init_pkt,
+	    sizeof(nvsp_msg), (uint64_t)(uintptr_t)init_pkt,
 	    HV_VMBUS_PACKET_TYPE_DATA_IN_BAND, 0);
 	if (ret != 0)
 		return (-EINVAL);
@@ -577,7 +580,7 @@ hv_nv_connect_to_vsp(struct hv_device *device)
 	/* Send the init request */
 
 	ret = hv_vmbus_channel_send_packet(device->channel, init_pkt,
-	    sizeof(nvsp_msg), (uint64_t)init_pkt,
+	    sizeof(nvsp_msg), (uint64_t)(uintptr_t)init_pkt,
 	    HV_VMBUS_PACKET_TYPE_DATA_IN_BAND, 0);
 	if (ret != 0) {
 		goto cleanup;
@@ -827,10 +830,10 @@ hv_nv_on_send(struct hv_device *device, netvsc_packet *pkt)
 	if (pkt->page_buf_count) {
 		ret = hv_vmbus_channel_send_packet_pagebuffer(device->channel,
 		    pkt->page_buffers, pkt->page_buf_count,
-		    &send_msg, sizeof(nvsp_msg), (uint64_t)pkt);
+		    &send_msg, sizeof(nvsp_msg), (uint64_t)(uintptr_t)pkt);
 	} else {
 		ret = hv_vmbus_channel_send_packet(device->channel,
-		    &send_msg, sizeof(nvsp_msg), (uint64_t)pkt,
+		    &send_msg, sizeof(nvsp_msg), (uint64_t)(uintptr_t)pkt,
 		    HV_VMBUS_PACKET_TYPE_DATA_IN_BAND,
 		    HV_VMBUS_DATA_PACKET_FLAG_COMPLETION_REQUESTED);
 	}

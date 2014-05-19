@@ -58,7 +58,6 @@
 
 #define malloc(x)	(xmalloc(x))
 #define calloc(x, y)	(xcalloc((x),(y)))
-#define free(x)		(xfree(x))
 
 int
 getrrsetbyname(const char *hostname, unsigned int rdclass,

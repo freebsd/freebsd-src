@@ -18,8 +18,8 @@
 
 #include "llvm/Analysis/RegionInfo.h"
 #include "llvm/IR/Function.h"
+#include "llvm/IR/LegacyPassManagers.h"
 #include "llvm/Pass.h"
-#include "llvm/PassManagers.h"
 #include <deque>
 
 namespace llvm {
@@ -51,7 +51,7 @@ public:
 
   /// @brief Get a pass to print the LLVM IR in the region.
   ///
-  /// @param O      The ouput stream to print the Region.
+  /// @param O      The output stream to print the Region.
   /// @param Banner The banner to separate different printed passes.
   ///
   /// @return The pass to print the LLVM IR in the region.

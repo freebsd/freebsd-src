@@ -51,6 +51,7 @@ struct memory_type {
 	uint64_t	 mt_byteslimit;	/* 0, or maximum bytes. */
 	uint64_t	 mt_sizemask;	/* malloc: allocated size bitmask. */
 	uint64_t	 mt_size;	/* uma: size of objects. */
+	uint64_t	 mt_rsize;	/* uma: real size of objects. */
 
 	/*
 	 * Zone or type information that includes all caches and any central

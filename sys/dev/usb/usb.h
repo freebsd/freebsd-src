@@ -441,6 +441,7 @@ typedef struct usb_interface_assoc_descriptor usb_interface_assoc_descriptor_t;
 #define	UISUBCLASS_ETHERNET_EMULATION_MODEL 12
 #define	UISUBCLASS_NETWORK_CONTROL_MODEL 13
 
+#define	UIPROTO_CDC_NONE		0
 #define	UIPROTO_CDC_AT			1
 
 #define	UICLASS_HID		0x03
@@ -499,8 +500,11 @@ typedef struct usb_interface_assoc_descriptor usb_interface_assoc_descriptor_t;
 #define	UICLASS_WIRELESS	0xe0
 #define	UISUBCLASS_RF			0x01
 #define	UIPROTO_BLUETOOTH		0x01
+#define	UIPROTO_RNDIS			0x03
 
 #define	UICLASS_IAD		0xEF	/* Interface Association Descriptor */
+#define	UISUBCLASS_SYNC			0x01
+#define	UIPROTO_ACTIVESYNC		0x01
 
 #define	UICLASS_APPL_SPEC	0xfe
 #define	UISUBCLASS_FIRMWARE_DOWNLOAD	1

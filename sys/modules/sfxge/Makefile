@@ -20,6 +20,6 @@ SRCS+=	efx_vpd.c efx_wol.c
 SRCS+=	siena_mac.c siena_nic.c siena_nvram.c siena_phy.c
 SRCS+=	siena_sram.c siena_vpd.c 
 
-DEBUG_FLAGS= -g -DDEBUG=1
+DEBUG_FLAGS= -DDEBUG=1
 
 .include <bsd.kmod.mk>

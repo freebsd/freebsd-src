@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2012 Ganbold Tsagaankhuu <ganbold@gmail.com>
+ * Copyright (c) 2012 Ganbold Tsagaankhuu <ganbold@freebsd.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -39,7 +39,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/watchdog.h>
 #include <machine/bus.h>
 #include <machine/cpu.h>
-#include <machine/frame.h>
 #include <machine/intr.h>
 
 #include <dev/fdt/fdt_common.h>
@@ -294,12 +293,6 @@ int
 a10_timer_get_timerfreq(struct a10_timer_softc *sc)
 {
 	return (sc->timer0_freq);
-}
-
-void
-cpu_initclocks(void)
-{
-	cpu_initclocks_bsp();
 }
 
 static int

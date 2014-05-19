@@ -1,4 +1,4 @@
-/* $OpenBSD: canohost.c,v 1.66 2010/01/13 01:20:20 dtucker Exp $ */
+/* $OpenBSD: canohost.c,v 1.70 2014/01/19 04:17:29 dtucker Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -20,7 +20,6 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 
-#include <ctype.h>
 #include <errno.h>
 #include <netdb.h>
 #include <stdio.h>
@@ -41,14 +40,13 @@ static int cached_port = -1;
 
 /*
  * Return the canonical name of the host at the other end of the socket. The
- * caller should free the returned string with xfree.
+ * caller should free the returned string.
  */
 
 static char *
 get_remote_hostname(int sock, int use_dns)
 {
 	struct sockaddr_storage from;
-	int i;
 	socklen_t fromlen;
 	struct addrinfo hints, *ai, *aitop;
 	char name[NI_MAXHOST], ntop[NI_MAXHOST], ntop2[NI_MAXHOST];
@@ -99,13 +97,9 @@ get_remote_hostname(int sock, int use_dns)
 		return xstrdup(ntop);
 	}
 
-	/*
-	 * Convert it to all lowercase (which is expected by the rest
-	 * of this software).
-	 */
-	for (i = 0; name[i]; i++)
-		if (isupper(name[i]))
-			name[i] = (char)tolower(name[i]);
+	/* Names are stores in lowercase. */
+	lowercase(name);
+
 	/*
 	 * Map it back to an IP address and check that the given
 	 * address actually is an address of this host.  This is
@@ -160,8 +154,7 @@ check_ip_options(int sock, char *ipaddr)
 #ifdef IP_OPTIONS
 	u_char options[200];
 	char text[sizeof(options) * 3 + 1];
-	socklen_t option_size;
-	u_int i;
+	socklen_t option_size, i;
 	int ipproto;
 	struct protoent *ip;
 
@@ -199,7 +192,7 @@ ipv64_normalise_mapped(struct sockaddr_storage *addr, socklen_t *len)
 	memcpy(&inaddr, ((char *)&a6->sin6_addr) + 12, sizeof(inaddr));
 	port = a6->sin6_port;
 
-	bzero(a4, sizeof(*a4));
+	memset(a4, 0, sizeof(*a4));
 
 	a4->sin_family = AF_INET;
 	*len = sizeof(*a4);
@@ -323,10 +316,8 @@ get_local_name(int fd)
 void
 clear_cached_addr(void)
 {
-	if (canonical_host_ip != NULL) {
-		xfree(canonical_host_ip);
-		canonical_host_ip = NULL;
-	}
+	free(canonical_host_ip);
+	canonical_host_ip = NULL;
 	cached_port = -1;
 }
 

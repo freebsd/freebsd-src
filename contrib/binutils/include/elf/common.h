@@ -456,6 +456,7 @@
 
 #define NT_FREEBSD_TAG		1
 #define NT_FREEBSD_NOINIT_TAG	2
+#define NT_FREEBSD_ARCH_TAG	3
 
 /* These three macros disassemble and assemble a symbol table st_info field,
    which contains the symbol binding and symbol type.  The STB_ and STT_

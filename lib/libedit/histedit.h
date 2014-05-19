@@ -208,6 +208,7 @@ int		history(History *, HistEvent *, int, ...);
 #define	H_NEXT_EVDATA	23	/* , const int, histdata_t *);	*/
 #define	H_DELDATA	24	/* , int, histdata_t *);*/
 #define	H_REPLACE	25	/* , const char *, histdata_t);	*/
+#define	H_SAVE_FP	26	/* , FILE*);	*/
 
 
 /*

@@ -63,14 +63,16 @@ static llvm::Constant *buildDisposeHelper(CodeGenModule &CGM,
 /// buildBlockDescriptor is accessed from 5th field of the Block_literal
 /// meta-data and contains stationary information about the block literal.
 /// Its definition will have 4 (or optinally 6) words.
+/// \code
 /// struct Block_descriptor {
 ///   unsigned long reserved;
 ///   unsigned long size;  // size of Block_literal metadata in bytes.
 ///   void *copy_func_helper_decl;  // optional copy helper.
 ///   void *destroy_func_decl; // optioanl destructor helper.
-///   void *block_method_encoding_address;//@encode for block literal signature.
+///   void *block_method_encoding_address; // @encode for block literal signature.
 ///   void *block_layout_info; // encoding of captured block variables.
 /// };
+/// \endcode
 static llvm::Constant *buildBlockDescriptor(CodeGenModule &CGM,
                                             const CGBlockInfo &blockInfo) {
   ASTContext &C = CGM.getContext();
@@ -353,14 +355,9 @@ static void computeBlockInfo(CodeGenModule &CGM, CodeGenFunction *CGF,
 
   // First, 'this'.
   if (block->capturesCXXThis()) {
-    const DeclContext *DC = block->getDeclContext();
-    for (; isa<BlockDecl>(DC); DC = cast<BlockDecl>(DC)->getDeclContext())
-      ;
-    QualType thisType;
-    if (const CXXRecordDecl *RD = dyn_cast<CXXRecordDecl>(DC))
-      thisType = C.getPointerType(C.getRecordType(RD));
-    else
-      thisType = cast<CXXMethodDecl>(DC)->getThisType(C);
+    assert(CGF && CGF->CurFuncDecl && isa<CXXMethodDecl>(CGF->CurFuncDecl) &&
+           "Can't capture 'this' outside a method");
+    QualType thisType = cast<CXXMethodDecl>(CGF->CurFuncDecl)->getThisType(C);
 
     llvm::Type *llvmType = CGM.getTypes().ConvertType(thisType);
     std::pair<CharUnits,CharUnits> tinfo
@@ -837,7 +834,7 @@ llvm::Value *CodeGenFunction::EmitBlockLiteral(const CGBlockInfo &blockInfo) {
                type->isBlockPointerType()) {
       // Load the block and do a simple retain.
       LValue srcLV = MakeAddrLValue(src, type, align);
-      llvm::Value *value = EmitLoadOfScalar(srcLV);
+      llvm::Value *value = EmitLoadOfScalar(srcLV, SourceLocation());
       value = EmitARCRetainNonBlock(value);
 
       // Do a primitive store to the block field.
@@ -934,7 +931,7 @@ llvm::Type *CodeGenModule::getGenericBlockLiteralType() {
 }
 
 
-RValue CodeGenFunction::EmitBlockCallExpr(const CallExpr* E, 
+RValue CodeGenFunction::EmitBlockCallExpr(const CallExpr *E, 
                                           ReturnValueSlot ReturnValue) {
   const BlockPointerType *BPT =
     E->getCallee()->getType()->getAs<BlockPointerType>();
@@ -1092,8 +1089,6 @@ CodeGenFunction::GenerateBlockFunction(GlobalDecl GD,
                                        bool IsLambdaConversionToBlock) {
   const BlockDecl *blockDecl = blockInfo.getBlockDecl();
 
-  // Check if we should generate debug info for this block function.
-  maybeInitializeDebugInfo();
   CurGD = GD;
   
   BlockInfo = &blockInfo;
@@ -1167,9 +1162,8 @@ CodeGenFunction::GenerateBlockFunction(GlobalDecl GD,
     Alloca->setAlignment(Align);
     // Set the DebugLocation to empty, so the store is recognized as a
     // frame setup instruction by llvm::DwarfDebug::beginFunction().
-    Builder.DisableDebugLocations();
+    NoLocation NL(*this, Builder);
     Builder.CreateAlignedStore(BlockPointer, Alloca, Align);
-    Builder.EnableDebugLocations();
     BlockPointerDbgLoc = Alloca;
   }
 
@@ -1307,9 +1301,6 @@ CodeGenFunction::GenerateCopyHelperFunction(const CGBlockInfo &blockInfo) {
   IdentifierInfo *II
     = &CGM.getContext().Idents.get("__copy_helper_block_");
 
-  // Check if we should generate debug info for this block helper function.
-  maybeInitializeDebugInfo();
-
   FunctionDecl *FD = FunctionDecl::Create(C,
                                           C.getTranslationUnitDecl(),
                                           SourceLocation(),
@@ -1317,7 +1308,10 @@ CodeGenFunction::GenerateCopyHelperFunction(const CGBlockInfo &blockInfo) {
                                           SC_Static,
                                           false,
                                           false);
+  // Create a scope with an artificial location for the body of this function.
+  ArtificialLocation AL(*this, Builder);
   StartFunction(FD, C.VoidTy, Fn, FI, args, SourceLocation());
+  AL.Emit();
 
   llvm::Type *structPtrTy = blockInfo.StructureType->getPointerTo();
 
@@ -1479,9 +1473,6 @@ CodeGenFunction::GenerateDestroyHelperFunction(const CGBlockInfo &blockInfo) {
     llvm::Function::Create(LTy, llvm::GlobalValue::InternalLinkage,
                            "__destroy_helper_block_", &CGM.getModule());
 
-  // Check if we should generate debug info for this block destroy function.
-  maybeInitializeDebugInfo();
-
   IdentifierInfo *II
     = &CGM.getContext().Idents.get("__destroy_helper_block_");
 
@@ -1490,7 +1481,10 @@ CodeGenFunction::GenerateDestroyHelperFunction(const CGBlockInfo &blockInfo) {
                                           SourceLocation(), II, C.VoidTy, 0,
                                           SC_Static,
                                           false, false);
+  // Create a scope with an artificial location for the body of this function.
+  ArtificialLocation AL(*this, Builder);
   StartFunction(FD, C.VoidTy, Fn, FI, args, SourceLocation());
+  AL.Emit();
 
   llvm::Type *structPtrTy = blockInfo.StructureType->getPointerTo();
 
@@ -1781,8 +1775,6 @@ generateByrefCopyHelper(CodeGenFunction &CGF,
                                           SC_Static,
                                           false, false);
 
-  // Initialize debug info if necessary.
-  CGF.maybeInitializeDebugInfo();
   CGF.StartFunction(FD, R, Fn, FI, args, SourceLocation());
 
   if (byrefInfo.needsCopy()) {
@@ -1854,8 +1846,6 @@ generateByrefDisposeHelper(CodeGenFunction &CGF,
                                           SourceLocation(), II, R, 0,
                                           SC_Static,
                                           false, false);
-  // Initialize debug info if necessary.
-  CGF.maybeInitializeDebugInfo();
   CGF.StartFunction(FD, R, Fn, FI, args, SourceLocation());
 
   if (byrefInfo.needsDispose()) {

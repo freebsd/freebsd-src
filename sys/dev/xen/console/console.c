@@ -27,6 +27,8 @@ __FBSDID("$FreeBSD$");
 
 
 #include "opt_ddb.h"
+#include "opt_printf.h"
+
 #ifdef DDB
 #include <ddb/ddb.h>
 #endif
@@ -69,10 +71,13 @@ struct mtx              cn_mtx;
 static char wbuf[WBUF_SIZE];
 static char rbuf[RBUF_SIZE];
 static int rc, rp;
-static unsigned int cnsl_evt_reg;
+bool cnsl_evt_reg;
 static unsigned int wc, wp; /* write_cons, write_prod */
 xen_intr_handle_t xen_intr_handle;
 device_t xencons_dev;
+
+/* Virtual address of the shared console page */
+char *console_page;
 
 #ifdef KDB
 static int	xc_altbrk;
@@ -110,9 +115,70 @@ static struct ttydevsw xc_ttydevsw = {
         .tsw_outwakeup	= xcoutwakeup,
 };
 
+/*----------------------------- Debug function -------------------------------*/
+struct putchar_arg {
+	char	*buf;
+	size_t	size;
+	size_t	n_next;
+};
+
+static void
+putchar(int c, void *arg)
+{
+	struct putchar_arg *pca;
+
+	pca = (struct putchar_arg *)arg;
+
+	if (pca->buf == NULL) {
+		/*
+		 * We have no buffer, output directly to the
+		 * console char by char.
+		 */
+		HYPERVISOR_console_write((char *)&c, 1);
+	} else {
+		pca->buf[pca->n_next++] = c;
+		if ((pca->size == pca->n_next) || (c = '\0')) {
+			/* Flush the buffer */
+			HYPERVISOR_console_write(pca->buf, pca->n_next);
+			pca->n_next = 0;
+		}
+	}
+}
+
+void
+xc_printf(const char *fmt, ...)
+{
+	va_list ap;
+	struct putchar_arg pca;
+#ifdef PRINTF_BUFR_SIZE
+	char buf[PRINTF_BUFR_SIZE];
+
+	pca.buf = buf;
+	pca.size = sizeof(buf);
+	pca.n_next = 0;
+#else
+	pca.buf = NULL;
+	pca.size = 0;
+#endif
+
+	KASSERT((xen_domain()), ("call to xc_printf from non Xen guest"));
+
+	va_start(ap, fmt);
+	kvprintf(fmt, putchar, &pca, 10, ap);
+	va_end(ap);
+
+#ifdef PRINTF_BUFR_SIZE
+	if (pca.n_next != 0)
+		HYPERVISOR_console_write(buf, pca.n_next);
+#endif
+}
+
 static void
 xc_cnprobe(struct consdev *cp)
 {
+	if (!xen_pv_domain())
+		return;
+
 	cp->cn_pri = CN_REMOTE;
 	sprintf(cp->cn_name, "%s0", driver_name);
 }
@@ -175,19 +241,18 @@ static void
 xc_cnputc(struct consdev *dev, int c)
 {
 
-	if (xen_start_info->flags & SIF_INITDOMAIN)
+	if (xen_initial_domain())
 		xc_cnputc_dom0(dev, c);
 	else
 		xc_cnputc_domu(dev, c);
 }
 
-extern int db_active;
 static boolean_t
 xcons_putc(int c)
 {
 	int force_flush = xc_mute ||
 #ifdef DDB
-		db_active ||
+		kdb_active ||
 #endif
 		panicstr;	/* we're not gonna recover, so force
 				 * flush 
@@ -206,8 +271,7 @@ xcons_putc(int c)
 		xcons_force_flush();
 #endif	    	
 	}
-	if (cnsl_evt_reg)
-		__xencons_tx_flush();
+	__xencons_tx_flush();
 	
 	/* inform start path that we're pretty full */
 	return ((wp - wc) >= WBUF_SIZE - 100) ? TRUE : FALSE;
@@ -217,6 +281,10 @@ static void
 xc_identify(driver_t *driver, device_t parent)
 {
 	device_t child;
+
+	if (!xen_pv_domain())
+		return;
+
 	child = BUS_ADD_CHILD(parent, 0, driver_name, 0);
 	device_set_driver(child, driver);
 	device_set_desc(child, "Xen Console");
@@ -226,7 +294,7 @@ static int
 xc_probe(device_t dev)
 {
 
-	return (0);
+	return (BUS_PROBE_NOWILDCARD);
 }
 
 static int
@@ -242,10 +310,10 @@ xc_attach(device_t dev)
 
 	xencons_ring_init();
 
-	cnsl_evt_reg = 1;
+	cnsl_evt_reg = true;
 	callout_reset(&xc_callout, XC_POLLTIME, xc_timeout, xccons);
     
-	if (xen_start_info->flags & SIF_INITDOMAIN) {
+	if (xen_initial_domain()) {
 		error = xen_intr_bind_virq(dev, VIRQ_CONSOLE, 0, NULL,
 		                           xencons_priv_interrupt, NULL,
 		                           INTR_TYPE_TTY, &xen_intr_handle);
@@ -309,7 +377,7 @@ __xencons_tx_flush(void)
 		sz = wp - wc;
 		if (sz > (WBUF_SIZE - WBUF_MASK(wc)))
 			sz = WBUF_SIZE - WBUF_MASK(wc);
-		if (xen_start_info->flags & SIF_INITDOMAIN) {
+		if (xen_initial_domain()) {
 			HYPERVISOR_console_io(CONSOLEIO_write, sz, &wbuf[WBUF_MASK(wc)]);
 			wc += sz;
 		} else {
@@ -356,6 +424,7 @@ xcclose(struct tty *tp)
 	xen_console_up = 0;
 }
 
+#if 0
 static inline int 
 __xencons_put_char(int ch)
 {
@@ -365,6 +434,7 @@ __xencons_put_char(int ch)
 	wbuf[WBUF_MASK(wp++)] = _ch;
 	return 1;
 }
+#endif
 
 
 static void
@@ -424,7 +494,7 @@ xcons_force_flush(void)
 {
 	int        sz;
 
-	if (xen_start_info->flags & SIF_INITDOMAIN)
+	if (xen_initial_domain())
 		return;
 
 	/* Spin until console data is flushed through to the domain controller. */

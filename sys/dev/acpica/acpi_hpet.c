@@ -293,7 +293,7 @@ hpet_find(ACPI_HANDLE handle, UINT32 level, void *context,
 		return (AE_OK);
 	if (ACPI_FAILURE(acpi_GetInteger(handle, "_UID", &uid)) ||
 	    id == uid)
-		*((int *)status) = 1;
+		*status = acpi_get_device(handle);
 	return (AE_OK);
 }
 
@@ -321,7 +321,7 @@ hpet_identify(driver_t *driver, device_t parent)
 	ACPI_TABLE_HPET *hpet;
 	ACPI_STATUS	status;
 	device_t	child;
-	int 		i, found;
+	int		i;
 
 	/* Only one HPET device can be added. */
 	if (devclass_get_device(hpet_devclass, 0))
@@ -332,12 +332,18 @@ hpet_identify(driver_t *driver, device_t parent)
 		if (ACPI_FAILURE(status))
 			return;
 		/* Search for HPET device with same ID. */
-		found = 0;
+		child = NULL;
 		AcpiWalkNamespace(ACPI_TYPE_DEVICE, ACPI_ROOT_OBJECT,
-		    100, hpet_find, NULL, (void *)(uintptr_t)hpet->Sequence, (void *)&found);
+		    100, hpet_find, NULL, (void *)(uintptr_t)hpet->Sequence,
+		    (void *)&child);
 		/* If found - let it be probed in normal way. */
-		if (found)
+		if (child) {
+			if (bus_get_resource(child, SYS_RES_MEMORY, 0,
+			    NULL, NULL) != 0)
+				bus_set_resource(child, SYS_RES_MEMORY, 0,
+				    hpet->Address.Address, HPET_MEM_WIDTH);
 			continue;
+		}
 		/* If not - create it from table info. */
 		child = BUS_ADD_CHILD(parent, 2, "hpet", 0);
 		if (child == NULL) {

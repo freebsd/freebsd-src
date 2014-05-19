@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998-2006 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 1998-2006 Proofpoint, Inc. and its suppliers.
  *	All rights reserved.
  * Copyright (c) 1983, 1995-1997 Eric P. Allman.  All rights reserved.
  * Copyright (c) 1988, 1993
@@ -13,7 +13,7 @@
 
 #include <sendmail.h>
 
-SM_RCSID("@(#)$Id: parseaddr.c,v 8.406 2013/04/17 16:53:01 ca Exp $")
+SM_RCSID("@(#)$Id: parseaddr.c,v 8.407 2013/11/22 20:51:56 ca Exp $")
 
 #include <sm/sendmail.h>
 #include "map.h"

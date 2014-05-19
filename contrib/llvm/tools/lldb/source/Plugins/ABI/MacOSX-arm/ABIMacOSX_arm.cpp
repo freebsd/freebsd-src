@@ -198,12 +198,7 @@ ABIMacOSX_arm::PrepareTrivialCall (Thread &thread,
                                    addr_t sp, 
                                    addr_t function_addr, 
                                    addr_t return_addr, 
-                                   addr_t *arg1_ptr,
-                                   addr_t *arg2_ptr,
-                                   addr_t *arg3_ptr,
-                                   addr_t *arg4_ptr,
-                                   addr_t *arg5_ptr,
-                                   addr_t *arg6_ptr) const
+                                   llvm::ArrayRef<addr_t> args) const
 {
     RegisterContext *reg_ctx = thread.GetRegisterContext().get();
     if (!reg_ctx)
@@ -215,50 +210,45 @@ ABIMacOSX_arm::PrepareTrivialCall (Thread &thread,
 
     RegisterValue reg_value;
 
-    if (arg1_ptr)
+    const char *reg_names[] = { "r0", "r1", "r2", "r3" };
+    
+    llvm::ArrayRef<addr_t>::iterator ai = args.begin(), ae = args.end();
+    
+    for (size_t i = 0; i < (sizeof(reg_names) / sizeof(reg_names[0])); ++i)
     {
-        reg_value.SetUInt32(*arg1_ptr);
-        if (!reg_ctx->WriteRegister (reg_ctx->GetRegisterInfoByName("r0"), reg_value))
+        if (ai == ae)
+            break;
+        
+        reg_value.SetUInt32(*ai);
+        if (!reg_ctx->WriteRegister(reg_ctx->GetRegisterInfoByName(reg_names[i]), reg_value))
             return false;
-
-        if (arg2_ptr)
+        
+        ++ai;
+    }
+    
+    if (ai != ae)
+    {
+        // Spill onto the stack
+        size_t num_stack_regs = ae - ai;
+        
+        sp -= (num_stack_regs * 4);
+        // Keep the stack 8 byte aligned, not that we need to
+        sp &= ~(8ull-1ull);
+        
+        // just using arg1 to get the right size
+        const RegisterInfo *reg_info = reg_ctx->GetRegisterInfo(eRegisterKindGeneric, LLDB_REGNUM_GENERIC_ARG1);
+        
+        addr_t arg_pos = sp;
+        
+        for (; ai != ae; ++ai)
         {
-            reg_value.SetUInt32(*arg2_ptr);
-            if (!reg_ctx->WriteRegister (reg_ctx->GetRegisterInfoByName("r1"), reg_value))
+            reg_value.SetUInt32(*ai);
+            if (reg_ctx->WriteRegisterValueToMemory(reg_info, arg_pos, reg_info->byte_size, reg_value).Fail())
                 return false;
-
-            if (arg3_ptr)
-            {
-                reg_value.SetUInt32(*arg3_ptr);
-                if (!reg_ctx->WriteRegister (reg_ctx->GetRegisterInfoByName("r2"), reg_value))
-                    return false;
-                if (arg4_ptr)
-                {
-                    reg_value.SetUInt32(*arg4_ptr);
-                    const RegisterInfo *reg_info = reg_ctx->GetRegisterInfoByName("r3");
-                    if (!reg_ctx->WriteRegister (reg_info, reg_value))
-                        return false;
-                    if (arg5_ptr)
-                    {
-                        // Keep the stack 8 byte aligned, not that we need to
-                        sp -= 8;
-                        sp &= ~(8ull-1ull);
-                        reg_value.SetUInt32(*arg5_ptr);
-                        if (reg_ctx->WriteRegisterValueToMemory (reg_info, sp, reg_info->byte_size, reg_value).Fail())
-                            return false;
-                        if (arg6_ptr)
-                        {
-                            reg_value.SetUInt32(*arg6_ptr);
-                            if (reg_ctx->WriteRegisterValueToMemory (reg_info, sp + 4, reg_info->byte_size, reg_value).Fail())
-                                return false;
-                        }
-                    }
-                }
-            }            
+            arg_pos += reg_info->byte_size;
         }
     }
     
-
     TargetSP target_sp (thread.CalculateTarget());
     Address so_addr;
 
@@ -580,32 +570,13 @@ ABIMacOSX_arm::SetReturnValueObject(lldb::StackFrameSP &frame_sp, lldb::ValueObj
 bool
 ABIMacOSX_arm::CreateFunctionEntryUnwindPlan (UnwindPlan &unwind_plan)
 {
-    uint32_t reg_kind = unwind_plan.GetRegisterKind();
-    uint32_t lr_reg_num = LLDB_INVALID_REGNUM;
-    uint32_t sp_reg_num = LLDB_INVALID_REGNUM;
-    uint32_t pc_reg_num = LLDB_INVALID_REGNUM;
-    
-    switch (reg_kind)
-    {
-        case eRegisterKindDWARF:
-        case eRegisterKindGCC:
-            lr_reg_num = dwarf_lr;
-            sp_reg_num = dwarf_sp;
-            pc_reg_num = dwarf_pc;
-            break;
-            
-        case eRegisterKindGeneric:
-            lr_reg_num = LLDB_REGNUM_GENERIC_RA;
-            sp_reg_num = LLDB_REGNUM_GENERIC_SP;
-            pc_reg_num = LLDB_REGNUM_GENERIC_PC;
-            break;
-    }
-    
-    if (lr_reg_num == LLDB_INVALID_REGNUM ||
-        sp_reg_num == LLDB_INVALID_REGNUM ||
-        pc_reg_num == LLDB_INVALID_REGNUM)
-        return false;
+    unwind_plan.Clear();
+    unwind_plan.SetRegisterKind (eRegisterKindDWARF);
 
+    uint32_t lr_reg_num = dwarf_lr;
+    uint32_t sp_reg_num = dwarf_sp;
+    uint32_t pc_reg_num = dwarf_pc;
+    
     UnwindPlan::RowSP row(new UnwindPlan::Row);
     
     // Our Call Frame Address is the stack pointer value
@@ -626,14 +597,15 @@ ABIMacOSX_arm::CreateFunctionEntryUnwindPlan (UnwindPlan &unwind_plan)
 bool
 ABIMacOSX_arm::CreateDefaultUnwindPlan (UnwindPlan &unwind_plan)
 {
-    uint32_t fp_reg_num = dwarf_r7; // apple uses r7 for all frames. Normal arm uses r11;
+    unwind_plan.Clear ();
+    unwind_plan.SetRegisterKind (eRegisterKindDWARF);
+
+    uint32_t fp_reg_num = dwarf_r7;   // apple uses r7 for all frames. Normal arm uses r11
     uint32_t pc_reg_num = dwarf_pc;
     
     UnwindPlan::RowSP row(new UnwindPlan::Row);
     const int32_t ptr_size = 4;
     
-    unwind_plan.Clear ();
-    unwind_plan.SetRegisterKind (eRegisterKindDWARF);
     row->SetCFARegister (fp_reg_num);
     row->SetCFAOffset (2 * ptr_size);
     row->SetOffset (0);
@@ -648,6 +620,11 @@ ABIMacOSX_arm::CreateDefaultUnwindPlan (UnwindPlan &unwind_plan)
 
     return true;
 }
+
+// cf. "ARMv6 Function Calling Conventions"
+// https://developer.apple.com/library/ios/documentation/Xcode/Conceptual/iPhoneOSABIReference/Articles/ARMv6FunctionCallingConventions.html
+// and "ARMv7 Function Calling Conventions"
+// https://developer.apple.com/library/ios/documentation/Xcode/Conceptual/iPhoneOSABIReference/Articles/ARMv7FunctionCallingConventions.html
 
 // ARMv7 on iOS general purpose reg rules:
 //    r0-r3 not preserved  (used for argument passing)
@@ -672,7 +649,7 @@ ABIMacOSX_arm::RegisterIsVolatile (const RegisterInfo *reg_info)
 {
     if (reg_info)
     {
-        // Volatile registers include: r0, r1, r2, r3, r9, r12, r13
+        // Volatile registers are: r0, r1, r2, r3, r9, r12, r13 (aka sp)
         const char *name = reg_info->name;
         if (name[0] == 'r')
         {
@@ -686,7 +663,7 @@ ABIMacOSX_arm::RegisterIsVolatile (const RegisterInfo *reg_info)
                         return true; // r1
                     case '2':
                     case '3':
-                        return name[2] == '\0'; // r12 - r13
+                        return name[3] == '\0'; // r12, r13 (sp)
                     default:
                         break;
                     }

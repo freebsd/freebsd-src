@@ -1,5 +1,5 @@
 /*
- * $FreeBSD: head/lib/libz/Symbol.map 206709 2010-04-16 20:07:24Z delphij $
+ * $FreeBSD$
  */
 
 ZLIB_1.2.7.1 {

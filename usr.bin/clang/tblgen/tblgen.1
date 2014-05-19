@@ -1,5 +1,7 @@
 .\" $FreeBSD$
-.TH "TBLGEN" "1" "2013-04-11" "3.3" "LLVM"
+.\" Man page generated from reStructuredText.
+.
+.TH "TBLGEN" "1" "2014-01-01" "3.4" "LLVM"
 .SH NAME
 tblgen \- Target Description To C++ Code Generator
 .
@@ -29,22 +31,20 @@ level margin: \\n[rst2man-indent\\n[rst2man-indent-level]]
 .\" new: \\n[rst2man-indent\\n[rst2man-indent-level]]
 .in \\n[rst2man-indent\\n[rst2man-indent-level]]u
 ..
-.\" Man page generated from reStructuredText.
-.
 .SH SYNOPSIS
 .sp
 \fBtblgen\fP [\fIoptions\fP] [\fIfilename\fP]
 .SH DESCRIPTION
 .sp
-\fBtblgen\fP translates from target description (\fB.td\fP) files into C++
+\fBtblgen\fP translates from target description (\fB\&.td\fP) files into C++
 code that can be included in the definition of an LLVM target library.  Most
 users of LLVM will not need to use this program.  It is only for assisting with
 writing an LLVM target backend.
 .sp
 The input and output of \fBtblgen\fP is beyond the scope of this short
-introduction.  Please see \fB../TableGenFundamentals\fP.
+introduction.  Please see \fB\&../TableGenFundamentals\fP\&.
 .sp
-The \fIfilename\fP argument specifies the name of a Target Description (\fB.td\fP)
+The \fIfilename\fP argument specifies the name of a Target Description (\fB\&.td\fP)
 file to read as input.
 .SH OPTIONS
 .INDENT 0.0
@@ -68,12 +68,12 @@ contains target description files.
 .INDENT 0.0
 .TP
 .B \-asmparsernum N
-Make \-gen\-asm\-parser emit assembly writer number \fBN\fP.
+Make \-gen\-asm\-parser emit assembly writer number \fBN\fP\&.
 .UNINDENT
 .INDENT 0.0
 .TP
 .B \-asmwriternum N
-Make \-gen\-asm\-writer emit assembly writer number \fBN\fP.
+Make \-gen\-asm\-writer emit assembly writer number \fBN\fP\&.
 .UNINDENT
 .INDENT 0.0
 .TP

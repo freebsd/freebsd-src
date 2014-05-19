@@ -652,7 +652,7 @@ static unsigned int
 compute_may_aliases (void)
 {
   struct alias_info *ai;
-  
+
   memset (&alias_stats, 0, sizeof (alias_stats));
 
   /* Initialize aliasing information.  */
@@ -709,6 +709,9 @@ compute_may_aliases (void)
       dump_points_to_info (dump_file);
       dump_alias_info (dump_file);
     }
+
+  /* Report strict aliasing violations.  */
+  strict_aliasing_warning_backend ();
 
   /* Deallocate memory used by aliasing data structures.  */
   delete_alias_info (ai);

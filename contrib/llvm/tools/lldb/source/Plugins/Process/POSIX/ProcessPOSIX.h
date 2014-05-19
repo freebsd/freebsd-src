@@ -58,7 +58,7 @@ public:
 
     virtual lldb_private::Error
     DoLaunch (lldb_private::Module *exe_module, 
-              const lldb_private::ProcessLaunchInfo &launch_info);
+              lldb_private::ProcessLaunchInfo &launch_info);
 
     virtual void
     DidLaunch();
@@ -70,13 +70,16 @@ public:
     DoHalt(bool &caused_stop);
 
     virtual lldb_private::Error
-    DoDetach(bool keep_stopped);
+    DoDetach(bool keep_stopped) = 0;
 
     virtual lldb_private::Error
     DoSignal(int signal);
 
     virtual lldb_private::Error
     DoDestroy();
+
+    virtual void
+    DoDidExec();
 
     virtual void
     RefreshStateAfterStop();
@@ -100,9 +103,6 @@ public:
 
     virtual lldb_private::Error
     DoDeallocateMemory(lldb::addr_t ptr);
-
-    virtual lldb::addr_t
-    ResolveIndirectFunction(const lldb_private::Address *address, lldb_private::Error &error);
 
     virtual size_t
     GetSoftwareBreakpointTrapOpcode(lldb_private::BreakpointSite* bp_site);
@@ -145,7 +145,8 @@ public:
     // ProcessPOSIX internal API.
 
     /// Registers the given message with this process.
-    void SendMessage(const ProcessMessage &message);
+    virtual void
+    SendMessage(const ProcessMessage &message);
 
     ProcessMonitor &
     GetMonitor() { assert(m_monitor); return *m_monitor; }
@@ -166,6 +167,9 @@ public:
     /// The \p stop_tid paramter indicates the thread which the stop happened for.
     bool
     AddThreadForInitialStopIfNeeded(lldb::tid_t stop_tid);
+
+    bool
+    WaitingForInitialStop(lldb::tid_t stop_tid);
 
     virtual POSIXThread *
     CreateNewPOSIXThread(lldb_private::Process &process, lldb::tid_t tid);

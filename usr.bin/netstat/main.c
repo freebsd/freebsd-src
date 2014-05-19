@@ -70,99 +70,87 @@ __FBSDID("$FreeBSD$");
 #include "netstat.h"
 
 static struct nlist nl[] = {
-#define	N_IFNET		0
-	{ .n_name = "_ifnet" },
-#define	N_RTSTAT	1
+#define	N_RTSTAT	0
 	{ .n_name = "_rtstat" },
-#define	N_RTREE		2
+#define	N_RTREE		1
 	{ .n_name = "_rt_tables"},
-#define	N_MRTSTAT	3
+#define	N_MRTSTAT	2
 	{ .n_name = "_mrtstat" },
-#define	N_MFCHASHTBL	4
+#define	N_MFCHASHTBL	3
 	{ .n_name = "_mfchashtbl" },
-#define	N_VIFTABLE	5
+#define	N_VIFTABLE	4
 	{ .n_name = "_viftable" },
-#define	N_IPX		6
-	{ .n_name = "_ipxpcb_list"},
-#define	N_IPXSTAT	7
-	{ .n_name = "_ipxstat"},
-#define	N_SPXSTAT	8
-	{ .n_name = "_spx_istat"},
-#define	N_DDPSTAT	9
-	{ .n_name = "_ddpstat"},
-#define	N_DDPCB		10
-	{ .n_name = "_ddpcb"},
-#define	N_NGSOCKS	11
+#define	N_NGSOCKS	5
 	{ .n_name = "_ngsocklist"},
-#define	N_IP6STAT	12
+#define	N_IP6STAT	6
 	{ .n_name = "_ip6stat" },
-#define	N_ICMP6STAT	13
+#define	N_ICMP6STAT	7
 	{ .n_name = "_icmp6stat" },
-#define	N_IPSECSTAT	14
+#define	N_IPSECSTAT	8
 	{ .n_name = "_ipsec4stat" },
-#define	N_IPSEC6STAT	15
+#define	N_IPSEC6STAT	9
 	{ .n_name = "_ipsec6stat" },
-#define	N_PIM6STAT	16
+#define	N_PIM6STAT	10
 	{ .n_name = "_pim6stat" },
-#define	N_MRT6STAT	17
+#define	N_MRT6STAT	11
 	{ .n_name = "_mrt6stat" },
-#define	N_MF6CTABLE	18
+#define	N_MF6CTABLE	12
 	{ .n_name = "_mf6ctable" },
-#define	N_MIF6TABLE	19
+#define	N_MIF6TABLE	13
 	{ .n_name = "_mif6table" },
-#define	N_PFKEYSTAT	20
+#define	N_PFKEYSTAT	14
 	{ .n_name = "_pfkeystat" },
-#define	N_RTTRASH	21
+#define	N_RTTRASH	15
 	{ .n_name = "_rttrash" },
-#define	N_CARPSTAT	22
+#define	N_CARPSTAT	16
 	{ .n_name = "_carpstats" },
-#define	N_PFSYNCSTAT	23
+#define	N_PFSYNCSTAT	17
 	{ .n_name = "_pfsyncstats" },
-#define	N_AHSTAT	24
+#define	N_AHSTAT	18
 	{ .n_name = "_ahstat" },
-#define	N_ESPSTAT	25
+#define	N_ESPSTAT	19
 	{ .n_name = "_espstat" },
-#define	N_IPCOMPSTAT	26
+#define	N_IPCOMPSTAT	20
 	{ .n_name = "_ipcompstat" },
-#define	N_TCPSTAT	27
+#define	N_TCPSTAT	21
 	{ .n_name = "_tcpstat" },
-#define	N_UDPSTAT	28
+#define	N_UDPSTAT	22
 	{ .n_name = "_udpstat" },
-#define	N_IPSTAT	29
+#define	N_IPSTAT	23
 	{ .n_name = "_ipstat" },
-#define	N_ICMPSTAT	30
+#define	N_ICMPSTAT	24
 	{ .n_name = "_icmpstat" },
-#define	N_IGMPSTAT	31
+#define	N_IGMPSTAT	25
 	{ .n_name = "_igmpstat" },
-#define	N_PIMSTAT	32
+#define	N_PIMSTAT	26
 	{ .n_name = "_pimstat" },
-#define	N_TCBINFO	33
+#define	N_TCBINFO	27
 	{ .n_name = "_tcbinfo" },
-#define	N_UDBINFO	34
+#define	N_UDBINFO	28
 	{ .n_name = "_udbinfo" },
-#define	N_DIVCBINFO	35
+#define	N_DIVCBINFO	29
 	{ .n_name = "_divcbinfo" },
-#define	N_RIPCBINFO	36
+#define	N_RIPCBINFO	30
 	{ .n_name = "_ripcbinfo" },
-#define	N_UNP_COUNT	37
+#define	N_UNP_COUNT	31
 	{ .n_name = "_unp_count" },
-#define	N_UNP_GENCNT	38
+#define	N_UNP_GENCNT	32
 	{ .n_name = "_unp_gencnt" },
-#define	N_UNP_DHEAD	39
+#define	N_UNP_DHEAD	33
 	{ .n_name = "_unp_dhead" },
-#define	N_UNP_SHEAD	40
+#define	N_UNP_SHEAD	34
 	{ .n_name = "_unp_shead" },
-#define	N_RIP6STAT	41
+#define	N_RIP6STAT	36
 	{ .n_name = "_rip6stat" },
-#define	N_SCTPSTAT	42
+#define	N_SCTPSTAT	36
 	{ .n_name = "_sctpstat" },
-#define	N_MFCTABLESIZE	43
+#define	N_MFCTABLESIZE	37
 	{ .n_name = "_mfctablesize" },
-#define	N_ARPSTAT       44
+#define	N_ARPSTAT       38
 	{ .n_name = "_arpstat" },
-#define	N_UNP_SPHEAD	45
+#define	N_UNP_SPHEAD	39
 	{ .n_name = "unp_sphead" },
-#define	N_SFSTAT	46
+#define	N_SFSTAT	40
 	{ .n_name = "_sfstat"},
 	{ .n_name = NULL },
 };
@@ -214,8 +202,10 @@ struct protox {
 	  pim_stats,	NULL,		"pim",	1,	IPPROTO_PIM },
 	{ -1,		N_CARPSTAT,	1,	NULL,
 	  carp_stats,	NULL,		"carp",	1,	0 },
+#ifdef PF
 	{ -1,		N_PFSYNCSTAT,	1,	NULL,
 	  pfsync_stats,	NULL,		"pfsync", 1,	0 },
+#endif
 	{ -1,		N_ARPSTAT,	1,	NULL,
 	  arp_stats,	NULL,		"arp", 1,	0 },
 	{ -1,		-1,		0,	NULL,
@@ -260,12 +250,6 @@ struct protox pfkeyprotox[] = {
 };
 #endif
 
-struct protox atalkprotox[] = {
-	{ N_DDPCB,	N_DDPSTAT,	1,	atalkprotopr,
-	  ddp_stats,	NULL,		"ddp",	0,	0 },
-	{ -1,		-1,		0,	NULL,
-	  NULL,		NULL,		NULL,	0,	0 }
-};
 #ifdef NETGRAPH
 struct protox netgraphprotox[] = {
 	{ N_NGSOCKS,	-1,		1,	netgraphprotopr,
@@ -274,16 +258,6 @@ struct protox netgraphprotox[] = {
 	  NULL,		NULL,		"data",	0,	0 },
 	{ -1,		-1,		0,	NULL,
 	  NULL,		NULL,		NULL,	0,	0 }
-};
-#endif
-#ifdef IPX
-struct protox ipxprotox[] = {
-	{ N_IPX,	N_IPXSTAT,	1,	ipxprotopr,
-	  ipx_stats,	NULL,		"ipx",	0,	0 },
-	{ N_IPX,	N_SPXSTAT,	1,	ipxprotopr,
-	  spx_stats,	NULL,		"spx",	0,	0 },
-	{ -1,		-1,		0,	NULL,
-	  NULL,		NULL,		0,	0,	0 }
 };
 #endif
 
@@ -295,10 +269,7 @@ struct protox *protoprotox[] = {
 #ifdef IPSEC
 					 pfkeyprotox,
 #endif
-#ifdef IPX
-					 ipxprotox,
-#endif
-					 atalkprotox, NULL };
+					 NULL };
 
 static void printproto(struct protox *, const char *);
 static void usage(void);
@@ -348,9 +319,23 @@ main(int argc, char *argv[])
 
 	af = AF_UNSPEC;
 
-	while ((ch = getopt(argc, argv, "AaBbdF:f:ghI:iLlM:mN:np:Qq:rSTsuWw:xz"))
+	while ((ch = getopt(argc, argv, "46AaBbdF:f:ghI:iLlM:mN:np:Qq:rSTsuWw:xz"))
 	    != -1)
 		switch(ch) {
+		case '4':
+#ifdef INET
+			af = AF_INET;
+#else
+			errx(1, "IPv4 support is not compiled in");
+#endif
+			break;
+		case '6':
+#ifdef INET6
+			af = AF_INET6;
+#else
+			errx(1, "IPv6 support is not compiled in");
+#endif
+			break;
 		case 'A':
 			Aflag = 1;
 			break;
@@ -373,9 +358,7 @@ main(int argc, char *argv[])
 				errx(1, "%s: invalid fib", optarg);
 			break;
 		case 'f':
-			if (strcmp(optarg, "ipx") == 0)
-				af = AF_IPX;
-			else if (strcmp(optarg, "inet") == 0)
+			if (strcmp(optarg, "inet") == 0)
 				af = AF_INET;
 #ifdef INET6
 			else if (strcmp(optarg, "inet6") == 0)
@@ -387,8 +370,6 @@ main(int argc, char *argv[])
 #endif
 			else if (strcmp(optarg, "unix") == 0)
 				af = AF_UNIX;
-			else if (strcmp(optarg, "atalk") == 0)
-				af = AF_APPLETALK;
 #ifdef NETGRAPH
 			else if (strcmp(optarg, "ng") == 0
 			    || strcmp(optarg, "netgraph") == 0)
@@ -550,39 +531,40 @@ main(int argc, char *argv[])
 	 * used for the queries, which is slower.
 	 */
 #endif
-	kread(0, NULL, 0);
 	if (iflag && !sflag) {
-		intpr(interval, nl[N_IFNET].n_value, NULL);
+		intpr(interval, NULL, af);
 		exit(0);
 	}
 	if (rflag) {
-		if (sflag)
-			rt_stats(nl[N_RTSTAT].n_value, nl[N_RTTRASH].n_value);
-		else
-			routepr(nl[N_RTREE].n_value, fib);
+		if (sflag) {
+			rt_stats();
+			flowtable_stats();
+		} else
+			routepr(fib, af);
 		exit(0);
 	}
+
 	if (gflag) {
 		if (sflag) {
 			if (af == AF_INET || af == AF_UNSPEC)
-				mrt_stats(nl[N_MRTSTAT].n_value);
+				mrt_stats();
 #ifdef INET6
 			if (af == AF_INET6 || af == AF_UNSPEC)
-				mrt6_stats(nl[N_MRT6STAT].n_value);
+				mrt6_stats();
 #endif
 		} else {
 			if (af == AF_INET || af == AF_UNSPEC)
-				mroutepr(nl[N_MFCHASHTBL].n_value,
-					 nl[N_MFCTABLESIZE].n_value,
-					 nl[N_VIFTABLE].n_value);
+				mroutepr();
 #ifdef INET6
 			if (af == AF_INET6 || af == AF_UNSPEC)
-				mroute6pr(nl[N_MF6CTABLE].n_value,
-					  nl[N_MIF6TABLE].n_value);
+				mroute6pr();
 #endif
 		}
 		exit(0);
 	}
+
+	/* Load all necessary kvm symbols */
+	kresolve_list(nl);
 
 	if (tp) {
 		printproto(tp, tp->pr_name);
@@ -601,15 +583,6 @@ main(int argc, char *argv[])
 		for (tp = pfkeyprotox; tp->pr_name; tp++)
 			printproto(tp, tp->pr_name);
 #endif /*IPSEC*/
-#ifdef IPX
-	if (af == AF_IPX || af == AF_UNSPEC) {
-		for (tp = ipxprotox; tp->pr_name; tp++)
-			printproto(tp, tp->pr_name);
-	}
-#endif /* IPX */
-	if (af == AF_APPLETALK || af == AF_UNSPEC)
-		for (tp = atalkprotox; tp->pr_name; tp++)
-			printproto(tp, tp->pr_name);
 #ifdef NETGRAPH
 	if (af == AF_NETGRAPH || af == AF_UNSPEC)
 		for (tp = netgraphprotox; tp->pr_name; tp++)
@@ -636,8 +609,7 @@ printproto(struct protox *tp, const char *name)
 	if (sflag) {
 		if (iflag) {
 			if (tp->pr_istats)
-				intpr(interval, nl[N_IFNET].n_value,
-				      tp->pr_istats);
+				intpr(interval, tp->pr_istats, af);
 			else if (pflag)
 				printf("%s: no per-interface stats routine\n",
 				    tp->pr_name);
@@ -700,19 +672,28 @@ kvmd_init(void)
 		return (-1);
 	}
 
-	if (kvm_nlist(kvmd, nl) < 0) {
+	return (0);
+}
+
+/*
+ * Resolve symbol list, return 0 on success.
+ */
+int
+kresolve_list(struct nlist *_nl)
+{
+
+	if ((kvmd == NULL) && (kvmd_init() != 0))
+		return (-1);
+
+	if (_nl[0].n_type != 0)
+		return (0);
+
+	if (kvm_nlist(kvmd, _nl) < 0) {
 		if (nlistf)
 			errx(1, "%s: kvm_nlist: %s", nlistf,
 			     kvm_geterr(kvmd));
 		else
 			errx(1, "kvm_nlist: %s", kvm_geterr(kvmd));
-	}
-
-	if (nl[0].n_type == 0) {
-		if (nlistf)
-			errx(1, "%s: no namelist", nlistf);
-		else
-			errx(1, "no namelist");
 	}
 
 	return (0);
@@ -735,6 +716,19 @@ kread(u_long addr, void *buf, size_t size)
 		return (-1);
 	}
 	return (0);
+}
+
+/*
+ * Read single counter(9).
+ */
+uint64_t
+kread_counter(u_long addr)
+{
+
+	if (kvmd_init() < 0)
+		return (-1);
+
+	return (kvm_counter_u64_fetch(kvmd, addr));
 }
 
 /*
@@ -826,21 +820,21 @@ static void
 usage(void)
 {
 	(void)fprintf(stderr, "%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n",
-"usage: netstat [-AaLnSTWx] [-f protocol_family | -p protocol]\n"
+"usage: netstat [-46AaLnSTWx] [-f protocol_family | -p protocol]\n"
 "               [-M core] [-N system]",
-"       netstat -i | -I interface [-abdhnW] [-f address_family]\n"
+"       netstat -i | -I interface [-46abdhnW] [-f address_family]\n"
 "               [-M core] [-N system]",
-"       netstat -w wait [-I interface] [-d] [-M core] [-N system] [-q howmany]",
-"       netstat -s [-s] [-z] [-f protocol_family | -p protocol]\n"
+"       netstat -w wait [-I interface] [-46d] [-M core] [-N system] [-q howmany]",
+"       netstat -s [-s] [-46z] [-f protocol_family | -p protocol]\n"
 "               [-M core] [-N system]",
-"       netstat -i | -I interface -s [-f protocol_family | -p protocol]\n"
+"       netstat -i | -I interface [-46s] [-f protocol_family | -p protocol]\n"
 "               [-M core] [-N system]",
 "       netstat -m [-M core] [-N system]",
 "       netstat -B [-I interface]",
-"       netstat -r [-AanW] [-f address_family] [-M core] [-N system]",
+"       netstat -r [-46AanW] [-f address_family] [-M core] [-N system]",
 "       netstat -rs [-s] [-M core] [-N system]",
-"       netstat -g [-W] [-f address_family] [-M core] [-N system]",
-"       netstat -gs [-s] [-f address_family] [-M core] [-N system]",
+"       netstat -g [-46W] [-f address_family] [-M core] [-N system]",
+"       netstat -gs [-46s] [-f address_family] [-M core] [-N system]",
 "       netstat -Q");
 	exit(1);
 }

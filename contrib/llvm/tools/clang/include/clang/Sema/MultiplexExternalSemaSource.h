@@ -322,6 +322,36 @@ public:
   virtual void ReadPendingInstantiations(
               SmallVectorImpl<std::pair<ValueDecl*, SourceLocation> >& Pending);
 
+  /// \brief Read the set of late parsed template functions for this source.
+  ///
+  /// The external source should insert its own late parsed template functions
+  /// into the map. Note that this routine may be invoked multiple times; the
+  /// external source should take care not to introduce the same map entries
+  /// repeatedly.
+  virtual void ReadLateParsedTemplates(
+      llvm::DenseMap<const FunctionDecl *, LateParsedTemplate *> &LPTMap);
+
+  /// \copydoc ExternalSemaSource::CorrectTypo
+  /// \note Returns the first nonempty correction.
+  virtual TypoCorrection CorrectTypo(const DeclarationNameInfo &Typo,
+                                     int LookupKind, Scope *S, CXXScopeSpec *SS,
+                                     CorrectionCandidateCallback &CCC,
+                                     DeclContext *MemberContext,
+                                     bool EnteringContext,
+                                     const ObjCObjectPointerType *OPT);
+
+  /// \brief Produces a diagnostic note if one of the attached sources
+  /// contains a complete definition for \p T. Queries the sources in list
+  /// order until the first one claims that a diagnostic was produced.
+  ///
+  /// \param Loc the location at which a complete type was required but not
+  /// provided
+  ///
+  /// \param T the \c QualType that should have been complete at \p Loc
+  ///
+  /// \return true if a diagnostic was produced, false otherwise.
+  virtual bool MaybeDiagnoseMissingCompleteType(SourceLocation Loc, QualType T);
+
   // isa/cast/dyn_cast support
   static bool classof(const MultiplexExternalSemaSource*) { return true; }
   //static bool classof(const ExternalSemaSource*) { return true; }

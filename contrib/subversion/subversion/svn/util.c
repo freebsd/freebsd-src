@@ -338,6 +338,7 @@ static const char *prefixes[] = {
   "Approved by:",
   "Obtained from:",
   "MFC after:",
+  "Relnotes:",
   "Security:",
   "Sponsored by:"
 };
@@ -408,6 +409,7 @@ svn_cl__get_log_message(const char **log_msg,
   svn_stringbuf_appendcstr(default_msg, "Approved by:\t" APR_EOL_STR);
   svn_stringbuf_appendcstr(default_msg, "Obtained from:\t" APR_EOL_STR);
   svn_stringbuf_appendcstr(default_msg, "MFC after:\t" APR_EOL_STR);
+  svn_stringbuf_appendcstr(default_msg, "Relnotes:\t" APR_EOL_STR);
   svn_stringbuf_appendcstr(default_msg, "Security:\t" APR_EOL_STR);
   svn_stringbuf_appendcstr(default_msg, "Sponsored by:\t"
 #ifdef HAS_ORGANIZATION_NAME
@@ -423,6 +425,7 @@ svn_cl__get_log_message(const char **log_msg,
   svn_stringbuf_appendcstr(default_msg, "> Approved by:   If you needed approval for this commit." APR_EOL_STR);
   svn_stringbuf_appendcstr(default_msg, "> Obtained from: If the change is from a third party." APR_EOL_STR);
   svn_stringbuf_appendcstr(default_msg, "> MFC after:     N [day[s]|week[s]|month[s]].  Request a reminder email." APR_EOL_STR);
+  svn_stringbuf_appendcstr(default_msg, "> Relnotes:      Set to 'yes' for mention in release notes." APR_EOL_STR);
   svn_stringbuf_appendcstr(default_msg, "> Security:      Vulnerability reference (one per line) or description." APR_EOL_STR);
   svn_stringbuf_appendcstr(default_msg, "> Sponsored by:  If the change was sponsored by an organization." APR_EOL_STR);
   svn_stringbuf_appendcstr(default_msg, "> Empty fields above will be automatically removed." APR_EOL_STR);

@@ -37,24 +37,6 @@
     !defined(_KERNEL) && !defined(USE_INET6) && !defined(NOINET6)
 # define	USE_INET6
 #endif
-#if defined(__NetBSD_Version__) && (__NetBSD_Version__ >= 105000000) && \
-    !defined(_KERNEL) && !defined(USE_INET6)
-# define	USE_INET6
-#endif
-#if defined(__NetBSD_Version__) && (__NetBSD_Version__ >= 106140000) && \
-    defined(_KERNEL) && \
-    (!defined(IPFILTER_LKM) || (__NetBSD_Version__ >= 399000100))
-# define	IPFILTER_M_IPFILTER
-#endif
-#if !defined(USE_INET6)
-# if defined(OpenBSD) && (OpenBSD >= 200206) && \
-    !defined(_KERNEL) && !defined(USE_INET6)
-#  define	USE_INET6
-# endif
-# if defined(HPUXREV) && (HPUXREV >= 1111)
-#  define	USE_INET6
-# endif
-#endif
 
 
 #if defined(__SVR4) || defined(__svr4__) || defined(__sgi)
@@ -164,6 +146,7 @@ struct  ether_addr {
 # endif /* _KERNEL */
 
 #  include <sys/selinfo.h>
+#  include <sys/lock.h>
 #  include <sys/mutex.h>
 #    define	KRWLOCK_FILL_SZ		56
 #    define	KMUTEX_FILL_SZ		56
@@ -546,13 +529,8 @@ MALLOC_DECLARE(M_IPFILTER);
 #  define	GETIFMTU_6(x)	((struct ifnet *)x)->if_mtu
 
 # if !defined(USE_MUTEXES) && !defined(SPL_NET)
-#  if (defined(NetBSD) && (NetBSD <= 1991011) && (NetBSD >= 199407)) || \
-      OPENBSD_GE_REV(200006)
-#   define	SPL_NET(x)	x = splsoftnet()
-#  else
-#   define	SPL_IMP(x)	x = splimp()
-#   define	SPL_NET(x)	x = splnet()
-#  endif /* NetBSD && (NetBSD <= 1991011) && (NetBSD >= 199407) */
+#  define	SPL_IMP(x)	x = splimp()
+#  define	SPL_NET(x)	x = splnet()
 #  if !defined(SPL_SCHED)
 #   define	SPL_SCHED(x)	x = splsched()
 #  endif
@@ -565,7 +543,7 @@ MALLOC_DECLARE(M_IPFILTER);
 # ifndef ALLOC_MB_T
 #  ifdef MGETHDR
 #   define	ALLOC_MB_T(m,l)	do { \
-					MGETHDR((m), M_DONTWAIT, MT_HEADER); \
+					MGETHDR((m), M_NOWAIT, MT_HEADER); \
 					if ((m) != NULL) { \
 						(m)->m_len = (l); \
 						(m)->m_pkthdr.len = (l); \
@@ -573,7 +551,7 @@ MALLOC_DECLARE(M_IPFILTER);
 				} while (0)
 #  else
 #   define	ALLOC_MB_T(m,l)	do { \
-					MGET((m), M_DONTWAIT, MT_HEADER); \
+					MGET((m), M_NOWAIT, MT_HEADER); \
 					if ((m) != NULL) { \
 						(m)->m_len = (l); \
 						(m)->m_pkthdr.len = (l); \

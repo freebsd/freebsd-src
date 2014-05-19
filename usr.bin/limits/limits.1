@@ -19,7 +19,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 23, 2012
+.Dd November 1, 2013
 .Dt LIMITS 1
 .Os
 .Sh NAME
@@ -30,11 +30,11 @@
 .Op Fl C Ar class | Fl P Ar pid | Fl U Ar user
 .Op Fl SHB
 .Op Fl ea
-.Op Fl bcdflmnstuvpw Op Ar val
+.Op Fl bcdfklmnstuvpw Op Ar val
 .Nm
 .Op Fl C Ar class | Fl U Ar user
 .Op Fl SHB
-.Op Fl bcdflmnstuvpw Op Ar val
+.Op Fl bcdfklmnstuvpw Op Ar val
 .Op Fl E
 .Oo
 .Op Ar name Ns = Ns Ar value ...
@@ -87,9 +87,6 @@ Like the previous usage, it outputs these values to standard
 output, except that it will emit them in
 .Ic eval
 format, suitable for the calling shell.
-The calling shell is determined by examining the entries in the
-.Pa /proc
-file system for the parent process.
 If the shell is known (i.e., it is one of
 .Nm sh , csh , bash , tcsh , ksh , pdksh
 or
@@ -209,6 +206,10 @@ resource limit.
 .It Fl f Op Ar val
 Select or set the
 .Va filesize
+resource limit.
+.It Fl k Op Ar val
+Select or set the
+.Va kqueues
 resource limit.
 .It Fl l Op Ar val
 Select or set the
@@ -385,21 +386,6 @@ utility does not handle commands with equal
 .Pq Ql =
 signs in their
 names, for obvious reasons.
-.Pp
-When eval output is selected, the
-.Pa /proc
-file system must be installed
-and mounted for the shell to be correctly determined, and therefore
-output syntax correct for the running shell.
-The default output is valid for
-.Xr sh 1 ,
-so this means that any
-usage of
-.Nm
-in eval mode prior mounting
-.Pa /proc
-may only occur in standard bourne
-shell scripts.
 .Pp
 The
 .Nm

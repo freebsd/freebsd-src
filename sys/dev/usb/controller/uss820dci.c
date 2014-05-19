@@ -94,11 +94,11 @@ SYSCTL_INT(_hw_usb_uss820dci, OID_AUTO, debug, CTLFLAG_RW,
 
 /* prototypes */
 
-struct usb_bus_methods uss820dci_bus_methods;
-struct usb_pipe_methods uss820dci_device_bulk_methods;
-struct usb_pipe_methods uss820dci_device_ctrl_methods;
-struct usb_pipe_methods uss820dci_device_intr_methods;
-struct usb_pipe_methods uss820dci_device_isoc_fs_methods;
+static const struct usb_bus_methods uss820dci_bus_methods;
+static const struct usb_pipe_methods uss820dci_device_bulk_methods;
+static const struct usb_pipe_methods uss820dci_device_ctrl_methods;
+static const struct usb_pipe_methods uss820dci_device_intr_methods;
+static const struct usb_pipe_methods uss820dci_device_isoc_fs_methods;
 
 static uss820dci_cmd_t uss820dci_setup_rx;
 static uss820dci_cmd_t uss820dci_data_rx;
@@ -875,7 +875,8 @@ uss820dci_setup_standard_chain(struct usb_xfer *xfer)
 	temp.td = NULL;
 	temp.td_next = xfer->td_start[0];
 	temp.offset = 0;
-	temp.setup_alt_next = xfer->flags_int.short_frames_ok;
+	temp.setup_alt_next = xfer->flags_int.short_frames_ok ||
+	    xfer->flags_int.isochronous_xfr;
 	temp.did_stall = !xfer->flags_int.control_stall;
 
 	sc = USS820_DCI_BUS2SC(xfer->xroot->bus);
@@ -1120,7 +1121,8 @@ uss820dci_standard_done_sub(struct usb_xfer *xfer)
 		}
 		/* Check for short transfer */
 		if (len > 0) {
-			if (xfer->flags_int.short_frames_ok) {
+			if (xfer->flags_int.short_frames_ok ||
+			    xfer->flags_int.isochronous_xfr) {
 				/* follow alt next */
 				if (td->alt_next) {
 					td = td->obj_next;
@@ -1543,7 +1545,7 @@ uss820dci_do_poll(struct usb_bus *bus)
 }
 
 /*------------------------------------------------------------------------*
- * at91dci bulk support
+ * uss820dci bulk support
  *------------------------------------------------------------------------*/
 static void
 uss820dci_device_bulk_open(struct usb_xfer *xfer)
@@ -1571,7 +1573,7 @@ uss820dci_device_bulk_start(struct usb_xfer *xfer)
 	uss820dci_start_standard_chain(xfer);
 }
 
-struct usb_pipe_methods uss820dci_device_bulk_methods =
+static const struct usb_pipe_methods uss820dci_device_bulk_methods =
 {
 	.open = uss820dci_device_bulk_open,
 	.close = uss820dci_device_bulk_close,
@@ -1580,7 +1582,7 @@ struct usb_pipe_methods uss820dci_device_bulk_methods =
 };
 
 /*------------------------------------------------------------------------*
- * at91dci control support
+ * uss820dci control support
  *------------------------------------------------------------------------*/
 static void
 uss820dci_device_ctrl_open(struct usb_xfer *xfer)
@@ -1608,7 +1610,7 @@ uss820dci_device_ctrl_start(struct usb_xfer *xfer)
 	uss820dci_start_standard_chain(xfer);
 }
 
-struct usb_pipe_methods uss820dci_device_ctrl_methods =
+static const struct usb_pipe_methods uss820dci_device_ctrl_methods =
 {
 	.open = uss820dci_device_ctrl_open,
 	.close = uss820dci_device_ctrl_close,
@@ -1617,7 +1619,7 @@ struct usb_pipe_methods uss820dci_device_ctrl_methods =
 };
 
 /*------------------------------------------------------------------------*
- * at91dci interrupt support
+ * uss820dci interrupt support
  *------------------------------------------------------------------------*/
 static void
 uss820dci_device_intr_open(struct usb_xfer *xfer)
@@ -1645,7 +1647,7 @@ uss820dci_device_intr_start(struct usb_xfer *xfer)
 	uss820dci_start_standard_chain(xfer);
 }
 
-struct usb_pipe_methods uss820dci_device_intr_methods =
+static const struct usb_pipe_methods uss820dci_device_intr_methods =
 {
 	.open = uss820dci_device_intr_open,
 	.close = uss820dci_device_intr_close,
@@ -1654,7 +1656,7 @@ struct usb_pipe_methods uss820dci_device_intr_methods =
 };
 
 /*------------------------------------------------------------------------*
- * at91dci full speed isochronous support
+ * uss820dci full speed isochronous support
  *------------------------------------------------------------------------*/
 static void
 uss820dci_device_isoc_fs_open(struct usb_xfer *xfer)
@@ -1727,7 +1729,7 @@ uss820dci_device_isoc_fs_start(struct usb_xfer *xfer)
 	uss820dci_start_standard_chain(xfer);
 }
 
-struct usb_pipe_methods uss820dci_device_isoc_fs_methods =
+static const struct usb_pipe_methods uss820dci_device_isoc_fs_methods =
 {
 	.open = uss820dci_device_isoc_fs_open,
 	.close = uss820dci_device_isoc_fs_close,
@@ -1736,7 +1738,7 @@ struct usb_pipe_methods uss820dci_device_isoc_fs_methods =
 };
 
 /*------------------------------------------------------------------------*
- * at91dci root control support
+ * uss820dci root control support
  *------------------------------------------------------------------------*
  * Simulate a hardware HUB by handling all the necessary requests.
  *------------------------------------------------------------------------*/
@@ -2004,6 +2006,13 @@ tr_handle_get_descriptor:
 		}
 		len = sizeof(uss820dci_devd);
 		ptr = (const void *)&uss820dci_devd;
+		goto tr_valid;
+	case UDESC_DEVICE_QUALIFIER:
+		if (value & 0xff) {
+			goto tr_stalled;
+		}
+		len = sizeof(uss820dci_odevd);
+		ptr = (const void *)&uss820dci_odevd;
 		goto tr_valid;
 	case UDESC_CONFIG:
 		if (value & 0xff) {
@@ -2376,7 +2385,7 @@ uss820dci_set_hw_power_sleep(struct usb_bus *bus, uint32_t state)
 	}
 }
 
-struct usb_bus_methods uss820dci_bus_methods =
+static const struct usb_bus_methods uss820dci_bus_methods =
 {
 	.endpoint_init = &uss820dci_ep_init,
 	.xfer_setup = &uss820dci_xfer_setup,

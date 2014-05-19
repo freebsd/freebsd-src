@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-NO_MAN=	svn.1
+MAN=
 
 .include "${.CURDIR}/../Makefile.inc"
 
@@ -52,5 +52,14 @@ DPADD=	${LIBSVN_CLIENT} ${LIBSVN_WC} ${LIBSVN_RA} ${LIBSVN_RA_LOCAL} \
 	${LIBSVN_DIFF} ${LIBSVN_SUBR} ${LIBSERF} ${LIBAPR_UTIL} \
 	${LIBBSDXML} ${LIBAPR} ${LIBSQLITE} ${LIBZ} ${LIBCRYPT} ${LIBMAGIC} \
 	${LIBCRYPTO} ${LIBSSL} ${LIBPTHREAD}
+
+.if(defined(ORGANIZATION) && !empty(ORGANIZATION))
+DPSRCS+=	freebsd-organization.h
+CLEANFILES+=	freebsd-organization.h
+CFLAGS+=	-I. -DHAS_ORGANIZATION_NAME
+freebsd-organization.h:
+	@echo '#define ORGANIZATION_NAME ${ORGANIZATION}' \
+	    > freebsd-organization.h
+.endif
 
 .include <bsd.prog.mk>

@@ -32,10 +32,12 @@
  */
 
 #include <linux/workqueue.h>
+#include <linux/module.h>
 
 #include "mlx4.h"
 
-#define	MLX4_CATAS_POLL_INTERVAL	(5 * HZ)
+#define MLX4_CATAS_POLL_INTERVAL        (5 * HZ)
+
 
 static DEFINE_SPINLOCK(catas_lock);
 
@@ -45,7 +47,8 @@ static struct work_struct catas_work;
 static int internal_err_reset = 1;
 module_param(internal_err_reset, int, 0644);
 MODULE_PARM_DESC(internal_err_reset,
-		 "Reset device on internal errors if non-zero (default 1)");
+		 "Reset device on internal errors if non-zero"
+		 " (default 1, in SRIOV mode default is 0)");
 
 static void dump_err_buf(struct mlx4_dev *dev)
 {
@@ -65,16 +68,21 @@ static void poll_catas(unsigned long dev_ptr)
 	struct mlx4_priv *priv = mlx4_priv(dev);
 
 	if (readl(priv->catas_err.map)) {
-		dump_err_buf(dev);
+		/* If the device is off-line, we cannot try to recover it */
+		if (pci_channel_offline(dev->pdev))
+			mod_timer(&priv->catas_err.timer,
+				  round_jiffies(jiffies + MLX4_CATAS_POLL_INTERVAL));
+		else {
+			dump_err_buf(dev);
+			mlx4_dispatch_event(dev, MLX4_DEV_EVENT_CATASTROPHIC_ERROR, 0);
 
-		mlx4_dispatch_event(dev, MLX4_DEV_EVENT_CATASTROPHIC_ERROR, 0);
+			if (internal_err_reset) {
+				spin_lock(&catas_lock);
+				list_add(&priv->catas_err.list, &catas_list);
+				spin_unlock(&catas_lock);
 
-		if (internal_err_reset) {
-			spin_lock(&catas_lock);
-			list_add(&priv->catas_err.list, &catas_list);
-			spin_unlock(&catas_lock);
-
-			queue_work(mlx4_wq, &catas_work);
+				queue_work(mlx4_wq, &catas_work);
+			}
 		}
 	} else
 		mod_timer(&priv->catas_err.timer,
@@ -89,9 +97,6 @@ static void catas_reset(struct work_struct *work)
 	LIST_HEAD(tlist);
 	int ret;
 
-	if (!mutex_trylock(&drv_mutex))
-		return;
-
 	spin_lock_irq(&catas_lock);
 	list_splice_init(&catas_list, &tlist);
 	spin_unlock_irq(&catas_lock);
@@ -99,23 +104,30 @@ static void catas_reset(struct work_struct *work)
 	list_for_each_entry_safe(priv, tmppriv, &tlist, catas_err.list) {
 		struct pci_dev *pdev = priv->dev.pdev;
 
+		/* If the device is off-line, we cannot reset it */
+		if (pci_channel_offline(pdev))
+			continue;
+
 		ret = mlx4_restart_one(priv->dev.pdev);
 		/* 'priv' now is not valid */
 		if (ret)
-			printk(KERN_ERR "mlx4 %s: Reset failed (%d)\n",
-				pci_name(pdev), ret);
+			pr_err("mlx4 %s: Reset failed (%d)\n",
+			       pci_name(pdev), ret);
 		else {
 			dev  = pci_get_drvdata(pdev);
 			mlx4_dbg(dev, "Reset succeeded\n");
 		}
 	}
-	mutex_unlock(&drv_mutex);
 }
 
 void mlx4_start_catas_poll(struct mlx4_dev *dev)
 {
 	struct mlx4_priv *priv = mlx4_priv(dev);
-	unsigned long addr;
+	phys_addr_t addr;
+
+	/*If we are in SRIOV the default of the module param must be 0*/
+	if (mlx4_is_mfunc(dev))
+		internal_err_reset = 0;
 
 	INIT_LIST_HEAD(&priv->catas_err.list);
 	init_timer(&priv->catas_err.timer);
@@ -126,8 +138,8 @@ void mlx4_start_catas_poll(struct mlx4_dev *dev)
 
 	priv->catas_err.map = ioremap(addr, priv->fw.catas_size * 4);
 	if (!priv->catas_err.map) {
-		mlx4_warn(dev, "Failed to map internal error buffer at 0x%lx\n",
-			  addr);
+		mlx4_warn(dev, "Failed to map internal error buffer at 0x%llx\n",
+			  (unsigned long long) addr);
 		return;
 	}
 

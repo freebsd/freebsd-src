@@ -1,2 +1,0 @@
-.\" $FreeBSD$
-Set to not build programs and libraries related to the ATF testing framework.

@@ -460,7 +460,7 @@ typedef struct synapticshw {
     int infoHardware;	/* hardware model */
     int infoNewAbs;	/* supports the newabs format */
     int capPen;		/* can detect a pen */
-    int infoSimpleC;	/* supports simple commands */
+    int infoSimplC;	/* supports simple commands */
     int infoGeometry;	/* touchpad dimensions */
     int capExtended;	/* supports extended packets */
     int capSleep;	/* can be suspended/resumed */
@@ -468,6 +468,9 @@ typedef struct synapticshw {
     int capMultiFinger;	/* can detect multiple fingers */
     int capPalmDetect;	/* can detect a palm */
     int capPassthrough;	/* can passthrough guest packets */
+    int capMiddle;	/* has a physical middle button */
+    int nExtendedButtons; /* has N additionnal buttons */
+    int nExtendedQueries; /* supports N extended queries */
 } synapticshw_t;
 .Ed
 .Pp

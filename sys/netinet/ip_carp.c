@@ -55,6 +55,7 @@ __FBSDID("$FreeBSD$");
 #include <net/ethernet.h>
 #include <net/fddi.h>
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/if_dl.h>
 #include <net/if_llatbl.h>
 #include <net/if_types.h>
@@ -144,6 +145,8 @@ struct carp_if {
 #endif
 	struct ifnet	*cif_ifp;
 	struct mtx	cif_mtx;
+	uint32_t	cif_flags;
+#define	CIF_PROMISC	0x00000001
 };
 
 #define	CARP_INET	0
@@ -761,6 +764,35 @@ carp_send_ad(void *v)
 }
 
 static void
+carp_send_ad_error(struct carp_softc *sc, int error)
+{
+
+	if (error) {
+		if (sc->sc_sendad_errors < INT_MAX)
+			sc->sc_sendad_errors++;
+		if (sc->sc_sendad_errors == CARP_SENDAD_MAX_ERRORS) {
+			static const char fmt[] = "send error %d on %s";
+			char msg[sizeof(fmt) + IFNAMSIZ];
+
+			sprintf(msg, fmt, error, sc->sc_carpdev->if_xname);
+			carp_demote_adj(V_carp_senderr_adj, msg);
+		}
+		sc->sc_sendad_success = 0;
+	} else {
+		if (sc->sc_sendad_errors >= CARP_SENDAD_MAX_ERRORS &&
+		    ++sc->sc_sendad_success >= CARP_SENDAD_MIN_SUCCESS) {
+			static const char fmt[] = "send ok on %s";
+			char msg[sizeof(fmt) + IFNAMSIZ];
+
+			sprintf(msg, fmt, sc->sc_carpdev->if_xname);
+			carp_demote_adj(-V_carp_senderr_adj, msg);
+			sc->sc_sendad_errors = 0;
+		} else
+			sc->sc_sendad_errors = 0;
+	}
+}
+
+static void
 carp_send_ad_locked(struct carp_softc *sc)
 {
 	struct carp_header ch;
@@ -836,25 +868,8 @@ carp_send_ad_locked(struct carp_softc *sc)
 
 		CARPSTATS_INC(carps_opackets);
 
-		if (ip_output(m, NULL, NULL, IP_RAWOUTPUT,
-		    &sc->sc_carpdev->if_carp->cif_imo, NULL)) {
-			if (sc->sc_sendad_errors < INT_MAX)
-				sc->sc_sendad_errors++;
-			if (sc->sc_sendad_errors == CARP_SENDAD_MAX_ERRORS)
-				carp_demote_adj(V_carp_senderr_adj,
-				    "send error");
-			sc->sc_sendad_success = 0;
-		} else {
-			if (sc->sc_sendad_errors >= CARP_SENDAD_MAX_ERRORS) {
-				if (++sc->sc_sendad_success >=
-				    CARP_SENDAD_MIN_SUCCESS) {
-					carp_demote_adj(-V_carp_senderr_adj,
-					    "send ok");
-					sc->sc_sendad_errors = 0;
-				}
-			} else
-				sc->sc_sendad_errors = 0;
-		}
+		carp_send_ad_error(sc, ip_output(m, NULL, NULL, IP_RAWOUTPUT,
+		    &sc->sc_carpdev->if_carp->cif_imo, NULL));
 	}
 #endif /* INET */
 #ifdef INET6
@@ -910,25 +925,8 @@ carp_send_ad_locked(struct carp_softc *sc)
 
 		CARPSTATS_INC(carps_opackets6);
 
-		if (ip6_output(m, NULL, NULL, 0,
-		    &sc->sc_carpdev->if_carp->cif_im6o, NULL, NULL)) {
-			if (sc->sc_sendad_errors < INT_MAX)
-				sc->sc_sendad_errors++;
-			if (sc->sc_sendad_errors == CARP_SENDAD_MAX_ERRORS)
-				carp_demote_adj(V_carp_senderr_adj,
-				    "send6 error");
-			sc->sc_sendad_success = 0;
-		} else {
-			if (sc->sc_sendad_errors >= CARP_SENDAD_MAX_ERRORS) {
-				if (++sc->sc_sendad_success >=
-				    CARP_SENDAD_MIN_SUCCESS) {
-					carp_demote_adj(-V_carp_senderr_adj,
-					    "send6 ok");
-					sc->sc_sendad_errors = 0;
-				}
-			} else
-				sc->sc_sendad_errors = 0;
-		}
+		carp_send_ad_error(sc, ip6_output(m, NULL, NULL, 0,
+		    &sc->sc_carpdev->if_carp->cif_im6o, NULL, NULL));
 	}
 #endif /* INET6 */
 
@@ -961,7 +959,7 @@ carp_ifa_addroute(struct ifaddr *ifa)
 	case AF_INET6:
 		ifa_add_loopback_route(ifa,
 		    (struct sockaddr *)&ifatoia6(ifa)->ia_addr);
-		in6_ifaddloop(ifa);
+		nd6_add_ifa_lle(ifatoia6(ifa));
 		break;
 #endif
 	}
@@ -992,7 +990,7 @@ carp_ifa_delroute(struct ifaddr *ifa)
 	case AF_INET6:
 		ifa_del_loopback_route(ifa,
 		    (struct sockaddr *)&ifatoia6(ifa)->ia_addr);
-		in6_ifremloop(ifa);
+		nd6_rem_ifa_lle(ifatoia6(ifa));
 		break;
 #endif
 	}
@@ -1482,11 +1480,8 @@ carp_alloc(struct ifnet *ifp)
 	struct carp_softc *sc;
 	struct carp_if *cif;
 
-	if ((cif = ifp->if_carp) == NULL) {
+	if ((cif = ifp->if_carp) == NULL)
 		cif = carp_alloc_if(ifp);
-		if (cif == NULL)
-			return (NULL);
-	}
 
 	sc = malloc(sizeof(*sc), M_CARP, M_WAITOK|M_ZERO);
 
@@ -1571,11 +1566,15 @@ static struct carp_if*
 carp_alloc_if(struct ifnet *ifp)
 {
 	struct carp_if *cif;
+	int error;
 
 	cif = malloc(sizeof(*cif), M_CARP, M_WAITOK|M_ZERO);
 
-	if (ifpromisc(ifp, 1) != 0)
-		goto cleanup;
+	if ((error = ifpromisc(ifp, 1)) != 0)
+		printf("%s: ifpromisc(%s) failed: %d\n",
+		    __func__, ifp->if_xname, error);
+	else
+		cif->cif_flags |= CIF_PROMISC;
 
 	CIF_LOCK_INIT(cif);
 	cif->cif_ifp = ifp;
@@ -1587,11 +1586,6 @@ carp_alloc_if(struct ifnet *ifp)
 	IF_ADDR_WUNLOCK(ifp);
 
 	return (cif);
-
-cleanup:
-	free(cif, M_CARP);
-
-	return (NULL);
 }
 
 static void
@@ -1609,7 +1603,8 @@ carp_free_if(struct carp_if *cif)
 
 	CIF_LOCK_DESTROY(cif);
 
-	ifpromisc(ifp, 0);
+	if (cif->cif_flags & CIF_PROMISC)
+		ifpromisc(ifp, 0);
 	if_rele(ifp);
 
 	free(cif, M_CARP);
@@ -1682,11 +1677,6 @@ carp_ioctl(struct ifreq *ifr, u_long cmd, struct thread *td)
 		}
 		if (sc == NULL) {
 			sc = carp_alloc(ifp);
-			if (sc == NULL) {
-				error = EINVAL; /* XXX: ifpromisc failed */
-				break;
-			}
-
 			CARP_LOCK(sc);
 			sc->sc_vhid = carpr.carpr_vhid;
 			LLADDR(&sc->sc_addr)[0] = 0;

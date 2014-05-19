@@ -19,26 +19,22 @@ LIBATM?=	${DESTDIR}${LIBDIR}/libatm.a
 LIBAUDITD?=	${DESTDIR}${LIBDIR}/libauditd.a
 LIBAVL?=	${DESTDIR}${LIBDIR}/libavl.a
 LIBBEGEMOT?=	${DESTDIR}${LIBDIR}/libbegemot.a
-.if ${MK_BIND_LIBS} != "no"
-LIBBIND?=	${DESTDIR}${LIBDIR}/libbind.a
-LIBBIND9?=	${DESTDIR}${LIBDIR}/libbind9.a
-.endif
 LIBBLUETOOTH?=	${DESTDIR}${LIBDIR}/libbluetooth.a
 LIBBSDXML?=	${DESTDIR}${LIBDIR}/libbsdxml.a
-LIBBSDYML?=	${DESTDIR}${LIBDIR}/libbsdyml.a
 LIBBSM?=	${DESTDIR}${LIBDIR}/libbsm.a
 LIBBSNMP?=	${DESTDIR}${LIBDIR}/libbsnmp.a
 LIBBZ2?=	${DESTDIR}${LIBDIR}/libbz2.a
-.if ${MK_LIBCPLUSPLUS} != "no"
 LIBCXXRT?=	${DESTDIR}${LIBDIR}/libcxxrt.a
 LIBCPLUSPLUS?=	${DESTDIR}${LIBDIR}/libc++.a
-.endif
 LIBC?=		${DESTDIR}${LIBDIR}/libc.a
 LIBC_PIC?=	${DESTDIR}${LIBDIR}/libc_pic.a
 LIBCALENDAR?=	${DESTDIR}${LIBDIR}/libcalendar.a
 LIBCAM?=	${DESTDIR}${LIBDIR}/libcam.a
+LIBCAPSICUM?=	${DESTDIR}${LIBDIR}/libcapsicum.a
+LIBCASPER?=	${DESTDIR}${LIBDIR}/libcasper.a
 LIBCOM_ERR?=	${DESTDIR}${LIBDIR}/libcom_err.a
 LIBCOMPAT?=	${DESTDIR}${LIBDIR}/libcompat.a
+LIBCOMPILER_RT?=${DESTDIR}${LIBDIR}/libcompiler_rt.a
 LIBCRYPT?=	${DESTDIR}${LIBDIR}/libcrypt.a
 LIBCRYPTO?=	${DESTDIR}${LIBDIR}/libcrypto.a
 LIBCTF?=	${DESTDIR}${LIBDIR}/libctf.a
@@ -56,8 +52,6 @@ LIBFETCH?=	${DESTDIR}${LIBDIR}/libfetch.a
 LIBFL?=		"don't use LIBFL, use LIBL"
 LIBFORM?=	${DESTDIR}${LIBDIR}/libform.a
 LIBG2C?=	${DESTDIR}${LIBDIR}/libg2c.a
-LIBGCC?=	${DESTDIR}${LIBDIR}/libgcc.a
-LIBGCC_PIC?=	${DESTDIR}${LIBDIR}/libgcc_pic.a
 LIBGEOM?=	${DESTDIR}${LIBDIR}/libgeom.a
 LIBGNUREGEX?=	${DESTDIR}${LIBDIR}/libgnuregex.a
 LIBGSSAPI?=	${DESTDIR}${LIBDIR}/libgssapi.a
@@ -71,14 +65,6 @@ LIBHEIMNTLM?=	${DESTDIR}${LIBDIR}/libheimntlm.a
 LIBHEIMSQLITE?=	${DESTDIR}${LIBDIR}/libheimsqlite.a
 LIBHX509?=	${DESTDIR}${LIBDIR}/libhx509.a
 LIBIPSEC?=	${DESTDIR}${LIBDIR}/libipsec.a
-.if ${MK_IPX} != "no"
-LIBIPX?=	${DESTDIR}${LIBDIR}/libipx.a
-.endif
-.if ${MK_BIND_LIBS} != "no"
-LIBISC?=	${DESTDIR}${LIBDIR}/libisc.a
-LIBISCCC?=	${DESTDIR}${LIBDIR}/libisccc.a
-LIBISCCFG?=	${DESTDIR}${LIBDIR}/libisccfg.a
-.endif
 LIBJAIL?=	${DESTDIR}${LIBDIR}/libjail.a
 LIBKADM5CLNT?=	${DESTDIR}${LIBDIR}/libkadm5clnt.a
 LIBKADM5SRV?=	${DESTDIR}${LIBDIR}/libkadm5srv.a
@@ -89,32 +75,28 @@ LIBKICONV?=	${DESTDIR}${LIBDIR}/libkiconv.a
 LIBKRB5?=	${DESTDIR}${LIBDIR}/libkrb5.a
 LIBKVM?=	${DESTDIR}${LIBDIR}/libkvm.a
 LIBL?=		${DESTDIR}${LIBDIR}/libl.a
-.if ${MK_LDNS} != "no"
 LIBLDNS?=	${DESTDIR}${LIBPRIVATEDIR}/libldns.a
-.endif
 LIBLN?=		"don't use LIBLN, use LIBL"
-.if ${MK_BIND} != "no"
-LIBLWRES?=	${DESTDIR}${LIBDIR}/liblwres.a
-.endif
 LIBLZMA?=	${DESTDIR}${LIBDIR}/liblzma.a
 LIBM?=		${DESTDIR}${LIBDIR}/libm.a
 LIBMAGIC?=	${DESTDIR}${LIBDIR}/libmagic.a
 LIBMD?=		${DESTDIR}${LIBDIR}/libmd.a
 LIBMEMSTAT?=	${DESTDIR}${LIBDIR}/libmemstat.a
 LIBMENU?=	${DESTDIR}${LIBDIR}/libmenu.a
-.if ${MK_SENDMAIL} != "no"
 LIBMILTER?=	${DESTDIR}${LIBDIR}/libmilter.a
-.endif
 LIBMP?=		${DESTDIR}${LIBDIR}/libmp.a
 LIBNCURSES?=	${DESTDIR}${LIBDIR}/libncurses.a
 LIBNCURSESW?=	${DESTDIR}${LIBDIR}/libncursesw.a
 LIBNETGRAPH?=	${DESTDIR}${LIBDIR}/libnetgraph.a
 LIBNGATM?=	${DESTDIR}${LIBDIR}/libngatm.a
+LIBNV?=		${DESTDIR}${LIBDIR}/libnv.a
 LIBNVPAIR?=	${DESTDIR}${LIBDIR}/libnvpair.a
 LIBOPIE?=	${DESTDIR}${LIBDIR}/libopie.a
 
 # The static PAM library doesn't know its secondary dependencies,
-# so we have to specify them explicitly.
+# so we have to specify them explicitly. Ths is an unfortunate,
+# but necessary departure from testing MK_ flags to define
+# values here.
 LIBPAM?=	${DESTDIR}${LIBDIR}/libpam.a
 MINUSLPAM=	-lpam
 .if defined(LDFLAGS) && !empty(LDFLAGS:M-static)
@@ -139,6 +121,7 @@ MINUSLPAM+=	-lypclnt
 
 LIBPANEL?=	${DESTDIR}${LIBDIR}/libpanel.a
 LIBPCAP?=	${DESTDIR}${LIBDIR}/libpcap.a
+LIBPJDLOG?=	${DESTDIR}${LIBDIR}/libpjdlog.a
 LIBPMC?=	${DESTDIR}${LIBDIR}/libpmc.a
 LIBPROC?=	${DESTDIR}${LIBDIR}/libproc.a
 LIBPROCSTAT?=	${DESTDIR}${LIBDIR}/libprocstat.a
@@ -161,12 +144,11 @@ LIBTACPLUS?=	${DESTDIR}${LIBDIR}/libtacplus.a
 LIBTERMCAP?=	${DESTDIR}${LIBDIR}/libtermcap.a
 LIBTERMLIB?=	"don't use LIBTERMLIB, use LIBTERMCAP"
 LIBTINFO?=	"don't use LIBTINFO, use LIBNCURSES"
+LIBUCL?=	${DESTDIR}${LIBPRIVATEDIR}/libucl.a
 LIBUFS?=	${DESTDIR}${LIBDIR}/libufs.a
 LIBUGIDFW?=	${DESTDIR}${LIBDIR}/libugidfw.a
 LIBUMEM?=	${DESTDIR}${LIBDIR}/libumem.a
-.if ${MK_UNBOUND} != "no"
-LIBUNBOUND?=	${DESTDIR}${LIBDIR}/libunbound.a
-.endif
+LIBUNBOUND?=	${DESTDIR}${LIBPRIVATEDIR}/libunbound.a
 LIBUSBHID?=	${DESTDIR}${LIBDIR}/libusbhid.a
 LIBUSB?=	${DESTDIR}${LIBDIR}/libusb.a
 LIBULOG?=	${DESTDIR}${LIBDIR}/libulog.a

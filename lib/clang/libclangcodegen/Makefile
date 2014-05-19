@@ -36,6 +36,7 @@ SRCS=	BackendUtil.cpp \
 	CGStmt.cpp \
 	CGVTT.cpp \
 	CGVTables.cpp \
+	CodeGenABITypes.cpp \
 	CodeGenAction.cpp \
 	CodeGenFunction.cpp \
 	CodeGenModule.cpp \
@@ -43,6 +44,7 @@ SRCS=	BackendUtil.cpp \
 	CodeGenTypes.cpp \
 	ItaniumCXXABI.cpp \
 	MicrosoftCXXABI.cpp \
+	MicrosoftVBTables.cpp \
 	ModuleBuilder.cpp \
 	TargetInfo.cpp
 
@@ -53,6 +55,7 @@ TGHDRS=	AttrList \
 	DeclNodes \
 	DiagnosticCommonKinds \
 	DiagnosticFrontendKinds \
+	DiagnosticSemaKinds \
 	Intrinsics \
 	StmtNodes \
 	arm_neon

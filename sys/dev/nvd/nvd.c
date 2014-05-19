@@ -187,17 +187,6 @@ nvd_done(void *arg, const struct nvme_completion *cpl)
 
 	atomic_add_int(&ndisk->cur_depth, -1);
 
-	/*
-	 * TODO: add more extensive translation of NVMe status codes
-	 *  to different bio error codes (i.e. EIO, EINVAL, etc.)
-	 */
-	if (nvme_completion_is_error(cpl)) {
-		bp->bio_error = EIO;
-		bp->bio_flags |= BIO_ERROR;
-		bp->bio_resid = bp->bio_bcount;
-	} else
-		bp->bio_resid = 0;
-
 	biodone(bp);
 }
 

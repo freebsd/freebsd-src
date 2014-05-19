@@ -54,7 +54,6 @@ nodevice	agp
 nodevice	txp
 nodevice	vx
 
-nodevice	nve
 nodevice	pcn
 nodevice	sf
 nodevice	sis

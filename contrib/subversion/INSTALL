@@ -3,7 +3,7 @@
                           A Quick Guide
                ======================================
 
-$LastChangedDate: 2013-06-05 04:00:25 +0000 (Wed, 05 Jun 2013) $
+$LastChangedDate: 2013-09-27 06:57:44 +0000 (Fri, 27 Sep 2013) $
 
 
 Contents:
@@ -477,7 +477,7 @@ I.    INTRODUCTION
 
       13. SQLite  (REQUIRED)
 
-      Subversion 1.7 requires SQLite version 3.6.18 or above.  You can meet
+      Subversion 1.8 requires SQLite version 3.7.12 or above.  You can meet
       this dependency several ways:
         * Use an SQLite amalgamation file.
         * Specify an SQLite installation to use.
@@ -1263,7 +1263,8 @@ III.  BUILDING A SUBVERSION SERVER
 
       After the make install, the Subversion shared libraries are in
       /usr/local/lib/.  mod_dav_svn.so should be installed in
-      /usr/local/apache2/modules/.
+      /usr/local/libexec/ (or elsewhere, such as /usr/local/apache2/modules/,
+      if you passed --with-apache-libexecdir to configure).
 
 
       Section II.E explains how to build the server on Windows.
@@ -1287,8 +1288,9 @@ III.  BUILDING A SUBVERSION SERVER
       http://httpd.apache.org/docs-2.0/
 
       First, your httpd.conf needs to load the mod_dav_svn module.
-      Subversion's 'make install' target should automatically add this
-      line for you.  But if apache gives you an error like "Unknown
+      If you pass --enable-mod-activation to Subversion's configure,
+      'make install' target should automatically add this line for you.
+      In any case, if Apache HTTPD gives you an error like "Unknown
       DAV provider: svn", then you may want to verify that this line
       exists in your httpd.conf:
 

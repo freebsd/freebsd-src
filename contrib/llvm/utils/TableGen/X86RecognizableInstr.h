@@ -66,6 +66,16 @@ private:
   bool HasMemOp4Prefix;
   /// The ignoreVEX_L field from the record
   bool IgnoresVEX_L;
+  /// The hasEVEXPrefix field from the record
+  bool HasEVEXPrefix;
+  /// The hasEVEX_L2Prefix field from the record
+  bool HasEVEX_L2Prefix;
+  /// The hasEVEX_K field from the record
+  bool HasEVEX_K;
+  /// The hasEVEX_KZ field from the record
+  bool HasEVEX_KZ;
+  /// The hasEVEX_B field from the record
+  bool HasEVEX_B;
   /// The hasLockPrefix field from the record
   bool HasLockPrefix;
   /// The isCodeGenOnly filed from the record
@@ -176,6 +186,8 @@ private:
                                                           bool hasOpSizePrefix);
   static OperandEncoding vvvvRegisterEncodingFromString(const std::string &s,
                                                         bool HasOpSizePrefix);
+  static OperandEncoding writemaskRegisterEncodingFromString(const std::string &s,
+                                                             bool HasOpSizePrefix);
   
   /// handleOperand - Converts a single operand from the LLVM table format to
   ///   the emitted table format, handling any duplicate operands it encounters

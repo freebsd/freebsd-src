@@ -45,6 +45,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/bus.h>
 
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/ethernet.h>
 #include <net/if_media.h>
 
@@ -314,10 +315,6 @@ brgphy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 	case MII_POLLSTAT:
 		break;
 	case MII_MEDIACHG:
-		/* If the interface is not up, don't do anything. */
-		if ((mii->mii_ifp->if_flags & IFF_UP) == 0)
-			break;
-
 		/* Todo: Why is this here?  Is it really needed? */
 		PHY_RESET(sc);	/* XXX hardware bug work-around */
 
@@ -337,11 +334,6 @@ brgphy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 		}
 		break;
 	case MII_TICK:
-		/* Bail if the interface isn't up. */
-		if ((mii->mii_ifp->if_flags & IFF_UP) == 0)
-			return (0);
-
-
 		/* Bail if autoneg isn't in process. */
 		if (IFM_SUBTYPE(ife->ifm_media) != IFM_AUTO) {
 			sc->mii_ticks = 0;

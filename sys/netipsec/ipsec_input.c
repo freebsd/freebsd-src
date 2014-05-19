@@ -56,6 +56,7 @@
 #include <sys/syslog.h>
 
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/pfil.h>
 #include <net/route.h>
 #include <net/netisr.h>
@@ -602,6 +603,7 @@ ipsec6_common_input_cb(struct mbuf *m, struct secasvar *sav, int skip, int proto
 	ip6->ip6_plen = htons(m->m_pkthdr.len - sizeof(struct ip6_hdr));
 
 	/* Save protocol */
+	prot = 0;
 	m_copydata(m, protoff, 1, (unsigned char *) &prot);
 
 #ifdef notyet

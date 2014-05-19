@@ -30,13 +30,14 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_platform.h"
+
 #include <sys/param.h>
 #include <sys/bus.h>
 #include <sys/kernel.h>
 #include <sys/module.h>
 
 #include <machine/bus.h>
-#include <machine/fdt.h>
 
 #include <dev/fdt/fdt_common.h>
 #include <dev/ofw/ofw_bus.h>
@@ -61,14 +62,47 @@ static driver_t uart_fdt_driver = {
 	sizeof(struct uart_softc),
 };
 
+/*
+ * Compatible devices.  Keep this sorted in most- to least-specific order first,
+ * alphabetical second.  That is, "zwie,ns16550" should appear before "ns16550"
+ * on the theory that the zwie driver knows how to make better use of the
+ * hardware than the generic driver.  Likewise with chips within a family, the
+ * highest-numbers / most recent models should probably appear earlier.
+ */
+static struct ofw_compat_data compat_data[] = {
+	{"arm,pl011",		(uintptr_t)&uart_pl011_class},
+	{"atmel,at91rm9200-usart",(uintptr_t)&at91_usart_class},
+	{"atmel,at91sam9260-usart",(uintptr_t)&at91_usart_class},
+	{"cadence,uart",	(uintptr_t)&uart_cdnc_class},
+	{"exynos",		(uintptr_t)&uart_s3c2410_class},
+	{"fsl,imx6q-uart",	(uintptr_t)&uart_imx_class},
+	{"fsl,imx53-uart",	(uintptr_t)&uart_imx_class},
+	{"fsl,imx51-uart",	(uintptr_t)&uart_imx_class},
+	{"fsl,imx31-uart",	(uintptr_t)&uart_imx_class},
+	{"fsl,imx27-uart",	(uintptr_t)&uart_imx_class},
+	{"fsl,imx25-uart",	(uintptr_t)&uart_imx_class},
+	{"fsl,imx21-uart",	(uintptr_t)&uart_imx_class},
+	{"fsl,mvf600-uart",	(uintptr_t)&uart_vybrid_class},
+	{"lpc,uart",		(uintptr_t)&uart_lpc_class},
+	{"ti,ns16550",		(uintptr_t)&uart_ti8250_class},
+	{"ns16550",		(uintptr_t)&uart_ns8250_class},
+	{NULL,			(uintptr_t)NULL},
+};
+
+/* Export the compat_data table for use by the uart_cpu_fdt.c probe routine. */
+const struct ofw_compat_data *uart_fdt_compat_data = compat_data;
+
 static int
 uart_fdt_get_clock(phandle_t node, pcell_t *cell)
 {
 	pcell_t clock;
 
+	/*
+	 * clock-frequency is a FreeBSD-specific hack. Make its presence optional.
+	 */
 	if ((OF_getprop(node, "clock-frequency", &clock,
 	    sizeof(clock))) <= 0)
-		return (ENXIO);
+		clock = 0;
 
 	if (clock == 0)
 		/* Try to retrieve parent 'bus-frequency' */
@@ -99,24 +133,18 @@ uart_fdt_probe(device_t dev)
 	phandle_t node;
 	pcell_t clock, shift;
 	int err;
+	const struct ofw_compat_data * cd;
 
 	sc = device_get_softc(dev);
-	if (ofw_bus_is_compatible(dev, "lpc,uart"))
-		sc->sc_class = &uart_lpc_class;
-	else if (ofw_bus_is_compatible(dev, "fsl,imx-uart"))
-		sc->sc_class = &uart_imx_class;
-	else if (ofw_bus_is_compatible(dev, "arm,pl011"))
-		sc->sc_class = &uart_pl011_class;
-	else if (ofw_bus_is_compatible(dev, "exynos"))
-		sc->sc_class = &uart_s3c2410_class;
-	else if (ofw_bus_is_compatible(dev, "cadence,uart"))
-		sc->sc_class = &uart_cdnc_class;
-	else if (ofw_bus_is_compatible(dev, "ti,ns16550"))
-		sc->sc_class = &uart_ti8250_class;
-	else if (ofw_bus_is_compatible(dev, "ns16550"))
-		sc->sc_class = &uart_ns8250_class;
-	else
+
+	if (!ofw_bus_status_okay(dev))
 		return (ENXIO);
+
+	cd = ofw_bus_search_compatible(dev, compat_data);
+	if (cd->ocd_data == (uintptr_t)NULL)
+		return (ENXIO);
+
+	sc->sc_class = (struct uart_class *)cd->ocd_data;
 
 	node = ofw_bus_get_node(dev);
 

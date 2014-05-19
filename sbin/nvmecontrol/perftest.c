@@ -33,6 +33,7 @@ __FBSDID("$FreeBSD$");
 #include <ctype.h>
 #include <err.h>
 #include <fcntl.h>
+#include <inttypes.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdio.h>
@@ -45,7 +46,8 @@ __FBSDID("$FreeBSD$");
 static void
 print_perftest(struct nvme_io_test *io_test, bool perthread)
 {
-	uint32_t i, io_completed = 0, iops, mbps;
+	uint64_t	io_completed = 0, iops, mbps;
+	uint32_t	i;
 
 	for (i = 0; i < io_test->num_threads; i++)
 		io_completed += io_test->io_completed[i];
@@ -53,17 +55,15 @@ print_perftest(struct nvme_io_test *io_test, bool perthread)
 	iops = io_completed/io_test->time;
 	mbps = iops * io_test->size / (1024*1024);
 
-	printf("Threads: %2d Size: %6d %5s Time: %3d IO/s: %7d MB/s: %4d\n",
+	printf("Threads: %2d Size: %6d %5s Time: %3d IO/s: %7ju MB/s: %4ju\n",
 	    io_test->num_threads, io_test->size,
 	    io_test->opc == NVME_OPC_READ ? "READ" : "WRITE",
-	    io_test->time, iops, mbps);
+	    io_test->time, (uintmax_t)iops, (uintmax_t)mbps);
 
 	if (perthread)
 		for (i = 0; i < io_test->num_threads; i++)
-			printf("\t%3d: %8d IO/s\n", i,
-			    io_test->io_completed[i]/io_test->time);
-
-	exit(1);
+			printf("\t%3d: %8ju IO/s\n", i,
+			    (uintmax_t)io_test->io_completed[i]/io_test->time);
 }
 
 static void

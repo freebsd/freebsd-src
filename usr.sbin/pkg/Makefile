@@ -2,9 +2,13 @@
 
 PROG=	pkg
 SRCS=	pkg.c dns_utils.c config.c
+MAN=	pkg.7
 
-NO_MAN=	yes
-DPADD=	${LIBARCHIVE} ${LIBELF} ${LIBFETCH} ${LIBBSDYML} ${LIBSBUF}
-LDADD=	-larchive -lelf -lfetch -lbsdyml -lsbuf
+CFLAGS+=-I${.CURDIR}/../../contrib/libucl/include
+.PATH:	${.CURDIR}/../../contrib/libucl/include
+DPADD=	${LIBARCHIVE} ${LIBELF} ${LIBFETCH} ${LIBUCL} ${LIBSBUF} ${LIBSSL} \
+	${LIBCRYPTO} ${LIBM}
+LDADD=	-larchive -lelf -lfetch -lucl -lsbuf -lssl -lcrypto -lm
+USEPRIVATELIB=	ucl
 
 .include <bsd.prog.mk>

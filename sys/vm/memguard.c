@@ -181,7 +181,7 @@ memguard_fudge(unsigned long km_size, const struct vm_map *parent_map)
 	 * This prevents memguard's page promotions from completely
 	 * using up memory, since most malloc(9) calls are sub-page.
 	 */
-	mem_pgs = cnt.v_page_count;
+	mem_pgs = vm_cnt.v_page_count;
 	memguard_physlimit = (mem_pgs / vm_memguard_divisor) * PAGE_SIZE;
 	/*
 	 * We want as much KVA as we can take safely.  Use at most our
