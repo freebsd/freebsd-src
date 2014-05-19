@@ -461,8 +461,8 @@ rman_reserve_resource_bound(struct rman *rm, u_long start, u_long end,
 	}
 
 	amask = (1ul << RF_ALIGNMENT(flags)) - 1;
-	if (start + amask < start) {
-		DPRINTF(("start+amask wrapped around\n"));
+	if (start > ULONG_MAX - amask) {
+		DPRINTF(("start+amask would wrap around\n"));
 		goto out;
 	}
 
@@ -482,8 +482,8 @@ rman_reserve_resource_bound(struct rman *rm, u_long start, u_long end,
 			    s->r_start, end));
 			break;
 		}
-		if (s->r_start + amask < s->r_start) {
-			DPRINTF(("s->r_start (%#lx) + amask (%#lx) wrapped\n",
+		if (s->r_start > ULONG_MAX - amask) {
+			DPRINTF(("s->r_start (%#lx) + amask (%#lx) too large\n",
 			    s->r_start, amask));
 			break;
 		}
