@@ -75,7 +75,8 @@ CONF_WORLD=' '
 # Kernel config file to use
 NANO_KERNEL=GENERIC
 
-# Kernel modules to build; default is none
+# Kernel modules to install. If empty, no modules are installed.
+# Use "default" to install all built modules.
 NANO_MODULES=
 
 # Customize commands.
@@ -286,12 +287,18 @@ install_kernel ( ) (
 		kernconf=${NANO_KERNEL}
 	fi
 
+	# Install all built modules if NANO_MODULES=default,
+	# else install only listed modules (none if NANO_MODULES is empty).
+	if [ "${NANO_MODULES}" != "default" ]; then
+		modules_override_arg="MODULES_OVERRIDE='${NANO_MODULES}'"
+	fi
+
 	cd ${NANO_SRC}
 	eval "TARGET_ARCH=${NANO_ARCH} ${NANO_MAKE} installkernel \
 		DESTDIR='${NANO_WORLDDIR}' \
 		__MAKE_CONF='${NANO_MAKE_CONF_INSTALL}' \
 		${kernconfdir_arg} KERNCONF=${kernconf} \
-		MODULES_OVERRIDE='${NANO_MODULES}'"
+		${modules_override_arg}"
 	) > ${NANO_OBJ}/_.ik 2>&1
 )
 
@@ -810,6 +817,10 @@ do
 		shift
 		;;
 	-c)
+		# Make config file path available to the config file
+		# itself so that it can access additional files relative
+		# to its own location.
+		NANO_CONFIG=$2
 		. "$2"
 		shift
 		shift
