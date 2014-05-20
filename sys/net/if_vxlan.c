@@ -63,7 +63,9 @@ __FBSDID("$FreeBSD$");
 #include <netinet/in_var.h>
 #include <netinet/in_pcb.h>
 #include <netinet/ip.h>
+#include <netinet/ip6.h>
 #include <netinet/ip_var.h>
+#include <netinet6/ip6_var.h>
 #include <netinet/udp.h>
 #include <netinet/udp_var.h>
 
@@ -72,6 +74,15 @@ struct vxlan_ftable_entry;
 
 LIST_HEAD(vxlan_ftable_head, vxlan_ftable_entry);
 LIST_HEAD(vxlan_softc_head, vxlan_softc);
+
+#define VXLAN_SO_MC_MAX_GROUPS		32
+
+struct vxlan_socket_mc_info {
+	union vxlan_sockaddr		 vxlsomc_saddr;
+	union vxlan_sockaddr		 vxlsomc_gaddr;
+	int				 vxlsomc_ifidx;
+	int				 vxlsomc_users;
+};
 
 #define VXLAN_SO_VNI_HASH_SHIFT		5
 #define VXLAN_SO_VNI_HASH_SIZE		(1 << VXLAN_SO_VNI_HASH_SHIFT)
@@ -83,8 +94,8 @@ struct vxlan_socket {
 	u_int				 vxlso_refcnt;
 	union vxlan_sockaddr		 vxlso_laddr;
 	LIST_ENTRY(vxlan_socket)	 vxlso_entry;
-	/* Lookup hash from VNI to vxlan softc. */
 	struct vxlan_softc_head		 vxlso_vni_hash[VXLAN_SO_VNI_HASH_SIZE];
+	struct vxlan_socket_mc_info	 vxlso_mc[VXLAN_SO_MC_MAX_GROUPS];
 };
 
 #define VXLAN_SO_RLOCK(_vso)		rw_rlock(&(_vso)->vxlso_lock)
@@ -121,8 +132,8 @@ struct vxlan_ftable_entry {
     (vxlan_mac_hash(_sc, _mac) % VXLAN_SC_FTABLE_SIZE)
 
 struct vxlan_statistics {
+	uint32_t	ftable_nospace;
 	uint32_t	ftable_lock_upgrade;
-
 };
 
 struct vxlan_softc {
@@ -130,13 +141,13 @@ struct vxlan_softc {
 	struct vxlan_socket		*vxl_sock;
 	struct rwlock			 vxl_lock;
 	volatile u_int			 vxl_refcnt;
+	uint32_t			 vxl_vni;
 	union vxlan_sockaddr		 vxl_src_addr;
 	union vxlan_sockaddr		 vxl_dst_addr;
-	uint32_t			 vxl_vni;
 	uint32_t			 vxl_flags;
-#define VXLAN_FLAG_INITING	0x0001
-#define VXLAN_FLAG_RELEASED	0x0002
-#define VXLAN_FLAG_NOLEARN	0x0004
+#define VXLAN_FLAG_INIT		0x0001
+#define VXLAN_FLAG_TEARDOWN	0x0002
+#define VXLAN_FLAG_LEARN	0x0004
 
 	uint32_t			 vxl_last_port_hash;
 	uint16_t			 vxl_min_port;
@@ -146,7 +157,6 @@ struct vxlan_softc {
 	/* Lookup table from MAC address to forwarding entry. */
 	uint32_t			 vxl_ftable_cnt;
 	uint32_t			 vxl_ftable_max;
-	uint32_t			 vxl_ftable_nospace;
 	uint32_t			 vxl_ftable_timeout;
 	uint32_t			 vxl_ftable_hash_key;
 	struct vxlan_ftable_head	*vxl_ftable;
@@ -154,8 +164,19 @@ struct vxlan_softc {
 	/* Derived from vxl_dst_addr. */
 	struct vxlan_ftable_entry	 vxl_default_fe;
 
-	struct vxlan_statistics		 vxl_stats;
+#ifdef INET
+	struct ip_moptions		*vxl_im4o;
+#endif
+#ifdef INET6
+	struct ip6_moptions		*vxl_im6o;
+#endif
+
 	int				 vxl_unit;
+	int				 vxl_ifindex;
+	int				 vxl_vso_mc_index;
+	struct vxlan_statistics		 vxl_stats;
+	struct sysctl_oid		*vxl_sysctl_node;
+	struct sysctl_ctx_list		 vxl_sysctl_ctx;
 	struct callout			 vxl_callout;
 	uint8_t				 vxl_hwaddr[ETHER_ADDR_LEN];
 	LIST_ENTRY(vxlan_softc)		 vxl_entry;
@@ -195,7 +216,7 @@ static struct vxlan_ftable_entry *
 static int	vxlan_ftable_entry_insert(struct vxlan_softc *,
 		    struct vxlan_ftable_entry *);
 static void	vxlan_ftable_entry_destroy(struct vxlan_softc *,
-		    struct vxlan_ftable_entry *fe);
+		    struct vxlan_ftable_entry *);
 static int	vxlan_ftable_update(struct vxlan_softc *,
 		    const struct sockaddr *, const uint8_t *);
 static void	vxlan_ftable_expire(struct vxlan_softc *);
@@ -203,7 +224,7 @@ static void	vxlan_ftable_expire(struct vxlan_softc *);
 static struct vxlan_socket *
 		vxlan_socket_alloc(const union vxlan_sockaddr *);
 static void	vxlan_socket_destroy(struct vxlan_socket *);
-static int	vxlan_socket_create(struct ifnet *,
+static int	vxlan_socket_create(struct ifnet *, int,
 		    const union vxlan_sockaddr *, struct vxlan_socket **);
 static int	vxlan_socket_insert_softc(struct vxlan_socket *,
 		    struct vxlan_softc *);
@@ -213,17 +234,35 @@ static struct vxlan_softc *
 static struct vxlan_softc *
 		vxlan_socket_lookup_softc(struct vxlan_socket *, uint32_t);
 
+static struct vxlan_socket *
+		vxlan_socket_mc_lookup(const union vxlan_sockaddr *);
+static int	vxlan_socket_mc_join_group(struct vxlan_socket *,
+		    const union vxlan_sockaddr *, const union vxlan_sockaddr *,
+		    int *, union vxlan_sockaddr *);
+static int	vxlan_socket_mc_leave_group(struct vxlan_socket *,
+		    const union vxlan_sockaddr *,
+		    const union vxlan_sockaddr *, int);
+static int	vxlan_socket_mc_add_group(struct vxlan_socket *,
+		    const union vxlan_sockaddr *, const union vxlan_sockaddr *,
+		    int, int *);
+static void	vxlan_socket_mc_release_group_by_idx(struct vxlan_socket *,
+		    int);
+
+static struct vxlan_socket *
+		vxlan_socket_lookup(union vxlan_sockaddr *vxlsa);
+
 static int	vxlan_valid_init_config(struct vxlan_softc *);
 static void	vxlan_init(void *);
-static void	vxlan_stop(struct vxlan_softc *);
-static void	vxlan_release_socket(struct vxlan_softc *);
 static void	vxlan_release(struct vxlan_softc *);
+static void	vxlan_teardown(struct vxlan_softc *);
 static void	vxlan_timer(void *);
 static uint16_t vxlan_pick_source_port(struct vxlan_softc *,
 		    const struct ether_header *);
 static void	vxlan_encap_header(struct vxlan_softc *, struct mbuf *,
 		    int, uint16_t, uint16_t);
 static int	vxlan_encap4(struct vxlan_softc *,
+		    const union vxlan_sockaddr *, struct mbuf *);
+static int	vxlan_encap6(struct vxlan_softc *,
 		    const union vxlan_sockaddr *, struct mbuf *);
 static int	vxlan_transmit(struct ifnet *, struct mbuf *);
 static void	vxlan_qflush(struct ifnet *);
@@ -239,13 +278,14 @@ static int	vxlan_ctrl_set_local_addr(struct vxlan_softc *, void *);
 static int	vxlan_ctrl_set_remote_addr(struct vxlan_softc *, void *);
 static int	vxlan_ctrl_set_local_port(struct vxlan_softc *, void *);
 static int	vxlan_ctrl_set_remote_port(struct vxlan_softc *, void *);
-static int	vxlan_ctrl_flush(struct vxlan_softc *, void *);
-static int	vxlan_ctrl_ftable_timeout(struct vxlan_softc *, void *);
-static int	vxlan_ctrl_ftable_max(struct vxlan_softc *, void *);
+static int	vxlan_ctrl_set_port_range(struct vxlan_softc *, void *);
+static int	vxlan_ctrl_set_ftable_timeout(struct vxlan_softc *, void *);
+static int	vxlan_ctrl_set_ftable_max(struct vxlan_softc *, void *);
+static int	vxlan_ctrl_set_ttl(struct vxlan_softc *, void *);
+static int	vxlan_ctrl_set_learn(struct vxlan_softc *, void *);
 static int	vxlan_ctrl_ftable_entry_add(struct vxlan_softc *, void *);
 static int	vxlan_ctrl_ftable_entry_rem(struct vxlan_softc *, void *);
-static int	vxlan_ctrl_ttl(struct vxlan_softc *, void *);
-static int	vxlan_ctrl_learn(struct vxlan_softc *, void *);
+static int	vxlan_ctrl_flush(struct vxlan_softc *, void *);
 static int	vxlan_ioctl_drvspec(struct vxlan_softc *,
 		    struct ifdrv *, int);
 static int	vxlan_ioctl_ifflags(struct vxlan_softc *);
@@ -270,20 +310,15 @@ static void	vxlan_sockaddr_in_copy(union vxlan_sockaddr *,
 static int	vxlan_sockaddr_in_any(const union vxlan_sockaddr *);
 static int	vxlan_sockaddr_in_multicast(const union vxlan_sockaddr *);
 
-static int	vxlan_initing_or_running(struct vxlan_softc *);
+static int	vxlan_can_change_config(struct vxlan_softc *);
 static int	vxlan_check_vni(uint32_t);
 static int	vxlan_check_ttl(int);
 static int	vxlan_check_ftable_timeout(uint32_t);
 static int	vxlan_check_ftable_max(uint32_t);
 
+static void	vxlan_sysctl_setup(struct vxlan_softc *);
+static void	vxlan_sysctl_destroy(struct vxlan_softc *);
 static int	vxlan_tunable_int(struct vxlan_softc *, const char *, int);
-
-SYSCTL_DECL(_net_link);
-SYSCTL_NODE(_net_link, OID_AUTO, vxlan, CTLFLAG_RW, 0,
-    "Virtual eXtensible Local Area Network");
-
-static int vxlan_legacy_port = 0;
-TUNABLE_INT("net.link.vxlan.legacy_port", &vxlan_legacy_port);
 
 static const char vxlan_name[] = "vxlan";
 static MALLOC_DEFINE(M_VXLAN, vxlan_name,
@@ -291,6 +326,15 @@ static MALLOC_DEFINE(M_VXLAN, vxlan_name,
 static struct if_clone *vxlan_cloner;
 static struct mtx vxlan_list_mtx;
 static LIST_HEAD(, vxlan_socket) vxlan_socket_list;
+
+SYSCTL_DECL(_net_link);
+SYSCTL_NODE(_net_link, OID_AUTO, vxlan, CTLFLAG_RW, 0,
+    "Virtual eXtensible Local Area Network");
+
+static int vxlan_legacy_port = 0;
+TUNABLE_INT("net.link.vxlan.legacy_port", &vxlan_legacy_port);
+static int vxlan_reuse_port = 0;
+TUNABLE_INT("net.link.vxlan.reuse_port", &vxlan_reuse_port);
 
 /* Default maximum number of addresses in the forwarding table. */
 #ifndef VXLAN_FTABLE_MAX
@@ -300,6 +344,14 @@ static LIST_HEAD(, vxlan_socket) vxlan_socket_list;
 /* Timeout (in seconds) of addresses learned in the forwarding table. */
 #ifndef VXLAN_FTABLE_TIMEOUT
 #define VXLAN_FTABLE_TIMEOUT	(20 * 60)
+#endif
+
+/*
+ * Maximum timeout (in seconds) of addresses learned in the forwarding
+ * table.
+ */
+#ifndef VXLAN_FTABLE_MAX_TIMEOUT
+#define VXLAN_FTABLE_MAX_TIMEOUT	(60 * 60 * 24)
 #endif
 
 /* Number of seconds between pruning attempts of the forwarding table. */
@@ -327,48 +379,60 @@ static const struct vxlan_control vxlan_control_table[] = {
 
 	[VXLAN_CMD_SET_VNI] =
 	    {   vxlan_ctrl_set_vni,
-		sizeof(struct ifvxlancfg),
+		sizeof(struct ifvxlancmd),
 		VXLAN_CTRL_FLAG_COPYIN | VXLAN_CTRL_FLAG_SUSER,
 	    },
 
 	[VXLAN_CMD_SET_LOCAL_ADDR] =
 	    {   vxlan_ctrl_set_local_addr,
-		sizeof(struct ifvxlancfg),
+		sizeof(struct ifvxlancmd),
 		VXLAN_CTRL_FLAG_COPYIN | VXLAN_CTRL_FLAG_SUSER,
 	    },
 
 	[VXLAN_CMD_SET_REMOTE_ADDR] =
 	    {   vxlan_ctrl_set_remote_addr,
-		sizeof(struct ifvxlancfg),
+		sizeof(struct ifvxlancmd),
 		VXLAN_CTRL_FLAG_COPYIN | VXLAN_CTRL_FLAG_SUSER,
 	    },
 
 	[VXLAN_CMD_SET_LOCAL_PORT] =
 	    {   vxlan_ctrl_set_local_port,
-		sizeof(struct ifvxlancfg),
+		sizeof(struct ifvxlancmd),
 		VXLAN_CTRL_FLAG_COPYIN | VXLAN_CTRL_FLAG_SUSER,
 	    },
 
 	[VXLAN_CMD_SET_REMOTE_PORT] =
 	    {   vxlan_ctrl_set_remote_port,
-		sizeof(struct ifvxlancfg),
-		VXLAN_CTRL_FLAG_COPYIN | VXLAN_CTRL_FLAG_SUSER,
-	    },
-
-	[VXLAN_CMD_FLUSH] =
-	    {   vxlan_ctrl_flush,
 		sizeof(struct ifvxlancmd),
 		VXLAN_CTRL_FLAG_COPYIN | VXLAN_CTRL_FLAG_SUSER,
 	    },
 
-	[VXLAN_CMD_FTABLE_TIMEOUT] =
-	    {	vxlan_ctrl_ftable_timeout,
+	[VXLAN_CMD_SET_PORT_RANGE] =
+	    {   vxlan_ctrl_set_port_range,
 		sizeof(struct ifvxlancmd),
 		VXLAN_CTRL_FLAG_COPYIN | VXLAN_CTRL_FLAG_SUSER,
 	    },
 
-	[VXLAN_CMD_FTABLE_MAX] =
-	    {	vxlan_ctrl_ftable_max,
+	[VXLAN_CMD_SET_FTABLE_TIMEOUT] =
+	    {	vxlan_ctrl_set_ftable_timeout,
+		sizeof(struct ifvxlancmd),
+		VXLAN_CTRL_FLAG_COPYIN | VXLAN_CTRL_FLAG_SUSER,
+	    },
+
+	[VXLAN_CMD_SET_FTABLE_MAX] =
+	    {	vxlan_ctrl_set_ftable_max,
+		sizeof(struct ifvxlancmd),
+		VXLAN_CTRL_FLAG_COPYIN | VXLAN_CTRL_FLAG_SUSER,
+	    },
+
+	[VXLAN_CMD_SET_TTL] =
+	    {	vxlan_ctrl_set_ttl,
+		sizeof(struct ifvxlancmd),
+		VXLAN_CTRL_FLAG_COPYIN | VXLAN_CTRL_FLAG_SUSER,
+	    },
+
+	[VXLAN_CMD_SET_LEARN] =
+	    {	vxlan_ctrl_set_learn,
 		sizeof(struct ifvxlancmd),
 		VXLAN_CTRL_FLAG_COPYIN | VXLAN_CTRL_FLAG_SUSER,
 	    },
@@ -385,14 +449,8 @@ static const struct vxlan_control vxlan_control_table[] = {
 		VXLAN_CTRL_FLAG_COPYIN | VXLAN_CTRL_FLAG_SUSER,
 	    },
 
-	[VXLAN_CMD_TTL] =
-	    {	vxlan_ctrl_ttl,
-		sizeof(struct ifvxlancmd),
-		VXLAN_CTRL_FLAG_COPYIN | VXLAN_CTRL_FLAG_SUSER,
-	    },
-
-	[VXLAN_CMD_LEARN] =
-	    {	vxlan_ctrl_learn,
+	[VXLAN_CMD_FLUSH] =
+	    {   vxlan_ctrl_flush,
 		sizeof(struct ifvxlancmd),
 		VXLAN_CTRL_FLAG_COPYIN | VXLAN_CTRL_FLAG_SUSER,
 	    },
@@ -415,7 +473,6 @@ vxlan_ftable_addr_cmp(const uint8_t *a, const uint8_t *b)
 static void
 vxlan_ftable_init(struct vxlan_softc *sc)
 {
-	static const uint8_t mac[ETHER_ADDR_LEN];
 	int i;
 
 	sc->vxl_ftable = malloc(sizeof(struct vxlan_ftable_head) *
@@ -424,9 +481,6 @@ vxlan_ftable_init(struct vxlan_softc *sc)
 	for (i = 0; i < VXLAN_SC_FTABLE_SIZE; i++)
 		LIST_INIT(&sc->vxl_ftable[i]);
 	sc->vxl_ftable_hash_key = arc4random();
-
-	vxlan_ftable_entry_init(sc, &sc->vxl_default_fe, mac,
-	    &sc->vxl_dst_addr.sa, VXLAN_FE_FLAG_STATIC);
 }
 
 static void
@@ -517,7 +571,7 @@ again:
 	}
 
 	if (sc->vxl_ftable_cnt >= sc->vxl_ftable_max) {
-		sc->vxl_ftable_nospace++;
+		sc->vxl_stats.ftable_nospace++;
 		return (ENOSPC);
 	}
 
@@ -651,7 +705,7 @@ out:
 }
 
 static struct vxlan_socket *
-vxlan_socket_alloc(const union vxlan_sockaddr *vxlsa)
+vxlan_socket_alloc(const union vxlan_sockaddr *sa)
 {
 	struct vxlan_socket *vso;
 	int i;
@@ -661,7 +715,7 @@ vxlan_socket_alloc(const union vxlan_sockaddr *vxlsa)
 	refcount_init(&vso->vxlso_refcnt, 0);
 	for (i = 0; i < VXLAN_SO_VNI_HASH_SIZE; i++)
 		LIST_INIT(&vso->vxlso_vni_hash[i]);
-	vso->vxlso_laddr = *vxlsa;
+	vso->vxlso_laddr = *sa;
 
 	return (vso);
 }
@@ -671,11 +725,20 @@ vxlan_socket_destroy(struct vxlan_socket *vso)
 {
 	struct socket *so;
 	struct inpcb *inp;
+	struct vxlan_socket_mc_info *mc;
 	int i;
+
+	for (i = 0; i < VXLAN_SO_MC_MAX_GROUPS; i++) {
+		mc = &vso->vxlso_mc[i];
+		KASSERT(mc->vxlsomc_gaddr.sa.sa_family == AF_UNSPEC,
+		    ("%s: socket %p mc[%d] still has address",
+		     __func__, vso, i));
+	}
 
 	for (i = 0; i < VXLAN_SO_VNI_HASH_SIZE; i++) {
 		KASSERT(LIST_EMPTY(&vso->vxlso_vni_hash[i]),
-		    ("%s: socket %p vni_hash[%d] not empty", __func__, vso, i));
+		    ("%s: socket %p vni_hash[%d] not empty",
+		     __func__, vso, i));
 	}
 
 	so = vso->vxlso_sock;
@@ -734,57 +797,114 @@ vxlan_socket_insert(struct vxlan_socket *vso)
 }
 
 static int
-vxlan_socket_create(struct ifnet *ifp, const union vxlan_sockaddr *vxlsa,
-    struct vxlan_socket **vsop)
+vxlan_socket_init(struct vxlan_socket *vso, struct ifnet *ifp)
 {
-	union vxlan_sockaddr baddr;
-	struct vxlan_socket *vso;
-	struct thread *td;
 	struct inpcb *inp;
+	struct thread *td;
 	int error;
 
 	td = curthread;
-	*vsop = NULL;
-
-	vso = vxlan_socket_alloc(vxlsa);
-	if (vso == NULL)
-		return (ENOMEM);
 
 	error = socreate(vso->vxlso_laddr.sa.sa_family, &vso->vxlso_sock,
 	    SOCK_DGRAM, IPPROTO_UDP, td->td_ucred, td);
 	if (error) {
 		if_printf(ifp, "cannot create socket: %d\n", error);
-		goto fail;
+		return (error);
 	}
 
 	inp = sotoinpcb(vso->vxlso_sock);
-
 	/*
 	 * XXX: Use a spare field in the inpcb to obtain the vxlan socket
 	 * in the tunneling callback. We instead should be able to pass a
 	 * context to the tunneling callback.
 	 */
-	INP_WLOCK(inp);
 	MPASS(inp->inp_pspare[0] == NULL);
 	inp->inp_pspare[0] = vso;
-	INP_WUNLOCK(inp);
 
 	error = udp_set_kernel_tunneling(vso->vxlso_sock, vxlan_rcv_udp_packet);
 	if (error) {
 		if_printf(ifp, "cannot set tunneling function: %d\n", error);
-		goto fail;
+		return (error);
 	}
 
-	baddr = vso->vxlso_laddr;
-	MPASS(baddr.in4.sin_port != 0);
+	if (vxlan_reuse_port != 0) {
+		struct sockopt sopt;
+		int val = 1;
 
-	error = sobind(vso->vxlso_sock, &baddr.sa, td);
+		bzero(&sopt, sizeof(sopt));
+		sopt.sopt_dir = SOPT_SET;
+		sopt.sopt_level = IPPROTO_IP;
+		sopt.sopt_name = SO_REUSEPORT;
+		sopt.sopt_val = &val;
+		sopt.sopt_valsize = sizeof(val);
+		error = sosetopt(vso->vxlso_sock, &sopt);
+		if (error) {
+			if_printf(ifp,
+			    "cannot set REUSEADDR socket opt: %d\n", error);
+			return (error);
+		}
+	}
+
+	return (0);
+}
+
+static int
+vxlan_socket_bind(struct vxlan_socket *vso, struct ifnet *ifp)
+{
+	union vxlan_sockaddr laddr;
+	struct thread *td;
+	int error;
+
+	td = curthread;
+	laddr = vso->vxlso_laddr;
+
+	error = sobind(vso->vxlso_sock, &laddr.sa, td);
 	if (error) {
 		if (error != EADDRINUSE)
 			if_printf(ifp, "cannot bind socket: %d\n", error);
-		goto fail;
+		return (error);
 	}
 
+	return (0);
+}
+
+static int
+vxlan_socket_create(struct ifnet *ifp, int multicast,
+    const union vxlan_sockaddr *saddr, struct vxlan_socket **vsop)
+{
+	union vxlan_sockaddr laddr;
+	struct vxlan_socket *vso;
+	int error;
+
+	laddr = *saddr;
+
+	/*
+	 * If this socket will be multicast, then only the local port
+	 * must be specified when binding.
+	 */
+	if (multicast != 0) {
+		if (VXLAN_SOCKADDR_IS_IPV4(&laddr))
+			laddr.in4.sin_addr.s_addr = INADDR_ANY;
+		else
+			laddr.in6.sin6_addr = in6addr_any;
+	}
+
+	vso = vxlan_socket_alloc(&laddr);
+	if (vso == NULL)
+		return (ENOMEM);
+
+	error = vxlan_socket_init(vso, ifp);
+	if (error)
+		goto fail;
+
+	error = vxlan_socket_bind(vso, ifp);
+	if (error)
+		goto fail;
+
+	/*
+	 * There is a small window between the bind and the insert, but
+	 * let's not worry about that for now.
+	 */
 	vxlan_socket_insert(vso);
 	*vsop = vso;
 
@@ -792,7 +912,268 @@ vxlan_socket_create(struct ifnet *ifp, const union vxlan_sockaddr *vxlsa,
 
 fail:
 	vxlan_socket_destroy(vso);
+
 	return (error);
+}
+
+static struct vxlan_socket *
+vxlan_socket_mc_lookup(const union vxlan_sockaddr *vxlsa)
+{
+	struct vxlan_socket *vso;
+	union vxlan_sockaddr laddr;
+
+	laddr = *vxlsa;
+
+	if (VXLAN_SOCKADDR_IS_IPV4(&laddr))
+		laddr.in4.sin_addr.s_addr = INADDR_ANY;
+	else
+		laddr.in6.sin6_addr = in6addr_any;
+
+	vso = vxlan_socket_lookup(&laddr);
+
+	return (vso);
+}
+
+static int
+vxlan_sockaddr_mc_info_match(const struct vxlan_socket_mc_info *mc,
+    const union vxlan_sockaddr *group, const union vxlan_sockaddr *local,
+    int ifidx)
+{
+
+	if (!vxlan_sockaddr_in_any(local) &&
+	    !vxlan_sockaddr_in_equal(&mc->vxlsomc_saddr, &local->sa))
+		return (0);
+	if (!vxlan_sockaddr_in_equal(&mc->vxlsomc_gaddr, &group->sa))
+		return (0);
+	if (ifidx != 0 && ifidx != mc->vxlsomc_ifidx)
+		return (0);
+
+	return (1);
+}
+
+static int
+vxlan_socket_mc_join_group(struct vxlan_socket *vso,
+    const union vxlan_sockaddr *group, const union vxlan_sockaddr *local,
+    int *ifidx, union vxlan_sockaddr *source)
+{
+	struct sockopt sopt;
+	int error;
+
+	*source = *local;
+
+	if (VXLAN_SOCKADDR_IS_IPV4(group)) {
+		struct ip_mreq mreq;
+
+		mreq.imr_multiaddr = group->in4.sin_addr;
+		mreq.imr_interface = local->in4.sin_addr;
+
+		bzero(&sopt, sizeof(sopt));
+		sopt.sopt_dir = SOPT_SET;
+		sopt.sopt_level = IPPROTO_IP;
+		sopt.sopt_name = IP_ADD_MEMBERSHIP;
+		sopt.sopt_val = &mreq;
+		sopt.sopt_valsize = sizeof(mreq);
+		error = sosetopt(vso->vxlso_sock, &sopt);
+		if (error)
+			return (error);
+
+#ifdef notyet
+		struct ip_mreqn mreqn;
+		bzero(&mreqn, sizeof(mreqn));
+
+		bzero(&sopt, sizeof(sopt));
+		sopt.sopt_dir = SOPT_GET;
+		sopt.sopt_level = IPPROTO_IP;
+		sopt.sopt_name = IP_MULTICAST_IF;
+		sopt.sopt_val = &mreqn;
+		sopt.sopt_valsize = sizeof(mreqn);
+		error = sogetopt(vso->vxlso_sock, &sopt);
+		if (error)
+			return (error);
+
+		MPASS(source->in4.sin_addr.s_addr == INADDR_ANY ||
+		      source->in4.sin_addr.s_addr == mreqn.imr_address.s_addr);
+		source->in4.sin_addr = mreqn.imr_address;
+		*ifidx = mreqn.imr_ifindex;
+#else
+		source->in4.sin_addr = local->in4.sin_addr;
+		*ifidx = 0;
+#endif
+
+	} else if (VXLAN_SOCKADDR_IS_IPV6(group)) {
+		struct ipv6_mreq mreq;
+
+		mreq.ipv6mr_multiaddr = group->in6.sin6_addr;
+		mreq.ipv6mr_interface = *ifidx;
+
+		bzero(&sopt, sizeof(sopt));
+		sopt.sopt_dir = SOPT_SET;
+		sopt.sopt_level = IPPROTO_IPV6;
+		sopt.sopt_name = IPV6_JOIN_GROUP;
+		sopt.sopt_val = &mreq;
+		sopt.sopt_valsize = sizeof(mreq);
+		error = sosetopt(vso->vxlso_sock, &sopt);
+		if (error)
+			return (error);
+
+#ifdef notyet
+		int idx;
+		bzero(&sopt, sizeof(sopt));
+		sopt.sopt_dir = SOPT_GET;
+		sopt.sopt_level = IPPROTO_IPV6;
+		sopt.sopt_name = IPV6_MULTICAST_IF;
+		sopt.sopt_val = &idx;
+		sopt.sopt_valsize = sizeof(int);
+		error = sogetopt(vso->vxlso_sock, &sopt);
+		if (error)
+			return (error);
+
+		MPASS(*ifidx == 0 || *ifidx == idx);
+		*ifidx = idx;
+#else
+		*ifidx = 0;
+#endif
+
+	} else
+		error = EAFNOSUPPORT;
+
+	return (error);
+}
+
+static int
+vxlan_socket_mc_leave_group(struct vxlan_socket *vso,
+    const union vxlan_sockaddr *group, const union vxlan_sockaddr *source,
+    int ifidx)
+{
+	struct sockopt sopt;
+	int error;
+
+	bzero(&sopt, sizeof(sopt));
+	sopt.sopt_dir = SOPT_SET;
+
+	if (VXLAN_SOCKADDR_IS_IPV4(group)) {
+		struct ip_mreq mreq;
+
+		mreq.imr_multiaddr = group->in4.sin_addr;
+		mreq.imr_interface = source->in4.sin_addr;
+
+		sopt.sopt_level = IPPROTO_IP;
+		sopt.sopt_name = IP_DROP_MEMBERSHIP;
+		sopt.sopt_val = &mreq;
+		sopt.sopt_valsize = sizeof(mreq);
+		error = sosetopt(vso->vxlso_sock, &sopt);
+
+	} else if (VXLAN_SOCKADDR_IS_IPV6(group)) {
+		struct ipv6_mreq mreq;
+
+		mreq.ipv6mr_multiaddr = group->in6.sin6_addr;
+		mreq.ipv6mr_interface = ifidx;
+
+		sopt.sopt_level = IPPROTO_IPV6;
+		sopt.sopt_name = IPV6_LEAVE_GROUP;
+		sopt.sopt_val = &mreq;
+		sopt.sopt_valsize = sizeof(mreq);
+		error = sosetopt(vso->vxlso_sock, &sopt);
+
+	} else
+		error = EAFNOSUPPORT;
+
+	return (error);
+}
+
+static int
+vxlan_socket_mc_add_group(struct vxlan_socket *vso,
+    const union vxlan_sockaddr *group, const union vxlan_sockaddr *local,
+    int ifidx, int *idx)
+{
+	union vxlan_sockaddr source;
+	struct vxlan_socket_mc_info *mc;
+	int i, empty, error;
+
+	/*
+	 * Within a socket, the same multicast group may be used by multiple
+	 * interfaces, each with a different network identifier. A socket may
+	 * only join each multicast group once, so keep track of the users
+	 * here.
+	 */
+
+	VXLAN_SO_WLOCK(vso);
+	for (empty = 0, i = 0; i < VXLAN_SO_MC_MAX_GROUPS; i++) {
+		mc = &vso->vxlso_mc[i];
+
+		if (mc->vxlsomc_gaddr.sa.sa_family == AF_UNSPEC) {
+			empty++;
+			continue;
+		}
+
+		if (vxlan_sockaddr_mc_info_match(mc, group, local, ifidx))
+			goto out;
+	}
+	VXLAN_SO_WUNLOCK(vso);
+
+	if (empty == 0)
+		return (ENOSPC);
+
+	error = vxlan_socket_mc_join_group(vso, group, local, &ifidx, &source);
+	if (error)
+		return (error);
+
+	VXLAN_SO_WLOCK(vso);
+	for (i = 0; i < VXLAN_SO_MC_MAX_GROUPS; i++) {
+		mc = &vso->vxlso_mc[i];
+
+		if (mc->vxlsomc_gaddr.sa.sa_family == AF_UNSPEC) {
+			vxlan_sockaddr_copy(&mc->vxlsomc_gaddr, &group->sa);
+			vxlan_sockaddr_copy(&mc->vxlsomc_saddr, &source.sa);
+			mc->vxlsomc_ifidx = ifidx;
+			goto out;
+		}
+	}
+	VXLAN_SO_WUNLOCK(vso);
+
+	error = vxlan_socket_mc_leave_group(vso, group, &source, ifidx);
+	MPASS(error == 0);
+
+	return (ENOSPC);
+
+out:
+	mc->vxlsomc_users++;
+	VXLAN_SO_WUNLOCK(vso);
+
+	*idx = i;
+
+	return (0);
+}
+
+static void
+vxlan_socket_mc_release_group_by_idx(struct vxlan_socket *vso, int idx)
+{
+	union vxlan_sockaddr group, source;
+	struct vxlan_socket_mc_info *mc;
+	int ifidx, leave, error;
+
+	KASSERT(idx >= 0 && idx < VXLAN_SO_MC_MAX_GROUPS,
+	    ("%s: vso %p idx %d out of bounds", __func__, vso, idx));
+
+	leave = 0;
+	mc = &vso->vxlso_mc[idx];
+
+	VXLAN_SO_WLOCK(vso);
+	mc->vxlsomc_users--;
+	if (mc->vxlsomc_users == 0) {
+		group = mc->vxlsomc_gaddr;
+		source = mc->vxlsomc_saddr;
+		ifidx = mc->vxlsomc_ifidx;
+		bzero(mc, sizeof(*mc));
+		leave = 1;
+	}
+	VXLAN_SO_WUNLOCK(vso);
+
+	if (leave != 0) {
+		error = vxlan_socket_mc_leave_group(vso, &group, &source,
+		    ifidx);
+		MPASS(error == 0);
+	}
 }
 
 static struct vxlan_softc *
@@ -861,31 +1242,116 @@ vxlan_socket_remove_softc(struct vxlan_socket *vso, struct vxlan_softc *sc)
 	vxlan_release(sc);
 }
 
-static struct vxlan_socket *
+/*
+ * Initialize an multicast options structure that is sufficiently populated
+ * for use in the respective IP output routine. This structure is typically
+ * stored in the socket, but our sockets may be shared among many interfaces.
+ *
+ * BMV: TODO We should convert our interface index into its pointer.
+ */
+static int
+vxlan_setup_multicast_options(struct vxlan_softc *sc)
+{
+	const union vxlan_sockaddr *group;
+	int error;
+
+	group = &sc->vxl_dst_addr;
+
+	if (VXLAN_SOCKADDR_IS_IPV4(group)) {
+		sc->vxl_im4o = malloc(sizeof(struct ip_moptions), M_VXLAN,
+		    M_ZERO | M_NOWAIT);
+		if (sc->vxl_im4o != NULL) {
+			sc->vxl_im4o->imo_multicast_ttl = sc->vxl_ttl;
+			sc->vxl_im4o->imo_multicast_vif = -1;
+			error = 0;
+		} else
+			error = ENOMEM;
+
+	} else if (VXLAN_SOCKADDR_IS_IPV6(group)) {
+		sc->vxl_im6o = malloc(sizeof(struct ip6_moptions), M_VXLAN,
+		    M_ZERO | M_NOWAIT);
+		if (sc->vxl_im6o != NULL) {
+			sc->vxl_im6o->im6o_multicast_hlim = sc->vxl_ttl;
+			error = 0;
+		} else
+			error = ENOMEM;
+
+	} else
+		error = EAFNOSUPPORT;
+
+	return (error);
+}
+
+static int
 vxlan_setup_socket(struct vxlan_softc *sc)
 {
 	struct vxlan_socket *vso;
 	struct ifnet *ifp;
-	union vxlan_sockaddr *saddr;
-	int error;
+	union vxlan_sockaddr *saddr, *daddr;
+	int ifidx, multicast, error;
 
-	vso = NULL;
 	ifp = sc->vxl_ifp;
 	saddr = &sc->vxl_src_addr;
+	daddr = &sc->vxl_dst_addr;
+	ifidx = sc->vxl_ifindex;
+	multicast = vxlan_sockaddr_in_multicast(daddr);
 
-	error = vxlan_socket_create(ifp, saddr, &vso);
-	if (error == 0)
-		return (vso);
+	sc->vxl_vso_mc_index = -1;
 
-	/* Assume the bind failed. Try to use an existing socket. */
-	vso = vxlan_socket_lookup(saddr);
-	if (vso != NULL)
-		return (vso);
+	/*
+	 * Try to create the socket. If that fails, attempt to use an
+	 * existing socket that is already bound.
+	 */
+	error = vxlan_socket_create(ifp, multicast, saddr, &vso);
+	if (error != 0) {
+		if (multicast != 0)
+			vso = vxlan_socket_mc_lookup(saddr);
+		else
+			vso = vxlan_socket_lookup(saddr);
+		if (vso == NULL)
+			goto out;
+	}
 
-	if_printf(ifp, "%s: cannot create socket, and no existing "
-	    "socket found\n", __func__);
+	if (multicast != 0) {
+		error = vxlan_socket_mc_add_group(vso, daddr, saddr, ifidx,
+		    &sc->vxl_vso_mc_index);
+		if (error)
+			goto out;
+	}
 
-	return (NULL);
+	sc->vxl_sock = vso;
+	error = vxlan_socket_insert_softc(vso, sc);
+	if (error) {
+		sc->vxl_sock = NULL;
+		goto out;
+	}
+
+	if (multicast != 0) {
+		error = vxlan_setup_multicast_options(sc);
+		if (error)
+			goto out;
+	}
+
+	return (0);
+
+out:
+	if (vso != NULL) {
+		if (sc->vxl_sock != NULL) {
+			vxlan_socket_remove_softc(vso, sc);
+			sc->vxl_sock = NULL;
+		}
+		if (sc->vxl_vso_mc_index != -1) {
+			vxlan_socket_mc_release_group_by_idx(vso,
+			    sc->vxl_vso_mc_index);
+			sc->vxl_vso_mc_index = -1;
+		}
+		vxlan_socket_release(vso);
+	}
+
+	if_printf(ifp, "%s: cannot create socket (%d), and no existing "
+	    "socket found\n", __func__, error);
+
+	return (error);
 }
 
 static int
@@ -903,7 +1369,13 @@ vxlan_valid_init_config(struct vxlan_softc *sc)
 		goto fail;
 	}
 
-	if (!vxlan_sockaddr_in_any(&sc->vxl_src_addr)) {
+	if (vxlan_sockaddr_in_multicast(&sc->vxl_dst_addr) == 0 &&
+	    sc->vxl_ifindex != 0) {
+		reason = "can only specify the interface with a group address";
+		goto fail;
+	}
+
+	if (vxlan_sockaddr_in_any(&sc->vxl_src_addr) == 0) {
 		if (VXLAN_SOCKADDR_IS_IPV4(&sc->vxl_src_addr) ^
 		    VXLAN_SOCKADDR_IS_IPV4(&sc->vxl_dst_addr)) {
 			reason = "source and destination address must be "
@@ -933,12 +1405,11 @@ fail:
 static void
 vxlan_init(void *xsc)
 {
+	static const uint8_t mac[ETHER_ADDR_LEN];
 	struct vxlan_softc *sc;
 	struct ifnet *ifp;
-	struct vxlan_socket *vso;
 
 	sc = xsc;
-	vso = NULL;
 	ifp = sc->vxl_ifp;
 
 	VXLAN_WLOCK(sc);
@@ -946,66 +1417,31 @@ vxlan_init(void *xsc)
 		VXLAN_WUNLOCK(sc);
 		return;
 	}
-	sc->vxl_flags |= VXLAN_FLAG_INITING;
+	sc->vxl_flags |= VXLAN_FLAG_INIT;
 	VXLAN_WUNLOCK(sc);
 
 	if (vxlan_valid_init_config(sc) != 0)
 		goto out;
 
-	vso = vxlan_setup_socket(sc);
-	if (vso == NULL)
+	if (vxlan_setup_socket(sc) != 0)
 		goto out;
 
-	sc->vxl_sock = vso;
-
-	if (vxlan_socket_insert_softc(vso, sc) != 0) {
-		sc->vxl_sock = NULL;
-		goto out;
-	}
+	vxlan_ftable_entry_init(sc, &sc->vxl_default_fe, mac,
+	    &sc->vxl_dst_addr.sa, VXLAN_FE_FLAG_STATIC);
 
 	VXLAN_WLOCK(sc);
 	ifp->if_drv_flags |= IFF_DRV_RUNNING;
 	callout_reset(&sc->vxl_callout, vxlan_ftable_prune_period * hz,
 	    vxlan_timer, sc);
-	sc->vxl_flags &= ~VXLAN_FLAG_INITING;
+	sc->vxl_flags &= ~VXLAN_FLAG_INIT;
 	VXLAN_WUNLOCK(sc);
 
 	return;
 
 out:
-	if (vso != NULL)
-		vxlan_socket_release(vso);
-
 	VXLAN_WLOCK(sc);
-	sc->vxl_flags &= ~VXLAN_FLAG_INITING;
+	sc->vxl_flags &= ~VXLAN_FLAG_INIT;
 	VXLAN_WUNLOCK(sc);
-}
-
-static void
-vxlan_stop(struct vxlan_softc *sc)
-{
-	struct ifnet *ifp;
-
-	ifp = sc->vxl_ifp;
-
-	VXLAN_WLOCK(sc);
-	ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
-	callout_stop(&sc->vxl_callout);
-	VXLAN_WUNLOCK(sc);
-}
-
-static void
-vxlan_release_socket(struct vxlan_softc *sc)
-{
-	struct vxlan_socket *vso;
-
-	VXLAN_WLOCK(sc);
-	vso = sc->vxl_sock;
-	sc->vxl_sock = NULL;
-	VXLAN_WUNLOCK(sc);
-
-	if (vso != NULL)
-		vxlan_socket_release(vso);
 }
 
 static void
@@ -1014,22 +1450,59 @@ vxlan_release(struct vxlan_softc *sc)
 
 	if (VXLAN_RELEASE(sc) != 0) {
 		VXLAN_WLOCK(sc);
-		sc->vxl_flags |= VXLAN_FLAG_RELEASED;
 		wakeup(sc);
 		VXLAN_WUNLOCK(sc);
 	}
 }
 
 static void
-vxlan_drain(struct vxlan_softc *sc)
+vxlan_teardown(struct vxlan_softc *sc)
 {
+	struct ifnet *ifp;
+	struct vxlan_socket *vso;
+	union vxlan_sockaddr *daddr;
 
-	if (sc->vxl_sock != NULL)
-		vxlan_socket_remove_softc(sc->vxl_sock, sc);
+	ifp = sc->vxl_ifp;
+	daddr = &sc->vxl_dst_addr;
+
+	VXLAN_WLOCK(sc);
+	sc->vxl_flags |= VXLAN_FLAG_TEARDOWN;
+	ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
+	vso = sc->vxl_sock;
+	sc->vxl_sock = NULL;
+	callout_stop(&sc->vxl_callout);
+	VXLAN_WUNLOCK(sc);
+
+	if (vso != NULL) {
+		if (sc->vxl_vso_mc_index != -1) {
+			vxlan_socket_mc_release_group_by_idx(vso,
+			    sc->vxl_vso_mc_index);
+			sc->vxl_vso_mc_index = -1;
+		}
+		vxlan_socket_remove_softc(vso, sc);
+	}
 
 	VXLAN_WLOCK(sc);
 	while (sc->vxl_refcnt != 0)
 		rw_sleep(sc, &sc->vxl_lock, 0, "vxldrn", hz);
+	VXLAN_WUNLOCK(sc);
+
+	callout_drain(&sc->vxl_callout);
+
+	if (sc->vxl_im4o != NULL) {
+		free(sc->vxl_im4o, M_VXLAN);
+		sc->vxl_im4o = NULL;
+	}
+	if (sc->vxl_im6o != NULL) {
+		free(sc->vxl_im6o, M_VXLAN);
+		sc->vxl_im6o = NULL;
+	}
+
+	if (vso != NULL)
+		vxlan_socket_release(vso);
+
+	VXLAN_WLOCK(sc);
+	sc->vxl_flags &= ~VXLAN_FLAG_TEARDOWN;
 	VXLAN_WUNLOCK(sc);
 }
 
@@ -1052,15 +1525,13 @@ vxlan_ioctl_ifflags(struct vxlan_softc *sc)
 
 	ifp = sc->vxl_ifp;
 
-	if ((ifp->if_flags & IFF_UP) == 0) {
-		if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
-			vxlan_stop(sc);
-			callout_drain(&sc->vxl_callout);
-			vxlan_drain(sc);
-			vxlan_release_socket(sc);
-		}
-	} else if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0)
-		vxlan_init(sc);
+	if (ifp->if_flags & IFF_UP) {
+		if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0)
+			vxlan_init(sc);
+	} else {
+		if (ifp->if_drv_flags & IFF_DRV_RUNNING)
+			vxlan_teardown(sc);
+	}
 
 	return (0);
 }
@@ -1082,7 +1553,7 @@ vxlan_ctrl_get_config(struct vxlan_softc *sc, void *arg)
 	cfg->vxlc_ftable_cnt = sc->vxl_ftable_cnt;
 	cfg->vxlc_ftable_max = sc->vxl_ftable_max;
 	cfg->vxlc_ftable_timeout = sc->vxl_ftable_timeout;
-	cfg->vxlc_nolearn = (sc->vxl_flags & VXLAN_FLAG_NOLEARN) != 0;
+	cfg->vxlc_learn = (sc->vxl_flags & VXLAN_FLAG_LEARN) != 0;
 	cfg->vxlc_ttl = sc->vxl_ttl;
 	VXLAN_RUNLOCK(sc);
 
@@ -1097,11 +1568,13 @@ vxlan_ctrl_set_vni(struct vxlan_softc *sc, void *arg)
 
 	cmd = arg;
 
-	if (vxlan_check_vni(cmd->vxlcmd_vni) != 0)
+	if (vxlan_check_vni(cmd->vxlcmd_vni) != 0) {
+		printf("%s: %d\n", __func__, cmd->vxlcmd_vni);
 		return (EINVAL);
+	}
 
 	VXLAN_WLOCK(sc);
-	if (!vxlan_initing_or_running(sc)) {
+	if (vxlan_can_change_config(sc)) {
 		sc->vxl_vni = cmd->vxlcmd_vni;
 		error = 0;
 	} else
@@ -1127,7 +1600,7 @@ vxlan_ctrl_set_local_addr(struct vxlan_softc *sc, void *arg)
 		return (EINVAL);
 
 	VXLAN_WLOCK(sc);
-	if (!vxlan_initing_or_running(sc)) {
+	if (vxlan_can_change_config(sc)) {
 		vxlan_sockaddr_in_copy(&sc->vxl_src_addr, &vxlsa->sa);
 		error = 0;
 	} else
@@ -1147,12 +1620,11 @@ vxlan_ctrl_set_remote_addr(struct vxlan_softc *sc, void *arg)
 	cmd = arg;
 	vxlsa = &cmd->vxlcmd_sa;
 
-	if (!VXLAN_SOCKADDR_IS_IPV4(vxlsa) &&
-	    !VXLAN_SOCKADDR_IS_IPV6(vxlsa))
+	if (!VXLAN_SOCKADDR_IS_IPV4(vxlsa) && !VXLAN_SOCKADDR_IS_IPV6(vxlsa))
 		return (EINVAL);
 
 	VXLAN_WLOCK(sc);
-	if (!vxlan_initing_or_running(sc)) {
+	if (vxlan_can_change_config(sc)) {
 		vxlan_sockaddr_in_copy(&sc->vxl_dst_addr, &vxlsa->sa);
 		error = 0;
 	} else
@@ -1174,7 +1646,7 @@ vxlan_ctrl_set_local_port(struct vxlan_softc *sc, void *arg)
 		return (EINVAL);
 
 	VXLAN_WLOCK(sc);
-	if (!vxlan_initing_or_running(sc)) {
+	if (vxlan_can_change_config(sc)) {
 		sc->vxl_src_addr.in4.sin_port = htons(cmd->vxlcmd_port);
 		error = 0;
 	} else
@@ -1196,7 +1668,7 @@ vxlan_ctrl_set_remote_port(struct vxlan_softc *sc, void *arg)
 		return (EINVAL);
 
 	VXLAN_WLOCK(sc);
-	if (!vxlan_initing_or_running(sc)) {
+	if (vxlan_can_change_config(sc)) {
 		sc->vxl_dst_addr.in4.sin_port = htons(cmd->vxlcmd_port);
 		error = 0;
 	} else
@@ -1207,23 +1679,33 @@ vxlan_ctrl_set_remote_port(struct vxlan_softc *sc, void *arg)
 }
 
 static int
-vxlan_ctrl_flush(struct vxlan_softc *sc, void *arg)
+vxlan_ctrl_set_port_range(struct vxlan_softc *sc, void *arg)
 {
 	struct ifvxlancmd *cmd;
-	int all;
+	uint16_t min, max;
+	int error;
 
 	cmd = arg;
-	all = cmd->vxlcmd_flags & VXLAN_CMD_FLAG_FLUSH_ALL;
+	min = cmd->vxlcmd_port_min;
+	max = cmd->vxlcmd_port_max;
+
+	if (max < min)
+		return (EINVAL);
 
 	VXLAN_WLOCK(sc);
-	vxlan_ftable_flush(sc, all);
+	if (vxlan_can_change_config(sc)) {
+		sc->vxl_min_port = min;
+		sc->vxl_max_port = max;
+		error = 0;
+	} else
+		error = EBUSY;
 	VXLAN_WUNLOCK(sc);
 
-	return (0);
+	return (error);
 }
 
 static int
-vxlan_ctrl_ftable_timeout(struct vxlan_softc *sc, void *arg)
+vxlan_ctrl_set_ftable_timeout(struct vxlan_softc *sc, void *arg)
 {
 	struct ifvxlancmd *cmd;
 	int error;
@@ -1242,7 +1724,7 @@ vxlan_ctrl_ftable_timeout(struct vxlan_softc *sc, void *arg)
 }
 
 static int
-vxlan_ctrl_ftable_max(struct vxlan_softc *sc, void *arg)
+vxlan_ctrl_set_ftable_max(struct vxlan_softc *sc, void *arg)
 {
 	struct ifvxlancmd *cmd;
 	int error;
@@ -1261,6 +1743,42 @@ vxlan_ctrl_ftable_max(struct vxlan_softc *sc, void *arg)
 }
 
 static int
+vxlan_ctrl_set_ttl(struct vxlan_softc *sc, void *arg)
+{
+	struct ifvxlancmd *cmd;
+	int error;
+
+	cmd = arg;
+
+	VXLAN_WLOCK(sc);
+	if (vxlan_check_ttl(cmd->vxlcmd_ttl) == 0) {
+		sc->vxl_ttl = cmd->vxlcmd_ttl;
+		error = 0;
+	} else
+		error = EINVAL;
+	VXLAN_WUNLOCK(sc);
+
+	return (error);
+}
+
+static int
+vxlan_ctrl_set_learn(struct vxlan_softc *sc, void *arg)
+{
+	struct ifvxlancmd *cmd;
+
+	cmd = arg;
+
+	VXLAN_WLOCK(sc);
+	if (cmd->vxlcmd_flags & VXLAN_CMD_FLAG_LEARN)
+		sc->vxl_flags |= VXLAN_FLAG_LEARN;
+	else
+		sc->vxl_flags &= ~VXLAN_FLAG_LEARN;
+	VXLAN_WUNLOCK(sc);
+
+	return (0);
+}
+
+static int
 vxlan_ctrl_ftable_entry_add(struct vxlan_softc *sc, void *arg)
 {
 	union vxlan_sockaddr vxlsa;
@@ -1271,20 +1789,15 @@ vxlan_ctrl_ftable_entry_add(struct vxlan_softc *sc, void *arg)
 	cmd = arg;
 	vxlsa = cmd->vxlcmd_sa;
 
-	if (!VXLAN_SOCKADDR_IS_IPV4(&vxlsa) &&
-	    !VXLAN_SOCKADDR_IS_IPV6(&vxlsa))
+	if (!VXLAN_SOCKADDR_IS_IPV4(&vxlsa) && !VXLAN_SOCKADDR_IS_IPV6(&vxlsa))
 		return (EINVAL);
-	if (vxlan_sockaddr_in_any(&vxlsa) ||
-	    vxlan_sockaddr_in_multicast(&vxlsa))
+	if (vxlan_sockaddr_in_any(&vxlsa) != 0)
 		return (EINVAL);
-
-	/*
-	 * BMV: For now, force the address family of this forwarding entry to
-	 * match our default destination. We can support both IPv4 and IPv6
-	 * later.
-	 */
+	if (vxlan_sockaddr_in_multicast(&vxlsa) != 0)
+		return (EINVAL);
+	/* BMV: We could support both IPv4 and IPv6 later. */
 	if (vxlsa.sa.sa_family != sc->vxl_dst_addr.sa.sa_family)
-		return (ENOTSUP);
+		return (EAFNOSUPPORT);
 
 	fe = vxlan_ftable_entry_alloc();
 	if (fe == NULL)
@@ -1328,36 +1841,16 @@ vxlan_ctrl_ftable_entry_rem(struct vxlan_softc *sc, void *arg)
 }
 
 static int
-vxlan_ctrl_ttl(struct vxlan_softc *sc, void *arg)
+vxlan_ctrl_flush(struct vxlan_softc *sc, void *arg)
 {
 	struct ifvxlancmd *cmd;
-	int error;
+	int all;
 
 	cmd = arg;
+	all = cmd->vxlcmd_flags & VXLAN_CMD_FLAG_FLUSH_ALL;
 
 	VXLAN_WLOCK(sc);
-	if (vxlan_check_ttl(cmd->vxlcmd_ttl) == 0) {
-		sc->vxl_ttl = cmd->vxlcmd_ttl;
-		error = 0;
-	} else
-		error = EINVAL;
-	VXLAN_WUNLOCK(sc);
-
-	return (error);
-}
-
-static int
-vxlan_ctrl_learn(struct vxlan_softc *sc, void *arg)
-{
-	struct ifvxlancmd *cmd;
-
-	cmd = arg;
-
-	VXLAN_WLOCK(sc);
-	if (cmd->vxlcmd_flags & VXLAN_CMD_FLAG_LEARN)
-		sc->vxl_flags &= ~VXLAN_FLAG_NOLEARN;
-	else
-		sc->vxl_flags |= VXLAN_FLAG_NOLEARN;
+	vxlan_ftable_flush(sc, all);
 	VXLAN_WUNLOCK(sc);
 
 	return (0);
@@ -1531,7 +2024,57 @@ vxlan_encap4(struct vxlan_softc *sc, const union vxlan_sockaddr *fvxlsa,
 	mcast = (m->m_flags & (M_MCAST | M_BCAST)) ? 1 : 0;
 	m->m_flags &= ~(M_MCAST | M_BCAST);
 
-	error = ip_output(m, NULL, NULL, 0, NULL, NULL);
+	error = ip_output(m, NULL, NULL, 0, sc->vxl_im4o, NULL);
+	if (error == 0) {
+		ifp->if_opackets++;
+		ifp->if_obytes += len;
+		ifp->if_omcasts += mcast;
+	} else
+		ifp->if_oerrors++;
+
+	return (error);
+}
+
+static int
+vxlan_encap6(struct vxlan_softc *sc, const union vxlan_sockaddr *fvxlsa,
+    struct mbuf *m)
+{
+	struct ifnet *ifp;
+	struct ip6_hdr *ip6;
+	const struct in6_addr *srcaddr, *dstaddr;
+	uint16_t srcport, dstport;
+	int len, mcast, error;
+
+	ifp = sc->vxl_ifp;
+	srcaddr = &sc->vxl_src_addr.in6.sin6_addr;
+	srcport = vxlan_pick_source_port(sc, mtod(m, struct ether_header *));
+	dstaddr = &fvxlsa->in6.sin6_addr;
+	dstport = fvxlsa->in6.sin6_port;
+
+	M_PREPEND(m, sizeof(struct ip6_hdr) + sizeof(struct vxlanudphdr),
+	    M_NOWAIT);
+	if (m == NULL) {
+		ifp->if_oerrors++;
+		return (ENOBUFS);
+	}
+
+	len = m->m_pkthdr.len;
+
+	ip6 = mtod(m, struct ip6_hdr *);
+	ip6->ip6_flow = 0;		/* BMV: Keep in forwarding entry? */
+	ip6->ip6_vfc = IPV6_VERSION;
+	ip6->ip6_plen = 0;
+	ip6->ip6_nxt = IPPROTO_UDP;
+	ip6->ip6_hlim = sc->vxl_ttl;
+	ip6->ip6_src = *srcaddr;
+	ip6->ip6_dst = *dstaddr;
+
+	vxlan_encap_header(sc, m, sizeof(struct ip6_hdr), srcport, dstport);
+
+	mcast = (m->m_flags & (M_MCAST | M_BCAST)) ? 1 : 0;
+	m->m_flags &= ~(M_MCAST | M_BCAST);
+
+	error = ip6_output(m, NULL, NULL, 0, sc->vxl_im6o, NULL, NULL);
 	if (error == 0) {
 		ifp->if_opackets++;
 		ifp->if_obytes += len;
@@ -1577,7 +2120,11 @@ vxlan_transmit(struct ifnet *ifp, struct mbuf *m)
 	VXLAN_ACQUIRE(sc);
 	VXLAN_RUNLOCK(sc);
 
-	error = vxlan_encap4(sc, &vxlsa, m);
+	if (VXLAN_SOCKADDR_IS_IPV4(&vxlsa))
+		error = vxlan_encap4(sc, &vxlsa, m);
+	else
+		error = vxlan_encap6(sc, &vxlsa, m);
+
 	vxlan_release(sc);
 
 	return (error);
@@ -1648,12 +2195,16 @@ vxlan_input(struct vxlan_socket *vso, uint32_t vni, struct mbuf **m0,
 	m = *m0;
 	eh = mtod(m, struct ether_header *);
 
-	if (ifp == m->m_pkthdr.rcvif) {
+	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0) {
+		error = ENETDOWN;
+		goto out;
+	} else if (ifp == m->m_pkthdr.rcvif) {
+		/* XXX Does not catch more complex loops. */
 		error = EDEADLK;
 		goto out;
 	}
 
-	if ((sc->vxl_flags & VXLAN_FLAG_NOLEARN) == 0)
+	if (sc->vxl_flags & VXLAN_FLAG_LEARN)
 		vxlan_ftable_update(sc, sa, eh->ether_shost);
 
 	m_clrprotoflags(m);
@@ -1671,6 +2222,8 @@ out:
 static void
 vxlan_set_default_config(struct vxlan_softc *sc)
 {
+
+	sc->vxl_flags |= VXLAN_FLAG_LEARN;
 
 	sc->vxl_vni = VXLAN_VNI_MAX;
 	sc->vxl_ttl = IPDEFTTL;
@@ -1697,19 +2250,18 @@ vxlan_set_user_config(struct vxlan_softc *sc, struct ifvxlanparam *vxlp)
 #ifndef INET
 	if (vxlp->vxlp_with & (VXLAN_PARAM_WITH_LOCAL_ADDR4 |
 	    VXLAN_PARAM_WITH_REMOTE_ADDR4))
-		return (ENOTSUP);
+		return (EAFNOSUPPORT);
 #endif
 
 #ifndef INET6
 	if (vxlp->vxlp_with & (VXLAN_PARAM_WITH_LOCAL_ADDR6 |
 	    VXLAN_PARAM_WITH_REMOTE_ADDR6))
-		return (ENOTSUP);
+		return (EAFNOSUPPORT);
 #endif
 
 	if (vxlp->vxlp_with & VXLAN_PARAM_WITH_VNI) {
-		if (vxlan_check_vni(vxlp->vxlp_vni) != 0)
-			return (EINVAL);
-		sc->vxl_vni = vxlp->vxlp_vni;
+		if (vxlan_check_vni(vxlp->vxlp_vni) == 0)
+			sc->vxl_vni = vxlp->vxlp_vni;
 	}
 
 	if (vxlp->vxlp_with & VXLAN_PARAM_WITH_LOCAL_ADDR4) {
@@ -1744,6 +2296,10 @@ vxlan_set_user_config(struct vxlan_softc *sc, struct ifvxlanparam *vxlp)
 		}
 	}
 
+	if (vxlp->vxlp_with & VXLAN_PARAM_WITH_INTERFACE_IDX) {
+		sc->vxl_ifindex = vxlp->vxlp_ifindex;
+	}
+
 	if (vxlp->vxlp_with & VXLAN_PARAM_WITH_FTABLE_TIMEOUT) {
 		if (vxlan_check_ftable_timeout(vxlp->vxlp_ftable_timeout) == 0)
 			sc->vxl_ftable_timeout = vxlp->vxlp_ftable_timeout;
@@ -1759,9 +2315,10 @@ vxlan_set_user_config(struct vxlan_softc *sc, struct ifvxlanparam *vxlp)
 			sc->vxl_ttl = vxlp->vxlp_ttl;
 	}
 
-	if (vxlp->vxlp_with & VXLAN_PARAM_WITH_NOLEARN &&
-	    vxlp->vxlp_nolearn != 0)
-		sc->vxl_flags |= VXLAN_FLAG_NOLEARN;
+	if (vxlp->vxlp_with & VXLAN_PARAM_WITH_LEARN) {
+		if (vxlp->vxlp_learn == 0)
+			sc->vxl_flags &= ~VXLAN_FLAG_LEARN;
+	}
 
 	return (0);
 }
@@ -1800,6 +2357,8 @@ vxlan_clone_create(struct if_clone *ifc, int unit, caddr_t params)
 	sc->vxl_last_port_hash = arc4random();
 	vxlan_ftable_init(sc);
 
+	vxlan_sysctl_setup(sc);
+
 	ifp->if_softc = sc;
 	if_initname(ifp, vxlan_name, unit);
 	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
@@ -1828,12 +2387,8 @@ vxlan_clone_destroy(struct ifnet *ifp)
 
 	sc = ifp->if_softc;
 
-	vxlan_stop(sc);
+	vxlan_teardown(sc);
 
-	callout_drain(&sc->vxl_callout);
-	vxlan_drain(sc);
-
-	vxlan_release_socket(sc);
 	vxlan_ftable_flush(sc, 1);
 
 	ether_ifdetach(ifp);
@@ -1841,6 +2396,7 @@ vxlan_clone_destroy(struct ifnet *ifp)
 
 	vxlan_ftable_fini(sc);
 
+	vxlan_sysctl_destroy(sc);
 	rw_destroy(&sc->vxl_lock);
 	free(sc, M_VXLAN);
 }
@@ -1909,7 +2465,7 @@ vxlan_sockaddr_copy(union vxlan_sockaddr *vxladdr,
 
 	if (sa->sa_family == AF_INET)
 		vxladdr->in4 = *satosin(sa);
-	else
+	else if (sa->sa_family == AF_INET6)
 		vxladdr->in6 = *satosin6(sa);
 }
 
@@ -1919,15 +2475,14 @@ vxlan_sockaddr_in_equal(const union vxlan_sockaddr *vxladdr,
 {
 	int equal;
 
-	MPASS(sa->sa_family == AF_INET || sa->sa_family == AF_INET6);
-
 	if (sa->sa_family == AF_INET) {
 		struct in_addr *in4 = &satosin(sa)->sin_addr;
 		equal = in4->s_addr == vxladdr->in4.sin_addr.s_addr;
-	} else {
+	} else if (sa->sa_family == AF_INET6) {
 		struct in6_addr *in6 = &satosin6(sa)->sin6_addr;
 		equal = IN6_ARE_ADDR_EQUAL(in6, &vxladdr->in6.sin6_addr);
-	}
+	} else
+		equal = 0;
 
 	return (equal);
 }
@@ -1943,7 +2498,7 @@ vxlan_sockaddr_in_copy(union vxlan_sockaddr *vxladdr,
 		struct in_addr *in4 = &satosin(sa)->sin_addr;
 		vxladdr->in4.sin_family = AF_INET;
 		vxladdr->in4.sin_addr = *in4;
-	} else {
+	} else if (sa->sa_family == AF_INET6) {
 		struct in6_addr *in6 = &satosin6(sa)->sin6_addr;
 		vxladdr->in6.sin6_family = AF_INET6;
 		vxladdr->in6.sin6_addr = *in6;
@@ -1965,7 +2520,7 @@ vxlan_sockaddr_in_any(const union vxlan_sockaddr *vxladdr)
 		const struct in6_addr *in6 = &satosin6(sa)->sin6_addr;
 		any = IN6_IS_ADDR_UNSPECIFIED(in6);
 	} else
-		any = 1;
+		any = -1;
 
 	return (any);
 }
@@ -1980,29 +2535,29 @@ vxlan_sockaddr_in_multicast(const union vxlan_sockaddr *vxladdr)
 
 	if (sa->sa_family == AF_INET) {
 		const struct in_addr *in4 = &satosin(sa)->sin_addr;
-		mc = IN_MULTICAST(in4->s_addr);
+		mc = IN_MULTICAST(ntohl(in4->s_addr));
 	} else if (sa->sa_family == AF_INET6) {
 		const struct in6_addr *in6 = &satosin6(sa)->sin6_addr;
 		mc = IN6_IS_ADDR_MULTICAST(in6);
 	} else
-		mc = 1;
+		mc = -1;
 
 	return (mc);
 }
 
 static int
-vxlan_initing_or_running(struct vxlan_softc *sc)
+vxlan_can_change_config(struct vxlan_softc *sc)
 {
 	struct ifnet *ifp;
 
 	ifp = sc->vxl_ifp;
-	VXLAN_LOCK_WASSERT(sc);
+	VXLAN_LOCK_ASSERT(sc);
 
 	if (ifp->if_drv_flags & IFF_DRV_RUNNING ||
-	    sc->vxl_flags & VXLAN_FLAG_INITING)
-		return (1);
+	    sc->vxl_flags & (VXLAN_FLAG_INIT | VXLAN_FLAG_TEARDOWN))
+		return (0);
 
-	return (0);
+	return (1);
 }
 
 static int
@@ -2016,22 +2571,68 @@ static int
 vxlan_check_ttl(int ttl)
 {
 
-	return (ttl <= MAXTTL ? 0 : EINVAL);
+	return (ttl > MAXTTL);
 }
 
 static int
 vxlan_check_ftable_timeout(uint32_t timeout)
 {
 
-	/* BMV Fix me. */
-	return (0);
+	return (timeout > VXLAN_FTABLE_MAX_TIMEOUT);
 }
 
 static int
 vxlan_check_ftable_max(uint32_t max)
 {
 
-	return (max <= VXLAN_FTABLE_MAX);
+	return (max > VXLAN_FTABLE_MAX);
+}
+
+static void
+vxlan_sysctl_setup(struct vxlan_softc *sc)
+{
+	struct sysctl_ctx_list *ctx;
+	struct sysctl_oid *node;
+	struct vxlan_statistics *stats;
+	char namebuf[8];
+
+	ctx = &sc->vxl_sysctl_ctx;
+	stats = &sc->vxl_stats;
+	snprintf(namebuf, sizeof(namebuf), "%d", sc->vxl_unit);
+
+	sysctl_ctx_init(ctx);
+	sc->vxl_sysctl_node = SYSCTL_ADD_NODE(ctx,
+	    SYSCTL_STATIC_CHILDREN(_net_link_vxlan), OID_AUTO, namebuf,
+	    CTLFLAG_RD, NULL, "");
+
+	node = SYSCTL_ADD_NODE(ctx, SYSCTL_CHILDREN(sc->vxl_sysctl_node),
+	    OID_AUTO, "ftable", CTLFLAG_RD, NULL, "");
+	SYSCTL_ADD_UINT(ctx, SYSCTL_CHILDREN(node), OID_AUTO,
+	    "count", CTLFLAG_RD, &sc->vxl_ftable_cnt, 0,
+	    "Number of entries in fowarding table");
+	SYSCTL_ADD_UINT(ctx, SYSCTL_CHILDREN(node), OID_AUTO,
+	    "max", CTLFLAG_RD, &sc->vxl_ftable_max, 0,
+	    "Maximum number of entries allowed in fowarding table");
+	SYSCTL_ADD_UINT(ctx, SYSCTL_CHILDREN(node), OID_AUTO,
+	    "timeout", CTLFLAG_RD, &sc->vxl_ftable_timeout, 0,
+	    "Number of seconds between prunes of the forwarding table");
+
+	node = SYSCTL_ADD_NODE(ctx, SYSCTL_CHILDREN(sc->vxl_sysctl_node),
+	    OID_AUTO, "stats", CTLFLAG_RD, NULL, "");
+	SYSCTL_ADD_UINT(ctx, SYSCTL_CHILDREN(node), OID_AUTO,
+	    "ftable_nospace", CTLFLAG_RD, &stats->ftable_nospace, 0,
+	    "Fowarding table reached maximum entries");
+	SYSCTL_ADD_UINT(ctx, SYSCTL_CHILDREN(node), OID_AUTO,
+	    "ftable_lock_upgrade", CTLFLAG_RD, &stats->ftable_lock_upgrade, 0,
+	    "Forwarding table update required lock upgrade");
+}
+
+static void
+vxlan_sysctl_destroy(struct vxlan_softc *sc)
+{
+
+	sysctl_ctx_free(&sc->vxl_sysctl_ctx);
+	sc->vxl_sysctl_node = NULL;
 }
 
 static int

@@ -63,9 +63,10 @@ struct ifvxlanparam {
 #define VXLAN_PARAM_WITH_REMOTE_PORT	0x0040
 #define VXLAN_PARAM_WITH_PORT_RANGE	0x0080
 #define VXLAN_PARAM_WITH_FTABLE_TIMEOUT	0x0100
-#define VXLAN_PARAM_WITH_FTABLE_MAX	0x0200
-#define VXLAN_PARAM_WITH_TTL		0x0400
-#define VXLAN_PARAM_WITH_NOLEARN	0x0800
+#define VXLAN_PARAM_WITH_INTERFACE_IDX	0x0200
+#define VXLAN_PARAM_WITH_FTABLE_MAX	0x0400
+#define VXLAN_PARAM_WITH_TTL		0x0800
+#define VXLAN_PARAM_WITH_LEARN		0x1000
 
 	uint32_t		vxlp_vni;
 	struct in_addr		vxlp_local_in4;
@@ -76,10 +77,11 @@ struct ifvxlanparam {
 	uint16_t		vxlp_remote_port;
 	uint16_t		vxlp_min_port;
 	uint16_t		vxlp_max_port;
+	uint32_t		vxlp_ifindex;
 	uint32_t		vxlp_ftable_timeout;
 	uint32_t		vxlp_ftable_max;
 	uint8_t			vxlp_ttl;
-	uint8_t			vxlp_nolearn;
+	uint8_t			vxlp_learn;
 };
 
 union vxlan_sockaddr {
@@ -98,13 +100,14 @@ union vxlan_sockaddr {
 #define VXLAN_CMD_SET_REMOTE_ADDR	4
 #define VXLAN_CMD_SET_LOCAL_PORT	5
 #define VXLAN_CMD_SET_REMOTE_PORT	6
-#define VXLAN_CMD_FLUSH			7
-#define VXLAN_CMD_FTABLE_TIMEOUT	8
-#define VXLAN_CMD_FTABLE_MAX		9
-#define VXLAN_CMD_FTABLE_ENTRY_ADD	10
-#define VXLAN_CMD_FTABLE_ENTRY_REM	11
-#define VXLAN_CMD_TTL			12
-#define VXLAN_CMD_LEARN			13
+#define VXLAN_CMD_SET_PORT_RANGE	7
+#define VXLAN_CMD_SET_FTABLE_TIMEOUT	8
+#define VXLAN_CMD_SET_FTABLE_MAX	9
+#define VXLAN_CMD_SET_TTL		10	
+#define VXLAN_CMD_SET_LEARN		11
+#define VXLAN_CMD_FTABLE_ENTRY_ADD	12
+#define VXLAN_CMD_FTABLE_ENTRY_REM	13
+#define VXLAN_CMD_FLUSH			14
 
 /* BMV Reconcile this with ifvxlanparam? */
 struct ifvxlancfg {
@@ -115,7 +118,7 @@ struct ifvxlancfg {
 	uint32_t		vxlc_ftable_max;
 	uint32_t		vxlc_ftable_nospace;
 	uint32_t		vxlc_ftable_timeout;
-	uint8_t			vxlc_nolearn;
+	uint8_t			vxlc_learn;
 	uint8_t			vxlc_ttl;
 };
 
@@ -128,6 +131,8 @@ struct ifvxlancmd {
 	uint32_t		vxlcmd_ftable_timeout;
 	uint32_t		vxlcmd_ftable_max;
 	uint16_t		vxlcmd_port;
+	uint16_t		vxlcmd_port_min;
+	uint16_t		vxlcmd_port_max;
 	uint8_t			vxlcmd_mac[ETHER_ADDR_LEN];
 	uint8_t			vxlcmd_ttl;
 	union vxlan_sockaddr	vxlcmd_sa;
