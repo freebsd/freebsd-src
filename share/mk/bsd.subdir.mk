@@ -47,15 +47,15 @@ _SUBDIR: .USE .MAKE
 .if defined(SUBDIR) && !empty(SUBDIR) && !defined(NO_SUBDIR)
 	@${_+_}set -e; for entry in ${SUBDIR:N.WAIT}; do \
 		if test -d ${.CURDIR}/$${entry}.${MACHINE_ARCH}; then \
-			${ECHODIR} "===> ${DIRPRFX}$${entry}.${MACHINE_ARCH} (${.TARGET:realinstall=install})"; \
+			${ECHODIR} "===> ${DIRPRFX}$${entry}.${MACHINE_ARCH} (${.TARGET:S,realinstall,install,:S,^_sub.,,})"; \
 			edir=$${entry}.${MACHINE_ARCH}; \
 			cd ${.CURDIR}/$${edir}; \
 		else \
-			${ECHODIR} "===> ${DIRPRFX}$$entry (${.TARGET:realinstall=install})"; \
+			${ECHODIR} "===> ${DIRPRFX}$$entry (${.TARGET:S,realinstall,install,:S,^_sub.,,})"; \
 			edir=$${entry}; \
 			cd ${.CURDIR}/$${edir}; \
 		fi; \
-		${MAKE} ${.TARGET:realinstall=install} \
+		${MAKE} ${.TARGET:S,realinstall,install,:S,^_sub.,,} \
 		    DIRPRFX=${DIRPRFX}$$edir/; \
 	done
 .endif
@@ -97,7 +97,8 @@ ${__target}_subdir_${__dir}: .MAKE
 .endfor
 ${__target}: ${__subdir_targets}
 .else
-${__target}: _SUBDIR
+${__target}: _sub.${__target}
+_sub.${__target}: _SUBDIR
 .endif
 .endfor
 
@@ -105,11 +106,14 @@ ${__target}: _SUBDIR
 .for __stage in build install
 ${__stage}${__target}:
 .if make(${__stage}${__target})
-${__stage}${__target}: _SUBDIR
+${__stage}${__target}: _sub.${__stage}${__target}
+_sub.${__stage}${__target}: _SUBDIR
 .endif
 .endfor
+.if !target(${__target})
 ${__target}: .MAKE
 	${_+_}set -e; cd ${.CURDIR}; ${MAKE} build${__target}; ${MAKE} install${__target}
+.endif
 .endfor
 
 .if !target(install)
