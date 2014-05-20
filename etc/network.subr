@@ -184,7 +184,7 @@ ifconfig_up()
 			# backward compatibility: inet6 keyword
 			case "${ifconfig_args}" in
 			:*|[0-9a-fA-F]*:*)
-				warn "\$ifconfig_$1_ipv6 needs " \
+				warn "\$ifconfig_$1_ipv6 needs leading" \
 				    "\"inet6\" keyword for an IPv6 address."
 				ifconfig_args="inet6 ${ifconfig_args}"
 			;;
@@ -1110,7 +1110,7 @@ ifalias_af_common()
 			;;
 		inet:alias:"":*)
 			_aliasn="$_aliasn inet $ifconfig_args"
-			warn "\$ifconfig_${_if}_alias${alias} needs " \
+			warn "\$${alias} needs leading" \
 			    "\"inet\" keyword for an IPv4 address."
 		esac
 	done
@@ -1128,9 +1128,8 @@ ifalias_af_common()
 			;;
 			alias:*)
 				_aliasn="${_aliasn} inet6 ${ifconfig_args}"
-				warn "\$ipv6_ifconfig_${_if}_alias${alias} " \
-				    "is obsolete.  Use ifconfig_$1_aliasN " \
-				    "instead."
+				warn "\$${alias} is obsolete. " \
+				    "Use ifconfig_$1_aliasN instead."
 			;;
 			esac
 		done
