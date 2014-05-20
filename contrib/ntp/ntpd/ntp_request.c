@@ -1902,7 +1902,6 @@ mon_getlist_0(
 	    printf("wants monitor 0 list\n");
 #endif
 	if (!mon_enabled) {
-		req_ack(srcadr, inter, inpkt, INFO_ERR_NODATA);
 		return;
 	}
 	im = (struct info_monitor *)prepare_pkt(srcadr, inter, inpkt,
@@ -1947,7 +1946,6 @@ mon_getlist_1(
 	extern int mon_enabled;
 
 	if (!mon_enabled) {
-		req_ack(srcadr, inter, inpkt, INFO_ERR_NODATA);
 		return;
 	}
 	im = (struct info_monitor_1 *)prepare_pkt(srcadr, inter, inpkt,
