@@ -423,8 +423,6 @@ rsu_detach(device_t self)
 	struct ifnet *ifp = sc->sc_ifp;
 	struct ieee80211com *ic = ifp->if_l2com;
 
-	if (!device_is_attached(self))
-		return (0);
 	rsu_stop(ifp, 1);
 	usbd_transfer_unsetup(sc->sc_xfer, RSU_N_TRANSFER);
 	ieee80211_ifdetach(ic);
@@ -454,7 +452,7 @@ rsu_do_request(struct rsu_softc *sc, struct usb_device_request *req,
 	while (ntries--) {
 		err = usbd_do_request_flags(sc->sc_udev, &sc->sc_mtx,
 		    req, data, 0, NULL, 250 /* ms */);
-		if (err == 0 || !device_is_attached(sc->sc_dev))
+		if (err == 0 || err == USB_ERR_NOT_CONFIGURED)
 			break;
 		DPRINTFN(1, "Control request failed, %s (retrying)\n",
 		    usbd_errstr(err));
