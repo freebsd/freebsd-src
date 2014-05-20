@@ -34,6 +34,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/pcpu.h>
 #include <sys/systm.h>
+#include <sys/proc.h>
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
@@ -571,20 +572,48 @@ vie_init(struct vie *vie)
 	vie->index_register = VM_REG_LAST;
 }
 
+static void
+ptp_release(void **cookie)
+{
+	if (*cookie != NULL) {
+		vm_gpa_release(*cookie);
+		*cookie = NULL;
+	}
+}
+
+static void *
+ptp_hold(struct vm *vm, vm_paddr_t ptpphys, size_t len, void **cookie)
+{
+	void *ptr;
+
+	ptp_release(cookie);
+	ptr = vm_gpa_hold(vm, ptpphys, len, VM_PROT_RW, cookie);
+	return (ptr);
+}
+
 static int
 gla2gpa(struct vm *vm, uint64_t gla, uint64_t ptpphys, uint64_t *gpa,
-    enum vie_paging_mode paging_mode, int cpl)
+    enum vie_paging_mode paging_mode, int cpl, int prot)
 {
-	int nlevels, ptpshift, ptpindex, usermode;
+	int nlevels, ptpshift, ptpindex, retval, usermode, writable;
+	u_int retries;
 	uint64_t *ptpbase, pte, pgsize;
 	uint32_t *ptpbase32, pte32;
 	void *cookie;
 
 	usermode = (cpl == 3 ? 1 : 0);
+	writable = prot & VM_PROT_WRITE;
+	cookie = NULL;
+	retval = -1;
+	retries = 0;
+restart:
+	ptp_release(&cookie);
+	if (retries++ > 0)
+		maybe_yield();
 
 	if (paging_mode == PAGING_MODE_FLAT) {
 		*gpa = gla;
-		return (0);
+		goto done;
 	}
 
 	if (paging_mode == PAGING_MODE_32) {
@@ -593,8 +622,7 @@ gla2gpa(struct vm *vm, uint64_t gla, uint64_t ptpphys, uint64_t *gpa,
 			/* Zero out the lower 12 bits. */
 			ptpphys &= ~0xfff;
 
-			ptpbase32 = vm_gpa_hold(vm, ptpphys, PAGE_SIZE,
-						VM_PROT_READ, &cookie);
+			ptpbase32 = ptp_hold(vm, ptpphys, PAGE_SIZE, &cookie);
 
 			if (ptpbase32 == NULL)
 				goto error;
@@ -605,13 +633,28 @@ gla2gpa(struct vm *vm, uint64_t gla, uint64_t ptpphys, uint64_t *gpa,
 
 			pte32 = ptpbase32[ptpindex];
 
-			vm_gpa_release(cookie);
-
 			if ((pte32 & PG_V) == 0)
 				goto error;
 
 			if (usermode && (pte32 & PG_U) == 0)
 				goto error;
+
+			if (writable && (pte32 & PG_RW) == 0)
+				goto error;
+
+			/*
+			 * Emulate the x86 MMU's management of the accessed
+			 * and dirty flags. While the accessed flag is set
+			 * at every level of the page table, the dirty flag
+			 * is only set at the last level providing the guest
+			 * physical address.
+			 */
+			if ((pte32 & PG_A) == 0) {
+				if (atomic_cmpset_32(&ptpbase32[ptpindex],
+				    pte32, pte32 | PG_A) == 0) {
+					goto restart;
+				}
+			}
 
 			/* XXX must be ignored if CR4.PSE=0 */
 			if (nlevels > 0 && (pte32 & PG_PS) != 0)
@@ -620,26 +663,31 @@ gla2gpa(struct vm *vm, uint64_t gla, uint64_t ptpphys, uint64_t *gpa,
 			ptpphys = pte32;
 		}
 
+		/* Set the dirty bit in the page table entry if necessary */
+		if (writable && (pte32 & PG_M) == 0) {
+			if (atomic_cmpset_32(&ptpbase32[ptpindex],
+			    pte32, pte32 | PG_M) == 0) {
+				goto restart;
+			}
+		}
+
 		/* Zero out the lower 'ptpshift' bits */
 		pte32 >>= ptpshift; pte32 <<= ptpshift;
 		*gpa = pte32 | (gla & (pgsize - 1));
-		return (0);
+		goto done;
 	}
 
 	if (paging_mode == PAGING_MODE_PAE) {
 		/* Zero out the lower 5 bits and the upper 32 bits */
 		ptpphys &= 0xffffffe0UL;
 
-		ptpbase = vm_gpa_hold(vm, ptpphys, sizeof(*ptpbase) * 4,
-				      VM_PROT_READ, &cookie);
+		ptpbase = ptp_hold(vm, ptpphys, sizeof(*ptpbase) * 4, &cookie);
 		if (ptpbase == NULL)
 			goto error;
 
 		ptpindex = (gla >> 30) & 0x3;
 
 		pte = ptpbase[ptpindex];
-
-		vm_gpa_release(cookie);
 
 		if ((pte & PG_V) == 0)
 			goto error;
@@ -653,8 +701,7 @@ gla2gpa(struct vm *vm, uint64_t gla, uint64_t ptpphys, uint64_t *gpa,
 		/* Zero out the lower 12 bits and the upper 12 bits */
 		ptpphys >>= 12; ptpphys <<= 24; ptpphys >>= 12;
 
-		ptpbase = vm_gpa_hold(vm, ptpphys, PAGE_SIZE, VM_PROT_READ,
-				      &cookie);
+		ptpbase = ptp_hold(vm, ptpphys, PAGE_SIZE, &cookie);
 		if (ptpbase == NULL)
 			goto error;
 
@@ -664,13 +711,22 @@ gla2gpa(struct vm *vm, uint64_t gla, uint64_t ptpphys, uint64_t *gpa,
 
 		pte = ptpbase[ptpindex];
 
-		vm_gpa_release(cookie);
-
 		if ((pte & PG_V) == 0)
 			goto error;
 
 		if (usermode && (pte & PG_U) == 0)
 			goto error;
+
+		if (writable && (pte & PG_RW) == 0)
+			goto error;
+
+		/* Set the accessed bit in the page table entry */
+		if ((pte & PG_A) == 0) {
+			if (atomic_cmpset_64(&ptpbase[ptpindex],
+			    pte, pte | PG_A) == 0) {
+				goto restart;
+			}
+		}
 
 		if (nlevels > 0 && (pte & PG_PS) != 0) {
 			if (pgsize > 1 * GB)
@@ -682,13 +738,20 @@ gla2gpa(struct vm *vm, uint64_t gla, uint64_t ptpphys, uint64_t *gpa,
 		ptpphys = pte;
 	}
 
+	/* Set the dirty bit in the page table entry if necessary */
+	if (writable && (pte & PG_M) == 0) {
+		if (atomic_cmpset_64(&ptpbase[ptpindex], pte, pte | PG_M) == 0)
+			goto restart;
+	}
+
 	/* Zero out the lower 'ptpshift' bits and the upper 12 bits */
 	pte >>= ptpshift; pte <<= (ptpshift + 12); pte >>= 12;
 	*gpa = pte | (gla & (pgsize - 1));
-	return (0);
-
+done:
+	retval = 0;
 error:
-	return (-1);
+	ptp_release(&cookie);
+	return (retval);
 }
 
 int
@@ -710,7 +773,7 @@ vmm_fetch_instruction(struct vm *vm, int cpuid, uint64_t rip, int inst_length,
 
 	/* Copy the instruction into 'vie' */
 	while (vie->num_valid < inst_length) {
-		err = gla2gpa(vm, rip, cr3, &gpa, paging_mode, cpl);
+		err = gla2gpa(vm, rip, cr3, &gpa, paging_mode, cpl, prot);
 		if (err)
 			break;
 
