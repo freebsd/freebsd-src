@@ -78,6 +78,7 @@
 #define	SOTG_TIMER_HIGH_SET 0x38C
 #define	SOTG_TIMER_HIGH_CLR 0x38E
 #define	SOTG_TIMER_START_TMR (1U << 15)
+#define	SOTG_MEMORY_REG 0x33c
 
 /* Peripheral controller specific registers */
 
@@ -188,10 +189,10 @@
 #define	SOTG_PORTSC1_PED (1 << 2)
 #define	SOTG_PORTSC1_ECSC (1 << 1)
 #define	SOTG_PORTSC1_ECCS (1 << 0)
-#define	SOTG_DATA_ADDR(x) (0x400 + (512 * (x)))
-#define	SOTG_ASYNC_PDT(x) (0x400 + (60 * 1024) + ((x) * 32))
-#define	SOTG_INTR_PDT(x) (0x400 + (61 * 1024) + ((x) * 32))
-#define	SOTG_ISOC_PDT(x) (0x400 + (62 * 1024) + ((x) * 32))
+#define	SOTG_DATA_ADDR(x) (0x1000 + (512 * (x)))
+#define	SOTG_ASYNC_PDT(x) (0xC00 + ((x) * 32))
+#define	SOTG_INTR_PDT(x) (0x800 + ((x) * 32))
+#define	SOTG_ISOC_PDT(x) (0x400 + ((x) * 32))
 #define	SOTG_HC_MEMORY_ADDR(x) (((x) - 0x400) >> 3)
 #define	SOTG_SW_RESET 0x30C
 #define	SOTG_SW_RESET_HC (1 << 1)
@@ -210,6 +211,7 @@
 #define	SOTG_USBCMD_LHCR (1 << 7)
 #define	SOTG_USBCMD_HCRESET (1 << 1)
 #define	SOTG_USBCMD_RS (1 << 0)
+#define	SOTG_HCSCRATCH 0x308
 #define	SOTG_HCINTERRUPT 0x310
 #define	SOTG_HCINTERRUPT_OTG_IRQ (1 << 10)
 #define	SOTG_HCINTERRUPT_ISO_IRQ (1 << 9)
