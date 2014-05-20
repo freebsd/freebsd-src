@@ -271,6 +271,7 @@ static void		urtwn_stop_locked(struct ifnet *);
 static void		urtwn_abort_xfers(struct urtwn_softc *);
 static int		urtwn_raw_xmit(struct ieee80211_node *, struct mbuf *,
 			    const struct ieee80211_bpf_params *);
+static void		urtwn_ms_delay(struct urtwn_softc *);
 
 /* Aliases. */
 #define	urtwn_bb_write	urtwn_write_4
@@ -1060,7 +1061,7 @@ urtwn_fw_cmd(struct urtwn_softc *sc, uint8_t id, const void *buf, int len)
 	for (ntries = 0; ntries < 100; ntries++) {
 		if (!(urtwn_read_1(sc, R92C_HMETFR) & (1 << sc->fwcur)))
 			break;
-		DELAY(1);
+		urtwn_ms_delay(sc);
 	}
 	if (ntries == 100) {
 		device_printf(sc->sc_dev,
@@ -1120,16 +1121,16 @@ urtwn_rf_read(struct urtwn_softc *sc, int chain, uint8_t addr)
 
 	urtwn_bb_write(sc, R92C_HSSI_PARAM2(0),
 	    reg[0] & ~R92C_HSSI_PARAM2_READ_EDGE);
-	DELAY(1000);
+	urtwn_ms_delay(sc);
 
 	urtwn_bb_write(sc, R92C_HSSI_PARAM2(chain),
 	    RW(reg[chain], R92C_HSSI_PARAM2_READ_ADDR, addr) |
 	    R92C_HSSI_PARAM2_READ_EDGE);
-	DELAY(1000);
+	urtwn_ms_delay(sc);
 
 	urtwn_bb_write(sc, R92C_HSSI_PARAM2(0),
 	    reg[0] | R92C_HSSI_PARAM2_READ_EDGE);
-	DELAY(1000);
+	urtwn_ms_delay(sc);
 
 	if (urtwn_bb_read(sc, R92C_HSSI_PARAM1(chain)) & R92C_HSSI_PARAM1_PI)
 		val = urtwn_bb_read(sc, R92C_HSPI_READBACK(chain));
@@ -1152,7 +1153,7 @@ urtwn_llt_write(struct urtwn_softc *sc, uint32_t addr, uint32_t data)
 		if (MS(urtwn_read_4(sc, R92C_LLT_INIT), R92C_LLT_INIT_OP) ==
 		    R92C_LLT_INIT_OP_NO_ACTIVE)
 			return (0);
-		DELAY(5);
+		urtwn_ms_delay(sc);
 	}
 	return (ETIMEDOUT);
 }
@@ -1172,7 +1173,7 @@ urtwn_efuse_read_1(struct urtwn_softc *sc, uint16_t addr)
 		reg = urtwn_read_4(sc, R92C_EFUSE_CTRL);
 		if (reg & R92C_EFUSE_CTRL_VALID)
 			return (MS(reg, R92C_EFUSE_CTRL_DATA));
-		DELAY(5);
+		urtwn_ms_delay(sc);
 	}
 	device_printf(sc->sc_dev, 
 	    "could not read efuse byte at address 0x%x\n", addr);
@@ -2099,7 +2100,7 @@ urtwn_r92c_power_on(struct urtwn_softc *sc)
 	for (ntries = 0; ntries < 1000; ntries++) {
 		if (urtwn_read_1(sc, R92C_APS_FSMCO) & R92C_APS_FSMCO_PFM_ALDN)
 			break;
-		DELAY(5);
+		urtwn_ms_delay(sc);
 	}
 	if (ntries == 1000) {
 		device_printf(sc->sc_dev,
@@ -2111,13 +2112,13 @@ urtwn_r92c_power_on(struct urtwn_softc *sc)
 	urtwn_write_1(sc, R92C_RSV_CTRL, 0);
 	/* Move SPS into PWM mode. */
 	urtwn_write_1(sc, R92C_SPS0_CTRL, 0x2b);
-	DELAY(100);
+	urtwn_ms_delay(sc);
 
 	reg = urtwn_read_1(sc, R92C_LDOV12D_CTRL);
 	if (!(reg & R92C_LDOV12D_CTRL_LDV12_EN)) {
 		urtwn_write_1(sc, R92C_LDOV12D_CTRL,
 		    reg | R92C_LDOV12D_CTRL_LDV12_EN);
-		DELAY(100);
+		urtwn_ms_delay(sc);
 		urtwn_write_1(sc, R92C_SYS_ISO_CTRL,
 		    urtwn_read_1(sc, R92C_SYS_ISO_CTRL) &
 		    ~R92C_SYS_ISO_CTRL_MD2PP);
@@ -2130,7 +2131,7 @@ urtwn_r92c_power_on(struct urtwn_softc *sc)
 		if (!(urtwn_read_2(sc, R92C_APS_FSMCO) &
 		    R92C_APS_FSMCO_APFM_ONMAC))
 			break;
-		DELAY(5);
+		urtwn_ms_delay(sc);
 	}
 	if (ntries == 1000) {
 		device_printf(sc->sc_dev,
@@ -2154,7 +2155,7 @@ urtwn_r92c_power_on(struct urtwn_softc *sc)
 		if (!(urtwn_read_1(sc, R92C_APSD_CTRL) &
 		    R92C_APSD_CTRL_OFF_STATUS))
 			break;
-		DELAY(5);
+		urtwn_ms_delay(sc);
 	}
 	if (ntries == 200) {
 		device_printf(sc->sc_dev,
@@ -2186,7 +2187,7 @@ urtwn_r88e_power_on(struct urtwn_softc *sc)
 		val = urtwn_read_1(sc, 0x6) & 0x2;
 		if (val == 0x2)
 			break;
-		DELAY(10);
+		urtwn_ms_delay(sc);
 	}
 	if (ntries == 5000) {
 		device_printf(sc->sc_dev,
@@ -2211,7 +2212,7 @@ urtwn_r88e_power_on(struct urtwn_softc *sc)
 	for (ntries = 0; ntries < 5000; ntries++) {
 		if (!(urtwn_read_1(sc, 0x5) & 0x1))
 			break;
-		DELAY(10);
+		urtwn_ms_delay(sc);
 	}
 	if (ntries == 5000)
 		return (ETIMEDOUT);
@@ -2275,7 +2276,7 @@ urtwn_fw_reset(struct urtwn_softc *sc)
 		reg = urtwn_read_2(sc, R92C_SYS_FUNC_EN);
 		if (!(reg & R92C_SYS_FUNC_EN_CPUEN))
 			return;
-		DELAY(50);
+		urtwn_ms_delay(sc);
 	}
 	/* Force 8051 reset. */
 	urtwn_write_2(sc, R92C_SYS_FUNC_EN, reg & ~R92C_SYS_FUNC_EN_CPUEN);
@@ -2409,7 +2410,7 @@ urtwn_load_firmware(struct urtwn_softc *sc)
 	for (ntries = 0; ntries < 1000; ntries++) {
 		if (urtwn_read_4(sc, R92C_MCUFWDL) & R92C_MCUFWDL_CHKSUM_RPT)
 			break;
-		DELAY(5);
+		urtwn_ms_delay(sc);
 	}
 	if (ntries == 1000) {
 		device_printf(sc->sc_dev,
@@ -2427,7 +2428,7 @@ urtwn_load_firmware(struct urtwn_softc *sc)
 	for (ntries = 0; ntries < 1000; ntries++) {
 		if (urtwn_read_4(sc, R92C_MCUFWDL) & R92C_MCUFWDL_WINTINI_RDY)
 			break;
-		DELAY(5);
+		urtwn_ms_delay(sc);
 	}
 	if (ntries == 1000) {
 		device_printf(sc->sc_dev,
@@ -2646,7 +2647,7 @@ urtwn_bb_init(struct urtwn_softc *sc)
 	/* Write BB initialization values. */
 	for (i = 0; i < prog->count; i++) {
 		urtwn_bb_write(sc, prog->regs[i], prog->vals[i]);
-		DELAY(1);
+		urtwn_ms_delay(sc);
 	}
 
 	if (sc->chip & URTWN_CHIP_92C_1T2R) {
@@ -2692,14 +2693,14 @@ urtwn_bb_init(struct urtwn_softc *sc)
 	for (i = 0; i < prog->agccount; i++) {
 		urtwn_bb_write(sc, R92C_OFDM0_AGCRSSITABLE,
 		    prog->agcvals[i]);
-		DELAY(1);
+		urtwn_ms_delay(sc);
 	}
 
 	if (sc->chip & URTWN_CHIP_88E) {
 		urtwn_bb_write(sc, R92C_OFDM0_AGCCORE1(0), 0x69553422);
-		DELAY(1);
+		urtwn_ms_delay(sc);
 		urtwn_bb_write(sc, R92C_OFDM0_AGCCORE1(0), 0x69553420);
-		DELAY(1);
+		urtwn_ms_delay(sc);
 
 		crystalcap = sc->r88e_rom[0xb9];
 		if (crystalcap == 0xff)
@@ -2747,21 +2748,21 @@ urtwn_rf_init(struct urtwn_softc *sc)
 		reg = urtwn_bb_read(sc, R92C_FPGA0_RFIFACEOE(i));
 		reg |= 0x100000;
 		urtwn_bb_write(sc, R92C_FPGA0_RFIFACEOE(i), reg);
-		DELAY(1);
+		urtwn_ms_delay(sc);
 		/* Set RF_ENV output high. */
 		reg = urtwn_bb_read(sc, R92C_FPGA0_RFIFACEOE(i));
 		reg |= 0x10;
 		urtwn_bb_write(sc, R92C_FPGA0_RFIFACEOE(i), reg);
-		DELAY(1);
+		urtwn_ms_delay(sc);
 		/* Set address and data lengths of RF registers. */
 		reg = urtwn_bb_read(sc, R92C_HSSI_PARAM2(i));
 		reg &= ~R92C_HSSI_PARAM2_ADDR_LENGTH;
 		urtwn_bb_write(sc, R92C_HSSI_PARAM2(i), reg);
-		DELAY(1);
+		urtwn_ms_delay(sc);
 		reg = urtwn_bb_read(sc, R92C_HSSI_PARAM2(i));
 		reg &= ~R92C_HSSI_PARAM2_DATA_LENGTH;
 		urtwn_bb_write(sc, R92C_HSSI_PARAM2(i), reg);
-		DELAY(1);
+		urtwn_ms_delay(sc);
 
 		/* Write RF initialization values for this chain. */
 		for (j = 0; j < prog[i].count; j++) {
@@ -2771,12 +2772,12 @@ urtwn_rf_init(struct urtwn_softc *sc)
 				 * These are fake RF registers offsets that
 				 * indicate a delay is required.
 				 */
-				usb_pause_mtx(&sc->sc_mtx, 50);
+				usb_pause_mtx(&sc->sc_mtx, hz / 20);	/* 50ms */
 				continue;
 			}
 			urtwn_rf_write(sc, i, prog[i].regs[j],
 			    prog[i].vals[j]);
-			DELAY(1);
+			urtwn_ms_delay(sc);
 		}
 
 		/* Restore RF_ENV control type. */
@@ -3250,7 +3251,7 @@ urtwn_lc_calib(struct urtwn_softc *sc)
 	    urtwn_rf_read(sc, 0, R92C_RF_CHNLBW) | R92C_RF_CHNLBW_LCSTART);
 
 	/* Give calibration the time to complete. */
-	usb_pause_mtx(&sc->sc_mtx, 100);
+	usb_pause_mtx(&sc->sc_mtx, hz / 10);		/* 100ms */
 
 	/* Restore configuration. */
 	if ((txmode & 0x70) != 0) {
@@ -3531,6 +3532,12 @@ urtwn_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
 
 	sc->sc_txtimer = 5;
 	return (0);
+}
+
+static void
+urtwn_ms_delay(struct urtwn_softc *sc)
+{
+	usb_pause_mtx(&sc->sc_mtx, hz / 1000);
 }
 
 static device_method_t urtwn_methods[] = {
