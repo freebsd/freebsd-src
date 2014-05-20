@@ -601,6 +601,17 @@
 	<literal>-noignore_readdir_race</literal> now also exists, and
 	is the default behavior.</para>
 
+      <para revision="266286">The &man.ps.1; utility has been updated
+	to include the <literal>-J</literal> flag, used to filter
+	output by matching &man.jail.8; IDs and names.  Additionally,
+	argument <literal>0</literal> can be used to
+	<literal>-J</literal> to only list processes running on the
+	host system.</para>
+
+      <para revision="266287">The &man.top.1; utility has been updated
+	to filter by &man.jail.8; ID or name, in followup to the
+	&man.ps.1; change in <literal>r265229</literal>.</para>
+
       <sect3 xml:id="periodic-scripts">
 	<title>&man.periodic.8; Scripts</title>
 
