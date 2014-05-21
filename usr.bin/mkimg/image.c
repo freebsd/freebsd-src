@@ -119,8 +119,12 @@ image_copyout(int fd)
 		}
 	}
 	free(buffer);
+	if (error)
+		return (error);
 	ofs = lseek(fd, 0L, SEEK_CUR);
-	ftruncate(fd, ofs);
+	if (ofs == -1)
+		return (errno);
+	error = (ftruncate(fd, ofs) == -1) ? errno : 0;
 	return (error);
 }
 
