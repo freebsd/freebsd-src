@@ -280,11 +280,11 @@ vt_proc_window_switch(struct vt_window *vw)
 	struct vt_device *vd;
 	int ret;
 
-	if (vw->vw_flags & VWF_VTYLOCK)
-		return (EBUSY);
-
 	vd = vw->vw_device;
 	curvw = vd->vd_curwindow;
+
+	if (curvw->vw_flags & VWF_VTYLOCK)
+		return (EBUSY);
 
 	/* Ask current process permitions to switch away. */
 	if (curvw->vw_smode.mode == VT_PROCESS) {
@@ -1814,10 +1814,12 @@ skip_thunk:
 		return (0);
 	case VT_LOCKSWITCH:
 		/* TODO: Check current state, switching can be in progress. */
-		if ((*(int *)data) & 0x01)
+		if ((*(int *)data) == 0x01)
+			vw->vw_flags &= ~VWF_VTYLOCK;
+		else if ((*(int *)data) == 0x02)
 			vw->vw_flags |= VWF_VTYLOCK;
 		else
-			vw->vw_flags &= ~VWF_VTYLOCK;
+			return (EINVAL);
 		return (0);
 	case VT_OPENQRY:
 		VT_LOCK(vd);
