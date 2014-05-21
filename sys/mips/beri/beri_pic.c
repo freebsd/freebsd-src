@@ -151,6 +151,10 @@ struct beripic_cookie {
 #define	BP_CFG_TID(cfg)		(((cfg) & BP_CFG_MASK_TID) >> BP_CFG_SHIFT_TID)
 #define	BP_CFG_IRQ(cfg)		(((cfg) & BP_CFG_MASK_IRQ) >> BP_CFG_SHIFT_IRQ)
 
+#ifdef SMP
+static device_t	*bp_devices;
+#endif
+
 MALLOC_DEFINE(M_BERIPIC, "beripic", "beripic memory");
 
 static uint64_t
@@ -440,6 +444,13 @@ beripic_fdt_attach(device_t dev)
 		bp_config_source(dev, src, 0, 0, 0);
 	}
 
+#ifdef SMP
+	if (bp_devices == NULL)
+		bp_devices = malloc(sizeof(device_t) * beri_get_ncores(),
+		    M_BERIPIC, M_WAITOK|M_ZERO);
+	bp_devices[beri_get_core()] = dev;
+#endif
+
 	fic = malloc(sizeof(*fic), M_BERIPIC, M_WAITOK|M_ZERO);
 	fic->iph = ph;
 	fic->dev = dev;
@@ -633,11 +644,34 @@ beripic_intr(void *arg)
 }
 
 #ifdef SMP
+static device_t
+bp_tid2ic(u_int tid)
+{
+	int target_core;
+
+	target_core = tid / beri_get_nthreads();
+	KASSERT(bp_devices[target_core] != NULL,
+	    ("%s: No pic registered for core %d", __func__, target_core));
+	return (bp_devices[target_core]);
+}
+
+static u_int
+bp_tid2thread(u_int tid)
+{
+	int target_core;
+
+	target_core = tid / beri_get_nthreads();
+	return (tid - target_core * beri_get_nthreads());
+}
+
 static void
 beripic_setup_ipi(device_t ic, u_int tid, u_int ipi_irq)
 {
-	
-	bp_config_source(ic, BP_FIRST_SOFT + tid, 1, tid, ipi_irq);
+	u_int target_thread;
+
+	target_thread = bp_tid2thread(tid);
+	bp_config_source(bp_tid2ic(tid), BP_FIRST_SOFT + target_thread,
+	    1, target_thread, ipi_irq);
 }
 
 static void
@@ -645,14 +679,17 @@ beripic_send_ipi(device_t ic, u_int tid)
 {
 	struct beripic_softc *sc;
 	uint64_t bit;
+	u_int target_thread;
 
-	sc = device_get_softc(ic);
+	sc = device_get_softc(bp_tid2ic(tid));
 
-	KASSERT(tid < sc->bp_nsoft, ("tid (%d) too large\n", tid));
+	target_thread = bp_tid2thread(tid);
+	KASSERT(target_thread < sc->bp_nsoft, ("tid (%d) too large\n",
+	    target_thread));
 
-	bit = 1ULL << (tid % 64);
+	bit = 1ULL << (target_thread % 64);
 	bus_space_write_8(sc->bp_set_bst, sc->bp_set_bsh, 
-	    (BP_FIRST_SOFT / 8) + (tid / 64), bit);
+	    (BP_FIRST_SOFT / 8) + (target_thread / 64), bit);
 }
 
 static void
