@@ -5917,7 +5917,7 @@ uaudio_hid_detach(struct uaudio_softc *sc)
 	usbd_transfer_unsetup(sc->sc_hid.xfer, UAUDIO_HID_N_TRANSFER);
 }
 
-DRIVER_MODULE(uaudio, uhub, uaudio_driver, uaudio_devclass, NULL, 0);
+DRIVER_MODULE_ORDERED(uaudio, uhub, uaudio_driver, uaudio_devclass, NULL, 0, SI_ORDER_ANY);
 MODULE_DEPEND(uaudio, usb, 1, 1, 1);
 MODULE_DEPEND(uaudio, sound, SOUND_MINVER, SOUND_PREFVER, SOUND_MAXVER);
 MODULE_VERSION(uaudio, 1);
