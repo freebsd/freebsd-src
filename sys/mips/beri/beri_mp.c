@@ -65,10 +65,24 @@ platform_processor_id(void)
 void
 platform_cpu_mask(cpuset_t *mask)
 {
+	int ncores, ncpus, nthreads;
 	phandle_t cpus, cpu;
 	pcell_t reg;
 	char prop[16];
 	struct spin_entry *se;
+
+	ncores = beri_get_ncores();
+	nthreads = beri_get_nthreads();
+	KASSERT(ncores <= 0x10000, ("%s: too many cores %d", __func__, ncores));
+	KASSERT(nthreads <= 0x10000, ("%s: too many threads %d", __func__,
+	    nthreads));
+	KASSERT(ncores < 0xffff || nthreads < 0xffff,
+	    ("%s: cores x thread (%d x %d) would overflow", __func__, ncores,
+	     nthreads));
+	ncpus = ncores * nthreads;
+	if (MAXCPU > 1 && ncpus > MAXCPU)
+		printf("%s: Hardware supports more CPUs (%d) than kernel (%d)\n",
+		    __func__, ncpus, MAXCPU);
 
 	if ((cpus = OF_finddevice("/cpus")) <= 0) {
 		printf("%s: no \"/cpus\" device found in FDT\n", __func__);
