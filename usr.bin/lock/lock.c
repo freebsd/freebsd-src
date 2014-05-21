@@ -121,7 +121,7 @@ main(int argc, char **argv)
 			no_timeout = 1;
 			break;
 		case 'v':
-			vtylock = 1;
+			vtylock = 0x2;
 			break;
 		case '?':
 		default:
@@ -193,7 +193,7 @@ main(int argc, char **argv)
 			(void)tcsetattr(0, TCSADRAIN|TCSASOFT, &tty);
 			err(1, "locking vty");
 		}
-		vtyunlock = 0x2;
+		vtyunlock = 0x1;
 	}
 
 	/* header info */
