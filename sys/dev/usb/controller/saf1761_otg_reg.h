@@ -189,10 +189,25 @@
 #define	SOTG_PORTSC1_PED (1 << 2)
 #define	SOTG_PORTSC1_ECSC (1 << 1)
 #define	SOTG_PORTSC1_ECCS (1 << 0)
+#define	SOTG_PDT_DW0 0
+#define	SOTG_PDT_DW0_VALID 1U
+#define	SOTG_PDT_DW1 4
+#define	SOTG_PDT_DW2 8
+#define	SOTG_PDT_DW3 12
+#define	SOTG_PDT_DW3_ACTIVE (1U << 31)
+#define	SOTG_PDT_DW3_HALTED (1U << 30)
+#define	SOTG_PDT_DW3_ERRORS (3U << 28)
+#define	SOTG_PDT_DW3_CERR (3U << 23)
+#define	SOTG_PDT_DW3_XFER_COUNT 0x7FFF
+#define	SOTG_PDT_DW4 16
+#define	SOTG_PDT_DW5 20
+#define	SOTG_PDT_DW6 24
+#define	SOTG_PDT_DW7 28
 #define	SOTG_DATA_ADDR(x) (0x1000 + (512 * (x)))
 #define	SOTG_ASYNC_PDT(x) (0xC00 + ((x) * 32))
 #define	SOTG_INTR_PDT(x) (0x800 + ((x) * 32))
 #define	SOTG_ISOC_PDT(x) (0x400 + ((x) * 32))
+#define	SOTG_PDT(x) (0x400 + ((x) * 32))
 #define	SOTG_HC_MEMORY_ADDR(x) (((x) - 0x400) >> 3)
 #define	SOTG_SW_RESET 0x30C
 #define	SOTG_SW_RESET_HC (1 << 1)
