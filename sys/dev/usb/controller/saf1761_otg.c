@@ -253,8 +253,8 @@ saf1761_host_channel_free(struct saf1761_otg_softc *sc, struct saf1761_otg_td *t
 		return;
 
 	/* disable channel */
-	SAF1761_WRITE_4(sc, SOTG_ISOC_PDT(td->channel) + (4 * 3), 0);
-	SAF1761_WRITE_4(sc, SOTG_ISOC_PDT(td->channel) + (4 * 0), 0);
+	SAF1761_WRITE_4(sc, SOTG_PDT(td->channel) + SOTG_PDT_DW3, 0);
+	SAF1761_WRITE_4(sc, SOTG_PDT(td->channel) + SOTG_PDT_DW0, 0);
 
 	switch (td->ep_type) {
 	case UE_INTERRUPT:
@@ -299,20 +299,25 @@ static uint8_t
 saf1761_host_setup_tx(struct saf1761_otg_softc *sc, struct saf1761_otg_td *td)
 {
 	struct usb_device_request req __aligned(4);
+	uint32_t pdt_addr;
 	uint32_t status;
 	uint32_t count;
+	uint32_t temp;
 
 	if (td->channel < SOTG_HOST_CHANNEL_MAX) {
-		status = SAF1761_READ_4(sc, SOTG_ISOC_PDT(td->channel) + (4 * 3));
-		if (status & (1 << 31)) {
+		pdt_addr = SOTG_PDT(td->channel);
+
+		saf1761_read_host_memory_4(sc, pdt_addr + SOTG_PDT_DW3, &status, 1);
+
+		if (status & SOTG_PDT_DW3_ACTIVE) {
 			goto busy;
-		} else if (status & (1 << 30)) {
+		} else if (status & SOTG_PDT_DW3_HALTED) {
 			td->error_stall = 1;
 			td->error_any = 1;
-		} else if (status & (3 << 28)) {
+		} else if (status & SOTG_PDT_DW3_ERRORS) {
 			td->error_any = 1;
 		}
-		count = (status & 0x7FFF);
+		count = (status & SOTG_PDT_DW3_XFER_COUNT);
 
 		saf1761_host_channel_free(sc, td);
 		goto complete;
@@ -332,26 +337,27 @@ saf1761_host_setup_tx(struct saf1761_otg_softc *sc, struct saf1761_otg_td *td)
 	saf1761_write_host_memory_4(sc, SOTG_DATA_ADDR(td->channel),
 	    &req, (count + 3) / 4);
 
-	SAF1761_WRITE_4(sc, SOTG_ISOC_PDT(td->channel) + (4 * 7), 0);
-	SAF1761_WRITE_4(sc, SOTG_ISOC_PDT(td->channel) + (4 * 6), 0);
-	SAF1761_WRITE_4(sc, SOTG_ISOC_PDT(td->channel) + (4 * 5), 0);
-	SAF1761_WRITE_4(sc, SOTG_ISOC_PDT(td->channel) + (4 * 4), 0);
-	SAF1761_WRITE_4(sc, SOTG_ISOC_PDT(td->channel) + (4 * 3),
-	    (1 << 31) | (td->toggle << 25) | (3 << 23));
-	SAF1761_WRITE_4(sc, SOTG_ISOC_PDT(td->channel) + (4 * 2),
-	    SOTG_HC_MEMORY_ADDR(SOTG_DATA_ADDR(td->channel)) << 8);
+	pdt_addr = SOTG_PDT(td->channel);
 
-	SAF1761_WRITE_4(sc, SOTG_ISOC_PDT(td->channel) + (4 * 1),
-	    td->dw1_value |
-	    (2 << 10) /* SETUP PID */ |
-	    (td->ep_index >> 1));
+	SAF1761_WRITE_4(sc, pdt_addr + SOTG_PDT_DW7, 0);
+	SAF1761_WRITE_4(sc, pdt_addr + SOTG_PDT_DW6, 0);
+	SAF1761_WRITE_4(sc, pdt_addr + SOTG_PDT_DW5, 0);
+	SAF1761_WRITE_4(sc, pdt_addr + SOTG_PDT_DW4, 0);
 
-	SAF1761_WRITE_4(sc, SOTG_ISOC_PDT(td->channel) + (4 * 0),
-	    (td->ep_index << 31) |
-	    (1 << 29) /* pkt-multiplier */ |
+	temp = SOTG_PDT_DW3_ACTIVE | (td->toggle << 25) | SOTG_PDT_DW3_CERR;
+	SAF1761_WRITE_4(sc, pdt_addr + SOTG_PDT_DW3, temp);
+	    
+	temp = SOTG_HC_MEMORY_ADDR(SOTG_DATA_ADDR(td->channel)) << 8;
+	SAF1761_WRITE_4(sc, pdt_addr + SOTG_PDT_DW2, temp);
+
+	temp = td->dw1_value | (2 << 10) /* SETUP PID */ | (td->ep_index >> 1);
+	SAF1761_WRITE_4(sc, pdt_addr + SOTG_PDT_DW1, temp);
+
+	temp = (td->ep_index << 31) | (1 << 29) /* pkt-multiplier */ |
 	    (td->max_packet_size << 18) /* wMaxPacketSize */ |
 	    (count << 3) /* transfer count */ |
-	    1 /* valid */);
+	    SOTG_PDT_DW0_VALID;
+	SAF1761_WRITE_4(sc, pdt_addr + SOTG_PDT_DW0, temp);
 
 	td->offset += count;
 	td->remainder -= count;
@@ -365,24 +371,29 @@ complete:
 static uint8_t
 saf1761_host_bulk_data_rx(struct saf1761_otg_softc *sc, struct saf1761_otg_td *td)
 {
+	uint32_t pdt_addr;
+	uint32_t temp;
+
 	if (td->channel < SOTG_HOST_CHANNEL_MAX) {
 		uint32_t status;
 		uint32_t count;
 		uint8_t got_short;
 
-		status = SAF1761_READ_4(sc, SOTG_ISOC_PDT(td->channel) + (4 * 3));
+		pdt_addr = SOTG_PDT(td->channel);
 
-		if (status & (1 << 31)) {
+		saf1761_read_host_memory_4(sc, pdt_addr + SOTG_PDT_DW3, &status, 1);
+
+		if (status & SOTG_PDT_DW3_ACTIVE) {
 			goto busy;
-		} else if (status & (1 << 30)) {
+		} else if (status & SOTG_PDT_DW3_HALTED) {
 			td->error_stall = 1;
 			td->error_any = 1;
 			goto complete;
-		} else if (status & (3 << 28)) {
+		} else if (status & SOTG_PDT_DW3_ERRORS) {
 			td->error_any = 1;
 			goto complete;
 		}
-		count = (status & 0x7FFF);
+		count = (status & SOTG_PDT_DW3_XFER_COUNT);
 		got_short = 0;
 
 		/* verify the packet byte count */
@@ -435,26 +446,27 @@ saf1761_host_bulk_data_rx(struct saf1761_otg_softc *sc, struct saf1761_otg_td *t
 
 	/* receive one more packet */
 
-	SAF1761_WRITE_4(sc, SOTG_ISOC_PDT(td->channel) + (4 * 7), 0);
-	SAF1761_WRITE_4(sc, SOTG_ISOC_PDT(td->channel) + (4 * 6), 0);
-	SAF1761_WRITE_4(sc, SOTG_ISOC_PDT(td->channel) + (4 * 5), 0);
-	SAF1761_WRITE_4(sc, SOTG_ISOC_PDT(td->channel) + (4 * 4), 0);
-	SAF1761_WRITE_4(sc, SOTG_ISOC_PDT(td->channel) + (4 * 3),
-	    (1 << 31) | (td->toggle << 25) | (3 << 23));
-	SAF1761_WRITE_4(sc, SOTG_ISOC_PDT(td->channel) + (4 * 2),
-	    SOTG_HC_MEMORY_ADDR(SOTG_DATA_ADDR(td->channel)) << 8);
+	pdt_addr = SOTG_PDT(td->channel);
 
-	SAF1761_WRITE_4(sc, SOTG_ISOC_PDT(td->channel) + (4 * 1),
-	    td->dw1_value |
-	    (1 << 10) /* IN-PID */ |
-	    (td->ep_index >> 1));
+	SAF1761_WRITE_4(sc, pdt_addr + SOTG_PDT_DW7, 0);
+	SAF1761_WRITE_4(sc, pdt_addr + SOTG_PDT_DW6, 0);
+	SAF1761_WRITE_4(sc, pdt_addr + SOTG_PDT_DW5, 0);
+	SAF1761_WRITE_4(sc, pdt_addr + SOTG_PDT_DW4, 0);
 
-	SAF1761_WRITE_4(sc, SOTG_ISOC_PDT(td->channel) + (4 * 0),
-	    (td->ep_index << 31) |
-	    (1 << 29) /* pkt-multiplier */ |
+	temp = SOTG_PDT_DW3_ACTIVE | (td->toggle << 25) | SOTG_PDT_DW3_CERR;
+	SAF1761_WRITE_4(sc, pdt_addr + SOTG_PDT_DW3, temp);
+
+	temp = SOTG_HC_MEMORY_ADDR(SOTG_DATA_ADDR(td->channel)) << 8;
+	SAF1761_WRITE_4(sc, pdt_addr + SOTG_PDT_DW2, temp);
+
+	temp = td->dw1_value | (1 << 10) /* IN-PID */ | (td->ep_index >> 1);
+	SAF1761_WRITE_4(sc, pdt_addr + SOTG_PDT_DW1, temp);
+
+	temp = (td->ep_index << 31) | (1 << 29) /* pkt-multiplier */ |
 	    (td->max_packet_size << 18) /* wMaxPacketSize */ |
 	    (td->max_packet_size << 3) /* transfer count */ |
-	    1 /* valid */);
+	    SOTG_PDT_DW0_VALID;
+	SAF1761_WRITE_4(sc, pdt_addr + SOTG_PDT_DW0, temp);
 busy:
 	return (1);	/* busy */
 complete:
@@ -464,18 +476,23 @@ complete:
 static uint8_t
 saf1761_host_bulk_data_tx(struct saf1761_otg_softc *sc, struct saf1761_otg_td *td)
 {
+	uint32_t pdt_addr;
+	uint32_t temp;
 	uint32_t count;
 
 	if (td->channel < SOTG_HOST_CHANNEL_MAX) {
 		uint32_t status;
 
-		status = SAF1761_READ_4(sc, SOTG_ISOC_PDT(td->channel) + (4 * 3));
-		if (status & (1 << 31)) {
+		pdt_addr = SOTG_PDT(td->channel);
+
+		saf1761_read_host_memory_4(sc, pdt_addr + SOTG_PDT_DW3, &status, 1);
+
+		if (status & SOTG_PDT_DW3_ACTIVE) {
 			goto busy;
-		} else if (status & (1 << 30)) {
+		} else if (status & SOTG_PDT_DW3_HALTED) {
 			td->error_stall = 1;
 			td->error_any = 1;
-		} else if (status & (3 << 28)) {
+		} else if (status & SOTG_PDT_DW3_ERRORS) {
 			td->error_any = 1;
 		}
 
@@ -508,26 +525,29 @@ saf1761_host_bulk_data_tx(struct saf1761_otg_softc *sc, struct saf1761_otg_td *t
 		td->toggle = 1;
 	}
 
-	SAF1761_WRITE_4(sc, SOTG_ISOC_PDT(td->channel) + (4 * 7), 0);
-	SAF1761_WRITE_4(sc, SOTG_ISOC_PDT(td->channel) + (4 * 6), 0);
-	SAF1761_WRITE_4(sc, SOTG_ISOC_PDT(td->channel) + (4 * 5), 0);
-	SAF1761_WRITE_4(sc, SOTG_ISOC_PDT(td->channel) + (4 * 4), 0);
-	SAF1761_WRITE_4(sc, SOTG_ISOC_PDT(td->channel) + (4 * 3),
-	    (1 << 31) | (td->toggle << 25) | (3 << 23));
-	SAF1761_WRITE_4(sc, SOTG_ISOC_PDT(td->channel) + (4 * 2),
-	    SOTG_HC_MEMORY_ADDR(SOTG_DATA_ADDR(td->channel)) << 8);
+	/* send one more packet */
 
-	SAF1761_WRITE_4(sc, SOTG_ISOC_PDT(td->channel) + (4 * 1),
-	    td->dw1_value |
-	    (0 << 10) /* OUT-PID */ |
-	    (td->ep_index >> 1));
+	pdt_addr = SOTG_PDT(td->channel);
 
-	SAF1761_WRITE_4(sc, SOTG_ISOC_PDT(td->channel) + (4 * 0),
-	    (td->ep_index << 31) |
-	    (1 << 29) /* pkt-multiplier */ |
+	SAF1761_WRITE_4(sc, pdt_addr + SOTG_PDT_DW7, 0);
+	SAF1761_WRITE_4(sc, pdt_addr + SOTG_PDT_DW6, 0);
+	SAF1761_WRITE_4(sc, pdt_addr + SOTG_PDT_DW5, 0);
+	SAF1761_WRITE_4(sc, pdt_addr + SOTG_PDT_DW4, 0);
+
+	temp = SOTG_PDT_DW3_ACTIVE | (td->toggle << 25) | SOTG_PDT_DW3_CERR;
+	SAF1761_WRITE_4(sc, pdt_addr + SOTG_PDT_DW3, temp);
+
+	temp = SOTG_HC_MEMORY_ADDR(SOTG_DATA_ADDR(td->channel)) << 8;
+	SAF1761_WRITE_4(sc, pdt_addr + SOTG_PDT_DW2, temp);
+
+	temp = td->dw1_value | (0 << 10) /* OUT-PID */ | (td->ep_index >> 1);
+	SAF1761_WRITE_4(sc, pdt_addr + SOTG_PDT_DW1, temp);
+
+	temp = (td->ep_index << 31) | (1 << 29) /* pkt-multiplier */ |
 	    (td->max_packet_size << 18) /* wMaxPacketSize */ |
 	    (count << 3) /* transfer count */ |
-	    1 /* valid */);
+	    SOTG_PDT_DW0_VALID;
+	SAF1761_WRITE_4(sc, pdt_addr + SOTG_PDT_DW0, temp);
 
 	td->offset += count;
 	td->remainder -= count;
