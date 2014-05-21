@@ -43,6 +43,8 @@ __FBSDID("$FreeBSD$");
 #include <machine/bus.h>
 #include <machine/intr_machdep.h>
 
+#include <mips/beri/beri.h>
+
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
 
@@ -360,8 +362,7 @@ beripic_fdt_attach(device_t dev)
 #ifndef SMP
 	sc->bp_nthreads = 1;
 #else
-	sc->bp_nthreads = 1;
-	/* XXX: get nthreads from cpu(s) somehow */
+	sc->bp_nthreads = beri_get_nthreads();
 #endif
 
 	if (OF_getprop(ph, "hard-interrupt-sources", &nhard, sizeof(nhard))
