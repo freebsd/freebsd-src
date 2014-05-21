@@ -52,6 +52,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/filio.h>
 #include <sys/time.h>
 
+#include <assert.h>
 #include <ctype.h>
 #include <err.h>
 #include <errno.h>
@@ -76,6 +77,7 @@ STAT	st;			/* statistics */
 void	(*cfunc)(void);		/* conversion function */
 uintmax_t cpy_cnt;		/* # of blocks to copy */
 static off_t	pending = 0;	/* pending seek if sparse */
+static off_t	last_sp = 0;	/* size of last added sparse block */
 u_int	ddflags = 0;		/* conversion options */
 size_t	cbsz;			/* conversion block size */
 uintmax_t files_cnt = 1;	/* # of files to copy */
@@ -173,6 +175,8 @@ setup(void)
 	} else if ((in.db = malloc(MAX(in.dbsz, cbsz) + cbsz)) == NULL ||
 	    (out.db = malloc(out.dbsz + cbsz)) == NULL)
 		err(1, "output buffer");
+
+	/* dbp is the first free position in each buffer. */
 	in.dbp = in.db;
 	out.dbp = out.db;
 
@@ -434,8 +438,15 @@ dd_out(int force)
 	 * we play games with the buffer size, and it's usually a partial write.
 	 */
 	outp = out.db;
+
+	/*
+	 * If force, first try to write all pending data, else try to write
+	 * just one block. Subsequently always write data one full block at
+	 * a time at most.
+	 */
 	for (n = force ? out.dbcnt : out.dbsz;; n = out.dbsz) {
-		for (cnt = n;; cnt -= nw) {
+		cnt = n;
+		do {
 			sparse = 0;
 			if (ddflags & C_SPARSE) {
 				sparse = 1;	/* Is buffer sparse? */
@@ -447,18 +458,24 @@ dd_out(int force)
 			}
 			if (sparse && !force) {
 				pending += cnt;
+				last_sp = cnt;
 				nw = cnt;
 			} else {
 				if (pending != 0) {
-					if (force)
-						pending--;
+					/* If forced to write, and we have no
+					 * data left, we need to write the last
+					 * sparse block explicitly.
+					 */
+					if (force && cnt == 0) {
+						pending -= last_sp;
+						assert(outp == out.db);
+						memset(outp, 0, cnt);
+					}
 					if (lseek(out.fd, pending, SEEK_CUR) ==
 					    -1)
 						err(2, "%s: seek error creating sparse file",
 						    out.name);
-					if (force)
-						write(out.fd, outp, 1);
-					pending = 0;
+					pending = last_sp = 0;
 				}
 				if (cnt)
 					nw = write(out.fd, outp, cnt);
@@ -473,27 +490,29 @@ dd_out(int force)
 					err(1, "%s", out.name);
 				nw = 0;
 			}
+
 			outp += nw;
 			st.bytes += nw;
-			if ((size_t)nw == n) {
-				if (n != out.dbsz)
-					++st.out_part;
-				else
-					++st.out_full;
-				break;
+
+			if ((size_t)nw == n && n == out.dbsz)
+				++st.out_full;
+			else
+				++st.out_part;
+
+			if ((size_t) nw != cnt) {
+				if (out.flags & ISTAPE)
+					errx(1, "%s: short write on tape device",
+				    	out.name);
+				if (out.flags & ISCHR && !warned) {
+					warned = 1;
+					warnx("%s: short write on character device",
+				    	out.name);
+				}
 			}
-			++st.out_part;
-			if ((size_t)nw == cnt)
-				break;
-			if (out.flags & ISTAPE)
-				errx(1, "%s: short write on tape device",
-				    out.name);
-			if (out.flags & ISCHR && !warned) {
-				warned = 1;
-				warnx("%s: short write on character device",
-				    out.name);
-			}
-		}
+
+			cnt -= nw;
+		} while (cnt != 0);
+
 		if ((out.dbcnt -= n) < out.dbsz)
 			break;
 	}
