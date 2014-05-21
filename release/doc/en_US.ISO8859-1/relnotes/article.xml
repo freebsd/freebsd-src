@@ -122,7 +122,7 @@
       &man.sysctl.8; has been re-enabled.  On multi-CPU machines with
       enough RAM, this can easily double &man.zfs.8; performance or
       reduce CPU usage in half.  It was originally disabled due to
-      memory and <acronym>KVA</acronym> exhastion problem reports,
+      memory and <acronym>KVA</acronym> exhaustion problem reports,
       which should be resolved due to several change in the VM
       subsystem.</para>
 
