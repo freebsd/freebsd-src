@@ -70,6 +70,8 @@ struct saf1761_otg_td {
 	uint8_t	ep_index;
 	uint8_t ep_type;
 	uint8_t channel;
+	uint8_t uframe;
+	uint8_t interval;
 	uint8_t	error_any:1;
 	uint8_t	error_stall:1;
 	uint8_t	alt_next:1;
