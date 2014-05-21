@@ -74,9 +74,10 @@ void set_default_part_metadata(const char *name, const char *scheme,
 
 /* machine-dependent bootability checks */
 const char *default_scheme(void);
-int is_scheme_bootable(const char *part_type);
-size_t bootpart_size(const char *part_type);
-const char *bootcode_path(const char *part_type);
-const char *partcode_path(const char *part_type);
+int is_scheme_bootable(const char *scheme);
+size_t bootpart_size(const char *scheme);
+const char *bootpart_type(const char *scheme);
+const char *bootcode_path(const char *scheme);
+const char *partcode_path(const char *scheme);
 
 #endif

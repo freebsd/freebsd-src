@@ -45,38 +45,6 @@ platform_pl310_init(struct pl310_softc *sc)
 	aux = pl310_read4(sc, PL310_AUX_CTRL);
 	prefetch = pl310_read4(sc, PL310_PREFETCH_CTRL);
 
-	if (bootverbose) {
-		device_printf(sc->sc_dev, "Early BRESP response: %s\n",
-			(aux & AUX_CTRL_EARLY_BRESP) ? "enabled" : "disabled");
-		device_printf(sc->sc_dev, "Instruction prefetch: %s\n",
-			(aux & AUX_CTRL_INSTR_PREFETCH) ? "enabled" : "disabled");
-		device_printf(sc->sc_dev, "Data prefetch: %s\n",
-			(aux & AUX_CTRL_DATA_PREFETCH) ? "enabled" : "disabled");
-		device_printf(sc->sc_dev, "Non-secure interrupt control: %s\n",
-			(aux & AUX_CTRL_NS_INT_CTRL) ? "enabled" : "disabled");
-		device_printf(sc->sc_dev, "Non-secure lockdown: %s\n",
-			(aux & AUX_CTRL_NS_LOCKDOWN) ? "enabled" : "disabled");
-		device_printf(sc->sc_dev, "Share override: %s\n",
-			(aux & AUX_CTRL_SHARE_OVERRIDE) ? "enabled" : "disabled");
-
-		device_printf(sc->sc_dev, "Double linefil: %s\n",
-			(prefetch & PREFETCH_CTRL_DL) ? "enabled" : "disabled");
-		device_printf(sc->sc_dev, "Instruction prefetch: %s\n",
-			(prefetch & PREFETCH_CTRL_INSTR_PREFETCH) ? "enabled" : "disabled");
-		device_printf(sc->sc_dev, "Data prefetch: %s\n",
-			(prefetch & PREFETCH_CTRL_DATA_PREFETCH) ? "enabled" : "disabled");
-		device_printf(sc->sc_dev, "Double linefill on WRAP request: %s\n",
-			(prefetch & PREFETCH_CTRL_DL_ON_WRAP) ? "enabled" : "disabled");
-		device_printf(sc->sc_dev, "Prefetch drop: %s\n",
-			(prefetch & PREFETCH_CTRL_PREFETCH_DROP) ? "enabled" : "disabled");
-		device_printf(sc->sc_dev, "Incr double Linefill: %s\n",
-			(prefetch & PREFETCH_CTRL_INCR_DL) ? "enabled" : "disabled");
-		device_printf(sc->sc_dev, "Not same ID on exclusive sequence: %s\n",
-			(prefetch & PREFETCH_CTRL_NOTSAMEID) ? "enabled" : "disabled");
-		device_printf(sc->sc_dev, "Prefetch offset: %d\n",
-			(prefetch & PREFETCH_CTRL_OFFSET_MASK));
-	}
-
 	/*
 	 * Disable instruction prefetch
 	 */

@@ -863,6 +863,11 @@ vmx_vminit(struct vm *vm, pmap_t pmap)
 	 * MSR_EFER is saved and restored in the guest VMCS area on a
 	 * VM exit and entry respectively. It is also restored from the
 	 * host VMCS area on a VM exit.
+	 *
+	 * The TSC MSR is exposed read-only. Writes are disallowed as that
+	 * will impact the host TSC.
+	 * XXX Writes would be implemented with a wrmsr trap, and
+	 * then modifying the TSC offset in the VMCS.
 	 */
 	if (guest_msr_rw(vmx, MSR_GSBASE) ||
 	    guest_msr_rw(vmx, MSR_FSBASE) ||
@@ -870,7 +875,8 @@ vmx_vminit(struct vm *vm, pmap_t pmap)
 	    guest_msr_rw(vmx, MSR_SYSENTER_ESP_MSR) ||
 	    guest_msr_rw(vmx, MSR_SYSENTER_EIP_MSR) ||
 	    guest_msr_rw(vmx, MSR_KGSBASE) ||
-	    guest_msr_rw(vmx, MSR_EFER))
+	    guest_msr_rw(vmx, MSR_EFER) ||
+	    guest_msr_ro(vmx, MSR_TSC))
 		panic("vmx_vminit: error setting guest msr access");
 
 	/*
@@ -1486,6 +1492,18 @@ vmx_emulate_cr_access(struct vmx *vmx, int vcpu, uint64_t exitqual)
 	return (HANDLED);
 }
 
+/*
+ * From section "Guest Register State" in the Intel SDM: CPL = SS.DPL
+ */
+static int
+vmx_cpl(void)
+{
+	uint32_t ssar;
+
+	ssar = vmcs_read(VMCS_GUEST_SS_ACCESS_RIGHTS);
+	return ((ssar >> 5) & 0x3);
+}
+
 static enum vie_cpu_mode
 vmx_cpu_mode(void)
 {
@@ -1508,6 +1526,18 @@ vmx_paging_mode(void)
 		return (PAGING_MODE_64);
 	else
 		return (PAGING_MODE_PAE);
+}
+
+static void
+vmexit_inst_emul(struct vm_exit *vmexit, uint64_t gpa, uint64_t gla)
+{
+	vmexit->exitcode = VM_EXITCODE_INST_EMUL;
+	vmexit->u.inst_emul.gpa = gpa;
+	vmexit->u.inst_emul.gla = gla;
+	vmexit->u.inst_emul.cr3 = vmcs_guest_cr3();
+	vmexit->u.inst_emul.cpu_mode = vmx_cpu_mode();
+	vmexit->u.inst_emul.paging_mode = vmx_paging_mode();
+	vmexit->u.inst_emul.cpl = vmx_cpl();
 }
 
 static int
@@ -1701,12 +1731,8 @@ vmx_handle_apic_access(struct vmx *vmx, int vcpuid, struct vm_exit *vmexit)
 	}
 
 	if (allowed) {
-		vmexit->exitcode = VM_EXITCODE_INST_EMUL;
-		vmexit->u.inst_emul.gpa = DEFAULT_APIC_BASE + offset;
-		vmexit->u.inst_emul.gla = VIE_INVALID_GLA;
-		vmexit->u.inst_emul.cr3 = vmcs_guest_cr3();
-		vmexit->u.inst_emul.cpu_mode = vmx_cpu_mode();
-		vmexit->u.inst_emul.paging_mode = vmx_paging_mode();
+		vmexit_inst_emul(vmexit, DEFAULT_APIC_BASE + offset,
+		    VIE_INVALID_GLA);
 	}
 
 	/*
@@ -1791,6 +1817,7 @@ vmx_exit_process(struct vmx *vmx, int vcpu, struct vm_exit *vmexit)
 		vmm_stat_incr(vmx->vm, vcpu, VMEXIT_RDMSR, 1);
 		retu = false;
 		ecx = vmxctx->guest_rcx;
+		VCPU_CTR1(vmx->vm, vcpu, "rdmsr 0x%08x", ecx);
 		error = emulate_rdmsr(vmx->vm, vcpu, ecx, &retu);
 		if (error) {
 			vmexit->exitcode = VM_EXITCODE_RDMSR;
@@ -1809,6 +1836,8 @@ vmx_exit_process(struct vmx *vmx, int vcpu, struct vm_exit *vmexit)
 		eax = vmxctx->guest_rax;
 		ecx = vmxctx->guest_rcx;
 		edx = vmxctx->guest_rdx;
+		VCPU_CTR2(vmx->vm, vcpu, "wrmsr 0x%08x value 0x%016lx",
+		    ecx, (uint64_t)edx << 32 | eax);
 		error = emulate_wrmsr(vmx->vm, vcpu, ecx,
 		    (uint64_t)edx << 32 | eax, &retu);
 		if (error) {
@@ -1934,12 +1963,7 @@ vmx_exit_process(struct vmx *vmx, int vcpu, struct vm_exit *vmexit)
 			vmexit->u.paging.fault_type = ept_fault_type(qual);
 			vmm_stat_incr(vmx->vm, vcpu, VMEXIT_NESTED_FAULT, 1);
 		} else if (ept_emulation_fault(qual)) {
-			vmexit->exitcode = VM_EXITCODE_INST_EMUL;
-			vmexit->u.inst_emul.gpa = gpa;
-			vmexit->u.inst_emul.gla = vmcs_gla();
-			vmexit->u.inst_emul.cr3 = vmcs_guest_cr3();
-			vmexit->u.inst_emul.cpu_mode = vmx_cpu_mode();
-			vmexit->u.inst_emul.paging_mode = vmx_paging_mode();
+			vmexit_inst_emul(vmexit, gpa, vmcs_gla());
 			vmm_stat_incr(vmx->vm, vcpu, VMEXIT_INST_EMUL, 1);
 		}
 		/*
@@ -2035,16 +2059,6 @@ vmx_exit_rendezvous(struct vmx *vmx, int vcpu, struct vm_exit *vmexit)
 	vmexit->exitcode = VM_EXITCODE_RENDEZVOUS;
 	vmm_stat_incr(vmx->vm, vcpu, VMEXIT_RENDEZVOUS, 1);
 
-	return (UNHANDLED);
-}
-
-static __inline int
-vmx_exit_suspended(struct vmx *vmx, int vcpu, struct vm_exit *vmexit)
-{
-
-	vmexit->rip = vmcs_guest_rip();
-	vmexit->inst_length = 0;
-	vmexit->exitcode = VM_EXITCODE_SUSPENDED;
 	return (UNHANDLED);
 }
 
@@ -2167,7 +2181,8 @@ vmx_run(void *arg, int vcpu, register_t startrip, pmap_t pmap,
 		disable_intr();
 		if (vcpu_suspended(suspend_cookie)) {
 			enable_intr();
-			handled = vmx_exit_suspended(vmx, vcpu, vmexit);
+			vm_exit_suspended(vmx->vm, vcpu, vmcs_guest_rip());
+			handled = UNHANDLED;
 			break;
 		}
 
@@ -2228,7 +2243,7 @@ vmx_run(void *arg, int vcpu, register_t startrip, pmap_t pmap,
 static void
 vmx_vmcleanup(void *arg)
 {
-	int i, error;
+	int i;
 	struct vmx *vmx = arg;
 
 	if (apic_access_virtualization(vmx, 0))
@@ -2236,13 +2251,6 @@ vmx_vmcleanup(void *arg)
 
 	for (i = 0; i < VM_MAXCPU; i++)
 		vpid_free(vmx->state[i].vpid);
-
-	/*
-	 * XXXSMP we also need to clear the VMCS active on the other vcpus.
-	 */
-	error = vmclear(&vmx->vmcs[0]);
-	if (error != 0)
-		panic("vmx_vmcleanup: vmclear error %d on vcpu 0", error);
 
 	free(vmx, M_VMX);
 

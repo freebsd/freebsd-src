@@ -1,3 +1,61 @@
+1.6.17	2014-01-10
+	* Fix ldns_dnssec_zone_new_frm_fp_l to allow the last parsed line of a
+	  zone to be an NSEC3 (or its RRSIG) covering an empty non terminal.
+	* Add --disable-dane option to configure and check availability of the
+	  for dane needed X509_check_ca function in openssl.
+	* bugfix #490: Get rid of type-punned pointer warnings.
+	  Thanks Adam Tkac.
+	* Make sure executables are linked against libcrypto with the 
+	  LIBSSL_LDFLAGS. Thanks Leo Baltus.
+	* Miscellaneous prototype fixes. Thanks Dag-Erling Smørgrav.
+	* README now shows preferred way to configure for examples and drill.
+	* Bind to source address for resolvers. drill binds to source with -I.
+	  Thanks Bryan Duff.
+	* -T option for ldns-dane that has specific exit status for PKIX
+	  validated connections without (secure) TLSA records.
+	* Fix b{32,64}_{ntop,pton} detection and handling.
+	* New RR type TKEY, but without operational practice.
+	* New RR types HIP, NINFO, RKEY, CDS, EUI48, EUI64, URI, CAA and TA.
+	* New output format flag (and accompanying functions) to print certain
+	  RR's as unknown type
+	* -u and -U parameter for ldns-read-zone to mark/unmark a RR type
+	  for printing as unknown type
+	* bugfix #504: GPOS RR has three rdata fields. Thanks Jelte Jansen.
+	* bugfix #497: Properly test for EOF when reading key files with drill.
+	* New functions: ldns_pkt_ixfr_request_new and
+	  ldns_pkt_ixfr_request_new_frm_str.
+	* Use SNI with ldns-dane
+	* bugfix #507: ldnsx Fix use of non-existent variables and not
+	  properly referring to instance variable.  Patch from shussain.
+	* bugfix #508: ldnsx Adding NSEC3PARAM to known/allowable RR type
+	  dictionary.  Patch from shussain.
+	* bugfix #517: ldns_resolver_new_frm_fp error when invoked using a NULL
+	  file pointer.
+	* Fix memory leak in contrib/python: ldns_pkt.new_query.
+	* Fix buffer overflow in fget_token and bget_token.
+	* ldns-verify-zone NSEC3 checking from quadratic to linear performance.
+	  Thanks NIC MX (nicmexico.mx)
+	* ldns-dane setup new ssl session for each new connect to prevent hangs
+	* bugfix #521: drill trace continue on empty non-terminals with NSEC3
+	* bugfix #525: Fix documentation of ldns_resolver_set_retry
+	* Remove unused LDNS_RDF_TYPE_TSIG and associated functions.
+	* Fix ldns_nsec_covers_name for zones with an apex only. Thanks Miek.
+	* Configure option to build perl bindings: --with-p5-dns-ldns
+	  (DNS::LDNS is a contribution from Erik Ostlyngen)
+	* bugfix #527: Move -lssl before -lcrypto when linking
+	* Optimize TSIG digest function name comparison (Thanks Marc Buijsman)
+	* Compare names case insensitive with ldns_pkt_rr_list_by_name and
+	  ldns_pkt_rr_list_by_name_and_type (thanks Johannes Naab)
+	* A separate --enable for each draft RR type: --enable-rrtype-ninfo,
+	  --enable-rrtype-rkey, --enable-rrtype-cds, --enable-rrtype-uri and
+	  --enable-rrtype-ta
+	* bugfix #530: Don't sign and verify duplicate RRs (Thanks Jelte Jansen)
+	* bugfix #505: Manpage and usage output fixes (Thanks Tomas Hozza)
+	* Adjust ldns_sha1() so that the input data is not modified (Thanks
+	  Marc Buijsman)
+	* Messages to stderr are now off by default and can be reenabled with
+	  the --enable-stderr-msgs configure option.
+
 1.6.16	2012-11-13
 	* Fix Makefile to build pyldns with BSD make
 	* Fix typo in exporting b32_* symbols to make pyldns load again

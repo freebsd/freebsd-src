@@ -106,7 +106,6 @@ COPTS.meta.c += -DHAVE_FILEMON_H -I${FILEMON_H:H}
 SUBDIR+= unit-tests
 .endif
 
-
 MAN= ${PROG}.1
 MAN1= ${MAN}
 

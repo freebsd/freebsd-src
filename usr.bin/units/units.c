@@ -80,7 +80,6 @@ static bool verbose = false;
 static const char * havestr;
 static const char * wantstr;
 
-
 static int	 addsubunit(char *product[], char *toadd);
 static int	 addunit(struct unittype *theunit, const char *toadd, int flip, int quantity);
 static void	 cancelunit(struct unittype * theunit);
@@ -111,10 +110,9 @@ dupstr(const char *str)
 {
 	char *ret;
 
-	ret = malloc(strlen(str) + 1);
+	ret = strdup(str);
 	if (!ret)
-		errx(3, "memory allocation error");
-	strcpy(ret, str);
+		err(3, "dupstr");
 	return (ret);
 }
 
@@ -293,7 +291,7 @@ showunit(struct unittype * theunit)
 			counter = 1;
 		}
 	}
-	if ( counter > 1)
+	if (counter > 1)
 		printf("%s%d", powerstring, counter);
 	printf("\n");
 }
@@ -720,7 +718,7 @@ main(int argc, char **argv)
 
 	quiet = false;
 	readfile = false;
-	while ((optchar = getopt(argc, argv, "fqvUV:")) != -1) {
+	while ((optchar = getopt(argc, argv, "f:qvUV")) != -1) {
 		switch (optchar) {
 		case 'f':
 			readfile = true;
@@ -735,16 +733,15 @@ main(int argc, char **argv)
 		case 'v':
 			verbose = true;
 			break;
+		case 'V':
+			fprintf(stderr, "FreeBSD units\n");
+			/* FALLTHROUGH */
 		case 'U':
 			if (access(UNITSFILE, F_OK) == 0)
 				printf("%s\n", UNITSFILE);
 			else
 				printf("Units data file not found");
 			exit(0);
-			break;
-		case 'V':
-			fprintf(stderr, "FreeBSD units\n");
-			usage();
 			break;
 		default:
 			usage();
@@ -763,7 +760,7 @@ main(int argc, char **argv)
 	el_source(el, NULL);
 	history(inhistory, &ev, H_SETSIZE, 800);
 	if (inhistory == 0)
-		err(1, "Could not initalize history");
+		err(1, "Could not initialize history");
 
 	if (cap_enter() < 0 && errno != ENOSYS)
 		err(1, "unable to enter capability mode");
@@ -813,5 +810,6 @@ main(int argc, char **argv)
 	}
 
 	history_end(inhistory);
+	el_end(el);
 	return(0);
 }

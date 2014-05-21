@@ -187,7 +187,7 @@ ofwbus_identify(driver_t *driver, device_t parent)
 {
 
 	/* Check if Open Firmware has been instantiated */
-	if (OF_peer(0) == -1)
+	if (OF_peer(0) == 0)
 		return;
         
 	if (device_find_child(parent, "ofwbus", -1) == NULL)

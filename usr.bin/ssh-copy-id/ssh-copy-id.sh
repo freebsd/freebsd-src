@@ -45,7 +45,7 @@ sendkey() {
 			if ! grep -sqwF "$key" "$keyfile"; then \
 				printf "$alg $key $comment\n" >> "$keyfile" ; \
 			fi ; \
-		done \
+		done ; \
 		if [ -x /sbin/restorecon ]; then \
 			/sbin/restorecon -F "$HOME/.ssh/" "$keyfile" >/dev/null 2>&1 || true ; \
 		fi

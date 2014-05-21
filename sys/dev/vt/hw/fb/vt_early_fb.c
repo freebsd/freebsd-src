@@ -52,18 +52,19 @@ __FBSDID("$FreeBSD$");
 #include <dev/vt/colors/vt_termcolors.h>
 
 static vd_init_t vt_efb_init;
+static vd_probe_t vt_efb_probe;
 
 static struct vt_driver vt_fb_early_driver = {
+	.vd_name = "efb",
+	.vd_probe = vt_efb_probe,
 	.vd_init = vt_efb_init,
 	.vd_blank = vt_fb_blank,
 	.vd_bitbltchr = vt_fb_bitbltchr,
 	.vd_priority = VD_PRIORITY_GENERIC,
 };
 
-static struct fb_info info;
-VT_CONSDEV_DECLARE(vt_fb_early_driver,
-    MAX(80, PIXEL_WIDTH(VT_FB_DEFAULT_WIDTH)),
-    MAX(25, PIXEL_HEIGHT(VT_FB_DEFAULT_HEIGHT)), &info);
+static struct fb_info local_info;
+VT_DRIVER_DECLARE(vt_efb, vt_fb_early_driver);
 
 static void
 #ifdef	FDT
@@ -126,30 +127,62 @@ vt_efb_initialize(struct fb_info *info)
         }
 }
 
+static phandle_t
+vt_efb_get_fbnode()
+{
+	phandle_t chosen, node;
+	ihandle_t stdout;
+	char type[64];
+
+	chosen = OF_finddevice("/chosen");
+	OF_getprop(chosen, "stdout", &stdout, sizeof(stdout));
+	node = OF_instance_to_package(stdout);
+	if (node != -1) {
+		/* The "/chosen/stdout" present. */
+		OF_getprop(node, "device_type", type, sizeof(type));
+		/* Check if it has "display" type. */
+		if (strcmp(type, "display") == 0)
+			return (node);
+	}
+	/* Try device with name "screen". */
+	node = OF_finddevice("screen");
+
+	return (node);
+}
+
+static int
+vt_efb_probe(struct vt_device *vd)
+{
+	phandle_t node;
+
+	node = vt_efb_get_fbnode();
+	if (node == -1)
+		return (CN_DEAD);
+
+	if ((OF_getproplen(node, "height") <= 0) ||
+	    (OF_getproplen(node, "width") <= 0) ||
+	    (OF_getproplen(node, "depth") <= 0) ||
+	    (OF_getproplen(node, "linebytes") <= 0))
+		return (CN_DEAD);
+
+	return (CN_INTERNAL);
+}
+
 static int
 vt_efb_init(struct vt_device *vd)
 {
 	struct ofw_pci_register pciaddrs[8];
 	struct fb_info *info;
 	int i, len, n_pciaddrs;
-	phandle_t chosen, node;
-	ihandle_t stdout;
-	char type[64];
+	phandle_t node;
+
+	if (vd->vd_softc == NULL)
+		vd->vd_softc = (void *)&local_info;
 
 	info = vd->vd_softc;
 
-	chosen = OF_finddevice("/chosen");
-	OF_getprop(chosen, "stdout", &stdout, sizeof(stdout));
-	node = OF_instance_to_package(stdout);
-	if (node == -1) {
-		/*
-		 * The "/chosen/stdout" does not exist try
-		 * using "screen" directly.
-		 */
-		node = OF_finddevice("screen");
-	}
-	OF_getprop(node, "device_type", type, sizeof(type));
-	if (strcmp(type, "display") != 0)
+	node = vt_efb_get_fbnode();
+	if (node == -1)
 		return (CN_DEAD);
 
 #define	GET(name, var)							\
@@ -249,7 +282,6 @@ vt_efb_init(struct vt_device *vd)
 	#endif
         }
 
-
 	/* blank full size */
 	len = info->fb_size / 4;
 	for (i = 0; i < len; i++) {
@@ -259,13 +291,6 @@ vt_efb_init(struct vt_device *vd)
 	/* Get pixel storage size. */
 	info->fb_bpp = info->fb_stride / info->fb_width * 8;
 
-	/*
-	 * Early FB driver work with static window buffer 80x25, so reduce
-	 * size to 640x480.
-	 */
-	info->fb_width = VT_FB_DEFAULT_WIDTH;
-	info->fb_height = VT_FB_DEFAULT_HEIGHT;
-
 #ifdef	FDT
 	vt_efb_initialize(info, node);
 #else
@@ -273,7 +298,6 @@ vt_efb_init(struct vt_device *vd)
 #endif
 	fb_probe(info);
 	vt_fb_init(vd);
-
 
 	return (CN_INTERNAL);
 }

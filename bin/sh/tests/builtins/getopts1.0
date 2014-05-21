@@ -15,7 +15,7 @@ printf -- '-2-\n'
 set -- -ab
 getopts "ab:" OPTION
 echo ${OPTION}
-getopts "ab:" OPTION
+getopts "ab:" OPTION 3>&2 2>&1 >&3 3>&-
 echo ${OPTION}
 
 # The 'shift' is aimed at causing an error.

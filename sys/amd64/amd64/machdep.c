@@ -1147,7 +1147,7 @@ struct soft_segment_descriptor gdt_segs[] = {
 	.ssd_gran = 1		},
 /* GPROC0_SEL	9 Proc 0 Tss Descriptor */
 {	.ssd_base = 0x0,
-	.ssd_limit = sizeof(struct amd64tss) + IOPAGES * PAGE_SIZE - 1,
+	.ssd_limit = sizeof(struct amd64tss) + IOPERM_BITMAP_SIZE - 1,
 	.ssd_type = SDT_SYSTSS,
 	.ssd_dpl = SEL_KPL,
 	.ssd_p = 1,
@@ -1526,6 +1526,10 @@ add_efi_map_entries(struct efi_map_header *efihdr, vm_paddr_t *physmap,
 	}
 }
 
+static char bootmethod[16] = "";
+SYSCTL_STRING(_machdep, OID_AUTO, bootmethod, CTLFLAG_RD, bootmethod, 0,
+    "System firmware boot method");
+
 static void
 native_parse_memmap(caddr_t kmdp, vm_paddr_t *physmap, int *physmap_idx)
 {
@@ -1550,9 +1554,11 @@ native_parse_memmap(caddr_t kmdp, vm_paddr_t *physmap, int *physmap_idx)
 
 	if (efihdr != NULL) {
 		add_efi_map_entries(efihdr, physmap, physmap_idx);
+		strlcpy(bootmethod, "UEFI", sizeof(bootmethod));
 	} else {
 		size = *((u_int32_t *)smap - 1);
 		bios_add_smap_entries(smap, size, physmap, physmap_idx);
+		strlcpy(bootmethod, "BIOS", sizeof(bootmethod));
 	}
 }
 
@@ -1997,8 +2003,7 @@ hammer_time(u_int64_t modulep, u_int64_t physfree)
 	common_tss[0].tss_ist2 = (long) np;
 
 	/* Set the IO permission bitmap (empty due to tss seg limit) */
-	common_tss[0].tss_iobase = sizeof(struct amd64tss) +
-	    IOPAGES * PAGE_SIZE;
+	common_tss[0].tss_iobase = sizeof(struct amd64tss) + IOPERM_BITMAP_SIZE;
 
 	gsel_tss = GSEL(GPROC0_SEL, SEL_KPL);
 	ltr(gsel_tss);
