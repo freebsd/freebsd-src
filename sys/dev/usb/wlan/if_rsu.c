@@ -189,9 +189,9 @@ static void	rsu_init(void *);
 static void	rsu_init_locked(struct rsu_softc *);
 static void	rsu_watchdog(void *);
 static int	rsu_tx_start(struct rsu_softc *, struct ieee80211_node *, 
-		    struct mbuf *, struct rsu_data *);
+		    struct mbuf *, struct rsu_data *, struct usb_xfer *);
 static void	rsu_start(struct ifnet *);
-static void	rsu_start_locked(struct ifnet *);
+static void	rsu_start_locked(struct ifnet *, struct usb_xfer *);
 static int	rsu_ioctl(struct ifnet *, u_long, caddr_t);
 static void	rsu_stop(struct ifnet *, int);
 static void	rsu_stop_locked(struct ifnet *, int);
@@ -1610,7 +1610,7 @@ tr_setup:
 		usbd_xfer_set_frame_data(xfer, 0, data->buf, data->buflen);
 		DPRINTF("submitting transfer %p\n", data);
 		usbd_transfer_submit(xfer);
-		rsu_start_locked(ifp);
+		rsu_start_locked(ifp, xfer);
 		break;
 	default:
 		data = STAILQ_FIRST(&sc->sc_tx_active);
@@ -1631,7 +1631,7 @@ tr_setup:
 
 static int
 rsu_tx_start(struct rsu_softc *sc, struct ieee80211_node *ni, 
-    struct mbuf *m0, struct rsu_data *data)
+    struct mbuf *m0, struct rsu_data *data, struct usb_xfer *xfer_self)
 {
 	struct ifnet *ifp = sc->sc_ifp;
 	struct ieee80211com *ic = ifp->if_l2com;
@@ -1736,8 +1736,9 @@ rsu_tx_start(struct rsu_softc *sc, struct ieee80211_node *ni,
 	data->ni = ni;
 	data->m = m0;
 	STAILQ_INSERT_TAIL(&sc->sc_tx_pending, data, next);
-	usbd_transfer_start(xfer);
 
+	if (xfer != xfer_self)
+		usbd_transfer_start(xfer);
 	return (0);
 }
 
@@ -1750,12 +1751,12 @@ rsu_start(struct ifnet *ifp)
 		return;
 
 	RSU_LOCK(sc);
-	rsu_start_locked(ifp);
+	rsu_start_locked(ifp, NULL);
 	RSU_UNLOCK(sc);
 }
 
 static void
-rsu_start_locked(struct ifnet *ifp)
+rsu_start_locked(struct ifnet *ifp, struct usb_xfer *xfer_self)
 {
 	struct rsu_softc *sc = ifp->if_softc;
 	struct ieee80211_node *ni;
@@ -1776,7 +1777,7 @@ rsu_start_locked(struct ifnet *ifp)
 		ni = (struct ieee80211_node *)m->m_pkthdr.rcvif;
 		m->m_pkthdr.rcvif = NULL;
 
-		if (rsu_tx_start(sc, ni, m, bf) != 0) {
+		if (rsu_tx_start(sc, ni, m, bf, xfer_self) != 0) {
 			ifp->if_oerrors++;
 			STAILQ_INSERT_HEAD(&sc->sc_tx_inactive, bf, next);
 			ieee80211_free_node(ni);
@@ -2303,7 +2304,7 @@ rsu_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
 		return (ENOBUFS);
 	}
 	ifp->if_opackets++;
-	if (rsu_tx_start(sc, ni, m, bf) != 0) {
+	if (rsu_tx_start(sc, ni, m, bf, NULL) != 0) {
 		ieee80211_free_node(ni);
 		ifp->if_oerrors++;
 		STAILQ_INSERT_HEAD(&sc->sc_tx_inactive, bf, next);
