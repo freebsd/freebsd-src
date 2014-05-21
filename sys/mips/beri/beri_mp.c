@@ -39,6 +39,8 @@ __FBSDID("$FreeBSD$");
 #include <machine/hwfunc.h>
 #include <machine/smp.h>
 
+#include <mips/beri/beri.h>
+
 #include <dev/fdt/fdt_common.h>
 #include "fdt_ic_if.h"
 
@@ -52,6 +54,13 @@ struct spin_entry {
 
 static phandle_t cpu_of_nodes[MAXCPU];
 static device_t picmap[MAXCPU];
+
+int
+platform_processor_id(void)
+{
+
+	return (beri_get_cpu());
+}
 
 void
 platform_cpu_mask(cpuset_t *mask)

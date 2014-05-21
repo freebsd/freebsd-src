@@ -1,11 +1,10 @@
 /*-
- * Copyright (c) 2012 Robert N. M. Watson
- * Copyright (c) 2013 SRI International
+ * Copyright (c) 2014 SRI International
  * All rights reserved.
  *
  * This software was developed by SRI International and the University of
- * Cambridge Computer Laboratory under DARPA/AFRL contract (FA8750-10-C-0237)
- * ("CTSRD"), as part of the DARPA CRASH research programme.
+ * Cambridge Computer Laboratory under DARPA/AFRL contract (FA8750-11-C-0249)
+ * ("MRC2"), as part of the DARPA MRC research programme.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -29,15 +28,52 @@
  * SUCH DAMAGE.
  */
 
-#include <machine/asm.h>
-#include <machine/cpuregs.h>
+static inline int
+beri_get_core(void)
+{
+	uint32_t cinfo;
 
-#ifdef SMP
-/* XXXBED: Correct for multithread, needs adjustment for multicore. */
-LEAF(platform_processor_id)
-	MFC0	v0, MIPS_COP_0_PRID
-	srl	v0, v0, 24
-	jr	ra
-	and	v0, v0, 255
-END(platform_processor_id)
-#endif
+	cinfo = mips_rd_cinfo();
+	return (cinfo & 0xffff);
+}
+
+static inline int
+beri_get_ncores(void)
+{
+	uint32_t cinfo;
+
+	cinfo = mips_rd_cinfo();
+	return ((cinfo >> 16) + 1);
+}
+
+static inline int
+beri_get_thread(void)
+{
+	uint32_t tinfo;
+
+	tinfo = mips_rd_tinfo();
+	return (tinfo & 0xffff);
+}
+
+static inline int
+beri_get_nthreads(void)
+{
+	uint32_t tinfo;
+
+	tinfo = mips_rd_tinfo();
+	return ((tinfo >> 16) + 1);
+}
+
+static inline int
+beri_get_cpu(void)
+{
+
+	return ((beri_get_core() * beri_get_nthreads()) + beri_get_thread());
+}
+
+static inline int
+beri_get_ncpus(void)
+{
+
+	return(beri_get_ncores() * beri_get_nthreads());
+}
