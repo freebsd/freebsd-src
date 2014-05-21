@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2013 Kevin Lo
+ * Copyright (c) 2013-2014 Kevin Lo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -71,12 +71,16 @@ static const STRUCT_USB_HOST_ID axge_devs[] = {
 };
 
 static const struct {
-	unsigned char ctrl, timer_l, timer_h, size, ifg;
-} AX88179_BULKIN_SIZE[] = {
-	{7, 0x4f, 0,    0x12, 0xff},
-	{7, 0x20, 3,    0x16, 0xff},
-	{7, 0xae, 7,    0x18, 0xff},
-	{7, 0xcc, 0x4c, 0x18, 8},
+	uint8_t	ctrl;
+	uint8_t timer_l;
+	uint8_t	timer_h;
+	uint8_t	size;
+	uint8_t	ifg;
+} axge_bulk_size[] = {
+	{ 7, 0x4f, 0x00, 0x12, 0xff },
+	{ 7, 0x20, 0x03, 0x16, 0xff },
+	{ 7, 0xae, 0x07, 0x18, 0xff },
+	{ 7, 0xcc, 0x4c, 0x18, 0x08 }
 };
 
 /* prototypes */
@@ -104,6 +108,8 @@ static int	axge_read_mem(struct axge_softc *, uint8_t, uint16_t,
 		    uint16_t, void *, int);
 static void	axge_write_mem(struct axge_softc *, uint8_t, uint16_t,
 		    uint16_t, void *, int);
+static uint8_t	axge_read_cmd_1(struct axge_softc *, uint8_t, uint16_t,
+		    uint16_t);
 static uint16_t	axge_read_cmd_2(struct axge_softc *, uint8_t, uint16_t,
 		    uint16_t);
 static void	axge_write_cmd_1(struct axge_softc *, uint8_t, uint16_t,
@@ -233,6 +239,16 @@ axge_write_mem(struct axge_softc *sc, uint8_t cmd, uint16_t index,
 	}
 }
 
+static uint8_t
+axge_read_cmd_1(struct axge_softc *sc, uint8_t cmd, uint16_t index,
+    uint16_t reg)
+{
+	uint8_t val;
+
+	axge_read_mem(sc, cmd, index, reg, &val, 1);
+	return (val);
+}
+
 static uint16_t
 axge_read_cmd_2(struct axge_softc *sc, uint8_t cmd, uint16_t index,
     uint16_t reg)
@@ -307,6 +323,7 @@ axge_miibus_statchg(device_t dev)
 	struct axge_softc *sc;
 	struct mii_data *mii;
 	struct ifnet *ifp;
+	uint8_t link_status, tmp[5];
 	uint16_t val;
 	int locked;
 
@@ -339,6 +356,8 @@ axge_miibus_statchg(device_t dev)
 	if ((sc->sc_flags & AXGE_FLAG_LINK) == 0)
 		goto done;
 
+	link_status = axge_read_cmd_1(sc, AXGE_ACCESS_MAC, 1, AXGE_LINK_STATUS);
+
 	val = 0;
 	if ((IFM_OPTIONS(mii->mii_media_active) & IFM_FDX) != 0) {
 		val |= AXGE_MEDIUM_FULL_DUPLEX;
@@ -347,18 +366,32 @@ axge_miibus_statchg(device_t dev)
 		if ((IFM_OPTIONS(mii->mii_media_active) & IFM_ETH_RXPAUSE) != 0)
 			val |= AXGE_MEDIUM_RXFLOW_CTRLEN;
 	}
-	val |=  AXGE_MEDIUM_RECEIVE_EN | AXGE_MEDIUM_ALWAYS_ONE;
+	val |=  AXGE_MEDIUM_RECEIVE_EN;
 	switch (IFM_SUBTYPE(mii->mii_media_active)) {
 	case IFM_1000_T:
-		val |= AXGE_MEDIUM_GIGAMODE;
+		val |= AXGE_MEDIUM_GIGAMODE | AXGE_MEDIUM_EN_125MHZ;
+		if (link_status & AXGE_LINK_STATUS_USB_SS)
+			memcpy(tmp, &axge_bulk_size[0], 5);
+		else if (link_status & AXGE_LINK_STATUS_USB_HS)
+			memcpy(tmp, &axge_bulk_size[1], 5);
+		else
+			memcpy(tmp, &axge_bulk_size[3], 5);
+		break;
 	case IFM_100_TX:
 		val |= AXGE_MEDIUM_PS;
+		if (link_status &
+		    (AXGE_LINK_STATUS_USB_SS | AXGE_LINK_STATUS_USB_HS))
+			memcpy(tmp, &axge_bulk_size[2], 5);
+		else
+			memcpy(tmp, &axge_bulk_size[3], 5);
+		break;
 	case IFM_10_T:
-		/* Doesn't need to be handled. */
+		memcpy(tmp, &axge_bulk_size[3], 5);
 		break;
 	}
+	/* Rx bulk configuration. */
+	axge_write_mem(sc, AXGE_ACCESS_MAC, 5, AXGE_RX_BULKIN_QCTRL, tmp, 5);
 	axge_write_cmd_2(sc, AXGE_ACCESS_MAC, 2, AXGE_MEDIUM_STATUS_MODE, val);
-
 done:
 	if (!locked)
 		AXGE_UNLOCK(sc);
@@ -401,16 +434,12 @@ static void
 axge_attach_post(struct usb_ether *ue)
 {
 	struct axge_softc *sc;
-	uint8_t tmp[5];
 
 	sc = uether_getsc(ue);
 	sc->sc_phyno = 3;
 
 	/* Initialize controller and get station address. */
 	axge_chip_init(sc);
-
-	memcpy(tmp, &AX88179_BULKIN_SIZE[0], 5);
-	axge_read_mem(sc, AXGE_ACCESS_MAC, 5, AXGE_RX_BULKIN_QCTRL, tmp, 5);
 	axge_read_mem(sc, AXGE_ACCESS_MAC, ETHER_ADDR_LEN, AXGE_NODE_ID,
 	    ue->ue_eaddr, ETHER_ADDR_LEN);
 }
@@ -439,7 +468,7 @@ axge_attach_post_sub(struct usb_ether *ue)
 	mtx_lock(&Giant);
 	error = mii_attach(ue->ue_dev, &ue->ue_miibus, ifp,
 	    uether_ifmedia_upd, ue->ue_methods->ue_mii_sts,
-	    BMSR_DEFCAPMASK, sc->sc_phyno, MII_OFFSET_ANY, 0);
+	    BMSR_DEFCAPMASK, sc->sc_phyno, MII_OFFSET_ANY, MIIF_DOPAUSE);
 	mtx_unlock(&Giant);
 
 	return (error);
