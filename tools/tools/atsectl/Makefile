@@ -7,6 +7,6 @@ LDADD=	-lmd
 
 BINDIR?=	/usr/sbin
 
-MAN=
+MAN=	atsectl.8
 
 .include <bsd.prog.mk>

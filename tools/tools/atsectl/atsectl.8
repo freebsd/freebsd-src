@@ -1,0 +1,88 @@
+.\"-
+.\" Copyright (c) 2014 SRI International
+.\" All rights reserved.
+.\"
+.\" This software was developed by SRI International and the University of
+.\" Cambridge Computer Laboratory under DARPA/AFRL contract (FA8750-10-C-0237)
+.\" ("CTSRD"), as part of the DARPA CRASH research programme.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd May 21, 2014
+.Dt ATSECTL 8
+.Os
+.Sh NAME
+.Nm atsectl
+.Nd Configure MAC address for Altera Triple-Speed Ethernet devices
+.Sh SYNOPSIS
+.Nm
+.Op Fl g
+.Op Fl h
+.Op Fl l
+.Op Fl u
+.Op Fl s Ar etheraddr
+.Sh DESCRIPTION
+The
+.Nm
+utility reads and configures the MAC address of Altera Triple-Speed
+Ethernet
+.Pq Xr atse 4
+network interfaces.
+The MAC address for all ATSE interfaces is derived from a value stored in
+.Xr cfi 4
+flash at a board specific offset.
+The interpertation of the stored MAC address is documented in
+.Xr atse 4 .
+.Pp
+The current address may be read by supplying the
+.Fl l
+flag.
+.Pp
+A specific address may be written using the
+.Fl s
+option.
+Alternatively a random address derived from the factory PPR of the DE4's
+Intel StrataFlash chip
+.Pq as retrieved from the cfi0.factory_ppr kernel environment variable
+can be generated and written with the
+.Fl u
+flag.
+By default the address will have the locally administered bit set.
+This can be unset by adding the
+.Fl g
+flag to the command line.
+.Pp
+Finally, a summary of usage information can be printed by supplying the
+.Fl h
+flag.
+.Sh BUGS
+The
+.Nm
+interface should be command oriented rather than requiring an unobvious
+selection of flags.
+.Sh AUTHORS
+This software and this manual page were
+developed by SRI International and the University of Cambridge Computer
+Laboratory under DARPA/AFRL contract
+.Pq FA8750-10-C-0237
+.Pq Do CTSRD Dc ,
+as part of the DARPA CRASH research programme.
