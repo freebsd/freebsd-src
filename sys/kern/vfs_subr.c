@@ -2343,6 +2343,8 @@ vdropl(struct vnode *vp)
 	if (vp->v_holdcnt <= 0)
 		panic("vdrop: holdcnt %d", vp->v_holdcnt);
 	vp->v_holdcnt--;
+	VNASSERT(vp->v_holdcnt >= vp->v_usecount, vp,
+	    ("hold count less than use count"));
 	if (vp->v_holdcnt > 0) {
 		VI_UNLOCK(vp);
 		return;
