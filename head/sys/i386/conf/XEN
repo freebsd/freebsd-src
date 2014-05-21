@@ -7,7 +7,7 @@ cpu		I686_CPU
 ident		XEN
 
 makeoptions	DEBUG=-g
-makeoptions	WITHOUT_MODULES="aha ahb amd ctl cxgb dpt drm drm2 hptnr hptmv ida malo mps mwl rdma sound sym trm xfs"
+makeoptions	WITHOUT_MODULES="aha ahb amd ctl cxgb dpt drm drm2 hptnr hptmv ida malo mpr mps mwl rdma sound sym trm xfs"
 
 options 	SCHED_ULE		# ULE scheduler
 options 	PREEMPTION		# Enable kernel thread preemption

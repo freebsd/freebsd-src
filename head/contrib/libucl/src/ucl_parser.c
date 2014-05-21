@@ -55,34 +55,6 @@ struct ucl_parser_saved_state {
     (chunk)->remain --;										\
     } while (0)
 
-/**
- * Save parser state
- * @param chunk
- * @param s
- */
-static inline void
-ucl_chunk_save_state (struct ucl_chunk *chunk, struct ucl_parser_saved_state *s)
-{
-	s->column = chunk->column;
-	s->pos = chunk->pos;
-	s->line = chunk->line;
-	s->remain = chunk->remain;
-}
-
-/**
- * Restore parser state
- * @param chunk
- * @param s
- */
-static inline void
-ucl_chunk_restore_state (struct ucl_chunk *chunk, struct ucl_parser_saved_state *s)
-{
-	chunk->column = s->column;
-	chunk->pos = s->pos;
-	chunk->line = s->line;
-	chunk->remain = s->remain;
-}
-
 static inline void
 ucl_set_err (struct ucl_chunk *chunk, int code, const char *str, UT_string **err)
 {
@@ -1086,19 +1058,19 @@ ucl_parse_key (struct ucl_parser *parser, struct ucl_chunk *chunk, bool *next_ke
 	keylen = ucl_copy_or_store_ptr (parser, c, &nobj->trash_stack[UCL_TRASH_KEY],
 			&key, end - c, need_unescape, parser->flags & UCL_PARSER_KEY_LOWERCASE, false);
 	if (keylen == -1) {
-		ucl_object_free(nobj);
+		ucl_object_unref (nobj);
 		return false;
 	}
 	else if (keylen == 0) {
 		ucl_set_err (chunk, UCL_ESYNTAX, "empty keys are not allowed", &parser->err);
-		ucl_object_free(nobj);
+		ucl_object_unref (nobj);
 		return false;
 	}
 
 	container = parser->stack->obj->value.ov;
 	nobj->key = key;
 	nobj->keylen = keylen;
-	tobj = ucl_hash_search_obj (container, nobj);
+	tobj = __DECONST (ucl_object_t *, ucl_hash_search_obj (container, nobj));
 	if (tobj == NULL) {
 		container = ucl_hash_insert_object (container, nobj);
 		nobj->prev = nobj;

@@ -147,7 +147,7 @@ specifications, they apply globally to all sort keys.
 When attached to a specific key (see
 .Fl k ) ,
 the ordering options override all global ordering options for
-the key they are attahced to.
+the key they are attached to.
 .Bl -tag -width indent
 .It Fl b, Fl Fl ignore-leading-blanks
 Ignore leading blank characters when comparing lines.

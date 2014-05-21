@@ -138,6 +138,7 @@ DRIVER_MODULE(usbus, octusb, usb_driver, usb_devclass, 0, 0);
 
 /* Dual Mode Drivers */
 DRIVER_MODULE(usbus, dwcotg, usb_driver, usb_devclass, 0, 0);
+DRIVER_MODULE(usbus, saf1761, usb_driver, usb_devclass, 0, 0);
 
 /*------------------------------------------------------------------------*
  *	usb_probe
@@ -900,6 +901,9 @@ usb_bus_mem_alloc_all(struct usb_bus *bus, bus_dma_tag_t dmat,
 	mtx_init(&bus->bus_mtx, device_get_nameunit(bus->parent),
 	    NULL, MTX_DEF | MTX_RECURSE);
 
+	mtx_init(&bus->bus_spin_lock, device_get_nameunit(bus->parent),
+	    NULL, MTX_SPIN | MTX_RECURSE);
+
 	usb_callout_init_mtx(&bus->power_wdog,
 	    &bus->bus_mtx, 0);
 
@@ -953,6 +957,7 @@ usb_bus_mem_free_all(struct usb_bus *bus, usb_bus_mem_cb_t *cb)
 #endif
 
 	mtx_destroy(&bus->bus_mtx);
+	mtx_destroy(&bus->bus_spin_lock);
 }
 
 /* convenience wrappers */

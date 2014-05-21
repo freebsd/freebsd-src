@@ -1,5 +1,5 @@
 .\" $FreeBSD$
-.Dd July 31, 2012
+.Dd May 17, 2014
 .Dt MD5 1
 .Os
 .Sh NAME
@@ -63,12 +63,12 @@ concerned, and should not be relied upon to produce unique outputs.
 This also means that
 .Tn MD5
 should not be used as part of a cryptographic signature scheme.
-At the current time (2009-01-06) there is no publicly known method to
+At the current time (2014-05-17) there is no publicly known method to
 .Dq reverse
 MD5, i.e., to find an input given a hash value.
 .Pp
 .Tn SHA-1
-currently (2009-01-06) has no known collisions, but an attack has been
+currently (2014-05-17) has no known collisions, but an attack has been
 found which is faster than a brute-force search, placing the security of
 .Tn SHA-1
 in doubt.
@@ -83,15 +83,15 @@ The hexadecimal checksum of each file listed on the command line is printed
 after the options are processed.
 .Bl -tag -width indent
 .It Fl c Ar string
-Compare files to this md5 string.
-(Note that this option is not yet useful if multiple files are specified.)
+Compare the digest of the file against this string.
+.Pq Note that this option is not yet useful if multiple files are specified.
 .It Fl s Ar string
 Print a checksum of the given
 .Ar string .
 .It Fl p
 Echo stdin to stdout and append the checksum to stdout.
 .It Fl q
-Quiet mode - only the checksum is printed out.
+Quiet mode \(em only the checksum is printed out.
 Overrides the
 .Fl r
 option.
@@ -114,7 +114,9 @@ and
 .Nm rmd160
 utilities exit 0 on success,
 1 if at least one of the input files could not be read,
-and 2 if at least one file does not have the same hash as the -c option.
+and 2 if at least one file does not have the same hash as the
+.Fl c
+option.
 .Sh SEE ALSO
 .Xr cksum 1 ,
 .Xr md5 3 ,

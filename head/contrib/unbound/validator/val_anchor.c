@@ -21,16 +21,16 @@
  * specific prior written permission.
  * 
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
- * TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE
- * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
- * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
- * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
- * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
+ * TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+ * PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+ * LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+ * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+ * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
 /**
@@ -40,8 +40,6 @@
  */
 #include "config.h"
 #include <ctype.h>
-#include <ldns/dname.h>
-#include <ldns/host2wire.h>
 #include "validator/val_anchor.h"
 #include "validator/val_sigcrypt.h"
 #include "validator/autotrust.h"
@@ -50,6 +48,9 @@
 #include "util/log.h"
 #include "util/net_help.h"
 #include "util/config_file.h"
+#include "ldns/sbuffer.h"
+#include "ldns/rrdef.h"
+#include "ldns/str2wire.h"
 #ifdef HAVE_GLOB_H
 #include <glob.h>
 #endif
@@ -242,6 +243,8 @@ anchor_new_ta(struct val_anchors* anchors, uint8_t* name, int namelabs,
 	}
 #ifdef UNBOUND_DEBUG
 	r =
+#else
+	(void)
 #endif
 	rbtree_insert(anchors->tree, &ta->node);
 	if(lockit) {
@@ -344,36 +347,26 @@ anchor_store_new_key(struct val_anchors* anchors, uint8_t* name, uint16_t type,
 /**
  * Add new RR. It converts ldns RR to wire format.
  * @param anchors: anchor storage.
- * @param buffer: parsing buffer.
- * @param rr: the rr (allocated by caller).
+ * @param rr: the wirerr.
+ * @param rl: length of rr.
+ * @param dl: length of dname.
  * @return NULL on error, else the trust anchor.
  */
 static struct trust_anchor*
-anchor_store_new_rr(struct val_anchors* anchors, ldns_buffer* buffer, 
-	ldns_rr* rr)
+anchor_store_new_rr(struct val_anchors* anchors, uint8_t* rr, size_t rl,
+	size_t dl)
 {
 	struct trust_anchor* ta;
-	ldns_rdf* owner = ldns_rr_owner(rr);
-	ldns_status status;
-	ldns_buffer_clear(buffer);
-	ldns_buffer_skip(buffer, 2); /* skip rdatalen */
-	status = ldns_rr_rdata2buffer_wire(buffer, rr);
-	if(status != LDNS_STATUS_OK) {
-		log_err("error converting trustanchor to wireformat: %s", 
-			ldns_get_errorstr_by_id(status));
-		return NULL;
-	}
-	ldns_buffer_flip(buffer);
-	ldns_buffer_write_u16_at(buffer, 0, ldns_buffer_limit(buffer) - 2);
-
-	if(!(ta=anchor_store_new_key(anchors, ldns_rdf_data(owner), 
-		ldns_rr_get_type(rr), ldns_rr_get_class(rr),
-		ldns_buffer_begin(buffer), ldns_buffer_limit(buffer)))) {
+	if(!(ta=anchor_store_new_key(anchors, rr,
+		sldns_wirerr_get_type(rr, rl, dl),
+		sldns_wirerr_get_class(rr, rl, dl),
+		sldns_wirerr_get_rdatawl(rr, rl, dl),
+		sldns_wirerr_get_rdatalen(rr, rl, dl)+2))) {
 		return NULL;
 	}
 	log_nametypeclass(VERB_QUERY, "adding trusted key",
-		ldns_rdf_data(owner), 
-		ldns_rr_get_type(rr), ldns_rr_get_class(rr));
+		rr, sldns_wirerr_get_type(rr, rl, dl),
+		sldns_wirerr_get_class(rr, rl, dl));
 	return ta;
 }
 
@@ -387,36 +380,37 @@ static struct trust_anchor*
 anchor_insert_insecure(struct val_anchors* anchors, const char* str)
 {
 	struct trust_anchor* ta;
-	ldns_rdf* nm = ldns_dname_new_frm_str(str);
+	size_t dname_len = 0;
+	uint8_t* nm = sldns_str2wire_dname(str, &dname_len);
 	if(!nm) {
 		log_err("parse error in domain name '%s'", str);
 		return NULL;
 	}
-	ta = anchor_store_new_key(anchors, ldns_rdf_data(nm), LDNS_RR_TYPE_DS,
+	ta = anchor_store_new_key(anchors, nm, LDNS_RR_TYPE_DS,
 		LDNS_RR_CLASS_IN, NULL, 0);
-	ldns_rdf_deep_free(nm);
+	free(nm);
 	return ta;
 }
 
 struct trust_anchor*
-anchor_store_str(struct val_anchors* anchors, ldns_buffer* buffer,
+anchor_store_str(struct val_anchors* anchors, sldns_buffer* buffer,
 	const char* str)
 {
 	struct trust_anchor* ta;
-	ldns_rr* rr = NULL;
-	ldns_status status = ldns_rr_new_frm_str(&rr, str, 0, NULL, NULL);
-	if(status != LDNS_STATUS_OK) {
-		log_err("error parsing trust anchor: %s", 
-			ldns_get_errorstr_by_id(status));
-		ldns_rr_free(rr);
+	uint8_t* rr = sldns_buffer_begin(buffer);
+	size_t len = sldns_buffer_capacity(buffer), dname_len = 0;
+	int status = sldns_str2wire_rr_buf(str, rr, &len, &dname_len,
+		0, NULL, 0, NULL, 0);
+	if(status != 0) {
+		log_err("error parsing trust anchor %s: at %d: %s", 
+			str, LDNS_WIREPARSE_OFFSET(status),
+			sldns_get_errorstr_parse(status));
 		return NULL;
 	}
-	if(!(ta=anchor_store_new_rr(anchors, buffer, rr))) {
+	if(!(ta=anchor_store_new_rr(anchors, rr, len, dname_len))) {
 		log_err("out of memory");
-		ldns_rr_free(rr);
 		return NULL;
 	}
-	ldns_rr_free(rr);
 	return ta;
 }
 
@@ -429,44 +423,43 @@ anchor_store_str(struct val_anchors* anchors, ldns_buffer* buffer,
  * @return NULL on error. Else last trust-anchor point.
  */
 static struct trust_anchor*
-anchor_read_file(struct val_anchors* anchors, ldns_buffer* buffer,
+anchor_read_file(struct val_anchors* anchors, sldns_buffer* buffer,
 	const char* fname, int onlyone)
 {
 	struct trust_anchor* ta = NULL, *tanew;
-	uint32_t default_ttl = 3600;
-	ldns_rdf* origin = NULL, *prev = NULL;
-	int line_nr = 1;
-	ldns_status status;
-	ldns_rr* rr;
+	struct sldns_file_parse_state pst;
+	int status;
+	size_t len, dname_len;
+	uint8_t* rr = sldns_buffer_begin(buffer);
 	int ok = 1;
 	FILE* in = fopen(fname, "r");
 	if(!in) {
 		log_err("error opening file %s: %s", fname, strerror(errno));
 		return 0;
 	}
+	memset(&pst, 0, sizeof(pst));
+	pst.default_ttl = 3600;
+	pst.lineno = 1;
 	while(!feof(in)) {
-		rr = NULL;
-		status = ldns_rr_new_frm_fp_l(&rr, in, &default_ttl, &origin,
-			&prev, &line_nr);
-		if(status == LDNS_STATUS_SYNTAX_EMPTY /* empty line */
-			|| status == LDNS_STATUS_SYNTAX_TTL /* $TTL */
-			|| status == LDNS_STATUS_SYNTAX_ORIGIN /* $ORIGIN */)
+		len = sldns_buffer_capacity(buffer);
+		dname_len = 0;
+		status = sldns_fp2wire_rr_buf(in, rr, &len, &dname_len, &pst);
+		if(len == 0) /* empty, $TTL, $ORIGIN */
 			continue;
-		if(status != LDNS_STATUS_OK) {
-			log_err("parse error in %s:%d : %s", fname, line_nr,
-				ldns_get_errorstr_by_id(status));
-			ldns_rr_free(rr);
+		if(status != 0) {
+			log_err("parse error in %s:%d:%d : %s", fname,
+				pst.lineno, LDNS_WIREPARSE_OFFSET(status),
+				sldns_get_errorstr_parse(status));
 			ok = 0;
 			break;
 		}
-		if(ldns_rr_get_type(rr) != LDNS_RR_TYPE_DS && 
-			ldns_rr_get_type(rr) != LDNS_RR_TYPE_DNSKEY) {
-			ldns_rr_free(rr);
+		if(sldns_wirerr_get_type(rr, len, dname_len) !=
+			LDNS_RR_TYPE_DS && sldns_wirerr_get_type(rr, len,
+			dname_len) != LDNS_RR_TYPE_DNSKEY) {
 			continue;
 		}
-		if(!(tanew=anchor_store_new_rr(anchors, buffer, rr))) {
-			log_err("error at %s line %d", fname, line_nr);
-			ldns_rr_free(rr);
+		if(!(tanew=anchor_store_new_rr(anchors, rr, len, dname_len))) {
+			log_err("mem error at %s line %d", fname, pst.lineno);
 			ok = 0;
 			break;
 		}
@@ -474,16 +467,12 @@ anchor_read_file(struct val_anchors* anchors, ldns_buffer* buffer,
 			log_err("error at %s line %d: no multiple anchor "
 				"domains allowed (you can have multiple "
 				"keys, but they must have the same name).", 
-				fname, line_nr);
-			ldns_rr_free(rr);
+				fname, pst.lineno);
 			ok = 0;
 			break;
 		}
 		ta = tanew;
-		ldns_rr_free(rr);
 	}
-	ldns_rdf_deep_free(origin);
-	ldns_rdf_deep_free(prev);
 	fclose(in);
 	if(!ok) return NULL;
 	/* empty file is OK when multiple anchors are allowed */
@@ -538,7 +527,7 @@ is_bind_special(int c)
  *	0 on end of file.
  */
 static int
-readkeyword_bindfile(FILE* in, ldns_buffer* buf, int* line, int comments)
+readkeyword_bindfile(FILE* in, sldns_buffer* buf, int* line, int comments)
 {
 	int c;
 	int numdone = 0;
@@ -548,17 +537,17 @@ readkeyword_bindfile(FILE* in, ldns_buffer* buf, int* line, int comments)
 			(*line)++;
 			continue;
 		} else if(comments && c=='/' && numdone>0 && /* /_/ bla*/
-			ldns_buffer_read_u8_at(buf, 
-			ldns_buffer_position(buf)-1) == '/') {
-			ldns_buffer_skip(buf, -1);
+			sldns_buffer_read_u8_at(buf, 
+			sldns_buffer_position(buf)-1) == '/') {
+			sldns_buffer_skip(buf, -1);
 			numdone--;
 			skip_to_eol(in);
 			(*line)++;
 			continue;
 		} else if(comments && c=='*' && numdone>0 && /* /_* bla *_/ */
-			ldns_buffer_read_u8_at(buf, 
-			ldns_buffer_position(buf)-1) == '/') {
-			ldns_buffer_skip(buf, -1);
+			sldns_buffer_read_u8_at(buf, 
+			sldns_buffer_position(buf)-1) == '/') {
+			sldns_buffer_skip(buf, -1);
 			numdone--;
 			/* skip to end of comment */
 			while(c != EOF && (c=getc(in)) != EOF ) {
@@ -588,10 +577,10 @@ readkeyword_bindfile(FILE* in, ldns_buffer* buf, int* line, int comments)
 			(*line)++;
 		}
 		/* space for 1 char + 0 string terminator */
-		if(ldns_buffer_remaining(buf) < 2) {
+		if(sldns_buffer_remaining(buf) < 2) {
 			fatal_exit("trusted-keys, %d, string too long", *line);
 		}
-		ldns_buffer_write_u8(buf, (uint8_t)c);
+		sldns_buffer_write_u8(buf, (uint8_t)c);
 		numdone++;
 		if(isspace(c)) {
 			/* collate whitespace into ' ' */
@@ -613,17 +602,17 @@ readkeyword_bindfile(FILE* in, ldns_buffer* buf, int* line, int comments)
 
 /** skip through file to { or ; */
 static int 
-skip_to_special(FILE* in, ldns_buffer* buf, int* line, int spec) 
+skip_to_special(FILE* in, sldns_buffer* buf, int* line, int spec) 
 {
 	int rdlen;
-	ldns_buffer_clear(buf);
+	sldns_buffer_clear(buf);
 	while((rdlen=readkeyword_bindfile(in, buf, line, 1))) {
-		if(rdlen == 1 && isspace((int)*ldns_buffer_begin(buf))) {
-			ldns_buffer_clear(buf);
+		if(rdlen == 1 && isspace((int)*sldns_buffer_begin(buf))) {
+			sldns_buffer_clear(buf);
 			continue;
 		}
-		if(rdlen != 1 || *ldns_buffer_begin(buf) != (uint8_t)spec) {
-			ldns_buffer_write_u8(buf, 0);
+		if(rdlen != 1 || *sldns_buffer_begin(buf) != (uint8_t)spec) {
+			sldns_buffer_write_u8(buf, 0);
 			log_err("trusted-keys, line %d, expected %c", 
 				*line, spec);
 			return 0;
@@ -643,7 +632,7 @@ skip_to_special(FILE* in, ldns_buffer* buf, int* line, int spec)
  * @return 0 on error.
  */
 static int
-process_bind_contents(struct val_anchors* anchors, ldns_buffer* buf, 
+process_bind_contents(struct val_anchors* anchors, sldns_buffer* buf, 
 	int* line, FILE* in)
 {
 	/* loop over contents, collate strings before ; */
@@ -656,41 +645,41 @@ process_bind_contents(struct val_anchors* anchors, ldns_buffer* buf,
 	int comments = 1;
 	int rdlen;
 	char* str = 0;
-	ldns_buffer_clear(buf);
+	sldns_buffer_clear(buf);
 	while((rdlen=readkeyword_bindfile(in, buf, line, comments))) {
-		if(rdlen == 1 && ldns_buffer_position(buf) == 1
-			&& isspace((int)*ldns_buffer_begin(buf))) {
+		if(rdlen == 1 && sldns_buffer_position(buf) == 1
+			&& isspace((int)*sldns_buffer_begin(buf))) {
 			/* starting whitespace is removed */
-			ldns_buffer_clear(buf);
+			sldns_buffer_clear(buf);
 			continue;
-		} else if(rdlen == 1 && ldns_buffer_current(buf)[-1] == '"') {
+		} else if(rdlen == 1 && sldns_buffer_current(buf)[-1] == '"') {
 			/* remove " from the string */
 			if(contnum == 0) {
 				quoted = 1;
 				comments = 0;
 			}
-			ldns_buffer_skip(buf, -1);
+			sldns_buffer_skip(buf, -1);
 			if(contnum > 0 && quoted) {
-				if(ldns_buffer_remaining(buf) < 8+1) {
+				if(sldns_buffer_remaining(buf) < 8+1) {
 					log_err("line %d, too long", *line);
 					return 0;
 				}
-				ldns_buffer_write(buf, " DNSKEY ", 8);
+				sldns_buffer_write(buf, " DNSKEY ", 8);
 				quoted = 0;
 				comments = 1;
 			} else if(contnum > 0)
 				comments = !comments;
 			continue;
-		} else if(rdlen == 1 && ldns_buffer_current(buf)[-1] == ';') {
+		} else if(rdlen == 1 && sldns_buffer_current(buf)[-1] == ';') {
 
 			if(contnum < 5) {
-				ldns_buffer_write_u8(buf, 0);
+				sldns_buffer_write_u8(buf, 0);
 				log_err("line %d, bad key", *line);
 				return 0;
 			}
-			ldns_buffer_skip(buf, -1);
-			ldns_buffer_write_u8(buf, 0);
-			str = strdup((char*)ldns_buffer_begin(buf));
+			sldns_buffer_skip(buf, -1);
+			sldns_buffer_write_u8(buf, 0);
+			str = strdup((char*)sldns_buffer_begin(buf));
 			if(!str) {
 				log_err("line %d, allocation failure", *line);
 				return 0;
@@ -701,30 +690,30 @@ process_bind_contents(struct val_anchors* anchors, ldns_buffer* buf,
 				return 0;
 			}
 			free(str);
-			ldns_buffer_clear(buf);
+			sldns_buffer_clear(buf);
 			contnum = 0;
 			quoted = 0;
 			comments = 1;
 			continue;
-		} else if(rdlen == 1 && ldns_buffer_current(buf)[-1] == '}') {
+		} else if(rdlen == 1 && sldns_buffer_current(buf)[-1] == '}') {
 			if(contnum > 0) {
-				ldns_buffer_write_u8(buf, 0);
+				sldns_buffer_write_u8(buf, 0);
 				log_err("line %d, bad key before }", *line);
 				return 0;
 			}
 			return 1;
 		} else if(rdlen == 1 && 
-			isspace((int)ldns_buffer_current(buf)[-1])) {
+			isspace((int)sldns_buffer_current(buf)[-1])) {
 			/* leave whitespace here */
 		} else {
 			/* not space or whatnot, so actual content */
 			contnum ++;
 			if(contnum == 1 && !quoted) {
-				if(ldns_buffer_remaining(buf) < 8+1) {
+				if(sldns_buffer_remaining(buf) < 8+1) {
 					log_err("line %d, too long", *line);
 					return 0;
 				}	
-				ldns_buffer_write(buf, " DNSKEY ", 8);
+				sldns_buffer_write(buf, " DNSKEY ", 8);
 			}
 		}
 	}
@@ -741,7 +730,7 @@ process_bind_contents(struct val_anchors* anchors, ldns_buffer* buf,
  * @return false on error.
  */
 static int
-anchor_read_bind_file(struct val_anchors* anchors, ldns_buffer* buffer,
+anchor_read_bind_file(struct val_anchors* anchors, sldns_buffer* buffer,
 	const char* fname)
 {
 	int line_nr = 1;
@@ -753,11 +742,11 @@ anchor_read_bind_file(struct val_anchors* anchors, ldns_buffer* buffer,
 	}
 	verbose(VERB_QUERY, "reading in bind-compat-mode: '%s'", fname);
 	/* scan for  trusted-keys  keyword, ignore everything else */
-	ldns_buffer_clear(buffer);
+	sldns_buffer_clear(buffer);
 	while((rdlen=readkeyword_bindfile(in, buffer, &line_nr, 1)) != 0) {
-		if(rdlen != 12 || strncmp((char*)ldns_buffer_begin(buffer),
+		if(rdlen != 12 || strncmp((char*)sldns_buffer_begin(buffer),
 			"trusted-keys", 12) != 0) {
-			ldns_buffer_clear(buffer);
+			sldns_buffer_clear(buffer);
 			/* ignore everything but trusted-keys */
 			continue;
 		}
@@ -777,7 +766,7 @@ anchor_read_bind_file(struct val_anchors* anchors, ldns_buffer* buffer,
 			fclose(in);
 			return 0;
 		}
-		ldns_buffer_clear(buffer);
+		sldns_buffer_clear(buffer);
 	}
 	fclose(in);
 	return 1;
@@ -792,7 +781,7 @@ anchor_read_bind_file(struct val_anchors* anchors, ldns_buffer* buffer,
  * @return false on error.
  */
 static int
-anchor_read_bind_file_wild(struct val_anchors* anchors, ldns_buffer* buffer,
+anchor_read_bind_file_wild(struct val_anchors* anchors, sldns_buffer* buffer,
 	const char* pat)
 {
 #ifdef HAVE_GLOB
@@ -900,7 +889,7 @@ assemble_it(struct trust_anchor* ta, size_t num, uint16_t type)
 		free(pkey);
 		return NULL;
 	}
-	pd->rr_ttl = (uint32_t*)malloc(num*sizeof(uint32_t));
+	pd->rr_ttl = (time_t*)malloc(num*sizeof(time_t));
 	if(!pd->rr_ttl) {
 		free(pd->rr_len);
 		free(pd);
@@ -1050,13 +1039,13 @@ anchors_apply_cfg(struct val_anchors* anchors, struct config_file* cfg)
 {
 	struct config_strlist* f;
 	char* nm;
-	ldns_buffer* parsebuf = ldns_buffer_new(65535);
+	sldns_buffer* parsebuf = sldns_buffer_new(65535);
 	for(f = cfg->domain_insecure; f; f = f->next) {
 		if(!f->str || f->str[0] == 0) /* empty "" */
 			continue;
 		if(!anchor_insert_insecure(anchors, f->str)) {
 			log_err("error in domain-insecure: %s", f->str);
-			ldns_buffer_free(parsebuf);
+			sldns_buffer_free(parsebuf);
 			return 0;
 		}
 	}
@@ -1069,7 +1058,7 @@ anchors_apply_cfg(struct val_anchors* anchors, struct config_file* cfg)
 			nm += strlen(cfg->chrootdir);
 		if(!anchor_read_file(anchors, parsebuf, nm, 0)) {
 			log_err("error reading trust-anchor-file: %s", f->str);
-			ldns_buffer_free(parsebuf);
+			sldns_buffer_free(parsebuf);
 			return 0;
 		}
 	}
@@ -1082,7 +1071,7 @@ anchors_apply_cfg(struct val_anchors* anchors, struct config_file* cfg)
 			nm += strlen(cfg->chrootdir);
 		if(!anchor_read_bind_file_wild(anchors, parsebuf, nm)) {
 			log_err("error reading trusted-keys-file: %s", f->str);
-			ldns_buffer_free(parsebuf);
+			sldns_buffer_free(parsebuf);
 			return 0;
 		}
 	}
@@ -1091,7 +1080,7 @@ anchors_apply_cfg(struct val_anchors* anchors, struct config_file* cfg)
 			continue;
 		if(!anchor_store_str(anchors, parsebuf, f->str)) {
 			log_err("error in trust-anchor: \"%s\"", f->str);
-			ldns_buffer_free(parsebuf);
+			sldns_buffer_free(parsebuf);
 			return 0;
 		}
 	}
@@ -1105,7 +1094,7 @@ anchors_apply_cfg(struct val_anchors* anchors, struct config_file* cfg)
 			nm, 1))) {
 			log_err("error reading dlv-anchor-file: %s", 
 				cfg->dlv_anchor_file);
-			ldns_buffer_free(parsebuf);
+			sldns_buffer_free(parsebuf);
 			return 0;
 		}
 		lock_basic_lock(&anchors->lock);
@@ -1119,7 +1108,7 @@ anchors_apply_cfg(struct val_anchors* anchors, struct config_file* cfg)
 		if(!(dlva = anchor_store_str(
 			anchors, parsebuf, f->str))) {
 			log_err("error in dlv-anchor: \"%s\"", f->str);
-			ldns_buffer_free(parsebuf);
+			sldns_buffer_free(parsebuf);
 			return 0;
 		}
 		lock_basic_lock(&anchors->lock);
@@ -1138,14 +1127,14 @@ anchors_apply_cfg(struct val_anchors* anchors, struct config_file* cfg)
 		if(!autr_read_file(anchors, nm)) {
 			log_err("error reading auto-trust-anchor-file: %s", 
 				f->str);
-			ldns_buffer_free(parsebuf);
+			sldns_buffer_free(parsebuf);
 			return 0;
 		}
 	}
 	/* first assemble, since it may delete useless anchors */
 	anchors_assemble_rrsets(anchors);
 	init_parents(anchors);
-	ldns_buffer_free(parsebuf);
+	sldns_buffer_free(parsebuf);
 	if(verbosity >= VERB_ALGO) autr_debug_print(anchors);
 	return 1;
 }
@@ -1195,6 +1184,8 @@ anchors_get_mem(struct val_anchors* anchors)
 {
 	struct trust_anchor *ta;
 	size_t s = sizeof(*anchors);
+	if(!anchors)
+		return 0;
 	RBTREE_FOR(ta, struct trust_anchor*, anchors->tree) {
 		s += sizeof(*ta) + ta->namelen;
 		/* keys and so on */

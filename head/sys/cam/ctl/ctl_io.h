@@ -293,21 +293,60 @@ union ctl_io;
  */
 struct ctl_scsiio {
 	struct ctl_io_hdr io_hdr;	/* common to all I/O types */
+
+	/*
+	 * The ext_* fields are generally intended for frontend use; CTL itself
+	 * doesn't modify or use them.
+	 */
 	uint32_t   ext_sg_entries;	/* 0 = no S/G list, > 0 = num entries */
 	uint8_t	   *ext_data_ptr;	/* data buffer or S/G list */
 	uint32_t   ext_data_len;	/* Data transfer length */
 	uint32_t   ext_data_filled;	/* Amount of data filled so far */
-	uint32_t   kern_sg_entries;	/* 0 = no S/G list, > 0 = num entries */
-	uint32_t   rem_sg_entries;	/* 0 = no S/G list, > 0 = num entries */
-	uint8_t    *kern_data_ptr;	/* data buffer or S/G list */
-	uint32_t   kern_data_len;	/* Length of this S/G list/buffer */
-	uint32_t   kern_total_len;	/* Total length of this transaction */
-	uint32_t   kern_data_resid;	/* Length left to transfer after this*/
-	uint32_t   kern_rel_offset;	/* Byte Offset of this transfer */
+
+	/*
+	 * The number of scatter/gather entries in the list pointed to
+	 * by kern_data_ptr.  0 means there is no list, just a data pointer.
+	 */
+	uint32_t   kern_sg_entries;
+
+	uint32_t   rem_sg_entries;	/* Unused. */
+
+	/*
+	 * The data pointer or a pointer to the scatter/gather list.
+	 */
+	uint8_t    *kern_data_ptr;
+
+	/*
+	 * Length of the data buffer or scatter/gather list.  It's also
+	 * the length of this particular piece of the data transfer,
+	 * ie. number of bytes expected to be transferred by the current
+	 * invocation of frontend's datamove() callback.  It's always
+	 * less than or equal to kern_total_len.
+	 */
+	uint32_t   kern_data_len;
+
+	/*
+	 * Total length of data to be transferred during this particular
+	 * SCSI command, as decoded from SCSI CDB.
+	 */
+	uint32_t   kern_total_len;
+
+	/*
+	 * Amount of data left after the current data transfer.
+	 */
+	uint32_t   kern_data_resid;
+
+	/*
+	 * Byte offset of this transfer, equal to the amount of data
+	 * already transferred for this SCSI command during previous
+	 * datamove() invocations.
+	 */
+	uint32_t   kern_rel_offset;
+
 	struct     scsi_sense_data sense_data;	/* sense data */
 	uint8_t	   sense_len;		/* Returned sense length */
 	uint8_t	   scsi_status;		/* SCSI status byte */
-	uint8_t	   sense_residual;	/* sense residual length */
+	uint8_t	   sense_residual;	/* Unused. */
 	uint32_t   residual;		/* data residual length */
 	uint32_t   tag_num;		/* tag number */
 	ctl_tag_type tag_type;		/* simple, ordered, head of queue,etc.*/

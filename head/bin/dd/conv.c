@@ -74,7 +74,7 @@ def(void)
 		dd_out(0);
 
 		/*
-		 * Ddout copies the leftover output to the beginning of
+		 * dd_out copies the leftover output to the beginning of
 		 * the buffer and resets the output buffer.  Reset the
 		 * input buffer to match it.
 	 	 */

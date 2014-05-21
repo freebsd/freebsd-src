@@ -14,7 +14,7 @@ acpi_quirks.h			optional acpi				   \
 # from the specified source (DTS) file: <platform>.dts -> <platform>.dtb
 #
 fdt_dtb_file			optional fdt fdt_dtb_static \
-	compile-with "sh $S/tools/fdt/make_dtb.sh $S ${FDT_DTS_FILE} ${.CURDIR}/${FDT_DTS_FILE:R}.dtb" \
+	compile-with "sh $S/tools/fdt/make_dtb.sh $S ${FDT_DTS_FILE} ${.CURDIR}" \
 	no-obj no-implicit-rule before-depend	\
 	clean		"${FDT_DTS_FILE:R}.dtb"
 fdt_static_dtb.h		optional fdt fdt_dtb_static \
@@ -1417,6 +1417,22 @@ dev/hptiop/hptiop.c		optional hptiop scbus
 dev/hwpmc/hwpmc_logging.c	optional hwpmc
 dev/hwpmc/hwpmc_mod.c		optional hwpmc
 dev/hwpmc/hwpmc_soft.c		optional hwpmc
+dev/i40e/if_i40e.c		optional i40e inet \
+	compile-with "${NORMAL_C} -I$S/dev/i40e -DSMP"
+dev/i40e/i40e_txrx.c		optional i40e inet \
+	compile-with "${NORMAL_C} -I$S/dev/i40e -DSMP"
+dev/i40e/i40e_osdep.c		optional i40e inet \
+	compile-with "${NORMAL_C} -I$S/dev/i40e -DSMP"
+dev/i40e/i40e_nvm.c		optional i40e inet \
+	compile-with "${NORMAL_C} -I$S/dev/i40e -DSMP"
+dev/i40e/i40e_lan_hmc.c		optional i40e inet \
+	compile-with "${NORMAL_C} -I$S/dev/i40e -DSMP"
+dev/i40e/i40e_hmc.c		optional i40e inet \
+	compile-with "${NORMAL_C} -I$S/dev/i40e -DSMP"
+dev/i40e/i40e_common.c		optional i40e inet \
+	compile-with "${NORMAL_C} -I$S/dev/i40e -DSMP"
+dev/i40e/i40e_adminq.c		optional i40e inet \
+	compile-with "${NORMAL_C} -I$S/dev/i40e -DSMP"
 dev/ichsmb/ichsmb.c		optional ichsmb
 dev/ichsmb/ichsmb_pci.c		optional ichsmb pci
 dev/ida/ida.c			optional ida
@@ -1444,6 +1460,7 @@ dev/iicbus/iiconf.c		optional iicbus
 dev/iicbus/iicsmb.c		optional iicsmb				\
 	dependency	"iicbus_if.h"
 dev/iicbus/iicoc.c		optional iicoc
+dev/iicbus/lm75.c		optional lm75
 dev/iicbus/pcf8563.c		optional pcf8563
 dev/iicbus/s35390a.c		optional s35390a
 dev/iir/iir.c			optional iir
@@ -1804,6 +1821,17 @@ dev/mmc/mmcbr_if.m		standard
 dev/mmc/mmcbus_if.m		standard
 dev/mmc/mmcsd.c			optional mmcsd
 dev/mn/if_mn.c			optional mn pci
+dev/mpr/mpr.c			optional mpr
+dev/mpr/mpr_config.c		optional mpr
+# XXX Work around clang warning, until maintainer approves fix.
+dev/mpr/mpr_mapping.c		optional mpr \
+	compile-with "${NORMAL_C} ${NO_WSOMETIMES_UNINITIALIZED}"
+dev/mpr/mpr_pci.c		optional mpr pci
+dev/mpr/mpr_sas.c		optional mpr \
+	compile-with "${NORMAL_C} ${NO_WUNNEEDED_INTERNAL_DECL}"
+dev/mpr/mpr_sas_lsi.c		optional mpr
+dev/mpr/mpr_table.c		optional mpr
+dev/mpr/mpr_user.c		optional mpr
 dev/mps/mps.c			optional mps
 dev/mps/mps_config.c		optional mps
 # XXX Work around clang warning, until maintainer approves fix.
@@ -1821,6 +1849,10 @@ dev/mpt/mpt_debug.c		optional mpt
 dev/mpt/mpt_pci.c		optional mpt pci
 dev/mpt/mpt_raid.c		optional mpt
 dev/mpt/mpt_user.c		optional mpt
+dev/mrsas/mrsas.c		optional mrsas
+dev/mrsas/mrsas_cam.c		optional mrsas
+dev/mrsas/mrsas_ioctl.c		optional mrsas
+dev/mrsas/mrsas_fp.c		optional mrsas
 dev/msk/if_msk.c		optional msk
 dev/mvs/mvs.c			optional mvs
 dev/mvs/mvs_if.m		optional mvs
@@ -2373,6 +2405,20 @@ dev/usb/wlan/if_upgt.c		optional upgt
 dev/usb/wlan/if_ural.c		optional ural
 dev/usb/wlan/if_urtw.c		optional urtw
 dev/usb/wlan/if_urtwn.c		optional urtwn
+urtwn-rtl8188eufw.c		optional urtwn-rtl8188eufw | urtwnfw	\
+	compile-with	"${AWK} -f $S/tools/fw_stub.awk urtwn-rtl8188eufw.fw:urtwn-rtl8188eufw:111 -murtwn-rtl8188eufw -c${.TARGET}" \
+	no-implicit-rule before-depend local				\
+	clean		"urtwn-rtl8188eufw.c"
+urtwn-rtl8188eufw.fwo		optional urtwn-rtl8188eufw | urtwnfw	\
+	dependency	"urtwn-rtl8188eufw.fw"				\
+	compile-with	"${NORMAL_FWO}"					\
+	no-implicit-rule						\
+	clean		"urtwn-rtl8188eufw.fwo"
+urtwn-rtl8188eufw.fw		optional urtwn-rtl8188eufw | urtwnfw	\
+	dependency	"$S/contrib/dev/urtwn/urtwn-rtl8188eufw.fw.uu"	\
+	compile-with	"${NORMAL_FW}"					\
+	no-obj no-implicit-rule						\
+	clean		"urtwn-rtl8188eufw.fw"
 urtwn-rtl8192cfwT.c		optional urtwn-rtl8192cfwT | urtwnfw	\
 	compile-with	"${AWK} -f $S/tools/fw_stub.awk urtwn-rtl8192cfwT.fw:urtwn-rtl8192cfwT:111 -murtwn-rtl8192cfwT -c${.TARGET}" \
 	no-implicit-rule before-depend local				\
@@ -2745,6 +2791,21 @@ contrib/xz-embedded/linux/lib/xz/xz_dec_stream.c \
 	optional xz_embedded | geom_uncompress \
 	compile-with "${NORMAL_C} -I$S/contrib/xz-embedded/freebsd/ -I$S/contrib/xz-embedded/linux/lib/xz/ -I$S/contrib/xz-embedded/linux/include/linux/"
 geom/uzip/g_uzip.c		optional geom_uzip
+geom/vinum/geom_vinum.c		optional geom_vinum
+geom/vinum/geom_vinum_create.c	optional geom_vinum
+geom/vinum/geom_vinum_drive.c	optional geom_vinum
+geom/vinum/geom_vinum_plex.c	optional geom_vinum
+geom/vinum/geom_vinum_volume.c	optional geom_vinum
+geom/vinum/geom_vinum_subr.c	optional geom_vinum
+geom/vinum/geom_vinum_raid5.c	optional geom_vinum
+geom/vinum/geom_vinum_share.c	optional geom_vinum
+geom/vinum/geom_vinum_list.c	optional geom_vinum
+geom/vinum/geom_vinum_rm.c	optional geom_vinum
+geom/vinum/geom_vinum_init.c	optional geom_vinum
+geom/vinum/geom_vinum_state.c	optional geom_vinum
+geom/vinum/geom_vinum_rename.c	optional geom_vinum
+geom/vinum/geom_vinum_move.c	optional geom_vinum
+geom/vinum/geom_vinum_events.c	optional geom_vinum
 geom/virstor/binstream.c	optional geom_virstor
 geom/virstor/g_virstor.c	optional geom_virstor
 geom/virstor/g_virstor_md.c	optional geom_virstor

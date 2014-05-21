@@ -4,7 +4,6 @@
 
 PROG=	ath_ee_9287_print
 SRCS=	main.c eeprom.c 9287.c
-NOMAN=	yes
 MAN=
 
 .include <../Makefile.inc>

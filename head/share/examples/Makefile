@@ -2,7 +2,7 @@
 #
 # Doing a make install builds /usr/share/examples
 
-.include <bsd.own.mk>
+.include <src.opts.mk>
 
 LDIRS=	BSD_daemon \
 	FreeBSD_version \

@@ -70,7 +70,12 @@ __FBSDID("$FreeBSD$");
 #define	VLAPIC_TIMER_UNLOCK(vlapic)	mtx_unlock_spin(&((vlapic)->timer_mtx))
 #define	VLAPIC_TIMER_LOCKED(vlapic)	mtx_owned(&((vlapic)->timer_mtx))
 
-#define VLAPIC_BUS_FREQ	tsc_freq
+/*
+ * APIC timer frequency:
+ * - arbitrary but chosen to be in the ballpark of contemporary hardware.
+ * - power-of-two to avoid loss of precision when converted to a bintime.
+ */
+#define VLAPIC_BUS_FREQ		(128 * 1024 * 1024)
 
 static __inline uint32_t
 vlapic_get_id(struct vlapic *vlapic)

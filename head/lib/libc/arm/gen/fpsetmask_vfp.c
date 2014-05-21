@@ -45,7 +45,7 @@ fpsetmask(fp_except_t mask)
 	__asm __volatile("vmrs %0, fpscr" : "=&r"(old));
 	mask = (mask & FP_X_MASK) << 8;
 	new = (old & ~(FP_X_MASK << 8)) | mask;
-	__asm __volatile("vmsr fpscr, %0" : : "r"(old));
+	__asm __volatile("vmsr fpscr, %0" : : "r"(new));
 
 	return ((old >> 8) & FP_X_MASK);
 }

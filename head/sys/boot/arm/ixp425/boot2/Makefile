@@ -1,6 +1,6 @@
 #  $FreeBSD$
 
-.include <bsd.own.mk>
+.include <src.opts.mk>
 
 # We get a lot of the std lib functions from here.
 .PATH: ${.CURDIR}/../../at91/libat91

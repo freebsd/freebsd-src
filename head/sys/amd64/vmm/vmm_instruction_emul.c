@@ -572,13 +572,15 @@ vie_init(struct vie *vie)
 }
 
 static int
-gla2gpa(struct vm *vm, uint64_t gla, uint64_t ptpphys,
-	uint64_t *gpa, enum vie_paging_mode paging_mode)
+gla2gpa(struct vm *vm, uint64_t gla, uint64_t ptpphys, uint64_t *gpa,
+    enum vie_paging_mode paging_mode, int cpl)
 {
-	int nlevels, ptpshift, ptpindex;
+	int nlevels, ptpshift, ptpindex, usermode;
 	uint64_t *ptpbase, pte, pgsize;
 	uint32_t *ptpbase32, pte32;
 	void *cookie;
+
+	usermode = (cpl == 3 ? 1 : 0);
 
 	if (paging_mode == PAGING_MODE_FLAT) {
 		*gpa = gla;
@@ -593,7 +595,7 @@ gla2gpa(struct vm *vm, uint64_t gla, uint64_t ptpphys,
 
 			ptpbase32 = vm_gpa_hold(vm, ptpphys, PAGE_SIZE,
 						VM_PROT_READ, &cookie);
-			
+
 			if (ptpbase32 == NULL)
 				goto error;
 
@@ -608,7 +610,11 @@ gla2gpa(struct vm *vm, uint64_t gla, uint64_t ptpphys,
 			if ((pte32 & PG_V) == 0)
 				goto error;
 
-			if (pte32 & PG_PS)
+			if (usermode && (pte32 & PG_U) == 0)
+				goto error;
+
+			/* XXX must be ignored if CR4.PSE=0 */
+			if (nlevels > 0 && (pte32 & PG_PS) != 0)
 				break;
 
 			ptpphys = pte32;
@@ -621,8 +627,8 @@ gla2gpa(struct vm *vm, uint64_t gla, uint64_t ptpphys,
 	}
 
 	if (paging_mode == PAGING_MODE_PAE) {
-		/* Zero out the lower 5 bits and the upper 12 bits */
-		ptpphys >>= 5; ptpphys <<= 17; ptpphys >>= 12;
+		/* Zero out the lower 5 bits and the upper 32 bits */
+		ptpphys &= 0xffffffe0UL;
 
 		ptpbase = vm_gpa_hold(vm, ptpphys, sizeof(*ptpbase) * 4,
 				      VM_PROT_READ, &cookie);
@@ -663,7 +669,10 @@ gla2gpa(struct vm *vm, uint64_t gla, uint64_t ptpphys,
 		if ((pte & PG_V) == 0)
 			goto error;
 
-		if (pte & PG_PS) {
+		if (usermode && (pte & PG_U) == 0)
+			goto error;
+
+		if (nlevels > 0 && (pte & PG_PS) != 0) {
 			if (pgsize > 1 * GB)
 				goto error;
 			else
@@ -684,7 +693,7 @@ error:
 
 int
 vmm_fetch_instruction(struct vm *vm, int cpuid, uint64_t rip, int inst_length,
-		      uint64_t cr3, enum vie_paging_mode paging_mode,
+		      uint64_t cr3, enum vie_paging_mode paging_mode, int cpl,
 		      struct vie *vie)
 {
 	int n, err, prot;
@@ -701,7 +710,7 @@ vmm_fetch_instruction(struct vm *vm, int cpuid, uint64_t rip, int inst_length,
 
 	/* Copy the instruction into 'vie' */
 	while (vie->num_valid < inst_length) {
-		err = gla2gpa(vm, rip, cr3, &gpa, paging_mode);
+		err = gla2gpa(vm, rip, cr3, &gpa, paging_mode, cpl);
 		if (err)
 			break;
 

@@ -65,6 +65,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
 
+#include <arm/ti/ti_cpuid.h>
 #include <arm/ti/ti_prcm.h>
 #include <arm/ti/ti_i2c.h>
 
@@ -106,21 +107,23 @@ struct ti_i2c_clock_config
 	uint8_t hssclh;		/* High Speed mode SCL high time */
 };
 
-static struct ti_i2c_clock_config ti_i2c_clock_configs[] = {
-
 #if defined(SOC_OMAP4)
+static struct ti_i2c_clock_config ti_omap4_i2c_clock_configs[] = {
 	{ IIC_SLOW,      100000, 23,  13,  15, 0,  0},
 	{ IIC_FAST,      400000,  9,   5,   7, 0,  0},
 	{ IIC_FASTEST,	3310000,  1, 113, 115, 7, 10},
-#elif defined(SOC_TI_AM335X)
+	{ -1, 0 }
+};
+#endif
+
+#if defined(SOC_TI_AM335X)
+static struct ti_i2c_clock_config ti_am335x_i2c_clock_configs[] = {
 	{ IIC_SLOW,      100000,  3,  53,  55, 0,  0},
 	{ IIC_FAST,      400000,  3,   8,  10, 0,  0},
 	{ IIC_FASTEST,   400000,  3,   8,  10, 0,  0}, /* This might be higher */
-#else
-#error "TI I2C driver is not supported on this SoC"
-#endif
 	{ -1, 0 }
 };
+#endif
 
 
 #define TI_I2C_REV1  0x003C      /* OMAP3 */
@@ -280,7 +283,20 @@ ti_i2c_reset(device_t dev, u_char speed, u_char addr, u_char *oldaddr)
 	struct ti_i2c_clock_config *clkcfg;
 	uint16_t con_reg;
 
-	clkcfg = ti_i2c_clock_configs;
+	switch (ti_chip()) {
+#ifdef SOC_OMAP4
+	case CHIP_OMAP_4:
+		clkcfg = ti_omap4_i2c_clock_configs;
+		break;
+#endif
+#ifdef SOC_TI_AM335X
+	case CHIP_AM335X:
+		clkcfg = ti_am335x_i2c_clock_configs;
+		break;
+#endif
+	default:
+		panic("Unknown Ti SoC, unable to reset the i2c");
+	}
 	while (clkcfg->speed != -1) {
 		if (clkcfg->speed == speed)
 			break;

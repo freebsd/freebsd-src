@@ -456,7 +456,7 @@ rman_reserve_resource_bound(struct rman *rm, u_long start, u_long end,
 	mtx_lock(rm->rm_mtx);
 
 	for (r = TAILQ_FIRST(&rm->rm_list);
-	     r && r->r_end < start;
+	     r && r->r_end < start + count - 1;
 	     r = TAILQ_NEXT(r, r_link))
 		;
 
@@ -466,6 +466,11 @@ rman_reserve_resource_bound(struct rman *rm, u_long start, u_long end,
 	}
 
 	amask = (1ul << RF_ALIGNMENT(flags)) - 1;
+	if (start > ULONG_MAX - amask) {
+		DPRINTF(("start+amask would wrap around\n"));
+		goto out;
+	}
+
 	/* If bound is 0, bmask will also be 0 */
 	bmask = ~(bound - 1);
 	/*
@@ -473,9 +478,18 @@ rman_reserve_resource_bound(struct rman *rm, u_long start, u_long end,
 	 */
 	for (s = r; s; s = TAILQ_NEXT(s, r_link)) {
 		DPRINTF(("considering [%#lx, %#lx]\n", s->r_start, s->r_end));
-		if (s->r_start + count - 1 > end) {
+		/*
+		 * The resource list is sorted, so there is no point in
+		 * searching further once r_start is too large.
+		 */
+		if (s->r_start > end - (count - 1)) {
 			DPRINTF(("s->r_start (%#lx) + count - 1> end (%#lx)\n",
 			    s->r_start, end));
+			break;
+		}
+		if (s->r_start > ULONG_MAX - amask) {
+			DPRINTF(("s->r_start (%#lx) + amask (%#lx) too large\n",
+			    s->r_start, amask));
 			break;
 		}
 		if (s->r_flags & RF_ALLOCATED) {
@@ -588,15 +602,10 @@ rman_reserve_resource_bound(struct rman *rm, u_long start, u_long end,
 	if ((flags & (RF_SHAREABLE | RF_TIMESHARE)) == 0)
 		goto out;
 
-	for (s = r; s; s = TAILQ_NEXT(s, r_link)) {
-		if (s->r_start > end)
-			break;
-		if ((s->r_flags & flags) != flags)
-			continue;
-		rstart = ulmax(s->r_start, start);
-		rend = ulmin(s->r_end, ulmax(start + count - 1, end));
-		if (s->r_start >= start && s->r_end <= end
-		    && (s->r_end - s->r_start + 1) == count &&
+	for (s = r; s && s->r_end <= end; s = TAILQ_NEXT(s, r_link)) {
+		if ((s->r_flags & flags) == flags &&
+		    s->r_start >= start &&
+		    (s->r_end - s->r_start + 1) == count &&
 		    (s->r_start & amask) == 0 &&
 		    ((s->r_start ^ s->r_end) & bmask) == 0) {
 			rv = int_alloc_resource(M_NOWAIT);

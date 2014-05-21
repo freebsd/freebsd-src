@@ -125,10 +125,6 @@ VNET_DEFINE(int, rttrash);		/* routes not in table but not freed */
 #define	V_rttrash	VNET(rttrash)
 
 
-/* compare two sockaddr structures */
-#define	sa_equal(a1, a2) (((a1)->sa_len == (a2)->sa_len) && \
-    (bcmp((a1), (a2), (a1)->sa_len) == 0))
-
 /*
  * Convert a 'struct radix_node *' to a 'struct rtentry *'.
  * The operation can be done safely (in this code) because a
@@ -143,6 +139,10 @@ VNET_DEFINE(int, rttrash);		/* routes not in table but not freed */
 
 static VNET_DEFINE(uma_zone_t, rtzone);		/* Routing table UMA zone. */
 #define	V_rtzone	VNET(rtzone)
+
+static int rtrequest1_fib_change(struct radix_node_head *, struct rt_addrinfo *,
+    struct rtentry **, u_int);
+static void rt_setmetrics(const struct rt_addrinfo *, struct rtentry *);
 
 /*
  * handler for net.my_fibnum
@@ -402,15 +402,6 @@ rtalloc1_fib(struct sockaddr *dst, int report, u_long ignflags,
 	int needlock;
 
 	KASSERT((fibnum < rt_numfibs), ("rtalloc1_fib: bad fibnum"));
-	switch (dst->sa_family) {
-	case AF_INET6:
-	case AF_INET:
-		/* We support multiple FIBs. */
-		break;
-	default:
-		fibnum = RT_DEFAULT_FIB;
-		break;
-	}
 	rnh = rt_tables_get_rnh(fibnum, dst->sa_family);
 	newrt = NULL;
 	if (rnh == NULL)
@@ -582,7 +573,7 @@ rtredirect_fib(struct sockaddr *dst,
 	}
 
 	/* verify the gateway is directly reachable */
-	if ((ifa = ifa_ifwithnet(gateway, 0)) == NULL) {
+	if ((ifa = ifa_ifwithnet(gateway, 0, fibnum)) == NULL) {
 		error = ENETUNREACH;
 		goto out;
 	}
@@ -726,7 +717,7 @@ struct ifaddr *
 ifa_ifwithroute_fib(int flags, struct sockaddr *dst, struct sockaddr *gateway,
 				u_int fibnum)
 {
-	register struct ifaddr *ifa;
+	struct ifaddr *ifa;
 	int not_found = 0;
 
 	if ((flags & RTF_GATEWAY) == 0) {
@@ -739,7 +730,7 @@ ifa_ifwithroute_fib(int flags, struct sockaddr *dst, struct sockaddr *gateway,
 		 */
 		ifa = NULL;
 		if (flags & RTF_HOST)
-			ifa = ifa_ifwithdstaddr(dst);
+			ifa = ifa_ifwithdstaddr(dst, fibnum);
 		if (ifa == NULL)
 			ifa = ifa_ifwithaddr(gateway);
 	} else {
@@ -748,10 +739,10 @@ ifa_ifwithroute_fib(int flags, struct sockaddr *dst, struct sockaddr *gateway,
 		 * or host, the gateway may still be on the
 		 * other end of a pt to pt link.
 		 */
-		ifa = ifa_ifwithdstaddr(gateway);
+		ifa = ifa_ifwithdstaddr(gateway, fibnum);
 	}
 	if (ifa == NULL)
-		ifa = ifa_ifwithnet(gateway, 0);
+		ifa = ifa_ifwithnet(gateway, 0, fibnum);
 	if (ifa == NULL) {
 		struct rtentry *rt = rtalloc1_fib(gateway, 0, RTF_RNH_LOCKED, fibnum);
 		if (rt == NULL)
@@ -865,7 +856,7 @@ rt_getifa_fib(struct rt_addrinfo *info, u_int fibnum)
 	 */
 	if (info->rti_ifp == NULL && ifpaddr != NULL &&
 	    ifpaddr->sa_family == AF_LINK &&
-	    (ifa = ifa_ifwithnet(ifpaddr, 0)) != NULL) {
+	    (ifa = ifa_ifwithnet(ifpaddr, 0, fibnum)) != NULL) {
 		info->rti_ifp = ifa->ifa_ifp;
 		ifa_free(ifa);
 	}
@@ -898,7 +889,7 @@ rt_getifa_fib(struct rt_addrinfo *info, u_int fibnum)
  * The route must be locked.
  */
 int
-rtexpunge(struct rtentry *rt)
+rt_expunge(struct radix_node_head *rnh, struct rtentry *rt)
 {
 #if !defined(RADIX_MPATH)
 	struct radix_node *rn;
@@ -907,17 +898,10 @@ rtexpunge(struct rtentry *rt)
 	int fib;
 	struct rtentry *rt0;
 #endif
-	struct radix_node_head *rnh;
 	struct ifaddr *ifa;
 	int error = 0;
 
-	/*
-	 * Find the correct routing tree to use for this Address Family
-	 */
-	rnh = rt_tables_get_rnh(rt->rt_fibnum, rt_key(rt)->sa_family);
 	RT_LOCK_ASSERT(rt);
-	if (rnh == NULL)
-		return (EAFNOSUPPORT);
 	RADIX_NODE_HEAD_LOCK_ASSERT(rnh);
 
 #ifdef RADIX_MPATH
@@ -1042,7 +1026,7 @@ rn_mpath_update(int req, struct rt_addrinfo *info,
 	 * a matching RTAX_GATEWAY.
 	 */
 	struct rtentry *rt, *rto = NULL;
-	register struct radix_node *rn;
+	struct radix_node *rn;
 	int error = 0;
 
 	rn = rnh->rnh_lookup(dst, netmask, rnh);
@@ -1144,12 +1128,12 @@ rtrequest1_fib(int req, struct rt_addrinfo *info, struct rtentry **ret_nrt,
 				u_int fibnum)
 {
 	int error = 0, needlock = 0;
-	register struct rtentry *rt;
+	struct rtentry *rt;
 #ifdef FLOWTABLE
-	register struct rtentry *rt0;
+	struct rtentry *rt0;
 #endif
-	register struct radix_node *rn;
-	register struct radix_node_head *rnh;
+	struct radix_node *rn;
+	struct radix_node_head *rnh;
 	struct ifaddr *ifa;
 	struct sockaddr *ndst;
 	struct sockaddr_storage mdst;
@@ -1402,6 +1386,8 @@ rtrequest1_fib(int req, struct rt_addrinfo *info, struct rtentry **ret_nrt,
 		if (ifa->ifa_rtrequest)
 			ifa->ifa_rtrequest(req, rt, info);
 
+		rt_setmetrics(info, rt);
+
 		/*
 		 * actually return a resultant rtentry and
 		 * give the caller a single reference.
@@ -1411,6 +1397,9 @@ rtrequest1_fib(int req, struct rt_addrinfo *info, struct rtentry **ret_nrt,
 			RT_ADDREF(rt);
 		}
 		RT_UNLOCK(rt);
+		break;
+	case RTM_CHANGE:
+		error = rtrequest1_fib_change(rnh, info, ret_nrt, fibnum);
 		break;
 	default:
 		error = EOPNOTSUPP;
@@ -1428,6 +1417,108 @@ bad:
 #undef ifaaddr
 #undef ifpaddr
 #undef flags
+
+static int
+rtrequest1_fib_change(struct radix_node_head *rnh, struct rt_addrinfo *info,
+    struct rtentry **ret_nrt, u_int fibnum)
+{
+	struct rtentry *rt = NULL;
+	int error = 0;
+	int free_ifa = 0;
+
+	rt = (struct rtentry *)rnh->rnh_lookup(info->rti_info[RTAX_DST],
+	    info->rti_info[RTAX_NETMASK], rnh);
+
+	if (rt == NULL)
+		return (ESRCH);
+
+#ifdef RADIX_MPATH
+	/*
+	 * If we got multipath routes,
+	 * we require users to specify a matching RTAX_GATEWAY.
+	 */
+	if (rn_mpath_capable(rnh)) {
+		rt = rt_mpath_matchgate(rt, info->rti_info[RTAX_GATEWAY]);
+		if (rt == NULL)
+			return (ESRCH);
+	}
+#endif
+
+	RT_LOCK(rt);
+
+	/*
+	 * New gateway could require new ifaddr, ifp;
+	 * flags may also be different; ifp may be specified
+	 * by ll sockaddr when protocol address is ambiguous
+	 */
+	if (((rt->rt_flags & RTF_GATEWAY) &&
+	    info->rti_info[RTAX_GATEWAY] != NULL) ||
+	    info->rti_info[RTAX_IFP] != NULL ||
+	    (info->rti_info[RTAX_IFA] != NULL &&
+	     !sa_equal(info->rti_info[RTAX_IFA], rt->rt_ifa->ifa_addr))) {
+
+		error = rt_getifa_fib(info, fibnum);
+		if (info->rti_ifa != NULL)
+			free_ifa = 1;
+
+		if (error != 0)
+			goto bad;
+	}
+
+	/* Check if outgoing interface has changed */
+	if (info->rti_ifa != NULL && info->rti_ifa != rt->rt_ifa &&
+	    rt->rt_ifa != NULL && rt->rt_ifa->ifa_rtrequest != NULL) {
+		rt->rt_ifa->ifa_rtrequest(RTM_DELETE, rt, info);
+		ifa_free(rt->rt_ifa);
+	}
+	/* Update gateway address */
+	if (info->rti_info[RTAX_GATEWAY] != NULL) {
+		error = rt_setgate(rt, rt_key(rt), info->rti_info[RTAX_GATEWAY]);
+		if (error != 0)
+			goto bad;
+
+		rt->rt_flags &= ~RTF_GATEWAY;
+		rt->rt_flags |= (RTF_GATEWAY & info->rti_flags);
+	}
+
+	if (info->rti_ifa != NULL && info->rti_ifa != rt->rt_ifa) {
+		ifa_ref(info->rti_ifa);
+		rt->rt_ifa = info->rti_ifa;
+		rt->rt_ifp = info->rti_ifp;
+	}
+	/* Allow some flags to be toggled on change. */
+	rt->rt_flags &= ~RTF_FMASK;
+	rt->rt_flags |= info->rti_flags & RTF_FMASK;
+
+	if (rt->rt_ifa && rt->rt_ifa->ifa_rtrequest != NULL)
+	       rt->rt_ifa->ifa_rtrequest(RTM_ADD, rt, info);
+
+	rt_setmetrics(info, rt);
+
+	if (ret_nrt) {
+		*ret_nrt = rt;
+		RT_ADDREF(rt);
+	}
+bad:
+	RT_UNLOCK(rt);
+	if (free_ifa != 0)
+		ifa_free(info->rti_ifa);
+	return (error);
+}
+
+static void
+rt_setmetrics(const struct rt_addrinfo *info, struct rtentry *rt)
+{
+
+	if (info->rti_mflags & RTV_MTU)
+		rt->rt_mtu = info->rti_rmx->rmx_mtu;
+	if (info->rti_mflags & RTV_WEIGHT)
+		rt->rt_weight = info->rti_rmx->rmx_weight;
+	/* Kernel -> userland timebase conversion. */
+	if (info->rti_mflags & RTV_EXPIRE)
+		rt->rt_expire = info->rti_rmx->rmx_expire ?
+		    info->rti_rmx->rmx_expire - time_second + time_uptime : 0;
+}
 
 int
 rt_setgate(struct rtentry *rt, struct sockaddr *dst, struct sockaddr *gate)
@@ -1480,9 +1571,9 @@ rt_setgate(struct rtentry *rt, struct sockaddr *dst, struct sockaddr *gate)
 void
 rt_maskedcopy(struct sockaddr *src, struct sockaddr *dst, struct sockaddr *netmask)
 {
-	register u_char *cp1 = (u_char *)src;
-	register u_char *cp2 = (u_char *)dst;
-	register u_char *cp3 = (u_char *)netmask;
+	u_char *cp1 = (u_char *)src;
+	u_char *cp2 = (u_char *)dst;
+	u_char *cp3 = (u_char *)netmask;
 	u_char *cplim = cp2 + *cp3;
 	u_char *cplim2 = cp2 + *cp1;
 
@@ -1536,7 +1627,7 @@ rtinit1(struct ifaddr *ifa, int cmd, int flags, int fibnum)
 	}
 	if (fibnum == RT_ALL_FIBS) {
 		if (rt_add_addr_allfibs == 0 && cmd == (int)RTM_ADD) {
-			startfib = endfib = curthread->td_proc->p_fibnum;
+			startfib = endfib = ifa->ifa_ifp->if_fib;
 		} else {
 			startfib = 0;
 			endfib = rt_numfibs - 1;

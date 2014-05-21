@@ -2,7 +2,7 @@
 # $FreeBSD$
 #
 
-.include <bsd.own.mk>
+.include <src.opts.mk>
 
 SUBDIR = if_cxgbe
 SUBDIR+= t4_firmware

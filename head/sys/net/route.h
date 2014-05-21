@@ -261,6 +261,8 @@ struct rt_addrinfo {
 	int	rti_flags;
 	struct	ifaddr *rti_ifa;
 	struct	ifnet *rti_ifp;
+	u_long	rti_mflags;
+	struct	rt_metrics *rti_rmx;
 };
 
 /*
@@ -274,6 +276,10 @@ struct rt_addrinfo {
     (  (!(sa) || ((struct sockaddr *)(sa))->sa_len == 0) ?	\
 	sizeof(long)		:				\
 	1 + ( (((struct sockaddr *)(sa))->sa_len - 1) | (sizeof(long) - 1) ) )
+
+#define	sa_equal(a, b) (	\
+    (((struct sockaddr *)(a))->sa_len == ((struct sockaddr *)(b))->sa_len) && \
+    (bcmp((a), (b), ((struct sockaddr *)(b))->sa_len) == 0))
 
 #ifdef _KERNEL
 
@@ -365,7 +371,7 @@ int	rtsock_routemsg(int, struct ifnet *ifp, int, struct rtentry *, int);
  *    RTFREE() uses an unlocked entry.
  */
 
-int	 rtexpunge(struct rtentry *);
+int	 rt_expunge(struct radix_node_head *, struct rtentry *);
 void	 rtfree(struct rtentry *);
 int	 rt_check(struct rtentry **, struct rtentry **, struct sockaddr *);
 

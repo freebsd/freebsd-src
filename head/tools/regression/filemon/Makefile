@@ -22,9 +22,8 @@ MAN=
 WARNS?=	6
 CFLAGS+= -I${.CURDIR}/../../../sys
 
-# Should be "WITHOUT_CTF=" below, but stupid infastrurture fails:
-# "/usr/share/mk/bsd.own.mk", line 489: WITH_CTF and WITHOUT_CTF can't both be set.
-WITHOUT_CDDL=
+# We don't want to genreate CTF files. Force that here.
+MK_CTF=no
 
 CLEANFILES+=	${BINS}
 
@@ -59,7 +58,7 @@ test01: ${BINS:Mfilemontest*} ${BINS:Msizeof_long*} clean-test
 	    grep -q -v '\.[0-9][0-9][0-9][0-9][0-9][0-9]$$' || printf "Time stamp format OK\n\n"
 .endfor
 	@cd ${.CURDIR} ; set +e ; for F in filemon_log.* ; do \
- 	    tail -1 $$F | grep -q '# Bye bye' || echo "$$F missing filemon bye-bye" ; \
+	    tail -1 $$F | grep -q '# Bye bye' || echo "$$F missing filemon bye-bye" ; \
 	    NL=`wc -l $$F | awk '{print $$1}'` ; \
 	    if [ "$${NL}" != 97 ]; then echo "$$F BAD, contains $${NL} lines" ; exit 1 ; fi ; done
 

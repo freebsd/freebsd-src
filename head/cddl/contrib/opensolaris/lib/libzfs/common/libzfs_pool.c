@@ -3324,6 +3324,7 @@ devid_to_path(char *devid_str)
 static char *
 path_to_devid(const char *path)
 {
+#ifdef have_devid
 	int fd;
 	ddi_devid_t devid;
 	char *minor, *ret;
@@ -3343,6 +3344,9 @@ path_to_devid(const char *path)
 	(void) close(fd);
 
 	return (ret);
+#else
+	return (NULL);
+#endif
 }
 
 /*

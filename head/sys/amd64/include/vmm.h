@@ -29,6 +29,14 @@
 #ifndef _VMM_H_
 #define	_VMM_H_
 
+enum vm_suspend_how {
+	VM_SUSPEND_NONE,
+	VM_SUSPEND_RESET,
+	VM_SUSPEND_POWEROFF,
+	VM_SUSPEND_HALT,
+	VM_SUSPEND_LAST
+};
+
 #ifdef _KERNEL
 
 #define	VM_MAX_NAMELEN	32
@@ -115,7 +123,7 @@ int vm_get_seg_desc(struct vm *vm, int vcpu, int reg,
 int vm_set_seg_desc(struct vm *vm, int vcpu, int reg,
 		    struct seg_desc *desc);
 int vm_run(struct vm *vm, struct vm_run *vmrun);
-int vm_suspend(struct vm *vm);
+int vm_suspend(struct vm *vm, enum vm_suspend_how how);
 int vm_inject_nmi(struct vm *vm, int vcpu);
 int vm_nmi_pending(struct vm *vm, int vcpuid);
 void vm_nmi_clear(struct vm *vm, int vcpuid);
@@ -134,6 +142,7 @@ int vm_apicid2vcpuid(struct vm *vm, int apicid);
 void vm_activate_cpu(struct vm *vm, int vcpu);
 cpuset_t vm_active_cpus(struct vm *vm);
 struct vm_exit *vm_exitinfo(struct vm *vm, int vcpuid);
+void vm_exit_suspended(struct vm *vm, int vcpuid, uint64_t rip);
 
 /*
  * Rendezvous all vcpus specified in 'dest' and execute 'func(arg)'.
@@ -292,6 +301,11 @@ enum x2apic_state {
 	X2APIC_STATE_LAST
 };
 
+enum vm_intr_trigger {
+	EDGE_TRIGGER,
+	LEVEL_TRIGGER
+};
+	
 /*
  * The 'access' field has the format specified in Table 21-2 of the Intel
  * Architecture Manual vol 3b.
@@ -317,7 +331,7 @@ enum vm_exitcode {
 	VM_EXITCODE_PAGING,
 	VM_EXITCODE_INST_EMUL,
 	VM_EXITCODE_SPINUP_AP,
-	VM_EXITCODE_SPINDOWN_CPU,
+	VM_EXITCODE_DEPRECATED1,	/* used to be SPINDOWN_CPU */
 	VM_EXITCODE_RENDEZVOUS,
 	VM_EXITCODE_IOAPIC_EOI,
 	VM_EXITCODE_SUSPENDED,
@@ -347,6 +361,7 @@ struct vm_exit {
 			uint64_t	cr3;
 			enum vie_cpu_mode cpu_mode;
 			enum vie_paging_mode paging_mode;
+			int		cpl;
 			struct vie	vie;
 		} inst_emul;
 		/*
@@ -382,6 +397,9 @@ struct vm_exit {
 		struct {
 			int		vector;
 		} ioapic_eoi;
+		struct {
+			enum vm_suspend_how how;
+		} suspended;
 	} u;
 };
 

@@ -504,7 +504,7 @@ lpc_gpio_get_state(device_t dev, int pin, int *state)
 }
 
 void
-platform_gpio_init()
+lpc_gpio_init()
 {
 	bus_space_tag_t bst;
 	bus_space_handle_t bsh;

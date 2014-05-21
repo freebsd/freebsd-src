@@ -21,16 +21,16 @@
  * specific prior written permission.
  * 
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
- * TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE
- * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
- * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
- * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
- * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
+ * TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+ * PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+ * LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+ * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+ * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
 /**
@@ -49,6 +49,7 @@
 #include "services/cache/infra.h"
 #include "util/data/msgreply.h"
 #include "util/storage/slabhash.h"
+#include "ldns/sbuffer.h"
 
 int 
 context_finalize(struct ub_ctx* ctx)
@@ -124,7 +125,7 @@ find_id(struct ub_ctx* ctx, int* id)
 }
 
 struct ctx_query* 
-context_new(struct ub_ctx* ctx, const char* name, int rrtype, int rrclass,
+context_new(struct ub_ctx* ctx, const char* name, int rrtype, int rrclass, 
 	ub_callback_t cb, void* cbarg)
 {
 	struct ctx_query* q = (struct ctx_query*)calloc(1, sizeof(*q));
@@ -220,10 +221,10 @@ context_serialize_new_query(struct ctx_query* q, uint32_t* len)
 	*len = sizeof(uint32_t)*4 + slen;
 	p = (uint8_t*)malloc(*len);
 	if(!p) return NULL;
-	ldns_write_uint32(p, UB_LIBCMD_NEWQUERY);
-	ldns_write_uint32(p+sizeof(uint32_t), (uint32_t)q->querynum);
-	ldns_write_uint32(p+2*sizeof(uint32_t), (uint32_t)q->res->qtype);
-	ldns_write_uint32(p+3*sizeof(uint32_t), (uint32_t)q->res->qclass);
+	sldns_write_uint32(p, UB_LIBCMD_NEWQUERY);
+	sldns_write_uint32(p+sizeof(uint32_t), (uint32_t)q->querynum);
+	sldns_write_uint32(p+2*sizeof(uint32_t), (uint32_t)q->res->qtype);
+	sldns_write_uint32(p+3*sizeof(uint32_t), (uint32_t)q->res->qclass);
 	memmove(p+4*sizeof(uint32_t), q->res->qname, slen);
 	return p;
 }
@@ -237,8 +238,8 @@ context_deserialize_new_query(struct ub_ctx* ctx, uint8_t* p, uint32_t len)
 		free(q);
 		return NULL;
 	}
-	log_assert( ldns_read_uint32(p) == UB_LIBCMD_NEWQUERY);
-	q->querynum = (int)ldns_read_uint32(p+sizeof(uint32_t));
+	log_assert( sldns_read_uint32(p) == UB_LIBCMD_NEWQUERY);
+	q->querynum = (int)sldns_read_uint32(p+sizeof(uint32_t));
 	q->node.key = &q->querynum;
 	q->async = 1;
 	q->res = (struct ub_result*)calloc(1, sizeof(*q->res));
@@ -246,8 +247,8 @@ context_deserialize_new_query(struct ub_ctx* ctx, uint8_t* p, uint32_t len)
 		free(q);
 		return NULL;
 	}
-	q->res->qtype = (int)ldns_read_uint32(p+2*sizeof(uint32_t));
-	q->res->qclass = (int)ldns_read_uint32(p+3*sizeof(uint32_t));
+	q->res->qtype = (int)sldns_read_uint32(p+2*sizeof(uint32_t));
+	q->res->qclass = (int)sldns_read_uint32(p+3*sizeof(uint32_t));
 	q->res->qname = strdup((char*)(p+4*sizeof(uint32_t)));
 	if(!q->res->qname) {
 		free(q->res);
@@ -269,8 +270,8 @@ context_lookup_new_query(struct ub_ctx* ctx, uint8_t* p, uint32_t len)
 	if(len < 4*sizeof(uint32_t)+1) {
 		return NULL;
 	}
-	log_assert( ldns_read_uint32(p) == UB_LIBCMD_NEWQUERY);
-	querynum = (int)ldns_read_uint32(p+sizeof(uint32_t));
+	log_assert( sldns_read_uint32(p) == UB_LIBCMD_NEWQUERY);
+	querynum = (int)sldns_read_uint32(p+sizeof(uint32_t));
 	q = (struct ctx_query*)rbtree_search(&ctx->queries, &querynum);
 	if(!q) {
 		return NULL;
@@ -280,7 +281,7 @@ context_lookup_new_query(struct ub_ctx* ctx, uint8_t* p, uint32_t len)
 }
 
 uint8_t* 
-context_serialize_answer(struct ctx_query* q, int err, ldns_buffer* pkt,
+context_serialize_answer(struct ctx_query* q, int err, sldns_buffer* pkt,
 	uint32_t* len)
 {
 	/* answer format
@@ -293,22 +294,22 @@ context_serialize_answer(struct ctx_query* q, int err, ldns_buffer* pkt,
 	 * 	o the remainder is the answer msg from resolver lookup.
 	 * 	  remainder can be length 0.
 	 */
-	size_t pkt_len = pkt?ldns_buffer_remaining(pkt):0;
+	size_t pkt_len = pkt?sldns_buffer_remaining(pkt):0;
 	size_t wlen = (pkt&&q->res->why_bogus)?strlen(q->res->why_bogus)+1:0;
 	uint8_t* p;
 	*len = sizeof(uint32_t)*5 + pkt_len + wlen;
 	p = (uint8_t*)malloc(*len);
 	if(!p) return NULL;
-	ldns_write_uint32(p, UB_LIBCMD_ANSWER);
-	ldns_write_uint32(p+sizeof(uint32_t), (uint32_t)q->querynum);
-	ldns_write_uint32(p+2*sizeof(uint32_t), (uint32_t)err);
-	ldns_write_uint32(p+3*sizeof(uint32_t), (uint32_t)q->msg_security);
-	ldns_write_uint32(p+4*sizeof(uint32_t), (uint32_t)wlen);
+	sldns_write_uint32(p, UB_LIBCMD_ANSWER);
+	sldns_write_uint32(p+sizeof(uint32_t), (uint32_t)q->querynum);
+	sldns_write_uint32(p+2*sizeof(uint32_t), (uint32_t)err);
+	sldns_write_uint32(p+3*sizeof(uint32_t), (uint32_t)q->msg_security);
+	sldns_write_uint32(p+4*sizeof(uint32_t), (uint32_t)wlen);
 	if(wlen > 0)
 		memmove(p+5*sizeof(uint32_t), q->res->why_bogus, wlen);
 	if(pkt_len > 0)
 		memmove(p+5*sizeof(uint32_t)+wlen, 
-			ldns_buffer_begin(pkt), pkt_len);
+			sldns_buffer_begin(pkt), pkt_len);
 	return p;
 }
 
@@ -320,13 +321,13 @@ context_deserialize_answer(struct ub_ctx* ctx,
 	int id;
 	size_t wlen;
 	if(len < 5*sizeof(uint32_t)) return NULL;
-	log_assert( ldns_read_uint32(p) == UB_LIBCMD_ANSWER);
-	id = (int)ldns_read_uint32(p+sizeof(uint32_t));
+	log_assert( sldns_read_uint32(p) == UB_LIBCMD_ANSWER);
+	id = (int)sldns_read_uint32(p+sizeof(uint32_t));
 	q = (struct ctx_query*)rbtree_search(&ctx->queries, &id);
 	if(!q) return NULL; 
-	*err = (int)ldns_read_uint32(p+2*sizeof(uint32_t));
-	q->msg_security = ldns_read_uint32(p+3*sizeof(uint32_t));
-	wlen = (size_t)ldns_read_uint32(p+4*sizeof(uint32_t));
+	*err = (int)sldns_read_uint32(p+2*sizeof(uint32_t));
+	q->msg_security = sldns_read_uint32(p+3*sizeof(uint32_t));
+	wlen = (size_t)sldns_read_uint32(p+4*sizeof(uint32_t));
 	if(len > 5*sizeof(uint32_t) && wlen > 0) {
 		if(len >= 5*sizeof(uint32_t)+wlen)
 			q->res->why_bogus = (char*)memdup(
@@ -362,8 +363,8 @@ context_serialize_cancel(struct ctx_query* q, uint32_t* len)
 	uint8_t* p = (uint8_t*)malloc(2*sizeof(uint32_t));
 	if(!p) return NULL;
 	*len = 2*sizeof(uint32_t);
-	ldns_write_uint32(p, UB_LIBCMD_CANCEL);
-	ldns_write_uint32(p+sizeof(uint32_t), (uint32_t)q->querynum);
+	sldns_write_uint32(p, UB_LIBCMD_CANCEL);
+	sldns_write_uint32(p+sizeof(uint32_t), (uint32_t)q->querynum);
 	return p;
 }
 
@@ -373,8 +374,8 @@ struct ctx_query* context_deserialize_cancel(struct ub_ctx* ctx,
 	struct ctx_query* q;
 	int id;
 	if(len != 2*sizeof(uint32_t)) return NULL;
-	log_assert( ldns_read_uint32(p) == UB_LIBCMD_CANCEL);
-	id = (int)ldns_read_uint32(p+sizeof(uint32_t));
+	log_assert( sldns_read_uint32(p) == UB_LIBCMD_CANCEL);
+	id = (int)sldns_read_uint32(p+sizeof(uint32_t));
 	q = (struct ctx_query*)rbtree_search(&ctx->queries, &id);
 	return q;
 }
@@ -386,7 +387,7 @@ context_serialize_quit(uint32_t* len)
 	if(!p)
 		return NULL;
 	*len = sizeof(uint32_t);
-	ldns_write_uint32(p, UB_LIBCMD_QUIT);
+	sldns_write_uint32(p, UB_LIBCMD_QUIT);
 	return p;
 }
 
@@ -395,6 +396,6 @@ enum ub_ctx_cmd context_serial_getcmd(uint8_t* p, uint32_t len)
 	uint32_t v;
 	if((size_t)len < sizeof(v))
 		return UB_LIBCMD_QUIT;
-	v = ldns_read_uint32(p);
+	v = sldns_read_uint32(p);
 	return v;
 }

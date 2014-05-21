@@ -43,10 +43,11 @@ __FBSDID("$FreeBSD$");
 #include <dev/uart/uart.h>
 #include <dev/uart/uart_cpu.h>
 #include <dev/uart/uart_bus.h>
-
-#include <dev/uart/uart_dev_imx5xx.h>
-
+#include <dev/uart/uart_dev_imx.h>
 #include "uart_if.h"
+
+#include <arm/freescale/imx/imx_ccmvar.h>
+
 /*
  * Low-level UART interface.
  */
@@ -66,6 +67,22 @@ static struct uart_ops uart_imx_uart_ops = {
 	.getc = imx_uart_getc,
 };
 
+#if 0 /* Handy when debugging. */
+static void
+dumpregs(struct uart_bas *bas, const char * msg)
+{
+
+	if (!bootverbose)
+		return;
+	printf("%s bsh 0x%08lx UCR1 0x%08x UCR2 0x%08x "
+		"UCR3 0x%08x UCR4 0x%08x USR1 0x%08x USR2 0x%08x\n",
+	    msg, bas->bsh,
+	    GETREG(bas, REG(UCR1)), GETREG(bas, REG(UCR2)), 
+	    GETREG(bas, REG(UCR3)), GETREG(bas, REG(UCR4)),
+	    GETREG(bas, REG(USR1)), GETREG(bas, REG(USR2)));
+}
+#endif
+
 static int
 imx_uart_probe(struct uart_bas *bas)
 {
@@ -77,7 +94,60 @@ static void
 imx_uart_init(struct uart_bas *bas, int baudrate, int databits, 
     int stopbits, int parity)
 {
+	uint32_t baseclk, reg;
 
+        /* Enable the device and the RX/TX channels. */
+	SET(bas, REG(UCR1), FLD(UCR1, UARTEN));
+	SET(bas, REG(UCR2), FLD(UCR2, RXEN) | FLD(UCR2, TXEN));
+
+	if (databits == 7)
+		DIS(bas, UCR2, WS);
+	else
+		ENA(bas, UCR2, WS);
+
+	if (stopbits == 2)
+		ENA(bas, UCR2, STPB);
+	else
+		DIS(bas, UCR2, STPB);
+
+	switch (parity) {
+	case UART_PARITY_ODD:
+		DIS(bas, UCR2, PROE);
+		ENA(bas, UCR2, PREN);
+		break;
+	case UART_PARITY_EVEN:
+		ENA(bas, UCR2, PROE);
+		ENA(bas, UCR2, PREN);
+		break;
+	case UART_PARITY_MARK:
+	case UART_PARITY_SPACE:
+                /* FALLTHROUGH: Hardware doesn't support mark/space. */
+	case UART_PARITY_NONE:
+	default:
+		DIS(bas, UCR2, PREN);
+		break;
+	}
+
+	/*
+	 * The hardware has an extremely flexible baud clock: it allows setting
+	 * both the numerator and denominator of the divider, as well as a
+	 * separate pre-divider.  We simplify the problem of coming up with a
+	 * workable pair of numbers by assuming a pre-divider and numerator of
+	 * one because our base clock is so fast we can reach virtually any
+	 * reasonable speed with a simple divisor.  The numerator value actually
+	 * includes the 16x over-sampling (so a value of 16 means divide by 1);
+	 * the register value is the numerator-1, so we have a hard-coded 15.
+	 * Note that a quirk of the hardware requires that both UBIR and UBMR be
+	 * set back to back in order for the change to take effect.
+	 */
+	if (baudrate > 0) {
+		baseclk = imx_ccm_uart_hz();
+		reg = GETREG(bas, REG(UFCR));
+		reg = (reg & ~IMXUART_UFCR_RFDIV_MASK) | IMXUART_UFCR_RFDIV_DIV1;
+		SETREG(bas, REG(UFCR), reg);
+		SETREG(bas, REG(UBIR), 15);
+		SETREG(bas, REG(UBMR), (baseclk / baudrate) - 1);
+	}
 }
 
 static void
@@ -218,6 +288,8 @@ imx_uart_bus_attach(struct uart_softc *sc)
 	DIS(bas, UCR3, RI);
 	DIS(bas, UCR3, DCD);
 	DIS(bas, UCR3, DTRDEN);
+	ENA(bas, UCR2, IRTS);
+	ENA(bas, UCR3, RXDMUXSEL);
 
 	/* ACK all interrupts */
 	SETREG(bas, REG(USR1), 0xffff);

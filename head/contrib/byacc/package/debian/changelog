@@ -1,3 +1,10 @@
+byacc (20140409) unstable; urgency=low
+
+  * integrate Tom Shield's btyacc-related changes
+  * add test-cases to fill in gaps reported by lcov
+
+ -- Thomas E. Dickey <dickey@invisible-island.net>  Wed, 09 Apr 2014 15:53:59 -0400
+
 byacc (20140101) unstable; urgency=low
 
   * yytname[] changes

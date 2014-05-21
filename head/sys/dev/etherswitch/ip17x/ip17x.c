@@ -141,9 +141,7 @@ ip17x_attach_phys(struct ip17x_softc *sc)
 		sc->ifp[port]->if_softc = sc;
 		sc->ifp[port]->if_flags |= IFF_UP | IFF_BROADCAST |
 		    IFF_DRV_RUNNING | IFF_SIMPLEX;
-		sc->ifname[port] = malloc(strlen(name)+1, M_IP17X, M_WAITOK);
-		bcopy(name, sc->ifname[port], strlen(name)+1);
-		if_initname(sc->ifp[port], sc->ifname[port], port);
+		if_initname(sc->ifp[port], name, port);
 		sc->miibus[port] = malloc(sizeof(device_t), M_IP17X,
 		    M_WAITOK | M_ZERO);
 		err = mii_attach(sc->sc_dev, sc->miibus[port], sc->ifp[port],
@@ -204,8 +202,6 @@ ip17x_attach(device_t dev)
 	    M_WAITOK | M_ZERO);
 	sc->pvid = malloc(sizeof(uint32_t) * sc->numports, M_IP17X,
 	    M_WAITOK | M_ZERO);
-	sc->ifname = malloc(sizeof(char *) * sc->numports, M_IP17X,
-	    M_WAITOK | M_ZERO);
 	sc->miibus = malloc(sizeof(device_t *) * sc->numports, M_IP17X,
 	    M_WAITOK | M_ZERO);
 	sc->portphy = malloc(sizeof(int) * sc->numports, M_IP17X,
@@ -257,13 +253,11 @@ ip17x_detach(device_t dev)
 			device_delete_child(dev, (*sc->miibus[port]));
 		if (sc->ifp[port] != NULL)
 			if_free(sc->ifp[port]);
-		free(sc->ifname[port], M_IP17X);
 		free(sc->miibus[port], M_IP17X);
 	}
 
 	free(sc->portphy, M_IP17X);
 	free(sc->miibus, M_IP17X);
-	free(sc->ifname, M_IP17X);
 	free(sc->pvid, M_IP17X);
 	free(sc->ifp, M_IP17X);
 
@@ -490,12 +484,13 @@ ip17x_ifmedia_upd(struct ifnet *ifp)
 	struct ip17x_softc *sc;
 	struct mii_data *mii;
 
-	DPRINTF(sc->sc_dev, "%s\n", __func__);
  	sc = ifp->if_softc;
+	DPRINTF(sc->sc_dev, "%s\n", __func__);
  	mii = ip17x_miiforport(sc, ifp->if_dunit);
 	if (mii == NULL)
 		return (ENXIO);
 	mii_mediachg(mii);
+
 	return (0);
 }
 
@@ -505,9 +500,8 @@ ip17x_ifmedia_sts(struct ifnet *ifp, struct ifmediareq *ifmr)
 	struct ip17x_softc *sc;
 	struct mii_data *mii;
 
-	DPRINTF(sc->sc_dev, "%s\n", __func__);
-
  	sc = ifp->if_softc;
+	DPRINTF(sc->sc_dev, "%s\n", __func__);
 	mii = ip17x_miiforport(sc, ifp->if_dunit);
 	if (mii == NULL)
 		return;

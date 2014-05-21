@@ -28,11 +28,11 @@
 #include "ucl.h"
 
 void
-ucl_obj_dump(ucl_object_t *obj, unsigned int shift)
+ucl_obj_dump (const ucl_object_t *obj, unsigned int shift)
 {
 	int num = shift * 4 + 5;
 	char *pre = (char *) malloc (num * sizeof(char));
-	ucl_object_t *cur, *tmp;
+	const ucl_object_t *cur, *tmp;
 	ucl_object_iter_t it = NULL, it_obj = NULL;
 
 	pre[--num] = 0x00;
@@ -64,7 +64,7 @@ ucl_obj_dump(ucl_object_t *obj, unsigned int shift)
 		}
 		else if (obj->type == UCL_INT) {
 			printf ("%stype: UCL_INT\n", pre);
-			printf ("%svalue: %ld\n", pre, ucl_object_toint (obj));
+			printf ("%svalue: %jd\n", pre, (intmax_t)ucl_object_toint (obj));
 		}
 		else if (obj->type == UCL_FLOAT) {
 			printf ("%stype: UCL_FLOAT\n", pre);
@@ -99,7 +99,7 @@ main(int argc, char **argv)
 	struct ucl_parser *parser;
 	int k, ret = 0, r = 0;
 	ucl_object_t *obj = NULL;
-	ucl_object_t *par;
+	const ucl_object_t *par;
 	FILE *in;
 
 	if (argc > 1) {
@@ -129,7 +129,7 @@ main(int argc, char **argv)
 	}
 
 	obj = ucl_parser_get_object (parser);
-	if (ucl_parser_get_error(parser)) {
+	if (ucl_parser_get_error (parser)) {
 		printf ("Error occured: %s\n", ucl_parser_get_error(parser));
 		ret = 1;
 		goto end;
