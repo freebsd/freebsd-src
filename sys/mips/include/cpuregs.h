@@ -441,6 +441,8 @@
  * 15	MIPS_COP_0_PRID		3333 Processor revision identifier.
  * 15/1	MIPS_COP_0_EBASE	..3? Exception Base.
  * 15/2	MIPS_COP_0_CDMM		..3? Common Device Memory Map.
+ * 15/6	MIPS_COP_0_CINFO	...3 Core count/id (BERI).
+ * 15/7	MIPS_COP_0_TINFO	...3 Thread count/id (BERI).
  * 16	MIPS_COP_0_CONFIG	3333 Configuration register.
  * 16/1	MIPS_COP_0_CONFIG1	..33 Configuration register 1.
  * 16/2	MIPS_COP_0_CONFIG2	..33 Configuration register 2.
