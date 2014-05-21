@@ -1704,6 +1704,40 @@ ieee80211_add_countryie(uint8_t *frm, struct ieee80211com *ic)
 	return add_appie(frm, ic->ic_countryie);
 }
 
+uint8_t *
+ieee80211_add_wpa(uint8_t *frm, const struct ieee80211vap *vap)
+{
+	if (vap->iv_flags & IEEE80211_F_WPA1 && vap->iv_wpa_ie != NULL)
+		return (add_ie(frm, vap->iv_wpa_ie));
+	else {
+		/* XXX else complain? */
+		return (frm);
+	}
+}
+
+uint8_t *
+ieee80211_add_rsn(uint8_t *frm, const struct ieee80211vap *vap)
+{
+	if (vap->iv_flags & IEEE80211_F_WPA2 && vap->iv_rsn_ie != NULL)
+		return (add_ie(frm, vap->iv_rsn_ie));
+	else {
+		/* XXX else complain? */
+		return (frm);
+	}
+}
+
+uint8_t *
+ieee80211_add_qos(uint8_t *frm, const struct ieee80211_node *ni)
+{
+	if (ni->ni_flags & IEEE80211_NODE_QOS) {
+		*frm++ = IEEE80211_ELEMID_QOS;
+		*frm++ = 1;
+		*frm++ = 0;
+	}
+
+	return (frm);
+}
+
 /*
  * Send a probe request frame with the specified ssid
  * and any optional information element data.
@@ -1771,17 +1805,9 @@ ieee80211_send_probereq(struct ieee80211_node *ni,
 	frm = ieee80211_add_ssid(frm, ssid, ssidlen);
 	rs = ieee80211_get_suprates(ic, ic->ic_curchan);
 	frm = ieee80211_add_rates(frm, rs);
-	if (vap->iv_flags & IEEE80211_F_WPA2) {
-		if (vap->iv_rsn_ie != NULL)
-			frm = add_ie(frm, vap->iv_rsn_ie);
-		/* XXX else complain? */
-	}
+	frm = ieee80211_add_rsn(frm, vap);
 	frm = ieee80211_add_xrates(frm, rs);
-	if (vap->iv_flags & IEEE80211_F_WPA1) {
-		if (vap->iv_wpa_ie != NULL)
-			frm = add_ie(frm, vap->iv_wpa_ie);
-		/* XXX else complain? */
-	}
+	frm = ieee80211_add_wpa(frm, vap);
 	if (vap->iv_appie_probereq != NULL)
 		frm = add_appie(frm, vap->iv_appie_probereq);
 	m->m_pkthdr.len = m->m_len = frm - mtod(m, uint8_t *);
@@ -2044,11 +2070,7 @@ ieee80211_send_mgmt(struct ieee80211_node *ni, int type, int arg)
 
 		frm = ieee80211_add_ssid(frm, ni->ni_essid, ni->ni_esslen);
 		frm = ieee80211_add_rates(frm, &ni->ni_rates);
-		if (vap->iv_flags & IEEE80211_F_WPA2) {
-			if (vap->iv_rsn_ie != NULL)
-				frm = add_ie(frm, vap->iv_rsn_ie);
-			/* XXX else complain? */
-		}
+		frm = ieee80211_add_rsn(frm, vap);
 		frm = ieee80211_add_xrates(frm, &ni->ni_rates);
 		if (capinfo & IEEE80211_CAPINFO_SPECTRUM_MGMT) {
 			frm = ieee80211_add_powercapability(frm,
@@ -2059,11 +2081,7 @@ ieee80211_send_mgmt(struct ieee80211_node *ni, int type, int arg)
 		    ni->ni_ies.htcap_ie != NULL &&
 		    ni->ni_ies.htcap_ie[0] == IEEE80211_ELEMID_HTCAP)
 			frm = ieee80211_add_htcap(frm, ni);
-		if (vap->iv_flags & IEEE80211_F_WPA1) {
-			if (vap->iv_wpa_ie != NULL)
-				frm = add_ie(frm, vap->iv_wpa_ie);
-			/* XXX else complain */
-		}
+		frm = ieee80211_add_wpa(frm, vap);
 		if ((ic->ic_flags & IEEE80211_F_WME) &&
 		    ni->ni_ies.wme_ie != NULL)
 			frm = ieee80211_add_wme_info(frm, &ic->ic_wme);
@@ -2322,11 +2340,7 @@ ieee80211_alloc_proberesp(struct ieee80211_node *bss, int legacy)
 	if (IEEE80211_IS_CHAN_ANYG(bss->ni_chan))
 		frm = ieee80211_add_erp(frm, ic);
 	frm = ieee80211_add_xrates(frm, rs);
-	if (vap->iv_flags & IEEE80211_F_WPA2) {
-		if (vap->iv_rsn_ie != NULL)
-			frm = add_ie(frm, vap->iv_rsn_ie);
-		/* XXX else complain? */
-	}
+	frm = ieee80211_add_rsn(frm, vap);
 	/*
 	 * NB: legacy 11b clients do not get certain ie's.
 	 *     The caller identifies such clients by passing
@@ -2338,11 +2352,7 @@ ieee80211_alloc_proberesp(struct ieee80211_node *bss, int legacy)
 		frm = ieee80211_add_htcap(frm, bss);
 		frm = ieee80211_add_htinfo(frm, bss);
 	}
-	if (vap->iv_flags & IEEE80211_F_WPA1) {
-		if (vap->iv_wpa_ie != NULL)
-			frm = add_ie(frm, vap->iv_wpa_ie);
-		/* XXX else complain? */
-	}
+	frm = ieee80211_add_wpa(frm, vap);
 	if (vap->iv_flags & IEEE80211_F_WME)
 		frm = ieee80211_add_wme_param(frm, &ic->ic_wme);
 	if (IEEE80211_IS_CHAN_HT(bss->ni_chan) &&
@@ -2625,21 +2635,13 @@ ieee80211_beacon_construct(struct mbuf *m, uint8_t *frm,
 		frm = ieee80211_add_erp(frm, ic);
 	}
 	frm = ieee80211_add_xrates(frm, rs);
-	if (vap->iv_flags & IEEE80211_F_WPA2) {
-		if (vap->iv_rsn_ie != NULL)
-			frm = add_ie(frm, vap->iv_rsn_ie);
-		/* XXX else complain */
-	}
+	frm = ieee80211_add_rsn(frm, vap);
 	if (IEEE80211_IS_CHAN_HT(ni->ni_chan)) {
 		frm = ieee80211_add_htcap(frm, ni);
 		bo->bo_htinfo = frm;
 		frm = ieee80211_add_htinfo(frm, ni);
 	}
-	if (vap->iv_flags & IEEE80211_F_WPA1) {
-		if (vap->iv_wpa_ie != NULL)
-			frm = add_ie(frm, vap->iv_wpa_ie);
-		/* XXX else complain */
-	}
+	frm = ieee80211_add_wpa(frm, vap);
 	if (vap->iv_flags & IEEE80211_F_WME) {
 		bo->bo_wme = frm;
 		frm = ieee80211_add_wme_param(frm, &ic->ic_wme);
