@@ -183,7 +183,8 @@ mprsas_startup_increment(struct mprsas_softc *sassc)
 			/* just starting, freeze the simq */
 			mpr_dprint(sassc->sc, MPR_INIT,
 			    "%s freezing simq\n", __func__);
-#if __FreeBSD_version >= 1000039
+#if (__FreeBSD_version >= 1000039) || \
+    ((__FreeBSD_version < 1000000) && (__FreeBSD_version >= 902502))
 			xpt_hold_boot();
 #endif
 			xpt_freeze_simq(sassc->sim, 1);
@@ -217,7 +218,8 @@ mprsas_startup_decrement(struct mprsas_softc *sassc)
 			    "%s releasing simq\n", __func__);
 			sassc->flags &= ~MPRSAS_IN_STARTUP;
 			xpt_release_simq(sassc->sim, 1);
-#if __FreeBSD_version >= 1000039
+#if (__FreeBSD_version >= 1000039) || \
+    ((__FreeBSD_version < 1000000) && (__FreeBSD_version >= 902502))
 			xpt_release_boot();
 #else
 			mprsas_rescan_target(sassc->sc, NULL);
@@ -974,7 +976,8 @@ mprsas_action(struct cam_sim *sim, union ccb *ccb)
 		cpi->version_num = 1;
 		cpi->hba_inquiry = PI_SDTR_ABLE|PI_TAG_ABLE|PI_WIDE_16;
 		cpi->target_sprt = 0;
-#if __FreeBSD_version >= 1000039
+#if (__FreeBSD_version >= 1000039) || \
+    ((__FreeBSD_version < 1000000) && (__FreeBSD_version >= 902502))
 		cpi->hba_misc = PIM_NOBUSRESET | PIM_UNMAPPED | PIM_NOSCAN;
 #else
 		cpi->hba_misc = PIM_NOBUSRESET | PIM_UNMAPPED;
@@ -2355,8 +2358,9 @@ mprsas_scsiio_complete(struct mpr_softc *sc, struct mpr_command *cm)
 		    (csio->cdb_io.cdb_bytes[1] & SI_EVPD) &&
 		    (csio->cdb_io.cdb_bytes[2] == SVPD_SUPPORTED_PAGE_LIST) &&
 		    ((csio->ccb_h.flags & CAM_DATA_MASK) == CAM_DATA_VADDR) &&
-		    (csio->data_ptr != NULL) && (((uint8_t *)cm->cm_data)[0] ==
-		    T_SEQUENTIAL) && (sc->control_TLR) &&
+		    (csio->data_ptr != NULL) &&
+		    ((csio->data_ptr[0] & 0x1f) == T_SEQUENTIAL) &&
+		    (sc->control_TLR) &&
 		    (sc->mapping_table[csio->ccb_h.target_id].device_info &
 		    MPI2_SAS_DEVICE_INFO_SSP_TARGET)) {
 			vpd_list = (struct scsi_vpd_supported_page_list *)
@@ -2367,6 +2371,7 @@ mprsas_scsiio_complete(struct mpr_softc *sc, struct mpr_command *cm)
 			TLR_on = (u8)MPI2_SCSIIO_CONTROL_TLR_ON;
 			alloc_len = ((u16)csio->cdb_io.cdb_bytes[3] << 8) +
 			    csio->cdb_io.cdb_bytes[4];
+			alloc_len -= csio->resid;
 			for (i = 0; i < MIN(vpd_list->length, alloc_len); i++) {
 				if (vpd_list->list[i] == 0x90) {
 					*TLR_bits = TLR_on;
