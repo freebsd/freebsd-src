@@ -801,7 +801,8 @@ mprsas_add_device(struct mpr_softc *sc, u16 handle, u8 linkrate){
 		    "and connector name (%4s)\n", targ->encl_level,
 		    targ->connector_name);
 	}
-#if __FreeBSD_version < 1000039
+#if ((__FreeBSD_version >= 1000000) && (__FreeBSD_version < 1000039)) || \
+    (__FreeBSD_version < 902502)
 	if ((sassc->flags & MPRSAS_IN_STARTUP) == 0)
 #endif
 		mprsas_rescan_target(sc, targ);
@@ -992,7 +993,8 @@ mprsas_volume_add(struct mpr_softc *sc, u16 handle)
 		free(lun, M_MPR);
 	}
 	SLIST_INIT(&targ->luns);
-#if __FreeBSD_version < 1000039
+#if ((__FreeBSD_version >= 1000000) && (__FreeBSD_version < 1000039)) || \
+    (__FreeBSD_version < 902502)
 	if ((sassc->flags & MPRSAS_IN_STARTUP) == 0)
 #endif
 		mprsas_rescan_target(sc, targ);
@@ -1026,6 +1028,8 @@ mprsas_SSU_to_SATA_devices(struct mpr_softc *sc)
 	char path_str[64];
 	struct timeval cur_time, start_time;
 
+	mpr_lock(sc);
+
 	/*
 	 * For each LUN of each target, issue a StartStopUnit command to stop
 	 * the device.
@@ -1041,6 +1045,7 @@ mprsas_SSU_to_SATA_devices(struct mpr_softc *sc)
 		SLIST_FOREACH(lun, &target->luns, lun_link) {
 			ccb = xpt_alloc_ccb_nowait();
 			if (ccb == NULL) {
+				mpr_unlock(sc);
 				mpr_dprint(sc, MPR_FAULT, "Unable to alloc "
 				    "CCB to stop unit.\n");
 				return;
@@ -1057,6 +1062,7 @@ mprsas_SSU_to_SATA_devices(struct mpr_softc *sc)
 					mpr_dprint(sc, MPR_FAULT, "Unable to "
 					    "create LUN path to stop unit.\n");
 					xpt_free_ccb(ccb);
+					mpr_unlock(sc);
 					return;
 				}
 				xpt_path_string(ccb->ccb_h.path, path_str,
@@ -1091,6 +1097,8 @@ mprsas_SSU_to_SATA_devices(struct mpr_softc *sc)
 			}
 		}
 	}
+
+	mpr_unlock(sc);
 
 	/*
 	 * Wait until all of the SSU commands have completed or time has
