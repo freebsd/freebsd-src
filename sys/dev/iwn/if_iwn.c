@@ -46,6 +46,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/module.h>
 #include <sys/queue.h>
 #include <sys/taskqueue.h>
+#include <sys/kthread.h>
 
 #include <machine/bus.h>
 #include <machine/resource.h>
@@ -342,6 +343,7 @@ static void	iwn_set_channel(struct ieee80211com *);
 static void	iwn_scan_curchan(struct ieee80211_scan_state *, unsigned long);
 static void	iwn_scan_mindwell(struct ieee80211_scan_state *);
 static void	iwn_hw_reset(void *, int);
+static void	iwn_reinit_thread(void *);
 #ifdef	IWN_DEBUG
 static char	*iwn_get_csr_string(int);
 static void	iwn_debug_register(struct iwn_softc *);
@@ -1196,6 +1198,8 @@ iwn4965_attach(struct iwn_softc *sc, uint16_t pid)
 	sc->rxchainmask = IWN_ANT_ABC;
 	/* Enable normal btcoex */
 	sc->sc_flags |= IWN_FLAG_BTCOEX;
+
+	kthread_add(iwn_reinit_thread, sc, NULL, NULL, 0, 0, "iwn_reinit");
 
 	DPRINTF(sc, IWN_DEBUG_TRACE, "%s: end\n",__func__);
 
@@ -3884,6 +3888,52 @@ iwn_fatal_intr(struct iwn_softc *sc)
 }
 
 static void
+iwn_reinit_thread(void *arg)
+{
+	struct iwn_softc *sc = arg;
+	int error;
+
+	mtx_lock(&sc->sc_mtx);
+	for (;;) {
+		struct ifnet *ifp;
+		struct ieee80211com *ic;
+		struct ieee80211vap *vap;
+
+		msleep(&sc->fwname, &sc->sc_mtx, PCATCH, "iwn_reinit", 0);
+
+		ifp = sc->sc_ifp;
+		ic = ifp->if_l2com;
+		vap = TAILQ_FIRST(&ic->ic_vaps);
+
+		if (vap == NULL) {
+			printf("%s: null vap\n", __func__);
+			continue;
+		}
+
+		device_printf(sc->sc_dev, "%s: controller panicked; "
+		    "resetting; iv_state = %d...\n", __func__, vap->iv_state);
+		mtx_unlock(&sc->sc_mtx);
+		iwn_stop(sc);
+		iwn_init(sc);
+		iwn_start(sc->sc_ifp);
+		if (vap->iv_state >= IEEE80211_S_AUTH &&
+		    (error = iwn_auth(sc, vap)) != 0) {
+			device_printf(sc->sc_dev,
+			    "%s: could not move to auth state\n", __func__);
+		}
+		if (vap->iv_state >= IEEE80211_S_RUN &&
+		    (error = iwn_run(sc, vap)) != 0) {
+			device_printf(sc->sc_dev,
+			    "%s: could not move to run state\n", __func__);
+		}
+		mtx_lock(&sc->sc_mtx);
+	}
+	mtx_unlock(&sc->sc_mtx);
+
+	kthread_exit();
+}
+
+static void
 iwn_intr(void *arg)
 {
 	struct iwn_softc *sc = arg;
@@ -3944,8 +3994,10 @@ iwn_intr(void *arg)
 #endif
 		/* Dump firmware error log and stop. */
 		iwn_fatal_intr(sc);
-		ifp->if_flags &= ~IFF_UP;
-		iwn_stop_locked(sc);
+
+		device_printf(sc->sc_dev, "%s: reinit; %p\n",
+		    __func__, &sc->fwname);
+		wakeup(&sc->fwname);
 		goto done;
 	}
 	if ((r1 & (IWN_INT_FH_RX | IWN_INT_SW_RX | IWN_INT_RX_PERIODIC)) ||
