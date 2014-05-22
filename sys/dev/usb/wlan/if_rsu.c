@@ -319,6 +319,20 @@ rsu_attach(device_t self)
 	TIMEOUT_TASK_INIT(taskqueue_thread, &sc->calib_task, 0, 
 	    rsu_calib_task, sc);
 
+	/* Allocate Tx/Rx buffers. */
+	error = rsu_alloc_rx_list(sc);
+	if (error != 0) {
+		device_printf(sc->sc_dev, "could not allocate Rx buffers\n");
+		goto fail_usb;
+	}
+
+	error = rsu_alloc_tx_list(sc);
+	if (error != 0) {
+		device_printf(sc->sc_dev, "could not allocate Tx buffers\n");
+		rsu_free_rx_list(sc);
+		goto fail_usb;
+	}
+
 	iface_index = 0;
 	error = usbd_transfer_setup(uaa->device, &iface_index, sc->sc_xfer,
 	    rsu_config, RSU_N_TRANSFER, sc, &sc->sc_mtx);
@@ -615,12 +629,26 @@ rsu_alloc_tx_list(struct rsu_softc *sc)
 static void
 rsu_free_tx_list(struct rsu_softc *sc)
 {
+	int i;
+
+	/* prevent further allocations from TX list(s) */
+	STAILQ_INIT(&sc->sc_tx_inactive);
+
+	for (i = 0; i != RSU_MAX_TX_EP; i++) {
+		STAILQ_INIT(&sc->sc_tx_active[i]);
+		STAILQ_INIT(&sc->sc_tx_pending[i]);
+	}
+
 	rsu_free_list(sc, sc->sc_tx, RSU_TX_LIST_COUNT);
 }
 
 static void
 rsu_free_rx_list(struct rsu_softc *sc)
 {
+	/* prevent further allocations from RX list(s) */
+	STAILQ_INIT(&sc->sc_rx_inactive);
+	STAILQ_INIT(&sc->sc_rx_active);
+
 	rsu_free_list(sc, sc->sc_rx, RSU_RX_LIST_COUNT);
 }
 
@@ -1695,9 +1723,9 @@ rsu_tx_start(struct rsu_softc *sc, struct ieee80211_node *ni,
 		which = RSU_BULK_TX_VO - RSU_BULK_TX_BE;
 		break;
 	default:
-		KASSERT(M_WME_GETAC(m0) < 4,
-		    ("unsupported WME pipe %d", M_WME_GETAC(m0)));
-		which = M_WME_GETAC(m0) + RSU_BULK_TX_BE;
+		which = M_WME_GETAC(m0);
+		KASSERT(which < RSU_MAX_TX_EP,
+		    ("unsupported WME pipe %d", which));
 		break;
 	}
 	hasqos = 0;
@@ -2172,15 +2200,14 @@ rsu_load_firmware(struct rsu_softc *sc)
 		goto fail;
 	}
 	/* Wait for load to complete. */
-	for (ntries = 0; ntries < 10; ntries++) {
+	for (ntries = 0; ntries != 50; ntries++) {
 		usb_pause_mtx(&sc->sc_mtx, hz / 100);
 		reg = rsu_read_2(sc, R92S_TCR);
 		if (reg & R92S_TCR_IMEM_CODE_DONE)
 			break;
 	}
-	if (ntries == 10 || !(reg & R92S_TCR_IMEM_CHK_RPT)) {
-		device_printf(sc->sc_dev, "timeout waiting for %s transfer\n",
-		    "IMEM");
+	if (ntries == 50) {
+		device_printf(sc->sc_dev, "timeout waiting for IMEM transfer\n");
 		error = ETIMEDOUT;
 		goto fail;
 	}
@@ -2193,15 +2220,14 @@ rsu_load_firmware(struct rsu_softc *sc)
 		goto fail;
 	}
 	/* Wait for load to complete. */
-	for (ntries = 0; ntries < 10; ntries++) {
+	for (ntries = 0; ntries != 10; ntries++) {
 		usb_pause_mtx(&sc->sc_mtx, hz / 100);
 		reg = rsu_read_2(sc, R92S_TCR);
 		if (reg & R92S_TCR_EMEM_CODE_DONE)
 			break;
 	}
-	if (ntries == 10 || !(reg & R92S_TCR_EMEM_CHK_RPT)) {
-		device_printf(sc->sc_dev, "timeout waiting for %s transfer\n",
-		    "EMEM");
+	if (ntries == 10) {
+		device_printf(sc->sc_dev, "timeout waiting for EMEM transfer\n");
 		error = ETIMEDOUT;
 		goto fail;
 	}
@@ -2336,22 +2362,11 @@ rsu_init_locked(struct rsu_softc *sc)
 	struct ifnet *ifp = sc->sc_ifp;
 	struct r92s_set_pwr_mode cmd;
 	int error;
+	int i;
 
 	/* Init host async commands ring. */
 	sc->cmdq.cur = sc->cmdq.next = sc->cmdq.queued = 0;
 
-	/* Allocate Tx/Rx buffers. */
-	error = rsu_alloc_rx_list(sc);
-	if (error != 0) {
-		device_printf(sc->sc_dev, "could not allocate Rx buffers\n");
-		return;
-	}
-	error = rsu_alloc_tx_list(sc);
-	if (error != 0) {
-		device_printf(sc->sc_dev, "could not allocate Tx buffers\n");
-		rsu_free_rx_list(sc);
-		return;
-	}
 	/* Power on adapter. */
 	if (sc->cut == 1)
 		rsu_power_on_acut(sc);
@@ -2438,9 +2453,9 @@ rsu_init_locked(struct rsu_softc *sc)
 	ifp->if_drv_flags |= IFF_DRV_RUNNING;
 	return;
 fail:
-	rsu_free_rx_list(sc);
-	rsu_free_tx_list(sc);
-	return;
+	/* Need to stop all failed transfers, if any */
+	for (i = 0; i != RSU_N_TRANSFER; i++)
+		usbd_transfer_stop(sc->sc_xfer[i]);
 }
 
 static void
