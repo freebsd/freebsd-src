@@ -2409,17 +2409,27 @@ vmx_setreg(void *arg, int vcpu, int reg, uint64_t val)
 static int
 vmx_getdesc(void *arg, int vcpu, int reg, struct seg_desc *desc)
 {
+	int hostcpu, running;
 	struct vmx *vmx = arg;
 
-	return (vmcs_getdesc(&vmx->vmcs[vcpu], reg, desc));
+	running = vcpu_is_running(vmx->vm, vcpu, &hostcpu);
+	if (running && hostcpu != curcpu)
+		panic("vmx_getdesc: %s%d is running", vm_name(vmx->vm), vcpu);
+
+	return (vmcs_getdesc(&vmx->vmcs[vcpu], running, reg, desc));
 }
 
 static int
 vmx_setdesc(void *arg, int vcpu, int reg, struct seg_desc *desc)
 {
+	int hostcpu, running;
 	struct vmx *vmx = arg;
 
-	return (vmcs_setdesc(&vmx->vmcs[vcpu], reg, desc));
+	running = vcpu_is_running(vmx->vm, vcpu, &hostcpu);
+	if (running && hostcpu != curcpu)
+		panic("vmx_setdesc: %s%d is running", vm_name(vmx->vm), vcpu);
+
+	return (vmcs_setdesc(&vmx->vmcs[vcpu], running, reg, desc));
 }
 
 static int
