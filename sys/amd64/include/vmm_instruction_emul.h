@@ -122,6 +122,16 @@ int vmm_fetch_instruction(struct vm *vm, int cpuid,
 			  enum vie_paging_mode paging_mode, int cpl,
 			  struct vie *vie);
 
+/*
+ * Translate the guest linear address 'gla' to a guest physical address.
+ *
+ * Returns 0 on success and '*gpa' contains the result of the translation.
+ * Returns 1 if a page fault exception was injected into the guest.
+ * Returns -1 otherwise.
+ */
+int vmm_gla2gpa(struct vm *vm, int vcpuid, uint64_t gla, uint64_t cr3,
+    uint64_t *gpa, enum vie_paging_mode paging_mode, int cpl, int prot);
+
 void vie_init(struct vie *vie);
 
 /*
