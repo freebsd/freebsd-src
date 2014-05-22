@@ -1815,9 +1815,9 @@ skip_thunk:
 	case VT_LOCKSWITCH:
 		/* TODO: Check current state, switching can be in progress. */
 		if ((*(int *)data) == 0x01)
-			vw->vw_flags &= ~VWF_VTYLOCK;
-		else if ((*(int *)data) == 0x02)
 			vw->vw_flags |= VWF_VTYLOCK;
+		else if ((*(int *)data) == 0x02)
+			vw->vw_flags &= ~VWF_VTYLOCK;
 		else
 			return (EINVAL);
 		return (0);
