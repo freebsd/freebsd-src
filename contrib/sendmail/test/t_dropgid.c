@@ -22,7 +22,7 @@
 #include <stdio.h>
 
 #ifndef lint
-static char id[] = "@(#)$Id: t_dropgid.c,v 1.7 2013/11/22 20:52:01 ca Exp $";
+static char id[] = "@(#)$Id: t_dropgid.c,v 1.7 2013-11-22 20:52:01 ca Exp $";
 #endif /* ! lint */
 
 static void
