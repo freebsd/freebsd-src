@@ -144,13 +144,13 @@ SYSCTL_DECL(_vfs_zfs);
 TUNABLE_QUAD("vfs.zfs.dirty_data_max", &zfs_dirty_data_max);
 SYSCTL_UQUAD(_vfs_zfs, OID_AUTO, dirty_data_max, CTLFLAG_RWTUN,
     &zfs_dirty_data_max, 0,
-    "The dirty space limit in bytes after which new writes are halted until "
-    "space becomes available");
+    "The maximum amount of dirty data in bytes after which new writes are "
+    "halted until space becomes available");
 
 TUNABLE_QUAD("vfs.zfs.dirty_data_max_max", &zfs_dirty_data_max_max);
 SYSCTL_UQUAD(_vfs_zfs, OID_AUTO, dirty_data_max_max, CTLFLAG_RDTUN,
     &zfs_dirty_data_max_max, 0,
-    "The absolute cap on diry_data_max when auto calculating");
+    "The absolute cap on dirty_data_max when auto calculating");
 
 TUNABLE_INT("vfs.zfs.dirty_data_max_percent", &zfs_dirty_data_max_percent);
 SYSCTL_INT(_vfs_zfs, OID_AUTO, dirty_data_max_percent, CTLFLAG_RDTUN,
@@ -160,7 +160,7 @@ SYSCTL_INT(_vfs_zfs, OID_AUTO, dirty_data_max_percent, CTLFLAG_RDTUN,
 TUNABLE_QUAD("vfs.zfs.dirty_data_sync", &zfs_dirty_data_sync);
 SYSCTL_UQUAD(_vfs_zfs, OID_AUTO, dirty_data_sync, CTLFLAG_RWTUN,
     &zfs_dirty_data_sync, 0,
-    "Force at txg if the number of dirty buffer bytes exceed this value");
+    "Force a txg if the number of dirty buffer bytes exceed this value");
 
 static int sysctl_zfs_delay_min_dirty_percent(SYSCTL_HANDLER_ARGS);
 /* No zfs_delay_min_dirty_percent tunable due to limit requirements */
