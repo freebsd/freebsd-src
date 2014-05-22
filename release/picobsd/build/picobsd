@@ -996,7 +996,9 @@ set_build_parameters() {
 	export TARGET_ARCH=${o_arch} TARGET=${o_arch}
 	# XXX 20131001 see if CLANG fixes the build
 	export WITHOUT_CLANG_IS_CC=yes
+	export WITHOUT_CLANG_BOOTSTRAP=yes
 	export WITH_GCC=yes
+	export WITH_GCC_BOOTSTRAP=yes
 	export WITH_GNUCXX=yes
 	export WITHOUT_CLANG=yes
 	export WITHOUT_ICONV=yes
