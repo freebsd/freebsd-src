@@ -1,4 +1,4 @@
-#	$Id: AIX.m4,v 8.2 1999/05/28 05:54:26 gshapiro Exp $
+#	$Id: AIX.m4,v 8.2 1999-05-28 05:54:26 gshapiro Exp $
 depend: ${BEFORE} ${LINKS}
 	@mv Makefile Makefile.old
 	@sed -e '/^# Do not edit or remove this line or anything below it.$$/,$$d' < Makefile.old > Makefile

@@ -10,7 +10,7 @@ divert(-1)
 #
 #  Definitions for Makefile construction for sendmail
 #
-#	$Id: list.m4,v 8.5 2013/11/22 20:51:18 ca Exp $
+#	$Id: list.m4,v 8.5 2013-11-22 20:51:18 ca Exp $
 #
 divert(0)dnl
 define(`bldLIST_PUSH_ITEM',

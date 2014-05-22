@@ -13,7 +13,7 @@
 
 #include <sendmail.h>
 
-SM_RCSID("@(#)$Id: mci.c,v 8.225 2013/11/22 20:51:56 ca Exp $")
+SM_RCSID("@(#)$Id: mci.c,v 8.225 2013-11-22 20:51:56 ca Exp $")
 
 #if NETINET || NETINET6
 # include <arpa/inet.h>

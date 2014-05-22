@@ -9,7 +9,7 @@ divert(-1)
 #
 #	Compile/run a test program for libsm.
 #
-#	$Id: sm-test.m4,v 1.8 2013/11/22 20:51:23 ca Exp $
+#	$Id: sm-test.m4,v 1.8 2013-11-22 20:51:23 ca Exp $
 #
 define(`smtest',
 `bldPUSH_TARGET($1)dnl

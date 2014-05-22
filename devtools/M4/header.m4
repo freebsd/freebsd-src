@@ -1,5 +1,5 @@
 #
-# Copyright (c) 1998, 1999 Proofpoint, Inc. and its suppliers.
+# Copyright (c) 1998, 1999, 2014 Proofpoint, Inc. and its suppliers.
 #	All rights reserved.
 #
 # By using this file, you agree to the terms and conditions set
@@ -9,7 +9,7 @@
 #
 #  Definitions for Makefile construction for sendmail
 #
-#	$Id: header.m4,v 8.28 2013/11/22 20:51:18 ca Exp $
+#	$Id: header.m4,v 8.29 2014-01-26 20:40:45 gshapiro Exp $
 #
 changecom(^A)
 undefine(`format')
@@ -27,6 +27,7 @@ define(`confLIBDIRS', `')
 define(`confINCDIRS', `')
 define(`confLIBSEARCH', `db bind resolv 44bsd')
 define(`confLIBSEARCHPATH', `/lib /usr/lib /usr/shlib')
+define(`confSHAREDLIB_EXT', `.so')
 define(`confSITECONFIG', `site.config')
 define(`confBUILDBIN', `${SRCDIR}/devtools/bin')
 define(`confRANLIB', `echo')

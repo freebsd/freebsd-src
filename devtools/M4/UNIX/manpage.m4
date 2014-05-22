@@ -10,7 +10,7 @@ divert(-1)
 #
 #  Definitions for Makefile construction for sendmail
 #
-#	$Id: manpage.m4,v 8.17 2013/11/22 20:51:23 ca Exp $
+#	$Id: manpage.m4,v 8.17 2013-11-22 20:51:23 ca Exp $
 #
 divert(0)dnl
 
