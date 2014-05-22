@@ -9,7 +9,7 @@ divert(-1)
 #
 #	Compile/run a test program.
 #
-#	$Id: check.m4,v 8.6 2013/11/22 20:51:22 ca Exp $
+#	$Id: check.m4,v 8.6 2013-11-22 20:51:22 ca Exp $
 #
 define(`smcheck', `dnl
 ifelse(X`'$2, `X', `', `ifelse(index($2, `run'), `-1', `', `dnl

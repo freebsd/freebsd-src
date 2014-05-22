@@ -395,4 +395,4 @@ files that make up the library.
 bldINSTALLABLE - This should be set if the library should be installed in
 confLIBDIR.
 
-$Revision: 8.104 $, Last updated $Date: 2012/01/21 00:07:06 $
+$Revision: 8.104 $, Last updated $Date: 2012-01-21 00:07:06 $

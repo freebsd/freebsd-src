@@ -8,6 +8,6 @@
 # the sendmail distribution.
 #
 #
-#	$Id: Build,v 8.3 2013/11/22 20:52:02 ca Exp $
+#	$Id: Build,v 8.3 2013-11-22 20:52:02 ca Exp $
 
 exec ../devtools/bin/Build $*

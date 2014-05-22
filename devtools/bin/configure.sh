@@ -8,7 +8,7 @@
 # the sendmail distribution.
 #
 #
-#	$Id: configure.sh,v 8.48 2013/12/02 22:11:07 gshapiro Exp $
+#	$Id: configure.sh,v 8.48 2013-12-02 22:11:07 gshapiro Exp $
 
 #
 #  Special script to autoconfigure for M4 generation of Makefile

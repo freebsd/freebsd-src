@@ -6,7 +6,7 @@
  * forth in the LICENSE file which can be found at the top level of
  * the sendmail distribution.
  *
- *	$Id: sysexits.h,v 8.5 2000/11/26 02:13:20 ca Exp $
+ *	$Id: sysexits.h,v 8.5 2000-11-26 02:13:20 ca Exp $
  *	@(#)sysexits.h	8.1 (Berkeley) 6/2/93
  */
 

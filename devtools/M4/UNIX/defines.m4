@@ -10,7 +10,7 @@ divert(-1)
 #
 #  Definitions for Makefile construction for sendmail
 #
-#	$Id: defines.m4,v 8.49 2013/11/22 20:51:22 ca Exp $
+#	$Id: defines.m4,v 8.49 2013-11-22 20:51:22 ca Exp $
 #
 # temporary hack: if confREQUIRE_LIBSM is set then also set confREQUIRE_SM_OS_H
 ifdef(`confREQUIRE_LIBSM',`

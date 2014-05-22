@@ -16,8 +16,8 @@
 #####
 #####		SENDMAIL CONFIGURATION FILE
 #####
-##### built by ca@lab.smi.sendmail.com on Thu Jan 23 12:29:13 PST 2014
-##### in /home/ca/sm8-rel/sm-8.14.8/OpenSource/sendmail-8.14.8/cf/cf
+##### built by ca@lab.smi.sendmail.com on Tue May 20 12:12:51 PDT 2014
+##### in /home/ca/sm8.git/sendmail/OpenSource/sendmail-8.14.9/cf/cf
 ##### using ../ as configuration include directory
 #####
 ######################################################################
@@ -27,22 +27,22 @@
 ######################################################################
 ######################################################################
 
-#####  $Id: cfhead.m4,v 8.122 2013/11/22 20:51:13 ca Exp $  #####
-#####  $Id: cf.m4,v 8.33 2013/11/22 20:51:13 ca Exp $  #####
-#####  $Id: generic-mpeix.mc,v 8.2 2013/11/22 20:51:08 ca Exp $  #####
+#####  $Id: cfhead.m4,v 8.122 2013-11-22 20:51:13 ca Exp $  #####
+#####  $Id: cf.m4,v 8.33 2013-11-22 20:51:13 ca Exp $  #####
+#####  $Id: generic-mpeix.mc,v 8.2 2013-11-22 20:51:08 ca Exp $  #####
 
-#####  $Id: mpeix.m4,v 1.2 2013/11/22 20:51:15 ca Exp $  #####
-
-
-#####  $Id: generic.m4,v 8.16 2013/11/22 20:51:10 ca Exp $  #####
-
-#####  $Id: redirect.m4,v 8.16 2013/11/22 20:51:11 ca Exp $  #####
-
-#####  $Id: use_cw_file.m4,v 8.12 2013/11/22 20:51:11 ca Exp $  #####
+#####  $Id: mpeix.m4,v 1.2 2013-11-22 20:51:15 ca Exp $  #####
 
 
+#####  $Id: generic.m4,v 8.16 2013-11-22 20:51:10 ca Exp $  #####
 
-#####  $Id: proto.m4,v 8.762 2013/11/22 20:51:13 ca Exp $  #####
+#####  $Id: redirect.m4,v 8.16 2013-11-22 20:51:11 ca Exp $  #####
+
+#####  $Id: use_cw_file.m4,v 8.12 2013-11-22 20:51:11 ca Exp $  #####
+
+
+
+#####  $Id: proto.m4,v 8.762 2013-11-22 20:51:13 ca Exp $  #####
 
 # level 10 config file format
 V10/Berkeley
@@ -123,7 +123,7 @@ DnMAILER-DAEMON
 CPREDIRECT
 
 # Configuration version number
-DZ8.14.8
+DZ8.14.9
 
 
 ###############
@@ -1299,7 +1299,7 @@ Sauthinfo
 ###   Local and Program Mailer specification   ###
 ##################################################
 
-#####  $Id: local.m4,v 8.60 2013/11/22 20:51:14 ca Exp $  #####
+#####  $Id: local.m4,v 8.60 2013-11-22 20:51:14 ca Exp $  #####
 
 #
 #  Envelope sender rewriting
@@ -1351,7 +1351,7 @@ Mprog,		P=/bin/sh, F=lsDFMoqeu9, S=EnvFromL/HdrFromL, R=EnvToL/HdrToL, D=$z:/,
 ###   SMTP Mailer specification   ###
 #####################################
 
-#####  $Id: smtp.m4,v 8.66 2013/11/22 20:51:14 ca Exp $  #####
+#####  $Id: smtp.m4,v 8.66 2013-11-22 20:51:14 ca Exp $  #####
 
 #
 #  common sender and masquerading recipient rewriting
@@ -1459,7 +1459,7 @@ Mrelay,		P=[IPC], F=mDFMuXa8, S=EnvFromSMTP/HdrFromSMTP, R=MasqSMTP, E=\r\n, L=2
 # #
 # 
 # divert(0)dnl
-# VERSIONID(`$Id: generic-mpeix.mc,v 8.2 2013/11/22 20:51:08 ca Exp $')
+# VERSIONID(`$Id: generic-mpeix.mc,v 8.2 2013-11-22 20:51:08 ca Exp $')
 # OSTYPE(mpeix)dnl
 # DOMAIN(generic)dnl
 # define(`confFORWARD_PATH', `$z/.forward')dnl
