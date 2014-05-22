@@ -236,6 +236,7 @@ int vm_exception_pending(struct vm *vm, int vcpuid, struct vm_exception *vme);
 
 void vm_inject_gp(struct vm *vm, int vcpuid); /* general protection fault */
 void vm_inject_ud(struct vm *vm, int vcpuid); /* undefined instruction fault */
+void vm_inject_pf(struct vm *vm, int vcpuid, int error_code); /* page fault */
 
 #endif	/* KERNEL */
 

@@ -572,6 +572,23 @@ vie_init(struct vie *vie)
 	vie->index_register = VM_REG_LAST;
 }
 
+static int
+pf_error_code(int usermode, int prot, uint64_t pte)
+{
+	int error_code = 0;
+
+	if (pte & PG_V)
+		error_code |= PGEX_P;
+	if (prot & VM_PROT_WRITE)
+		error_code |= PGEX_W;
+	if (usermode)
+		error_code |= PGEX_U;
+	if (prot & VM_PROT_EXECUTE)
+		error_code |= PGEX_I;
+
+	return (error_code);
+}
+
 static void
 ptp_release(void **cookie)
 {
@@ -591,11 +608,11 @@ ptp_hold(struct vm *vm, vm_paddr_t ptpphys, size_t len, void **cookie)
 	return (ptr);
 }
 
-static int
-gla2gpa(struct vm *vm, uint64_t gla, uint64_t ptpphys, uint64_t *gpa,
-    enum vie_paging_mode paging_mode, int cpl, int prot)
+int
+vmm_gla2gpa(struct vm *vm, int vcpuid, uint64_t gla, uint64_t ptpphys,
+    uint64_t *gpa, enum vie_paging_mode paging_mode, int cpl, int prot)
 {
-	int nlevels, ptpshift, ptpindex, retval, usermode, writable;
+	int nlevels, pfcode, ptpshift, ptpindex, retval, usermode, writable;
 	u_int retries;
 	uint64_t *ptpbase, pte, pgsize;
 	uint32_t *ptpbase32, pte32;
@@ -604,7 +621,7 @@ gla2gpa(struct vm *vm, uint64_t gla, uint64_t ptpphys, uint64_t *gpa,
 	usermode = (cpl == 3 ? 1 : 0);
 	writable = prot & VM_PROT_WRITE;
 	cookie = NULL;
-	retval = -1;
+	retval = 0;
 	retries = 0;
 restart:
 	ptp_release(&cookie);
@@ -633,11 +650,13 @@ restart:
 
 			pte32 = ptpbase32[ptpindex];
 
-			if ((pte32 & PG_V) == 0)
-				goto error;
-
-			if (usermode && (pte32 & PG_U) == 0)
-				goto error;
+			if ((pte32 & PG_V) == 0 ||
+			    (usermode && (pte32 & PG_U) == 0) ||
+			    (writable && (pte32 & PG_RW) == 0)) {
+				pfcode = pf_error_code(usermode, prot, pte32);
+				vm_inject_pf(vm, vcpuid, pfcode);
+				goto pagefault;
+			}
 
 			if (writable && (pte32 & PG_RW) == 0)
 				goto error;
@@ -689,8 +708,11 @@ restart:
 
 		pte = ptpbase[ptpindex];
 
-		if ((pte & PG_V) == 0)
-			goto error;
+		if ((pte & PG_V) == 0) {
+			pfcode = pf_error_code(usermode, prot, pte);
+			vm_inject_pf(vm, vcpuid, pfcode);
+			goto pagefault;
+		}
 
 		ptpphys = pte;
 
@@ -711,11 +733,13 @@ restart:
 
 		pte = ptpbase[ptpindex];
 
-		if ((pte & PG_V) == 0)
-			goto error;
-
-		if (usermode && (pte & PG_U) == 0)
-			goto error;
+		if ((pte & PG_V) == 0 ||
+		    (usermode && (pte & PG_U) == 0) ||
+		    (writable && (pte & PG_RW) == 0)) {
+			pfcode = pf_error_code(usermode, prot, pte);
+			vm_inject_pf(vm, vcpuid, pfcode);
+			goto pagefault;
+		}
 
 		if (writable && (pte & PG_RW) == 0)
 			goto error;
@@ -748,10 +772,14 @@ restart:
 	pte >>= ptpshift; pte <<= (ptpshift + 12); pte >>= 12;
 	*gpa = pte | (gla & (pgsize - 1));
 done:
-	retval = 0;
-error:
 	ptp_release(&cookie);
 	return (retval);
+error:
+	retval = -1;
+	goto done;
+pagefault:
+	retval = 1;
+	goto done;
 }
 
 int
@@ -759,7 +787,7 @@ vmm_fetch_instruction(struct vm *vm, int cpuid, uint64_t rip, int inst_length,
 		      uint64_t cr3, enum vie_paging_mode paging_mode, int cpl,
 		      struct vie *vie)
 {
-	int n, err, prot;
+	int n, error, prot;
 	uint64_t gpa, off;
 	void *hpa, *cookie;
 
@@ -773,9 +801,10 @@ vmm_fetch_instruction(struct vm *vm, int cpuid, uint64_t rip, int inst_length,
 
 	/* Copy the instruction into 'vie' */
 	while (vie->num_valid < inst_length) {
-		err = gla2gpa(vm, rip, cr3, &gpa, paging_mode, cpl, prot);
-		if (err)
-			break;
+		error = vmm_gla2gpa(vm, cpuid, rip, cr3, &gpa, paging_mode,
+		    cpl, prot);
+		if (error)
+			return (error);
 
 		off = gpa & PAGE_MASK;
 		n = min(inst_length - vie->num_valid, PAGE_SIZE - off);

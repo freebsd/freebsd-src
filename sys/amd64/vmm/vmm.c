@@ -1155,9 +1155,14 @@ vm_handle_inst_emul(struct vm *vm, int vcpuid, bool *retu)
 	vie_init(vie);
 
 	/* Fetch, decode and emulate the faulting instruction */
-	if (vmm_fetch_instruction(vm, vcpuid, rip, inst_length, cr3,
-	    paging_mode, cpl, vie) != 0)
+	error = vmm_fetch_instruction(vm, vcpuid, rip, inst_length, cr3,
+	    paging_mode, cpl, vie);
+	if (error == 1)
+		return (0);		/* Resume guest to handle page fault */
+	else if (error == -1)
 		return (EFAULT);
+	else if (error != 0)
+		panic("%s: vmm_fetch_instruction error %d", __func__, error);
 
 	if (vmm_decode_instruction(vm, vcpuid, gla, cpu_mode, vie) != 0)
 		return (EFAULT);
@@ -1428,6 +1433,18 @@ vm_inject_fault(struct vm *vm, int vcpuid, struct vm_exception *exception)
 	 */
 	vmexit = vm_exitinfo(vm, vcpuid);
 	vmexit->inst_length = 0;
+}
+
+void
+vm_inject_pf(struct vm *vm, int vcpuid, int error_code)
+{
+	struct vm_exception pf = {
+		.vector = IDT_PF,
+		.error_code_valid = 1,
+		.error_code = error_code
+	};
+
+	vm_inject_fault(vm, vcpuid, &pf);
 }
 
 void
