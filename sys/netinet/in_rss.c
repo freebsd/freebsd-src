@@ -176,6 +176,7 @@ static void
 rss_init(__unused void *arg)
 {
 	u_int i;
+	u_int cpuid;
 
 	/*
 	 * Validate tunables, coerce to sensible values.
@@ -245,11 +246,12 @@ rss_init(__unused void *arg)
 
 	/*
 	 * Set up initial CPU assignments: round-robin by default.
-	 *
-	 * XXXRW: Need a mapping to non-contiguous IDs here.
 	 */
-	for (i = 0; i < rss_buckets; i++)
-		rss_table[i].rte_cpu = i % rss_ncpus;
+	cpuid = CPU_FIRST();
+	for (i = 0; i < rss_buckets; i++) {
+		rss_table[i].rte_cpu = cpuid;
+		cpuid = CPU_NEXT(cpuid);
+	}
 
 	/*
 	 * Randomize rrs_key.
