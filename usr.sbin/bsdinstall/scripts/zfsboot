@@ -45,6 +45,11 @@ f_include $BSDCFG_SHARE/variable.subr
 : ${ZFSBOOT_POOL_NAME:=zroot}
 
 #
+# Default options to use when creating zroot pool
+#
+: ${ZFSBOOT_POOL_CREATE_OPTIONS:=-O compress=lz4 -O atime=off}
+
+#
 # Default name for the boot environment parent dataset
 #
 : ${ZFSBOOT_BEROOT_NAME:=ROOT}
@@ -80,6 +85,11 @@ f_include $BSDCFG_SHARE/variable.subr
 # NB: Automatically set when using geli(8) or MBR
 #
 : ${ZFSBOOT_BOOT_POOL=}
+
+#
+# Options to use when creating separate boot pool (if any)
+#
+: ${ZFSBOOT_BOOT_POOL_CREATE_OPTIONS:=}
 
 #
 # Default name for boot pool when enabled (e.g., geli(8) or MBR)
@@ -942,6 +952,7 @@ zfs_create_boot()
 	local disks="$*" disk
 	local isswapmirror
 	local bootpart targetpart swappart # Set by zfs_create_diskpart() below
+	local create_options
 
 	#
 	# Pedantic checks; should never be seen
@@ -1066,7 +1077,9 @@ zfs_create_boot()
 		f_count nvdevs $boot_vdevs
 		[ $nvdevs -gt 1 ] && bootpool_vdevtype=mirror
 
+		create_options="$ZFSBOOT_BOOT_POOL_CREATE_OPTIONS"
 		bootpool_options="-o altroot=$BSDINSTALL_CHROOT"
+		bootpool_options="$bootpool_options $create_options"
 		bootpool_options="$bootpool_options -m \"/$bootpool_name\" -f"
 		f_eval_catch $funcname zpool "$ZPOOL_CREATE_WITH_OPTIONS" \
 		             "$bootpool_options" "$bootpool_name" \
@@ -1148,19 +1161,11 @@ zfs_create_boot()
 	# Create the ZFS root pool with desired type and disk devices
 	#
 	f_dprintf "$funcname: Creating root pool..."
+	create_options="$ZFSBOOT_POOL_CREATE_OPTIONS"
 	f_eval_catch $funcname zpool "$ZPOOL_CREATE_WITH_OPTIONS" \
-	             "-o altroot=$BSDINSTALL_CHROOT -O compress=lz4
-	             -m none -f" \
-	             "$zroot_name" "$zroot_vdevtype" "$zroot_vdevs" ||
-	             return $FAILURE
-
-	# Customize the zroot a bit...
-	local option
-	f_dprintf "$funcname: Setting miscellaneous options on root pool..."
-	for option in atime=off; do
-		f_eval_catch $funcname zfs "$ZFS_SET" $option "$zroot_name" ||
-			return $FAILURE
-	done
+		"-o altroot=$BSDINSTALL_CHROOT $create_options -m none -f" \
+		"$zroot_name" "$zroot_vdevtype" "$zroot_vdevs" ||
+		return $FAILURE
 
 	#
 	# Create ZFS dataset layout within the new root pool
