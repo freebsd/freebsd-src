@@ -14,7 +14,7 @@
 #include <sendmail.h>
 #include <string.h>
 
-SM_RCSID("@(#)$Id: mime.c,v 8.149 2013/11/22 20:51:56 ca Exp $")
+SM_RCSID("@(#)$Id: mime.c,v 8.149 2013-11-22 20:51:56 ca Exp $")
 
 /*
 **  MIME support.

@@ -22,7 +22,7 @@ ifelse(defn(`_ARG_'), `', `errprint(`Feature "nullclient" requires argument')',
 #
 
 divert(0)
-VERSIONID(`$Id: nullclient.m4,v 8.25 2013/11/22 20:51:11 ca Exp $')
+VERSIONID(`$Id: nullclient.m4,v 8.25 2013-11-22 20:51:11 ca Exp $')
 divert(-1)
 
 undefine(`ALIAS_FILE')
