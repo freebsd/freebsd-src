@@ -2220,13 +2220,13 @@ rsu_load_firmware(struct rsu_softc *sc)
 		goto fail;
 	}
 	/* Wait for load to complete. */
-	for (ntries = 0; ntries != 10; ntries++) {
+	for (ntries = 0; ntries != 50; ntries++) {
 		usb_pause_mtx(&sc->sc_mtx, hz / 100);
 		reg = rsu_read_2(sc, R92S_TCR);
 		if (reg & R92S_TCR_EMEM_CODE_DONE)
 			break;
 	}
-	if (ntries == 10) {
+	if (ntries == 50) {
 		device_printf(sc->sc_dev, "timeout waiting for EMEM transfer\n");
 		error = ETIMEDOUT;
 		goto fail;
