@@ -597,13 +597,10 @@ rman_reserve_resource_bound(struct rman *rm, u_long start, u_long end,
 	if ((flags & (RF_SHAREABLE | RF_TIMESHARE)) == 0)
 		goto out;
 
-	for (s = r; s; s = TAILQ_NEXT(s, r_link)) {
-		if (s->r_start > end)
-			break;
-		if ((s->r_flags & flags) != flags)
-			continue;
-		if (s->r_start >= start && s->r_end <= end
-		    && (s->r_end - s->r_start + 1) == count &&
+	for (s = r; s && s->r_end <= end; s = TAILQ_NEXT(s, r_link)) {
+		if ((s->r_flags & flags) == flags &&
+		    s->r_start >= start &&
+		    (s->r_end - s->r_start + 1) == count &&
 		    (s->r_start & amask) == 0 &&
 		    ((s->r_start ^ s->r_end) & bmask) == 0) {
 			rv = int_alloc_resource(M_NOWAIT);
