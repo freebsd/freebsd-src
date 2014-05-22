@@ -2182,8 +2182,6 @@ mpr_add_chain(struct mpr_command *cm, int segsleft)
 	 * code other than 0.
 	 */
 	if (cm->cm_flags & MPR_CM_FLAGS_SGE_SIMPLE) {
-//SLM-test
-printf("Trying to add a chain element to an MPI SGL\n");
 		mpr_dprint(sc, MPR_ERROR, "A chain element cannot be added to "
 		    "an MPI SGL.\n");
 		return(ENOBUFS);
