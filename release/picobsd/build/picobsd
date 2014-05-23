@@ -175,7 +175,8 @@ create_includes_and_libraries2() { # opt_dir opt_target
 	cd $1 ; ${BINMAKE} ${o_par} $2	# specific target, e.g. ld-elf.so
     else
 	export MAKEOBJDIRPREFIX=${l_objtree}
-	make ${o_par} $no toolchain libraries
+	make ${o_par} $no toolchain
+
 	# XXX do we need any of these ?
         eval export `cd ${SRC}; ${BINMAKE} -f Makefile.inc1 -V WMAKEENV`
 	[ ${o_arch} != `uname -m` ] && \
