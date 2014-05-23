@@ -50,7 +50,6 @@
 
 #include <devctl/guid.h>
 #include <devctl/event.h>
-#include <devctl/event_buffer.h>
 #include <devctl/event_factory.h>
 #include <devctl/exception.h>
 #include <devctl/consumer.h>

@@ -81,14 +81,13 @@ public:
 	 */                                                              
 	void ReplayUnconsumedEvents(bool discardUnconsumed);
 
-	/** Return an event, if available, from the provided EventBuffer. */
-	Event *NextEvent(EventBuffer *eventBuffer = NULL);
+	/** Return an event, if one is available.  */
+	Event *NextEvent();
 
 	/**
-	 * Extract events from the provided eventBuffer and invoke
-	 * each event's Process method.
+	 * Extract events and invoke each event's Process method.
 	 */
-	void ProcessEvents(EventBuffer *eventBuffer = NULL);
+	void ProcessEvents();
 
 	/** Discard all data pending in m_devdSockFD. */
 	void FlushEvents();
@@ -116,6 +115,22 @@ public:
 	EventFactory GetFactory();
 
 protected:
+	/**
+	 * \brief Reads the most recent record
+	 *
+	 * On error, "" is returned, and errno will be set by the OS
+	 *
+	 * \returns      A string containing the record
+	 */
+	std::string ReadEvent();
+
+	enum {
+		/*
+		 * The maximum event size supported by libdevctl.
+		 */
+		MAX_EVENT_SIZE = 8192,
+	};
+
 	static const char  s_devdSockPath[];
 
 	/**

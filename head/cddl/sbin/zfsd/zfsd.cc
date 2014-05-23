@@ -59,11 +59,9 @@
 
 #include <devctl/guid.h>
 #include <devctl/event.h>
-#include <devctl/event_buffer.h>
 #include <devctl/event_factory.h>
 #include <devctl/exception.h>
 #include <devctl/consumer.h>
-#include <devctl/reader.h>
 
 #include "callout.h"
 #include "vdev_iterator.h"
@@ -82,11 +80,8 @@ __FBSDID("$FreeBSD$");
 
 /*============================ Namespace Control =============================*/
 using DevCtl::Event;
-using DevCtl::EventBuffer;
 using DevCtl::EventFactory;
 using DevCtl::EventList;
-using DevCtl::Guid;
-using DevCtl::NVPairMap;
 
 /*================================ Global Data ===============================*/
 int              g_debug = 0;
@@ -103,8 +98,8 @@ int		     ZfsDaemon::s_signalPipeFD[2];
 bool		     ZfsDaemon::s_systemRescanRequested(false);
 EventFactory::Record ZfsDaemon::s_registryEntries[] =
 {
-	{ Event::NOTIFY, "DEVFS", &DevfsEvent::DevfsEventBuilder },
-	{ Event::NOTIFY, "ZFS",   &ZfsEvent::ZfsEventBuilder }
+	{ Event::NOTIFY, "DEVFS", &DevfsEvent::Builder },
+	{ Event::NOTIFY, "ZFS",   &ZfsEvent::Builder }
 };
 
 //- ZfsDaemon Static Public Methods --------------------------------------------

@@ -88,8 +88,10 @@ EventFactory::Build(Event::Type type, NVPairMap &nvpairs,
 	if (foundMethod != m_registry.end())
 		buildMethod = foundMethod->second;
 	
-	if (buildMethod == NULL)
+	if (buildMethod == NULL) {
+		delete &nvpairs;
 		return (NULL);
+	}
 
 	return (buildMethod(type, nvpairs, eventString));
 }

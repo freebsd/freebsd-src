@@ -52,7 +52,6 @@
  *    #include <devctl/event.h>
  *    #include <devctl/event_factory.h>
  *    #include <devctl/consumer.h>
- *    #include <devctl/reader.h>
  *
  *    #include "vdev_iterator.h"
  */

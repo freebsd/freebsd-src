@@ -43,7 +43,26 @@ zfsd_unittest_head()
 
 zfsd_unittest_body()
 {
-	atf_check -s exit:0 -o ignore -e ignore $(atf_get_srcdir)/zfsd_unittest
+	TESTPROG=$(atf_get_srcdir)/zfsd_unittest
+	if atf_config_has coverage_dir; then
+		# If coverage_dir is defined, then we want to save the .gcda
+		# and .gcno files for future analysis.  Put them in a directory
+		# tree that resembles /usr/src, but is anchored at
+		# coverage_dir.
+		export GCOV_PREFIX=`atf_config_get coverage_dir`
+		# Examine zfsd_unittest to calculate the GCOV_PREFIX_STRIP
+		# The outer echo command is needed to strip off whitespace
+		# printed by wc
+		OLDGCDADIR=`strings $TESTPROG | grep 'zfsd.gcda'`
+		export GCOV_PREFIX_STRIP=$( echo $( echo $OLDGCDADIR | \
+			sed -e 's:/cddl/sbin/zfsd.*::' -e 's:/: :g' | \
+			wc -w ) )
+		NEWGCDADIR=$GCOV_PREFIX/`dirname $OLDGCDADIR | \
+			sed -e 's:.*\(cddl/sbin/zfsd\):\1:'`
+		mkdir -p $NEWGCDADIR
+		cp $(atf_get_srcdir)/*.gcno $NEWGCDADIR
+	fi
+	atf_check -s exit:0 -o ignore -e ignore $TESTPROG
 }
 
 atf_init_test_cases()

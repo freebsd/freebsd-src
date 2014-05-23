@@ -40,12 +40,18 @@
 #include <sys/disk.h>
 #include <sys/filio.h>
 #include <sys/param.h>
+#include <sys/stat.h>
+#include <sys/time.h>
 
+#include <err.h>
 #include <fcntl.h>
 #include <paths.h>
+#include <stdlib.h>
 #include <syslog.h>
 #include <unistd.h>
 
+#include <cstdarg>
+#include <cstring>
 #include <iostream>
 #include <list>
 #include <map>
@@ -86,8 +92,8 @@ Event::EventTypeRecord Event::s_typeTable[] =
 
 //- Event Static Public Methods ------------------------------------------------
 Event *
-Event::EventBuilder(Event::Type type, NVPairMap &nvPairs,
-		    const string &eventString)
+Event::Builder(Event::Type type, NVPairMap &nvPairs,
+	       const string &eventString)
 {
 	return (new Event(type, nvPairs, eventString));
 }
@@ -325,11 +331,35 @@ Event::ParseEventString(Event::Type type,
 	}
 }
 
+void
+Event::TimestampEventString(std::string &eventString)
+{
+	if (eventString.size() > 0) {
+		/*
+		 * Add a timestamp as the final field of the event if it is
+		 * not already present.
+		 */
+		if (eventString.find("timestamp=") == string::npos) {
+			const size_t bufsize = 32;	// Long enough for a 64-bit int
+			timeval now;
+			struct tm* time_s;
+			char timebuf[bufsize];
+
+			size_t eventEnd(eventString.find_last_not_of('\n') + 1);
+			if (gettimeofday(&now, NULL) != 0)
+				err(1, "gettimeofday");
+			time_s = gmtime(&now.tv_sec);
+			strftime(timebuf, bufsize, " timestamp=%s", time_s);
+			eventString.insert(eventEnd, timebuf);
+		}
+	}
+}
+
 /*-------------------------------- DevfsEvent --------------------------------*/
 //- DevfsEvent Static Public Methods -------------------------------------------
 Event *
-DevfsEvent::DevfsEventBuilder(Event::Type type, NVPairMap &nvPairs,
-			      const string &eventString)
+DevfsEvent::Builder(Event::Type type, NVPairMap &nvPairs,
+		    const string &eventString)
 {
 	return (new DevfsEvent(type, nvPairs, eventString));
 }
@@ -495,8 +525,8 @@ DevfsEvent::DevfsEvent(const DevfsEvent &src)
 /*--------------------------------- ZfsEvent ---------------------------------*/
 //- ZfsEvent Static Public Methods ---------------------------------------------
 Event *
-ZfsEvent::ZfsEventBuilder(Event::Type type, NVPairMap &nvpairs,
-			  const string &eventString)
+ZfsEvent::Builder(Event::Type type, NVPairMap &nvpairs,
+		  const string &eventString)
 {
 	return (new ZfsEvent(type, nvpairs, eventString));
 }

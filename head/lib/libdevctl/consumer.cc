@@ -37,24 +37,24 @@
 #include <sys/cdefs.h>
 #include <sys/poll.h>
 #include <sys/socket.h>
-#include <sys/time.h>
 #include <sys/un.h>
 
 #include <err.h>
 #include <errno.h>
+#include <fcntl.h>
 #include <syslog.h>
 #include <unistd.h>
 
+#include <cstdarg>
+#include <cstring>
 #include <list>
 #include <map>
 #include <string>
 
 #include "guid.h"
 #include "event.h"
-#include "event_buffer.h"
 #include "event_factory.h"
 #include "exception.h"
-#include "reader.h"
 
 #include "consumer.h"
 
@@ -71,15 +71,13 @@ namespace DevCtl
 /*============================= Class Definitions ============================*/
 /*----------------------------- DevCtl::Consumer -----------------------------*/
 //- Consumer Static Private Data -----------------------------------------------
-const char Consumer::s_devdSockPath[] = "/var/run/devd.pipe";
+const char Consumer::s_devdSockPath[] = "/var/run/devd.seqpacket.pipe";
 
 //- Consumer Public Methods ----------------------------------------------------
 Consumer::Consumer(Event::BuildMethod *defBuilder,
 		   EventFactory::Record *regEntries,
 		   size_t numEntries)
  : m_devdSockFD(-1),
-   m_reader(NULL),
-   m_eventBuffer(NULL),
    m_eventFactory(defBuilder),
    m_replayingEvents(false)
 {
@@ -89,8 +87,6 @@ Consumer::Consumer(Event::BuildMethod *defBuilder,
 Consumer::~Consumer()
 {
 	DisconnectFromDevd();
-	delete m_reader;
-	m_reader = NULL;
 }
 
 bool
@@ -112,9 +108,11 @@ Consumer::ConnectToDevd()
 	strlcpy(devdAddr.sun_path, s_devdSockPath, sizeof(devdAddr.sun_path));
 	sLen = SUN_LEN(&devdAddr);
 
-	m_devdSockFD = socket(AF_UNIX, SOCK_STREAM, 0);
+	m_devdSockFD = socket(AF_UNIX, SOCK_SEQPACKET, 0);
 	if (m_devdSockFD == -1)
 		err(1, "Unable to create socket");
+        if (fcntl(m_devdSockFD, F_SETFL, O_NONBLOCK) < 0)
+                err(1, "fcntl");
 	result = connect(m_devdSockFD,
 			 reinterpret_cast<sockaddr *>(&devdAddr),
 			 sLen);
@@ -124,9 +122,6 @@ Consumer::ConnectToDevd()
 		return (false);
 	}
 
-	/* Connect the stream to the file descriptor */
-	m_reader = new FDReader(m_devdSockFD);
-	m_eventBuffer = new EventBuffer(*m_reader);
 	syslog(LOG_INFO, "Connection to devd successful");
 	return (true);
 }
@@ -137,12 +132,24 @@ Consumer::DisconnectFromDevd()
 	if (m_devdSockFD != -1)
 		syslog(LOG_INFO, "Disconnecting from devd.");
 
-	delete m_eventBuffer;
-	m_eventBuffer = NULL;
-	delete m_reader;
-	m_reader = NULL;
 	close(m_devdSockFD);
 	m_devdSockFD = -1;
+}
+
+std::string
+Consumer::ReadEvent()
+{
+	char buf[MAX_EVENT_SIZE + 1];
+	ssize_t len;
+
+	len = ::recv(m_devdSockFD, buf, MAX_EVENT_SIZE, MSG_WAITALL);
+	if (len == -1)
+		return (std::string(""));
+	else {
+		/* NULL-terminate the result */
+		buf[len] = '\0';
+		return (std::string(buf));
+	}
 }
 
 void
@@ -178,20 +185,20 @@ Consumer::SaveEvent(const Event &event)
 }
 
 Event *
-Consumer::NextEvent(EventBuffer *eventBuffer)
+Consumer::NextEvent()
 {
 	if (!Connected())
 		return(NULL);
-
-	if (eventBuffer == NULL)
-		eventBuffer = m_eventBuffer;
 
 	Event *event(NULL);
 	try {
 		string evString;
 
-		if (eventBuffer->ExtractEvent(evString))
+		evString = ReadEvent();
+		if (! evString.empty()) {
+			Event::TimestampEventString(evString);
 			event = Event::CreateEvent(m_eventFactory, evString);
+		}
 	} catch (const Exception &exp) {
 		exp.Log();
 		DisconnectFromDevd();
@@ -201,10 +208,10 @@ Consumer::NextEvent(EventBuffer *eventBuffer)
 
 /* Capture and process buffered events. */
 void
-Consumer::ProcessEvents(EventBuffer *eventBuffer)
+Consumer::ProcessEvents()
 {
 	Event *event;
-	while ((event = NextEvent(eventBuffer)) != NULL) {
+	while ((event = NextEvent()) != NULL) {
 		if (event->Process())
 			SaveEvent(*event);
 		delete event;
@@ -214,10 +221,11 @@ Consumer::ProcessEvents(EventBuffer *eventBuffer)
 void
 Consumer::FlushEvents()
 {
-	char discardBuf[256];
+	std::string s;
 
-	while (m_reader->in_avail() > 0)
-		m_reader->read(discardBuf, sizeof(discardBuf));
+	do
+		s = ReadEvent();
+	while (! s.empty()) ;
 }
 
 bool

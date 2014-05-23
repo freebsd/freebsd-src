@@ -47,11 +47,9 @@
 
 #include <devctl/guid.h>
 #include <devctl/event.h>
-#include <devctl/event_buffer.h>
 #include <devctl/event_factory.h>
 #include <devctl/exception.h>
 #include <devctl/consumer.h>
-#include <devctl/reader.h>
 
 #include <zfsd/callout.h>
 #include <zfsd/vdev_iterator.h>
@@ -365,17 +363,12 @@ TEST_F(VdevTest, AvailSpareState) {
 
 /* Test the Vdev::IsSpare method */
 TEST_F(VdevTest, IsSpare) {
-	Vdev* vdev;
-
-	vdev = new Vdev(m_poolConfig, m_vdevConfig);
-	EXPECT_EQ(false, vdev->IsSpare());
-	delete vdev;
-
+	Vdev notSpare(m_poolConfig, m_vdevConfig);
+	EXPECT_EQ(false, notSpare.IsSpare());
 
 	ASSERT_EQ(0, nvlist_add_uint64(m_vdevConfig, ZPOOL_CONFIG_IS_SPARE, 1));
-	vdev = new Vdev(m_poolConfig, m_vdevConfig);
-	EXPECT_EQ(true, vdev->IsSpare());
-	delete vdev;
+	Vdev isSpare(m_poolConfig, m_vdevConfig);
+	EXPECT_EQ(true, isSpare.IsSpare());
 }
 
 /*

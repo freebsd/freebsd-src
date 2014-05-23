@@ -37,6 +37,8 @@
 
 #include <syslog.h>
 
+#include <cstdio>
+#include <cstdarg>
 #include <sstream>
 #include <string>
 
