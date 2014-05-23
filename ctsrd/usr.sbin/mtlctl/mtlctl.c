@@ -89,7 +89,6 @@ usage(void)
 	printf("	mtlclt fbloadpng <file>\n");
 	printf("	mtlclt gesture\n");
 	printf("	mtlclt gestures\n");
-	printf("	mtlclt vstripes <width>\n");
 	exit(1);
 }
 
@@ -291,26 +290,6 @@ main(int argc, char *argv[] __unused)
 	} else if (strcmp(argv[1], "gestures") == 0) {
 		for (;;)
 			print_gesture();
-	} else if (strcmp(argv[1], "vstripes") == 0) {
-		int width;
-		char *endp;
-		if (argc != 3)
-			usage();
-		width = strtoul(argv[2], &endp, 0);
-		if (*endp != '\0' || width > fb_width) {
-			warnx("Invalid width '%s'", argv[2]);
-			usage();
-		}
-
-		for (i = 0; i < fb_width; i++)
-			for (j = 0; j < fb_height; j++)
-				image[i + j * fb_width] =
-				    (((i / width) & 0x1) == 1) ?
-					fb_colour(0xff, 0xff, 0xff) :
-					fb_colour(0, 0, 0);
-		fb_post(image);
-		/* XXX: A bit too heavyhanded */
-		fb_blend(0,0,255,0);
 	} else
 		usage();
 
