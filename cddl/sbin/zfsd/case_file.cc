@@ -59,11 +59,9 @@
 
 #include <devctl/guid.h>
 #include <devctl/event.h>
-#include <devctl/event_buffer.h>
 #include <devctl/event_factory.h>
 #include <devctl/exception.h>
 #include <devctl/consumer.h>
-#include <devctl/reader.h>
 
 #include "callout.h"
 #include "vdev_iterator.h"
@@ -89,7 +87,6 @@ using DevCtl::EventBuffer;
 using DevCtl::EventFactory;
 using DevCtl::EventList;
 using DevCtl::Guid;
-using DevCtl::IstreamReader;
 using DevCtl::ParseException;
 
 /*-------------------------- File-scoped classes ----------------------------*/
@@ -840,26 +837,28 @@ CaseFile::Serialize()
 	close(fd);
 }
 
+/*
+ * XXX: This method assumes that events may not contain embedded newlines.  If
+ * ever events can contain embedded newlines, then CaseFile must switch
+ * serialization formats
+ */
 void
 CaseFile::DeSerialize(ifstream &caseStream)
 {
-	stringstream  fakeDevdSocket(stringstream::in|stringstream::out);
-	IstreamReader caseReader(&fakeDevdSocket);
-	EventBuffer   eventBuffer(caseReader);
 	string	      evString;
+	const EventFactory &factory(ZfsDaemon::Get().GetFactory());
 
 	caseStream >> std::noskipws >> std::ws;
-	while (!caseStream.eof()) {
+	while (caseStream.good()) {
 		/*
 		 * Outline:
 		 * read the beginning of a line and check it for
 		 * "tentative".  If found, discard "tentative".
-		 * Shove into fakeDevdSocket.
-		 * call ExtractEvent
+		 * Create a new event
 		 * continue
 		 */
 		EventList* destEvents;
-		string tentFlag("tentative ");
+		const string tentFlag("tentative ");
 		string line;
 		std::stringbuf lineBuf;
 
@@ -867,20 +866,16 @@ CaseFile::DeSerialize(ifstream &caseStream)
 		caseStream.ignore();  /*discard the newline character*/
 		line = lineBuf.str();
 		if (line.compare(0, tentFlag.size(), tentFlag) == 0) {
+			/* Discard "tentative" */
 			line.erase(0, tentFlag.size());
 			destEvents = &m_tentativeEvents;
 		} else {
 			destEvents = &m_events;
 		}
-		fakeDevdSocket << line;
-		fakeDevdSocket << '\n';
-		const EventFactory &factory(ZfsDaemon::Get().GetFactory());
-		while (eventBuffer.ExtractEvent(evString)) {
-			Event *event(Event::CreateEvent(factory, evString));
-			if (event != NULL) {
-				destEvents->push_back(event);
-				RegisterCallout(*event);
-			}
+		Event *event(Event::CreateEvent(factory, line));
+		if (event != NULL) {
+			destEvents->push_back(event);
+			RegisterCallout(*event);
 		}
 	}
 }
@@ -1032,7 +1027,7 @@ CaseFile::Replace(const char* vdev_type, const char* path, bool isspare) {
 	Vdev vd(zhp, CaseVdev(zhp));
 	Vdev replaced(BeingReplacedBy(zhp));
 
-	if (!vd.IsSpare() && !replaced.DoesNotExist()) {
+	if (isspare && !vd.IsSpare() && !replaced.DoesNotExist()) {
 		/* If we are already being replaced by a working spare, pass. */
 		if (replaced.IsResilvering()
 		 || replaced.State() == VDEV_STATE_HEALTHY) {
@@ -1044,12 +1039,10 @@ CaseFile::Replace(const char* vdev_type, const char* path, bool isspare) {
 		 * If we have already been replaced by a spare, but that spare
 		 * is broken, we must spare the spare, not the original device.
 		 */
-		if (isspare) {
-			oldstr = replaced.GUIDString();
-			syslog(LOG_INFO, "CaseFile::Replace(%s->%s): sparing "
-			    "broken spare %s instead", VdevGUIDString().c_str(),
-			    path, oldstr.c_str());
-		}
+		oldstr = replaced.GUIDString();
+		syslog(LOG_INFO, "CaseFile::Replace(%s->%s): sparing "
+		    "broken spare %s instead", VdevGUIDString().c_str(),
+		    path, oldstr.c_str());
 	}
 
 	/*

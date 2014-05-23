@@ -66,7 +66,7 @@ class DevfsEvent : public DevCtl::DevfsEvent
 {
 public:
 	/** Specialized DevCtlEvent object factory for Devfs events. */
-	static BuildMethod DevfsEventBuilder;
+	static BuildMethod Builder;
 
 	virtual DevCtl::Event *DeepCopy() const; 
 
@@ -122,7 +122,7 @@ class ZfsEvent : public DevCtl::ZfsEvent
 {
 public:
 	/** Specialized DevCtlEvent object factory for ZFS events. */
-	static BuildMethod ZfsEventBuilder;
+	static BuildMethod Builder;
 
 	virtual DevCtl::Event *DeepCopy() const;
 

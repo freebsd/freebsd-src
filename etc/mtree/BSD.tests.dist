@@ -54,6 +54,8 @@
             lib
             ..
             sbin
+                zfsd
+                ..
             ..
             usr.bin
             ..

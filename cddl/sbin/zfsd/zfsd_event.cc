@@ -51,7 +51,6 @@
 #include <devctl/event_factory.h>
 #include <devctl/exception.h>
 #include <devctl/consumer.h>
-#include <devctl/reader.h>
 
 #include "callout.h"
 #include "vdev_iterator.h"
@@ -75,9 +74,9 @@ using std::stringstream;
 
 //- DevfsEvent Static Public Methods -------------------------------------------
 Event *
-DevfsEvent::DevfsEventBuilder(Event::Type type,
-			      NVPairMap &nvPairs,
-			      const string &eventString)
+DevfsEvent::Builder(Event::Type type,
+		    NVPairMap &nvPairs,
+		    const string &eventString)
 {
 	return (new DevfsEvent(type, nvPairs, eventString));
 }
@@ -230,8 +229,8 @@ DevfsEvent::DevfsEvent(const DevfsEvent &src)
 /*--------------------------------- ZfsEvent ---------------------------------*/
 //- ZfsEvent Static Public Methods ---------------------------------------------
 DevCtl::Event *
-ZfsEvent::ZfsEventBuilder(Event::Type type, NVPairMap &nvpairs,
-				  const string &eventString)
+ZfsEvent::Builder(Event::Type type, NVPairMap &nvpairs,
+		  const string &eventString)
 {
 	return (new ZfsEvent(type, nvpairs, eventString));
 }

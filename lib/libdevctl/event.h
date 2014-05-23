@@ -95,7 +95,7 @@ public:
 	typedef Event* (BuildMethod)(Type, NVPairMap &, const std::string &);
 
 	/** Generic Event object factory. */
-	static BuildMethod EventBuilder;
+	static BuildMethod Builder;
 
 	static Event *CreateEvent(const EventFactory &factory,
 				  const std::string &eventString);
@@ -190,6 +190,16 @@ public:
 	timeval GetTimestamp()				 const;
 
 	/**
+	 * Add a timestamp to the event string, if one does not already exist
+	 * TODO: make this an instance method that operates on the std::map
+	 * instead of the string.  We must fix zfsd's CaseFile serialization
+	 * routines first, so that they don't need the raw event string.
+	 *
+	 * \param[in,out] eventString The devd event string to modify
+	 */
+	static void TimestampEventString(std::string &eventString);
+
+	/**
 	 * Access all parsed key => value pairs.
 	 */
 	const NVPairMap &GetMap()			 const;
@@ -277,7 +287,7 @@ class DevfsEvent : public Event
 {
 public:
 	/** Specialized Event object factory for Devfs events. */
-	static BuildMethod DevfsEventBuilder;
+	static BuildMethod Builder;
 
 	virtual Event *DeepCopy()		const;
 
@@ -326,7 +336,7 @@ class ZfsEvent : public Event
 {
 public:
 	/** Specialized Event object factory for ZFS events. */
-	static BuildMethod ZfsEventBuilder;
+	static BuildMethod Builder;
 
 	virtual Event *DeepCopy()	const;
 
