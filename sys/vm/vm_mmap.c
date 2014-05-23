@@ -497,7 +497,7 @@ msync(td, uap)
 	case KERN_SUCCESS:
 		return (0);
 	case KERN_INVALID_ADDRESS:
-		return (EINVAL);	/* Sun returns ENOMEM? */
+		return (ENOMEM);
 	case KERN_INVALID_ARGUMENT:
 		return (EBUSY);
 	case KERN_FAILURE:
