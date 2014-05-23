@@ -63,6 +63,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/vmm.h>
 #include <machine/vmm_dev.h>
 
+#include "vmm_ioport.h"
 #include "vmm_ktr.h"
 #include "vmm_host.h"
 #include "vmm_mem.h"
@@ -1354,6 +1355,10 @@ restart:
 		case VM_EXITCODE_INST_EMUL:
 			error = vm_handle_inst_emul(vm, vcpuid, &retu);
 			break;
+		case VM_EXITCODE_INOUT:
+		case VM_EXITCODE_INOUT_STR:
+			error = vm_handle_inout(vm, vcpuid, vme, &retu);
+			break;
 		default:
 			retu = true;	/* handled in userland */
 			break;
@@ -1873,4 +1878,21 @@ struct vatpit *
 vm_atpit(struct vm *vm)
 {
 	return (vm->vatpit);
+}
+
+enum vm_reg_name
+vm_segment_name(int seg)
+{
+	static enum vm_reg_name seg_names[] = {
+		VM_REG_GUEST_ES,
+		VM_REG_GUEST_CS,
+		VM_REG_GUEST_SS,
+		VM_REG_GUEST_DS,
+		VM_REG_GUEST_FS,
+		VM_REG_GUEST_GS
+	};
+
+	KASSERT(seg >= 0 && seg < nitems(seg_names),
+	    ("%s: invalid segment encoding %d", __func__, seg));
+	return (seg_names[seg]);
 }

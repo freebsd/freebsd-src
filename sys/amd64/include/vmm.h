@@ -54,6 +54,7 @@ struct vmspace;
 struct vm_object;
 struct pmap;
 
+enum vm_reg_name;
 enum x2apic_state;
 
 typedef int	(*vmm_init_func_t)(int ipinum);
@@ -238,6 +239,8 @@ void vm_inject_gp(struct vm *vm, int vcpuid); /* general protection fault */
 void vm_inject_ud(struct vm *vm, int vcpuid); /* undefined instruction fault */
 void vm_inject_pf(struct vm *vm, int vcpuid, int error_code); /* page fault */
 
+enum vm_reg_name vm_segment_name(int seg_encoding);
+
 #endif	/* KERNEL */
 
 #include <machine/vmm_instruction_emul.h>
@@ -336,7 +339,34 @@ enum vm_exitcode {
 	VM_EXITCODE_RENDEZVOUS,
 	VM_EXITCODE_IOAPIC_EOI,
 	VM_EXITCODE_SUSPENDED,
+	VM_EXITCODE_INOUT_STR,
 	VM_EXITCODE_MAX
+};
+
+struct vm_inout {
+	uint16_t	bytes:3;	/* 1 or 2 or 4 */
+	uint16_t	in:1;
+	uint16_t	string:1;
+	uint16_t	rep:1;
+	uint16_t	port;
+	uint32_t	eax;		/* valid for out */
+};
+
+struct vm_inout_str {
+	struct vm_inout	inout;		/* must be the first element */
+	enum vie_cpu_mode cpu_mode;
+	enum vie_paging_mode paging_mode;
+	uint64_t	rflags;
+	uint64_t	cr0;
+	uint64_t	cr3;
+	uint64_t	index;
+	uint64_t	count;		/* rep=1 (%rcx), rep=0 (1) */
+	int		cpl;
+	int		addrsize;
+	enum vm_reg_name seg_name;
+	struct seg_desc seg_desc;
+	uint64_t	gla;		/* may be set to VIE_INVALID_GLA */
+	uint64_t	gpa;
 };
 
 struct vm_exit {
@@ -344,14 +374,8 @@ struct vm_exit {
 	int			inst_length;	/* 0 means unknown */
 	uint64_t		rip;
 	union {
-		struct {
-			uint16_t	bytes:3;	/* 1 or 2 or 4 */
-			uint16_t	in:1;		/* out is 0, in is 1 */
-			uint16_t	string:1;
-			uint16_t	rep:1;
-			uint16_t	port;
-			uint32_t	eax;		/* valid for out */
-		} inout;
+		struct vm_inout	inout;
+		struct vm_inout_str inout_str;
 		struct {
 			uint64_t	gpa;
 			int		fault_type;
