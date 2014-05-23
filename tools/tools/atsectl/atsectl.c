@@ -178,7 +178,8 @@ _set(uint8_t *eaddr)
 
 	if (eaddr == NULL) {
 		/* cfi0.factory_ppr="0x0123456789abcdef" */
-		rc = kenv(KENV_GET, "cfi0.factory_ppr", buf, sizeof(buf));
+		rc = kenv(KENV_GET, "cfi0.factory_ppr", (char *)buf,
+		    sizeof(buf));
 		if (rc == -1)
 			err(1, "Could not find Intel flash PPR serial\n");
 
