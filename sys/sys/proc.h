@@ -425,6 +425,7 @@ do {									\
 #define	TDP_NERRNO	0x08000000 /* Last errno is already in td_errno */
 #define	TDP_UIOHELD	0x10000000 /* Current uio has pages held in td_ma */
 #define	TDP_DEVMEMIO	0x20000000 /* Accessing memory for /dev/mem */
+#define	TDP_EXECVMSPC	0x40000000 /* Execve destroyed old vmspace */
 
 /*
  * Reasons that the current thread can not be run yet.
