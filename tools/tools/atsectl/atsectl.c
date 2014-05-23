@@ -168,6 +168,7 @@ list(void)
 static void
 _set(uint8_t *eaddr)
 {
+	uint8_t ebuf[6];
 	uint8_t buf[32];
 	MD5_CTX ctx;
 	int rc;
@@ -177,6 +178,8 @@ _set(uint8_t *eaddr)
 	print_eaddr();
 
 	if (eaddr == NULL) {
+		eaddr = ebuf;
+
 		/* cfi0.factory_ppr="0x0123456789abcdef" */
 		rc = kenv(KENV_GET, "cfi0.factory_ppr", (char *)buf,
 		    sizeof(buf));
@@ -186,32 +189,24 @@ _set(uint8_t *eaddr)
 		MD5Init(&ctx);
 		MD5Update(&ctx, buf+2, 16);
 		MD5Final(buf, &ctx);
+
+		/* Use the Altera prefix */
+		eaddr[0] = 0x00;
+		eaddr[1] = 0x07;
+		eaddr[2] = 0xed;
 		
-		/* Set the device specifc address (prefix). */
-		block[ALTERA_ETHERNET_OPTION_BITS_OFF + 7] =
-		    buf[14] << 4 | buf[13] >> 4;
-		block[ALTERA_ETHERNET_OPTION_BITS_OFF + 8] =
-		    buf[13] << 4 | buf[12] >> 4;
-		block[ALTERA_ETHERNET_OPTION_BITS_OFF + 9] = buf[12] << 4;
-		/* Just make sure the last half-byte is really zero. */
-		block[ALTERA_ETHERNET_OPTION_BITS_OFF + 9] &= ~0x0f;
+		/* Set the device specific address (suffix). */
+		eaddr[3] = buf[14] << 4 | buf[13] >> 4;
+		eaddr[4] = buf[13] << 4 | buf[12] >> 4;
+		eaddr[5] = buf[12] << 4 & 0xf0;
 
 		/* Set (or clear) locally administred flag. */
 		if (gflag == 0)
-			block[ALTERA_ETHERNET_OPTION_BITS_OFF + 4] |= 2;
+			eaddr[0] |= 2;
 		else
-			block[ALTERA_ETHERNET_OPTION_BITS_OFF + 4] &= ~2;
-		/* Make sure it is not a MC address by accident we start with. */
-		block[ALTERA_ETHERNET_OPTION_BITS_OFF + 4] &= ~1;
+			eaddr[1] &= ~2;
 	} else {
 		int e;
-
-		block[ALTERA_ETHERNET_OPTION_BITS_OFF + 4] = eaddr[0];
-		block[ALTERA_ETHERNET_OPTION_BITS_OFF + 5] = eaddr[1];
-		block[ALTERA_ETHERNET_OPTION_BITS_OFF + 6] = eaddr[2];
-		block[ALTERA_ETHERNET_OPTION_BITS_OFF + 7] = eaddr[3];
-		block[ALTERA_ETHERNET_OPTION_BITS_OFF + 8] = eaddr[4];
-		block[ALTERA_ETHERNET_OPTION_BITS_OFF + 9] = eaddr[5];
 
 		e = 0;
 		if ((eaddr[5] & 0xf) != 0x0) {
@@ -240,6 +235,14 @@ _set(uint8_t *eaddr)
 	block[ALTERA_ETHERNET_OPTION_BITS_OFF + 1] = 0x5a;
 	block[ALTERA_ETHERNET_OPTION_BITS_OFF + 2] = 0x00;
 	block[ALTERA_ETHERNET_OPTION_BITS_OFF + 3] = 0x00;
+
+	/* Write out the address */
+	block[ALTERA_ETHERNET_OPTION_BITS_OFF + 4] = eaddr[0];
+	block[ALTERA_ETHERNET_OPTION_BITS_OFF + 5] = eaddr[1];
+	block[ALTERA_ETHERNET_OPTION_BITS_OFF + 6] = eaddr[2];
+	block[ALTERA_ETHERNET_OPTION_BITS_OFF + 7] = eaddr[3];
+	block[ALTERA_ETHERNET_OPTION_BITS_OFF + 8] = eaddr[4];
+	block[ALTERA_ETHERNET_OPTION_BITS_OFF + 9] = eaddr[5];
 
 	write_block();
 
