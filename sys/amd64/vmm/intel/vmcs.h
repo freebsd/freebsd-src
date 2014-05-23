@@ -333,12 +333,18 @@ vmcs_write(uint32_t encoding, uint64_t val)
 #define	EXIT_REASON_APIC_WRITE		56
 
 /*
+ * NMI unblocking due to IRET.
+ *
+ * Applies to VM-exits due to hardware exception or EPT fault.
+ */
+#define	EXIT_QUAL_NMIUDTI	(1 << 12)
+/*
  * VMCS interrupt information fields
  */
-#define	VMCS_INTR_INFO_VALID		(1U << 31)
-#define	VMCS_INTR_INFO_TYPE(info)	(((info) >> 8) & 0x7)
-#define	VMCS_INTR_INFO_HW_INTR		(0 << 8)
-#define	VMCS_INTR_INFO_NMI		(2 << 8)
+#define	VMCS_INTR_VALID		(1U << 31)
+#define	VMCS_INTR_T_MASK	0x700		/* Interruption-info type */
+#define	VMCS_INTR_T_HWINTR	(0 << 8)
+#define	VMCS_INTR_T_NMI		(2 << 8)
 
 /*
  * VMCS IDT-Vectoring information fields

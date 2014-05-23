@@ -147,21 +147,6 @@ SYSCTL_INT(_hw_vmm_vmx, OID_AUTO, initialized, CTLFLAG_RD,
 	   &vmx_initialized, 0, "Intel VMX initialized");
 
 /*
- * Virtual NMI blocking conditions.
- *
- * Some processor implementations also require NMI to be blocked if
- * the STI_BLOCKING bit is set. It is possible to detect this at runtime
- * based on the (exit_reason,exit_qual) tuple being set to 
- * (EXIT_REASON_INVAL_VMCS, EXIT_QUAL_NMI_WHILE_STI_BLOCKING).
- *
- * We take the easy way out and also include STI_BLOCKING as one of the
- * gating items for vNMI injection.
- */
-static uint64_t nmi_blocking_bits = VMCS_INTERRUPTIBILITY_MOVSS_BLOCKING |
-				    VMCS_INTERRUPTIBILITY_NMI_BLOCKING |
-				    VMCS_INTERRUPTIBILITY_STI_BLOCKING;
-
-/*
  * Optional capabilities
  */
 static int cap_halt_exit;
@@ -1031,100 +1016,129 @@ static void __inline
 vmx_set_int_window_exiting(struct vmx *vmx, int vcpu)
 {
 
-	vmx->cap[vcpu].proc_ctls |= PROCBASED_INT_WINDOW_EXITING;
-	vmcs_write(VMCS_PRI_PROC_BASED_CTLS, vmx->cap[vcpu].proc_ctls);
+	if ((vmx->cap[vcpu].proc_ctls & PROCBASED_INT_WINDOW_EXITING) == 0) {
+		vmx->cap[vcpu].proc_ctls |= PROCBASED_INT_WINDOW_EXITING;
+		vmcs_write(VMCS_PRI_PROC_BASED_CTLS, vmx->cap[vcpu].proc_ctls);
+		VCPU_CTR0(vmx->vm, vcpu, "Enabling interrupt window exiting");
+	}
 }
 
 static void __inline
 vmx_clear_int_window_exiting(struct vmx *vmx, int vcpu)
 {
 
+	KASSERT((vmx->cap[vcpu].proc_ctls & PROCBASED_INT_WINDOW_EXITING) != 0,
+	    ("intr_window_exiting not set: %#x", vmx->cap[vcpu].proc_ctls));
 	vmx->cap[vcpu].proc_ctls &= ~PROCBASED_INT_WINDOW_EXITING;
 	vmcs_write(VMCS_PRI_PROC_BASED_CTLS, vmx->cap[vcpu].proc_ctls);
+	VCPU_CTR0(vmx->vm, vcpu, "Disabling interrupt window exiting");
 }
 
 static void __inline
 vmx_set_nmi_window_exiting(struct vmx *vmx, int vcpu)
 {
 
-	vmx->cap[vcpu].proc_ctls |= PROCBASED_NMI_WINDOW_EXITING;
-	vmcs_write(VMCS_PRI_PROC_BASED_CTLS, vmx->cap[vcpu].proc_ctls);
+	if ((vmx->cap[vcpu].proc_ctls & PROCBASED_NMI_WINDOW_EXITING) == 0) {
+		vmx->cap[vcpu].proc_ctls |= PROCBASED_NMI_WINDOW_EXITING;
+		vmcs_write(VMCS_PRI_PROC_BASED_CTLS, vmx->cap[vcpu].proc_ctls);
+		VCPU_CTR0(vmx->vm, vcpu, "Enabling NMI window exiting");
+	}
 }
 
 static void __inline
 vmx_clear_nmi_window_exiting(struct vmx *vmx, int vcpu)
 {
 
+	KASSERT((vmx->cap[vcpu].proc_ctls & PROCBASED_NMI_WINDOW_EXITING) != 0,
+	    ("nmi_window_exiting not set %#x", vmx->cap[vcpu].proc_ctls));
 	vmx->cap[vcpu].proc_ctls &= ~PROCBASED_NMI_WINDOW_EXITING;
 	vmcs_write(VMCS_PRI_PROC_BASED_CTLS, vmx->cap[vcpu].proc_ctls);
+	VCPU_CTR0(vmx->vm, vcpu, "Disabling NMI window exiting");
 }
 
-static int
+#define	NMI_BLOCKING	(VMCS_INTERRUPTIBILITY_NMI_BLOCKING |		\
+			 VMCS_INTERRUPTIBILITY_MOVSS_BLOCKING)
+#define	HWINTR_BLOCKING	(VMCS_INTERRUPTIBILITY_STI_BLOCKING |		\
+			 VMCS_INTERRUPTIBILITY_MOVSS_BLOCKING)
+
+static void
 vmx_inject_nmi(struct vmx *vmx, int vcpu)
 {
-	uint64_t info, interruptibility;
+	uint32_t gi, info;
 
-	/* Bail out if no NMI requested */
-	if (!vm_nmi_pending(vmx->vm, vcpu))
-		return (0);
+	gi = vmcs_read(VMCS_GUEST_INTERRUPTIBILITY);
+	KASSERT((gi & NMI_BLOCKING) == 0, ("vmx_inject_nmi: invalid guest "
+	    "interruptibility-state %#x", gi));
 
-	interruptibility = vmcs_read(VMCS_GUEST_INTERRUPTIBILITY);
-	if (interruptibility & nmi_blocking_bits)
-		goto nmiblocked;
+	info = vmcs_read(VMCS_ENTRY_INTR_INFO);
+	KASSERT((info & VMCS_INTR_VALID) == 0, ("vmx_inject_nmi: invalid "
+	    "VM-entry interruption information %#x", info));
 
 	/*
 	 * Inject the virtual NMI. The vector must be the NMI IDT entry
 	 * or the VMCS entry check will fail.
 	 */
-	info = VMCS_INTR_INFO_NMI | VMCS_INTR_INFO_VALID;
-	info |= IDT_NMI;
+	info = IDT_NMI | VMCS_INTR_T_NMI | VMCS_INTR_VALID;
 	vmcs_write(VMCS_ENTRY_INTR_INFO, info);
 
 	VCPU_CTR0(vmx->vm, vcpu, "Injecting vNMI");
 
 	/* Clear the request */
 	vm_nmi_clear(vmx->vm, vcpu);
-	return (1);
-
-nmiblocked:
-	/*
-	 * Set the NMI Window Exiting execution control so we can inject
-	 * the virtual NMI as soon as blocking condition goes away.
-	 */
-	vmx_set_nmi_window_exiting(vmx, vcpu);
-
-	VCPU_CTR0(vmx->vm, vcpu, "Enabling NMI window exiting");
-	return (1);
 }
 
 static void
 vmx_inject_interrupts(struct vmx *vmx, int vcpu, struct vlapic *vlapic)
 {
-	int vector;
-	uint64_t info, rflags, interruptibility;
+	int vector, need_nmi_exiting;
+	uint64_t rflags;
+	uint32_t gi, info;
 
-	const int HWINTR_BLOCKED = VMCS_INTERRUPTIBILITY_STI_BLOCKING |
-				   VMCS_INTERRUPTIBILITY_MOVSS_BLOCKING;
+	if (vm_nmi_pending(vmx->vm, vcpu)) {
+		/*
+		 * If there are no conditions blocking NMI injection then
+		 * inject it directly here otherwise enable "NMI window
+		 * exiting" to inject it as soon as we can.
+		 *
+		 * We also check for STI_BLOCKING because some implementations
+		 * don't allow NMI injection in this case. If we are running
+		 * on a processor that doesn't have this restriction it will
+		 * immediately exit and the NMI will be injected in the
+		 * "NMI window exiting" handler.
+		 */
+		need_nmi_exiting = 1;
+		gi = vmcs_read(VMCS_GUEST_INTERRUPTIBILITY);
+		if ((gi & (HWINTR_BLOCKING | NMI_BLOCKING)) == 0) {
+			info = vmcs_read(VMCS_ENTRY_INTR_INFO);
+			if ((info & VMCS_INTR_VALID) == 0) {
+				vmx_inject_nmi(vmx, vcpu);
+				need_nmi_exiting = 0;
+			} else {
+				VCPU_CTR1(vmx->vm, vcpu, "Cannot inject NMI "
+				    "due to VM-entry intr info %#x", info);
+			}
+		} else {
+			VCPU_CTR1(vmx->vm, vcpu, "Cannot inject NMI due to "
+			    "Guest Interruptibility-state %#x", gi);
+		}
 
-	/*
-	 * If there is already an interrupt pending then just return.
-	 *
-	 * This could happen if an interrupt was injected on a prior
-	 * VM entry but the actual entry into guest mode was aborted
-	 * because of a pending AST.
-	 */
-	info = vmcs_read(VMCS_ENTRY_INTR_INFO);
-	if (info & VMCS_INTR_INFO_VALID)
-		return;
-
-	/*
-	 * NMI injection has priority so deal with those first
-	 */
-	if (vmx_inject_nmi(vmx, vcpu))
-		return;
+		if (need_nmi_exiting)
+			vmx_set_nmi_window_exiting(vmx, vcpu);
+	}
 
 	if (virtual_interrupt_delivery) {
 		vmx_inject_pir(vlapic);
+		return;
+	}
+
+	/*
+	 * If interrupt-window exiting is already in effect then don't bother
+	 * checking for pending interrupts. This is just an optimization and
+	 * not needed for correctness.
+	 */
+	if ((vmx->cap[vcpu].proc_ctls & PROCBASED_INT_WINDOW_EXITING) != 0) {
+		VCPU_CTR0(vmx->vm, vcpu, "Skip interrupt injection due to "
+		    "pending int_window_exiting");
 		return;
 	}
 
@@ -1132,20 +1146,38 @@ vmx_inject_interrupts(struct vmx *vmx, int vcpu, struct vlapic *vlapic)
 	if (!vlapic_pending_intr(vlapic, &vector))
 		return;
 
-	if (vector < 32 || vector > 255)
-		panic("vmx_inject_interrupts: invalid vector %d\n", vector);
+	KASSERT(vector >= 32 && vector <= 255, ("invalid vector %d", vector));
 
 	/* Check RFLAGS.IF and the interruptibility state of the guest */
 	rflags = vmcs_read(VMCS_GUEST_RFLAGS);
-	if ((rflags & PSL_I) == 0)
+	if ((rflags & PSL_I) == 0) {
+		VCPU_CTR2(vmx->vm, vcpu, "Cannot inject vector %d due to "
+		    "rflags %#lx", vector, rflags);
 		goto cantinject;
+	}
 
-	interruptibility = vmcs_read(VMCS_GUEST_INTERRUPTIBILITY);
-	if (interruptibility & HWINTR_BLOCKED)
+	gi = vmcs_read(VMCS_GUEST_INTERRUPTIBILITY);
+	if (gi & HWINTR_BLOCKING) {
+		VCPU_CTR2(vmx->vm, vcpu, "Cannot inject vector %d due to "
+		    "Guest Interruptibility-state %#x", vector, gi);
 		goto cantinject;
+	}
+
+	info = vmcs_read(VMCS_ENTRY_INTR_INFO);
+	if (info & VMCS_INTR_VALID) {
+		/*
+		 * This is expected and could happen for multiple reasons:
+		 * - A vectoring VM-entry was aborted due to astpending
+		 * - A VM-exit happened during event injection.
+		 * - An NMI was injected above or after "NMI window exiting"
+		 */
+		VCPU_CTR2(vmx->vm, vcpu, "Cannot inject vector %d due to "
+		    "VM-entry intr info %#x", vector, info);
+		goto cantinject;
+	}
 
 	/* Inject the interrupt */
-	info = VMCS_INTR_INFO_HW_INTR | VMCS_INTR_INFO_VALID;
+	info = VMCS_INTR_T_HWINTR | VMCS_INTR_VALID;
 	info |= vector;
 	vmcs_write(VMCS_ENTRY_INTR_INFO, info);
 
@@ -1162,8 +1194,37 @@ cantinject:
 	 * the interrupt as soon as blocking condition goes away.
 	 */
 	vmx_set_int_window_exiting(vmx, vcpu);
+}
 
-	VCPU_CTR0(vmx->vm, vcpu, "Enabling interrupt window exiting");
+/*
+ * If the Virtual NMIs execution control is '1' then the logical processor
+ * tracks virtual-NMI blocking in the Guest Interruptibility-state field of
+ * the VMCS. An IRET instruction in VMX non-root operation will remove any
+ * virtual-NMI blocking.
+ *
+ * This unblocking occurs even if the IRET causes a fault. In this case the
+ * hypervisor needs to restore virtual-NMI blocking before resuming the guest.
+ */
+static void
+vmx_restore_nmi_blocking(struct vmx *vmx, int vcpuid)
+{
+	uint32_t gi;
+
+	VCPU_CTR0(vmx->vm, vcpuid, "Restore Virtual-NMI blocking");
+	gi = vmcs_read(VMCS_GUEST_INTERRUPTIBILITY);
+	gi |= VMCS_INTERRUPTIBILITY_NMI_BLOCKING;
+	vmcs_write(VMCS_GUEST_INTERRUPTIBILITY, gi);
+}
+
+static void
+vmx_clear_nmi_blocking(struct vmx *vmx, int vcpuid)
+{
+	uint32_t gi;
+
+	VCPU_CTR0(vmx->vm, vcpuid, "Clear Virtual-NMI blocking");
+	gi = vmcs_read(VMCS_GUEST_INTERRUPTIBILITY);
+	gi &= ~VMCS_INTERRUPTIBILITY_NMI_BLOCKING;
+	vmcs_write(VMCS_GUEST_INTERRUPTIBILITY, gi);
 }
 
 static int
@@ -1458,6 +1519,9 @@ vmx_exit_process(struct vmx *vmx, int vcpu, struct vm_exit *vmexit)
 	uint64_t qual, gpa;
 	bool retu;
 
+	CTASSERT((PINBASED_CTLS_ONE_SETTING & PINBASED_VIRTUAL_NMI) != 0);
+	CTASSERT((PINBASED_CTLS_ONE_SETTING & PINBASED_NMI_EXITING) != 0);
+
 	handled = 0;
 	vmxctx = &vmx->ctx[vcpu];
 
@@ -1490,9 +1554,20 @@ vmx_exit_process(struct vmx *vmx, int vcpu, struct vm_exit *vmexit)
 				vmcs_write(VMCS_ENTRY_EXCEPTION_ERROR,
 				    idtvec_err);
 			}
+			/*
+			 * If 'virtual NMIs' are being used and the VM-exit
+			 * happened while injecting an NMI during the previous
+			 * VM-entry, then clear "blocking by NMI" in the Guest
+			 * Interruptibility-state.
+			 */
+			if ((idtvec_info & VMCS_INTR_T_MASK) ==
+			    VMCS_INTR_T_NMI) {
+				 vmx_clear_nmi_blocking(vmx, vcpu);
+			}
 			vmcs_write(VMCS_ENTRY_INST_LENGTH, vmexit->inst_length);
 		}
 	default:
+		idtvec_info = 0;
 		break;
 	}
 
@@ -1553,7 +1628,6 @@ vmx_exit_process(struct vmx *vmx, int vcpu, struct vm_exit *vmexit)
 	case EXIT_REASON_INTR_WINDOW:
 		vmm_stat_incr(vmx->vm, vcpu, VMEXIT_INTR_WINDOW, 1);
 		vmx_clear_int_window_exiting(vmx, vcpu);
-		VCPU_CTR0(vmx->vm, vcpu, "Disabling interrupt window exiting");
 		return (1);
 	case EXIT_REASON_EXT_INTR:
 		/*
@@ -1566,8 +1640,8 @@ vmx_exit_process(struct vmx *vmx, int vcpu, struct vm_exit *vmexit)
 		 * this virtual interrupt during the subsequent VM enter.
 		 */
 		intr_info = vmcs_read(VMCS_EXIT_INTR_INFO);
-		KASSERT((intr_info & VMCS_INTR_INFO_VALID) != 0 &&
-		    VMCS_INTR_INFO_TYPE(intr_info) == 0,
+		KASSERT((intr_info & VMCS_INTR_VALID) != 0 &&
+		    (intr_info & VMCS_INTR_T_MASK) == VMCS_INTR_T_HWINTR,
 		    ("VM exit interruption info invalid: %#x", intr_info));
 		vmx_trigger_hostintr(intr_info & 0xff);
 
@@ -1579,9 +1653,10 @@ vmx_exit_process(struct vmx *vmx, int vcpu, struct vm_exit *vmexit)
 		return (1);
 	case EXIT_REASON_NMI_WINDOW:
 		/* Exit to allow the pending virtual NMI to be injected */
-		vmm_stat_incr(vmx->vm, vcpu, VMEXIT_NMI_WINDOW, 1);
+		if (vm_nmi_pending(vmx->vm, vcpu))
+			vmx_inject_nmi(vmx, vcpu);
 		vmx_clear_nmi_window_exiting(vmx, vcpu);
-		VCPU_CTR0(vmx->vm, vcpu, "Disabling NMI window exiting");
+		vmm_stat_incr(vmx->vm, vcpu, VMEXIT_NMI_WINDOW, 1);
 		return (1);
 	case EXIT_REASON_INOUT:
 		vmm_stat_incr(vmx->vm, vcpu, VMEXIT_INOUT, 1);
@@ -1596,6 +1671,31 @@ vmx_exit_process(struct vmx *vmx, int vcpu, struct vm_exit *vmexit)
 	case EXIT_REASON_CPUID:
 		vmm_stat_incr(vmx->vm, vcpu, VMEXIT_CPUID, 1);
 		handled = vmx_handle_cpuid(vmx->vm, vcpu, vmxctx);
+		break;
+	case EXIT_REASON_EXCEPTION:
+		vmm_stat_incr(vmx->vm, vcpu, VMEXIT_EXCEPTION, 1);
+		intr_info = vmcs_read(VMCS_EXIT_INTR_INFO);
+		KASSERT((intr_info & VMCS_INTR_VALID) != 0,
+		    ("VM exit interruption info invalid: %#x", intr_info));
+
+		/*
+		 * If Virtual NMIs control is 1 and the VM-exit is due to a
+		 * fault encountered during the execution of IRET then we must
+		 * restore the state of "virtual-NMI blocking" before resuming
+		 * the guest.
+		 *
+		 * See "Resuming Guest Software after Handling an Exception".
+		 */
+		if ((idtvec_info & VMCS_IDT_VEC_VALID) == 0 &&
+		    (intr_info & 0xff) != IDT_DF &&
+		    (intr_info & EXIT_QUAL_NMIUDTI) != 0)
+			vmx_restore_nmi_blocking(vmx, vcpu);
+
+		/*
+		 * The NMI has already been handled in vmx_exit_handle_nmi().
+		 */
+		if ((intr_info & VMCS_INTR_T_MASK) == VMCS_INTR_T_NMI)
+			return (1);
 		break;
 	case EXIT_REASON_EPT_FAULT:
 		/*
@@ -1616,6 +1716,17 @@ vmx_exit_process(struct vmx *vmx, int vcpu, struct vm_exit *vmexit)
 			vmexit->u.inst_emul.cr3 = vmcs_guest_cr3();
 			vmm_stat_incr(vmx->vm, vcpu, VMEXIT_INST_EMUL, 1);
 		}
+		/*
+		 * If Virtual NMIs control is 1 and the VM-exit is due to an
+		 * EPT fault during the execution of IRET then we must restore
+		 * the state of "virtual-NMI blocking" before resuming.
+		 *
+		 * See description of "NMI unblocking due to IRET" in
+		 * "Exit Qualification for EPT Violations".
+		 */
+		if ((idtvec_info & VMCS_IDT_VEC_VALID) == 0 &&
+		    (qual & EXIT_QUAL_NMIUDTI) != 0)
+			vmx_restore_nmi_blocking(vmx, vcpu);
 		break;
 	case EXIT_REASON_VIRTUALIZED_EOI:
 		vmexit->exitcode = VM_EXITCODE_IOAPIC_EOI;
@@ -1661,6 +1772,8 @@ vmx_exit_process(struct vmx *vmx, int vcpu, struct vm_exit *vmexit)
 			 */
 			vmexit->exitcode = VM_EXITCODE_VMX;
 			vmexit->u.vmx.status = VM_SUCCESS;
+			vmexit->u.vmx.inst_type = 0;
+			vmexit->u.vmx.inst_error = 0;
 		} else {
 			/*
 			 * The exitcode and collateral have been populated.
@@ -1722,6 +1835,36 @@ vmx_exit_inst_error(struct vmxctx *vmxctx, int rc, struct vm_exit *vmexit)
 	}
 
 	return (UNHANDLED);
+}
+
+/*
+ * If the NMI-exiting VM execution control is set to '1' then an NMI in
+ * non-root operation causes a VM-exit. NMI blocking is in effect so it is
+ * sufficient to simply vector to the NMI handler via a software interrupt.
+ * However, this must be done before maskable interrupts are enabled
+ * otherwise the "iret" issued by an interrupt handler will incorrectly
+ * clear NMI blocking.
+ */
+static __inline void
+vmx_exit_handle_nmi(struct vmx *vmx, int vcpuid, struct vm_exit *vmexit)
+{
+	uint32_t intr_info;
+
+	KASSERT((read_rflags() & PSL_I) == 0, ("interrupts enabled"));
+
+	if (vmexit->u.vmx.exit_reason != EXIT_REASON_EXCEPTION)
+		return;
+
+	intr_info = vmcs_read(VMCS_EXIT_INTR_INFO);
+	KASSERT((intr_info & VMCS_INTR_VALID) != 0,
+	    ("VM exit interruption info invalid: %#x", intr_info));
+
+	if ((intr_info & VMCS_INTR_T_MASK) == VMCS_INTR_T_NMI) {
+		KASSERT((intr_info & 0xff) == IDT_NMI, ("VM exit due "
+		    "to NMI has invalid vector: %#x", intr_info));
+		VCPU_CTR0(vmx->vm, vcpuid, "Vectoring to NMI handler");
+		__asm __volatile("int $2");
+	}
 }
 
 static int
@@ -1799,8 +1942,6 @@ vmx_run(void *arg, int vcpu, register_t startrip, pmap_t pmap,
 		vmx_run_trace(vmx, vcpu);
 		rc = vmx_enter_guest(vmxctx, vmx, launched);
 
-		enable_intr();
-
 		/* Collect some information for VM exit processing */
 		vmexit->rip = rip = vmcs_guest_rip();
 		vmexit->inst_length = vmexit_instruction_length();
@@ -1808,12 +1949,14 @@ vmx_run(void *arg, int vcpu, register_t startrip, pmap_t pmap,
 		vmexit->u.vmx.exit_qualification = vmcs_exit_qualification();
 
 		if (rc == VMX_GUEST_VMEXIT) {
-			launched = 1;
+			vmx_exit_handle_nmi(vmx, vcpu, vmexit);
+			enable_intr();
 			handled = vmx_exit_process(vmx, vcpu, vmexit);
 		} else {
+			enable_intr();
 			handled = vmx_exit_inst_error(vmxctx, rc, vmexit);
 		}
-
+		launched = 1;
 		vmx_exit_trace(vmx, vcpu, rip, exit_reason, handled);
 	} while (handled);
 
@@ -2053,11 +2196,11 @@ vmx_inject(void *arg, int vcpu, int type, int vector, uint32_t code,
 	if (error)
 		return (error);
 
-	if (info & VMCS_INTR_INFO_VALID)
+	if (info & VMCS_INTR_VALID)
 		return (EAGAIN);
 
 	info = vector | (type_map[type] << 8) | (code_valid ? 1 << 11 : 0);
-	info |= VMCS_INTR_INFO_VALID;
+	info |= VMCS_INTR_VALID;
 	error = vmcs_setreg(vmcs, 0, VMCS_IDENT(VMCS_ENTRY_INTR_INFO), info);
 	if (error != 0)
 		return (error);
