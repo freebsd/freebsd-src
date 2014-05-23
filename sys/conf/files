@@ -2595,6 +2595,7 @@ fs/devfs/devfs_vnops.c		standard
 fs/fdescfs/fdesc_vfsops.c	optional fdescfs
 fs/fdescfs/fdesc_vnops.c	optional fdescfs
 fs/fifofs/fifo_vnops.c		standard
+fs/cuse/cuse.c			optional cuse
 fs/fuse/fuse_device.c		optional fuse
 fs/fuse/fuse_file.c		optional fuse
 fs/fuse/fuse_internal.c		optional fuse
