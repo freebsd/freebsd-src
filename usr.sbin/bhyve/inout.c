@@ -33,6 +33,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/linker_set.h>
 
 #include <x86/psl.h>
+#include <x86/segments.h>
 
 #include <machine/vmm.h>
 #include <vmmapi.h>
@@ -110,13 +111,6 @@ emulate_inout(struct vmctx *ctx, int vcpu, struct vm_exit *vmexit, int strict)
 	uint64_t index, count;
 	struct vm_inout_str *vis;
 
-	static uint64_t size2mask[] = {
-		[1] = 0xff,
-		[2] = 0xffff,
-		[4] = 0xffffffff,
-		[8] = 0xffffffffffffffff,
-	};
-
 	bytes = vmexit->u.inout.bytes;
 	in = vmexit->u.inout.in;
 	port = vmexit->u.inout.port;
@@ -149,14 +143,21 @@ emulate_inout(struct vmctx *ctx, int vcpu, struct vm_exit *vmexit, int strict)
 
 		/* Index register */
 		idxreg = in ? VM_REG_GUEST_RDI : VM_REG_GUEST_RSI;
-		index = vis->index & size2mask[addrsize];
+		index = vis->index & vie_size2mask(addrsize);
 
 		/* Count register */
-		count = vis->count & size2mask[addrsize];
+		count = vis->count & vie_size2mask(addrsize);
 
 		gpa = vis->gpa;
 		gpaend = rounddown(gpa + PAGE_SIZE, PAGE_SIZE);
 		gva = paddr_guest2host(ctx, gpa, gpaend - gpa);
+
+		if (vie_alignment_check(vis->cpl, bytes, vis->cr0,
+		    vis->rflags, vis->gla)) {
+			error = vm_inject_exception2(ctx, vcpu, IDT_AC, 0);
+			assert(error == 0);
+			return (INOUT_RESTART);
+		}
 
 		while (count != 0 && gpa < gpaend) {
 			/*
@@ -209,12 +210,12 @@ emulate_inout(struct vmctx *ctx, int vcpu, struct vm_exit *vmexit, int strict)
 			retval = INOUT_RESTART;
 	} else {
 		if (!in) {
-			val = vmexit->u.inout.eax & size2mask[bytes];
+			val = vmexit->u.inout.eax & vie_size2mask(bytes);
 		}
 		retval = handler(ctx, vcpu, in, port, bytes, &val, arg);
 		if (retval == 0 && in) {
-			vmexit->u.inout.eax &= ~size2mask[bytes];
-			vmexit->u.inout.eax |= val & size2mask[bytes];
+			vmexit->u.inout.eax &= ~vie_size2mask(bytes);
+			vmexit->u.inout.eax |= val & vie_size2mask(bytes);
 		}
 	}
 	return (retval);
