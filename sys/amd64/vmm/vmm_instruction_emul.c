@@ -206,7 +206,7 @@ vie_read_bytereg(void *vm, int vcpuid, struct vie *vie, uint8_t *rval)
 	return (error);
 }
 
-static int
+int
 vie_update_register(void *vm, int vcpuid, enum vm_reg_name reg,
 		    uint64_t val, int size)
 {
@@ -1217,5 +1217,51 @@ vmm_decode_instruction(struct vm *vm, int cpuid, uint64_t gla,
 	vie->decoded = 1;	/* success */
 
 	return (0);
+}
+
+uint64_t
+vie_size2mask(int size)
+{
+	KASSERT(size == 1 || size == 2 || size == 4 || size == 8,
+	    ("vie_size2mask: invalid size %d", size));
+	return (size2mask[size]);
+}
+
+uint64_t
+vie_segbase(enum vm_reg_name seg, enum vie_cpu_mode cpu_mode,
+    const struct seg_desc *desc)
+{
+	int basesize;
+
+	basesize = 4;	/* default segment width in bytes */
+
+	switch (seg) {
+	case VM_REG_GUEST_ES:
+	case VM_REG_GUEST_CS:
+	case VM_REG_GUEST_SS:
+	case VM_REG_GUEST_DS:
+		if (cpu_mode == CPU_MODE_64BIT) {
+			/*
+			 * Segments having an implicit base address of 0
+			 * in 64-bit mode.
+			 */
+			return (0);
+		}
+		break;
+	case VM_REG_GUEST_FS:
+	case VM_REG_GUEST_GS:
+		if (cpu_mode == CPU_MODE_64BIT) {
+			/*
+			 * In 64-bit mode the FS and GS base address is 8 bytes
+			 * wide.
+			 */
+			basesize = 8;
+		}
+		break;
+	default:
+		panic("%s: invalid segment register %d", __func__, seg);
+	}
+
+	return (desc->base & size2mask[basesize]);
 }
 #endif	/* _KERNEL */

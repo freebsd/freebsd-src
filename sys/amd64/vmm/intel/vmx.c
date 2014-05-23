@@ -185,6 +185,8 @@ SYSCTL_UINT(_hw_vmm_vmx, OID_AUTO, vpid_alloc_failed, CTLFLAG_RD,
  */
 #define	APIC_ACCESS_ADDRESS	0xFFFFF000
 
+static int vmx_getdesc(void *arg, int vcpu, int reg, struct seg_desc *desc);
+static int vmx_getreg(void *arg, int vcpu, int reg, uint64_t *retval);
 static void vmx_inject_pir(struct vlapic *vlapic);
 
 #ifdef KTR
@@ -530,7 +532,7 @@ static int
 vmx_init(int ipinum)
 {
 	int error, use_tpr_shadow;
-	uint64_t fixed0, fixed1, feature_control;
+	uint64_t basic, fixed0, fixed1, feature_control;
 	uint32_t tmp, procbased2_vid_bits;
 
 	/* CPUID.1:ECX[bit 5] must be 1 for processor to support VMX */
@@ -548,6 +550,17 @@ vmx_init(int ipinum)
 	    (feature_control & IA32_FEATURE_CONTROL_VMX_EN) == 0) {
 		printf("vmx_init: VMX operation disabled by BIOS\n");
 		return (ENXIO);
+	}
+
+	/*
+	 * Verify capabilities MSR_VMX_BASIC:
+	 * - bit 54 indicates support for INS/OUTS decoding
+	 */
+	basic = rdmsr(MSR_VMX_BASIC);
+	if ((basic & (1UL << 54)) == 0) {
+		printf("vmx_init: processor does not support desired basic "
+		    "capabilities\n");
+		return (EINVAL);
 	}
 
 	/* Check support for primary processor-based VM-execution controls */
@@ -1528,6 +1541,71 @@ vmx_paging_mode(void)
 		return (PAGING_MODE_PAE);
 }
 
+static uint64_t
+inout_str_index(struct vmx *vmx, int vcpuid, int in)
+{
+	uint64_t val;
+	int error;
+	enum vm_reg_name reg;
+
+	reg = in ? VM_REG_GUEST_RDI : VM_REG_GUEST_RSI;
+	error = vmx_getreg(vmx, vcpuid, reg, &val);
+	KASSERT(error == 0, ("%s: vmx_getreg error %d", __func__, error));
+	return (val);
+}
+
+static uint64_t
+inout_str_count(struct vmx *vmx, int vcpuid, int rep)
+{
+	uint64_t val;
+	int error;
+
+	if (rep) {
+		error = vmx_getreg(vmx, vcpuid, VM_REG_GUEST_RCX, &val);
+		KASSERT(!error, ("%s: vmx_getreg error %d", __func__, error));
+	} else {
+		val = 1;
+	}
+	return (val);
+}
+
+static int
+inout_str_addrsize(uint32_t inst_info)
+{
+	uint32_t size;
+
+	size = (inst_info >> 7) & 0x7;
+	switch (size) {
+	case 0:
+		return (2);	/* 16 bit */
+	case 1:
+		return (4);	/* 32 bit */
+	case 2:
+		return (8);	/* 64 bit */
+	default:
+		panic("%s: invalid size encoding %d", __func__, size);
+	}
+}
+
+static void
+inout_str_seginfo(struct vmx *vmx, int vcpuid, uint32_t inst_info, int in,
+    struct vm_inout_str *vis)
+{
+	int error, s;
+
+	if (in) {
+		vis->seg_name = VM_REG_GUEST_ES;
+	} else {
+		s = (inst_info >> 15) & 0x7;
+		vis->seg_name = vm_segment_name(s);
+	}
+
+	error = vmx_getdesc(vmx, vcpuid, vis->seg_name, &vis->seg_desc);
+	KASSERT(error == 0, ("%s: vmx_getdesc error %d", __func__, error));
+
+	/* XXX modify svm.c to update bit 16 of seg_desc.access (unusable) */
+}
+
 static void
 vmexit_inst_emul(struct vm_exit *vmexit, uint64_t gpa, uint64_t gla)
 {
@@ -1749,10 +1827,12 @@ vmx_handle_apic_access(struct vmx *vmx, int vcpuid, struct vm_exit *vmexit)
 static int
 vmx_exit_process(struct vmx *vmx, int vcpu, struct vm_exit *vmexit)
 {
-	int error, handled;
+	int error, handled, in;
 	struct vmxctx *vmxctx;
 	struct vlapic *vlapic;
-	uint32_t eax, ecx, edx, idtvec_info, idtvec_err, intr_info, reason;
+	struct vm_inout_str *vis;
+	uint32_t eax, ecx, edx, idtvec_info, idtvec_err, intr_info, inst_info;
+	uint32_t reason;
 	uint64_t qual, gpa;
 	bool retu;
 
@@ -1909,15 +1989,26 @@ vmx_exit_process(struct vmx *vmx, int vcpu, struct vm_exit *vmexit)
 		vmm_stat_incr(vmx->vm, vcpu, VMEXIT_INOUT, 1);
 		vmexit->exitcode = VM_EXITCODE_INOUT;
 		vmexit->u.inout.bytes = (qual & 0x7) + 1;
-		vmexit->u.inout.in = (qual & 0x8) ? 1 : 0;
+		vmexit->u.inout.in = in = (qual & 0x8) ? 1 : 0;
 		vmexit->u.inout.string = (qual & 0x10) ? 1 : 0;
 		vmexit->u.inout.rep = (qual & 0x20) ? 1 : 0;
 		vmexit->u.inout.port = (uint16_t)(qual >> 16);
 		vmexit->u.inout.eax = (uint32_t)(vmxctx->guest_rax);
-		error = emulate_ioport(vmx->vm, vcpu, vmexit);
-		if (error == 0)  {
-			handled = 1;
-			vmxctx->guest_rax = vmexit->u.inout.eax;
+		if (vmexit->u.inout.string) {
+			inst_info = vmcs_read(VMCS_EXIT_INSTRUCTION_INFO);
+			vmexit->exitcode = VM_EXITCODE_INOUT_STR;
+			vis = &vmexit->u.inout_str;
+			vis->cpu_mode = vmx_cpu_mode();
+			vis->paging_mode = vmx_paging_mode();
+			vis->rflags = vmcs_read(VMCS_GUEST_RFLAGS);
+			vis->cr0 = vmcs_read(VMCS_GUEST_CR0);
+			vis->cr3 = vmcs_read(VMCS_GUEST_CR3);
+			vis->cpl = vmx_cpl();
+			vis->index = inout_str_index(vmx, vcpu, in);
+			vis->count = inout_str_count(vmx, vcpu, vis->inout.rep);
+			vis->addrsize = inout_str_addrsize(inst_info);
+			inout_str_seginfo(vmx, vcpu, inst_info, in, vis);
+			vis->gla = vmcs_gla();
 		}
 		break;
 	case EXIT_REASON_CPUID:

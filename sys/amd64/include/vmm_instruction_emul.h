@@ -29,6 +29,8 @@
 #ifndef	_VMM_INSTRUCTION_EMUL_H_
 #define	_VMM_INSTRUCTION_EMUL_H_
 
+enum vm_reg_name;
+
 enum vie_cpu_mode {
 	CPU_MODE_COMPATIBILITY,		/* IA-32E mode (CS.L = 0) */
 	CPU_MODE_64BIT,			/* IA-32E mode (CS.L = 1) */
@@ -111,6 +113,9 @@ int vmm_emulate_instruction(void *vm, int cpuid, uint64_t gpa, struct vie *vie,
 			    mem_region_read_t mrr, mem_region_write_t mrw,
 			    void *mrarg);
 
+int vie_update_register(void *vm, int vcpuid, enum vm_reg_name reg,
+    uint64_t val, int size);
+
 #ifdef _KERNEL
 /*
  * APIs to fetch and decode the instruction from nested page fault handler.
@@ -133,6 +138,11 @@ int vmm_gla2gpa(struct vm *vm, int vcpuid, uint64_t gla, uint64_t cr3,
     uint64_t *gpa, enum vie_paging_mode paging_mode, int cpl, int prot);
 
 void vie_init(struct vie *vie);
+
+uint64_t vie_size2mask(int size);
+
+uint64_t vie_segbase(enum vm_reg_name segment, enum vie_cpu_mode cpu_mode,
+    const struct seg_desc *desc);
 
 /*
  * Decode the instruction fetched into 'vie' so it can be emulated.
