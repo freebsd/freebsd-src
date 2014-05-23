@@ -788,20 +788,18 @@ vm_radix_reclaim_allnodes(struct vm_radix *rtree)
 }
 
 /*
- * Replace an existing page into the trie with another one.
- * Panics if the replacing page is not present or if the new page has an
- * invalid key.
+ * Replace an existing page in the trie with another one.
+ * Panics if there is not an old page in the trie at the new page's index.
  */
 vm_page_t
-vm_radix_replace(struct vm_radix *rtree, vm_page_t newpage, vm_pindex_t index)
+vm_radix_replace(struct vm_radix *rtree, vm_page_t newpage)
 {
 	struct vm_radix_node *rnode;
 	vm_page_t m;
+	vm_pindex_t index;
 	int slot;
 
-	KASSERT(newpage->pindex == index, ("%s: newpage index invalid",
-	    __func__));
-
+	index = newpage->pindex;
 	rnode = vm_radix_getroot(rtree);
 	if (rnode == NULL)
 		panic("%s: replacing page on an empty trie", __func__);
