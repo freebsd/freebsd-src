@@ -1052,17 +1052,6 @@ calc_opt2p(struct adapter *sc, struct port_info *pi, int rxqid,
 	return htobe32(opt2);
 }
 
-/* XXX: duplication. */
-static inline void
-tcp_fields_to_host(struct tcphdr *th)
-{
-
-	th->th_seq = ntohl(th->th_seq);
-	th->th_ack = ntohl(th->th_ack);
-	th->th_win = ntohs(th->th_win);
-	th->th_urp = ntohs(th->th_urp);
-}
-
 static void
 pass_accept_req_to_protohdrs(const struct mbuf *m, struct in_conninfo *inc,
     struct tcphdr *th)
