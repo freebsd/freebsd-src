@@ -164,13 +164,11 @@ set_defaults() {	# no arguments
 create_includes_and_libraries2() { # opt_dir opt_target
     local no
     log "create_includes_and_libraries2() for ${SRC} $1"
-    if [ ${OSVERSION} -ge 600000 ] ; then
-	no="-DNO_CLEAN -DNO_PROFILE -DNO_GAMES -DNO_LIBC_R" # WITHOUT_CDDL=1"
-	no="$no -DWITHOUT_CASPER"
-	no="$no -DMALLOC_PRODUCTION"
-    else
-	no="-DNOCLEAN -DNOPROFILE -DNOGAMES -DNOLIBC_R"
-    fi
+
+    no="-DNO_CLEAN -DNO_PROFILE -DNO_GAMES -DNO_LIBC_R" # WITHOUT_CDDL=1"
+    no="$no -DWITHOUT_CASPER"
+    no="$no -DMALLOC_PRODUCTION"
+
     ( cd ${SRC};
     # make -DNOCLEAN -DNOPROFILE -DNOGAMES -DNOLIBC_R -DPICOBSD buildworld
     if [ -d "$1" ] ; then
@@ -186,48 +184,6 @@ create_includes_and_libraries2() { # opt_dir opt_target
     )
 }
 
-# entry for 4.x and earlier trees
-create_includes_and_libraries() {
-    local e i
-
-    log "create_includes_and_libraries() for ${SRC}"
-    # Optionally creates include directory and libraries.
-    mkdir -p ${l_usrtree}/include	# the include directory...
-    mkdir -p ${l_usrtree}/share/misc	# a few things go here
-    mkdir -p ${l_usrtree}/lib		# libraries
-    mkdir -p ${l_usrtree}/sbin		# some binaries
-    # override variables for ownershiip and destinations
-    # BINOWN:BINGRP are also used for include files
-    (cd ${SRC}; \
-	BINOWN=`id -un` BINGRP=`id -gn` \
-	DESTDIR=${l_usrtree}/.. \
-	make -m ${SRC}/share/mk includes ) || fail $? includes
-    # Pick up the correct headers for libraries.
-    CFLAGS="-nostdinc -I${l_usrtree}/include" ; export CFLAGS
-
-    (cd ${SRC}
-	# $e is the invocation of make with correct environment
-	# XXX check the NO* options below, maybe system dependent.
-	e="MAKEOBJDIRPREFIX=${l_objtree}/picobsd/libraries \
-	    BINOWN=`id -un` BINGRP=`id -gn` \
-	    DESTDIR=${l_usrtree}/.. \
-	    make -m ${SRC}/share/mk \
-		-DNOHTML -DNOINFO -DNOMAN -DNOSHARE -DNOFSCHG "
-	log "do a 'make obj' in a few places."
-	# This is very version-specific... The following works for 5.0
-	for i in lib secure/lib gnu/lib \
-		gnu/usr.bin/perl usr.bin/lex usr.sbin/config ; do
-	    (cd ${i}; eval $e obj)
-	done
-	log "now make the static libraries"
-	eval $e -DNOPROFILE -DNOPIC libraries
-	(cd ${SRC}/usr.sbin/config
-	eval $e		# build binary
-	eval $e	install	# install it
-	)
-    ) || fail $? "libraries"
-    log "Libraries done"
-}
 
 # set_type <the_type> [the_site] looks in user or system directories
 # for the directory named as the first argument, reads the configuration
@@ -964,11 +920,11 @@ fill_floppy_image() {
 	dd of=${BUILDDIR}/${c_img} oseek=1 obs=788 conv=notrunc 2>/dev/null
     log "done disk image"
     # XXX (log "Fixing permissions"; cd ${dst}; chown -R root *)
+    df -ik ${dst} | colrm 70 > .build.reply
     # leave build stuff if verbose
     [ ${o_verbose} -gt 0 ] && return
 
     rm -rf ${BUILDDIR}/floppy.tree || true # cleanup
-    # df -ik ${dst} | colrm 70 > .build.reply
     rm -rf ${dst}
     rm ${BUILDDIR}/${c_fs}
     # rm ${BUILDDIR}/kernel.gz
@@ -991,7 +947,7 @@ set_build_parameters() {
     set `grep "#define[\t ]__FreeBSD_version" ${SRC}/sys/sys/param.h`
     OSVERSION=$3
     log "OSVERSION is ${OSVERSION}"
-    if [ ${OSVERSION} -ge 500035 ] ; then
+
 	export MAKEOBJDIRPREFIX=${l_objtree}
 	export TARGET_ARCH=${o_arch} TARGET=${o_arch}
 	# XXX 20131001 see if CLANG fixes the build
@@ -1010,25 +966,11 @@ set_build_parameters() {
 	eval "export BINMAKE=\"`cd ${SRC}; make -f Makefile -V BINMAKE`\""
 	[ "$BINMAKE" = "" ] && \
 	   eval "export BINMAKE=\"`cd ${SRC}; make -f Makefile -V SUB_MAKE`\""
-    fi
 
     if [ "${o_init_src}" != "" ] ; then
-	if [ ${OSVERSION} -lt 500035 ] ; then
-	    create_includes_and_libraries
-	else
-	    create_includes_and_libraries2
-	fi
+	create_includes_and_libraries2
     else
 	eval export `cd ${SRC}; ${BINMAKE} -f Makefile.inc1 -V WMAKEENV`
-    fi
-    if [ ${OSVERSION} -lt 500035 ] ; then
-	# Create the right LIBS and CFLAGS for further builds.
-	# and build the config program
-	LIBS="-L${l_usrtree}/lib"
-	CFLAGS="-nostdinc -I${l_usrtree}/include"
-	export LIBS CFLAGS
-	CONFIG=${l_usrtree}/sbin/config
-	export CONFIG
     fi
 
     # if we have o_objdir, find where bin/ is
@@ -1049,7 +991,6 @@ set_build_parameters() {
 # Main entry of the script. Initialize variables, parse command line
 # arguments.
 
-# o_par="-j 8"	# parallel make and other make options
 
 set_defaults
 while [ true ]; do
