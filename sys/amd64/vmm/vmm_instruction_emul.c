@@ -47,8 +47,13 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/vmm.h>
 
+#include <assert.h>
 #include <vmmapi.h>
+#define	KASSERT(exp,msg)	assert((exp))
 #endif	/* _KERNEL */
+
+#include <x86/psl.h>
+#include <x86/specialreg.h>
 
 /* struct vie_op.op_type */
 enum {
@@ -559,6 +564,27 @@ vmm_emulate_instruction(void *vm, int vcpuid, uint64_t gpa, struct vie *vie,
 	}
 
 	return (error);
+}
+
+int
+vie_alignment_check(int cpl, int size, uint64_t cr0, uint64_t rf, uint64_t gla)
+{
+	KASSERT(size == 1 || size == 2 || size == 4 || size == 8,
+	    ("%s: invalid size %d", __func__, size));
+	KASSERT(cpl >= 0 && cpl <= 3, ("%s: invalid cpl %d", __func__, cpl));
+
+	if (cpl != 3 || (cr0 & CR0_AM) == 0 || (rf & PSL_AC) == 0)
+		return (0);
+
+	return ((gla & (size - 1)) ? 1 : 0);
+}
+
+uint64_t
+vie_size2mask(int size)
+{
+	KASSERT(size == 1 || size == 2 || size == 4 || size == 8,
+	    ("vie_size2mask: invalid size %d", size));
+	return (size2mask[size]);
 }
 
 #ifdef _KERNEL
@@ -1217,14 +1243,6 @@ vmm_decode_instruction(struct vm *vm, int cpuid, uint64_t gla,
 	vie->decoded = 1;	/* success */
 
 	return (0);
-}
-
-uint64_t
-vie_size2mask(int size)
-{
-	KASSERT(size == 1 || size == 2 || size == 4 || size == 8,
-	    ("vie_size2mask: invalid size %d", size));
-	return (size2mask[size]);
 }
 
 uint64_t

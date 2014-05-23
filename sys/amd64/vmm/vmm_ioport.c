@@ -144,7 +144,7 @@ emulate_inout_str(struct vm *vm, int vcpuid, struct vm_exit *vmexit, bool *retu)
 {
 	struct vm_inout_str *vis;
 	uint64_t gla, index, segbase;
-	int bytes, error, in;
+	int error, in;
 
 	vis = &vmexit->u.inout_str;
 	in = vis->inout.in;
@@ -162,25 +162,14 @@ emulate_inout_str(struct vm *vm, int vcpuid, struct vm_exit *vmexit, bool *retu)
 
 	/*
 	 * XXX
-	 * inout string emulation only supported in 64-bit mode and only
-	 * for byte instructions.
+	 * inout string emulation only supported in 64-bit mode.
 	 *
 	 * The #GP(0) fault conditions described above don't apply in
 	 * 64-bit mode.
-	 *
-	 * The #AC(0) fault condition described above does not apply
-	 * because byte accesses don't have alignment constraints.
 	 */
 	if (vis->cpu_mode != CPU_MODE_64BIT) { 
 		VCPU_CTR1(vm, vcpuid, "ins/outs not emulated in cpu mode %d",
 		    vis->cpu_mode);
-		return (EINVAL);
-	}
-
-	bytes = vis->inout.bytes;
-	if (bytes != 1) {
-		VCPU_CTR1(vm, vcpuid, "ins/outs operand size %d not supported",
-		    bytes);
 		return (EINVAL);
 	}
 
