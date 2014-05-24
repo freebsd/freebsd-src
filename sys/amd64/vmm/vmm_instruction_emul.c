@@ -599,7 +599,7 @@ vie_init(struct vie *vie)
 }
 
 static int
-pf_error_code(int usermode, int prot, uint64_t pte)
+pf_error_code(int usermode, int prot, int rsvd, uint64_t pte)
 {
 	int error_code = 0;
 
@@ -609,6 +609,8 @@ pf_error_code(int usermode, int prot, uint64_t pte)
 		error_code |= PGEX_W;
 	if (usermode)
 		error_code |= PGEX_U;
+	if (rsvd)
+		error_code |= PGEX_RSV;
 	if (prot & VM_PROT_EXECUTE)
 		error_code |= PGEX_I;
 
@@ -679,13 +681,11 @@ restart:
 			if ((pte32 & PG_V) == 0 ||
 			    (usermode && (pte32 & PG_U) == 0) ||
 			    (writable && (pte32 & PG_RW) == 0)) {
-				pfcode = pf_error_code(usermode, prot, pte32);
-				vm_inject_pf(vm, vcpuid, pfcode);
+				pfcode = pf_error_code(usermode, prot, 0,
+				    pte32);
+				vm_inject_pf(vm, vcpuid, pfcode, gla);
 				goto pagefault;
 			}
-
-			if (writable && (pte32 & PG_RW) == 0)
-				goto error;
 
 			/*
 			 * Emulate the x86 MMU's management of the accessed
@@ -735,8 +735,8 @@ restart:
 		pte = ptpbase[ptpindex];
 
 		if ((pte & PG_V) == 0) {
-			pfcode = pf_error_code(usermode, prot, pte);
-			vm_inject_pf(vm, vcpuid, pfcode);
+			pfcode = pf_error_code(usermode, prot, 0, pte);
+			vm_inject_pf(vm, vcpuid, pfcode, gla);
 			goto pagefault;
 		}
 
@@ -762,13 +762,10 @@ restart:
 		if ((pte & PG_V) == 0 ||
 		    (usermode && (pte & PG_U) == 0) ||
 		    (writable && (pte & PG_RW) == 0)) {
-			pfcode = pf_error_code(usermode, prot, pte);
-			vm_inject_pf(vm, vcpuid, pfcode);
+			pfcode = pf_error_code(usermode, prot, 0, pte);
+			vm_inject_pf(vm, vcpuid, pfcode, gla);
 			goto pagefault;
 		}
-
-		if (writable && (pte & PG_RW) == 0)
-			goto error;
 
 		/* Set the accessed bit in the page table entry */
 		if ((pte & PG_A) == 0) {
@@ -779,10 +776,12 @@ restart:
 		}
 
 		if (nlevels > 0 && (pte & PG_PS) != 0) {
-			if (pgsize > 1 * GB)
-				goto error;
-			else
-				break;
+			if (pgsize > 1 * GB) {
+				pfcode = pf_error_code(usermode, prot, 1, pte);
+				vm_inject_pf(vm, vcpuid, pfcode, gla);
+				goto pagefault;
+			}
+			break;
 		}
 
 		ptpphys = pte;

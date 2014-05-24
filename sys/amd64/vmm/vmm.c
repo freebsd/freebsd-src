@@ -1441,13 +1441,20 @@ vm_inject_fault(struct vm *vm, int vcpuid, struct vm_exception *exception)
 }
 
 void
-vm_inject_pf(struct vm *vm, int vcpuid, int error_code)
+vm_inject_pf(struct vm *vm, int vcpuid, int error_code, uint64_t cr2)
 {
 	struct vm_exception pf = {
 		.vector = IDT_PF,
 		.error_code_valid = 1,
 		.error_code = error_code
 	};
+	int error;
+
+	VCPU_CTR2(vm, vcpuid, "Injecting page fault: error_code %#x, cr2 %#lx",
+	    error_code, cr2);
+
+	error = vm_set_register(vm, vcpuid, VM_REG_GUEST_CR2, cr2);
+	KASSERT(error == 0, ("vm_set_register(cr2) error %d", error));
 
 	vm_inject_fault(vm, vcpuid, &pf);
 }
