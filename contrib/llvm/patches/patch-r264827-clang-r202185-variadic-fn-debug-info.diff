@@ -14,7 +14,7 @@ getReturnType -> getResultType
 
 Sponsored by:	DARPA, AFRL
 
-http://svnweb.freebsd.org/changeset/base/264827
+Introduced here: http://svnweb.freebsd.org/changeset/base/264827
 
 Index: tools/clang/lib/CodeGen/CGDebugInfo.cpp
 ===================================================================

@@ -4,7 +4,7 @@ Pull in r200130 from upstream llvm trunk (by Jakob Stoklund Olesen):
 
   Found by SingleSource/UnitTests/AtomicOps.c
 
-Introduced here: http://svn.freebsd.org/changeset/base/262261
+Introduced here: http://svnweb.freebsd.org/changeset/base/262261
 
 Index: lib/Target/Sparc/SparcISelLowering.cpp
 ===================================================================

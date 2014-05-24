@@ -6,7 +6,7 @@ Pull in r200453 from upstream llvm trunk (by Jakob Stoklund Olesen):
   atomic swap can be implemented in terms of CASX, like the other atomic
   rmw primitives.
 
-Introduced here: http://svn.freebsd.org/changeset/base/262264
+Introduced here: http://svnweb.freebsd.org/changeset/base/262264
 
 Index: lib/Target/Sparc/SparcInstr64Bit.td
 ===================================================================
