@@ -62,6 +62,7 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/vmm.h>
 #include <machine/vmm_dev.h>
+#include <machine/vmm_instruction_emul.h>
 
 #include "vmm_ioport.h"
 #include "vmm_ktr.h"
@@ -1132,32 +1133,25 @@ vm_handle_inst_emul(struct vm *vm, int vcpuid, bool *retu)
 	struct vie *vie;
 	struct vcpu *vcpu;
 	struct vm_exit *vme;
-	int cpl, error, inst_length;
-	uint64_t rip, gla, gpa, cr3;
-	enum vie_cpu_mode cpu_mode;
-	enum vie_paging_mode paging_mode;
+	uint64_t gla, gpa;
+	struct vm_guest_paging *paging;
 	mem_region_read_t mread;
 	mem_region_write_t mwrite;
+	int error;
 
 	vcpu = &vm->vcpu[vcpuid];
 	vme = &vcpu->exitinfo;
 
-	rip = vme->rip;
-	inst_length = vme->inst_length;
-
 	gla = vme->u.inst_emul.gla;
 	gpa = vme->u.inst_emul.gpa;
-	cr3 = vme->u.inst_emul.cr3;
-	cpl = vme->u.inst_emul.cpl;
-	cpu_mode = vme->u.inst_emul.cpu_mode;
-	paging_mode = vme->u.inst_emul.paging_mode;
 	vie = &vme->u.inst_emul.vie;
+	paging = &vme->u.inst_emul.paging;
 
 	vie_init(vie);
 
 	/* Fetch, decode and emulate the faulting instruction */
-	error = vmm_fetch_instruction(vm, vcpuid, rip, inst_length, cr3,
-	    paging_mode, cpl, vie);
+	error = vmm_fetch_instruction(vm, vcpuid, paging, vme->rip,
+	    vme->inst_length, vie);
 	if (error == 1)
 		return (0);		/* Resume guest to handle page fault */
 	else if (error == -1)
@@ -1165,7 +1159,7 @@ vm_handle_inst_emul(struct vm *vm, int vcpuid, bool *retu)
 	else if (error != 0)
 		panic("%s: vmm_fetch_instruction error %d", __func__, error);
 
-	if (vmm_decode_instruction(vm, vcpuid, gla, cpu_mode, vie) != 0)
+	if (vmm_decode_instruction(vm, vcpuid, gla, paging->cpu_mode, vie) != 0)
 		return (EFAULT);
 
 	/* return to userland unless this is an in-kernel emulated device */

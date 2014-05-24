@@ -36,6 +36,7 @@ __FBSDID("$FreeBSD$");
 #include <x86/segments.h>
 
 #include <machine/vmm.h>
+#include <machine/vmm_instruction_emul.h>
 #include <vmmapi.h>
 
 #include <stdio.h>
@@ -152,7 +153,7 @@ emulate_inout(struct vmctx *ctx, int vcpu, struct vm_exit *vmexit, int strict)
 		gpaend = rounddown(gpa + PAGE_SIZE, PAGE_SIZE);
 		gva = paddr_guest2host(ctx, gpa, gpaend - gpa);
 
-		if (vie_alignment_check(vis->cpl, bytes, vis->cr0,
+		if (vie_alignment_check(vis->paging.cpl, bytes, vis->cr0,
 		    vis->rflags, vis->gla)) {
 			error = vm_inject_exception2(ctx, vcpu, IDT_AC, 0);
 			assert(error == 0);

@@ -243,8 +243,6 @@ enum vm_reg_name vm_segment_name(int seg_encoding);
 
 #endif	/* KERNEL */
 
-#include <machine/vmm_instruction_emul.h>
-
 #define	VM_MAXCPU	16			/* maximum virtual cpus */
 
 /*
@@ -324,6 +322,71 @@ struct seg_desc {
 	uint32_t	access;
 };
 
+enum vm_cpu_mode {
+	CPU_MODE_COMPATIBILITY,		/* IA-32E mode (CS.L = 0) */
+	CPU_MODE_64BIT,			/* IA-32E mode (CS.L = 1) */
+};
+
+enum vm_paging_mode {
+	PAGING_MODE_FLAT,
+	PAGING_MODE_32,
+	PAGING_MODE_PAE,
+	PAGING_MODE_64,
+};
+
+struct vm_guest_paging {
+	uint64_t	cr3;
+	int		cpl;
+	enum vm_cpu_mode cpu_mode;
+	enum vm_paging_mode paging_mode;
+};
+
+/*
+ * The data structures 'vie' and 'vie_op' are meant to be opaque to the
+ * consumers of instruction decoding. The only reason why their contents
+ * need to be exposed is because they are part of the 'vm_exit' structure.
+ */
+struct vie_op {
+	uint8_t		op_byte;	/* actual opcode byte */
+	uint8_t		op_type;	/* type of operation (e.g. MOV) */
+	uint16_t	op_flags;
+};
+
+#define	VIE_INST_SIZE	15
+struct vie {
+	uint8_t		inst[VIE_INST_SIZE];	/* instruction bytes */
+	uint8_t		num_valid;		/* size of the instruction */
+	uint8_t		num_processed;
+
+	uint8_t		rex_w:1,		/* REX prefix */
+			rex_r:1,
+			rex_x:1,
+			rex_b:1,
+			rex_present:1;
+
+	uint8_t		mod:2,			/* ModRM byte */
+			reg:4,
+			rm:4;
+
+	uint8_t		ss:2,			/* SIB byte */
+			index:4,
+			base:4;
+
+	uint8_t		disp_bytes;
+	uint8_t		imm_bytes;
+
+	uint8_t		scale;
+	int		base_register;		/* VM_REG_GUEST_xyz */
+	int		index_register;		/* VM_REG_GUEST_xyz */
+
+	int64_t		displacement;		/* optional addr displacement */
+	int64_t		immediate;		/* optional immediate operand */
+
+	uint8_t		decoded;	/* set to 1 if successfully decoded */
+
+	struct vie_op	op;			/* opcode description */
+};
+
 enum vm_exitcode {
 	VM_EXITCODE_INOUT,
 	VM_EXITCODE_VMX,
@@ -355,14 +418,11 @@ struct vm_inout {
 
 struct vm_inout_str {
 	struct vm_inout	inout;		/* must be the first element */
-	enum vie_cpu_mode cpu_mode;
-	enum vie_paging_mode paging_mode;
+	struct vm_guest_paging paging;
 	uint64_t	rflags;
 	uint64_t	cr0;
-	uint64_t	cr3;
 	uint64_t	index;
 	uint64_t	count;		/* rep=1 (%rcx), rep=0 (1) */
-	int		cpl;
 	int		addrsize;
 	enum vm_reg_name seg_name;
 	struct seg_desc seg_desc;
@@ -384,10 +444,7 @@ struct vm_exit {
 		struct {
 			uint64_t	gpa;
 			uint64_t	gla;
-			uint64_t	cr3;
-			enum vie_cpu_mode cpu_mode;
-			enum vie_paging_mode paging_mode;
-			int		cpl;
+			struct vm_guest_paging paging;
 			struct vie	vie;
 		} inst_emul;
 		/*

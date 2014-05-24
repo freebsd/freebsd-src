@@ -36,6 +36,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm.h>
 
 #include <machine/vmm.h>
+#include <machine/vmm_instruction_emul.h>
 #include <x86/psl.h>
 
 #include "vatpic.h"
@@ -167,9 +168,9 @@ emulate_inout_str(struct vm *vm, int vcpuid, struct vm_exit *vmexit, bool *retu)
 	 * The #GP(0) fault conditions described above don't apply in
 	 * 64-bit mode.
 	 */
-	if (vis->cpu_mode != CPU_MODE_64BIT) { 
+	if (vis->paging.cpu_mode != CPU_MODE_64BIT) { 
 		VCPU_CTR1(vm, vcpuid, "ins/outs not emulated in cpu mode %d",
-		    vis->cpu_mode);
+		    vis->paging.cpu_mode);
 		return (EINVAL);
 	}
 
@@ -181,7 +182,8 @@ emulate_inout_str(struct vm *vm, int vcpuid, struct vm_exit *vmexit, bool *retu)
 		return (EINVAL);
 	}
 
-	segbase = vie_segbase(vis->seg_name, vis->cpu_mode, &vis->seg_desc);
+	segbase = vie_segbase(vis->seg_name, vis->paging.cpu_mode,
+	    &vis->seg_desc);
 	index = vis->index & vie_size2mask(vis->addrsize);
 	gla = segbase + index;
 
@@ -195,8 +197,8 @@ emulate_inout_str(struct vm *vm, int vcpuid, struct vm_exit *vmexit, bool *retu)
 	}
 	vis->gla = gla;
 
-	error = vmm_gla2gpa(vm, vcpuid, gla, vis->cr3, &vis->gpa,
-	    vis->paging_mode, vis->cpl, in ? VM_PROT_WRITE : VM_PROT_READ);
+	error = vmm_gla2gpa(vm, vcpuid, &vis->paging, gla,
+	    in ? VM_PROT_WRITE : VM_PROT_READ, &vis->gpa);
 	KASSERT(error == 0 || error == 1 || error == -1,
 	    ("%s: vmm_gla2gpa unexpected error %d", __func__, error));
 	if (error == -1) {
