@@ -168,6 +168,15 @@ struct vm_suspend {
 	enum vm_suspend_how how;
 };
 
+struct vm_gla2gpa {
+	int		vcpuid;		/* inputs */
+	int 		prot;		/* PROT_READ or PROT_WRITE */
+	uint64_t	gla;
+	struct vm_guest_paging paging;
+	int		fault;		/* outputs */
+	uint64_t	gpa;
+};
+
 enum {
 	/* general routines */
 	IOCNUM_ABIVERS = 0,
@@ -180,6 +189,7 @@ enum {
 	IOCNUM_MAP_MEMORY = 10,
 	IOCNUM_GET_MEMORY_SEG = 11,
 	IOCNUM_GET_GPA_PMAP = 12,
+	IOCNUM_GLA2GPA = 13,
 
 	/* register/state accessors */
 	IOCNUM_SET_REGISTER = 20,
@@ -289,4 +299,6 @@ enum {
 	_IOR('v', IOCNUM_GET_HPET_CAPABILITIES, struct vm_hpet_cap)
 #define	VM_GET_GPA_PMAP \
 	_IOWR('v', IOCNUM_GET_GPA_PMAP, struct vm_gpa_pte)
+#define	VM_GLA2GPA	\
+	_IOWR('v', IOCNUM_GLA2GPA, struct vm_gla2gpa)
 #endif

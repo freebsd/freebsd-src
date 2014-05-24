@@ -102,14 +102,12 @@ int
 emulate_inout(struct vmctx *ctx, int vcpu, struct vm_exit *vmexit, int strict)
 {
 	int addrsize, bytes, flags, in, port, rep;
-	uint64_t gpa, gpaend;
 	uint32_t val;
 	inout_func_t handler;
 	void *arg;
-	char *gva;
 	int error, retval;
 	enum vm_reg_name idxreg;
-	uint64_t index, count;
+	uint64_t gla, index, count;
 	struct vm_inout_str *vis;
 
 	bytes = vmexit->u.inout.bytes;
@@ -149,10 +147,6 @@ emulate_inout(struct vmctx *ctx, int vcpu, struct vm_exit *vmexit, int strict)
 		/* Count register */
 		count = vis->count & vie_size2mask(addrsize);
 
-		gpa = vis->gpa;
-		gpaend = rounddown(gpa + PAGE_SIZE, PAGE_SIZE);
-		gva = paddr_guest2host(ctx, gpa, gpaend - gpa);
-
 		if (vie_alignment_check(vis->paging.cpl, bytes, vis->cr0,
 		    vis->rflags, vis->gla)) {
 			error = vm_inject_exception2(ctx, vcpu, IDT_AC, 0);
@@ -160,26 +154,34 @@ emulate_inout(struct vmctx *ctx, int vcpu, struct vm_exit *vmexit, int strict)
 			return (INOUT_RESTART);
 		}
 
-		while (count != 0 && gpa < gpaend) {
-			/*
-			 * XXX this may not work for unaligned accesses because
-			 * the last access on the page may spill over into the
-			 * adjacent page in the linear address space. This is a
-			 * problem because we don't have a gla2gpa() mapping of
-			 * this adjacent page.
-			 */
-			assert(gpaend - gpa >= bytes);
-
+		gla = vis->gla;
+		while (count) {
 			val = 0;
-			if (!in)
-				bcopy(gva, &val, bytes);
+			if (!in) {
+				error = vm_copyin(ctx, vcpu, &vis->paging,
+				    gla, &val, bytes);
+				assert(error == 0 || error == 1 || error == -1);
+				if (error) {
+					retval = (error == 1) ? INOUT_RESTART :
+					    INOUT_ERROR;
+					break;
+				}
+			}
 
 			retval = handler(ctx, vcpu, in, port, bytes, &val, arg);
 			if (retval != 0)
 				break;
 
-			if (in)
-				bcopy(&val, gva, bytes);
+			if (in) {
+				error = vm_copyout(ctx, vcpu, &vis->paging,
+				    &val, gla, bytes);	
+				assert(error == 0 || error == 1 || error == -1);
+				if (error) {
+					retval = (error == 1) ? INOUT_RESTART :
+					    INOUT_ERROR;
+					break;
+				}
+			}
 
 			/* Update index */
 			if (vis->rflags & PSL_D)
@@ -188,8 +190,7 @@ emulate_inout(struct vmctx *ctx, int vcpu, struct vm_exit *vmexit, int strict)
 				index += bytes;
 
 			count--;
-			gva += bytes;
-			gpa += bytes;
+			gla += bytes;
 		}
 
 		/* Update index register */
