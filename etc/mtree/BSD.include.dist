@@ -162,8 +162,8 @@
         ..
     ..
     fs
-	cuse
-	..
+        cuse
+        ..
         devfs
         ..
         fdescfs
