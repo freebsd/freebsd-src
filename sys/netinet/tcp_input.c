@@ -229,10 +229,6 @@ static void	 tcp_pulloutofband(struct socket *,
 		     struct tcphdr *, struct mbuf *, int);
 static void	 tcp_xmit_timer(struct tcpcb *, int);
 static void	 tcp_newreno_partial_ack(struct tcpcb *, struct tcphdr *);
-#ifdef TCP_SIGNATURE
-static int inline	tcp_signature_verify_input(struct mbuf *, int, int,
-			    int, struct tcpopt *, struct tcphdr *, u_int);
-#endif
 static void inline	cc_ack_received(struct tcpcb *tp, struct tcphdr *th,
 			    uint16_t type);
 static void inline	cc_conn_init(struct tcpcb *tp);
