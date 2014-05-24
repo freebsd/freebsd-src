@@ -237,7 +237,7 @@ int vm_exception_pending(struct vm *vm, int vcpuid, struct vm_exception *vme);
 
 void vm_inject_gp(struct vm *vm, int vcpuid); /* general protection fault */
 void vm_inject_ud(struct vm *vm, int vcpuid); /* undefined instruction fault */
-void vm_inject_pf(struct vm *vm, int vcpuid, int error_code); /* page fault */
+void vm_inject_pf(struct vm *vm, int vcpuid, int error_code, uint64_t cr2);
 
 enum vm_reg_name vm_segment_name(int seg_encoding);
 
@@ -284,6 +284,7 @@ enum vm_reg_name {
 	VM_REG_GUEST_IDTR,
 	VM_REG_GUEST_GDTR,
 	VM_REG_GUEST_EFER,
+	VM_REG_GUEST_CR2,
 	VM_REG_LAST
 };
 

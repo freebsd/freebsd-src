@@ -2383,6 +2383,8 @@ vmxctx_regptr(struct vmxctx *vmxctx, int reg)
 		return (&vmxctx->guest_r14);
 	case VM_REG_GUEST_R15:
 		return (&vmxctx->guest_r15);
+	case VM_REG_GUEST_CR2:
+		return (&vmxctx->guest_cr2);
 	default:
 		break;
 	}
