@@ -2,7 +2,7 @@ Pull in r196940 from upstream clang trunk (by Reid Kleckner):
 
   Update clang MS inline asm tests for r196939
 
-Introduced here: http://svn.freebsd.org/changeset/base/263312
+Introduced here: http://svnweb.freebsd.org/changeset/base/263312
 
 Index: tools/clang/test/CodeGen/ms-inline-asm.cpp
 ===================================================================

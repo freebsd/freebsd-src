@@ -3,7 +3,7 @@ Pull in r198681 from upstream llvm trunk (by Venkatraman Govindaraju):
   [Sparc] Add support for parsing sparc asm modifiers such as %hi, %lo etc., 
   Also, correct the offsets for FixupsKindInfo.
 
-Introduced here: http://svn.freebsd.org/changeset/base/262261
+Introduced here: http://svnweb.freebsd.org/changeset/base/262261
 
 Index: lib/Target/Sparc/MCTargetDesc/SparcAsmBackend.cpp
 ===================================================================

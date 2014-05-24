@@ -12,7 +12,7 @@ Pull in r196986 from upstream llvm trunk (by Reid Kleckner):
   XFAIL the test cases that would be miscompiled and add one that uses the
   relevant functionality.
 
-Introduced here: http://svn.freebsd.org/changeset/base/263312
+Introduced here: http://svnweb.freebsd.org/changeset/base/263312
 
 Index: lib/Target/X86/X86RegisterInfo.cpp
 ===================================================================
