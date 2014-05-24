@@ -1340,18 +1340,16 @@ again:
 			/*
 			 * Allocate a page in the destination object.
 			 */
-			do {
-				dst_m = vm_page_alloc(dst_object,
-				    (src_object == dst_object ? src_pindex :
-				    0) + dst_pindex, VM_ALLOC_NORMAL);
-				if (dst_m == NULL) {
-					VM_OBJECT_WUNLOCK(dst_object);
-					VM_OBJECT_RUNLOCK(object);
-					VM_WAIT;
-					VM_OBJECT_WLOCK(dst_object);
-					goto again;
-				}
-			} while (dst_m == NULL);
+			dst_m = vm_page_alloc(dst_object, (src_object ==
+			    dst_object ? src_pindex : 0) + dst_pindex,
+			    VM_ALLOC_NORMAL);
+			if (dst_m == NULL) {
+				VM_OBJECT_WUNLOCK(dst_object);
+				VM_OBJECT_RUNLOCK(object);
+				VM_WAIT;
+				VM_OBJECT_WLOCK(dst_object);
+				goto again;
+			}
 			pmap_copy_page(src_m, dst_m);
 			VM_OBJECT_RUNLOCK(object);
 			dst_m->valid = VM_PAGE_BITS_ALL;
