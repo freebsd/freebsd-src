@@ -30,6 +30,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/types.h>
 #include <assert.h>
 #include <errno.h>
+#include <limits.h>
+#include <paths.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
 
@@ -38,7 +41,7 @@ __FBSDID("$FreeBSD$");
 
 #define	BUFFER_SIZE	(1024*1024)
 
-static char image_tmpfile[] = "/tmp/mkimg-XXXXXX";
+static char image_tmpfile[PATH_MAX];
 static int image_fd = -1;
 static lba_t image_size;
 
@@ -98,10 +101,10 @@ image_copyout(int fd)
 
 	ofs = lseek(fd, 0L, SEEK_CUR);
 
+	if (lseek(image_fd, 0, SEEK_SET) != 0)
+		return (errno);
 	buffer = malloc(BUFFER_SIZE);
 	if (buffer == NULL)
-		return (errno);
-	if (lseek(image_fd, 0, SEEK_SET) != 0)
 		return (errno);
 	error = 0;
 	while (1) {
@@ -119,8 +122,12 @@ image_copyout(int fd)
 		}
 	}
 	free(buffer);
+	if (error)
+		return (error);
 	ofs = lseek(fd, 0L, SEEK_CUR);
-	ftruncate(fd, ofs);
+	if (ofs == -1)
+		return (errno);
+	error = (ftruncate(fd, ofs) == -1) ? errno : 0;
 	return (error);
 }
 
@@ -157,9 +164,14 @@ image_write(lba_t blk, void *buf, ssize_t len)
 int
 image_init(void)
 {
+	const char *tmpdir;
 
 	if (atexit(cleanup) == -1)
 		return (errno);
+	if ((tmpdir = getenv("TMPDIR")) == NULL || *tmpdir == '\0')
+		tmpdir = _PATH_TMP;
+	snprintf(image_tmpfile, sizeof(image_tmpfile), "%s/mkimg-XXXXXX",
+	    tmpdir);
 	image_fd = mkstemp(image_tmpfile);
 	if (image_fd == -1)
 		return (errno);

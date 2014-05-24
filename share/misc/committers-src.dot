@@ -270,6 +270,7 @@ sephe [label="Sepherosa Ziehau\nsephe@FreeBSD.org\n2007/03/28"]
 sepotvin [label="Stephane E. Potvin\nsepotvin@FreeBSD.org\n2007/02/15"]
 simon [label="Simon L. Nielsen\nsimon@FreeBSD.org\n2006/03/07"]
 sjg [label="Simon J. Gerraty\nsjg@FreeBSD.org\n2012/10/23"]
+slm [label="Stephen McConnell\nslm@FreeBSD.org\n2014/05/07"]
 smh [label="Steven Hartland\nsmh@FreeBSD.org\n2012/11/12"]
 sobomax [label="Maxim Sobolev\nsobomax@FreeBSD.org\n2001/07/25"]
 sos [label="Soren Schmidt\nsos@FreeBSD.org\n????/??/??"]
@@ -525,6 +526,7 @@ julian -> mp
 kan -> kib
 
 ken -> asomers
+ken -> slm
 
 kib -> ae
 kib -> dchagin
@@ -664,6 +666,7 @@ scottl -> jimharris
 scottl -> pjd
 scottl -> sah
 scottl -> sbruno
+scottl -> slm
 scottl -> yongari
 
 sheldonh -> dwmalone

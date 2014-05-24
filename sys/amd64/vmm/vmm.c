@@ -63,6 +63,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/vmm.h>
 #include <machine/vmm_dev.h>
 
+#include "vmm_ioport.h"
 #include "vmm_ktr.h"
 #include "vmm_host.h"
 #include "vmm_mem.h"
@@ -1155,9 +1156,14 @@ vm_handle_inst_emul(struct vm *vm, int vcpuid, bool *retu)
 	vie_init(vie);
 
 	/* Fetch, decode and emulate the faulting instruction */
-	if (vmm_fetch_instruction(vm, vcpuid, rip, inst_length, cr3,
-	    paging_mode, cpl, vie) != 0)
+	error = vmm_fetch_instruction(vm, vcpuid, rip, inst_length, cr3,
+	    paging_mode, cpl, vie);
+	if (error == 1)
+		return (0);		/* Resume guest to handle page fault */
+	else if (error == -1)
 		return (EFAULT);
+	else if (error != 0)
+		panic("%s: vmm_fetch_instruction error %d", __func__, error);
 
 	if (vmm_decode_instruction(vm, vcpuid, gla, cpu_mode, vie) != 0)
 		return (EFAULT);
@@ -1349,6 +1355,10 @@ restart:
 		case VM_EXITCODE_INST_EMUL:
 			error = vm_handle_inst_emul(vm, vcpuid, &retu);
 			break;
+		case VM_EXITCODE_INOUT:
+		case VM_EXITCODE_INOUT_STR:
+			error = vm_handle_inout(vm, vcpuid, vme, &retu);
+			break;
 		default:
 			retu = true;	/* handled in userland */
 			break;
@@ -1428,6 +1438,18 @@ vm_inject_fault(struct vm *vm, int vcpuid, struct vm_exception *exception)
 	 */
 	vmexit = vm_exitinfo(vm, vcpuid);
 	vmexit->inst_length = 0;
+}
+
+void
+vm_inject_pf(struct vm *vm, int vcpuid, int error_code)
+{
+	struct vm_exception pf = {
+		.vector = IDT_PF,
+		.error_code_valid = 1,
+		.error_code = error_code
+	};
+
+	vm_inject_fault(vm, vcpuid, &pf);
 }
 
 void
@@ -1856,4 +1878,21 @@ struct vatpit *
 vm_atpit(struct vm *vm)
 {
 	return (vm->vatpit);
+}
+
+enum vm_reg_name
+vm_segment_name(int seg)
+{
+	static enum vm_reg_name seg_names[] = {
+		VM_REG_GUEST_ES,
+		VM_REG_GUEST_CS,
+		VM_REG_GUEST_SS,
+		VM_REG_GUEST_DS,
+		VM_REG_GUEST_FS,
+		VM_REG_GUEST_GS
+	};
+
+	KASSERT(seg >= 0 && seg < nitems(seg_names),
+	    ("%s: invalid segment encoding %d", __func__, seg));
+	return (seg_names[seg]);
 }

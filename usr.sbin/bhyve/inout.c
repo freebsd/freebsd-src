@@ -32,10 +32,17 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/linker_set.h>
 
+#include <x86/psl.h>
+#include <x86/segments.h>
+
+#include <machine/vmm.h>
+#include <vmmapi.h>
+
 #include <stdio.h>
 #include <string.h>
 #include <assert.h>
 
+#include "bhyverun.h"
 #include "inout.h"
 
 SET_DECLARE(inout_port_set, struct inout_port);
@@ -91,52 +98,127 @@ register_default_iohandler(int start, int size)
 }
 
 int
-emulate_inout(struct vmctx *ctx, int vcpu, int in, int port, int bytes,
-	      uint32_t *eax, int strict)
+emulate_inout(struct vmctx *ctx, int vcpu, struct vm_exit *vmexit, int strict)
 {
-	int flags;
-	uint32_t mask, val;
+	int addrsize, bytes, flags, in, port, rep;
+	uint64_t gpa, gpaend;
+	uint32_t val;
 	inout_func_t handler;
 	void *arg;
-	int error;
+	char *gva;
+	int error, retval;
+	enum vm_reg_name idxreg;
+	uint64_t index, count;
+	struct vm_inout_str *vis;
+
+	bytes = vmexit->u.inout.bytes;
+	in = vmexit->u.inout.in;
+	port = vmexit->u.inout.port;
 
 	assert(port < MAX_IOPORTS);
+	assert(bytes == 1 || bytes == 2 || bytes == 4);
 
 	handler = inout_handlers[port].handler;
 
 	if (strict && handler == default_inout)
 		return (-1);
 
-	switch (bytes) {
-	case 1:
-		mask = 0xff;
-		break;
-	case 2:
-		mask = 0xffff;
-		break;
-	default:
-		mask = 0xffffffff;
-		break;
-	}
-
-	if (!in) {
-		val = *eax & mask;
-	}
-
 	flags = inout_handlers[port].flags;
 	arg = inout_handlers[port].arg;
 
-	if ((in && (flags & IOPORT_F_IN)) || (!in && (flags & IOPORT_F_OUT)))
-		error = (*handler)(ctx, vcpu, in, port, bytes, &val, arg);
-	else
-		error = -1;
-
-	if (!error && in) {
-		*eax &= ~mask;
-		*eax |= val & mask;
+	if (in) {
+		if (!(flags & IOPORT_F_IN))
+			return (-1);
+	} else {
+		if (!(flags & IOPORT_F_OUT))
+			return (-1);
 	}
 
-	return (error);
+	retval = 0;
+	if (vmexit->u.inout.string) {
+		vis = &vmexit->u.inout_str;
+		rep = vis->inout.rep;
+		addrsize = vis->addrsize;
+		assert(addrsize == 2 || addrsize == 4 || addrsize == 8);
+
+		/* Index register */
+		idxreg = in ? VM_REG_GUEST_RDI : VM_REG_GUEST_RSI;
+		index = vis->index & vie_size2mask(addrsize);
+
+		/* Count register */
+		count = vis->count & vie_size2mask(addrsize);
+
+		gpa = vis->gpa;
+		gpaend = rounddown(gpa + PAGE_SIZE, PAGE_SIZE);
+		gva = paddr_guest2host(ctx, gpa, gpaend - gpa);
+
+		if (vie_alignment_check(vis->cpl, bytes, vis->cr0,
+		    vis->rflags, vis->gla)) {
+			error = vm_inject_exception2(ctx, vcpu, IDT_AC, 0);
+			assert(error == 0);
+			return (INOUT_RESTART);
+		}
+
+		while (count != 0 && gpa < gpaend) {
+			/*
+			 * XXX this may not work for unaligned accesses because
+			 * the last access on the page may spill over into the
+			 * adjacent page in the linear address space. This is a
+			 * problem because we don't have a gla2gpa() mapping of
+			 * this adjacent page.
+			 */
+			assert(gpaend - gpa >= bytes);
+
+			val = 0;
+			if (!in)
+				bcopy(gva, &val, bytes);
+
+			retval = handler(ctx, vcpu, in, port, bytes, &val, arg);
+			if (retval != 0)
+				break;
+
+			if (in)
+				bcopy(&val, gva, bytes);
+
+			/* Update index */
+			if (vis->rflags & PSL_D)
+				index -= bytes;
+			else
+				index += bytes;
+
+			count--;
+			gva += bytes;
+			gpa += bytes;
+		}
+
+		/* Update index register */
+		error = vie_update_register(ctx, vcpu, idxreg, index, addrsize);
+		assert(error == 0);
+
+		/*
+		 * Update count register only if the instruction had a repeat
+		 * prefix.
+		 */
+		if (rep) {
+			error = vie_update_register(ctx, vcpu, VM_REG_GUEST_RCX,
+			    count, addrsize);
+			assert(error == 0);
+		}
+
+		/* Restart the instruction if more iterations remain */
+		if (retval == INOUT_OK && count != 0)
+			retval = INOUT_RESTART;
+	} else {
+		if (!in) {
+			val = vmexit->u.inout.eax & vie_size2mask(bytes);
+		}
+		retval = handler(ctx, vcpu, in, port, bytes, &val, arg);
+		if (retval == 0 && in) {
+			vmexit->u.inout.eax &= ~vie_size2mask(bytes);
+			vmexit->u.inout.eax |= val & vie_size2mask(bytes);
+		}
+	}
+	return (retval);
 }
 
 void

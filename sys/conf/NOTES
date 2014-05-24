@@ -2467,6 +2467,7 @@ device		sdhci
 # amdsmb	AMD 8111 SMBus 2.0 Controller
 # nfpm		NVIDIA nForce Power Management Unit
 # nfsmb		NVIDIA nForce2/3/4 MCP SMBus 2.0 Controller
+# ismt		Intel SMBus 2.0 controller chips (on Atom S1200, C2000)
 #
 device		smbus		# Bus support, required for smb below.
 
@@ -2478,6 +2479,7 @@ device		amdpm
 device		amdsmb
 device		nfpm
 device		nfsmb
+device		ismt
 
 device		smb
 
@@ -2965,5 +2967,7 @@ options 	MAXFILES=999
 # Only ONE of the below two may be used; they are mutually exclusive.
 options 	RANDOM_YARROW	# Yarrow CSPRNG (Default)
 #options 	RANDOM_FORTUNA	# Fortuna CSPRNG
-
 options 	RANDOM_DEBUG	# Debugging messages
+
+# Module to enable execution of application via emulators like QEMU
+options         IMAGACT_BINMISC

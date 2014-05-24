@@ -21,11 +21,11 @@
 .if !target(__<bsd.compiler.mk>__)
 __<bsd.compiler.mk>__:
 
-_v!=	${CC} --version
+_v!=	${CC} --version 2>/dev/null || echo 0.0.0
 .if !defined(COMPILER_TYPE)
-. if ${CC:T:Mgcc*}
+. if ${CC:T:M*gcc*}
 COMPILER_TYPE:=	gcc  
-. elif ${CC:T:Mclang}
+. elif ${CC:T:M*clang*}
 COMPILER_TYPE:=	clang
 . elif ${_v:Mgcc}
 COMPILER_TYPE:=	gcc

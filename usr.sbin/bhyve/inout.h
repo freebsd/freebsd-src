@@ -32,12 +32,14 @@
 #include <sys/linker_set.h>
 
 struct vmctx;
+struct vm_exit;
 
 /* Handler return values. */
 #define	INOUT_ERROR	-1
 #define	INOUT_OK	0
-#define	INOUT_RESET	1
-#define	INOUT_POWEROFF	2
+#define	INOUT_RESTART	1
+#define	INOUT_RESET	2
+#define	INOUT_POWEROFF	3
 
 typedef int (*inout_func_t)(struct vmctx *ctx, int vcpu, int in, int port,
 			    int bytes, uint32_t *eax, void *arg);
@@ -72,8 +74,8 @@ struct inout_port {
 	DATA_SET(inout_port_set, __CONCAT(__inout_port, __LINE__))
 	
 void	init_inout(void);
-int	emulate_inout(struct vmctx *, int vcpu, int in, int port, int bytes,
-		      uint32_t *eax, int strict);
+int	emulate_inout(struct vmctx *, int vcpu, struct vm_exit *vmexit,
+		      int strict);
 int	register_inout(struct inout_port *iop);
 int	unregister_inout(struct inout_port *iop);
 void	init_bvmcons(void);

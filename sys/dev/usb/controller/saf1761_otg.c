@@ -227,7 +227,7 @@ saf1761_host_channel_alloc(struct saf1761_otg_softc *sc, struct saf1761_otg_td *
 			if (sc->sc_host_isoc_map & (1 << x))
 				continue;
 			sc->sc_host_isoc_map |= (1 << x);
-			td->channel = 64 + x;
+			td->channel = x;
 			return (0);
 		}
 		break;
@@ -236,7 +236,7 @@ saf1761_host_channel_alloc(struct saf1761_otg_softc *sc, struct saf1761_otg_td *
 			if (sc->sc_host_async_map & (1 << x))
 				continue;
 			sc->sc_host_async_map |= (1 << x);
-			td->channel = x;
+			td->channel = 64 + x;
 			return (0);
 		}
 		break;
@@ -253,8 +253,8 @@ saf1761_host_channel_free(struct saf1761_otg_softc *sc, struct saf1761_otg_td *t
 		return;
 
 	/* disable channel */
-	SAF1761_WRITE_4(sc, SOTG_ASYNC_PDT(td->channel) + (4 * 3), 0);
-	SAF1761_WRITE_4(sc, SOTG_ASYNC_PDT(td->channel) + (4 * 0), 0);
+	SAF1761_WRITE_4(sc, SOTG_PDT(td->channel) + SOTG_PDT_DW3, 0);
+	SAF1761_WRITE_4(sc, SOTG_PDT(td->channel) + SOTG_PDT_DW0, 0);
 
 	switch (td->ep_type) {
 	case UE_INTERRUPT:
@@ -263,7 +263,7 @@ saf1761_host_channel_free(struct saf1761_otg_softc *sc, struct saf1761_otg_td *t
 		td->channel = SOTG_HOST_CHANNEL_MAX;
 		break;
 	case UE_ISOCHRONOUS:
-		x = td->channel - 64;
+		x = td->channel;
 		sc->sc_host_isoc_map &= ~(1 << x);
 		td->channel = SOTG_HOST_CHANNEL_MAX;
 		break;
@@ -276,39 +276,48 @@ saf1761_host_channel_free(struct saf1761_otg_softc *sc, struct saf1761_otg_td *t
 }
 
 static void
-saf1761_read_host_fifo_1(struct saf1761_otg_softc *sc, struct saf1761_otg_td *td,
-    void *buf, uint32_t len)
+saf1761_read_host_memory_4(struct saf1761_otg_softc *sc, uint32_t offset,
+    void *buf, uint32_t count)
 {
-	bus_space_read_region_1((sc)->sc_io_tag, (sc)->sc_io_hdl,
-	    SOTG_DATA_ADDR(td->channel), buf, len);
+	if (count == 0)
+		return;
+	SAF1761_WRITE_4(sc, SOTG_MEMORY_REG, SOTG_HC_MEMORY_ADDR(offset));
+	DELAY(1);	/* read prefetch time is 90ns */
+	bus_space_read_region_4((sc)->sc_io_tag, (sc)->sc_io_hdl, offset, buf, count);
 }
 
 static void
-saf1761_write_host_fifo_1(struct saf1761_otg_softc *sc, struct saf1761_otg_td *td,
-    void *buf, uint32_t len)
+saf1761_write_host_memory_4(struct saf1761_otg_softc *sc, uint32_t offset,
+    void *buf, uint32_t count)
 {
-	bus_space_write_region_1((sc)->sc_io_tag, (sc)->sc_io_hdl,
-	    SOTG_DATA_ADDR(td->channel), buf, len);
+	if (count == 0)
+		return;
+	bus_space_write_region_4((sc)->sc_io_tag, (sc)->sc_io_hdl, offset, buf, count);
 }
 
 static uint8_t
 saf1761_host_setup_tx(struct saf1761_otg_softc *sc, struct saf1761_otg_td *td)
 {
 	struct usb_device_request req __aligned(4);
+	uint32_t pdt_addr;
 	uint32_t status;
 	uint32_t count;
+	uint32_t temp;
 
 	if (td->channel < SOTG_HOST_CHANNEL_MAX) {
-		status = SAF1761_READ_4(sc, SOTG_ASYNC_PDT(td->channel) + (4 * 3));
-		if (status & (1 << 31)) {
+		pdt_addr = SOTG_PDT(td->channel);
+
+		saf1761_read_host_memory_4(sc, pdt_addr + SOTG_PDT_DW3, &status, 1);
+
+		if (status & SOTG_PDT_DW3_ACTIVE) {
 			goto busy;
-		} else if (status & (1 << 30)) {
+		} else if (status & SOTG_PDT_DW3_HALTED) {
 			td->error_stall = 1;
 			td->error_any = 1;
-		} else if (status & (3 << 28)) {
+		} else if (status & SOTG_PDT_DW3_ERRORS) {
 			td->error_any = 1;
 		}
-		count = (status & 0x7FFF);
+		count = (status & SOTG_PDT_DW3_XFER_COUNT);
 
 		saf1761_host_channel_free(sc, td);
 		goto complete;
@@ -325,28 +334,30 @@ saf1761_host_setup_tx(struct saf1761_otg_softc *sc, struct saf1761_otg_td *td)
 
 	usbd_copy_out(td->pc, 0, &req, count);
 
-	saf1761_write_host_fifo_1(sc, td, &req, count);
+	saf1761_write_host_memory_4(sc, SOTG_DATA_ADDR(td->channel),
+	    &req, (count + 3) / 4);
 
-	SAF1761_WRITE_4(sc, SOTG_ASYNC_PDT(td->channel) + (4 * 7), 0);
-	SAF1761_WRITE_4(sc, SOTG_ASYNC_PDT(td->channel) + (4 * 6), 0);
-	SAF1761_WRITE_4(sc, SOTG_ASYNC_PDT(td->channel) + (4 * 5), 0);
-	SAF1761_WRITE_4(sc, SOTG_ASYNC_PDT(td->channel) + (4 * 4), 0);
-	SAF1761_WRITE_4(sc, SOTG_ASYNC_PDT(td->channel) + (4 * 3),
-	    (1 << 31) | (td->toggle << 25) | (3 << 23));
-	SAF1761_WRITE_4(sc, SOTG_ASYNC_PDT(td->channel) + (4 * 2),
-	    SOTG_HC_MEMORY_ADDR(SOTG_DATA_ADDR(td->channel)) << 8);
+	pdt_addr = SOTG_PDT(td->channel);
 
-	SAF1761_WRITE_4(sc, SOTG_ASYNC_PDT(td->channel) + (4 * 1),
-	    td->dw1_value |
-	    (2 << 10) /* SETUP PID */ |
-	    (td->ep_index >> 1));
+	SAF1761_WRITE_4(sc, pdt_addr + SOTG_PDT_DW7, 0);
+	SAF1761_WRITE_4(sc, pdt_addr + SOTG_PDT_DW6, 0);
+	SAF1761_WRITE_4(sc, pdt_addr + SOTG_PDT_DW5, 0);
+	SAF1761_WRITE_4(sc, pdt_addr + SOTG_PDT_DW4, 0);
 
-	SAF1761_WRITE_4(sc, SOTG_ASYNC_PDT(td->channel) + (4 * 0),
-	    (td->ep_index << 31) |
-	    (1 << 29) /* pkt-multiplier */ |
+	temp = SOTG_PDT_DW3_ACTIVE | (td->toggle << 25) | SOTG_PDT_DW3_CERR;
+	SAF1761_WRITE_4(sc, pdt_addr + SOTG_PDT_DW3, temp);
+	    
+	temp = SOTG_HC_MEMORY_ADDR(SOTG_DATA_ADDR(td->channel)) << 8;
+	SAF1761_WRITE_4(sc, pdt_addr + SOTG_PDT_DW2, temp);
+
+	temp = td->dw1_value | (2 << 10) /* SETUP PID */ | (td->ep_index >> 1);
+	SAF1761_WRITE_4(sc, pdt_addr + SOTG_PDT_DW1, temp);
+
+	temp = (td->ep_index << 31) | (1 << 29) /* pkt-multiplier */ |
 	    (td->max_packet_size << 18) /* wMaxPacketSize */ |
 	    (count << 3) /* transfer count */ |
-	    1 /* valid */);
+	    SOTG_PDT_DW0_VALID;
+	SAF1761_WRITE_4(sc, pdt_addr + SOTG_PDT_DW0, temp);
 
 	td->offset += count;
 	td->remainder -= count;
@@ -360,24 +371,29 @@ complete:
 static uint8_t
 saf1761_host_bulk_data_rx(struct saf1761_otg_softc *sc, struct saf1761_otg_td *td)
 {
+	uint32_t pdt_addr;
+	uint32_t temp;
+
 	if (td->channel < SOTG_HOST_CHANNEL_MAX) {
 		uint32_t status;
 		uint32_t count;
 		uint8_t got_short;
 
-		status = SAF1761_READ_4(sc, SOTG_ASYNC_PDT(td->channel) + (4 * 3));
+		pdt_addr = SOTG_PDT(td->channel);
 
-		if (status & (1 << 31)) {
+		saf1761_read_host_memory_4(sc, pdt_addr + SOTG_PDT_DW3, &status, 1);
+
+		if (status & SOTG_PDT_DW3_ACTIVE) {
 			goto busy;
-		} else if (status & (1 << 30)) {
+		} else if (status & SOTG_PDT_DW3_HALTED) {
 			td->error_stall = 1;
 			td->error_any = 1;
 			goto complete;
-		} else if (status & (3 << 28)) {
+		} else if (status & SOTG_PDT_DW3_ERRORS) {
 			td->error_any = 1;
 			goto complete;
 		}
-		count = (status & 0x7FFF);
+		count = (status & SOTG_PDT_DW3_XFER_COUNT);
 		got_short = 0;
 
 		/* verify the packet byte count */
@@ -401,8 +417,9 @@ saf1761_host_bulk_data_rx(struct saf1761_otg_softc *sc, struct saf1761_otg_td *t
 			goto complete;
 		}
 
-		saf1761_read_host_fifo_1(sc, td,
-		    sc->sc_bounce_buffer, count);
+		saf1761_read_host_memory_4(sc, SOTG_DATA_ADDR(td->channel),
+		    sc->sc_bounce_buffer, (count + 3) / 4);
+
 		usbd_copy_in(td->pc, td->offset,
 		    sc->sc_bounce_buffer, count);
 
@@ -429,26 +446,27 @@ saf1761_host_bulk_data_rx(struct saf1761_otg_softc *sc, struct saf1761_otg_td *t
 
 	/* receive one more packet */
 
-	SAF1761_WRITE_4(sc, SOTG_ASYNC_PDT(td->channel) + (4 * 7), 0);
-	SAF1761_WRITE_4(sc, SOTG_ASYNC_PDT(td->channel) + (4 * 6), 0);
-	SAF1761_WRITE_4(sc, SOTG_ASYNC_PDT(td->channel) + (4 * 5), 0);
-	SAF1761_WRITE_4(sc, SOTG_ASYNC_PDT(td->channel) + (4 * 4), 0);
-	SAF1761_WRITE_4(sc, SOTG_ASYNC_PDT(td->channel) + (4 * 3),
-	    (1 << 31) | (td->toggle << 25) | (3 << 23));
-	SAF1761_WRITE_4(sc, SOTG_ASYNC_PDT(td->channel) + (4 * 2),
-	    SOTG_HC_MEMORY_ADDR(SOTG_DATA_ADDR(td->channel)) << 8);
+	pdt_addr = SOTG_PDT(td->channel);
 
-	SAF1761_WRITE_4(sc, SOTG_ASYNC_PDT(td->channel) + (4 * 1),
-	    td->dw1_value |
-	    (1 << 10) /* IN-PID */ |
-	    (td->ep_index >> 1));
+	SAF1761_WRITE_4(sc, pdt_addr + SOTG_PDT_DW7, 0);
+	SAF1761_WRITE_4(sc, pdt_addr + SOTG_PDT_DW6, 0);
+	SAF1761_WRITE_4(sc, pdt_addr + SOTG_PDT_DW5, 0);
+	SAF1761_WRITE_4(sc, pdt_addr + SOTG_PDT_DW4, 0);
 
-	SAF1761_WRITE_4(sc, SOTG_ASYNC_PDT(td->channel) + (4 * 0),
-	    (td->ep_index << 31) |
-	    (1 << 29) /* pkt-multiplier */ |
+	temp = SOTG_PDT_DW3_ACTIVE | (td->toggle << 25) | SOTG_PDT_DW3_CERR;
+	SAF1761_WRITE_4(sc, pdt_addr + SOTG_PDT_DW3, temp);
+
+	temp = SOTG_HC_MEMORY_ADDR(SOTG_DATA_ADDR(td->channel)) << 8;
+	SAF1761_WRITE_4(sc, pdt_addr + SOTG_PDT_DW2, temp);
+
+	temp = td->dw1_value | (1 << 10) /* IN-PID */ | (td->ep_index >> 1);
+	SAF1761_WRITE_4(sc, pdt_addr + SOTG_PDT_DW1, temp);
+
+	temp = (td->ep_index << 31) | (1 << 29) /* pkt-multiplier */ |
 	    (td->max_packet_size << 18) /* wMaxPacketSize */ |
 	    (td->max_packet_size << 3) /* transfer count */ |
-	    1 /* valid */);
+	    SOTG_PDT_DW0_VALID;
+	SAF1761_WRITE_4(sc, pdt_addr + SOTG_PDT_DW0, temp);
 busy:
 	return (1);	/* busy */
 complete:
@@ -458,18 +476,23 @@ complete:
 static uint8_t
 saf1761_host_bulk_data_tx(struct saf1761_otg_softc *sc, struct saf1761_otg_td *td)
 {
+	uint32_t pdt_addr;
+	uint32_t temp;
 	uint32_t count;
 
 	if (td->channel < SOTG_HOST_CHANNEL_MAX) {
 		uint32_t status;
 
-		status = SAF1761_READ_4(sc, SOTG_ASYNC_PDT(td->channel) + (4 * 3));
-		if (status & (1 << 31)) {
+		pdt_addr = SOTG_PDT(td->channel);
+
+		saf1761_read_host_memory_4(sc, pdt_addr + SOTG_PDT_DW3, &status, 1);
+
+		if (status & SOTG_PDT_DW3_ACTIVE) {
 			goto busy;
-		} else if (status & (1 << 30)) {
+		} else if (status & SOTG_PDT_DW3_HALTED) {
 			td->error_stall = 1;
 			td->error_any = 1;
-		} else if (status & (3 << 28)) {
+		} else if (status & SOTG_PDT_DW3_ERRORS) {
 			td->error_any = 1;
 		}
 
@@ -493,7 +516,8 @@ saf1761_host_bulk_data_tx(struct saf1761_otg_softc *sc, struct saf1761_otg_td *t
 	}
 
 	usbd_copy_out(td->pc, td->offset, sc->sc_bounce_buffer, count);
-	saf1761_write_host_fifo_1(sc, td, sc->sc_bounce_buffer, count);
+	saf1761_write_host_memory_4(sc, SOTG_DATA_ADDR(td->channel),
+	    sc->sc_bounce_buffer, (count + 3) / 4);
 
 	/* set toggle, if any */
 	if (td->set_toggle) {
@@ -501,26 +525,29 @@ saf1761_host_bulk_data_tx(struct saf1761_otg_softc *sc, struct saf1761_otg_td *t
 		td->toggle = 1;
 	}
 
-	SAF1761_WRITE_4(sc, SOTG_ASYNC_PDT(td->channel) + (4 * 7), 0);
-	SAF1761_WRITE_4(sc, SOTG_ASYNC_PDT(td->channel) + (4 * 6), 0);
-	SAF1761_WRITE_4(sc, SOTG_ASYNC_PDT(td->channel) + (4 * 5), 0);
-	SAF1761_WRITE_4(sc, SOTG_ASYNC_PDT(td->channel) + (4 * 4), 0);
-	SAF1761_WRITE_4(sc, SOTG_ASYNC_PDT(td->channel) + (4 * 3),
-	    (1 << 31) | (td->toggle << 25) | (3 << 23));
-	SAF1761_WRITE_4(sc, SOTG_ASYNC_PDT(td->channel) + (4 * 2),
-	    SOTG_HC_MEMORY_ADDR(SOTG_DATA_ADDR(td->channel)) << 8);
+	/* send one more packet */
 
-	SAF1761_WRITE_4(sc, SOTG_ASYNC_PDT(td->channel) + (4 * 1),
-	    td->dw1_value |
-	    (0 << 10) /* OUT-PID */ |
-	    (td->ep_index >> 1));
+	pdt_addr = SOTG_PDT(td->channel);
 
-	SAF1761_WRITE_4(sc, SOTG_ASYNC_PDT(td->channel) + (4 * 0),
-	    (td->ep_index << 31) |
-	    (1 << 29) /* pkt-multiplier */ |
+	SAF1761_WRITE_4(sc, pdt_addr + SOTG_PDT_DW7, 0);
+	SAF1761_WRITE_4(sc, pdt_addr + SOTG_PDT_DW6, 0);
+	SAF1761_WRITE_4(sc, pdt_addr + SOTG_PDT_DW5, 0);
+	SAF1761_WRITE_4(sc, pdt_addr + SOTG_PDT_DW4, 0);
+
+	temp = SOTG_PDT_DW3_ACTIVE | (td->toggle << 25) | SOTG_PDT_DW3_CERR;
+	SAF1761_WRITE_4(sc, pdt_addr + SOTG_PDT_DW3, temp);
+
+	temp = SOTG_HC_MEMORY_ADDR(SOTG_DATA_ADDR(td->channel)) << 8;
+	SAF1761_WRITE_4(sc, pdt_addr + SOTG_PDT_DW2, temp);
+
+	temp = td->dw1_value | (0 << 10) /* OUT-PID */ | (td->ep_index >> 1);
+	SAF1761_WRITE_4(sc, pdt_addr + SOTG_PDT_DW1, temp);
+
+	temp = (td->ep_index << 31) | (1 << 29) /* pkt-multiplier */ |
 	    (td->max_packet_size << 18) /* wMaxPacketSize */ |
 	    (count << 3) /* transfer count */ |
-	    1 /* valid */);
+	    SOTG_PDT_DW0_VALID;
+	SAF1761_WRITE_4(sc, pdt_addr + SOTG_PDT_DW0, temp);
 
 	td->offset += count;
 	td->remainder -= count;
@@ -534,13 +561,195 @@ complete:
 static uint8_t
 saf1761_host_intr_data_rx(struct saf1761_otg_softc *sc, struct saf1761_otg_td *td)
 {
+	uint32_t pdt_addr;
+	uint32_t temp;
+
+	if (td->channel < SOTG_HOST_CHANNEL_MAX) {
+		uint32_t status;
+		uint32_t count;
+		uint8_t got_short;
+
+		pdt_addr = SOTG_PDT(td->channel);
+
+		saf1761_read_host_memory_4(sc, pdt_addr + SOTG_PDT_DW3, &status, 1);
+
+		if (status & SOTG_PDT_DW3_ACTIVE) {
+			goto busy;
+		} else if (status & SOTG_PDT_DW3_HALTED) {
+			td->error_stall = 1;
+			td->error_any = 1;
+			goto complete;
+		}
+
+		count = (status & SOTG_PDT_DW3_XFER_COUNT);
+		got_short = 0;
+
+		/* verify the packet byte count */
+		if (count != td->max_packet_size) {
+			if (count < td->max_packet_size) {
+				/* we have a short packet */
+				td->short_pkt = 1;
+				got_short = 1;
+			} else {
+				/* invalid USB packet */
+				td->error_any = 1;
+				goto complete;
+			}
+		}
+		td->toggle ^= 1;
+
+		/* verify the packet byte count */
+		if (count > td->remainder) {
+			/* invalid USB packet */
+			td->error_any = 1;
+			goto complete;
+		}
+
+		saf1761_read_host_memory_4(sc, SOTG_DATA_ADDR(td->channel),
+		    sc->sc_bounce_buffer, (count + 3) / 4);
+
+		usbd_copy_in(td->pc, td->offset,
+		    sc->sc_bounce_buffer, count);
+
+		td->remainder -= count;
+		td->offset += count;
+
+		saf1761_host_channel_free(sc, td);
+
+		/* check if we are complete */
+		if ((td->remainder == 0) || got_short) {
+			if (td->short_pkt)
+				goto complete;
+			/* else need to receive a zero length packet */
+		}
+	}
+	if (saf1761_host_channel_alloc(sc, td))
+		goto busy;
+
+	/* set toggle, if any */
+	if (td->set_toggle) {
+		td->set_toggle = 0;
+		td->toggle = 1;
+	}
+
+	/* receive one more packet */
+
+	pdt_addr = SOTG_PDT(td->channel);
+
+	SAF1761_WRITE_4(sc, pdt_addr + SOTG_PDT_DW7, 0);
+	SAF1761_WRITE_4(sc, pdt_addr + SOTG_PDT_DW6, 0);
+
+	temp = (0xFC << td->uframe) & 0xFF;	/* complete split */
+	SAF1761_WRITE_4(sc, pdt_addr + SOTG_PDT_DW5, temp);
+
+	temp = (1U << td->uframe);		/* start split */
+	SAF1761_WRITE_4(sc, pdt_addr + SOTG_PDT_DW4, temp);
+
+	temp = SOTG_PDT_DW3_ACTIVE | (td->toggle << 25) | SOTG_PDT_DW3_CERR;
+	SAF1761_WRITE_4(sc, pdt_addr + SOTG_PDT_DW3, temp);
+
+	temp = (SOTG_HC_MEMORY_ADDR(SOTG_DATA_ADDR(td->channel)) << 8) | td->interval;
+	SAF1761_WRITE_4(sc, pdt_addr + SOTG_PDT_DW2, temp);
+
+	temp = td->dw1_value | (1 << 10) /* IN-PID */ | (td->ep_index >> 1);
+	SAF1761_WRITE_4(sc, pdt_addr + SOTG_PDT_DW1, temp);
+
+	temp = (td->ep_index << 31) | (1 << 29) /* pkt-multiplier */ |
+	    (td->max_packet_size << 18) /* wMaxPacketSize */ |
+	    (td->max_packet_size << 3) /* transfer count */ |
+	    SOTG_PDT_DW0_VALID;
+	SAF1761_WRITE_4(sc, pdt_addr + SOTG_PDT_DW0, temp);
+busy:
 	return (1);	/* busy */
+complete:
+	return (0);	/* complete */
 }
 
 static uint8_t
 saf1761_host_intr_data_tx(struct saf1761_otg_softc *sc, struct saf1761_otg_td *td)
 {
+	uint32_t pdt_addr;
+	uint32_t temp;
+	uint32_t count;
+
+	if (td->channel < SOTG_HOST_CHANNEL_MAX) {
+		uint32_t status;
+
+		pdt_addr = SOTG_PDT(td->channel);
+
+		saf1761_read_host_memory_4(sc, pdt_addr + SOTG_PDT_DW3, &status, 1);
+
+		if (status & SOTG_PDT_DW3_ACTIVE) {
+			goto busy;
+		} else if (status & SOTG_PDT_DW3_HALTED) {
+			td->error_stall = 1;
+			td->error_any = 1;
+		}
+
+		saf1761_host_channel_free(sc, td);
+
+		/* check remainder */
+		if (td->remainder == 0) {
+			if (td->short_pkt)
+				goto complete;
+			/* else we need to transmit a short packet */
+		}
+	}
+	if (saf1761_host_channel_alloc(sc, td))
+		goto busy;
+
+	count = td->max_packet_size;
+	if (td->remainder < count) {
+		/* we have a short packet */
+		td->short_pkt = 1;
+		count = td->remainder;
+	}
+
+	usbd_copy_out(td->pc, td->offset, sc->sc_bounce_buffer, count);
+	saf1761_write_host_memory_4(sc, SOTG_DATA_ADDR(td->channel),
+	    sc->sc_bounce_buffer, (count + 3) / 4);
+
+	/* set toggle, if any */
+	if (td->set_toggle) {
+		td->set_toggle = 0;
+		td->toggle = 1;
+	}
+
+	/* send one more packet */
+
+	pdt_addr = SOTG_PDT(td->channel);
+
+	SAF1761_WRITE_4(sc, pdt_addr + SOTG_PDT_DW7, 0);
+	SAF1761_WRITE_4(sc, pdt_addr + SOTG_PDT_DW6, 0);
+
+	temp = (0xFC << td->uframe) & 0xFF;	/* complete split */
+	SAF1761_WRITE_4(sc, pdt_addr + SOTG_PDT_DW5, temp);
+
+	temp = (1U << td->uframe);		/* start split */
+	SAF1761_WRITE_4(sc, pdt_addr + SOTG_PDT_DW4, temp);
+
+	temp = SOTG_PDT_DW3_ACTIVE | (td->toggle << 25) | SOTG_PDT_DW3_CERR;
+	SAF1761_WRITE_4(sc, pdt_addr + SOTG_PDT_DW3, temp);
+
+	temp = (SOTG_HC_MEMORY_ADDR(SOTG_DATA_ADDR(td->channel)) << 8) | td->interval;
+	SAF1761_WRITE_4(sc, pdt_addr + SOTG_PDT_DW2, temp);
+
+	temp = td->dw1_value | (0 << 10) /* OUT-PID */ | (td->ep_index >> 1);
+	SAF1761_WRITE_4(sc, pdt_addr + SOTG_PDT_DW1, temp);
+
+	temp = (td->ep_index << 31) | (1 << 29) /* pkt-multiplier */ |
+	    (td->max_packet_size << 18) /* wMaxPacketSize */ |
+	    (count << 3) /* transfer count */ |
+	    SOTG_PDT_DW0_VALID;
+	SAF1761_WRITE_4(sc, pdt_addr + SOTG_PDT_DW0, temp);
+
+	td->offset += count;
+	td->remainder -= count;
+	td->toggle ^= 1;
+busy:
 	return (1);	/* busy */
+complete:
+	return (0);	/* complete */
 }
 
 static uint8_t
@@ -566,6 +775,8 @@ saf1761_otg_set_address(struct saf1761_otg_softc *sc, uint8_t addr)
 static void
 saf1761_read_device_fifo_1(struct saf1761_otg_softc *sc, void *buf, uint32_t len)
 {
+	if (len == 0)
+		return;
 	bus_space_read_multi_1((sc)->sc_io_tag, (sc)->sc_io_hdl,
 	    SOTG_DATA_PORT, buf, len);
 }
@@ -573,6 +784,8 @@ saf1761_read_device_fifo_1(struct saf1761_otg_softc *sc, void *buf, uint32_t len
 static void
 saf1761_write_device_fifo_1(struct saf1761_otg_softc *sc, void *buf, uint32_t len)
 {
+	if (len == 0)
+		return;
 	bus_space_write_multi_1((sc)->sc_io_tag, (sc)->sc_io_hdl,
 	    SOTG_DATA_PORT, buf, len);
 }
@@ -1614,9 +1827,28 @@ saf1761_otg_init(struct saf1761_otg_softc *sc)
 
 	USB_BUS_LOCK(&sc->sc_bus);
 
+	/* Reset Host controller, including HW mode */
+	SAF1761_WRITE_2(sc, SOTG_SW_RESET, SOTG_SW_RESET_ALL);
+
+	DELAY(1000);
+
+	/* Reset Host controller, including HW mode */
+	SAF1761_WRITE_2(sc, SOTG_SW_RESET, SOTG_SW_RESET_HC);
+
+	/* wait a bit */
+	DELAY(1000);
+
+	SAF1761_WRITE_2(sc, SOTG_SW_RESET, 0);
+
+	/* wait a bit */
+	DELAY(1000);
+
 	/* Enable interrupts */
 	sc->sc_hw_mode |= SOTG_HW_MODE_CTRL_GLOBAL_INTR_EN |
 	    SOTG_HW_MODE_CTRL_COMN_INT;
+
+	/* unlock device */
+	SAF1761_WRITE_2(sc, SOTG_UNLOCK_DEVICE, SOTG_UNLOCK_DEVICE_CODE);
 
 	/*
 	 * Set correct hardware mode, must be written twice if bus
@@ -1625,7 +1857,14 @@ saf1761_otg_init(struct saf1761_otg_softc *sc)
 	SAF1761_WRITE_2(sc, SOTG_HW_MODE_CTRL, sc->sc_hw_mode);
 	SAF1761_WRITE_4(sc, SOTG_HW_MODE_CTRL, sc->sc_hw_mode);
 
-	DPRINTF("DCID=0x%08x\n", SAF1761_READ_4(sc, SOTG_DCCHIP_ID));
+	SAF1761_WRITE_4(sc, SOTG_DCSCRATCH, 0xdeadbeef);
+
+	DPRINTF("DCID=0x%08x VEND=0x%04x PROD=0x%04x HWMODE=0x%08x SCRATCH=0x%08x\n",
+	    SAF1761_READ_4(sc, SOTG_DCCHIP_ID),
+	    SAF1761_READ_2(sc, SOTG_VEND_ID),
+	    SAF1761_READ_2(sc, SOTG_PROD_ID),
+	    SAF1761_READ_4(sc, SOTG_HW_MODE_CTRL),
+	    SAF1761_READ_4(sc, SOTG_DCSCRATCH));
 
 	/* reset device controller */
 	SAF1761_WRITE_2(sc, SOTG_MODE, SOTG_MODE_SFRESET);
@@ -1635,14 +1874,22 @@ saf1761_otg_init(struct saf1761_otg_softc *sc)
 	DELAY(1000);
 
 	/* reset host controller */
-	SAF1761_WRITE_4(sc, SOTG_SW_RESET, SOTG_SW_RESET_HC);
 	SAF1761_WRITE_4(sc, SOTG_USBCMD, SOTG_USBCMD_HCRESET);
+
+	/* wait for reset to clear */
+	for (x = 0; x != 10; x++) {
+		if ((SAF1761_READ_4(sc, SOTG_USBCMD) & SOTG_USBCMD_HCRESET) == 0)
+			break;
+		usb_pause_mtx(&sc->sc_bus.bus_mtx, hz / 10);
+	}
+
+	SAF1761_WRITE_4(sc, SOTG_HW_MODE_CTRL, sc->sc_hw_mode |
+	    SOTG_HW_MODE_CTRL_ALL_ATX_RESET);
 
 	/* wait a bit */
 	DELAY(1000);
 
-	SAF1761_WRITE_4(sc, SOTG_SW_RESET, 0);
-	SAF1761_WRITE_4(sc, SOTG_USBCMD, 0);
+	SAF1761_WRITE_4(sc, SOTG_HW_MODE_CTRL, sc->sc_hw_mode);
 
 	/* wait a bit */
 	DELAY(1000);
@@ -1696,10 +1943,14 @@ saf1761_otg_init(struct saf1761_otg_softc *sc)
 	    SOTG_DCINTERRUPT_IEBRST | SOTG_DCINTERRUPT_IESUSP;
 	SAF1761_WRITE_4(sc, SOTG_DCINTERRUPT_EN, sc->sc_intr_enable);
 
-	/* connect ATX port 1 to device controller */
+	/*
+	 * Connect ATX port 1 to device controller, select external
+	 * charge pump and driver VBUS to +5V:
+	 */
 	SAF1761_WRITE_2(sc, SOTG_CTRL_CLR, 0xFFFF);
 	SAF1761_WRITE_2(sc, SOTG_CTRL_SET, SOTG_CTRL_SW_SEL_HC_DC |
-	    SOTG_CTRL_BDIS_ACON_EN);
+	    SOTG_CTRL_BDIS_ACON_EN | SOTG_CTRL_SEL_CP_EXT |
+	    SOTG_CTRL_VBUS_DRV);
 
 	/* disable device address */
 	SAF1761_WRITE_1(sc, SOTG_ADDRESS, 0);
@@ -1719,6 +1970,8 @@ saf1761_otg_init(struct saf1761_otg_softc *sc)
 
 	/* start the HC */
 	SAF1761_WRITE_4(sc, SOTG_USBCMD, SOTG_USBCMD_RS);
+
+	DPRINTF("USBCMD=0x%08x\n", SAF1761_READ_4(sc, SOTG_USBCMD));
 
 	/* enable HC interrupts */
 	SAF1761_WRITE_4(sc, SOTG_HCINTERRUPT_ENABLE,
@@ -2477,7 +2730,8 @@ tr_handle_get_port_status_host:
 
 	temp = SAF1761_READ_4(sc, SOTG_PORTSC1);
 
-	DPRINTFN(9, "port status=0x%04x\n", temp);
+	DPRINTFN(9, "UR_GET_PORT_STATUS on port %d = 0x%08x\n", index, temp);
+
 	i = UPS_HIGH_SPEED;
 
 	if (temp & SOTG_PORTSC1_ECCS)
@@ -2620,7 +2874,15 @@ saf1761_otg_xfer_setup(struct usb_setup_params *parm)
 			td->ep_index = ep_no;
 			td->ep_type = ep_type;
 			td->dw1_value = dw1;
-
+			td->uframe = 0;
+			if (ep_type == UE_INTERRUPT) {
+				if (xfer->interval > 32)
+					td->interval = 32 / 2;
+				else
+					td->interval = xfer->interval / 2;
+			} else {
+				td->interval = 0;
+			}
 			td->obj_next = last_obj;
 
 			last_obj = td;
@@ -2667,6 +2929,7 @@ saf1761_otg_ep_init(struct usb_device *udev, struct usb_endpoint_descriptor *ede
 		switch (edesc->bmAttributes & UE_XFERTYPE) {
 		case UE_CONTROL:
 		case UE_BULK:
+		case UE_INTERRUPT:
 			ep->methods = &saf1761_otg_non_isoc_methods;
 			break;
 		default:

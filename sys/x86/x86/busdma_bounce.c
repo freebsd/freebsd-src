@@ -172,12 +172,35 @@ bounce_bus_dma_tag_create(bus_dma_tag_t parent, bus_size_t alignment,
 	newtag->map_count = 0;
 	newtag->segments = NULL;
 
+	/*
+	 * Bouncing might be needed if there's a filter.
+	 * XXX Filters are likely broken as there's no way to
+	 *     guarantee that bounce pages will also satisfy the
+	 *     filter requirement.
+	 */
 	if (parent != NULL && ((newtag->common.filter != NULL) ||
 	    ((parent->common.flags & BUS_DMA_COULD_BOUNCE) != 0)))
 		newtag->common.flags |= BUS_DMA_COULD_BOUNCE;
 
-	if (newtag->common.lowaddr < ptoa((vm_paddr_t)Maxmem) ||
-	    newtag->common.alignment > 1)
+	/*
+	 * Bouncing might be needed if there's an upper memory
+	 * restriction.
+	 */
+	if (newtag->common.lowaddr < ptoa((vm_paddr_t)Maxmem))
+		newtag->common.flags |= BUS_DMA_COULD_BOUNCE;
+
+	/*
+	 * Bouncing might be needed if there's an alignment
+	 * restriction that can't be satisfied by breaking up
+	 * the segment.
+	 * XXX Need to consider non-natural alignment.
+	 * XXX Static allocations that tie to bus_dmamem_alloc()
+	 *     will likely pass this test and be penalized with
+	 *     the COULD_BOUNCE flag.  Should probably have
+	 *     bus_dmamem_alloc() clear this flag.
+	 */
+	if ((newtag->common.nsegments <= 1) &&
+	    (newtag->common.alignment > 1))
 		newtag->common.flags |= BUS_DMA_COULD_BOUNCE;
 
 	if (((newtag->common.flags & BUS_DMA_COULD_BOUNCE) != 0) &&

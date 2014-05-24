@@ -29,6 +29,8 @@
 #ifndef	_VMM_INSTRUCTION_EMUL_H_
 #define	_VMM_INSTRUCTION_EMUL_H_
 
+enum vm_reg_name;
+
 enum vie_cpu_mode {
 	CPU_MODE_COMPATIBILITY,		/* IA-32E mode (CS.L = 0) */
 	CPU_MODE_64BIT,			/* IA-32E mode (CS.L = 1) */
@@ -111,6 +113,17 @@ int vmm_emulate_instruction(void *vm, int cpuid, uint64_t gpa, struct vie *vie,
 			    mem_region_read_t mrr, mem_region_write_t mrw,
 			    void *mrarg);
 
+int vie_update_register(void *vm, int vcpuid, enum vm_reg_name reg,
+    uint64_t val, int size);
+
+/*
+ * Returns 1 if an alignment check exception should be injected and 0 otherwise.
+ */
+int vie_alignment_check(int cpl, int operand_size, uint64_t cr0,
+    uint64_t rflags, uint64_t gla);
+
+uint64_t vie_size2mask(int size);
+
 #ifdef _KERNEL
 /*
  * APIs to fetch and decode the instruction from nested page fault handler.
@@ -122,7 +135,20 @@ int vmm_fetch_instruction(struct vm *vm, int cpuid,
 			  enum vie_paging_mode paging_mode, int cpl,
 			  struct vie *vie);
 
+/*
+ * Translate the guest linear address 'gla' to a guest physical address.
+ *
+ * Returns 0 on success and '*gpa' contains the result of the translation.
+ * Returns 1 if a page fault exception was injected into the guest.
+ * Returns -1 otherwise.
+ */
+int vmm_gla2gpa(struct vm *vm, int vcpuid, uint64_t gla, uint64_t cr3,
+    uint64_t *gpa, enum vie_paging_mode paging_mode, int cpl, int prot);
+
 void vie_init(struct vie *vie);
+
+uint64_t vie_segbase(enum vm_reg_name segment, enum vie_cpu_mode cpu_mode,
+    const struct seg_desc *desc);
 
 /*
  * Decode the instruction fetched into 'vie' so it can be emulated.
