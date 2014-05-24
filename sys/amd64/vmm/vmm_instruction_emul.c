@@ -52,6 +52,7 @@ __FBSDID("$FreeBSD$");
 #define	KASSERT(exp,msg)	assert((exp))
 #endif	/* _KERNEL */
 
+#include <machine/vmm_instruction_emul.h>
 #include <x86/psl.h>
 #include <x86/specialreg.h>
 
@@ -579,6 +580,25 @@ vie_alignment_check(int cpl, int size, uint64_t cr0, uint64_t rf, uint64_t gla)
 	return ((gla & (size - 1)) ? 1 : 0);
 }
 
+int
+vie_canonical_check(enum vm_cpu_mode cpu_mode, uint64_t gla)
+{
+	uint64_t mask;
+
+	if (cpu_mode != CPU_MODE_64BIT)
+		return (0);
+
+	/*
+	 * The value of the bit 47 in the 'gla' should be replicated in the
+	 * most significant 16 bits.
+	 */
+	mask = ~((1UL << 48) - 1);
+	if (gla & (1UL << 47))
+		return ((gla & mask) != mask);
+	else
+		return ((gla & mask) != 0);
+}
+
 uint64_t
 vie_size2mask(int size)
 {
@@ -637,31 +657,41 @@ ptp_hold(struct vm *vm, vm_paddr_t ptpphys, size_t len, void **cookie)
 }
 
 int
-vmm_gla2gpa(struct vm *vm, int vcpuid, uint64_t gla, uint64_t ptpphys,
-    uint64_t *gpa, enum vie_paging_mode paging_mode, int cpl, int prot)
+vmm_gla2gpa(struct vm *vm, int vcpuid, struct vm_guest_paging *paging,
+    uint64_t gla, int prot, uint64_t *gpa)
 {
 	int nlevels, pfcode, ptpshift, ptpindex, retval, usermode, writable;
 	u_int retries;
-	uint64_t *ptpbase, pte, pgsize;
+	uint64_t *ptpbase, ptpphys, pte, pgsize;
 	uint32_t *ptpbase32, pte32;
 	void *cookie;
 
-	usermode = (cpl == 3 ? 1 : 0);
+	usermode = (paging->cpl == 3 ? 1 : 0);
 	writable = prot & VM_PROT_WRITE;
 	cookie = NULL;
 	retval = 0;
 	retries = 0;
 restart:
+	ptpphys = paging->cr3;		/* root of the page tables */
 	ptp_release(&cookie);
 	if (retries++ > 0)
 		maybe_yield();
 
-	if (paging_mode == PAGING_MODE_FLAT) {
+	if (vie_canonical_check(paging->cpu_mode, gla)) {
+		/*
+		 * XXX assuming a non-stack reference otherwise a stack fault
+		 * should be generated.
+		 */
+		vm_inject_gp(vm, vcpuid);
+		goto fault;
+	}
+
+	if (paging->paging_mode == PAGING_MODE_FLAT) {
 		*gpa = gla;
 		goto done;
 	}
 
-	if (paging_mode == PAGING_MODE_32) {
+	if (paging->paging_mode == PAGING_MODE_32) {
 		nlevels = 2;
 		while (--nlevels >= 0) {
 			/* Zero out the lower 12 bits. */
@@ -684,7 +714,7 @@ restart:
 				pfcode = pf_error_code(usermode, prot, 0,
 				    pte32);
 				vm_inject_pf(vm, vcpuid, pfcode, gla);
-				goto pagefault;
+				goto fault;
 			}
 
 			/*
@@ -722,7 +752,7 @@ restart:
 		goto done;
 	}
 
-	if (paging_mode == PAGING_MODE_PAE) {
+	if (paging->paging_mode == PAGING_MODE_PAE) {
 		/* Zero out the lower 5 bits and the upper 32 bits */
 		ptpphys &= 0xffffffe0UL;
 
@@ -737,7 +767,7 @@ restart:
 		if ((pte & PG_V) == 0) {
 			pfcode = pf_error_code(usermode, prot, 0, pte);
 			vm_inject_pf(vm, vcpuid, pfcode, gla);
-			goto pagefault;
+			goto fault;
 		}
 
 		ptpphys = pte;
@@ -764,7 +794,7 @@ restart:
 		    (writable && (pte & PG_RW) == 0)) {
 			pfcode = pf_error_code(usermode, prot, 0, pte);
 			vm_inject_pf(vm, vcpuid, pfcode, gla);
-			goto pagefault;
+			goto fault;
 		}
 
 		/* Set the accessed bit in the page table entry */
@@ -779,7 +809,7 @@ restart:
 			if (pgsize > 1 * GB) {
 				pfcode = pf_error_code(usermode, prot, 1, pte);
 				vm_inject_pf(vm, vcpuid, pfcode, gla);
-				goto pagefault;
+				goto fault;
 			}
 			break;
 		}
@@ -802,15 +832,14 @@ done:
 error:
 	retval = -1;
 	goto done;
-pagefault:
+fault:
 	retval = 1;
 	goto done;
 }
 
 int
-vmm_fetch_instruction(struct vm *vm, int cpuid, uint64_t rip, int inst_length,
-		      uint64_t cr3, enum vie_paging_mode paging_mode, int cpl,
-		      struct vie *vie)
+vmm_fetch_instruction(struct vm *vm, int cpuid, struct vm_guest_paging *paging,
+    uint64_t rip, int inst_length, struct vie *vie)
 {
 	int n, error, prot;
 	uint64_t gpa, off;
@@ -826,8 +855,7 @@ vmm_fetch_instruction(struct vm *vm, int cpuid, uint64_t rip, int inst_length,
 
 	/* Copy the instruction into 'vie' */
 	while (vie->num_valid < inst_length) {
-		error = vmm_gla2gpa(vm, cpuid, rip, cr3, &gpa, paging_mode,
-		    cpl, prot);
+		error = vmm_gla2gpa(vm, cpuid, paging, rip, prot, &gpa);
 		if (error)
 			return (error);
 
@@ -930,7 +958,7 @@ decode_opcode(struct vie *vie)
 }
 
 static int
-decode_modrm(struct vie *vie, enum vie_cpu_mode cpu_mode)
+decode_modrm(struct vie *vie, enum vm_cpu_mode cpu_mode)
 {
 	uint8_t x;
 
@@ -1210,7 +1238,7 @@ verify_gla(struct vm *vm, int cpuid, uint64_t gla, struct vie *vie)
 
 int
 vmm_decode_instruction(struct vm *vm, int cpuid, uint64_t gla,
-		       enum vie_cpu_mode cpu_mode, struct vie *vie)
+		       enum vm_cpu_mode cpu_mode, struct vie *vie)
 {
 
 	if (cpu_mode == CPU_MODE_64BIT) {
@@ -1245,7 +1273,7 @@ vmm_decode_instruction(struct vm *vm, int cpuid, uint64_t gla,
 }
 
 uint64_t
-vie_segbase(enum vm_reg_name seg, enum vie_cpu_mode cpu_mode,
+vie_segbase(enum vm_reg_name seg, enum vm_cpu_mode cpu_mode,
     const struct seg_desc *desc)
 {
 	int basesize;
