@@ -145,7 +145,7 @@ emulate_inout_str(struct vm *vm, int vcpuid, struct vm_exit *vmexit, bool *retu)
 {
 	struct vm_inout_str *vis;
 	uint64_t gla, index, segbase;
-	int error, in;
+	int in;
 
 	vis = &vmexit->u.inout_str;
 	in = vis->inout.in;
@@ -197,18 +197,8 @@ emulate_inout_str(struct vm *vm, int vcpuid, struct vm_exit *vmexit, bool *retu)
 	}
 	vis->gla = gla;
 
-	error = vmm_gla2gpa(vm, vcpuid, &vis->paging, gla,
-	    in ? VM_PROT_WRITE : VM_PROT_READ, &vis->gpa);
-	KASSERT(error == 0 || error == 1 || error == -1,
-	    ("%s: vmm_gla2gpa unexpected error %d", __func__, error));
-	if (error == -1) {
-		return (EFAULT);
-	} else if (error == 1) {
-		return (0);	/* Resume guest to handle page fault */
-	} else {
-		*retu = true;
-		return (0);	/* Return to userspace to finish emulation */
-	}
+	*retu = true;
+	return (0);	/* Return to userspace to finish emulation */
 }
 
 int
