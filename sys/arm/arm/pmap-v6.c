@@ -464,7 +464,7 @@ static const uint32_t pc_freemask[_NPCM] = {
 static SYSCTL_NODE(_vm, OID_AUTO, pmap, CTLFLAG_RD, 0, "VM/pmap parameters");
 
 /* Superpages utilization enabled = 1 / disabled = 0 */
-static int sp_enabled = 0;
+static int sp_enabled = 1;
 SYSCTL_INT(_vm_pmap, OID_AUTO, sp_enabled, CTLFLAG_RDTUN, &sp_enabled, 0,
     "Are large page mappings enabled?");
 
