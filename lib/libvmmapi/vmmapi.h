@@ -109,6 +109,11 @@ int	vm_set_x2apic_state(struct vmctx *ctx, int vcpu, enum x2apic_state s);
 
 int	vm_get_hpet_capabilities(struct vmctx *ctx, uint32_t *capabilities);
 
+int	vm_copyin(struct vmctx *ctx, int vcpu, struct vm_guest_paging *paging,
+	    uint64_t gla_src, void *dst, size_t len);
+int	vm_copyout(struct vmctx *ctx, int vcpu, struct vm_guest_paging *paging,
+	    const void *src, uint64_t gla_dst, size_t len);
+
 /* Reset vcpu register state */
 int	vcpu_reset(struct vmctx *ctx, int vcpu);
 

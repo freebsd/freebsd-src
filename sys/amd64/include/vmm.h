@@ -427,7 +427,6 @@ struct vm_inout_str {
 	enum vm_reg_name seg_name;
 	struct seg_desc seg_desc;
 	uint64_t	gla;		/* may be set to VIE_INVALID_GLA */
-	uint64_t	gpa;
 };
 
 struct vm_exit {
