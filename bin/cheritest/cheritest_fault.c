@@ -58,17 +58,55 @@
 
 #include "cheritest.h"
 
-void
-test_fault_overrun(void)
-{
 #define	ARRAY_LEN	2
-	char array[ARRAY_LEN];
+static char array[ARRAY_LEN];
+static char sink;
+
+void
+test_fault_bounds(void)
+{
 	__capability char *arrayp = cheri_ptr(array, sizeof(array));
 	int i;
 
 	for (i = 0; i < ARRAY_LEN; i++)
 		arrayp[i] = 0;
 	arrayp[i] = 0;
+}
+
+void
+test_fault_perm_load(void)
+{
+	__capability char *arrayp = cheri_ptrperm(array, sizeof(array), 0);
+
+	sink = arrayp[0];
+}
+
+void
+test_nofault_perm_load(void)
+{
+	__capability char *arrayp = cheri_ptrperm(array, sizeof(array),
+	    CHERI_PERM_LOAD);
+
+	sink = arrayp[0];
+	cheritest_success();
+}
+
+void
+test_fault_perm_store(void)
+{
+	__capability char *arrayp = cheri_ptrperm(array, sizeof(array), 0);
+
+	arrayp[0] = sink;
+}
+
+void
+test_nofault_perm_store(void)
+{
+	__capability char *arrayp = cheri_ptrperm(array, sizeof(array),
+	    CHERI_PERM_STORE);
+
+	arrayp[0] = sink;
+	cheritest_success();
 }
 
 void

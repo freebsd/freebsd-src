@@ -104,8 +104,12 @@ void	test_nofault_ccall_creturn(void);
 void	test_nofault_ccall_nop_creturn(void);
 
 /* cheritest_fault.c */
+void	test_fault_bounds(void);
 void	test_fault_cgetcause(void);
-void	test_fault_overrun(void);
+void	test_fault_perm_load(void);
+void	test_nofault_perm_load(void);
+void	test_fault_perm_store(void);
+void	test_nofault_perm_store(void);
 void	test_fault_tag(void);
 void	test_fault_ccheck_user_fail(void);
 void	test_fault_read_kr1c(void);

@@ -104,14 +104,40 @@ static const struct cheri_test {
 	  .ct_mips_exccode = T_C2E,
 	  .ct_cp2_exccode = CHERI_EXCCODE_ACCESS_EPCC },
 
-	{ .ct_name = "test_fault_overrun",
+	{ .ct_name = "test_fault_bounds",
 	  .ct_desc = "Exercise capability bounds check failure",
-	  .ct_func = test_fault_overrun,
+	  .ct_func = test_fault_bounds,
 	  .ct_flags = CT_FLAG_SIGNAL | CT_FLAG_MIPS_EXCCODE |
 		    CT_FLAG_CP2_EXCCODE,
 	  .ct_signum = SIGPROT,
 	  .ct_mips_exccode = T_C2E,
 	  .ct_cp2_exccode = CHERI_EXCCODE_LENGTH },
+
+	{ .ct_name = "test_fault_perm_load",
+	  .ct_desc = "Exercise capability load permission failure",
+	  .ct_func = test_fault_perm_load,
+	  .ct_flags = CT_FLAG_SIGNAL | CT_FLAG_MIPS_EXCCODE |
+		    CT_FLAG_CP2_EXCCODE,
+	  .ct_signum = SIGPROT,
+	  .ct_mips_exccode = T_C2E,
+	  .ct_cp2_exccode = CHERI_EXCCODE_PERM_LOAD },
+
+	{ .ct_name = "test_nofault_perm_load",
+	  .ct_desc = "Exercise capability load permission success",
+	  .ct_func = test_nofault_perm_load },
+
+	{ .ct_name = "test_fault_perm_store",
+	  .ct_desc = "Exercise capability store permission failure",
+	  .ct_func = test_fault_perm_store,
+	  .ct_flags = CT_FLAG_SIGNAL | CT_FLAG_MIPS_EXCCODE |
+		    CT_FLAG_CP2_EXCCODE,
+	  .ct_signum = SIGPROT,
+	  .ct_mips_exccode = T_C2E,
+	  .ct_cp2_exccode = CHERI_EXCCODE_PERM_STORE },
+
+	{ .ct_name = "test_nofault_perm_store",
+	  .ct_desc = "Exercise capability store permission success",
+	  .ct_func = test_nofault_perm_store },
 
 	{ .ct_name = "test_fault_tag",
 	  .ct_desc = "Store via untagged capability",
