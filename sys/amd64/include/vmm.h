@@ -426,7 +426,6 @@ struct vm_inout_str {
 	int		addrsize;
 	enum vm_reg_name seg_name;
 	struct seg_desc seg_desc;
-	uint64_t	gla;		/* may be set to VIE_INVALID_GLA */
 };
 
 struct vm_exit {

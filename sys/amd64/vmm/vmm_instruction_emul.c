@@ -607,6 +607,38 @@ vie_size2mask(int size)
 	return (size2mask[size]);
 }
 
+int
+vie_calculate_gla(enum vm_cpu_mode cpu_mode, int addrsize, enum vm_reg_name seg,
+    struct seg_desc *desc, uint64_t offset, uint64_t *gla)
+{
+	uint64_t segbase;
+	int glasize;
+
+	KASSERT(seg >= VM_REG_GUEST_ES && seg <= VM_REG_GUEST_GS,
+	    ("%s: invalid segment %d", __func__, seg));
+
+	glasize = (cpu_mode == CPU_MODE_64BIT) ? 8 : 4;
+
+	/*
+	 * In 64-bit mode all segments except %fs and %gs have a segment
+	 * base address of 0.
+	 */
+	if (cpu_mode == CPU_MODE_64BIT && seg != VM_REG_GUEST_FS &&
+	    seg != VM_REG_GUEST_GS) {
+		segbase = 0;
+	} else {
+		segbase = desc->base;
+	}
+
+	/*
+	 * Truncate 'offset' to the effective address size before adding
+	 * it to the segment base.
+	 */
+	offset &= vie_size2mask(addrsize);
+	*gla = (segbase + offset) & vie_size2mask(glasize);
+	return (0);
+}
+
 #ifdef _KERNEL
 void
 vie_init(struct vie *vie)
@@ -1270,43 +1302,5 @@ vmm_decode_instruction(struct vm *vm, int cpuid, uint64_t gla,
 	vie->decoded = 1;	/* success */
 
 	return (0);
-}
-
-uint64_t
-vie_segbase(enum vm_reg_name seg, enum vm_cpu_mode cpu_mode,
-    const struct seg_desc *desc)
-{
-	int basesize;
-
-	basesize = 4;	/* default segment width in bytes */
-
-	switch (seg) {
-	case VM_REG_GUEST_ES:
-	case VM_REG_GUEST_CS:
-	case VM_REG_GUEST_SS:
-	case VM_REG_GUEST_DS:
-		if (cpu_mode == CPU_MODE_64BIT) {
-			/*
-			 * Segments having an implicit base address of 0
-			 * in 64-bit mode.
-			 */
-			return (0);
-		}
-		break;
-	case VM_REG_GUEST_FS:
-	case VM_REG_GUEST_GS:
-		if (cpu_mode == CPU_MODE_64BIT) {
-			/*
-			 * In 64-bit mode the FS and GS base address is 8 bytes
-			 * wide.
-			 */
-			basesize = 8;
-		}
-		break;
-	default:
-		panic("%s: invalid segment register %d", __func__, seg);
-	}
-
-	return (desc->base & size2mask[basesize]);
 }
 #endif	/* _KERNEL */
