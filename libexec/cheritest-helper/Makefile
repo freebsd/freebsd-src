@@ -15,7 +15,7 @@ DPADD=	${LIBMD} ${LIBC_CHERI}
 LDADD=	-lmd -lc_cheri
 
 USE_CHERI=	yes
-#USE_CHERI_STACK=	yes
+USE_CHERI_STACK=	yes
 
 NO_SHARED=	yes
 
