@@ -38,11 +38,11 @@ MAN=		atf-check.1
 
 CFLAGS+=	-I${ATF}
 
-DPADD+=		${LIBATF_CXX} ${LIBATF_C}
-
 LDFLAGS+=	-L${.OBJDIR}/../../../lib/atf/libatf-c++
 LDFLAGS+=	-L${.OBJDIR}/../../../lib/atf/libatf-c
+DPADD+=		${LIBATF_CXX} ${LIBATF_C}
 LDADD+=		-latf-c++ -latf-c
+USEPRIVATELIB=	atf-c++ atf-c
 
 .if ${MK_TESTS} != "no"
 SUBDIR+=	tests
