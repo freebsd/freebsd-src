@@ -391,13 +391,6 @@ void	arm11_tlb_flushD_SE	(u_int va);
 
 void	arm11_drain_writebuf	(void);
 
-void	pj4b_setttb			(u_int);
-
-void	pj4b_drain_readbuf		(void);
-void	pj4b_flush_brnchtgt_all		(void);
-void	pj4b_flush_brnchtgt_va		(u_int);
-void	pj4b_sleep			(int);
-
 void	armv6_icache_sync_all		(void);
 void	armv6_icache_sync_range		(vm_offset_t, vm_size_t);
 
@@ -431,8 +424,6 @@ void	armv7_sleep			(int unused);
 u_int	armv7_auxctrl			(u_int, u_int);
 void	pj4bv7_setup			(char *string);
 void	pj4b_config			(void);
-
-int	get_core_id			(void);
 
 void	armadaxp_idcache_wbinv_all	(void);
 
