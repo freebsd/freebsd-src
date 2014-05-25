@@ -1,4 +1,4 @@
-MANIFEST for byacc-20140409, version t20140409
+MANIFEST for byacc-20140422, version t20140422
 --------------------------------------------------------------------------------
 MANIFEST                        this file
 ACKNOWLEDGEMENTS                original version of byacc - 1993
@@ -6,8 +6,6 @@ AUTHORS                         nicknames for some contributors (see CHANGES for
 Makefile.old                    renamed from Makefile
 NEW_FEATURES                    original version of byacc - 1993
 NOTES                           original version of byacc - 1993
-NOTES-btyacc-Changes            byacc-btyacc-20140323
-NOTES-btyacc-Disposition        byacc-btyacc-20140323
 NO_WARRANTY                     original version of byacc - 1993
 README                          original version of byacc - 1993
 README.BTYACC                   byacc-btyacc-20140323
