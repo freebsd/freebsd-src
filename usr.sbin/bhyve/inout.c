@@ -147,15 +147,25 @@ emulate_inout(struct vmctx *ctx, int vcpu, struct vm_exit *vmexit, int strict)
 		/* Count register */
 		count = vis->count & vie_size2mask(addrsize);
 
-		if (vie_alignment_check(vis->paging.cpl, bytes, vis->cr0,
-		    vis->rflags, vis->gla)) {
-			error = vm_inject_exception2(ctx, vcpu, IDT_AC, 0);
-			assert(error == 0);
-			return (INOUT_RESTART);
-		}
-
-		gla = vis->gla;
 		while (count) {
+			if (vie_calculate_gla(vis->paging.cpu_mode,
+			    vis->addrsize, vis->seg_name, &vis->seg_desc,
+			    index, &gla)) {
+				error = vm_inject_exception2(ctx, vcpu,
+				    IDT_GP, 0);
+				assert(error == 0);
+				return (INOUT_RESTART);
+			}
+
+			if (vie_alignment_check(vis->paging.cpl, bytes,
+			    vis->cr0, vis->rflags, gla)) {
+				error = vm_inject_exception2(ctx, vcpu,
+				    IDT_AC, 0);
+				assert(error == 0);
+				return (INOUT_RESTART);
+			}
+
+
 			val = 0;
 			if (!in) {
 				error = vm_copyin(ctx, vcpu, &vis->paging,
@@ -190,7 +200,6 @@ emulate_inout(struct vmctx *ctx, int vcpu, struct vm_exit *vmexit, int strict)
 				index += bytes;
 
 			count--;
-			gla += bytes;
 		}
 
 		/* Update index register */

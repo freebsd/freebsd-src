@@ -2012,7 +2012,6 @@ vmx_exit_process(struct vmx *vmx, int vcpu, struct vm_exit *vmexit)
 			vis->count = inout_str_count(vmx, vcpu, vis->inout.rep);
 			vis->addrsize = inout_str_addrsize(inst_info);
 			inout_str_seginfo(vmx, vcpu, inst_info, in, vis);
-			vis->gla = vmcs_gla();
 		}
 		break;
 	case EXIT_REASON_CPUID:
