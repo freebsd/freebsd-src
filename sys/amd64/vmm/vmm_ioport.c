@@ -173,14 +173,6 @@ emulate_inout_str(struct vm *vm, int vcpuid, struct vm_exit *vmexit, bool *retu)
 		return (EINVAL);
 	}
 
-	/*
-	 * XXX insb/insw/insd instructions not emulated at this time.
-	 */
-	if (in) {
-		VCPU_CTR0(vm, vcpuid, "ins emulation not implemented");
-		return (EINVAL);
-	}
-
 	*retu = true;
 	return (0);	/* Return to userspace to finish emulation */
 }
