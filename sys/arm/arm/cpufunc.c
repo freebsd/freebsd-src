@@ -369,13 +369,13 @@ struct cpu_functions pj4bv7_cpufuncs = {
 	/* CPU functions */
 
 	cpufunc_id,			/* id			*/
-	arm11_drain_writebuf,		/* cpwait		*/
+	armv7_drain_writebuf,		/* cpwait		*/
 
 	/* MMU functions */
 
 	cpufunc_control,		/* control		*/
 	cpufunc_domains,		/* Domain		*/
-	pj4b_setttb,			/* Setttb		*/
+	armv7_setttb,			/* Setttb		*/
 	cpufunc_faultstatus,		/* Faultstatus		*/
 	cpufunc_faultaddress,		/* Faultaddress		*/
 
@@ -409,10 +409,10 @@ struct cpu_functions pj4bv7_cpufuncs = {
 
 	/* Other functions */
 
-	pj4b_drain_readbuf,		/* flush_prefetchbuf	*/
-	arm11_drain_writebuf,		/* drain_writebuf	*/
-	pj4b_flush_brnchtgt_all,	/* flush_brnchtgt_C	*/
-	pj4b_flush_brnchtgt_va,		/* flush_brnchtgt_E	*/
+	cpufunc_nullop,			/* flush_prefetchbuf	*/
+	armv7_drain_writebuf,		/* drain_writebuf	*/
+	cpufunc_nullop,			/* flush_brnchtgt_C	*/
+	(void *)cpufunc_nullop,		/* flush_brnchtgt_E	*/
 
 	(void *)cpufunc_nullop,		/* sleep		*/
 
@@ -421,7 +421,7 @@ struct cpu_functions pj4bv7_cpufuncs = {
 	cpufunc_null_fixup,		/* dataabt_fixup	*/
 	cpufunc_null_fixup,		/* prefetchabt_fixup	*/
 
-	arm11_context_switch,		/* context_switch	*/
+	armv7_context_switch,		/* context_switch	*/
 
 	pj4bv7_setup			/* cpu setup		*/
 };
