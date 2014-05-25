@@ -67,6 +67,9 @@ int vie_canonical_check(enum vm_cpu_mode cpu_mode, uint64_t gla);
 
 uint64_t vie_size2mask(int size);
 
+int vie_calculate_gla(enum vm_cpu_mode cpu_mode, int addrsize,
+    enum vm_reg_name seg, struct seg_desc *desc, uint64_t off, uint64_t *gla);
+
 #ifdef _KERNEL
 /*
  * APIs to fetch and decode the instruction from nested page fault handler.
@@ -88,9 +91,6 @@ int vmm_gla2gpa(struct vm *vm, int vcpuid, struct vm_guest_paging *paging,
     uint64_t gla, int prot, uint64_t *gpa);
 
 void vie_init(struct vie *vie);
-
-uint64_t vie_segbase(enum vm_reg_name segment, enum vm_cpu_mode cpu_mode,
-    const struct seg_desc *desc);
 
 /*
  * Decode the instruction fetched into 'vie' so it can be emulated.

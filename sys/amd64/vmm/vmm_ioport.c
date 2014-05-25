@@ -144,7 +144,6 @@ static int
 emulate_inout_str(struct vm *vm, int vcpuid, struct vm_exit *vmexit, bool *retu)
 {
 	struct vm_inout_str *vis;
-	uint64_t gla, index, segbase;
 	int in;
 
 	vis = &vmexit->u.inout_str;
@@ -181,21 +180,6 @@ emulate_inout_str(struct vm *vm, int vcpuid, struct vm_exit *vmexit, bool *retu)
 		VCPU_CTR0(vm, vcpuid, "ins emulation not implemented");
 		return (EINVAL);
 	}
-
-	segbase = vie_segbase(vis->seg_name, vis->paging.cpu_mode,
-	    &vis->seg_desc);
-	index = vis->index & vie_size2mask(vis->addrsize);
-	gla = segbase + index;
-
-	/*
-	 * Verify that the computed linear address matches with the one
-	 * provided by hardware.
-	 */
-	if (vis->gla != VIE_INVALID_GLA) {
-		KASSERT(gla == vis->gla, ("%s: gla mismatch "
-		    "%#lx/%#lx", __func__, gla, vis->gla));
-	}
-	vis->gla = gla;
 
 	*retu = true;
 	return (0);	/* Return to userspace to finish emulation */
