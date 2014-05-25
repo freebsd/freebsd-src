@@ -4103,7 +4103,34 @@ OLD_FILES+=usr/share/man/man8/telnetd.8.gz
 .endif
 
 .if ${MK_TESTS} == yes
+OLD_LIBS+=usr/lib/libatf-c++.a
+OLD_LIBS+=usr/lib/libatf-c++.so
 OLD_LIBS+=usr/lib/libatf-c++.so.1
+OLD_LIBS+=usr/lib/libatf-c++.so.2
+OLD_LIBS+=usr/lib/libatf-c++_p.a
+OLD_LIBS+=usr/lib/libatf-c.a
+OLD_LIBS+=usr/lib/libatf-c.so
+OLD_LIBS+=usr/lib/libatf-c.so.1
+OLD_LIBS+=usr/lib/libatf-c_p.a
+.if ${TARGET_ARCH} == "amd64" || ${TARGET_ARCH} == "powerpc64"
+OLD_LIBS+=usr/lib32/libatf-c++.a
+OLD_LIBS+=usr/lib32/libatf-c++.so
+OLD_LIBS+=usr/lib32/libatf-c++.so.1
+OLD_LIBS+=usr/lib32/libatf-c++.so.2
+OLD_LIBS+=usr/lib32/libatf-c++_p.a
+OLD_LIBS+=usr/lib32/libatf-c.a
+OLD_LIBS+=usr/lib32/libatf-c.so
+OLD_LIBS+=usr/lib32/libatf-c.so.1
+OLD_LIBS+=usr/lib32/libatf-c_p.a
+.endif
+OLD_FILES+=usr/libdata/pkgconfig/atf-c++.pc
+OLD_FILES+=usr/libdata/pkgconfig/atf-c.pc
+OLD_FILES+=usr/libdata/pkgconfig/atf-sh.pc
+OLD_FILES+=usr/share/aclocal/atf-c++.m4
+OLD_FILES+=usr/share/aclocal/atf-c.m4
+OLD_FILES+=usr/share/aclocal/atf-common.m4
+OLD_FILES+=usr/share/aclocal/atf-sh.m4
+OLD_DIRS+=usr/share/aclocal
 OLD_FILES+=usr/tests/lib/atf/libatf-c/test_helpers_test
 OLD_FILES+=usr/tests/lib/atf/test-programs/fork_test
 OLD_FILES+=usr/tests/lib/atf/libatf-c++/application_test
@@ -4117,6 +4144,7 @@ OLD_FILES+=usr/tests/lib/atf/libatf-c++/fs_test
 OLD_FILES+=usr/tests/lib/atf/libatf-c++/parser_test
 OLD_FILES+=usr/tests/lib/atf/libatf-c++/process_test
 OLD_FILES+=usr/tests/lib/atf/libatf-c++/sanity_test
+OLD_FILES+=usr/tests/lib/atf/libatf-c++/pkg_config_test
 OLD_FILES+=usr/tests/lib/atf/libatf-c++/text_test
 OLD_FILES+=usr/tests/lib/atf/libatf-c++/ui_test
 OLD_FILES+=usr/tests/lib/atf/libatf-c/dynstr_test
@@ -4124,6 +4152,7 @@ OLD_FILES+=usr/tests/lib/atf/libatf-c/env_test
 OLD_FILES+=usr/tests/lib/atf/libatf-c/fs_test
 OLD_FILES+=usr/tests/lib/atf/libatf-c/list_test
 OLD_FILES+=usr/tests/lib/atf/libatf-c/map_test
+OLD_FILES+=usr/tests/lib/atf/libatf-c/pkg_config_test
 OLD_FILES+=usr/tests/lib/atf/libatf-c/process_helpers
 OLD_FILES+=usr/tests/lib/atf/libatf-c/process_test
 OLD_FILES+=usr/tests/lib/atf/libatf-c/sanity_test
