@@ -45,7 +45,7 @@ depending on the options for the information presented.
 .It Xo
 .Bk -words
 .Nm
-.Op Fl 46AaLnSTWx
+.Op Fl 46AaLnSTWxR
 .Op Fl f Ar protocol_family | Fl p Ar protocol
 .Op Fl M Ar core
 .Op Fl N Ar system
@@ -84,6 +84,9 @@ but show ports symbolically.
 If
 .Fl x
 is present, display socket buffer and tcp timer statistics for each internet socket.
+If
+.Fl R
+is present, display the flowid and flowtype for each internet socket.
 When
 .Fl T
 is present, display information from the TCP control block, including
@@ -367,6 +370,11 @@ and display them symbolically.
 .It Fl W
 In certain displays, avoid truncating addresses even if this causes
 some fields to overflow.
+.It Fl R
+Display the flowid and flowtype for each socket.
+flowid is a 32 bit hardware specific identifier for each flow.
+flowtype defines which protocol fields are hashed to produce the id.
+A complete listing is available in sys/mbuf.h under M_HASHTYPE_*
 .El
 .Pp
 The default display, for active sockets, shows the local
