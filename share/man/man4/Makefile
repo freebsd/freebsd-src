@@ -529,6 +529,7 @@ MAN=	aac.4 \
 	vlan.4 \
 	vpo.4 \
 	vr.4 \
+	vt.4 \
 	vte.4 \
 	${_vtnet.4} \
 	${_vxge.4} \
