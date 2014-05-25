@@ -40,19 +40,27 @@
 #define	SOTG_DEVICE_PORT_NUM 2
 #define	SOTG_HOST_CHANNEL_MAX (3 * 32)
 
-#define	SAF1761_READ_1(sc, reg)	\
-  bus_space_read_1((sc)->sc_io_tag, (sc)->sc_io_hdl, reg)
-#define	SAF1761_READ_2(sc, reg)	\
-  bus_space_read_2((sc)->sc_io_tag, (sc)->sc_io_hdl, reg)
-#define	SAF1761_READ_4(sc, reg)	\
-  bus_space_read_4((sc)->sc_io_tag, (sc)->sc_io_hdl, reg)
+/* Macros used for reading and writing registers */
+
+#define	SAF1761_READ_1(sc, reg) \
+  bus_space_read_1((sc)->sc_io_tag, (sc)->sc_io_hdl, (reg))
+#define	SAF1761_READ_2(sc, reg)	({ uint16_t _temp; \
+  _temp = bus_space_read_2((sc)->sc_io_tag, (sc)->sc_io_hdl, (reg)); \
+  le16toh(_temp); })
+#define	SAF1761_READ_4(sc, reg)	({ uint32_t _temp; \
+  _temp = bus_space_read_4((sc)->sc_io_tag, (sc)->sc_io_hdl, (reg)); \
+  le32toh(_temp); })
 
 #define	SAF1761_WRITE_1(sc, reg, data)	\
-  bus_space_write_1((sc)->sc_io_tag, (sc)->sc_io_hdl, reg, data)
-#define	SAF1761_WRITE_2(sc, reg, data)	\
-  bus_space_write_2((sc)->sc_io_tag, (sc)->sc_io_hdl, reg, data)
-#define	SAF1761_WRITE_4(sc, reg, data)	\
-  bus_space_write_4((sc)->sc_io_tag, (sc)->sc_io_hdl, reg, data)
+  bus_space_write_1((sc)->sc_io_tag, (sc)->sc_io_hdl, (reg), data)
+#define	SAF1761_WRITE_2(sc, reg, data)	do { \
+  uint16_t _temp = (data); \
+  bus_space_write_2((sc)->sc_io_tag, (sc)->sc_io_hdl, (reg), htole16(_temp)); \
+} while (0)
+#define	SAF1761_WRITE_4(sc, reg, data)	do { \
+  uint32_t _temp = (data); \
+  bus_space_write_4((sc)->sc_io_tag, (sc)->sc_io_hdl, (reg), htole32(_temp)); \
+} while (0)
 
 struct saf1761_otg_softc;
 struct saf1761_otg_td;
