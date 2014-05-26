@@ -33,6 +33,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 #include <sys/ioctl.h>
 #include <sys/mman.h>
+#include <sys/_iovec.h>
 
 #include <machine/specialreg.h>
 #include <machine/param.h>
@@ -940,7 +941,7 @@ vm_get_hpet_capabilities(struct vmctx *ctx, uint32_t *capabilities)
 }
 
 static int
-vm_gla2gpa(struct vmctx *ctx, int vcpu, struct vm_guest_paging *paging,
+gla2gpa(struct vmctx *ctx, int vcpu, struct vm_guest_paging *paging,
     uint64_t gla, int prot, int *fault, uint64_t *gpa)
 {
 	struct vm_gla2gpa gg;
@@ -965,18 +966,20 @@ vm_gla2gpa(struct vmctx *ctx, int vcpu, struct vm_guest_paging *paging,
 #endif
 
 int
-vm_copyin(struct vmctx *ctx, int vcpu, struct vm_guest_paging *paging,
-    uint64_t gla, void *vp, size_t len)
+vm_gla2gpa(struct vmctx *ctx, int vcpu, struct vm_guest_paging *paging,
+    uint64_t gla, size_t len, int prot, struct iovec *iov, int iovcnt)
 {
-	char *dst;
-	const char *src;
 	uint64_t gpa;
-	int error, fault, n, off;
+	int error, fault, i, n, off;
 
-	dst = vp;
+	for (i = 0; i < iovcnt; i++) {
+		iov[i].iov_base = 0;
+		iov[i].iov_len = 0;
+	}
+
 	while (len) {
-		error = vm_gla2gpa(ctx, vcpu, paging, gla, PROT_READ,
-		    &fault, &gpa);
+		assert(iovcnt > 0);
+		error = gla2gpa(ctx, vcpu, paging, gla, prot, &fault, &gpa);
 		if (error)
 			return (-1);
 		if (fault)
@@ -984,42 +987,59 @@ vm_copyin(struct vmctx *ctx, int vcpu, struct vm_guest_paging *paging,
 
 		off = gpa & PAGE_MASK;
 		n = min(len, PAGE_SIZE - off);
-		src = vm_map_gpa(ctx, gpa, n);
-		bcopy(src, dst, n);
+
+		iov->iov_base = (void *)gpa;
+		iov->iov_len = n;
+		iov++;
+		iovcnt--;
 
 		gla += n;
-		dst += n;
 		len -= n;
 	}
 	return (0);
 }
 
-int
-vm_copyout(struct vmctx *ctx, int vcpu, struct vm_guest_paging *paging,
-    const void *vp, uint64_t gla, size_t len)
+void
+vm_copyin(struct vmctx *ctx, int vcpu, struct iovec *iov, void *vp, size_t len)
 {
-	uint64_t gpa;
-	char *dst;
 	const char *src;
-	int error, fault, n, off;
+	char *dst;
+	uint64_t gpa;
+	size_t n;
+
+	dst = vp;
+	while (len) {
+		assert(iov->iov_len);
+		gpa = (uint64_t)iov->iov_base;
+		n = min(len, iov->iov_len);
+		src = vm_map_gpa(ctx, gpa, n);
+		bcopy(src, dst, n);
+
+		iov++;
+		dst += n;
+		len -= n;
+	}
+}
+
+void
+vm_copyout(struct vmctx *ctx, int vcpu, const void *vp, struct iovec *iov,
+    size_t len)
+{
+	const char *src;
+	char *dst;
+	uint64_t gpa;
+	size_t n;
 
 	src = vp;
 	while (len) {
-		error = vm_gla2gpa(ctx, vcpu, paging, gla, PROT_WRITE,
-		    &fault, &gpa);
-		if (error)
-			return (-1);
-		if (fault)
-			return (1);
-
-		off = gpa & PAGE_MASK;
-		n = min(len, PAGE_SIZE - off);
+		assert(iov->iov_len);
+		gpa = (uint64_t)iov->iov_base;
+		n = min(len, iov->iov_len);
 		dst = vm_map_gpa(ctx, gpa, n);
 		bcopy(src, dst, n);
 
-		gla += n;
+		iov++;
 		src += n;
 		len -= n;
 	}
-	return (0);
 }
