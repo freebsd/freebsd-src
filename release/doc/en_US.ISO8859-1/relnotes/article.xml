@@ -315,6 +315,11 @@
       has been changed tox
       <literal>&dollar;2b&dollar;</literal>.</para>
 
+    <para revision="266209">The &man.pmcstat.8; utility has been
+      updated to include a new flag, <literal>-l</literal>, which
+      adds event collection after the specified number of
+      seconds.</para>
+
     <sect3 xml:id="rc-scripts">
       <title><filename>/etc/rc.d</filename> Scripts</title>
 
@@ -342,7 +347,7 @@
       version 3.5.0.</para>
 
     <para revision="261197" role="merged"><application>Sendmail</application>
-      has been updated from 8.14.7 to 8.14.8.</para>
+      has been updated from 8.14.7 to 8.14.9.</para>
 
     <para revision="261212"><application>bmake</application> has been
       updated to version 20140101.</para>

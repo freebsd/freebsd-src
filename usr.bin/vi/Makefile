@@ -36,7 +36,7 @@ CFLAGS+=-I${.CURDIR} -I${SRCDIR} -I${SRCDIR}/regex
 DPADD=		${LIBUTIL}
 LDADD=		-lutil
 
-.if defined(RESCUE) || defined(RELEASE_CRUNCH) || ${MK_NCURSESW} == "no"
+.if defined(RESCUE) || defined(RELEASE_CRUNCH)
 DPADD+=		${LIBNCURSES}
 LDADD+=		-lncurses
 .else

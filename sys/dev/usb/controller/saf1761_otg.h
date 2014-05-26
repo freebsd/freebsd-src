@@ -29,51 +29,71 @@
  * SUCH DAMAGE.
  */
 
-#ifndef _SAF1761_DCI_H_
-#define	_SAF1761_DCI_H_
+#ifndef _SAF1761_OTG_H_
+#define	_SAF1761_OTG_H_
 
 #define	SOTG_MAX_DEVICES (USB_MIN_DEVICES + 1)
 #define	SOTG_FS_MAX_PACKET_SIZE 64
 #define	SOTG_HS_MAX_PACKET_SIZE 512
+#define	SOTG_NUM_PORTS 2	/* one Device and one Host port */
+#define	SOTG_HOST_PORT_NUM 1
+#define	SOTG_DEVICE_PORT_NUM 2
+#define	SOTG_HOST_CHANNEL_MAX (3 * 32)
 
-#define	SAF1761_READ_1(sc, reg)	\
-  bus_space_read_1((sc)->sc_io_tag, (sc)->sc_io_hdl, reg)
-#define	SAF1761_READ_2(sc, reg)	\
-  bus_space_read_2((sc)->sc_io_tag, (sc)->sc_io_hdl, reg)
-#define	SAF1761_READ_4(sc, reg)	\
-  bus_space_read_4((sc)->sc_io_tag, (sc)->sc_io_hdl, reg)
+/* Macros used for reading and writing registers */
+
+#define	SAF1761_READ_1(sc, reg) \
+  bus_space_read_1((sc)->sc_io_tag, (sc)->sc_io_hdl, (reg))
+#define	SAF1761_READ_2(sc, reg)	({ uint16_t _temp; \
+  _temp = bus_space_read_2((sc)->sc_io_tag, (sc)->sc_io_hdl, (reg)); \
+  le16toh(_temp); })
+#define	SAF1761_READ_4(sc, reg)	({ uint32_t _temp; \
+  _temp = bus_space_read_4((sc)->sc_io_tag, (sc)->sc_io_hdl, (reg)); \
+  le32toh(_temp); })
 
 #define	SAF1761_WRITE_1(sc, reg, data)	\
-  bus_space_write_1((sc)->sc_io_tag, (sc)->sc_io_hdl, reg, data)
-#define	SAF1761_WRITE_2(sc, reg, data)	\
-  bus_space_write_2((sc)->sc_io_tag, (sc)->sc_io_hdl, reg, data)
-#define	SAF1761_WRITE_4(sc, reg, data)	\
-  bus_space_write_4((sc)->sc_io_tag, (sc)->sc_io_hdl, reg, data)
+  bus_space_write_1((sc)->sc_io_tag, (sc)->sc_io_hdl, (reg), data)
+#define	SAF1761_WRITE_2(sc, reg, data)	do { \
+  uint16_t _temp = (data); \
+  bus_space_write_2((sc)->sc_io_tag, (sc)->sc_io_hdl, (reg), htole16(_temp)); \
+} while (0)
+#define	SAF1761_WRITE_4(sc, reg, data)	do { \
+  uint32_t _temp = (data); \
+  bus_space_write_4((sc)->sc_io_tag, (sc)->sc_io_hdl, (reg), htole32(_temp)); \
+} while (0)
 
-struct saf1761_dci_softc;
-struct saf1761_dci_td;
+struct saf1761_otg_softc;
+struct saf1761_otg_td;
 
-typedef uint8_t (saf1761_dci_cmd_t)(struct saf1761_dci_softc *, struct saf1761_dci_td *td);
+typedef uint8_t (saf1761_otg_cmd_t)(struct saf1761_otg_softc *, struct saf1761_otg_td *td);
 
-struct saf1761_dci_td {
-	struct saf1761_dci_td *obj_next;
-	saf1761_dci_cmd_t *func;
+struct saf1761_otg_td {
+	struct saf1761_otg_td *obj_next;
+	saf1761_otg_cmd_t *func;
 	struct usb_page_cache *pc;
 	uint32_t offset;
 	uint32_t remainder;
+	uint32_t dw1_value;
 	uint16_t max_packet_size;
 	uint8_t	ep_index;
-	uint8_t	error:1;
+	uint8_t ep_type;
+	uint8_t channel;
+	uint8_t uframe;
+	uint8_t interval;
+	uint8_t	error_any:1;
+	uint8_t	error_stall:1;
 	uint8_t	alt_next:1;
 	uint8_t	short_pkt:1;
 	uint8_t	did_stall:1;
+	uint8_t	toggle:1;
+	uint8_t	set_toggle:1;
 };
 
-struct saf1761_dci_std_temp {
-	saf1761_dci_cmd_t *func;
+struct saf1761_otg_std_temp {
+	saf1761_otg_cmd_t *func;
 	struct usb_page_cache *pc;
-	struct saf1761_dci_td *td;
-	struct saf1761_dci_td *td_next;
+	struct saf1761_otg_td *td;
+	struct saf1761_otg_td *td_next;
 	uint32_t len;
 	uint32_t offset;
 	uint16_t max_frame_size;
@@ -86,18 +106,18 @@ struct saf1761_dci_std_temp {
 	uint8_t	did_stall;
 };
 
-struct saf1761_dci_config_desc {
+struct saf1761_otg_config_desc {
 	struct usb_config_descriptor confd;
 	struct usb_interface_descriptor ifcd;
 	struct usb_endpoint_descriptor endpd;
 } __packed;
 
-union saf1761_dci_hub_temp {
+union saf1761_otg_hub_temp {
 	uWord	wValue;
 	struct usb_port_status ps;
 };
 
-struct saf1761_dci_flags {
+struct saf1761_otg_flags {
 	uint8_t	change_connect:1;
 	uint8_t	change_suspend:1;
 	uint8_t	status_suspend:1;	/* set if suspended */
@@ -107,12 +127,11 @@ struct saf1761_dci_flags {
 	uint8_t	port_powered:1;
 	uint8_t	port_enabled:1;
 	uint8_t	d_pulled_up:1;
-	uint8_t	mcsr_feat:1;
 };
 
-struct saf1761_dci_softc {
+struct saf1761_otg_softc {
 	struct usb_bus sc_bus;
-	union saf1761_dci_hub_temp sc_hub_temp;
+	union saf1761_otg_hub_temp sc_hub_temp;
 
 	struct usb_device *sc_devices[SOTG_MAX_DEVICES];
 	struct resource *sc_io_res;
@@ -122,21 +141,27 @@ struct saf1761_dci_softc {
 	bus_space_tag_t sc_io_tag;
 	bus_space_handle_t sc_io_hdl;
 
+	uint32_t sc_host_async_map;
+	uint32_t sc_host_intr_map;
+	uint32_t sc_host_isoc_map;
 	uint32_t sc_intr_enable;	/* enabled interrupts */
+	uint32_t sc_hw_mode;		/* hardware mode */
 
+	uint8_t sc_bounce_buffer[1024] __aligned(4);
 	uint8_t	sc_rt_addr;		/* root HUB address */
 	uint8_t	sc_dv_addr;		/* device address */
 	uint8_t	sc_conf;		/* root HUB config */
+	uint8_t sc_isreset;		/* host mode */
 
 	uint8_t	sc_hub_idata[1];
 
-	struct saf1761_dci_flags sc_flags;
+	struct saf1761_otg_flags sc_flags;
 };
 
 /* prototypes */
 
-usb_error_t saf1761_dci_init(struct saf1761_dci_softc *sc);
-void	saf1761_dci_uninit(struct saf1761_dci_softc *sc);
-void	saf1761_dci_interrupt(struct saf1761_dci_softc *sc);
+usb_error_t saf1761_otg_init(struct saf1761_otg_softc *sc);
+void	saf1761_otg_uninit(struct saf1761_otg_softc *sc);
+void	saf1761_otg_interrupt(struct saf1761_otg_softc *sc);
 
-#endif					/* _SAF1761_DCI_H_ */
+#endif					/* _SAF1761_OTG_H_ */

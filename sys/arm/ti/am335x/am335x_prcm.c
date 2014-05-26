@@ -190,7 +190,7 @@ static int am335x_clk_pruss_activate(struct ti_clock_dev *clkdev);
 		.clk_get_source_freq = am335x_clk_hsmmc_get_source_freq \
 	}
 
-struct ti_clock_dev ti_clk_devmap[] = {
+struct ti_clock_dev ti_am335x_clk_devmap[] = {
 	/* System clocks */
 	{	.id                  = SYS_CLK,
 		.clk_activate        = NULL,

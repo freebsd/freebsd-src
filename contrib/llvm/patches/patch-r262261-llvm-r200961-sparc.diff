@@ -2,7 +2,7 @@ Pull in r200961 from upstream llvm trunk (by Venkatraman Govindaraju):
 
   [Sparc] Emit correct relocations for PIC code when integrated assembler is used.
 
-Introduced here: http://svn.freebsd.org/changeset/base/262261
+Introduced here: http://svnweb.freebsd.org/changeset/base/262261
 
 Index: test/CodeGen/SPARC/obj-relocs.ll
 ===================================================================

@@ -142,7 +142,7 @@ const struct ti_scm_padstate ti_padstate_devmap[] = {
 /*
  * Table 18-10, p. 3470
  */
-const struct ti_scm_padconf ti_padconf_devmap[] = {
+const static struct ti_scm_padconf ti_padconf_devmap[] = {
 	_PINDEF(0x0040,  "c12",   0, 0, "gpmc_ad0", "sdmmc2_dat0", NULL, NULL, NULL, NULL, NULL, NULL),
 	_PINDEF(0x0042,  "d12",   0, 0, "gpmc_ad1", "sdmmc2_dat1", NULL, NULL, NULL, NULL, NULL, NULL),
 	_PINDEF(0x0044,  "c13",   0, 0, "gpmc_ad2", "sdmmc2_dat2", NULL, NULL, NULL, NULL, NULL, NULL),

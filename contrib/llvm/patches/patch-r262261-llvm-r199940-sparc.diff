@@ -4,7 +4,7 @@ Pull in r199940 from upstream llvm trunk (by Eric Christopher):
   code this looks correct, but could use review. The previous
   was definitely not correct.
 
-Introduced here: http://svn.freebsd.org/changeset/base/262261
+Introduced here: http://svnweb.freebsd.org/changeset/base/262261
 
 Index: lib/Target/Sparc/AsmParser/SparcAsmParser.cpp
 ===================================================================

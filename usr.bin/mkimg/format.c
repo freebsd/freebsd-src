@@ -1,11 +1,6 @@
-/* $FreeBSD$ */
 /*-
- * Copyright (c) 2014 Hans Petter Selasky <hselasky@FreeBSD.org>
+ * Copyright (c) 2014 Juniper Networks, Inc.
  * All rights reserved.
- *
- * This software was developed by SRI International and the University of
- * Cambridge Computer Laboratory under DARPA/AFRL contract (FA8750-10-C-0237)
- * ("CTSRD"), as part of the DARPA CRASH research programme.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -29,42 +24,68 @@
  * SUCH DAMAGE.
  */
 
-#ifdef USB_GLOBAL_INCLUDE_FILE
-#include USB_GLOBAL_INCLUDE_FILE
-#else
-#include <sys/stdint.h>
-#include <sys/stddef.h>
-#include <sys/param.h>
-#include <sys/queue.h>
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
 #include <sys/types.h>
-#include <sys/systm.h>
-#include <sys/kernel.h>
-#include <sys/bus.h>
-#include <sys/module.h>
-#include <sys/lock.h>
-#include <sys/mutex.h>
-#include <sys/condvar.h>
-#include <sys/sysctl.h>
-#include <sys/sx.h>
-#include <sys/unistd.h>
-#include <sys/callout.h>
-#include <sys/malloc.h>
-#include <sys/priv.h>
+#include <sys/linker_set.h>
+#include <sys/queue.h>
+#include <sys/stat.h>
+#include <err.h>
+#include <errno.h>
+#include <stdint.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
 
-#include <dev/usb/usb.h>
-#include <dev/usb/usbdi.h>
+#include "image.h"
+#include "format.h"
+#include "mkimg.h"
 
-#include <dev/usb/usb_core.h>
-#include <dev/usb/usb_busdma.h>
-#include <dev/usb/usb_process.h>
-#include <dev/usb/usb_transfer.h>
-#include <dev/usb/usb_device.h>
-#include <dev/usb/usb_hub.h>
-#include <dev/usb/usb_util.h>
+static struct mkimg_format *format;
 
-#include <dev/usb/usb_controller.h>
-#include <dev/usb/usb_bus.h>
-#endif					/* USB_GLOBAL_INCLUDE_FILE */
+int
+format_resize(lba_t end)
+{
 
-#include <dev/usb/controller/saf1761_dci.h>
-#include <dev/usb/controller/saf1761_dci_reg.h>
+	if (format == NULL)
+		return (ENOSYS);
+	return (format->resize(end));
+}
+
+int
+format_select(const char *spec)
+{
+	struct mkimg_format *f, **iter;
+
+	SET_FOREACH(iter, formats) {
+		f = *iter;
+		if (strcasecmp(spec, f->name) == 0) {
+			format = f;
+			return (0);
+		}
+	}
+	return (EINVAL);
+}
+
+struct mkimg_format *
+format_selected(void)
+{
+
+	return (format);
+}
+
+int
+format_write(int fd)
+{
+	lba_t size;
+	int error;
+
+	if (format == NULL)
+		return (ENOSYS);
+	size = image_get_size();
+	error = format->resize(size);
+	if (!error)
+		error = format->write(fd);
+	return (error);
+}

@@ -29,8 +29,8 @@
  * SUCH DAMAGE.
  */
 
-#ifndef _SAF1761_DCI_REG_H_
-#define	_SAF1761_DCI_REG_H_
+#ifndef _SAF1761_OTG_REG_H_
+#define	_SAF1761_OTG_REG_H_
 
 /* Global registers */
 
@@ -78,6 +78,7 @@
 #define	SOTG_TIMER_HIGH_SET 0x38C
 #define	SOTG_TIMER_HIGH_CLR 0x38E
 #define	SOTG_TIMER_START_TMR (1U << 15)
+#define	SOTG_MEMORY_REG 0x33c
 
 /* Peripheral controller specific registers */
 
@@ -102,6 +103,17 @@
 #define	SOTG_DEBUG_SET (1 << 0)
 #define	SOTG_DCINTERRUPT_EN 0x214
 #define	SOTG_HW_MODE_CTRL 0x300
+#define	SOTG_HW_MODE_CTRL_ALL_ATX_RESET (1 << 31)
+#define	SOTG_HW_MODE_CTRL_ANA_DIGI_OC (1 << 15)
+#define	SOTG_HW_MODE_CTRL_DEV_DMA (1 << 11)
+#define	SOTG_HW_MODE_CTRL_COMN_INT (1 << 10)
+#define	SOTG_HW_MODE_CTRL_COMN_DMA (1 << 9)
+#define	SOTG_HW_MODE_CTRL_DATA_BUS_WIDTH (1 << 8)
+#define	SOTG_HW_MODE_CTRL_DACK_POL (1 << 6)
+#define	SOTG_HW_MODE_CTRL_DREQ_POL (1 << 5)
+#define	SOTG_HW_MODE_CTRL_INTR_POL (1 << 2)
+#define	SOTG_HW_MODE_CTRL_INTR_LEVEL (1 << 1)
+#define	SOTG_HW_MODE_CTRL_GLOBAL_INTR_EN (1 << 0)
 #define	SOTG_OTG_CTRL 0x374
 #define	SOTG_EP_INDEX 0x22c
 #define	SOTG_EP_INDEX_EP0SETUP (1 << 5)
@@ -155,5 +167,75 @@
 #define	SOTG_UNLOCK_DEVICE_CODE 0xAA37
 #define	SOTG_IRQ_PULSE_WIDTH 0x280
 #define	SOTG_TEST_MODE 0x284
+#define	SOTG_TEST_MODE_FORCEHS (1 << 7)
+#define	SOTG_TEST_MODE_FORCEFS (1 << 4)
+#define	SOTG_TEST_MODE_PRBS (1 << 3)
+#define	SOTG_TEST_MODE_KSTATE (1 << 2)
+#define	SOTG_TEST_MODE_JSTATE (1 << 1)
+#define	SOTG_TEST_MODE_SE0_NAK (1 << 0)
 
-#endif					/* _SAF1761_DCI_REG_H_ */
+/* Host controller specific registers */
+
+#define	SOTG_CONFIGFLAG 0x0060
+#define	SOTG_CONFIGFLAG_ENABLE (1 << 0)
+#define	SOTG_PORTSC1 0x0064
+#define	SOTG_PORTSC1_PIC (3 << 14)
+#define	SOTG_PORTSC1_PO (1 << 13)
+#define	SOTG_PORTSC1_PP (1 << 12)
+#define	SOTG_PORTSC1_LS (3 << 10)
+#define	SOTG_PORTSC1_PR (1 << 8)
+#define	SOTG_PORTSC1_SUSP (1 << 7)
+#define	SOTG_PORTSC1_FPR (1 << 6)
+#define	SOTG_PORTSC1_PED (1 << 2)
+#define	SOTG_PORTSC1_ECSC (1 << 1)
+#define	SOTG_PORTSC1_ECCS (1 << 0)
+#define	SOTG_PDT_DW0 0
+#define	SOTG_PDT_DW0_VALID 1U
+#define	SOTG_PDT_DW1 4
+#define	SOTG_PDT_DW2 8
+#define	SOTG_PDT_DW3 12
+#define	SOTG_PDT_DW3_ACTIVE (1U << 31)
+#define	SOTG_PDT_DW3_HALTED (1U << 30)
+#define	SOTG_PDT_DW3_ERRORS (3U << 28)
+#define	SOTG_PDT_DW3_CERR (3U << 23)
+#define	SOTG_PDT_DW3_XFER_COUNT 0x7FFF
+#define	SOTG_PDT_DW4 16
+#define	SOTG_PDT_DW5 20
+#define	SOTG_PDT_DW6 24
+#define	SOTG_PDT_DW7 28
+#define	SOTG_DATA_ADDR(x) (0x1000 + (512 * (x)))
+#define	SOTG_ASYNC_PDT(x) (0xC00 + ((x) * 32))
+#define	SOTG_INTR_PDT(x) (0x800 + ((x) * 32))
+#define	SOTG_ISOC_PDT(x) (0x400 + ((x) * 32))
+#define	SOTG_PDT(x) (0x400 + ((x) * 32))
+#define	SOTG_HC_MEMORY_ADDR(x) (((x) - 0x400) >> 3)
+#define	SOTG_SW_RESET 0x30C
+#define	SOTG_SW_RESET_HC (1 << 1)
+#define	SOTG_SW_RESET_ALL (1 << 0)
+#define	SOTG_POWER_DOWN 0x354
+#define	SOTG_POWER_DOWN_PORT3_PD (1 << 12)
+#define	SOTG_POWER_DOWN_PORT2_PD (1 << 11)
+#define	SOTG_POWER_DOWN_VBATDET_PWR (1 << 10)
+#define	SOTG_POWER_DOWN_BIAS_EN (1 << 5)
+#define	SOTG_POWER_DOWN_VREG_ON (1 << 4)
+#define	SOTG_POWER_DOWN_OC3_PWR (1 << 3)
+#define	SOTG_POWER_DOWN_OC2_PWR (1 << 2)
+#define	SOTG_POWER_DOWN_OC1_PWR (1 << 1)
+#define	SOTG_POWER_DOWN_HC_CLK_EN (1 << 0)
+#define	SOTG_USBCMD 0x20
+#define	SOTG_USBCMD_LHCR (1 << 7)
+#define	SOTG_USBCMD_HCRESET (1 << 1)
+#define	SOTG_USBCMD_RS (1 << 0)
+#define	SOTG_HCSCRATCH 0x308
+#define	SOTG_HCINTERRUPT 0x310
+#define	SOTG_HCINTERRUPT_OTG_IRQ (1 << 10)
+#define	SOTG_HCINTERRUPT_ISO_IRQ (1 << 9)
+#define	SOTG_HCINTERRUPT_ALT_IRQ (1 << 8)
+#define	SOTG_HCINTERRUPT_INT_IRQ (1 << 7)
+#define	SOTG_HCINTERRUPT_CLKREADY (1 << 6)
+#define	SOTG_HCINTERRUPT_HCSUSP (1 << 5)
+#define	SOTG_HCINTERRUPT_DMAEOTINT (1 << 3)
+#define	SOTG_HCINTERRUPT_SOFITLINT (1 << 1)
+#define	SOTG_HCINTERRUPT_ENABLE 0x314
+
+#endif					/* _SAF1761_OTG_REG_H_ */

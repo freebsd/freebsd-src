@@ -35,6 +35,7 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 #include <unistd.h>
 
+#include "image.h"
 #include "mkimg.h"
 #include "scheme.h"
 
@@ -61,7 +62,7 @@ bsd_metadata(u_int where)
 }
 
 static int
-bsd_write(int fd, lba_t imgsz, void *bootcode)
+bsd_write(lba_t imgsz, void *bootcode)
 {
 	u_char *buf, *p;
 	struct disklabel *d;
@@ -79,8 +80,12 @@ bsd_write(int fd, lba_t imgsz, void *bootcode)
 	} else
 		memset(buf, 0, BBSIZE);
 
-	imgsz = ncyls * nheads * nsecs;
-	ftruncate(fd, imgsz * secsz);
+	imgsz = (lba_t)ncyls * nheads * nsecs;
+	error = image_set_size(imgsz);
+	if (error) {
+		free(buf);
+		return (error);
+	}
 
 	d = (void *)(buf + secsz);
 	le32enc(&d->d_magic, DISKMAGIC);
@@ -111,7 +116,7 @@ bsd_write(int fd, lba_t imgsz, void *bootcode)
 		checksum ^= le16dec(p);
 	le16enc(&d->d_checksum, checksum);
 
-	error = mkimg_write(fd, 0, buf, BBSIZE / secsz);
+	error = image_write(0, buf, BBSIZE / secsz);
 	free(buf);
 	return (error);
 }

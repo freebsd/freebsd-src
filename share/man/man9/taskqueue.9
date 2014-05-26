@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 24, 2014
+.Dd May 24, 2014
 .Dt TASKQUEUE 9
 .Os
 .Sh NAME
@@ -68,6 +68,11 @@ struct timeout_task;
 .Fn taskqueue_create_fast "const char *name" "int mflags" "taskqueue_enqueue_fn enqueue" "void *context"
 .Ft int
 .Fn taskqueue_start_threads "struct taskqueue **tqp" "int count" "int pri" "const char *name" "..."
+.Ft int
+.Fo taskqueue_start_threads_pinned
+.Fa "struct taskqueue **tqp" "int count" "int pri" "int cpu_id"
+.Fa "const char *name" "..."
+.Fc
 .Ft void
 .Fn taskqueue_set_callback "struct taskqueue *queue" "enum taskqueue_callback_type cb_type" "taskqueue_callback_fn callback" "void *context"
 .Ft void
@@ -145,7 +150,14 @@ Any tasks that are on the queue will be executed at this time after
 which the thread servicing the queue will be signaled that it should exit.
 .Pp
 Once a taskqueue has been created, its threads should be started using
-.Fn taskqueue_start_threads .
+.Fn taskqueue_start_threads
+or
+.Fn taskqueue_start_threads_pinned .
+.Fn taskqueue_start_threads_pinned
+takes a
+.Va cpu_id
+argument which will cause the threads which are started for the taskqueue
+to be pinned to run on the given CPU.
 Callbacks may optionally be registered using
 .Fn taskqueue_set_callback .
 Currently, callbacks may be registered for the following purposes:

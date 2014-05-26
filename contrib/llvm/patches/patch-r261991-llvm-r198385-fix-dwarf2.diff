@@ -5,7 +5,7 @@ Pull in r198385 from upstream llvm trunk (by David Blaikie):
   Apologies for the noise - we're seeing some Go failures with cgo
   interacting with Clang's debug info due to this change.
 
-Introduced here: http://svn.freebsd.org/changeset/base/261991
+Introduced here: http://svnweb.freebsd.org/changeset/base/261991
 
 Index: lib/CodeGen/AsmPrinter/DwarfCompileUnit.cpp
 ===================================================================

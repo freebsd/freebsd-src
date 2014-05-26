@@ -231,7 +231,7 @@ vmcs_setreg(struct vmcs *vmcs, int running, int ident, uint64_t val)
 }
 
 int
-vmcs_setdesc(struct vmcs *vmcs, int seg, struct seg_desc *desc)
+vmcs_setdesc(struct vmcs *vmcs, int running, int seg, struct seg_desc *desc)
 {
 	int error;
 	uint32_t base, limit, access;
@@ -240,7 +240,8 @@ vmcs_setdesc(struct vmcs *vmcs, int seg, struct seg_desc *desc)
 	if (error != 0)
 		panic("vmcs_setdesc: invalid segment register %d", seg);
 
-	VMPTRLD(vmcs);
+	if (!running)
+		VMPTRLD(vmcs);
 	if ((error = vmwrite(base, desc->base)) != 0)
 		goto done;
 
@@ -252,12 +253,13 @@ vmcs_setdesc(struct vmcs *vmcs, int seg, struct seg_desc *desc)
 			goto done;
 	}
 done:
-	VMCLEAR(vmcs);
+	if (!running)
+		VMCLEAR(vmcs);
 	return (error);
 }
 
 int
-vmcs_getdesc(struct vmcs *vmcs, int seg, struct seg_desc *desc)
+vmcs_getdesc(struct vmcs *vmcs, int running, int seg, struct seg_desc *desc)
 {
 	int error;
 	uint32_t base, limit, access;
@@ -267,7 +269,8 @@ vmcs_getdesc(struct vmcs *vmcs, int seg, struct seg_desc *desc)
 	if (error != 0)
 		panic("vmcs_getdesc: invalid segment register %d", seg);
 
-	VMPTRLD(vmcs);
+	if (!running)
+		VMPTRLD(vmcs);
 	if ((error = vmread(base, &u64)) != 0)
 		goto done;
 	desc->base = u64;
@@ -282,7 +285,8 @@ vmcs_getdesc(struct vmcs *vmcs, int seg, struct seg_desc *desc)
 		desc->access = u64;
 	}
 done:
-	VMCLEAR(vmcs);
+	if (!running)
+		VMCLEAR(vmcs);
 	return (error);
 }
 

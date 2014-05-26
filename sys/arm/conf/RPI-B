@@ -59,6 +59,7 @@ options 	KBD_INSTALL_CDEV	# install a CDEV entry in /dev
 #options         ROOTDEVNAME=\"ufs:mmcsd0s2\"
 
 options 	PREEMPTION
+options 	PLATFORM
 
 device		bpf
 device		loop

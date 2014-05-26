@@ -35,6 +35,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mman.h>
 
 #include <machine/specialreg.h>
+#include <machine/param.h>
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -936,4 +937,89 @@ vm_get_hpet_capabilities(struct vmctx *ctx, uint32_t *capabilities)
 	if (capabilities != NULL)
 		*capabilities = cap.capabilities;
 	return (error);
+}
+
+static int
+vm_gla2gpa(struct vmctx *ctx, int vcpu, struct vm_guest_paging *paging,
+    uint64_t gla, int prot, int *fault, uint64_t *gpa)
+{
+	struct vm_gla2gpa gg;
+	int error;
+
+	bzero(&gg, sizeof(struct vm_gla2gpa));
+	gg.vcpuid = vcpu;
+	gg.prot = prot;
+	gg.gla = gla;
+	gg.paging = *paging;
+
+	error = ioctl(ctx->fd, VM_GLA2GPA, &gg);
+	if (error == 0) {
+		*fault = gg.fault;
+		*gpa = gg.gpa;
+	}
+	return (error);
+}
+
+#ifndef min
+#define	min(a,b)	(((a) < (b)) ? (a) : (b))
+#endif
+
+int
+vm_copyin(struct vmctx *ctx, int vcpu, struct vm_guest_paging *paging,
+    uint64_t gla, void *vp, size_t len)
+{
+	char *dst;
+	const char *src;
+	uint64_t gpa;
+	int error, fault, n, off;
+
+	dst = vp;
+	while (len) {
+		error = vm_gla2gpa(ctx, vcpu, paging, gla, PROT_READ,
+		    &fault, &gpa);
+		if (error)
+			return (-1);
+		if (fault)
+			return (1);
+
+		off = gpa & PAGE_MASK;
+		n = min(len, PAGE_SIZE - off);
+		src = vm_map_gpa(ctx, gpa, n);
+		bcopy(src, dst, n);
+
+		gla += n;
+		dst += n;
+		len -= n;
+	}
+	return (0);
+}
+
+int
+vm_copyout(struct vmctx *ctx, int vcpu, struct vm_guest_paging *paging,
+    const void *vp, uint64_t gla, size_t len)
+{
+	uint64_t gpa;
+	char *dst;
+	const char *src;
+	int error, fault, n, off;
+
+	src = vp;
+	while (len) {
+		error = vm_gla2gpa(ctx, vcpu, paging, gla, PROT_WRITE,
+		    &fault, &gpa);
+		if (error)
+			return (-1);
+		if (fault)
+			return (1);
+
+		off = gpa & PAGE_MASK;
+		n = min(len, PAGE_SIZE - off);
+		dst = vm_map_gpa(ctx, gpa, n);
+		bcopy(src, dst, n);
+
+		gla += n;
+		src += n;
+		len -= n;
+	}
+	return (0);
 }

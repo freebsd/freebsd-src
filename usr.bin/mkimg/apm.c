@@ -35,6 +35,7 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 #include <unistd.h>
 
+#include "image.h"
 #include "mkimg.h"
 #include "scheme.h"
 
@@ -63,7 +64,7 @@ apm_metadata(u_int where)
 }
 
 static int
-apm_write(int fd, lba_t imgsz, void *bootcode __unused)
+apm_write(lba_t imgsz, void *bootcode __unused)
 {
 	u_char *buf;
 	struct apm_ddr *ddr;
@@ -85,8 +86,8 @@ apm_write(int fd, lba_t imgsz, void *bootcode __unused)
 	be32enc(&ent->ent_pmblkcnt, nparts + 1);
 	be32enc(&ent->ent_start, 1);
 	be32enc(&ent->ent_size, nparts + 1);
-	strcpy(ent->ent_type, APM_ENT_TYPE_SELF);
-	strcpy(ent->ent_name, "Apple");
+	strncpy(ent->ent_type, APM_ENT_TYPE_SELF, sizeof(ent->ent_type));
+	strncpy(ent->ent_name, "Apple", sizeof(ent->ent_name));
 
 	STAILQ_FOREACH(part, &partlist, link) {
 		ent = (void *)(buf + (part->index + 2) * secsz);
@@ -94,12 +95,14 @@ apm_write(int fd, lba_t imgsz, void *bootcode __unused)
 		be32enc(&ent->ent_pmblkcnt, nparts + 1);
 		be32enc(&ent->ent_start, part->block);
 		be32enc(&ent->ent_size, part->size);
-		strcpy(ent->ent_type, ALIAS_TYPE2PTR(part->type));
+		strncpy(ent->ent_type, ALIAS_TYPE2PTR(part->type),
+		    sizeof(ent->ent_type));
 		if (part->label != NULL)
-			strcpy(ent->ent_name, part->label);
+			strncpy(ent->ent_name, part->label,
+			    sizeof(ent->ent_name));
 	}
 
-	error = mkimg_write(fd, 0, buf, nparts + 2);
+	error = image_write(0, buf, nparts + 2);
 	free(buf);
 	return (error);
 }

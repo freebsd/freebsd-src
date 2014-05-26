@@ -176,6 +176,7 @@ static void
 rss_init(__unused void *arg)
 {
 	u_int i;
+	u_int cpuid;
 
 	/*
 	 * Validate tunables, coerce to sensible values.
@@ -245,11 +246,12 @@ rss_init(__unused void *arg)
 
 	/*
 	 * Set up initial CPU assignments: round-robin by default.
-	 *
-	 * XXXRW: Need a mapping to non-contiguous IDs here.
 	 */
-	for (i = 0; i < rss_buckets; i++)
-		rss_table[i].rte_cpu = i % rss_ncpus;
+	cpuid = CPU_FIRST();
+	for (i = 0; i < rss_buckets; i++) {
+		rss_table[i].rte_cpu = cpuid;
+		cpuid = CPU_NEXT(cpuid);
+	}
 
 	/*
 	 * Randomize rrs_key.
@@ -407,6 +409,22 @@ rss_getcpu(u_int bucket)
 }
 
 /*
+ * netisr CPU affinity lookup given just the hash and hashtype.
+ */
+u_int
+rss_hash2cpuid(uint32_t hash_val, uint32_t hash_type)
+{
+
+	switch (hash_type) {
+	case M_HASHTYPE_RSS_IPV4:
+	case M_HASHTYPE_RSS_TCP_IPV4:
+		return (rss_getcpu(rss_getbucket(hash_val)));
+	default:
+		return (NETISR_CPUID_NONE);
+	}
+}
+
+/*
  * netisr CPU affinity lookup routine for use by protocols.
  */
 struct mbuf *
@@ -414,17 +432,8 @@ rss_m2cpuid(struct mbuf *m, uintptr_t source, u_int *cpuid)
 {
 
 	M_ASSERTPKTHDR(m);
-
-	switch (M_HASHTYPE_GET(m)) {
-	case M_HASHTYPE_RSS_IPV4:
-	case M_HASHTYPE_RSS_TCP_IPV4:
-		*cpuid = rss_getcpu(rss_getbucket(m->m_pkthdr.flowid));
-		return (m);
-
-	default:
-		*cpuid = NETISR_CPUID_NONE;
-		return (m);
-	}
+	*cpuid = rss_hash2cpuid(m->m_pkthdr.flowid, M_HASHTYPE_GET(m));
+	return (m);
 }
 
 /*

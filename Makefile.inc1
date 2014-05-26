@@ -1238,9 +1238,8 @@ _clang_tblgen= \
 .endif
 
 # dtrace tools are required for older bootstrap env and cross-build
-.if ${MK_CDDL} != "no" && \
-    ((${BOOTSTRAPPING} < 1000034 && \
-          !(${BOOTSTRAPPING} >= 901505 && ${BOOTSTRAPPING} < 999999)) \
+# pre libdwarf
+.if ${MK_CDDL} != "no" && (${BOOTSTRAPPING} < 1100006 \
       || (${MACHINE} != ${TARGET} || ${MACHINE_ARCH} != ${TARGET_ARCH}))
 _dtrace_tools= cddl/usr.bin/sgsmsg cddl/lib/libctf lib/libelf \
     lib/libdwarf cddl/usr.bin/ctfconvert cddl/usr.bin/ctfmerge
@@ -1475,6 +1474,7 @@ _prebuild_libs=	${_kerberos5_lib_libasn1} \
 		lib/libopie lib/libpam ${_lib_libthr} \
 		lib/libradius lib/libsbuf lib/libtacplus \
 		${_cddl_lib_libumem} ${_cddl_lib_libnvpair} \
+		${_cddl_lib_libavl} \
 		${_cddl_lib_libzfs_core} \
 		lib/libutil lib/libpjdlog ${_lib_libypclnt} lib/libz lib/msun \
 		${_secure_lib_libcrypto} ${_lib_libldns} \
@@ -1520,6 +1520,7 @@ lib/libopie__L lib/libtacplus__L: lib/libmd__L
 .if ${MK_CDDL} != "no"
 _cddl_lib_libumem= cddl/lib/libumem
 _cddl_lib_libnvpair= cddl/lib/libnvpair
+_cddl_lib_libavl= cddl/lib/libavl
 _cddl_lib_libzfs_core= cddl/lib/libzfs_core
 _cddl_lib= cddl/lib
 cddl/lib/libzfs_core__L: cddl/lib/libnvpair__L
