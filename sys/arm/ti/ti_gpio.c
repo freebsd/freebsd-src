@@ -56,6 +56,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/bus.h>
 #include <machine/resource.h>
 
+#include <arm/ti/ti_cpuid.h>
 #include <arm/ti/ti_scm.h>
 #include <arm/ti/ti_prcm.h>
 
@@ -130,24 +131,102 @@ __FBSDID("$FreeBSD$");
 #endif
 
 /* Other SoC Specific definitions */
-#if defined(SOC_OMAP3)
-#define	MAX_GPIO_BANKS			6
-#define	FIRST_GPIO_BANK			1
-#define	INTR_PER_BANK			1
-#define	TI_GPIO_REV			0x00000025
-#elif defined(SOC_OMAP4)
-#define	MAX_GPIO_BANKS			6
-#define	FIRST_GPIO_BANK			1
-#define	INTR_PER_BANK			1
-#define	TI_GPIO_REV			0x50600801
-#elif defined(SOC_TI_AM335X)
-#define	MAX_GPIO_BANKS			4
-#define	FIRST_GPIO_BANK			0
-#define	INTR_PER_BANK			2
-#define	TI_GPIO_REV			0x50600801
-#endif
+#define	OMAP3_MAX_GPIO_BANKS		6
+#define	OMAP3_FIRST_GPIO_BANK		1
+#define	OMAP3_INTR_PER_BANK		1
+#define	OMAP3_GPIO_REV			0x00000025
+#define	OMAP4_MAX_GPIO_BANKS		6
+#define	OMAP4_FIRST_GPIO_BANK		1
+#define	OMAP4_INTR_PER_BANK		1
+#define	OMAP4_GPIO_REV			0x50600801
+#define	AM335X_MAX_GPIO_BANKS		4
+#define	AM335X_FIRST_GPIO_BANK		0
+#define	AM335X_INTR_PER_BANK		2
+#define	AM335X_GPIO_REV			0x50600801
 #define	PINS_PER_BANK			32
-#define	MAX_GPIO_INTRS			MAX_GPIO_BANKS * INTR_PER_BANK
+#define	MAX_GPIO_BANKS			6
+/* Maximum GPIOS possible, max of *_MAX_GPIO_BANKS * *_INTR_PER_BANK */
+#define	MAX_GPIO_INTRS			8
+
+static u_int
+ti_max_gpio_banks(void)
+{
+	switch(ti_chip()) {
+#ifdef SOC_OMAP3
+	case CHIP_OMAP_3:
+		return (OMAP3_MAX_GPIO_BANKS);
+#endif
+#ifdef SOC_OMAP4
+	case CHIP_OMAP_4:
+		return (OMAP4_MAX_GPIO_BANKS);
+#endif
+#ifdef SOC_TI_AM335X
+	case CHIP_AM335X:
+		return (AM335X_MAX_GPIO_BANKS);
+#endif
+	}
+	return (0);
+}
+
+static u_int
+ti_max_gpio_intrs(void)
+{
+	switch(ti_chip()) {
+#ifdef SOC_OMAP3
+	case CHIP_OMAP_3:
+		return (OMAP3_MAX_GPIO_BANKS * OMAP3_INTR_PER_BANK);
+#endif
+#ifdef SOC_OMAP4
+	case CHIP_OMAP_4:
+		return (OMAP4_MAX_GPIO_BANKS * OMAP4_INTR_PER_BANK);
+#endif
+#ifdef SOC_TI_AM335X
+	case CHIP_AM335X:
+		return (AM335X_MAX_GPIO_BANKS * AM335X_INTR_PER_BANK);
+#endif
+	}
+	return (0);
+}
+
+static u_int
+ti_first_gpio_bank(void)
+{
+	switch(ti_chip()) {
+#ifdef SOC_OMAP3
+	case CHIP_OMAP_3:
+		return (OMAP3_FIRST_GPIO_BANK);
+#endif
+#ifdef SOC_OMAP4
+	case CHIP_OMAP_4:
+		return (OMAP4_FIRST_GPIO_BANK);
+#endif
+#ifdef SOC_TI_AM335X
+	case CHIP_AM335X:
+		return (AM335X_FIRST_GPIO_BANK);
+#endif
+	}
+	return (0);
+}
+
+static uint32_t
+ti_gpio_rev(void)
+{
+	switch(ti_chip()) {
+#ifdef SOC_OMAP3
+	case CHIP_OMAP_3:
+		return (OMAP3_GPIO_REV);
+#endif
+#ifdef SOC_OMAP4
+	case CHIP_OMAP_4:
+		return (OMAP4_GPIO_REV);
+#endif
+#ifdef SOC_TI_AM335X
+	case CHIP_AM335X:
+		return (AM335X_GPIO_REV);
+#endif
+	}
+	return (0);
+}
 
 /**
  *	ti_gpio_mem_spec - Resource specification used when allocating resources
@@ -301,7 +380,7 @@ ti_gpio_pin_max(device_t dev, int *maxpin)
 	/* Calculate how many valid banks we have and then multiply that by 32 to
 	 * give use the total number of pins.
 	 */
-	for (i = 0; i < MAX_GPIO_BANKS; i++) {
+	for (i = 0; i < ti_max_gpio_banks(); i++) {
 		if (sc->sc_mem_res[i] != NULL)
 			banks++;
 	}
@@ -340,7 +419,7 @@ ti_gpio_pin_getcaps(device_t dev, uint32_t pin, uint32_t *caps)
 	TI_GPIO_LOCK(sc);
 
 	/* Sanity check the pin number is valid */
-	if ((bank >= MAX_GPIO_BANKS) || (sc->sc_mem_res[bank] == NULL)) {
+	if ((bank >= ti_max_gpio_banks()) || (sc->sc_mem_res[bank] == NULL)) {
 		TI_GPIO_UNLOCK(sc);
 		return (EINVAL);
 	}
@@ -378,7 +457,7 @@ ti_gpio_pin_getflags(device_t dev, uint32_t pin, uint32_t *flags)
 	TI_GPIO_LOCK(sc);
 
 	/* Sanity check the pin number is valid */
-	if ((bank >= MAX_GPIO_BANKS) || (sc->sc_mem_res[bank] == NULL)) {
+	if ((bank >= ti_max_gpio_banks()) || (sc->sc_mem_res[bank] == NULL)) {
 		TI_GPIO_UNLOCK(sc);
 		return (EINVAL);
 	}
@@ -415,7 +494,7 @@ ti_gpio_pin_getname(device_t dev, uint32_t pin, char *name)
 	TI_GPIO_LOCK(sc);
 
 	/* Sanity check the pin number is valid */
-	if ((bank >= MAX_GPIO_BANKS) || (sc->sc_mem_res[bank] == NULL)) {
+	if ((bank >= ti_max_gpio_banks()) || (sc->sc_mem_res[bank] == NULL)) {
 		TI_GPIO_UNLOCK(sc);
 		return (EINVAL);
 	}
@@ -469,7 +548,7 @@ ti_gpio_pin_setflags(device_t dev, uint32_t pin, uint32_t flags)
 	TI_GPIO_LOCK(sc);
 
 	/* Sanity check the pin number is valid */
-	if ((bank >= MAX_GPIO_BANKS) || (sc->sc_mem_res[bank] == NULL)) {
+	if ((bank >= ti_max_gpio_banks()) || (sc->sc_mem_res[bank] == NULL)) {
 		TI_GPIO_UNLOCK(sc);
 		return (EINVAL);
 	}
@@ -517,7 +596,7 @@ ti_gpio_pin_set(device_t dev, uint32_t pin, unsigned int value)
 	TI_GPIO_LOCK(sc);
 
 	/* Sanity check the pin number is valid */
-	if ((bank >= MAX_GPIO_BANKS) || (sc->sc_mem_res[bank] == NULL)) {
+	if ((bank >= ti_max_gpio_banks()) || (sc->sc_mem_res[bank] == NULL)) {
 		TI_GPIO_UNLOCK(sc);
 		return (EINVAL);
 	}
@@ -556,7 +635,7 @@ ti_gpio_pin_get(device_t dev, uint32_t pin, unsigned int *value)
 	TI_GPIO_LOCK(sc);
 
 	/* Sanity check the pin number is valid */
-	if ((bank >= MAX_GPIO_BANKS) || (sc->sc_mem_res[bank] == NULL)) {
+	if ((bank >= ti_max_gpio_banks()) || (sc->sc_mem_res[bank] == NULL)) {
 		TI_GPIO_UNLOCK(sc);
 		return (EINVAL);
 	}
@@ -598,7 +677,7 @@ ti_gpio_pin_toggle(device_t dev, uint32_t pin)
 	TI_GPIO_LOCK(sc);
 
 	/* Sanity check the pin number is valid */
-	if ((bank >= MAX_GPIO_BANKS) || (sc->sc_mem_res[bank] == NULL)) {
+	if ((bank >= ti_max_gpio_banks()) || (sc->sc_mem_res[bank] == NULL)) {
 		TI_GPIO_UNLOCK(sc);
 		return (EINVAL);
 	}
@@ -669,7 +748,7 @@ ti_gpio_attach_intr(device_t dev)
 	struct ti_gpio_softc *sc;
 
 	sc = device_get_softc(dev);
-	for (i = 0; i < MAX_GPIO_INTRS; i++) {
+	for (i = 0; i < ti_max_gpio_intrs(); i++) {
 		if (sc->sc_irq_res[i] == NULL)
 			break;
 
@@ -696,7 +775,7 @@ ti_gpio_detach_intr(device_t dev)
 
 	/* Teardown our interrupt handlers. */
 	sc = device_get_softc(dev);
-	for (i = 0; i < MAX_GPIO_INTRS; i++) {
+	for (i = 0; i < ti_max_gpio_intrs(); i++) {
 		if (sc->sc_irq_res[i] == NULL)
 			break;
 
@@ -719,7 +798,7 @@ ti_gpio_bank_init(device_t dev, int bank)
 	sc = device_get_softc(dev);
 
 	/* Enable the interface and functional clocks for the module. */
-	ti_prcm_clk_enable(GPIO0_CLK + FIRST_GPIO_BANK + bank);
+	ti_prcm_clk_enable(GPIO0_CLK + ti_first_gpio_bank() + bank);
 
 	/*
 	 * Read the revision number of the module.  TI don't publish the
@@ -729,7 +808,7 @@ ti_gpio_bank_init(device_t dev, int bank)
 	sc->sc_revision[bank] = ti_gpio_read_4(sc, bank, TI_GPIO_REVISION);
 
 	/* Check the revision. */
-	if (sc->sc_revision[bank] != TI_GPIO_REV) {
+	if (sc->sc_revision[bank] != ti_gpio_rev()) {
 		device_printf(dev, "Warning: could not determine the revision "
 		    "of %u GPIO module (revision:0x%08x)\n",
 		    bank, sc->sc_revision[bank]);
@@ -806,7 +885,7 @@ ti_gpio_attach(device_t dev)
 	 * pins are configured which would result in less power used if the GPIO
 	 * pins weren't used ... 
 	 */
-	for (i = 0; i < MAX_GPIO_BANKS; i++) {
+	for (i = 0; i < ti_max_gpio_banks(); i++) {
 		if (sc->sc_mem_res[i] != NULL) {
 			/* Initialize the GPIO module. */
 			err = ti_gpio_bank_init(dev, i);
@@ -850,7 +929,7 @@ ti_gpio_detach(device_t dev)
 	KASSERT(mtx_initialized(&sc->sc_mtx), ("gpio mutex not initialized"));
 
 	/* Disable all interrupts */
-	for (i = 0; i < MAX_GPIO_BANKS; i++) {
+	for (i = 0; i < ti_max_gpio_banks(); i++) {
 		if (sc->sc_mem_res[i] != NULL)
 			ti_gpio_intr_clr(sc, i, 0xffffffff);
 	}
