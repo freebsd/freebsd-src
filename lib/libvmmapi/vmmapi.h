@@ -29,6 +29,7 @@
 #ifndef _VMMAPI_H_
 #define	_VMMAPI_H_
 
+struct iovec;
 struct vmctx;
 enum x2apic_state;
 
@@ -109,10 +110,17 @@ int	vm_set_x2apic_state(struct vmctx *ctx, int vcpu, enum x2apic_state s);
 
 int	vm_get_hpet_capabilities(struct vmctx *ctx, uint32_t *capabilities);
 
-int	vm_copyin(struct vmctx *ctx, int vcpu, struct vm_guest_paging *paging,
-	    uint64_t gla_src, void *dst, size_t len);
-int	vm_copyout(struct vmctx *ctx, int vcpu, struct vm_guest_paging *paging,
-	    const void *src, uint64_t gla_dst, size_t len);
+/*
+ * Translate the GLA range [gla,gla+len) into GPA segments in 'iov'.
+ * The 'iovcnt' should be big enough to accomodate all GPA segments.
+ * Returns 0 on success, 1 on a guest fault condition and -1 otherwise.
+ */
+int	vm_gla2gpa(struct vmctx *ctx, int vcpu, struct vm_guest_paging *paging,
+	    uint64_t gla, size_t len, int prot, struct iovec *iov, int iovcnt);
+void	vm_copyin(struct vmctx *ctx, int vcpu, struct iovec *guest_iov,
+	    void *host_dst, size_t len);
+void	vm_copyout(struct vmctx *ctx, int vcpu, const void *host_src,
+	    struct iovec *guest_iov, size_t len);
 
 /* Reset vcpu register state */
 int	vcpu_reset(struct vmctx *ctx, int vcpu);

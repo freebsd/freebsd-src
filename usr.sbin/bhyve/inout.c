@@ -31,6 +31,8 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/linker_set.h>
+#include <sys/_iovec.h>
+#include <sys/mman.h>
 
 #include <x86/psl.h>
 #include <x86/segments.h>
@@ -109,6 +111,7 @@ emulate_inout(struct vmctx *ctx, int vcpu, struct vm_exit *vmexit, int strict)
 	enum vm_reg_name idxreg;
 	uint64_t gla, index, count;
 	struct vm_inout_str *vis;
+	struct iovec iov[2];
 
 	bytes = vmexit->u.inout.bytes;
 	in = vmexit->u.inout.in;
@@ -157,6 +160,15 @@ emulate_inout(struct vmctx *ctx, int vcpu, struct vm_exit *vmexit, int strict)
 				return (INOUT_RESTART);
 			}
 
+			error = vm_gla2gpa(ctx, vcpu, &vis->paging, gla, bytes,
+			    in ? PROT_WRITE : PROT_READ, iov, nitems(iov));
+			assert(error == 0 || error == 1 || error == -1);
+			if (error) {
+				retval = (error == 1) ? INOUT_RESTART :
+				    INOUT_ERROR;
+				break;
+			}
+
 			if (vie_alignment_check(vis->paging.cpl, bytes,
 			    vis->cr0, vis->rflags, gla)) {
 				error = vm_inject_exception2(ctx, vcpu,
@@ -165,33 +177,16 @@ emulate_inout(struct vmctx *ctx, int vcpu, struct vm_exit *vmexit, int strict)
 				return (INOUT_RESTART);
 			}
 
-
 			val = 0;
-			if (!in) {
-				error = vm_copyin(ctx, vcpu, &vis->paging,
-				    gla, &val, bytes);
-				assert(error == 0 || error == 1 || error == -1);
-				if (error) {
-					retval = (error == 1) ? INOUT_RESTART :
-					    INOUT_ERROR;
-					break;
-				}
-			}
+			if (!in)
+				vm_copyin(ctx, vcpu, iov, &val, bytes);
 
 			retval = handler(ctx, vcpu, in, port, bytes, &val, arg);
 			if (retval != 0)
 				break;
 
-			if (in) {
-				error = vm_copyout(ctx, vcpu, &vis->paging,
-				    &val, gla, bytes);	
-				assert(error == 0 || error == 1 || error == -1);
-				if (error) {
-					retval = (error == 1) ? INOUT_RESTART :
-					    INOUT_ERROR;
-					break;
-				}
-			}
+			if (in)
+				vm_copyout(ctx, vcpu, &val, iov, bytes);
 
 			/* Update index */
 			if (vis->rflags & PSL_D)
