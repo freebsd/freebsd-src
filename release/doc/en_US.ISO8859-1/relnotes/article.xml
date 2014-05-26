@@ -346,7 +346,7 @@
     <para revision="261071">&man.jemalloc.3; has been updated to
       version 3.5.0.</para>
 
-    <para revision="261197" role="merged"><application>Sendmail</application>
+    <para revision="266527" role="merged"><application>Sendmail</application>
       has been updated from 8.14.7 to 8.14.9.</para>
 
     <para revision="261212"><application>bmake</application> has been
