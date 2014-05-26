@@ -10,7 +10,7 @@ divert(-1)
 #
 
 divert(0)
-VERSIONID(`$Id: freebsd6.m4,v 1.2 2013/11/22 20:51:15 ca Exp $')
+VERSIONID(`$Id: freebsd6.m4,v 1.2 2013-11-22 20:51:15 ca Exp $')
 ifdef(`STATUS_FILE',, `define(`STATUS_FILE', `/var/log/sendmail.st')')dnl
 dnl turn on S flag for local mailer
 MODIFY_MAILER_FLAGS(`LOCAL', `+S')dnl
