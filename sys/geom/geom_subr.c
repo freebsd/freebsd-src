@@ -1064,6 +1064,8 @@ g_spoil_event(void *arg, int flag)
 		return;
 	pp = arg;
 	G_VALID_PROVIDER(pp);
+	g_trace(G_T_TOPOLOGY, "%s %p(%s:%s:%s)", __func__, pp,
+	    pp->geom->class->name, pp->geom->name, pp->name);
 	for (cp = LIST_FIRST(&pp->consumers); cp != NULL; cp = cp2) {
 		cp2 = LIST_NEXT(cp, consumers);
 		if ((cp->flags & G_CF_SPOILED) == 0)
