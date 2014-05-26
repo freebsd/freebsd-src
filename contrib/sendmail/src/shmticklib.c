@@ -11,7 +11,7 @@
  */
 
 #include <sm/gen.h>
-SM_RCSID("@(#)$Id: shmticklib.c,v 8.15 2013/11/22 20:51:56 ca Exp $")
+SM_RCSID("@(#)$Id: shmticklib.c,v 8.15 2013-11-22 20:51:56 ca Exp $")
 
 #if _FFR_SHM_STATUS
 # include <sys/types.h>
