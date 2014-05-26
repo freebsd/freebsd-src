@@ -345,24 +345,24 @@ evdev_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag,
 		break;
 
 	case EVIOCGKEY(0):
-		limit = MAX(len, howmany(KEY_CNT, 8));
+		limit = MIN(len, howmany(KEY_CNT, 8));
 		memcpy(data, evdev->ev_key_states, limit);
 		break;
 
 	case EVIOCGLED(0):
-		limit = MAX(len, howmany(LED_CNT, 8));
+		limit = MIN(len, howmany(LED_CNT, 8));
 		memcpy(data, evdev->ev_led_states, limit);
 
 		break;
 
 	case EVIOCGSND(0):
-		limit = MAX(len, howmany(SND_CNT, 8));
+		limit = MIN(len, howmany(SND_CNT, 8));
 		memcpy(data, evdev->ev_snd_states, limit);
 
 		break;
 
 	case EVIOCGSW(0):
-		limit = MAX(len, howmany(SW_CNT, 8));
+		limit = MIN(len, howmany(SW_CNT, 8));
 		memcpy(data, evdev->ev_sw_states, limit);
 		break;
 	}
