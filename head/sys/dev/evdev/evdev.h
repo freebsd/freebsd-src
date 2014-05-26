@@ -136,4 +136,8 @@ void evdev_support_sw(struct evdev_dev *, uint16_t);
 int evdev_register_client(struct evdev_dev *, struct evdev_client **);
 int evdev_dispose_client(struct evdev_client *);
 
+/* Utility functions: */
+uint16_t evdev_hid2key(int);
+uint16_t evdev_at2key(int);
+
 #endif	/* _DEV_EVDEV_EVDEV_H */
