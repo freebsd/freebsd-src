@@ -80,6 +80,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/vmmeter.h>
 
 #include <vm/vm.h>
+#include <vm/vm_domain.h>
 #include <vm/vm_object.h>
 #include <vm/vm_page.h>
 #include <vm/vm_pageout.h>
@@ -312,7 +313,8 @@ bucket_init(void)
 		size += sizeof(void *) * ubz->ubz_entries;
 		ubz->ubz_zone = uma_zcreate(ubz->ubz_name, size,
 		    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR,
-		    UMA_ZONE_MTXCLASS | UMA_ZFLAG_BUCKET | UMA_ZONE_NUMA);
+		    UMA_ZONE_MTXCLASS | UMA_ZFLAG_BUCKET);
+		uma_zone_set_domain_selector(ubz->ubz_zone, &vm_sel_ft);
 	}
 }
 
@@ -715,10 +717,10 @@ cache_drain_safe_cpu(uma_zone_t zone)
 
 	ZONE_LOCK(zone);
 	critical_enter();
-	if (zone->uz_flags & UMA_ZONE_NUMA)
-		domain = PCPU_GET(domain);
-	else
+	if (zone->uz_sel == NULL)
 		domain = 0;
+	else
+		domain = vm_domain_select_first(zone->uz_sel);
 	cache = &zone->uz_cpu[curcpu];
 	if (cache->uc_allocbucket) {
 		if (cache->uc_allocbucket->ub_cnt != 0)
@@ -1605,6 +1607,7 @@ zone_ctor(void *mem, int size, void *udata, int flags)
 	zone->uz_sleeps = 0;
 	zone->uz_count = 0;
 	zone->uz_count_min = 0;
+	zone->uz_sel = NULL;
 	zone->uz_flags = 0;
 	zone->uz_warning = NULL;
 	timevalclear(&zone->uz_ratecheck);
@@ -2268,13 +2271,12 @@ zalloc_start:
 		goto zalloc_start;
 	}
 
-	/* Get the domain according to zone flags. */
-	if (zone->uz_flags & UMA_ZONE_NUMA) {
-		domain = PCPU_GET(domain);
-		zdom = &zone->uz_domain[domain];
-	} else {
+	if (zone->uz_sel == NULL) {
 		domain = UMA_ANYDOMAIN; 
 		zdom = &zone->uz_domain[0];
+	} else {
+		domain = vm_domain_select_first(zone->uz_sel);
+		zdom = &zone->uz_domain[domain];
 	}
 
 	/*
@@ -2835,13 +2837,12 @@ zfree_start:
 	}
 	cache->uc_freebucket = NULL;
 
-	/* Get the domain according to zone flags. */
-	if (zone->uz_flags & UMA_ZONE_NUMA) {
-		domain = PCPU_GET(domain);
-		zdom = &zone->uz_domain[domain];
-	} else {
+	if (zone->uz_sel == NULL) {
 		zdom = &zone->uz_domain[0];
 		domain = UMA_ANYDOMAIN;
+	} else {
+		domain = vm_domain_select_first(zone->uz_sel);
+		zdom = &zone->uz_domain[domain];
 	}
 
 	/* Can we throw this on the zone full list? */
@@ -3162,6 +3163,16 @@ uma_zone_set_allocf(uma_zone_t zone, uma_alloc allocf)
 	KEG_LOCK(keg);
 	keg->uk_allocf = allocf;
 	KEG_UNLOCK(keg);
+}
+
+/* See uma.h */
+void
+uma_zone_set_domain_selector(uma_zone_t zone, struct vm_domain_select *sel)
+{
+
+	ZONE_LOCK(zone);
+	zone->uz_sel = sel;
+	ZONE_UNLOCK(zone);
 }
 
 /* See uma.h */

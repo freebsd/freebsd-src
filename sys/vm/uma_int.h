@@ -312,6 +312,8 @@ struct uma_zone_domain {
 
 typedef struct uma_zone_domain * uma_zone_domain_t;
 
+struct vm_domain_select;
+
 /*
  * Zone management structure 
  *
@@ -347,6 +349,7 @@ struct uma_zone {
 	uint64_t	uz_sleeps;	/* Total number of alloc sleeps */
 	uint16_t	uz_count;	/* Amount of items in full bucket */
 	uint16_t	uz_count_min;	/* Minimal amount of items there */
+	struct vm_domain_select	*uz_sel;	/* Domain memory selector. */
 
 	/* The next three fields are used to print a rate-limited warnings. */
 	const char	*uz_warning;	/* Warning to print on failure */

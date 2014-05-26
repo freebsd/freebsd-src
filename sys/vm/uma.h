@@ -45,6 +45,7 @@
 /* Types and type defs */
 
 struct uma_zone;
+struct vm_domain_select;
 /* Opaque type used as a handle to the zone */
 typedef struct uma_zone * uma_zone_t;
 
@@ -279,11 +280,6 @@ uma_zone_t uma_zcache_create(char *name, int size, uma_ctor ctor, uma_dtor dtor,
 #define	UMA_ZONE_PCPU		0x8000	/*
 					 * Allocates mp_ncpus slabs sized to
 					 * sizeof(struct pcpu).
-					 */
-#define	UMA_ZONE_NUMA		0x10000	/*
-					 * Zone is NUMA aware.  Implements
-					 * a best effort first-touch
-					 * allocation policy.
 					 */
 
 /*
@@ -583,6 +579,19 @@ void uma_zone_set_allocf(uma_zone_t zone, uma_alloc allocf);
  */
 
 void uma_zone_set_freef(uma_zone_t zone, uma_free freef);
+
+/*
+ * XXX
+ *
+ * Arguments:
+ *	zone   	The zone NUMA policy is being installed.
+ *	sel	Selector of the NUMA policy requested. 
+ *
+ * Returns:
+ *	Nothing
+ */
+void uma_zone_set_domain_selector(uma_zone_t zone,
+    struct vm_domain_select *sel);
 
 /*
  * These flags are setable in the allocf and visible in the freef.
