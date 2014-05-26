@@ -2747,7 +2747,6 @@ OLD_DIRS+=usr/share/misc/pcvtfonts
 OLD_FILES+=usr/share/misc/keycap.pcvt
 OLD_FILES+=usr/share/man/man8/ispcvt.8.gz
 OLD_FILES+=usr/share/man/man5/keycap.5.gz
-OLD_FILES+=usr/share/man/man4/vt.4.gz
 OLD_FILES+=usr/share/man/man4/pcvt.4.gz
 OLD_FILES+=usr/share/man/man3/kgetstr.3.gz
 OLD_FILES+=usr/share/man/man3/kgetnum.3.gz
