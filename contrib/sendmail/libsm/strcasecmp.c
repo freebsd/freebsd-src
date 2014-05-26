@@ -12,7 +12,7 @@
  */
 
 #include <sm/gen.h>
-SM_RCSID("@(#)$Id: strcasecmp.c,v 1.16 2013/11/22 20:51:43 ca Exp $")
+SM_RCSID("@(#)$Id: strcasecmp.c,v 1.16 2013-11-22 20:51:43 ca Exp $")
 
 #include <sm/config.h>
 #include <sm/string.h>
