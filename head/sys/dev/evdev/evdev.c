@@ -46,9 +46,19 @@
 
 MALLOC_DEFINE(M_EVDEV, "evdev", "evdev memory");
 
+static inline void changebit(uint32_t *array, int, int);
 static struct evdev_client *evdev_client_alloc(void);
 static void evdev_client_push(struct evdev_client *, uint16_t, uint16_t,
     int32_t);
+
+static inline void
+changebit(uint32_t *array, int bit, int value)
+{
+	if (value)
+		setbit(array, bit);
+	else
+		clrbit(array, bit);
+}
 
 struct evdev_dev *
 evdev_alloc(void)
@@ -180,6 +190,19 @@ evdev_push_event(struct evdev_dev *evdev, uint16_t type, uint16_t code,
 
 	debugf("%s pushed event %d/%d/%d",
 	    device_get_nameunit(evdev->ev_dev), type, code, value);
+
+	/* For certain event types, update device state bits */
+	if (type == EV_KEY)
+		changebit(evdev->ev_key_states, code, value);
+
+	if (type == EV_LED)
+		changebit(evdev->ev_led_states, code, value);
+
+	if (type == EV_SND)
+		changebit(evdev->ev_snd_states, code, value);
+
+	if (type == EV_SW)
+		changebit(evdev->ev_sw_states, code, value);
 
 	/* Propagate event through all clients */
 	LIST_FOREACH(client, &evdev->ev_clients, ec_link) {

@@ -293,7 +293,7 @@ evdev_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag,
 {
 	struct evdev_cdev_softc *sc = dev->si_drv1;
 	struct evdev_dev *evdev = sc->ecs_evdev;
-	int len, num;
+	int len, num, limit;
 
 	len = IOCPARM_LEN(cmd);
 	cmd = IOCBASECMD(cmd);
@@ -345,16 +345,25 @@ evdev_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag,
 		break;
 
 	case EVIOCGKEY(0):
-		memcpy(data, evdev->ev_key_flags, len);
+		limit = MAX(len, howmany(KEY_CNT, 8));
+		memcpy(data, evdev->ev_key_states, limit);
 		break;
 
 	case EVIOCGLED(0):
+		limit = MAX(len, howmany(LED_CNT, 8));
+		memcpy(data, evdev->ev_led_states, limit);
+
 		break;
 
 	case EVIOCGSND(0):
+		limit = MAX(len, howmany(SND_CNT, 8));
+		memcpy(data, evdev->ev_snd_states, limit);
+
 		break;
 
 	case EVIOCGSW(0):
+		limit = MAX(len, howmany(SW_CNT, 8));
+		memcpy(data, evdev->ev_sw_states, limit);
 		break;
 	}
 
