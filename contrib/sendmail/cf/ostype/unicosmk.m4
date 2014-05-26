@@ -11,7 +11,7 @@ divert(-1)
 #
 
 divert(0)
-VERSIONID(`$Id: unicosmk.m4,v 1.2 2013/11/22 20:51:15 ca Exp $')
+VERSIONID(`$Id: unicosmk.m4,v 1.2 2013-11-22 20:51:15 ca Exp $')
 define(`ALIAS_FILE', `/usr/lib/aliases')
 define(`HELP_FILE', `/usr/lib/sendmail.hf')
 define(`QUEUE_DIR', `/usr/spool/mqueue')
