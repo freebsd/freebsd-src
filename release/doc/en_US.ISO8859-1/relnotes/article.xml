@@ -639,8 +639,8 @@
       <para revision="255934">The &man.readline.3; library has been
 	updated to version 1.104.</para>
 
-      <para revision="261375"><application>Sendmail</application> has
-	been updated to version 8.14.8.</para>
+      <para revision="266711"><application>Sendmail</application> has
+	been updated to version 8.14.9.</para>
 
       <para revision="262706"><application>BIND</application> has
 	been updated to version 9.9.5.</para>
