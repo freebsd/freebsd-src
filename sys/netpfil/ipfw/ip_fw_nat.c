@@ -442,7 +442,7 @@ ipfw_nat_cfg(struct sockopt *sopt)
 	ptr->ip = cfg->ip;
 	ptr->redir_cnt = cfg->redir_cnt;
 	ptr->mode = cfg->mode;
-	LibAliasSetMode(ptr->lib, cfg->mode, cfg->mode);
+	LibAliasSetMode(ptr->lib, cfg->mode, ~0);
 	LibAliasSetAddress(ptr->lib, ptr->ip);
 	memcpy(ptr->if_name, cfg->if_name, IF_NAMESIZE);
 
