@@ -639,6 +639,7 @@ DEFAULT_OSDIR
 OSDIR
 INCLUDES
 LDLIBS
+INTERNAL_CPPFLAGS
 NOTEST_INCLUDES
 NOTEST_LIBS
 NOTEST_LDFLAGS
@@ -919,6 +920,7 @@ enable_lfs
 enable_nonportable_atomics
 enable_threads
 with_efence
+enable_posix_shm
 with_sendfile
 enable_allocator_uses_mmap
 enable_dso
@@ -1563,7 +1565,8 @@ Optional Features:
   --disable-lfs           Disable large file support on 32-bit platforms
   --enable-nonportable-atomics  Use optimized atomic code which may produce nonportable binaries
   --enable-threads        Enable threading support in APR.
-  --enable-allocator-uses-mmap    Use mmap in apr_allocator instead of malloc (experimental)
+  --enable-posix-shm      Use POSIX shared memory (shm_open) if available
+  --enable-allocator-uses-mmap    Use mmap in apr_allocator instead of malloc
   --disable-dso           Disable DSO support
   --enable-other-child    Enable reliable child processes
   --disable-ipv6          Disable IPv6 support in APR.
@@ -5933,10 +5936,10 @@ if test "x$apr_preload_done" != "xyes" ; then
     *mint)
 
   if test "x$CPPFLAGS" = "x"; then
-    test "x$silent" != "xyes" && echo "  setting CPPFLAGS to \"-DMINT\""
-    CPPFLAGS="-DMINT"
+    test "x$silent" != "xyes" && echo "  setting CPPFLAGS to \"-DMINT -D_GNU_SOURCE\""
+    CPPFLAGS="-DMINT -D_GNU_SOURCE"
   else
-    apr_addto_bugger="-DMINT"
+    apr_addto_bugger="-DMINT -D_GNU_SOURCE"
     for i in $apr_addto_bugger; do
       apr_addto_duplicate="0"
       for j in $CPPFLAGS; do
@@ -5948,27 +5951,6 @@ if test "x$apr_preload_done" != "xyes" ; then
       if test $apr_addto_duplicate = "0"; then
         test "x$silent" != "xyes" && echo "  adding \"$i\" to CPPFLAGS"
         CPPFLAGS="$CPPFLAGS $i"
-      fi
-    done
-  fi
-
-
-  if test "x$LIBS" = "x"; then
-    test "x$silent" != "xyes" && echo "  setting LIBS to \"-lportlib\""
-    LIBS="-lportlib"
-  else
-    apr_addto_bugger="-lportlib"
-    for i in $apr_addto_bugger; do
-      apr_addto_duplicate="0"
-      for j in $LIBS; do
-        if test "x$i" = "x$j"; then
-          apr_addto_duplicate="1"
-          break
-        fi
-      done
-      if test $apr_addto_duplicate = "0"; then
-        test "x$silent" != "xyes" && echo "  adding \"$i\" to LIBS"
-        LIBS="$LIBS $i"
       fi
     done
   fi
@@ -9059,30 +9041,28 @@ $as_echo "#define HAVE_ZOS_PTHREADS 1" >>confdefs.h
   fi
 
         ;;
-    *cygwin*)
+    *mingw*)
 
-  if test "x$CPPFLAGS" = "x"; then
-    test "x$silent" != "xyes" && echo "  setting CPPFLAGS to \"-DCYGWIN\""
-    CPPFLAGS="-DCYGWIN"
+  if test "x$INTERNAL_CPPFLAGS" = "x"; then
+    test "x$silent" != "xyes" && echo "  setting INTERNAL_CPPFLAGS to \"-DBINPATH=$apr_builddir/test/.libs\""
+    INTERNAL_CPPFLAGS="-DBINPATH=$apr_builddir/test/.libs"
   else
-    apr_addto_bugger="-DCYGWIN"
+    apr_addto_bugger="-DBINPATH=$apr_builddir/test/.libs"
     for i in $apr_addto_bugger; do
       apr_addto_duplicate="0"
-      for j in $CPPFLAGS; do
+      for j in $INTERNAL_CPPFLAGS; do
         if test "x$i" = "x$j"; then
           apr_addto_duplicate="1"
           break
         fi
       done
       if test $apr_addto_duplicate = "0"; then
-        test "x$silent" != "xyes" && echo "  adding \"$i\" to CPPFLAGS"
-        CPPFLAGS="$CPPFLAGS $i"
+        test "x$silent" != "xyes" && echo "  adding \"$i\" to INTERNAL_CPPFLAGS"
+        INTERNAL_CPPFLAGS="$INTERNAL_CPPFLAGS $i"
       fi
     done
   fi
 
-	;;
-    *mingw*)
 
   if test "x$CPPFLAGS" = "x"; then
     test "x$silent" != "xyes" && echo "  setting CPPFLAGS to \"-DWIN32 -D__MSVCRT__\""
@@ -17794,7 +17774,7 @@ fi
 if test "x$use_libtool" = "xyes"; then
       lt_compile='$(LIBTOOL) $(LTFLAGS) --mode=compile $(COMPILE) -o $@ -c $< && touch $@'
       LT_VERSION="-version-info `$get_version libtool $version_hdr APR`"
-      link="\$(LIBTOOL) \$(LTFLAGS) --mode=link \$(LT_LDFLAGS) \$(COMPILE) \$(LT_VERSION) \$(ALL_LDFLAGS) -o \$@"
+      link="\$(LIBTOOL) \$(LTFLAGS) --mode=link \$(COMPILE) \$(LT_LDFLAGS) \$(LT_VERSION) \$(ALL_LDFLAGS) -o \$@"
       so_ext='lo'
       lib_target='-rpath $(libdir) $(OBJECTS)'
       export_lib_target='-rpath \$(libdir) \$(OBJECTS)'
@@ -17809,6 +17789,9 @@ fi
 case $host in
     *-solaris2*)
         apr_platform_runtime_link_flag="-R"
+        ;;
+    *-mingw* | *-cygwin*)
+        LT_LDFLAGS="$LT_LDFLAGS -no-undefined"
         ;;
     *)
         ;;
@@ -18314,6 +18297,53 @@ case "$host:$CC" in
   AR="ar"
 
 	;;
+                        *-mingw* | *-cygwin*)
+        if test "$enable_shared" = "yes"; then
+
+  if test "x$INTERNAL_CPPFLAGS" = "x"; then
+    test "x$silent" != "xyes" && echo "  setting INTERNAL_CPPFLAGS to \"-DAPR_DECLARE_EXPORT\""
+    INTERNAL_CPPFLAGS="-DAPR_DECLARE_EXPORT"
+  else
+    apr_addto_bugger="-DAPR_DECLARE_EXPORT"
+    for i in $apr_addto_bugger; do
+      apr_addto_duplicate="0"
+      for j in $INTERNAL_CPPFLAGS; do
+        if test "x$i" = "x$j"; then
+          apr_addto_duplicate="1"
+          break
+        fi
+      done
+      if test $apr_addto_duplicate = "0"; then
+        test "x$silent" != "xyes" && echo "  adding \"$i\" to INTERNAL_CPPFLAGS"
+        INTERNAL_CPPFLAGS="$INTERNAL_CPPFLAGS $i"
+      fi
+    done
+  fi
+
+        else
+
+  if test "x$CPPFLAGS" = "x"; then
+    test "x$silent" != "xyes" && echo "  setting CPPFLAGS to \"-DAPR_DECLARE_STATIC\""
+    CPPFLAGS="-DAPR_DECLARE_STATIC"
+  else
+    apr_addto_bugger="-DAPR_DECLARE_STATIC"
+    for i in $apr_addto_bugger; do
+      apr_addto_duplicate="0"
+      for j in $CPPFLAGS; do
+        if test "x$i" = "x$j"; then
+          apr_addto_duplicate="1"
+          break
+        fi
+      done
+      if test $apr_addto_duplicate = "0"; then
+        test "x$silent" != "xyes" && echo "  adding \"$i\" to CPPFLAGS"
+        CPPFLAGS="$CPPFLAGS $i"
+      fi
+    done
+  fi
+
+        fi
+        ;;
 esac
 
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking whether the compiler provides atomic builtins" >&5
@@ -18791,7 +18821,17 @@ case $host in
         fi
         ;;
     *linux*)
-        os_version=`uname -r | sed -e 's/\(.\)\.\(.\)\.\(.\).*/\1\2\3/'`
+        os_major=`uname -r | sed -e 's/\([1-9][0-9]*\)\..*/\1/'`
+        os_minor=`uname -r | sed -e 's/[1-9][0-9]*\.\([0-9]\+\)\..*/\1/'`
+        if test $os_major -lt 2 -o \( $os_major -eq 2 -a $os_minor -lt 4 \); then
+            { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: Configured for pre-2.4 Linux $os_major.$os_minor" >&5
+$as_echo "$as_me: WARNING: Configured for pre-2.4 Linux $os_major.$os_minor" >&2;}
+            os_pre24linux=1
+        else
+            os_pre24linux=0
+            { $as_echo "$as_me:${as_lineno-$LINENO}: Configured for Linux $os_major.$os_minor" >&5
+$as_echo "$as_me: Configured for Linux $os_major.$os_minor" >&6;}
+        fi
         ;;
     *os390)
         os_version=`uname -r | sed -e 's/\.//g'`
@@ -20391,7 +20431,10 @@ $as_echo "#define HAVE_DUP3 1" >>confdefs.h
 
 fi
 
-# test for accept4
+# Test for accept4().  Create a non-blocking socket, bind it to
+# an unspecified port & address (kernel picks), and attempt to
+# call accept4() on it.  If the syscall is wired up (i.e. the
+# kernel is new enough), it should return EAGAIN.
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking for accept4 support" >&5
 $as_echo_n "checking for accept4 support... " >&6; }
 if ${apr_cv_accept4+:} false; then :
@@ -20403,75 +20446,41 @@ else
   cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 /* end confdefs.h.  */
 
-#include <unistd.h>
 #include <sys/types.h>
 #include <sys/socket.h>
-#include <sys/un.h>
 #include <sys/wait.h>
-#include <signal.h>
+#include <netinet/in.h>
+#include <netinet/tcp.h>
 #include <errno.h>
+#include <string.h>
+#include <unistd.h>
+#include <fcntl.h>
 
-#define A4_SOCK "./apr_accept4_test_socket"
-
-int main()
+int main(int argc, char **argv)
 {
-    pid_t pid;
-    int fd;
-    struct sockaddr_un loc, rem;
-    socklen_t rem_sz;
+    int fd, flags;
+    struct sockaddr_in sin;
 
-    if ((pid = fork())) {
-        int status;
-
-        unlink(A4_SOCK);
-
-        if ((fd = socket(AF_UNIX, SOCK_STREAM, 0)) == -1)
-            goto cleanup_failure2;
-
-        loc.sun_family = AF_UNIX;
-        strncpy(loc.sun_path, A4_SOCK, sizeof(loc.sun_path) - 1);
-
-        if (bind(fd, (struct sockaddr *) &loc,
-                 sizeof(struct sockaddr_un)) == -1)
-            goto cleanup_failure;
-
-        if (listen(fd, 5) == -1)
-            goto cleanup_failure;
-
-        rem_sz = sizeof(struct sockaddr_un);
-        if (accept4(fd, (struct sockaddr *) &rem, &rem_sz, 0) == -1) {
-            goto cleanup_failure;
-        }
-        else {
-            close(fd);
-            waitpid(pid, &status, 0);
-            unlink(A4_SOCK);
-            return 0;
-        }
-
-cleanup_failure:
-        close(fd);
-cleanup_failure2:
-        kill(pid, SIGKILL);
-        waitpid(pid, &status, 0);
-        unlink(A4_SOCK);
+    if ((fd = socket(AF_INET, SOCK_STREAM, 0)) == -1)
         return 1;
-    }
-    else {
-        if ((fd = socket(AF_UNIX, SOCK_STREAM, 0)) == -1)
-            return 1; /* this will be bad: we'll hang */
+    flags = fcntl(fd, F_GETFL);
+    if (flags == -1 || fcntl(fd, F_SETFL, flags|O_NONBLOCK) == -1)
+        return 5;
 
-        loc.sun_family = AF_UNIX;
-        strncpy(loc.sun_path, A4_SOCK, sizeof(loc.sun_path) - 1);
+    memset(&sin, 0, sizeof sin);
+    sin.sin_family = AF_INET;
 
-        while(connect(fd, (struct sockaddr *) &loc,
-                      sizeof(struct sockaddr_un)) == -1 &&
-              (errno==ENOENT || errno==ECONNREFUSED))
-            ;
+    if (bind(fd, (struct sockaddr *) &sin, sizeof sin) == -1)
+        return 2;
 
-        close(fd);
+    if (listen(fd, 5) == -1)
+        return 3;
+
+    if (accept4(fd, NULL, 0, SOCK_NONBLOCK) == 0
+        || errno == EAGAIN || errno == EWOULDBLOCK)
         return 0;
-    }
+
+    return 4;
 }
 _ACEOF
 if ac_fn_c_try_run "$LINENO"; then :
@@ -20579,6 +20588,49 @@ $as_echo "$apr_cv_epoll_create1" >&6; }
 if test "$apr_cv_epoll_create1" = "yes"; then
 
 $as_echo "#define HAVE_EPOLL_CREATE1 1" >>confdefs.h
+
+fi
+
+# Check for z/OS async i/o support.
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for asio -> message queue support" >&5
+$as_echo_n "checking for asio -> message queue support... " >&6; }
+if ${apr_cv_aio_msgq+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  if test "$cross_compiling" = yes; then :
+  apr_cv_aio_msgq=no
+else
+  cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+#define _AIO_OS390
+#include <aio.h>
+
+int main()
+{
+    struct aiocb a;
+
+    a.aio_notifytype = AIO_MSGQ;  /* use IPC message queue for notification */
+
+    return aio_cancel(2, NULL) == -1;
+}
+_ACEOF
+if ac_fn_c_try_run "$LINENO"; then :
+  apr_cv_aio_msgq=yes
+else
+  apr_cv_aio_msgq=no
+fi
+rm -f core *.core core.conftest.* gmon.out bb.out conftest$ac_exeext \
+  conftest.$ac_objext conftest.beam conftest.$ac_ext
+fi
+
+fi
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $apr_cv_aio_msgq" >&5
+$as_echo "$apr_cv_aio_msgq" >&6; }
+
+if test "$apr_cv_aio_msgq" = "yes"; then
+
+$as_echo "#define HAVE_AIO_MSGQ 1" >>confdefs.h
 
 fi
 
@@ -21214,7 +21266,9 @@ case $host in
         # that it has it.
         # FIXME - find exact 2.3 version that MMANON was fixed in.  It is
         # confirmed fixed in 2.4 series.
-        if test $os_version -le "240"; then
+        if test $os_pre24linux -eq 1; then
+            { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: Disabling anon mmap() support for Linux pre-2.4" >&5
+$as_echo "$as_me: WARNING: Disabling anon mmap() support for Linux pre-2.4" >&2;}
                 ac_decision=''
     for ac_item in USE_SHMEM_MMAP_ZERO USE_SHMEM_SHMGET_ANON; do
          eval "ac_decision_this=\$ac_decision_${ac_item}"
@@ -21520,13 +21574,28 @@ else
 
 fi
 
+# Check whether --enable-posix-shm was given.
+if test "${enable_posix_shm+set}" = set; then :
+  enableval=$enable_posix_shm;
+if test "$havemmapshm" = "1"; then
+      ac_decision=''
+    for ac_item in USE_SHMEM_MMAP_SHM; do
+         eval "ac_decision_this=\$ac_decision_${ac_item}"
+         if test ".$ac_decision_this" = .yes; then
+             ac_decision=$ac_item
+             eval "ac_decision_msg=\$ac_decision_${ac_item}_msg"
+         fi
+    done
+
+fi
+
+fi
+
 case $host in
     *linux* )
-        # Linux has problems with MM_SHMT_MMANON even though it reports
-        # that it has it.
-        # FIXME - find exact 2.3 version that MMANON was fixed in.  It is
-        # confirmed fixed in 2.4 series.
-        if test $os_version -le "240"; then
+        # Linux pre-2.4 had problems with MM_SHMT_MMANON even though
+        # it reports that it has it.
+        if test $os_pre24linux -eq 1; then
                 ac_decision=''
     for ac_item in USE_SHMEM_MMAP_TMP USE_SHMEM_MMAP_SHM                                   USE_SHMEM_SHMGET; do
          eval "ac_decision_this=\$ac_decision_${ac_item}"
@@ -21932,7 +22001,9 @@ else
             ;;
         s390-*-linux-gnu)
             # disable sendfile support for 2.2 on S/390
-            if test $os_version -lt 240; then
+            if test $os_pre24linux -eq 1; then
+                { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: Disabled sendfile support for Linux 2.2 on S/390" >&5
+$as_echo "$as_me: WARNING: Disabled sendfile support for Linux 2.2 on S/390" >&2;}
                 sendfile="0"
             fi
             ;;
@@ -23435,9 +23506,14 @@ else
 /* end confdefs.h.  */
 #include <stdio.h>
 #include <sys/types.h>
+#ifdef WIN32
+#define binmode "b"
+#else
+#define binmode
+#endif
 main()
 {
-  FILE *f=fopen("conftestval", "w");
+  FILE *f=fopen("conftestval", "w" binmode);
   if (!f) exit(1);
   fprintf(f, "%d\n", sizeof(pid_t));
   exit(0);
@@ -23665,9 +23741,14 @@ else
 /* end confdefs.h.  */
 #include <stdio.h>
 #include <sys/types.h>
+#ifdef WIN32
+#define binmode "b"
+#else
+#define binmode
+#endif
 main()
 {
-  FILE *f=fopen("conftestval", "w");
+  FILE *f=fopen("conftestval", "w" binmode);
   if (!f) exit(1);
   fprintf(f, "%d\n", sizeof(ssize_t));
   exit(0);
@@ -23723,9 +23804,14 @@ else
 /* end confdefs.h.  */
 #include <stdio.h>
 #include <stddef.h>
+#ifdef WIN32
+#define binmode "b"
+#else
+#define binmode
+#endif
 main()
 {
-  FILE *f=fopen("conftestval", "w");
+  FILE *f=fopen("conftestval", "w" binmode);
   if (!f) exit(1);
   fprintf(f, "%d\n", sizeof(size_t));
   exit(0);
@@ -23781,9 +23867,14 @@ else
 /* end confdefs.h.  */
 #include <stdio.h>
 #include <sys/types.h>
+#ifdef WIN32
+#define binmode "b"
+#else
+#define binmode
+#endif
 main()
 {
-  FILE *f=fopen("conftestval", "w");
+  FILE *f=fopen("conftestval", "w" binmode);
   if (!f) exit(1);
   fprintf(f, "%d\n", sizeof(off_t));
   exit(0);
@@ -23910,9 +24001,14 @@ else
 /* end confdefs.h.  */
 #include <stdio.h>
 $ac_includes_default
+#ifdef WIN32
+#define binmode "b"
+#else
+#define binmode
+#endif
 main()
 {
-  FILE *f=fopen("conftestval", "w");
+  FILE *f=fopen("conftestval", "w" binmode);
   if (!f) exit(1);
   fprintf(f, "%d\n", sizeof(ino_t));
   exit(0);
@@ -24192,9 +24288,14 @@ else
 #include <stdio.h>
 #include <sys/types.h>
 #include <sys/uio.h>
+#ifdef WIN32
+#define binmode "b"
+#else
+#define binmode
+#endif
 main()
 {
-  FILE *f=fopen("conftestval", "w");
+  FILE *f=fopen("conftestval", "w" binmode);
   if (!f) exit(1);
   fprintf(f, "%d\n", sizeof(struct iovec));
   exit(0);
@@ -27128,6 +27229,9 @@ else
 #ifdef HAVE_SYS_SOCKET_H
 #include <sys/socket.h>
 #endif
+#ifdef HAVE_SYS_TIME_H
+#include <sys/time.h>
+#endif
 #ifdef HAVE_SYS_SELECT_H
 #include <sys/select.h>
 #endif
@@ -27148,6 +27252,8 @@ int main(void) {
     int listen_port, rc;
     struct sockaddr_in sa;
     socklen_t sa_len;
+    fd_set fds;
+    struct timeval tv;
 
     listen_s = socket(AF_INET, SOCK_STREAM, 0);
     if (listen_s < 0) {
@@ -27826,7 +27932,7 @@ else
 #include <sys/socket.h>
 #endif
 
-void main(void) {
+int main(void) {
     struct addrinfo hints, *ai;
     int error;
 
@@ -27889,7 +27995,7 @@ else
 #include <netdb.h>
 #endif
 
-void main(void) {
+int main(void) {
     if (EAI_ADDRFAMILY < 0) {
         exit(0);
     }
@@ -27950,7 +28056,7 @@ else
 #include <netinet/in.h>
 #endif
 
-void main(void) {
+int main(void) {
     struct sockaddr_in sa;
     char hbuf[256];
     int error;
@@ -28415,13 +28521,21 @@ fi
 
 
 
-# Use -no-install to link the test programs on all platforms
-# but Darwin, where it would cause the programs to be linked
-# against installed versions of libapr instead of those just
-# built.
+
+# Use -no-install or -no-fast-install to link the test
+# programs on all platforms but Darwin, where it would cause
+# the programs to be linked against installed versions of
+# libapr instead of those just built.
 case $host in
-*-apple-darwin*) LT_NO_INSTALL="" ;;
-*) LT_NO_INSTALL="-no-install" ;;
+    *-apple-darwin*)
+        LT_NO_INSTALL=""
+        ;;
+    *-mingw*)
+        LT_NO_INSTALL="-no-fast-install"
+        ;;
+    *)
+        LT_NO_INSTALL="-no-install"
+        ;;
 esac
 
 
