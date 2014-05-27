@@ -11,6 +11,9 @@ handbook:
 Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running portupgrade.
 
+20140512:
+	Clang and llvm have been upgraded to 3.4.1 release.
+
 20140321:
 	Clang and llvm have been upgraded to 3.4 release.
 
