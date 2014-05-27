@@ -103,7 +103,7 @@ register_default_iohandler(int start, int size)
 int
 emulate_inout(struct vmctx *ctx, int vcpu, struct vm_exit *vmexit, int strict)
 {
-	int addrsize, bytes, flags, in, port, rep;
+	int addrsize, bytes, flags, in, port, prot, rep;
 	uint32_t val;
 	inout_func_t handler;
 	void *arg;
@@ -141,6 +141,7 @@ emulate_inout(struct vmctx *ctx, int vcpu, struct vm_exit *vmexit, int strict)
 		vis = &vmexit->u.inout_str;
 		rep = vis->inout.rep;
 		addrsize = vis->addrsize;
+		prot = in ? PROT_WRITE : PROT_READ;
 		assert(addrsize == 2 || addrsize == 4 || addrsize == 8);
 
 		/* Index register */
@@ -152,8 +153,8 @@ emulate_inout(struct vmctx *ctx, int vcpu, struct vm_exit *vmexit, int strict)
 
 		while (count) {
 			if (vie_calculate_gla(vis->paging.cpu_mode,
-			    vis->addrsize, vis->seg_name, &vis->seg_desc,
-			    index, &gla)) {
+			    vis->seg_name, &vis->seg_desc, index, bytes,
+			    addrsize, prot, &gla)) {
 				error = vm_inject_exception2(ctx, vcpu,
 				    IDT_GP, 0);
 				assert(error == 0);
@@ -161,7 +162,7 @@ emulate_inout(struct vmctx *ctx, int vcpu, struct vm_exit *vmexit, int strict)
 			}
 
 			error = vm_gla2gpa(ctx, vcpu, &vis->paging, gla, bytes,
-			    in ? PROT_WRITE : PROT_READ, iov, nitems(iov));
+			    prot, iov, nitems(iov));
 			assert(error == 0 || error == 1 || error == -1);
 			if (error) {
 				retval = (error == 1) ? INOUT_RESTART :
