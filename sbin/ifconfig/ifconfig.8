@@ -169,6 +169,18 @@ and
 .Dq lladdr
 are synonyms for
 .Dq link .
+When using the
+.Fl l
+flag, the
+.Dq ether
+address family has special meaning and is no longer synonymous with
+.Dq link
+or
+.Dq lladdr .
+Specifying
+.Fl l Dq ether
+will list only ethernet interfaces, excluding all other interface types,
+including the loopback interface.
 .It Ar dest_address
 Specify the address of the correspondent on the other end
 of a point to point link.
@@ -2554,6 +2566,11 @@ The
 .Fl l
 flag may be used to list all available interfaces on the system, with
 no other additional information.
+If an
+.Ar address_family
+is specified, only interfaces of that type will be listed.
+.Fl l Dq ether
+will list only ethernet adapters, excluding the loopback interface.
 Use of this flag is mutually exclusive
 with all other flags and commands, except for
 .Fl d
