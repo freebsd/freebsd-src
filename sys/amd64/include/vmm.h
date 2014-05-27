@@ -321,6 +321,11 @@ struct seg_desc {
 	uint32_t	limit;
 	uint32_t	access;
 };
+#define	SEG_DESC_TYPE(desc)		((desc)->access & 0x001f)
+#define	SEG_DESC_PRESENT(desc)		((desc)->access & 0x0080)
+#define	SEG_DESC_DEF32(desc)		((desc)->access & 0x4000)
+#define	SEG_DESC_GRANULARITY(desc)	((desc)->access & 0x8000)
+#define	SEG_DESC_UNUSABLE(desc)		((desc)->access & 0x10000)
 
 enum vm_cpu_mode {
 	CPU_MODE_COMPATIBILITY,		/* IA-32E mode (CS.L = 0) */
