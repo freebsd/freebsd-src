@@ -66,7 +66,8 @@ static const STRUCT_USB_HOST_ID axge_devs[] = {
 #define	AXGE_DEV(v,p) { USB_VP(USB_VENDOR_##v, USB_PRODUCT_##v##_##p) }
 	AXGE_DEV(ASIX, AX88178A),
 	AXGE_DEV(ASIX, AX88179),
-	/* AXGE_DEV(SITECOMEU, LN032), */
+	AXGE_DEV(DLINK, DUB1312),
+	AXGE_DEV(SITECOMEU, LN032),
 #undef AXGE_DEV
 };
 
@@ -108,12 +109,11 @@ static int	axge_read_mem(struct axge_softc *, uint8_t, uint16_t,
 		    uint16_t, void *, int);
 static void	axge_write_mem(struct axge_softc *, uint8_t, uint16_t,
 		    uint16_t, void *, int);
-static uint8_t	axge_read_cmd_1(struct axge_softc *, uint8_t, uint16_t,
-		    uint16_t);
+static uint8_t	axge_read_cmd_1(struct axge_softc *, uint8_t, uint16_t);
 static uint16_t	axge_read_cmd_2(struct axge_softc *, uint8_t, uint16_t,
 		    uint16_t);
 static void	axge_write_cmd_1(struct axge_softc *, uint8_t, uint16_t,
-		    uint16_t, uint8_t);
+		    uint8_t);
 static void	axge_write_cmd_2(struct axge_softc *, uint8_t, uint16_t,
 		    uint16_t, uint16_t);
 static void	axge_chip_init(struct axge_softc *);
@@ -125,7 +125,7 @@ static void	axge_ifmedia_sts(struct ifnet *, struct ifmediareq *);
 static int	axge_ioctl(struct ifnet *, u_long, caddr_t);
 static int	axge_rx_frame(struct usb_ether *, struct usb_page_cache *, int);
 static int	axge_rxeof(struct usb_ether *, struct usb_page_cache *,
-		    unsigned int, unsigned int, struct axge_csum_hdr *);
+		    unsigned int, unsigned int, uint32_t);
 static void	axge_csum_cfg(struct usb_ether *);
 
 #define	AXGE_CSUM_FEATURES	(CSUM_IP | CSUM_TCP | CSUM_UDP)
@@ -144,7 +144,7 @@ static const struct usb_config axge_config[AXGE_N_TRANSFER] = {
 		.endpoint = UE_ADDR_ANY,
 		.direction = UE_DIR_OUT,
 		.frames = 16,
-		.bufsize = 16 * (MCLBYTES + 16),
+		.bufsize = 16 * MCLBYTES,
 		.flags = {.pipe_bof = 1,.force_short_xfer = 1,},
 		.callback = axge_bulk_write_callback,
 		.timeout = 10000,	/* 10 seconds */
@@ -240,12 +240,11 @@ axge_write_mem(struct axge_softc *sc, uint8_t cmd, uint16_t index,
 }
 
 static uint8_t
-axge_read_cmd_1(struct axge_softc *sc, uint8_t cmd, uint16_t index,
-    uint16_t reg)
+axge_read_cmd_1(struct axge_softc *sc, uint8_t cmd, uint16_t reg)
 {
 	uint8_t val;
 
-	axge_read_mem(sc, cmd, index, reg, &val, 1);
+	axge_read_mem(sc, cmd, 1, reg, &val, 1);
 	return (val);
 }
 
@@ -260,10 +259,9 @@ axge_read_cmd_2(struct axge_softc *sc, uint8_t cmd, uint16_t index,
 }
 
 static void
-axge_write_cmd_1(struct axge_softc *sc, uint8_t cmd, uint16_t index,
-    uint16_t reg, uint8_t val)
+axge_write_cmd_1(struct axge_softc *sc, uint8_t cmd, uint16_t reg, uint8_t val)
 {
-	axge_write_mem(sc, cmd, index, reg, &val, 1);
+	axge_write_mem(sc, cmd, 1, reg, &val, 1);
 }
 
 static void
@@ -356,31 +354,30 @@ axge_miibus_statchg(device_t dev)
 	if ((sc->sc_flags & AXGE_FLAG_LINK) == 0)
 		goto done;
 
-	link_status = axge_read_cmd_1(sc, AXGE_ACCESS_MAC, 1, AXGE_LINK_STATUS);
+	link_status = axge_read_cmd_1(sc, AXGE_ACCESS_MAC, AXGE_PLSR);
 
 	val = 0;
 	if ((IFM_OPTIONS(mii->mii_media_active) & IFM_FDX) != 0) {
-		val |= AXGE_MEDIUM_FULL_DUPLEX;
+		val |= MSR_FD;
 		if ((IFM_OPTIONS(mii->mii_media_active) & IFM_ETH_TXPAUSE) != 0)
-			val |= AXGE_MEDIUM_TXFLOW_CTRLEN;
+			val |= MSR_TFC;
 		if ((IFM_OPTIONS(mii->mii_media_active) & IFM_ETH_RXPAUSE) != 0)
-			val |= AXGE_MEDIUM_RXFLOW_CTRLEN;
+			val |= MSR_RFC;
 	}
-	val |=  AXGE_MEDIUM_RECEIVE_EN;
+	val |=  MSR_RE;
 	switch (IFM_SUBTYPE(mii->mii_media_active)) {
 	case IFM_1000_T:
-		val |= AXGE_MEDIUM_GIGAMODE | AXGE_MEDIUM_EN_125MHZ;
-		if (link_status & AXGE_LINK_STATUS_USB_SS)
+		val |= MSR_GM | MSR_EN_125MHZ;
+		if (link_status & PLSR_USB_SS)
 			memcpy(tmp, &axge_bulk_size[0], 5);
-		else if (link_status & AXGE_LINK_STATUS_USB_HS)
+		else if (link_status & PLSR_USB_HS)
 			memcpy(tmp, &axge_bulk_size[1], 5);
 		else
 			memcpy(tmp, &axge_bulk_size[3], 5);
 		break;
 	case IFM_100_TX:
-		val |= AXGE_MEDIUM_PS;
-		if (link_status &
-		    (AXGE_LINK_STATUS_USB_SS | AXGE_LINK_STATUS_USB_HS))
+		val |= MSR_PS;
+		if (link_status & (PLSR_USB_SS | PLSR_USB_HS))
 			memcpy(tmp, &axge_bulk_size[2], 5);
 		else
 			memcpy(tmp, &axge_bulk_size[3], 5);
@@ -391,7 +388,7 @@ axge_miibus_statchg(device_t dev)
 	}
 	/* Rx bulk configuration. */
 	axge_write_mem(sc, AXGE_ACCESS_MAC, 5, AXGE_RX_BULKIN_QCTRL, tmp, 5);
-	axge_write_cmd_2(sc, AXGE_ACCESS_MAC, 2, AXGE_MEDIUM_STATUS_MODE, val);
+	axge_write_cmd_2(sc, AXGE_ACCESS_MAC, 2, AXGE_MSR, val);
 done:
 	if (!locked)
 		AXGE_UNLOCK(sc);
@@ -401,11 +398,10 @@ static void
 axge_chip_init(struct axge_softc *sc)
 {
 	/* Power up ethernet PHY. */
-	axge_write_cmd_2(sc, AXGE_ACCESS_MAC, 2, AXGE_PHYPWR_RSTCTL, 0);
-	axge_write_cmd_2(sc, AXGE_ACCESS_MAC, 2, AXGE_PHYPWR_RSTCTL,
-	    AXGE_PHYPWR_RSTCTL_IPRL);
+	axge_write_cmd_2(sc, AXGE_ACCESS_MAC, 2, AXGE_EPPRCR, 0);
+	axge_write_cmd_2(sc, AXGE_ACCESS_MAC, 2, AXGE_EPPRCR, EPPRCR_IPRL);
 	uether_pause(&sc->sc_ue, hz / 4);
-	axge_write_cmd_1(sc, AXGE_ACCESS_MAC, 1, AXGE_CLK_SELECT,
+	axge_write_cmd_1(sc, AXGE_ACCESS_MAC, AXGE_CLK_SELECT,
 	    AXGE_CLK_SELECT_ACS | AXGE_CLK_SELECT_BCS);
 	uether_pause(&sc->sc_ue, hz / 10);
 }
@@ -440,7 +436,7 @@ axge_attach_post(struct usb_ether *ue)
 
 	/* Initialize controller and get station address. */
 	axge_chip_init(sc);
-	axge_read_mem(sc, AXGE_ACCESS_MAC, ETHER_ADDR_LEN, AXGE_NODE_ID,
+	axge_read_mem(sc, AXGE_ACCESS_MAC, ETHER_ADDR_LEN, AXGE_NIDR,
 	    ue->ue_eaddr, ETHER_ADDR_LEN);
 }
 
@@ -609,7 +605,8 @@ axge_bulk_read_callback(struct usb_xfer *xfer, usb_error_t error)
 	switch (USB_GET_STATE(xfer)) {
 	case USB_ST_TRANSFERRED:
 		pc = usbd_xfer_get_frame(xfer, 0);
-		axge_rx_frame(ue, pc, actlen);
+		if (axge_rx_frame(ue, pc, actlen) != 0)
+			goto tr_setup;
 
 		/* FALLTHROUGH */
 	case USB_ST_SETUP:
@@ -637,9 +634,7 @@ axge_bulk_write_callback(struct usb_xfer *xfer, usb_error_t error)
 	struct usb_page_cache *pc;
 	struct mbuf *m;
 	uint32_t txhdr;
-	uint32_t txhdr2;
-	int nframes;
-	int frm_len;
+	int nframes, pos;
 
 	sc = usbd_xfer_softc(xfer);
 	ifp = uether_getifp(&sc->sc_ue);
@@ -666,26 +661,18 @@ tr_setup:
 				break;
 			usbd_xfer_set_frame_offset(xfer, nframes * MCLBYTES,
 				nframes);
-			frm_len = 0;
+			pos = 0;
 			pc = usbd_xfer_get_frame(xfer, nframes);
-
-			txhdr = m->m_pkthdr.len;
-			txhdr = htole32(txhdr);
+			txhdr = htole32(m->m_pkthdr.len);
 			usbd_copy_in(pc, 0, &txhdr, sizeof(txhdr));
-			frm_len += sizeof(txhdr);
-
-			txhdr2 = 0;
-			if ((m->m_pkthdr.len + sizeof(txhdr) + sizeof(txhdr2)) %
-			    usbd_xfer_max_framelen(xfer) == 0) {
-				txhdr2 |= 0x80008000;
-			}
-			txhdr2 = htole32(txhdr2);
-			usbd_copy_in(pc, frm_len, &txhdr2, sizeof(txhdr2));
-			frm_len += sizeof(txhdr2);
-
-			/* Next copy in the actual packet. */
-			usbd_m_copy_in(pc, frm_len, m, 0, m->m_pkthdr.len);
-			frm_len += m->m_pkthdr.len;
+			txhdr = 0;
+			txhdr = htole32(txhdr);
+			usbd_copy_in(pc, 4, &txhdr, sizeof(txhdr));
+			pos += 8;
+			usbd_m_copy_in(pc, pos, m, 0, m->m_pkthdr.len);
+			pos += m->m_pkthdr.len;
+			if ((pos % usbd_xfer_max_framelen(xfer)) == 0)
+				txhdr |= 0x80008000;
 
 			/*
 			 * XXX
@@ -707,7 +694,7 @@ tr_setup:
 			m_freem(m);
 
 			/* Set frame length. */
-			usbd_xfer_set_frame_len(xfer, nframes, frm_len);
+			usbd_xfer_set_frame_len(xfer, nframes, pos);
 		}
 		if (nframes != 0) {
 			usbd_xfer_set_frames(xfer, nframes);
@@ -762,13 +749,13 @@ axge_setmulti(struct usb_ether *ue)
 	h = 0;
 	AXGE_LOCK_ASSERT(sc, MA_OWNED);
 
-	rxmode = axge_read_cmd_2(sc, AXGE_ACCESS_MAC, 2, AXGE_RX_CTL);
+	rxmode = axge_read_cmd_2(sc, AXGE_ACCESS_MAC, 2, AXGE_RCR);
 	if (ifp->if_flags & (IFF_ALLMULTI | IFF_PROMISC)) {
-		rxmode |= AXGE_RX_CTL_AMALL;
-		axge_write_cmd_2(sc, AXGE_ACCESS_MAC, 2, AXGE_RX_CTL, rxmode);
+		rxmode |= RCR_AMALL;
+		axge_write_cmd_2(sc, AXGE_ACCESS_MAC, 2, AXGE_RCR, rxmode);
 		return;
 	}
-	rxmode &= ~AXGE_RX_CTL_AMALL;
+	rxmode &= ~RCR_AMALL;
 
 	if_maddr_rlock(ifp);
 	TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
@@ -780,9 +767,8 @@ axge_setmulti(struct usb_ether *ue)
 	}
 	if_maddr_runlock(ifp);
 
-	axge_write_mem(sc, AXGE_ACCESS_MAC, 8, AXGE_MULTI_FILTER_ARRY,
-	    (void *)&hashtbl, 8);
-	axge_write_cmd_2(sc, AXGE_ACCESS_MAC, 2, AXGE_RX_CTL, rxmode);
+	axge_write_mem(sc, AXGE_ACCESS_MAC, 8, AXGE_MFA, (void *)&hashtbl, 8);
+	axge_write_cmd_2(sc, AXGE_ACCESS_MAC, 2, AXGE_RCR, rxmode);
 }
 
 static void
@@ -794,14 +780,14 @@ axge_setpromisc(struct usb_ether *ue)
 
 	sc = uether_getsc(ue);
 	ifp = uether_getifp(ue);
-	rxmode = axge_read_cmd_2(sc, AXGE_ACCESS_MAC, 2, AXGE_RX_CTL);
+	rxmode = axge_read_cmd_2(sc, AXGE_ACCESS_MAC, 2, AXGE_RCR);
 
 	if (ifp->if_flags & IFF_PROMISC)
-		rxmode |= AXGE_RX_CTL_PRO;
+		rxmode |= RCR_PRO;
 	else
-		rxmode &= ~AXGE_RX_CTL_PRO;
+		rxmode &= ~RCR_PRO;
 
-	axge_write_cmd_2(sc, AXGE_ACCESS_MAC, 2, AXGE_RX_CTL, rxmode);
+	axge_write_cmd_2(sc, AXGE_ACCESS_MAC, 2, AXGE_RCR, rxmode);
 	axge_setmulti(ue);
 }
 
@@ -840,27 +826,31 @@ axge_init(struct usb_ether *ue)
 	axge_reset(sc);
 
 	/* Set MAC address. */
-	axge_write_mem(sc, AXGE_ACCESS_MAC, ETHER_ADDR_LEN, AXGE_NODE_ID,
+	axge_write_mem(sc, AXGE_ACCESS_MAC, ETHER_ADDR_LEN, AXGE_NIDR,
 	    IF_LLADDR(ifp), ETHER_ADDR_LEN);
 
-	axge_write_cmd_1(sc, AXGE_ACCESS_MAC, 1, AXGE_PAUSE_WATERLVL_LOW, 0x34);
-	axge_write_cmd_1(sc, AXGE_ACCESS_MAC, 1, AXGE_PAUSE_WATERLVL_HIGH,
-	    0x52);
+	axge_write_cmd_1(sc, AXGE_ACCESS_MAC, AXGE_PWLLR, 0x34);
+	axge_write_cmd_1(sc, AXGE_ACCESS_MAC, AXGE_PWLHR, 0x52);
 
 	/* Configure TX/RX checksum offloading. */
 	axge_csum_cfg(ue);
 
 	/* Configure RX settings. */
-	rxmode = (AXGE_RX_CTL_IPE | AXGE_RX_CTL_AM | AXGE_RX_CTL_START);
+	rxmode = (RCR_AM | RCR_SO | RCR_DROP_CRCE);
+	if ((ifp->if_capenable & IFCAP_RXCSUM) != 0)
+		rxmode |= RCR_IPE;
 
 	/* If we want promiscuous mode, set the allframes bit. */
 	if (ifp->if_flags & IFF_PROMISC)
-		rxmode |= AXGE_RX_CTL_PRO;
+		rxmode |= RCR_PRO;
 
 	if (ifp->if_flags & IFF_BROADCAST)
-		rxmode |= AXGE_RX_CTL_AB;
+		rxmode |= RCR_AB;
 
-	axge_write_cmd_2(sc, AXGE_ACCESS_MAC, 2, AXGE_RX_CTL, rxmode);
+	axge_write_cmd_2(sc, AXGE_ACCESS_MAC, 2, AXGE_RCR, rxmode);
+
+	axge_write_cmd_1(sc, AXGE_ACCESS_MAC, AXGE_MMSR, 
+	    MMSR_PME_TYPE | MMSR_PME_POL | MMSR_RWMP);
 
 	/* Load the multicast filter. */
 	axge_setmulti(ue);
@@ -939,38 +929,39 @@ axge_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 static int
 axge_rx_frame(struct usb_ether *ue, struct usb_page_cache *pc, int actlen)
 {
-	struct axge_csum_hdr csum_hdr;
-	int error, len, pos;
+	int error, pos;
 	int pkt_cnt;
-	uint32_t rxhdr;
+	uint32_t rxhdr, pkt_hdr;
 	uint16_t hdr_off;
-	uint16_t pktlen;
+	uint16_t len, pktlen; 
 
 	pos = 0;
 	len = 0;
 	error = 0;
 
 	usbd_copy_out(pc, actlen - sizeof(rxhdr), &rxhdr, sizeof(rxhdr));
-	actlen -= sizeof(rxhdr);
 	rxhdr = le32toh(rxhdr);
 
 	pkt_cnt = (uint16_t)rxhdr;
 	hdr_off = (uint16_t)(rxhdr >> 16);
 
-	usbd_copy_out(pc, pos + hdr_off, &csum_hdr, sizeof(csum_hdr));
-	csum_hdr.len = le16toh(csum_hdr.len);
-	csum_hdr.cstatus = le16toh(csum_hdr.cstatus);
+	usbd_copy_out(pc, hdr_off, &pkt_hdr, sizeof(pkt_hdr));
 
-	while (pkt_cnt--) {
-		if (actlen <= sizeof(csum_hdr) + sizeof(struct ether_header)) {
+	while (pkt_cnt > 0) {
+		if ((int)(sizeof(pkt_hdr)) > actlen) {
 			error = EINVAL;
 			break;
 		}
-		pktlen = AXGE_CSUM_RXBYTES(csum_hdr.len);
-
-		if (pkt_cnt == 0)
-			/* Skip the 2-byte IP alignment header. */
-			axge_rxeof(ue, pc, 2, pktlen - 2, &csum_hdr);
+		pkt_hdr = le32toh(pkt_hdr);
+		pktlen = (pkt_hdr >> 16) & 0x1fff;
+		if ((pkt_hdr & AXGE_RXHDR_CRC_ERR) ||
+		    (pkt_hdr & AXGE_RXHDR_DROP_ERR))
+			ue->ue_ifp->if_ierrors++;
+		axge_rxeof(ue, pc, pos + 2, pktlen - 6, pkt_hdr);
+		len = (pktlen + 7) & ~7;
+		pos += len;
+		pkt_hdr++;
+		pkt_cnt--;
 	}
 
 	if (error != 0)
@@ -980,7 +971,7 @@ axge_rx_frame(struct usb_ether *ue, struct usb_page_cache *pc, int actlen)
 
 static int
 axge_rxeof(struct usb_ether *ue, struct usb_page_cache *pc,
-    unsigned int offset, unsigned int len, struct axge_csum_hdr *csum_hdr)
+    unsigned int offset, unsigned int len, uint32_t pkt_hdr)
 {
 	struct ifnet *ifp;
 	struct mbuf *m;
@@ -1005,20 +996,15 @@ axge_rxeof(struct usb_ether *ue, struct usb_page_cache *pc,
 	m->m_pkthdr.rcvif = ifp;
 	m->m_pkthdr.len = m->m_len = len;
 
-	if (csum_hdr != NULL &&
-	    csum_hdr->cstatus & AXGE_CSUM_HDR_L3_TYPE_IPV4) {
-		if ((csum_hdr->cstatus & (AXGE_CSUM_HDR_L4_CSUM_ERR |
-		    AXGE_RXHDR_L4CSUM_ERR)) == 0) {
-			m->m_pkthdr.csum_flags |= CSUM_IP_CHECKED |
-			    CSUM_IP_VALID;
-			if ((csum_hdr->cstatus & AXGE_CSUM_HDR_L4_TYPE_MASK) ==
-			    AXGE_CSUM_HDR_L4_TYPE_TCP ||
-			    (csum_hdr->cstatus & AXGE_CSUM_HDR_L4_TYPE_MASK) ==
-			    AXGE_CSUM_HDR_L4_TYPE_UDP) {
-				m->m_pkthdr.csum_flags |=
-				    CSUM_DATA_VALID | CSUM_PSEUDO_HDR;
-				m->m_pkthdr.csum_data = 0xffff;
-			}
+	if ((pkt_hdr & (AXGE_RXHDR_L4CSUM_ERR | AXGE_RXHDR_L3CSUM_ERR)) == 0) {
+		m->m_pkthdr.csum_flags |= CSUM_IP_CHECKED | CSUM_IP_VALID;
+		if ((pkt_hdr & AXGE_RXHDR_L4_TYPE_MASK) ==
+		    AXGE_RXHDR_L4_TYPE_TCP ||
+		    (pkt_hdr & AXGE_RXHDR_L4_TYPE_MASK) ==
+		    AXGE_RXHDR_L4_TYPE_UDP) {
+			m->m_pkthdr.csum_flags |= CSUM_DATA_VALID |
+			    CSUM_PSEUDO_HDR;
+			m->m_pkthdr.csum_data = 0xffff;
 		}
 	}
 
@@ -1039,12 +1025,11 @@ axge_csum_cfg(struct usb_ether *ue)
 
 	csum = 0;
 	if ((ifp->if_capenable & IFCAP_TXCSUM) != 0)
-		csum |= AXGE_TXCOE_IP  | AXGE_TXCOE_TCP | AXGE_TXCOE_UDP;
-	axge_write_cmd_1(sc, AXGE_ACCESS_MAC, 1, AXGE_TXCOE_CTL, csum);
+		csum |= CTCR_IP | CTCR_TCP | CTCR_UDP;
+	axge_write_cmd_1(sc, AXGE_ACCESS_MAC, AXGE_CTCR, csum);
 
 	csum = 0;
 	if ((ifp->if_capenable & IFCAP_RXCSUM) != 0)
-		csum |= AXGE_RXCOE_IP  | AXGE_RXCOE_TCP | AXGE_RXCOE_UDP |
-		    AXGE_RXCOE_ICMP | AXGE_RXCOE_IGMP;
-	axge_write_cmd_1(sc, AXGE_ACCESS_MAC, 1, AXGE_RXCOE_CTL, csum);
+		csum |= CRCR_IP | CRCR_TCP | CRCR_UDP;
+	axge_write_cmd_1(sc, AXGE_ACCESS_MAC, AXGE_CRCR, csum);
 }
