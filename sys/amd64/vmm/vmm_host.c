@@ -66,11 +66,16 @@ vmm_host_state_init(void)
 	 * XSAVE.  Only permit a guest to use XSAVE features supported
 	 * by the host.  This ensures that the FPU state used by the
 	 * guest is always a subset of the saved guest FPU state.
+	 *
+	 * In addition, only permit known XSAVE features where the
+	 * rules for which features depend on other features is known
+	 * to properly emulate xsetbv.
 	 */
 	if (vmm_host_cr4 & CR4_XSAVE) {
 		vmm_xsave_limits.xsave_enabled = 1;
 		vmm_host_xcr0 = rxcr(0);
-		vmm_xsave_limits.xcr0_allowed = vmm_host_xcr0;
+		vmm_xsave_limits.xcr0_allowed = vmm_host_xcr0 &
+		    (XFEATURE_AVX | XFEATURE_MPX | XFEATURE_AVX512);
 
 		cpuid_count(0xd, 0x0, regs);
 		vmm_xsave_limits.xsave_max_size = regs[1];
