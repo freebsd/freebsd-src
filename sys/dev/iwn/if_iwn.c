@@ -109,6 +109,8 @@ static const struct iwn_ident iwn_ident_table[] = {
 	{ 0x8086, IWN_DID_130_2, "Intel Centrino Wireless-N 130"		},
 	{ 0x8086, IWN_DID_100_1, "Intel Centrino Wireless-N 100"		},
 	{ 0x8086, IWN_DID_100_2, "Intel Centrino Wireless-N 100"		},
+	{ 0x8086, IWN_DID_105_1, "Intel Centrino Wireless-N 105"		},
+	{ 0x8086, IWN_DID_105_2, "Intel Centrino Wireless-N 105"		},
 	{ 0x8086, IWN_DID_135_1, "Intel Centrino Wireless-N 135"		},
 	{ 0x8086, IWN_DID_135_2, "Intel Centrino Wireless-N 135"		},
 	{ 0x8086, IWN_DID_4965_1, "Intel Wireless WiFi Link 4965"		},
@@ -458,7 +460,7 @@ iwn_attach(device_t dev)
 	sc->hw_type = (IWN_READ(sc, IWN_HW_REV) >> IWN_HW_REV_TYPE_SHIFT)
 	    & IWN_HW_REV_TYPE_MASK;
 	sc->subdevice_id = pci_get_subdevice(dev);
-
+printf("hw %d sdid %x\n", sc->hw_type, sc->subdevice_id);
 	/*
 	 * 4965 versus 5000 and later have different methods.
 	 * Let's set those up first.
@@ -977,6 +979,31 @@ iwn_config_specific(struct iwn_softc *sc, uint16_t pid)
 				sc->limits = &iwn1000_sensitivity_limits;
 				sc->base_params = &iwn1000_base_params;
 				sc->fwname = "iwn100fw";
+				break;
+			default:
+				device_printf(sc->sc_dev, "adapter type id : 0x%04x sub id :"
+				    "0x%04x rev %d not supported (subdevice)\n", pid,
+				    sc->subdevice_id,sc->hw_type);
+				return ENOTSUP;
+		}
+		break;
+
+/* 105 Series */
+/* XXX: This series will need adjustment for rate.
+ * see rx_with_siso_diversity in linux kernel
+ */
+	case IWN_DID_105_1:
+	case IWN_DID_105_2:
+		switch(sc->subdevice_id) {
+			case IWN_SDID_105_1:
+			case IWN_SDID_105_2:
+			case IWN_SDID_105_3:
+			//iwl105_bgn_cfg
+			case IWN_SDID_105_4:
+			//iwl105_bgn_d_cfg
+				sc->limits = &iwn2030_sensitivity_limits;
+				sc->base_params = &iwn2000_base_params;
+				sc->fwname = "iwn105fw";
 				break;
 			default:
 				device_printf(sc->sc_dev, "adapter type id : 0x%04x sub id :"
