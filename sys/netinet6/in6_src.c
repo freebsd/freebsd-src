@@ -229,10 +229,12 @@ srcaddrcmp(struct srcaddr_choice *c, struct in6_ifaddr *ia,
 	 * XXX: This is a TODO.
 	 */
 	/* Rule 5: Prefer outgoing interface. */
-	if (c->ia->ia_ifp == dst->ifp && ia->ia_ifp != dst->ifp)
-		NEXT(5);
-	if (c->ia->ia_ifp != dst->ifp && ia->ia_ifp == dst->ifp)
-		REPLACE(5);
+	if (!(ND_IFINFO(dst->ifp)->flags & ND6_IFF_NO_PREFER_IFACE)) {
+		if (c->ia->ia_ifp == dst->ifp && ia->ia_ifp != dst->ifp)
+			NEXT(5);
+		if (c->ia->ia_ifp != dst->ifp && ia->ia_ifp == dst->ifp)
+			REPLACE(5);
+	}
 	/*
 	 * Rule 5.5: Prefer addresses in a prefix advertised by
 	 * the next-hop.
