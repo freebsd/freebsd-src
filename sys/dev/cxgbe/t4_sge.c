@@ -55,6 +55,13 @@ __FBSDID("$FreeBSD$");
 #include <machine/md_var.h>
 #include <vm/vm.h>
 #include <vm/pmap.h>
+#ifdef DEV_NETMAP
+#include <machine/bus.h>
+#include <sys/selinfo.h>
+#include <net/if_var.h>
+#include <net/netmap.h>
+#include <dev/netmap/netmap_kern.h>
+#endif
 
 #include "common/common.h"
 #include "common/t4_regs.h"
@@ -71,7 +78,7 @@ __FBSDID("$FreeBSD$");
  * Ethernet frames are DMA'd at this byte offset into the freelist buffer.
  * 0-7 are valid values.
  */
-static int fl_pktshift = 2;
+int fl_pktshift = 2;
 TUNABLE_INT("hw.cxgbe.fl_pktshift", &fl_pktshift);
 
 /*
@@ -80,7 +87,7 @@ TUNABLE_INT("hw.cxgbe.fl_pktshift", &fl_pktshift);
  *  0: disable padding.
  *  Any power of 2 from 32 to 4096 (both inclusive) is also a valid value.
  */
-static int fl_pad = -1;
+int fl_pad = -1;
 TUNABLE_INT("hw.cxgbe.fl_pad", &fl_pad);
 
 /*
@@ -88,7 +95,7 @@ TUNABLE_INT("hw.cxgbe.fl_pad", &fl_pad);
  * -1: driver should figure out a good value.
  *  64 or 128 are the only other valid values.
  */
-static int spg_len = -1;
+int spg_len = -1;
 TUNABLE_INT("hw.cxgbe.spg_len", &spg_len);
 
 /*
@@ -193,6 +200,14 @@ static int free_rxq(struct port_info *, struct sge_rxq *);
 static int alloc_ofld_rxq(struct port_info *, struct sge_ofld_rxq *, int, int,
     struct sysctl_oid *);
 static int free_ofld_rxq(struct port_info *, struct sge_ofld_rxq *);
+#endif
+#ifdef DEV_NETMAP
+static int alloc_nm_rxq(struct port_info *, struct sge_nm_rxq *, int, int,
+    struct sysctl_oid *);
+static int free_nm_rxq(struct port_info *, struct sge_nm_rxq *);
+static int alloc_nm_txq(struct port_info *, struct sge_nm_txq *, int, int,
+    struct sysctl_oid *);
+static int free_nm_txq(struct port_info *, struct sge_nm_txq *);
 #endif
 static int ctrl_eq_alloc(struct adapter *, struct sge_eq *);
 static int eth_eq_alloc(struct adapter *, struct port_info *, struct sge_eq *);
@@ -809,6 +824,24 @@ t4_teardown_adapter_queues(struct adapter *sc)
 }
 
 static inline int
+port_intr_count(struct port_info *pi)
+{
+	int rc = 0;
+
+	if (pi->flags & INTR_RXQ)
+		rc += pi->nrxq;
+#ifdef TCP_OFFLOAD
+	if (pi->flags & INTR_OFLD_RXQ)
+		rc += pi->nofldrxq;
+#endif
+#ifdef DEV_NETMAP
+	if (pi->flags & INTR_NM_RXQ)
+		rc += pi->nnmrxq;
+#endif
+	return (rc);
+}
+
+static inline int
 first_vector(struct port_info *pi)
 {
 	struct adapter *sc = pi->adapter;
@@ -818,28 +851,10 @@ first_vector(struct port_info *pi)
 		return (0);
 
 	for_each_port(sc, i) {
-		struct port_info *p = sc->port[i];
-
 		if (i == pi->port_id)
 			break;
 
-#ifdef TCP_OFFLOAD
-		if (sc->flags & INTR_DIRECT)
-			rc += p->nrxq + p->nofldrxq;
-		else
-			rc += max(p->nrxq, p->nofldrxq);
-#else
-		/*
-		 * Not compiled with offload support and intr_count > 1.  Only
-		 * NIC queues exist and they'd better be taking direct
-		 * interrupts.
-		 */
-		KASSERT(sc->flags & INTR_DIRECT,
-		    ("%s: intr_count %d, !INTR_DIRECT", __func__,
-		    sc->intr_count));
-
-		rc += p->nrxq;
-#endif
+		rc += port_intr_count(sc->port[i]);
 	}
 
 	return (rc);
@@ -856,41 +871,48 @@ port_intr_iq(struct port_info *pi, int idx)
 	struct adapter *sc = pi->adapter;
 	struct sge *s = &sc->sge;
 	struct sge_iq *iq = NULL;
+	int nintr, i;
 
 	if (sc->intr_count == 1)
 		return (&sc->sge.fwq);
 
-#ifdef TCP_OFFLOAD
-	if (sc->flags & INTR_DIRECT) {
-		idx %= pi->nrxq + pi->nofldrxq;
-
-		if (idx >= pi->nrxq) {
-			idx -= pi->nrxq;
-			iq = &s->ofld_rxq[pi->first_ofld_rxq + idx].iq;
-		} else
-			iq = &s->rxq[pi->first_rxq + idx].iq;
-
-	} else {
-		idx %= max(pi->nrxq, pi->nofldrxq);
-
-		if (pi->nrxq >= pi->nofldrxq)
-			iq = &s->rxq[pi->first_rxq + idx].iq;
-		else
-			iq = &s->ofld_rxq[pi->first_ofld_rxq + idx].iq;
-	}
-#else
-	/*
-	 * Not compiled with offload support and intr_count > 1.  Only NIC
-	 * queues exist and they'd better be taking direct interrupts.
-	 */
-	KASSERT(sc->flags & INTR_DIRECT,
-	    ("%s: intr_count %d, !INTR_DIRECT", __func__, sc->intr_count));
-
-	idx %= pi->nrxq;
-	iq = &s->rxq[pi->first_rxq + idx].iq;
+	nintr = port_intr_count(pi);
+	KASSERT(nintr != 0,
+	    ("%s: pi %p has no exclusive interrupts, total interrupts = %d",
+	    __func__, pi, sc->intr_count));
+#ifdef DEV_NETMAP
+	/* Exclude netmap queues as they can't take anyone else's interrupts */
+	if (pi->flags & INTR_NM_RXQ)
+		nintr -= pi->nnmrxq;
+	KASSERT(nintr > 0,
+	    ("%s: pi %p has nintr %d after netmap adjustment of %d", __func__,
+	    pi, nintr, pi->nnmrxq));
 #endif
+	i = idx % nintr;
 
-	KASSERT(iq->flags & IQ_INTR, ("%s: EDOOFUS", __func__));
+	if (pi->flags & INTR_RXQ) {
+	       	if (i < pi->nrxq) {
+			iq = &s->rxq[pi->first_rxq + i].iq;
+			goto done;
+		}
+		i -= pi->nrxq;
+	}
+#ifdef TCP_OFFLOAD
+	if (pi->flags & INTR_OFLD_RXQ) {
+	       	if (i < pi->nofldrxq) {
+			iq = &s->ofld_rxq[pi->first_ofld_rxq + i].iq;
+			goto done;
+		}
+		i -= pi->nofldrxq;
+	}
+#endif
+	panic("%s: pi %p, intr_flags 0x%lx, idx %d, total intr %d\n", __func__,
+	    pi, pi->flags & INTR_ALL, idx, nintr);
+done:
+	MPASS(iq != NULL);
+	KASSERT(iq->flags & IQ_INTR,
+	    ("%s: iq %p (port %p, intr_flags 0x%lx, idx %d)", __func__, iq, pi,
+	    pi->flags & INTR_ALL, idx));
 	return (iq);
 }
 
@@ -927,7 +949,10 @@ t4_setup_port_queues(struct port_info *pi)
 #ifdef TCP_OFFLOAD
 	struct sge_ofld_rxq *ofld_rxq;
 	struct sge_wrq *ofld_txq;
-	struct sysctl_oid *oid2 = NULL;
+#endif
+#ifdef DEV_NETMAP
+	struct sge_nm_rxq *nm_rxq;
+	struct sge_nm_txq *nm_txq;
 #endif
 	char name[16];
 	struct adapter *sc = pi->adapter;
@@ -936,27 +961,20 @@ t4_setup_port_queues(struct port_info *pi)
 	struct sysctl_oid_list *children = SYSCTL_CHILDREN(oid);
 	int maxp, pack, mtu = ifp->if_mtu;
 
-	oid = SYSCTL_ADD_NODE(&pi->ctx, children, OID_AUTO, "rxq", CTLFLAG_RD,
-	    NULL, "rx queues");
-
-#ifdef TCP_OFFLOAD
-	if (is_offload(sc)) {
-		oid2 = SYSCTL_ADD_NODE(&pi->ctx, children, OID_AUTO, "ofld_rxq",
-		    CTLFLAG_RD, NULL,
-		    "rx queues for offloaded TCP connections");
-	}
-#endif
-
 	/* Interrupt vector to start from (when using multiple vectors) */
 	intr_idx = first_vector(pi);
 
 	/*
-	 * First pass over all rx queues (NIC and TOE):
+	 * First pass over all NIC and TOE rx queues:
 	 * a) initialize iq and fl
 	 * b) allocate queue iff it will take direct interrupts.
 	 */
 	maxp = mtu_to_max_payload(sc, mtu, 0);
 	pack = enable_buffer_packing(sc);
+	if (pi->flags & INTR_RXQ) {
+		oid = SYSCTL_ADD_NODE(&pi->ctx, children, OID_AUTO, "rxq",
+		    CTLFLAG_RD, NULL, "rx queues");
+	}
 	for_each_rxq(pi, i, rxq) {
 
 		init_iq(&rxq->iq, sc, pi->tmr_idx, pi->pktc_idx, pi->qsize_rxq,
@@ -966,11 +984,7 @@ t4_setup_port_queues(struct port_info *pi)
 		    device_get_nameunit(pi->dev), i);
 		init_fl(sc, &rxq->fl, pi->qsize_rxq / 8, maxp, pack, name);
 
-		if (sc->flags & INTR_DIRECT
-#ifdef TCP_OFFLOAD
-		    || (sc->intr_count > 1 && pi->nrxq >= pi->nofldrxq)
-#endif
-		   ) {
+		if (pi->flags & INTR_RXQ) {
 			rxq->iq.flags |= IQ_INTR;
 			rc = alloc_rxq(pi, rxq, intr_idx, i, oid);
 			if (rc != 0)
@@ -978,9 +992,13 @@ t4_setup_port_queues(struct port_info *pi)
 			intr_idx++;
 		}
 	}
-
 #ifdef TCP_OFFLOAD
 	maxp = mtu_to_max_payload(sc, mtu, 1);
+	if (is_offload(sc) && pi->flags & INTR_OFLD_RXQ) {
+		oid = SYSCTL_ADD_NODE(&pi->ctx, children, OID_AUTO, "ofld_rxq",
+		    CTLFLAG_RD, NULL,
+		    "rx queues for offloaded TCP connections");
+	}
 	for_each_ofld_rxq(pi, i, ofld_rxq) {
 
 		init_iq(&ofld_rxq->iq, sc, pi->tmr_idx, pi->pktc_idx,
@@ -990,10 +1008,26 @@ t4_setup_port_queues(struct port_info *pi)
 		    device_get_nameunit(pi->dev), i);
 		init_fl(sc, &ofld_rxq->fl, pi->qsize_rxq / 8, maxp, pack, name);
 
-		if (sc->flags & INTR_DIRECT ||
-		    (sc->intr_count > 1 && pi->nofldrxq > pi->nrxq)) {
+		if (pi->flags & INTR_OFLD_RXQ) {
 			ofld_rxq->iq.flags |= IQ_INTR;
-			rc = alloc_ofld_rxq(pi, ofld_rxq, intr_idx, i, oid2);
+			rc = alloc_ofld_rxq(pi, ofld_rxq, intr_idx, i, oid);
+			if (rc != 0)
+				goto done;
+			intr_idx++;
+		}
+	}
+#endif
+#ifdef DEV_NETMAP
+	/*
+	 * We don't have buffers to back the netmap rx queues right now so we
+	 * create the queues in a way that doesn't set off any congestion signal
+	 * in the chip.
+	 */
+	if (pi->flags & INTR_NM_RXQ) {
+		oid = SYSCTL_ADD_NODE(&pi->ctx, children, OID_AUTO, "nm_rxq",
+		    CTLFLAG_RD, NULL, "rx queues for netmap");
+		for_each_nm_rxq(pi, i, nm_rxq) {
+			rc = alloc_nm_rxq(pi, nm_rxq, intr_idx, i, oid);
 			if (rc != 0)
 				goto done;
 			intr_idx++;
@@ -1002,34 +1036,44 @@ t4_setup_port_queues(struct port_info *pi)
 #endif
 
 	/*
-	 * Second pass over all rx queues (NIC and TOE).  The queues forwarding
+	 * Second pass over all NIC and TOE rx queues.  The queues forwarding
 	 * their interrupts are allocated now.
 	 */
 	j = 0;
-	for_each_rxq(pi, i, rxq) {
-		if (rxq->iq.flags & IQ_INTR)
-			continue;
+	if (!(pi->flags & INTR_RXQ)) {
+		oid = SYSCTL_ADD_NODE(&pi->ctx, children, OID_AUTO, "rxq",
+		    CTLFLAG_RD, NULL, "rx queues");
+		for_each_rxq(pi, i, rxq) {
+			MPASS(!(rxq->iq.flags & IQ_INTR));
 
-		intr_idx = port_intr_iq(pi, j)->abs_id;
+			intr_idx = port_intr_iq(pi, j)->abs_id;
 
-		rc = alloc_rxq(pi, rxq, intr_idx, i, oid);
-		if (rc != 0)
-			goto done;
-		j++;
+			rc = alloc_rxq(pi, rxq, intr_idx, i, oid);
+			if (rc != 0)
+				goto done;
+			j++;
+		}
 	}
-
 #ifdef TCP_OFFLOAD
-	for_each_ofld_rxq(pi, i, ofld_rxq) {
-		if (ofld_rxq->iq.flags & IQ_INTR)
-			continue;
+	if (is_offload(sc) && !(pi->flags & INTR_OFLD_RXQ)) {
+		oid = SYSCTL_ADD_NODE(&pi->ctx, children, OID_AUTO, "ofld_rxq",
+		    CTLFLAG_RD, NULL,
+		    "rx queues for offloaded TCP connections");
+		for_each_ofld_rxq(pi, i, ofld_rxq) {
+			MPASS(!(ofld_rxq->iq.flags & IQ_INTR));
 
-		intr_idx = port_intr_iq(pi, j)->abs_id;
+			intr_idx = port_intr_iq(pi, j)->abs_id;
 
-		rc = alloc_ofld_rxq(pi, ofld_rxq, intr_idx, i, oid2);
-		if (rc != 0)
-			goto done;
-		j++;
+			rc = alloc_ofld_rxq(pi, ofld_rxq, intr_idx, i, oid);
+			if (rc != 0)
+				goto done;
+			j++;
+		}
 	}
+#endif
+#ifdef DEV_NETMAP
+	if (!(pi->flags & INTR_NM_RXQ))
+		CXGBE_UNIMPLEMENTED(__func__);
 #endif
 
 	/*
@@ -1039,10 +1083,7 @@ t4_setup_port_queues(struct port_info *pi)
 	    NULL, "tx queues");
 	j = 0;
 	for_each_txq(pi, i, txq) {
-		uint16_t iqid;
-
 		iqid = port_intr_iq(pi, j)->cntxt_id;
-
 		snprintf(name, sizeof(name), "%s txq%d",
 		    device_get_nameunit(pi->dev), i);
 		init_eq(&txq->eq, EQ_ETH, pi->qsize_txq, pi->tx_chan, iqid,
@@ -1053,15 +1094,13 @@ t4_setup_port_queues(struct port_info *pi)
 			goto done;
 		j++;
 	}
-
 #ifdef TCP_OFFLOAD
 	oid = SYSCTL_ADD_NODE(&pi->ctx, children, OID_AUTO, "ofld_txq",
 	    CTLFLAG_RD, NULL, "tx queues for offloaded TCP connections");
 	for_each_ofld_txq(pi, i, ofld_txq) {
-		uint16_t iqid;
+		struct sysctl_oid *oid2;
 
 		iqid = port_intr_iq(pi, j)->cntxt_id;
-
 		snprintf(name, sizeof(name), "%s ofld_txq%d",
 		    device_get_nameunit(pi->dev), i);
 		init_eq(&ofld_txq->eq, EQ_OFLD, pi->qsize_txq, pi->tx_chan,
@@ -1072,6 +1111,17 @@ t4_setup_port_queues(struct port_info *pi)
 		    name, CTLFLAG_RD, NULL, "offload tx queue");
 
 		rc = alloc_wrq(sc, pi, ofld_txq, oid2);
+		if (rc != 0)
+			goto done;
+		j++;
+	}
+#endif
+#ifdef DEV_NETMAP
+	oid = SYSCTL_ADD_NODE(&pi->ctx, children, OID_AUTO, "nm_txq",
+	    CTLFLAG_RD, NULL, "tx queues for netmap use");
+	for_each_nm_txq(pi, i, nm_txq) {
+		iqid = pi->first_nm_rxq + (j % pi->nnmrxq);
+		rc = alloc_nm_txq(pi, nm_txq, iqid, i, oid);
 		if (rc != 0)
 			goto done;
 		j++;
@@ -1110,6 +1160,10 @@ t4_teardown_port_queues(struct port_info *pi)
 	struct sge_ofld_rxq *ofld_rxq;
 	struct sge_wrq *ofld_txq;
 #endif
+#ifdef DEV_NETMAP
+	struct sge_nm_rxq *nm_rxq;
+	struct sge_nm_txq *nm_txq;
+#endif
 
 	/* Do this before freeing the queues */
 	if (pi->flags & PORT_SYSCTL_CTX) {
@@ -1127,11 +1181,14 @@ t4_teardown_port_queues(struct port_info *pi)
 	for_each_txq(pi, i, txq) {
 		free_txq(pi, txq);
 	}
-
 #ifdef TCP_OFFLOAD
 	for_each_ofld_txq(pi, i, ofld_txq) {
 		free_wrq(sc, ofld_txq);
 	}
+#endif
+#ifdef DEV_NETMAP
+	for_each_nm_txq(pi, i, nm_txq)
+	    free_nm_txq(pi, nm_txq);
 #endif
 
 	/*
@@ -1143,12 +1200,15 @@ t4_teardown_port_queues(struct port_info *pi)
 		if ((rxq->iq.flags & IQ_INTR) == 0)
 			free_rxq(pi, rxq);
 	}
-
 #ifdef TCP_OFFLOAD
 	for_each_ofld_rxq(pi, i, ofld_rxq) {
 		if ((ofld_rxq->iq.flags & IQ_INTR) == 0)
 			free_ofld_rxq(pi, ofld_rxq);
 	}
+#endif
+#ifdef DEV_NETMAP
+	for_each_nm_rxq(pi, i, nm_rxq)
+	    free_nm_rxq(pi, nm_rxq);
 #endif
 
 	/*
@@ -1159,12 +1219,14 @@ t4_teardown_port_queues(struct port_info *pi)
 		if (rxq->iq.flags & IQ_INTR)
 			free_rxq(pi, rxq);
 	}
-
 #ifdef TCP_OFFLOAD
 	for_each_ofld_rxq(pi, i, ofld_rxq) {
 		if (ofld_rxq->iq.flags & IQ_INTR)
 			free_ofld_rxq(pi, ofld_rxq);
 	}
+#endif
+#ifdef DEV_NETMAP
+	CXGBE_UNIMPLEMENTED(__func__);
 #endif
 
 	return (0);
@@ -2558,6 +2620,143 @@ free_ofld_rxq(struct port_info *pi, struct sge_ofld_rxq *ofld_rxq)
 }
 #endif
 
+#ifdef DEV_NETMAP
+static int
+alloc_nm_rxq(struct port_info *pi, struct sge_nm_rxq *nm_rxq, int intr_idx,
+    int idx, struct sysctl_oid *oid)
+{
+	int rc;
+	struct sysctl_oid_list *children;
+	struct sysctl_ctx_list *ctx;
+	char name[16];
+	size_t len;
+	struct adapter *sc = pi->adapter;
+	struct netmap_adapter *na = NA(pi->nm_ifp);
+
+	MPASS(na != NULL);
+
+	len = pi->qsize_rxq * RX_IQ_ESIZE;
+	rc = alloc_ring(sc, len, &nm_rxq->iq_desc_tag, &nm_rxq->iq_desc_map,
+	    &nm_rxq->iq_ba, (void **)&nm_rxq->iq_desc);
+	if (rc != 0)
+		return (rc);
+
+	len = na->num_rx_desc * RX_FL_ESIZE + spg_len;
+	rc = alloc_ring(sc, len, &nm_rxq->fl_desc_tag, &nm_rxq->fl_desc_map,
+	    &nm_rxq->fl_ba, (void **)&nm_rxq->fl_desc);
+	if (rc != 0)
+		return (rc);
+
+	nm_rxq->pi = pi;
+	nm_rxq->nid = idx;
+	nm_rxq->iq_cidx = 0;
+	nm_rxq->iq_sidx = pi->qsize_rxq - spg_len / RX_IQ_ESIZE;
+	nm_rxq->iq_gen = F_RSPD_GEN;
+	nm_rxq->fl_pidx = nm_rxq->fl_cidx = 0;
+	nm_rxq->fl_sidx = na->num_rx_desc;
+	nm_rxq->intr_idx = intr_idx;
+
+	ctx = &pi->ctx;
+	children = SYSCTL_CHILDREN(oid);
+
+	snprintf(name, sizeof(name), "%d", idx);
+	oid = SYSCTL_ADD_NODE(ctx, children, OID_AUTO, name, CTLFLAG_RD, NULL,
+	    "rx queue");
+	children = SYSCTL_CHILDREN(oid);
+
+	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "abs_id",
+	    CTLTYPE_INT | CTLFLAG_RD, &nm_rxq->iq_abs_id, 0, sysctl_uint16,
+	    "I", "absolute id of the queue");
+	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "cntxt_id",
+	    CTLTYPE_INT | CTLFLAG_RD, &nm_rxq->iq_cntxt_id, 0, sysctl_uint16,
+	    "I", "SGE context id of the queue");
+	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "cidx",
+	    CTLTYPE_INT | CTLFLAG_RD, &nm_rxq->iq_cidx, 0, sysctl_uint16, "I",
+	    "consumer index");
+
+	children = SYSCTL_CHILDREN(oid);
+	oid = SYSCTL_ADD_NODE(ctx, children, OID_AUTO, "fl", CTLFLAG_RD, NULL,
+	    "freelist");
+	children = SYSCTL_CHILDREN(oid);
+
+	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "cntxt_id",
+	    CTLTYPE_INT | CTLFLAG_RD, &nm_rxq->fl_cntxt_id, 0, sysctl_uint16,
+	    "I", "SGE context id of the freelist");
+	SYSCTL_ADD_UINT(ctx, children, OID_AUTO, "cidx", CTLFLAG_RD,
+	    &nm_rxq->fl_cidx, 0, "consumer index");
+	SYSCTL_ADD_UINT(ctx, children, OID_AUTO, "pidx", CTLFLAG_RD,
+	    &nm_rxq->fl_pidx, 0, "producer index");
+
+	return (rc);
+}
+
+
+static int
+free_nm_rxq(struct port_info *pi, struct sge_nm_rxq *nm_rxq)
+{
+	struct adapter *sc = pi->adapter;
+
+	free_ring(sc, nm_rxq->iq_desc_tag, nm_rxq->iq_desc_map, nm_rxq->iq_ba,
+	    nm_rxq->iq_desc);
+	free_ring(sc, nm_rxq->fl_desc_tag, nm_rxq->fl_desc_map, nm_rxq->fl_ba,
+	    nm_rxq->fl_desc);
+
+	return (0);
+}
+
+static int
+alloc_nm_txq(struct port_info *pi, struct sge_nm_txq *nm_txq, int iqidx, int idx,
+    struct sysctl_oid *oid)
+{
+	int rc;
+	size_t len;
+	struct adapter *sc = pi->adapter;
+	struct netmap_adapter *na = NA(pi->nm_ifp);
+	char name[16];
+	struct sysctl_oid_list *children = SYSCTL_CHILDREN(oid);
+
+	len = na->num_tx_desc * EQ_ESIZE + spg_len;
+	rc = alloc_ring(sc, len, &nm_txq->desc_tag, &nm_txq->desc_map,
+	    &nm_txq->ba, (void **)&nm_txq->desc);
+	if (rc)
+		return (rc);
+
+	nm_txq->pidx = nm_txq->cidx = 0;
+	nm_txq->sidx = na->num_tx_desc;
+	nm_txq->nid = idx;
+	nm_txq->iqidx = iqidx;
+	nm_txq->cpl_ctrl0 = htobe32(V_TXPKT_OPCODE(CPL_TX_PKT) |
+	    V_TXPKT_INTF(pi->tx_chan) | V_TXPKT_PF(sc->pf));
+
+	snprintf(name, sizeof(name), "%d", idx);
+	oid = SYSCTL_ADD_NODE(&pi->ctx, children, OID_AUTO, name, CTLFLAG_RD,
+	    NULL, "netmap tx queue");
+	children = SYSCTL_CHILDREN(oid);
+
+	SYSCTL_ADD_UINT(&pi->ctx, children, OID_AUTO, "cntxt_id", CTLFLAG_RD,
+	    &nm_txq->cntxt_id, 0, "SGE context id of the queue");
+	SYSCTL_ADD_PROC(&pi->ctx, children, OID_AUTO, "cidx",
+	    CTLTYPE_INT | CTLFLAG_RD, &nm_txq->cidx, 0, sysctl_uint16, "I",
+	    "consumer index");
+	SYSCTL_ADD_PROC(&pi->ctx, children, OID_AUTO, "pidx",
+	    CTLTYPE_INT | CTLFLAG_RD, &nm_txq->pidx, 0, sysctl_uint16, "I",
+	    "producer index");
+
+	return (rc);
+}
+
+static int
+free_nm_txq(struct port_info *pi, struct sge_nm_txq *nm_txq)
+{
+	struct adapter *sc = pi->adapter;
+
+	free_ring(sc, nm_txq->desc_tag, nm_txq->desc_map, nm_txq->ba,
+	    nm_txq->desc);
+
+	return (0);
+}
+#endif
+
 static int
 ctrl_eq_alloc(struct adapter *sc, struct sge_eq *eq)
 {
@@ -2986,7 +3185,7 @@ static inline void
 iq_next(struct sge_iq *iq)
 {
 	iq->cdesc = (void *) ((uintptr_t)iq->cdesc + iq->esize);
-	if (__predict_false(++iq->cidx == iq->qsize - 1)) {
+	if (__predict_false(++iq->cidx == iq->qsize - spg_len / iq->esize)) {
 		iq->cidx = 0;
 		iq->gen ^= 1;
 		iq->cdesc = iq->desc;
