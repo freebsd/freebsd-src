@@ -95,7 +95,7 @@ static void fill_out_finfo(apr_finfo_t *finfo, struct_stat *info,
 #elif defined(HAVE_STRUCT_STAT_ST_ATIMENSEC)
     finfo->atime += info->st_atimensec / APR_TIME_C(1000);
 #elif defined(HAVE_STRUCT_STAT_ST_ATIME_N)
-    finfo->ctime += info->st_atime_n / APR_TIME_C(1000);
+    finfo->atime += info->st_atime_n / APR_TIME_C(1000);
 #endif
 
     apr_time_ansi_put(&finfo->mtime, info->st_mtime);
@@ -104,7 +104,7 @@ static void fill_out_finfo(apr_finfo_t *finfo, struct_stat *info,
 #elif defined(HAVE_STRUCT_STAT_ST_MTIMENSEC)
     finfo->mtime += info->st_mtimensec / APR_TIME_C(1000);
 #elif defined(HAVE_STRUCT_STAT_ST_MTIME_N)
-    finfo->ctime += info->st_mtime_n / APR_TIME_C(1000);
+    finfo->mtime += info->st_mtime_n / APR_TIME_C(1000);
 #endif
 
     apr_time_ansi_put(&finfo->ctime, info->st_ctime);

@@ -357,6 +357,14 @@ struct apr_table_t {
     int index_last[TABLE_HASH_SIZE];
 };
 
+/* keep state for apr_table_getm() */
+typedef struct
+{
+    apr_pool_t *p;
+    const char *first;
+    apr_array_header_t *merged;
+} table_getm_t;
+
 /*
  * NOTICE: if you tweak this you should look at is_empty_table() 
  * and table_elts() in alloc.h
@@ -736,12 +744,14 @@ APR_DECLARE(void) apr_table_mergen(apr_table_t *t, const char *key,
     {
 	apr_pool_t *pool;
 	pool = apr_pool_find(key);
-	if ((pool != key) && (!apr_pool_is_ancestor(pool, t->a.pool))) {
+	if ((pool != (apr_pool_t *)key)
+            && (!apr_pool_is_ancestor(pool, t->a.pool))) {
 	    fprintf(stderr, "apr_table_mergen: key not in ancestor pool of t\n");
 	    abort();
 	}
 	pool = apr_pool_find(val);
-	if ((pool != val) && (!apr_pool_is_ancestor(pool, t->a.pool))) {
+	if ((pool != (apr_pool_t *)val)
+            && (!apr_pool_is_ancestor(pool, t->a.pool))) {
 	    fprintf(stderr, "apr_table_mergen: val not in ancestor pool of t\n");
 	    abort();
 	}
@@ -1235,4 +1245,52 @@ APR_DECLARE(void) apr_table_overlap(apr_table_t *a, const apr_table_t *b,
     apr_table_cat(a, b);
 
     apr_table_compress(a, flags);
+}
+
+static int table_getm_do(void *v, const char *key, const char *val)
+{
+    table_getm_t *state = (table_getm_t *) v;
+
+    if (!state->first) {
+        /**
+         * The most common case is a single header, and this is covered by
+         * a fast path that doesn't allocate any memory. On the second and
+         * subsequent header, an array is created and the array concatenated
+         * together to form the final value.
+         */
+        state->first = val;
+    }
+    else {
+        const char **elt;
+        if (!state->merged) {
+            state->merged = apr_array_make(state->p, 10, sizeof(const char *));
+            elt = apr_array_push(state->merged);
+            *elt = state->first;
+        }
+        elt = apr_array_push(state->merged);
+        *elt = val;
+    }
+    return 1;
+}
+
+APR_DECLARE(const char *) apr_table_getm(apr_pool_t *p, const apr_table_t *t,
+        const char *key)
+{
+    table_getm_t state;
+
+    state.p = p;
+    state.first = NULL;
+    state.merged = NULL;
+
+    apr_table_do(table_getm_do, &state, t, key, NULL);
+
+    if (!state.first) {
+        return NULL;
+    }
+    else if (!state.merged) {
+        return state.first;
+    }
+    else {
+        return apr_array_pstrcat(p, state.merged, ',');
+    }
 }
