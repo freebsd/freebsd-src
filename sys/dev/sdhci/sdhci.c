@@ -235,7 +235,8 @@ sdhci_set_clock(struct sdhci_slot *slot, uint32_t clock)
 	slot->clock = clock;
 
 	/* Turn off the clock. */
-	WR2(slot, SDHCI_CLOCK_CONTROL, 0);
+	clk = RD2(slot, SDHCI_CLOCK_CONTROL);
+	WR2(slot, SDHCI_CLOCK_CONTROL, clk & ~SDHCI_CLOCK_CARD_EN);
 	/* If no clock requested - left it so. */
 	if (clock == 0)
 		return;
