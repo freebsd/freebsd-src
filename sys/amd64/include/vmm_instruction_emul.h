@@ -29,6 +29,8 @@
 #ifndef	_VMM_INSTRUCTION_EMUL_H_
 #define	_VMM_INSTRUCTION_EMUL_H_
 
+#include <sys/mman.h>
+
 /*
  * Callback functions to read and write memory regions.
  */
@@ -67,8 +69,9 @@ int vie_canonical_check(enum vm_cpu_mode cpu_mode, uint64_t gla);
 
 uint64_t vie_size2mask(int size);
 
-int vie_calculate_gla(enum vm_cpu_mode cpu_mode, int addrsize,
-    enum vm_reg_name seg, struct seg_desc *desc, uint64_t off, uint64_t *gla);
+int vie_calculate_gla(enum vm_cpu_mode cpu_mode, enum vm_reg_name seg,
+    struct seg_desc *desc, uint64_t off, int length, int addrsize, int prot,
+    uint64_t *gla);
 
 #ifdef _KERNEL
 /*

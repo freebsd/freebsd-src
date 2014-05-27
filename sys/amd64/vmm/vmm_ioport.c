@@ -143,36 +143,6 @@ done:
 static int
 emulate_inout_str(struct vm *vm, int vcpuid, struct vm_exit *vmexit, bool *retu)
 {
-	struct vm_inout_str *vis;
-	int in;
-
-	vis = &vmexit->u.inout_str;
-	in = vis->inout.in;
-
-	/*
-	 * ins/outs VM exit takes precedence over the following error
-	 * conditions that would ordinarily be checked by the processor:
-	 *
-	 * - #GP(0) due to segment being unusable.
-	 * - #GP(0) due to memory operand effective address outside the limit
-	 *   of the segment.
-	 * - #AC(0) if alignment checking is enabled and an unaligned memory
-	 *   reference is made at CPL=3
-	 */
-
-	/*
-	 * XXX
-	 * inout string emulation only supported in 64-bit mode.
-	 *
-	 * The #GP(0) fault conditions described above don't apply in
-	 * 64-bit mode.
-	 */
-	if (vis->paging.cpu_mode != CPU_MODE_64BIT) { 
-		VCPU_CTR1(vm, vcpuid, "ins/outs not emulated in cpu mode %d",
-		    vis->paging.cpu_mode);
-		return (EINVAL);
-	}
-
 	*retu = true;
 	return (0);	/* Return to userspace to finish emulation */
 }
