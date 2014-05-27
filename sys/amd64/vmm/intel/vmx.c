@@ -1380,8 +1380,30 @@ vmx_emulate_xsetbv(struct vmx *vmx, int vcpu, struct vm_exit *vmexit)
 		return (HANDLED);
 	}
 
-	if ((xcrval & (XFEATURE_ENABLED_AVX | XFEATURE_ENABLED_SSE)) ==
-	    XFEATURE_ENABLED_AVX) {
+	/* AVX (YMM_Hi128) requires SSE. */
+	if (xcrval & XFEATURE_ENABLED_AVX &&
+	    (xcrval & XFEATURE_AVX) != XFEATURE_AVX) {
+		vm_inject_gp(vmx->vm, vcpu);
+		return (HANDLED);
+	}
+
+	/*
+	 * AVX512 requires base AVX (YMM_Hi128) as well as OpMask,
+	 * ZMM_Hi256, and Hi16_ZMM.
+	 */
+	if (xcrval & XFEATURE_AVX512 &&
+	    (xcrval & (XFEATURE_AVX512 | XFEATURE_AVX)) !=
+	    (XFEATURE_AVX512 | XFEATURE_AVX)) {
+		vm_inject_gp(vmx->vm, vcpu);
+		return (HANDLED);
+	}
+
+	/*
+	 * Intel MPX requires both bound register state flags to be
+	 * set.
+	 */
+	if (((xcrval & XFEATURE_ENABLED_BNDREGS) != 0) !=
+	    ((xcrval & XFEATURE_ENABLED_BNDCSR) != 0)) {
 		vm_inject_gp(vmx->vm, vcpu);
 		return (HANDLED);
 	}
