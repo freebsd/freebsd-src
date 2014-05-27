@@ -460,7 +460,7 @@ iwn_attach(device_t dev)
 	sc->hw_type = (IWN_READ(sc, IWN_HW_REV) >> IWN_HW_REV_TYPE_SHIFT)
 	    & IWN_HW_REV_TYPE_MASK;
 	sc->subdevice_id = pci_get_subdevice(dev);
-printf("hw %d sdid %x\n", sc->hw_type, sc->subdevice_id);
+
 	/*
 	 * 4965 versus 5000 and later have different methods.
 	 * Let's set those up first.
