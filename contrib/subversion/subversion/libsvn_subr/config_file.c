@@ -69,7 +69,7 @@ typedef struct parse_context_t
 
   /* Parser buffer for getc() to avoid call overhead into several libraries
      for every character */
-  char parser_buffer[SVN_STREAM_CHUNK_SIZE]; /* Larger than most config files */
+  char parser_buffer[SVN__STREAM_CHUNK_SIZE]; /* Larger than most config files */
   size_t buffer_pos; /* Current position within parser_buffer */
   size_t buffer_size; /* parser_buffer contains this many bytes */
 } parse_context_t;
