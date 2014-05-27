@@ -217,6 +217,49 @@ make_dir_baton(const char *path,
 }
 
 
+/* If the mergeinfo in MERGEINFO_STR refers to any revisions older than
+ * OLDEST_DUMPED_REV, issue a warning and set *FOUND_OLD_MERGEINFO to TRUE,
+ * otherwise leave *FOUND_OLD_MERGEINFO unchanged.
+ */
+static svn_error_t *
+verify_mergeinfo_revisions(svn_boolean_t *found_old_mergeinfo,
+                           const char *mergeinfo_str,
+                           svn_revnum_t oldest_dumped_rev,
+                           svn_repos_notify_func_t notify_func,
+                           void *notify_baton,
+                           apr_pool_t *pool)
+{
+  svn_mergeinfo_t mergeinfo, old_mergeinfo;
+
+  SVN_ERR(svn_mergeinfo_parse(&mergeinfo, mergeinfo_str, pool));
+  SVN_ERR(svn_mergeinfo__filter_mergeinfo_by_ranges(
+            &old_mergeinfo, mergeinfo,
+            oldest_dumped_rev - 1, 0,
+            TRUE, pool, pool));
+
+  if (apr_hash_count(old_mergeinfo))
+    {
+      svn_repos_notify_t *notify =
+        svn_repos_notify_create(svn_repos_notify_warning, pool);
+
+      notify->warning = svn_repos_notify_warning_found_old_mergeinfo;
+      notify->warning_str = apr_psprintf(
+        pool,
+        _("Mergeinfo referencing revision(s) prior "
+          "to the oldest dumped revision (r%ld). "
+          "Loading this dump may result in invalid "
+          "mergeinfo."),
+        oldest_dumped_rev);
+
+      if (found_old_mergeinfo)
+        *found_old_mergeinfo = TRUE;
+      notify_func(notify_baton, notify, pool);
+    }
+
+  return SVN_NO_ERROR;
+}
+
+
 /* This helper is the main "meat" of the editor -- it does all the
    work of writing a node record.
 
@@ -475,32 +518,13 @@ dump_node(struct edit_baton *eb,
                                                       SVN_PROP_MERGEINFO);
           if (mergeinfo_str)
             {
-              svn_mergeinfo_t mergeinfo, old_mergeinfo;
-
-              SVN_ERR(svn_mergeinfo_parse(&mergeinfo, mergeinfo_str->data,
-                                          pool));
-              SVN_ERR(svn_mergeinfo__filter_mergeinfo_by_ranges(
-                &old_mergeinfo, mergeinfo,
-                eb->oldest_dumped_rev - 1, 0,
-                TRUE, pool, pool));
-              if (apr_hash_count(old_mergeinfo))
-                {
-                  svn_repos_notify_t *notify =
-                    svn_repos_notify_create(svn_repos_notify_warning, pool);
-
-                  notify->warning = svn_repos_notify_warning_found_old_mergeinfo;
-                  notify->warning_str = apr_psprintf(
-                    pool,
-                    _("Mergeinfo referencing revision(s) prior "
-                      "to the oldest dumped revision (r%ld). "
-                      "Loading this dump may result in invalid "
-                      "mergeinfo."),
-                    eb->oldest_dumped_rev);
-
-                  if (eb->found_old_mergeinfo)
-                    *eb->found_old_mergeinfo = TRUE;
-                  eb->notify_func(eb->notify_baton, notify, pool);
-                }
+              /* An error in verifying the mergeinfo must not prevent dumping
+                 the data. Ignore any such error. */
+              svn_error_clear(verify_mergeinfo_revisions(
+                                eb->found_old_mergeinfo,
+                                mergeinfo_str->data, eb->oldest_dumped_rev,
+                                eb->notify_func, eb->notify_baton,
+                                pool));
             }
         }
 
