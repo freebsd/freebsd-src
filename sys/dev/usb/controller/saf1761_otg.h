@@ -144,6 +144,7 @@ struct saf1761_otg_softc {
 	uint32_t sc_host_isoc_map;
 	uint32_t sc_intr_enable;	/* enabled interrupts */
 	uint32_t sc_hw_mode;		/* hardware mode */
+	uint32_t sc_interrupt_cfg;	/* interrupt configuration */
 
 	uint32_t sc_bounce_buffer[1024 / 4];
 

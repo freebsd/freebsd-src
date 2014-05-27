@@ -156,6 +156,18 @@ saf1761_otg_fdt_attach(device_t dev)
 		sc->sc_hw_mode |= SOTG_HW_MODE_CTRL_DREQ_POL;
 	}
 
+	/* get IRQ polarity */
+	if (OF_getprop(ofw_bus_get_node(dev), "int-polarity",
+	    &param, sizeof(param)) > 0) {
+		sc->sc_interrupt_cfg |= SOTG_INTERRUPT_CFG_INTPOL;
+	}
+
+	/* get IRQ level triggering */
+	if (OF_getprop(ofw_bus_get_node(dev), "int-level",
+	    &param, sizeof(param)) > 0) {
+		sc->sc_interrupt_cfg |= SOTG_INTERRUPT_CFG_INTLVL;
+	}
+
 	/* initialise some bus fields */
 	sc->sc_bus.parent = dev;
 	sc->sc_bus.devices = sc->sc_devices;
@@ -168,7 +180,7 @@ saf1761_otg_fdt_attach(device_t dev)
 	}
 	rid = 0;
 	sc->sc_io_res =
-	    bus_alloc_resource_any(dev, SYS_RES_IOPORT, &rid, RF_ACTIVE);
+	    bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid, RF_ACTIVE);
 
 	if (!sc->sc_io_res) {
 		goto error;
@@ -243,7 +255,7 @@ saf1761_otg_fdt_detach(device_t dev)
 		sc->sc_irq_res = NULL;
 	}
 	if (sc->sc_io_res) {
-		bus_release_resource(dev, SYS_RES_IOPORT, 0,
+		bus_release_resource(dev, SYS_RES_MEMORY, 0,
 		    sc->sc_io_res);
 		sc->sc_io_res = NULL;
 	}
