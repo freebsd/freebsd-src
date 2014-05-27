@@ -110,6 +110,15 @@ console_handler(struct vmctx *ctx, int vcpu, int in, int port, int bytes,
 		return (0);
 	}
 
+	/*
+	 * Guests might probe this port to look for old ISA devices
+	 * using single-byte reads.  Return 0xff for those.
+	 */
+	if (bytes == 1 && in) {
+		*eax = 0xff;
+		return (0);
+	}
+
 	if (bytes != 4)
 		return (-1);
 

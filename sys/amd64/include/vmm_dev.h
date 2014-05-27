@@ -84,6 +84,11 @@ struct vm_isa_irq {
 	int		ioapic_irq;
 };
 
+struct vm_isa_irq_trigger {
+	int		atpic_irq;
+	enum vm_intr_trigger trigger;
+};
+
 struct vm_capability {
 	int		cpuid;
 	enum vm_cap_type captype;
@@ -159,6 +164,19 @@ struct vm_hpet_cap {
 	uint32_t	capabilities;	/* lower 32 bits of HPET capabilities */
 };
 
+struct vm_suspend {
+	enum vm_suspend_how how;
+};
+
+struct vm_gla2gpa {
+	int		vcpuid;		/* inputs */
+	int 		prot;		/* PROT_READ or PROT_WRITE */
+	uint64_t	gla;
+	struct vm_guest_paging paging;
+	int		fault;		/* outputs */
+	uint64_t	gpa;
+};
+
 enum {
 	/* general routines */
 	IOCNUM_ABIVERS = 0,
@@ -171,6 +189,7 @@ enum {
 	IOCNUM_MAP_MEMORY = 10,
 	IOCNUM_GET_MEMORY_SEG = 11,
 	IOCNUM_GET_GPA_PMAP = 12,
+	IOCNUM_GLA2GPA = 13,
 
 	/* register/state accessors */
 	IOCNUM_SET_REGISTER = 20,
@@ -209,12 +228,13 @@ enum {
 	IOCNUM_ISA_ASSERT_IRQ = 80,
 	IOCNUM_ISA_DEASSERT_IRQ = 81,
 	IOCNUM_ISA_PULSE_IRQ = 82,
+	IOCNUM_ISA_SET_IRQ_TRIGGER = 83,
 };
 
 #define	VM_RUN		\
 	_IOWR('v', IOCNUM_RUN, struct vm_run)
 #define	VM_SUSPEND	\
-	_IO('v', IOCNUM_SUSPEND)
+	_IOW('v', IOCNUM_SUSPEND, struct vm_suspend)
 #define	VM_MAP_MEMORY	\
 	_IOWR('v', IOCNUM_MAP_MEMORY, struct vm_memory_segment)
 #define	VM_GET_MEMORY_SEG \
@@ -249,6 +269,8 @@ enum {
 	_IOW('v', IOCNUM_ISA_DEASSERT_IRQ, struct vm_isa_irq)
 #define	VM_ISA_PULSE_IRQ	\
 	_IOW('v', IOCNUM_ISA_PULSE_IRQ, struct vm_isa_irq)
+#define	VM_ISA_SET_IRQ_TRIGGER	\
+	_IOW('v', IOCNUM_ISA_SET_IRQ_TRIGGER, struct vm_isa_irq_trigger)
 #define	VM_SET_CAPABILITY \
 	_IOW('v', IOCNUM_SET_CAPABILITY, struct vm_capability)
 #define	VM_GET_CAPABILITY \
@@ -277,4 +299,6 @@ enum {
 	_IOR('v', IOCNUM_GET_HPET_CAPABILITIES, struct vm_hpet_cap)
 #define	VM_GET_GPA_PMAP \
 	_IOWR('v', IOCNUM_GET_GPA_PMAP, struct vm_gpa_pte)
+#define	VM_GLA2GPA	\
+	_IOWR('v', IOCNUM_GLA2GPA, struct vm_gla2gpa)
 #endif

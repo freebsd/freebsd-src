@@ -1450,15 +1450,14 @@ in6p_block_unblock_source(struct inpcb *inp, struct sockopt *sopt)
 
 	CTR1(KTR_MLD, "%s: merge inm state", __func__);
 	error = in6m_merge(inm, imf);
-	if (error) {
-		CTR1(KTR_MLD, "%s: failed to merge inm state", __func__);
-		goto out_im6f_rollback;
-	}
-
-	CTR1(KTR_MLD, "%s: doing mld downcall", __func__);
-	error = mld_change_state(inm, 0);
 	if (error)
-		CTR1(KTR_MLD, "%s: failed mld downcall", __func__);
+		CTR1(KTR_MLD, "%s: failed to merge inm state", __func__);
+	else {
+		CTR1(KTR_MLD, "%s: doing mld downcall", __func__);
+		error = mld_change_state(inm, 0);
+		if (error)
+			CTR1(KTR_MLD, "%s: failed mld downcall", __func__);
+	}
 
 	IN6_MULTI_UNLOCK();
 
@@ -2044,29 +2043,27 @@ in6p_join_group(struct inpcb *inp, struct sockopt *sopt)
 	if (is_new) {
 		error = in6_mc_join_locked(ifp, &gsa->sin6.sin6_addr, imf,
 		    &inm, 0);
-		if (error)
+		if (error) {
+			IN6_MULTI_UNLOCK();
 			goto out_im6o_free;
+		}
 		imo->im6o_membership[idx] = inm;
 	} else {
 		CTR1(KTR_MLD, "%s: merge inm state", __func__);
 		error = in6m_merge(inm, imf);
-		if (error) {
+		if (error)
 			CTR1(KTR_MLD, "%s: failed to merge inm state",
 			    __func__);
-			goto out_im6f_rollback;
-		}
-		CTR1(KTR_MLD, "%s: doing mld downcall", __func__);
-		error = mld_change_state(inm, 0);
-		if (error) {
-			CTR1(KTR_MLD, "%s: failed mld downcall",
-			    __func__);
-			goto out_im6f_rollback;
+		else {
+			CTR1(KTR_MLD, "%s: doing mld downcall", __func__);
+			error = mld_change_state(inm, 0);
+			if (error)
+				CTR1(KTR_MLD, "%s: failed mld downcall",
+				    __func__);
 		}
 	}
 
 	IN6_MULTI_UNLOCK();
-
-out_im6f_rollback:
 	INP_WLOCK_ASSERT(inp);
 	if (error) {
 		im6f_rollback(imf);
@@ -2293,23 +2290,20 @@ in6p_leave_group(struct inpcb *inp, struct sockopt *sopt)
 	} else {
 		CTR1(KTR_MLD, "%s: merge inm state", __func__);
 		error = in6m_merge(inm, imf);
-		if (error) {
+		if (error)
 			CTR1(KTR_MLD, "%s: failed to merge inm state",
 			    __func__);
-			goto out_im6f_rollback;
-		}
-
-		CTR1(KTR_MLD, "%s: doing mld downcall", __func__);
-		error = mld_change_state(inm, 0);
-		if (error) {
-			CTR1(KTR_MLD, "%s: failed mld downcall",
-			    __func__);
+		else {
+			CTR1(KTR_MLD, "%s: doing mld downcall", __func__);
+			error = mld_change_state(inm, 0);
+			if (error)
+				CTR1(KTR_MLD, "%s: failed mld downcall",
+				    __func__);
 		}
 	}
 
 	IN6_MULTI_UNLOCK();
 
-out_im6f_rollback:
 	if (error)
 		im6f_rollback(imf);
 	else
@@ -2518,15 +2512,14 @@ in6p_set_source_filters(struct inpcb *inp, struct sockopt *sopt)
 	 */
 	CTR1(KTR_MLD, "%s: merge inm state", __func__);
 	error = in6m_merge(inm, imf);
-	if (error) {
-		CTR1(KTR_MLD, "%s: failed to merge inm state", __func__);
-		goto out_im6f_rollback;
-	}
-
-	CTR1(KTR_MLD, "%s: doing mld downcall", __func__);
-	error = mld_change_state(inm, 0);
 	if (error)
-		CTR1(KTR_MLD, "%s: failed mld downcall", __func__);
+		CTR1(KTR_MLD, "%s: failed to merge inm state", __func__);
+	else {
+		CTR1(KTR_MLD, "%s: doing mld downcall", __func__);
+		error = mld_change_state(inm, 0);
+		if (error)
+			CTR1(KTR_MLD, "%s: failed mld downcall", __func__);
+	}
 
 	IN6_MULTI_UNLOCK();
 

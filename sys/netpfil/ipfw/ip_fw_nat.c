@@ -443,7 +443,7 @@ ipfw_nat_cfg(struct sockopt *sopt)
 	ptr->ip = cfg->ip;
 	ptr->redir_cnt = cfg->redir_cnt;
 	ptr->mode = cfg->mode;
-	LibAliasSetMode(ptr->lib, cfg->mode, cfg->mode);
+	LibAliasSetMode(ptr->lib, cfg->mode, ~0);
 	LibAliasSetAddress(ptr->lib, ptr->ip);
 	memcpy(ptr->if_name, cfg->if_name, IF_NAMESIZE);
 
@@ -676,8 +676,8 @@ static moduledata_t ipfw_nat_mod = {
 };
 
 /* Define startup order. */
-#define	IPFW_NAT_SI_SUB_FIREWALL	(SI_SUB_PROTO_IFATTACHDOMAIN + 1)
-#define	IPFW_NAT_MODEVENT_ORDER		(SI_ORDER_ANY - 255)
+#define	IPFW_NAT_SI_SUB_FIREWALL	SI_SUB_PROTO_IFATTACHDOMAIN
+#define	IPFW_NAT_MODEVENT_ORDER		(SI_ORDER_ANY - 128) /* after ipfw */
 #define	IPFW_NAT_MODULE_ORDER		(IPFW_NAT_MODEVENT_ORDER + 1)
 #define	IPFW_NAT_VNET_ORDER		(IPFW_NAT_MODEVENT_ORDER + 2)
 

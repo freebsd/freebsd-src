@@ -4,7 +4,7 @@
 
 PROG=	wlanstats
 BINDIR=	/usr/local/bin
-NO_MAN=
+MAN=
 USEPRIVATELIB=
 
 SRCS=	wlanstats.c main.c

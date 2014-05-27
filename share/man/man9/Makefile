@@ -192,6 +192,7 @@ MAN=	accept_filter.9 \
 	pci.9 \
 	pfil.9 \
 	pfind.9 \
+	pget.9 \
 	pgfind.9 \
 	physio.9 \
 	pmap.9 \
@@ -902,6 +903,7 @@ MLINKS+=\
 	mbuf.9 m_freem.9 \
 	mbuf.9 MGET.9 \
 	mbuf.9 m_get.9 \
+	mbuf.9 m_get2.9 \
 	mbuf.9 m_getjcl.9 \
 	mbuf.9 m_getcl.9 \
 	mbuf.9 m_getclr.9 \

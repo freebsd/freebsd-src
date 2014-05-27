@@ -266,7 +266,7 @@ typedef struct fs_fs_data_t
   svn_cache__t *dir_cache;
 
   /* Fulltext cache; currently only used with memcached.  Maps from
-     rep key (revision/offset) to svn_string_t. */
+     rep key (revision/offset) to svn_stringbuf_t. */
   svn_cache__t *fulltext_cache;
 
   /* Access object to the atomics namespace used by revprop caching.

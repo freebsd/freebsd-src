@@ -14,8 +14,6 @@ SRCS=		aggregate_buckets.c allocator.c auth.c auth_basic.c \
 		response_body_buckets.c response_buckets.c simple_buckets.c \
 		socket_buckets.c ssl_buckets.c ssltunnel.c
 
-NOMAN=		internalonly
-
 .PATH:		${SERF}/buckets ${SERF}/auth ${SERF}
 
 CFLAGS+= 	-I${.CURDIR} -I${SERF} \

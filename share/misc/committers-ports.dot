@@ -219,6 +219,7 @@ vg [label="Veniamin Gvozdikov\nvg@FreeBSD.org\n2013/06/11"]
 wen [label="Wen Heping\nwen@FreeBSD.org\n2010/12/13"]
 wg [label="William Grzybowski\nwg@FreeBSD.org\n2013/04/01"]
 wxs [label="Wesley Shields\nwxs@FreeBSD.org\n2008/01/03"]
+xmj [label="Johannes Jost Meixner\nxmj@FreeBSD.org\n2014/04/07"]
 xride [label="Soeren Straarup\nxride@FreeBSD.org\n2006/09/27"]
 yzlin [label="Yi-Jheng Lin\nyzlin@FreeBSD.org\n2009/07/19"]
 zeising [label="Niclas Zeising\nzeising@FreeBSD.org\n2012/07/03"]
@@ -385,6 +386,8 @@ knu -> maho
 knu -> nobutaka
 knu -> nork
 
+koobs -> xmj
+
 krion -> brooks
 krion -> miwi
 krion -> novel
@@ -521,6 +524,7 @@ steve -> netchild
 swills -> feld
 swills -> milki
 swills -> pclin
+swills -> xmj
 
 tabthorpe -> ashish
 tabthorpe -> avilla

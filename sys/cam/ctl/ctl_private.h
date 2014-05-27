@@ -156,6 +156,7 @@ typedef enum {
 	CTL_SERIDX_TUR	= 0,
 	CTL_SERIDX_READ,
 	CTL_SERIDX_WRITE,
+	CTL_SERIDX_UNMAP,
 	CTL_SERIDX_MD_SNS,
 	CTL_SERIDX_MD_SEL,
 	CTL_SERIDX_RQ_SNS,
@@ -470,6 +471,8 @@ int ctl_start_stop(struct ctl_scsiio *ctsio);
 int ctl_sync_cache(struct ctl_scsiio *ctsio);
 int ctl_format(struct ctl_scsiio *ctsio);
 int ctl_write_buffer(struct ctl_scsiio *ctsio);
+int ctl_write_same(struct ctl_scsiio *ctsio);
+int ctl_unmap(struct ctl_scsiio *ctsio);
 int ctl_mode_select(struct ctl_scsiio *ctsio);
 int ctl_mode_sense(struct ctl_scsiio *ctsio);
 int ctl_read_capacity(struct ctl_scsiio *ctsio);

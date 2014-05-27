@@ -36,7 +36,7 @@
 
 / {
 	model = "Genesi Efika MX";
-	compatible = "genesi,imx51-efikamx";
+	compatible = "genesi,imx51-efikamx", "fsl,imx51";
 
 	memory {
 		/* RAM 512M */

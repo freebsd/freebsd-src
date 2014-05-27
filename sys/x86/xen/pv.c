@@ -57,6 +57,7 @@ __FBSDID("$FreeBSD$");
 
 #include <xen/xen-os.h>
 #include <xen/hypervisor.h>
+#include <xen/xenstore/xenstorevar.h>
 
 #include <xen/interface/vcpu.h>
 

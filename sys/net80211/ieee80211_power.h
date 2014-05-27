@@ -79,6 +79,9 @@ int	ieee80211_node_psq_age(struct ieee80211_node *);
 int	ieee80211_pwrsave(struct ieee80211_node *, struct mbuf *);
 void	ieee80211_node_pwrsave(struct ieee80211_node *, int enable);
 void	ieee80211_sta_pwrsave(struct ieee80211vap *, int enable);
+void	ieee80211_sta_tim_notify(struct ieee80211vap *vap, int set);
+void	ieee80211_sta_ps_timer_check(struct ieee80211vap *vap);
 
+/* XXX what's this? */
 void	ieee80211_power_poll(struct ieee80211com *);
 #endif /* _NET80211_IEEE80211_POWER_H_ */

@@ -694,8 +694,13 @@ static const dt_pfconv_t _dtrace_conversions[] = {
 { "S", "s", pfproto_cstr, pfcheck_str, pfprint_estr },
 { "T", "s", "int64_t", pfcheck_time, pfprint_time822 },
 { "u", "u", pfproto_xint, pfcheck_xint, pfprint_uint },
+#if defined(sun)
 { "wc",	"wc", "int", pfcheck_type, pfprint_sint }, /* a.k.a. wchar_t */
 { "ws", "ws", pfproto_wstr, pfcheck_wstr, pfprint_wstr },
+#else
+{ "wc", "lc", "int", pfcheck_type, pfprint_sint }, /* a.k.a. wchar_t */
+{ "ws", "ls", pfproto_wstr, pfcheck_wstr, pfprint_wstr },
+#endif
 { "x", "x", pfproto_xint, pfcheck_xint, pfprint_uint },
 { "X", "X", pfproto_xint, pfcheck_xint, pfprint_uint },
 { "Y", "s", "int64_t", pfcheck_time, pfprint_time },

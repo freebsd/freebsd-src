@@ -7,7 +7,7 @@ CFLAGS=	-I${.CURDIR}/../../contrib/dma \
 	-DCONF_PATH='"/etc/dma"' \
 	-DLIBEXEC_PATH='"/usr/libexec"' -DDMA_VERSION='"v0.9+"'
 
-NO_MAN=
+MAN=
 
 WARNS=	2
 

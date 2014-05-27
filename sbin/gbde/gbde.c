@@ -805,6 +805,7 @@ main(int argc, char **argv)
 			break;
 		case 'i':
 			i_opt = !i_opt;
+			break;
 		case 'k':
 			k_opt = optarg;
 			break;

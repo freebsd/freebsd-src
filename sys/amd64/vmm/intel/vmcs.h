@@ -49,9 +49,9 @@ int vmcs_set_msr_save(struct vmcs *vmcs, u_long g_area, u_int g_count);
 int	vmcs_init(struct vmcs *vmcs);
 int	vmcs_getreg(struct vmcs *vmcs, int running, int ident, uint64_t *rv);
 int	vmcs_setreg(struct vmcs *vmcs, int running, int ident, uint64_t val);
-int	vmcs_getdesc(struct vmcs *vmcs, int ident,
+int	vmcs_getdesc(struct vmcs *vmcs, int running, int ident,
 		     struct seg_desc *desc);
-int	vmcs_setdesc(struct vmcs *vmcs, int ident,
+int	vmcs_setdesc(struct vmcs *vmcs, int running, int ident,
 		     struct seg_desc *desc);
 
 static __inline uint64_t

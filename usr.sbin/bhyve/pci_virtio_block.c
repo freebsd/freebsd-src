@@ -299,8 +299,7 @@ pci_vtblk_init(struct vmctx *ctx, struct pci_devinst *pi, char *opts)
 		assert(sectsz != 0);
 	}
 
-	sc = malloc(sizeof(struct pci_vtblk_softc));
-	memset(sc, 0, sizeof(struct pci_vtblk_softc));
+	sc = calloc(1, sizeof(struct pci_vtblk_softc));
 
 	/* record fd of storage device/file */
 	sc->vbsc_fd = fd;

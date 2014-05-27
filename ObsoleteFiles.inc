@@ -38,6 +38,51 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20140512: new clang import which bumps version from 3.4 to 3.4.1.
+OLD_FILES+=usr/include/clang/3.4/__wmmintrin_aes.h
+OLD_FILES+=usr/include/clang/3.4/__wmmintrin_pclmul.h
+OLD_FILES+=usr/include/clang/3.4/altivec.h
+OLD_FILES+=usr/include/clang/3.4/ammintrin.h
+OLD_FILES+=usr/include/clang/3.4/avx2intrin.h
+OLD_FILES+=usr/include/clang/3.4/avxintrin.h
+OLD_FILES+=usr/include/clang/3.4/bmi2intrin.h
+OLD_FILES+=usr/include/clang/3.4/bmiintrin.h
+OLD_FILES+=usr/include/clang/3.4/cpuid.h
+OLD_FILES+=usr/include/clang/3.4/emmintrin.h
+OLD_FILES+=usr/include/clang/3.4/f16cintrin.h
+OLD_FILES+=usr/include/clang/3.4/fma4intrin.h
+OLD_FILES+=usr/include/clang/3.4/fmaintrin.h
+OLD_FILES+=usr/include/clang/3.4/immintrin.h
+OLD_FILES+=usr/include/clang/3.4/lzcntintrin.h
+OLD_FILES+=usr/include/clang/3.4/mm3dnow.h
+OLD_FILES+=usr/include/clang/3.4/mm_malloc.h
+OLD_FILES+=usr/include/clang/3.4/mmintrin.h
+OLD_FILES+=usr/include/clang/3.4/module.map
+OLD_FILES+=usr/include/clang/3.4/nmmintrin.h
+OLD_FILES+=usr/include/clang/3.4/pmmintrin.h
+OLD_FILES+=usr/include/clang/3.4/popcntintrin.h
+OLD_FILES+=usr/include/clang/3.4/prfchwintrin.h
+OLD_FILES+=usr/include/clang/3.4/rdseedintrin.h
+OLD_FILES+=usr/include/clang/3.4/rtmintrin.h
+OLD_FILES+=usr/include/clang/3.4/shaintrin.h
+OLD_FILES+=usr/include/clang/3.4/smmintrin.h
+OLD_FILES+=usr/include/clang/3.4/tbmintrin.h
+OLD_FILES+=usr/include/clang/3.4/tmmintrin.h
+OLD_FILES+=usr/include/clang/3.4/wmmintrin.h
+OLD_FILES+=usr/include/clang/3.4/x86intrin.h
+OLD_FILES+=usr/include/clang/3.4/xmmintrin.h
+OLD_FILES+=usr/include/clang/3.4/xopintrin.h
+OLD_FILES+=usr/include/clang/3.4/arm_neon.h
+OLD_FILES+=usr/include/clang/3.4/module.map
+OLD_DIRS+=usr/include/clang/3.4
+# 20140505: Bogusly installing src.opts.mk
+OLD_FILES+=usr/share/mk/src.opts.mk
+# 20140505: Reject PR kern/187551
+OLD_DIRS+=usr/tests/sbin/ifconfig
+OLD_FILES+=usr/tests/sbin/ifconfig/Kyuafile
+OLD_FILES+=usr/tests/sbin/ifconfig/fibs_test
+# 20140502: Removal of lindev(4)
+OLD_FILES+=usr/share/man/man4/lindev.4.gz
 # 20140314: AppleTalk
 OLD_DIRS+=usr/include/netatalk
 OLD_FILES+=usr/include/netatalk/aarp.h
@@ -49,7 +94,6 @@ OLD_FILES+=usr/include/netatalk/ddp_pcb.h
 OLD_FILES+=usr/include/netatalk/ddp_var.h
 OLD_FILES+=usr/include/netatalk/endian.h
 OLD_FILES+=usr/include/netatalk/phase2.h
-
 # 20140314: Remove IPX/SPX
 OLD_LIBS+=lib/libipx.so.5
 OLD_FILES+=usr/include/netipx/ipx.h
@@ -2810,7 +2854,6 @@ OLD_DIRS+=usr/share/misc/pcvtfonts
 OLD_FILES+=usr/share/misc/keycap.pcvt
 OLD_FILES+=usr/share/man/man8/ispcvt.8.gz
 OLD_FILES+=usr/share/man/man5/keycap.5.gz
-OLD_FILES+=usr/share/man/man4/vt.4.gz
 OLD_FILES+=usr/share/man/man4/pcvt.4.gz
 OLD_FILES+=usr/share/man/man3/kgetstr.3.gz
 OLD_FILES+=usr/share/man/man3/kgetnum.3.gz

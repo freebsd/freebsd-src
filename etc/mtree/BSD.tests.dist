@@ -12,8 +12,6 @@
         ..
     ..
     share
-        aclocal
-        ..
         atf
         ..
         doc
@@ -50,6 +48,26 @@
             test
             ..
         ..
+        cddl
+            lib
+            ..
+            sbin
+            ..
+            usr.bin
+            ..
+            usr.sbin
+            ..
+        ..
+        etc
+        ..
+        games
+        ..
+        gnu
+            lib
+            ..
+            usr.bin
+            ..
+        ..
         lib
             atf
                 libatf-c
@@ -77,9 +95,17 @@
             ..
             growfs
             ..
-            ifconfig
-            ..
             mdconfig
+            ..
+        ..
+        secure
+            lib
+            ..
+            libexec
+            ..
+            usr.bin
+            ..
+            usr.sbin
             ..
         ..
         share
@@ -105,21 +131,7 @@
                 atf-sh
                 ..
             ..
-            calendar
-            ..
-            comm
-            ..
-            file2c
-            ..
-            join
-            ..
-            jot
-            ..
-            lastcomm
-            ..
-            m4
-            ..
-            make
+            bmake
                 archives
                     fmt_44bsd
                     ..
@@ -216,6 +228,20 @@
                     t0
                     ..
                 ..
+            ..
+            calendar
+            ..
+            comm
+            ..
+            file2c
+            ..
+            join
+            ..
+            jot
+            ..
+            lastcomm
+            ..
+            m4
             ..
             ncal
             ..

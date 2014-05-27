@@ -1,6 +1,7 @@
-/*
- * Copyright (c) 1999
- *      Mark Murray.  All rights reserved.
+/*-
+ * Copyright (c) 1999 Mark Murray
+ * Copyright (c) 2014 Dag-Erling Smørgrav
+ * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -28,110 +29,88 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
-#include <string.h>
+
 #include <libutil.h>
+#include <string.h>
 #include <unistd.h>
+
 #include "crypt.h"
 
-static const struct {
+/*
+ * List of supported crypt(3) formats.  The first element in the list will
+ * be the default.
+ */
+static const struct crypt_format {
 	const char *const name;
 	char *(*const func)(const char *, const char *);
 	const char *const magic;
-} crypt_types[] = {
-#ifdef HAS_DES
-	{
-		"des",
-		crypt_des,
-		NULL
-	},
-#endif
-	{
-		"md5",
-		crypt_md5,
-		"$1$"
-	},
+} crypt_formats[] = {
+	/* default format */
+	{ "sha512",	crypt_sha512,		"$6$"	},
+
+	/* other supported formats */
+	{ "md5",	crypt_md5,		"$1$"	},
 #ifdef HAS_BLOWFISH
-	{
-		"blf",
-		crypt_blowfish,
-		"$2"
-	},
+	{ "blf",	crypt_blowfish,		"$2"	},
 #endif
-	{
-		"nth",
-		crypt_nthash,
-		"$3$"
-	},
-	{
-		"sha256",
-		crypt_sha256,
-		"$5$"
-	},
-	{
-		"sha512",
-		crypt_sha512,
-		"$6$"
-	},
-	{
-		NULL,
-		NULL,
-		NULL
-	}
+	{ "nth",	crypt_nthash,		"$3$"	},
+	{ "sha256",	crypt_sha256,		"$5$"	},
+#ifdef HAS_DES
+	{ "des",	crypt_des,		"_"	},
+#endif
+
+	/* sentinel */
+	{ NULL,		NULL,			NULL	}
 };
 
-#define CRYPT_DEFAULT	"sha512"
+static const struct crypt_format *crypt_format = &crypt_formats[0];
 
-static int crypt_type = -1;
+#define DES_SALT_ALPHABET \
+	"./0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
 
-static void
-crypt_setdefault(void)
-{
-	size_t i;
-
-	if (crypt_type != -1)
-		return;
-	for (i = 0; i < sizeof(crypt_types) / sizeof(crypt_types[0]) - 1; i++) {
-		if (strcmp(CRYPT_DEFAULT, crypt_types[i].name) == 0) {
-			crypt_type = (int)i;
-			return;
-		}
-	}
-	crypt_type = 0;
-}
-
+/*
+ * Returns the name of the currently selected format.
+ */
 const char *
 crypt_get_format(void)
 {
 
-	crypt_setdefault();
-	return (crypt_types[crypt_type].name);
+	return (crypt_format->name);
 }
 
+/*
+ * Selects the format to use for subsequent crypt(3) invocations.
+ */
 int
-crypt_set_format(const char *type)
+crypt_set_format(const char *format)
 {
-	size_t i;
+	const struct crypt_format *cf;
 
-	crypt_setdefault();
-	for (i = 0; i < sizeof(crypt_types) / sizeof(crypt_types[0]) - 1; i++) {
-		if (strcmp(type, crypt_types[i].name) == 0) {
-			crypt_type = (int)i;
+	for (cf = crypt_formats; cf->name != NULL; ++cf) {
+		if (strcasecmp(cf->name, format) == 0) {
+			crypt_format = cf;
 			return (1);
 		}
 	}
 	return (0);
 }
 
+/*
+ * Hash the given password with the given salt.  If the salt begins with a
+ * magic string (e.g. "$6$" for sha512), the corresponding format is used;
+ * otherwise, the currently selected format is used.
+ */
 char *
 crypt(const char *passwd, const char *salt)
 {
-	size_t i;
+	const struct crypt_format *cf;
 
-	crypt_setdefault();
-	for (i = 0; i < sizeof(crypt_types) / sizeof(crypt_types[0]) - 1; i++) {
-		if (crypt_types[i].magic != NULL && strncmp(salt,
-		    crypt_types[i].magic, strlen(crypt_types[i].magic)) == 0)
-			return (crypt_types[i].func(passwd, salt));
-	}
-	return (crypt_types[crypt_type].func(passwd, salt));
+	for (cf = crypt_formats; cf->name != NULL; ++cf)
+		if (cf->magic != NULL && strstr(salt, cf->magic) == salt)
+			return (cf->func(passwd, salt));
+#ifdef HAS_DES
+	if (strlen(salt) == 13 && strspn(salt, DES_SALT_ALPHABET) == 13)
+		return (crypt_des(passwd, salt));
+#endif
+	return (crypt_format->func(passwd, salt));
 }

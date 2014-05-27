@@ -82,6 +82,9 @@ extern int ___mb_cur_max(void);
 _Noreturn void	 abort(void);
 int	 abs(int) __pure2;
 int	 atexit(void (*)(void));
+#ifdef __BLOCKS__
+int	 atexit_b(void (^)(void));
+#endif
 double	 atof(const char *);
 int	 atoi(const char *);
 long	 atol(const char *);
@@ -100,6 +103,10 @@ size_t	 mbstowcs(wchar_t * __restrict , const char * __restrict, size_t);
 int	 mbtowc(wchar_t * __restrict, const char * __restrict, size_t);
 void	 qsort(void *, size_t, size_t,
 	    int (*)(const void *, const void *));
+#ifdef __BLOCKS__
+void	 qsort_b(void *, size_t, size_t,
+	    int (^)(const void *, const void *));
+#endif
 int	 rand(void);
 void	*realloc(void *, size_t);
 void	 srand(unsigned);
@@ -280,8 +287,14 @@ const char *
 	 getprogname(void);
 
 int	 heapsort(void *, size_t, size_t, int (*)(const void *, const void *));
+#ifdef __BLOCKS__
+int	 heapsort_b(void *, size_t, size_t, int (^)(const void *, const void *));
+#endif
 int	 l64a_r(long, char *, int);
 int	 mergesort(void *, size_t, size_t, int (*)(const void *, const void *));
+#ifdef __BLOCKS__
+int	 mergesort_b(void *, size_t, size_t, int (^)(const void *, const void *));
+#endif
 int	 mkostemp(char *, int);
 int	 mkostemps(char *, int, int);
 void	 qsort_r(void *, size_t, size_t, void *,

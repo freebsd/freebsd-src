@@ -97,6 +97,7 @@ static void *fill_search_info(const char *, size_t, void *);
 static char *find_library(const char *, const Obj_Entry *);
 static const char *gethints(bool);
 static void init_dag(Obj_Entry *);
+static void init_pagesizes(Elf_Auxinfo **aux_info);
 static void init_rtld(caddr_t, Elf_Auxinfo **);
 static void initlist_add_neededs(Needed_Entry *, Objlist *);
 static void initlist_add_objects(Obj_Entry *, Obj_Entry **, Objlist *);
@@ -161,6 +162,7 @@ static bool matched_symbol(SymLook *, const Obj_Entry *, Sym_Match_Result *,
     const unsigned long);
 
 void r_debug_state(struct r_debug *, struct link_map *) __noinline;
+void _r_debug_postinit(struct link_map *) __noinline;
 
 /*
  * Data declarations.
@@ -205,7 +207,8 @@ extern Elf_Dyn _DYNAMIC;
 #define	RTLD_IS_DYNAMIC()	(&_DYNAMIC != NULL)
 #endif
 
-int osreldate, pagesize;
+int npagesizes, osreldate;
+size_t *pagesizes;
 
 long __stack_chk_guard[8] = {0, 0, 0, 0, 0, 0, 0, 0};
 
@@ -635,6 +638,7 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
     if (obj_main->crt_no_init)
 	preinit_main();
     objlist_call_init(&initlist, &lockstate);
+    _r_debug_postinit(&obj_main->linkmap);
     objlist_clear(&initlist);
     dbg("loading filtees");
     for (obj = obj_list->next; obj != NULL; obj = obj->next) {
@@ -1822,8 +1826,9 @@ init_rtld(caddr_t mapbase, Elf_Auxinfo **aux_info)
     /* Now that non-local variables can be accesses, copy out obj_rtld. */
     memcpy(&obj_rtld, &objtmp, sizeof(obj_rtld));
 
-    if (aux_info[AT_PAGESZ] != NULL)
-	    pagesize = aux_info[AT_PAGESZ]->a_un.a_val;
+    /* The page size is required by the dynamic memory allocator. */
+    init_pagesizes(aux_info);
+
     if (aux_info[AT_OSRELDATE] != NULL)
 	    osreldate = aux_info[AT_OSRELDATE]->a_un.a_val;
 
@@ -1834,6 +1839,50 @@ init_rtld(caddr_t mapbase, Elf_Auxinfo **aux_info)
 
     r_debug.r_brk = r_debug_state;
     r_debug.r_state = RT_CONSISTENT;
+}
+
+/*
+ * Retrieve the array of supported page sizes.  The kernel provides the page
+ * sizes in increasing order.
+ */
+static void
+init_pagesizes(Elf_Auxinfo **aux_info)
+{
+	static size_t psa[MAXPAGESIZES];
+	int mib[2];
+	size_t len, size;
+
+	if (aux_info[AT_PAGESIZES] != NULL && aux_info[AT_PAGESIZESLEN] !=
+	    NULL) {
+		size = aux_info[AT_PAGESIZESLEN]->a_un.a_val;
+		pagesizes = aux_info[AT_PAGESIZES]->a_un.a_ptr;
+	} else {
+		len = 2;
+		if (sysctlnametomib("hw.pagesizes", mib, &len) == 0)
+			size = sizeof(psa);
+		else {
+			/* As a fallback, retrieve the base page size. */
+			size = sizeof(psa[0]);
+			if (aux_info[AT_PAGESZ] != NULL) {
+				psa[0] = aux_info[AT_PAGESZ]->a_un.a_val;
+				goto psa_filled;
+			} else {
+				mib[0] = CTL_HW;
+				mib[1] = HW_PAGESIZE;
+				len = 2;
+			}
+		}
+		if (sysctl(mib, len, psa, &size, NULL, 0) == -1) {
+			_rtld_error("sysctl for hw.pagesize(s) failed");
+			die();
+		}
+psa_filled:
+		pagesizes = psa;
+	}
+	npagesizes = size / sizeof(pagesizes[0]);
+	/* Discard any invalid entries at the end of the array. */
+	while (npagesizes > 0 && pagesizes[npagesizes - 1] == 0)
+		npagesizes--;
 }
 
 /*
@@ -3502,7 +3551,20 @@ r_debug_state(struct r_debug* rd, struct link_map *m)
      * even when marked __noinline.  However, gdb depends on those
      * calls being made.
      */
-    __asm __volatile("" : : : "memory");
+    __compiler_membar();
+}
+
+/*
+ * A function called after init routines have completed. This can be used to
+ * break before a program's entry routine is called, and can be used when
+ * main is not available in the symbol table.
+ */
+void
+_r_debug_postinit(struct link_map *m)
+{
+
+	/* See r_debug_state(). */
+	__compiler_membar();
 }
 
 /*

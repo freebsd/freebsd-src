@@ -165,7 +165,7 @@ port_setup(int pnum, enum ev_type pevt, void (*ih)(void *), void *ih_user)
 		val = PCR_INT_FE;
 		break;
 	case INT_EITHER_EDGE:
-		val = PCR_INT_RE;
+		val = PCR_INT_EE;
 		break;
 	case INT_LOGIC_ONE:
 		val = PCR_INT_LO;

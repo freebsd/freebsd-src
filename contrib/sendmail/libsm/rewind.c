@@ -13,7 +13,7 @@
  */
 
 #include <sm/gen.h>
-SM_RCSID("@(#)$Id: rewind.c,v 1.19 2013/11/22 20:51:43 ca Exp $")
+SM_RCSID("@(#)$Id: rewind.c,v 1.19 2013-11-22 20:51:43 ca Exp $")
 #include <errno.h>
 #include <sm/io.h>
 #include <sm/assert.h>

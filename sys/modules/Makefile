@@ -1,6 +1,8 @@
 # $FreeBSD$
 
-.include <bsd.own.mk>
+.include <src.opts.mk>
+
+SUBDIR_PARALLEL=
 
 # Modules that include binary-only blobs of microcode should be selectable by
 # MK_SOURCELESS_UCODE option (see below).
@@ -148,6 +150,7 @@ SUBDIR=	\
 	if_vlan \
 	${_igb} \
 	${_iir} \
+	imgact_binmisc \
 	${_io} \
         ${_ipoib} \
 	${_ipdivert} \
@@ -185,7 +188,6 @@ SUBDIR=	\
 	libiconv \
 	libmbpool \
 	libmchain \
-	${_lindev} \
 	${_linprocfs} \
 	${_linsysfs} \
 	${_linux} \
@@ -215,9 +217,11 @@ SUBDIR=	\
 	${_mly} \
 	mmc \
 	mmcsd \
+	mpr \
 	mps \
 	mpt \
 	mqueue \
+	mrsas \
 	msdosfs \
 	msdosfs_iconv \
 	${_mse} \
@@ -233,6 +237,7 @@ SUBDIR=	\
 	${_ncp} \
 	${_ncv} \
 	${_ndis} \
+	netfpga10g \
 	${_netgraph} \
 	${_nfe} \
 	nfs_common \
@@ -270,6 +275,7 @@ SUBDIR=	\
 	ppi \
 	pps \
 	procfs \
+	proto \
 	pseudofs \
 	${_pst} \
 	pty  \
@@ -510,7 +516,6 @@ _io=		io
 .if ${MK_OFED} != "no" || defined(ALL_MODULES)
 _ipoib=         ipoib
 .endif
-_lindev=	lindev
 _linprocfs=	linprocfs
 _linsysfs=	linsysfs
 _linux=		linux
@@ -558,7 +563,9 @@ _acpi=		acpi
 .if ${MK_CRYPT} != "no" || defined(ALL_MODULES)
 _aesni=		aesni
 .endif
+.if ${MK_EISA} != "no"
 _ahb=		ahb
+.endif
 _amdsbwd=	amdsbwd
 _amdtemp=	amdtemp
 _arcmsr=	arcmsr
@@ -710,7 +717,6 @@ _iwnfw=		iwnfw
 .endif
 _ixgb=		ixgb
 _ixgbe=		ixgbe
-_lindev=	lindev
 _linprocfs=	linprocfs
 _linsysfs=	linsysfs
 _linux=		linux

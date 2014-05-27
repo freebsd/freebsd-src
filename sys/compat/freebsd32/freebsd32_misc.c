@@ -1137,46 +1137,90 @@ freebsd32_recvmsg(td, uap)
 	return (error);
 }
 
-
+/*
+ * Copy-in the array of control messages constructed using alignment
+ * and padding suitable for a 32-bit environment and construct an
+ * mbuf using alignment and padding suitable for a 64-bit kernel.
+ * The alignment and padding are defined indirectly by CMSG_DATA(),
+ * CMSG_SPACE() and CMSG_LEN().
+ */
 static int
-freebsd32_convert_msg_in(struct mbuf **controlp)
+freebsd32_copyin_control(struct mbuf **mp, caddr_t buf, u_int buflen)
 {
-	struct mbuf *control = *controlp;
-	struct cmsghdr *cm = mtod(control, struct cmsghdr *);
-	void *data;
-	socklen_t clen = control->m_len, datalen;
+	struct mbuf *m;
+	void *md;
+	u_int idx, len, msglen;
 	int error;
 
-	error = 0;
-	*controlp = NULL;
+	buflen = FREEBSD32_ALIGN(buflen);
 
-	while (cm != NULL) {
-		if (sizeof(struct cmsghdr) > clen || cm->cmsg_len > clen) {
-			error = EINVAL;
+	if (buflen > MCLBYTES)
+		return (EINVAL);
+
+	/*
+	 * Iterate over the buffer and get the length of each message
+	 * in there. This has 32-bit alignment and padding. Use it to
+	 * determine the length of these messages when using 64-bit
+	 * alignment and padding.
+	 */
+	idx = 0;
+	len = 0;
+	while (idx < buflen) {
+		error = copyin(buf + idx, &msglen, sizeof(msglen));
+		if (error)
+			return (error);
+		if (msglen < sizeof(struct cmsghdr))
+			return (EINVAL);
+		msglen = FREEBSD32_ALIGN(msglen);
+		if (idx + msglen > buflen)
+			return (EINVAL);
+		idx += msglen;
+		msglen += CMSG_ALIGN(sizeof(struct cmsghdr)) -
+		    FREEBSD32_ALIGN(sizeof(struct cmsghdr));
+		len += CMSG_ALIGN(msglen);
+	}
+
+	if (len > MCLBYTES)
+		return (EINVAL);
+
+	m = m_get(M_WAITOK, MT_CONTROL);
+	if (len > MLEN)
+		MCLGET(m, M_WAITOK);
+	m->m_len = len;
+
+	md = mtod(m, void *);
+	while (buflen > 0) {
+		error = copyin(buf, md, sizeof(struct cmsghdr));
+		if (error)
 			break;
-		}
+		msglen = *(u_int *)md;
+		msglen = FREEBSD32_ALIGN(msglen);
 
-		data = FREEBSD32_CMSG_DATA(cm);
-		datalen = (caddr_t)cm + cm->cmsg_len - (caddr_t)data;
+		/* Modify the message length to account for alignment. */
+		*(u_int *)md = msglen + CMSG_ALIGN(sizeof(struct cmsghdr)) -
+		    FREEBSD32_ALIGN(sizeof(struct cmsghdr));
 
-		*controlp = sbcreatecontrol(data, datalen, cm->cmsg_type,
-		    cm->cmsg_level);
-		controlp = &(*controlp)->m_next;
+		md = (char *)md + CMSG_ALIGN(sizeof(struct cmsghdr));
+		buf += FREEBSD32_ALIGN(sizeof(struct cmsghdr));
+		buflen -= FREEBSD32_ALIGN(sizeof(struct cmsghdr));
 
-		if (FREEBSD32_CMSG_SPACE(datalen) < clen) {
-			clen -= FREEBSD32_CMSG_SPACE(datalen);
-			cm = (struct cmsghdr *)
-				((caddr_t)cm + FREEBSD32_CMSG_SPACE(datalen));
-		} else {
-			clen = 0;
-			cm = NULL;
+		msglen -= FREEBSD32_ALIGN(sizeof(struct cmsghdr));
+		if (msglen > 0) {
+			error = copyin(buf, md, msglen);
+			if (error)
+				break;
+			md = (char *)md + CMSG_ALIGN(msglen);
+			buf += msglen;
+			buflen -= msglen;
 		}
 	}
 
-	m_freem(control);
+	if (error)
+		m_free(m);
+	else
+		*mp = m;
 	return (error);
 }
-
 
 int
 freebsd32_sendmsg(struct thread *td,
@@ -1215,14 +1259,13 @@ freebsd32_sendmsg(struct thread *td,
 			goto out;
 		}
 
-		error = sockargs(&control, msg.msg_control,
-		    msg.msg_controllen, MT_CONTROL);
+		error = freebsd32_copyin_control(&control, msg.msg_control,
+		    msg.msg_controllen);
 		if (error)
 			goto out;
-		
-		error = freebsd32_convert_msg_in(&control);
-		if (error)
-			goto out;
+
+		msg.msg_control = NULL;
+		msg.msg_controllen = 0;
 	}
 
 	error = kern_sendit(td, uap->s, &msg, uap->flags, control,

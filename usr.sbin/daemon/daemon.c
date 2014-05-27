@@ -139,7 +139,7 @@ main(int argc, char *argv[])
 	 * get SIGCHLD eventually.
 	 */
 	pid = -1;
-	if (pidfile != NULL || restart) {
+	if (pidfile != NULL || ppidfile != NULL || restart) {
 		/*
 		 * Restore default action for SIGTERM in case the
 		 * parent process decided to ignore it.

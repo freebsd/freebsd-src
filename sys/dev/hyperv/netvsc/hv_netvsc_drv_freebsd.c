@@ -344,7 +344,7 @@ netvsc_xmit_completion(void *context)
 	struct mbuf *mb;
 	uint8_t *buf;
 
-	mb = (struct mbuf *)packet->compl.send.send_completion_tid;
+	mb = (struct mbuf *)(uintptr_t)packet->compl.send.send_completion_tid;
 	buf = ((uint8_t *)packet) - HV_NV_PACKET_OFFSET_IN_BUF;
 
 	free(buf, M_DEVBUF);
@@ -494,7 +494,7 @@ retry_send:
 		/* Set the completion routine */
 		packet->compl.send.on_send_completion = netvsc_xmit_completion;
 		packet->compl.send.send_completion_context = packet;
-		packet->compl.send.send_completion_tid = (uint64_t)m_head;
+		packet->compl.send.send_completion_tid = (uint64_t)(uintptr_t)m_head;
 
 		/* Removed critical_enter(), does not appear necessary */
 		ret = hv_rf_on_send(device_ctx, packet);
@@ -682,7 +682,7 @@ netvsc_recv(struct hv_device *device_ctx, netvsc_packet *packet)
 	 */
 	for (i=0; i < packet->page_buf_count; i++) {
 		/* Shift virtual page number to form virtual page address */
-		uint8_t *vaddr = (uint8_t *)
+		uint8_t *vaddr = (uint8_t *)(uintptr_t)
 		    (packet->page_buffers[i].pfn << PAGE_SHIFT);
 
 		hv_m_append(m_new, packet->page_buffers[i].length,

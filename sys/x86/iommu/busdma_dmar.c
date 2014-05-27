@@ -93,7 +93,7 @@ dmar_bus_dma_is_dev_disabled(int domain, int bus, int slot, int func)
  * bounce mapping.
  */
 static device_t
-dmar_get_requester(device_t dev, int *bus, int *slot, int *func)
+dmar_get_requester(device_t dev, uint16_t *rid)
 {
 	devclass_t pci_class;
 	device_t pci, pcib, requester;
@@ -102,9 +102,7 @@ dmar_get_requester(device_t dev, int *bus, int *slot, int *func)
 	pci_class = devclass_find("pci");
 	requester = dev;
 
-	*bus = pci_get_bus(dev);
-	*slot = pci_get_slot(dev);
-	*func = pci_get_function(dev);
+	*rid = pci_get_rid(dev);
 
 	/*
 	 * Walk the bridge hierarchy from the target device to the
@@ -161,8 +159,7 @@ dmar_get_requester(device_t dev, int *bus, int *slot, int *func)
 				 * same page tables for taken and
 				 * non-taken transactions.
 				 */
-				*bus = pci_get_bus(dev);
-				*slot = *func = 0;
+				*rid = PCI_RID(pci_get_bus(dev), 0, 0);
 			} else {
 				/*
 				 * Neither the device nor the bridge
@@ -171,9 +168,7 @@ dmar_get_requester(device_t dev, int *bus, int *slot, int *func)
 				 * will use the bridge's BSF as the
 				 * requester ID.
 				 */
-				*bus = pci_get_bus(pcib);
-				*slot = pci_get_slot(pcib);
-				*func = pci_get_function(pcib);
+				*rid = pci_get_rid(pcib);
 			}
 		}
 		/*
@@ -193,9 +188,9 @@ dmar_instantiate_ctx(struct dmar_unit *dmar, device_t dev, bool rmrr)
 	device_t requester;
 	struct dmar_ctx *ctx;
 	bool disabled;
-	int bus, slot, func;
+	uint16_t rid;
 
-	requester = dmar_get_requester(dev, &bus, &slot, &func);
+	requester = dmar_get_requester(dev, &rid);
 
 	/*
 	 * If the user requested the IOMMU disabled for the device, we
@@ -204,9 +199,10 @@ dmar_instantiate_ctx(struct dmar_unit *dmar, device_t dev, bool rmrr)
 	 * Instead provide the identity mapping for the device
 	 * context.
 	 */
-	disabled = dmar_bus_dma_is_dev_disabled(pci_get_domain(dev), bus,
-	    slot, func);
-	ctx = dmar_get_ctx(dmar, requester, bus, slot, func, disabled, rmrr);
+	disabled = dmar_bus_dma_is_dev_disabled(pci_get_domain(requester), 
+	    pci_get_bus(requester), pci_get_slot(requester), 
+	    pci_get_function(requester));
+	ctx = dmar_get_ctx(dmar, requester, rid, disabled, rmrr);
 	if (ctx == NULL)
 		return (NULL);
 	if (disabled) {

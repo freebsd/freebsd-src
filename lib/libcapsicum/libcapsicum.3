@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 26, 2013
+.Dd April 14, 2014
 .Dt LIBCAPSICUM 3
 .Os
 .Sh NAME
@@ -253,7 +253,7 @@ limits = nvlist_create(0);
 nvlist_add_string(limits, "type", "ADDR");
 nvlist_add_number(limits, "family", (uint64_t)AF_INET);
 if (cap_limit_set(capdns, limits) < 0)
-	err("Unable to limit access to the system.dns service");
+	err(1, "Unable to limit access to the system.dns service");
 
 /* Convert IP address in C-string to in_addr. */
 if (!inet_aton(ipstr, &ip))

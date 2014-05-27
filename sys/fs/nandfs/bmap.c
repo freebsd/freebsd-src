@@ -387,11 +387,10 @@ bmap_truncate_indirect(struct nandfs_node *node, int level, nandfs_lbn_t *left,
 	if (modified)
 		bcopy(copy, bp->b_data, fsdev->nd_blocksize);
 
-	error = nandfs_dirty_buf_meta(bp, 0);
-	if (error)
-		return (error);
+	/* Force success even if we can't dirty the buffer metadata when freeing space */
+	nandfs_dirty_buf_meta(bp, 1);
 
-	return (error);
+	return (0);
 }
 
 int

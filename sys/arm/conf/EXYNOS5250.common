@@ -83,7 +83,7 @@ device		sdhci			# generic sdhci
 
 options 	ROOTDEVNAME=\"ufs:/dev/da0\"
 
-#options	SMP
+options		SMP
 
 # Pseudo devices
 

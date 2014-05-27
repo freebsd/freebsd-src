@@ -872,7 +872,7 @@ ATF_TC_BODY(rcvbuf_oversized, tc)
 {
 	int i;
 	int sv[2];
-	const int pktsize = 1024;
+	const ssize_t pktsize = 1024;
 	const size_t sndbufsize = 8192;
 	const size_t rcvbufsize = 131072;
 	const size_t geometric_mean_bufsize = 32768;

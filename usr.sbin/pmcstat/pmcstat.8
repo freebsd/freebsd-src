@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 19, 2008
+.Dd May 16, 2014
 .Dt PMCSTAT 8
 .Os
 .Sh NAME
@@ -46,11 +46,13 @@
 .Op Fl S Ar event-spec
 .Op Fl T
 .Op Fl W
+.Op Fl a Ar pathname
 .Op Fl c Ar cpu-spec
 .Op Fl d
 .Op Fl f Ar pluginopt
 .Op Fl g
 .Op Fl k Ar kerneldir
+.Op Fl l Ar secs
 .Op Fl m Ar pathname
 .Op Fl n Ar rate
 .Op Fl o Ar outputfile
@@ -221,6 +223,21 @@ This is an experimental feature intended to help analyse the
 dynamic behaviour of processes in the system.
 It may incur substantial overhead if enabled.
 The default is for this feature to be disabled.
+.It Fl a Ar pathname
+Perform a symbol and file:line lookup for each address in each
+callgraph and save the output to
+.Ar pathname .
+Unlike
+.Fl m
+that only resolves the first symbol in the graph, this resolves
+every node in the callgraph, or prints out addresses if no
+lookup information is available.
+This option requires the
+.Fl R
+option to read in samples that were previously collected and
+saved with the 
+.Fl o
+option.
 .It Fl c Ar cpu-spec
 Set the cpus for subsequent system mode PMCs specified on the
 command line to
@@ -258,6 +275,13 @@ This directory specifies where
 should look for the kernel and its modules.
 The default is
 .Pa /boot/kernel .
+.It Fl l Ar secs
+Set system-wide performance measurement duration for
+.Ar secs
+seconds.
+The argument
+.Ar secs
+may be a fractional value.
 .It Fl m Ar pathname
 Print the sampled PCs with the name, the start and ending addresses
 of the function within they live.

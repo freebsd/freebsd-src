@@ -2,7 +2,7 @@
 
 PROG=	mwlstats
 BINDIR=	/usr/local/bin
-NO_MAN=
+MAN=
 
 SRCS=	main.c mwlstats.c
 USEPRIVATELIB=

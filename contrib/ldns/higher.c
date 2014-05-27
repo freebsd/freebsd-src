@@ -131,6 +131,7 @@ ldns_get_rr_list_name_by_addr(ldns_resolver *res, ldns_rdf *addr, ldns_rr_class 
 		/* extract the data we need */
 		names = ldns_pkt_rr_list_by_type(pkt, 
 				LDNS_RR_TYPE_PTR, LDNS_SECTION_ANSWER);
+		ldns_pkt_free(pkt);
 	}
 	return names;
 }
@@ -303,39 +304,21 @@ ldns_getaddrinfo(ldns_resolver *res, ldns_rdf *node, ldns_rr_class c,
 bool
 ldns_nsec_type_check(ldns_rr *nsec, ldns_rr_type t)
 {
-	/* does the nsec cover the t given? */
-	/* copied from host2str.c line 465: ldns_rdf2buffer_str_nsec */
-        uint8_t window_block_nr;
-        uint8_t bitmap_length;
-        uint16_t type;
-        uint16_t pos = 0;
-        uint16_t bit_pos;
-	ldns_rdf *nsec_type_list = ldns_rr_rdf(nsec, 1); 
-	uint8_t *data;
-	
-	if (nsec_type_list == NULL) {
-		return false;
+	switch (ldns_rr_get_type(nsec)) {
+	case LDNS_RR_TYPE_NSEC	: if (ldns_rr_rd_count(nsec) < 2) {
+					  return false;
+				  }
+				  return ldns_nsec_bitmap_covers_type(
+						  ldns_rr_rdf(nsec, 1), t);
+
+	case LDNS_RR_TYPE_NSEC3	: if (ldns_rr_rd_count(nsec) < 6) {
+					  return false;
+				  }
+				  return ldns_nsec_bitmap_covers_type(
+						  ldns_rr_rdf(nsec, 5), t);
+
+	default			: return false;
 	}
-	data  = ldns_rdf_data(nsec_type_list);
-
-	while(pos < ldns_rdf_size(nsec_type_list)) {
-		window_block_nr = data[pos];
-		bitmap_length = data[pos + 1];
-		pos += 2;
-
-		for (bit_pos = 0; bit_pos < (bitmap_length) * 8; bit_pos++) {
-			if (ldns_get_bit(&data[pos], bit_pos)) {
-				type = 256 * (uint16_t) window_block_nr + bit_pos;
-
-				if ((ldns_rr_type)type == t) {
-					/* we have a winner */
-					return true;
-				}
-			}
-		}
-		pos += (uint16_t) bitmap_length;
-	}
-	return false;
 }
 
 void
@@ -358,3 +341,4 @@ ldns_print_rr_rdf(FILE *fp, ldns_rr *r, int rdfnum, ...)
 	}
 	va_end(va_rdf);
 }
+

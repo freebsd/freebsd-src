@@ -9,7 +9,7 @@ Pull in r196939 from upstream llvm trunk (by Reid Kleckner):
 
   Update to clang side tests will land shortly.
 
-Introduced here: http://svn.freebsd.org/changeset/base/263312
+Introduced here: http://svnweb.freebsd.org/changeset/base/263312
 
 Index: test/CodeGen/X86/inline-asm-stack-realign2.ll
 ===================================================================

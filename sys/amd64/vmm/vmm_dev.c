@@ -48,6 +48,7 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/vmparam.h>
 #include <machine/vmm.h>
+#include <machine/vmm_instruction_emul.h>
 #include <machine/vmm_dev.h>
 
 #include "vmm_lapic.h"
@@ -156,6 +157,7 @@ vmmdev_ioctl(struct cdev *cdev, u_long cmd, caddr_t data, int fflag,
 	struct vm_lapic_msi *vmmsi;
 	struct vm_ioapic_irq *ioapic_irq;
 	struct vm_isa_irq *isa_irq;
+	struct vm_isa_irq_trigger *isa_irq_trigger;
 	struct vm_capability *vmcap;
 	struct vm_pptdev *pptdev;
 	struct vm_pptdev_mmio *pptmmio;
@@ -166,11 +168,14 @@ vmmdev_ioctl(struct cdev *cdev, u_long cmd, caddr_t data, int fflag,
 	struct vm_stat_desc *statdesc;
 	struct vm_x2apic *x2apic;
 	struct vm_gpa_pte *gpapte;
+	struct vm_suspend *vmsuspend;
+	struct vm_gla2gpa *gg;
 
 	sc = vmmdev_lookup2(cdev);
 	if (sc == NULL)
 		return (ENXIO);
 
+	error = 0;
 	vcpu = -1;
 	state_changed = 0;
 
@@ -189,6 +194,7 @@ vmmdev_ioctl(struct cdev *cdev, u_long cmd, caddr_t data, int fflag,
 	case VM_PPTDEV_MSI:
 	case VM_PPTDEV_MSIX:
 	case VM_SET_X2APIC_STATE:
+	case VM_GLA2GPA:
 		/*
 		 * XXX fragile, handle with care
 		 * Assumes that the first field of the ioctl data is the vcpu.
@@ -240,7 +246,8 @@ vmmdev_ioctl(struct cdev *cdev, u_long cmd, caddr_t data, int fflag,
 		error = vm_run(sc->vm, vmrun);
 		break;
 	case VM_SUSPEND:
-		error = vm_suspend(sc->vm);
+		vmsuspend = (struct vm_suspend *)data;
+		error = vm_suspend(sc->vm, vmsuspend->how);
 		break;
 	case VM_STAT_DESC: {
 		statdesc = (struct vm_stat_desc *)data;
@@ -343,6 +350,11 @@ vmmdev_ioctl(struct cdev *cdev, u_long cmd, caddr_t data, int fflag,
 		if (error == 0 && isa_irq->ioapic_irq != -1)
 			error = vioapic_pulse_irq(sc->vm, isa_irq->ioapic_irq);
 		break;
+	case VM_ISA_SET_IRQ_TRIGGER:
+		isa_irq_trigger = (struct vm_isa_irq_trigger *)data;
+		error = vatpic_set_irq_trigger(sc->vm,
+		    isa_irq_trigger->atpic_irq, isa_irq_trigger->trigger);
+		break;
 	case VM_MAP_MEMORY:
 		seg = (struct vm_memory_segment *)data;
 		error = vm_malloc(sc->vm, seg->gpa, seg->len);
@@ -406,6 +418,27 @@ vmmdev_ioctl(struct cdev *cdev, u_long cmd, caddr_t data, int fflag,
 	case VM_GET_HPET_CAPABILITIES:
 		error = vhpet_getcap((struct vm_hpet_cap *)data);
 		break;
+	case VM_GLA2GPA: {
+		CTASSERT(PROT_READ == VM_PROT_READ);
+		CTASSERT(PROT_WRITE == VM_PROT_WRITE);
+		CTASSERT(PROT_EXEC == VM_PROT_EXECUTE);
+		gg = (struct vm_gla2gpa *)data;
+		error = vmm_gla2gpa(sc->vm, gg->vcpuid, &gg->paging, gg->gla,
+		    gg->prot, &gg->gpa);
+		KASSERT(error == 0 || error == 1 || error == -1,
+		    ("%s: vmm_gla2gpa unknown error %d", __func__, error));
+		if (error >= 0) {
+			/*
+			 * error = 0: the translation was successful
+			 * error = 1: a fault was injected into the guest
+			 */
+			gg->fault = error;
+			error = 0;
+		} else {
+			error = EFAULT;
+		}
+		break;
+	}
 	default:
 		error = ENOTTY;
 		break;

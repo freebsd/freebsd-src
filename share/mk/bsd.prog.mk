@@ -2,6 +2,7 @@
 # $FreeBSD$
 
 .include <bsd.init.mk>
+.include <bsd.compiler.mk>
 
 .SUFFIXES: .out .o .c .cc .cpp .cxx .C .m .y .l .ln .s .S .asm
 
@@ -172,7 +173,7 @@ _EXTRADEPEND:
 .endif
 .else
 	echo ${PROG}: ${LIBC} ${DPADD} >> ${DEPENDFILE}
-.if defined(PROG_CXX) && !defined(EARLY_BUILD)
+.if defined(PROG_CXX)
 .if ${COMPILER_TYPE} == "clang" && empty(CXXFLAGS:M-stdlib=libstdc++)
 	echo ${PROG}: ${LIBCPLUSPLUS} >> ${DEPENDFILE}
 .else
@@ -275,7 +276,3 @@ ${OBJS}: ${SRCS:M*.h}
 .include <bsd.obj.mk>
 
 .include <bsd.sys.mk>
-
-.if defined(PORTNAME)
-.include <bsd.pkg.mk>
-.endif

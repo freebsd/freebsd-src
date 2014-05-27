@@ -21,16 +21,16 @@
  * specific prior written permission.
  * 
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
- * TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE
- * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
- * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
- * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
- * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
+ * TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+ * PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+ * LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+ * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+ * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
 /**
@@ -41,7 +41,6 @@
  * It was modified to fit into unbound. The state table process is the same.
  */
 #include "config.h"
-#include <ldns/ldns.h>
 #include "validator/autotrust.h"
 #include "validator/val_anchor.h"
 #include "validator/val_utils.h"
@@ -58,6 +57,13 @@
 #include "services/mesh.h"
 #include "services/cache/rrset.h"
 #include "validator/val_kcache.h"
+#include "ldns/sbuffer.h"
+#include "ldns/wire2str.h"
+#include "ldns/str2wire.h"
+#include "ldns/keyraw.h"
+#include "ldns/rrdef.h"
+#include <stdarg.h>
+#include <ctype.h>
 
 /** number of times a key must be seen before it can become valid */
 #define MIN_PENDINGCOUNT 2
@@ -138,8 +144,11 @@ verbose_key(struct autr_ta* ta, enum verbosity_value level,
 	va_list args;
 	va_start(args, format);
 	if(verbosity >= level) {
-		char* str = ldns_rdf2str(ldns_rr_owner(ta->rr));
-		int keytag = (int)ldns_calc_keytag(ta->rr);
+		char* str = sldns_wire2str_dname(ta->rr, ta->dname_len);
+		int keytag = (int)sldns_calc_keytag_raw(sldns_wirerr_get_rdata(
+			ta->rr, ta->rr_len, ta->dname_len),
+			sldns_wirerr_get_rdatalen(ta->rr, ta->rr_len,
+			ta->dname_len));
 		char msg[MAXSYSLOGMSGLEN];
 		vsnprintf(msg, sizeof(msg), format, args);
 		verbose(level, "%s key %d %s", str?str:"??", keytag, msg);
@@ -242,7 +251,7 @@ parse_comments(char* str, struct autr_ta* ta)
         if (pos < 0 || !timestamp)
 		ta->last_change = 0;
         else
-                ta->last_change = (uint32_t)timestamp;
+                ta->last_change = (time_t)timestamp;
 
         free(comment);
         return 1;
@@ -262,55 +271,76 @@ str_contains_data(char* str, char comment)
         return 0;
 }
 
-/** Get DNSKEY flags */
+/** Get DNSKEY flags
+ * rdata without rdatalen in front of it. */
 static int
-dnskey_flags(ldns_rr* rr)
+dnskey_flags(uint16_t t, uint8_t* rdata, size_t len)
 {
-	if(ldns_rr_get_type(rr) != LDNS_RR_TYPE_DNSKEY)
+	uint16_t f;
+	if(t != LDNS_RR_TYPE_DNSKEY)
 		return 0;
-	return (int)ldns_read_uint16(ldns_rdf_data(ldns_rr_dnskey_flags(rr)));
+	if(len < 2)
+		return 0;
+	memmove(&f, rdata, 2);
+	f = ntohs(f);
+	return (int)f;
 }
 
-
-/** Check if KSK DNSKEY */
+/** Check if KSK DNSKEY.
+ * pass rdata without rdatalen in front of it */
 static int
-rr_is_dnskey_sep(ldns_rr* rr)
+rr_is_dnskey_sep(uint16_t t, uint8_t* rdata, size_t len)
 {
-	return (dnskey_flags(rr)&DNSKEY_BIT_SEP);
+	return (dnskey_flags(t, rdata, len)&DNSKEY_BIT_SEP);
 }
 
-/** Check if REVOKED DNSKEY */
+/** Check if TA is KSK DNSKEY */
 static int
-rr_is_dnskey_revoked(ldns_rr* rr)
+ta_is_dnskey_sep(struct autr_ta* ta)
 {
-	return (dnskey_flags(rr)&LDNS_KEY_REVOKE_KEY);
+	return (dnskey_flags(
+		sldns_wirerr_get_type(ta->rr, ta->rr_len, ta->dname_len),
+		sldns_wirerr_get_rdata(ta->rr, ta->rr_len, ta->dname_len),
+		sldns_wirerr_get_rdatalen(ta->rr, ta->rr_len, ta->dname_len)
+		) & DNSKEY_BIT_SEP);
+}
+
+/** Check if REVOKED DNSKEY
+ * pass rdata without rdatalen in front of it */
+static int
+rr_is_dnskey_revoked(uint16_t t, uint8_t* rdata, size_t len)
+{
+	return (dnskey_flags(t, rdata, len)&LDNS_KEY_REVOKE_KEY);
 }
 
 /** create ta */
 static struct autr_ta*
-autr_ta_create(ldns_rr* rr)
+autr_ta_create(uint8_t* rr, size_t rr_len, size_t dname_len)
 {
 	struct autr_ta* ta = (struct autr_ta*)calloc(1, sizeof(*ta));
 	if(!ta) {
-		ldns_rr_free(rr);
+		free(rr);
 		return NULL;
 	}
 	ta->rr = rr;
+	ta->rr_len = rr_len;
+	ta->dname_len = dname_len;
 	return ta;
 }
 
 /** create tp */
 static struct trust_anchor*
-autr_tp_create(struct val_anchors* anchors, ldns_rdf* own, uint16_t dc)
+autr_tp_create(struct val_anchors* anchors, uint8_t* own, size_t own_len,
+	uint16_t dc)
 {
 	struct trust_anchor* tp = (struct trust_anchor*)calloc(1, sizeof(*tp));
 	if(!tp) return NULL;
-	tp->name = memdup(ldns_rdf_data(own), ldns_rdf_size(own));
+	tp->name = memdup(own, own_len);
 	if(!tp->name) {
 		free(tp);
 		return NULL;
 	}
-	tp->namelen = ldns_rdf_size(own);
+	tp->namelen = own_len;
 	tp->namelabs = dname_count_labels(tp->name);
 	tp->node.key = tp;
 	tp->dclass = dc;
@@ -371,7 +401,7 @@ void autr_point_delete(struct trust_anchor* tp)
 		struct autr_ta* p = tp->autr->keys, *np;
 		while(p) {
 			np = p->next;
-			ldns_rr_free(p->rr);
+			free(p->rr);
 			free(p);
 			p = np;
 		}
@@ -384,13 +414,12 @@ void autr_point_delete(struct trust_anchor* tp)
 
 /** find or add a new trust point for autotrust */
 static struct trust_anchor*
-find_add_tp(struct val_anchors* anchors, ldns_rr* rr)
+find_add_tp(struct val_anchors* anchors, uint8_t* rr, size_t rr_len,
+	size_t dname_len)
 {
 	struct trust_anchor* tp;
-	ldns_rdf* own = ldns_rr_owner(rr);
-	tp = anchor_find(anchors, ldns_rdf_data(own), 
-		dname_count_labels(ldns_rdf_data(own)),
-		ldns_rdf_size(own), ldns_rr_get_class(rr));
+	tp = anchor_find(anchors, rr, dname_count_labels(rr), dname_len,
+		sldns_wirerr_get_class(rr, rr_len, dname_len));
 	if(tp) {
 		if(!tp->autr) {
 			log_err("anchor cannot be with and without autotrust");
@@ -399,22 +428,23 @@ find_add_tp(struct val_anchors* anchors, ldns_rr* rr)
 		}
 		return tp;
 	}
-	tp = autr_tp_create(anchors, ldns_rr_owner(rr), ldns_rr_get_class(rr));
+	tp = autr_tp_create(anchors, rr, dname_len, sldns_wirerr_get_class(rr,
+		rr_len, dname_len));
 	lock_basic_lock(&tp->lock);
 	return tp;
 }
 
 /** Add trust anchor from RR */
 static struct autr_ta*
-add_trustanchor_frm_rr(struct val_anchors* anchors, ldns_rr* rr, 
-	struct trust_anchor** tp)
+add_trustanchor_frm_rr(struct val_anchors* anchors, uint8_t* rr, size_t rr_len,
+        size_t dname_len, struct trust_anchor** tp)
 {
-	struct autr_ta* ta = autr_ta_create(rr);
+	struct autr_ta* ta = autr_ta_create(rr, rr_len, dname_len);
 	if(!ta) 
 		return NULL;
-	*tp = find_add_tp(anchors, rr);
+	*tp = find_add_tp(anchors, rr, rr_len, dname_len);
 	if(!*tp) {
-		ldns_rr_free(ta->rr);
+		free(ta->rr);
 		free(ta);
 		return NULL;
 	}
@@ -431,34 +461,51 @@ add_trustanchor_frm_rr(struct val_anchors* anchors, ldns_rr* rr,
  * @param str: string with anchor and comments, if any comments.
  * @param tp: trust point returned.
  * @param origin: what to use for @
+ * @param origin_len: length of origin
  * @param prev: previous rr name
+ * @param prev_len: length of prev
  * @param skip: if true, the result is NULL, but not an error, skip it.
  * @return new key in trust point.
  */
 static struct autr_ta*
 add_trustanchor_frm_str(struct val_anchors* anchors, char* str, 
-	struct trust_anchor** tp, ldns_rdf* origin, ldns_rdf** prev, int* skip)
+	struct trust_anchor** tp, uint8_t* origin, size_t origin_len,
+	uint8_t** prev, size_t* prev_len, int* skip)
 {
-        ldns_rr* rr;
-	ldns_status lstatus;
+	uint8_t rr[LDNS_RR_BUF_SIZE];
+	size_t rr_len = sizeof(rr), dname_len;
+	uint8_t* drr;
+	int lstatus;
         if (!str_contains_data(str, ';')) {
 		*skip = 1;
                 return NULL; /* empty line */
 	}
-        if (LDNS_STATUS_OK !=
-                (lstatus = ldns_rr_new_frm_str(&rr, str, 0, origin, prev)))
-        {
-        	log_err("ldns error while converting string to RR: %s",
-			ldns_get_errorstr_by_id(lstatus));
-                return NULL;
-        }
-	if(ldns_rr_get_type(rr) != LDNS_RR_TYPE_DNSKEY &&
-		ldns_rr_get_type(rr) != LDNS_RR_TYPE_DS) {
-		ldns_rr_free(rr);
+	if(0 != (lstatus = sldns_str2wire_rr_buf(str, rr, &rr_len, &dname_len,
+		0, origin, origin_len, *prev, *prev_len)))
+	{
+		log_err("ldns error while converting string to RR at%d: %s: %s",
+			LDNS_WIREPARSE_OFFSET(lstatus),
+			sldns_get_errorstr_parse(lstatus), str);
+		return NULL;
+	}
+	free(*prev);
+	*prev = memdup(rr, dname_len);
+	*prev_len = dname_len;
+	if(!*prev) {
+		log_err("malloc failure in add_trustanchor");
+		return NULL;
+	}
+	if(sldns_wirerr_get_type(rr, rr_len, dname_len)!=LDNS_RR_TYPE_DNSKEY &&
+		sldns_wirerr_get_type(rr, rr_len, dname_len)!=LDNS_RR_TYPE_DS) {
 		*skip = 1;
 		return NULL; /* only DS and DNSKEY allowed */
 	}
-        return add_trustanchor_frm_rr(anchors, rr, tp);
+	drr = memdup(rr, rr_len);
+	if(!drr) {
+		log_err("malloc failure in add trustanchor");
+		return NULL;
+	}
+	return add_trustanchor_frm_rr(anchors, drr, rr_len, dname_len, tp);
 }
 
 /** 
@@ -467,18 +514,22 @@ add_trustanchor_frm_str(struct val_anchors* anchors, char* str,
  * @param str: comments line
  * @param fname: filename
  * @param origin: the $ORIGIN.
+ * @param origin_len: length of origin
  * @param prev: passed to ldns.
+ * @param prev_len: length of prev
  * @param skip: if true, the result is NULL, but not an error, skip it.
  * @return false on failure, otherwise the tp read.
  */
 static struct trust_anchor*
 load_trustanchor(struct val_anchors* anchors, char* str, const char* fname,
-	ldns_rdf* origin, ldns_rdf** prev, int* skip)
+	uint8_t* origin, size_t origin_len, uint8_t** prev, size_t* prev_len,
+	int* skip)
 {
-        struct autr_ta* ta = NULL;
-        struct trust_anchor* tp = NULL;
+	struct autr_ta* ta = NULL;
+	struct trust_anchor* tp = NULL;
 
-        ta = add_trustanchor_frm_str(anchors, str, &tp, origin, prev, skip);
+	ta = add_trustanchor_frm_str(anchors, str, &tp, origin, origin_len,
+		prev, prev_len, skip);
 	if(!ta)
 		return NULL;
 	lock_basic_lock(&tp->lock);
@@ -498,70 +549,228 @@ load_trustanchor(struct val_anchors* anchors, char* str, const char* fname,
         return tp;
 }
 
+/** iterator for DSes from keylist. return true if a next element exists */
+static int
+assemble_iterate_ds(struct autr_ta** list, uint8_t** rr, size_t* rr_len,
+	size_t* dname_len)
+{
+	while(*list) {
+		if(sldns_wirerr_get_type((*list)->rr, (*list)->rr_len,
+			(*list)->dname_len) == LDNS_RR_TYPE_DS) {
+			*rr = (*list)->rr;
+			*rr_len = (*list)->rr_len;
+			*dname_len = (*list)->dname_len;
+			*list = (*list)->next;
+			return 1;
+		}
+		*list = (*list)->next;
+	}
+	return 0;
+}
+
+/** iterator for DNSKEYs from keylist. return true if a next element exists */
+static int
+assemble_iterate_dnskey(struct autr_ta** list, uint8_t** rr, size_t* rr_len,
+	size_t* dname_len)
+{
+	while(*list) {
+		if(sldns_wirerr_get_type((*list)->rr, (*list)->rr_len,
+		   (*list)->dname_len) != LDNS_RR_TYPE_DS &&
+			((*list)->s == AUTR_STATE_VALID || 
+			 (*list)->s == AUTR_STATE_MISSING)) {
+			*rr = (*list)->rr;
+			*rr_len = (*list)->rr_len;
+			*dname_len = (*list)->dname_len;
+			*list = (*list)->next;
+			return 1;
+		}
+		*list = (*list)->next;
+	}
+	return 0;
+}
+
+/** see if iterator-list has any elements in it, or it is empty */
+static int
+assemble_iterate_hasfirst(int iter(struct autr_ta**, uint8_t**, size_t*,
+	size_t*), struct autr_ta* list)
+{
+	uint8_t* rr = NULL;
+	size_t rr_len = 0, dname_len = 0;
+	return iter(&list, &rr, &rr_len, &dname_len);
+}
+
+/** number of elements in iterator list */
+static size_t
+assemble_iterate_count(int iter(struct autr_ta**, uint8_t**, size_t*,
+	size_t*), struct autr_ta* list)
+{
+	uint8_t* rr = NULL;
+	size_t i = 0, rr_len = 0, dname_len = 0;
+	while(iter(&list, &rr, &rr_len, &dname_len)) {
+		i++;
+	}
+	return i;
+}
+
+/**
+ * Create a ub_packed_rrset_key allocated on the heap.
+ * It therefore does not have the correct ID value, and cannot be used
+ * inside the cache.  It can be used in storage outside of the cache.
+ * Keys for the cache have to be obtained from alloc.h .
+ * @param iter: iterator over the elements in the list.  It filters elements.
+ * @param list: the list.
+ * @return key allocated or NULL on failure.
+ */
+static struct ub_packed_rrset_key* 
+ub_packed_rrset_heap_key(int iter(struct autr_ta**, uint8_t**, size_t*,
+	size_t*), struct autr_ta* list)
+{
+	uint8_t* rr = NULL;
+	size_t rr_len = 0, dname_len = 0;
+	struct ub_packed_rrset_key* k;
+	if(!iter(&list, &rr, &rr_len, &dname_len))
+		return NULL;
+	k = (struct ub_packed_rrset_key*)calloc(1, sizeof(*k));
+	if(!k)
+		return NULL;
+	k->rk.type = htons(sldns_wirerr_get_type(rr, rr_len, dname_len));
+	k->rk.rrset_class = htons(sldns_wirerr_get_class(rr, rr_len, dname_len));
+	k->rk.dname_len = dname_len;
+	k->rk.dname = memdup(rr, dname_len);
+	if(!k->rk.dname) {
+		free(k);
+		return NULL;
+	}
+	return k;
+}
+
+/**
+ * Create packed_rrset data on the heap.
+ * @param iter: iterator over the elements in the list.  It filters elements.
+ * @param list: the list.
+ * @return data allocated or NULL on failure.
+ */
+static struct packed_rrset_data* 
+packed_rrset_heap_data(int iter(struct autr_ta**, uint8_t**, size_t*,
+	size_t*), struct autr_ta* list)
+{
+	uint8_t* rr = NULL;
+	size_t rr_len = 0, dname_len = 0;
+	struct packed_rrset_data* data;
+	size_t count=0, rrsig_count=0, len=0, i, total;
+	uint8_t* nextrdata;
+	struct autr_ta* list_i;
+	time_t ttl = 0;
+
+	list_i = list;
+	while(iter(&list_i, &rr, &rr_len, &dname_len)) {
+		if(sldns_wirerr_get_type(rr, rr_len, dname_len) ==
+			LDNS_RR_TYPE_RRSIG)
+			rrsig_count++;
+		else	count++;
+		/* sizeof the rdlength + rdatalen */
+		len += 2 + sldns_wirerr_get_rdatalen(rr, rr_len, dname_len);
+		ttl = (time_t)sldns_wirerr_get_ttl(rr, rr_len, dname_len);
+	}
+	if(count == 0 && rrsig_count == 0)
+		return NULL;
+
+	/* allocate */
+	total = count + rrsig_count;
+	len += sizeof(*data) + total*(sizeof(size_t) + sizeof(time_t) + 
+		sizeof(uint8_t*));
+	data = (struct packed_rrset_data*)calloc(1, len);
+	if(!data)
+		return NULL;
+
+	/* fill it */
+	data->ttl = ttl;
+	data->count = count;
+	data->rrsig_count = rrsig_count;
+	data->rr_len = (size_t*)((uint8_t*)data +
+		sizeof(struct packed_rrset_data));
+	data->rr_data = (uint8_t**)&(data->rr_len[total]);
+	data->rr_ttl = (time_t*)&(data->rr_data[total]);
+	nextrdata = (uint8_t*)&(data->rr_ttl[total]);
+
+	/* fill out len, ttl, fields */
+	list_i = list;
+	i = 0;
+	while(iter(&list_i, &rr, &rr_len, &dname_len)) {
+		data->rr_ttl[i] = (time_t)sldns_wirerr_get_ttl(rr, rr_len,
+			dname_len);
+		if(data->rr_ttl[i] < data->ttl)
+			data->ttl = data->rr_ttl[i];
+		data->rr_len[i] = 2 /* the rdlength */ +
+			sldns_wirerr_get_rdatalen(rr, rr_len, dname_len);
+		i++;
+	}
+
+	/* fixup rest of ptrs */
+	for(i=0; i<total; i++) {
+		data->rr_data[i] = nextrdata;
+		nextrdata += data->rr_len[i];
+	}
+
+	/* copy data in there */
+	list_i = list;
+	i = 0;
+	while(iter(&list_i, &rr, &rr_len, &dname_len)) {
+		memmove(data->rr_data[i],
+			sldns_wirerr_get_rdatawl(rr, rr_len, dname_len),
+			data->rr_len[i]);
+		i++;
+	}
+
+	if(data->rrsig_count && data->count == 0) {
+		data->count = data->rrsig_count; /* rrset type is RRSIG */
+		data->rrsig_count = 0;
+	}
+	return data;
+}
+
 /**
  * Assemble the trust anchors into DS and DNSKEY packed rrsets.
  * Uses only VALID and MISSING DNSKEYs.
- * Read the ldns_rrs and builds packed rrsets
+ * Read the sldns_rrs and builds packed rrsets
  * @param tp: the trust point. Must be locked.
  * @return false on malloc failure.
  */
 static int 
 autr_assemble(struct trust_anchor* tp)
 {
-	ldns_rr_list* ds, *dnskey;
-	struct autr_ta* ta;
 	struct ub_packed_rrset_key* ubds=NULL, *ubdnskey=NULL;
-
-	ds = ldns_rr_list_new();
-	dnskey = ldns_rr_list_new();
-	if(!ds || !dnskey) {
-		ldns_rr_list_free(ds);
-		ldns_rr_list_free(dnskey);
-		return 0;
-	}
-	for(ta = tp->autr->keys; ta; ta = ta->next) {
-		if(ldns_rr_get_type(ta->rr) == LDNS_RR_TYPE_DS) {
-			if(!ldns_rr_list_push_rr(ds, ta->rr)) {
-				ldns_rr_list_free(ds);
-				ldns_rr_list_free(dnskey);
-				return 0;
-			}
-		} else if(ta->s == AUTR_STATE_VALID || 
-			ta->s == AUTR_STATE_MISSING) {
-			if(!ldns_rr_list_push_rr(dnskey, ta->rr)) {
-				ldns_rr_list_free(ds);
-				ldns_rr_list_free(dnskey);
-				return 0;
-			}
-		}
-	}
 
 	/* make packed rrset keys - malloced with no ID number, they
 	 * are not in the cache */
 	/* make packed rrset data (if there is a key) */
-
-	if(ldns_rr_list_rr_count(ds) > 0) {
-		ubds = ub_packed_rrset_heap_key(ds);
-		if(!ubds) 
+	if(assemble_iterate_hasfirst(assemble_iterate_ds, tp->autr->keys)) {
+		ubds = ub_packed_rrset_heap_key(
+			assemble_iterate_ds, tp->autr->keys);
+		if(!ubds)
 			goto error_cleanup;
-		ubds->entry.data = packed_rrset_heap_data(ds);
+		ubds->entry.data = packed_rrset_heap_data(
+			assemble_iterate_ds, tp->autr->keys);
 		if(!ubds->entry.data)
 			goto error_cleanup;
 	}
-	if(ldns_rr_list_rr_count(dnskey) > 0) {
-		ubdnskey = ub_packed_rrset_heap_key(dnskey);
+
+	/* make packed DNSKEY data */
+	if(assemble_iterate_hasfirst(assemble_iterate_dnskey, tp->autr->keys)) {
+		ubdnskey = ub_packed_rrset_heap_key(
+			assemble_iterate_dnskey, tp->autr->keys);
 		if(!ubdnskey)
 			goto error_cleanup;
-		ubdnskey->entry.data = packed_rrset_heap_data(dnskey);
+		ubdnskey->entry.data = packed_rrset_heap_data(
+			assemble_iterate_dnskey, tp->autr->keys);
 		if(!ubdnskey->entry.data) {
 		error_cleanup:
 			autr_rrset_delete(ubds);
 			autr_rrset_delete(ubdnskey);
-			ldns_rr_list_free(ds);
-			ldns_rr_list_free(dnskey);
 			return 0;
 		}
 	}
+
 	/* we have prepared the new keys so nothing can go wrong any more.
 	 * And we are sure we cannot be left without trustanchor after
 	 * any errors. Put in the new keys and remove old ones. */
@@ -573,11 +782,10 @@ autr_assemble(struct trust_anchor* tp)
 	/* assign the data to replace the old */
 	tp->ds_rrset = ubds;
 	tp->dnskey_rrset = ubdnskey;
-	tp->numDS = ldns_rr_list_rr_count(ds);
-	tp->numDNSKEY = ldns_rr_list_rr_count(dnskey);
-
-	ldns_rr_list_free(ds);
-	ldns_rr_list_free(dnskey);
+	tp->numDS = assemble_iterate_count(assemble_iterate_ds,
+		tp->autr->keys);
+	tp->numDNSKEY = assemble_iterate_count(assemble_iterate_dnskey,
+		tp->autr->keys);
 	return 1;
 }
 
@@ -601,27 +809,28 @@ parse_id(struct val_anchors* anchors, char* line)
 {
 	struct trust_anchor *tp;
 	int r;
-	ldns_rdf* rdf;
 	uint16_t dclass;
+	uint8_t* dname;
+	size_t dname_len;
 	/* read the owner name */
 	char* next = strchr(line, ' ');
 	if(!next)
 		return NULL;
 	next[0] = 0;
-	rdf = ldns_dname_new_frm_str(line);
-	if(!rdf)
+	dname = sldns_str2wire_dname(line, &dname_len);
+	if(!dname)
 		return NULL;
 
 	/* read the class */
 	dclass = parse_int(next+1, &r);
 	if(r == -1) {
-		ldns_rdf_deep_free(rdf);
+		free(dname);
 		return NULL;
 	}
 
 	/* find the trust point */
-	tp = autr_tp_create(anchors, rdf, dclass);
-	ldns_rdf_deep_free(rdf);
+	tp = autr_tp_create(anchors, dname, dname_len, dclass);
+	free(dname);
 	return tp;
 }
 
@@ -677,12 +886,12 @@ parse_var_line(char* line, struct val_anchors* anchors,
 	} else if(strncmp(line, ";;query_interval: ", 18) == 0) {
 		if(!tp) return -1;
 		lock_basic_lock(&tp->lock);
-		tp->autr->query_interval = (uint32_t)parse_int(line+18, &r);
+		tp->autr->query_interval = (time_t)parse_int(line+18, &r);
 		lock_basic_unlock(&tp->lock);
 	} else if(strncmp(line, ";;retry_time: ", 14) == 0) {
 		if(!tp) return -1;
 		lock_basic_lock(&tp->lock);
-		tp->autr->retry_time = (uint32_t)parse_int(line+14, &r);
+		tp->autr->retry_time = (time_t)parse_int(line+14, &r);
 		lock_basic_unlock(&tp->lock);
 	}
 	return r;
@@ -690,17 +899,19 @@ parse_var_line(char* line, struct val_anchors* anchors,
 
 /** handle origin lines */
 static int
-handle_origin(char* line, ldns_rdf** origin)
+handle_origin(char* line, uint8_t** origin, size_t* origin_len)
 {
+	size_t len = 0;
 	while(isspace((int)*line))
 		line++;
 	if(strncmp(line, "$ORIGIN", 7) != 0)
 		return 0;
-	ldns_rdf_deep_free(*origin);
+	free(*origin);
 	line += 7;
 	while(isspace((int)*line))
 		line++;
-	*origin = ldns_dname_new_frm_str(line);
+	*origin = sldns_str2wire_dname(line, &len);
+	*origin_len = len;
 	if(!*origin)
 		log_warn("malloc failure or parse error in $ORIGIN");
 	return 1;
@@ -781,7 +992,8 @@ int autr_read_file(struct val_anchors* anchors, const char* nm)
 	struct trust_anchor *tp = NULL, *tp2;
 	int r;
 	/* for $ORIGIN parsing */
-	ldns_rdf *origin=NULL, *prev=NULL;
+	uint8_t *origin=NULL, *prev=NULL;
+	size_t origin_len=0, prev_len=0;
 
         if (!(fd = fopen(nm, "r"))) {
                 log_err("unable to open %s for reading: %s", 
@@ -794,25 +1006,25 @@ int autr_read_file(struct val_anchors* anchors, const char* nm)
 			log_err("could not parse auto-trust-anchor-file "
 				"%s line %d", nm, line_nr);
 			fclose(fd);
-			ldns_rdf_deep_free(origin);
-			ldns_rdf_deep_free(prev);
+			free(origin);
+			free(prev);
 			return 0;
 		} else if(r == 1) {
 			continue;
 		} else if(r == 2) {
 			log_warn("trust anchor %s has been revoked", nm);
 			fclose(fd);
-			ldns_rdf_deep_free(origin);
-			ldns_rdf_deep_free(prev);
+			free(origin);
+			free(prev);
 			return 1;
 		}
         	if (!str_contains_data(line, ';'))
                 	continue; /* empty lines allowed */
- 		if(handle_origin(line, &origin))
+ 		if(handle_origin(line, &origin, &origin_len))
 			continue;
 		r = 0;
-                if(!(tp2=load_trustanchor(anchors, line, nm, origin, &prev, 
-			&r))) {
+                if(!(tp2=load_trustanchor(anchors, line, nm, origin,
+			origin_len, &prev, &prev_len, &r))) {
 			if(!r) log_err("failed to load trust anchor from %s "
 				"at line %i, skipping", nm, line_nr);
                         /* try to do the rest */
@@ -823,15 +1035,15 @@ int autr_read_file(struct val_anchors* anchors, const char* nm)
 				"the file may only contain keys for one name, "
 				"remove keys for other domain names", nm);
         		fclose(fd);
-			ldns_rdf_deep_free(origin);
-			ldns_rdf_deep_free(prev);
+			free(origin);
+			free(prev);
 			return 0;
 		}
 		tp = tp2;
         }
         fclose(fd);
-	ldns_rdf_deep_free(origin);
-	ldns_rdf_deep_free(prev);
+	free(origin);
+	free(prev);
 	if(!tp) {
 		log_err("failed to read %s", nm);
 		return 0;
@@ -865,39 +1077,24 @@ trustanchor_state2str(autr_state_t s)
 
 /** print ID to file */
 static int
-print_id(FILE* out, char* fname, struct module_env* env, 
-	uint8_t* nm, size_t nmlen, uint16_t dclass)
+print_id(FILE* out, char* fname, uint8_t* nm, size_t nmlen, uint16_t dclass)
 {
-	ldns_rdf rdf;
-#ifdef UNBOUND_DEBUG
-	ldns_status s;
-#endif
-
-	memset(&rdf, 0, sizeof(rdf));
-	ldns_rdf_set_data(&rdf, nm);
-	ldns_rdf_set_size(&rdf, nmlen);
-	ldns_rdf_set_type(&rdf, LDNS_RDF_TYPE_DNAME);
-
-	ldns_buffer_clear(env->scratch_buffer);
-#ifdef UNBOUND_DEBUG
-	s =
-#endif
-	ldns_rdf2buffer_str_dname(env->scratch_buffer, &rdf);
-	log_assert(s == LDNS_STATUS_OK);
-	ldns_buffer_write_u8(env->scratch_buffer, 0);
-	ldns_buffer_flip(env->scratch_buffer);
-	if(fprintf(out, ";;id: %s %d\n", 
-		(char*)ldns_buffer_begin(env->scratch_buffer),
-		(int)dclass) < 0) {
-		log_err("could not write to %s: %s", fname, strerror(errno));
+	char* s = sldns_wire2str_dname(nm, nmlen);
+	if(!s) {
+		log_err("malloc failure in write to %s", fname);
 		return 0;
 	}
+	if(fprintf(out, ";;id: %s %d\n", s, (int)dclass) < 0) {
+		log_err("could not write to %s: %s", fname, strerror(errno));
+		free(s);
+		return 0;
+	}
+	free(s);
 	return 1;
 }
 
 static int
-autr_write_contents(FILE* out, char* fn, struct module_env* env,
-	struct trust_anchor* tp)
+autr_write_contents(FILE* out, char* fn, struct trust_anchor* tp)
 {
 	char tmi[32];
 	struct autr_ta* ta;
@@ -919,7 +1116,7 @@ autr_write_contents(FILE* out, char* fn, struct module_env* env,
 		   return 0;
 		}
 	}
-	if(!print_id(out, fn, env, tp->name, tp->namelen, tp->dclass)) {
+	if(!print_id(out, fn, tp->name, tp->namelen, tp->dclass)) {
 		return 0;
 	}
 	if(fprintf(out, ";;last_queried: %u ;;%s", 
@@ -947,9 +1144,10 @@ autr_write_contents(FILE* out, char* fn, struct module_env* env,
 		if(ta->s == AUTR_STATE_REMOVED)
 			continue;
 		/* only store keys */
-		if(ldns_rr_get_type(ta->rr) != LDNS_RR_TYPE_DNSKEY)
+		if(sldns_wirerr_get_type(ta->rr, ta->rr_len, ta->dname_len)
+			!= LDNS_RR_TYPE_DNSKEY)
 			continue;
-		str = ldns_rr2str(ta->rr);
+		str = sldns_wire2str_rr(ta->rr, ta->rr_len);
 		if(!str || !str[0]) {
 			free(str);
 			log_err("malloc failure writing %s", fn);
@@ -976,9 +1174,13 @@ void autr_write_file(struct module_env* env, struct trust_anchor* tp)
 	char* fname = tp->autr->file;
 	char tempf[2048];
 	log_assert(tp->autr);
+	if(!env) {
+		log_err("autr_write_file: Module environment is NULL.");
+		return;
+	}
 	/* unique name with pid number and thread number */
 	snprintf(tempf, sizeof(tempf), "%s.%d-%d", fname, (int)getpid(),
-		env&&env->worker?*(int*)env->worker:0);
+		env->worker?*(int*)env->worker:0);
 	verbose(VERB_ALGO, "autotrust: write to disk: %s", tempf);
 	out = fopen(tempf, "w");
 	if(!out) {
@@ -986,15 +1188,20 @@ void autr_write_file(struct module_env* env, struct trust_anchor* tp)
 			tempf, strerror(errno));
 		return;
 	}
-	if(!autr_write_contents(out, tempf, env, tp)) {
+	if(!autr_write_contents(out, tempf, tp)) {
 		/* failed to write contents (completely) */
 		fclose(out);
 		unlink(tempf);
 		log_err("could not completely write: %s", fname);
 		return;
 	}
+	if(fclose(out) != 0) {
+		log_err("could not complete write: %s: %s",
+			fname, strerror(errno));
+		unlink(tempf);
+		return;
+	}
 	/* success; overwrite actual file */
-	fclose(out);
 	verbose(VERB_ALGO, "autotrust: replaced %s", fname);
 #ifdef UB_ON_WINDOWS
 	(void)unlink(fname); /* windows does not replace file with rename() */
@@ -1030,24 +1237,30 @@ verify_dnskey(struct module_env* env, struct val_env* ve,
 	return sec == sec_status_secure;
 }
 
+static int32_t
+rrsig_get_expiry(uint8_t* d, size_t len)
+{
+	/* rrsig: 2(rdlen), 2(type) 1(alg) 1(v) 4(origttl), then 4(expi), (4)incep) */
+	if(len < 2+8+4)
+		return 0;
+	return sldns_read_uint32(d+2+8);
+}
+
 /** Find minimum expiration interval from signatures */
-static uint32_t
-min_expiry(struct module_env* env, ldns_rr_list* rrset)
+static time_t
+min_expiry(struct module_env* env, struct packed_rrset_data* dd)
 {
 	size_t i;
-	uint32_t t, r = 15 * 24 * 3600; /* 15 days max */
-	for(i=0; i<ldns_rr_list_rr_count(rrset); i++) {
-		ldns_rr* rr = ldns_rr_list_rr(rrset, i);
-		if(ldns_rr_get_type(rr) != LDNS_RR_TYPE_RRSIG)
-			continue;
-		t = ldns_rdf2native_int32(ldns_rr_rrsig_expiration(rr));
-		if(t - *env->now > 0) {
-			t -= *env->now;
+	int32_t t, r = 15 * 24 * 3600; /* 15 days max */
+	for(i=dd->count; i<dd->count+dd->rrsig_count; i++) {
+		t = rrsig_get_expiry(dd->rr_data[i], dd->rr_len[i]);
+		if((int32_t)t - (int32_t)*env->now > 0) {
+			t -= (int32_t)*env->now;
 			if(t < r)
 				r = t;
 		}
 	}
-	return r;
+	return (time_t)r;
 }
 
 /** Is rr self-signed revoked key */
@@ -1086,131 +1299,92 @@ seen_revoked_trustanchor(struct autr_ta* ta, uint8_t revoked)
 static void
 revoke_dnskey(struct autr_ta* ta, int off)
 {
-        ldns_rdf* rdf;
-        uint16_t flags;
-	log_assert(ta && ta->rr);
-	if(ldns_rr_get_type(ta->rr) != LDNS_RR_TYPE_DNSKEY)
+	uint16_t flags;
+	uint8_t* data;
+	if(sldns_wirerr_get_type(ta->rr, ta->rr_len, ta->dname_len) !=
+		LDNS_RR_TYPE_DNSKEY)
 		return;
-	rdf = ldns_rr_dnskey_flags(ta->rr);
-	flags = ldns_read_uint16(ldns_rdf_data(rdf));
-
+	if(sldns_wirerr_get_rdatalen(ta->rr, ta->rr_len, ta->dname_len) < 2)
+		return;
+	data = sldns_wirerr_get_rdata(ta->rr, ta->rr_len, ta->dname_len);
+	flags = sldns_read_uint16(data);
 	if (off && (flags&LDNS_KEY_REVOKE_KEY))
 		flags ^= LDNS_KEY_REVOKE_KEY; /* flip */
 	else
 		flags |= LDNS_KEY_REVOKE_KEY;
-	ldns_write_uint16(ldns_rdf_data(rdf), flags);
+	sldns_write_uint16(data, flags);
 }
 
-/** Compare two RR buffers skipping the REVOKED bit */
+/** Compare two RRs skipping the REVOKED bit. Pass rdata(no len) */
 static int
-ldns_rr_compare_wire_skip_revbit(ldns_buffer* rr1_buf, ldns_buffer* rr2_buf)
+dnskey_compare_skip_revbit(uint8_t* a, size_t a_len, uint8_t* b, size_t b_len)
 {
-	size_t rr1_len, rr2_len, min_len, i, offset;
-	rr1_len = ldns_buffer_capacity(rr1_buf);
-	rr2_len = ldns_buffer_capacity(rr2_buf);
-	/* jump past dname (checked in earlier part) and especially past TTL */
-	offset = 0;
-	while (offset < rr1_len && *ldns_buffer_at(rr1_buf, offset) != 0)
-		offset += *ldns_buffer_at(rr1_buf, offset) + 1;
-	/* jump to rdata section (PAST the rdata length field) */
-	offset += 11; /* 0-dname-end + type + class + ttl + rdatalen */
-	min_len = (rr1_len < rr2_len) ? rr1_len : rr2_len;
+	size_t i;
+	if(a_len != b_len)
+		return -1;
 	/* compare RRs RDATA byte for byte. */
-	for(i = offset; i < min_len; i++)
+	for(i = 0; i < a_len; i++)
 	{
-		uint8_t *rdf1, *rdf2;
-		rdf1 = ldns_buffer_at(rr1_buf, i);
-		rdf2 = ldns_buffer_at(rr2_buf, i);
-		if (i==(offset+1))
-		{
+		uint8_t rdf1, rdf2;
+		rdf1 = a[i];
+		rdf2 = b[i];
+		if(i==1) {
 			/* this is the second part of the flags field */
-			*rdf1 = *rdf1 | LDNS_KEY_REVOKE_KEY;
-			*rdf2 = *rdf2 | LDNS_KEY_REVOKE_KEY;
+			rdf1 |= LDNS_KEY_REVOKE_KEY;
+			rdf2 |= LDNS_KEY_REVOKE_KEY;
 		}
-		if (*rdf1 < *rdf2)	return -1;
-		else if (*rdf1 > *rdf2)	return 1;
+		if (rdf1 < rdf2)	return -1;
+		else if (rdf1 > rdf2)	return 1;
         }
 	return 0;
 }
 
-/** Compare two RRs skipping the REVOKED bit */
+
+/** compare trust anchor with rdata, 0 if equal. Pass rdata(no len) */
 static int
-ldns_rr_compare_skip_revbit(const ldns_rr* rr1, const ldns_rr* rr2, int* result)
+ta_compare(struct autr_ta* a, uint16_t t, uint8_t* b, size_t b_len)
 {
-	size_t rr1_len, rr2_len;
-	ldns_buffer* rr1_buf;
-	ldns_buffer* rr2_buf;
-
-	*result = ldns_rr_compare_no_rdata(rr1, rr2);
-	if (*result == 0)
-	{
-		rr1_len = ldns_rr_uncompressed_size(rr1);
-		rr2_len = ldns_rr_uncompressed_size(rr2);
-		rr1_buf = ldns_buffer_new(rr1_len);
-		rr2_buf = ldns_buffer_new(rr2_len);
-		if(!rr1_buf || !rr2_buf) {
-			ldns_buffer_free(rr1_buf);
-			ldns_buffer_free(rr2_buf);
-			return 0;
-		}
-		if (ldns_rr2buffer_wire_canonical(rr1_buf, rr1,
-			LDNS_SECTION_ANY) != LDNS_STATUS_OK)
-		{
-			ldns_buffer_free(rr1_buf);
-			ldns_buffer_free(rr2_buf);
-			return 0;
-		}
-		if (ldns_rr2buffer_wire_canonical(rr2_buf, rr2,
-			LDNS_SECTION_ANY) != LDNS_STATUS_OK) {
-			ldns_buffer_free(rr1_buf);
-			ldns_buffer_free(rr2_buf);
-			return 0;
-		}
-		*result = ldns_rr_compare_wire_skip_revbit(rr1_buf, rr2_buf);
-		ldns_buffer_free(rr1_buf);
-		ldns_buffer_free(rr2_buf);
+	if(!a) return -1;
+	else if(!b) return -1;
+	else if(sldns_wirerr_get_type(a->rr, a->rr_len, a->dname_len) != t)
+		return (int)sldns_wirerr_get_type(a->rr, a->rr_len,
+			a->dname_len) - (int)t;
+	else if(t == LDNS_RR_TYPE_DNSKEY) {
+		return dnskey_compare_skip_revbit(
+			sldns_wirerr_get_rdata(a->rr, a->rr_len, a->dname_len),
+			sldns_wirerr_get_rdatalen(a->rr, a->rr_len,
+			a->dname_len), b, b_len);
 	}
-	return 1;
-}
-
-
-/** compare two trust anchors */
-static int
-ta_compare(ldns_rr* a, ldns_rr* b, int* result)
-{
-	if (!a && !b)	*result = 0;
-	else if (!a)	*result = -1;
-	else if (!b)	*result = 1;
-	else if (ldns_rr_get_type(a) != ldns_rr_get_type(b))
-		*result = (int)ldns_rr_get_type(a) - (int)ldns_rr_get_type(b);
-	else if (ldns_rr_get_type(a) == LDNS_RR_TYPE_DNSKEY) {
-		if(!ldns_rr_compare_skip_revbit(a, b, result))
-			return 0;
+	else if(t == LDNS_RR_TYPE_DS) {
+		if(sldns_wirerr_get_rdatalen(a->rr, a->rr_len, a->dname_len) !=
+			b_len)
+			return -1;
+		return memcmp(sldns_wirerr_get_rdata(a->rr,
+			a->rr_len, a->dname_len), b, b_len);
 	}
-	else if (ldns_rr_get_type(a) == LDNS_RR_TYPE_DS)
-		*result = ldns_rr_compare(a, b);
-	else    *result = -1;
-	return 1;
+	return -1;
 }
 
 /** 
  * Find key
  * @param tp: to search in
- * @param rr: to look for
+ * @param t: rr type of the rdata.
+ * @param rdata: to look for  (no rdatalen in it)
+ * @param rdata_len: length of rdata
  * @param result: returns NULL or the ta key looked for.
  * @return false on malloc failure during search. if true examine result.
  */
 static int
-find_key(struct trust_anchor* tp, ldns_rr* rr, struct autr_ta** result)
+find_key(struct trust_anchor* tp, uint16_t t, uint8_t* rdata, size_t rdata_len,
+	struct autr_ta** result)
 {
 	struct autr_ta* ta;
-	int ret;
-	if(!tp || !rr)
+	if(!tp || !rdata) {
+		*result = NULL;
 		return 0;
+	}
 	for(ta=tp->autr->keys; ta; ta=ta->next) {
-		if(!ta_compare(ta->rr, rr, &ret))
-			return 0;
-		if(ret == 0) {
+		if(ta_compare(ta, t, rdata, rdata_len) == 0) {
 			*result = ta;
 			return 1;
 		}
@@ -1219,17 +1393,30 @@ find_key(struct trust_anchor* tp, ldns_rr* rr, struct autr_ta** result)
 	return 1;
 }
 
-/** add key and clone RR and tp already locked */
+/** add key and clone RR and tp already locked. rdata without rdlen. */
 static struct autr_ta*
-add_key(struct trust_anchor* tp, ldns_rr* rr)
+add_key(struct trust_anchor* tp, uint32_t ttl, uint8_t* rdata, size_t rdata_len)
 {
-	ldns_rr* c;
 	struct autr_ta* ta;
-	c = ldns_rr_clone(rr);
-	if(!c) return NULL;
-	ta = autr_ta_create(c);
+	uint8_t* rr;
+	size_t rr_len, dname_len;
+	uint16_t rrtype = htons(LDNS_RR_TYPE_DNSKEY);
+	uint16_t rrclass = htons(LDNS_RR_CLASS_IN);
+	uint16_t rdlen = htons(rdata_len);
+	dname_len = tp->namelen;
+	ttl = htonl(ttl);
+	rr_len = dname_len + 10 /* type,class,ttl,rdatalen */ + rdata_len;
+	rr = (uint8_t*)malloc(rr_len);
+	if(!rr) return NULL;
+	memmove(rr, tp->name, tp->namelen);
+	memmove(rr+dname_len, &rrtype, 2);
+	memmove(rr+dname_len+2, &rrclass, 2);
+	memmove(rr+dname_len+4, &ttl, 4);
+	memmove(rr+dname_len+8, &rdlen, 2);
+	memmove(rr+dname_len+10, rdata, rdata_len);
+	ta = autr_ta_create(rr, rr_len, dname_len);
 	if(!ta) {
-		ldns_rr_free(c);
+		/* rr freed in autr_ta_create */
 		return NULL;
 	}
 	/* link in, tp already locked */
@@ -1239,7 +1426,7 @@ add_key(struct trust_anchor* tp, ldns_rr* rr)
 }
 
 /** get TTL from DNSKEY rrset */
-static uint32_t
+static time_t
 key_ttl(struct ub_packed_rrset_key* k)
 {
 	struct packed_rrset_data* d = (struct packed_rrset_data*)k->entry.data;
@@ -1248,10 +1435,10 @@ key_ttl(struct ub_packed_rrset_key* k)
 
 /** update the time values for the trustpoint */
 static void
-set_tp_times(struct trust_anchor* tp, uint32_t rrsig_exp_interval, 
-	uint32_t origttl, int* changed)
+set_tp_times(struct trust_anchor* tp, time_t rrsig_exp_interval, 
+	time_t origttl, int* changed)
 {
-	uint32_t x, qi = tp->autr->query_interval, rt = tp->autr->retry_time;
+	time_t x, qi = tp->autr->query_interval, rt = tp->autr->retry_time;
 	
 	/* x = MIN(15days, ttl/2, expire/2) */
 	x = 15 * 24 * 3600;
@@ -1302,21 +1489,19 @@ check_contains_revoked(struct module_env* env, struct val_env* ve,
 	struct trust_anchor* tp, struct ub_packed_rrset_key* dnskey_rrset,
 	int* changed)
 {
-	ldns_rr_list* r = packed_rrset_to_rr_list(dnskey_rrset, 
-		env->scratch_buffer);
+	struct packed_rrset_data* dd = (struct packed_rrset_data*)
+		dnskey_rrset->entry.data;
 	size_t i;
-	if(!r) {
-		log_err("malloc failure");
-		return;
-	}
-	for(i=0; i<ldns_rr_list_rr_count(r); i++) {
-		ldns_rr* rr = ldns_rr_list_rr(r, i);
+	log_assert(ntohs(dnskey_rrset->rk.type) == LDNS_RR_TYPE_DNSKEY);
+	for(i=0; i<dd->count; i++) {
 		struct autr_ta* ta = NULL;
-		if(ldns_rr_get_type(rr) != LDNS_RR_TYPE_DNSKEY)
-			continue;
-		if(!rr_is_dnskey_sep(rr) || !rr_is_dnskey_revoked(rr))
+		if(!rr_is_dnskey_sep(ntohs(dnskey_rrset->rk.type),
+			dd->rr_data[i]+2, dd->rr_len[i]-2) ||
+			!rr_is_dnskey_revoked(ntohs(dnskey_rrset->rk.type),
+			dd->rr_data[i]+2, dd->rr_len[i]-2))
 			continue; /* not a revoked KSK */
-		if(!find_key(tp, rr, &ta)) {
+		if(!find_key(tp, ntohs(dnskey_rrset->rk.type),
+			dd->rr_data[i]+2, dd->rr_len[i]-2, &ta)) {
 			log_err("malloc failure");
 			continue; /* malloc fail in compare*/
 		}
@@ -1324,8 +1509,18 @@ check_contains_revoked(struct module_env* env, struct val_env* ve,
 			continue; /* key not found */
 		if(rr_is_selfsigned_revoked(env, ve, dnskey_rrset, i)) {
 			/* checked if there is an rrsig signed by this key. */
-			log_assert(dnskey_calc_keytag(dnskey_rrset, i) ==
-				ldns_calc_keytag(rr)); /* checks conversion*/
+			/* same keytag, but stored can be revoked already, so 
+			 * compare keytags, with +0 or +128(REVOKE flag) */
+			log_assert(dnskey_calc_keytag(dnskey_rrset, i)-128 ==
+				sldns_calc_keytag_raw(sldns_wirerr_get_rdata(
+				ta->rr, ta->rr_len, ta->dname_len),
+				sldns_wirerr_get_rdatalen(ta->rr, ta->rr_len,
+				ta->dname_len)) ||
+				dnskey_calc_keytag(dnskey_rrset, i) ==
+				sldns_calc_keytag_raw(sldns_wirerr_get_rdata(
+				ta->rr, ta->rr_len, ta->dname_len),
+				sldns_wirerr_get_rdatalen(ta->rr, ta->rr_len,
+				ta->dname_len))); /* checks conversion*/
 			verbose_key(ta, VERB_ALGO, "is self-signed revoked");
 			if(!ta->revoked) 
 				*changed = 1;
@@ -1333,7 +1528,6 @@ check_contains_revoked(struct module_env* env, struct val_env* ve,
 			do_revoked(env, ta, changed);
 		}
 	}
-	ldns_rr_list_deep_free(r);
 }
 
 /** See if a DNSKEY is verified by one of the DSes */
@@ -1380,20 +1574,18 @@ update_events(struct module_env* env, struct val_env* ve,
 	struct trust_anchor* tp, struct ub_packed_rrset_key* dnskey_rrset, 
 	int* changed)
 {
-	ldns_rr_list* r = packed_rrset_to_rr_list(dnskey_rrset, 
-		env->scratch_buffer);
+	struct packed_rrset_data* dd = (struct packed_rrset_data*)
+		dnskey_rrset->entry.data;
 	size_t i;
-	if(!r) 
-		return 0;
+	log_assert(ntohs(dnskey_rrset->rk.type) == LDNS_RR_TYPE_DNSKEY);
 	init_events(tp);
-	for(i=0; i<ldns_rr_list_rr_count(r); i++) {
-		ldns_rr* rr = ldns_rr_list_rr(r, i);
+	for(i=0; i<dd->count; i++) {
 		struct autr_ta* ta = NULL;
-		if(ldns_rr_get_type(rr) != LDNS_RR_TYPE_DNSKEY)
+		if(!rr_is_dnskey_sep(ntohs(dnskey_rrset->rk.type),
+			dd->rr_data[i]+2, dd->rr_len[i]-2))
 			continue;
-		if(!rr_is_dnskey_sep(rr))
-			continue;
-		if(rr_is_dnskey_revoked(rr)) {
+		if(rr_is_dnskey_revoked(ntohs(dnskey_rrset->rk.type),
+			dd->rr_data[i]+2, dd->rr_len[i]-2)) {
 			/* self-signed revoked keys already detected before,
 			 * other revoked keys are not 'added' again */
 			continue;
@@ -1409,12 +1601,13 @@ update_events(struct module_env* env, struct val_env* ve,
 		}
 
 		/* is it new? if revocation bit set, find the unrevoked key */
-		if(!find_key(tp, rr, &ta)) {
-			ldns_rr_list_deep_free(r); /* malloc fail in compare*/
+		if(!find_key(tp, ntohs(dnskey_rrset->rk.type),
+			dd->rr_data[i]+2, dd->rr_len[i]-2, &ta)) {
 			return 0;
 		}
 		if(!ta) {
-			ta = add_key(tp, rr);
+			ta = add_key(tp, (uint32_t)dd->rr_ttl[i],
+				dd->rr_data[i]+2, dd->rr_len[i]-2);
 			*changed = 1;
 			/* first time seen, do we have DSes? if match: VALID */
 			if(ta && tp->ds_rrset && key_matches_a_ds(env, ve,
@@ -1424,14 +1617,12 @@ update_events(struct module_env* env, struct val_env* ve,
 			}
 		}
 		if(!ta) {
-			ldns_rr_list_deep_free(r);
 			return 0;
 		}
 		seen_trustanchor(ta, 1);
 		verbose_key(ta, VERB_ALGO, "in DNS response");
 	}
-	set_tp_times(tp, min_expiry(env, r), key_ttl(dnskey_rrset), changed);
-	ldns_rr_list_deep_free(r);
+	set_tp_times(tp, min_expiry(env, dd), key_ttl(dnskey_rrset), changed);
 	return 1;
 }
 
@@ -1444,21 +1635,21 @@ update_events(struct module_env* env, struct val_env* ve,
  * @param holddown: the timer value
  * @return number of seconds the holddown has passed.
  */
-static int
-check_holddown(struct module_env* env, struct autr_ta* ta, 
+static time_t
+check_holddown(struct module_env* env, struct autr_ta* ta,
 	unsigned int holddown)
 {
-        unsigned int elapsed;
-	if((unsigned)*env->now < (unsigned)ta->last_change) {
+        time_t elapsed;
+	if(*env->now < ta->last_change) {
 		log_warn("time goes backwards. delaying key holddown");
 		return 0;
 	}
-	elapsed = (unsigned)*env->now - (unsigned)ta->last_change;
-        if (elapsed > holddown) {
-                return (int) (elapsed-holddown);
+	elapsed = *env->now - ta->last_change;
+        if (elapsed > (time_t)holddown) {
+                return elapsed-(time_t)holddown;
         }
-	verbose_key(ta, VERB_ALGO, "holddown time %d seconds to go",
-		(int) (holddown-elapsed));
+	verbose_key(ta, VERB_ALGO, "holddown time " ARG_LL "d seconds to go",
+		(long long) ((time_t)holddown-elapsed));
         return 0;
 }
 
@@ -1498,11 +1689,11 @@ do_addtime(struct module_env* env, struct autr_ta* anchor, int* c)
 	/* This not according to RFC, this is 30 days, but the RFC demands 
 	 * MAX(30days, TTL expire time of first DNSKEY set with this key),
 	 * The value may be too small if a very large TTL was used. */
-	int exceeded = check_holddown(env, anchor, env->cfg->add_holddown);
+	time_t exceeded = check_holddown(env, anchor, env->cfg->add_holddown);
 	if (exceeded && anchor->s == AUTR_STATE_ADDPEND) {
 		verbose_key(anchor, VERB_ALGO, "add-holddown time exceeded "
-			"%d seconds ago, and pending-count %d", exceeded,
-			anchor->pending_count);
+			ARG_LL "d seconds ago, and pending-count %d",
+			(long long)exceeded, anchor->pending_count);
 		if(anchor->pending_count >= MIN_PENDINGCOUNT) {
 			set_trustanchor_state(env, anchor, c, AUTR_STATE_VALID);
 			anchor->pending_count = 0;
@@ -1517,10 +1708,10 @@ do_addtime(struct module_env* env, struct autr_ta* anchor, int* c)
 static void
 do_remtime(struct module_env* env, struct autr_ta* anchor, int* c)
 {
-	int exceeded = check_holddown(env, anchor, env->cfg->del_holddown);
+	time_t exceeded = check_holddown(env, anchor, env->cfg->del_holddown);
 	if(exceeded && anchor->s == AUTR_STATE_REVOKED) {
 		verbose_key(anchor, VERB_ALGO, "del-holddown time exceeded "
-			"%d seconds ago", exceeded);
+			ARG_LL "d seconds ago", (long long)exceeded);
 		set_trustanchor_state(env, anchor, c, AUTR_STATE_REMOVED);
 	}
 }
@@ -1622,16 +1813,17 @@ init_zsk_to_ksk(struct module_env* env, struct trust_anchor* tp, int* changed)
 	int validksk = 0;
 	for(anchor = tp->autr->keys; anchor; anchor = anchor->next) {
 		/* last_change test makes sure it was manually configured */
-                if (ldns_rr_get_type(anchor->rr) == LDNS_RR_TYPE_DNSKEY &&
+		if(sldns_wirerr_get_type(anchor->rr, anchor->rr_len,
+			anchor->dname_len) == LDNS_RR_TYPE_DNSKEY &&
 			anchor->last_change == 0 && 
-			!rr_is_dnskey_sep(anchor->rr) &&
+			!ta_is_dnskey_sep(anchor) &&
 			anchor->s == AUTR_STATE_VALID)
                         validzsk++;
 	}
 	if(validzsk == 0)
 		return 0;
 	for(anchor = tp->autr->keys; anchor; anchor = anchor->next) {
-                if (rr_is_dnskey_sep(anchor->rr) && 
+                if (ta_is_dnskey_sep(anchor) && 
 			anchor->s == AUTR_STATE_ADDPEND) {
 			verbose_key(anchor, VERB_ALGO, "trust KSK from "
 				"ZSK(config)");
@@ -1649,12 +1841,12 @@ remove_missing_trustanchors(struct module_env* env, struct trust_anchor* tp,
 	int* changed)
 {
 	struct autr_ta* anchor;
-	int exceeded;
+	time_t exceeded;
 	int valid = 0;
 	/* see if we have anchors that are valid */
 	for(anchor = tp->autr->keys; anchor; anchor = anchor->next) {
 		/* Only do KSKs */
-                if (!rr_is_dnskey_sep(anchor->rr))
+                if (!ta_is_dnskey_sep(anchor))
                         continue;
                 if (anchor->s == AUTR_STATE_VALID)
                         valid++;
@@ -1677,7 +1869,7 @@ remove_missing_trustanchors(struct module_env* env, struct trust_anchor* tp,
 		if(anchor->s == AUTR_STATE_START)
 			continue;
 		/* remove ZSKs if a KSK is present */
-                if (!rr_is_dnskey_sep(anchor->rr)) {
+                if (!ta_is_dnskey_sep(anchor)) {
 			if(valid > 0) {
 				verbose_key(anchor, VERB_ALGO, "remove ZSK "
 					"[%d key(s) VALID]", valid);
@@ -1697,8 +1889,8 @@ remove_missing_trustanchors(struct module_env* env, struct trust_anchor* tp,
 		 * one valid KSK: remove missing trust anchor */
                 if (exceeded && valid > 0) {
 			verbose_key(anchor, VERB_ALGO, "keep-missing time "
-				"exceeded %d seconds ago, [%d key(s) VALID]",
-				exceeded, valid);
+				"exceeded " ARG_LL "d seconds ago, [%d key(s) VALID]",
+				(long long)exceeded, valid);
 			set_trustanchor_state(env, anchor, changed, 
 				AUTR_STATE_REMOVED);
 		}
@@ -1712,7 +1904,7 @@ do_statetable(struct module_env* env, struct trust_anchor* tp, int* changed)
 	struct autr_ta* anchor;
 	for(anchor = tp->autr->keys; anchor; anchor = anchor->next) {
 		/* Only do KSKs */
-		if(!rr_is_dnskey_sep(anchor->rr))
+		if(!ta_is_dnskey_sep(anchor))
 			continue;
 		anchor_state_update(env, anchor, changed);
 	}
@@ -1726,7 +1918,7 @@ autr_holddown_exceed(struct module_env* env, struct trust_anchor* tp, int* c)
 {
 	struct autr_ta* anchor;
 	for(anchor = tp->autr->keys; anchor; anchor = anchor->next) {
-		if(rr_is_dnskey_sep(anchor->rr) && 
+		if(ta_is_dnskey_sep(anchor) && 
 			anchor->s == AUTR_STATE_ADDPEND)
 			do_addtime(env, anchor, c);
 	}
@@ -1742,10 +1934,11 @@ autr_cleanup_keys(struct trust_anchor* tp)
 	while(p) {
 		/* do we want to remove this key? */
 		if(p->s == AUTR_STATE_START || p->s == AUTR_STATE_REMOVED ||
-			ldns_rr_get_type(p->rr) != LDNS_RR_TYPE_DNSKEY) {
+			sldns_wirerr_get_type(p->rr, p->rr_len, p->dname_len)
+			!= LDNS_RR_TYPE_DNSKEY) {
 			struct autr_ta* np = p->next;
 			/* remove */
-			ldns_rr_free(p->rr);
+			free(p->rr);
 			free(p);
 			/* snip and go to next item */
 			*prevp = np;
@@ -1762,15 +1955,15 @@ autr_cleanup_keys(struct trust_anchor* tp)
 
 /** calculate next probe time */
 static time_t
-calc_next_probe(struct module_env* env, uint32_t wait)
+calc_next_probe(struct module_env* env, time_t wait)
 {
 	/* make it random, 90-100% */
-	uint32_t rnd, rest;
+	time_t rnd, rest;
 	if(wait < 3600)
 		wait = 3600;
 	rnd = wait/10;
 	rest = wait-rnd;
-	rnd = (uint32_t)ub_random_max(env->rnd, (long int)rnd);
+	rnd = (time_t)ub_random_max(env->rnd, (long int)rnd);
 	return (time_t)(*env->now + rest + rnd);
 }
 
@@ -1790,7 +1983,7 @@ reset_worker_timer(struct module_env* env)
 {
 	struct timeval tv;
 #ifndef S_SPLINT_S
-	uint32_t next = (uint32_t)wait_probe_time(env->anchors);
+	time_t next = (time_t)wait_probe_time(env->anchors);
 	/* in case this is libunbound, no timer */
 	if(!env->probe_timer)
 		return;
@@ -1800,7 +1993,7 @@ reset_worker_timer(struct module_env* env)
 #endif
 	tv.tv_usec = 0;
 	comm_timer_set(env->probe_timer, &tv);
-	verbose(VERB_ALGO, "scheduled next probe in %d sec", (int)tv.tv_sec);
+	verbose(VERB_ALGO, "scheduled next probe in " ARG_LL "d sec", (long long)tv.tv_sec);
 }
 
 /** set next probe for trust anchor */
@@ -2017,7 +2210,7 @@ static void
 autr_debug_print_ta(struct autr_ta* ta)
 {
 	char buf[32];
-	char* str = ldns_rr2str(ta->rr);
+	char* str = sldns_wire2str_rr(ta->rr, ta->rr_len);
 	if(!str) {
 		log_info("out of memory in debug_print_ta");
 		return;
@@ -2043,20 +2236,11 @@ autr_debug_print_tp(struct trust_anchor* tp)
 	log_info("trust point %s : %d", buf, (int)tp->dclass);
 	log_info("assembled %d DS and %d DNSKEYs", 
 		(int)tp->numDS, (int)tp->numDNSKEY);
-	if(0) { /* turned off because it prints to stderr */
-		ldns_buffer* bf = ldns_buffer_new(70000);
-		ldns_rr_list* list;
-		if(tp->ds_rrset) {
-			list = packed_rrset_to_rr_list(tp->ds_rrset, bf);
-			ldns_rr_list_print(stderr, list);
-			ldns_rr_list_deep_free(list);
-		}
-		if(tp->dnskey_rrset) {
-			list = packed_rrset_to_rr_list(tp->dnskey_rrset, bf);
-			ldns_rr_list_print(stderr, list);
-			ldns_rr_list_deep_free(list);
-		}
-		ldns_buffer_free(bf);
+	if(tp->ds_rrset) {
+		log_packed_rrset(0, "DS:", tp->ds_rrset);
+	}
+	if(tp->dnskey_rrset) {
+		log_packed_rrset(0, "DNSKEY:", tp->dnskey_rrset);
 	}
 	log_info("file %s", tp->autr->file);
 	ctime_r(&tp->autr->last_queried, buf);
@@ -2092,7 +2276,7 @@ autr_debug_print(struct val_anchors* anchors)
 }
 
 void probe_answer_cb(void* arg, int ATTR_UNUSED(rcode), 
-	ldns_buffer* ATTR_UNUSED(buf), enum sec_status ATTR_UNUSED(sec),
+	sldns_buffer* ATTR_UNUSED(buf), enum sec_status ATTR_UNUSED(sec),
 	char* ATTR_UNUSED(why_bogus))
 {
 	/* retry was set before the query was done,
@@ -2117,7 +2301,7 @@ probe_anchor(struct module_env* env, struct trust_anchor* tp)
 	struct query_info qinfo;
 	uint16_t qflags = BIT_RD;
 	struct edns_data edns;
-	ldns_buffer* buf = env->scratch_buffer;
+	sldns_buffer* buf = env->scratch_buffer;
 	qinfo.qname = regional_alloc_init(env->scratch, tp->name, tp->namelen);
 	if(!qinfo.qname) {
 		log_err("out of memory making 5011 probe");
@@ -2133,8 +2317,8 @@ probe_anchor(struct module_env* env, struct trust_anchor* tp)
 	edns.ext_rcode = 0;
 	edns.edns_version = 0;
 	edns.bits = EDNS_DO;
-	if(ldns_buffer_capacity(buf) < 65535)
-		edns.udp_size = (uint16_t)ldns_buffer_capacity(buf);
+	if(sldns_buffer_capacity(buf) < 65535)
+		edns.udp_size = (uint16_t)sldns_buffer_capacity(buf);
 	else	edns.udp_size = 65535;
 
 	/* can't hold the lock while mesh_run is processing */
@@ -2156,7 +2340,7 @@ probe_anchor(struct module_env* env, struct trust_anchor* tp)
 
 /** fetch first to-probe trust-anchor and lock it and set retrytime */
 static struct trust_anchor*
-todo_probe(struct module_env* env, uint32_t* next)
+todo_probe(struct module_env* env, time_t* next)
 {
 	struct trust_anchor* tp;
 	rbnode_t* el;
@@ -2171,9 +2355,9 @@ todo_probe(struct module_env* env, uint32_t* next)
 	lock_basic_lock(&tp->lock);
 
 	/* is it eligible? */
-	if((uint32_t)tp->autr->next_probe_time > *env->now) {
+	if((time_t)tp->autr->next_probe_time > *env->now) {
 		/* no more to probe */
-		*next = (uint32_t)tp->autr->next_probe_time - *env->now;
+		*next = (time_t)tp->autr->next_probe_time - *env->now;
 		lock_basic_unlock(&tp->lock);
 		lock_basic_unlock(&env->anchors->lock);
 		return NULL;
@@ -2188,11 +2372,11 @@ todo_probe(struct module_env* env, uint32_t* next)
 	return tp;
 }
 
-uint32_t 
+time_t 
 autr_probe_timer(struct module_env* env)
 {
 	struct trust_anchor* tp;
-	uint32_t next_probe = 3600;
+	time_t next_probe = 3600;
 	int num = 0;
 	verbose(VERB_ALGO, "autotrust probe timer callback");
 	/* while there are still anchors to probe */

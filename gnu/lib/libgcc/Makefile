@@ -6,7 +6,7 @@ GCCLIB=	${.CURDIR}/../../../contrib/gcclibs
 SHLIB_NAME=	libgcc_s.so.1
 SHLIBDIR?=	/lib
 
-.include <bsd.own.mk>
+.include <src.opts.mk>
 #
 # libgcc is linked in last and thus cannot depend on ssp symbols coming
 # from earlier libraries. Disable stack protection for this library.
@@ -352,7 +352,7 @@ libgcc_eh.a:	${EH_OBJS_T}
 	@${ECHO} building static gcc_eh library
 	@rm -f ${.TARGET}
 	@${AR} ${ARFLAGS} ${.TARGET} `lorder ${EH_OBJS_T} | tsort -q`
-	${RANLIB} ${.TARGET}
+	${RANLIB} ${RANLIBFLAGS} ${.TARGET}
 
 all:	libgcc_eh.a
 
@@ -361,7 +361,7 @@ libgcc_eh_p.a:	${EH_OBJS_P}
 	@${ECHO} building profiled gcc_eh library
 	@rm -f ${.TARGET}
 	@${AR} ${ARFLAGS} ${.TARGET} `lorder ${EH_OBJS_P} | tsort -q`
-	${RANLIB} ${.TARGET}
+	${RANLIB} ${RANLIBFLAGS} ${.TARGET}
 all:	libgcc_eh_p.a
 .endif
 

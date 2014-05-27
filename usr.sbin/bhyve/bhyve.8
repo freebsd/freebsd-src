@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 27, 2014
+.Dd April 2, 2014
 .Dt BHYVE 8
 .Os
 .Sh NAME
@@ -32,10 +32,10 @@
 .Nd "run a guest operating system inside a virtual machine"
 .Sh SYNOPSIS
 .Nm
-.Op Fl aehwxAHPW
+.Op Fl aehwxACHPW
 .Op Fl c Ar numcpus
 .Op Fl g Ar gdbport
-.Op Fl p Ar pinnedcpu
+.Op Fl p Ar vcpu:hostcpu
 .Op Fl s Ar slot,emulation Ns Op , Ns Ar conf
 .Op Fl l Ar lpcdev Ns Op , Ns Ar conf
 .Ar vmname
@@ -70,6 +70,8 @@ guests.
 .It Fl c Ar numcpus
 Number of guest virtual CPUs.
 The default is 1 and the maximum is 16.
+.It Fl C
+Include guest memory in core file.
 .It Fl H
 Yield the virtual CPU thread when a HLT instruction is detected.
 If this option is not specified, virtual CPUs will use 100% of a host CPU.
@@ -80,12 +82,11 @@ For
 allow a remote kernel kgdb to be relayed to the guest kernel gdb stub
 via a local IPv4 address and this port.
 This option will be deprecated in a future version.
-.It Fl p Ar pinnedcpu
-Force guest virtual CPUs to be pinned to host CPUs.
-Virtual CPU
-.Em n
-is pinned to host CPU
-.Em pinnedcpu+n .
+.It Fl p Ar vcpu:hostcpu
+Pin guest's virtual CPU
+.Em vcpu
+to
+.Em hostcpu .
 .It Fl P
 Force the guest virtual CPU to exit when a PAUSE instruction is detected.
 .It Fl W
@@ -129,6 +130,8 @@ PCI pass-through device.
 Virtio network interface.
 .It Li virtio-blk
 Virtio block storage interface.
+.It Li virtio-rnd
+Virtio RNG interface.
 .It Li ahci-cd
 AHCI controller attached to an ATAPI CD/DVD.
 .It Li ahci-hd
@@ -234,6 +237,8 @@ This is intended for debug purposes.
 Ignore accesses to unimplemented Model Specific Registers (MSRs). This is intended for debug purposes.
 .It Fl x
 The guest's local APIC is configured in x2APIC mode.
+.It Fl Y
+Disable MPtable generation.
 .It Fl h
 Print help message and exit.
 .It Ar vmname

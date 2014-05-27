@@ -120,6 +120,8 @@ struct ath_hal_5210 {
 	u_int		ah_slottime;		/* user-specified slot time */
 	u_int		ah_acktimeout;		/* user-specified ack timeout */
 	u_int		ah_ctstimeout;		/* user-specified cts timeout */
+
+	uint16_t	ah_associd;		/* association id */
 };
 #define	AH5210(ah)	((struct ath_hal_5210 *)(ah))
 

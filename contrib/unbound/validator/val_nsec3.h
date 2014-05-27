@@ -21,16 +21,16 @@
  * specific prior written permission.
  * 
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
- * TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE
- * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
- * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
- * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
- * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
+ * TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+ * PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+ * LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+ * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+ * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
 /**
@@ -75,6 +75,7 @@ struct ub_packed_rrset_key;
 struct reply_info;
 struct query_info;
 struct key_entry_key;
+struct sldns_buffer;
 
 /**
  *     0 1 2 3 4 5 6 7
@@ -270,9 +271,9 @@ int nsec3_hash_cmp(const void* c1, const void* c2);
  * 	0 on a malloc failure.
  * 	-1 if the NSEC3 rr was badly formatted (i.e. formerr).
  */
-int nsec3_hash_name(rbtree_t* table, struct regional* region, ldns_buffer* buf,
-	struct ub_packed_rrset_key* nsec3, int rr, uint8_t* dname, 
-	size_t dname_len, struct nsec3_cached_hash** hash);
+int nsec3_hash_name(rbtree_t* table, struct regional* region,
+	struct sldns_buffer* buf, struct ub_packed_rrset_key* nsec3, int rr,
+	uint8_t* dname, size_t dname_len, struct nsec3_cached_hash** hash);
 
 /**
  * Get next owner name, converted to base32 encoding and with the
@@ -328,8 +329,9 @@ int nsec3_get_params(struct ub_packed_rrset_key* rrset, int r,
  * @param max: maximum space for result.
  * @return 0 on failure, otherwise bytelength stored.
  */
-size_t nsec3_get_hashed(ldns_buffer* buf, uint8_t* nm, size_t nmlen, int algo, 
-	size_t iter, uint8_t* salt, size_t saltlen, uint8_t* res, size_t max);
+size_t nsec3_get_hashed(struct sldns_buffer* buf, uint8_t* nm, size_t nmlen,
+	int algo, size_t iter, uint8_t* salt, size_t saltlen, uint8_t* res,
+	size_t max);
 
 /** 
  * see if NSEC3 RR contains given type
@@ -373,6 +375,6 @@ int nsec3_get_nextowner(struct ub_packed_rrset_key* rrset, int r,
  * @return true if covers, false if not.
  */
 int nsec3_covers(uint8_t* zone, struct nsec3_cached_hash* hash,
-	struct ub_packed_rrset_key* rrset, int rr, ldns_buffer* buf);
+	struct ub_packed_rrset_key* rrset, int rr, struct sldns_buffer* buf);
 
 #endif /* VALIDATOR_VAL_NSEC3_H */
