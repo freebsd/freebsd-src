@@ -990,6 +990,7 @@ g_eli_keyfiles_load(struct hmac_ctx *ctx, const char *provider)
 		G_ELI_DEBUG(1, "Loaded keyfile %s for %s (type: %s).", file,
 		    provider, name);
 		g_eli_crypto_hmac_update(ctx, data, size);
+		bzero(data, size);
 	}
 }
 
