@@ -91,6 +91,10 @@ void libworker_fg_done_cb(void* arg, int rcode, sldns_buffer* buf,
 void libworker_bg_done_cb(void* arg, int rcode, sldns_buffer* buf, 
 	enum sec_status s, char* why_bogus);
 
+/** mesh callback with event results */
+void libworker_event_done_cb(void* arg, int rcode, struct sldns_buffer* buf, 
+	enum sec_status s, char* why_bogus);
+
 /**
  * Worker signal handler function. User argument is the worker itself.
  * @param sig: signal number.
