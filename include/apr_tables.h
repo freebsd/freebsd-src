@@ -268,6 +268,18 @@ APR_DECLARE(void) apr_table_clear(apr_table_t *t);
 APR_DECLARE(const char *) apr_table_get(const apr_table_t *t, const char *key);
 
 /**
+ * Get values associated with a given key from the table.      If more than one
+ * value exists, return a comma separated list of values.  After this call, the
+ * data is still in the table.
+ * @param p The pool to allocate the combined value from, if necessary
+ * @param t The table to search for the key
+ * @param key The key to search for (case does not matter)
+ * @return The value associated with the key, or NULL if the key does not exist.
+ */
+APR_DECLARE(const char *) apr_table_getm(apr_pool_t *p, const apr_table_t *t,
+                                         const char *key);
+
+/**
  * Add a key/value pair to a table.  If another element already exists with the
  * same key, this will overwrite the old data.
  * @param t The table to add the data to.

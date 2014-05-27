@@ -60,9 +60,7 @@ extern "C" {
 #define APR_FNM_NOESCAPE    0x01  /**< Disable backslash escaping. */
 #define APR_FNM_PATHNAME    0x02  /**< Slash must be matched by slash. */
 #define APR_FNM_PERIOD      0x04  /**< Period must be matched by period. */
-#define APR_FNM_CASE_BLIND  0x08  /**< Compare characters case-insensitively.
-                                   * @remark This flag is an Apache addition 
-                                   */
+#define APR_FNM_CASE_BLIND  0x08  /**< Compare characters case-insensitively. */
 
 /**
  * Try to match the string to the given pattern, return APR_SUCCESS if
@@ -130,13 +128,19 @@ APR_DECLARE(apr_status_t) apr_fnmatch(const char *pattern,
 APR_DECLARE(int) apr_fnmatch_test(const char *pattern);
 
 /**
- * Find all files that match a specified pattern.
- * @param pattern The pattern to use for finding files.
+ * Find all files that match a specified pattern in a directory.
+ * @param dir_pattern The pattern to use for finding files, appended
+ * to the search directory.  The pattern is anything following the
+ * final forward or backward slash in the parameter.  If no slash
+ * is found, the current directory is searched.
  * @param result Array to use when storing the results
  * @param p The pool to use.
- * @return non-zero if pattern has any glob characters in it
+ * @return APR_SUCCESS if no processing errors occurred, APR error
+ * code otherwise
+ * @remark The returned array may be empty even if APR_SUCCESS was
+ * returned.
  */
-APR_DECLARE(apr_status_t) apr_match_glob(const char *pattern, 
+APR_DECLARE(apr_status_t) apr_match_glob(const char *dir_pattern, 
                                          apr_array_header_t **result,
                                          apr_pool_t *p);
 
