@@ -45,6 +45,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/smp.h>
 #include <sys/sysctl.h>
+#include <sys/sbuf.h>
 
 #include <net/if.h>
 #include <net/if_var.h>
@@ -425,6 +426,24 @@ rss_hash2cpuid(uint32_t hash_val, uint32_t hash_type)
 }
 
 /*
+ * Query the RSS bucket associated with the given hash value and
+ * type.
+ */
+int
+rss_hash2bucket(uint32_t hash_val, uint32_t hash_type, uint32_t *bucket_id)
+{
+
+	switch (hash_type) {
+	case M_HASHTYPE_RSS_IPV4:
+	case M_HASHTYPE_RSS_TCP_IPV4:
+		*bucket_id = rss_getbucket(hash_val);
+		return (0);
+	default:
+		return (-1);
+	}
+}
+
+/*
  * netisr CPU affinity lookup routine for use by protocols.
  */
 struct mbuf *
@@ -434,6 +453,16 @@ rss_m2cpuid(struct mbuf *m, uintptr_t source, u_int *cpuid)
 	M_ASSERTPKTHDR(m);
 	*cpuid = rss_hash2cpuid(m->m_pkthdr.flowid, M_HASHTYPE_GET(m));
 	return (m);
+}
+
+int
+rss_m2bucket(struct mbuf *m, uint32_t *bucket_id)
+{
+
+	M_ASSERTPKTHDR(m);
+
+	return(rss_hash2bucket(m->m_pkthdr.flowid, M_HASHTYPE_GET(m),
+	    bucket_id));
 }
 
 /*
@@ -512,3 +541,31 @@ sysctl_rss_key(SYSCTL_HANDLER_ARGS)
 SYSCTL_PROC(_net_inet_rss, OID_AUTO, key,
     CTLTYPE_OPAQUE | CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, 0, sysctl_rss_key,
     "", "RSS keying material");
+
+static int
+sysctl_rss_bucket_mapping(SYSCTL_HANDLER_ARGS)
+{
+	struct sbuf *sb;
+	int error;
+	int i;
+
+	error = 0;
+	error = sysctl_wire_old_buffer(req, 0);
+	if (error != 0)
+		return (error);
+	sb = sbuf_new_for_sysctl(NULL, NULL, 512, req);
+	if (sb == NULL)
+		return (ENOMEM);
+	for (i = 0; i < rss_buckets; i++) {
+		sbuf_printf(sb, "%s%d:%d", i == 0 ? "" : " ",
+		    i,
+		    rss_getcpu(i));
+	}
+	error = sbuf_finish(sb);
+	sbuf_delete(sb);
+
+	return (error);
+}
+SYSCTL_PROC(_net_inet_rss, OID_AUTO, bucket_mapping,
+    CTLTYPE_STRING | CTLFLAG_RD, NULL, 0,
+    sysctl_rss_bucket_mapping, "", "RSS bucket -> CPU mapping");
