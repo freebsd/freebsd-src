@@ -90,7 +90,7 @@ APR_DECLARE(int) apr_strnatcasecmp(char const *a, char const *b);
  * duplicate a string into memory allocated out of a pool
  * @param p The pool to allocate out of
  * @param s The string to duplicate
- * @return The new string
+ * @return The new string or NULL if s == NULL
  */
 APR_DECLARE(char *) apr_pstrdup(apr_pool_t *p, const char *s);
 
@@ -100,7 +100,7 @@ APR_DECLARE(char *) apr_pstrdup(apr_pool_t *p, const char *s);
  * @param p The pool to allocate out of
  * @param s The block of characters to duplicate
  * @param n The number of characters to duplicate
- * @return The new string
+ * @return The new string or NULL if s == NULL
  * @remark This is a faster alternative to apr_pstrndup, for use
  *         when you know that the string being duplicated really
  *         has 'n' or more characters.  If the string might contain
@@ -118,7 +118,7 @@ APR_DECLARE(char *) apr_pstrmemdup(apr_pool_t *p, const char *s, apr_size_t n)
  * @param p The pool to allocate out of
  * @param s The string to duplicate
  * @param n The maximum number of characters to duplicate
- * @return The new string
+ * @return The new string or NULL if s == NULL
  * @remark The amount of memory allocated from the pool is the length
  *         of the returned string including the NUL terminator
  */
@@ -130,7 +130,7 @@ APR_DECLARE(char *) apr_pstrndup(apr_pool_t *p, const char *s, apr_size_t n);
  * @param p The pool to allocate from
  * @param m The memory to duplicate
  * @param n The number of bytes to duplicate
- * @return The new block of memory
+ * @return The new block of memory or NULL if m == NULL
  */
 APR_DECLARE(void *) apr_pmemdup(apr_pool_t *p, const void *m, apr_size_t n)
 #if defined(__GNUC__) && (__GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 4))
@@ -235,8 +235,14 @@ APR_DECLARE(apr_status_t) apr_tokenize_to_argv(const char *arg_str,
  *            first call to apr_strtok() for a given string, and NULL
  *            on subsequent calls.
  * @param sep The set of delimiters
- * @param last Internal state saved by apr_strtok() between calls.
+ * @param last State saved by apr_strtok() between calls.
  * @return The next token from the string
+ * @note the 'last' state points to the trailing NUL char of the final
+ * token, otherwise it points to the character following the current
+ * token (all successive or empty occurances of sep are skiped on the
+ * subsequent call to apr_strtok).  Therefore it is possible to avoid
+ * a strlen() determination, with the following logic;
+ * toklen = last - retval; if (*last) --toklen;
  */
 APR_DECLARE(char *) apr_strtok(char *str, const char *sep, char **last);
 
