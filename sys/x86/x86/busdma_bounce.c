@@ -62,6 +62,7 @@ __FBSDID("$FreeBSD$");
 enum {
 	BUS_DMA_COULD_BOUNCE	= 0x01,
 	BUS_DMA_MIN_ALLOC_COMP	= 0x02,
+	BUS_DMA_KMEM_ALLOC	= 0x04,
 };
 
 struct bounce_zone;
@@ -125,7 +126,7 @@ struct bus_dmamap {
 
 static STAILQ_HEAD(, bus_dmamap) bounce_map_waitinglist;
 static STAILQ_HEAD(, bus_dmamap) bounce_map_callbacklist;
-static struct bus_dmamap nobounce_dmamap, contig_dmamap;
+static struct bus_dmamap nobounce_dmamap;
 
 static void init_bounce_pages(void *dummy);
 static int alloc_bounce_zone(bus_dma_tag_t dmat);
@@ -346,7 +347,7 @@ static int
 bounce_bus_dmamap_destroy(bus_dma_tag_t dmat, bus_dmamap_t map)
 {
 
-	if (map != NULL && map != &nobounce_dmamap && map != &contig_dmamap) {
+	if (map != NULL && map != &nobounce_dmamap) {
 		if (STAILQ_FIRST(&map->bpages) != NULL) {
 			CTR3(KTR_BUSDMA, "%s: tag %p error %d",
 			    __func__, dmat, EBUSY);
@@ -420,13 +421,13 @@ bounce_bus_dmamem_alloc(bus_dma_tag_t dmat, void** vaddr, int flags,
 		*vaddr = (void *)kmem_alloc_attr(kernel_arena,
 		    dmat->common.maxsize, mflags, 0ul, dmat->common.lowaddr,
 		    attr);
-		*mapp = &contig_dmamap;
+		dmat->bounce_flags |= BUS_DMA_KMEM_ALLOC;
 	} else {
 		*vaddr = (void *)kmem_alloc_contig(kernel_arena,
 		    dmat->common.maxsize, mflags, 0ul, dmat->common.lowaddr,
 		    dmat->common.alignment != 0 ? dmat->common.alignment : 1ul,
 		    dmat->common.boundary, attr);
-		*mapp = &contig_dmamap;
+		dmat->bounce_flags |= BUS_DMA_KMEM_ALLOC;
 	}
 	if (*vaddr == NULL) {
 		CTR4(KTR_BUSDMA, "%s: tag %p tag flags 0x%x error %d",
@@ -449,18 +450,18 @@ bounce_bus_dmamem_free(bus_dma_tag_t dmat, void *vaddr, bus_dmamap_t map)
 {
 	/*
 	 * dmamem does not need to be bounced, so the map should be
-	 * NULL if malloc() was used and contig_dmamap if
-	 * kmem_alloc_contig() was used.
+	 * NULL and the BUS_DMA_KMEM_ALLOC flag cleared if malloc()
+	 * was used and set if kmem_alloc_contig() was used.
 	 */
-	if (!(map == NULL || map == &contig_dmamap))
+	if (map != NULL)
 		panic("bus_dmamem_free: Invalid map freed\n");
-	if (map == NULL)
+	if ((dmat->bounce_flags & BUS_DMA_KMEM_ALLOC) == 0)
 		free(vaddr, M_DEVBUF);
 	else
 		kmem_free(kernel_arena, (vm_offset_t)vaddr,
 		    dmat->common.maxsize);
 	CTR3(KTR_BUSDMA, "%s: tag %p flags 0x%x", __func__, dmat,
-	    dmat->common.flags);
+	    dmat->bounce_flags);
 }
 
 static void
@@ -612,7 +613,7 @@ bounce_bus_dmamap_load_phys(bus_dma_tag_t dmat, bus_dmamap_t map,
 	bus_addr_t curaddr;
 	int error;
 
-	if (map == NULL || map == &contig_dmamap)
+	if (map == NULL)
 		map = &nobounce_dmamap;
 
 	if (segs == NULL)
@@ -665,7 +666,7 @@ bounce_bus_dmamap_load_buffer(bus_dma_tag_t dmat, bus_dmamap_t map, void *buf,
 	vm_offset_t vaddr;
 	int error;
 
-	if (map == NULL || map == &contig_dmamap)
+	if (map == NULL)
 		map = &nobounce_dmamap;
 
 	if (segs == NULL)
@@ -976,7 +977,7 @@ add_bounce_page(bus_dma_tag_t dmat, bus_dmamap_t map, vm_offset_t vaddr,
 	struct bounce_page *bpage;
 
 	KASSERT(dmat->bounce_zone != NULL, ("no bounce zone in dma tag"));
-	KASSERT(map != NULL && map != &nobounce_dmamap && map != &contig_dmamap,
+	KASSERT(map != NULL && map != &nobounce_dmamap,
 	    ("add_bounce_page: bad map %p", map));
 
 	bz = dmat->bounce_zone;
