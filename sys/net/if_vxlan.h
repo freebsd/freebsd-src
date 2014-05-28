@@ -30,6 +30,7 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <net/ethernet.h>
+#include <net/if.h>
 #include <netinet/in.h>
 
 struct vxlan_header {
@@ -63,8 +64,8 @@ struct ifvxlanparam {
 #define VXLAN_PARAM_WITH_REMOTE_PORT	0x0040
 #define VXLAN_PARAM_WITH_PORT_RANGE	0x0080
 #define VXLAN_PARAM_WITH_FTABLE_TIMEOUT	0x0100
-#define VXLAN_PARAM_WITH_INTERFACE_IDX	0x0200
-#define VXLAN_PARAM_WITH_FTABLE_MAX	0x0400
+#define VXLAN_PARAM_WITH_FTABLE_MAX	0x0200
+#define VXLAN_PARAM_WITH_MC_INTERFACE	0x0400
 #define VXLAN_PARAM_WITH_TTL		0x0800
 #define VXLAN_PARAM_WITH_LEARN		0x1000
 
@@ -77,7 +78,7 @@ struct ifvxlanparam {
 	uint16_t		vxlp_remote_port;
 	uint16_t		vxlp_min_port;
 	uint16_t		vxlp_max_port;
-	uint32_t		vxlp_ifindex;
+	char			vxlp_mc_ifname[IFNAMSIZ];
 	uint32_t		vxlp_ftable_timeout;
 	uint32_t		vxlp_ftable_max;
 	uint8_t			vxlp_ttl;
@@ -92,8 +93,9 @@ union vxlan_sockaddr {
 
 #define VXLAN_SOCKADDR_IS_IPV4(_vxsin)	((_vxsin)->sa.sa_family == AF_INET)
 #define VXLAN_SOCKADDR_IS_IPV6(_vxsin)	((_vxsin)->sa.sa_family == AF_INET6)
+#define VXLAN_SOCKADDR_IS_IPV46(_vxsin) \
+    (VXLAN_SOCKADDR_IS_IPV4(_vxsin) || VXLAN_SOCKADDR_IS_IPV6(_vxsin))
 
-/* List of commands for SIOCSETVXLAN and SIOCGETVXLAN. */
 #define VXLAN_CMD_GET_CONFIG		0
 #define VXLAN_CMD_SET_VNI		1
 #define VXLAN_CMD_SET_LOCAL_ADDR	2
@@ -103,20 +105,21 @@ union vxlan_sockaddr {
 #define VXLAN_CMD_SET_PORT_RANGE	7
 #define VXLAN_CMD_SET_FTABLE_TIMEOUT	8
 #define VXLAN_CMD_SET_FTABLE_MAX	9
-#define VXLAN_CMD_SET_TTL		10	
-#define VXLAN_CMD_SET_LEARN		11
-#define VXLAN_CMD_FTABLE_ENTRY_ADD	12
-#define VXLAN_CMD_FTABLE_ENTRY_REM	13
-#define VXLAN_CMD_FLUSH			14
+#define VXLAN_CMD_SET_MC_INTERFACE	10
+#define VXLAN_CMD_SET_TTL		11
+#define VXLAN_CMD_SET_LEARN		12
+#define VXLAN_CMD_FTABLE_ENTRY_ADD	13
+#define VXLAN_CMD_FTABLE_ENTRY_REM	14
+#define VXLAN_CMD_FLUSH			15
 
-/* BMV Reconcile this with ifvxlanparam? */
+/* BMV: Reconcile this with ifvxlanparam? */
 struct ifvxlancfg {
 	uint32_t		vxlc_vni;
 	union vxlan_sockaddr	vxlc_local_sa;
 	union vxlan_sockaddr	vxlc_remote_sa;
+	uint32_t		vxlc_mc_ifindex;
 	uint32_t		vxlc_ftable_cnt;
 	uint32_t		vxlc_ftable_max;
-	uint32_t		vxlc_ftable_nospace;
 	uint32_t		vxlc_ftable_timeout;
 	uint8_t			vxlc_learn;
 	uint8_t			vxlc_ttl;
@@ -136,6 +139,7 @@ struct ifvxlancmd {
 	uint8_t			vxlcmd_mac[ETHER_ADDR_LEN];
 	uint8_t			vxlcmd_ttl;
 	union vxlan_sockaddr	vxlcmd_sa;
+	char			vxlcmd_ifname[IFNAMSIZ];
 };
 
 #endif /*  _NET_IF_VXLAN_H_ */

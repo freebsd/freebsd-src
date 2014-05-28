@@ -499,6 +499,25 @@ DECL_CMD_FUNC(setvxlan_maxaddr, arg, d)
 }
 
 static
+DECL_CMD_FUNC(setvxlan_dev, arg, d)
+{
+	struct ifvxlancmd cmd;
+
+	if (!vxlan_exists(s)) {
+		params.vxlp_with |= VXLAN_PARAM_WITH_MC_INTERFACE;
+		strlcpy(params.vxlp_mc_ifname, arg,
+		    sizeof(params.vxlp_mc_ifname));
+		return;
+	}
+
+	bzero(&cmd, sizeof(cmd));
+	strlcpy(cmd.vxlcmd_ifname, arg, sizeof(cmd.vxlcmd_ifname));
+
+	if (do_cmd(s, VXLAN_CMD_SET_MC_INTERFACE, &cmd, sizeof(cmd), 1) < 0)
+		err(1, "VXLAN_CMD_SET_MC_INTERFACE");
+}
+
+static
 DECL_CMD_FUNC(setvxlan_ttl, arg, d)
 {
 	struct ifvxlancmd cmd;
@@ -563,6 +582,7 @@ static struct cmd vxlan_cmds[] = {
 	DEF_CLONE_CMD_ARG2("portrange",		setvxlan_port_range),
 	DEF_CLONE_CMD_ARG("timeout",		setvxlan_timeout),
 	DEF_CLONE_CMD_ARG("maxaddr",		setvxlan_maxaddr),
+	DEF_CLONE_CMD_ARG("vxlandev",		setvxlan_dev),
 	DEF_CLONE_CMD_ARG("ttl",		setvxlan_ttl),
 	DEF_CLONE_CMD("learn", 1,		setvxlan_learn),
 	DEF_CLONE_CMD("-learn", 0,		setvxlan_learn),
@@ -576,6 +596,7 @@ static struct cmd vxlan_cmds[] = {
 	DEF_CMD_ARG2("portrange",		setvxlan_port_range),
 	DEF_CMD_ARG("timeout",			setvxlan_timeout),
 	DEF_CMD_ARG("maxaddr",			setvxlan_maxaddr),
+	DEF_CMD_ARG("vxlandev",			setvxlan_dev),
 	DEF_CMD_ARG("ttl",			setvxlan_ttl),
 	DEF_CMD("learn", 1,			setvxlan_learn),
 	DEF_CMD("-learn", 0,			setvxlan_learn),
