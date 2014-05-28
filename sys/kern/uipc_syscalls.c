@@ -133,10 +133,6 @@ static int	filt_sfsync(struct knote *kn, long hint);
 static SYSCTL_NODE(_kern_ipc, OID_AUTO, sendfile, CTLFLAG_RW, 0,
     "sendfile(2) tunables");
 
-static int sfpgrabnowait = 0;
-SYSCTL_INT(_kern_ipc_sendfile, OID_AUTO, pgrabnowait, CTLFLAG_RW,
-    &sfpgrabnowait, 0, "Use VM_ALLOC_NOWAIT when SF_NODISKIO is requested");
-
 static int sfreadahead = 0;
 SYSCTL_INT(_kern_ipc_sendfile, OID_AUTO, readahead, CTLFLAG_RW,
     &sfreadahead, 0, "Read this more pages than socket buffer can accept");
@@ -2714,29 +2710,17 @@ sf_io_done(void *arg)
 }
 
 static int
-sendfile_swapin(vm_object_t obj, struct sf_io *sfio, off_t off, off_t len,
-    int flags)
+sendfile_swapin(vm_object_t obj, struct sf_io *sfio, off_t off, off_t len)
 {
 	vm_page_t *pa = sfio->pa;
 	int npages = sfio->npages;
 	int nios;
 
 	nios = 0;
-	if (sfpgrabnowait && (flags & SF_NODISKIO))
-		flags = VM_ALLOC_NOWAIT;
-	else
-		flags = 0;
-
 	VM_OBJECT_WLOCK(obj);
-	for (int i = 0; i < npages; i++) {
+	for (int i = 0; i < npages; i++)
 		pa[i] = vm_page_grab(obj, OFF_TO_IDX(vmoff(i, off)),
-		    VM_ALLOC_WIRED | VM_ALLOC_NORMAL | flags);
-		if (pa[i] == NULL) {
-			npages = sfio->npages = i;
-			sfio->rhpages = 0;
-			break;
-		}
-	}
+		    VM_ALLOC_WIRED | VM_ALLOC_NORMAL);
 
 	for (int i = 0; i < npages; i++) {
 		int j, a, count, rv;
@@ -3077,37 +3061,7 @@ retry_space:
 		sfio->npages = npages;
 		sfio->rhpages = rhpages;
 
-		nios = sendfile_swapin(obj, sfio, off, space, flags);
-
-		if (sfio->npages != npages) {
-			/*
-			 * sendfile_swapin() encountered a busy page,
-			 * and was called with SF_NODISKIO. We don't
-			 * return EBUSY, like old I/O blocking sendfile
-			 * did, because situtation is different. No
-			 * extra operation like read(2) or aio_read(2)
-			 * is required from userland. We just need it
-			 * to retry soonish.
-			 * We rely on remote side ACKing our data to
-			 * drive this timeout. And in the worst case,
-			 * when we do not have data to send, we put
-			 * the socket on the notification queue immediately.
-			 */
-			error = EAGAIN;
-			if (sfio->npages == 0 && hdrlen == 0) {
-				if (vp != NULL)
-					VOP_UNLOCK(vp, 0);
-				SOCKBUF_LOCK(&so->so_snd);
-				if (!sbused(&so->so_snd))
-					sowwakeup_locked(so);
-				else
-					SOCKBUF_UNLOCK(&so->so_snd);
-				free(sfio, M_TEMP);
-				goto done;
-			}
-			fixspace(npages, sfio->npages, off, &space);
-			npages = sfio->npages;
-		}
+		nios = sendfile_swapin(obj, sfio, off, space);
 
 		/*
 		 * Loop and construct maximum sized mbuf chain to be bulk
@@ -3186,8 +3140,7 @@ retry_space:
 			mh = NULL;
 		}
 
-		if (m == NULL) {
-			KASSERT(error, ("%s: no mbuf and no error", __func__));
+		if (error) {
 			free(sfio, M_TEMP);
 			goto done;
 		}
