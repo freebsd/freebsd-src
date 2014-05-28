@@ -31,7 +31,7 @@
 /include/ "exynos5250.dtsi"
 
 / {
-	model = "Samsung Chromebook";
+	model = "HP Chromebook 11";
 
 	memory {
 		device_type = "memory";

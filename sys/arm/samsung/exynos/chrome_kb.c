@@ -131,6 +131,7 @@ struct ckb_softc {
 	int			rows;
 	int			cols;
 	device_t		dev;
+	device_t		gpio_dev;
 	struct thread		*sc_poll_thread;
 
 	uint8_t			*scan_local;
@@ -331,6 +332,7 @@ ckb_read_char_locked(keyboard_t *kbd, int wait)
 	uint16_t key;
 	int oldbit;
 	int newbit;
+	int status;
 
 	sc = kbd->kb_data;
 
@@ -347,7 +349,20 @@ ckb_read_char_locked(keyboard_t *kbd, int wait)
 	};
 
 	if (sc->sc_flags & CKB_FLAG_POLLING) {
-		/* TODO */
+		for (;;) {
+			GPIO_PIN_GET(sc->gpio_dev, KB_GPIO_INT, &status);
+			if (status == 0) {
+				if (ec_command(EC_CMD_MKBP_STATE, sc->scan, sc->cols,
+				    sc->scan, sc->cols)) {
+					return (NOKEY);
+				}
+				break;
+			}
+			if (!wait) {
+				return (NOKEY);
+			}
+			DELAY(1000);
+		}
 	};
 
 	for (i = 0; i < sc->cols; i++) {
@@ -709,6 +724,12 @@ chrome_kb_attach(device_t dev)
 
 	if ((error = parse_dts(sc)) != 0)
 		return error;
+
+	sc->gpio_dev = devclass_get_device(devclass_find("gpio"), 0);
+	if (sc->gpio_dev == NULL) {
+		device_printf(sc->dev, "Can't find gpio device.\n");
+		return (ENXIO);
+	}
 
 #if 0
 	device_printf(sc->dev, "Keyboard matrix [%dx%d]\n",
