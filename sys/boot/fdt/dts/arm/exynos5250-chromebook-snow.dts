@@ -65,6 +65,11 @@
 		};
 	};
 
+	i2c-arbitrator {
+		freebsd,our-gpio = <177>;
+		freebsd,ec-gpio = <168>;
+	};
+
 	chosen {
 		stdin = &serial2;
 		stdout = &serial2;
