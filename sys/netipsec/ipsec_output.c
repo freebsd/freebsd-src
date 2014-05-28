@@ -576,7 +576,7 @@ ipsec4_process_packet(
 		DPRINTF(("%s: unsupported protocol family %u\n",
 				 __func__, dst->sa.sa_family));
 			error = EPFNOSUPPORT;
-			IPSEC6STAT_INC(ips_out_inval);
+			IPSECSTAT_INC(ips_out_inval);
 			goto bad;
 		}
 		error = (*sav->tdb_xform->xf_output)(m, isr, NULL, i, off);
