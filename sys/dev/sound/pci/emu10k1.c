@@ -1378,7 +1378,7 @@ emu_memalloc(struct sc_info *sc, u_int32_t sz, bus_addr_t *addr)
 	ofs = 0;
 	for (idx = start; idx < start + blksz; idx++) {
 		mem->bmap[idx >> 3] |= 1 << (idx & 7);
-		tmp = (u_int32_t)(u_long)((u_int8_t *)blk->buf_addr + ofs);
+		tmp = (bus_addr_t)((u_int8_t *)(uintptr_t)blk->buf_addr + ofs);
 #ifdef EMUDEBUG
 		printf("pte[%d] -> %x phys, %x virt\n", idx, tmp,
 		    ((u_int32_t)buf) + ofs);
@@ -2182,7 +2182,7 @@ static device_method_t emu_methods[] = {
 	DEVMETHOD(device_attach,	emu_pci_attach),
 	DEVMETHOD(device_detach,	emu_pci_detach),
 
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 static driver_t emu_driver = {
@@ -2191,7 +2191,7 @@ static driver_t emu_driver = {
 	PCM_SOFTC_SIZE,
 };
 
-DRIVER_MODULE(snd_emu10k1, pci, emu_driver, pcm_devclass, 0, 0);
+DRIVER_MODULE(snd_emu10k1, pci, emu_driver, pcm_devclass, NULL, NULL);
 MODULE_DEPEND(snd_emu10k1, sound, SOUND_MINVER, SOUND_PREFVER, SOUND_MAXVER);
 MODULE_VERSION(snd_emu10k1, 1);
 MODULE_DEPEND(snd_emu10k1, midi, 1, 1, 1);
@@ -2220,12 +2220,14 @@ emujoy_pci_probe(device_t dev)
 static int
 emujoy_pci_attach(device_t dev)
 {
+
 	return 0;
 }
 
 static int
 emujoy_pci_detach(device_t dev)
 {
+
 	return 0;
 }
 
@@ -2234,16 +2236,15 @@ static device_method_t emujoy_methods[] = {
 	DEVMETHOD(device_attach,	emujoy_pci_attach),
 	DEVMETHOD(device_detach,	emujoy_pci_detach),
 
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 static driver_t emujoy_driver = {
 	"emujoy",
 	emujoy_methods,
-	8,
+	1	/* no softc */
 };
 
 static devclass_t emujoy_devclass;
 
-DRIVER_MODULE(emujoy, pci, emujoy_driver, emujoy_devclass, 0, 0);
-
+DRIVER_MODULE(emujoy, pci, emujoy_driver, emujoy_devclass, NULL, NULL);
