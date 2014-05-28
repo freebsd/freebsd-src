@@ -1,10 +1,13 @@
 # $FreeBSD$
 
+.if !(make(cscope) || make(cscope-clean) || make(cscope-hook) || make(TAGS) || \
+    make(glimpse) || make(glimpse-clean))
 .include <src.opts.mk>
 
 # The boot loader
 .if ${MK_BOOT} != "no"
 SUBDIR=	boot
+.endif
 .endif
 
 # Directories to include in cscope name file and TAGS.
