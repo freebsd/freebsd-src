@@ -10,19 +10,14 @@ ident		PAE-GENERIC
 # To make a PAE kernel, the next option is needed
 options 	PAE			# Physical Address Extensions Kernel
 
-# Don't build modules with this kernel config, since they are not built with
-# the correct options headers.
-makeoptions	NO_MODULES=yes
-
-# force isp firmware to fully loaded
-device		ispfw
+# The following modules don't build with PAE enabled.
+makeoptions	WITHOUT_MODULES="ctl dpt hptmv ida malo mwl"
 
 # What follows is a list of drivers that are normally in GENERIC, but either
 # don't work or are untested with PAE.  Be very careful before enabling any
 # of these drivers.  Drivers which use DMA and don't handle 64 bit physical
 # address properly may cause data corruption when used in a machine with more
 # than 4 gigabytes of memory.
-
 
 nodevice	ahb
 nodevice	sym
