@@ -1989,7 +1989,7 @@ filt_sfsync(struct knote *kn, long hint)
  * Detach mapped page and release resources back to the system.
  */
 int
-sf_buf_mext(struct mbuf *mb, void *addr, void *args)
+sf_mext_free(struct mbuf *mb, void *addr, void *args)
 {
 	vm_page_t m;
 	struct sendfile_sync *sfs;
@@ -2010,9 +2010,38 @@ sf_buf_mext(struct mbuf *mb, void *addr, void *args)
 		sfs = addr;
 		sf_sync_deref(sfs);
 	}
-	/*
-	 * sfs may be invalid at this point, don't use it!
-	 */
+	return (EXT_FREE_OK);
+}
+
+/*
+ * Same as above, but forces the page to be detached from the object
+ * and go into free pool.
+ */
+static int
+sf_mext_free_nocache(struct mbuf *mb, void *addr, void *args)
+{
+	vm_page_t m;
+	struct sendfile_sync *sfs;
+
+	m = sf_buf_page(args);
+	sf_buf_free(args);
+	vm_page_lock(m);
+	vm_page_unwire(m, 0);
+	if (m->wire_count == 0) {
+		vm_object_t obj;
+
+		if ((obj = m->object) == NULL)
+			vm_page_free(m);
+		else if (!vm_page_xbusied(m) && VM_OBJECT_TRYWLOCK(obj)) {
+			vm_page_free(m);
+			VM_OBJECT_WUNLOCK(obj);
+		}
+	}
+	vm_page_unlock(m);
+	if (addr != NULL) {
+		sfs = addr;
+		sf_sync_deref(sfs);
+	}
 	return (EXT_FREE_OK);
 }
 
@@ -3052,8 +3081,10 @@ retry_space:
 		else
 			npages = howmany(space, PAGE_SIZE);
 
+		rhpages = SF_READAHEAD(flags) ?
+		    SF_READAHEAD(flags) : sfreadahead;
 		rhpages = min(howmany(obj_size - (off & ~PAGE_MASK) -
-		    (npages * PAGE_SIZE), PAGE_SIZE), sfreadahead);
+		    (npages * PAGE_SIZE), PAGE_SIZE), rhpages);
 
 		sfio = malloc(sizeof(struct sf_io) +
 		    (rhpages + npages) * sizeof(vm_page_t), M_TEMP, M_WAITOK);
@@ -3101,7 +3132,8 @@ retry_space:
 			 */
 			m0 = m_get(M_WAITOK, MT_DATA);
 			(void )m_extadd(m0, (caddr_t )sf_buf_kva(sf), PAGE_SIZE,
-			    sf_buf_mext, sfs, sf, M_RDONLY, EXT_SFBUF,
+			    (flags & SF_NOCACHE) ? sf_mext_free_nocache :
+			    sf_mext_free, sfs, sf, M_RDONLY, EXT_SFBUF,
 			    M_WAITOK);
 			m0->m_data = (char *)sf_buf_kva(sf) +
 			    (vmoff(i, off) & PAGE_MASK);

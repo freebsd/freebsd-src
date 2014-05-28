@@ -602,12 +602,15 @@ struct sf_hdtr_all {
  * Sendfile-specific flag(s)
  */
 #define	SF_NODISKIO     0x00000001
-#define	SF_MNOWAIT	0x00000002
+#define	SF_MNOWAIT	0x00000002	/* unused since 11.0 */
 #define	SF_SYNC		0x00000004
 #define	SF_KQUEUE	0x00000008
+#define	SF_NOCACHE	0x00000010
+#define	SF_FLAGS(rh, flags)	(((rh) << 16) | (flags))
 
 #ifdef _KERNEL
 #define	SFK_COMPAT	0x00000001
+#define	SF_READAHEAD(flags)	((flags) >> 16)
 #endif /* _KERNEL */
 #endif /* __BSD_VISIBLE */
 

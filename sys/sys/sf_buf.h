@@ -52,7 +52,7 @@ struct sfstat {				/* sendfile statistics */
 #include <machine/sf_buf.h>
 #include <sys/systm.h>
 #include <sys/counter.h>
-struct mbuf;	/* for sf_buf_mext() */
+struct mbuf;	/* for sf_mext_free() */
 
 extern counter_u64_t sfstat[sizeof(struct sfstat) / sizeof(uint64_t)];
 #define	SFSTAT_ADD(name, val)	\
@@ -61,6 +61,7 @@ extern counter_u64_t sfstat[sizeof(struct sfstat) / sizeof(uint64_t)];
 #define	SFSTAT_INC(name)	SFSTAT_ADD(name, 1)
 #endif /* _KERNEL */
 
-int	sf_buf_mext(struct mbuf *mb, void *addr, void *args);
+int	sf_mext_free(struct mbuf *mb, void *addr, void *args);
+int	sf_mext_free_nocache(struct mbuf *mb, void *addr, void *args);
 
 #endif /* !_SYS_SF_BUF_H_ */
