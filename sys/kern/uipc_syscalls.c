@@ -2783,6 +2783,11 @@ sendfile_swapin(vm_object_t obj, struct sf_io *sfio, off_t off, off_t len,
 				count = j - i;
 				break;
 			}
+			if (pa[j]->valid) {
+				vm_page_xunbusy(pa[j]);
+				count = j - i;
+				break;
+			}
 		}
 
 		refcount_acquire(&sfio->nios);
