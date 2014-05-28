@@ -160,12 +160,14 @@ saf1761_otg_fdt_attach(device_t dev)
 	if (OF_getprop(ofw_bus_get_node(dev), "int-polarity",
 	    &param, sizeof(param)) > 0) {
 		sc->sc_interrupt_cfg |= SOTG_INTERRUPT_CFG_INTPOL;
+		sc->sc_hw_mode |= SOTG_HW_MODE_CTRL_INTR_POL;
 	}
 
 	/* get IRQ level triggering */
 	if (OF_getprop(ofw_bus_get_node(dev), "int-level",
 	    &param, sizeof(param)) > 0) {
 		sc->sc_interrupt_cfg |= SOTG_INTERRUPT_CFG_INTLVL;
+		sc->sc_hw_mode |= SOTG_HW_MODE_CTRL_INTR_LEVEL;
 	}
 
 	/* initialise some bus fields */
@@ -182,23 +184,30 @@ saf1761_otg_fdt_attach(device_t dev)
 	sc->sc_io_res =
 	    bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid, RF_ACTIVE);
 
-	if (!sc->sc_io_res) {
+	if (sc->sc_io_res == NULL) 
 		goto error;
-	}
+
 	sc->sc_io_tag = rman_get_bustag(sc->sc_io_res);
 	sc->sc_io_hdl = rman_get_bushandle(sc->sc_io_res);
 	sc->sc_io_size = rman_get_size(sc->sc_io_res);
 
-	rid = 0;
+	/* try to allocate the HC interrupt first */
+	rid = 1;
 	sc->sc_irq_res = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid,
 	    RF_SHAREABLE | RF_ACTIVE);
 	if (sc->sc_irq_res == NULL) {
-		goto error;
+		/* try to allocate a common IRQ second */
+		rid = 0;
+		sc->sc_irq_res = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid,
+		    RF_SHAREABLE | RF_ACTIVE);
+		if (sc->sc_irq_res == NULL)
+			goto error;
 	}
+
 	sc->sc_bus.bdev = device_add_child(dev, "usbus", -1);
-	if (!(sc->sc_bus.bdev)) {
+	if (sc->sc_bus.bdev == NULL)
 		goto error;
-	}
+
 	device_set_ivars(sc->sc_bus.bdev, &sc->sc_bus);
 
 	err = bus_setup_intr(dev, sc->sc_irq_res, INTR_TYPE_BIO | INTR_MPSAFE,
