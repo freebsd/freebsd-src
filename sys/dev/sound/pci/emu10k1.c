@@ -1378,7 +1378,7 @@ emu_memalloc(struct sc_info *sc, u_int32_t sz, bus_addr_t *addr)
 	ofs = 0;
 	for (idx = start; idx < start + blksz; idx++) {
 		mem->bmap[idx >> 3] |= 1 << (idx & 7);
-		tmp = (uintptr_t)((u_int8_t *)(uintptr_t)blk->buf_addr + ofs);
+		tmp = (uint32_t)(blk->buf_addr + ofs);
 #ifdef EMUDEBUG
 		printf("pte[%d] -> %x phys, %x virt\n", idx, tmp,
 		    ((u_int32_t)buf) + ofs);
