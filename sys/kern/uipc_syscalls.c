@@ -2750,12 +2750,13 @@ sendfile_swapin(vm_object_t obj, struct sf_io *sfio, off_t off, off_t len,
 		pa[i] = vm_page_grab(obj, OFF_TO_IDX(vmoff(i, off)),
 		    VM_ALLOC_WIRED | VM_ALLOC_NORMAL);
 
-	for (int i = 0; i < npages; i++) {
+	for (int i = 0; i < npages;) {
 		int j, a, count, rv;
 
 		if (vm_page_is_valid(pa[i], vmoff(i, off) & PAGE_MASK,
 		    xfsize(i, npages, off, len))) {
 			vm_page_xunbusy(pa[i]);
+			i++;
 			continue;
 		}
 
@@ -2806,7 +2807,7 @@ sendfile_swapin(vm_object_t obj, struct sf_io *sfio, off_t off, off_t len,
 			    ("pa[j] %p lookup %p\n", pa[j],
 			    vm_page_lookup(obj, OFF_TO_IDX(vmoff(j, off)))));
 
-		i += count - 1;
+		i += count;
 	}
 
 	VM_OBJECT_WUNLOCK(obj);
