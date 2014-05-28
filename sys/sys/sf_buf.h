@@ -62,6 +62,5 @@ extern counter_u64_t sfstat[sizeof(struct sfstat) / sizeof(uint64_t)];
 #endif /* _KERNEL */
 
 int	sf_mext_free(struct mbuf *mb, void *addr, void *args);
-int	sf_mext_free_nocache(struct mbuf *mb, void *addr, void *args);
 
 #endif /* !_SYS_SF_BUF_H_ */
