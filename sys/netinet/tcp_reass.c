@@ -248,7 +248,7 @@ present:
 			m_freem(mq);
 		else {
 			mq->m_nextpkt = NULL;
-			sbappendstream_locked(&so->so_rcv, mq);
+			sbappendstream_locked(&so->so_rcv, mq, 0);
 			wakeup = 1;
 		}
 	}
