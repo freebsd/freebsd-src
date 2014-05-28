@@ -2701,7 +2701,6 @@ fixspace(int old, int new, off_t off, int *space)
 struct sf_io {
 	u_int		nios;
 	int		npages;
-	int		rhpages;
 	struct file	*sock_fp;
 	struct mbuf	*m;
 	vm_page_t	pa[];
@@ -2739,10 +2738,10 @@ sf_io_done(void *arg)
 }
 
 static int
-sendfile_swapin(vm_object_t obj, struct sf_io *sfio, off_t off, off_t len)
+sendfile_swapin(vm_object_t obj, struct sf_io *sfio, off_t off, off_t len,
+    int npages, int rhpages)
 {
 	vm_page_t *pa = sfio->pa;
-	int npages = sfio->npages;
 	int nios;
 
 	nios = 0;
@@ -2776,7 +2775,7 @@ sendfile_swapin(vm_object_t obj, struct sf_io *sfio, off_t off, off_t len)
 		if (i == j)
 			continue;
 
-		count = min(a + 1, npages + sfio->rhpages - i);
+		count = min(a + 1, npages + rhpages - i);
 		for (j = npages; j < i + count; j++) {
 			pa[j] = vm_page_grab(obj, OFF_TO_IDX(vmoff(j, off)),
 			    VM_ALLOC_NORMAL | VM_ALLOC_NOWAIT);
@@ -3089,10 +3088,8 @@ retry_space:
 		sfio = malloc(sizeof(struct sf_io) +
 		    (rhpages + npages) * sizeof(vm_page_t), M_TEMP, M_WAITOK);
 		refcount_init(&sfio->nios, 1);
-		sfio->npages = npages;
-		sfio->rhpages = rhpages;
 
-		nios = sendfile_swapin(obj, sfio, off, space);
+		nios = sendfile_swapin(obj, sfio, off, space, npages, rhpages);
 
 		/*
 		 * Loop and construct maximum sized mbuf chain to be bulk
@@ -3189,6 +3186,7 @@ retry_space:
 			    (so, 0, m, NULL, NULL, td);
 		} else {
 			sfio->sock_fp = sock_fp;
+			sfio->npages = npages;
 			fhold(sock_fp);
 			serror = (*so->so_proto->pr_usrreqs->pru_send)
 			    (so, PRUS_NOTREADY, m, NULL, NULL, td);
