@@ -142,7 +142,7 @@ static void dwc_otg_device_done(struct usb_xfer *, usb_error_t);
 static void dwc_otg_do_poll(struct usb_bus *);
 static void dwc_otg_standard_done(struct usb_xfer *);
 static void dwc_otg_root_intr(struct dwc_otg_softc *);
-static void dwc_otg_interrupt_poll(struct dwc_otg_softc *);
+static void dwc_otg_interrupt_poll_locked(struct dwc_otg_softc *);
 static void dwc_otg_host_channel_disable(struct dwc_otg_softc *, uint8_t);
 
 /*
@@ -2245,7 +2245,7 @@ done:
 }
 
 static uint8_t
-dwc_otg_xfer_do_complete(struct dwc_otg_softc *sc, struct usb_xfer *xfer)
+dwc_otg_xfer_do_complete_locked(struct dwc_otg_softc *sc, struct usb_xfer *xfer)
 {
 	struct dwc_otg_td *td;
 
@@ -2349,7 +2349,7 @@ dwc_otg_host_channel_disable(struct dwc_otg_softc *sc, uint8_t x)
 }
 
 static uint8_t
-dwc_otg_update_host_transfer_schedule(struct dwc_otg_softc *sc)
+dwc_otg_update_host_transfer_schedule_locked(struct dwc_otg_softc *sc)
 {
 	TAILQ_HEAD(, usb_xfer) head;
 	struct usb_xfer *xfer;
@@ -2519,7 +2519,7 @@ dwc_otg_update_host_transfer_schedule(struct dwc_otg_softc *sc)
 }
 
 static void
-dwc_otg_interrupt_poll(struct dwc_otg_softc *sc)
+dwc_otg_interrupt_poll_locked(struct dwc_otg_softc *sc)
 {
 	struct usb_xfer *xfer;
 	uint32_t temp;
@@ -2620,19 +2620,19 @@ repeat:
 
 	if (sc->sc_flags.status_device_mode == 0 && sc->sc_xfer_complete == 0) {
 		/* update host transfer schedule, so that new transfers can be issued */
-		if (dwc_otg_update_host_transfer_schedule(sc))
+		if (dwc_otg_update_host_transfer_schedule_locked(sc))
 			goto repeat;
 	}
 }
 
 static void
-dwc_otg_interrupt_complete(struct dwc_otg_softc *sc)
+dwc_otg_interrupt_complete_locked(struct dwc_otg_softc *sc)
 {
 	struct usb_xfer *xfer;
 repeat:
 	/* scan for completion events */
 	TAILQ_FOREACH(xfer, &sc->sc_bus.intr_q.head, wait_entry) {
-		if (dwc_otg_xfer_do_complete(sc, xfer))
+		if (dwc_otg_xfer_do_complete_locked(sc, xfer))
 			goto repeat;
 	}
 }
@@ -2677,6 +2677,8 @@ dwc_otg_filter_interrupt(void *arg)
 	int retval = FILTER_HANDLED;
 	uint32_t status;
 
+	USB_BUS_SPIN_LOCK(&sc->sc_bus);
+
 	/* read and clear interrupt status */
 	status = DWC_OTG_READ_4(sc, DOTG_GINTSTS);
 
@@ -2701,10 +2703,8 @@ dwc_otg_filter_interrupt(void *arg)
 		}
 	}
 
-	USB_BUS_SPIN_LOCK(&sc->sc_bus);
-
 	/* poll FIFOs, if any */
-	dwc_otg_interrupt_poll(sc);
+	dwc_otg_interrupt_poll_locked(sc);
 
 	if (sc->sc_xfer_complete != 0)
 		retval = FILTER_SCHEDULE_THREAD;
@@ -2901,15 +2901,14 @@ dwc_otg_interrupt(void *arg)
 		sc->sc_xfer_complete = 0;
 
 		/* complete FIFOs, if any */
-		dwc_otg_interrupt_complete(sc);
+		dwc_otg_interrupt_complete_locked(sc);
 
 		if (sc->sc_flags.status_device_mode == 0) {
 			/* update host transfer schedule, so that new transfers can be issued */
-			if (dwc_otg_update_host_transfer_schedule(sc))
-				dwc_otg_interrupt_poll(sc);
+			if (dwc_otg_update_host_transfer_schedule_locked(sc))
+				dwc_otg_interrupt_poll_locked(sc);
 		}
 	}
-
 	USB_BUS_SPIN_UNLOCK(&sc->sc_bus);
 	USB_BUS_UNLOCK(&sc->sc_bus);
 }
@@ -3274,12 +3273,13 @@ dwc_otg_start_standard_chain(struct usb_xfer *xfer)
 	 * endpoint interrupts. Else wait for SOF interrupt in host
 	 * mode.
 	 */
+	USB_BUS_SPIN_LOCK(&sc->sc_bus);
+
 	if (sc->sc_flags.status_device_mode != 0) {
 		dwc_otg_xfer_do_fifo(sc, xfer);
-		if (dwc_otg_xfer_do_complete(sc, xfer))
-			return;
+		if (dwc_otg_xfer_do_complete_locked(sc, xfer))
+			goto done;
 	}
-	USB_BUS_SPIN_LOCK(&sc->sc_bus);
 
 	/* put transfer on interrupt queue */
 	usbd_transfer_enqueue(&xfer->xroot->bus->intr_q, xfer);
@@ -3456,6 +3456,8 @@ dwc_otg_device_done(struct usb_xfer *xfer, usb_error_t error)
 	DPRINTFN(9, "xfer=%p, endpoint=%p, error=%d\n",
 	    xfer, xfer->endpoint, error);
 
+	USB_BUS_SPIN_LOCK(&sc->sc_bus);
+
 	if (xfer->flags_int.usb_mode == USB_MODE_DEVICE) {
 		/* Interrupts are cleared by the interrupt handler */
 	} else {
@@ -3470,6 +3472,8 @@ dwc_otg_device_done(struct usb_xfer *xfer, usb_error_t error)
 	}
 	/* dequeue transfer and start next transfer */
 	usbd_transfer_done(xfer, error);
+
+	USB_BUS_SPIN_UNLOCK(&sc->sc_bus);
 }
 
 static void
@@ -3496,6 +3500,8 @@ dwc_otg_set_stall(struct usb_device *udev,
 	}
 
 	sc = DWC_OTG_BUS2SC(udev->bus);
+
+	USB_BUS_SPIN_LOCK(&sc->sc_bus);
 
 	/* get endpoint address */
 	ep_no = ep->edesc->bEndpointAddress;
@@ -3525,14 +3531,15 @@ dwc_otg_set_stall(struct usb_device *udev,
 			/* dump data */
 			dwc_otg_common_rx_ack(sc);
 			/* poll interrupt */
-			dwc_otg_interrupt_poll(sc);
-			dwc_otg_interrupt_complete(sc);
+			dwc_otg_interrupt_poll_locked(sc);
+			dwc_otg_interrupt_complete_locked(sc);
 		}
 	}
+	USB_BUS_SPIN_UNLOCK(&sc->sc_bus);
 }
 
 static void
-dwc_otg_clear_stall_sub(struct dwc_otg_softc *sc, uint32_t mps,
+dwc_otg_clear_stall_sub_locked(struct dwc_otg_softc *sc, uint32_t mps,
     uint8_t ep_no, uint8_t ep_type, uint8_t ep_dir)
 {
 	uint32_t reg;
@@ -3590,8 +3597,8 @@ dwc_otg_clear_stall_sub(struct dwc_otg_softc *sc, uint32_t mps,
 	}
 
 	/* poll interrupt */
-	dwc_otg_interrupt_poll(sc);
-	dwc_otg_interrupt_complete(sc);
+	dwc_otg_interrupt_poll_locked(sc);
+	dwc_otg_interrupt_complete_locked(sc);
 }
 
 static void
@@ -3612,15 +3619,19 @@ dwc_otg_clear_stall(struct usb_device *udev, struct usb_endpoint *ep)
 	/* get softc */
 	sc = DWC_OTG_BUS2SC(udev->bus);
 
+	USB_BUS_SPIN_LOCK(&sc->sc_bus);
+
 	/* get endpoint descriptor */
 	ed = ep->edesc;
 
 	/* reset endpoint */
-	dwc_otg_clear_stall_sub(sc,
+	dwc_otg_clear_stall_sub_locked(sc,
 	    UGETW(ed->wMaxPacketSize),
 	    (ed->bEndpointAddress & UE_ADDR),
 	    (ed->bmAttributes & UE_XFERTYPE),
 	    (ed->bEndpointAddress & (UE_DIR_IN | UE_DIR_OUT)));
+
+	USB_BUS_SPIN_UNLOCK(&sc->sc_bus);
 }
 
 static void
@@ -3891,12 +3902,12 @@ dwc_otg_do_poll(struct usb_bus *bus)
 
 	USB_BUS_LOCK(&sc->sc_bus);
 	USB_BUS_SPIN_LOCK(&sc->sc_bus);
-	dwc_otg_interrupt_poll(sc);
-	dwc_otg_interrupt_complete(sc);
+	dwc_otg_interrupt_poll_locked(sc);
+	dwc_otg_interrupt_complete_locked(sc);
 	if (sc->sc_flags.status_device_mode == 0) {
 		/* update host transfer schedule, so that new transfers can be issued */
-		if (dwc_otg_update_host_transfer_schedule(sc))
-			dwc_otg_interrupt_poll(sc);
+		if (dwc_otg_update_host_transfer_schedule_locked(sc))
+			dwc_otg_interrupt_poll_locked(sc);
 	}
 	USB_BUS_SPIN_UNLOCK(&sc->sc_bus);
 	USB_BUS_UNLOCK(&sc->sc_bus);
