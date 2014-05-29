@@ -59,10 +59,12 @@ int	dtrace_trap(struct trapframe *, u_int);
 
 extern dtrace_trap_func_t	dtrace_trap_func;
 
-/* Used by the machine dependent trap() code. */
+/*
+ * A hook which removes active FBT probes before executing the double fault
+ * handler. We want to ensure that DTrace doesn't trigger another trap, which
+ * would result in a reset.
+ */
 typedef void (*dtrace_doubletrap_func_t)(void);
-
-/* Global variables in trap.c */
 extern	dtrace_doubletrap_func_t	dtrace_doubletrap_func;
 
 /* Pid provider hooks */
