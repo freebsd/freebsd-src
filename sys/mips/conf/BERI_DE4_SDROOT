@@ -10,6 +10,9 @@ include "BERI_DE4_BASE"
 
 ident		BERI_DE4_SDROOT
 
+# Do build modules.
+nomakeoptions   MODULES_OVERRIDE
+
 #
 # This kernel expects to find its root filesystem on the SD Card.
 #
