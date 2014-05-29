@@ -612,6 +612,10 @@
 	to filter by &man.jail.8; ID or name, in followup to the
 	&man.ps.1; change in <literal>r265229</literal>.</para>
 
+      <para revision="266818">The Blowfish &man.crypt.3; default
+	format has been changed to
+	<literal>&dollar;2b&dollar;</literal>.</para>
+
       <sect3 xml:id="periodic-scripts">
 	<title>&man.periodic.8; Scripts</title>
 
