@@ -93,15 +93,15 @@ static device_method_t saf1761_otg_methods[] = {
 };
 
 static driver_t saf1761_otg_driver = {
-	.name = "saf1761",
+	.name = "saf1761otg",
 	.methods = saf1761_otg_methods,
 	.size = sizeof(struct saf1761_otg_softc),
 };
 
 static devclass_t saf1761_otg_devclass;
 
-DRIVER_MODULE(saf1761, simplebus, saf1761_otg_driver, saf1761_otg_devclass, 0, 0);
-MODULE_DEPEND(saf1761, usb, 1, 1, 1);
+DRIVER_MODULE(saf1761otg, simplebus, saf1761_otg_driver, saf1761_otg_devclass, 0, 0);
+MODULE_DEPEND(saf1761otg, usb, 1, 1, 1);
 
 static int
 saf1761_otg_fdt_probe(device_t dev)
