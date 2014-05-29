@@ -2,8 +2,12 @@
 
 FILES=	gallant.fnt
 
-FILESDIR= ${SHAREDIR}/vt/fonts
+CLEANFILES+=	${FILES}
 
-NO_OBJ=
+.SUFFIXES: .uu
+.uu:
+	uudecode < ${.IMPSRC}
+
+FILESDIR=	${SHAREDIR}/vt/fonts
 
 .include <bsd.prog.mk>
