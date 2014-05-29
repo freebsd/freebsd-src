@@ -496,6 +496,9 @@ vtbuf_grow(struct vt_buf *vb, const term_pos_t *p, int history_size)
 		/* Deallocate old buffer. */
 		free(old, M_VTBUF);
 		free(oldrows, M_VTBUF);
+	} else {
+		/* Just update the size. */
+		vb->vb_scr_size = *p;
 	}
 }
 
