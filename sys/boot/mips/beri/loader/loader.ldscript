@@ -40,8 +40,9 @@ __loader_base_vaddr__ = __mips64_xkphys_cached__ + __loader_base__;
 
 /*
  * Highest address the loader is allowed to use below the kernel.
+ * Spin-tables grow down from 0x100000 so leave room for 256 threads.
  */
-__loader_end__ = 0x100000;
+__loader_end__ = 0x100000 - (32 * 256);
 __loader_end_vaddr__ = __mips64_xkphys_cached__ + __loader_end__;
 
 OUTPUT_FORMAT("elf64-tradbigmips");
