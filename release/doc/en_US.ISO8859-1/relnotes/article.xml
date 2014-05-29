@@ -312,7 +312,7 @@
       &man.ps.1; change in <literal>r265229</literal>.</para>
 
     <para revision="265995">The Blowfish &man.crypt.3; default format
-      has been changed tox
+      has been changed to
       <literal>&dollar;2b&dollar;</literal>.</para>
 
     <para revision="266209">The &man.pmcstat.8; utility has been
