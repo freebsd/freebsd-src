@@ -357,17 +357,17 @@ void
 vtbuf_fill_locked(struct vt_buf *vb, const term_rect_t *r, term_char_t c)
 {
 	KASSERT(r->tr_begin.tp_row < vb->vb_scr_size.tp_row,
-	    ("vtbuf_fill_locked begin.tp_row %d must be < screen width %d",
+	    ("vtbuf_fill_locked begin.tp_row %d must be < screen height %d",
 		r->tr_begin.tp_row, vb->vb_scr_size.tp_row));
 	KASSERT(r->tr_begin.tp_col < vb->vb_scr_size.tp_col,
-	    ("vtbuf_fill_locked begin.tp_col %d must be < screen height %d",
+	    ("vtbuf_fill_locked begin.tp_col %d must be < screen width %d",
 		r->tr_begin.tp_col, vb->vb_scr_size.tp_col));
 
 	KASSERT(r->tr_end.tp_row <= vb->vb_scr_size.tp_row,
-	    ("vtbuf_fill_locked end.tp_row %d must be <= screen width %d",
+	    ("vtbuf_fill_locked end.tp_row %d must be <= screen height %d",
 		r->tr_end.tp_row, vb->vb_scr_size.tp_row));
 	KASSERT(r->tr_end.tp_col <= vb->vb_scr_size.tp_col,
-	    ("vtbuf_fill_locked end.tp_col %d must be <= screen height %d",
+	    ("vtbuf_fill_locked end.tp_col %d must be <= screen width %d",
 		r->tr_end.tp_col, vb->vb_scr_size.tp_col));
 
 	VTBUF_LOCK(vb);
