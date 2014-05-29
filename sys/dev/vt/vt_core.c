@@ -1171,22 +1171,27 @@ static int
 vt_set_border(struct vt_window *vw, struct vt_font *vf, term_color_t c)
 {
 	struct vt_device *vd = vw->vw_device;
-	int l, r, t, b, w, h;
+	int x, y, off_x, off_y;
 
 	if (vd->vd_driver->vd_drawrect == NULL)
 		return (ENOTSUP);
 
-	w = vd->vd_width - 1;
-	h = vd->vd_height - 1;
-	l = vd->vd_offset.tp_col - 1;
-	r = w - l;
-	t = vd->vd_offset.tp_row - 1;
-	b = h - t;
+	x = vd->vd_width - 1;
+	y = vd->vd_height - 1;
+	off_x = vd->vd_offset.tp_col;
+	off_y = vd->vd_offset.tp_row;
 
-	vd->vd_driver->vd_drawrect(vd, 0, 0, w, t, 1, c); /* Top bar. */
-	vd->vd_driver->vd_drawrect(vd, 0, t, l, b, 1, c); /* Left bar. */
-	vd->vd_driver->vd_drawrect(vd, r, t, w, b, 1, c); /* Right bar. */
-	vd->vd_driver->vd_drawrect(vd, 0, b, w, h, 1, c); /* Bottom bar. */
+	/* Top bar. */
+	if (off_y > 0)
+		vd->vd_driver->vd_drawrect(vd, 0, 0, x, off_y - 1, 1, c);
+	/* Left bar. */
+	if (off_x > 0)
+		vd->vd_driver->vd_drawrect(vd, 0, off_y, off_x - 1, y - off_y,
+		    1, c);
+	/* Right bar.  May be 1 pixel wider than necessary due to rounding. */
+	vd->vd_driver->vd_drawrect(vd, x - off_x, off_y, x, y - off_y, 1, c);
+	/* Bottom bar.  May be 1 mixel taller than necessary due to rounding. */
+	vd->vd_driver->vd_drawrect(vd, 0, y - off_y, x, y, 1, c);
 
 	return (0);
 }
