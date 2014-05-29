@@ -929,6 +929,7 @@ void
 ns8250_bus_grab(struct uart_softc *sc)
 {
 	struct uart_bas *bas = &sc->sc_bas;
+	struct ns8250_softc *ns8250 = (struct ns8250_softc*)sc;
 
 	/*
 	 * turn off all interrupts to enter polling mode. Leave the
@@ -936,7 +937,11 @@ ns8250_bus_grab(struct uart_softc *sc)
 	 * All pending interupt signals are reset when IER is set to 0.
 	 */
 	uart_lock(sc->sc_hwmtx);
-	uart_setreg(bas, REG_IER, 0);
+	/*
+	 * On XScale, bit 6 (0x40) is the UART Unit Enable, removing it
+	 * turns the UART completely off,  so make sure it is stays there.
+	 */
+	uart_setreg(bas, REG_IER, ns8250->ier & 0x40);
 	uart_barrier(bas);
 	uart_unlock(sc->sc_hwmtx);
 }
