@@ -1,9 +1,9 @@
 #$FreeBSD$
 #	@(#)Makefile	8.1 (Berkeley) 6/2/93
 
-MAN=
-
 .include <src.opts.mk>
+
+MAN=
 MK_SSP=	no
 
 PROG=	rescue

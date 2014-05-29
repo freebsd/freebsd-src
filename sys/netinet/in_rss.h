@@ -91,5 +91,8 @@ uint32_t	rss_hash_ip6_2tuple(struct in6_addr src,
  */
 struct mbuf	*rss_m2cpuid(struct mbuf *m, uintptr_t source, u_int *cpuid);
 u_int		rss_hash2cpuid(uint32_t hash_val, uint32_t hash_type);
+int		rss_hash2bucket(uint32_t hash_val, uint32_t hash_type,
+		uint32_t *bucket_id);
+int		rss_m2bucket(struct mbuf *m, uint32_t *bucket_id);
 
 #endif /* !_NETINET_IN_RSS_H_ */

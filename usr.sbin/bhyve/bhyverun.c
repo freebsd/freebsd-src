@@ -288,33 +288,34 @@ static int
 vmexit_inout(struct vmctx *ctx, struct vm_exit *vme, int *pvcpu)
 {
 	int error;
-	int bytes, port, in, out;
-	uint32_t eax;
+	int bytes, port, in, out, string;
 	int vcpu;
 
 	vcpu = *pvcpu;
 
 	port = vme->u.inout.port;
 	bytes = vme->u.inout.bytes;
-	eax = vme->u.inout.eax;
+	string = vme->u.inout.string;
 	in = vme->u.inout.in;
 	out = !in;
 
-	/* We don't deal with these */
-	if (vme->u.inout.string || vme->u.inout.rep)
-		return (VMEXIT_ABORT);
-
         /* Extra-special case of host notifications */
-        if (out && port == GUEST_NIO_PORT)
-                return (vmexit_handle_notify(ctx, vme, pvcpu, eax));
+        if (out && port == GUEST_NIO_PORT) {
+                error = vmexit_handle_notify(ctx, vme, pvcpu, vme->u.inout.eax);
+		return (error);
+	}
 
-	error = emulate_inout(ctx, vcpu, in, port, bytes, &eax, strictio);
-	if (error == INOUT_OK && in)
-		error = vm_set_register(ctx, vcpu, VM_REG_GUEST_RAX, eax);
+	error = emulate_inout(ctx, vcpu, vme, strictio);
+	if (error == INOUT_OK && in && !string) {
+		error = vm_set_register(ctx, vcpu, VM_REG_GUEST_RAX,
+		    vme->u.inout.eax);
+	}
 
 	switch (error) {
 	case INOUT_OK:
 		return (VMEXIT_CONTINUE);
+	case INOUT_RESTART:
+		return (VMEXIT_RESTART);
 	case INOUT_RESET:
 		stats.io_reset++;
 		return (VMEXIT_RESET);
@@ -514,6 +515,7 @@ vmexit_suspend(struct vmctx *ctx, struct vm_exit *vmexit, int *pvcpu)
 
 static vmexit_handler_t handler[VM_EXITCODE_MAX] = {
 	[VM_EXITCODE_INOUT]  = vmexit_inout,
+	[VM_EXITCODE_INOUT_STR]  = vmexit_inout,
 	[VM_EXITCODE_VMX]    = vmexit_vmx,
 	[VM_EXITCODE_BOGUS]  = vmexit_bogus,
 	[VM_EXITCODE_RDMSR]  = vmexit_rdmsr,

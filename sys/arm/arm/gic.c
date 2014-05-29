@@ -83,6 +83,8 @@ __FBSDID("$FreeBSD$");
 #define GICC_ABPR		0x001C			/* v1 ICCABPR */
 #define GICC_IIDR		0x00FC			/* v1 ICCIIDR*/
 
+#define	GIC_LAST_IPI		15	/* Irqs 0-15 are IPIs. */
+
 /* First bit is a polarity bit (0 - low, 1 - high) */
 #define GICD_ICFGR_POL_LOW	(0 << 0)
 #define GICD_ICFGR_POL_HIGH	(1 << 0)
@@ -268,6 +270,8 @@ gic_post_filter(void *arg)
 {
 	uintptr_t irq = (uintptr_t) arg;
 
+	if (irq > GIC_LAST_IPI)
+		arm_irq_memory_barrier(irq);
 	gic_c_write_4(GICC_EOIR, irq);
 }
 
@@ -284,13 +288,13 @@ arm_get_next_irq(int last_irq)
 	 * have this information later.
 	 */
 
-	if ((active_irq & 0x3ff) < 16)
+	if ((active_irq & 0x3ff) <= GIC_LAST_IPI)
 		gic_c_write_4(GICC_EOIR, active_irq);
 	active_irq &= 0x3FF;
 
 	if (active_irq == 0x3FF) {
 		if (last_irq == -1)
-			printf("Spurious interrupt detected [0x%08x]\n", active_irq);
+			printf("Spurious interrupt detected\n");
 		return -1;
 	}
 
@@ -309,6 +313,8 @@ void
 arm_unmask_irq(uintptr_t nb)
 {
 
+	if (nb > GIC_LAST_IPI)
+		arm_irq_memory_barrier(nb);
 	gic_d_write_4(GICD_ISENABLER(nb >> 5), (1UL << (nb & 0x1F)));
 }
 

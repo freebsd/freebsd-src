@@ -2,7 +2,7 @@ Pull in r198565 from upstream llvm trunk (by Venkatraman Govindaraju):
 
   ELF relocation types for sparc.
 
-Introduced here: http://svn.freebsd.org/changeset/base/262261
+Introduced here: http://svnweb.freebsd.org/changeset/base/262261
 
 Index: include/llvm/Support/ELF.h
 ===================================================================

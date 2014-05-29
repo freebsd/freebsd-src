@@ -1,11 +1,6 @@
-#
 # $FreeBSD$
 #
-# Copyright (c) 2014 Hans Petter Selasky. All rights reserved.
-#
-# This software was developed by SRI International and the University of
-# Cambridge Computer Laboratory under DARPA/AFRL contract (FA8750-10-C-0237)
-# ("CTSRD"), as part of the DARPA CRASH research programme.
+# Copyright (c) 2010 Hans Petter Selasky. All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
@@ -29,14 +24,9 @@
 # SUCH DAMAGE.
 #
 
-S=	${.CURDIR}/../../..
+.PATH: ${.CURDIR}/../../fs/cuse
 
-.PATH: $S/dev/usb/controller
-
-KMOD=	saf1761
-SRCS=	bus_if.h device_if.h usb_if.h \
-	opt_bus.h opt_usb.h ofw_bus_if.h \
-	saf1761_otg.c saf1761_otg_fdt.c \
-	pci_if.h
+KMOD=	cuse
+SRCS=	cuse.c device_if.h bus_if.h vnode_if.h opt_compat.h
 
 .include <bsd.kmod.mk>

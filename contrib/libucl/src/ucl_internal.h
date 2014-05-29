@@ -197,6 +197,8 @@ struct ucl_parser {
 	struct ucl_chunk *chunks;
 	struct ucl_pubkey *keys;
 	struct ucl_variable *variables;
+	ucl_variable_handler var_handler;
+	void *var_data;
 	UT_string *err;
 };
 

@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 27, 2014
+.Dd May 22, 2014
 .Dt MKIMG 1
 .Os
 .Sh NAME
@@ -159,6 +159,11 @@ For partitioning schemes that feature partition labels, the
 utility supports assigning labels to the partitions specified.
 In the following example the file system partition is labeled as 'backup':
 .Dl % mkimg -s gpt -p freebsd-ufs/backup:=file-system.ufs -o gpt.img
+.Sh ENVIRONMENT
+.Bl -tag -width "TMPDIR" -compact
+.It Ev TMPDIR
+Directory to put temporary files in; default is
+.Pa /tmp .
 .Sh SEE ALSO
 .Xr gpart 8
 .Xr makefs 8

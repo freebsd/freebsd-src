@@ -41,7 +41,7 @@
  * SUCH DAMAGE.
  */
 
-/* $Id: sm_resolve.h,v 8.9 2013/11/22 20:51:56 ca Exp $ */
+/* $Id: sm_resolve.h,v 8.9 2013-11-22 20:51:56 ca Exp $ */
 
 #if DNSMAP
 # ifndef __ROKEN_RESOLVE_H__

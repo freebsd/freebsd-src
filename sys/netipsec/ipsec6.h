@@ -76,6 +76,7 @@ extern int ipsec6_output_trans __P((struct ipsec_output_state *, u_char *,
 	struct mbuf *, struct secpolicy *, int, int *));
 extern int ipsec6_output_tunnel __P((struct ipsec_output_state *,
 	struct secpolicy *, int));
+extern int ipsec6_process_packet(struct mbuf *, struct ipsecrequest *);
 #endif /*_KERNEL*/
 
 #endif /*_NETIPSEC_IPSEC6_H_*/

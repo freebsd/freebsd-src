@@ -4,7 +4,7 @@ Pull in r200452 from upstream clang trunk (by Jakob Stoklund Olesen):
 
   Patch by Roman Divacky!
 
-Introduced here: http://svn.freebsd.org/changeset/base/262262
+Introduced here: http://svnweb.freebsd.org/changeset/base/262262
 
 Index: tools/clang/lib/Basic/Targets.cpp
 ===================================================================

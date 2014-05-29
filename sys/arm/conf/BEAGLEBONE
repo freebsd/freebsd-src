@@ -54,7 +54,7 @@ options 	PLATFORM
 options 	FREEBSD_BOOT_LOADER
 options 	VFP			# vfp/neon
 
-# Debugging
+# Debugging for use in -current
 makeoptions	DEBUG=-g		# Build kernel with gdb(1) debug symbols
 options 	BREAK_TO_DEBUGGER
 #options 	VERBOSE_SYSINIT		# Enable verbose sysinit messages
@@ -79,11 +79,16 @@ options 	NFSLOCKD
 #options 	BOOTP_NFSV3
 #options 	BOOTP_WIRED_TO=cpsw0
 
-
-# MMC/SD/SDIO card slot support
+# MMC/SD/SDIO Card slot support
 device		mmc			# mmc/sd bus
 device		mmcsd			# mmc/sd flash cards
 device		sdhci			# mmc/sd host controller
+
+# I2C support
+device		iicbus
+device		iic
+device		ti_i2c
+device		am335x_pmic		# AM335x Power Management IC (TPC65217)
 
 # Boot device is 2nd slice on MMC/SD card
 options 	ROOTDEVNAME=\"ufs:mmcsd0s2\"
@@ -96,12 +101,6 @@ device		snp
 device		md
 device		random			# Entropy device
 
-# I2C support
-device		iicbus
-device		iic
-device		ti_i2c
-device		am335x_pmic		# AM335x Power Management IC (TPC65217)
-
 # GPIO
 device		gpio
 device		gpioled
@@ -111,7 +110,7 @@ device		ti_adc
 
 # USB support
 device		usb
-options 	USB_HOST_ALIGN=64	# Cacheline size is 64 on AM335x.
+options 	USB_HOST_ALIGN=64	# Align usb buffers to cache line size.
 options 	USB_DEBUG
 #options 	USB_REQ_DEBUG
 #options 	USB_VERBOSE
@@ -128,7 +127,7 @@ device		smscphy
 device		cpsw
 device		bpf
 
-# USB ethernet support, requires miibus
+# USB Ethernet support, requires miibus
 device		miibus
 device		axe			# ASIX Electronics USB Ethernet
 

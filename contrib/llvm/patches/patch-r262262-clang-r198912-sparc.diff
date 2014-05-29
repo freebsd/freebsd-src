@@ -2,7 +2,7 @@ Pull in r198912 from upstream clang trunk (by Jakob Stoklund Olesen):
 
   Give the linker the right ELF type for SPARC targets.
 
-Introduced here: http://svn.freebsd.org/changeset/base/262262
+Introduced here: http://svnweb.freebsd.org/changeset/base/262262
 
 Index: tools/clang/lib/Driver/Tools.cpp
 ===================================================================

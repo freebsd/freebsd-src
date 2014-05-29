@@ -2,7 +2,7 @@ Pull in r198028 from upstream llvm trunk (by Venkatraman Govindaraju):
 
   [Sparc] Add MCInstPrinter implementation for SPARC.
 
-Introduced here: http://svn.freebsd.org/changeset/base/262261
+Introduced here: http://svnweb.freebsd.org/changeset/base/262261
 
 Index: lib/Target/Sparc/InstPrinter/LLVMBuild.txt
 ===================================================================

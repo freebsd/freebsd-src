@@ -916,7 +916,7 @@ format_next_process(caddr_t handle, char *(*get_userid)(int), int flags)
 			argbuflen = cmdlen * 4;
 			argbuf = (char *)malloc(argbuflen + 1);
 			if (argbuf == NULL) {
-				warn("malloc(%d)", argbuflen + 1);
+				warn("malloc(%zd)", argbuflen + 1);
 				free(cmdbuf);
 				return NULL;
 			}
@@ -1023,7 +1023,7 @@ format_next_process(caddr_t handle, char *(*get_userid)(int), int flags)
 		thr_buf[0] = '\0';
 	else
 		snprintf(thr_buf, sizeof(thr_buf), "%*d ",
-		    sizeof(thr_buf) - 2, pp->ki_numthreads);
+		    (int)(sizeof(thr_buf) - 2), pp->ki_numthreads);
 
 	snprintf(fmt, sizeof(fmt), proc_fmt,
 	    pp->ki_pid,

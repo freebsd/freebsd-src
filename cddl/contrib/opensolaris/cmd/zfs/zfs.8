@@ -18,7 +18,7 @@
 .\" information: Portions Copyright [yyyy] [name of copyright owner]
 .\"
 .\" Copyright (c) 2010, Sun Microsystems, Inc. All Rights Reserved.
-.\" Copyright (c) 2013 by Delphix. All rights reserved.
+.\" Copyright (c) 2014 by Delphix. All rights reserved.
 .\" Copyright (c) 2011, Pawel Jakub Dawidek <pjd@FreeBSD.org>
 .\" Copyright (c) 2012, Glen Barber <gjb@FreeBSD.org>
 .\" Copyright (c) 2012, Bryan Drewery <bdrewery@FreeBSD.org>
@@ -30,7 +30,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 23, 2014
+.Dd May 27, 2014
 .Dt ZFS 8
 .Os
 .Sh NAME
@@ -1193,6 +1193,53 @@ affects only files created afterward; existing files are unaffected.
 .Pp
 This property can also be referred to by its shortened column name,
 .Sy recsize .
+.It Sy redundant_metadata Ns = Ns Cm all | most
+Controls what types of metadata are stored redundantly.
+ZFS stores an extra copy of metadata, so that if a single block is corrupted,
+the amount of user data lost is limited.
+This extra copy is in addition to any redundancy provided at the pool level
+.Pq e.g. by mirroring or RAID-Z ,
+and is in addition to an extra copy specified by the
+.Sy copies
+property
+.Pq up to a total of 3 copies .
+For example if the pool is mirrored,
+.Cm copies Ns = Ns Ar 2 ,
+and
+.Cm redundant_metadata Ns = Ns Ar most ,
+then ZFS
+stores 6 copies of most metadata, and 4 copies of data and some
+metadata.
+.Pp
+When set to
+.Cm all ,
+ZFS stores an extra copy of all metadata.
+If a
+single on-disk block is corrupt, at worst a single block of user data
+.Po which is
+.Cm recordsize
+bytes long
+can be lost.
+.Pc
+.Pp
+When set to
+.Cm most ,
+ZFS stores an extra copy of most types of
+metadata.
+This can improve performance of random writes, because less
+metadata must be written.
+In practice, at worst about 100 blocks
+.Po of
+.Cm recordsize
+bytes each
+.Pc
+of user data can be lost if a single
+on-disk block is corrupt.
+The exact behavior of which metadata blocks
+are stored redundantly may change in future releases.
+.Pp
+The default value is
+.Cm all .
 .It Sy refquota Ns = Ns Ar size | Cm none
 Limits the amount of space a dataset can consume. This property enforces a hard
 limit on the amount of space used. This hard limit does not include space used

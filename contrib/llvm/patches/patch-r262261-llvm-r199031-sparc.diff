@@ -2,7 +2,7 @@ Pull in r199031 from upstream llvm trunk (by Venkatraman Govindaraju):
 
   [Sparc] Replace (unsigned)-1 with ~OU as suggested by Reid Kleckner.
 
-Introduced here: http://svn.freebsd.org/changeset/base/262261
+Introduced here: http://svnweb.freebsd.org/changeset/base/262261
 
 Index: lib/Target/Sparc/Disassembler/SparcDisassembler.cpp
 ===================================================================
