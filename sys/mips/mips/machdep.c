@@ -292,9 +292,9 @@ mips_proc0_init(void)
 #endif
 	proc_linkup0(&proc0, &thread0);
 
-	KASSERT((kstack0 & PAGE_MASK) == 0,
-		("kstack0 is not aligned on a page boundary: 0x%0lx",
-		(long)kstack0));
+	KASSERT((kstack0 & ((KSTACK_PAGE_SIZE * 2) - 1)) == 0,
+		("kstack0 is not aligned on a page (0x%0lx) boundary: 0x%0lx",
+		(long)(KSTACK_PAGE_SIZE * 2), (long)kstack0));
 	thread0.td_kstack = kstack0;
 	thread0.td_kstack_pages = KSTACK_PAGES;
 	/* 

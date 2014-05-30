@@ -337,37 +337,91 @@ blocked_loop:
  * NOTE: This is hard coded to UPAGES == 2.
  * Also, there should be no TLB faults at this point.
  */
-	MTC0	v0, MIPS_COP_0_TLB_HI		# VPN = va
+	MTC0		v0, MIPS_COP_0_TLB_HI	# VPN = va
 	HAZARD_DELAY
 	tlbp					# probe VPN
 	HAZARD_DELAY
-	mfc0	s0, MIPS_COP_0_TLB_INDEX
+	mfc0		s0, MIPS_COP_0_TLB_INDEX
 	HAZARD_DELAY
 
-	PTR_LI	t1, MIPS_KSEG0_START		# invalidate tlb entry
-	bltz	s0, entry0set
+	# MIPS_KSEG0_START + (2 * index * PAGE_SIZE) -> MIPS_COP_0_TLB_HI
+	PTR_LI		t1, MIPS_KSEG0_START	# invalidate tlb entry
+#ifdef KSTACK_LARGE_PAGE
+	bltz		s0, inval_nxt1
+#else
+	bltz		s0, entry0set
+#endif
 	nop
-	sll	s0, PAGE_SHIFT + 1
-	addu	t1, s0
-	MTC0	t1, MIPS_COP_0_TLB_HI
+	sll		s0, PAGE_SHIFT + 1
+	addu		t1, s0
+	MTC0		t1, MIPS_COP_0_TLB_HI
 	PTE_MTC0	zero, MIPS_COP_0_TLB_LO0
 	PTE_MTC0	zero, MIPS_COP_0_TLB_LO1
+	MTC0		zero, MIPS_COP_0_TLB_PG_MASK
 	HAZARD_DELAY
 	tlbwi
 	HAZARD_DELAY
-	MTC0	v0, MIPS_COP_0_TLB_HI		# set VPN again
+
+#ifdef KSTACK_LARGE_PAGE
+/*
+ * With a KSTACK_PAGE_SIZE of 16K and PAGE_SIZE of 4K it is possible that
+ * a second TLB entry is currently mapping the kernel thread stack as a
+ * regular 4K sized page(s). Check for this case and, if so, invalidate
+ * that TLB entry as well.
+ */
+#if (PAGE_SIZE != 4096) && (KSTACK_PAGE_SIZE != 16384)
+#error PAGE_SIZE is not 4K or KSTACK_PAGE_SIZE is not 16K.
+#endif
+inval_nxt1:
+	move            v1, v0
+	PTR_ADDU	v1, PAGE_SIZE * 2
+	MTC0		v1, MIPS_COP_0_TLB_HI	# VPN = va
+	HAZARD_DELAY
+	tlbp					# probe VPN
+	HAZARD_DELAY
+	mfc0		s0, MIPS_COP_0_TLB_INDEX
+	HAZARD_DELAY
+
+	# MIPS_KSEG0_START + (2 * index * PAGE_SIZE) -> MIPS_COP_0_TLB_HI
+	PTR_LI		t1, MIPS_KSEG0_START	# invalidate tlb entry
+	bltz		s0, entry0set
+	nop
+	sll		s0, PAGE_SHIFT + 1
+	PTR_ADDU	t1, s0
+	MTC0		t1, MIPS_COP_0_TLB_HI
+	PTE_MTC0	zero, MIPS_COP_0_TLB_LO0
+	PTE_MTC0	zero, MIPS_COP_0_TLB_LO1
+	MTC0		zero, MIPS_COP_0_TLB_PG_MASK
+	HAZARD_DELAY
+	tlbwi
+	HAZARD_DELAY
+#endif	/* KSTACK_LARGE_PAGE */
 
 entry0set:
+	MTC0		v0, MIPS_COP_0_TLB_HI		# set VPN again
+	HAZARD_DELAY
 /* SMP!! - Works only for  unshared TLB case - i.e. no v-cpus */
-	mtc0	zero, MIPS_COP_0_TLB_INDEX		# TLB entry #0
+	mtc0		zero, MIPS_COP_0_TLB_INDEX	# TLB entry #0
 	HAZARD_DELAY
 	PTE_MTC0	a1, MIPS_COP_0_TLB_LO0		# upte[0]
 	HAZARD_DELAY
 	PTE_MTC0	a2, MIPS_COP_0_TLB_LO1		# upte[1]
+#ifdef KSTACK_LARGE_PAGE
 	HAZARD_DELAY
+	li		t1, KSTACK_TLBMASK_MASK
+	MTC0		t1, MIPS_COP_0_TLB_PG_MASK
+	HAZARD_DELAY
+#else
+	MTC0		zero, MIPS_COP_0_TLB_PG_MASK
+	HAZARD_DELAY
+#endif
 	tlbwi					# set TLB entry #0
 	HAZARD_DELAY
 
+#ifdef KSTACK_LARGE_PAGE
+	MTC0		zero, MIPS_COP_0_TLB_PG_MASK
+	HAZARD_DELAY
+#endif
 sw2:
 /*
  * Now running on new u struct.

@@ -282,6 +282,12 @@ mips_get_identity(struct mips_cpuinfo *cpuinfo)
 	mips_wr_pagemask(~0);
 	cpuinfo->tlb_pgmask = mips_rd_pagemask();
 	mips_wr_pagemask(MIPS3_PGMASK_4K);
+
+#ifdef KSTACK_LARGE_PAGE
+	if ((cpuinfo->tlb_pgmask & MIPS3_PGMASK_16K) == 0)
+		panic("%s: 16K sized pages are not supported by this CPU.",
+		    __func__);
+#endif
 }
 
 void
