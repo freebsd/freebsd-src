@@ -136,6 +136,17 @@ FILES+= loader.rc
 FILES+= menu.rc
 .endif
 
+.if defined(LOADER_USB_SUPPORT)
+# Do garbage collection
+CFLAGS+= -ffunction-sections -fdata-sections
+CFLAGS+= -Wl,--gc-sections
+# Link USB BOOT library
+LDADD+= ${.OBJDIR}/../../../usb/libusbboot.a
+CFLAGS+= -I${.CURDIR}/../../../usb
+# Define USB SUPPORT
+CFLAGS+= -DLOADER_USB_SUPPORT
+.endif
+
 all: loader
 
 .include <bsd.prog.mk>

@@ -43,12 +43,19 @@ __FBSDID("$FreeBSD$");
 #include <loader.h>
 #include <mips.h>
 
+#ifdef LOADER_USB_SUPPORT
+#include <storage/umass_common.h>
+#endif
+
 static int	__elfN(exec)(struct preloaded_file *);
 static void	extract_currdev(struct bootinfo *);
 
 struct devsw *devsw[] = {
 	&beri_cfi_disk,
 	&beri_sdcard_disk,
+#ifdef LOADER_USB_SUPPORT
+	&umass_disk,
+#endif
 	NULL
 };
 
