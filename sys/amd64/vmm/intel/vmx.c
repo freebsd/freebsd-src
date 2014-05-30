@@ -512,6 +512,15 @@ static void
 vmx_enable(void *arg __unused)
 {
 	int error;
+	uint64_t feature_control;
+
+	feature_control = rdmsr(MSR_IA32_FEATURE_CONTROL);
+	if ((feature_control & IA32_FEATURE_CONTROL_LOCK) == 0 ||
+	    (feature_control & IA32_FEATURE_CONTROL_VMX_EN) == 0) {
+		wrmsr(MSR_IA32_FEATURE_CONTROL,
+		    feature_control | IA32_FEATURE_CONTROL_VMX_EN |
+		    IA32_FEATURE_CONTROL_LOCK);
+	}
 
 	load_cr4(rcr4() | CR4_VMXE);
 
@@ -547,7 +556,7 @@ vmx_init(int ipinum)
 	 * are set (bits 0 and 2 respectively).
 	 */
 	feature_control = rdmsr(MSR_IA32_FEATURE_CONTROL);
-	if ((feature_control & IA32_FEATURE_CONTROL_LOCK) == 0 ||
+	if ((feature_control & IA32_FEATURE_CONTROL_LOCK) == 1 &&
 	    (feature_control & IA32_FEATURE_CONTROL_VMX_EN) == 0) {
 		printf("vmx_init: VMX operation disabled by BIOS\n");
 		return (ENXIO);
