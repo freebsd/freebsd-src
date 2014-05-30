@@ -48,6 +48,8 @@ options 	NFSCL
 options 	NFSLOCKD
 options 	NFS_ROOT
 
+options		KSTACK_LARGE_PAGE
+
 # Debugging for use in -current
 #options 	DEADLKRES		#Enable the deadlock resolver
 options 	INVARIANTS		#Enable calls of extra sanity checking
