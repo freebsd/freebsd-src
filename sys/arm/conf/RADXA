@@ -22,9 +22,6 @@ ident		RADXA
 
 include		"../rockchip/std.rk30xx"
 
-makeoptions	MODULES_OVERRIDE=""
-makeoptions	WITHOUT_MODULES="ahc"
-
 options 	HZ=100
 options 	SCHED_4BSD		# 4BSD scheduler
 options 	INET			# InterNETworking
@@ -51,6 +48,7 @@ options 	KBD_INSTALL_CDEV	# install a CDEV entry in /dev
 options 	PREEMPTION
 options 	FREEBSD_BOOT_LOADER
 options 	VFP			# vfp/neon
+options		SMP			# Enable multiple cores
 
 # Debugging
 makeoptions	DEBUG=-g		# Build kernel with gdb(1) debug symbols
@@ -73,7 +71,7 @@ options 	DIAGNOSTIC
 #device		mmc			# mmc/sd bus
 #device		mmcsd			# mmc/sd flash cards
 
-# Boot device is 2nd slice on MMC/SD card
+# Boot device is 2nd slice on USB
 options 	ROOTDEVNAME=\"ufs:/dev/da0s2\"
 
 # Console and misc
@@ -121,4 +119,3 @@ options 	FDT
 options 	FDT_DTB_STATIC
 makeoptions	FDT_DTS_FILE=rk3188-radxa.dts
 
-options		SMP			# Enable multiple cores
