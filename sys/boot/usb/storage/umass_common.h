@@ -32,6 +32,10 @@
 #ifndef _UMASS_COMMON_H_
 #define	_UMASS_COMMON_H_
 
+struct usb_attach_arg;
+struct devsw;
+
 extern struct usb_attach_arg umass_uaa;
+extern struct devsw umass_disk;
 
 #endif			/* _UMASS_COMMON_H_ */
