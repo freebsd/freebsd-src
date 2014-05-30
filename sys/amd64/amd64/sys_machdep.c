@@ -357,8 +357,6 @@ amd64_set_ioperm(td, uap)
 	if (pcb->pcb_tssp == NULL) {
 		tssp = (struct amd64tss *)kmem_malloc(kernel_arena,
 		    ctob(IOPAGES+1), M_WAITOK);
-		if (tssp == NULL)
-			return (ENOMEM);
 		iomap = (char *)&tssp[1];
 		memset(iomap, 0xff, IOPERM_BITMAP_SIZE);
 		critical_enter();
@@ -463,11 +461,6 @@ user_ldt_alloc(struct proc *p, int force)
 	new_ldt->ldt_base = (caddr_t)kmem_malloc(kernel_arena,
 	     max_ldt_segment * sizeof(struct user_segment_descriptor),
 	     M_WAITOK | M_ZERO);
-	if (new_ldt->ldt_base == NULL) {
-		FREE(new_ldt, M_SUBPROC);
-		mtx_lock(&dt_lock);
-		return (NULL);
-	}
 	new_ldt->ldt_refcnt = 1;
 	sldt.ssd_base = (uint64_t)new_ldt->ldt_base;
 	sldt.ssd_limit = max_ldt_segment *
