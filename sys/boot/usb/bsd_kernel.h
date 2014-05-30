@@ -28,7 +28,8 @@
 #define	_BSD_KERNEL_H_
 
 #define	_KERNEL
-#define	__FreeBSD_version 1000000
+#undef __FreeBSD_version
+#define	__FreeBSD_version 1100000
 
 #include <sys/cdefs.h>
 #include <sys/queue.h>
@@ -92,8 +93,11 @@ SYSINIT_ENTRY(uniq##_entry, "sysuninit", (subs),	\
 #define	BUS_SPACE_BARRIER_READ 0x01
 #define	BUS_SPACE_BARRIER_WRITE 0x02
 #define	hz 1000
+#undef PAGE_SIZE
 #define	PAGE_SIZE 4096
+#undef MIN
 #define	MIN(a,b) (((a) < (b)) ? (a) : (b))
+#undef MAX
 #define	MAX(a,b) (((a) > (b)) ? (a) : (b))
 #define	MTX_DEF 0
 #define	MTX_SPIN 0
@@ -104,10 +108,15 @@ SYSINIT_ENTRY(uniq##_entry, "sysuninit", (subs),	\
 #define	cold 0
 #define	BUS_PROBE_GENERIC 0
 #define	CALLOUT_RETURNUNLOCKED 0x1
+#undef va_list
 #define	va_list __builtin_va_list
+#undef va_size
 #define	va_size(type) __builtin_va_size(type)
+#undef va_start
 #define	va_start(ap, last) __builtin_va_start(ap, last)
+#undef va_end
 #define	va_end(ap) __builtin_va_end(ap)
+#undef va_arg
 #define	va_arg(ap, type) __builtin_va_arg((ap), type)
 #define	DEVICE_ATTACH(dev, ...) \
   (((device_attach_t *)(device_get_method(dev, "device_attach")))(dev,## __VA_ARGS__))
@@ -150,29 +159,23 @@ struct thread;
 struct malloc_type;
 struct usb_process;
 
+#ifndef HAVE_STANDARD_DEFS
+#define	_UINT8_T_DECLARED
 typedef unsigned char uint8_t;
+#define	_INT8_T_DECLARED
 typedef signed char int8_t;
-
+#define	_UINT16_T_DECLARED
 typedef unsigned short uint16_t;
+#define	_INT16_T_DECLARED
 typedef signed short int16_t;
-
+#define	_UINT32_T_DECLARED
 typedef unsigned int uint32_t;
+#define	_INT32_T_DECLARED
 typedef signed int int32_t;
-
+#define	_UINT64_T_DECLARED
 typedef unsigned long long uint64_t;
+#define	_INT16_T_DECLARED
 typedef signed long long int64_t;
-
-typedef unsigned long bus_addr_t;
-typedef unsigned long bus_size_t;
-
-typedef unsigned long size_t;
-typedef unsigned long u_long;
-
-typedef void *bus_dmamap_t;
-typedef void *bus_dma_tag_t;
-
-typedef void *bus_space_tag_t;
-typedef uint8_t *bus_space_handle_t;
 
 typedef uint16_t uid_t;
 typedef uint16_t gid_t;
@@ -181,6 +184,19 @@ typedef uint16_t mode_t;
 typedef uint8_t *caddr_t;
 typedef unsigned long __uintptr_t;
 typedef unsigned long uintptr_t;
+
+typedef unsigned long size_t;
+typedef unsigned long u_long;
+#endif
+
+typedef unsigned long bus_addr_t;
+typedef unsigned long bus_size_t;
+
+typedef void *bus_dmamap_t;
+typedef void *bus_dma_tag_t;
+
+typedef void *bus_space_tag_t;
+typedef uint8_t *bus_space_handle_t;
 
 /* SYSINIT API */
 
@@ -414,16 +430,30 @@ size_t	strlen(const char *s);
 
 /* MALLOC API */
 
+#ifndef HAVE_MALLOC
+#undef malloc
 #define	malloc(s,x,f) usb_malloc(s)
 void   *usb_malloc(size_t);
 
+#undef free
 #define	free(p,x) usb_free(p)
 void	usb_free(void *);
+#else
+#undef malloc
+void *malloc(size_t);
+#define	malloc(s,x,f) malloc(s)
+
+#undef free
+void free(void *);
+#define	free(p,x) free(p)
+#endif
 
 #define	strdup(p,x) usb_strdup(p)
 char   *usb_strdup(const char *str);
 
 /* ENDIANNESS */
+
+#ifndef HAVE_ENDIAN_DEFS
 
 /* Assume little endian */
 
@@ -438,6 +468,10 @@ char   *usb_strdup(const char *str);
 
 #define	be32toh(x) ((uint32_t)(x))
 #define	htobe32(x) ((uint32_t)(x))
+
+#else
+#include <sys/endian.h>
+#endif
 
 /* USB */
 
