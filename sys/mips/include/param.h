@@ -165,6 +165,9 @@
  * The kernel stack needs to be aligned on a (PAGE_SIZE * 2) boundary.
  */
 #define	KSTACK_PAGES		2	/* kernel stack */
+#define	KSTACK_SIZE		(KSTACK_PAGES * PAGE_SIZE)
+#define	KSTACK_PAGE_SIZE	PAGE_SIZE
+#define	KSTACK_PAGE_MASK	(PAGE_SIZE - 1)
 #define	KSTACK_GUARD_PAGES	2	/* pages of kstack guard; 0 disables */
 
 /*

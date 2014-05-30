@@ -311,6 +311,89 @@ SYSCTL_INT(_vm, OID_AUTO, kstacks, CTLFLAG_RD, &kstacks, 0,
 #define KSTACK_MAX_PAGES 32
 #endif
 
+#if defined(__mips__)
+
+static vm_offset_t
+vm_kstack_valloc(int pages)
+{
+	vm_offset_t ks;
+
+	/*
+	 * We need to align the kstack's mapped address to fit within
+	 * a single TLB entry.
+	 */
+	if (vmem_xalloc(kernel_arena,
+	    (pages + KSTACK_GUARD_PAGES) * PAGE_SIZE,
+	    KSTACK_PAGE_SIZE * 2, 0, 0, VMEM_ADDR_MIN, VMEM_ADDR_MAX,
+	    M_BESTFIT | M_NOWAIT, &ks)) {
+		return (0);
+	}
+
+	return (ks);
+}
+
+#define	KSTACK_OBJT		OBJT_DEFAULT
+
+static int
+vm_kstack_palloc(vm_object_t ksobj, vm_offset_t ks, int allocflags, int pages,
+    vm_page_t ma[])
+{
+	int i;
+
+	VM_OBJECT_ASSERT_WLOCKED(ksobj);
+
+	allocflags = (allocflags & ~VM_ALLOC_CLASS_MASK) | VM_ALLOC_NORMAL;
+
+	for (i = 0; i < pages; i++) {
+		/*
+		 * Get a kernel stack page.
+		 */
+		ma[i] = vm_page_grab(ksobj, i, allocflags);
+		if (allocflags & VM_ALLOC_NOBUSY)
+			ma[i]->valid = VM_PAGE_BITS_ALL;
+	}
+
+	return (i);
+}
+
+#else /* ! __mips__ */
+
+#define	KSTACK_OBJT		OBJT_DEFAULT
+
+static vm_offset_t
+vm_kstack_valloc(int pages)
+{
+	vm_offset_t ks;
+
+	ks = kva_alloc((pages + KSTACK_GUARD_PAGES) * PAGE_SIZE);
+
+	return(ks);
+}
+
+static int
+vm_kstack_palloc(vm_object_t ksobj, vm_offset_t ks, int allocflags, int pages,
+    vm_page_t ma[])
+{
+	int i;
+
+	VM_OBJECT_ASSERT_WLOCKED(ksobj);
+
+	allocflags = (allocflags & ~VM_ALLOC_CLASS_MASK) | VM_ALLOC_NORMAL;
+
+	for (i = 0; i < pages; i++) {
+		/*
+		 * Get a kernel stack page.
+		 */
+		ma[i] = vm_page_grab(ksobj, i, allocflags);
+		if (allocflags & VM_ALLOC_NOBUSY)
+			ma[i]->valid = VM_PAGE_BITS_ALL;
+	}
+
+	return (i);
+}
+#endif /* ! __mips__ */
+
+
 /*
  * Create the kernel stack (including pcb for i386) for a new thread.
  * This routine directly affects the fork perf for a process and
@@ -321,9 +404,8 @@ vm_thread_new(struct thread *td, int pages)
 {
 	vm_object_t ksobj;
 	vm_offset_t ks;
-	vm_page_t m, ma[KSTACK_MAX_PAGES];
+	vm_page_t ma[KSTACK_MAX_PAGES];
 	struct kstack_cache_entry *ks_ce;
-	int i;
 
 	/* Bounds check */
 	if (pages <= 1)
@@ -349,24 +431,12 @@ vm_thread_new(struct thread *td, int pages)
 	/*
 	 * Allocate an object for the kstack.
 	 */
-	ksobj = vm_object_allocate(OBJT_DEFAULT, pages);
-	
+	ksobj = vm_object_allocate(KSTACK_OBJT, pages);
+
 	/*
 	 * Get a kernel virtual address for this thread's kstack.
 	 */
-#if defined(__mips__)
-	/*
-	 * We need to align the kstack's mapped address to fit within
-	 * a single TLB entry.
-	 */
-	if (vmem_xalloc(kernel_arena, (pages + KSTACK_GUARD_PAGES) * PAGE_SIZE,
-	    PAGE_SIZE * 2, 0, 0, VMEM_ADDR_MIN, VMEM_ADDR_MAX,
-	    M_BESTFIT | M_NOWAIT, &ks)) {
-		ks = 0;
-	}
-#else
-	ks = kva_alloc((pages + KSTACK_GUARD_PAGES) * PAGE_SIZE);
-#endif
+	ks = vm_kstack_valloc(pages);
 	if (ks == 0) {
 		printf("vm_thread_new: kstack allocation failed\n");
 		vm_object_deallocate(ksobj);
@@ -385,21 +455,15 @@ vm_thread_new(struct thread *td, int pages)
 	 * want to deallocate them.
 	 */
 	td->td_kstack_pages = pages;
-	/* 
-	 * For the length of the stack, link in a real page of ram for each
-	 * page of stack.
-	 */
+
 	VM_OBJECT_WLOCK(ksobj);
-	for (i = 0; i < pages; i++) {
-		/*
-		 * Get a kernel stack page.
-		 */
-		m = vm_page_grab(ksobj, i, VM_ALLOC_NOBUSY |
-		    VM_ALLOC_NORMAL | VM_ALLOC_WIRED);
-		ma[i] = m;
-		m->valid = VM_PAGE_BITS_ALL;
-	}
+	pages = vm_kstack_palloc(ksobj, ks, (VM_ALLOC_NOBUSY | VM_ALLOC_WIRED),
+	    pages, ma);
 	VM_OBJECT_WUNLOCK(ksobj);
+	if (pages == 0) {
+		printf("vm_thread_new: vm_kstack_palloc() failed\n");
+		return (0);
+	}
 	pmap_qenter(ks, ma, pages);
 	return (1);
 }
@@ -526,9 +590,8 @@ vm_thread_swapin(struct thread *td)
 	pages = td->td_kstack_pages;
 	ksobj = td->td_kstack_obj;
 	VM_OBJECT_WLOCK(ksobj);
-	for (i = 0; i < pages; i++)
-		ma[i] = vm_page_grab(ksobj, i, VM_ALLOC_NORMAL |
-		    VM_ALLOC_WIRED);
+	rv = vm_kstack_palloc(ksobj, td->td_kstack, VM_ALLOC_WIRED, pages, ma);
+	KASSERT(rv != 0, ("vm_thread_swapin: vm_kstack_palloc() failed"));
 	for (i = 0; i < pages; i++) {
 		if (ma[i]->valid != VM_PAGE_BITS_ALL) {
 			vm_page_assert_xbusied(ma[i]);
