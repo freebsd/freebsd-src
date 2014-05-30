@@ -59,9 +59,10 @@
 		};
 
 		keyboard-controller {
-			compatible = "google,cros-ec-keyb";
-			keypad,num-rows = <8>;
-			keypad,num-columns = <13>;
+			compatible = "google,mkbp-keyb";
+			google,key-rows = <8>;
+			google,key-columns = <13>;
+			freebsd,intr-gpio = <146>;
 		};
 	};
 

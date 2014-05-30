@@ -105,9 +105,6 @@ __FBSDID("$FreeBSD$");
 #define	CKB_FLAG_POLLING	0x2
 #define	KBD_DRIVER_NAME		"ckbd"
 
-/* TODO: take interrupt from DTS */
-#define	KB_GPIO_INT		146
-
 struct ckb_softc {
 	keyboard_t sc_kbd;
 	keymap_t sc_keymap;
@@ -130,9 +127,11 @@ struct ckb_softc {
 	int			flag;
 	int			rows;
 	int			cols;
+	int			gpio;
 	device_t		dev;
 	device_t		gpio_dev;
 	struct thread		*sc_poll_thread;
+	uint16_t		*keymap;
 
 	uint8_t			*scan_local;
 	uint8_t			*scan;
@@ -199,7 +198,7 @@ static int
 ckb_intr(keyboard_t *kbd, void *arg)
 {
 
-        return (0);
+	return (0);
 }
 
 /* lock the access to the keyboard, not used */
@@ -207,7 +206,7 @@ static int
 ckb_lock(keyboard_t *kbd, int lock)
 {
 
-        return (1);
+	return (1);
 }
 
 /* clear the internal state of the keyboard */
@@ -309,18 +308,31 @@ ckb_read(keyboard_t *kbd, int wait)
 	return (0);
 }
 
-int scantokey(int i, int j);
-
-int
-scantokey(int i, int j)
+static uint16_t
+keymap_read(struct ckb_softc *sc, int col, int row)
 {
-	int k;
 
-	for (k = 0; k < KEYMAP_LEN; k++)
-		if ((keymap[k].col == i) && (keymap[k].row == j))
-			return (keymap[k].key);
+	KASSERT(sc->keymap != NULL, "keymap_read: no keymap");
+	if (col >= 0 && col < sc->cols &&
+	    row >= 0 && row < sc->rows) {
+		return sc->keymap[row * sc->cols + col];
+	}
 
 	return (0);
+}
+
+static int
+keymap_write(struct ckb_softc *sc, int col, int row, uint16_t key)
+{
+
+	KASSERT(sc->keymap != NULL, "keymap_write: no keymap");
+	if (col >= 0 && col < sc->cols &&
+	    row >= 0 && row < sc->rows) {
+		sc->keymap[row * sc->cols + col] = key;
+		return (0);
+	}
+
+	return (-1);
 }
 
 /* read char from the keyboard */
@@ -350,9 +362,10 @@ ckb_read_char_locked(keyboard_t *kbd, int wait)
 
 	if (sc->sc_flags & CKB_FLAG_POLLING) {
 		for (;;) {
-			GPIO_PIN_GET(sc->gpio_dev, KB_GPIO_INT, &status);
+			GPIO_PIN_GET(sc->gpio_dev, sc->gpio, &status);
 			if (status == 0) {
-				if (ec_command(EC_CMD_MKBP_STATE, sc->scan, sc->cols,
+				if (ec_command(EC_CMD_MKBP_STATE, sc->scan,
+					sc->cols,
 				    sc->scan, sc->cols)) {
 					return (NOKEY);
 				}
@@ -373,7 +386,7 @@ ckb_read_char_locked(keyboard_t *kbd, int wait)
 			if (oldbit == newbit)
 				continue;
 
-			key = scantokey(i,j);
+			key = keymap_read(sc, i, j);
 			if (key == 0) {
 				continue;
 			};
@@ -666,27 +679,109 @@ dummy_kbd_configure(int flags)
 
 KEYBOARD_DRIVER(ckbd, ckbdsw, dummy_kbd_configure);
 
+/* 
+ * Parses 'keymap' into sc->keymap.
+ * Requires sc->cols and sc->rows to be set.
+ */
+static int
+parse_keymap(struct ckb_softc *sc, pcell_t *keymap, size_t len)
+{
+	int i;
+
+	sc->keymap = malloc(sc->cols * sc->rows * sizeof(sc->keymap[0]),
+	    M_DEVBUF, M_NOWAIT | M_ZERO);
+	if (sc->keymap == NULL) {
+		return (ENOMEM);
+	}
+
+	for (i = 0; i < len; i++) {
+		/* 
+		 * Return value is ignored, we just write whatever fits into
+		 * specified number of rows and columns and silently ignore
+		 * everything else.
+		 * Keymap entries follow this format: 0xRRCCKKKK
+		 * RR - row number, CC - column number, KKKK - key code
+		 */
+		keymap_write(sc, (keymap[i] >> 16) & 0xff,
+		    (keymap[i] >> 24) & 0xff,
+		    keymap[i] & 0xffff);
+	}
+
+	return (0);
+}
+
+/* Allocates a new array for keymap and returns it in 'keymap'. */
+static int
+read_keymap(phandle_t node, const char *prop, pcell_t **keymap, size_t *len)
+{
+
+	if ((*len = OF_getproplen(node, prop)) <= 0) {
+		return (ENXIO);
+	}
+	if ((*keymap = malloc(*len, M_DEVBUF, M_NOWAIT)) == NULL) {
+		return (ENOMEM);
+	}
+	if (OF_getencprop(node, prop, *keymap, *len) != *len) {
+		return (ENXIO);
+	}
+	return (0);
+}
+
 static int
 parse_dts(struct ckb_softc *sc)
 {
 	phandle_t node;
 	pcell_t dts_value;
-	int len;
+	pcell_t *keymap;
+	int len, ret;
+	const char *keymap_prop = NULL;
 
 	if ((node = ofw_bus_get_node(sc->dev)) == -1)
 		return (ENXIO);
 
-	if ((len = OF_getproplen(node, "keypad,num-rows")) <= 0)
+	if ((len = OF_getproplen(node, "google,key-rows")) <= 0)
 		return (ENXIO);
-	OF_getprop(node, "keypad,num-rows", &dts_value, len);
+	OF_getprop(node, "google,key-rows", &dts_value, len);
 	sc->rows = fdt32_to_cpu(dts_value);
 
-	if ((len = OF_getproplen(node, "keypad,num-columns")) <= 0)
+	if ((len = OF_getproplen(node, "google,key-columns")) <= 0)
 		return (ENXIO);
-	OF_getprop(node, "keypad,num-columns", &dts_value, len);
+	OF_getprop(node, "google,key-columns", &dts_value, len);
 	sc->cols = fdt32_to_cpu(dts_value);
 
-	if ((sc->rows == 0) || (sc->cols == 0))
+	if ((len = OF_getproplen(node, "freebsd,intr-gpio")) <= 0)
+		return (ENXIO);
+	OF_getprop(node, "freebsd,intr-gpio", &dts_value, len);
+	sc->gpio = fdt32_to_cpu(dts_value);
+
+	if (OF_hasprop(node, "freebsd,keymap")) {
+		keymap_prop = "freebsd,keymap";
+		device_printf(sc->dev, "using FreeBSD-specific keymap from FDT\n");
+	} else if (OF_hasprop(node, "linux,keymap")) {
+		keymap_prop = "linux,keymap";
+		device_printf(sc->dev, "using Linux keymap from FDT\n");
+	} else {
+		device_printf(sc->dev, "using built-in keymap\n");
+	}
+
+	if (keymap_prop != NULL) {
+		if ((ret = read_keymap(node, keymap_prop, &keymap, &len))) {
+			device_printf(sc->dev,
+			     "failed to read keymap from FDT: %d\n", ret);
+			return (ret);
+		}
+		ret = parse_keymap(sc, keymap, len);
+		free(keymap, M_DEVBUF);
+		if (ret) {
+			return (ret);
+		}
+	} else {
+		if ((ret = parse_keymap(sc, default_keymap, KEYMAP_LEN))) {
+			return (ret);
+		}
+	}
+
+	if ((sc->rows == 0) || (sc->cols == 0) || (sc->gpio == 0))
 		return (ENXIO);
 
 	return (0);
@@ -721,6 +816,7 @@ chrome_kb_attach(device_t dev)
 	sc = device_get_softc(dev);
 
 	sc->dev = dev;
+	sc->keymap = NULL;
 
 	if ((error = parse_dts(sc)) != 0)
 		return error;
@@ -736,8 +832,7 @@ chrome_kb_attach(device_t dev)
 	    sc->cols, sc->rows);
 #endif
 
-	/* TODO: take interrupt from DTS */
-	pad_setup_intr(KB_GPIO_INT, ckb_ec_intr, sc);
+	pad_setup_intr(sc->gpio, ckb_ec_intr, sc);
 
 	kbd = &sc->sc_kbd;
 	rid = 0;
@@ -786,7 +881,8 @@ chrome_kb_probe(device_t dev)
 	if (!ofw_bus_status_okay(dev))
 		return (ENXIO);
 
-	if (ofw_bus_is_compatible(dev, "google,cros-ec-keyb")) {
+	if (ofw_bus_is_compatible(dev, "google,cros-ec-keyb") ||
+	    ofw_bus_is_compatible(dev, "google,mkbp-keyb")) {
 		device_set_desc(dev, "Chrome EC Keyboard");
 		return (BUS_PROBE_DEFAULT);
 	}
@@ -794,9 +890,24 @@ chrome_kb_probe(device_t dev)
 	return (ENXIO);
 }
 
+static int
+chrome_kb_detach(device_t dev)
+{
+	struct ckb_softc *sc;
+
+	sc = device_get_softc(dev);
+
+	if (sc->keymap != NULL) {
+		free(sc->keymap, M_DEVBUF);
+	}
+
+	return 0;
+}
+
 static device_method_t chrome_kb_methods[] = {
 	DEVMETHOD(device_probe,		chrome_kb_probe),
 	DEVMETHOD(device_attach,	chrome_kb_attach),
+	DEVMETHOD(device_detach,	chrome_kb_detach),
 	{ 0, 0 }
 };
 
