@@ -30,6 +30,7 @@ S=${.CURDIR}/../..
 
 .PATH: \
 	${.CURDIR} \
+	${.CURDIR}/storage \
 	${S}/dev/usb \
 	${S}/dev/usb/controller \
 	${S}/dev/usb/serial \
@@ -39,7 +40,7 @@ S=${.CURDIR}/../..
 LIB=		usbboot
 INTERNALLIB=
 OBJCOPY?=	objcopy
-SYSCC?=		cc
+SYSCC?=		/usr/bin/cc
 
 CFLAGS+=	-DBOOTPROG=\"usbloader\"
 CFLAGS+=	-DUSB_GLOBAL_INCLUDE_FILE=\"bsd_global.h\"
@@ -49,7 +50,13 @@ CFLAGS+=	-Wformat -Wall
 CFLAGS+=	-I${S}
 CFLAGS+=	-I${T}
 CFLAGS+=	-I${.CURDIR}
+CFLAGS+=	-I${.CURDIR}/../common
 CFLAGS+=	-g
+CFLAGS+=	-DUSB_MSCTEST_BULK_SIZE=65536
+CFLAGS+=	-DUSB_POOL_SIZE=262144
+CFLAGS+=	-fno-pic
+CFLAGS+=	-DHAVE_ENDIAN_DEFS
+CFLAGS+=	-DHAVE_MALLOC
 
 .if ${MACHINE_CPUARCH} == "i386" || ${MACHINE_CPUARCH} == "amd64"
 CFLAGS+=	-march=i386
@@ -57,6 +64,9 @@ CFLAGS.gcc+=	-mpreferred-stack-boundary=2
 .endif
 .if ${MACHINE_CPUARCH} == "amd64"
 CFLAGS+=	-m32
+.endif
+.if ${MACHINE_CPUARCH} == "mips"
+CFLAGS+=	-mno-abicalls
 .endif
 
 #
@@ -77,19 +87,66 @@ SRCS+=	usb_busdma_loader.c
 #
 # USB controller drivers
 #
-SRCS+=	at91dci.c
-SRCS+=	atmegadci.c
-SRCS+=	avr32dci.c
-SRCS+=	dwc_otg.c
-SRCS+=	ehci.c
-SRCS+=	musb_otg.c
-SRCS+=	ohci.c
-SRCS+=	uhci.c
-SRCS+=	uss820dci.c
-SRCS+=	xhci.c
+
 SRCS+=	usb_controller.c
 
-CFLAGS += -DUSB_PROBE_LIST="\"xhci\", \"ehci\", \"uhci\", \"ohci\""
+.if defined(HAVE_AT91DCI)
+CFLAGS += -DUSB_PCI_PROBE_LIST="\"at91dci\""
+SRCS+=	at91dci.c
+.endif
+
+.if defined(HAVE_ATMEGADCI)
+CFLAGS += -DUSB_PCI_PROBE_LIST="\"atmegadci\""
+SRCS+=	atmegadci.c
+.endif
+
+.if defined(HAVE_AVR32DCI)
+CFLAGS += -DUSB_PCI_PROBE_LIST="\"avr32dci\""
+SRCS+=	avr32dci.c
+.endif
+
+.if defined(HAVE_DWCOTG)
+CFLAGS += -DUSB_PCI_PROBE_LIST="\"dwcotg\""
+SRCS+=	dwcotg.c
+.endif
+
+.if defined(HAVE_MUSBOTG)
+CFLAGS += -DUSB_PCI_PROBE_LIST="\"musbotg\""
+SRCS+=	musbotg.c
+.endif
+
+.if defined(HAVE_EHCI)
+CFLAGS += -DUSB_PCI_PROBE_LIST="\"ehci\""
+SRCS+=	ehci.c
+.endif
+
+.if defined(HAVE_OHCI)
+CFLAGS += -DUSB_PCI_PROBE_LIST="\"ohci\""
+SRCS+=	ohci.c
+.endif
+
+.if defined(HAVE_UHCI)
+CFLAGS += -DUSB_PCI_PROBE_LIST="\"uhci\""
+SRCS+=	uhci.c
+.endif
+
+.if defined(HAVE_XHCI)
+CFLAGS += -DUSB_PCI_PROBE_LIST="\"xhci\""
+SRCS+=	xhci.c
+.endif
+
+.if defined(HAVE_USS820DCI)
+CFLAGS += -DUSB_PCI_PROBE_LIST="\"uss820dci\""
+SRCS+=	uss820dci.c
+.endif
+
+.if defined(HAVE_SAF1761OTG)
+CFLAGS += -DUSB_PCI_PROBE_LIST="\"saf1761otg\""
+CFLAGS += -DUSB_PCI_MEMORY_ADDRESS=0x900000007f100000ULL
+CFLAGS += -DUSB_PCI_MEMORY_SIZE=0x40000U
+SRCS+=	saf1761_otg.c
+SRCS+=	saf1761_otg_boot.c
+.endif
 
 #
 # USB core and templates
@@ -118,6 +175,15 @@ SRCS+=	usb_template_kbd.c
 SRCS+=	usb_template_audio.c
 SRCS+=	sysinit_data.c
 SRCS+=	sysuninit_data.c
+
+#
+# USB mass storage support
+#
+SRCS+=	umass_common.c
+
+.if defined(HAVE_UMASS_LOADER)
+SRCS+=	umass_loader.c
+.endif
 
 CLEANFILES+= sysinit
 CLEANFILES+= sysinit.bin
