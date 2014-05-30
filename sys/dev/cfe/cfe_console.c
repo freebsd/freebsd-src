@@ -62,8 +62,7 @@ static struct ttydevsw cfe_ttydevsw = {
 static int			conhandle = -1;
 /* XXX does cfe have to poll? */
 static int			polltime;
-static struct callout_handle	cfe_timeouthandle
-    = CALLOUT_HANDLE_INITIALIZER(&cfe_timeouthandle);
+static struct callout		cfe_timer;
 
 #if defined(KDB)
 static int			alt_break_state;
@@ -89,6 +88,7 @@ cn_drvinit(void *unused)
 	if (cfe_consdev.cn_pri != CN_DEAD &&
 	    cfe_consdev.cn_name[0] != '\0') {
 		tp = tty_alloc(&cfe_ttydevsw, NULL);
+		callout_init_mtx(&cfe_timer, tty_getlock(tp), 0);
 		tty_makedev(tp, NULL, "cfecons");
 	}
 }
@@ -99,7 +99,7 @@ cfe_tty_open(struct tty *tp)
 	polltime = hz / CFECONS_POLL_HZ;
 	if (polltime < 1)
 		polltime = 1;
-	cfe_timeouthandle = timeout(cfe_timeout, tp, polltime);
+	callout_reset(&cfe_timer, polltime, cfe_timeout, tp);
 
 	return (0);
 }
@@ -108,8 +108,7 @@ static void
 cfe_tty_close(struct tty *tp)
 {
 
-	/* XXX Should be replaced with callout_stop(9) */
-	untimeout(cfe_timeout, tp, cfe_timeouthandle);
+	callout_stop(&cfe_timer);
 }
 
 static void
@@ -141,13 +140,12 @@ cfe_timeout(void *v)
 
 	tp = (struct tty *)v;
 
-	tty_lock(tp);
+	tty_lock_assert(tp, MA_OWNED);
 	while ((c = cfe_cngetc(NULL)) != -1)
 		ttydisc_rint(tp, c, 0);
 	ttydisc_rint_done(tp);
-	tty_unlock(tp);
 
-	cfe_timeouthandle = timeout(cfe_timeout, tp, polltime);
+	callout_reset(&cfe_timer, polltime, cfe_timeout, tp);
 }
 
 static void
