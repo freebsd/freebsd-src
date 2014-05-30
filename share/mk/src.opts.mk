@@ -369,7 +369,10 @@ MK_LLDB:=	no
 
 .if ${MK_CHERI} != "no"
 .if defined(USE_CHERI)
-.if defined(CHERI_CC)
+CHERI_CC?=	/usr/local/bin/cheri-unknown-freebsd-clang
+.if ! exists(${CHERI_CC})
+.error USE_CHERI is defined and CHERI_CC is ${CHERI_CC}, but it doesn't exist.
+.endif
 CC:=    ${CHERI_CC} -integrated-as
 .if defined(SYSROOT)
 CC+=    --sysroot=${SYSROOT}
@@ -379,7 +382,6 @@ CC+=    -mllvm -cheri-stack-cap
 .endif
 # XXXRW: Needed as Clang rejects -G0 when using $CC to link.
 CFLAGS+=        -Qunused-arguments
-.endif
 .endif
 .endif
 
