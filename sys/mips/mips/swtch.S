@@ -323,6 +323,8 @@ blocked_loop:
 	PTR_S	a2, PC_CURPCB(a3)
 	PTR_L	v0, TD_KSTACK(a1)		# va of 1st half of kstack
 #if defined(__mips_n64)
+	PTR_LI	s0,2*PAGE_SIZE
+	PTR_SUB	v1,v0,s0
 	PTR_LI	s0, MIPS_XKSEG_START
 #else
 	PTR_LI	s0, MIPS_KSEG2_START		# If Uarea addr is below kseg2,
@@ -369,6 +371,49 @@ entry0set:
 	HAZARD_DELAY
 
 sw2:
+#if defined(__mips_n64)
+/*
+ * XXXSS
+ * A Workaround for the small kernel thread stack.  We use two wired
+ * TLB entries to double the stack size to 16K (- sizeof(struct pcb)).
+ */
+	PTR_LI		s0, MIPS_XKSEG_START
+	bltu		v1, s0, sw3						# no need to insert in TLB.
+	PTE_L		a1, TD_UPTE + 2 * PTESIZE(s7)	# a1 = md_upte[2]
+	PTE_L		a2, TD_UPTE + 3 * PTESIZE(s7)	# a2 = md_upte[3]
+
+	MTC0		v1, MIPS_COP_0_TLB_HI			# VPN = va
+	HAZARD_DELAY
+	tlbp										# probe VPN
+	HAZARD_DELAY
+	mfc0		s0, MIPS_COP_0_TLB_INDEX
+	HAZARD_DELAY
+
+	PTR_LI		t1, MIPS_KSEG0_START
+	bltz		s0, entry1set
+	nop
+	sll			s0, PAGE_SHIFT + 1			# invalidate TLB entry
+	addu		t1, s0
+	MTC0		t1, MIPS_COP_0_TLB_HI
+	PTE_MTC0	zero, MIPS_COP_0_TLB_LO0
+	PTE_MTC0	zero, MIPS_COP_0_TLB_LO1
+	HAZARD_DELAY
+	tlbwi
+	HAZARD_DELAY
+	MTC0		v1, MIPS_COP_0_TLB_HI		# set VPN again
+	HAZARD_DELAY
+
+entry1set:
+	PTR_LI		t1, 1
+	mtc0		t1, MIPS_COP_0_TLB_INDEX	# TLB entry #1
+	HAZARD_DELAY
+	PTE_MTC0	a1, MIPS_COP_0_TLB_LO0		# md_upte[2]
+	HAZARD_DELAY
+	PTE_MTC0	a2, MIPS_COP_0_TLB_LO1		# md_upte[3]
+	HAZARD_DELAY
+	tlbwi									# set TLB entry #1
+	HAZARD_DELAY
+#endif /* __mips_n64 */
 /*
  * Now running on new u struct.
  */
