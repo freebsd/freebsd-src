@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2002 Mike Barcroft <mike@FreeBSD.org>
+ * Copyright (c) 2011, 2012 The FreeBSD Foundation
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -26,43 +26,23 @@
  * $FreeBSD$
  */
 
-#ifndef _STRINGS_H_
-#define	_STRINGS_H_
-
-#include <sys/cdefs.h>
-#include <sys/_types.h>
-
-#ifndef _SIZE_T_DECLARED
-typedef	__size_t	size_t;
-#define	_SIZE_T_DECLARED
+#ifndef _LOCALE_T_DEFINED
+#define _LOCALE_T_DEFINED
+typedef struct	_xlocale *locale_t;
 #endif
 
-__BEGIN_DECLS
-#if __BSD_VISIBLE || __POSIX_VISIBLE <= 200112
-int	 bcmp(const void *, const void *, size_t) __pure;	/* LEGACY */
-void	 bcopy(const void *, void *, size_t);			/* LEGACY */
-void	 bzero(void *, size_t);					/* LEGACY */
-#endif
-#if __XSI_VISIBLE
-int	 ffs(int) __pure2;
-#endif
-#if __BSD_VISIBLE
-int	 ffsl(long) __pure2;
-int	 ffsll(long long) __pure2;
-int	 fls(int) __pure2;
-int	 flsl(long) __pure2;
-int	 flsll(long long) __pure2;
-#endif
-#if __BSD_VISIBLE || __POSIX_VISIBLE <= 200112
-char	*index(const char *, int) __pure;			/* LEGACY */
-char	*rindex(const char *, int) __pure;			/* LEGACY */
-#endif
-int	 strcasecmp(const char *, const char *) __pure;
-int	 strncasecmp(const char *, const char *, size_t) __pure;
+/*
+ * This file is included from both strings.h and xlocale.h.  We need to expose
+ * the declarations unconditionally if we are included from xlocale.h, but only
+ * if we are in POSIX2008 mode if included from string.h.
+ */
 
-#if __POSIX_VISIBLE >= 200809 || defined(_XLOCALE_H_)
-#include <xlocale/_strings.h>
-#endif
-__END_DECLS
+#ifndef _XLOCALE_STRINGS1_H
+#define _XLOCALE_STRINGS1_H
 
-#endif /* _STRINGS_H_ */
+/*
+ * POSIX2008 functions
+ */
+int	 strcasecmp_l(const char *, const char *, locale_t);
+int	 strncasecmp_l(const char *, const char *, size_t, locale_t);
+#endif /* _XLOCALE_STRINGS1_H */
