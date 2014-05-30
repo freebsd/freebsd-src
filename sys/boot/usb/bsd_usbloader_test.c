@@ -37,6 +37,7 @@ extern void usb_uninit(void);
 
 #define	hz 1000
 
+#ifdef HAVE_MALLOC
 void *
 usb_malloc(size_t size)
 {
@@ -48,6 +49,7 @@ usb_free(void *ptr)
 {
 	free(ptr);
 }
+#endif
 
 void
 DELAY(unsigned int delay)
