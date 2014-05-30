@@ -1,4 +1,4 @@
-# RADXA -- Custom configuration for the RADXA ARM development
+# RADXA-LITE -- Custom configuration for the RADXA LITE ARM development
 # platform, check out http://www.radxa.com
 #
 # For more information on this file, please read the handbook section on
@@ -19,9 +19,9 @@
 # $FreeBSD$
 
 include		"RK3188"
-ident		RADXA
+ident		RADXA-LITE
 
 # Flattened Device Tree
 options 	FDT
 options 	FDT_DTB_STATIC
-makeoptions	FDT_DTS_FILE=rk3188-radxa.dts
+makeoptions	FDT_DTS_FILE=rk3188-radxa-lite.dts
