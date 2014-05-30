@@ -180,9 +180,43 @@ gpio_ctrl(struct exynos_ehci_softc *esc, int dir, int power)
 }
 
 static int
+reset_hsic_hub(struct exynos_ehci_softc *esc, phandle_t hub)
+{
+	device_t gpio_dev;
+	pcell_t pin;
+
+	/* TODO(imax): check that hub is compatible with "smsc,usb3503" */
+	if (!OF_hasprop(hub, "freebsd,reset-gpio")) {
+		device_printf(esc->dev,
+		    "cannot detect reset GPIO pin for HSIC hub\n");
+		return (1);
+	}
+
+	if (OF_getencprop(hub, "freebsd,reset-gpio", &pin, sizeof(pin)) < 0) {
+		device_printf(esc->dev,
+		    "failed to decode reset GPIO pin number for HSIC hub\n");
+		return (1);
+	}
+
+	/* Get the GPIO device, we need this to give power to USB */
+	gpio_dev = devclass_get_device(devclass_find("gpio"), 0);
+	if (gpio_dev == NULL) {
+		device_printf(esc->dev, "cant find gpio_dev\n");
+		return (1);
+	}
+
+	GPIO_PIN_SET(gpio_dev, pin, GPIO_PIN_LOW);
+	DELAY(100);
+	GPIO_PIN_SET(gpio_dev, pin, GPIO_PIN_HIGH);
+
+	return (0);
+}
+
+static int
 phy_init(struct exynos_ehci_softc *esc)
 {
 	int reg;
+	phandle_t hub;
 
 	gpio_ctrl(esc, GPIO_INPUT, 1);
 
@@ -211,6 +245,10 @@ phy_init(struct exynos_ehci_softc *esc)
 	reg = bus_space_read_4(esc->host_bst, esc->host_bsh, 0x0);
 	reg &= ~(HOST_CTRL_RESET_LINK);
 	bus_space_write_4(esc->host_bst, esc->host_bsh, 0x0, reg);
+
+	if ((hub = OF_finddevice("/hsichub")) != 0) {
+		reset_hsic_hub(esc, hub);
+	}
 
 	gpio_ctrl(esc, GPIO_OUTPUT, 1);
 
