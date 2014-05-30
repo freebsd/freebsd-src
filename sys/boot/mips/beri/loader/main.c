@@ -215,13 +215,25 @@ time(time_t *tloc)
 }
 
 /*
- * Delay - presumably in usecs?
+ * Delay - in usecs
+ *
+ * NOTE: We are assuming that the CPU is running at 100MHz.
  */
 void
 delay(int usecs)
 {
-	register_t t;
+	uint32_t delta;
+	uint32_t curr;
+	uint32_t last;
 
-	t = cp0_count_get() + usecs * 100;
-	while (cp0_count_get() < t);
+	last = cp0_count_get();
+	while (usecs > 0) {
+		curr = cp0_count_get();
+		delta = curr - last;
+		while (usecs > 0 && delta >= 100) {
+			usecs--;
+			last += 100;
+			delta -= 100;
+		}
+	}
 }
