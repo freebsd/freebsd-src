@@ -291,11 +291,23 @@ saf1761_host_channel_free(struct saf1761_otg_softc *sc, struct saf1761_otg_td *t
 }
 
 static uint32_t
-saf1761_peek_host_memory_le_4(struct saf1761_otg_softc *sc, uint32_t offset)
+saf1761_peek_host_status_le_4(struct saf1761_otg_softc *sc, uint32_t offset)
 {
-	SAF1761_WRITE_LE_4(sc, SOTG_MEMORY_REG, offset);
-	SAF1761_90NS_DELAY(sc);	/* read prefetch time is 90ns */
-	return (SAF1761_READ_LE_4(sc, offset));
+	uint32_t x = 0;
+	while (1) {
+		uint32_t retval;
+
+		SAF1761_WRITE_LE_4(sc, SOTG_MEMORY_REG, offset);
+		SAF1761_90NS_DELAY(sc);	/* read prefetch time is 90ns */
+		retval = SAF1761_READ_LE_4(sc, offset);
+		if (retval != 0)
+			return (retval);
+		if (++x == 8) {
+			DPRINTF("STAUS is zero at offset 0x%x\n", offset);
+			break;
+		}
+	}
+	return (0);
 }
 
 static void
@@ -415,9 +427,7 @@ saf1761_host_setup_tx(struct saf1761_otg_softc *sc, struct saf1761_otg_td *td)
 	if (td->channel < SOTG_HOST_CHANNEL_MAX) {
 		pdt_addr = SOTG_PTD(td->channel);
 
-		status = saf1761_peek_host_memory_le_4(sc, pdt_addr + SOTG_PTD_DW3);
-		if (status == 0)
-			status = saf1761_peek_host_memory_le_4(sc, pdt_addr + SOTG_PTD_DW3);
+		status = saf1761_peek_host_status_le_4(sc, pdt_addr + SOTG_PTD_DW3);
 
 		DPRINTFN(5, "STATUS=0x%08x\n", status);
 
@@ -487,9 +497,7 @@ saf1761_host_bulk_data_rx(struct saf1761_otg_softc *sc, struct saf1761_otg_td *t
 
 		pdt_addr = SOTG_PTD(td->channel);
 
-		status = saf1761_peek_host_memory_le_4(sc, pdt_addr + SOTG_PTD_DW3);
-		if (status == 0)
-			status = saf1761_peek_host_memory_le_4(sc, pdt_addr + SOTG_PTD_DW3);
+		status = saf1761_peek_host_status_le_4(sc, pdt_addr + SOTG_PTD_DW3);
 
 		DPRINTFN(5, "STATUS=0x%08x\n", status);
 
@@ -591,9 +599,7 @@ saf1761_host_bulk_data_tx(struct saf1761_otg_softc *sc, struct saf1761_otg_td *t
 
 		pdt_addr = SOTG_PTD(td->channel);
 
-		status = saf1761_peek_host_memory_le_4(sc, pdt_addr + SOTG_PTD_DW3);
-		if (status == 0)
-			status = saf1761_peek_host_memory_le_4(sc, pdt_addr + SOTG_PTD_DW3);
+		status = saf1761_peek_host_status_le_4(sc, pdt_addr + SOTG_PTD_DW3);
 
 		DPRINTFN(5, "STATUS=0x%08x\n", status);
 
@@ -681,9 +687,7 @@ saf1761_host_intr_data_rx(struct saf1761_otg_softc *sc, struct saf1761_otg_td *t
 
 		pdt_addr = SOTG_PTD(td->channel);
 
-		status = saf1761_peek_host_memory_le_4(sc, pdt_addr + SOTG_PTD_DW3);
-		if (status == 0)
-			status = saf1761_peek_host_memory_le_4(sc, pdt_addr + SOTG_PTD_DW3);
+		status = saf1761_peek_host_status_le_4(sc, pdt_addr + SOTG_PTD_DW3);
 
 		DPRINTFN(5, "STATUS=0x%08x\n", status);
 
@@ -788,9 +792,7 @@ saf1761_host_intr_data_tx(struct saf1761_otg_softc *sc, struct saf1761_otg_td *t
 
 		pdt_addr = SOTG_PTD(td->channel);
 
-		status = saf1761_peek_host_memory_le_4(sc, pdt_addr + SOTG_PTD_DW3);
-		if (status == 0)
-			status = saf1761_peek_host_memory_le_4(sc, pdt_addr + SOTG_PTD_DW3);
+		status = saf1761_peek_host_status_le_4(sc, pdt_addr + SOTG_PTD_DW3);
 
 		DPRINTFN(5, "STATUS=0x%08x\n", status);
 
