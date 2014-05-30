@@ -507,6 +507,8 @@ bbb_attach(struct usb_device *udev, uint8_t iface_index)
 	struct usb_interface_descriptor *id;
 	struct bbb_transfer *sc;
 	usb_error_t err;
+
+#if USB_HAVE_MSCTEST_DETACH
 	uint8_t do_unlock;
 
 	/* Prevent re-enumeration */
@@ -520,6 +522,7 @@ bbb_attach(struct usb_device *udev, uint8_t iface_index)
 
 	if (do_unlock)
 		usbd_enum_unlock(udev);
+#endif
 
 	iface = usbd_get_iface(udev, iface_index);
 	if (iface == NULL)
