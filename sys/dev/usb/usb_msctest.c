@@ -87,9 +87,10 @@ enum {
 	DIR_NONE,
 };
 
-#define	SCSI_MAX_LEN	MAX(0x100, BULK_SIZE)
+#define	SCSI_MAX_LEN	MAX(SCSI_FIXED_BLOCK_SIZE, USB_MSCTEST_BULK_SIZE)
 #define	SCSI_INQ_LEN	0x24
 #define	SCSI_SENSE_LEN	0xFF
+#define	SCSI_FIXED_BLOCK_SIZE 512	/* bytes */
 
 static uint8_t scsi_test_unit_ready[] = { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
 static uint8_t scsi_inquiry[] = { 0x12, 0x00, 0x00, 0x00, SCSI_INQ_LEN, 0x00 };
@@ -110,7 +111,10 @@ static uint8_t scsi_request_sense[] =	{ 0x03, 0x00, 0x00, 0x00, 0x12, 0x00,
 static uint8_t scsi_read_capacity[] =	{ 0x25, 0x00, 0x00, 0x00, 0x00, 0x00,
 					  0x00, 0x00, 0x00, 0x00 };
 
-#define	BULK_SIZE		64	/* dummy */
+#ifndef USB_MSCTEST_BULK_SIZE
+#define	USB_MSCTEST_BULK_SIZE	64	/* dummy */
+#endif
+
 #define	ERR_CSW_FAILED		-1
 
 /* Command Block Wrapper */
@@ -850,4 +854,102 @@ usb_msc_eject(struct usb_device *udev, uint8_t iface_index, int method)
 
 	bbb_detach(sc);
 	return (0);
+}
+
+usb_error_t
+usb_msc_read_10(struct usb_device *udev, uint8_t iface_index,
+    uint32_t lba, uint32_t blocks, void *buffer)
+{
+	struct bbb_transfer *sc;
+	uint8_t cmd[10];
+	usb_error_t err;
+
+	cmd[0] = 0x28;		/* READ_10 */
+	cmd[1] = 0;
+	cmd[2] = lba >> 24;
+	cmd[3] = lba >> 16;
+	cmd[4] = lba >> 8;
+	cmd[5] = lba >> 0;
+	cmd[6] = 0;
+	cmd[7] = blocks >> 8;
+	cmd[8] = blocks;
+	cmd[9] = 0;
+
+	sc = bbb_attach(udev, iface_index);
+	if (sc == NULL)
+		return (USB_ERR_INVAL);
+
+	err = bbb_command_start(sc, DIR_IN, 0, buffer,
+	    blocks * SCSI_FIXED_BLOCK_SIZE, cmd, 10, USB_MS_HZ);
+
+	bbb_detach(sc);
+
+	return (err);
+}
+
+usb_error_t
+usb_msc_write_10(struct usb_device *udev, uint8_t iface_index,
+    uint32_t lba, uint32_t blocks, void *buffer)
+{
+	struct bbb_transfer *sc;
+	uint8_t cmd[10];
+	usb_error_t err;
+
+	cmd[0] = 0x2a;		/* WRITE_10 */
+	cmd[1] = 0;
+	cmd[2] = lba >> 24;
+	cmd[3] = lba >> 16;
+	cmd[4] = lba >> 8;
+	cmd[5] = lba >> 0;
+	cmd[6] = 0;
+	cmd[7] = blocks >> 8;
+	cmd[8] = blocks;
+	cmd[9] = 0;
+
+	sc = bbb_attach(udev, iface_index);
+	if (sc == NULL)
+		return (USB_ERR_INVAL);
+
+	err = bbb_command_start(sc, DIR_OUT, 0, buffer,
+	    blocks * SCSI_FIXED_BLOCK_SIZE, cmd, 10, USB_MS_HZ);
+
+	bbb_detach(sc);
+
+	return (err);
+}
+
+usb_error_t
+usb_msc_read_capacity(struct usb_device *udev, uint8_t iface_index,
+    uint32_t *lba_last, uint32_t *block_size)
+{
+	struct bbb_transfer *sc;
+	usb_error_t err;
+
+	sc = bbb_attach(udev, iface_index);
+	if (sc == NULL)
+		return (USB_ERR_INVAL);
+
+	err = bbb_command_start(sc, DIR_IN, 0, sc->buffer, 8,
+	    &scsi_read_capacity, sizeof(scsi_read_capacity),
+	    USB_MS_HZ);
+
+	*lba_last =
+	    (sc->buffer[0] << 24) | 
+	    (sc->buffer[1] << 16) |
+	    (sc->buffer[2] << 8) |
+	    (sc->buffer[3]);
+
+	*block_size =
+	    (sc->buffer[4] << 24) | 
+	    (sc->buffer[5] << 16) |
+	    (sc->buffer[6] << 8) |
+	    (sc->buffer[7]);
+
+	/* we currently only support one block size */
+	if (*block_size != SCSI_FIXED_BLOCK_SIZE)
+		err = USB_ERR_INVAL;
+
+	bbb_detach(sc);
+
+	return (err);
 }
