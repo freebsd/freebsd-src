@@ -311,6 +311,7 @@ void
 cpu_thread_swapin(struct thread *td)
 {
 	pt_entry_t *pte;
+	int i;
 
 	/*
 	 * The kstack may be at a different physical address now.
@@ -318,21 +319,10 @@ cpu_thread_swapin(struct thread *td)
 	 * part of the thread struct so cpu_switch() can quickly map in
 	 * the pcb struct and kernel stack.
 	 */
-#ifdef KSTACK_LARGE_PAGE
-	/* Just one entry for one large kernel page. */
-	pte = pmap_pte(kernel_pmap, td->td_kstack);
-	td->td_md.md_upte[0] = *pte & ~TLBLO_SWBITS_MASK;
-	td->td_md.md_upte[1] = 1;
-
-#else
-
-	int i;
-
 	for (i = 0; i < KSTACK_PAGES; i++) {
 		pte = pmap_pte(kernel_pmap, td->td_kstack + i * PAGE_SIZE);
 		td->td_md.md_upte[i] = *pte & ~TLBLO_SWBITS_MASK;
 	}
-#endif /* ! KSTACK_LARGE_PAGE */
 }
 
 void
@@ -344,31 +334,17 @@ void
 cpu_thread_alloc(struct thread *td)
 {
 	pt_entry_t *pte;
+	int i;
 
-	KASSERT((td->td_kstack & ((KSTACK_PAGE_SIZE * 2) - 1) ) == 0,
-	    ("kernel stack must be aligned."));
+	KASSERT((td->td_kstack & (1 << PAGE_SHIFT)) == 0, ("kernel stack must be aligned."));
 	td->td_pcb = (struct pcb *)(td->td_kstack +
 	    td->td_kstack_pages * PAGE_SIZE) - 1;
 	td->td_frame = &td->td_pcb->pcb_regs;
 
-#ifdef KSTACK_LARGE_PAGE
-	/* Just one entry for one large kernel page. */
-	pte = pmap_pte(kernel_pmap, td->td_kstack);
-	td->td_md.md_upte[0] = *pte & ~TLBLO_SWBITS_MASK;
-	td->td_md.md_upte[1] = 1;
-
-#else
-
-	{
-		int i;
-
-		for (i = 0; i < KSTACK_PAGES; i++) {
-			pte = pmap_pte(kernel_pmap, td->td_kstack + i *
-			    PAGE_SIZE);
-			td->td_md.md_upte[i] = *pte & ~TLBLO_SWBITS_MASK;
-		}
+	for (i = 0; i < KSTACK_PAGES; i++) {
+		pte = pmap_pte(kernel_pmap, td->td_kstack + i * PAGE_SIZE);
+		td->td_md.md_upte[i] = *pte & ~TLBLO_SWBITS_MASK;
 	}
-#endif /* ! KSTACK_LARGE_PAGE */
 }
 
 void
