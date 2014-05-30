@@ -430,7 +430,6 @@ size_t	strlen(const char *s);
 
 /* MALLOC API */
 
-#ifndef HAVE_MALLOC
 #undef malloc
 #define	malloc(s,x,f) usb_malloc(s)
 void   *usb_malloc(size_t);
@@ -438,15 +437,6 @@ void   *usb_malloc(size_t);
 #undef free
 #define	free(p,x) usb_free(p)
 void	usb_free(void *);
-#else
-#undef malloc
-void *malloc(size_t);
-#define	malloc(s,x,f) malloc(s)
-
-#undef free
-void free(void *);
-#define	free(p,x) free(p)
-#endif
 
 #define	strdup(p,x) usb_strdup(p)
 char   *usb_strdup(const char *str);
