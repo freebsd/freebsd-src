@@ -64,6 +64,7 @@ static int	kvprintf(char const *fmt, kvprintf_fn_t *func, void *arg, int radix, 
 static void
 putchar_wrapper(int cc, void *arg)
 {
+
 	putchar(cc);
 }
 
@@ -82,6 +83,7 @@ printf(const char *fmt, ...)
 void
 vprintf(const char *fmt, va_list ap)
 {
+
 	kvprintf(fmt, putchar_wrapper, NULL, 10, ap);
 }
 
