@@ -73,7 +73,7 @@ CFLAGS+=	-mno-mmx -mno-sse -msoft-float
 INLINE_LIMIT?=	8000
 .endif
 
-.if ${MACHINE_CPUARCH} == "arm"
+.if ${MACHINE_CPUARCH} == "arm" || ${MACHINE_CPUARCH} == "arm64"
 INLINE_LIMIT?=	8000
 .endif
 
@@ -159,7 +159,8 @@ CFLAGS+=	-ffreestanding
 # GCC SSP support
 #
 .if ${MK_SSP} != "no" && ${MACHINE_CPUARCH} != "ia64" && \
-    ${MACHINE_CPUARCH} != "arm" && ${MACHINE_CPUARCH} != "mips"
+    ${MACHINE_CPUARCH} != "arm" && ${MACHINE_CPUARCH} != "mips" && \
+    ${MACHINE_CPUARCH} != "arm64"
 CFLAGS+=	-fstack-protector
 .endif
 
