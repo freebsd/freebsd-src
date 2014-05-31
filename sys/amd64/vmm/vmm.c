@@ -342,8 +342,6 @@ vm_create(const char *name, struct vm **retvm)
 	struct vm *vm;
 	struct vmspace *vmspace;
 
-	const int BSP = 0;
-
 	/*
 	 * If vmm.ko could not be successfully initialized then don't attempt
 	 * to create the virtual machine.
@@ -372,8 +370,6 @@ vm_create(const char *name, struct vm **retvm)
 		vcpu_init(vm, i);
 		guest_msrs_init(vm, i);
 	}
-
-	vm_activate_cpu(vm, BSP);
 
 	*retvm = vm;
 	return (0);
@@ -1294,6 +1290,12 @@ vm_run(struct vm *vm, struct vm_run *vmrun)
 	if (vcpuid < 0 || vcpuid >= VM_MAXCPU)
 		return (EINVAL);
 
+	if (!CPU_ISSET(vcpuid, &vm->active_cpus))
+		return (EINVAL);
+
+	if (CPU_ISSET(vcpuid, &vm->suspended_cpus))
+		return (EINVAL);
+
 	rptr = &vm->rendezvous_func;
 	sptr = &vm->suspend;
 	pmap = vmspace_pmap(vm->vmspace);
@@ -1708,17 +1710,19 @@ vcpu_get_state(struct vm *vm, int vcpuid, int *hostcpu)
 	return (state);
 }
 
-void
+int
 vm_activate_cpu(struct vm *vm, int vcpuid)
 {
 
-	KASSERT(vcpuid >= 0 && vcpuid < VM_MAXCPU,
-	    ("vm_activate_cpu: invalid vcpuid %d", vcpuid));
-	KASSERT(!CPU_ISSET(vcpuid, &vm->active_cpus),
-	    ("vm_activate_cpu: vcpuid %d is already active", vcpuid));
+	if (vcpuid < 0 || vcpuid >= VM_MAXCPU)
+		return (EINVAL);
+
+	if (CPU_ISSET(vcpuid, &vm->active_cpus))
+		return (EBUSY);
 
 	VCPU_CTR0(vm, vcpuid, "activated");
 	CPU_SET_ATOMIC(vcpuid, &vm->active_cpus);
+	return (0);
 }
 
 cpuset_t
@@ -1726,6 +1730,13 @@ vm_active_cpus(struct vm *vm)
 {
 
 	return (vm->active_cpus);
+}
+
+cpuset_t
+vm_suspended_cpus(struct vm *vm)
+{
+
+	return (vm->suspended_cpus);
 }
 
 void *
