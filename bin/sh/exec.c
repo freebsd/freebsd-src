@@ -362,15 +362,13 @@ find_command(const char *name, struct cmdentry *entry, int act,
 
 	e = ENOENT;
 	idx = -1;
-loop:
-	while ((fullname = padvance(&path, name)) != NULL) {
-		stunalloc(fullname);
+	for (;(fullname = padvance(&path, name)) != NULL; stunalloc(fullname)) {
 		idx++;
 		if (pathopt) {
 			if (prefix("func", pathopt)) {
 				/* handled below */
 			} else {
-				goto loop;	/* ignore unimplemented options */
+				continue; /* ignore unimplemented options */
 			}
 		}
 		if (fullname[0] != '/')
@@ -378,13 +376,12 @@ loop:
 		if (stat(fullname, &statb) < 0) {
 			if (errno != ENOENT && errno != ENOTDIR)
 				e = errno;
-			goto loop;
+			continue;
 		}
 		e = EACCES;	/* if we fail, this will be the error */
 		if (!S_ISREG(statb.st_mode))
-			goto loop;
+			continue;
 		if (pathopt) {		/* this is a %func directory */
-			stalloc(strlen(fullname) + 1);
 			readcmdfile(fullname);
 			if ((cmdp = cmdlookup(name, 0)) == NULL || cmdp->cmdtype != CMDFUNCTION)
 				error("%s not defined in %s", name, fullname);
@@ -405,6 +402,7 @@ loop:
 #endif
 		TRACE(("searchexec \"%s\" returns \"%s\"\n", name, fullname));
 		INTOFF;
+		stunalloc(fullname);
 		cmdp = cmdlookup(name, 1);
 		if (cmdp->cmdtype == CMDFUNCTION)
 			cmdp = &loc_cmd;
