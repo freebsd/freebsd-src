@@ -2876,13 +2876,11 @@ static void
 sk_txeof(sc_if)
 	struct sk_if_softc	*sc_if;
 {
-	struct sk_softc		*sc;
 	struct sk_txdesc	*txd;
 	struct sk_tx_desc	*cur_tx;
 	struct ifnet		*ifp;
 	u_int32_t		idx, sk_ctl;
 
-	sc = sc_if->sk_softc;
 	ifp = sc_if->sk_ifp;
 
 	txd = STAILQ_FIRST(&sc_if->sk_cdata.sk_txbusyq);

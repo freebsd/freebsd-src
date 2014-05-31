@@ -1739,12 +1739,10 @@ static void
 siba_pcicore_init(struct siba_pci *spc)
 {
 	struct siba_dev_softc *sd = spc->spc_dev;
-	struct siba_softc *siba;
 
 	if (sd == NULL)
 		return;
 
-	siba = sd->sd_bus;
 	if (!siba_dev_isup_sub(sd))
 		siba_dev_up_sub(sd, 0);
 
