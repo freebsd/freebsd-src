@@ -168,6 +168,8 @@
 
 #define	DMAP_MIN_ADDRESS	(0xffffff8800000000UL)
 #define	DMAP_MAX_ADDRESS	(0xffffff8fffffffffUL)
+#define	PHYS_TO_DMAP(pa)	((pa) | DMAP_MIN_ADDRESS)
+#define	DMAP_TO_PHYS(va)	((va) & ~DMAP_MIN_ADDRESS)
 
 #define	VM_MIN_USER_ADDRESS	(0x0000000000000000UL)
 #define	VM_MAX_USER_ADDRESS	(0x0000008000000000UL)
@@ -207,8 +209,6 @@
 #ifndef	VM_INITIAL_PAGEIN
 #define	VM_INITIAL_PAGEIN	16
 #endif
-
-#define	UMA_MD_SMALL_ALLOC
 
 extern u_int tsb_kernel_ldd_phys;
 extern vm_offset_t vm_max_kernel_address;

@@ -86,6 +86,7 @@ struct pv_addr {
 struct pmap {
 	struct mtx		pm_mtx;
 	struct pmap_statistics	pm_stats;	/* pmap statictics */
+	pd_entry_t		*pm_l1;
 };
 
 typedef struct pmap *pmap_t;

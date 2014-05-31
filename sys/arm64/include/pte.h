@@ -51,6 +51,10 @@ typedef	uint64_t	pt_entry_t;		/* page table entry */
 #define	ATTR_AF		(1 << 10)
 #define	ATTR_SH(x)	((x) << 8)
 #define	ATTR_AP(x)	((x) << 6)
+#define	 ATTR_AP_MASK	ATTR_AP(3)
+#define	 ATTR_AP_RO	(0 << 1)
+#define	 ATTR_AP_RW	(1 << 1)
+#define	 ATTR_AP_USER	(1 << 0)
 #define	ATTR_NS		(1 << 5)
 #define	ATTR_IDX(x)	((x) << 3)
 
@@ -83,13 +87,17 @@ typedef	uint64_t	pt_entry_t;		/* page table entry */
 
 /* Level 3 table, 4KiB per entry */
 #define	L3_SHIFT	12
+#define	L3_SIZE 	(1 << L3_SHIFT)
+#define	L3_OFFSET 	(L3_SIZE - 1)
+#define	L3_SHIFT	12
 #define	L3_INVAL	0x0
 	/* 0x1 is reserved */
 	/* 0x2 also marks an invalid address */
-#define	L3_TABLE	0x3
+#define	L3_PAGE		0x3
 
 #define	Ln_ENTRIES	(1 << 9)
 #define	Ln_ADDR_MASK	(Ln_ENTRIES - 1)
+#define	Ln_TABLE_MASK	((1 << 12) - 1)
 
 #endif /* !_MACHINE_PTE_H_ */
 
