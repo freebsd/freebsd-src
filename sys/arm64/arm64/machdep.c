@@ -70,7 +70,11 @@ u_int physmap_idx;
 void
 bzero(void *buf, size_t len)
 {
-	memset(buf, 0, len);
+	uint8_t *p;
+
+	p = buf;
+	while(len-- > 0)
+		*p++ = 0;
 }
 
 int
