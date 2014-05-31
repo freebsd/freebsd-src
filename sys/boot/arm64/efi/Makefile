@@ -46,10 +46,8 @@ NEWVERSWHAT=	"EFI loader" ${MACHINE_CPUARCH}
 vers.c:	${.CURDIR}/../../common/newvers.sh ${.CURDIR}/version
 	sh ${.CURDIR}/../../common/newvers.sh ${.CURDIR}/version ${NEWVERSWHAT}
 
-OBJCOPY=	/home/andrew/freebsd/repo/aarch64-freebsd-sandbox/toolchain/build/bin/aarch64-none-freebsd10-objcopy
-OBJDUMP=	/home/andrew/freebsd/repo/aarch64-freebsd-sandbox/toolchain/build/bin/aarch64-none-freebsd10-objdump
-#OBJCOPY?=	objcopy
-#OBJDUMP?=	objdump
+OBJCOPY?=	objcopy
+OBJDUMP?=	objdump
 
 loader.efi: loader.sym
 	if [ `${OBJDUMP} -t ${.ALLSRC} | fgrep '*UND*' | wc -l` != 0 ]; then \
