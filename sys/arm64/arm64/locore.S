@@ -113,6 +113,7 @@ virtdone:
 
 	/* Branch to C code */
 	bl	initarm
+	bl	mi_startup
 
 3:	wfi
 	b	3b
