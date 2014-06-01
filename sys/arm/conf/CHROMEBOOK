@@ -17,7 +17,7 @@
 #
 # $FreeBSD$
 
-include		"EXYNOS5250.common"
+include		"EXYNOS5250"
 ident		CHROMEBOOK
 
 hints		"CHROMEBOOK.hints"
