@@ -183,6 +183,7 @@
 /* Host controller specific registers */
 
 #define	SOTG_FRINDEX 0x002c
+#define	SOTG_FRINDEX_MASK 0x3fff
 #define	SOTG_CONFIGFLAG 0x0060
 #define	SOTG_CONFIGFLAG_ENABLE (1 << 0)
 #define	SOTG_PORTSC1 0x0064
