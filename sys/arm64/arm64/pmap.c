@@ -208,6 +208,7 @@ pmap_bootstrap(vm_offset_t l1pt, vm_paddr_t kernstart, vm_size_t kernlen)
 	vm_paddr_t pa;
 
 	kern_delta = KERNBASE - kernstart;
+	physmem = 0;
 
 	printf("pmap_bootstrap %llx %llx %llx\n", l1pt, kernstart, kernlen);
 	printf("%llx\n", l1pt);
@@ -238,6 +239,8 @@ pmap_bootstrap(vm_offset_t l1pt, vm_paddr_t kernstart, vm_size_t kernlen)
 
 		phys_avail[avail_slot] = physmap[map_slot];
 		phys_avail[avail_slot + 1] = physmap[map_slot + 1];
+		physmem += (phys_avail[avail_slot + 1] -
+		    phys_avail[avail_slot]) >> PAGE_SHIFT;
 		avail_slot += 2;
 	}
 
@@ -245,6 +248,8 @@ pmap_bootstrap(vm_offset_t l1pt, vm_paddr_t kernstart, vm_size_t kernlen)
 	if (physmap[avail_slot] < pa) {
 		phys_avail[avail_slot] = physmap[map_slot];
 		phys_avail[avail_slot + 1] = pa;
+		physmem += (phys_avail[avail_slot + 1] -
+		    phys_avail[avail_slot]) >> PAGE_SHIFT;
 		avail_slot += 2;
 	}
 	used_map_slot = map_slot;
@@ -352,6 +357,8 @@ pmap_bootstrap(vm_offset_t l1pt, vm_paddr_t kernstart, vm_size_t kernlen)
 			phys_avail[avail_slot] = physmap[map_slot];
 			phys_avail[avail_slot + 1] = physmap[map_slot + 1];
 		}
+		physmem += (phys_avail[avail_slot + 1] -
+		    phys_avail[avail_slot]) >> PAGE_SHIFT;
 
 		avail_slot += 2;
 	}
@@ -393,8 +400,35 @@ pmap_init(void)
 vm_paddr_t
 pmap_kextract(vm_offset_t va)
 {
+	pd_entry_t *l1, *l2;
+	pt_entry_t *l3;
+	pmap_t pmap;
 
-	panic("pmap_kextract");
+	pmap = pmap_kernel();
+
+	l1 = pmap_l1(pmap, va);
+	if ((*l1 & ATTR_DESCR_MASK) == L1_BLOCK)
+		return ((*l1 & ~ATTR_MASK) | (va & L1_OFFSET));
+
+	if ((*l1 & ATTR_DESCR_MASK) == L1_TABLE) {
+		l2 = pmap_l1_to_l2(l1, va);
+		if (l2 == NULL)
+			return (0);
+
+		if ((*l2 & ATTR_DESCR_MASK) == L2_BLOCK)
+			return ((*l2 & ~ATTR_MASK) | (va & L2_OFFSET));
+
+		if ((*l2 & ATTR_DESCR_MASK) == L2_TABLE) {
+			l3 = pmap_l2_to_l3(l2, va);
+			if (l3 == NULL)
+				return (0);
+
+			if ((*l3 & ATTR_DESCR_MASK) == L3_PAGE)
+				return ((*l3 & ~ATTR_MASK) | (va & L3_OFFSET));
+		}
+	}
+
+	return (0);
 }
 
 /*
@@ -457,8 +491,11 @@ pmap_kenter(vm_offset_t va, vm_paddr_t pa)
 PMAP_INLINE void
 pmap_kremove(vm_offset_t va)
 {
+	pt_entry_t *l3;
 
-	panic("pmap_kremove");
+	l3 = pmap_l3(kernel_pmap, va);
+	KASSERT(l3 != NULL, ("Invalid page table"));
+	*l3 = 0;
 }
 
 /*
@@ -510,8 +547,16 @@ pmap_qenter(vm_offset_t sva, vm_page_t *m, int count)
 void
 pmap_qremove(vm_offset_t sva, int count)
 {
+	vm_offset_t va;
+	int i;
 
-	panic("pmap_qremove");
+	va = sva;
+	for (i = 0; i < count; i++) {
+		if (vtophys(va))
+			pmap_kremove(va);
+
+		va += PAGE_SIZE;
+	}
 }
 
 /***************************************************
@@ -525,7 +570,10 @@ void
 pmap_pinit0(pmap_t pmap)
 {
 
-	panic("pmap_pinit0");
+	printf("TODO: pmap_pinit0\n");
+	bcopy(kernel_pmap, pmap, sizeof(*pmap));
+	bzero(&pmap->pm_mtx, sizeof(pmap->pm_mtx));
+	PMAP_LOCK_INIT(pmap);
 }
 
 /*
@@ -682,8 +730,24 @@ void
 pmap_enter(pmap_t pmap, vm_offset_t va, vm_prot_t access, vm_page_t m,
     vm_prot_t prot, boolean_t wired)
 {
+	vm_paddr_t pa;
+	pt_entry_t *l3, opte;
 
-	panic("pmap_enter");
+	printf("TODO: pmap_enter\n");
+
+	PMAP_LOCK(pmap);
+	pa = VM_PAGE_TO_PHYS(m);
+	printf("pmap_enter: %llx -> %llx (%x %x %u)\n", va, pa, access,
+	    prot, wired);
+	l3 = pmap_l3(pmap, va);
+	KASSERT(l3 != NULL, ("TODO: grow va"));
+	KASSERT(pmap == pmap_kernel(), ("Only kernel mappings for now"));
+
+	opte = *l3;
+	KASSERT(opte == 0, ("TODO: Update the entry"));
+	*l3 = (pa & ~L3_OFFSET) | ATTR_AF | L3_PAGE;
+
+	PMAP_UNLOCK(pmap);
 }
 
 /*
