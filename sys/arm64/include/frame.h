@@ -35,7 +35,7 @@
  * NOTE: keep this structure in sync with struct reg and struct mcontext.
  */
 struct trapframe {
-	uint64_t tf_x0[31];
+	uint64_t tf_x[31];
 	uint64_t tf_sp;
 	uint64_t tf_pc;
 	uint64_t tf_spsr;

@@ -33,6 +33,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/proc.h>
 #include <sys/sf_buf.h>
 #include <sys/signal.h>
+#include <sys/unistd.h>
 
 #include <vm/vm.h>
 #include <vm/vm_page.h>
@@ -40,6 +41,8 @@ __FBSDID("$FreeBSD$");
 #include <vm/uma_int.h>
 
 #include <machine/cpu.h>
+#include <machine/pcb.h>
+#include <machine/frame.h>
 
 /*
  * Finish a fork operation, with process p2 nearly set up.
@@ -49,8 +52,21 @@ __FBSDID("$FreeBSD$");
 void
 cpu_fork(struct thread *td1, struct proc *p2, struct thread *td2, int flags)
 {
+	struct pcb *pcb2;
 
-	panic("cpu_fork");
+	if ((flags & RFPROC) == 0)
+		return;
+
+	pcb2 = (struct pcb *)(td2->td_kstack +
+	    td2->td_kstack_pages * PAGE_SIZE) - 1;
+
+	td2->td_pcb = pcb2;
+	bcopy(td1->td_pcb, pcb2, sizeof(*pcb2));
+
+	/* Set the return value registers for fork() */
+	td1->td_frame->tf_x[0] = 0;
+
+	printf("TODO: cpu_fork");
 }
 
 void
@@ -120,7 +136,10 @@ void
 cpu_thread_alloc(struct thread *td)
 {
 
-	panic("cpu_thread_alloc");
+	td->td_pcb = (struct pcb *)(td->td_kstack +
+	    td->td_kstack_pages * PAGE_SIZE) - 1;
+	td->td_frame = (struct trapframe *)STACKALIGN(
+	    td->td_pcb - 1);
 }
 
 void

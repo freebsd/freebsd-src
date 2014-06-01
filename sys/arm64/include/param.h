@@ -39,6 +39,9 @@
 
 #include <machine/_align.h>
 
+#define STACKALIGNBYTES	(16 - 1)
+#define STACKALIGN(p)	((uint64_t)(p) & ~STACKALIGNBYTES)
+
 #ifndef MACHINE
 #define	MACHINE		"arm64"
 #endif

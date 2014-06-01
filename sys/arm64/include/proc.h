@@ -36,10 +36,12 @@
 
 #include <machine/utrap.h>
 
+#if 0
 struct md_utrap {
 	utrap_entry_t *ut_precise[UT_MAX];	/* must be first */
 	int	ut_refcnt;
 };
+#endif
 
 struct mdthread {
 	int	md_spinlock_count;	/* (k) */
@@ -47,8 +49,7 @@ struct mdthread {
 };
 
 struct mdproc {
-	struct	md_utrap *md_utrap;
-	void	*md_sigtramp;
+	int dummy;
 };
 
 #define	KINFO_PROC_SIZE 1088
