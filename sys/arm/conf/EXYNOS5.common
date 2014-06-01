@@ -1,4 +1,4 @@
-# Kernel configuration for Samsung Exynos 5250 boards.
+# Kernel configuration for Samsung Exynos 5 SoC.
 #
 # For more information on this file, please read the config(5) manual page,
 # and/or the handbook section on Kernel Configuration Files:
@@ -16,8 +16,6 @@
 # in NOTES.
 #
 # $FreeBSD$
-
-include		"../samsung/exynos/std.exynos5"
 
 makeoptions	MODULES_OVERRIDE=""
 makeoptions	WITHOUT_MODULES="ahc"
@@ -83,8 +81,6 @@ device		mmcsd			# mmc/sd flash cards
 device		sdhci			# generic sdhci
 
 options 	ROOTDEVNAME=\"ufs:/dev/da0\"
-
-options		SMP
 
 # Pseudo devices
 
