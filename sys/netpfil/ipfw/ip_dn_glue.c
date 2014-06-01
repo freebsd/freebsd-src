@@ -83,7 +83,6 @@ struct dn_flow_set {
 #define DNOLD_QSIZE_IS_BYTES   0x0008  /* queue size is measured in bytes */
 #define DNOLD_NOERROR      0x0010  /* do not report ENOBUFS on drops  */
 #define DNOLD_HAS_PROFILE      0x0020  /* the pipe has a delay profile. */
-#define DNOLD_IS_ECN       0x0040
 #define DNOLD_IS_PIPE      0x4000
 #define DNOLD_IS_QUEUE     0x8000
 
@@ -339,8 +338,6 @@ convertflags2new(int src)
 		dst |= DN_IS_RED;
 	if (src & DNOLD_IS_GENTLE_RED)
 		dst |= DN_IS_GENTLE_RED;
-	if (src & DNOLD_IS_ECN)
-		dst |= DN_IS_ECN;
 	if (src & DNOLD_HAS_PROFILE)
 		dst |= DN_HAS_PROFILE;
 
