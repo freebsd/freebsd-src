@@ -1,4 +1,4 @@
-# Kernel configuration for Arndale Board (Exynos5 Dual development platform).
+# Kernel configuration for Arndale Octa Board (Exynos 5420)
 #
 # For more information on this file, please read the config(5) manual page,
 # and/or the handbook section on Kernel Configuration Files:
@@ -19,10 +19,10 @@
 
 #NO_UNIVERSE
 
-include		"EXYNOS5250"
-ident		ARNDALE
+include		"EXYNOS5420"
+ident		ARNDALE-OCTA
 
 #FDT
 options 	FDT
 options 	FDT_DTB_STATIC
-makeoptions	FDT_DTS_FILE=exynos5250-arndale.dts
+makeoptions	FDT_DTS_FILE=exynos5420-arndale-octa.dts
