@@ -15,6 +15,7 @@ FILES+=		regress.m2.out
 FILES+=		regress.m3.out
 FILES+=		regress.m4.out
 FILES+=		regress.m5.out
+FILES+=		regress.missingpos1.out
 FILES+=		regress.s.out
 FILES+=		regress.sh
 FILES+=		regress.zero.out
