@@ -43,7 +43,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/uart/uart_cpu.h>
 #include <dev/uart/uart_bus.h>
 
-#include <arm/samsung/exynos/uart.h>
+#include <arm/samsung/exynos/exynos_uart.h>
 
 #include "uart_if.h"
 
