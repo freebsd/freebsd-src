@@ -55,10 +55,6 @@ SET_DECLARE(inout_port_set, struct inout_port);
 #define	VERIFY_IOPORT(port, size) \
 	assert((port) >= 0 && (size) > 0 && ((port) + (size)) <= MAX_IOPORTS)
 
-#ifndef min
-#define	min(a, b)	((a) < (b) ? (a) : (b))
-#endif
-
 static struct {
 	const char	*name;
 	int		flags;
@@ -156,7 +152,7 @@ emulate_inout(struct vmctx *ctx, int vcpu, struct vm_exit *vmexit, int strict)
 		count = vis->count & vie_size2mask(addrsize);
 
 		/* Limit number of back-to-back in/out emulations to 16 */
-		iterations = min(count, 16);
+		iterations = MIN(count, 16);
 		while (iterations > 0) {
 			if (vie_calculate_gla(vis->paging.cpu_mode,
 			    vis->seg_name, &vis->seg_desc, index, bytes,
