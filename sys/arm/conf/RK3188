@@ -124,3 +124,5 @@ device		firmware		# Used by the above
 # USB ethernet support, requires miibus
 device		miibus
 device		udav
+
+options		FDT			# Configure using FDT/DTB data.
