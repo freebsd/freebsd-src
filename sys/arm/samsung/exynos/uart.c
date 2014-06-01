@@ -286,8 +286,13 @@ s3c2410_bus_setsig(struct uart_softc *sc, int sig)
 static int
 s3c2410_bus_receive(struct uart_softc *sc)
 {
+	struct uart_bas *bas;
 
-	uart_rx_put(sc, uart_getreg(&sc->sc_bas, SSCOM_URXH));
+	bas = &sc->sc_bas;
+	while (bus_space_read_4(bas->bst, bas->bsh,
+		SSCOM_UFSTAT) & UFSTAT_RXCOUNT)
+		uart_rx_put(sc, uart_getreg(&sc->sc_bas, SSCOM_URXH));
+
 	return (0);
 }
 
