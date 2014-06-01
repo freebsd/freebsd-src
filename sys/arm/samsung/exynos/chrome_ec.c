@@ -165,7 +165,7 @@ ec_command(uint8_t cmd, uint8_t *dout, uint8_t dout_len,
 	int i;
 
 	msg_dout = malloc(dout_len + 4, M_DEVBUF, M_NOWAIT);
-	msg_dinp = malloc(dinp_len + 4, M_DEVBUF, M_NOWAIT);
+	msg_dinp = malloc(dinp_len + 3, M_DEVBUF, M_NOWAIT);
 
 	if (ec_sc == NULL)
 		return (-1);
@@ -184,7 +184,7 @@ ec_command(uint8_t cmd, uint8_t *dout, uint8_t dout_len,
 
 	struct iic_msg msgs[] = {
 		{ 0x1e, IIC_M_WR, dout_len + 4, msg_dout, },
-		{ 0x1e, IIC_M_RD, dinp_len + 4, msg_dinp, },
+		{ 0x1e, IIC_M_RD, dinp_len + 3, msg_dinp, },
 	};
 
 	ret = iicbus_transfer(sc->dev, msgs, 2);
@@ -196,7 +196,7 @@ ec_command(uint8_t cmd, uint8_t *dout, uint8_t dout_len,
 	}
 
 	for (i = 0; i < dinp_len; i++) {
-		dinp[i] = msg_dinp[i + 3];
+		dinp[i] = msg_dinp[i + 2];
 	};
 
 	free(msg_dout, M_DEVBUF);
