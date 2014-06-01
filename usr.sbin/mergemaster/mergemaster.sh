@@ -708,7 +708,7 @@ case "${RERUN}" in
   # and to make the actual comparison faster.
   find ${TEMPROOT}/usr -type l -delete 2>/dev/null
   find ${TEMPROOT} -type f -size 0 -delete 2>/dev/null
-  find -d ${TEMPROOT} -type d -empty -delete 2>/dev/null
+  find -d ${TEMPROOT} -type d -empty -mindepth 1 -delete 2>/dev/null
 
   # Build the mtree database in a temporary location.
   case "${PRE_WORLD}" in
