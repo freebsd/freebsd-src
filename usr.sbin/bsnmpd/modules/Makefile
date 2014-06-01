@@ -12,6 +12,7 @@ SUBDIR=	${_snmp_atm} \
 	snmp_bridge \
 	snmp_hast \
 	snmp_hostres \
+	snmp_lm75 \
 	snmp_mibII \
 	snmp_target \
 	snmp_usm \
