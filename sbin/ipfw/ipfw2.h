@@ -165,6 +165,7 @@ enum tokens {
 	TOK_BURST,
 	TOK_RED,
 	TOK_GRED,
+	TOK_ECN,
 	TOK_DROPTAIL,
 	TOK_PROTO,
 	/* dummynet tokens */
