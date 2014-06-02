@@ -178,7 +178,7 @@ struct fxp_hwstats {
  *	 for functional grouping.
  */
 struct fxp_softc {
-	struct ifnet *ifp;		/* per-interface network data */
+	void *ifp;			/* per-interface network data */
 	struct resource	*fxp_res[2];	/* I/O and IRQ resources */
 	struct resource_spec *fxp_spec;	/* the resource spec we used */
 	void *ih;			/* interrupt handler cookie */
