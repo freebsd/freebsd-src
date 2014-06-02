@@ -1260,15 +1260,41 @@ MLINKS+=sleepqueue.9 init_sleepqueues.9 \
 	sleepqueue.9 sleepq_timedwait_sig.9 \
 	sleepqueue.9 sleepq_wait.9 \
 	sleepqueue.9 sleepq_wait_sig.9
-MLINKS+=socket.9 sobind.9 \
+MLINKS+=socket.9 soabort.9 \
+	socket.9 soaccept.9 \
+	socket.9 sobind.9 \
+	socket.9 socheckuid.9 \
 	socket.9 soclose.9 \
 	socket.9 soconnect.9 \
 	socket.9 socreate.9 \
+	socket.9 sodisconnect.9 \
+	socket.9 sodupsockaddr.9 \
+	socket.9 sofree.9 \
 	socket.9 sogetopt.9 \
+	socket.9 sohasoutofband.9 \
+	socket.9 solisten.9 \
+	socket.9 solisten_proto.9 \
+	socket.9 solisten_proto_check.9 \
+	socket.9 sonewconn.9 \
+	socket.9 sooptcopyin.9 \
+	socket.9 sooptcopyout.9 \
+	socket.9 sopoll.9 \
+	socket.9 sopoll_generic.9 \
 	socket.9 soreceive.9 \
+	socket.9 soreceive_dgram.9 \
+	socket.9 soreceive_generic.9 \
+	socket.9 soreceive_stream.9 \
+	socket.9 soreserve.9 \
+	socket.9 sorflush.9 \
 	socket.9 sosend.9 \
+	socket.9 sosend_dgram.9 \
+	socket.9 sosend_generic.9 \
 	socket.9 sosetopt.9 \
-	socket.9 soshutdown.9
+	socket.9 soshutdown.9 \
+	socket.9 sotoxsocket.9 \
+	socket.9 soupcall_clear.9 \
+	socket.9 soupcall_set.9 \
+	socket.9 sowakeup.9
 MLINKS+=spl.9 spl0.9 \
 	spl.9 splbio.9 \
 	spl.9 splclock.9 \
