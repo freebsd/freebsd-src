@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 21, 2014
+.Dd June 1, 2014
 .Dt TI_ADC 4
 .Os
 .Sh NAME
@@ -78,7 +78,16 @@ dev.ti_adc.0.ain.6.enable: 1
 dev.ti_adc.0.ain.6.open_delay: 0
 dev.ti_adc.0.ain.6.samples_avg: 4
 dev.ti_adc.0.ain.6.input: 2308
+dev.ti_adc.0.ain.7.enable: 1
+dev.ti_adc.0.ain.7.open_delay: 0
+dev.ti_adc.0.ain.7.samples_avg: 0
+dev.ti_adc.0.ain.7.input: 3812
 .Ed
+.Pp
+On Beaglebone-black the analog input 7 is connected to the 3V3B rail through
+a voltage divisor (2:1).
+The 3V3B voltage rail comes from the TL5209 LDO regulator which is limited
+to 500mA maximum.
 .Pp
 Global settings:
 .Bl -tag -width ".Va dev.ti_adc.0.clockdiv"
@@ -112,8 +121,8 @@ It is made of a 12 bit value (0 ~ 4095).
 The
 .Nm
 driver first appeared in
-.Fx 11.0 .
+.Fx 10.1 .
 .Sh AUTHORS
 .An -nosplit
 The driver and this manual page was written by
-.An Luiz Otavio O Souza Aq loos@FreeBSD.org
+.An Luiz Otavio O Souza Aq loos@FreeBSD.org .
