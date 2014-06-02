@@ -494,7 +494,7 @@ sgioctl(struct cdev *dev, u_long cmd, caddr_t arg, int flag, struct thread *td)
 	struct ccb_scsiio *csio;
 	struct cam_periph *periph;
 	struct sg_softc *softc;
-	struct sg_io_hdr req;
+	struct sg_io_hdr *req;
 	int dir, error;
 
 	periph = (struct cam_periph *)dev->si_drv1;
@@ -507,40 +507,22 @@ sgioctl(struct cdev *dev, u_long cmd, caddr_t arg, int flag, struct thread *td)
 	error = 0;
 
 	switch (cmd) {
-	case LINUX_SCSI_GET_BUS_NUMBER: {
-		int busno;
-
-		busno = xpt_path_path_id(periph->path);
-		error = copyout(&busno, arg, sizeof(busno));
-		break;
-	}
-	case LINUX_SCSI_GET_IDLUN: {
-		struct scsi_idlun idlun;
-		struct cam_sim *sim;
-
-		idlun.dev_id = xpt_path_target_id(periph->path);
-		sim = xpt_path_sim(periph->path);
-		idlun.host_unique_id = sim->unit_number;
-		error = copyout(&idlun, arg, sizeof(idlun));
-		break;
-	}
 	case SG_GET_VERSION_NUM:
-	case LINUX_SG_GET_VERSION_NUM:
-		error = copyout(&sg_version, arg, sizeof(sg_version));
-		break;
-	case SG_SET_TIMEOUT:
-	case LINUX_SG_SET_TIMEOUT: {
-		u_int user_timeout;
+	{
+		int *version = (int *)arg;
 
-		error = copyin(arg, &user_timeout, sizeof(u_int));
-		if (error == 0) {
-			softc->sg_user_timeout = user_timeout;
-			softc->sg_timeout = user_timeout / SG_DEFAULT_HZ * hz;
-		}
+		*version = sg_version;
+		break;
+	}
+	case SG_SET_TIMEOUT:
+	{
+		u_int user_timeout = *(u_int *)arg;
+
+		softc->sg_user_timeout = user_timeout;
+		softc->sg_timeout = user_timeout / SG_DEFAULT_HZ * hz;
 		break;
 	}
 	case SG_GET_TIMEOUT:
-	case LINUX_SG_GET_TIMEOUT:
 		/*
 		 * The value is returned directly to the syscall.
 		 */
@@ -548,17 +530,14 @@ sgioctl(struct cdev *dev, u_long cmd, caddr_t arg, int flag, struct thread *td)
 		error = 0;
 		break;
 	case SG_IO:
-	case LINUX_SG_IO:
-		error = copyin(arg, &req, sizeof(req));
-		if (error)
-			break;
+		req = (struct sg_io_hdr *)arg;
 
-		if (req.cmd_len > IOCDBLEN) {
+		if (req->cmd_len > IOCDBLEN) {
 			error = EINVAL;
 			break;
 		}
 
-		if (req.iovec_count != 0) {
+		if (req->iovec_count != 0) {
 			error = EOPNOTSUPP;
 			break;
 		}
@@ -566,14 +545,14 @@ sgioctl(struct cdev *dev, u_long cmd, caddr_t arg, int flag, struct thread *td)
 		ccb = cam_periph_getccb(periph, CAM_PRIORITY_NORMAL);
 		csio = &ccb->csio;
 
-		error = copyin(req.cmdp, &csio->cdb_io.cdb_bytes,
-		    req.cmd_len);
+		error = copyin(req->cmdp, &csio->cdb_io.cdb_bytes,
+		    req->cmd_len);
 		if (error) {
 			xpt_release_ccb(ccb);
 			break;
 		}
 
-		switch(req.dxfer_direction) {
+		switch(req->dxfer_direction) {
 		case SG_DXFER_TO_DEV:
 			dir = CAM_DIR_OUT;
 			break;
@@ -594,62 +573,57 @@ sgioctl(struct cdev *dev, u_long cmd, caddr_t arg, int flag, struct thread *td)
 			      sgdone,
 			      dir|CAM_DEV_QFRZDIS,
 			      MSG_SIMPLE_Q_TAG,
-			      req.dxferp,
-			      req.dxfer_len,
-			      req.mx_sb_len,
-			      req.cmd_len,
-			      req.timeout);
+			      req->dxferp,
+			      req->dxfer_len,
+			      req->mx_sb_len,
+			      req->cmd_len,
+			      req->timeout);
 
 		error = sgsendccb(periph, ccb);
 		if (error) {
-			req.host_status = DID_ERROR;
-			req.driver_status = DRIVER_INVALID;
+			req->host_status = DID_ERROR;
+			req->driver_status = DRIVER_INVALID;
 			xpt_release_ccb(ccb);
 			break;
 		}
 
-		req.status = csio->scsi_status;
-		req.masked_status = (csio->scsi_status >> 1) & 0x7f;
-		sg_scsiio_status(csio, &req.host_status, &req.driver_status);
-		req.resid = csio->resid;
-		req.duration = csio->ccb_h.timeout;
-		req.info = 0;
+		req->status = csio->scsi_status;
+		req->masked_status = (csio->scsi_status >> 1) & 0x7f;
+		sg_scsiio_status(csio, &req->host_status, &req->driver_status);
+		req->resid = csio->resid;
+		req->duration = csio->ccb_h.timeout;
+		req->info = 0;
 
-		error = copyout(&req, arg, sizeof(req));
-		if ((error == 0) && (csio->ccb_h.status & CAM_AUTOSNS_VALID)
-		    && (req.sbp != NULL)) {
-			req.sb_len_wr = req.mx_sb_len - csio->sense_resid;
-			error = copyout(&csio->sense_data, req.sbp,
-					req.sb_len_wr);
+		if ((csio->ccb_h.status & CAM_AUTOSNS_VALID)
+		    && (req->sbp != NULL)) {
+			req->sb_len_wr = req->mx_sb_len - csio->sense_resid;
+			error = copyout(&csio->sense_data, req->sbp,
+					req->sb_len_wr);
 		}
 
 		xpt_release_ccb(ccb);
 		break;
 		
 	case SG_GET_RESERVED_SIZE:
-	case LINUX_SG_GET_RESERVED_SIZE: {
-		int size = 32768;
-
-		error = copyout(&size, arg, sizeof(size));
+	{
+		int *size = (int *)arg;
+		*size = DFLTPHYS;
 		break;
 	}
 
 	case SG_GET_SCSI_ID:
-	case LINUX_SG_GET_SCSI_ID:
 	{
-		struct sg_scsi_id id;
+		struct sg_scsi_id *id = (struct sg_scsi_id *)arg;
 
-		id.host_no = cam_sim_path(xpt_path_sim(periph->path));
-		id.channel = xpt_path_path_id(periph->path);
-		id.scsi_id = xpt_path_target_id(periph->path);
-		id.lun = xpt_path_lun_id(periph->path);
-		id.scsi_type = softc->pd_type;
-		id.h_cmd_per_lun = 1;
-		id.d_queue_depth = 1;
-		id.unused[0] = 0;
-		id.unused[1] = 0;
-
-		error = copyout(&id, arg, sizeof(id));
+		id->host_no = cam_sim_path(xpt_path_sim(periph->path));
+		id->channel = xpt_path_path_id(periph->path);
+		id->scsi_id = xpt_path_target_id(periph->path);
+		id->lun = xpt_path_lun_id(periph->path);
+		id->scsi_type = softc->pd_type;
+		id->h_cmd_per_lun = 1;
+		id->d_queue_depth = 1;
+		id->unused[0] = 0;
+		id->unused[1] = 0;
 		break;
 	}
 
@@ -672,25 +646,6 @@ sgioctl(struct cdev *dev, u_long cmd, caddr_t arg, int flag, struct thread *td)
 	case SG_SET_COMMAND_Q:
 	case SG_SET_DEBUG:
 	case SG_NEXT_CMD_LEN:
-	case LINUX_SG_EMULATED_HOST:
-	case LINUX_SG_SET_TRANSFORM:
-	case LINUX_SG_GET_TRANSFORM:
-	case LINUX_SG_GET_NUM_WAITING:
-	case LINUX_SG_SCSI_RESET:
-	case LINUX_SG_GET_REQUEST_TABLE:
-	case LINUX_SG_SET_KEEP_ORPHAN:
-	case LINUX_SG_GET_KEEP_ORPHAN:
-	case LINUX_SG_GET_ACCESS_COUNT:
-	case LINUX_SG_SET_FORCE_LOW_DMA:
-	case LINUX_SG_GET_LOW_DMA:
-	case LINUX_SG_GET_SG_TABLESIZE:
-	case LINUX_SG_SET_FORCE_PACK_ID:
-	case LINUX_SG_GET_PACK_ID:
-	case LINUX_SG_SET_RESERVED_SIZE:
-	case LINUX_SG_GET_COMMAND_Q:
-	case LINUX_SG_SET_COMMAND_Q:
-	case LINUX_SG_SET_DEBUG:
-	case LINUX_SG_NEXT_CMD_LEN:
 	default:
 #ifdef CAMDEBUG
 		printf("sgioctl: rejecting cmd 0x%lx\n", cmd);
