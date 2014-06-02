@@ -153,7 +153,6 @@ nfsrv_setclient(struct nfsrv_descript *nd, struct nfsclient **new_clpp,
 	/*
 	 * Check for state resource limit exceeded.
 	 */
-printf("in nfsrv_setcl\n");
 	if (nfsrv_openpluslock > NFSRV_V4STATELIMIT) {
 		error = NFSERR_RESOURCE;
 		goto out;
@@ -211,7 +210,6 @@ printf("in nfsrv_setcl\n");
 			NFSUNLOCKV4ROOTMUTEX();
 			confirmp->lval[1] = 0;
 			error = NFSERR_NOENT;
-printf("reconfirming\n");
 			goto out;
 		}
 		/*
@@ -259,7 +257,6 @@ printf("reconfirming\n");
 		if (zapit)
 			nfsrv_zapclient(clp, p);
 		*new_clpp = NULL;
-printf("new cl\n");
 		goto out;
 	}
 
@@ -375,7 +372,6 @@ printf("new cl\n");
 		NFSUNLOCKSTATE();
 		nfsrv_zapclient(clp, p);
 		*new_clpp = NULL;
-printf("new cl2\n");
 		goto out;
 	}
 
@@ -420,7 +416,6 @@ printf("new cl2\n");
 		newnfsstats.srvclients++;
 		nfsrv_openpluslock++;
 		nfsrv_clients++;
-printf("new cl3\n");
 	}
 	NFSLOCKV4ROOTMUTEX();
 	nfsv4_unlock(&nfsv4rootfs_lock, 1);
@@ -578,18 +573,14 @@ nfsrv_getclient(nfsquad_t clientid, int opflags, struct nfsclient **clpp,
 		    clp->lc_flags &= ~(LCL_NEEDSCONFIRM | LCL_DONTCLEAN);
 		    if (clp->lc_program)
 			clp->lc_flags |= LCL_NEEDSCBNULL;
-printf("prog=%d\n", clp->lc_program);
 		    /* For NFSv4.1, link the session onto the client. */
 		    if (nsep != NULL) {
-printf("nsep not null\n");
 			/* Hold a reference on the xprt for a backchannel. */
 			if ((nsep->sess_crflags & NFSV4CRSESS_CONNBACKCHAN)
 			    != 0 && clp->lc_req.nr_client == NULL) {
-printf("set backch\n");
 			    clp->lc_req.nr_client = (struct __rpc_client *)
 				clnt_bck_create(nd->nd_xprt->xp_socket,
 				cbprogram, NFSV4_CBVERS);
-printf("cbcl=%p\n", clp->lc_req.nr_client);
 			    if (clp->lc_req.nr_client != NULL) {
 				SVC_ACQUIRE(nd->nd_xprt);
 				nd->nd_xprt->xp_p2 =
@@ -2896,13 +2887,20 @@ tryagain:
 		    /*
 		     * This is where we can choose to issue a delegation.
 		     */
-		    if (delegate && nfsrv_issuedelegs &&
-			writedeleg && !NFSVNO_EXRDONLY(exp) &&
-			(nfsrv_writedelegifpos || !readonly) &&
-			(clp->lc_flags & (LCL_CALLBACKSON | LCL_CBDOWN)) ==
-			 LCL_CALLBACKSON &&
-			!NFSRV_V4DELEGLIMIT(nfsrv_delegatecnt) &&
-			NFSVNO_DELEGOK(vp)) {
+		    if (delegate == 0 || writedeleg == 0 ||
+			NFSVNO_EXRDONLY(exp) || (readonly != 0 &&
+			nfsrv_writedelegifpos == 0) ||
+			!NFSVNO_DELEGOK(vp) ||
+			(new_stp->ls_flags & NFSLCK_WANTRDELEG) != 0 ||
+			(clp->lc_flags & (LCL_CALLBACKSON | LCL_CBDOWN)) !=
+			 LCL_CALLBACKSON)
+			*rflagsp |= NFSV4OPEN_WDCONTENTION;
+		    else if (nfsrv_issuedelegs == 0 ||
+			NFSRV_V4DELEGLIMIT(nfsrv_delegatecnt))
+			*rflagsp |= NFSV4OPEN_WDRESOURCE;
+		    else if ((new_stp->ls_flags & NFSLCK_WANTNODELEG) != 0)
+			*rflagsp |= NFSV4OPEN_WDNOTWANTED;
+		    else {
 			new_deleg->ls_stateid.seqid = delegstateidp->seqid = 1;
 			new_deleg->ls_stateid.other[0] = delegstateidp->other[0]
 			    = clp->lc_clientid.lval[0];
@@ -2951,12 +2949,17 @@ tryagain:
 		    /*
 		     * This is where we can choose to issue a delegation.
 		     */
-		    if (delegate && nfsrv_issuedelegs &&
-			(writedeleg || readonly) &&
-			(clp->lc_flags & (LCL_CALLBACKSON | LCL_CBDOWN)) ==
-			 LCL_CALLBACKSON &&
-			!NFSRV_V4DELEGLIMIT(nfsrv_delegatecnt) &&
-			NFSVNO_DELEGOK(vp)) {
+		    if (delegate == 0 || (writedeleg == 0 && readonly == 0) ||
+			!NFSVNO_DELEGOK(vp) ||
+			(clp->lc_flags & (LCL_CALLBACKSON | LCL_CBDOWN)) !=
+			 LCL_CALLBACKSON)
+			*rflagsp |= NFSV4OPEN_WDCONTENTION;
+		    else if (nfsrv_issuedelegs == 0 ||
+			NFSRV_V4DELEGLIMIT(nfsrv_delegatecnt))
+			*rflagsp |= NFSV4OPEN_WDRESOURCE;
+		    else if ((new_stp->ls_flags & NFSLCK_WANTNODELEG) != 0)
+			*rflagsp |= NFSV4OPEN_WDNOTWANTED;
+		    else {
 			new_deleg->ls_stateid.seqid = delegstateidp->seqid = 1;
 			new_deleg->ls_stateid.other[0] = delegstateidp->other[0]
 			    = clp->lc_clientid.lval[0];
@@ -2965,7 +2968,8 @@ tryagain:
 			new_deleg->ls_stateid.other[2] = delegstateidp->other[2]
 			    = nfsrv_nextstateindex(clp);
 			if (writedeleg && !NFSVNO_EXRDONLY(exp) &&
-			    (nfsrv_writedelegifpos || !readonly)) {
+			    (nfsrv_writedelegifpos || !readonly) &&
+			    (new_stp->ls_flags & NFSLCK_WANTRDELEG) == 0) {
 			    new_deleg->ls_flags = (NFSLCK_DELEGWRITE |
 				NFSLCK_READACCESS | NFSLCK_WRITEACCESS);
 			    *rflagsp |= NFSV4OPEN_WRITEDELEGATE;
@@ -3012,6 +3016,61 @@ tryagain:
 		} else if ((nd->nd_flag & ND_NFSV41) != 0) {
 			/* NFSv4.1 never needs confirmation. */
 			new_stp->ls_flags = 0;
+
+			/*
+			 * This is where we can choose to issue a delegation.
+			 */
+			if (delegate && nfsrv_issuedelegs &&
+			    (writedeleg || readonly) &&
+			    (clp->lc_flags & (LCL_CALLBACKSON | LCL_CBDOWN)) ==
+			     LCL_CALLBACKSON &&
+			    !NFSRV_V4DELEGLIMIT(nfsrv_delegatecnt) &&
+			    NFSVNO_DELEGOK(vp) &&
+			    ((nd->nd_flag & ND_NFSV41) == 0 ||
+			     (new_stp->ls_flags & NFSLCK_WANTNODELEG) == 0)) {
+				new_deleg->ls_stateid.seqid =
+				    delegstateidp->seqid = 1;
+				new_deleg->ls_stateid.other[0] =
+				    delegstateidp->other[0]
+				    = clp->lc_clientid.lval[0];
+				new_deleg->ls_stateid.other[1] =
+				    delegstateidp->other[1]
+				    = clp->lc_clientid.lval[1];
+				new_deleg->ls_stateid.other[2] =
+				    delegstateidp->other[2]
+				    = nfsrv_nextstateindex(clp);
+				if (writedeleg && !NFSVNO_EXRDONLY(exp) &&
+				    (nfsrv_writedelegifpos || !readonly) &&
+				    ((nd->nd_flag & ND_NFSV41) == 0 ||
+				     (new_stp->ls_flags & NFSLCK_WANTRDELEG) ==
+				     0)) {
+					new_deleg->ls_flags =
+					    (NFSLCK_DELEGWRITE |
+					     NFSLCK_READACCESS |
+					     NFSLCK_WRITEACCESS);
+					*rflagsp |= NFSV4OPEN_WRITEDELEGATE;
+				} else {
+					new_deleg->ls_flags =
+					    (NFSLCK_DELEGREAD |
+					     NFSLCK_READACCESS);
+					*rflagsp |= NFSV4OPEN_READDELEGATE;
+				}
+				new_deleg->ls_uid = new_stp->ls_uid;
+				new_deleg->ls_lfp = lfp;
+				new_deleg->ls_clp = clp;
+				new_deleg->ls_filerev = filerev;
+				new_deleg->ls_compref = nd->nd_compref;
+				LIST_INSERT_HEAD(&lfp->lf_deleg, new_deleg,
+				    ls_file);
+				LIST_INSERT_HEAD(NFSSTATEHASH(clp,
+				    new_deleg->ls_stateid), new_deleg, ls_hash);
+				LIST_INSERT_HEAD(&clp->lc_deleg, new_deleg,
+				    ls_list);
+				new_deleg = NULL;
+				newnfsstats.srvdelegates++;
+				nfsrv_openpluslock++;
+				nfsrv_delegatecnt++;
+			}
 		} else {
 			*rflagsp |= NFSV4OPEN_RESULTCONFIRM;
 			new_stp->ls_flags = NFSLCK_NEEDSCONFIRM;
@@ -5576,7 +5635,6 @@ nfsrv_checksequence(struct nfsrv_descript *nd, uint32_t sequenceid,
 {
 	struct nfsdsession *sep;
 	struct nfssessionhash *shp;
-	CLIENT *cl;
 	int error;
 	SVCXPRT *savxprt;
 
@@ -5614,11 +5672,10 @@ nfsrv_checksequence(struct nfsrv_descript *nd, uint32_t sequenceid,
 		SVC_RELEASE(savxprt);
 	}
 
-	cl = sep->sess_clp->lc_req.nr_client;
-	if (cl == NULL)
+	*sflagsp = 0;
+	if (sep->sess_clp->lc_req.nr_client == NULL)
 		*sflagsp |= NFSV4SEQ_CBPATHDOWN;
 	NFSUNLOCKSESSION(shp);
-	*sflagsp = 0;
 	if (error == NFSERR_EXPIRED) {
 		*sflagsp |= NFSV4SEQ_EXPIREDALLSTATEREVOKED;
 		error = 0;

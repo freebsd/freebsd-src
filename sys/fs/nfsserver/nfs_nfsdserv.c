@@ -2599,15 +2599,38 @@ nfsrvd_open(struct nfsrv_descript *nd, __unused int isdgram,
 	stp->ls_uid = nd->nd_cred->cr_uid;
 	stp->ls_seq = fxdr_unsigned(u_int32_t, *tl++);
 	i = fxdr_unsigned(int, *tl++);
-	retext = -1;
+	retext = 0;
 	if ((i & (NFSV4OPEN_WANTDELEGMASK | NFSV4OPEN_WANTSIGNALDELEG |
 	    NFSV4OPEN_WANTPUSHDELEG)) != 0 && (nd->nd_flag & ND_NFSV41) != 0) {
-		retext = NFSV4OPEN_RESOURCE;
-		if ((i & (NFSV4OPEN_WANTDELEGMASK | NFSV4OPEN_WANTSIGNALDELEG |
-		    NFSV4OPEN_WANTPUSHDELEG)) == NFSV4OPEN_WANTNODELEG)
-			retext = NFSV4OPEN_NOTWANTED;
-		i &= ~(NFSV4OPEN_WANTDELEGMASK | NFSV4OPEN_WANTSIGNALDELEG |
-		    NFSV4OPEN_WANTPUSHDELEG);
+		retext = 1;
+		/* For now, ignore these. */
+		i &= ~(NFSV4OPEN_WANTPUSHDELEG | NFSV4OPEN_WANTSIGNALDELEG);
+		switch (i & NFSV4OPEN_WANTDELEGMASK) {
+		case NFSV4OPEN_WANTANYDELEG:
+			stp->ls_flags |= (NFSLCK_WANTRDELEG |
+			    NFSLCK_WANTWDELEG);
+			i &= ~NFSV4OPEN_WANTDELEGMASK;
+			break;
+		case NFSV4OPEN_WANTREADDELEG:
+			stp->ls_flags |= NFSLCK_WANTRDELEG;
+			i &= ~NFSV4OPEN_WANTDELEGMASK;
+			break;
+		case NFSV4OPEN_WANTWRITEDELEG:
+			stp->ls_flags |= NFSLCK_WANTWDELEG;
+			i &= ~NFSV4OPEN_WANTDELEGMASK;
+			break;
+		case NFSV4OPEN_WANTNODELEG:
+			stp->ls_flags |= NFSLCK_WANTNODELEG;
+			i &= ~NFSV4OPEN_WANTDELEGMASK;
+			break;
+		case NFSV4OPEN_WANTCANCEL:
+			printf("NFSv4: ignore Open WantCancel\n");
+			i &= ~NFSV4OPEN_WANTDELEGMASK;
+			break;
+		default:
+			/* nd_repstat will be set to NFSERR_INVAL below. */
+			break;
+		};
 	}
 	switch (i) {
 	case NFSV4OPEN_ACCESSREAD:
@@ -2910,16 +2933,19 @@ nfsrvd_open(struct nfsrv_descript *nd, __unused int isdgram,
 			*tl = txdr_unsigned(NFSV4OPEN_DELEGATEREAD);
 		else if (rflags & NFSV4OPEN_WRITEDELEGATE)
 			*tl = txdr_unsigned(NFSV4OPEN_DELEGATEWRITE);
-		else if (retext != -1) {
+		else if (retext != 0) {
 			*tl = txdr_unsigned(NFSV4OPEN_DELEGATENONEEXT);
-			if (retext == NFSV4OPEN_RESOURCE ||
-			    retext == NFSV4OPEN_CONTENTION) {
+			if ((rflags & NFSV4OPEN_WDCONTENTION) != 0) {
 				NFSM_BUILD(tl, u_int32_t *, 2 * NFSX_UNSIGNED);
-				*tl++ = txdr_unsigned(retext);
+				*tl++ = txdr_unsigned(NFSV4OPEN_CONTENTION);
+				*tl = newnfs_false;
+			} else if ((rflags & NFSV4OPEN_WDRESOURCE) != 0) {
+				NFSM_BUILD(tl, u_int32_t *, 2 * NFSX_UNSIGNED);
+				*tl++ = txdr_unsigned(NFSV4OPEN_RESOURCE);
 				*tl = newnfs_false;
 			} else {
 				NFSM_BUILD(tl, u_int32_t *, NFSX_UNSIGNED);
-				*tl = txdr_unsigned(retext);
+				*tl = txdr_unsigned(NFSV4OPEN_NOTWANTED);
 			}
 		} else
 			*tl = txdr_unsigned(NFSV4OPEN_DELEGATENONE);
