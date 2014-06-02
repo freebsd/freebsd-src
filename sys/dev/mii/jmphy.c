@@ -105,7 +105,7 @@ jmphy_attach(device_t dev)
 
 	ma = device_get_ivars(dev);
 	flags = 0;
-	if (strcmp(ma->mii_data->mii_ifp->if_dname, "jme") == 0 &&
+	if (strcmp(if_getdname(ma->mii_data->mii_ifp), "jme") == 0 &&
 	    (miibus_get_flags(dev) & MIIF_MACPRIV0) != 0)
 		flags |= MIIF_PHYPRIV0;
 	mii_phy_dev_attach(dev, flags, &jmphy_funcs, 1);
