@@ -1165,53 +1165,49 @@ static void
 bxe_net_stats_update(struct bxe_softc *sc)
 {
     struct bxe_eth_stats *estats = &sc->eth_stats;
-    struct ifnet *ifnet = sc->ifnet;
-    unsigned long tmp;
+    if_t ifnet = sc->ifp;
     int i;
 
-    ifnet->if_data.ifi_ipackets =
+    if_setipackets(ifnet,
         bxe_hilo(&estats->total_unicast_packets_received_hi) +
         bxe_hilo(&estats->total_multicast_packets_received_hi) +
-        bxe_hilo(&estats->total_broadcast_packets_received_hi);
+        bxe_hilo(&estats->total_broadcast_packets_received_hi));
 
-    ifnet->if_data.ifi_opackets =
+    if_setopackets(ifnet,
         bxe_hilo(&estats->total_unicast_packets_transmitted_hi) +
         bxe_hilo(&estats->total_multicast_packets_transmitted_hi) +
-        bxe_hilo(&estats->total_broadcast_packets_transmitted_hi);
+        bxe_hilo(&estats->total_broadcast_packets_transmitted_hi));
 
-    ifnet->if_data.ifi_ibytes = bxe_hilo(&estats->total_bytes_received_hi);
+    if_setibytes(ifnet, bxe_hilo(&estats->total_bytes_received_hi));
 
-    ifnet->if_data.ifi_obytes = bxe_hilo(&estats->total_bytes_transmitted_hi);
+    if_setobytes(ifnet, bxe_hilo(&estats->total_bytes_transmitted_hi));
 
-    tmp = 0;
     for (i = 0; i < sc->num_queues; i++) {
         struct tstorm_per_queue_stats *old_tclient =
             &sc->fp[i].old_tclient;
-        tmp += le32toh(old_tclient->checksum_discard);
+        if_inciqdrops(ifnet, le32toh(old_tclient->checksum_discard));
     }
 
-    ifnet->if_data.ifi_iqdrops = tmp;
-
-    ifnet->if_data.ifi_ierrors =
+    if_setierrors(ifnet,
         bxe_hilo(&estats->rx_stat_etherstatsundersizepkts_hi) +
         bxe_hilo(&estats->etherstatsoverrsizepkts_hi) +
         bxe_hilo(&estats->brb_drop_hi) +
         bxe_hilo(&estats->brb_truncate_hi) +
         bxe_hilo(&estats->rx_stat_dot3statsfcserrors_hi) +
         bxe_hilo(&estats->rx_stat_dot3statsalignmenterrors_hi) +
-        bxe_hilo(&estats->no_buff_discard_hi);
+        bxe_hilo(&estats->no_buff_discard_hi));
 
-    ifnet->if_data.ifi_oerrors =
+    if_setoerrors(ifnet, 
         bxe_hilo(&estats->rx_stat_dot3statscarriersenseerrors_hi) +
-        bxe_hilo(&estats->tx_stat_dot3statsinternalmactransmiterrors_hi);
+        bxe_hilo(&estats->tx_stat_dot3statsinternalmactransmiterrors_hi));
 
-    ifnet->if_data.ifi_imcasts =
-        bxe_hilo(&estats->total_multicast_packets_received_hi);
+    if_setimcasts(ifnet, 
+        bxe_hilo(&estats->total_multicast_packets_received_hi));
 
-    ifnet->if_data.ifi_collisions =
+    if_setcollisions(ifnet, 
         bxe_hilo(&estats->tx_stat_etherstatscollisions_hi) +
         bxe_hilo(&estats->tx_stat_dot3statslatecollisions_hi) +
-        bxe_hilo(&estats->tx_stat_dot3statsexcessivecollisions_hi);
+        bxe_hilo(&estats->tx_stat_dot3statsexcessivecollisions_hi));
 }
 
 static void
@@ -1670,14 +1666,14 @@ bxe_stats_init(struct bxe_softc *sc)
     /* prepare statistics ramrod data */
     bxe_prep_fw_stats_req(sc);
 
-    sc->ifnet->if_data.ifi_ipackets   = 0;
-    sc->ifnet->if_data.ifi_opackets   = 0;
-    sc->ifnet->if_data.ifi_ibytes     = 0;
-    sc->ifnet->if_data.ifi_obytes     = 0;
-    sc->ifnet->if_data.ifi_ierrors    = 0;
-    sc->ifnet->if_data.ifi_oerrors    = 0;
-    sc->ifnet->if_data.ifi_imcasts    = 0;
-    sc->ifnet->if_data.ifi_collisions = 0;
+    if_setipackets(sc->ifp, 0);
+    if_setopackets(sc->ifp, 0);
+    if_setibytes(sc->ifp, 0);
+    if_setobytes(sc->ifp, 0);
+    if_setierrors(sc->ifp, 0);
+    if_setoerrors(sc->ifp, 0);
+    if_setimcasts(sc->ifp, 0);
+    if_setcollisions(sc->ifp, 0);
 
     if (sc->stats_init) {
         memset(&sc->net_stats_old, 0, sizeof(sc->net_stats_old));
@@ -1733,7 +1729,7 @@ bxe_save_statistics(struct bxe_softc *sc)
     }
 
     /* save net_device_stats statistics */
-    sc->net_stats_old.rx_dropped = sc->ifnet->if_data.ifi_iqdrops;
+    sc->net_stats_old.rx_dropped = if_getiqdrops(sc->ifp);
 
     /* store port firmware statistics */
     if (sc->port.pmf) {
