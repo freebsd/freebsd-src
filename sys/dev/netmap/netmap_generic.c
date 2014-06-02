@@ -804,3 +804,9 @@ generic_netmap_attach(struct ifnet *ifp)
 
 	return retval;
 }
+
+struct netmap_adapter *
+netmap_getna(if_t ifp)
+{
+	return (NA((struct ifnet *)ifp));	
+}

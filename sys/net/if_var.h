@@ -66,6 +66,7 @@ struct	carp_softc;
 struct  ifvlantrunk;
 struct	route;			/* if_output */
 struct	vnet;
+struct	ifmedia;
 
 #ifdef _KERNEL
 #include <sys/mbuf.h>		/* ifqueue only? */
@@ -92,6 +93,15 @@ TAILQ_HEAD(ifgrouphead, ifg_group);
 VNET_DECLARE(struct pfil_head, link_pfil_hook);	/* packet filter hooks */
 #define	V_link_pfil_hook	VNET(link_pfil_hook)
 #endif /* _KERNEL */
+
+typedef	void (*if_start_fn_t)(struct ifnet *);
+typedef	int (*if_ioctl_fn_t)(struct ifnet *, u_long, caddr_t);
+typedef	void (*if_init_fn_t)(void *);
+typedef void (*if_qflush_fn_t)(struct ifnet *);
+typedef int (*if_transmit_fn_t)(struct ifnet *, struct mbuf *);
+
+/* Opaque object pointing to interface structure (ifnet) */
+typedef void *if_t;
 
 /*
  * Structure defining a network interface.
@@ -170,18 +180,14 @@ struct ifnet {
 		     struct route *);
 	void	(*if_input)		/* input routine (from h/w driver) */
 		(struct ifnet *, struct mbuf *);
-	void	(*if_start)		/* initiate output routine */
-		(struct ifnet *);
-	int	(*if_ioctl)		/* ioctl routine */
-		(struct ifnet *, u_long, caddr_t);
-	void	(*if_init)		/* Init routine */
-		(void *);
+	if_start_fn_t	if_start;	/* initiate output routine */
+	if_ioctl_fn_t	if_ioctl;	/* ioctl routine */
+	if_init_fn_t	if_init;	/* Init routine */
 	int	(*if_resolvemulti)	/* validate/resolve multicast */
 		(struct ifnet *, struct sockaddr **, struct sockaddr *);
-	void	(*if_qflush)		/* flush any queues */
-		(struct ifnet *);
-	int	(*if_transmit)		/* initiate output routine */
-		(struct ifnet *, struct mbuf *);
+	if_qflush_fn_t	if_qflush;	/* flush any queue */	
+	if_transmit_fn_t if_transmit;   /* initiate output routine */
+
 	void	(*if_reassign)		/* reassign to vnet routine */
 		(struct ifnet *, struct vnet *, char *);
 
@@ -254,8 +260,8 @@ struct ifnet {
  */
 void	if_addr_rlock(struct ifnet *ifp);	/* if_addrhead */
 void	if_addr_runlock(struct ifnet *ifp);	/* if_addrhead */
-void	if_maddr_rlock(struct ifnet *ifp);	/* if_multiaddrs */
-void	if_maddr_runlock(struct ifnet *ifp);	/* if_multiaddrs */
+void	if_maddr_rlock(if_t ifp);	/* if_multiaddrs */
+void	if_maddr_runlock(if_t ifp);	/* if_multiaddrs */
 
 #ifdef _KERNEL
 #ifdef _SYS_EVENTHANDLER_H_
@@ -513,6 +519,110 @@ void	if_deregister_com_alloc(u_char type);
 
 #define IF_LLADDR(ifp)							\
     LLADDR((struct sockaddr_dl *)((ifp)->if_addr->ifa_addr))
+
+uint64_t if_setbaudrate(if_t ifp, uint64_t baudrate);
+uint64_t if_getbaudrate(if_t ifp);
+int if_setcapabilities(if_t ifp, int capabilities);
+int if_setcapabilitiesbit(if_t ifp, int setbit, int clearbit);
+int if_getcapabilities(if_t ifp);
+int if_togglecapenable(if_t ifp, int togglecap);
+int if_setcapenable(if_t ifp, int capenable);
+int if_setcapenablebit(if_t ifp, int setcap, int clearcap);
+int if_getcapenable(if_t ifp);
+const char *if_getdname(if_t ifp);
+int if_setdev(if_t ifp, void *dev);
+int if_setdrvflagbits(if_t ifp, int if_setflags, int clear_flags);
+int if_getdrvflags(if_t ifp);
+int if_setdrvflags(if_t ifp, int flags);
+int if_clearhwassist(if_t ifp);
+int if_sethwassistbits(if_t ifp, int toset, int toclear);
+int if_sethwassist(if_t ifp, int hwassist_bit);
+int if_gethwassist(if_t ifp);
+int if_setsoftc(if_t ifp, void *softc);
+void *if_getsoftc(if_t ifp);
+int if_setflags(if_t ifp, int flags);
+int if_setmtu(if_t ifp, int mtu);
+int if_getmtu(if_t ifp);
+int if_setflagbits(if_t ifp, int set, int clear);
+int if_getflags(if_t ifp);
+int if_sendq_empty(if_t ifp);
+int if_setsendqready(if_t ifp);
+int if_setsendqlen(if_t ifp, int tx_desc_count);
+int if_input(if_t ifp, struct mbuf* sendmp);
+int if_sendq_prepend(if_t ifp, struct mbuf *m);
+struct mbuf *if_dequeue(if_t ifp);
+int if_setifheaderlen(if_t ifp, int len);
+void if_setrcvif(struct mbuf *m, if_t ifp);
+void if_setvtag(struct mbuf *m, u_int16_t tag);
+u_int16_t if_getvtag(struct mbuf *m);
+int if_vlantrunkinuse(if_t ifp);
+caddr_t if_getlladdr(if_t ifp);
+void *if_gethandle(u_char);
+void if_bpfmtap(if_t ifp, struct mbuf *m);
+void if_etherbpfmtap(if_t ifp, struct mbuf *m);
+void if_vlancap(if_t ifp);
+
+int if_setupmultiaddr(if_t ifp, void *mta, int *cnt, int max);
+int if_multiaddr_array(if_t ifp, void *mta, int *cnt, int max);
+int if_multiaddr_count(if_t ifp, int max);
+
+int if_getamcount(if_t ifp);
+struct ifaddr * if_getifaddr(if_t ifp);
+/* Shim for drivers using drvapi */
+int ifmedia_ioctl_drv(if_t ifp, struct ifreq *ifr, struct ifmedia *ifm,
+    u_long cmd);
+
+/* Statistics */
+
+int if_incipackets(if_t ifp, int pkt);
+int if_incopackets(if_t ifp, int pkts);
+int if_incierrors(if_t ifp, int ierrors);
+int if_incoerrors(if_t ifp, int oerrors);
+int if_inciqdrops(if_t ifp, int val);
+int if_setierrors(if_t ifp, int ierrors);
+int if_setoerrors(if_t ifp, int oerrors);
+int if_setcollisions(if_t ifp, int collisions);
+int if_inccollisions(if_t ifp, int collisions);
+int if_incobytes(if_t ifp, int bytes);
+int if_getiqdrops(if_t ifp);
+int if_incimcasts(if_t ifp, int imcasts);
+int if_incomcasts(if_t ifp, int imcasts);
+int if_setipackets(if_t ifp, int pkts);
+int if_setopackets(if_t ifp, int pkts);
+int if_setibytes(if_t ifp, int bytes);
+int if_setobytes(if_t ifp, int bytes);
+int if_setimcasts(if_t ifp, int pkts);
+
+/* Functions */
+void if_setinitfn(if_t ifp, void (*)(void *));
+void if_setioctlfn(if_t ifp, int (*)(void *, u_long, caddr_t));
+void if_setstartfn(if_t ifp, void (*)(void *));
+void if_settransmitfn(if_t ifp, if_transmit_fn_t);
+void if_setqflushfn(if_t ifp, if_qflush_fn_t);
+ 
+
+/* Shim functions till all drivers use drvapi */
+void arp_ifinit_drv(if_t ifp, struct ifaddr *ifa);
+void ether_ifattach_drv(if_t ifp, const u_int8_t *lla);
+void ether_ifdetach_drv(if_t ifp);
+int ether_ioctl_drv(if_t ifp, u_long cmd, caddr_t data);
+void if_free_drv(if_t ifp);
+void if_initname_drv(if_t ifp, const char *name, int unit);
+void if_linkstate_change_drv(if_t ifp, int link_state);
+
+struct ifmedia;
+void ifmedia_init_drv(struct ifmedia *, int, int (*)(void *),
+	void (*)(void *, struct ifmediareq *));
+
+void if_addr_rlock_drv(if_t ifp);
+void if_addr_runlock_drv(if_t ifp);
+void if_qflush_drv(if_t ifp);
+
+/* Revisit the below. These are inline functions originally */
+int drbr_inuse_drv(if_t ifp, struct buf_ring *br);
+struct mbuf* drbr_dequeue_drv(if_t ifp, struct buf_ring *br);
+int drbr_needs_enqueue_drv(if_t ifp, struct buf_ring *br);
+int drbr_enqueue_drv(if_t ifp, struct buf_ring *br, struct mbuf *m);
 
 #endif /* _KERNEL */
 #endif /* !_NET_IF_VAR_H_ */

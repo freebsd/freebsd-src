@@ -1262,6 +1262,7 @@ void netmap_catch_tx(struct netmap_generic_adapter *na, int enable);
 int generic_xmit_frame(struct ifnet *ifp, struct mbuf *m, void *addr, u_int len, u_int ring_nr);
 int generic_find_num_desc(struct ifnet *ifp, u_int *tx, u_int *rx);
 void generic_find_num_queues(struct ifnet *ifp, u_int *txq, u_int *rxq);
+struct netmap_adapter *netmap_getna(if_t ifp);
 
 /*
  * netmap_mitigation API. This is used by the generic adapter
@@ -1376,5 +1377,4 @@ void bdg_mismatch_datapath(struct netmap_vp_adapter *na,
 			   struct netmap_vp_adapter *dst_na,
 			   struct nm_bdg_fwd *ft_p, struct netmap_ring *ring,
 			   u_int *j, u_int lim, u_int *howmany);
-
 #endif /* _NET_NETMAP_KERN_H_ */
