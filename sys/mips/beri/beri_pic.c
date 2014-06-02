@@ -556,6 +556,9 @@ beripic_setup_intr(device_t ic, device_t child, struct resource *irq,
 	bpc->hirq = sc->bp_irqs[sc->bp_next_irq];
 	hirq = rman_get_start(bpc->hirq);
 	tid = sc->bp_next_tid;
+	if (bootverbose)
+		device_printf(ic, "mapping pin %lu to irq %lu, tid %lu\n",
+		    src, hirq, tid);
 
 	error = BUS_SETUP_INTR(device_get_parent(ic), ic, bpc->hirq, flags,
 	    beripic_filter, intr == NULL ? NULL : beripic_intr, bpia,
