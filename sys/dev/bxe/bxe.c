@@ -2723,11 +2723,11 @@ bxe_release_mutexes(struct bxe_softc *sc)
 static void
 bxe_tx_disable(struct bxe_softc* sc)
 {
-    struct ifnet *ifp = sc->ifnet;
+    if_t ifp = sc->ifp;
 
     /* tell the stack the driver is stopped and TX queue is full */
-    if (ifp != NULL) {
-        ifp->if_drv_flags = 0;
+    if (ifp !=  NULL) {
+        if_setdrvflags(ifp, 0);
     }
 }
 
@@ -3180,7 +3180,7 @@ bxe_tpa_stop(struct bxe_softc          *sc,
 			 struct eth_end_agg_rx_cqe *cqe,
              uint16_t                  cqe_idx)
 {
-    struct ifnet *ifp = sc->ifnet;
+    if_t ifp = sc->ifp;
     struct mbuf *m;
     int rc = 0;
 
@@ -3225,7 +3225,7 @@ bxe_tpa_stop(struct bxe_softc          *sc,
         }
 
         /* assign packet to this interface interface */
-        m->m_pkthdr.rcvif = ifp;
+        if_setrcvif(m, ifp);
 
 #if __FreeBSD_version >= 800000
         /* specify what RSS queue was used for this flow */
@@ -3233,11 +3233,11 @@ bxe_tpa_stop(struct bxe_softc          *sc,
         m->m_flags |= M_FLOWID;
 #endif
 
-        ifp->if_ipackets++;
+        if_incipackets(ifp, 1);
         fp->eth_q_stats.rx_tpa_pkts++;
 
         /* pass the frame to the stack */
-        (*ifp->if_input)(ifp, m);
+        if_input(ifp, m);
     }
 
     /* we passed an mbuf up the stack or dropped the frame */
@@ -3253,7 +3253,7 @@ static uint8_t
 bxe_rxeof(struct bxe_softc    *sc,
           struct bxe_fastpath *fp)
 {
-    struct ifnet *ifp = sc->ifnet;
+    if_t ifp = sc->ifp;
     uint16_t bd_cons, bd_prod, bd_prod_fw, comp_ring_cons;
     uint16_t hw_cq_cons, sw_cq_cons, sw_cq_prod;
     int rx_pkts = 0;
@@ -3421,13 +3421,13 @@ bxe_rxeof(struct bxe_softc    *sc,
         m->m_pkthdr.len = m->m_len = len;
 
         /* assign packet to this interface interface */
-        m->m_pkthdr.rcvif = ifp;
+	if_setrcvif(m, ifp);
 
         /* assume no hardware checksum has complated */
         m->m_pkthdr.csum_flags = 0;
 
         /* validate checksum if offload enabled */
-        if (ifp->if_capenable & IFCAP_RXCSUM) {
+        if (if_getcapenable(ifp) & IFCAP_RXCSUM) {
             /* check for a valid IP frame */
             if (!(cqe->fast_path_cqe.status_flags &
                   ETH_FAST_PATH_RX_CQE_IP_XSUM_NO_VALIDATION_FLG)) {
@@ -3476,9 +3476,9 @@ next_rx:
 
         /* pass the frame to the stack */
         if (__predict_true(m != NULL)) {
-            ifp->if_ipackets++;
+            if_incipackets(ifp, 1);
             rx_pkts++;
-            (*ifp->if_input)(ifp, m);
+            if_input(ifp, m);
         }
 
 next_cqe:
@@ -3605,7 +3605,7 @@ static uint8_t
 bxe_txeof(struct bxe_softc    *sc,
           struct bxe_fastpath *fp)
 {
-    struct ifnet *ifp = sc->ifnet;
+    if_t ifp = sc->ifp;
     uint16_t bd_cons, hw_cons, sw_cons, pkt_cons;
     uint16_t tx_bd_avail;
 
@@ -3639,9 +3639,9 @@ bxe_txeof(struct bxe_softc    *sc,
     tx_bd_avail = bxe_tx_avail(sc, fp);
 
     if (tx_bd_avail < BXE_TX_CLEANUP_THRESHOLD) {
-        ifp->if_drv_flags |= IFF_DRV_OACTIVE;
+        if_setdrvflagbits(ifp, IFF_DRV_OACTIVE, 0);
     } else {
-        ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
+        if_setdrvflagbits(ifp, 0, IFF_DRV_OACTIVE);
     }
 
     if (fp->tx_pkt_prod != fp->tx_pkt_cons) {
@@ -4528,9 +4528,9 @@ bxe_nic_unload(struct bxe_softc *sc,
  * the user runs "ifconfig bxe media ..." or "ifconfig bxe mediaopt ...".
  */
 static int
-bxe_ifmedia_update(struct ifnet *ifp)
+bxe_ifmedia_update(struct ifnet  *ifp)
 {
-    struct bxe_softc *sc = (struct bxe_softc *)ifp->if_softc;
+    struct bxe_softc *sc = (struct bxe_softc *)if_getsoftc(ifp);
     struct ifmedia *ifm;
 
     ifm = &sc->ifmedia;
@@ -4563,10 +4563,10 @@ bxe_ifmedia_update(struct ifnet *ifp)
 static void
 bxe_ifmedia_status(struct ifnet *ifp, struct ifmediareq *ifmr)
 {
-    struct bxe_softc *sc = ifp->if_softc;
+    struct bxe_softc *sc = if_getsoftc(ifp);
 
     /* Report link down if the driver isn't running. */
-    if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0) {
+    if ((if_getdrvflags(ifp) & IFF_DRV_RUNNING) == 0) {
         ifmr->ifm_active |= IFM_NONE;
         return;
     }
@@ -4709,8 +4709,8 @@ bxe_handle_chip_tq(void *context,
     switch (work)
     {
     case CHIP_TQ_START:
-        if ((sc->ifnet->if_flags & IFF_UP) &&
-            !(sc->ifnet->if_drv_flags & IFF_DRV_RUNNING)) {
+        if ((if_getflags(sc->ifp) & IFF_UP) &&
+            !(if_getdrvflags(sc->ifp) & IFF_DRV_RUNNING)) {
             /* start the interface */
             BLOGD(sc, DBG_LOAD, "Starting the interface...\n");
             BXE_CORE_LOCK(sc);
@@ -4720,8 +4720,8 @@ bxe_handle_chip_tq(void *context,
         break;
 
     case CHIP_TQ_STOP:
-        if (!(sc->ifnet->if_flags & IFF_UP) &&
-            (sc->ifnet->if_drv_flags & IFF_DRV_RUNNING)) {
+        if (!(if_getflags(sc->ifp) & IFF_UP) &&
+            (if_getdrvflags(sc->ifp) & IFF_DRV_RUNNING)) {
             /* bring down the interface */
             BLOGD(sc, DBG_LOAD, "Stopping the interface...\n");
             bxe_periodic_stop(sc);
@@ -4732,7 +4732,7 @@ bxe_handle_chip_tq(void *context,
         break;
 
     case CHIP_TQ_REINIT:
-        if (sc->ifnet->if_drv_flags & IFF_DRV_RUNNING) {
+        if (if_getdrvflags(sc->ifp) & IFF_DRV_RUNNING) {
             /* restart the interface */
             BLOGD(sc, DBG_LOAD, "Restarting the interface...\n");
             bxe_periodic_stop(sc);
@@ -4755,11 +4755,11 @@ bxe_handle_chip_tq(void *context,
  *   0 = Success, >0 Failure
  */
 static int
-bxe_ioctl(struct ifnet *ifp,
+bxe_ioctl(if_t ifp,
           u_long       command,
           caddr_t      data)
 {
-    struct bxe_softc *sc = ifp->if_softc;
+    struct bxe_softc *sc = if_getsoftc(ifp);
     struct ifreq *ifr = (struct ifreq *)data;
     struct bxe_nvram_data *nvdata;
     uint32_t priv_op;
@@ -4790,9 +4790,12 @@ bxe_ioctl(struct ifnet *ifp,
 
         atomic_store_rel_int((volatile unsigned int *)&sc->mtu,
                              (unsigned long)ifr->ifr_mtu);
-        atomic_store_rel_long((volatile unsigned long *)&ifp->if_mtu,
+	/* 
+        atomic_store_rel_long((volatile unsigned long *)&if_getmtu(ifp),
                               (unsigned long)ifr->ifr_mtu);
-
+	XXX - Not sure why it needs to be atomic
+	*/
+	if_setmtu(ifp, ifr->ifr_mtu);
         reinit = 1;
         break;
 
@@ -4801,8 +4804,8 @@ bxe_ioctl(struct ifnet *ifp,
         BLOGD(sc, DBG_IOCTL, "Received SIOCSIFFLAGS ioctl\n");
 
         /* check if the interface is up */
-        if (ifp->if_flags & IFF_UP) {
-            if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
+        if (if_getflags(ifp) & IFF_UP) {
+            if (if_getdrvflags(ifp) & IFF_DRV_RUNNING) {
                 /* set the receive mode flags */
                 bxe_set_rx_mode(sc);
             } else {
@@ -4810,7 +4813,7 @@ bxe_ioctl(struct ifnet *ifp,
                 taskqueue_enqueue(sc->chip_tq, &sc->chip_tq_task);
             }
         } else {
-            if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
+            if (if_getdrvflags(ifp) & IFF_DRV_RUNNING) {
                 atomic_store_rel_long(&sc->chip_tq_flags, CHIP_TQ_STOP);
                 taskqueue_enqueue(sc->chip_tq, &sc->chip_tq_task);
             }
@@ -4824,7 +4827,7 @@ bxe_ioctl(struct ifnet *ifp,
         BLOGD(sc, DBG_IOCTL, "Received SIOCADDMULTI/SIOCDELMULTI ioctl\n");
 
         /* check if the interface is up */
-        if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
+        if (if_getdrvflags(ifp) & IFF_DRV_RUNNING) {
             /* set the receive mode flags */
             bxe_set_rx_mode(sc);
         }
@@ -4833,72 +4836,73 @@ bxe_ioctl(struct ifnet *ifp,
 
     case SIOCSIFCAP:
         /* find out which capabilities have changed */
-        mask = (ifr->ifr_reqcap ^ ifp->if_capenable);
+        mask = (ifr->ifr_reqcap ^ if_getcapenable(ifp));
 
         BLOGD(sc, DBG_IOCTL, "Received SIOCSIFCAP ioctl (mask=0x%08x)\n",
               mask);
 
         /* toggle the LRO capabilites enable flag */
         if (mask & IFCAP_LRO) {
-            ifp->if_capenable ^= IFCAP_LRO;
+	    if_togglecapenable(ifp, IFCAP_LRO);
             BLOGD(sc, DBG_IOCTL, "Turning LRO %s\n",
-                  (ifp->if_capenable & IFCAP_LRO) ? "ON" : "OFF");
+                  (if_getcapenable(ifp) & IFCAP_LRO) ? "ON" : "OFF");
             reinit = 1;
         }
 
         /* toggle the TXCSUM checksum capabilites enable flag */
         if (mask & IFCAP_TXCSUM) {
-            ifp->if_capenable ^= IFCAP_TXCSUM;
+	    if_togglecapenable(ifp, IFCAP_TXCSUM);
             BLOGD(sc, DBG_IOCTL, "Turning TXCSUM %s\n",
-                  (ifp->if_capenable & IFCAP_TXCSUM) ? "ON" : "OFF");
-            if (ifp->if_capenable & IFCAP_TXCSUM) {
-                ifp->if_hwassist = (CSUM_IP       |
+                  (if_getcapenable(ifp) & IFCAP_TXCSUM) ? "ON" : "OFF");
+            if (if_getcapenable(ifp) & IFCAP_TXCSUM) {
+                if_sethwassistbits(ifp, (CSUM_IP      | 
                                     CSUM_TCP      |
                                     CSUM_UDP      |
                                     CSUM_TSO      |
                                     CSUM_TCP_IPV6 |
-                                    CSUM_UDP_IPV6);
+                                    CSUM_UDP_IPV6), 0);
             } else {
-                ifp->if_hwassist = 0;
+		if_clearhwassist(ifp); /* XXX */
             }
         }
 
         /* toggle the RXCSUM checksum capabilities enable flag */
         if (mask & IFCAP_RXCSUM) {
-            ifp->if_capenable ^= IFCAP_RXCSUM;
+	    if_togglecapenable(ifp, IFCAP_RXCSUM);
             BLOGD(sc, DBG_IOCTL, "Turning RXCSUM %s\n",
-                  (ifp->if_capenable & IFCAP_RXCSUM) ? "ON" : "OFF");
-            if (ifp->if_capenable & IFCAP_RXCSUM) {
-                ifp->if_hwassist = (CSUM_IP       |
+                  (if_getcapenable(ifp) & IFCAP_RXCSUM) ? "ON" : "OFF");
+            if (if_getcapenable(ifp) & IFCAP_RXCSUM) {
+                if_sethwassistbits(ifp, (CSUM_IP      |
                                     CSUM_TCP      |
                                     CSUM_UDP      |
                                     CSUM_TSO      |
                                     CSUM_TCP_IPV6 |
-                                    CSUM_UDP_IPV6);
+                                    CSUM_UDP_IPV6), 0);
             } else {
-                ifp->if_hwassist = 0;
+		if_clearhwassist(ifp); /* XXX */
             }
         }
 
         /* toggle TSO4 capabilities enabled flag */
         if (mask & IFCAP_TSO4) {
-            ifp->if_capenable ^= IFCAP_TSO4;
+            if_togglecapenable(ifp, IFCAP_TSO4);
             BLOGD(sc, DBG_IOCTL, "Turning TSO4 %s\n",
-                  (ifp->if_capenable & IFCAP_TSO4) ? "ON" : "OFF");
+                  (if_getcapenable(ifp) & IFCAP_TSO4) ? "ON" : "OFF");
         }
 
         /* toggle TSO6 capabilities enabled flag */
         if (mask & IFCAP_TSO6) {
-            ifp->if_capenable ^= IFCAP_TSO6;
+	    if_togglecapenable(ifp, IFCAP_TSO6);
             BLOGD(sc, DBG_IOCTL, "Turning TSO6 %s\n",
-                  (ifp->if_capenable & IFCAP_TSO6) ? "ON" : "OFF");
+                  (if_getcapenable(ifp) & IFCAP_TSO6) ? "ON" : "OFF");
         }
 
         /* toggle VLAN_HWTSO capabilities enabled flag */
         if (mask & IFCAP_VLAN_HWTSO) {
-            ifp->if_capenable ^= IFCAP_VLAN_HWTSO;
+
+	    if_togglecapenable(ifp, IFCAP_VLAN_HWTSO);
             BLOGD(sc, DBG_IOCTL, "Turning VLAN_HWTSO %s\n",
-                  (ifp->if_capenable & IFCAP_VLAN_HWTSO) ? "ON" : "OFF");
+                  (if_getcapenable(ifp) & IFCAP_VLAN_HWTSO) ? "ON" : "OFF");
         }
 
         /* toggle VLAN_HWCSUM capabilities enabled flag */
@@ -4941,7 +4945,7 @@ bxe_ioctl(struct ifnet *ifp,
         BLOGD(sc, DBG_IOCTL,
               "Received SIOCSIFMEDIA/SIOCGIFMEDIA ioctl (cmd=%lu)\n",
               (command & 0xff));
-        error = ifmedia_ioctl(ifp, ifr, &sc->ifmedia, command);
+        error = ifmedia_ioctl_drv(ifp, ifr, &sc->ifmedia, command);
         break;
 
     case SIOCGPRIVATE_0:
@@ -4977,11 +4981,11 @@ bxe_ioctl(struct ifnet *ifp,
     default:
         BLOGD(sc, DBG_IOCTL, "Received Unknown Ioctl (cmd=%lu)\n",
               (command & 0xff));
-        error = ether_ioctl(ifp, command, data);
+        error = ether_ioctl_drv(ifp, command, data);
         break;
     }
 
-    if (reinit && (sc->ifnet->if_drv_flags & IFF_DRV_RUNNING)) {
+    if (reinit && (if_getdrvflags(sc->ifp) & IFF_DRV_RUNNING)) {
         BLOGD(sc, DBG_LOAD | DBG_IOCTL,
               "Re-initializing hardware from IOCTL change\n");
         atomic_store_rel_long(&sc->chip_tq_flags, CHIP_TQ_REINIT);
@@ -5831,8 +5835,8 @@ bxe_tx_encap_continue:
 }
 
 static void
-bxe_tx_start_locked(struct bxe_softc    *sc,
-                    struct ifnet        *ifp,
+bxe_tx_start_locked(struct bxe_softc *sc,
+                    if_t ifp,
                     struct bxe_fastpath *fp)
 {
     struct mbuf *m = NULL;
@@ -5842,13 +5846,13 @@ bxe_tx_start_locked(struct bxe_softc    *sc,
     BXE_FP_TX_LOCK_ASSERT(fp);
 
     /* keep adding entries while there are frames to send */
-    while (!IFQ_DRV_IS_EMPTY(&ifp->if_snd)) {
+    while (!if_sendq_empty(ifp)) {
 
         /*
          * check for any frames to send
          * dequeue can still be NULL even if queue is not empty
          */
-        IFQ_DRV_DEQUEUE(&ifp->if_snd, m);
+        m = if_dequeue(ifp);
         if (__predict_false(m == NULL)) {
             break;
         }
@@ -5865,8 +5869,8 @@ bxe_tx_start_locked(struct bxe_softc    *sc,
             fp->eth_q_stats.tx_encap_failures++;
             if (m != NULL) {
                 /* mark the TX queue as full and return the frame */
-                ifp->if_drv_flags |= IFF_DRV_OACTIVE;
-                IFQ_DRV_PREPEND(&ifp->if_snd, m);
+                if_setdrvflagbits(ifp, IFF_DRV_OACTIVE, 0);
+		if_sendq_prepend(ifp, m);
                 fp->eth_q_stats.mbuf_alloc_tx--;
                 fp->eth_q_stats.tx_queue_xoff++;
             }
@@ -5879,7 +5883,7 @@ bxe_tx_start_locked(struct bxe_softc    *sc,
         tx_count++;
 
         /* send a copy of the frame to any BPF listeners. */
-        BPF_MTAP(ifp, m);
+        if_etherbpfmtap(ifp, m);
 
         tx_bd_avail = bxe_tx_avail(sc, fp);
 
@@ -5887,7 +5891,7 @@ bxe_tx_start_locked(struct bxe_softc    *sc,
         if (tx_bd_avail < BXE_TX_CLEANUP_THRESHOLD) {
             /* bxe_txeof will set IFF_DRV_OACTIVE appropriately */
             bxe_txeof(sc, fp);
-            if (ifp->if_drv_flags & IFF_DRV_OACTIVE) {
+            if (if_getdrvflags(ifp) & IFF_DRV_OACTIVE) {
                 break;
             }
         }
@@ -5902,19 +5906,19 @@ bxe_tx_start_locked(struct bxe_softc    *sc,
 
 /* Legacy (non-RSS) dispatch routine */
 static void
-bxe_tx_start(struct ifnet *ifp)
+bxe_tx_start(if_t ifp)
 {
     struct bxe_softc *sc;
     struct bxe_fastpath *fp;
 
-    sc = ifp->if_softc;
+    sc = if_getsoftc(ifp);
 
-    if (!(ifp->if_drv_flags & IFF_DRV_RUNNING)) {
+    if (!(if_getdrvflags(ifp) & IFF_DRV_RUNNING)) {
         BLOGW(sc, "Interface not running, ignoring transmit request\n");
         return;
     }
 
-    if (ifp->if_drv_flags & IFF_DRV_OACTIVE) {
+    if (if_getdrvflags(ifp) & IFF_DRV_OACTIVE) {
         BLOGW(sc, "Interface TX queue is full, ignoring transmit request\n");
         return;
     }
@@ -5935,7 +5939,7 @@ bxe_tx_start(struct ifnet *ifp)
 
 static int
 bxe_tx_mq_start_locked(struct bxe_softc    *sc,
-                       struct ifnet        *ifp,
+                       if_t                ifp,
                        struct bxe_fastpath *fp,
                        struct mbuf         *m)
 {
@@ -5952,7 +5956,7 @@ bxe_tx_mq_start_locked(struct bxe_softc    *sc,
     }
 
     /* fetch the depth of the driver queue */
-    depth = drbr_inuse(ifp, tx_br);
+    depth = drbr_inuse_drv(ifp, tx_br);
     if (depth > fp->eth_q_stats.tx_max_drbr_queue_depth) {
         fp->eth_q_stats.tx_max_drbr_queue_depth = depth;
     }
@@ -5961,15 +5965,15 @@ bxe_tx_mq_start_locked(struct bxe_softc    *sc,
 
     if (m == NULL) {
         /* no new work, check for pending frames */
-        next = drbr_dequeue(ifp, tx_br);
-    } else if (drbr_needs_enqueue(ifp, tx_br)) {
+        next = drbr_dequeue_drv(ifp, tx_br);
+    } else if (drbr_needs_enqueue_drv(ifp, tx_br)) {
         /* have both new and pending work, maintain packet order */
-        rc = drbr_enqueue(ifp, tx_br, m);
+        rc = drbr_enqueue_drv(ifp, tx_br, m);
         if (rc != 0) {
             fp->eth_q_stats.tx_soft_errors++;
             goto bxe_tx_mq_start_locked_exit;
         }
-        next = drbr_dequeue(ifp, tx_br);
+        next = drbr_dequeue_drv(ifp, tx_br);
     } else {
         /* new work only and nothing pending */
         next = m;
@@ -5991,9 +5995,9 @@ bxe_tx_mq_start_locked(struct bxe_softc    *sc,
             fp->eth_q_stats.tx_encap_failures++;
             if (next != NULL) {
                 /* mark the TX queue as full and save the frame */
-                ifp->if_drv_flags |= IFF_DRV_OACTIVE;
+                if_setdrvflagbits(ifp, IFF_DRV_OACTIVE, 0);
                 /* XXX this may reorder the frame */
-                rc = drbr_enqueue(ifp, tx_br, next);
+                rc = drbr_enqueue_drv(ifp, tx_br, next);
                 fp->eth_q_stats.mbuf_alloc_tx--;
                 fp->eth_q_stats.tx_frames_deferred++;
             }
@@ -6006,7 +6010,7 @@ bxe_tx_mq_start_locked(struct bxe_softc    *sc,
         tx_count++;
 
         /* send a copy of the frame to any BPF listeners */
-        BPF_MTAP(ifp, next);
+	if_etherbpfmtap(ifp, next);
 
         tx_bd_avail = bxe_tx_avail(sc, fp);
 
@@ -6014,12 +6018,12 @@ bxe_tx_mq_start_locked(struct bxe_softc    *sc,
         if (tx_bd_avail < BXE_TX_CLEANUP_THRESHOLD) {
             /* bxe_txeof will set IFF_DRV_OACTIVE appropriately */
             bxe_txeof(sc, fp);
-            if (ifp->if_drv_flags & IFF_DRV_OACTIVE) {
+            if (if_getdrvflags(ifp) & IFF_DRV_OACTIVE) {
                 break;
             }
         }
 
-        next = drbr_dequeue(ifp, tx_br);
+        next = drbr_dequeue_drv(ifp, tx_br);
     }
 
     /* all TX packets were dequeued and/or the tx ring is full */
@@ -6038,7 +6042,7 @@ static int
 bxe_tx_mq_start(struct ifnet *ifp,
                 struct mbuf  *m)
 {
-    struct bxe_softc *sc = ifp->if_softc;
+    struct bxe_softc *sc = if_getsoftc(ifp);
     struct bxe_fastpath *fp;
     int fp_index, rc;
 
@@ -6051,12 +6055,12 @@ bxe_tx_mq_start(struct ifnet *ifp,
 
     fp = &sc->fp[fp_index];
 
-    if (!(ifp->if_drv_flags & IFF_DRV_RUNNING)) {
+    if (!(if_getdrvflags(ifp) & IFF_DRV_RUNNING)) {
         BLOGW(sc, "Interface not running, ignoring transmit request\n");
         return (ENETDOWN);
     }
 
-    if (ifp->if_drv_flags & IFF_DRV_OACTIVE) {
+    if (if_getdrvflags(ifp) & IFF_DRV_OACTIVE) {
         BLOGW(sc, "Interface TX queue is full, ignoring transmit request\n");
         return (EBUSY);
     }
@@ -6078,7 +6082,7 @@ bxe_tx_mq_start(struct ifnet *ifp,
 static void
 bxe_mq_flush(struct ifnet *ifp)
 {
-    struct bxe_softc *sc = ifp->if_softc;
+    struct bxe_softc *sc = if_getsoftc(ifp);
     struct bxe_fastpath *fp;
     struct mbuf *m;
     int i;
@@ -6102,7 +6106,7 @@ bxe_mq_flush(struct ifnet *ifp)
         }
     }
 
-    if_qflush(ifp);
+    if_qflush_drv(ifp);
 }
 
 #endif /* FreeBSD_version >= 800000 */
@@ -6793,7 +6797,7 @@ bxe_alloc_fp_buffers(struct bxe_softc *sc)
         fp->rx_cq_prod = cqe_ring_prod;
         fp->eth_q_stats.rx_calls = fp->eth_q_stats.rx_pkts = 0;
 
-        if (sc->ifnet->if_capenable & IFCAP_LRO) {
+        if (if_getcapenable(sc->ifp) & IFCAP_LRO) {
             max_agg_queues = MAX_AGG_QS(sc);
 
             fp->tpa_enable = TRUE;
@@ -8009,7 +8013,7 @@ bxe_drv_info_ether_stat(struct bxe_softc *sc)
     ether_stat->mtu_size = sc->mtu;
 
     ether_stat->feature_flags |= FEATURE_ETH_CHKSUM_OFFLOAD_MASK;
-    if (sc->ifnet->if_capenable & (IFCAP_TSO4 | IFCAP_TSO6)) {
+    if (if_getcapenable(sc->ifp) & (IFCAP_TSO4 | IFCAP_TSO6)) {
         ether_stat->feature_flags |= FEATURE_ETH_LSO_MASK;
     }
 
@@ -9040,7 +9044,7 @@ bxe_handle_fp_tq(void *context,
      * can use to tell the task here not to do anything.
      */
 #if 0
-    if (!(sc->ifnet->if_drv_flags & IFF_DRV_RUNNING)) {
+    if (!(if_getdrvflags(sc->ifp) & IFF_DRV_RUNNING)) {
         return;
     }
 #endif
@@ -10602,7 +10606,7 @@ bxe_pf_init(struct bxe_softc *sc)
      * This flag is relevant for E1x only.
      * E2 doesn't have a TPA configuration in a function level.
      */
-    flags |= (sc->ifnet->if_capenable & IFCAP_LRO) ? FUNC_FLG_TPA : 0;
+    flags |= (if_getcapenable(sc->ifp) & IFCAP_LRO) ? FUNC_FLG_TPA : 0;
 
     func_init.func_flgs = flags;
     func_init.pf_id     = SC_FUNC(sc);
@@ -11659,7 +11663,7 @@ bxe_get_q_flags(struct bxe_softc    *sc,
         bxe_set_bit(ECORE_Q_FLG_OV, &flags);
     }
 
-    if (sc->ifnet->if_capenable & IFCAP_LRO) {
+    if (if_getcapenable(sc->ifp) & IFCAP_LRO) {
         bxe_set_bit(ECORE_Q_FLG_TPA, &flags);
         bxe_set_bit(ECORE_Q_FLG_TPA_IPV6, &flags);
 #if 0
@@ -11708,7 +11712,7 @@ bxe_pf_rx_q_prep(struct bxe_softc              *sc,
     uint16_t sge_sz = 0;
     uint16_t tpa_agg_size = 0;
 
-    if (sc->ifnet->if_capenable & IFCAP_LRO) {
+    if (if_getcapenable(sc->ifp)  & IFCAP_LRO) {
         pause->sge_th_lo = SGE_TH_LO(sc);
         pause->sge_th_hi = SGE_TH_HI(sc);
 
@@ -12257,7 +12261,7 @@ bxe_link_report_locked(struct bxe_softc *sc)
 
     if (bxe_test_bit(BXE_LINK_REPORT_LINK_DOWN,
                      &cur_data.link_report_flags)) {
-        if_link_state_change(sc->ifnet, LINK_STATE_DOWN);
+        if_linkstate_change_drv(sc->ifp, LINK_STATE_DOWN);
         BLOGI(sc, "NIC Link is Down\n");
     } else {
         const char *duplex;
@@ -12298,7 +12302,7 @@ bxe_link_report_locked(struct bxe_softc *sc)
             flow = "none";
         }
 
-        if_link_state_change(sc->ifnet, LINK_STATE_UP);
+        if_linkstate_change_drv(sc->ifp, LINK_STATE_UP);
         BLOGI(sc, "NIC Link is Up, %d Mbps %s duplex, Flow control: %s\n",
               cur_data.line_speed, duplex, flow);
     }
@@ -12468,19 +12472,14 @@ static int
 bxe_init_mcast_macs_list(struct bxe_softc                 *sc,
                          struct ecore_mcast_ramrod_params *p)
 {
-    struct ifnet *ifp = sc->ifnet;
+    if_t ifp = sc->ifp;
     int mc_count = 0;
-    struct ifmultiaddr *ifma;
+    int mcnt, i;
     struct ecore_mcast_list_elem *mc_mac;
+    unsigned char *mta;
 
-    TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
-        if (ifma->ifma_addr->sa_family != AF_LINK) {
-            continue;
-        }
-
-        mc_count++;
-    }
-
+    mc_count = if_multiaddr_count(ifp, -1);/* XXX they don't have a limit */
+                                           /* should we enforce one? */
     ECORE_LIST_INIT(&p->mcast_list);
     p->mcast_list_len = 0;
 
@@ -12488,19 +12487,27 @@ bxe_init_mcast_macs_list(struct bxe_softc                 *sc,
         return (0);
     }
 
+    mta = malloc(sizeof(unsigned char) * ETHER_ADDR_LEN *
+            mc_count, M_DEVBUF, M_NOWAIT);
+
+    if(mta == NULL) {
+        BLOGE(sc, "Failed to allocate temp mcast list\n");
+        return (-1);
+    }
+    
     mc_mac = malloc(sizeof(*mc_mac) * mc_count, M_DEVBUF,
                     (M_NOWAIT | M_ZERO));
     if (!mc_mac) {
+        free(mta, M_DEVBUF);
         BLOGE(sc, "Failed to allocate temp mcast list\n");
         return (-1);
     }
 
-    TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
-        if (ifma->ifma_addr->sa_family != AF_LINK) {
-            continue;
-        }
+    if_multiaddr_array(ifp, mta, &mcnt, mc_count); /* mta and mcnt not expected 
+                                                      to be  different */
+    for(i=0; i< mcnt; i++) {
 
-        mc_mac->mac = (uint8_t *)LLADDR((struct sockaddr_dl *)ifma->ifma_addr);
+        bcopy((mta + (i * ETHER_ADDR_LEN)), mc_mac->mac, ETHER_ADDR_LEN);
         ECORE_LIST_PUSH_TAIL(&mc_mac->link, &p->mcast_list);
 
         BLOGD(sc, DBG_LOAD,
@@ -12512,6 +12519,7 @@ bxe_init_mcast_macs_list(struct bxe_softc                 *sc,
     }
 
     p->mcast_list_len = mc_count;
+    free(mta, M_DEVBUF);
 
     return (0);
 }
@@ -12571,7 +12579,7 @@ bxe_set_mc_list(struct bxe_softc *sc)
 static int
 bxe_set_uc_list(struct bxe_softc *sc)
 {
-    struct ifnet *ifp = sc->ifnet;
+    if_t ifp = sc->ifp;
     struct ecore_vlan_mac_obj *mac_obj = &sc->sp_objs->mac_obj;
     struct ifaddr *ifa;
     unsigned long ramrod_flags = 0;
@@ -12580,7 +12588,7 @@ bxe_set_uc_list(struct bxe_softc *sc)
 #if __FreeBSD_version < 800000
     IF_ADDR_LOCK(ifp);
 #else
-    if_addr_rlock(ifp);
+    if_addr_rlock_drv(ifp);
 #endif
 
     /* first schedule a cleanup up of old configuration */
@@ -12590,12 +12598,12 @@ bxe_set_uc_list(struct bxe_softc *sc)
 #if __FreeBSD_version < 800000
         IF_ADDR_UNLOCK(ifp);
 #else
-        if_addr_runlock(ifp);
+        if_addr_runlock_drv(ifp);
 #endif
         return (rc);
     }
 
-    ifa = ifp->if_addr;
+    ifa = if_getifaddr(ifp); /* XXX Is this structure */
     while (ifa) {
         if (ifa->ifa_addr->sa_family != AF_LINK) {
             ifa = TAILQ_NEXT(ifa, ifa_link);
@@ -12613,7 +12621,7 @@ bxe_set_uc_list(struct bxe_softc *sc)
 #if __FreeBSD_version < 800000
             IF_ADDR_UNLOCK(ifp);
 #else
-            if_addr_runlock(ifp);
+            if_addr_runlock_drv(ifp);
 #endif
             return (rc);
         }
@@ -12624,7 +12632,7 @@ bxe_set_uc_list(struct bxe_softc *sc)
 #if __FreeBSD_version < 800000
     IF_ADDR_UNLOCK(ifp);
 #else
-    if_addr_runlock(ifp);
+    if_addr_runlock_drv(ifp);
 #endif
 
     /* Execute the pending commands */
@@ -12638,7 +12646,7 @@ bxe_handle_rx_mode_tq(void *context,
                       int  pending)
 {
     struct bxe_softc *sc = (struct bxe_softc *)context;
-    struct ifnet *ifp = sc->ifnet;
+    if_t ifp = sc->ifp;
     uint32_t rx_mode = BXE_RX_MODE_NORMAL;
 
     BXE_CORE_LOCK(sc);
@@ -12649,12 +12657,12 @@ bxe_handle_rx_mode_tq(void *context,
         return;
     }
 
-    BLOGD(sc, DBG_SP, "ifp->if_flags=0x%x\n", ifp->if_flags);
+    BLOGD(sc, DBG_SP, "if_flags(ifp)=0x%x\n", if_getflags(sc->ifp));
 
-    if (ifp->if_flags & IFF_PROMISC) {
+    if (if_getflags(ifp) & IFF_PROMISC) {
         rx_mode = BXE_RX_MODE_PROMISC;
-    } else if ((ifp->if_flags & IFF_ALLMULTI) ||
-               ((ifp->if_amcount > BXE_MAX_MULTICAST) &&
+    } else if ((if_getflags(ifp) & IFF_ALLMULTI) ||
+               ((if_getamcount(ifp) > BXE_MAX_MULTICAST) &&
                 CHIP_IS_E1(sc))) {
         rx_mode = BXE_RX_MODE_ALLMULTI;
     } else {
@@ -13101,7 +13109,7 @@ bxe_nic_load(struct bxe_softc *sc,
 #endif
 
     /* Tell the stack the driver is running! */
-    sc->ifnet->if_drv_flags = IFF_DRV_RUNNING;
+    if_setdrvflags(sc->ifp, IFF_DRV_RUNNING);
 
     BLOGD(sc, DBG_LOAD, "NIC successfully loaded\n");
 
@@ -13154,7 +13162,7 @@ bxe_init_locked(struct bxe_softc *sc)
     BXE_CORE_LOCK_ASSERT(sc);
 
     /* check if the driver is already running */
-    if (sc->ifnet->if_drv_flags & IFF_DRV_RUNNING) {
+    if (if_getdrvflags(sc->ifp) & IFF_DRV_RUNNING) {
         BLOGD(sc, DBG_LOAD, "Init called while driver is running!\n");
         return (0);
     }
@@ -13219,7 +13227,7 @@ bxe_init_locked_done:
         /* Tell the stack the driver is NOT running! */
         BLOGE(sc, "Initialization failed, "
                   "stack notified driver is NOT running!\n");
-        sc->ifnet->if_drv_flags &= ~IFF_DRV_RUNNING;
+	if_setdrvflagbits(sc->ifp, 0, IFF_DRV_RUNNING);
     }
 
     return (rc);
@@ -13252,7 +13260,8 @@ bxe_init(void *xsc)
 static int
 bxe_init_ifnet(struct bxe_softc *sc)
 {
-    struct ifnet *ifp;
+    if_t ifp;
+    int capabilities;
 
     /* ifconfig entrypoint for media type/status reporting */
     ifmedia_init(&sc->ifmedia, IFM_IMASK,
@@ -13267,32 +13276,33 @@ bxe_init_ifnet(struct bxe_softc *sc)
     sc->ifmedia.ifm_media = sc->ifmedia.ifm_cur->ifm_media; /* XXX ? */
 
     /* allocate the ifnet structure */
-    if ((ifp = if_alloc(IFT_ETHER)) == NULL) {
+    if ((ifp = if_gethandle(IFT_ETHER)) == NULL) {
         BLOGE(sc, "Interface allocation failed!\n");
         return (ENXIO);
     }
 
-    ifp->if_softc = sc;
-    if_initname(ifp, device_get_name(sc->dev), device_get_unit(sc->dev));
-    ifp->if_flags = (IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST);
-    ifp->if_ioctl = bxe_ioctl;
-    ifp->if_start = bxe_tx_start;
+    if_setsoftc(ifp, sc);
+    if_initname_drv(ifp, device_get_name(sc->dev), device_get_unit(sc->dev));
+    if_setflags(ifp, (IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST));
+    if_setioctlfn(ifp, bxe_ioctl);
+    if_setstartfn(ifp, bxe_tx_start);
 #if __FreeBSD_version >= 800000
-    ifp->if_transmit = bxe_tx_mq_start;
-    ifp->if_qflush = bxe_mq_flush;
+    if_settransmitfn(ifp, bxe_tx_mq_start);
+    if_setqflushfn(ifp, bxe_mq_flush);
 #endif
 #ifdef FreeBSD8_0
-    ifp->if_timer = 0;
+    if_settimer(ifp, 0);
 #endif
-    ifp->if_init = bxe_init;
-    ifp->if_mtu = sc->mtu;
-    ifp->if_hwassist = (CSUM_IP       |
+    if_setinitfn(ifp, bxe_init);
+    if_setmtu(ifp, sc->mtu);
+    if_sethwassist(ifp, (CSUM_IP      |
                         CSUM_TCP      |
                         CSUM_UDP      |
                         CSUM_TSO      |
                         CSUM_TCP_IPV6 |
-                        CSUM_UDP_IPV6);
-    ifp->if_capabilities =
+                        CSUM_UDP_IPV6));
+
+    capabilities =
 #if __FreeBSD_version < 700000
         (IFCAP_VLAN_MTU       |
          IFCAP_VLAN_HWTAGGING |
@@ -13312,18 +13322,17 @@ bxe_init_ifnet(struct bxe_softc *sc)
          IFCAP_TSO6           |
          IFCAP_WOL_MAGIC);
 #endif
-    ifp->if_capenable = ifp->if_capabilities;
-    ifp->if_capenable &= ~IFCAP_WOL_MAGIC; /* XXX not yet... */
-    ifp->if_baudrate = IF_Gbps(10);
-    ifp->if_snd.ifq_drv_maxlen = sc->tx_ring_size;
+    if_setcapabilitiesbit(ifp, capabilities, 0); /* XXX */
+    if_setbaudrate(ifp, IF_Gbps(10));
+/* XXX */
+    if_setsendqlen(ifp, sc->tx_ring_size);
+    if_setsendqready(ifp);
+/* XXX */
 
-    IFQ_SET_MAXLEN(&ifp->if_snd, ifp->if_snd.ifq_drv_maxlen);
-    IFQ_SET_READY(&ifp->if_snd);
-
-    sc->ifnet = ifp;
+    sc->ifp = ifp;
 
     /* attach to the Ethernet interface list */
-    ether_ifattach(ifp, sc->link_params.mac_addr);
+    ether_ifattach_drv(ifp, sc->link_params.mac_addr);
 
     return (0);
 }
@@ -15182,7 +15191,7 @@ bxe_alloc_hsi_mem(struct bxe_softc *sc)
         /***********************/
 
         /* set required sizes before mapping to conserve resources */
-        if (sc->ifnet->if_capenable & (IFCAP_TSO4 | IFCAP_TSO6)) {
+        if (if_getcapenable(sc->ifp) & (IFCAP_TSO4 | IFCAP_TSO6)) {
             max_size     = BXE_TSO_MAX_SIZE;
             max_segments = BXE_TSO_MAX_SEGMENTS;
             max_seg_size = BXE_TSO_MAX_SEG_SIZE;
@@ -16388,8 +16397,8 @@ bxe_attach(device_t dev)
 
     /* allocate device interrupts */
     if (bxe_interrupt_alloc(sc) != 0) {
-        if (sc->ifnet != NULL) {
-            ether_ifdetach(sc->ifnet);
+        if (sc->ifp != NULL) {
+            ether_ifdetach_drv(sc->ifp);
         }
         ifmedia_removeall(&sc->ifmedia);
         bxe_release_mutexes(sc);
@@ -16401,8 +16410,8 @@ bxe_attach(device_t dev)
     /* allocate ilt */
     if (bxe_alloc_ilt_mem(sc) != 0) {
         bxe_interrupt_free(sc);
-        if (sc->ifnet != NULL) {
-            ether_ifdetach(sc->ifnet);
+        if (sc->ifp != NULL) {
+            ether_ifdetach_drv(sc->ifp);
         }
         ifmedia_removeall(&sc->ifmedia);
         bxe_release_mutexes(sc);
@@ -16415,8 +16424,8 @@ bxe_attach(device_t dev)
     if (bxe_alloc_hsi_mem(sc) != 0) {
         bxe_free_ilt_mem(sc);
         bxe_interrupt_free(sc);
-        if (sc->ifnet != NULL) {
-            ether_ifdetach(sc->ifnet);
+        if (sc->ifp != NULL) {
+            ether_ifdetach_drv(sc->ifp);
         }
         ifmedia_removeall(&sc->ifmedia);
         bxe_release_mutexes(sc);
@@ -16474,14 +16483,14 @@ static int
 bxe_detach(device_t dev)
 {
     struct bxe_softc *sc;
-    struct ifnet *ifp;
+    if_t ifp;
 
     sc = device_get_softc(dev);
 
     BLOGD(sc, DBG_LOAD, "Starting detach...\n");
 
-    ifp = sc->ifnet;
-    if (ifp != NULL && ifp->if_vlantrunk != NULL) {
+    ifp = sc->ifp;
+    if (ifp != NULL && if_vlantrunkinuse(ifp)) {
         BLOGE(sc, "Cannot detach while VLANs are in use.\n");
         return(EBUSY);
     }
@@ -16506,7 +16515,7 @@ bxe_detach(device_t dev)
 
     /* release the network interface */
     if (ifp != NULL) {
-        ether_ifdetach(ifp);
+        ether_ifdetach_drv(ifp);
     }
     ifmedia_removeall(&sc->ifmedia);
 
@@ -16528,8 +16537,8 @@ bxe_detach(device_t dev)
     bxe_deallocate_bars(sc);
 
     /* Release the FreeBSD interface. */
-    if (sc->ifnet != NULL) {
-        if_free(sc->ifnet);
+    if (sc->ifp != NULL) {
+        if_free_drv(sc->ifp);
     }
 
     pci_disable_busmaster(dev);
