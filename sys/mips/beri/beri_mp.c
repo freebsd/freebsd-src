@@ -83,6 +83,8 @@ platform_cpu_mask(cpuset_t *mask)
 	if (MAXCPU > 1 && ncpus > MAXCPU)
 		printf("%s: Hardware supports more CPUs (%d) than kernel (%d)\n",
 		    __func__, ncpus, MAXCPU);
+	printf("%s: hardware has %d cores with %d threads each\n", __func__,
+	    ncores, nthreads);
 
 	if ((cpus = OF_finddevice("/cpus")) <= 0) {
 		printf("%s: no \"/cpus\" device found in FDT\n", __func__);
@@ -280,6 +282,9 @@ platform_start_ap(int cpuid)
 		panic("%s: CPU %d has missing or invalid cpu-release-addr",
 		    __func__, cpuid);
 	se->pir = cpuid;
+	if (bootverbose)
+		printf("%s: writing %p to %p\n", __func__, mpentry,
+		    &se->entry_addr);
 	se->entry_addr = (intptr_t)mpentry;
 
 	return (0);
