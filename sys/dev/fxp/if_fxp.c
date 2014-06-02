@@ -220,20 +220,20 @@ static int		fxp_resume(device_t dev);
 
 static const struct fxp_ident *fxp_find_ident(device_t dev);
 static void		fxp_intr(void *xsc);
-static void		fxp_rxcsum(struct fxp_softc *sc, struct ifnet *ifp,
+static void		fxp_rxcsum(struct fxp_softc *sc, if_t ifp,
 			    struct mbuf *m, uint16_t status, int pos);
-static int		fxp_intr_body(struct fxp_softc *sc, struct ifnet *ifp,
+static int		fxp_intr_body(struct fxp_softc *sc, if_t ifp,
 			    uint8_t statack, int count);
 static void 		fxp_init(void *xsc);
 static void 		fxp_init_body(struct fxp_softc *sc, int);
 static void 		fxp_tick(void *xsc);
-static void 		fxp_start(struct ifnet *ifp);
-static void 		fxp_start_body(struct ifnet *ifp);
+static void 		fxp_start(if_t ifp);
+static void 		fxp_start_body(if_t ifp);
 static int		fxp_encap(struct fxp_softc *sc, struct mbuf **m_head);
 static void		fxp_txeof(struct fxp_softc *sc);
 static void		fxp_stop(struct fxp_softc *sc);
 static void 		fxp_release(struct fxp_softc *sc);
-static int		fxp_ioctl(struct ifnet *ifp, u_long command,
+static int		fxp_ioctl(if_t ifp, u_long command,
 			    caddr_t data);
 static void 		fxp_watchdog(struct fxp_softc *sc);
 static void		fxp_add_rfabuf(struct fxp_softc *sc,
@@ -254,11 +254,11 @@ static void		fxp_read_eeprom(struct fxp_softc *sc, u_short *data,
 			    int offset, int words);
 static void		fxp_write_eeprom(struct fxp_softc *sc, u_short *data,
 			    int offset, int words);
-static int		fxp_ifmedia_upd(struct ifnet *ifp);
-static void		fxp_ifmedia_sts(struct ifnet *ifp,
+static int		fxp_ifmedia_upd(if_t ifp);
+static void		fxp_ifmedia_sts(if_t ifp,
 			    struct ifmediareq *ifmr);
-static int		fxp_serial_ifmedia_upd(struct ifnet *ifp);
-static void		fxp_serial_ifmedia_sts(struct ifnet *ifp,
+static int		fxp_serial_ifmedia_upd(if_t ifp);
+static void		fxp_serial_ifmedia_sts(if_t ifp,
 			    struct ifmediareq *ifmr);
 static int		fxp_miibus_readreg(device_t dev, int phy, int reg);
 static int		fxp_miibus_writereg(device_t dev, int phy, int reg,
@@ -427,7 +427,7 @@ fxp_attach(device_t dev)
 	struct fxp_cb_tx *tcbp;
 	struct fxp_tx *txp;
 	struct fxp_rx *rxp;
-	struct ifnet *ifp;
+	if_t ifp;
 	uint32_t val;
 	uint16_t data;
 	u_char eaddr[ETHER_ADDR_LEN];
@@ -439,11 +439,11 @@ fxp_attach(device_t dev)
 	mtx_init(&sc->sc_mtx, device_get_nameunit(dev), MTX_NETWORK_LOCK,
 	    MTX_DEF);
 	callout_init_mtx(&sc->stat_ch, &sc->sc_mtx, 0);
-	ifmedia_init(&sc->sc_media, 0, fxp_serial_ifmedia_upd,
+	ifmedia_init_drv(&sc->sc_media, 0, fxp_serial_ifmedia_upd,
 	    fxp_serial_ifmedia_sts);
 
-	ifp = sc->ifp = if_alloc(IFT_ETHER);
-	if (ifp == NULL) {
+	ifp = sc->ifp = if_gethandle(IFT_ETHER);
+	if (ifp == (void *)NULL) {
 		device_printf(dev, "can not if_alloc()\n");
 		error = ENOSPC;
 		goto fail;
@@ -827,73 +827,75 @@ fxp_attach(device_t dev)
 		flags = MIIF_NOISOLATE;
 		if (sc->revision >= FXP_REV_82558_A4)
 			flags |= MIIF_DOPAUSE;
-		error = mii_attach(dev, &sc->miibus, ifp, fxp_ifmedia_upd,
-		    fxp_ifmedia_sts, BMSR_DEFCAPMASK, MII_PHY_ANY,
-		    MII_OFFSET_ANY, flags);
+		error = mii_attach(dev, &sc->miibus, ifp,
+		    (ifm_change_cb_t)fxp_ifmedia_upd,
+		    (ifm_stat_cb_t)fxp_ifmedia_sts, BMSR_DEFCAPMASK,
+		    MII_PHY_ANY, MII_OFFSET_ANY, flags);
 		if (error != 0) {
 			device_printf(dev, "attaching PHYs failed\n");
 			goto fail;
 		}
 	}
 
-	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
-	ifp->if_init = fxp_init;
-	ifp->if_softc = sc;
-	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
-	ifp->if_ioctl = fxp_ioctl;
-	ifp->if_start = fxp_start;
+	if_initname_drv(ifp, device_get_name(dev), device_get_unit(dev));
+	if_setdev(ifp, dev);
+	if_setinitfn(ifp, fxp_init);
+	if_setsoftc(ifp, sc);
+	if_setflags(ifp, IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST);
+	if_setioctlfn(ifp, fxp_ioctl);
+	if_setstartfn(ifp, fxp_start);
 
-	ifp->if_capabilities = ifp->if_capenable = 0;
+	if_setcapabilities(ifp, 0);
+	if_setcapenable(ifp, 0);
 
 	/* Enable checksum offload/TSO for 82550 or better chips */
 	if (sc->flags & FXP_FLAG_EXT_RFA) {
-		ifp->if_hwassist = FXP_CSUM_FEATURES | CSUM_TSO;
-		ifp->if_capabilities |= IFCAP_HWCSUM | IFCAP_TSO4;
-		ifp->if_capenable |= IFCAP_HWCSUM | IFCAP_TSO4;
+		if_sethwassist(ifp, FXP_CSUM_FEATURES | CSUM_TSO);
+		if_setcapabilitiesbit(ifp, IFCAP_HWCSUM | IFCAP_TSO4, 0);
+		if_setcapenablebit(ifp, IFCAP_HWCSUM | IFCAP_TSO4, 0);
 	}
 
 	if (sc->flags & FXP_FLAG_82559_RXCSUM) {
-		ifp->if_capabilities |= IFCAP_RXCSUM;
-		ifp->if_capenable |= IFCAP_RXCSUM;
+		if_setcapabilitiesbit(ifp, IFCAP_RXCSUM, 0);
+		if_setcapenablebit(ifp, IFCAP_RXCSUM, 0);
 	}
 
 	if (sc->flags & FXP_FLAG_WOLCAP) {
-		ifp->if_capabilities |= IFCAP_WOL_MAGIC;
-		ifp->if_capenable |= IFCAP_WOL_MAGIC;
+		if_setcapabilitiesbit(ifp, IFCAP_WOL_MAGIC, 0);
+		if_setcapenablebit(ifp, IFCAP_WOL_MAGIC, 0);
 	}
 
 #ifdef DEVICE_POLLING
 	/* Inform the world we support polling. */
-	ifp->if_capabilities |= IFCAP_POLLING;
+	if_setcapabilitiesbit(ifp, IFCAP_POLLING, 0);
 #endif
 
 	/*
 	 * Attach the interface.
 	 */
-	ether_ifattach(ifp, eaddr);
+	ether_ifattach_drv(ifp, eaddr);
 
 	/*
 	 * Tell the upper layer(s) we support long frames.
 	 * Must appear after the call to ether_ifattach() because
 	 * ether_ifattach() sets ifi_hdrlen to the default value.
 	 */
-	ifp->if_data.ifi_hdrlen = sizeof(struct ether_vlan_header);
-	ifp->if_capabilities |= IFCAP_VLAN_MTU;
-	ifp->if_capenable |= IFCAP_VLAN_MTU; /* the hw bits already set */
+	if_setifheaderlen(ifp, sizeof(struct ether_vlan_header));
+	if_setcapabilitiesbit(ifp, IFCAP_VLAN_MTU, 0);
+	if_setcapenablebit(ifp, IFCAP_VLAN_MTU, 0);
 	if ((sc->flags & FXP_FLAG_EXT_RFA) != 0) {
-		ifp->if_capabilities |= IFCAP_VLAN_HWTAGGING |
-		    IFCAP_VLAN_HWCSUM | IFCAP_VLAN_HWTSO;
-		ifp->if_capenable |= IFCAP_VLAN_HWTAGGING |
-		    IFCAP_VLAN_HWCSUM | IFCAP_VLAN_HWTSO;
+		if_setcapabilitiesbit(ifp, IFCAP_VLAN_HWTAGGING |
+		    IFCAP_VLAN_HWCSUM | IFCAP_VLAN_HWTSO, 0);
+		if_setcapenablebit(ifp, IFCAP_VLAN_HWTAGGING |
+		    IFCAP_VLAN_HWCSUM | IFCAP_VLAN_HWTSO, 0);
 	}
 
 	/*
 	 * Let the system queue as many packets as we have available
 	 * TX descriptors.
 	 */
-	IFQ_SET_MAXLEN(&ifp->if_snd, FXP_NTXCB - 1);
-	ifp->if_snd.ifq_drv_maxlen = FXP_NTXCB - 1;
-	IFQ_SET_READY(&ifp->if_snd);
+	if_setsendqlen(ifp, FXP_NTXCB - 1);
+	if_setsendqready(ifp);
 
 	/*
 	 * Hook our interrupt after all initialization is complete.
@@ -902,7 +904,7 @@ fxp_attach(device_t dev)
 			       NULL, fxp_intr, sc, &sc->ih);
 	if (error) {
 		device_printf(dev, "could not setup irq\n");
-		ether_ifdetach(sc->ifp);
+		ether_ifdetach_drv(sc->ifp);
 		goto fail;
 	}
 
@@ -991,7 +993,7 @@ fxp_release(struct fxp_softc *sc)
 	if (sc->mcs_tag)
 		bus_dma_tag_destroy(sc->mcs_tag);
 	if (sc->ifp)
-		if_free(sc->ifp);
+		if_free_drv(sc->ifp);
 
 	mtx_destroy(&sc->sc_mtx);
 }
@@ -1005,8 +1007,8 @@ fxp_detach(device_t dev)
 	struct fxp_softc *sc = device_get_softc(dev);
 
 #ifdef DEVICE_POLLING
-	if (sc->ifp->if_capenable & IFCAP_POLLING)
-		ether_poll_deregister(sc->ifp);
+	if (if_getcapenable(sc->ifp) & IFCAP_POLLING)
+		ether_poll_deregister_drv(sc->ifp);
 #endif
 
 	FXP_LOCK(sc);
@@ -1021,7 +1023,7 @@ fxp_detach(device_t dev)
 	/*
 	 * Close down routes etc.
 	 */
-	ether_ifdetach(sc->ifp);
+	ether_ifdetach_drv(sc->ifp);
 
 	/*
 	 * Unhook interrupt before dropping lock. This is to prevent
@@ -1061,7 +1063,7 @@ static int
 fxp_suspend(device_t dev)
 {
 	struct fxp_softc *sc = device_get_softc(dev);
-	struct ifnet *ifp;
+	if_t ifp;
 	int pmc;
 	uint16_t pmstat;
 
@@ -1071,12 +1073,12 @@ fxp_suspend(device_t dev)
 	if (pci_find_cap(sc->dev, PCIY_PMG, &pmc) == 0) {
 		pmstat = pci_read_config(sc->dev, pmc + PCIR_POWER_STATUS, 2);
 		pmstat &= ~(PCIM_PSTAT_PME | PCIM_PSTAT_PMEENABLE);
-		if ((ifp->if_capenable & IFCAP_WOL_MAGIC) != 0) {
+		if ((if_getcapenable(ifp) & IFCAP_WOL_MAGIC) != 0) {
 			/* Request PME. */
 			pmstat |= PCIM_PSTAT_PME | PCIM_PSTAT_PMEENABLE;
 			sc->flags |= FXP_FLAG_WOL;
 			/* Reconfigure hardware to accept magic frames. */
-			ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
+			if_setdrvflagbits(ifp, 0, IFF_DRV_RUNNING);
 			fxp_init_body(sc, 0);
 		}
 		pci_write_config(sc->dev, pmc + PCIR_POWER_STATUS, pmstat, 2);
@@ -1097,7 +1099,7 @@ static int
 fxp_resume(device_t dev)
 {
 	struct fxp_softc *sc = device_get_softc(dev);
-	struct ifnet *ifp = sc->ifp;
+	if_t ifp = sc->ifp;
 	int pmc;
 	uint16_t pmstat;
 
@@ -1118,7 +1120,7 @@ fxp_resume(device_t dev)
 	DELAY(10);
 
 	/* reinitialize interface if necessary */
-	if (ifp->if_flags & IFF_UP)
+	if (if_getflags(ifp) & IFF_UP)
 		fxp_init_body(sc, 1);
 
 	sc->suspended = 0;
@@ -1323,9 +1325,9 @@ fxp_load_eeprom(struct fxp_softc *sc)
  * Grab the softc lock and call the real fxp_start_body() routine
  */
 static void
-fxp_start(struct ifnet *ifp)
+fxp_start(if_t ifp)
 {
-	struct fxp_softc *sc = ifp->if_softc;
+	struct fxp_softc *sc = if_getsoftc(ifp);
 
 	FXP_LOCK(sc);
 	fxp_start_body(ifp);
@@ -1338,15 +1340,15 @@ fxp_start(struct ifnet *ifp)
  * internal entry point only.
  */
 static void
-fxp_start_body(struct ifnet *ifp)
+fxp_start_body(if_t ifp)
 {
-	struct fxp_softc *sc = ifp->if_softc;
+	struct fxp_softc *sc = if_getsoftc(ifp);
 	struct mbuf *mb_head;
 	int txqueued;
 
 	FXP_LOCK_ASSERT(sc, MA_OWNED);
 
-	if ((ifp->if_drv_flags & (IFF_DRV_RUNNING | IFF_DRV_OACTIVE)) !=
+	if ((if_getdrvflags(ifp) & (IFF_DRV_RUNNING | IFF_DRV_OACTIVE)) !=
 	    IFF_DRV_RUNNING)
 		return;
 
@@ -1359,27 +1361,26 @@ fxp_start_body(struct ifnet *ifp)
 	 *       a NOP command when needed.
 	 */
 	txqueued = 0;
-	while (!IFQ_DRV_IS_EMPTY(&ifp->if_snd) &&
-	    sc->tx_queued < FXP_NTXCB - 1) {
+	while (!if_sendq_empty(ifp) && sc->tx_queued < FXP_NTXCB - 1) {
 
 		/*
 		 * Grab a packet to transmit.
 		 */
-		IFQ_DRV_DEQUEUE(&ifp->if_snd, mb_head);
+		mb_head = if_dequeue(ifp);
 		if (mb_head == NULL)
 			break;
 
 		if (fxp_encap(sc, &mb_head)) {
 			if (mb_head == NULL)
 				break;
-			IFQ_DRV_PREPEND(&ifp->if_snd, mb_head);
-			ifp->if_drv_flags |= IFF_DRV_OACTIVE;
+			if_sendq_prepend(ifp, mb_head);
+			if_setdrvflagbits(ifp, IFF_DRV_OACTIVE, 0);
 		}
 		txqueued++;
 		/*
 		 * Pass packet to bpf if there is a listener.
 		 */
-		BPF_MTAP(ifp, mb_head);
+		if_bpfmtap(ifp, mb_head);
 	}
 
 	/*
@@ -1402,7 +1403,7 @@ fxp_start_body(struct ifnet *ifp)
 static int
 fxp_encap(struct fxp_softc *sc, struct mbuf **m_head)
 {
-	struct ifnet *ifp;
+	if_t ifp;
 	struct mbuf *m;
 	struct fxp_tx *txp;
 	struct fxp_cb_tx *cbp;
@@ -1669,17 +1670,17 @@ fxp_encap(struct fxp_softc *sc, struct mbuf **m_head)
 }
 
 #ifdef DEVICE_POLLING
-static poll_handler_t fxp_poll;
+static poll_handler_drv_t fxp_poll;
 
 static int
-fxp_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
+fxp_poll(if_t ifp, enum poll_cmd cmd, int count)
 {
-	struct fxp_softc *sc = ifp->if_softc;
+	struct fxp_softc *sc = if_getsoftc(ifp);
 	uint8_t statack;
 	int rx_npkts = 0;
 
 	FXP_LOCK(sc);
-	if (!(ifp->if_drv_flags & IFF_DRV_RUNNING)) {
+	if (!(if_getdrvflags(ifp) & IFF_DRV_RUNNING)) {
 		FXP_UNLOCK(sc);
 		return (rx_npkts);
 	}
@@ -1713,7 +1714,7 @@ static void
 fxp_intr(void *xsc)
 {
 	struct fxp_softc *sc = xsc;
-	struct ifnet *ifp = sc->ifp;
+	if_t ifp = sc->ifp;
 	uint8_t statack;
 
 	FXP_LOCK(sc);
@@ -1723,7 +1724,7 @@ fxp_intr(void *xsc)
 	}
 
 #ifdef DEVICE_POLLING
-	if (ifp->if_capenable & IFCAP_POLLING) {
+	if (if_getcapenable(ifp) & IFCAP_POLLING) {
 		FXP_UNLOCK(sc);
 		return;
 	}
@@ -1744,7 +1745,7 @@ fxp_intr(void *xsc)
 		 * First ACK all the interrupts in this pass.
 		 */
 		CSR_WRITE_1(sc, FXP_CSR_SCB_STATACK, statack);
-		if ((ifp->if_drv_flags & IFF_DRV_RUNNING) != 0)
+		if ((if_getdrvflags(ifp) & IFF_DRV_RUNNING) != 0)
 			fxp_intr_body(sc, ifp, statack, -1);
 	}
 	FXP_UNLOCK(sc);
@@ -1753,7 +1754,7 @@ fxp_intr(void *xsc)
 static void
 fxp_txeof(struct fxp_softc *sc)
 {
-	struct ifnet *ifp;
+	if_t ifp;
 	struct fxp_tx *txp;
 
 	ifp = sc->ifp;
@@ -1772,7 +1773,7 @@ fxp_txeof(struct fxp_softc *sc)
 			txp->tx_cb->tbd[0].tb_addr = 0;
 		}
 		sc->tx_queued--;
-		ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
+		if_setdrvflagbits(ifp, 0, IFF_DRV_OACTIVE);
 	}
 	sc->fxp_desc.tx_first = txp;
 	bus_dmamap_sync(sc->cbl_tag, sc->cbl_map,
@@ -1782,7 +1783,7 @@ fxp_txeof(struct fxp_softc *sc)
 }
 
 static void
-fxp_rxcsum(struct fxp_softc *sc, struct ifnet *ifp, struct mbuf *m,
+fxp_rxcsum(struct fxp_softc *sc, if_t ifp, struct mbuf *m,
     uint16_t status, int pos)
 {
 	struct ether_header *eh;
@@ -1860,7 +1861,7 @@ fxp_rxcsum(struct fxp_softc *sc, struct ifnet *ifp, struct mbuf *m,
 }
 
 static int
-fxp_intr_body(struct fxp_softc *sc, struct ifnet *ifp, uint8_t statack,
+fxp_intr_body(struct fxp_softc *sc, if_t ifp, uint8_t statack,
     int count)
 {
 	struct mbuf *m;
@@ -1902,7 +1903,7 @@ fxp_intr_body(struct fxp_softc *sc, struct ifnet *ifp, uint8_t statack,
 	/*
 	 * Try to start more packets transmitting.
 	 */
-	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
+	if (!if_sendq_empty(ifp))
 		fxp_start_body(ifp);
 
 	/*
@@ -1969,7 +1970,7 @@ fxp_intr_body(struct fxp_softc *sc, struct ifnet *ifp, uint8_t statack,
 			 */
 			total_len = le16toh(rfa->actual_size) & 0x3fff;
 			if ((sc->flags & FXP_FLAG_82559_RXCSUM) != 0 &&
-			    (ifp->if_capenable & IFCAP_RXCSUM) != 0) {
+			    (if_getcapenable(ifp) & IFCAP_RXCSUM) != 0) {
 				/* Adjust for appended checksum bytes. */
 				total_len -= 2;
 			}
@@ -1984,12 +1985,12 @@ fxp_intr_body(struct fxp_softc *sc, struct ifnet *ifp, uint8_t statack,
 			}
 
 			m->m_pkthdr.len = m->m_len = total_len;
-			m->m_pkthdr.rcvif = ifp;
+			if_setrcvif(m, ifp);
 
                         /* Do IP checksum checking. */
-			if ((ifp->if_capenable & IFCAP_RXCSUM) != 0)
+			if ((if_getcapenable(ifp) & IFCAP_RXCSUM) != 0)
 				fxp_rxcsum(sc, ifp, m, status, total_len);
-			if ((ifp->if_capenable & IFCAP_VLAN_HWTAGGING) != 0 &&
+			if ((if_getcapenable(ifp) & IFCAP_VLAN_HWTAGGING) != 0 &&
 			    (status & FXP_RFA_STATUS_VLAN) != 0) {
 				m->m_pkthdr.ether_vtag =
 				    ntohs(rfa->rfax_vlan_id);
@@ -2004,14 +2005,14 @@ fxp_intr_body(struct fxp_softc *sc, struct ifnet *ifp, uint8_t statack,
 			 * calling if_input() on each one.
 			 */
 			FXP_UNLOCK(sc);
-			(*ifp->if_input)(ifp, m);
+			if_input(ifp, m);
 			FXP_LOCK(sc);
 			rx_npkts++;
-			if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0)
+			if ((if_getdrvflags(ifp) & IFF_DRV_RUNNING) == 0)
 				return (rx_npkts);
 		} else {
 			/* Reuse RFA and loaded DMA map. */
-			ifp->if_iqdrops++;
+			if_inciqdrops(ifp, 1);
 			fxp_discard_rfabuf(sc, rxp);
 		}
 		fxp_add_rfabuf(sc, rxp);
@@ -2028,7 +2029,7 @@ fxp_intr_body(struct fxp_softc *sc, struct ifnet *ifp, uint8_t statack,
 static void
 fxp_update_stats(struct fxp_softc *sc)
 {
-	struct ifnet *ifp = sc->ifp;
+	if_t ifp = sc->ifp;
 	struct fxp_stats *sp = sc->fxp_stats;
 	struct fxp_hwstats *hsp;
 	uint32_t *status;
@@ -2069,10 +2070,10 @@ fxp_update_stats(struct fxp_softc *sc)
 		hsp->tx_tco += le16toh(sp->tx_tco);
 		hsp->rx_tco += le16toh(sp->rx_tco);
 
-		ifp->if_opackets += le32toh(sp->tx_good);
-		ifp->if_collisions += le32toh(sp->tx_total_collisions);
+		if_incopackets(ifp, le32toh(sp->tx_good));
+		if_inccollisions(ifp, le32toh(sp->tx_total_collisions));
 		if (sp->rx_good) {
-			ifp->if_ipackets += le32toh(sp->rx_good);
+			if_incipackets(ifp, le32toh(sp->rx_good));
 			sc->rx_idle_secs = 0;
 		} else if (sc->flags & FXP_FLAG_RXBUG) {
 			/*
@@ -2080,17 +2081,17 @@ fxp_update_stats(struct fxp_softc *sc)
 			 */
 			sc->rx_idle_secs++;
 		}
-		ifp->if_ierrors +=
+		if_incierrors(ifp,
 		    le32toh(sp->rx_crc_errors) +
 		    le32toh(sp->rx_alignment_errors) +
 		    le32toh(sp->rx_rnr_errors) +
-		    le32toh(sp->rx_overrun_errors);
+		    le32toh(sp->rx_overrun_errors));
 		/*
 		 * If any transmit underruns occured, bump up the transmit
 		 * threshold by another 512 bytes (64 * 8).
 		 */
 		if (sp->tx_underruns) {
-			ifp->if_oerrors += le32toh(sp->tx_underruns);
+			if_incoerrors(ifp, le32toh(sp->tx_underruns));
 			if (tx_threshold < 192)
 				tx_threshold += 64;
 		}
@@ -2115,7 +2116,7 @@ static void
 fxp_tick(void *xsc)
 {
 	struct fxp_softc *sc = xsc;
-	struct ifnet *ifp = sc->ifp;
+	if_t ifp = sc->ifp;
 
 	FXP_LOCK_ASSERT(sc, MA_OWNED);
 
@@ -2143,8 +2144,8 @@ fxp_tick(void *xsc)
 	 */
 	if (sc->rx_idle_secs > FXP_MAX_RX_IDLE) {
 		sc->rx_idle_secs = 0;
-		if ((ifp->if_drv_flags & IFF_DRV_RUNNING) != 0) {
-			ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
+		if ((if_getdrvflags(ifp) & IFF_DRV_RUNNING) != 0) {
+			if_setdrvflagbits(ifp, 0, IFF_DRV_RUNNING);
 			fxp_init_body(sc, 1);
 		}
 		return;
@@ -2180,11 +2181,11 @@ fxp_tick(void *xsc)
 static void
 fxp_stop(struct fxp_softc *sc)
 {
-	struct ifnet *ifp = sc->ifp;
+	if_t ifp = sc->ifp;
 	struct fxp_tx *txp;
 	int i;
 
-	ifp->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
+	if_setdrvflagbits(ifp, 0, (IFF_DRV_RUNNING | IFF_DRV_OACTIVE));
 	sc->watchdog_timer = 0;
 
 	/*
@@ -2235,6 +2236,7 @@ fxp_stop(struct fxp_softc *sc)
 static void
 fxp_watchdog(struct fxp_softc *sc)
 {
+	if_t ifp = sc->ifp;
 
 	FXP_LOCK_ASSERT(sc, MA_OWNED);
 
@@ -2242,9 +2244,9 @@ fxp_watchdog(struct fxp_softc *sc)
 		return;
 
 	device_printf(sc->dev, "device timeout\n");
-	sc->ifp->if_oerrors++;
+	if_incoerrors(ifp, 1);
 
-	sc->ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
+	if_setdrvflagbits(ifp, 0, IFF_DRV_RUNNING);
 	fxp_init_body(sc, 1);
 }
 
@@ -2270,7 +2272,7 @@ fxp_init(void *xsc)
 static void
 fxp_init_body(struct fxp_softc *sc, int setmedia)
 {
-	struct ifnet *ifp = sc->ifp;
+	if_t ifp = sc->ifp;
 	struct mii_data *mii;
 	struct fxp_cb_config *cbp;
 	struct fxp_cb_ias *cb_ias;
@@ -2280,7 +2282,7 @@ fxp_init_body(struct fxp_softc *sc, int setmedia)
 
 	FXP_LOCK_ASSERT(sc, MA_OWNED);
 
-	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) != 0)
+	if (if_getdrvflags(ifp) & IFF_DRV_RUNNING)
 		return;
 
 	/*
@@ -2295,7 +2297,7 @@ fxp_init_body(struct fxp_softc *sc, int setmedia)
 	CSR_WRITE_4(sc, FXP_CSR_PORT, FXP_PORT_SOFTWARE_RESET);
 	DELAY(50);
 
-	prm = (ifp->if_flags & IFF_PROMISC) ? 1 : 0;
+	prm = (if_getflags(ifp) & IFF_PROMISC) ? 1 : 0;
 
 	/*
 	 * Initialize base of CBL and RFA memory. Loading with zero
@@ -2322,7 +2324,7 @@ fxp_init_body(struct fxp_softc *sc, int setmedia)
 	 * For ICH based controllers do not load microcode.
 	 */
 	if (sc->ident->ich == 0) {
-		if (ifp->if_flags & IFF_LINK0 &&
+		if (if_getflags(ifp) & IFF_LINK0 &&
 		    (sc->flags & FXP_FLAG_UCODE) == 0)
 			fxp_load_ucode(sc);
 	}
@@ -2378,7 +2380,7 @@ fxp_init_body(struct fxp_softc *sc, int setmedia)
 	cbp->mediatype =	sc->flags & FXP_FLAG_SERIAL_MEDIA ? 0 : 1;
 	cbp->csma_dis =		0;	/* (don't) disable link */
 	cbp->tcp_udp_cksum =	((sc->flags & FXP_FLAG_82559_RXCSUM) != 0 &&
-	    (ifp->if_capenable & IFCAP_RXCSUM) != 0) ? 1 : 0;
+	    (if_getcapenable(ifp) & IFCAP_RXCSUM) != 0) ? 1 : 0;
 	cbp->vlan_tco =		0;	/* (don't) enable vlan wakeup */
 	cbp->link_wake_en =	0;	/* (don't) assert PME# on link change */
 	cbp->arp_wake_en =	0;	/* (don't) assert PME# on arp */
@@ -2405,10 +2407,10 @@ fxp_init_body(struct fxp_softc *sc, int setmedia)
 	cbp->force_fdx =	0;	/* (don't) force full duplex */
 	cbp->fdx_pin_en =	1;	/* (enable) FDX# pin */
 	cbp->multi_ia =		0;	/* (don't) accept multiple IAs */
-	cbp->mc_all =		ifp->if_flags & IFF_ALLMULTI ? 1 : prm;
+	cbp->mc_all =		if_getflags(ifp) & IFF_ALLMULTI ? 1 : prm;
 	cbp->gamla_rx =		sc->flags & FXP_FLAG_EXT_RFA ? 1 : 0;
 	cbp->vlan_strip_en =	((sc->flags & FXP_FLAG_EXT_RFA) != 0 &&
-	    (ifp->if_capenable & IFCAP_VLAN_HWTAGGING) != 0) ? 1 : 0;
+	    (if_getcapenable(ifp) & IFCAP_VLAN_HWTAGGING) != 0) ? 1 : 0;
 
 	if (sc->revision == FXP_REV_82557) {
 		/*
@@ -2487,7 +2489,7 @@ fxp_init_body(struct fxp_softc *sc, int setmedia)
 	cb_ias->cb_status = 0;
 	cb_ias->cb_command = htole16(FXP_CB_COMMAND_IAS | FXP_CB_COMMAND_EL);
 	cb_ias->link_addr = 0xffffffff;
-	bcopy(IF_LLADDR(sc->ifp), cb_ias->macaddr, ETHER_ADDR_LEN);
+	bcopy(if_getlladdr(sc->ifp), cb_ias->macaddr, ETHER_ADDR_LEN);
 
 	/*
 	 * Start the IAS (Individual Address Setup) command/DMA.
@@ -2549,8 +2551,7 @@ fxp_init_body(struct fxp_softc *sc, int setmedia)
 	if (sc->miibus != NULL && setmedia != 0)
 		mii_mediachg(device_get_softc(sc->miibus));
 
-	ifp->if_drv_flags |= IFF_DRV_RUNNING;
-	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
+	if_setdrvflagbits(ifp, IFF_DRV_RUNNING, IFF_DRV_OACTIVE);
 
 	/*
 	 * Enable interrupts.
@@ -2560,7 +2561,7 @@ fxp_init_body(struct fxp_softc *sc, int setmedia)
 	 * ... but only do that if we are not polling. And because (presumably)
 	 * the default is interrupts on, we need to disable them explicitly!
 	 */
-	if (ifp->if_capenable & IFCAP_POLLING )
+	if (if_getcapenable(ifp) & IFCAP_POLLING )
 		CSR_WRITE_1(sc, FXP_CSR_SCB_INTRCNTL, FXP_SCB_INTR_DISABLE);
 	else
 #endif /* DEVICE_POLLING */
@@ -2573,14 +2574,14 @@ fxp_init_body(struct fxp_softc *sc, int setmedia)
 }
 
 static int
-fxp_serial_ifmedia_upd(struct ifnet *ifp)
+fxp_serial_ifmedia_upd(if_t ifp)
 {
 
 	return (0);
 }
 
 static void
-fxp_serial_ifmedia_sts(struct ifnet *ifp, struct ifmediareq *ifmr)
+fxp_serial_ifmedia_sts(if_t ifp, struct ifmediareq *ifmr)
 {
 
 	ifmr->ifm_active = IFM_ETHER|IFM_MANUAL;
@@ -2590,9 +2591,9 @@ fxp_serial_ifmedia_sts(struct ifnet *ifp, struct ifmediareq *ifmr)
  * Change media according to request.
  */
 static int
-fxp_ifmedia_upd(struct ifnet *ifp)
+fxp_ifmedia_upd(if_t ifp)
 {
-	struct fxp_softc *sc = ifp->if_softc;
+	struct fxp_softc *sc = if_getsoftc(ifp);
 	struct mii_data *mii;
 	struct mii_softc	*miisc;
 
@@ -2609,9 +2610,9 @@ fxp_ifmedia_upd(struct ifnet *ifp)
  * Notify the world which media we're using.
  */
 static void
-fxp_ifmedia_sts(struct ifnet *ifp, struct ifmediareq *ifmr)
+fxp_ifmedia_sts(if_t ifp, struct ifmediareq *ifmr)
 {
-	struct fxp_softc *sc = ifp->if_softc;
+	struct fxp_softc *sc = if_getsoftc(ifp);
 	struct mii_data *mii;
 
 	mii = device_get_softc(sc->miibus);
@@ -2800,13 +2801,13 @@ fxp_miibus_statchg(device_t dev)
 {
 	struct fxp_softc *sc;
 	struct mii_data *mii;
-	struct ifnet *ifp;
+	if_t ifp;
 
 	sc = device_get_softc(dev);
 	mii = device_get_softc(sc->miibus);
 	ifp = sc->ifp;
-	if (mii == NULL || ifp == NULL ||
-	    (ifp->if_drv_flags & IFF_DRV_RUNNING) == 0 ||
+	if (mii == NULL || ifp == (void *)NULL ||
+	    (if_getdrvflags(ifp) & IFF_DRV_RUNNING) == 0 ||
 	    (mii->mii_media_status & (IFM_AVALID | IFM_ACTIVE)) !=
 	    (IFM_AVALID | IFM_ACTIVE))
 		return;
@@ -2822,14 +2823,14 @@ fxp_miibus_statchg(device_t dev)
 	 */
 	if (sc->revision == FXP_REV_82557)
 		return;
-	ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
+	if_setdrvflagbits(ifp, 0, IFF_DRV_RUNNING);
 	fxp_init_body(sc, 0);
 }
 
 static int
-fxp_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
+fxp_ioctl(if_t ifp, u_long command, caddr_t data)
 {
-	struct fxp_softc *sc = ifp->if_softc;
+	struct fxp_softc *sc = if_getsoftc(ifp);
 	struct ifreq *ifr = (struct ifreq *)data;
 	struct mii_data *mii;
 	int flag, mask, error = 0, reinit;
@@ -2843,27 +2844,27 @@ fxp_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 		 * XXX If it's up then re-initialize it. This is so flags
 		 * such as IFF_PROMISC are handled.
 		 */
-		if (ifp->if_flags & IFF_UP) {
-			if (((ifp->if_drv_flags & IFF_DRV_RUNNING) != 0) &&
-			    ((ifp->if_flags ^ sc->if_flags) &
+		if (if_getflags(ifp) & IFF_UP) {
+			if (((if_getdrvflags(ifp) & IFF_DRV_RUNNING) != 0) &&
+			    ((if_getflags(ifp) ^ sc->if_flags) &
 			    (IFF_PROMISC | IFF_ALLMULTI | IFF_LINK0)) != 0) {
-				ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
+				if_setdrvflagbits(ifp, 0, IFF_DRV_RUNNING);
 				fxp_init_body(sc, 0);
-			} else if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0)
+			} else if ((if_getdrvflags(ifp) & IFF_DRV_RUNNING) == 0)
 				fxp_init_body(sc, 1);
 		} else {
-			if ((ifp->if_drv_flags & IFF_DRV_RUNNING) != 0)
+			if ((if_getdrvflags(ifp) & IFF_DRV_RUNNING) != 0)
 				fxp_stop(sc);
 		}
-		sc->if_flags = ifp->if_flags;
+		sc->if_flags = if_getflags(ifp);
 		FXP_UNLOCK(sc);
 		break;
 
 	case SIOCADDMULTI:
 	case SIOCDELMULTI:
 		FXP_LOCK(sc);
-		if ((ifp->if_drv_flags & IFF_DRV_RUNNING) != 0) {
-			ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
+		if ((if_getdrvflags(ifp) & IFF_DRV_RUNNING) != 0) {
+			if_setdrvflagbits(ifp, 0, IFF_DRV_RUNNING);
 			fxp_init_body(sc, 0);
 		}
 		FXP_UNLOCK(sc);
@@ -2873,98 +2874,99 @@ fxp_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 	case SIOCGIFMEDIA:
 		if (sc->miibus != NULL) {
 			mii = device_get_softc(sc->miibus);
-                        error = ifmedia_ioctl(ifp, ifr,
+                        error = ifmedia_ioctl_drv(ifp, ifr,
                             &mii->mii_media, command);
 		} else {
-                        error = ifmedia_ioctl(ifp, ifr, &sc->sc_media, command);
+                        error = ifmedia_ioctl_drv(ifp, ifr, &sc->sc_media, command);
 		}
 		break;
 
 	case SIOCSIFCAP:
 		reinit = 0;
-		mask = ifp->if_capenable ^ ifr->ifr_reqcap;
+		mask = if_getcapenable(ifp) ^ ifr->ifr_reqcap;
 #ifdef DEVICE_POLLING
 		if (mask & IFCAP_POLLING) {
 			if (ifr->ifr_reqcap & IFCAP_POLLING) {
-				error = ether_poll_register(fxp_poll, ifp);
+				error = ether_poll_register_drv(fxp_poll, ifp);
 				if (error)
 					return(error);
 				FXP_LOCK(sc);
 				CSR_WRITE_1(sc, FXP_CSR_SCB_INTRCNTL,
 				    FXP_SCB_INTR_DISABLE);
-				ifp->if_capenable |= IFCAP_POLLING;
+				if_setcapenablebit(ifp, IFCAP_POLLING, 0);
 				FXP_UNLOCK(sc);
 			} else {
-				error = ether_poll_deregister(ifp);
+				error = ether_poll_deregister_drv(ifp);
 				/* Enable interrupts in any case */
 				FXP_LOCK(sc);
 				CSR_WRITE_1(sc, FXP_CSR_SCB_INTRCNTL, 0);
-				ifp->if_capenable &= ~IFCAP_POLLING;
+				if_setcapenablebit(ifp, 0, IFCAP_POLLING);
 				FXP_UNLOCK(sc);
 			}
 		}
 #endif
 		FXP_LOCK(sc);
 		if ((mask & IFCAP_TXCSUM) != 0 &&
-		    (ifp->if_capabilities & IFCAP_TXCSUM) != 0) {
-			ifp->if_capenable ^= IFCAP_TXCSUM;
-			if ((ifp->if_capenable & IFCAP_TXCSUM) != 0)
-				ifp->if_hwassist |= FXP_CSUM_FEATURES;
+		    (if_getcapabilities(ifp) & IFCAP_TXCSUM) != 0) {
+			if_togglecapenable(ifp, IFCAP_TXCSUM);
+			if ((if_getcapenable(ifp) & IFCAP_TXCSUM) != 0)
+				if_sethwassistbits(ifp, FXP_CSUM_FEATURES, 0);
 			else
-				ifp->if_hwassist &= ~FXP_CSUM_FEATURES;
+				if_sethwassistbits(ifp, 0, FXP_CSUM_FEATURES);
 		}
 		if ((mask & IFCAP_RXCSUM) != 0 &&
-		    (ifp->if_capabilities & IFCAP_RXCSUM) != 0) {
-			ifp->if_capenable ^= IFCAP_RXCSUM;
+		    (if_getcapabilities(ifp) & IFCAP_RXCSUM) != 0) {
+			if_togglecapenable(ifp, IFCAP_RXCSUM);
 			if ((sc->flags & FXP_FLAG_82559_RXCSUM) != 0)
 				reinit++;
 		}
 		if ((mask & IFCAP_TSO4) != 0 &&
-		    (ifp->if_capabilities & IFCAP_TSO4) != 0) {
-			ifp->if_capenable ^= IFCAP_TSO4;
-			if ((ifp->if_capenable & IFCAP_TSO4) != 0)
-				ifp->if_hwassist |= CSUM_TSO;
+		    (if_getcapabilities(ifp) & IFCAP_TSO4) != 0) {
+			if_togglecapenable(ifp, IFCAP_TSO4);
+			if ((if_getcapenable(ifp) & IFCAP_TSO4) != 0)
+				if_sethwassistbits(ifp, CSUM_TSO, 0);
 			else
-				ifp->if_hwassist &= ~CSUM_TSO;
+				if_sethwassistbits(ifp, 0, CSUM_TSO);
 		}
 		if ((mask & IFCAP_WOL_MAGIC) != 0 &&
-		    (ifp->if_capabilities & IFCAP_WOL_MAGIC) != 0)
-			ifp->if_capenable ^= IFCAP_WOL_MAGIC;
+		    (if_getcapabilities(ifp) & IFCAP_WOL_MAGIC) != 0)
+			if_togglecapenable(ifp, IFCAP_WOL_MAGIC);
 		if ((mask & IFCAP_VLAN_MTU) != 0 &&
-		    (ifp->if_capabilities & IFCAP_VLAN_MTU) != 0) {
-			ifp->if_capenable ^= IFCAP_VLAN_MTU;
+		    (if_getcapabilities(ifp) & IFCAP_VLAN_MTU) != 0) {
+			if_togglecapenable(ifp, IFCAP_VLAN_MTU);
 			if (sc->revision != FXP_REV_82557)
 				flag = FXP_FLAG_LONG_PKT_EN;
 			else /* a hack to get long frames on the old chip */
 				flag = FXP_FLAG_SAVE_BAD;
 			sc->flags ^= flag;
-			if (ifp->if_flags & IFF_UP)
+			if (if_getflags(ifp) & IFF_UP)
 				reinit++;
 		}
 		if ((mask & IFCAP_VLAN_HWCSUM) != 0 &&
-		    (ifp->if_capabilities & IFCAP_VLAN_HWCSUM) != 0)
-			ifp->if_capenable ^= IFCAP_VLAN_HWCSUM;
+		    (if_getcapabilities(ifp) & IFCAP_VLAN_HWCSUM) != 0)
+			if_togglecapenable(ifp, IFCAP_VLAN_HWCSUM);
 		if ((mask & IFCAP_VLAN_HWTSO) != 0 &&
-		    (ifp->if_capabilities & IFCAP_VLAN_HWTSO) != 0)
-			ifp->if_capenable ^= IFCAP_VLAN_HWTSO;
+		    (if_getcapabilities(ifp) & IFCAP_VLAN_HWTSO) != 0)
+			if_togglecapenable(ifp, IFCAP_VLAN_HWTSO);
 		if ((mask & IFCAP_VLAN_HWTAGGING) != 0 &&
-		    (ifp->if_capabilities & IFCAP_VLAN_HWTAGGING) != 0) {
-			ifp->if_capenable ^= IFCAP_VLAN_HWTAGGING;
-			if ((ifp->if_capenable & IFCAP_VLAN_HWTAGGING) == 0)
-				ifp->if_capenable &=
-				    ~(IFCAP_VLAN_HWTSO | IFCAP_VLAN_HWCSUM);
+		    (if_getcapabilities(ifp) & IFCAP_VLAN_HWTAGGING) != 0) {
+			if_togglecapenable(ifp, IFCAP_VLAN_HWTAGGING);
+			if ((if_getcapenable(ifp) & IFCAP_VLAN_HWTAGGING) == 0)
+				if_setcapenablebit(ifp, 0, IFCAP_VLAN_HWTSO |
+				    IFCAP_VLAN_HWCSUM);
 			reinit++;
 		}
-		if (reinit > 0 && (ifp->if_drv_flags & IFF_DRV_RUNNING) != 0) {
-			ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
+		if (reinit > 0 &&
+		    (if_getdrvflags(ifp) & IFF_DRV_RUNNING) != 0) {
+			if_setdrvflagbits(ifp, 0, IFF_DRV_RUNNING);
 			fxp_init_body(sc, 0);
 		}
 		FXP_UNLOCK(sc);
-		VLAN_CAPABILITIES(ifp);
+		if_vlancap(ifp);
 		break;
 
 	default:
-		error = ether_ioctl(ifp, command, data);
+		error = ether_ioctl_drv(ifp, command, data);
 	}
 	return (error);
 }
@@ -2976,24 +2978,15 @@ static int
 fxp_mc_addrs(struct fxp_softc *sc)
 {
 	struct fxp_cb_mcs *mcsp = sc->mcsp;
-	struct ifnet *ifp = sc->ifp;
-	struct ifmultiaddr *ifma;
-	int nmcasts;
+	if_t ifp = sc->ifp;
+	int nmcasts = 0;
 
-	nmcasts = 0;
-	if ((ifp->if_flags & IFF_ALLMULTI) == 0) {
+	if ((if_getflags(ifp) & IFF_ALLMULTI) == 0) {
 		if_maddr_rlock(ifp);
-		TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
-			if (ifma->ifma_addr->sa_family != AF_LINK)
-				continue;
-			if (nmcasts >= MAXMCADDR) {
-				ifp->if_flags |= IFF_ALLMULTI;
-				nmcasts = 0;
-				break;
-			}
-			bcopy(LLADDR((struct sockaddr_dl *)ifma->ifma_addr),
-			    &sc->mcsp->mc_addr[nmcasts][0], ETHER_ADDR_LEN);
-			nmcasts++;
+		if_setupmultiaddr(ifp, mcsp->mc_addr, &nmcasts, MAXMCADDR);
+		if (nmcasts >= MAXMCADDR) {
+			if_setflagbits(ifp, IFF_ALLMULTI, 0);
+			nmcasts = 0;
 		}
 		if_maddr_runlock(ifp);
 	}
