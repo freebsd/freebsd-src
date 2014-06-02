@@ -344,6 +344,71 @@ cleanup:
 	return (error);
 }
 
+static int
+freebsd32_ioctl_sg(struct thread *td,
+    struct freebsd32_ioctl_args *uap, struct file *fp)
+{
+	struct sg_io_hdr io;
+	struct sg_io_hdr32 io32;
+	int error;
+
+	if ((error = copyin(uap->data, &io32, sizeof(io32))) != 0)
+		return (error);
+
+	CP(io32, io, interface_id);
+	CP(io32, io, dxfer_direction);
+	CP(io32, io, cmd_len);
+	CP(io32, io, mx_sb_len);
+	CP(io32, io, iovec_count);
+	CP(io32, io, dxfer_len);
+	PTRIN_CP(io32, io, dxferp);
+	PTRIN_CP(io32, io, cmdp);
+	PTRIN_CP(io32, io, sbp);
+	CP(io32, io, timeout);
+	CP(io32, io, flags);
+	CP(io32, io, pack_id);
+	PTRIN_CP(io32, io, usr_ptr);
+	CP(io32, io, status);
+	CP(io32, io, masked_status);
+	CP(io32, io, msg_status);
+	CP(io32, io, sb_len_wr);
+	CP(io32, io, host_status);
+	CP(io32, io, driver_status);
+	CP(io32, io, resid);
+	CP(io32, io, duration);
+	CP(io32, io, info);
+
+	if ((error = fo_ioctl(fp, SG_IO, (caddr_t)&io, td->td_ucred, td)) != 0)
+		return (error);
+
+	CP(io, io32, interface_id);
+	CP(io, io32, dxfer_direction);
+	CP(io, io32, cmd_len);
+	CP(io, io32, mx_sb_len);
+	CP(io, io32, iovec_count);
+	CP(io, io32, dxfer_len);
+	PTROUT_CP(io, io32, dxferp);
+	PTROUT_CP(io, io32, cmdp);
+	PTROUT_CP(io, io32, sbp);
+	CP(io, io32, timeout);
+	CP(io, io32, flags);
+	CP(io, io32, pack_id);
+	PTROUT_CP(io, io32, usr_ptr);
+	CP(io, io32, status);
+	CP(io, io32, masked_status);
+	CP(io, io32, msg_status);
+	CP(io, io32, sb_len_wr);
+	CP(io, io32, host_status);
+	CP(io, io32, driver_status);
+	CP(io, io32, resid);
+	CP(io, io32, duration);
+	CP(io, io32, info);
+
+	error = copyout(&io32, uap->data, sizeof(io32));
+
+	return (error);
+}
+
 int
 freebsd32_ioctl(struct thread *td, struct freebsd32_ioctl_args *uap)
 {
@@ -391,6 +456,10 @@ freebsd32_ioctl(struct thread *td, struct freebsd32_ioctl_args *uap)
 
 	case PCIOCGETCONF_32:
 		error = freebsd32_ioctl_pciocgetconf(td, uap, fp);
+		break;
+
+	case SG_IO_32:
+		error = freebsd32_ioctl_sg(td, uap, fp);
 		break;
 
 	default:
