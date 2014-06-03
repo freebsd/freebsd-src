@@ -476,7 +476,7 @@ dt_cg_typecast(const dt_node_t *src, const dt_node_t *dst,
 	if (!dt_node_is_scalar(dst))
 		return; /* not a scalar */
 	if (dstsize == srcsize &&
-	    ((src->dn_flags ^ dst->dn_flags) & DT_NF_SIGNED) != 0)
+	    ((src->dn_flags ^ dst->dn_flags) & DT_NF_SIGNED) == 0)
 		return; /* not narrowing or changing signed-ness */
 	if (dstsize > srcsize && (src->dn_flags & DT_NF_SIGNED) == 0)
 		return; /* nothing to do in this case */
