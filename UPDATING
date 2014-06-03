@@ -16,6 +16,17 @@ from older versions of FreeBSD, try WITHOUT_CLANG to bootstrap to the tip of
 stable/10, and then rebuild without this option. The bootstrap process from
 older version of current is a bit fragile.
 
+20140603:	p4	FreeBSD-SA-14:11.sendmail
+			FreeBSD-SA-14:13.pam
+			FreeBSD-EN-14:06.exec
+
+	Fix sendmail improper close-on-exec flag handling. [SA-14:11]
+
+	Fix incorrect error handling in PAM policy parser. [SA-14:13]
+
+	Fix triple-fault when executing from a threaded process.
+	[EN-14:06]
+
 20140513:	p3	FreeBSD-SA-14:10.openssl
 			FreeBSD-EN-14:05.ciss
 
