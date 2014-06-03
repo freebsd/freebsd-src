@@ -249,6 +249,14 @@ detach:
 static int
 utouch_detach(device_t dev)
 {
+	struct utouch_softc *sc = device_get_softc(dev);
+	
+	/* Stop intr transfer if running */
+	utouch_ev_close(sc->sc_evdev, sc);
+
+	evdev_unregister(dev, sc->sc_evdev);
+	usbd_transfer_unsetup(sc->sc_xfer, UTOUCH_N_TRANSFER);
+	mtx_destroy(&sc->sc_mtx);
 	return (0);
 }
 
