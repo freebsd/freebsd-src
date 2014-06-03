@@ -269,17 +269,22 @@ dtrace_id_t		dtrace_probeid_error;	/* special ERROR probe */
 
 /*
  * DTrace Helper Tracing Variables
+ *
+ * These variables should be set dynamically to enable helper tracing.  The
+ * only variables that should be set are dtrace_helptrace_enable (which should
+ * be set to a non-zero value to allocate helper tracing buffers on the next
+ * open of /dev/dtrace) and dtrace_helptrace_disable (which should be set to a
+ * non-zero value to deallocate helper tracing buffers on the next close of
+ * /dev/dtrace).  When (and only when) helper tracing is disabled, the
+ * buffer size may also be set via dtrace_helptrace_bufsize.
  */
-uint32_t dtrace_helptrace_next = 0;
-uint32_t dtrace_helptrace_nlocals;
-char	*dtrace_helptrace_buffer;
-int	dtrace_helptrace_bufsize = 512 * 1024;
-
-#ifdef DEBUG
-int	dtrace_helptrace_enabled = 1;
-#else
-int	dtrace_helptrace_enabled = 0;
-#endif
+int			dtrace_helptrace_enable = 0;
+int			dtrace_helptrace_disable = 0;
+int			dtrace_helptrace_bufsize = 16 * 1024 * 1024;
+uint32_t		dtrace_helptrace_nlocals;
+static dtrace_helptrace_t *dtrace_helptrace_buffer;
+static uint32_t		dtrace_helptrace_next = 0;
+static int		dtrace_helptrace_wrapped = 0;
 
 /*
  * DTrace Error Hashing
@@ -14321,10 +14326,10 @@ dtrace_helper_trace(dtrace_helper_action_t *helper,
     dtrace_mstate_t *mstate, dtrace_vstate_t *vstate, int where)
 {
 	uint32_t size, next, nnext, i;
-	dtrace_helptrace_t *ent;
+	dtrace_helptrace_t *ent, *buffer;
 	uint16_t flags = cpu_core[CPU->cpu_id].cpuc_dtrace_flags;
 
-	if (!dtrace_helptrace_enabled)
+	if ((buffer = dtrace_helptrace_buffer) == NULL)
 		return;
 
 	ASSERT(vstate->dtvs_nlocals <= dtrace_helptrace_nlocals);
@@ -14352,10 +14357,12 @@ dtrace_helper_trace(dtrace_helper_action_t *helper,
 	/*
 	 * We have our slot; fill it in.
 	 */
-	if (nnext == size)
+	if (nnext == size) {
+		dtrace_helptrace_wrapped++;
 		next = 0;
+	}
 
-	ent = (dtrace_helptrace_t *)&dtrace_helptrace_buffer[next];
+	ent = (dtrace_helptrace_t *)((uintptr_t)buffer + next);
 	ent->dtht_helper = helper;
 	ent->dtht_where = where;
 	ent->dtht_nlocals = vstate->dtvs_nlocals;
@@ -14389,7 +14396,7 @@ dtrace_helper(int which, dtrace_mstate_t *mstate,
 	dtrace_helper_action_t *helper;
 	dtrace_vstate_t *vstate;
 	dtrace_difo_t *pred;
-	int i, trace = dtrace_helptrace_enabled;
+	int i, trace = dtrace_helptrace_buffer != NULL;
 
 	ASSERT(which >= 0 && which < DTRACE_NHELPER_ACTIONS);
 
@@ -15706,17 +15713,6 @@ dtrace_attach(dev_info_t *devi, ddi_attach_cmd_t cmd)
 	mutex_exit(&cpu_lock);
 
 	/*
-	 * If DTrace helper tracing is enabled, we need to allocate the
-	 * trace buffer and initialize the values.
-	 */
-	if (dtrace_helptrace_enabled) {
-		ASSERT(dtrace_helptrace_buffer == NULL);
-		dtrace_helptrace_buffer =
-		    kmem_zalloc(dtrace_helptrace_bufsize, KM_SLEEP);
-		dtrace_helptrace_next = 0;
-	}
-
-	/*
 	 * If there are already providers, we must ask them to provide their
 	 * probes, and then match any anonymous enabling against them.  Note
 	 * that there should be no other retained enablings at this time:
@@ -15812,6 +15808,18 @@ dtrace_open(dev_t *devp, int flag, int otyp, cred_t *cred_p)
 		return (EBUSY);
 	}
 
+	if (dtrace_helptrace_enable && dtrace_helptrace_buffer == NULL) {
+		/*
+		 * If DTrace helper tracing is enabled, we need to allocate the
+		 * trace buffer and initialize the values.
+		 */
+		dtrace_helptrace_buffer =
+		    kmem_zalloc(dtrace_helptrace_bufsize, KM_SLEEP);
+		dtrace_helptrace_next = 0;
+		dtrace_helptrace_wrapped = 0;
+		dtrace_helptrace_enable = 0;
+	}
+
 	state = dtrace_state_create(devp, cred_p);
 	mutex_exit(&cpu_lock);
 
@@ -15833,6 +15841,7 @@ dtrace_close(dev_t dev, int flag, int otyp, cred_t *cred_p)
 {
 	minor_t minor = getminor(dev);
 	dtrace_state_t *state;
+	dtrace_helptrace_t *buf = NULL;
 
 	if (minor == DTRACEMNRN_HELPER)
 		return (0);
@@ -15850,6 +15859,18 @@ dtrace_close(dev_t dev, int flag, int otyp, cred_t *cred_p)
 		dtrace_state_destroy(state->dts_anon);
 	}
 
+	if (dtrace_helptrace_disable) {
+		/*
+		 * If we have been told to disable helper tracing, set the
+		 * buffer to NULL before calling into dtrace_state_destroy();
+		 * we take advantage of its dtrace_sync() to know that no
+		 * CPU is in probe context with enabled helper tracing
+		 * after it returns.
+		 */
+		buf = dtrace_helptrace_buffer;
+		dtrace_helptrace_buffer = NULL;
+	}
+
 	dtrace_state_destroy(state);
 	ASSERT(dtrace_opens > 0);
 
@@ -15859,6 +15880,11 @@ dtrace_close(dev_t dev, int flag, int otyp, cred_t *cred_p)
 	 */
 	if (--dtrace_opens == 0 && dtrace_anon.dta_enabling == NULL)
 		(void) kdi_dtrace_set(KDI_DTSET_DTRACE_DEACTIVATE);
+
+	if (buf != NULL) {
+		kmem_free(buf, dtrace_helptrace_bufsize);
+		dtrace_helptrace_disable = 0;
+	}
 
 	mutex_exit(&dtrace_lock);
 	mutex_exit(&cpu_lock);
@@ -16752,11 +16778,6 @@ dtrace_detach(dev_info_t *dip, ddi_detach_cmd_t cmd)
 	ASSERT(dtrace_closef == NULL);
 
 	mutex_exit(&cpu_lock);
-
-	if (dtrace_helptrace_enabled) {
-		kmem_free(dtrace_helptrace_buffer, dtrace_helptrace_bufsize);
-		dtrace_helptrace_buffer = NULL;
-	}
 
 	kmem_free(dtrace_probes, dtrace_nprobes * sizeof (dtrace_probe_t *));
 	dtrace_probes = NULL;
