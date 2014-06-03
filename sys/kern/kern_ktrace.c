@@ -119,6 +119,7 @@ static int data_lengths[] = {
 	0,					/* KTR_SYSCTL */
 	sizeof(struct ktr_proc_ctor),		/* KTR_PROCCTOR */
 	0,					/* KTR_PROCDTOR */
+	0,					/* unused */
 	sizeof(struct ktr_fault),		/* KTR_FAULT */
 	sizeof(struct ktr_faultend),		/* KTR_FAULTEND */
 };

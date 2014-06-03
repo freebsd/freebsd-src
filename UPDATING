@@ -11,6 +11,20 @@ handbook:
 Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running portupgrade.
 
+20140603:	p7	FreeBSD-SA-14:11.sendmail
+			FreeBSD-SA-14:12.ktrace
+			FreeBSD-SA-14:13.pam
+			FreeBSD-EN-14:06.exec
+
+	Fix sendmail improper close-on-exec flag handling. [SA-14:11]
+
+	Fix ktrace memory disclosure. [SA-14:12]
+
+	Fix incorrect error handling in PAM policy parser. [SA-14:13]
+
+	Fix triple-fault when executing from a threaded process.
+	[EN-14:06]
+
 20140513:	p6	FreeBSD-EN-14:03.pkg
 			FreeBSD-EN-14:04.kldxref
 			FreeBSD-EN-14:05.ciss
