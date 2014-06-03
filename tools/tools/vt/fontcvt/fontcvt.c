@@ -84,7 +84,7 @@ usage(void)
 {
 
 	fprintf(stderr,
-"usage: fontcvt [-w width] [-h height] normal.bdf bold.bdf out.fnt\n");
+"usage: fontcvt [-w width] [-h height] normal.bdf [bold.bdf] out.fnt\n");
 	exit(1);
 }
 
@@ -406,21 +406,27 @@ main(int argc, char *argv[])
 	argc -= optind;
 	argv += optind;
 
-	if (argc != 3)
+	if (argc < 2 || argc > 3)
 		usage();
 
 	wbytes = howmany(width, 8);
 
 	if (parse_bdf(argv[0], VFNT_MAP_NORMAL) != 0)
 		return (1);
-	if (parse_bdf(argv[1], VFNT_MAP_BOLD) != 0)
-		return (1);
+	argc--;
+	argv++;
+	if (argc == 2) {
+		if (parse_bdf(argv[0], VFNT_MAP_BOLD) != 0)
+			return (1);
+		argc--;
+		argv++;
+	}
 	number_glyphs();
 	fold_mappings(0);
 	fold_mappings(1);
 	fold_mappings(2);
 	fold_mappings(3);
-	if (write_fnt(argv[2]) != 0)
+	if (write_fnt(argv[0]) != 0)
 		return (1);
 	
 	printf(
