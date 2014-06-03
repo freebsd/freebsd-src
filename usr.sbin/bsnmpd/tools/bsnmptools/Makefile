@@ -1,7 +1,7 @@
 # $FreeBSD$
 # Author: Shteryana Shopova <syrinx@FreeBSD.org>
 
-.include <bsd.own.mk>
+.include <src.opts.mk>
 
 .PATH: ${.CURDIR}
 

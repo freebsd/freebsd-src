@@ -1,5 +1,6 @@
 '\" te
 .\" Copyright (c) 2012, Martin Matuska <mm@FreeBSD.org>.
+.\" Copyright (c) 2013-2014, Xin Li <delphij@FreeBSD.org>.
 .\" All Rights Reserved.
 .\"
 .\" The contents of this file are subject to the terms of the
@@ -25,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 14, 2013
+.Dd March 28, 2014
 .Dt ZPOOL 8
 .Os
 .Sh NAME
@@ -70,6 +71,8 @@
 .Ar pool ...
 .Nm
 .Cm get
+.Op Fl Hp
+.Op Fl o Ar field Ns Op , Ns Ar ...
 .Ar all | property Ns Op , Ns Ar ...
 .Ar pool ...
 .Nm
@@ -120,7 +123,7 @@
 .Ar device
 .Nm
 .Cm list
-.Op Fl H
+.Op Fl Hpv
 .Op Fl o Ar property Ns Op , Ns Ar ...
 .Op Fl T Cm d Ns | Ns Cm u
 .Op Ar pool
@@ -140,6 +143,9 @@
 .Nm
 .Cm remove
 .Ar pool device ...
+.Nm
+.Cm reopen
+.Ar pool
 .Nm
 .Cm replace
 .Op Fl f
@@ -621,6 +627,9 @@ Datasets of this pool can only be mounted read-only
 .It
 To write to a read-only pool, a export and import of the pool is required.
 .El
+.Pp
+This property can also be referred to by its shortened column name,
+.Sy rdonly .
 .El
 .Pp
 The following properties can be set at creation time and import time, and later
@@ -679,7 +688,9 @@ property.
 Threshold for the number of block ditto copies. If the reference count for a
 deduplicated block increases above this number, a new ditto copy of this block
 is automatically stored. Default setting is
-.Cm 0 .
+.Cm 0
+which causes no ditto copies to be created for deduplicated blocks.
+The miniumum legal nonzero setting is 100.
 .It Sy delegation Ns = Ns Cm on No | Cm off
 Controls whether a non-privileged user is granted access based on the dataset
 permissions defined on the dataset. See
@@ -1010,6 +1021,8 @@ is currently being used. This may lead to potential data corruption.
 .It Xo
 .Nm
 .Cm get
+.Op Fl Hp
+.Op Fl o Ar field Ns Op , Ns Ar ...
 .Ar all | property Ns Op , Ns Ar ...
 .Ar pool ...
 .Xc
@@ -1028,6 +1041,19 @@ the following fields:
 See the
 .Qq Sx Properties
 section for more information on the available pool properties.
+.Pp
+.It Fl H
+Scripted mode. Do not display headers, and separate fields by a single tab
+instead of arbitrary space.
+.It Fl p
+Display numbers in parsable (exact) values.
+.It Fl o Ar field
+A comma-separated list of columns to display.
+.Sy name Ns , Ns
+.Sy property Ns , Ns
+.Sy value Ns , Ns
+.Sy source
+is the default value.
 .It Xo
 .Nm
 .Cm history
@@ -1149,9 +1175,10 @@ option is also required.
 .It Fl f
 Forces import, even if the pool appears to be potentially active.
 .It Fl m
-Enables import with missing log devices.
+Allows a pool to import when there is a missing log device. Recent transactions
+can be lost because the log device will be discarded.
 .It Fl N
-Do not mount any filesystems from the imported pool.
+Import the pool without mounting any file systems.
 .It Fl R Ar root
 Sets the
 .Qq Sy cachefile
@@ -1242,9 +1269,10 @@ option is also required.
 .It Fl f
 Forces import, even if the pool appears to be potentially active.
 .It Fl m
-Enables import with missing log devices.
+Allows a pool to import when there is a missing log device. Recent transactions
+can be lost because the log device will be discarded.
 .It Fl N
-Do not mount any filesystems from the imported pool.
+Import the pool without mounting any file systems.
 .It Fl R Ar root
 Equivalent to
 .Qq Fl o Cm cachefile=none,altroot= Ns Pa root
@@ -1319,13 +1347,13 @@ The
 .Ar device
 must not be part of an active pool configuration.
 .Bl -tag -width indent
-.It Fl v
+.It Fl f
 Treat exported or foreign devices as inactive.
 .El
 .It Xo
 .Nm
 .Cm list
-.Op Fl Hv
+.Op Fl Hpv
 .Op Fl o Ar property Ns Op , Ns Ar ...
 .Op Fl T Cm d Ns | Ns Cm u
 .Op Ar pool
@@ -1333,8 +1361,9 @@ Treat exported or foreign devices as inactive.
 .Op Ar inverval Op Ar count
 .Xc
 .Pp
-Lists the given pools along with a health status and space usage. When given no
-arguments, all pools in the system are listed.
+Lists the given pools along with a health status and space usage. If no
+.Ar pools
+are specified, all pools in the system are listed.
 .Pp
 When given an interval, the output is printed every
 .Ar interval
@@ -1346,9 +1375,22 @@ is specified, the command exits after
 .Ar count
 reports are printed.
 .Bl -tag -width indent
+.It Fl T Cm d Ns | Ns Cm u
+Print a timestamp.
+.Pp
+Use modifier
+.Cm d
+for standard date format. See
+.Xr date 1 .
+Use modifier
+.Cm u
+for unixtime
+.Pq equals Qq Ic date +%s .
 .It Fl H
 Scripted mode. Do not display headers, and separate fields by a single tab
 instead of arbitrary space.
+.It Fl p
+Display numbers in parsable (exact) values.
 .It Fl v
 Show more detailed information.
 .It Fl o Ar property Ns Op , Ns Ar ...
@@ -1429,6 +1471,13 @@ are part of a mirrored configuration can be removed using the
 command. Non-redundant and
 .No raidz
 devices cannot be removed from a pool.
+.It Xo
+.Nm
+.Cm reopen
+.Ar pool
+.Xc
+.Pp
+Reopen all the vdevs associated with the pool.
 .It Xo
 .Nm
 .Cm replace
@@ -1667,7 +1716,7 @@ Once this is done, the pool will no longer be accessible on systems that do
 not support feature flags.
 See
 .Xr zpool-features 7
-for details on compatability with system sthat support feature flags, but do
+for details on compatibility with systems that support feature flags, but do
 not support all features enabled on the pool.
 .Bl -tag -width indent
 .It Fl a
@@ -1946,3 +1995,9 @@ The
 .Xr mdoc 7
 implementation of this manual page was initially written by
 .An Martin Matuska Aq mm@FreeBSD.org .
+.Sh CAVEATS
+The
+.Cm spare
+feature requires a utility to detect zpool degradation and initiate
+disk replacement within the zpool.
+FreeBSD does not provide such a utility at this time.

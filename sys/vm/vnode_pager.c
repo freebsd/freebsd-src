@@ -244,8 +244,7 @@ retry:
  *	The object must be locked.
  */
 static void
-vnode_pager_dealloc(object)
-	vm_object_t object;
+vnode_pager_dealloc(vm_object_t object)
 {
 	struct vnode *vp;
 	int refs;
@@ -280,11 +279,8 @@ vnode_pager_dealloc(object)
 }
 
 static boolean_t
-vnode_pager_haspage(object, pindex, before, after)
-	vm_object_t object;
-	vm_pindex_t pindex;
-	int *before;
-	int *after;
+vnode_pager_haspage(vm_object_t object, vm_pindex_t pindex, int *before,
+    int *after)
 {
 	struct vnode *vp = object->handle;
 	daddr_t bn;
@@ -363,9 +359,7 @@ vnode_pager_haspage(object, pindex, before, after)
  * operation (possibly at object termination time), so we must be careful.
  */
 void
-vnode_pager_setsize(vp, nsize)
-	struct vnode *vp;
-	vm_ooffset_t nsize;
+vnode_pager_setsize(struct vnode *vp, vm_ooffset_t nsize)
 {
 	vm_object_t object;
 	vm_page_t m;
@@ -490,9 +484,7 @@ vnode_pager_addr(struct vnode *vp, vm_ooffset_t address, daddr_t *rtaddress,
  * small block filesystem vnode pager input
  */
 static int
-vnode_pager_input_smlfs(object, m)
-	vm_object_t object;
-	vm_page_t m;
+vnode_pager_input_smlfs(vm_object_t object, vm_page_t m)
 {
 	struct vnode *vp;
 	struct bufobj *bo;
@@ -584,9 +576,7 @@ vnode_pager_input_smlfs(object, m)
  * old style vnode pager input routine
  */
 static int
-vnode_pager_input_old(object, m)
-	vm_object_t object;
-	vm_page_t m;
+vnode_pager_input_old(vm_object_t object, vm_page_t m)
 {
 	struct uio auio;
 	struct iovec aiov;
@@ -659,11 +649,7 @@ vnode_pager_input_old(object, m)
  * backing vp's VOP_GETPAGES.
  */
 static int
-vnode_pager_getpages(object, m, count, reqpage)
-	vm_object_t object;
-	vm_page_t *m;
-	int count;
-	int reqpage;
+vnode_pager_getpages(vm_object_t object, vm_page_t *m, int count, int reqpage)
 {
 	int rtval;
 	struct vnode *vp;
@@ -683,11 +669,8 @@ vnode_pager_getpages(object, m, count, reqpage)
  * own vnodes if they fail to implement VOP_GETPAGES.
  */
 int
-vnode_pager_generic_getpages(vp, m, bytecount, reqpage)
-	struct vnode *vp;
-	vm_page_t *m;
-	int bytecount;
-	int reqpage;
+vnode_pager_generic_getpages(struct vnode *vp, vm_page_t *m, int bytecount,
+    int reqpage)
 {
 	vm_object_t object;
 	vm_offset_t kva;
@@ -1024,12 +1007,8 @@ vnode_pager_generic_getpages(vp, m, bytecount, reqpage)
  * backing vp's VOP_PUTPAGES.
  */
 static void
-vnode_pager_putpages(object, m, count, sync, rtvals)
-	vm_object_t object;
-	vm_page_t *m;
-	int count;
-	boolean_t sync;
-	int *rtvals;
+vnode_pager_putpages(vm_object_t object, vm_page_t *m, int count,
+    boolean_t sync, int *rtvals)
 {
 	int rtval;
 	struct vnode *vp;
@@ -1047,7 +1026,8 @@ vnode_pager_putpages(object, m, count, sync, rtvals)
 	 * daemon up.  This should be probably be addressed XXX.
 	 */
 
-	if ((cnt.v_free_count + cnt.v_cache_count) < cnt.v_pageout_free_min)
+	if ((vm_cnt.v_free_count + vm_cnt.v_cache_count) <
+	    vm_cnt.v_pageout_free_min)
 		sync |= OBJPC_SYNC;
 
 	/*

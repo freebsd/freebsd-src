@@ -92,8 +92,9 @@ freopen(const char * __restrict file, const char * __restrict mode,
 			errno = sverrno;
 			return (NULL);
 		}
-		if ((dflags & O_ACCMODE) != O_RDWR && (dflags & O_ACCMODE) !=
-		    (oflags & O_ACCMODE)) {
+		/* Work around incorrect O_ACCMODE. */
+		if ((dflags & O_ACCMODE) != O_RDWR &&
+		    (dflags & (O_ACCMODE | O_EXEC)) != (oflags & O_ACCMODE)) {
 			fclose(fp);
 			FUNLOCKFILE(fp);
 			errno = EINVAL;

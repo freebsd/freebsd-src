@@ -72,28 +72,11 @@ int longfault(faultbuf, int);
 void
 machdep_ap_bootstrap(void)
 {
-	jmp_buf *restore;
-
-	/* The following is needed for restoring from sleep. */
-#ifdef __powerpc64__
-	/* Writing to the time base register is hypervisor-privileged */
-	if (mfmsr() & PSL_HV)
-		mttb(0);
-#else
-	mttb(0);
-#endif
-	/* Set up important bits on the CPU (HID registers, etc.) */
-	cpudep_ap_setup();
 
 	/* Set PIR */
 	PCPU_SET(pir, mfspr(SPR_PIR));
 	PCPU_SET(awake, 1);
 	__asm __volatile("msync; isync");
-
-	restore = PCPU_GET(restore);
-	if (restore != NULL) {
-		longjmp(*restore, 1);
-	}
 
 	while (ap_letgo == 0)
 		;
@@ -284,7 +267,7 @@ cpu_mp_unleash(void *dummy)
 	/* Let the APs get into the scheduler */
 	DELAY(10000);
 
-	smp_active = 1;
+	/* XXX Atomic set operation? */
 	smp_started = 1;
 }
 
@@ -353,6 +336,7 @@ ipi_send(struct pcpu *pc, int ipi)
 	    pc, pc->pc_cpuid, ipi);
 
 	atomic_set_32(&pc->pc_ipimask, (1 << ipi));
+	powerpc_sync();
 	PIC_IPI(root_pic, pc->pc_cpuid);
 
 	CTR1(KTR_SMP, "%s: sent", __func__);

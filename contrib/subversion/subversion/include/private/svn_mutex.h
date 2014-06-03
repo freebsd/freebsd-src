@@ -21,7 +21,7 @@
  * @endcopyright
  *
  * @file svn_mutex.h
- * @brief Strutures and functions for mutual exclusion
+ * @brief Structures and functions for mutual exclusion
  */
 
 #ifndef SVN_MUTEX_H
@@ -72,7 +72,7 @@ svn_mutex__init(svn_mutex__t **mutex,
  * thread to release the mutex again. Recursive locking are not supported.
  *
  * @note You should use #SVN_MUTEX__WITH_LOCK instead of explicit lock
- * aquisition and release.
+ * acquisition and release.
  */
 svn_error_t *
 svn_mutex__lock(svn_mutex__t *mutex);
@@ -88,19 +88,19 @@ svn_mutex__lock(svn_mutex__t *mutex);
  * reported in the return value.
  *
  * @note You should use #SVN_MUTEX__WITH_LOCK instead of explicit lock
- * aquisition and release.
+ * acquisition and release.
  */
 svn_error_t *
 svn_mutex__unlock(svn_mutex__t *mutex,
                   svn_error_t *err);
 
-/** Aquires the @a mutex, executes the expression @a expr and finally
+/** Acquires the @a mutex, executes the expression @a expr and finally
  * releases the @a mutex. If any of these steps fail, the function using
  * this macro will return an #svn_error_t. This macro guarantees that
  * the @a mutex will always be unlocked again if it got locked successfully
  * by the first step.
  *
- * @note Prefer using this macro instead of explicit lock aquisition and
+ * @note Prefer using this macro instead of explicit lock acquisition and
  * release.
  */
 #define SVN_MUTEX__WITH_LOCK(mutex, expr)               \

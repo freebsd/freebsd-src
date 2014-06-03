@@ -120,7 +120,7 @@ acpi_pcib_pci_attach(device_t dev)
     pcib_attach_common(dev);
     sc = device_get_softc(dev);
     sc->ap_handle = acpi_get_handle(dev);
-    return (acpi_pcib_attach(dev, &sc->ap_prt, sc->ap_pcibsc.secbus));
+    return (acpi_pcib_attach(dev, &sc->ap_prt, sc->ap_pcibsc.bus.sec));
 }
 
 static int

@@ -90,7 +90,7 @@ CGIOperandList::CGIOperandList(Record *R) : TheDef(R) {
       if (unsigned NumArgs = MIOpInfo->getNumArgs())
         NumOps = NumArgs;
 
-      if (Rec->isSubClassOf("PredicateOperand"))
+      if (Rec->isSubClassOf("PredicateOp"))
         isPredicable = true;
       else if (Rec->isSubClassOf("OptionalDefOperand"))
         hasOptionalDef = true;
@@ -192,6 +192,7 @@ CGIOperandList::ParseOperandName(const std::string &Op, bool AllowWholeOp) {
 
   // Otherwise, didn't find it!
   PrintFatalError(TheDef->getName() + ": unknown suboperand name in '" + Op + "'");
+  return std::make_pair(0U, 0U);
 }
 
 static void ParseConstraint(const std::string &CStr, CGIOperandList &Ops) {
@@ -336,6 +337,20 @@ CodeGenInstruction::CodeGenInstruction(Record *R)
 
   // Parse the DisableEncoding field.
   Operands.ProcessDisableEncoding(R->getValueAsString("DisableEncoding"));
+
+  // First check for a ComplexDeprecationPredicate.
+  if (R->getValue("ComplexDeprecationPredicate")) {
+    HasComplexDeprecationPredicate = true;
+    DeprecatedReason = R->getValueAsString("ComplexDeprecationPredicate");
+  } else if (RecordVal *Dep = R->getValue("DeprecatedFeatureMask")) {
+    // Check if we have a Subtarget feature mask.
+    HasComplexDeprecationPredicate = false;
+    DeprecatedReason = Dep->getValue()->getAsString();
+  } else {
+    // This instruction isn't deprecated.
+    HasComplexDeprecationPredicate = false;
+    DeprecatedReason = "";
+  }
 }
 
 /// HasOneImplicitDefWithKnownVT - If the instruction has at least one

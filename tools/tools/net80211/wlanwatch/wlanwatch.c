@@ -45,7 +45,6 @@
 #include <net/if_dl.h>
 #include <netinet/in.h>
 #include <netinet/if_ether.h>
-#include <netatalk/at.h>
 #ifdef __NetBSD__
 #include <net80211/ieee80211_netbsd.h>
 #elif __FreeBSD__

@@ -636,12 +636,12 @@ tapifioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 
 		case SIOCGIFSTATUS:
 			ifs = (struct ifstat *)data;
-			dummy = strlen(ifs->ascii);
 			mtx_lock(&tp->tap_mtx);
-			if (tp->tap_pid != 0 && dummy < sizeof(ifs->ascii))
-				snprintf(ifs->ascii + dummy,
-					sizeof(ifs->ascii) - dummy,
+			if (tp->tap_pid != 0)
+				snprintf(ifs->ascii, sizeof(ifs->ascii),
 					"\tOpened by PID %d\n", tp->tap_pid);
+			else
+				ifs->ascii[0] = '\0';
 			mtx_unlock(&tp->tap_mtx);
 			break;
 

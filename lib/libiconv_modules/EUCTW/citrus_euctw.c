@@ -119,7 +119,7 @@ _citrus_EUCTW_count(int cs)
 	case 1:
 		/*FALLTHROUGH*/
 	case 2:
-		return (2^cs);
+		return (1 << cs);
 	case 3:
 		abort();
 		/*NOTREACHED*/
@@ -136,6 +136,7 @@ _citrus_EUCTW_init_state(_EUCTWEncodingInfo * __restrict ei __unused,
 	memset(s, 0, sizeof(*s));
 }
 
+#if 0
 static __inline void
 /*ARGSUSED*/
 _citrus_EUCTW_pack_state(_EUCTWEncodingInfo * __restrict ei __unused,
@@ -153,6 +154,7 @@ _citrus_EUCTW_unpack_state(_EUCTWEncodingInfo * __restrict ei __unused,
 
 	memcpy((void *)s, pspriv, sizeof(*s));
 }
+#endif
 
 static int
 /*ARGSUSED*/

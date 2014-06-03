@@ -1,4 +1,4 @@
-/* $OpenBSD: buffer.c,v 1.33 2013/05/17 00:13:13 djm Exp $ */
+/* $OpenBSD: buffer.c,v 1.35 2014/02/02 03:44:31 djm Exp $ */
 /* $FreeBSD$ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
@@ -14,12 +14,14 @@
  */
 
 #include "includes.h"
+__RCSID("$FreeBSD$");
 
 #include <sys/param.h>
 
 #include <stdio.h>
 #include <string.h>
 #include <stdarg.h>
+#include <stdlib.h>
 
 #include "xmalloc.h"
 #include "buffer.h"
@@ -49,7 +51,7 @@ void
 buffer_free(Buffer *buffer)
 {
 	if (buffer->alloc > 0) {
-		memset(buffer->buf, 0, buffer->alloc);
+		explicit_bzero(buffer->buf, buffer->alloc);
 		buffer->alloc = 0;
 		free(buffer->buf);
 	}

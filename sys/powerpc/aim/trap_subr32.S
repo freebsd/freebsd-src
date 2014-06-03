@@ -292,7 +292,6 @@ CNAME(restorebridge):
 	isync
 CNAME(restorebridgesize) = .-CNAME(restorebridge)
 
-#ifdef SMP
 /*
  * Processor reset exception handler. These are typically
  * the first instructions the processor executes after a
@@ -320,12 +319,21 @@ cpu_reset:
 	bla	CNAME(pmap_cpu_bootstrap)
 	bla	CNAME(cpudep_ap_bootstrap)
 	mr	%r1,%r3
+	bla	CNAME(cpudep_ap_setup)
+	GET_CPUINFO(%r5)
+	lwz	%r3,(PC_RESTORE)(%r5)
+	cmplwi	%cr0,%r3,0
+	beq	%cr0,2f
+	li	%r4, 1
+	b	CNAME(longjmp)
+2:
+#ifdef SMP
 	bla	CNAME(machdep_ap_bootstrap)
+#endif
 
 	/* Should not be reached */
 9:
 	b	9b
-#endif
 
 /*
  * This code gets copied to all the trap vectors
@@ -669,7 +677,7 @@ disitrap:
 	mtcr	%r31
 	bt	17,realtrap		/* branch is user mode */
 	mfsprg1	%r31			/* get old SP */
-	clrrwi	%r31,%r31,11		/* Round SP down to nearest page */
+	clrrwi	%r31,%r31,12		/* Round SP down to nearest page */
 	sub.	%r30,%r31,%r30		/* SP - DAR */
 	bge	1f
 	neg	%r30,%r30		/* modulo value */

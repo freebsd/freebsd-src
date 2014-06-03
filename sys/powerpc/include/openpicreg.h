@@ -99,6 +99,7 @@
  */
 
 /* interrupt vector/priority reg */
+#define OPENPIC_SRC_VECTOR_COUNT	64
 #ifndef OPENPIC_SRC_VECTOR
 #define OPENPIC_SRC_VECTOR(irq)		(0x10000 + (irq) * 0x20)
 #endif

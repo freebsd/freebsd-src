@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000-2001 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 2000-2001 Proofpoint, Inc. and its suppliers.
  *	All rights reserved.
  *
  * By using this file, you agree to the terms and conditions set
@@ -41,7 +41,7 @@
  * SUCH DAMAGE.
  */
 
-/* $Id: sm_resolve.h,v 8.8 2001/09/01 00:06:02 gshapiro Exp $ */
+/* $Id: sm_resolve.h,v 8.9 2013-11-22 20:51:56 ca Exp $ */
 
 #if DNSMAP
 # ifndef __ROKEN_RESOLVE_H__

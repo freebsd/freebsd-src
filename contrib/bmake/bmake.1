@@ -1,4 +1,4 @@
-.\"	$NetBSD: make.1,v 1.222 2013/08/11 09:53:49 apb Exp $
+.\"	$NetBSD: make.1,v 1.226 2013/11/07 18:50:46 dholland Exp $
 .\"
 .\" Copyright (c) 1990, 1993
 .\"	The Regents of the University of California.  All rights reserved.
@@ -29,7 +29,7 @@
 .\"
 .\"	from: @(#)make.1	8.4 (Berkeley) 3/19/94
 .\"
-.Dd August 11, 2013
+.Dd October 25, 2013
 .Dt MAKE 1
 .Os
 .Sh NAME
@@ -745,7 +745,7 @@ then output for each target is prefixed with a token
 .Ql --- target ---
 the first part of which can be controlled via
 .Va .MAKE.JOB.PREFIX .
-If 
+If
 .Va .MAKE.JOB.PREFIX
 is empty, no token is printed.
 .br
@@ -1066,6 +1066,13 @@ may
 be used.
 The wildcard characters may be escaped with a backslash
 .Pq Ql \e .
+As a consequence of the way values are split into words, matched,
+and then joined, a construct like
+.Dl ${VAR:M*}
+will normalise the inter-word spacing, removing all leading and
+trailing space, and converting multiple consecutive spaces
+to single spaces.
+.
 .It Cm \&:N Ns Ar pattern
 This is identical to
 .Ql Cm \&:M ,
@@ -1209,7 +1216,7 @@ The
 modifier is just like the
 .Cm \&:S
 modifier except that the old and new strings, instead of being
-simple strings, are a regular expression (see
+simple strings, are an extended regular expression (see
 .Xr regex 3 )
 string
 .Ar pattern
@@ -1751,7 +1758,7 @@ or
 .Fl t
 options were specified.
 Normally used to mark recursive
-.Nm Ns 's .
+.Nm Ns s .
 .It Ic .META
 Create a meta file for the target, even if it is flagged as
 .Ic .PHONY ,

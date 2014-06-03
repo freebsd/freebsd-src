@@ -48,6 +48,17 @@ static cl::opt<bool> Mips_Os16(
            "floating point as Mips 16"),
   cl::Hidden);
 
+static cl::opt<bool>
+Mips16HardFloat("mips16-hard-float", cl::NotHidden,
+                cl::desc("MIPS: mips16 hard float enable."),
+                cl::init(false));
+
+static cl::opt<bool>
+Mips16ConstantIslands(
+  "mips16-constant-islands", cl::Hidden,
+  cl::desc("MIPS: mips16 constant islands enable. experimental feature"),
+  cl::init(false));
+
 void MipsSubtarget::anchor() { }
 
 MipsSubtarget::MipsSubtarget(const std::string &TT, const std::string &CPU,
@@ -58,8 +69,9 @@ MipsSubtarget::MipsSubtarget(const std::string &TT, const std::string &CPU,
   IsSingleFloat(false), IsFP64bit(false), IsGP64bit(false), HasVFPU(false),
   IsLinux(true), HasSEInReg(false), HasCondMov(false), HasSwap(false),
   HasBitCount(false), HasFPIdx(false),
-  InMips16Mode(false), InMicroMipsMode(false), HasDSP(false), HasDSPR2(false),
-  AllowMixed16_32(Mixed16_32 | Mips_Os16), Os16(Mips_Os16),
+  InMips16Mode(false), InMips16HardFloat(Mips16HardFloat),
+  InMicroMipsMode(false), HasDSP(false), HasDSPR2(false),
+  AllowMixed16_32(Mixed16_32 | Mips_Os16), Os16(Mips_Os16), HasMSA(false),
   RM(_RM), OverrideMode(NoOverride), TM(_TM)
 {
   std::string CPUName = CPU;
@@ -83,12 +95,20 @@ MipsSubtarget::MipsSubtarget(const std::string &TT, const std::string &CPU,
           (hasMips64() && (isABI_N32() || isABI_N64()))) &&
          "Invalid  Arch & ABI pair.");
 
+  if (hasMSA() && !isFP64bit())
+    report_fatal_error("MSA requires a 64-bit FPU register file (FR=1 mode). "
+                       "See -mattr=+fp64.",
+                       false);
+
   // Is the target system Linux ?
   if (TT.find("linux") == std::string::npos)
     IsLinux = false;
 
   // Set UseSmallSection.
   UseSmallSection = !IsLinux && (RM == Reloc::Static);
+  // set some subtarget specific features
+  if (inMips16Mode())
+    HasBitCount=false;
 }
 
 bool
@@ -98,7 +118,7 @@ MipsSubtarget::enablePostRAScheduler(CodeGenOpt::Level OptLevel,
   Mode = TargetSubtargetInfo::ANTIDEP_NONE;
   CriticalPathRCs.clear();
   CriticalPathRCs.push_back(hasMips64() ?
-                            &Mips::CPU64RegsRegClass : &Mips::CPURegsRegClass);
+                            &Mips::GPR64RegClass : &Mips::GPR32RegClass);
   return OptLevel >= CodeGenOpt::Aggressive;
 }
 
@@ -146,3 +166,11 @@ void MipsSubtarget::resetSubtarget(MachineFunction *MF) {
   }
 }
 
+bool MipsSubtarget::mipsSEUsesSoftFloat() const {
+  return TM->Options.UseSoftFloat && !InMips16HardFloat;
+}
+
+bool MipsSubtarget::useConstantIslands() {
+  DEBUG(dbgs() << "use constant islands " << Mips16ConstantIslands << "\n");
+  return Mips16ConstantIslands;
+}

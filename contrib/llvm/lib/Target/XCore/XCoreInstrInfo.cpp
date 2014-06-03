@@ -22,7 +22,7 @@
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/TargetRegistry.h"
 
-#define GET_INSTRINFO_CTOR
+#define GET_INSTRINFO_CTOR_DTOR
 #include "XCoreGenInstrInfo.inc"
 
 namespace llvm {
@@ -39,9 +39,13 @@ namespace XCore {
 
 using namespace llvm;
 
+
+// Pin the vtable to this file.
+void XCoreInstrInfo::anchor() {}
+
 XCoreInstrInfo::XCoreInstrInfo()
   : XCoreGenInstrInfo(XCore::ADJCALLSTACKDOWN, XCore::ADJCALLSTACKUP),
-    RI(*this) {
+    RI() {
 }
 
 static bool isZeroImm(const MachineOperand &op) {
@@ -384,15 +388,6 @@ void XCoreInstrInfo::loadRegFromStackSlot(MachineBasicBlock &MBB,
   BuildMI(MBB, I, DL, get(XCore::LDWFI), DestReg)
     .addFrameIndex(FrameIndex)
     .addImm(0);
-}
-
-MachineInstr*
-XCoreInstrInfo::emitFrameIndexDebugValue(MachineFunction &MF, int FrameIx,
-                                         uint64_t Offset, const MDNode *MDPtr,
-                                         DebugLoc DL) const {
-  MachineInstrBuilder MIB = BuildMI(MF, DL, get(XCore::DBG_VALUE))
-    .addFrameIndex(FrameIx).addImm(0).addImm(Offset).addMetadata(MDPtr);
-  return &*MIB;
 }
 
 /// ReverseBranchCondition - Return the inverse opcode of the 

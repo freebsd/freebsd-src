@@ -80,6 +80,7 @@ _citrus_GBK2K_init_state(_GBK2KEncodingInfo * __restrict ei __unused,
 	memset(s, 0, sizeof(*s));
 }
 
+#if 0
 static __inline void
 /*ARGSUSED*/
 _citrus_GBK2K_pack_state(_GBK2KEncodingInfo * __restrict ei __unused,
@@ -97,6 +98,7 @@ _citrus_GBK2K_unpack_state(_GBK2KEncodingInfo * __restrict ei __unused,
 
 	memcpy((void *)s, pspriv, sizeof(*s));
 }
+#endif
 
 static  __inline bool
 _mb_singlebyte(int c)

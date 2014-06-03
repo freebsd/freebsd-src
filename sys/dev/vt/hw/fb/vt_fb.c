@@ -41,13 +41,106 @@ __FBSDID("$FreeBSD$");
 #include <dev/vt/hw/fb/vt_fb.h>
 #include <dev/vt/colors/vt_termcolors.h>
 
+static int vt_fb_ioctl(struct vt_device *vd, u_long cmd, caddr_t data,
+    struct thread *td);
+static int vt_fb_mmap(struct vt_device *vd, vm_ooffset_t offset,
+    vm_paddr_t *paddr, int prot, vm_memattr_t *memattr);
+void vt_fb_drawrect(struct vt_device *vd, int x1, int y1, int x2, int y2,
+    int fill, term_color_t color);
+void vt_fb_setpixel(struct vt_device *vd, int x, int y, term_color_t color);
+
 static struct vt_driver vt_fb_driver = {
+	.vd_name = "fb",
 	.vd_init = vt_fb_init,
 	.vd_blank = vt_fb_blank,
 	.vd_bitbltchr = vt_fb_bitbltchr,
+	.vd_maskbitbltchr = vt_fb_maskbitbltchr,
+	.vd_drawrect = vt_fb_drawrect,
+	.vd_setpixel = vt_fb_setpixel,
 	.vd_postswitch = vt_fb_postswitch,
 	.vd_priority = VD_PRIORITY_GENERIC+10,
+	.vd_fb_ioctl = vt_fb_ioctl,
+	.vd_fb_mmap = vt_fb_mmap,
 };
+
+VT_DRIVER_DECLARE(vt_fb, vt_fb_driver);
+
+static int
+vt_fb_ioctl(struct vt_device *vd, u_long cmd, caddr_t data, struct thread *td)
+{
+	struct fb_info *info;
+
+	info = vd->vd_softc;
+
+	if (info->fb_ioctl == NULL)
+		return (-1);
+
+	return (info->fb_ioctl(info->fb_cdev, cmd, data, 0, td));
+}
+
+static int
+vt_fb_mmap(struct vt_device *vd, vm_ooffset_t offset, vm_paddr_t *paddr,
+    int prot, vm_memattr_t *memattr)
+{
+	struct fb_info *info;
+
+	info = vd->vd_softc;
+
+	if (info->fb_ioctl == NULL)
+		return (ENXIO);
+
+	return (info->fb_mmap(info->fb_cdev, offset, paddr, prot, memattr));
+}
+
+void
+vt_fb_setpixel(struct vt_device *vd, int x, int y, term_color_t color)
+{
+	struct fb_info *info;
+	uint32_t c;
+	u_int o;
+
+	info = vd->vd_softc;
+	c = info->fb_cmap[color];
+	o = info->fb_stride * y + x * FBTYPE_GET_BYTESPP(info);
+
+	switch (FBTYPE_GET_BYTESPP(info)) {
+	case 1:
+		info->wr1(info, o, c);
+		break;
+	case 2:
+		info->wr2(info, o, c);
+		break;
+	case 3:
+		info->wr1(info, o, (c >> 16) & 0xff);
+		info->wr1(info, o + 1, (c >> 8) & 0xff);
+		info->wr1(info, o + 2, c & 0xff);
+		break;
+	case 4:
+		info->wr4(info, o, c);
+		break;
+	default:
+		/* panic? */
+		return;
+	}
+
+}
+
+void
+vt_fb_drawrect(struct vt_device *vd, int x1, int y1, int x2, int y2, int fill,
+    term_color_t color)
+{
+	int x, y;
+
+	for (y = y1; y <= y2; y++) {
+		if (fill || (y == y1) || (y == y2)) {
+			for (x = x1; x <= x2; x++)
+				vt_fb_setpixel(vd, x, y, color);
+		} else {
+			vt_fb_setpixel(vd, x1, y, color);
+			vt_fb_setpixel(vd, x2, y, color);
+		}
+	}
+}
 
 void
 vt_fb_blank(struct vt_device *vd, term_color_t color)
@@ -93,6 +186,68 @@ vt_fb_blank(struct vt_device *vd, term_color_t color)
 
 void
 vt_fb_bitbltchr(struct vt_device *vd, const uint8_t *src, const uint8_t *mask,
+    int bpl, vt_axis_t top, vt_axis_t left, unsigned int width,
+    unsigned int height, term_color_t fg, term_color_t bg)
+{
+	struct fb_info *info;
+	uint32_t fgc, bgc, cc, o;
+	int c, l, bpp;
+	u_long line;
+	uint8_t b;
+	const uint8_t *ch;
+
+	info = vd->vd_softc;
+	bpp = FBTYPE_GET_BYTESPP(info);
+	fgc = info->fb_cmap[fg];
+	bgc = info->fb_cmap[bg];
+	b = 0;
+	if (bpl == 0)
+		bpl = (width + 7) >> 3; /* Bytes per sorce line. */
+
+	/* Don't try to put off screen pixels */
+	if (((left + width) > info->fb_width) || ((top + height) >
+	    info->fb_height))
+		return;
+
+	line = (info->fb_stride * top) + (left * bpp);
+	for (l = 0; l < height; l++) {
+		ch = src;
+		for (c = 0; c < width; c++) {
+			if (c % 8 == 0)
+				b = *ch++;
+			else
+				b <<= 1;
+			o = line + (c * bpp);
+			cc = b & 0x80 ? fgc : bgc;
+
+			switch(bpp) {
+			case 1:
+				info->wr1(info, o, cc);
+				break;
+			case 2:
+				info->wr2(info, o, cc);
+				break;
+			case 3:
+				/* Packed mode, so unaligned. Byte access. */
+				info->wr1(info, o, (cc >> 16) & 0xff);
+				info->wr1(info, o + 1, (cc >> 8) & 0xff);
+				info->wr1(info, o + 2, cc & 0xff);
+				break;
+			case 4:
+				info->wr4(info, o, cc);
+				break;
+			default:
+				/* panic? */
+				break;
+			}
+		}
+		line += info->fb_stride;
+		src += bpl;
+	}
+}
+
+void
+vt_fb_maskbitbltchr(struct vt_device *vd, const uint8_t *src, const uint8_t *mask,
     int bpl, vt_axis_t top, vt_axis_t left, unsigned int width,
     unsigned int height, term_color_t fg, term_color_t bg)
 {

@@ -65,7 +65,6 @@ namespace {
     static char ID;
     MipsLongBranch(TargetMachine &tm)
       : MachineFunctionPass(ID), TM(tm),
-        TII(static_cast<const MipsInstrInfo*>(tm.getInstrInfo())),
         IsPIC(TM.getRelocationModel() == Reloc::PIC_),
         ABI(TM.getSubtarget<MipsSubtarget>().getTargetABI()),
         LongBranchSeqSize(!IsPIC ? 2 : (ABI == MipsSubtarget::N64 ? 13 : 9)) {}
@@ -85,7 +84,6 @@ namespace {
     void expandToLongBranch(MBBInfo &Info);
 
     const TargetMachine &TM;
-    const MipsInstrInfo *TII;
     MachineFunction *MF;
     SmallVector<MBBInfo, 16> MBBInfos;
     bool IsPIC;
@@ -172,6 +170,8 @@ void MipsLongBranch::initMBBInfo() {
   MBBInfos.clear();
   MBBInfos.resize(MF->size());
 
+  const MipsInstrInfo *TII =
+    static_cast<const MipsInstrInfo*>(TM.getInstrInfo());
   for (unsigned I = 0, E = MBBInfos.size(); I < E; ++I) {
     MachineBasicBlock *MBB = MF->getBlockNumbered(I);
 
@@ -217,7 +217,9 @@ int64_t MipsLongBranch::computeOffset(const MachineInstr *Br) {
 // MachineBasicBlock operand MBBOpnd.
 void MipsLongBranch::replaceBranch(MachineBasicBlock &MBB, Iter Br,
                                    DebugLoc DL, MachineBasicBlock *MBBOpnd) {
-  unsigned NewOpc = TII->GetOppositeBranchOpc(Br->getOpcode());
+  const MipsInstrInfo *TII =
+    static_cast<const MipsInstrInfo*>(TM.getInstrInfo());
+  unsigned NewOpc = TII->getOppositeBranchOpc(Br->getOpcode());
   const MCInstrDesc &NewDesc = TII->get(NewOpc);
 
   MachineInstrBuilder MIB = BuildMI(MBB, Br, DL, NewDesc);
@@ -235,6 +237,11 @@ void MipsLongBranch::replaceBranch(MachineBasicBlock &MBB, Iter Br,
 
   MIB.addMBB(MBBOpnd);
 
+  // Bundle the instruction in the delay slot to the newly created branch
+  // and erase the original branch.
+  assert(Br->isBundledWithSucc());
+  MachineBasicBlock::instr_iterator II(Br);
+  MIBundleBuilder(&*MIB).append((++II)->removeFromBundle());
   Br->eraseFromParent();
 }
 
@@ -246,6 +253,9 @@ void MipsLongBranch::expandToLongBranch(MBBInfo &I) {
   const BasicBlock *BB = MBB->getBasicBlock();
   MachineFunction::iterator FallThroughMBB = ++MachineFunction::iterator(MBB);
   MachineBasicBlock *LongBrMBB = MF->CreateMachineBasicBlock(BB);
+
+  const MipsInstrInfo *TII =
+    static_cast<const MipsInstrInfo*>(TM.getInstrInfo());
 
   MF->insert(FallThroughMBB, LongBrMBB);
   MBB->removeSuccessor(TgtMBB);
@@ -399,6 +409,9 @@ static void emitGPDisp(MachineFunction &F, const MipsInstrInfo *TII) {
 }
 
 bool MipsLongBranch::runOnMachineFunction(MachineFunction &F) {
+  const MipsInstrInfo *TII =
+    static_cast<const MipsInstrInfo*>(TM.getInstrInfo());
+
   if (TM.getSubtarget<MipsSubtarget>().inMips16Mode())
     return false;
   if ((TM.getRelocationModel() == Reloc::PIC_) &&
@@ -412,7 +425,7 @@ bool MipsLongBranch::runOnMachineFunction(MachineFunction &F) {
   MF = &F;
   initMBBInfo();
 
-  SmallVector<MBBInfo, 16>::iterator I, E = MBBInfos.end();
+  SmallVectorImpl<MBBInfo>::iterator I, E = MBBInfos.end();
   bool EverMadeChange = false, MadeChange = true;
 
   while (MadeChange) {
@@ -424,8 +437,10 @@ bool MipsLongBranch::runOnMachineFunction(MachineFunction &F) {
       if (!I->Br || I->HasLongBranch)
         continue;
 
+      int ShVal = TM.getSubtarget<MipsSubtarget>().inMicroMipsMode() ? 2 : 4;
+
       // Check if offset fits into 16-bit immediate field of branches.
-      if (!ForceLongBranch && isInt<16>(computeOffset(I->Br) / 4))
+      if (!ForceLongBranch && isInt<16>(computeOffset(I->Br) / ShVal))
         continue;
 
       I->HasLongBranch = true;

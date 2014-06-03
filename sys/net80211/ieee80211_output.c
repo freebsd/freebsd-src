@@ -390,6 +390,19 @@ ieee80211_start_pkt(struct ieee80211vap *vap, struct mbuf *m)
 	/*
 	 * We've resolved the sender, so attempt to transmit it.
 	 */
+
+	if (vap->iv_state == IEEE80211_S_SLEEP) {
+		/*
+		 * In power save; queue frame and then  wakeup device
+		 * for transmit.
+		 */
+		ic->ic_lastdata = ticks;
+		(void) ieee80211_pwrsave(ni, m);
+		ieee80211_free_node(ni);
+		ieee80211_new_state(vap, IEEE80211_S_RUN, 0);
+		return (0);
+	}
+
 	if (ieee80211_vap_pkt_send_dest(vap, m, ni) != 0)
 		return (ENOBUFS);
 	return (0);
@@ -420,24 +433,19 @@ ieee80211_vap_transmit(struct ifnet *ifp, struct mbuf *m)
 		m_freem(m);
 		return (EINVAL);
 	}
-	if (vap->iv_state == IEEE80211_S_SLEEP) {
-		/*
-		 * In power save, wakeup device for transmit.
-		 */
-		ieee80211_new_state(vap, IEEE80211_S_RUN, 0);
-		m_freem(m);
-		return (0);
-	}
+
 	/*
 	 * No data frames go out unless we're running.
 	 * Note in particular this covers CAC and CSA
 	 * states (though maybe we should check muting
 	 * for CSA).
 	 */
-	if (vap->iv_state != IEEE80211_S_RUN) {
+	if (vap->iv_state != IEEE80211_S_RUN &&
+	    vap->iv_state != IEEE80211_S_SLEEP) {
 		IEEE80211_LOCK(ic);
 		/* re-check under the com lock to avoid races */
-		if (vap->iv_state != IEEE80211_S_RUN) {
+		if (vap->iv_state != IEEE80211_S_RUN &&
+		    vap->iv_state != IEEE80211_S_SLEEP) {
 			IEEE80211_DPRINTF(vap, IEEE80211_MSG_OUTPUT,
 			    "%s: ignore queue, in %s state\n",
 			    __func__, ieee80211_state_name[vap->iv_state]);
@@ -477,6 +485,13 @@ ieee80211_vap_qflush(struct ifnet *ifp)
 
 /*
  * 802.11 raw output routine.
+ *
+ * XXX TODO: this (and other send routines) should correctly
+ * XXX keep the pwr mgmt bit set if it decides to call into the
+ * XXX driver to send a frame whilst the state is SLEEP.
+ *
+ * Otherwise the peer may decide that we're awake and flood us
+ * with traffic we are still too asleep to receive!
  */
 int
 ieee80211_raw_output(struct ieee80211vap *vap, struct ieee80211_node *ni,
@@ -772,7 +787,7 @@ ieee80211_mgmt_output(struct ieee80211_node *ni, struct mbuf *m, int type,
 	if (params->ibp_flags & IEEE80211_BPF_CRYPTO) {
 		IEEE80211_NOTE_MAC(vap, IEEE80211_MSG_AUTH, wh->i_addr1,
 		    "encrypting frame (%s)", __func__);
-		wh->i_fc[1] |= IEEE80211_FC1_WEP;
+		wh->i_fc[1] |= IEEE80211_FC1_PROTECTED;
 	}
 	m->m_flags |= M_ENCAP;		/* mark encapsulated */
 
@@ -1497,7 +1512,7 @@ ieee80211_encap(struct ieee80211vap *vap, struct ieee80211_node *ni,
 		     (vap->iv_opmode == IEEE80211_M_STA ?
 		      !IEEE80211_KEY_UNDEFINED(key) :
 		      !IEEE80211_KEY_UNDEFINED(&ni->ni_ucastkey)))) {
-			wh->i_fc[1] |= IEEE80211_FC1_WEP;
+			wh->i_fc[1] |= IEEE80211_FC1_PROTECTED;
 			if (!ieee80211_crypto_enmic(vap, key, m, txfrag)) {
 				IEEE80211_NOTE_MAC(vap, IEEE80211_MSG_OUTPUT,
 				    eh.ether_dhost,

@@ -26,6 +26,7 @@
 
 #include "llvm/Analysis/AliasAnalysis.h"
 #include "llvm/Analysis/CaptureTracking.h"
+#include "llvm/Analysis/CFG.h"
 #include "llvm/Analysis/Dominators.h"
 #include "llvm/Analysis/ValueTracking.h"
 #include "llvm/IR/BasicBlock.h"
@@ -361,24 +362,6 @@ AliasAnalysis::getModRefInfo(const AtomicRMWInst *RMW, const Location &Loc) {
 }
 
 namespace {
-  // Conservatively return true. Return false, if there is a single path
-  // starting from "From" and the path does not reach "To".
-  static bool hasPath(const BasicBlock *From, const BasicBlock *To) {
-    const unsigned MaxCheck = 5;
-    const BasicBlock *Current = From;
-    for (unsigned I = 0; I < MaxCheck; I++) {
-      unsigned NumSuccs = Current->getTerminator()->getNumSuccessors();
-      if (NumSuccs > 1)
-        return true;
-      if (NumSuccs == 0)
-        return false;
-      Current = Current->getTerminator()->getSuccessor(0);
-      if (Current == To)
-        return true;
-    }
-    return true;
-  }
-
   /// Only find pointer captures which happen before the given instruction. Uses
   /// the dominator tree to determine whether one instruction is before another.
   /// Only support the case where the Value is defined in the same basic block
@@ -400,7 +383,7 @@ namespace {
       // there is no need to explore the use if BeforeHere dominates use.
       // Check whether there is a path from I to BeforeHere.
       if (BeforeHere != I && DT->dominates(BeforeHere, I) &&
-          !hasPath(BB, BeforeHere->getParent()))
+          !isPotentiallyReachable(I, BeforeHere, DT))
         return false;
       return true;
     }
@@ -412,7 +395,7 @@ namespace {
       if (BeforeHere != I && !DT->isReachableFromEntry(BB))
         return false;
       if (BeforeHere != I && DT->dominates(BeforeHere, I) &&
-          !hasPath(BB, BeforeHere->getParent()))
+          !isPotentiallyReachable(I, BeforeHere, DT))
         return false;
       Captured = true;
       return true;
@@ -450,6 +433,7 @@ AliasAnalysis::callCapturesBefore(const Instruction *I,
     return AliasAnalysis::ModRef;
 
   unsigned ArgNo = 0;
+  AliasAnalysis::ModRefResult R = AliasAnalysis::NoModRef;
   for (ImmutableCallSite::arg_iterator CI = CS.arg_begin(), CE = CS.arg_end();
        CI != CE; ++CI, ++ArgNo) {
     // Only look at the no-capture or byval pointer arguments.  If this
@@ -463,12 +447,18 @@ AliasAnalysis::callCapturesBefore(const Instruction *I,
     // is impossible to alias the pointer we're checking.  If not, we have to
     // assume that the call could touch the pointer, even though it doesn't
     // escape.
-    if (!isNoAlias(AliasAnalysis::Location(*CI),
-                   AliasAnalysis::Location(Object))) {
-      return AliasAnalysis::ModRef;
+    if (isNoAlias(AliasAnalysis::Location(*CI),
+		  AliasAnalysis::Location(Object)))
+      continue;
+    if (CS.doesNotAccessMemory(ArgNo))
+      continue;
+    if (CS.onlyReadsMemory(ArgNo)) {
+      R = AliasAnalysis::Ref;
+      continue;
     }
+    return AliasAnalysis::ModRef;
   }
-  return AliasAnalysis::NoModRef;
+  return R;
 }
 
 // AliasAnalysis destructor: DO NOT move this to the header file for
@@ -534,6 +524,15 @@ bool llvm::isNoAliasCall(const Value *V) {
   if (isa<CallInst>(V) || isa<InvokeInst>(V))
     return ImmutableCallSite(cast<Instruction>(V))
       .paramHasAttr(0, Attribute::NoAlias);
+  return false;
+}
+
+/// isNoAliasArgument - Return true if this is an argument with the noalias
+/// attribute.
+bool llvm::isNoAliasArgument(const Value *V)
+{
+  if (const Argument *A = dyn_cast<Argument>(V))
+    return A->hasNoAliasAttr();
   return false;
 }
 

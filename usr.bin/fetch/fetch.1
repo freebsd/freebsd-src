@@ -1,5 +1,5 @@
 .\"-
-.\" Copyright (c) 2000-2013 Dag-Erling Smørgrav
+.\" Copyright (c) 2000-2014 Dag-Erling Smørgrav
 .\" Copyright (c) 2013 Michael Gmelin <freebsd@grem.de>
 .\" All rights reserved.
 .\" Portions Copyright (c) 1999 Massachusetts Institute of Technology; used
@@ -30,7 +30,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 30, 2013
+.Dd January 28, 2014
 .Dt FETCH 1
 .Os
 .Sh NAME
@@ -118,7 +118,7 @@ Automatically retry the transfer upon soft failures.
 Allow SSL version 2 when negotiating the connection.
 .It Fl B Ar bytes , Fl -buffer-size= Ns Ar bytes
 Specify the read buffer size in bytes.
-The default is 4096 bytes.
+The default is 16,384 bytes.
 Attempts to set a buffer size lower than this will be silently
 ignored.
 The number of reads actually performed is reported at verbosity level

@@ -117,6 +117,7 @@ static int pci_vtblk_debug;
  */
 struct pci_vtblk_softc {
 	struct virtio_softc vbsc_vs;
+	pthread_mutex_t vsc_mtx;
 	struct vqueue_info vbsc_vq;
 	int		vbsc_fd;
 	struct vtblk_config vbsc_cfg;	
@@ -298,14 +299,17 @@ pci_vtblk_init(struct vmctx *ctx, struct pci_devinst *pi, char *opts)
 		assert(sectsz != 0);
 	}
 
-	sc = malloc(sizeof(struct pci_vtblk_softc));
-	memset(sc, 0, sizeof(struct pci_vtblk_softc));
+	sc = calloc(1, sizeof(struct pci_vtblk_softc));
 
 	/* record fd of storage device/file */
 	sc->vbsc_fd = fd;
 
+	pthread_mutex_init(&sc->vsc_mtx, NULL);
+
 	/* init virtio softc and virtqueues */
 	vi_softc_linkup(&sc->vbsc_vs, &vtblk_vi_consts, sc, pi, &sc->vbsc_vq);
+	sc->vbsc_vs.vs_mtx = &sc->vsc_mtx;
+
 	sc->vbsc_vq.vq_qsize = VTBLK_RINGSZ;
 	/* sc->vbsc_vq.vq_notify = we have no per-queue notify */
 
@@ -338,6 +342,8 @@ pci_vtblk_init(struct vmctx *ctx, struct pci_devinst *pi, char *opts)
 	pci_set_cfgdata16(pi, PCIR_VENDOR, VIRTIO_VENDOR);
 	pci_set_cfgdata8(pi, PCIR_CLASS, PCIC_STORAGE);
 	pci_set_cfgdata16(pi, PCIR_SUBDEV_0, VIRTIO_TYPE_BLOCK);
+
+	pci_lintr_request(pi);
 
 	if (vi_intr_init(&sc->vbsc_vs, 1, fbsdrun_virtio_msix()))
 		return (1);

@@ -228,11 +228,6 @@ public:
     return false;
   }
 
-  /// \brief Returns true if this is a call to a variadic function or method.
-  virtual bool isVariadic() const {
-    return false;
-  }
-
   /// \brief Returns a source range for the entire call, suitable for
   /// outputting in diagnostics.
   virtual SourceRange getSourceRange() const {
@@ -341,6 +336,11 @@ public:
   /// This will return a null QualType if the result type cannot be determined.
   static QualType getDeclaredResultType(const Decl *D);
 
+  /// \brief Returns true if the given decl is known to be variadic.
+  ///
+  /// \p D must not be null.
+  static bool isVariadic(const Decl *D);
+
   // Iterator access to formal parameters and their types.
 private:
   typedef std::const_mem_fun_t<QualType, ParmVarDecl> get_type_fun;
@@ -350,19 +350,13 @@ public:
 
   /// Returns an iterator over the call's formal parameters.
   ///
-  /// If UseDefinitionParams is set, this will return the parameter decls
-  /// used in the callee's definition (suitable for inlining). Most of the
-  /// time it is better to use the decl found by name lookup, which likely
-  /// carries more annotations.
-  ///
   /// Remember that the number of formal parameters may not match the number
   /// of arguments for all calls. However, the first parameter will always
   /// correspond with the argument value returned by \c getArgSVal(0).
   ///
-  /// If the call has no accessible declaration (or definition, if
-  /// \p UseDefinitionParams is set), \c param_begin() will be equal to
-  /// \c param_end().
-  virtual param_iterator param_begin() const =0;
+  /// If the call has no accessible declaration, \c param_begin() will be equal
+  /// to \c param_end().
+  virtual param_iterator param_begin() const = 0;
   /// \sa param_begin()
   virtual param_iterator param_end() const = 0;
 
@@ -421,10 +415,6 @@ public:
     }
 
     return RuntimeDefinition();
-  }
-
-  virtual bool isVariadic() const {
-    return getDecl()->isVariadic();
   }
 
   virtual bool argumentsMayEscape() const;
@@ -525,10 +515,6 @@ public:
 
   virtual RuntimeDefinition getRuntimeDefinition() const {
     return RuntimeDefinition(getBlockDecl());
-  }
-
-  virtual bool isVariadic() const {
-    return getBlockDecl()->isVariadic();
   }
 
   virtual void getInitialStackFrameContents(const StackFrameContext *CalleeCtx,
@@ -848,9 +834,6 @@ public:
   }
   virtual const Expr *getArgExpr(unsigned Index) const {
     return getOriginExpr()->getArg(Index);
-  }
-  virtual bool isVariadic() const {
-    return getDecl()->isVariadic();
   }
 
   bool isInstanceMessage() const {

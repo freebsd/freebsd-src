@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2013 Ganbold Tsagaankhuu <ganbold@gmail.com>
+ * Copyright (c) 2013 Ganbold Tsagaankhuu <ganbold@freebsd.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -69,6 +69,9 @@ static struct rk30_grf_softc *rk30_grf_sc = NULL;
 static int
 rk30_grf_probe(device_t dev)
 {
+
+	if (!ofw_bus_status_okay(dev))
+		return (ENXIO);
 
 	if (ofw_bus_is_compatible(dev, "rockchip,rk30xx-grf")) {
 		device_set_desc(dev, "RK30XX General Register File");

@@ -1,6 +1,6 @@
 divert(-1)
 #
-# Copyright (c) 1998-2000, 2002 Sendmail, Inc. and its suppliers.
+# Copyright (c) 1998-2000, 2002 Proofpoint, Inc. and its suppliers.
 #	All rights reserved.
 #
 # By using this file, you agree to the terms and conditions set
@@ -10,7 +10,7 @@ divert(-1)
 #
 
 divert(0)
-VERSIONID(`$Id: local_lmtp.m4,v 8.17 2002/11/17 04:41:04 ca Exp $')
+VERSIONID(`$Id: local_lmtp.m4,v 8.18 2013-11-22 20:51:11 ca Exp $')
 divert(-1)
 
 ifdef(`_MAILER_local_',

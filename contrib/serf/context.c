@@ -285,6 +285,12 @@ apr_status_t serf_context_run(
            ### look at the potential return codes. map to our defined
            ### return values? ...
         */
+
+        /* Use the strict documented error for poll timeouts, to allow proper
+           handling of the other timeout types when returned from
+           serf_event_trigger */
+        if (APR_STATUS_IS_TIMEUP(status))
+            return APR_TIMEUP; /* Return the documented error */
         return status;
     }
 

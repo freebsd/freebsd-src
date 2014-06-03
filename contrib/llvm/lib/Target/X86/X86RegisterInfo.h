@@ -27,7 +27,6 @@ namespace llvm {
 class X86RegisterInfo : public X86GenRegisterInfo {
 public:
   X86TargetMachine &TM;
-  const TargetInstrInfo &TII;
 
 private:
   /// Is64Bit - Is the target 64-bits.
@@ -56,7 +55,7 @@ private:
   unsigned BasePtr;
 
 public:
-  X86RegisterInfo(X86TargetMachine &tm, const TargetInstrInfo &tii);
+  X86RegisterInfo(X86TargetMachine &tm);
 
   // FIXME: This should be tablegen'd like getDwarfRegNum is
   int getSEHRegNum(unsigned i) const;
@@ -127,16 +126,15 @@ public:
   unsigned getBaseRegister() const { return BasePtr; }
   // FIXME: Move to FrameInfok
   unsigned getSlotSize() const { return SlotSize; }
-
-  // Exception handling queries.
-  unsigned getEHExceptionRegister() const;
-  unsigned getEHHandlerRegister() const;
 };
 
 // getX86SubSuperRegister - X86 utility function. It returns the sub or super
 // register of a specific X86 register.
 // e.g. getX86SubSuperRegister(X86::EAX, MVT::i16) return X86:AX
 unsigned getX86SubSuperRegister(unsigned, MVT::SimpleValueType, bool High=false);
+
+//get512BitRegister - X86 utility - returns 512-bit super register
+unsigned get512BitSuperRegister(unsigned Reg);
 
 } // End llvm namespace
 

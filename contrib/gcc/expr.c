@@ -4770,6 +4770,8 @@ count_type_elements (tree type, bool allow_flexarr)
     case ENUMERAL_TYPE:
     case BOOLEAN_TYPE:
     case POINTER_TYPE:
+    /* APPLE LOCAL radar 5732232 - blocks */
+    case BLOCK_POINTER_TYPE:
     case OFFSET_TYPE:
     case REFERENCE_TYPE:
       return 1;
@@ -8717,13 +8719,6 @@ expand_expr_real_1 (tree exp, rtx target, enum machine_mode tmode,
     case TRUTH_ORIF_EXPR:
       /* Lowered by gimplify.c.  */
       gcc_unreachable ();
-
-    case CHANGE_DYNAMIC_TYPE_EXPR:
-      /* This is ignored at the RTL level.  The tree level set
-	 DECL_POINTER_ALIAS_SET of any variable to be 0, which is
-	 overkill for the RTL layer but is all that we can
-	 represent.  */
-      return const0_rtx;
 
     case EXC_PTR_EXPR:
       return get_exception_pointer (cfun);

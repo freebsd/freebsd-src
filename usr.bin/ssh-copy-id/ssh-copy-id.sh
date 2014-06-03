@@ -28,7 +28,7 @@
 # $FreeBSD$
 
 usage() {
-	echo "usage: ssh-copy-id [-l] [-i keyfile] [-o option] [-p port] [user@]hostname" >&2
+	echo "usage: ssh-copy-id [-lv] [-i keyfile] [-o option] [-p port] [user@]hostname" >&2
 	exit 1
 }
 
@@ -45,7 +45,10 @@ sendkey() {
 			if ! grep -sqwF "$key" "$keyfile"; then \
 				printf "$alg $key $comment\n" >> "$keyfile" ; \
 			fi ; \
-		done \
+		done ; \
+		if [ -x /sbin/restorecon ]; then \
+			/sbin/restorecon -F "$HOME/.ssh/" "$keyfile" >/dev/null 2>&1 || true ; \
+		fi
 	'\' 
 }
 
@@ -64,11 +67,13 @@ options=""
 
 IFS=$nl
 
-while getopts 'i:lo:p:' arg; do
+while getopts 'i:lo:p:v' arg; do
 	case $arg in
 	i)	
 		hasarg="x"
-		if [ -r "$OPTARG" ]; then
+		if [ -r "${OPTARG}.pub" ]; then
+			keys="$(cat -- "${OPTARG}.pub")$nl$keys"
+		elif [ -r "$OPTARG" ]; then
 			keys="$(cat -- "$OPTARG")$nl$keys"
 		else
 			echo "File $OPTARG not found" >&2
@@ -84,6 +89,9 @@ while getopts 'i:lo:p:' arg; do
 		;;
 	o)	
 		options=$options$nl-o$nl$OPTARG
+		;;
+	v)
+		options="$options$nl-v"
 		;;
 	*)	
 		usage

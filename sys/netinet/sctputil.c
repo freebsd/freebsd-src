@@ -4018,6 +4018,7 @@ void
 sctp_handle_ootb(struct mbuf *m, int iphlen, int offset,
     struct sockaddr *src, struct sockaddr *dst,
     struct sctphdr *sh, struct sctp_inpcb *inp,
+    struct mbuf *cause,
     uint8_t use_mflowid, uint32_t mflowid,
     uint32_t vrf_id, uint16_t port)
 {
@@ -4046,9 +4047,6 @@ sctp_handle_ootb(struct mbuf *m, int iphlen, int offset,
 		case SCTP_INIT:
 			contains_init_chunk = 1;
 			break;
-		case SCTP_COOKIE_ECHO:
-			/* We hit here only if the assoc is being freed */
-			return;
 		case SCTP_PACKET_DROPPED:
 			/* we don't respond to pkt-dropped */
 			return;
@@ -4076,7 +4074,7 @@ sctp_handle_ootb(struct mbuf *m, int iphlen, int offset,
 	if ((SCTP_BASE_SYSCTL(sctp_blackhole) == 0) ||
 	    ((SCTP_BASE_SYSCTL(sctp_blackhole) == 1) &&
 	    (contains_init_chunk == 0))) {
-		sctp_send_abort(m, iphlen, src, dst, sh, 0, NULL,
+		sctp_send_abort(m, iphlen, src, dst, sh, 0, cause,
 		    use_mflowid, mflowid,
 		    vrf_id, port);
 	}
@@ -4631,19 +4629,43 @@ get_out:
  */
 
 struct mbuf *
-sctp_generate_invmanparam(int err)
+sctp_generate_cause(uint16_t code, char *info)
 {
-	/* Return a MBUF with a invalid mandatory parameter */
 	struct mbuf *m;
+	struct sctp_gen_error_cause *cause;
+	size_t info_len, len;
 
-	m = sctp_get_mbuf_for_msg(sizeof(struct sctp_paramhdr), 0, M_NOWAIT, 1, MT_DATA);
-	if (m) {
-		struct sctp_paramhdr *ph;
+	if ((code == 0) || (info == NULL)) {
+		return (NULL);
+	}
+	info_len = strlen(info);
+	len = sizeof(struct sctp_paramhdr) + info_len;
+	m = sctp_get_mbuf_for_msg(len, 0, M_NOWAIT, 1, MT_DATA);
+	if (m != NULL) {
+		SCTP_BUF_LEN(m) = len;
+		cause = mtod(m, struct sctp_gen_error_cause *);
+		cause->code = htons(code);
+		cause->length = htons((uint16_t) len);
+		memcpy(cause->info, info, info_len);
+	}
+	return (m);
+}
 
-		SCTP_BUF_LEN(m) = sizeof(struct sctp_paramhdr);
-		ph = mtod(m, struct sctp_paramhdr *);
-		ph->param_length = htons(sizeof(struct sctp_paramhdr));
-		ph->param_type = htons(err);
+struct mbuf *
+sctp_generate_no_user_data_cause(uint32_t tsn)
+{
+	struct mbuf *m;
+	struct sctp_error_no_user_data *no_user_data_cause;
+	size_t len;
+
+	len = sizeof(struct sctp_error_no_user_data);
+	m = sctp_get_mbuf_for_msg(len, 0, M_NOWAIT, 1, MT_DATA);
+	if (m != NULL) {
+		SCTP_BUF_LEN(m) = len;
+		no_user_data_cause = mtod(m, struct sctp_error_no_user_data *);
+		no_user_data_cause->cause.code = htons(SCTP_CAUSE_NO_USER_DATA);
+		no_user_data_cause->cause.length = htons((uint16_t) len);
+		no_user_data_cause->tsn = tsn;	/* tsn is passed in as NBO */
 	}
 	return (m);
 }
@@ -5868,8 +5890,8 @@ get_more_data:
 			goto release;
 		}
 		if ((uio->uio_resid == 0) ||
-		    ((in_eeor_mode) && (copied_so_far >= max(so->so_rcv.sb_lowat, 1)))
-		    ) {
+		    ((in_eeor_mode) &&
+		    (copied_so_far >= (uint32_t) max(so->so_rcv.sb_lowat, 1)))) {
 			goto release;
 		}
 		/*

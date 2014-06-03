@@ -202,26 +202,25 @@ sys_reboot(struct thread *td, struct reboot_args *uap)
 /*
  * Called by events that want to shut down.. e.g  <CTL><ALT><DEL> on a PC
  */
-static int shutdown_howto = 0;
-
 void
 shutdown_nice(int howto)
 {
 
-	shutdown_howto = howto;
-
-	/* Send a signal to init(8) and have it shutdown the world */
 	if (initproc != NULL) {
+		/* Send a signal to init(8) and have it shutdown the world. */
 		PROC_LOCK(initproc);
-		kern_psignal(initproc, SIGINT);
+		if (howto & RB_POWEROFF)
+			kern_psignal(initproc, SIGUSR2);
+		else if (howto & RB_HALT)
+			kern_psignal(initproc, SIGUSR1);
+		else
+			kern_psignal(initproc, SIGINT);
 		PROC_UNLOCK(initproc);
 	} else {
-		/* No init(8) running, so simply reboot */
-		kern_reboot(RB_NOSYNC);
+		/* No init(8) running, so simply reboot. */
+		kern_reboot(howto | RB_NOSYNC);
 	}
-	return;
 }
-static int	waittime = -1;
 
 static void
 print_uptime(void)
@@ -295,6 +294,7 @@ void
 kern_reboot(int howto)
 {
 	static int first_buf_printf = 1;
+	static int waittime = -1;
 
 #if defined(SMP)
 	/*
@@ -311,9 +311,6 @@ kern_reboot(int howto)
 #endif
 	/* We're in the process of rebooting. */
 	rebooting = 1;
-
-	/* collect extra flags that shutdown_nice might have set */
-	howto |= shutdown_howto;
 
 	/* We are out of the debugger now. */
 	kdb_active = 0;

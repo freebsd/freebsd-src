@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 2000-2003,2007 Free Software Foundation, Inc.              *
+ * Copyright (c) 2000-2007,2012 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -36,7 +36,7 @@
 
 #include <curses.priv.h>
 
-MODULE_ID("$Id: strings.c,v 1.6 2007/08/11 17:12:17 tom Exp $")
+MODULE_ID("$Id: strings.c,v 1.8 2012/02/22 22:34:31 tom Exp $")
 
 /****************************************************************************
  * Useful string functions (especially for mvcur)
@@ -110,7 +110,7 @@ _nc_safe_strcat(string_desc * dst, const char *src)
 
 	if (len < dst->s_size) {
 	    if (dst->s_tail != 0) {
-		strcpy(dst->s_tail, src);
+		_nc_STRCPY(dst->s_tail, src, dst->s_size);
 		dst->s_tail += len;
 	    }
 	    dst->s_size -= len;
@@ -131,7 +131,7 @@ _nc_safe_strcpy(string_desc * dst, const char *src)
 
 	if (len < dst->s_size) {
 	    if (dst->s_head != 0) {
-		strcpy(dst->s_head, src);
+		_nc_STRCPY(dst->s_head, src, dst->s_size);
 		dst->s_tail = dst->s_head + len;
 	    }
 	    dst->s_size = dst->s_init - len;

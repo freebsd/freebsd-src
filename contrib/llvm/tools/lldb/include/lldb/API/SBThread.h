@@ -214,6 +214,8 @@ protected:
     friend class SBProcess;
     friend class SBDebugger;
     friend class SBValue;
+    friend class lldb_private::QueueImpl;
+    friend class SBQueueItem;
 
     void
     SetThread (const lldb::ThreadSP& lldb_object_sp);

@@ -386,6 +386,8 @@ struct tree_common GTY(())
   unsigned lang_flag_5 : 1;
   unsigned lang_flag_6 : 1;
   unsigned visited : 1;
+  /* APPLE LOCAL "unavailable" attribute (Radar 2809697) --ilr */
+  unsigned unavailable_flag : 1;
 };
 
 /* The following table lists the uses of each of the above flags and
@@ -532,6 +534,13 @@ struct tree_common GTY(())
 
 	IDENTIFIER_TRANSPARENT_ALIAS in
 	   IDENTIFIER_NODE
+
+   APPLE LOCAL begin "unavailable" attribute (Radar 2809697)
+   unavailable_flag:
+
+	TREE_UNAVAILABLE in
+	   ..._DECL
+   APPLE LOCAL end "unavailable" attribute (Radar 2809697)
 
    visited:
 
@@ -860,7 +869,8 @@ extern void omp_clause_range_check_failed (const tree, const char *, int,
 #define CST_CHECK(T)		TREE_CLASS_CHECK (T, tcc_constant)
 #define STMT_CHECK(T)		TREE_CLASS_CHECK (T, tcc_statement)
 #define FUNC_OR_METHOD_CHECK(T)	TREE_CHECK2 (T, FUNCTION_TYPE, METHOD_TYPE)
-#define PTR_OR_REF_CHECK(T)	TREE_CHECK2 (T, POINTER_TYPE, REFERENCE_TYPE)
+/* APPLE LOCAL blocks 5862465 */
+#define PTR_OR_REF_CHECK(T)	TREE_CHECK3 (T, POINTER_TYPE, REFERENCE_TYPE, BLOCK_POINTER_TYPE)
 
 #define RECORD_OR_UNION_CHECK(T)	\
   TREE_CHECK3 (T, RECORD_TYPE, UNION_TYPE, QUAL_UNION_TYPE)
@@ -989,8 +999,12 @@ extern void omp_clause_range_check_failed (const tree, const char *, int,
    (It should be renamed to INDIRECT_TYPE_P.)  Keep these checks in
    ascending code order.  */
 
+/* APPLE LOCAL begin blocks 5862465 */
 #define POINTER_TYPE_P(TYPE) \
-  (TREE_CODE (TYPE) == POINTER_TYPE || TREE_CODE (TYPE) == REFERENCE_TYPE)
+  (TREE_CODE (TYPE) == POINTER_TYPE \
+   || TREE_CODE (TYPE) == REFERENCE_TYPE \
+   || TREE_CODE (TYPE) == BLOCK_POINTER_TYPE)
+/* APPLE LOCAL end blocks 5862465 */
 
 /* Nonzero if this type is a complete type.  */
 #define COMPLETE_TYPE_P(NODE) (TYPE_SIZE (NODE) != NULL_TREE)
@@ -1225,6 +1239,12 @@ extern void omp_clause_range_check_failed (const tree, const char *, int,
    deprecated feature by __attribute__((deprecated)).  */
 #define TREE_DEPRECATED(NODE) \
   ((NODE)->common.deprecated_flag)
+
+/* APPLE LOCAL begin "unavailable" attribute (Radar 2809697) */
+/* Nonzero in a IDENTIFIER_NODE if the use of the name is defined as a
+   unavailable feature by __attribute__((unavailable)).  */
+#define TREE_UNAVAILABLE(NODE) ((NODE)->common.unavailable_flag)
+/* APPLE LOCAL end "unavailable" attribute (Radar 2809697) */
 
 /* Nonzero in an IDENTIFIER_NODE if the name is a local alias, whose
    uses are to be substituted for uses of the TREE_CHAINed identifier.  */
@@ -1547,12 +1567,6 @@ struct tree_constructor GTY(())
 #define EH_FILTER_TYPES(NODE)	TREE_OPERAND (EH_FILTER_EXPR_CHECK (NODE), 0)
 #define EH_FILTER_FAILURE(NODE)	TREE_OPERAND (EH_FILTER_EXPR_CHECK (NODE), 1)
 #define EH_FILTER_MUST_NOT_THROW(NODE) TREE_STATIC (EH_FILTER_EXPR_CHECK (NODE))
-
-/* CHANGE_DYNAMIC_TYPE_EXPR accessors.  */
-#define CHANGE_DYNAMIC_TYPE_NEW_TYPE(NODE) \
-  TREE_OPERAND (CHANGE_DYNAMIC_TYPE_EXPR_CHECK (NODE), 0)
-#define CHANGE_DYNAMIC_TYPE_LOCATION(NODE) \
-  TREE_OPERAND (CHANGE_DYNAMIC_TYPE_EXPR_CHECK (NODE), 1)
 
 /* OBJ_TYPE_REF accessors.  */
 #define OBJ_TYPE_REF_EXPR(NODE)	  TREE_OPERAND (OBJ_TYPE_REF_CHECK (NODE), 0)
@@ -2093,6 +2107,17 @@ struct tree_block GTY(())
 #define TYPE_CONTAINS_PLACEHOLDER_INTERNAL(NODE) \
   (TYPE_CHECK (NODE)->type.contains_placeholder_bits)
 
+/* APPLE LOCAL begin radar 5811943 - Fix type of pointers to blocks  */
+/* Indicates that the struct type is a block struct, rather than
+   a 'normal' struct, i.e. one of its fields is a function that can
+   be called.  This uses the existing bit-field lang_flag_2 in the
+   struct tree_type, rather than creating a new bit field, as 
+   lang_flag_2 is currently unused and we don't want to increase the 
+   size of trees if we can avoid it.  */
+#define TYPE_BLOCK_IMPL_STRUCT(NODE) \
+(TYPE_CHECK (NODE)->type.lang_flag_2)
+/* APPLE LOCAL end radar 5811943 - Fix type of pointers to Blocks  */
+
 struct die_struct;
 
 struct tree_type GTY(())
@@ -2117,6 +2142,14 @@ struct tree_type GTY(())
 
   unsigned lang_flag_0 : 1;
   unsigned lang_flag_1 : 1;
+  /* APPLE LOCAL begin radar 5811943 - Fix type of pointers to Blocks  */
+  /* Since it is currently completely unused, and in the interest of
+     not making trees any bigger than they already are, lang_flag_2
+     in the tree_type struct will be used to indicate that a struct is a 
+     block struct.  The macro used for these purposes is 
+     TYPE_BLOCK_IMPL_STRUCT, rather than TYPE_LANG_FLAG_2, in order to make 
+     its uses in the code more clear.  */
+  /* APPLE LOCAL end radar 5811943 - Fix type of pointers to Blocks  */
   unsigned lang_flag_2 : 1;
   unsigned lang_flag_3 : 1;
   unsigned lang_flag_4 : 1;
@@ -2544,11 +2577,6 @@ struct tree_struct_field_tag GTY(())
 #define DECL_CALL_CLOBBERED(DECL) \
   DECL_COMMON_CHECK (DECL)->decl_common.call_clobbered_flag
 
-/* For a DECL with pointer type, this is set if Type Based Alias
-   Analysis should not be applied to this DECL.  */
-#define DECL_NO_TBAA_P(DECL) \
-  DECL_COMMON_CHECK (DECL)->decl_common.no_tbaa_flag
-
 struct tree_decl_common GTY(())
 {
   struct tree_decl_minimal common;
@@ -2590,8 +2618,9 @@ struct tree_decl_common GTY(())
      parm decl. */
   unsigned gimple_reg_flag : 1;
   unsigned call_clobbered_flag : 1;
-  /* In a DECL with pointer type, set if no TBAA should be done.  */
-  unsigned no_tbaa_flag : 1;
+
+  /* APPLE LOCAL duplicate decls in multiple files. */
+  unsigned duplicate_decl : 1;
 
   unsigned int align : 24;
   /* DECL_OFFSET_ALIGN, used only for FIELD_DECLs.  */
@@ -2774,6 +2803,9 @@ struct tree_parm_decl GTY(())
    so it should not be output now.  */
 #define DECL_DEFER_OUTPUT(NODE) (DECL_WITH_VIS_CHECK (NODE)->decl_with_vis.defer_output)
 
+/* APPLE LOCAL duplicate decls in multiple files. */
+#define DECL_DUPLICATE_DECL(NODE) (DECL_COMMON_CHECK (NODE)->decl_common.duplicate_decl)
+
 /* Nonzero for a given ..._DECL node means that no warnings should be
    generated just because this node is unused.  */
 #define DECL_IN_SYSTEM_HEADER(NODE) \
@@ -2917,7 +2949,21 @@ struct tree_decl_with_vis GTY(())
 
  /* Belongs to VAR_DECL exclusively.  */
  ENUM_BITFIELD(tls_model) tls_model : 3;
- /* 11 unused bits. */
+
+ /* APPLE LOCAL begin radar 5732232 - blocks */
+ /* Belong to VAR_DECL exclusively. */
+ unsigned block_decl_byref : 1;
+ unsigned block_decl_copied : 1;
+ /* APPLE LOCAL begin radar 5932809 - copyable byref blocks */
+ unsigned copyable_byref_local_var : 1;
+ unsigned copyable_byref_local_nonpod : 1;
+ /* APPLE LOCAL radar 6172148 */
+ unsigned block_synthesized_function : 1;
+ /* APPLE LOCAL radar 5847976 */
+ unsigned block_weak : 1;
+ /* 5 unused bits. */
+ /* APPLE LOCAL end radar 5932809 - copyable byref blocks */
+ /* APPLE LOCAL end radar 5732232 - blocks */
 };
 
 /* In a VAR_DECL that's static,
@@ -2962,6 +3008,19 @@ extern void decl_init_priority_insert (tree, unsigned short);
 /* In a VAR_DECL, the model to use if the data should be allocated from
    thread-local storage.  */
 #define DECL_TLS_MODEL(NODE) (VAR_DECL_CHECK (NODE)->decl_with_vis.tls_model)
+
+/* APPLE LOCAL begin radar 5732232 - blocks */
+#define BLOCK_DECL_BYREF(NODE) (VAR_DECL_CHECK (NODE)->decl_with_vis.block_decl_byref)
+#define BLOCK_DECL_COPIED(NODE) (VAR_DECL_CHECK (NODE)->decl_with_vis.block_decl_copied)
+/* APPLE LOCAL end radar 5732232 - blocks */
+/* APPLE LOCAL radar 6172148 */
+#define BLOCK_SYNTHESIZED_FUNC(NODE) (FUNCTION_DECL_CHECK (NODE)->decl_with_vis.block_synthesized_function)
+/* APPLE LOCAL begin radar 5932809 - copyable byref blocks */
+#define COPYABLE_BYREF_LOCAL_VAR(NODE) (VAR_DECL_CHECK (NODE)->decl_with_vis.copyable_byref_local_var)
+#define COPYABLE_BYREF_LOCAL_NONPOD(NODE) (VAR_DECL_CHECK (NODE)->decl_with_vis.copyable_byref_local_nonpod)
+/* APPLE LOCAL radar 5847976 */
+#define COPYABLE_WEAK_BLOCK(NODE) (VAR_DECL_CHECK (NODE)->decl_with_vis.block_weak)
+/* APPLE LOCAL end radar 5932809 - copyable byref blocks */
 
 /* In a VAR_DECL, nonzero if the data should be allocated from
    thread-local storage.  */
@@ -3613,6 +3672,8 @@ extern void set_sizetype (tree);
 extern void fixup_unsigned_type (tree);
 extern tree build_pointer_type_for_mode (tree, enum machine_mode, bool);
 extern tree build_pointer_type (tree);
+/* APPLE LOCAL radar 5732232 - blocks */
+extern tree build_block_pointer_type (tree);
 extern tree build_reference_type_for_mode (tree, enum machine_mode, bool);
 extern tree build_reference_type (tree);
 extern tree build_vector_type_for_mode (tree, enum machine_mode);
@@ -4658,5 +4719,9 @@ extern unsigned HOST_WIDE_INT compute_builtin_object_size (tree, int);
 
 /* In expr.c.  */
 extern unsigned HOST_WIDE_INT highest_pow2_factor (tree);
+
+/* APPLE LOCAL begin radar 6300081  */
+extern GTY(()) tree generic_block_literal_struct_type;
+/* APPLE LOCAL end radar 6300081  */
 
 #endif  /* GCC_TREE_H  */

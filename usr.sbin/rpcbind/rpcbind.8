@@ -2,7 +2,7 @@
 .\" Copyright 1989 AT&T
 .\" Copyright 1991 Sun Microsystems, Inc.
 .\" $FreeBSD$
-.Dd April 23, 2007
+.Dd March 6, 2014
 .Dt RPCBIND 8
 .Os
 .Sh NAME
@@ -133,6 +133,8 @@ to use non-privileged ports for outgoing connections, preventing non-privileged
 clients from using
 .Nm
 to connect to services from a privileged port.
+.It Fl W
+Enable libwrap (TCP wrappers) support.
 .El
 .Sh NOTES
 All RPC servers must be restarted if

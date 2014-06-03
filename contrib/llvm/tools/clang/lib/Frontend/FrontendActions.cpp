@@ -54,23 +54,13 @@ ASTConsumer *ASTPrintAction::CreateASTConsumer(CompilerInstance &CI,
 
 ASTConsumer *ASTDumpAction::CreateASTConsumer(CompilerInstance &CI,
                                               StringRef InFile) {
-  return CreateASTDumper(CI.getFrontendOpts().ASTDumpFilter);
+  return CreateASTDumper(CI.getFrontendOpts().ASTDumpFilter,
+                         CI.getFrontendOpts().ASTDumpLookups);
 }
 
 ASTConsumer *ASTDeclListAction::CreateASTConsumer(CompilerInstance &CI,
                                                   StringRef InFile) {
   return CreateASTDeclNodeLister();
-}
-
-ASTConsumer *ASTDumpXMLAction::CreateASTConsumer(CompilerInstance &CI,
-                                                 StringRef InFile) {
-  raw_ostream *OS;
-  if (CI.getFrontendOpts().OutputFile.empty())
-    OS = &llvm::outs();
-  else
-    OS = CI.createDefaultOutputFile(false, InFile);
-  if (!OS) return 0;
-  return CreateASTDumperXML(*OS);
 }
 
 ASTConsumer *ASTViewAction::CreateASTConsumer(CompilerInstance &CI,
@@ -172,11 +162,12 @@ static void collectModuleHeaderIncludes(const LangOptions &LangOpts,
     return;
 
   // Add includes for each of these headers.
-  for (unsigned I = 0, N = Module->Headers.size(); I != N; ++I) {
-    const FileEntry *Header = Module->Headers[I];
+  for (unsigned I = 0, N = Module->NormalHeaders.size(); I != N; ++I) {
+    const FileEntry *Header = Module->NormalHeaders[I];
     Module->addTopHeader(Header);
     addHeaderInclude(Header, Includes, LangOpts);
   }
+  // Note that Module->PrivateHeaders will not be a TopHeader.
 
   if (const FileEntry *UmbrellaHeader = Module->getUmbrellaHeader()) {
     Module->addTopHeader(UmbrellaHeader);
@@ -231,7 +222,7 @@ bool GenerateModuleAction::BeginSourceFileAction(CompilerInstance &CI,
   
   // Parse the module map file.
   HeaderSearch &HS = CI.getPreprocessor().getHeaderSearchInfo();
-  if (HS.loadModuleMapFile(ModuleMap))
+  if (HS.loadModuleMapFile(ModuleMap, IsSystem))
     return false;
   
   if (CI.getLangOpts().CurrentModule.empty()) {
@@ -255,11 +246,11 @@ bool GenerateModuleAction::BeginSourceFileAction(CompilerInstance &CI,
   }
 
   // Check whether we can build this module at all.
-  StringRef Feature;
-  if (!Module->isAvailable(CI.getLangOpts(), CI.getTarget(), Feature)) {
+  clang::Module::Requirement Requirement;
+  if (!Module->isAvailable(CI.getLangOpts(), CI.getTarget(), Requirement)) {
     CI.getDiagnostics().Report(diag::err_module_unavailable)
       << Module->getFullModuleName()
-      << Feature;
+      << Requirement.second << Requirement.first;
 
     return false;
   }

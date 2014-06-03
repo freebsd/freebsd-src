@@ -724,7 +724,7 @@ const char* atf_check::m_description =
     "atf-check executes given command and analyzes its results.";
 
 atf_check::atf_check(void) :
-    app(m_description, "atf-check(1)", "atf(7)"),
+    app(m_description, "atf-check(1)"),
     m_xflag(false)
 {
 }

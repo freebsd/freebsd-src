@@ -24,62 +24,137 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 5, 2013
+.Dd May 14, 2014
 .Dt GPIOIIC 4
 .Os
 .Sh NAME
 .Nm gpioiic
 .Nd GPIO I2C bit-banging device driver
 .Sh SYNOPSIS
+To compile this driver into the kernel,
+place the following lines in your
+kernel configuration file:
+.Bd -ragged -offset indent
 .Cd "device gpio"
 .Cd "device gpioiic"
 .Cd "device iic"
 .Cd "device iicbb"
 .Cd "device iicbus"
+.Ed
 .Sh DESCRIPTION
 The
-.Em gpioiic
+.Nm
 driver provides an IIC bit-banging interface using two GPIO pins for the
 SCL and SDA on the
-.Em gpiobus .
+.Nm gpiobus .
 .Nm
-implements an open colector kind of output, as recommended by the standard,
+implements an open collector kind of output, as recommended by the standard,
 when driving the pins on the
-.Em gpiobus ,
+.Nm gpiobus ,
 i.e, they are never switched to the logical value of '1',
 or they are '0' or simply open (Hi-Z/tri-state).
 So the pullup resistors are required so
 .Nm
 can work.
 .Pp
-On a hint based system, like
-.Li MIPS , these values are configureable for the
-.Nm gpioiic :
+On a
+.Xr device.hints 5
+based system, like
+.Li MIPS ,
+these values are configurable for the
+.Nm :
 .Bl -tag -width ".Va hint.gpioiic.%d.atXXX"
 .It Va hint.gpioiic.%d.at
-The gpiobus you are attaching to.
+The
+.Nm gpiobus
+you are attaching to.
 Normally just gpiobus0.
 .It Va hint.gpioiic.%d.pins
 This is a bitmask of the pins on the
-.Em gpiobus
+.Nm gpiobus
 that are to be used for SCLOCK and SDATA from the GPIO IIC
 bit-banging bus.
 To configure pin 0 and 7, use the bitmask of
-10000001 and convert it to a hexadecimal value of 0x0081.
+0b10000001 and convert it to a hexadecimal value of 0x0081.
 Please note that this mask should only ever have two bits set
-(any others bits - i.e., pins - will be ignored).
+(any other bits - i.e., pins - will be ignored).
 .It Va hint.gpioiic.%d.scl
 Indicates which bit in the
 .Va hint.gpioiic.%d.pins
 should be used as the SCLOCK
 source.
+Optional, defaults to 0.
 .It Va hint.gpioiic.%d.sda
 Indicates which bit in the
 .Va hint.gpioiic.%d.pins
 should be used as the SDATA
 source.
+Optional, defaults to 1.
+.El
+.Pp
+On a
+.Xr FDT 4
+based system, like
+.Li ARM ,
+the DTS part for a
+.Nm gpioiic
+device usually looks like:
+.Bd -literal
+gpio: gpio {
+
+	gpio-controller;
+	...
+
+	gpioiic0 {
+		compatible = "gpioiic";
+		/*
+		 * Attach to GPIO pins 21 and 22.  Set them
+		 * initially as inputs.
+		 */
+		gpios = <&gpio 21 1 0
+			 &gpio 22 1 0>;
+		scl = <0>;		/* GPIO pin 21 - optional */
+		sda = <1>;		/* GPIO pin 22 - optional */
+
+		/* This is an example of a gpioiic child. */
+		gpioiic-child0 {
+			compatible = "lm75";
+			i2c-address = <0x4f>;
+		};
+	};
+};
+.Ed
+.Pp
+Where:
+.Bl -tag -width ".Va compatible"
+.It Va compatible
+Should always be set to "gpioiic".
+.It Va gpios
+The
+.Va gpios
+property indicates which GPIO pins should be used for SCLOCK and SDATA
+on the GPIO IIC bit-banging bus.
+For more details about the
+.Va gpios
+property, please consult
+.Pa /usr/src/sys/boot/fdt/dts/bindings-gpio.txt .
+.It Va scl
+The
+.Va scl
+option indicates which bit in the
+.Va gpios
+should be used as the SCLOCK source.
+Optional, defaults to 0.
+.It Va sda
+The
+.Va sda
+option indicates which bit in the
+.Va gpios
+should be used as the SDATA source.
+Optional, defaults to 1.
 .El
 .Sh SEE ALSO
+.Xr fdt 4 ,
 .Xr gpio 4 ,
 .Xr gpioled 4 ,
 .Xr iic 4 ,
@@ -89,7 +164,7 @@ source.
 The
 .Nm
 manual page first appeared in
-.Fx 11.0 .
+.Fx 10.1 .
 .Sh AUTHORS
 This
 manual page was written by

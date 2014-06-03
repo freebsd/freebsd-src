@@ -20,6 +20,7 @@
 #include "llvm/Support/Signals.h"
 #include "llvm/Support/Threading.h"
 #include "llvm/Support/raw_ostream.h"
+#include "llvm-c/Core.h"
 #include <cassert>
 #include <cstdlib>
 
@@ -96,4 +97,25 @@ void llvm::llvm_unreachable_internal(const char *msg, const char *file,
     dbgs() << " at " << file << ":" << line;
   dbgs() << "!\n";
   abort();
+#ifdef LLVM_BUILTIN_UNREACHABLE
+  // Windows systems and possibly others don't declare abort() to be noreturn,
+  // so use the unreachable builtin to avoid a Clang self-host warning.
+  LLVM_BUILTIN_UNREACHABLE;
+#endif
+}
+
+static void bindingsErrorHandler(void *user_data, const std::string& reason,
+                                 bool gen_crash_diag) {
+  LLVMFatalErrorHandler handler =
+      LLVM_EXTENSION reinterpret_cast<LLVMFatalErrorHandler>(user_data);
+  handler(reason.c_str());
+}
+
+void LLVMInstallFatalErrorHandler(LLVMFatalErrorHandler Handler) {
+  install_fatal_error_handler(bindingsErrorHandler,
+                              LLVM_EXTENSION reinterpret_cast<void *>(Handler));
+}
+
+void LLVMResetFatalErrorHandler() {
+  remove_fatal_error_handler();
 }

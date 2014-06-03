@@ -65,47 +65,11 @@
 	fvisibility-ms-compat.
 	* c.opt (fvisibility-ms-compat): New.
 
-2007-06-12  Ian Lance Taylor  <iant@google.com> (r125653)
-	    Daniel Berlin  <dberlin@dberlin.org>
+2007-06-23  Richard Earnshaw  <rearnsha@arm.com> (r125973)
 
-	PR libstdc++/29286
-	* tree.def: Add CHANGE_DYNAMIC_TYPE_EXPR.
-	* tree.h (CHANGE_DYNAMIC_TYPE_NEW_TYPE): Define.
-	(CHANGE_DYNAMIC_TYPE_LOCATION): Define.
-	(DECL_NO_TBAA_P): Define.
-	(struct tree_decl_common): Add no_tbaa_flag field.
-	* tree-ssa-structalias.c (struct variable_info): Add
-	no_tbaa_pruning field.
-	(new_var_info): Initialize no_tbaa_pruning field.
-	(unify_nodes): Copy no_tbaa_pruning field.
-	(find_func_aliases): Handle CHANGE_DYNAMIC_TYPE_EXPR.
-	(dump_solution_for_var): Print no_tbaa_pruning flag.
-	(set_uids_in_ptset): Add no_tbaa_pruning parameter.  Change all
-	callers.
-	(compute_tbaa_pruning): New static function.
-	(compute_points_to_sets): Remove CHANGE_DYNAMIC_TYPE_EXPR nodes.
-	Call compute_tbaa_pruning.
-	* tree-ssa-alias.c (may_alias_p): Test no_tbaa_flag for pointers.
-	* gimplify.c (gimplify_expr): Handle CHANGE_DYNAMIC_TYPE_EXPR.
-	* gimple-low.c (lower_stmt): Likewise.
-	* tree-gimple.c (is_gimple_stmt): Likewise.
-	* tree-ssa-operands.c (get_expr_operands): Likewise.
-	* tree-ssa-dce.c (mark_stmt_if_obviously_necessary): Likewise.
-	* tree-inline.c (estimate_num_insns_1): Likewise.
-	(copy_result_decl_to_var): Likewise.
-	* expr.c (expand_expr_real_1): Likewise.
-	* tree-pretty-print.c (dump_generic_node): Likewise.
-	* tree-inline.c (copy_decl_to_var): Copy DECL_NO_TBAA_P flag.
-	* omp-low.c (omp_copy_decl_2): Likewise.
-	* print-tree.c (print_node): Print DECL_NO_TBAA_P flag.
-	* doc/c-tree.texi (Expression trees): Document
-	CHANGE_DYNAMIC_TYPE_EXPR.
-
-2007-06-09  Daniel Berlin  <dberlin@dberlin.org> (r125603)
-
-	* tree-ssa-structalias.c (set_uids_in_ptset): Add is_deref'd
-	parameter, use it.
-	(find_what_p_points_to): Pass new parameter to set_uids_in_ptset.
+	PR target/31152
+	* arm.md (negscc): Match the correct operand for optimized LT0 test.
+	Remove optimization for GT.
 
 2007-06-05  Joerg Wunsch  <j.gnu@uriah.heep.sax.de> (r125346)
 
@@ -150,6 +114,14 @@
 	regs_invalidated_by_call, rather than just checking the
 	membership of REGNO (REG).
 
+2007-05-18  Geoffrey Keating  <geoffk@apple.com> (r124839)
+ 
+	* dwarf2out.c (print_die): Use '%ld' not '%lu' to print a 'long'.
+	(output_die): Use 'unsigned long' with %x.
+	* sched-vis.c (print_value): Use 'unsigned HOST_WIDE_INT' and
+	HOST_WIDE_INT_PRINT_HEX to print HOST_WIDE_INT.
+	* tree-dump.c (dump_pointer): Use 'unsigned long' for %lx.
+
 2007-05-16  Eric Christopher  <echristo@apple.com> (r124763)
 
        * config/rs6000/rs6000.c (rs6000_emit_prologue): Move altivec register
@@ -178,6 +150,11 @@
 	* config/i386/i386.c (override_options): Tuning 32-byte loop
 	alignment for amdfam10 architecture. Increasing the max loop
 	alignment to 24 bytes.
+
+2007-04-24  Hui-May Chang <hm.chang@apple.com> (r124115)
+
+	* reload1.c (merge_assigned_reloads) : Do not merge a RELOAD_OTHER
+	instruction with a RELOAD_FOR_OPERAND_ADDRESS instruction.
 
 2007-04-16  Lawrence Crowl  <crowl@google.com> (r123909)
 
@@ -470,6 +447,14 @@
 	* c-common.c (vector_types_convertible_p): Treat opaque types as
 	always convertible if they have the same size, but not otherwise.
 
+2007-01-08  Geoffrey Keating  <geoffk@apple.com> (r120611)
+ 
+	* target.h (struct gcc_target): New field library_rtti_comdat.
+	* target-def.h (TARGET_CXX_LIBRARY_RTTI_COMDAT): New.
+	(TARGET_CXX): Add TARGET_CXX_LIBRARY_RTTI_COMDAT.
+	* doc/tm.texi (C++ ABI): Document TARGET_CXX_LIBRARY_RTTI_COMDAT.
+	* config/darwin.h (TARGET_CXX_LIBRARY_RTTI_COMDAT): Define.
+
 2007-01-08  Mark Shinwell  <shinwell@codesourcery.com> (r120572)
 
 	* c.opt: Add -flax-vector-conversions.
@@ -576,6 +561,37 @@
 	(override_options): Add entries for Core2.
 	(ix86_issue_rate): Add case for Core2.
 	
+2006-11-14  Caroline Tice  <ctice@apple.com> (r118826)
+		
+	* dwarf2out.c (debug_pubtypes_section): New static global variable.
+	(pubname_entry):  Add DEF_VEC_O and DEF_VEC_ALLOC_O statements for
+	this type.
+	(pubname_table):  Redefine as a vector.
+	(pubtype_table):  New static global variable, defined as a vector.
+	(pubname_table_allocated): Remove static global variable.
+	(pubname_table_in_use): Remove static global variable.
+	(PUBNAME_TABLE_INCREMENT): Remove constant.
+	(size_of_pubnames): Add parameter to deal with either pubnames or 
+	pubtypes, and change code to deal with table being a vector.
+	(add_pubname):  Change to deal with table being a vector.
+	(add_pubtype):  New function.
+	(output_pubnames): Add parameter to deal with either pubnames or 
+	pubtypes, and change code to deal with table being a vector.
+	(gen_array_type_die):  Add call to add_pubtype.
+	(gen_enumeration_type_die): Add call to add_pubtype.
+	(gen_struct_or_union_type_die): Add call to add_pubtype.
+	(gen_subroutine_type_die): Add call to add_pubtype.
+	(gen_typedef_die):  Add call to add_pubtype.
+	(dwarf2out_init): Add code to initialize pubname_table and 
+	pubtype_table vectors; also initialize debug_pubtypes_section.
+	(prune_unused_types):  Change to deal with pubnames being a vector.
+	(dwarf2out_finish): Change to deal with pubnames being a vector; add 
+	pubnames table to call to output_pubnames;  Add code to output pubtypes 
+	table if DEBUG_PUBTYPES_SECTION is defined.
+	* config/darwin.c (darwin_file_start):  Add DEBUG_PUBTYPES_SECTION to 
+	debugnames.
+	* config/darwin.h (DEBUG_PUBTYPES_SECTION): Define new global variable.
+
 2006-11-07  Eric Christopher  <echristo@apple.com> (r118576)
 
 	* libgcc2.c (__bswapdi2): Rename from bswapDI2.
@@ -583,6 +599,14 @@
 	* libgcc2.h: Remove transformation of bswap routines.
 	* config/i386/i386.md (bswapsi2): New.
 	(bswapdi2): Ditto.
+
+2006-11-03  Paul Brook  <paul@codesourcery.com> (r118461)
+
+	gcc/
+	* config/arm/arm.c (arm_file_start): New function.
+	(TARGET_ASM_FILE_START): Define.
+	(arm_default_cpu): New variable.
+	(arm_override_options): Set arm_default_cpu.
 
 2006-10-31  Geoffrey Keating  <geoffk@apple.com> (r118360)
  

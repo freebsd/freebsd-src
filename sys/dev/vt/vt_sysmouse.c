@@ -35,7 +35,6 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/condvar.h>
-#include <sys/conf.h>
 #include <sys/consio.h>
 #include <sys/fcntl.h>
 #include <sys/filio.h>
@@ -377,8 +376,10 @@ sysmouse_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag,
 	case MOUSE_MOUSECHAR:
 		return (0);
 	default:
+#ifdef VT_SYSMOUSE_DEBUG
 		printf("sysmouse: unknown ioctl: %c:%lx\n",
 		    (char)IOCGROUP(cmd), IOCBASECMD(cmd));
+#endif
 		return (ENOIOCTL);
 	}
 }

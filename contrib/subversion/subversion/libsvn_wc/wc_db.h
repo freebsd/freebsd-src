@@ -2831,6 +2831,16 @@ svn_wc__db_scan_deletion(const char **base_del_abspath,
    @{
 */
 
+/* Installs or updates Sqlite schema statistics for the current (aka latest)
+   working copy schema.
+
+   This function should be called once on initializing the database and after
+   an schema update completes */
+svn_error_t *
+svn_wc__db_install_schema_statistics(svn_sqlite__db_t *sdb,
+                                     apr_pool_t *scratch_pool);
+
+
 /* Create a new wc.db file for LOCAL_DIR_ABSPATH, which is going to be a
    working copy for the repository REPOS_ROOT_URL with uuid REPOS_UUID.
    Return the raw sqlite handle, repository id and working copy id

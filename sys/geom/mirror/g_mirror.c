@@ -642,7 +642,8 @@ g_mirror_write_metadata(struct g_mirror_disk *disk,
 	length = cp->provider->sectorsize;
 	offset = cp->provider->mediasize - length;
 	sector = malloc((size_t)length, M_MIRROR, M_WAITOK | M_ZERO);
-	if (md != NULL) {
+	if (md != NULL &&
+	    (sc->sc_flags & G_MIRROR_DEVICE_FLAG_WIPE) == 0) {
 		/*
 		 * Handle the case, when the size of parent provider reduced.
 		 */
@@ -749,7 +750,8 @@ g_mirror_update_metadata(struct g_mirror_disk *disk)
 	sc = disk->d_softc;
 	sx_assert(&sc->sc_lock, SX_LOCKED);
 
-	g_mirror_fill_metadata(sc, disk, &md);
+	if ((sc->sc_flags & G_MIRROR_DEVICE_FLAG_WIPE) == 0)
+		g_mirror_fill_metadata(sc, disk, &md);
 	error = g_mirror_write_metadata(disk, &md);
 	if (error == 0) {
 		G_MIRROR_DEBUG(2, "Metadata on %s updated.",
@@ -2822,7 +2824,8 @@ g_mirror_destroy_delayed(void *arg, int flag)
 	G_MIRROR_DEBUG(1, "Destroying %s (delayed).", sc->sc_name);
 	error = g_mirror_destroy(sc, G_MIRROR_DESTROY_SOFT);
 	if (error != 0) {
-		G_MIRROR_DEBUG(0, "Cannot destroy %s.", sc->sc_name);
+		G_MIRROR_DEBUG(0, "Cannot destroy %s (error=%d).",
+		    sc->sc_name, error);
 		sx_xunlock(&sc->sc_lock);
 	}
 	g_topology_lock();

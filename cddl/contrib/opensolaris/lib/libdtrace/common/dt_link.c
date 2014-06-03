@@ -1620,10 +1620,17 @@ process_obj(dtrace_hdl_t *dtp, const char *obj, int *eprobesp)
 			 * the executable file as the symbol is going to be
 			 * change from UND to ABS.
 			 */
-			rela.r_offset = 0;
-			rela.r_info  = 0;
-			rela.r_addend = 0;
-			(void) gelf_update_rela(data_rel, i, &rela);
+			if (shdr_rel.sh_type == SHT_RELA) {
+				rela.r_offset = 0;
+				rela.r_info  = 0;
+				rela.r_addend = 0;
+				(void) gelf_update_rela(data_rel, i, &rela);
+			} else {
+				GElf_Rel rel;
+				rel.r_offset = 0;
+				rel.r_info = 0;
+				(void) gelf_update_rel(data_rel, i, &rel);
+			}
 #endif
 
 			mod = 1;

@@ -2974,7 +2974,7 @@ execute (void)
       if (errmsg != NULL)
 	{
 	  if (err == 0)
-	    fatal (errmsg);
+	    fatal ("%s", errmsg);
 	  else
 	    {
 	      errno = err;
@@ -6525,7 +6525,7 @@ main (int argc, char **argv)
 
       if (! verbose_flag)
 	{
-	  printf (_("\nFor bug reporting instructions, please see:\n"));
+	  printf ("%s", _("\nFor bug reporting instructions, please see:\n"));
 	  printf ("%s.\n", bug_report_url);
 
 	  return (0);

@@ -119,7 +119,7 @@ softdep_mount(devvp, mp, fs, cred)
 	return (0);
 }
 
-void 
+void
 softdep_initialize()
 {
 
@@ -174,7 +174,7 @@ softdep_setup_blkmapdep(bp, mp, newblkno, frags, oldfrags)
 	panic("softdep_setup_blkmapdep called");
 }
 
-void 
+void
 softdep_setup_allocdirect(ip, lbn, newblkno, oldblkno, newsize, oldsize, bp)
 	struct inode *ip;
 	ufs_lbn_t lbn;
@@ -188,7 +188,7 @@ softdep_setup_allocdirect(ip, lbn, newblkno, oldblkno, newsize, oldsize, bp)
 	panic("softdep_setup_allocdirect called");
 }
 
-void 
+void
 softdep_setup_allocext(ip, lbn, newblkno, oldblkno, newsize, oldsize, bp)
 	struct inode *ip;
 	ufs_lbn_t lbn;
@@ -267,7 +267,7 @@ softdep_freefile(pvp, ino, mode)
 	panic("softdep_freefile called");
 }
 
-int 
+int
 softdep_setup_directory_add(bp, dp, diroffset, newinum, newdirbp, isnewblk)
 	struct buf *bp;
 	struct inode *dp;
@@ -280,7 +280,7 @@ softdep_setup_directory_add(bp, dp, diroffset, newinum, newdirbp, isnewblk)
 	panic("softdep_setup_directory_add called");
 }
 
-void 
+void
 softdep_change_directoryentry_offset(bp, dp, base, oldloc, newloc, entrysize)
 	struct buf *bp;
 	struct inode *dp;
@@ -293,7 +293,7 @@ softdep_change_directoryentry_offset(bp, dp, base, oldloc, newloc, entrysize)
 	panic("softdep_change_directoryentry_offset called");
 }
 
-void 
+void
 softdep_setup_remove(bp, dp, ip, isrmdir)
 	struct buf *bp;
 	struct inode *dp;
@@ -304,7 +304,7 @@ softdep_setup_remove(bp, dp, ip, isrmdir)
 	panic("softdep_setup_remove called");
 }
 
-void 
+void
 softdep_setup_directory_change(bp, dp, ip, newinum, isrmdir)
 	struct buf *bp;
 	struct inode *dp;
@@ -463,7 +463,7 @@ softdep_load_inodeblock(ip)
 	panic("softdep_load_inodeblock called");
 }
 
-void 
+void
 softdep_update_inodeblock(ip, bp, waitfor)
 	struct inode *ip;
 	struct buf *bp;
@@ -753,7 +753,7 @@ static	int sync_cgs(struct mount *, int);
 static	int handle_written_filepage(struct pagedep *, struct buf *);
 static	int handle_written_sbdep(struct sbdep *, struct buf *);
 static	void initiate_write_sbdep(struct sbdep *);
-static  void diradd_inode_written(struct diradd *, struct inodedep *);
+static	void diradd_inode_written(struct diradd *, struct inodedep *);
 static	int handle_written_indirdep(struct indirdep *, struct buf *,
 	    struct buf**);
 static	int handle_written_inodeblock(struct inodedep *, struct buf *);
@@ -1275,6 +1275,7 @@ static int stat_cleanup_blkrequests; /* Number of block cleanup requests */
 static int stat_cleanup_inorequests; /* Number of inode cleanup requests */
 static int stat_cleanup_retries; /* Number of cleanups that needed to flush */
 static int stat_cleanup_failures; /* Number of cleanup requests that failed */
+static int stat_emptyjblocks; /* Number of potentially empty journal blocks */
 
 SYSCTL_INT(_debug_softdep, OID_AUTO, max_softdeps, CTLFLAG_RW,
     &max_softdeps, 0, "");
@@ -1334,6 +1335,8 @@ SYSCTL_INT(_debug_softdep, OID_AUTO, cleanup_failures, CTLFLAG_RW,
     &stat_cleanup_failures, 0, "");
 SYSCTL_INT(_debug_softdep, OID_AUTO, flushcache, CTLFLAG_RW,
     &softdep_flushcache, 0, "");
+SYSCTL_INT(_debug_softdep, OID_AUTO, emptyjblocks, CTLFLAG_RD,
+    &stat_emptyjblocks, 0, "");
 
 SYSCTL_DECL(_vfs_ffs);
 
@@ -3246,7 +3249,7 @@ softdep_process_journal(mp, needwk, flags)
 		cnt++;
 		/*
 		 * Verify some free journal space.  softdep_prealloc() should
-	 	 * guarantee that we don't run out so this is indicative of
+		 * guarantee that we don't run out so this is indicative of
 		 * a problem with the flow control.  Try to recover
 		 * gracefully in any event.
 		 */
@@ -3328,6 +3331,24 @@ softdep_process_journal(mp, needwk, flags)
 		 */
 		data = bp->b_data;
 		off = 0;
+
+		/*
+		 * Always put a header on the first block.
+		 * XXX As with below, there might not be a chance to get
+		 * into the loop.  Ensure that something valid is written.
+		 */
+		jseg_write(ump, jseg, data);
+		off += JREC_SIZE;
+		data = bp->b_data + off;
+
+		/*
+		 * XXX Something is wrong here.  There's no work to do,
+		 * but we need to perform and I/O and allow it to complete
+		 * anyways.
+		 */
+		if (LIST_EMPTY(&ump->softdep_journal_pending))
+			stat_emptyjblocks++;
+
 		while ((wk = LIST_FIRST(&ump->softdep_journal_pending))
 		    != NULL) {
 			if (cnt == 0)
@@ -3377,6 +3398,11 @@ softdep_process_journal(mp, needwk, flags)
 			data = bp->b_data + off;
 			cnt--;
 		}
+
+		/* Clear any remaining space so we don't leak kernel data */
+		if (size > off)
+			bzero(data, size - off);
+
 		/*
 		 * Write this one buffer and continue.
 		 */
@@ -10488,7 +10514,7 @@ softdep_setup_inofree(mp, bp, ino, wkhd)
 			 * We can free immediately even if the jaddref
 			 * isn't attached in a background write as now
 			 * the bitmaps are reconciled.
-		 	 */
+			 */
 			wk->wk_state |= COMPLETE | ATTACHED;
 			free_jaddref(WK_JADDREF(wk));
 		}
@@ -10662,7 +10688,7 @@ jnewblk_rollback(jnewblk, fs, cgp, blksfree)
 		/* Add back in counts associated with the new frags */
 		blk = blkmap(fs, blksfree, bbase);
 		ffs_fragacct(fs, blk, cgp->cg_frsum, 1);
-                /* If a complete block has been reassembled, account for it. */
+		/* If a complete block has been reassembled, account for it. */
 		fragno = fragstoblks(fs, bbase);
 		if (ffs_isblock(fs, blksfree, fragno)) {
 			cgp->cg_cs.cs_nffree -= fs->fs_frag;
@@ -10677,7 +10703,7 @@ jnewblk_rollback(jnewblk, fs, cgp, blksfree)
 	return (frags);
 }
 
-static void 
+static void
 initiate_write_bmsafemap(bmsafemap, bp)
 	struct bmsafemap *bmsafemap;
 	struct buf *bp;			/* The cg block. */

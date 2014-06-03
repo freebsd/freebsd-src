@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000-2001 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 2000-2001 Proofpoint, Inc. and its suppliers.
  *	All rights reserved.
  * Copyright (c) 1983, 1995-1997 Eric P. Allman.  All rights reserved.
  * Copyright (c) 1988, 1993
@@ -12,7 +12,7 @@
  */
 
 #include <sm/gen.h>
-SM_RCSID("@(#)$Id: strerror.c,v 1.23 2001/09/11 04:04:49 gshapiro Exp $")
+SM_RCSID("@(#)$Id: strerror.c,v 1.24 2013-11-22 20:51:43 ca Exp $")
 
 /*
 **  define strerror for platforms that lack it.

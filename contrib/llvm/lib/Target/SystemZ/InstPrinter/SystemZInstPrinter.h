@@ -48,6 +48,7 @@ private:
   void printOperand(const MCInst *MI, int OpNum, raw_ostream &O);
   void printBDAddrOperand(const MCInst *MI, int OpNum, raw_ostream &O);
   void printBDXAddrOperand(const MCInst *MI, int OpNum, raw_ostream &O);
+  void printBDLAddrOperand(const MCInst *MI, int OpNum, raw_ostream &O);
   void printU4ImmOperand(const MCInst *MI, int OpNum, raw_ostream &O);
   void printU6ImmOperand(const MCInst *MI, int OpNum, raw_ostream &O);
   void printS8ImmOperand(const MCInst *MI, int OpNum, raw_ostream &O);
@@ -56,7 +57,7 @@ private:
   void printU16ImmOperand(const MCInst *MI, int OpNum, raw_ostream &O);
   void printS32ImmOperand(const MCInst *MI, int OpNum, raw_ostream &O);
   void printU32ImmOperand(const MCInst *MI, int OpNum, raw_ostream &O);
-  void printCallOperand(const MCInst *MI, int OpNum, raw_ostream &O);
+  void printPCRelOperand(const MCInst *MI, int OpNum, raw_ostream &O);
   void printAccessRegOperand(const MCInst *MI, int OpNum, raw_ostream &O);
 
   // Print the mnemonic for a condition-code mask ("ne", "lh", etc.)

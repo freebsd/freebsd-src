@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998-2006, 2008 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 1998-2006, 2008 Proofpoint, Inc. and its suppliers.
  *	All rights reserved.
  * Copyright (c) 1983, 1995-1997 Eric P. Allman.  All rights reserved.
  * Copyright (c) 1988, 1993
@@ -13,7 +13,7 @@
 
 #include <sendmail.h>
 
-SM_RCSID("@(#)$Id: collect.c,v 8.286 2013/03/15 17:54:12 ca Exp $")
+SM_RCSID("@(#)$Id: collect.c,v 8.287 2013-11-22 20:51:55 ca Exp $")
 
 static void	eatfrom __P((char *volatile, ENVELOPE *));
 static void	collect_doheader __P((ENVELOPE *));

@@ -34,10 +34,8 @@
  * Loopback interface driver for protocol testing and timing.
  */
 
-#include "opt_atalk.h"
 #include "opt_inet.h"
 #include "opt_inet6.h"
-#include "opt_ipx.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -64,22 +62,12 @@
 #include <netinet/in_var.h>
 #endif
 
-#ifdef IPX
-#include <netipx/ipx.h>
-#include <netipx/ipx_if.h>
-#endif
-
 #ifdef INET6
 #ifndef INET
 #include <netinet/in.h>
 #endif
 #include <netinet6/in6_var.h>
 #include <netinet/ip6.h>
-#endif
-
-#ifdef NETATALK
-#include <netatalk/at.h>
-#include <netatalk/at_var.h>
 #endif
 
 #include <security/mac/mac_framework.h>
@@ -273,9 +261,6 @@ looutput(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
 #endif
 		m->m_pkthdr.csum_flags &= ~LO_CSUM_FEATURES6;
 		break;
-	case AF_IPX:
-	case AF_APPLETALK:
-		break;
 	default:
 		printf("looutput: af=%d unexpected\n", af);
 		m_freem(m);
@@ -368,16 +353,6 @@ if_simloop(struct ifnet *ifp, struct mbuf *m, int af, int hlen)
 		isr = NETISR_IPV6;
 		break;
 #endif
-#ifdef IPX
-	case AF_IPX:
-		isr = NETISR_IPX;
-		break;
-#endif
-#ifdef NETATALK
-	case AF_APPLETALK:
-		isr = NETISR_ATALK2;
-		break;
-#endif
 	default:
 		printf("if_simloop: can't handle af=%d\n", af);
 		m_freem(m);
@@ -395,7 +370,7 @@ lortrequest(int cmd, struct rtentry *rt, struct rt_addrinfo *info)
 {
 
 	RT_LOCK_ASSERT(rt);
-	rt->rt_rmx.rmx_mtu = rt->rt_ifp->if_mtu;
+	rt->rt_mtu = rt->rt_ifp->if_mtu;
 }
 
 /*

@@ -24,7 +24,6 @@ SRCS=	AllocationDiagnostics.cpp \
 	CheckerDocumentation.cpp \
 	ChrootChecker.cpp \
 	ClangCheckers.cpp \
-	CommonBugCategories.cpp \
 	DeadStoresChecker.cpp \
 	DebugCheckers.cpp \
 	DereferenceChecker.cpp \
@@ -35,6 +34,7 @@ SRCS=	AllocationDiagnostics.cpp \
 	FixedAddressChecker.cpp \
 	GenericTaintChecker.cpp \
 	IdempotentOperationChecker.cpp \
+	IdenticalExprChecker.cpp \
 	IvarInvalidationChecker.cpp \
 	LLVMConventionsChecker.cpp \
 	MacOSKeychainAPIChecker.cpp \
@@ -44,8 +44,8 @@ SRCS=	AllocationDiagnostics.cpp \
 	MallocSizeofChecker.cpp \
 	NSAutoreleasePoolChecker.cpp \
 	NSErrorChecker.cpp \
-	NonNullParamChecker.cpp \
 	NoReturnFunctionChecker.cpp \
+	NonNullParamChecker.cpp \
 	ObjCAtSyncChecker.cpp \
 	ObjCContainersASTChecker.cpp \
 	ObjCContainersChecker.cpp \

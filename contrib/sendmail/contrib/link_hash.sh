@@ -1,9 +1,9 @@
 #!/bin/sh
 ##
-## Copyright (c) 2000 Sendmail, Inc. and its suppliers.
+## Copyright (c) 2000 Proofpoint, Inc. and its suppliers.
 ##       All rights reserved.
 ##
-## $Id: link_hash.sh,v 1.2 2000/04/25 00:12:28 ca Exp $
+## $Id: link_hash.sh,v 1.3 2013-11-22 20:51:18 ca Exp $
 ##
 #
 # ln a certificate to its hash

@@ -536,17 +536,18 @@ vm_object_deallocate(vm_object_t object)
 				vhold(vp);
 				VM_OBJECT_WUNLOCK(object);
 				vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
-				vdrop(vp);
 				VM_OBJECT_WLOCK(object);
 				if (object->type == OBJT_DEAD ||
 				    object->ref_count != 1) {
 					VM_OBJECT_WUNLOCK(object);
 					VOP_UNLOCK(vp, 0);
+					vdrop(vp);
 					return;
 				}
 				if ((object->flags & OBJ_TMPFS) != 0)
 					VOP_UNSET_TEXT(vp);
 				VOP_UNLOCK(vp, 0);
+				vdrop(vp);
 			}
 			if (object->shadow_count == 0 &&
 			    object->handle == NULL &&
@@ -676,8 +677,7 @@ vm_object_destroy(vm_object_t object)
 	if (object->cred != NULL) {
 		KASSERT(object->type == OBJT_DEFAULT ||
 		    object->type == OBJT_SWAP,
-		    ("vm_object_terminate: non-swap obj %p has cred",
-		     object));
+		    ("%s: non-swap obj %p has cred", __func__, object));
 		swap_release_by_cred(object->charge, object->cred);
 		object->charge = 0;
 		crfree(object->cred);
@@ -1628,9 +1628,11 @@ vm_object_backing_scan(vm_object_t object, int op)
 				p = TAILQ_FIRST(&backing_object->memq);
 				continue;
 			}
+
+			/* Use the old pindex to free the right page. */
 			if (backing_object->type == OBJT_SWAP)
-				swap_pager_freespace(backing_object, p->pindex,
-				    1);
+				swap_pager_freespace(backing_object,
+				    new_pindex + backing_offset_index, 1);
 
 #if VM_NRESERVLEVEL > 0
 			/*
@@ -1955,7 +1957,7 @@ again:
 				    ("inconsistent wire count %d %d %p",
 				    p->wire_count, wirings, p));
 				p->wire_count = 0;
-				atomic_subtract_int(&cnt.v_wire_count, 1);
+				atomic_subtract_int(&vm_cnt.v_wire_count, 1);
 			}
 		}
 		vm_page_free(p);

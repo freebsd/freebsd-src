@@ -1,9 +1,5 @@
 /*-
- * Copyright (c) 2007-2013 Broadcom Corporation. All rights reserved.
- *
- * Eric Davis        <edavis@broadcom.com>
- * David Christensen <davidch@broadcom.com>
- * Gary Zambrano     <zambrano@broadcom.com>
+ * Copyright (c) 2007-2014 QLogic Corporation. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -14,9 +10,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. Neither the name of Broadcom Corporation nor the name of its contributors
- *    may be used to endorse or promote products derived from this software
- *    without specific prior written consent.
  *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS'
  * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
@@ -1304,6 +1297,13 @@ struct extended_dev_info_shared_cfg {             /* NVRAM OFFSET */
 	#define EXTENDED_DEV_INFO_SHARED_CFG_SRIOV_SHOW_MENU_SHIFT    9
 	#define EXTENDED_DEV_INFO_SHARED_CFG_SRIOV_SHOW_MENU          0x00000000
 	#define EXTENDED_DEV_INFO_SHARED_CFG_SRIOV_HIDE_MENU          0x00000200
+
+	/*  Overide PCIE revision ID when enabled the,
+	    revision ID will set to B1=='0x11' */
+	#define EXTENDED_DEV_INFO_SHARED_CFG_OVR_REV_ID_MASK          0x00000400
+	#define EXTENDED_DEV_INFO_SHARED_CFG_OVR_REV_ID_SHIFT         10
+	#define EXTENDED_DEV_INFO_SHARED_CFG_OVR_REV_ID_DISABLED      0x00000000
+	#define EXTENDED_DEV_INFO_SHARED_CFG_OVR_REV_ID_ENABLED       0x00000400
 
 	/*  Threshold in celcius for max continuous operation */
 	uint32_t temperature_report;                             /* 0x4014 */

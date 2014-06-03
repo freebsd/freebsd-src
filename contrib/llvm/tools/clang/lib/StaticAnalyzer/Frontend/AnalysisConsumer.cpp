@@ -40,6 +40,7 @@
 #include "llvm/ADT/PostOrderIterator.h"
 #include "llvm/ADT/SmallPtrSet.h"
 #include "llvm/ADT/Statistic.h"
+#include "llvm/Support/FileSystem.h"
 #include "llvm/Support/Path.h"
 #include "llvm/Support/Program.h"
 #include "llvm/Support/Timer.h"
@@ -65,23 +66,52 @@ STATISTIC(MaxCFGSize, "The maximum number of basic blocks in a function.");
 // Special PathDiagnosticConsumers.
 //===----------------------------------------------------------------------===//
 
-static void createPlistHTMLDiagnosticConsumer(AnalyzerOptions &AnalyzerOpts,
-                                              PathDiagnosticConsumers &C,
-                                              const std::string &prefix,
-                                              const Preprocessor &PP) {
+void ento::createPlistHTMLDiagnosticConsumer(AnalyzerOptions &AnalyzerOpts,
+                                             PathDiagnosticConsumers &C,
+                                             const std::string &prefix,
+                                             const Preprocessor &PP) {
   createHTMLDiagnosticConsumer(AnalyzerOpts, C,
                                llvm::sys::path::parent_path(prefix), PP);
   createPlistDiagnosticConsumer(AnalyzerOpts, C, prefix, PP);
 }
 
+void ento::createTextPathDiagnosticConsumer(AnalyzerOptions &AnalyzerOpts,
+                                            PathDiagnosticConsumers &C,
+                                            const std::string &Prefix,
+                                            const clang::Preprocessor &PP) {
+  llvm_unreachable("'text' consumer should be enabled on ClangDiags");
+}
+
 namespace {
 class ClangDiagPathDiagConsumer : public PathDiagnosticConsumer {
   DiagnosticsEngine &Diag;
+  bool IncludePath;
 public:
-  ClangDiagPathDiagConsumer(DiagnosticsEngine &Diag) : Diag(Diag) {}
+  ClangDiagPathDiagConsumer(DiagnosticsEngine &Diag)
+    : Diag(Diag), IncludePath(false) {}
   virtual ~ClangDiagPathDiagConsumer() {}
   virtual StringRef getName() const { return "ClangDiags"; }
-  virtual PathGenerationScheme getGenerationScheme() const { return None; }
+
+  virtual bool supportsLogicalOpControlFlow() const { return true; }
+  virtual bool supportsCrossFileDiagnostics() const { return true; }
+
+  virtual PathGenerationScheme getGenerationScheme() const {
+    return IncludePath ? Minimal : None;
+  }
+
+  void enablePaths() {
+    IncludePath = true;
+  }
+
+  void emitDiag(SourceLocation L, unsigned DiagID,
+                ArrayRef<SourceRange> Ranges) {
+    DiagnosticBuilder DiagBuilder = Diag.Report(L, DiagID);
+
+    for (ArrayRef<SourceRange>::iterator I = Ranges.begin(), E = Ranges.end();
+         I != E; ++I) {
+      DiagBuilder << *I;
+    }
+  }
 
   void FlushDiagnosticsImpl(std::vector<const PathDiagnostic *> &Diags,
                             FilesMade *filesMade) {
@@ -101,14 +131,20 @@ public:
       unsigned ErrorDiag = Diag.getCustomDiagID(DiagnosticsEngine::Warning,
                                                 TmpStr);
       SourceLocation L = PD->getLocation().asLocation();
-      DiagnosticBuilder diagBuilder = Diag.Report(L, ErrorDiag);
+      emitDiag(L, ErrorDiag, PD->path.back()->getRanges());
 
-      // Get the ranges from the last point in the path.
-      ArrayRef<SourceRange> Ranges = PD->path.back()->getRanges();
+      if (!IncludePath)
+        continue;
 
-      for (ArrayRef<SourceRange>::iterator I = Ranges.begin(),
-                                           E = Ranges.end(); I != E; ++I) {
-        diagBuilder << *I;
+      PathPieces FlatPath = PD->path.flatten(/*ShouldFlattenMacros=*/true);
+      for (PathPieces::const_iterator PI = FlatPath.begin(),
+                                      PE = FlatPath.end();
+           PI != PE; ++PI) {
+        unsigned NoteID = Diag.getCustomDiagID(DiagnosticsEngine::Note,
+                                               (*PI)->getString());
+
+        SourceLocation NoteLoc = (*PI)->getLocation().asLocation();
+        emitDiag(NoteLoc, NoteID, (*PI)->getRanges());
       }
     }
   }
@@ -185,20 +221,21 @@ public:
 
   void DigestAnalyzerOptions() {
     // Create the PathDiagnosticConsumer.
-    PathConsumers.push_back(new ClangDiagPathDiagConsumer(PP.getDiagnostics()));
+    ClangDiagPathDiagConsumer *clangDiags =
+      new ClangDiagPathDiagConsumer(PP.getDiagnostics());
+    PathConsumers.push_back(clangDiags);
 
-    if (!OutDir.empty()) {
+    if (Opts->AnalysisDiagOpt == PD_TEXT) {
+      clangDiags->enablePaths();
+
+    } else if (!OutDir.empty()) {
       switch (Opts->AnalysisDiagOpt) {
       default:
-#define ANALYSIS_DIAGNOSTICS(NAME, CMDFLAG, DESC, CREATEFN, AUTOCREATE) \
+#define ANALYSIS_DIAGNOSTICS(NAME, CMDFLAG, DESC, CREATEFN) \
         case PD_##NAME: CREATEFN(*Opts.getPtr(), PathConsumers, OutDir, PP);\
         break;
 #include "clang/StaticAnalyzer/Core/Analyses.def"
       }
-    } else if (Opts->AnalysisDiagOpt == PD_TEXT) {
-      // Create the text client even without a specified output file since
-      // it just uses diagnostic notes.
-      createTextPathDiagnosticConsumer(*Opts.getPtr(), PathConsumers, "", PP);
     }
 
     // Create the analyzer component creators.
@@ -559,7 +596,7 @@ AnalysisConsumer::getModeForDecl(Decl *D, AnalysisMode Mode) {
   // - System headers: don't run any checks.
   SourceManager &SM = Ctx->getSourceManager();
   SourceLocation SL = SM.getExpansionLoc(D->getLocation());
-  if (!Opts->AnalyzeAll && !SM.isFromMainFile(SL)) {
+  if (!Opts->AnalyzeAll && !SM.isInMainFile(SL)) {
     if (SL.isInvalid() || SM.isInSystemHeader(SL))
       return AM_None;
     return Mode & ~AM_Path;
@@ -680,15 +717,14 @@ namespace {
 
 class UbigraphViz : public ExplodedNode::Auditor {
   OwningPtr<raw_ostream> Out;
-  llvm::sys::Path Dir, Filename;
+  std::string Filename;
   unsigned Cntr;
 
   typedef llvm::DenseMap<void*,unsigned> VMap;
   VMap M;
 
 public:
-  UbigraphViz(raw_ostream *out, llvm::sys::Path& dir,
-              llvm::sys::Path& filename);
+  UbigraphViz(raw_ostream *Out, StringRef Filename);
 
   ~UbigraphViz();
 
@@ -698,28 +734,15 @@ public:
 } // end anonymous namespace
 
 static ExplodedNode::Auditor* CreateUbiViz() {
-  std::string ErrMsg;
-
-  llvm::sys::Path Dir = llvm::sys::Path::GetTemporaryDirectory(&ErrMsg);
-  if (!ErrMsg.empty())
-    return 0;
-
-  llvm::sys::Path Filename = Dir;
-  Filename.appendComponent("llvm_ubi");
-  Filename.makeUnique(true,&ErrMsg);
-
-  if (!ErrMsg.empty())
-    return 0;
-
-  llvm::errs() << "Writing '" << Filename.str() << "'.\n";
+  SmallString<128> P;
+  int FD;
+  llvm::sys::fs::createTemporaryFile("llvm_ubi", "", FD, P);
+  llvm::errs() << "Writing '" << P.str() << "'.\n";
 
   OwningPtr<llvm::raw_fd_ostream> Stream;
-  Stream.reset(new llvm::raw_fd_ostream(Filename.c_str(), ErrMsg));
+  Stream.reset(new llvm::raw_fd_ostream(FD, true));
 
-  if (!ErrMsg.empty())
-    return 0;
-
-  return new UbigraphViz(Stream.take(), Dir, Filename);
+  return new UbigraphViz(Stream.take(), P);
 }
 
 void UbigraphViz::AddEdge(ExplodedNode *Src, ExplodedNode *Dst) {
@@ -756,9 +779,8 @@ void UbigraphViz::AddEdge(ExplodedNode *Src, ExplodedNode *Dst) {
        << ", ('arrow','true'), ('oriented', 'true'))\n";
 }
 
-UbigraphViz::UbigraphViz(raw_ostream *out, llvm::sys::Path& dir,
-                         llvm::sys::Path& filename)
-  : Out(out), Dir(dir), Filename(filename), Cntr(0) {
+UbigraphViz::UbigraphViz(raw_ostream *Out, StringRef Filename)
+  : Out(Out), Filename(Filename), Cntr(0) {
 
   *Out << "('vertex_style_attribute', 0, ('shape', 'icosahedron'))\n";
   *Out << "('vertex_style', 1, 0, ('shape', 'sphere'), ('color', '#ffcc66'),"
@@ -769,16 +791,16 @@ UbigraphViz::~UbigraphViz() {
   Out.reset(0);
   llvm::errs() << "Running 'ubiviz' program... ";
   std::string ErrMsg;
-  llvm::sys::Path Ubiviz = llvm::sys::Program::FindProgramByName("ubiviz");
+  std::string Ubiviz = llvm::sys::FindProgramByName("ubiviz");
   std::vector<const char*> args;
   args.push_back(Ubiviz.c_str());
   args.push_back(Filename.c_str());
   args.push_back(0);
 
-  if (llvm::sys::Program::ExecuteAndWait(Ubiviz, &args[0],0,0,0,0,&ErrMsg)) {
+  if (llvm::sys::ExecuteAndWait(Ubiviz, &args[0], 0, 0, 0, 0, &ErrMsg)) {
     llvm::errs() << "Error viewing graph: " << ErrMsg << "\n";
   }
 
-  // Delete the directory.
-  Dir.eraseFromDisk(true);
+  // Delete the file.
+  llvm::sys::fs::remove(Filename);
 }

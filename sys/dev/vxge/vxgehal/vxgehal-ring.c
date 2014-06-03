@@ -62,6 +62,7 @@ __hal_ring_block_memblock_idx_set(
 	    VXGE_HAL_RING_MEMBLOCK_IDX_OFFSET))) = memblock_idx;
 }
 
+#if 0
 /*
  * __hal_ring_block_next_pointer - Returns the dma address of next block
  * @block: RxD block
@@ -76,6 +77,7 @@ __hal_ring_block_next_pointer(
 	return (dma_addr_t)*((u64 *) ((void *)((u8 *) block +
 	    VXGE_HAL_RING_NEXT_BLOCK_POINTER_OFFSET)));
 }
+#endif
 
 /*
  * __hal_ring_block_next_pointer_set - Sets the next block pointer in RxD block

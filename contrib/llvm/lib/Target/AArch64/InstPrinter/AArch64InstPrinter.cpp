@@ -368,6 +368,14 @@ AArch64InstPrinter::printSImm7ScaledOperand(const MCInst *MI, unsigned OpNum,
   O << "#" << (Imm * MemScale);
 }
 
+void AArch64InstPrinter::printVPRRegister(const MCInst *MI, unsigned OpNo,
+                                          raw_ostream &O) {
+  unsigned Reg = MI->getOperand(OpNo).getReg();
+  std::string Name = getRegisterName(Reg);
+  Name[0] = 'v';
+  O << Name;
+}
+
 void AArch64InstPrinter::printOperand(const MCInst *MI, unsigned OpNo,
                                       raw_ostream &O) {
   const MCOperand &Op = MI->getOperand(OpNo);
@@ -405,4 +413,127 @@ void AArch64InstPrinter::printInst(const MCInst *MI, raw_ostream &O,
     printInstruction(MI, O);
 
   printAnnotation(O, Annot);
+}
+
+template <A64SE::ShiftExtSpecifiers Ext, bool isHalf>
+void AArch64InstPrinter::printNeonMovImmShiftOperand(const MCInst *MI,
+                                                     unsigned OpNum,
+                                                     raw_ostream &O) {
+  const MCOperand &MO = MI->getOperand(OpNum);
+
+  assert(MO.isImm() &&
+         "Immediate operand required for Neon vector immediate inst.");
+
+  bool IsLSL = false;
+  if (Ext == A64SE::LSL)
+    IsLSL = true;
+  else if (Ext != A64SE::MSL)
+    llvm_unreachable("Invalid shift specifier in movi instruction");
+
+  int64_t Imm = MO.getImm();
+
+  // MSL and LSLH accepts encoded shift amount 0 or 1.
+  if ((!IsLSL || (IsLSL && isHalf)) && Imm != 0 && Imm != 1)
+    llvm_unreachable("Invalid shift amount in movi instruction");
+
+  // LSH accepts encoded shift amount 0, 1, 2 or 3.
+  if (IsLSL && (Imm < 0 || Imm > 3))
+    llvm_unreachable("Invalid shift amount in movi instruction");
+
+  // Print shift amount as multiple of 8 with MSL encoded shift amount
+  // 0 and 1 printed as 8 and 16.
+  if (!IsLSL)
+    Imm++;
+  Imm *= 8;
+
+  // LSL #0 is not printed
+  if (IsLSL) {
+    if (Imm == 0)
+      return;
+    O << ", lsl";
+  } else
+    O << ", msl";
+
+  O << " #" << Imm;
+}
+
+void AArch64InstPrinter::printNeonUImm0Operand(const MCInst *MI, unsigned OpNum,
+                                               raw_ostream &o) {
+  o << "#0x0";
+}
+
+void AArch64InstPrinter::printUImmHexOperand(const MCInst *MI, unsigned OpNum,
+                                             raw_ostream &O) {
+  const MCOperand &MOUImm = MI->getOperand(OpNum);
+
+  assert(MOUImm.isImm() &&
+         "Immediate operand required for Neon vector immediate inst.");
+
+  unsigned Imm = MOUImm.getImm();
+
+  O << "#0x";
+  O.write_hex(Imm);
+}
+
+void AArch64InstPrinter::printUImmBareOperand(const MCInst *MI,
+                                              unsigned OpNum,
+                                              raw_ostream &O) {
+  const MCOperand &MOUImm = MI->getOperand(OpNum);
+
+  assert(MOUImm.isImm()
+         && "Immediate operand required for Neon vector immediate inst.");
+
+  unsigned Imm = MOUImm.getImm();
+  O << Imm;
+}
+
+void AArch64InstPrinter::printNeonUImm64MaskOperand(const MCInst *MI,
+                                                    unsigned OpNum,
+                                                    raw_ostream &O) {
+  const MCOperand &MOUImm8 = MI->getOperand(OpNum);
+
+  assert(MOUImm8.isImm() &&
+         "Immediate operand required for Neon vector immediate bytemask inst.");
+
+  uint32_t UImm8 = MOUImm8.getImm();
+  uint64_t Mask = 0;
+
+  // Replicates 0x00 or 0xff byte in a 64-bit vector
+  for (unsigned ByteNum = 0; ByteNum < 8; ++ByteNum) {
+    if ((UImm8 >> ByteNum) & 1)
+      Mask |= (uint64_t)0xff << (8 * ByteNum);
+  }
+
+  O << "#0x";
+  O.write_hex(Mask);
+}
+
+// If Count > 1, there are two valid kinds of vector list:
+//   (1) {Vn.layout, Vn+1.layout, ... , Vm.layout}
+//   (2) {Vn.layout - Vm.layout}
+// We choose the first kind as output.
+template <A64Layout::VectorLayout Layout, unsigned Count>
+void AArch64InstPrinter::printVectorList(const MCInst *MI, unsigned OpNum,
+                                         raw_ostream &O) {
+  assert(Count >= 1 && Count <= 4 && "Invalid Number of Vectors");
+
+  unsigned Reg = MI->getOperand(OpNum).getReg();
+  std::string LayoutStr = A64VectorLayoutToString(Layout);
+  O << "{";
+  if (Count > 1) { // Print sub registers separately
+    bool IsVec64 = (Layout < A64Layout::VL_16B);
+    unsigned SubRegIdx = IsVec64 ? AArch64::dsub_0 : AArch64::qsub_0;
+    for (unsigned I = 0; I < Count; I++) {
+      std::string Name = getRegisterName(MRI.getSubReg(Reg, SubRegIdx++));
+      Name[0] = 'v';
+      O << Name << LayoutStr;
+      if (I != Count - 1)
+        O << ", ";
+    }
+  } else { // Print the register directly when NumVecs is 1.
+    std::string Name = getRegisterName(Reg);
+    Name[0] = 'v';
+    O << Name << LayoutStr;
+  }
+  O << "}";
 }

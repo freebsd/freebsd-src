@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999-2003, 2006 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 1999-2003, 2006 Proofpoint, Inc. and its suppliers.
  *	All rights reserved.
  *
  * By using this file, you agree to the terms and conditions set
@@ -19,7 +19,7 @@
 #ifdef _DEFINE
 # define EXTERN
 # define INIT(x)	= x
-SM_IDSTR(MilterlId, "@(#)$Id: libmilter.h,v 8.77 2008/11/25 18:28:18 ca Exp $")
+SM_IDSTR(MilterlId, "@(#)$Id: libmilter.h,v 8.78 2013-11-22 20:51:36 ca Exp $")
 #else /* _DEFINE */
 # define EXTERN extern
 # define INIT(x)

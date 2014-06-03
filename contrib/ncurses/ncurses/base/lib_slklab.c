@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2000,2003 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2003,2009 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -29,6 +29,8 @@
 /****************************************************************************
  *  Author: Zeyd M. Ben-Halim <zmbenhal@netcom.com> 1992,1995               *
  *     and: Eric S. Raymond <esr@snark.thyrsus.com>                         *
+ *     and:  Juergen Pfeifer,                       1998,2009               *
+ *     and:  Thomas E. Dickey                       1998-on                 *
  ****************************************************************************/
 
 /*
@@ -38,14 +40,22 @@
  */
 #include <curses.priv.h>
 
-MODULE_ID("$Id: lib_slklab.c,v 1.7 2003/03/29 22:53:48 tom Exp $")
+MODULE_ID("$Id: lib_slklab.c,v 1.10 2009/10/24 22:12:21 tom Exp $")
 
+NCURSES_EXPORT(char *)
+NCURSES_SP_NAME(slk_label) (NCURSES_SP_DCLx int n)
+{
+    T((T_CALLED("slk_label(%p,%d)"), (void *) SP_PARM, n));
+
+    if (SP_PARM == 0 || SP_PARM->_slk == 0 || n < 1 || n > SP_PARM->_slk->labcnt)
+	returnPtr(0);
+    returnPtr(SP_PARM->_slk->ent[n - 1].ent_text);
+}
+
+#if NCURSES_SP_FUNCS
 NCURSES_EXPORT(char *)
 slk_label(int n)
 {
-    T((T_CALLED("slk_label(%d)"), n));
-
-    if (SP == NULL || SP->_slk == NULL || n < 1 || n > SP->_slk->labcnt)
-	returnPtr(0);
-    returnPtr(SP->_slk->ent[n - 1].ent_text);
+    return NCURSES_SP_NAME(slk_label) (CURRENT_SCREEN, n);
 }
+#endif

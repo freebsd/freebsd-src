@@ -87,6 +87,7 @@ _citrus_UTF7_init_state(_UTF7EncodingInfo * __restrict ei __unused,
 	memset((void *)s, 0, sizeof(*s));
 }
 
+#if 0
 static __inline void
 /*ARGSUSED*/
 _citrus_UTF7_pack_state(_UTF7EncodingInfo * __restrict ei __unused,
@@ -104,6 +105,7 @@ _citrus_UTF7_unpack_state(_UTF7EncodingInfo * __restrict ei __unused,
 
 	memcpy((void *)s, pspriv, sizeof(*s));
 }
+#endif
 
 static const char base64[] =
 	"ABCDEFGHIJKLMNOPQRSTUVWXYZ"

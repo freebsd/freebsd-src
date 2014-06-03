@@ -85,6 +85,10 @@ extern int radeon_get_crtc_scanoutpos(struct drm_device *dev, int crtc,
 				      int *vpos, int *hpos);
 extern struct drm_ioctl_desc radeon_ioctls_kms[];
 extern int radeon_max_kms_ioctl;
+#ifdef COMPAT_FREEBSD32
+extern struct drm_ioctl_desc radeon_compat_ioctls[];
+extern int radeon_num_compat_ioctls;
+#endif
 #ifdef DUMBBELL_WIP
 int radeon_mmap(struct file *filp, struct vm_area_struct *vma);
 #endif /* DUMBBELL_WIP */
@@ -466,6 +470,10 @@ radeon_attach(device_t kdev)
 	if (radeon_modeset == 1) {
 		kms_driver.driver_features |= DRIVER_MODESET;
 		kms_driver.max_ioctl = radeon_max_kms_ioctl;
+#ifdef COMPAT_FREEBSD32
+		kms_driver.compat_ioctls = radeon_compat_ioctls;
+		kms_driver.compat_ioctls_nr = &radeon_num_compat_ioctls;
+#endif
 		radeon_register_atpx_handler();
 	}
 	dev->driver = &kms_driver;

@@ -1201,6 +1201,7 @@ struct recursive_proplist_receiver_baton
   svn_wc_context_t *wc_ctx;  /* Working copy context. */
   svn_proplist_receiver2_t wrapped_receiver;  /* Proplist receiver to call. */
   void *wrapped_receiver_baton;    /* Baton for the proplist receiver. */
+  apr_array_header_t *iprops;
 
   /* Anchor, anchor_abspath pair for converting to relative paths */
   const char *anchor;
@@ -1216,6 +1217,27 @@ recursive_proplist_receiver(void *baton,
 {
   struct recursive_proplist_receiver_baton *b = baton;
   const char *path;
+  apr_array_header_t *iprops = NULL;
+
+  if (b->iprops
+      && ! strcmp(local_abspath, b->anchor_abspath))
+    {
+      /* Report iprops with the properties for the anchor */
+      iprops = b->iprops;
+      b->iprops = NULL;
+    }
+  else if (b->iprops)
+    {
+      /* No report for the root?
+         Report iprops anyway */
+
+      SVN_ERR(b->wrapped_receiver(b->wrapped_receiver_baton,
+                                  b->anchor ? b->anchor : local_abspath,
+                                  NULL /* prop_hash */,
+                                  b->iprops,
+                                  scratch_pool));
+      b->iprops = NULL;
+    }
 
   /* Attempt to convert absolute paths to relative paths for
    * presentation purposes, if needed. */
@@ -1230,7 +1252,7 @@ recursive_proplist_receiver(void *baton,
     path = local_abspath;
 
   return svn_error_trace(b->wrapped_receiver(b->wrapped_receiver_baton,
-                                             path, props, NULL,
+                                             path, props, iprops,
                                              scratch_pool));
 }
 
@@ -1370,6 +1392,7 @@ get_local_props(const char *path_or_url,
   svn_node_kind_t kind;
   apr_hash_t *changelist_hash = NULL;
   const char *local_abspath;
+  apr_array_header_t *iprops = NULL;
 
   SVN_ERR(svn_dirent_get_absolute(&local_abspath, path_or_url,
                                   scratch_pool));
@@ -1392,7 +1415,6 @@ get_local_props(const char *path_or_url,
 
   if (get_target_inherited_props)
     {
-      apr_array_header_t *iprops;
       const char *repos_root_url;
 
       SVN_ERR(svn_wc__get_iprops(&iprops, ctx->wc_ctx, local_abspath,
@@ -1402,8 +1424,6 @@ get_local_props(const char *path_or_url,
       SVN_ERR(svn_client__iprop_relpaths_to_urls(iprops, repos_root_url,
                                                  scratch_pool,
                                                  scratch_pool));
-      SVN_ERR(call_receiver(path_or_url, NULL, iprops, receiver,
-                            receiver_baton, scratch_pool));
     }
 
   if (changelists && changelists->nelts)
@@ -1418,16 +1438,16 @@ get_local_props(const char *path_or_url,
       rb.wc_ctx = ctx->wc_ctx;
       rb.wrapped_receiver = receiver;
       rb.wrapped_receiver_baton = receiver_baton;
+      rb.iprops = iprops;
+      rb.anchor_abspath = local_abspath;
 
       if (strcmp(path_or_url, local_abspath) != 0)
         {
           rb.anchor = path_or_url;
-          rb.anchor_abspath = local_abspath;
         }
       else
         {
           rb.anchor = NULL;
-          rb.anchor_abspath = NULL;
         }
 
       SVN_ERR(svn_wc__prop_list_recursive(ctx->wc_ctx, local_abspath, NULL,
@@ -1435,6 +1455,13 @@ get_local_props(const char *path_or_url,
                                           recursive_proplist_receiver, &rb,
                                           ctx->cancel_func, ctx->cancel_baton,
                                           scratch_pool));
+
+      if (rb.iprops)
+        {
+          /* We didn't report for the root. Report iprops anyway */
+          SVN_ERR(call_receiver(path_or_url, NULL /* props */, rb.iprops,
+                                receiver, receiver_baton, scratch_pool));
+        }
     }
   else if (svn_wc__changelist_match(ctx->wc_ctx, local_abspath,
                                     changelist_hash, scratch_pool))
@@ -1464,7 +1491,7 @@ get_local_props(const char *path_or_url,
               }
           }
 
-      SVN_ERR(call_receiver(path_or_url, props, NULL,
+      SVN_ERR(call_receiver(path_or_url, props, iprops,
                             receiver, receiver_baton, scratch_pool));
 
     }

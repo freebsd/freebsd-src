@@ -383,7 +383,7 @@ vm_phys_add_page(vm_paddr_t pa)
 	vm_page_t m;
 	struct vm_domain *vmd;
 
-	cnt.v_page_count++;
+	vm_cnt.v_page_count++;
 	m = vm_phys_paddr_to_vm_page(pa);
 	m->phys_addr = pa;
 	m->queue = PQ_NONE;
@@ -391,7 +391,6 @@ vm_phys_add_page(vm_paddr_t pa)
 	vmd = vm_phys_domain(m);
 	vmd->vmd_page_count++;
 	vmd->vmd_segs |= 1UL << m->segind;
-	m->flags = PG_FREE;
 	KASSERT(m->order == VM_NFREEORDER,
 	    ("vm_phys_add_page: page %p has unexpected order %d",
 	    m, m->order));
@@ -552,7 +551,9 @@ vm_phys_fictitious_reg_range(vm_paddr_t start, vm_paddr_t end,
 
 #ifdef VM_PHYSSEG_DENSE
 	pi = atop(start);
-	if (pi >= first_page && atop(end) < vm_page_array_size) {
+	if (pi >= first_page && pi < vm_page_array_size + first_page) {
+		if (atop(end) >= vm_page_array_size + first_page)
+			return (EINVAL);
 		fp = &vm_page_array[pi - first_page];
 		malloced = FALSE;
 	} else

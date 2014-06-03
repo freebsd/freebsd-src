@@ -17,7 +17,11 @@ SRCS=	ABI.cpp \
 	PathMappingList.cpp \
 	Platform.cpp \
 	Process.cpp \
+	Queue.cpp \
+	QueueItem.cpp \
+	QueueList.cpp \
 	RegisterContext.cpp \
+	SectionLoadHistory.cpp \
 	SectionLoadList.cpp \
 	StackFrame.cpp \
 	StackFrameList.cpp \

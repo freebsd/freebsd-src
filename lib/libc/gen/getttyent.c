@@ -39,6 +39,9 @@ __FBSDID("$FreeBSD$");
 #include <ctype.h>
 #include <string.h>
 
+#include <sys/types.h>
+#include <sys/sysctl.h>
+
 static char zapchar;
 static FILE *tf;
 static size_t lbsize;
@@ -62,6 +65,36 @@ getttynam(const char *tty)
 			break;
 	endttyent();
 	return (t);
+}
+
+static int
+auto_tty_status(const char *ty_name)
+{
+	size_t len;
+	char *buf, *cons, *nextcons;
+
+	/* Check if this is an enabled kernel console line */
+	buf = NULL;
+	if (sysctlbyname("kern.console", NULL, &len, NULL, 0) == -1)
+		return (0); /* Errors mean don't enable */
+	buf = malloc(len);
+	if (sysctlbyname("kern.console", buf, &len, NULL, 0) == -1)
+		goto done;
+
+	if ((cons = strchr(buf, '/')) == NULL)
+		goto done;
+	*cons = '\0';
+	nextcons = buf;
+	while ((cons = strsep(&nextcons, ",")) != NULL && strlen(cons) != 0) {
+		if (strcmp(cons, ty_name) == 0) {
+			free(buf);
+			return (TTY_ON);
+		}
+	}
+
+done:
+	free(buf);
+	return (0);
 }
 
 struct ttyent *
@@ -126,6 +159,8 @@ getttyent(void)
 			tty.ty_status &= ~TTY_ON;
 		else if (scmp(_TTYS_ON))
 			tty.ty_status |= TTY_ON;
+		else if (scmp(_TTYS_ONIFCONSOLE))
+			tty.ty_status |= auto_tty_status(tty.ty_name);
 		else if (scmp(_TTYS_SECURE))
 			tty.ty_status |= TTY_SECURE;
 		else if (scmp(_TTYS_INSECURE))

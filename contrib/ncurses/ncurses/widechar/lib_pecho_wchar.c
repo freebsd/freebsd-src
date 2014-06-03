@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 2004 Free Software Foundation, Inc.                        *
+ * Copyright (c) 2004,2009 Free Software Foundation, Inc.                   *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -32,12 +32,12 @@
 
 #include <curses.priv.h>
 
-MODULE_ID("$Id: lib_pecho_wchar.c,v 1.1 2004/01/03 21:42:01 tom Exp $")
+MODULE_ID("$Id: lib_pecho_wchar.c,v 1.2 2009/10/24 22:43:32 tom Exp $")
 
 NCURSES_EXPORT(int)
-pecho_wchar(WINDOW *pad, const cchar_t * wch)
+pecho_wchar(WINDOW *pad, const cchar_t *wch)
 {
-    T((T_CALLED("pecho_wchar(%p, %s)"), pad, _tracech_t(wch)));
+    T((T_CALLED("pecho_wchar(%p, %s)"), (void *) pad, _tracech_t(wch)));
 
     if (pad == 0)
 	returnCode(ERR);

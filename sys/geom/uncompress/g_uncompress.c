@@ -116,7 +116,7 @@ g_uncompress_softc_free(struct g_uncompress_softc *sc, struct g_geom *gp)
 	}
 	if (sc->offsets != NULL) {
 		free(sc->offsets, M_GEOM_UNCOMPRESS);
-		sc->offsets = 0;
+		sc->offsets = NULL;
 	}
 
 	switch (sc->type) {
@@ -150,6 +150,7 @@ z_alloc(void *nil, u_int type, u_int size)
 	void *ptr;
 
 	ptr = malloc(type * size, M_GEOM_UNCOMPRESS, M_NOWAIT);
+
 	return (ptr);
 }
 
@@ -169,7 +170,7 @@ g_uncompress_done(struct bio *bp)
 	struct g_geom *gp;
 	struct bio *bp2;
 	uint32_t start_blk, i;
-	off_t pos, upos;
+	off_t iolen, pos, upos;
 	size_t bsize;
 	int err;
 
@@ -210,24 +211,27 @@ g_uncompress_done(struct bio *bp)
 	 */
 	start_blk = bp2->bio_offset / sc->blksz;
 	bsize = pp2->sectorsize;
+	iolen = bp->bio_completed;
 	pos = sc->offsets[start_blk] % bsize;
 	upos = 0;
 
-	DPRINTF(("%s: done: bio_length %lld bio_completed %lld start_blk %d, "
-		"pos %lld, upos %lld (%lld, %d, %d)\n",
-	    gp->name, bp->bio_length, bp->bio_completed, start_blk, pos, upos,
-	    bp2->bio_offset, sc->blksz, bsize));
+	DPRINTF(("%s: done: bio_length %jd bio_completed %jd start_blk %d, "
+	    "pos %jd, upos %jd (%jd, %d, %zu)\n",
+	    gp->name, (intmax_t)bp->bio_length, (intmax_t)bp->bio_completed,
+	    start_blk, (intmax_t)pos, (intmax_t)upos,
+	    (intmax_t)bp2->bio_offset, sc->blksz, bsize));
 
 	for (i = start_blk; upos < bp2->bio_length; i++) {
-		off_t len, dlen, ulen, uoff;
+		off_t len, ulen, uoff;
 
 		uoff = i == start_blk ? bp2->bio_offset % sc->blksz : 0;
 		ulen = MIN(sc->blksz - uoff, bp2->bio_length - upos);
-		dlen = len = sc->offsets[i + 1] - sc->offsets[i];
+		len = sc->offsets[i + 1] - sc->offsets[i];
 
-		DPRINTF(("%s: done: inflate block %d, start %lld, end %lld "
-			"len %lld\n",
-		    gp->name, i, sc->offsets[i], sc->offsets[i + 1], len));
+		DPRINTF((
+		    "%s: done: inflate block %d, start %ju, end %ju len %jd\n",
+		    gp->name, i, (uintmax_t)sc->offsets[i],
+		    (uintmax_t)sc->offsets[i + 1], (intmax_t)len));
 
 		if (len == 0) {
 			/* All zero block: no cache update */
@@ -236,12 +240,17 @@ g_uncompress_done(struct bio *bp)
 			bp2->bio_completed += ulen;
 			continue;
 		}
-
+		if (len > iolen) {
+			DPRINTF(("%s: done: early termination: len (%jd) > "
+			    "iolen (%jd)\n",
+			    gp->name, (intmax_t)len, (intmax_t)iolen));
+			break;
+		}
 		mtx_lock(&sc->last_mtx);
 
 #ifdef GEOM_UNCOMPRESS_DEBUG
 		if (g_debugflags & 32)
-			hexdump(bp->bio_data + pos, dlen, 0, 0);
+			hexdump(bp->bio_data + pos, len, 0, 0);
 #endif
 
 		switch (sc->type) {
@@ -249,7 +258,7 @@ g_uncompress_done(struct bio *bp)
 			sc->b->in = bp->bio_data + pos;
 			sc->b->out = sc->last_buf;
 			sc->b->in_pos = sc->b->out_pos = 0;
-			sc->b->in_size = dlen;
+			sc->b->in_size = len;
 			sc->b->out_size = (size_t)-1;
 
 			err = (xz_dec_run(sc->s, sc->b) != XZ_STREAM_END) ?
@@ -258,13 +267,13 @@ g_uncompress_done(struct bio *bp)
 			break;
 		case GEOM_UZIP:
 			sc->zs->next_in = bp->bio_data + pos;
-			sc->zs->avail_in = dlen;
+			sc->zs->avail_in = len;
 			sc->zs->next_out = sc->last_buf;
 			sc->zs->avail_out = sc->blksz;
 
 			err = (inflate(sc->zs, Z_FINISH) != Z_STREAM_END) ?
 			    1 : 0;
-			if ((err) && (inflateReset(sc->zs) != Z_OK))
+			if ((err) || (inflateReset(sc->zs) != Z_OK))
 				printf("%s: UZIP decoder reset failed\n",
 				     gp->name);
 			break;
@@ -290,6 +299,7 @@ g_uncompress_done(struct bio *bp)
 		mtx_unlock(&sc->last_mtx);
 
 		pos += len;
+		iolen -= len;
 		upos += ulen;
 		bp2->bio_completed += ulen;
 	}
@@ -298,8 +308,9 @@ done:
 	/*
 	 * Finish processing the request.
 	 */
-	DPRINTF(("%s: done: (%d, %lld, %ld)\n",
-	    gp->name, bp2->bio_error, bp2->bio_completed, bp2->bio_resid));
+	DPRINTF(("%s: done: (%d, %jd, %ld)\n",
+	    gp->name, bp2->bio_error, (intmax_t)bp2->bio_completed,
+	    bp2->bio_resid));
 	free(bp->bio_data, M_GEOM_UNCOMPRESS);
 	g_destroy_bio(bp);
 	g_io_deliver(bp2, bp2->bio_error);
@@ -316,12 +327,12 @@ g_uncompress_start(struct bio *bp)
 	uint32_t start_blk, end_blk;
 	size_t bsize;
 
-
 	pp = bp->bio_to;
 	gp = pp->geom;
-	DPRINTF(("%s: start (%s) to %s off=%lld len=%lld\n", gp->name,
-		(bp->bio_cmd==BIO_READ) ? "BIO_READ" : "BIO_WRITE*",
-		pp->name, bp->bio_offset, bp->bio_length));
+	DPRINTF(("%s: start (%d:%s) to %s off=%jd len=%jd\n",
+	    gp->name, bp->bio_cmd,
+	    (bp->bio_cmd == BIO_READ) ? "BIO_READ" : "NOTSUPPORTED",
+	    pp->name, (intmax_t)bp->bio_offset, (intmax_t)bp->bio_length));
 
 	if (bp->bio_cmd != BIO_READ) {
 		g_io_deliver(bp, EOPNOTSUPP);
@@ -334,10 +345,8 @@ g_uncompress_start(struct bio *bp)
 
 	start_blk = bp->bio_offset / sc->blksz;
 	end_blk   = howmany(bp->bio_offset + bp->bio_length, sc->blksz);
-	KASSERT(start_blk < sc->nblocks,
-		("start_blk out of range"));
-	KASSERT(end_blk <= sc->nblocks,
-		("end_blk out of range"));
+	KASSERT(start_blk < sc->nblocks, ("start_blk out of range"));
+	KASSERT(end_blk <= sc->nblocks, ("end_blk out of range"));
 
 	sc->req_total++;
 	if (start_blk + 1 == end_blk) {
@@ -353,9 +362,9 @@ g_uncompress_start(struct bio *bp)
 			sc->req_cached++;
 			mtx_unlock(&sc->last_mtx);
 
-			DPRINTF(("%s: start: cached 0 + %lld, "
-			    "%lld + 0 + %lld\n",
-			    gp->name, bp->bio_length, uoff, bp->bio_length));
+			DPRINTF(("%s: start: cached 0 + %jd, %jd + 0 + %jd\n",
+			    gp->name, (intmax_t)bp->bio_length, (intmax_t)uoff,
+			    (intmax_t)bp->bio_length));
 			bp->bio_completed = bp->bio_length;
 			g_io_deliver(bp, 0);
 			return;
@@ -368,26 +377,31 @@ g_uncompress_start(struct bio *bp)
 		g_io_deliver(bp, ENOMEM);
 		return;
 	}
-	DPRINTF(("%s: start (%d..%d), %s: %d + %llu, %s: %d + %llu\n",
+	DPRINTF(("%s: start (%d..%d), %s: %d + %jd, %s: %d + %jd\n",
 	    gp->name, start_blk, end_blk,
-	    pp->name, pp->sectorsize, pp->mediasize,
-	    pp2->name, pp2->sectorsize, pp2->mediasize));
-
+	    pp->name, pp->sectorsize, (intmax_t)pp->mediasize,
+	    pp2->name, pp2->sectorsize, (intmax_t)pp2->mediasize));
 	bsize = pp2->sectorsize;
-
 	bp2->bio_done = g_uncompress_done;
-	bp2->bio_offset = rounddown(sc->offsets[start_blk],bsize);
-	bp2->bio_length = roundup(sc->offsets[end_blk],bsize) -
-	    bp2->bio_offset;
-	bp2->bio_data = malloc(bp2->bio_length, M_GEOM_UNCOMPRESS, M_NOWAIT);
+	bp2->bio_offset = rounddown(sc->offsets[start_blk], bsize);
+	while (1) {
+		bp2->bio_length = roundup(sc->offsets[end_blk], bsize) -
+		    bp2->bio_offset;
+		if (bp2->bio_length < MAXPHYS)
+			break;
 
-	DPRINTF(("%s: start %lld + %lld -> %lld + %lld -> %lld + %lld\n",
+		end_blk--;
+		DPRINTF((
+		    "%s: bio_length (%jd) > MAXPHYS: lowering end_blk to %u\n",
+		    gp->name, (intmax_t)bp2->bio_length, end_blk));
+	}
+	DPRINTF(("%s: start %jd + %jd -> %ju + %ju -> %jd + %jd\n",
 	    gp->name,
-	    bp->bio_offset, bp->bio_length,
-	    sc->offsets[start_blk],
-	    sc->offsets[end_blk] - sc->offsets[start_blk],
-	    bp2->bio_offset, bp2->bio_length));
-
+	    (intmax_t)bp->bio_offset, (intmax_t)bp->bio_length,
+	    (uintmax_t)sc->offsets[start_blk],
+	    (uintmax_t)sc->offsets[end_blk] - sc->offsets[start_blk],
+	    (intmax_t)bp2->bio_offset, (intmax_t)bp2->bio_length));
+	bp2->bio_data = malloc(bp2->bio_length, M_GEOM_UNCOMPRESS, M_NOWAIT);
 	if (bp2->bio_data == NULL) {
 		g_destroy_bio(bp2);
 		g_io_deliver(bp, ENOMEM);
@@ -403,8 +417,7 @@ g_uncompress_orphan(struct g_consumer *cp)
 {
 	struct g_geom *gp;
 
-	g_trace(G_T_TOPOLOGY, "%s(%p/%s)", __func__, cp,
-		cp->provider->name);
+	g_trace(G_T_TOPOLOGY, "%s(%p/%s)", __func__, cp, cp->provider->name);
 	g_topology_assert();
 
 	gp = cp->geom;
@@ -451,7 +464,7 @@ g_uncompress_taste(struct g_class *mp, struct g_provider *pp, int flags)
 	struct g_provider *pp2;
 	struct g_consumer *cp;
 	struct g_geom *gp;
-	uint32_t i, total_offsets, offsets_read, type;
+	uint32_t i, total_offsets, type;
 	uint8_t *buf;
 	int error;
 
@@ -484,17 +497,15 @@ g_uncompress_taste(struct g_class *mp, struct g_provider *pp, int flags)
 	 * Read cloop header, look for CLOOP magic, perform
 	 * other validity checks.
 	 */
-	DPRINTF(("%s: media sectorsize %u, mediasize %lld\n",
-	    gp->name, pp->sectorsize, pp->mediasize));
-
+	DPRINTF(("%s: media sectorsize %u, mediasize %jd\n",
+	    gp->name, pp->sectorsize, (intmax_t)pp->mediasize));
 	i = roundup(sizeof(struct cloop_header), pp->sectorsize);
 	buf = g_read_data(cp, 0, i, NULL);
 	if (buf == NULL)
 		goto err;
-
 	header = (struct cloop_header *) buf;
 	if (strncmp(header->magic, CLOOP_MAGIC_START,
-		    sizeof(CLOOP_MAGIC_START) - 1) != 0) {
+	    sizeof(CLOOP_MAGIC_START) - 1) != 0) {
 		DPRINTF(("%s: no CLOOP magic\n", gp->name));
 		goto err;
 	}
@@ -546,25 +557,20 @@ g_uncompress_taste(struct g_class *mp, struct g_provider *pp, int flags)
 		    gp->name, sc->nblocks);
 		goto err;
 	}
-	sc->offsets = malloc(
-	    total_offsets * sizeof(uint64_t), M_GEOM_UNCOMPRESS, M_WAITOK);
-	offsets_read = MIN(total_offsets,
-	    (pp->sectorsize - sizeof(*header)) / sizeof(uint64_t));
-	for (i = 0; i < offsets_read; i++)
-		sc->offsets[i] = be64toh(((uint64_t *) (header + 1))[i]);
-	DPRINTF(("%s: %u offsets in the first sector\n",
-	    gp->name, offsets_read));
-
 	free(buf, M_GEOM);
+
 	i = roundup((sizeof(struct cloop_header) +
-		total_offsets * sizeof(uint64_t)),pp->sectorsize);
+	    total_offsets * sizeof(uint64_t)), pp->sectorsize);
 	buf = g_read_data(cp, 0, i, NULL);
 	if (buf == NULL)
 		goto err;
+	sc->offsets = malloc(total_offsets * sizeof(uint64_t),
+	    M_GEOM_UNCOMPRESS, M_WAITOK);
 	for (i = 0; i <= total_offsets; i++) {
 		sc->offsets[i] = be64toh(((uint64_t *)
 		    (buf+sizeof(struct cloop_header)))[i]);
 	}
+	free(buf, M_GEOM);
 	DPRINTF(("%s: done reading offsets\n", gp->name));
 	mtx_init(&sc->last_mtx, "geom_uncompress cache", NULL, MTX_DEF);
 	sc->last_blk = -1;
@@ -599,15 +605,13 @@ g_uncompress_taste(struct g_class *mp, struct g_provider *pp, int flags)
 		pp2->stripeoffset = pp->stripeoffset;
 	}
 	g_error_provider(pp2, 0);
-	free(buf, M_GEOM);
 	g_access(cp, -1, 0, 0);
 
-	DPRINTF(("%s: taste ok (%d, %lld), (%d, %d), %x\n",
+	DPRINTF(("%s: taste ok (%d, %jd), (%d, %d), %x\n",
 	    gp->name,
-	    pp2->sectorsize, pp2->mediasize,
+	    pp2->sectorsize, (intmax_t)pp2->mediasize,
 	    pp2->stripeoffset, pp2->stripesize, pp2->flags));
-	printf("%s: %u x %u blocks\n",
-	    gp->name, sc->nblocks, sc->blksz);
+	printf("%s: %u x %u blocks\n", gp->name, sc->nblocks, sc->blksz);
 	return (gp);
 
 err:
@@ -622,6 +626,7 @@ err:
 	g_detach(cp);
 	g_destroy_consumer(cp);
 	g_destroy_geom(gp);
+
 	return (NULL);
 }
 
@@ -648,6 +653,7 @@ g_uncompress_destroy_geom(struct gctl_req *req, struct g_class *mp,
 	g_uncompress_softc_free(gp->softc, gp);
 	gp->softc = NULL;
 	g_wither_geom(gp, ENXIO);
+
 	return (0);
 }
 
@@ -664,4 +670,4 @@ static struct g_class g_uncompress_class = {
 };
 
 DECLARE_GEOM_CLASS(g_uncompress_class, g_uncompress);
-
+MODULE_DEPEND(g_uncompress, zlib, 1, 1, 1);

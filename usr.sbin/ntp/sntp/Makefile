@@ -3,7 +3,7 @@
 .PATH: ${.CURDIR}/../../../contrib/ntp/sntp
 
 PROG=	sntp
-NO_MAN=
+MAN=	sntp.1
 SRCS= 	internet.c main.c socket.c timing.c unix.c
 
 CFLAGS+= -I${.CURDIR}/../../../contrib/ntp/include -I${.CURDIR}/../ \

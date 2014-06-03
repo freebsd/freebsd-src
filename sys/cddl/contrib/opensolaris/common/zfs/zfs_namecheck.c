@@ -22,6 +22,9 @@
  * Copyright 2009 Sun Microsystems, Inc.  All rights reserved.
  * Use is subject to license terms.
  */
+/*
+ * Copyright (c) 2013 by Delphix. All rights reserved.
+ */
 
 /*
  * Common name validation routines for ZFS.  These routines are shared by the
@@ -62,7 +65,7 @@ valid_char(char c)
  * 	[-_.: ]
  */
 int
-snapshot_namecheck(const char *path, namecheck_err_t *why, char *what)
+zfs_component_namecheck(const char *path, namecheck_err_t *why, char *what)
 {
 	const char *loc;
 
@@ -113,7 +116,7 @@ permset_namecheck(const char *path, namecheck_err_t *why, char *what)
 		return (-1);
 	}
 
-	return (snapshot_namecheck(&path[1], why, what));
+	return (zfs_component_namecheck(&path[1], why, what));
 }
 
 /*

@@ -93,7 +93,7 @@ main(int ac, char **av)
 	char *p;
 	int version;
 	int entries;
-	int index;
+	int index, index2;
 	int parm;
 	int in;
 	int c;
@@ -182,7 +182,8 @@ main(int ac, char **av)
 		if (kvm_read(kd, nl[2].n_value, &index, sizeof(index)) == -1 ||
 		    kvm_read(kd, nl[3].n_value, &bufptr,
 		    sizeof(bufptr)) == -1 ||
-		    kvm_read(kd, bufptr, buf, sizeof(*buf) * entries) == -1)
+		    kvm_read(kd, bufptr, buf, sizeof(*buf) * entries) == -1 ||
+		    kvm_read(kd, nl[2].n_value, &index2, sizeof(index2)) == -1)
 			errx(1, "%s", kvm_geterr(kd));
 	}
 
@@ -219,8 +220,11 @@ main(int ac, char **av)
 	/*
 	 * Now tear through the trace buffer.
 	 */
-	if (!iflag)
-		i = (index - 1) % entries;
+	if (!iflag) {
+		i = index - 1;
+		if (i < 0)
+			i = entries - 1;
+	}
 	tlast = -1;
 	for (;;) {
 		if (buf[i].ktr_desc == NULL)
@@ -236,7 +240,7 @@ main(int ac, char **av)
 next:			if ((c = *p++) == '\0')
 				break;
 			if (parm == KTR_PARMS)
-				errx(1, "too many parameters");
+				errx(1, "too many parameters in \"%s\"", desc);
 			switch (c) {
 			case '0': case '1': case '2': case '3': case '4':
 			case '5': case '6': case '7': case '8': case '9':
@@ -286,9 +290,17 @@ next:			if ((c = *p++) == '\0')
 		    parms[4], parms[5]);
 		fprintf(out, "\n");
 		if (!iflag) {
-			if (i == index)
+			/*
+			 * 'index' and 'index2' are the values of 'ktr_idx'
+			 * before and after the KTR buffer was copied into
+			 * 'buf'. Since the KTR entries between 'index' and
+			 * 'index2' were in flux while the KTR buffer was
+			 * being copied to userspace we don't dump them.
+			 */
+			if (i == index2)
 				break;
-			i = (i - 1) % entries;
+			if (--i < 0)
+				i = entries - 1;
 		} else {
 			if (++i == entries)
 				break;

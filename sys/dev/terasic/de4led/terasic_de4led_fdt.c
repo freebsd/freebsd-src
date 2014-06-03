@@ -62,6 +62,9 @@ static int
 terasic_de4led_fdt_probe(device_t dev)
 {
 
+	if (!ofw_bus_status_okay(dev))
+		return (ENXIO);
+
 	if (ofw_bus_is_compatible(dev, "sri-cambridge,de4led")) {
 		device_set_desc(dev, "Terasic DE4 8-element LED");
 		return (BUS_PROBE_DEFAULT);

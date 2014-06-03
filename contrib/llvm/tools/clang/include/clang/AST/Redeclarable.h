@@ -75,7 +75,7 @@ public:
 
   /// \brief Return the first declaration of this declaration or itself if this
   /// is the only declaration.
-  decl_type *getFirstDeclaration() {
+  decl_type *getFirstDecl() {
     decl_type *D = static_cast<decl_type*>(this);
     while (D->getPreviousDecl())
       D = D->getPreviousDecl();
@@ -84,31 +84,29 @@ public:
 
   /// \brief Return the first declaration of this declaration or itself if this
   /// is the only declaration.
-  const decl_type *getFirstDeclaration() const {
+  const decl_type *getFirstDecl() const {
     const decl_type *D = static_cast<const decl_type*>(this);
     while (D->getPreviousDecl())
       D = D->getPreviousDecl();
     return D;
   }
 
-  /// \brief Returns true if this is the first declaration.
-  bool isFirstDeclaration() const {
-    return RedeclLink.NextIsLatest();
-  }
+  /// \brief True if this is the first declaration in its redeclaration chain.
+  bool isFirstDecl() const { return RedeclLink.NextIsLatest(); }
 
   /// \brief Returns the most recent (re)declaration of this declaration.
   decl_type *getMostRecentDecl() {
-    return getFirstDeclaration()->RedeclLink.getNext();
+    return getFirstDecl()->RedeclLink.getNext();
   }
 
   /// \brief Returns the most recent (re)declaration of this declaration.
   const decl_type *getMostRecentDecl() const {
-    return getFirstDeclaration()->RedeclLink.getNext();
+    return getFirstDecl()->RedeclLink.getNext();
   }
   
   /// \brief Set the previous declaration. If PrevDecl is NULL, set this as the
   /// first and only declaration.
-  void setPreviousDeclaration(decl_type *PrevDecl);
+  void setPreviousDecl(decl_type *PrevDecl);
 
   /// \brief Iterates through all the redeclarations of the same decl.
   class redecl_iterator {
@@ -134,7 +132,7 @@ public:
     redecl_iterator& operator++() {
       assert(Current && "Advancing while iterator has reached end");
       // Sanity check to avoid infinite loop on invalid redecl chain.
-      if (Current->isFirstDeclaration()) {
+      if (Current->isFirstDecl()) {
         if (PassedFirst) {
           assert(0 && "Passed first decl twice, invalid redecl chain!");
           Current = 0;
@@ -173,6 +171,40 @@ public:
 
   friend class ASTDeclReader;
   friend class ASTDeclWriter;
+};
+
+/// \brief Get the primary declaration for a declaration from an AST file. That
+/// will be the first-loaded declaration.
+Decl *getPrimaryMergedDecl(Decl *D);
+
+/// \brief Provides common interface for the Decls that cannot be redeclared,
+/// but can be merged if the same declaration is brought in from multiple
+/// modules.
+template<typename decl_type>
+class Mergeable {
+public:
+  Mergeable() {}
+
+  /// \brief Return the first declaration of this declaration or itself if this
+  /// is the only declaration.
+  decl_type *getFirstDecl() {
+    decl_type *D = static_cast<decl_type*>(this);
+    if (!D->isFromASTFile())
+      return D;
+    return cast<decl_type>(getPrimaryMergedDecl(const_cast<decl_type*>(D)));
+  }
+
+  /// \brief Return the first declaration of this declaration or itself if this
+  /// is the only declaration.
+  const decl_type *getFirstDecl() const {
+    const decl_type *D = static_cast<const decl_type*>(this);
+    if (!D->isFromASTFile())
+      return D;
+    return cast<decl_type>(getPrimaryMergedDecl(const_cast<decl_type*>(D)));
+  }
+
+  /// \brief Returns true if this is the first declaration.
+  bool isFirstDecl() const { return getFirstDecl() == this; }
 };
 
 }

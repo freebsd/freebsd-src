@@ -21,7 +21,7 @@
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2013 by Delphix. All rights reserved.
- * Copyright 2013 Nexenta Systems, Inc.  All rights reserved.
+ * Copyright 2014 Nexenta Systems, Inc.  All rights reserved.
  */
 
 /* Portions Copyright 2007 Jeremy Teo */
@@ -842,6 +842,16 @@ zfs_write(vnode_t *vp, uio_t *uio, int ioflag, cred_t *cr, caller_context_t *ct)
 	    &zp->z_pflags, 8);
 
 	/*
+	 * In a case vp->v_vfsp != zp->z_zfsvfs->z_vfs (e.g. snapshots) our
+	 * callers might not be able to detect properly that we are read-only,
+	 * so check it explicitly here.
+	 */
+	if (zfsvfs->z_vfs->vfs_flag & VFS_RDONLY) {
+		ZFS_EXIT(zfsvfs);
+		return (SET_ERROR(EROFS));
+	}
+
+	/*
 	 * If immutable or not appending then return EPERM
 	 */
 	if ((zp->z_pflags & (ZFS_IMMUTABLE | ZFS_READONLY)) ||
@@ -1625,6 +1635,9 @@ zfs_create(vnode_t *dvp, char *name, vattr_t *vap, int excl, int mode,
 			return (error);
 		}
 	}
+
+	getnewvnode_reserve(1);
+
 top:
 	*vpp = NULL;
 
@@ -1653,6 +1666,7 @@ top:
 				zfs_acl_ids_free(&acl_ids);
 			if (strcmp(name, "..") == 0)
 				error = SET_ERROR(EISDIR);
+			getnewvnode_drop_reserve();
 			ZFS_EXIT(zfsvfs);
 			return (error);
 		}
@@ -1721,6 +1735,7 @@ top:
 			}
 			zfs_acl_ids_free(&acl_ids);
 			dmu_tx_abort(tx);
+			getnewvnode_drop_reserve();
 			ZFS_EXIT(zfsvfs);
 			return (error);
 		}
@@ -1787,6 +1802,7 @@ top:
 		}
 	}
 out:
+	getnewvnode_drop_reserve();
 	if (dl)
 		zfs_dirent_unlock(dl);
 
@@ -2130,6 +2146,9 @@ zfs_mkdir(vnode_t *dvp, char *dirname, vattr_t *vap, vnode_t **vpp, cred_t *cr,
 		ZFS_EXIT(zfsvfs);
 		return (error);
 	}
+
+	getnewvnode_reserve(1);
+
 	/*
 	 * First make sure the new directory doesn't exist.
 	 *
@@ -2143,6 +2162,7 @@ top:
 	if (error = zfs_dirent_lock(&dl, dzp, dirname, &zp, zf,
 	    NULL, NULL)) {
 		zfs_acl_ids_free(&acl_ids);
+		getnewvnode_drop_reserve();
 		ZFS_EXIT(zfsvfs);
 		return (error);
 	}
@@ -2150,6 +2170,7 @@ top:
 	if (error = zfs_zaccess(dzp, ACE_ADD_SUBDIRECTORY, 0, B_FALSE, cr)) {
 		zfs_acl_ids_free(&acl_ids);
 		zfs_dirent_unlock(dl);
+		getnewvnode_drop_reserve();
 		ZFS_EXIT(zfsvfs);
 		return (error);
 	}
@@ -2157,6 +2178,7 @@ top:
 	if (zfs_acl_ids_overquota(zfsvfs, &acl_ids)) {
 		zfs_acl_ids_free(&acl_ids);
 		zfs_dirent_unlock(dl);
+		getnewvnode_drop_reserve();
 		ZFS_EXIT(zfsvfs);
 		return (SET_ERROR(EDQUOT));
 	}
@@ -2189,6 +2211,7 @@ top:
 		}
 		zfs_acl_ids_free(&acl_ids);
 		dmu_tx_abort(tx);
+		getnewvnode_drop_reserve();
 		ZFS_EXIT(zfsvfs);
 		return (error);
 	}
@@ -2217,6 +2240,8 @@ top:
 	zfs_acl_ids_free(&acl_ids);
 
 	dmu_tx_commit(tx);
+
+	getnewvnode_drop_reserve();
 
 	zfs_dirent_unlock(dl);
 
@@ -3698,9 +3723,8 @@ static int
 zfs_rename(vnode_t *sdvp, char *snm, vnode_t *tdvp, char *tnm, cred_t *cr,
     caller_context_t *ct, int flags)
 {
-	znode_t		*tdzp, *szp, *tzp;
-	znode_t		*sdzp = VTOZ(sdvp);
-	zfsvfs_t	*zfsvfs = sdzp->z_zfsvfs;
+	znode_t		*tdzp, *sdzp, *szp, *tzp;
+	zfsvfs_t 	*zfsvfs;
 	zilog_t		*zilog;
 	vnode_t		*realvp;
 	zfs_dirlock_t	*sdl, *tdl;
@@ -3711,24 +3735,27 @@ zfs_rename(vnode_t *sdvp, char *snm, vnode_t *tdvp, char *tnm, cred_t *cr,
 	int		zflg = 0;
 	boolean_t	waited = B_FALSE;
 
-	ZFS_ENTER(zfsvfs);
-	ZFS_VERIFY_ZP(sdzp);
-	zilog = zfsvfs->z_log;
-
-	/*
-	 * Make sure we have the real vp for the target directory.
-	 */
-	if (VOP_REALVP(tdvp, &realvp, ct) == 0)
-		tdvp = realvp;
-
 	tdzp = VTOZ(tdvp);
 	ZFS_VERIFY_ZP(tdzp);
+	zfsvfs = tdzp->z_zfsvfs;
+	ZFS_ENTER(zfsvfs);
+	zilog = zfsvfs->z_log;
+	sdzp = VTOZ(sdvp);
+
+	/*
+	 * In case sdzp is not valid, let's be sure to exit from the right
+	 * zfsvfs_t.
+	 */
+	if (sdzp->z_sa_hdl == NULL) {
+		ZFS_EXIT(zfsvfs);
+		return (SET_ERROR(EIO));
+	}
 
 	/*
 	 * We check z_zfsvfs rather than v_vfsp here, because snapshots and the
 	 * ctldir appear to have the same v_vfsp.
 	 */
-	if (tdzp->z_zfsvfs != zfsvfs || zfsctl_is_node(tdvp)) {
+	if (sdzp->z_zfsvfs != zfsvfs || zfsctl_is_node(tdvp)) {
 		ZFS_EXIT(zfsvfs);
 		return (SET_ERROR(EXDEV));
 	}
@@ -4109,6 +4136,9 @@ zfs_symlink(vnode_t *dvp, vnode_t **vpp, char *name, vattr_t *vap, char *link,
 		ZFS_EXIT(zfsvfs);
 		return (error);
 	}
+
+	getnewvnode_reserve(1);
+
 top:
 	/*
 	 * Attempt to lock directory; fail if entry already exists.
@@ -4116,6 +4146,7 @@ top:
 	error = zfs_dirent_lock(&dl, dzp, name, &zp, zflg, NULL, NULL);
 	if (error) {
 		zfs_acl_ids_free(&acl_ids);
+		getnewvnode_drop_reserve();
 		ZFS_EXIT(zfsvfs);
 		return (error);
 	}
@@ -4123,6 +4154,7 @@ top:
 	if (error = zfs_zaccess(dzp, ACE_ADD_FILE, 0, B_FALSE, cr)) {
 		zfs_acl_ids_free(&acl_ids);
 		zfs_dirent_unlock(dl);
+		getnewvnode_drop_reserve();
 		ZFS_EXIT(zfsvfs);
 		return (error);
 	}
@@ -4130,6 +4162,7 @@ top:
 	if (zfs_acl_ids_overquota(zfsvfs, &acl_ids)) {
 		zfs_acl_ids_free(&acl_ids);
 		zfs_dirent_unlock(dl);
+		getnewvnode_drop_reserve();
 		ZFS_EXIT(zfsvfs);
 		return (SET_ERROR(EDQUOT));
 	}
@@ -4157,6 +4190,7 @@ top:
 		}
 		zfs_acl_ids_free(&acl_ids);
 		dmu_tx_abort(tx);
+		getnewvnode_drop_reserve();
 		ZFS_EXIT(zfsvfs);
 		return (error);
 	}
@@ -4194,6 +4228,8 @@ top:
 	zfs_acl_ids_free(&acl_ids);
 
 	dmu_tx_commit(tx);
+
+	getnewvnode_drop_reserve();
 
 	zfs_dirent_unlock(dl);
 
@@ -5086,6 +5122,16 @@ zfs_space(vnode_t *vp, int cmd, flock64_t *bfp, int flag,
 	if (cmd != F_FREESP) {
 		ZFS_EXIT(zfsvfs);
 		return (SET_ERROR(EINVAL));
+	}
+
+	/*
+	 * In a case vp->v_vfsp != zp->z_zfsvfs->z_vfs (e.g. snapshots) our
+	 * callers might not be able to detect properly that we are read-only,
+	 * so check it explicitly here.
+	 */
+	if (zfsvfs->z_vfs->vfs_flag & VFS_RDONLY) {
+		ZFS_EXIT(zfsvfs);
+		return (SET_ERROR(EROFS));
 	}
 
 	if (error = convoff(vp, bfp, 0, offset)) {
@@ -6750,14 +6796,16 @@ vop_deleteextattr {
 	    UIO_SYSSPACE, attrname, xvp, td);
 	error = namei(&nd);
 	vp = nd.ni_vp;
-	NDFREE(&nd, NDF_ONLY_PNBUF);
 	if (error != 0) {
 		ZFS_EXIT(zfsvfs);
+		NDFREE(&nd, NDF_ONLY_PNBUF);
 		if (error == ENOENT)
 			error = ENOATTR;
 		return (error);
 	}
+
 	error = VOP_REMOVE(nd.ni_dvp, vp, &nd.ni_cnd);
+	NDFREE(&nd, NDF_ONLY_PNBUF);
 
 	vput(nd.ni_dvp);
 	if (vp == nd.ni_dvp)

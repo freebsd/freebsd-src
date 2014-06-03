@@ -22,7 +22,7 @@
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
  * Copyright 2011 Nexenta Systems, Inc.  All rights reserved.
- * Copyright (c) 2013 by Delphix. All rights reserved.
+ * Copyright (c) 2011, 2014 by Delphix. All rights reserved.
  * Copyright 2013 Martin Matuska <mm@FreeBSD.org>. All rights reserved.
  */
 
@@ -53,7 +53,7 @@ SYSCTL_NODE(_vfs_zfs, OID_AUTO, vdev, CTLFLAG_RW, 0, "ZFS VDEV");
  * Virtual device management.
  */
 
-/**
+/*
  * The limit for ZFS to automatically increase a top-level vdev's ashift
  * from logical ashift to physical ashift.
  *
@@ -61,19 +61,34 @@ SYSCTL_NODE(_vfs_zfs, OID_AUTO, vdev, CTLFLAG_RW, 0, "ZFS VDEV");
  *          child->vdev_ashift = 9 (512 bytes)
  *          child->vdev_physical_ashift = 12 (4096 bytes)
  *          zfs_max_auto_ashift = 11 (2048 bytes)
+ *          zfs_min_auto_ashift = 9 (512 bytes)
  *
- * On pool creation or the addition of a new top-leve vdev, ZFS will
- * bump the ashift of the top-level vdev to 2048.
+ * On pool creation or the addition of a new top-level vdev, ZFS will
+ * increase the ashift of the top-level vdev to 2048 as limited by
+ * zfs_max_auto_ashift.
  *
  * Example: one or more 512B emulation child vdevs
  *          child->vdev_ashift = 9 (512 bytes)
  *          child->vdev_physical_ashift = 12 (4096 bytes)
  *          zfs_max_auto_ashift = 13 (8192 bytes)
+ *          zfs_min_auto_ashift = 9 (512 bytes)
  *
- * On pool creation or the addition of a new top-leve vdev, ZFS will
- * bump the ashift of the top-level vdev to 4096.
+ * On pool creation or the addition of a new top-level vdev, ZFS will
+ * increase the ashift of the top-level vdev to 4096 to match the
+ * max vdev_physical_ashift.
+ *
+ * Example: one or more 512B emulation child vdevs
+ *          child->vdev_ashift = 9 (512 bytes)
+ *          child->vdev_physical_ashift = 9 (512 bytes)
+ *          zfs_max_auto_ashift = 13 (8192 bytes)
+ *          zfs_min_auto_ashift = 12 (4096 bytes)
+ *
+ * On pool creation or the addition of a new top-level vdev, ZFS will
+ * increase the ashift of the top-level vdev to 4096 to match the
+ * zfs_min_auto_ashift.
  */
 static uint64_t zfs_max_auto_ashift = SPA_MAXASHIFT;
+static uint64_t zfs_min_auto_ashift = SPA_MINASHIFT;
 
 static int
 sysctl_vfs_zfs_max_auto_ashift(SYSCTL_HANDLER_ARGS)
@@ -86,8 +101,8 @@ sysctl_vfs_zfs_max_auto_ashift(SYSCTL_HANDLER_ARGS)
 	if (err != 0 || req->newptr == NULL)
 		return (err);
 
-	if (val > SPA_MAXASHIFT)
-		val = SPA_MAXASHIFT;
+	if (val > SPA_MAXASHIFT || val < zfs_min_auto_ashift)
+		return (EINVAL);
 
 	zfs_max_auto_ashift = val;
 
@@ -96,7 +111,31 @@ sysctl_vfs_zfs_max_auto_ashift(SYSCTL_HANDLER_ARGS)
 SYSCTL_PROC(_vfs_zfs, OID_AUTO, max_auto_ashift,
     CTLTYPE_U64 | CTLFLAG_MPSAFE | CTLFLAG_RW, 0, sizeof(uint64_t),
     sysctl_vfs_zfs_max_auto_ashift, "QU",
-    "Cap on logical -> physical ashift adjustment on new top-level vdevs.");
+    "Max ashift used when optimising for logical -> physical sectors size on "
+    "new top-level vdevs.");
+
+static int
+sysctl_vfs_zfs_min_auto_ashift(SYSCTL_HANDLER_ARGS)
+{
+	uint64_t val;
+	int err;
+
+	val = zfs_min_auto_ashift;
+	err = sysctl_handle_64(oidp, &val, 0, req);
+	if (err != 0 || req->newptr == NULL)
+		return (err);
+
+	if (val < SPA_MINASHIFT || val > zfs_max_auto_ashift)
+		return (EINVAL);
+
+	zfs_min_auto_ashift = val;
+
+	return (0);
+}
+SYSCTL_PROC(_vfs_zfs, OID_AUTO, min_auto_ashift,
+    CTLTYPE_U64 | CTLFLAG_MPSAFE | CTLFLAG_RW, 0, sizeof(uint64_t),
+    sysctl_vfs_zfs_min_auto_ashift, "QU",
+    "Min ashift used when creating new top-level vdevs.");
 
 static vdev_ops_t *vdev_ops_table[] = {
 	&vdev_root_ops,
@@ -1626,24 +1665,35 @@ vdev_metaslab_set_size(vdev_t *vd)
 	/*
 	 * Aim for roughly 200 metaslabs per vdev.
 	 */
-	vd->vdev_ms_shift = highbit(vd->vdev_asize / 200);
+	vd->vdev_ms_shift = highbit64(vd->vdev_asize / 200);
 	vd->vdev_ms_shift = MAX(vd->vdev_ms_shift, SPA_MAXBLOCKSHIFT);
 }
 
 /*
- * Maximize performance by inflating the configured ashift for
- * top level vdevs to be as close to the physical ashift as
- * possible without exceeding the administrator specified
- * limit.
+ * Maximize performance by inflating the configured ashift for top level
+ * vdevs to be as close to the physical ashift as possible while maintaining
+ * administrator defined limits and ensuring it doesn't go below the
+ * logical ashift.
  */
 void
 vdev_ashift_optimize(vdev_t *vd)
 {
-	if (vd == vd->vdev_top &&
-	    (vd->vdev_ashift < vd->vdev_physical_ashift) &&
-	    (vd->vdev_ashift < zfs_max_auto_ashift)) {
-		vd->vdev_ashift = MIN(zfs_max_auto_ashift,
-		    vd->vdev_physical_ashift);
+	if (vd == vd->vdev_top) {
+		if (vd->vdev_ashift < vd->vdev_physical_ashift) {
+			vd->vdev_ashift = MIN(
+			    MAX(zfs_max_auto_ashift, vd->vdev_ashift),
+			    MAX(zfs_min_auto_ashift, vd->vdev_physical_ashift));
+		} else {
+			/*
+			 * Unusual case where logical ashift > physical ashift
+			 * so we can't cap the calculated ashift based on max
+			 * ashift as that would cause failures.
+			 * We still check if we need to increase it to match
+			 * the min ashift.
+			 */
+			vd->vdev_ashift = MAX(zfs_min_auto_ashift,
+			    vd->vdev_ashift);
+		}
 	}
 }
 

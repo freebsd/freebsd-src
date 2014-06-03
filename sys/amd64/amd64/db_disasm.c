@@ -71,6 +71,7 @@ __FBSDID("$FreeBSD$");
 #define	R	5			/* register, in 'reg' field */
 #define	Rw	6			/* word register, in 'reg' field */
 #define	Rq	39			/* quad register, in 'reg' field */
+#define	Rv	40			/* register in 'r/m' field */
 #define	Ri	7			/* register in instruction */
 #define	S	8			/* segment reg, in 'reg' field */
 #define	Si	9			/* segment reg, in instruction */
@@ -626,6 +627,17 @@ static const struct inst db_Grp5[] = {
 	{ "ljmp",  TRUE, LONG, op1(Eind),0 },
 	{ "push",  TRUE, LONG, op1(E),   0 },
 	{ "",      TRUE, NONE, 0,	 0 }
+};
+
+static const struct inst db_Grp9b[] = {
+	{ "",      TRUE, NONE, 0,	 0 },
+	{ "",      TRUE, NONE, 0,	 0 },
+	{ "",      TRUE, NONE, 0,	 0 },
+	{ "",      TRUE, NONE, 0,	 0 },
+	{ "",      TRUE, NONE, 0,	 0 },
+	{ "",      TRUE, NONE, 0,	 0 },
+	{ "rdrand",TRUE, LONG, op1(Rv),  0 },
+	{ "rdseed",TRUE, LONG, op1(Rv),  0 }
 };
 
 static const struct inst db_inst_table[256] = {
@@ -1300,7 +1312,13 @@ db_disasm(loc, altfmt)
 	i_size = ip->i_size;
 	i_mode = ip->i_mode;
 
-	if (ip->i_extra == db_Grp1 || ip->i_extra == db_Grp2 ||
+	if (ip->i_extra == db_Grp9 && f_mod(rex, regmodrm) == 3) {
+	    ip = &db_Grp9b[f_reg(rex, regmodrm)];
+	    i_name = ip->i_name;
+	    i_size = ip->i_size;
+	    i_mode = ip->i_mode;
+	}
+	else if (ip->i_extra == db_Grp1 || ip->i_extra == db_Grp2 ||
 	    ip->i_extra == db_Grp6 || ip->i_extra == db_Grp7 ||
 	    ip->i_extra == db_Grp8 || ip->i_extra == db_Grp9 ||
 	    ip->i_extra == db_Grp15) {
@@ -1353,6 +1371,16 @@ db_disasm(loc, altfmt)
 			i_size = NONE;
 			i_mode = 0;
 			break;
+		case 0xca:
+			i_name = "clac";
+			i_size = NONE;
+			i_mode = 0;
+			break;
+		case 0xcb:
+			i_name = "stac";
+			i_size = NONE;
+			i_mode = 0;
+			break;
 		case 0xd0:
 			i_name = "xgetbv";
 			i_size = NONE;
@@ -1360,6 +1388,46 @@ db_disasm(loc, altfmt)
 			break;
 		case 0xd1:
 			i_name = "xsetbv";
+			i_size = NONE;
+			i_mode = 0;
+			break;
+		case 0xd8:
+			i_name = "vmrun";
+			i_size = NONE;
+			i_mode = 0;
+			break;
+		case 0xd9:
+			i_name = "vmmcall";
+			i_size = NONE;
+			i_mode = 0;
+			break;
+		case 0xda:
+			i_name = "vmload";
+			i_size = NONE;
+			i_mode = 0;
+			break;
+		case 0xdb:
+			i_name = "vmsave";
+			i_size = NONE;
+			i_mode = 0;
+			break;
+		case 0xdc:
+			i_name = "stgi";
+			i_size = NONE;
+			i_mode = 0;
+			break;
+		case 0xdd:
+			i_name = "clgi";
+			i_size = NONE;
+			i_mode = 0;
+			break;
+		case 0xde:
+			i_name = "skinit";
+			i_size = NONE;
+			i_mode = 0;
+			break;
+		case 0xdf:
+			i_name = "invlpga";
 			i_size = NONE;
 			i_mode = 0;
 			break;
@@ -1499,6 +1567,10 @@ db_disasm(loc, altfmt)
 
 		case Ril:
 		    db_printf("%s", db_reg[rex != 0 ? 1 : 0][(rex & REX_R) ? QUAD : LONG][f_rm(rex, inst)]);
+		    break;
+
+	        case Rv:
+		    db_printf("%s", db_reg[rex != 0 ? 1 : 0][(size == LONG && (rex & REX_W)) ? QUAD : size][f_rm(rex, regmodrm)]);
 		    break;
 
 		case S:

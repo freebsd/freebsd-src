@@ -79,7 +79,7 @@ public:
     case GCC: return false;
     case MacOSX: return true;
     case GNUstep: return true;
-    case ObjFW: return false;
+    case ObjFW: return true;
     case iOS: return true;
     }
     llvm_unreachable("bad kind");
@@ -98,9 +98,8 @@ public:
           Arch == llvm::Triple::x86 ||
           Arch == llvm::Triple::x86_64)
         return false;
-      // Mac runtimes use legacy dispatch everywhere except x86-64
-    } else if (isNeXTFamily() && isNonFragile())
-        return Arch != llvm::Triple::x86_64;
+    }
+    // Mac runtimes use legacy dispatch everywhere now.
     return true;
   }
 

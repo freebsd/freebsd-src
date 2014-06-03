@@ -1,5 +1,5 @@
 /*	$FreeBSD$							*/
-/*      $OpenBSD: bc.library,v 1.3 2007/02/03 21:15:06 otto Exp $	*/
+/*      $OpenBSD: bc.library,v 1.4 2012/03/14 07:35:53 otto Exp $	*/
 
 /*
  * Copyright (C) Caldera International Inc.  2001-2002.
@@ -100,13 +100,13 @@ define l(x) {
 	if (x < 1) {
 		s = scale(x)
 	} else {
-		s = length(x) - scale(x)
+		s = length(x)-scale(x)
 	}
 	scale = 0
 	a = (2.31*s)/1 /* estimated integer part of the answer */
 	s = t + length(a) + 2 /* estimated length of the answer */
 	while (x > 2) {
-		scale=0
+		scale = 0
 		scale = (length(x) + scale(x))/2 + 1
 		if (scale < s) scale = s
 		x = sqrt(x)

@@ -48,6 +48,7 @@
 #include "private/svn_dep_compat.h"
 #include "private/svn_fspath.h"
 #include "private/svn_subr_private.h"
+#include "private/svn_auth_private.h"
 
 #include "ra_serf.h"
 
@@ -269,26 +270,70 @@ ssl_server_cert(void *baton, int failures,
   svn_auth_iterstate_t *state;
   const char *realmstring;
   apr_uint32_t svn_failures;
-  apr_hash_t *issuer, *subject, *serf_cert;
-  apr_array_header_t *san;
+  apr_hash_t *issuer;
+  apr_hash_t *subject = NULL;
+  apr_hash_t *serf_cert = NULL;
   void *creds;
   int found_matching_hostname = 0;
 
-  /* Implicitly approve any non-server certs. */
-  if (serf_ssl_cert_depth(cert) > 0)
+  svn_failures = (ssl_convert_serf_failures(failures)
+      | conn->server_cert_failures);
+
+  if (serf_ssl_cert_depth(cert) == 0)
     {
-      if (failures)
-        conn->server_cert_failures |= ssl_convert_serf_failures(failures);
-      return APR_SUCCESS;
+      /* If the depth is 0, the hostname must match the certificate.
+
+      ### This should really be handled by serf, which should pass an error
+          for this case, but that has backwards compatibility issues. */
+      apr_array_header_t *san;
+
+      serf_cert = serf_ssl_cert_certificate(cert, scratch_pool);
+
+      san = svn_hash_gets(serf_cert, "subjectAltName");
+      /* Try to find matching server name via subjectAltName first... */
+      if (san) {
+          int i;
+          for (i = 0; i < san->nelts; i++) {
+              const char *s = APR_ARRAY_IDX(san, i, const char*);
+              if (apr_fnmatch(s, conn->session->session_url.hostname,
+                  APR_FNM_PERIOD | APR_FNM_CASE_BLIND) == APR_SUCCESS)
+              {
+                  found_matching_hostname = 1;
+                  break;
+              }
+          }
+      }
+
+      /* Match server certificate CN with the hostname of the server */
+      if (!found_matching_hostname)
+        {
+          const char *hostname = NULL;
+
+          subject = serf_ssl_cert_subject(cert, scratch_pool);
+
+          if (subject)
+            hostname = svn_hash_gets(subject, "CN");
+
+          if (!hostname
+              || apr_fnmatch(hostname, conn->session->session_url.hostname,
+                             APR_FNM_PERIOD | APR_FNM_CASE_BLIND) != APR_SUCCESS)
+          {
+              svn_failures |= SVN_AUTH_SSL_CNMISMATCH;
+          }
+      }
     }
 
+  if (!svn_failures)
+    return SVN_NO_ERROR;
+
   /* Extract the info from the certificate */
-  subject = serf_ssl_cert_subject(cert, scratch_pool);
+  if (! subject)
+    subject = serf_ssl_cert_subject(cert, scratch_pool);
   issuer = serf_ssl_cert_issuer(cert, scratch_pool);
-  serf_cert = serf_ssl_cert_certificate(cert, scratch_pool);
+  if (! serf_cert)
+    serf_cert = serf_ssl_cert_certificate(cert, scratch_pool);
 
   cert_info.hostname = svn_hash_gets(subject, "CN");
-  san = svn_hash_gets(serf_cert, "subjectAltName");
   cert_info.fingerprint = svn_hash_gets(serf_cert, "sha1");
   if (! cert_info.fingerprint)
     cert_info.fingerprint = apr_pstrdup(scratch_pool, "<unknown>");
@@ -301,32 +346,56 @@ ssl_server_cert(void *baton, int failures,
   cert_info.issuer_dname = convert_organisation_to_str(issuer, scratch_pool);
   cert_info.ascii_cert = serf_ssl_cert_export(cert, scratch_pool);
 
-  svn_failures = (ssl_convert_serf_failures(failures)
-                  | conn->server_cert_failures);
-
-  /* Try to find matching server name via subjectAltName first... */
-  if (san) {
-      int i;
-      for (i = 0; i < san->nelts; i++) {
-          char *s = APR_ARRAY_IDX(san, i, char*);
-          if (apr_fnmatch(s, conn->session->session_url.hostname,
-                          APR_FNM_PERIOD | APR_FNM_CASE_BLIND) == APR_SUCCESS)
-            {
-              found_matching_hostname = 1;
-              cert_info.hostname = s;
-              break;
-            }
-      }
-  }
-
-  /* Match server certificate CN with the hostname of the server */
-  if (!found_matching_hostname && cert_info.hostname)
+  /* Handle any non-server certs. */
+  if (serf_ssl_cert_depth(cert) > 0)
     {
-      if (apr_fnmatch(cert_info.hostname, conn->session->session_url.hostname,
-                      APR_FNM_PERIOD | APR_FNM_CASE_BLIND) == APR_FNM_NOMATCH)
+      svn_error_t *err;
+
+      svn_auth_set_parameter(conn->session->wc_callbacks->auth_baton,
+                             SVN_AUTH_PARAM_SSL_SERVER_CERT_INFO,
+                             &cert_info);
+
+      svn_auth_set_parameter(conn->session->wc_callbacks->auth_baton,
+                             SVN_AUTH_PARAM_SSL_SERVER_FAILURES,
+                             &svn_failures);
+
+      realmstring = apr_psprintf(scratch_pool, "AUTHORITY:%s",
+                                 cert_info.fingerprint);
+
+      err = svn_auth_first_credentials(&creds, &state,
+                                       SVN_AUTH_CRED_SSL_SERVER_AUTHORITY,
+                                       realmstring,
+                                       conn->session->wc_callbacks->auth_baton,
+                                       scratch_pool);
+
+      svn_auth_set_parameter(conn->session->wc_callbacks->auth_baton,
+                             SVN_AUTH_PARAM_SSL_SERVER_CERT_INFO, NULL);
+
+      svn_auth_set_parameter(conn->session->wc_callbacks->auth_baton,
+                             SVN_AUTH_PARAM_SSL_SERVER_FAILURES, NULL);
+
+      if (err)
         {
-          svn_failures |= SVN_AUTH_SSL_CNMISMATCH;
+          if (err->apr_err != SVN_ERR_AUTHN_NO_PROVIDER)
+            return svn_error_trace(err);
+
+          /* No provider registered that handles server authorities */
+          svn_error_clear(err);
+          creds = NULL;
         }
+
+      if (creds)
+        {
+          server_creds = creds;
+          SVN_ERR(svn_auth_save_credentials(state, scratch_pool));
+
+          svn_failures &= ~server_creds->accepted_failures;
+        }
+
+      if (svn_failures)
+        conn->server_cert_failures |= svn_failures;
+
+      return APR_SUCCESS;
     }
 
   svn_auth_set_parameter(conn->session->wc_callbacks->auth_baton,
@@ -347,13 +416,27 @@ ssl_server_cert(void *baton, int failures,
   if (creds)
     {
       server_creds = creds;
+      svn_failures &= ~server_creds->accepted_failures;
       SVN_ERR(svn_auth_save_credentials(state, scratch_pool));
+    }
+
+  while (svn_failures && creds)
+    {
+      SVN_ERR(svn_auth_next_credentials(&creds, state, scratch_pool));
+
+      if (creds)
+        {
+          server_creds = creds;
+          svn_failures &= ~server_creds->accepted_failures;
+          SVN_ERR(svn_auth_save_credentials(state, scratch_pool));
+        }
     }
 
   svn_auth_set_parameter(conn->session->wc_callbacks->auth_baton,
                          SVN_AUTH_PARAM_SSL_SERVER_CERT_INFO, NULL);
 
-  if (!server_creds)
+  /* Are there non accepted failures left? */
+  if (svn_failures)
     {
       svn_stringbuf_t *errmsg;
       int reasons = 0;

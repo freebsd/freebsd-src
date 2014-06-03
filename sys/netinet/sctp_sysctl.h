@@ -104,6 +104,7 @@ struct sctp_sysctl {
 	uint32_t sctp_rttvar_eqret;
 	uint32_t sctp_steady_step;
 	uint32_t sctp_use_dccc_ecn;
+	uint32_t sctp_diag_info_code;
 #if defined(SCTP_LOCAL_TRACE_BUF)
 	struct sctp_log sctp_log;
 #endif
@@ -465,7 +466,7 @@ struct sctp_sysctl {
 #define SCTPCTL_UDP_TUNNELING_PORT_DESC		"Set the SCTP/UDP tunneling port"
 #define SCTPCTL_UDP_TUNNELING_PORT_MIN		0
 #define SCTPCTL_UDP_TUNNELING_PORT_MAX		65535
-#define SCTPCTL_UDP_TUNNELING_PORT_DEFAULT	SCTP_OVER_UDP_TUNNELING_PORT
+#define SCTPCTL_UDP_TUNNELING_PORT_DEFAULT	0
 
 /* Enable sending of the SACK-IMMEDIATELY bit */
 #define SCTPCTL_SACK_IMMEDIATELY_ENABLE_DESC	"Enable sending of the SACK-IMMEDIATELY-bit."
@@ -528,6 +529,11 @@ struct sctp_sysctl {
 #define SCTPCTL_BLACKHOLE_MIN		0
 #define SCTPCTL_BLACKHOLE_MAX		2
 #define SCTPCTL_BLACKHOLE_DEFAULT	SCTPCTL_BLACKHOLE_MIN
+
+#define SCTPCTL_DIAG_INFO_CODE_DESC	"Diagnostic information error cause code"
+#define SCTPCTL_DIAG_INFO_CODE_MIN	0
+#define SCTPCTL_DIAG_INFO_CODE_MAX	65535
+#define SCTPCTL_DIAG_INFO_CODE_DEFAULT	0
 
 #if defined(SCTP_DEBUG)
 /* debug: Configure debug output */

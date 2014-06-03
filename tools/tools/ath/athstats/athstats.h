@@ -32,15 +32,15 @@
 #ifndef _ATHSTATS_H_
 #define	_ATHSTATS_H_
 
-#include "statfoo.h"
+#include <bsdstat.h>
 
 /*
  * ath statistics class.
  */
 struct athstatfoo {
-	struct statfoo base;
+	struct bsdstat base;
 
-	STATFOO_DECL_METHODS(struct athstatfoo *);
+	BSDSTAT_DECL_METHODS(struct athstatfoo *);
 
 	/* set the network interface name for collection */
 	void (*setifname)(struct athstatfoo *, const char *ifname);

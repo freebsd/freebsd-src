@@ -2,6 +2,51 @@ Major changes between releases                  Automated Testing Framework
 ===========================================================================
 
 
+Changes in version 0.20
+***********************
+
+Experimental version released on February 7th, 2014.
+
+This is the first release without the code for the deprecated tools.  If
+you require such code, please fetch a copy of the 0.19 release and extract
+the 'tools' directory for your own consumption.
+
+* Removed the deprecated tools.  This includes atf-config, atf-report,
+  atf-run and atf-version.
+
+
+Changes in version 0.19
+***********************
+
+Experimental version released on February 7th, 2014.
+
+This is the last release to bundle the code for the deprecated tools.
+The next release will drop their code and will stop worrying about
+backwards compatibility between the ATF libraries and what the old tools
+may or may not support.
+
+If you still require the old tools for some reason, grab a copy of the
+'tools' directory now.  The code in this directory is standalone and
+does not depend on any internal details of atf-c++ any longer.
+
+* Various fixes and improvements to support running as part of the FreeBSD
+  test suite.
+
+* Project hosting moved from Google Code (as a subproject of Kyua) to
+  GitHub (as a first-class project).  The main reason for the change is
+  the suppression of binary downloads in Google Code on Jan 15th, 2014.
+  See https://github.com/jmmv/atf/
+
+* Removed builtin help from atf-sh(1) and atf-check(1) for simplicity
+  reasons.  In other words, their -h option is gone.
+
+* Moved the code of the deprecated tools into a 'tools' directory and
+  completely decoupled their code from the internals of atf-c++.  The
+  reason for this is to painlessly allow a third-party to maintain a
+  copy of these tools after we delete them because upcoming changes to
+  atf-c++ would break the stale tools.
+
+
 Changes in version 0.18
 ***********************
 

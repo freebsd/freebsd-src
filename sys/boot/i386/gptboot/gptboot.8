@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 3, 2013
+.Dd February 5, 2014
 .Dt GPTBOOT 8
 .Os
 .Sh NAME
@@ -190,12 +190,18 @@ parameters for the boot blocks
 .El
 .Sh EXAMPLES
 .Nm
-is typically installed in combination with a
+is installed in a
+.Cm freebsd-boot
+partition, usually the first partition on the disk.
+A
 .Dq protective MBR
 .Po
 see
 .Xr gpart 8
-.Pc .
+.Pc
+is typically installed in combination with
+.Nm .
+.Pp
 Install
 .Nm
 on the
@@ -235,4 +241,5 @@ gpart set -a bootonce -i 2 ada0
 .Nm
 appeared in FreeBSD 7.1.
 .Sh AUTHORS
-Warren Block <wblock@FreeBSD.org>
+.An
+This manual page written by Warren Block <wblock@FreeBSD.org>.

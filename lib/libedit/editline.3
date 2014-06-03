@@ -682,6 +682,9 @@ Load the history list stored in
 .It Dv H_SAVE , Fa "const char *file"
 Save the history list to
 .Fa file .
+.It Dv H_SAVE_FP , Fa "FILE*"
+Save the history list to the opened
+.Fa FILE* .
 .It Dv H_SETUNIQUE , Fa "int unique"
 Set flag that adjacent identical event strings should not be entered
 into the history.

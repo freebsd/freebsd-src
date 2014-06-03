@@ -1,4 +1,4 @@
-.\" Copyright (c) 2009 Rohit Grover <rgrover1 at gmail dot com>.
+.\" Copyright (c) 2014 Rohit Grover <rgrover1 at gmail dot com>.
 .\" All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 12, 2009
+.Dd February 24, 2014
 .Dt ATP 4
 .Os
 .Sh NAME
@@ -41,8 +41,7 @@ your kernel configuration file:
 .Cd "device usb"
 .Ed
 .Pp
-Alternatively, to load the driver as a
-module at boot time, place the following line in
+Alternatively, to load the driver as a module at boot time, place the following line in
 .Xr loader.conf 5 :
 .Bd -literal -offset indent
 atp_load="YES"
@@ -50,24 +49,21 @@ atp_load="YES"
 .Sh DESCRIPTION
 The
 .Nm
-driver provides support for the Apple Internal Trackpad
-device found in many Apple laptops.
+driver provides support for the Apple Internal Trackpad device found in many
+Apple laptops. Older (Fountain/Geyser) and the newer (Wellspring) trackpad
+families are all supported through a unified driver.
 .Pp
-The driver simulates a three\-button mouse using multi\-finger tap
-detection.
-.
-A single\-finger tap generates a left button click;
-two\-finger tap maps to the middle button; whereas a three\-finger tap
-gets treated as a right button click.
-.
+The driver simulates a three\-button mouse using multi\-finger tap detection.
+Single finger tap generates a left\-button click; two\-finger tap maps to the
+middle button; whereas a three\-finger tap gets treated as a right button
+click.
+.Pp
+There is support for 2\-finger horizontal scrolling, which translates to
+page\-back/forward events; vertical multi\-finger scrolling emulates the mouse
+wheel.
+.Pp
 A double\-tap followed by a drag is treated as a selection gesture; a
 virtual left\-button click is assumed for the lifespan of the drag.
-.
-.Nm
-attempts to filter away activity at the horizontal edges of the
-trackpad\-\-this is to keep unintentional palm movement from being
-considered as user input.
-.
 .Pp
 .Nm
 supports dynamic reconfiguration using
@@ -76,6 +72,28 @@ through nodes under
 .Nm hw.usb.atp .
 Pointer sensitivity can be controlled using the sysctl tunable
 .Nm hw.usb.atp.scale_factor .
+Smaller values of
+.Fa scale_factor
+result in faster movement.
+.
+A simple high-pass filter is used to reduce contributions
+from small movements; the threshold for this filter may be controlled by
+.Nm hw.usb.atp.small_movement .
+.
+The maximum tolerable duration of a touch gesture is controlled by
+.Nm hw.usb.atp.touch_timeout
+(in microseconds); beyond this period, touches are considered to be slides.
+(This conversion also happens when a finger stroke accumulates at least
+.Nm hw.usb.atp.slide_min_movement
+movement (in mickeys).
+.
+The maximum time (in microseconds) to allow an association between a double-
+tap and drag gesture may be controlled by
+.Nm hw.usb.atp.double_tap_threshold .
+.
+Should one want to disable tap detection and rely only upon physical button
+presses, set the following sysctl to a value of 2
+.Nm hw.usb.atp.tap_minimum .
 .
 .Sh HARDWARE
 The
@@ -83,6 +101,8 @@ The
 driver provides support for the following Product IDs:
 .Pp
 .Bl -bullet -compact
+.It
+PowerBooks, iBooks (IDs: 0x020e, 0x020f, 0x0210, 0x0214, 0x0215, 0x0216)
 .It
 Core Duo MacBook & MacBook Pro (IDs: 0x0217, 0x0218, 0x0219)
 .It
@@ -95,6 +115,14 @@ Core2 Duo MacBook3,1 (IDs: 0x0229, 0x022a, 0x022b)
 15 inch PowerBook (IDs: 0x020e, 0x020f, 0x0215)
 .It
 17 inch PowerBook (ID: 0x020d)
+.It
+Almost all recent Macbook-Pros and Airs (IDs: 0x0223, 0x0223, 0x0224, 0x0224,
+0x0225, 0x0225, 0x0230, 0x0230, 0x0231, 0x0231, 0x0232, 0x0232, 0x0236,
+0x0236, 0x0237, 0x0237, 0x0238, 0x0238, 0x023f, 0x023f, 0x0240, 0x0241,
+0x0242, 0x0243, 0x0244, 0x0245, 0x0246, 0x0247, 0x0249, 0x024a, 0x024b,
+0x024c, 0x024d, 0x024e, 0x0252, 0x0252, 0x0253, 0x0253, 0x0254, 0x0254,
+0x0259, 0x025a, 0x025b, 0x0262, 0x0262, 0x0263, 0x0264, 0x0290, 0x0291,
+0x0292)
 .El
 .Pp
 To discover the product\-id of a touchpad, search for 'Trackpad' in the
@@ -114,57 +142,6 @@ type device\-\-see
 .Xr moused 8
 for an explanation of these mouse
 types.
-.Xr moused 8
-can be configured to read touchpad data from
-.Pa /dev/atp0
-and pass it along to the
-.Xr sysmouse 4
-driver so that any process wanting to utilize mouse operation (such as
-an X server) may fetch it from
-.Pa /dev/sysmouse ;
-alternatively,
-.Pa /dev/atp0
-may be manipulated via
-.Xr read 2
-and
-.Xr ioctl 2
-calls to get mouse data directly.
-.Sh EXAMPLES
-To use a compatible Apple Trackpad as your console mouse:
-.Pp
-.Dl moused -p /dev/atp0 -t auto
-.Pp
-To launch
-.Xr moused 8
-automatically upon boot, add the following to
-.Pa /etc/rc.conf :
-.Pp
-.Dl moused_enable="YES"
-.Dl moused_type="auto"
-.Dl moused_port="/dev/atp0"
-.Pp
-If you want
-.Xr moused 8
-to also probe for external USB mice or other devices, then add the
-following to
-.Pa /etc/rc.conf :
-.Pp
-.Dl moused_nondefault_enable="YES"
-.Dl moused_ums0_enable="YES"
-.Dl moused_ums1_enable="YES"
-.Pp
-To be able to use the trackpad under X, change the "Pointer" section in
-.Nm xorg.conf
-to the following:
-.Pp
-.Dl Device "/dev/atp0"
-.Dl Protocol "Auto"
-.Pp
-Better still, if you want to be able to use the mouse in both virtual
-consoles as well as in X change it to:
-.Pp
-.Dl Device "/dev/sysmouse"
-.Dl Protocol "Auto"
 .Sh SEE ALSO
 .Xr sysmouse 4 ,
 .Xr usb 4 ,

@@ -117,7 +117,9 @@ typedef enum PathType
     ePathTypeHeaderDir,             // Find LLDB header file directory
     ePathTypePythonDir,             // Find Python modules (PYTHONPATH) directory
     ePathTypeLLDBSystemPlugins,     // System plug-ins directory
-    ePathTypeLLDBUserPlugins        // User plug-ins directory
+    ePathTypeLLDBUserPlugins,       // User plug-ins directory
+    ePathTypeLLDBTempSystemDir      // The LLDB temp directory for this system
+
 } PathType;
 
 
@@ -250,6 +252,15 @@ typedef enum MemoryModuleLoadLevel {
     eMemoryModuleLoadLevelComplete, // Load sections and all symbols
 } MemoryModuleLoadLevel;
     
+
+//----------------------------------------------------------------------
+// Result enums for when reading multiple lines from IOHandlers
+//----------------------------------------------------------------------
+enum class LineStatus {
+    Success,    // The line that was just edited if good and should be added to the lines
+    Error,      // There is an error with the current line and it needs to be re-edited before it can be accepted
+    Done        // Lines are complete
+};
 
 } // namespace lldb_private
 

@@ -4,4 +4,4 @@ true
 fun
 break
 if
-alias foo='bar '
+alias foo=bar

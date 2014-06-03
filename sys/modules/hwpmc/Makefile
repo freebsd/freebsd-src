@@ -29,7 +29,7 @@ SRCS+=	hwpmc_ia64.c
 .endif
 
 .if ${MACHINE_CPUARCH} == "powerpc"
-SRCS+=	hwpmc_powerpc.c hwpmc_mpc7xxx.c
+SRCS+=	hwpmc_powerpc.c hwpmc_mpc7xxx.c hwpmc_ppc970.c
 .endif
 
 .if ${MACHINE_CPUARCH} == "sparc64"

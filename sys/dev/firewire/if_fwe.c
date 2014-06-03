@@ -403,7 +403,7 @@ fwe_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 {
 	struct fwe_softc *fwe = ((struct fwe_eth_softc *)ifp->if_softc)->fwe;
 	struct ifstat *ifs = NULL;
-	int s, error, len;
+	int s, error;
 
 	switch (cmd) {
 		case SIOCSIFFLAGS:
@@ -434,12 +434,8 @@ fwe_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		case SIOCGIFSTATUS:
 			s = splimp();
 			ifs = (struct ifstat *)data;
-			len = strlen(ifs->ascii);
-			if (len < sizeof(ifs->ascii))
-				snprintf(ifs->ascii + len,
-					sizeof(ifs->ascii) - len,
-					"\tch %d dma %d\n",
-						fwe->stream_ch, fwe->dma_ch);
+			snprintf(ifs->ascii, sizeof(ifs->ascii),
+			    "\tch %d dma %d\n",	fwe->stream_ch, fwe->dma_ch);
 			splx(s);
 			break;
 		case SIOCSIFCAP:

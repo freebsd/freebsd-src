@@ -242,7 +242,7 @@ nd6_ns_input(struct mbuf *m, int off, int icmp6len)
 
 		/* Always use the default FIB. */
 #ifdef RADIX_MPATH
-		rtalloc_mpath_fib((struct route *)&ro, RTF_ANNOUNCE,
+		rtalloc_mpath_fib((struct route *)&ro, ntohl(taddr6.s6_addr32[3]),
 		    RT_DEFAULT_FIB);
 #else
 		in6_rtalloc(&ro, RT_DEFAULT_FIB);
@@ -723,9 +723,9 @@ nd6_na_input(struct mbuf *m, int off, int icmp6len)
 	 * If no neighbor cache entry is found, NA SHOULD silently be
 	 * discarded.
 	 */
-	IF_AFDATA_LOCK(ifp);
+	IF_AFDATA_RLOCK(ifp);
 	ln = nd6_lookup(&taddr6, LLE_EXCLUSIVE, ifp);
-	IF_AFDATA_UNLOCK(ifp);
+	IF_AFDATA_RUNLOCK(ifp);
 	if (ln == NULL) {
 		goto freeit;
 	}
@@ -1312,12 +1312,23 @@ nd6_dad_timer(struct dadq *dp)
 {
 	CURVNET_SET(dp->dad_vnet);
 	struct ifaddr *ifa = dp->dad_ifa;
+	struct ifnet *ifp = dp->dad_ifa->ifa_ifp;
 	struct in6_ifaddr *ia = (struct in6_ifaddr *)ifa;
 	char ip6buf[INET6_ADDRSTRLEN];
 
 	/* Sanity check */
 	if (ia == NULL) {
 		log(LOG_ERR, "nd6_dad_timer: called with null parameter\n");
+		goto done;
+	}
+	if (ND_IFINFO(ifp)->flags & ND6_IFF_IFDISABLED) {
+		/* Do not need DAD for ifdisabled interface. */
+		TAILQ_REMOVE(&V_dadq, (struct dadq *)dp, dad_list);
+		log(LOG_ERR, "nd6_dad_timer: cancel DAD on %s because of "
+		    "ND6_IFF_IFDISABLED.\n", ifp->if_xname);
+		free(dp, M_IP6NDP);
+		dp = NULL;
+		ifa_free(ifa);
 		goto done;
 	}
 	if (ia->ia6_flags & IN6_IFF_DUPLICATED) {
@@ -1384,9 +1395,12 @@ nd6_dad_timer(struct dadq *dp)
 		} else {
 			/*
 			 * We are done with DAD.  No NA came, no NS came.
-			 * No duplicate address found.
+			 * No duplicate address found.  Check IFDISABLED flag
+			 * again in case that it is changed between the
+			 * beginning of this function and here.
 			 */
-			ia->ia6_flags &= ~IN6_IFF_TENTATIVE;
+			if ((ND_IFINFO(ifp)->flags & ND6_IFF_IFDISABLED) == 0)
+				ia->ia6_flags &= ~IN6_IFF_TENTATIVE;
 
 			nd6log((LOG_DEBUG,
 			    "%s: DAD complete for %s - no duplicates found\n",

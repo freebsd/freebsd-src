@@ -5,8 +5,8 @@ arm/arm/bcopyinout.S		standard
 arm/arm/blockio.S		standard
 arm/arm/bootconfig.c		standard
 arm/arm/bus_space_asm_generic.S	standard
-arm/arm/busdma_machdep.c 	optional	cpu_arm9 | cpu_arm9e | cpu_fa526 | cpu_sa1100 | cpu_sa1110 | cpu_xscale_80219 | cpu_xscale_80321 | cpu_xscale_81342 | cpu_xscale_ixp425 | cpu_xscale_ixp435 | cpu_xscale_pxa2x0
-arm/arm/busdma_machdep-v6.c 	optional	cpu_arm1136 | cpu_arm1176 | cpu_cortexa | cpu_mv_pj4b
+arm/arm/busdma_machdep.c 	optional	cpu_arm9 | cpu_arm9e | cpu_fa526 | cpu_xscale_80219 | cpu_xscale_80321 | cpu_xscale_81342 | cpu_xscale_ixp425 | cpu_xscale_ixp435 | cpu_xscale_pxa2x0
+arm/arm/busdma_machdep-v6.c 	optional	cpu_arm1136 | cpu_arm1176 | cpu_cortexa | cpu_mv_pj4b | cpu_krait
 arm/arm/copystr.S		standard
 arm/arm/cpufunc.c		standard
 arm/arm/cpufunc_asm.S		standard
@@ -33,10 +33,13 @@ arm/arm/mem.c			optional	mem
 arm/arm/minidump_machdep.c	optional	mem
 arm/arm/mp_machdep.c		optional	smp
 arm/arm/nexus.c			standard
+arm/arm/physmem.c		standard
 arm/arm/pl190.c			optional	pl190
 arm/arm/pl310.c			optional	pl310
-arm/arm/pmap.c			optional	cpu_arm9 | cpu_arm9e | cpu_fa526 | cpu_sa1100 | cpu_sa1110 | cpu_xscale_80219 | cpu_xscale_80321 | cpu_xscale_81342 | cpu_xscale_ixp425 | cpu_xscale_ixp435 | cpu_xscale_pxa2x0
-arm/arm/pmap-v6.c		optional	cpu_arm1136 | cpu_arm1176 | cpu_cortexa | cpu_mv_pj4b
+arm/arm/platform.c		optional	platform
+arm/arm/platform_if.m		optional	platform
+arm/arm/pmap.c			optional	cpu_arm9 | cpu_arm9e | cpu_fa526 | cpu_xscale_80219 | cpu_xscale_80321 | cpu_xscale_81342 | cpu_xscale_ixp425 | cpu_xscale_ixp435 | cpu_xscale_pxa2x0
+arm/arm/pmap-v6.c		optional	cpu_arm1136 | cpu_arm1176 | cpu_cortexa | cpu_mv_pj4b | cpu_krait
 arm/arm/sc_machdep.c		optional	sc
 arm/arm/setcpsr.S		standard
 arm/arm/setstack.s		standard
@@ -49,7 +52,6 @@ arm/arm/sys_machdep.c		standard
 arm/arm/trap.c			standard
 arm/arm/uio_machdep.c		standard
 arm/arm/undefined.c		standard
-arm/arm/vectors.S		standard
 arm/arm/vm_machdep.c		standard
 arm/arm/vfp.c			standard
 board_id.h			standard				   \
@@ -61,6 +63,7 @@ cddl/compat/opensolaris/kern/opensolaris_atomic.c	optional zfs compile-with "${Z
 crypto/blowfish/bf_enc.c	optional	crypto | ipsec 
 crypto/des/des_enc.c		optional	crypto | ipsec | netsmb
 dev/fb/fb.c			optional	sc
+dev/fdt/fdt_arm_platform.c	optional	platform fdt
 dev/hwpmc/hwpmc_arm.c		optional	hwpmc
 dev/kbd/kbd.c			optional	sc | vt
 dev/syscons/scgfbrndr.c		optional	sc
@@ -88,6 +91,7 @@ libkern/divdi3.c		standard
 libkern/ffsl.c			standard
 libkern/fls.c			standard
 libkern/flsl.c			standard
+libkern/flsll.c			standard
 libkern/lshrdi3.c		standard
 libkern/moddi3.c		standard
 libkern/qdivrem.c		standard

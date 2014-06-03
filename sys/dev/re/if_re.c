@@ -656,6 +656,10 @@ re_set_rxmode(struct rl_softc *sc)
 	ifp = sc->rl_ifp;
 
 	rxfilt = RL_RXCFG_CONFIG | RL_RXCFG_RX_INDIV | RL_RXCFG_RX_BROAD;
+	if ((sc->rl_flags & RL_FLAG_EARLYOFF) != 0)
+		rxfilt |= RL_RXCFG_EARLYOFF;
+	else if ((sc->rl_flags & RL_FLAG_EARLYOFFV2) != 0)
+		rxfilt |= RL_RXCFG_EARLYOFFV2;
 
 	if (ifp->if_flags & (IFF_ALLMULTI | IFF_PROMISC)) {
 		if (ifp->if_flags & IFF_PROMISC)
@@ -1265,7 +1269,7 @@ re_attach(device_t dev)
 		msic = 0;
 	/* Prefer MSI-X to MSI. */
 	if (msixc > 0) {
-		msixc = 1;
+		msixc = RL_MSI_MESSAGES;
 		rid = PCIR_BAR(4);
 		sc->rl_res_pba = bus_alloc_resource_any(dev, SYS_RES_MEMORY,
 		    &rid, RF_ACTIVE);
@@ -1275,7 +1279,7 @@ re_attach(device_t dev)
 		}
 		if (sc->rl_res_pba != NULL &&
 		    pci_alloc_msix(dev, &msixc) == 0) {
-			if (msixc == 1) {
+			if (msixc == RL_MSI_MESSAGES) {
 				device_printf(dev, "Using %d MSI-X message\n",
 				    msixc);
 				sc->rl_flags |= RL_FLAG_MSIX;
@@ -1292,7 +1296,7 @@ re_attach(device_t dev)
 	}
 	/* Prefer MSI to INTx. */
 	if (msixc == 0 && msic > 0) {
-		msic = 1;
+		msic = RL_MSI_MESSAGES;
 		if (pci_alloc_msi(dev, &msic) == 0) {
 			if (msic == RL_MSI_MESSAGES) {
 				device_printf(dev, "Using %d MSI message\n",
@@ -1463,15 +1467,23 @@ re_attach(device_t dev)
 		    RL_FLAG_WOL_MANLINK;
 		break;
 	case RL_HWREV_8168E_VL:
-	case RL_HWREV_8168EP:
 	case RL_HWREV_8168F:
-	case RL_HWREV_8168G:
+		sc->rl_flags |= RL_FLAG_EARLYOFF;
+		/* FALLTHROUGH */
 	case RL_HWREV_8411:
-	case RL_HWREV_8411B:
 		sc->rl_flags |= RL_FLAG_PHYWAKE | RL_FLAG_PAR |
 		    RL_FLAG_DESCV2 | RL_FLAG_MACSTAT | RL_FLAG_CMDSTOP |
 		    RL_FLAG_AUTOPAD | RL_FLAG_JUMBOV2 |
 		    RL_FLAG_CMDSTOP_WAIT_TXQ | RL_FLAG_WOL_MANLINK;
+		break;
+	case RL_HWREV_8168EP:
+	case RL_HWREV_8168G:
+	case RL_HWREV_8411B:
+		sc->rl_flags |= RL_FLAG_PHYWAKE | RL_FLAG_PAR |
+		    RL_FLAG_DESCV2 | RL_FLAG_MACSTAT | RL_FLAG_CMDSTOP |
+		    RL_FLAG_AUTOPAD | RL_FLAG_JUMBOV2 |
+		    RL_FLAG_CMDSTOP_WAIT_TXQ | RL_FLAG_WOL_MANLINK |
+		    RL_FLAG_EARLYOFFV2 | RL_FLAG_RXDV_GATED;
 		break;
 	case RL_HWREV_8168GU:
 		if (pci_get_device(dev) == RT_DEVICEID_8101E) {
@@ -1482,7 +1494,8 @@ re_attach(device_t dev)
 
 		sc->rl_flags |= RL_FLAG_PHYWAKE | RL_FLAG_PAR |
 		    RL_FLAG_DESCV2 | RL_FLAG_MACSTAT | RL_FLAG_CMDSTOP |
-		    RL_FLAG_AUTOPAD | RL_FLAG_CMDSTOP_WAIT_TXQ;
+		    RL_FLAG_AUTOPAD | RL_FLAG_CMDSTOP_WAIT_TXQ |
+		    RL_FLAG_EARLYOFFV2 | RL_FLAG_RXDV_GATED;
 		break;
 	case RL_HWREV_8169_8110SB:
 	case RL_HWREV_8169_8110SBL:
@@ -1606,16 +1619,18 @@ re_attach(device_t dev)
 	ifp->if_start = re_start;
 	/*
 	 * RTL8168/8111C generates wrong IP checksummed frame if the
-	 * packet has IP options so disable TX IP checksum offloading.
+	 * packet has IP options so disable TX checksum offloading.
 	 */
 	if (sc->rl_hwrev->rl_rev == RL_HWREV_8168C ||
 	    sc->rl_hwrev->rl_rev == RL_HWREV_8168C_SPIN2 ||
-	    sc->rl_hwrev->rl_rev == RL_HWREV_8168CP)
-		ifp->if_hwassist = CSUM_TCP | CSUM_UDP;
-	else
+	    sc->rl_hwrev->rl_rev == RL_HWREV_8168CP) {
+		ifp->if_hwassist = 0;
+		ifp->if_capabilities = IFCAP_RXCSUM | IFCAP_TSO4;
+	} else {
 		ifp->if_hwassist = CSUM_IP | CSUM_TCP | CSUM_UDP;
+		ifp->if_capabilities = IFCAP_HWCSUM | IFCAP_TSO4;
+	}
 	ifp->if_hwassist |= CSUM_TSO;
-	ifp->if_capabilities = IFCAP_HWCSUM | IFCAP_TSO4;
 	ifp->if_capenable = ifp->if_capabilities;
 	ifp->if_init = re_init;
 	IFQ_SET_MAXLEN(&ifp->if_snd, RL_IFQ_MAXLEN);
@@ -3170,6 +3185,10 @@ re_init_locked(struct rl_softc *sc)
 	CSR_WRITE_4(sc, RL_TXLIST_ADDR_LO,
 	    RL_ADDR_LO(sc->rl_ldata.rl_tx_list_addr));
 
+	if ((sc->rl_flags & RL_FLAG_RXDV_GATED) != 0)
+		CSR_WRITE_4(sc, RL_MISC, CSR_READ_4(sc, RL_MISC) &
+		    ~0x00080000);
+
 	/*
 	 * Enable transmit and receive.
 	 */
@@ -3347,7 +3366,6 @@ re_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 	struct rl_softc		*sc = ifp->if_softc;
 	struct ifreq		*ifr = (struct ifreq *) data;
 	struct mii_data		*mii;
-	uint32_t		rev;
 	int			error = 0;
 
 	switch (command) {
@@ -3436,15 +3454,9 @@ re_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 		if ((mask & IFCAP_TXCSUM) != 0 &&
 		    (ifp->if_capabilities & IFCAP_TXCSUM) != 0) {
 			ifp->if_capenable ^= IFCAP_TXCSUM;
-			if ((ifp->if_capenable & IFCAP_TXCSUM) != 0) {
-				rev = sc->rl_hwrev->rl_rev;
-				if (rev == RL_HWREV_8168C ||
-				    rev == RL_HWREV_8168C_SPIN2 ||
-				    rev == RL_HWREV_8168CP)
-					ifp->if_hwassist |= CSUM_TCP | CSUM_UDP;
-				else
-					ifp->if_hwassist |= RE_CSUM_FEATURES;
-			} else
+			if ((ifp->if_capenable & IFCAP_TXCSUM) != 0)
+				ifp->if_hwassist |= RE_CSUM_FEATURES;
+			else
 				ifp->if_hwassist &= ~RE_CSUM_FEATURES;
 			reinit = 1;
 		}

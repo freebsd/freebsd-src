@@ -65,7 +65,7 @@ atexit()
 }
 
 DEBUG=
-# Allow duplice manifest entries when not file list is given because the
+# Allow duplicate manifest entries when not file list is given because the
 # FreeBSD METALOG still includes it.
 DUPFLAG=-D
 EXTRAS=
@@ -75,7 +75,7 @@ KEYDIR=
 KEYUSERS=
 PASSWD=
 
-while getopts "Bde:f:g:K:k:p:s:" opt; do
+while getopts "B:de:f:g:K:k:p:s:" opt; do
 	case "$opt" in
 	B)	BFLAG="-B ${OPTARG}" ;;
 	d)	DEBUG=1 ;;
@@ -160,7 +160,7 @@ if [ -n "${FILELIST}" ]; then
 		while [ -n "${path}" ]; do
 			echo ".${path}"
 			path="${path%/*}"
-		done 
+		done
 	done) | sort -u ${BSDROOT}/METALOG - | \
 	    awk '
 		!/ type=/ { file = $1 }
@@ -174,7 +174,7 @@ else
 		/ type=/ { if ($1 != file) {print} }' >> ${manifest}
 fi
 
-# For each extras file, add contents kyes relative to the directory the
+# For each extras file, add contents keys relative to the directory the
 # manifest lives in for each file line that does not have one.  Adjust
 # contents keys relative to ./ to be relative to the same directory.
 for eman in ${EXTRAS}; do
@@ -199,7 +199,7 @@ done
 
 # /etc/rcorder.start allows the startup order to be stable even if
 # not all startup scripts are installed.  In theory it should be
-# unnecessicary, but dependencies in rc.d appear to be under recorded.
+# unnecessary, but dependencies in rc.d appear to be under recorded.
 # This is a hack local to beri/cheribsd.
 #
 echo /etc/rc.d/FIRST > ${tmpdir}/rcorder.start

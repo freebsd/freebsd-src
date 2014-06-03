@@ -268,7 +268,7 @@ cf_set_method(device_t dev, const struct cf_level *level, int priority)
 	 * switching the main CPU.  XXXTODO: Need to think more about how to
 	 * handle having different CPUs at different frequencies.  
 	 */
-	if (mp_ncpus > 1 && !smp_active) {
+	if (mp_ncpus > 1 && !smp_started) {
 		device_printf(dev, "rejecting change, SMP not started yet\n");
 		error = ENXIO;
 		goto out;
@@ -418,7 +418,7 @@ cf_get_method(device_t dev, struct cf_level *level)
 	struct cf_setting *curr_set, set;
 	struct pcpu *pc;
 	device_t *devs;
-	int count, error, i, n, numdevs;
+	int bdiff, count, diff, error, i, n, numdevs;
 	uint64_t rate;
 
 	sc = device_get_softc(dev);
@@ -494,14 +494,15 @@ cf_get_method(device_t dev, struct cf_level *level)
 	}
 	cpu_est_clockrate(pc->pc_cpuid, &rate);
 	rate /= 1000000;
+	bdiff = 1 << 30;
 	for (i = 0; i < count; i++) {
-		if (CPUFREQ_CMP(rate, levels[i].total_set.freq)) {
+		diff = abs(levels[i].total_set.freq - rate);
+		if (diff < bdiff) {
+			bdiff = diff;
 			sc->curr_level = levels[i];
-			CF_DEBUG("get estimated freq %d\n", curr_set->freq);
-			goto out;
 		}
 	}
-	error = ENXIO;
+	CF_DEBUG("get estimated freq %d\n", curr_set->freq);
 
 out:
 	if (error == 0)
@@ -1037,6 +1038,7 @@ cpufreq_unregister(device_t dev)
 	if (cf_dev == NULL) {
 		device_printf(dev,
 	"warning: cpufreq_unregister called with no cpufreq device active\n");
+		free(devs, M_TEMP);
 		return (0);
 	}
 	cfcount = 0;

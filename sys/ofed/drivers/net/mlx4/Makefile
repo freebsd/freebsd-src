@@ -2,7 +2,7 @@
 #.PATH:  ${.CURDIR}/../../ofed/drivers/net/mlx4:${.CURDIR}/../../ofed/include/linux
 .PATH:  ${.CURDIR}/../../../../../include/linux
 
-.include <bsd.own.mk>
+.include <src.opts.mk>
 
 
 KMOD    = mlx4
@@ -30,5 +30,5 @@ opt_inet6.h:
 
 .include <bsd.kmod.mk>
 
-CFLAGS+= -Wno-cast-qual -Wno-pointer-arith -fms-extensions
+CFLAGS+= -Wno-cast-qual -Wno-pointer-arith ${GCC_MS_EXTENSIONS}
 

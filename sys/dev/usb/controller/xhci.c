@@ -386,8 +386,8 @@ xhci_start_controller(struct xhci_softc *sc)
 
 	for (i = 0; i != 100; i++) {
 		usb_pause_mtx(NULL, hz / 100);
-		temp = XREAD4(sc, oper, XHCI_USBCMD) &
-		    (XHCI_CMD_HCRST | XHCI_STS_CNR);
+		temp = (XREAD4(sc, oper, XHCI_USBCMD) & XHCI_CMD_HCRST) |
+		    (XREAD4(sc, oper, XHCI_USBSTS) & XHCI_STS_CNR);
 		if (!temp)
 			break;
 	}
@@ -495,8 +495,12 @@ xhci_start_controller(struct xhci_softc *sc)
 
 	XWRITE4(sc, runt, XHCI_ERSTSZ(0), XHCI_ERSTS_SET(temp));
 
+	/* Check if we should use the default IMOD value */
+	if (sc->sc_imod_default == 0)
+		sc->sc_imod_default = XHCI_IMOD_DEFAULT;
+
 	/* Setup interrupt rate */
-	XWRITE4(sc, runt, XHCI_IMOD(0), XHCI_IMOD_DEFAULT);
+	XWRITE4(sc, runt, XHCI_IMOD(0), sc->sc_imod_default);
 
 	usbd_get_page(&sc->sc_hw.root_pc, 0, &buf_res);
 
@@ -1218,8 +1222,20 @@ retry:
 		 */
 		if (timeout == 0 &&
 		    xhci_reset_command_queue_locked(sc) == 0) {
-			timeout = 1;
-			goto retry;
+			temp = le32toh(trb->dwTrb3);
+
+			/*
+			 * Avoid infinite XHCI reset loops if the set
+			 * address command fails to respond due to a
+			 * non-enumerating device:
+			 */
+			if (XHCI_TRB_3_TYPE_GET(temp) == XHCI_TRB_TYPE_ADDRESS_DEVICE &&
+			    (temp & XHCI_TRB_3_BSR_BIT) == 0) {
+				DPRINTF("Set address timeout\n");
+			} else {
+				timeout = 1;
+				goto retry;
+			}
 		} else {
 			DPRINTF("Controller reset!\n");
 			usb_bus_reset_async_locked(&sc->sc_bus);
@@ -1578,23 +1594,26 @@ void
 xhci_interrupt(struct xhci_softc *sc)
 {
 	uint32_t status;
+	uint32_t temp;
 
 	USB_BUS_LOCK(&sc->sc_bus);
 
 	status = XREAD4(sc, oper, XHCI_USBSTS);
-	if (status == 0)
-		goto done;
 
-	/* acknowledge interrupts */
-
-	XWRITE4(sc, oper, XHCI_USBSTS, status);
-
-	DPRINTFN(16, "real interrupt (status=0x%08x)\n", status);
- 
-	if (status & XHCI_STS_EINT) {
-		/* check for event(s) */
-		xhci_interrupt_poll(sc);
+	/* acknowledge interrupts, if any */
+	if (status != 0) {
+		XWRITE4(sc, oper, XHCI_USBSTS, status);
+		DPRINTFN(16, "real interrupt (status=0x%08x)\n", status);
 	}
+
+	temp = XREAD4(sc, runt, XHCI_IMAN(0));
+
+	/* force clearing of pending interrupts */
+	if (temp & XHCI_IMAN_INTR_PEND)
+		XWRITE4(sc, runt, XHCI_IMAN(0), temp);
+ 
+	/* check for event(s) */
+	xhci_interrupt_poll(sc);
 
 	if (status & (XHCI_STS_PCD | XHCI_STS_HCH |
 	    XHCI_STS_HSE | XHCI_STS_HCE)) {
@@ -1618,7 +1637,6 @@ xhci_interrupt(struct xhci_softc *sc)
 			   __FUNCTION__);
 		}
 	}
-done:
 	USB_BUS_UNLOCK(&sc->sc_bus);
 }
 
@@ -1757,7 +1775,8 @@ restart:
 			/* check wLength */
 			if (td->td_trb[0].qwTrb0 &
 			   htole64(XHCI_TRB_0_WLENGTH_MASK)) {
-				if (td->td_trb[0].qwTrb0 & htole64(1))
+				if (td->td_trb[0].qwTrb0 &
+				    htole64(XHCI_TRB_0_DIR_IN_MASK))
 					dword |= XHCI_TRB_3_TRT_IN;
 				else
 					dword |= XHCI_TRB_3_TRT_OUT;
@@ -1830,31 +1849,25 @@ restart:
 					    XHCI_TRB_3_ISO_SIA_BIT;
 				}
 				if (temp->direction == UE_DIR_IN)
-					dword |= XHCI_TRB_3_DIR_IN | XHCI_TRB_3_ISP_BIT;
+					dword |= XHCI_TRB_3_ISP_BIT;
 				break;
 			case XHCI_TRB_TYPE_DATA_STAGE:
 				dword = XHCI_TRB_3_CHAIN_BIT | XHCI_TRB_3_CYCLE_BIT |
-				    XHCI_TRB_3_TYPE_SET(XHCI_TRB_TYPE_DATA_STAGE) |
-				    XHCI_TRB_3_TBC_SET(temp->tbc) |
-				    XHCI_TRB_3_TLBPC_SET(temp->tlbpc);
+				    XHCI_TRB_3_TYPE_SET(XHCI_TRB_TYPE_DATA_STAGE);
 				if (temp->direction == UE_DIR_IN)
 					dword |= XHCI_TRB_3_DIR_IN | XHCI_TRB_3_ISP_BIT;
 				break;
 			case XHCI_TRB_TYPE_STATUS_STAGE:
 				dword = XHCI_TRB_3_CHAIN_BIT | XHCI_TRB_3_CYCLE_BIT |
-				    XHCI_TRB_3_TYPE_SET(XHCI_TRB_TYPE_STATUS_STAGE) |
-				    XHCI_TRB_3_TBC_SET(temp->tbc) |
-				    XHCI_TRB_3_TLBPC_SET(temp->tlbpc);
+				    XHCI_TRB_3_TYPE_SET(XHCI_TRB_TYPE_STATUS_STAGE);
 				if (temp->direction == UE_DIR_IN)
 					dword |= XHCI_TRB_3_DIR_IN;
 				break;
 			default:	/* XHCI_TRB_TYPE_NORMAL */
 				dword = XHCI_TRB_3_CHAIN_BIT | XHCI_TRB_3_CYCLE_BIT |
-				    XHCI_TRB_3_TYPE_SET(XHCI_TRB_TYPE_NORMAL) |
-				    XHCI_TRB_3_TBC_SET(temp->tbc) |
-				    XHCI_TRB_3_TLBPC_SET(temp->tlbpc);
+				    XHCI_TRB_3_TYPE_SET(XHCI_TRB_TYPE_NORMAL);
 				if (temp->direction == UE_DIR_IN)
-					dword |= XHCI_TRB_3_DIR_IN | XHCI_TRB_3_ISP_BIT;
+					dword |= XHCI_TRB_3_ISP_BIT;
 				break;
 			}
 			td->td_trb[x].dwTrb3 = htole32(dword);

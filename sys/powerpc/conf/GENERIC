@@ -30,7 +30,7 @@ makeoptions	WITH_CTF=1
 options 	POWERMAC		#NewWorld Apple PowerMacs
 options 	PSIM			#GDB PSIM ppc simulator
 options 	MAMBO			#IBM Mambo Full System Simulator
-options		PSERIES			#PAPR-compliant systems
+options 	PSERIES			#PAPR-compliant systems
 
 options 	SCHED_ULE		#ULE scheduler
 options 	PREEMPTION		#Enable kernel thread preemption
@@ -121,17 +121,19 @@ device		sa		# Sequential Access (tape etc)
 device		cd		# CD
 device		pass		# Passthrough device (direct ATA/SCSI access)
 
-# syscons is the default console driver, resembling an SCO console
-device		sc
+# vt is the default console driver, resembling an SCO console
+device		vt		# Generic console driver (pulls in OF FB)
 device		kbdmux
-options 	SC_OFWFB	# OFW frame buffer
-options 	SC_DFLT_FONT	# compile font in
-makeoptions	SC_DFLT_FONT=cp437
 
 # Serial (COM) ports
 device		scc
 device		uart
 device		uart_z8530
+
+# FireWire support
+device		firewire	# FireWire bus code
+device		sbp		# SCSI over FireWire (Requires scbus and da)
+device		fwe		# Ethernet over FireWire (non-standard!)
 
 # PCI Ethernet NICs that use the common MII bus controller code.
 device		miibus		# MII bus support
@@ -180,13 +182,14 @@ device		cue		# CATC USB Ethernet
 device		kue		# Kawasaki LSI USB Ethernet
 
 # Wireless NIC cards
-options		IEEE80211_SUPPORT_MESH
-options		AH_SUPPORT_AR5416
+options 	IEEE80211_SUPPORT_MESH
+options 	AH_SUPPORT_AR5416
 
 # Misc
 device		iicbus		# I2C bus code
 device		kiic		# Keywest I2C
 device		ad7417		# PowerMac7,2 temperature sensor
+device		adt746x		# PowerBook5,8 temperature sensor
 device		ds1631		# PowerMac11,2 temperature sensor
 device		ds1775		# PowerMac7,2 temperature sensor
 device		fcu		# Apple Fan Control Unit

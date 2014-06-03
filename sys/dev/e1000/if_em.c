@@ -4352,7 +4352,7 @@ em_initialize_receive_unit(struct adapter *adapter)
 		 * preserve the rx buffers passed to userspace.
 		 */
 		if (ifp->if_capenable & IFCAP_NETMAP)
-			rdt -= NA(adapter->ifp)->rx_rings[i].nr_hwavail;
+			rdt -= nm_kr_rxspace(&NA(adapter->ifp)->rx_rings[i]);
 #endif /* DEV_NETMAP */
 		E1000_WRITE_REG(hw, E1000_RDT(i), rdt);
 	}

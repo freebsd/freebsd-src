@@ -51,7 +51,9 @@ __FBSDID("$FreeBSD$");
 #include "opt_pmap.h"
 
 #include <sys/param.h>
+#include <sys/efi.h>
 #include <sys/kernel.h>
+#include <sys/ktr.h>
 #include <sys/lock.h>
 #include <sys/mman.h>
 #include <sys/mutex.h>
@@ -70,7 +72,6 @@ __FBSDID("$FreeBSD$");
 #include <vm/uma.h>
 
 #include <machine/bootinfo.h>
-#include <machine/efi.h>
 #include <machine/md_var.h>
 #include <machine/pal.h>
 
@@ -484,6 +485,8 @@ void
 pmap_page_init(vm_page_t m)
 {
 
+	CTR2(KTR_PMAP, "%s(%p)", __func__, m);
+
 	TAILQ_INIT(&m->md.pv_list);
 	m->md.memattr = VM_MEMATTR_DEFAULT;
 }
@@ -496,6 +499,8 @@ pmap_page_init(vm_page_t m)
 void
 pmap_init(void)
 {
+
+	CTR1(KTR_PMAP, "%s()", __func__);
 
 	ptezone = uma_zcreate("PT ENTRY", sizeof (struct ia64_lpte), 
 	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_VM|UMA_ZONE_NOFREE);
@@ -604,21 +609,8 @@ pmap_free_rid(uint32_t rid)
  * Page table page management routines.....
  ***************************************************/
 
-void
-pmap_pinit0(struct pmap *pmap)
-{
-
-	PMAP_LOCK_INIT(pmap);
-	/* kernel_pmap is the same as any other pmap. */
-	pmap_pinit(pmap);
-}
-
-/*
- * Initialize a preallocated and zeroed pmap structure,
- * such as one in a vmspace structure.
- */
-int
-pmap_pinit(struct pmap *pmap)
+static void
+pmap_pinit_common(pmap_t pmap)
 {
 	int i;
 
@@ -626,6 +618,29 @@ pmap_pinit(struct pmap *pmap)
 		pmap->pm_rid[i] = pmap_allocate_rid();
 	TAILQ_INIT(&pmap->pm_pvchunk);
 	bzero(&pmap->pm_stats, sizeof pmap->pm_stats);
+}
+
+void
+pmap_pinit0(pmap_t pmap)
+{
+
+	CTR2(KTR_PMAP, "%s(%p)", __func__, pmap);
+
+	PMAP_LOCK_INIT(pmap);
+	pmap_pinit_common(pmap);
+}
+
+/*
+ * Initialize a preallocated and zeroed pmap structure,
+ * such as one in a vmspace structure.
+ */
+int
+pmap_pinit(pmap_t pmap)
+{
+
+	CTR2(KTR_PMAP, "%s(%p)", __func__, pmap);
+
+	pmap_pinit_common(pmap);
 	return (1);
 }
 
@@ -643,6 +658,8 @@ pmap_release(pmap_t pmap)
 {
 	int i;
 
+	CTR2(KTR_PMAP, "%s(%p)", __func__, pmap);
+
 	for (i = 0; i < IA64_VM_MINKERN_REGION; i++)
 		if (pmap->pm_rid[i])
 			pmap_free_rid(pmap->pm_rid[i]);
@@ -657,6 +674,8 @@ pmap_growkernel(vm_offset_t addr)
 	struct ia64_lpte **dir1;
 	struct ia64_lpte *leaf;
 	vm_page_t nkpg;
+
+	CTR2(KTR_PMAP, "%s(%#x)", __func__, addr);
 
 	while (kernel_vm_end <= addr) {
 		if (nkpt == PAGE_SIZE/8 + PAGE_SIZE*PAGE_SIZE/64)
@@ -1152,6 +1171,8 @@ pmap_extract(pmap_t pmap, vm_offset_t va)
 	pmap_t oldpmap;
 	vm_paddr_t pa;
 
+	CTR3(KTR_PMAP, "%s(%p, %#x)", __func__, pmap, va);
+
 	pa = 0;
 	PMAP_LOCK(pmap);
 	oldpmap = pmap_switch(pmap);
@@ -1177,6 +1198,8 @@ pmap_extract_and_hold(pmap_t pmap, vm_offset_t va, vm_prot_t prot)
 	pmap_t oldpmap;
 	vm_page_t m;
 	vm_paddr_t pa;
+
+	CTR4(KTR_PMAP, "%s(%p, %#x, %#x)", __func__, pmap, va, prot);
 
 	pa = 0;
 	m = NULL;
@@ -1303,6 +1326,8 @@ pmap_set_pte(struct ia64_lpte *pte, vm_offset_t va, vm_offset_t pa,
 
 	pte->itir = PAGE_SHIFT << 2;
 
+	ia64_mf();
+
 	pte->tag = ia64_ttag(va);
 }
 
@@ -1321,8 +1346,8 @@ pmap_remove_pte(pmap_t pmap, struct ia64_lpte *pte, vm_offset_t va,
 	 * First remove from the VHPT.
 	 */
 	error = pmap_remove_vhpt(va);
-	if (error)
-		return (error);
+	KASSERT(error == 0, ("%s: pmap_remove_vhpt returned %d",
+	    __func__, error));
 
 	pmap_invalidate_page(va);
 
@@ -1356,6 +1381,8 @@ pmap_kextract(vm_offset_t va)
 	uint64_t *pbvm_pgtbl;
 	vm_paddr_t pa;
 	u_int idx;
+
+	CTR2(KTR_PMAP, "%s(%#x)", __func__, va);
 
 	KASSERT(va >= VM_MAXUSER_ADDRESS, ("Must be kernel VA"));
 
@@ -1417,6 +1444,8 @@ pmap_qenter(vm_offset_t va, vm_page_t *m, int count)
 	struct ia64_lpte *pte;
 	int i;
 
+	CTR4(KTR_PMAP, "%s(%#x, %p, %d)", __func__, va, m, count);
+
 	for (i = 0; i < count; i++) {
 		pte = pmap_find_kpte(va);
 		if (pmap_present(pte))
@@ -1440,6 +1469,8 @@ pmap_qremove(vm_offset_t va, int count)
 	struct ia64_lpte *pte;
 	int i;
 
+	CTR3(KTR_PMAP, "%s(%#x, %d)", __func__, va, count);
+
 	for (i = 0; i < count; i++) {
 		pte = pmap_find_kpte(va);
 		if (pmap_present(pte)) {
@@ -1456,9 +1487,11 @@ pmap_qremove(vm_offset_t va, int count)
  * to not have the PTE reflect that, nor update statistics.
  */
 void 
-pmap_kenter(vm_offset_t va, vm_offset_t pa)
+pmap_kenter(vm_offset_t va, vm_paddr_t pa)
 {
 	struct ia64_lpte *pte;
+
+	CTR3(KTR_PMAP, "%s(%#x, %#x)", __func__, va, pa);
 
 	pte = pmap_find_kpte(va);
 	if (pmap_present(pte))
@@ -1477,6 +1510,8 @@ void
 pmap_kremove(vm_offset_t va)
 {
 	struct ia64_lpte *pte;
+
+	CTR2(KTR_PMAP, "%s(%#x)", __func__, va);
 
 	pte = pmap_find_kpte(va);
 	if (pmap_present(pte)) {
@@ -1501,6 +1536,10 @@ pmap_kremove(vm_offset_t va)
 vm_offset_t
 pmap_map(vm_offset_t *virt, vm_offset_t start, vm_offset_t end, int prot)
 {
+
+	CTR5(KTR_PMAP, "%s(%p, %#x, %#x, %#x)", __func__, virt, start, end,
+	    prot);
+
 	return IA64_PHYS_TO_RR7(start);
 }
 
@@ -1519,6 +1558,8 @@ pmap_remove(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 	pmap_t oldpmap;
 	vm_offset_t va;
 	struct ia64_lpte *pte;
+
+	CTR4(KTR_PMAP, "%s(%p, %#x, %#x)", __func__, pmap, sva, eva);
 
 	/*
 	 * Perform an unsynchronized read.  This is, however, safe.
@@ -1551,12 +1592,13 @@ pmap_remove(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
  *		inefficient because they iteratively called
  *		pmap_remove (slow...)
  */
-
 void
 pmap_remove_all(vm_page_t m)
 {
 	pmap_t oldpmap;
 	pv_entry_t pv;
+
+	CTR2(KTR_PMAP, "%s(%p)", __func__, m);
 
 	KASSERT((m->oflags & VPO_UNMANAGED) == 0,
 	    ("pmap_remove_all: page %p is not managed", m));
@@ -1589,6 +1631,9 @@ pmap_protect(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
 {
 	pmap_t oldpmap;
 	struct ia64_lpte *pte;
+
+	CTR5(KTR_PMAP, "%s(%p, %#x, %#x, %#x)", __func__, pmap, sva, eva,
+	    prot);
 
 	if ((prot & VM_PROT_READ) == VM_PROT_NONE) {
 		pmap_remove(pmap, sva, eva);
@@ -1655,6 +1700,9 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_prot_t access, vm_page_t m,
 	struct ia64_lpte origpte;
 	struct ia64_lpte *pte;
 	boolean_t icache_inval, managed;
+
+	CTR6(KTR_PMAP, "pmap_enter(%p, %#x, %#x, %p, %#x, %u)", pmap, va,
+	    access, m, prot, wired);
 
 	rw_wlock(&pvh_global_lock);
 	PMAP_LOCK(pmap);
@@ -1787,6 +1835,9 @@ pmap_enter_object(pmap_t pmap, vm_offset_t start, vm_offset_t end,
 	vm_page_t m;
 	vm_pindex_t diff, psize;
 
+	CTR6(KTR_PMAP, "%s(%p, %#x, %#x, %p, %#x)", __func__, pmap, start,
+	    end, m_start, prot);
+
 	VM_OBJECT_ASSERT_LOCKED(m_start->object);
 
 	psize = atop(end - start);
@@ -1811,11 +1862,12 @@ pmap_enter_object(pmap_t pmap, vm_offset_t start, vm_offset_t end,
  * 4. No page table pages.
  * but is *MUCH* faster than pmap_enter...
  */
-
 void
 pmap_enter_quick(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot)
 {
 	pmap_t oldpmap;
+
+	CTR5(KTR_PMAP, "%s(%p, %#x, %p, %#x)", __func__, pmap, va, m, prot);
 
 	rw_wlock(&pvh_global_lock);
 	PMAP_LOCK(pmap);
@@ -1874,10 +1926,12 @@ pmap_enter_quick_locked(pmap_t pmap, vm_offset_t va, vm_page_t m,
  * faults on process startup and immediately after an mmap.
  */
 void
-pmap_object_init_pt(pmap_t pmap, vm_offset_t addr,
-		    vm_object_t object, vm_pindex_t pindex,
-		    vm_size_t size)
+pmap_object_init_pt(pmap_t pmap, vm_offset_t addr, vm_object_t object,
+    vm_pindex_t pindex, vm_size_t size)
 {
+
+	CTR6(KTR_PMAP, "%s(%p, %#x, %p, %u, %#x)", __func__, pmap, addr,
+	    object, pindex, size);
 
 	VM_OBJECT_ASSERT_WLOCKED(object);
 	KASSERT(object->type == OBJT_DEVICE || object->type == OBJT_SG,
@@ -1892,13 +1946,12 @@ pmap_object_init_pt(pmap_t pmap, vm_offset_t addr,
  *			The mapping must already exist in the pmap.
  */
 void
-pmap_change_wiring(pmap, va, wired)
-	register pmap_t pmap;
-	vm_offset_t va;
-	boolean_t wired;
+pmap_change_wiring(pmap_t pmap, vm_offset_t va, boolean_t wired)
 {
 	pmap_t oldpmap;
 	struct ia64_lpte *pte;
+
+	CTR4(KTR_PMAP, "%s(%p, %#x, %u)", __func__, pmap, va, wired);
 
 	PMAP_LOCK(pmap);
 	oldpmap = pmap_switch(pmap);
@@ -1917,8 +1970,6 @@ pmap_change_wiring(pmap, va, wired)
 	PMAP_UNLOCK(pmap);
 }
 
-
-
 /*
  *	Copy the range specified by src_addr/len
  *	from the source map to the range dst_addr/len
@@ -1926,29 +1977,30 @@ pmap_change_wiring(pmap, va, wired)
  *
  *	This routine is only advisory and need not do anything.
  */
-
 void
-pmap_copy(pmap_t dst_pmap, pmap_t src_pmap, vm_offset_t dst_addr, vm_size_t len,
-	  vm_offset_t src_addr)
+pmap_copy(pmap_t dst_pmap, pmap_t src_pmap, vm_offset_t dst_va, vm_size_t len,
+    vm_offset_t src_va)
 {
-}	
 
+	CTR6(KTR_PMAP, "%s(%p, %p, %#x, %#x, %#x)", __func__, dst_pmap,
+	    src_pmap, dst_va, len, src_va);
+}
 
 /*
  *	pmap_zero_page zeros the specified hardware page by
  *	mapping it into virtual memory and using bzero to clear
  *	its contents.
  */
-
 void
 pmap_zero_page(vm_page_t m)
 {
 	void *p;
 
+	CTR2(KTR_PMAP, "%s(%p)", __func__, m);
+
 	p = (void *)pmap_page_to_va(m);
 	bzero(p, PAGE_SIZE);
 }
-
 
 /*
  *	pmap_zero_page_area zeros the specified hardware page by
@@ -1957,32 +2009,32 @@ pmap_zero_page(vm_page_t m)
  *
  *	off and size must reside within a single page.
  */
-
 void
 pmap_zero_page_area(vm_page_t m, int off, int size)
 {
 	char *p;
 
+	CTR4(KTR_PMAP, "%s(%p, %d, %d)", __func__, m, off, size);
+
 	p = (void *)pmap_page_to_va(m);
 	bzero(p + off, size);
 }
-
 
 /*
  *	pmap_zero_page_idle zeros the specified hardware page by
  *	mapping it into virtual memory and using bzero to clear
  *	its contents.  This is for the vm_idlezero process.
  */
-
 void
 pmap_zero_page_idle(vm_page_t m)
 {
 	void *p;
 
+	CTR2(KTR_PMAP, "%s(%p)", __func__, m);
+
 	p = (void *)pmap_page_to_va(m);
 	bzero(p, PAGE_SIZE);
 }
-
 
 /*
  *	pmap_copy_page copies the specified (machine independent)
@@ -1995,12 +2047,12 @@ pmap_copy_page(vm_page_t msrc, vm_page_t mdst)
 {
 	void *dst, *src;
 
+	CTR3(KTR_PMAP, "%s(%p, %p)", __func__, msrc, mdst);
+
 	src = (void *)pmap_page_to_va(msrc);
 	dst = (void *)pmap_page_to_va(mdst);
 	bcopy(src, dst, PAGE_SIZE);
 }
-
-int unmapped_buf_allowed;
 
 void
 pmap_copy_pages(vm_page_t ma[], vm_offset_t a_offset, vm_page_t mb[],
@@ -2009,6 +2061,9 @@ pmap_copy_pages(vm_page_t ma[], vm_offset_t a_offset, vm_page_t mb[],
 	void *a_cp, *b_cp;
 	vm_offset_t a_pg_offset, b_pg_offset;
 	int cnt;
+
+	CTR6(KTR_PMAP, "%s(%p, %#x, %p, %#x, %#x)", __func__, ma,
+	    a_offset, mb, b_offset, xfersize);
 
 	while (xfersize > 0) {
 		a_pg_offset = a_offset & PAGE_MASK;
@@ -2040,6 +2095,8 @@ pmap_page_exists_quick(pmap_t pmap, vm_page_t m)
 	int loops = 0;
 	boolean_t rv;
 
+	CTR3(KTR_PMAP, "%s(%p, %p)", __func__, pmap, m);
+
 	KASSERT((m->oflags & VPO_UNMANAGED) == 0,
 	    ("pmap_page_exists_quick: page %p is not managed", m));
 	rv = FALSE;
@@ -2070,6 +2127,8 @@ pmap_page_wired_mappings(vm_page_t m)
 	pmap_t oldpmap, pmap;
 	pv_entry_t pv;
 	int count;
+
+	CTR2(KTR_PMAP, "%s(%p)", __func__, m);
 
 	count = 0;
 	if ((m->oflags & VPO_UNMANAGED) != 0)
@@ -2109,6 +2168,8 @@ pmap_remove_pages(pmap_t pmap)
 	vm_page_t m;
 	u_long inuse, bitmask;
 	int allfree, bit, field, idx;
+
+	CTR2(KTR_PMAP, "%s(%p)", __func__, pmap);
 
 	rw_wlock(&pvh_global_lock);
 	PMAP_LOCK(pmap);
@@ -2177,6 +2238,8 @@ pmap_ts_referenced(vm_page_t m)
 	pv_entry_t pv;
 	int count = 0;
 
+	CTR2(KTR_PMAP, "%s(%p)", __func__, m);
+
 	KASSERT((m->oflags & VPO_UNMANAGED) == 0,
 	    ("pmap_ts_referenced: page %p is not managed", m));
 	rw_wlock(&pvh_global_lock);
@@ -2211,6 +2274,8 @@ pmap_is_modified(vm_page_t m)
 	pmap_t oldpmap, pmap;
 	pv_entry_t pv;
 	boolean_t rv;
+
+	CTR2(KTR_PMAP, "%s(%p)", __func__, m);
 
 	KASSERT((m->oflags & VPO_UNMANAGED) == 0,
 	    ("pmap_is_modified: page %p is not managed", m));
@@ -2252,6 +2317,8 @@ pmap_is_prefaultable(pmap_t pmap, vm_offset_t addr)
 {
 	struct ia64_lpte *pte;
 
+	CTR3(KTR_PMAP, "%s(%p, %#x)", __func__, pmap, addr);
+
 	pte = pmap_find_vhpt(addr);
 	if (pte != NULL && pmap_present(pte))
 		return (FALSE);
@@ -2271,6 +2338,8 @@ pmap_is_referenced(vm_page_t m)
 	pmap_t oldpmap, pmap;
 	pv_entry_t pv;
 	boolean_t rv;
+
+	CTR2(KTR_PMAP, "%s(%p)", __func__, m);
 
 	KASSERT((m->oflags & VPO_UNMANAGED) == 0,
 	    ("pmap_is_referenced: page %p is not managed", m));
@@ -2303,6 +2372,9 @@ pmap_advise(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, int advice)
 	struct ia64_lpte *pte;
 	pmap_t oldpmap;
 	vm_page_t m;
+
+	CTR5(KTR_PMAP, "%s(%p, %#x, %#x, %d)", __func__, pmap, sva, eva,
+	    advice);
 
 	PMAP_LOCK(pmap);
 	oldpmap = pmap_switch(pmap);
@@ -2346,6 +2418,8 @@ pmap_clear_modify(vm_page_t m)
 	pmap_t oldpmap, pmap;
 	pv_entry_t pv;
 
+	CTR2(KTR_PMAP, "%s(%p)", __func__, m);
+
 	KASSERT((m->oflags & VPO_UNMANAGED) == 0,
 	    ("pmap_clear_modify: page %p is not managed", m));
 	VM_OBJECT_ASSERT_WLOCKED(m->object);
@@ -2387,6 +2461,8 @@ pmap_remove_write(vm_page_t m)
 	pv_entry_t pv;
 	vm_prot_t prot;
 
+	CTR2(KTR_PMAP, "%s(%p)", __func__, m);
+
 	KASSERT((m->oflags & VPO_UNMANAGED) == 0,
 	    ("pmap_remove_write: page %p is not managed", m));
 
@@ -2423,20 +2499,13 @@ pmap_remove_write(vm_page_t m)
 	rw_wunlock(&pvh_global_lock);
 }
 
-/*
- * Map a set of physical memory pages into the kernel virtual
- * address space. Return a pointer to where it is mapped. This
- * routine is intended to be used for mapping device memory,
- * NOT real memory.
- */
-void *
-pmap_mapdev(vm_paddr_t pa, vm_size_t sz)
+vm_offset_t
+pmap_mapdev_priv(vm_paddr_t pa, vm_size_t sz, vm_memattr_t attr)
 {
-	static void *last_va = NULL;
-	static vm_paddr_t last_pa = 0;
+	static vm_offset_t last_va = 0;
+	static vm_paddr_t last_pa = ~0UL;
 	static vm_size_t last_sz = 0;
 	struct efi_md *md;
-	vm_offset_t va;
 
 	if (pa == last_pa && sz == last_sz)
 		return (last_va);
@@ -2445,30 +2514,47 @@ pmap_mapdev(vm_paddr_t pa, vm_size_t sz)
 	if (md == NULL) {
 		printf("%s: [%#lx..%#lx] not covered by memory descriptor\n",
 		    __func__, pa, pa + sz - 1);
-		return ((void *)IA64_PHYS_TO_RR6(pa));
+		return (IA64_PHYS_TO_RR6(pa));
 	}
 
 	if (md->md_type == EFI_MD_TYPE_FREE) {
 		printf("%s: [%#lx..%#lx] is in DRAM\n", __func__, pa,
 		    pa + sz - 1);
-                return (NULL);
+		return (0);
 	}
 
-	va = (md->md_attr & EFI_MD_ATTR_WB) ? IA64_PHYS_TO_RR7(pa) :
+	last_va = (md->md_attr & EFI_MD_ATTR_WB) ? IA64_PHYS_TO_RR7(pa) :
 	    IA64_PHYS_TO_RR6(pa);
-
-	last_va = (void *)va;
 	last_pa = pa;
 	last_sz = sz;
 	return (last_va);
 }
 
 /*
- * 'Unmap' a range mapped by pmap_mapdev().
+ * Map a set of physical memory pages into the kernel virtual
+ * address space. Return a pointer to where it is mapped. This
+ * routine is intended to be used for mapping device memory,
+ * NOT real memory.
+ */
+void *
+pmap_mapdev_attr(vm_paddr_t pa, vm_size_t sz, vm_memattr_t attr)
+{
+	vm_offset_t va;
+
+	CTR4(KTR_PMAP, "%s(%#x, %#x, %#x)", __func__, pa, sz, attr);
+
+	va = pmap_mapdev_priv(pa, sz, attr);
+	return ((void *)(uintptr_t)va);
+}
+
+/*
+ * 'Unmap' a range mapped by pmap_mapdev_attr().
  */
 void
 pmap_unmapdev(vm_offset_t va, vm_size_t size)
 {
+
+	CTR3(KTR_PMAP, "%s(%#x, %#x)", __func__, va, size);
 }
 
 /*
@@ -2493,6 +2579,8 @@ pmap_page_set_memattr(vm_page_t m, vm_memattr_t ma)
 	pmap_t oldpmap, pmap;
 	pv_entry_t pv;
 	void *va;
+
+	CTR3(KTR_PMAP, "%s(%p, %#x)", __func__, m, ma);
 
 	rw_wlock(&pvh_global_lock);
 	m->md.memattr = ma;
@@ -2540,6 +2628,8 @@ pmap_mincore(pmap_t pmap, vm_offset_t addr, vm_paddr_t *locked_pa)
 	vm_paddr_t pa;
 	int val;
 
+	CTR4(KTR_PMAP, "%s(%p, %#x, %p)", __func__, pmap, addr, locked_pa);
+
 	PMAP_LOCK(pmap);
 retry:
 	oldpmap = pmap_switch(pmap);
@@ -2572,9 +2662,15 @@ out:
 	return (val);
 }
 
+/*
+ *
+ */
 void
 pmap_activate(struct thread *td)
 {
+
+	CTR2(KTR_PMAP, "%s(%p)", __func__, td);
+
 	pmap_switch(vmspace_pmap(td->td_proc->p_vmspace));
 }
 
@@ -2607,6 +2703,9 @@ out:
 	return (prevpm);
 }
 
+/*
+ *
+ */
 void
 pmap_sync_icache(pmap_t pm, vm_offset_t va, vm_size_t sz)
 {
@@ -2614,6 +2713,8 @@ pmap_sync_icache(pmap_t pm, vm_offset_t va, vm_size_t sz)
 	struct ia64_lpte *pte;
 	vm_offset_t lim;
 	vm_size_t len;
+
+	CTR4(KTR_PMAP, "%s(%p, %#x, %#x)", __func__, pm, va, sz);
 
 	sz += va & 31;
 	va &= ~31;
@@ -2642,6 +2743,9 @@ void
 pmap_align_superpage(vm_object_t object, vm_ooffset_t offset,
     vm_offset_t *addr, vm_size_t size)
 {
+
+	CTR5(KTR_PMAP, "%s(%p, %#x, %p, %#x)", __func__, object, offset, addr,
+	    size);
 }
 
 #include "opt_ddb.h"

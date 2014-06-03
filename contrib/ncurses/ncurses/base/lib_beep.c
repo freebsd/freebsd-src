@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2000,2005 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2009,2013 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -30,6 +30,7 @@
  *  Author: Zeyd M. Ben-Halim <zmbenhal@netcom.com> 1992,1995               *
  *     and: Eric S. Raymond <esr@snark.thyrsus.com>                         *
  *     and: Thomas E. Dickey                        1996-on                 *
+ *     and: Juergen Pfeifer                         2009                    *
  ****************************************************************************/
 
 /*
@@ -40,9 +41,12 @@
  */
 
 #include <curses.priv.h>
-#include <term.h>		/* beep, flash */
 
-MODULE_ID("$Id: lib_beep.c,v 1.10 2005/04/09 15:20:04 tom Exp $")
+#ifndef CUR
+#define CUR SP_TERMTYPE
+#endif
+
+MODULE_ID("$Id: lib_beep.c,v 1.16 2013/01/12 17:26:25 tom Exp $")
 
 /*
  *	beep()
@@ -53,24 +57,34 @@ MODULE_ID("$Id: lib_beep.c,v 1.10 2005/04/09 15:20:04 tom Exp $")
  */
 
 NCURSES_EXPORT(int)
-beep(void)
+NCURSES_SP_NAME(beep) (NCURSES_SP_DCL0)
 {
     int res = ERR;
 
-    T((T_CALLED("beep()")));
+    T((T_CALLED("beep(%p)"), (void *) SP_PARM));
 
+#ifdef USE_TERM_DRIVER
+    if (SP_PARM != 0)
+	res = CallDriver_1(SP_PARM, doBeepOrFlash, TRUE);
+#else
     /* FIXME: should make sure that we are not in altchar mode */
     if (cur_term == 0) {
 	res = ERR;
     } else if (bell) {
-	TPUTS_TRACE("bell");
-	res = putp(bell);
-	_nc_flush();
+	res = NCURSES_PUTP2_FLUSH("bell", bell);
     } else if (flash_screen) {
-	TPUTS_TRACE("flash_screen");
-	res = putp(flash_screen);
+	res = NCURSES_PUTP2_FLUSH("flash_screen", flash_screen);
 	_nc_flush();
     }
+#endif
 
     returnCode(res);
 }
+
+#if NCURSES_SP_FUNCS
+NCURSES_EXPORT(int)
+beep(void)
+{
+    return NCURSES_SP_NAME(beep) (CURRENT_SCREEN);
+}
+#endif

@@ -1,4 +1,4 @@
-.TH "unbound-control" "8" "Mar 21, 2013" "NLnet Labs" "unbound 1.4.20"
+.TH "unbound-control" "8" "Mar 12, 2014" "NLnet Labs" "unbound 1.4.22"
 .\"
 .\" unbound-control.8 -- unbound remote control manual
 .\"
@@ -170,7 +170,7 @@ harden\-glue, harden\-dnssec\-stripped, harden\-below\-nxdomain,
 harden\-referral\-path, prefetch, prefetch\-key, log\-queries,
 hide\-identity, hide\-version, identity, version, val\-log\-level,
 val\-log\-squelch, ignore\-cd\-flag, add\-holddown, del\-holddown,
-keep\-missing, tcp\-upstream, ssl\-upstream.
+keep\-missing, tcp\-upstream, ssl\-upstream, max\-udp\-size.
 .TP
 .B get_option \fIopt
 Get the value of the option.  Give the option name without a trailing ':'.
@@ -195,6 +195,14 @@ List the local zones in use.  These are printed one per line with zone type.
 .TP
 .B list_local_data
 List the local data RRs in use.  The resource records are printed.
+.TP
+.B insecure_add \fIzone
+Add a \fBdomain\-insecure\fR for the given zone, like the statement in unbound.conf.
+Adds to the running unbound without affecting the cache contents (which may
+still be bogus, use \fBflush_zone\fR to remove it), does not affect the config file.
+.TP
+.B insecure_remove \fIzone
+Removes domain\-insecure for the given zone.
 .TP
 .B forward_add \fR[\fI+i\fR] \fIzone addr ...
 Add a new forward zone to running unbound.  With +i option also adds a

@@ -404,7 +404,6 @@ void nd6_purge(struct ifnet *);
 void nd6_nud_hint(struct rtentry *, struct in6_addr *, int);
 int nd6_resolve(struct ifnet *, struct rtentry *, struct mbuf *,
 	struct sockaddr *, u_char *);
-void nd6_rtrequest(int, struct rtentry *, struct rt_addrinfo *);
 int nd6_ioctl(u_long, caddr_t, struct ifnet *);
 struct llentry *nd6_cache_lladdr(struct ifnet *, struct in6_addr *,
 	char *, int, int, int);
@@ -416,6 +415,8 @@ int nd6_output_lle(struct ifnet *, struct ifnet *, struct mbuf *,
 int nd6_output_flush(struct ifnet *, struct ifnet *, struct mbuf *,
 	struct sockaddr_in6 *, struct route *);
 int nd6_need_cache(struct ifnet *);
+int nd6_add_ifa_lle(struct in6_ifaddr *);
+void nd6_rem_ifa_lle(struct in6_ifaddr *);
 int nd6_storelladdr(struct ifnet *, struct mbuf *,
 	const struct sockaddr *, u_char *, struct llentry **);
 

@@ -1,0 +1,8 @@
+*.log
+*.trs
+*.plist
+
+test_basic
+test_generate
+test_schema
+test_speed

@@ -1,3 +1,6 @@
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
 #include <sys/consio.h>
 #include <sys/endian.h>
 #include <sys/ioctl.h>
@@ -12,9 +15,9 @@ struct file_header {
 	uint8_t		magic[8];
 	uint8_t		width;
 	uint8_t		height;
-	uint16_t	nglyphs;
-	uint16_t	nmappings_normal;
-	uint16_t	nmappings_bold;
+	uint16_t	pad;
+	uint32_t	glyph_count;
+	uint32_t	map_count[4];
 } __packed;
 
 static vfnt_map_t *
@@ -48,24 +51,25 @@ main(int argc __unused, char *argv[] __unused)
 	struct file_header fh;
 	static vfnt_t vfnt;
 	size_t glyphsize;
+	unsigned int i;
 
 	if (fread(&fh, sizeof fh, 1, stdin) != 1) {
 		perror("file_header");
 		return (1);
 	}
 
-	if (memcmp(fh.magic, "VFNT 1.0", 8) != 0) {
+	if (memcmp(fh.magic, "VFNT0002", 8) != 0) {
 		fprintf(stderr, "Bad magic\n");
 		return (1);
 	}
 
-	vfnt.nnormal = be16toh(fh.nmappings_normal);
-	vfnt.nbold = be16toh(fh.nmappings_bold);
-	vfnt.nglyphs = be16toh(fh.nglyphs);
+	for (i = 0; i < VFNT_MAPS; i++)
+		vfnt.map_count[i] = be32toh(fh.map_count[i]);
+	vfnt.glyph_count = be32toh(fh.glyph_count);
 	vfnt.width = fh.width;
 	vfnt.height = fh.height;
 
-	glyphsize = howmany(vfnt.width, 8) * vfnt.height * vfnt.nglyphs;
+	glyphsize = howmany(vfnt.width, 8) * vfnt.height * vfnt.glyph_count;
 	vfnt.glyphs = malloc(glyphsize);
 
 	if (fread(vfnt.glyphs, glyphsize, 1, stdin) != 1) {
@@ -73,8 +77,8 @@ main(int argc __unused, char *argv[] __unused)
 		return (1);
 	}
 
-	vfnt.normal = load_mappingtable(vfnt.nnormal);
-	vfnt.bold = load_mappingtable(vfnt.nbold);
+	for (i = 0; i < VFNT_MAPS; i++)
+		vfnt.map[i] = load_mappingtable(vfnt.map_count[i]);
 
 	if (ioctl(STDOUT_FILENO, PIO_VFONT, &vfnt) == -1) {
 		perror("PIO_VFONT");

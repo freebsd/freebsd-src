@@ -42,6 +42,7 @@ __FBSDID("$FreeBSD$");
 
 #include "inout.h"
 #include "dbgport.h"
+#include "pci_lpc.h"
 
 #define	BVM_DBG_PORT	0x224
 #define	BVM_DBG_SIG	('B' << 8 | 'V')
@@ -109,6 +110,8 @@ static struct inout_port dbgport = {
 	IOPORT_F_INOUT,
 	dbg_handler
 };
+
+SYSRES_IO(BVM_DBG_PORT, 4);
 
 void
 init_dbgport(int sport)

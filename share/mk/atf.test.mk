@@ -1,9 +1,13 @@
 # $FreeBSD$
 #
+# You must include bsd.test.mk instead of this file from your Makefile.
+#
 # Logic to build and install ATF test programs; i.e. test programs linked
 # against the ATF libraries.
 
-.include <bsd.init.mk>
+.if !target(__<bsd.test.mk>__)
+.error atf.test.mk cannot be included directly.
+.endif
 
 # List of C, C++ and shell test programs to build.
 #
@@ -68,6 +72,7 @@ MAN.${_T}?= # empty
 SRCS.${_T}?= ${_T}.c
 DPADD.${_T}+= ${LIBATF_C}
 LDADD.${_T}+= -latf-c
+USEPRIVATELIB+= atf-c
 TEST_INTERFACE.${_T}= atf
 .endfor
 .endif
@@ -81,6 +86,7 @@ MAN.${_T}?= # empty
 SRCS.${_T}?= ${_T}${CXX_SUFFIX:U.cc}
 DPADD.${_T}+= ${LIBATF_CXX} ${LIBATF_C}
 LDADD.${_T}+= -latf-c++ -latf-c
+USEPRIVATELIB+= atf-c++
 TEST_INTERFACE.${_T}= atf
 .endfor
 .endif
@@ -164,5 +170,3 @@ realtest: .PHONY
 .endif
 
 .endif
-
-.include <bsd.test.mk>

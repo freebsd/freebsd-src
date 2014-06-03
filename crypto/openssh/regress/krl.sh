@@ -1,4 +1,4 @@
-#	$OpenBSD: krl.sh,v 1.1 2013/01/18 00:45:29 djm Exp $
+#	$OpenBSD: krl.sh,v 1.2 2013/11/21 03:15:46 djm Exp $
 #	Placed in the Public Domain.
 
 tid="key revocation lists"
@@ -100,6 +100,9 @@ $SSHKEYGEN $OPTS -kf $OBJ/krl-serial -s $OBJ/revoked-ca $OBJ/revoked-serials \
 $SSHKEYGEN $OPTS -kf $OBJ/krl-keyid -s $OBJ/revoked-ca.pub $OBJ/revoked-keyid \
 	>/dev/null || fatal "$SSHKEYGEN KRL failed"
 }
+
+## XXX dump with trace and grep for set cert serials
+## XXX test ranges near (u64)-1, etc.
 
 verbose "$tid: generating KRLs"
 genkrls

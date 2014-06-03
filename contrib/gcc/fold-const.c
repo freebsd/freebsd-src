@@ -992,7 +992,7 @@ fold_overflow_warning (const char* gmsgid, enum warn_strict_overflow_code wc)
 	}
     }
   else if (issue_strict_overflow_warning (wc))
-    warning (OPT_Wstrict_overflow, gmsgid);
+    warning (OPT_Wstrict_overflow, "%s", gmsgid);
 }
 
 /* Return true if the built-in mathematical function specified by CODE
@@ -2150,6 +2150,8 @@ fold_convert (tree type, tree arg)
     {
     case INTEGER_TYPE: case ENUMERAL_TYPE: case BOOLEAN_TYPE:
     case POINTER_TYPE: case REFERENCE_TYPE:
+      /* APPLE LOCAL blocks 5862465 */
+    case BLOCK_POINTER_TYPE:
     case OFFSET_TYPE:
       if (TREE_CODE (arg) == INTEGER_CST)
 	{

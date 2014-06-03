@@ -37,7 +37,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 29, 2005
+.Dd February 21, 2014
 .Dt MQ_GETATTR 2
 .Os
 .Sh NAME
@@ -83,8 +83,8 @@ structure referenced by the
 .Fa mqstat
 argument will be set to the current state
 of the message queue:
-.Bl -tag -width ".Va mq_flags"
-.It Va mq_flags
+.Bl -tag -width ".Va mq_curmsgs"
+.It Va mq_curmsgs
 The number of messages currently on the queue.
 .El
 .Sh RETURN VALUES

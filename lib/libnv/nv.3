@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 8, 2013
+.Dd March 21, 2014
 .Dt NV 3
 .Os
 .Sh NAME
@@ -194,7 +194,7 @@ The API supports the following data types:
 .Bl -ohang -offset indent
 .It Sy null ( NV_TYPE_NULL )
 There is no data associated with the name.
-.It Sy bool ( NV_TYPE_BOLL )
+.It Sy bool ( NV_TYPE_BOOL )
 The value can be either
 .Dv true
 or
@@ -594,7 +594,7 @@ while ((name = nvlist_next(nvl, &type, &cookie)) != NULL) {
 The
 .Nm libnv
 library appeared in
-.Fx 10.0 .
+.Fx 11.0 .
 .Sh AUTHORS
 .An -nosplit
 The

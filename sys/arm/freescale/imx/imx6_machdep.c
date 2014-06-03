@@ -39,35 +39,36 @@ __FBSDID("$FreeBSD$");
 #include <machine/bus.h>
 #include <machine/devmap.h>
 #include <machine/machdep.h>
+#include <machine/platform.h> 
 
+#include <arm/arm/mpcore_timervar.h>
 #include <arm/freescale/imx/imx6_anatopreg.h>
 #include <arm/freescale/imx/imx6_anatopvar.h>
 #include <arm/freescale/imx/imx_machdep.h>
 
 vm_offset_t
-initarm_lastaddr(void)
+platform_lastaddr(void)
 {
 
 	return (arm_devmap_lastaddr());
 }
 
 void
-initarm_early_init(void)
+platform_probe_and_attach(void)
 {
 
-	/* XXX - Get rid of this stuff soon. */
-	boothowto |= RB_VERBOSE|RB_MULTIPLE;
-	bootverbose = 1;
+	/* Inform the MPCore timer driver that its clock is variable. */
+	arm_tmr_change_frequency(ARM_TMR_FREQUENCY_VARIES);
 }
 
 void
-initarm_gpio_init(void)
+platform_gpio_init(void)
 {
 
 }
 
 void
-initarm_late_init(void)
+platform_late_init(void)
 {
 
 }
@@ -89,7 +90,7 @@ initarm_late_init(void)
  * as OCRAM that probably shouldn't be mapped as PTE_DEVICE memory.
  */
 int
-initarm_devmap_init(void)
+platform_devmap_init(void)
 {
 	const uint32_t IMX6_ARMMP_PHYS = 0x00a00000;
 	const uint32_t IMX6_ARMMP_SIZE = 0x00100000;
@@ -189,4 +190,28 @@ u_int imx_soc_type()
 
 	return (IMXSOC_6Q);
 }
+
+/*
+ * Early putc routine for EARLY_PRINTF support.  To use, add to kernel config:
+ *   option SOCDEV_PA=0x02000000
+ *   option SOCDEV_VA=0x02000000
+ *   option EARLY_PRINTF
+ * Resist the temptation to change the #if 0 to #ifdef EARLY_PRINTF here. It
+ * makes sense now, but if multiple SOCs do that it will make early_putc another
+ * duplicate symbol to be eliminated on the path to a generic kernel.
+ */
+#if 0 
+static void 
+imx6_early_putc(int c)
+{
+	volatile uint32_t * UART_STAT_REG = (uint32_t *)0x02020098;
+	volatile uint32_t * UART_TX_REG   = (uint32_t *)0x02020040;
+	const uint32_t      UART_TXRDY    = (1 << 3);
+
+	while ((*UART_STAT_REG & UART_TXRDY) == 0)
+		continue;
+	*UART_TX_REG = c;
+}
+early_putc_t *early_putc = imx6_early_putc;
+#endif
 

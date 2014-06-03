@@ -634,16 +634,11 @@ void SubtargetEmitter::EmitProcessorResources(const CodeGenProcModel &ProcModel,
     Record *SuperDef = 0;
     unsigned SuperIdx = 0;
     unsigned NumUnits = 0;
-    bool IsBuffered = true;
+    int BufferSize = PRDef->getValueAsInt("BufferSize");
     if (PRDef->isSubClassOf("ProcResGroup")) {
       RecVec ResUnits = PRDef->getValueAsListOfDefs("Resources");
       for (RecIter RUI = ResUnits.begin(), RUE = ResUnits.end();
            RUI != RUE; ++RUI) {
-        if (!NumUnits)
-          IsBuffered = (*RUI)->getValueAsBit("Buffered");
-        else if(IsBuffered != (*RUI)->getValueAsBit("Buffered"))
-          PrintFatalError(PRDef->getLoc(),
-                          "Mixing buffered and unbuffered resources.");
         NumUnits += (*RUI)->getValueAsInt("NumUnits");
       }
     }
@@ -655,7 +650,6 @@ void SubtargetEmitter::EmitProcessorResources(const CodeGenProcModel &ProcModel,
         SuperIdx = ProcModel.getProcResourceIdx(SuperDef);
       }
       NumUnits = PRDef->getValueAsInt("NumUnits");
-      IsBuffered = PRDef->getValueAsBit("Buffered");
     }
     // Emit the ProcResourceDesc
     if (i+1 == e)
@@ -664,7 +658,7 @@ void SubtargetEmitter::EmitProcessorResources(const CodeGenProcModel &ProcModel,
     if (PRDef->getName().size() < 15)
       OS.indent(15 - PRDef->getName().size());
     OS << NumUnits << ", " << SuperIdx << ", "
-       << IsBuffered << "}" << Sep << " // #" << i+1;
+       << BufferSize << "}" << Sep << " // #" << i+1;
     if (SuperDef)
       OS << ", Super=" << SuperDef->getName();
     OS << "\n";
@@ -1200,11 +1194,15 @@ void SubtargetEmitter::EmitProcessorModels(raw_ostream &OS) {
     OS << "\n";
     OS << "static const llvm::MCSchedModel " << PI->ModelName << "(\n";
     EmitProcessorProp(OS, PI->ModelDef, "IssueWidth", ',');
-    EmitProcessorProp(OS, PI->ModelDef, "MinLatency", ',');
+    EmitProcessorProp(OS, PI->ModelDef, "MicroOpBufferSize", ',');
     EmitProcessorProp(OS, PI->ModelDef, "LoadLatency", ',');
     EmitProcessorProp(OS, PI->ModelDef, "HighLatency", ',');
-    EmitProcessorProp(OS, PI->ModelDef, "ILPWindow", ',');
     EmitProcessorProp(OS, PI->ModelDef, "MispredictPenalty", ',');
+
+    OS << "  " << (bool)(PI->ModelDef ?
+                         PI->ModelDef->getValueAsBit("CompleteModel") : 0)
+       << ", // " << "CompleteModel\n";
+
     OS << "  " << PI->Index << ", // Processor ID\n";
     if (PI->hasInstrSchedModel())
       OS << "  " << PI->ModelName << "ProcResources" << ",\n"
@@ -1340,11 +1338,11 @@ void SubtargetEmitter::EmitSchedModelHelpers(std::string ClassName,
         for (std::vector<CodeGenSchedTransition>::const_iterator
                TI = SC.Transitions.begin(), TE = SC.Transitions.end();
              TI != TE; ++TI) {
-          OS << "      if (";
           if (*PI != 0 && !std::count(TI->ProcIndices.begin(),
                                       TI->ProcIndices.end(), *PI)) {
               continue;
           }
+          OS << "      if (";
           for (RecIter RI = TI->PredTerm.begin(), RE = TI->PredTerm.end();
                RI != RE; ++RI) {
             if (RI != TI->PredTerm.begin())

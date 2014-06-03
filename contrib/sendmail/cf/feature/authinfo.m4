@@ -1,6 +1,6 @@
 divert(-1)
 #
-# Copyright (c) 2000-2002 Sendmail, Inc. and its suppliers.
+# Copyright (c) 2000-2002 Proofpoint, Inc. and its suppliers.
 #	All rights reserved.
 #
 # By using this file, you agree to the terms and conditions set
@@ -10,7 +10,7 @@ divert(-1)
 #
 
 divert(0)
-VERSIONID(`$Id: authinfo.m4,v 1.9 2002/06/27 23:23:57 gshapiro Exp $')
+VERSIONID(`$Id: authinfo.m4,v 1.10 2013-11-22 20:51:11 ca Exp $')
 divert(-1)
 
 define(`_AUTHINFO_TABLE_', `')

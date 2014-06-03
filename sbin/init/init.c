@@ -143,7 +143,6 @@ static const char *get_shell(void);
 static void write_stderr(const char *message);
 
 typedef struct init_session {
-	int	se_index;		/* index of entry in ttys file */
 	pid_t	se_process;		/* controlling process */
 	time_t	se_started;		/* used to avoid thrashing */
 	int	se_flags;		/* status of session */
@@ -163,7 +162,7 @@ typedef struct init_session {
 } session_t;
 
 static void free_session(session_t *);
-static session_t *new_session(session_t *, int, struct ttyent *);
+static session_t *new_session(session_t *, struct ttyent *);
 static session_t *sessions;
 
 static char **construct_argv(char *);
@@ -1005,7 +1004,7 @@ free_session(session_t *sp)
  * Mark it SE_PRESENT.
  */
 static session_t *
-new_session(session_t *sprev, int session_index, struct ttyent *typ)
+new_session(session_t *sprev, struct ttyent *typ)
 {
 	session_t *sp;
 	int fd;
@@ -1017,7 +1016,6 @@ new_session(session_t *sprev, int session_index, struct ttyent *typ)
 
 	sp = (session_t *) calloc(1, sizeof (session_t));
 
-	sp->se_index = session_index;
 	sp->se_flags |= SE_PRESENT;
 
 	sp->se_device = malloc(sizeof(_PATH_DEV) + strlen(typ->ty_name));
@@ -1107,7 +1105,6 @@ setupargv(session_t *sp, struct ttyent *typ)
 static state_func_t
 read_ttys(void)
 {
-	int session_index = 0;
 	session_t *sp, *snext;
 	struct ttyent *typ;
 
@@ -1128,7 +1125,7 @@ read_ttys(void)
 	 * Note that sp starts at 0.
 	 */
 	while ((typ = getttyent()) != NULL)
-		if ((snext = new_session(sp, ++session_index, typ)) != NULL)
+		if ((snext = new_session(sp, typ)) != NULL)
 			sp = snext;
 
 	endttyent();
@@ -1380,7 +1377,6 @@ clean_ttys(void)
 {
 	session_t *sp, *sprev;
 	struct ttyent *typ;
-	int session_index = 0;
 	int devlen;
 	char *old_getty, *old_window, *old_type;
 
@@ -1394,8 +1390,6 @@ clean_ttys(void)
 
 	devlen = sizeof(_PATH_DEV) - 1;
 	while ((typ = getttyent()) != NULL) {
-		++session_index;
-
 		for (sprev = 0, sp = sessions; sp; sprev = sp, sp = sp->se_next)
 			if (strcmp(typ->ty_name, sp->se_device + devlen) == 0)
 				break;
@@ -1403,12 +1397,6 @@ clean_ttys(void)
 		if (sp) {
 			/* we want this one to live */
 			sp->se_flags |= SE_PRESENT;
-			if (sp->se_index != session_index) {
-				warning("port %s changed utmp index from %d to %d",
-				       sp->se_device, sp->se_index,
-				       session_index);
-				sp->se_index = session_index;
-			}
 			if ((typ->ty_status & TTY_ON) == 0 ||
 			    typ->ty_getty == 0) {
 				sp->se_flags |= SE_SHUTDOWN;
@@ -1448,7 +1436,7 @@ clean_ttys(void)
 			continue;
 		}
 
-		new_session(sprev, session_index, typ);
+		new_session(sprev, typ);
 	}
 
 	endttyent();

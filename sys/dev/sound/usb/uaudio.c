@@ -182,7 +182,7 @@ struct uaudio_configure_msg {
 	struct uaudio_softc *sc;
 };
 
-#define	CHAN_MAX_ALT 20
+#define	CHAN_MAX_ALT 24
 
 struct uaudio_chan_alt {
 	union uaudio_asf1d p_asf1d;
@@ -1883,6 +1883,10 @@ uaudio_chan_fill_info_sub(struct uaudio_softc *sc, struct usb_device *udev,
 /* This structure defines all the supported rates. */
 
 static const uint32_t uaudio_rate_list[CHAN_MAX_ALT] = {
+	384000,
+	352800,
+	192000,
+	176400,
 	96000,
 	88200,
 	88000,
@@ -5670,6 +5674,25 @@ umidi_probe(device_t dev)
 		DPRINTF("error=%s\n", usbd_errstr(error));
 		goto detach;
 	}
+
+	/*
+	 * Some USB MIDI device makers couldn't resist using
+	 * wMaxPacketSize = 4 for RX and TX BULK endpoints, although
+	 * that size is an unsupported value for FULL speed BULK
+	 * endpoints. The same applies to some HIGH speed MIDI devices
+	 * which are using a wMaxPacketSize different from 512 bytes.
+	 *
+	 * Refer to section 5.8.3 in USB 2.0 PDF: Cite: "All Host
+	 * Controllers are required to have support for 8-, 16-, 32-,
+	 * and 64-byte maximum packet sizes for full-speed bulk
+	 * endpoints and 512 bytes for high-speed bulk endpoints."
+	 */
+	if (usbd_xfer_maxp_was_clamped(chan->xfer[UMIDI_TX_TRANSFER]))
+		chan->single_command = 1;
+
+	if (chan->single_command != 0)
+		device_printf(dev, "Single command MIDI quirk enabled\n");
+
 	if ((chan->max_cable > UMIDI_CABLES_MAX) ||
 	    (chan->max_cable == 0)) {
 		chan->max_cable = UMIDI_CABLES_MAX;
@@ -5894,7 +5917,7 @@ uaudio_hid_detach(struct uaudio_softc *sc)
 	usbd_transfer_unsetup(sc->sc_hid.xfer, UAUDIO_HID_N_TRANSFER);
 }
 
-DRIVER_MODULE(uaudio, uhub, uaudio_driver, uaudio_devclass, NULL, 0);
+DRIVER_MODULE_ORDERED(uaudio, uhub, uaudio_driver, uaudio_devclass, NULL, 0, SI_ORDER_ANY);
 MODULE_DEPEND(uaudio, usb, 1, 1, 1);
 MODULE_DEPEND(uaudio, sound, SOUND_MINVER, SOUND_PREFVER, SOUND_MAXVER);
 MODULE_VERSION(uaudio, 1);

@@ -60,6 +60,11 @@ ar9300_freebsd_set_tx_power_limit(struct ath_hal *ah, uint32_t limit)
 	return (ar9300_set_tx_power_limit(ah, limit, 0, 0));
 }
 
+static uint64_t
+ar9300_get_next_tbtt(struct ath_hal *ah)
+{
+	return (OS_REG_READ(ah, AR_NEXT_TBTT_TIMER));
+}
 
 void
 ar9300_attach_freebsd_ops(struct ath_hal *ah)
@@ -195,6 +200,7 @@ ar9300_attach_freebsd_ops(struct ath_hal *ah)
 	ah->ah_setStationBeaconTimers = ar9300_set_sta_beacon_timers;
 	/* ah_resetStationBeaconTimers */
 	/* ah_getNextTBTT */
+	ah->ah_getNextTBTT = ar9300_get_next_tbtt;
 
 	/* Interrupt functions */
 	ah->ah_isInterruptPending	= ar9300_is_interrupt_pending;

@@ -44,7 +44,7 @@
  * quantity to keep down the cost of doing lookup on a 32-bit machine.
  */
 #define	doff_t		int32_t
-#define MAXDIRSIZE	(0x7fffffff)
+#define	MAXDIRSIZE	(0x7fffffff)
 
 /*
  * A directory consists of some number of blocks of DIRBLKSIZ
@@ -71,7 +71,7 @@
  * Entries other than the first in a directory do not normally have
  * dp->d_ino set to 0.
  */
-#define DIRBLKSIZ	DEV_BSIZE
+#define	DIRBLKSIZ	DEV_BSIZE
 #define	MAXNAMLEN	255
 
 struct	direct {
@@ -113,14 +113,14 @@ struct	direct {
 	(((uintptr_t)&((struct direct *)0)->d_name +			\
 	  ((namlen)+1)*sizeof(((struct direct *)0)->d_name[0]) + 3) & ~3)
 #if (BYTE_ORDER == LITTLE_ENDIAN)
-#define DIRSIZ(oldfmt, dp) \
+#define	DIRSIZ(oldfmt, dp) \
     ((oldfmt) ? DIRECTSIZ((dp)->d_type) : DIRECTSIZ((dp)->d_namlen))
 #else
-#define DIRSIZ(oldfmt, dp) \
+#define	DIRSIZ(oldfmt, dp) \
     DIRECTSIZ((dp)->d_namlen)
 #endif
-#define OLDDIRFMT	1
-#define NEWDIRFMT	0
+#define	OLDDIRFMT	1
+#define	NEWDIRFMT	0
 
 /*
  * Template for manipulating directories.  Should use struct direct's,

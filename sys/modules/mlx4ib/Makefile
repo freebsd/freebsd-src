@@ -2,7 +2,7 @@
 .PATH:  ${.CURDIR}/../../ofed/drivers/infiniband/hw/mlx4
 .PATH:  ${.CURDIR}/../../ofed/include/linux
 
-.include <bsd.own.mk>
+.include <src.opts.mk>
 
 KMOD    = mlx4ib
 SRCS    = device_if.h bus_if.h pci_if.h vnode_if.h
@@ -31,4 +31,4 @@ opt_inet6.h:
 
 .include <bsd.kmod.mk>
 
-CFLAGS+= -Wno-cast-qual -Wno-pointer-arith -fms-extensions
+CFLAGS+= -Wno-cast-qual -Wno-pointer-arith ${GCC_MS_EXTENSIONS}

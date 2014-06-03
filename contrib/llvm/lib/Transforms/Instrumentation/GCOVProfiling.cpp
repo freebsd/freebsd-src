@@ -17,7 +17,6 @@
 #define DEBUG_TYPE "insert-gcov-profiling"
 
 #include "llvm/Transforms/Instrumentation.h"
-#include "ProfilingUtils.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/Statistic.h"
@@ -34,9 +33,10 @@
 #include "llvm/Support/DebugLoc.h"
 #include "llvm/Support/FileSystem.h"
 #include "llvm/Support/InstIterator.h"
-#include "llvm/Support/PathV2.h"
+#include "llvm/Support/Path.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Transforms/Utils/ModuleUtils.h"
+#include <algorithm>
 #include <string>
 #include <utility>
 using namespace llvm;
@@ -102,6 +102,7 @@ namespace {
     Constant *getIncrementIndirectCounterFunc();
     Constant *getEmitFunctionFunc();
     Constant *getEmitArcsFunc();
+    Constant *getSummaryInfoFunc();
     Constant *getDeleteWriteoutFunctionListFunc();
     Constant *getDeleteFlushFunctionListFunc();
     Constant *getEndFileFunc();
@@ -153,10 +154,10 @@ static std::string getFunctionName(DISubprogram SP) {
 namespace {
   class GCOVRecord {
    protected:
-    static const char *LinesTag;
-    static const char *FunctionTag;
-    static const char *BlockTag;
-    static const char *EdgeTag;
+    static const char *const LinesTag;
+    static const char *const FunctionTag;
+    static const char *const BlockTag;
+    static const char *const EdgeTag;
 
     GCOVRecord() {}
 
@@ -170,7 +171,7 @@ namespace {
 
     // Returns the length measured in 4-byte blocks that will be used to
     // represent this string in a GCOV file
-    unsigned lengthOfGCOVString(StringRef s) {
+    static unsigned lengthOfGCOVString(StringRef s) {
       // A GCOV string is a length, followed by a NUL, then between 0 and 3 NULs
       // padding out to the next 4-byte word. The length is measured in 4-byte
       // words including padding, not bytes of actual string.
@@ -190,10 +191,10 @@ namespace {
 
     raw_ostream *os;
   };
-  const char *GCOVRecord::LinesTag = "\0\0\x45\x01";
-  const char *GCOVRecord::FunctionTag = "\0\0\0\1";
-  const char *GCOVRecord::BlockTag = "\0\0\x41\x01";
-  const char *GCOVRecord::EdgeTag = "\0\0\x43\x01";
+  const char *const GCOVRecord::LinesTag = "\0\0\x45\x01";
+  const char *const GCOVRecord::FunctionTag = "\0\0\0\1";
+  const char *const GCOVRecord::BlockTag = "\0\0\x41\x01";
+  const char *const GCOVRecord::EdgeTag = "\0\0\x43\x01";
 
   class GCOVFunction;
   class GCOVBlock;
@@ -207,7 +208,7 @@ namespace {
       Lines.push_back(Line);
     }
 
-    uint32_t length() {
+    uint32_t length() const {
       // Here 2 = 1 for string length + 1 for '0' id#.
       return lengthOfGCOVString(Filename) + 2 + Lines.size();
     }
@@ -229,6 +230,15 @@ namespace {
     SmallVector<uint32_t, 32> Lines;
   };
 
+
+  // Sorting function for deterministic behaviour in GCOVBlock::writeOut.
+  struct StringKeySort {
+    bool operator()(StringMapEntry<GCOVLines *> *LHS,
+                    StringMapEntry<GCOVLines *> *RHS) const {
+      return LHS->getKey() < RHS->getKey();
+    }
+  };
+
   // Represent a basic block in GCOV. Each block has a unique number in the
   // function, number of lines belonging to each block, and a set of edges to
   // other blocks.
@@ -248,17 +258,23 @@ namespace {
 
     void writeOut() {
       uint32_t Len = 3;
+      SmallVector<StringMapEntry<GCOVLines *> *, 32> SortedLinesByFile;
       for (StringMap<GCOVLines *>::iterator I = LinesByFile.begin(),
                E = LinesByFile.end(); I != E; ++I) {
         Len += I->second->length();
+        SortedLinesByFile.push_back(&*I);
       }
 
       writeBytes(LinesTag, 4);
       write(Len);
       write(Number);
-      for (StringMap<GCOVLines *>::iterator I = LinesByFile.begin(),
-               E = LinesByFile.end(); I != E; ++I) 
-        I->second->writeOut();
+
+      StringKeySort Sorter;
+      std::sort(SortedLinesByFile.begin(), SortedLinesByFile.end(), Sorter);
+      for (SmallVectorImpl<StringMapEntry<GCOVLines *> *>::iterator
+               I = SortedLinesByFile.begin(), E = SortedLinesByFile.end();
+           I != E; ++I) 
+        (*I)->getValue()->writeOut();
       write(0);
       write(0);
     }
@@ -335,9 +351,10 @@ namespace {
       DEBUG(dbgs() << Blocks.size() << " blocks.\n");
 
       // Emit edges between blocks.
-      for (DenseMap<BasicBlock *, GCOVBlock *>::iterator I = Blocks.begin(),
-               E = Blocks.end(); I != E; ++I) {
-        GCOVBlock &Block = *I->second;
+      if (Blocks.empty()) return;
+      Function *F = Blocks.begin()->first->getParent();
+      for (Function::iterator I = F->begin(), E = F->end(); I != E; ++I) {
+        GCOVBlock &Block = *Blocks[I];
         if (Block.OutEdges.empty()) continue;
 
         writeBytes(EdgeTag, 4);
@@ -352,9 +369,8 @@ namespace {
       }
 
       // Emit lines for each block.
-      for (DenseMap<BasicBlock *, GCOVBlock *>::iterator I = Blocks.begin(),
-               E = Blocks.end(); I != E; ++I) {
-        I->second->writeOut();
+      for (Function::iterator I = F->begin(), E = F->end(); I != E; ++I) {
+        Blocks[I]->writeOut();
       }
     }
 
@@ -410,7 +426,7 @@ void GCOVProfiler::emitProfileNotes() {
     DICompileUnit CU(CU_Nodes->getOperand(i));
     std::string ErrorInfo;
     raw_fd_ostream out(mangleName(CU, "gcno").c_str(), ErrorInfo,
-                       raw_fd_ostream::F_Binary);
+                       sys::fs::F_Binary);
     out.write("oncg", 4);
     out.write(ReversedVersion, 4);
     out.write("MVLL", 4);
@@ -418,7 +434,10 @@ void GCOVProfiler::emitProfileNotes() {
     DIArray SPs = CU.getSubprograms();
     for (unsigned i = 0, e = SPs.getNumElements(); i != e; ++i) {
       DISubprogram SP(SPs.getElement(i));
-      if (!SP.Verify()) continue;
+      assert((!SP || SP.isSubprogram()) &&
+        "A MDNode in subprograms of a CU should be null or a DISubprogram.");
+      if (!SP)
+        continue;
 
       Function *F = SP.getFunction();
       if (!F) continue;
@@ -467,7 +486,10 @@ bool GCOVProfiler::emitProfileArcs() {
     SmallVector<std::pair<GlobalVariable *, MDNode *>, 8> CountersBySP;
     for (unsigned i = 0, e = SPs.getNumElements(); i != e; ++i) {
       DISubprogram SP(SPs.getElement(i));
-      if (!SP.Verify()) continue;
+      assert((!SP || SP.isSubprogram()) &&
+        "A MDNode in subprograms of a CU should be null or a DISubprogram.");
+      if (!SP)
+        continue;
       Function *F = SP.getFunction();
       if (!F) continue;
       if (!Result) Result = true;
@@ -497,15 +519,15 @@ bool GCOVProfiler::emitProfileArcs() {
         TerminatorInst *TI = BB->getTerminator();
         int Successors = isa<ReturnInst>(TI) ? 1 : TI->getNumSuccessors();
         if (Successors) {
-          IRBuilder<> Builder(TI);
-          
           if (Successors == 1) {
+            IRBuilder<> Builder(BB->getFirstInsertionPt());
             Value *Counter = Builder.CreateConstInBoundsGEP2_64(Counters, 0,
                                                                 Edge);
             Value *Count = Builder.CreateLoad(Counter);
             Count = Builder.CreateAdd(Count, Builder.getInt64(1));
             Builder.CreateStore(Count, Counter);
           } else if (BranchInst *BI = dyn_cast<BranchInst>(TI)) {
+            IRBuilder<> Builder(BI);
             Value *Sel = Builder.CreateSelect(BI->getCondition(),
                                               Builder.getInt64(Edge),
                                               Builder.getInt64(Edge + 1));
@@ -521,6 +543,7 @@ bool GCOVProfiler::emitProfileArcs() {
             for (int i = 0; i != Successors; ++i)
               ComplexEdgeSuccs.insert(TI->getSuccessor(i));
           }
+
           Edge += Successors;
         }
       }
@@ -532,14 +555,13 @@ bool GCOVProfiler::emitProfileArcs() {
         GlobalVariable *EdgeState = getEdgeStateValue();
         
         for (int i = 0, e = ComplexEdgePreds.size(); i != e; ++i) {
-          IRBuilder<> Builder(ComplexEdgePreds[i+1]->getTerminator());
+          IRBuilder<> Builder(ComplexEdgePreds[i + 1]->getFirstInsertionPt());
           Builder.CreateStore(Builder.getInt32(i), EdgeState);
         }
+
         for (int i = 0, e = ComplexEdgeSuccs.size(); i != e; ++i) {
-          // call runtime to perform increment
-          BasicBlock::iterator InsertPt =
-            ComplexEdgeSuccs[i+1]->getFirstInsertionPt();
-          IRBuilder<> Builder(InsertPt);
+          // Call runtime to perform increment.
+          IRBuilder<> Builder(ComplexEdgeSuccs[i+1]->getFirstInsertionPt());
           Value *CounterPtrArray =
             Builder.CreateConstInBoundsGEP2_64(EdgeTable, 0,
                                                i * ComplexEdgePreds.size());
@@ -577,7 +599,7 @@ bool GCOVProfiler::emitProfileArcs() {
     };
     FTy = FunctionType::get(Builder.getVoidTy(), Params, false);
 
-    // Inialize the environment and register the local writeout and flush
+    // Initialize the environment and register the local writeout and flush
     // functions.
     Constant *GCOVInit = M->getOrInsertFunction("llvm_gcov_init", FTy);
     Builder.CreateCall2(GCOVInit, WriteoutF, FlushF);
@@ -679,6 +701,11 @@ Constant *GCOVProfiler::getEmitArcsFunc() {
   return M->getOrInsertFunction("llvm_gcda_emit_arcs", FTy);
 }
 
+Constant *GCOVProfiler::getSummaryInfoFunc() {
+  FunctionType *FTy = FunctionType::get(Type::getVoidTy(*Ctx), false);
+  return M->getOrInsertFunction("llvm_gcda_summary_info", FTy);
+}
+
 Constant *GCOVProfiler::getDeleteWriteoutFunctionListFunc() {
   FunctionType *FTy = FunctionType::get(Type::getVoidTy(*Ctx), false);
   return M->getOrInsertFunction("llvm_delete_writeout_function_list", FTy);
@@ -725,6 +752,7 @@ Function *GCOVProfiler::insertCounterWriteout(
   Constant *StartFile = getStartFileFunc();
   Constant *EmitFunction = getEmitFunctionFunc();
   Constant *EmitArcs = getEmitArcsFunc();
+  Constant *SummaryInfo = getSummaryInfoFunc();
   Constant *EndFile = getEndFileFunc();
 
   NamedMDNode *CU_Nodes = M->getNamedMetadata("llvm.dbg.cu");
@@ -751,6 +779,7 @@ Function *GCOVProfiler::insertCounterWriteout(
                             Builder.getInt32(Arcs),
                             Builder.CreateConstGEP2_64(GV, 0, 0));
       }
+      Builder.CreateCall(SummaryInfo);
       Builder.CreateCall(EndFile);
     }
   }

@@ -1,7 +1,7 @@
 #	From: @(#)Makefile	8.1 (Berkeley) 5/31/93
 # $FreeBSD$
 
-.include <bsd.own.mk>
+.include <src.opts.mk>
 
 SUBDIR= cat \
 	chflags \
@@ -59,5 +59,7 @@ SUBDIR+=	tests
 .include <bsd.arch.inc.mk>
 
 SUBDIR:=	${SUBDIR:O}
+
+SUBDIR_PARALLEL=
 
 .include <bsd.subdir.mk>

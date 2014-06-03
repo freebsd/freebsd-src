@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999-2001 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 1999-2001 Proofpoint, Inc. and its suppliers.
  *	All rights reserved.
  *
  * By using this file, you agree to the terms and conditions set
@@ -11,7 +11,7 @@
  */
 
 #include <sm/gen.h>
-SM_RCSID("@(#)$Id: timers.c,v 8.26 2006/08/15 23:24:58 ca Exp $")
+SM_RCSID("@(#)$Id: timers.c,v 8.27 2013-11-22 20:51:57 ca Exp $")
 
 #if _FFR_TIMERS
 # include <sys/types.h>

@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.include <bsd.own.mk>
+.include <src.opts.mk>
 
 LIB=	llvmanalysis
 
@@ -13,11 +13,13 @@ SRCS=	AliasAnalysis.cpp \
 	Analysis.cpp \
 	BasicAliasAnalysis.cpp \
 	BranchProbabilityInfo.cpp \
+	CFG.cpp \
 	CFGPrinter.cpp \
 	CaptureTracking.cpp \
 	CodeMetrics.cpp \
 	ConstantFolding.cpp \
 	CostModel.cpp \
+	Delinearization.cpp \
 	DependenceAnalysis.cpp \
 	DomPrinter.cpp \
 	DominanceFrontier.cpp \
@@ -39,17 +41,7 @@ SRCS=	AliasAnalysis.cpp \
 	ModuleDebugInfoPrinter.cpp \
 	NoAliasAnalysis.cpp \
 	PHITransAddr.cpp \
-	PathNumbering.cpp \
-	PathProfileInfo.cpp \
-	PathProfileVerifier.cpp \
 	PostDominators.cpp \
-	ProfileDataLoader.cpp \
-	ProfileDataLoaderPass.cpp \
-	ProfileEstimatorPass.cpp \
-	ProfileInfo.cpp \
-	ProfileInfoLoader.cpp \
-	ProfileInfoLoaderPass.cpp \
-	ProfileVerifierPass.cpp \
 	PtrUseVisitor.cpp \
 	RegionInfo.cpp \
 	RegionPass.cpp \

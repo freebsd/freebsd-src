@@ -1,4 +1,4 @@
-/*      $NetBSD: meta.c,v 1.32 2013/06/25 00:20:54 sjg Exp $ */
+/*      $NetBSD: meta.c,v 1.33 2013/10/01 05:37:17 sjg Exp $ */
 
 /*
  * Implement 'meta' mode.
@@ -860,6 +860,13 @@ string_match(const void *p, const void *q)
     continue; \
     }
 
+#define DEQUOTE(p) if (*p == '\'') {	\
+    char *ep; \
+    p++; \
+    if ((ep = strchr(p, '\''))) \
+	*ep = '\0'; \
+    }
+
 Boolean
 meta_oodate(GNode *gn, Boolean oodate)
 {
@@ -872,6 +879,8 @@ meta_oodate(GNode *gn, Boolean oodate)
     char fname2[MAXPATHLEN];
     char *p;
     char *cp;
+    char *link_src;
+    char *move_target;
     static size_t cwdlen = 0;
     static size_t tmplen = 0;
     FILE *fp;
@@ -938,6 +947,8 @@ meta_oodate(GNode *gn, Boolean oodate)
 		oodate = TRUE;
 		break;
 	    }
+	    link_src = NULL;
+	    move_target = NULL;
 	    /* Find the start of the build monitor section. */
 	    if (!f) {
 		if (strncmp(buf, "-- filemon", 10) == 0) {
@@ -1051,16 +1062,21 @@ meta_oodate(GNode *gn, Boolean oodate)
 		    break;
 
 		case 'M':		/* renaMe */
-		    if (Lst_IsEmpty(missingFiles))
-			break;
+		    /*
+		     * For 'M'oves we want to check
+		     * the src as for 'R'ead
+		     * and the target as for 'W'rite.
+		     */
+		    cp = p;		/* save this for a second */
+		    /* now get target */
+		    if (strsep(&p, " ") == NULL)
+			continue;
+		    CHECK_VALID_META(p);
+		    move_target = p;
+		    p = cp;
 		    /* 'L' and 'M' put single quotes around the args */
-		    if (*p == '\'') {
-			char *ep;
-
-			p++;
-			if ((ep = strchr(p, '\'')))
-			    *ep = '\0';
-		    }
+		    DEQUOTE(p);
+		    DEQUOTE(move_target);
 		    /* FALLTHROUGH */
 		case 'D':		/* unlink */
 		    if (*p == '/' && !Lst_IsEmpty(missingFiles)) {
@@ -1072,22 +1088,39 @@ meta_oodate(GNode *gn, Boolean oodate)
 			    ln = NULL;	/* we're done with it */
 			}
 		    }
+		    if (buf[0] == 'M') {
+			/* the target of the mv is a file 'W'ritten */
+#ifdef DEBUG_META_MODE
+			if (DEBUG(META))
+			    fprintf(debug_file, "meta_oodate: M %s -> %s\n",
+				    p, move_target);
+#endif
+			p = move_target;
+			goto check_write;
+		    }
 		    break;
 		case 'L':		/* Link */
-		    /* we want the target */
+		    /*
+		     * For 'L'inks check
+		     * the src as for 'R'ead
+		     * and the target as for 'W'rite.
+		     */
+		    link_src = p;
+		    /* now get target */
 		    if (strsep(&p, " ") == NULL)
 			continue;
 		    CHECK_VALID_META(p);
 		    /* 'L' and 'M' put single quotes around the args */
-		    if (*p == '\'') {
-			char *ep;
-
-			p++;
-			if ((ep = strchr(p, '\'')))
-			    *ep = '\0';
-		    }
+		    DEQUOTE(p);
+		    DEQUOTE(link_src);
+#ifdef DEBUG_META_MODE
+		    if (DEBUG(META))
+			fprintf(debug_file, "meta_oodate: L %s -> %s\n",
+				link_src, p);
+#endif
 		    /* FALLTHROUGH */
 		case 'W':		/* Write */
+		check_write:
 		    /*
 		     * If a file we generated within our bailiwick
 		     * but outside of .OBJDIR is missing,
@@ -1119,6 +1152,14 @@ meta_oodate(GNode *gn, Boolean oodate)
 			Lst_AtEnd(missingFiles, bmake_strdup(p));
 		    }
 		    break;
+		check_link_src:
+		    p = link_src;
+		    link_src = NULL;
+#ifdef DEBUG_META_MODE
+		    if (DEBUG(META))
+			fprintf(debug_file, "meta_oodate: L src %s\n", p);
+#endif
+		    /* FALLTHROUGH */
 		case 'R':		/* Read */
 		case 'E':		/* Exec */
 		    /*
@@ -1213,6 +1254,8 @@ meta_oodate(GNode *gn, Boolean oodate)
 		default:
 		    break;
 		}
+		if (!oodate && buf[0] == 'L' && link_src != NULL)
+		    goto check_link_src;
 	    } else if (strcmp(buf, "CMD") == 0) {
 		/*
 		 * Compare the current command with the one in the

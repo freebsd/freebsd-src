@@ -2,7 +2,7 @@
 # $FreeBSD$
 #
 
-.include <bsd.own.mk>
+.include <src.opts.mk>
 
 SRCDIR=		${.CURDIR}/../../contrib/nvi
 SUBDIR+=	catalog

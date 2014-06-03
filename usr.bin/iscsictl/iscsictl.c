@@ -242,11 +242,6 @@ conf_verify(struct conf *conf)
 		}
 		if (targ->t_protocol == PROTOCOL_UNSPECIFIED)
 			targ->t_protocol = PROTOCOL_ISCSI;
-#ifndef ICL_KERNEL_PROXY
-		if (targ->t_protocol == PROTOCOL_ISER)
-			errx(1, "iSER support requires ICL_KERNEL_PROXY; "
-			    "see iscsi(4) for details");
-#endif
 		if (targ->t_address == NULL)
 			errx(1, "missing TargetAddress for target \"%s\"",
 			    targ->t_nickname);
@@ -381,7 +376,6 @@ kernel_list(int iscsi_fd, const struct target *targ __unused,
 	struct iscsi_session_list isl;
 	unsigned int i, nentries = 1;
 	int error;
-	bool show_periphs;
 
 	for (;;) {
 		states = realloc(states,
@@ -455,7 +449,6 @@ kernel_list(int iscsi_fd, const struct target *targ __unused,
 		for (i = 0; i < isl.isl_nentries; i++) {
 			state = &states[i];
 			conf = &state->iss_conf;
-			show_periphs = false;
 
 			printf("%-36s %-16s ",
 			    conf->isc_target, conf->isc_target_addr);

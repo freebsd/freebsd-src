@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2004,2007 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2010,2012 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -32,7 +32,7 @@
 
 #include "form.priv.h"
 
-MODULE_ID("$Id: fld_link.c,v 1.11 2007/10/13 19:30:43 tom Exp $")
+MODULE_ID("$Id: fld_link.c,v 1.13 2012/03/11 00:37:16 tom Exp $")
 
 /*---------------------------------------------------------------------------
 |   Facility      :  libnform  
@@ -54,15 +54,15 @@ link_field(FIELD *field, int frow, int fcol)
   FIELD *New_Field = (FIELD *)0;
   int err = E_BAD_ARGUMENT;
 
-  T((T_CALLED("link_field(%p,%d,%d)"), field, frow, fcol));
+  T((T_CALLED("link_field(%p,%d,%d)"), (void *)field, frow, fcol));
   if (field && (frow >= 0) && (fcol >= 0) &&
       ((err = E_SYSTEM_ERROR) != 0) &&	/* trick: this resets the default error */
       (New_Field = typeMalloc(FIELD, 1)))
     {
-      T((T_CREATE("field %p"), New_Field));
+      T((T_CREATE("field %p"), (void *)New_Field));
       *New_Field = *_nc_Default_Field;
-      New_Field->frow = frow;
-      New_Field->fcol = fcol;
+      New_Field->frow = (short) frow;
+      New_Field->fcol = (short) fcol;
 
       New_Field->link = field->link;
       field->link = New_Field;

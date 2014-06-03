@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998-2004, 2006, 2010 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 1998-2004, 2006, 2010 Proofpoint, Inc. and its suppliers.
  *	All rights reserved.
  * Copyright (c) 1986, 1995-1997 Eric P. Allman.  All rights reserved.
  * Copyright (c) 1988, 1993
@@ -15,9 +15,9 @@
 #include "map.h"
 
 #if NAMED_BIND
-SM_RCSID("@(#)$Id: domain.c,v 8.204 2010/06/29 15:35:33 ca Exp $ (with name server)")
+SM_RCSID("@(#)$Id: domain.c,v 8.205 2013-11-22 20:51:55 ca Exp $ (with name server)")
 #else /* NAMED_BIND */
-SM_RCSID("@(#)$Id: domain.c,v 8.204 2010/06/29 15:35:33 ca Exp $ (without name server)")
+SM_RCSID("@(#)$Id: domain.c,v 8.205 2013-11-22 20:51:55 ca Exp $ (without name server)")
 #endif /* NAMED_BIND */
 
 #if NAMED_BIND

@@ -1,4 +1,5 @@
 /*-
+ * Copyright (c) 2013 Gleb Smirnoff <glebius@FreeBSD.org>
  * Copyright (c) 1983, 1988, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -50,8 +51,6 @@ __FBSDID("$FreeBSD$");
 #include <net/ethernet.h>
 #include <netinet/in.h>
 #include <netinet/in_var.h>
-#include <netipx/ipx.h>
-#include <netipx/ipx_if.h>
 #include <arpa/inet.h>
 #ifdef PF
 #include <net/pfvar.h>
@@ -223,7 +222,7 @@ next_ifma(struct ifmaddrs *ifma, const char *name, const sa_family_t family)
  * Print a description of the network interfaces.
  */
 void
-intpr(int interval, void (*pfunc)(char *))
+intpr(int interval, void (*pfunc)(char *), int af)
 {
 	struct ifaddrs *ifap, *ifa;
 	struct ifmaddrs *ifmap, *ifma;
@@ -250,7 +249,7 @@ intpr(int interval, void (*pfunc)(char *))
 			printf(" %10.10s","Obytes");
 		printf(" %5s", "Coll");
 		if (dflag)
-			printf(" %s", "Drop");
+			printf("  %s", "Drop");
 		putchar('\n');
 	}
 
@@ -324,28 +323,6 @@ intpr(int interval, void (*pfunc)(char *))
 			break;
 	            }
 #endif /* INET6 */
-		case AF_IPX:
-		    {
-			struct sockaddr_ipx *sipx;
-			u_long net;
-			char netnum[10];
-
-			sipx = (struct sockaddr_ipx *)ifa->ifa_addr;
-			*(union ipx_net *) &net = sipx->sipx_addr.x_net;
-
-			sprintf(netnum, "%lx", (u_long)ntohl(net));
-			printf("ipx:%-8s  ", netnum);
-			printf("%-17s ", ipx_phost((struct sockaddr *)sipx));
-
-			network = 1;
-			break;
-		    }
-		case AF_APPLETALK:
-			printf("atalk:%-12.12s ",
-			    atalk_print(ifa->ifa_addr, 0x10));
-			printf("%-11.11s  ",
-			    atalk_print(ifa->ifa_addr, 0x0b));
-			break;
 		case AF_LINK:
 		    {
 			struct sockaddr_dl *sdl;
@@ -381,7 +358,8 @@ intpr(int interval, void (*pfunc)(char *))
 		if (bflag)
 			show_stat("lu", 10, IFA_STAT(obytes), link|network);
 		show_stat("NRSlu", 5, IFA_STAT(collisions), link);
-		/* XXXGL: output queue drops */
+		if (dflag)
+			show_stat("LSlu", 5, IFA_STAT(oqdrops), link);
 		putchar('\n');
 
 		if (!aflag)
@@ -437,9 +415,11 @@ intpr(int interval, void (*pfunc)(char *))
 				printf("%*s %-17.17s",
 				    Wflag ? 27 : 25, "", fmt);
 				if (ifma->ifma_addr->sa_family == AF_LINK) {
-					printf(" %8lu", IFA_STAT(imcasts));
+					printf(" %8ju",
+					    (uintmax_t )IFA_STAT(imcasts));
 					printf("%*s", bflag ? 17 : 6, "");
-					printf(" %8lu", IFA_STAT(omcasts));
+					printf(" %8ju",
+					    (uintmax_t )IFA_STAT(omcasts));
 				}
 				putchar('\n');
 			}
@@ -459,6 +439,7 @@ struct iftot {
 	u_long	ift_id;			/* input drops */
 	u_long	ift_op;			/* output packets */
 	u_long	ift_oe;			/* output errors */
+	u_long	ift_od;			/* output drops */
 	u_long	ift_co;			/* collisions */
 	u_long	ift_ib;			/* input bytes */
 	u_long	ift_ob;			/* output bytes */
@@ -494,6 +475,7 @@ fill_iftot(struct iftot *st)
 		st->ift_ib += IFA_STAT(ibytes);
 		st->ift_op += IFA_STAT(opackets);
 		st->ift_oe += IFA_STAT(oerrors);
+		st->ift_od += IFA_STAT(oqdrops);
 		st->ift_ob += IFA_STAT(obytes);
  		st->ift_co += IFA_STAT(collisions);
 	}
@@ -572,7 +554,8 @@ loop:
 	show_stat("lu", 5, new->ift_oe - old->ift_oe, 1);
 	show_stat("lu", 10, new->ift_ob - old->ift_ob, 1);
 	show_stat("NRSlu", 5, new->ift_co - old->ift_co, 1);
-	/* XXXGL: output queue drops */
+	if (dflag)
+		show_stat("LSlu", 5, new->ift_od - old->ift_od, 1);
 	putchar('\n');
 	fflush(stdout);
 

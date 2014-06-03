@@ -259,5 +259,37 @@ init_shadowed_var_for_decl (void)
 					   tree_map_eq, 0);
 }
 
+/* APPLE LOCAL begin radar 5741070  */
+/* Given an IDENTIFIER tree for a class interface, find (if possible) and
+ return the record type for the class interface.  */
+
+tree
+c_return_interface_record_type (tree typename)
+{
+  enum tree_code_class class;
+  enum tree_code code;
+  tree retval = NULL;
+
+  if (typename == NULL)
+      return retval;
+
+  code = TREE_CODE (typename);
+  class = TREE_CODE_CLASS (code);
+
+  if (code != IDENTIFIER_NODE
+      || class != tcc_exceptional)
+      return retval;
+
+  if (TREE_TYPE (typename)
+      && TREE_CODE (TREE_TYPE (typename)) == RECORD_TYPE)
+      retval = TREE_TYPE (typename);
+
+  if (retval
+      && TREE_CODE (retval) != RECORD_TYPE)
+      retval = NULL;
+
+  return retval;
+}
+/* APPLE LOCAL end radar 5741070  */
 
 #include "gt-cp-cp-objcp-common.h"

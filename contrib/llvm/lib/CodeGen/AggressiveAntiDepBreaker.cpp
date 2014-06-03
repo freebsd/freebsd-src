@@ -247,8 +247,8 @@ void AggressiveAntiDepBreaker::GetPassthruRegs(MachineInstr *MI,
     if ((MO.isDef() && MI->isRegTiedToUseOperand(i)) ||
         IsImplicitDefUse(MI, MO)) {
       const unsigned Reg = MO.getReg();
-      PassthruRegs.insert(Reg);
-      for (MCSubRegIterator SubRegs(Reg, TRI); SubRegs.isValid(); ++SubRegs)
+      for (MCSubRegIterator SubRegs(Reg, TRI, /*IncludeSelf=*/true);
+           SubRegs.isValid(); ++SubRegs)
         PassthruRegs.insert(*SubRegs);
     }
   }
@@ -782,7 +782,7 @@ unsigned AggressiveAntiDepBreaker::BreakAntiDependencies(
     if (MI == CriticalPathMI) {
       CriticalPathSU = CriticalPathStep(CriticalPathSU);
       CriticalPathMI = (CriticalPathSU) ? CriticalPathSU->getInstr() : 0;
-    } else {
+    } else if (CriticalPathSet.any()) {
       ExcludeRegs = &CriticalPathSet;
     }
 

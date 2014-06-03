@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 2013 Proofpoint, Inc. and its suppliers.
  *	All rights reserved.
  *
  * By using this file, you agree to the terms and conditions set
@@ -8,7 +8,7 @@
  */
 
 #include <sm/gen.h>
-SM_IDSTR(id, "@(#)$Id: t-fget.c,v 1.1 2013/03/12 15:24:50 ca Exp $")
+SM_IDSTR(id, "@(#)$Id: t-fget.c,v 1.2 2013-11-22 20:51:43 ca Exp $")
 
 #include <sm/io.h>
 #include <sm/string.h>

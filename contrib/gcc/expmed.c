@@ -2616,16 +2616,12 @@ synth_mult (struct algorithm *alg_out, unsigned HOST_WIDE_INT t,
     do_alg_addsub_t_m2:
       for (w = 1; (w & t) != 0; w <<= 1)
 	;
-      /* If T was -1, then W will be zero after the loop.  This is another
-	 case where T ends with ...111.  Handling this with (T + 1) and
-	 subtract 1 produces slightly better code and results in algorithm
-	 selection much faster than treating it like the ...0111 case
-	 below.  */
-      if (w == 0
-	  || (w > 2
+      /* APPLE LOCAL begin 7744816 DImode multiply by 0xffffffffULL */
+      if (w > 2
 	      /* Reject the case where t is 3.
 		 Thus we prefer addition in that case.  */
-	      && t != 3))
+	      && t != 3)
+      /* APPLE LOCAL end 7744816 DImode multiply by 0xffffffffULL */
 	{
 	  /* T ends with ...111.  Multiply by (T + 1) and subtract 1.  */
 

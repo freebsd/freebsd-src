@@ -30,6 +30,44 @@ extern "C" void LLVMInitializePowerPCTarget() {
   // Register the targets
   RegisterTargetMachine<PPC32TargetMachine> A(ThePPC32Target);
   RegisterTargetMachine<PPC64TargetMachine> B(ThePPC64Target);
+  RegisterTargetMachine<PPC64TargetMachine> C(ThePPC64LETarget);
+}
+
+/// Return the datalayout string of a subtarget.
+static std::string getDataLayoutString(const PPCSubtarget &ST) {
+  const Triple &T = ST.getTargetTriple();
+
+  // PPC is big endian
+  std::string Ret = "E";
+
+  // PPC64 has 64 bit pointers, PPC32 has 32 bit pointers.
+  if (ST.isPPC64())
+    Ret += "-p:64:64";
+  else
+    Ret += "-p:32:32";
+
+  // Note, the alignment values for f64 and i64 on ppc64 in Darwin
+  // documentation are wrong; these are correct (i.e. "what gcc does").
+  if (ST.isPPC64() || ST.isSVR4ABI())
+    Ret += "-f64:64:64-i64:64:64";
+  else
+    Ret += "-f64:32:64";
+
+  // Set support for 128 floats depending on the ABI.
+  if (!ST.isPPC64() && ST.isSVR4ABI())
+    Ret += "-f128:64:128";
+
+  // Some ABIs support 128 bit vectors.
+  if (ST.isPPC64() && ST.isSVR4ABI())
+    Ret += "-v128:128:128";
+
+  // PPC64 has 32 and 64 bit register, PPC32 has only 32 bit ones.
+  if (ST.isPPC64())
+    Ret += "-n32:64";
+  else
+    Ret += "-n32";
+
+  return Ret;
 }
 
 PPCTargetMachine::PPCTargetMachine(const Target &T, StringRef TT,
@@ -40,7 +78,7 @@ PPCTargetMachine::PPCTargetMachine(const Target &T, StringRef TT,
                                    bool is64Bit)
   : LLVMTargetMachine(T, TT, CPU, FS, Options, RM, CM, OL),
     Subtarget(TT, CPU, FS, is64Bit),
-    DL(Subtarget.getDataLayoutString()), InstrInfo(*this),
+    DL(getDataLayoutString(Subtarget)), InstrInfo(*this),
     FrameLowering(Subtarget), JITInfo(*this, is64Bit),
     TLInfo(*this), TSInfo(*this),
     InstrItins(Subtarget.getInstrItineraryData()) {
@@ -48,6 +86,7 @@ PPCTargetMachine::PPCTargetMachine(const Target &T, StringRef TT,
   // The binutils for the BG/P are too old for CFI.
   if (Subtarget.isBGP())
     setMCUseCFI(false);
+  initAsmInfo();
 }
 
 void PPC32TargetMachine::anchor() { }
@@ -90,7 +129,7 @@ public:
     return *getPPCTargetMachine().getSubtargetImpl();
   }
 
-  virtual bool addPreRegAlloc();
+  virtual bool addPreISel();
   virtual bool addILPOpts();
   virtual bool addInstSelector();
   virtual bool addPreSched2();
@@ -102,9 +141,9 @@ TargetPassConfig *PPCTargetMachine::createPassConfig(PassManagerBase &PM) {
   return new PPCPassConfig(this, PM);
 }
 
-bool PPCPassConfig::addPreRegAlloc() {
+bool PPCPassConfig::addPreISel() {
   if (!DisableCTRLoops && getOptLevel() != CodeGenOpt::None)
-    addPass(createPPCCTRLoops());
+    addPass(createPPCCTRLoops(getPPCTargetMachine()));
 
   return false;
 }
@@ -121,6 +160,12 @@ bool PPCPassConfig::addILPOpts() {
 bool PPCPassConfig::addInstSelector() {
   // Install an instruction selector.
   addPass(createPPCISelDag(getPPCTargetMachine()));
+
+#ifndef NDEBUG
+  if (!DisableCTRLoops && getOptLevel() != CodeGenOpt::None)
+    addPass(createPPCCTRLoopsVerify());
+#endif
+
   return false;
 }
 
@@ -155,7 +200,7 @@ void PPCTargetMachine::addAnalysisPasses(PassManagerBase &PM) {
   // Add first the target-independent BasicTTI pass, then our PPC pass. This
   // allows the PPC pass to delegate to the target independent layer when
   // appropriate.
-  PM.add(createBasicTargetTransformInfoPass(getTargetLowering()));
+  PM.add(createBasicTargetTransformInfoPass(this));
   PM.add(createPPCTargetTransformInfoPass(this));
 }
 

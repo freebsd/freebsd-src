@@ -162,6 +162,17 @@ fpurestore(void *addr)
 		fxrstor((char *)addr);
 }
 
+void
+fpususpend(void *addr)
+{
+	u_long cr0;
+
+	cr0 = rcr0();
+	stop_emulating();
+	fpusave(addr);
+	load_cr0(cr0);
+}
+
 /*
  * Enable XSAVE if supported and allowed by user.
  * Calculate the xsave_mask.
@@ -188,6 +199,10 @@ fpuinit_bsp1(void)
 	TUNABLE_ULONG_FETCH("hw.xsave_mask", &xsave_mask_user);
 	xsave_mask_user |= XFEATURE_ENABLED_X87 | XFEATURE_ENABLED_SSE;
 	xsave_mask &= xsave_mask_user;
+	if ((xsave_mask & XFEATURE_AVX512) != XFEATURE_AVX512)
+		xsave_mask &= ~XFEATURE_AVX512;
+	if ((xsave_mask & XFEATURE_MPX) != XFEATURE_MPX)
+		xsave_mask &= ~XFEATURE_MPX;
 
 	cpuid_count(0xd, 0x1, cp);
 	if ((cp[0] & CPUID_EXTSTATE_XSAVEOPT) != 0) {

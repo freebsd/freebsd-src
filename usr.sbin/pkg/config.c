@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2013 Baptiste Daroussin <bapt@FreeBSD.org>
+ * Copyright (c) 2014 Baptiste Daroussin <bapt@FreeBSD.org>
  * Copyright (c) 2013 Bryan Drewery <bdrewery@FreeBSD.org>
  * All rights reserved.
  *
@@ -29,6 +29,7 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/queue.h>
 #include <sys/sbuf.h>
 #include <sys/elf_common.h>
 #include <sys/endian.h>
@@ -36,7 +37,7 @@ __FBSDID("$FreeBSD$");
 
 #include <assert.h>
 #include <dirent.h>
-#include <yaml.h>
+#include <ucl.h>
 #include <ctype.h>
 #include <err.h>
 #include <errno.h>
@@ -65,6 +66,7 @@ struct config_entry {
 	char *value;
 	STAILQ_HEAD(, config_value) *list;
 	bool envset;
+	bool main_only;				/* Only set in pkg.conf. */
 };
 
 static struct config_entry c[] = {
@@ -75,6 +77,7 @@ static struct config_entry c[] = {
 		NULL,
 		NULL,
 		false,
+		false,
 	},
 	[ABI] = {
 		PKG_CONFIG_STRING,
@@ -83,6 +86,7 @@ static struct config_entry c[] = {
 		NULL,
 		NULL,
 		false,
+		true,
 	},
 	[MIRROR_TYPE] = {
 		PKG_CONFIG_STRING,
@@ -90,6 +94,7 @@ static struct config_entry c[] = {
 		"SRV",
 		NULL,
 		NULL,
+		false,
 		false,
 	},
 	[ASSUME_ALWAYS_YES] = {
@@ -99,6 +104,7 @@ static struct config_entry c[] = {
 		NULL,
 		NULL,
 		false,
+		true,
 	},
 	[SIGNATURE_TYPE] = {
 		PKG_CONFIG_STRING,
@@ -106,6 +112,7 @@ static struct config_entry c[] = {
 		NULL,
 		NULL,
 		NULL,
+		false,
 		false,
 	},
 	[FINGERPRINTS] = {
@@ -115,6 +122,7 @@ static struct config_entry c[] = {
 		NULL,
 		NULL,
 		false,
+		false,
 	},
 	[REPOS_DIR] = {
 		PKG_CONFIG_LIST,
@@ -123,6 +131,7 @@ static struct config_entry c[] = {
 		NULL,
 		NULL,
 		false,
+		true,
 	},
 };
 
@@ -508,76 +517,45 @@ boolstr_to_bool(const char *str)
 }
 
 static void
-config_parse(yaml_document_t *doc, yaml_node_t *node, pkg_conf_file_t conftype)
+config_parse(const ucl_object_t *obj, pkg_conf_file_t conftype)
 {
-	yaml_node_item_t *item;
-	yaml_node_pair_t *pair;
-	yaml_node_t *key, *val, *item_val;
 	struct sbuf *buf = sbuf_new_auto();
+	const ucl_object_t *cur, *seq;
+	ucl_object_iter_t it = NULL, itseq = NULL;
 	struct config_entry *temp_config;
 	struct config_value *cv;
+	const char *key;
 	int i;
 	size_t j;
-
-	pair = node->data.mapping.pairs.start;
 
 	/* Temporary config for configs that may be disabled. */
 	temp_config = calloc(CONFIG_SIZE, sizeof(struct config_entry));
 
-	while (pair < node->data.mapping.pairs.top) {
-		key = yaml_document_get_node(doc, pair->key);
-		val = yaml_document_get_node(doc, pair->value);
-
-		/*
-		 * ignoring silently empty keys can be empty lines
-		 * or user mistakes
-		 */
-		if (key->data.scalar.length <= 0) {
-			++pair;
+	while ((cur = ucl_iterate_object(obj, &it, true))) {
+		key = ucl_object_key(cur);
+		if (key == NULL)
 			continue;
-		}
-
-		/*
-		 * silently skip on purpose to allow user to leave
-		 * empty lines without complaining
-		 */
-		if (val->type == YAML_NO_NODE ||
-		    (val->type == YAML_SCALAR_NODE &&
-		     val->data.scalar.length <= 0)) {
-			++pair;
-			continue;
-		}
-
 		sbuf_clear(buf);
 
 		if (conftype == CONFFILE_PKG) {
-			for (j = 0; j < strlen(key->data.scalar.value); ++j)
-				sbuf_putc(buf,
-				    toupper(key->data.scalar.value[j]));
+			for (j = 0; j < strlen(key); ++j)
+				sbuf_putc(buf, key[j]);
 			sbuf_finish(buf);
 		} else if (conftype == CONFFILE_REPO) {
-			/* The CONFFILE_REPO type is more restrictive. Only
-			   parse known elements. */
-			if (strcasecmp(key->data.scalar.value, "url") == 0)
+			if (strcasecmp(key, "url") == 0)
 				sbuf_cpy(buf, "PACKAGESITE");
-			else if (strcasecmp(key->data.scalar.value,
-			    "mirror_type") == 0)
+			else if (strcasecmp(key, "mirror_type") == 0)
 				sbuf_cpy(buf, "MIRROR_TYPE");
-			else if (strcasecmp(key->data.scalar.value,
-			    "signature_type") == 0)
+			else if (strcasecmp(key, "signature_type") == 0)
 				sbuf_cpy(buf, "SIGNATURE_TYPE");
-			else if (strcasecmp(key->data.scalar.value,
-			    "fingerprints") == 0)
+			else if (strcasecmp(key, "fingerprints") == 0)
 				sbuf_cpy(buf, "FINGERPRINTS");
-			else if (strcasecmp(key->data.scalar.value,
-			    "enabled") == 0) {
-				/* Skip disabled repos. */
-				if (!boolstr_to_bool(val->data.scalar.value))
+			else if (strcasecmp(key, "enabled") == 0) {
+				if ((cur->type != UCL_BOOLEAN) ||
+				    !ucl_object_toboolean(cur))
 					goto cleanup;
-			} else { /* Skip unknown entries for future use. */
-				++pair;
+			} else
 				continue;
-			}
 			sbuf_finish(buf);
 		}
 
@@ -587,56 +565,52 @@ config_parse(yaml_document_t *doc, yaml_node_t *node, pkg_conf_file_t conftype)
 		}
 
 		/* Silently skip unknown keys to be future compatible. */
-		if (i == CONFIG_SIZE) {
-			++pair;
+		if (i == CONFIG_SIZE)
 			continue;
-		}
 
 		/* env has priority over config file */
-		if (c[i].envset) {
-			++pair;
+		if (c[i].envset)
 			continue;
-		}
 
 		/* Parse sequence value ["item1", "item2"] */
 		switch (c[i].type) {
 		case PKG_CONFIG_LIST:
-			if (val->type != YAML_SEQUENCE_NODE) {
-				fprintf(stderr, "Skipping invalid array "
+			if (cur->type != UCL_ARRAY) {
+				warnx("Skipping invalid array "
 				    "value for %s.\n", c[i].key);
-				++pair;
 				continue;
 			}
-			item = val->data.sequence.items.start;
 			temp_config[i].list =
 			    malloc(sizeof(*temp_config[i].list));
 			STAILQ_INIT(temp_config[i].list);
 
-			while (item < val->data.sequence.items.top) {
-				item_val = yaml_document_get_node(doc, *item);
-				if (item_val->type != YAML_SCALAR_NODE) {
-					++item;
+			while ((seq = ucl_iterate_object(cur, &itseq, true))) {
+				if (seq->type != UCL_STRING)
 					continue;
-				}
 				cv = malloc(sizeof(struct config_value));
 				cv->value =
-				    strdup(item_val->data.scalar.value);
+				    strdup(ucl_object_tostring(seq));
 				STAILQ_INSERT_TAIL(temp_config[i].list, cv,
 				    next);
-				++item;
 			}
+			break;
+		case PKG_CONFIG_BOOL:
+			temp_config[i].value =
+			    strdup(ucl_object_toboolean(cur) ? "yes" : "no");
 			break;
 		default:
 			/* Normal string value. */
-			temp_config[i].value = strdup(val->data.scalar.value);
+			temp_config[i].value = strdup(ucl_object_tostring(cur));
 			break;
 		}
-		++pair;
 	}
 
 	/* Repo is enabled, copy over all settings from temp_config. */
 	for (i = 0; i < CONFIG_SIZE; i++) {
 		if (c[i].envset)
+			continue;
+		/* Prevent overriding ABI, ASSUME_ALWAYS_YES, etc. */
+		if (conftype != CONFFILE_PKG && c[i].main_only == true)
 			continue;
 		switch (c[i].type) {
 		case PKG_CONFIG_LIST:
@@ -661,27 +635,22 @@ cleanup:
  * etc...
  */
 static void
-parse_repo_file(yaml_document_t *doc, yaml_node_t *node)
+parse_repo_file(ucl_object_t *obj)
 {
-	yaml_node_pair_t *pair;
+	ucl_object_iter_t it = NULL;
+	const ucl_object_t *cur;
+	const char *key;
 
-	pair = node->data.mapping.pairs.start;
-	while (pair < node->data.mapping.pairs.top) {
-		yaml_node_t *key = yaml_document_get_node(doc, pair->key);
-		yaml_node_t *val = yaml_document_get_node(doc, pair->value);
+	while ((cur = ucl_iterate_object(obj, &it, true))) {
+		key = ucl_object_key(cur);
 
-		if (key->data.scalar.length <= 0) {
-			++pair;
+		if (key == NULL)
 			continue;
-		}
 
-		if (val->type != YAML_MAPPING_NODE) {
-			++pair;
+		if (cur->type != UCL_OBJECT)
 			continue;
-		}
 
-		config_parse(doc, val, CONFFILE_REPO);
-		++pair;
+		config_parse(cur, CONFFILE_REPO);
 	}
 }
 
@@ -689,37 +658,33 @@ parse_repo_file(yaml_document_t *doc, yaml_node_t *node)
 static int
 read_conf_file(const char *confpath, pkg_conf_file_t conftype)
 {
-	FILE *fp;
-	yaml_parser_t parser;
-	yaml_document_t doc;
-	yaml_node_t *node;
+	struct ucl_parser *p;
+	ucl_object_t *obj = NULL;
 
-	if ((fp = fopen(confpath, "r")) == NULL) {
+	p = ucl_parser_new(0);
+
+	if (!ucl_parser_add_file(p, confpath)) {
 		if (errno != ENOENT)
-			err(EXIT_FAILURE, "Unable to open configuration "
-			    "file %s", confpath);
+			errx(EXIT_FAILURE, "Unable to parse configuration "
+			    "file %s: %s", confpath, ucl_parser_get_error(p));
+		ucl_parser_free(p);
 		/* no configuration present */
 		return (1);
 	}
 
-	yaml_parser_initialize(&parser);
-	yaml_parser_set_input_file(&parser, fp);
-	yaml_parser_load(&parser, &doc);
-
-	node = yaml_document_get_root_node(&doc);
-
-	if (node == NULL || node->type != YAML_MAPPING_NODE)
+	obj = ucl_parser_get_object(p);
+	if (obj->type != UCL_OBJECT) 
 		warnx("Invalid configuration format, ignoring the "
 		    "configuration file %s", confpath);
 	else {
 		if (conftype == CONFFILE_PKG)
-			config_parse(&doc, node, conftype);
+			config_parse(obj, conftype);
 		else if (conftype == CONFFILE_REPO)
-			parse_repo_file(&doc, node);
+			parse_repo_file(obj);
 	}
 
-	yaml_document_delete(&doc);
-	yaml_parser_delete(&parser);
+	ucl_object_unref(obj);
+	ucl_parser_free(p);
 
 	return (0);
 }

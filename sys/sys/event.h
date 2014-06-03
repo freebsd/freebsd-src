@@ -38,11 +38,12 @@
 #define EVFILT_PROC		(-5)	/* attached to struct proc */
 #define EVFILT_SIGNAL		(-6)	/* attached to struct proc */
 #define EVFILT_TIMER		(-7)	/* timers */
-/*	EVFILT_NETDEV		(-8)	   no longer supported */
+#define EVFILT_PROCDESC		(-8)	/* attached to process descriptors */
 #define EVFILT_FS		(-9)	/* filesystem events */
 #define EVFILT_LIO		(-10)	/* attached to lio requests */
 #define EVFILT_USER		(-11)	/* User events */
-#define EVFILT_SYSCOUNT		11
+#define EVFILT_SENDFILE		(-12)	/* attached to sendfile requests */
+#define EVFILT_SYSCOUNT		12
 
 #define EV_SET(kevp_, a, b, c, d, e, f) do {	\
 	struct kevent *kevp = (kevp_);		\
@@ -119,7 +120,7 @@ struct kevent {
 #define	NOTE_REVOKE	0x0040			/* vnode access was revoked */
 
 /*
- * data/hint flags for EVFILT_PROC, shared with userspace
+ * data/hint flags for EVFILT_PROC and EVFILT_PROCDESC, shared with userspace
  */
 #define	NOTE_EXIT	0x80000000		/* process exited */
 #define	NOTE_FORK	0x40000000		/* process forked */
@@ -206,13 +207,15 @@ struct knote {
 #define KN_MARKER	0x20			/* ignore this knote */
 #define KN_KQUEUE	0x40			/* this knote belongs to a kq */
 #define KN_HASKQLOCK	0x80			/* for _inevent */
+#define	KN_SCAN		0x100			/* flux set in kqueue_scan() */
 	int			kn_sfflags;	/* saved filter flags */
 	intptr_t		kn_sdata;	/* saved data field */
 	union {
 		struct		file *p_fp;	/* file data pointer */
 		struct		proc *p_proc;	/* proc pointer */
 		struct		aiocblist *p_aio;	/* AIO job pointer */
-		struct		aioliojob *p_lio;	/* LIO job pointer */ 
+		struct		aioliojob *p_lio;	/* LIO job pointer */
+		void		*p_v;		/* generic other pointer */
 	} kn_ptr;
 	struct			filterops *kn_fop;
 	void			*kn_hook;

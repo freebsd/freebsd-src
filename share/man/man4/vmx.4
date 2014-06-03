@@ -17,7 +17,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 4, 2013
+.Dd March 17, 2014
 .Dt VMX 4
 .Os
 .Sh NAME
@@ -81,12 +81,35 @@ VMware Fusion 2.0 and newer
 .Pp
 For more information on configuring this device, see
 .Xr ifconfig 8 .
+.Sh MULTIPLE QUEUES
+The
+.Nm
+driver supports multiple transmit and receive queues.
+Multiple queues are only supported by certain VMware products, such as ESXi.
+The number of queues allocated depends on the presence of MSI-X,
+the number of configured CPUs,
+and the tunables listed below.
+.Fx
+does not enable MSI-X support on VMware by default.
+The
+.Va hw.pci.honor_msi_blacklist
+tunable must be disabled to enable MSI-X support.
 .Sh LOADER TUNABLES
 Tunables can be set at the
 .Xr loader 8
 prompt before booting the kernel or stored in
 .Xr loader.conf 5 .
 .Bl -tag -width indent
+.It Va hw.vmx.txnqueue
+.It Va hw.vmx. Ns Ar X Ns Va .txnqueue
+Maximum number of transmit queues allocated by default by the driver.
+The default value is 8.
+The maximum supported by the VMXNET3 virtual NIC is 8.
+.It Va hw.vmx.rxnqueue
+.It Va hw.vmx. Ns Ar X Ns Va .rxnqueue
+Maximum number of receive queues allocated by default by the driver.
+The default value is 8.
+The maximum supported by the VMXNET3 virtual NIC is 16.
 .It Va hw.vmx.txndesc
 .It Va hw.vmx. Ns Ar X Ns Va .txndesc
 .Pp

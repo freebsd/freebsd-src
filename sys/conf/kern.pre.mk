@@ -3,11 +3,21 @@
 # Part of a unified Makefile for building kernels.  This part contains all
 # of the definitions that need to be before %BEFORE_DEPEND.
 
+# Allow user to configure things that only effect src tree builds.
+# Note: This is duplicated from src.sys.mk to ensure that we include
+# /etc/src.conf when building the kernel. Kernels can be built without
+# the rest of /usr/src, but they still always process SRCCONF even though
+# the normal mechanisms to prevent that (compiling out of tree) won't
+# work. To ensure they do work, we have to duplicate thee few lines here.
+SRCCONF?=	/etc/src.conf
+.if (exists(${SRCCONF}) || ${SRCCONF} != "/etc/src.conf") && !target(_srcconf_included_)
+.include "${SRCCONF}"
+_srcconf_included_:
+.endif
+
 .include <bsd.own.mk>
 .include <bsd.compiler.mk>
-
-# backwards compat option for older systems.
-MACHINE_CPUARCH?=${MACHINE_ARCH:C/mips(n32|64)?(el)?/mips/:C/arm(v6)?(eb)?/arm/:C/powerpc64/powerpc/}
+.include "kern.opts.mk"
 
 # Can be overridden by makeoptions or /etc/make.conf
 KERNEL_KO?=	kernel
@@ -36,10 +46,10 @@ _MINUS_O=	-O2
 .endif
 .endif
 .if ${MACHINE_CPUARCH} == "amd64"
-.if ${COMPILER_TYPE} != "clang"
-COPTFLAGS?=-O2 -frename-registers -pipe
-.else
+.if ${COMPILER_TYPE} == "clang"
 COPTFLAGS?=-O2 -pipe
+.else
+COPTFLAGS?=-O2 -frename-registers -pipe
 .endif
 .else
 COPTFLAGS?=${_MINUS_O} -pipe
@@ -85,13 +95,11 @@ CFLAGS_PARAM_LARGE_FUNCTION_GROWTH?=1000
 .if ${MACHINE_CPUARCH} == "mips"
 CFLAGS_ARCH_PARAMS?=--param max-inline-insns-single=1000
 .endif
-.if ${COMPILER_TYPE} != "clang"
-CFLAGS+= -fno-common -finline-limit=${INLINE_LIMIT}
-CFLAGS+= --param inline-unit-growth=${CFLAGS_PARAM_INLINE_UNIT_GROWTH}
-CFLAGS+= --param large-function-growth=${CFLAGS_PARAM_LARGE_FUNCTION_GROWTH}
+CFLAGS.gcc+= -fno-common -finline-limit=${INLINE_LIMIT}
+CFLAGS.gcc+= --param inline-unit-growth=${CFLAGS_PARAM_INLINE_UNIT_GROWTH}
+CFLAGS.gcc+= --param large-function-growth=${CFLAGS_PARAM_LARGE_FUNCTION_GROWTH}
 .if defined(CFLAGS_ARCH_PARAMS)
-CFLAGS+=${CFLAGS_ARCH_PARAMS}
-.endif
+CFLAGS.gcc+=${CFLAGS_ARCH_PARAMS}
 .endif
 WERROR?= -Werror
 
@@ -100,17 +108,17 @@ ASM_CFLAGS= -x assembler-with-cpp -DLOCORE ${CFLAGS}
 
 .if ${COMPILER_TYPE} == "clang"
 CLANG_NO_IAS= -no-integrated-as
+.else
+GCC_MS_EXTENSIONS= -fms-extensions
 .endif
 
 .if defined(PROFLEVEL) && ${PROFLEVEL} >= 1
 CFLAGS+=	-DGPROF
-.if ${COMPILER_TYPE} != "clang"
-CFLAGS+=	-falign-functions=16
-.endif
+CFLAGS.gcc+=	-falign-functions=16
 .if ${PROFLEVEL} >= 2
 CFLAGS+=	-DGPROF4 -DGUPROF
 PROF=		-pg
-.if ${COMPILER_TYPE} != "clang"
+.if ${COMPILER_TYPE} == "gcc"
 PROF+=		-mprofiler-epilogue
 .endif
 .else
@@ -158,7 +166,7 @@ NORMAL_LINT=	${LINT} ${LINTFLAGS} ${CFLAGS:M-[DIU]*} ${.IMPSRC}
 # Infiniband C flags.  Correct include paths and omit errors that linux
 # does not honor.
 OFEDINCLUDES=	-I$S/ofed/include/
-OFEDNOERR=	-Wno-cast-qual -Wno-pointer-arith -fms-extensions
+OFEDNOERR=	-Wno-cast-qual -Wno-pointer-arith ${GCC_MS_EXTENSIONS}
 OFEDCFLAGS=	${CFLAGS:N-I*} ${OFEDINCLUDES} ${CFLAGS:M-I*} ${OFEDNOERR}
 OFED_C_NOIMP=	${CC} -c -o ${.TARGET} ${OFEDCFLAGS} ${WERROR} ${PROF}
 OFED_C=		${OFED_C_NOIMP} ${.IMPSRC}
@@ -181,6 +189,7 @@ SYSTEM_DEP+= ${LDSCRIPT}
 
 MKMODULESENV+=	MAKEOBJDIRPREFIX=${.OBJDIR}/modules KMODDIR=${KODIR}
 MKMODULESENV+=	MACHINE_CPUARCH=${MACHINE_CPUARCH}
+MKMODULESENV+=	MACHINE=${MACHINE} MACHINE_ARCH=${MACHINE_ARCH}
 .if (${KERN_IDENT} == LINT)
 MKMODULESENV+=	ALL_MODULES=LINT
 .endif

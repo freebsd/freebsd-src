@@ -4,7 +4,7 @@
 
 KMOD=	sppp
 SRCS=	if_spppfr.c if_spppsubr.c slcompress.c
-SRCS+=	opt_inet.h opt_inet6.h opt_ipx.h
+SRCS+=	opt_inet.h opt_inet6.h
 
 EXPORT_SYMS=	sppp_attach	\
 		sppp_detach	\
@@ -21,9 +21,6 @@ opt_inet.h:
 
 opt_inet6.h:
 	echo "#define INET6 1" > ${.TARGET}
-
-opt_ipx.h:
-	echo "#define IPX 1" > ${.TARGET}
 .endif
 
 .include <bsd.kmod.mk>

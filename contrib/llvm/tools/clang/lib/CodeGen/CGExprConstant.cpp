@@ -53,9 +53,6 @@ private:
     NextFieldOffsetInChars(CharUnits::Zero()),
     LLVMStructAlignment(CharUnits::One()) { }
 
-  void AppendVTablePointer(BaseSubobject Base, llvm::Constant *VTable,
-                           const CXXRecordDecl *VTableClass);
-
   void AppendField(const FieldDecl *Field, uint64_t FieldOffset,
                    llvm::Constant *InitExpr);
 
@@ -72,8 +69,7 @@ private:
 
   bool Build(InitListExpr *ILE);
   void Build(const APValue &Val, const RecordDecl *RD, bool IsPrimaryBase,
-             llvm::Constant *VTable, const CXXRecordDecl *VTableClass,
-             CharUnits BaseOffset);
+             const CXXRecordDecl *VTableClass, CharUnits BaseOffset);
   llvm::Constant *Finalize(QualType Ty);
 
   CharUnits getAlignment(const llvm::Constant *C) const {
@@ -87,23 +83,6 @@ private:
         CGM.getDataLayout().getTypeAllocSize(C->getType()));
   }
 };
-
-void ConstStructBuilder::AppendVTablePointer(BaseSubobject Base,
-                                             llvm::Constant *VTable,
-                                             const CXXRecordDecl *VTableClass) {
-  // Find the appropriate vtable within the vtable group.
-  uint64_t AddressPoint =
-    CGM.getVTableContext().getVTableLayout(VTableClass).getAddressPoint(Base);
-  llvm::Value *Indices[] = {
-    llvm::ConstantInt::get(CGM.Int64Ty, 0),
-    llvm::ConstantInt::get(CGM.Int64Ty, AddressPoint)
-  };
-  llvm::Constant *VTableAddressPoint =
-    llvm::ConstantExpr::getInBoundsGetElementPtr(VTable, Indices);
-
-  // Add the vtable at the start of the object.
-  AppendBytes(Base.getBaseOffset(), VTableAddressPoint);
-}
 
 void ConstStructBuilder::
 AppendField(const FieldDecl *Field, uint64_t FieldOffset,
@@ -368,40 +347,21 @@ void ConstStructBuilder::ConvertStructToPacked() {
 }
                             
 bool ConstStructBuilder::Build(InitListExpr *ILE) {
-  if (ILE->initializesStdInitializerList()) {
-    //CGM.ErrorUnsupported(ILE, "global std::initializer_list");
-    return false;
-  }
-
   RecordDecl *RD = ILE->getType()->getAs<RecordType>()->getDecl();
   const ASTRecordLayout &Layout = CGM.getContext().getASTRecordLayout(RD);
 
   unsigned FieldNo = 0;
   unsigned ElementNo = 0;
-  const FieldDecl *LastFD = 0;
-  bool IsMsStruct = RD->isMsStruct(CGM.getContext());
   
   for (RecordDecl::field_iterator Field = RD->field_begin(),
        FieldEnd = RD->field_end(); Field != FieldEnd; ++Field, ++FieldNo) {
-    if (IsMsStruct) {
-      // Zero-length bitfields following non-bitfield members are
-      // ignored:
-      if (CGM.getContext().ZeroBitfieldFollowsNonBitfield(*Field, LastFD)) {
-        --FieldNo;
-        continue;
-      }
-      LastFD = *Field;
-    }
-    
     // If this is a union, skip all the fields that aren't being initialized.
     if (RD->isUnion() && ILE->getInitializedFieldInUnion() != *Field)
       continue;
 
     // Don't emit anonymous bitfields, they just affect layout.
-    if (Field->isUnnamedBitfield()) {
-      LastFD = *Field;
+    if (Field->isUnnamedBitfield())
       continue;
-    }
 
     // Get the initializer.  A struct can include fields without initializers,
     // we just use explicit null values for them.
@@ -443,15 +403,19 @@ struct BaseInfo {
 }
 
 void ConstStructBuilder::Build(const APValue &Val, const RecordDecl *RD,
-                               bool IsPrimaryBase, llvm::Constant *VTable,
+                               bool IsPrimaryBase,
                                const CXXRecordDecl *VTableClass,
                                CharUnits Offset) {
   const ASTRecordLayout &Layout = CGM.getContext().getASTRecordLayout(RD);
 
   if (const CXXRecordDecl *CD = dyn_cast<CXXRecordDecl>(RD)) {
     // Add a vtable pointer, if we need one and it hasn't already been added.
-    if (CD->isDynamicClass() && !IsPrimaryBase)
-      AppendVTablePointer(BaseSubobject(CD, Offset), VTable, VTableClass);
+    if (CD->isDynamicClass() && !IsPrimaryBase) {
+      llvm::Constant *VTableAddressPoint =
+          CGM.getCXXABI().getVTableAddressPointForConstExpr(
+              BaseSubobject(CD, Offset), VTableClass);
+      AppendBytes(Offset, VTableAddressPoint);
+    }
 
     // Accumulate and sort bases, in order to visit them in address order, which
     // may not be the same as declaration order.
@@ -472,36 +436,22 @@ void ConstStructBuilder::Build(const APValue &Val, const RecordDecl *RD,
 
       bool IsPrimaryBase = Layout.getPrimaryBase() == Base.Decl;
       Build(Val.getStructBase(Base.Index), Base.Decl, IsPrimaryBase,
-            VTable, VTableClass, Offset + Base.Offset);
+            VTableClass, Offset + Base.Offset);
     }
   }
 
   unsigned FieldNo = 0;
-  const FieldDecl *LastFD = 0;
-  bool IsMsStruct = RD->isMsStruct(CGM.getContext());
   uint64_t OffsetBits = CGM.getContext().toBits(Offset);
 
   for (RecordDecl::field_iterator Field = RD->field_begin(),
        FieldEnd = RD->field_end(); Field != FieldEnd; ++Field, ++FieldNo) {
-    if (IsMsStruct) {
-      // Zero-length bitfields following non-bitfield members are
-      // ignored:
-      if (CGM.getContext().ZeroBitfieldFollowsNonBitfield(*Field, LastFD)) {
-        --FieldNo;
-        continue;
-      }
-      LastFD = *Field;
-    }
-
     // If this is a union, skip all the fields that aren't being initialized.
     if (RD->isUnion() && Val.getUnionField() != *Field)
       continue;
 
     // Don't emit anonymous bitfields, they just affect layout.
-    if (Field->isUnnamedBitfield()) {
-      LastFD = *Field;
+    if (Field->isUnnamedBitfield())
       continue;
-    }
 
     // Emit the value of the initializer.
     const APValue &FieldValue =
@@ -593,11 +543,7 @@ llvm::Constant *ConstStructBuilder::BuildStruct(CodeGenModule &CGM,
 
   const RecordDecl *RD = ValTy->castAs<RecordType>()->getDecl();
   const CXXRecordDecl *CD = dyn_cast<CXXRecordDecl>(RD);
-  llvm::Constant *VTable = 0;
-  if (CD && CD->isDynamicClass())
-    VTable = CGM.getVTables().GetAddrOfVTable(CD);
-
-  Builder.Build(Val, RD, false, VTable, CD, CharUnits::Zero());
+  Builder.Build(Val, RD, false, CD, CharUnits::Zero());
 
   return Builder.Finalize(ValTy);
 }
@@ -640,6 +586,10 @@ public:
 
   llvm::Constant *VisitGenericSelectionExpr(GenericSelectionExpr *GE) {
     return Visit(GE->getResultExpr());
+  }
+
+  llvm::Constant *VisitChooseExpr(ChooseExpr *CE) {
+    return Visit(CE->getChosenSubExpr());
   }
 
   llvm::Constant *VisitCompoundLiteralExpr(CompoundLiteralExpr *E) {
@@ -687,6 +637,7 @@ public:
     case CK_AtomicToNonAtomic:
     case CK_NonAtomicToAtomic:
     case CK_NoOp:
+    case CK_ConstructorConversion:
       return C;
 
     case CK_Dependent: llvm_unreachable("saw dependent cast!");
@@ -716,7 +667,6 @@ public:
     case CK_LValueBitCast:
     case CK_NullToMemberPointer:
     case CK_UserDefinedConversion:
-    case CK_ConstructorConversion:
     case CK_CPointerToObjCPointerCast:
     case CK_BlockPointerToObjCPointerCast:
     case CK_AnyPointerToBlockPointerCast:
@@ -995,13 +945,22 @@ public:
       CXXTypeidExpr *Typeid = cast<CXXTypeidExpr>(E);
       QualType T;
       if (Typeid->isTypeOperand())
-        T = Typeid->getTypeOperand();
+        T = Typeid->getTypeOperand(CGM.getContext());
       else
         T = Typeid->getExprOperand()->getType();
       return CGM.GetAddrOfRTTIDescriptor(T);
     }
     case Expr::CXXUuidofExprClass: {
       return CGM.GetAddrOfUuidDescriptor(cast<CXXUuidofExpr>(E));
+    }
+    case Expr::MaterializeTemporaryExprClass: {
+      MaterializeTemporaryExpr *MTE = cast<MaterializeTemporaryExpr>(E);
+      assert(MTE->getStorageDuration() == SD_Static);
+      SmallVector<const Expr *, 2> CommaLHSs;
+      SmallVector<SubobjectAdjustment, 2> Adjustments;
+      const Expr *Inner = MTE->GetTemporaryExpr()
+          ->skipRValueSubobjectAdjustments(CommaLHSs, Adjustments);
+      return CGM.GetAddrOfGlobalTemporary(MTE, Inner);
     }
     }
 

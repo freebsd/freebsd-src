@@ -9,6 +9,9 @@ DPADD+=	${.OBJDIR}/../../../lib/clang/lib${lib}/lib${lib}.a
 LDADD+=	${.OBJDIR}/../../../lib/clang/lib${lib}/lib${lib}.a
 .endfor
 
+DPADD+=	${LIBNCURSES}
+LDADD+=	-lncurses
+
 BINDIR?= /usr/bin
 
 .include <bsd.prog.mk>

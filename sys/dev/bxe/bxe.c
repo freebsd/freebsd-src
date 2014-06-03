@@ -1,9 +1,5 @@
 /*-
- * Copyright (c) 2007-2013 Broadcom Corporation. All rights reserved.
- *
- * Eric Davis        <edavis@broadcom.com>
- * David Christensen <davidch@broadcom.com>
- * Gary Zambrano     <zambrano@broadcom.com>
+ * Copyright (c) 2007-2014 QLogic Corporation. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -14,9 +10,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. Neither the name of Broadcom Corporation nor the name of its contributors
- *    may be used to endorse or promote products derived from this software
- *    without specific prior written consent.
  *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS'
  * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
@@ -34,7 +27,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#define BXE_DRIVER_VERSION "1.78.75"
+#define BXE_DRIVER_VERSION "1.78.78"
 
 #include "bxe.h"
 #include "ecore_sp.h"
@@ -105,126 +98,126 @@ static struct bxe_device_type bxe_devs[] = {
         BRCM_VENDORID,
         CHIP_NUM_57710,
         PCI_ANY_ID, PCI_ANY_ID,
-        "Broadcom NetXtreme II BCM57710 10GbE"
+        "QLogic NetXtreme II BCM57710 10GbE"
     },
     {
         BRCM_VENDORID,
         CHIP_NUM_57711,
         PCI_ANY_ID, PCI_ANY_ID,
-        "Broadcom NetXtreme II BCM57711 10GbE"
+        "QLogic NetXtreme II BCM57711 10GbE"
     },
     {
         BRCM_VENDORID,
         CHIP_NUM_57711E,
         PCI_ANY_ID, PCI_ANY_ID,
-        "Broadcom NetXtreme II BCM57711E 10GbE"
+        "QLogic NetXtreme II BCM57711E 10GbE"
     },
     {
         BRCM_VENDORID,
         CHIP_NUM_57712,
         PCI_ANY_ID, PCI_ANY_ID,
-        "Broadcom NetXtreme II BCM57712 10GbE"
+        "QLogic NetXtreme II BCM57712 10GbE"
     },
     {
         BRCM_VENDORID,
         CHIP_NUM_57712_MF,
         PCI_ANY_ID, PCI_ANY_ID,
-        "Broadcom NetXtreme II BCM57712 MF 10GbE"
+        "QLogic NetXtreme II BCM57712 MF 10GbE"
     },
 #if 0
     {
         BRCM_VENDORID,
         CHIP_NUM_57712_VF,
         PCI_ANY_ID, PCI_ANY_ID,
-        "Broadcom NetXtreme II BCM57712 VF 10GbE"
+        "QLogic NetXtreme II BCM57712 VF 10GbE"
     },
 #endif
     {
         BRCM_VENDORID,
         CHIP_NUM_57800,
         PCI_ANY_ID, PCI_ANY_ID,
-        "Broadcom NetXtreme II BCM57800 10GbE"
+        "QLogic NetXtreme II BCM57800 10GbE"
     },
     {
         BRCM_VENDORID,
         CHIP_NUM_57800_MF,
         PCI_ANY_ID, PCI_ANY_ID,
-        "Broadcom NetXtreme II BCM57800 MF 10GbE"
+        "QLogic NetXtreme II BCM57800 MF 10GbE"
     },
 #if 0
     {
         BRCM_VENDORID,
         CHIP_NUM_57800_VF,
         PCI_ANY_ID, PCI_ANY_ID,
-        "Broadcom NetXtreme II BCM57800 VF 10GbE"
+        "QLogic NetXtreme II BCM57800 VF 10GbE"
     },
 #endif
     {
         BRCM_VENDORID,
         CHIP_NUM_57810,
         PCI_ANY_ID, PCI_ANY_ID,
-        "Broadcom NetXtreme II BCM57810 10GbE"
+        "QLogic NetXtreme II BCM57810 10GbE"
     },
     {
         BRCM_VENDORID,
         CHIP_NUM_57810_MF,
         PCI_ANY_ID, PCI_ANY_ID,
-        "Broadcom NetXtreme II BCM57810 MF 10GbE"
+        "QLogic NetXtreme II BCM57810 MF 10GbE"
     },
 #if 0
     {
         BRCM_VENDORID,
         CHIP_NUM_57810_VF,
         PCI_ANY_ID, PCI_ANY_ID,
-        "Broadcom NetXtreme II BCM57810 VF 10GbE"
+        "QLogic NetXtreme II BCM57810 VF 10GbE"
     },
 #endif
     {
         BRCM_VENDORID,
         CHIP_NUM_57811,
         PCI_ANY_ID, PCI_ANY_ID,
-        "Broadcom NetXtreme II BCM57811 10GbE"
+        "QLogic NetXtreme II BCM57811 10GbE"
     },
     {
         BRCM_VENDORID,
         CHIP_NUM_57811_MF,
         PCI_ANY_ID, PCI_ANY_ID,
-        "Broadcom NetXtreme II BCM57811 MF 10GbE"
+        "QLogic NetXtreme II BCM57811 MF 10GbE"
     },
 #if 0
     {
         BRCM_VENDORID,
         CHIP_NUM_57811_VF,
         PCI_ANY_ID, PCI_ANY_ID,
-        "Broadcom NetXtreme II BCM57811 VF 10GbE"
+        "QLogic NetXtreme II BCM57811 VF 10GbE"
     },
 #endif
     {
         BRCM_VENDORID,
         CHIP_NUM_57840_4_10,
         PCI_ANY_ID, PCI_ANY_ID,
-        "Broadcom NetXtreme II BCM57840 4x10GbE"
+        "QLogic NetXtreme II BCM57840 4x10GbE"
     },
 #if 0
     {
         BRCM_VENDORID,
         CHIP_NUM_57840_2_20,
         PCI_ANY_ID, PCI_ANY_ID,
-        "Broadcom NetXtreme II BCM57840 2x20GbE"
+        "QLogic NetXtreme II BCM57840 2x20GbE"
     },
 #endif
     {
         BRCM_VENDORID,
         CHIP_NUM_57840_MF,
         PCI_ANY_ID, PCI_ANY_ID,
-        "Broadcom NetXtreme II BCM57840 MF 10GbE"
+        "QLogic NetXtreme II BCM57840 MF 10GbE"
     },
 #if 0
     {
         BRCM_VENDORID,
         CHIP_NUM_57840_VF,
         PCI_ANY_ID, PCI_ANY_ID,
-        "Broadcom NetXtreme II BCM57840 VF 10GbE"
+        "QLogic NetXtreme II BCM57840 VF 10GbE"
     },
 #endif
     {
@@ -911,7 +904,7 @@ bxe_dma_map_addr(void *arg, bus_dma_segment_t *segs, int nseg, int error)
         dma->paddr = segs->ds_addr;
         dma->nseg  = nseg;
 #if 0
-        BLOGD(dma->sc, DBG_LOAD,,
+        BLOGD(dma->sc, DBG_LOAD,
               "DMA alloc '%s': vaddr=%p paddr=%p nseg=%d size=%lu\n",
               dma->msg, dma->vaddr, (void *)dma->paddr,
               dma->nseg, dma->size);
@@ -2743,13 +2736,6 @@ bxe_drv_pulse(struct bxe_softc *sc)
 {
     SHMEM_WR(sc, func_mb[SC_FW_MB_IDX(sc)].drv_pulse_mb,
              sc->fw_drv_pulse_wr_seq);
-}
-
-static inline int
-bxe_has_tx_work_unload(struct bxe_fastpath *fp)
-{
-    mb(); /* consumer and producer can change */
-    return (fp->tx_pkt_prod != fp->tx_pkt_cons);
 }
 
 static inline uint16_t
@@ -5011,6 +4997,7 @@ bxe_dump_mbuf(struct bxe_softc *sc,
               uint8_t          contents)
 {
     char * type;
+    int i = 0;
 
     if (!(sc->debug & DBG_MBUF)) {
         return;
@@ -5023,28 +5010,21 @@ bxe_dump_mbuf(struct bxe_softc *sc,
 
     while (m) {
         BLOGD(sc, DBG_MBUF,
-              "mbuf=%p m_len=%d m_flags=0x%b m_data=%p\n",
-              m, m->m_len, m->m_flags,
-              "\20\1M_EXT\2M_PKTHDR\3M_EOR\4M_RDONLY", m->m_data);
+              "%02d: mbuf=%p m_len=%d m_flags=0x%b m_data=%p\n",
+              i, m, m->m_len, m->m_flags, M_FLAG_BITS, m->m_data);
 
         if (m->m_flags & M_PKTHDR) {
              BLOGD(sc, DBG_MBUF,
-                   "- m_pkthdr: len=%d flags=0x%b csum_flags=%b\n",
-                   m->m_pkthdr.len, m->m_flags,
-                   "\20\12M_BCAST\13M_MCAST\14M_FRAG"
-                   "\15M_FIRSTFRAG\16M_LASTFRAG\21M_VLANTAG"
-                   "\22M_PROMISC\23M_NOFREE",
-                   (int)m->m_pkthdr.csum_flags,
-                   "\20\1CSUM_IP\2CSUM_TCP\3CSUM_UDP\4CSUM_IP_FRAGS"
-                   "\5CSUM_FRAGMENT\6CSUM_TSO\11CSUM_IP_CHECKED"
-                   "\12CSUM_IP_VALID\13CSUM_DATA_VALID"
-                   "\14CSUM_PSEUDO_HDR");
+                   "%02d: - m_pkthdr: tot_len=%d flags=0x%b csum_flags=%b\n",
+                   i, m->m_pkthdr.len, m->m_flags, M_FLAG_BITS,
+                   (int)m->m_pkthdr.csum_flags, CSUM_BITS);
         }
 
         if (m->m_flags & M_EXT) {
             switch (m->m_ext.ext_type) {
             case EXT_CLUSTER:    type = "EXT_CLUSTER";    break;
             case EXT_SFBUF:      type = "EXT_SFBUF";      break;
+            case EXT_JUMBOP:     type = "EXT_JUMBOP";     break;
             case EXT_JUMBO9:     type = "EXT_JUMBO9";     break;
             case EXT_JUMBO16:    type = "EXT_JUMBO16";    break;
             case EXT_PACKET:     type = "EXT_PACKET";     break;
@@ -5057,8 +5037,8 @@ bxe_dump_mbuf(struct bxe_softc *sc,
             }
 
             BLOGD(sc, DBG_MBUF,
-                  "- m_ext: %p ext_size=%d, type=%s\n",
-                  m->m_ext.ext_buf, m->m_ext.ext_size, type);
+                  "%02d: - m_ext: %p ext_size=%d type=%s\n",
+                  i, m->m_ext.ext_buf, m->m_ext.ext_size, type);
         }
 
         if (contents) {
@@ -5066,6 +5046,7 @@ bxe_dump_mbuf(struct bxe_softc *sc,
         }
 
         m = m->m_next;
+        i++;
     }
 }
 
@@ -5455,7 +5436,7 @@ bxe_tx_encap(struct bxe_fastpath *fp, struct mbuf **m_head)
         } else if (error == EFBIG) {
             /* possibly recoverable with defragmentation */
             fp->eth_q_stats.mbuf_defrag_attempts++;
-            m0 = m_defrag(*m_head, M_DONTWAIT);
+            m0 = m_defrag(*m_head, M_NOWAIT);
             if (m0 == NULL) {
                 fp->eth_q_stats.mbuf_defrag_failures++;
                 rc = ENOBUFS;
@@ -5498,7 +5479,7 @@ bxe_tx_encap(struct bxe_fastpath *fp, struct mbuf **m_head)
     }
 
     /* make sure it fits in the packet window */
-    if (__predict_false(nsegs > 12)) {
+    if (__predict_false(nsegs > BXE_MAX_SEGMENTS)) {
         /*
          * The mbuf may be to big for the controller to handle. If the frame
          * is a TSO frame we'll need to do an additional check.
@@ -5513,10 +5494,34 @@ bxe_tx_encap(struct bxe_fastpath *fp, struct mbuf **m_head)
             fp->eth_q_stats.tx_window_violation_std++;
         }
 
-        /* XXX I don't like this, change to double copy packet */
+        /* lets try to defragment this mbuf and remap it */
+        fp->eth_q_stats.mbuf_defrag_attempts++;
+        bus_dmamap_unload(fp->tx_mbuf_tag, tx_buf->m_map);
 
-        /* no sense trying to defrag again, just drop the frame */
-        rc = ENODEV;
+        m0 = m_defrag(*m_head, M_NOWAIT);
+        if (m0 == NULL) {
+            fp->eth_q_stats.mbuf_defrag_failures++;
+            /* Ugh, just drop the frame... :( */
+            rc = ENOBUFS;
+        } else {
+            /* defrag successful, try mapping again */
+            *m_head = m0;
+            error = bus_dmamap_load_mbuf_sg(fp->tx_mbuf_tag,
+                                            tx_buf->m_map, m0,
+                                            segs, &nsegs, BUS_DMA_NOWAIT);
+            if (error) {
+                fp->eth_q_stats.tx_dma_mapping_failure++;
+                /* No sense in trying to defrag/copy chain, drop it. :( */
+                rc = error;
+            }
+            else {
+                /* if the chain is still too long then drop it */
+                if (__predict_false(nsegs > BXE_MAX_SEGMENTS)) {
+                    bus_dmamap_unload(fp->tx_mbuf_tag, tx_buf->m_map);
+                    rc = ENODEV;
+                }
+            }
+        }
     }
 
 bxe_tx_encap_continue:
@@ -5676,6 +5681,7 @@ bxe_tx_encap_continue:
             /* split the first BD into header/data making the fw job easy */
             nbds++;
             tx_start_bd->nbd = htole16(nbds);
+            tx_start_bd->nbytes = htole16(hlen);
 
             bd_prod = TX_BD_NEXT(bd_prod);
 
@@ -6554,7 +6560,7 @@ bxe_alloc_rx_bd_mbuf(struct bxe_fastpath *fp,
     rc = 0;
 
     /* allocate the new RX BD mbuf */
-    m = m_getjcl(M_DONTWAIT, MT_DATA, M_PKTHDR, fp->mbuf_alloc_size);
+    m = m_getjcl(M_NOWAIT, MT_DATA, M_PKTHDR, fp->mbuf_alloc_size);
     if (__predict_false(m == NULL)) {
         fp->eth_q_stats.mbuf_rx_bd_alloc_failed++;
         return (ENOBUFS);
@@ -6635,7 +6641,7 @@ bxe_alloc_rx_tpa_mbuf(struct bxe_fastpath *fp,
     int rc = 0;
 
     /* allocate the new TPA mbuf */
-    m = m_getjcl(M_DONTWAIT, MT_DATA, M_PKTHDR, fp->mbuf_alloc_size);
+    m = m_getjcl(M_NOWAIT, MT_DATA, M_PKTHDR, fp->mbuf_alloc_size);
     if (__predict_false(m == NULL)) {
         fp->eth_q_stats.mbuf_rx_tpa_alloc_failed++;
         return (ENOBUFS);
@@ -6697,7 +6703,7 @@ bxe_alloc_rx_sge_mbuf(struct bxe_fastpath *fp,
     int rc = 0;
 
     /* allocate a new SGE mbuf */
-    m = m_getjcl(M_DONTWAIT, MT_DATA, M_PKTHDR, SGE_PAGE_SIZE);
+    m = m_getjcl(M_NOWAIT, MT_DATA, M_PKTHDR, SGE_PAGE_SIZE);
     if (__predict_false(m == NULL)) {
         fp->eth_q_stats.mbuf_rx_sge_alloc_failed++;
         return (ENOMEM);
@@ -6759,7 +6765,7 @@ bxe_alloc_fp_buffers(struct bxe_softc *sc)
 
 #if __FreeBSD_version >= 800000
         fp->tx_br = buf_ring_alloc(BXE_BR_SIZE, M_DEVBUF,
-                                   M_DONTWAIT, &fp->tx_mtx);
+                                   M_NOWAIT, &fp->tx_mtx);
         if (fp->tx_br == NULL) {
             BLOGE(sc, "buf_ring alloc fail for fp[%02d]\n", i);
             goto bxe_alloc_fp_buffers_error;
@@ -9387,13 +9393,13 @@ bxe_interrupt_alloc(struct bxe_softc *sc)
         }
 
         if (((sc->devinfo.pcie_cap_flags & BXE_MSI_CAPABLE_FLAG) == 0) ||
-            (msi_count < 2)) {
+            (msi_count < 1)) {
             sc->interrupt_mode = INTR_MODE_INTX; /* try INTx next */
             break;
         }
 
-        /* ask for the necessary number of MSI vectors */
-        num_requested = min((sc->num_queues + 1), msi_count);
+        /* ask for a single MSI vector */
+        num_requested = 1;
 
         BLOGD(sc, DBG_LOAD, "Requesting %d MSI vectors\n", num_requested);
 
@@ -9404,8 +9410,8 @@ bxe_interrupt_alloc(struct bxe_softc *sc)
             break;
         }
 
-        if (num_allocated < 2) { /* possible? */
-            BLOGE(sc, "MSI allocation less than 2!\n");
+        if (num_allocated != 1) { /* possible? */
+            BLOGE(sc, "MSI allocation is not 1!\n");
             sc->interrupt_mode = INTR_MODE_INTX; /* try INTx next */
             pci_release_msi(sc->dev);
             break;
@@ -9416,38 +9422,26 @@ bxe_interrupt_alloc(struct bxe_softc *sc)
 
         /* best effort so use the number of vectors allocated to us */
         sc->intr_count = num_allocated;
-        sc->num_queues = num_allocated - 1;
+        sc->num_queues = num_allocated;
 
         rid = 1; /* initial resource identifier */
 
-        /* allocate the MSI vectors */
-        for (i = 0; i < num_allocated; i++) {
-            sc->intr[i].rid = (rid + i);
+        sc->intr[0].rid = rid;
 
-            if ((sc->intr[i].resource =
-                 bus_alloc_resource_any(sc->dev,
-                                        SYS_RES_IRQ,
-                                        &sc->intr[i].rid,
-                                        RF_ACTIVE)) == NULL) {
-                BLOGE(sc, "Failed to map MSI[%d] (rid=%d)!\n",
-                      i, (rid + i));
-
-                for (j = (i - 1); j >= 0; j--) {
-                    bus_release_resource(sc->dev,
-                                         SYS_RES_IRQ,
-                                         sc->intr[j].rid,
-                                         sc->intr[j].resource);
-                }
-
-                sc->intr_count = 0;
-                sc->num_queues = 0;
-                sc->interrupt_mode = INTR_MODE_INTX; /* try INTx next */
-                pci_release_msi(sc->dev);
-                break;
-            }
-
-            BLOGD(sc, DBG_LOAD, "Mapped MSI[%d] (rid=%d)\n", i, (rid + i));
+        if ((sc->intr[0].resource =
+             bus_alloc_resource_any(sc->dev,
+                                    SYS_RES_IRQ,
+                                    &sc->intr[0].rid,
+                                    RF_ACTIVE)) == NULL) {
+            BLOGE(sc, "Failed to map MSI[0] (rid=%d)!\n", rid);
+            sc->intr_count = 0;
+            sc->num_queues = 0;
+            sc->interrupt_mode = INTR_MODE_INTX; /* try INTx next */
+            pci_release_msi(sc->dev);
+            break;
         }
+
+        BLOGD(sc, DBG_LOAD, "Mapped MSI[0] (rid=%d)\n", rid);
     } while (0);
 
     do { /* try allocating INTx vector resources */
@@ -9626,54 +9620,21 @@ bxe_interrupt_attach(struct bxe_softc *sc)
             fp->state = BXE_FP_STATE_IRQ;
         }
     } else if (sc->interrupt_mode == INTR_MODE_MSI) {
-        BLOGD(sc, DBG_LOAD, "Enabling slowpath MSI[0] vector.\n");
+        BLOGD(sc, DBG_LOAD, "Enabling MSI[0] vector\n");
 
         /*
-         * Setup the interrupt handler. Note that we pass the driver instance
-         * to the interrupt handler for the slowpath.
+         * Setup the interrupt handler. Note that we pass the
+         * driver instance to the interrupt handler which
+         * will handle both the slowpath and fastpath.
          */
         if ((rc = bus_setup_intr(sc->dev, sc->intr[0].resource,
                                  (INTR_TYPE_NET | INTR_MPSAFE),
-                                 NULL, bxe_intr_sp, sc,
+                                 NULL, bxe_intr_legacy, sc,
                                  &sc->intr[0].tag)) != 0) {
             BLOGE(sc, "Failed to allocate MSI[0] vector (%d)\n", rc);
             goto bxe_interrupt_attach_exit;
         }
 
-        bus_describe_intr(sc->dev, sc->intr[0].resource,
-                          sc->intr[0].tag, "sp");
-
-        /* bus_bind_intr(sc->dev, sc->intr[0].resource, 0); */
-
-        /* initialize the fastpath vectors (note the first was used for sp) */
-        for (i = 0; i < sc->num_queues; i++) {
-            fp = &sc->fp[i];
-            BLOGD(sc, DBG_LOAD, "Enabling MSI[%d] vector\n", (i + 1));
-
-            /*
-             * Setup the interrupt handler. Note that we pass the
-             * fastpath context to the interrupt handler in this
-             * case.
-             */
-            if ((rc = bus_setup_intr(sc->dev, sc->intr[i + 1].resource,
-                                     (INTR_TYPE_NET | INTR_MPSAFE),
-                                     NULL, bxe_intr_fp, fp,
-                                     &sc->intr[i + 1].tag)) != 0) {
-                BLOGE(sc, "Failed to allocate MSI[%d] vector (%d)\n",
-                      (i + 1), rc);
-                goto bxe_interrupt_attach_exit;
-            }
-
-            bus_describe_intr(sc->dev, sc->intr[i + 1].resource,
-                              sc->intr[i + 1].tag, "fp%02d", i);
-
-            /* bind the fastpath instance to a cpu */
-            if (sc->num_queues > 1) {
-                bus_bind_intr(sc->dev, sc->intr[i + 1].resource, i);
-            }
-
-            fp->state = BXE_FP_STATE_IRQ;
-        }
     } else { /* (sc->interrupt_mode == INTR_MODE_INTX) */
         BLOGD(sc, DBG_LOAD, "Enabling INTx interrupts\n");
 
@@ -13353,11 +13314,7 @@ bxe_init_ifnet(struct bxe_softc *sc)
 #endif
     ifp->if_capenable = ifp->if_capabilities;
     ifp->if_capenable &= ~IFCAP_WOL_MAGIC; /* XXX not yet... */
-#if __FreeBSD_version < 1000025
-    ifp->if_baudrate = 1000000000;
-#else
-    if_initbaudrate(ifp, IF_Gbps(10));
-#endif
+    ifp->if_baudrate = IF_Gbps(10);
     ifp->if_snd.ifq_drv_maxlen = sc->tx_ring_size;
 
     IFQ_SET_MAXLEN(&ifp->if_snd, ifp->if_snd.ifq_drv_maxlen);

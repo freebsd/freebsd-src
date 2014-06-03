@@ -4,7 +4,7 @@ NAME
      ssh-keygen - authentication key generation, management and conversion
 
 SYNOPSIS
-     ssh-keygen [-q] [-b bits] -t type [-N new_passphrase] [-C comment]
+     ssh-keygen [-q] [-b bits] [-t type] [-N new_passphrase] [-C comment]
                 [-f output_keyfile]
      ssh-keygen -p [-P old_passphrase] [-N new_passphrase] [-f keyfile]
      ssh-keygen -i [-m key_format] [-f input_keyfile]
@@ -19,8 +19,8 @@ SYNOPSIS
      ssh-keygen -R hostname [-f known_hosts_file]
      ssh-keygen -r hostname [-f input_keyfile] [-g]
      ssh-keygen -G output_file [-v] [-b bits] [-M memory] [-S start_point]
-     ssh-keygen -T output_file -f input_file [-v] [-a num_trials]
-                [-J num_lines] [-j start_line] [-K checkpt] [-W generator]
+     ssh-keygen -T output_file -f input_file [-v] [-a rounds] [-J num_lines]
+                [-j start_line] [-K checkpt] [-W generator]
      ssh-keygen -s ca_key -I certificate_identity [-h] [-n principals]
                 [-O option] [-V validity_interval] [-z serial_number] file ...
      ssh-keygen -L [-f input_keyfile]
@@ -32,10 +32,10 @@ SYNOPSIS
 DESCRIPTION
      ssh-keygen generates, manages and converts authentication keys for
      ssh(1).  ssh-keygen can create RSA keys for use by SSH protocol version 1
-     and DSA, ECDSA or RSA keys for use by SSH protocol version 2.  The type
-     of key to be generated is specified with the -t option.  If invoked
-     without any arguments, ssh-keygen will generate an RSA key for use in SSH
-     protocol 2 connections.
+     and DSA, ECDSA, ED25519 or RSA keys for use by SSH protocol version 2.
+     The type of key to be generated is specified with the -t option.  If
+     invoked without any arguments, ssh-keygen will generate an RSA key for
+     use in SSH protocol 2 connections.
 
      ssh-keygen is also used to generate groups for use in Diffie-Hellman
      group exchange (DH-GEX).  See the MODULI GENERATION section for details.
@@ -46,9 +46,9 @@ DESCRIPTION
 
      Normally each user wishing to use SSH with public key authentication runs
      this once to create the authentication key in ~/.ssh/identity,
-     ~/.ssh/id_ecdsa, ~/.ssh/id_dsa or ~/.ssh/id_rsa.  Additionally, the
-     system administrator may use this to generate host keys, as seen in
-     /etc/rc.
+     ~/.ssh/id_dsa, ~/.ssh/id_ecdsa, ~/.ssh/id_ed25519 or ~/.ssh/id_rsa.
+     Additionally, the system administrator may use this to generate host
+     keys, as seen in /etc/rc.
 
      Normally this program generates the key and asks for a file in which to
      store the private key.  The public key is stored in a file with the same
@@ -79,15 +79,22 @@ DESCRIPTION
 
      The options are as follows:
 
-     -A      For each of the key types (rsa1, rsa, dsa and ecdsa) for which
-             host keys do not exist, generate the host keys with the default
-             key file path, an empty passphrase, default bits for the key
-             type, and default comment.  This is used by /etc/rc to generate
-             new host keys.
+     -A      For each of the key types (rsa1, rsa, dsa, ecdsa and ed25519) for
+             which host keys do not exist, generate the host keys with the
+             default key file path, an empty passphrase, default bits for the
+             key type, and default comment.  This is used by /etc/rc to
+             generate new host keys.
 
-     -a trials
-             Specifies the number of primality tests to perform when screening
-             DH-GEX candidates using the -T command.
+     -a rounds
+             When saving a new-format private key (i.e. an ed25519 key or any
+             SSH protocol 2 key when the -o flag is set), this option
+             specifies the number of KDF (key derivation function) rounds
+             used.  Higher numbers result in slower passphrase verification
+             and increased resistance to brute-force password cracking (should
+             the keys be stolen).
+
+             When screening DH-GEX candidates ( using the -T command).  This
+             option specifies the number of primality tests to perform.
 
      -B      Show the bubblebabble digest of specified private or public key
              file.
@@ -100,7 +107,8 @@ DESCRIPTION
              the -b flag determines the key length by selecting from one of
              three elliptic curve sizes: 256, 384 or 521 bits.  Attempting to
              use bit lengths other than these three values for ECDSA keys will
-             fail.
+             fail.  ED25519 keys have a fixed length and the -b flag will be
+             ignored.
 
      -C comment
              Provides a new comment.
@@ -262,6 +270,12 @@ DESCRIPTION
 
              At present, no options are valid for host keys.
 
+     -o      Causes ssh-keygen to save SSH protocol 2 private keys using the
+             new OpenSSH format rather than the more compatible PEM format.
+             The new format has increased resistance to brute-force password
+             cracking but is not supported by versions of OpenSSH prior to
+             6.5.  Ed25519 keys always use the new private key format.
+
      -P passphrase
              Provides the (old) passphrase.
 
@@ -301,8 +315,8 @@ DESCRIPTION
 
      -t type
              Specifies the type of key to create.  The possible values are
-             ``rsa1'' for protocol version 1 and ``dsa'', ``ecdsa'' or ``rsa''
-             for protocol version 2.
+             ``rsa1'' for protocol version 1 and ``dsa'', ``ecdsa'',
+             ``ed25519'', or ``rsa'' for protocol version 2.
 
      -u      Update a KRL.  When specified with -k, keys listed via the
              command line are added to the existing KRL rather than a new KRL
@@ -441,7 +455,7 @@ CERTIFICATES
 KEY REVOCATION LISTS
      ssh-keygen is able to manage OpenSSH format Key Revocation Lists (KRLs).
      These binary files specify keys or certificates to be revoked using a
-     compact format, taking as little a one bit per certificate if they are
+     compact format, taking as little as one bit per certificate if they are
      being revoked by serial number.
 
      KRLs may be generated using the -k flag.  This option reads one or more
@@ -508,24 +522,26 @@ FILES
 
      ~/.ssh/id_dsa
      ~/.ssh/id_ecdsa
+     ~/.ssh/id_ed25519
      ~/.ssh/id_rsa
-             Contains the protocol version 2 DSA, ECDSA or RSA authentication
-             identity of the user.  This file should not be readable by anyone
-             but the user.  It is possible to specify a passphrase when
-             generating the key; that passphrase will be used to encrypt the
-             private part of this file using 128-bit AES.  This file is not
-             automatically accessed by ssh-keygen but it is offered as the
-             default file for the private key.  ssh(1) will read this file
-             when a login attempt is made.
+             Contains the protocol version 2 DSA, ECDSA, ED25519 or RSA
+             authentication identity of the user.  This file should not be
+             readable by anyone but the user.  It is possible to specify a
+             passphrase when generating the key; that passphrase will be used
+             to encrypt the private part of this file using 128-bit AES.  This
+             file is not automatically accessed by ssh-keygen but it is
+             offered as the default file for the private key.  ssh(1) will
+             read this file when a login attempt is made.
 
      ~/.ssh/id_dsa.pub
      ~/.ssh/id_ecdsa.pub
+     ~/.ssh/id_ed25519.pub
      ~/.ssh/id_rsa.pub
-             Contains the protocol version 2 DSA, ECDSA or RSA public key for
-             authentication.  The contents of this file should be added to
-             ~/.ssh/authorized_keys on all machines where the user wishes to
-             log in using public key authentication.  There is no need to keep
-             the contents of this file secret.
+             Contains the protocol version 2 DSA, ECDSA, ED25519 or RSA public
+             key for authentication.  The contents of this file should be
+             added to ~/.ssh/authorized_keys on all machines where the user
+             wishes to log in using public key authentication.  There is no
+             need to keep the contents of this file secret.
 
      /etc/moduli
              Contains Diffie-Hellman groups used for DH-GEX.  The file format
@@ -543,4 +559,4 @@ AUTHORS
      created OpenSSH.  Markus Friedl contributed the support for SSH protocol
      versions 1.5 and 2.0.
 
-OpenBSD 5.4                      June 27, 2013                     OpenBSD 5.4
+OpenBSD 5.5                    February 5, 2014                    OpenBSD 5.5

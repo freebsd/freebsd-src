@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.include <bsd.own.mk>
+.include <src.opts.mk>
 
 # The order of some of these are rather important.  Some depend on previous
 # subdirs.

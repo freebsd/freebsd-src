@@ -11,11 +11,11 @@
 //===----------------------------------------------------------------------===//
 
 let Namespace = "PPC" in {
-def sub_lt : SubRegIndex;
-def sub_gt : SubRegIndex;
-def sub_eq : SubRegIndex;
-def sub_un : SubRegIndex;
-def sub_32 : SubRegIndex;
+def sub_lt : SubRegIndex<1>;
+def sub_gt : SubRegIndex<1, 1>;
+def sub_eq : SubRegIndex<1, 2>;
+def sub_un : SubRegIndex<1, 3>;
+def sub_32 : SubRegIndex<32>;
 }
 
 
@@ -94,6 +94,10 @@ def ZERO8 : GP8<ZERO, "0">;
 def FP   : GPR<0 /* arbitrary */, "**FRAME POINTER**">;
 def FP8  : GP8<FP, "**FRAME POINTER**">;
 
+// Representations of the base pointer used by setjmp.
+def BP   : GPR<0 /* arbitrary */, "**BASE POINTER**">;
+def BP8  : GP8<BP, "**BASE POINTER**">;
+
 // Condition register bits
 def CR0LT : CRBIT< 0, "0">;
 def CR0GT : CRBIT< 1, "1">;
@@ -140,6 +144,13 @@ def CR6 : CR<6, "cr6", [CR6LT, CR6GT, CR6EQ, CR6UN]>, DwarfRegNum<[74, 74]>;
 def CR7 : CR<7, "cr7", [CR7LT, CR7GT, CR7EQ, CR7UN]>, DwarfRegNum<[75, 75]>;
 }
 
+// The full condition-code register. This is not modeled fully, but defined
+// here primarily, for compatibility with gcc, to allow the inline asm "cc"
+// clobber specification to work.
+def CC : PPCReg<"cc">, DwarfRegAlias<CR0> {
+  let Aliases = [CR0, CR1, CR2, CR3, CR4, CR5, CR6, CR7];
+}
+
 // Link register
 def LR  : SPR<8, "lr">, DwarfRegNum<[-2, 65]>;
 //let Aliases = [LR] in
@@ -150,7 +161,7 @@ def CTR  : SPR<9, "ctr">, DwarfRegNum<[-2, 66]>;
 def CTR8 : SPR<9, "ctr">, DwarfRegNum<[66, -2]>;
 
 // VRsave register
-def VRSAVE: SPR<256, "VRsave">, DwarfRegNum<[109]>;
+def VRSAVE: SPR<256, "vrsave">, DwarfRegNum<[109]>;
 
 // Carry bit.  In the architecture this is really bit 0 of the XER register
 // (which really is SPR register 1);  this is the only bit interesting to a
@@ -172,11 +183,11 @@ def RM: SPR<512, "**ROUNDING MODE**">;
 // then nonvolatiles in reverse order since stmw/lmw save from rN to r31
 def GPRC : RegisterClass<"PPC", [i32], 32, (add (sequence "R%u", 2, 12),
                                                 (sequence "R%u", 30, 13),
-                                                R31, R0, R1, FP)>;
+                                                R31, R0, R1, FP, BP)>;
 
 def G8RC : RegisterClass<"PPC", [i64], 64, (add (sequence "X%u", 2, 12),
                                                 (sequence "X%u", 30, 14),
-                                                X31, X13, X0, X1, FP8)>;
+                                                X31, X13, X0, X1, FP8, BP8)>;
 
 // For some instructions r0 is special (representing the value 0 instead of
 // the value in the r0 register), and we use these register subclasses to
@@ -230,3 +241,8 @@ def VRSAVERC : RegisterClass<"PPC", [i32], 32, (add VRSAVE)>;
 def CARRYRC : RegisterClass<"PPC", [i32], 32, (add CARRY)> {
   let CopyCost = -1;
 }
+
+def CCRC : RegisterClass<"PPC", [i32], 32, (add CC)> {
+  let isAllocatable = 0;
+}
+

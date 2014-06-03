@@ -65,3 +65,4 @@ vm_offset_t	bi_copyenv(vm_offset_t addr);
 int	bi_load32(char *args, int *howtop, int *bootdevp, vm_offset_t *bip,
     vm_offset_t *modulep, vm_offset_t *kernend);
 int	bi_load64(char *args, vm_offset_t *modulep, vm_offset_t *kernend);
+void	bios_addsmapdata(struct preloaded_file *kfp);

@@ -21,16 +21,16 @@
  * specific prior written permission.
  * 
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
- * TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE
- * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
- * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
- * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
- * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
+ * TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+ * PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+ * LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+ * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+ * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
 /**
@@ -40,14 +40,15 @@
  * Keep track of stub and root hints, and read those from config.
  */
 #include "config.h"
-#include <ldns/dname.h>
-#include <ldns/rr.h>
 #include "iterator/iter_hints.h"
 #include "iterator/iter_delegpt.h"
 #include "util/log.h"
 #include "util/config_file.h"
 #include "util/net_help.h"
 #include "util/data/dname.h"
+#include "ldns/rrdef.h"
+#include "ldns/str2wire.h"
+#include "ldns/wire2str.h"
 
 struct iter_hints* 
 hints_create(void)
@@ -92,19 +93,20 @@ ah(struct delegpt* dp, const char* sv, const char* ip)
 {
 	struct sockaddr_storage addr;
 	socklen_t addrlen;
-	ldns_rdf* rdf = ldns_dname_new_frm_str(sv);
-	if(!rdf) {
+	size_t dname_len;
+	uint8_t* dname = sldns_str2wire_dname(sv, &dname_len);
+	if(!dname) {
 		log_err("could not parse %s", sv);
 		return 0;
 	}
-	if(!delegpt_add_ns_mlc(dp, ldns_rdf_data(rdf), 0) ||
+	if(!delegpt_add_ns_mlc(dp, dname, 0) ||
 	   !extstrtoaddr(ip, &addr, &addrlen) ||
-	   !delegpt_add_target_mlc(dp, ldns_rdf_data(rdf), ldns_rdf_size(rdf),
+	   !delegpt_add_target_mlc(dp, dname, dname_len,
 		&addr, addrlen, 0, 0)) {
-		ldns_rdf_deep_free(rdf);
+		free(dname);
 		return 0;
 	}
-	ldns_rdf_deep_free(rdf);
+	free(dname);
 	return 1;
 }
 
@@ -186,22 +188,23 @@ static struct delegpt*
 read_stubs_name(struct config_stub* s)
 {
 	struct delegpt* dp;
-	ldns_rdf* rdf;
+	size_t dname_len;
+	uint8_t* dname;
 	if(!s->name) {
 		log_err("stub zone without a name");
 		return NULL;
 	}
-	rdf = ldns_dname_new_frm_str(s->name);
-	if(!rdf) {
+	dname = sldns_str2wire_dname(s->name, &dname_len);
+	if(!dname) {
 		log_err("cannot parse stub zone name %s", s->name);
 		return NULL;
 	}
-	if(!(dp=delegpt_create_mlc(ldns_rdf_data(rdf)))) {
-		ldns_rdf_deep_free(rdf);
+	if(!(dp=delegpt_create_mlc(dname))) {
+		free(dname);
 		log_err("out of memory");
 		return NULL;
 	}
-	ldns_rdf_deep_free(rdf);
+	free(dname);
 	return dp;
 }
 
@@ -210,21 +213,22 @@ static int
 read_stubs_host(struct config_stub* s, struct delegpt* dp)
 {
 	struct config_strlist* p;
-	ldns_rdf* rdf;
+	size_t dname_len;
+	uint8_t* dname;
 	for(p = s->hosts; p; p = p->next) {
 		log_assert(p->str);
-		rdf = ldns_dname_new_frm_str(p->str);
-		if(!rdf) {
+		dname = sldns_str2wire_dname(p->str, &dname_len);
+		if(!dname) {
 			log_err("cannot parse stub %s nameserver name: '%s'", 
 				s->name, p->str);
 			return 0;
 		}
-		if(!delegpt_add_ns_mlc(dp, ldns_rdf_data(rdf), 0)) {
-			ldns_rdf_deep_free(rdf);
+		if(!delegpt_add_ns_mlc(dp, dname, 0)) {
+			free(dname);
 			log_err("out of memory");
 			return 0;
 		}
-		ldns_rdf_deep_free(rdf);
+		free(dname);
 	}
 	return 1;
 }
@@ -279,13 +283,11 @@ read_stubs(struct iter_hints* hints, struct config_file* cfg)
 static int 
 read_root_hints(struct iter_hints* hints, char* fname)
 {
-	int lineno = 0;
-	uint32_t default_ttl = 0;
-	ldns_rdf* origin = NULL;
-	ldns_rdf* prev_rr = NULL;
+	struct sldns_file_parse_state pstate;
 	struct delegpt* dp;
-	ldns_rr* rr = NULL;
-	ldns_status status;
+	uint8_t rr[LDNS_RR_BUF_SIZE];
+	size_t rr_len, dname_len;
+	int status;
 	uint16_t c = LDNS_RR_CLASS_IN;
 	FILE* f = fopen(fname, "r");
 	if(!f) {
@@ -300,77 +302,78 @@ read_root_hints(struct iter_hints* hints, char* fname)
 		return 0;
 	}
 	verbose(VERB_QUERY, "Reading root hints from %s", fname);
+	memset(&pstate, 0, sizeof(pstate));
+	pstate.lineno = 1;
 	dp->has_parent_side_NS = 1;
 	while(!feof(f)) {
-		status = ldns_rr_new_frm_fp_l(&rr, f, 
-			&default_ttl, &origin, &prev_rr, &lineno);
-		if(status == LDNS_STATUS_SYNTAX_EMPTY ||
-			status == LDNS_STATUS_SYNTAX_TTL ||
-			status == LDNS_STATUS_SYNTAX_ORIGIN)
-			continue;
-		if(status != LDNS_STATUS_OK) {
-			log_err("reading root hints %s %d: %s", fname,
-				lineno, ldns_get_errorstr_by_id(status));
+		rr_len = sizeof(rr);
+		dname_len = 0;
+		status = sldns_fp2wire_rr_buf(f, rr, &rr_len, &dname_len,
+			&pstate);
+		if(status != 0) {
+			log_err("reading root hints %s %d:%d: %s", fname,
+				pstate.lineno, LDNS_WIREPARSE_OFFSET(status),
+				sldns_get_errorstr_parse(status));
 			goto stop_read;
 		}
-		if(ldns_rr_get_type(rr) == LDNS_RR_TYPE_NS) {
-			if(!delegpt_add_ns_mlc(dp,
-				ldns_rdf_data(ldns_rr_rdf(rr, 0)), 0)) {
+		if(rr_len == 0)
+			continue; /* EMPTY line, TTL or ORIGIN */
+		if(sldns_wirerr_get_type(rr, rr_len, dname_len)
+			== LDNS_RR_TYPE_NS) {
+			if(!delegpt_add_ns_mlc(dp, sldns_wirerr_get_rdata(rr,
+				rr_len, dname_len), 0)) {
 				log_err("out of memory reading root hints");
 				goto stop_read;
 			}
-			c = ldns_rr_get_class(rr);
+			c = sldns_wirerr_get_class(rr, rr_len, dname_len);
 			if(!dp->name) {
-				if(!delegpt_set_name_mlc(dp,
-					ldns_rdf_data(ldns_rr_owner(rr)))){
+				if(!delegpt_set_name_mlc(dp, rr)) {
 					log_err("out of memory.");
 					goto stop_read;
 				}
 			}
-		} else if(ldns_rr_get_type(rr) == LDNS_RR_TYPE_A) {
+		} else if(sldns_wirerr_get_type(rr, rr_len, dname_len)
+			== LDNS_RR_TYPE_A && sldns_wirerr_get_rdatalen(rr,
+			rr_len, dname_len) == INET_SIZE) {
 			struct sockaddr_in sa;
 			socklen_t len = (socklen_t)sizeof(sa);
 			memset(&sa, 0, len);
 			sa.sin_family = AF_INET;
 			sa.sin_port = (in_port_t)htons(UNBOUND_DNS_PORT);
 			memmove(&sa.sin_addr, 
-				ldns_rdf_data(ldns_rr_rdf(rr, 0)), INET_SIZE);
-			if(!delegpt_add_target_mlc(dp,
-					ldns_rdf_data(ldns_rr_owner(rr)),
-					ldns_rdf_size(ldns_rr_owner(rr)),
+				sldns_wirerr_get_rdata(rr, rr_len, dname_len),
+				INET_SIZE);
+			if(!delegpt_add_target_mlc(dp, rr, dname_len,
 					(struct sockaddr_storage*)&sa, len, 
 					0, 0)) {
 				log_err("out of memory reading root hints");
 				goto stop_read;
 			}
-		} else if(ldns_rr_get_type(rr) == LDNS_RR_TYPE_AAAA) {
+		} else if(sldns_wirerr_get_type(rr, rr_len, dname_len)
+			== LDNS_RR_TYPE_AAAA && sldns_wirerr_get_rdatalen(rr,
+			rr_len, dname_len) == INET6_SIZE) {
 			struct sockaddr_in6 sa;
 			socklen_t len = (socklen_t)sizeof(sa);
 			memset(&sa, 0, len);
 			sa.sin6_family = AF_INET6;
 			sa.sin6_port = (in_port_t)htons(UNBOUND_DNS_PORT);
 			memmove(&sa.sin6_addr, 
-				ldns_rdf_data(ldns_rr_rdf(rr, 0)), INET6_SIZE);
-			if(!delegpt_add_target_mlc(dp,
-					ldns_rdf_data(ldns_rr_owner(rr)),
-					ldns_rdf_size(ldns_rr_owner(rr)),
+				sldns_wirerr_get_rdata(rr, rr_len, dname_len),
+				INET6_SIZE);
+			if(!delegpt_add_target_mlc(dp, rr, dname_len,
 					(struct sockaddr_storage*)&sa, len,
 					0, 0)) {
 				log_err("out of memory reading root hints");
 				goto stop_read;
 			}
 		} else {
-			log_warn("root hints %s:%d skipping type %d",
-				fname, lineno, ldns_rr_get_type(rr));
+			char buf[17];
+			sldns_wire2str_type_buf(sldns_wirerr_get_type(rr,
+				rr_len, dname_len), buf, sizeof(buf));
+			log_warn("root hints %s:%d skipping type %s",
+				fname, pstate.lineno, buf);
 		}
-
-		ldns_rr_free(rr);
 	}
-
-	if (origin)
-		ldns_rdf_deep_free(origin);
-	if (prev_rr)
-		ldns_rdf_deep_free(prev_rr);
 	fclose(f);
 	if(!dp->name) {
 		log_warn("root hints %s: no NS content", fname);
@@ -384,10 +387,6 @@ read_root_hints(struct iter_hints* hints, char* fname)
 	return 1;
 
 stop_read:
-	if (origin)
-		ldns_rdf_deep_free(origin);
-	if (prev_rr)
-		ldns_rdf_deep_free(prev_rr);
 	delegpt_free_mlc(dp);
 	fclose(f);
 	return 0;

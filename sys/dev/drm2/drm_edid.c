@@ -171,7 +171,7 @@ drm_edid_block_valid(u8 *raw_edid)
 	for (i = 0; i < EDID_LENGTH; i++)
 		csum += raw_edid[i];
 	if (csum) {
-		DRM_ERROR("EDID checksum is invalid, remainder is %d\n", csum);
+		DRM_DEBUG("EDID checksum is invalid, remainder is %d\n", csum);
 
 		/* allow CEA to slide through, switches mangle this */
 		if (raw_edid[0] != 0x02)

@@ -52,9 +52,10 @@ __FBSDID("$FreeBSD$");
 
 #define	MEVENT_MAX	64
 
-#define MEV_ENABLE	1
-#define MEV_DISABLE	2
-#define MEV_DEL_PENDING	3
+#define	MEV_ADD		1
+#define	MEV_ENABLE	2
+#define	MEV_DISABLE	3
+#define	MEV_DEL_PENDING	4
 
 extern char *vmname;
 
@@ -135,6 +136,9 @@ mevent_kq_filter(struct mevent *mevp)
 	if (mevp->me_type == EVF_TIMER)
 		retval = EVFILT_TIMER;
 
+	if (mevp->me_type == EVF_SIGNAL)
+		retval = EVFILT_SIGNAL;
+
 	return (retval);
 }
 
@@ -144,16 +148,20 @@ mevent_kq_flags(struct mevent *mevp)
 	int ret;
 
 	switch (mevp->me_state) {
+	case MEV_ADD:
+		ret = EV_ADD;		/* implicitly enabled */
+		break;
 	case MEV_ENABLE:
-		ret = EV_ADD;
-		if (mevp->me_type == EVF_TIMER)
-			ret |= EV_ENABLE;
+		ret = EV_ENABLE;
 		break;
 	case MEV_DISABLE:
 		ret = EV_DISABLE;
 		break;
 	case MEV_DEL_PENDING:
 		ret = EV_DELETE;
+		break;
+	default:
+		assert(0);
 		break;
 	}
 
@@ -265,12 +273,11 @@ mevent_add(int tfd, enum ev_type type,
 	/*
 	 * Allocate an entry, populate it, and add it to the change list.
 	 */
-	mevp = malloc(sizeof(struct mevent));
+	mevp = calloc(1, sizeof(struct mevent));
 	if (mevp == NULL) {
 		goto exit;
 	}
 
-	memset(mevp, 0, sizeof(struct mevent));
 	if (type == EVF_TIMER) {
 		mevp->me_msecs = tfd;
 		mevp->me_timid = mevent_timid++;
@@ -282,7 +289,7 @@ mevent_add(int tfd, enum ev_type type,
 
 	LIST_INSERT_HEAD(&change_head, mevp, me_list);
 	mevp->me_cq = 1;
-	mevp->me_state = MEV_ENABLE;
+	mevp->me_state = MEV_ADD;
 	mevent_notify();
 
 exit:
@@ -437,7 +444,7 @@ mevent_dispatch(void)
 		 * Block awaiting events
 		 */
 		ret = kevent(mfd, NULL, 0, eventlist, MEVENT_MAX, NULL);
-		if (ret == -1) {
+		if (ret == -1 && errno != EINTR) {
 			perror("Error return from kevent monitor");
 		}
 		

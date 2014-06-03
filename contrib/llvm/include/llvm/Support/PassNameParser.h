@@ -7,9 +7,9 @@
 //
 //===----------------------------------------------------------------------===//
 //
-// This file the PassNameParser and FilteredPassNameParser<> classes, which are
-// used to add command line arguments to a utility for all of the passes that
-// have been registered into the system.
+// This file contains the PassNameParser and FilteredPassNameParser<> classes,
+// which are used to add command line arguments to a utility for all of the
+// passes that have been registered into the system.
 //
 // The PassNameParser class adds ALL passes linked into the system (that are
 // creatable) as command line arguments to the tool (when instantiated with the
@@ -86,10 +86,9 @@ public:
 
 private:
   // ValLessThan - Provide a sorting comparator for Values elements...
-  static int ValLessThan(const void *VT1, const void *VT2) {
-    typedef PassNameParser::OptionInfo ValType;
-    return std::strcmp(static_cast<const ValType *>(VT1)->Name,
-                       static_cast<const ValType *>(VT2)->Name);
+  static int ValLessThan(const PassNameParser::OptionInfo *VT1,
+                         const PassNameParser::OptionInfo *VT2) {
+    return std::strcmp(VT1->Name, VT2->Name);
   }
 };
 

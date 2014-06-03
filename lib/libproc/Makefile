@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.include <bsd.own.mk>
+.include <src.opts.mk>
 
 LIB=	proc
 
@@ -25,6 +25,6 @@ DPADD+=		${LIBSTDCPLUSPLUS}
 
 SHLIB_MAJOR=	2
 
-WITHOUT_MAN=
+MAN=
 
 .include <bsd.lib.mk>

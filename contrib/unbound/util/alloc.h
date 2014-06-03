@@ -21,16 +21,16 @@
  * specific prior written permission.
  * 
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
- * TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE
- * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
- * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
- * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
- * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
+ * TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+ * PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+ * LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+ * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+ * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
 /**
@@ -201,15 +201,15 @@ void *unbound_stat_realloc_lite(void *ptr, size_t size, const char* file,
 char* unbound_strdup_lite(const char* s, const char* file, int line, 
 	const char* func);
 char* unbound_lite_wrapstr(char* s);
-#  define ldns_rr2str(rr) unbound_lite_wrapstr(ldns_rr2str(rr))
-#  define ldns_rdf2str(rdf) unbound_lite_wrapstr(ldns_rdf2str(rdf))
-#  define ldns_rr_type2str(t) unbound_lite_wrapstr(ldns_rr_type2str(t))
-#  define ldns_rr_class2str(c) unbound_lite_wrapstr(ldns_rr_class2str(c))
-#  define ldns_rr_list2str(r) unbound_lite_wrapstr(ldns_rr_list2str(r))
-#  define ldns_pkt2str(p) unbound_lite_wrapstr(ldns_pkt2str(p))
-#  define ldns_pkt_rcode2str(r) unbound_lite_wrapstr(ldns_pkt_rcode2str(r))
-#  define ldns_pkt2wire(a, r, s) unbound_lite_pkt2wire(a, r, s)
-ldns_status unbound_lite_pkt2wire(uint8_t **dest, const ldns_pkt *p, size_t *size);
+#  define sldns_rr2str(rr) unbound_lite_wrapstr(sldns_rr2str(rr))
+#  define sldns_rdf2str(rdf) unbound_lite_wrapstr(sldns_rdf2str(rdf))
+#  define sldns_rr_type2str(t) unbound_lite_wrapstr(sldns_rr_type2str(t))
+#  define sldns_rr_class2str(c) unbound_lite_wrapstr(sldns_rr_class2str(c))
+#  define sldns_rr_list2str(r) unbound_lite_wrapstr(sldns_rr_list2str(r))
+#  define sldns_pkt2str(p) unbound_lite_wrapstr(sldns_pkt2str(p))
+#  define sldns_pkt_rcode2str(r) unbound_lite_wrapstr(sldns_pkt_rcode2str(r))
+#  define sldns_pkt2wire(a, r, s) unbound_lite_pkt2wire(a, r, s)
+sldns_status unbound_lite_pkt2wire(uint8_t **dest, const sldns_pkt *p, size_t *size);
 #  define i2d_DSA_SIG(d, s) unbound_lite_i2d_DSA_SIG(d, s)
 int unbound_lite_i2d_DSA_SIG(DSA_SIG* dsasig, unsigned char** sig);
 #endif /* UNBOUND_ALLOC_LITE */

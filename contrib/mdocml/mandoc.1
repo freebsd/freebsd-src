@@ -1,6 +1,7 @@
-.\"	$Id: mandoc.1,v 1.100 2011/12/25 19:35:44 kristaps Exp $
+.\"	$Id: mandoc.1,v 1.103 2013/07/13 19:41:16 schwarze Exp $
 .\"
 .\" Copyright (c) 2009, 2010, 2011 Kristaps Dzonsons <kristaps@bsd.lv>
+.\" Copyright (c) 2012 Ingo Schwarze <schwarze@openbsd.org>
 .\"
 .\" Permission to use, copy, modify, and distribute this software for any
 .\" purpose with or without fee is hereby granted, provided that the above
@@ -14,7 +15,7 @@
 .\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 .\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 .\"
-.Dd $Mdocdate: December 25 2011 $
+.Dd $Mdocdate: July 13 2013 $
 .Dt MANDOC 1
 .Os
 .Sh NAME
@@ -23,6 +24,9 @@
 .Sh SYNOPSIS
 .Nm mandoc
 .Op Fl V
+.Sm off
+.Op Fl I Cm os Li = Ar name
+.Sm on
 .Op Fl m Ns Ar format
 .Op Fl O Ns Ar option
 .Op Fl T Ns Ar output
@@ -49,6 +53,15 @@ output.
 .Pp
 The arguments are as follows:
 .Bl -tag -width Ds
+.Sm off
+.It Fl I Cm os Li = Ar name
+.Sm on
+Override the default operating system
+.Ar name
+for the
+.Xr mdoc 7
+.Sq \&Os
+macro.
 .It Fl m Ns Ar format
 Input format.
 See
@@ -334,7 +347,7 @@ for font style specification and available command-line arguments.
 Translate input format into
 .Xr man 7
 output format.
-This is useful for distributing manual sources to legancy systems
+This is useful for distributing manual sources to legacy systems
 lacking
 .Xr mdoc 7
 formatters.
@@ -637,8 +650,7 @@ lists render similarly.
 The
 .Nm
 utility was written by
-.An Kristaps Dzonsons ,
-.Mt kristaps@bsd.lv .
+.An Kristaps Dzonsons Aq Mt kristaps@bsd.lv .
 .Sh CAVEATS
 In
 .Fl T Ns Cm html

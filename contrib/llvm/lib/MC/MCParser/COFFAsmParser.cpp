@@ -35,6 +35,13 @@ class COFFAsmParser : public MCAsmParserExtension {
                           unsigned Characteristics,
                           SectionKind Kind);
 
+  bool ParseSectionSwitch(StringRef Section, unsigned Characteristics,
+                          SectionKind Kind, StringRef COMDATSymName,
+                          COFF::COMDATType Type, const MCSectionCOFF *Assoc);
+
+  bool ParseSectionName(StringRef &SectionName);
+  bool ParseSectionFlags(StringRef FlagsString, unsigned* Flags);
+
   virtual void Initialize(MCAsmParser &Parser) {
     // Call the base implementation.
     MCAsmParserExtension::Initialize(Parser);
@@ -42,11 +49,13 @@ class COFFAsmParser : public MCAsmParserExtension {
     addDirectiveHandler<&COFFAsmParser::ParseSectionDirectiveText>(".text");
     addDirectiveHandler<&COFFAsmParser::ParseSectionDirectiveData>(".data");
     addDirectiveHandler<&COFFAsmParser::ParseSectionDirectiveBSS>(".bss");
+    addDirectiveHandler<&COFFAsmParser::ParseDirectiveSection>(".section");
     addDirectiveHandler<&COFFAsmParser::ParseDirectiveDef>(".def");
     addDirectiveHandler<&COFFAsmParser::ParseDirectiveScl>(".scl");
     addDirectiveHandler<&COFFAsmParser::ParseDirectiveType>(".type");
     addDirectiveHandler<&COFFAsmParser::ParseDirectiveEndef>(".endef");
     addDirectiveHandler<&COFFAsmParser::ParseDirectiveSecRel32>(".secrel32");
+    addDirectiveHandler<&COFFAsmParser::ParseDirectiveLinkOnce>(".linkonce");
 
     // Win64 EH directives.
     addDirectiveHandler<&COFFAsmParser::ParseSEHDirectiveStartProc>(
@@ -100,11 +109,15 @@ class COFFAsmParser : public MCAsmParserExtension {
                               SectionKind::getBSS());
   }
 
+  bool ParseDirectiveSection(StringRef, SMLoc);
   bool ParseDirectiveDef(StringRef, SMLoc);
   bool ParseDirectiveScl(StringRef, SMLoc);
   bool ParseDirectiveType(StringRef, SMLoc);
   bool ParseDirectiveEndef(StringRef, SMLoc);
   bool ParseDirectiveSecRel32(StringRef, SMLoc);
+  bool parseCOMDATTypeAndAssoc(COFF::COMDATType &Type,
+                               const MCSectionCOFF *&Assoc);
+  bool ParseDirectiveLinkOnce(StringRef, SMLoc);
 
   // Win64 EH directives.
   bool ParseSEHDirectiveStartProc(StringRef, SMLoc);
@@ -129,6 +142,119 @@ public:
 };
 
 } // end annonomous namespace.
+
+static SectionKind computeSectionKind(unsigned Flags) {
+  if (Flags & COFF::IMAGE_SCN_MEM_EXECUTE)
+    return SectionKind::getText();
+  if (Flags & COFF::IMAGE_SCN_MEM_READ &&
+      (Flags & COFF::IMAGE_SCN_MEM_WRITE) == 0)
+    return SectionKind::getReadOnly();
+  return SectionKind::getDataRel();
+}
+
+bool COFFAsmParser::ParseSectionFlags(StringRef FlagsString, unsigned* Flags) {
+  enum {
+    None      = 0,
+    Alloc     = 1 << 0,
+    Code      = 1 << 1,
+    Load      = 1 << 2,
+    InitData  = 1 << 3,
+    Shared    = 1 << 4,
+    NoLoad    = 1 << 5,
+    NoRead    = 1 << 6,
+    NoWrite  =  1 << 7
+  };
+
+  bool ReadOnlyRemoved = false;
+  unsigned SecFlags = None;
+
+  for (unsigned i = 0; i < FlagsString.size(); ++i) {
+    switch (FlagsString[i]) {
+    case 'a':
+      // Ignored.
+      break;
+
+    case 'b': // bss section
+      SecFlags |= Alloc;
+      if (SecFlags & InitData)
+        return TokError("conflicting section flags 'b' and 'd'.");
+      SecFlags &= ~Load;
+      break;
+
+    case 'd': // data section
+      SecFlags |= InitData;
+      if (SecFlags & Alloc)
+        return TokError("conflicting section flags 'b' and 'd'.");
+      SecFlags &= ~NoWrite;
+      if ((SecFlags & NoLoad) == 0)
+        SecFlags |= Load;
+      break;
+
+    case 'n': // section is not loaded
+      SecFlags |= NoLoad;
+      SecFlags &= ~Load;
+      break;
+
+    case 'r': // read-only
+      ReadOnlyRemoved = false;
+      SecFlags |= NoWrite;
+      if ((SecFlags & Code) == 0)
+        SecFlags |= InitData;
+      if ((SecFlags & NoLoad) == 0)
+        SecFlags |= Load;
+      break;
+
+    case 's': // shared section
+      SecFlags |= Shared | InitData;
+      SecFlags &= ~NoWrite;
+      if ((SecFlags & NoLoad) == 0)
+        SecFlags |= Load;
+      break;
+
+    case 'w': // writable
+      SecFlags &= ~NoWrite;
+      ReadOnlyRemoved = true;
+      break;
+
+    case 'x': // executable section
+      SecFlags |= Code;
+      if ((SecFlags & NoLoad) == 0)
+        SecFlags |= Load;
+      if (!ReadOnlyRemoved)
+        SecFlags |= NoWrite;
+      break;
+
+    case 'y': // not readable
+      SecFlags |= NoRead | NoWrite;
+      break;
+
+    default:
+      return TokError("unknown flag");
+    }
+  }
+
+  *Flags = 0;
+
+  if (SecFlags == None)
+    SecFlags = InitData;
+
+  if (SecFlags & Code)
+    *Flags |= COFF::IMAGE_SCN_CNT_CODE | COFF::IMAGE_SCN_MEM_EXECUTE;
+  if (SecFlags & InitData)
+    *Flags |= COFF::IMAGE_SCN_CNT_INITIALIZED_DATA;
+  if ((SecFlags & Alloc) && (SecFlags & Load) == 0)
+    *Flags |= COFF::IMAGE_SCN_CNT_UNINITIALIZED_DATA;
+  if (SecFlags & NoLoad)
+    *Flags |= COFF::IMAGE_SCN_LNK_REMOVE;
+  if ((SecFlags & NoRead) == 0)
+    *Flags |= COFF::IMAGE_SCN_MEM_READ;
+  if ((SecFlags & NoWrite) == 0)
+    *Flags |= COFF::IMAGE_SCN_MEM_WRITE;
+  if (SecFlags & Shared)
+    *Flags |= COFF::IMAGE_SCN_MEM_SHARED;
+
+  return false;
+}
 
 /// ParseDirectiveSymbolAttribute
 ///  ::= { ".weak", ... } [ identifier ( , identifier )* ]
@@ -164,13 +290,96 @@ bool COFFAsmParser::ParseDirectiveSymbolAttribute(StringRef Directive, SMLoc) {
 bool COFFAsmParser::ParseSectionSwitch(StringRef Section,
                                        unsigned Characteristics,
                                        SectionKind Kind) {
+  return ParseSectionSwitch(Section, Characteristics, Kind, "",
+                            COFF::IMAGE_COMDAT_SELECT_ANY, 0);
+}
+
+bool COFFAsmParser::ParseSectionSwitch(StringRef Section,
+                                       unsigned Characteristics,
+                                       SectionKind Kind,
+                                       StringRef COMDATSymName,
+                                       COFF::COMDATType Type,
+                                       const MCSectionCOFF *Assoc) {
   if (getLexer().isNot(AsmToken::EndOfStatement))
     return TokError("unexpected token in section switching directive");
   Lex();
 
   getStreamer().SwitchSection(getContext().getCOFFSection(
-                                Section, Characteristics, Kind));
+      Section, Characteristics, Kind, COMDATSymName, Type, Assoc));
 
+  return false;
+}
+
+bool COFFAsmParser::ParseSectionName(StringRef &SectionName) {
+  if (!getLexer().is(AsmToken::Identifier))
+    return true;
+
+  SectionName = getTok().getIdentifier();
+  Lex();
+  return false;
+}
+
+// .section name [, "flags"] [, identifier [ identifier ], identifier]
+//
+// Supported flags:
+//   a: Ignored.
+//   b: BSS section (uninitialized data)
+//   d: data section (initialized data)
+//   n: Discardable section
+//   r: Readable section
+//   s: Shared section
+//   w: Writable section
+//   x: Executable section
+//   y: Not-readable section (clears 'r')
+//
+// Subsections are not supported.
+bool COFFAsmParser::ParseDirectiveSection(StringRef, SMLoc) {
+  StringRef SectionName;
+
+  if (ParseSectionName(SectionName))
+    return TokError("expected identifier in directive");
+
+  unsigned Flags = COFF::IMAGE_SCN_CNT_INITIALIZED_DATA |
+                   COFF::IMAGE_SCN_MEM_READ |
+                   COFF::IMAGE_SCN_MEM_WRITE;
+
+  if (getLexer().is(AsmToken::Comma)) {
+    Lex();
+
+    if (getLexer().isNot(AsmToken::String))
+      return TokError("expected string in directive");
+
+    StringRef FlagsStr = getTok().getStringContents();
+    Lex();
+
+    if (ParseSectionFlags(FlagsStr, &Flags))
+      return true;
+  }
+
+  COFF::COMDATType Type = COFF::IMAGE_COMDAT_SELECT_ANY;
+  const MCSectionCOFF *Assoc = 0;
+  StringRef COMDATSymName;
+  if (getLexer().is(AsmToken::Comma)) {
+    Lex();
+
+    Flags |= COFF::IMAGE_SCN_LNK_COMDAT;
+
+    if (parseCOMDATTypeAndAssoc(Type, Assoc))
+      return true;
+
+    if (getLexer().isNot(AsmToken::Comma))
+      return TokError("expected comma in directive");
+    Lex();
+
+    if (getParser().parseIdentifier(COMDATSymName))
+      return TokError("expected identifier in directive");
+  }
+
+  if (getLexer().isNot(AsmToken::EndOfStatement))
+    return TokError("unexpected token in directive");
+
+  SectionKind Kind = computeSectionKind(Flags);
+  ParseSectionSwitch(SectionName, Flags, Kind, COMDATSymName, Type, Assoc);
   return false;
 }
 
@@ -232,6 +441,75 @@ bool COFFAsmParser::ParseDirectiveSecRel32(StringRef, SMLoc) {
 
   Lex();
   getStreamer().EmitCOFFSecRel32(Symbol);
+  return false;
+}
+
+/// ::= [ identifier [ identifier ] ]
+bool COFFAsmParser::parseCOMDATTypeAndAssoc(COFF::COMDATType &Type,
+                                            const MCSectionCOFF *&Assoc) {
+  StringRef TypeId = getTok().getIdentifier();
+
+  Type = StringSwitch<COFF::COMDATType>(TypeId)
+    .Case("one_only", COFF::IMAGE_COMDAT_SELECT_NODUPLICATES)
+    .Case("discard", COFF::IMAGE_COMDAT_SELECT_ANY)
+    .Case("same_size", COFF::IMAGE_COMDAT_SELECT_SAME_SIZE)
+    .Case("same_contents", COFF::IMAGE_COMDAT_SELECT_EXACT_MATCH)
+    .Case("associative", COFF::IMAGE_COMDAT_SELECT_ASSOCIATIVE)
+    .Case("largest", COFF::IMAGE_COMDAT_SELECT_LARGEST)
+    .Case("newest", COFF::IMAGE_COMDAT_SELECT_NEWEST)
+    .Default((COFF::COMDATType)0);
+
+  if (Type == 0)
+    return TokError(Twine("unrecognized COMDAT type '" + TypeId + "'"));
+
+  Lex();
+
+  if (Type == COFF::IMAGE_COMDAT_SELECT_ASSOCIATIVE) {
+    SMLoc Loc = getTok().getLoc();
+    StringRef AssocName;
+    if (ParseSectionName(AssocName))
+      return TokError("expected associated section name");
+
+    Assoc = static_cast<const MCSectionCOFF*>(
+                                        getContext().getCOFFSection(AssocName));
+    if (!Assoc)
+      return Error(Loc, "cannot associate unknown section '" + AssocName + "'");
+    if (!(Assoc->getCharacteristics() & COFF::IMAGE_SCN_LNK_COMDAT))
+      return Error(Loc, "associated section must be a COMDAT section");
+    if (Assoc->getSelection() == COFF::IMAGE_COMDAT_SELECT_ASSOCIATIVE)
+      return Error(Loc, "associated section cannot be itself associative");
+  }
+
+  return false;
+}
+
+/// ParseDirectiveLinkOnce
+///  ::= .linkonce [ identifier [ identifier ] ]
+bool COFFAsmParser::ParseDirectiveLinkOnce(StringRef, SMLoc Loc) {
+  COFF::COMDATType Type = COFF::IMAGE_COMDAT_SELECT_ANY;
+  const MCSectionCOFF *Assoc = 0;
+  if (getLexer().is(AsmToken::Identifier))
+    if (parseCOMDATTypeAndAssoc(Type, Assoc))
+      return true;
+
+  const MCSectionCOFF *Current = static_cast<const MCSectionCOFF*>(
+                                       getStreamer().getCurrentSection().first);
+
+
+  if (Type == COFF::IMAGE_COMDAT_SELECT_ASSOCIATIVE) {
+    if (Assoc == Current)
+      return Error(Loc, "cannot associate a section with itself");
+  }
+
+  if (Current->getCharacteristics() & COFF::IMAGE_SCN_LNK_COMDAT)
+    return Error(Loc, Twine("section '") + Current->getSectionName() +
+                                                       "' is already linkonce");
+
+  Current->setSelection(Type, Assoc);
+
+  if (getLexer().isNot(AsmToken::EndOfStatement))
+    return TokError("unexpected token in directive");
+
   return false;
 }
 
@@ -453,7 +731,7 @@ bool COFFAsmParser::ParseAtUnwindOrAtExcept(bool &unwind, bool &except) {
 bool COFFAsmParser::ParseSEHRegisterNumber(unsigned &RegNo) {
   SMLoc startLoc = getLexer().getLoc();
   if (getLexer().is(AsmToken::Percent)) {
-    const MCRegisterInfo &MRI = getContext().getRegisterInfo();
+    const MCRegisterInfo *MRI = getContext().getRegisterInfo();
     SMLoc endLoc;
     unsigned LLVMRegNo;
     if (getParser().getTargetParser().ParseRegister(LLVMRegNo,startLoc,endLoc))
@@ -473,7 +751,7 @@ bool COFFAsmParser::ParseSEHRegisterNumber(unsigned &RegNo) {
       return Error(startLoc, "expected non-volatile register");
 #endif
 
-    int SEHRegNo = MRI.getSEHRegNum(LLVMRegNo);
+    int SEHRegNo = MRI->getSEHRegNum(LLVMRegNo);
     if (SEHRegNo < 0)
       return Error(startLoc,"register can't be represented in SEH unwind info");
     RegNo = SEHRegNo;

@@ -2642,7 +2642,7 @@ ffs_snapdata_acquire(struct vnode *devvp)
 	struct snapdata *sn;
 
 	/*
- 	 * Allocate a free snapdata.  This is done before acquiring the
+	 * Allocate a free snapdata.  This is done before acquiring the
 	 * devvp lock to avoid allocation while the devvp interlock is
 	 * held.
 	 */

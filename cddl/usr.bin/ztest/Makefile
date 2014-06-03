@@ -3,7 +3,7 @@
 .PATH: ${.CURDIR}/../..//contrib/opensolaris/cmd/ztest
 
 PROG=	ztest
-NO_MAN=
+MAN=
 
 WARNS?=	0
 CFLAGS+= -I${.CURDIR}/../../../sys/cddl/compat/opensolaris

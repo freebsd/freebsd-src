@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2003,2007 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2012,2013 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -27,13 +27,13 @@
  ****************************************************************************/
 
 /****************************************************************************
- *  Author: Thomas E. Dickey <dickey@clark.net> 1997                        *
+ *  Author: Thomas E. Dickey        1997-on                                 *
  ****************************************************************************/
 
 #include <curses.priv.h>
 #include <ctype.h>
 
-MODULE_ID("$Id: safe_sprintf.c,v 1.20 2007/04/21 22:28:06 tom Exp $")
+MODULE_ID("$Id: safe_sprintf.c,v 1.27 2013/01/20 01:04:32 tom Exp $")
 
 #if USE_SAFE_SPRINTF
 
@@ -109,12 +109,16 @@ _nc_printf_length(const char *fmt, va_list ap)
 		    } else if (state == Prec) {
 			prec = ival;
 		    }
-		    sprintf(fmt_arg, "%d", ival);
+		    _nc_SPRINTF(fmt_arg,
+				_nc_SLIMIT(sizeof(fmt_arg))
+				"%d", ival);
 		    fmt_len += strlen(fmt_arg);
-		    if ((format = realloc(format, fmt_len)) == 0) {
+		    if ((format = _nc_doalloc(format, fmt_len)) == 0) {
+			free(buffer);
 			return -1;
 		    }
-		    strcpy(&format[--f], fmt_arg);
+		    --f;
+		    _nc_STRCPY(&format[f], fmt_arg, fmt_len - f);
 		    f = strlen(format);
 		} else if (isalpha(UChar(*fmt))) {
 		    done = TRUE;
@@ -185,13 +189,13 @@ _nc_printf_length(const char *fmt, va_list ap)
 	    format[f] = '\0';
 	    switch (used) {
 	    case 'i':
-		sprintf(buffer, format, ival);
+		_nc_SPRINTF(buffer, _nc_SLIMIT(length) format, ival);
 		break;
 	    case 'f':
-		sprintf(buffer, format, fval);
+		_nc_SPRINTF(buffer, _nc_SLIMIT(length) format, fval);
 		break;
 	    default:
-		sprintf(buffer, format, pval);
+		_nc_SPRINTF(buffer, _nc_SLIMIT(length) format, pval);
 		break;
 	    }
 	    len += (int) strlen(buffer);
@@ -214,13 +218,20 @@ _nc_printf_length(const char *fmt, va_list ap)
  * Wrapper for vsprintf that allocates a buffer big enough to hold the result.
  */
 NCURSES_EXPORT(char *)
-_nc_printf_string(const char *fmt, va_list ap)
+NCURSES_SP_NAME(_nc_printf_string) (NCURSES_SP_DCLx
+				    const char *fmt,
+				    va_list ap)
 {
     char *result = 0;
 
     if (fmt != 0) {
 #if USE_SAFE_SPRINTF
-	int len = _nc_printf_length(fmt, ap);
+	va_list ap2;
+	int len;
+
+	begin_va_copy(ap2, ap);
+	len = _nc_printf_length(fmt, ap2);
+	end_va_copy(ap2);
 
 	if ((int) my_length < len + 1) {
 	    my_length = 2 * (len + 1);
@@ -237,12 +248,12 @@ _nc_printf_string(const char *fmt, va_list ap)
 #define MyCols _nc_globals.safeprint_cols
 #define MyRows _nc_globals.safeprint_rows
 
-	if (screen_lines > MyRows || screen_columns > MyCols) {
-	    if (screen_lines > MyRows)
-		MyRows = screen_lines;
-	    if (screen_columns > MyCols)
-		MyCols = screen_columns;
-	    my_length = (MyRows * (MyCols + 1)) + 1;
+	if (screen_lines(SP_PARM) > MyRows || screen_columns(SP_PARM) > MyCols) {
+	    if (screen_lines(SP_PARM) > MyRows)
+		MyRows = screen_lines(SP_PARM);
+	    if (screen_columns(SP_PARM) > MyCols)
+		MyCols = screen_columns(SP_PARM);
+	    my_length = (size_t) (MyRows * (MyCols + 1)) + 1;
 	    my_buffer = typeRealloc(char, my_length, my_buffer);
 	}
 
@@ -262,3 +273,11 @@ _nc_printf_string(const char *fmt, va_list ap)
     }
     return result;
 }
+
+#if NCURSES_SP_FUNCS
+NCURSES_EXPORT(char *)
+_nc_printf_string(const char *fmt, va_list ap)
+{
+    return NCURSES_SP_NAME(_nc_printf_string) (CURRENT_SCREEN, fmt, ap);
+}
+#endif

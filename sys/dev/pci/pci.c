@@ -92,6 +92,9 @@ static int		pci_add_map(device_t bus, device_t dev, int reg,
 			    struct resource_list *rl, int force, int prefetch);
 static int		pci_probe(device_t dev);
 static int		pci_attach(device_t dev);
+#ifdef PCI_RES_BUS
+static int		pci_detach(device_t dev);
+#endif
 static void		pci_load_vendor_data(void);
 static int		pci_describe_parse_line(char **ptr, int *vendor,
 			    int *device, char **desc);
@@ -121,11 +124,17 @@ static void		pci_resume_msix(device_t dev);
 static int		pci_remap_intr_method(device_t bus, device_t dev,
 			    u_int irq);
 
+static uint16_t		pci_get_rid_method(device_t dev, device_t child);
+
 static device_method_t pci_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		pci_probe),
 	DEVMETHOD(device_attach,	pci_attach),
+#ifdef PCI_RES_BUS
+	DEVMETHOD(device_detach,	pci_detach),
+#else
 	DEVMETHOD(device_detach,	bus_generic_detach),
+#endif
 	DEVMETHOD(device_shutdown,	bus_generic_shutdown),
 	DEVMETHOD(device_suspend,	pci_suspend),
 	DEVMETHOD(device_resume,	pci_resume),
@@ -175,6 +184,7 @@ static device_method_t pci_methods[] = {
 	DEVMETHOD(pci_release_msi,	pci_release_msi_method),
 	DEVMETHOD(pci_msi_count,	pci_msi_count_method),
 	DEVMETHOD(pci_msix_count,	pci_msix_count_method),
+	DEVMETHOD(pci_get_rid,		pci_get_rid_method),
 
 	DEVMETHOD_END
 };
@@ -331,6 +341,23 @@ SYSCTL_INT(_hw_pci, OID_AUTO, usb_early_takeover, CTLFLAG_RDTUN,
     &pci_usb_takeover, 1, "Enable early takeover of USB controllers.\n\
 Disable this if you depend on BIOS emulation of USB devices, that is\n\
 you use USB devices (like keyboard or mouse) but do not load USB drivers");
+
+static int pci_clear_bars;
+TUNABLE_INT("hw.pci.clear_bars", &pci_clear_bars);
+SYSCTL_INT(_hw_pci, OID_AUTO, clear_bars, CTLFLAG_RDTUN, &pci_clear_bars, 0,
+    "Ignore firmware-assigned resources for BARs.");
+
+#if defined(NEW_PCIB) && defined(PCI_RES_BUS)
+static int pci_clear_buses;
+TUNABLE_INT("hw.pci.clear_buses", &pci_clear_buses);
+SYSCTL_INT(_hw_pci, OID_AUTO, clear_buses, CTLFLAG_RDTUN, &pci_clear_buses, 0,
+    "Ignore firmware-assigned bus numbers.");
+#endif
+
+static int pci_enable_ari = 1;
+TUNABLE_INT("hw.pci.enable_ari", &pci_enable_ari);
+SYSCTL_INT(_hw_pci, OID_AUTO, enable_ari, CTLFLAG_RDTUN, &pci_enable_ari,
+    0, "Enable support for PCIe Alternative RID Interpretation");
 
 static int
 pci_has_quirk(uint32_t devid, int quirk)
@@ -985,7 +1012,7 @@ pci_read_vpd(device_t pcib, pcicfgregs *cfg)
 				state = -2;
 				break;
 			}
-			dflen = byte2;
+			cfg->vpd.vpd_ros[off].len = dflen = byte2;
 			if (dflen == 0 &&
 			    strncmp(cfg->vpd.vpd_ros[off].keyword, "RV",
 			    2) == 0) {
@@ -1177,6 +1204,17 @@ pci_get_vpd_readonly_method(device_t dev, device_t child, const char *kw,
 
 	*vptr = NULL;
 	return (ENXIO);
+}
+
+struct pcicfg_vpd *
+pci_fetch_vpd_list(device_t dev)
+{
+	struct pci_devinfo *dinfo = device_get_ivars(dev);
+	pcicfgregs *cfg = &dinfo->cfg;
+
+	if (!cfg->vpd.vpd_cached && cfg->vpd.vpd_reg != 0)
+		pci_read_vpd(device_get_parent(device_get_parent(dev)), cfg);
+	return (&cfg->vpd);
 }
 
 /*
@@ -2731,7 +2769,7 @@ pci_add_map(device_t bus, device_t dev, int reg, struct resource_list *rl,
 	struct pci_map *pm;
 	pci_addr_t base, map, testval;
 	pci_addr_t start, end, count;
-	int barlen, basezero, maprange, mapsize, type;
+	int barlen, basezero, flags, maprange, mapsize, type;
 	uint16_t cmd;
 	struct resource *res;
 
@@ -2837,7 +2875,10 @@ pci_add_map(device_t bus, device_t dev, int reg, struct resource_list *rl,
 	}
 
 	count = (pci_addr_t)1 << mapsize;
-	if (basezero || base == pci_mapbase(testval)) {
+	flags = RF_ALIGNMENT_LOG2(mapsize);
+	if (prefetch)
+		flags |= RF_PREFETCHABLE;
+	if (basezero || base == pci_mapbase(testval) || pci_clear_bars) {
 		start = 0;	/* Let the parent decide. */
 		end = ~0ul;
 	} else {
@@ -2853,7 +2894,7 @@ pci_add_map(device_t bus, device_t dev, int reg, struct resource_list *rl,
 	 * pci_alloc_resource().
 	 */
 	res = resource_list_reserve(rl, bus, dev, type, &reg, start, end, count,
-	    prefetch ? RF_PREFETCHABLE : 0);
+	    flags);
 	if (pci_do_realloc_bars && res == NULL && (start != 0 || end != ~0ul)) {
 		/*
 		 * If the allocation fails, try to allocate a resource for
@@ -2864,7 +2905,7 @@ pci_add_map(device_t bus, device_t dev, int reg, struct resource_list *rl,
 		resource_list_delete(rl, type, reg);
 		resource_list_add(rl, type, reg, 0, ~0ul, count);
 		res = resource_list_reserve(rl, bus, dev, type, &reg, 0, ~0ul,
-		    count, prefetch ? RF_PREFETCHABLE : 0);
+		    count, flags);
 	}
 	if (res == NULL) {
 		/*
@@ -3178,6 +3219,164 @@ xhci_early_takeover(device_t self)
 	bus_release_resource(self, SYS_RES_MEMORY, rid, res);
 }
 
+#if defined(NEW_PCIB) && defined(PCI_RES_BUS)
+static void
+pci_reserve_secbus(device_t bus, device_t dev, pcicfgregs *cfg,
+    struct resource_list *rl)
+{
+	struct resource *res;
+	char *cp;
+	u_long start, end, count;
+	int rid, sec_bus, sec_reg, sub_bus, sub_reg, sup_bus;
+
+	switch (cfg->hdrtype & PCIM_HDRTYPE) {
+	case PCIM_HDRTYPE_BRIDGE:
+		sec_reg = PCIR_SECBUS_1;
+		sub_reg = PCIR_SUBBUS_1;
+		break;
+	case PCIM_HDRTYPE_CARDBUS:
+		sec_reg = PCIR_SECBUS_2;
+		sub_reg = PCIR_SUBBUS_2;
+		break;
+	default:
+		return;
+	}
+
+	/*
+	 * If the existing bus range is valid, attempt to reserve it
+	 * from our parent.  If this fails for any reason, clear the
+	 * secbus and subbus registers.
+	 *
+	 * XXX: Should we reset sub_bus to sec_bus if it is < sec_bus?
+	 * This would at least preserve the existing sec_bus if it is
+	 * valid.
+	 */
+	sec_bus = PCI_READ_CONFIG(bus, dev, sec_reg, 1);
+	sub_bus = PCI_READ_CONFIG(bus, dev, sub_reg, 1);
+
+	/* Quirk handling. */
+	switch (pci_get_devid(dev)) {
+	case 0x12258086:		/* Intel 82454KX/GX (Orion) */
+		sup_bus = pci_read_config(dev, 0x41, 1);
+		if (sup_bus != 0xff) {
+			sec_bus = sup_bus + 1;
+			sub_bus = sup_bus + 1;
+			PCI_WRITE_CONFIG(bus, dev, sec_reg, sec_bus, 1);
+			PCI_WRITE_CONFIG(bus, dev, sub_reg, sub_bus, 1);
+		}
+		break;
+
+	case 0x00dd10de:
+		/* Compaq R3000 BIOS sets wrong subordinate bus number. */
+		if ((cp = getenv("smbios.planar.maker")) == NULL)
+			break;
+		if (strncmp(cp, "Compal", 6) != 0) {
+			freeenv(cp);
+			break;
+		}
+		freeenv(cp);
+		if ((cp = getenv("smbios.planar.product")) == NULL)
+			break;
+		if (strncmp(cp, "08A0", 4) != 0) {
+			freeenv(cp);
+			break;
+		}
+		freeenv(cp);
+		if (sub_bus < 0xa) {
+			sub_bus = 0xa;
+			PCI_WRITE_CONFIG(bus, dev, sub_reg, sub_bus, 1);
+		}
+		break;
+	}
+
+	if (bootverbose)
+		printf("\tsecbus=%d, subbus=%d\n", sec_bus, sub_bus);
+	if (sec_bus > 0 && sub_bus >= sec_bus) {
+		start = sec_bus;
+		end = sub_bus;
+		count = end - start + 1;
+
+		resource_list_add(rl, PCI_RES_BUS, 0, 0ul, ~0ul, count);
+
+		/*
+		 * If requested, clear secondary bus registers in
+		 * bridge devices to force a complete renumbering
+		 * rather than reserving the existing range.  However,
+		 * preserve the existing size.
+		 */
+		if (pci_clear_buses)
+			goto clear;
+
+		rid = 0;
+		res = resource_list_reserve(rl, bus, dev, PCI_RES_BUS, &rid,
+		    start, end, count, 0);
+		if (res != NULL)
+			return;
+
+		if (bootverbose)
+			device_printf(bus,
+			    "pci%d:%d:%d:%d secbus failed to allocate\n",
+			    pci_get_domain(dev), pci_get_bus(dev),
+			    pci_get_slot(dev), pci_get_function(dev));
+	}
+
+clear:
+	PCI_WRITE_CONFIG(bus, dev, sec_reg, 0, 1);
+	PCI_WRITE_CONFIG(bus, dev, sub_reg, 0, 1);
+}
+
+static struct resource *
+pci_alloc_secbus(device_t dev, device_t child, int *rid, u_long start,
+    u_long end, u_long count, u_int flags)
+{
+	struct pci_devinfo *dinfo;
+	pcicfgregs *cfg;
+	struct resource_list *rl;
+	struct resource *res;
+	int sec_reg, sub_reg;
+
+	dinfo = device_get_ivars(child);
+	cfg = &dinfo->cfg;
+	rl = &dinfo->resources;
+	switch (cfg->hdrtype & PCIM_HDRTYPE) {
+	case PCIM_HDRTYPE_BRIDGE:
+		sec_reg = PCIR_SECBUS_1;
+		sub_reg = PCIR_SUBBUS_1;
+		break;
+	case PCIM_HDRTYPE_CARDBUS:
+		sec_reg = PCIR_SECBUS_2;
+		sub_reg = PCIR_SUBBUS_2;
+		break;
+	default:
+		return (NULL);
+	}
+
+	if (*rid != 0)
+		return (NULL);
+
+	if (resource_list_find(rl, PCI_RES_BUS, *rid) == NULL)
+		resource_list_add(rl, PCI_RES_BUS, *rid, start, end, count);
+	if (!resource_list_reserved(rl, PCI_RES_BUS, *rid)) {
+		res = resource_list_reserve(rl, dev, child, PCI_RES_BUS, rid,
+		    start, end, count, flags & ~RF_ACTIVE);
+		if (res == NULL) {
+			resource_list_delete(rl, PCI_RES_BUS, *rid);
+			device_printf(child, "allocating %lu bus%s failed\n",
+			    count, count == 1 ? "" : "es");
+			return (NULL);
+		}
+		if (bootverbose)
+			device_printf(child,
+			    "Lazy allocation of %lu bus%s at %lu\n", count,
+			    count == 1 ? "" : "es", rman_get_start(res));
+		PCI_WRITE_CONFIG(dev, child, sec_reg, rman_get_start(res), 1);
+		PCI_WRITE_CONFIG(dev, child, sub_reg, rman_get_end(res), 1);
+	}
+	return (resource_list_alloc(rl, dev, child, PCI_RES_BUS, rid, start,
+	    end, count, flags));
+}
+#endif
+
 void
 pci_add_resources(device_t bus, device_t dev, int force, uint32_t prefetchmask)
 {
@@ -3250,6 +3449,27 @@ pci_add_resources(device_t bus, device_t dev, int force, uint32_t prefetchmask)
 		else if (pci_get_progif(dev) == PCIP_SERIALBUS_USB_UHCI)
 			uhci_early_takeover(dev);
 	}
+
+#if defined(NEW_PCIB) && defined(PCI_RES_BUS)
+	/*
+	 * Reserve resources for secondary bus ranges behind bridge
+	 * devices.
+	 */
+	pci_reserve_secbus(bus, dev, cfg, rl);
+#endif
+}
+
+static struct pci_devinfo *
+pci_identify_function(device_t pcib, device_t dev, int domain, int busno,
+    int slot, int func, size_t dinfo_size)
+{
+	struct pci_devinfo *dinfo;
+
+	dinfo = pci_read_device(pcib, domain, busno, slot, func, dinfo_size);
+	if (dinfo != NULL)
+		pci_add_child(dev, dinfo);
+
+	return (dinfo);
 }
 
 void
@@ -3261,11 +3481,29 @@ pci_add_children(device_t dev, int domain, int busno, size_t dinfo_size)
 	int maxslots;
 	int s, f, pcifunchigh;
 	uint8_t hdrtype;
+	int first_func;
+
+	/*
+	 * Try to detect a device at slot 0, function 0.  If it exists, try to
+	 * enable ARI.  We must enable ARI before detecting the rest of the
+	 * functions on this bus as ARI changes the set of slots and functions
+	 * that are legal on this bus.
+	 */
+	dinfo = pci_identify_function(pcib, dev, domain, busno, 0, 0,
+	    dinfo_size);
+	if (dinfo != NULL && pci_enable_ari)
+		PCIB_TRY_ENABLE_ARI(pcib, dinfo->cfg.dev);
+
+	/*
+	 * Start looking for new devices on slot 0 at function 1 because we
+	 * just identified the device at slot 0, function 0.
+	 */
+	first_func = 1;
 
 	KASSERT(dinfo_size >= sizeof(struct pci_devinfo),
 	    ("dinfo_size too small"));
 	maxslots = PCIB_MAXSLOTS(pcib);
-	for (s = 0; s <= maxslots; s++) {
+	for (s = 0; s <= maxslots; s++, first_func = 0) {
 		pcifunchigh = 0;
 		f = 0;
 		DELAY(1);
@@ -3273,14 +3511,10 @@ pci_add_children(device_t dev, int domain, int busno, size_t dinfo_size)
 		if ((hdrtype & PCIM_HDRTYPE) > PCI_MAXHDRTYPE)
 			continue;
 		if (hdrtype & PCIM_MFDEV)
-			pcifunchigh = PCI_FUNCMAX;
-		for (f = 0; f <= pcifunchigh; f++) {
-			dinfo = pci_read_device(pcib, domain, busno, s, f,
+			pcifunchigh = PCIB_MAXFUNCS(pcib);
+		for (f = first_func; f <= pcifunchigh; f++)
+			pci_identify_function(pcib, dev, domain, busno, s, f,
 			    dinfo_size);
-			if (dinfo != NULL) {
-				pci_add_child(dev, dinfo);
-			}
-		}
 	}
 #undef REG
 }
@@ -3315,10 +3549,22 @@ pci_attach_common(device_t dev)
 #ifdef PCI_DMA_BOUNDARY
 	int error, tag_valid;
 #endif
+#ifdef PCI_RES_BUS
+	int rid;
+#endif
 
 	sc = device_get_softc(dev);
 	domain = pcib_get_domain(dev);
 	busno = pcib_get_bus(dev);
+#ifdef PCI_RES_BUS
+	rid = 0;
+	sc->sc_bus = bus_alloc_resource(dev, PCI_RES_BUS, &rid, busno, busno,
+	    1, 0);
+	if (sc->sc_bus == NULL) {
+		device_printf(dev, "failed to allocate bus number\n");
+		return (ENXIO);
+	}
+#endif
 	if (bootverbose)
 		device_printf(dev, "domain=%d, physical bus=%d\n",
 		    domain, busno);
@@ -3362,6 +3608,21 @@ pci_attach(device_t dev)
 	pci_add_children(dev, domain, busno, sizeof(struct pci_devinfo));
 	return (bus_generic_attach(dev));
 }
+
+#ifdef PCI_RES_BUS
+static int
+pci_detach(device_t dev)
+{
+	struct pci_softc *sc;
+	int error;
+
+	error = bus_generic_detach(dev);
+	if (error)
+		return (error);
+	sc = device_get_softc(dev);
+	return (bus_release_resource(dev, PCI_RES_BUS, 0, sc->sc_bus));
+}
+#endif
 
 static void
 pci_set_power_children(device_t dev, device_t *devlist, int numdevs,
@@ -3707,105 +3968,108 @@ static const struct
 {
 	int		class;
 	int		subclass;
+	int		report; /* 0 = bootverbose, 1 = always */
 	const char	*desc;
 } pci_nomatch_tab[] = {
-	{PCIC_OLD,		-1,			"old"},
-	{PCIC_OLD,		PCIS_OLD_NONVGA,	"non-VGA display device"},
-	{PCIC_OLD,		PCIS_OLD_VGA,		"VGA-compatible display device"},
-	{PCIC_STORAGE,		-1,			"mass storage"},
-	{PCIC_STORAGE,		PCIS_STORAGE_SCSI,	"SCSI"},
-	{PCIC_STORAGE,		PCIS_STORAGE_IDE,	"ATA"},
-	{PCIC_STORAGE,		PCIS_STORAGE_FLOPPY,	"floppy disk"},
-	{PCIC_STORAGE,		PCIS_STORAGE_IPI,	"IPI"},
-	{PCIC_STORAGE,		PCIS_STORAGE_RAID,	"RAID"},
-	{PCIC_STORAGE,		PCIS_STORAGE_ATA_ADMA,	"ATA (ADMA)"},
-	{PCIC_STORAGE,		PCIS_STORAGE_SATA,	"SATA"},
-	{PCIC_STORAGE,		PCIS_STORAGE_SAS,	"SAS"},
-	{PCIC_STORAGE,		PCIS_STORAGE_NVM,	"NVM"},
-	{PCIC_NETWORK,		-1,			"network"},
-	{PCIC_NETWORK,		PCIS_NETWORK_ETHERNET,	"ethernet"},
-	{PCIC_NETWORK,		PCIS_NETWORK_TOKENRING,	"token ring"},
-	{PCIC_NETWORK,		PCIS_NETWORK_FDDI,	"fddi"},
-	{PCIC_NETWORK,		PCIS_NETWORK_ATM,	"ATM"},
-	{PCIC_NETWORK,		PCIS_NETWORK_ISDN,	"ISDN"},
-	{PCIC_DISPLAY,		-1,			"display"},
-	{PCIC_DISPLAY,		PCIS_DISPLAY_VGA,	"VGA"},
-	{PCIC_DISPLAY,		PCIS_DISPLAY_XGA,	"XGA"},
-	{PCIC_DISPLAY,		PCIS_DISPLAY_3D,	"3D"},
-	{PCIC_MULTIMEDIA,	-1,			"multimedia"},
-	{PCIC_MULTIMEDIA,	PCIS_MULTIMEDIA_VIDEO,	"video"},
-	{PCIC_MULTIMEDIA,	PCIS_MULTIMEDIA_AUDIO,	"audio"},
-	{PCIC_MULTIMEDIA,	PCIS_MULTIMEDIA_TELE,	"telephony"},
-	{PCIC_MULTIMEDIA,	PCIS_MULTIMEDIA_HDA,	"HDA"},
-	{PCIC_MEMORY,		-1,			"memory"},
-	{PCIC_MEMORY,		PCIS_MEMORY_RAM,	"RAM"},
-	{PCIC_MEMORY,		PCIS_MEMORY_FLASH,	"flash"},
-	{PCIC_BRIDGE,		-1,			"bridge"},
-	{PCIC_BRIDGE,		PCIS_BRIDGE_HOST,	"HOST-PCI"},
-	{PCIC_BRIDGE,		PCIS_BRIDGE_ISA,	"PCI-ISA"},
-	{PCIC_BRIDGE,		PCIS_BRIDGE_EISA,	"PCI-EISA"},
-	{PCIC_BRIDGE,		PCIS_BRIDGE_MCA,	"PCI-MCA"},
-	{PCIC_BRIDGE,		PCIS_BRIDGE_PCI,	"PCI-PCI"},
-	{PCIC_BRIDGE,		PCIS_BRIDGE_PCMCIA,	"PCI-PCMCIA"},
-	{PCIC_BRIDGE,		PCIS_BRIDGE_NUBUS,	"PCI-NuBus"},
-	{PCIC_BRIDGE,		PCIS_BRIDGE_CARDBUS,	"PCI-CardBus"},
-	{PCIC_BRIDGE,		PCIS_BRIDGE_RACEWAY,	"PCI-RACEway"},
-	{PCIC_SIMPLECOMM,	-1,			"simple comms"},
-	{PCIC_SIMPLECOMM,	PCIS_SIMPLECOMM_UART,	"UART"},	/* could detect 16550 */
-	{PCIC_SIMPLECOMM,	PCIS_SIMPLECOMM_PAR,	"parallel port"},
-	{PCIC_SIMPLECOMM,	PCIS_SIMPLECOMM_MULSER,	"multiport serial"},
-	{PCIC_SIMPLECOMM,	PCIS_SIMPLECOMM_MODEM,	"generic modem"},
-	{PCIC_BASEPERIPH,	-1,			"base peripheral"},
-	{PCIC_BASEPERIPH,	PCIS_BASEPERIPH_PIC,	"interrupt controller"},
-	{PCIC_BASEPERIPH,	PCIS_BASEPERIPH_DMA,	"DMA controller"},
-	{PCIC_BASEPERIPH,	PCIS_BASEPERIPH_TIMER,	"timer"},
-	{PCIC_BASEPERIPH,	PCIS_BASEPERIPH_RTC,	"realtime clock"},
-	{PCIC_BASEPERIPH,	PCIS_BASEPERIPH_PCIHOT,	"PCI hot-plug controller"},
-	{PCIC_BASEPERIPH,	PCIS_BASEPERIPH_SDHC,	"SD host controller"},
-	{PCIC_INPUTDEV,		-1,			"input device"},
-	{PCIC_INPUTDEV,		PCIS_INPUTDEV_KEYBOARD,	"keyboard"},
-	{PCIC_INPUTDEV,		PCIS_INPUTDEV_DIGITIZER,"digitizer"},
-	{PCIC_INPUTDEV,		PCIS_INPUTDEV_MOUSE,	"mouse"},
-	{PCIC_INPUTDEV,		PCIS_INPUTDEV_SCANNER,	"scanner"},
-	{PCIC_INPUTDEV,		PCIS_INPUTDEV_GAMEPORT,	"gameport"},
-	{PCIC_DOCKING,		-1,			"docking station"},
-	{PCIC_PROCESSOR,	-1,			"processor"},
-	{PCIC_SERIALBUS,	-1,			"serial bus"},
-	{PCIC_SERIALBUS,	PCIS_SERIALBUS_FW,	"FireWire"},
-	{PCIC_SERIALBUS,	PCIS_SERIALBUS_ACCESS,	"AccessBus"},
-	{PCIC_SERIALBUS,	PCIS_SERIALBUS_SSA,	"SSA"},
-	{PCIC_SERIALBUS,	PCIS_SERIALBUS_USB,	"USB"},
-	{PCIC_SERIALBUS,	PCIS_SERIALBUS_FC,	"Fibre Channel"},
-	{PCIC_SERIALBUS,	PCIS_SERIALBUS_SMBUS,	"SMBus"},
-	{PCIC_WIRELESS,		-1,			"wireless controller"},
-	{PCIC_WIRELESS,		PCIS_WIRELESS_IRDA,	"iRDA"},
-	{PCIC_WIRELESS,		PCIS_WIRELESS_IR,	"IR"},
-	{PCIC_WIRELESS,		PCIS_WIRELESS_RF,	"RF"},
-	{PCIC_INTELLIIO,	-1,			"intelligent I/O controller"},
-	{PCIC_INTELLIIO,	PCIS_INTELLIIO_I2O,	"I2O"},
-	{PCIC_SATCOM,		-1,			"satellite communication"},
-	{PCIC_SATCOM,		PCIS_SATCOM_TV,		"sat TV"},
-	{PCIC_SATCOM,		PCIS_SATCOM_AUDIO,	"sat audio"},
-	{PCIC_SATCOM,		PCIS_SATCOM_VOICE,	"sat voice"},
-	{PCIC_SATCOM,		PCIS_SATCOM_DATA,	"sat data"},
-	{PCIC_CRYPTO,		-1,			"encrypt/decrypt"},
-	{PCIC_CRYPTO,		PCIS_CRYPTO_NETCOMP,	"network/computer crypto"},
-	{PCIC_CRYPTO,		PCIS_CRYPTO_ENTERTAIN,	"entertainment crypto"},
-	{PCIC_DASP,		-1,			"dasp"},
-	{PCIC_DASP,		PCIS_DASP_DPIO,		"DPIO module"},
-	{0, 0,		NULL}
+	{PCIC_OLD,		-1,			1, "old"},
+	{PCIC_OLD,		PCIS_OLD_NONVGA,	1, "non-VGA display device"},
+	{PCIC_OLD,		PCIS_OLD_VGA,		1, "VGA-compatible display device"},
+	{PCIC_STORAGE,		-1,			1, "mass storage"},
+	{PCIC_STORAGE,		PCIS_STORAGE_SCSI,	1, "SCSI"},
+	{PCIC_STORAGE,		PCIS_STORAGE_IDE,	1, "ATA"},
+	{PCIC_STORAGE,		PCIS_STORAGE_FLOPPY,	1, "floppy disk"},
+	{PCIC_STORAGE,		PCIS_STORAGE_IPI,	1, "IPI"},
+	{PCIC_STORAGE,		PCIS_STORAGE_RAID,	1, "RAID"},
+	{PCIC_STORAGE,		PCIS_STORAGE_ATA_ADMA,	1, "ATA (ADMA)"},
+	{PCIC_STORAGE,		PCIS_STORAGE_SATA,	1, "SATA"},
+	{PCIC_STORAGE,		PCIS_STORAGE_SAS,	1, "SAS"},
+	{PCIC_STORAGE,		PCIS_STORAGE_NVM,	1, "NVM"},
+	{PCIC_NETWORK,		-1,			1, "network"},
+	{PCIC_NETWORK,		PCIS_NETWORK_ETHERNET,	1, "ethernet"},
+	{PCIC_NETWORK,		PCIS_NETWORK_TOKENRING,	1, "token ring"},
+	{PCIC_NETWORK,		PCIS_NETWORK_FDDI,	1, "fddi"},
+	{PCIC_NETWORK,		PCIS_NETWORK_ATM,	1, "ATM"},
+	{PCIC_NETWORK,		PCIS_NETWORK_ISDN,	1, "ISDN"},
+	{PCIC_DISPLAY,		-1,			1, "display"},
+	{PCIC_DISPLAY,		PCIS_DISPLAY_VGA,	1, "VGA"},
+	{PCIC_DISPLAY,		PCIS_DISPLAY_XGA,	1, "XGA"},
+	{PCIC_DISPLAY,		PCIS_DISPLAY_3D,	1, "3D"},
+	{PCIC_MULTIMEDIA,	-1,			1, "multimedia"},
+	{PCIC_MULTIMEDIA,	PCIS_MULTIMEDIA_VIDEO,	1, "video"},
+	{PCIC_MULTIMEDIA,	PCIS_MULTIMEDIA_AUDIO,	1, "audio"},
+	{PCIC_MULTIMEDIA,	PCIS_MULTIMEDIA_TELE,	1, "telephony"},
+	{PCIC_MULTIMEDIA,	PCIS_MULTIMEDIA_HDA,	1, "HDA"},
+	{PCIC_MEMORY,		-1,			1, "memory"},
+	{PCIC_MEMORY,		PCIS_MEMORY_RAM,	1, "RAM"},
+	{PCIC_MEMORY,		PCIS_MEMORY_FLASH,	1, "flash"},
+	{PCIC_BRIDGE,		-1,			1, "bridge"},
+	{PCIC_BRIDGE,		PCIS_BRIDGE_HOST,	1, "HOST-PCI"},
+	{PCIC_BRIDGE,		PCIS_BRIDGE_ISA,	1, "PCI-ISA"},
+	{PCIC_BRIDGE,		PCIS_BRIDGE_EISA,	1, "PCI-EISA"},
+	{PCIC_BRIDGE,		PCIS_BRIDGE_MCA,	1, "PCI-MCA"},
+	{PCIC_BRIDGE,		PCIS_BRIDGE_PCI,	1, "PCI-PCI"},
+	{PCIC_BRIDGE,		PCIS_BRIDGE_PCMCIA,	1, "PCI-PCMCIA"},
+	{PCIC_BRIDGE,		PCIS_BRIDGE_NUBUS,	1, "PCI-NuBus"},
+	{PCIC_BRIDGE,		PCIS_BRIDGE_CARDBUS,	1, "PCI-CardBus"},
+	{PCIC_BRIDGE,		PCIS_BRIDGE_RACEWAY,	1, "PCI-RACEway"},
+	{PCIC_SIMPLECOMM,	-1,			1, "simple comms"},
+	{PCIC_SIMPLECOMM,	PCIS_SIMPLECOMM_UART,	1, "UART"},	/* could detect 16550 */
+	{PCIC_SIMPLECOMM,	PCIS_SIMPLECOMM_PAR,	1, "parallel port"},
+	{PCIC_SIMPLECOMM,	PCIS_SIMPLECOMM_MULSER,	1, "multiport serial"},
+	{PCIC_SIMPLECOMM,	PCIS_SIMPLECOMM_MODEM,	1, "generic modem"},
+	{PCIC_BASEPERIPH,	-1,			0, "base peripheral"},
+	{PCIC_BASEPERIPH,	PCIS_BASEPERIPH_PIC,	1, "interrupt controller"},
+	{PCIC_BASEPERIPH,	PCIS_BASEPERIPH_DMA,	1, "DMA controller"},
+	{PCIC_BASEPERIPH,	PCIS_BASEPERIPH_TIMER,	1, "timer"},
+	{PCIC_BASEPERIPH,	PCIS_BASEPERIPH_RTC,	1, "realtime clock"},
+	{PCIC_BASEPERIPH,	PCIS_BASEPERIPH_PCIHOT,	1, "PCI hot-plug controller"},
+	{PCIC_BASEPERIPH,	PCIS_BASEPERIPH_SDHC,	1, "SD host controller"},
+	{PCIC_BASEPERIPH,	PCIS_BASEPERIPH_IOMMU,	1, "IOMMU"},
+	{PCIC_INPUTDEV,		-1,			1, "input device"},
+	{PCIC_INPUTDEV,		PCIS_INPUTDEV_KEYBOARD,	1, "keyboard"},
+	{PCIC_INPUTDEV,		PCIS_INPUTDEV_DIGITIZER,1, "digitizer"},
+	{PCIC_INPUTDEV,		PCIS_INPUTDEV_MOUSE,	1, "mouse"},
+	{PCIC_INPUTDEV,		PCIS_INPUTDEV_SCANNER,	1, "scanner"},
+	{PCIC_INPUTDEV,		PCIS_INPUTDEV_GAMEPORT,	1, "gameport"},
+	{PCIC_DOCKING,		-1,			1, "docking station"},
+	{PCIC_PROCESSOR,	-1,			1, "processor"},
+	{PCIC_SERIALBUS,	-1,			1, "serial bus"},
+	{PCIC_SERIALBUS,	PCIS_SERIALBUS_FW,	1, "FireWire"},
+	{PCIC_SERIALBUS,	PCIS_SERIALBUS_ACCESS,	1, "AccessBus"},
+	{PCIC_SERIALBUS,	PCIS_SERIALBUS_SSA,	1, "SSA"},
+	{PCIC_SERIALBUS,	PCIS_SERIALBUS_USB,	1, "USB"},
+	{PCIC_SERIALBUS,	PCIS_SERIALBUS_FC,	1, "Fibre Channel"},
+	{PCIC_SERIALBUS,	PCIS_SERIALBUS_SMBUS,	0, "SMBus"},
+	{PCIC_WIRELESS,		-1,			1, "wireless controller"},
+	{PCIC_WIRELESS,		PCIS_WIRELESS_IRDA,	1, "iRDA"},
+	{PCIC_WIRELESS,		PCIS_WIRELESS_IR,	1, "IR"},
+	{PCIC_WIRELESS,		PCIS_WIRELESS_RF,	1, "RF"},
+	{PCIC_INTELLIIO,	-1,			1, "intelligent I/O controller"},
+	{PCIC_INTELLIIO,	PCIS_INTELLIIO_I2O,	1, "I2O"},
+	{PCIC_SATCOM,		-1,			1, "satellite communication"},
+	{PCIC_SATCOM,		PCIS_SATCOM_TV,		1, "sat TV"},
+	{PCIC_SATCOM,		PCIS_SATCOM_AUDIO,	1, "sat audio"},
+	{PCIC_SATCOM,		PCIS_SATCOM_VOICE,	1, "sat voice"},
+	{PCIC_SATCOM,		PCIS_SATCOM_DATA,	1, "sat data"},
+	{PCIC_CRYPTO,		-1,			1, "encrypt/decrypt"},
+	{PCIC_CRYPTO,		PCIS_CRYPTO_NETCOMP,	1, "network/computer crypto"},
+	{PCIC_CRYPTO,		PCIS_CRYPTO_ENTERTAIN,	1, "entertainment crypto"},
+	{PCIC_DASP,		-1,			0, "dasp"},
+	{PCIC_DASP,		PCIS_DASP_DPIO,		1, "DPIO module"},
+	{0, 0, 0,		NULL}
 };
 
 void
 pci_probe_nomatch(device_t dev, device_t child)
 {
-	int i;
+	int i, report;
 	const char *cp, *scp;
 	char *device;
 
 	/*
 	 * Look for a listing for this device in a loaded device database.
 	 */
+	report = 1;
 	if ((device = pci_describe_device(child)) != NULL) {
 		device_printf(dev, "<%s>", device);
 		free(device, M_DEVBUF);
@@ -3820,19 +4084,25 @@ pci_probe_nomatch(device_t dev, device_t child)
 			if (pci_nomatch_tab[i].class == pci_get_class(child)) {
 				if (pci_nomatch_tab[i].subclass == -1) {
 					cp = pci_nomatch_tab[i].desc;
+					report = pci_nomatch_tab[i].report;
 				} else if (pci_nomatch_tab[i].subclass ==
 				    pci_get_subclass(child)) {
 					scp = pci_nomatch_tab[i].desc;
+					report = pci_nomatch_tab[i].report;
 				}
 			}
 		}
-		device_printf(dev, "<%s%s%s>",
-		    cp ? cp : "",
-		    ((cp != NULL) && (scp != NULL)) ? ", " : "",
-		    scp ? scp : "");
+		if (report || bootverbose) {
+			device_printf(dev, "<%s%s%s>",
+			    cp ? cp : "",
+			    ((cp != NULL) && (scp != NULL)) ? ", " : "",
+			    scp ? scp : "");
+		}
 	}
-	printf(" at device %d.%d (no driver attached)\n",
-	    pci_get_slot(child), pci_get_function(child));
+	if (report || bootverbose) {
+		printf(" at device %d.%d (no driver attached)\n",
+		    pci_get_slot(child), pci_get_function(child));
+	}
 	pci_cfg_save(child, device_get_ivars(child), 1);
 }
 
@@ -3860,6 +4130,10 @@ pci_child_detached(device_t dev, device_t child)
 		pci_printf(&dinfo->cfg, "Device leaked memory resources\n");
 	if (resource_list_release_active(rl, dev, child, SYS_RES_IOPORT) != 0)
 		pci_printf(&dinfo->cfg, "Device leaked I/O resources\n");
+#ifdef PCI_RES_BUS
+	if (resource_list_release_active(rl, dev, child, PCI_RES_BUS) != 0)
+		pci_printf(&dinfo->cfg, "Device leaked PCI bus numbers\n");
+#endif
 
 	pci_cfg_save(child, dinfo, 1);
 }
@@ -4163,7 +4437,6 @@ pci_reserve_map(device_t dev, device_t child, int type, int *rid,
 {
 	struct pci_devinfo *dinfo = device_get_ivars(child);
 	struct resource_list *rl = &dinfo->resources;
-	struct resource_list_entry *rle;
 	struct resource *res;
 	struct pci_map *pm;
 	pci_addr_t map, testval;
@@ -4236,23 +4509,16 @@ pci_reserve_map(device_t dev, device_t child, int type, int *rid,
 	 * Allocate enough resource, and then write back the
 	 * appropriate BAR for that resource.
 	 */
-	res = BUS_ALLOC_RESOURCE(device_get_parent(dev), child, type, rid,
-	    start, end, count, flags & ~RF_ACTIVE);
+	resource_list_add(rl, type, *rid, start, end, count);
+	res = resource_list_reserve(rl, dev, child, type, rid, start, end,
+	    count, flags & ~RF_ACTIVE);
 	if (res == NULL) {
+		resource_list_delete(rl, type, *rid);
 		device_printf(child,
 		    "%#lx bytes of rid %#x res %d failed (%#lx, %#lx).\n",
 		    count, *rid, type, start, end);
 		goto out;
 	}
-	resource_list_add(rl, type, *rid, start, end, count);
-	rle = resource_list_find(rl, type, *rid);
-	if (rle == NULL)
-		panic("pci_reserve_map: unexpectedly can't find resource.");
-	rle->res = res;
-	rle->start = rman_get_start(res);
-	rle->end = rman_get_end(res);
-	rle->count = count;
-	rle->flags = RLE_RESERVED;
 	if (bootverbose)
 		device_printf(child,
 		    "Lazy allocation of %#lx bytes rid %#x type %d at %#lx\n",
@@ -4284,6 +4550,11 @@ pci_alloc_resource(device_t dev, device_t child, int type, int *rid,
 	rl = &dinfo->resources;
 	cfg = &dinfo->cfg;
 	switch (type) {
+#if defined(NEW_PCIB) && defined(PCI_RES_BUS)
+	case PCI_RES_BUS:
+		return (pci_alloc_secbus(dev, child, rid, start, end, count,
+		    flags));
+#endif
 	case SYS_RES_IRQ:
 		/*
 		 * Can't alloc legacy interrupt once MSI messages have
@@ -4827,4 +5098,11 @@ pci_restore_state(device_t dev)
 
 	dinfo = device_get_ivars(dev);
 	pci_cfg_restore(dev, dinfo);
+}
+
+static uint16_t
+pci_get_rid_method(device_t dev, device_t child)
+{
+
+	return (PCIB_GET_RID(device_get_parent(dev), child));
 }

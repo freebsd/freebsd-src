@@ -14,11 +14,12 @@
 .\"
 .\" Copyright 2012, Richard Lowe.
 .\" Copyright (c) 2012, Marcelo Araujo <araujo@FreeBSD.org>.
+.\" Copyright (c) 2012 by Delphix. All rights reserved.
 .\" All Rights Reserved.
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 10, 2012
+.Dd March 20, 2014
 .Dt ZDB 8
 .Os
 .Sh NAME
@@ -29,27 +30,35 @@
 .Op Fl CumdibcsDvhLXFPA
 .Op Fl e Op Fl p Ar path...
 .Op Fl t Ar txg
+.Op Fl U Ar cache
+.Op Fl M Ar inflight I/Os
 .Ar poolname
 .Op Ar object ...
 .Nm
 .Op Fl divPA
 .Op Fl e Op Fl p Ar path...
+.Op Fl U Ar cache
 .Ar dataset
 .Op Ar object ...
 .Nm
 .Fl m Op Fl LXFPA
 .Op Fl t Ar txg
 .Op Fl e Op Fl p Ar path...
+.Op Fl U Ar cache
 .Ar poolname
 .Nm
 .Fl R Op Fl A
 .Op Fl e Op Fl p Ar path...
+.Op Fl U Ar cache
+.Ar poolname
 .Ar poolname
 .Ar vdev Ns : Ns Ar offset Ns : Ns Ar size Ns Op Ns : Ns Ar flags
 .Nm
 .Fl S
 .Op Fl AP
 .Op Fl e Op Fl p Ar path...
+.Op Fl U Ar cache
+.Ar poolname
 .Ar poolname
 .Nm
 .Fl l
@@ -118,6 +127,12 @@ compression ratio (compress), inflation due to the zfs copies property
 If specified twice, display a histogram of deduplication statistics, showing
 the allocated (physically present on disk) and referenced (logically
 referenced in the pool) block counts and sizes by reference count.
+.Pp
+If specified a third time, display the statistics independently for each deduplication table.
+.Pp
+If specified a fourth time, dump the contents of the deduplication tables describing duplicate blocks.
+.Pp
+If specified a fifth time, also dump the contents of the deduplication tables describing unique blocks.
 .It Fl h
 Display pool history similar to
 .Cm zpool history ,
@@ -205,6 +220,11 @@ flag specifies the path under which devices are to be searched.
 .It Fl F
 Attempt to make an unreadable pool readable by trying progressively older
 transactions.
+.It Fl M Ar inflight I/Os
+Limit the number of outstanding checksum I/Os to the specified value.
+The default value is 200. This option affects the performance of the
+.Fl c
+option.
 .It Fl P
 Print numbers in an unscaled form more amenable to parsing, eg. 1000000 rather
 than 1M.
@@ -218,9 +238,7 @@ options for a means to see the available uberblocks and their associated
 transaction numbers.
 .It Fl U Ar cachefile
 Use a cache file other than
-.Pa /etc/zfs/zpool.cache .
-This option is only valid with
-.Fl C
+.Pa /boot/zfs/zpool.cache .
 .It Fl v
 Enable verbosity.
 Specify multiple times for increased verbosity.

@@ -8,27 +8,25 @@
 //===----------------------------------------------------------------------===//
 
 #include "clang/Driver/CC1AsOptions.h"
-#include "clang/Driver/OptTable.h"
-#include "clang/Driver/Option.h"
+#include "llvm/ADT/STLExtras.h"
+#include "llvm/Option/OptTable.h"
+#include "llvm/Option/Option.h"
 using namespace clang;
 using namespace clang::driver;
-using namespace clang::driver::options;
+using namespace llvm::opt;
 using namespace clang::driver::cc1asoptions;
 
-#define PREFIX(NAME, VALUE) const char *const NAME[] = VALUE;
-#define OPTION(PREFIX, NAME, ID, KIND, GROUP, ALIAS, FLAGS, PARAM, \
-               HELPTEXT, METAVAR)
+#define PREFIX(NAME, VALUE) static const char *const NAME[] = VALUE;
 #include "clang/Driver/CC1AsOptions.inc"
-#undef OPTION
 #undef PREFIX
 
 static const OptTable::Info CC1AsInfoTable[] = {
-#define PREFIX(NAME, VALUE)
-#define OPTION(PREFIX, NAME, ID, KIND, GROUP, ALIAS, FLAGS, PARAM, \
+#define OPTION(PREFIX, NAME, ID, KIND, GROUP, ALIAS, ALIASARGS, FLAGS, PARAM, \
                HELPTEXT, METAVAR)   \
   { PREFIX, NAME, HELPTEXT, METAVAR, OPT_##ID, Option::KIND##Class, PARAM, \
-    FLAGS, OPT_##GROUP, OPT_##ALIAS },
+    FLAGS, OPT_##GROUP, OPT_##ALIAS, ALIASARGS },
 #include "clang/Driver/CC1AsOptions.inc"
+#undef OPTION
 };
 
 namespace {
@@ -36,8 +34,7 @@ namespace {
 class CC1AsOptTable : public OptTable {
 public:
   CC1AsOptTable()
-    : OptTable(CC1AsInfoTable,
-               sizeof(CC1AsInfoTable) / sizeof(CC1AsInfoTable[0])) {}
+    : OptTable(CC1AsInfoTable, llvm::array_lengthof(CC1AsInfoTable)) {}
 };
 
 }

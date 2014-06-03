@@ -60,6 +60,7 @@ __FBSDID("$FreeBSD$");
 #define	BANK1_END	(BANK1_START + 32 - 1)
 #define	BANK2_START	(BANK1_START + 32)
 #define	BANK2_END	(BANK2_START + 32 - 1)
+#define	BANK3_START	(BANK2_START + 32)
 
 #define	IS_IRQ_BASIC(n)	(((n) >= 0) && ((n) < BANK1_START))
 #define	IS_IRQ_BANK1(n)	(((n) >= BANK1_START) && ((n) <= BANK1_END))
@@ -90,6 +91,10 @@ static struct bcm_intc_softc *bcm_intc_sc = NULL;
 static int
 bcm_intc_probe(device_t dev)
 {
+
+	if (!ofw_bus_status_okay(dev))
+		return (ENXIO);
+
 	if (!ofw_bus_is_compatible(dev, "broadcom,bcm2835-armctrl-ic"))
 		return (ENXIO);
 	device_set_desc(dev, "BCM2835 Interrupt Controller");
@@ -146,29 +151,36 @@ arm_get_next_irq(int last_irq)
 	/* Sanity check */
 	if (irq < 0)
 		irq = 0;
-	
+
 	/* TODO: should we mask last_irq? */
-	pending = intc_read_4(INTC_PENDING_BASIC);
-	while (irq < BANK1_START) {
-		if (pending & (1 << irq))
-			return irq;
-		irq++;
+	if (irq < BANK1_START) {
+		pending = intc_read_4(INTC_PENDING_BASIC);
+		if ((pending & 0xFF) == 0) {
+			irq  = BANK1_START;	/* skip to next bank */
+		} else do {
+			if (pending & (1 << irq))
+				return irq;
+			irq++;
+		} while (irq < BANK1_START);
 	}
-
-	pending = intc_read_4(INTC_PENDING_BANK1);
-	while (irq < BANK2_START) {
-		if (pending & (1 << IRQ_BANK1(irq)))
-			return irq;
-		irq++;
+	if (irq < BANK2_START) {
+		pending = intc_read_4(INTC_PENDING_BANK1);
+		if (pending == 0) {
+			irq  = BANK2_START;	/* skip to next bank */
+		} else do {
+			if (pending & (1 << IRQ_BANK1(irq)))
+				return irq;
+			irq++;
+		} while (irq < BANK2_START);
 	}
-
-	pending = intc_read_4(INTC_PENDING_BANK2);
-	while (irq <= BANK2_END) {
-		if (pending & (1 << IRQ_BANK2(irq)))
-			return irq;
-		irq++;
+	if (irq < BANK3_START) {
+		pending = intc_read_4(INTC_PENDING_BANK2);
+		if (pending != 0) do {
+			if (pending & (1 << IRQ_BANK2(irq)))
+				return irq;
+			irq++;
+		} while (irq < BANK3_START);
 	}
-
 	return (-1);
 }
 

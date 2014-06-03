@@ -10,6 +10,7 @@ SRCS=	ARMException.cpp \
 	AsmPrinterDwarf.cpp \
 	AsmPrinterInlineAsm.cpp \
 	DIE.cpp \
+	DIEHash.cpp \
 	DwarfAccelTable.cpp \
 	DwarfCFIException.cpp \
 	DwarfCompileUnit.cpp \

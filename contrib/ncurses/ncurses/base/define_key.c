@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2005,2006 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2006,2009 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -27,33 +27,40 @@
  ****************************************************************************/
 
 /****************************************************************************
- *  Author: Thomas E. Dickey                    1997-on                     *
+ *  Author: Thomas E. Dickey                        1997-on                 *
+ *     and: Juergen Pfeifer                         2009                    *
  ****************************************************************************/
 
 #include <curses.priv.h>
 
-MODULE_ID("$Id: define_key.c,v 1.13 2006/12/30 23:23:31 tom Exp $")
+MODULE_ID("$Id: define_key.c,v 1.20 2009/11/28 22:53:17 tom Exp $")
 
 NCURSES_EXPORT(int)
-define_key(const char *str, int keycode)
+NCURSES_SP_NAME(define_key) (NCURSES_SP_DCLx const char *str, int keycode)
 {
     int code = ERR;
 
-    T((T_CALLED("define_key(%s,%d)"), _nc_visbuf(str), keycode));
-    if (SP == 0) {
+    T((T_CALLED("define_key(%p, %s,%d)"), (void *) SP_PARM, _nc_visbuf(str), keycode));
+    if (SP_PARM == 0 || !HasTInfoTerminal(SP_PARM)) {
 	code = ERR;
     } else if (keycode > 0) {
 	unsigned ukey = (unsigned) keycode;
 
+#ifdef USE_TERM_DRIVER
+#define CallHasKey(keycode) CallDriver_1(SP_PARM, kyExist, keycode)
+#else
+#define CallHasKey(keycode) NCURSES_SP_NAME(has_key)(NCURSES_SP_ARGx keycode)
+#endif
+
 	if (str != 0) {
-	    define_key(str, 0);
-	} else if (has_key(keycode)) {
-	    while (_nc_remove_key(&(SP->_keytry), ukey))
+	    NCURSES_SP_NAME(define_key) (NCURSES_SP_ARGx str, 0);
+	} else if (CallHasKey(keycode)) {
+	    while (_nc_remove_key(&(SP_PARM->_keytry), ukey))
 		code = OK;
 	}
 	if (str != 0) {
-	    if (key_defined(str) == 0) {
-		if (_nc_add_to_try(&(SP->_keytry), str, ukey) == OK) {
+	    if (NCURSES_SP_NAME(key_defined) (NCURSES_SP_ARGx str) == 0) {
+		if (_nc_add_to_try(&(SP_PARM->_keytry), str, ukey) == OK) {
 		    code = OK;
 		} else {
 		    code = ERR;
@@ -63,8 +70,16 @@ define_key(const char *str, int keycode)
 	    }
 	}
     } else {
-	while (_nc_remove_string(&(SP->_keytry), str))
+	while (_nc_remove_string(&(SP_PARM->_keytry), str))
 	    code = OK;
     }
     returnCode(code);
 }
+
+#if NCURSES_SP_FUNCS
+NCURSES_EXPORT(int)
+define_key(const char *str, int keycode)
+{
+    return NCURSES_SP_NAME(define_key) (CURRENT_SCREEN, str, keycode);
+}
+#endif

@@ -1,8 +1,8 @@
 # $FreeBSD$
 
-NO_MAN=
+MAN=
 
-.include <bsd.own.mk>
+.include <src.opts.mk>
 
 .PATH: ${.CURDIR}/../../../contrib/ntp/ntpd
 

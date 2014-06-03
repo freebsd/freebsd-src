@@ -1,12 +1,12 @@
 /*
- * Copyright (c) 2000-2001, 2006 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 2000-2001, 2006 Proofpoint, Inc. and its suppliers.
  *	All rights reserved.
  *
  * By using this file, you agree to the terms and conditions set
  * forth in the LICENSE file which can be found at the top level of
  * the sendmail distribution.
  *
- *	$Id: heap.h,v 1.23 2006/08/15 00:53:46 ca Exp $
+ *	$Id: heap.h,v 1.24 2013-11-22 20:51:31 ca Exp $
  */
 
 /*

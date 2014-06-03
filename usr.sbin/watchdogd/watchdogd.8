@@ -125,42 +125,35 @@ Do not fork.
 When this option is specified,
 .Nm
 will not fork into the background at startup.
-.Pp
 .It Fl S
 Do not send a message to the system logger when the watchdog command takes
 longer than expected to execute.
 The default behaviour is to log a warning via the system logger with the
 LOG_DAEMON facility, and to output a warning to standard error.
-.Pp
 .It Fl w
 Complain when the watchdog script takes too long.
 This flag will cause watchdogd to complain when the amount of time to
 execute the watchdog script exceeds the threshold of 'sleep' option.
-.Pp
 .It Fl -pretimeout Ar timeout
 Set a "pretimeout" watchdog.
 At "timeout" seconds before the watchdog will fire attempt an action.
 The action is set by the --pretimeout-action flag.
 The default is just to log a message (WD_SOFT_LOG) via
 .Xr log 9 .
-.Pp
 .It Fl -pretimeout-action Ar action
 Set the timeout action for the pretimeout.
 See the section
 .Sx Timeout Actions .
-.Pp
 .It Fl -softtimeout
 Instead of arming the various hardware watchdogs, only use a basic software
 watchdog.
 The default action is just to
 .Xr log 9
 a message (WD_SOFT_LOG).
-.Pp
 .It Fl -softtimeout-action Ar action
 Set the timeout action for the softtimeout.
 See the section
 .Sx Timeout Actions .
-.Pp
 .El
 .Sh Timeout Actions
 The following timeout actions are available via the
@@ -173,25 +166,22 @@ flags:
 Call
 .Xr panic 9
 when the timeout is reached.
-.Pp
 .It Ar ddb
 Enter the kernel debugger via
 .Xr kdb_enter 9
 when the timeout is reached.
-.Pp
 .It Ar log
 Log a message using
 .Xr log 9
 when the timeout is reached.
-.Pp
 .It Ar printf
 call the kernel
 .Xr printf 9
 to display a message to the console and
 .Xr dmesg 8
 buffer.
-.Pp
 .El
+.Pp
 Actions can be combined in a comma separated list as so:
 .Ar log,printf
 which would both

@@ -82,7 +82,8 @@ struct DefinedTracker {
 static bool EvaluateDefined(PPValue &Result, Token &PeekTok, DefinedTracker &DT,
                             bool ValueLive, Preprocessor &PP) {
   IdentifierInfo *II;
-  Result.setBegin(PeekTok.getLocation());
+  SourceLocation beginLoc(PeekTok.getLocation());
+  Result.setBegin(beginLoc);
 
   // Get the next token, don't expand it.
   PP.LexUnexpandedNonComment(PeekTok);
@@ -119,14 +120,8 @@ static bool EvaluateDefined(PPValue &Result, Token &PeekTok, DefinedTracker &DT,
     PP.markMacroAsUsed(Macro->getMacroInfo());
   }
 
-  // Invoke the 'defined' callback.
-  if (PPCallbacks *Callbacks = PP.getPPCallbacks()) {
-    MacroDirective *MD = Macro;
-    // Pass the MacroInfo for the macro name even if the value is dead.
-    if (!MD && Result.Val != 0)
-      MD = PP.getMacroDirective(II);
-    Callbacks->Defined(PeekTok, MD);
-  }
+  // Save macro token for callback.
+  Token macroToken(PeekTok);
 
   // If we are in parens, ensure we have a trailing ).
   if (LParenLoc.isValid()) {
@@ -146,6 +141,16 @@ static bool EvaluateDefined(PPValue &Result, Token &PeekTok, DefinedTracker &DT,
     // Consume identifier.
     Result.setEnd(PeekTok.getLocation());
     PP.LexNonComment(PeekTok);
+  }
+
+  // Invoke the 'defined' callback.
+  if (PPCallbacks *Callbacks = PP.getPPCallbacks()) {
+    MacroDirective *MD = Macro;
+    // Pass the MacroInfo for the macro name even if the value is dead.
+    if (!MD && Result.Val != 0)
+      MD = PP.getMacroDirective(II);
+    Callbacks->Defined(macroToken, MD,
+                       SourceRange(beginLoc, PeekTok.getLocation()));
   }
 
   // Success, remember that we saw defined(X).
@@ -240,7 +245,7 @@ static bool EvaluateValue(PPValue &Result, Token &PeekTok, DefinedTracker &DT,
     // Parse the integer literal into Result.
     if (Literal.GetIntegerValue(Result.Val)) {
       // Overflow parsing integer literal.
-      if (ValueLive) PP.Diag(PeekTok, diag::warn_integer_too_large);
+      if (ValueLive) PP.Diag(PeekTok, diag::err_integer_too_large);
       Result.Val.setIsUnsigned(true);
     } else {
       // Set the signedness of the result to match whether there was a U suffix
@@ -252,8 +257,8 @@ static bool EvaluateValue(PPValue &Result, Token &PeekTok, DefinedTracker &DT,
       // large that it is unsigned" e.g. on 12345678901234567890 where intmax_t
       // is 64-bits.
       if (!Literal.isUnsigned && Result.Val.isNegative()) {
-        // Don't warn for a hex literal: 0x8000..0 shouldn't warn.
-        if (ValueLive && Literal.getRadix() != 16)
+        // Don't warn for a hex or octal literal: 0x8000..0 shouldn't warn.
+        if (ValueLive && Literal.getRadix() == 10)
           PP.Diag(PeekTok, diag::warn_integer_too_large_for_signed);
         Result.Val.setIsUnsigned(true);
       }

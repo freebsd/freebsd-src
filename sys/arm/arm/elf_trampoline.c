@@ -56,13 +56,7 @@ extern void do_call(void *, void *, void *, int);
 
 #define GZ_HEAD	0xa
 
-#ifdef CPU_ARM7TDMI
-#define cpu_idcache_wbinv_all	arm7tdmi_cache_flushID
-extern void arm7tdmi_cache_flushID(void);
-#elif defined(CPU_ARM8)
-#define cpu_idcache_wbinv_all	arm8_cache_purgeID
-extern void arm8_cache_purgeID(void);
-#elif defined(CPU_ARM9)
+#if defined(CPU_ARM9)
 #define cpu_idcache_wbinv_all	arm9_idcache_wbinv_all
 extern void arm9_idcache_wbinv_all(void);
 #elif defined(CPU_FA526) || defined(CPU_FA626TE)
@@ -76,10 +70,6 @@ extern void armv5_ec_idcache_wbinv_all(void);
 extern void arm10_idcache_wbinv_all(void);
 #elif defined(CPU_ARM1136) || defined(CPU_ARM1176)
 #define cpu_idcache_wbinv_all	armv6_idcache_wbinv_all
-#elif defined(CPU_SA110) || defined(CPU_SA1110) || defined(CPU_SA1100) || \
-    defined(CPU_IXP12X0)
-#define cpu_idcache_wbinv_all	sa1_cache_purgeID
-extern void sa1_cache_purgeID(void);
 #elif defined(CPU_XSCALE_80200) || defined(CPU_XSCALE_80321) || \
   defined(CPU_XSCALE_PXA2X0) || defined(CPU_XSCALE_IXP425) ||	\
   defined(CPU_XSCALE_80219)
@@ -102,7 +92,7 @@ extern void xscalec3_l2cache_purge(void);
 #elif defined(SOC_MV_KIRKWOOD) || defined(SOC_MV_DISCOVERY)
 #define cpu_l2cache_wbinv_all	sheeva_l2cache_wbinv_all
 extern void sheeva_l2cache_wbinv_all(void);
-#elif defined(CPU_CORTEXA)
+#elif defined(CPU_CORTEXA) || defined(CPU_KRAIT)
 #define cpu_idcache_wbinv_all	armv7_idcache_wbinv_all
 #define cpu_l2cache_wbinv_all()
 #else
@@ -186,14 +176,20 @@ static void arm9_setup(void);
 void
 _startC(void)
 {
-	int physaddr = KERNPHYSADDR;
 	int tmp1;
 	unsigned int sp = ((unsigned int)&_end & ~3) + 4;
-#if defined(FLASHADDR) && defined(LOADERRAMADDR)
-	unsigned int pc;
+	unsigned int pc, kernphysaddr;
 
+	/*
+	 * Figure out the physical address the kernel was loaded at.  This
+	 * assumes the entry point (this code right here) is in the first page,
+	 * which will always be the case for this trampoline code.
+	 */
 	__asm __volatile("mov %0, pc\n"
 	    : "=r" (pc));
+	kernphysaddr = pc & ~PAGE_MASK;
+
+#if defined(FLASHADDR) && defined(PHYSADDR) && defined(LOADERRAMADDR)
 	if ((FLASHADDR > LOADERRAMADDR && pc >= FLASHADDR) ||
 	    (FLASHADDR < LOADERRAMADDR && pc < LOADERRAMADDR)) {
 		/*
@@ -247,7 +243,7 @@ _startC(void)
 			 "mov pc, %0\n"
 			 "2: nop\n"
 			 "mov sp, %2\n"
-			 : "=r" (tmp1), "+r" (physaddr), "+r" (sp));
+			 : "=r" (tmp1), "+r" (kernphysaddr), "+r" (sp));
 #ifndef KZIP
 #ifdef CPU_ARM9
 	/* So that idcache_wbinv works; */

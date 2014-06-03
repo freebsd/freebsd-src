@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2003,2004 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2010,2012 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -32,7 +32,7 @@
 
 #include "form.priv.h"
 
-MODULE_ID("$Id: fld_move.c,v 1.9 2004/12/11 21:52:44 tom Exp $")
+MODULE_ID("$Id: fld_move.c,v 1.11 2012/03/11 00:37:16 tom Exp $")
 
 /*---------------------------------------------------------------------------
 |   Facility      :  libnform  
@@ -48,7 +48,7 @@ MODULE_ID("$Id: fld_move.c,v 1.9 2004/12/11 21:52:44 tom Exp $")
 NCURSES_EXPORT(int)
 move_field(FIELD *field, int frow, int fcol)
 {
-  T((T_CALLED("move_field(%p,%d,%d)"), field, frow, fcol));
+  T((T_CALLED("move_field(%p,%d,%d)"), (void *)field, frow, fcol));
 
   if (!field || (frow < 0) || (fcol < 0))
     RETURN(E_BAD_ARGUMENT);
@@ -56,8 +56,8 @@ move_field(FIELD *field, int frow, int fcol)
   if (field->form)
     RETURN(E_CONNECTED);
 
-  field->frow = frow;
-  field->fcol = fcol;
+  field->frow = (short) frow;
+  field->fcol = (short) fcol;
   RETURN(E_OK);
 }
 

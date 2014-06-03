@@ -177,7 +177,7 @@ namespace {
   class Filler : public MachineFunctionPass {
   public:
     Filler(TargetMachine &tm)
-      : MachineFunctionPass(ID), TM(tm), TII(tm.getInstrInfo()) { }
+      : MachineFunctionPass(ID), TM(tm) { }
 
     virtual const char *getPassName() const {
       return "Mips Delay Slot Filler";
@@ -243,7 +243,6 @@ namespace {
     bool terminateSearch(const MachineInstr &Candidate) const;
 
     TargetMachine &TM;
-    const TargetInstrInfo *TII;
 
     static char ID;
   };
@@ -422,8 +421,7 @@ bool LoadFromStackOrConst::hasHazard_(const MachineInstr &MI) {
     return false;
 
   if (const PseudoSourceValue *PSV = dyn_cast<const PseudoSourceValue>(V))
-    return !PSV->PseudoSourceValue::isConstant(0) &&
-      (V != PseudoSourceValue::getStack());
+    return !PSV->isConstant(0) && V != PseudoSourceValue::getStack();
 
   return true;
 }
@@ -438,7 +436,7 @@ bool MemDefsUses::hasHazard_(const MachineInstr &MI) {
 
   // Check underlying object list.
   if (getUnderlyingObjects(MI, Objs)) {
-    for (SmallVector<const Value *, 4>::const_iterator I = Objs.begin();
+    for (SmallVectorImpl<const Value *>::const_iterator I = Objs.begin();
          I != Objs.end(); ++I)
       HasHazard |= updateDefsUses(*I, MI.mayStore());
 
@@ -474,7 +472,7 @@ getUnderlyingObjects(const MachineInstr &MI,
   SmallVector<Value *, 4> Objs;
   GetUnderlyingObjects(const_cast<Value *>(V), Objs);
 
-  for (SmallVector<Value*, 4>::iterator I = Objs.begin(), E = Objs.end();
+  for (SmallVectorImpl<Value *>::iterator I = Objs.begin(), E = Objs.end();
        I != E; ++I) {
     if (const PseudoSourceValue *PSV = dyn_cast<PseudoSourceValue>(*I)) {
       if (PSV->isAliased(MFI))
@@ -514,6 +512,8 @@ bool Filler::runOnMachineBasicBlock(MachineBasicBlock &MBB) {
     }
 
     // Bundle the NOP to the instruction with the delay slot.
+    const MipsInstrInfo *TII =
+      static_cast<const MipsInstrInfo*>(TM.getInstrInfo());
     BuildMI(MBB, llvm::next(I), I->getDebugLoc(), TII->get(Mips::NOP));
     MIBundleBuilder(MBB, I, llvm::next(llvm::next(I)));
   }
@@ -562,14 +562,13 @@ bool Filler::searchBackward(MachineBasicBlock &MBB, Iter Slot) const {
 
   RegDU.init(*Slot);
 
-  if (searchRange(MBB, ReverseIter(Slot), MBB.rend(), RegDU, MemDU, Filler)) {
-    MBB.splice(llvm::next(Slot), &MBB, llvm::next(Filler).base());
-    MIBundleBuilder(MBB, Slot, llvm::next(llvm::next(Slot)));
-    ++UsefulSlots;
-    return true;
-  }
+  if (!searchRange(MBB, ReverseIter(Slot), MBB.rend(), RegDU, MemDU, Filler))
+    return false;
 
-  return false;
+  MBB.splice(llvm::next(Slot), &MBB, llvm::next(Filler).base());
+  MIBundleBuilder(MBB, Slot, llvm::next(llvm::next(Slot)));
+  ++UsefulSlots;
+  return true;
 }
 
 bool Filler::searchForward(MachineBasicBlock &MBB, Iter Slot) const {
@@ -583,14 +582,13 @@ bool Filler::searchForward(MachineBasicBlock &MBB, Iter Slot) const {
 
   RegDU.setCallerSaved(*Slot);
 
-  if (searchRange(MBB, llvm::next(Slot), MBB.end(), RegDU, NM, Filler)) {
-    MBB.splice(llvm::next(Slot), &MBB, Filler);
-    MIBundleBuilder(MBB, Slot, llvm::next(llvm::next(Slot)));
-    ++UsefulSlots;
-    return true;
-  }
+  if (!searchRange(MBB, llvm::next(Slot), MBB.end(), RegDU, NM, Filler))
+    return false;
 
-  return false;
+  MBB.splice(llvm::next(Slot), &MBB, Filler);
+  MIBundleBuilder(MBB, Slot, llvm::next(llvm::next(Slot)));
+  ++UsefulSlots;
+  return true;
 }
 
 bool Filler::searchSuccBBs(MachineBasicBlock &MBB, Iter Slot) const {

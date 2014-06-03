@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.include <bsd.own.mk>
+.include <src.opts.mk>
 MK_SSP=		no
 
 GCCDIR=	${.CURDIR}/../../../contrib/gcc
@@ -15,10 +15,10 @@ OBJS=		crtbegin.o crtend.o crtbeginT.o
 SOBJS=		crtbeginS.o crtendS.o
 CSTD?=		gnu89
 CFLAGS+=	-DIN_GCC -DHAVE_LD_EH_FRAME_HDR -DDT_CONFIG -D__GLIBC__=3
-CFLAGS+=	-finhibit-size-directive -fno-inline-functions \
-		-fno-exceptions -fno-zero-initialized-in-bss \
-		-fno-zero-initialized-in-bss -fno-toplevel-reorder \
-		-fno-asynchronous-unwind-tables -fno-omit-frame-pointer
+CFLAGS.gcc+=	-finhibit-size-directive -fno-toplevel-reorder
+CFLAGS+=	-fno-inline-functions -fno-exceptions \
+		-fno-zero-initialized-in-bss -fno-asynchronous-unwind-tables \
+		-fno-omit-frame-pointer
 CFLAGS+=	-I${GCCLIB}/include -I${GCCDIR}/config -I${GCCDIR} -I. \
 		-I${CCDIR}/cc_tools
 CRTS_CFLAGS=	-DCRTSTUFFS_O -DSHARED ${PICFLAG}

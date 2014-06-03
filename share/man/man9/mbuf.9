@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 13, 2012
+.Dd April 30, 2014
 .Dt MBUF 9
 .Os
 .\"
@@ -64,21 +64,25 @@
 .Fn M_TRAILINGSPACE "struct mbuf *mbuf"
 .Fn M_MOVE_PKTHDR "struct mbuf *to" "struct mbuf *from"
 .Fn M_PREPEND "struct mbuf *mbuf" "int len" "int how"
-.Fn MCHTYPE "struct mbuf *mbuf" "u_int type"
+.Fn MCHTYPE "struct mbuf *mbuf" "short type"
 .Ft int
 .Fn M_WRITABLE "struct mbuf *mbuf"
 .\"
 .Ss Mbuf allocation functions
 .Ft struct mbuf *
-.Fn m_get "int how" "int type"
+.Fn m_get "int how" "short type"
 .Ft struct mbuf *
-.Fn m_getm "struct mbuf *orig" "int len" "int how" "int type"
+.Fn m_get2 "int size" "int how" "short type" "int flags"
+.Ft struct mbuf *
+.Fn m_getm "struct mbuf *orig" "int len" "int how" "short type"
+.Ft struct mbuf *
+.Fn m_getjcl "int how" "short type" "int flags" "int size"
 .Ft struct mbuf *
 .Fn m_getcl "int how" "short type" "int flags"
 .Ft struct mbuf *
-.Fn m_getclr "int how" "int type"
+.Fn m_getclr "int how" "short type"
 .Ft struct mbuf *
-.Fn m_gethdr "int how" "int type"
+.Fn m_gethdr "int how" "short type"
 .Ft struct mbuf *
 .Fn m_free "struct mbuf *mbuf"
 .Ft void
@@ -379,17 +383,6 @@ A number of other functions and macros related to
 have the same argument because they may
 at some point need to allocate new
 .Vt mbufs .
-.Pp
-Historical
-.Vt mbuf
-allocator (See
-.Sx HISTORY
-section) used allocation flags
-.Dv M_WAIT
-and
-.Dv M_DONTWAIT .
-These constants are kept for compatibility
-and their use in new code is discouraged.
 .It Fn MGETHDR mbuf how type
 Allocate an
 .Vt mbuf
@@ -537,6 +530,10 @@ The functions are:
 A function version of
 .Fn MGET
 for non-critical paths.
+.It Fn m_get2 size how type flags
+Allocate an
+.Vt mbuf
+with enough space to hold specified amount of data.
 .It Fn m_getm orig len how type
 Allocate
 .Fa len
@@ -592,6 +589,12 @@ together, as it avoids having to unlock/relock between allocations.
 Returns
 .Dv NULL
 on failure.
+.It Fn m_getjcl how type flags size
+This is like
+.Fn m_getcl
+but it the size of the cluster allocated will be large enough for
+.Fa size
+bytes.
 .It Fn m_getclr how type
 Allocate an
 .Vt mbuf

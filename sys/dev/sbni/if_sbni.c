@@ -250,7 +250,7 @@ sbni_attach(struct sbni_softc *sc, int unit, struct sbni_flags flags)
 	ether_ifattach(ifp, sc->enaddr);
 	/* device attach does transition from UNCONFIGURED to IDLE state */
 
-	if_printf(ifp, "speed %ld, rxl ", ifp->if_baudrate);
+	if_printf(ifp, "speed %ju, rxl ", (uintmax_t)ifp->if_baudrate);
 	if (sc->delta_rxl)
 		printf("auto\n");
 	else

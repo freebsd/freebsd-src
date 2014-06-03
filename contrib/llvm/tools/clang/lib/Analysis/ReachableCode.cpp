@@ -110,10 +110,13 @@ const Stmt *DeadCodeScan::findDeadCode(const clang::CFGBlock *Block) {
   return 0;
 }
 
-static int SrcCmp(const void *p1, const void *p2) {
-  return
-    ((const std::pair<const CFGBlock *, const Stmt *>*) p2)->second->getLocStart() <
-    ((const std::pair<const CFGBlock *, const Stmt *>*) p1)->second->getLocStart();
+static int SrcCmp(const std::pair<const CFGBlock *, const Stmt *> *p1,
+                  const std::pair<const CFGBlock *, const Stmt *> *p2) {
+  if (p1->second->getLocStart() < p2->second->getLocStart())
+    return -1;
+  if (p2->second->getLocStart() < p1->second->getLocStart())
+    return 1;
+  return 0;
 }
 
 unsigned DeadCodeScan::scanBackwards(const clang::CFGBlock *Start,
@@ -227,7 +230,7 @@ static SourceLocation GetUnreachableLoc(const Stmt *S,
     case Expr::CXXFunctionalCastExprClass: {
       const CXXFunctionalCastExpr *CE = cast <CXXFunctionalCastExpr>(S);
       R1 = CE->getSubExpr()->getSourceRange();
-      return CE->getTypeBeginLoc();
+      return CE->getLocStart();
     }
     case Stmt::CXXTryStmtClass: {
       return cast<CXXTryStmt>(S)->getHandler(0)->getCatchLoc();

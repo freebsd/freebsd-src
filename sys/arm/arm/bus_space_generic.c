@@ -50,6 +50,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_extern.h>
 
 #include <machine/bus.h>
+#include <machine/cpufunc.h>
 #include <machine/devmap.h>
 
 /* Prototypes for all the bus_space structure functions */
@@ -62,16 +63,12 @@ generic_bs_map(void *t, bus_addr_t bpa, bus_size_t size, int flags,
 	void *va;
 
 	/*
-	 * Look up the address in the static device mappings.  If it's not
-	 * there, establish a new dynamic mapping.
-	 *
 	 * We don't even examine the passed-in flags.  For ARM, the CACHEABLE
 	 * flag doesn't make sense (we create PTE_DEVICE mappings), and the
 	 * LINEAR flag is just implied because we use kva_alloc(size).
 	 */
-	if ((va = arm_devmap_ptov(bpa, size)) == NULL)
-		if ((va = pmap_mapdev(bpa, size)) == NULL)
-			return (ENOMEM);
+	if ((va = pmap_mapdev(bpa, size)) == NULL)
+		return (ENOMEM);
 	*bshp = (bus_space_handle_t)va;
 	return (0);
 }
@@ -90,12 +87,7 @@ void
 generic_bs_unmap(void *t, bus_space_handle_t h, bus_size_t size)
 {
 
-	/*
-	 * If the region is static-mapped do nothing, otherwise remove the
-	 * dynamic mapping.
-	 */
-	if (arm_devmap_vtop((void*)h, size) == DEVMAP_PADDR_NOTFOUND)
-		pmap_unmapdev((vm_offset_t)h, size);
+	pmap_unmapdev((vm_offset_t)h, size);
 }
 
 void
@@ -119,5 +111,16 @@ generic_bs_barrier(void *t, bus_space_handle_t bsh, bus_size_t offset,
     bus_size_t len, int flags)
 {
 
-	/* Nothing to do. */
+	/*
+	 * dsb() will drain the L1 write buffer and establish a memory access
+	 * barrier point on platforms where that has meaning.  On a write we
+	 * also need to drain the L2 write buffer, because most on-chip memory
+	 * mapped devices are downstream of the L2 cache.  Note that this needs
+	 * to be done even for memory mapped as Device type, because while
+	 * Device memory is not cached, writes to it are still buffered.
+	 */
+	dsb();
+	if (flags & BUS_SPACE_BARRIER_WRITE) {
+		cpu_l2cache_drain_writebuf();
+	}
 }

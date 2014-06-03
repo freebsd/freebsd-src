@@ -190,13 +190,17 @@ usage(void)
 	"       [--get-lowmem]\n"
 	"       [--get-highmem]\n"
 	"       [--get-gpa-pmap]\n"
-	"       [--inject-nmi]\n",
+	"       [--assert-lapic-lvt=<pin>]\n"
+	"       [--inject-nmi]\n"
+	"       [--force-reset]\n"
+	"       [--force-poweroff]\n",
 	progname);
 	exit(1);
 }
 
 static int get_stats, getcap, setcap, capval, get_gpa_pmap;
-static int inject_nmi;
+static int inject_nmi, assert_lapic_lvt;
+static int force_reset, force_poweroff;
 static const char *capname;
 static int create, destroy, get_lowmem, get_highmem;
 static uint64_t memsize;
@@ -272,11 +276,13 @@ dump_vm_run_exitcode(struct vm_exit *vmexit, int vcpu)
 		break;
 	case VM_EXITCODE_VMX:
 		printf("\treason\t\tVMX\n");
-		printf("\terror\t\t%d\n", vmexit->u.vmx.error);
+		printf("\tstatus\t\t%d\n", vmexit->u.vmx.status);
 		printf("\texit_reason\t0x%08x (%u)\n",
 		    vmexit->u.vmx.exit_reason, vmexit->u.vmx.exit_reason);
 		printf("\tqualification\t0x%016lx\n",
 			vmexit->u.vmx.exit_qualification);
+		printf("\tinst_type\t\t%d\n", vmexit->u.vmx.inst_type);
+		printf("\tinst_error\t\t%d\n", vmexit->u.vmx.inst_error);
 		break;
 	default:
 		printf("*** unknown vm run exitcode %d\n", vmexit->exitcode);
@@ -381,6 +387,7 @@ enum {
 	CAPNAME,
 	UNASSIGN_PPTDEV,
 	GET_GPA_PMAP,
+	ASSERT_LAPIC_LVT,
 };
 
 int
@@ -433,6 +440,7 @@ main(int argc, char *argv[])
 		{ "unassign-pptdev", REQ_ARG,	0,	UNASSIGN_PPTDEV },
 		{ "setcap",	REQ_ARG,	0,	SET_CAP },
 		{ "get-gpa-pmap", REQ_ARG,	0,	GET_GPA_PMAP },
+		{ "assert-lapic-lvt", REQ_ARG,	0,	ASSERT_LAPIC_LVT },
 		{ "getcap",	NO_ARG,		&getcap,	1 },
 		{ "get-stats",	NO_ARG,		&get_stats,	1 },
 		{ "get-desc-ds",NO_ARG,		&get_desc_ds,	1 },
@@ -560,10 +568,14 @@ main(int argc, char *argv[])
 		{ "create",	NO_ARG,		&create,	1 },
 		{ "destroy",	NO_ARG,		&destroy,	1 },
 		{ "inject-nmi",	NO_ARG,		&inject_nmi,	1 },
+		{ "force-reset",	NO_ARG,	&force_reset,	1 },
+		{ "force-poweroff", NO_ARG,	&force_poweroff, 1 },
 		{ NULL,		0,		NULL,		0 }
 	};
 
 	vcpu = 0;
+	vmname = NULL;
+	assert_lapic_lvt = -1;
 	progname = basename(argv[0]);
 
 	while ((ch = getopt_long(argc, argv, "", opts, NULL)) != -1) {
@@ -684,6 +696,9 @@ main(int argc, char *argv[])
 			unassign_pptdev = 1;
 			if (sscanf(optarg, "%d/%d/%d", &bus, &slot, &func) != 3)
 				usage();
+			break;
+		case ASSERT_LAPIC_LVT:
+			assert_lapic_lvt = atoi(optarg);
 			break;
 		default:
 			usage();
@@ -830,6 +845,10 @@ main(int argc, char *argv[])
 
 	if (!error && inject_nmi) {
 		error = vm_inject_nmi(ctx, vcpu);
+	}
+
+	if (!error && assert_lapic_lvt != -1) {
+		error = vm_lapic_local_irq(ctx, vcpu, assert_lapic_lvt);
 	}
 
 	if (!error && (get_lowmem || get_all)) {
@@ -1440,8 +1459,7 @@ main(int argc, char *argv[])
 	}
 
 	if (!error && (get_vmcs_exit_interruption_info || get_all)) {
-		error = vm_get_vmcs_field(ctx, vcpu,
-					  VMCS_EXIT_INTERRUPTION_INFO, &u64);
+		error = vm_get_vmcs_field(ctx, vcpu, VMCS_EXIT_INTR_INFO, &u64);
 		if (error == 0) {
 			printf("vmcs_exit_interruption_info[%d]\t0x%08lx\n",
 				vcpu, u64);
@@ -1449,8 +1467,8 @@ main(int argc, char *argv[])
 	}
 
 	if (!error && (get_vmcs_exit_interruption_error || get_all)) {
-		error = vm_get_vmcs_field(ctx, vcpu,
-					  VMCS_EXIT_INTERRUPTION_ERROR, &u64);
+		error = vm_get_vmcs_field(ctx, vcpu, VMCS_EXIT_INTR_ERRCODE,
+		    &u64);
 		if (error == 0) {
 			printf("vmcs_exit_interruption_error[%d]\t0x%08lx\n",
 				vcpu, u64);
@@ -1521,6 +1539,12 @@ main(int argc, char *argv[])
 		else
 			printf("vm_run error %d\n", error);
 	}
+
+	if (!error && force_reset)
+		error = vm_suspend(ctx, VM_SUSPEND_RESET);
+
+	if (!error && force_poweroff)
+		error = vm_suspend(ctx, VM_SUSPEND_POWEROFF);
 
 	if (error)
 		printf("errno = %d\n", errno);

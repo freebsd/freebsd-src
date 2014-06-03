@@ -1,5 +1,5 @@
 #
-# Copyright (c) 1998-2004, 2009, 2010 Sendmail, Inc. and its suppliers.
+# Copyright (c) 1998-2004, 2009, 2010 Proofpoint, Inc. and its suppliers.
 #	All rights reserved.
 # Copyright (c) 1983, 1995 Eric P. Allman.  All rights reserved.
 # Copyright (c) 1988, 1993
@@ -309,4 +309,4 @@ define(`confMILTER_MACROS_EOM', `{msg_id}')
 
 
 divert(0)dnl
-VERSIONID(`$Id: cfhead.m4,v 8.121 2010/01/07 18:20:19 ca Exp $')
+VERSIONID(`$Id: cfhead.m4,v 8.122 2013-11-22 20:51:13 ca Exp $')

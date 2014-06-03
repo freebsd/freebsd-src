@@ -1,0 +1,180 @@
+.\" Copyright (c) 2013, 2014 Juniper Networks, Inc.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd May 22, 2014
+.Dt MKIMG 1
+.Os
+.Sh NAME
+.Nm mkimg
+.Nd "utility to make a disk image"
+.Sh SYNOPSIS
+.Nm
+.Op Fl H Ar heads
+.Op Fl P Ar blksz
+.Op Fl S Ar secsz
+.Op Fl T Ar tracksz
+.Op Fl b Ar bootcode
+.Op Fl f Ar format
+.Op Fl o Ar outfile
+.Op Fl v
+.Fl s Ar scheme
+.Fl p Ar partition
+.Op Fl p Ar partition ...
+.Sh DESCRIPTION
+The
+.Nm
+utility creates a disk image from the raw partition contents specified with
+the
+.Ar partition
+argument(s) and using the partitioning scheme specified with the
+.Ar scheme
+argument.
+The disk image is written to
+.Ar stdout
+by default or the file specified with the
+.Ar outfile
+argument.
+The image file is a raw disk image by default, but the format of the
+image file can be specified with the
+.Ar format
+argument.
+.Pp
+The disk image can be made bootable by specifying the scheme-specific boot
+block contents with the
+.Ar bootcode
+argument and,
+depending on the scheme,
+with a boot partition.
+The contents of such a boot partition is provided like any other partition
+and the
+.Nm
+utility does not treat it any differently from other partitions.
+.Pp
+Some partitioning schemes need a disk geometry and for those the
+.Nm
+utility accepts the
+.Ar tracksz
+and
+.Ar heads
+arguments, specifying the number of sectors per track and the number of
+heads per cylinder (resp.)
+.Pp
+Both the logical and physical sector size can be specified and for that the
+.Nm
+utility
+accepts the
+.Ar secsz
+and
+.Ar blksz
+arguments.
+The
+.Ar secsz
+argument is used to specify the logical sector size.
+This is the sector size reported by a disk when queried for its capacity.
+Modern disks use a larger sector size internally,
+referred to as block size by the
+.Nm
+utility and this can be specified by the
+.Ar blksz
+argument.
+The
+.Nm
+utility will use the (physical) block size to determine the start of
+partitions and to round the size of the disk image.
+.Pp
+The
+.Op Fl v
+option increases the level of output that the
+.Nm
+utility prints.
+.Pp
+For a complete list of supported partitioning schemes or supported output
+format, or for a detailed description of how to specify partitions, run the
+.Nm
+utility without any arguments.
+.Sh EXAMPLES
+To create a bootable disk image that is partitioned using the GPT scheme and
+containing a root file system that was previously created using
+.Xr makefs
+and also containing a swap partition, run the
+.Nm
+utility as follows:
+.Dl % mkimg -s gpt -b /boot/pmbr -p freebsd-boot:=/boot/gptboot \
+-p freebsd-ufs:=root-file-system.ufs -p freebsd-swap::1G \
+-o gpt.img
+.Pp
+The command line given above results in a raw image file.
+This is because no output format was given.
+To create a VMDK image for example, add the
+.Fl f Ar vmdk
+argument to the
+.Nm
+utility and name the output file accordingly.
+.Pp
+A nested partitioning scheme is created by running the
+.Nm
+utility twice.
+The output of the first will be fed as the contents of a partition to the
+second.
+This can be done using a temporary file, like so:
+.Dl % mkimg -s bsd -b /boot/boot -p freebsd-ufs:=root-file-system.ufs \
+-p freebsd-swap::1G -o /tmp/bsd.img
+.Dl % mkimg -s mbr -b /boot/mbr -p freebsd:=/tmp/bsd.img -o mbr-bsd.img
+.Pp
+Alternatively, the
+.Nm
+utility can be run in a cascaded fashion, whereby the output of the
+first is fed directly into the second.
+To do this, run the
+.Nm
+utility as follows:
+.Dl % mkimg -s mbr -b /boot/mbr -p freebsd:-'mkimg -s bsd -b /boot/boot \
+-p freebsd-ufs:=root-file-system.ufs -p freebsd-swap::1G' -o mbr-bsd.img
+.Pp
+For partitioning schemes that feature partition labels, the
+.Nm
+utility supports assigning labels to the partitions specified.
+In the following example the file system partition is labeled as 'backup':
+.Dl % mkimg -s gpt -p freebsd-ufs/backup:=file-system.ufs -o gpt.img
+.Sh ENVIRONMENT
+.Bl -tag -width "TMPDIR" -compact
+.It Ev TMPDIR
+Directory to put temporary files in; default is
+.Pa /tmp .
+.Sh SEE ALSO
+.Xr gpart 8
+.Xr makefs 8
+.Xr mdconfig 8
+.Xr newfs 8
+.Sh HISTORY
+The
+.Nm
+utility appeared in
+.Fx 11.0
+.Sh AUTHORS
+The
+.Nm
+utility and manpage were written by Marcel Moolenaar <marcelm@juniper.net>

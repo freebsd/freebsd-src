@@ -1,4 +1,4 @@
-.TH "unbound.conf" "5" "Mar 21, 2013" "NLnet Labs" "unbound 1.4.20"
+.TH "unbound.conf" "5" "Mar 12, 2014" "NLnet Labs" "unbound 1.4.22"
 .\"
 .\" unbound.conf.5 -- unbound.conf manual
 .\"
@@ -122,6 +122,9 @@ A port number can be specified with @port (without spaces between
 interface and port number), if not specified the default port (from
 \fBport\fR) is used.
 .TP
+.B ip\-address: \fI<ip address[@port]>
+Same as interface: (for easy of compatibility with nsd.conf).
+.TP
 .B interface\-automatic: \fI<yes or no>
 Detect source interface on UDP queries and copy them to replies.  This 
 feature is experimental, and needs support in your OS for particular socket
@@ -183,6 +186,11 @@ stringent path MTU problems, but is seen as extreme, since the amount
 of TCP fallback generated is excessive (probably also for this resolver,
 consider tuning the outgoing tcp number).
 .TP
+.B max\-udp\-size: \fI<number>
+Maximum UDP response size (not applied to TCP response).  65536 disables the
+udp response size maximum, and uses the choice from the client, always.
+Suggested values are 512 to 4096. Default is 4096. 
+.TP
 .B msg\-buffer\-size: \fI<number>
 Number of bytes size of the message buffers. Default is 65552 bytes, enough
 for 64 Kb packets, the maximum DNS message size. No message larger than this
@@ -220,6 +228,15 @@ The qps for short queries can be about (numqueriesperthread / 2)
 / (jostletimeout in whole seconds) qps per thread, about (1024/2)*5 = 2560
 qps by default.
 .TP
+.B delay\-close: \fI<msec>
+Extra delay for timeouted UDP ports before they are closed, in msec.
+Default is 0, and that disables it.  This prevents very delayed answer
+packets from the upstream (recursive) servers from bouncing against
+closed ports and setting off all sort of close-port counters, with
+eg. 1500 msec.  When timeouts happen you need extra sockets, it checks
+the ID and remote IP of packets, and unwanted packets are added to the
+unwanted packet counter.
+.TP
 .B so\-rcvbuf: \fI<number>
 If not 0, then set the SO_RCVBUF socket option to get more buffer
 space on UDP port 53 incoming queries.  So that short spikes on busy
@@ -241,6 +258,15 @@ for, try "4m" on a very busy server.  The OS caps it at a maximum, on
 linux unbound needs root permission to bypass the limit, or the admin
 can use sysctl net.core.wmem_max.  On BSD, Solaris changes are similar
 to so\-rcvbuf.
+.TP
+.B so\-reuseport: \fI<yes or no>
+If yes, then open dedicated listening sockets for incoming queries for each
+thread and try to set the SO_REUSEPORT socket option on each socket.  May
+distribute incoming queries to threads more evenly.  Default is no.  Only
+supported on Linux >= 3.9.  You can enable it (on any platform and kernel),
+it then attempts to open the port and passes the option if it was available
+at compile time, if that works it is used, if it fails, it continues
+silently (unless verbosity 3) without the option.
 .TP
 .B rrset\-cache\-size: \fI<number>
 Number of bytes size of the RRset cache. Default is 4 megabytes.
@@ -326,7 +352,7 @@ a daemon. Default is yes.
 .B access\-control: \fI<IP netblock> <action>
 The netblock is given as an IP4 or IP6 address with /size appended for a 
 classless network block. The action can be \fIdeny\fR, \fIrefuse\fR, 
-\fIallow\fR or \fIallow_snoop\fR.
+\fIallow\fR, \fIallow_snoop\fR, \fIdeny_non_local\fR or \fIrefuse_non_local\fR.
 .IP
 The action \fIdeny\fR stops queries from hosts from that netblock.
 .IP
@@ -355,6 +381,12 @@ By default only localhost is \fIallow\fRed, the rest is \fIrefuse\fRd.
 The default is \fIrefuse\fRd, because that is protocol\-friendly. The DNS 
 protocol is not designed to handle dropped packets due to policy, and 
 dropping may result in (possibly excessive) retried queries.
+.IP
+The deny_non_local and refuse_non_local settings are for hosts that are
+only allowed to query for the authoritative local\-data, they are not
+allowed full recursion but only the static data.  With deny_non_local,
+messages that are disallowed are dropped, with refuse_non_local they
+receive error code REFUSED.
 .TP
 .B chroot: \fI<directory>
 If chroot is enabled, you should pass the configfile (from the
@@ -492,7 +524,7 @@ unsigned to badly signed often. If turned off you run the risk of a
 downgrade attack that disables security for a zone. Default is on.
 .TP
 .B harden\-below\-nxdomain: \fI<yes or no>
-From draft-vixie-dnsext-resimprove, returns nxdomain to queries for a name
+From draft\-vixie\-dnsext\-resimprove, returns nxdomain to queries for a name
 below another name that is already known to be nxdomain.  DNSSEC mandates
 noerror for empty nonterminals, hence this is possible.  Very old software
 might return nxdomain for empty nonterminals (that usually happen for reverse

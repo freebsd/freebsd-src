@@ -402,7 +402,7 @@ MPFloatingPointer( u_int32_t paddr, int where, mpfps_t* mpfpsp )
     mpfps_t mpfps;
 	
     /* map in mpfps structure*/
-    *mpfpsp = mpfps = mapEntry( paddr, sizeof( mpfps ) );
+    *mpfpsp = mpfps = mapEntry( paddr, sizeof( *mpfps ) );
 
     /* show its contents */
     printf( "MP Floating Pointer Structure:\n\n" );

@@ -1,5 +1,5 @@
 #!/bin/sh
-#       $OpenBSD: scp-ssh-wrapper.sh,v 1.2 2005/12/14 04:36:39 dtucker Exp $
+#       $OpenBSD: scp-ssh-wrapper.sh,v 1.3 2014/01/26 10:49:17 djm Exp $
 #       Placed in the Public Domain.
 
 printname () {
@@ -17,7 +17,7 @@ printname () {
 }
 
 # Discard all but last argument.  We use arg later.
-while test "$1" != ""; do
+while test "x$1" != "x"; do
 	arg="$1"
 	shift
 done
@@ -52,6 +52,8 @@ badserver_4)
 	echo "X"
 	;;
 *)
-	exec $arg
+	set -- $arg
+	shift
+	exec $SCP "$@"
 	;;
 esac

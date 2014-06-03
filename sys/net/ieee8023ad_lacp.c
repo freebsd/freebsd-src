@@ -522,11 +522,7 @@ lacp_port_create(struct lagg_port *lgp)
 	boolean_t active = TRUE; /* XXX should be configurable */
 	boolean_t fast = FALSE; /* XXX should be configurable */
 
-	bzero((char *)&sdl, sizeof(sdl));
-	sdl.sdl_len = sizeof(sdl);
-	sdl.sdl_family = AF_LINK;
-	sdl.sdl_index = ifp->if_index;
-	sdl.sdl_type = IFT_ETHER;
+	link_init_sdl(ifp, (struct sockaddr *)&sdl, IFT_ETHER);
 	sdl.sdl_alen = ETHER_ADDR_LEN;
 
 	bcopy(&ethermulticastaddr_slowprotocols,
@@ -594,10 +590,20 @@ lacp_req(struct lagg_softc *sc, caddr_t data)
 {
 	struct lacp_opreq *req = (struct lacp_opreq *)data;
 	struct lacp_softc *lsc = LACP_SOFTC(sc);
-	struct lacp_aggregator *la = lsc->lsc_active_aggregator;
+	struct lacp_aggregator *la;
 
-	LACP_LOCK(lsc);
 	bzero(req, sizeof(struct lacp_opreq));
+	
+	/* 
+	 * If the LACP softc is NULL, return with the opreq structure full of
+	 * zeros.  It is normal for the softc to be NULL while the lagg is
+	 * being destroyed.
+	 */
+	if (NULL == lsc)
+		return;
+
+	la = lsc->lsc_active_aggregator;
+	LACP_LOCK(lsc);
 	if (la != NULL) {
 		req->actor_prio = ntohs(la->la_actor.lip_systemid.lsi_prio);
 		memcpy(&req->actor_mac, &la->la_actor.lip_systemid.lsi_mac,
@@ -877,7 +883,7 @@ lacp_select_tx_port(struct lagg_softc *sc, struct mbuf *m)
 	}
 
 	if (sc->use_flowid && (m->m_flags & M_FLOWID))
-		hash = m->m_pkthdr.flowid;
+		hash = m->m_pkthdr.flowid >> sc->flowid_shift;
 	else
 		hash = lagg_hashmbuf(sc, m, lsc->lsc_hashkey);
 	hash %= pm->pm_count;

@@ -2666,7 +2666,7 @@ vnet_ipfw_init(const void *unused)
 	rule->set = RESVD_SET;
 	rule->cmd[0].len = 1;
 	rule->cmd[0].opcode = default_to_accept ? O_ACCEPT : O_DENY;
-	chain->rules = chain->default_rule = chain->map[0] = rule;
+	chain->default_rule = chain->map[0] = rule;
 	chain->id = rule->id = 1;
 
 	IPFW_LOCK_INIT(chain);

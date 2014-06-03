@@ -7,8 +7,48 @@
 //
 //===----------------------------------------------------------------------===//
 //
-// This file provides a MachineSchedRegistry for registering alternative machine
-// schedulers. A Target may provide an alternative scheduler implementation by
+// This file provides an interface for customizing the standard MachineScheduler
+// pass. Note that the entire pass may be replaced as follows:
+//
+// <Target>TargetMachine::createPassConfig(PassManagerBase &PM) {
+//   PM.substitutePass(&MachineSchedulerID, &CustomSchedulerPassID);
+//   ...}
+//
+// The MachineScheduler pass is only responsible for choosing the regions to be
+// scheduled. Targets can override the DAG builder and scheduler without
+// replacing the pass as follows:
+//
+// ScheduleDAGInstrs *<Target>PassConfig::
+// createMachineScheduler(MachineSchedContext *C) {
+//   return new CustomMachineScheduler(C);
+// }
+//
+// The default scheduler, ScheduleDAGMI, builds the DAG and drives list
+// scheduling while updating the instruction stream, register pressure, and live
+// intervals. Most targets don't need to override the DAG builder and list
+// schedulier, but subtargets that require custom scheduling heuristics may
+// plugin an alternate MachineSchedStrategy. The strategy is responsible for
+// selecting the highest priority node from the list:
+//
+// ScheduleDAGInstrs *<Target>PassConfig::
+// createMachineScheduler(MachineSchedContext *C) {
+//   return new ScheduleDAGMI(C, CustomStrategy(C));
+// }
+//
+// The DAG builder can also be customized in a sense by adding DAG mutations
+// that will run after DAG building and before list scheduling. DAG mutations
+// can adjust dependencies based on target-specific knowledge or add weak edges
+// to aid heuristics:
+//
+// ScheduleDAGInstrs *<Target>PassConfig::
+// createMachineScheduler(MachineSchedContext *C) {
+//   ScheduleDAGMI *DAG = new ScheduleDAGMI(C, CustomStrategy(C));
+//   DAG->addMutation(new CustomDependencies(DAG->TII, DAG->TRI));
+//   return DAG;
+// }
+//
+// A target that supports alternative schedulers can use the
+// MachineSchedRegistry to allow command line selection. This can be done by
 // implementing the following boilerplate:
 //
 // static ScheduleDAGInstrs *createCustomMachineSched(MachineSchedContext *C) {
@@ -18,9 +58,19 @@
 // SchedCustomRegistry("custom", "Run my target's custom scheduler",
 //                     createCustomMachineSched);
 //
-// Inside <Target>PassConfig:
-//   enablePass(&MachineSchedulerID);
-//   MachineSchedRegistry::setDefault(createCustomMachineSched);
+//
+// Finally, subtargets that don't need to implement custom heuristics but would
+// like to configure the GenericScheduler's policy for a given scheduler region,
+// including scheduling direction and register pressure tracking policy, can do
+// this:
+//
+// void <SubTarget>Subtarget::
+// overrideSchedPolicy(MachineSchedPolicy &Policy,
+//                     MachineInstr *begin,
+//                     MachineInstr *end,
+//                     unsigned NumRegionInstrs) const {
+//   Policy.<Flag> = true;
+// }
 //
 //===----------------------------------------------------------------------===//
 
@@ -30,7 +80,6 @@
 #include "llvm/CodeGen/MachinePassRegistry.h"
 #include "llvm/CodeGen/RegisterPressure.h"
 #include "llvm/CodeGen/ScheduleDAGInstrs.h"
-#include "llvm/Target/TargetInstrInfo.h"
 
 namespace llvm {
 
@@ -86,15 +135,6 @@ public:
   static MachineSchedRegistry *getList() {
     return (MachineSchedRegistry *)Registry.getList();
   }
-  static ScheduleDAGCtor getDefault() {
-    return (ScheduleDAGCtor)Registry.getDefault();
-  }
-  static void setDefault(ScheduleDAGCtor C) {
-    Registry.setDefault((MachinePassCtor)C);
-  }
-  static void setDefault(StringRef Name) {
-    Registry.setDefault(Name);
-  }
   static void setListener(MachinePassRegistryListener *L) {
     Registry.setListener(L);
   }
@@ -102,11 +142,40 @@ public:
 
 class ScheduleDAGMI;
 
+/// Define a generic scheduling policy for targets that don't provide their own
+/// MachineSchedStrategy. This can be overriden for each scheduling region
+/// before building the DAG.
+struct MachineSchedPolicy {
+  // Allow the scheduler to disable register pressure tracking.
+  bool ShouldTrackPressure;
+
+  // Allow the scheduler to force top-down or bottom-up scheduling. If neither
+  // is true, the scheduler runs in both directions and converges.
+  bool OnlyTopDown;
+  bool OnlyBottomUp;
+
+  MachineSchedPolicy():
+    ShouldTrackPressure(false), OnlyTopDown(false), OnlyBottomUp(false) {}
+};
+
 /// MachineSchedStrategy - Interface to the scheduling algorithm used by
 /// ScheduleDAGMI.
+///
+/// Initialization sequence:
+///   initPolicy -> shouldTrackPressure -> initialize(DAG) -> registerRoots
 class MachineSchedStrategy {
+  virtual void anchor();
 public:
   virtual ~MachineSchedStrategy() {}
+
+  /// Optionally override the per-region scheduling policy.
+  virtual void initPolicy(MachineBasicBlock::iterator Begin,
+                          MachineBasicBlock::iterator End,
+                          unsigned NumRegionInstrs) {}
+
+  /// Check if pressure tracking is needed before building the DAG and
+  /// initializing this strategy. Called after initPolicy.
+  virtual bool shouldTrackPressure() const { return true; }
 
   /// Initialize the strategy after building the DAG for a new region.
   virtual void initialize(ScheduleDAGMI *DAG) = 0;
@@ -194,6 +263,7 @@ public:
 
 /// Mutate the DAG as a postpass after normal DAG building.
 class ScheduleDAGMutation {
+  virtual void anchor();
 public:
   virtual ~ScheduleDAGMutation() {}
 
@@ -222,14 +292,20 @@ protected:
 
   MachineBasicBlock::iterator LiveRegionEnd;
 
-  /// Register pressure in this region computed by buildSchedGraph.
+  // Map each SU to its summary of pressure changes. This array is updated for
+  // liveness during bottom-up scheduling. Top-down scheduling may proceed but
+  // has no affect on the pressure diffs.
+  PressureDiffs SUPressureDiffs;
+
+  /// Register pressure in this region computed by initRegPressure.
+  bool ShouldTrackPressure;
   IntervalPressure RegPressure;
   RegPressureTracker RPTracker;
 
   /// List of pressure sets that exceed the target's pressure limit before
   /// scheduling, listed in increasing set ID order. Each pressure set is paired
   /// with its max pressure in the currently scheduled regions.
-  std::vector<PressureElement> RegionCriticalPSets;
+  std::vector<PressureChange> RegionCriticalPSets;
 
   /// The top of the unscheduled zone.
   MachineBasicBlock::iterator CurrentTop;
@@ -255,8 +331,9 @@ public:
   ScheduleDAGMI(MachineSchedContext *C, MachineSchedStrategy *S):
     ScheduleDAGInstrs(*C->MF, *C->MLI, *C->MDT, /*IsPostRA=*/false, C->LIS),
     AA(C->AA), RegClassInfo(C->RegClassInfo), SchedImpl(S), DFSResult(0),
-    Topo(SUnits, &ExitSU), RPTracker(RegPressure), CurrentTop(),
-    TopRPTracker(TopPressure), CurrentBottom(), BotRPTracker(BotPressure),
+    Topo(SUnits, &ExitSU), ShouldTrackPressure(false),
+    RPTracker(RegPressure), CurrentTop(), TopRPTracker(TopPressure),
+    CurrentBottom(), BotRPTracker(BotPressure),
     NextClusterPred(NULL), NextClusterSucc(NULL) {
 #ifndef NDEBUG
     NumInstrsScheduled = 0;
@@ -264,6 +341,9 @@ public:
   }
 
   virtual ~ScheduleDAGMI();
+
+  /// \brief Return true if register pressure tracking is enabled.
+  bool isTrackingPressure() const { return ShouldTrackPressure; }
 
   /// Add a postprocessing step to the DAG builder.
   /// Mutations are applied in the order that they are added after normal DAG
@@ -294,8 +374,7 @@ public:
   void enterRegion(MachineBasicBlock *bb,
                    MachineBasicBlock::iterator begin,
                    MachineBasicBlock::iterator end,
-                   unsigned endcount);
-
+                   unsigned regioninstrs) LLVM_OVERRIDE;
 
   /// Implement ScheduleDAGInstrs interface for scheduling a sequence of
   /// reorderable instructions.
@@ -316,8 +395,12 @@ public:
   /// Get register pressure for the entire scheduling region before scheduling.
   const IntervalPressure &getRegPressure() const { return RegPressure; }
 
-  const std::vector<PressureElement> &getRegionCriticalPSets() const {
+  const std::vector<PressureChange> &getRegionCriticalPSets() const {
     return RegionCriticalPSets;
+  }
+
+  PressureDiff &getPressureDiff(const SUnit *SU) {
+    return SUPressureDiffs[SU->NodeNum];
   }
 
   const SUnit *getNextClusterPred() const { return NextClusterPred; }
@@ -332,6 +415,9 @@ public:
   const SchedDFSResult *getDFSResult() const { return DFSResult; }
 
   BitVector &getScheduledTrees() { return ScheduledTrees; }
+
+  /// Compute the cyclic critical path through the DAG.
+  unsigned computeCyclicCriticalPath();
 
   void viewGraph(const Twine &Name, const Twine &Title) LLVM_OVERRIDE;
   void viewGraph() LLVM_OVERRIDE;
@@ -368,7 +454,10 @@ protected:
 
   void initRegPressure();
 
-  void updateScheduledPressure(const std::vector<unsigned> &NewMaxPressure);
+  void updatePressureDiffs(ArrayRef<unsigned> LiveUses);
+
+  void updateScheduledPressure(const SUnit *SU,
+                               const std::vector<unsigned> &NewMaxPressure);
 
   bool checkSchedLimit();
 

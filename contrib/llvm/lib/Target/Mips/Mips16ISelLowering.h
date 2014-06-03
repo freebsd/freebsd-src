@@ -32,8 +32,6 @@ namespace llvm {
                                       unsigned NextStackOffset,
                                       const MipsFunctionInfo& FI) const;
 
-    void setMips16LibcallName(RTLIB::Libcall, const char *Name);
-
     void setMips16HardFloatLibCalls();
 
     unsigned int
@@ -64,7 +62,7 @@ namespace llvm {
                                            MachineBasicBlock *BB) const;
 
     MachineBasicBlock *emitFEXT_T8I8I16_ins(
-      unsigned BtOpc, unsigned CmpiOpc, unsigned CmpiXOpc,
+      unsigned BtOpc, unsigned CmpiOpc, unsigned CmpiXOpc, bool ImmSigned,
       MachineInstr *MI,  MachineBasicBlock *BB) const;
 
     MachineBasicBlock *emitFEXT_CCRX16_ins(

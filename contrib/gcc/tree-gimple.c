@@ -1,6 +1,5 @@
 /* Functions to analyze and validate GIMPLE trees.
-   Copyright (C) 2002, 2003, 2004, 2005, 2006, 2007
-   Free Software Foundation, Inc.
+   Copyright (C) 2002, 2003, 2004, 2005 Free Software Foundation, Inc.
    Contributed by Diego Novillo <dnovillo@redhat.com>
    Rewritten by Jason Merrill <jason@redhat.com>
 
@@ -216,7 +215,6 @@ is_gimple_stmt (tree t)
     case TRY_FINALLY_EXPR:
     case EH_FILTER_EXPR:
     case CATCH_EXPR:
-    case CHANGE_DYNAMIC_TYPE_EXPR:
     case ASM_EXPR:
     case RESX_EXPR:
     case PHI_NODE:

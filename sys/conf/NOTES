@@ -176,6 +176,7 @@ options 	GEOM_SHSEC		# Shared secret.
 options 	GEOM_STRIPE		# Disk striping.
 options 	GEOM_SUNLABEL		# Sun/Solaris partitioning
 options 	GEOM_UZIP		# Read-only compressed disks
+options 	GEOM_VINUM		# Vinum logical volume manager
 options 	GEOM_VIRSTOR		# Virtual storage.
 options 	GEOM_VOL		# Volume names from UFS superblock
 options 	GEOM_ZERO		# Performance testing helper.
@@ -446,6 +447,15 @@ options 	DEBUG_MEMGUARD
 options 	DEBUG_REDZONE
 
 #
+# EARLY_PRINTF enables support for calling a special printf (eprintf)
+# very early in the kernel (before cn_init() has been called).  This
+# should only be used for debugging purposes early in boot.  Normally,
+# it is not defined.  It is commented out here because this feature
+# isn't generally available. And the required eputc() isn't defined.
+#
+#options	EARLY_PRINTF
+
+#
 # KTRACE enables the system-call tracing facility ktrace(2).  To be more
 # SMP-friendly, KTRACE uses a worker thread to process most trace events
 # asynchronously to the thread generating the event.  This requires a
@@ -596,11 +606,6 @@ options 	IPSEC			#IP security (requires device crypto)
 # optional UDP encapsulation of ESP packets.
 #
 options		IPSEC_NAT_T		#NAT-T support, UDP encap of ESP
-
-options 	IPX			#IPX/SPX communications protocols
-
-options 	NETATALK		#Appletalk communications protocols
-options 	NETATALKDEBUG		#Appletalk debugging
 
 #
 # SMB/CIFS requester
@@ -877,14 +882,6 @@ options 	XBONEHACK
 device		faith
 device		stf
 
-#  The `ef' device provides support for multiple ethernet frame types
-#  specified via ETHER_* options. See ef(4) for details.
-device		ef
-options 	ETHER_II		# enable Ethernet_II frame
-options 	ETHER_8023		# enable Ethernet_802.3 (Novell) frame
-options 	ETHER_8022		# enable Ethernet_802.2 frame
-options 	ETHER_SNAP		# enable Ethernet_802.2/SNAP frame
-
 # The pf packet filter consists of three devices:
 #  The `pf' device provides /dev/pf and the firewall code itself.
 #  The `pflog' device provides the pflog0 interface which logs packets.
@@ -1071,7 +1068,7 @@ options 	MD_ROOT
 options 	QUOTA			#enable disk quotas
 
 # If you are running a machine just as a fileserver for PC and MAC
-# users, using SAMBA or Netatalk, you may consider setting this option
+# users, using SAMBA, you may consider setting this option
 # and keeping all those users' directories on a filesystem that is
 # mounted with the suiddir option. This gives new files the same
 # ownership as the directory (similar to group). It's a security hole
@@ -2470,6 +2467,7 @@ device		sdhci
 # amdsmb	AMD 8111 SMBus 2.0 Controller
 # nfpm		NVIDIA nForce Power Management Unit
 # nfsmb		NVIDIA nForce2/3/4 MCP SMBus 2.0 Controller
+# ismt		Intel SMBus 2.0 controller chips (on Atom S1200, C2000)
 #
 device		smbus		# Bus support, required for smb below.
 
@@ -2481,6 +2479,7 @@ device		amdpm
 device		amdsmb
 device		nfpm
 device		nfsmb
+device		ismt
 
 device		smb
 
@@ -2651,6 +2650,9 @@ device		umct
 device		umodem
 # USB mouse
 device		ums
+# USB touchpad(s)
+device		atp
+device		wsp
 # eGalax USB touch screen
 device		uep
 # Diamond Rio 500 MP3 player
@@ -2686,6 +2688,8 @@ device		aue
 # ASIX Electronics AX88172 USB 2.0 ethernet driver. Used in the
 # LinkSys USB200M and various other adapters.
 device		axe
+# ASIX Electronics AX88178A/AX88179 USB 2.0/3.0 gigabit ethernet driver.
+device		axge
 
 #
 # Devices which communicate using Ethernet over USB, particularly
@@ -2734,6 +2738,8 @@ device		upgt
 # Ralink Technology RT2500USB wireless driver
 device		ural
 #
+# RNDIS USB ethernet driver
+device		urndis
 # Realtek RTL8187B/L wireless driver
 device		urtw
 #
@@ -2962,3 +2968,6 @@ options 	RANDOM_YARROW	# Yarrow RNG
 ##options 	RANDOM_FORTUNA	# Fortuna RNG - not yet implemented
 options 	RANDOM_DEBUG	# Debugging messages
 options 	RANDOM_RWFILE	# Read and write entropy cache
+
+# Module to enable execution of application via emulators like QEMU
+options         IMAGACT_BINMISC

@@ -33,8 +33,10 @@ static const char rcsid[] _U_ =
 #endif
 
 #ifdef __FreeBSD__
+#ifdef HAVE_LIBCAPSICUM
 #include <libcapsicum.h>
 #include <libcapsicum_dns.h>
+#endif /* HAVE_LIBCAPSICUM */
 #endif
 #include <tcpdump-stdinc.h>
 

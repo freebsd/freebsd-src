@@ -47,7 +47,7 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/bus.h>
 
-#include <arm/freescale/imx/imx_machdep.h>
+#include <arm/freescale/imx/imx_ccmvar.h>
 
 /*
  * Table of supported FDT compat strings.
@@ -88,6 +88,9 @@ usbphy_attach(device_t dev)
 static int
 usbphy_probe(device_t dev)
 {
+
+	if (!ofw_bus_status_okay(dev))
+		return (ENXIO);
 
 	if (ofw_bus_search_compatible(dev, compat_data)->ocd_data != 0) {
 		device_set_desc(dev, "Freescale USB PHY");

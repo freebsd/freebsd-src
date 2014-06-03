@@ -237,12 +237,17 @@ __END_DECLS
 #define	IPPROTO_IPCOMP		108		/* payload compression (IPComp) */
 #define	IPPROTO_SCTP		132		/* SCTP */
 #define	IPPROTO_MH		135		/* IPv6 Mobility Header */
+#define	IPPROTO_UDPLITE		136		/* UDP-Lite */
+#define	IPPROTO_HIP		139		/* IP6 Host Identity Protocol */
+#define	IPPROTO_SHIM6		140		/* IP6 Shim6 Protocol */
 /* 101-254: Partly Unassigned */
 #define	IPPROTO_PIM		103		/* Protocol Independent Mcast */
 #define	IPPROTO_CARP		112		/* CARP */
 #define	IPPROTO_PGM		113		/* PGM */
 #define	IPPROTO_MPLS		137		/* MPLS-in-IP */
 #define	IPPROTO_PFSYNC		240		/* PFSYNC */
+#define	IPPROTO_RESERVED_253	253		/* Reserved */
+#define	IPPROTO_RESERVED_254	254		/* Reserved */
 /* 255: Reserved */
 /* BSD Private, local use, namespace incursion, no longer used */
 #define	IPPROTO_OLD_DIVERT	254		/* OLD divert pseudo-proto */
@@ -463,6 +468,9 @@ __END_DECLS
 #define	IP_MINTTL		66   /* minimum TTL for packet or drop */
 #define	IP_DONTFRAG		67   /* don't fragment packet */
 #define	IP_RECVTOS		68   /* bool; receive IP TOS w/dgram */
+#define	IP_FLOWID		69   /* flow id for the given socket/inp */
+#define	IP_FLOWTYPE		70   /* flow type (M_HASHTYPE) */
+#define	IP_RSSCPUID		71   /* RSS flowid -> CPU id mapping */
 
 /* IPv4 Source Filter Multicast API [RFC3678] */
 #define	IP_ADD_SOURCE_MEMBERSHIP	70   /* join a source-specific group */
@@ -598,14 +606,7 @@ int	getsourcefilter(int, uint32_t, struct sockaddr *, socklen_t,
 #define	IP_PORTRANGE_LOW	2	/* "low" - vouchsafe security */
 
 /*
- * Definitions for inet sysctl operations.
- *
- * Third level is protocol number.
- * Fourth level is desired variable within that protocol.
- */
-
-/*
- * Names for IP sysctl objects
+ * Identifiers for IP sysctl nodes
  */
 #define	IPCTL_FORWARDING	1	/* act as router */
 #define	IPCTL_SENDREDIRECTS	2	/* may send redirects when forwarding */
@@ -625,7 +626,6 @@ int	getsourcefilter(int, uint32_t, struct sockaddr *, socklen_t,
 #define	IPCTL_FASTFORWARDING	14	/* use fast IP forwarding code */
 #define	IPCTL_KEEPFAITH		15	/* FAITH IPv4->IPv6 translater ctl */
 #define	IPCTL_GIF_TTL		16	/* default TTL for gif encap packet */
-#define	IPCTL_MAXID		17
 
 #endif /* __BSD_VISIBLE */
 

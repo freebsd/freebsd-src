@@ -1,4 +1,4 @@
-/* $OpenBSD: moduli.c,v 1.27 2013/05/17 00:13:13 djm Exp $ */
+/* $OpenBSD: moduli.c,v 1.28 2013/10/24 00:49:49 dtucker Exp $ */
 /*
  * Copyright 1994 Phil Karn <karn@qualcomm.com>
  * Copyright 1996-1998, 2003 William Allen Simpson <wsimpson@greendragon.com>
@@ -56,6 +56,7 @@
 #include "xmalloc.h"
 #include "dh.h"
 #include "log.h"
+#include "misc.h"
 
 #include "openbsd-compat/openssl-compat.h"
 
@@ -488,6 +489,79 @@ read_checkpoint(char *cpfile)
 	return lineno;
 }
 
+static unsigned long
+count_lines(FILE *f)
+{
+	unsigned long count = 0;
+	char lp[QLINESIZE + 1];
+
+	if (fseek(f, 0, SEEK_SET) != 0) {
+		debug("input file is not seekable");
+		return ULONG_MAX;
+	}
+	while (fgets(lp, QLINESIZE + 1, f) != NULL)
+		count++;
+	rewind(f);
+	debug("input file has %lu lines", count);
+	return count;
+}
+
+static char *
+fmt_time(time_t seconds)
+{
+	int day, hr, min;
+	static char buf[128];
+
+	min = (seconds / 60) % 60;
+	hr = (seconds / 60 / 60) % 24;
+	day = seconds / 60 / 60 / 24;
+	if (day > 0)
+		snprintf(buf, sizeof buf, "%dd %d:%02d", day, hr, min);
+	else
+		snprintf(buf, sizeof buf, "%d:%02d", hr, min);
+	return buf;
+}
+
+static void
+print_progress(unsigned long start_lineno, unsigned long current_lineno,
+    unsigned long end_lineno)
+{
+	static time_t time_start, time_prev;
+	time_t time_now, elapsed;
+	unsigned long num_to_process, processed, remaining, percent, eta;
+	double time_per_line;
+	char *eta_str;
+
+	time_now = monotime();
+	if (time_start == 0) {
+		time_start = time_prev = time_now;
+		return;
+	}
+	/* print progress after 1m then once per 5m */
+	if (time_now - time_prev < 5 * 60)
+		return;
+	time_prev = time_now;
+	elapsed = time_now - time_start;
+	processed = current_lineno - start_lineno;
+	remaining = end_lineno - current_lineno;
+	num_to_process = end_lineno - start_lineno;
+	time_per_line = (double)elapsed / processed;
+	/* if we don't know how many we're processing just report count+time */
+	time(&time_now);
+	if (end_lineno == ULONG_MAX) {
+		logit("%.24s processed %lu in %s", ctime(&time_now),
+		    processed, fmt_time(elapsed));
+		return;
+	}
+	percent = 100 * processed / num_to_process;
+	eta = time_per_line * remaining;
+	eta_str = xstrdup(fmt_time(eta));
+	logit("%.24s processed %lu of %lu (%lu%%) in %s, ETA %s",
+	    ctime(&time_now), processed, num_to_process, percent,
+	    fmt_time(elapsed), eta_str);
+	free(eta_str);
+}
+
 /*
  * perform a Miller-Rabin primality test
  * on the list of candidates
@@ -512,6 +586,11 @@ prime_test(FILE *in, FILE *out, u_int32_t trials, u_int32_t generator_wanted,
 		return (-1);
 	}
 
+	if (num_lines == 0)
+		end_lineno = count_lines(in);
+	else
+		end_lineno = start_lineno + num_lines;
+
 	time(&time_start);
 
 	if ((p = BN_new()) == NULL)
@@ -526,26 +605,25 @@ prime_test(FILE *in, FILE *out, u_int32_t trials, u_int32_t generator_wanted,
 
 	if (checkpoint_file != NULL)
 		last_processed = read_checkpoint(checkpoint_file);
-	if (start_lineno > last_processed)
-		last_processed = start_lineno;
-	if (num_lines == 0)
-		end_lineno = ULONG_MAX;
+	last_processed = start_lineno = MAX(last_processed, start_lineno);
+	if (end_lineno == ULONG_MAX)
+		debug("process from line %lu from pipe", last_processed);
 	else
-		end_lineno = last_processed + num_lines;
-	debug2("process line %lu to line %lu", last_processed, end_lineno);
+		debug("process from line %lu to line %lu", last_processed,
+		    end_lineno);
 
 	res = 0;
 	lp = xmalloc(QLINESIZE + 1);
 	while (fgets(lp, QLINESIZE + 1, in) != NULL && count_in < end_lineno) {
 		count_in++;
-		if (checkpoint_file != NULL) {
-			if (count_in <= last_processed) {
-				debug3("skipping line %u, before checkpoint",
-				    count_in);
-				continue;
-			}
-			write_checkpoint(checkpoint_file, count_in);
+		if (count_in <= last_processed) {
+			debug3("skipping line %u, before checkpoint or "
+			    "specified start line", count_in);
+			continue;
 		}
+		if (checkpoint_file != NULL)
+			write_checkpoint(checkpoint_file, count_in);
+		print_progress(start_lineno, count_in, end_lineno);
 		if (strlen(lp) < 14 || *lp == '!' || *lp == '#') {
 			debug2("%10u: comment or short line", count_in);
 			continue;

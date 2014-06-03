@@ -1638,7 +1638,7 @@ add_directory(const char *path,
   dir->added = TRUE;
   dir->base_revision = SVN_INVALID_REVNUM;
   dir->copy_revision = copyfrom_revision;
-  dir->copy_path = copyfrom_path;
+  dir->copy_path = apr_pstrdup(dir->pool, copyfrom_path);
   dir->relpath = apr_pstrdup(dir->pool, path);
   dir->name = svn_relpath_basename(dir->relpath, NULL);
   dir->changed_props = apr_hash_make(dir->pool);
@@ -1880,7 +1880,7 @@ add_file(const char *path,
   new_file->name = svn_relpath_basename(new_file->relpath, NULL);
   new_file->added = TRUE;
   new_file->base_revision = SVN_INVALID_REVNUM;
-  new_file->copy_path = copy_path;
+  new_file->copy_path = apr_pstrdup(new_file->pool, copy_path);
   new_file->copy_revision = copy_revision;
   new_file->changed_props = apr_hash_make(new_file->pool);
   new_file->removed_props = apr_hash_make(new_file->pool);

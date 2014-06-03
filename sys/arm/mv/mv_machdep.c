@@ -51,7 +51,9 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/bus.h>
 #include <machine/devmap.h>
+#include <machine/fdt.h>
 #include <machine/machdep.h>
+#include <machine/platform.h> 
 
 #include <arm/mv/mvreg.h>	/* XXX */
 #include <arm/mv/mvvar.h>	/* XXX eventually this should be eliminated */
@@ -200,14 +202,14 @@ moveon:
 }
 
 vm_offset_t
-initarm_lastaddr(void)
+platform_lastaddr(void)
 {
 
 	return (fdt_immr_va);
 }
 
 void
-initarm_early_init(void)
+platform_probe_and_attach(void)
 {
 
 	if (fdt_immr_addr(MV_BASE) != 0)
@@ -215,7 +217,7 @@ initarm_early_init(void)
 }
 
 void
-initarm_gpio_init(void)
+platform_gpio_init(void)
 {
 
 	/*
@@ -227,7 +229,7 @@ initarm_gpio_init(void)
 }
 
 void
-initarm_late_init(void)
+platform_late_init(void)
 {
 	/*
 	 * Re-initialise decode windows
@@ -283,7 +285,7 @@ moveon:
 	map->pd_pa = base;
 	map->pd_size = size;
 	map->pd_prot = VM_PROT_READ | VM_PROT_WRITE;
-	map->pd_cache = PTE_NOCACHE;
+	map->pd_cache = PTE_DEVICE;
 
 	return (0);
 out:
@@ -293,11 +295,11 @@ out:
 }
 
 /*
- * Supply a default do-nothing implementation of fdt_pci_devmap() via a weak
+ * Supply a default do-nothing implementation of mv_pci_devmap() via a weak
  * alias.  Many Marvell platforms don't support a PCI interface, but to support
  * those that do, we end up with a reference to this function below, in
- * initarm_devmap_init().  If "device pci" appears in the kernel config, the
- * real implementation of this function in dev/fdt/fdt_pci.c overrides the weak
+ * platform_devmap_init().  If "device pci" appears in the kernel config, the
+ * real implementation of this function in arm/mv/mv_pci.c overrides the weak
  * alias defined here.
  */
 int mv_default_fdt_pci_devmap(phandle_t node, struct arm_devmap_entry *devmap,
@@ -309,7 +311,7 @@ mv_default_fdt_pci_devmap(phandle_t node, struct arm_devmap_entry *devmap,
 
 	return (0);
 }
-__weak_reference(mv_default_fdt_pci_devmap, fdt_pci_devmap);
+__weak_reference(mv_default_fdt_pci_devmap, mv_pci_devmap);
 
 /*
  * XXX: When device entry in devmap has pd_size smaller than section size,
@@ -320,7 +322,7 @@ __weak_reference(mv_default_fdt_pci_devmap, fdt_pci_devmap);
  * Construct pmap_devmap[] with DT-derived config data.
  */
 int
-initarm_devmap_init(void)
+platform_devmap_init(void)
 {
 	phandle_t root, child;
 	pcell_t bank_count;
@@ -349,7 +351,7 @@ initarm_devmap_init(void)
 	fdt_devmap[i].pd_pa = fdt_immr_pa;
 	fdt_devmap[i].pd_size = fdt_immr_size;
 	fdt_devmap[i].pd_prot = VM_PROT_READ | VM_PROT_WRITE;
-	fdt_devmap[i].pd_cache = PTE_NOCACHE;
+	fdt_devmap[i].pd_cache = PTE_DEVICE;
 	i++;
 
 	/*
@@ -378,7 +380,7 @@ initarm_devmap_init(void)
 			 * XXX this should account for PCI and multiple ranges
 			 * of a given kind.
 			 */
-			if (fdt_pci_devmap(child, &fdt_devmap[i], MV_PCI_VA_IO_BASE,
+			if (mv_pci_devmap(child, &fdt_devmap[i], MV_PCI_VA_IO_BASE,
 				    MV_PCI_VA_MEM_BASE) != 0)
 				return (ENXIO);
 			i += 2;

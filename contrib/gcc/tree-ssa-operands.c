@@ -2057,10 +2057,6 @@ get_expr_operands (tree stmt, tree *expr_p, int flags)
         return;
       }
 
-    case CHANGE_DYNAMIC_TYPE_EXPR:
-      get_expr_operands (stmt, &CHANGE_DYNAMIC_TYPE_LOCATION (expr), opf_none);
-      return;
-
     case BLOCK:
     case FUNCTION_DECL:
     case EXC_PTR_EXPR:

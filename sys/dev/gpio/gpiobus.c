@@ -29,24 +29,15 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/bus.h>
+#include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/module.h>
-#include <sys/kernel.h>
-#include <sys/queue.h>
-#include <sys/sysctl.h>
-#include <sys/types.h>
 
-#include <sys/bus.h>
-#include <machine/bus.h>
-#include <sys/rman.h>
-#include <machine/resource.h>
-
-#include <sys/gpio.h>
 #include <dev/gpio/gpiobusvar.h>
-#include "gpio_if.h"
+
 #include "gpiobus_if.h"
 
-static void gpiobus_print_pins(struct gpiobus_ivar *);
 static int gpiobus_parse_pins(struct gpiobus_softc *, device_t, int);
 static int gpiobus_probe(device_t);
 static int gpiobus_attach(device_t);
@@ -73,17 +64,7 @@ static int gpiobus_pin_set(device_t, device_t, uint32_t, unsigned int);
 static int gpiobus_pin_get(device_t, device_t, uint32_t, unsigned int*);
 static int gpiobus_pin_toggle(device_t, device_t, uint32_t);
 
-#define	GPIOBUS_LOCK(_sc) mtx_lock(&(_sc)->sc_mtx)
-#define	GPIOBUS_UNLOCK(_sc) mtx_unlock(&(_sc)->sc_mtx)
-#define	GPIOBUS_LOCK_INIT(_sc) \
-	mtx_init(&_sc->sc_mtx, device_get_nameunit(_sc->sc_dev), \
-	    "gpiobus", MTX_DEF)
-#define	GPIOBUS_LOCK_DESTROY(_sc) mtx_destroy(&_sc->sc_mtx);
-#define	GPIOBUS_ASSERT_LOCKED(_sc) mtx_assert(&_sc->sc_mtx, MA_OWNED);
-#define	GPIOBUS_ASSERT_UNLOCKED(_sc) mtx_assert(&_sc->sc_mtx, MA_NOTOWNED);
-
-
-static void
+void
 gpiobus_print_pins(struct gpiobus_ivar *devi)
 {
 	int range_start, range_stop, need_coma;

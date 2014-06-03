@@ -2,7 +2,7 @@
 
 LIBARCHIVEDIR=	${.CURDIR}/../../../contrib/libarchive
 
-NO_MAN=yes
+MAN=
 
 PROG=libarchive_test
 INTERNALPROG=yes  # Don't install this; it's just for testing

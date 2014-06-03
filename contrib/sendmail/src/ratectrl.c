@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 2003 Proofpoint, Inc. and its suppliers.
  *	All rights reserved.
  *
  * By using this file, you agree to the terms and conditions set
@@ -45,7 +45,7 @@
  */
 
 #include <sendmail.h>
-SM_RCSID("@(#)$Id: ratectrl.c,v 8.13 2009/05/05 23:19:34 ca Exp $")
+SM_RCSID("@(#)$Id: ratectrl.c,v 8.14 2013-11-22 20:51:56 ca Exp $")
 
 /*
 **  stuff included - given some warnings (inet_ntoa)

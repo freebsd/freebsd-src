@@ -75,6 +75,10 @@ struct dwc_otg_super_softc {
 static int
 dwc_otg_probe(device_t dev)
 {
+
+	if (!ofw_bus_status_okay(dev))
+		return (ENXIO);
+
 	if (!ofw_bus_is_compatible(dev, "synopsys,designware-hs-otg2"))
 		return (ENXIO);
 
@@ -87,6 +91,7 @@ static int
 dwc_otg_attach(device_t dev)
 {
 	struct dwc_otg_super_softc *sc = device_get_softc(dev);
+	char usb_mode[24];
 	int err;
 	int rid;
 
@@ -94,6 +99,23 @@ dwc_otg_attach(device_t dev)
 	sc->sc_otg.sc_bus.parent = dev;
 	sc->sc_otg.sc_bus.devices = sc->sc_otg.sc_devices;
 	sc->sc_otg.sc_bus.devices_max = DWC_OTG_MAX_DEVICES;
+
+	/* get USB mode, if any */
+	if (OF_getprop(ofw_bus_get_node(dev), "dr_mode",
+	    &usb_mode, sizeof(usb_mode)) > 0) {
+
+		/* ensure proper zero termination */
+		usb_mode[sizeof(usb_mode) - 1] = 0;
+
+		if (strcasecmp(usb_mode, "host") == 0)
+			sc->sc_otg.sc_mode = DWC_MODE_HOST;
+		else if (strcasecmp(usb_mode, "peripheral") == 0)
+			sc->sc_otg.sc_mode = DWC_MODE_DEVICE;
+		else if (strcasecmp(usb_mode, "otg") != 0) {
+			device_printf(dev, "Invalid FDT dr_mode: %s\n",
+			    usb_mode);
+		}
+	}
 
 	/* get all DMA memory */
 	if (usb_bus_mem_alloc_all(&sc->sc_otg.sc_bus,
@@ -124,8 +146,8 @@ dwc_otg_attach(device_t dev)
 
 	device_set_ivars(sc->sc_otg.sc_bus.bdev, &sc->sc_otg.sc_bus);
 
-	err = bus_setup_intr(dev, sc->sc_otg.sc_irq_res, INTR_TYPE_BIO | INTR_MPSAFE,
-	    NULL, (driver_intr_t *)dwc_otg_interrupt, sc, &sc->sc_otg.sc_intr_hdl);
+	err = bus_setup_intr(dev, sc->sc_otg.sc_irq_res, INTR_TYPE_TTY | INTR_MPSAFE,
+	    &dwc_otg_filter_interrupt, &dwc_otg_interrupt, sc, &sc->sc_otg.sc_intr_hdl);
 	if (err) {
 		sc->sc_otg.sc_intr_hdl = NULL;
 		goto error;

@@ -1,4 +1,6 @@
 /*-
+ * Copyright 2014 Garrett D'Amore <garrett@damore.org>
+ * Copyright 2010 Nexenta Systems, Inc.  All rights reserved.
  * Copyright (c) 1989, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -49,6 +51,7 @@ static const char rcsid[] =
 
 #include <sys/types.h>
 
+#include <ctype.h>
 #include <err.h>
 #include <errno.h>
 #include <inttypes.h>
@@ -61,13 +64,13 @@ static const char rcsid[] =
 #include <wchar.h>
 
 #ifdef SHELL
-#define main printfcmd
+#define	main printfcmd
 #include "bltin/bltin.h"
 #include "error.h"
 #include "options.h"
 #endif
 
-#define PF(f, func) do {						\
+#define	PF(f, func) do {						\
 	char *b = NULL;							\
 	if (havewidth)							\
 		if (haveprec)						\
@@ -96,13 +99,20 @@ static const char
 static char	*mknum(char *, char);
 static void	 usage(void);
 
+static const char digits[] = "0123456789";
+
+static char end_fmt[1];
+
+static int  myargc;
+static char **myargv;
 static char **gargv;
+static char **maxargv;
 
 int
 main(int argc, char *argv[])
 {
 	size_t len;
-	int chopped, end, rval;
+	int end, rval;
 	char *format, *fmt, *start;
 #ifndef SHELL
 	int ch;
@@ -143,10 +153,16 @@ main(int argc, char *argv[])
 	 * up the format string.
 	 */
 	fmt = format = *argv;
-	chopped = escape(fmt, 1, &len);		/* backslash interpretation */
+	escape(fmt, 1, &len);		/* backslash interpretation */
 	rval = end = 0;
 	gargv = ++argv;
+
 	for (;;) {
+		maxargv = gargv;
+
+		myargv = gargv;
+		for (myargc = 0; gargv[myargc]; myargc++)
+			/* nop */;
 		start = fmt;
 		while (fmt < format + len) {
 			if (fmt[0] == '%') {
@@ -157,18 +173,21 @@ main(int argc, char *argv[])
 					fmt += 2;
 				} else {
 					fmt = printf_doformat(fmt, &rval);
-					if (fmt == NULL) {
+					if (fmt == NULL || fmt == end_fmt) {
 #ifdef SHELL
 						INTON;
 #endif
-						return (1);
+						return (fmt == NULL ? 1 : rval);
 					}
 					end = 0;
 				}
 				start = fmt;
 			} else
 				fmt++;
+			if (gargv > maxargv)
+				maxargv = gargv;
 		}
+		gargv = maxargv;
 
 		if (end == 1) {
 			warnx("missing format character");
@@ -178,7 +197,7 @@ main(int argc, char *argv[])
 			return (1);
 		}
 		fwrite(start, 1, fmt - start, stdout);
-		if (chopped || !*gargv) {
+		if (!*gargv) {
 #ifdef SHELL
 			INTON;
 #endif
@@ -193,41 +212,127 @@ main(int argc, char *argv[])
 
 
 static char *
-printf_doformat(char *start, int *rval)
+printf_doformat(char *fmt, int *rval)
 {
 	static const char skip1[] = "#'-+ 0";
-	static const char skip2[] = "0123456789";
-	char *fmt;
 	int fieldwidth, haveprec, havewidth, mod_ldbl, precision;
 	char convch, nextch;
+	char start[strlen(fmt) + 1];
+	char **fargv;
+	char *dptr;
+	int l;
 
-	fmt = start + 1;
+	dptr = start;
+	*dptr++ = '%';
+	*dptr = 0;
+
+	fmt++;
+
+	/* look for "n$" field index specifier */
+	l = strspn(fmt, digits);
+	if ((l > 0) && (fmt[l] == '$')) {
+		int idx = atoi(fmt);
+		if (idx <= myargc) {
+			gargv = &myargv[idx - 1];
+		} else {
+			gargv = &myargv[myargc];
+		}
+		if (gargv > maxargv)
+			maxargv = gargv;
+		fmt += l + 1;
+
+		/* save format argument */
+		fargv = gargv;
+	} else {
+		fargv = NULL;
+	}
+
 	/* skip to field width */
-	fmt += strspn(fmt, skip1);
+	while (*fmt && strchr(skip1, *fmt) != NULL) {
+		*dptr++ = *fmt++;
+		*dptr = 0;
+	}
+
 	if (*fmt == '*') {
+
+		fmt++;
+		l = strspn(fmt, digits);
+		if ((l > 0) && (fmt[l] == '$')) {
+			int idx = atoi(fmt);
+			if (fargv == NULL) {
+				warnx("incomplete use of n$");
+				return (NULL);
+			}
+			if (idx <= myargc) {
+				gargv = &myargv[idx - 1];
+			} else {
+				gargv = &myargv[myargc];
+			}
+			fmt += l + 1;
+		} else if (fargv != NULL) {
+			warnx("incomplete use of n$");
+			return (NULL);
+		}
+
 		if (getint(&fieldwidth))
 			return (NULL);
+		if (gargv > maxargv)
+			maxargv = gargv;
 		havewidth = 1;
-		++fmt;
+
+		*dptr++ = '*';
+		*dptr = 0;
 	} else {
 		havewidth = 0;
 
 		/* skip to possible '.', get following precision */
-		fmt += strspn(fmt, skip2);
+		while (isdigit(*fmt)) {
+			*dptr++ = *fmt++;
+			*dptr = 0;
+		}
 	}
+
 	if (*fmt == '.') {
 		/* precision present? */
-		++fmt;
+		fmt++;
+		*dptr++ = '.';
+
 		if (*fmt == '*') {
+
+			fmt++;
+			l = strspn(fmt, digits);
+			if ((l > 0) && (fmt[l] == '$')) {
+				int idx = atoi(fmt);
+				if (fargv == NULL) {
+					warnx("incomplete use of n$");
+					return (NULL);
+				}
+				if (idx <= myargc) {
+					gargv = &myargv[idx - 1];
+				} else {
+					gargv = &myargv[myargc];
+				}
+				fmt += l + 1;
+			} else if (fargv != NULL) {
+				warnx("incomplete use of n$");
+				return (NULL);
+			}
+
 			if (getint(&precision))
 				return (NULL);
+			if (gargv > maxargv)
+				maxargv = gargv;
 			haveprec = 1;
-			++fmt;
+			*dptr++ = '*';
+			*dptr = 0;
 		} else {
 			haveprec = 0;
 
 			/* skip to conversion char */
-			fmt += strspn(fmt, skip2);
+			while (isdigit(*fmt)) {
+				*dptr++ = *fmt++;
+				*dptr = 0;
+			}
 		}
 	} else
 		haveprec = 0;
@@ -235,6 +340,8 @@ printf_doformat(char *start, int *rval)
 		warnx("missing format character");
 		return (NULL);
 	}
+	*dptr++ = *fmt;
+	*dptr = 0;
 
 	/*
 	 * Look for a length modifier.  POSIX doesn't have these, so
@@ -257,8 +364,14 @@ printf_doformat(char *start, int *rval)
 		mod_ldbl = 0;
 	}
 
+	/* save the current arg offset, and set to the format arg */
+	if (fargv != NULL) {
+		gargv = fargv;
+	}
+
 	convch = *fmt;
 	nextch = *++fmt;
+
 	*fmt = '\0';
 	switch (convch) {
 	case 'b': {
@@ -272,12 +385,10 @@ printf_doformat(char *start, int *rval)
 			return (NULL);
 		}
 		getout = escape(p, 0, &len);
-		*(fmt - 1) = 's';
-		PF(start, p);
-		*(fmt - 1) = 'b';
+		fputs(p, stdout);
 		free(p);
 		if (getout)
-			return (fmt);
+			return (end_fmt);
 		break;
 	}
 	case 'c': {
@@ -330,6 +441,7 @@ printf_doformat(char *start, int *rval)
 		return (NULL);
 	}
 	*fmt = nextch;
+	/* return the gargv to the next element */
 	return (fmt);
 }
 
@@ -388,9 +500,13 @@ escape(char *fmt, int percent, size_t *len)
 			*store = '\b';
 			break;
 		case 'c':
-			*store = '\0';
-			*len = store - save;
-			return (1);
+			if (!percent) {
+				*store = '\0';
+				*len = store - save;
+				return (1);
+			}
+			*store = 'c';
+			break;
 		case 'f':		/* form-feed */
 			*store = '\f';
 			break;

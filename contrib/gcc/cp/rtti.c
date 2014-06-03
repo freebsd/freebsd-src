@@ -32,6 +32,7 @@ Boston, MA 02110-1301, USA.  */
 #include "assert.h"
 #include "toplev.h"
 #include "convert.h"
+#include "target.h"
 
 /* C++ returns type information to the user in struct type_info
    objects. We also use type information to implement dynamic_cast and
@@ -237,7 +238,7 @@ get_tinfo_decl_dynamic (tree exp)
   /* Peel off cv qualifiers.  */
   type = TYPE_MAIN_VARIANT (type);
 
-  if (!VOID_TYPE_P (type))
+  if (CLASS_TYPE_P (type))
     type = complete_type_or_else (type, exp);
 
   if (!type)
@@ -429,7 +430,7 @@ get_typeid (tree type)
      that is the operand of typeid are always ignored.  */
   type = TYPE_MAIN_VARIANT (type);
 
-  if (!VOID_TYPE_P (type))
+  if (CLASS_TYPE_P (type))
     type = complete_type_or_else (type, NULL_TREE);
 
   if (!type)
@@ -1427,8 +1428,11 @@ emit_support_tinfos (void)
 	     comdat_linkage for details.)  Since we want these objects
 	     to have external linkage so that copies do not have to be
 	     emitted in code outside the runtime library, we make them
-	     non-COMDAT here.  */
-	  if (!flag_weak)
+	     non-COMDAT here.  
+
+	     It might also not be necessary to follow this detail of the
+	     ABI.  */
+	  if (!flag_weak || ! targetm.cxx.library_rtti_comdat ())
 	    {
 	      gcc_assert (TREE_PUBLIC (tinfo) && !DECL_COMDAT (tinfo));
 	      DECL_INTERFACE_KNOWN (tinfo) = 1;

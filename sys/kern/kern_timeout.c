@@ -104,6 +104,14 @@ static int ncallout;
 SYSCTL_INT(_kern, OID_AUTO, ncallout, CTLFLAG_RDTUN, &ncallout, 0,
     "Number of entries in callwheel and size of timeout() preallocation");
 
+static int pin_default_swi = 0;
+static int pin_pcpu_swi = 0;
+
+SYSCTL_INT(_kern, OID_AUTO, pin_default_swi, CTLFLAG_RDTUN, &pin_default_swi,
+    0, "Pin the default (non-per-cpu) swi (shared with PCPU 0 swi)");
+SYSCTL_INT(_kern, OID_AUTO, pin_pcpu_swi, CTLFLAG_RDTUN, &pin_pcpu_swi,
+    0, "Pin the per-CPU swis (except PCPU 0, which is also default");
+
 /*
  * TODO:
  *	allocate more timeout table slots when table overflows.
@@ -273,6 +281,12 @@ callout_callwheel_init(void *dummy)
 	callwheelmask = callwheelsize - 1;
 
 	/*
+	 * Fetch whether we're pinning the swi's or not.
+	 */
+	TUNABLE_INT_FETCH("kern.pin_default_swi", &pin_default_swi);
+	TUNABLE_INT_FETCH("kern.pin_pcpu_swi", &pin_pcpu_swi);
+
+	/*
 	 * Only cpu0 handles timeout(9) and receives a preallocation.
 	 *
 	 * XXX: Once all timeout(9) consumers are converted this can
@@ -302,7 +316,7 @@ callout_cpu_init(struct callout_cpu *cc)
 	for (i = 0; i < callwheelsize; i++)
 		LIST_INIT(&cc->cc_callwheel[i]);
 	TAILQ_INIT(&cc->cc_expireq);
-	cc->cc_firstevent = INT64_MAX;
+	cc->cc_firstevent = SBT_MAX;
 	for (i = 0; i < 2; i++)
 		cc_cce_cleanup(cc, i);
 	if (cc->cc_callout == NULL)	/* Only cpu0 handles timeout(9) */
@@ -352,14 +366,24 @@ static void
 start_softclock(void *dummy)
 {
 	struct callout_cpu *cc;
+	char name[MAXCOMLEN];
 #ifdef SMP
 	int cpu;
+	struct intr_event *ie;
 #endif
 
 	cc = CC_CPU(timeout_cpu);
-	if (swi_add(&clk_intr_event, "clock", softclock, cc, SWI_CLOCK,
+	snprintf(name, sizeof(name), "clock (%d)", timeout_cpu);
+	if (swi_add(&clk_intr_event, name, softclock, cc, SWI_CLOCK,
 	    INTR_MPSAFE, &cc->cc_cookie))
 		panic("died while creating standard software ithreads");
+	if (pin_default_swi &&
+	    (intr_event_bind(clk_intr_event, timeout_cpu) != 0)) {
+		printf("%s: timeout clock couldn't be pinned to cpu %d\n",
+		    __func__,
+		    timeout_cpu);
+	}
+
 #ifdef SMP
 	CPU_FOREACH(cpu) {
 		if (cpu == timeout_cpu)
@@ -367,9 +391,17 @@ start_softclock(void *dummy)
 		cc = CC_CPU(cpu);
 		cc->cc_callout = NULL;	/* Only cpu0 handles timeout(9). */
 		callout_cpu_init(cc);
-		if (swi_add(NULL, "clock", softclock, cc, SWI_CLOCK,
+		snprintf(name, sizeof(name), "clock (%d)", cpu);
+		ie = NULL;
+		if (swi_add(&ie, name, softclock, cc, SWI_CLOCK,
 		    INTR_MPSAFE, &cc->cc_cookie))
 			panic("died while creating standard software ithreads");
+		if (pin_pcpu_swi && (intr_event_bind(ie, cpu) != 0)) {
+			printf("%s: per-cpu clock couldn't be pinned to "
+			    "cpu %d\n",
+			    __func__,
+			    cpu);
+		}
 	}
 #endif
 }
@@ -571,8 +603,8 @@ callout_cc_add(struct callout *c, struct callout_cpu *cc,
 	 * Inform the eventtimers(4) subsystem there's a new callout
 	 * that has been inserted, but only if really required.
 	 */
-	if (INT64_MAX - c->c_time < c->c_precision)
-		c->c_precision = INT64_MAX - c->c_time;
+	if (SBT_MAX - c->c_time < c->c_precision)
+		c->c_precision = SBT_MAX - c->c_time;
 	sbt = c->c_time + c->c_precision;
 	if (sbt < cc->cc_firstevent) {
 		cc->cc_firstevent = sbt;
@@ -950,8 +982,8 @@ callout_reset_sbt_on(struct callout *c, sbintime_t sbt, sbintime_t precision,
 				to_sbt += tick_sbt;
 		} else
 			to_sbt = sbinuptime();
-		if (INT64_MAX - to_sbt < sbt)
-			to_sbt = INT64_MAX;
+		if (SBT_MAX - to_sbt < sbt)
+			to_sbt = SBT_MAX;
 		else
 			to_sbt += sbt;
 		pr = ((C_PRELGET(flags) < 0) ? sbt >> tc_precexp :

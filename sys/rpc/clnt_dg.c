@@ -92,8 +92,6 @@ static struct clnt_ops clnt_dg_ops = {
 	.cl_control =	clnt_dg_control
 };
 
-static const char mem_err_clnt_dg[] = "clnt_dg_create: out of memory";
-
 /*
  * A pending RPC request which awaits a reply. Requests which have
  * received their reply will have cr_xid set to zero and cr_mrep to

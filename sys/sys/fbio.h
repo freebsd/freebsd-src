@@ -125,6 +125,10 @@ typedef void fb_wr1_t(struct fb_info *sc, uint32_t offset, uint8_t value);
 typedef void fb_wr2_t(struct fb_info *sc, uint32_t offset, uint16_t value);
 typedef void fb_wr4_t(struct fb_info *sc, uint32_t offset, uint32_t value);
 
+typedef int fb_ioctl_t(struct cdev *, u_long, caddr_t, int, struct thread *);
+typedef int fb_mmap_t(struct cdev *dev, vm_ooffset_t offset, vm_paddr_t *paddr,
+    int prot, vm_memattr_t *memattr);
+
 struct fb_info {
 	/* Raw copy of fbtype. Do not change. */
 	int		fb_type;	/* as defined above */
@@ -137,6 +141,10 @@ struct fb_info {
 	/* Methods. */
 	fb_write_t	*fb_write;	/* if NULL, direct mem write. */
 	fb_read_t	*fb_read;	/* if NULL, direct mem read. */
+	fb_ioctl_t	*fb_ioctl;	/* Can be NULL. */
+	fb_mmap_t	*fb_mmap;	/* Can be NULL. */
+
+	struct cdev 	*fb_cdev;
 
 	fb_wr1_t	*wr1;
 	fb_wr2_t	*wr2;

@@ -1,4 +1,4 @@
-/* $OpenBSD: scp.c,v 1.178 2013/06/22 06:31:57 djm Exp $ */
+/* $OpenBSD: scp.c,v 1.179 2013/11/20 20:53:10 deraadt Exp $ */
 /*
  * scp - secure remote copy.  This is basically patched BSD rcp which
  * uses ssh to do the data transfer (instead of using rcmd).
@@ -1023,7 +1023,7 @@ sink(int argc, char **argv)
 		if (*cp++ != ' ')
 			SCREWUP("mode not delimited");
 
-		for (size = 0; isdigit(*cp);)
+		for (size = 0; isdigit((unsigned char)*cp);)
 			size = size * 10 + (*cp++ - '0');
 		if (*cp++ != ' ')
 			SCREWUP("size not delimited");
@@ -1287,7 +1287,7 @@ okname(char *cp0)
 		c = (int)*cp;
 		if (c & 0200)
 			goto bad;
-		if (!isalpha(c) && !isdigit(c)) {
+		if (!isalpha(c) && !isdigit((unsigned char)c)) {
 			switch (c) {
 			case '\'':
 			case '"':

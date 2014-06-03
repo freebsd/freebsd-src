@@ -41,8 +41,8 @@ __FBSDID("$FreeBSD$");
 static MALLOC_DEFINE(M_VTFONT, "vtfont", "vt font");
 
 /* Some limits to prevent abnormal fonts from being loaded. */
-#define	VTFONT_MAXMAPPINGS	1024
-#define	VTFONT_MAXGLYPHSIZE	262144
+#define	VTFONT_MAXMAPPINGS	8192
+#define	VTFONT_MAXGLYPHSIZE	1048576
 #define	VTFONT_MAXDIMENSION	128
 
 static uint16_t
@@ -86,14 +86,31 @@ vtfont_lookup(const struct vt_font *vf, term_char_t c)
 	uint32_t src;
 	uint16_t dst;
 	size_t stride;
+	unsigned int normal_map;
+	unsigned int bold_map;
 
+	/*
+	 * No support for printing right hand sides for CJK fullwidth
+	 * characters. Simply print a space and assume that the left
+	 * hand side describes the entire character.
+	 */
 	src = TCHAR_CHARACTER(c);
+	if (TCHAR_FORMAT(c) & TF_CJK_RIGHT) {
+		normal_map = VFNT_MAP_NORMAL_RIGHT;
+		bold_map = VFNT_MAP_BOLD_RIGHT;
+	} else {
+		normal_map = VFNT_MAP_NORMAL;
+		bold_map = VFNT_MAP_BOLD;
+	}
+
 	if (TCHAR_FORMAT(c) & TF_BOLD) {
-		dst = vtfont_bisearch(vf->vf_bold, vf->vf_bold_length, src);
+		dst = vtfont_bisearch(vf->vf_map[bold_map],
+		    vf->vf_map_count[bold_map], src);
 		if (dst != 0)
 			goto found;
 	}
-	dst = vtfont_bisearch(vf->vf_normal, vf->vf_normal_length, src);
+	dst = vtfont_bisearch(vf->vf_map[normal_map],
+	    vf->vf_map_count[normal_map], src);
 
 found:
 	stride = howmany(vf->vf_width, 8) * vf->vf_height;
@@ -111,10 +128,11 @@ vtfont_ref(struct vt_font *vf)
 void
 vtfont_unref(struct vt_font *vf)
 {
+	unsigned int i;
 
 	if (refcount_release(&vf->vf_refcount)) {
-		free(vf->vf_normal, M_VTFONT);
-		free(vf->vf_bold, M_VTFONT);
+		for (i = 0; i < VFNT_MAPS; i++)
+			free(vf->vf_map[i], M_VTFONT);
 		free(vf->vf_bytes, M_VTFONT);
 		free(vf, M_VTFONT);
 	}
@@ -122,7 +140,7 @@ vtfont_unref(struct vt_font *vf)
 
 static int
 vtfont_validate_map(struct vt_font_map *vfm, unsigned int length,
-    unsigned int nglyphs)
+    unsigned int glyph_count)
 {
 	unsigned int i, last = 0;
 
@@ -133,8 +151,8 @@ vtfont_validate_map(struct vt_font_map *vfm, unsigned int length,
 		/*
 		 * Destination extends amount of glyphs.
 		 */
-		if (vfm[i].vfm_dst >= nglyphs ||
-		    vfm[i].vfm_dst + vfm[i].vfm_len >= nglyphs)
+		if (vfm[i].vfm_dst >= glyph_count ||
+		    vfm[i].vfm_dst + vfm[i].vfm_len >= glyph_count)
 			return (EINVAL);
 		last = vfm[i].vfm_src + vfm[i].vfm_len;
 	}
@@ -145,9 +163,10 @@ vtfont_validate_map(struct vt_font_map *vfm, unsigned int length,
 int
 vtfont_load(vfnt_t *f, struct vt_font **ret)
 {
-	size_t glyphsize;
+	size_t glyphsize, mapsize;
 	struct vt_font *vf;
 	int error;
+	unsigned int i;
 
 	/* Make sure the dimensions are valid. */
 	if (f->width < 1 || f->height < 1)
@@ -156,50 +175,43 @@ vtfont_load(vfnt_t *f, struct vt_font **ret)
 		return (E2BIG);
 
 	/* Not too many mappings. */
-	if (f->nnormal > VTFONT_MAXMAPPINGS || f->nbold > VTFONT_MAXMAPPINGS)
-		return (E2BIG);
+	for (i = 0; i < VFNT_MAPS; i++)
+		if (f->map_count[i] > VTFONT_MAXMAPPINGS)
+			return (E2BIG);
 
 	/* Character 0 must always be present. */
-	if (f->nglyphs < 1)
+	if (f->glyph_count < 1)
 		return (EINVAL);
 
-	glyphsize = howmany(f->width, 8) * f->height * f->nglyphs;
+	glyphsize = howmany(f->width, 8) * f->height * f->glyph_count;
 	if (glyphsize > VTFONT_MAXGLYPHSIZE)
 		return (E2BIG);
 
 	/* Allocate new font structure. */
-	vf = malloc(sizeof *vf, M_VTFONT, M_WAITOK);
-	vf->vf_normal = malloc(f->nnormal * sizeof(struct vt_font_map),
-	    M_VTFONT, M_WAITOK);
-	vf->vf_bold = malloc(f->nbold * sizeof(struct vt_font_map),
-	    M_VTFONT, M_WAITOK);
+	vf = malloc(sizeof *vf, M_VTFONT, M_WAITOK | M_ZERO);
 	vf->vf_bytes = malloc(glyphsize, M_VTFONT, M_WAITOK);
 	vf->vf_height = f->height;
 	vf->vf_width = f->width;
-	vf->vf_normal_length = f->nnormal;
-	vf->vf_bold_length = f->nbold;
 	vf->vf_refcount = 1;
 
-	/* Copy in data. */
-	error = copyin(f->normal, vf->vf_normal,
-	    vf->vf_normal_length * sizeof(struct vt_font_map));
-	if (error)
-		goto bad;
-	error = copyin(f->bold, vf->vf_bold,
-	    vf->vf_bold_length * sizeof(struct vt_font_map));
-	if (error)
-		goto bad;
-	error = copyin(f->glyphs, vf->vf_bytes, glyphsize);
-	if (error)
-		goto bad;
+	/* Allocate, copy in, and validate mappings. */
+	for (i = 0; i < VFNT_MAPS; i++) {
+		vf->vf_map_count[i] = f->map_count[i];
+		if (f->map_count[i] == 0)
+			continue;
+		mapsize = f->map_count[i] * sizeof(struct vt_font_map);
+		vf->vf_map[i] = malloc(mapsize, M_VTFONT, M_WAITOK);
+		error = copyin(f->map[i], vf->vf_map[i], mapsize);
+		if (error)
+			goto bad;
+		error = vtfont_validate_map(vf->vf_map[i], vf->vf_map_count[i],
+		    f->glyph_count);
+		if (error)
+			goto bad;
+	}
 
-	/* Validate mappings. */
-	error = vtfont_validate_map(vf->vf_normal, vf->vf_normal_length,
-	    f->nglyphs);
-	if (error)
-		goto bad;
-	error = vtfont_validate_map(vf->vf_bold, vf->vf_bold_length,
-	    f->nglyphs);
+	/* Copy in glyph data. */
+	error = copyin(f->glyphs, vf->vf_bytes, glyphsize);
 	if (error)
 		goto bad;
 

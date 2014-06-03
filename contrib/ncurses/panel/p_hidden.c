@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2000,2005 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2009,2010 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -29,6 +29,7 @@
 /****************************************************************************
  *  Author: Zeyd M. Ben-Halim <zmbenhal@netcom.com> 1995                    *
  *     and: Eric S. Raymond <esr@snark.thyrsus.com>                         *
+ *     and: Juergen Pfeifer                         1997-1999,2008          *
  ****************************************************************************/
 
 /* p_hidden.c
@@ -36,13 +37,18 @@
  */
 #include "panel.priv.h"
 
-MODULE_ID("$Id: p_hidden.c,v 1.7 2005/02/19 16:39:17 tom Exp $")
+MODULE_ID("$Id: p_hidden.c,v 1.9 2010/01/23 21:22:15 tom Exp $")
 
 NCURSES_EXPORT(int)
 panel_hidden(const PANEL * pan)
 {
-  T((T_CALLED("panel_hidden(%p)"), pan));
-  if (!pan)
-    returnCode(ERR);
-  returnCode(IS_LINKED(pan) ? FALSE : TRUE);
+  int rc = ERR;
+
+  T((T_CALLED("panel_hidden(%p)"), (const void *)pan));
+  if (pan)
+    {
+      GetHook(pan);
+      rc = (IS_LINKED(pan) ? FALSE : TRUE);
+    }
+  returnCode(rc);
 }

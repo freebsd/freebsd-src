@@ -103,7 +103,7 @@ typedef struct {
 	u_char links		[ISODCL(13,20)];
 	u_char uid		[ISODCL(21,28)];
 	u_char gid		[ISODCL(29,36)];
-	u_char serial		[ISODCL(37,44)];/* Not used */
+	u_char serial		[ISODCL(37,44)];
 } ISO_RRIP_PX;
 
 typedef struct {

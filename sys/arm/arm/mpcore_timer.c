@@ -30,16 +30,16 @@
  */
 
 /**
- *	The ARM Cortex-A9 core can support a global timer plus a private and
- *	watchdog timer per core.  This driver reserves memory and interrupt
- *	resources for accessing both timer register sets, these resources are
- *	stored globally and used to setup the timecount and eventtimer.
+ * The ARM Cortex-A9 core can support a global timer plus a private and
+ * watchdog timer per core.  This driver reserves memory and interrupt
+ * resources for accessing both timer register sets, these resources are
+ * stored globally and used to setup the timecount and eventtimer.
  *
- *	The timecount timer uses the global 64-bit counter, whereas the
- *	per-CPU eventtimer uses the private 32-bit counters.
+ * The timecount timer uses the global 64-bit counter, whereas the
+ * per-CPU eventtimer uses the private 32-bit counters.
  *
  *
- *	REF: ARM Cortex-A9 MPCore, Technical Reference Manual (rev. r2p2)
+ * REF: ARM Cortex-A9 MPCore, Technical Reference Manual (rev. r2p2)
  */
 
 #include <sys/cdefs.h>
@@ -66,6 +66,8 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/bus.h>
 #include <machine/fdt.h>
+
+#include <arm/arm/mpcore_timervar.h>
 
 /* Private (per-CPU) timer register map */
 #define PRV_TIMER_LOAD                 0x0000
@@ -100,7 +102,7 @@ struct arm_tmr_softc {
 	bus_space_tag_t		gbl_bst;
 	bus_space_handle_t	prv_bsh;
 	bus_space_handle_t	gbl_bsh;
-	uint32_t		clkfreq;
+	uint64_t		clkfreq;
 	struct eventtimer	et;
 };
 
@@ -114,7 +116,7 @@ static struct resource_spec arm_tmr_spec[] = {
 
 static struct arm_tmr_softc *arm_tmr_sc = NULL;
 
-uint32_t platform_arm_tmr_freq = 0;
+static uint64_t platform_arm_tmr_freq = 0;
 
 #define	tmr_prv_read_4(reg)		\
     bus_space_read_4(arm_tmr_sc->prv_bst, arm_tmr_sc->prv_bsh, reg)
@@ -129,12 +131,12 @@ uint32_t platform_arm_tmr_freq = 0;
 static timecounter_get_t arm_tmr_get_timecount;
 
 static struct timecounter arm_tmr_timecount = {
-	.tc_name           = "ARM MPCore Timecounter",
+	.tc_name           = "MPCore",
 	.tc_get_timecount  = arm_tmr_get_timecount,
 	.tc_poll_pps       = NULL,
 	.tc_counter_mask   = ~0u,
 	.tc_frequency      = 0,
-	.tc_quality        = 1000,
+	.tc_quality        = 800,
 };
 
 /**
@@ -173,6 +175,9 @@ arm_tmr_start(struct eventtimer *et, sbintime_t first, sbintime_t period)
 	uint32_t load, count;
 	uint32_t ctrl;
 
+	tmr_prv_write_4(PRV_TIMER_CTRL, 0);
+	tmr_prv_write_4(PRV_TIMER_INTR, PRV_TIMER_INTR_EVENT);
+
 	ctrl = PRV_TIMER_CTRL_IRQ_ENABLE | PRV_TIMER_CTRL_TIMER_ENABLE;
 
 	if (period != 0) {
@@ -182,14 +187,14 @@ arm_tmr_start(struct eventtimer *et, sbintime_t first, sbintime_t period)
 		load = 0;
 
 	if (first != 0)
-		count = ((uint32_t)et->et_frequency * first) >> 32;
+		count = (uint32_t)((et->et_frequency * first) >> 32);
 	else
 		count = load;
 
 	tmr_prv_write_4(PRV_TIMER_LOAD, load);
 	tmr_prv_write_4(PRV_TIMER_COUNT, count);
-
 	tmr_prv_write_4(PRV_TIMER_CTRL, ctrl);
+
 	return (0);
 }
 
@@ -206,6 +211,7 @@ static int
 arm_tmr_stop(struct eventtimer *et)
 {
 	tmr_prv_write_4(PRV_TIMER_CTRL, 0);
+	tmr_prv_write_4(PRV_TIMER_INTR, PRV_TIMER_INTR_EVENT);
 	return (0);
 }
 
@@ -247,10 +253,14 @@ arm_tmr_intr(void *arg)
 static int
 arm_tmr_probe(device_t dev)
 {
+
+	if (!ofw_bus_status_okay(dev))
+		return (ENXIO);
+
 	if (!ofw_bus_is_compatible(dev, "arm,mpcore-timers"))
 		return (ENXIO);
 
-	device_set_desc(dev, "ARM Generic MPCore Timers");
+	device_set_desc(dev, "ARM MPCore Timers");
 	return (BUS_PROBE_DEFAULT);
 }
 
@@ -271,23 +281,29 @@ arm_tmr_attach(device_t dev)
 	phandle_t node;
 	pcell_t clock;
 	void *ihl;
+	boolean_t fixed_freq;
 
 	if (arm_tmr_sc)
 		return (ENXIO);
 
-	if (platform_arm_tmr_freq != 0)
-		sc->clkfreq = platform_arm_tmr_freq;
-	else {
-		/* Get the base clock frequency */
-		node = ofw_bus_get_node(dev);
-		if ((OF_getprop(node, "clock-frequency", &clock,
-		    sizeof(clock))) <= 0) {
-			device_printf(dev, "missing clock-frequency attribute in FDT\n");
-			return (ENXIO);
+	if (platform_arm_tmr_freq == ARM_TMR_FREQUENCY_VARIES) {
+		fixed_freq = false;
+	} else {
+		fixed_freq = true;
+		if (platform_arm_tmr_freq != 0) {
+			sc->clkfreq = platform_arm_tmr_freq;
+		} else {
+			/* Get the base clock frequency */
+			node = ofw_bus_get_node(dev);
+			if ((OF_getencprop(node, "clock-frequency", &clock,
+			    sizeof(clock))) <= 0) {
+				device_printf(dev, "missing clock-frequency "
+				    "attribute in FDT\n");
+				return (ENXIO);
+			}
+			sc->clkfreq = clock;
 		}
-		sc->clkfreq = fdt32_to_cpu(clock);
 	}
-
 
 	if (bus_alloc_resources(dev, arm_tmr_spec, sc->tmr_res)) {
 		device_printf(dev, "could not allocate resources\n");
@@ -308,14 +324,6 @@ arm_tmr_attach(device_t dev)
 	tmr_prv_write_4(PRV_TIMER_CTRL, 0x00000000);
 	tmr_gbl_write_4(GBL_TIMER_CTRL, 0x00000000);
 
-	/* Setup and enable the global timer to use as the timecounter */
-	tmr_gbl_write_4(GBL_TIMER_CTRL, (0x00 << GBL_TIMER_CTR_PRESCALER_SHIFT) | 
-					GBL_TIMER_CTRL_TIMER_ENABLE);
-
-	arm_tmr_timecount.tc_frequency = sc->clkfreq;
-	tc_init(&arm_tmr_timecount);
-
-	/* Setup and enable the timer */
 	if (bus_setup_intr(dev, sc->tmr_res[3], INTR_TYPE_CLK, arm_tmr_intr,
 			NULL, sc, &ihl) != 0) {
 		bus_release_resources(dev, arm_tmr_spec, sc->tmr_res);
@@ -323,13 +331,35 @@ arm_tmr_attach(device_t dev)
 		return (ENXIO);
 	}
 
-	sc->et.et_name = "ARM MPCore Eventtimer";
+	/*
+	 * If the clock is fixed-frequency, setup and enable the global timer to
+	 * use as the timecounter.  If it's variable frequency it won't work as
+	 * a timecounter.  We also can't use it for DELAY(), so hopefully the
+	 * platform provides its own implementation.  If it doesn't, ours will
+	 * get used, but since the frequency isn't set, it will only use the
+	 * bogus loop counter.
+	 */
+	if (fixed_freq)  {
+		tmr_gbl_write_4(GBL_TIMER_CTRL, GBL_TIMER_CTRL_TIMER_ENABLE);
+		arm_tmr_timecount.tc_frequency = sc->clkfreq;
+		tc_init(&arm_tmr_timecount);
+	}
+
+	/*
+	 * Setup and register the eventtimer.  Most event timers set their min
+	 * and max period values to some value calculated from the clock
+	 * frequency.  We might not know yet what our runtime clock frequency
+	 * will be, so we just use some safe values.  A max of 2 seconds ensures
+	 * that even if our base clock frequency is 2GHz (meaning a 4GHz CPU),
+	 * we won't overflow our 32-bit timer count register.  A min of 20
+	 * nanoseconds is pretty much completely arbitrary.
+	 */
+	sc->et.et_name = "MPCore";
 	sc->et.et_flags = ET_FLAGS_PERIODIC | ET_FLAGS_ONESHOT | ET_FLAGS_PERCPU;
 	sc->et.et_quality = 1000;
-
 	sc->et.et_frequency = sc->clkfreq;
-	sc->et.et_min_period = (0x00000002LLU << 32) / sc->et.et_frequency;
-	sc->et.et_max_period = (0xfffffffeLLU << 32) / sc->et.et_frequency;
+	sc->et.et_min_period = 20 * SBT_1NS;
+	sc->et.et_max_period =  2 * SBT_1S;
 	sc->et.et_start = arm_tmr_start;
 	sc->et.et_stop = arm_tmr_stop;
 	sc->et.et_priv = sc;
@@ -354,23 +384,29 @@ static devclass_t arm_tmr_devclass;
 
 DRIVER_MODULE(mp_tmr, simplebus, arm_tmr_driver, arm_tmr_devclass, 0, 0);
 
-/**
- *	cpu_initclocks - called by system to initialise the cpu clocks
+/*
+ * Handle a change in clock frequency.  The mpcore timer runs at half the CPU
+ * frequency.  When the CPU frequency changes due to power-saving or thermal
+ * managment, the platform-specific code that causes the frequency change calls
+ * this routine to inform the clock driver, and we in turn inform the event
+ * timer system, which actually updates the value in et->frequency for us and
+ * reschedules the current event(s) in a way that's atomic with respect to
+ * start/stop/intr code that may be running on various CPUs at the time of the
+ * call.
  *
- *	This is a boilerplat function, most of the setup has already been done
- *	when the driver was attached.  Therefore this function must only be called
- *	after the driver is attached.
- *
- *	RETURNS
- *	nothing
+ * This routine can also be called by a platform's early init code.  If the
+ * value passed is ARM_TMR_FREQUENCY_VARIES, that will cause the attach() code
+ * to register as an eventtimer, but not a timecounter.  If the value passed in
+ * is any other non-zero value it is used as the fixed frequency for the timer.
  */
 void
-cpu_initclocks(void)
+arm_tmr_change_frequency(uint64_t newfreq)
 {
-	if (PCPU_GET(cpuid) == 0)
-		cpu_initclocks_bsp();
+
+	if (arm_tmr_sc == NULL)
+		platform_arm_tmr_freq = newfreq;
 	else
-		cpu_initclocks_ap();
+		et_change_frequency(&arm_tmr_sc->et, newfreq);
 }
 
 /**
@@ -384,15 +420,15 @@ cpu_initclocks(void)
  *	RETURNS:
  *	nothing
  */
-void
-DELAY(int usec)
+static void __used /* Must emit function code for the weak ref below. */
+arm_tmr_DELAY(int usec)
 {
 	int32_t counts_per_usec;
 	int32_t counts;
 	uint32_t first, last;
 
 	/* Check the timers are setup, if not just use a for loop for the meantime */
-	if (arm_tmr_sc == NULL) {
+	if (arm_tmr_sc == NULL || arm_tmr_timecount.tc_frequency == 0) {
 		for (; usec > 0; usec--)
 			for (counts = 200; counts > 0; counts--)
 				cpufunc_nullop();	/* Prevent gcc from optimizing
@@ -423,3 +459,11 @@ DELAY(int usec)
 		first = last;
 	}
 }
+
+/*
+ * Supply a DELAY() implementation via weak linkage.  A platform may want to use
+ * the mpcore per-cpu eventtimers but provide its own DELAY() routine,
+ * especially when the core frequency can change on the fly.
+ */
+__weak_reference(arm_tmr_DELAY, DELAY);
+

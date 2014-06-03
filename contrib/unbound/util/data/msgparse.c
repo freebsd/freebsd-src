@@ -21,37 +21,40 @@
  * specific prior written permission.
  * 
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
- * TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE
- * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
- * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
- * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
- * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
+ * TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+ * PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+ * LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+ * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+ * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 /**
  * \file
  * Routines for message parsing a packet buffer to a descriptive structure.
  */
 #include "config.h"
-#include <ldns/ldns.h>
 #include "util/data/msgparse.h"
 #include "util/data/dname.h"
 #include "util/data/packed_rrset.h"
 #include "util/storage/lookup3.h"
 #include "util/regional.h"
+#include "ldns/rrdef.h"
+#include "ldns/sbuffer.h"
+#include "ldns/parseutil.h"
+#include "ldns/wire2str.h"
 
 /** smart comparison of (compressed, valid) dnames from packet */
 static int
-smart_compare(ldns_buffer* pkt, uint8_t* dnow, 
+smart_compare(sldns_buffer* pkt, uint8_t* dnow, 
 	uint8_t* dprfirst, uint8_t* dprlast)
 {
 	if(LABEL_IS_PTR(*dnow)) {
 		/* ptr points to a previous dname */
-		uint8_t* p = ldns_buffer_at(pkt, PTR_OFFSET(dnow[0], dnow[1]));
+		uint8_t* p = sldns_buffer_at(pkt, PTR_OFFSET(dnow[0], dnow[1]));
 		if( p == dprfirst || p == dprlast )
 			return 0;
 		/* prev dname is also a ptr, both ptrs are the same. */
@@ -68,7 +71,7 @@ smart_compare(ldns_buffer* pkt, uint8_t* dnow,
 static struct rrset_parse* 
 new_rrset(struct msg_parse* msg, uint8_t* dname, size_t dnamelen, 
 	uint16_t type, uint16_t dclass, hashvalue_t hash, 
-	uint32_t rrset_flags, ldns_pkt_section section, 
+	uint32_t rrset_flags, sldns_pkt_section section, 
 	struct regional* region)
 {
 	struct rrset_parse* p = regional_alloc(region, sizeof(*p));
@@ -99,52 +102,52 @@ new_rrset(struct msg_parse* msg, uint8_t* dname, size_t dnamelen,
 
 /** See if next rrset is nsec at zone apex */
 static int
-nsec_at_apex(ldns_buffer* pkt)
+nsec_at_apex(sldns_buffer* pkt)
 {
 	/* we are at ttl position in packet. */
-	size_t pos = ldns_buffer_position(pkt);
+	size_t pos = sldns_buffer_position(pkt);
 	uint16_t rdatalen;
-	if(ldns_buffer_remaining(pkt) < 7) /* ttl+len+root */
+	if(sldns_buffer_remaining(pkt) < 7) /* ttl+len+root */
 		return 0; /* eek! */
-	ldns_buffer_skip(pkt, 4); /* ttl */;
-	rdatalen = ldns_buffer_read_u16(pkt);
-	if(ldns_buffer_remaining(pkt) < rdatalen) {
-		ldns_buffer_set_position(pkt, pos);
+	sldns_buffer_skip(pkt, 4); /* ttl */;
+	rdatalen = sldns_buffer_read_u16(pkt);
+	if(sldns_buffer_remaining(pkt) < rdatalen) {
+		sldns_buffer_set_position(pkt, pos);
 		return 0; /* parse error happens later */
 	}
 	/* must validate the nsec next domain name format */
 	if(pkt_dname_len(pkt) == 0) {
-		ldns_buffer_set_position(pkt, pos);
+		sldns_buffer_set_position(pkt, pos);
 		return 0; /* parse error */
 	}
 
 	/* see if SOA bit is set. */
-	if(ldns_buffer_position(pkt) < pos+4+rdatalen) {
+	if(sldns_buffer_position(pkt) < pos+4+rdatalen) {
 		/* nsec type bitmap contains items */
 		uint8_t win, blen, bits;
 		/* need: windownum, bitmap len, firstbyte */
-		if(ldns_buffer_position(pkt)+3 > pos+4+rdatalen) {
-			ldns_buffer_set_position(pkt, pos);
+		if(sldns_buffer_position(pkt)+3 > pos+4+rdatalen) {
+			sldns_buffer_set_position(pkt, pos);
 			return 0; /* malformed nsec */
 		}
-		win = ldns_buffer_read_u8(pkt);
-		blen = ldns_buffer_read_u8(pkt);
-		bits = ldns_buffer_read_u8(pkt);
+		win = sldns_buffer_read_u8(pkt);
+		blen = sldns_buffer_read_u8(pkt);
+		bits = sldns_buffer_read_u8(pkt);
 		/* 0window always first window. bitlen >=1 or parse
 		   error really. bit 0x2 is SOA. */
 		if(win == 0 && blen >= 1 && (bits & 0x02)) {
-			ldns_buffer_set_position(pkt, pos);
+			sldns_buffer_set_position(pkt, pos);
 			return 1;
 		}
 	}
 
-	ldns_buffer_set_position(pkt, pos);
+	sldns_buffer_set_position(pkt, pos);
 	return 0;
 }
 
 /** Calculate rrset flags */
 static uint32_t
-pkt_rrset_flags(ldns_buffer* pkt, uint16_t type, ldns_pkt_section sec)
+pkt_rrset_flags(sldns_buffer* pkt, uint16_t type, sldns_pkt_section sec)
 {
 	uint32_t f = 0;
 	if(type == LDNS_RR_TYPE_NSEC && nsec_at_apex(pkt)) {
@@ -156,7 +159,7 @@ pkt_rrset_flags(ldns_buffer* pkt, uint16_t type, ldns_pkt_section sec)
 }
 
 hashvalue_t
-pkt_hash_rrset(ldns_buffer* pkt, uint8_t* dname, uint16_t type, 
+pkt_hash_rrset(sldns_buffer* pkt, uint8_t* dname, uint16_t type, 
 	uint16_t dclass, uint32_t rrset_flags)
 {
 	/* note this MUST be identical to rrset_key_hash in packed_rrset.c */
@@ -171,7 +174,7 @@ pkt_hash_rrset(ldns_buffer* pkt, uint8_t* dname, uint16_t type,
 
 /** create partial dname hash for rrset hash */
 static hashvalue_t
-pkt_hash_rrset_first(ldns_buffer* pkt, uint8_t* dname)
+pkt_hash_rrset_first(sldns_buffer* pkt, uint8_t* dname)
 {
 	/* works together with pkt_hash_rrset_rest */
 	/* note this MUST be identical to rrset_key_hash in packed_rrset.c */
@@ -197,7 +200,7 @@ pkt_hash_rrset_rest(hashvalue_t dname_h, uint16_t type, uint16_t dclass,
 
 /** compare rrset_parse with data */
 static int
-rrset_parse_equals(struct rrset_parse* p, ldns_buffer* pkt, hashvalue_t h, 
+rrset_parse_equals(struct rrset_parse* p, sldns_buffer* pkt, hashvalue_t h, 
 	uint32_t rrset_flags, uint8_t* dname, size_t dnamelen, 
 	uint16_t type, uint16_t dclass)
 {
@@ -210,7 +213,7 @@ rrset_parse_equals(struct rrset_parse* p, ldns_buffer* pkt, hashvalue_t h,
 
 
 struct rrset_parse*
-msgparse_hashtable_lookup(struct msg_parse* msg, ldns_buffer* pkt, 
+msgparse_hashtable_lookup(struct msg_parse* msg, sldns_buffer* pkt, 
 	hashvalue_t h, uint32_t rrset_flags, uint8_t* dname, size_t dnamelen, 
 	uint16_t type, uint16_t dclass)
 {
@@ -226,26 +229,26 @@ msgparse_hashtable_lookup(struct msg_parse* msg, ldns_buffer* pkt,
 
 /** return type networkformat that rrsig in packet covers */
 static int
-pkt_rrsig_covered(ldns_buffer* pkt, uint8_t* here, uint16_t* type)
+pkt_rrsig_covered(sldns_buffer* pkt, uint8_t* here, uint16_t* type)
 {
-	size_t pos = ldns_buffer_position(pkt);
-	ldns_buffer_set_position(pkt, (size_t)(here-ldns_buffer_begin(pkt)));
+	size_t pos = sldns_buffer_position(pkt);
+	sldns_buffer_set_position(pkt, (size_t)(here-sldns_buffer_begin(pkt)));
 	/* ttl + len + size of small rrsig(rootlabel, no signature) */
-	if(ldns_buffer_remaining(pkt) < 4+2+19)
+	if(sldns_buffer_remaining(pkt) < 4+2+19)
 		return 0;
-	ldns_buffer_skip(pkt, 4); /* ttl */
-	if(ldns_buffer_read_u16(pkt) < 19) /* too short */ {
-		ldns_buffer_set_position(pkt, pos);
+	sldns_buffer_skip(pkt, 4); /* ttl */
+	if(sldns_buffer_read_u16(pkt) < 19) /* too short */ {
+		sldns_buffer_set_position(pkt, pos);
 		return 0;
 	}
-	*type = ldns_buffer_read_u16(pkt);
-	ldns_buffer_set_position(pkt, pos);
+	*type = sldns_buffer_read_u16(pkt);
+	sldns_buffer_set_position(pkt, pos);
 	return 1;
 }
 
 /** true if covered type equals prevtype */
 static int
-pkt_rrsig_covered_equals(ldns_buffer* pkt, uint8_t* here, uint16_t type)
+pkt_rrsig_covered_equals(sldns_buffer* pkt, uint8_t* here, uint16_t type)
 {
 	uint16_t t;
 	if(pkt_rrsig_covered(pkt, here, &t) && t == type)
@@ -270,7 +273,7 @@ msgparse_bucket_remove(struct msg_parse* msg, struct rrset_parse* rrset)
 /** change section of rrset from previous to current section */
 static void
 change_section(struct msg_parse* msg, struct rrset_parse* rrset,
-	ldns_pkt_section section)
+	sldns_pkt_section section)
 {
 	struct rrset_parse *p, *prev;
 	/* remove from list */
@@ -313,7 +316,7 @@ change_section(struct msg_parse* msg, struct rrset_parse* rrset,
 
 /** see if rrset of type RRSIG contains sig over given type */
 static int
-rrset_has_sigover(ldns_buffer* pkt, struct rrset_parse* rrset, uint16_t type,
+rrset_has_sigover(sldns_buffer* pkt, struct rrset_parse* rrset, uint16_t type,
 	int* hasother)
 {
 	int res = 0;
@@ -330,7 +333,7 @@ rrset_has_sigover(ldns_buffer* pkt, struct rrset_parse* rrset, uint16_t type,
 
 /** move rrsigs from sigset to dataset */
 static int
-moveover_rrsigs(ldns_buffer* pkt, struct regional* region, 
+moveover_rrsigs(sldns_buffer* pkt, struct regional* region, 
 	struct rrset_parse* sigset, struct rrset_parse* dataset, int duplicate)
 {
 	struct rr_parse* sig = sigset->rr_first;
@@ -380,8 +383,8 @@ moveover_rrsigs(ldns_buffer* pkt, struct regional* region,
 /** change an rrsig rrset for use as data rrset */
 static struct rrset_parse*
 change_rrsig_rrset(struct rrset_parse* sigset, struct msg_parse* msg, 
-	ldns_buffer* pkt, uint16_t datatype, uint32_t rrset_flags,
-	int hasother, ldns_pkt_section section, struct regional* region)
+	sldns_buffer* pkt, uint16_t datatype, uint32_t rrset_flags,
+	int hasother, sldns_pkt_section section, struct regional* region)
 {
 	struct rrset_parse* dataset = sigset;
 	hashvalue_t hash = pkt_hash_rrset(pkt, sigset->dname, datatype, 
@@ -450,13 +453,13 @@ change_rrsig_rrset(struct rrset_parse* sigset, struct msg_parse* msg,
  * @return 0 on out of memory.
  */
 static int
-find_rrset(struct msg_parse* msg, ldns_buffer* pkt, uint8_t* dname, 
+find_rrset(struct msg_parse* msg, sldns_buffer* pkt, uint8_t* dname, 
 	size_t dnamelen, uint16_t type, uint16_t dclass, hashvalue_t* hash, 
 	uint32_t* rrset_flags,
 	uint8_t** prev_dname_first, uint8_t** prev_dname_last,
 	size_t* prev_dnamelen, uint16_t* prev_type,
 	uint16_t* prev_dclass, struct rrset_parse** rrset_prev,
-	ldns_pkt_section section, struct regional* region)
+	sldns_pkt_section section, struct regional* region)
 {
 	hashvalue_t dname_h = pkt_hash_rrset_first(pkt, dname);
 	uint16_t covtype;
@@ -473,7 +476,7 @@ find_rrset(struct msg_parse* msg, ldns_buffer* pkt, uint8_t* dname,
 		}
 		/* check if rrsig over previous item */
 		if(type == LDNS_RR_TYPE_RRSIG && dclass == *prev_dclass &&
-			pkt_rrsig_covered_equals(pkt, ldns_buffer_current(pkt),
+			pkt_rrsig_covered_equals(pkt, sldns_buffer_current(pkt),
 				*prev_type) &&
 			smart_compare(pkt, dname, *prev_dname_first,
 				*prev_dname_last) == 0) {
@@ -487,7 +490,7 @@ find_rrset(struct msg_parse* msg, ldns_buffer* pkt, uint8_t* dname,
 	
 	/* if rrsig - try to lookup matching data set first */
 	if(type == LDNS_RR_TYPE_RRSIG && pkt_rrsig_covered(pkt, 
-		ldns_buffer_current(pkt), &covtype)) {
+		sldns_buffer_current(pkt), &covtype)) {
 		*hash = pkt_hash_rrset_rest(dname_h, covtype, dclass, 
 			*rrset_flags);
 		*rrset_prev = msgparse_hashtable_lookup(msg, pkt, *hash, 
@@ -568,27 +571,27 @@ find_rrset(struct msg_parse* msg, ldns_buffer* pkt, uint8_t* dname,
  * @return: 0 if OK, or rcode on error.
  */
 static int
-parse_query_section(ldns_buffer* pkt, struct msg_parse* msg)
+parse_query_section(sldns_buffer* pkt, struct msg_parse* msg)
 {
 	if(msg->qdcount == 0)
 		return 0;
 	if(msg->qdcount > 1)
 		return LDNS_RCODE_FORMERR;
 	log_assert(msg->qdcount == 1);
-	if(ldns_buffer_remaining(pkt) <= 0)
+	if(sldns_buffer_remaining(pkt) <= 0)
 		return LDNS_RCODE_FORMERR;
-	msg->qname = ldns_buffer_current(pkt);
+	msg->qname = sldns_buffer_current(pkt);
 	if((msg->qname_len = pkt_dname_len(pkt)) == 0)
 		return LDNS_RCODE_FORMERR;
-	if(ldns_buffer_remaining(pkt) < sizeof(uint16_t)*2)
+	if(sldns_buffer_remaining(pkt) < sizeof(uint16_t)*2)
 		return LDNS_RCODE_FORMERR;
-	msg->qtype = ldns_buffer_read_u16(pkt);
-	msg->qclass = ldns_buffer_read_u16(pkt);
+	msg->qtype = sldns_buffer_read_u16(pkt);
+	msg->qclass = sldns_buffer_read_u16(pkt);
 	return 0;
 }
 
 size_t
-get_rdf_size(ldns_rdf_type rdf)
+get_rdf_size(sldns_rdf_type rdf)
 {
 	switch(rdf) {
 		case LDNS_RDF_TYPE_CLASS:
@@ -614,7 +617,7 @@ get_rdf_size(ldns_rdf_type rdf)
 			return 16;
 			break;
 		default:
-			log_assert(false); /* add type above */
+			log_assert(0); /* add type above */
 			/* only types that appear before a domain  *
 			 * name are needed. rest is simply copied. */
 	}
@@ -623,16 +626,16 @@ get_rdf_size(ldns_rdf_type rdf)
 
 /** calculate the size of one rr */
 static int
-calc_size(ldns_buffer* pkt, uint16_t type, struct rr_parse* rr)
+calc_size(sldns_buffer* pkt, uint16_t type, struct rr_parse* rr)
 {
-	const ldns_rr_descriptor* desc;
+	const sldns_rr_descriptor* desc;
 	uint16_t pkt_len; /* length of rr inside the packet */
 	rr->size = sizeof(uint16_t); /* the rdatalen */
-	ldns_buffer_skip(pkt, 4); /* skip ttl */
-	pkt_len = ldns_buffer_read_u16(pkt);
-	if(ldns_buffer_remaining(pkt) < pkt_len)
+	sldns_buffer_skip(pkt, 4); /* skip ttl */
+	pkt_len = sldns_buffer_read_u16(pkt);
+	if(sldns_buffer_remaining(pkt) < pkt_len)
 		return 0;
-	desc = ldns_rr_descript(type);
+	desc = sldns_rr_descript(type);
 	if(pkt_len > 0 && desc && desc->_dname_count > 0) {
 		int count = (int)desc->_dname_count;
 		int rdf = 0;
@@ -643,12 +646,12 @@ calc_size(ldns_buffer* pkt, uint16_t type, struct rr_parse* rr)
 			switch(desc->_wireformat[rdf]) {
 			case LDNS_RDF_TYPE_DNAME:
 				/* decompress every domain name */
-				oldpos = ldns_buffer_position(pkt);
+				oldpos = sldns_buffer_position(pkt);
 				if((len = pkt_dname_len(pkt)) == 0)
 					return 0; /* malformed dname */
-				if(ldns_buffer_position(pkt)-oldpos > pkt_len)
+				if(sldns_buffer_position(pkt)-oldpos > pkt_len)
 					return 0; /* dname exceeds rdata */
-				pkt_len -= ldns_buffer_position(pkt)-oldpos;
+				pkt_len -= sldns_buffer_position(pkt)-oldpos;
 				rr->size += len;
 				count--;
 				len = 0;
@@ -658,7 +661,7 @@ calc_size(ldns_buffer* pkt, uint16_t type, struct rr_parse* rr)
 					/* NOTREACHED, due to 'while(>0)' */
 					return 0; /* len byte exceeds rdata */
 				}
-				len = ldns_buffer_current(pkt)[0] + 1;
+				len = sldns_buffer_current(pkt)[0] + 1;
 				break;
 			default:
 				len = get_rdf_size(desc->_wireformat[rdf]);
@@ -667,7 +670,7 @@ calc_size(ldns_buffer* pkt, uint16_t type, struct rr_parse* rr)
 				if(pkt_len < len)
 					return 0; /* exceeds rdata */
 				pkt_len -= len;
-				ldns_buffer_skip(pkt, (ssize_t)len);
+				sldns_buffer_skip(pkt, (ssize_t)len);
 				rr->size += len;
 			}
 			rdf++;
@@ -675,41 +678,41 @@ calc_size(ldns_buffer* pkt, uint16_t type, struct rr_parse* rr)
 	}
 	/* remaining rdata */
 	rr->size += pkt_len;
-	ldns_buffer_skip(pkt, (ssize_t)pkt_len);
+	sldns_buffer_skip(pkt, (ssize_t)pkt_len);
 	return 1;
 }
 
 /** skip rr ttl and rdata */
 static int
-skip_ttl_rdata(ldns_buffer* pkt) 
+skip_ttl_rdata(sldns_buffer* pkt) 
 {
 	uint16_t rdatalen;
-	if(ldns_buffer_remaining(pkt) < 6) /* ttl + rdatalen */
+	if(sldns_buffer_remaining(pkt) < 6) /* ttl + rdatalen */
 		return 0;
-	ldns_buffer_skip(pkt, 4); /* ttl */
-	rdatalen = ldns_buffer_read_u16(pkt);
-	if(ldns_buffer_remaining(pkt) < rdatalen)
+	sldns_buffer_skip(pkt, 4); /* ttl */
+	rdatalen = sldns_buffer_read_u16(pkt);
+	if(sldns_buffer_remaining(pkt) < rdatalen)
 		return 0;
-	ldns_buffer_skip(pkt, (ssize_t)rdatalen);
+	sldns_buffer_skip(pkt, (ssize_t)rdatalen);
 	return 1;
 }
 
 /** see if RRSIG is a duplicate of another */
 static int
-sig_is_double(ldns_buffer* pkt, struct rrset_parse* rrset, uint8_t* ttldata)
+sig_is_double(sldns_buffer* pkt, struct rrset_parse* rrset, uint8_t* ttldata)
 {
 	uint16_t rlen, siglen;
-	size_t pos = ldns_buffer_position(pkt);
+	size_t pos = sldns_buffer_position(pkt);
 	struct rr_parse* sig;
-	if(ldns_buffer_remaining(pkt) < 6) 
+	if(sldns_buffer_remaining(pkt) < 6) 
 		return 0;
-	ldns_buffer_skip(pkt, 4); /* ttl */
-	rlen = ldns_buffer_read_u16(pkt);
-	if(ldns_buffer_remaining(pkt) < rlen) {
-		ldns_buffer_set_position(pkt, pos);
+	sldns_buffer_skip(pkt, 4); /* ttl */
+	rlen = sldns_buffer_read_u16(pkt);
+	if(sldns_buffer_remaining(pkt) < rlen) {
+		sldns_buffer_set_position(pkt, pos);
 		return 0;
 	}
-	ldns_buffer_set_position(pkt, pos);
+	sldns_buffer_set_position(pkt, pos);
 
 	sig = rrset->rrsig_first;
 	while(sig) {
@@ -738,9 +741,9 @@ sig_is_double(ldns_buffer* pkt, struct rrset_parse* rrset, uint8_t* ttldata)
 
 /** Add rr (from packet here) to rrset, skips rr */
 static int
-add_rr_to_rrset(struct rrset_parse* rrset, ldns_buffer* pkt, 
+add_rr_to_rrset(struct rrset_parse* rrset, sldns_buffer* pkt, 
 	struct msg_parse* msg, struct regional* region, 
-	ldns_pkt_section section, uint16_t type)
+	sldns_pkt_section section, uint16_t type)
 {
 	struct rr_parse* rr;
 	/* check section of rrset. */
@@ -764,7 +767,7 @@ add_rr_to_rrset(struct rrset_parse* rrset, ldns_buffer* pkt,
 
 	if( (msg->qtype == LDNS_RR_TYPE_RRSIG ||
 	     msg->qtype == LDNS_RR_TYPE_ANY) 
-	    && sig_is_double(pkt, rrset, ldns_buffer_current(pkt))) {
+	    && sig_is_double(pkt, rrset, sldns_buffer_current(pkt))) {
 		if(!skip_ttl_rdata(pkt))
 			return LDNS_RCODE_FORMERR;
 		return 0;
@@ -774,7 +777,7 @@ add_rr_to_rrset(struct rrset_parse* rrset, ldns_buffer* pkt,
 	if(!(rr = (struct rr_parse*)regional_alloc(region, sizeof(*rr))))
 		return LDNS_RCODE_SERVFAIL;
 	rr->outside_packet = 0;
-	rr->ttl_data = ldns_buffer_current(pkt);
+	rr->ttl_data = sldns_buffer_current(pkt);
 	rr->next = 0;
 	if(type == LDNS_RR_TYPE_RRSIG && rrset->type != LDNS_RR_TYPE_RRSIG) {
 		if(rrset->rrsig_last) 
@@ -810,8 +813,8 @@ add_rr_to_rrset(struct rrset_parse* rrset, ldns_buffer* pkt,
  * @return: 0 if OK, or rcode on error.
  */
 static int
-parse_section(ldns_buffer* pkt, struct msg_parse* msg, 
-	struct regional* region, ldns_pkt_section section, 
+parse_section(sldns_buffer* pkt, struct msg_parse* msg, 
+	struct regional* region, sldns_pkt_section section, 
 	uint16_t num_rrs, size_t* num_rrsets)
 {
 	uint16_t i;
@@ -826,39 +829,39 @@ parse_section(ldns_buffer* pkt, struct msg_parse* msg,
 
 	if(num_rrs == 0)
 		return 0;
-	if(ldns_buffer_remaining(pkt) <= 0)
+	if(sldns_buffer_remaining(pkt) <= 0)
 		return LDNS_RCODE_FORMERR;
 	for(i=0; i<num_rrs; i++) {
 		/* parse this RR. */
-		dname = ldns_buffer_current(pkt);
+		dname = sldns_buffer_current(pkt);
 		if((dnamelen = pkt_dname_len(pkt)) == 0)
 			return LDNS_RCODE_FORMERR;
-		if(ldns_buffer_remaining(pkt) < 10) /* type, class, ttl, len */
+		if(sldns_buffer_remaining(pkt) < 10) /* type, class, ttl, len */
 			return LDNS_RCODE_FORMERR;
-		type = ldns_buffer_read_u16(pkt);
-		ldns_buffer_read(pkt, &dclass, sizeof(dclass));
+		type = sldns_buffer_read_u16(pkt);
+		sldns_buffer_read(pkt, &dclass, sizeof(dclass));
 
 		if(0) { /* debug show what is being parsed. */
 			if(type == LDNS_RR_TYPE_RRSIG) {
 				uint16_t t;
 				if(pkt_rrsig_covered(pkt, 
-					ldns_buffer_current(pkt), &t))
+					sldns_buffer_current(pkt), &t))
 					fprintf(stderr, "parse of %s(%d) [%s(%d)]",
-					ldns_rr_descript(type)?
-					ldns_rr_descript(type)->_name: "??",
+					sldns_rr_descript(type)?
+					sldns_rr_descript(type)->_name: "??",
 					(int)type,
-					ldns_rr_descript(t)?
-					ldns_rr_descript(t)->_name: "??",
+					sldns_rr_descript(t)?
+					sldns_rr_descript(t)->_name: "??",
 					(int)t);
 			} else
 			  fprintf(stderr, "parse of %s(%d)",
-				ldns_rr_descript(type)?
-				ldns_rr_descript(type)->_name: "??",
+				sldns_rr_descript(type)?
+				sldns_rr_descript(type)->_name: "??",
 				(int)type);
 			fprintf(stderr, " %s(%d) ",
-				ldns_lookup_by_id(ldns_rr_classes, 
-				(int)ntohs(dclass))?ldns_lookup_by_id(
-				ldns_rr_classes, (int)ntohs(dclass))->name: 
+				sldns_lookup_by_id(sldns_rr_classes, 
+				(int)ntohs(dclass))?sldns_lookup_by_id(
+				sldns_rr_classes, (int)ntohs(dclass))->name: 
 				"??", (int)ntohs(dclass));
 			dname_print(stderr, pkt, dname);
 			fprintf(stderr, "\n");
@@ -882,8 +885,8 @@ parse_section(ldns_buffer* pkt, struct msg_parse* msg,
 			fprintf(stderr, "is part of existing: ");
 			dname_print(stderr, pkt, rrset->dname);
 			fprintf(stderr, " type %s(%d)\n",
-				ldns_rr_descript(rrset->type)?
-				ldns_rr_descript(rrset->type)->_name: "??",
+				sldns_rr_descript(rrset->type)?
+				sldns_rr_descript(rrset->type)->_name: "??",
 				(int)rrset->type);
 		}
 		/* add to rrset. */
@@ -895,18 +898,18 @@ parse_section(ldns_buffer* pkt, struct msg_parse* msg,
 }
 
 int
-parse_packet(ldns_buffer* pkt, struct msg_parse* msg, struct regional* region)
+parse_packet(sldns_buffer* pkt, struct msg_parse* msg, struct regional* region)
 {
 	int ret;
-	if(ldns_buffer_remaining(pkt) < LDNS_HEADER_SIZE)
+	if(sldns_buffer_remaining(pkt) < LDNS_HEADER_SIZE)
 		return LDNS_RCODE_FORMERR;
 	/* read the header */
-	ldns_buffer_read(pkt, &msg->id, sizeof(uint16_t));
-	msg->flags = ldns_buffer_read_u16(pkt);
-	msg->qdcount = ldns_buffer_read_u16(pkt);
-	msg->ancount = ldns_buffer_read_u16(pkt);
-	msg->nscount = ldns_buffer_read_u16(pkt);
-	msg->arcount = ldns_buffer_read_u16(pkt);
+	sldns_buffer_read(pkt, &msg->id, sizeof(uint16_t));
+	msg->flags = sldns_buffer_read_u16(pkt);
+	msg->qdcount = sldns_buffer_read_u16(pkt);
+	msg->ancount = sldns_buffer_read_u16(pkt);
+	msg->nscount = sldns_buffer_read_u16(pkt);
+	msg->arcount = sldns_buffer_read_u16(pkt);
 	if(msg->qdcount > 1)
 		return LDNS_RCODE_FORMERR;
 	if((ret = parse_query_section(pkt, msg)) != 0)
@@ -917,13 +920,13 @@ parse_packet(ldns_buffer* pkt, struct msg_parse* msg, struct regional* region)
 	if((ret = parse_section(pkt, msg, region, LDNS_SECTION_AUTHORITY,
 		msg->nscount, &msg->ns_rrsets)) != 0)
 		return ret;
-	if(ldns_buffer_remaining(pkt) == 0 && msg->arcount == 1) {
+	if(sldns_buffer_remaining(pkt) == 0 && msg->arcount == 1) {
 		/* BIND accepts leniently that an EDNS record is missing.
 		 * so, we do too. */
 	} else if((ret = parse_section(pkt, msg, region,
 		LDNS_SECTION_ADDITIONAL, msg->arcount, &msg->ar_rrsets)) != 0)
 		return ret;
-	/* if(ldns_buffer_remaining(pkt) > 0) { */
+	/* if(sldns_buffer_remaining(pkt) > 0) { */
 		/* there is spurious data at end of packet. ignore */
 	/* } */
 	msg->rrset_count = msg->an_rrsets + msg->ns_rrsets + msg->ar_rrsets;
@@ -981,23 +984,23 @@ parse_extract_edns(struct msg_parse* msg, struct edns_data* edns)
 	edns->edns_present = 1;
 	edns->ext_rcode = found->rr_last->ttl_data[0];
 	edns->edns_version = found->rr_last->ttl_data[1];
-	edns->bits = ldns_read_uint16(&found->rr_last->ttl_data[2]);
+	edns->bits = sldns_read_uint16(&found->rr_last->ttl_data[2]);
 	edns->udp_size = ntohs(found->rrset_class);
 	/* ignore rdata and rrsigs */
 	return 0;
 }
 
 int 
-parse_edns_from_pkt(ldns_buffer* pkt, struct edns_data* edns)
+parse_edns_from_pkt(sldns_buffer* pkt, struct edns_data* edns)
 {
-	log_assert(LDNS_QDCOUNT(ldns_buffer_begin(pkt)) == 1);
-	log_assert(LDNS_ANCOUNT(ldns_buffer_begin(pkt)) == 0);
-	log_assert(LDNS_NSCOUNT(ldns_buffer_begin(pkt)) == 0);
+	log_assert(LDNS_QDCOUNT(sldns_buffer_begin(pkt)) == 1);
+	log_assert(LDNS_ANCOUNT(sldns_buffer_begin(pkt)) == 0);
+	log_assert(LDNS_NSCOUNT(sldns_buffer_begin(pkt)) == 0);
 	/* check edns section is present */
-	if(LDNS_ARCOUNT(ldns_buffer_begin(pkt)) > 1) {
+	if(LDNS_ARCOUNT(sldns_buffer_begin(pkt)) > 1) {
 		return LDNS_RCODE_FORMERR;
 	}
-	if(LDNS_ARCOUNT(ldns_buffer_begin(pkt)) == 0) {
+	if(LDNS_ARCOUNT(sldns_buffer_begin(pkt)) == 0) {
 		memset(edns, 0, sizeof(*edns));
 		edns->udp_size = 512;
 		return 0;
@@ -1005,15 +1008,15 @@ parse_edns_from_pkt(ldns_buffer* pkt, struct edns_data* edns)
 	/* domain name must be the root of length 1. */
 	if(pkt_dname_len(pkt) != 1)
 		return LDNS_RCODE_FORMERR;
-	if(ldns_buffer_remaining(pkt) < 10) /* type, class, ttl, rdatalen */
+	if(sldns_buffer_remaining(pkt) < 10) /* type, class, ttl, rdatalen */
 		return LDNS_RCODE_FORMERR;
-	if(ldns_buffer_read_u16(pkt) != LDNS_RR_TYPE_OPT)
+	if(sldns_buffer_read_u16(pkt) != LDNS_RR_TYPE_OPT)
 		return LDNS_RCODE_FORMERR;
 	edns->edns_present = 1;
-	edns->udp_size = ldns_buffer_read_u16(pkt); /* class is udp size */
-	edns->ext_rcode = ldns_buffer_read_u8(pkt); /* ttl used for bits */
-	edns->edns_version = ldns_buffer_read_u8(pkt);
-	edns->bits = ldns_buffer_read_u16(pkt);
+	edns->udp_size = sldns_buffer_read_u16(pkt); /* class is udp size */
+	edns->ext_rcode = sldns_buffer_read_u8(pkt); /* ttl used for bits */
+	edns->edns_version = sldns_buffer_read_u8(pkt);
+	edns->bits = sldns_buffer_read_u16(pkt);
 	/* ignore rdata and rrsigs */
 	return 0;
 }

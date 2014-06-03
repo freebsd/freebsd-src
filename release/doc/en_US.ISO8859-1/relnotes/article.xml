@@ -1,33 +1,24 @@
 <?xml version="1.0" encoding="iso-8859-1"?>
 <!DOCTYPE article PUBLIC "-//FreeBSD//DTD DocBook XML V5.0-Based Extension//EN"
-        "../../../share/xml/freebsd50.dtd" [
+	"../../../share/xml/freebsd50.dtd" [
 <!ENTITY % release PUBLIC "-//FreeBSD//ENTITIES Release Specification//EN" "release.ent">
  %release;
+<!ENTITY % sponsor PUBLIC "-//FreeBSD//ENTITIES Sponsor Specification//EN" "sponsor.ent">
+ %sponsor;
+<!ENTITY % vendor PUBLIC "-//FreeBSD//ENTITIES Vendor Specification//EN" "vendor.ent">
+ %vendor;
 ]>
 <article xmlns="http://docbook.org/ns/docbook" xmlns:xlink="http://www.w3.org/1999/xlink" version="5.0">
-<info><title>&os; &release.current; Release Notes</title>
-  
+  <info><title>&os; &release.current; Release Notes</title>
 
   <author><orgname>The &os; Project</orgname></author>
 
   <pubdate>$FreeBSD$</pubdate>
 
   <copyright>
-    <year>2000</year>
-    <year>2001</year>
-    <year>2002</year>
-    <year>2003</year>
-    <year>2004</year>
-    <year>2005</year>
-    <year>2006</year>
-    <year>2007</year>
-    <year>2008</year>
-    <year>2009</year>
-    <year>2010</year>
-    <year>2011</year>
-    <year>2012</year>
-    <year>2013</year>
-    <holder role="mailto:doc@FreeBSD.org">The &os; Documentation Project</holder>
+    <year>2014</year>
+    <holder role="mailto:doc@FreeBSD.org">The &os; Documentation
+      Project</holder>
   </copyright>
 
   <legalnotice xml:id="trademarks" role="trademarks">
@@ -40,13 +31,13 @@
   </legalnotice>
 
   <abstract>
-    <para>The release notes for &os; &release.current; contain a summary
-      of the changes made to the &os; base system on the
-      &release.branch; development line.
-      This document lists applicable security advisories that were issued since
-      the last release, as well as significant changes to the &os;
-      kernel and userland.
-      Some brief remarks on upgrading are also presented.</para>
+    <para>The release notes for &os; &release.current; contain
+      a summary of the changes made to the &os; base system on the
+      &release.branch; development line.  This document lists
+      applicable security advisories that were issued since the last
+      release, as well as significant changes to the &os; kernel and
+      userland.  Some brief remarks on upgrading are also
+      presented.</para>
   </abstract>
 </info>
 
@@ -54,30 +45,32 @@
   <title>Introduction</title>
 
   <para>This document contains the release notes for &os;
-    &release.current;.  It
-    describes recently added, changed, or deleted features of &os;.
-    It also provides some notes on upgrading
-    from previous versions of &os;.</para>
+    &release.current;.  It describes recently added, changed, or
+    deleted features of &os;.  It also provides some notes on
+    upgrading from previous versions of &os;.</para>
 
-  <para releasetype="current">The &release.type; distribution to which these release notes
-    apply represents the latest point along the &release.branch; development
-    branch since &release.branch; was created.  Information regarding pre-built, binary
-    &release.type; distributions along this branch
-    can be found at <uri xlink:href="&release.url;">&release.url;</uri>.</para>
+  <para releasetype="current">The &release.type; distribution to which
+    these release notes apply represents the latest point along the
+    &release.branch; development branch since &release.branch; was
+    created.  Information regarding pre-built, binary &release.type;
+    distributions along this branch can be found at <uri
+      xlink:href="&release.url;">&release.url;</uri>.</para>
 
-  <para releasetype="snapshot">The &release.type; distribution to which these release notes
-    apply represents a point along the &release.branch; development
-    branch between &release.prev; and the future &release.next;.
-    Information regarding
-    pre-built, binary &release.type; distributions along this branch
-    can be found at <uri xlink:href="&release.url;">&release.url;</uri>.</para>
+  <para releasetype="snapshot">The &release.type; distribution to
+    which these release notes apply represents a point along the
+    &release.branch; development branch between &release.prev; and the
+    future &release.next;.  Information regarding pre-built, binary
+    &release.type; distributions along this branch can be found at
+    <uri xlink:href="&release.url;">&release.url;</uri>.</para>
 
-  <para releasetype="release">This distribution of &os; &release.current; is a
-    &release.type; distribution.  It can be found at <uri xlink:href="&release.url;">&release.url;</uri> or any of its mirrors.  More
-    information on obtaining this (or other) &release.type;
-    distributions of &os; can be found in the <link xlink:href="&url.books.handbook;/mirrors.html"><quote>Obtaining
-    &os;</quote> appendix</link> to the <link xlink:href="&url.books.handbook;/">&os;
-    Handbook</link>.</para>
+  <para releasetype="release">This distribution of &os;
+    &release.current; is a &release.type; distribution.  It can be
+    found at <uri xlink:href="&release.url;">&release.url;</uri> or
+    any of its mirrors.  More information on obtaining this (or other)
+    &release.type; distributions of &os; can be found in the <link
+      xlink:href="&url.books.handbook;/mirrors.html"><quote>Obtaining
+	&os;</quote> appendix</link> to the <link
+      xlink:href="&url.books.handbook;/">&os; Handbook</link>.</para>
 
   <para>All users are encouraged to consult the release errata before
     installing &os;.  The errata document is updated with
@@ -86,494 +79,322 @@
     information on known bugs, security advisories, and corrections to
     documentation.  An up-to-date copy of the errata for &os;
     &release.current; can be found on the &os; Web site.</para>
-
 </sect1>
 
 <sect1 xml:id="new">
   <title>What's New</title>
 
-  <para>This section describes
-    the most user-visible new or changed features in &os;
-    since &release.prev;.
-    In general, changes described here are unique to the &release.branch;
-    branch unless specifically marked as &merged; features.
-  </para>
+  <para>This section describes the most user-visible new or changed
+    features in &os; since &release.prev;.  In general, changes
+    described here are unique to the &release.branch; branch unless
+    specifically marked as &merged; features.</para>
 
-  <para>Typical release note items
-    document recent security advisories issued after
-    &release.prev;,
-    new drivers or hardware support, new commands or options,
-    major bug fixes, or contributed software upgrades.  They may also
-    list changes to major ports/packages or release engineering
-    practices.  Clearly the release notes cannot list every single
-    change made to &os; between releases; this document focuses
-    primarily on security advisories, user-visible changes, and major
-    architectural improvements.</para>
+  <para>Typical release note items document recent security advisories
+    issued after &release.prev;, new drivers or hardware support, new
+    commands or options, major bug fixes, or contributed software
+    upgrades.  They may also list changes to major ports/packages or
+    release engineering practices.  Clearly the release notes cannot
+    list every single change made to &os; between releases; this
+    document focuses primarily on security advisories, user-visible
+    changes, and major architectural improvements.</para>
 
   <sect2 xml:id="security">
     <title>Security Advisories</title>
 
-    <para/>
+    <para>No advisories.</para>
 
   </sect2>
 
   <sect2 xml:id="kernel">
     <title>Kernel Changes</title>
 
-    <para arch="amd64" revision="245652">The BSD Hypervisor, &man.bhyve.8; is included
-      with &os;.  &man.bhyve.8; requires Intel CPUs with VT-x and Extended Page Table (EPT)
-      support. These features are on all Nehalem models and beyond
-      (e.g. Nehalem and newer), but not on the lower-end Atom CPUs.</para> 
+    <para revision="260888">The <filename>VT</filename> kernel
+      configuration file has been added, which enables the new
+      <literal>vt</literal> console driver.</para>
 
-    <para arch="amd64">The maximum amount of memory the &os; kernel
-      can address has been increased from 1TB to 4TB.</para>
+    <para revision="260903">Support for GPS ports has been added to
+      &man.uhso.4;.</para>
 
-    <para>A new &man.cpuset.2; API has been added
-      for thread to CPU binding and CPU resource grouping and
-      assignment.  The &man.cpuset.1; userland utility has been added
-      to allow manipulation of processor sets.</para>
+    <para revision="264601" contrib="sponsor"
+      sponsor="&darpa_afrl;">The <literal>if_nf10bmac(4)</literal>
+      device has been added, providing support for NetFPGA-10G
+      Embedded CPU Ethernet Core.</para>
 
-    <para role="merged">The &man.ddb.4; kernel debugger now has an output capture
-      facility.  Input and output from &man.ddb.4; can now be captured
-      to a memory buffer for later inspection using &man.sysctl.8; or
-      a textdump.  The new <command>capture</command> command controls
-      this feature.</para>
+    <note>
+      <para>The <literal>if_nf10bmac(4)</literal> driver operates on
+	the FPGA, and is not suited for the PCI host interface.</para>
+    </note>
 
-    <para role="merged">The &man.ddb.4; debugger now supports a simple scripting
-      facility, which supports a set of named scripts consisting of a
-      set of &man.ddb.4; commands.  These commands can be managed from
-      within &man.ddb.4; or with the use of the new &man.ddb.8;
-      utility.  More details can be found in the &man.ddb.4; manual
-      page.</para>
+    <para revision="265132">The &man.full.4; device has been added,
+      and the <literal>lindev(4)</literal> device has been removed.
+      Prior to this change, <literal>lindev(4)</literal> provided only
+      the <filename>/dev/full</filename> character device, returning
+      <literal>ENOSPC</literal> on write attempts.  As this device is
+      not specific to &linux;, a native &os; version has been
+      added.</para>
 
-    <para role="merged">The kernel now supports a new textdump format of kernel
-      dumps.  A textdump provides higher-level information via
-      mechanically generated/extracted debugging output, rather than a
-      simple memory dump.  This facility can be used to generate brief
-      kernel bug reports that are rich in debugging information, but
-      are not dependent on kernel symbol tables or precisely
-      synchronized source code.  More information can be found in the
-      &man.textdump.4; manual page.</para>
+    <para revision="265236" contrib="sponsor"
+      sponsor="&lsi;, &spectralogic;" sponsorurl="">The &man.mpr.4;
+      device has been added, providing support for LSI Fusion-MPT
+      3 12Gb SCSI/SATA controllers.</para>
 
-    <para>Kernel support for M:N threading has been removed.  While
-      the KSE (Kernel Scheduled Entities) project was quite successful
-      in bringing threading to FreeBSD, the M:N approach taken by the
-      KSE library was never developed to its full potential.
-      Backwards compatibility for applications using KSE threading
-      will be provided via &man.libmap.conf.5; for dynamically linked
-      binaries.  The &os; Project greatly appreciates the work of
-      &a.julian;, &a.deischen;, and &a.davidxu; on KSE support.</para>
+    <para revision="265555" contrib="sponsor"
+      sponsor="&lsi;">The &man.mrsas.4; driver has been added,
+      providing support for LSI MegaRAID SAS controllers.  The
+      &man.mfi.4; driver will attach to the controller, by default.
+      To enable &man.mrsas.4; add
+      <literal>hw.mfi.mrsas_enable=1</literal> to
+      <filename>/boot/loader.conf</filename>, which turns off
+      &man.mfi.4; device probing.</para>
 
-    <para>The &os; kernel now exports information about certain kernel
-      features via the <varname>kern.features</varname> sysctl tree.
-      The &man.feature.present.3; library call provides a convenient
-      interface for user applications to test the presence of
-      features.</para>
+    <note>
+      <para>At this time, the &man.mfiutil.8; utility and
+	the &os; version of
+	<application>MegaCLI</application> and
+	<application>StorCli</application> do not work with
+	&man.mrsas.4;.</para>
+    </note>
 
-    <para arch="amd64">The &os; kernel now has support for large
-      memory page mappings (<quote>superpages</quote>).</para>
+    <para revision="265876">A kernel bug that inhibited proper
+      functionality of the <literal>dev.cpu.0.freq</literal>
+      &man.sysctl.8; on &intel; processors with Turbo
+      Boost&nbsp;&trade; enabled has been fixed.</para>
 
-    <para arch="amd64,i386,ia64,powerpc" role="merged">The ULE
-      scheduler is now the default process scheduler
-      in <filename>GENERIC</filename> kernels.</para>
+    <sect3 xml:id="kernel-virtualization">
+      <title>Virtualization support</title>
+
+      <para revision="260410">Support for the <quote>Virtual Interrupt
+	  Delivery</quote> feature of &intel;&nbsp;VT-x is enabled if
+	supported by the CPU.  This feature can be disabled by running
+	<literal>sysctl hw.vmm.vmx.use_apic_vid=0</literal>.
+	Additionally, to persist this setting across reboots, add
+	<literal>hw.vmm.vmx.use_apic_vid=0</literal> to
+	<filename>/etc/sysctl.conf</filename>.</para>
+
+      <para revision="260532">Support for <quote>Posted Interrupt
+	  Processing</quote> is enabled if supported by the CPU.  This
+	feature can be disabled by running <literal>sysctl
+	  hw.vmm.vmx.use_apic_pir=0</literal>.  Additionally, to
+	persist this setting across reboots, add
+	<literal>hw.vmm.vmx.use_apic_pir=0</literal> to
+	<filename>/etc/sysctl.conf</filename>.</para>
+
+      <para revision="260582">Unmapped IO support has been added to
+	&man.virtio_blk.4;.</para>
+
+      <para revision="260583">Unmapped IO support has been added to
+	&man.virtio_scsi.4;.</para>
+
+      <para revision="260847">The &man.virtio_random.4; driver has
+	been added to harvest entropy from the host system.</para>
+    </sect3>
+
+    <sect3 xml:id="kernel-arm">
+      <title>ARM support</title>
+
+      <para revision="260921">The &man.nand.4; device is enabled for
+	ARM devices by default.</para>
+    </sect3>
 
     <sect3 xml:id="boot">
       <title>Boot Loader Changes</title>
 
-      <para arch="amd64,i386" role="merged">The BTX kernel used by the boot
-	loader has been changed to invoke BIOS routines from real
-	mode.  This change makes it possible to boot &os; from USB
-	devices.</para>
-
-      <para arch="amd64,i386" role="merged">A new gptboot boot loader has
-        been added to support booting from a GPT labeled disk.  A
-        new <command>boot</command> command has been added to
-        &man.gpt.8;, which makes a GPT disk bootable by writing the
-        required bits of the boot loader, creating a new boot
-        partition if required.</para>
-
+      <para>&nbsp;</para>
     </sect3>
 
     <sect3 xml:id="proc">
       <title>Hardware Support</title>
 
-      <para role="merged">The &man.cmx.4; driver, a driver for Omnikey CardMan 4040
-        PCMCIA smartcard readers, has been added.</para>
-
-      <para>The &man.syscons.4; driver now supports Colemak keyboard layout.</para>
-
-      <para role="merged">The &man.uslcom.4; driver, a driver for Silicon
-        Laboratories CP2101/CP2102-based USB serial adapters, has been
-        imported from OpenBSD.</para>
-
       <sect4 xml:id="mm">
 	<title>Multimedia Support</title>
 
-        <para>Support for version 2.0 of the USB Audio reference design
-          has been added. New devices should support higher bandwidth,
-          increased sampling frequency and wider dynamic range.</para>
-
+	<para>&nbsp;</para>
       </sect4>
 
       <sect4 xml:id="net-if">
 	<title>Network Interface Support</title>
 
-	<para>The &man.ale.4; driver has been added to provide support
-	  for Atheros AR8121/AR8113/AR8114 Gigabit/Fast Ethernet controllers.</para>
+	<para revision="258830">Support for Broadcom chipsets
+	  BCM57764, BCM57767, BCM57782, BCM57786 and BCM57787 has
+	  been added to &man.bge.4;.</para>
 
-	<para>The &man.em.4; driver has been split into two drivers
-	  with some common parts.  The &man.em.4; driver will continue
-	  to support adapters up to the 82575, as well as new
-	  client/desktop adapters.  A new &man.igb.4; driver
-	  will support new server adapters.</para>
+	<para revision="260448">Support for the &intel;
+	  Centrino&trade; Wireless-N 135 chipset has been
+	  added.</para>
 
-	<para>The &man.jme.4; driver has been added to provide support
-	  for PCIe network adapters based on JMicron JMC250 Gigabit
-	  Ethernet and JMC260 Fast Ethernet controllers.</para>
+	<para revision="260552">Firmware for &intel;
+	  Centrino&trade; Wireless-N 105 devices has been added
+	  to the base system.</para>
 
-	<para>The &man.malo.4; driver has been added to provide
-	  support for Marvell Libertas 88W8335 based PCI network
-	  adapters.</para>
+	<para revision="261975">The deprecated nve(4) driver has been
+	  removed.  Users of NVIDIA nForce MCP network adapters are
+	  advised to use the &man.nfe.4; driver instead, which has been
+	  the default driver for this hardware since &os; 7.0.</para>
 
-	<para>The firmware for the &man.mxge.4; driver has been
-	  updated from 1.4.25 to 1.4.29.</para>
-
-	<para>The &man.sf.4; driver has been overhauled to improve its
-	  performance and to add support for checksum offloading.  It
-	  should also work on all architectures.</para>
-
-	<para>The &man.re.4; driver has been overhauled to fix a
-	  number of issues.  This driver now has Wake On LAN (WOL)
-	  support.</para>
-
-	<para>The &man.vr.4; driver has been overhauled to fix a
-	  number of outstanding issues.  It also now works on all
-	  architectures.</para>
-
-	<para arch="amd64,i386" role="merged">The &man.wpi.4; driver has
-	  been updated to include a number of stability fixes.</para>
-
-	<para revision="248925">The &man.cxgbe.4; driver has been updated to support
-	  40G/10G Ethernet NICs based on Chelsio's Terminator 5 (T5) ASIC.</para>
-
-	<para revision="256694">The iw_cxgbe driver has been added.  This is an
-	  experimental iWARP/RDMA driver
-	  (kernel verbs only) for Chelsio's T4 and T5 based cards.</para>
-
-	<para revision="255932">The Open Fabrics Enterprise Distribution (OFED) and
-	  OFED Infiniband core has been
-	  updated to the same version as supplied by Linux version 3.7</para>
-
-	<para revision="255932">The Mellanox Infiniband driver has been updated to firmware
-	  version 2.30.3200 for ConnectX3 NICs.  Support has been added for ConnectX3 VPI NICs, where
-	  each port can be used as Infiniband 56 GB/s or Ethernet 40 GB/s.  Support has been added
-	  for dynamically loading kernel modules for Infiniband core (ibcore) and
-	  IP over Infiniband (ipoib).</para>
-
+	<para revision="265348" contrib="sponsor"
+	  sponsor="&netgate;">The &man.ath.hal.4; driver has been
+	  updated to support the Atheros AR1111 chipset.</para>
       </sect4>
     </sect3>
 
     <sect3 xml:id="net-proto">
       <title>Network Protocols</title>
 
-      <para>&man.carp.4; has been rewritten to make addresses
-        more sane from the viewpoint of routing daemons such as
-        quagga/zebra. It also brings support for a single redundant
-        address on the subnet (carpdev), switching state with
-        ifconfig, better locking and using modern kernel
-        interfaces to allocate multicast memberships.</para>
-
-      <para>The &man.pf.4; firewall now supports fine-grain locking
-        and better utilization on multi-cpu machines resulting in
-        significant improvements in performance.</para>
-
-      <para>Support for up to 65536 routing tables has been
-        introduced.</para>
-
-      <para>Support for setting/matching differentiated services
-        codepoints (DSCP) in IP header has been added to
-        &man.ipfw.8;.</para>
-
+      <para revision="263140">Support for the IPX network transport
+	protocol has been removed, and will not be supported in
+	&os;&nbsp;11 and later releases.</para>
     </sect3>
 
     <sect3 xml:id="disks">
       <title>Disks and Storage</title>
 
-      <para role="merged">The &man.aac.4; driver now supports volumes larger than
-        2TB in size.</para>
-
-      <para>The &man.ata.4; driver now supports a spindown command for
-        disks; after a configurable amount of time, if no requests
-        have been received for a disk, the disk will be spun down
-        until the next request.  The &man.atacontrol.8; utility now
-        supports a <command>spindown</command> command to configure
-        this feature.</para>
-
-      <para role="merged">The &man.hptrr.4; driver has been updated to version 1.2
-        from Highpoint.</para>
-
+      <para>&nbsp;</para>
     </sect3>
 
     <sect3 xml:id="fs">
       <title>File Systems</title>
 
-      <para>A new kernel-based iSCSI target and initiator has been
-        added</para>
+      <para>&nbsp;</para>
 
-      <para>UFS filesystems can now be enlarged with &man.growfs.8; while
-        mounted read-write. This is especially useful for virtual
-        machines, allowing the addition of more harddrive space without
-        interruption of service.</para>
+      <sect4 xml:id="fs-zfs">
+	<title>ZFS</title>
 
-      <para>A state of the art FUSE implementation is now part of the
-        base system. It allows the use of nearly all fusefs file
-        systems</para>
-
-      <para>Support for the high performance LZ4 compression algorithm
-        has been added to ZFS. LZ4 is usually faster and can achieve a
-        higher compression ratio than LZJB, the default compression
-        algorithm</para>
-
-      <para>Support for L2ARC compression has been added to ZFS.</para>
-
-      <para>ZFS will now compare the checksums of incoming writes to
-        the checksum of the existing on-disk data and avoid issuing any
-        write I/O for data that has not changed. This will reduce I/O
-        as well as space usage because if the old block is referenced
-        by a snapshot, both copies of the block are kept even though
-        both contain the same data.</para>
-
+	<para>&nbsp;</para>
+      </sect4>
     </sect3>
-
   </sect2>
 
   <sect2 xml:id="userland">
     <title>Userland Changes</title>
 
-    <para role="merged">BIND has been replaced by &man.unbound.8; for
-      local dns resolution in the base system.  With this change, nslookup
-      and dig are no longer a part of the base system.  Users should
-      instead use &man.host.1; and &man.drill.1; Alternatively,
-      nslookup and dig can be obtained by installing the
-      dns/bind-tools port.</para>
+    <para revision="258838" contrib="sponsor" sponsor="&ff;, &google;"
+      sponsorurl="">The &man.casperd.8; daemon has been added,
+      which provides access to functionality that is not available in
+      the <quote>capability mode</quote> sandbox.</para>
 
-    <para role="merged">The &man.adduser.8; utility now supports
-      a <option>-M</option> option to set the mode of a new user's
-      home directory.</para>
+    <para revision="260594">When unable to load a kernel module with
+      &man.kldload.8;, a message informing to view output of
+      &man.dmesg.8; is now printed, opposed to the previous output
+      <quote>Exec format error.</quote>.</para>
 
-    <para>BSD-licensed versions of &man.ar.1; and &man.ranlib.1;,
-      based on <filename>libarchive</filename>, have replaced the GNU
-      Binutils versions of these utilities.</para>
+    <para revision="260910">Allow &man.pciconf.8; to identify PCI
+      devices that are attached to a driver to be identified by their
+      device name instead of just the selector.  Additionally, an
+      optional device argument to the <literal>-l</literal> flag
+      to restrict the output to only listing details about a single
+      device.</para>
 
-    <para>BSD-licensed versions of &man.bc.1; and &man.dc.1; have
-      replaced their GNU counterparts.</para>
+    <para revision="260913">A new flag, <quote>onifconsole</quote> has
+      been added to <filename>/etc/ttys</filename>.  This allows the
+      system to provide a login prompt via serial console if the
+      device is an active kernel console, otherwise it is equivalent
+      to <literal>off</literal>.</para>
 
-    <para role="merged">&man.chflags.1; now supports a <option>-v</option> flag for
-      verbose output and a <option>-f</option> flag to ignore errors
-      with the same semantics as (for example)
-      &man.chmod.1;.</para>
+    <para revision="260926">Support for displaying VPD for PCI devices
+      via &man.pciconf.8; has been added.</para>
 
-    <para>For compatibility with other implementations, &man.cp.1; now
-      supports a <option>-a</option> flag, which is equivalent to
-      specifying the <option>-RrP</option> flags.</para>
+    <para revision="261498">&man.ping.8; protects against malicious
+      network packets using the Capsicum framework to drop
+      privileges.</para>
 
-    <para>BSD-licensed version of &man.cpio.1; based on
-      <filename>libarchive</filename>, has replaced the GNU cpio.
-      Note that the GNU cpio is still installed as
-      <filename>gcpio</filename>.</para>
+    <para revision="261504">&os;/&arch.i386; guests can be run under
+      bhyve.</para>
 
-    <para>The &man.env.1; program now supports <option>-u
-      <replaceable>name</replaceable></option>
-      which will completely unset the given variable
-      <replaceable>name</replaceable> by removing it from the environment,
-      instead of just setting it to a null value.</para>
+    <para revision="265229">The &man.ps.1; utility has been
+      updated to include the <literal>-J</literal> flag, used to
+      filter output by matching &man.jail.8; IDs and names.
+      Additionally, argument <literal>0</literal> can be used to
+      <literal>-J</literal> to only list processes running on the
+      host system.</para>
 
-    <para>The &man.fdopendir.3; library function has been added.</para>
+    <para revision="265249">The &man.top.1; utility has been updated
+      to filter by &man.jail.8; ID or name, in followup to the
+      &man.ps.1; change in <literal>r265229</literal>.</para>
 
-    <para role="merged">The &man.fetch.3; library now support HTTP 1.1
-      If-Modified-Since behavior.  The &man.fetch.1; program now
-      supports <option>-i <replaceable>filename</replaceable></option>
-      which will only download the specified HTTP URL if the content
-      is newer than <replaceable>filename</replaceable>.</para>
+    <para revision="265995">The Blowfish &man.crypt.3; default format
+      has been changed tox
+      <literal>&dollar;2b&dollar;</literal>.</para>
 
-    <para>&man.find.1; has been enhanced by the addition of a number
-      of primaries that were present in GNU find but not &os;
-      &man.find.1;.</para>
-
-    <para>&man.kgdb.1; now supports a new <command>add-kld</command>
-      command to make it easier to debug crash dumps with kernel
-      modules.</para>
-
-    <para>The &man.ls.1; program now supports a <option>-D</option>
-      option to specify a date format string to be used with the long
-      format (<option>-l</option>) output.</para>
-
-    <para>&man.nc.1; now supports a <option>-O</option> switch to
-      disable the use of TCP options.</para>
-
-    <para>&man.nc.1;'s <option>-o</option> switch has been deprecated.
-      It will be removed in a future release.</para>
-
-    <para>The &man.ping6.8; utility now returns <literal>2</literal>
-      when the packet transmission was successful but no responses
-      were received (this is the same behavior as &man.ping.8;).
-      It returned a non-zero value before this change.</para>
-
-    <para>The &man.procstat.1; utility has been added to display
-      detailed information about processes.</para>
-
-    <para role="merged">The &man.realpath.1; utility now supports
-      a <option>-q</option> flag to suppress warnings; it now also
-      accepts multiple paths on its command line.</para>
-
-    <para>&man.sh.1; has many bug fixes, some new features, and will now
-      refuse to parse some invalid scripts.  Additionally, it now
-      has filename completion and defaults to the &quot;emacs&quot; editing
-      mode.</para>
-
-    <para>The &man.split.1; utility now supports a <option>-n</option>
-      flag to split a file into a certain number of chunks.</para>
-
-    <para>The &man.tar.1; utility now supports a <option>-Z</option>
-      flag to enable &man.compress.1;-style
-      compression/decompression.</para>
-
-    <para>The &man.tar.1; utility now supports a
-      <option>--numeric-owner</option> flag to ignore user/group names
-      on create and extract.</para>
-
-    <para>The &man.tar.1; utility now supports an
-      <option>-S</option> flag to sparsify files on extraction.</para>
-
-    <para>The &man.tar.1; utility now supports a <option>-s</option>
-      flag to substitute filenames based on the specified regular
-      expression.</para>
-
-    <para>The &man.tcgetsid.3; library function has been added to
-      return the process group ID for the session leader for the
-      controlling terminal.  It is defined in IEEE Std 1003.1-2001
-      (POSIX).</para>
-
-    <para>&man.top.1; now supports a <option>-P</option> flag to
-      provide per-CPU usage statistics.</para>
-
-    <para>&man.zdump.8; is now working properly on 64 bit architectures.
-      </para>
-
-    <para>&man.traceroute.8; now has the ability to print the AS
-      number for each hop with the new <option>-a</option> switch; a
-      new <option>-A</option> option allows selecting a particular
-      WHOIS server.</para>
-
-    <para>&man.traceroute6.8; now supports a <option>-U</option> flag
-      to send probe packets with no upper-layer protocol, rather than
-      the usual UDP probe packets.</para>
+    <para revision="266209">The &man.pmcstat.8; utility has been
+      updated to include a new flag, <literal>-l</literal>, which
+      adds event collection after the specified number of
+      seconds.</para>
 
     <sect3 xml:id="rc-scripts">
       <title><filename>/etc/rc.d</filename> Scripts</title>
 
-      <para/>
-
+      <para>&nbsp;</para>
     </sect3>
   </sect2>
 
   <sect2 xml:id="contrib">
     <title>Contributed Software</title>
 
-    <para role="merged"><application>AMD</application> has been updated from 6.0.10
-      to 6.1.5.</para>
+    <para revision="258884" contrib="sponsor"
+      sponsor="&darpa_afrl;">&man.lldb.1; has been updated to upstream
+      snapshot version r196259.</para>
 
-    <para role="merged"><application>awk</application> has been updated from 1 May
-      2007 release to the 23 October 2007 release.</para>
+    <para revision="259626">Timezone data files have been updated to
+      version 2013i.</para>
 
-    <para role="merged"><application>bzip2</application> has been updated from 1.0.4
-      to 1.0.5.</para>
+    <para revision="260445">&man.byacc.1; has been updated to version
+      20140101.</para>
 
-    <para><application>CVS</application> has been removed from the
-    base system, but is still available from ports</para>
+    <para revision="261037"><application>OpenSSL</application> has
+      been updated to version 1.0.1.f.</para>
 
-    <para><application>FILE</application> has been updated from 4.23
-      to 5.03.</para>
+    <para revision="261071">&man.jemalloc.3; has been updated to
+      version 3.5.0.</para>
 
-    <para><application>hostapd</application> has been
-      updated from 0.5.8 to 0.5.10.</para>
+    <para revision="266527" role="merged"><application>Sendmail</application>
+      has been updated from 8.14.7 to 8.14.9.</para>
 
-    <para><application>IPFilter</application> has been updated from
-      4.1.23 to 4.1.28.</para>
+    <para revision="261212"><application>bmake</application> has been
+      updated to version 20140101.</para>
 
-    <para><application>less</application> has been updated from
-      v408 to v429.</para>
+    <para revision="261283"><application>libc++</application> has been
+      updated to version 3.4.</para>
 
-    <para><application>ncurses</application> has been updated from
-      5.6-20061217 to 5.6-20080503.</para>
+    <para revision="261320"><application>OpenSSH</application> has
+      been updated to 6.5p1.</para>
 
-    <para role="merged"><application>OpenSSH</application> has been updated
-      from 4.5p1 to 5.1p1.</para>
+    <para revision="261344"><application>mdocml</application> has been
+      updated to version 1.12.3.</para>
 
-    <para role="merged"><application>OpenPAM</application> has been updated from the
-      Figwort release to the Hydrangea release.</para>
-
-    <para role="merged"><application>sendmail</application> has been updated from
-      8.14.1 to 8.14.7.</para>
-
-    <para role="merged">The timezone database has been updated from
-      the <application>tzdata2008h</application> release to
-      the <application>tzdata2009m</application> release.</para>
-
-    <para>The stdtime part of libc, &man.zdump.8; and &man.zic.8;
-      have been updated from the <application>tzcode2004a</application>
-      release to the <application>tzcode2009h</application> release.
-      If you have upgraded from source or via the &man.freebsd-update.8;,
-      then please run &man.tzsetup.8; to install a new /etc/localtime.
-      </para>
-
-    <para><application>WPA Supplicant</application> has been
-      updated from 0.5.8 to 0.5.10.</para>
-
-    <para role="merged"><application>xz</application> has been updated
-      from snapshot as of 12 April 2010 to 5.0.0.</para>
-
+    <para revision="261991"><application>LLVM</application> and
+      <application>Clang</application> have been updated to
+      version 3.4.</para>
   </sect2>
 
   <sect2 xml:id="ports">
     <title>Ports/Packages Collection Infrastructure</title>
 
-    <para revision="257444">The pkg_add, pkg_create, pkg_delete, pkg_info,
-      pkg_updating, and pkg_version utilities have been removed.
-      &man.pkg.7; must now be used to install binary packages.  &man.pkg.7;
-      is the next generation &os; package manager, also referred to as "pkgng".</para>
-
+    <para>&nbsp;</para>
   </sect2>
 
   <sect2 xml:id="releng">
     <title>Release Engineering and Integration</title>
 
-    <para role="merged">The supported version of
-      the <application>GNOME</application> desktop environment
-      (<package>x11/gnome2</package>) has been
-      updated from 2.20.1 to 2.22.</para>
-
+    <para>&nbsp;</para>
   </sect2>
 
   <sect2 xml:id="doc">
     <title>Documentation</title>
 
-    <para/>
-
+    <para>&nbsp;</para>
   </sect2>
 </sect1>
 
 <sect1 xml:id="upgrade">
   <title>Upgrading from previous releases of &os;</title>
 
-  <para arch="amd64,i386">Beginning with &os; 6.2-RELEASE,
-    binary upgrades between RELEASE versions (and snapshots of the
-    various security branches) are supported using the
-    &man.freebsd-update.8; utility.  The binary upgrade procedure will
-    update unmodified userland utilities, as well as unmodified GENERIC or
-    SMP kernels distributed as a part of an official &os; release.
-    The &man.freebsd-update.8; utility requires that the host being
-    upgraded have Internet connectivity.</para>
+  <para arch="amd64,i386">Binary upgrades between RELEASE versions
+    (and snapshots of the various security branches) are supported
+    using the &man.freebsd-update.8; utility.  The binary upgrade
+    procedure will update unmodified userland utilities, as well as
+    unmodified GENERIC kernels distributed as a part of an official
+    &os; release.  The &man.freebsd-update.8; utility requires that
+    the host being upgraded have Internet connectivity.</para>
 
   <para>Source-based upgrades (those based on recompiling the &os;
     base system from source code) from previous versions are
@@ -581,9 +402,8 @@
     <filename>/usr/src/UPDATING</filename>.</para>
 
   <important>
-    <para>Upgrading &os; should, of course, only be attempted after
-      backing up <emphasis>all</emphasis> data and configuration
-      files.</para>
+    <para>Upgrading &os; should only be attempted after backing up
+      <emphasis>all</emphasis> data and configuration files.</para>
   </important>
 </sect1>
 </article>

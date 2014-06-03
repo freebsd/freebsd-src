@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2000-2013 Dag-Erling Smørgrav
+ * Copyright (c) 2000-2014 Dag-Erling Smørgrav
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -204,10 +204,11 @@ http_growbuf(struct httpio *io, size_t len)
 /*
  * Fill the input buffer, do chunk decoding on the fly
  */
-static int
+static ssize_t
 http_fillbuf(struct httpio *io, size_t len)
 {
 	ssize_t nbytes;
+	char ch;
 
 	if (io->error)
 		return (-1);
@@ -229,7 +230,7 @@ http_fillbuf(struct httpio *io, size_t len)
 	if (io->chunksize == 0) {
 		switch (http_new_chunk(io)) {
 		case -1:
-			io->error = 1;
+			io->error = EPROTO;
 			return (-1);
 		case 0:
 			io->eof = 1;
@@ -249,10 +250,8 @@ http_fillbuf(struct httpio *io, size_t len)
 	io->chunksize -= io->buflen;
 
 	if (io->chunksize == 0) {
-		char endl[2];
-
-		if (fetch_read(io->conn, endl, 2) != 2 ||
-		    endl[0] != '\r' || endl[1] != '\n')
+		if (fetch_read(io->conn, &ch, 1) != 1 || ch != '\r' ||
+		    fetch_read(io->conn, &ch, 1) != 1 || ch != '\n')
 			return (-1);
 	}
 
@@ -268,31 +267,30 @@ static int
 http_readfn(void *v, char *buf, int len)
 {
 	struct httpio *io = (struct httpio *)v;
-	int l, pos;
+	int rlen;
 
 	if (io->error)
 		return (-1);
 	if (io->eof)
 		return (0);
 
-	for (pos = 0; len > 0; pos += l, len -= l) {
-		/* empty buffer */
-		if (!io->buf || io->bufpos == io->buflen)
-			if (http_fillbuf(io, len) < 1)
-				break;
-		l = io->buflen - io->bufpos;
-		if (len < l)
-			l = len;
-		memcpy(buf + pos, io->buf + io->bufpos, l);
-		io->bufpos += l;
+	/* empty buffer */
+	if (!io->buf || io->bufpos == io->buflen) {
+		if ((rlen = http_fillbuf(io, len)) < 0) {
+			if ((errno = io->error) == EINTR)
+				io->error = 0;
+			return (-1);
+		} else if (rlen == 0) {
+			return (0);
+		}
 	}
 
-	if (!pos && io->error) {
-		if (io->error == EINTR)
-			io->error = 0;
-		return (-1);
-	}
-	return (pos);
+	rlen = io->buflen - io->bufpos;
+	if (len < rlen)
+		rlen = len;
+	memcpy(buf, io->buf + io->bufpos, rlen);
+	io->bufpos += rlen;
+	return (rlen);
 }
 
 /*
@@ -878,6 +876,12 @@ http_parse_mtime(const char *p, time_t *mtime)
 	strncpy(locale, setlocale(LC_TIME, NULL), sizeof(locale));
 	setlocale(LC_TIME, "C");
 	r = strptime(p, "%a, %d %b %Y %H:%M:%S GMT", &tm);
+	/*
+	 * Some proxies use UTC in response, but it should still be
+	 * parsed. RFC2616 states GMT and UTC are exactly equal for HTTP.
+	 */
+	if (r == NULL)
+		r = strptime(p, "%a, %d %b %Y %H:%M:%S UTC", &tm);
 	/* XXX should add support for date-2 and date-3 */
 	setlocale(LC_TIME, locale);
 	if (r == NULL)

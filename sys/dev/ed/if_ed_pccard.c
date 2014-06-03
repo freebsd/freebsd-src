@@ -75,9 +75,6 @@
 #include <sys/systm.h>
 #include <sys/socket.h>
 #include <sys/kernel.h>
-#include <sys/conf.h>
-#include <sys/uio.h>
-
 #include <sys/module.h>
 #include <sys/bus.h>
 #include <machine/bus.h>
@@ -247,6 +244,54 @@ static const struct ed_product {
 };
 
 /*
+ * MII bit-bang glue
+ */
+static uint32_t ed_pccard_dl100xx_mii_bitbang_read(device_t dev);
+static void ed_pccard_dl100xx_mii_bitbang_write(device_t dev, uint32_t val);
+
+static const struct mii_bitbang_ops ed_pccard_dl100xx_mii_bitbang_ops = {
+	ed_pccard_dl100xx_mii_bitbang_read,
+	ed_pccard_dl100xx_mii_bitbang_write,
+	{
+		ED_DL100XX_MII_DATAOUT,	/* MII_BIT_MDO */
+		ED_DL100XX_MII_DATAIN,	/* MII_BIT_MDI */
+		ED_DL100XX_MII_CLK,	/* MII_BIT_MDC */
+		ED_DL100XX_MII_DIROUT,	/* MII_BIT_DIR_HOST_PHY */
+		0			/* MII_BIT_DIR_PHY_HOST */
+	}
+};
+
+static uint32_t ed_pccard_ax88x90_mii_bitbang_read(device_t dev);
+static void ed_pccard_ax88x90_mii_bitbang_write(device_t dev, uint32_t val);
+
+static const struct mii_bitbang_ops ed_pccard_ax88x90_mii_bitbang_ops = {
+	ed_pccard_ax88x90_mii_bitbang_read,
+	ed_pccard_ax88x90_mii_bitbang_write,
+	{
+		ED_AX88X90_MII_DATAOUT,	/* MII_BIT_MDO */
+		ED_AX88X90_MII_DATAIN,	/* MII_BIT_MDI */
+		ED_AX88X90_MII_CLK,	/* MII_BIT_MDC */
+		0,			/* MII_BIT_DIR_HOST_PHY */
+		ED_AX88X90_MII_DIRIN	/* MII_BIT_DIR_PHY_HOST */
+	}
+};
+
+static uint32_t ed_pccard_tc5299j_mii_bitbang_read(device_t dev);
+static void ed_pccard_tc5299j_mii_bitbang_write(device_t dev, uint32_t val);
+
+static const struct mii_bitbang_ops ed_pccard_tc5299j_mii_bitbang_ops = {
+	ed_pccard_tc5299j_mii_bitbang_read,
+	ed_pccard_tc5299j_mii_bitbang_write,
+	{
+		ED_TC5299J_MII_DATAOUT,	/* MII_BIT_MDO */
+		ED_TC5299J_MII_DATAIN,	/* MII_BIT_MDI */
+		ED_TC5299J_MII_CLK,	/* MII_BIT_MDC */
+		0,			/* MII_BIT_DIR_HOST_PHY */
+		ED_AX88X90_MII_DIRIN	/* MII_BIT_DIR_PHY_HOST */
+	}
+};
+
+/*
  *      PC Card (PCMCIA) specific code.
  */
 static int	ed_pccard_probe(device_t);
@@ -255,23 +300,14 @@ static void	ed_pccard_tick(struct ed_softc *);
 
 static int	ed_pccard_dl100xx(device_t dev, const struct ed_product *);
 static void	ed_pccard_dl100xx_mii_reset(struct ed_softc *sc);
-static u_int	ed_pccard_dl100xx_mii_readbits(struct ed_softc *sc, int nbits);
-static void	ed_pccard_dl100xx_mii_writebits(struct ed_softc *sc, u_int val,
-    int nbits);
 
 static int	ed_pccard_ax88x90(device_t dev, const struct ed_product *);
-static u_int	ed_pccard_ax88x90_mii_readbits(struct ed_softc *sc, int nbits);
-static void	ed_pccard_ax88x90_mii_writebits(struct ed_softc *sc, u_int val,
-    int nbits);
 
 static int	ed_miibus_readreg(device_t dev, int phy, int reg);
 static int	ed_ifmedia_upd(struct ifnet *);
 static void	ed_ifmedia_sts(struct ifnet *, struct ifmediareq *);
 
 static int	ed_pccard_tc5299j(device_t dev, const struct ed_product *);
-static u_int	ed_pccard_tc5299j_mii_readbits(struct ed_softc *sc, int nbits);
-static void	ed_pccard_tc5299j_mii_writebits(struct ed_softc *sc, u_int val,
-    int nbits);
 
 static void
 ed_pccard_print_entry(const struct ed_product *pp)
@@ -502,7 +538,7 @@ ed_pccard_attach(device_t dev)
 		error = ed_pccard_tc5299j(dev, pp);
 	if (error != 0) {
 		error = ed_probe_Novell_generic(dev, flags);
-		printf("Novell probe generic %d\n", error);
+		printf("Novell generic probe failed: %d\n", error);
 	}
 	if (error != 0 && (pp->flags & NE2000DVF_TOSHIBA)) {
 		flags |= ED_FLAGS_TOSH_ETHER;
@@ -627,7 +663,7 @@ ed_pccard_dl100xx(device_t dev, const struct ed_product *pp)
 	if (!(pp->flags & NE2000DVF_DL100XX))
 		return (ENXIO);
 	if (bootverbose)
-		device_printf(dev, "Trying DL100xx probing\n");
+		device_printf(dev, "Trying DL100xx\n");
 	error = ed_probe_Novell_generic(dev, device_get_flags(dev));
 	if (bootverbose && error)
 		device_printf(dev, "Novell generic probe failed: %d\n", error);
@@ -678,16 +714,11 @@ ed_pccard_dl100xx(device_t dev, const struct ed_product *pp)
 	sc->chip_type = (id & 0x90) == 0x90 ?
 	    ED_CHIP_TYPE_DL10022 : ED_CHIP_TYPE_DL10019;
 	sc->type_str = ((id & 0x90) == 0x90) ? "DL10022" : "DL10019";
-	sc->mii_readbits = ed_pccard_dl100xx_mii_readbits;
-	sc->mii_writebits = ed_pccard_dl100xx_mii_writebits;
+	sc->mii_bitbang_ops = &ed_pccard_dl100xx_mii_bitbang_ops;
 	return (0);
 }
 
 /* MII bit-twiddling routines for cards using Dlink chipset */
-#define DL100XX_MIISET(sc, x) ed_asic_outb(sc, ED_DL100XX_MIIBUS, \
-    ed_asic_inb(sc, ED_DL100XX_MIIBUS) | (x))
-#define DL100XX_MIICLR(sc, x) ed_asic_outb(sc, ED_DL100XX_MIIBUS, \
-    ed_asic_inb(sc, ED_DL100XX_MIIBUS) & ~(x))
 
 static void
 ed_pccard_dl100xx_mii_reset(struct ed_softc *sc)
@@ -709,36 +740,29 @@ ed_pccard_dl100xx_mii_reset(struct ed_softc *sc)
 }
 
 static void
-ed_pccard_dl100xx_mii_writebits(struct ed_softc *sc, u_int val, int nbits)
+ed_pccard_dl100xx_mii_bitbang_write(device_t dev, uint32_t val)
 {
-	int i;
+	struct ed_softc *sc;
 
-	DL100XX_MIISET(sc, ED_DL100XX_MII_DIROUT);
-	for (i = nbits - 1; i >= 0; i--) {
-		if ((val >> i) & 1)
-			DL100XX_MIISET(sc, ED_DL100XX_MII_DATAOUT);
-		else
-			DL100XX_MIICLR(sc, ED_DL100XX_MII_DATAOUT);
-		DL100XX_MIISET(sc, ED_DL100XX_MII_CLK);
-		DL100XX_MIICLR(sc, ED_DL100XX_MII_CLK);
-	}
+	sc = device_get_softc(dev);
+
+	ed_asic_outb(sc, ED_DL100XX_MIIBUS, val);
+	ed_asic_barrier(sc, ED_DL100XX_MIIBUS, 1,
+	    BUS_SPACE_BARRIER_READ | BUS_SPACE_BARRIER_WRITE);
 }
 
-static u_int
-ed_pccard_dl100xx_mii_readbits(struct ed_softc *sc, int nbits)
+static uint32_t
+ed_pccard_dl100xx_mii_bitbang_read(device_t dev)
 {
-	int i;
-	u_int val = 0;
+	struct ed_softc *sc;
+	uint32_t val;
 
-	DL100XX_MIICLR(sc, ED_DL100XX_MII_DIROUT);
-	for (i = nbits - 1; i >= 0; i--) {
-		DL100XX_MIISET(sc, ED_DL100XX_MII_CLK);
-		val <<= 1;
-		if (ed_asic_inb(sc, ED_DL100XX_MIIBUS) & ED_DL100XX_MII_DATAIN)
-			val++;
-		DL100XX_MIICLR(sc, ED_DL100XX_MII_CLK);
-	}
-	return val;
+	sc = device_get_softc(dev);
+
+	val = ed_asic_inb(sc, ED_DL100XX_MIIBUS);
+	ed_asic_barrier(sc, ED_DL100XX_MIIBUS, 1,
+	    BUS_SPACE_BARRIER_READ | BUS_SPACE_BARRIER_WRITE);
+	return (val);
 }
 
 static void
@@ -747,7 +771,11 @@ ed_pccard_ax88x90_reset(struct ed_softc *sc)
 	int i;
 
 	/* Reset Card */
+	ed_nic_barrier(sc, ED_P0_CR, 1,
+	    BUS_SPACE_BARRIER_READ | BUS_SPACE_BARRIER_WRITE);
 	ed_nic_outb(sc, ED_P0_CR, ED_CR_RD2 | ED_CR_STP | ED_CR_PAGE_0);
+	ed_nic_barrier(sc, ED_P0_CR, 1,
+	    BUS_SPACE_BARRIER_READ | BUS_SPACE_BARRIER_WRITE);
 	ed_asic_outb(sc, ED_NOVELL_RESET, ed_asic_inb(sc, ED_NOVELL_RESET));
 
 	/* Wait for the RST bit to assert, but cap it at 10ms */
@@ -880,7 +908,6 @@ ed_pccard_ax88x90_check_mii(device_t dev, struct ed_softc *sc)
 	if (i == 32)
 		return (ENXIO);
 	return (0);
-	
 }
 
 /*
@@ -910,18 +937,17 @@ ed_pccard_ax88x90(device_t dev, const struct ed_product *pp)
 	pccard_ccr_write_1(dev, PCCARD_CCR_IOBASE0, iobase & 0xff);
 	pccard_ccr_write_1(dev, PCCARD_CCR_IOBASE1, (iobase >> 8) & 0xff);
 
-	sc->mii_readbits = ed_pccard_ax88x90_mii_readbits;
-	sc->mii_writebits = ed_pccard_ax88x90_mii_writebits;
 	error = ed_probe_ax88x90_generic(dev, device_get_flags(dev));
 	if (error) {
 		if (bootverbose)
 			device_printf(dev, "probe ax88x90 failed %d\n",
 			    error);
-		goto fail;
+		return (error);
 	}
+	sc->mii_bitbang_ops = &ed_pccard_ax88x90_mii_bitbang_ops;
 	error = ed_pccard_ax88x90_check_mii(dev, sc);
 	if (error)
-		goto fail;
+		return (error);
 	sc->vendor = ED_VENDOR_NOVELL;
 	sc->type = ED_TYPE_NE2000;
 	if (sc->chip_type == ED_CHIP_TYPE_AX88190)
@@ -929,40 +955,32 @@ ed_pccard_ax88x90(device_t dev, const struct ed_product *pp)
 	else
 		sc->type_str = "AX88790";
 	return (0);
-fail:;
-	sc->mii_readbits = 0;
-	sc->mii_writebits = 0;
-	return (error);
 }
 
 static void
-ed_pccard_ax88x90_mii_writebits(struct ed_softc *sc, u_int val, int nbits)
+ed_pccard_ax88x90_mii_bitbang_write(device_t dev, uint32_t val)
 {
-	int i, data;
+	struct ed_softc *sc;
 
-	for (i = nbits - 1; i >= 0; i--) {
-		data = (val >> i) & 1 ? ED_AX88X90_MII_DATAOUT : 0;
-		ed_asic_outb(sc, ED_AX88X90_MIIBUS, data);
-		ed_asic_outb(sc, ED_AX88X90_MIIBUS, data | ED_AX88X90_MII_CLK);
-	}
+	sc = device_get_softc(dev);
+
+	ed_asic_outb(sc, ED_AX88X90_MIIBUS, val);
+	ed_asic_barrier(sc, ED_AX88X90_MIIBUS, 1,
+	    BUS_SPACE_BARRIER_READ | BUS_SPACE_BARRIER_WRITE);
 }
 
-static u_int
-ed_pccard_ax88x90_mii_readbits(struct ed_softc *sc, int nbits)
+static uint32_t
+ed_pccard_ax88x90_mii_bitbang_read(device_t dev)
 {
-	int i;
-	u_int val = 0;
-	uint8_t mdio;
+	struct ed_softc *sc;
+	uint32_t val;
 
-	mdio = ED_AX88X90_MII_DIRIN;
-	for (i = nbits - 1; i >= 0; i--) {
-		ed_asic_outb(sc, ED_AX88X90_MIIBUS, mdio);
-		val <<= 1;
-		if (ed_asic_inb(sc, ED_AX88X90_MIIBUS) & ED_AX88X90_MII_DATAIN)
-			val++;
-		ed_asic_outb(sc, ED_AX88X90_MIIBUS, mdio | ED_AX88X90_MII_CLK);
-	}
-	return val;
+	sc = device_get_softc(dev);
+
+	val = ed_asic_inb(sc, ED_AX88X90_MIIBUS);
+	ed_asic_barrier(sc, ED_AX88X90_MIIBUS, 1,
+	    BUS_SPACE_BARRIER_READ | BUS_SPACE_BARRIER_WRITE);
+	return (val);
 }
 
 /*
@@ -983,7 +1001,7 @@ ed_pccard_tc5299j(device_t dev, const struct ed_product *pp)
 
 	error = ed_probe_Novell_generic(dev, device_get_flags(dev));
 	if (bootverbose)
-		device_printf(dev, "probe novel returns %d\n", error);
+		device_printf(dev, "Novell generic probe failed: %d\n", error);
 	if (error != 0)
 		return (error);
 
@@ -992,24 +1010,17 @@ ed_pccard_tc5299j(device_t dev, const struct ed_product *pp)
 	 * devices have MII and a PHY, so we use this to weed out chips that
 	 * would otherwise make it through the tests we have after this point.
 	 */
-	sc->mii_readbits = ed_pccard_tc5299j_mii_readbits;
-	sc->mii_writebits = ed_pccard_tc5299j_mii_writebits;
+	sc->mii_bitbang_ops = &ed_pccard_tc5299j_mii_bitbang_ops;
 	for (i = 0; i < 32; i++) {
 		id = ed_miibus_readreg(dev, i, MII_PHYIDR1);
 		if (id != 0 && id != 0xffff)
 			break;
 	}
-	if (i == 32) {
-		sc->mii_readbits = 0;
-		sc->mii_writebits = 0;
+	if (i == 32)
 		return (ENXIO);
-	}
 	ts = "TC5299J";
-	if (ed_pccard_rom_mac(dev, sc->enaddr) == 0) {
-		sc->mii_readbits = 0;
-		sc->mii_writebits = 0;
+	if (ed_pccard_rom_mac(dev, sc->enaddr) == 0)
 		return (ENXIO);
-	}
 	sc->vendor = ED_VENDOR_NOVELL;
 	sc->type = ED_TYPE_NE2000;
 	sc->chip_type = ED_CHIP_TYPE_TC5299J;
@@ -1018,50 +1029,31 @@ ed_pccard_tc5299j(device_t dev, const struct ed_product *pp)
 }
 
 static void
-ed_pccard_tc5299j_mii_writebits(struct ed_softc *sc, u_int val, int nbits)
+ed_pccard_tc5299j_mii_bitbang_write(device_t dev, uint32_t val)
 {
-	int i;
-	uint8_t cr, data;
+	struct ed_softc *sc;
 
-	/* Select page 3 */
-	cr = ed_nic_inb(sc, ED_P0_CR);
-	ed_nic_outb(sc, ED_P0_CR, cr | ED_CR_PAGE_3);
+	sc = device_get_softc(dev);
 
-	for (i = nbits - 1; i >= 0; i--) {
-		data = (val >> i) & 1 ? ED_TC5299J_MII_DATAOUT : 0;
-		ed_nic_outb(sc, ED_TC5299J_MIIBUS, data);
-		ed_nic_outb(sc, ED_TC5299J_MIIBUS, data | ED_TC5299J_MII_CLK);
-	}
-	ed_nic_outb(sc, ED_TC5299J_MIIBUS, 0);
-		
-	/* Restore prior page */
-	ed_nic_outb(sc, ED_P0_CR, cr);
+	/* We are already on page 3. */
+	ed_nic_outb(sc, ED_TC5299J_MIIBUS, val);
+	ed_nic_barrier(sc, ED_TC5299J_MIIBUS, 1,
+	    BUS_SPACE_BARRIER_READ | BUS_SPACE_BARRIER_WRITE);
 }
 
-static u_int
-ed_pccard_tc5299j_mii_readbits(struct ed_softc *sc, int nbits)
+static uint32_t
+ed_pccard_tc5299j_mii_bitbang_read(device_t dev)
 {
-	int i;
-	u_int val = 0;
-	uint8_t cr;
+	struct ed_softc *sc;
+	uint32_t val;
 
-	/* Select page 3 */
-	cr = ed_nic_inb(sc, ED_P0_CR);
-	ed_nic_outb(sc, ED_P0_CR, cr | ED_CR_PAGE_3);
+	sc = device_get_softc(dev);
 
-	ed_asic_outb(sc, ED_TC5299J_MIIBUS, ED_TC5299J_MII_DIROUT);
-	for (i = nbits - 1; i >= 0; i--) {
-		ed_nic_outb(sc, ED_TC5299J_MIIBUS,
-		    ED_TC5299J_MII_CLK | ED_TC5299J_MII_DIROUT);
-		val <<= 1;
-		if (ed_nic_inb(sc, ED_TC5299J_MIIBUS) & ED_TC5299J_MII_DATAIN)
-			val++;
-		ed_nic_outb(sc, ED_TC5299J_MIIBUS, ED_TC5299J_MII_DIROUT);
-	}
-
-	/* Restore prior page */
-	ed_nic_outb(sc, ED_P0_CR, cr);
-	return val;
+	/* We are already on page 3. */
+	val = ed_asic_inb(sc, ED_TC5299J_MIIBUS);
+	ed_nic_barrier(sc, ED_TC5299J_MIIBUS, 1,
+	    BUS_SPACE_BARRIER_READ | BUS_SPACE_BARRIER_WRITE);
+	return (val);
 }
 
 /*
@@ -1071,7 +1063,8 @@ static int
 ed_miibus_readreg(device_t dev, int phy, int reg)
 {
 	struct ed_softc *sc;
-	int failed, val;
+	int val;
+	uint8_t cr = 0;
 
 	sc = device_get_softc(dev);
 	/*
@@ -1085,10 +1078,6 @@ ed_miibus_readreg(device_t dev, int phy, int reg)
 	 * Also, PHYs above 16 appear to be phantoms on some cards, but not
 	 * others.  Registers read for this are often the same as prior values
 	 * read.  Filter all register requests to 17-31.
-	 *
-	 * I can't explain it, since I don't have the DL100xx data sheets, but
-	 * the DL100xx chips do 13-bits before the 'ACK' but, but the AX88x90
-	 * chips have 14.  The linux pcnet and axnet drivers confirm this.
 	 */
 	if (sc->chip_type == ED_CHIP_TYPE_AX88790) {
 		if (phy > 0x10)
@@ -1098,29 +1087,33 @@ ed_miibus_readreg(device_t dev, int phy, int reg)
 			    ED_AX88X90_GPIO_INT_PHY);
 		else
 			ed_asic_outb(sc, ED_AX88X90_GPIO, 0);
+		ed_asic_barrier(sc, ED_AX88X90_GPIO, 1,
+		    BUS_SPACE_BARRIER_READ | BUS_SPACE_BARRIER_WRITE);
+	} else if (sc->chip_type == ED_CHIP_TYPE_TC5299J) {
+		/* Select page 3. */
+		ed_nic_barrier(sc, ED_P0_CR, 1,
+		    BUS_SPACE_BARRIER_READ | BUS_SPACE_BARRIER_WRITE);
+		cr = ed_nic_inb(sc, ED_P0_CR);
+		ed_nic_outb(sc, ED_P0_CR, cr | ED_CR_PAGE_3);
+		ed_nic_barrier(sc, ED_P0_CR, 1,
+		    BUS_SPACE_BARRIER_READ | BUS_SPACE_BARRIER_WRITE);
 	}
-
-	(*sc->mii_writebits)(sc, 0xffffffff, 32);
-	(*sc->mii_writebits)(sc, ED_MII_STARTDELIM, ED_MII_STARTDELIM_BITS);
-	(*sc->mii_writebits)(sc, ED_MII_READOP, ED_MII_OP_BITS);
-	(*sc->mii_writebits)(sc, phy, ED_MII_PHY_BITS);
-	(*sc->mii_writebits)(sc, reg, ED_MII_REG_BITS);
-	if (sc->chip_type == ED_CHIP_TYPE_AX88790 ||
-	    sc->chip_type == ED_CHIP_TYPE_AX88190)
-		(*sc->mii_readbits)(sc, ED_MII_ACK_BITS);
-	failed = (*sc->mii_readbits)(sc, ED_MII_ACK_BITS);
-	val = (*sc->mii_readbits)(sc, ED_MII_DATA_BITS);
-	(*sc->mii_writebits)(sc, ED_MII_IDLE, ED_MII_IDLE_BITS);
-/*	printf("Reading phy %d reg %#x returning %#x (valid %d)\n", phy, reg, val, !failed); */
-	return (failed ? 0 : val);
+	val = mii_bitbang_readreg(dev, sc->mii_bitbang_ops, phy, reg);
+	if (sc->chip_type == ED_CHIP_TYPE_TC5299J) {
+		/* Restore prior page. */
+		ed_nic_outb(sc, ED_P0_CR, cr);
+		ed_nic_barrier(sc, ED_P0_CR, 1,
+	    	    BUS_SPACE_BARRIER_READ | BUS_SPACE_BARRIER_WRITE);
+	}
+	return (val);
 }
 
 static int
 ed_miibus_writereg(device_t dev, int phy, int reg, int data)
 {
 	struct ed_softc *sc;
+	uint8_t cr = 0;
 
-/*	printf("Writing phy %d reg %#x data %#x\n", phy, reg, data); */
 	sc = device_get_softc(dev);
 	/* See ed_miibus_readreg for details */
 	if (sc->chip_type == ED_CHIP_TYPE_AX88790) {
@@ -1131,15 +1124,24 @@ ed_miibus_writereg(device_t dev, int phy, int reg, int data)
 			    ED_AX88X90_GPIO_INT_PHY);
 		else
 			ed_asic_outb(sc, ED_AX88X90_GPIO, 0);
+		ed_asic_barrier(sc, ED_AX88X90_GPIO, 1,
+		    BUS_SPACE_BARRIER_READ | BUS_SPACE_BARRIER_WRITE);
+	} else if (sc->chip_type == ED_CHIP_TYPE_TC5299J) {
+		/* Select page 3. */
+		ed_nic_barrier(sc, ED_P0_CR, 1,
+		    BUS_SPACE_BARRIER_READ | BUS_SPACE_BARRIER_WRITE);
+		cr = ed_nic_inb(sc, ED_P0_CR);
+		ed_nic_outb(sc, ED_P0_CR, cr | ED_CR_PAGE_3);
+		ed_nic_barrier(sc, ED_P0_CR, 1,
+		    BUS_SPACE_BARRIER_READ | BUS_SPACE_BARRIER_WRITE);
 	}
-	(*sc->mii_writebits)(sc, 0xffffffff, 32);
-	(*sc->mii_writebits)(sc, ED_MII_STARTDELIM, ED_MII_STARTDELIM_BITS);
-	(*sc->mii_writebits)(sc, ED_MII_WRITEOP, ED_MII_OP_BITS);
-	(*sc->mii_writebits)(sc, phy, ED_MII_PHY_BITS);
-	(*sc->mii_writebits)(sc, reg, ED_MII_REG_BITS);
-	(*sc->mii_writebits)(sc, ED_MII_TURNAROUND, ED_MII_TURNAROUND_BITS);
-	(*sc->mii_writebits)(sc, data, ED_MII_DATA_BITS);
-	(*sc->mii_writebits)(sc, ED_MII_IDLE, ED_MII_IDLE_BITS);
+	mii_bitbang_writereg(dev, sc->mii_bitbang_ops, phy, reg, data);
+	if (sc->chip_type == ED_CHIP_TYPE_TC5299J) {
+		/* Restore prior page. */
+		ed_nic_outb(sc, ED_P0_CR, cr);
+		ed_nic_barrier(sc, ED_P0_CR, 1,
+	    	    BUS_SPACE_BARRIER_READ | BUS_SPACE_BARRIER_WRITE);
+	}
 	return (0);
 }
 
@@ -1150,9 +1152,12 @@ ed_ifmedia_upd(struct ifnet *ifp)
 	int error;
 
 	sc = ifp->if_softc;
-	if (sc->miibus == NULL)
-		return (ENXIO);
 	ED_LOCK(sc);
+	if (sc->miibus == NULL) {
+		ED_UNLOCK(sc);
+		return (ENXIO);
+	}
+
 	error = ed_pccard_kick_phy(sc);
 	ED_UNLOCK(sc);
 	return (error);
@@ -1165,13 +1170,17 @@ ed_ifmedia_sts(struct ifnet *ifp, struct ifmediareq *ifmr)
 	struct mii_data *mii;
 
 	sc = ifp->if_softc;
-	if (sc->miibus == NULL)
+	ED_LOCK(sc);
+	if (sc->miibus == NULL) {
 		return;
+		ED_UNLOCK(sc);
+	}
 
 	mii = device_get_softc(sc->miibus);
 	mii_pollstat(mii);
 	ifmr->ifm_active = mii->mii_media_active;
 	ifmr->ifm_status = mii->mii_media_status;
+	ED_UNLOCK(sc);
 }
 
 static void
@@ -1226,7 +1235,7 @@ static device_method_t ed_pccard_methods[] = {
 	DEVMETHOD(miibus_readreg,	ed_miibus_readreg),
 	DEVMETHOD(miibus_writereg,	ed_miibus_writereg),
 
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 static driver_t ed_pccard_driver = {
@@ -1235,7 +1244,7 @@ static driver_t ed_pccard_driver = {
 	sizeof(struct ed_softc)
 };
 
-DRIVER_MODULE(ed, pccard, ed_pccard_driver, ed_devclass, 0, 0);
-DRIVER_MODULE(miibus, ed, miibus_driver, miibus_devclass, 0, 0);
+DRIVER_MODULE(ed, pccard, ed_pccard_driver, ed_devclass, 0, NULL);
+DRIVER_MODULE(miibus, ed, miibus_driver, miibus_devclass, 0, NULL);
 MODULE_DEPEND(ed, miibus, 1, 1, 1);
 MODULE_DEPEND(ed, ether, 1, 1, 1);

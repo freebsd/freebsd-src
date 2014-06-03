@@ -38,8 +38,6 @@ struct thread;
 struct vattr;
 struct vnode;
 struct reg;
-struct devstat;
-struct bio;
 
 /*
  * Cyclic clock function type definition used to hook the cyclic
@@ -62,11 +60,9 @@ int	dtrace_trap(struct trapframe *, u_int);
 extern dtrace_trap_func_t	dtrace_trap_func;
 
 /* Used by the machine dependent trap() code. */
-typedef	int (*dtrace_invop_func_t)(uintptr_t, uintptr_t *, uintptr_t);
 typedef void (*dtrace_doubletrap_func_t)(void);
 
 /* Global variables in trap.c */
-extern	dtrace_invop_func_t	dtrace_invop_func;
 extern	dtrace_doubletrap_func_t	dtrace_doubletrap_func;
 
 /* Pid provider hooks */
@@ -167,23 +163,6 @@ extern dtrace_nfsclient_nfs23_done_probe_func_t
     dtrace_nfsclient_nfs23_done_probe;
 extern dtrace_nfsclient_nfs23_done_probe_func_t
     dtrace_nfscl_nfs234_done_probe;
-
-/* IO Provider hooks, really hook into devstat */
-typedef void (*dtrace_io_start_probe_func_t)(uint32_t, struct bio *,
-					     struct devstat *);
-extern dtrace_io_start_probe_func_t dtrace_io_start_probe;
-
-typedef void (*dtrace_io_done_probe_func_t)(uint32_t, struct bio *,
-					    struct devstat *);
-extern dtrace_io_done_probe_func_t dtrace_io_done_probe;
-
-typedef void (*dtrace_io_wait_start_probe_func_t)(uint32_t, uintptr_t *, 
-						  struct devstat *);
-extern dtrace_io_wait_start_probe_func_t dtrace_io_wait_start_probe;
-
-typedef void (*dtrace_io_wait_done_probe_func_t)(uint32_t, uintptr_t *, 
-						 struct devstat *);
-extern dtrace_io_wait_done_probe_func_t dtrace_io_wait_done_probe;
 
 /*
  * Functions which allow the dtrace module to check that the kernel 

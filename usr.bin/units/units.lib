@@ -39,8 +39,13 @@ zopto-			1e-21
 zepto-			zopto
 yocto-			1e-24
 
+quarter-		1|4
 semi-			.5
 demi-			.5
+hemi-			.5
+half-			.5
+double-			2
+triple-			3
 
 Y-			yotta
 Z-			zetta
@@ -55,6 +60,7 @@ da-			deka
 d-			deci
 c-			centi
 m-			milli
+u-			micro
 n-			nano
 p-			pico
 f-			femto
@@ -298,6 +304,7 @@ N			newton
 joule			nt-m
 J			joule
 cal			4.1868 joule
+ergon			erg
 
 / Electrical
 
@@ -438,6 +445,7 @@ bakersdozen		13
 bar			1e+5 nt/m2
 barie			1e-1 nt/m2
 barleycorn		1|3 in
+beardsecond		5 nm
 barn			1e-28 m2
 oilbarrel		42 gal
 barrel			oilbarrel
@@ -526,6 +534,7 @@ hogshead		63 gallon
 hd			hogshead
 homestead		1|4 mi2
 horsepower		735.50 watt
+donkeypower		250 watt
 hp			horsepower
 hubble			1e9 ly
 hyl			gm force sec2/m
@@ -594,6 +603,7 @@ poise			gm/cm-sec
 P			poise
 pole			rd
 pond			9.80665e-3 nt
+potrzebie		2.263348517438173216473 mm
 poundal			ft-lb/sec2
 pdl			poundal
 proof			1|200
@@ -679,6 +689,8 @@ degreesrankine		5|9 K
 degrankine		degreesrankine
 degreerankine		degreesrankine
 degreaumur		10|8&+273.15 K
+gasmark			25|1&250 degF
+Stufe			25|1&125 degC
 drachm			60 grain
 poncelet		100 kg m g / sec
 denier			.05|450 gram / m
