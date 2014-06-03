@@ -73,6 +73,7 @@ static struct cdevsw evdev_cdevsw = {
 	.d_poll = evdev_poll,
 	.d_kqfilter = evdev_kqfilter,
 	.d_name = "evdev",
+	.d_flags = D_TRACKCLOSE
 };
 
 static struct filterops evdev_cdev_filterops = {
@@ -293,6 +294,7 @@ evdev_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag,
 {
 	struct evdev_cdev_softc *sc = dev->si_drv1;
 	struct evdev_dev *evdev = sc->ecs_evdev;
+	//struct input_id id;
 	int len, num, limit;
 
 	len = IOCPARM_LEN(cmd);
@@ -341,7 +343,8 @@ evdev_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag,
 		break;
 
 	case EVIOCGPROP(0):
-		memcpy(data, evdev->ev_type_flags, len);
+		limit = MIN(len, howmany(EV_CNT, 8));
+		memcpy(data, evdev->ev_type_flags, limit);
 		break;
 
 	case EVIOCGKEY(0):
@@ -376,6 +379,18 @@ evdev_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag,
 		int type_num = num - IOCNUM(EVIOCGBIT(0, 0));
 		debugf("cdev: EVIOCGBIT(%d): data=%p, len=%d", type_num, data, len);
 		return (evdev_ioctl_eviocgbit(evdev, type_num, len, data));
+	}
+
+	/* Handle EVIOCGABS variants */
+	if (num >= IOCNUM(EVIOCGABS(0)) && num < IOCNUM(EVIOCGABS(ABS_CNT))) {
+		int index = num - IOCNUM(EVIOCGABS(0));
+		memcpy(data, &evdev->ev_absinfo[index], len);
+	}
+
+	/* Handle EVIOCSABS variants */
+	if (num >= IOCNUM(EVIOCSABS(0)) && num < IOCNUM(EVIOCSABS(ABS_CNT))) {
+		int index = num - IOCNUM(EVIOCSABS(0));
+		memcpy(&evdev->ev_absinfo[index], data, len);
 	}
 
 	return (0);

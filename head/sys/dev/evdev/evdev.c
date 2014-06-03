@@ -182,6 +182,14 @@ evdev_support_sw(struct evdev_dev *evdev, uint16_t code)
 	setbit(&evdev->ev_sw_flags, code);
 }
 
+inline void
+evdev_set_absinfo(struct evdev_dev *evdev, uint16_t axis,
+    struct input_absinfo *absinfo)
+{
+
+	memcpy(&evdev->ev_absinfo[axis], absinfo, sizeof(struct input_absinfo));
+}
+
 int
 evdev_push_event(struct evdev_dev *evdev, uint16_t type, uint16_t code,
     int32_t value)
@@ -203,6 +211,10 @@ evdev_push_event(struct evdev_dev *evdev, uint16_t type, uint16_t code,
 
 	if (type == EV_SW)
 		changebit(evdev->ev_sw_states, code, value);
+
+	/* For EV_ABS, save last value in absinfo */
+	if (type == EV_ABS)
+		evdev->ev_absinfo[code].value = value;
 
 	/* Propagate event through all clients */
 	LIST_FOREACH(client, &evdev->ev_clients, ec_link) {

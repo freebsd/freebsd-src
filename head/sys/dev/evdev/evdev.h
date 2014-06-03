@@ -70,7 +70,7 @@ struct evdev_dev
 	uint32_t		ev_led_flags[howmany(LED_CNT, 32)];
 	uint32_t		ev_snd_flags[howmany(SND_CNT, 32)];
 	uint32_t		ev_sw_flags[howmany(SW_CNT, 32)];
-	struct input_absinfo *	ev_abs_info;
+	struct input_absinfo	ev_absinfo[ABS_CNT];
 
 	/* State: */
 	uint32_t		ev_key_states[howmany(KEY_CNT, 32)];
@@ -131,6 +131,7 @@ void evdev_support_msc(struct evdev_dev *, uint16_t);
 void evdev_support_led(struct evdev_dev *, uint16_t);
 void evdev_support_snd(struct evdev_dev *, uint16_t);
 void evdev_support_sw(struct evdev_dev *, uint16_t);
+void evdev_set_absinfo(struct evdev_dev *, uint16_t, struct input_absinfo *);
 
 /* Client interface: */
 int evdev_register_client(struct evdev_dev *, struct evdev_client **);
