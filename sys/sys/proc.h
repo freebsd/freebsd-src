@@ -968,4 +968,5 @@ curthread_pflags_restore(int save)
 
 #endif	/* _KERNEL */
 
+#define	TDP_EXECVMSPC	0x40000000 /* Execve destroyed old vmspace */
 #endif	/* !_SYS_PROC_H_ */

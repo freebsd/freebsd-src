@@ -5256,8 +5256,8 @@ closefd_walk(lowest, fd)
 */
 
 void
-sm_close_on_exec(highest, lowest)
-	int highest, lowest;
+sm_close_on_exec(lowest, highest)
+	int lowest, highest;
 {
 #if HASFDWALK
 	(void) fdwalk(closefd_walk, &lowest);
