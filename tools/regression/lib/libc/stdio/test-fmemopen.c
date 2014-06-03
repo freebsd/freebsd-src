@@ -268,7 +268,7 @@ test_append_binary_pos()
 	 */
 	char buf[] = "Hello";
 	fp = fmemopen(buf, sizeof(buf), "ab+");
-	assert(ftell(fp) == 5);
+	assert(ftell(fp) == strlen(buf));
 	fclose(fp);
 }
 
@@ -276,7 +276,7 @@ void
 test_size_0()
 {
 	/*
-	 * POSIX mandates that we return EINVAL if size is 0
+	 * POSIX mandates that we return EINVAL if size is 0.
 	 */
 
 	FILE *fp;
