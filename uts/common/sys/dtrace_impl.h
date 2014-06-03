@@ -924,6 +924,7 @@ typedef struct dtrace_mstate {
 	uintptr_t dtms_strtok;			/* saved strtok() pointer */
 	uint32_t dtms_access;			/* memory access rights */
 	dtrace_difo_t *dtms_difo;		/* current dif object */
+	file_t *dtms_getf;			/* cached rval of getf() */
 } dtrace_mstate_t;
 
 #define	DTRACE_COND_OWNER	0x1
@@ -1144,6 +1145,7 @@ struct dtrace_state {
 	dtrace_optval_t dts_options[DTRACEOPT_MAX]; /* options */
 	dtrace_cred_t dts_cred;			/* credentials */
 	size_t dts_nretained;			/* number of retained enabs */
+	int dts_getf;				/* number of getf() calls */
 };
 
 struct dtrace_provider {
