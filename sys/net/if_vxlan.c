@@ -276,6 +276,7 @@ static int	vxlan_setup_multicast_interface(struct vxlan_softc *);
 
 static int	vxlan_setup_multicast(struct vxlan_softc *);
 static int	vxlan_setup_socket(struct vxlan_softc *);
+static void	vxlan_setup_interface(struct vxlan_softc *);
 static int	vxlan_valid_init_config(struct vxlan_softc *);
 static void	vxlan_init_wait(struct vxlan_softc *);
 static void	vxlan_init_complete(struct vxlan_softc *);
@@ -320,7 +321,7 @@ static int	vxlan_encap6(struct vxlan_softc *,
 static int	vxlan_transmit(struct ifnet *, struct mbuf *);
 static void	vxlan_qflush(struct ifnet *);
 static void	vxlan_rcv_udp_packet(struct mbuf *, int, struct inpcb *,
-		    const struct sockaddr *);
+		    const struct sockaddr *, void *);
 static int	vxlan_input(struct vxlan_socket *, uint32_t, struct mbuf **,
 		    const struct sockaddr *);
 
@@ -834,7 +835,6 @@ static void
 vxlan_socket_destroy(struct vxlan_socket *vso)
 {
 	struct socket *so;
-	struct inpcb *inp;
 	struct vxlan_socket_mc_info *mc;
 	int i;
 
@@ -854,9 +854,6 @@ vxlan_socket_destroy(struct vxlan_socket *vso)
 	so = vso->vxlso_sock;
 	if (so != NULL) {
 		vso->vxlso_sock = NULL;
-		inp = sotoinpcb(so);
-		MPASS(inp->inp_pspare[0] == vso);
-		inp->inp_pspare[0] = NULL;
 		soclose(so);
 	}
 
@@ -909,7 +906,6 @@ vxlan_socket_insert(struct vxlan_socket *vso)
 static int
 vxlan_socket_init(struct vxlan_socket *vso, struct ifnet *ifp)
 {
-	struct inpcb *inp;
 	struct thread *td;
 	int error;
 
@@ -922,16 +918,8 @@ vxlan_socket_init(struct vxlan_socket *vso, struct ifnet *ifp)
 		return (error);
 	}
 
-	inp = sotoinpcb(vso->vxlso_sock);
-	/*
-	 * XXX: Use a spare field in the inpcb to obtain the vxlan socket
-	 * in the tunneling callback. We instead should be able to pass a
-	 * context to the tunneling callback.
-	 */
-	MPASS(inp->inp_pspare[0] == NULL);
-	inp->inp_pspare[0] = vso;
-
-	error = udp_set_kernel_tunneling(vso->vxlso_sock, vxlan_rcv_udp_packet);
+	error = udp_set_kernel_tunneling(vso->vxlso_sock,
+	    vxlan_rcv_udp_packet, vso);
 	if (error) {
 		if_printf(ifp, "cannot set tunneling function: %d\n", error);
 		return (error);
@@ -1274,7 +1262,7 @@ vxlan_socket_mc_release_group_by_idx(struct vxlan_socket *vso, int idx)
 {
 	union vxlan_sockaddr group, source;
 	struct vxlan_socket_mc_info *mc;
-	int ifidx, leave, error;
+	int ifidx, leave;
 
 	KASSERT(idx >= 0 && idx < VXLAN_SO_MC_MAX_GROUPS,
 	    ("%s: vso %p idx %d out of bounds", __func__, vso, idx));
@@ -1294,9 +1282,12 @@ vxlan_socket_mc_release_group_by_idx(struct vxlan_socket *vso, int idx)
 	VXLAN_SO_WUNLOCK(vso);
 
 	if (leave != 0) {
-		error = vxlan_socket_mc_leave_group(vso, &group, &source,
-		    ifidx);
-		MPASS(error == 0);
+		/*
+		 * Our socket's membership in this group may have already
+		 * been removed if we joined through an interface that's
+		 * been detached.
+		 */
+		vxlan_socket_mc_leave_group(vso, &group, &source, ifidx);
 	}
 }
 
@@ -1540,6 +1531,20 @@ out:
 	return (error);
 }
 
+static void
+vxlan_setup_interface(struct vxlan_softc *sc)
+{
+	struct ifnet *ifp;
+
+	ifp = sc->vxl_ifp;
+	ifp->if_hdrlen = ETHER_HDR_LEN + sizeof(struct vxlanudphdr);
+
+	if (VXLAN_SOCKADDR_IS_IPV4(&sc->vxl_dst_addr) != 0)
+		ifp->if_hdrlen += sizeof(struct ip);
+	else if (VXLAN_SOCKADDR_IS_IPV6(&sc->vxl_dst_addr) != 0)
+		ifp->if_hdrlen += sizeof(struct ip6_hdr);
+}
+
 static int
 vxlan_valid_init_config(struct vxlan_softc *sc)
 {
@@ -1594,7 +1599,6 @@ vxlan_valid_init_config(struct vxlan_softc *sc)
 
 fail:
 	if_printf(sc->vxl_ifp, "cannot initialize interface: %s\n", reason);
-
 	return (EINVAL);
 }
 
@@ -1638,9 +1642,12 @@ vxlan_init(void *xsc)
 	if (vxlan_valid_init_config(sc) != 0)
 		goto out;
 
+	vxlan_setup_interface(sc);
+
 	if (vxlan_setup_socket(sc) != 0)
 		goto out;
 
+	/* Initialize the default forwarding entry. */
 	vxlan_ftable_entry_init(sc, &sc->vxl_default_fe, empty_mac,
 	    &sc->vxl_dst_addr.sa, VXLAN_FE_FLAG_STATIC);
 
@@ -1652,7 +1659,6 @@ vxlan_init(void *xsc)
 
 out:
 	vxlan_init_complete(sc);
-
 }
 
 static void
@@ -1853,7 +1859,7 @@ vxlan_ctrl_set_local_addr(struct vxlan_softc *sc, void *arg)
 	cmd = arg;
 	vxlsa = &cmd->vxlcmd_sa;
 
-	if (!VXLAN_SOCKADDR_IS_IPV4(vxlsa) && !VXLAN_SOCKADDR_IS_IPV6(vxlsa))
+	if (!VXLAN_SOCKADDR_IS_IPV46(vxlsa))
 		return (EINVAL);
 	if (vxlan_sockaddr_in_multicast(vxlsa) != 0)
 		return (EINVAL);
@@ -1879,7 +1885,7 @@ vxlan_ctrl_set_remote_addr(struct vxlan_softc *sc, void *arg)
 	cmd = arg;
 	vxlsa = &cmd->vxlcmd_sa;
 
-	if (!VXLAN_SOCKADDR_IS_IPV4(vxlsa) && !VXLAN_SOCKADDR_IS_IPV6(vxlsa))
+	if (!VXLAN_SOCKADDR_IS_IPV46(vxlsa))
 		return (EINVAL);
 
 	VXLAN_WLOCK(sc);
@@ -2071,7 +2077,7 @@ vxlan_ctrl_ftable_entry_add(struct vxlan_softc *sc, void *arg)
 	cmd = arg;
 	vxlsa = cmd->vxlcmd_sa;
 
-	if (!VXLAN_SOCKADDR_IS_IPV4(&vxlsa) && !VXLAN_SOCKADDR_IS_IPV6(&vxlsa))
+	if (!VXLAN_SOCKADDR_IS_IPV46(&vxlsa))
 		return (EINVAL);
 	if (vxlan_sockaddr_in_any(&vxlsa) != 0)
 		return (EINVAL);
@@ -2271,6 +2277,7 @@ static int
 vxlan_encap4(struct vxlan_softc *sc, const union vxlan_sockaddr *fvxlsa,
     struct mbuf *m)
 {
+#ifdef INET
 	struct ifnet *ifp;
 	struct ip *ip;
 	struct in_addr srcaddr, dstaddr;
@@ -2316,12 +2323,17 @@ vxlan_encap4(struct vxlan_softc *sc, const union vxlan_sockaddr *fvxlsa,
 		ifp->if_oerrors++;
 
 	return (error);
+#else
+	m_freem(m);
+	return (ENOTSUP);
+#endif
 }
 
 static int
 vxlan_encap6(struct vxlan_softc *sc, const union vxlan_sockaddr *fvxlsa,
     struct mbuf *m)
 {
+#ifdef INET6
 	struct ifnet *ifp;
 	struct ip6_hdr *ip6;
 	const struct in6_addr *srcaddr, *dstaddr;
@@ -2366,6 +2378,10 @@ vxlan_encap6(struct vxlan_softc *sc, const union vxlan_sockaddr *fvxlsa,
 		ifp->if_oerrors++;
 
 	return (error);
+#else
+	m_freem(m);
+	return (ENOTSUP);
+#endif
 }
 
 static int
@@ -2424,18 +2440,17 @@ vxlan_qflush(struct ifnet *ifp __unused)
 
 static void
 vxlan_rcv_udp_packet(struct mbuf *m, int offset, struct inpcb *inpcb,
-    const struct sockaddr *srcsa)
+    const struct sockaddr *srcsa, void *xvso)
 {
 	struct vxlan_socket *vso;
 	struct vxlan_header *vxh, vxlanhdr;
 	uint32_t vni;
 	int error;
 
-	vso = inpcb->inp_pspare[0];
-	if (vso == NULL)
-		goto out;
+	INP_RUNLOCK(inpcb);
 
 	M_ASSERTPKTHDR(m);
+	vso = xvso;
 	offset += sizeof(struct udphdr);
 
 	if (m->m_pkthdr.len < offset + sizeof(struct vxlan_header))
@@ -2462,6 +2477,8 @@ vxlan_rcv_udp_packet(struct mbuf *m, int offset, struct inpcb *inpcb,
 out:
 	if (m != NULL)
 		m_freem(m);
+
+	INP_RLOCK(inpcb);
 }
 
 static int
@@ -2655,9 +2672,9 @@ vxlan_clone_create(struct if_clone *ifc, int unit, caddr_t params)
 
 	vxlan_fakeaddr(sc);
 	ether_ifattach(ifp, sc->vxl_hwaddr);
-	/* Now undo some of the damage... */
+
 	ifp->if_baudrate = 0;
-	ifp->if_hdrlen = sizeof(struct vxlanudphdr); /* + sizeof(struct ip) */
+	ifp->if_hdrlen = 0;
 
 	return (0);
 
