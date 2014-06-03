@@ -354,25 +354,12 @@ vmcb_seg(struct vmcb *vmcb, int type)
  * Inject an event to vcpu as described in section 15.20, "Event injection".
  */
 int
-vmcb_eventinject(struct vmcb_ctrl *ctrl, int type, int vector,
+vmcb_eventinject(struct vmcb_ctrl *ctrl, int intr_type, int vector,
 		 uint32_t error, bool ec_valid)
 {
-	int intr_type;
-
-	static uint8_t  svm_intr_type_map[VM_EVENT_MAX] = {
-		-1,				/* VM_EVENT_NONE */
-		VMCB_EVENTINJ_TYPE_INTR,	/* VM_HW_INTR */
-		VMCB_EVENTINJ_TYPE_NMI,	 	/* VM_NMI */
-		VMCB_EVENTINJ_TYPE_EXCEPTION,	/* VM_HW_EXCEPTION */
-		VMCB_EVENTINJ_TYPE_INTn, 	/* VM_SW_INTR, INT */
-		VMCB_EVENTINJ_TYPE_INTn, 	/* VM_PRIV_SW_EXCEPTION */
-		VMCB_EVENTINJ_TYPE_INTn, 	/* VM_SW_EXCEPTION */
-	};
-
-	intr_type = svm_intr_type_map[type];
 	if (intr_type < VMCB_EVENTINJ_TYPE_INTR ||
 	    intr_type > VMCB_EVENTINJ_TYPE_INTn) {
-		ERR("Event:%d is not supported by SVM.\n", type);
+		ERR("Event:%d is not supported by SVM.\n", intr_type);
 		return (EINVAL);
 	}
 

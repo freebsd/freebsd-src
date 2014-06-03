@@ -61,6 +61,7 @@ struct svm_softc {
 	 */
 	uint8_t	msr_bitmap[SVM_MSR_BITMAP_SIZE];
 
+	uint8_t apic_page[VM_MAXCPU][PAGE_SIZE];
 	/* Nested Paging */
 	vm_offset_t 	nptp;	
 
