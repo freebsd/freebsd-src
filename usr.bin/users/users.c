@@ -86,17 +86,17 @@ main(int argc, char **argv)
 				/* NOTREACHED */
 			}
 		}
-		(void)strlcpy(names[ncnt], ut->ut_user, sizeof(*names));
+		strlcpy(names[ncnt], ut->ut_user, sizeof(*names));
 		++ncnt;
 	}
 	endutxent();
 	if (ncnt > 0) {
 		qsort(names, ncnt, sizeof(namebuf), scmp);
-		(void)printf("%s", names[0]);
+		printf("%s", names[0]);
 		for (cnt = 1; cnt < ncnt; ++cnt)
 			if (strcmp(names[cnt], names[cnt - 1]) != 0)
-				(void)printf(" %s", names[cnt]);
-		(void)printf("\n");
+				printf(" %s", names[cnt]);
+		printf("\n");
 	}
 	exit(0);
 }
@@ -104,7 +104,7 @@ main(int argc, char **argv)
 static void
 usage(void)
 {
-	(void)fprintf(stderr, "usage: users\n");
+	fprintf(stderr, "usage: users\n");
 	exit(1);
 }
 	
