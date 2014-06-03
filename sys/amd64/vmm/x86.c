@@ -99,6 +99,8 @@ x86_emulate_cpuid(struct vm *vm, int vcpu_id,
 			break;
 
 		case CPUID_8000_0001:
+			/* Hide SVM capability from guest. */
+			regs[2] &= ~AMDID2_SVM;
 			/*
 			 * Hide rdtscp/ia32_tsc_aux until we know how
 			 * to deal with them.

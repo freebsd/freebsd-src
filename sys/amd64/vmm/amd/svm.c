@@ -46,6 +46,8 @@ __FBSDID("$FreeBSD$");
 #include <machine/specialreg.h>
 #include <machine/segments.h>
 #include <machine/vmm.h>
+#include <machine/vmm_dev.h>
+#include <machine/vmm_instruction_emul.h>
 
 #include <x86/apicreg.h>
 
@@ -53,6 +55,9 @@ __FBSDID("$FreeBSD$");
 #include "vmm_msr.h"
 #include "vmm_stat.h"
 #include "vmm_ktr.h"
+#include "vmm_ioport.h"
+#include "vlapic.h"
+#include "vlapic_priv.h"
 
 #include "x86.h"
 #include "vmcb.h"
@@ -75,6 +80,7 @@ __FBSDID("$FreeBSD$");
 #define AMD_CPUID_SVM_PAUSE_FTH		BIT(12) /* Pause filter threshold */
 
 MALLOC_DEFINE(M_SVM, "svm", "svm");
+MALLOC_DEFINE(M_SVM_VLAPIC, "svm-vlapic", "svm-vlapic");
 
 /* Per-CPU context area. */
 extern struct pcpu __pcpu[];
@@ -82,6 +88,7 @@ extern struct pcpu __pcpu[];
 static bool svm_vmexit(struct svm_softc *svm_sc, int vcpu,
 			struct vm_exit *vmexit);
 static int svm_msr_rw_ok(uint8_t *btmap, uint64_t msr);
+static int svm_msr_rd_ok(uint8_t *btmap, uint64_t msr);
 static int svm_msr_index(uint64_t msr, int *index, int *bit);
 
 static uint32_t svm_feature; /* AMD SVM features. */
@@ -181,6 +188,7 @@ svm_cpuid_features(void)
 		"\013PauseFilter"	
 		"\014<b20>"
 		"\015PauseFilterThreshold"	
+		"\016AVIC"	
 		);
 
 	/* SVM Lock */ 
@@ -249,7 +257,7 @@ is_svm_enabled(void)
  * Enable SVM on CPU and initialize nested page table h/w.
  */
 static int
-svm_init(void)
+svm_init(int ipinum)
 {
 	int err;
 
@@ -258,7 +266,7 @@ svm_init(void)
 		return (err);
 	
 
-	svm_npt_init();
+	svm_npt_init(ipinum);
 	
 	/* Start SVM on all CPUs */
 	smp_rendezvous(NULL, svm_enable, NULL, NULL);
@@ -266,6 +274,11 @@ svm_init(void)
 	return (0);
 }
 
+static void
+svm_restore(void)
+{
+	svm_enable(NULL);
+}		
 /*
  * Get index and bit position for a MSR in MSR permission
  * bitmap. Two bits are used for each MSR, lower bit is
@@ -316,7 +329,7 @@ svm_msr_index(uint64_t msr, int *index, int *bit)
  * Give virtual cpu the complete access to MSR(read & write).
  */
 static int
-svm_msr_rw_ok(uint8_t *perm_bitmap, uint64_t msr)
+svm_msr_perm(uint8_t *perm_bitmap, uint64_t msr, bool read, bool write)
 {
 	int index, bit, err;
 
@@ -336,12 +349,27 @@ svm_msr_rw_ok(uint8_t *perm_bitmap, uint64_t msr)
 	}
 
 	/* Disable intercept for read and write. */
-	perm_bitmap[index] &= ~(3 << bit);
-	CTR1(KTR_VMM, "Guest has full control on SVM:MSR(0x%lx).\n", msr);
+	if (read)
+		perm_bitmap[index] &= ~(1UL << bit);
+	if (write)
+		perm_bitmap[index] &= ~(2UL << bit);
+	CTR2(KTR_VMM, "Guest has control:0x%x on SVM:MSR(0x%lx).\n", 
+		(perm_bitmap[index] >> bit) & 0x3, msr);
 	
 	return (0);
 }
 
+static int
+svm_msr_rw_ok(uint8_t *perm_bitmap, uint64_t msr)
+{
+	return svm_msr_perm(perm_bitmap, msr, true, true);
+}
+
+static int
+svm_msr_rd_ok(uint8_t *perm_bitmap, uint64_t msr)
+{
+	return svm_msr_perm(perm_bitmap, msr, true, false);
+}
 /*
  * Initialise VCPU.
  */
@@ -365,7 +393,6 @@ svm_init_vcpu(struct svm_vcpu *vcpu, vm_paddr_t iopm_pa, vm_paddr_t msrpm_pa,
 	
 	return (0);
 }
-		
 /*
  * Initialise a virtual machine.
  */
@@ -519,6 +546,30 @@ svm_efer(struct svm_softc *svm_sc, int vcpu, boolean_t write)
 	}
 }
 
+static enum vm_cpu_mode
+svm_vcpu_mode(uint64_t efer)
+{
+
+	if (efer & EFER_LMA)
+		return (CPU_MODE_64BIT);
+	else
+		return (CPU_MODE_COMPATIBILITY);
+}
+
+static enum vm_paging_mode
+svm_paging_mode(uint64_t cr0, uint64_t cr4, uint64_t efer)
+{
+
+	if ((cr0 & CR0_PG) == 0)
+		return (PAGING_MODE_FLAT);
+	if ((cr4 & CR4_PAE) == 0)
+		return (PAGING_MODE_32);
+	if (efer & EFER_LME)
+		return (PAGING_MODE_64);
+	else
+		return (PAGING_MODE_PAE);
+}
+
 /*
  * Determine the cause of virtual cpu exit and handle VMEXIT.
  * Return: false - Break vcpu execution loop and handle vmexit
@@ -547,7 +598,7 @@ svm_vmexit(struct svm_softc *svm_sc, int vcpu, struct vm_exit *vmexit)
 	update_rip = true;
 	loop = true;
 	vmexit->exitcode = VM_EXITCODE_VMX;
-	vmexit->u.vmx.error = 0;
+	vmexit->u.vmx.status = 0;
 
 	switch (code) {
 		case	VMCB_EXIT_MC: /* Machine Check. */
@@ -624,8 +675,8 @@ svm_vmexit(struct svm_softc *svm_sc, int vcpu, struct vm_exit *vmexit)
 			break;
 
 		case VMCB_EXIT_IO:
-			vmm_stat_incr(svm_sc->vm, vcpu, VMEXIT_INOUT, 1);
 			loop = svm_handle_io(svm_sc, vcpu, vmexit);
+			vmm_stat_incr(svm_sc->vm, vcpu, VMEXIT_INOUT, 1);
 			update_rip = true;
 			break;
 
@@ -667,7 +718,6 @@ svm_vmexit(struct svm_softc *svm_sc, int vcpu, struct vm_exit *vmexit)
 		case VMCB_EXIT_NPF:
 			loop = false;
 			update_rip = false;
-			vmm_stat_incr(svm_sc->vm, vcpu, VMEXIT_EPT_FAULT, 1);
 
         		if (info1 & VMCB_NPF_INFO1_RSV) {
  				VCPU_CTR2(svm_sc->vm, vcpu, "SVM_ERR:NPT"
@@ -686,15 +736,32 @@ svm_vmexit(struct svm_softc *svm_sc, int vcpu, struct vm_exit *vmexit)
 				vmexit->u.paging.gpa = info2;
 				vmexit->u.paging.fault_type = 
 					svm_npf_paging(info1);
+				vmm_stat_incr(svm_sc->vm, vcpu, 
+					VMEXIT_NESTED_FAULT, 1);
 			} else if (svm_npf_emul_fault(info1)) {
- 				VCPU_CTR3(svm_sc->vm, vcpu, "SVM:NPF-inst_emul,"
+ 				VCPU_CTR3(svm_sc->vm, vcpu, "SVM:NPF inst_emul,"
 					"RIP:0x%lx INFO1:0x%lx INFO2:0x%lx .\n",
 					state->rip, info1, info2);
 				vmexit->exitcode = VM_EXITCODE_INST_EMUL;
 				vmexit->u.inst_emul.gpa = info2;
 				vmexit->u.inst_emul.gla = VIE_INVALID_GLA;
-				vmexit->u.inst_emul.cr3 = state->cr3;
+				vmexit->u.inst_emul.paging.cr3 = state->cr3;
+				vmexit->u.inst_emul.paging.cpu_mode = 
+					svm_vcpu_mode(state->efer);
+				vmexit->u.inst_emul.paging.paging_mode =
+					svm_paging_mode(state->cr0, state->cr4,
+                                                 state->efer);
+				/* XXX: get CPL from SS */
+				vmexit->u.inst_emul.paging.cpl = 0;
+				/*
+				 * If DecodeAssist SVM feature doesn't exist,
+				 * we don't have faulty instuction length. New
+				 * RIP will be calculated based on software 
+				 * instruction emulation.
+				 */
 				vmexit->inst_length = VIE_INST_SIZE;
+				vmm_stat_incr(svm_sc->vm, vcpu, 
+					VMEXIT_INST_EMUL, 1);
 			}
 			
 			break;
@@ -762,7 +829,7 @@ svm_inject_nmi(struct svm_softc *svm_sc, int vcpu)
 		return (0);
 
 	 /* Inject NMI, vector number is not used.*/
-	if (vmcb_eventinject(ctrl, VM_NMI, IDT_NMI, 0, false)) {
+	if (vmcb_eventinject(ctrl, VMCB_EVENTINJ_TYPE_NMI, IDT_NMI, 0, false)) {
 		VCPU_CTR0(svm_sc->vm, vcpu, "SVM:NMI injection failed.\n");
 		return (EIO);
 	}
@@ -779,10 +846,11 @@ svm_inject_nmi(struct svm_softc *svm_sc, int vcpu)
  * Inject event to virtual cpu.
  */
 static void
-svm_inj_interrupts(struct svm_softc *svm_sc, int vcpu)
+svm_inj_interrupts(struct svm_softc *svm_sc, int vcpu, struct vlapic *vlapic)
 {
 	struct vmcb_ctrl *ctrl;
 	struct vmcb_state *state;
+	struct vm_exception exc;
 	int vector;
 	
 	KASSERT(vcpu < svm_sc->vcpu_cnt, ("Guest doesn't have VCPU%d", vcpu));
@@ -802,17 +870,26 @@ svm_inj_interrupts(struct svm_softc *svm_sc, int vcpu)
 		VCPU_CTR0(svm_sc->vm, vcpu, "SVM:Guest in interrupt shadow.\n");
 		return;
 	}
-
+	
+	if (vm_exception_pending(svm_sc->vm, vcpu, &exc)) {
+		KASSERT(exc.vector >= 0 && exc.vector < 32,
+			("Exception vector% invalid", exc.vector));
+		if (vmcb_eventinject(ctrl, VMCB_EVENTINJ_TYPE_EXCEPTION, 
+			exc.vector, exc.error_code, 
+			exc.error_code_valid)) {
+			VCPU_CTR1(svm_sc->vm, vcpu, "SVM:Exception%d injection"
+				" failed.\n", exc.vector);
+			return;
+		}
+	}
 	/* NMI event has priority over interrupts.*/
 	if (svm_inject_nmi(svm_sc, vcpu)) {
 		return;
 	}
 
-	vector = lapic_pending_intr(svm_sc->vm, vcpu);
-
-	/* No interrupt is pending. */	
-	if (vector < 0)
-		return;
+        /* Ask the local apic for a vector to inject */
+        if (!vlapic_pending_intr(vlapic, &vector))
+                return;
 	
 	if (vector < 32 || vector > 255) {
 		VCPU_CTR1(svm_sc->vm, vcpu, "SVM_ERR:Event injection"
@@ -826,14 +903,14 @@ svm_inj_interrupts(struct svm_softc *svm_sc, int vcpu)
 		return;
 	}
 
-	if (vmcb_eventinject(ctrl, VM_HW_INTR, vector, 0, false)) {
+	if (vmcb_eventinject(ctrl, VMCB_EVENTINJ_TYPE_INTR, vector, 0, false)) {
 		VCPU_CTR1(svm_sc->vm, vcpu, "SVM:Event injection failed to"
 			" vector=%d.\n", vector);
 		return;
 	}	
 
 	/* Acknowledge that event is accepted.*/
-	lapic_intr_accepted(svm_sc->vm, vcpu, vector);
+	vlapic_intr_accepted(vlapic, vector);
 	VCPU_CTR1(svm_sc->vm, vcpu, "SVM:event injected,vector=%d.\n", vector);
 }
 
@@ -887,7 +964,8 @@ svm_handle_exitintinfo(struct svm_softc *svm_sc, int vcpu)
  * Start vcpu with specified RIP.
  */
 static int
-svm_vmrun(void *arg, int vcpu, register_t rip, pmap_t pmap)
+svm_vmrun(void *arg, int vcpu, register_t rip, pmap_t pmap, 
+	void *rend_cookie, void *suspended_cookie)
 {
 	struct svm_regctx *hctx, *gctx;
 	struct svm_softc *svm_sc;
@@ -895,17 +973,21 @@ svm_vmrun(void *arg, int vcpu, register_t rip, pmap_t pmap)
 	struct vmcb_state *state;
 	struct vmcb_ctrl *ctrl;
 	struct vm_exit *vmexit;
+	struct vlapic *vlapic;
+	struct vm *vm;
 	uint64_t vmcb_pa;
 	static uint64_t host_cr2;
 	bool loop;	/* Continue vcpu execution loop. */
 
 	loop = true;
 	svm_sc = arg;
-	
+	vm = svm_sc->vm;
+
 	vcpustate = svm_get_vcpu(svm_sc, vcpu);
 	state = svm_get_vmcb_state(svm_sc, vcpu);
 	ctrl = svm_get_vmcb_ctrl(svm_sc, vcpu);
-	vmexit = vm_exitinfo(svm_sc->vm, vcpu);
+	vmexit = vm_exitinfo(vm, vcpu);
+	vlapic = vm_lapic(vm, vcpu);
 
 	gctx = svm_get_guest_regctx(svm_sc, vcpu);
 	hctx = &host_ctx[curcpu]; 
@@ -913,7 +995,7 @@ svm_vmrun(void *arg, int vcpu, register_t rip, pmap_t pmap)
 
 	if (vcpustate->lastcpu != curcpu) {
 		/* Virtual CPU is running on a diiferent CPU now.*/
-		vmm_stat_incr(svm_sc->vm, vcpu, VCPU_MIGRATIONS, 1);
+		vmm_stat_incr(vm, vcpu, VCPU_MIGRATIONS, 1);
 
 		/*
 		 * Flush all TLB mapping for this guest on this CPU,
@@ -946,9 +1028,10 @@ svm_vmrun(void *arg, int vcpu, register_t rip, pmap_t pmap)
 	}
 
 	vcpustate->lastcpu = curcpu;
-	VCPU_CTR3(svm_sc->vm, vcpu, "SVM:Enter vmrun old RIP:0x%lx"
-		" new RIP:0x%lx inst len=%d\n",
-		state->rip, rip, vmexit->inst_length);
+	VCPU_CTR3(vm, vcpu, "SVM:Enter vmrun RIP:0x%lx"
+		" inst len=%d/%d\n",
+		rip, vmexit->inst_length, 
+		vmexit->u.inst_emul.vie.num_valid);
 	/* Update Guest RIP */
 	state->rip = rip;
 	
@@ -957,9 +1040,25 @@ svm_vmrun(void *arg, int vcpu, register_t rip, pmap_t pmap)
 		 /* We are asked to give the cpu by scheduler. */
 		if (curthread->td_flags & (TDF_ASTPENDING | TDF_NEEDRESCHED)) {
 			vmexit->exitcode = VM_EXITCODE_BOGUS;
-			vmm_stat_incr(svm_sc->vm, vcpu, VMEXIT_ASTPENDING, 1);
-			VCPU_CTR1(svm_sc->vm, vcpu, 
-				"SVM: gave up CPU, RIP:0x%lx\n", state->rip);
+			vmm_stat_incr(vm, vcpu, VMEXIT_ASTPENDING, 1);
+			VCPU_CTR1(vm, vcpu, 
+				"SVM: ASTPENDING, RIP:0x%lx\n", state->rip);
+			vmexit->rip = state->rip;
+			break;
+		}
+
+		if (vcpu_suspended(suspended_cookie)) {
+			vmexit->exitcode = VM_EXITCODE_SUSPENDED;
+			vmexit->rip = state->rip;
+			break;
+		}
+
+		if (vcpu_rendezvous_pending(rend_cookie)) {
+			vmexit->exitcode = VM_EXITCODE_RENDEZVOUS;
+			vmm_stat_incr(vm, vcpu, VMEXIT_RENDEZVOUS, 1);
+			VCPU_CTR1(vm, vcpu, 
+				"SVM: VCPU rendezvous, RIP:0x%lx\n", 
+				state->rip);
 			vmexit->rip = state->rip;
 			break;
 		}
@@ -968,7 +1067,7 @@ svm_vmrun(void *arg, int vcpu, register_t rip, pmap_t pmap)
 		
 		svm_handle_exitintinfo(svm_sc, vcpu);
 		
-		(void)svm_inj_interrupts(svm_sc, vcpu);
+		(void)svm_inj_interrupts(svm_sc, vcpu, vlapic);
 	
 		/* Change TSS type to available.*/
 		setup_tss_type();
@@ -1017,7 +1116,7 @@ svm_vmrun(void *arg, int vcpu, register_t rip, pmap_t pmap)
 		/* Handle #VMEXIT and if required return to user space. */
 		loop = svm_vmexit(svm_sc, vcpu, vmexit);
 		vcpustate->loop++;
-		vmm_stat_incr(svm_sc->vm, vcpu, VMEXIT_COUNT, 1);
+		vmm_stat_incr(vm, vcpu, VMEXIT_COUNT, 1);
 
 	} while (loop);
 		
@@ -1209,24 +1308,6 @@ svm_getdesc(void *arg, int vcpu, int type, struct seg_desc *desc)
 }
 
 static int
-svm_inject_event(void *arg, int vcpu, int type, int vector,
-		  uint32_t error, int ec_valid)
-{
-	struct svm_softc *svm_sc;
-	struct vmcb_ctrl *ctrl;
-
-	svm_sc = arg;
-	KASSERT(vcpu < svm_sc->vcpu_cnt, ("Guest doesn't have VCPU%d", vcpu));
-
-	ctrl = svm_get_vmcb_ctrl(svm_sc, vcpu);
-	VCPU_CTR3(svm_sc->vm, vcpu, "Injecting event type:0x%x vector:0x%x"
-		"error:0x%x\n", type, vector, error);
-
-	return (vmcb_eventinject(ctrl, type, vector, error,
-		ec_valid ? TRUE : FALSE));
-}
-
-static int
 svm_setcap(void *arg, int vcpu, int type, int val)
 {
 	struct svm_softc *svm_sc;
@@ -1324,9 +1405,35 @@ svm_getcap(void *arg, int vcpu, int type, int *retval)
 	return (0);
 }
 
+static struct vlapic *
+svm_vlapic_init(void *arg, int vcpuid)
+{
+	struct svm_softc *svm_sc;
+	struct vlapic *vlapic;
+
+	svm_sc = arg;
+	vlapic = malloc(sizeof(struct vlapic), M_SVM_VLAPIC, M_WAITOK | M_ZERO);
+	vlapic->vm = svm_sc->vm;
+	vlapic->vcpuid = vcpuid;
+	vlapic->apic_page = (struct LAPIC *)&svm_sc->apic_page[vcpuid];
+
+	vlapic_init(vlapic);
+	
+	return (vlapic);
+}
+
+static void
+svm_vlapic_cleanup(void *arg, struct vlapic *vlapic)
+{
+
+        vlapic_cleanup(vlapic);
+        free(vlapic, M_SVM_VLAPIC);
+}
+
 struct vmm_ops vmm_ops_amd = {
 	svm_init,
 	svm_cleanup,
+	svm_restore,
 	svm_vminit,
 	svm_vmrun,
 	svm_vmcleanup,
@@ -1334,9 +1441,10 @@ struct vmm_ops vmm_ops_amd = {
 	svm_setreg,
 	svm_getdesc,
 	svm_setdesc,
-	svm_inject_event,
 	svm_getcap,
 	svm_setcap,
 	svm_npt_alloc,
-	svm_npt_free
+	svm_npt_free,
+	svm_vlapic_init,
+	svm_vlapic_cleanup	
 };

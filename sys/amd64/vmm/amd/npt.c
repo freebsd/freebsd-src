@@ -52,14 +52,17 @@ SYSCTL_NODE(_hw_vmm, OID_AUTO, npt, CTLFLAG_RW, NULL, NULL);
 static int npt_flags;
 SYSCTL_INT(_hw_vmm_npt, OID_AUTO, pmap_flags, CTLFLAG_RD,
 	&npt_flags, 0, NULL);
+
+#define NPT_IPIMASK	0xFF
 /*
  * AMD nested page table init.
  */
 int
-svm_npt_init(void)
+svm_npt_init(int ipinum)
 {
 	int enable_superpage = 1;
 
+	npt_flags = ipinum & NPT_IPIMASK;
 	TUNABLE_INT_FETCH("hw.vmm.npt.enable_superpage", &enable_superpage);
 	if (enable_superpage)
 		npt_flags |= PMAP_PDE_SUPERPAGE; 
