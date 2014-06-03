@@ -320,7 +320,8 @@ device		usb			# USB Bus (required)
 device		ukbd			# Keyboard
 device		umass			# Disks/Mass storage - Requires scbus and da
 device		ums
-device		ukbd
+device		uhid
+device		utouch
 
 # Sound support
 device		sound			# Generic sound driver (required)

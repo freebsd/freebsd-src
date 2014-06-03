@@ -2476,6 +2476,7 @@ dev/usb/input/uhid.c		optional uhid
 dev/usb/input/ukbd.c		optional ukbd
 dev/usb/input/ums.c		optional ums
 dev/usb/input/wsp.c		optional wsp
+dev/usb/input/utouch.c		optional utouch
 #
 # USB quirks
 #
