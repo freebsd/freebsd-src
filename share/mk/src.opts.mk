@@ -368,8 +368,8 @@ MK_LLDB:=	no
 .endif
 
 .if ${MK_CHERI} != "no"
-.if defined(USE_CHERI)
 CHERI_CC?=	/usr/local/bin/cheri-unknown-freebsd-clang
+.if defined(USE_CHERI)
 .if ! exists(${CHERI_CC})
 .error USE_CHERI is defined and CHERI_CC is ${CHERI_CC}, but it doesn't exist.
 .endif
