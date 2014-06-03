@@ -20,6 +20,7 @@
  */
 /*
  * Copyright (c) 2004, 2010, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, Joyent, Inc. All rights reserved.
  */
 
 #include <sys/sdt_impl.h>
@@ -97,26 +98,26 @@ static dtrace_pattr_t iscsi_attr = {
 };
 
 sdt_provider_t sdt_providers[] = {
-	{ "vtrace", "__vtrace_", &vtrace_attr, 0 },
-	{ "sysinfo", "__cpu_sysinfo_", &info_attr, 0 },
-	{ "vminfo", "__cpu_vminfo_", &info_attr, 0 },
-	{ "fpuinfo", "__fpuinfo_", &fpu_attr, 0 },
-	{ "sched", "__sched_", &stab_attr, 0 },
-	{ "proc", "__proc_", &stab_attr, 0 },
-	{ "io", "__io_", &stab_attr, 0 },
-	{ "ip", "__ip_", &stab_attr, 0 },
-	{ "tcp", "__tcp_", &stab_attr, 0 },
-	{ "udp", "__udp_", &stab_attr, 0 },
-	{ "mib", "__mib_", &stab_attr, 0 },
-	{ "fsinfo", "__fsinfo_", &fsinfo_attr, 0 },
-	{ "iscsi", "__iscsi_", &iscsi_attr, 0 },
-	{ "nfsv3", "__nfsv3_", &stab_attr, 0 },
-	{ "nfsv4", "__nfsv4_", &stab_attr, 0 },
-	{ "xpv", "__xpv_", &xpv_attr, 0 },
-	{ "fc", "__fc_", &fc_attr, 0 },
-	{ "srp", "__srp_", &fc_attr, 0 },
-	{ "sysevent", "__sysevent_", &stab_attr, 0 },
-	{ "sdt", NULL, &sdt_attr, 0 },
+	{ "vtrace", "__vtrace_", &vtrace_attr },
+	{ "sysinfo", "__cpu_sysinfo_", &info_attr, DTRACE_PRIV_USER },
+	{ "vminfo", "__cpu_vminfo_", &info_attr, DTRACE_PRIV_USER },
+	{ "fpuinfo", "__fpuinfo_", &fpu_attr },
+	{ "sched", "__sched_", &stab_attr, DTRACE_PRIV_USER },
+	{ "proc", "__proc_", &stab_attr, DTRACE_PRIV_USER },
+	{ "io", "__io_", &stab_attr },
+	{ "ip", "__ip_", &stab_attr },
+	{ "tcp", "__tcp_", &stab_attr },
+	{ "udp", "__udp_", &stab_attr },
+	{ "mib", "__mib_", &stab_attr },
+	{ "fsinfo", "__fsinfo_", &fsinfo_attr },
+	{ "iscsi", "__iscsi_", &iscsi_attr },
+	{ "nfsv3", "__nfsv3_", &stab_attr },
+	{ "nfsv4", "__nfsv4_", &stab_attr },
+	{ "xpv", "__xpv_", &xpv_attr },
+	{ "fc", "__fc_", &fc_attr },
+	{ "srp", "__srp_", &fc_attr },
+	{ "sysevent", "__sysevent_", &stab_attr },
+	{ "sdt", NULL, &sdt_attr },
 	{ NULL }
 };
 
@@ -1153,6 +1154,20 @@ sdt_argdesc_t sdt_args[] = {
 
 	{ NULL }
 };
+
+/*ARGSUSED*/
+int
+sdt_mode(void *arg, dtrace_id_t id, void *parg)
+{
+	/*
+	 * We tell DTrace that we're in kernel mode, that the firing needs to
+	 * be dropped for anything that doesn't have necessary privileges, and
+	 * that it needs to be restricted for anything that has restricted
+	 * (i.e., not all-zone) privileges.
+	 */
+	return (DTRACE_MODE_KERNEL | DTRACE_MODE_NOPRIV_DROP |
+	    DTRACE_MODE_LIMITEDPRIV_RESTRICT);
+}
 
 /*ARGSUSED*/
 void

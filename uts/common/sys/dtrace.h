@@ -25,7 +25,7 @@
  */
 
 /*
- * Copyright (c) 2011, Joyent, Inc. All rights reserved.
+ * Copyright (c) 2012, Joyent, Inc. All rights reserved.
  * Copyright (c) 2012 by Delphix. All rights reserved.
  */
 
@@ -288,8 +288,9 @@ typedef enum dtrace_probespec {
 #define	DIF_SUBR_INET_NTOA6		43
 #define	DIF_SUBR_TOUPPER		44
 #define	DIF_SUBR_TOLOWER		45
+#define	DIF_SUBR_GETF			46
 
-#define	DIF_SUBR_MAX			45	/* max subroutine value */
+#define	DIF_SUBR_MAX			46	/* max subroutine value */
 
 typedef uint32_t dif_instr_t;
 
@@ -1649,13 +1650,20 @@ typedef struct dof_helper {
  *
  *   A bitwise OR that encapsulates both the mode (either DTRACE_MODE_KERNEL
  *   or DTRACE_MODE_USER) and the policy when the privilege of the enabling
- *   is insufficient for that mode (either DTRACE_MODE_NOPRIV_DROP or
- *   DTRACE_MODE_NOPRIV_RESTRICT).  If the policy is DTRACE_MODE_NOPRIV_DROP,
- *   insufficient privilege will result in the probe firing being silently
- *   ignored for the enabling; if the policy is DTRACE_NODE_NOPRIV_RESTRICT,
- *   insufficient privilege will not prevent probe processing for the
- *   enabling, but restrictions will be in place that induce a UPRIV fault
- *   upon attempt to examine probe arguments or current process state.
+ *   is insufficient for that mode (a combination of DTRACE_MODE_NOPRIV_DROP,
+ *   DTRACE_MODE_NOPRIV_RESTRICT, and DTRACE_MODE_LIMITEDPRIV_RESTRICT).  If
+ *   DTRACE_MODE_NOPRIV_DROP bit is set, insufficient privilege will result
+ *   in the probe firing being silently ignored for the enabling; if the
+ *   DTRACE_NODE_NOPRIV_RESTRICT bit is set, insufficient privilege will not
+ *   prevent probe processing for the enabling, but restrictions will be in
+ *   place that induce a UPRIV fault upon attempt to examine probe arguments
+ *   or current process state.  If the DTRACE_MODE_LIMITEDPRIV_RESTRICT bit
+ *   is set, similar restrictions will be placed upon operation if the
+ *   privilege is sufficient to process the enabling, but does not otherwise
+ *   entitle the enabling to all zones.  The DTRACE_MODE_NOPRIV_DROP and
+ *   DTRACE_MODE_NOPRIV_RESTRICT are mutually exclusive (and one of these
+ *   two policies must be specified), but either may be combined (or not)
+ *   with DTRACE_MODE_LIMITEDPRIV_RESTRICT.
  *
  * 1.10.4  Caller's context
  *
@@ -2054,6 +2062,7 @@ typedef struct dtrace_pops {
 #define	DTRACE_MODE_USER			0x02
 #define	DTRACE_MODE_NOPRIV_DROP			0x10
 #define	DTRACE_MODE_NOPRIV_RESTRICT		0x20
+#define	DTRACE_MODE_LIMITEDPRIV_RESTRICT	0x40
 
 typedef uintptr_t	dtrace_provider_id_t;
 
@@ -2268,6 +2277,7 @@ extern void (*dtrace_helpers_cleanup)();
 extern void (*dtrace_helpers_fork)(proc_t *parent, proc_t *child);
 extern void (*dtrace_cpustart_init)();
 extern void (*dtrace_cpustart_fini)();
+extern void (*dtrace_closef)();
 
 extern void (*dtrace_debugger_init)();
 extern void (*dtrace_debugger_fini)();
