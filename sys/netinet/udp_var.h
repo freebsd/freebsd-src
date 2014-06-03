@@ -56,13 +56,14 @@ struct inpcb;
 struct mbuf;
 
 typedef void(*udp_tun_func_t)(struct mbuf *, int off, struct inpcb *,
-			      const struct sockaddr *);
+			      const struct sockaddr *, void *);
 
 /*
  * UDP control block; one per udp.
  */
 struct udpcb {
 	udp_tun_func_t	u_tun_func;	/* UDP kernel tunneling callback. */
+	void 		*u_tun_func_ctx;/* Tunneling callback context. */
 	u_int		u_flags;	/* Generic UDP flags. */
 	uint16_t	u_rxcslen;	/* Coverage for incoming datagrams. */
 	uint16_t	u_txcslen;	/* Coverage for outgoing datagrams. */
@@ -176,7 +177,8 @@ void		udplite_input(struct mbuf *, int);
 struct inpcb	*udp_notify(struct inpcb *inp, int errno);
 int		udp_shutdown(struct socket *so);
 
-int		udp_set_kernel_tunneling(struct socket *so, udp_tun_func_t f);
+int		udp_set_kernel_tunneling(struct socket *so, udp_tun_func_t f,
+					 void *ctx);
 
 #endif /* _KERNEL */
 
