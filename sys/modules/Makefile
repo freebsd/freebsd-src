@@ -336,7 +336,7 @@ SUBDIR=	\
 	tws \
 	tx \
 	${_txp} \
-	uart \
+	${_uart} \
 	ubsec \
 	udf \
 	udf_iconv \
@@ -384,6 +384,11 @@ _vmware=	vmware
 	${MACHINE_CPUARCH} != "mips"
 _syscons=	syscons
 _vpo=		vpo
+.endif
+
+.if ${MACHINE_CPUARCH} != "mips"
+# XXX: Building with -j2 and higher broken on mips.
+_uart=		uart
 .endif
 
 .if ${MACHINE_CPUARCH} != "arm" && ${MACHINE_CPUARCH} != "mips"
