@@ -98,6 +98,7 @@ STRFUNC(inet_ntoa6((in6_addr_t *)alloca(sizeof (in6_addr_t))))
 STRFUNC(inet_ntop(AF_INET, (void *)alloca(sizeof (ipaddr_t))))
 STRFUNC(toupper("foo"))
 STRFUNC(tolower("BAR"))
+INTFUNC(getf(0))
 
 BEGIN
 /subr == DIF_SUBR_MAX + 1/
