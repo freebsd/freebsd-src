@@ -1048,8 +1048,7 @@ svm_vmrun(void *arg, int vcpu, register_t rip, pmap_t pmap,
 		}
 
 		if (vcpu_suspended(suspended_cookie)) {
-			vmexit->exitcode = VM_EXITCODE_SUSPENDED;
-			vmexit->rip = state->rip;
+			vm_exit_suspended(vm, vcpu, state->rip);
 			break;
 		}
 
