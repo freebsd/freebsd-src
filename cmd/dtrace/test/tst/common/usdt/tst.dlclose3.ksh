@@ -45,17 +45,17 @@ cat > Makefile <<EOF
 all: main livelib.so deadlib.so
 
 main: main.o prov.o
-	gcc -o main main.o
+	gcc -m32 -o main main.o
 
 main.o: main.c
-	gcc -c main.c
+	gcc -m32 -c main.c
 
 
 livelib.so: livelib.o prov.o
-	gcc -shared -o livelib.so livelib.o prov.o -lc
+	gcc -m32 -shared -o livelib.so livelib.o prov.o -lc
 
 livelib.o: livelib.c prov.h
-	gcc -c livelib.c
+	gcc -m32 -fPIC -c livelib.c
 
 prov.o: livelib.o prov.d
 	$dtrace -G -s prov.d livelib.o
@@ -65,10 +65,10 @@ prov.h: prov.d
 
 
 deadlib.so: deadlib.o
-	gcc -shared -o deadlib.so deadlib.o -lc
+	gcc -m32 -shared -o deadlib.so deadlib.o -lc
 
 deadlib.o: deadlib.c
-	gcc -c deadlib.c
+	gcc -m32 -fPIC -c deadlib.c
 
 clean:
 	rm -f main.o livelib.o prov.o prov.h deadlib.o

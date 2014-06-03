@@ -50,7 +50,7 @@ main(int argc, char *argv[])
 }
 EOF
 
-gcc -o test test.c
+gcc -m32 -o test test.c
 if [ $? -ne 0 ]; then
 	print -u2 "failed to compile test.c"
 	exit 1

@@ -60,10 +60,10 @@ cat > Makefile <<EOF
 all: main
 
 main: main.o prov.o
-	gcc -o main main.o prov.o
+	gcc -m32 -o main main.o prov.o
 
 main.o: main.c prov.h
-	gcc -c main.c
+	gcc -m32 -c main.c
 
 prov.h: prov.d
 	$dtrace -h -s prov.d

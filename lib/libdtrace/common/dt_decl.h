@@ -23,11 +23,13 @@
  * Copyright 2005 Sun Microsystems, Inc.  All rights reserved.
  * Use is subject to license terms.
  */
+/*
+ * Copyright (c) 2013 by Delphix. All rights reserved.
+ * Copyright (c) 2013 Joyent, Inc. All rights reserved.
+ */
 
 #ifndef	_DT_DECL_H
 #define	_DT_DECL_H
-
-#pragma ident	"%Z%%M%	%I%	%E% SMI"
 
 #include <sys/types.h>
 #include <libctf.h>
@@ -59,6 +61,7 @@ typedef struct dt_decl {
 #define	DT_DA_RESTRICT	0x0040		/* qualify type as restrict */
 #define	DT_DA_VOLATILE	0x0080		/* qualify type as volatile */
 #define	DT_DA_PAREN	0x0100		/* parenthesis tag */
+#define	DT_DA_USER	0x0200		/* user-land type specifier */
 
 typedef enum dt_dclass {
 	DT_DC_DEFAULT,			/* no storage class specified */
