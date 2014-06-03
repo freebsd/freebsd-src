@@ -22,6 +22,7 @@
 /*
  * Copyright 2007 Sun Microsystems, Inc.  All rights reserved.
  * Use is subject to license terms.
+ * Copyright (c) 2012, Joyent, Inc.  All rights reserved.
  */
 
 #include <sys/dtrace.h>
@@ -99,6 +100,8 @@ STRFUNC(inet_ntop(AF_INET, (void *)alloca(sizeof (ipaddr_t))))
 STRFUNC(toupper("foo"))
 STRFUNC(tolower("BAR"))
 INTFUNC(getf(0))
+INTFUNC(strtoll("0x12EE5D5", 16))
+STRFUNC(json("{\"systemtap\": false}", "systemtap"))
 
 BEGIN
 /subr == DIF_SUBR_MAX + 1/
