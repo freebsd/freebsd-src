@@ -45,16 +45,16 @@ cat > Makefile <<EOF
 all: main altlib.so
 
 main: main.o
-	gcc -o main main.o
+	gcc -m32 -o main main.o
 
 main.o: main.c
-	gcc -c main.c
+	gcc -m32 -c main.c
 
 altlib.so: altlib.o
-	gcc -shared -o altlib.so altlib.o -lc
+	gcc -m32 -shared -o altlib.so altlib.o -lc
 
 altlib.o: altlib.c
-	gcc -c altlib.c
+	gcc -m32 -fPIC -c altlib.c
 EOF
 
 cat > altlib.c <<EOF

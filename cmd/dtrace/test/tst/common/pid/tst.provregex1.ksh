@@ -45,10 +45,10 @@ cat > Makefile <<EOF
 all: main
 
 main: main.o
-	gcc -o main main.o
+	gcc -m32 -o main main.o
 
 main.o: main.c
-	gcc -c main.c
+	gcc -m32 -c main.c
 EOF
 
 cat > main.c <<EOF

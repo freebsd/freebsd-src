@@ -22,6 +22,9 @@
 /*
  * Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
  */
+/*
+ * Copyright (c) 2013, Joyent, Inc.  All rights reserved.
+ */
 
 #include <sys/types.h>
 #include <sys/modctl.h>
@@ -418,6 +421,9 @@ static const dt_modops_t dt_modops_64 = {
 dt_module_t *
 dt_module_create(dtrace_hdl_t *dtp, const char *name)
 {
+	long pid;
+	char *eptr;
+	dt_ident_t *idp;
 	uint_t h = dt_strtab_hash(name, NULL) % dtp->dt_modbuckets;
 	dt_module_t *dmp;
 
@@ -440,6 +446,32 @@ dt_module_create(dtrace_hdl_t *dtp, const char *name)
 		dmp->dm_ops = &dt_modops_64;
 	else
 		dmp->dm_ops = &dt_modops_32;
+
+	/*
+	 * Modules for userland processes are special. They always refer to a
+	 * specific process and have a copy of their CTF data from a specific
+	 * instant in time. Any dt_module_t that begins with 'pid' is a module
+	 * for a specific process, much like how any probe description that
+	 * begins with 'pid' is special. pid123 refers to process 123. A module
+	 * that is just 'pid' refers specifically to pid$target. This is
+	 * generally done as D does not currently allow for macros to be
+	 * evaluated when working with types.
+	 */
+	if (strncmp(dmp->dm_name, "pid", 3) == 0) {
+		errno = 0;
+		if (dmp->dm_name[3] == '\0') {
+			idp = dt_idhash_lookup(dtp->dt_macros, "target");
+			if (idp != NULL && idp->di_id != 0)
+				dmp->dm_pid = idp->di_id;
+		} else {
+			pid = strtol(dmp->dm_name + 3, &eptr, 10);
+			if (errno == 0 && *eptr == '\0')
+				dmp->dm_pid = (pid_t)pid;
+			else
+				dt_dprintf("encountered malformed pid "
+				    "module: %s\n", dmp->dm_name);
+		}
+	}
 
 	return (dmp);
 }
@@ -504,11 +536,168 @@ dt_module_load_sect(dtrace_hdl_t *dtp, dt_module_t *dmp, ctf_sect_t *ctsp)
 	return (0);
 }
 
+typedef struct dt_module_cb_arg {
+	struct ps_prochandle *dpa_proc;
+	dtrace_hdl_t *dpa_dtp;
+	dt_module_t *dpa_dmp;
+	uint_t dpa_count;
+} dt_module_cb_arg_t;
+
+/* ARGSUSED */
+static int
+dt_module_load_proc_count(void *arg, const prmap_t *prmap, const char *obj)
+{
+	ctf_file_t *fp;
+	dt_module_cb_arg_t *dcp = arg;
+
+	/* Try to grab a ctf container if it exists */
+	fp = Pname_to_ctf(dcp->dpa_proc, obj);
+	if (fp != NULL)
+		dcp->dpa_count++;
+	return (0);
+}
+
+/* ARGSUSED */
+static int
+dt_module_load_proc_build(void *arg, const prmap_t *prmap, const char *obj)
+{
+	ctf_file_t *fp;
+	char buf[MAXPATHLEN], *p;
+	dt_module_cb_arg_t *dcp = arg;
+	int count = dcp->dpa_count;
+	Lmid_t lmid;
+
+	fp = Pname_to_ctf(dcp->dpa_proc, obj);
+	if (fp == NULL)
+		return (0);
+	fp = ctf_dup(fp);
+	if (fp == NULL)
+		return (0);
+	dcp->dpa_dmp->dm_libctfp[count] = fp;
+	/*
+	 * While it'd be nice to simply use objname here, because of our prior
+	 * actions we'll always get a resolved object name to its on disk file.
+	 * Like the pid provider, we need to tell a bit of a lie here. The type
+	 * that the user thinks of is in terms of the libraries they requested,
+	 * eg. libc.so.1, they don't care about the fact that it's
+	 * libc_hwcap.so.1.
+	 */
+	(void) Pobjname(dcp->dpa_proc, prmap->pr_vaddr, buf, sizeof (buf));
+	if ((p = strrchr(buf, '/')) == NULL)
+		p = buf;
+	else
+		p++;
+
+	/*
+	 * If for some reason we can't find a link map id for this module, which
+	 * would be really quite weird. We instead just say the link map id is
+	 * zero.
+	 */
+	if (Plmid(dcp->dpa_proc, prmap->pr_vaddr, &lmid) != 0)
+		lmid = 0;
+
+	if (lmid == 0)
+		dcp->dpa_dmp->dm_libctfn[count] = strdup(p);
+	else
+		(void) asprintf(&dcp->dpa_dmp->dm_libctfn[count],
+		    "LM%lx`%s", lmid, p);
+	if (dcp->dpa_dmp->dm_libctfn[count] == NULL)
+		return (1);
+	ctf_setspecific(fp, dcp->dpa_dmp);
+	dcp->dpa_count++;
+	return (0);
+}
+
+/*
+ * We've been asked to load data that belongs to another process. As such we're
+ * going to pgrab it at this instant, load everything that we might ever care
+ * about, and then drive on. The reason for this is that the process that we're
+ * interested in might be changing. As long as we have grabbed it, then this
+ * can't be a problem for us.
+ *
+ * For now, we're actually going to punt on most things and just try to get CTF
+ * data, nothing else. Basically this is only useful as a source of type
+ * information, we can't go and do the stacktrace lookups, etc.
+ */
+static int
+dt_module_load_proc(dtrace_hdl_t *dtp, dt_module_t *dmp)
+{
+	struct ps_prochandle *p;
+	dt_module_cb_arg_t arg;
+
+	/*
+	 * Note that on success we do not release this hold. We must hold this
+	 * for our life time.
+	 */
+	p = dt_proc_grab(dtp, dmp->dm_pid, 0, PGRAB_RDONLY | PGRAB_FORCE);
+	if (p == NULL) {
+		dt_dprintf("failed to grab pid: %d\n", (int)dmp->dm_pid);
+		return (dt_set_errno(dtp, EDT_CANTLOAD));
+	}
+	dt_proc_lock(dtp, p);
+
+	arg.dpa_proc = p;
+	arg.dpa_dtp = dtp;
+	arg.dpa_dmp = dmp;
+	arg.dpa_count = 0;
+	if (Pobject_iter_resolved(p, dt_module_load_proc_count, &arg) != 0) {
+		dt_dprintf("failed to iterate objects\n");
+		dt_proc_release(dtp, p);
+		return (dt_set_errno(dtp, EDT_CANTLOAD));
+	}
+
+	if (arg.dpa_count == 0) {
+		dt_dprintf("no ctf data present\n");
+		dt_proc_unlock(dtp, p);
+		dt_proc_release(dtp, p);
+		return (dt_set_errno(dtp, EDT_CANTLOAD));
+	}
+
+	dmp->dm_libctfp = malloc(sizeof (ctf_file_t *) * arg.dpa_count);
+	if (dmp->dm_libctfp == NULL) {
+		dt_proc_unlock(dtp, p);
+		dt_proc_release(dtp, p);
+		return (dt_set_errno(dtp, EDT_NOMEM));
+	}
+	bzero(dmp->dm_libctfp, sizeof (ctf_file_t *) * arg.dpa_count);
+
+	dmp->dm_libctfn = malloc(sizeof (char *) * arg.dpa_count);
+	if (dmp->dm_libctfn == NULL) {
+		free(dmp->dm_libctfp);
+		dt_proc_unlock(dtp, p);
+		dt_proc_release(dtp, p);
+		return (dt_set_errno(dtp, EDT_NOMEM));
+	}
+	bzero(dmp->dm_libctfn, sizeof (char *) * arg.dpa_count);
+
+	dmp->dm_nctflibs = arg.dpa_count;
+
+	arg.dpa_count = 0;
+	if (Pobject_iter_resolved(p, dt_module_load_proc_build, &arg) != 0) {
+		dt_proc_unlock(dtp, p);
+		dt_module_unload(dtp, dmp);
+		dt_proc_release(dtp, p);
+		return (dt_set_errno(dtp, EDT_CANTLOAD));
+	}
+	assert(arg.dpa_count == dmp->dm_nctflibs);
+	dt_dprintf("loaded %d ctf modules for pid %d\n", arg.dpa_count,
+	    (int)dmp->dm_pid);
+
+	dt_proc_unlock(dtp, p);
+	dt_proc_release(dtp, p);
+	dmp->dm_flags |= DT_DM_LOADED;
+
+	return (0);
+}
+
 int
 dt_module_load(dtrace_hdl_t *dtp, dt_module_t *dmp)
 {
 	if (dmp->dm_flags & DT_DM_LOADED)
 		return (0); /* module is already loaded */
+
+	if (dmp->dm_pid != 0)
+		return (dt_module_load_proc(dtp, dmp));
 
 	dmp->dm_ctdata.cts_name = ".SUNW_ctf";
 	dmp->dm_ctdata.cts_type = SHT_PROGBITS;
@@ -595,6 +784,14 @@ dt_module_load(dtrace_hdl_t *dtp, dt_module_t *dmp)
 	return (0);
 }
 
+int
+dt_module_hasctf(dtrace_hdl_t *dtp, dt_module_t *dmp)
+{
+	if (dmp->dm_pid != 0 && dmp->dm_nctflibs > 0)
+		return (1);
+	return (dt_module_getctf(dtp, dmp) != NULL);
+}
+
 ctf_file_t *
 dt_module_getctf(dtrace_hdl_t *dtp, dt_module_t *dmp)
 {
@@ -668,8 +865,21 @@ err:
 void
 dt_module_unload(dtrace_hdl_t *dtp, dt_module_t *dmp)
 {
+	int i;
+
 	ctf_close(dmp->dm_ctfp);
 	dmp->dm_ctfp = NULL;
+
+	if (dmp->dm_libctfp != NULL) {
+		for (i = 0; i < dmp->dm_nctflibs; i++) {
+			ctf_close(dmp->dm_libctfp[i]);
+			free(dmp->dm_libctfn[i]);
+		}
+		free(dmp->dm_libctfp);
+		free(dmp->dm_libctfn);
+		dmp->dm_libctfp = NULL;
+		dmp->dm_nctflibs = 0;
+	}
 
 	bzero(&dmp->dm_ctdata, sizeof (ctf_sect_t));
 	bzero(&dmp->dm_symtab, sizeof (ctf_sect_t));
@@ -710,6 +920,8 @@ dt_module_unload(dtrace_hdl_t *dtp, dt_module_t *dmp)
 
 	(void) elf_end(dmp->dm_elf);
 	dmp->dm_elf = NULL;
+
+	dmp->dm_pid = 0;
 
 	dmp->dm_flags &= ~DT_DM_LOADED;
 }
@@ -797,6 +1009,34 @@ dt_module_modelname(dt_module_t *dmp)
 		return ("64-bit");
 	else
 		return ("32-bit");
+}
+
+/* ARGSUSED */
+int
+dt_module_getlibid(dtrace_hdl_t *dtp, dt_module_t *dmp, const ctf_file_t *fp)
+{
+	int i;
+
+	for (i = 0; i < dmp->dm_nctflibs; i++) {
+		if (dmp->dm_libctfp[i] == fp)
+			return (i);
+	}
+
+	return (-1);
+}
+
+/* ARGSUSED */
+ctf_file_t *
+dt_module_getctflib(dtrace_hdl_t *dtp, dt_module_t *dmp, const char *name)
+{
+	int i;
+
+	for (i = 0; i < dmp->dm_nctflibs; i++) {
+		if (strcmp(dmp->dm_libctfn[i], name) == 0)
+			return (dmp->dm_libctfp[i]);
+	}
+
+	return (NULL);
 }
 
 /*
@@ -1140,8 +1380,10 @@ dtrace_lookup_by_type(dtrace_hdl_t *dtp, const char *object, const char *name,
 	dt_module_t *dmp;
 	int found = 0;
 	ctf_id_t id;
-	uint_t n;
+	uint_t n, i;
 	int justone;
+	ctf_file_t *fp;
+	char *buf, *p, *q;
 
 	uint_t mask = 0; /* mask of dt_module flags to match */
 	uint_t bits = 0; /* flag bits that must be present */
@@ -1156,7 +1398,6 @@ dtrace_lookup_by_type(dtrace_hdl_t *dtp, const char *object, const char *name,
 			return (-1); /* dt_errno is set for us */
 		n = 1;
 		justone = 1;
-
 	} else {
 		if (object == DTRACE_OBJ_KMODS)
 			mask = bits = DT_DM_KERNEL;
@@ -1180,7 +1421,7 @@ dtrace_lookup_by_type(dtrace_hdl_t *dtp, const char *object, const char *name,
 		 * module.  If our search was scoped to only one module then
 		 * return immediately leaving dt_errno unmodified.
 		 */
-		if (dt_module_getctf(dtp, dmp) == NULL) {
+		if (dt_module_hasctf(dtp, dmp) == 0) {
 			if (justone)
 				return (-1);
 			continue;
@@ -1192,13 +1433,38 @@ dtrace_lookup_by_type(dtrace_hdl_t *dtp, const char *object, const char *name,
 		 * 'tip' and keep going in the hope that we will locate the
 		 * underlying structure definition.  Otherwise just return.
 		 */
-		if ((id = ctf_lookup_by_name(dmp->dm_ctfp, name)) != CTF_ERR) {
+		if (dmp->dm_pid == 0) {
+			id = ctf_lookup_by_name(dmp->dm_ctfp, name);
+			fp = dmp->dm_ctfp;
+		} else {
+			if ((p = strchr(name, '`')) != NULL) {
+				buf = strdup(name);
+				if (buf == NULL)
+					return (dt_set_errno(dtp, EDT_NOMEM));
+				p = strchr(buf, '`');
+				if ((q = strchr(p + 1, '`')) != NULL)
+					p = q;
+				*p = '\0';
+				fp = dt_module_getctflib(dtp, dmp, buf);
+				if (fp == NULL || (id = ctf_lookup_by_name(fp,
+				    p + 1)) == CTF_ERR)
+					id = CTF_ERR;
+				free(buf);
+			} else {
+				for (i = 0; i < dmp->dm_nctflibs; i++) {
+					fp = dmp->dm_libctfp[i];
+					id = ctf_lookup_by_name(fp, name);
+					if (id != CTF_ERR)
+						break;
+				}
+			}
+		}
+		if (id != CTF_ERR) {
 			tip->dtt_object = dmp->dm_name;
-			tip->dtt_ctfp = dmp->dm_ctfp;
+			tip->dtt_ctfp = fp;
 			tip->dtt_type = id;
-
-			if (ctf_type_kind(dmp->dm_ctfp, ctf_type_resolve(
-			    dmp->dm_ctfp, id)) != CTF_K_FORWARD)
+			if (ctf_type_kind(fp, ctf_type_resolve(fp, id)) !=
+			    CTF_K_FORWARD)
 				return (0);
 
 			found++;
@@ -1220,6 +1486,7 @@ dtrace_symbol_type(dtrace_hdl_t *dtp, const GElf_Sym *symp,
 	tip->dtt_object = NULL;
 	tip->dtt_ctfp = NULL;
 	tip->dtt_type = CTF_ERR;
+	tip->dtt_flags = 0;
 
 	if ((dmp = dt_module_lookup_by_name(dtp, sip->dts_object)) == NULL)
 		return (dt_set_errno(dtp, EDT_NOMOD));
