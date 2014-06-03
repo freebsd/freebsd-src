@@ -116,7 +116,7 @@ struct td_sched {
     CPU_ISSET((cpu), &(td)->td_cpuset->cs_mask)
 
 static struct td_sched td_sched0;
-struct mtx sched_lock;
+static struct mtx sched_lock;
 
 static int	realstathz = 127; /* stathz is sometimes 0 and run off of hz. */
 static int	sched_tdcnt;	/* Total runnable threads in the system. */
@@ -1032,7 +1032,7 @@ sched_switch(struct thread *td, struct thread *newtd, int flags)
 			PMC_SWITCH_CONTEXT(td, PMC_FN_CSW_OUT);
 #endif
 
-		SDT_PROBE2(sched, , , off__cpu, td, td->td_proc);
+		SDT_PROBE2(sched, , , off__cpu, newtd, newtd->td_proc);
 
                 /* I feel sleepy */
 		lock_profile_release_lock(&sched_lock.lock_object);

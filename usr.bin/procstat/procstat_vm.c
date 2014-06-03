@@ -100,6 +100,9 @@ procstat_vm(struct procstat *procstat, struct kinfo_proc *kipp)
 		case KVME_TYPE_SG:
 			str = "sg";
 			break;
+		case KVME_TYPE_MGTDEVICE:
+			str = "md";
+			break;
 		case KVME_TYPE_UNKNOWN:
 		default:
 			str = "??";

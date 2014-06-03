@@ -611,7 +611,6 @@ int
 libusb_claim_interface(struct libusb20_device *pdev, int interface_number)
 {
 	libusb_device *dev;
-	int err = 0;
 
 	dev = libusb_get_device(pdev);
 	if (dev == NULL)
@@ -621,13 +620,10 @@ libusb_claim_interface(struct libusb20_device *pdev, int interface_number)
 		return (LIBUSB_ERROR_INVALID_PARAM);
 
 	CTX_LOCK(dev->ctx);
-	if (dev->claimed_interfaces & (1 << interface_number))
-		err = LIBUSB_ERROR_BUSY;
-
-	if (!err)
-		dev->claimed_interfaces |= (1 << interface_number);
+	dev->claimed_interfaces |= (1 << interface_number);
 	CTX_UNLOCK(dev->ctx);
-	return (err);
+
+	return (0);
 }
 
 int
@@ -938,6 +934,9 @@ libusb10_get_buffsize(struct libusb20_device *pdev, libusb_transfer *xfer)
 			break;
 		case LIBUSB20_SPEED_FULL:
 			ret = 4096;
+			break;
+		case LIBUSB20_SPEED_SUPER:
+			ret = 65536;
 			break;
 		default:
 			ret = 16384;

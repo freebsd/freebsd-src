@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998-2007, 2009, 2010 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 1998-2007, 2009, 2010 Proofpoint, Inc. and its suppliers.
  *	All rights reserved.
  * Copyright (c) 1983, 1995-1997 Eric P. Allman.  All rights reserved.
  * Copyright (c) 1988, 1993
@@ -14,7 +14,7 @@
 #include <sendmail.h>
 #include "map.h"
 
-SM_RCSID("@(#)$Id: daemon.c,v 8.694 2012/03/03 00:10:42 ca Exp $")
+SM_RCSID("@(#)$Id: daemon.c,v 8.698 2013-11-22 20:51:55 ca Exp $")
 
 #if defined(SOCK_STREAM) || defined(__GNU_LIBRARY__)
 # define USE_SOCK_STREAM	1
@@ -2352,11 +2352,11 @@ gothostent:
 			/* check for name server timeouts */
 # if NETINET6
 			if (WorkAroundBrokenAAAA && family == AF_INET6 &&
-			    errno == ETIMEDOUT)
+			    (h_errno == TRY_AGAIN || errno == ETIMEDOUT))
 			{
 				/*
 				**  An attempt with family AF_INET may
-				**  succeed By skipping the next section
+				**  succeed. By skipping the next section
 				**  of code, we will try AF_INET before
 				**  failing.
 				*/
@@ -4259,7 +4259,11 @@ anynet_ntop(s6a, dst, dst_len)
 			return NULL;
 		dst += sz;
 		dst_len -= sz;
+# if _FFR_IPV6_FULL
+		ap = sm_inet6_ntop(s6a, dst, dst_len);
+# else /* _FFR_IPV6_FULL */
 		ap = (char *) inet_ntop(AF_INET6, s6a, dst, dst_len);
+# endif /* _FFR_IPV6_FULL */
 
 		/* Restore pointer to beginning of string */
 		if (ap != NULL)

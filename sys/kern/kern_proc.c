@@ -2255,6 +2255,9 @@ kern_proc_vmmap_out(struct proc *p, struct sbuf *sb)
 			case OBJT_SG:
 				kve->kve_type = KVME_TYPE_SG;
 				break;
+			case OBJT_MGTDEVICE:
+				kve->kve_type = KVME_TYPE_MGTDEVICE;
+				break;
 			default:
 				kve->kve_type = KVME_TYPE_UNKNOWN;
 				break;

@@ -29,7 +29,7 @@ private:
 public:
   MCPureStreamer(MCContext &Context, MCAsmBackend &TAB, raw_ostream &OS,
                  MCCodeEmitter *Emitter)
-      : MCObjectStreamer(SK_PureStreamer, Context, TAB, OS, Emitter) {}
+      : MCObjectStreamer(Context, 0, TAB, OS, Emitter) {}
 
   /// @name MCStreamer Interface
   /// @{
@@ -40,7 +40,7 @@ public:
   virtual void EmitDebugLabel(MCSymbol *Symbol);
   virtual void EmitZerofill(const MCSection *Section, MCSymbol *Symbol = 0,
                             uint64_t Size = 0, unsigned ByteAlignment = 0);
-  virtual void EmitBytes(StringRef Data, unsigned AddrSpace);
+  virtual void EmitBytes(StringRef Data);
   virtual void EmitValueToAlignment(unsigned ByteAlignment, int64_t Value = 0,
                                     unsigned ValueSize = 1,
                                     unsigned MaxBytesToEmit = 0);
@@ -51,8 +51,9 @@ public:
   virtual void FinishImpl();
 
 
-  virtual void EmitSymbolAttribute(MCSymbol *Symbol, MCSymbolAttr Attribute) {
+  virtual bool EmitSymbolAttribute(MCSymbol *Symbol, MCSymbolAttr Attribute) {
     report_fatal_error("unsupported directive in pure streamer");
+    return false;
   }
   virtual void EmitAssemblerFlag(MCAssemblerFlag Flag) {
     report_fatal_error("unsupported directive in pure streamer");
@@ -93,15 +94,12 @@ public:
   virtual void EmitFileDirective(StringRef Filename) {
     report_fatal_error("unsupported directive in pure streamer");
   }
+  virtual void EmitIdent(StringRef IdentString) {
+    report_fatal_error("unsupported directive in pure streamer");
+  }
   virtual bool EmitDwarfFileDirective(unsigned FileNo, StringRef Directory,
                                       StringRef Filename, unsigned CUID = 0) {
     report_fatal_error("unsupported directive in pure streamer");
-  }
-
-  /// @}
-
-  static bool classof(const MCStreamer *S) {
-    return S->getKind() == SK_PureStreamer;
   }
 };
 
@@ -120,7 +118,7 @@ void MCPureStreamer::EmitLabel(MCSymbol *Symbol) {
   assert(!Symbol->isVariable() && "Cannot emit a variable symbol!");
   assert(getCurrentSection().first && "Cannot emit before setting section!");
 
-  Symbol->setSection(*getCurrentSection().first);
+  AssignSection(Symbol, getCurrentSection().first);
 
   MCSymbolData &SD = getAssembler().getOrCreateSymbolData(*Symbol);
 
@@ -149,7 +147,7 @@ void MCPureStreamer::EmitZerofill(const MCSection *Section, MCSymbol *Symbol,
   report_fatal_error("not yet implemented in pure streamer");
 }
 
-void MCPureStreamer::EmitBytes(StringRef Data, unsigned AddrSpace) {
+void MCPureStreamer::EmitBytes(StringRef Data) {
   // TODO: This is exactly the same as WinCOFFStreamer. Consider merging into
   // MCObjectStreamer.
   getOrCreateDataFragment()->getContents().append(Data.begin(), Data.end());

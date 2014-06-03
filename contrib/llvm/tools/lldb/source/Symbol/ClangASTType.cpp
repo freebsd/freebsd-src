@@ -38,6 +38,7 @@
 #include "lldb/Core/Debugger.h"
 #include "lldb/Core/Scalar.h"
 #include "lldb/Core/Stream.h"
+#include "lldb/Core/StreamFile.h"
 #include "lldb/Core/StreamString.h"
 #include "lldb/Symbol/ClangASTContext.h"
 #include "lldb/Symbol/ClangExternalASTSourceCommon.h"
@@ -1134,7 +1135,7 @@ ClangASTType::GetTypeName () const
         if (typedef_type)
         {
             const TypedefNameDecl *typedef_decl = typedef_type->getDecl();
-            type_name = typedef_decl->getQualifiedNameAsString(printing_policy);
+            type_name = typedef_decl->getQualifiedNameAsString();
         }
         else
         {
@@ -1476,6 +1477,9 @@ ClangASTType::GetTypeClass () const
         case clang::Type::Decltype:                 break;
         case clang::Type::TemplateSpecialization:   break;
         case clang::Type::Atomic:                   break;
+
+        // pointer type decayed from an array or function type.
+        case clang::Type::Decayed:                  break;
     }
     // We don't know hot to display this type...
     return lldb::eTypeClassOther;
@@ -1913,6 +1917,10 @@ ClangASTType::GetEncoding (uint64_t &count) const
         case clang::Type::TemplateSpecialization:
         case clang::Type::Atomic:
             break;
+
+        // pointer type decayed from an array or function type.
+        case clang::Type::Decayed:
+            break;
     }
     count = 0;
     return lldb::eEncodingInvalid;
@@ -2040,6 +2048,10 @@ ClangASTType::GetFormat () const
         case clang::Type::Decltype:
         case clang::Type::TemplateSpecialization:
         case clang::Type::Atomic:
+            break;
+
+        // pointer type decayed from an array or function type.
+        case clang::Type::Decayed:
             break;
     }
     // We don't know hot to display this type...
@@ -5227,6 +5239,9 @@ ClangASTType::GetDeclContextForType () const
         case clang::Type::InjectedClassName:        break;
         case clang::Type::DependentName:            break;
         case clang::Type::Atomic:                   break;
+
+        // pointer type decayed from an array or function type.
+        case clang::Type::Decayed:                  break;
     }
     // No DeclContext in this type...
     return NULL;

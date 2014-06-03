@@ -46,6 +46,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/kdb.h>
 #include <sys/kernel.h>
 #include <sys/ktr.h>
+#include <sys/limits.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
@@ -75,10 +76,6 @@ dtrace_vtime_switch_func_t	dtrace_vtime_switch_func;
 
 #include <machine/cpu.h>
 #include <machine/smp.h>
-
-#if defined(__powerpc__) && defined(BOOKE_E500)
-#error "This architecture is not currently compatible with ULE"
-#endif
 
 #define	KTR_ULE	0
 
@@ -813,30 +810,6 @@ sched_highest(const struct cpu_group *cg, cpuset_t mask, int minload)
 	return high.cs_cpu;
 }
 
-/*
- * Simultaneously find the highest and lowest loaded cpu reachable via
- * cg.
- */
-static inline void
-sched_both(const struct cpu_group *cg, cpuset_t mask, int *lowcpu, int *highcpu)
-{
-	struct cpu_search high;
-	struct cpu_search low;
-
-	low.cs_cpu = -1;
-	low.cs_prefer = -1;
-	low.cs_pri = -1;
-	low.cs_limit = INT_MAX;
-	low.cs_mask = mask;
-	high.cs_cpu = -1;
-	high.cs_limit = -1;
-	high.cs_mask = mask;
-	cpu_search_both(cg, &low, &high);
-	*lowcpu = low.cs_cpu;
-	*highcpu = high.cs_cpu;
-	return;
-}
-
 static void
 sched_balance_group(struct cpu_group *cg)
 {
@@ -1085,32 +1058,27 @@ runq_steal_from(struct runq *rq, int cpu, u_char start)
 	struct rqhead *rqh;
 	struct thread *td, *first;
 	int bit;
-	int pri;
 	int i;
 
 	rqb = &rq->rq_status;
 	bit = start & (RQB_BPW -1);
-	pri = 0;
 	first = NULL;
 again:
 	for (i = RQB_WORD(start); i < RQB_LEN; bit = 0, i++) {
 		if (rqb->rqb_bits[i] == 0)
 			continue;
-		if (bit != 0) {
-			for (pri = bit; pri < RQB_BPW; pri++)
-				if (rqb->rqb_bits[i] & (1ul << pri))
-					break;
-			if (pri >= RQB_BPW)
+		if (bit == 0)
+			bit = RQB_FFS(rqb->rqb_bits[i]);
+		for (; bit < RQB_BPW; bit++) {
+			if ((rqb->rqb_bits[i] & (1ul << bit)) == 0)
 				continue;
-		} else
-			pri = RQB_FFS(rqb->rqb_bits[i]);
-		pri += (i << RQB_L2BPW);
-		rqh = &rq->rq_queues[pri];
-		TAILQ_FOREACH(td, rqh, td_runq) {
-			if (first && THREAD_CAN_MIGRATE(td) &&
-			    THREAD_CAN_SCHED(td, cpu))
-				return (td);
-			first = td;
+			rqh = &rq->rq_queues[bit + (i << RQB_L2BPW)];
+			TAILQ_FOREACH(td, rqh, td_runq) {
+				if (first && THREAD_CAN_MIGRATE(td) &&
+				    THREAD_CAN_SCHED(td, cpu))
+					return (td);
+				first = td;
+			}
 		}
 	}
 	if (start != 0) {

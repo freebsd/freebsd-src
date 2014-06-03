@@ -19,7 +19,7 @@
 #
 
 # Which version of config(8) is required.
-%VERSREQ=	600004
+%VERSREQ=	600012
 
 .if !defined(S)
 .if exists(./@/.)
@@ -29,10 +29,6 @@ S=	../../..
 .endif
 .endif
 .include "$S/conf/kern.pre.mk"
-
-MACHINE=pc98
-
-MKMODULESENV+=	MACHINE=${MACHINE}
 
 # XXX: clang integrated-as doesn't grok .codeNN directives yet
 ASM_CFLAGS.mpboot.s=		${CLANG_NO_IAS}

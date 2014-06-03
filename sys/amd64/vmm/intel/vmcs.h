@@ -46,17 +46,12 @@ struct msr_entry {
 };
 
 int vmcs_set_msr_save(struct vmcs *vmcs, u_long g_area, u_int g_count);
-int	vmcs_set_defaults(struct vmcs *vmcs, u_long host_rip, u_long host_rsp,
-			  uint64_t eptp,
-			  uint32_t pinbased_ctls, uint32_t procbased_ctls,
-			  uint32_t procbased_ctls2, uint32_t exit_ctls,
-			  uint32_t entry_ctls, u_long msr_bitmap,
-			  uint16_t vpid);
+int	vmcs_init(struct vmcs *vmcs);
 int	vmcs_getreg(struct vmcs *vmcs, int running, int ident, uint64_t *rv);
 int	vmcs_setreg(struct vmcs *vmcs, int running, int ident, uint64_t val);
-int	vmcs_getdesc(struct vmcs *vmcs, int ident,
+int	vmcs_getdesc(struct vmcs *vmcs, int running, int ident,
 		     struct seg_desc *desc);
-int	vmcs_setdesc(struct vmcs *vmcs, int ident,
+int	vmcs_setdesc(struct vmcs *vmcs, int running, int ident,
 		     struct seg_desc *desc);
 
 static __inline uint64_t
@@ -102,6 +97,7 @@ vmcs_write(uint32_t encoding, uint64_t val)
 
 /* 16-bit control fields */
 #define	VMCS_VPID			0x00000000
+#define	VMCS_PIR_VECTOR			0x00000002
 
 /* 16-bit guest-state fields */
 #define	VMCS_GUEST_ES_SELECTOR		0x00000800
@@ -112,6 +108,7 @@ vmcs_write(uint32_t encoding, uint64_t val)
 #define	VMCS_GUEST_GS_SELECTOR		0x0000080A
 #define	VMCS_GUEST_LDTR_SELECTOR	0x0000080C
 #define	VMCS_GUEST_TR_SELECTOR		0x0000080E
+#define	VMCS_GUEST_INTR_STATUS		0x00000810
 
 /* 16-bit host-state fields */
 #define	VMCS_HOST_ES_SELECTOR		0x00000C00
@@ -133,7 +130,13 @@ vmcs_write(uint32_t encoding, uint64_t val)
 #define	VMCS_TSC_OFFSET			0x00002010
 #define	VMCS_VIRTUAL_APIC		0x00002012
 #define	VMCS_APIC_ACCESS		0x00002014
+#define	VMCS_PIR_DESC			0x00002016
 #define	VMCS_EPTP			0x0000201A
+#define	VMCS_EOI_EXIT0			0x0000201C
+#define	VMCS_EOI_EXIT1			0x0000201E
+#define	VMCS_EOI_EXIT2			0x00002020
+#define	VMCS_EOI_EXIT3			0x00002022
+#define	VMCS_EOI_EXIT(vector)		(VMCS_EOI_EXIT0 + ((vector) / 64) * 2)
 
 /* 64-bit read-only fields */
 #define	VMCS_GUEST_PHYSICAL_ADDRESS	0x00002400
@@ -177,8 +180,8 @@ vmcs_write(uint32_t encoding, uint64_t val)
 /* 32-bit read-only data fields */
 #define	VMCS_INSTRUCTION_ERROR		0x00004400
 #define	VMCS_EXIT_REASON		0x00004402
-#define	VMCS_EXIT_INTERRUPTION_INFO	0x00004404
-#define	VMCS_EXIT_INTERRUPTION_ERROR	0x00004406
+#define	VMCS_EXIT_INTR_INFO		0x00004404
+#define	VMCS_EXIT_INTR_ERRCODE		0x00004406
 #define	VMCS_IDT_VECTORING_INFO		0x00004408
 #define	VMCS_IDT_VECTORING_ERROR	0x0000440A
 #define	VMCS_EXIT_INSTRUCTION_LENGTH	0x0000440C
@@ -315,7 +318,8 @@ vmcs_write(uint32_t encoding, uint64_t val)
 #define EXIT_REASON_PAUSE		40
 #define EXIT_REASON_MCE			41
 #define EXIT_REASON_TPR			43
-#define EXIT_REASON_APIC		44
+#define EXIT_REASON_APIC_ACCESS		44
+#define	EXIT_REASON_VIRTUALIZED_EOI	45
 #define EXIT_REASON_GDTR_IDTR		46
 #define EXIT_REASON_LDTR_TR		47
 #define EXIT_REASON_EPT_FAULT		48
@@ -326,13 +330,23 @@ vmcs_write(uint32_t encoding, uint64_t val)
 #define EXIT_REASON_INVVPID		53
 #define EXIT_REASON_WBINVD		54
 #define EXIT_REASON_XSETBV		55
+#define	EXIT_REASON_APIC_WRITE		56
 
+/*
+ * NMI unblocking due to IRET.
+ *
+ * Applies to VM-exits due to hardware exception or EPT fault.
+ */
+#define	EXIT_QUAL_NMIUDTI	(1 << 12)
 /*
  * VMCS interrupt information fields
  */
-#define	VMCS_INTERRUPTION_INFO_VALID	(1U << 31)
-#define	VMCS_INTERRUPTION_INFO_HW_INTR	(0 << 8)
-#define	VMCS_INTERRUPTION_INFO_NMI	(2 << 8)
+#define	VMCS_INTR_VALID		(1U << 31)
+#define	VMCS_INTR_T_MASK	0x700		/* Interruption-info type */
+#define	VMCS_INTR_T_HWINTR	(0 << 8)
+#define	VMCS_INTR_T_NMI		(2 << 8)
+#define	VMCS_INTR_T_HWEXCEPTION	(3 << 8)
+#define	VMCS_INTR_DEL_ERRCODE	(1 << 11)
 
 /*
  * VMCS IDT-Vectoring information fields
@@ -364,5 +378,16 @@ vmcs_write(uint32_t encoding, uint64_t val)
 #define	EPT_VIOLATION_GPA_EXECUTABLE	(1UL << 5)
 #define	EPT_VIOLATION_GLA_VALID		(1UL << 7)
 #define	EPT_VIOLATION_XLAT_VALID	(1UL << 8)
+
+/*
+ * Exit qualification for APIC-access VM exit
+ */
+#define	APIC_ACCESS_OFFSET(qual)	((qual) & 0xFFF)
+#define	APIC_ACCESS_TYPE(qual)		(((qual) >> 12) & 0xF)
+
+/*
+ * Exit qualification for APIC-write VM exit
+ */
+#define	APIC_WRITE_OFFSET(qual)		((qual) & 0xFFF)
 
 #endif

@@ -32,70 +32,45 @@ __FBSDID("$FreeBSD$");
 #include "milieu.h"
 #include "softfloat.h"
 
+#include "aeabi_vfp.h"
+
+extern int _libc_arm_fpu_present;
+
 flag __unorddf2(float64, float64);
 
-int __aeabi_dcmpeq(float64 a, float64 b)
-{
-	return float64_eq(a, b);
-}
+/* These are written in asm and are only called from this file */
+int __aeabi_dcmpeq_vfp(float64, float64);
+int __aeabi_dcmplt_vfp(float64, float64);
+int __aeabi_dcmple_vfp(float64, float64);
+int __aeabi_dcmpgt_vfp(float64, float64);
+int __aeabi_dcmpge_vfp(float64, float64);
+int __aeabi_dcmpun_vfp(float64, float64);
+int __aeabi_d2iz_vfp(float64);
+float32 __aeabi_d2f_vfp(float64);
+float64 __aeabi_i2d_vfp(int);
+float64 __aeabi_dadd_vfp(float64, float64);
+float64 __aeabi_ddiv_vfp(float64, float64);
+float64 __aeabi_dmul_vfp(float64, float64);
+float64 __aeabi_dsub_vfp(float64, float64);
 
-int __aeabi_dcmplt(float64 a, float64 b)
-{
-	return float64_lt(a, b);
-}
+/*
+ * Depending on the target these will:
+ *  On armv6 with a vfp call the above function, or
+ *  Call the softfloat function in the 3rd argument.
+ */
+int AEABI_FUNC2(dcmpeq, float64, float64_eq)
+int AEABI_FUNC2(dcmplt, float64, float64_lt)
+int AEABI_FUNC2(dcmple, float64, float64_le)
+int AEABI_FUNC2_REV(dcmpge, float64, float64_le)
+int AEABI_FUNC2_REV(dcmpgt, float64, float64_lt)
+int AEABI_FUNC2(dcmpun, float64, __unorddf2)
 
-int __aeabi_dcmple(float64 a, float64 b)
-{
-	return float64_le(a, b);
-}
+int AEABI_FUNC(d2iz, float64, float64_to_int32_round_to_zero)
+float32 AEABI_FUNC(d2f, float64, float64_to_float32)
+float64 AEABI_FUNC(i2d, int, int32_to_float64)
 
-int __aeabi_dcmpge(float64 a, float64 b)
-{
-	return float64_le(b, a);
-}
-
-int __aeabi_dcmpgt(float64 a, float64 b)
-{
-	return float64_lt(b, a);
-}
-
-int __aeabi_dcmpun(float64 a, float64 b)
-{
-	return __unorddf2(a, b);
-}
-
-int __aeabi_d2iz(float64 a)
-{
-	return float64_to_int32_round_to_zero(a);
-}
-
-float32 __aeabi_d2f(float64 a)
-{
-	return float64_to_float32(a);
-}
-
-float64 __aeabi_i2d(int a)
-{
-	return int32_to_float64(a);
-}
-
-float64 __aeabi_dadd(float64 a, float64 b)
-{
-	return float64_add(a, b);
-}
-
-float64 __aeabi_ddiv(float64 a, float64 b)
-{
-	return float64_div(a, b);
-}
-
-float64 __aeabi_dmul(float64 a, float64 b)
-{
-	return float64_mul(a, b);
-}
-
-float64 __aeabi_dsub(float64 a, float64 b)
-{
-	return float64_sub(a, b);
-}
+float64 AEABI_FUNC2(dadd, float64, float64_add)
+float64 AEABI_FUNC2(ddiv, float64, float64_div)
+float64 AEABI_FUNC2(dmul, float64, float64_mul)
+float64 AEABI_FUNC2(dsub, float64, float64_sub)
 

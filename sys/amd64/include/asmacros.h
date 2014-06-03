@@ -201,4 +201,30 @@
 
 #endif /* LOCORE */
 
+#ifdef __STDC__
+#define ELFNOTE(name, type, desctype, descdata...) \
+.pushsection .note.name                 ;       \
+  .align 4                              ;       \
+  .long 2f - 1f         /* namesz */    ;       \
+  .long 4f - 3f         /* descsz */    ;       \
+  .long type                            ;       \
+1:.asciz #name                          ;       \
+2:.align 4                              ;       \
+3:desctype descdata                     ;       \
+4:.align 4                              ;       \
+.popsection
+#else /* !__STDC__, i.e. -traditional */
+#define ELFNOTE(name, type, desctype, descdata) \
+.pushsection .note.name                 ;       \
+  .align 4                              ;       \
+  .long 2f - 1f         /* namesz */    ;       \
+  .long 4f - 3f         /* descsz */    ;       \
+  .long type                            ;       \
+1:.asciz "name"                         ;       \
+2:.align 4                              ;       \
+3:desctype descdata                     ;       \
+4:.align 4                              ;       \
+.popsection
+#endif /* __STDC__ */
+
 #endif /* !_MACHINE_ASMACROS_H_ */

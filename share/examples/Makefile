@@ -2,7 +2,7 @@
 #
 # Doing a make install builds /usr/share/examples
 
-.include <bsd.own.mk>
+.include <src.opts.mk>
 
 LDIRS=	BSD_daemon \
 	FreeBSD_version \
@@ -246,6 +246,9 @@ SUBDIR+=ipfilter
 .endif
 .if ${MK_PF} != "no"
 SUBDIR+=pf
+.endif
+.if ${MK_DMAGENT} != "no"
+SUBDIR+=dma
 .endif
 .endif
 

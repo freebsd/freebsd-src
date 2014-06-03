@@ -3,7 +3,7 @@
 #
 # Doing a "make install" builds /usr/include.
 
-.include <bsd.own.mk>
+.include <src.opts.mk>
 
 CLEANFILES= osreldate.h version vers.c
 SUBDIR= arpa gssapi protocols rpcsvc rpc xlocale
@@ -36,10 +36,8 @@ PHDRS=	sched.h _semaphore.h
 LHDRS=	aio.h errno.h fcntl.h linker_set.h poll.h stdatomic.h stdint.h \
 	syslog.h ucontext.h
 
-LDIRS=	bsm cam geom net net80211 netatalk netgraph netinet netinet6 \
-	netipsec ${_netipx} netnatm netsmb \
-	nfs nfsclient nfsserver \
-	sys vm
+LDIRS=	bsm cam geom net net80211 netgraph netinet netinet6 \
+	netipsec netnatm netsmb nfs nfsclient nfsserver sys vm
 
 LSUBDIRS=	cam/ata cam/scsi \
 	dev/acpica dev/agp dev/an dev/bktr dev/ciss dev/filemon dev/firewire \
@@ -47,6 +45,7 @@ LSUBDIRS=	cam/ata cam/scsi \
 	dev/ic dev/iicbus ${_dev_ieee488} dev/io dev/lmc dev/mfi dev/nvme \
 	dev/ofw dev/pbio dev/pci ${_dev_powermac_nvram} dev/ppbus dev/smbus \
 	dev/speaker dev/usb dev/utopia dev/vkbd dev/wi \
+	fs/cuse \
 	fs/devfs fs/fdescfs fs/msdosfs fs/nandfs fs/nfs fs/nullfs \
 	fs/procfs fs/smbfs fs/udf fs/unionfs \
 	geom/cache geom/concat geom/eli geom/gate geom/journal geom/label \
@@ -75,11 +74,6 @@ INCS+=	hesiod.h
 .if ${MK_BLUETOOTH} != "no"
 LSUBSUBDIRS+=	netgraph/bluetooth/include
 .endif
-
-# XXX unconditionally needed by <netsmb/netbios.h>
-#.if ${MK_IPX} != "no"
-_netipx=	netipx
-#.endif
 
 # Handle the #define aliases for libiconv
 .if ${MK_ICONV} == "yes"

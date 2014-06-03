@@ -51,72 +51,50 @@ __FBSDID("$FreeBSD$");
 #include <machine/bus.h>
 #include <machine/devmap.h>
 #include <machine/machdep.h>
+#include <machine/platformvar.h>
 
 #include <arm/ti/omap4/omap4_reg.h>
 
-/* Start of address space used for bootstrap map */
-#define DEVMAP_BOOTSTRAP_MAP_START	0xF0000000
+#include "platform_if.h"
 
-void (*ti_cpu_reset)(void);
+void (*ti_cpu_reset)(void) = NULL;
 
-vm_offset_t
-initarm_lastaddr(void)
+static vm_offset_t
+ti_lastaddr(platform_t plat)
 {
 
-	return (DEVMAP_BOOTSTRAP_MAP_START);
+	return (arm_devmap_lastaddr());
 }
-
-void
-initarm_early_init(void)
-{
-
-	ti_cpu_reset = NULL;
-}
-
-void
-initarm_gpio_init(void)
-{
-}
-
-void
-initarm_late_init(void)
-{
-}
-
-#define FDT_DEVMAP_MAX	(2)		// FIXME
-static struct arm_devmap_entry fdt_devmap[FDT_DEVMAP_MAX] = {
-	{ 0, 0, 0, 0, 0, }
-};
-
 
 /*
- * Construct pmap_devmap[] with DT-derived config data.
+ * Construct static devmap entries to map out the most frequently used
+ * peripherals using 1mb section mappings.
  */
-int
-initarm_devmap_init(void)
-{
-	int i = 0;
 #if defined(SOC_OMAP4)
-	fdt_devmap[i].pd_va = 0xF8000000;
-	fdt_devmap[i].pd_pa = 0x48000000;
-	fdt_devmap[i].pd_size = 0x1000000;
-	fdt_devmap[i].pd_prot = VM_PROT_READ | VM_PROT_WRITE;
-	fdt_devmap[i].pd_cache = PTE_DEVICE;
-	i++;
-#elif defined(SOC_TI_AM335X)
-	fdt_devmap[i].pd_va = 0xF4C00000;
-	fdt_devmap[i].pd_pa = 0x44C00000;       /* L4_WKUP */
-	fdt_devmap[i].pd_size = 0x400000;       /* 4 MB */
-	fdt_devmap[i].pd_prot = VM_PROT_READ | VM_PROT_WRITE;
-	fdt_devmap[i].pd_cache = PTE_DEVICE;
-	i++;
-#else
-#error "Unknown SoC"
-#endif
-
-	arm_devmap_register_table(&fdt_devmap[0]);
+static int
+ti_omap4_devmap_init(platform_t plat)
+{
+	arm_devmap_add_entry(0x48000000, 0x01000000); /*16mb L4_PER devices */
+	arm_devmap_add_entry(0x4A000000, 0x01000000); /*16mb L4_CFG devices */
 	return (0);
 }
+#endif
+
+#if defined(SOC_TI_AM335X)
+static int
+ti_am335x_devmap_init(platform_t plat)
+{
+
+	arm_devmap_add_entry(0x44C00000, 0x00400000); /* 4mb L4_WKUP devices*/
+	arm_devmap_add_entry(0x47400000, 0x00100000); /* 1mb USB            */
+	arm_devmap_add_entry(0x47800000, 0x00100000); /* 1mb mmchs2         */
+	arm_devmap_add_entry(0x48000000, 0x01000000); /*16mb L4_PER devices */
+	arm_devmap_add_entry(0x49000000, 0x00100000); /* 1mb edma3          */
+	arm_devmap_add_entry(0x49800000, 0x00300000); /* 3mb edma3          */
+	arm_devmap_add_entry(0x4A000000, 0x01000000); /*16mb L4_FAST devices*/
+	return (0);
+}
+#endif
 
 struct arm32_dma_range *
 bus_dma_get_range(void)
@@ -142,3 +120,24 @@ cpu_reset()
 	printf("Reset failed!\n");
 	while (1);
 }
+
+#if defined(SOC_OMAP4)
+static platform_method_t omap4_methods[] = {
+	PLATFORMMETHOD(platform_devmap_init,	ti_omap4_devmap_init),
+	PLATFORMMETHOD(platform_lastaddr,	ti_lastaddr),
+
+	PLATFORMMETHOD_END,
+};
+FDT_PLATFORM_DEF(omap4, "omap4", 0, "ti,omap4430");
+#endif
+
+#if defined(SOC_TI_AM335X)
+static platform_method_t am335x_methods[] = {
+	PLATFORMMETHOD(platform_devmap_init,	ti_am335x_devmap_init),
+	PLATFORMMETHOD(platform_lastaddr,	ti_lastaddr),
+
+	PLATFORMMETHOD_END,
+};
+
+FDT_PLATFORM_DEF(am335x, "am335x", 0, "ti,am335x");
+#endif

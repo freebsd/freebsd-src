@@ -9,4 +9,4 @@ ATF=		${.CURDIR:H:H:H:H}/contrib/atf
 
 ATF_TESTS_SH=	atf-check_test
 
-.include <atf.test.mk>
+.include <bsd.test.mk>

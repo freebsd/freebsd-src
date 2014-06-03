@@ -1617,11 +1617,9 @@ sis_tick(void *xsc)
 {
 	struct sis_softc	*sc;
 	struct mii_data		*mii;
-	struct ifnet		*ifp;
 
 	sc = xsc;
 	SIS_LOCK_ASSERT(sc);
-	ifp = sc->sis_ifp;
 
 	mii = device_get_softc(sc->sis_miibus);
 	mii_tick(mii);

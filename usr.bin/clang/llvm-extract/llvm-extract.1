@@ -1,5 +1,7 @@
 .\" $FreeBSD$
-.TH "LLVM-EXTRACT" "1" "2013-04-11" "3.3" "LLVM"
+.\" Man page generated from reStructuredText.
+.
+.TH "LLVM-EXTRACT" "1" "2014-01-01" "3.4" "LLVM"
 .SH NAME
 llvm-extract \- extract a function from an LLVM module
 .
@@ -29,32 +31,31 @@ level margin: \\n[rst2man-indent\\n[rst2man-indent-level]]
 .\" new: \\n[rst2man-indent\\n[rst2man-indent-level]]
 .in \\n[rst2man-indent\\n[rst2man-indent-level]]u
 ..
-.\" Man page generated from reStructuredText.
-.
 .SH SYNOPSIS
 .sp
 \fBllvm\-extract\fP [\fIoptions\fP] \fB\-\-func\fP \fIfunction\-name\fP [\fIfilename\fP]
 .SH DESCRIPTION
 .sp
-The \fBllvm\-extract\fP command takes the name of a function and extracts it from
-the specified LLVM bitcode file.  It is primarily used as a debugging tool to
-reduce test cases from larger programs that are triggering a bug.
+The \fBllvm\-extract\fP command takes the name of a function and extracts
+it from the specified LLVM bitcode file.  It is primarily used as a debugging
+tool to reduce test cases from larger programs that are triggering a bug.
 .sp
 In addition to extracting the bitcode of the specified function,
-\fBllvm\-extract\fP will also remove unreachable global variables, prototypes, and
-unused types.
+\fBllvm\-extract\fP will also remove unreachable global variables,
+prototypes, and unused types.
 .sp
-The \fBllvm\-extract\fP command reads its input from standard input if filename is
-omitted or if filename is \-.  The output is always written to standard output,
-unless the \fB\-o\fP option is specified (see below).
+The \fBllvm\-extract\fP command reads its input from standard input if
+filename is omitted or if filename is \fB\-\fP\&.  The output is always written to
+standard output, unless the \fB\-o\fP option is specified (see below).
 .SH OPTIONS
 .sp
 \fB\-f\fP
 .INDENT 0.0
 .INDENT 3.5
-Enable binary output on terminals.  Normally, \fBllvm\-extract\fP will refuse to
-write raw bitcode output if the output stream is a terminal. With this option,
-\fBllvm\-extract\fP will write raw bitcode regardless of the output device.
+Enable binary output on terminals.  Normally, \fBllvm\-extract\fP will
+refuse to write raw bitcode output if the output stream is a terminal.  With
+this option, \fBllvm\-extract\fP will write raw bitcode regardless of the
+output device.
 .UNINDENT
 .UNINDENT
 .sp
@@ -87,8 +88,8 @@ specified multiple times to extract multiple global variables at once.
 .INDENT 0.0
 .INDENT 3.5
 Extract the global variable(s) matching \fIglobal\-regular\-expr\fP from the LLVM
-bitcode. All global variables matching the regular expression will be extracted.
-May be specified multiple times.
+bitcode.  All global variables matching the regular expression will be
+extracted.  May be specified multiple times.
 .UNINDENT
 .UNINDENT
 .sp
@@ -119,7 +120,7 @@ If \fBllvm\-extract\fP succeeds, it will exit with 0.  Otherwise, if an error
 occurs, it will exit with a non\-zero value.
 .SH SEE ALSO
 .sp
-bugpoint|bugpoint
+bugpoint
 .SH AUTHOR
 Maintained by The LLVM Team (http://llvm.org/).
 .SH COPYRIGHT

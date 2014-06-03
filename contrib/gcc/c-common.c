@@ -541,6 +541,9 @@ static tree handle_pure_attribute (tree *, tree, tree, int, bool *);
 static tree handle_novops_attribute (tree *, tree, tree, int, bool *);
 static tree handle_deprecated_attribute (tree *, tree, tree, int,
 					 bool *);
+/* APPLE LOCAL begin "unavailable" attribute (Radar 2809697) --ilr */
+static tree handle_unavailable_attribute (tree *, tree, tree, int,  bool *);
+/* APPLE LOCAL end "unavailable" attribute --ilr */
 static tree handle_vector_size_attribute (tree *, tree, tree, int,
 					  bool *);
 static tree handle_nonnull_attribute (tree *, tree, tree, int, bool *);
@@ -549,6 +552,8 @@ static tree handle_cleanup_attribute (tree *, tree, tree, int, bool *);
 static tree handle_warn_unused_result_attribute (tree *, tree, tree, int,
 						 bool *);
 static tree handle_sentinel_attribute (tree *, tree, tree, int, bool *);
+/* APPLE LOCAL radar 5932809 - copyable byref blocks */
+static tree handle_blocks_attribute (tree *, tree, tree, int, bool *);
 
 static void check_function_nonnull (tree, tree);
 static void check_nonnull_arg (void *, tree, unsigned HOST_WIDE_INT);
@@ -604,7 +609,8 @@ const struct attribute_spec c_common_attribute_table[] =
 			      handle_section_attribute },
   { "aligned",                0, 1, false, false, false,
 			      handle_aligned_attribute },
-  { "weak",                   0, 0, true,  false, false,
+  /* APPLE LOCAL weak types 5954418 */
+  { "weak",                   0, 0, false, false, false,
 			      handle_weak_attribute },
   { "alias",                  1, 1, true,  false, false,
 			      handle_alias_attribute },
@@ -626,6 +632,10 @@ const struct attribute_spec c_common_attribute_table[] =
 			      handle_novops_attribute },
   { "deprecated",             0, 0, false, false, false,
 			      handle_deprecated_attribute },
+  /* APPLE LOCAL begin "unavailable" attribute (Radar 2809697) --ilr */
+  { "unavailable",            0, 0, false, false, false,
+			      handle_unavailable_attribute },
+  /* APPLE LOCAL end "unavailable" attribute --ilr */
   { "vector_size",	      1, 1, false, true, false,
 			      handle_vector_size_attribute },
   { "visibility",	      1, 1, false, false, false,
@@ -643,6 +653,8 @@ const struct attribute_spec c_common_attribute_table[] =
 			      handle_warn_unused_result_attribute },
   { "sentinel",               0, 1, false, true, true,
 			      handle_sentinel_attribute },
+  /* APPLE LOCAL radar 5932809 - copyable byref blocks */
+  { "blocks", 1, 1, true, false, false, handle_blocks_attribute },
   { NULL,                     0, 0, false, false, false, NULL }
 };
 
@@ -4252,7 +4264,10 @@ handle_noreturn_attribute (tree *node, tree name, tree ARG_UNUSED (args),
   tree type = TREE_TYPE (*node);
 
   /* See FIXME comment in c_common_attribute_table.  */
-  if (TREE_CODE (*node) == FUNCTION_DECL)
+  /* APPLE LOCAL begin radar 4727659 */
+  if (TREE_CODE (*node) == FUNCTION_DECL
+      || objc_method_decl (TREE_CODE (*node)))
+  /* APPLE LOCAL end radar 4727659 */
     TREE_THIS_VOLATILE (*node) = 1;
   else if (TREE_CODE (type) == POINTER_TYPE
 	   && TREE_CODE (TREE_TYPE (type)) == FUNCTION_TYPE)
@@ -4260,6 +4275,14 @@ handle_noreturn_attribute (tree *node, tree name, tree ARG_UNUSED (args),
       = build_pointer_type
 	(build_type_variant (TREE_TYPE (type),
 			     TYPE_READONLY (TREE_TYPE (type)), 1));
+  /* APPLE LOCAL begin radar 6237713 */
+  else if (TREE_CODE (type) == BLOCK_POINTER_TYPE
+	   && TREE_CODE (TREE_TYPE (type)) == FUNCTION_TYPE)
+    TREE_TYPE (*node)
+      = build_block_pointer_type
+	(build_type_variant (TREE_TYPE (type),
+			     TYPE_READONLY (TREE_TYPE (type)), 1));
+  /* APPLE LOCAL end radar 6237713 */
   else
     {
       warning (OPT_Wattributes, "%qE attribute ignored", name);
@@ -4394,7 +4417,10 @@ handle_unused_attribute (tree *node, tree name, tree ARG_UNUSED (args),
       if (TREE_CODE (decl) == PARM_DECL
 	  || TREE_CODE (decl) == VAR_DECL
 	  || TREE_CODE (decl) == FUNCTION_DECL
-	  || TREE_CODE (decl) == LABEL_DECL
+/* APPLE LOCAL begin for-fsf-4_4 3274130 5295549 */ \
+	  || (TREE_CODE (decl) == LABEL_DECL
+	      && ! DECL_ARTIFICIAL (decl))
+/* APPLE LOCAL end for-fsf-4_4 3274130 5295549 */ \
 	  || TREE_CODE (decl) == TYPE_DECL)
 	TREE_USED (decl) = 1;
       else
@@ -4842,7 +4868,10 @@ handle_aligned_attribute (tree *node, tree ARG_UNUSED (name), tree args,
       TYPE_USER_ALIGN (*type) = 1;
     }
   else if (! VAR_OR_FUNCTION_DECL_P (decl)
-	   && TREE_CODE (decl) != FIELD_DECL)
+/* APPLE LOCAL begin for-fsf-4_4 3274130 5295549 */ \
+	   && TREE_CODE (decl) != FIELD_DECL
+	   && TREE_CODE (decl) != LABEL_DECL)
+/* APPLE LOCAL end for-fsf-4_4 3274130 5295549 */ \
     {
       error ("alignment may not be specified for %q+D", decl);
       *no_add_attrs = true;
@@ -4880,6 +4909,23 @@ handle_weak_attribute (tree *node, tree name,
   if (TREE_CODE (*node) == FUNCTION_DECL
       || TREE_CODE (*node) == VAR_DECL)
     declare_weak (*node);
+  /* APPLE LOCAL begin weak types 5954418 */
+  else if (!DECL_P (*node)
+	   /* If the weak flag can be associated with something else,
+	      prefer that. */
+	   && (flags & (ATTR_FLAG_FUNCTION_NEXT
+			|ATTR_FLAG_DECL_NEXT
+			|ATTR_FLAG_ARRAY_NEXT)))
+    {
+      *no_add_attrs = true;
+      return tree_cons (name, args, NULL_TREE);
+    }
+  else if (! targetm.cxx.class_data_always_comdat ()
+	   && TREE_CODE (*node) == RECORD_TYPE)
+    {
+      /* Leave on the type for the C++ front end */
+    }
+  /* APPLE LOCAL end weak types 5954418 */
   else
     warning (OPT_Wattributes, "%qE attribute ignored", name);
     	
@@ -5345,6 +5391,71 @@ handle_deprecated_attribute (tree *node, tree name,
   return NULL_TREE;
 }
 
+/* APPLE LOCAL begin "unavailable" attribute (Radar 2809697) --ilr */
+/* Handle a "unavailable" attribute; arguments as in
+   struct attribute_spec.handler.  */
+
+static tree
+handle_unavailable_attribute (tree *node, tree name,
+			      tree args ATTRIBUTE_UNUSED,
+			      int flags ATTRIBUTE_UNUSED,
+			      bool *no_add_attrs)
+{
+  tree type = NULL_TREE;
+  int warn = 0;
+  const char *what = NULL;
+
+  if (DECL_P (*node))
+    {
+      tree decl = *node;
+      type = TREE_TYPE (decl);
+
+      if (TREE_CODE (decl) == TYPE_DECL
+      	  || TREE_CODE (decl) == PARM_DECL
+	  || TREE_CODE (decl) == VAR_DECL
+	  || TREE_CODE (decl) == FUNCTION_DECL
+	  /* APPLE LOCAL begin radar 3803157 - objc attribute */
+	  || TREE_CODE (decl) == FIELD_DECL
+	  || objc_method_decl (TREE_CODE (decl)))
+	  /* APPLE LOCAL end radar 3803157 - objc attribute */
+	{
+	  TREE_UNAVAILABLE (decl) = 1;
+	}
+      else
+	warn = 1;
+    }
+  else if (TYPE_P (*node))
+    {
+      if (!(flags & (int) ATTR_FLAG_TYPE_IN_PLACE))
+	*node = build_variant_type_copy (*node);
+      TREE_UNAVAILABLE (*node) = 1;
+      type = *node;
+    }
+  else
+    warn = 1;
+
+  if (warn)
+    {
+      *no_add_attrs = true;
+      if (type && TYPE_NAME (type))
+	{
+	  if (TREE_CODE (TYPE_NAME (type)) == IDENTIFIER_NODE)
+	    what = IDENTIFIER_POINTER (TYPE_NAME (*node));
+	  else if (TREE_CODE (TYPE_NAME (type)) == TYPE_DECL
+		   && DECL_NAME (TYPE_NAME (type)))
+	    what = IDENTIFIER_POINTER (DECL_NAME (TYPE_NAME (type)));
+	}
+      if (what)
+	warning (0, "`%s' attribute ignored for `%s'",
+		 IDENTIFIER_POINTER (name), what);
+      else
+	warning (0, "`%s' attribute ignored", IDENTIFIER_POINTER (name));
+    }
+
+  return NULL_TREE;
+}
+/* APPLE LOCAL end "unavailable" attribute --ilr */
+
 /* Handle a "vector_size" attribute; arguments as in
    struct attribute_spec.handler.  */
 
@@ -5482,7 +5593,10 @@ handle_nonnull_attribute (tree *node, tree ARG_UNUSED (name),
 	      return NULL_TREE;
 	    }
 
-	  if (TREE_CODE (TREE_VALUE (argument)) != POINTER_TYPE)
+	  /* APPLE LOCAL begin blocks 5925781 */
+	  if (TREE_CODE (TREE_VALUE (argument)) != POINTER_TYPE &&
+	      TREE_CODE (TREE_VALUE (argument)) != BLOCK_POINTER_TYPE)
+	  /* APPLE LOCAL end blocks 5925781 */
 	    {
 	      error ("nonnull argument references non-pointer operand (argument %lu, operand %lu)",
 		   (unsigned long) attr_arg_num, (unsigned long) arg_num);
@@ -5629,8 +5743,11 @@ check_nonnull_arg (void * ARG_UNUSED (ctx), tree param,
      happen if the "nonnull" attribute was given without an operand
      list (which means to check every pointer argument).  */
 
-  if (TREE_CODE (TREE_TYPE (param)) != POINTER_TYPE)
-    return;
+  /* APPLE LOCAL begin blocks 5925781 */
+  if (TREE_CODE (TREE_TYPE (param)) != POINTER_TYPE &&
+      TREE_CODE (TREE_TYPE (param)) != BLOCK_POINTER_TYPE)
+  /* APPLE LOCAL end blocks 5925781 */
+   return;
 
   if (integer_zerop (param))
     warning (OPT_Wnonnull, "null argument where non-null required "
@@ -5732,6 +5849,168 @@ handle_warn_unused_result_attribute (tree *node, tree name,
 
   return NULL_TREE;
 }
+
+/* APPLE LOCAL begin radar 5932809 - copyable byref blocks */
+/* Handle "blocks" attribute. */
+static tree
+handle_blocks_attribute (tree *node, tree name, 
+			  tree args,
+			  int ARG_UNUSED (flags), bool *no_add_attrs)
+{
+  tree arg_ident;
+  /* APPLE LOCAL radar 6217257 */
+  tree type;
+  *no_add_attrs = true;
+  if (!(*node) || TREE_CODE (*node) != VAR_DECL)
+    {
+      error ("__block attribute can be specified on variables only");
+      return NULL_TREE;
+    }
+  arg_ident = TREE_VALUE (args);
+  gcc_assert (TREE_CODE (arg_ident) == IDENTIFIER_NODE);
+  /* APPLE LOCAL radar 6096219 */
+  if (strcmp (IDENTIFIER_POINTER (arg_ident), "byref"))
+    {
+      /* APPLE LOCAL radar 6096219 */
+      warning (OPT_Wattributes, "Only \"byref\" is allowed - %qE attribute ignored", 
+	        name);
+      return NULL_TREE;
+    }
+  /* APPLE LOCAL begin radar 6217257 */
+  type = TREE_TYPE (*node);
+  if (TREE_CODE (type) == ERROR_MARK)
+    return NULL_TREE;
+  if (TREE_CODE (type) == ARRAY_TYPE)
+  {
+    if (!TYPE_SIZE (type) || TREE_CODE (TYPE_SIZE (type)) != INTEGER_CST)
+    {
+      error ("__block not allowed on a variable length array declaration");
+      return NULL_TREE;
+    }
+  }
+  /* APPLE LOCAL end radar 6217257 */
+  COPYABLE_BYREF_LOCAL_VAR (*node) = 1;
+  COPYABLE_BYREF_LOCAL_NONPOD (*node) = block_requires_copying (*node);
+  return NULL_TREE;
+}
+/* APPLE LOCAL end radar 5932809 - copyable byref blocks */
+
+/* APPLE LOCAL begin blocks 6040305 */
+
+/* This routine builds:
+   *(void **)(EXP+20) expression which references the object pointer.
+*/
+tree
+build_indirect_object_id_exp (tree exp)
+{
+  tree dst_obj;
+  int  int_size = int_cst_value (TYPE_SIZE_UNIT (unsigned_type_node));
+  int offset;
+  /* dst->object In thid case 'object' is the field
+   of the object passed offset by: void * + void* + int + int + void* + void *
+   This must match definition of Block_byref structs. */
+  /* APPLE LOCAL radar 6244520 */
+  offset = GET_MODE_SIZE (Pmode) + GET_MODE_SIZE (Pmode) 
+	    + int_size + int_size + GET_MODE_SIZE (Pmode) +
+	    GET_MODE_SIZE (Pmode);
+  dst_obj = build2 (PLUS_EXPR, ptr_type_node, exp,
+		     build_int_cst (NULL_TREE, offset));
+  /* APPLE LOCAL begin radar 6180456 */
+  /* Type case to: 'void **' */
+  dst_obj = build_c_cast (build_pointer_type (ptr_type_node), dst_obj);
+  dst_obj = build_indirect_ref (dst_obj, "unary *");
+  /* APPLE LOCAL end radar 6180456 */
+  return dst_obj;
+}
+
+/* This routine builds call to:
+ _Block_object_dispose(VAR_DECL.__forwarding, BLOCK_FIELD_IS_BYREF);
+ and adds it to the statement list.
+ */
+tree
+build_block_byref_release_exp (tree var_decl)
+{
+  tree exp = var_decl, call_exp;
+  tree type = TREE_TYPE (var_decl);
+  /* __block variables imported into Blocks are not _Block_object_dispose()
+   from within the Block statement itself; otherwise, each envokation of
+   the block causes a release. Make sure to release __block variables declared 
+   and used locally in the block though. */
+  if (cur_block 
+      && (BLOCK_DECL_COPIED (var_decl) || BLOCK_DECL_BYREF (var_decl)))
+    return NULL_TREE;
+  if (BLOCK_DECL_BYREF (var_decl)) {
+    /* This is a "struct Block_byref_X *" type. Get its pointee. */
+    gcc_assert (POINTER_TYPE_P (type));
+    type = TREE_TYPE (type);
+    exp = build_indirect_ref (exp, "unary *");
+  }
+  TREE_USED (var_decl) = 1;
+
+  /* Declare: _Block_object_dispose(void*, BLOCK_FIELD_IS_BYREF) if not done already. */
+  exp = build_component_ref (exp, get_identifier ("__forwarding"));
+  call_exp = build_block_object_dispose_call_exp (exp, BLOCK_FIELD_IS_BYREF);
+  return call_exp;
+}
+/* APPLE LOCAL end blocks 6040305 */
+/* APPLE LOCAL begin radar 5803600 */
+/** add_block_global_byref_list - Adds global variable decl to the list of
+    byref global declarations in the current block.
+*/
+void add_block_global_byref_list (tree decl)
+{
+  cur_block->block_byref_global_decl_list = 
+    tree_cons (NULL_TREE, decl, cur_block->block_byref_global_decl_list);
+}
+
+/** in_block_global_byref_list - returns TRUE if global variable is
+    in the list of 'byref' declarations.
+*/
+bool in_block_global_byref_list (tree decl)
+{
+  tree chain;
+  if (TREE_STATIC (decl)) {
+    for (chain = cur_block->block_byref_global_decl_list; chain;
+	  chain = TREE_CHAIN (chain))
+      if (TREE_VALUE (chain) == decl)
+	 return true;
+  }
+  return false;
+}
+/* APPLE LOCAL end radar 5803600 */
+
+/* APPLE LOCAL begin radar 6160536 */
+tree
+build_block_helper_name (int unique_count)
+{
+  char *buf;
+  if (!current_function_decl)
+    {
+      /* APPLE LOCAL begin radar 6411649 */
+      static int global_count;
+      buf = (char *)alloca (32);
+      sprintf (buf, "__block_global_%d", ++global_count);
+      /* APPLE LOCAL end radar 6411649 */
+    }
+  else
+    {
+      tree outer_decl = current_function_decl;
+      /* APPLE LOCAL begin radar 6169580 */
+      while (outer_decl &&
+	      DECL_CONTEXT (outer_decl) && TREE_CODE (DECL_CONTEXT (outer_decl)) == FUNCTION_DECL)
+      /* APPLE LOCAL end radar 6169580 */
+	 outer_decl = DECL_CONTEXT (outer_decl);
+      /* APPLE LOCAL begin radar 6411649 */
+      if (!unique_count)
+	 unique_count = ++DECL_STRUCT_FUNCTION(outer_decl)->unqiue_block_number;
+      /* APPLE LOCAL end radar 6411649 */
+      buf = (char *)alloca (IDENTIFIER_LENGTH (DECL_NAME (outer_decl)) + 32); 
+      sprintf (buf, "__%s_block_invoke_%d", 
+	       IDENTIFIER_POINTER (DECL_NAME (outer_decl)), unique_count);
+    }
+   return get_identifier (buf); 
+}
+/* APPLE LOCAL end radar 6160536 */
 
 /* Handle a "sentinel" attribute.  */
 
@@ -6014,11 +6293,11 @@ c_parse_error (const char *gmsgid, enum cpp_ttype token, tree value)
       message = NULL;
     }
   else
-    error (gmsgid);
+    error (gmsgid, "");
 
   if (message)
     {
-      error (message);
+      error (message, "");
       free (message);
     }
 #undef catenate_messages
@@ -6649,5 +6928,147 @@ warn_about_parentheses (enum tree_code code, enum tree_code code_left,
 	     "have their mathematical meaning");
 }
 
+/* APPLE LOCAL begin radar 6246527 */
+/* This routine is called for a "format" attribute. It adds the number of
+ hidden argument ('1') to the format's 2nd and 3rd argument to compensate
+ for these two arguments. This is to make rest of the "format" attribute
+ processing done in the middle-end to work seemlessly. */
 
+static void
+block_delta_format_args (tree format)
+{
+  tree format_num_expr, first_arg_num_expr;
+  int val; 
+  tree args = TREE_VALUE (format);
+  gcc_assert (TREE_CHAIN (args) && TREE_CHAIN (TREE_CHAIN (args)));
+  format_num_expr = TREE_VALUE (TREE_CHAIN (args));
+  first_arg_num_expr = TREE_VALUE (TREE_CHAIN (TREE_CHAIN (args)));
+  if (format_num_expr && TREE_CODE (format_num_expr) == INTEGER_CST)
+  {
+      val = TREE_INT_CST_LOW (format_num_expr);
+      TREE_VALUE (TREE_CHAIN (args)) = build_int_cst (NULL_TREE, val+1);
+  }
+  if (first_arg_num_expr && TREE_CODE (first_arg_num_expr) == INTEGER_CST)
+  {
+      val = TREE_INT_CST_LOW (first_arg_num_expr);
+      if (val != 0)
+	TREE_VALUE (TREE_CHAIN (TREE_CHAIN (args))) = 
+	build_int_cst (NULL_TREE, val+1);
+  }
+}
+
+/* This routine recognizes legal block attributes. In case of block's "format" 
+ attribute, it calls block_delta_format_args to compensate for hidden 
+ argument _self getting passed to block's helper function. */
+bool
+any_recognized_block_attribute (tree attributes)
+{
+  tree chain;
+  bool res = false;
+  for (chain = attributes; chain; chain = TREE_CHAIN (chain))
+  {
+      if (is_attribute_p ("format", TREE_PURPOSE (chain)))
+      {
+	block_delta_format_args (chain);
+	res = true;
+      }
+      else if (is_attribute_p ("sentinel", TREE_PURPOSE (chain)))
+	res = true;	
+  }
+  return res;
+}
+/* APPLE LOCAL end radar 6246527 */
+/* APPLE LOCAL begin radar 5847976 */
+static GTY(()) tree block_object_assign_decl;
+static GTY(()) tree block_object_dispose_func_decl;
+/* This routine declares:
+   void _Block_object_assign (void *, void *, int) or uses an
+   existing one.
+*/
+static tree
+build_block_object_assign_decl (void)
+{
+  tree func_type;
+  if (block_object_assign_decl)
+    return block_object_assign_decl;
+  block_object_assign_decl = lookup_name (get_identifier ("_Block_object_assign"));
+  if (block_object_assign_decl)
+    return block_object_assign_decl;
+  func_type =
+	     build_function_type (void_type_node,
+	       tree_cons (NULL_TREE, ptr_type_node,
+			  tree_cons (NULL_TREE, ptr_type_node,
+			             tree_cons (NULL_TREE, integer_type_node, void_list_node))));
+
+  block_object_assign_decl = builtin_function ("_Block_object_assign", func_type,
+					        0, NOT_BUILT_IN, 0, NULL_TREE);
+  TREE_NOTHROW (block_object_assign_decl) = 0;
+  return block_object_assign_decl;
+}
+
+/* This routine builds:
+   _Block_object_assign(dest, src, flag)
+*/
+tree build_block_object_assign_call_exp (tree dst, tree src, int flag)
+{
+  tree func_params = tree_cons (NULL_TREE, dst,
+			        tree_cons (NULL_TREE, src,
+				           tree_cons (NULL_TREE,
+						      build_int_cst (integer_type_node, flag),
+						      NULL_TREE)));
+  return build_function_call (build_block_object_assign_decl (), func_params);
+}
+
+/* This routine declares:
+   void _Block_object_dispose (void *, int) or uses an
+   existing one.
+*/
+static tree
+build_block_object_dispose_decl (void)
+{
+  tree func_type;
+  if (block_object_dispose_func_decl)
+    return block_object_dispose_func_decl;
+  block_object_dispose_func_decl = lookup_name (get_identifier ("_Block_object_dispose"));
+  if (block_object_dispose_func_decl)
+    return block_object_dispose_func_decl;
+  func_type =
+      build_function_type (void_type_node,
+			    tree_cons (NULL_TREE, ptr_type_node,
+				       tree_cons (NULL_TREE, integer_type_node, void_list_node)));
+
+  block_object_dispose_func_decl = builtin_function ("_Block_object_dispose", func_type,
+						      0, NOT_BUILT_IN, 0, NULL_TREE);
+  TREE_NOTHROW (block_object_dispose_func_decl) = 0;
+  return block_object_dispose_func_decl;
+}
+
+/* This routine builds the call tree:
+   _Block_object_dispose(src, flag)
+*/
+tree build_block_object_dispose_call_exp (tree src, int flag)
+{
+  tree func_params = tree_cons (NULL_TREE, src, 
+			        tree_cons (NULL_TREE,
+					    build_int_cst (integer_type_node, flag),
+					   NULL_TREE));
+  return build_function_call (build_block_object_dispose_decl (), func_params);
+}
+/* APPLE LOCAL end radar 5847976 */
+/* APPLE LOCAL begin radar 7760213 */
+int HasByrefArray(tree byrefType)
+{
+  tree s1;
+  /* Check for possibility of an error condition. */
+  if (TREE_CODE(byrefType) != RECORD_TYPE)
+    return 0;
+
+  for (s1 = TYPE_FIELDS (byrefType); s1; s1 = TREE_CHAIN (s1))
+    {
+      if (TREE_CODE(TREE_TYPE(s1)) == ARRAY_TYPE)
+	 return 1;
+    }
+  return 0;
+}
+/* APPLE LOCAL end radar 7760213 */
 #include "gt-c-common.h"

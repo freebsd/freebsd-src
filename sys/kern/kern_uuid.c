@@ -371,7 +371,7 @@ be_uuid_dec(void const *buf, struct uuid *uuid)
 
 	p = buf;
 	uuid->time_low = be32dec(p);
-	uuid->time_mid = le16dec(p + 4);
+	uuid->time_mid = be16dec(p + 4);
 	uuid->time_hi_and_version = be16dec(p + 6);
 	uuid->clock_seq_hi_and_reserved = p[8];
 	uuid->clock_seq_low = p[9];

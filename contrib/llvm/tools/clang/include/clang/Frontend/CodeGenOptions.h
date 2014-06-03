@@ -50,12 +50,20 @@ public:
   };
 
   enum DebugInfoKind {
-    NoDebugInfo,          // Don't generate debug info.
-    DebugLineTablesOnly,  // Emit only debug info necessary for generating
-                          // line number tables (-gline-tables-only).
-    LimitedDebugInfo,     // Limit generated debug info to reduce size
-                          // (-flimit-debug-info).
-    FullDebugInfo         // Generate complete debug info.
+    NoDebugInfo,          /// Don't generate debug info.
+
+    DebugLineTablesOnly,  /// Emit only debug info necessary for generating
+                          /// line number tables (-gline-tables-only).
+
+    LimitedDebugInfo,     /// Limit generated debug info to reduce size
+                          /// (-fno-standalone-debug). This emits
+                          /// forward decls for types that could be
+                          /// replaced with forward decls in the source
+                          /// code. For dynamic C++ classes type info
+                          /// is only emitted int the module that
+                          /// contains the classe's vtable.
+
+    FullDebugInfo         /// Generate complete debug info.
   };
 
   enum TLSModel {
@@ -69,6 +77,12 @@ public:
     FPC_Off,        // Form fused FP ops only where result will not be affected.
     FPC_On,         // Form fused FP ops according to FP_CONTRACT rules.
     FPC_Fast        // Aggressively fuse FP ops (E.g. FMA).
+  };
+
+  enum StructReturnConventionKind {
+    SRCK_Default,  // No special option was passed.
+    SRCK_OnStack,  // Small structs on the stack (-fpcc-struct-return).
+    SRCK_InRegs    // Small structs in registers (-freg-struct-return).
   };
 
   /// The code model to use (-mcmodel).
@@ -121,6 +135,12 @@ public:
 
   /// A list of command-line options to forward to the LLVM backend.
   std::vector<std::string> BackendOptions;
+
+  /// A list of dependent libraries.
+  std::vector<std::string> DependentLibraries;
+
+  /// Name of the profile file to use with -fprofile-sample-use.
+  std::string SampleProfileFile;
 
 public:
   // Define accessors/mutators for code generation options of enumeration type.

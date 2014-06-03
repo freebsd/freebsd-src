@@ -52,9 +52,9 @@ SourceMgr::~SourceMgr() {
 /// AddIncludeFile - Search for a file with the specified name in the current
 /// directory or in one of the IncludeDirs.  If no file is found, this returns
 /// ~0, otherwise it returns the buffer ID of the stacked file.
-unsigned SourceMgr::AddIncludeFile(const std::string &Filename,
-                                   SMLoc IncludeLoc,
-                                   std::string &IncludedFile) {
+size_t SourceMgr::AddIncludeFile(const std::string &Filename,
+                                 SMLoc IncludeLoc,
+                                 std::string &IncludedFile) {
   OwningPtr<MemoryBuffer> NewBuf;
   IncludedFile = Filename;
   MemoryBuffer::getFile(IncludedFile.c_str(), NewBuf);
@@ -65,7 +65,7 @@ unsigned SourceMgr::AddIncludeFile(const std::string &Filename,
     MemoryBuffer::getFile(IncludedFile.c_str(), NewBuf);
   }
 
-  if (NewBuf == 0) return ~0U;
+  if (!NewBuf) return ~0U;
 
   return AddNewSourceBuffer(NewBuf.take(), IncludeLoc);
 }
@@ -211,7 +211,8 @@ SMDiagnostic SourceMgr::GetMessage(SMLoc Loc, SourceMgr::DiagKind Kind,
                       LineStr, ColRanges, FixIts);
 }
 
-void SourceMgr::PrintMessage(SMLoc Loc, SourceMgr::DiagKind Kind,
+void SourceMgr::PrintMessage(raw_ostream &OS, SMLoc Loc,
+                             SourceMgr::DiagKind Kind,
                              const Twine &Msg, ArrayRef<SMRange> Ranges,
                              ArrayRef<SMFixIt> FixIts, bool ShowColors) const {
   SMDiagnostic Diagnostic = GetMessage(Loc, Kind, Msg, Ranges, FixIts);
@@ -222,8 +223,6 @@ void SourceMgr::PrintMessage(SMLoc Loc, SourceMgr::DiagKind Kind,
     return;
   }
 
-  raw_ostream &OS = errs();
-
   if (Loc != SMLoc()) {
     int CurBuf = FindBufferContainingLoc(Loc);
     assert(CurBuf != -1 && "Invalid or unspecified location!");
@@ -231,6 +230,12 @@ void SourceMgr::PrintMessage(SMLoc Loc, SourceMgr::DiagKind Kind,
   }
 
   Diagnostic.print(0, OS, ShowColors);
+}
+
+void SourceMgr::PrintMessage(SMLoc Loc, SourceMgr::DiagKind Kind,
+                             const Twine &Msg, ArrayRef<SMRange> Ranges,
+                             ArrayRef<SMFixIt> FixIts, bool ShowColors) const {
+  PrintMessage(llvm::errs(), Loc, Kind, Msg, Ranges, FixIts, ShowColors);
 }
 
 //===----------------------------------------------------------------------===//
@@ -465,7 +470,7 @@ void SMDiagnostic::print(const char *ProgName, raw_ostream &S,
   if (FixItInsertionLine.empty())
     return;
   
-  for (size_t i = 0, e = FixItInsertionLine.size(), OutCol = 0; i != e; ++i) {
+  for (size_t i = 0, e = FixItInsertionLine.size(), OutCol = 0; i < e; ++i) {
     if (i >= LineContents.size() || LineContents[i] != '\t') {
       S << FixItInsertionLine[i];
       ++OutCol;

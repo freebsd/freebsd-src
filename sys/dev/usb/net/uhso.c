@@ -269,6 +269,8 @@ static const STRUCT_USB_HOST_ID uhso_devs[] = {
 	UHSO_DEV(OPTION, ICON401, UHSO_AUTO_IFACE),
 	/* Option GlobeTrotter Module 382 */
 	UHSO_DEV(OPTION, GMT382, UHSO_AUTO_IFACE),
+	/* Option GTM661W */
+	UHSO_DEV(OPTION, GTM661W, UHSO_AUTO_IFACE),
 	/* Option iCON EDGE */
 	UHSO_DEV(OPTION, ICONEDGE, UHSO_STATIC_IFACE),
 	/* Option Module HSxPA */
@@ -815,6 +817,8 @@ uhso_probe_iface_auto(struct usb_device *udev, int index)
 		    UHSO_PORT_SERIAL | UHSO_PORT_NETWORK, port));
 	case UHSO_PORT_TYPE_DIAG:
 	case UHSO_PORT_TYPE_DIAG2:
+	case UHSO_PORT_TYPE_GPS:
+	case UHSO_PORT_TYPE_GPSCTL:
 	case UHSO_PORT_TYPE_CTL:
 	case UHSO_PORT_TYPE_APP:
 	case UHSO_PORT_TYPE_APP2:

@@ -206,11 +206,7 @@ ipsec_process_done(struct mbuf *m, struct ipsecrequest *isr)
 		 */
 		if (sav->natt_type) {
 			struct ip *ip = mtod(m, struct ip *);
-#ifdef _IP_VHL
-			const int hlen = IP_VHL_HL(ip->ip_vhl);
-#else
 			const int hlen = (ip->ip_hl << 2);
-#endif
 			int size, off;
 			struct mbuf *mi;
 			struct udphdr *udp;
@@ -505,15 +501,7 @@ ipsec4_process_packet(
 			ip = mtod(m, struct ip *);
 			ip->ip_len = htons(m->m_pkthdr.len);
 			ip->ip_sum = 0;
-#ifdef _IP_VHL
-			if (ip->ip_vhl == IP_VHL_BORING)
-				ip->ip_sum = in_cksum_hdr(ip);
-			else
-				ip->ip_sum = in_cksum(m,
-					_IP_VHL_HL(ip->ip_vhl) << 2);
-#else
 			ip->ip_sum = in_cksum(m, ip->ip_hl << 2);
-#endif
 
 			/* Encapsulate the packet */
 			error = ipip_output(m, isr, &mp, 0, 0);

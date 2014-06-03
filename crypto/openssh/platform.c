@@ -1,4 +1,4 @@
-/* $Id: platform.c,v 1.19 2013/03/12 00:31:05 dtucker Exp $ */
+/* $Id: platform.c,v 1.21 2014/01/21 01:59:29 tim Exp $ */
 
 /*
  * Copyright (c) 2006 Darren Tucker.  All rights reserved.
@@ -51,6 +51,14 @@ platform_pre_fork(void)
 {
 #ifdef USE_SOLARIS_PROCESS_CONTRACTS
 	solaris_contract_pre_fork();
+#endif
+}
+
+void
+platform_pre_restart(void)
+{
+#ifdef LINUX_OOM_ADJUST
+	oom_adjust_restore();
 #endif
 }
 
@@ -155,12 +163,6 @@ platform_setusercontext_post_groups(struct passwd *pw)
 #ifdef _AIX
 	aix_usrinfo(pw);
 #endif /* _AIX */
-
-#if !defined(HAVE_LOGIN_CAP) && defined(USE_LIBIAF)
-	if (set_id(pw->pw_name) != 0) {
-		exit(1);
-	}
-# endif /* USE_LIBIAF */
 
 #ifdef HAVE_SETPCRED
 	/*

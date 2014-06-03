@@ -1,13 +1,15 @@
 #	@(#)Makefile	8.1 (Berkeley) 6/4/93
 # $FreeBSD$
 
-.include <bsd.own.mk>
+.include <src.opts.mk>
 
 SUBDIR=	${_atf} \
 	${_atrun} \
 	bootpd \
 	${_casper} \
 	${_comsat} \
+	${_dma} \
+	${_dma-mbox-create} \
 	fingerd \
 	ftpd \
 	getty \
@@ -45,6 +47,11 @@ _casper=	casper
 
 .if ${MK_MAIL} != "no"
 _comsat=	comsat
+.endif
+
+.if ${MK_DMAGENT} != "no"
+_dma=		dma
+_dma-mbox-create=	dma-mbox-create
 .endif
 
 .if ${MK_NIS} != "no"

@@ -49,7 +49,7 @@ inline Visibility minVisibility(Visibility L, Visibility R) {
 }
 
 class LinkageInfo {
-  uint8_t linkage_    : 2;
+  uint8_t linkage_    : 3;
   uint8_t visibility_ : 2;
   uint8_t explicit_   : 1;
 
@@ -87,6 +87,20 @@ public:
   }
   void mergeLinkage(LinkageInfo other) {
     mergeLinkage(other.getLinkage());
+  }
+
+  void mergeExternalVisibility(Linkage L) {
+    Linkage ThisL = getLinkage();
+    if (!isExternallyVisible(L)) {
+      if (ThisL == VisibleNoLinkage)
+        ThisL = NoLinkage;
+      else if (ThisL == ExternalLinkage)
+        ThisL = UniqueExternalLinkage;
+    }
+    setLinkage(ThisL);
+  }
+  void mergeExternalVisibility(LinkageInfo Other) {
+    mergeExternalVisibility(Other.getLinkage());
   }
 
   /// Merge in the visibility 'newVis'.

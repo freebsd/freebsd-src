@@ -36,6 +36,6 @@
 
 BEGIN
 {
-	printf("sysname = %s", `utsname.sysname);
+	printf("sysname = %s", `ostype);
 	exit(0);
 }

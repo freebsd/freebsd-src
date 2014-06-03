@@ -1,6 +1,6 @@
 divert(-1)
 #
-# Copyright (c) 1998, 1999 Sendmail, Inc. and its suppliers.
+# Copyright (c) 1998, 1999 Proofpoint, Inc. and its suppliers.
 #	All rights reserved.
 # Copyright (c) 1983 Eric P. Allman.  All rights reserved.
 # Copyright (c) 1988, 1993
@@ -20,7 +20,7 @@ divert(-1)
 #  files.
 #
 divert(0)
-VERSIONID(`$Id: generic.m4,v 8.15 1999/04/04 00:51:09 ca Exp $')
+VERSIONID(`$Id: generic.m4,v 8.16 2013-11-22 20:51:10 ca Exp $')
 define(`confFORWARD_PATH', `$z/.forward.$w+$h:$z/.forward+$h:$z/.forward.$w:$z/.forward')dnl
 define(`confMAX_HEADERS_LENGTH', `32768')dnl
 FEATURE(`redirect')dnl

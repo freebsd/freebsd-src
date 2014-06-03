@@ -30,7 +30,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <sys/capability.h>
+#include <sys/capsicum.h>
 
 #include <assert.h>
 #include <err.h>
@@ -49,18 +49,19 @@ static int ntest = 1;
 
 #define CHECK(expr)     do {						\
 	if ((expr))							\
-		printf("ok # %d %s:%u\n", ntest, __FILE__, __LINE__);	\
+		printf("ok %d %s:%u\n", ntest, __FILE__, __LINE__);	\
 	else								\
-		printf("not ok # %d %s:%u\n", ntest, __FILE__, __LINE__);\
+		printf("not ok %d %s:%u\n", ntest, __FILE__, __LINE__);\
 	ntest++;							\
 } while (0)
 #define CHECKX(expr)     do {						\
 	if ((expr)) {							\
-		printf("ok # %d %s:%u\n", ntest, __FILE__, __LINE__);	\
+		printf("ok %d %s:%u\n", ntest, __FILE__, __LINE__);	\
 	} else {							\
-		printf("not ok # %d %s:%u\n", ntest, __FILE__, __LINE__);\
+		printf("not ok %d %s:%u\n", ntest, __FILE__, __LINE__);\
 		exit(1);						\
 	}								\
+	ntest++;							\
 } while (0)
 
 #define	UID_ROOT	0
@@ -1508,7 +1509,7 @@ main(void)
 {
 	cap_channel_t *capcas, *cappwd;
 
-	printf("1..186\n");
+	printf("1..188\n");
 
 	capcas = cap_init();
 	CHECKX(capcas != NULL);

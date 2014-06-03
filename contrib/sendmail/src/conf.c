@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998-2013 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 1998-2013 Proofpoint, Inc. and its suppliers.
  *	All rights reserved.
  * Copyright (c) 1983, 1995-1997 Eric P. Allman.  All rights reserved.
  * Copyright (c) 1988, 1993
@@ -13,7 +13,7 @@
 
 #include <sendmail.h>
 
-SM_RCSID("@(#)$Id: conf.c,v 8.1182 2013/04/05 17:39:09 ca Exp $")
+SM_RCSID("@(#)$Id: conf.c,v 8.1191 2014-01-08 17:03:14 ca Exp $")
 
 #include <sm/sendmail.h>
 #include <sendmail/pathnames.h>
@@ -664,6 +664,13 @@ setupmaps()
 	MAPDEF("arith", NULL, 0,
 		dequote_init, null_map_open, null_map_close,
 		arith_map_lookup, null_map_store);
+
+#if _FFR_ARPA_MAP
+	/* "arpa" map -- IP -> arpa */
+	MAPDEF("arpa", NULL, 0,
+		dequote_init, null_map_open, null_map_close,
+		arpa_map_lookup, null_map_store);
+#endif /* _FFR_ARPA_MAP */
 
 #if SOCKETMAP
 	/* arbitrary daemons */
@@ -4221,8 +4228,16 @@ sm_getipnodebyname(name, family, flags, err)
 	int flags;
 	int *err;
 {
-	bool resv6 = true;
 	struct hostent *h;
+# if HAS_GETHOSTBYNAME2
+
+	h = gethostbyname2(name, family);
+	if (h == NULL)
+		*err = h_errno;
+	return h;
+
+# else /* HAS_GETHOSTBYNAME2 */
+	bool resv6 = true;
 
 	if (family == AF_INET6)
 	{
@@ -4234,8 +4249,20 @@ sm_getipnodebyname(name, family, flags, err)
 	h = gethostbyname(name);
 	if (!resv6)
 		_res.options &= ~RES_USE_INET6;
-	*err = h_errno;
+
+	/* the function is supposed to return only the requested family */
+	if (h != NULL && h->h_addrtype != family)
+	{
+#  if NETINET6
+		freehostent(h);
+#  endif /* NETINET6 */
+		h = NULL;
+		*err = NO_DATA;
+	}
+	else
+		*err = h_errno;
 	return h;
+# endif /* HAS_GETHOSTBYNAME2 */
 }
 
 static struct hostent *
@@ -4363,6 +4390,17 @@ sm_gethostbyname(name, family)
 		}
 	}
 #endif /* (SOLARIS > 10000 && SOLARIS < 20400) || (defined(SOLARIS) && SOLARIS < 204) || (defined(sony_news) && defined(__svr4)) */
+
+	/* the function is supposed to return only the requested family */
+	if (h != NULL && h->h_addrtype != family)
+	{
+# if NETINET6
+		freehostent(h);
+# endif /* NETINET6 */
+		h = NULL;
+		SM_SET_H_ERRNO(NO_DATA);
+	}
+
 	if (tTd(61, 10))
 	{
 		if (h == NULL)
@@ -4372,13 +4410,12 @@ sm_gethostbyname(name, family)
 			sm_dprintf("%s\n", h->h_name);
 			if (tTd(61, 11))
 			{
+				struct in_addr ia;
+				size_t i;
 #if NETINET6
 				struct in6_addr ia6;
 				char buf6[INET6_ADDRSTRLEN];
-#else /* NETINET6 */
-				struct in_addr ia;
 #endif /* NETINET6 */
-				size_t i;
 
 				if (h->h_aliases != NULL)
 					for (i = 0; h->h_aliases[i] != NULL;
@@ -4389,16 +4426,23 @@ sm_gethostbyname(name, family)
 				{
 					char *addr;
 
+					addr = NULL;
 #if NETINET6
-					memmove(&ia6, h->h_addr_list[i],
-						IN6ADDRSZ);
-					addr = anynet_ntop(&ia6,
-							   buf6, sizeof(buf6));
-#else /* NETINET6 */
-					memmove(&ia, h->h_addr_list[i],
-						INADDRSZ);
-					addr = (char *) inet_ntoa(ia);
+					if (h->h_addrtype == AF_INET6)
+					{
+						memmove(&ia6, h->h_addr_list[i],
+							IN6ADDRSZ);
+						addr = anynet_ntop(&ia6,
+							buf6, sizeof(buf6));
+					}
+					else
 #endif /* NETINET6 */
+					/* "else" in #if code above */
+					{
+						memmove(&ia, h->h_addr_list[i],
+							INADDRSZ);
+						addr = (char *) inet_ntoa(ia);
+					}
 					if (addr != NULL)
 						sm_dprintf("\taddr: %s\n", addr);
 				}
@@ -5265,8 +5309,8 @@ closefd_walk(lowest, fd)
 */
 
 void
-sm_close_on_exec(highest, lowest)
-	int highest, lowest;
+sm_close_on_exec(lowest, highest)
+	int lowest, highest;
 {
 #if HASFDWALK
 	(void) fdwalk(closefd_walk, &lowest);
@@ -6095,6 +6139,10 @@ char	*FFRCompileOptions[] =
 	/* DefaultAuthInfo doesn't really work in 8.13 anymore. */
 	"_FFR_ALLOW_SASLINFO",
 #endif /* _FFR_ALLOW_SASLINFO */
+#if _FFR_ARPA_MAP
+	/* arpa map to reverse an IPv(4,6) address */
+	"_FFR_ARPA_MAP",
+#endif /* _FFR_ARPA_MAP */
 #if _FFR_BADRCPT_SHUTDOWN
 	/* shut down connection (421) if there are too many bad RCPTs */
 	"_FFR_BADRCPT_SHUTDOWN",
@@ -6251,6 +6299,10 @@ char	*FFRCompileOptions[] =
 	/* Ignore extensions offered in response to HELO */
 	"_FFR_IGNORE_EXT_ON_HELO",
 #endif /* _FFR_IGNORE_EXT_ON_HELO */
+#if _FFR_IPV6_FULL
+	/* Use uncompressed IPv6 address format (no "::") */
+	"_FFR_IPV6_FULL",
+#endif /* _FFR_IPV6_FULL */
 #if _FFR_LINUX_MHNL
 	/* Set MAXHOSTNAMELEN to 256 (Linux) */
 	"_FFR_LINUX_MHNL",
@@ -6472,6 +6524,9 @@ char	*FFRCompileOptions[] =
 	/* More STARTTLS options, e.g., secondary certs. */
 	"_FFR_TLS_1",
 #endif /* _FFR_TLS_1 */
+#if _FFR_TLS_EC
+	"_FFR_TLS_EC",
+#endif /* _FFR_TLS_EC */
 #if _FFR_TRUSTED_QF
 	/*
 	**  If we don't own the file mark it as unsafe.
@@ -6481,6 +6536,16 @@ char	*FFRCompileOptions[] =
 
 	"_FFR_TRUSTED_QF",
 #endif /* _FFR_TRUSTED_QF */
+#if _FFR_USE_GETPWNAM_ERRNO
+	/*
+	**  See libsm/mbdb.c: only enable this on OSs
+	**  that implement the correct (POSIX) semantics.
+	**  This will need to become an OS-specific #if enabled
+	**  in one of the headers files under include/sm/os/ .
+	*/
+
+	"_FFR_USE_GETPWNAM_ERRNO",
+#endif /* _FFR_USE_GETPWNAM_ERRNO */
 #if _FFR_USE_SEM_LOCKING
 	"_FFR_USE_SEM_LOCKING",
 #endif /* _FFR_USE_SEM_LOCKING */

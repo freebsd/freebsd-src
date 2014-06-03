@@ -168,23 +168,6 @@ Constant *Module::getOrInsertFunction(StringRef Name,
   return F;
 }
 
-Constant *Module::getOrInsertTargetIntrinsic(StringRef Name,
-                                             FunctionType *Ty,
-                                             AttributeSet AttributeList) {
-  // See if we have a definition for the specified function already.
-  GlobalValue *F = getNamedValue(Name);
-  if (F == 0) {
-    // Nope, add it
-    Function *New = Function::Create(Ty, GlobalVariable::ExternalLinkage, Name);
-    New->setAttributes(AttributeList);
-    FunctionList.push_back(New);
-    return New; // Return the new prototype.
-  }
-
-  // Otherwise, we just found the existing function or a prototype.
-  return F;
-}
-
 Constant *Module::getOrInsertFunction(StringRef Name,
                                       FunctionType *Ty) {
   return getOrInsertFunction(Name, Ty, AttributeSet());
@@ -250,8 +233,7 @@ Function *Module::getFunction(StringRef Name) const {
 /// If AllowLocal is set to true, this function will return types that
 /// have an local. By default, these types are not returned.
 ///
-GlobalVariable *Module::getGlobalVariable(StringRef Name,
-                                          bool AllowLocal) const {
+GlobalVariable *Module::getGlobalVariable(StringRef Name, bool AllowLocal) {
   if (GlobalVariable *Result =
       dyn_cast_or_null<GlobalVariable>(getNamedValue(Name)))
     if (AllowLocal || !Result->hasLocalLinkage())
@@ -263,7 +245,7 @@ GlobalVariable *Module::getGlobalVariable(StringRef Name,
 ///   1. If it does not exist, add a declaration of the global and return it.
 ///   2. Else, the global exists but has the wrong type: return the function
 ///      with a constantexpr cast to the right type.
-///   3. Finally, if the existing global is the correct delclaration, return the
+///   3. Finally, if the existing global is the correct declaration, return the
 ///      existing global.
 Constant *Module::getOrInsertGlobal(StringRef Name, Type *Ty) {
   // See if we have a definition for the specified global already.
@@ -278,8 +260,10 @@ Constant *Module::getOrInsertGlobal(StringRef Name, Type *Ty) {
 
   // If the variable exists but has the wrong type, return a bitcast to the
   // right type.
-  if (GV->getType() != PointerType::getUnqual(Ty))
-    return ConstantExpr::getBitCast(GV, PointerType::getUnqual(Ty));
+  Type *GVTy = GV->getType();
+  PointerType *PTy = PointerType::get(Ty, GVTy->getPointerAddressSpace());
+  if (GVTy != PTy)
+    return ConstantExpr::getBitCast(GV, PTy);
 
   // Otherwise, we just found the existing function or a prototype.
   return GV;
@@ -334,12 +318,30 @@ getModuleFlagsMetadata(SmallVectorImpl<ModuleFlagEntry> &Flags) const {
 
   for (unsigned i = 0, e = ModFlags->getNumOperands(); i != e; ++i) {
     MDNode *Flag = ModFlags->getOperand(i);
-    ConstantInt *Behavior = cast<ConstantInt>(Flag->getOperand(0));
-    MDString *Key = cast<MDString>(Flag->getOperand(1));
-    Value *Val = Flag->getOperand(2);
-    Flags.push_back(ModuleFlagEntry(ModFlagBehavior(Behavior->getZExtValue()),
-                                    Key, Val));
+    if (Flag->getNumOperands() >= 3 && isa<ConstantInt>(Flag->getOperand(0)) &&
+        isa<MDString>(Flag->getOperand(1))) {
+      // Check the operands of the MDNode before accessing the operands.
+      // The verifier will actually catch these failures.
+      ConstantInt *Behavior = cast<ConstantInt>(Flag->getOperand(0));
+      MDString *Key = cast<MDString>(Flag->getOperand(1));
+      Value *Val = Flag->getOperand(2);
+      Flags.push_back(ModuleFlagEntry(ModFlagBehavior(Behavior->getZExtValue()),
+                                      Key, Val));
+    }
   }
+}
+
+/// Return the corresponding value if Key appears in module flags, otherwise
+/// return null.
+Value *Module::getModuleFlag(StringRef Key) const {
+  SmallVector<Module::ModuleFlagEntry, 8> ModuleFlags;
+  getModuleFlagsMetadata(ModuleFlags);
+  for (unsigned I = 0, E = ModuleFlags.size(); I < E; ++I) {
+    const ModuleFlagEntry &MFE = ModuleFlags[I];
+    if (Key == MFE.Key->getString())
+      return MFE.Val;
+  }
+  return 0;
 }
 
 /// getModuleFlagsMetadata - Returns the NamedMDNode in the module that
@@ -404,9 +406,15 @@ bool Module::isDematerializable(const GlobalValue *GV) const {
 }
 
 bool Module::Materialize(GlobalValue *GV, std::string *ErrInfo) {
-  if (Materializer)
-    return Materializer->Materialize(GV, ErrInfo);
-  return false;
+  if (!Materializer)
+    return false;
+
+  error_code EC = Materializer->Materialize(GV);
+  if (!EC)
+    return false;
+  if (ErrInfo)
+    *ErrInfo = EC.message();
+  return true;
 }
 
 void Module::Dematerialize(GlobalValue *GV) {
@@ -417,7 +425,12 @@ void Module::Dematerialize(GlobalValue *GV) {
 bool Module::MaterializeAll(std::string *ErrInfo) {
   if (!Materializer)
     return false;
-  return Materializer->MaterializeModule(this, ErrInfo);
+  error_code EC = Materializer->MaterializeModule(this);
+  if (!EC)
+    return false;
+  if (ErrInfo)
+    *ErrInfo = EC.message();
+  return true;
 }
 
 bool Module::MaterializeAllPermanently(std::string *ErrInfo) {

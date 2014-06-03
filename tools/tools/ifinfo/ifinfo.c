@@ -171,8 +171,6 @@ printit(const struct ifmibdata *ifmd, const char *dname)
 	printf("\theader length: %d\n", ifmd->ifmd_data.ifi_hdrlen);
 	printf("\tlink state: %u\n", ifmd->ifmd_data.ifi_link_state);
 	printf("\tvhid: %u\n", ifmd->ifmd_data.ifi_vhid);
-	printf("\tbaudrate power factor: %u\n",
-	    ifmd->ifmd_data.ifi_baudrate_pf);
 	printf("\tdatalen: %u\n", ifmd->ifmd_data.ifi_datalen);
 	printf("\tmtu: %lu\n", ifmd->ifmd_data.ifi_mtu);
 	printf("\tmetric: %lu\n", ifmd->ifmd_data.ifi_metric);

@@ -946,7 +946,7 @@ Instruction *InstCombiner::visitCallSite(CallSite CS) {
     int ix = FTy->getNumParams();
     // See if we can optimize any arguments passed through the varargs area of
     // the call.
-    for (CallSite::arg_iterator I = CS.arg_begin()+FTy->getNumParams(),
+    for (CallSite::arg_iterator I = CS.arg_begin() + FTy->getNumParams(),
            E = CS.arg_end(); I != E; ++I, ++ix) {
       CastInst *CI = dyn_cast<CastInst>(*I);
       if (CI && isSafeToEliminateVarargsCast(CS, CI, TD, ix)) {
@@ -999,19 +999,15 @@ bool InstCombiner::transformConstExprCastCall(CallSite CS) {
 
   // Check to see if we are changing the return type...
   if (OldRetTy != NewRetTy) {
-    if (Callee->isDeclaration() &&
-        // Conversion is ok if changing from one pointer type to another or from
-        // a pointer to an integer of the same size.
-        !((OldRetTy->isPointerTy() || !TD ||
-           OldRetTy == TD->getIntPtrType(Caller->getContext())) &&
-          (NewRetTy->isPointerTy() || !TD ||
-           NewRetTy == TD->getIntPtrType(Caller->getContext()))))
-      return false;   // Cannot transform this return value.
+    if (!CastInst::isBitCastable(NewRetTy, OldRetTy)) {
+      if (Callee->isDeclaration())
+        return false;   // Cannot transform this return value.
 
-    if (!Caller->use_empty() &&
-        // void -> non-void is handled specially
-        !NewRetTy->isVoidTy() && !CastInst::isCastable(NewRetTy, OldRetTy))
+      if (!Caller->use_empty() &&
+          // void -> non-void is handled specially
+          !NewRetTy->isVoidTy())
       return false;   // Cannot transform this return value.
+    }
 
     if (!CallerPAL.isEmpty() && !Caller->use_empty()) {
       AttrBuilder RAttrs(CallerPAL, AttributeSet::ReturnIndex);
@@ -1036,7 +1032,7 @@ bool InstCombiner::transformConstExprCastCall(CallSite CS) {
               return false;
   }
 
-  unsigned NumActualArgs = unsigned(CS.arg_end()-CS.arg_begin());
+  unsigned NumActualArgs = CS.arg_size();
   unsigned NumCommonArgs = std::min(FT->getNumParams(), NumActualArgs);
 
   CallSite::arg_iterator AI = CS.arg_begin();
@@ -1044,7 +1040,7 @@ bool InstCombiner::transformConstExprCastCall(CallSite CS) {
     Type *ParamTy = FT->getParamType(i);
     Type *ActTy = (*AI)->getType();
 
-    if (!CastInst::isCastable(ActTy, ParamTy))
+    if (!CastInst::isBitCastable(ActTy, ParamTy))
       return false;   // Cannot transform this parameter value.
 
     if (AttrBuilder(CallerPAL.getParamAttributes(i + 1), i + 1).
@@ -1061,20 +1057,11 @@ bool InstCombiner::transformConstExprCastCall(CallSite CS) {
       if (ParamPTy == 0 || !ParamPTy->getElementType()->isSized() || TD == 0)
         return false;
 
-      Type *CurElTy = cast<PointerType>(ActTy)->getElementType();
+      Type *CurElTy = ActTy->getPointerElementType();
       if (TD->getTypeAllocSize(CurElTy) !=
           TD->getTypeAllocSize(ParamPTy->getElementType()))
         return false;
     }
-
-    // Converting from one pointer type to another or between a pointer and an
-    // integer of the same size is safe even if we do not have a body.
-    bool isConvertible = ActTy == ParamTy ||
-      (TD && ((ParamTy->isPointerTy() ||
-      ParamTy == TD->getIntPtrType(Caller->getContext())) &&
-              (ActTy->isPointerTy() ||
-              ActTy == TD->getIntPtrType(Caller->getContext()))));
-    if (Callee->isDeclaration() && !isConvertible) return false;
   }
 
   if (Callee->isDeclaration()) {
@@ -1141,12 +1128,11 @@ bool InstCombiner::transformConstExprCastCall(CallSite CS) {
   AI = CS.arg_begin();
   for (unsigned i = 0; i != NumCommonArgs; ++i, ++AI) {
     Type *ParamTy = FT->getParamType(i);
+
     if ((*AI)->getType() == ParamTy) {
       Args.push_back(*AI);
     } else {
-      Instruction::CastOps opcode = CastInst::getCastOpcode(*AI,
-          false, ParamTy, false);
-      Args.push_back(Builder->CreateCast(opcode, *AI, ParamTy));
+      Args.push_back(Builder->CreateBitCast(*AI, ParamTy));
     }
 
     // Add any parameter attributes.
@@ -1217,9 +1203,7 @@ bool InstCombiner::transformConstExprCastCall(CallSite CS) {
   Value *NV = NC;
   if (OldRetTy != NV->getType() && !Caller->use_empty()) {
     if (!NV->getType()->isVoidTy()) {
-      Instruction::CastOps opcode =
-        CastInst::getCastOpcode(NC, false, OldRetTy, false);
-      NV = NC = CastInst::Create(opcode, NC, OldRetTy);
+      NV = NC = CastInst::Create(CastInst::BitCast, NC, OldRetTy);
       NC->setDebugLoc(Caller->getDebugLoc());
 
       // If this is an invoke instruction, we should insert it after the first
@@ -1287,7 +1271,7 @@ InstCombiner::transformCallThroughTrampoline(CallSite CS,
     if (NestTy) {
       Instruction *Caller = CS.getInstruction();
       std::vector<Value*> NewArgs;
-      NewArgs.reserve(unsigned(CS.arg_end()-CS.arg_begin())+1);
+      NewArgs.reserve(CS.arg_size() + 1);
 
       SmallVector<AttributeSet, 8> NewAttrs;
       NewAttrs.reserve(Attrs.getNumSlots() + 1);

@@ -116,7 +116,7 @@ mem_regions(struct mem_region **phys, int *physsz, struct mem_region **avail,
 	int i, j, still_merging;
 
 	if (npregions == 0) {
-		PLATFORM_MEM_REGIONS(plat_obj, &pregions[0], &npregions,
+		PLATFORM_MEM_REGIONS(plat_obj, pregions, &npregions,
 		    aregions, &naregions);
 		qsort(pregions, npregions, sizeof(*pregions), mr_cmp);
 		qsort(aregions, naregions, sizeof(*aregions), mr_cmp);
@@ -194,6 +194,15 @@ u_long
 platform_timebase_freq(struct cpuref *cpu)
 {
 	return (PLATFORM_TIMEBASE_FREQ(plat_obj, cpu));
+}
+
+/*
+ * Put the current CPU, as last step in suspend, to sleep
+ */
+void
+platform_sleep()
+{
+        PLATFORM_SLEEP(plat_obj);
 }
 
 int

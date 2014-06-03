@@ -22,7 +22,7 @@
 #include <sys/bus.h>
 #include <machine/frame.h>
 #include <machine/intr_machdep.h>
-#include <machine/apicvar.h>
+#include <x86/apicvar.h>
 #include <machine/pcb.h>
 
 /* global symbols in mpboot.S */
@@ -62,6 +62,12 @@ struct pmap;
 void	cpu_add(u_int apic_id, char boot_cpu);
 void	cpustop_handler(void);
 void	cpususpend_handler(void);
+void	invltlb_handler(void);
+void	invltlb_pcid_handler(void);
+void	invlpg_handler(void);
+void	invlpg_pcid_handler(void);
+void	invlrng_handler(void);
+void	invlcache_handler(void);
 void	init_secondary(void);
 void	ipi_startup(int apic_id, int vector);
 void	ipi_all_but_self(u_int ipi);
@@ -79,6 +85,7 @@ void	smp_masked_invlpg_range(cpuset_t mask, struct pmap *pmap,
 	    vm_offset_t startva, vm_offset_t endva);
 void	smp_invltlb(struct pmap *pmap);
 void	smp_masked_invltlb(cpuset_t mask, struct pmap *pmap);
+int	native_start_all_aps(void);
 
 #endif /* !LOCORE */
 #endif /* SMP */

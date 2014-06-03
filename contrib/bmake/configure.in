@@ -1,10 +1,11 @@
 dnl
 dnl RCSid:
-dnl	$Id: configure.in,v 1.49 2013/07/06 18:25:19 sjg Exp $
+dnl	$Id: configure.in,v 1.51 2014/01/02 22:20:52 sjg Exp $
 dnl
 dnl Process this file with autoconf to produce a configure script
 dnl
-AC_INIT([bmake], [20130706], [sjg@NetBSD.org])
+AC_PREREQ(2.50)
+AC_INIT([bmake], [20140101], [sjg@NetBSD.org])
 AC_CONFIG_HEADER(config.h)
 
 dnl make srcdir absolute
@@ -77,7 +78,18 @@ AC_PROG_GCC_TRADITIONAL
 AC_PROG_INSTALL
 dnl Executable suffix - normally empty; .exe on os2.
 AC_SUBST(ac_exe_suffix)dnl
-
+dnl
+dnl Hurd refuses to define PATH_MAX or MAXPATHLEN
+if test -x /usr/bin/getconf; then
+   bmake_path_max=`getconf PATH_MAX / 2> /dev/null`
+fi
+bmake_path_max=${bmake_path_max:-1024}
+if test $bmake_path_max -gt 1024; then
+   # this is all we expect
+   bmake_path_max=1024
+fi
+echo "Using: BMAKE_PATH_MAX=$bmake_path_max" >&6
+AC_SUBST(bmake_path_max)dnl
 dnl
 dnl AC_C_CROSS
 dnl
@@ -98,6 +110,7 @@ AC_CHECK_HEADERS( \
 	sys/mman.h \
 	sys/select.h \
 	sys/socket.h \
+	sys/sysctl.h \
 	sys/time.h \
 	sys/uio.h \
 	unistd.h \
@@ -159,6 +172,7 @@ AC_CHECK_FUNCS( \
 	strsep \
 	strtod \
 	strtol \
+	sysctl \
 	unsetenv \
 	vsnprintf \
 	wait3 \

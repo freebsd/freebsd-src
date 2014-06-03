@@ -56,6 +56,7 @@ kern/subr_dummy_vdso_tc.c		standard
 libkern/ffsl.c				standard
 libkern/fls.c				standard
 libkern/flsl.c				standard
+libkern/flsll.c				standard
 libkern/memmove.c			standard
 libkern/cmpdi2.c			optional	mips | mipsel
 libkern/ucmpdi2.c			optional	mips | mipsel

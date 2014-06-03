@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2001,2003 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2003,2009 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -28,17 +28,31 @@
 
 #include <curses.priv.h>
 
-MODULE_ID("$Id: lib_termname.c,v 1.8 2003/12/27 18:23:01 tom Exp $")
+MODULE_ID("$Id: lib_termname.c,v 1.12 2009/10/24 21:56:58 tom Exp $")
 
 NCURSES_EXPORT(char *)
-termname(void)
+NCURSES_SP_NAME(termname) (NCURSES_SP_DCL0)
 {
     char *name = 0;
 
-    T((T_CALLED("termname()")));
+    T((T_CALLED("termname(%p)"), (void *) SP_PARM));
 
+#if NCURSES_SP_FUNCS
+    if (TerminalOf(SP_PARM) != 0) {
+	name = TerminalOf(SP_PARM)->_termname;
+    }
+#else
     if (cur_term != 0)
 	name = cur_term->_termname;
+#endif
 
     returnPtr(name);
 }
+
+#if NCURSES_SP_FUNCS
+NCURSES_EXPORT(char *)
+termname(void)
+{
+    return NCURSES_SP_NAME(termname) (CURRENT_SCREEN);
+}
+#endif

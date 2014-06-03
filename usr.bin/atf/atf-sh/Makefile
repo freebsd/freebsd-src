@@ -25,6 +25,7 @@
 #
 # $FreeBSD$
 
+.include <src.opts.mk>
 .include <bsd.init.mk>
 
 ATF=		${.CURDIR:H:H:H}/contrib/atf
@@ -39,6 +40,7 @@ CFLAGS+=	-I${ATF}
 
 DPADD+=		${LIBATF_C} ${LIBATF_CXX}
 LDADD+=		-latf-c++ -latf-c
+USEPRIVATELIB=	atf-c++ atf-c
 
 FILESGROUPS=	SUBR
 
@@ -49,4 +51,5 @@ SUBR=		libatf-sh.subr
 SUBDIR+=	tests
 .endif
 
+.include "../../../lib/atf/common.mk"
 .include <bsd.prog.mk>

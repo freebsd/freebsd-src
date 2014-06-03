@@ -1,4 +1,5 @@
 ub_ctx_create
+ub_ctx_create_event
 ub_ctx_delete
 ub_ctx_get_option
 ub_ctx_set_option
@@ -18,6 +19,7 @@ ub_fd
 ub_process
 ub_resolve
 ub_resolve_async
+ub_resolve_event
 ub_cancel
 ub_resolve_free
 ub_strerror
@@ -27,3 +29,4 @@ ub_ctx_zone_remove
 ub_ctx_data_add
 ub_ctx_data_remove
 ub_version
+ub_ctx_set_event

@@ -3,7 +3,7 @@
 PROG=vm
 #CFLAGS+=
 SRCS= 	vm.c
-NO_MAN=
+MAN=
 
 .include <bsd.prog.mk>
 

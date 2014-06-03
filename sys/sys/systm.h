@@ -168,6 +168,7 @@ struct ucred;
 struct uio;
 struct _jmp_buf;
 struct trapframe;
+struct eventtimer;
 
 int	setjmp(struct _jmp_buf *) __returns_twice;
 void	longjmp(struct _jmp_buf *, int) __dead2;
@@ -196,6 +197,10 @@ void	init_param1(void);
 void	init_param2(long physpages);
 void	init_static_kenv(char *, size_t);
 void	tablefull(const char *);
+#ifdef  EARLY_PRINTF
+typedef void early_putc_t(int ch);
+extern early_putc_t *early_putc;
+#endif
 int	kvprintf(char const *, void (*)(int, void*), void *, int,
 	    __va_list) __printflike(1, 0);
 void	log(int, const char *, ...) __printflike(2, 3);
@@ -282,6 +287,7 @@ void	cpu_stopprofclock(void);
 sbintime_t 	cpu_idleclock(void);
 void	cpu_activeclock(void);
 void	cpu_new_callout(int cpu, sbintime_t bt, sbintime_t bt_opt);
+void	cpu_et_frequency(struct eventtimer *et, uint64_t newfreq);
 extern int	cpu_can_deep_sleep;
 extern int	cpu_disable_deep_sleep;
 

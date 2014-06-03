@@ -1093,13 +1093,13 @@ void stuff_for_us(struct ieee80211_frame* wh, int len) {
 		int dlen;
 		dlen = len - sizeof(*wh) - 4 -4;
 
-		if (!( wh->i_fc[1] & IEEE80211_FC1_WEP)) {
+		if (!( wh->i_fc[1] & IEEE80211_FC1_PROTECTED)) {
 			time_print("WARNING: Got NON wep packet from %s dlen %d stype=%x\n",
 				   mac2str(wh->i_addr2), dlen, stype);
 				   return;
 		}
 
-		assert (wh->i_fc[1] & IEEE80211_FC1_WEP);
+		assert (wh->i_fc[1] & IEEE80211_FC1_PROTECTED);
 
 		if ((dlen == 36 || dlen == PADDED_ARPLEN) && rtrmac == (unsigned char*) 1) {
 			rtrmac = (unsigned char *) malloc(6);
@@ -1577,7 +1577,8 @@ void stuff_for_net(struct ieee80211_frame* wh, int rd) {
 		}
 
 		// wep data!
-		if ( (wh->i_fc[1] & IEEE80211_FC1_WEP) && dlen > (4+8+4)) {
+		if ( (wh->i_fc[1] & IEEE80211_FC1_PROTECTED) &&
+		    dlen > (4+8+4)) {
 			got_wep(wh, rd);
 		}
 	}
@@ -1768,7 +1769,7 @@ void prepare_fragstate(struct frag_state* fs, int pad) {
 	fs->wh.i_fc[0] |= IEEE80211_FC0_TYPE_DATA;
 	fs->wh.i_fc[1] |= IEEE80211_FC1_DIR_TODS |
 				IEEE80211_FC1_MORE_FRAG |
-				IEEE80211_FC1_WEP;
+				IEEE80211_FC1_PROTECTED;
 
 	memset(&fs->data[8+8+20], 0, pad);
 }
@@ -1858,7 +1859,7 @@ void flood_inet(tx) {
 		fill_basic(wh);
 
 		wh->i_fc[0] |= IEEE80211_FC0_TYPE_DATA;
-		wh->i_fc[1] |= IEEE80211_FC1_WEP | IEEE80211_FC1_DIR_TODS;
+		wh->i_fc[1] |= IEEE80211_FC1_PROTECTED | IEEE80211_FC1_DIR_TODS;
 		memset(wh->i_addr3, 0xff, 6);
 
 		body = (unsigned char*) wh + sizeof(*wh);
@@ -1880,7 +1881,7 @@ void flood_inet(tx) {
 		fill_basic(wh);
 		
 		wh->i_fc[0] |= IEEE80211_FC0_TYPE_DATA;
-		wh->i_fc[1] |= IEEE80211_FC1_WEP | IEEE80211_FC1_DIR_TODS;
+		wh->i_fc[1] |= IEEE80211_FC1_PROTECTED | IEEE80211_FC1_DIR_TODS;
 		memcpy(wh->i_addr3, rtrmac, 6);
 
 		body = (unsigned char*) wh + sizeof(*wh);
@@ -1975,7 +1976,7 @@ void send_arp(int tx, unsigned short op, unsigned char* srcip,
 	fill_basic(wh);
 
 	wh->i_fc[0] |= IEEE80211_FC0_TYPE_DATA;
-	wh->i_fc[1] |= IEEE80211_FC1_WEP | IEEE80211_FC1_DIR_TODS;
+	wh->i_fc[1] |= IEEE80211_FC1_PROTECTED | IEEE80211_FC1_DIR_TODS;
 	memset(wh->i_addr3, 0xff, 6);
 
 	body = (unsigned char*) wh + sizeof(*wh);
@@ -2254,7 +2255,7 @@ void read_tap() {
 	fill_basic(wh);
 
         wh->i_fc[0] |= IEEE80211_FC0_TYPE_DATA;
-        wh->i_fc[1] |= IEEE80211_FC1_WEP | IEEE80211_FC1_DIR_TODS;
+        wh->i_fc[1] |= IEEE80211_FC1_PROTECTED | IEEE80211_FC1_DIR_TODS;
 
 	memcpy(wh->i_addr2, eh->ether_shost, 6);
 	memcpy(wh->i_addr3, eh->ether_dhost, 6);

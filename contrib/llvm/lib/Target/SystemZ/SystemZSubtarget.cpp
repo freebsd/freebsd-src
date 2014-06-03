@@ -9,6 +9,8 @@
 
 #include "SystemZSubtarget.h"
 #include "llvm/IR/GlobalValue.h"
+#include "llvm/Support/Host.h"
+#include "MCTargetDesc/SystemZMCTargetDesc.h"
 
 #define GET_SUBTARGETINFO_TARGET_DESC
 #define GET_SUBTARGETINFO_CTOR
@@ -16,13 +18,22 @@
 
 using namespace llvm;
 
+// Pin the vtabel to this file.
+void SystemZSubtarget::anchor() {}
+
 SystemZSubtarget::SystemZSubtarget(const std::string &TT,
                                    const std::string &CPU,
                                    const std::string &FS)
-  : SystemZGenSubtargetInfo(TT, CPU, FS), TargetTriple(TT) {
+  : SystemZGenSubtargetInfo(TT, CPU, FS), HasDistinctOps(false),
+    HasLoadStoreOnCond(false), HasHighWord(false), HasFPExtension(false),
+    TargetTriple(TT) {
   std::string CPUName = CPU;
   if (CPUName.empty())
-    CPUName = "z10";
+    CPUName = "generic";
+#if defined(__linux__) && defined(__s390x__)
+  if (CPUName == "generic")
+    CPUName = sys::getHostCPUName();
+#endif
 
   // Parse features string.
   ParseSubtargetFeatures(CPUName, FS);

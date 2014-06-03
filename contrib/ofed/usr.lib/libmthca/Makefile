@@ -12,7 +12,7 @@ MTHCASRCDIR=	${MTHCADIR}/src
 
 LIB=		mthca
 SHLIB_MAJOR=	1
-NO_PROFILE=
+MK_PROFILE=	no
 
 SRCS=	ah.c buf.c cq.c memfree.c mthca.c qp.c srq.c verbs.c
 

@@ -31,7 +31,6 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
-#include <sys/conf.h>
 #include <sys/consio.h>
 #include <sys/kernel.h>
 #include <sys/systm.h>
@@ -62,8 +61,10 @@ consolectl_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag,
 		return (0);
 	}
 	default:
+#ifdef VT_CONSOLECTL_DEBUG
 		printf("consolectl: unknown ioctl: %c:%lx\n",
 		    (char)IOCGROUP(cmd), IOCBASECMD(cmd));
+#endif
 		return (ENOIOCTL);
 	}
 }

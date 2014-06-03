@@ -70,6 +70,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/specialreg.h>
 #include <machine/tss.h>
 #include <machine/cpu.h>
+#include <x86/init.h>
 
 #define WARMBOOT_TARGET		0
 #define WARMBOOT_OFF		(KERNBASE + 0x0467)
@@ -90,7 +91,7 @@ extern  struct pcpu __pcpu[];
 
 /* AP uses this during bootstrap.  Do not staticize.  */
 char *bootSTK;
-static int bootAP;
+int bootAP;
 
 /* Free these after use */
 void *bootstacks[MAXCPU];
@@ -109,6 +110,7 @@ struct invpcid_descr smp_tlb_invpcid;
 volatile int smp_tlb_wait;
 uint64_t pcid_cr3;
 pmap_t smp_tlb_pmap;
+extern int invpcid_works;
 
 #ifdef COUNT_IPIS
 /* Interrupt counts. */
@@ -138,7 +140,7 @@ extern int pmap_pcid_enabled;
 static volatile cpuset_t ipi_nmi_pending;
 
 /* used to hold the AP's until we are ready to release them */
-static struct mtx ap_boot_mtx;
+struct mtx ap_boot_mtx;
 
 /* Set to 1 once we're ready to let the APs out of the pen. */
 static volatile int aps_ready = 0;
@@ -165,7 +167,6 @@ static int cpu_cores;			/* cores per package */
 
 static void	assign_cpu_ids(void);
 static void	set_interrupt_apic_ids(void);
-static int	start_all_aps(void);
 static int	start_ap(int apic_id);
 static void	release_aps(void *dummy);
 
@@ -569,7 +570,7 @@ cpu_mp_start(void)
 	assign_cpu_ids();
 
 	/* Start each Application Processor */
-	start_all_aps();
+	init_ops.start_all_aps();
 
 	set_interrupt_apic_ids();
 }
@@ -636,7 +637,7 @@ init_secondary(void)
 	common_tss[cpu] = common_tss[0];
 	common_tss[cpu].tss_rsp0 = 0;   /* not used until after switch */
 	common_tss[cpu].tss_iobase = sizeof(struct amd64tss) +
-	    IOPAGES * PAGE_SIZE;
+	    IOPERM_BITMAP_SIZE;
 	common_tss[cpu].tss_ist1 = (long)&doublefault_stack[PAGE_SIZE];
 
 	/* The NMI stack runs on IST2. */
@@ -770,7 +771,6 @@ init_secondary(void)
 	if (smp_cpus == mp_ncpus) {
 		/* enable IPI's, tlb shootdown, freezes etc */
 		atomic_store_rel_int(&smp_started, 1);
-		smp_active = 1;	 /* historic */
 	}
 
 	/*
@@ -908,8 +908,8 @@ assign_cpu_ids(void)
 /*
  * start each AP in our list
  */
-static int
-start_all_aps(void)
+int
+native_start_all_aps(void)
 {
 	vm_offset_t va = boot_address + KERNBASE;
 	u_int64_t *pt4, *pt3, *pt2;
@@ -1256,7 +1256,7 @@ smp_masked_invltlb(cpuset_t mask, pmap_t pmap)
 {
 
 	if (smp_started) {
-		smp_targeted_tlb_shootdown(mask, IPI_INVLTLB, NULL, 0, 0);
+		smp_targeted_tlb_shootdown(mask, IPI_INVLTLB, pmap, 0, 0);
 #ifdef COUNT_XINVLTLB_HITS
 		ipi_masked_global++;
 #endif
@@ -1464,7 +1464,7 @@ cpususpend_handler(void)
 
 	cpu = PCPU_GET(cpuid);
 	if (savectx(susppcbs[cpu])) {
-		ctx_fpusave(susppcbs[cpu]->pcb_fpususpend);
+		fpususpend(susppcbs[cpu]->pcb_fpususpend);
 		wbinvd();
 		CPU_SET_ATOMIC(cpu, &suspended_cpus);
 	} else {
@@ -1483,6 +1483,8 @@ cpususpend_handler(void)
 
 	if (cpu_ops.cpu_resume)
 		cpu_ops.cpu_resume();
+	if (vmm_resume_p)
+		vmm_resume_p();
 
 	/* Resume MCA and local APIC */
 	mca_resume();
@@ -1491,6 +1493,178 @@ cpususpend_handler(void)
 	CPU_CLR_ATOMIC(cpu, &started_cpus);
 	/* Indicate that we are resumed */
 	CPU_CLR_ATOMIC(cpu, &suspended_cpus);
+}
+
+/*
+ * Handlers for TLB related IPIs
+ */
+void
+invltlb_handler(void)
+{
+#ifdef COUNT_XINVLTLB_HITS
+	xhits_gbl[PCPU_GET(cpuid)]++;
+#endif /* COUNT_XINVLTLB_HITS */
+#ifdef COUNT_IPIS
+	(*ipi_invltlb_counts[PCPU_GET(cpuid)])++;
+#endif /* COUNT_IPIS */
+
+	invltlb();
+	atomic_add_int(&smp_tlb_wait, 1);
+}
+
+void
+invltlb_pcid_handler(void)
+{
+	uint64_t cr3;
+	u_int cpuid;
+#ifdef COUNT_XINVLTLB_HITS
+	xhits_gbl[PCPU_GET(cpuid)]++;
+#endif /* COUNT_XINVLTLB_HITS */
+#ifdef COUNT_IPIS
+	(*ipi_invltlb_counts[PCPU_GET(cpuid)])++;
+#endif /* COUNT_IPIS */
+
+	if (smp_tlb_invpcid.pcid != (uint64_t)-1 &&
+	    smp_tlb_invpcid.pcid != 0) {
+		if (invpcid_works) {
+			invpcid(&smp_tlb_invpcid, INVPCID_CTX);
+		} else {
+			/* Otherwise reload %cr3 twice. */
+			cr3 = rcr3();
+			if (cr3 != pcid_cr3) {
+				load_cr3(pcid_cr3);
+				cr3 |= CR3_PCID_SAVE;
+			}
+			load_cr3(cr3);
+		}
+	} else {
+		invltlb_globpcid();
+	}
+	if (smp_tlb_pmap != NULL) {
+		cpuid = PCPU_GET(cpuid);
+		if (!CPU_ISSET(cpuid, &smp_tlb_pmap->pm_active))
+			CPU_CLR_ATOMIC(cpuid, &smp_tlb_pmap->pm_save);
+	}
+
+	atomic_add_int(&smp_tlb_wait, 1);
+}
+
+void
+invlpg_handler(void)
+{
+#ifdef COUNT_XINVLTLB_HITS
+	xhits_pg[PCPU_GET(cpuid)]++;
+#endif /* COUNT_XINVLTLB_HITS */
+#ifdef COUNT_IPIS
+	(*ipi_invlpg_counts[PCPU_GET(cpuid)])++;
+#endif /* COUNT_IPIS */
+
+	invlpg(smp_tlb_invpcid.addr);
+	atomic_add_int(&smp_tlb_wait, 1);
+}
+
+void
+invlpg_pcid_handler(void)
+{
+	uint64_t cr3;
+#ifdef COUNT_XINVLTLB_HITS
+	xhits_pg[PCPU_GET(cpuid)]++;
+#endif /* COUNT_XINVLTLB_HITS */
+#ifdef COUNT_IPIS
+	(*ipi_invlpg_counts[PCPU_GET(cpuid)])++;
+#endif /* COUNT_IPIS */
+
+	if (smp_tlb_invpcid.pcid == (uint64_t)-1) {
+		invltlb_globpcid();
+	} else if (smp_tlb_invpcid.pcid == 0) {
+		invlpg(smp_tlb_invpcid.addr);
+	} else if (invpcid_works) {
+		invpcid(&smp_tlb_invpcid, INVPCID_ADDR);
+	} else {
+		/*
+		 * PCID supported, but INVPCID is not.
+		 * Temporarily switch to the target address
+		 * space and do INVLPG.
+		 */
+		cr3 = rcr3();
+		if (cr3 != pcid_cr3)
+			load_cr3(pcid_cr3 | CR3_PCID_SAVE);
+		invlpg(smp_tlb_invpcid.addr);
+		load_cr3(cr3 | CR3_PCID_SAVE);
+	}
+
+	atomic_add_int(&smp_tlb_wait, 1);
+}
+
+static inline void
+invlpg_range(vm_offset_t start, vm_offset_t end)
+{
+
+	do {
+		invlpg(start);
+		start += PAGE_SIZE;
+	} while (start < end);
+}
+
+void
+invlrng_handler(void)
+{
+	struct invpcid_descr d;
+	vm_offset_t addr;
+	uint64_t cr3;
+	u_int cpuid;
+#ifdef COUNT_XINVLTLB_HITS
+	xhits_rng[PCPU_GET(cpuid)]++;
+#endif /* COUNT_XINVLTLB_HITS */
+#ifdef COUNT_IPIS
+	(*ipi_invlrng_counts[PCPU_GET(cpuid)])++;
+#endif /* COUNT_IPIS */
+
+	addr = smp_tlb_invpcid.addr;
+	if (pmap_pcid_enabled) {
+		if (smp_tlb_invpcid.pcid == 0) {
+			/*
+			 * kernel pmap - use invlpg to invalidate
+			 * global mapping.
+			 */
+			invlpg_range(addr, smp_tlb_addr2);
+		} else if (smp_tlb_invpcid.pcid == (uint64_t)-1) {
+			invltlb_globpcid();
+			if (smp_tlb_pmap != NULL) {
+				cpuid = PCPU_GET(cpuid);
+				if (!CPU_ISSET(cpuid, &smp_tlb_pmap->pm_active))
+					CPU_CLR_ATOMIC(cpuid,
+					    &smp_tlb_pmap->pm_save);
+			}
+		} else if (invpcid_works) {
+			d = smp_tlb_invpcid;
+			do {
+				invpcid(&d, INVPCID_ADDR);
+				d.addr += PAGE_SIZE;
+			} while (d.addr <= smp_tlb_addr2);
+		} else {
+			cr3 = rcr3();
+			if (cr3 != pcid_cr3)
+				load_cr3(pcid_cr3 | CR3_PCID_SAVE);
+			invlpg_range(addr, smp_tlb_addr2);
+			load_cr3(cr3 | CR3_PCID_SAVE);
+		}
+	} else {
+		invlpg_range(addr, smp_tlb_addr2);
+	}
+
+	atomic_add_int(&smp_tlb_wait, 1);
+}
+
+void
+invlcache_handler(void)
+{
+#ifdef COUNT_IPIS
+	(*ipi_invlcache_counts[PCPU_GET(cpuid)])++;
+#endif /* COUNT_IPIS */
+
+	wbinvd();
+	atomic_add_int(&smp_tlb_wait, 1);
 }
 
 /*

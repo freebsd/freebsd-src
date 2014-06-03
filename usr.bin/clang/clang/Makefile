@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.include <bsd.own.mk>
+.include <src.opts.mk>
 
 PROG_CXX=clang
 
@@ -36,7 +36,7 @@ TGHDRS=	CC1AsOptions \
 	DiagnosticSemaKinds \
 	Options
 
-.if !defined(EARLY_BUILD) && defined(MK_CLANG_FULL) && ${MK_CLANG_FULL} != "no"
+.if ${MK_CLANG_FULL} != "no"
 _clangstaticanalyzer= \
 	clangstaticanalyzerfrontend \
 	clangstaticanalyzercheckers \
@@ -46,7 +46,7 @@ _clangarcmigrate= \
 _clangrewriter= \
 	clangrewritefrontend \
 	clangrewritecore
-.endif # !EARLY_BUILD && MK_CLANG_FULL
+.endif # MK_CLANG_FULL
 
 LIBDEPS=clangfrontendtool \
 	clangfrontend \
@@ -63,6 +63,7 @@ LIBDEPS=clangfrontendtool \
 	clangast \
 	clangbasic \
 	clanglex \
+	llvmoption \
 	llvmlinker \
 	llvmirreader \
 	llvmipo \
@@ -84,10 +85,16 @@ LIBDEPS=clangfrontendtool \
 	llvmmipsinfo \
 	llvmmipsinstprinter \
 	llvmpowerpccodegen \
-	llvmpowerpcdesc \
-	llvmpowerpcinstprinter \
 	llvmpowerpcasmparser \
+	llvmpowerpcdesc \
 	llvmpowerpcinfo \
+	llvmpowerpcinstprinter \
+	llvmsparcdisassembler \
+	llvmsparccodegen \
+	llvmsparcasmparser \
+	llvmsparcdesc \
+	llvmsparcinfo \
+	llvmsparcinstprinter \
 	llvmx86disassembler \
 	llvmx86asmparser \
 	llvmx86codegen \

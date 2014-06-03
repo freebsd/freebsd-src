@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998-2004 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 1998-2004 Proofpoint, Inc. and its suppliers.
  *	All rights reserved.
  * Copyright (c) 1983, 1995-1997 Eric P. Allman.  All rights reserved.
  * Copyright (c) 1988, 1993
@@ -12,7 +12,7 @@
  */
 
 #include <sm/gen.h>
-SM_RCSID("@(#)$Id: clock.c,v 1.47 2005/06/14 23:07:20 ca Exp $")
+SM_RCSID("@(#)$Id: clock.c,v 1.48 2013-11-22 20:51:42 ca Exp $")
 #include <unistd.h>
 #include <time.h>
 #include <errno.h>

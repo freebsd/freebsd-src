@@ -88,6 +88,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/metadata.h>
 #include <machine/armreg.h>
 #include <machine/bus.h>
+#include <machine/physmem.h>
 #include <sys/reboot.h>
 
 #include <arm/xscale/pxa/pxareg.h>
@@ -102,16 +103,9 @@ __FBSDID("$FreeBSD$");
 /* this should be evenly divisable by PAGE_SIZE / L2_TABLE_SIZE_REAL (or 4) */
 #define NUM_KERNEL_PTS		(KERNEL_PT_AFKERNEL + KERNEL_PT_AFKERNEL_NUM)
 
-extern u_int data_abort_handler_address;
-extern u_int prefetch_abort_handler_address;
-extern u_int undefined_handler_address;
-
 struct pv_addr kernel_pt_table[NUM_KERNEL_PTS];
 
 /* Physical and virtual addresses for some global pages */
-
-vm_paddr_t phys_avail[PXA2X0_SDRAM_BANKS * 2 + 4];
-vm_paddr_t dump_avail[PXA2X0_SDRAM_BANKS * 2 + 4];
 
 struct pv_addr systempage;
 struct pv_addr msgbufpv;
@@ -135,7 +129,7 @@ static const struct arm_devmap_entry pxa_devmap[] = {
 		PXA2X0_PERIPH_START,
 		PXA250_PERIPH_END - PXA2X0_PERIPH_START,
 		VM_PROT_READ|VM_PROT_WRITE,
-		PTE_NOCACHE,
+		PTE_DEVICE,
 	},
 	{ 0, 0, 0, 0, 0, }
 };
@@ -160,6 +154,7 @@ initarm(struct arm_boot_params *abp)
 	uint32_t memsize[PXA2X0_SDRAM_BANKS], memstart[PXA2X0_SDRAM_BANKS];
 
 	lastaddr = parse_boot_param(abp);
+	arm_physmem_kernaddr = abp->abp_physaddr;
 	set_cpufuncs();
 	pcpu_init(pcpup, 0, sizeof(struct pcpu));
 	PCPU_SET(curthread, &thread0);
@@ -213,20 +208,6 @@ initarm(struct arm_boot_params *abp)
 	valloc_pages(kernelstack, KSTACK_PAGES);
 	alloc_pages(minidataclean.pv_pa, 1);
 	valloc_pages(msgbufpv, round_page(msgbufsize) / PAGE_SIZE);
-#ifdef ARM_USE_SMALL_ALLOC
-	freemempos -= PAGE_SIZE;
-	freemem_pt = trunc_page(freemem_pt);
-	freemem_after = freemempos - ((freemem_pt - 0xa0100000) /
-	    PAGE_SIZE) * sizeof(struct arm_small_page);
-	arm_add_smallalloc_pages((void *)(freemem_after + 0x20000000)
-	    , (void *)0xc0100000, freemem_pt - 0xa0100000, 1);
-	freemem_after -= ((freemem_after - 0xa0001000) / PAGE_SIZE) *
-	    sizeof(struct arm_small_page);
-	arm_add_smallalloc_pages((void *)(freemem_after + 0x20000000)
-	, (void *)0xc0001000, trunc_page(freemem_after) - 0xa0001000, 0);
-	freemempos = trunc_page(freemem_after);
-	freemempos -= PAGE_SIZE;
-#endif
 	/*
 	 * Allocate memory for the l1 and l2 page tables. The scheme to avoid
 	 * wasting memory by allocating the l1pt on the first 16k memory was
@@ -267,13 +248,6 @@ initarm(struct arm_boot_params *abp)
 	pmap_map_entry(l1pagetable, afterkern, minidataclean.pv_pa,
 	    VM_PROT_READ|VM_PROT_WRITE, PTE_CACHE);
 
-#ifdef ARM_USE_SMALL_ALLOC
-	if ((freemem_after + 2 * PAGE_SIZE) <= afterkern) {
-		arm_add_smallalloc_pages((void *)(freemem_after),
-		    (void*)(freemem_after + PAGE_SIZE),
-		    afterkern - (freemem_after + PAGE_SIZE), 0);
-	}
-#endif
 
 	/* Map the Mini-Data cache clean area. */
 	xscale_setup_minidata(l1pagetable, afterkern,
@@ -330,18 +304,9 @@ initarm(struct arm_boot_params *abp)
 	 */
 	pxa_probe_sdram(obio_tag, PXA2X0_MEMCTL_BASE, memstart, memsize);
 
-	physmem = 0;
-	for (i = 0; i < PXA2X0_SDRAM_BANKS; i++) {
-		physmem += memsize[i] / PAGE_SIZE;
-	}
-
 	/* Fire up consoles. */
 	cninit();
 
-	/* Set stack for exception handlers */
-	data_abort_handler_address = (u_int)data_abort_handler;
-	prefetch_abort_handler_address = (u_int)prefetch_abort_handler;
-	undefined_handler_address = (u_int)undefinedinstruction_bounce;
 	undefined_init();
 
 	init_proc0(kernelstack.pv_va);
@@ -350,54 +315,29 @@ initarm(struct arm_boot_params *abp)
 	arm_vector_init(ARM_VECTORS_HIGH, ARM_VEC_ALL);
 
 	pmap_curmaxkvaddr = afterkern + PAGE_SIZE;
-	/*
-	 * ARM USE_SMALL_ALLOC uses dump_avail, so it must be filled before
-	 * calling pmap_bootstrap.
-	 */
-	i = 0;
-	for (j = 0; j < PXA2X0_SDRAM_BANKS; j++) {
-		if (memsize[j] > 0) {
-			dump_avail[i++] = round_page(memstart[j]);
-			dump_avail[i++] =
-			    trunc_page(memstart[j] + memsize[j]);
-		}
-	}
-	dump_avail[i] = 0;
-	dump_avail[i] = 0;
 	vm_max_kernel_address = 0xe0000000;
 	pmap_bootstrap(pmap_curmaxkvaddr, &kernel_l1pt);
 	msgbufp = (void*)msgbufpv.pv_va;
 	msgbufinit(msgbufp, msgbufsize);
 	mutex_init();
 
-	i = 0;
-#ifdef ARM_USE_SMALL_ALLOC
-	phys_avail[i++] = 0xa0000000;
-	phys_avail[i++] = 0xa0001000; 	/*
-					 *XXX: Gross hack to get our
-					 * pages in the vm_page_array
-					 . */
-#endif
+	/*
+	 * Add the physical ram we have available.
+	 *
+	 * Exclude the kernel (and all the things we allocated which immediately
+	 * follow the kernel) from the VM allocation pool but not from crash
+	 * dumps.  virtual_avail is a global variable which tracks the kva we've
+	 * "allocated" while setting up pmaps.
+	 *
+	 * Prepare the list of physical memory available to the vm subsystem.
+	 */
 	for (j = 0; j < PXA2X0_SDRAM_BANKS; j++) {
-		if (memsize[j] > 0) {
-			phys_avail[i] = round_page(memstart[j]);
-			dump_avail[i++] = round_page(memstart[j]);
-			phys_avail[i] =
-			    trunc_page(memstart[j] + memsize[j]);
-			dump_avail[i++] =
-			    trunc_page(memstart[j] + memsize[j]);
-		}
+		if (memsize[j] > 0)
+			arm_physmem_hardware_region(memstart[j], memsize[j]);
 	}
-
-	dump_avail[i] = 0;
-	phys_avail[i++] = 0;
-	dump_avail[i] = 0;
-	phys_avail[i] = 0;
-#ifdef ARM_USE_SMALL_ALLOC
-	phys_avail[2] = round_page(virtual_avail - KERNBASE + phys_avail[2]);
-#else
-	phys_avail[0] = round_page(virtual_avail - KERNBASE + phys_avail[0]);
-#endif
+	arm_physmem_exclude_region(abp->abp_physaddr, 
+	    virtual_avail - KERNVIRTADDR, EXFLAG_NOALLOC);
+	arm_physmem_init_kernel_globals();
 
 	init_param2(physmem);
 	kdb_init();

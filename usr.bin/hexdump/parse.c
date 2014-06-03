@@ -48,7 +48,7 @@ __FBSDID("$FreeBSD$");
 FU *endfu;					/* format at end-of-data */
 
 void
-addfile(char *name)
+addfile(const char *name)
 {
 	unsigned char *p;
 	FILE *fp;
@@ -210,7 +210,6 @@ rewrite(FS *fs)
 	int nconv, prec;
 	size_t len;
 
-	nextpr = NULL;
 	prec = 0;
 
 	for (fu = fs->nextfu; fu; fu = fu->nextfu) {
@@ -218,13 +217,11 @@ rewrite(FS *fs)
 		 * Break each format unit into print units; each conversion
 		 * character gets its own.
 		 */
+		nextpr = &fu->nextpr;
 		for (nconv = 0, fmtp = fu->fmt; *fmtp; nextpr = &pr->nextpr) {
 			if ((pr = calloc(1, sizeof(PR))) == NULL)
 				err(1, NULL);
-			if (!fu->nextpr)
-				fu->nextpr = pr;
-			else
-				*nextpr = pr;
+			*nextpr = pr;
 
 			/* Skip preceding text and up to the next % sign. */
 			for (p1 = fmtp; *p1 && *p1 != '%'; ++p1);
@@ -494,7 +491,7 @@ escape(char *p1)
 }
 
 void
-badcnt(char *s)
+badcnt(const char *s)
 {
 	errx(1, "%s: bad byte count", s);
 }
@@ -512,7 +509,7 @@ badfmt(const char *fmt)
 }
 
 void
-badconv(char *ch)
+badconv(const char *ch)
 {
 	errx(1, "%%%s: bad conversion character", ch);
 }

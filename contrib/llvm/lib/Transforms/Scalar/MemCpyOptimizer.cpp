@@ -170,14 +170,17 @@ bool MemsetRange::isProfitableToUseMemset(const DataLayout &TD) const {
   // pessimize the llvm optimizer.
   //
   // Since we don't have perfect knowledge here, make some assumptions: assume
-  // the maximum GPR width is the same size as the pointer size and assume that
-  // this width can be stored.  If so, check to see whether we will end up
-  // actually reducing the number of stores used.
+  // the maximum GPR width is the same size as the largest legal integer
+  // size. If so, check to see whether we will end up actually reducing the
+  // number of stores used.
   unsigned Bytes = unsigned(End-Start);
-  unsigned NumPointerStores = Bytes/TD.getPointerSize();
+  unsigned MaxIntSize = TD.getLargestLegalIntTypeSize();
+  if (MaxIntSize == 0)
+    MaxIntSize = 1;
+  unsigned NumPointerStores = Bytes / MaxIntSize;
 
   // Assume the remaining bytes if any are done a byte at a time.
-  unsigned NumByteStores = Bytes - NumPointerStores*TD.getPointerSize();
+  unsigned NumByteStores = Bytes - NumPointerStores * MaxIntSize;
 
   // If we will reduce the # stores (according to this heuristic), do the
   // transformation.  This encourages merging 4 x i8 -> i32 and 2 x i16 -> i32
@@ -465,7 +468,7 @@ Instruction *MemCpyOpt::tryMergingIntoMemset(Instruction *StartInst,
       AMemSet->setDebugLoc(Range.TheStores[0]->getDebugLoc());
 
     // Zap all the stores.
-    for (SmallVector<Instruction*, 16>::const_iterator
+    for (SmallVectorImpl<Instruction *>::const_iterator
          SI = Range.TheStores.begin(),
          SE = Range.TheStores.end(); SI != SE; ++SI) {
       MD->removeInstruction(*SI);
@@ -626,8 +629,14 @@ bool MemCpyOpt::performCallSlotOptzn(Instruction *cpy,
       return false;
 
     Type *StructTy = cast<PointerType>(A->getType())->getElementType();
-    uint64_t destSize = TD->getTypeAllocSize(StructTy);
+    if (!StructTy->isSized()) {
+      // The call may never return and hence the copy-instruction may never
+      // be executed, and therefore it's not safe to say "the destination
+      // has at least <cpyLen> bytes, as implied by the copy-instruction",
+      return false;
+    }
 
+    uint64_t destSize = TD->getTypeAllocSize(StructTy);
     if (destSize < srcSize)
       return false;
   } else {

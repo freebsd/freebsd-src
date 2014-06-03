@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.include <bsd.own.mk>
+.include <src.opts.mk>
 
 SUBDIR=	${_drti} \
 	libavl \
@@ -11,7 +11,12 @@ SUBDIR=	${_drti} \
 	libuutil \
 	${_libzfs_core} \
 	${_libzfs} \
-	${_libzpool}
+	${_libzpool} \
+	${_tests}
+
+.if ${MK_TESTS} != "no"
+_tests=		tests
+.endif
 
 .if ${MK_ZFS} != "no"
 _libzfs_core=	libzfs_core

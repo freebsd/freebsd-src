@@ -80,6 +80,7 @@ typedef struct template
 
 #define CpuPCLMUL   0x10000000	/* Carry-less Multiplication extensions */
 #define CpuRdRnd    0x20000000	/* Intel Random Number Generator extensions */
+#define CpuSMAP     0x40000000	/* Intel Supervisor Mode Access Prevention */
 
 /* SSE4.1/4.2 Instructions required */
 #define CpuSSE4	     (CpuSSE4_1|CpuSSE4_2)
@@ -88,7 +89,7 @@ typedef struct template
 #define CpuUnknownFlags (Cpu186|Cpu286|Cpu386|Cpu486|Cpu586|Cpu686 \
 	|CpuP4|CpuSledgehammer|CpuMMX|CpuMMX2|CpuSSE|CpuSSE2|CpuSSE3|CpuVMX \
 	|Cpu3dnow|Cpu3dnowA|CpuK6|CpuPadLock|CpuSVME|CpuSSSE3|CpuSSE4_1 \
-	|CpuSSE4_2|CpuABM|CpuSSE4a|CpuXSAVE|CpuAES|CpuPCLMUL|CpuRdRnd)
+	|CpuSSE4_2|CpuABM|CpuSSE4a|CpuXSAVE|CpuAES|CpuPCLMUL|CpuRdRnd|CpuSMAP)
 
   /* the bits in opcode_modifier are used to generate the final opcode from
      the base_opcode.  These bits also are used to detect alternate forms of

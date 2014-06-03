@@ -206,16 +206,16 @@ printcpuinfo(void)
 	}
 	printf("-class CPU)\n");
 	if (*cpu_vendor)
-		printf("  Origin = \"%s\"", cpu_vendor);
+		printf("  Origin=\"%s\"", cpu_vendor);
 	if (cpu_id)
-		printf("  Id = 0x%x", cpu_id);
+		printf("  Id=0x%x", cpu_id);
 
 	if (cpu_vendor_id == CPU_VENDOR_INTEL ||
 	    cpu_vendor_id == CPU_VENDOR_AMD ||
 	    cpu_vendor_id == CPU_VENDOR_CENTAUR) {
-		printf("  Family = 0x%x", CPUID_TO_FAMILY(cpu_id));
-		printf("  Model = 0x%x", CPUID_TO_MODEL(cpu_id));
-		printf("  Stepping = %u", cpu_id & CPUID_STEPPING);
+		printf("  Family=0x%x", CPUID_TO_FAMILY(cpu_id));
+		printf("  Model=0x%x", CPUID_TO_MODEL(cpu_id));
+		printf("  Stepping=%u", cpu_id & CPUID_STEPPING);
 
 		/*
 		 * AMD CPUID Specification
@@ -385,11 +385,11 @@ printcpuinfo(void)
 			}
 
 			if (cpu_stdext_feature != 0) {
-				printf("\n  Standard Extended Features=0x%b",
+				printf("\n  Structured Extended Features=0x%b",
 				    cpu_stdext_feature,
 				       "\020"
 				       /* RDFSBASE/RDGSBASE/WRFSBASE/WRGSBASE */
-				       "\001GSFSBASE"
+				       "\001FSGSBASE"
 				       "\002TSCADJ"
 				       /* Bit Manipulation Instructions */
 				       "\004BMI1"
@@ -401,17 +401,27 @@ printcpuinfo(void)
 				       "\010SMEP"
 				       /* Bit Manipulation Instructions */
 				       "\011BMI2"
-				       "\012ENHMOVSB"
+				       "\012ERMS"
 				       /* Invalidate Processor Context ID */
 				       "\013INVPCID"
 				       /* Restricted Transactional Memory */
 				       "\014RTM"
+				       /* Intel Memory Protection Extensions */
+				       "\017MPX"
+				       /* AVX512 Foundation */
+				       "\021AVX512F"
 				       /* Enhanced NRBG */
 				       "\023RDSEED"
 				       /* ADCX + ADOX */
 				       "\024ADX"
 				       /* Supervisor Mode Access Prevention */
 				       "\025SMAP"
+				       "\030CLFLUSHOPT"
+				       "\032PROCTRACE"
+				       "\033AVX512PF"
+				       "\034AVX512ER"
+				       "\035AVX512CD"
+				       "\036SHA"
 				       );
 			}
 

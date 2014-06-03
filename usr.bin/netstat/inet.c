@@ -429,7 +429,7 @@ protopr(u_long off, const char *name, int af1, int proto)
 				       "%-5.5s %-6.6s %-6.6s %-22.22s %-22.22s",
 				       "Proto", "Recv-Q", "Send-Q",
 				       "Local Address", "Foreign Address");
-				if (!xflag)
+				if (!xflag && !Rflag)
 					printf(" (state)");
 			}
 			if (xflag) {
@@ -441,6 +441,9 @@ protopr(u_long off, const char *name, int af1, int proto)
 				printf(" %7.7s %7.7s %7.7s %7.7s %7.7s %7.7s",
 				       "rexmt", "persist", "keep",
 				       "2msl", "delack", "rcvtime");
+			} else if (Rflag) {
+				printf ("  %8.8s %5.5s",
+				    "flowid", "ftype");
 			}
 			putchar('\n');
 			first = 0;
@@ -549,7 +552,7 @@ protopr(u_long off, const char *name, int af1, int proto)
 				    timer->tt_delack / 1000, (timer->tt_delack % 1000) / 10,
 				    timer->t_rcvtime / 1000, (timer->t_rcvtime % 1000) / 10);
 		}
-		if (istcp && !Lflag && !xflag && !Tflag) {
+		if (istcp && !Lflag && !xflag && !Tflag && !Rflag) {
 			if (tp->t_state < 0 || tp->t_state >= TCP_NSTATES)
 				printf("%d", tp->t_state);
 			else {
@@ -560,7 +563,12 @@ protopr(u_long off, const char *name, int af1, int proto)
 					putchar('*');
 #endif /* defined(TF_NEEDSYN) && defined(TF_NEEDFIN) */
 			}
-		} 		
+		}
+		if (Rflag) {
+			printf(" %08x %5d",
+			    inp->inp_flowid,
+			    inp->inp_flowtype);
+		}
 		putchar('\n');
 	}
 	if (xig != oxig && xig->xig_gen != oxig->xig_gen) {
@@ -660,7 +668,8 @@ tcp_stats(u_long off, const char *name, int af1 __unused, int proto __unused)
 	p(tcps_rcvbadsum, "\t\t%ju discarded for bad checksum%s\n");
 	p(tcps_rcvbadoff, "\t\t%ju discarded for bad header offset field%s\n");
 	p1a(tcps_rcvshort, "\t\t%ju discarded because packet too short\n");
-	p1a(tcps_rcvmemdrop, "\t\t%ju discarded due to memory problems\n");
+	p1a(tcps_rcvreassfull,
+	    "\t\t%ju discarded due to no space in reassembly queue\n");
 	p(tcps_connattempt, "\t%ju connection request%s\n");
 	p(tcps_accepts, "\t%ju connection accept%s\n");
 	p(tcps_badsyn, "\t%ju bad connection attempt%s\n");
@@ -723,6 +732,17 @@ tcp_stats(u_long off, const char *name, int af1 __unused, int proto __unused)
 	p(tcps_ecn_ect1, "\t%ju packet%s with ECN ECT(1) bit set\n");
 	p(tcps_ecn_shs, "\t%ju successful ECN handshake%s\n");
 	p(tcps_ecn_rcwnd, "\t%ju time%s ECN reduced the congestion window\n");
+
+	p(tcps_sig_rcvgoodsig,
+	     "\t%ju packet%s with valid tcp-md5 signature received\n");
+	p(tcps_sig_rcvbadsig,
+	     "\t%ju packet%s with invalid tcp-md5 signature received\n");
+	p(tcps_sig_err_buildsig,
+	     "\t%ju packet%s with tcp-md5 signature mismatch\n");
+	p(tcps_sig_err_sigopt,
+	     "\t%ju packet%s with unexpected tcp-md5 signature received\n");
+	p(tcps_sig_err_nosigopt,
+	     "\t%ju packet%s without expected tcp-md5 signature received\n");
 #undef p
 #undef p1a
 #undef p2

@@ -6,8 +6,9 @@ PROG_CXX=lli
 
 SRCDIR=	tools/lli
 SRCS=	lli.cpp \
-	RecordingMemoryManager.cpp \
-	RemoteTarget.cpp
+	RemoteMemoryManager.cpp \
+	RemoteTarget.cpp \
+	RemoteTargetExternal.cpp
 
 LIBDEPS=llvmx86disassembler \
 	llvmx86asmparser \
@@ -23,6 +24,7 @@ LIBDEPS=llvmx86disassembler \
 	llvmasmprinter \
 	llvmmcparser \
 	llvminterpreter \
+	llvminstrumentation \
 	llvmmcjit \
 	llvmjit \
 	llvmcodegen \

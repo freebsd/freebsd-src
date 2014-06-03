@@ -34,6 +34,7 @@
 #include <sys/ioctl.h>
 #include <sys/socket.h>
 #include <sys/stat.h>
+#include <sys/sysctl.h>
 #include <sys/utsname.h>
 #include <sys/queue.h>
 #include <net/if.h>
@@ -780,6 +781,23 @@ usage(void)
 	exit(EX_USAGE);
 }
 
+static void
+check_usb_pf_sysctl(void)
+{
+	int error;
+	int no_pf_val = 0;
+	size_t no_pf_len = sizeof(int);
+
+	/* check "hw.usb.no_pf" sysctl for 8- and 9- stable */
+
+	error = sysctlbyname("hw.usb.no_pf", &no_pf_val,
+	    &no_pf_len, NULL, 0);
+	if (error == 0 && no_pf_val != 0) {
+		warnx("The USB packet filter might be disabled.");
+		warnx("See the \"hw.usb.no_pf\" sysctl for more information.");
+	}
+}
+
 int
 main(int argc, char *argv[])
 {
@@ -871,6 +889,8 @@ main(int argc, char *argv[])
 		read_file(p);
 		exit(EXIT_SUCCESS);
 	}
+
+	check_usb_pf_sysctl();
 
 	p->fd = fd = open("/dev/bpf", O_RDONLY);
 	if (p->fd < 0)

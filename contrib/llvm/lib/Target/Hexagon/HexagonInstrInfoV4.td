@@ -213,7 +213,7 @@ def COMBINE_iI_V4 : ALU32_ii<(outs DoubleRegs:$dst),
 // Template class for load instructions with Absolute set addressing mode.
 //===----------------------------------------------------------------------===//
 let isExtended = 1, opExtendable = 2, neverHasSideEffects = 1,
-validSubTargets = HasV4SubT in
+validSubTargets = HasV4SubT, addrMode = AbsoluteSet in
 class T_LD_abs_set<string mnemonic, RegisterClass RC>:
             LDInst2<(outs RC:$dst1, IntRegs:$dst2),
             (ins u0AlwaysExt:$addr),
@@ -266,12 +266,23 @@ multiclass ld_idxd_shl<string mnemonic, string CextOp, RegisterClass RC> {
 }
 
 let addrMode = BaseRegOffset in {
-  defm LDrib_indexed_shl: ld_idxd_shl<"memb", "LDrib", IntRegs>, AddrModeRel;
-  defm LDriub_indexed_shl: ld_idxd_shl<"memub", "LDriub", IntRegs>, AddrModeRel;
-  defm LDrih_indexed_shl: ld_idxd_shl<"memh", "LDrih", IntRegs>, AddrModeRel;
-  defm LDriuh_indexed_shl: ld_idxd_shl<"memuh", "LDriuh", IntRegs>, AddrModeRel;
-  defm LDriw_indexed_shl: ld_idxd_shl<"memw", "LDriw", IntRegs>, AddrModeRel;
-  defm LDrid_indexed_shl: ld_idxd_shl<"memd", "LDrid", DoubleRegs>, AddrModeRel;
+  let accessSize = ByteAccess in {
+    defm LDrib_indexed_shl: ld_idxd_shl<"memb", "LDrib", IntRegs>,
+                                        AddrModeRel;
+    defm LDriub_indexed_shl: ld_idxd_shl<"memub", "LDriub", IntRegs>,
+                                        AddrModeRel;
+  }
+  let accessSize = HalfWordAccess in {
+    defm LDrih_indexed_shl: ld_idxd_shl<"memh", "LDrih", IntRegs>, AddrModeRel;
+    defm LDriuh_indexed_shl: ld_idxd_shl<"memuh", "LDriuh", IntRegs>,
+                             AddrModeRel;
+  }
+  let accessSize = WordAccess in
+     defm LDriw_indexed_shl: ld_idxd_shl<"memw", "LDriw", IntRegs>, AddrModeRel;
+
+  let accessSize = DoubleWordAccess in
+    defm LDrid_indexed_shl: ld_idxd_shl<"memd", "LDrid", DoubleRegs>,
+                             AddrModeRel;
 }
 
 // 'def pats' for load instructions with base + register offset and non-zero
@@ -456,7 +467,8 @@ def:  Pat <(i64 (extloadi32 (i32 (add IntRegs:$src1, s11_2ExtPred:$offset)))),
 //===----------------------------------------------------------------------===//
 // Template class for store instructions with Absolute set addressing mode.
 //===----------------------------------------------------------------------===//
-let isExtended = 1, opExtendable = 2, validSubTargets = HasV4SubT in
+let isExtended = 1, opExtendable = 2, validSubTargets = HasV4SubT,
+addrMode = AbsoluteSet in
 class T_ST_abs_set<string mnemonic, RegisterClass RC>:
             STInst2<(outs IntRegs:$dst1),
             (ins RC:$src1, u0AlwaysExt:$src2),
@@ -551,17 +563,20 @@ multiclass ST_Idxd_shl_nv<string mnemonic, string CextOp, RegisterClass RC> {
 
 let addrMode = BaseRegOffset, neverHasSideEffects = 1,
 validSubTargets = HasV4SubT in {
-  defm STrib_indexed_shl: ST_Idxd_shl<"memb", "STrib", IntRegs>,
-                          ST_Idxd_shl_nv<"memb", "STrib", IntRegs>, AddrModeRel;
+  let accessSize = ByteAccess in
+    defm STrib_indexed_shl: ST_Idxd_shl<"memb", "STrib", IntRegs>,
+                            ST_Idxd_shl_nv<"memb", "STrib", IntRegs>, AddrModeRel;
 
-  defm STrih_indexed_shl: ST_Idxd_shl<"memh", "STrih", IntRegs>,
-                          ST_Idxd_shl_nv<"memh", "STrih", IntRegs>, AddrModeRel;
+  let accessSize = HalfWordAccess in
+    defm STrih_indexed_shl: ST_Idxd_shl<"memh", "STrih", IntRegs>,
+                            ST_Idxd_shl_nv<"memh", "STrih", IntRegs>, AddrModeRel;
 
-  defm STriw_indexed_shl: ST_Idxd_shl<"memw", "STriw", IntRegs>,
-                          ST_Idxd_shl_nv<"memw", "STriw", IntRegs>, AddrModeRel;
+  let accessSize = WordAccess in
+    defm STriw_indexed_shl: ST_Idxd_shl<"memw", "STriw", IntRegs>,
+                            ST_Idxd_shl_nv<"memw", "STriw", IntRegs>, AddrModeRel;
 
-  let isNVStorable = 0 in
-  defm STrid_indexed_shl: ST_Idxd_shl<"memd", "STrid", DoubleRegs>, AddrModeRel;
+  let isNVStorable = 0, accessSize = DoubleWordAccess in
+    defm STrid_indexed_shl: ST_Idxd_shl<"memd", "STrid", DoubleRegs>, AddrModeRel;
 }
 
 let Predicates = [HasV4T], AddedComplexity = 10 in {
@@ -695,10 +710,15 @@ multiclass ST_Imm<string mnemonic, string CextOp, Operand OffsetOp> {
 }
 
 let addrMode = BaseImmOffset, InputType = "imm",
-    validSubTargets = HasV4SubT in {
-  defm STrib_imm : ST_Imm<"memb", "STrib", u6_0Imm>, ImmRegRel, PredNewRel;
-  defm STrih_imm : ST_Imm<"memh", "STrih", u6_1Imm>, ImmRegRel, PredNewRel;
-  defm STriw_imm : ST_Imm<"memw", "STriw", u6_2Imm>, ImmRegRel, PredNewRel;
+validSubTargets = HasV4SubT in {
+  let accessSize = ByteAccess in
+    defm STrib_imm : ST_Imm<"memb", "STrib", u6_0Imm>, ImmRegRel, PredNewRel;
+
+  let accessSize = HalfWordAccess in
+    defm STrih_imm : ST_Imm<"memh", "STrih", u6_1Imm>, ImmRegRel, PredNewRel;
+
+  let accessSize = WordAccess in
+    defm STriw_imm : ST_Imm<"memw", "STriw", u6_2Imm>, ImmRegRel, PredNewRel;
 }
 
 let Predicates = [HasV4T], AddedComplexity = 10 in {
@@ -834,12 +854,17 @@ multiclass ST_Idxd_nv<string mnemonic, string CextOp, RegisterClass RC,
 }
 
 let addrMode = BaseImmOffset, validSubTargets = HasV4SubT in {
-  defm STrib_indexed: ST_Idxd_nv<"memb", "STrib", IntRegs, s11_0Ext,
-                                 u6_0Ext, 11, 6>, AddrModeRel;
-  defm STrih_indexed: ST_Idxd_nv<"memh", "STrih", IntRegs, s11_1Ext,
-                                 u6_1Ext, 12, 7>, AddrModeRel;
-  defm STriw_indexed: ST_Idxd_nv<"memw", "STriw", IntRegs, s11_2Ext,
-                                 u6_2Ext, 13, 8>, AddrModeRel;
+  let accessSize = ByteAccess in
+    defm STrib_indexed: ST_Idxd_nv<"memb", "STrib", IntRegs, s11_0Ext,
+                                   u6_0Ext, 11, 6>, AddrModeRel;
+
+  let accessSize = HalfWordAccess in
+    defm STrih_indexed: ST_Idxd_nv<"memh", "STrih", IntRegs, s11_1Ext,
+                                   u6_1Ext, 12, 7>, AddrModeRel;
+
+  let accessSize = WordAccess in
+    defm STriw_indexed: ST_Idxd_nv<"memw", "STriw", IntRegs, s11_2Ext,
+                                   u6_2Ext, 13, 8>, AddrModeRel;
 }
 
 // multiclass for new-value store instructions with base + immediate offset.
@@ -887,9 +912,14 @@ multiclass ST_MEMri_nv<string mnemonic, string CextOp, RegisterClass RC,
 
 let addrMode = BaseImmOffset, isMEMri = "true", validSubTargets = HasV4SubT,
 mayStore = 1 in {
-  defm STrib: ST_MEMri_nv<"memb", "STrib", IntRegs, 11, 6>, AddrModeRel;
-  defm STrih: ST_MEMri_nv<"memh", "STrih", IntRegs, 12, 7>, AddrModeRel;
-  defm STriw: ST_MEMri_nv<"memw", "STriw", IntRegs, 13, 8>, AddrModeRel;
+  let accessSize = ByteAccess in
+    defm STrib: ST_MEMri_nv<"memb", "STrib", IntRegs, 11, 6>, AddrModeRel;
+
+  let accessSize = HalfWordAccess in
+    defm STrih: ST_MEMri_nv<"memh", "STrih", IntRegs, 12, 7>, AddrModeRel;
+
+  let accessSize = WordAccess in
+    defm STriw: ST_MEMri_nv<"memw", "STriw", IntRegs, 13, 8>, AddrModeRel;
 }
 
 //===----------------------------------------------------------------------===//
@@ -939,7 +969,7 @@ multiclass ST_PostInc_nv<string mnemonic, string BaseOp, RegisterClass RC,
   }
 }
 
-let validSubTargets = HasV4SubT in {
+let addrMode = PostInc, validSubTargets = HasV4SubT in {
 defm POST_STbri: ST_PostInc_nv <"memb", "STrib", IntRegs, s4_0Imm>, AddrModeRel;
 defm POST_SThri: ST_PostInc_nv <"memh", "STrih", IntRegs, s4_1Imm>, AddrModeRel;
 defm POST_STwri: ST_PostInc_nv <"memw", "STriw", IntRegs, s4_2Imm>, AddrModeRel;
@@ -2534,8 +2564,9 @@ def NTSTBIT_ri : SInst<(outs PredRegs:$dst), (ins IntRegs:$src1, u5Imm:$src2),
 //Deallocate frame and return.
 //    dealloc_return
 let isReturn = 1, isTerminator = 1, isBarrier = 1, isPredicable = 1,
-  Defs = [R29, R30, R31, PC], Uses = [R29, R31], neverHasSideEffects = 1 in {
-  def DEALLOC_RET_V4 : NVInst_V4<(outs), (ins i32imm:$amt1),
+  Defs = [R29, R30, R31, PC], Uses = [R30], neverHasSideEffects = 1 in {
+let validSubTargets = HasV4SubT in
+  def DEALLOC_RET_V4 : LD0Inst<(outs), (ins),
             "dealloc_return",
             []>,
             Requires<[HasV4T]>;
@@ -2544,9 +2575,10 @@ let isReturn = 1, isTerminator = 1, isBarrier = 1, isPredicable = 1,
 // Restore registers and dealloc return function call.
 let isCall = 1, isBarrier = 1, isReturn = 1, isTerminator = 1,
   Defs = [R29, R30, R31, PC] in {
+let validSubTargets = HasV4SubT in
   def RESTORE_DEALLOC_RET_JMP_V4 : JInst<(outs),
                                    (ins calltarget:$dst),
-             "jump $dst // Restore_and_dealloc_return",
+             "jump $dst",
              []>,
              Requires<[HasV4T]>;
 }
@@ -2554,9 +2586,10 @@ let isCall = 1, isBarrier = 1, isReturn = 1, isTerminator = 1,
 // Restore registers and dealloc frame before a tail call.
 let isCall = 1, isBarrier = 1,
   Defs = [R29, R30, R31, PC] in {
+let validSubTargets = HasV4SubT in
   def RESTORE_DEALLOC_BEFORE_TAILCALL_V4 : JInst<(outs),
                                            (ins calltarget:$dst),
-             "call $dst // Restore_and_dealloc_before_tailcall",
+             "call $dst",
              []>,
              Requires<[HasV4T]>;
 }
@@ -2573,10 +2606,11 @@ let isCall = 1, isBarrier = 1,
 
 //    if (Ps) dealloc_return
 let isReturn = 1, isTerminator = 1,
-    Defs = [R29, R30, R31, PC], Uses = [R29, R31], neverHasSideEffects = 1,
+    Defs = [R29, R30, R31, PC], Uses = [R30], neverHasSideEffects = 1,
     isPredicated = 1 in {
-  def DEALLOC_RET_cPt_V4 : NVInst_V4<(outs),
-                           (ins PredRegs:$src1, i32imm:$amt1),
+let validSubTargets = HasV4SubT in
+  def DEALLOC_RET_cPt_V4 : LD0Inst<(outs),
+                           (ins PredRegs:$src1),
             "if ($src1) dealloc_return",
             []>,
             Requires<[HasV4T]>;
@@ -2584,10 +2618,10 @@ let isReturn = 1, isTerminator = 1,
 
 //    if (!Ps) dealloc_return
 let isReturn = 1, isTerminator = 1,
-    Defs = [R29, R30, R31, PC], Uses = [R29, R31], neverHasSideEffects = 1,
-    isPredicated = 1 in {
-  def DEALLOC_RET_cNotPt_V4 : NVInst_V4<(outs), (ins PredRegs:$src1,
-                                                     i32imm:$amt1),
+    Defs = [R29, R30, R31, PC], Uses = [R30], neverHasSideEffects = 1,
+    isPredicated = 1, isPredicatedFalse = 1 in {
+let validSubTargets = HasV4SubT in
+  def DEALLOC_RET_cNotPt_V4 : LD0Inst<(outs), (ins PredRegs:$src1),
             "if (!$src1) dealloc_return",
             []>,
             Requires<[HasV4T]>;
@@ -2595,10 +2629,10 @@ let isReturn = 1, isTerminator = 1,
 
 //    if (Ps.new) dealloc_return:nt
 let isReturn = 1, isTerminator = 1,
-    Defs = [R29, R30, R31, PC], Uses = [R29, R31], neverHasSideEffects = 1,
+    Defs = [R29, R30, R31, PC], Uses = [R30], neverHasSideEffects = 1,
     isPredicated = 1 in {
-  def DEALLOC_RET_cdnPnt_V4 : NVInst_V4<(outs), (ins PredRegs:$src1,
-                                                     i32imm:$amt1),
+let validSubTargets = HasV4SubT in
+  def DEALLOC_RET_cdnPnt_V4 : LD0Inst<(outs), (ins PredRegs:$src1),
             "if ($src1.new) dealloc_return:nt",
             []>,
             Requires<[HasV4T]>;
@@ -2606,10 +2640,10 @@ let isReturn = 1, isTerminator = 1,
 
 //    if (!Ps.new) dealloc_return:nt
 let isReturn = 1, isTerminator = 1,
-    Defs = [R29, R30, R31, PC], Uses = [R29, R31], neverHasSideEffects = 1,
-    isPredicated = 1 in {
-  def DEALLOC_RET_cNotdnPnt_V4 : NVInst_V4<(outs), (ins PredRegs:$src1,
-                                                        i32imm:$amt1),
+    Defs = [R29, R30, R31, PC], Uses = [R30], neverHasSideEffects = 1,
+    isPredicated = 1, isPredicatedFalse = 1 in {
+let validSubTargets = HasV4SubT in
+  def DEALLOC_RET_cNotdnPnt_V4 : LD0Inst<(outs), (ins PredRegs:$src1),
             "if (!$src1.new) dealloc_return:nt",
             []>,
             Requires<[HasV4T]>;
@@ -2617,21 +2651,21 @@ let isReturn = 1, isTerminator = 1,
 
 //    if (Ps.new) dealloc_return:t
 let isReturn = 1, isTerminator = 1,
-    Defs = [R29, R30, R31, PC], Uses = [R29, R31], neverHasSideEffects = 1,
+    Defs = [R29, R30, R31, PC], Uses = [R30], neverHasSideEffects = 1,
     isPredicated = 1 in {
-  def DEALLOC_RET_cdnPt_V4 : NVInst_V4<(outs), (ins PredRegs:$src1,
-                                                    i32imm:$amt1),
+let validSubTargets = HasV4SubT in
+  def DEALLOC_RET_cdnPt_V4 : LD0Inst<(outs), (ins PredRegs:$src1),
             "if ($src1.new) dealloc_return:t",
             []>,
             Requires<[HasV4T]>;
 }
 
-//    if (!Ps.new) dealloc_return:nt
+// if (!Ps.new) dealloc_return:nt
 let isReturn = 1, isTerminator = 1,
-    Defs = [R29, R30, R31, PC], Uses = [R29, R31], neverHasSideEffects = 1,
-    isPredicated = 1 in {
-  def DEALLOC_RET_cNotdnPt_V4 : NVInst_V4<(outs), (ins PredRegs:$src1,
-                                                       i32imm:$amt1),
+    Defs = [R29, R30, R31, PC], Uses = [R30], neverHasSideEffects = 1,
+    isPredicated = 1, isPredicatedFalse = 1 in {
+let validSubTargets = HasV4SubT in
+  def DEALLOC_RET_cNotdnPt_V4 : LD0Inst<(outs), (ins PredRegs:$src1),
             "if (!$src1.new) dealloc_return:t",
             []>,
             Requires<[HasV4T]>;
@@ -3033,37 +3067,42 @@ def : Pat<(HexagonCONST32_GP tblockaddress:$src1),
           (TFRI_V4 tblockaddress:$src1)>,
           Requires<[HasV4T]>;
 
-let AddedComplexity=50, neverHasSideEffects = 1, isPredicated = 1 in
+let isExtended = 1, opExtendable = 2, AddedComplexity=50,
+neverHasSideEffects = 1, isPredicated = 1, validSubTargets = HasV4SubT in
 def TFRI_cPt_V4 : ALU32_ri<(outs IntRegs:$dst),
-                           (ins PredRegs:$src1, globaladdress:$src2),
-           "if($src1) $dst = ##$src2",
+                           (ins PredRegs:$src1, s16Ext:$src2),
+           "if($src1) $dst = #$src2",
            []>,
            Requires<[HasV4T]>;
 
-let AddedComplexity=50, neverHasSideEffects = 1, isPredicated = 1 in
+let isExtended = 1, opExtendable = 2, AddedComplexity=50, isPredicatedFalse = 1,
+neverHasSideEffects = 1, isPredicated = 1, validSubTargets = HasV4SubT in
 def TFRI_cNotPt_V4 : ALU32_ri<(outs IntRegs:$dst),
-                              (ins PredRegs:$src1, globaladdress:$src2),
-           "if(!$src1) $dst = ##$src2",
+                              (ins PredRegs:$src1, s16Ext:$src2),
+           "if(!$src1) $dst = #$src2",
            []>,
            Requires<[HasV4T]>;
 
-let AddedComplexity=50, neverHasSideEffects = 1, isPredicated = 1 in
+let isExtended = 1, opExtendable = 2, AddedComplexity=50,
+neverHasSideEffects = 1, isPredicated = 1, validSubTargets = HasV4SubT in
 def TFRI_cdnPt_V4 : ALU32_ri<(outs IntRegs:$dst),
-                             (ins PredRegs:$src1, globaladdress:$src2),
-           "if($src1.new) $dst = ##$src2",
+                             (ins PredRegs:$src1, s16Ext:$src2),
+           "if($src1.new) $dst = #$src2",
            []>,
            Requires<[HasV4T]>;
 
-let AddedComplexity=50, neverHasSideEffects = 1, isPredicated = 1 in
+let isExtended = 1, opExtendable = 2, AddedComplexity=50, isPredicatedFalse = 1,
+neverHasSideEffects = 1, isPredicated = 1, validSubTargets = HasV4SubT in
 def TFRI_cdnNotPt_V4 : ALU32_ri<(outs IntRegs:$dst),
-                                (ins PredRegs:$src1, globaladdress:$src2),
-           "if(!$src1.new) $dst = ##$src2",
+                                (ins PredRegs:$src1, s16Ext:$src2),
+           "if(!$src1.new) $dst = #$src2",
            []>,
            Requires<[HasV4T]>;
 
 let AddedComplexity = 50, Predicates = [HasV4T] in
 def : Pat<(HexagonCONST32_GP tglobaladdr:$src1),
-           (TFRI_V4 tglobaladdr:$src1)>;
+           (TFRI_V4 tglobaladdr:$src1)>,
+           Requires<[HasV4T]>;
 
 
 // Load - Indirect with long offset: These instructions take global address
@@ -3149,6 +3188,93 @@ def STriw_offset_ext_V4 : STInst<(outs),
                     (add IntRegs:$src1, u6_2ImmPred:$src2))]>,
             Requires<[HasV4T]>;
 
+def : Pat<(i64 (ctlz (i64 DoubleRegs:$src1))),
+          (i64 (COMBINE_Ir_V4 (i32 0), (i32 (CTLZ64_rr DoubleRegs:$src1))))>,
+          Requires<[HasV4T]>;
+
+def : Pat<(i64 (cttz (i64 DoubleRegs:$src1))),
+          (i64 (COMBINE_Ir_V4 (i32 0), (i32 (CTTZ64_rr DoubleRegs:$src1))))>,
+          Requires<[HasV4T]>;
+
+
+// i8 -> i64 loads
+// We need a complexity of 120 here to overide preceeding handling of
+// zextloadi8.
+let Predicates = [HasV4T], AddedComplexity = 120 in {
+def:  Pat <(i64 (extloadi8 (NumUsesBelowThresCONST32 tglobaladdr:$addr))),
+      (i64 (COMBINE_Ir_V4 0, (LDrib_abs_V4 tglobaladdr:$addr)))>;
+
+def:  Pat <(i64 (zextloadi8 (NumUsesBelowThresCONST32 tglobaladdr:$addr))),
+      (i64 (COMBINE_Ir_V4 0, (LDriub_abs_V4 tglobaladdr:$addr)))>;
+
+def:  Pat <(i64 (sextloadi8 (NumUsesBelowThresCONST32 tglobaladdr:$addr))),
+      (i64 (SXTW (LDrib_abs_V4 tglobaladdr:$addr)))>;
+
+def:  Pat <(i64 (extloadi8 FoldGlobalAddr:$addr)),
+      (i64 (COMBINE_Ir_V4 0, (LDrib_abs_V4 FoldGlobalAddr:$addr)))>;
+
+def:  Pat <(i64 (zextloadi8 FoldGlobalAddr:$addr)),
+      (i64 (COMBINE_Ir_V4 0, (LDriub_abs_V4 FoldGlobalAddr:$addr)))>;
+
+def:  Pat <(i64 (sextloadi8 FoldGlobalAddr:$addr)),
+      (i64 (SXTW (LDrib_abs_V4 FoldGlobalAddr:$addr)))>;
+}
+// i16 -> i64 loads
+// We need a complexity of 120 here to overide preceeding handling of
+// zextloadi16.
+let AddedComplexity = 120 in {
+def:  Pat <(i64 (extloadi16 (NumUsesBelowThresCONST32 tglobaladdr:$addr))),
+      (i64 (COMBINE_Ir_V4 0, (LDrih_abs_V4 tglobaladdr:$addr)))>,
+      Requires<[HasV4T]>;
+
+def:  Pat <(i64 (zextloadi16 (NumUsesBelowThresCONST32 tglobaladdr:$addr))),
+      (i64 (COMBINE_Ir_V4 0, (LDriuh_abs_V4 tglobaladdr:$addr)))>,
+      Requires<[HasV4T]>;
+
+def:  Pat <(i64 (sextloadi16 (NumUsesBelowThresCONST32 tglobaladdr:$addr))),
+      (i64 (SXTW (LDrih_abs_V4 tglobaladdr:$addr)))>,
+      Requires<[HasV4T]>;
+
+def:  Pat <(i64 (extloadi16 FoldGlobalAddr:$addr)),
+      (i64 (COMBINE_Ir_V4 0, (LDrih_abs_V4 FoldGlobalAddr:$addr)))>,
+      Requires<[HasV4T]>;
+
+def:  Pat <(i64 (zextloadi16 FoldGlobalAddr:$addr)),
+      (i64 (COMBINE_Ir_V4 0, (LDriuh_abs_V4 FoldGlobalAddr:$addr)))>,
+      Requires<[HasV4T]>;
+
+def:  Pat <(i64 (sextloadi16 FoldGlobalAddr:$addr)),
+      (i64 (SXTW (LDrih_abs_V4 FoldGlobalAddr:$addr)))>,
+      Requires<[HasV4T]>;
+}
+// i32->i64 loads
+// We need a complexity of 120 here to overide preceeding handling of
+// zextloadi32.
+let AddedComplexity = 120 in {
+def:  Pat <(i64 (extloadi32 (NumUsesBelowThresCONST32 tglobaladdr:$addr))),
+      (i64 (COMBINE_Ir_V4 0, (LDriw_abs_V4 tglobaladdr:$addr)))>,
+      Requires<[HasV4T]>;
+
+def:  Pat <(i64 (zextloadi32 (NumUsesBelowThresCONST32 tglobaladdr:$addr))),
+      (i64 (COMBINE_Ir_V4 0, (LDriw_abs_V4 tglobaladdr:$addr)))>,
+      Requires<[HasV4T]>;
+
+def:  Pat <(i64 (sextloadi32 (NumUsesBelowThresCONST32 tglobaladdr:$addr))),
+      (i64 (SXTW (LDriw_abs_V4 tglobaladdr:$addr)))>,
+      Requires<[HasV4T]>;
+
+def:  Pat <(i64 (extloadi32 FoldGlobalAddr:$addr)),
+      (i64 (COMBINE_Ir_V4 0, (LDriw_abs_V4 FoldGlobalAddr:$addr)))>,
+      Requires<[HasV4T]>;
+
+def:  Pat <(i64 (zextloadi32 FoldGlobalAddr:$addr)),
+      (i64 (COMBINE_Ir_V4 0, (LDriw_abs_V4 FoldGlobalAddr:$addr)))>,
+      Requires<[HasV4T]>;
+
+def:  Pat <(i64 (sextloadi32 FoldGlobalAddr:$addr)),
+      (i64 (SXTW (LDriw_abs_V4 FoldGlobalAddr:$addr)))>,
+      Requires<[HasV4T]>;
+}
 
 // Indexed store double word - global address.
 // memw(Rs+#u6:2)=#S8
@@ -3264,4 +3390,3 @@ def : Pat<(i32 (load FoldGlobalAddrGP:$addr)),
 def : Pat<(atomic_load_32 FoldGlobalAddrGP:$addr),
           (i32 (LDriw_abs_V4 FoldGlobalAddrGP:$addr))>,
            Requires<[HasV4T]>;
-

@@ -1,5 +1,7 @@
 .\" $FreeBSD$
-.TH "OPT" "1" "2013-06-10" "3.3" "LLVM"
+.\" Man page generated from reStructuredText.
+.
+.TH "OPT" "1" "2014-01-01" "3.4" "LLVM"
 .SH NAME
 opt \- LLVM optimizer
 .
@@ -29,8 +31,6 @@ level margin: \\n[rst2man-indent\\n[rst2man-indent-level]]
 .\" new: \\n[rst2man-indent\\n[rst2man-indent-level]]
 .in \\n[rst2man-indent\\n[rst2man-indent-level]]u
 ..
-.\" Man page generated from reStructuredText.
-.
 .SH SYNOPSIS
 .sp
 \fBopt\fP [\fIoptions\fP] [\fIfilename\fP]
@@ -51,14 +51,14 @@ program.
 While \fI\-analyze\fP is \fInot\fP given, \fBopt\fP attempts to produce an
 optimized output file.  The optimizations available via \fBopt\fP depend
 upon what libraries were linked into it as well as any additional libraries
-that have been loaded with the \fI\%-load\fP option.  Use the \fI\%-help\fP
+that have been loaded with the \fI\%\-load\fP option.  Use the \fI\%\-help\fP
 option to determine what optimizations you can use.
 .sp
 If \fBfilename\fP is omitted from the command line or is "\fB\-\fP", \fBopt\fP
 reads its input from standard input.  Inputs can be in either the LLVM assembly
-language format (\fB.ll\fP) or the LLVM bitcode format (\fB.bc\fP).
+language format (\fB\&.ll\fP) or the LLVM bitcode format (\fB\&.bc\fP).
 .sp
-If an output filename is not specified with the \fI\%-o\fP option,
+If an output filename is not specified with the \fI\%\-o\fP option,
 \fBopt\fP writes its output to the standard output.
 .SH OPTIONS
 .INDENT 0.0
@@ -87,7 +87,7 @@ Write output in LLVM intermediate language (instead of bitcode).
 .TP
 .B \-{passname}
 \fBopt\fP provides the ability to run any of LLVM\(aqs optimization or
-analysis passes in any order.  The \fI\%-help\fP option lists all the passes
+analysis passes in any order.  The \fI\%\-help\fP option lists all the passes
 available.  The order in which the options occur on the command line are the
 order in which they are executed (within pass constraints).
 .UNINDENT
@@ -112,16 +112,16 @@ llvm\-as < /dev/null | opt \-std\-compile\-opts \-disable\-output \-debug\-pass=
 .INDENT 0.0
 .TP
 .B \-disable\-inlining
-This option is only meaningful when \fI\%-std-compile-opts\fP is given.  It
+This option is only meaningful when \fI\%\-std\-compile\-opts\fP is given.  It
 simply removes the inlining pass from the standard list.
 .UNINDENT
 .INDENT 0.0
 .TP
 .B \-disable\-opt
-This option is only meaningful when \fI\%-std-compile-opts\fP is given.  It
-disables most, but not all, of the \fI\%-std-compile-opts\fP.  The ones that
+This option is only meaningful when \fI\%\-std\-compile\-opts\fP is given.  It
+disables most, but not all, of the \fI\%\-std\-compile\-opts\fP\&.  The ones that
 remain are \fI\-verify\fP, \fI\-lower\-setjmp\fP, and
-\fI\-funcresolve\fP.
+\fI\-funcresolve\fP\&.
 .UNINDENT
 .INDENT 0.0
 .TP
@@ -137,7 +137,7 @@ This option causes opt to add a verify pass after every pass otherwise
 specified on the command line (including \fI\-verify\fP).  This is useful
 for cases where it is suspected that a pass is creating an invalid module but
 it is not clear which pass is doing it.  The combination of
-\fI\%-std-compile-opts\fP and \fI\%-verify-each\fP can quickly track down
+\fI\%\-std\-compile\-opts\fP and \fI\%\-verify\-each\fP can quickly track down
 this kind of problem.
 .UNINDENT
 .INDENT 0.0
@@ -160,15 +160,15 @@ error.
 .TP
 .B \-debug
 If this is a debug build, this option will enable debug printouts from passes
-which use the \fBDEBUG()\fP macro.  See the \fI\%LLVM Programmer's Manual\fP, section \fB#DEBUG\fP for more information.
+which use the \fBDEBUG()\fP macro.  See the \fI\%LLVM Programmer\(aqs Manual\fP, section \fB#DEBUG\fP for more information.
 .UNINDENT
 .INDENT 0.0
 .TP
 .B \-load=<plugin>
-Load the dynamic object \fBplugin\fP.  This object should register new
+Load the dynamic object \fBplugin\fP\&.  This object should register new
 optimization or analysis passes.  Once loaded, the object will add new command
 line options to enable various optimizations or analyses.  To see the new
-complete list of optimizations, use the \fI\%-help\fP and \fI\%-load\fP
+complete list of optimizations, use the \fI\%\-help\fP and \fI\%\-load\fP
 options together.  For example:
 .INDENT 7.0
 .INDENT 3.5

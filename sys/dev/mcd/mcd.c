@@ -44,7 +44,7 @@
 
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
-static const char COPYRIGHT[] = "mcd-driver (C)1993 by H.Veit & B.Moore";
+static const char __used COPYRIGHT[] = "mcd-driver (C)1993 by H.Veit & B.Moore";
 
 #include <sys/param.h>
 #include <sys/systm.h>

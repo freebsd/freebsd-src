@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000-2001 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 2000-2001 Proofpoint, Inc. and its suppliers.
  *	All rights reserved.
  *
  * By using this file, you agree to the terms and conditions set
@@ -9,7 +9,7 @@
  */
 
 #include <sm/gen.h>
-SM_RCSID("@(#)$Id: assert.c,v 1.26 2003/12/05 22:45:24 ca Exp $")
+SM_RCSID("@(#)$Id: assert.c,v 1.27 2013-11-22 20:51:42 ca Exp $")
 
 /*
 **  Abnormal program termination and assertion checking.

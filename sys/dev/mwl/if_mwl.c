@@ -282,11 +282,13 @@ struct mwltxrec {
  * that all BAR 1 operations are done in the "hal" and
  * there should be no reference to them here.
  */
+#ifdef MWL_DEBUG
 static __inline uint32_t
 RD4(struct mwl_softc *sc, bus_size_t off)
 {
 	return bus_space_read_4(sc->sc_io0t, sc->sc_io0h, off);
 }
+#endif
 
 static __inline void
 WR4(struct mwl_softc *sc, bus_size_t off, uint32_t val)
@@ -2884,12 +2886,13 @@ mwl_rx_proc(void *arg, int npending)
 		 * upper layer to put a station in power save
 		 * (except when configured with MWL_HOST_PS_SUPPORT).
 		 */
-		if (wh->i_fc[1] & IEEE80211_FC1_WEP)
+		if (wh->i_fc[1] & IEEE80211_FC1_PROTECTED)
 			m->m_flags |= M_WEP;
 #ifdef MWL_HOST_PS_SUPPORT
-		wh->i_fc[1] &= ~IEEE80211_FC1_WEP;
+		wh->i_fc[1] &= ~IEEE80211_FC1_PROTECTED;
 #else
-		wh->i_fc[1] &= ~(IEEE80211_FC1_WEP | IEEE80211_FC1_PWR_MGT);
+		wh->i_fc[1] &= ~(IEEE80211_FC1_PROTECTED |
+		    IEEE80211_FC1_PWR_MGT);
 #endif
 
 		if (ieee80211_radiotap_active(ic)) {
@@ -3203,7 +3206,7 @@ mwl_tx_start(struct mwl_softc *sc, struct ieee80211_node *ni, struct mwl_txbuf *
 #endif
 
 	wh = mtod(m0, struct ieee80211_frame *);
-	iswep = wh->i_fc[1] & IEEE80211_FC1_WEP;
+	iswep = wh->i_fc[1] & IEEE80211_FC1_PROTECTED;
 	ismcast = IEEE80211_IS_MULTICAST(wh->i_addr1);
 	hdrlen = ieee80211_anyhdrsize(wh);
 	copyhdrlen = hdrlen;

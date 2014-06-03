@@ -25,9 +25,11 @@
 #
 # $FreeBSD$
 
+.include <src.opts.mk>
 .include <bsd.init.mk>
 
 LIB=		atf-c
+PRIVATELIB=	true
 SHLIB_MAJOR=	1
 
 ATF=		${.CURDIR:H:H:H}/contrib/atf
@@ -78,4 +80,5 @@ MAN=		atf-c-api.3
 SUBDIR=		tests
 .endif
 
+.include "../common.mk"
 .include <bsd.lib.mk>

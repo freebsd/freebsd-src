@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-NO_MAN=
+MAN=
 .include <bsd.own.mk>
 
 PROG_CXX=llvm-rtdyld
@@ -27,10 +27,16 @@ LIBDEPS=llvmdebuginfo \
 	llvmmipsinfo \
 	llvmmipsinstprinter \
 	llvmpowerpccodegen \
-	llvmpowerpcdesc \
-	llvmpowerpcinstprinter \
 	llvmpowerpcasmparser \
+	llvmpowerpcdesc \
 	llvmpowerpcinfo \
+	llvmpowerpcinstprinter \
+	llvmsparcdisassembler \
+	llvmsparccodegen \
+	llvmsparcasmparser \
+	llvmsparcdesc \
+	llvmsparcinfo \
+	llvmsparcinstprinter \
 	llvmx86disassembler \
 	llvmx86asmparser \
 	llvmx86codegen \

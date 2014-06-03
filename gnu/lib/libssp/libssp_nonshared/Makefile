@@ -7,7 +7,7 @@ GCCLIB=	${.CURDIR}/../../../../contrib/gcclibs
 
 LIB=	ssp_nonshared
 NO_PIC=
-NO_PROFILE=
+MK_PROFILE=no
 
 SRCS=	ssp-local.c
 

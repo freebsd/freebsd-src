@@ -1,5 +1,0 @@
-<?xml version="1.0"?>
-<!-- $FreeBSD$ -->
-<catalog xmlns="urn:oasis:names:tc:entity:xmlns:xml:catalog">
-  <public publicId="-//FreeBSD//ENTITIES Auto Generated Device Lists//JA" uri="dev-auto-ja.ent"/>
-</catalog>

@@ -458,7 +458,7 @@ kernel_pt_lookup(vm_paddr_t pa)
 	return (0);
 }
 
-#if (ARM_MMU_GENERIC + ARM_MMU_SA1) != 0
+#if ARM_MMU_GENERIC != 0
 void
 pmap_pte_init_generic(void)
 {
@@ -500,23 +500,6 @@ pmap_pte_init_generic(void)
 	pmap_zero_page_func = pmap_zero_page_generic;
 }
 
-#if defined(CPU_ARM8)
-void
-pmap_pte_init_arm8(void)
-{
-
-	/*
-	 * ARM8 is compatible with generic, but we need to use
-	 * the page tables uncached.
-	 */
-	pmap_pte_init_generic();
-
-	pte_l1_s_cache_mode_pt = 0;
-	pte_l2_l_cache_mode_pt = 0;
-	pte_l2_s_cache_mode_pt = 0;
-}
-#endif /* CPU_ARM8 */
-
 #if defined(CPU_ARM9) && defined(ARM9_CACHE_WRITE_THROUGH)
 void
 pmap_pte_init_arm9(void)
@@ -537,7 +520,7 @@ pmap_pte_init_arm9(void)
 	pte_l2_s_cache_mode_pt = L2_C;
 }
 #endif /* CPU_ARM9 */
-#endif /* (ARM_MMU_GENERIC + ARM_MMU_SA1) != 0 */
+#endif /* ARM_MMU_GENERIC != 0 */
 
 #if defined(CPU_ARM10)
 void
@@ -560,27 +543,6 @@ pmap_pte_init_arm10(void)
 
 }
 #endif /* CPU_ARM10 */
-
-#if  ARM_MMU_SA1 == 1
-void
-pmap_pte_init_sa1(void)
-{
-
-	/*
-	 * The StrongARM SA-1 cache does not have a write-through
-	 * mode.  So, do the generic initialization, then reset
-	 * the page table cache mode to B=1,C=1, and note that
-	 * the PTEs need to be sync'd.
-	 */
-	pmap_pte_init_generic();
-
-	pte_l1_s_cache_mode_pt = L1_S_B|L1_S_C;
-	pte_l2_l_cache_mode_pt = L2_B|L2_C;
-	pte_l2_s_cache_mode_pt = L2_B|L2_C;
-
-	pmap_needs_pte_sync = 1;
-}
-#endif /* ARM_MMU_SA1 == 1*/
 
 #if ARM_MMU_XSCALE == 1
 #if (ARM_NMMUS > 1) || defined (CPU_XSCALE_CORE3)
@@ -1069,9 +1031,7 @@ pmap_l2ptp_ctor(void *mem, int size, void *arg, int flags)
 #ifndef PMAP_INCLUDE_PTE_SYNC
 	struct l2_bucket *l2b;
 	pt_entry_t *ptep, pte;
-#ifdef ARM_USE_SMALL_ALLOC
-	pd_entry_t *pde;
-#endif
+
 	vm_offset_t va = (vm_offset_t)mem & ~PAGE_MASK;
 
 	/*
@@ -1082,10 +1042,6 @@ pmap_l2ptp_ctor(void *mem, int size, void *arg, int flags)
 	 * page tables, we simply fix up the cache-mode here if it's not
 	 * correct.
 	 */
-#ifdef ARM_USE_SMALL_ALLOC
-	pde = &kernel_pmap->pm_l1->l1_kva[L1_IDX(va)];
-	if (!l1pte_section_p(*pde)) {
-#endif
 		l2b = pmap_get_l2_bucket(pmap_kernel(), va);
 		ptep = &l2b->l2b_kva[l2pte_index(va)];
 		pte = *ptep;
@@ -1100,9 +1056,6 @@ pmap_l2ptp_ctor(void *mem, int size, void *arg, int flags)
 			cpu_tlb_flushD_SE(va);
 			cpu_cpwait();
 		}
-#ifdef ARM_USE_SMALL_ALLOC
-	}
-#endif
 #endif
 	memset(mem, 0, L2_TABLE_SIZE_REAL);
 	PTE_SYNC_RANGE(mem, L2_TABLE_SIZE_REAL / sizeof(pt_entry_t));
@@ -1826,8 +1779,6 @@ pmap_init(void)
 {
 	int shpgperproc = PMAP_SHPGPERPROC;
 
-	PDEBUG(1, printf("pmap_init: phys_start = %08x\n", PHYSADDR));
-
 	l2zone = uma_zcreate("L2 Table", L2_TABLE_SIZE_REAL, pmap_l2ptp_ctor,
 	    NULL, NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_VM | UMA_ZONE_NOFREE);
 	l2table_zone = uma_zcreate("L2 Table", sizeof(struct l2_dtable), NULL,
@@ -1839,7 +1790,7 @@ pmap_init(void)
 	pvzone = uma_zcreate("PV ENTRY", sizeof (struct pv_entry), NULL, NULL,
 	    NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_VM | UMA_ZONE_NOFREE);
 	TUNABLE_INT_FETCH("vm.pmap.shpgperproc", &shpgperproc);
-	pv_entry_max = shpgperproc * maxproc + cnt.v_page_count;
+	pv_entry_max = shpgperproc * maxproc + vm_cnt.v_page_count;
 	uma_zone_reserve_kva(pvzone, pv_entry_max);
 	pv_entry_high_water = 9 * (pv_entry_max / 10);
 
@@ -1982,34 +1933,6 @@ pmap_fault_fixup(pmap_t pm, vm_offset_t va, vm_prot_t ftype, int user)
 		PTE_SYNC(pl1pd);
 		rv = 1;
 	}
-
-#ifdef CPU_SA110
-	/*
-	 * There are bugs in the rev K SA110.  This is a check for one
-	 * of them.
-	 */
-	if (rv == 0 && curcpu()->ci_arm_cputype == CPU_ID_SA110 &&
-	    curcpu()->ci_arm_cpurev < 3) {
-		/* Always current pmap */
-		if (l2pte_valid(pte)) {
-			extern int kernel_debug;
-			if (kernel_debug & 1) {
-				struct proc *p = curlwp->l_proc;
-				printf("prefetch_abort: page is already "
-				    "mapped - pte=%p *pte=%08x\n", ptep, pte);
-				printf("prefetch_abort: pc=%08lx proc=%p "
-				    "process=%s\n", va, p, p->p_comm);
-				printf("prefetch_abort: far=%08x fs=%x\n",
-				    cpu_faultaddress(), cpu_faultstatus());
-			}
-#ifdef DDB
-			if (kernel_debug & 2)
-				Debugger();
-#endif
-			rv = 1;
-		}
-	}
-#endif /* CPU_SA110 */
 
 #ifdef DEBUG
 	/*
@@ -2261,10 +2184,6 @@ pmap_alloc_specials(vm_offset_t *availp, int pages, vm_offset_t *vap,
  *	(physical) address starting relative to 0]
  */
 #define PMAP_STATIC_L2_SIZE 16
-#ifdef ARM_USE_SMALL_ALLOC
-extern struct mtx smallalloc_mtx;
-#endif
-
 void
 pmap_bootstrap(vm_offset_t firstaddr, struct pv_addr *l1pt)
 {
@@ -2424,10 +2343,6 @@ pmap_bootstrap(vm_offset_t firstaddr, struct pv_addr *l1pt)
 	kernel_vm_end = pmap_curmaxkvaddr;
 	mtx_init(&cmtx, "TMP mappings mtx", NULL, MTX_DEF);
 
-#ifdef ARM_USE_SMALL_ALLOC
-	mtx_init(&smallalloc_mtx, "Small alloc page list", NULL, MTX_DEF);
-	arm_init_smallalloc();
-#endif
 	pmap_set_pcb_pagedir(kernel_pmap, thread0.td_pcb);
 }
 
@@ -2671,11 +2586,7 @@ pmap_remove_pages(pmap_t pmap)
 		KASSERT(l2b != NULL, ("No L2 bucket in pmap_remove_pages"));
 		pt = &l2b->l2b_kva[l2pte_index(pv->pv_va)];
 		m = PHYS_TO_VM_PAGE(*pt & L2_ADDR_MASK);
-#ifdef ARM_USE_SMALL_ALLOC
-		KASSERT((vm_offset_t)m >= alloc_firstaddr, ("Trying to access non-existent page va %x pte %x", pv->pv_va, *pt));
-#else
 		KASSERT((vm_offset_t)m >= KERNBASE, ("Trying to access non-existent page va %x pte %x", pv->pv_va, *pt));
-#endif
 		*pt = 0;
 		PTE_SYNC(pt);
 		npv = TAILQ_NEXT(pv, pv_plist);
@@ -2934,9 +2845,6 @@ pmap_kremove(vm_offset_t va)
 vm_offset_t
 pmap_map(vm_offset_t *virt, vm_offset_t start, vm_offset_t end, int prot)
 {
-#ifdef ARM_USE_SMALL_ALLOC
-	return (arm_ptovirt(start));
-#else
 	vm_offset_t sva = *virt;
 	vm_offset_t va = sva;
 
@@ -2951,7 +2859,6 @@ pmap_map(vm_offset_t *virt, vm_offset_t start, vm_offset_t end, int prot)
 	}
 	*virt = va;
 	return (sva);
-#endif
 }
 
 static void
@@ -4005,30 +3912,14 @@ pmap_remove(pmap_t pm, vm_offset_t sva, vm_offset_t eva)
  * StrongARM accesses to non-cached pages are non-burst making writing
  * _any_ bulk data very slow.
  */
-#if (ARM_MMU_GENERIC + ARM_MMU_SA1) != 0 || defined(CPU_XSCALE_CORE3)
+#if ARM_MMU_GENERIC != 0 || defined(CPU_XSCALE_CORE3)
 void
 pmap_zero_page_generic(vm_paddr_t phys, int off, int size)
 {
-#ifdef ARM_USE_SMALL_ALLOC
-	char *dstpg;
-#endif
 
 	if (_arm_bzero && size >= _min_bzero_size &&
 	    _arm_bzero((void *)(phys + off), size, IS_PHYSICAL) == 0)
 		return;
-
-#ifdef ARM_USE_SMALL_ALLOC
-	dstpg = (char *)arm_ptovirt(phys);
-	if (off || size != PAGE_SIZE) {
-		bzero(dstpg + off, size);
-		cpu_dcache_wbinv_range((vm_offset_t)(dstpg + off), size);
-		cpu_l2cache_wbinv_range((vm_offset_t)(dstpg + off), size);
-	} else {
-		bzero_page((vm_offset_t)dstpg);
-		cpu_dcache_wbinv_range((vm_offset_t)dstpg, PAGE_SIZE);
-		cpu_l2cache_wbinv_range((vm_offset_t)dstpg, PAGE_SIZE);
-	}
-#else
 
 	mtx_lock(&cmtx);
 	/*
@@ -4047,31 +3938,18 @@ pmap_zero_page_generic(vm_paddr_t phys, int off, int size)
 		bzero_page(cdstp);
 
 	mtx_unlock(&cmtx);
-#endif
 }
-#endif /* (ARM_MMU_GENERIC + ARM_MMU_SA1) != 0 */
+#endif /* ARM_MMU_GENERIC != 0 */
 
 #if ARM_MMU_XSCALE == 1
 void
 pmap_zero_page_xscale(vm_paddr_t phys, int off, int size)
 {
-#ifdef ARM_USE_SMALL_ALLOC
-	char *dstpg;
-#endif
 
 	if (_arm_bzero && size >= _min_bzero_size &&
 	    _arm_bzero((void *)(phys + off), size, IS_PHYSICAL) == 0)
 		return;
-#ifdef ARM_USE_SMALL_ALLOC
-	dstpg = (char *)arm_ptovirt(phys);
-	if (off || size != PAGE_SIZE) {
-		bzero(dstpg + off, size);
-		cpu_dcache_wbinv_range((vm_offset_t)(dstpg + off), size);
-	} else {
-		bzero_page((vm_offset_t)dstpg);
-		cpu_dcache_wbinv_range((vm_offset_t)dstpg, PAGE_SIZE);
-	}
-#else
+
 	mtx_lock(&cmtx);
 	/*
 	 * Hook in the page, zero it, and purge the cache for that
@@ -4089,7 +3967,6 @@ pmap_zero_page_xscale(vm_paddr_t phys, int off, int size)
 		bzero_page(cdstp);
 	mtx_unlock(&cmtx);
 	xscale_cache_clean_minidata();
-#endif
 }
 
 /*
@@ -4278,7 +4155,7 @@ pmap_clean_page(struct pv_entry *pv, boolean_t is_src)
  * hook points. The same comment regarding cachability as in
  * pmap_zero_page also applies here.
  */
-#if  (ARM_MMU_GENERIC + ARM_MMU_SA1) != 0 || defined (CPU_XSCALE_CORE3)
+#if ARM_MMU_GENERIC != 0 || defined (CPU_XSCALE_CORE3)
 void
 pmap_copy_page_generic(vm_paddr_t src, vm_paddr_t dst)
 {
@@ -4343,7 +4220,7 @@ pmap_copy_page_offs_generic(vm_paddr_t a_phys, vm_offset_t a_offs,
 	cpu_l2cache_inv_range(csrcp + a_offs, cnt);
 	cpu_l2cache_wbinv_range(cdstp + b_offs, cnt);
 }
-#endif /* (ARM_MMU_GENERIC + ARM_MMU_SA1) != 0 */
+#endif /* ARM_MMU_GENERIC != 0 */
 
 #if ARM_MMU_XSCALE == 1
 void
@@ -4414,9 +4291,6 @@ pmap_copy_page_offs_xscale(vm_paddr_t a_phys, vm_offset_t a_offs,
 void
 pmap_copy_page(vm_page_t src, vm_page_t dst)
 {
-#ifdef ARM_USE_SMALL_ALLOC
-	vm_offset_t srcpg, dstpg;
-#endif
 
 	cpu_dcache_wbinv_all();
 	cpu_l2cache_wbinv_all();
@@ -4424,15 +4298,7 @@ pmap_copy_page(vm_page_t src, vm_page_t dst)
 	    _arm_memcpy((void *)VM_PAGE_TO_PHYS(dst),
 	    (void *)VM_PAGE_TO_PHYS(src), PAGE_SIZE, IS_PHYSICAL) == 0)
 		return;
-#ifdef ARM_USE_SMALL_ALLOC
-	srcpg = arm_ptovirt(VM_PAGE_TO_PHYS(src));
-	dstpg = arm_ptovirt(VM_PAGE_TO_PHYS(dst));
-	bcopy_page(srcpg, dstpg);
-	cpu_dcache_wbinv_range(dstpg, PAGE_SIZE);
-	cpu_l2cache_wbinv_range(dstpg, PAGE_SIZE);
-#else
 	pmap_copy_page_func(VM_PAGE_TO_PHYS(src), VM_PAGE_TO_PHYS(dst));
-#endif
 }
 
 int unmapped_buf_allowed = 1;
@@ -4444,9 +4310,6 @@ pmap_copy_pages(vm_page_t ma[], vm_offset_t a_offset, vm_page_t mb[],
 	vm_page_t a_pg, b_pg;
 	vm_offset_t a_pg_offset, b_pg_offset;
 	int cnt;
-#ifdef ARM_USE_SMALL_ALLOC
-	vm_offset_t a_va, b_va;
-#endif
 
 	cpu_dcache_wbinv_all();
 	cpu_l2cache_wbinv_all();
@@ -4457,16 +4320,8 @@ pmap_copy_pages(vm_page_t ma[], vm_offset_t a_offset, vm_page_t mb[],
 		b_pg = mb[b_offset >> PAGE_SHIFT];
 		b_pg_offset = b_offset & PAGE_MASK;
 		cnt = min(cnt, PAGE_SIZE - b_pg_offset);
-#ifdef ARM_USE_SMALL_ALLOC
-		a_va = arm_ptovirt(VM_PAGE_TO_PHYS(a_pg)) + a_pg_offset;
-		b_va = arm_ptovirt(VM_PAGE_TO_PHYS(b_pg)) + b_pg_offset;
-		bcopy((char *)a_va, (char *)b_va, cnt);
-		cpu_dcache_wbinv_range(b_va, cnt);
-		cpu_l2cache_wbinv_range(b_va, cnt);
-#else
 		pmap_copy_page_offs_func(VM_PAGE_TO_PHYS(a_pg), a_pg_offset,
 		    VM_PAGE_TO_PHYS(b_pg), b_pg_offset, cnt);
-#endif
 		xfersize -= cnt;
 		a_offset += cnt;
 		b_offset += cnt;

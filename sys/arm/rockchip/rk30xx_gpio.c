@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2013 Ganbold Tsagaankhuu <ganbold@gmail.com>
+ * Copyright (c) 2013 Ganbold Tsagaankhuu <ganbold@freebsd.org>
  * Copyright (c) 2012 Oleksandr Tymoshenko <gonzo@freebsd.org>
  * Copyright (c) 2012 Luiz Otavio O Souza.
  * All rights reserved.
@@ -96,7 +96,7 @@ struct gpio_ctrl_entry {
 };
 
 int rk30_gpios_prop_handle(phandle_t ctrl, pcell_t *gpios, int len);
-int platform_gpio_init(void);
+static int rk30_gpio_init(void);
 
 struct gpio_ctrl_entry gpio_controllers[] = {
 	{ "rockchip,rk30xx-gpio", &rk30_gpios_prop_handle },
@@ -441,6 +441,9 @@ static int
 rk30_gpio_probe(device_t dev)
 {
 
+	if (!ofw_bus_status_okay(dev))
+		return (ENXIO);
+
 	if (!ofw_bus_is_compatible(dev, "rockchip,rk30xx-gpio"))
 		return (ENXIO);
 
@@ -506,7 +509,7 @@ rk30_gpio_attach(device_t dev)
 
 	rk30_gpio_sc = sc;
 
-	platform_gpio_init();
+	rk30_gpio_init();
 	
 	return (bus_generic_attach(dev));
 
@@ -616,8 +619,8 @@ rk30_gpios_prop_handle(phandle_t ctrl, pcell_t *gpios, int len)
 #define	MAX_PINS_PER_NODE	5
 #define	GPIOS_PROP_CELLS	4
 
-int
-platform_gpio_init(void)
+static int
+rk30_gpio_init(void)
 {
 	phandle_t child, parent, root, ctrl;
 	pcell_t gpios[MAX_PINS_PER_NODE * GPIOS_PROP_CELLS];

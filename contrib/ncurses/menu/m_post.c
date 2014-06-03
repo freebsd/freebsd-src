@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2003,2004 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2010,2012 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -37,7 +37,7 @@
 
 #include "menu.priv.h"
 
-MODULE_ID("$Id: m_post.c,v 1.26 2004/12/25 23:57:04 tom Exp $")
+MODULE_ID("$Id: m_post.c,v 1.31 2012/06/09 23:54:35 tom Exp $")
 
 /*---------------------------------------------------------------------------
 |   Facility      :  libnmenu
@@ -67,7 +67,7 @@ _nc_Post_Item(const MENU * menu, const ITEM * item)
      - it is a onevalued menu and it is the current item
      - or it has a selection value
    */
-  wattron(menu->win, menu->back);
+  wattron(menu->win, (int)menu->back);
   if (item->value || (item == menu->curitem))
     {
       if (menu->marklen)
@@ -79,13 +79,13 @@ _nc_Post_Item(const MENU * menu, const ITEM * item)
 	     item. */
 	  if (!(menu->opt & O_ONEVALUE) && item->value && item != menu->curitem)
 	    {
-	      wattron(menu->win, menu->fore);
+	      wattron(menu->win, (int)menu->fore);
 	      isfore = TRUE;
 	    }
 	  waddstr(menu->win, menu->mark);
 	  if (isfore)
 	    {
-	      wattron(menu->win, menu->fore);
+	      wattron(menu->win, (int)menu->fore);
 	      isfore = FALSE;
 	    }
 	}
@@ -93,7 +93,7 @@ _nc_Post_Item(const MENU * menu, const ITEM * item)
   else				/* otherwise we have to wipe out the marker area */
     for (ch = ' ', i = menu->marklen; i > 0; i--)
       waddch(menu->win, ch);
-  wattroff(menu->win, menu->back);
+  wattroff(menu->win, (int)menu->back);
   count += menu->marklen;
 
   /* First we have to calculate the attribute depending on selectability
@@ -101,19 +101,19 @@ _nc_Post_Item(const MENU * menu, const ITEM * item)
    */
   if (!(item->opt & O_SELECTABLE))
     {
-      wattron(menu->win, menu->grey);
+      wattron(menu->win, (int)menu->grey);
       isgrey = TRUE;
     }
   else
     {
       if (item->value || item == menu->curitem)
 	{
-	  wattron(menu->win, menu->fore);
+	  wattron(menu->win, (int)menu->fore);
 	  isfore = TRUE;
 	}
       else
 	{
-	  wattron(menu->win, menu->back);
+	  wattron(menu->win, (int)menu->back);
 	  isback = TRUE;
 	}
     }
@@ -158,10 +158,10 @@ _nc_Post_Item(const MENU * menu, const ITEM * item)
 	  assert(cx >= 0 && cy >= 0);
 	  getyx(menu->win, ncy, ncx);
 	  if (isgrey)
-	    wattroff(menu->win, menu->grey);
+	    wattroff(menu->win, (int)menu->grey);
 	  else if (isfore)
-	    wattroff(menu->win, menu->fore);
-	  wattron(menu->win, menu->back);
+	    wattroff(menu->win, (int)menu->fore);
+	  wattron(menu->win, (int)menu->back);
 	  for (j = 1; j < menu->spc_rows; j++)
 	    {
 	      if ((item_y + j) < getmaxy(menu->win))
@@ -171,21 +171,21 @@ _nc_Post_Item(const MENU * menu, const ITEM * item)
 		    waddch(menu->win, ' ');
 		}
 	      if ((cy + j) < getmaxy(menu->win))
-		mvwaddch(menu->win, cy + j, cx - 1, menu->pad);
+		(void)mvwaddch(menu->win, cy + j, cx - 1, menu->pad);
 	    }
 	  wmove(menu->win, ncy, ncx);
 	  if (!isback)
-	    wattroff(menu->win, menu->back);
+	    wattroff(menu->win, (int)menu->back);
 	}
     }
 
   /* Remove attributes */
   if (isfore)
-    wattroff(menu->win, menu->fore);
+    wattroff(menu->win, (int)menu->fore);
   if (isback)
-    wattroff(menu->win, menu->back);
+    wattroff(menu->win, (int)menu->back);
   if (isgrey)
-    wattroff(menu->win, menu->grey);
+    wattroff(menu->win, (int)menu->grey);
 }
 
 /*---------------------------------------------------------------------------
@@ -225,7 +225,7 @@ _nc_Draw_Menu(const MENU * menu)
 	{
 	  _nc_Post_Item(menu, hitem);
 
-	  wattron(menu->win, menu->back);
+	  wattron(menu->win, (int)menu->back);
 	  if (((hitem = hitem->right) != lasthor) && hitem)
 	    {
 	      int i, j, cy, cx;
@@ -244,7 +244,7 @@ _nc_Draw_Menu(const MENU * menu)
 	    }
 	}
       while (hitem && (hitem != lasthor));
-      wattroff(menu->win, menu->back);
+      wattroff(menu->win, (int)menu->back);
 
       item = item->down;
       y += menu->spc_rows;
@@ -255,7 +255,7 @@ _nc_Draw_Menu(const MENU * menu)
 
 /*---------------------------------------------------------------------------
 |   Facility      :  libnmenu
-|   Function      :  int post_menu(MENU *)
+|   Function      :  int post_menu(MENU* menu)
 |
 |   Description   :  Post a menu to the screen. This makes it visible.
 |
@@ -269,7 +269,7 @@ _nc_Draw_Menu(const MENU * menu)
 NCURSES_EXPORT(int)
 post_menu(MENU * menu)
 {
-  T((T_CALLED("post_menu(%p)"), menu));
+  T((T_CALLED("post_menu(%p)"), (void *)menu));
 
   if (!menu)
     RETURN(E_BAD_ARGUMENT);
@@ -305,7 +305,7 @@ post_menu(MENU * menu)
   else
     RETURN(E_NOT_CONNECTED);
 
-  menu->status |= _POSTED;
+  SetStatus(menu, _POSTED);
 
   if (!(menu->opt & O_ONEVALUE))
     {
@@ -329,7 +329,7 @@ post_menu(MENU * menu)
 
 /*---------------------------------------------------------------------------
 |   Facility      :  libnmenu
-|   Function      :  int unpost_menu(MENU *)
+|   Function      :  int unpost_menu(MENU*)
 |
 |   Description   :  Detach menu from screen
 |
@@ -343,7 +343,7 @@ unpost_menu(MENU * menu)
 {
   WINDOW *win;
 
-  T((T_CALLED("unpost_menu(%p)"), menu));
+  T((T_CALLED("unpost_menu(%p)"), (void *)menu));
 
   if (!menu)
     RETURN(E_BAD_ARGUMENT);
@@ -369,7 +369,7 @@ unpost_menu(MENU * menu)
   delwin(menu->win);
   menu->win = (WINDOW *)0;
 
-  menu->status &= ~_POSTED;
+  ClrStatus(menu, _POSTED);
 
   RETURN(E_OK);
 }

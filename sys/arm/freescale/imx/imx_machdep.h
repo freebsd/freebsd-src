@@ -33,7 +33,6 @@
 
 /* Common functions, implemented in imx_machdep.c. */
 
-void imx_devmap_addentry(vm_paddr_t _pa, vm_size_t _sz);
 void imx_wdog_cpu_reset(vm_offset_t _wdcr_phys)  __attribute__((__noreturn__));
 
 /* From here down, routines are implemented in imxNN_machdep.c. */
@@ -56,24 +55,6 @@ void imx_wdog_cpu_reset(vm_offset_t _wdcr_phys)  __attribute__((__noreturn__));
 
 u_int imx_soc_type(void);
 u_int imx_soc_family(void);
-
-void imx_devmap_init(void);
-
-/*
- * We need a clock management system that works across unrelated SoCs and
- * devices.  For now, to keep imx development moving, define some barebones
- * functionality that can be shared within the imx family by having each SoC
- * implement functions with a common name.
- *
- * The usb enable functions are best-effort.  They turn on the usb otg, host,
- * and phy clocks in a SoC-specific manner, but it may take a lot more than that
- * to make usb work on a given board.  In particular, it can require specific
- * pinmux setup of gpio pins connected to external phy parts, voltage regulators
- * and overcurrent detectors, and so on.  On such boards, u-boot or other early
- * board setup code has to handle those things.
- */
-void imx_ccm_usb_enable(device_t _usbdev);
-void imx_ccm_usbphy_enable(device_t _phydev);
 
 #endif
 

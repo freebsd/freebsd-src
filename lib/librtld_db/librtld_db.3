@@ -48,7 +48,7 @@
 .Fc
 .Ft rd_err_e
 .Fo rd_event_addr
-.Fa "rd_agent_t *rdap, rd_notify_t *notify"
+.Fa "rd_agent_t *rdap, rd_event_e event, rd_notify_t *notify"
 .Fc
 .Ft rd_err_e
 .Fo rd_event_enable
@@ -142,10 +142,10 @@ enables reporting of events.
 This function always returns RD_OK.
 .Pp
 .Fn rd_event_addr
-returns the event address in the
+returns the event address corresponding to the
 .Ft event
 parameter.
-At the moment we only report RD_NOTIFY_BPT events.
+At the moment we only report events of type RD_NOTIFY_BPT.
 .Pp
 .Fn rd_event_getmsg
 returns the message associated with the latest event.

@@ -398,6 +398,8 @@ static int oct16550_bus_probe(struct uart_softc *);
 static int oct16550_bus_receive(struct uart_softc *);
 static int oct16550_bus_setsig(struct uart_softc *, int);
 static int oct16550_bus_transmit(struct uart_softc *);
+static void oct16550_bus_grab(struct uart_softc *);
+static void oct16550_bus_ungrab(struct uart_softc *);
 
 static kobj_method_t oct16550_methods[] = {
 	KOBJMETHOD(uart_attach,		oct16550_bus_attach),
@@ -411,6 +413,8 @@ static kobj_method_t oct16550_methods[] = {
 	KOBJMETHOD(uart_receive,	oct16550_bus_receive),
 	KOBJMETHOD(uart_setsig,		oct16550_bus_setsig),
 	KOBJMETHOD(uart_transmit,	oct16550_bus_transmit),
+	KOBJMETHOD(uart_grab,		oct16550_bus_grab),
+	KOBJMETHOD(uart_ungrab,		oct16550_bus_ungrab),
 	{ 0, 0 }
 };
 
@@ -809,4 +813,35 @@ oct16550_bus_transmit (struct uart_softc *sc)
 #endif
 	uart_unlock(sc->sc_hwmtx);
 	return (0);
+}
+
+static void
+oct16550_bus_grab(struct uart_softc *sc)
+{
+	struct uart_bas *bas = &sc->sc_bas;
+
+	/*
+	 * turn off all interrupts to enter polling mode. Leave the
+	 * saved mask alone. We'll restore whatever it was in ungrab.
+	 * All pending interupt signals are reset when IER is set to 0.
+	 */
+	uart_lock(sc->sc_hwmtx);
+	uart_setreg(bas, REG_IER, 0);
+	uart_barrier(bas);
+	uart_unlock(sc->sc_hwmtx);
+}
+
+static void
+oct16550_bus_ungrab(struct uart_softc *sc)
+{
+	struct oct16550_softc *oct16550 = (struct oct16550_softc*)sc;
+	struct uart_bas *bas = &sc->sc_bas;
+
+	/*
+	 * Restore previous interrupt mask
+	 */
+	uart_lock(sc->sc_hwmtx);
+	uart_setreg(bas, REG_IER, oct16550->ier);
+	uart_barrier(bas);
+	uart_unlock(sc->sc_hwmtx);
 }

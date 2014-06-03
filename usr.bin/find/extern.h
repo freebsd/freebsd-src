@@ -118,6 +118,7 @@ extern int ftsoptions, ignore_readdir_race, isdeprecated, isdepth, isoutput;
 extern int issort, isxargs;
 extern int mindepth, maxdepth;
 extern int regexp_flags;
+extern int exitstatus;
 extern time_t now;
 extern int dotfd;
 extern FTS *tree;

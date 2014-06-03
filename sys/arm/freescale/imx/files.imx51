@@ -4,13 +4,12 @@ arm/arm/bus_space_generic.c		standard
 arm/arm/cpufunc_asm_armv5.S		standard
 arm/arm/cpufunc_asm_arm11.S		standard
 arm/arm/cpufunc_asm_armv7.S		standard
-arm/arm/irq_dispatch.S			standard
 kern/kern_clocksource.c			standard
 
 # Init
+arm/freescale/imx/imx_common.c		standard
 arm/freescale/imx/imx_machdep.c		standard
 arm/freescale/imx/imx51_machdep.c	standard
-arm/freescale/imx/common.c		standard
 arm/arm/bus_space-v6.c			standard
 
 # Dummy serial console
@@ -49,4 +48,5 @@ arm/freescale/imx/i2c.c			optional fsliic
 
 # IPU - Image Processing Unit (frame buffer also)
 arm/freescale/imx/imx51_ipuv3.c		optional sc
-
+arm/freescale/imx/imx51_ipuv3_fbd.c	optional vt
+dev/vt/hw/fb/vt_early_fb.c		optional vt

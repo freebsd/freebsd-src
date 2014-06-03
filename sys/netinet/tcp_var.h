@@ -46,15 +46,6 @@ VNET_DECLARE(int, tcp_do_rfc1323);
 
 #endif /* _KERNEL */
 
-/* TCP segment queue entry */
-struct tseg_qent {
-	LIST_ENTRY(tseg_qent) tqe_q;
-	int	tqe_len;		/* TCP segment data length */
-	struct	tcphdr *tqe_th;		/* a pointer to tcp header */
-	struct	mbuf	*tqe_m;		/* mbuf contains packet */
-};
-LIST_HEAD(tsegqe_head, tseg_qent);
-
 struct sackblk {
 	tcp_seq start;		/* start seq no. of sack block */
 	tcp_seq end;		/* end seq no. */
@@ -100,7 +91,7 @@ do {								\
  * Organized for 16 byte cacheline efficiency.
  */
 struct tcpcb {
-	struct	tsegqe_head t_segq;	/* segment reassembly queue */
+	struct	mbuf *t_segq;		/* segment reassembly queue */
 	void	*t_pspare[2];		/* new reassembly queue */
 	int	t_segqlen;		/* segment reassembly queue length */
 	int	t_dupacks;		/* consecutive dup acks recd */
@@ -353,8 +344,7 @@ struct tcptw {
 	u_int		t_starttime;
 	int		tw_time;
 	TAILQ_ENTRY(tcptw) tw_2msl;
-	void		*tw_pspare;	/* TCP_SIGNATURE */
-	u_int		*tw_spare;	/* TCP_SIGNATURE */
+	u_int		tw_refcount;	/* refcount */
 };
 
 #define	intotcpcb(ip)	((struct tcpcb *)(ip)->inp_ppcb)
@@ -436,7 +426,7 @@ struct	tcpstat {
 	uint64_t tcps_rcvbyte;		/* bytes received in sequence */
 	uint64_t tcps_rcvbadsum;	/* packets received with ccksum errs */
 	uint64_t tcps_rcvbadoff;	/* packets received with bad offset */
-	uint64_t tcps_rcvmemdrop;	/* packets dropped for lack of memory */
+	uint64_t tcps_rcvreassfull;	/* packets dropped for no reass space */
 	uint64_t tcps_rcvshort;		/* packets received too short */
 	uint64_t tcps_rcvduppack;	/* duplicate-only packets received */
 	uint64_t tcps_rcvdupbyte;	/* duplicate-only bytes received */
@@ -515,6 +505,8 @@ struct	tcpstat {
 	uint64_t _pad[12];		/* 6 UTO, 6 TBD */
 };
 
+#define	tcps_rcvmemdrop	tcps_rcvreassfull	/* compat */
+
 #ifdef _KERNEL
 #include <sys/counter.h>
 
@@ -576,7 +568,7 @@ struct	xtcpcb {
 #endif
 
 /*
- * Names for TCP sysctl objects
+ * Identifiers for TCP sysctl nodes
  */
 #define	TCPCTL_DO_RFC1323	1	/* use RFC-1323 extensions */
 #define	TCPCTL_MSSDFLT		3	/* MSS default */
@@ -592,8 +584,6 @@ struct	xtcpcb {
 #define	TCPCTL_V6MSSDFLT	13	/* MSS default for IPv6 */
 #define	TCPCTL_SACK		14	/* Selective Acknowledgement,rfc 2018 */
 #define	TCPCTL_DROP		15	/* drop tcp connection */
-#define	TCPCTL_MAXID		16
-#define TCPCTL_FINWAIT2_TIMEOUT        17
 
 #ifdef _KERNEL
 #ifdef SYSCTL_DECL
@@ -647,9 +637,6 @@ struct tcpcb *
 	 tcp_close(struct tcpcb *);
 void	 tcp_discardcb(struct tcpcb *);
 void	 tcp_twstart(struct tcpcb *);
-#if 0
-int	 tcp_twrecycleable(struct tcptw *tw);
-#endif
 void	 tcp_twclose(struct tcptw *_tw, int _reuse);
 void	 tcp_ctlinput(int, struct sockaddr *, void *);
 int	 tcp_ctloutput(struct socket *, struct sockopt *);
@@ -666,11 +653,7 @@ char	*tcp_log_addrs(struct in_conninfo *, struct tcphdr *, void *,
 char	*tcp_log_vain(struct in_conninfo *, struct tcphdr *, void *,
 	    const void *);
 int	 tcp_reass(struct tcpcb *, struct tcphdr *, int *, struct mbuf *);
-void	 tcp_reass_init(void);
 void	 tcp_reass_flush(struct tcpcb *);
-#ifdef VIMAGE
-void	 tcp_reass_destroy(void);
-#endif
 void	 tcp_input(struct mbuf *, int);
 u_long	 tcp_maxmtu(struct in_conninfo *, struct tcp_ifcap *);
 u_long	 tcp_maxmtu6(struct in_conninfo *, struct tcp_ifcap *);
@@ -695,7 +678,6 @@ void	 tcp_tw_destroy(void);
 void	 tcp_tw_zone_change(void);
 int	 tcp_twcheck(struct inpcb *, struct tcpopt *, struct tcphdr *,
 	    struct mbuf *, int);
-int	 tcp_twrespond(struct tcptw *, int);
 void	 tcp_setpersist(struct tcpcb *);
 #ifdef TCP_SIGNATURE
 int	 tcp_signature_compute(struct mbuf *, int, int, int, u_char *, u_int);
@@ -736,6 +718,27 @@ u_long	 tcp_seq_subtract(u_long, u_long );
 
 void	cc_cong_signal(struct tcpcb *tp, struct tcphdr *th, uint32_t type);
 
+static inline void
+tcp_fields_to_host(struct tcphdr *th)
+{
+
+	th->th_seq = ntohl(th->th_seq);
+	th->th_ack = ntohl(th->th_ack);
+	th->th_win = ntohs(th->th_win);
+	th->th_urp = ntohs(th->th_urp);
+}
+
+#ifdef TCP_SIGNATURE
+static inline void
+tcp_fields_to_net(struct tcphdr *th)
+{
+
+	th->th_seq = htonl(th->th_seq);
+	th->th_ack = htonl(th->th_ack);
+	th->th_win = htons(th->th_win);
+	th->th_urp = htons(th->th_urp);
+}
+#endif
 #endif /* _KERNEL */
 
 #endif /* _NETINET_TCP_VAR_H_ */

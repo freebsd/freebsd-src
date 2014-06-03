@@ -58,9 +58,9 @@
 #define dsb()  __asm __volatile("mcr p15, 0, %0, c7, c10, 4" : : "r" (0) : "memory")
 #define dmb()  __asm __volatile("mcr p15, 0, %0, c7, c10, 5" : : "r" (0) : "memory")
 #else
-#define isb()
-#define dsb()
-#define dmb()
+#define isb()  __asm __volatile("mcr p15, 0, %0, c7, c5, 4" : : "r" (0) : "memory")
+#define dsb()  __asm __volatile("mcr p15, 0, %0, c7, c10, 4" : : "r" (0) : "memory")
+#define dmb()  dsb()
 #endif
 
 #define mb()   dmb()
@@ -450,13 +450,13 @@ atomic_store_rel_long(volatile u_long *p, u_long v)
 		__asm __volatile(			\
 			"mrs  %0, cpsr;"		\
 			"orr  %1, %0, %2;"		\
-			"msr  cpsr_all, %1;"		\
+			"msr  cpsr_fsxc, %1;"		\
 			: "=r" (cpsr_save), "=r" (tmp)	\
 			: "I" (I32_bit | F32_bit)		\
 		        : "cc" );		\
 		(expr);				\
 		 __asm __volatile(		\
-			"msr  cpsr_all, %0"	\
+			"msr  cpsr_fsxc, %0"	\
 			: /* no output */	\
 			: "r" (cpsr_save)	\
 			: "cc" );		\

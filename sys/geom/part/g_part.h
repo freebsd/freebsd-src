@@ -74,6 +74,7 @@ enum g_part_alias {
 	G_PART_ALIAS_VMFS,		/* A VMware VMFS partition entry */
 	G_PART_ALIAS_VMKDIAG,		/* A VMware vmkDiagnostic partition entry */
 	G_PART_ALIAS_VMRESERVED,	/* A VMware reserved partition entry */
+	G_PART_ALIAS_VMVSANHDR,		/* A VMware vSAN header partition entry */
 	/* Keep the following last */
 	G_PART_ALIAS_COUNT
 };

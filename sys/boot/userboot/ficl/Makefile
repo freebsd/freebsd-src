@@ -16,7 +16,7 @@ CFLAGS+=	-ffreestanding -fPIC
 CFLAGS+=	-mno-mmx -mno-3dnow -mno-sse -mno-sse2
 .endif
 .if ${MACHINE_CPUARCH} == "i386"
-CFLAGS+=	-mpreferred-stack-boundary=2
+CFLAGS.gcc+=	-mpreferred-stack-boundary=2
 CFLAGS+=	-mno-sse3
 .endif
 .if ${MACHINE_CPUARCH} == "powerpc" || ${MACHINE_CPUARCH} == "arm"

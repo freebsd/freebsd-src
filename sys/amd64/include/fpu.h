@@ -63,6 +63,7 @@ int	fpusetregs(struct thread *td, struct savefpu *addr,
 	    char *xfpustate, size_t xfpustate_size);
 int	fpusetxstate(struct thread *td, char *xfpustate,
 	    size_t xfpustate_size);
+void	fpususpend(void *addr);
 int	fputrap_sse(void);
 int	fputrap_x87(void);
 void	fpuuserinited(struct thread *td);

@@ -47,7 +47,7 @@ __FBSDID("$FreeBSD$");
 #include "opt_capsicum.h"
 
 #include <sys/param.h>
-#include <sys/capability.h>
+#include <sys/capsicum.h>
 #include <sys/fcntl.h>
 #include <sys/file.h>
 #include <sys/filedesc.h>
@@ -270,7 +270,7 @@ shm_seek(struct file *fp, off_t offset, int whence, struct thread *td)
 		if (offset < 0 || offset > shmfd->shm_size)
 			error = EINVAL;
 		else
-			*(off_t *)(td->td_retval) = offset;
+			td->td_uretoff.tdu_off = offset;
 	}
 	foffset_unlock(fp, offset, error != 0 ? FOF_NOUPDATE : 0);
 	return (error);
@@ -704,7 +704,7 @@ sys_shm_open(struct thread *td, struct shm_open_args *uap)
 	    (uap->flags & O_ACCMODE) != O_RDWR)
 		return (EINVAL);
 
-	if ((uap->flags & ~(O_ACCMODE | O_CREAT | O_EXCL | O_TRUNC)) != 0)
+	if ((uap->flags & ~(O_ACCMODE | O_CREAT | O_EXCL | O_TRUNC | O_CLOEXEC)) != 0)
 		return (EINVAL);
 
 	fdp = td->td_proc->p_fd;

@@ -157,7 +157,7 @@ mtree_file_path(fsnode *node)
 		rp[++depth] = pnode->name;
 	}
 	
-	sb = sbuf_new(NULL, NULL, 0, SBUF_AUTOEXTEND);
+	sb = sbuf_new_auto();
 	if (sb == NULL) {
 		errno = ENOMEM;
 		return (NULL);
@@ -348,6 +348,13 @@ read_word(FILE *fp, char *buf, size_t bufsz)
 			if (error == -1)
 				mtree_error("unexpected end of file");
 			return (error);
+		case '#':		/* comment -- skip to end of line. */
+			if (!esc) {
+				error = skip_to(fp, "\n");
+				if (!error)
+					continue;
+			}
+			break;
 		case '\\':
 			esc++;
 			if (esc == 1)
@@ -660,6 +667,8 @@ read_mtree_keywords(FILE *fp, fsnode *node)
 				st->st_atime = num;
 				st->st_ctime = num;
 				st->st_mtime = num;
+				if (p == NULL)
+					break;
 				error = read_number(p, 10, &num, 0,
 				    INTMAX_MAX);
 				if (error)

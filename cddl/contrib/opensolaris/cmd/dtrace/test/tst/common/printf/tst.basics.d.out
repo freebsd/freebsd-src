@@ -1,5 +1,5 @@
 
-%a = genunix`kmem_alloc
+%a = kernel`malloc
 %c = a
 %d = 97
 %hd = 97

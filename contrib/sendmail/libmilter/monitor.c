@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2006 Sendmail, Inc. and its suppliers.
+ *  Copyright (c) 2006 Proofpoint, Inc. and its suppliers.
  *	All rights reserved.
  *
  * By using this file, you agree to the terms and conditions set
@@ -9,7 +9,7 @@
  */
 
 #include <sm/gen.h>
-SM_RCSID("@(#)$Id: monitor.c,v 8.7 2007/04/23 16:26:28 ca Exp $")
+SM_RCSID("@(#)$Id: monitor.c,v 8.8 2013-11-22 20:51:36 ca Exp $")
 #include "libmilter.h"
 
 #if _FFR_THREAD_MONITOR

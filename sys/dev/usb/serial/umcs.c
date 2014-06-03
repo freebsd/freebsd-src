@@ -121,8 +121,6 @@ struct umcs7840_softc_oneport {
 
 	uint8_t	sc_lcr;			/* local line control register */
 	uint8_t	sc_mcr;			/* local modem control register */
-	uint8_t	sc_lsr;			/* local line status register */
-	uint8_t	sc_msr;			/* local modem status register */
 };
 
 struct umcs7840_softc {
@@ -535,12 +533,7 @@ umcs7840_cfg_open(struct ucom_softc *ucom)
 	if (umcs7840_set_reg_sync(sc, umcs7840_port_registers[pn].reg_control, data))
 		return;
 
-	/* Read LSR & MSR */
-	if (umcs7840_get_UART_reg_sync(sc, pn, MCS7840_UART_REG_LSR, &sc->sc_ports[pn].sc_lsr))
-		return;
-	if (umcs7840_get_UART_reg_sync(sc, pn, MCS7840_UART_REG_MSR, &sc->sc_ports[pn].sc_msr))
-		return;
-	DPRINTF("Port %d has been opened, LSR=%02x MSR=%02x\n", pn, sc->sc_ports[pn].sc_lsr, sc->sc_ports[pn].sc_msr);
+	DPRINTF("Port %d has been opened\n", pn);
 }
 
 static void
@@ -748,9 +741,17 @@ static void
 umcs7840_cfg_get_status(struct ucom_softc *ucom, uint8_t *lsr, uint8_t *msr)
 {
 	struct umcs7840_softc *sc = ucom->sc_parent;
+	uint8_t pn = ucom->sc_portno;
+	uint8_t	hw_lsr = 0;	/* local line status register */
+	uint8_t	hw_msr = 0;	/* local modem status register */
 
-	*lsr = sc->sc_ports[ucom->sc_portno].sc_lsr;
-	*msr = sc->sc_ports[ucom->sc_portno].sc_msr;
+	/* Read LSR & MSR */
+	umcs7840_get_UART_reg_sync(sc, pn, MCS7840_UART_REG_LSR, &hw_lsr);
+	umcs7840_get_UART_reg_sync(sc, pn, MCS7840_UART_REG_MSR, &hw_msr);
+
+	*lsr = hw_lsr;
+	*msr = hw_msr;
+
 	DPRINTF("Port %d status: LSR=%02x MSR=%02x\n", ucom->sc_portno, *lsr, *msr);
 }
 
@@ -781,21 +782,11 @@ umcs7840_intr_callback(struct usb_xfer *xfer, usb_error_t error)
 				case MCS7840_UART_ISR_RXERR:
 				case MCS7840_UART_ISR_RXHASDATA:
 				case MCS7840_UART_ISR_RXTIMEOUT:
-					/* Read new LSR */
-					if (umcs7840_get_UART_reg_sync(sc, pn, MCS7840_UART_REG_LSR, &sc->sc_ports[pn].sc_lsr))
-						break;	/* Inner switch */
-					ucom_status_change(&sc->sc_ucom[subunit]);
-					/* Inner switch */
-					break;
-				case MCS7840_UART_ISR_TXEMPTY:
-					/* Do nothing */
-					break;	/* Inner switch */
 				case MCS7840_UART_ISR_MSCHANGE:
-					/* Read new MSR */
-					if (umcs7840_get_UART_reg_sync(sc, pn, MCS7840_UART_REG_MSR, &sc->sc_ports[pn].sc_msr))
-						break;	/* Inner switch */
-					DPRINTF("Port %d: new MSR %02x\n", pn, sc->sc_ports[pn].sc_msr);
 					ucom_status_change(&sc->sc_ucom[subunit]);
+					break;
+				default:
+					/* Do nothing */
 					break;
 				}
 			}

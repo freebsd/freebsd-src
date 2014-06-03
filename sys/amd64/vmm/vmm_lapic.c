@@ -51,26 +51,6 @@ __FBSDID("$FreeBSD$");
 #define	MSI_X86_ADDR_LOG	0x00000004	/* Destination Mode */
 
 int
-lapic_pending_intr(struct vm *vm, int cpu)
-{
-	struct vlapic *vlapic;
-
-	vlapic = vm_lapic(vm, cpu);
-
-	return (vlapic_pending_intr(vlapic));
-}
-
-void
-lapic_intr_accepted(struct vm *vm, int cpu, int vector)
-{
-	struct vlapic *vlapic;
-
-	vlapic = vm_lapic(vm, cpu);
-
-	vlapic_intr_accepted(vlapic, vector);
-}
-
-int
 lapic_set_intr(struct vm *vm, int cpu, int vector, bool level)
 {
 	struct vlapic *vlapic;
@@ -82,11 +62,36 @@ lapic_set_intr(struct vm *vm, int cpu, int vector, bool level)
 		return (EINVAL);
 
 	vlapic = vm_lapic(vm, cpu);
-	vlapic_set_intr_ready(vlapic, vector, level);
-
-	vcpu_notify_event(vm, cpu);
-
+	if (vlapic_set_intr_ready(vlapic, vector, level))
+		vcpu_notify_event(vm, cpu, true);
 	return (0);
+}
+
+int
+lapic_set_local_intr(struct vm *vm, int cpu, int vector)
+{
+	struct vlapic *vlapic;
+	cpuset_t dmask;
+	int error;
+
+	if (cpu < -1 || cpu >= VM_MAXCPU)
+		return (EINVAL);
+
+	if (cpu == -1)
+		dmask = vm_active_cpus(vm);
+	else
+		CPU_SETOF(cpu, &dmask);
+	error = 0;
+	while ((cpu = CPU_FFS(&dmask)) != 0) {
+		cpu--;
+		CPU_CLR(cpu, &dmask);
+		vlapic = vm_lapic(vm, cpu);
+		error = vlapic_trigger_lvt(vlapic, vector);
+		if (error)
+			break;
+	}
+
+	return (error);
 }
 
 int
@@ -167,7 +172,7 @@ lapic_rdmsr(struct vm *vm, int cpu, u_int msr, uint64_t *rval, bool *retu)
 		error = 0;
 	} else {
 		offset = x2apic_msr_to_regoff(msr);
-		error = vlapic_read(vlapic, offset, rval, retu);
+		error = vlapic_read(vlapic, 0, offset, rval, retu);
 	}
 
 	return (error);
@@ -183,11 +188,10 @@ lapic_wrmsr(struct vm *vm, int cpu, u_int msr, uint64_t val, bool *retu)
 	vlapic = vm_lapic(vm, cpu);
 
 	if (msr == MSR_APICBASE) {
-		vlapic_set_apicbase(vlapic, val);
-		error = 0;
+		error = vlapic_set_apicbase(vlapic, val);
 	} else {
 		offset = x2apic_msr_to_regoff(msr);
-		error = vlapic_write(vlapic, offset, val, retu);
+		error = vlapic_write(vlapic, 0, offset, val, retu);
 	}
 
 	return (error);
@@ -211,7 +215,7 @@ lapic_mmio_write(void *vm, int cpu, uint64_t gpa, uint64_t wval, int size,
 		return (EINVAL);
 
 	vlapic = vm_lapic(vm, cpu);
-	error = vlapic_write(vlapic, off, wval, arg);
+	error = vlapic_write(vlapic, 1, off, wval, arg);
 	return (error);
 }
 
@@ -226,13 +230,15 @@ lapic_mmio_read(void *vm, int cpu, uint64_t gpa, uint64_t *rval, int size,
 	off = gpa - DEFAULT_APIC_BASE;
 
 	/*
-	 * Memory mapped local apic accesses must be 4 bytes wide and
-	 * aligned on a 16-byte boundary.
+	 * Memory mapped local apic accesses should be aligned on a
+	 * 16-byte boundary.  They are also suggested to be 4 bytes
+	 * wide, alas not all OSes follow suggestions.
 	 */
-	if (size != 4 || off & 0xf)
+	off &= ~3;
+	if (off & 0xf)
 		return (EINVAL);
 
 	vlapic = vm_lapic(vm, cpu);
-	error = vlapic_read(vlapic, off, rval, arg);
+	error = vlapic_read(vlapic, 1, off, rval, arg);
 	return (error);
 }

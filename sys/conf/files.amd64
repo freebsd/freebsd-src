@@ -47,17 +47,6 @@ ukbdmap.h			optional	ukbd_dflt_keymap	\
 	no-obj no-implicit-rule before-depend				\
 	clean		"ukbdmap.h"
 #
-nvenetlib.o			optional	nve pci			\
-	dependency	"$S/contrib/dev/nve/amd64/nvenetlib.o.bz2.uu"	\
-	compile-with	"uudecode $S/contrib/dev/nve/amd64/nvenetlib.o.bz2.uu ; bzip2 -df nvenetlib.o.bz2" \
-	no-implicit-rule
-#
-os+%DIKED-nve.h		optional	nve pci			\
-	dependency	"$S/contrib/dev/nve/os.h"			\
-	compile-with	"sed -e 's/^.*#include.*phy\.h.*$$//' $S/contrib/dev/nve/os.h > os+%DIKED-nve.h" \
-	no-implicit-rule no-obj before-depend				\
-	clean		"os+%DIKED-nve.h"
-#
 hpt27xx_lib.o			optional	hpt27xx			\
 	dependency	"$S/dev/hpt27xx/amd64-elf.hpt27xx_lib.o.uu"	\
 	compile-with	"uudecode < $S/dev/hpt27xx/amd64-elf.hpt27xx_lib.o.uu" \
@@ -119,6 +108,7 @@ amd64/amd64/in_cksum.c		optional	inet | inet6
 amd64/amd64/initcpu.c		standard
 amd64/amd64/io.c		optional	io
 amd64/amd64/locore.S		standard	no-obj
+amd64/amd64/xen-locore.S	optional	xenhvm
 amd64/amd64/machdep.c		standard
 amd64/amd64/mem.c		optional	mem
 amd64/amd64/minidump_machdep.c	standard
@@ -242,13 +232,10 @@ dev/hyperv/vmbus/hv_hv.c				optional	hyperv
 dev/hyperv/vmbus/hv_ring_buffer.c			optional	hyperv
 dev/hyperv/vmbus/hv_vmbus_drv_freebsd.c			optional	hyperv
 dev/kbd/kbd.c			optional	atkbd | sc | ukbd | vt
-dev/lindev/full.c		optional	lindev
-dev/lindev/lindev.c		optional	lindev
 dev/nfe/if_nfe.c		optional	nfe pci
 dev/ntb/if_ntb/if_ntb.c		optional	if_ntb
 dev/ntb/ntb_hw/ntb_hw.c		optional	if_ntb ntb_hw
 dev/nvd/nvd.c			optional	nvd nvme
-dev/nve/if_nve.c		optional	nve pci
 dev/nvme/nvme.c			optional	nvme
 dev/nvme/nvme_ctrlr.c		optional	nvme
 dev/nvme/nvme_ctrlr_cmd.c	optional	nvme
@@ -448,6 +435,7 @@ dev/virtio/network/if_vtnet.c		optional	vtnet
 dev/virtio/block/virtio_blk.c		optional	virtio_blk
 dev/virtio/balloon/virtio_balloon.c	optional	virtio_balloon
 dev/virtio/scsi/virtio_scsi.c		optional	virtio_scsi
+dev/virtio/random/virtio_random.c	optional	virtio_random
 isa/syscons_isa.c		optional	sc
 isa/vga_isa.c			optional	vga
 kern/kern_clocksource.c		standard
@@ -564,5 +552,8 @@ x86/x86/mptable_pci.c		optional	mptable pci
 x86/x86/msi.c			optional	pci
 x86/x86/nexus.c			standard
 x86/x86/tsc.c			standard
+x86/x86/delay.c			standard
 x86/xen/hvm.c			optional	xenhvm
 x86/xen/xen_intr.c		optional	xen | xenhvm
+x86/xen/pv.c			optional	xenhvm
+x86/xen/pvcpu_enum.c		optional	xenhvm

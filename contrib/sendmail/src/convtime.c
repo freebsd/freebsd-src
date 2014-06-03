@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998-2001 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 1998-2001 Proofpoint, Inc. and its suppliers.
  *	All rights reserved.
  * Copyright (c) 1983, 1995-1997 Eric P. Allman.  All rights reserved.
  * Copyright (c) 1988, 1993
@@ -13,7 +13,7 @@
 
 #include <sendmail.h>
 
-SM_RCSID("@(#)$Id: convtime.c,v 8.39 2001/09/11 04:05:13 gshapiro Exp $")
+SM_RCSID("@(#)$Id: convtime.c,v 8.40 2013-11-22 20:51:55 ca Exp $")
 
 /*
 **  CONVTIME -- convert time

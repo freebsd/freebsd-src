@@ -1,5 +1,7 @@
 .\" $FreeBSD$
-.TH "LLVM-DIS" "1" "2013-04-11" "3.3" "LLVM"
+.\" Man page generated from reStructuredText.
+.
+.TH "LLVM-DIS" "1" "2014-01-01" "3.4" "LLVM"
 .SH NAME
 llvm-dis \- LLVM disassembler
 .
@@ -29,8 +31,6 @@ level margin: \\n[rst2man-indent\\n[rst2man-indent-level]]
 .\" new: \\n[rst2man-indent\\n[rst2man-indent-level]]
 .in \\n[rst2man-indent\\n[rst2man-indent-level]]u
 ..
-.\" Man page generated from reStructuredText.
-.
 .SH SYNOPSIS
 .sp
 \fBllvm\-dis\fP [\fIoptions\fP] [\fIfilename\fP]
@@ -45,7 +45,7 @@ input from standard input.
 If the input is being read from standard input, then \fBllvm\-dis\fP
 will send its output to standard output by default.  Otherwise, the
 output will be written to a file named after the input file, with
-a \fB.ll\fP suffix added (any existing \fB.bc\fP suffix will first be
+a \fB\&.ll\fP suffix added (any existing \fB\&.bc\fP suffix will first be
 removed).  You can override the choice of output file using the
 \fB\-o\fP option.
 .SH OPTIONS

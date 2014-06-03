@@ -1,6 +1,6 @@
 PUSHDIVERT(-1)
 #
-# Copyright (c) 2002 Sendmail, Inc. and its suppliers.
+# Copyright (c) 2002 Proofpoint, Inc. and its suppliers.
 #	All rights reserved.
 #
 # By using this file, you agree to the terms and conditions set
@@ -21,7 +21,7 @@ POPDIVERT
 ###   Cyrus V2 Mailer specification   ###
 #########################################
 
-VERSIONID(`$Id: cyrusv2.m4,v 1.1 2002/06/01 21:14:57 ca Exp $')
+VERSIONID(`$Id: cyrusv2.m4,v 1.2 2013-11-22 20:51:14 ca Exp $')
 
 Mcyrusv2,	P=[IPC], F=_MODMF_(CONCAT(_DEF_CYRUSV2_MAILER_FLAGS, CYRUSV2_MAILER_FLAGS), `CYRUSV2'),
 		S=EnvFromSMTP/HdrFromL, R=EnvToL/HdrToL, E=\r\n,

@@ -2,7 +2,7 @@
 .PATH:  ${.CURDIR}/../../ofed/drivers/infiniband/ulp/ipoib
 .PATH:  ${.CURDIR}/../../ofed/include/linux
 
-.include <bsd.own.mk>
+.include <src.opts.mk>
 
 KMOD    = ipoib
 SRCS    = device_if.h bus_if.h opt_ofed.h vnode_if.h opt_inet.h opt_inet6.h
@@ -28,4 +28,4 @@ opt_inet6.h:
 
 .include <bsd.kmod.mk>
 
-CFLAGS+= -Wno-cast-qual -Wno-pointer-arith -fms-extensions
+CFLAGS+= -Wno-cast-qual -Wno-pointer-arith ${GCC_MS_EXTENSIONS}

@@ -40,6 +40,10 @@ __FBSDID("$FreeBSD$");
 #include <stdlib.h>
 #include <string.h>
 
+#define VFNT_MAPS 4
+#define VFNT_MAP_NORMAL 0
+#define VFNT_MAP_BOLD 2
+
 static unsigned int width, wbytes, height;
 
 struct glyph {
@@ -48,9 +52,14 @@ struct glyph {
 	unsigned int		 g_index;
 };
 
-static TAILQ_HEAD(, glyph) glyph_list = TAILQ_HEAD_INITIALIZER(glyph_list);
-static unsigned int glyph_total, glyph_normal, glyph_bold,
-    glyph_unique, glyph_dupe;
+TAILQ_HEAD(glyph_list, glyph);
+static struct glyph_list glyphs[VFNT_MAPS] = {
+    TAILQ_HEAD_INITIALIZER(glyphs[0]),
+    TAILQ_HEAD_INITIALIZER(glyphs[1]),
+    TAILQ_HEAD_INITIALIZER(glyphs[2]),
+    TAILQ_HEAD_INITIALIZER(glyphs[3]),
+};
+static unsigned int glyph_total, glyph_count[4], glyph_unique, glyph_dupe;
 
 struct mapping {
 	TAILQ_ENTRY(mapping)	 m_list;
@@ -60,12 +69,14 @@ struct mapping {
 };
 
 TAILQ_HEAD(mapping_list, mapping);
-static struct mapping_list mapping_list_normal =
-    TAILQ_HEAD_INITIALIZER(mapping_list_normal);
-static struct mapping_list mapping_list_bold =
-    TAILQ_HEAD_INITIALIZER(mapping_list_bold);
-static unsigned int mapping_total, mapping_normal, mapping_normal_folded,
-    mapping_bold, mapping_bold_folded, mapping_unique, mapping_dupe;
+static struct mapping_list maps[VFNT_MAPS] = {
+    TAILQ_HEAD_INITIALIZER(maps[0]),
+    TAILQ_HEAD_INITIALIZER(maps[1]),
+    TAILQ_HEAD_INITIALIZER(maps[2]),
+    TAILQ_HEAD_INITIALIZER(maps[3]),
+};
+static unsigned int mapping_total, map_count[4], map_folded_count[4],
+    mapping_unique, mapping_dupe;
 
 static void
 usage(void)
@@ -77,17 +88,18 @@ usage(void)
 }
 
 static int
-add_mapping(struct glyph *gl, unsigned int c, int bold)
+add_mapping(struct glyph *gl, unsigned int c, unsigned int map_idx)
 {
 	struct mapping *mp;
 	struct mapping_list *ml;
 
 	mapping_total++;
 
-	if (bold) {
+	if (map_idx >= VFNT_MAP_BOLD) {
 		int found = 0;
+		unsigned normal_map_idx = map_idx - VFNT_MAP_BOLD;
 
-		TAILQ_FOREACH(mp, &mapping_list_normal, m_list) {
+		TAILQ_FOREACH(mp, &maps[normal_map_idx], m_list) {
 			if (mp->m_char < c)
 				continue;
 			else if (mp->m_char > c)
@@ -116,7 +128,7 @@ add_mapping(struct glyph *gl, unsigned int c, int bold)
 	mp->m_glyph = gl;
 	mp->m_length = 0;
 
-	ml = bold ? &mapping_list_bold : &mapping_list_normal;
+	ml = &maps[map_idx];
 	if (TAILQ_LAST(ml, mapping_list) != NULL &&
 	    TAILQ_LAST(ml, mapping_list)->m_char >= c) {
 		fprintf(stderr, "Bad ordering at character %u\n", c);
@@ -124,30 +136,27 @@ add_mapping(struct glyph *gl, unsigned int c, int bold)
 	}
 	TAILQ_INSERT_TAIL(ml, mp, m_list);
 
-	if (bold)
-		mapping_bold++;
-	else
-		mapping_normal++;
+	map_count[map_idx]++;
 	mapping_unique++;
 
 	return (0);
 }
 
 static struct glyph *
-add_glyph(const uint8_t *bytes, int bold, int fallback)
+add_glyph(const uint8_t *bytes, unsigned int map_idx, int fallback)
 {
 	struct glyph *gl;
+	unsigned int i;
 
 	glyph_total++;
-	if (bold)
-		glyph_bold++;
-	else
-		glyph_normal++;
+	glyph_count[map_idx]++;
 
-	TAILQ_FOREACH(gl, &glyph_list, g_list) {
-		if (memcmp(gl->g_data, bytes, wbytes * height) == 0) {
-			glyph_dupe++;
-			return (gl);
+	for (i = 0; i < VFNT_MAPS; i++) {
+		TAILQ_FOREACH(gl, &glyphs[i], g_list) {
+			if (memcmp(gl->g_data, bytes, wbytes * height) == 0) {
+				glyph_dupe++;
+				return (gl);
+			}
 		}
 	}
 
@@ -155,22 +164,61 @@ add_glyph(const uint8_t *bytes, int bold, int fallback)
 	gl->g_data = malloc(wbytes * height);
 	memcpy(gl->g_data, bytes, wbytes * height);
 	if (fallback)
-		TAILQ_INSERT_HEAD(&glyph_list, gl, g_list);
+		TAILQ_INSERT_HEAD(&glyphs[map_idx], gl, g_list);
 	else
-		TAILQ_INSERT_TAIL(&glyph_list, gl, g_list);
+		TAILQ_INSERT_TAIL(&glyphs[map_idx], gl, g_list);
 
 	glyph_unique++;
 	return (gl);
 }
 
 static int
-parse_bdf(const char *filename, int bold __unused)
+parse_bitmap_line(uint8_t *left, uint8_t *right, unsigned int line,
+    unsigned int dwidth)
+{
+	uint8_t *p;
+	unsigned int i, subline;
+
+	if (dwidth != width && dwidth != width * 2) {
+		fprintf(stderr,
+		    "Unsupported width %u!\n", dwidth);
+		return (1);
+	}
+
+	/* Move pixel data right to simplify splitting double characters. */
+	line >>= (howmany(dwidth, 8) * 8) - dwidth;
+
+	for (i = dwidth / width; i > 0; i--) {
+		p = (i == 2) ? right : left;
+
+		subline = line & ((1 << width) - 1);
+		subline <<= (howmany(width, 8) * 8) - width;
+
+		if (wbytes == 1) {
+			*p = subline;
+		} else if (wbytes == 2) {
+			*p++ = subline >> 8;
+			*p = subline;
+		} else {
+			fprintf(stderr,
+			    "Unsupported wbytes %u!\n", wbytes);
+			return (1);
+		}
+
+		line >>= width;
+	}
+	
+	return (0);
+}
+
+static int
+parse_bdf(const char *filename, unsigned int map_idx)
 {
 	FILE *fp;
 	char *ln;
 	size_t length;
-	uint8_t bytes[wbytes * height];
-	unsigned int curchar = 0, i, line;
+	uint8_t bytes[wbytes * height], bytes_r[wbytes * height];
+	unsigned int curchar = 0, dwidth = 0, i, line;
 	struct glyph *gl;
 
 	fp = fopen(filename, "r");
@@ -186,6 +234,10 @@ parse_bdf(const char *filename, int bold __unused)
 			curchar = atoi(ln + 9);
 		}
 
+		if (strncmp(ln, "DWIDTH ", 7) == 0) {
+			dwidth = atoi(ln + 7);
+		}
+
 		if (strcmp(ln, "BITMAP") == 0) {
 			for (i = 0; i < height; i++) {
 				if ((ln = fgetln(fp, &length)) == NULL) {
@@ -194,26 +246,25 @@ parse_bdf(const char *filename, int bold __unused)
 				}
 				ln[length - 1] = '\0';
 				sscanf(ln, "%x", &line);
-				if (wbytes == 1) {
-					bytes[i] = line;
-				} else if (wbytes == 2) {
-					bytes[i * 2 + 0] = line >> 8;
-					bytes[i * 2 + 1] = line;
-				} else {
-					fprintf(stderr,
-					    "Unsupported wbytes!\n");
+				if (parse_bitmap_line(bytes + i * wbytes,
+				     bytes_r + i * wbytes, line, dwidth) != 0)
 					return (1);
-				}
 			}
 
 			/* Prevent adding two glyphs for 0xFFFD */
 			if (curchar == 0xFFFD) {
-				if (!bold)
-					gl = add_glyph(bytes, bold, 1);
+				if (map_idx < VFNT_MAP_BOLD)
+					gl = add_glyph(bytes, 0, 1);
 			} else if (curchar >= 0x20) {
-				gl = add_glyph(bytes, bold, 0);
-				if (add_mapping(gl, curchar, bold) != 0)
+				gl = add_glyph(bytes, map_idx, 0);
+				if (add_mapping(gl, curchar, map_idx) != 0)
 					return (1);
+				if (dwidth == width * 2) {
+					gl = add_glyph(bytes_r, map_idx + 1, 0);
+					if (add_mapping(gl, curchar,
+					    map_idx + 1) != 0)
+						return (1);
+				}
 			}
 		}
 	}
@@ -225,31 +276,30 @@ static void
 number_glyphs(void)
 {
 	struct glyph *gl;
-	unsigned int idx = 0;
+	unsigned int i, idx = 0;
 
-	TAILQ_FOREACH(gl, &glyph_list, g_list)
-		gl->g_index = idx++;
+	for (i = 0; i < VFNT_MAPS; i++)
+		TAILQ_FOREACH(gl, &glyphs[i], g_list)
+			gl->g_index = idx++;
 }
 
 static void
 write_glyphs(FILE *fp)
 {
 	struct glyph *gl;
+	unsigned int i;
 
-	TAILQ_FOREACH(gl, &glyph_list, g_list)
-		fwrite(gl->g_data, wbytes * height, 1, fp);
+	for (i = 0; i < VFNT_MAPS; i++) {
+		TAILQ_FOREACH(gl, &glyphs[i], g_list)
+			fwrite(gl->g_data, wbytes * height, 1, fp);
+	}
 }
 
 static void
-fold_mappings(int bold)
+fold_mappings(unsigned int map_idx)
 {
-	struct mapping_list *ml;
+	struct mapping_list *ml = &maps[map_idx];
 	struct mapping *mn, *mp, *mbase;
-
-	if (bold)
-		ml = &mapping_list_bold;
-	else
-		ml = &mapping_list_normal;
 
 	mp = mbase = TAILQ_FIRST(ml);
 	for (mp = mbase = TAILQ_FIRST(ml); mp != NULL; mp = mn) {
@@ -259,10 +309,7 @@ fold_mappings(int bold)
 			continue;
 		mbase->m_length = mp->m_char - mbase->m_char + 1;
 		mbase = mp = mn;
-		if (bold)
-			mapping_bold_folded++;
-		else
-			mapping_normal_folded++;
+		map_folded_count[map_idx]++;
 	}
 }
 
@@ -273,17 +320,12 @@ struct file_mapping {
 } __packed;
 
 static void
-write_mappings(FILE *fp, int bold)
+write_mappings(FILE *fp, unsigned int map_idx)
 {
-	struct mapping_list *ml;
+	struct mapping_list *ml = &maps[map_idx];
 	struct mapping *mp;
 	struct file_mapping fm;
 	unsigned int i = 0, j = 0;
-
-	if (bold)
-		ml = &mapping_list_bold;
-	else
-		ml = &mapping_list_normal;
 
 	TAILQ_FOREACH(mp, ml, m_list) {
 		j++;
@@ -302,9 +344,9 @@ struct file_header {
 	uint8_t		magic[8];
 	uint8_t		width;
 	uint8_t		height;
-	uint16_t	nglyphs;
-	uint16_t	nmappings_normal;
-	uint16_t	nmappings_bold;
+	uint16_t	pad;
+	uint32_t	glyph_count;
+	uint32_t	map_count[4];
 } __packed;
 
 static int
@@ -312,7 +354,7 @@ write_fnt(const char *filename)
 {
 	FILE *fp;
 	struct file_header fh = {
-		.magic = "VFNT 1.0",
+		.magic = "VFNT0002",
 	};
 
 	fp = fopen(filename, "wb");
@@ -323,14 +365,18 @@ write_fnt(const char *filename)
 
 	fh.width = width;
 	fh.height = height;
-	fh.nglyphs = htobe16(glyph_unique);
-	fh.nmappings_normal = htobe16(mapping_normal_folded);
-	fh.nmappings_bold = htobe16(mapping_bold_folded);
+	fh.glyph_count = htobe32(glyph_unique);
+	fh.map_count[0] = htobe32(map_folded_count[0]);
+	fh.map_count[1] = htobe32(map_folded_count[1]);
+	fh.map_count[2] = htobe32(map_folded_count[2]);
+	fh.map_count[3] = htobe32(map_folded_count[3]);
 	fwrite(&fh, sizeof fh, 1, fp);
 	
 	write_glyphs(fp);
-	write_mappings(fp, 0);
+	write_mappings(fp, VFNT_MAP_NORMAL);
 	write_mappings(fp, 1);
+	write_mappings(fp, VFNT_MAP_BOLD);
+	write_mappings(fp, 3);
 
 	return (0);
 }
@@ -339,7 +385,7 @@ int
 main(int argc, char *argv[])
 {
 
-	assert(sizeof(struct file_header) == 16);
+	assert(sizeof(struct file_header) == 32);
 	assert(sizeof(struct file_mapping) == 8);
 
 	if (argc != 6)
@@ -349,36 +395,49 @@ main(int argc, char *argv[])
 	wbytes = howmany(width, 8);
 	height = atoi(argv[2]);
 
-	if (parse_bdf(argv[3], 0) != 0)
+	if (parse_bdf(argv[3], VFNT_MAP_NORMAL) != 0)
 		return (1);
-	if (parse_bdf(argv[4], 1) != 0)
+	if (parse_bdf(argv[4], VFNT_MAP_BOLD) != 0)
 		return (1);
 	number_glyphs();
 	fold_mappings(0);
 	fold_mappings(1);
+	fold_mappings(2);
+	fold_mappings(3);
 	if (write_fnt(argv[5]) != 0)
 		return (1);
 	
 	printf(
 "Statistics:\n"
-"- glyph_total:           %5u\n"
-"- glyph_normal:          %5u\n"
-"- glyph_bold:            %5u\n"
-"- glyph_unique:          %5u\n"
-"- glyph_dupe:            %5u\n"
-"- mapping_total:         %5u\n"
-"- mapping_normal:        %5u\n"
-"- mapping_normal_folded: %5u\n"
-"- mapping_bold:          %5u\n"
-"- mapping_bold_folded:   %5u\n"
-"- mapping_unique:        %5u\n"
-"- mapping_dupe:          %5u\n",
+"- glyph_total:                 %5u\n"
+"- glyph_normal:                %5u\n"
+"- glyph_normal_right:          %5u\n"
+"- glyph_bold:                  %5u\n"
+"- glyph_bold_right:            %5u\n"
+"- glyph_unique:                %5u\n"
+"- glyph_dupe:                  %5u\n"
+"- mapping_total:               %5u\n"
+"- mapping_normal:              %5u\n"
+"- mapping_normal_folded:       %5u\n"
+"- mapping_normal_right:        %5u\n"
+"- mapping_normal_right_folded: %5u\n"
+"- mapping_bold:                %5u\n"
+"- mapping_bold_folded:         %5u\n"
+"- mapping_bold_right:          %5u\n"
+"- mapping_bold_right_folded:   %5u\n"
+"- mapping_unique:              %5u\n"
+"- mapping_dupe:                %5u\n",
 	    glyph_total,
-	    glyph_normal, glyph_bold,
+	    glyph_count[0],
+	    glyph_count[1],
+	    glyph_count[2],
+	    glyph_count[3],
 	    glyph_unique, glyph_dupe,
 	    mapping_total,
-	    mapping_normal, mapping_normal_folded,
-	    mapping_bold, mapping_bold_folded,
+	    map_count[0], map_folded_count[0],
+	    map_count[1], map_folded_count[1],
+	    map_count[2], map_folded_count[2],
+	    map_count[3], map_folded_count[3],
 	    mapping_unique, mapping_dupe);
 	
 	return (0);

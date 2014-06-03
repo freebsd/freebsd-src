@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 27, 2013
+.Dd May 16, 2014
 .Dt PROCSTAT 1
 .Os
 .Sh NAME
@@ -33,11 +33,9 @@
 .Nd get detailed process information
 .Sh SYNOPSIS
 .Nm
-.Op Fl h
-.Op Fl n
-.Op Fl C
+.Op Fl CHhn
 .Op Fl w Ar interval
-.Op Fl b | c | e | f | i | j | k | l | s | t | v | x
+.Op Fl b | c | e | f | i | j | k | l | r | s | t | v | x
 .Op Fl a | Ar pid | Ar core ...
 .Sh DESCRIPTION
 The
@@ -65,7 +63,7 @@ Display file descriptor information for the process.
 .It Fl i
 Display signal pending and disposition information for the process.
 .It Fl j
-Display signal pending and blocked information for the process threads.
+Display signal pending and blocked information for the process's threads.
 .It Fl k
 Display the stacks of kernel threads in the process, excluding stacks of
 threads currently running on a CPU and threads with stacks swapped to disk.
@@ -73,6 +71,8 @@ If the flag is repeated, function offsets as well as function names are
 printed.
 .It Fl l
 Display resource limits for the process.
+.It Fl r
+Display resource usage information for the process.
 .It Fl s
 Display security credential information for the process.
 .It Fl t
@@ -102,6 +102,13 @@ The
 flag requests the printing of additional capability information in the file
 descriptor view.
 .Pp
+The
+.Fl H
+flag may be used to request per-thread statistics rather than per-process
+statistics for some options.
+For those options, the second field in the table will list the thread ID
+to which the row of information corresponds.
+.Pp
 Some information, such as VM and file descriptor information, is available
 only to the owner of a process or the superuser.
 .Ss Binary Information
@@ -127,6 +134,17 @@ process ID
 command
 .It ARGS
 command line arguments (if available)
+.El
+.Ss Environment Variables
+Display the process ID, command, and environment variables:
+.Pp
+.Bl -tag -width "ENVIRONMENT" -compact
+.It PID
+process ID
+.It COMM
+command
+.It ENVIRONMENT
+environment variables (if available)
 .El
 .Ss File Descriptors
 Display detailed information about each file descriptor referenced by a
@@ -237,7 +255,7 @@ present for each capability descriptor.
 .Ss Signal Disposition Information
 Display signal pending and disposition for a process:
 .Pp
-.Bl -tag -width ident -compact
+.Bl -tag -width indent -compact
 .It PID
 process ID
 .It COMM
@@ -260,15 +278,15 @@ If
 .Fl n
 switch is given, the signal numbers are shown instead of signal names.
 .Ss Thread Signal Information
-Display signal pending and blocked for a process threads:
+Display signal pending and blocked for a process's threads:
 .Pp
-.Bl -tag -width ident -compact
+.Bl -tag -width indent -compact
 .It PID
 process ID
-.It COMM
-command
 .It TID
 thread ID
+.It COMM
+command
 .It SIG
 signal name
 .It FLAGS
@@ -285,7 +303,7 @@ The
 .Fl n
 switch has the same effect as for the
 .Fl i
-switch, the signals numbers are shown instead of signal names.
+switch: the signal numbers are shown instead of signal names.
 .Ss Kernel Thread Stacks
 Display kernel thread stacks for a process, allowing further interpretation
 of thread wait channels.
@@ -310,6 +328,45 @@ command
 thread name
 .It KSTACK
 kernel thread call stack
+.El
+.Ss Resource Limits
+Display resource limits for a process:
+.Pp
+.Bl -tag -width indent -compact
+.It PID
+process ID
+.It COMM
+command
+.It RLIMIT
+resource limit name
+.It SOFT
+soft limit
+.It HARD
+hard limit
+.El
+.Ss Resource Usage
+Display resource usage for a process.
+If the
+.Fl H
+flag is specified,
+resource usage for individual threads is displayed instead.
+.Pp
+.Bl -tag -width "RESOURCE" -compact
+.It PID
+process ID
+.It TID
+thread ID
+.Po
+if
+.Fl H
+is specified
+.Pc
+.It COMM
+command
+.It RESOURCE
+resource name
+.It VALUE
+current usage
 .El
 .Ss Security Credentials
 Display process credential information:
@@ -416,6 +473,9 @@ dead
 default
 .It dv
 device
+.It md
+device with managed pages
+.Pq GEM/TTM
 .It ph
 physical
 .It sg
@@ -439,6 +499,19 @@ one or more superpage mappings are used
 grows down (top-down stack)
 .It U
 grows up (bottom-up stack)
+.El
+.Ss ELF Auxiliary Vector
+Display ELF auxiliary vector values:
+.Pp
+.Bl -tag -width indent -compact
+.It PID
+process ID
+.It COMM
+command
+.It AUXV
+auxiliary vector name
+.It VALUE
+auxiliary vector value
 .El
 .Sh EXIT STATUS
 .Ex -std

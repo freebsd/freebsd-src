@@ -3,6 +3,7 @@ Device Tree Compiler Manual
 
 I - "dtc", the device tree compiler
     1) Obtaining Sources
+    1.1) Submitting Patches
     2) Description
     3) Command Line
     4) Source File
@@ -44,6 +45,10 @@ Tarballs of the 1.0.0 and latest releases are here:
     http://www.jdl.com/software/dtc-v1.2.0.tgz
     http://www.jdl.com/software/dtc-latest.tgz
 
+1.1) Submitting Patches
+
+Patches should be sent to jdl@jdl.com, and CC'ed to
+devicetree-discuss@lists.ozlabs.org.
 
 2) Description
 

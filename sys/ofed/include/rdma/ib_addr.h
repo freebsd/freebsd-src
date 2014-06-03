@@ -247,19 +247,13 @@ static inline int iboe_get_rate(struct net_device *dev)
 #else
 static inline int iboe_get_rate(struct net_device *dev)
 {
-	uintmax_t baudrate;
-	int exp;
-
-	baudrate = dev->if_baudrate;
-	for (exp = dev->if_baudrate_pf; exp > 0; exp--)
-		baudrate *= 10;
-	if (baudrate >= IF_Gbps(40))
+	if (dev->if_baudrate >= IF_Gbps(40))
 		return IB_RATE_40_GBPS;
-	else if (baudrate >= IF_Gbps(30))
+	else if (dev->if_baudrate >= IF_Gbps(30))
 		return IB_RATE_30_GBPS;
-	else if (baudrate >= IF_Gbps(20))
+	else if (dev->if_baudrate >= IF_Gbps(20))
 		return IB_RATE_20_GBPS;
-	else if (baudrate >= IF_Gbps(10))
+	else if (dev->if_baudrate >= IF_Gbps(10))
 		return IB_RATE_10_GBPS;
 	else
 		return IB_RATE_PORT_CURRENT;

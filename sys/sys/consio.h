@@ -216,13 +216,16 @@ struct vfnt_map {
 };
 typedef struct vfnt_map	vfnt_map_t;
 
+#define VFNT_MAP_NORMAL		0
+#define VFNT_MAP_NORMAL_RIGHT	1
+#define VFNT_MAP_BOLD		2
+#define VFNT_MAP_BOLD_RIGHT	3
+#define VFNT_MAPS		4
 struct vfnt {
-	vfnt_map_t	*normal;
-	vfnt_map_t	*bold;
+	vfnt_map_t	*map[VFNT_MAPS];
 	uint8_t		*glyphs;
-	unsigned int	nnormal;
-	unsigned int	nbold;
-	unsigned int	nglyphs;
+	unsigned int	map_count[VFNT_MAPS];
+	unsigned int	glyph_count;
 	unsigned int	width;
 	unsigned int	height;
 };

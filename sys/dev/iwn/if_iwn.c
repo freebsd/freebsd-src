@@ -79,6 +79,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/iwn/if_iwn_devid.h>
 #include <dev/iwn/if_iwn_chip_cfg.h>
 #include <dev/iwn/if_iwn_debug.h>
+#include <dev/iwn/if_iwn_ioctl.h>
 
 struct iwn_ident {
 	uint16_t	vendor;
@@ -108,6 +109,8 @@ static const struct iwn_ident iwn_ident_table[] = {
 	{ 0x8086, IWN_DID_130_2, "Intel Centrino Wireless-N 130"		},
 	{ 0x8086, IWN_DID_100_1, "Intel Centrino Wireless-N 100"		},
 	{ 0x8086, IWN_DID_100_2, "Intel Centrino Wireless-N 100"		},
+	{ 0x8086, IWN_DID_135_1, "Intel Centrino Wireless-N 135"		},
+	{ 0x8086, IWN_DID_135_2, "Intel Centrino Wireless-N 135"		},
 	{ 0x8086, IWN_DID_4965_1, "Intel Wireless WiFi Link 4965"		},
 	{ 0x8086, IWN_DID_6x00_1, "Intel Centrino Ultimate-N 6300"		},
 	{ 0x8086, IWN_DID_6x00_2, "Intel Centrino Advanced-N 6200"		},
@@ -329,6 +332,7 @@ static int	iwn_hw_init(struct iwn_softc *);
 static void	iwn_hw_stop(struct iwn_softc *);
 static void	iwn_radio_on(void *, int);
 static void	iwn_radio_off(void *, int);
+static void	iwn_panicked(void *, int);
 static void	iwn_init_locked(struct iwn_softc *);
 static void	iwn_init(void *);
 static void	iwn_stop_locked(struct iwn_softc *);
@@ -352,7 +356,8 @@ static device_method_t iwn_methods[] = {
 	DEVMETHOD(device_shutdown,	iwn_shutdown),
 	DEVMETHOD(device_suspend,	iwn_suspend),
 	DEVMETHOD(device_resume,	iwn_resume),
-	{ 0, 0 }
+
+	DEVMETHOD_END
 };
 
 static driver_t iwn_driver = {
@@ -362,7 +367,7 @@ static driver_t iwn_driver = {
 };
 static devclass_t iwn_devclass;
 
-DRIVER_MODULE(iwn, pci, iwn_driver, iwn_devclass, 0, 0);
+DRIVER_MODULE(iwn, pci, iwn_driver, iwn_devclass, NULL, NULL);
 
 MODULE_VERSION(iwn, 1);
 
@@ -379,7 +384,7 @@ iwn_probe(device_t dev)
 		if (pci_get_vendor(dev) == ident->vendor &&
 		    pci_get_device(dev) == ident->device) {
 			device_set_desc(dev, ident->name);
-			return 0;
+			return (BUS_PROBE_DEFAULT);
 		}
 	}
 	return ENXIO;
@@ -391,8 +396,7 @@ iwn_attach(device_t dev)
 	struct iwn_softc *sc = (struct iwn_softc *)device_get_softc(dev);
 	struct ieee80211com *ic;
 	struct ifnet *ifp;
-	uint32_t reg;
-	int i, error, result;
+	int i, error, rid;
 	uint8_t macaddr[IEEE80211_ADDR_LEN];
 
 	sc->sc_dev = dev;
@@ -421,20 +425,11 @@ iwn_attach(device_t dev)
 	/* Clear device-specific "PCI retry timeout" register (41h). */
 	pci_write_config(dev, 0x41, 0, 1);
 
-	/* Hardware bug workaround. */
-	reg = pci_read_config(dev, PCIR_COMMAND, 2);
-	if (reg & PCIM_CMD_INTxDIS) {
-		DPRINTF(sc, IWN_DEBUG_RESET, "%s: PCIe INTx Disable set\n",
-		    __func__);
-		reg &= ~PCIM_CMD_INTxDIS;
-		pci_write_config(dev, PCIR_COMMAND, reg, 2);
-	}
-
 	/* Enable bus-mastering. */
 	pci_enable_busmaster(dev);
 
-	sc->mem_rid = PCIR_BAR(0);
-	sc->mem = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &sc->mem_rid,
+	rid = PCIR_BAR(0);
+	sc->mem = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid,
 	    RF_ACTIVE);
 	if (sc->mem == NULL) {
 		device_printf(dev, "can't map mem space\n");
@@ -444,13 +439,13 @@ iwn_attach(device_t dev)
 	sc->sc_st = rman_get_bustag(sc->mem);
 	sc->sc_sh = rman_get_bushandle(sc->mem);
 
-	sc->irq_rid = 0;
-	if ((result = pci_msi_count(dev)) == 1 &&
-	    pci_alloc_msi(dev, &result) == 0)
-		sc->irq_rid = 1;
+	i = 1;
+	rid = 0;
+	if (pci_alloc_msi(dev, &i) == 0)
+		rid = 1;
 	/* Install interrupt handler. */
-	sc->irq = bus_alloc_resource_any(dev, SYS_RES_IRQ, &sc->irq_rid,
-	    RF_ACTIVE | RF_SHAREABLE);
+	sc->irq = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid, RF_ACTIVE |
+	    (rid != 0 ? 0 : RF_SHAREABLE));
 	if (sc->irq == NULL) {
 		device_printf(dev, "can't map interrupt\n");
 		error = ENOMEM;
@@ -677,6 +672,15 @@ iwn_attach(device_t dev)
 	TASK_INIT(&sc->sc_reinit_task, 0, iwn_hw_reset, sc);
 	TASK_INIT(&sc->sc_radioon_task, 0, iwn_radio_on, sc);
 	TASK_INIT(&sc->sc_radiooff_task, 0, iwn_radio_off, sc);
+	TASK_INIT(&sc->sc_panic_task, 0, iwn_panicked, sc);
+
+	sc->sc_tq = taskqueue_create("iwn_taskq", M_WAITOK,
+	    taskqueue_thread_enqueue, &sc->sc_tq);
+	error = taskqueue_start_threads(&sc->sc_tq, 1, 0, "iwn_taskq");
+	if (error != 0) {
+		device_printf(dev, "can't start threads, error %d\n", error);
+		goto fail;
+	}
 
 	iwn_sysctlattach(sc);
 
@@ -690,6 +694,13 @@ iwn_attach(device_t dev)
 		    error);
 		goto fail;
 	}
+
+#if 0
+	device_printf(sc->sc_dev, "%s: rx_stats=%d, rx_stats_bt=%d\n",
+	    __func__,
+	    sizeof(struct iwn_stats),
+	    sizeof(struct iwn_stats_bt));
+#endif
 
 	if (bootverbose)
 		ieee80211_announce(ic);
@@ -966,6 +977,28 @@ iwn_config_specific(struct iwn_softc *sc, uint16_t pid)
 				sc->limits = &iwn1000_sensitivity_limits;
 				sc->base_params = &iwn1000_base_params;
 				sc->fwname = "iwn100fw";
+				break;
+			default:
+				device_printf(sc->sc_dev, "adapter type id : 0x%04x sub id :"
+				    "0x%04x rev %d not supported (subdevice)\n", pid,
+				    sc->subdevice_id,sc->hw_type);
+				return ENOTSUP;
+		}
+		break;
+
+/* 135 Series */
+/* XXX: This series will need adjustment for rate.
+ * see rx_with_siso_diversity in linux kernel
+ */
+	case IWN_DID_135_1:
+	case IWN_DID_135_2:
+		switch(sc->subdevice_id) {
+			case IWN_SDID_135_1:
+			case IWN_SDID_135_2:
+			case IWN_SDID_135_3:
+				sc->limits = &iwn2030_sensitivity_limits;
+				sc->base_params = &iwn2030_base_params;
+				sc->fwname = "iwn135fw";
 				break;
 			default:
 				device_printf(sc->sc_dev, "adapter type id : 0x%04x sub id :"
@@ -1311,6 +1344,10 @@ iwn_detach(device_t dev)
 		ieee80211_draintask(ic, &sc->sc_radiooff_task);
 
 		iwn_stop(sc);
+
+		taskqueue_drain_all(sc->sc_tq);
+		taskqueue_free(sc->sc_tq);
+
 		callout_drain(&sc->watchdog_to);
 		callout_drain(&sc->calib_to);
 		ieee80211_ifdetach(ic);
@@ -1319,9 +1356,9 @@ iwn_detach(device_t dev)
 	/* Uninstall interrupt handler. */
 	if (sc->irq != NULL) {
 		bus_teardown_intr(dev, sc->irq, sc->sc_ih);
-		bus_release_resource(dev, SYS_RES_IRQ, sc->irq_rid, sc->irq);
-		if (sc->irq_rid == 1)
-			pci_release_msi(dev);
+		bus_release_resource(dev, SYS_RES_IRQ, rman_get_rid(sc->irq),
+		    sc->irq);
+		pci_release_msi(dev);
 	}
 
 	/* Free DMA resources. */
@@ -1335,7 +1372,8 @@ iwn_detach(device_t dev)
 	iwn_free_fwmem(sc);
 
 	if (sc->mem != NULL)
-		bus_release_resource(dev, SYS_RES_MEMORY, sc->mem_rid, sc->mem);
+		bus_release_resource(dev, SYS_RES_MEMORY,
+		    rman_get_rid(sc->mem), sc->mem);
 
 	if (ifp != NULL)
 		if_free(ifp);
@@ -3124,6 +3162,67 @@ iwn5000_rx_calib_results(struct iwn_softc *sc, struct iwn_rx_desc *desc,
 	memcpy(sc->calibcmd[idx].buf, calib, len);
 }
 
+static void
+iwn_stats_update(struct iwn_softc *sc, struct iwn_calib_state *calib,
+    struct iwn_stats *stats, int len)
+{
+	struct iwn_stats_bt *stats_bt;
+	struct iwn_stats *lstats;
+
+	/*
+	 * First - check whether the length is the bluetooth or normal.
+	 *
+	 * If it's normal - just copy it and bump out.
+	 * Otherwise we have to convert things.
+	 */
+
+	if (len == sizeof(struct iwn_stats) + 4) {
+		memcpy(&sc->last_stat, stats, sizeof(struct iwn_stats));
+		sc->last_stat_valid = 1;
+		return;
+	}
+
+	/*
+	 * If it's not the bluetooth size - log, then just copy.
+	 */
+	if (len != sizeof(struct iwn_stats_bt) + 4) {
+		DPRINTF(sc, IWN_DEBUG_STATS,
+		    "%s: size of rx statistics (%d) not an expected size!\n",
+		    __func__,
+		    len);
+		memcpy(&sc->last_stat, stats, sizeof(struct iwn_stats));
+		sc->last_stat_valid = 1;
+		return;
+	}
+
+	/*
+	 * Ok. Time to copy.
+	 */
+	stats_bt = (struct iwn_stats_bt *) stats;
+	lstats = &sc->last_stat;
+
+	/* flags */
+	lstats->flags = stats_bt->flags;
+	/* rx_bt */
+	memcpy(&lstats->rx.ofdm, &stats_bt->rx_bt.ofdm,
+	    sizeof(struct iwn_rx_phy_stats));
+	memcpy(&lstats->rx.cck, &stats_bt->rx_bt.cck,
+	    sizeof(struct iwn_rx_phy_stats));
+	memcpy(&lstats->rx.general, &stats_bt->rx_bt.general_bt.common,
+	    sizeof(struct iwn_rx_general_stats));
+	memcpy(&lstats->rx.ht, &stats_bt->rx_bt.ht,
+	    sizeof(struct iwn_rx_ht_phy_stats));
+	/* tx */
+	memcpy(&lstats->tx, &stats_bt->tx,
+	    sizeof(struct iwn_tx_stats));
+	/* general */
+	memcpy(&lstats->general, &stats_bt->general,
+	    sizeof(struct iwn_general_stats));
+
+	/* XXX TODO: Squirrel away the extra bluetooth stats somewhere */
+	sc->last_stat_valid = 1;
+}
+
 /*
  * Process an RX_STATISTICS or BEACON_STATISTICS firmware notification.
  * The latter is sent by the firmware after each received beacon.
@@ -3138,6 +3237,7 @@ iwn_rx_statistics(struct iwn_softc *sc, struct iwn_rx_desc *desc,
 	struct ieee80211vap *vap = TAILQ_FIRST(&ic->ic_vaps);
 	struct iwn_calib_state *calib = &sc->calib;
 	struct iwn_stats *stats = (struct iwn_stats *)(desc + 1);
+	struct iwn_stats *lstats;
 	int temp;
 
 	DPRINTF(sc, IWN_DEBUG_TRACE, "->%s begin\n", __func__);
@@ -3152,12 +3252,26 @@ iwn_rx_statistics(struct iwn_softc *sc, struct iwn_rx_desc *desc,
 
 	bus_dmamap_sync(sc->rxq.data_dmat, data->map, BUS_DMASYNC_POSTREAD);
 
-	DPRINTF(sc, IWN_DEBUG_CALIBRATE, "%s: received statistics, cmd %d\n",
-	    __func__, desc->type);
+	DPRINTF(sc, IWN_DEBUG_CALIBRATE | IWN_DEBUG_STATS,
+	    "%s: received statistics, cmd %d, len %d\n",
+	    __func__, desc->type, le16toh(desc->len));
 	sc->calib_cnt = 0;	/* Reset TX power calibration timeout. */
 
+	/*
+	 * Collect/track general statistics for reporting.
+	 *
+	 * This takes care of ensuring that the bluetooth sized message
+	 * will be correctly converted to the legacy sized message.
+	 */
+	iwn_stats_update(sc, calib, stats, le16toh(desc->len));
+
+	/*
+	 * And now, let's take a reference of it to use!
+	 */
+	lstats = &sc->last_stat;
+
 	/* Test if temperature has changed. */
-	if (stats->general.temp != sc->rawtemp) {
+	if (lstats->general.temp != sc->rawtemp) {
 		/* Convert "raw" temperature to degC. */
 		sc->rawtemp = stats->general.temp;
 		temp = ops->get_temperature(sc);
@@ -3172,25 +3286,25 @@ iwn_rx_statistics(struct iwn_softc *sc, struct iwn_rx_desc *desc,
 	if (desc->type != IWN_BEACON_STATISTICS)
 		return;	/* Reply to a statistics request. */
 
-	sc->noise = iwn_get_noise(&stats->rx.general);
+	sc->noise = iwn_get_noise(&lstats->rx.general);
 	DPRINTF(sc, IWN_DEBUG_CALIBRATE, "%s: noise %d\n", __func__, sc->noise);
 
 	/* Test that RSSI and noise are present in stats report. */
-	if (le32toh(stats->rx.general.flags) != 1) {
+	if (le32toh(lstats->rx.general.flags) != 1) {
 		DPRINTF(sc, IWN_DEBUG_ANY, "%s\n",
 		    "received statistics without RSSI");
 		return;
 	}
 
 	if (calib->state == IWN_CALIB_STATE_ASSOC)
-		iwn_collect_noise(sc, &stats->rx.general);
+		iwn_collect_noise(sc, &lstats->rx.general);
 	else if (calib->state == IWN_CALIB_STATE_RUN) {
-		iwn_tune_sensitivity(sc, &stats->rx);
+		iwn_tune_sensitivity(sc, &lstats->rx);
 		/*
 		 * XXX TODO: Only run the RX recovery if we're associated!
 		 */
-		iwn_check_rx_recovery(sc, stats);
-		iwn_save_stats_counters(sc, stats);
+		iwn_check_rx_recovery(sc, lstats);
+		iwn_save_stats_counters(sc, lstats);
 	}
 
 	DPRINTF(sc, IWN_DEBUG_TRACE, "->%s: end\n",__func__);
@@ -3844,8 +3958,8 @@ iwn_intr(void *arg)
 #endif
 		/* Dump firmware error log and stop. */
 		iwn_fatal_intr(sc);
-		ifp->if_flags &= ~IFF_UP;
-		iwn_stop_locked(sc);
+
+		taskqueue_enqueue(sc->sc_tq, &sc->sc_panic_task);
 		goto done;
 	}
 	if ((r1 & (IWN_INT_FH_RX | IWN_INT_SW_RX | IWN_INT_RX_PERIODIC)) ||
@@ -4145,7 +4259,7 @@ iwn_tx_data(struct iwn_softc *sc, struct mbuf *m, struct ieee80211_node *ni)
 	}
 
 	/* Encrypt the frame if need be. */
-	if (wh->i_fc[1] & IEEE80211_FC1_WEP) {
+	if (wh->i_fc[1] & IEEE80211_FC1_PROTECTED) {
 		/* Retrieve key for TX. */
 		k = ieee80211_crypto_encap(ni, m);
 		if (k == NULL) {
@@ -4695,6 +4809,19 @@ iwn_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		break;
 	case SIOCGIFMEDIA:
 		error = ifmedia_ioctl(ifp, ifr, &ic->ic_media, cmd);
+		break;
+	case SIOCGIWNSTATS:
+		IWN_LOCK(sc);
+		/* XXX validate permissions/memory/etc? */
+		error = copyout(&sc->last_stat, ifr->ifr_data,
+		    sizeof(struct iwn_stats));
+		IWN_UNLOCK(sc);
+		break;
+	case SIOCZIWNSTATS:
+		IWN_LOCK(sc);
+		memset(&sc->last_stat, 0, sizeof(struct iwn_stats));
+		IWN_UNLOCK(sc);
+		error = 0;
 		break;
 	default:
 		error = EINVAL;
@@ -5902,7 +6029,7 @@ iwn_check_rx_recovery(struct iwn_softc *sc, struct iwn_stats *rs)
 	 * if ((delta * 100 / msecs) > threshold)
 	 */
 	if (thresh > 0 && (delta_cck + delta_ofdm + delta_ht) * 100 > thresh) {
-		device_printf(sc->sc_dev,
+		DPRINTF(sc, IWN_DEBUG_ANY,
 		    "%s: PLCP error threshold raw (%d) comparison (%d) "
 		    "over limit (%d); retune!\n",
 		    __func__,
@@ -6063,7 +6190,6 @@ iwn_send_advanced_btcoex(struct iwn_softc *sc)
 		error = iwn_cmd(sc, IWN_CMD_BT_COEX, &btconfig,
 		    sizeof(btconfig), 1);
 	}
-
 
 	if (error != 0)
 		return error;
@@ -8297,6 +8423,38 @@ iwn_radio_off(void *arg0, int pending)
 	IWN_WRITE(sc, IWN_INT, 0xffffffff);
 	IWN_WRITE(sc, IWN_INT_MASK, sc->int_mask);
 	IWN_UNLOCK(sc);
+}
+
+static void
+iwn_panicked(void *arg0, int pending)
+{
+	struct iwn_softc *sc = arg0;
+	struct ifnet *ifp = sc->sc_ifp;
+	struct ieee80211com *ic = ifp->if_l2com;
+	struct ieee80211vap *vap = TAILQ_FIRST(&ic->ic_vaps);
+	int error;
+
+	if (vap == NULL) {
+		printf("%s: null vap\n", __func__);
+		return;
+	}
+
+	device_printf(sc->sc_dev, "%s: controller panicked, iv_state = %d; "
+	    "resetting...\n", __func__, vap->iv_state);
+
+	iwn_stop(sc);
+	iwn_init(sc);
+	iwn_start(sc->sc_ifp);
+	if (vap->iv_state >= IEEE80211_S_AUTH &&
+	    (error = iwn_auth(sc, vap)) != 0) {
+		device_printf(sc->sc_dev,
+		    "%s: could not move to auth state\n", __func__);
+	}
+	if (vap->iv_state >= IEEE80211_S_RUN &&
+	    (error = iwn_run(sc, vap)) != 0) {
+		device_printf(sc->sc_dev,
+		    "%s: could not move to run state\n", __func__);
+	}
 }
 
 static void

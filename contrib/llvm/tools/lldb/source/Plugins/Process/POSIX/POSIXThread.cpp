@@ -65,7 +65,16 @@ POSIXThread::POSIXThread(Process &process, lldb::tid_t tid)
         lldb::WatchpointSP wp = wp_list.GetByIndex(wp_idx);
         if (wp.get() && wp->IsEnabled())
         {
-            assert(EnableHardwareWatchpoint(wp.get()));
+            // This watchpoint as been enabled; obviously this "new" thread
+            // has been created since that watchpoint was enabled.  Since
+            // the POSIXBreakpointProtocol has yet to be initialized, its
+            // m_watchpoints_initialized member will be FALSE.  Attempting to
+            // read the debug status register to determine if a watchpoint
+            // has been hit would result in the zeroing of that register.
+            // Since the active debug registers would have been cloned when
+            // this thread was created, simply force the m_watchpoints_initized
+            // member to TRUE and avoid resetting dr6 and dr7.
+            GetPOSIXBreakpointProtocol()->ForceWatchpointsInitialized();
         }
     }
 }
@@ -151,8 +160,6 @@ POSIXThread::GetRegisterContext()
         {
             case ArchSpec::eCore_mips64:
             {
-                RegisterInfoInterface *reg_interface = NULL;
-
                 switch (target_arch.GetTriple().getOS())
                 {
                     case llvm::Triple::FreeBSD:
@@ -274,6 +281,43 @@ void
 POSIXThread::DidStop()
 {
     // Don't set the thread state to stopped unless we really stopped.
+}
+
+bool
+POSIXThread::Resume()
+{
+    lldb::StateType resume_state = GetResumeState();
+    ProcessMonitor &monitor = GetMonitor();
+    bool status;
+
+    Log *log (ProcessPOSIXLog::GetLogIfAllCategoriesSet (POSIX_LOG_THREAD));
+    if (log)
+        log->Printf ("POSIXThread::%s (), resume_state = %s", __FUNCTION__,
+                         StateAsCString(resume_state));
+
+    switch (resume_state)
+    {
+    default:
+        assert(false && "Unexpected state for resume!");
+        status = false;
+        break;
+
+    case lldb::eStateRunning:
+        SetState(resume_state);
+        status = monitor.Resume(GetID(), GetResumeSignal());
+        break;
+
+    case lldb::eStateStepping:
+        SetState(resume_state);
+        status = monitor.SingleStep(GetID(), GetResumeSignal());
+        break;
+    case lldb::eStateStopped:
+    case lldb::eStateSuspended:
+        status = true;
+        break;
+    }
+
+    return status;
 }
 
 void
@@ -474,6 +518,21 @@ POSIXThread::WatchNotify(const ProcessMessage &message)
 void
 POSIXThread::TraceNotify(const ProcessMessage &message)
 {
+    POSIXBreakpointProtocol* reg_ctx = GetPOSIXBreakpointProtocol();
+    if (reg_ctx)
+    {
+        uint32_t num_hw_wps = reg_ctx->NumSupportedHardwareWatchpoints();
+        uint32_t wp_idx;
+        for (wp_idx = 0; wp_idx < num_hw_wps; wp_idx++)
+        {
+            if (reg_ctx->IsWatchpointHit(wp_idx))
+            {
+                WatchNotify(message);
+                return;
+            }
+        }
+    }
+
     SetStopInfo (StopInfo::CreateStopReasonToTrace(*this));
 }
 

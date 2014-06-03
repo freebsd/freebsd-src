@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 19, 2013
+.Dd February 9, 2014
 .Dt IWN 4
 .Os
 .Sh NAME
@@ -45,8 +45,10 @@ kernel configuration file:
 You also need to select a firmware for your device.
 Choose one from:
 .Bd -ragged -offset indent
-.Cd "device iwn4965fw"
 .Cd "device iwn1000fw"
+.Cd "device iwn2000fw"
+.Cd "device iwn2030fw"
+.Cd "device iwn4965fw"
 .Cd "device iwn5000fw"
 .Cd "device iwn5150fw"
 .Cd "device iwn6000fw"
@@ -67,8 +69,10 @@ module at boot time, place the following lines in
 .Xr loader.conf 5 :
 .Bd -literal -offset indent
 if_iwn_load="YES"
-iwn4965fw_load="YES"
 iwn1000fw_load="YES"
+iwn2000fw_load="YES"
+iwn2030fw_load="YES"
+iwn4965fw_load="YES"
 iwn5000fw_load="YES"
 iwn5150fw_load="YES"
 iwn6000fw_load="YES"

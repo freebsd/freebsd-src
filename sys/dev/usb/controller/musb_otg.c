@@ -2403,7 +2403,8 @@ musbotg_setup_standard_chain(struct usb_xfer *xfer)
 	temp.td = NULL;
 	temp.td_next = xfer->td_start[0];
 	temp.offset = 0;
-	temp.setup_alt_next = xfer->flags_int.short_frames_ok;
+	temp.setup_alt_next = xfer->flags_int.short_frames_ok ||
+	    xfer->flags_int.isochronous_xfr;
 	temp.did_stall = !xfer->flags_int.control_stall;
 	temp.channel = -1;
 	temp.dev_addr = dev_addr;
@@ -2714,7 +2715,8 @@ musbotg_standard_done_sub(struct usb_xfer *xfer)
 		}
 		/* Check for short transfer */
 		if (len > 0) {
-			if (xfer->flags_int.short_frames_ok) {
+			if (xfer->flags_int.short_frames_ok ||
+			    xfer->flags_int.isochronous_xfr) {
 				/* follow alt next */
 				if (td->alt_next) {
 					td = td->obj_next;
@@ -3775,6 +3777,13 @@ tr_handle_get_descriptor:
 		}
 		len = sizeof(musbotg_devd);
 		ptr = (const void *)&musbotg_devd;
+		goto tr_valid;
+	case UDESC_DEVICE_QUALIFIER:
+		if (value & 0xff) {
+			goto tr_stalled;
+		}
+		len = sizeof(musbotg_odevd);
+		ptr = (const void *)&musbotg_odevd;
 		goto tr_valid;
 	case UDESC_CONFIG:
 		if (value & 0xff) {

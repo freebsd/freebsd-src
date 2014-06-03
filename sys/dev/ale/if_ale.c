@@ -1660,6 +1660,7 @@ ale_encap(struct ale_softc *sc, struct mbuf **m_head)
 		    (mtod(m, intptr_t) & 3) != 0) {
 			m = m_defrag(*m_head, M_NOWAIT);
 			if (m == NULL) {
+				m_freem(*m_head);
 				*m_head = NULL;
 				return (ENOBUFS);
 			}

@@ -80,6 +80,12 @@ class Lexer : public PreprocessorLexer {
   // line" flag set on it.
   bool IsAtStartOfLine;
 
+  bool IsAtPhysicalStartOfLine;
+
+  bool HasLeadingSpace;
+
+  bool HasLeadingEmptyMacro;
+
   // CurrentConflictMarkerState - The kind of conflict marker we are handling.
   ConflictMarkerKind CurrentConflictMarkerState;
 
@@ -127,31 +133,21 @@ public:
   /// from.  Currently this is only used by _Pragma handling.
   SourceLocation getFileLoc() const { return FileLoc; }
 
+private:
   /// Lex - Return the next token in the file.  If this is the end of file, it
   /// return the tok::eof token.  This implicitly involves the preprocessor.
-  void Lex(Token &Result) {
-    // Start a new token.
-    Result.startToken();
+  bool Lex(Token &Result);
 
-    // NOTE, any changes here should also change code after calls to
-    // Preprocessor::HandleDirective
-    if (IsAtStartOfLine) {
-      Result.setFlag(Token::StartOfLine);
-      IsAtStartOfLine = false;
-    }
-
-    // Get a token.  Note that this may delete the current lexer if the end of
-    // file is reached.
-    LexTokenInternal(Result);
-  }
-
+public:
   /// isPragmaLexer - Returns true if this Lexer is being used to lex a pragma.
   bool isPragmaLexer() const { return Is_PragmaLexer; }
 
+private:
   /// IndirectLex - An indirect call to 'Lex' that can be invoked via
   ///  the PreprocessorLexer interface.
   void IndirectLex(Token &Result) { Lex(Result); }
 
+public:
   /// LexFromRawLexer - Lex a token from a designated raw lexer (one with no
   /// associated preprocessor object.  Return true if the 'next character to
   /// read' pointer points at the end of the lexer buffer, false otherwise.
@@ -202,7 +198,10 @@ public:
   /// lexer has nothing to reset to.
   void resetExtendedTokenMode();
 
-  const char *getBufferStart() const { return BufferStart; }
+  /// Gets source code buffer.
+  StringRef getBuffer() const {
+    return StringRef(BufferStart, BufferEnd - BufferStart);
+  }
 
   /// ReadToEndOfLine - Read the rest of the current preprocessor line as an
   /// uninterpreted string.  This switches the lexer out of directive mode.
@@ -285,7 +284,8 @@ public:
   /// \returns true if there was a failure, false on success.
   static bool getRawToken(SourceLocation Loc, Token &Result,
                           const SourceManager &SM,
-                          const LangOptions &LangOpts);
+                          const LangOptions &LangOpts,
+                          bool IgnoreWhiteSpace = false);
 
   /// \brief Given a location any where in a source buffer, find the location
   /// that corresponds to the beginning of the token in which the original
@@ -443,12 +443,14 @@ private:
   /// LexTokenInternal - Internal interface to lex a preprocessing token. Called
   /// by Lex.
   ///
-  void LexTokenInternal(Token &Result);
+  bool LexTokenInternal(Token &Result, bool TokAtPhysicalStartOfLine);
+
+  bool CheckUnicodeWhitespace(Token &Result, uint32_t C, const char *CurPtr);
 
   /// Given that a token begins with the Unicode character \p C, figure out
   /// what kind of token it is and dispatch to the appropriate lexing helper
   /// function.
-  void LexUnicode(Token &Result, uint32_t C, const char *CurPtr);
+  bool LexUnicode(Token &Result, uint32_t C, const char *CurPtr);
 
   /// FormTokenWithChars - When we lex a token, we have identified a span
   /// starting at BufferPtr, going to TokEnd that forms the token.  This method
@@ -566,23 +568,28 @@ private:
 
   void SkipBytes(unsigned Bytes, bool StartOfLine);
 
-  const char *LexUDSuffix(Token &Result, const char *CurPtr);
-  
+  void PropagateLineStartLeadingSpaceInfo(Token &Result);
+
+  const char *LexUDSuffix(Token &Result, const char *CurPtr,
+                          bool IsStringLiteral);
+
   // Helper functions to lex the remainder of a token of the specific type.
-  void LexIdentifier         (Token &Result, const char *CurPtr);
-  void LexNumericConstant    (Token &Result, const char *CurPtr);
-  void LexStringLiteral      (Token &Result, const char *CurPtr,
+  bool LexIdentifier         (Token &Result, const char *CurPtr);
+  bool LexNumericConstant    (Token &Result, const char *CurPtr);
+  bool LexStringLiteral      (Token &Result, const char *CurPtr,
                               tok::TokenKind Kind);
-  void LexRawStringLiteral   (Token &Result, const char *CurPtr,
+  bool LexRawStringLiteral   (Token &Result, const char *CurPtr,
                               tok::TokenKind Kind);
-  void LexAngledStringLiteral(Token &Result, const char *CurPtr);
-  void LexCharConstant       (Token &Result, const char *CurPtr,
+  bool LexAngledStringLiteral(Token &Result, const char *CurPtr);
+  bool LexCharConstant       (Token &Result, const char *CurPtr,
                               tok::TokenKind Kind);
   bool LexEndOfFile          (Token &Result, const char *CurPtr);
-
-  bool SkipWhitespace        (Token &Result, const char *CurPtr);
-  bool SkipLineComment       (Token &Result, const char *CurPtr);
-  bool SkipBlockComment      (Token &Result, const char *CurPtr);
+  bool SkipWhitespace        (Token &Result, const char *CurPtr,
+                              bool &TokAtPhysicalStartOfLine);
+  bool SkipLineComment       (Token &Result, const char *CurPtr,
+                              bool &TokAtPhysicalStartOfLine);
+  bool SkipBlockComment      (Token &Result, const char *CurPtr,
+                              bool &TokAtPhysicalStartOfLine);
   bool SaveLineComment       (Token &Result, const char *CurPtr);
   
   bool IsStartOfConflictMarker(const char *CurPtr);

@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.include <bsd.own.mk>
+.include <src.opts.mk>
 
 FILES=	DAEMON \
 	FILESYSTEMS \
@@ -26,7 +26,7 @@ FILES=	DAEMON \
 	bridge \
 	bsnmpd \
 	${_bthidd} \
-	casperd \
+	${_casperd} \
 	ccd \
 	cleanvar \
 	cleartmp \
@@ -63,7 +63,6 @@ FILES=	DAEMON \
 	ipmon \
 	ipnat \
 	ipsec \
-	${_ipxrouted} \
 	iscsictl \
 	iscsid \
 	jail \
@@ -165,10 +164,6 @@ FILES=	DAEMON \
 	zfs \
 	zvol
 
-.if ${MK_IPX} != "no"
-_ipxrouted=	ipxrouted
-.endif
-
 .if ${MK_OFED} != "no"
 _opensm=	opensm
 .endif
@@ -186,6 +181,10 @@ _bluetooth=	bluetooth
 _bthidd=	bthidd
 _hcsecd=	hcsecd
 _ubthidhci=	ubthidhci
+.endif
+
+.if ${MK_CASPER} != "no"
+_casperd=	casperd
 .endif
 
 .if ${MK_UNBOUND} != "no"

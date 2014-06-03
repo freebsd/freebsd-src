@@ -287,7 +287,6 @@ dtrace_invop_calltrap_addr:
 	.text
 #endif
 
-#ifdef SMP
 /*
  * Processor reset exception handler. These are typically
  * the first instructions the processor executes after a
@@ -322,13 +321,25 @@ cpu_reset:
 	bl	CNAME(cpudep_ap_bootstrap)	/* Set up PCPU and stack */
 	nop
 	mr	%r1,%r3				/* Use new stack */
+	bl	CNAME(cpudep_ap_setup)
+	nop
+	GET_CPUINFO(%r5)
+	ld	%r3,(PC_RESTORE)(%r5)
+	cmpldi	%cr0,%r3,0
+	beq	%cr0,2f
+	nop
+	li	%r4,1
+	b	CNAME(longjmp)
+	nop
+2:
+#ifdef SMP
 	bl	CNAME(machdep_ap_bootstrap)	/* And away! */
 	nop
+#endif
 
 	/* Should not be reached */
 9:
 	b	9b
-#endif
 
 /*
  * This code gets copied to all the trap vectors
@@ -574,7 +585,7 @@ disitrap:
 	mtcr	%r31
 	bt	17,realtrap		/* branch is user mode */
 	mfsprg1	%r31			/* get old SP */
-	clrrdi	%r31,%r31,11		/* Round SP down to nearest page */
+	clrrdi	%r31,%r31,12		/* Round SP down to nearest page */
 	sub.	%r30,%r31,%r30		/* SP - DAR */
 	bge	1f
 	neg	%r30,%r30		/* modulo value */

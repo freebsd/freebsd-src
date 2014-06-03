@@ -46,7 +46,7 @@ fi
 dtrace=$1
 
 $dtrace -qZm wassup'{printf("Iamkool");}' \
--qm BEGIN'{printf("I am done"); exit(0);}'
+-qm kernel'{printf("I am done"); exit(0);}'
 
 status=$?
 

@@ -63,8 +63,8 @@ typedef	const char *	c_db_sym_t;	/* const opaque handle on symbols */
 typedef int		db_strategy_t;	/* search strategy */
 
 #define	DB_STGY_ANY	0			/* anything goes */
-#define DB_STGY_XTRN	1			/* only external symbols */
-#define DB_STGY_PROC	2			/* only procedures */
+#define	DB_STGY_XTRN	1			/* only external symbols */
+#define	DB_STGY_PROC	2			/* only procedures */
 
 /*
  * Functions exported by the symtable module
@@ -78,11 +78,11 @@ c_db_sym_t	db_search_symbol(db_addr_t, db_strategy_t, db_expr_t *);
 void		db_symbol_values(c_db_sym_t, const char **, db_expr_t *);
 					/* return name and value of symbol */
 
-#define db_find_sym_and_offset(val,namep,offp)	\
+#define	db_find_sym_and_offset(val,namep,offp)	\
 	db_symbol_values(db_search_symbol(val,DB_STGY_ANY,offp),namep,0)
 					/* find name&value given approx val */
 
-#define db_find_xtrn_sym_and_offset(val,namep,offp)	\
+#define	db_find_xtrn_sym_and_offset(val,namep,offp)	\
 	db_symbol_values(db_search_symbol(val,DB_STGY_XTRN,offp),namep,0)
 					/* ditto, but no locals */
 

@@ -569,6 +569,7 @@ int	usbd_xfer_is_stalled(struct usb_xfer *xfer);
 void	usbd_xfer_set_flag(struct usb_xfer *xfer, int flag);
 void	usbd_xfer_clr_flag(struct usb_xfer *xfer, int flag);
 uint16_t usbd_xfer_get_timestamp(struct usb_xfer *xfer);
+uint8_t usbd_xfer_maxp_was_clamped(struct usb_xfer *xfer);
 
 void	usbd_copy_in(struct usb_page_cache *cache, usb_frlength_t offset,
 	    const void *ptr, usb_frlength_t len);

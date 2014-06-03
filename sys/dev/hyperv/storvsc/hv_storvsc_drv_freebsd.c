@@ -171,15 +171,12 @@ static struct storvsc_driver_props g_drv_props_table[] = {
 	 STORVSC_RINGBUFFER_SIZE}
 };
 
-static struct storvsc_softc *hs_softc[HS_MAX_ADAPTERS];
-
 /* static functions */
 static int storvsc_probe(device_t dev);
 static int storvsc_attach(device_t dev);
 static int storvsc_detach(device_t dev);
 static void storvsc_poll(struct cam_sim * sim);
 static void storvsc_action(struct cam_sim * sim, union ccb * ccb);
-static void scan_for_luns(struct storvsc_softc * sc);
 static void create_storvsc_request(union ccb *ccb, struct hv_storvsc_request *reqp);
 static void storvsc_free_request(struct storvsc_softc *sc, struct hv_storvsc_request *reqp);
 static enum hv_storage_type storvsc_get_storage_type(device_t dev);
@@ -299,7 +296,7 @@ hv_storvsc_channel_init(struct hv_device *dev)
 			dev->channel,
 			vstor_packet,
 			sizeof(struct vstor_packet),
-			(uint64_t)request,
+			(uint64_t)(uintptr_t)request,
 			HV_VMBUS_PACKET_TYPE_DATA_IN_BAND,
 			HV_VMBUS_DATA_PACKET_FLAG_COMPLETION_REQUESTED);
 
@@ -333,7 +330,7 @@ hv_storvsc_channel_init(struct hv_device *dev)
 			dev->channel,
 			vstor_packet,
 			sizeof(struct vstor_packet),
-			(uint64_t)request,
+			(uint64_t)(uintptr_t)request,
 			HV_VMBUS_PACKET_TYPE_DATA_IN_BAND,
 			HV_VMBUS_DATA_PACKET_FLAG_COMPLETION_REQUESTED);
 
@@ -364,7 +361,7 @@ hv_storvsc_channel_init(struct hv_device *dev)
 				dev->channel,
 				vstor_packet,
 				sizeof(struct vstor_packet),
-				(uint64_t)request,
+				(uint64_t)(uintptr_t)request,
 				HV_VMBUS_PACKET_TYPE_DATA_IN_BAND,
 				HV_VMBUS_DATA_PACKET_FLAG_COMPLETION_REQUESTED);
 
@@ -392,7 +389,7 @@ hv_storvsc_channel_init(struct hv_device *dev)
 			dev->channel,
 			vstor_packet,
 			sizeof(struct vstor_packet),
-			(uint64_t)request,
+			(uint64_t)(uintptr_t)request,
 			HV_VMBUS_PACKET_TYPE_DATA_IN_BAND,
 			HV_VMBUS_DATA_PACKET_FLAG_COMPLETION_REQUESTED);
 
@@ -485,7 +482,7 @@ hv_storvsc_host_reset(struct hv_device *dev)
 	ret = hv_vmbus_channel_send_packet(dev->channel,
 			vstor_packet,
 			sizeof(struct vstor_packet),
-			(uint64_t)&sc->hs_reset_req,
+			(uint64_t)(uintptr_t)&sc->hs_reset_req,
 			HV_VMBUS_PACKET_TYPE_DATA_IN_BAND,
 			HV_VMBUS_DATA_PACKET_FLAG_COMPLETION_REQUESTED);
 
@@ -550,14 +547,14 @@ hv_storvsc_io_request(struct hv_device *device,
 				&request->data_buf,
 				vstor_packet, 
 				sizeof(struct vstor_packet), 
-				(uint64_t)request);
+				(uint64_t)(uintptr_t)request);
 
 	} else {
 		ret = hv_vmbus_channel_send_packet(
 			device->channel,
 			vstor_packet,
 			sizeof(struct vstor_packet),
-			(uint64_t)request,
+			(uint64_t)(uintptr_t)request,
 			HV_VMBUS_PACKET_TYPE_DATA_IN_BAND,
 			HV_VMBUS_DATA_PACKET_FLAG_COMPLETION_REQUESTED);
 	}
@@ -637,7 +634,7 @@ hv_storvsc_on_channel_callback(void *context)
 			&request_id);
 
 	while ((ret == 0) && (bytes_recvd > 0)) {
-		request = (struct hv_storvsc_request *)request_id;
+		request = (struct hv_storvsc_request *)(uintptr_t)request_id;
 		KASSERT(request, ("request"));
 
 		if ((request == &sc->hs_init_req) ||
@@ -666,84 +663,6 @@ hv_storvsc_on_channel_callback(void *context)
 				&bytes_recvd,
 				&request_id);
 	}
-}
-
-/**
- * @brief callback function for completing a single LUN scan
- *
- * This function is responsible for waking up the executer of
- * the scan LUN CCB action (cam_periph_runccb.)  cam_periph_ccbwait
- * sleeps on the mutex being signaled.
- *
- * @param periph a pointer to a CAM peripheral
- * @param done_ccb pointer to CAM control block
- */
-static void
-storvsc_xptdone(struct cam_periph *periph, union ccb *done_ccb)
-{
-	wakeup(&done_ccb->ccb_h.cbfcnp);
-}
-
-/**
- * @brief scan for attached logical unit numbers (LUNs)
- *
- * In Hyper-V there is no backend changed device operation which
- * presents FreeBSD with a list of devices to connect.  The result is
- * that we have to scan for a list of luns in the storvsc_attach()
- * routine.  There is only one SCSI target, so scan for the maximum
- * number of luns.
- *
- * @param pointer to softc
- */
-static void
-scan_for_luns(struct storvsc_softc *sc)
-{
-	union ccb *request_ccb;
-	struct cam_path *path = sc->hs_path;
-	struct cam_path *my_path = NULL;
-	cam_status status;
-	int lun_nb = 0;
-	int error;
-
-	request_ccb = malloc(sizeof(union ccb), M_CAMXPT, M_WAITOK);
-	my_path = malloc(sizeof(*my_path), M_CAMXPT, M_WAITOK);
-
-	mtx_lock(&sc->hs_lock);
-	do {
-		/*
-		 * Scan the next LUN. Reuse path and ccb structs.
-		 */
-		bzero(my_path, sizeof(*my_path));
-		bzero(request_ccb, sizeof(*request_ccb));
-		status = xpt_compile_path(my_path,
-				  xpt_periph,
-				  path->bus->path_id,
-				  0,
-				  lun_nb);
-
-		if (status != CAM_REQ_CMP) {
-			mtx_unlock(&sc->hs_lock);
-	       		xpt_print(path, "scan_for_lunYYY: can't compile"
-					 " path, 0x%p can't continue\n",
-					 sc->hs_path);
-			free(request_ccb, M_CAMXPT);
-			free(my_path, M_CAMXPT);
-			return;
-		}
-
-		xpt_setup_ccb(&request_ccb->ccb_h, my_path, 5);
-		request_ccb->ccb_h.func_code = XPT_SCAN_LUN;
-		request_ccb->ccb_h.cbfcnp    = storvsc_xptdone;
-		request_ccb->crcn.flags	     = CAM_FLAG_NONE;
-
-		error = cam_periph_runccb(request_ccb, NULL, 
-						CAM_FLAG_NONE, 0, NULL);
-		KASSERT(error == 0, ("cam_periph_runccb failed %d\n", error));
-		xpt_release_path(my_path);
-	} while ( ++lun_nb < sc->hs_drv_props->drv_max_luns_per_target);
-	mtx_unlock(&sc->hs_lock);
-	free(request_ccb, M_CAMXPT);
-	free(my_path, M_CAMXPT);
 }
 
 /**
@@ -904,10 +823,6 @@ storvsc_attach(device_t dev)
 	}
 
 	mtx_unlock(&sc->hs_lock);
-	scan_for_luns(sc);
-	for (i = 0; (hs_softc[i] != NULL) && (i < HS_MAX_ADAPTERS); i++);
-	KASSERT(i < HS_MAX_ADAPTERS, ("storvsc_attach: hs_softc full\n"));
-	hs_softc[i] = sc;
 
 	root_mount_rel(root_mount_token);
 	return (0);
@@ -1147,7 +1062,7 @@ storvsc_action(struct cam_sim *sim, union ccb *ccb)
 		cpi->hba_eng_cnt = 0;
 		cpi->max_target = STORVSC_MAX_TARGETS;
 		cpi->max_lun = sc->hs_drv_props->drv_max_luns_per_target;
-		cpi->initiator_id = 0;
+		cpi->initiator_id = cpi->max_target;
 		cpi->bus_id = cam_sim_bus(sim);
 		cpi->base_transfer_speed = 300000;
 		cpi->transport = XPORT_SAS;

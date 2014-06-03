@@ -14,5 +14,7 @@ SRCS	+= netmap_generic.c
 SRCS	+= netmap_mbq.c netmap_mbq.h
 SRCS	+= netmap_vale.c
 SRCS	+= netmap_freebsd.c
+SRCS	+= netmap_offloadings.c
+SRCS	+= netmap_pipe.c
 
 .include <bsd.kmod.mk>

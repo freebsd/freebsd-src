@@ -31,7 +31,7 @@
  */
 
 #ifndef	_NET_PF_H_
-#define	_NET_PFAR_H_
+#define	_NET_PF_H_
 
 #define	PF_TCPS_PROXY_SRC	((TCP_NSTATES)+0)
 #define	PF_TCPS_PROXY_DST	((TCP_NSTATES)+1)

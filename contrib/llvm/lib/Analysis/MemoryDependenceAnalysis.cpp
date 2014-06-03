@@ -1,4 +1,4 @@
-//===- MemoryDependenceAnalysis.cpp - Mem Deps Implementation  --*- C++ -*-===//
+//===- MemoryDependenceAnalysis.cpp - Mem Deps Implementation -------------===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -89,7 +89,7 @@ bool MemoryDependenceAnalysis::runOnFunction(Function &) {
   AA = &getAnalysis<AliasAnalysis>();
   TD = getAnalysisIfAvailable<DataLayout>();
   DT = getAnalysisIfAvailable<DominatorTree>();
-  if (PredCache == 0)
+  if (!PredCache)
     PredCache.reset(new PredIteratorCache());
   return false;
 }
@@ -371,18 +371,19 @@ getPointerDependencyFrom(const AliasAnalysis::Location &MemLoc, bool isLoad,
 
   // Walk backwards through the basic block, looking for dependencies.
   while (ScanIt != BB->begin()) {
+    Instruction *Inst = --ScanIt;
+
+    if (IntrinsicInst *II = dyn_cast<IntrinsicInst>(Inst))
+      // Debug intrinsics don't (and can't) cause dependencies.
+      if (isa<DbgInfoIntrinsic>(II)) continue;
+
     // Limit the amount of scanning we do so we don't end up with quadratic
     // running time on extreme testcases.
     --Limit;
     if (!Limit)
       return MemDepResult::getUnknown();
 
-    Instruction *Inst = --ScanIt;
-
     if (IntrinsicInst *II = dyn_cast<IntrinsicInst>(Inst)) {
-      // Debug intrinsics don't (and can't) cause dependences.
-      if (isa<DbgInfoIntrinsic>(II)) continue;
-
       // If we reach a lifetime begin or end marker, then the query ends here
       // because the value is undefined.
       if (II->getIntrinsicID() == Intrinsic::lifetime_start) {

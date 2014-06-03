@@ -94,6 +94,8 @@ device		ahd		# AHA39320/29320 and AIC79xx devices
 device		hptiop		# Highpoint RocketRaid 3xxx series
 device		isp		# Qlogic family
 device		mpt		# LSI-Logic MPT-Fusion
+device		mps		# LSI-Logic MPT-Fusion 2
+device		mpr		# LSI-Logic MPT-Fusion 3
 device		sym		# NCR/Symbios Logic
 
 # RAID controllers interfaced to the SCSI subsystem
@@ -183,16 +185,18 @@ device		uvscom		# USB serial support for DDI pocket's PHS
 # Wireless NIC cards.
 # The wlan(4) module assumes this, so just define it so it
 # at least correctly loads.
-options		IEEE80211_SUPPORT_MESH
+options 	IEEE80211_SUPPORT_MESH
 
 # The ath(4) and ath_hal(4) code requires this.  The module currently
 # builds everything including AR5416 (and later 11n NIC) support.
-options		AH_SUPPORT_AR5416
+options 	AH_SUPPORT_AR5416
 
 # Various (pseudo) devices
 device		ether		# Ethernet support
 device		faith		# IPv6-to-IPv4 relaying (translation)
+device		firmware	# firmware assist module
 device		gif		# IPv6 and IPv4 tunneling
+device		kbdmux		# keyboard multiplexer
 device		loop		# Network loopback
 device		md		# Memory "disks"
 device		puc		# Multi I/O cards and multi-channel UARTs
@@ -200,7 +204,8 @@ device		random		# Entropy device
 device		tun		# Packet tunnel.
 device		uart		# Serial port (UART)
 device		vlan		# 802.1Q VLAN support
-device		firmware	# firmware assist module
+device		vt		# Virtual terminals
+device		vt_vga		# VGA terminal device
 
 # The `bpf' device enables the Berkeley Packet Filter.
 # Be aware of the administrative consequences of enabling this!

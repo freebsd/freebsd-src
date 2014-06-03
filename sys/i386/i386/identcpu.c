@@ -676,9 +676,9 @@ printcpuinfo(void)
 	}
 	printf("-class CPU)\n");
 	if(*cpu_vendor)
-		printf("  Origin = \"%s\"",cpu_vendor);
+		printf("  Origin=\"%s\"",cpu_vendor);
 	if(cpu_id)
-		printf("  Id = 0x%x", cpu_id);
+		printf("  Id=0x%x", cpu_id);
 
 	if (cpu_vendor_id == CPU_VENDOR_INTEL ||
 	    cpu_vendor_id == CPU_VENDOR_AMD ||
@@ -688,9 +688,9 @@ printcpuinfo(void)
 	    cpu_vendor_id == CPU_VENDOR_NSC ||
 		(cpu_vendor_id == CPU_VENDOR_CYRIX &&
 		 ((cpu_id & 0xf00) > 0x500))) {
-		printf("  Family = 0x%x", CPUID_TO_FAMILY(cpu_id));
-		printf("  Model = 0x%x", CPUID_TO_MODEL(cpu_id));
-		printf("  Stepping = %u", cpu_id & CPUID_STEPPING);
+		printf("  Family=0x%x", CPUID_TO_FAMILY(cpu_id));
+		printf("  Model=0x%x", CPUID_TO_MODEL(cpu_id));
+		printf("  Stepping=%u", cpu_id & CPUID_STEPPING);
 		if (cpu_vendor_id == CPU_VENDOR_CYRIX)
 			printf("\n  DIR=0x%04x", cyrix_did);
 		/*

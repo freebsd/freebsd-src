@@ -84,6 +84,7 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/iwi/if_iwireg.h>
 #include <dev/iwi/if_iwivar.h>
+#include <dev/iwi/if_iwi_ioctl.h>
 
 #define IWI_DEBUG
 #ifdef IWI_DEBUG
@@ -220,7 +221,7 @@ static device_method_t iwi_methods[] = {
 	DEVMETHOD(device_suspend,	iwi_suspend),
 	DEVMETHOD(device_resume,	iwi_resume),
 
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 static driver_t iwi_driver = {
@@ -231,7 +232,7 @@ static driver_t iwi_driver = {
 
 static devclass_t iwi_devclass;
 
-DRIVER_MODULE(iwi, pci, iwi_driver, iwi_devclass, 0, 0);
+DRIVER_MODULE(iwi, pci, iwi_driver, iwi_devclass, NULL, NULL);
 
 MODULE_VERSION(iwi, 1);
 
@@ -258,14 +259,11 @@ iwi_probe(device_t dev)
 		if (pci_get_vendor(dev) == ident->vendor &&
 		    pci_get_device(dev) == ident->device) {
 			device_set_desc(dev, ident->name);
-			return 0;
+			return (BUS_PROBE_DEFAULT);
 		}
 	}
 	return ENXIO;
 }
-
-/* Base Address Register */
-#define IWI_PCI_BAR0	0x10
 
 static int
 iwi_attach(device_t dev)
@@ -301,20 +299,13 @@ iwi_attach(device_t dev)
 	callout_init_mtx(&sc->sc_wdtimer, &sc->sc_mtx, 0);
 	callout_init_mtx(&sc->sc_rftimer, &sc->sc_mtx, 0);
 
-	if (pci_get_powerstate(dev) != PCI_POWERSTATE_D0) {
-		device_printf(dev, "chip is in D%d power mode "
-		    "-- setting to D0\n", pci_get_powerstate(dev));
-		pci_set_powerstate(dev, PCI_POWERSTATE_D0);
-	}
-
 	pci_write_config(dev, 0x41, 0, 1);
 
 	/* enable bus-mastering */
 	pci_enable_busmaster(dev);
 
-	sc->mem_rid = IWI_PCI_BAR0;
-	sc->mem = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &sc->mem_rid,
-	    RF_ACTIVE);
+	i = PCIR_BAR(0);
+	sc->mem = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &i, RF_ACTIVE);
 	if (sc->mem == NULL) {
 		device_printf(dev, "could not allocate memory resource\n");
 		goto fail;
@@ -323,8 +314,8 @@ iwi_attach(device_t dev)
 	sc->sc_st = rman_get_bustag(sc->mem);
 	sc->sc_sh = rman_get_bushandle(sc->mem);
 
-	sc->irq_rid = 0;
-	sc->irq = bus_alloc_resource_any(dev, SYS_RES_IRQ, &sc->irq_rid,
+	i = 0;
+	sc->irq = bus_alloc_resource_any(dev, SYS_RES_IRQ, &i,
 	    RF_ACTIVE | RF_SHAREABLE);
 	if (sc->irq == NULL) {
 		device_printf(dev, "could not allocate interrupt resource\n");
@@ -460,6 +451,8 @@ iwi_detach(device_t dev)
 	struct ifnet *ifp = sc->sc_ifp;
 	struct ieee80211com *ic = ifp->if_l2com;
 
+	bus_teardown_intr(dev, sc->irq, sc->sc_ih);
+
 	/* NB: do early to drain any pending tasks */
 	ieee80211_draintask(ic, &sc->sc_radiontask);
 	ieee80211_draintask(ic, &sc->sc_radiofftask);
@@ -481,10 +474,10 @@ iwi_detach(device_t dev)
 	iwi_free_tx_ring(sc, &sc->txq[3]);
 	iwi_free_rx_ring(sc, &sc->rxq);
 
-	bus_teardown_intr(dev, sc->irq, sc->sc_ih);
-	bus_release_resource(dev, SYS_RES_IRQ, sc->irq_rid, sc->irq);
+	bus_release_resource(dev, SYS_RES_IRQ, rman_get_rid(sc->irq), sc->irq);
 
-	bus_release_resource(dev, SYS_RES_MEMORY, sc->mem_rid, sc->mem);
+	bus_release_resource(dev, SYS_RES_MEMORY, rman_get_rid(sc->mem),
+	    sc->mem);
 
 	delete_unrhdr(sc->sc_unr);
 
@@ -1381,6 +1374,33 @@ iwi_checkforqos(struct ieee80211vap *vap,
 #undef SUBTYPE
 }
 
+static void
+iwi_notif_link_quality(struct iwi_softc *sc, struct iwi_notif *notif)
+{
+	struct iwi_notif_link_quality *lq;
+	int len;
+
+	len = le16toh(notif->len);
+
+	DPRINTFN(5, ("Notification (%u) - len=%d, sizeof=%zu\n",
+	    notif->type,
+	    len,
+	    sizeof(struct iwi_notif_link_quality)
+	    ));
+
+	/* enforce length */
+	if (len != sizeof(struct iwi_notif_link_quality)) {
+		DPRINTFN(5, ("Notification: (%u) too short (%d)\n",
+		    notif->type,
+		    len));
+		return;
+	}
+
+	lq = (struct iwi_notif_link_quality *)(notif + 1);
+	memcpy(&sc->sc_linkqual, lq, sizeof(sc->sc_linkqual));
+	sc->sc_linkqual_valid = 1;
+}
+
 /*
  * Task queue callbacks for iwi_notification_intr used to avoid LOR's.
  */
@@ -1550,8 +1570,11 @@ iwi_notification_intr(struct iwi_softc *sc, struct iwi_notif *notif)
 
 	case IWI_NOTIF_TYPE_CALIBRATION:
 	case IWI_NOTIF_TYPE_NOISE:
-	case IWI_NOTIF_TYPE_LINK_QUALITY:
+		/* XXX handle? */
 		DPRINTFN(5, ("Notification (%u)\n", notif->type));
+		break;
+	case IWI_NOTIF_TYPE_LINK_QUALITY:
+		iwi_notif_link_quality(sc, notif);
 		break;
 
 	default:
@@ -1854,7 +1877,7 @@ iwi_tx_start(struct ifnet *ifp, struct mbuf *m0, struct ieee80211_node *ni,
 	} else
 		staid = 0;
 
-	if (wh->i_fc[1] & IEEE80211_FC1_WEP) {
+	if (wh->i_fc[1] & IEEE80211_FC1_PROTECTED) {
 		k = ieee80211_crypto_encap(ni, m0);
 		if (k == NULL) {
 			m_freem(m0);
@@ -2071,11 +2094,25 @@ iwi_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	case SIOCGIFADDR:
 		error = ether_ioctl(ifp, cmd, data);
 		break;
+	case SIOCGIWISTATS:
+		IWI_LOCK(sc);
+		/* XXX validate permissions/memory/etc? */
+		error = copyout(&sc->sc_linkqual, ifr->ifr_data,
+		    sizeof(struct iwi_notif_link_quality));
+		IWI_UNLOCK(sc);
+		break;
+	case SIOCZIWISTATS:
+		IWI_LOCK(sc);
+		memset(&sc->sc_linkqual, 0,
+		    sizeof(struct iwi_notif_link_quality));
+		IWI_UNLOCK(sc);
+		error = 0;
+		break;
 	default:
 		error = EINVAL;
 		break;
 	}
-	return error;
+		return error;
 }
 
 static void

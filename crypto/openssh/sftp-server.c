@@ -1,4 +1,4 @@
-/* $OpenBSD: sftp-server.c,v 1.97 2013/05/17 00:13:14 djm Exp $ */
+/* $OpenBSD: sftp-server.c,v 1.103 2014/01/17 06:23:24 dtucker Exp $ */
 /*
  * Copyright (c) 2000-2004 Markus Friedl.  All rights reserved.
  *
@@ -46,6 +46,7 @@
 #include "buffer.h"
 #include "log.h"
 #include "misc.h"
+#include "match.h"
 #include "uidswap.h"
 
 #include "sftp.h"
@@ -57,24 +58,29 @@
 #define get_string(lenp)		buffer_get_string(&iqueue, lenp);
 
 /* Our verbosity */
-LogLevel log_level = SYSLOG_LEVEL_ERROR;
+static LogLevel log_level = SYSLOG_LEVEL_ERROR;
 
 /* Our client */
-struct passwd *pw = NULL;
-char *client_addr = NULL;
+static struct passwd *pw = NULL;
+static char *client_addr = NULL;
 
 /* input and output queue */
-Buffer iqueue;
-Buffer oqueue;
+static Buffer iqueue;
+static Buffer oqueue;
 
 /* Version of client */
-u_int version;
+static u_int version;
+
+/* SSH2_FXP_INIT received */
+static int init_done;
 
 /* Disable writes */
-int readonly;
+static int readonly;
+
+/* Requests that are allowed/denied */
+static char *request_whitelist, *request_blacklist;
 
 /* portable attributes, etc. */
-
 typedef struct Stat Stat;
 
 struct Stat {
@@ -82,6 +88,102 @@ struct Stat {
 	char *long_name;
 	Attrib attrib;
 };
+
+/* Packet handlers */
+static void process_open(u_int32_t id);
+static void process_close(u_int32_t id);
+static void process_read(u_int32_t id);
+static void process_write(u_int32_t id);
+static void process_stat(u_int32_t id);
+static void process_lstat(u_int32_t id);
+static void process_fstat(u_int32_t id);
+static void process_setstat(u_int32_t id);
+static void process_fsetstat(u_int32_t id);
+static void process_opendir(u_int32_t id);
+static void process_readdir(u_int32_t id);
+static void process_remove(u_int32_t id);
+static void process_mkdir(u_int32_t id);
+static void process_rmdir(u_int32_t id);
+static void process_realpath(u_int32_t id);
+static void process_rename(u_int32_t id);
+static void process_readlink(u_int32_t id);
+static void process_symlink(u_int32_t id);
+static void process_extended_posix_rename(u_int32_t id);
+static void process_extended_statvfs(u_int32_t id);
+static void process_extended_fstatvfs(u_int32_t id);
+static void process_extended_hardlink(u_int32_t id);
+static void process_extended_fsync(u_int32_t id);
+static void process_extended(u_int32_t id);
+
+struct sftp_handler {
+	const char *name;	/* user-visible name for fine-grained perms */
+	const char *ext_name;	/* extended request name */
+	u_int type;		/* packet type, for non extended packets */
+	void (*handler)(u_int32_t);
+	int does_write;		/* if nonzero, banned for readonly mode */
+};
+
+struct sftp_handler handlers[] = {
+	/* NB. SSH2_FXP_OPEN does the readonly check in the handler itself */
+	{ "open", NULL, SSH2_FXP_OPEN, process_open, 0 },
+	{ "close", NULL, SSH2_FXP_CLOSE, process_close, 0 },
+	{ "read", NULL, SSH2_FXP_READ, process_read, 0 },
+	{ "write", NULL, SSH2_FXP_WRITE, process_write, 1 },
+	{ "lstat", NULL, SSH2_FXP_LSTAT, process_lstat, 0 },
+	{ "fstat", NULL, SSH2_FXP_FSTAT, process_fstat, 0 },
+	{ "setstat", NULL, SSH2_FXP_SETSTAT, process_setstat, 1 },
+	{ "fsetstat", NULL, SSH2_FXP_FSETSTAT, process_fsetstat, 1 },
+	{ "opendir", NULL, SSH2_FXP_OPENDIR, process_opendir, 0 },
+	{ "readdir", NULL, SSH2_FXP_READDIR, process_readdir, 0 },
+	{ "remove", NULL, SSH2_FXP_REMOVE, process_remove, 1 },
+	{ "mkdir", NULL, SSH2_FXP_MKDIR, process_mkdir, 1 },
+	{ "rmdir", NULL, SSH2_FXP_RMDIR, process_rmdir, 1 },
+	{ "realpath", NULL, SSH2_FXP_REALPATH, process_realpath, 0 },
+	{ "stat", NULL, SSH2_FXP_STAT, process_stat, 0 },
+	{ "rename", NULL, SSH2_FXP_RENAME, process_rename, 1 },
+	{ "readlink", NULL, SSH2_FXP_READLINK, process_readlink, 0 },
+	{ "symlink", NULL, SSH2_FXP_SYMLINK, process_symlink, 1 },
+	{ NULL, NULL, 0, NULL, 0 }
+};
+
+/* SSH2_FXP_EXTENDED submessages */
+struct sftp_handler extended_handlers[] = {
+	{ "posix-rename", "posix-rename@openssh.com", 0,
+	   process_extended_posix_rename, 1 },
+	{ "statvfs", "statvfs@openssh.com", 0, process_extended_statvfs, 0 },
+	{ "fstatvfs", "fstatvfs@openssh.com", 0, process_extended_fstatvfs, 0 },
+	{ "hardlink", "hardlink@openssh.com", 0, process_extended_hardlink, 1 },
+	{ "fsync", "fsync@openssh.com", 0, process_extended_fsync, 1 },
+	{ NULL, NULL, 0, NULL, 0 }
+};
+
+static int
+request_permitted(struct sftp_handler *h)
+{
+	char *result;
+
+	if (readonly && h->does_write) {
+		verbose("Refusing %s request in read-only mode", h->name);
+		return 0;
+	}
+	if (request_blacklist != NULL &&
+	    ((result = match_list(h->name, request_blacklist, NULL))) != NULL) {
+		free(result);
+		verbose("Refusing blacklisted %s request", h->name);
+		return 0;
+	}
+	if (request_whitelist != NULL &&
+	    ((result = match_list(h->name, request_whitelist, NULL))) != NULL) {
+		free(result);
+		debug2("Permitting whitelisted %s request", h->name);
+		return 1;
+	}
+	if (request_whitelist != NULL) {
+		verbose("Refusing non-whitelisted %s request", h->name);
+		return 0;
+	}
+	return 1;
+}
 
 static int
 errno_to_portable(int unixerrno)
@@ -130,6 +232,8 @@ flags_from_portable(int pflags)
 	} else if (pflags & SSH2_FXF_WRITE) {
 		flags = O_WRONLY;
 	}
+	if (pflags & SSH2_FXF_APPEND)
+		flags |= O_APPEND;
 	if (pflags & SSH2_FXF_CREAT)
 		flags |= O_CREAT;
 	if (pflags & SSH2_FXF_TRUNC)
@@ -156,6 +260,8 @@ string_from_portable(int pflags)
 		PAPPEND("READ")
 	if (pflags & SSH2_FXF_WRITE)
 		PAPPEND("WRITE")
+	if (pflags & SSH2_FXF_APPEND)
+		PAPPEND("APPEND")
 	if (pflags & SSH2_FXF_CREAT)
 		PAPPEND("CREATE")
 	if (pflags & SSH2_FXF_TRUNC)
@@ -179,6 +285,7 @@ struct Handle {
 	int use;
 	DIR *dirp;
 	int fd;
+	int flags;
 	char *name;
 	u_int64_t bytes_read, bytes_write;
 	int next_unused;
@@ -202,7 +309,7 @@ static void handle_unused(int i)
 }
 
 static int
-handle_new(int use, const char *name, int fd, DIR *dirp)
+handle_new(int use, const char *name, int fd, int flags, DIR *dirp)
 {
 	int i;
 
@@ -220,6 +327,7 @@ handle_new(int use, const char *name, int fd, DIR *dirp)
 	handles[i].use = use;
 	handles[i].dirp = dirp;
 	handles[i].fd = fd;
+	handles[i].flags = flags;
 	handles[i].name = xstrdup(name);
 	handles[i].bytes_read = handles[i].bytes_write = 0;
 
@@ -280,6 +388,14 @@ handle_to_fd(int handle)
 	if (handle_is_ok(handle, HANDLE_FILE))
 		return handles[handle].fd;
 	return -1;
+}
+
+static int
+handle_to_flags(int handle)
+{
+	if (handle_is_ok(handle, HANDLE_FILE))
+		return handles[handle].flags;
+	return 0;
 }
 
 static void
@@ -538,19 +654,21 @@ process_init(void)
 	/* hardlink extension */
 	buffer_put_cstring(&msg, "hardlink@openssh.com");
 	buffer_put_cstring(&msg, "1"); /* version */
+	/* fsync extension */
+	buffer_put_cstring(&msg, "fsync@openssh.com");
+	buffer_put_cstring(&msg, "1"); /* version */
 	send_msg(&msg);
 	buffer_free(&msg);
 }
 
 static void
-process_open(void)
+process_open(u_int32_t id)
 {
-	u_int32_t id, pflags;
+	u_int32_t pflags;
 	Attrib *a;
 	char *name;
 	int handle, fd, flags, mode, status = SSH2_FX_FAILURE;
 
-	id = get_int();
 	name = get_string(NULL);
 	pflags = get_int();		/* portable flags */
 	debug3("request %u: open flags %d", id, pflags);
@@ -560,14 +678,16 @@ process_open(void)
 	logit("open \"%s\" flags %s mode 0%o",
 	    name, string_from_portable(pflags), mode);
 	if (readonly &&
-	    ((flags & O_ACCMODE) == O_WRONLY || (flags & O_ACCMODE) == O_RDWR))
-		status = SSH2_FX_PERMISSION_DENIED;
-	else {
+	    ((flags & O_ACCMODE) == O_WRONLY ||
+	    (flags & O_ACCMODE) == O_RDWR)) {
+		verbose("Refusing open request in read-only mode");
+	  	status = SSH2_FX_PERMISSION_DENIED;
+	} else {
 		fd = open(name, flags, mode);
 		if (fd < 0) {
 			status = errno_to_portable(errno);
 		} else {
-			handle = handle_new(HANDLE_FILE, name, fd, NULL);
+			handle = handle_new(HANDLE_FILE, name, fd, flags, NULL);
 			if (handle < 0) {
 				close(fd);
 			} else {
@@ -582,12 +702,10 @@ process_open(void)
 }
 
 static void
-process_close(void)
+process_close(u_int32_t id)
 {
-	u_int32_t id;
 	int handle, ret, status = SSH2_FX_FAILURE;
 
-	id = get_int();
 	handle = get_handle();
 	debug3("request %u: close handle %u", id, handle);
 	handle_log_close(handle, NULL);
@@ -597,14 +715,13 @@ process_close(void)
 }
 
 static void
-process_read(void)
+process_read(u_int32_t id)
 {
 	char buf[64*1024];
-	u_int32_t id, len;
+	u_int32_t len;
 	int handle, fd, ret, status = SSH2_FX_FAILURE;
 	u_int64_t off;
 
-	id = get_int();
 	handle = get_handle();
 	off = get_int64();
 	len = get_int();
@@ -638,15 +755,13 @@ process_read(void)
 }
 
 static void
-process_write(void)
+process_write(u_int32_t id)
 {
-	u_int32_t id;
 	u_int64_t off;
 	u_int len;
 	int handle, fd, ret, status;
 	char *data;
 
-	id = get_int();
 	handle = get_handle();
 	off = get_int64();
 	data = get_string(&len);
@@ -657,10 +772,9 @@ process_write(void)
 	
 	if (fd < 0)
 		status = SSH2_FX_FAILURE;
-	else if (readonly)
-		status = SSH2_FX_PERMISSION_DENIED;
 	else {
-		if (lseek(fd, off, SEEK_SET) < 0) {
+		if (!(handle_to_flags(handle) & O_APPEND) &&
+				lseek(fd, off, SEEK_SET) < 0) {
 			status = errno_to_portable(errno);
 			error("process_write: seek failed");
 		} else {
@@ -683,15 +797,13 @@ process_write(void)
 }
 
 static void
-process_do_stat(int do_lstat)
+process_do_stat(u_int32_t id, int do_lstat)
 {
 	Attrib a;
 	struct stat st;
-	u_int32_t id;
 	char *name;
 	int ret, status = SSH2_FX_FAILURE;
 
-	id = get_int();
 	name = get_string(NULL);
 	debug3("request %u: %sstat", id, do_lstat ? "l" : "");
 	verbose("%sstat name \"%s\"", do_lstat ? "l" : "", name);
@@ -709,26 +821,24 @@ process_do_stat(int do_lstat)
 }
 
 static void
-process_stat(void)
+process_stat(u_int32_t id)
 {
-	process_do_stat(0);
+	process_do_stat(id, 0);
 }
 
 static void
-process_lstat(void)
+process_lstat(u_int32_t id)
 {
-	process_do_stat(1);
+	process_do_stat(id, 1);
 }
 
 static void
-process_fstat(void)
+process_fstat(u_int32_t id)
 {
 	Attrib a;
 	struct stat st;
-	u_int32_t id;
 	int fd, ret, handle, status = SSH2_FX_FAILURE;
 
-	id = get_int();
 	handle = get_handle();
 	debug("request %u: fstat \"%s\" (handle %u)",
 	    id, handle_to_name(handle), handle);
@@ -760,21 +870,15 @@ attrib_to_tv(const Attrib *a)
 }
 
 static void
-process_setstat(void)
+process_setstat(u_int32_t id)
 {
 	Attrib *a;
-	u_int32_t id;
 	char *name;
 	int status = SSH2_FX_OK, ret;
 
-	id = get_int();
 	name = get_string(NULL);
 	a = get_attrib();
 	debug("request %u: setstat name \"%s\"", id, name);
-	if (readonly) {
-		status = SSH2_FX_PERMISSION_DENIED;
-		a->flags = 0;
-	}
 	if (a->flags & SSH2_FILEXFER_ATTR_SIZE) {
 		logit("set \"%s\" size %llu",
 		    name, (unsigned long long)a->size);
@@ -811,22 +915,18 @@ process_setstat(void)
 }
 
 static void
-process_fsetstat(void)
+process_fsetstat(u_int32_t id)
 {
 	Attrib *a;
-	u_int32_t id;
 	int handle, fd, ret;
 	int status = SSH2_FX_OK;
 
-	id = get_int();
 	handle = get_handle();
 	a = get_attrib();
 	debug("request %u: fsetstat handle %d", id, handle);
 	fd = handle_to_fd(handle);
 	if (fd < 0)
 		status = SSH2_FX_FAILURE;
-	else if (readonly)
-		status = SSH2_FX_PERMISSION_DENIED;
 	else {
 		char *name = handle_to_name(handle);
 
@@ -878,14 +978,12 @@ process_fsetstat(void)
 }
 
 static void
-process_opendir(void)
+process_opendir(u_int32_t id)
 {
 	DIR *dirp = NULL;
 	char *path;
 	int handle, status = SSH2_FX_FAILURE;
-	u_int32_t id;
 
-	id = get_int();
 	path = get_string(NULL);
 	debug3("request %u: opendir", id);
 	logit("opendir \"%s\"", path);
@@ -893,7 +991,7 @@ process_opendir(void)
 	if (dirp == NULL) {
 		status = errno_to_portable(errno);
 	} else {
-		handle = handle_new(HANDLE_DIR, path, 0, dirp);
+		handle = handle_new(HANDLE_DIR, path, 0, 0, dirp);
 		if (handle < 0) {
 			closedir(dirp);
 		} else {
@@ -908,15 +1006,13 @@ process_opendir(void)
 }
 
 static void
-process_readdir(void)
+process_readdir(u_int32_t id)
 {
 	DIR *dirp;
 	struct dirent *dp;
 	char *path;
 	int handle;
-	u_int32_t id;
 
-	id = get_int();
 	handle = get_handle();
 	debug("request %u: readdir \"%s\" (handle %d)", id,
 	    handle_to_name(handle), handle);
@@ -964,81 +1060,61 @@ process_readdir(void)
 }
 
 static void
-process_remove(void)
+process_remove(u_int32_t id)
 {
 	char *name;
-	u_int32_t id;
 	int status = SSH2_FX_FAILURE;
 	int ret;
 
-	id = get_int();
 	name = get_string(NULL);
 	debug3("request %u: remove", id);
 	logit("remove name \"%s\"", name);
-	if (readonly)
-		status = SSH2_FX_PERMISSION_DENIED;
-	else {
-		ret = unlink(name);
-		status = (ret == -1) ? errno_to_portable(errno) : SSH2_FX_OK;
-	}
+	ret = unlink(name);
+	status = (ret == -1) ? errno_to_portable(errno) : SSH2_FX_OK;
 	send_status(id, status);
 	free(name);
 }
 
 static void
-process_mkdir(void)
+process_mkdir(u_int32_t id)
 {
 	Attrib *a;
-	u_int32_t id;
 	char *name;
 	int ret, mode, status = SSH2_FX_FAILURE;
 
-	id = get_int();
 	name = get_string(NULL);
 	a = get_attrib();
 	mode = (a->flags & SSH2_FILEXFER_ATTR_PERMISSIONS) ?
 	    a->perm & 07777 : 0777;
 	debug3("request %u: mkdir", id);
 	logit("mkdir name \"%s\" mode 0%o", name, mode);
-	if (readonly)
-		status = SSH2_FX_PERMISSION_DENIED;
-	else {
-		ret = mkdir(name, mode);
-		status = (ret == -1) ? errno_to_portable(errno) : SSH2_FX_OK;
-	}
+	ret = mkdir(name, mode);
+	status = (ret == -1) ? errno_to_portable(errno) : SSH2_FX_OK;
 	send_status(id, status);
 	free(name);
 }
 
 static void
-process_rmdir(void)
+process_rmdir(u_int32_t id)
 {
-	u_int32_t id;
 	char *name;
 	int ret, status;
 
-	id = get_int();
 	name = get_string(NULL);
 	debug3("request %u: rmdir", id);
 	logit("rmdir name \"%s\"", name);
-	if (readonly)
-		status = SSH2_FX_PERMISSION_DENIED;
-	else {
-		ret = rmdir(name);
-		status = (ret == -1) ? errno_to_portable(errno) : SSH2_FX_OK;
-	}
+	ret = rmdir(name);
+	status = (ret == -1) ? errno_to_portable(errno) : SSH2_FX_OK;
 	send_status(id, status);
 	free(name);
 }
 
 static void
-process_realpath(void)
+process_realpath(u_int32_t id)
 {
 	char resolvedname[MAXPATHLEN];
-	u_int32_t id;
 	char *path;
 
-	id = get_int();
 	path = get_string(NULL);
 	if (path[0] == '\0') {
 		free(path);
@@ -1058,22 +1134,18 @@ process_realpath(void)
 }
 
 static void
-process_rename(void)
+process_rename(u_int32_t id)
 {
-	u_int32_t id;
 	char *oldpath, *newpath;
 	int status;
 	struct stat sb;
 
-	id = get_int();
 	oldpath = get_string(NULL);
 	newpath = get_string(NULL);
 	debug3("request %u: rename", id);
 	logit("rename old \"%s\" new \"%s\"", oldpath, newpath);
 	status = SSH2_FX_FAILURE;
-	if (readonly)
-		status = SSH2_FX_PERMISSION_DENIED;
-	else if (lstat(oldpath, &sb) == -1)
+	if (lstat(oldpath, &sb) == -1)
 		status = errno_to_portable(errno);
 	else if (S_ISREG(sb.st_mode)) {
 		/* Race-free rename of regular files */
@@ -1120,14 +1192,12 @@ process_rename(void)
 }
 
 static void
-process_readlink(void)
+process_readlink(u_int32_t id)
 {
-	u_int32_t id;
 	int len;
 	char buf[MAXPATHLEN];
 	char *path;
 
-	id = get_int();
 	path = get_string(NULL);
 	debug3("request %u: readlink", id);
 	verbose("readlink \"%s\"", path);
@@ -1145,24 +1215,18 @@ process_readlink(void)
 }
 
 static void
-process_symlink(void)
+process_symlink(u_int32_t id)
 {
-	u_int32_t id;
 	char *oldpath, *newpath;
 	int ret, status;
 
-	id = get_int();
 	oldpath = get_string(NULL);
 	newpath = get_string(NULL);
 	debug3("request %u: symlink", id);
 	logit("symlink old \"%s\" new \"%s\"", oldpath, newpath);
 	/* this will fail if 'newpath' exists */
-	if (readonly)
-		status = SSH2_FX_PERMISSION_DENIED;
-	else {
-		ret = symlink(oldpath, newpath);
-		status = (ret == -1) ? errno_to_portable(errno) : SSH2_FX_OK;
-	}
+	ret = symlink(oldpath, newpath);
+	status = (ret == -1) ? errno_to_portable(errno) : SSH2_FX_OK;
 	send_status(id, status);
 	free(oldpath);
 	free(newpath);
@@ -1178,12 +1242,8 @@ process_extended_posix_rename(u_int32_t id)
 	newpath = get_string(NULL);
 	debug3("request %u: posix-rename", id);
 	logit("posix-rename old \"%s\" new \"%s\"", oldpath, newpath);
-	if (readonly)
-		status = SSH2_FX_PERMISSION_DENIED;
-	else {
-		ret = rename(oldpath, newpath);
-		status = (ret == -1) ? errno_to_portable(errno) : SSH2_FX_OK;
-	}
+	ret = rename(oldpath, newpath);
+	status = (ret == -1) ? errno_to_portable(errno) : SSH2_FX_OK;
 	send_status(id, status);
 	free(oldpath);
 	free(newpath);
@@ -1196,8 +1256,8 @@ process_extended_statvfs(u_int32_t id)
 	struct statvfs st;
 
 	path = get_string(NULL);
-	debug3("request %u: statfs", id);
-	logit("statfs \"%s\"", path);
+	debug3("request %u: statvfs", id);
+	logit("statvfs \"%s\"", path);
 
 	if (statvfs(path, &st) != 0)
 		send_status(id, errno_to_portable(errno));
@@ -1235,35 +1295,50 @@ process_extended_hardlink(u_int32_t id)
 	newpath = get_string(NULL);
 	debug3("request %u: hardlink", id);
 	logit("hardlink old \"%s\" new \"%s\"", oldpath, newpath);
-	if (readonly)
-		status = SSH2_FX_PERMISSION_DENIED;
-	else {
-		ret = link(oldpath, newpath);
-		status = (ret == -1) ? errno_to_portable(errno) : SSH2_FX_OK;
-	}
+	ret = link(oldpath, newpath);
+	status = (ret == -1) ? errno_to_portable(errno) : SSH2_FX_OK;
 	send_status(id, status);
 	free(oldpath);
 	free(newpath);
 }
 
 static void
-process_extended(void)
+process_extended_fsync(u_int32_t id)
 {
-	u_int32_t id;
-	char *request;
+	int handle, fd, ret, status = SSH2_FX_OP_UNSUPPORTED;
 
-	id = get_int();
+	handle = get_handle();
+	debug3("request %u: fsync (handle %u)", id, handle);
+	verbose("fsync \"%s\"", handle_to_name(handle));
+	if ((fd = handle_to_fd(handle)) < 0)
+		status = SSH2_FX_NO_SUCH_FILE;
+	else if (handle_is_ok(handle, HANDLE_FILE)) {
+		ret = fsync(fd);
+		status = (ret == -1) ? errno_to_portable(errno) : SSH2_FX_OK;
+	}
+	send_status(id, status);
+}
+
+static void
+process_extended(u_int32_t id)
+{
+	char *request;
+	u_int i;
+
 	request = get_string(NULL);
-	if (strcmp(request, "posix-rename@openssh.com") == 0)
-		process_extended_posix_rename(id);
-	else if (strcmp(request, "statvfs@openssh.com") == 0)
-		process_extended_statvfs(id);
-	else if (strcmp(request, "fstatvfs@openssh.com") == 0)
-		process_extended_fstatvfs(id);
-	else if (strcmp(request, "hardlink@openssh.com") == 0)
-		process_extended_hardlink(id);
-	else
+	for (i = 0; extended_handlers[i].handler != NULL; i++) {
+		if (strcmp(request, extended_handlers[i].ext_name) == 0) {
+			if (!request_permitted(&extended_handlers[i]))
+				send_status(id, SSH2_FX_PERMISSION_DENIED);
+			else
+				extended_handlers[i].handler(id);
+			break;
+		}
+	}
+	if (extended_handlers[i].handler == NULL) {
+		error("Unknown extended request \"%.100s\"", request);
 		send_status(id, SSH2_FX_OP_UNSUPPORTED);	/* MUST */
+	}
 	free(request);
 }
 
@@ -1272,11 +1347,9 @@ process_extended(void)
 static void
 process(void)
 {
-	u_int msg_len;
-	u_int buf_len;
-	u_int consumed;
-	u_int type;
+	u_int msg_len, buf_len, consumed, type, i;
 	u_char *cp;
+	u_int32_t id;
 
 	buf_len = buffer_len(&iqueue);
 	if (buf_len < 5)
@@ -1293,70 +1366,35 @@ process(void)
 	buffer_consume(&iqueue, 4);
 	buf_len -= 4;
 	type = buffer_get_char(&iqueue);
+
 	switch (type) {
 	case SSH2_FXP_INIT:
 		process_init();
-		break;
-	case SSH2_FXP_OPEN:
-		process_open();
-		break;
-	case SSH2_FXP_CLOSE:
-		process_close();
-		break;
-	case SSH2_FXP_READ:
-		process_read();
-		break;
-	case SSH2_FXP_WRITE:
-		process_write();
-		break;
-	case SSH2_FXP_LSTAT:
-		process_lstat();
-		break;
-	case SSH2_FXP_FSTAT:
-		process_fstat();
-		break;
-	case SSH2_FXP_SETSTAT:
-		process_setstat();
-		break;
-	case SSH2_FXP_FSETSTAT:
-		process_fsetstat();
-		break;
-	case SSH2_FXP_OPENDIR:
-		process_opendir();
-		break;
-	case SSH2_FXP_READDIR:
-		process_readdir();
-		break;
-	case SSH2_FXP_REMOVE:
-		process_remove();
-		break;
-	case SSH2_FXP_MKDIR:
-		process_mkdir();
-		break;
-	case SSH2_FXP_RMDIR:
-		process_rmdir();
-		break;
-	case SSH2_FXP_REALPATH:
-		process_realpath();
-		break;
-	case SSH2_FXP_STAT:
-		process_stat();
-		break;
-	case SSH2_FXP_RENAME:
-		process_rename();
-		break;
-	case SSH2_FXP_READLINK:
-		process_readlink();
-		break;
-	case SSH2_FXP_SYMLINK:
-		process_symlink();
+		init_done = 1;
 		break;
 	case SSH2_FXP_EXTENDED:
-		process_extended();
+		if (!init_done)
+			fatal("Received extended request before init");
+		id = get_int();
+		process_extended(id);
 		break;
 	default:
-		error("Unknown message %d", type);
-		break;
+		if (!init_done)
+			fatal("Received %u request before init", type);
+		id = get_int();
+		for (i = 0; handlers[i].handler != NULL; i++) {
+			if (type == handlers[i].type) {
+				if (!request_permitted(&handlers[i])) {
+					send_status(id,
+					    SSH2_FX_PERMISSION_DENIED);
+				} else {
+					handlers[i].handler(id);
+				}
+				break;
+			}
+		}
+		if (handlers[i].handler == NULL)
+			error("Unknown message %u", type);
 	}
 	/* discard the remaining bytes from the current packet */
 	if (buf_len < buffer_len(&iqueue)) {
@@ -1365,7 +1403,7 @@ process(void)
 	}
 	consumed = buf_len - buffer_len(&iqueue);
 	if (msg_len < consumed) {
-		error("msg_len %d < consumed %d", msg_len, consumed);
+		error("msg_len %u < consumed %u", msg_len, consumed);
 		sftp_server_cleanup_exit(255);
 	}
 	if (msg_len > consumed)
@@ -1391,8 +1429,10 @@ sftp_server_usage(void)
 
 	fprintf(stderr,
 	    "usage: %s [-ehR] [-d start_directory] [-f log_facility] "
-	    "[-l log_level]\n\t[-u umask]\n",
-	    __progname);
+	    "[-l log_level]\n\t[-P blacklisted_requests] "
+	    "[-p whitelisted_requests] [-u umask]\n"
+	    "       %s -Q protocol_feature\n",
+	    __progname, __progname);
 	exit(1);
 }
 
@@ -1400,7 +1440,7 @@ int
 sftp_server_main(int argc, char **argv, struct passwd *user_pw)
 {
 	fd_set *rset, *wset;
-	int in, out, max, ch, skipargs = 0, log_stderr = 0;
+	int i, in, out, max, ch, skipargs = 0, log_stderr = 0;
 	ssize_t len, olen, set_size;
 	SyslogFacility log_facility = SYSLOG_FACILITY_AUTH;
 	char *cp, *homedir = NULL, buf[4*4096];
@@ -1414,8 +1454,20 @@ sftp_server_main(int argc, char **argv, struct passwd *user_pw)
 
 	pw = pwcopy(user_pw);
 
-	while (!skipargs && (ch = getopt(argc, argv, "d:f:l:u:cehR")) != -1) {
+	while (!skipargs && (ch = getopt(argc, argv,
+	    "d:f:l:P:p:Q:u:cehR")) != -1) {
 		switch (ch) {
+		case 'Q':
+			if (strcasecmp(optarg, "requests") != 0) {
+				fprintf(stderr, "Invalid query type\n");
+				exit(1);
+			}
+			for (i = 0; handlers[i].handler != NULL; i++)
+				printf("%s\n", handlers[i].name);
+			for (i = 0; extended_handlers[i].handler != NULL; i++)
+				printf("%s\n", extended_handlers[i].name);
+			exit(0);
+			break;
 		case 'R':
 			readonly = 1;
 			break;
@@ -1444,6 +1496,16 @@ sftp_server_main(int argc, char **argv, struct passwd *user_pw)
 			homedir = percent_expand(cp, "d", user_pw->pw_dir,
 			    "u", user_pw->pw_name, (char *)NULL);
 			free(cp);
+			break;
+		case 'p':
+			if (request_whitelist != NULL)
+				fatal("Permitted requests already set");
+			request_whitelist = xstrdup(optarg);
+			break;
+		case 'P':
+			if (request_blacklist != NULL)
+				fatal("Refused requests already set");
+			request_blacklist = xstrdup(optarg);
 			break;
 		case 'u':
 			errno = 0;

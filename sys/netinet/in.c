@@ -247,6 +247,8 @@ in_control(struct socket *so, u_long cmd, caddr_t data, struct ifnet *ifp,
 	 */
 	IF_ADDR_RLOCK(ifp);
 	TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
+		if (ifa->ifa_addr->sa_family != AF_INET)
+			continue;
 		ia = (struct in_ifaddr *)ifa;
 		if (cmd == SIOCGIFADDR || addr->sin_addr.s_addr == INADDR_ANY)
 			break;
@@ -338,11 +340,12 @@ in_aifaddr_ioctl(u_long cmd, caddr_t data, struct ifnet *ifp, struct thread *td)
 	ia = NULL;
 	IF_ADDR_RLOCK(ifp);
 	TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
-		struct in_ifaddr *it = ifatoia(ifa);
+		struct in_ifaddr *it;
 
-		if (it->ia_addr.sin_family != AF_INET)
+		if (ifa->ifa_addr->sa_family != AF_INET)
 			continue;
 
+		it = (struct in_ifaddr *)ifa;
 		iaIsFirst = false;
 		if (it->ia_addr.sin_addr.s_addr == addr->sin_addr.s_addr &&
 		    prison_check_ip4(td->td_ucred, &addr->sin_addr) == 0)
@@ -405,7 +408,7 @@ in_aifaddr_ioctl(u_long cmd, caddr_t data, struct ifnet *ifp, struct thread *td)
 	if (ifp->if_flags & IFF_LOOPBACK)
                 ia->ia_dstaddr = ia->ia_addr;
 
-	ifa_ref(ifa);			/* if_addrhead */
+	/* if_addrhead is already referenced by ifa_alloc() */
 	IF_ADDR_WLOCK(ifp);
 	TAILQ_INSERT_TAIL(&ifp->if_addrhead, ifa, ifa_link);
 	IF_ADDR_WUNLOCK(ifp);
@@ -492,13 +495,13 @@ fail1:
 	IF_ADDR_WLOCK(ifp);
 	TAILQ_REMOVE(&ifp->if_addrhead, &ia->ia_ifa, ifa_link);
 	IF_ADDR_WUNLOCK(ifp);
-	ifa_free(&ia->ia_ifa);
+	ifa_free(&ia->ia_ifa);		/* if_addrhead */
 
 	IN_IFADDR_WLOCK();
 	TAILQ_REMOVE(&V_in_ifaddrhead, ia, ia_link);
 	LIST_REMOVE(ia, ia_hash);
 	IN_IFADDR_WUNLOCK();
-	ifa_free(&ia->ia_ifa);
+	ifa_free(&ia->ia_ifa);		/* in_ifaddrhead */
 
 	return (error);
 }
@@ -530,11 +533,12 @@ in_difaddr_ioctl(caddr_t data, struct ifnet *ifp, struct thread *td)
 	ia = NULL;
 	IF_ADDR_WLOCK(ifp);
 	TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
-		struct in_ifaddr *it = ifatoia(ifa);
+		struct in_ifaddr *it;
 
-		if (it->ia_addr.sin_family != AF_INET)
+		if (ifa->ifa_addr->sa_family != AF_INET)
 			continue;
 
+		it = (struct in_ifaddr *)ifa;
 		if (deleteAny && ia == NULL && (td == NULL ||
 		    prison_check_ip4(td->td_ucred, &it->ia_addr.sin_addr) == 0))
 			ia = it;
@@ -561,7 +565,6 @@ in_difaddr_ioctl(caddr_t data, struct ifnet *ifp, struct thread *td)
 	TAILQ_REMOVE(&V_in_ifaddrhead, ia, ia_link);
 	LIST_REMOVE(ia, ia_hash);
 	IN_IFADDR_WUNLOCK();
-	ifa_free(&ia->ia_ifa);		/* in_ifaddrhead */
 
 	/*
 	 * in_scrubprefix() kills the interface route.
@@ -597,6 +600,7 @@ in_difaddr_ioctl(caddr_t data, struct ifnet *ifp, struct thread *td)
 	}
 
 	EVENTHANDLER_INVOKE(ifaddr_event, ifp);
+	ifa_free(&ia->ia_ifa);		/* in_ifaddrhead */
 
 	return (0);
 }
@@ -604,45 +608,6 @@ in_difaddr_ioctl(caddr_t data, struct ifnet *ifp, struct thread *td)
 #define rtinitflags(x) \
 	((((x)->ia_ifp->if_flags & (IFF_LOOPBACK | IFF_POINTOPOINT)) != 0) \
 	    ? RTF_HOST : 0)
-
-/*
- * Generate a routing message when inserting or deleting
- * an interface address alias.
- */
-static void in_addralias_rtmsg(int cmd, struct in_addr *prefix,
-    struct in_ifaddr *target)
-{
-	struct route pfx_ro;
-	struct sockaddr_in *pfx_addr;
-	struct rtentry msg_rt;
-
-	/* QL: XXX
-	 * This is a bit questionable because there is no
-	 * additional route entry added/deleted for an address
-	 * alias. Therefore this route report is inaccurate.
-	 */
-	bzero(&pfx_ro, sizeof(pfx_ro));
-	pfx_addr = (struct sockaddr_in *)(&pfx_ro.ro_dst);
-	pfx_addr->sin_len = sizeof(*pfx_addr);
-	pfx_addr->sin_family = AF_INET;
-	pfx_addr->sin_addr = *prefix;
-	rtalloc_ign_fib(&pfx_ro, 0, 0);
-	if (pfx_ro.ro_rt != NULL) {
-		msg_rt = *pfx_ro.ro_rt;
-
-		/* QL: XXX
-		 * Point the gateway to the new interface
-		 * address as if a new prefix route entry has
-		 * been added through the new address alias.
-		 * All other parts of the rtentry is accurate,
-		 * e.g., rt_key, rt_mask, rt_ifp etc.
-		 */
-		msg_rt.rt_gateway = (struct sockaddr *)&target->ia_addr;
-		rt_newaddrmsg(cmd, (struct ifaddr *)target, 0, &msg_rt);
-		RTFREE(pfx_ro.ro_rt);
-	}
-	return;
-}
 
 /*
  * Check if we have a route for the given prefix already or add one accordingly.
@@ -664,6 +629,7 @@ in_addprefix(struct in_ifaddr *target, int flags)
 	}
 
 	IN_IFADDR_RLOCK();
+	/* Look for an existing address with the same prefix, mask, and fib */
 	TAILQ_FOREACH(ia, &V_in_ifaddrhead, ia_link) {
 		if (rtinitflags(ia)) {
 			p = ia->ia_dstaddr.sin_addr;
@@ -679,6 +645,8 @@ in_addprefix(struct in_ifaddr *target, int flags)
 			    mask.s_addr != m.s_addr)
 				continue;
 		}
+		if (target->ia_ifp->if_fib != ia->ia_ifp->if_fib)
+			continue;
 
 		/*
 		 * If we got a matching prefix route inserted by other
@@ -697,7 +665,11 @@ in_addprefix(struct in_ifaddr *target, int flags)
 				IN_IFADDR_RUNLOCK();
 				return (EEXIST);
 			} else {
-				in_addralias_rtmsg(RTM_ADD, &prefix, target);
+				int fibnum;
+
+				fibnum = rt_add_addr_allfibs ? RT_ALL_FIBS :
+					target->ia_ifp->if_fib;
+				rt_addrmsg(RTM_ADD, &target->ia_ifa, fibnum);
 				IN_IFADDR_RUNLOCK();
 				return (0);
 			}
@@ -738,8 +710,10 @@ in_scrubprefix(struct in_ifaddr *target, u_int flags)
 		eia = in_localip_more(target);
 
 		if (eia != NULL) {
+			int fibnum = target->ia_ifp->if_fib;
+
 			error = ifa_switch_loopback_route((struct ifaddr *)eia,
-			    (struct sockaddr *)&target->ia_addr);
+			    (struct sockaddr *)&target->ia_addr, fibnum);
 			ifa_free(&eia->ia_ifa);
 		} else {
 			error = ifa_del_loopback_route((struct ifaddr *)target,
@@ -762,7 +736,11 @@ in_scrubprefix(struct in_ifaddr *target, u_int flags)
 	}
 
 	if ((target->ia_flags & IFA_ROUTE) == 0) {
-		in_addralias_rtmsg(RTM_DELETE, &prefix, target);
+		int fibnum;
+		
+		fibnum = rt_add_addr_allfibs ? RT_ALL_FIBS :
+			target->ia_ifp->if_fib;
+		rt_addrmsg(RTM_DELETE, &target->ia_ifa, fibnum);
 		return (0);
 	}
 
@@ -890,6 +868,7 @@ in_ifdetach(struct ifnet *ifp)
 
 	in_pcbpurgeif0(&V_ripcbinfo, ifp);
 	in_pcbpurgeif0(&V_udbinfo, ifp);
+	in_pcbpurgeif0(&V_ulitecbinfo, ifp);
 	in_purgemaddrs(ifp);
 }
 
@@ -1025,8 +1004,9 @@ in_lltable_rtcheck(struct ifnet *ifp, u_int flags, const struct sockaddr *l3addr
 	KASSERT(l3addr->sa_family == AF_INET,
 	    ("sin_family %d", l3addr->sa_family));
 
-	/* XXX rtalloc1 should take a const param */
-	rt = rtalloc1(__DECONST(struct sockaddr *, l3addr), 0, 0);
+	/* XXX rtalloc1_fib should take a const param */
+	rt = rtalloc1_fib(__DECONST(struct sockaddr *, l3addr), 0, 0,
+	    ifp->if_fib);
 
 	if (rt == NULL)
 		return (EINVAL);
@@ -1123,6 +1103,7 @@ in_lltable_lookup(struct lltable *llt, u_int flags, const struct sockaddr *l3add
 #endif
 		if (!(flags & LLE_CREATE))
 			return (NULL);
+		IF_AFDATA_WLOCK_ASSERT(ifp);
 		/*
 		 * A route that covers the given address must have
 		 * been installed 1st because we are doing a resolution,

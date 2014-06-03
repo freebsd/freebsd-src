@@ -597,6 +597,8 @@ getconfig(
 #endif /* not SYS_WINNT */
 	}
 
+	proto_config(PROTO_MONITOR, 0, 0., NULL);
+
 	for (;;) {
 		if (tok == CONFIG_END) 
 			break;

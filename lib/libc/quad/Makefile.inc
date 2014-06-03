@@ -2,7 +2,7 @@
 # $FreeBSD$
 
 # Quad support, if needed
-.PATH: ${.CURDIR}/${LIBC_ARCH}/quad ${.CURDIR}/quad
+.PATH: ${LIBC_SRCTOP}/${LIBC_ARCH}/quad ${LIBC_SRCTOP}/quad
 
 .if ${LIBC_ARCH} == "i386"
 
@@ -22,4 +22,4 @@ SRCS+=	adddi3.c anddi3.c ashldi3.c ashrdi3.c cmpdi2.c divdi3.c fixdfdi.c \
 
 .endif
 
-SYM_MAPS+=${.CURDIR}/quad/Symbol.map
+SYM_MAPS+=${LIBC_SRCTOP}/quad/Symbol.map

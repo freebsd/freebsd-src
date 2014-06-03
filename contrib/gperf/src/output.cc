@@ -772,14 +772,14 @@ Output::output_hash_function () const
   printf (option[KRC] ?
                  "(str, len)\n"
             "     register char *str;\n"
-            "     register %s len;\n" :
+            "     register unsigned int len;\n" :
           option[C] ?
                  "(str, len)\n"
             "     register const char *str;\n"
-            "     register %s len;\n" :
+            "     register unsigned int len;\n" :
           option[ANSIC] | option[CPLUSPLUS] ?
-                 "(register const char *str, register %s len)\n" :
-          "%s", option.get_size_type());
+                 "(register const char *str, register unsigned int len)\n" :
+          "");
 
   /* Note that when the hash function is called, it has already been verified
      that  min_key_len <= len <= max_key_len.  */
@@ -875,7 +875,7 @@ Output::output_hash_function () const
                   "  switch (%s)\n"
                   "    {\n"
                   "      default:\n",
-                  option[NOLENGTH] ? "0" : "(int)len",
+                  option[NOLENGTH] ? "0" : "len",
                   option[NOLENGTH] ? "len" : "hval");
 
           while (key_pos != Positions::LASTCHAR && key_pos >= _max_key_len)
@@ -1900,14 +1900,14 @@ Output::output_lookup_function () const
   printf (option[KRC] ?
                  "(str, len)\n"
             "     register char *str;\n"
-            "     register %s len;\n" :
+            "     register unsigned int len;\n" :
           option[C] ?
                  "(str, len)\n"
             "     register const char *str;\n"
-            "     register %s len;\n" :
+            "     register unsigned int len;\n" :
           option[ANSIC] | option[CPLUSPLUS] ?
-                 "(register const char *str, register %s len)\n" :
-          "%s", option.get_size_type());
+                 "(register const char *str, register unsigned int len)\n" :
+          "");
 
   /* Output the function's body.  */
   printf ("{\n");
@@ -2074,14 +2074,13 @@ Output::output ()
     printf ("class %s\n"
             "{\n"
             "private:\n"
-            "  static inline unsigned int %s (const char *str, %s len);\n"
+            "  static inline unsigned int %s (const char *str, unsigned int len);\n"
             "public:\n"
-            "  static %s%s%s (const char *str, %s len);\n"
+            "  static %s%s%s (const char *str, unsigned int len);\n"
             "};\n"
             "\n",
-            option.get_class_name (), option.get_hash_name (), option.get_size_type(),
-            const_for_struct, _return_type, option.get_function_name (),
-	    option.get_size_type());
+            option.get_class_name (), option.get_hash_name (),
+            const_for_struct, _return_type, option.get_function_name ());
 
   output_hash_function ();
 

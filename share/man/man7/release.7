@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 2, 2013
+.Dd April 11, 2014
 .Dt RELEASE 7
 .Os
 .Sh NAME
@@ -138,6 +138,11 @@ configuration file supports the following variables:
 .Bl -tag -width Ev
 .It Va CHROOTDIR
 The directory within which the release will be built.
+.It Va CHROOT_MAKEENV
+Additional
+.Xr make 1
+arguments to pass through, which directly affect the
+tuning of the build chroot.
 .It Va SVNROOT
 The
 .Xr svn 1
@@ -245,6 +250,106 @@ Setting this also sets
 Set to a non-empty value to include the
 .Cm dvdrom
 target.
+.It Va WITH_COMPRESSED_IMAGES
+Set to a non-empty value to compress the release images with
+.Xr xz 1 .
+The original
+.Pq uncompressed
+images are not removed.
+.It Va VCSCMD
+The command run to obtain the source trees.
+Defaults to
+.Qq Cm svn checkout .
+.It Va CHROOTBUILD_SKIP
+If defined, the
+.Li buildworld ,
+.Li installworld ,
+and
+.Li distribution
+stages of the
+.Xr chroot 8
+build environment setup are skipped.
+This is intended solely for cases where the
+.Xr chroot 8
+userland are provided by alternate means.
+.It Va SRC_UPDATE_SKIP
+Set to a non-empty value to prevent checkout or update of
+.Fa /usr/src
+within the
+.Xr chroot 8 .
+This is intended for use only when
+.Fa /usr/src
+is expected to exist by alternative means.
+.It Va DOC_UPDATE_SKIP
+Set to a non-empty value to prevent checkout or update of
+.Fa /usr/doc
+within the
+.Xr chroot 8 .
+This is intended for use only when
+.Fa /usr/doc
+is expected to exist by alternative means.
+.It Va PORTS_UPDATE_SKIP
+Set to a non-empty value to prevent checkout or update of
+.Fa /usr/ports
+within the
+.Xr chroot 8 .
+This is intended for use only when
+.Fa /usr/ports
+is expected to exist by alternative means.
+.El
+.Sh EMBEDDED BUILDS
+The following
+.Fa release.conf
+variables are relevant only to release builds for embedded systems:
+.Bl -tag -width Ev
+.It Va EMBEDDEDBUILD
+Set to a non-null value to enable functionality for embedded device
+release builds.
+.Pq This option is considered highly experimental.
+.Pp
+When set,
+.Va WITH_DVD
+is unset, and
+.Va NODOC
+is defined.
+Additionally,
+.Va XDEV
+and
+.Va XDEV_ARCH
+must also be defined.
+When the build environment is created,
+.Fa release.sh
+runs a separate build script located in an architecture-specific
+directory in
+.Pa src/release/${XDEV}/ .
+.It Va EMBEDDEDPORTS
+Set to the list of any ports that are required for the target device
+in the format of
+.Fa category/port .
+The
+.Fa devel/subversion
+port is built by default.
+.It Va CROCHETSRC
+Set to the source URL for the Crochet build tool.
+.It Va CROCHETBRANCH
+Set to the subversion branch from
+.Va ${CROCHETSRC}
+to use.
+Defaults to
+.Pa trunk .
+.It Va UBOOTSRC
+Set to the source URL of u-boot, if required.
+.It Va UBOOTBRANCH
+Set to the subversion branch from
+.Va ${UBOOTSRC}
+to use.
+Defaults to
+.Pa trunk .
+.It Va UBOOTDIR
+Set to the target directory within
+.Va ${CHROOTDIR}
+to check out
+.Va ${UBOOTSRC}/${UBOOTBRANCH} .
 .El
 .Sh MAKEFILE TARGETS
 The release makefile

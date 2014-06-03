@@ -6,6 +6,6 @@ DPADD=	${LIBARCHIVE} ${LIBNCURSESW} ${LIBDIALOG} ${LIBM}
 LDADD=	-larchive -lncursesw -ldialog -lm
 
 WARNS?=	6
-NO_MAN=	true
+MAN=
 
 .include <bsd.prog.mk>

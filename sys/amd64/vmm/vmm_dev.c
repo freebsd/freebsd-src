@@ -48,12 +48,14 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/vmparam.h>
 #include <machine/vmm.h>
+#include <machine/vmm_instruction_emul.h>
 #include <machine/vmm_dev.h>
 
 #include "vmm_lapic.h"
 #include "vmm_stat.h"
 #include "vmm_mem.h"
 #include "io/ppt.h"
+#include "io/vatpic.h"
 #include "io/vioapic.h"
 #include "io/vhpet.h"
 
@@ -150,10 +152,12 @@ vmmdev_ioctl(struct cdev *cdev, u_long cmd, caddr_t data, int fflag,
 	struct vm_register *vmreg;
 	struct vm_seg_desc *vmsegdesc;
 	struct vm_run *vmrun;
-	struct vm_event *vmevent;
+	struct vm_exception *vmexc;
 	struct vm_lapic_irq *vmirq;
 	struct vm_lapic_msi *vmmsi;
 	struct vm_ioapic_irq *ioapic_irq;
+	struct vm_isa_irq *isa_irq;
+	struct vm_isa_irq_trigger *isa_irq_trigger;
 	struct vm_capability *vmcap;
 	struct vm_pptdev *pptdev;
 	struct vm_pptdev_mmio *pptmmio;
@@ -164,11 +168,14 @@ vmmdev_ioctl(struct cdev *cdev, u_long cmd, caddr_t data, int fflag,
 	struct vm_stat_desc *statdesc;
 	struct vm_x2apic *x2apic;
 	struct vm_gpa_pte *gpapte;
+	struct vm_suspend *vmsuspend;
+	struct vm_gla2gpa *gg;
 
 	sc = vmmdev_lookup2(cdev);
 	if (sc == NULL)
 		return (ENXIO);
 
+	error = 0;
 	vcpu = -1;
 	state_changed = 0;
 
@@ -181,12 +188,13 @@ vmmdev_ioctl(struct cdev *cdev, u_long cmd, caddr_t data, int fflag,
 	case VM_SET_REGISTER:
 	case VM_GET_SEGMENT_DESCRIPTOR:
 	case VM_SET_SEGMENT_DESCRIPTOR:
-	case VM_INJECT_EVENT:
+	case VM_INJECT_EXCEPTION:
 	case VM_GET_CAPABILITY:
 	case VM_SET_CAPABILITY:
 	case VM_PPTDEV_MSI:
 	case VM_PPTDEV_MSIX:
 	case VM_SET_X2APIC_STATE:
+	case VM_GLA2GPA:
 		/*
 		 * XXX fragile, handle with care
 		 * Assumes that the first field of the ioctl data is the vcpu.
@@ -197,7 +205,7 @@ vmmdev_ioctl(struct cdev *cdev, u_long cmd, caddr_t data, int fflag,
 			goto done;
 		}
 
-		error = vcpu_set_state(sc->vm, vcpu, VCPU_FROZEN);
+		error = vcpu_set_state(sc->vm, vcpu, VCPU_FROZEN, true);
 		if (error)
 			goto done;
 
@@ -214,14 +222,14 @@ vmmdev_ioctl(struct cdev *cdev, u_long cmd, caddr_t data, int fflag,
 		 */
 		error = 0;
 		for (vcpu = 0; vcpu < VM_MAXCPU; vcpu++) {
-			error = vcpu_set_state(sc->vm, vcpu, VCPU_FROZEN);
+			error = vcpu_set_state(sc->vm, vcpu, VCPU_FROZEN, true);
 			if (error)
 				break;
 		}
 
 		if (error) {
 			while (--vcpu >= 0)
-				vcpu_set_state(sc->vm, vcpu, VCPU_IDLE);
+				vcpu_set_state(sc->vm, vcpu, VCPU_IDLE, false);
 			goto done;
 		}
 
@@ -236,6 +244,10 @@ vmmdev_ioctl(struct cdev *cdev, u_long cmd, caddr_t data, int fflag,
 	case VM_RUN:
 		vmrun = (struct vm_run *)data;
 		error = vm_run(sc->vm, vmrun);
+		break;
+	case VM_SUSPEND:
+		vmsuspend = (struct vm_suspend *)data;
+		error = vm_suspend(sc->vm, vmsuspend->how);
 		break;
 	case VM_STAT_DESC: {
 		statdesc = (struct vm_stat_desc *)data;
@@ -282,12 +294,9 @@ vmmdev_ioctl(struct cdev *cdev, u_long cmd, caddr_t data, int fflag,
 		error = vm_unassign_pptdev(sc->vm, pptdev->bus, pptdev->slot,
 					   pptdev->func);
 		break;
-	case VM_INJECT_EVENT:
-		vmevent = (struct vm_event *)data;
-		error = vm_inject_event(sc->vm, vmevent->cpuid, vmevent->type,
-					vmevent->vector,
-					vmevent->error_code,
-					vmevent->error_code_valid);
+	case VM_INJECT_EXCEPTION:
+		vmexc = (struct vm_exception *)data;
+		error = vm_inject_exception(sc->vm, vmexc->cpuid, vmexc);
 		break;
 	case VM_INJECT_NMI:
 		vmnmi = (struct vm_nmi *)data;
@@ -296,6 +305,11 @@ vmmdev_ioctl(struct cdev *cdev, u_long cmd, caddr_t data, int fflag,
 	case VM_LAPIC_IRQ:
 		vmirq = (struct vm_lapic_irq *)data;
 		error = lapic_intr_edge(sc->vm, vmirq->cpuid, vmirq->vector);
+		break;
+	case VM_LAPIC_LOCAL_IRQ:
+		vmirq = (struct vm_lapic_irq *)data;
+		error = lapic_set_local_intr(sc->vm, vmirq->cpuid,
+		    vmirq->vector);
 		break;
 	case VM_LAPIC_MSI:
 		vmmsi = (struct vm_lapic_msi *)data;
@@ -312,6 +326,34 @@ vmmdev_ioctl(struct cdev *cdev, u_long cmd, caddr_t data, int fflag,
 	case VM_IOAPIC_PULSE_IRQ:
 		ioapic_irq = (struct vm_ioapic_irq *)data;
 		error = vioapic_pulse_irq(sc->vm, ioapic_irq->irq);
+		break;
+	case VM_IOAPIC_PINCOUNT:
+		*(int *)data = vioapic_pincount(sc->vm);
+		break;
+	case VM_ISA_ASSERT_IRQ:
+		isa_irq = (struct vm_isa_irq *)data;
+		error = vatpic_assert_irq(sc->vm, isa_irq->atpic_irq);
+		if (error == 0 && isa_irq->ioapic_irq != -1)
+			error = vioapic_assert_irq(sc->vm,
+			    isa_irq->ioapic_irq);
+		break;
+	case VM_ISA_DEASSERT_IRQ:
+		isa_irq = (struct vm_isa_irq *)data;
+		error = vatpic_deassert_irq(sc->vm, isa_irq->atpic_irq);
+		if (error == 0 && isa_irq->ioapic_irq != -1)
+			error = vioapic_deassert_irq(sc->vm,
+			    isa_irq->ioapic_irq);
+		break;
+	case VM_ISA_PULSE_IRQ:
+		isa_irq = (struct vm_isa_irq *)data;
+		error = vatpic_pulse_irq(sc->vm, isa_irq->atpic_irq);
+		if (error == 0 && isa_irq->ioapic_irq != -1)
+			error = vioapic_pulse_irq(sc->vm, isa_irq->ioapic_irq);
+		break;
+	case VM_ISA_SET_IRQ_TRIGGER:
+		isa_irq_trigger = (struct vm_isa_irq_trigger *)data;
+		error = vatpic_set_irq_trigger(sc->vm,
+		    isa_irq_trigger->atpic_irq, isa_irq_trigger->trigger);
 		break;
 	case VM_MAP_MEMORY:
 		seg = (struct vm_memory_segment *)data;
@@ -376,16 +418,37 @@ vmmdev_ioctl(struct cdev *cdev, u_long cmd, caddr_t data, int fflag,
 	case VM_GET_HPET_CAPABILITIES:
 		error = vhpet_getcap((struct vm_hpet_cap *)data);
 		break;
+	case VM_GLA2GPA: {
+		CTASSERT(PROT_READ == VM_PROT_READ);
+		CTASSERT(PROT_WRITE == VM_PROT_WRITE);
+		CTASSERT(PROT_EXEC == VM_PROT_EXECUTE);
+		gg = (struct vm_gla2gpa *)data;
+		error = vmm_gla2gpa(sc->vm, gg->vcpuid, &gg->paging, gg->gla,
+		    gg->prot, &gg->gpa);
+		KASSERT(error == 0 || error == 1 || error == -1,
+		    ("%s: vmm_gla2gpa unknown error %d", __func__, error));
+		if (error >= 0) {
+			/*
+			 * error = 0: the translation was successful
+			 * error = 1: a fault was injected into the guest
+			 */
+			gg->fault = error;
+			error = 0;
+		} else {
+			error = EFAULT;
+		}
+		break;
+	}
 	default:
 		error = ENOTTY;
 		break;
 	}
 
 	if (state_changed == 1) {
-		vcpu_set_state(sc->vm, vcpu, VCPU_IDLE);
+		vcpu_set_state(sc->vm, vcpu, VCPU_IDLE, false);
 	} else if (state_changed == 2) {
 		for (vcpu = 0; vcpu < VM_MAXCPU; vcpu++)
-			vcpu_set_state(sc->vm, vcpu, VCPU_IDLE);
+			vcpu_set_state(sc->vm, vcpu, VCPU_IDLE, false);
 	}
 
 done:

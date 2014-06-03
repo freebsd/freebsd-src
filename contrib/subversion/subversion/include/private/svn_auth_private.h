@@ -37,6 +37,24 @@
 extern "C" {
 #endif /* __cplusplus */
 
+/** SSL server authority verification credential type.
+ *
+ * The followin auth parameters are available to the providers:
+ *
+ * - @c SVN_AUTH_PARAM_SSL_SERVER_FAILURES (@c apr_uint32_t*)
+ * - @c SVN_AUTH_PARAM_SSL_SERVER_CERT_INFO
+ *      (@c svn_auth_ssl_server_cert_info_t*)
+ *
+ * The following optional auth parameters are relevant to the providers:
+ *
+ * - @c SVN_AUTH_PARAM_NO_AUTH_CACHE (@c void*)
+ *
+ * @since New in 1.9.
+ */
+#define SVN_AUTH_CRED_SSL_SERVER_AUTHORITY "svn.ssl.server.authority"
+
+
+
 /* If you add a password type for a provider which stores
  * passwords on disk in encrypted form, remember to update
  * svn_auth__simple_save_creds_helper. Otherwise it will be
@@ -212,6 +230,25 @@ svn_auth__ssl_client_cert_pw_set(svn_boolean_t *done,
                                  apr_hash_t *parameters,
                                  svn_boolean_t non_interactive,
                                  apr_pool_t *pool);
+
+#if (defined(WIN32) && !defined(__MINGW32__)) || defined(DOXYGEN)
+/**
+ * Set @a *provider to an authentication provider that implements
+ * ssl authority verification via the Windows CryptoApi.
+ *
+ * This provider automatically validates authority certificates with
+ * the CryptoApi, like Internet Explorer and the Windows network API do.
+ * This allows the rollout of root certificates via Windows Domain
+ * policies, instead of Subversion specific configuration.
+ *
+ * @note This function is only available on Windows.
+ */
+void
+svn_auth__get_windows_ssl_server_authority_provider(
+                            svn_auth_provider_object_t **provider,
+                            apr_pool_t *pool);
+#endif
+
 
 #ifdef __cplusplus
 }

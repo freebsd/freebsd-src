@@ -5,7 +5,9 @@ NAME
 
 SYNOPSIS
      sftp-server [-ehR] [-d start_directory] [-f log_facility] [-l log_level]
+                 [-P blacklisted_requests] [-p whitelisted_requests]
                  [-u umask]
+     sftp-server -Q protocol_feature
 
 DESCRIPTION
      sftp-server is a program that speaks the server side of SFTP protocol to
@@ -46,6 +48,26 @@ DESCRIPTION
              DEBUG1 are equivalent.  DEBUG2 and DEBUG3 each specify higher
              levels of debugging output.  The default is ERROR.
 
+     -P blacklisted_requests
+             Specify a comma-separated list of SFTP protocol requests that are
+             banned by the server.  sftp-server will reply to any blacklisted
+             request with a failure.  The -Q flag can be used to determine the
+             supported request types.  If both a blacklist and a whitelist are
+             specified, then the blacklist is applied before the whitelist.
+
+     -p whitelisted_requests
+             Specify a comma-separated list of SFTP protocol requests that are
+             permitted by the server.  All request types that are not on the
+             whitelist will be logged and replied to with a failure message.
+
+             Care must be taken when using this feature to ensure that
+             requests made implicitly by SFTP clients are permitted.
+
+     -Q protocol_feature
+             Query protocol features supported by sftp-server.  At present the
+             only feature that may be queried is ``requests'', which may be
+             used for black or whitelisting (flags -P and -p respectively).
+
      -R      Places this instance of sftp-server into a read-only mode.
              Attempts to open files for writing, as well as other operations
              that change the state of the filesystem, will be denied.
@@ -70,4 +92,4 @@ HISTORY
 AUTHORS
      Markus Friedl <markus@openbsd.org>
 
-OpenBSD 5.4                      July 16, 2013                     OpenBSD 5.4
+OpenBSD 5.5                    October 14, 2013                    OpenBSD 5.5

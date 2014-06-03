@@ -40,6 +40,7 @@
 #include <sys/_mutex.h>
 #include <sys/callout.h>
 #include <sys/condvar.h>
+#include <sys/conf.h>
 #include <sys/consio.h>
 #include <sys/kbio.h>
 #include <sys/mouse.h>
@@ -77,7 +78,13 @@ one 'device sc' or 'device vt'"
 #endif /* defined(SC_TWOBUTTON_MOUSE) || defined(VT_TWOBUTTON_MOUSE) */
 
 #define	SC_DRIVER_NAME	"vt"
+#ifdef VT_DEBUG
 #define	DPRINTF(_l, ...)	if (vt_debug > (_l)) printf( __VA_ARGS__ )
+#define VT_CONSOLECTL_DEBUG
+#define VT_SYSMOUSE_DEBUG
+#else
+#define	DPRINTF(_l, ...)	do {} while (0)
+#endif
 #define	ISSIGVALID(sig)	((sig) > 0 && (sig) < NSIG)
 
 #define	VT_SYSCTL_INT(_name, _default, _descr)				\
@@ -134,6 +141,7 @@ struct vt_device {
 #define	VDF_DEAD	0x10	/* Early probing found nothing. */
 #define	VDF_INITIALIZED	0x20	/* vtterm_cnprobe already done. */
 #define	VDF_MOUSECURSOR	0x40	/* Mouse cursor visible. */
+#define	VDF_QUIET_BELL	0x80	/* Disable bell. */
 	int			 vd_keyboard;	/* (G) Keyboard index. */
 	unsigned int		 vd_kbstate;	/* (?) Device unit. */
 	unsigned int		 vd_unit;	/* (c) Device unit. */
@@ -244,6 +252,7 @@ struct vt_window {
 	int			 vw_kbdmode;	/* (?) Keyboard mode. */
 	char			*vw_kbdsq;	/* Escape sequence queue*/
 	unsigned int		 vw_flags;	/* (d) Per-window flags. */
+	int			 vw_mouse_level;/* Mouse op mode. */
 #define	VWF_BUSY	0x1	/* Busy reconfiguring device. */
 #define	VWF_OPENED	0x2	/* TTY in use. */
 #define	VWF_SCROLL	0x4	/* Keys influence scrollback. */
@@ -274,21 +283,42 @@ struct vt_window {
  */
 
 typedef int vd_init_t(struct vt_device *vd);
+typedef int vd_probe_t(struct vt_device *vd);
 typedef void vd_postswitch_t(struct vt_device *vd);
 typedef void vd_blank_t(struct vt_device *vd, term_color_t color);
 typedef void vd_bitbltchr_t(struct vt_device *vd, const uint8_t *src,
     const uint8_t *mask, int bpl, vt_axis_t top, vt_axis_t left,
     unsigned int width, unsigned int height, term_color_t fg, term_color_t bg);
+typedef void vd_maskbitbltchr_t(struct vt_device *vd, const uint8_t *src,
+    const uint8_t *mask, int bpl, vt_axis_t top, vt_axis_t left,
+    unsigned int width, unsigned int height, term_color_t fg, term_color_t bg);
 typedef void vd_putchar_t(struct vt_device *vd, term_char_t,
     vt_axis_t top, vt_axis_t left, term_color_t fg, term_color_t bg);
+typedef int vd_fb_ioctl_t(struct vt_device *, u_long, caddr_t, struct thread *);
+typedef int vd_fb_mmap_t(struct vt_device *, vm_ooffset_t, vm_paddr_t *, int,
+    vm_memattr_t *);
+typedef void vd_drawrect_t(struct vt_device *, int, int, int, int, int,
+    term_color_t);
+typedef void vd_setpixel_t(struct vt_device *, int, int, term_color_t);
 
 struct vt_driver {
+	char		 vd_name[16];
 	/* Console attachment. */
+	vd_probe_t	*vd_probe;
 	vd_init_t	*vd_init;
 
 	/* Drawing. */
 	vd_blank_t	*vd_blank;
 	vd_bitbltchr_t	*vd_bitbltchr;
+	vd_maskbitbltchr_t *vd_maskbitbltchr;
+	vd_drawrect_t	*vd_drawrect;
+	vd_setpixel_t	*vd_setpixel;
+
+	/* Framebuffer ioctls, if present. */
+	vd_fb_ioctl_t	*vd_fb_ioctl;
+
+	/* Framebuffer mmap, if present. */
+	vd_fb_mmap_t	*vd_fb_mmap;
 
 	/* Text mode operation. */
 	vd_putchar_t	*vd_putchar;
@@ -316,10 +346,10 @@ void vt_upgrade(struct vt_device *vd);
 #define	PIXEL_HEIGHT(h)	((h) / 16)
 
 #ifndef VT_FB_DEFAULT_WIDTH
-#define	VT_FB_DEFAULT_WIDTH	640
+#define	VT_FB_DEFAULT_WIDTH	2048
 #endif
 #ifndef VT_FB_DEFAULT_HEIGHT
-#define	VT_FB_DEFAULT_HEIGHT	480
+#define	VT_FB_DEFAULT_HEIGHT	1200
 #endif
 
 #define	VT_CONSDEV_DECLARE(driver, width, height, softc)		\
@@ -370,6 +400,9 @@ TERMINAL_DECLARE_EARLY(driver ## _consterm, vt_termclass,		\
 SYSINIT(vt_early_cons, SI_SUB_INT_CONFIG_HOOKS, SI_ORDER_ANY,		\
     vt_upgrade, &driver ## _consdev)
 
+/* name argument is not used yet. */
+#define VT_DRIVER_DECLARE(name, drv) DATA_SET(vt_drv_set, drv)
+
 /*
  * Fonts.
  *
@@ -387,11 +420,10 @@ struct vt_font_map {
 };
 
 struct vt_font {
-	struct vt_font_map	*vf_bold;
-	struct vt_font_map	*vf_normal;
+	struct vt_font_map	*vf_map[VFNT_MAPS];
 	uint8_t			*vf_bytes;
-	unsigned int		 vf_height, vf_width,
-				 vf_normal_length, vf_bold_length;
+	unsigned int		 vf_height, vf_width;
+	unsigned int		 vf_map_count[VFNT_MAPS];
 	unsigned int		 vf_refcount;
 };
 

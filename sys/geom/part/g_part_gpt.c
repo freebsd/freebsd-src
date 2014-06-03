@@ -167,6 +167,7 @@ static struct uuid gpt_uuid_linux_swap = GPT_ENT_TYPE_LINUX_SWAP;
 static struct uuid gpt_uuid_vmfs = GPT_ENT_TYPE_VMFS;
 static struct uuid gpt_uuid_vmkdiag = GPT_ENT_TYPE_VMKDIAG;
 static struct uuid gpt_uuid_vmreserved = GPT_ENT_TYPE_VMRESERVED;
+static struct uuid gpt_uuid_vmvsanhdr = GPT_ENT_TYPE_VMVSANHDR;
 static struct uuid gpt_uuid_ms_basic_data = GPT_ENT_TYPE_MS_BASIC_DATA;
 static struct uuid gpt_uuid_ms_reserved = GPT_ENT_TYPE_MS_RESERVED;
 static struct uuid gpt_uuid_ms_ldm_data = GPT_ENT_TYPE_MS_LDM_DATA;
@@ -208,6 +209,7 @@ static struct g_part_uuid_alias {
 	{ &gpt_uuid_vmfs,		G_PART_ALIAS_VMFS,		 0 },
 	{ &gpt_uuid_vmkdiag,		G_PART_ALIAS_VMKDIAG,		 0 },
 	{ &gpt_uuid_vmreserved,		G_PART_ALIAS_VMRESERVED,	 0 },
+	{ &gpt_uuid_vmvsanhdr,		G_PART_ALIAS_VMVSANHDR,		 0 },
 	{ &gpt_uuid_mbr,		G_PART_ALIAS_MBR,		 0 },
 	{ &gpt_uuid_ms_basic_data,	G_PART_ALIAS_MS_BASIC_DATA,	 0x0b },
 	{ &gpt_uuid_ms_ldm_data,	G_PART_ALIAS_MS_LDM_DATA,	 0 },
@@ -1172,9 +1174,12 @@ g_part_gpt_write(struct g_part_table *basetable, struct g_consumer *cp)
 static void
 g_gpt_set_defaults(struct g_part_table *basetable, struct g_provider *pp)
 {
+	struct g_part_entry *baseentry;
+	struct g_part_gpt_entry *entry;
 	struct g_part_gpt_table *table;
-	quad_t last;
-	size_t tblsz;
+	quad_t start, end, min, max;
+	quad_t lba, last;
+	size_t spb, tblsz;
 
 	table = (struct g_part_gpt_table *)basetable;
 	last = pp->mediasize / pp->sectorsize - 1;
@@ -1190,11 +1195,31 @@ g_gpt_set_defaults(struct g_part_table *basetable, struct g_provider *pp)
 	table->state[GPT_ELT_SECHDR] = GPT_STATE_OK;
 	table->state[GPT_ELT_SECTBL] = GPT_STATE_OK;
 
-	table->hdr->hdr_lba_start = 2 + tblsz;
-	table->hdr->hdr_lba_end = last - tblsz - 1;
+	max = start = 2 + tblsz;
+	min = end = last - tblsz - 1;
+	LIST_FOREACH(baseentry, &basetable->gpt_entry, gpe_entry) {
+		if (baseentry->gpe_deleted)
+			continue;
+		entry = (struct g_part_gpt_entry *)baseentry;
+		if (entry->ent.ent_lba_start < min)
+			min = entry->ent.ent_lba_start;
+		if (entry->ent.ent_lba_end > max)
+			max = entry->ent.ent_lba_end;
+	}
+	spb = 4096 / pp->sectorsize;
+	if (spb > 1) {
+		lba = start + ((start % spb) ? spb - start % spb : 0);
+		if (lba <= min)
+			start = lba;
+		lba = end - (end + 1) % spb;
+		if (max <= lba)
+			end = lba;
+	}
+	table->hdr->hdr_lba_start = start;
+	table->hdr->hdr_lba_end = end;
 
-	basetable->gpt_first = table->hdr->hdr_lba_start;
-	basetable->gpt_last = table->hdr->hdr_lba_end;
+	basetable->gpt_first = start;
+	basetable->gpt_last = end;
 }
 
 static void

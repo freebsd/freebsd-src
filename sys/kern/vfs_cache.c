@@ -748,16 +748,20 @@ cache_enter_time(dvp, vp, cnp, tsp, dtsp)
 			    ncp->nc_flag & NCF_ISDOTDOT) {
 				KASSERT(ncp->nc_dvp == dvp,
 				    ("wrong isdotdot parent"));
-				if (ncp->nc_vp != NULL)
+				if (ncp->nc_vp != NULL) {
 					TAILQ_REMOVE(&ncp->nc_vp->v_cache_dst,
 					    ncp, nc_dst);
-				else
+				} else {
 					TAILQ_REMOVE(&ncneg, ncp, nc_dst);
-				if (vp != NULL)
+					numneg--;
+				}
+				if (vp != NULL) {
 					TAILQ_INSERT_HEAD(&vp->v_cache_dst,
 					    ncp, nc_dst);
-				else
+				} else {
 					TAILQ_INSERT_TAIL(&ncneg, ncp, nc_dst);
+					numneg++;
+				}
 				ncp->nc_vp = vp;
 				CACHE_WUNLOCK();
 				return;
@@ -893,6 +897,8 @@ cache_enter_time(dvp, vp, cnp, tsp, dtsp)
 	}
 	if (numneg * ncnegfactor > numcache) {
 		ncp = TAILQ_FIRST(&ncneg);
+		KASSERT(ncp->nc_vp == NULL, ("ncp %p vp %p on ncneg",
+		    ncp, ncp->nc_vp));
 		zap = 1;
 	}
 	if (hold)

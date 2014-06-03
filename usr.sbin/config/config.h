@@ -144,6 +144,13 @@ struct hint {
 
 STAILQ_HEAD(hint_head, hint) hints;
 
+struct includepath {
+	char	*path;
+	SLIST_ENTRY(includepath) path_next;
+};
+
+SLIST_HEAD(, includepath) includepath;
+
 /*
  * Tag present in the kernelconf.tmlp template file. It's mandatory for those
  * two strings to be the same. Otherwise you'll get into trouble.

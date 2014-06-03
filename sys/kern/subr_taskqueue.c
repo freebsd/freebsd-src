@@ -30,6 +30,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
+#include <sys/cpuset.h>
 #include <sys/interrupt.h>
 #include <sys/kernel.h>
 #include <sys/kthread.h>
@@ -496,24 +497,18 @@ taskqueue_swi_giant_run(void *dummy)
 	taskqueue_run(taskqueue_swi_giant);
 }
 
-int
-taskqueue_start_threads(struct taskqueue **tqp, int count, int pri,
-			const char *name, ...)
+static int
+_taskqueue_start_threads(struct taskqueue **tqp, int count, int pri,
+    cpuset_t *mask, const char *ktname)
 {
-	va_list ap;
 	struct thread *td;
 	struct taskqueue *tq;
 	int i, error;
-	char ktname[MAXCOMLEN + 1];
 
 	if (count <= 0)
 		return (EINVAL);
 
 	tq = *tqp;
-
-	va_start(ap, name);
-	vsnprintf(ktname, sizeof(ktname), name, ap);
-	va_end(ap);
 
 	tq->tq_threads = malloc(sizeof(struct thread *) * count, M_TASKQUEUE,
 	    M_NOWAIT | M_ZERO);
@@ -542,6 +537,19 @@ taskqueue_start_threads(struct taskqueue **tqp, int count, int pri,
 		if (tq->tq_threads[i] == NULL)
 			continue;
 		td = tq->tq_threads[i];
+		if (mask) {
+			error = cpuset_setthread(curthread->td_tid, mask);
+			/*
+			 * Failing to pin is rarely an actual fatal error;
+			 * it'll just affect performance.
+			 */
+			if (error)
+				printf("%s: curthread=%llu: can't pin; "
+				    "error=%d\n",
+				    __func__,
+				    (unsigned long long) td->td_tid,
+				    error);
+		}
 		thread_lock(td);
 		sched_prio(td, pri);
 		sched_add(td, SRQ_BORING);
@@ -549,6 +557,45 @@ taskqueue_start_threads(struct taskqueue **tqp, int count, int pri,
 	}
 
 	return (0);
+}
+
+int
+taskqueue_start_threads(struct taskqueue **tqp, int count, int pri,
+    const char *name, ...)
+{
+	char ktname[MAXCOMLEN + 1];
+	va_list ap;
+
+	va_start(ap, name);
+	vsnprintf(ktname, sizeof(ktname), name, ap);
+	va_end(ap);
+
+	return (_taskqueue_start_threads(tqp, count, pri, NULL, ktname));
+}
+
+int
+taskqueue_start_threads_pinned(struct taskqueue **tqp, int count, int pri,
+    int cpu_id, const char *name, ...)
+{
+	char ktname[MAXCOMLEN + 1];
+	va_list ap;
+	cpuset_t mask;
+
+	va_start(ap, name);
+	vsnprintf(ktname, sizeof(ktname), name, ap);
+	va_end(ap);
+
+	/*
+	 * In case someone passes in NOCPU, just fall back to the
+	 * default behaviour of "don't pin".
+	 */
+	if (cpu_id != NOCPU) {
+		CPU_ZERO(&mask);
+		CPU_SET(cpu_id, &mask);
+	}
+
+	return (_taskqueue_start_threads(tqp, count, pri,
+	    cpu_id == NOCPU ? NULL : &mask, ktname));
 }
 
 static inline void

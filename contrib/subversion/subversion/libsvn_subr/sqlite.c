@@ -778,6 +778,21 @@ internal_open(sqlite3 **db3, const char *path, svn_sqlite__mode_t mode,
        somebody initialized SQLite before us it is needed anyway.  */
     flags |= SQLITE_OPEN_NOMUTEX;
 
+#if !defined(WIN32) && !defined(SVN_SQLITE_INLINE)
+    if (mode == svn_sqlite__mode_rwcreate)
+      {
+        svn_node_kind_t kind;
+
+        /* Create the file before SQLite to avoid any permissions
+           problems with an SQLite build that uses the default
+           SQLITE_DEFAULT_FILE_PERMISSIONS of 644 modified by umask.
+           We simply want umask permissions. */
+        SVN_ERR(svn_io_check_path(path, &kind, scratch_pool));
+        if (kind == svn_node_none)
+          SVN_ERR(svn_io_file_create(path, "", scratch_pool));
+      }
+#endif
+
     /* Open the database. Note that a handle is returned, even when an error
        occurs (except for out-of-memory); thus, we can safely use it to
        extract an error message and construct an svn_error_t. */
@@ -887,6 +902,18 @@ svn_sqlite__open(svn_sqlite__db_t **db, const char *path,
 
   SVN_ERR(internal_open(&(*db)->db3, path, mode, scratch_pool));
 
+#if SQLITE_VERSION_NUMBER >= 3008000 && SQLITE_VERSION_NUMBER < 3009000
+  /* disable SQLITE_ENABLE_STAT3/4 from 3.8.1 - 3.8.3 (but not 3.8.3.1+)
+   * to prevent using it when it's buggy.
+   * See: https://www.sqlite.org/src/info/4c86b126f2 */
+  if (sqlite3_libversion_number() > 3008000 &&
+      sqlite3_libversion_number() < 3008004 &&
+      strcmp(sqlite3_sourceid(),"2014-02-11")<0)
+    {
+      sqlite3_test_control(SQLITE_TESTCTRL_OPTIMIZATIONS, (*db)->db3, 0x800);
+    }
+#endif
+
 #ifdef SQLITE3_DEBUG
   sqlite3_trace((*db)->db3, sqlite_tracer, (*db)->db3);
 #endif
@@ -918,13 +945,27 @@ svn_sqlite__open(svn_sqlite__db_t **db, const char *path,
               /* Enable recursive triggers so that a user trigger will fire
                  in the deletion phase of an INSERT OR REPLACE statement.
                  Requires SQLite >= 3.6.18  */
-              "PRAGMA recursive_triggers=ON;"));
+              "PRAGMA recursive_triggers=ON;"
+              /* Enforce current Sqlite default behavior. Some distributions
+                 might change the Sqlite defaults without realizing how this
+                 affects application(read: Subversion) performance/behavior. */
+              "PRAGMA foreign_keys=OFF;"      /* SQLITE_DEFAULT_FOREIGN_KEYS*/
+              "PRAGMA locking_mode = NORMAL;" /* SQLITE_DEFAULT_LOCKING_MODE */
+              ));
 
 #if defined(SVN_DEBUG)
   /* When running in debug mode, enable the checking of foreign key
      constraints.  This has possible performance implications, so we don't
      bother to do it for production...for now. */
   SVN_ERR(exec_sql(*db, "PRAGMA foreign_keys=ON;"));
+#endif
+
+#ifdef SVN_SQLITE_REVERSE_UNORDERED_SELECTS
+  /* When enabled, this PRAGMA causes SELECT statements without an ORDER BY
+     clause to emit their results in the reverse order of what they normally
+     would.  This can help detecting invalid assumptions about the result
+     order.*/
+  SVN_ERR(exec_sql(*db, "PRAGMA reverse_unordered_selects=ON;"));
 #endif
 
   /* Store temporary tables in RAM instead of in temporary files, but don't

@@ -198,17 +198,24 @@ DESCRIPTION
 
      Ciphers
              Specifies the ciphers allowed for protocol version 2.  Multiple
-             ciphers must be comma-separated.  The supported ciphers are
+             ciphers must be comma-separated.  The supported ciphers are:
+
              ``3des-cbc'', ``aes128-cbc'', ``aes192-cbc'', ``aes256-cbc'',
              ``aes128-ctr'', ``aes192-ctr'', ``aes256-ctr'',
              ``aes128-gcm@openssh.com'', ``aes256-gcm@openssh.com'',
              ``arcfour128'', ``arcfour256'', ``arcfour'', ``blowfish-cbc'',
-             and ``cast128-cbc''.  The default is:
+             ``cast128-cbc'', and ``chacha20-poly1305@openssh.com''.
+
+             The default is:
 
                 aes128-ctr,aes192-ctr,aes256-ctr,arcfour256,arcfour128,
                 aes128-gcm@openssh.com,aes256-gcm@openssh.com,
+                chacha20-poly1305@openssh.com,
                 aes128-cbc,3des-cbc,blowfish-cbc,cast128-cbc,aes192-cbc,
                 aes256-cbc,arcfour
+
+             The list of available ciphers may also be obtained using the -Q
+             option of ssh(1).
 
      ClientAliveCountMax
              Sets the number of client alive messages (see below) which may be
@@ -325,15 +332,15 @@ DESCRIPTION
      HostKey
              Specifies a file containing a private host key used by SSH.  The
              default is /etc/ssh/ssh_host_key for protocol version 1, and
-             /etc/ssh/ssh_host_dsa_key, /etc/ssh/ssh_host_ecdsa_key and
-             /etc/ssh/ssh_host_rsa_key for protocol version 2.  Note that
-             sshd(8) will refuse to use a file if it is group/world-
-             accessible.  It is possible to have multiple host key files.
-             ``rsa1'' keys are used for version 1 and ``dsa'', ``ecdsa'' or
-             ``rsa'' are used for version 2 of the SSH protocol.  It is also
-             possible to specify public host key files instead.  In this case
-             operations on the private key will be delegated to an
-             ssh-agent(1).
+             /etc/ssh/ssh_host_dsa_key, /etc/ssh/ssh_host_ecdsa_key,
+             /etc/ssh/ssh_host_ed25519_key and /etc/ssh/ssh_host_rsa_key for
+             protocol version 2.  Note that sshd(8) will refuse to use a file
+             if it is group/world-accessible.  It is possible to have multiple
+             host key files.  ``rsa1'' keys are used for version 1 and
+             ``dsa'', ``ecdsa'', ``ed25519'' or ``rsa'' are used for version 2
+             of the SSH protocol.  It is also possible to specify public host
+             key files instead.  In this case operations on the private key
+             will be delegated to an ssh-agent(1).
 
      HostKeyAgent
              Identifies the UNIX-domain socket used to communicate with an
@@ -367,6 +374,12 @@ DESCRIPTION
              interactive sessions and ``throughput'' for non-interactive
              sessions.
 
+     KbdInteractiveAuthentication
+             Specifies whether to allow keyboard-interactive authentication.
+             The argument to this keyword must be ``yes'' or ``no''.  The
+             default is to use whatever value ChallengeResponseAuthentication
+             is set to (by default ``yes'').
+
      KerberosAuthentication
              Specifies whether the password provided by the user for
              PasswordAuthentication will be validated through the Kerberos
@@ -391,10 +404,13 @@ DESCRIPTION
      KexAlgorithms
              Specifies the available KEX (Key Exchange) algorithms.  Multiple
              algorithms must be comma-separated.  The default is
-             ``ecdh-sha2-nistp256'', ``ecdh-sha2-nistp384'',
-             ``ecdh-sha2-nistp521'', ``diffie-hellman-group-exchange-sha256'',
-             ``diffie-hellman-group-exchange-sha1'',
-             ``diffie-hellman-group14-sha1'', ``diffie-hellman-group1-sha1''.
+
+                   curve25519-sha256@libssh.org,
+                   ecdh-sha2-nistp256,ecdh-sha2-nistp384,ecdh-sha2-nistp521,
+                   diffie-hellman-group-exchange-sha256,
+                   diffie-hellman-group-exchange-sha1,
+                   diffie-hellman-group14-sha1,
+                   diffie-hellman-group1-sha1
 
      KeyRegenerationInterval
              In protocol version 1, the ephemeral server key is automatically
@@ -450,14 +466,16 @@ DESCRIPTION
      Match   Introduces a conditional block.  If all of the criteria on the
              Match line are satisfied, the keywords on the following lines
              override those set in the global section of the config file,
-             until either another Match line or the end of the file.
+             until either another Match line or the end of the file.  If a
+             keyword appears in multiple Match blocks that are satisified,
+             only the first instance of the keyword is applied.
 
-             The arguments to Match are one or more criteria-pattern pairs.
-             The available criteria are User, Group, Host, LocalAddress,
-             LocalPort, and Address.  The match patterns may consist of single
-             entries or comma-separated lists and may use the wildcard and
-             negation operators described in the PATTERNS section of
-             ssh_config(5).
+             The arguments to Match are one or more criteria-pattern pairs or
+             the single token All which matches all criteria.  The available
+             criteria are User, Group, Host, LocalAddress, LocalPort, and
+             Address.  The match patterns may consist of single entries or
+             comma-separated lists and may use the wildcard and negation
+             operators described in the PATTERNS section of ssh_config(5).
 
              The patterns in an Address criteria may additionally contain
              addresses to match in CIDR address/masklen format, e.g.
@@ -477,10 +495,10 @@ DESCRIPTION
              HostbasedAuthentication, HostbasedUsesNameFromPacketOnly,
              KbdInteractiveAuthentication, KerberosAuthentication,
              MaxAuthTries, MaxSessions, PasswordAuthentication,
-             PermitEmptyPasswords, PermitOpen, PermitRootLogin, PermitTunnel,
-             PubkeyAuthentication, RekeyLimit, RhostsRSAAuthentication,
-             RSAAuthentication, X11DisplayOffset, X11Forwarding and
-             X11UseLocalHost.
+             PermitEmptyPasswords, PermitOpen, PermitRootLogin, PermitTTY,
+             PermitTunnel, PubkeyAuthentication, RekeyLimit,
+             RhostsRSAAuthentication, RSAAuthentication, X11DisplayOffset,
+             X11Forwarding and X11UseLocalHost.
 
      MaxAuthTries
              Specifies the maximum number of authentication attempts permitted
@@ -550,6 +568,10 @@ DESCRIPTION
              argument must be ``yes'', ``point-to-point'' (layer 3),
              ``ethernet'' (layer 2), or ``no''.  Specifying ``yes'' permits
              both ``point-to-point'' and ``ethernet''.  The default is ``no''.
+
+     PermitTTY
+             Specifies whether pty(4) allocation is permitted.  The default is
+             ``yes''.
 
      PermitUserEnvironment
              Specifies whether ~/.ssh/environment and environment= options in
@@ -810,4 +832,4 @@ AUTHORS
      versions 1.5 and 2.0.  Niels Provos and Markus Friedl contributed support
      for privilege separation.
 
-OpenBSD 5.4                      July 19, 2013                     OpenBSD 5.4
+OpenBSD 5.5                    February 27, 2014                   OpenBSD 5.5

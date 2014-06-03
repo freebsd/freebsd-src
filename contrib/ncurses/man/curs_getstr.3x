@@ -1,5 +1,5 @@
 .\"***************************************************************************
-.\" Copyright (c) 1998-2003,2005 Free Software Foundation, Inc.              *
+.\" Copyright (c) 1998-2005,2010 Free Software Foundation, Inc.              *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
 .\" copy of this software and associated documentation files (the            *
@@ -26,7 +26,7 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: curs_getstr.3x,v 1.15 2006/01/12 00:30:58 tom Exp $
+.\" $Id: curs_getstr.3x,v 1.19 2010/12/04 18:36:44 tom Exp $
 .TH curs_getstr 3X ""
 .na
 .hy 0
@@ -38,7 +38,7 @@
 \fBmvgetstr\fR,
 \fBmvgetnstr\fR,
 \fBmvwgetstr\fR,
-\fBmvwgetnstr\fR - accept character strings from \fBcurses\fR terminal keyboard
+\fBmvwgetnstr\fR \- accept character strings from \fBcurses\fR terminal keyboard
 .ad
 .hy
 .SH SYNOPSIS
@@ -94,6 +94,10 @@ if its timeout expires without having any data.
 This implementation provides an extension as well.
 If a SIGWINCH interrupts the function, it will return \fBKEY_RESIZE\fP
 rather than \fBOK\fP or \fBERR\fP.
+.PP
+Functions with a "mv" prefix first perform a cursor movement using
+\fBwmove\fP, and return an error if the position is outside the window,
+or if the window pointer is null.
 .SH NOTES
 Note that \fBgetstr\fR, \fBmvgetstr\fR, and \fBmvwgetstr\fR may be macros.
 .SH PORTABILITY
@@ -113,10 +117,6 @@ string by those implementations was predictable but not useful
 The functions \fBgetnstr\fR, \fBmvgetnstr\fR, and \fBmvwgetnstr\fR were
 present but not documented in SVr4.
 .SH SEE ALSO
-\fBcurses\fR(3X), \fBcurs_getch\fR(3X).
-.\"#
-.\"# The following sets edit modes for GNU EMACS
-.\"# Local Variables:
-.\"# mode:nroff
-.\"# fill-column:79
-.\"# End:
+\fBcurses\fR(3X),
+\fBcurs_getch\fR(3X),
+\fBcurs_variables\fR(3X).

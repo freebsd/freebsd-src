@@ -154,7 +154,7 @@ mpssas_find_target_by_handle(struct mpssas_softc *sassc, int start, uint16_t han
 	struct mpssas_target *target;
 	int i;
 
-	for (i = start; i < sassc->sc->facts->MaxTargets; i++) {
+	for (i = start; i < sassc->maxtargets; i++) {
 		target = &sassc->targets[i];
 		if (target->handle == handle)
 			return (target);
@@ -180,6 +180,9 @@ mpssas_startup_increment(struct mpssas_softc *sassc)
 			/* just starting, freeze the simq */
 			mps_dprint(sassc->sc, MPS_INIT,
 			    "%s freezing simq\n", __func__);
+#if __FreeBSD_version >= 1000039
+			xpt_hold_boot();
+#endif
 			xpt_freeze_simq(sassc->sim, 1);
 		}
 		mps_dprint(sassc->sc, MPS_INIT, "%s refcount %u\n", __func__,
@@ -200,10 +203,10 @@ mpssas_startup_decrement(struct mpssas_softc *sassc)
 			mps_dprint(sassc->sc, MPS_INIT,
 			    "%s releasing simq\n", __func__);
 			sassc->flags &= ~MPSSAS_IN_STARTUP;
+			xpt_release_simq(sassc->sim, 1);
 #if __FreeBSD_version >= 1000039
 			xpt_release_boot();
 #else
-			xpt_release_simq(sassc->sim, 1);
 			mpssas_rescan_target(sassc->sc, NULL);
 #endif
 		}
@@ -706,8 +709,16 @@ mps_attach_sas(struct mps_softc *sc)
 		__func__, __LINE__);
 		return (ENOMEM);
 	}
+
+	/*
+	 * XXX MaxTargets could change during a reinit.  Since we don't
+	 * resize the targets[] array during such an event, cache the value
+	 * of MaxTargets here so that we don't get into trouble later.  This
+	 * should move into the reinit logic.
+	 */
+	sassc->maxtargets = sc->facts->MaxTargets;
 	sassc->targets = malloc(sizeof(struct mpssas_target) *
-	    sc->facts->MaxTargets, M_MPT2, M_WAITOK|M_ZERO);
+	    sassc->maxtargets, M_MPT2, M_WAITOK|M_ZERO);
 	if(!sassc->targets) {
 		device_printf(sc->mps_dev, "Cannot allocate memory %s %d\n",
 		__func__, __LINE__);
@@ -738,9 +749,7 @@ mps_attach_sas(struct mps_softc *sc)
 	TASK_INIT(&sassc->ev_task, 0, mpssas_firmware_event_work, sc);
 	sassc->ev_tq = taskqueue_create("mps_taskq", M_NOWAIT | M_ZERO,
 	    taskqueue_thread_enqueue, &sassc->ev_tq);
-
-	/* Run the task queue with lowest priority */
-	taskqueue_start_threads(&sassc->ev_tq, 1, 255, "%s taskq", 
+	taskqueue_start_threads(&sassc->ev_tq, 1, PRIBIO, "%s taskq", 
 	    device_get_nameunit(sc->mps_dev));
 
 	mps_lock(sc);
@@ -763,12 +772,8 @@ mps_attach_sas(struct mps_softc *sc)
 	 * Hold off boot until discovery is complete.
 	 */
 	sassc->flags |= MPSSAS_IN_STARTUP | MPSSAS_IN_DISCOVERY;
-#if __FreeBSD_version >= 1000039
-	xpt_hold_boot();
-#else
-	xpt_freeze_simq(sassc->sim, 1);
-#endif
 	sc->sassc->startup_refcount = 0;
+	mpssas_startup_increment(sassc);
 
 	callout_init(&sassc->discovery_callout, 1 /*mpsafe*/);
 	sassc->discovery_timeouts = 0;
@@ -869,7 +874,7 @@ mps_detach_sas(struct mps_softc *sc)
 	if (sassc->devq != NULL)
 		cam_simq_free(sassc->devq);
 
-	for(i=0; i< sc->facts->MaxTargets ;i++) {
+	for(i=0; i< sassc->maxtargets ;i++) {
 		targ = &sassc->targets[i];
 		SLIST_FOREACH_SAFE(lun, &targ->luns, lun_link, lun_tmp) {
 			free(lun, M_MPT2);
@@ -960,9 +965,9 @@ mpssas_action(struct cam_sim *sim, union ccb *ccb)
 		cpi->hba_misc = PIM_NOBUSRESET | PIM_UNMAPPED;
 #endif
 		cpi->hba_eng_cnt = 0;
-		cpi->max_target = sassc->sc->facts->MaxTargets - 1;
+		cpi->max_target = sassc->maxtargets - 1;
 		cpi->max_lun = 255;
-		cpi->initiator_id = sassc->sc->facts->MaxTargets - 1;
+		cpi->initiator_id = sassc->maxtargets - 1;
 		strncpy(cpi->sim_vid, "FreeBSD", SIM_IDLEN);
 		strncpy(cpi->hba_vid, "LSILogic", HBA_IDLEN);
 		strncpy(cpi->dev_name, cam_sim_name(sim), DEV_IDLEN);
@@ -993,6 +998,9 @@ mpssas_action(struct cam_sim *sim, union ccb *ccb)
 		sas = &cts->xport_specific.sas;
 		scsi = &cts->proto_specific.scsi;
 
+		KASSERT(cts->ccb_h.target_id < sassc->maxtargets,
+		    ("Target %d out of bounds in XPT_GET_TRANS_SETTINGS\n",
+		    cts->ccb_h.target_id));
 		targ = &sassc->targets[cts->ccb_h.target_id];
 		if (targ->handle == 0x0) {
 			cts->ccb_h.status = CAM_SEL_TIMEOUT;
@@ -1139,7 +1147,7 @@ mpssas_handle_reinit(struct mps_softc *sc)
 	mps_dprint(sc, MPS_INIT, "%s startup\n", __func__);
 	sc->sassc->flags |= MPSSAS_IN_STARTUP;
 	sc->sassc->flags |= MPSSAS_IN_DISCOVERY;
-	xpt_freeze_simq(sc->sassc->sim, 1);
+	mpssas_startup_increment(sc->sassc);
 
 	/* notify CAM of a bus reset */
 	mpssas_announce_reset(sc, AC_BUS_RESET, CAM_TARGET_WILDCARD, 
@@ -1152,17 +1160,11 @@ mpssas_handle_reinit(struct mps_softc *sc)
 	    "%s startup %u tm %u after command completion\n",
 	    __func__, sc->sassc->startup_refcount, sc->sassc->tm_count);
 
-	/*
-	 * The simq was explicitly frozen above, so set the refcount to 0.
-	 * The simq will be explicitly released after port enable completes.
-	 */
-	sc->sassc->startup_refcount = 0;
-
 	/* zero all the target handles, since they may change after the
 	 * reset, and we have to rediscover all the targets and use the new
 	 * handles.  
 	 */
-	for (i = 0; i < sc->facts->MaxTargets; i++) {
+	for (i = 0; i < sc->sassc->maxtargets; i++) {
 		if (sc->sassc->targets[i].outstanding != 0)
 			mps_dprint(sc, MPS_INIT, "target %u outstanding %u\n", 
 			    i, sc->sassc->targets[i].outstanding);
@@ -1638,6 +1640,9 @@ mpssas_action_scsiio(struct mpssas_softc *sassc, union ccb *ccb)
 	mtx_assert(&sc->mps_mtx, MA_OWNED);
 
 	csio = &ccb->csio;
+	KASSERT(csio->ccb_h.target_id < sassc->maxtargets,
+	    ("Target %d out of bounds in XPT_SCSI_IO\n",
+	     csio->ccb_h.target_id));
 	targ = &sassc->targets[csio->ccb_h.target_id];
 	mps_dprint(sc, MPS_TRACE, "ccb %p target flag %x\n", ccb, targ->flags);
 	if (targ->handle == 0x0) {
@@ -2309,8 +2314,9 @@ mpssas_scsiio_complete(struct mps_softc *sc, struct mps_command *cm)
 		    (csio->cdb_io.cdb_bytes[1] & SI_EVPD) &&
 		    (csio->cdb_io.cdb_bytes[2] == SVPD_SUPPORTED_PAGE_LIST) &&
 		    ((csio->ccb_h.flags & CAM_DATA_MASK) == CAM_DATA_VADDR) &&
-		    (csio->data_ptr != NULL) && (((uint8_t *)cm->cm_data)[0] ==
-		    T_SEQUENTIAL) && (sc->control_TLR) &&
+		    (csio->data_ptr != NULL) &&
+		    ((csio->data_ptr[0] & 0x1f) == T_SEQUENTIAL) &&
+		    (sc->control_TLR) &&
 		    (sc->mapping_table[csio->ccb_h.target_id].device_info &
 		    MPI2_SAS_DEVICE_INFO_SSP_TARGET)) {
 			vpd_list = (struct scsi_vpd_supported_page_list *)
@@ -2321,6 +2327,7 @@ mpssas_scsiio_complete(struct mps_softc *sc, struct mps_command *cm)
 			TLR_on = (u8)MPI2_SCSIIO_CONTROL_TLR_ON;
 			alloc_len = ((u16)csio->cdb_io.cdb_bytes[3] << 8) +
 			    csio->cdb_io.cdb_bytes[4];
+			alloc_len -= csio->resid;
 			for (i = 0; i < MIN(vpd_list->length, alloc_len); i++) {
 				if (vpd_list->list[i] == 0x90) {
 					*TLR_bits = TLR_on;
@@ -2936,6 +2943,8 @@ mpssas_action_smpio(struct mpssas_softc *sassc, union ccb *ccb)
 	/*
 	 * Make sure the target exists.
 	 */
+	KASSERT(ccb->ccb_h.target_id < sassc->maxtargets,
+	    ("Target %d out of bounds in XPT_SMP_IO\n", ccb->ccb_h.target_id));
 	targ = &sassc->targets[ccb->ccb_h.target_id];
 	if (targ->handle == 0x0) {
 		mps_dprint(sc, MPS_ERROR,
@@ -3070,6 +3079,9 @@ mpssas_action_resetdev(struct mpssas_softc *sassc, union ccb *ccb)
 	MPS_FUNCTRACE(sassc->sc);
 	mtx_assert(&sassc->sc->mps_mtx, MA_OWNED);
 
+	KASSERT(ccb->ccb_h.target_id < sassc->maxtargets,
+	    ("Target %d out of bounds in XPT_RESET_DEV\n",
+	     ccb->ccb_h.target_id));
 	sc = sassc->sc;
 	tm = mps_alloc_command(sc);
 	if (tm == NULL) {
@@ -3198,6 +3210,9 @@ mpssas_async(void *callback_arg, uint32_t code, struct cam_path *path,
 		/*
 		 * We should have a handle for this, but check to make sure.
 		 */
+		KASSERT(xpt_path_target_id(path) < sassc->maxtargets,
+		    ("Target %d out of bounds in mpssas_async\n",
+		    xpt_path_target_id(path)));
 		target = &sassc->targets[xpt_path_target_id(path)];
 		if (target->handle == 0)
 			break;
@@ -3285,6 +3300,9 @@ mpssas_check_eedp(struct mps_softc *sc, struct cam_path *path,
 	targetid = xpt_path_target_id(path);
 	lunid = xpt_path_lun_id(path);
 
+	KASSERT(targetid < sassc->maxtargets,
+	    ("Target %d out of bounds in mpssas_check_eedp\n",
+	     targetid));
 	target = &sassc->targets[targetid];
 	if (target->handle == 0x0)
 		return;
@@ -3420,6 +3438,9 @@ mpssas_read_cap_done(struct cam_periph *periph, union ccb *done_ccb)
 	 * target.
 	 */
 	sassc = (struct mpssas_softc *)done_ccb->ccb_h.ppriv_ptr1;
+	KASSERT(done_ccb->ccb_h.target_id < sassc->maxtargets,
+	    ("Target %d out of bounds in mpssas_read_cap_done\n",
+	     done_ccb->ccb_h.target_id));
 	target = &sassc->targets[done_ccb->ccb_h.target_id];
 	SLIST_FOREACH(lun, &target->luns, lun_link) {
 		if (lun->lun_id != done_ccb->ccb_h.target_lun)
@@ -3461,15 +3482,12 @@ mpssas_read_cap_done(struct cam_periph *periph, union ccb *done_ccb)
 int
 mpssas_startup(struct mps_softc *sc)
 {
-	struct mpssas_softc *sassc;
 
 	/*
 	 * Send the port enable message and set the wait_for_port_enable flag.
 	 * This flag helps to keep the simq frozen until all discovery events
 	 * are processed.
 	 */
-	sassc = sc->sassc;
-	mpssas_startup_increment(sassc);
 	sc->wait_for_port_enable = 1;
 	mpssas_send_portenable(sc);
 	return (0);
@@ -3554,7 +3572,6 @@ mpssas_portenable_complete(struct mps_softc *sc, struct mps_command *cm)
 	sc->port_enable_complete = 1;
 	wakeup(&sc->port_enable_complete);
 	mpssas_startup_decrement(sassc);
-	xpt_release_simq(sassc->sim, 1);
 }
 
 int

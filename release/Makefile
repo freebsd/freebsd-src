@@ -1,7 +1,7 @@
 # $FreeBSD$
 #
 # Makefile for building releases and release media.
-# 
+#
 # User-driven targets:
 #  cdrom: Builds release CD-ROM media (disc1.iso)
 #  dvdrom: Builds release DVD-ROM media (dvd1.iso)
@@ -13,7 +13,7 @@
 #
 # Variables affecting the build process:
 #  WORLDDIR: location of src tree -- must have built world and default kernel
-#            (by default, the directory above this one) 
+#            (by default, the directory above this one)
 #  PORTSDIR: location of ports tree to distribute (default: /usr/ports)
 #  DOCDIR:   location of doc tree (default: /usr/doc)
 #  NOPKG:    if set, do not distribute third-party packages
@@ -21,13 +21,16 @@
 #  NOSRC:    if set, do not distribute source tree
 #  NODOC:    if set, do not generate release documentation
 #  WITH_DVD: if set, generate dvd1.iso
-#  TARGET/TARGET_ARCH: architecture of built release 
+#  WITH_COMPRESSED_IMAGES: if set, compress installation images with xz(1)
+#		(uncompressed images are not removed)
+#  TARGET/TARGET_ARCH: architecture of built release
 #
 
 WORLDDIR?=	${.CURDIR}/..
 PORTSDIR?=	/usr/ports
 DOCDIR?=	/usr/doc
 RELNOTES_LANG?= en_US.ISO8859-1
+XZCMD?=		/usr/bin/xz
 
 .if !defined(TARGET) || empty(TARGET)
 TARGET=		${MACHINE}
@@ -63,7 +66,7 @@ NODOC= true
 NOPORTS= true
 .endif
 
-EXTRA_PACKAGES= 
+EXTRA_PACKAGES=
 .if !defined(NOPORTS)
 EXTRA_PACKAGES+= ports.txz
 .endif
@@ -92,6 +95,11 @@ IMAGES+=	mini-memstick.img
 .endif
 
 CLEANFILES=	packagesystem *.txz MANIFEST system ${IMAGES}
+.if defined(WITH_COMPRESSED_IMAGES) && !empty(WITH_COMPRESSED_IMAGES)
+. for I in ${IMAGES}
+CLEANFILES+=	${I}.xz
+. endfor
+.endif
 CLEANDIRS=	dist ftp release bootonly dvd
 beforeclean:
 	chflags -R noschg .
@@ -104,6 +112,8 @@ base.txz:
 # Set up mergemaster root database
 	sh ${.CURDIR}/scripts/mm-mtree.sh -m ${WORLDDIR} -F \
 	    "TARGET_ARCH=${TARGET_ARCH} TARGET=${TARGET}" -D "${.OBJDIR}/${DISTDIR}/base"
+	etcupdate extract -B -M "TARGET_ARCH=${TARGET_ARCH} TARGET=${TARGET}" \
+	    -s ${WORLDDIR} -d "${.OBJDIR}/${DISTDIR}/base/var/db/etcupdate"
 # Package all components
 	cd ${WORLDDIR} && ${IMAKE} packageworld DISTDIR=${.OBJDIR}/${DISTDIR}
 	mv ${DISTDIR}/*.txz .
@@ -117,13 +127,13 @@ src.txz:
 	mkdir -p ${DISTDIR}/usr
 	ln -fs ${WORLDDIR} ${DISTDIR}/usr/src
 	cd ${DISTDIR} && tar cLvJf ${.OBJDIR}/src.txz --exclude .svn --exclude .zfs \
-	    --exclude CVS --exclude @ --exclude usr/src/release/dist usr/src
+	    --exclude .git --exclude @ --exclude usr/src/release/dist usr/src
 
 ports.txz:
 	mkdir -p ${DISTDIR}/usr
 	ln -fs ${PORTSDIR} ${DISTDIR}/usr/ports
 	cd ${DISTDIR} && tar cLvJf ${.OBJDIR}/ports.txz \
-	    --exclude CVS --exclude .svn \
+	    --exclude .git --exclude .svn \
 	    --exclude usr/ports/distfiles --exclude usr/ports/packages \
 	    --exclude 'usr/ports/INDEX*' --exclude work usr/ports
 
@@ -154,6 +164,7 @@ system: packagesystem
 	ln -fs /tmp/bsdinstall_etc/resolv.conf release/etc/resolv.conf
 	echo sendmail_enable=\"NONE\" > release/etc/rc.conf
 	echo hostid_enable=\"NO\" >> release/etc/rc.conf
+	echo debug.witness.trace=0 >> release/etc/sysctl.conf
 	cp ${.CURDIR}/rc.local release/etc
 	touch ${.TARGET}
 
@@ -178,6 +189,7 @@ bootonly: packagesystem
 	ln -fs /tmp/bsdinstall_etc/resolv.conf bootonly/etc/resolv.conf
 	echo sendmail_enable=\"NONE\" > bootonly/etc/rc.conf
 	echo hostid_enable=\"NO\" >> bootonly/etc/rc.conf
+	echo debug.witness.trace=0 >> bootonly/etc/sysctl.conf
 	cp ${.CURDIR}/rc.local bootonly/etc
 
 dvd:
@@ -196,6 +208,7 @@ dvd:
 	ln -fs /tmp/bsdinstall_etc/resolv.conf ${.TARGET}/etc/resolv.conf
 	echo sendmail_enable=\"NONE\" > ${.TARGET}/etc/rc.conf
 	echo hostid_enable=\"NO\" >> ${.TARGET}/etc/rc.conf
+	echo debug.witness.trace=0 >> ${.TARGET}/etc/sysctl.conf
 	cp ${.CURDIR}/rc.local ${.TARGET}/etc
 	touch ${.TARGET}
 
@@ -222,9 +235,9 @@ packagesystem: base.txz kernel.txz ${EXTRA_PACKAGES}
 	touch ${.TARGET}
 
 pkg-stage:
-.if !defined(NOPKG) && exists(${.CURDIR}/${TARGET}/pkg-stage.conf)
-	sh ${.CURDIR}/scripts/pkg-stage.sh ${.CURDIR}/${TARGET}/pkg-stage.conf \
-		${REVISION}
+.if !defined(NOPKG)
+	env REPOS_DIR=${.CURDIR}/pkg_repos/ \
+		sh ${.CURDIR}/scripts/pkg-stage.sh
 	mkdir -p ${.OBJDIR}/dvd/packages/repos/
 	cp ${.CURDIR}/scripts/FreeBSD_install_cdrom.conf \
 		${.OBJDIR}/dvd/packages/repos/
@@ -249,6 +262,9 @@ install:
 	cp -a ftp ${DESTDIR}/
 .for I in ${IMAGES}
 	cp -p ${I} ${DESTDIR}/${OSRELEASE}-${I}
+. if defined(WITH_COMPRESSED_IMAGES) && !empty(WITH_COMPRESSED_IMAGES)
+	${XZCMD} -k ${DESTDIR}/${OSRELEASE}-${I}
+. endif
 .endfor
 	cd ${DESTDIR} && sha256 ${OSRELEASE}* > ${DESTDIR}/CHECKSUM.SHA256
 	cd ${DESTDIR} && md5 ${OSRELEASE}* > ${DESTDIR}/CHECKSUM.MD5

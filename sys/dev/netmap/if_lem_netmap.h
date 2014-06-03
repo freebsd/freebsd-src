@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2011 Matteo Landi, Luigi Rizzo. All rights reserved.
+ * Copyright (C) 2011-2014 Matteo Landi, Luigi Rizzo. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -91,17 +91,13 @@ lem_netmap_txsync(struct netmap_adapter *na, u_int ring_nr, int flags)
 	struct netmap_ring *ring = kring->ring;
 	u_int nm_i;	/* index into the netmap ring */
 	u_int nic_i;	/* index into the NIC ring */
-	u_int n, new_slots;
 	u_int const lim = kring->nkr_num_slots - 1;
-	u_int const cur = nm_txsync_prologue(kring, &new_slots);
+	u_int const head = kring->rhead;
 	/* generate an interrupt approximately every half ring */
 	u_int report_frequency = kring->nkr_num_slots >> 1;
 
 	/* device-specific */
 	struct adapter *adapter = ifp->if_softc;
-
-	if (cur > lim)	/* error checking in nm_txsync_prologue() */
-		return netmap_ring_reinit(kring);
 
 	bus_dmamap_sync(adapter->txdma.dma_tag, adapter->txdma.dma_map,
 			BUS_DMASYNC_POSTREAD);
@@ -111,9 +107,9 @@ lem_netmap_txsync(struct netmap_adapter *na, u_int ring_nr, int flags)
 	 */
 
 	nm_i = kring->nr_hwcur;
-	if (nm_i != cur) {	/* we have new packets to send */
+	if (nm_i != head) {	/* we have new packets to send */
 		nic_i = netmap_idx_k2n(kring, nm_i);
-		for (n = 0; nm_i != cur; n++) {
+		while (nm_i != head) {
 			struct netmap_slot *slot = &ring->slot[nm_i];
 			u_int len = slot->len;
 			uint64_t paddr;
@@ -145,9 +141,7 @@ lem_netmap_txsync(struct netmap_adapter *na, u_int ring_nr, int flags)
 			nm_i = nm_next(nm_i, lim);
 			nic_i = nm_next(nic_i, lim);
 		}
-		kring->nr_hwcur = cur; /* the saved ring->cur */
-		/* decrease avail by # of packets sent minus previous ones */
-		kring->nr_hwavail -= new_slots;
+		kring->nr_hwcur = head;
 
 		 /* synchronize the NIC ring */
 		bus_dmamap_sync(adapter->txdma.dma_tag, adapter->txdma.dma_map,
@@ -160,26 +154,19 @@ lem_netmap_txsync(struct netmap_adapter *na, u_int ring_nr, int flags)
 	/*
 	 * Second part: reclaim buffers for completed transmissions.
 	 */
-	if (flags & NAF_FORCE_RECLAIM || kring->nr_hwavail < 1) {
-		int delta;
-
+	if (ticks != kring->last_reclaim || flags & NAF_FORCE_RECLAIM || nm_kr_txempty(kring)) {
+		kring->last_reclaim = ticks;
 		/* record completed transmissions using TDH */
 		nic_i = E1000_READ_REG(&adapter->hw, E1000_TDH(0));
 		if (nic_i >= kring->nkr_num_slots) { /* XXX can it happen ? */
 			D("TDH wrap %d", nic_i);
 			nic_i -= kring->nkr_num_slots;
 		}
-		delta = nic_i - adapter->next_tx_to_clean;
-		if (delta) {
-			/* some completed, increment hwavail. */
-			if (delta < 0)
-				delta += kring->nkr_num_slots;
-			adapter->next_tx_to_clean = nic_i;
-			kring->nr_hwavail += delta;
-		}
+		adapter->next_tx_to_clean = nic_i;
+		kring->nr_hwtail = nm_prev(netmap_idx_n2k(kring, nic_i), lim);
 	}
 
-	nm_txsync_finalize(kring, cur);
+	nm_txsync_finalize(kring);
 
 	return 0;
 }
@@ -196,15 +183,15 @@ lem_netmap_rxsync(struct netmap_adapter *na, u_int ring_nr, int flags)
 	struct netmap_ring *ring = kring->ring;
 	u_int nm_i;	/* index into the netmap ring */
 	u_int nic_i;	/* index into the NIC ring */
-	u_int n, resvd;
+	u_int n;
 	u_int const lim = kring->nkr_num_slots - 1;
-	u_int const cur = nm_rxsync_prologue(kring, &resvd); /* cur + res */
+	u_int const head = nm_rxsync_prologue(kring);
 	int force_update = (flags & NAF_FORCE_READ) || kring->nr_kflags & NKR_PENDINTR;
 
 	/* device-specific */
 	struct adapter *adapter = ifp->if_softc;
 
-	if (cur > lim)
+	if (head > lim)
 		return netmap_ring_reinit(kring);
 
 	/* XXX check sync modes */
@@ -241,9 +228,14 @@ lem_netmap_rxsync(struct netmap_adapter *na, u_int ring_nr, int flags)
 			nic_i = nm_next(nic_i, lim);
 		}
 		if (n) { /* update the state variables */
+			ND("%d new packets at nic %d nm %d tail %d",
+				n,
+				adapter->next_rx_desc_to_check,
+				netmap_idx_n2k(kring, adapter->next_rx_desc_to_check),
+				kring->nr_hwtail);
 			adapter->next_rx_desc_to_check = nic_i;
 			// ifp->if_ipackets += n;
-			kring->nr_hwavail += n;
+			kring->nr_hwtail = nm_i;
 		}
 		kring->nr_kflags &= ~NKR_PENDINTR;
 	}
@@ -252,9 +244,9 @@ lem_netmap_rxsync(struct netmap_adapter *na, u_int ring_nr, int flags)
 	 * Second part: skip past packets that userspace has released.
 	 */
 	nm_i = kring->nr_hwcur;
-	if (nm_i != cur) {
+	if (nm_i != head) {
 		nic_i = netmap_idx_k2n(kring, nm_i);
-		for (n = 0; nm_i != cur; n++) {
+		for (n = 0; nm_i != head; n++) {
 			struct netmap_slot *slot = &ring->slot[nm_i];
 			uint64_t paddr;
 			void *addr = PNMB(slot, &paddr);
@@ -277,20 +269,19 @@ lem_netmap_rxsync(struct netmap_adapter *na, u_int ring_nr, int flags)
 			nm_i = nm_next(nm_i, lim);
 			nic_i = nm_next(nic_i, lim);
 		}
-		kring->nr_hwavail -= n;
-		kring->nr_hwcur = cur;
+		kring->nr_hwcur = head;
 		bus_dmamap_sync(adapter->rxdma.dma_tag, adapter->rxdma.dma_map,
 		    BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
 		/*
 		 * IMPORTANT: we must leave one free slot in the ring,
 		 * so move nic_i back by one unit
 		 */
-		nic_i = (nic_i == 0) ? lim : nic_i - 1;
+		nic_i = nm_prev(nic_i, lim);
 		E1000_WRITE_REG(&adapter->hw, E1000_RDT(0), nic_i);
 	}
 
 	/* tell userspace that there might be new packets */
-	ring->avail = kring->nr_hwavail - resvd;
+	nm_rxsync_finalize(kring);
 
 	return 0;
 

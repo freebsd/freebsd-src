@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 12, 2013
+.Dd April 2, 2014
 .Dt BHYVE 8
 .Os
 .Sh NAME
@@ -32,12 +32,11 @@
 .Nd "run a guest operating system inside a virtual machine"
 .Sh SYNOPSIS
 .Nm
-.Op Fl aehwAHPW
+.Op Fl aehwxACHPW
 .Op Fl c Ar numcpus
 .Op Fl g Ar gdbport
-.Op Fl p Ar pinnedcpu
+.Op Fl p Ar vcpu:hostcpu
 .Op Fl s Ar slot,emulation Ns Op , Ns Ar conf
-.Op Fl S Ar slot,emulation Ns Op , Ns Ar conf
 .Op Fl l Ar lpcdev Ns Op , Ns Ar conf
 .Ar vmname
 .Sh DESCRIPTION
@@ -59,7 +58,10 @@ exit is detected.
 .Sh OPTIONS
 .Bl -tag -width 10n
 .It Fl a
-Disallow use of the local APIC in X2APIC mode.
+The guest's local APIC is configured in xAPIC mode.
+
+The xAPIC mode is the default setting so this option is redundant. It will be
+deprecated in a future version.
 .It Fl A
 Generate ACPI tables.
 Required for
@@ -68,6 +70,8 @@ guests.
 .It Fl c Ar numcpus
 Number of guest virtual CPUs.
 The default is 1 and the maximum is 16.
+.It Fl C
+Include guest memory in core file.
 .It Fl H
 Yield the virtual CPU thread when a HLT instruction is detected.
 If this option is not specified, virtual CPUs will use 100% of a host CPU.
@@ -78,12 +82,11 @@ For
 allow a remote kernel kgdb to be relayed to the guest kernel gdb stub
 via a local IPv4 address and this port.
 This option will be deprecated in a future version.
-.It Fl p Ar pinnedcpu
-Force guest virtual CPUs to be pinned to host CPUs.
-Virtual CPU
-.Em n
-is pinned to host CPU
-.Em pinnedcpu+n .
+.It Fl p Ar vcpu:hostcpu
+Pin guest's virtual CPU
+.Em vcpu
+to
+.Em hostcpu .
 .It Fl P
 Force the guest virtual CPU to exit when a PAUSE instruction is detected.
 .It Fl W
@@ -99,12 +102,17 @@ There are 32 available slots, with the option of providing up to 8 functions
 per slot.
 .Bl -tag -width 10n
 .It Ar slot
-.Ar pcislot Ns Op Ar :function
+.Ar pcislot[:function]
+
+.Ar bus:pcislot:function
 .Pp
 The
 .Ar pcislot
-value is 0 to 31 and the optional function value is 0 to 7.
+value is 0 to 31. The optional function value is 0 to 7. The optional
+.Ar bus
+value is 0 to 255.
 If not specified, the function value defaults to 0.
+If not specified, the bus value defaults to 0.
 .It Ar emulation
 .Bl -tag -width 10n
 .It Li hostbridge | Li amd_hostbridge
@@ -120,8 +128,10 @@ emulation is identical but uses a PCI vendor ID of
 PCI pass-through device.
 .It Li virtio-net
 Virtio network interface.
-.It Li virtio-block
+.It Li virtio-blk
 Virtio block storage interface.
+.It Li virtio-rnd
+Virtio RNG interface.
 .It Li ahci-cd
 AHCI controller attached to an ATAPI CD/DVD.
 .It Li ahci-hd
@@ -129,7 +139,8 @@ AHCI controller attached to a SATA hard-drive.
 .It Li uart
 PCI 16550 serial device.
 .It Li lpc
-LPC PCI-ISA bridge with COM1 and COM2 16550 serial ports.
+LPC PCI-ISA bridge with COM1 and COM2 16550 serial ports. The LPC bridge
+emulation can only be configured on bus 0.
 .El
 .It Op Ar conf
 This optional parameter describes the backend for device emulations.
@@ -202,13 +213,6 @@ The host device must have been reserved at boot-time using the
 loader variable as described in
 .Xr vmm 4 .
 .El
-.It Fl S Ar slot , Ns Ar emulation Ns Op , Ns Ar conf
-Identical to the -s option except the device is instructed to use legacy
-ISA addresses if possible.
-Currently this only has an effect with the
-.Li uart
-device emulation.
-This option will be deprecated in a future version.
 .It Fl l Ar lpcdev Ns Op , Ns Ar conf
 Allow devices behind the LPC PCI-ISA bridge to be configured.
 The only supported devices are the TTY-class devices,
@@ -229,8 +233,12 @@ Force
 .Nm
 to exit when a guest issues an access to an I/O port that is not emulated.
 This is intended for debug purposes.
-.It Fl w 
+.It Fl w
 Ignore accesses to unimplemented Model Specific Registers (MSRs). This is intended for debug purposes.
+.It Fl x
+The guest's local APIC is configured in x2APIC mode.
+.It Fl Y
+Disable MPtable generation.
 .It Fl h
 Print help message and exit.
 .It Ar vmname

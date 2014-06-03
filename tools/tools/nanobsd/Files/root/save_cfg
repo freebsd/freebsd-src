@@ -1,6 +1,7 @@
 #!/bin/sh
 #
 # Copyright (c) 2006 Mathieu Arnold
+# Copyright (c) 2010 Alex Bakhtin
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,11 +33,86 @@ set -e
 trap "umount /cfg" 1 2 15 EXIT
 mount /cfg
 (
-cd /cfg
-for i in "$@" `find * -type f`
+cd /etc
+for filename in "$@" `find * -type f`
 do
-        cmp -s /etc/$i /cfg/$i || cp -pfv /etc/$i /cfg/$i
+	if [ ! -f /cfg/$filename -a ! -f /cfg/.ignore/$filename ]
+	then
+
+		#
+		# If file doesn't exist in /cfg and file is not in the 'ignore' list
+		# then check if this file is exactly the same as original file
+		# in nanobsd image
+		#
+		if ! cmp -s /etc/$filename /conf/base/etc/$filename 
+		then
+			file_path=`echo "$filename" | sed 's/\/[^/]*$//'`
+			if [ $file_path != $filename ]
+			then
+				if [ ! -d /etc/$file_path ]
+				then
+					# should never go here unless we have some errors in
+					# sed script extracting file path
+					echo "Error: Path /etc/$file_path is not directory."
+					exit 1;
+				fi
+			fi
+
+			#
+			# Ask user - how should we handle this file.
+			# Add to cfg (y/n/i)?
+			#	y) -> save this file in /cfg
+			#	n) -> do not save this file in /cfg for current script invocation ONLY
+			#	i) -> add file to ignore list (/cfg/.ignore hiereachy) and never save
+			#	      try to add this file to /cfg.
+			#
+			# touch is ised to add files to /cfg to keep the script flow straight and easy
+			#
+			read -p "New file /etc/$filename found. Add to /cfg (y/n/i)? " key
+			case "$key" in
+			[yY])
+				if [ $file_path != $filename ]
+				then
+					mkdir -vp /cfg/$file_path
+				fi
+				touch /cfg/$filename && echo "File /etc/$filename added to /cfg."
+				;;
+			[iI])
+				mkdir -vp /cfg/.ignore
+				if [ $file_path != $filename ]
+				then
+					mkdir -vp /cfg/.ignore/$file_path
+				fi
+				touch /cfg/.ignore/$filename && echo "File /etc/$filename added to ignore list."
+				;;
+			esac
+		fi
+	fi
 done
+
+#
+# Actually check all files in /cfg and save if necessary
+#
+cd /cfg
+for filename in "$@" `find * -type f`
+do
+	if [ -f /etc/$filename ]
+	then
+        	cmp -s /etc/$filename /cfg/$filename || cp -pfv /etc/$filename /cfg/$filename
+	else
+
+		#
+		# Give user an option to remove file from /cfg if this file is removed from /etc
+		#
+		read -p "File /cfg/$filename not found in /etc. Remove from /cfg (y/n)? " key
+		case "$key" in
+		[yY])
+			rm /cfg/$filename && echo "File /cfg/$filename removed"
+			;;
+		esac
+	fi
+done
+
 )
 umount /cfg
 trap 1 2 15 EXIT

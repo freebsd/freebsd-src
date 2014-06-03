@@ -53,13 +53,8 @@ namespace {
     static char ID;
     explicit Emitter(X86TargetMachine &tm, CodeEmitter &mce)
       : MachineFunctionPass(ID), II(0), TD(0), TM(tm),
-      MCE(mce), PICBaseOffset(0), Is64BitMode(false),
-      IsPIC(TM.getRelocationModel() == Reloc::PIC_) {}
-    Emitter(X86TargetMachine &tm, CodeEmitter &mce,
-            const X86InstrInfo &ii, const DataLayout &td, bool is64)
-      : MachineFunctionPass(ID), II(&ii), TD(&td), TM(tm),
-      MCE(mce), PICBaseOffset(0), Is64BitMode(is64),
-      IsPIC(TM.getRelocationModel() == Reloc::PIC_) {}
+        MCE(mce), PICBaseOffset(0), Is64BitMode(false),
+        IsPIC(TM.getRelocationModel() == Reloc::PIC_) {}
 
     bool runOnMachineFunction(MachineFunction &MF);
 
@@ -845,7 +840,7 @@ void Emitter<CodeEmitter>::emitVEXOpcodePrefix(uint64_t TSFlags,
   unsigned char VEX_W = 0;
 
   // XOP: Use XOP prefix byte 0x8f instead of VEX.
-  unsigned char XOP = 0;
+  bool XOP = false;
 
   // VEX_5M (VEX m-mmmmm field):
   //
@@ -855,7 +850,8 @@ void Emitter<CodeEmitter>::emitVEXOpcodePrefix(uint64_t TSFlags,
   //  0b00011: implied 0F 3A leading opcode bytes
   //  0b00100-0b11111: Reserved for future use
   //  0b01000: XOP map select - 08h instructions with imm byte
-  //  0b10001: XOP map select - 09h instructions with no imm byte
+  //  0b01001: XOP map select - 09h instructions with no imm byte
+  //  0b01010: XOP map select - 0Ah instructions with imm dword
   unsigned char VEX_5M = 0x1;
 
   // VEX_4V (VEX vvvv field): a register specifier
@@ -887,7 +883,7 @@ void Emitter<CodeEmitter>::emitVEXOpcodePrefix(uint64_t TSFlags,
     VEX_W = 1;
 
   if ((TSFlags >> X86II::VEXShift) & X86II::XOP)
-    XOP = 1;
+    XOP = true;
 
   if ((TSFlags >> X86II::VEXShift) & X86II::VEX_L)
     VEX_L = 1;
@@ -924,11 +920,11 @@ void Emitter<CodeEmitter>::emitVEXOpcodePrefix(uint64_t TSFlags,
     case X86II::XOP9:
       VEX_5M = 0x9;
       break;
-    case X86II::A6:  // Bypass: Not used by VEX
-    case X86II::A7:  // Bypass: Not used by VEX
-    case X86II::TB:  // Bypass: Not used by VEX
-    case 0:
-      break;  // No prefix!
+    case X86II::XOPA:
+      VEX_5M = 0xA;
+      break;
+    case X86II::TB: // VEX_5M/VEX_PP already correct
+      break;
   }
 
 
@@ -987,11 +983,14 @@ void Emitter<CodeEmitter>::emitVEXOpcodePrefix(uint64_t TSFlags,
       //  FMA4:
       //  dst(ModR/M.reg), src1(VEX_4V), src2(ModR/M), src3(VEX_I8IMM)
       //  dst(ModR/M.reg), src1(VEX_4V), src2(VEX_I8IMM), src3(ModR/M),
-      if (X86II::isX86_64ExtendedReg(MI.getOperand(0).getReg()))
+      if (X86II::isX86_64ExtendedReg(MI.getOperand(CurOp).getReg()))
         VEX_R = 0x0;
+      CurOp++;
 
-      if (HasVEX_4V)
-        VEX_4V = getVEXRegisterEncoding(MI, 1);
+      if (HasVEX_4V) {
+        VEX_4V = getVEXRegisterEncoding(MI, CurOp);
+        CurOp++;
+      }
 
       if (X86II::isX86_64ExtendedReg(
                           MI.getOperand(MemOperand+X86::AddrBaseReg).getReg()))
@@ -1001,7 +1000,7 @@ void Emitter<CodeEmitter>::emitVEXOpcodePrefix(uint64_t TSFlags,
         VEX_X = 0x0;
 
       if (HasVEX_4VOp3)
-        VEX_4V = getVEXRegisterEncoding(MI, X86::AddrNumOperands+1);
+        VEX_4V = getVEXRegisterEncoding(MI, CurOp+X86::AddrNumOperands);
       break;
     case X86II::MRM0m: case X86II::MRM1m:
     case X86II::MRM2m: case X86II::MRM3m:
@@ -1011,7 +1010,7 @@ void Emitter<CodeEmitter>::emitVEXOpcodePrefix(uint64_t TSFlags,
       //  MemAddr
       //  src1(VEX_4V), MemAddr
       if (HasVEX_4V)
-        VEX_4V = getVEXRegisterEncoding(MI, 0);
+        VEX_4V = getVEXRegisterEncoding(MI, CurOp++);
 
       if (X86II::isX86_64ExtendedReg(
                           MI.getOperand(MemOperand+X86::AddrBaseReg).getReg()))
@@ -1064,8 +1063,10 @@ void Emitter<CodeEmitter>::emitVEXOpcodePrefix(uint64_t TSFlags,
     case X86II::MRM6r: case X86II::MRM7r:
       // MRM0r-MRM7r instructions forms:
       //  dst(VEX_4V), src(ModR/M), imm8
-      VEX_4V = getVEXRegisterEncoding(MI, 0);
-      if (X86II::isX86_64ExtendedReg(MI.getOperand(1).getReg()))
+      VEX_4V = getVEXRegisterEncoding(MI, CurOp);
+      CurOp++;
+
+      if (X86II::isX86_64ExtendedReg(MI.getOperand(CurOp).getReg()))
         VEX_B = 0x0;
       break;
     default: // RawFrm
@@ -1270,7 +1271,7 @@ void Emitter<CodeEmitter>::emitInstruction(MachineInstr &MI,
 
     unsigned rt = Is64BitMode ? X86::reloc_pcrel_word
       : (IsPIC ? X86::reloc_picrel_word : X86::reloc_absolute_word);
-    if (Opcode == X86::MOV64ri64i32)
+    if (Opcode == X86::MOV32ri64)
       rt = X86::reloc_absolute_word;  // FIXME: add X86II flag?
     // This should not occur on Darwin for relocatable objects.
     if (Opcode == X86::MOV64ri)

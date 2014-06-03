@@ -21,7 +21,7 @@
 
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2013 by Delphix. All rights reserved.
+ * Copyright (c) 2011, 2014 by Delphix. All rights reserved.
  * Copyright 2013 Nexenta Systems, Inc.  All rights reserved.
  * Copyright (c) 2013 Martin Matuska <mm@FreeBSD.org>. All rights reserved.
  */
@@ -138,7 +138,7 @@ static const char *const zio_taskq_types[ZIO_TASKQ_TYPES] = {
 const zio_taskq_info_t zio_taskqs[ZIO_TYPES][ZIO_TASKQ_TYPES] = {
 	/* ISSUE	ISSUE_HIGH	INTR		INTR_HIGH */
 	{ ZTI_ONE,	ZTI_NULL,	ZTI_ONE,	ZTI_NULL }, /* NULL */
-	{ ZTI_N(8),	ZTI_NULL,	ZTI_BATCH,	ZTI_NULL }, /* READ */
+	{ ZTI_N(8),	ZTI_NULL,	ZTI_P(12, 8),	ZTI_NULL }, /* READ */
 	{ ZTI_BATCH,	ZTI_N(5),	ZTI_N(8),	ZTI_N(5) }, /* WRITE */
 	{ ZTI_P(12, 8),	ZTI_NULL,	ZTI_ONE,	ZTI_NULL }, /* FREE */
 	{ ZTI_ONE,	ZTI_NULL,	ZTI_ONE,	ZTI_NULL }, /* CLAIM */
@@ -1594,7 +1594,9 @@ load_nvlist(spa_t *spa, uint64_t obj, nvlist_t **value)
 	int error;
 	*value = NULL;
 
-	VERIFY(0 == dmu_bonus_hold(spa->spa_meta_objset, obj, FTAG, &db));
+	error = dmu_bonus_hold(spa->spa_meta_objset, obj, FTAG, &db);
+	if (error != 0)
+		return (error);
 	nvsize = *(uint64_t *)db->db_data;
 	dmu_buf_rele(db, FTAG);
 
@@ -1877,7 +1879,7 @@ static int
 spa_load_verify_cb(spa_t *spa, zilog_t *zilog, const blkptr_t *bp,
     const zbookmark_t *zb, const dnode_phys_t *dnp, void *arg)
 {
-	if (bp != NULL) {
+	if (!BP_IS_HOLE(bp)) {
 		zio_t *rio = arg;
 		size_t size = BP_GET_PSIZE(bp);
 		void *data = zio_data_buf_alloc(size);
@@ -2350,14 +2352,12 @@ spa_load_impl(spa_t *spa, uint64_t pool_guid, nvlist_t *config,
 		enabled_feat = fnvlist_alloc();
 		unsup_feat = fnvlist_alloc();
 
-		if (!feature_is_supported(spa->spa_meta_objset,
-		    spa->spa_feat_for_read_obj, spa->spa_feat_desc_obj,
+		if (!spa_features_check(spa, B_FALSE,
 		    unsup_feat, enabled_feat))
 			missing_feat_read = B_TRUE;
 
 		if (spa_writeable(spa) || state == SPA_LOAD_TRYIMPORT) {
-			if (!feature_is_supported(spa->spa_meta_objset,
-			    spa->spa_feat_for_write_obj, spa->spa_feat_desc_obj,
+			if (!spa_features_check(spa, B_TRUE,
 			    unsup_feat, enabled_feat)) {
 				missing_feat_write = B_TRUE;
 			}
@@ -2402,6 +2402,33 @@ spa_load_impl(spa_t *spa, uint64_t pool_guid, nvlist_t *config,
 		    spa_writeable(spa))) {
 			return (spa_vdev_err(rvd, VDEV_AUX_UNSUP_FEAT,
 			    ENOTSUP));
+		}
+
+		/*
+		 * Load refcounts for ZFS features from disk into an in-memory
+		 * cache during SPA initialization.
+		 */
+		for (spa_feature_t i = 0; i < SPA_FEATURES; i++) {
+			uint64_t refcount;
+
+			error = feature_get_refcount_from_disk(spa,
+			    &spa_feature_table[i], &refcount);
+			if (error == 0) {
+				spa->spa_feat_refcount_cache[i] = refcount;
+			} else if (error == ENOTSUP) {
+				spa->spa_feat_refcount_cache[i] =
+				    SPA_FEATURE_DISABLED;
+			} else {
+				return (spa_vdev_err(rvd,
+				    VDEV_AUX_CORRUPT_DATA, EIO));
+			}
+		}
+	}
+
+	if (spa_feature_is_active(spa, SPA_FEATURE_ENABLED_TXG)) {
+		if (spa_dir_prop(spa, DMU_POOL_FEATURE_ENABLED_TXG,
+		    &spa->spa_feat_enabled_txg_obj) != 0) {
+			return (spa_vdev_err(rvd, VDEV_AUX_CORRUPT_DATA, EIO));
 		}
 	}
 
@@ -4103,8 +4130,6 @@ spa_import(const char *pool, nvlist_t *config, nvlist_t *props, uint64_t flags)
 		spa_config_sync(spa, B_FALSE, B_TRUE);
 
 		mutex_exit(&spa_namespace_lock);
-		spa_history_log_version(spa, "import");
-
 		return (0);
 	}
 
@@ -6098,7 +6123,7 @@ spa_sync_nvlist(spa_t *spa, uint64_t obj, nvlist_t *nv, dmu_tx_t *tx)
 
 	/*
 	 * Write full (SPA_CONFIG_BLOCKSIZE) blocks of configuration
-	 * information.  This avoids the dbuf_will_dirty() path and
+	 * information.  This avoids the dmu_buf_will_dirty() path and
 	 * saves us a pre-read to get data we don't actually care about.
 	 */
 	bufsize = P2ROUNDUP((uint64_t)nvsize, SPA_CONFIG_BLOCKSIZE);
@@ -6233,7 +6258,7 @@ spa_sync_props(void *arg, dmu_tx_t *tx)
 		zpool_prop_t prop;
 		const char *propname;
 		zprop_type_t proptype;
-		zfeature_info_t *feature;
+		spa_feature_t fid;
 
 		switch (prop = zpool_name_to_prop(nvpair_name(elem))) {
 		case ZPROP_INVAL:
@@ -6243,9 +6268,9 @@ spa_sync_props(void *arg, dmu_tx_t *tx)
 			ASSERT(zpool_prop_feature(nvpair_name(elem)));
 
 			fname = strchr(nvpair_name(elem), '@') + 1;
-			VERIFY0(zfeature_lookup_name(fname, &feature));
+			VERIFY0(zfeature_lookup_name(fname, &fid));
 
-			spa_feature_enable(spa, feature, tx);
+			spa_feature_enable(spa, fid, tx);
 			spa_history_log_internal(spa, "set", tx,
 			    "%s=enabled", nvpair_name(elem));
 			break;

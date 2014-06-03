@@ -95,6 +95,13 @@ enum sata_fis_type {
 #define	MODEPAGE_CD_CAPABILITIES	0x2A
 
 /*
+ * ATA commands
+ */
+#define	ATA_SF_ENAB_SATA_SF		0x10
+#define		ATA_SATA_SF_AN		0x05
+#define	ATA_SF_DIS_SATA_SF		0x90
+
+/*
  * Debug printf
  */
 #ifdef AHCI_DEBUG
@@ -127,6 +134,7 @@ struct ahci_port {
 	uint8_t xfermode;
 	uint8_t sense_key;
 	uint8_t asc;
+	uint32_t pending;
 
 	uint32_t clb;
 	uint32_t clbu;
@@ -184,6 +192,7 @@ struct pci_ahci_softc {
 	uint32_t em_ctl;
 	uint32_t cap2;
 	uint32_t bohc;
+	uint32_t lintr;
 	struct ahci_port port[MAX_PORTS];
 };
 #define	ahci_ctx(sc)	((sc)->asc_pi->pi_vmctx)
@@ -203,7 +212,10 @@ static inline void lba_to_msf(uint8_t *buf, int lba)
 static void
 ahci_generate_intr(struct pci_ahci_softc *sc)
 {
+	struct pci_devinst *pi;
 	int i;
+
+	pi = sc->asc_pi;
 
 	for (i = 0; i < sc->ports; i++) {
 		struct ahci_port *pr;
@@ -214,8 +226,28 @@ ahci_generate_intr(struct pci_ahci_softc *sc)
 
 	DPRINTF("%s %x\n", __func__, sc->is);
 
-	if (sc->is && (sc->ghc & AHCI_GHC_IE))
-		pci_generate_msi(sc->asc_pi, 0);
+	if (sc->is && (sc->ghc & AHCI_GHC_IE)) {		
+		if (pci_msi_enabled(pi)) {
+			/*
+			 * Generate an MSI interrupt on every edge
+			 */
+			pci_generate_msi(pi, 0);
+		} else if (!sc->lintr) {
+			/*
+			 * Only generate a pin-based interrupt if one wasn't
+			 * in progress
+			 */
+			sc->lintr = 1;
+			pci_lintr_assert(pi);
+		}
+	} else if (sc->lintr) {
+		/*
+		 * No interrupts: deassert pin-based signal if it had
+		 * been asserted
+		 */
+		pci_lintr_deassert(pi);
+		sc->lintr = 0;
+	}
 }
 
 static void
@@ -251,6 +283,16 @@ ahci_write_fis(struct ahci_port *p, enum sata_fis_type ft, uint8_t *fis)
 		p->is |= irq;
 		ahci_generate_intr(p->pr_sc);
 	}
+}
+
+static void
+ahci_write_fis_piosetup(struct ahci_port *p)
+{
+	uint8_t fis[20];
+
+	memset(fis, 0, sizeof(fis));
+	fis[0] = FIS_TYPE_PIOSETUP;
+	ahci_write_fis(p, FIS_TYPE_PIOSETUP, fis);
 }
 
 static void
@@ -349,6 +391,12 @@ ahci_reset(struct pci_ahci_softc *sc)
 
 	sc->ghc = AHCI_GHC_AE;
 	sc->is = 0;
+
+	if (sc->lintr) {
+		pci_lintr_deassert(sc->asc_pi);
+		sc->lintr = 0;
+	}
+
 	for (i = 0; i < sc->ports; i++) {
 		sc->port[i].ie = 0;
 		sc->port[i].is = 0;
@@ -454,6 +502,10 @@ ahci_handle_dma(struct ahci_port *p, int slot, uint8_t *cfis, uint32_t done,
 	if (iovcnt > BLOCKIF_IOV_MAX) {
 		aior->prdtl = iovcnt - BLOCKIF_IOV_MAX;
 		iovcnt = BLOCKIF_IOV_MAX;
+		/*
+		 * Mark this command in-flight.
+		 */
+		p->pending |= 1 << slot;
 	} else
 		aior->prdtl = 0;
 	breq->br_iovcnt = iovcnt;
@@ -477,7 +529,7 @@ ahci_handle_dma(struct ahci_port *p, int slot, uint8_t *cfis, uint32_t done,
 		err = blockif_write(p->bctx, breq);
 	assert(err == 0);
 
-	if (!aior->prdtl && ncq)
+	if (ncq)
 		p->ci &= ~(1 << slot);
 }
 
@@ -497,6 +549,8 @@ ahci_handle_flush(struct ahci_port *p, int slot, uint8_t *cfis)
 	aior->cfis = cfis;
 	aior->slot = slot;
 	aior->len = 0;
+	aior->done = 0;
+	aior->prdtl = 0;
 	breq = &aior->io_req;
 
 	err = blockif_flush(p->bctx, breq);
@@ -519,12 +573,14 @@ write_prdt(struct ahci_port *p, int slot, uint8_t *cfis,
 	for (i = 0; i < hdr->prdtl && len; i++) {
 		uint8_t *ptr;
 		uint32_t dbcsz;
+		int sublen;
 
 		dbcsz = (prdt->dbc & DBCMASK) + 1;
 		ptr = paddr_guest2host(ahci_ctx(p->pr_sc), prdt->dba, dbcsz);
-		memcpy(ptr, from, dbcsz);
-		len -= dbcsz;
-		from += dbcsz;
+		sublen = len < dbcsz ? len : dbcsz;
+		memcpy(ptr, from, sublen);
+		len -= sublen;
+		from += sublen;
 		prdt++;
 	}
 	hdr->prdbc = size - len;
@@ -585,6 +641,7 @@ handle_identify(struct ahci_port *p, int slot, uint8_t *cfis)
 		buf[101] = (sectors >> 16);
 		buf[102] = (sectors >> 32);
 		buf[103] = (sectors >> 48);
+		ahci_write_fis_piosetup(p);
 		write_prdt(p, slot, cfis, (void *)buf, sizeof(buf));
 		p->tfd = ATA_S_DSC | ATA_S_READY;
 		p->is |= AHCI_P_IX_DP;
@@ -627,6 +684,7 @@ handle_atapi_identify(struct ahci_port *p, int slot, uint8_t *cfis)
 		buf[85] = (1 << 4);
 		buf[87] = (1 << 14);
 		buf[88] = (1 << 14 | 0x7f);
+		ahci_write_fis_piosetup(p);
 		write_prdt(p, slot, cfis, (void *)buf, sizeof(buf));
 		p->tfd = ATA_S_DSC | ATA_S_READY;
 		p->is |= AHCI_P_IX_DHR;
@@ -1155,6 +1213,17 @@ ahci_handle_cmd(struct ahci_port *p, int slot, uint8_t *cfis)
 	case ATA_SETFEATURES:
 	{
 		switch (cfis[3]) {
+		case ATA_SF_ENAB_SATA_SF:
+			switch (cfis[12]) {
+			case ATA_SATA_SF_AN:
+				p->tfd = ATA_S_DSC | ATA_S_READY;
+				break;
+			default:
+				p->tfd = ATA_S_ERROR | ATA_S_READY;
+				p->tfd |= (ATA_ERROR_ABORT << 8);
+				break;
+			}
+			break;
 		case ATA_SF_ENAB_WCACHE:
 		case ATA_SF_DIS_WCACHE:
 		case ATA_SF_ENAB_RCACHE:
@@ -1180,9 +1249,7 @@ ahci_handle_cmd(struct ahci_port *p, int slot, uint8_t *cfis)
 			p->tfd |= (ATA_ERROR_ABORT << 8);
 			break;
 		}
-		p->is |= AHCI_P_IX_DP;
-		p->ci &= ~(1 << slot);
-		ahci_generate_intr(p->pr_sc);
+		ahci_write_fis_d2h(p, slot, cfis, p->tfd);
 		break;
 	}
 	case ATA_SET_MULTI:
@@ -1297,8 +1364,12 @@ ahci_handle_port(struct ahci_port *p)
 	if (!(p->cmd & AHCI_P_CMD_ST))
 		return;
 
+	/*
+	 * Search for any new commands to issue ignoring those that
+	 * are already in-flight.
+	 */
 	for (i = 0; (i < 32) && p->ci; i++) {
-		if (p->ci & (1 << i))
+		if ((p->ci & (1 << i)) && !(p->pending & (1 << i)))
 			ahci_handle_slot(p, i);
 	}
 }
@@ -1358,6 +1429,11 @@ ata_ioreq_cb(struct blockif_req *br, int err)
 		if (ncq)
 			p->serr |= (1 << slot);
 	}
+
+	/*
+	 * This command is now complete.
+	 */
+	p->pending &= ~(1 << slot);
 
 	if (ncq) {
 		p->sact &= ~(1 << slot);
@@ -1710,8 +1786,7 @@ pci_ahci_init(struct vmctx *ctx, struct pci_devinst *pi, char *opts, int atapi)
 	dbg = fopen("/tmp/log", "w+");
 #endif
 
-       	sc = malloc(sizeof(struct pci_ahci_softc));
-	memset(sc, 0, sizeof(struct pci_ahci_softc));
+	sc = calloc(1, sizeof(struct pci_ahci_softc));
 	pi->pi_arg = sc;
 	sc->asc_pi = pi;
 	sc->ports = MAX_PORTS;
@@ -1768,6 +1843,8 @@ pci_ahci_init(struct vmctx *ctx, struct pci_devinst *pi, char *opts, int atapi)
 	pci_emul_add_msicap(pi, 1);
 	pci_emul_alloc_bar(pi, 5, PCIBAR_MEM32,
 	    AHCI_OFFSET + sc->ports * AHCI_STEP);
+
+	pci_lintr_request(pi);
 
 open_fail:
 	if (ret) {

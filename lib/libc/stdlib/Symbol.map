@@ -104,6 +104,13 @@ FBSD_1.3 {
 	strtouq_l;
 };
 
+FBSD_1.4 {
+	atexit_b;
+	heapsort_b;
+	mergesort_b;
+	qsort_b;
+};
+
 FBSDprivate_1.0 {
 	__system;
 	_system;

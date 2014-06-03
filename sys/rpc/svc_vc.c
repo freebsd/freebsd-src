@@ -76,10 +76,11 @@ static void svc_vc_rendezvous_destroy(SVCXPRT *);
 static bool_t svc_vc_null(void);
 static void svc_vc_destroy(SVCXPRT *);
 static enum xprt_stat svc_vc_stat(SVCXPRT *);
+static bool_t svc_vc_ack(SVCXPRT *, uint32_t *);
 static bool_t svc_vc_recv(SVCXPRT *, struct rpc_msg *,
     struct sockaddr **, struct mbuf **);
 static bool_t svc_vc_reply(SVCXPRT *, struct rpc_msg *,
-    struct sockaddr *, struct mbuf *);
+    struct sockaddr *, struct mbuf *, uint32_t *seq);
 static bool_t svc_vc_control(SVCXPRT *xprt, const u_int rq, void *in);
 static bool_t svc_vc_rendezvous_control (SVCXPRT *xprt, const u_int rq,
     void *in);
@@ -88,7 +89,7 @@ static enum xprt_stat svc_vc_backchannel_stat(SVCXPRT *);
 static bool_t svc_vc_backchannel_recv(SVCXPRT *, struct rpc_msg *,
     struct sockaddr **, struct mbuf **);
 static bool_t svc_vc_backchannel_reply(SVCXPRT *, struct rpc_msg *,
-    struct sockaddr *, struct mbuf *);
+    struct sockaddr *, struct mbuf *, uint32_t *);
 static bool_t svc_vc_backchannel_control(SVCXPRT *xprt, const u_int rq,
     void *in);
 static SVCXPRT *svc_vc_create_conn(SVCPOOL *pool, struct socket *so,
@@ -100,7 +101,7 @@ static struct xp_ops svc_vc_rendezvous_ops = {
 	.xp_recv =	svc_vc_rendezvous_recv,
 	.xp_stat =	svc_vc_rendezvous_stat,
 	.xp_reply =	(bool_t (*)(SVCXPRT *, struct rpc_msg *,
-		struct sockaddr *, struct mbuf *))svc_vc_null,
+		struct sockaddr *, struct mbuf *, uint32_t *))svc_vc_null,
 	.xp_destroy =	svc_vc_rendezvous_destroy,
 	.xp_control =	svc_vc_rendezvous_control
 };
@@ -108,6 +109,7 @@ static struct xp_ops svc_vc_rendezvous_ops = {
 static struct xp_ops svc_vc_ops = {
 	.xp_recv =	svc_vc_recv,
 	.xp_stat =	svc_vc_stat,
+	.xp_ack =	svc_vc_ack,
 	.xp_reply =	svc_vc_reply,
 	.xp_destroy =	svc_vc_destroy,
 	.xp_control =	svc_vc_control
@@ -184,8 +186,10 @@ svc_vc_create(SVCPOOL *pool, struct socket *so, size_t sendsize,
 
 	return (xprt);
 cleanup_svc_vc_create:
-	if (xprt)
+	if (xprt) {
+		sx_destroy(&xprt->xp_lock);
 		svc_xprt_free(xprt);
+	}
 	return (NULL);
 }
 
@@ -270,7 +274,8 @@ svc_vc_create_conn(SVCPOOL *pool, struct socket *so, struct sockaddr *raddr)
 	return (xprt);
 cleanup_svc_vc_create:
 	if (xprt) {
-		mem_free(xprt, sizeof(*xprt));
+		sx_destroy(&xprt->xp_lock);
+		svc_xprt_free(xprt);
 	}
 	if (cd)
 		mem_free(cd, sizeof(*cd));
@@ -385,7 +390,7 @@ svc_vc_rendezvous_recv(SVCXPRT *xprt, struct rpc_msg *msg,
 		 */
 		ACCEPT_LOCK();
 		if (TAILQ_EMPTY(&xprt->xp_socket->so_comp))
-			xprt_inactive(xprt);
+			xprt_inactive_self(xprt);
 		ACCEPT_UNLOCK();
 		sx_xunlock(&xprt->xp_lock);
 		return (FALSE);
@@ -398,7 +403,7 @@ svc_vc_rendezvous_recv(SVCXPRT *xprt, struct rpc_msg *msg,
 			soupcall_clear(xprt->xp_socket, SO_RCV);
 		}
 		SOCKBUF_UNLOCK(&xprt->xp_socket->so_rcv);
-		xprt_inactive(xprt);
+		xprt_inactive_self(xprt);
 		sx_xunlock(&xprt->xp_lock);
 		return (FALSE);
 	}
@@ -451,7 +456,6 @@ svc_vc_destroy_common(SVCXPRT *xprt)
 	}
 	SOCKBUF_UNLOCK(&xprt->xp_socket->so_rcv);
 
-	sx_destroy(&xprt->xp_lock);
 	if (xprt->xp_socket)
 		(void)soclose(xprt->xp_socket);
 
@@ -537,6 +541,15 @@ svc_vc_stat(SVCXPRT *xprt)
 	return (XPRT_IDLE);
 }
 
+static bool_t
+svc_vc_ack(SVCXPRT *xprt, uint32_t *ack)
+{
+
+	*ack = atomic_load_acq_32(&xprt->xp_snt_cnt);
+	*ack -= xprt->xp_socket->so_snd.sb_cc;
+	return (TRUE);
+}
+
 static enum xprt_stat
 svc_vc_backchannel_stat(SVCXPRT *xprt)
 {
@@ -555,7 +568,7 @@ svc_vc_backchannel_stat(SVCXPRT *xprt)
  * leaving the result in cd->mreq. If we don't have a complete record, leave
  * the partial result in cd->mreq and try to read more from the socket.
  */
-static void
+static int
 svc_vc_process_pending(SVCXPRT *xprt)
 {
 	struct cf_conn *cd = (struct cf_conn *) xprt->xp_p1;
@@ -584,7 +597,7 @@ svc_vc_process_pending(SVCXPRT *xprt)
 		}
 		if (n < sizeof(uint32_t)) {
 			so->so_rcv.sb_lowat = sizeof(uint32_t) - n;
-			return;
+			return (FALSE);
 		}
 		m_copydata(cd->mpending, 0, sizeof(header),
 		    (char *)&header);
@@ -619,7 +632,16 @@ svc_vc_process_pending(SVCXPRT *xprt)
 		}
 	}
 
-	so->so_rcv.sb_lowat = imax(1, imin(cd->resid, so->so_rcv.sb_hiwat / 2));
+	/*
+	 * Block receive upcalls if we have more data pending,
+	 * otherwise report our need.
+	 */
+	if (cd->mpending)
+		so->so_rcv.sb_lowat = INT_MAX;
+	else
+		so->so_rcv.sb_lowat =
+		    imax(1, imin(cd->resid, so->so_rcv.sb_hiwat / 2));
+	return (TRUE);
 }
 
 static bool_t
@@ -642,8 +664,10 @@ svc_vc_recv(SVCXPRT *xprt, struct rpc_msg *msg,
 	for (;;) {
 		/* If we have no request ready, check pending queue. */
 		while (cd->mpending &&
-		    (cd->mreq == NULL || cd->resid != 0 || !cd->eor))
-			svc_vc_process_pending(xprt);
+		    (cd->mreq == NULL || cd->resid != 0 || !cd->eor)) {
+			if (!svc_vc_process_pending(xprt))
+				break;
+		}
 
 		/* Process and return complete request in cd->mreq. */
 		if (cd->mreq != NULL && cd->resid == 0 && cd->eor) {
@@ -656,7 +680,7 @@ svc_vc_recv(SVCXPRT *xprt, struct rpc_msg *msg,
 			if (cd->mreq == NULL || cd->resid != 0) {
 				SOCKBUF_LOCK(&so->so_rcv);
 				if (!soreadable(so))
-					xprt_inactive(xprt);
+					xprt_inactive_self(xprt);
 				SOCKBUF_UNLOCK(&so->so_rcv);
 			}
 
@@ -698,7 +722,7 @@ svc_vc_recv(SVCXPRT *xprt, struct rpc_msg *msg,
 			 */
 			SOCKBUF_LOCK(&so->so_rcv);
 			if (!soreadable(so))
-				xprt_inactive(xprt);
+				xprt_inactive_self(xprt);
 			SOCKBUF_UNLOCK(&so->so_rcv);
 			sx_xunlock(&xprt->xp_lock);
 			return (FALSE);
@@ -711,7 +735,7 @@ svc_vc_recv(SVCXPRT *xprt, struct rpc_msg *msg,
 				soupcall_clear(so, SO_RCV);
 			}
 			SOCKBUF_UNLOCK(&so->so_rcv);
-			xprt_inactive(xprt);
+			xprt_inactive_self(xprt);
 			cd->strm_stat = XPRT_DIED;
 			sx_xunlock(&xprt->xp_lock);
 			return (FALSE);
@@ -721,7 +745,7 @@ svc_vc_recv(SVCXPRT *xprt, struct rpc_msg *msg,
 			/*
 			 * EOF - the other end has closed the socket.
 			 */
-			xprt_inactive(xprt);
+			xprt_inactive_self(xprt);
 			cd->strm_stat = XPRT_DIED;
 			sx_xunlock(&xprt->xp_lock);
 			return (FALSE);
@@ -752,7 +776,7 @@ svc_vc_backchannel_recv(SVCXPRT *xprt, struct rpc_msg *msg,
 	mtx_lock(&ct->ct_lock);
 	m = cd->mreq;
 	if (m == NULL) {
-		xprt_inactive(xprt);
+		xprt_inactive_self(xprt);
 		mtx_unlock(&ct->ct_lock);
 		sx_xunlock(&xprt->xp_lock);
 		return (FALSE);
@@ -774,12 +798,12 @@ svc_vc_backchannel_recv(SVCXPRT *xprt, struct rpc_msg *msg,
 
 static bool_t
 svc_vc_reply(SVCXPRT *xprt, struct rpc_msg *msg,
-    struct sockaddr *addr, struct mbuf *m)
+    struct sockaddr *addr, struct mbuf *m, uint32_t *seq)
 {
 	XDR xdrs;
 	struct mbuf *mrep;
 	bool_t stat = TRUE;
-	int error;
+	int error, len;
 
 	/*
 	 * Leave space for record mark.
@@ -806,14 +830,19 @@ svc_vc_reply(SVCXPRT *xprt, struct rpc_msg *msg,
 		 * Prepend a record marker containing the reply length.
 		 */
 		M_PREPEND(mrep, sizeof(uint32_t), M_WAITOK);
+		len = mrep->m_pkthdr.len;
 		*mtod(mrep, uint32_t *) =
-			htonl(0x80000000 | (mrep->m_pkthdr.len
-				- sizeof(uint32_t)));
+			htonl(0x80000000 | (len - sizeof(uint32_t)));
+		atomic_add_acq_32(&xprt->xp_snd_cnt, len);
 		error = sosend(xprt->xp_socket, NULL, NULL, mrep, NULL,
 		    0, curthread);
 		if (!error) {
+			atomic_add_rel_32(&xprt->xp_snt_cnt, len);
+			if (seq)
+				*seq = xprt->xp_snd_cnt;
 			stat = TRUE;
-		}
+		} else
+			atomic_subtract_32(&xprt->xp_snd_cnt, len);
 	} else {
 		m_freem(mrep);
 	}
@@ -826,7 +855,7 @@ svc_vc_reply(SVCXPRT *xprt, struct rpc_msg *msg,
 
 static bool_t
 svc_vc_backchannel_reply(SVCXPRT *xprt, struct rpc_msg *msg,
-    struct sockaddr *addr, struct mbuf *m)
+    struct sockaddr *addr, struct mbuf *m, uint32_t *seq)
 {
 	struct ct_data *ct;
 	XDR xdrs;

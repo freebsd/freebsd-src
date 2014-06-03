@@ -73,17 +73,7 @@
 #define CPU_ID_IS7(x)		(((x) & 0x0000f000) == 0x00007000)
 #define CPU_ID_ISNEW(x)		(!CPU_ID_ISOLD(x) && !CPU_ID_IS7(x))
 
-/* On ARM3 and ARM6, this byte holds the foundry ID. */
-#define CPU_ID_FOUNDRY_MASK	0x00ff0000
-#define CPU_ID_FOUNDRY_VLSI	0x00560000
-
-/* On ARM7 it holds the architecture and variant (sub-model) */
-#define CPU_ID_7ARCH_MASK	0x00800000
-#define CPU_ID_7ARCH_V3		0x00000000
-#define CPU_ID_7ARCH_V4T	0x00800000
-#define CPU_ID_7VARIANT_MASK	0x007f0000
-
-/* On more recent ARMs, it does the same, but in a different format */
+/* On recent ARMs this byte holds the architecture and variant (sub-model) */
 #define CPU_ID_ARCH_MASK	0x000f0000
 #define CPU_ID_ARCH_V3		0x00000000
 #define CPU_ID_ARCH_V4		0x00010000
@@ -110,29 +100,7 @@
 /* Individual CPUs are probably best IDed by everything but the revision. */
 #define CPU_ID_CPU_MASK		0xfffffff0
 
-/* Fake CPU IDs for ARMs without CP15 */
-#define CPU_ID_ARM2		0x41560200
-#define CPU_ID_ARM250		0x41560250
-
-/* Pre-ARM7 CPUs -- [15:12] == 0 */
-#define CPU_ID_ARM3		0x41560300
-#define CPU_ID_ARM600		0x41560600
-#define CPU_ID_ARM610		0x41560610
-#define CPU_ID_ARM620		0x41560620
-
-/* ARM7 CPUs -- [15:12] == 7 */
-#define CPU_ID_ARM700		0x41007000 /* XXX This is a guess. */
-#define CPU_ID_ARM710		0x41007100
-#define CPU_ID_ARM7500		0x41027100
-#define CPU_ID_ARM710A		0x41047100 /* inc ARM7100 */
-#define CPU_ID_ARM7500FE	0x41077100
-#define CPU_ID_ARM710T		0x41807100
-#define CPU_ID_ARM720T		0x41807200
-#define CPU_ID_ARM740T8K	0x41807400 /* XXX no MMU, 8KB cache */
-#define CPU_ID_ARM740T4K	0x41817400 /* XXX no MMU, 4KB cache */
-
-/* Post-ARM7 CPUs */
-#define CPU_ID_ARM810		0x41018100
+/* ARM9 and later CPUs */
 #define CPU_ID_ARM920T		0x41129200
 #define CPU_ID_ARM920T_ALT	0x41009200
 #define CPU_ID_ARM922T		0x41029220
@@ -155,9 +123,11 @@
 #define CPU_ID_CORTEXA9R1	0x411fc090
 #define CPU_ID_CORTEXA9R2	0x412fc090
 #define CPU_ID_CORTEXA9R3	0x413fc090
-#define CPU_ID_CORTEXA15	0x410fc0f0
-#define CPU_ID_SA110		0x4401a100
-#define CPU_ID_SA1100		0x4401a110
+#define CPU_ID_CORTEXA15R0	0x410fc0f0
+#define CPU_ID_CORTEXA15R1	0x411fc0f0
+#define CPU_ID_CORTEXA15R2	0x412fc0f0
+#define CPU_ID_CORTEXA15R3	0x413fc0f0
+#define	CPU_ID_KRAIT		0x510f06f0 /* Snapdragon S4 Pro/APQ8064 */
 #define	CPU_ID_TI925T		0x54029250
 #define CPU_ID_MV88FR131	0x56251310 /* Marvell Feroceon 88FR131 Core */
 #define CPU_ID_MV88FR331	0x56153310 /* Marvell Feroceon 88FR331 Core */
@@ -180,8 +150,6 @@
 
 #define	CPU_ID_FA526		0x66015260
 #define	CPU_ID_FA626TE		0x66056260
-#define CPU_ID_SA1110		0x6901b110
-#define CPU_ID_IXP1200		0x6901c120
 #define CPU_ID_80200		0x69052000
 #define CPU_ID_PXA250    	0x69052100 /* sans core revision */
 #define CPU_ID_PXA210    	0x69052120
@@ -205,18 +173,6 @@
 #define	CPU_ID_IXP425_266	0x690541f0
 #define	CPU_ID_IXP435		0x69054040
 #define	CPU_ID_IXP465		0x69054200
-
-/* ARM3-specific coprocessor 15 registers */
-#define ARM3_CP15_FLUSH		1
-#define ARM3_CP15_CONTROL	2
-#define ARM3_CP15_CACHEABLE	3
-#define ARM3_CP15_UPDATEABLE	4
-#define ARM3_CP15_DISRUPTIVE	5	
-
-/* ARM3 Control register bits */
-#define ARM3_CTL_CACHE_ON	0x00000001
-#define ARM3_CTL_SHARED		0x00000002
-#define ARM3_CTL_MONITOR	0x00000004
 
 /* CPUID registers */
 #define ARM_PFR0_ARM_ISA_MASK	0x0000000f
@@ -403,6 +359,8 @@
 #define FAULT_PERM_P    0x0f /* Permission -- Page */
 
 #define	FAULT_IMPRECISE	0x400	/* Imprecise exception (XSCALE) */
+#define	FAULT_EXTERNAL	0x400	/* External abort (armv6+) */
+#define	FAULT_WNR	0x800	/* Write-not-Read access (armv6+) */
 
 /*
  * Address of the vector page, low and high versions.

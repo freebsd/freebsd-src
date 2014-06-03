@@ -279,6 +279,7 @@ static void
 acline_init(void)
 {
 	acline_mib_len = 4;
+	acline_status = SRC_UNKNOWN;
 
 	if (sysctlnametomib(ACPIAC, acline_mib, &acline_mib_len) == 0) {
 		acline_mode = ac_sysctl;

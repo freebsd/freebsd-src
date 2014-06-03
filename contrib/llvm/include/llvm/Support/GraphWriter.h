@@ -50,7 +50,8 @@ namespace GraphProgram {
    };
 }
 
-void DisplayGraph(const sys::Path& Filename, bool wait=true, GraphProgram::Name program = GraphProgram::DOT);
+void DisplayGraph(StringRef Filename, bool wait = true,
+                  GraphProgram::Name program = GraphProgram::DOT);
 
 template<typename GraphType>
 class GraphWriter {
@@ -318,33 +319,22 @@ raw_ostream &WriteGraph(raw_ostream &O, const GraphType &G,
   return O;
 }
 
-template<typename GraphType>
-sys::Path WriteGraph(const GraphType &G, const Twine &Name,
-                     bool ShortNames = false, const Twine &Title = "") {
-  std::string ErrMsg;
-  sys::Path Filename = sys::Path::GetTemporaryDirectory(&ErrMsg);
-  if (Filename.isEmpty()) {
-    errs() << "Error: " << ErrMsg << "\n";
-    return Filename;
-  }
-  Filename.appendComponent((Name + ".dot").str());
-  if (Filename.makeUnique(true,&ErrMsg)) {
-    errs() << "Error: " << ErrMsg << "\n";
-    return sys::Path();
+std::string createGraphFilename(const Twine &Name, int &FD);
+
+template <typename GraphType>
+std::string WriteGraph(const GraphType &G, const Twine &Name,
+                       bool ShortNames = false, const Twine &Title = "") {
+  int FD;
+  std::string Filename = createGraphFilename(Name, FD);
+  raw_fd_ostream O(FD, /*shouldClose=*/ true);
+
+  if (FD == -1) {
+    errs() << "error opening file '" << Filename << "' for writing!\n";
+    return "";
   }
 
-  errs() << "Writing '" << Filename.str() << "'... ";
-
-  std::string ErrorInfo;
-  raw_fd_ostream O(Filename.c_str(), ErrorInfo);
-
-  if (ErrorInfo.empty()) {
-    llvm::WriteGraph(O, G, ShortNames, Title);
-    errs() << " done. \n";
-  } else {
-    errs() << "error opening file '" << Filename.str() << "' for writing!\n";
-    Filename.clear();
-  }
+  llvm::WriteGraph(O, G, ShortNames, Title);
+  errs() << " done. \n";
 
   return Filename;
 }
@@ -356,9 +346,9 @@ template<typename GraphType>
 void ViewGraph(const GraphType &G, const Twine &Name,
                bool ShortNames = false, const Twine &Title = "",
                GraphProgram::Name Program = GraphProgram::DOT) {
-  sys::Path Filename = llvm::WriteGraph(G, Name, ShortNames, Title);
+  std::string Filename = llvm::WriteGraph(G, Name, ShortNames, Title);
 
-  if (Filename.isEmpty())
+  if (Filename.empty())
     return;
 
   DisplayGraph(Filename, true, Program);

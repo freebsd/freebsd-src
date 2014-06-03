@@ -1,6 +1,6 @@
-# $Id: Makefile.in,v 1.79 2008/09/07 13:58:55 tom Exp $
+# $Id: Makefile.in,v 1.90 2013/08/04 20:23:20 tom Exp $
 ##############################################################################
-# Copyright (c) 1998-2006,2007 Free Software Foundation, Inc.                #
+# Copyright (c) 1998-2012,2013 Free Software Foundation, Inc.                #
 #                                                                            #
 # Permission is hereby granted, free of charge, to any person obtaining a    #
 # copy of this software and associated documentation files (the "Software"), #
@@ -43,6 +43,7 @@
 .SUFFIXES:
 
 SHELL		= /bin/sh
+VPATH		= @srcdir@
 THIS		= Makefile
 
 CF_MFLAGS 	= @cf_cv_makeflags@
@@ -60,7 +61,11 @@ exec_prefix	= @exec_prefix@
 bindir		= @bindir@
 libdir		= @libdir@
 includedir	= @includedir@
+datarootdir	= @datarootdir@
 datadir		= @datadir@
+includesubdir	= @includesubdir@
+
+INCLUDEDIR	= $(DESTDIR)$(includedir)$(includesubdir)
 
 LIBTOOL		= @LIBTOOL@
 LIBTOOL_CLEAN	= @LIB_CLEAN@
@@ -75,6 +80,9 @@ transform	= @program_transform_name@
 
 AWK		= @AWK@
 LN_S		= @LN_S@
+
+CTAGS		= @CTAGS@
+ETAGS		= @ETAGS@
 
 CC		= @CC@
 CPP		= @CPP@
@@ -100,20 +108,21 @@ LOCAL_LIBDIR	= @top_builddir@/lib
 LD		= @LD@
 LINK		= @LINK_PROGS@ $(LIBTOOL_LINK)
 LDFLAGS		= @EXTRA_LDFLAGS@ @LDFLAGS@
+RPATH_LIST	= @RPATH_LIST@
 
 LDFLAGS_LIBTOOL	= $(LDFLAGS) $(CFLAGS_LIBTOOL)
 LDFLAGS_NORMAL	= $(LDFLAGS) $(CFLAGS_NORMAL)
 LDFLAGS_DEBUG	= $(LDFLAGS) $(CFLAGS_DEBUG)
-LDFLAGS_PROFILE	= $(LDFLAGS) $(CFLAGS_PROFILE) 
+LDFLAGS_PROFILE	= $(LDFLAGS) $(CFLAGS_PROFILE)
 LDFLAGS_SHARED	= $(LDFLAGS) $(CFLAGS_SHARED) @LD_SHARED_OPTS@
 
 LDFLAGS_DEFAULT	= $(LDFLAGS_@DFT_UPR_MODEL@)
 
-LIBS_TIC	= @LDFLAGS_STATIC@ @TICS_ARGS@ @TINFO_ARGS@ @LDFLAGS_SHARED@ @LD_MODEL@ @LIBS@
-LDFLAGS_TIC	= $(LDFLAGS_@DFT_UPR_MODEL@) $(LIBS_TIC)
+LIBS_TIC	= @TINFO_LDFLAGS@ @LDFLAGS_STATIC@ @TICS_LIBS@ @TINFO_LIBS@ @LDFLAGS_SHARED@ @LD_MODEL@ @LIBS@
+LDFLAGS_TIC	= @TICS_LDFLAGS@ $(LDFLAGS_@DFT_UPR_MODEL@) $(LIBS_TIC)
 
-LIBS_TINFO	= @LDFLAGS_STATIC@ @TINFO_ARGS@ @LDFLAGS_SHARED@ @LD_MODEL@ @LIBS@
-LDFLAGS_TINFO	= $(LDFLAGS_@DFT_UPR_MODEL@) $(LIBS_TINFO)
+LIBS_TINFO	= @LDFLAGS_STATIC@ @TINFO_LIBS@ @LDFLAGS_SHARED@ @LD_MODEL@ @LIBS@
+LDFLAGS_TINFO	= @TINFO_LDFLAGS@ $(LDFLAGS_@DFT_UPR_MODEL@) $(LIBS_TINFO)
 
 LINT		= @LINT@
 LINT_OPTS	= @LINT_OPTS@
@@ -124,7 +133,7 @@ AUTO_SRC = \
 	transform.h
 
 # tic relies on direct access to the terminfo database
-GET_PROGS = infocmp$x clear$x tput$x tset$x toe$x
+GET_PROGS = infocmp$x clear$x tabs$x tput$x tset$x toe$x
 PUT_PROGS = @MAKE_TERMINFO@ tic$x
 PROGS = $(PUT_PROGS) $(GET_PROGS)
 
@@ -159,6 +168,7 @@ actual_infocmp   = `echo infocmp$x|   $(TRANSFORM)`
 actual_infotocap = `echo infotocap$x| $(TRANSFORM)`
 actual_init      = `echo init$x|      $(TRANSFORM)`
 actual_reset     = `echo reset$x|     $(TRANSFORM)`
+actual_tabs      = `echo tabs$x|      $(TRANSFORM)`
 actual_tic       = `echo tic$x|       $(TRANSFORM)`
 actual_toe       = `echo toe$x|       $(TRANSFORM)`
 actual_tput      = `echo tput$x|      $(TRANSFORM)`
@@ -171,10 +181,16 @@ define_init      = `echo init|        $(TRANSFORM)`
 define_reset     = `echo reset|       $(TRANSFORM)`
 
 transform.h :
-	echo "#define PROG_CAPTOINFO \"$(define_captoinfo)\"" >$@
-	echo "#define PROG_INFOTOCAP \"$(define_infotocap)\"" >>$@
-	echo "#define PROG_RESET     \"$(define_reset)\""     >>$@
-	echo "#define PROG_INIT      \"$(define_init)\""      >>$@
+	echo "#ifndef __TRANSFORM_H"					>$@
+	echo "#define __TRANSFORM_H 1"					>>$@
+	echo "#include <progs.priv.h>"					>>$@
+	echo "extern bool same_program(const char *, const char *);"	>>$@
+	-sh -c 'if test -n "$x" ; then echo "#define SUFFIX_IGNORED \"$x\"">>$@; fi'
+	echo "#define PROG_CAPTOINFO \"$(define_captoinfo)\""		>>$@
+	echo "#define PROG_INFOTOCAP \"$(define_infotocap)\""		>>$@
+	echo "#define PROG_RESET     \"$(define_reset)\""		>>$@
+	echo "#define PROG_INIT      \"$(define_init)\""		>>$@
+	echo "#endif /* __TRANSFORM_H */"				>>$@
 
 install.progs: $(AUTO_SRC) $(PROGS) $(DESTDIR)$(bindir)
 @MAKE_TERMINFO@	$(LIBTOOL_INSTALL) $(INSTALL_PROG) tic$x     $(DESTDIR)$(bindir)/$(actual_tic)
@@ -187,6 +203,7 @@ install.progs: $(AUTO_SRC) $(PROGS) $(DESTDIR)$(bindir)
 @MAKE_TERMINFO@	(cd $(DESTDIR)$(bindir) && $(LN_S) $(actual_tic) $(actual_captoinfo))
 	$(LIBTOOL_INSTALL) $(INSTALL_PROG) infocmp$x $(DESTDIR)$(bindir)/$(actual_infocmp)
 	$(LIBTOOL_INSTALL) $(INSTALL_PROG) clear$x   $(DESTDIR)$(bindir)/$(actual_clear)
+	$(LIBTOOL_INSTALL) $(INSTALL_PROG) tabs$x    $(DESTDIR)$(bindir)/$(actual_tabs)
 	$(LIBTOOL_INSTALL) $(INSTALL_PROG) tput$x    $(DESTDIR)$(bindir)/$(actual_tput)
 	$(LIBTOOL_INSTALL) $(INSTALL_PROG) tset$x    $(DESTDIR)$(bindir)/$(actual_tset)
 	@echo "linking $(actual_reset) to $(actual_tset)"
@@ -200,12 +217,13 @@ uninstall.progs:
 @MAKE_TERMINFO@	-@rm -f $(DESTDIR)$(bindir)/$(actual_infotocap)
 	-@$(LIBTOOL_CLEAN) rm -f $(DESTDIR)$(bindir)/$(actual_infocmp)
 	-@$(LIBTOOL_CLEAN) rm -f $(DESTDIR)$(bindir)/$(actual_clear)
+	-@$(LIBTOOL_CLEAN) rm -f $(DESTDIR)$(bindir)/$(actual_tabs)
 	-@$(LIBTOOL_CLEAN) rm -f $(DESTDIR)$(bindir)/$(actual_tput)
 	-@$(LIBTOOL_CLEAN) rm -f $(DESTDIR)$(bindir)/$(actual_tset)
 	-@rm -f $(DESTDIR)$(bindir)/$(actual_reset)
 
 $(DESTDIR)$(bindir) :
-	sh $(srcdir)/../mkdirs.sh $@
+	mkdir -p $@
 
 #
 # Utilities normally built by make all start here
@@ -213,41 +231,50 @@ $(DESTDIR)$(bindir) :
 
 DEPS_TIC = \
 	$(MODEL)/tic$o \
-	$(MODEL)/dump_entry$o
+	$(MODEL)/dump_entry$o \
+	$(MODEL)/transform$o
 
 tic$x: $(DEPS_TIC) $(DEPS_CURSES) transform.h
-	@ECHO_LINK@ $(LINK) $(DEPS_TIC) $(LDFLAGS_TIC) -o $@
+	@ECHO_LD@ $(LINK) $(DEPS_TIC) $(LDFLAGS_TIC) -o $@
 
 DEPS_TOE = \
 	$(MODEL)/toe$o
 
 toe$x: $(DEPS_TOE) $(DEPS_CURSES)
-	@ECHO_LINK@ $(LINK) $(DEPS_TOE) $(LDFLAGS_TIC) -o $@
+	@ECHO_LD@ $(LINK) $(DEPS_TOE) $(LDFLAGS_TIC) -o $@
 
 DEPS_CLEAR = \
 	$(MODEL)/clear$o
 
 clear$x: $(DEPS_CLEAR) $(DEPS_CURSES)
-	@ECHO_LINK@ $(LINK) $(DEPS_CLEAR) $(LDFLAGS_TINFO) -o $@
+	@ECHO_LD@ $(LINK) $(DEPS_CLEAR) $(LDFLAGS_TINFO) -o $@
+
+DEPS_TABS = \
+	$(MODEL)/tabs$o
+
+tabs$x: $(DEPS_TABS) $(DEPS_TABS)
+	@ECHO_LD@ $(LINK) $(DEPS_TABS) $(LDFLAGS_TINFO) -o $@
 
 DEPS_TPUT = \
-	$(MODEL)/tput$o
+	$(MODEL)/tput$o \
+	$(MODEL)/transform$o
 
 tput$x: $(DEPS_TPUT) $(DEPS_CURSES) transform.h
-	@ECHO_LINK@ $(LINK) $(DEPS_TPUT) $(LDFLAGS_TINFO) -o $@
+	@ECHO_LD@ $(LINK) $(DEPS_TPUT) $(LDFLAGS_TINFO) -o $@
 
 DEPS_INFOCMP = \
 	$(MODEL)/infocmp$o \
 	$(MODEL)/dump_entry$o
 
 infocmp$x: $(DEPS_INFOCMP) $(DEPS_CURSES)
-	@ECHO_LINK@ $(LINK) $(DEPS_INFOCMP) $(LDFLAGS_TIC) -o $@
+	@ECHO_LD@ $(LINK) $(DEPS_INFOCMP) $(LDFLAGS_TIC) -o $@
 
 DEPS_TSET = \
-	$(MODEL)/tset$o
+	$(MODEL)/tset$o \
+	$(MODEL)/transform$o
 
 tset$x: $(DEPS_TSET) $(DEPS_CURSES) transform.h
-	@ECHO_LINK@ $(LINK) $(DEPS_TSET) $(LDFLAGS_TINFO) -o $@
+	@ECHO_LD@ $(LINK) $(DEPS_TSET) $(LDFLAGS_TINFO) -o $@
 
 termsort.c: $(srcdir)/MKtermsort.sh
 	sh $(srcdir)/MKtermsort.sh $(AWK) $(srcdir)/../include/@TERMINFO_CAPS@ >$@
@@ -257,10 +284,10 @@ termsort.c: $(srcdir)/MKtermsort.sh
 #
 
 tags:
-	ctags *.[ch]
+	$(CTAGS) *.[ch]
 
 @MAKE_UPPER_TAGS@TAGS:
-@MAKE_UPPER_TAGS@	etags *.[ch]
+@MAKE_UPPER_TAGS@	$(ETAGS) *.[ch]
 
 mostlyclean ::
 	-rm -f core tags TAGS *~ *.bak *.i *.ln *.atac trace
@@ -289,6 +316,7 @@ lint:
 @MAKE_TERMINFO@	$(LINT) $(LINT_OPTS) $(CPPFLAGS) $(srcdir)/toe.c     $(srcdir)/dump_entry.c $(LINT_LIBS)
 	$(LINT) $(LINT_OPTS) $(CPPFLAGS) $(srcdir)/clear.c                          $(LINT_LIBS)
 	$(LINT) $(LINT_OPTS) $(CPPFLAGS) $(srcdir)/infocmp.c $(srcdir)/dump_entry.c $(LINT_LIBS)
+	$(LINT) $(LINT_OPTS) $(CPPFLAGS) $(srcdir)/tabs.c                           $(LINT_LIBS)
 	$(LINT) $(LINT_OPTS) $(CPPFLAGS) $(srcdir)/tput.c                           $(LINT_LIBS)
 	$(LINT) $(LINT_OPTS) $(CPPFLAGS) $(srcdir)/tset.c    $(srcdir)/dump_entry.c $(LINT_LIBS)
 

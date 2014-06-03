@@ -65,6 +65,7 @@ uid_t nfsrv_defaultuid;
 gid_t nfsrv_defaultgid;
 int nfsrv_lease = NFSRV_LEASE;
 int ncl_mbuf_mlen = MLEN;
+int nfsd_enable_stringtouid = 0;
 NFSNAMEIDMUTEX;
 NFSSOCKMUTEX;
 
@@ -101,8 +102,8 @@ struct nfsv4_opflag nfsv4_opflag[NFSV41_NOPS] = {
 	{ 0, 1, 0, 0, LK_EXCLUSIVE, 1 },		/* Lock */
 	{ 0, 1, 0, 0, LK_EXCLUSIVE, 1 },		/* LockT */
 	{ 0, 1, 0, 0, LK_EXCLUSIVE, 1 },		/* LockU */
-	{ 1, 1, 0, 0, LK_EXCLUSIVE, 1 },		/* Lookup */
-	{ 1, 1, 0, 0, LK_EXCLUSIVE, 1 },		/* Lookupp */
+	{ 1, 2, 0, 0, LK_EXCLUSIVE, 1 },		/* Lookup */
+	{ 1, 2, 0, 0, LK_EXCLUSIVE, 1 },		/* Lookupp */
 	{ 0, 1, 0, 0, LK_EXCLUSIVE, 1 },		/* NVerify */
 	{ 1, 1, 0, 1, LK_EXCLUSIVE, 1 },		/* Open */
 	{ 1, 1, 0, 0, LK_EXCLUSIVE, 1 },		/* OpenAttr */
@@ -2011,7 +2012,12 @@ nfsv4_fillattr(struct nfsrv_descript *nd, struct mount *mp, vnode_t vp,
 	 * First, set the bits that can be filled and get fsinfo.
 	 */
 	NFSSET_ATTRBIT(retbitp, attrbitp);
-	/* If p and cred are NULL, it is a client side call */
+	/*
+	 * If both p and cred are NULL, it is a client side setattr call.
+	 * If both p and cred are not NULL, it is a server side reply call.
+	 * If p is not NULL and cred is NULL, it is a client side callback
+	 * reply call.
+	 */
 	if (p == NULL && cred == NULL) {
 		NFSCLRNOTSETABLE_ATTRBIT(retbitp);
 		aclp = saclp;
@@ -2635,9 +2641,14 @@ nfsv4_strtouid(struct nfsrv_descript *nd, u_char *str, int len, uid_t *uidp,
 	/* If a string of digits and an AUTH_SYS mount, just convert it. */
 	str0 = str;
 	tuid = (uid_t)strtoul(str0, &endstr, 10);
-	if ((endstr - str0) == len &&
-	    (nd->nd_flag & (ND_KERBV | ND_NFSCL)) == ND_NFSCL) {
-		*uidp = tuid;
+	if ((endstr - str0) == len) {
+		/* A numeric string. */
+		if ((nd->nd_flag & ND_KERBV) == 0 &&
+		    ((nd->nd_flag & ND_NFSCL) != 0 ||
+		      nfsd_enable_stringtouid != 0))
+			*uidp = tuid;
+		else
+			error = NFSERR_BADOWNER;
 		goto out;
 	}
 	/*
@@ -2840,9 +2851,14 @@ nfsv4_strtogid(struct nfsrv_descript *nd, u_char *str, int len, gid_t *gidp,
 	/* If a string of digits and an AUTH_SYS mount, just convert it. */
 	str0 = str;
 	tgid = (gid_t)strtoul(str0, &endstr, 10);
-	if ((endstr - str0) == len &&
-	    (nd->nd_flag & (ND_KERBV | ND_NFSCL)) == ND_NFSCL) {
-		*gidp = tgid;
+	if ((endstr - str0) == len) {
+		/* A numeric string. */
+		if ((nd->nd_flag & ND_KERBV) == 0 &&
+		    ((nd->nd_flag & ND_NFSCL) != 0 ||
+		      nfsd_enable_stringtouid != 0))
+			*gidp = tgid;
+		else
+			error = NFSERR_BADOWNER;
 		goto out;
 	}
 	/*

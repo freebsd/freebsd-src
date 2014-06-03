@@ -62,6 +62,7 @@ ASSYM(PC_CURPMAP, offsetof(struct pcpu, pc_curpmap));
 ASSYM(PC_TEMPSAVE, offsetof(struct pcpu, pc_tempsave));
 ASSYM(PC_DISISAVE, offsetof(struct pcpu, pc_disisave));
 ASSYM(PC_DBSAVE, offsetof(struct pcpu, pc_dbsave));
+ASSYM(PC_RESTORE, offsetof(struct pcpu, pc_restore));
 
 #if defined(BOOKE)
 ASSYM(PC_BOOKE_CRITSAVE, offsetof(struct pcpu, pc_booke_critsave));

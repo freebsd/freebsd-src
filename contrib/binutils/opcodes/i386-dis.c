@@ -85,6 +85,7 @@ static void OP_MS (int, int);
 static void OP_XS (int, int);
 static void OP_M (int, int);
 static void OP_VMX (int, int);
+static void OP_VMX2 (int, int);
 static void OP_0fae (int, int);
 static void OP_0f07 (int, int);
 static void NOP_Fixup1 (int, int);
@@ -318,6 +319,7 @@ fetch_data (struct disassemble_info *info, bfd_byte *addr)
 #define EMC { OP_EMC, v_mode }
 #define MXC { OP_MXC, 0 }
 #define VM { OP_VMX, q_mode }
+#define VM2 { OP_VMX2, q_mode }
 #define OPSUF { OP_3DNowSuffix, 0 }
 #define OPSIMD { OP_SIMD_Suffix, 0 }
 #define XMM0 { XMM_Fixup, 0 }
@@ -1732,7 +1734,7 @@ static const struct dis386 grps[][8] = {
     { "(bad)",	{ XX } },
     { "(bad)",	{ XX } },
     { "",	{ VM } },		/* See OP_VMX.  */
-    { "vmptrst", { Mq } },
+    { "",	{ VM2 } },		/* See OP_VMX2.  */
   },
   /* GRP11_C6 */
   {
@@ -6257,6 +6259,16 @@ PNI_Fixup (int extrachar ATTRIBUTE_UNUSED, int sizeflag)
 
       codep++;
     }
+  else if (modrm.mod == 3 && modrm.reg == 1 && modrm.rm <= 3)
+    {
+      size_t olen = strlen (obuf);
+      char *p = obuf + olen - 4;
+      if (*codep == 0xca)
+        strcpy (p, "clac");
+      else if (*codep == 0xcb)
+        strcpy (p, "stac");
+      codep++;
+    }
   else
     OP_M (0, sizeflag);
 }
@@ -6453,6 +6465,21 @@ OP_VMX (int bytemode, int sizeflag)
       else
 	strcpy (obuf, "vmptrld");
       OP_E (bytemode, sizeflag);
+    }
+}
+
+static void
+OP_VMX2 (int bytemode, int sizeflag)
+{
+  if (modrm.mod == 3)
+    {
+      strcpy (obuf, "rdseed");
+      OP_E (v_mode, sizeflag);
+    }
+  else
+    {
+      strcpy (obuf, "vmptrst");
+      OP_M (q_mode, sizeflag);
     }
 }
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998-2003, 2006, 2013 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 1998-2003, 2006, 2013 Proofpoint, Inc. and its suppliers.
  *	All rights reserved.
  * Copyright (c) 1994, 1996-1997 Eric P. Allman.  All rights reserved.
  * Copyright (c) 1994
@@ -14,7 +14,7 @@
 #include <sendmail.h>
 #include <string.h>
 
-SM_RCSID("@(#)$Id: mime.c,v 8.148 2013/03/12 15:24:53 ca Exp $")
+SM_RCSID("@(#)$Id: mime.c,v 8.149 2013-11-22 20:51:56 ca Exp $")
 
 /*
 **  MIME support.

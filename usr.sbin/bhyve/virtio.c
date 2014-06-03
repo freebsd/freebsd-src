@@ -99,7 +99,11 @@ vi_reset_dev(struct virtio_softc *vs)
 	vs->vs_negotiated_caps = 0;
 	vs->vs_curq = 0;
 	/* vs->vs_status = 0; -- redundant */
+	VS_LOCK(vs);
+	if (vs->vs_isr)
+		pci_lintr_deassert(vs->vs_pi);
 	vs->vs_isr = 0;
+	VS_UNLOCK(vs);
 	vs->vs_msix_cfg_idx = VIRTIO_MSI_NO_VECTOR;
 }
 
@@ -137,11 +141,10 @@ vi_intr_init(struct virtio_softc *vs, int barnum, int use_msix)
 		nvec = vs->vs_vc->vc_nvq + 1;
 		if (pci_emul_add_msixcap(vs->vs_pi, nvec, barnum))
 			return (1);
-	} else {
+	} else
 		vs->vs_flags &= ~VIRTIO_USE_MSIX;
-		/* Only 1 MSI vector for bhyve */
-		pci_emul_add_msicap(vs->vs_pi, 1);
-	}
+	/* Only 1 MSI vector for bhyve */
+	pci_emul_add_msicap(vs->vs_pi, 1);
 	return (0);
 }
 
@@ -160,7 +163,7 @@ vi_vq_init(struct virtio_softc *vs, uint32_t pfn)
 
 	vq = &vs->vs_queues[vs->vs_curq];
 	vq->vq_pfn = pfn;
-	phys = pfn << VRING_PFN;
+	phys = (uint64_t)pfn << VRING_PFN;
 	size = vring_size(vq->vq_qsize);
 	base = paddr_guest2host(vs->vs_pi->pi_vmctx, phys, size);
 
@@ -591,6 +594,8 @@ bad:
 	case VTCFG_R_ISR:
 		value = vs->vs_isr;
 		vs->vs_isr = 0;		/* a read clears this flag */
+		if (value)
+			pci_lintr_deassert(pi);
 		break;
 	case VTCFG_R_CFGVEC:
 		value = vs->vs_msix_cfg_idx;

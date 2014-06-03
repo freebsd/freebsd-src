@@ -51,7 +51,6 @@ ifn_start()
 	if ! noafif $ifn; then
 		afexists inet && ipv4_up ${ifn} && cfg=0
 		afexists inet6 && ipv6_up ${ifn} && cfg=0
-		afexists ipx && ipx_up ${ifn} && cfg=0
 	fi
 	childif_create ${ifn} && cfg=0
 
@@ -71,7 +70,6 @@ ifn_stop()
 	[ -z "$ifn" ] && err 1 "ifn_stop called without an interface"
 
 	if ! noafif $ifn; then
-		afexists ipx && ipx_down ${ifn} && cfg=0
 		afexists inet6 && ipv6_down ${ifn} && cfg=0
 		afexists inet && ipv4_down ${ifn} && cfg=0
 	fi
@@ -134,13 +132,6 @@ ifconfig_up()
 		_cfg=0
 	fi
 
-	# ifconfig_IF
-	ifconfig_args=`ifconfig_getargs $1`
-	if [ -n "${ifconfig_args}" ]; then
-		eval ${IFCONFIG_CMD} $1 ${ifconfig_args}
-		_cfg=0
-	fi
-
 	# inet6 specific
 	if ! noafif $1 && afexists inet6; then
 		if checkyesno ipv6_activate_all_interfaces; then
@@ -176,14 +167,24 @@ ifconfig_up()
 		if [ -n "${_ipv6_opts}" ]; then
 			${IFCONFIG_CMD} $1 inet6 ${_ipv6_opts}
 		fi
+	fi
 
+	# ifconfig_IF
+	ifconfig_args=`ifconfig_getargs $1`
+	if [ -n "${ifconfig_args}" ]; then
+		eval ${IFCONFIG_CMD} $1 ${ifconfig_args}
+		_cfg=0
+	fi
+
+	# inet6 specific
+	if ! noafif $1 && afexists inet6; then
 		# ifconfig_IF_ipv6
 		ifconfig_args=`ifconfig_getargs $1 ipv6`
 		if [ -n "${ifconfig_args}" ]; then
 			# backward compatibility: inet6 keyword
 			case "${ifconfig_args}" in
 			:*|[0-9a-fA-F]*:*)
-				warn "\$ifconfig_$1_ipv6 needs " \
+				warn "\$ifconfig_$1_ipv6 needs leading" \
 				    "\"inet6\" keyword for an IPv6 address."
 				ifconfig_args="inet6 ${ifconfig_args}"
 			;;
@@ -285,10 +286,8 @@ get_if_var()
 	fi
 
 	_if=$1
-	_punct=". - / +"
-	for _punct_c in $_punct; do
-		_if=`ltr ${_if} ${_punct_c} '_'`
-	done
+	_punct=".-/+"
+	ltr ${_if} "${_punct}" '_' _if
 	_var=$2
 	_default=$3
 
@@ -494,9 +493,6 @@ afexists()
 	case ${_af} in
 	inet|inet6)
 		check_kern_features ${_af}
-		;;
-	ipx)
-		${SYSCTL_N} net.ipx > /dev/null 2>&1
 		;;
 	atm)
 		if [ -x /sbin/atmconfig ]; then
@@ -1044,7 +1040,7 @@ ifalias_af_common_handler()
 		case $_c in
 		${_af})
 			case $_tmpargs in
-			${_af}\ *-*)
+			${_af}\ *[0-9a-fA-F]-*)
 				ifalias_af_common_handler $_if $_af $_action \
 				`ifalias_expand_addr $_af $_action ${_tmpargs#${_af}\ }`
 			;;
@@ -1062,7 +1058,7 @@ ifalias_af_common_handler()
 	# Process the last component if any.
 	if [ -n "$_tmpargs}" ]; then
 		case $_tmpargs in
-		${_af}\ *-*)
+		${_af}\ *[0-9][a-f][A-F]-*)
 			ifalias_af_common_handler $_if $_af $_action \
 			`ifalias_expand_addr $_af $_action ${_tmpargs#${_af}\ }`
 		;;
@@ -1081,6 +1077,7 @@ ifalias_af_common_handler()
 ifalias_af_common()
 {
 	local _ret _if _af _action alias ifconfig_args _aliasn _c _tmpargs _iaf
+	local _punct=".-/+"
 
 	_ret=1
 	_aliasn=
@@ -1088,15 +1085,18 @@ ifalias_af_common()
 	_af=$2
 	_action=$3
 
+	# Normalize $_if before using it in a pattern to list_vars()
+	ltr "$_if" "$_punct" "_" _if
+
 	# ifconfig_IF_aliasN which starts with $_af
-	alias=0
-	while : ; do
-		ifconfig_args=`get_if_var $_if ifconfig_IF_alias${alias}`
+	for alias in `list_vars ifconfig_${_if}_alias[0-9]\* |
+		sort_lite -nk1.$((9+${#_if}+7))`
+	do
+		eval ifconfig_args=\"\$$alias\"
 		_iaf=
 		case $ifconfig_args in
 		inet\ *)	_iaf=inet ;;
 		inet6\ *)	_iaf=inet6 ;;
-		ipx\ *)		_iaf=ipx ;;
 		link\ *)	_iaf=link ;;
 		ether\ *)	_iaf=ether ;;
 		esac
@@ -1110,30 +1110,28 @@ ifalias_af_common()
 			;;
 		inet:alias:"":*)
 			_aliasn="$_aliasn inet $ifconfig_args"
-			warn "\$ifconfig_${_if}_alias${alias} needs " \
+			warn "\$${alias} needs leading" \
 			    "\"inet\" keyword for an IPv4 address."
 		esac
-		alias=$(($alias + 1))
 	done
 
 	# backward compatibility: ipv6_ifconfig_IF_aliasN.
 	case $_af in
 	inet6)
-		alias=0
-		while : ; do
-			ifconfig_args=`get_if_var $_if ipv6_ifconfig_IF_alias${alias}`
+		for alias in `list_vars ipv6_ifconfig_${_if}_alias[0-9]\* |
+			sort_lite -nk1.$((14+${#_if}+7))`
+		do
+			eval ifconfig_args=\"\$$alias\"
 			case ${_action}:"${ifconfig_args}" in
 			*:"")
 				break
 			;;
 			alias:*)
 				_aliasn="${_aliasn} inet6 ${ifconfig_args}"
-				warn "\$ipv6_ifconfig_${_if}_alias${alias} " \
-				    "is obsolete.  Use ifconfig_$1_aliasN " \
-				    "instead."
+				warn "\$${alias} is obsolete. " \
+				    "Use ifconfig_$1_aliasN instead."
 			;;
 			esac
-			alias=$(($alias + 1))
 		done
 	esac
 
@@ -1146,7 +1144,7 @@ ifalias_af_common()
 	_tmpargs=
 	for _c in `get_if_var $_if ifconfig_IF_aliases` $_aliasn; do
 		case $_c in
-		inet|inet6|ipx|link|ether)
+		inet|inet6|link|ether)
 			case $_tmpargs in
 			${_af}\ *)
 				eval ifalias_af_common_handler $_if $_af $_action $_tmpargs && _ret=0
@@ -1518,55 +1516,6 @@ ng_create_one()
 			return
 		fi
 	done
-}
-
-# ipx_up ifn
-#	Configure any IPX addresses for interface $ifn. Returns 0 if
-#	IPX arguments were found and configured; returns 1 otherwise.
-#
-ipx_up()
-{
-	local ifn
-	ifn="$1"
-
-	# ifconfig_IF_ipx
-	ifconfig_args=`_ifconfig_getargs $ifn ipx`
-	if [ -n "${ifconfig_args}" ]; then
-		${IFCONFIG_CMD} ${ifn} ${ifconfig_args}
-		return 0
-	fi
-
-	return 1
-}
-
-# ipx_down ifn
-#	Remove IPX addresses for interface $ifn. Returns 0 if IPX
-#	addresses were found and unconfigured. It returns 1, otherwise.
-#
-ipx_down()
-{
-	local _if _ifs _ret ipxList oldifs _ipx
-	_if=$1
-	_ifs="^"
-	_ret=1
-	ipxList="`${IFCONFIG_CMD} ${_if} | grep 'ipx ' | tr "\n" "$_ifs"`"
-	oldifs="$IFS"
-
-	IFS="$_ifs"
-	for _ipx in $ipxList ; do
-		# get rid of extraneous line
-		[ -z "$_ipx" ] && break
-
-		_ipx=`expr "$_ipx" : '.*\(ipx [0-9a-h]\{1,8\}H*\.[0-9a-h]\{1,12\}\).*'`
-
-		IFS="$oldifs"
-		${IFCONFIG_CMD} ${_if} ${_ipx} delete
-		IFS="$_ifs"
-		_ret=0
-	done
-	IFS="$oldifs"
-
-	return $_ret
 }
 
 # ifnet_rename [ifname]

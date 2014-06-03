@@ -1199,32 +1199,38 @@ tmpfs_readdir(struct vop_readdir_args *v)
 
 	int error;
 	ssize_t startresid;
-	int cnt = 0;
+	int maxcookies;
 	struct tmpfs_node *node;
 
 	/* This operation only makes sense on directory nodes. */
 	if (vp->v_type != VDIR)
 		return ENOTDIR;
 
+	maxcookies = 0;
 	node = VP_TO_TMPFS_DIR(vp);
 
 	startresid = uio->uio_resid;
 
+	/* Allocate cookies for NFS and compat modules. */
 	if (cookies != NULL && ncookies != NULL) {
-		cnt = howmany(node->tn_size, sizeof(struct tmpfs_dirent)) + 2;
-		*cookies = malloc(cnt * sizeof(**cookies), M_TEMP, M_WAITOK);
+		maxcookies = howmany(node->tn_size,
+		    sizeof(struct tmpfs_dirent)) + 2;
+		*cookies = malloc(maxcookies * sizeof(**cookies), M_TEMP,
+		    M_WAITOK);
 		*ncookies = 0;
 	}
 
-	if (cnt == 0)
+	if (cookies == NULL)
 		error = tmpfs_dir_getdents(node, uio, 0, NULL, NULL);
 	else
-		error = tmpfs_dir_getdents(node, uio, cnt, *cookies, ncookies);
+		error = tmpfs_dir_getdents(node, uio, maxcookies, *cookies,
+		    ncookies);
 
+	/* Buffer was filled without hitting EOF. */
 	if (error == EJUSTRETURN)
 		error = (uio->uio_resid != startresid) ? 0 : EINVAL;
 
-	if (error != 0 && cnt != 0)
+	if (error != 0 && cookies != NULL)
 		free(*cookies, M_TEMP);
 
 	if (eofflag != NULL)

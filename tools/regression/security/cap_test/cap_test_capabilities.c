@@ -38,7 +38,7 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
-#include <sys/capability.h>
+#include <sys/capsicum.h>
 #include <sys/errno.h>
 #include <sys/mman.h>
 #include <sys/mount.h>
@@ -396,7 +396,7 @@ try_file_ops(int filefd, int dirfd, cap_rights_t rights)
 	pollfd.revents = 0;
 
 	ret = poll(&pollfd, 1, 0);
-	if (rights & CAP_POLL_EVENT)
+	if (rights & CAP_EVENT)
 		CHECK((pollfd.revents & POLLNVAL) == 0);
 	else
 		CHECK((pollfd.revents & POLLNVAL) != 0);
@@ -546,7 +546,7 @@ test_capabilities(void)
 	TRY(CAP_SEM_POST);
 	TRY(CAP_SEM_WAIT);
 	TRY(CAP_POST_EVENT);
-	TRY(CAP_POLL_EVENT);
+	TRY(CAP_EVENT);
 	TRY(CAP_IOCTL);
 	TRY(CAP_TTYHOOK);
 	TRY(CAP_PDGETPID);

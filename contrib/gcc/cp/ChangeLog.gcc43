@@ -7,6 +7,17 @@
 	* typeck.c (cxx_alignof_expr): When alignof is used on a plain
 	FUNCTION_DECL, return its alignment.
 
+2007-07-01  Ollie Wild  <aaw@google.com> (r126177)
+
+	* name-lookup.c (ambiguous_decl): Fix case when new->value is hidden.
+	(select_decl): Remove function.
+	(unqualified_namespace_lookup): Populate binding by calling
+	ambiguous_decl.  Remove select_decl call.
+	(lookup_qualified_name): Remove select_decl call.
+	* decl.c (lookup_and_check_tag): Check for ambiguous references.
+	* parser.c (cp_parser_elaborated_type_specifier): Skip redundant error
+	generation when name lookup is ambiguous.
+
 2007-06-28  Geoffrey Keating  <geoffk@apple.com> (r126088)
 
 	* decl2.c (determine_visibility): Implement
@@ -25,15 +36,24 @@
 	* decl2.c (determine_visibility): Remove duplicate code for
 	handling type info.
 
-2007-06-12  Ian Lance Taylor  <iant@google.com> (r125653)
-
-	PR libstdc++/29286
-	* init.c (avoid_placement_new_aliasing): New static function.
-	(build_new_1): Call it.
-
 2007-05-31  Daniel Berlin  <dberlin@dberlin.org> (r125239)
 
 	* typeck.c (build_binary_op): Include types in error.
+
+2007-05-22  Ollie Wild  <aaw@google.com> (r124963)
+ 
+	* name-lookup.c (ambiguous_decl): Adds check for hidden types.
+	(unqualified_namespace_lookup): Adds check for hidden types.
+
+2007-05-18  Geoffrey Keating  <geoffk@apple.com> (r124839)
+
+	* mangle.c (write_real_cst): Use 'unsigned long' for %lx.
+
+2007-05-14  Paolo Carlini  <pcarlini@suse.de> (r124724)
+
+	PR c++/29928
+	* rtti.c (get_tinfo_decl_dynamic, get_typeid): Try to complete the
+	type only if is a class type (5.2.8/4).
 
 2007-05-05  Geoffrey Keating  <geoffk@apple.com> (r124467)
 

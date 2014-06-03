@@ -106,6 +106,8 @@ struct bios_oem {
 int	bios_oem_strings(struct bios_oem *oem, u_char *buffer, size_t maxlen);
 uint32_t bios_sigsearch(uint32_t start, u_char *sig, int siglen, int paralen,
 	    int sigofs);
+void bios_add_smap_entries(struct bios_smap *smapbase, u_int32_t smapsize,
+	    vm_paddr_t *physmap, int *physmap_idx);
 #endif
 
 #endif /* _MACHINE_PC_BIOS_H_ */

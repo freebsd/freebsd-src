@@ -7,9 +7,11 @@
 //
 //===----------------------------------------------------------------------===//
 #include "llvm/Support/LockFileManager.h"
+#include "llvm/ADT/STLExtras.h"
+#include "llvm/ADT/StringExtras.h"
 #include "llvm/Support/FileSystem.h"
+#include "llvm/Support/MemoryBuffer.h"
 #include "llvm/Support/raw_ostream.h"
-#include <fstream>
 #include <sys/stat.h>
 #include <sys/types.h>
 #if LLVM_ON_WIN32
@@ -35,16 +37,20 @@ LockFileManager::readLockFile(StringRef LockFileName) {
 
   // Read the owning host and PID out of the lock file. If it appears that the
   // owning process is dead, the lock file is invalid.
-  int PID = 0;
-  std::string Hostname;
-  std::ifstream Input(LockFileName.str().c_str());
-  if (Input >> Hostname >> PID && PID > 0 &&
-      processStillExecuting(Hostname, PID))
-    return std::make_pair(Hostname, PID);
+  OwningPtr<MemoryBuffer> MB;
+  if (MemoryBuffer::getFile(LockFileName, MB))
+    return None;
+
+  StringRef Hostname;
+  StringRef PIDStr;
+  tie(Hostname, PIDStr) = getToken(MB->getBuffer(), " ");
+  PIDStr = PIDStr.substr(PIDStr.find_first_not_of(" "));
+  int PID;
+  if (!PIDStr.getAsInteger(10, PID))
+    return std::make_pair(std::string(Hostname), PID);
 
   // Delete the lock file. It's invalid anyway.
-  bool Existed;
-  sys::fs::remove(LockFileName, Existed);
+  sys::fs::remove(LockFileName);
   return None;
 }
 
@@ -78,10 +84,9 @@ LockFileManager::LockFileManager(StringRef FileName)
   UniqueLockFileName += "-%%%%%%%%";
   int UniqueLockFileID;
   if (error_code EC
-        = sys::fs::unique_file(UniqueLockFileName.str(),
-                                     UniqueLockFileID,
-                                     UniqueLockFileName,
-                                     /*makeAbsolute=*/false)) {
+        = sys::fs::createUniqueFile(UniqueLockFileName.str(),
+                                    UniqueLockFileID,
+                                    UniqueLockFileName)) {
     Error = EC;
     return;
   }

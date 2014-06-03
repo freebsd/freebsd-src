@@ -48,8 +48,6 @@ typedef struct MemPool {
     uintptr_t		mp_Used;
 } MemPool;
 
-#define MEMNODE_SIZE_MASK       ((sizeof(MemNode) <= 8) ? 7 : 15)
-
 #define ZNOTE_FREE	0
 #define ZNOTE_REUSE	1
 

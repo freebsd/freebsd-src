@@ -1,4 +1,4 @@
-/* $OpenBSD: dh.c,v 1.51 2013/07/02 12:31:43 markus Exp $ */
+/* $OpenBSD: dh.c,v 1.53 2013/11/21 00:45:44 djm Exp $ */
 /*
  * Copyright (c) 2000 Niels Provos.  All rights reserved.
  *
@@ -254,33 +254,19 @@ dh_pub_is_valid(DH *dh, BIGNUM *dh_pub)
 void
 dh_gen_key(DH *dh, int need)
 {
-	int i, bits_set, tries = 0;
+	int pbits;
 
-	if (need < 0)
-		fatal("dh_gen_key: need < 0");
+	if (need <= 0)
+		fatal("%s: need <= 0", __func__);
 	if (dh->p == NULL)
-		fatal("dh_gen_key: dh->p == NULL");
-	if (need > INT_MAX / 2 || 2 * need >= BN_num_bits(dh->p))
-		fatal("dh_gen_key: group too small: %d (2*need %d)",
-		    BN_num_bits(dh->p), 2*need);
-	do {
-		if (dh->priv_key != NULL)
-			BN_clear_free(dh->priv_key);
-		if ((dh->priv_key = BN_new()) == NULL)
-			fatal("dh_gen_key: BN_new failed");
-		/* generate a 2*need bits random private exponent */
-		if (!BN_rand(dh->priv_key, 2*need, 0, 0))
-			fatal("dh_gen_key: BN_rand failed");
-		if (DH_generate_key(dh) == 0)
-			fatal("DH_generate_key");
-		for (i = 0, bits_set = 0; i <= BN_num_bits(dh->priv_key); i++)
-			if (BN_is_bit_set(dh->priv_key, i))
-				bits_set++;
-		debug2("dh_gen_key: priv key bits set: %d/%d",
-		    bits_set, BN_num_bits(dh->priv_key));
-		if (tries++ > 10)
-			fatal("dh_gen_key: too many bad keys: giving up");
-	} while (!dh_pub_is_valid(dh, dh->pub_key));
+		fatal("%s: dh->p == NULL", __func__);
+	if ((pbits = BN_num_bits(dh->p)) <= 0)
+		fatal("%s: bits(p) <= 0", __func__);
+	dh->length = MIN(need * 2, pbits - 1);
+	if (DH_generate_key(dh) == 0)
+		fatal("%s: key generation failed", __func__);
+	if (!dh_pub_is_valid(dh, dh->pub_key))
+		fatal("%s: generated invalid key", __func__);
 }
 
 DH *
@@ -352,17 +338,20 @@ dh_new_group14(void)
 
 /*
  * Estimates the group order for a Diffie-Hellman group that has an
- * attack complexity approximately the same as O(2**bits).  Estimate
- * with:  O(exp(1.9223 * (ln q)^(1/3) (ln ln q)^(2/3)))
+ * attack complexity approximately the same as O(2**bits).
+ * Values from NIST Special Publication 800-57: Recommendation for Key
+ * Management Part 1 (rev 3) limited by the recommended maximum value
+ * from RFC4419 section 3.
  */
 
 int
 dh_estimate(int bits)
 {
-
+	if (bits <= 112)
+		return 2048;
 	if (bits <= 128)
-		return (1024);	/* O(2**86) */
+		return 3072;
 	if (bits <= 192)
-		return (2048);	/* O(2**116) */
-	return (4096);		/* O(2**156) */
+		return 7680;
+	return 8192;
 }

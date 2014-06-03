@@ -298,7 +298,7 @@ vm_radix_reserve_kva(void *arg __unused)
 	 * are needed to store them.
 	 */
 	if (!uma_zone_reserve_kva(vm_radix_node_zone,
-	    ((vm_paddr_t)cnt.v_page_count * PAGE_SIZE) / (PAGE_SIZE +
+	    ((vm_paddr_t)vm_cnt.v_page_count * PAGE_SIZE) / (PAGE_SIZE +
 	    sizeof(struct vm_radix_node))))
 		panic("%s: unable to reserve KVA", __func__);
 }

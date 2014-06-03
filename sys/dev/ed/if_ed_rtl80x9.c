@@ -117,7 +117,11 @@ ed_probe_RTL80x9(device_t dev, int port_rid, int flags)
 	ifmedia_add(&sc->ifmedia, IFM_ETHER | IFM_10_5, 0, 0);
 	ifmedia_add(&sc->ifmedia, IFM_ETHER | IFM_AUTO, 0, 0);
 
+	ed_nic_barrier(sc, ED_P0_CR, 1,
+	    BUS_SPACE_BARRIER_READ | BUS_SPACE_BARRIER_WRITE);
 	ed_nic_outb(sc, ED_P0_CR, ED_CR_RD2 | ED_CR_PAGE_3 | ED_CR_STP);
+	ed_nic_barrier(sc, ED_P0_CR, 1,
+	    BUS_SPACE_BARRIER_READ | BUS_SPACE_BARRIER_WRITE);
 
 	switch (ed_nic_inb(sc, ED_RTL80X9_CONFIG2) & ED_RTL80X9_CF2_MEDIA) {
 	case ED_RTL80X9_CF2_AUTO:
@@ -145,8 +149,12 @@ ed_rtl_set_media(struct ifnet *ifp)
 
 	sc = ifp->if_softc;
 	ED_LOCK(sc);
+	ed_nic_barrier(sc, ED_P0_CR, 1,
+	    BUS_SPACE_BARRIER_READ | BUS_SPACE_BARRIER_WRITE);
 	ed_nic_outb(sc, ED_P0_CR, sc->cr_proto | ED_CR_PAGE_3
 		| (ed_nic_inb(sc, ED_P0_CR) & (ED_CR_STA | ED_CR_STP)));
+	ed_nic_barrier(sc, ED_P0_CR, 1,
+	    BUS_SPACE_BARRIER_READ | BUS_SPACE_BARRIER_WRITE);
 
 	switch(IFM_SUBTYPE(sc->ifmedia.ifm_cur->ifm_media)) {
 	case IFM_10_T:
@@ -190,8 +198,12 @@ ed_rtl_get_media(struct ifnet *ifp, struct ifmediareq *imr)
 
 	if (IFM_SUBTYPE(imr->ifm_active) == IFM_AUTO) {
 		ED_LOCK(sc);
+		ed_nic_barrier(sc, ED_P0_CR, 1,
+		    BUS_SPACE_BARRIER_READ | BUS_SPACE_BARRIER_WRITE);
 		ed_nic_outb(sc, ED_P0_CR, sc->cr_proto | ED_CR_PAGE_3 |
 			(ed_nic_inb(sc, ED_P0_CR) & (ED_CR_STA | ED_CR_STP)));
+		ed_nic_barrier(sc, ED_P0_CR, 1,
+		    BUS_SPACE_BARRIER_READ | BUS_SPACE_BARRIER_WRITE);
 
 		switch (ed_nic_inb(sc, ED_RTL80X9_CONFIG0)
 				& (sc->chip_type == ED_CHIP_TYPE_RTL8029 ? ED_RTL80X9_CF0_BNC

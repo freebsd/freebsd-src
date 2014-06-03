@@ -56,6 +56,8 @@ struct pcpu_md {
 	uint32_t	clock_mode;		/* Clock ET mode */
 	uint32_t	awake:1;		/* CPU is awake? */
 	struct pcpu_stats stats;		/* Interrupt stats. */
+	void		*xtrace_buffer;
+	uint64_t	xtrace_tail;
 #ifdef _KERNEL
 	struct sysctl_ctx_list sysctl_ctx;
 	struct sysctl_oid *sysctl_tree;
@@ -65,7 +67,7 @@ struct pcpu_md {
 #define	PCPU_MD_FIELDS							\
 	uint32_t	pc_acpi_id;		/* ACPI CPU id. */	\
 	struct pcpu_md	pc_md;			/* MD fields. */	\
-	char		__pad[1265]
+	char		__pad[10*128]
 
 #ifdef _KERNEL
 

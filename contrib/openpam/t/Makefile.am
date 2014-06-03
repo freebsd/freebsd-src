@@ -6,6 +6,7 @@ noinst_HEADERS = t.h
 
 # tests
 TESTS =
+TESTS += t_openpam_ctype
 TESTS += t_openpam_readword
 TESTS += t_openpam_readlinev
 check_PROGRAMS = $(TESTS)

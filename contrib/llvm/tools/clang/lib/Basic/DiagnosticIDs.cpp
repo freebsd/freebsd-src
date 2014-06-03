@@ -16,6 +16,7 @@
 #include "clang/Basic/DiagnosticCategories.h"
 #include "clang/Basic/SourceManager.h"
 #include "llvm/ADT/SmallVector.h"
+#include "llvm/ADT/STLExtras.h"
 #include "llvm/Support/ErrorHandling.h"
 #include <map>
 using namespace clang;
@@ -35,11 +36,10 @@ enum {
 };
 
 struct StaticDiagInfoRec {
-  unsigned short DiagID;
+  uint16_t DiagID;
   unsigned Mapping : 3;
   unsigned Class : 3;
-  unsigned SFINAE : 1;
-  unsigned AccessControl : 1;
+  unsigned SFINAE : 2;
   unsigned WarnNoWerror : 1;
   unsigned WarnShowInSystemHeader : 1;
   unsigned Category : 5;
@@ -66,9 +66,9 @@ struct StaticDiagInfoRec {
 
 static const StaticDiagInfoRec StaticDiagInfo[] = {
 #define DIAG(ENUM,CLASS,DEFAULT_MAPPING,DESC,GROUP,               \
-             SFINAE,ACCESS,NOWERROR,SHOWINSYSHEADER,              \
-             CATEGORY)                                            \
-  { diag::ENUM, DEFAULT_MAPPING, CLASS, SFINAE, ACCESS,           \
+             SFINAE,NOWERROR,SHOWINSYSHEADER,CATEGORY)            \
+  { diag::ENUM, DEFAULT_MAPPING, CLASS,                           \
+    DiagnosticIDs::SFINAE,                                        \
     NOWERROR, SHOWINSYSHEADER, CATEGORY, GROUP,                   \
     STR_SIZE(DESC, uint16_t), DESC },
 #include "clang/Basic/DiagnosticCommonKinds.inc"
@@ -82,18 +82,16 @@ static const StaticDiagInfoRec StaticDiagInfo[] = {
 #include "clang/Basic/DiagnosticSemaKinds.inc"
 #include "clang/Basic/DiagnosticAnalysisKinds.inc"
 #undef DIAG
-  { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}
 };
 
-static const unsigned StaticDiagInfoSize =
-  sizeof(StaticDiagInfo)/sizeof(StaticDiagInfo[0])-1;
+static const unsigned StaticDiagInfoSize = llvm::array_lengthof(StaticDiagInfo);
 
 /// GetDiagInfo - Return the StaticDiagInfoRec entry for the specified DiagID,
 /// or null if the ID is invalid.
 static const StaticDiagInfoRec *GetDiagInfo(unsigned DiagID) {
   // If assertions are enabled, verify that the StaticDiagInfo array is sorted.
 #ifndef NDEBUG
-  static bool IsFirst = true;
+  static bool IsFirst = true; // So the check is only performed on first call.
   if (IsFirst) {
     for (unsigned i = 1; i != StaticDiagInfoSize; ++i) {
       assert(StaticDiagInfo[i-1].DiagID != StaticDiagInfo[i].DiagID &&
@@ -109,7 +107,7 @@ static const StaticDiagInfoRec *GetDiagInfo(unsigned DiagID) {
 
   // Out of bounds diag. Can't be in the table.
   using namespace diag;
-  if (DiagID >= DIAG_UPPER_LIMIT)
+  if (DiagID >= DIAG_UPPER_LIMIT || DiagID <= DIAG_START_COMMON)
     return 0;
 
   // Compute the index of the requested diagnostic in the static table.
@@ -121,8 +119,7 @@ static const StaticDiagInfoRec *GetDiagInfo(unsigned DiagID) {
   // This is cheaper than a binary search on the table as it doesn't touch
   // memory at all.
   unsigned Offset = 0;
-  unsigned ID = DiagID;
-#define DIAG_START_COMMON 0 // Sentinel value.
+  unsigned ID = DiagID - DIAG_START_COMMON - 1;
 #define CATEGORY(NAME, PREV) \
   if (DiagID > DIAG_START_##NAME) { \
     Offset += NUM_BUILTIN_##PREV##_DIAGNOSTICS - DIAG_START_##PREV - 1; \
@@ -138,7 +135,6 @@ CATEGORY(COMMENT, AST)
 CATEGORY(SEMA, COMMENT)
 CATEGORY(ANALYSIS, SEMA)
 #undef CATEGORY
-#undef DIAG_START_COMMON
 
   // Avoid out of bounds reads.
   if (ID + Offset >= StaticDiagInfoSize)
@@ -224,7 +220,7 @@ static const StaticDiagCategoryRec CategoryNameTable[] = {
 
 /// getNumberOfCategories - Return the number of categories
 unsigned DiagnosticIDs::getNumberOfCategories() {
-  return sizeof(CategoryNameTable) / sizeof(CategoryNameTable[0])-1;
+  return llvm::array_lengthof(CategoryNameTable) - 1;
 }
 
 /// getCategoryNameFromID - Given a category ID, return the name of the
@@ -238,22 +234,10 @@ StringRef DiagnosticIDs::getCategoryNameFromID(unsigned CategoryID) {
 
 
 
-DiagnosticIDs::SFINAEResponse 
+DiagnosticIDs::SFINAEResponse
 DiagnosticIDs::getDiagnosticSFINAEResponse(unsigned DiagID) {
-  if (const StaticDiagInfoRec *Info = GetDiagInfo(DiagID)) {
-    if (Info->AccessControl)
-      return SFINAE_AccessControl;
-    
-    if (!Info->SFINAE)
-      return SFINAE_Report;
-
-    if (Info->Class == CLASS_ERROR)
-      return SFINAE_SubstitutionFailure;
-    
-    // Suppress notes, warnings, and extensions;
-    return SFINAE_Suppress;
-  }
-  
+  if (const StaticDiagInfoRec *Info = GetDiagInfo(DiagID))
+    return static_cast<DiagnosticIDs::SFINAEResponse>(Info->SFINAE);
   return SFINAE_Report;
 }
 
@@ -504,23 +488,23 @@ DiagnosticIDs::getDiagnosticLevel(unsigned DiagID, unsigned DiagClass,
   return Result;
 }
 
-struct clang::WarningOption {
-  // Be safe with the size of 'NameLen' because we don't statically check if
-  // the size will fit in the field; the struct size won't decrease with a
-  // shorter type anyway.
-  size_t NameLen;
-  const char *NameStr;
-  const short *Members;
-  const short *SubGroups;
-
-  StringRef getName() const {
-    return StringRef(NameStr, NameLen);
-  }
-};
-
 #define GET_DIAG_ARRAYS
 #include "clang/Basic/DiagnosticGroups.inc"
 #undef GET_DIAG_ARRAYS
+
+namespace {
+  struct WarningOption {
+    uint16_t NameOffset;
+    uint16_t Members;
+    uint16_t SubGroups;
+
+    // String is stored with a pascal-style length byte.
+    StringRef getName() const {
+      return StringRef(DiagGroupNames + NameOffset + 1,
+                       DiagGroupNames[NameOffset]);
+    }
+  };
+}
 
 // Second the table of options, sorted by name for fast binary lookup.
 static const WarningOption OptionTable[] = {
@@ -528,12 +512,10 @@ static const WarningOption OptionTable[] = {
 #include "clang/Basic/DiagnosticGroups.inc"
 #undef GET_DIAG_TABLE
 };
-static const size_t OptionTableSize =
-sizeof(OptionTable) / sizeof(OptionTable[0]);
+static const size_t OptionTableSize = llvm::array_lengthof(OptionTable);
 
-static bool WarningOptionCompare(const WarningOption &LHS,
-                                 const WarningOption &RHS) {
-  return LHS.getName() < RHS.getName();
+static bool WarningOptionCompare(const WarningOption &LHS, StringRef RHS) {
+  return LHS.getName() < RHS;
 }
 
 /// getWarningOptionForDiag - Return the lowest-level warning option that
@@ -545,34 +527,30 @@ StringRef DiagnosticIDs::getWarningOptionForDiag(unsigned DiagID) {
   return StringRef();
 }
 
-void DiagnosticIDs::getDiagnosticsInGroup(
-    const WarningOption *Group,
-    SmallVectorImpl<diag::kind> &Diags) const {
+static void getDiagnosticsInGroup(const WarningOption *Group,
+                                  SmallVectorImpl<diag::kind> &Diags) {
   // Add the members of the option diagnostic set.
-  if (const short *Member = Group->Members) {
-    for (; *Member != -1; ++Member)
-      Diags.push_back(*Member);
-  }
+  const int16_t *Member = DiagArrays + Group->Members;
+  for (; *Member != -1; ++Member)
+    Diags.push_back(*Member);
 
   // Add the members of the subgroups.
-  if (const short *SubGroups = Group->SubGroups) {
-    for (; *SubGroups != (short)-1; ++SubGroups)
-      getDiagnosticsInGroup(&OptionTable[(short)*SubGroups], Diags);
-  }
+  const int16_t *SubGroups = DiagSubGroups + Group->SubGroups;
+  for (; *SubGroups != (int16_t)-1; ++SubGroups)
+    getDiagnosticsInGroup(&OptionTable[(short)*SubGroups], Diags);
 }
 
 bool DiagnosticIDs::getDiagnosticsInGroup(
     StringRef Group,
     SmallVectorImpl<diag::kind> &Diags) const {
-  WarningOption Key = { Group.size(), Group.data(), 0, 0 };
   const WarningOption *Found =
-  std::lower_bound(OptionTable, OptionTable + OptionTableSize, Key,
+  std::lower_bound(OptionTable, OptionTable + OptionTableSize, Group,
                    WarningOptionCompare);
   if (Found == OptionTable + OptionTableSize ||
       Found->getName() != Group)
     return true; // Option not found.
 
-  getDiagnosticsInGroup(Found, Diags);
+  ::getDiagnosticsInGroup(Found, Diags);
   return false;
 }
 

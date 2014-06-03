@@ -22,14 +22,17 @@ static const char rcsid[] =
 
 #include <ctype.h>
 #include <err.h>
+#include <errno.h>
+#include <histedit.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 
-#include "pathnames.h"
+#include <sys/capsicum.h>
 
-#define VERSION "1.0"
+#include "pathnames.h"
 
 #ifndef UNITSFILE
 #define UNITSFILE _PATH_UNITSLIB
@@ -73,35 +76,43 @@ static char NULLUNIT[] = "";
 
 static int unitcount;
 static int prefixcount;
+static bool verbose = false;
+static const char * havestr;
+static const char * wantstr;
 
-char	*dupstr(const char *str);
-void	 readunits(const char *userfile);
-void	 initializeunit(struct unittype * theunit);
-int	 addsubunit(char *product[], char *toadd);
-void	 showunit(struct unittype * theunit);
-void	 zeroerror(void);
-int	 addunit(struct unittype *theunit, char *toadd, int flip, int quantity);
-int	 compare(const void *item1, const void *item2);
-void	 sortunit(struct unittype * theunit);
-void	 cancelunit(struct unittype * theunit);
-char	*lookupunit(const char *unit);
-int	 reduceproduct(struct unittype * theunit, int flip);
-int	 reduceunit(struct unittype * theunit);
-int	 compareproducts(char **one, char **two);
-int	 compareunits(struct unittype * first, struct unittype * second);
-int	 completereduce(struct unittype * unit);
-void	 showanswer(struct unittype * have, struct unittype * want);
-void	 usage(void);
+static int	 addsubunit(char *product[], char *toadd);
+static int	 addunit(struct unittype *theunit, const char *toadd, int flip, int quantity);
+static void	 cancelunit(struct unittype * theunit);
+static int	 compare(const void *item1, const void *item2);
+static int	 compareproducts(char **one, char **two);
+static int	 compareunits(struct unittype * first, struct unittype * second);
+static int	 completereduce(struct unittype * unit);
+static char	*dupstr(const char *str);
+static void	 initializeunit(struct unittype * theunit);
+static char	*lookupunit(const char *unit);
+static void	 readunits(const char *userfile);
+static int	 reduceproduct(struct unittype * theunit, int flip);
+static int	 reduceunit(struct unittype * theunit);
+static void	 showanswer(struct unittype * have, struct unittype * want);
+static void	 showunit(struct unittype * theunit);
+static void	 sortunit(struct unittype * theunit);
+static void	 usage(void);
+static void	 zeroerror(void);
+
+static const char* promptstr = "";
+
+static const char * prompt(EditLine *e __unused) {
+	return promptstr;
+}
 
 char *
 dupstr(const char *str)
 {
 	char *ret;
 
-	ret = malloc(strlen(str) + 1);
+	ret = strdup(str);
 	if (!ret)
-		errx(3, "memory allocation error");
-	strcpy(ret, str);
+		err(3, "dupstr");
 	return (ret);
 }
 
@@ -112,6 +123,7 @@ readunits(const char *userfile)
 	FILE *unitfile;
 	char line[512], *lineptr;
 	int len, linenum, i;
+	cap_rights_t unitfilerights;
 
 	unitcount = 0;
 	linenum = 0;
@@ -143,6 +155,10 @@ readunits(const char *userfile)
 				errx(1, "can't find units file '%s'", UNITSFILE);
 		}
 	}
+	cap_rights_init(&unitfilerights, CAP_READ, CAP_FSTAT);
+	if (cap_rights_limit(fileno(unitfile), &unitfilerights) < 0
+		&& errno != ENOSYS)
+		err(1, "cap_rights_limit() failed");
 	while (!feof(unitfile)) {
 		if (!fgets(line, sizeof(line), unitfile))
 			break;
@@ -227,7 +243,7 @@ addsubunit(char *product[], char *toadd)
 		return 1;
 	}
 	if (!*ptr)
-		*(ptr + 1) = 0;
+		*(ptr + 1) = NULL;
 	*ptr = dupstr(toadd);
 	return 0;
 }
@@ -240,7 +256,7 @@ showunit(struct unittype * theunit)
 	int printedslash;
 	int counter = 1;
 
-	printf("\t%.8g", theunit->factor);
+	printf("%.8g", theunit->factor);
 	if (theunit->offset)
 		printf("&%.8g", theunit->offset);
 	for (ptr = theunit->numerator; *ptr; ptr++) {
@@ -296,7 +312,7 @@ zeroerror(void)
 */
 
 int 
-addunit(struct unittype * theunit, char *toadd, int flip, int quantity)
+addunit(struct unittype * theunit, const char *toadd, int flip, int quantity)
 {
 	char *scratch, *savescr;
 	char *item;
@@ -631,32 +647,50 @@ completereduce(struct unittype * unit)
 	return 0;
 }
 
-
 void 
 showanswer(struct unittype * have, struct unittype * want)
 {
+	double ans;
+
 	if (compareunits(have, want)) {
 		printf("conformability error\n");
+		if (verbose)
+			printf("\t%s = ", havestr);
+		else
+			printf("\t");
 		showunit(have);
+		if (verbose)
+			printf("\t%s = ", wantstr);
+		else
+			printf("\t");
 		showunit(want);
 	}
 	else if (have->offset != want->offset) {
 		if (want->quantity)
 			printf("WARNING: conversion of non-proportional quantities.\n");
-		printf("\t");
 		if (have->quantity)
-			printf("%.8g\n",
+			printf("\t%.8g\n",
 			    (have->factor + have->offset-want->offset)/want->factor);
-		else
-			printf(" (-> x*%.8g %+.8g)\n\t (<- y*%.8g %+.8g)\n",
+		else {
+			printf("\t (-> x*%.8g %+.8g)\n\t (<- y*%.8g %+.8g)\n",
 			    have->factor / want->factor,
 			    (have->offset-want->offset)/want->factor,
 			    want->factor / have->factor,
 			    (want->offset - have->offset)/have->factor);
+		}
 	}
-	else
-		printf("\t* %.8g\n\t/ %.8g\n", have->factor / want->factor,
-		    want->factor / have->factor);
+	else {
+		ans = have->factor / want->factor;
+		if (verbose)
+			printf("\t%s = %.8g * %s\n", havestr, ans, wantstr);
+		else
+			printf("\t* %.8g\n", ans);
+
+		if (verbose)
+			printf("\t%s = (1 / %.8g) * %s\n", havestr, 1/ans,  wantstr);
+		else
+			printf("\t/ %.8g\n", 1/ans);
+	}
 }
 
 
@@ -664,7 +698,7 @@ void
 usage(void)
 {
 	fprintf(stderr,
-		"usage: units [-f unitsfile] [-q] [-v] [from-unit to-unit]\n");
+		"usage: units [-f unitsfile] [-UVq] [from-unit to-unit]\n");
 	exit(3);
 }
 
@@ -674,38 +708,66 @@ main(int argc, char **argv)
 {
 
 	struct unittype have, want;
-	char havestr[81], wantstr[81];
 	int optchar;
-	char *userfile = 0;
-	int quiet = 0;
+	bool quiet;
+	bool readfile;
+	History *inhistory;
+	EditLine *el;
+	HistEvent ev;
+	int inputsz;
 
-	while ((optchar = getopt(argc, argv, "vqf:")) != -1) {
+	quiet = false;
+	readfile = false;
+	while ((optchar = getopt(argc, argv, "f:qvUV")) != -1) {
 		switch (optchar) {
 		case 'f':
-			userfile = optarg;
+			readfile = true;
+			if (strlen(optarg) == 0)
+				readunits(NULL);
+			else
+				readunits(optarg);
 			break;
 		case 'q':
-			quiet = 1;
+			quiet = true;
 			break;
 		case 'v':
-			fprintf(stderr, "\n  units version %s  Copyright (c) 1993 by Adrian Mariano\n",
-			    VERSION);
-			fprintf(stderr, "                    This program may be freely distributed\n");
-			usage();
+			verbose = true;
+			break;
+		case 'V':
+			fprintf(stderr, "FreeBSD units\n");
+			/* FALLTHROUGH */
+		case 'U':
+			if (access(UNITSFILE, F_OK) == 0)
+				printf("%s\n", UNITSFILE);
+			else
+				printf("Units data file not found");
+			exit(0);
+			break;
 		default:
 			usage();
-			break;
 		}
 	}
 
-	if (optind != argc - 2 && optind != argc)
-		usage();
+	if (!readfile)
+		readunits(NULL);
 
-	readunits(userfile);
+	inhistory = history_init();
+	el = el_init(argv[0], stdin, stdout, stderr);
+	el_set(el, EL_PROMPT, &prompt);
+	el_set(el, EL_EDITOR, "emacs");
+	el_set(el, EL_SIGNAL, 1);
+	el_set(el, EL_HIST, history, inhistory);
+	el_source(el, NULL);
+	history(inhistory, &ev, H_SETSIZE, 800);
+	if (inhistory == 0)
+		err(1, "Could not initialize history");
+
+	if (cap_enter() < 0 && errno != ENOSYS)
+		err(1, "unable to enter capability mode");
 
 	if (optind == argc - 2) {
-		strlcpy(havestr, argv[optind], sizeof(havestr));
-		strlcpy(wantstr, argv[optind + 1], sizeof(wantstr));
+		havestr = argv[optind];
+		wantstr = argv[optind + 1];
 		initializeunit(&have);
 		addunit(&have, havestr, 0, 1);
 		completereduce(&have);
@@ -722,28 +784,32 @@ main(int argc, char **argv)
 			do {
 				initializeunit(&have);
 				if (!quiet)
-					printf("You have: ");
-				if (!fgets(havestr, sizeof(havestr), stdin)) {
-					if (!quiet)
-						putchar('\n');
+					promptstr = "You have: ";
+				havestr = el_gets(el, &inputsz);
+				if (havestr == NULL)
 					exit(0);
-				}
+				if (inputsz > 0)
+					history(inhistory, &ev, H_ENTER,
+					havestr);
 			} while (addunit(&have, havestr, 0, 1) ||
 			    completereduce(&have));
 			do {
 				initializeunit(&want);
 				if (!quiet)
-					printf("You want: ");
-				if (!fgets(wantstr, sizeof(wantstr), stdin)) {
-					if (!quiet)
-						putchar('\n');
+					promptstr = "You want: ";
+				wantstr = el_gets(el, &inputsz);
+				if (wantstr == NULL)
 					exit(0);
-				}
+				if (inputsz > 0)
+					history(inhistory, &ev, H_ENTER,
+					wantstr);
 			} while (addunit(&want, wantstr, 0, 1) ||
 			    completereduce(&want));
 			showanswer(&have, &want);
 		}
 	}
 
+	history_end(inhistory);
+	el_end(el);
 	return(0);
 }

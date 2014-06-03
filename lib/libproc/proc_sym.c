@@ -96,7 +96,7 @@ proc_objname(struct proc_handle *p, uintptr_t addr, char *objname,
 
 	for (i = 0; i < p->nobjs; i++) {
 		rdl = &p->rdobjs[i];
-		if (addr >= rdl->rdl_saddr && addr <= rdl->rdl_eaddr) {
+		if (addr >= rdl->rdl_saddr && addr < rdl->rdl_eaddr) {
 			strlcpy(objname, rdl->rdl_path, objnamesz);
 			return (objname);
 		}
@@ -112,17 +112,23 @@ proc_obj2map(struct proc_handle *p, const char *objname)
 	rd_loadobj_t *rdl;
 	char path[MAXPATHLEN];
 
+	rdl = NULL;
 	for (i = 0; i < p->nobjs; i++) {
-		rdl = &p->rdobjs[i];
-		basename_r(rdl->rdl_path, path);
+		basename_r(p->rdobjs[i].rdl_path, path);
 		if (strcmp(path, objname) == 0) {
-			if ((map = malloc(sizeof(*map))) == NULL)
-				return (NULL);
-			proc_rdl2prmap(rdl, map);
-			return (map);
+			rdl = &p->rdobjs[i];
+			break;
 		}
 	}
-	return (NULL);
+	if (rdl == NULL && strcmp(objname, "a.out") == 0 && p->rdexec != NULL)
+		rdl = p->rdexec;
+	else
+		return (NULL);
+
+	if ((map = malloc(sizeof(*map))) == NULL)
+		return (NULL);
+	proc_rdl2prmap(rdl, map);
+	return (map);
 }
 
 int
@@ -176,7 +182,7 @@ proc_addr2map(struct proc_handle *p, uintptr_t addr)
 			kve = kves + i;
 			if (kve->kve_type == KVME_TYPE_VNODE)
 				lastvn = i;
-			if (addr >= kve->kve_start && addr <= kve->kve_end) {
+			if (addr >= kve->kve_start && addr < kve->kve_end) {
 				if ((map = malloc(sizeof(*map))) == NULL) {
 					free(kves);
 					return (NULL);
@@ -209,7 +215,7 @@ proc_addr2map(struct proc_handle *p, uintptr_t addr)
 
 	for (i = 0; i < p->nobjs; i++) {
 		rdl = &p->rdobjs[i];
-		if (addr >= rdl->rdl_saddr && addr <= rdl->rdl_eaddr) {
+		if (addr >= rdl->rdl_saddr && addr < rdl->rdl_eaddr) {
 			if ((map = malloc(sizeof(*map))) == NULL)
 				return (NULL);
 			proc_rdl2prmap(rdl, map);
@@ -386,8 +392,9 @@ proc_name2map(struct proc_handle *p, const char *name)
 		free(kves);
 		return (NULL);
 	}
-	if (name == NULL || strcmp(name, "a.out") == 0) {
-		map = proc_addr2map(p, p->rdobjs[0].rdl_saddr);
+	if ((name == NULL || strcmp(name, "a.out") == 0) &&
+	    p->rdexec != NULL) {
+		map = proc_addr2map(p, p->rdexec->rdl_saddr);
 		return (map);
 	}
 	for (i = 0; i < p->nobjs; i++) {

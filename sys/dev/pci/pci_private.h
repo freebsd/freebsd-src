@@ -40,6 +40,9 @@ DECLARE_CLASS(pci_driver);
 
 struct pci_softc {
 	bus_dma_tag_t sc_dma_tag;
+#ifdef PCI_RES_BUS
+	struct resource *sc_bus;
+#endif
 };
 
 extern int 	pci_do_power_resume;

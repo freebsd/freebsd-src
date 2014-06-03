@@ -43,13 +43,13 @@ __FBSDID("$FreeBSD$");
 #define SCTP_PACKED __attribute__((packed))
 
 /*
- * SCTP protocol - RFC2960.
+ * SCTP protocol - RFC4960.
  */
 struct sctphdr {
 	uint16_t src_port;	/* source port */
 	uint16_t dest_port;	/* destination port */
 	uint32_t v_tag;		/* verification tag of packet */
-	uint32_t checksum;	/* Adler32 C-Sum */
+	uint32_t checksum;	/* CRC32C checksum */
 	/* chunks follow... */
 }       SCTP_PACKED;
 
@@ -365,6 +365,12 @@ struct sctp_paramhdr {
 /*
  * error cause parameters (user visible)
  */
+struct sctp_gen_error_cause {
+	uint16_t code;
+	uint16_t length;
+	uint8_t info[];
+}                    SCTP_PACKED;
+
 struct sctp_error_cause {
 	uint16_t code;
 	uint16_t length;
@@ -401,6 +407,11 @@ struct sctp_error_unrecognized_chunk {
 	struct sctp_error_cause cause;	/* code=SCTP_ERROR_UNRECOG_CHUNK */
 	struct sctp_chunkhdr ch;/* header from chunk in error */
 }                             SCTP_PACKED;
+
+struct sctp_error_no_user_data {
+	struct sctp_error_cause cause;	/* code=SCTP_CAUSE_NO_USER_DATA */
+	uint32_t tsn;		/* TSN of the empty data chunk */
+}                       SCTP_PACKED;
 
 /*
  * Main SCTP chunk types we place these here so natd and f/w's in user land

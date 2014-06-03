@@ -946,6 +946,46 @@ warn_deprecated_use (tree node)
     }
 }
 
+/* APPLE LOCAL begin "unavailable" attribute (radar 2809697) --ilr */
+/* Warn about a use of an identifier which was marked deprecated.  */
+void
+error_unavailable_use (tree node)
+{
+  if (node == 0)
+    return;
+
+  if (DECL_P (node))
+    error ("%qs is unavailable (declared at %s:%d)",
+	   IDENTIFIER_POINTER (DECL_NAME (node)),
+	   DECL_SOURCE_FILE (node), DECL_SOURCE_LINE (node));
+  else if (TYPE_P (node))
+    {
+      const char *what = NULL;
+      tree decl = TYPE_STUB_DECL (node);
+
+      if (TREE_CODE (TYPE_NAME (node)) == IDENTIFIER_NODE)
+	what = IDENTIFIER_POINTER (TYPE_NAME (node));
+      else if (TREE_CODE (TYPE_NAME (node)) == TYPE_DECL
+	       && DECL_NAME (TYPE_NAME (node)))
+	what = IDENTIFIER_POINTER (DECL_NAME (TYPE_NAME (node)));
+
+      if (what)
+	{
+	  if (decl)
+	    error ("%qs is unavailable (declared at %s:%d)", what,
+		   DECL_SOURCE_FILE (decl), DECL_SOURCE_LINE (decl));
+	  else
+	    error ("%qs is unavailable", what);
+	}
+      else if (decl)
+	error ("type is unavailable (declared at %s:%d)",
+	       DECL_SOURCE_FILE (decl), DECL_SOURCE_LINE (decl));
+      else
+	error ("type is unavailable");
+    }
+}
+/* APPLE LOCAL end "unavailable" attribute (radar 2809697) --ilr */
+
 /* Save the current INPUT_LOCATION on the top entry in the
    INPUT_FILE_STACK.  Push a new entry for FILE and LINE, and set the
    INPUT_LOCATION accordingly.  */
@@ -1526,8 +1566,19 @@ general_init (const char *argv0)
   /* Register the language-independent parameters.  */
   add_params (lang_independent_params, LAST_PARAM);
 
-  /* This must be done after add_params but before argument processing.  */
-  init_ggc_heuristics();
+  /* APPLE LOCAL begin retune gc params 6124839 */
+  { int i = 0;
+    bool opt = false;
+    while (save_argv[++i])
+      {
+	if (strncmp (save_argv[i], "-O", 2) == 0
+	    && strcmp (save_argv[i], "-O0") != 0)
+	  opt = true;
+      }
+    /* This must be done after add_params but before argument processing.  */
+    init_ggc_heuristics(opt);
+  }
+  /* APPLE LOCAL end retune gc params 6124839 */
   init_optimization_passes ();
 }
 

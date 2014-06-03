@@ -46,6 +46,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/resource.h>
 #include <machine/intr.h>
 
+#include <arm/arm/mpcore_timervar.h>
 #include <arm/ti/tivar.h>
 #include <arm/ti/ti_prcm.h>
 #include <arm/ti/omap4/omap4_reg.h>
@@ -85,7 +86,6 @@ __FBSDID("$FreeBSD$");
  *	OMAP4 devices are different from the previous OMAP3 devices in that there
  *	is no longer a separate functional and interface clock for each module,
  *	instead there is typically an interface clock that spans many modules.
- *
  */
 
 #define FREQ_96MHZ    96000000
@@ -256,7 +256,7 @@ static int omap4_clk_get_arm_fclk_freq(struct ti_clock_dev *clkdev, unsigned int
 	}
 
 
-struct ti_clock_dev ti_clk_devmap[] = {
+struct ti_clock_dev ti_omap4_clk_devmap[] = {
 
 	/* System clocks */
 	{	.id                  = SYS_CLK,
@@ -990,7 +990,7 @@ omap4_clk_get_arm_fclk_freq(struct ti_clock_dev *clkdev,
 
 
 	/* Calculate the MPU freq */
-	mpuclk = (sysclk * pll_mult) / pll_div;
+	mpuclk = ((uint64_t)sysclk * pll_mult) / pll_div;
 
 	/* Return the value */
 	if (freq)
@@ -1363,6 +1363,10 @@ omap4_prcm_reset(void)
 static int
 omap4_prcm_probe(device_t dev)
 {
+
+	if (!ofw_bus_status_okay(dev))
+		return (ENXIO);
+
 	if (!ofw_bus_is_compatible(dev, "ti,omap4_prcm"))
 		return (ENXIO);
 
@@ -1400,7 +1404,7 @@ omap4_prcm_attach(device_t dev)
 	omap4_prcm_sc = sc;
 	ti_cpu_reset = omap4_prcm_reset;
 	omap4_clk_get_arm_fclk_freq(NULL, &freq);
-	platform_arm_tmr_freq = freq / 2;
+	arm_tmr_change_frequency(freq / 2);
 
 	return (0);
 }

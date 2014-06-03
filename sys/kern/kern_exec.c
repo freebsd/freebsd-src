@@ -33,9 +33,9 @@ __FBSDID("$FreeBSD$");
 #include "opt_vm.h"
 
 #include <sys/param.h>
-#include <sys/capability.h>
+#include <sys/capsicum.h>
 #include <sys/systm.h>
-#include <sys/capability.h>
+#include <sys/capsicum.h>
 #include <sys/eventhandler.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
@@ -282,6 +282,7 @@ kern_execve(td, args, mac_p)
 	struct mac *mac_p;
 {
 	struct proc *p = td->td_proc;
+	struct vmspace *oldvmspace;
 	int error;
 
 	AUDIT_ARG_ARGV(args->begin_argv, args->argc,
@@ -298,6 +299,8 @@ kern_execve(td, args, mac_p)
 		PROC_UNLOCK(p);
 	}
 
+	KASSERT((td->td_pflags & TDP_EXECVMSPC) == 0, ("nested execve"));
+	oldvmspace = td->td_proc->p_vmspace;
 	error = do_execve(td, args, mac_p);
 
 	if (p->p_flag & P_HADTHREADS) {
@@ -311,6 +314,12 @@ kern_execve(td, args, mac_p)
 		else
 			thread_single_end();
 		PROC_UNLOCK(p);
+	}
+	if ((td->td_pflags & TDP_EXECVMSPC) != 0) {
+		KASSERT(td->td_proc->p_vmspace != oldvmspace,
+		    ("oldvmspace still used"));
+		vmspace_free(oldvmspace);
+		td->td_pflags &= ~TDP_EXECVMSPC;
 	}
 
 	return (error);
@@ -1231,7 +1240,8 @@ exec_copyout_strings(imgp)
 {
 	int argc, envc;
 	char **vectp;
-	char *stringp, *destp;
+	char *stringp;
+	uintptr_t destp;
 	register_t *stack_base;
 	struct ps_strings *arginfo;
 	struct proc *p;
@@ -1255,44 +1265,46 @@ exec_copyout_strings(imgp)
 		if (p->p_sysent->sv_szsigcode != NULL)
 			szsigcode = *(p->p_sysent->sv_szsigcode);
 	}
-	destp =	(caddr_t)arginfo - szsigcode - SPARE_USRSPACE -
-	    roundup(execpath_len, sizeof(char *)) -
-	    roundup(sizeof(canary), sizeof(char *)) -
-	    roundup(szps, sizeof(char *)) -
-	    roundup((ARG_MAX - imgp->args->stringspace), sizeof(char *));
+	destp =	(uintptr_t)arginfo;
 
 	/*
 	 * install sigcode
 	 */
-	if (szsigcode != 0)
-		copyout(p->p_sysent->sv_sigcode, ((caddr_t)arginfo -
-		    szsigcode), szsigcode);
+	if (szsigcode != 0) {
+		destp -= szsigcode;
+		destp = rounddown2(destp, sizeof(void *));
+		copyout(p->p_sysent->sv_sigcode, (void *)destp, szsigcode);
+	}
 
 	/*
 	 * Copy the image path for the rtld.
 	 */
 	if (execpath_len != 0) {
-		imgp->execpathp = (uintptr_t)arginfo - szsigcode - execpath_len;
-		copyout(imgp->execpath, (void *)imgp->execpathp,
-		    execpath_len);
+		destp -= execpath_len;
+		imgp->execpathp = destp;
+		copyout(imgp->execpath, (void *)destp, execpath_len);
 	}
 
 	/*
 	 * Prepare the canary for SSP.
 	 */
 	arc4rand(canary, sizeof(canary), 0);
-	imgp->canary = (uintptr_t)arginfo - szsigcode - execpath_len -
-	    sizeof(canary);
-	copyout(canary, (void *)imgp->canary, sizeof(canary));
+	destp -= sizeof(canary);
+	imgp->canary = destp;
+	copyout(canary, (void *)destp, sizeof(canary));
 	imgp->canarylen = sizeof(canary);
 
 	/*
 	 * Prepare the pagesizes array.
 	 */
-	imgp->pagesizes = (uintptr_t)arginfo - szsigcode - execpath_len -
-	    roundup(sizeof(canary), sizeof(char *)) - szps;
-	copyout(pagesizes, (void *)imgp->pagesizes, szps);
+	destp -= szps;
+	destp = rounddown2(destp, sizeof(void *));
+	imgp->pagesizes = destp;
+	copyout(pagesizes, (void *)destp, szps);
 	imgp->pagesizeslen = szps;
+
+	destp -= ARG_MAX - imgp->args->stringspace;
+	destp = rounddown2(destp, sizeof(void *));
 
 	/*
 	 * If we have a valid auxargs ptr, prepare some room
@@ -1318,8 +1330,8 @@ exec_copyout_strings(imgp)
 		 * The '+ 2' is for the null pointers at the end of each of
 		 * the arg and env vector sets
 		 */
-		vectp = (char **)(destp - (imgp->args->argc + imgp->args->envc + 2) *
-		    sizeof(char *));
+		vectp = (char **)(destp - (imgp->args->argc + imgp->args->envc
+		    + 2) * sizeof(char *));
 	}
 
 	/*
@@ -1334,7 +1346,7 @@ exec_copyout_strings(imgp)
 	/*
 	 * Copy out strings - arguments and environment.
 	 */
-	copyout(stringp, destp, ARG_MAX - imgp->args->stringspace);
+	copyout(stringp, (void *)destp, ARG_MAX - imgp->args->stringspace);
 
 	/*
 	 * Fill in "ps_strings" struct for ps, w, etc.

@@ -109,6 +109,7 @@ struct usb_msc_params {
 	uint8_t	try_invalid_scsi_command;
 	uint8_t	try_invalid_wrapper_block;
 	uint8_t	try_invalid_max_packet_size;
+	uint8_t try_shorter_wrapper_block;
 	uint8_t	try_last_lba;
 	uint8_t	try_abort_data_write;
 	uint8_t try_sense_on_error;

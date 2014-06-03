@@ -23,6 +23,8 @@ def target_abi : Separate<["-"], "target-abi">,
   HelpText<"Target a particular ABI type">;
 def target_cpu : Separate<["-"], "target-cpu">,
   HelpText<"Target a specific cpu type">;
+def mfpmath : Separate<["-"], "mfpmath">,
+  HelpText<"Which unit to use for fp math">;
 def target_feature : Separate<["-"], "target-feature">,
   HelpText<"Target specific attributes">;
 def target_linker_version : Separate<["-"], "target-linker-version">,
@@ -136,6 +138,8 @@ def dwarf_column_info : Flag<["-"], "dwarf-column-info">,
   HelpText<"Turn on column location information.">;
 def split_dwarf : Flag<["-"], "split-dwarf">,
   HelpText<"Split out the dwarf .dwo sections">;
+def gnu_pubnames : Flag<["-"], "gnu-pubnames">,
+  HelpText<"Emit newer GNU style pubnames">;
 def fforbid_guard_variables : Flag<["-"], "fforbid-guard-variables">,
   HelpText<"Emit an error if a C++ static local initializer would need a guard variable">;
 def no_implicit_float : Flag<["-"], "no-implicit-float">,
@@ -161,8 +165,8 @@ def fuse_register_sized_bitfield_access: Flag<["-"], "fuse-register-sized-bitfie
   HelpText<"Use register sized accesses to bit-fields, when possible.">;
 def relaxed_aliasing : Flag<["-"], "relaxed-aliasing">,
   HelpText<"Turn off Type Based Alias Analysis">;
-def struct_path_tbaa : Flag<["-"], "struct-path-tbaa">,
-  HelpText<"Turn on struct-path aware Type Based Alias Analysis">;
+def no_struct_path_tbaa : Flag<["-"], "no-struct-path-tbaa">,
+  HelpText<"Turn off struct-path aware Type Based Alias Analysis">;
 def masm_verbose : Flag<["-"], "masm-verbose">,
   HelpText<"Generate verbose assembly output">;
 def mcode_model : Separate<["-"], "mcode-model">,
@@ -204,6 +208,14 @@ def mconstructor_aliases : Flag<["-"], "mconstructor-aliases">,
   HelpText<"Emit complete constructors and destructors as aliases when possible">;
 def mlink_bitcode_file : Separate<["-"], "mlink-bitcode-file">,
   HelpText<"Link the given bitcode file before performing optimizations.">;
+def vectorize_loops : Flag<["-"], "vectorize-loops">,
+  HelpText<"Run the Loop vectorization passes">;
+def vectorize_slp : Flag<["-"], "vectorize-slp">,
+  HelpText<"Run the SLP vectorization passes">;
+def vectorize_slp_aggressive : Flag<["-"], "vectorize-slp-aggressive">,
+  HelpText<"Run the BB vectorization passes">;
+def dependent_lib : Joined<["--"], "dependent-lib=">,
+  HelpText<"Add dependent library">;
 
 //===----------------------------------------------------------------------===//
 // Dependency Output Options
@@ -213,6 +225,8 @@ def sys_header_deps : Flag<["-"], "sys-header-deps">,
   HelpText<"Include system headers in dependency output">;
 def header_include_file : Separate<["-"], "header-include-file">,
   HelpText<"Filename (or -) to write header include output to">;
+def show_includes : Flag<["--"], "show-includes">,
+  HelpText<"Print cl.exe style /showIncludes to stderr">;
 
 //===----------------------------------------------------------------------===//
 // Diagnostic Options
@@ -290,6 +304,8 @@ def ast_dump_filter : Separate<["-"], "ast-dump-filter">,
   HelpText<"Use with -ast-dump or -ast-print to dump/print only AST declaration"
            " nodes having a certain substring in a qualified name. Use"
            " -ast-list to list all filterable declaration node names.">;
+def ast_dump_lookups : Flag<["-"], "ast-dump-lookups">,
+  HelpText<"Include name lookup table dumps in AST dumps">;
 def fno_modules_global_index : Flag<["-"], "fno-modules-global-index">,
   HelpText<"Do not automatically generate or update the global module index">;
 
@@ -320,8 +336,6 @@ def ast_list : Flag<["-"], "ast-list">,
   HelpText<"Build ASTs and print the list of declaration node qualified names">;
 def ast_dump : Flag<["-"], "ast-dump">,
   HelpText<"Build ASTs and then debug dump them">;
-def ast_dump_xml : Flag<["-"], "ast-dump-xml">,
-  HelpText<"Build ASTs and then debug dump them in a verbose XML format">;
 def ast_view : Flag<["-"], "ast-view">,
   HelpText<"Build ASTs and view them with GraphViz">;
 def print_decl_contexts : Flag<["-"], "print-decl-contexts">,
@@ -357,8 +371,6 @@ def arcmt_modify : Flag<["-"], "arcmt-modify">,
 def arcmt_migrate : Flag<["-"], "arcmt-migrate">,
   HelpText<"Apply modifications and produces temporary files that conform to ARC">;
 
-def relocatable_pch : Flag<["-", "--"], "relocatable-pch">,
-  HelpText<"Whether to build a relocatable precompiled header">;
 def print_stats : Flag<["-"], "print-stats">,
   HelpText<"Print performance metrics and statistics">;
 def fdump_record_layouts : Flag<["-"], "fdump-record-layouts">,
@@ -391,8 +403,6 @@ def main_file_name : Separate<["-"], "main-file-name">,
   HelpText<"Main file name to use for debug info">;
 def split_dwarf_file : Separate<["-"], "split-dwarf-file">,
   HelpText<"File name to use for split dwarf debug info output">;
-def fno_signed_char : Flag<["-"], "fno-signed-char">,
-  HelpText<"Char is unsigned">;
 def fno_wchar : Flag<["-"], "fno-wchar">,
   HelpText<"Disable C++ builtin type wchar_t">;
 def fconstant_string_class : Separate<["-"], "fconstant-string-class">,
@@ -404,8 +414,8 @@ def fobjc_runtime_has_weak : Flag<["-"], "fobjc-runtime-has-weak">,
   HelpText<"The target Objective-C runtime supports ARC weak operations">;
 def fobjc_dispatch_method_EQ : Joined<["-"], "fobjc-dispatch-method=">,
   HelpText<"Objective-C dispatch method to use">;
-def fobjc_default_synthesize_properties : Flag<["-"], "fobjc-default-synthesize-properties">,
-  HelpText<"enable the default synthesis of Objective-C properties">;
+def disable_objc_default_synthesize_properties : Flag<["-"], "disable-objc-default-synthesize-properties">,
+  HelpText<"disable the default synthesis of Objective-C properties">;
 def fencode_extended_block_signature : Flag<["-"], "fencode-extended-block-signature">,
   HelpText<"enable extended encoding of block type signature">;
 def pic_level : Separate<["-"], "pic-level">,
@@ -432,8 +442,12 @@ def ftype_visibility : Separate<["-"], "ftype-visibility">,
   HelpText<"Default type visibility">;
 def ftemplate_depth : Separate<["-"], "ftemplate-depth">,
   HelpText<"Maximum depth of recursive template instantiation">;
+def foperator_arrow_depth : Separate<["-"], "foperator-arrow-depth">,
+  HelpText<"Maximum number of 'operator->'s to call for a member access">;
 def fconstexpr_depth : Separate<["-"], "fconstexpr-depth">,
   HelpText<"Maximum depth of recursive constexpr function calls">;
+def fconstexpr_steps : Separate<["-"], "fconstexpr-steps">,
+  HelpText<"Maximum number of steps in constexpr function evaluation">;
 def fbracket_depth : Separate<["-"], "fbracket-depth">,
   HelpText<"Maximum nesting level for parentheses, brackets, and braces">;
 def fconst_strings : Flag<["-"], "fconst-strings">,
@@ -444,6 +458,8 @@ def fno_bitfield_type_align : Flag<["-"], "fno-bitfield-type-align">,
   HelpText<"Ignore bit-field types when aligning structures">;
 def ffake_address_space_map : Flag<["-"], "ffake-address-space-map">,
   HelpText<"Use a fake address space map; OpenCL testing purposes only">;
+def faddress_space_map_mangling_EQ : Joined<["-"], "faddress-space-map-mangling=">, MetaVarName<"<yes|no|target>">,
+  HelpText<"Set the mode for address space map based mangling; OpenCL testing purposes only">;
 def funknown_anytype : Flag<["-"], "funknown-anytype">,
   HelpText<"Enable parser support for the __unknown_anytype type; for testing purposes only">;
 def fdebugger_support : Flag<["-"], "fdebugger-support">,
@@ -456,6 +472,10 @@ def fdeprecated_macro : Flag<["-"], "fdeprecated-macro">,
   HelpText<"Defines the __DEPRECATED macro">;
 def fno_deprecated_macro : Flag<["-"], "fno-deprecated-macro">,
   HelpText<"Undefines the __DEPRECATED macro">;
+def fsized_deallocation : Flag<["-"], "fsized-deallocation">,
+  HelpText<"Enable C++1y sized global deallocation functions">;
+def fobjc_subscripting_legacy_runtime : Flag<["-"], "fobjc-subscripting-legacy-runtime">,
+  HelpText<"Allow Objective-C array and dictionary subscripting in legacy runtime">;
 
 //===----------------------------------------------------------------------===//
 // Header Search Options
@@ -463,9 +483,6 @@ def fno_deprecated_macro : Flag<["-"], "fno-deprecated-macro">,
 
 def nostdsysteminc : Flag<["-"], "nostdsysteminc">,
   HelpText<"Disable standard system #include directories">;
-def fmodule_name : Joined<["-"], "fmodule-name=">, 
-  MetaVarName<"<name>">,
-  HelpText<"Specify the name of the module to build">;           
 def fdisable_module_hash : Flag<["-"], "fdisable-module-hash">,
   HelpText<"Disable the module hash">;
 def c_isystem : JoinedOrSeparate<["-"], "c-isystem">, MetaVarName<"<directory>">,

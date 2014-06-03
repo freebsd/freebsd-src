@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 1999-2001, 2004, 2010, 2013 Sendmail, Inc. and its suppliers.
+ *  Copyright (c) 1999-2001, 2004, 2010, 2013 Proofpoint, Inc. and its suppliers.
  *	All rights reserved.
  *
  * By using this file, you agree to the terms and conditions set
@@ -9,7 +9,7 @@
  */
 
 #include <sm/gen.h>
-SM_RCSID("@(#)$Id: sm_gethost.c,v 8.30 2013/02/22 22:43:33 gshapiro Exp $")
+SM_RCSID("@(#)$Id: sm_gethost.c,v 8.32 2013-11-22 20:51:36 ca Exp $")
 
 #include <sendmail.h>
 #if NETINET || NETINET6
@@ -62,7 +62,18 @@ sm_getipnodebyname(name, family, flags, err)
 	h = gethostbyname(name);
 	if (family == AF_INET6 && !resv6)
 		_res.options &= ~RES_USE_INET6;
-	*err = h_errno;
+
+	/* the function is supposed to return only the requested family */
+	if (h != NULL && h->h_addrtype != family)
+	{
+# if NETINET6
+		freehostent(h);
+# endif /* NETINET6 */
+		h = NULL;
+		*err = NO_DATA;
+	}
+	else
+		*err = h_errno;
 	return h;
 }
 
@@ -121,6 +132,16 @@ mi_gethostbyname(name, family)
 # endif /* NETINET6 */
 
 #endif /* (SOLARIS > 10000 && SOLARIS < 20400) || (defined(SOLARIS) && SOLARIS < 204) || (defined(sony_news) && defined(__svr4)) */
+
+	/* the function is supposed to return only the requested family */
+	if (h != NULL && h->h_addrtype != family)
+	{
+# if NETINET6
+		freehostent(h);
+# endif /* NETINET6 */
+		h = NULL;
+		SM_SET_H_ERRNO(NO_DATA);
+	}
 	return h;
 }
 

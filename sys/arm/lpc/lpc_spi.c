@@ -85,6 +85,10 @@ static int lpc_spi_transfer(device_t, device_t, struct spi_command *);
 static int
 lpc_spi_probe(device_t dev)
 {
+
+	if (!ofw_bus_status_okay(dev))
+		return (ENXIO);
+
 	if (!ofw_bus_is_compatible(dev, "lpc,spi"))
 		return (ENXIO);
 

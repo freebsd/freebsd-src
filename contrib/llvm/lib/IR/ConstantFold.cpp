@@ -75,7 +75,7 @@ static unsigned
 foldConstantCastPair(
   unsigned opc,          ///< opcode of the second cast constant expression
   ConstantExpr *Op,      ///< the first cast constant expression
-  Type *DstTy      ///< desintation type of the first cast
+  Type *DstTy            ///< destination type of the first cast
 ) {
   assert(Op && Op->isCast() && "Can't fold cast of cast without a cast!");
   assert(DstTy && DstTy->isFirstClassType() && "Invalid cast destination type");
@@ -87,13 +87,14 @@ foldConstantCastPair(
   Instruction::CastOps firstOp = Instruction::CastOps(Op->getOpcode());
   Instruction::CastOps secondOp = Instruction::CastOps(opc);
 
-  // Assume that pointers are never more than 64 bits wide.
+  // Assume that pointers are never more than 64 bits wide, and only use this
+  // for the middle type. Otherwise we could end up folding away illegal
+  // bitcasts between address spaces with different sizes.
   IntegerType *FakeIntPtrTy = Type::getInt64Ty(DstTy->getContext());
 
   // Let CastInst::isEliminableCastPair do the heavy lifting.
   return CastInst::isEliminableCastPair(firstOp, secondOp, SrcTy, MidTy, DstTy,
-                                        FakeIntPtrTy, FakeIntPtrTy,
-                                        FakeIntPtrTy);
+                                        0, FakeIntPtrTy, 0);
 }
 
 static Constant *FoldBitCast(Constant *V, Type *DestTy) {
@@ -688,6 +689,8 @@ Constant *llvm::ConstantFoldCastInstruction(unsigned opc, Constant *V,
   }
   case Instruction::BitCast:
     return FoldBitCast(V, DestTy);
+  case Instruction::AddrSpaceCast:
+    return 0;
   }
 }
 
@@ -1857,9 +1860,9 @@ Constant *llvm::ConstantFoldCompareInstruction(unsigned short pred,
         if (CE1Inverse == CE1Op0) {
           // Check whether we can safely truncate the right hand side.
           Constant *C2Inverse = ConstantExpr::getTrunc(C2, CE1Op0->getType());
-          if (ConstantExpr::getZExt(C2Inverse, C2->getType()) == C2) {
+          if (ConstantExpr::getCast(CE1->getOpcode(), C2Inverse,
+                                    C2->getType()) == C2)
             return ConstantExpr::getICmp(pred, CE1Inverse, C2Inverse);
-          }
         }
       }
     }
@@ -1893,6 +1896,37 @@ static bool isInBoundsIndices(ArrayRef<IndexTy> Idxs) {
   for (unsigned i = 1, e = Idxs.size(); i != e; ++i)
     if (!cast<Constant>(Idxs[i])->isNullValue())
       return false;
+  return true;
+}
+
+/// \brief Test whether a given ConstantInt is in-range for a SequentialType.
+static bool isIndexInRangeOfSequentialType(const SequentialType *STy,
+                                           const ConstantInt *CI) {
+  if (const PointerType *PTy = dyn_cast<PointerType>(STy))
+    // Only handle pointers to sized types, not pointers to functions.
+    return PTy->getElementType()->isSized();
+
+  uint64_t NumElements = 0;
+  // Determine the number of elements in our sequential type.
+  if (const ArrayType *ATy = dyn_cast<ArrayType>(STy))
+    NumElements = ATy->getNumElements();
+  else if (const VectorType *VTy = dyn_cast<VectorType>(STy))
+    NumElements = VTy->getNumElements();
+
+  assert((isa<ArrayType>(STy) || NumElements > 0) &&
+         "didn't expect non-array type to have zero elements!");
+
+  // We cannot bounds check the index if it doesn't fit in an int64_t.
+  if (CI->getValue().getActiveBits() > 64)
+    return false;
+
+  // A negative index or an index past the end of our sequential type is
+  // considered out-of-range.
+  int64_t IndexVal = CI->getSExtValue();
+  if (IndexVal < 0 || (NumElements > 0 && (uint64_t)IndexVal >= NumElements))
+    return false;
+
+  // Otherwise, it is in-range.
   return true;
 }
 
@@ -1939,7 +1973,32 @@ static Constant *ConstantFoldGetElementPtrImpl(Constant *C,
            I != E; ++I)
         LastTy = *I;
 
-      if ((LastTy && isa<SequentialType>(LastTy)) || Idx0->isNullValue()) {
+      // We cannot combine indices if doing so would take us outside of an
+      // array or vector.  Doing otherwise could trick us if we evaluated such a
+      // GEP as part of a load.
+      //
+      // e.g. Consider if the original GEP was:
+      // i8* getelementptr ({ [2 x i8], i32, i8, [3 x i8] }* @main.c,
+      //                    i32 0, i32 0, i64 0)
+      //
+      // If we then tried to offset it by '8' to get to the third element,
+      // an i8, we should *not* get:
+      // i8* getelementptr ({ [2 x i8], i32, i8, [3 x i8] }* @main.c,
+      //                    i32 0, i32 0, i64 8)
+      //
+      // This GEP tries to index array element '8  which runs out-of-bounds.
+      // Subsequent evaluation would get confused and produce erroneous results.
+      //
+      // The following prohibits such a GEP from being formed by checking to see
+      // if the index is in-range with respect to an array or vector.
+      bool PerformFold = false;
+      if (Idx0->isNullValue())
+        PerformFold = true;
+      else if (SequentialType *STy = dyn_cast_or_null<SequentialType>(LastTy))
+        if (ConstantInt *CI = dyn_cast<ConstantInt>(Idx0))
+          PerformFold = isIndexInRangeOfSequentialType(STy, CI);
+
+      if (PerformFold) {
         SmallVector<Value*, 16> NewIndices;
         NewIndices.reserve(Idxs.size() + CE->getNumOperands());
         for (unsigned i = 1, e = CE->getNumOperands()-1; i != e; ++i)
@@ -1999,8 +2058,8 @@ static Constant *ConstantFoldGetElementPtrImpl(Constant *C,
   }
 
   // Check to see if any array indices are not within the corresponding
-  // notional array bounds. If so, try to determine if they can be factored
-  // out into preceding dimensions.
+  // notional array or vector bounds. If so, try to determine if they can be
+  // factored out into preceding dimensions.
   bool Unknown = false;
   SmallVector<Constant *, 8> NewIdxs;
   Type *Ty = C->getType();
@@ -2008,16 +2067,20 @@ static Constant *ConstantFoldGetElementPtrImpl(Constant *C,
   for (unsigned i = 0, e = Idxs.size(); i != e;
        Prev = Ty, Ty = cast<CompositeType>(Ty)->getTypeAtIndex(Idxs[i]), ++i) {
     if (ConstantInt *CI = dyn_cast<ConstantInt>(Idxs[i])) {
-      if (ArrayType *ATy = dyn_cast<ArrayType>(Ty))
-        if (ATy->getNumElements() <= INT64_MAX &&
-            ATy->getNumElements() != 0 &&
-            CI->getSExtValue() >= (int64_t)ATy->getNumElements()) {
+      if (isa<ArrayType>(Ty) || isa<VectorType>(Ty))
+        if (CI->getSExtValue() > 0 &&
+            !isIndexInRangeOfSequentialType(cast<SequentialType>(Ty), CI)) {
           if (isa<SequentialType>(Prev)) {
             // It's out of range, but we can factor it into the prior
             // dimension.
             NewIdxs.resize(Idxs.size());
-            ConstantInt *Factor = ConstantInt::get(CI->getType(),
-                                                   ATy->getNumElements());
+            uint64_t NumElements = 0;
+            if (const ArrayType *ATy = dyn_cast<ArrayType>(Ty))
+              NumElements = ATy->getNumElements();
+            else
+              NumElements = cast<VectorType>(Ty)->getNumElements();
+
+            ConstantInt *Factor = ConstantInt::get(CI->getType(), NumElements);
             NewIdxs[i] = ConstantExpr::getSRem(CI, Factor);
 
             Constant *PrevIdx = cast<Constant>(Idxs[i-1]);

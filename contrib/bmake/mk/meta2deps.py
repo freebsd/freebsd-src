@@ -1,5 +1,7 @@
 #!/usr/bin/env python
 
+from __future__ import print_function
+
 """
 This script parses each "meta" file and extracts the
 information needed to deduce build and src dependencies.
@@ -35,7 +37,7 @@ We only pay attention to a subset of the information in the
 
 """
 RCSid:
-	$Id: meta2deps.py,v 1.15 2013/07/29 20:41:23 sjg Exp $
+	$Id: meta2deps.py,v 1.16 2013/12/20 06:08:52 sjg Exp $
 
 	Copyright (c) 2011-2013, Juniper Networks, Inc.
 	All rights reserved.
@@ -90,14 +92,14 @@ def resolve(path, cwd, last_dir=None, debug=0, debug_out=sys.stderr):
             continue
         p = '/'.join([d,path])
         if debug > 2:
-            print >> debug_out, "looking for:", p,
+            print("looking for:", p, end=' ', file=debug_out)
         if not os.path.exists(p):
             if debug > 2:
-                print >> debug_out, "nope"
+                print("nope", file=debug_out)
             p = None
             continue
         if debug > 2:
-            print >> debug_out, "found:", p
+            print("found:", p, file=debug_out)
         return p
     return None
 
@@ -236,21 +238,21 @@ class MetaFile:
             self.objroots.sort(reverse=True)
             
             if self.debug:
-                print >> self.debug_out, "host_target=", self.host_target
-                print >> self.debug_out, "srctops=", self.srctops
-                print >> self.debug_out, "objroots=", self.objroots
+                print("host_target=", self.host_target, file=self.debug_out)
+                print("srctops=", self.srctops, file=self.debug_out)
+                print("objroots=", self.objroots, file=self.debug_out)
 
             self.dirdep_re = re.compile(r'([^/]+)/(.+)')
 
         if self.dpdeps and not self.reldir:
             if self.debug:
-                print >> self.debug_out, "need reldir:",
+                print("need reldir:", end=' ', file=self.debug_out)
             if self.curdir:
                 srctop = self.find_top(self.curdir, self.srctops)
                 if srctop:
                     self.reldir = self.curdir.replace(srctop,'')
                     if self.debug:
-                        print >> self.debug_out, self.reldir
+                        print(self.reldir, file=self.debug_out)
             if not self.reldir:
                 self.dpdeps = None      # we cannot do it?
 
@@ -280,7 +282,7 @@ class MetaFile:
         if not self.reldir:
             return None
         for f in sort_unique(self.file_deps):
-            print >> out, 'DPDEPS_%s += %s' % (f, self.reldir)
+            print('DPDEPS_%s += %s' % (f, self.reldir), file=out)
 
     def seenit(self, dir):
         """rememer that we have seen dir."""
@@ -291,14 +293,14 @@ class MetaFile:
         if data not in list:
             list.append(data)
             if self.debug:
-                print >> self.debug_out, "%s: %sAdd: %s" % (self.name, clue, data)
+                print("%s: %sAdd: %s" % (self.name, clue, data), file=self.debug_out)
 
     def find_top(self, path, list):
         """the logical tree may be split accross multiple trees"""
         for top in list:
             if path.startswith(top):
                 if self.debug > 2:
-                    print >> self.debug_out, "found in", top
+                    print("found in", top, file=self.debug_out)
                 return top
         return None
 
@@ -307,9 +309,9 @@ class MetaFile:
         ddep = None
         for ddepf in [path + '.dirdep', dir + '/.dirdep']:
             if not ddep and os.path.exists(ddepf):
-                ddep = open(ddepf, 'rb').readline().strip('# \n')
+                ddep = open(ddepf, 'r').readline().strip('# \n')
                 if self.debug > 1:
-                    print >> self.debug_out, "found %s: %s\n" % (ddepf, ddep)
+                    print("found %s: %s\n" % (ddepf, ddep), file=self.debug_out)
                 if ddep.endswith(self.machine):
                     ddep = ddep[0:-(1+len(self.machine))]
                 elif self.target_spec and ddep.endswith(self.target_spec):
@@ -331,7 +333,7 @@ class MetaFile:
                     if not (self.machine == 'host' and
                             dmachine == self.host_target):
                         if self.debug > 2:
-                            print >> self.debug_out, "adding .%s to %s" % (dmachine, ddep)
+                            print("adding .%s to %s" % (dmachine, ddep), file=self.debug_out)
                         ddep += '.' + dmachine
 
         return ddep
@@ -342,7 +344,7 @@ class MetaFile:
             self.parse(name, file)
         except:
             # give a useful clue
-            print >> sys.stderr, '{}:{}: '.format(self.name, self.line),
+            print('{}:{}: '.format(self.name, self.line), end=' ', file=sys.stderr)
             raise
         
     def parse(self, name=None, file=None):
@@ -379,7 +381,7 @@ class MetaFile:
             f = file
             cwd = last_dir = self.cwd
         else:
-            f = open(self.name, 'rb')
+            f = open(self.name, 'r')
         skip = True
         pid_cwd = {}
         pid_last_dir = {}
@@ -396,7 +398,7 @@ class MetaFile:
             if not line[0] in interesting:
                 continue
             if self.debug > 2:
-                print >> self.debug_out, "input:", line,
+                print("input:", line, end=' ', file=self.debug_out)
             w = line.split()
 
             if skip:
@@ -413,7 +415,7 @@ class MetaFile:
                     self.cwd = cwd = last_dir = w[1]
                     self.seenit(cwd)    # ignore this
                     if self.debug:
-                        print >> self.debug_out, "%s: CWD=%s" % (self.name, cwd)
+                        print("%s: CWD=%s" % (self.name, cwd), file=self.debug_out)
                 continue
 
             pid = int(w[1])
@@ -438,12 +440,12 @@ class MetaFile:
                     cwd = cwd[0:-2]
                 last_dir = cwd
                 if self.debug > 1:
-                    print >> self.debug_out, "cwd=", cwd
+                    print("cwd=", cwd, file=self.debug_out)
                 continue
 
             if w[2] in self.seen:
                 if self.debug > 2:
-                    print >> self.debug_out, "seen:", w[2]
+                    print("seen:", w[2], file=self.debug_out)
                 continue
             # file operations
             if w[0] in 'ML':
@@ -461,7 +463,7 @@ class MetaFile:
             dir,base = os.path.split(path)
             if dir in self.seen:
                 if self.debug > 2:
-                    print >> self.debug_out, "seen:", dir
+                    print("seen:", dir, file=self.debug_out)
                 continue
             # we can have a path in an objdir which is a link
             # to the src dir, we may need to add dependencies for each
@@ -472,19 +474,19 @@ class MetaFile:
             # now put path back together
             path = '/'.join([dir,base])
             if self.debug > 1:
-                print >> self.debug_out, "raw=%s rdir=%s dir=%s path=%s" % (w[2], rdir, dir, path)
+                print("raw=%s rdir=%s dir=%s path=%s" % (w[2], rdir, dir, path), file=self.debug_out)
             if w[0] in 'SRWL':
                 if w[0] == 'W' and path.endswith('.dirdep'):
                     continue
                 if path in [last_dir, cwd, self.cwd, self.curdir]:
                     if self.debug > 1:
-                        print >> self.debug_out, "skipping:", path
+                        print("skipping:", path, file=self.debug_out)
                     continue
                 if os.path.isdir(path):
                     if w[0] in 'RW':
                         last_dir = path;
                     if self.debug > 1:
-                        print >> self.debug_out, "ldir=", last_dir
+                        print("ldir=", last_dir, file=self.debug_out)
                     continue
 
             if w[0] in 'REWML':
@@ -642,10 +644,10 @@ def main(argv, klass=MetaFile, xopts='', xoptf=None):
     debug_out = getv(conf, 'debug_out', sys.stderr)
 
     if debug:
-        print >> debug_out, "config:"
-        print >> debug_out, "psyco=", have_psyco
-        for k,v in conf.items():
-            print >> debug_out, "%s=%s" % (k,v)
+        print("config:", file=debug_out)
+        print("psyco=", have_psyco, file=debug_out)
+        for k,v in list(conf.items()):
+            print("%s=%s" % (k,v), file=debug_out)
 
     for a in args:
         if a.endswith('.meta'):
@@ -657,9 +659,9 @@ def main(argv, klass=MetaFile, xopts='', xoptf=None):
                     m = klass(f, conf)
 
     if output:
-        print m.dirdeps()
+        print(m.dirdeps())
 
-        print m.src_dirdeps('\nsrc:')
+        print(m.src_dirdeps('\nsrc:'))
 
         dpdeps = getv(conf, 'DPDEPS')
         if dpdeps:
@@ -672,6 +674,6 @@ if __name__ == '__main__':
         main(sys.argv)
     except:
         # yes, this goes to stdout
-        print "ERROR: ", sys.exc_info()[1]
+        print("ERROR: ", sys.exc_info()[1])
         raise
 

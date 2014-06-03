@@ -156,7 +156,7 @@ static struct localbus_bank localbus_banks[MV_LOCALBUS_MAX_BANKS];
 
 devclass_t localbus_devclass;
 
-DRIVER_MODULE(localbus, nexus, localbus_driver, localbus_devclass, 0, 0);
+DRIVER_MODULE(localbus, ofwbus, localbus_driver, localbus_devclass, 0, 0);
 
 static int
 fdt_localbus_reg_decode(phandle_t node, struct localbus_softc *sc,
@@ -477,7 +477,7 @@ fdt_localbus_devmap(phandle_t dt_node, struct arm_devmap_entry *fdt_devmap,
 		fdt_devmap[j].pd_pa = offset;
 		fdt_devmap[j].pd_size = size;
 		fdt_devmap[j].pd_prot = VM_PROT_READ | VM_PROT_WRITE;
-		fdt_devmap[j].pd_cache = PTE_NOCACHE;
+		fdt_devmap[j].pd_cache = PTE_DEVICE;
 
 		/* Copy data to structure used by localbus driver */
 		localbus_banks[bank].va = fdt_devmap[j].pd_va;

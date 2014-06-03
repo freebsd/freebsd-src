@@ -19,6 +19,10 @@ if [ $? -eq 0 ]; then
 		TERM=xterm
 	fi
 
+	# Don't send ESC on function-key 62/63 (left/right command key)
+	kbdcontrol -f 62 '' > /dev/null 2>&1
+	kbdcontrol -f 63 '' > /dev/null 2>&1
+
 	if [ -z "$EXTERNAL_VTY_STARTED" ]; then
 		# Init will clean these processes up if/when the system
 		# goes multiuser

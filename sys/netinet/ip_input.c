@@ -61,7 +61,6 @@ __FBSDID("$FreeBSD$");
 #include <net/route.h>
 #include <net/netisr.h>
 #include <net/vnet.h>
-#include <net/flowtable.h>
 
 #include <netinet/in.h>
 #include <netinet/in_kdtrace.h>
@@ -197,16 +196,6 @@ SYSCTL_VNET_INT(_net_inet_ip, OID_AUTO, stealth, CTLFLAG_RW,
     "IP stealth mode, no TTL decrementation on forwarding");
 #endif
 
-#ifdef FLOWTABLE
-static VNET_DEFINE(int, ip_output_flowtable_size) = 2048;
-VNET_DEFINE(struct flowtable *, ip_ft);
-#define	V_ip_output_flowtable_size	VNET(ip_output_flowtable_size)
-
-SYSCTL_VNET_INT(_net_inet_ip, OID_AUTO, output_flowtable_size, CTLFLAG_RDTUN,
-    &VNET_NAME(ip_output_flowtable_size), 2048,
-    "number of entries in the per-cpu output flow caches");
-#endif
-
 static void	ip_freef(struct ipqhead *, struct ipq *);
 
 /*
@@ -307,24 +296,6 @@ ip_init(void)
 	if ((i = pfil_head_register(&V_inet_pfil_hook)) != 0)
 		printf("%s: WARNING: unable to register pfil hook, "
 			"error %d\n", __func__, i);
-
-#ifdef FLOWTABLE
-	if (TUNABLE_INT_FETCH("net.inet.ip.output_flowtable_size",
-		&V_ip_output_flowtable_size)) {
-		if (V_ip_output_flowtable_size < 256)
-			V_ip_output_flowtable_size = 256;
-		if (!powerof2(V_ip_output_flowtable_size)) {
-			printf("flowtable must be power of 2 size\n");
-			V_ip_output_flowtable_size = 2048;
-		}
-	} else {
-		/*
-		 * round up to the next power of 2
-		 */
-		V_ip_output_flowtable_size = 1 << fls((1024 + maxusers * 64)-1);
-	}
-	V_ip_ft = flowtable_alloc("ipv4", V_ip_output_flowtable_size, FL_PCPU);
-#endif
 
 	/* Skip initialization of globals for non-default instances. */
 	if (!IS_DEFAULT_VNET(curvnet))
@@ -731,6 +702,7 @@ ours:
 	 * ip_reass() will return a different mbuf.
 	 */
 	if (ip->ip_off & htons(IP_MF | IP_OFFMASK)) {
+		/* XXXGL: shouldn't we save & set m_flags? */
 		m = ip_reass(m);
 		if (m == NULL)
 			return;
@@ -822,6 +794,8 @@ sysctl_maxnipq(SYSCTL_HANDLER_ARGS)
 SYSCTL_PROC(_net_inet_ip, OID_AUTO, maxfragpackets, CTLTYPE_INT|CTLFLAG_RW,
     NULL, 0, sysctl_maxnipq, "I",
     "Maximum number of IPv4 fragment reassembly queue entries");
+
+#define	M_IP_FRAG	M_PROTO9
 
 /*
  * Take incoming datagram fragment and try to reassemble it into
@@ -1106,8 +1080,9 @@ found:
 	 * (and not in for{} loop), though it implies we are not going to
 	 * reassemble more than 64k fragments.
 	 */
-	m->m_pkthdr.csum_data =
-	    (m->m_pkthdr.csum_data & 0xffff) + (m->m_pkthdr.csum_data >> 16);
+	while (m->m_pkthdr.csum_data & 0xffff0000)
+		m->m_pkthdr.csum_data = (m->m_pkthdr.csum_data & 0xffff) +
+		    (m->m_pkthdr.csum_data >> 16);
 #ifdef MAC
 	mac_ipq_reassemble(fp, m);
 	mac_ipq_destroy(fp);
@@ -1492,7 +1467,7 @@ ip_forward(struct mbuf *m, int srcrt)
 	error = ip_output(m, NULL, &ro, IP_FORWARDING, NULL, NULL);
 
 	if (error == EMSGSIZE && ro.ro_rt)
-		mtu = ro.ro_rt->rt_rmx.rmx_mtu;
+		mtu = ro.ro_rt->rt_mtu;
 	RO_RTFREE(&ro);
 
 	if (error)

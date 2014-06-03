@@ -64,6 +64,9 @@ static int
 altera_jtag_uart_fdt_probe(device_t dev)
 {
 
+	if (!ofw_bus_status_okay(dev))
+		return (ENXIO);
+
 	if (ofw_bus_is_compatible(dev, "altera,jtag_uart-11_0")) {
 		device_set_desc(dev, "Altera JTAG UART");
 		return (BUS_PROBE_DEFAULT);

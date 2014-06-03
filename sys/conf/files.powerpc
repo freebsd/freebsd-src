@@ -31,7 +31,9 @@ dev/fb/fb.c			optional	sc
 dev/fdt/fdt_powerpc.c		optional	fdt
 dev/hwpmc/hwpmc_powerpc.c	optional	hwpmc
 dev/hwpmc/hwpmc_mpc7xxx.c	optional	hwpmc
+dev/hwpmc/hwpmc_ppc970.c	optional	hwpmc
 dev/iicbus/ad7417.c		optional	ad7417 powermac
+dev/iicbus/adt746x.c		optional        adt746x powermac
 dev/iicbus/ds1631.c		optional	ds1631 powermac
 dev/iicbus/ds1775.c		optional	ds1775 powermac
 dev/iicbus/max6690.c		optional	max6690 powermac
@@ -46,7 +48,7 @@ dev/ofw/ofw_bus_subr.c		optional	aim
 dev/ofw/ofw_console.c		optional	aim
 dev/ofw/ofw_disk.c		optional	ofwd aim
 dev/ofw/ofw_iicbus.c		optional	iicbus aim
-dev/ofw/ofw_nexus.c		optional	aim | fdt
+dev/ofw/ofwbus.c		optional	aim | fdt
 dev/ofw/ofw_standard.c		optional	aim powerpc
 dev/powermac_nvram/powermac_nvram.c optional	powermac_nvram powermac
 dev/quicc/quicc_bfe_fdt.c	optional	quicc mpc85xx
@@ -78,6 +80,7 @@ libkern/ffs.c			standard
 libkern/ffsl.c			standard
 libkern/fls.c			standard
 libkern/flsl.c			standard
+libkern/flsll.c			standard
 libkern/lshrdi3.c		optional	powerpc
 libkern/memmove.c		standard
 libkern/memset.c		standard
@@ -93,7 +96,7 @@ powerpc/aim/mmu_oea.c		optional	aim powerpc
 powerpc/aim/mmu_oea64.c		optional	aim
 powerpc/aim/moea64_if.m		optional	aim
 powerpc/aim/moea64_native.c	optional	aim
-powerpc/aim/mp_cpudep.c		optional	aim smp
+powerpc/aim/mp_cpudep.c		optional	aim
 powerpc/aim/slb.c		optional	aim powerpc64
 powerpc/aim/trap.c		optional	aim
 powerpc/aim/uma_machdep.c	optional	aim
@@ -219,8 +222,8 @@ powerpc/ps3/ps3bus.c		optional	ps3
 powerpc/ps3/ps3cdrom.c		optional	ps3 scbus
 powerpc/ps3/ps3disk.c		optional	ps3
 powerpc/ps3/ps3pic.c		optional	ps3
-powerpc/ps3/ps3_syscons.c	optional	ps3 sc
-powerpc/ps3/ps3-hvcall.S	optional	ps3 sc
+powerpc/ps3/ps3_syscons.c	optional	ps3 vt
+powerpc/ps3/ps3-hvcall.S	optional	ps3
 powerpc/pseries/phyp-hvcall.S	optional	pseries powerpc64
 powerpc/pseries/mmu_phyp.c	optional	pseries powerpc64
 powerpc/pseries/phyp_console.c	optional	pseries powerpc64 uart

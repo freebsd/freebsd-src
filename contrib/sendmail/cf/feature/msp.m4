@@ -1,6 +1,6 @@
 divert(-1)
 #
-# Copyright (c) 2000-2002, 2004 Sendmail, Inc. and its suppliers.
+# Copyright (c) 2000-2002, 2004 Proofpoint, Inc. and its suppliers.
 #	All rights reserved.
 #
 # By using this file, you agree to the terms and conditions set
@@ -10,7 +10,7 @@ divert(-1)
 #
 
 divert(0)dnl
-VERSIONID(`$Id: msp.m4,v 1.33 2004/02/09 22:32:38 ca Exp $')
+VERSIONID(`$Id: msp.m4,v 1.34 2013-11-22 20:51:11 ca Exp $')
 divert(-1)
 undefine(`ALIAS_FILE')
 define(`confDELIVERY_MODE', `i')

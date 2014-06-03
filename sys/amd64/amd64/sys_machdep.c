@@ -11,7 +11,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -37,7 +37,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/capability.h>
+#include <sys/capsicum.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
@@ -338,7 +338,6 @@ amd64_set_ioperm(td, uap)
 	char *iomap;
 	struct amd64tss *tssp;
 	struct system_segment_descriptor *tss_sd;
-	u_long *addr;
 	struct pcb *pcb;
 
 	if ((error = priv_check(td, PRIV_IO)) != 0)
@@ -361,9 +360,7 @@ amd64_set_ioperm(td, uap)
 		if (tssp == NULL)
 			return (ENOMEM);
 		iomap = (char *)&tssp[1];
-		addr = (u_long *)iomap;
-		for (i = 0; i < (ctob(IOPAGES) + 1) / sizeof(u_long); i++)
-			*addr++ = ~0;
+		memset(iomap, 0xff, IOPERM_BITMAP_SIZE);
 		critical_enter();
 		/* Takes care of tss_rsp0. */
 		memcpy(tssp, &common_tss[PCPU_GET(cpuid)],

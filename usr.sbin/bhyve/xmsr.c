@@ -47,6 +47,8 @@ emulate_wrmsr(struct vmctx *ctx, int vcpu, uint32_t code, uint64_t val)
 	case 0xd04:			/* Sandy Bridge uncore PMC MSRs */
 	case 0xc24:
 		return (0);
+	case 0x79:
+		return (0);		/* IA32_BIOS_UPDT_TRIG MSR */
 	default:
 		break;
 	}

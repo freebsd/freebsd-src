@@ -169,18 +169,20 @@ cdev_pager_allocate(void *handle, enum obj_type tp, struct cdev_pager_ops *ops,
 			 */
 			if (pindex > object->size)
 				object->size = pindex;
+			KASSERT(object->type == tp,
+		    ("Inconsistent device pager type %p %d", object, tp));
 		} else {
 			object = object1;
 			object1 = NULL;
 			object->handle = handle;
 			TAILQ_INSERT_TAIL(&dev_pager_object_list, object,
 			    pager_object_list);
-			KASSERT(object->type == tp,
-		("Inconsistent device pager type %p %d", object, tp));
 		}
 	} else {
 		if (pindex > object->size)
 			object->size = pindex;
+		KASSERT(object->type == tp,
+		    ("Inconsistent device pager type %p %d", object, tp));
 	}
 	mtx_unlock(&dev_pager_mtx);
 	if (object1 != NULL) {
@@ -412,6 +414,7 @@ old_dev_pager_ctor(void *handle, vm_ooffset_t size, vm_prot_t prot,
 	 * XXX assumes VM_PROT_* == PROT_*
 	 */
 	npages = OFF_TO_IDX(size);
+	paddr = 0; /* Make paddr initialized for the case of size == 0. */
 	for (off = foff; npages--; off += PAGE_SIZE) {
 		if (csw->d_mmap(dev, off, &paddr, (int)prot, &dummy) != 0) {
 			dev_relthread(dev, ref);

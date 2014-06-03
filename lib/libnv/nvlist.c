@@ -125,8 +125,10 @@ nvlist_destroy(nvlist_t *nvl)
 
 	NVLIST_ASSERT(nvl);
 
-	while ((nvp = nvlist_first_nvpair(nvl)) != NULL)
+	while ((nvp = nvlist_first_nvpair(nvl)) != NULL) {
 		nvlist_remove_nvpair(nvl, nvp);
+		nvpair_free(nvp);
+	}
 	nvl->nvl_magic = 0;
 	free(nvl);
 
@@ -580,7 +582,7 @@ nvlist_check_header(struct nvlist_header *nvlhdrp)
 		errno = EINVAL;
 		return (false);
 	}
-	if ((nvlhdrp->nvlh_flags &= ~NV_FLAG_ALL_MASK) != 0) {
+	if ((nvlhdrp->nvlh_flags & ~NV_FLAG_ALL_MASK) != 0) {
 		errno = EINVAL;
 		return (false);
 	}

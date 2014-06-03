@@ -1,7 +1,7 @@
 #	@(#)Makefile	8.1 (Berkeley) 6/6/93
 # $FreeBSD$
 
-.include <bsd.own.mk>
+.include <src.opts.mk>
 
 .if (${MACHINE_ARCH} == "amd64")
 SFX=		32
@@ -18,6 +18,10 @@ CFLAGS+=	-I${.CURDIR}/../ktrace -I${.CURDIR} -I${.CURDIR}/../.. -I.
 DPADD+=	${LIBCAPSICUM} ${LIBNV}
 LDADD+=	-lcapsicum -lnv
 CFLAGS+=-DHAVE_LIBCAPSICUM
+.endif
+
+.if ${MK_PF} != "no"
+CFLAGS+=-DPF
 .endif
 
 .if ${MACHINE_ARCH} == "amd64" || ${MACHINE_ARCH} == "i386"

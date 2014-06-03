@@ -16,10 +16,8 @@
  * $FreeBSD$
  */
 
-#include "opt_atalk.h"
 #include "opt_inet.h"
 #include "opt_inet6.h"
-#include "opt_ipx.h"
 
 #include <sys/param.h>
 #include <sys/priv.h>
@@ -546,8 +544,10 @@ tunifioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		ifs = (struct ifstat *)data;
 		mtx_lock(&tp->tun_mtx);
 		if (tp->tun_pid)
-			sprintf(ifs->ascii + strlen(ifs->ascii),
+			snprintf(ifs->ascii, sizeof(ifs->ascii),
 			    "\tOpened by PID %d\n", tp->tun_pid);
+		else
+			ifs->ascii[0] = '\0';
 		mtx_unlock(&tp->tun_mtx);
 		break;
 	case SIOCSIFADDR:
@@ -902,16 +902,6 @@ tunwrite(struct cdev *dev, struct uio *uio, int flag)
 #ifdef INET6
 	case AF_INET6:
 		isr = NETISR_IPV6;
-		break;
-#endif
-#ifdef IPX
-	case AF_IPX:
-		isr = NETISR_IPX;
-		break;
-#endif
-#ifdef NETATALK
-	case AF_APPLETALK:
-		isr = NETISR_ATALK2;
 		break;
 #endif
 	default:

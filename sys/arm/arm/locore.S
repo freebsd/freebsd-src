@@ -82,7 +82,7 @@ ASENTRY_NP(_start)
 	mov	r9, r0		/* 0 or boot mode from boot2 */
 	mov	r8, r1		/* Save Machine type */
 	mov	ip, r2		/* Save meta data */
-	mov	fp, r3		/* Future expantion */
+	mov	fp, r3		/* Future expansion */
 
 	/* Make sure interrupts are disabled. */
 	mrs	r7, cpsr
@@ -144,25 +144,52 @@ disable_mmu:
 	nop
 	mov	pc, r7
 Lunmapped:
-#ifdef STARTUP_PAGETABLE_ADDR
-	/* build page table from scratch */
-	ldr	r0, Lstartup_pagetable
-	adr	r4, mmu_init_table
-	b	3f
+	/*
+	 * Build page table from scratch.
+	 */
 
-2:
-	str	r3, [r0, r2]
-	add	r2, r2, #4
-	add	r3, r3, #(L1_S_SIZE)
-	adds	r1, r1, #-1
-	bhi	2b
-3:
-	ldmia	r4!, {r1,r2,r3}   /* # of sections, VA, PA|attr */
-	cmp	r1, #0
-	adrne	r5, 2b
-	bicne	r5, r5, #0xf0000000
-	orrne	r5, r5, #PHYSADDR
-	movne	pc, r5
+	/* Find the delta between VA and PA */
+	adr	r0, Lpagetable
+	ldr	r1, [r0]
+	sub	r2, r1, r0
+	/* At this point: r2 = VA - PA */
+
+	/*
+	 * Find the physical address of the table. After these two
+	 * instructions:
+	 * r1 = va(pagetable)
+	 *
+	 * r0 = va(pagetable) - (VA - PA)
+	 *    = va(pagetable) - VA + PA
+	 *    = pa(pagetable)
+	 */
+	ldr	r1, [r0, #4]
+	sub	r0, r1, r2
+
+	/*
+	 * Map PA == VA
+	 */
+	/* Find the start kernels load address */
+	adr	r5, _start
+	ldr	r2, =(L1_S_OFFSET)
+	bic	r5, r2
+	mov	r1, r5
+	mov	r2, r5
+	/* Map 64MiB, preserved over calls to build_pagetables */
+	mov	r3, #64
+	bl	build_pagetables
+
+	/* Create the kernel map to jump to */
+	mov	r1, r5
+	ldr	r2, =(KERNVIRTADDR)
+	bl	build_pagetables
+	
+#if defined(SOCDEV_PA) && defined(SOCDEV_VA)
+	/* Create the custom map */
+	ldr	r1, =SOCDEV_PA
+	ldr	r2, =SOCDEV_VA
+	bl	build_pagetables
+#endif
 
 #if defined(SMP)
 	orr 	r0, r0, #2		/* Set TTB shared memory flag */
@@ -170,7 +197,7 @@ Lunmapped:
 	mcr	p15, 0, r0, c2, c0, 0	/* Set TTB */
 	mcr	p15, 0, r0, c8, c7, 0	/* Flush TLB */
 
-#if defined(CPU_ARM1136) || defined(CPU_ARM1176) || defined(CPU_CORTEXA) || defined(CPU_MV_PJ4B)
+#if defined(CPU_ARM1136) || defined(CPU_ARM1176) || defined(CPU_CORTEXA) || defined(CPU_MV_PJ4B) || defined(CPU_KRAIT)
 	mov	r0, #0
 	mcr	p15, 0, r0, c13, c0, 1	/* Set ASID to 0 */
 #endif
@@ -197,7 +224,6 @@ Lunmapped:
 	nop
 	CPWAIT(r0)
 
-#endif
 mmu_done:
 	nop
 	adr	r1, .Lstart
@@ -211,15 +237,19 @@ mmu_done:
 	ldr	pc, .Lvirt_done
 
 virt_done:
-	mov	r1, #20			/* loader info size is 20 bytes also second arg */
+	mov	r1, #28			/* loader info size is 28 bytes also second arg */
 	subs	sp, sp, r1		/* allocate arm_boot_params struct on stack */
-	bic	sp, sp, #7		/* align stack to 8 bytes */
 	mov	r0, sp			/* loader info pointer is first arg */
+	bic	sp, sp, #7		/* align stack to 8 bytes */
 	str	r1, [r0]		/* Store length of loader info */
 	str	r9, [r0, #4]		/* Store r0 from boot loader */
 	str	r8, [r0, #8]		/* Store r1 from boot loader */
 	str	ip, [r0, #12]		/* store r2 from boot loader */
 	str	fp, [r0, #16]		/* store r3 from boot loader */
+	str	r5, [r0, #20]		/* store the physical address */
+	adr	r4, Lpagetable		/* load the pagetable address */
+	ldr	r5, [r4, #4]
+	str	r5, [r0, #24]		/* store the pagetable address */
 	mov	fp, #0			/* trace back starts here */
 	bl	_C_LABEL(initarm)	/* Off we go */
 
@@ -231,11 +261,43 @@ virt_done:
 	adr	r0, .Lmainreturned
 	b	_C_LABEL(panic)
 	/* NOTREACHED */
-#ifdef STARTUP_PAGETABLE_ADDR
-#define MMU_INIT(va,pa,n_sec,attr) \
-	.word	n_sec					    ; \
-	.word	4*((va)>>L1_S_SHIFT)			    ; \
-	.word	(pa)|(attr)				    ;
+END(btext)
+END(_start)
+
+/*
+ * Builds the page table
+ * r0 - The table base address
+ * r1 - The physical address (trashed)
+ * r2 - The virtual address (trashed)
+ * r3 - The number of 1MiB sections
+ * r4 - Trashed
+ *
+ * Addresses must be 1MiB aligned
+ */
+build_pagetables:
+	/* Set the required page attributed */
+	ldr	r4, =(L1_TYPE_S|L1_S_C|L1_S_AP(AP_KRW))
+#if defined(SMP)
+	orr	r4, #(L1_SHARED)
+#endif
+	orr	r1, r4
+
+	/* Move the virtual address to the correct bit location */
+	lsr	r2, #(L1_S_SHIFT - 2)
+
+	mov	r4, r3
+1:
+	str	r1, [r0, r2]
+	add	r2, r2, #4
+	add	r1, r1, #(L1_S_SIZE)
+	adds	r4, r4, #-1
+	bhi	1b
+
+	RET
+
+Lpagetable:
+	.word	.
+	.word	pagetable
 
 Lvirtaddr:
 	.word	KERNVIRTADDR
@@ -243,43 +305,16 @@ Lphysaddr:
 	.word	KERNPHYSADDR
 Lreal_start:
 	.word	_start
-Lend:	
+Lend:
 	.word	_edata
-Lstartup_pagetable:
-	.word	STARTUP_PAGETABLE_ADDR
-#ifdef SMP
-Lstartup_pagetable_secondary:
-	.word	temp_pagetable
-#endif
-END(btext)
-END(_start)
 
-mmu_init_table:
-	/* fill all table VA==PA */
-	/* map SDRAM VA==PA, WT cacheable */
-#if !defined(SMP)
-	MMU_INIT(PHYSADDR, PHYSADDR , 64, L1_TYPE_S|L1_S_C|L1_S_AP(AP_KRW))
-	/* map VA 0xc0000000..0xc3ffffff to PA */
-	MMU_INIT(KERNBASE, PHYSADDR, 64, L1_TYPE_S|L1_S_C|L1_S_AP(AP_KRW))
-#else
-	MMU_INIT(PHYSADDR, PHYSADDR , 64, L1_TYPE_S|L1_SHARED|L1_S_C|L1_S_AP(AP_KRW))
-	/* map VA 0xc0000000..0xc3ffffff to PA */
-	MMU_INIT(KERNBASE, PHYSADDR, 64, L1_TYPE_S|L1_SHARED|L1_S_C|L1_S_AP(AP_KRW))
-	MMU_INIT(0x48000000, 0x48000000, 1, L1_TYPE_S|L1_SHARED|L1_S_C|L1_S_AP(AP_KRW))
-#endif /* SMP */
-	.word 0	/* end of table */
-#endif
 .Lstart:
 	.word	_edata
-	.word	_end
+	.word	_ebss
 	.word	svcstk + INIT_ARM_STACK_SIZE
 
 .Lvirt_done:
 	.word	virt_done
-#if defined(SMP)
-.Lmpvirt_done:
-	.word	mpvirt_done
-#endif
 
 .Lmainreturned:
 	.asciz	"main() returned"
@@ -289,6 +324,15 @@ mmu_init_table:
 svcstk:
 	.space	INIT_ARM_STACK_SIZE
 
+/*
+ * Memory for the initial pagetable. We are unable to place this in
+ * the bss as this will be cleared after the table is loaded.
+ */
+	.section ".init_pagetable"
+	.align	14 /* 16KiB aligned */
+pagetable:
+	.space	L1_TABLE_SIZE
+
 	.text
 	.align	0
 
@@ -296,104 +340,59 @@ svcstk:
 	.word	_C_LABEL(cpufuncs)
 
 #if defined(SMP)
-Lsramaddr:
-	.word	0xffff0080
 
-#if 0
-#define	AP_DEBUG(tmp)			\
-	mrc	p15, 0, r1, c0, c0, 5;	\
-	ldr	r0, Lsramaddr;		\
-	add	r0, r1, lsl #2;		\
-	mov	r1, tmp;		\
-	str	r1, [r0], #0x0000;
-#else
-#define AP_DEBUG(tmp)
-#endif
-
-
-ASENTRY_NP(mptramp)
-	mov	r0, #0
-	mcr	p15, 0, r0, c7, c7, 0
-
-	AP_DEBUG(#1)
-
-	mrs	r3, cpsr_all
-	bic	r3, r3, #(PSR_MODE)
-	orr	r3, r3, #(PSR_SVC32_MODE)
-        msr	cpsr_all, r3
-
-	mrc	p15, 0, r0, c0, c0, 5
-	and	r0, #0x0f		/* Get CPU ID */
-
-	/* Read boot address for CPU */
-	mov	r1, #0x100
-	mul	r2, r0, r1
-	ldr	r1, Lpmureg
-	add	r0, r2, r1
-	ldr	r1, [r0], #0x00
-
-	mov pc, r1
-
-Lpmureg:
-        .word   0xd0022124
-END(mptramp)
+.Lmpvirt_done:
+	.word	mpvirt_done
+Lstartup_pagetable_secondary:
+	.word	temp_pagetable
 
 ASENTRY_NP(mpentry)
-
-	AP_DEBUG(#2)
 
 	/* Make sure interrupts are disabled. */
 	mrs	r7, cpsr
 	orr	r7, r7, #(I32_bit|F32_bit)
 	msr	cpsr_c, r7
 
-
-	adr     r7, Ltag
-	bic     r7, r7, #0xf0000000
-	orr     r7, r7, #PHYSADDR
-			
-	/* Disable MMU for a while */
+	/* Disable MMU.  It should be disabled already, but make sure. */
 	mrc	p15, 0, r2, c1, c0, 0
 	bic	r2, r2, #(CPU_CONTROL_MMU_ENABLE | CPU_CONTROL_DC_ENABLE |\
 	    CPU_CONTROL_WBUF_ENABLE)
 	bic	r2, r2, #(CPU_CONTROL_IC_ENABLE)
 	bic	r2, r2, #(CPU_CONTROL_BPRD_ENABLE)
 	mcr	p15, 0, r2, c1, c0, 0
-
 	nop
 	nop
 	nop
+	CPWAIT(r0)
 
-	AP_DEBUG(#3)
+#if defined(ARM_MMU_V6)
+	bl	armv6_idcache_inv_all	/* Modifies r0 only */
+#elif defined(ARM_MMU_V7)
+	bl	armv7_idcache_inv_all	/* Modifies r0-r3, ip */
+#endif
 
-Ltag:
 	ldr	r0, Lstartup_pagetable_secondary
 	bic	r0, r0, #0xf0000000
 	orr	r0, r0, #PHYSADDR
 	ldr	r0, [r0]
-#if defined(SMP)
-	orr 	r0, r0, #0		/* Set TTB shared memory flag */
-#endif
+	orr 	r0, r0, #2		/* Set TTB shared memory flag */
 	mcr	p15, 0, r0, c2, c0, 0	/* Set TTB */
 	mcr	p15, 0, r0, c8, c7, 0	/* Flush TLB */
 
-#if defined(CPU_ARM1136) || defined(CPU_ARM1176) || defined(CPU_MV_PJ4B) || defined(CPU_CORTEXA)
 	mov	r0, #0
 	mcr	p15, 0, r0, c13, c0, 1	/* Set ASID to 0 */
-#endif
-
-	AP_DEBUG(#4)
 
 	/* Set the Domain Access register.  Very important! */
 	mov	r0, #((DOMAIN_CLIENT << (PMAP_DOMAIN_KERNEL*2)) | DOMAIN_CLIENT)
 	mcr	p15, 0, r0, c3, c0, 0
 	/* Enable MMU */
 	mrc	p15, 0, r0, c1, c0, 0
-#if defined(CPU_ARM1136) || defined(CPU_ARM1176) || defined(CPU_MV_PJ4B) || defined(CPU_CORTEXA)
 	orr	r0, r0, #CPU_CONTROL_V6_EXTPAGE
 	orr	r0, r0, #CPU_CONTROL_AF_ENABLE
-#endif
-	orr	r0, r0, #(CPU_CONTROL_MMU_ENABLE | CPU_CONTROL_DC_ENABLE)
+	orr	r0, r0, #(CPU_CONTROL_MMU_ENABLE | CPU_CONTROL_DC_ENABLE |\
+	    CPU_CONTROL_WBUF_ENABLE)
+	orr	r0, r0, #(CPU_CONTROL_IC_ENABLE)
+	orr	r0, r0, #(CPU_CONTROL_BPRD_ENABLE)
 	mcr	p15, 0, r0, c1, c0, 0
 	nop
 	nop
@@ -420,7 +419,7 @@ mpvirt_done:
 	/* NOTREACHED */
 
 .Lmpreturned:
-	.asciz	"main() returned"
+	.asciz	"init_secondary() returned"
 	.align	0
 END(mpentry)
 #endif
@@ -430,7 +429,7 @@ ENTRY_NP(cpu_halt)
 	bic	r2, r2, #(PSR_MODE)
 	orr     r2, r2, #(PSR_SVC32_MODE)
 	orr	r2, r2, #(I32_bit | F32_bit)
-	msr     cpsr_all, r2
+	msr     cpsr_fsxc, r2
 
 	ldr	r4, .Lcpu_reset_address
 	ldr	r4, [r4]
@@ -504,6 +503,7 @@ END(abort)
 
 ENTRY_NP(sigcode)
 	mov	r0, sp
+	add	r0, r0, #SIGF_UC
 
 	/*
 	 * Call the sigreturn system call.

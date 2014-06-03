@@ -34,6 +34,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/conf.h>
 #include <sys/malloc.h>
 #include <sys/mutex.h>
+#include <sys/sysctl.h>
 
 #include <machine/bus.h>
 #include <machine/resource.h>
@@ -69,6 +70,8 @@ devclass_t puc_devclass;
 const char puc_driver_name[] = "puc";
 
 static MALLOC_DEFINE(M_PUC, "PUC", "PUC driver");
+
+SYSCTL_NODE(_hw, OID_AUTO, puc, CTLFLAG_RD, 0, "puc(9) driver configuration");
 
 struct puc_bar *
 puc_get_bar(struct puc_softc *sc, int rid)
@@ -324,7 +327,6 @@ puc_bfe_attach(device_t dev)
 	if (bootverbose && sc->sc_ilr != 0)
 		device_printf(dev, "using interrupt latch register\n");
 
-	sc->sc_irid = 0;
 	sc->sc_ires = bus_alloc_resource_any(dev, SYS_RES_IRQ, &sc->sc_irid,
 	    RF_ACTIVE|RF_SHAREABLE);
 	if (sc->sc_ires != NULL) {

@@ -178,7 +178,7 @@ struct lock_class {
 
 #define	LOCK_LOG_DESTROY(lo, flags)	LOCK_LOG_INIT(lo, flags)
 
-#define	lock_initalized(lo)	((lo)->lo_flags & LO_INITIALIZED)
+#define	lock_initialized(lo)	((lo)->lo_flags & LO_INITIALIZED)
 
 /*
  * Helpful macros for quickly coming up with assertions with informative

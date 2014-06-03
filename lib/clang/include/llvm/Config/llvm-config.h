@@ -51,9 +51,6 @@
 /* Installation directory for .info files */
 /* #undef LLVM_INFODIR */
 
-/* Installation directory for libraries */
-/* #undef LLVM_LIBDIR */
-
 /* Installation directory for man pages */
 /* #undef LLVM_MANDIR */
 
@@ -112,7 +109,7 @@
 /* #undef LLVM_PATH_XDOT_PY */
 
 /* Installation prefix directory */
-#define LLVM_PREFIX ""
+#define LLVM_PREFIX "/usr"
 
 /* Define if we have the Intel JIT API runtime support library */
 #define LLVM_USE_INTEL_JITEVENTS 0
@@ -124,6 +121,6 @@
 #define LLVM_VERSION_MAJOR 3
 
 /* Minor version of the LLVM API */
-#define LLVM_VERSION_MINOR 3
+#define LLVM_VERSION_MINOR 4
 
 #endif

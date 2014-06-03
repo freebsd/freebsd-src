@@ -1,9 +1,9 @@
 #$FreeBSD$
 #	@(#)Makefile	8.1 (Berkeley) 6/2/93
 
-NO_MAN=
+.include <src.opts.mk>
 
-.include <bsd.own.mk>
+MAN=
 MK_SSP=	no
 
 PROG=	rescue
@@ -52,7 +52,7 @@ CRUNCH_SRCDIRS+= bin
 CRUNCH_PROGS_bin= cat chflags chio chmod cp date dd df echo 	\
 	 ed expr getfacl hostname kenv kill ln ls mkdir mv	\
 	 pkill ps pwd realpath rm rmdir setfacl sh stty sync test
-CRUNCH_LIBS+= -lcrypt -ledit -lkvm -ll -ltermcap -lutil
+CRUNCH_LIBS+= -lcrypt -ledit -ljail -lkvm -ll -ltermcap -lutil
 CRUNCH_BUILDTOOLS+= bin/sh
 
 # Additional options for specific programs
@@ -119,11 +119,8 @@ CRUNCH_PROGS_sbin+= zpool
 # CRUNCH_PROGS+= devd
 
 CRUNCH_LIBS+= -lalias -lcam -lcurses -ldevstat -lipsec
-.if ${MK_IPX} != "no"
-CRUNCH_LIBS+= -lipx
-.endif
 .if ${MK_ZFS} != "no"
-CRUNCH_LIBS+= -lavl -ljail -lzfs_core -lzfs -lnvpair -lpthread -luutil -lumem
+CRUNCH_LIBS+= -lavl -lzfs_core -lzfs -lnvpair -lpthread -luutil -lumem
 .endif
 CRUNCH_LIBS+= -lgeom -lbsdxml -lkiconv -lmd -lsbuf -lufs -lz
 

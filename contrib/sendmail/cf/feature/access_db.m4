@@ -1,6 +1,6 @@
 divert(-1)
 #
-# Copyright (c) 1998-2002, 2004, 2006 Sendmail, Inc. and its suppliers.
+# Copyright (c) 1998-2002, 2004, 2006 Proofpoint, Inc. and its suppliers.
 #	All rights reserved.
 #
 # By using this file, you agree to the terms and conditions set
@@ -10,7 +10,7 @@ divert(-1)
 #
 
 divert(0)
-VERSIONID(`$Id: access_db.m4,v 8.27 2006/07/06 21:10:10 ca Exp $')
+VERSIONID(`$Id: access_db.m4,v 8.28 2013-11-22 20:51:11 ca Exp $')
 divert(-1)
 
 define(`_ACCESS_TABLE_', `')

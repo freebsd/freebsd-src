@@ -160,6 +160,8 @@
 #define DP_C_LONG    2
 #define DP_C_LDOUBLE 3
 #define DP_C_LLONG   4
+#define DP_C_SIZE    5
+#define DP_C_INTMAX  6
 
 #define char_to_int(p) ((p)- '0')
 #ifndef MAX
@@ -182,7 +184,7 @@ static int dopr(char *buffer, size_t maxlen, const char *format,
 static int fmtstr(char *buffer, size_t *currlen, size_t maxlen,
     char *value, int flags, int min, int max);
 static int fmtint(char *buffer, size_t *currlen, size_t maxlen,
-    LLONG value, int base, int min, int max, int flags);
+    intmax_t value, int base, int min, int max, int flags);
 static int fmtfp(char *buffer, size_t *currlen, size_t maxlen,
     LDOUBLE fvalue, int min, int max, int flags);
 
@@ -190,7 +192,7 @@ static int
 dopr(char *buffer, size_t maxlen, const char *format, va_list args_in)
 {
 	char ch;
-	LLONG value;
+	intmax_t value;
 	LDOUBLE fvalue;
 	char *strvalue;
 	int min;
@@ -287,6 +289,10 @@ dopr(char *buffer, size_t maxlen, const char *format, va_list args_in)
 				cflags = DP_C_SHORT;
 				ch = *format++;
 				break;
+			case 'j':
+				cflags = DP_C_INTMAX;
+				ch = *format++;
+				break;
 			case 'l':
 				cflags = DP_C_LONG;
 				ch = *format++;
@@ -297,6 +303,10 @@ dopr(char *buffer, size_t maxlen, const char *format, va_list args_in)
 				break;
 			case 'L':
 				cflags = DP_C_LDOUBLE;
+				ch = *format++;
+				break;
+			case 'z':
+				cflags = DP_C_SIZE;
 				ch = *format++;
 				break;
 			default:
@@ -314,6 +324,10 @@ dopr(char *buffer, size_t maxlen, const char *format, va_list args_in)
 					value = va_arg (args, long int);
 				else if (cflags == DP_C_LLONG)
 					value = va_arg (args, LLONG);
+				else if (cflags == DP_C_SIZE)
+					value = va_arg (args, ssize_t);
+				else if (cflags == DP_C_INTMAX)
+					value = va_arg (args, intmax_t);
 				else
 					value = va_arg (args, int);
 				if (fmtint(buffer, &currlen, maxlen,
@@ -328,6 +342,12 @@ dopr(char *buffer, size_t maxlen, const char *format, va_list args_in)
 					value = (long)va_arg (args, unsigned long int);
 				else if (cflags == DP_C_LLONG)
 					value = (long)va_arg (args, unsigned LLONG);
+				else if (cflags == DP_C_SIZE)
+					value = va_arg (args, size_t);
+#ifdef notyet
+				else if (cflags == DP_C_INTMAX)
+					value = va_arg (args, uintmax_t);
+#endif
 				else
 					value = (long)va_arg (args, unsigned int);
 				if (fmtint(buffer, &currlen, maxlen, value,
@@ -342,6 +362,12 @@ dopr(char *buffer, size_t maxlen, const char *format, va_list args_in)
 					value = (long)va_arg (args, unsigned long int);
 				else if (cflags == DP_C_LLONG)
 					value = (LLONG)va_arg (args, unsigned LLONG);
+				else if (cflags == DP_C_SIZE)
+					value = va_arg (args, size_t);
+#ifdef notyet
+				else if (cflags == DP_C_INTMAX)
+					value = va_arg (args, uintmax_t);
+#endif
 				else
 					value = (long)va_arg (args, unsigned int);
 				if (fmtint(buffer, &currlen, maxlen, value,
@@ -358,6 +384,12 @@ dopr(char *buffer, size_t maxlen, const char *format, va_list args_in)
 					value = (long)va_arg (args, unsigned long int);
 				else if (cflags == DP_C_LLONG)
 					value = (LLONG)va_arg (args, unsigned LLONG);
+				else if (cflags == DP_C_SIZE)
+					value = va_arg (args, size_t);
+#ifdef notyet
+				else if (cflags == DP_C_INTMAX)
+					value = va_arg (args, uintmax_t);
+#endif
 				else
 					value = (long)va_arg (args, unsigned int);
 				if (fmtint(buffer, &currlen, maxlen, value,
@@ -416,6 +448,7 @@ dopr(char *buffer, size_t maxlen, const char *format, va_list args_in)
 				    (long) strvalue, 16, min, max, flags) == -1)
 					return -1;
 				break;
+#if we_dont_want_this_in_openssh
 			case 'n':
 				if (cflags == DP_C_SHORT) {
 					short int *num;
@@ -429,12 +462,21 @@ dopr(char *buffer, size_t maxlen, const char *format, va_list args_in)
 					LLONG *num;
 					num = va_arg (args, LLONG *);
 					*num = (LLONG)currlen;
+				} else if (cflags == DP_C_SIZE) {
+					ssize_t *num;
+					num = va_arg (args, ssize_t *);
+					*num = (ssize_t)currlen;
+				} else if (cflags == DP_C_INTMAX) {
+					intmax_t *num;
+					num = va_arg (args, intmax_t *);
+					*num = (intmax_t)currlen;
 				} else {
 					int *num;
 					num = va_arg (args, int *);
 					*num = currlen;
 				}
 				break;
+#endif
 			case '%':
 				DOPR_OUTCH(buffer, currlen, maxlen, ch);
 				break;

@@ -1,0 +1,4 @@
+.\" $FreeBSD$
+Set to not to install compressed system documentation.
+Only the uncompressed version will be installed.
+

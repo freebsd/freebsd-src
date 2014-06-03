@@ -51,15 +51,9 @@
 #include <sys/syslog.h>
 
 #include <net/if.h>
-#include <net/if_var.h>		/* XXXGL: ipx? */
 
 #include <netinet/in.h>
 #include <netinet/if_ether.h>
-
-#include <netatalk/at.h>
-
-#include <netipx/ipx.h>
-#include <netipx/ipx_if.h>
 
 #include <netgraph/ng_message.h>
 #include <netgraph/netgraph.h>

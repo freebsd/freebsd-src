@@ -315,8 +315,7 @@ static AccessResult IsDerivedFromInclusive(const CXXRecordDecl *Derived,
 
     if (Queue.empty()) break;
 
-    Derived = Queue.back();
-    Queue.pop_back();
+    Derived = Queue.pop_back_val();
   }
 
   return OnFailure;
@@ -1484,7 +1483,9 @@ void Sema::HandleDelayedAccessCheck(DelayedDiagnostic &DD, Decl *D) {
 
   DeclContext *DC = D->getDeclContext();
   if (FunctionDecl *FN = dyn_cast<FunctionDecl>(D)) {
-    if (!DC->isFunctionOrMethod())
+    if (D->getLexicalDeclContext()->isFunctionOrMethod())
+      DC = D->getLexicalDeclContext();
+    else
       DC = FN;
   } else if (TemplateDecl *TD = dyn_cast<TemplateDecl>(D)) {
     DC = cast<DeclContext>(TD->getTemplatedDecl());
@@ -1649,9 +1650,9 @@ Sema::AccessResult Sema::CheckConstructorAccess(SourceLocation UseLoc,
   }
 
   case InitializedEntity::EK_LambdaCapture: {
-    const VarDecl *Var = Entity.getCapturedVar();
+    StringRef VarName = Entity.getCapturedVarName();
     PD = PDiag(diag::err_access_lambda_capture);
-    PD << Var->getName() << Entity.getType() << getSpecialMember(Constructor);
+    PD << VarName << Entity.getType() << getSpecialMember(Constructor);
     break;
   }
 
@@ -1708,6 +1709,21 @@ Sema::AccessResult Sema::CheckAllocationAccess(SourceLocation OpLoc,
       << PlacementRange;
 
   return CheckAccess(*this, OpLoc, Entity);
+}
+
+/// \brief Checks access to a member.
+Sema::AccessResult Sema::CheckMemberAccess(SourceLocation UseLoc,
+                                           CXXRecordDecl *NamingClass,
+                                           DeclAccessPair Found) {
+  if (!getLangOpts().AccessControl ||
+      !NamingClass ||
+      Found.getAccess() == AS_public)
+    return AR_accessible;
+
+  AccessTarget Entity(Context, AccessTarget::Member, NamingClass,
+                      Found, QualType());
+
+  return CheckAccess(*this, UseLoc, Entity);
 }
 
 /// Checks access to an overloaded member operator, including
@@ -1872,9 +1888,7 @@ bool Sema::IsSimplyAccessible(NamedDecl *Decl, DeclContext *Ctx) {
     if (Ivar->getCanonicalAccessControl() == ObjCIvarDecl::Public ||
         Ivar->getCanonicalAccessControl() == ObjCIvarDecl::Package)
       return true;
-    
-    
-    
+
     // If we are inside a class or category implementation, determine the
     // interface we're in.
     ObjCInterfaceDecl *ClassOfMethodDecl = 0;

@@ -129,6 +129,7 @@ device		isp		# Qlogic family
 #device		ispfw		# Firmware for QLogic HBAs- normally a module
 device		mpt		# LSI-Logic MPT-Fusion
 device		mps		# LSI-Logic MPT-Fusion 2
+device		mpr		# LSI-Logic MPT-Fusion 3
 #device		ncr		# NCR/Symbios Logic
 device		trm		# Tekram DC395U/UW/F DC315U adapters
 
@@ -218,7 +219,6 @@ device		jme		# JMicron JMC250 Gigabit/JMC260 Fast Ethernet
 device		lge		# Level 1 LXT1001 gigabit Ethernet
 device		msk		# Marvell/SysKonnect Yukon II Gigabit Ethernet
 device		nge		# NatSemi DP83820 gigabit Ethernet
-#device		nve		# nVidia nForce MCP on-board Ethernet Networking
 device		pcn		# AMD Am79C97x PCI 10/100 (precedence over 'le')
 device		re		# RealTek 8139C+/8169/8169S/8110S
 device		rl		# RealTek 8129/8139

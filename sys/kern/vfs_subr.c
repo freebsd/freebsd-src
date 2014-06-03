@@ -330,8 +330,8 @@ vntblinit(void *dummy __unused)
 	 * size.  The memory required by desiredvnodes vnodes and vm objects
 	 * may not exceed one seventh of the kernel's heap size.
 	 */
-	physvnodes = maxproc + cnt.v_page_count / 16 + 3 * min(98304 * 4,
-	    cnt.v_page_count) / 16;
+	physvnodes = maxproc + vm_cnt.v_page_count / 16 + 3 * min(98304 * 4,
+	    vm_cnt.v_page_count) / 16;
 	virtvnodes = vm_kmem_size / (7 * (sizeof(struct vm_object) +
 	    sizeof(struct vnode)));
 	desiredvnodes = min(physvnodes, virtvnodes);
@@ -708,7 +708,7 @@ vlrureclaim(struct mount *mp)
 	usevnodes = desiredvnodes;
 	if (usevnodes <= 0)
 		usevnodes = 1;
-	trigger = cnt.v_page_count * 2 / usevnodes;
+	trigger = vm_cnt.v_page_count * 2 / usevnodes;
 	done = 0;
 	vn_start_write(NULL, &mp, V_WAIT);
 	MNT_ILOCK(mp);
@@ -2343,6 +2343,8 @@ vdropl(struct vnode *vp)
 	if (vp->v_holdcnt <= 0)
 		panic("vdrop: holdcnt %d", vp->v_holdcnt);
 	vp->v_holdcnt--;
+	VNASSERT(vp->v_holdcnt >= vp->v_usecount, vp,
+	    ("hold count less than use count"));
 	if (vp->v_holdcnt > 0) {
 		VI_UNLOCK(vp);
 		return;

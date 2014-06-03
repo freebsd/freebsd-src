@@ -8,11 +8,12 @@ SRCDIR=	lib/Target/ARM/MCTargetDesc
 SRCS=	ARMAsmBackend.cpp \
 	ARMELFObjectWriter.cpp \
 	ARMELFStreamer.cpp \
-	ARMMachObjectWriter.cpp \
 	ARMMCAsmInfo.cpp \
 	ARMMCCodeEmitter.cpp \
 	ARMMCExpr.cpp \
 	ARMMCTargetDesc.cpp \
+	ARMMachORelocationInfo.cpp \
+	ARMMachObjectWriter.cpp \
 	ARMUnwindOpAsm.cpp
 CFLAGS+= -I${LLVM_SRCS}/${SRCDIR}/..
 

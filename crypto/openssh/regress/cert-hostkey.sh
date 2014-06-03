@@ -1,13 +1,7 @@
-#	$OpenBSD: cert-hostkey.sh,v 1.7 2013/05/17 00:37:40 dtucker Exp $
+#	$OpenBSD: cert-hostkey.sh,v 1.9 2014/01/26 10:22:10 djm Exp $
 #	Placed in the Public Domain.
 
 tid="certified host keys"
-
-# used to disable ECC based tests on platforms without ECC
-ecdsa=""
-if test "x$TEST_SSH_ECC" = "xyes"; then
-	ecdsa=ecdsa
-fi
 
 rm -f $OBJ/known_hosts-cert $OBJ/host_ca_key* $OBJ/cert_host_key*
 cp $OBJ/sshd_proxy $OBJ/sshd_proxy_bak
@@ -23,8 +17,17 @@ ${SSHKEYGEN} -q -N '' -t rsa  -f $OBJ/host_ca_key ||\
 	cat $OBJ/host_ca_key.pub
 ) > $OBJ/known_hosts-cert
 
+PLAIN_TYPES=`$SSH -Q key-plain | sed 's/^ssh-dss/ssh-dsa/g;s/^ssh-//'`
+
+type_has_legacy() {
+	case $1 in
+		ed25519*|ecdsa*) return 1 ;;
+	esac
+	return 0
+}
+
 # Generate and sign host keys
-for ktype in rsa dsa $ecdsa ; do 
+for ktype in $PLAIN_TYPES ; do 
 	verbose "$tid: sign host ${ktype} cert"
 	# Generate and sign a host key
 	${SSHKEYGEN} -q -N '' -t ${ktype} \
@@ -34,10 +37,10 @@ for ktype in rsa dsa $ecdsa ; do
 	    -I "regress host key for $USER" \
 	    -n $HOSTS $OBJ/cert_host_key_${ktype} ||
 		fail "couldn't sign cert_host_key_${ktype}"
-	# v00 ecdsa certs do not exist
-	test "${ktype}" = "ecdsa" && continue
+	type_has_legacy $ktype || continue
 	cp $OBJ/cert_host_key_${ktype} $OBJ/cert_host_key_${ktype}_v00
 	cp $OBJ/cert_host_key_${ktype}.pub $OBJ/cert_host_key_${ktype}_v00.pub
+	verbose "$tid: sign host ${ktype}_v00 cert"
 	${SSHKEYGEN} -t v00 -h -q -s $OBJ/host_ca_key \
 	    -I "regress host key for $USER" \
 	    -n $HOSTS $OBJ/cert_host_key_${ktype}_v00 ||
@@ -46,7 +49,7 @@ done
 
 # Basic connect tests
 for privsep in yes no ; do
-	for ktype in rsa dsa $ecdsa rsa_v00 dsa_v00; do 
+	for ktype in $PLAIN_TYPES rsa_v00 dsa_v00; do 
 		verbose "$tid: host ${ktype} cert connect privsep $privsep"
 		(
 			cat $OBJ/sshd_proxy_bak
@@ -69,26 +72,13 @@ done
 	printf '@cert-authority '
 	printf "$HOSTS "
 	cat $OBJ/host_ca_key.pub
-	printf '@revoked '
-	printf "* "
-	cat $OBJ/cert_host_key_rsa.pub
-	if test "x$TEST_SSH_ECC" = "xyes"; then
-		printf '@revoked '
-		printf "* "
-		cat $OBJ/cert_host_key_ecdsa.pub
-	fi
-	printf '@revoked '
-	printf "* "
-	cat $OBJ/cert_host_key_dsa.pub
-	printf '@revoked '
-	printf "* "
-	cat $OBJ/cert_host_key_rsa_v00.pub
-	printf '@revoked '
-	printf "* "
-	cat $OBJ/cert_host_key_dsa_v00.pub
+	for ktype in $PLAIN_TYPES rsa_v00 dsa_v00; do
+		test -f "$OBJ/cert_host_key_${ktype}.pub" || fatal "no pubkey"
+		printf "@revoked * `cat $OBJ/cert_host_key_${ktype}.pub`\n"
+	done
 ) > $OBJ/known_hosts-cert
 for privsep in yes no ; do
-	for ktype in rsa dsa $ecdsa rsa_v00 dsa_v00; do 
+	for ktype in $PLAIN_TYPES rsa_v00 dsa_v00; do 
 		verbose "$tid: host ${ktype} revoked cert privsep $privsep"
 		(
 			cat $OBJ/sshd_proxy_bak
@@ -115,7 +105,7 @@ done
 	printf "* "
 	cat $OBJ/host_ca_key.pub
 ) > $OBJ/known_hosts-cert
-for ktype in rsa dsa $ecdsa rsa_v00 dsa_v00 ; do 
+for ktype in $PLAIN_TYPES rsa_v00 dsa_v00 ; do 
 	verbose "$tid: host ${ktype} revoked cert"
 	(
 		cat $OBJ/sshd_proxy_bak
@@ -186,9 +176,8 @@ test_one "cert has constraints"	failure "-h -Oforce-command=false"
 
 # Check downgrade of cert to raw key when no CA found
 for v in v01 v00 ;  do 
-	for ktype in rsa dsa $ecdsa ; do 
-		# v00 ecdsa certs do not exist.
-		test "${v}${ktype}" = "v00ecdsa" && continue
+	for ktype in $PLAIN_TYPES ; do 
+		type_has_legacy $ktype || continue
 		rm -f $OBJ/known_hosts-cert $OBJ/cert_host_key*
 		verbose "$tid: host ${ktype} ${v} cert downgrade to raw key"
 		# Generate and sign a host key
@@ -225,9 +214,8 @@ done
 	cat $OBJ/host_ca_key.pub
 ) > $OBJ/known_hosts-cert
 for v in v01 v00 ;  do 
-	for kt in rsa dsa $ecdsa ; do 
-		# v00 ecdsa certs do not exist.
-		test "${v}${ktype}" = "v00ecdsa" && continue
+	for kt in $PLAIN_TYPES ; do 
+		type_has_legacy $kt || continue
 		rm -f $OBJ/cert_host_key*
 		# Self-sign key
 		${SSHKEYGEN} -q -N '' -t ${kt} \

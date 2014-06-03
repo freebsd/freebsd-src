@@ -110,8 +110,6 @@ dev/hwpmc/hwpmc_x86.c		optional hwpmc
 dev/io/iodev.c			optional io
 dev/kbd/kbd.c			optional pckbd | sc | ukbd
 dev/le/if_le_cbus.c		optional le isa
-dev/lindev/full.c		optional lindev
-dev/lindev/lindev.c		optional lindev
 dev/mse/mse.c			optional mse
 dev/mse/mse_cbus.c		optional mse isa
 dev/sbni/if_sbni.c		optional sbni
@@ -208,8 +206,7 @@ kern/kern_clocksource.c		standard
 kern/imgact_aout.c		optional compat_aout
 kern/imgact_gzip.c		optional gzip
 libkern/divdi3.c		standard
-libkern/ffsl.c			standard
-libkern/flsl.c			standard
+libkern/flsll.c			standard
 libkern/memmove.c		standard
 libkern/memset.c		standard
 libkern/moddi3.c		standard
@@ -260,3 +257,5 @@ x86/x86/mptable_pci.c		optional apic pci
 x86/x86/msi.c			optional apic pci
 x86/x86/nexus.c			standard
 x86/x86/tsc.c			standard
+x86/x86/tsc.c			standard
+x86/x86/delay.c			standard

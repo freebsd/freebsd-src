@@ -203,6 +203,8 @@ public:
 
   void ProcessAutomaticObjDtor(const CFGAutomaticObjDtor D, 
                                ExplodedNode *Pred, ExplodedNodeSet &Dst);
+  void ProcessDeleteDtor(const CFGDeleteDtor D,
+                         ExplodedNode *Pred, ExplodedNodeSet &Dst);
   void ProcessBaseDtor(const CFGBaseDtor D,
                        ExplodedNode *Pred, ExplodedNodeSet &Dst);
   void ProcessMemberDtor(const CFGMemberDtor D,
@@ -476,14 +478,14 @@ protected:
                                               SVal Loc, SVal Val);
   /// Call PointerEscape callback when a value escapes as a result of
   /// region invalidation.
-  /// \param[in] IsConst Specifies that the pointer is const.
+  /// \param[in] ITraits Specifies invalidation traits for regions/symbols.
   ProgramStateRef notifyCheckersOfPointerEscape(
                             ProgramStateRef State,
                             const InvalidatedSymbols *Invalidated,
                             ArrayRef<const MemRegion *> ExplicitRegions,
                             ArrayRef<const MemRegion *> Regions,
                             const CallEvent *Call,
-                            bool IsConst);
+                            RegionAndSymbolInvalidationTraits &ITraits);
 
 public:
   // FIXME: 'tag' should be removed, and a LocationContext should be used

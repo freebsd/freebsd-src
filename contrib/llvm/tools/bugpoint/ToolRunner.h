@@ -30,17 +30,16 @@ namespace llvm {
 extern cl::opt<bool> SaveTemps;
 extern Triple TargetTriple;
 
-class CBE;
 class LLC;
 
 //===---------------------------------------------------------------------===//
 // GCC abstraction
 //
 class GCC {
-  sys::Path GCCPath;                // The path to the gcc executable.
-  sys::Path RemoteClientPath;       // The path to the rsh / ssh executable.
+  std::string GCCPath;                // The path to the gcc executable.
+  std::string RemoteClientPath;       // The path to the rsh / ssh executable.
   std::vector<std::string> gccArgs; // GCC-specific arguments.
-  GCC(const sys::Path &gccPath, const sys::Path &RemotePath,
+  GCC(StringRef gccPath, StringRef RemotePath,
       const std::vector<std::string> *GCCArgs)
     : GCCPath(gccPath), RemoteClientPath(RemotePath) {
     if (GCCArgs) gccArgs = *GCCArgs;
@@ -88,10 +87,6 @@ public:
 class AbstractInterpreter {
   virtual void anchor();
 public:
-  static CBE *createCBE(const char *Argv0, std::string &Message,
-                        const std::string              &GCCBinary,
-                        const std::vector<std::string> *Args = 0,
-                        const std::vector<std::string> *GCCArgs = 0);
   static LLC *createLLC(const char *Argv0, std::string &Message,
                         const std::string              &GCCBinary,
                         const std::vector<std::string> *Args = 0,
@@ -126,7 +121,7 @@ public:
   /// fails, it sets Error, otherwise, this function returns the type of code
   /// emitted.
   virtual GCC::FileType OutputCode(const std::string &Bitcode,
-                                   sys::Path &OutFile, std::string &Error,
+                                   std::string &OutFile, std::string &Error,
                                    unsigned Timeout = 0,
                                    unsigned MemoryLimit = 0) {
     Error = "OutputCode not supported by this AbstractInterpreter!";
@@ -150,51 +145,6 @@ public:
                              unsigned Timeout = 0,
                              unsigned MemoryLimit = 0) = 0;
 };
-
-//===---------------------------------------------------------------------===//
-// CBE Implementation of AbstractIntepreter interface
-//
-class CBE : public AbstractInterpreter {
-  sys::Path LLCPath;                 // The path to the `llc' executable.
-  std::vector<std::string> ToolArgs; // Extra args to pass to LLC.
-  GCC *gcc;
-public:
-  CBE(const sys::Path &llcPath, GCC *Gcc,
-      const std::vector<std::string> *Args)
-    : LLCPath(llcPath), gcc(Gcc) {
-    ToolArgs.clear ();
-    if (Args) ToolArgs = *Args;
-  }
-  ~CBE() { delete gcc; }
-
-  /// compileProgram - Compile the specified program from bitcode to executable
-  /// code.  This does not produce any output, it is only used when debugging
-  /// the code generator.  Returns false if the code generator fails.
-  virtual void compileProgram(const std::string &Bitcode, std::string *Error,
-                              unsigned Timeout = 0, unsigned MemoryLimit = 0);
-
-  virtual int ExecuteProgram(const std::string &Bitcode,
-                             const std::vector<std::string> &Args,
-                             const std::string &InputFile,
-                             const std::string &OutputFile,
-                             std::string *Error,
-                             const std::vector<std::string> &GCCArgs =
-                               std::vector<std::string>(),
-                             const std::vector<std::string> &SharedLibs =
-                               std::vector<std::string>(),
-                             unsigned Timeout = 0,
-                             unsigned MemoryLimit = 0);
-
-  /// OutputCode - Compile the specified program from bitcode to code
-  /// understood by the GCC driver (either C or asm).  If the code generator
-  /// fails, it sets Error, otherwise, this function returns the type of code
-  /// emitted.
-  virtual GCC::FileType OutputCode(const std::string &Bitcode,
-                                   sys::Path &OutFile, std::string &Error,
-                                   unsigned Timeout = 0,
-                                   unsigned MemoryLimit = 0);
-};
-
 
 //===---------------------------------------------------------------------===//
 // LLC Implementation of AbstractIntepreter interface
@@ -238,7 +188,7 @@ public:
   /// fails, it sets Error, otherwise, this function returns the type of code
   /// emitted.
   virtual GCC::FileType OutputCode(const std::string &Bitcode,
-                                   sys::Path &OutFile, std::string &Error,
+                                   std::string &OutFile, std::string &Error,
                                    unsigned Timeout = 0,
                                    unsigned MemoryLimit = 0);
 };

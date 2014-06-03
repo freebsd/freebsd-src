@@ -21,6 +21,7 @@
 #include "clang/AST/DeclObjC.h"
 #include "clang/Basic/SourceManager.h"
 #include "clang/Basic/TargetInfo.h"
+#include "clang/CodeGen/CGFunctionInfo.h"
 #include "clang/Frontend/CodeGenOptions.h"
 #include "llvm/IR/DataLayout.h"
 #include "llvm/IR/GlobalVariable.h"
@@ -37,6 +38,8 @@ void CodeGenFunction::EmitDecl(const Decl &D) {
   case Decl::UnresolvedUsingTypename:
   case Decl::ClassTemplateSpecialization:
   case Decl::ClassTemplatePartialSpecialization:
+  case Decl::VarTemplateSpecialization:
+  case Decl::VarTemplatePartialSpecialization:
   case Decl::TemplateTypeParm:
   case Decl::UnresolvedUsingValue:
   case Decl::NonTypeTemplateParm:
@@ -52,6 +55,7 @@ void CodeGenFunction::EmitDecl(const Decl &D) {
   case Decl::ParmVar:
   case Decl::ImplicitParam:
   case Decl::ClassTemplate:
+  case Decl::VarTemplate:
   case Decl::FunctionTemplate:
   case Decl::TypeAliasTemplate:
   case Decl::TemplateTemplateParm:
@@ -72,15 +76,13 @@ void CodeGenFunction::EmitDecl(const Decl &D) {
   case Decl::Block:
   case Decl::Captured:
   case Decl::ClassScopeFunctionSpecialization:
+  case Decl::UsingShadow:
     llvm_unreachable("Declaration should not be in declstmts!");
   case Decl::Function:  // void X();
   case Decl::Record:    // struct/union/class X;
   case Decl::Enum:      // enum X;
   case Decl::EnumConstant: // enum ? { X = ? }
   case Decl::CXXRecord: // struct/union/class X; [C++]
-  case Decl::Using:          // using X; [C++]
-  case Decl::UsingShadow:
-  case Decl::NamespaceAlias:
   case Decl::StaticAssert: // static_assert(X, ""); [C++0x]
   case Decl::Label:        // __label__ x;
   case Decl::Import:
@@ -89,6 +91,14 @@ void CodeGenFunction::EmitDecl(const Decl &D) {
     // None of these decls require codegen support.
     return;
 
+  case Decl::NamespaceAlias:
+    if (CGDebugInfo *DI = getDebugInfo())
+        DI->EmitNamespaceAlias(cast<NamespaceAliasDecl>(D));
+    return;
+  case Decl::Using:          // using X; [C++]
+    if (CGDebugInfo *DI = getDebugInfo())
+        DI->EmitUsingDecl(cast<UsingDecl>(D));
+    return;
   case Decl::UsingDirective: // using namespace X; [C++]
     if (CGDebugInfo *DI = getDebugInfo())
       DI->EmitUsingDirective(cast<UsingDirectiveDecl>(D));
@@ -114,35 +124,32 @@ void CodeGenFunction::EmitDecl(const Decl &D) {
 /// EmitVarDecl - This method handles emission of any variable declaration
 /// inside a function, including static vars etc.
 void CodeGenFunction::EmitVarDecl(const VarDecl &D) {
-  switch (D.getStorageClass()) {
-  case SC_None:
-  case SC_Auto:
-  case SC_Register:
-    return EmitAutoVarDecl(D);
-  case SC_Static: {
+  if (D.isStaticLocal()) {
     llvm::GlobalValue::LinkageTypes Linkage =
       llvm::GlobalValue::InternalLinkage;
 
-    // If the function definition has some sort of weak linkage, its
-    // static variables should also be weak so that they get properly
-    // uniqued.  We can't do this in C, though, because there's no
-    // standard way to agree on which variables are the same (i.e.
-    // there's no mangling).
-    if (getLangOpts().CPlusPlus)
-      if (llvm::GlobalValue::isWeakForLinker(CurFn->getLinkage()))
-        Linkage = CurFn->getLinkage();
+    // If the variable is externally visible, it must have weak linkage so it
+    // can be uniqued.
+    if (D.isExternallyVisible()) {
+      Linkage = llvm::GlobalValue::LinkOnceODRLinkage;
+
+      // FIXME: We need to force the emission/use of a guard variable for
+      // some variables even if we can constant-evaluate them because
+      // we can't guarantee every translation unit will constant-evaluate them.
+    }
 
     return EmitStaticVarDecl(D, Linkage);
   }
-  case SC_Extern:
-  case SC_PrivateExtern:
+
+  if (D.hasExternalStorage())
     // Don't emit it now, allow it to be emitted lazily on its first use.
     return;
-  case SC_OpenCLWorkGroupLocal:
-    return CGM.getOpenCLRuntime().EmitWorkGroupLocalVarDecl(*this, D);
-  }
 
-  llvm_unreachable("Unknown storage class");
+  if (D.getStorageClass() == SC_OpenCLWorkGroupLocal)
+    return CGM.getOpenCLRuntime().EmitWorkGroupLocalVarDecl(*this, D);
+
+  assert(D.hasLocalStorage());
+  return EmitAutoVarDecl(D);
 }
 
 static std::string GetStaticDeclName(CodeGenFunction &CGF, const VarDecl &D,
@@ -200,8 +207,7 @@ CodeGenFunction::CreateStaticVarDecl(const VarDecl &D,
                              llvm::GlobalVariable::NotThreadLocal,
                              AddrSpace);
   GV->setAlignment(getContext().getDeclAlign(&D).getQuantity());
-  if (Linkage != llvm::GlobalValue::InternalLinkage)
-    GV->setVisibility(CurFn->getVisibility());
+  CGM.setGlobalVisibility(GV, &D);
 
   if (D.getTLSKind())
     CGM.setTLSMode(GV, D);
@@ -420,7 +426,8 @@ namespace {
       // byref or something.
       DeclRefExpr DRE(const_cast<VarDecl*>(&Var), false,
                       Var.getType(), VK_LValue, SourceLocation());
-      llvm::Value *value = CGF.EmitLoadOfScalar(CGF.EmitDeclRefLValue(&DRE));
+      llvm::Value *value = CGF.EmitLoadOfScalar(CGF.EmitDeclRefLValue(&DRE),
+                                                SourceLocation());
       CGF.EmitExtendGCLifetime(value);
     }
   };
@@ -647,7 +654,7 @@ void CodeGenFunction::EmitScalarInit(const Expr *init,
   // might have to initialize with a barrier.  We have to do this for
   // both __weak and __strong, but __weak got filtered out above.
   if (accessedByInit && lifetime == Qualifiers::OCL_Strong) {
-    llvm::Value *oldValue = EmitLoadOfScalar(lvalue);
+    llvm::Value *oldValue = EmitLoadOfScalar(lvalue, init->getExprLoc());
     EmitStoreOfScalar(value, lvalue, /* isInitialization */ true);
     EmitARCRelease(oldValue, ARCImpreciseLifetime);
     return;
@@ -838,19 +845,19 @@ CodeGenFunction::EmitAutoVarAlloca(const VarDecl &D) {
     bool NRVO = getLangOpts().ElideConstructors &&
       D.isNRVOVariable();
 
-    // If this value is a POD array or struct with a statically
-    // determinable constant initializer, there are optimizations we can do.
+    // If this value is an array or struct with a statically determinable
+    // constant initializer, there are optimizations we can do.
     //
     // TODO: We should constant-evaluate the initializer of any variable,
     // as long as it is initialized by a constant expression. Currently,
     // isConstantInitializer produces wrong answers for structs with
     // reference or bitfield members, and a few other cases, and checking
     // for POD-ness protects us from some of these.
-    if (D.getInit() &&
-        (Ty->isArrayType() || Ty->isRecordType()) &&
-        (Ty.isPODType(getContext()) ||
-         getContext().getBaseElementType(Ty)->isObjCObjectPointerType()) &&
-        D.getInit()->isConstantInitializer(getContext(), false)) {
+    if (D.getInit() && (Ty->isArrayType() || Ty->isRecordType()) &&
+        (D.isConstexpr() ||
+         ((Ty.isPODType(getContext()) ||
+           getContext().getBaseElementType(Ty)->isObjCObjectPointerType()) &&
+          D.getInit()->isConstantInitializer(getContext(), false)))) {
 
       // If the variable's a const type, and it's neither an NRVO
       // candidate nor a __block variable and has no mutable members,
@@ -1078,7 +1085,7 @@ void CodeGenFunction::EmitAutoVarInit(const AutoVarEmission &emission) {
     capturedByInit ? emission.Address : emission.getObjectAddress(*this);
 
   llvm::Constant *constant = 0;
-  if (emission.IsConstantAggregate) {
+  if (emission.IsConstantAggregate || D.isConstexpr()) {
     assert(!capturedByInit && "constant init contains a capturing block?");
     constant = CGM.EmitConstantInit(D, this);
   }
@@ -1087,6 +1094,13 @@ void CodeGenFunction::EmitAutoVarInit(const AutoVarEmission &emission) {
     LValue lv = MakeAddrLValue(Loc, type, alignment);
     lv.setNonGC(true);
     return EmitExprAsInit(Init, &D, lv, capturedByInit);
+  }
+
+  if (!emission.IsConstantAggregate) {
+    // For simple scalar/complex initialization, store the value directly.
+    LValue lv = MakeAddrLValue(Loc, type, alignment);
+    lv.setNonGC(true);
+    return EmitStoreThroughLValue(RValue::get(constant), lv, true);
   }
 
   // If this is a simple aggregate initialization, we can optimize it
@@ -1151,7 +1165,7 @@ void CodeGenFunction::EmitExprAsInit(const Expr *init,
   QualType type = D->getType();
 
   if (type->isReferenceType()) {
-    RValue rvalue = EmitReferenceBindingToExpr(init, D);
+    RValue rvalue = EmitReferenceBindingToExpr(init);
     if (capturedByInit)
       drillIntoBlockVariable(*this, lvalue, cast<VarDecl>(D));
     EmitStoreThroughLValue(rvalue, lvalue, true);
@@ -1178,7 +1192,6 @@ void CodeGenFunction::EmitExprAsInit(const Expr *init,
                                          AggValueSlot::DoesNotNeedGCBarriers,
                                               AggValueSlot::IsNotAliased));
     }
-    MaybeEmitStdInitializerListCleanup(lvalue.getAddress(), init);
     return;
   }
   llvm_unreachable("bad evaluation kind");
@@ -1329,6 +1342,26 @@ void CodeGenFunction::pushDestroy(CleanupKind cleanupKind, llvm::Value *addr,
                                   bool useEHCleanupForArray) {
   pushFullExprCleanup<DestroyObject>(cleanupKind, addr, type,
                                      destroyer, useEHCleanupForArray);
+}
+
+void CodeGenFunction::pushLifetimeExtendedDestroy(
+    CleanupKind cleanupKind, llvm::Value *addr, QualType type,
+    Destroyer *destroyer, bool useEHCleanupForArray) {
+  assert(!isInConditionalBranch() &&
+         "performing lifetime extension from within conditional");
+
+  // Push an EH-only cleanup for the object now.
+  // FIXME: When popping normal cleanups, we need to keep this EH cleanup
+  // around in case a temporary's destructor throws an exception.
+  if (cleanupKind & EHCleanup)
+    EHStack.pushCleanup<DestroyObject>(
+        static_cast<CleanupKind>(cleanupKind & ~NormalCleanup), addr, type,
+        destroyer, useEHCleanupForArray);
+
+  // Remember that we need to push a full cleanup for the object at the
+  // end of the full-expression.
+  pushCleanupAfterFullExpr<DestroyObject>(
+      cleanupKind, addr, type, destroyer, useEHCleanupForArray);
 }
 
 /// emitDestroy - Immediately perform the destruction of the given
@@ -1608,10 +1641,18 @@ void CodeGenFunction::EmitParmDecl(const VarDecl &D, llvm::Value *Arg,
   }
 
   llvm::Value *DeclPtr;
+  bool HasNonScalarEvalKind = !CodeGenFunction::hasScalarEvaluationKind(Ty);
   // If this is an aggregate or variable sized value, reuse the input pointer.
-  if (!Ty->isConstantSizeType() ||
-      !CodeGenFunction::hasScalarEvaluationKind(Ty)) {
+  if (HasNonScalarEvalKind || !Ty->isConstantSizeType()) {
     DeclPtr = Arg;
+    // Push a destructor cleanup for this parameter if the ABI requires it.
+    if (HasNonScalarEvalKind &&
+        getTarget().getCXXABI().isArgumentDestroyedByCallee()) {
+      if (const CXXRecordDecl *RD = Ty->getAsCXXRecordDecl()) {
+        if (RD->hasNonTrivialDestructor())
+          pushDestroy(QualType::DK_cxx_destructor, DeclPtr, Ty);
+      }
+    }
   } else {
     // Otherwise, create a temporary to hold the value.
     llvm::AllocaInst *Alloc = CreateTempAlloca(ConvertTypeForMem(Ty),
@@ -1649,7 +1690,7 @@ void CodeGenFunction::EmitParmDecl(const VarDecl &D, llvm::Value *Arg,
             // use objc_storeStrong(&dest, value) for retaining the
             // object. But first, store a null into 'dest' because
             // objc_storeStrong attempts to release its old value.
-            llvm::Value * Null = CGM.EmitNullConstant(D.getType());
+            llvm::Value *Null = CGM.EmitNullConstant(D.getType());
             EmitStoreOfScalar(Null, lv, /* isInitialization */ true);
             EmitARCStoreStrongCall(lv.getAddress(), Arg, true);
             doStore = false;

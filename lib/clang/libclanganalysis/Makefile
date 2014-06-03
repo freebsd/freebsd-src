@@ -12,6 +12,7 @@ SRCS=	AnalysisDeclContext.cpp \
 	CFGStmtMap.cpp \
 	CallGraph.cpp \
 	CocoaConventions.cpp \
+	Consumed.cpp \
 	Dominators.cpp \
 	FormatString.cpp \
 	LiveVariables.cpp \
