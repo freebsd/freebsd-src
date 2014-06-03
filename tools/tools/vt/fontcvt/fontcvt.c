@@ -39,12 +39,13 @@ __FBSDID("$FreeBSD$");
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 
 #define VFNT_MAPS 4
 #define VFNT_MAP_NORMAL 0
 #define VFNT_MAP_BOLD 2
 
-static unsigned int width, wbytes, height;
+static unsigned int width = 8, wbytes, height = 16;
 
 struct glyph {
 	TAILQ_ENTRY(glyph)	 g_list;
@@ -83,7 +84,7 @@ usage(void)
 {
 
 	fprintf(stderr,
-"usage: fontcvt width height normal.bdf bold.bdf out.fnt\n");
+"usage: fontcvt [-w width] [-h height] normal.bdf bold.bdf out.fnt\n");
 	exit(1);
 }
 
@@ -384,27 +385,42 @@ write_fnt(const char *filename)
 int
 main(int argc, char *argv[])
 {
+	int ch;
 
 	assert(sizeof(struct file_header) == 32);
 	assert(sizeof(struct file_mapping) == 8);
 
-	if (argc != 6)
-		usage();
-	
-	width = atoi(argv[1]);
-	wbytes = howmany(width, 8);
-	height = atoi(argv[2]);
+	while ((ch = getopt(argc, argv, "h:w:")) != -1) {
+		switch (ch) {
+		case 'h':
+			height = atoi(optarg);
+			break;
+		case 'w':
+			height = atoi(optarg);
+			break;
+		case '?':
+		default:
+			usage();
+		}
+	}
+	argc -= optind;
+	argv += optind;
 
-	if (parse_bdf(argv[3], VFNT_MAP_NORMAL) != 0)
+	if (argc != 3)
+		usage();
+
+	wbytes = howmany(width, 8);
+
+	if (parse_bdf(argv[0], VFNT_MAP_NORMAL) != 0)
 		return (1);
-	if (parse_bdf(argv[4], VFNT_MAP_BOLD) != 0)
+	if (parse_bdf(argv[1], VFNT_MAP_BOLD) != 0)
 		return (1);
 	number_glyphs();
 	fold_mappings(0);
 	fold_mappings(1);
 	fold_mappings(2);
 	fold_mappings(3);
-	if (write_fnt(argv[5]) != 0)
+	if (write_fnt(argv[2]) != 0)
 		return (1);
 	
 	printf(
