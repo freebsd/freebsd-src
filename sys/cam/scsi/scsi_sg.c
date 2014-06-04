@@ -627,6 +627,13 @@ sgioctl(struct cdev *dev, u_long cmd, caddr_t arg, int flag, struct thread *td)
 		break;
 	}
 
+	case SG_GET_SG_TABLESIZE:
+	{
+		int *size = (int *)arg;
+		*size = 0;
+		break;
+	}
+
 	case SG_EMULATED_HOST:
 	case SG_SET_TRANSFORM:
 	case SG_GET_TRANSFORM:
@@ -638,7 +645,6 @@ sgioctl(struct cdev *dev, u_long cmd, caddr_t arg, int flag, struct thread *td)
 	case SG_GET_ACCESS_COUNT:
 	case SG_SET_FORCE_LOW_DMA:
 	case SG_GET_LOW_DMA:
-	case SG_GET_SG_TABLESIZE:
 	case SG_SET_FORCE_PACK_ID:
 	case SG_GET_PACK_ID:
 	case SG_SET_RESERVED_SIZE:
@@ -683,6 +689,12 @@ sgwrite(struct cdev *dev, struct uio *uio, int ioflag)
 	error = uiomove(hdr, sizeof(*hdr), uio);
 	if (error)
 		goto out_hdr;
+
+	/* XXX: We don't support SG 3.x read/write API. */
+	if (hdr->reply_len < 0) {
+		error = ENODEV;
+		goto out_hdr;
+	}
 
 	ccb = xpt_alloc_ccb();
 	if (ccb == NULL) {
