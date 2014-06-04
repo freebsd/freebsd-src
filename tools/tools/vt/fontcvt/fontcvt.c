@@ -30,6 +30,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <sys/types.h>
+#include <sys/fnv_hash.h>
 #include <sys/endian.h>
 #include <sys/param.h>
 #include <sys/queue.h>
@@ -49,11 +51,14 @@ static unsigned int width = 8, wbytes, height = 16;
 
 struct glyph {
 	TAILQ_ENTRY(glyph)	 g_list;
+	SLIST_ENTRY(glyph)	 g_hash;
 	uint8_t			*g_data;
 	unsigned int		 g_index;
 };
 
+#define	FONTCVT_NHASH 4096
 TAILQ_HEAD(glyph_list, glyph);
+static SLIST_HEAD(, glyph) glyph_hash[FONTCVT_NHASH];
 static struct glyph_list glyphs[VFNT_MAPS] = {
     TAILQ_HEAD_INITIALIZER(glyphs[0]),
     TAILQ_HEAD_INITIALIZER(glyphs[1]),
@@ -147,17 +152,16 @@ static struct glyph *
 add_glyph(const uint8_t *bytes, unsigned int map_idx, int fallback)
 {
 	struct glyph *gl;
-	unsigned int i;
+	int hash;
 
 	glyph_total++;
 	glyph_count[map_idx]++;
 
-	for (i = 0; i < VFNT_MAPS; i++) {
-		TAILQ_FOREACH(gl, &glyphs[i], g_list) {
-			if (memcmp(gl->g_data, bytes, wbytes * height) == 0) {
-				glyph_dupe++;
-				return (gl);
-			}
+	hash = fnv_32_buf(bytes, wbytes * height, FNV1_32_INIT) % FONTCVT_NHASH;
+	SLIST_FOREACH(gl, &glyph_hash[hash], g_hash) {
+		if (memcmp(gl->g_data, bytes, wbytes * height) == 0) {
+			glyph_dupe++;
+			return (gl);
 		}
 	}
 
@@ -168,6 +172,7 @@ add_glyph(const uint8_t *bytes, unsigned int map_idx, int fallback)
 		TAILQ_INSERT_HEAD(&glyphs[map_idx], gl, g_list);
 	else
 		TAILQ_INSERT_TAIL(&glyphs[map_idx], gl, g_list);
+	SLIST_INSERT_HEAD(&glyph_hash[hash], gl, g_hash);
 
 	glyph_unique++;
 	return (gl);
