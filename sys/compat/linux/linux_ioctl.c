@@ -2751,6 +2751,9 @@ linux_ioctl_sg(struct thread *td, struct linux_ioctl_args *args)
 	case LINUX_SG_GET_SCSI_ID:
 		args->cmd = SG_GET_SCSI_ID;
 		break;
+	case LINUX_SG_GET_SG_TABLESIZE:
+		args->cmd = SG_GET_SG_TABLESIZE;
+		break;
 	default:
 		return (ENODEV);
 	}
