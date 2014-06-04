@@ -30,6 +30,8 @@
 #include <sys/time.h>
 #include <sys/types.h>
 
+#define	LIBUSB_CALL
+
 #ifdef __cplusplus
 extern	"C" {
 #endif
