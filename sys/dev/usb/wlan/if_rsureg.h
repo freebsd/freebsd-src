@@ -698,11 +698,9 @@ struct rsu_host_cmd_ring {
 
 enum {
 	RSU_BULK_RX,
-	RSU_BULK_TX_BE,	/* = WME_AC_BE */
-	RSU_BULK_TX_BK,	/* = WME_AC_BK */
-	RSU_BULK_TX_VI,	/* = WME_AC_VI */
-	RSU_BULK_TX_VO,	/* = WME_AC_VI */
-	RSU_N_TRANSFER = 5,
+	RSU_BULK_TX_BE_BK,	/* = WME_AC_BE/BK */
+	RSU_BULK_TX_VI_VO,	/* = WME_AC_VI/VO */
+	RSU_N_TRANSFER,
 };
 
 struct rsu_data {
@@ -726,8 +724,6 @@ struct rsu_vap {
 #define	RSU_LOCK(sc)			mtx_lock(&(sc)->sc_mtx)
 #define	RSU_UNLOCK(sc)			mtx_unlock(&(sc)->sc_mtx)
 #define	RSU_ASSERT_LOCKED(sc)		mtx_assert(&(sc)->sc_mtx, MA_OWNED)
-
-#define	RSU_MAX_TX_EP			4
 
 struct rsu_softc {
 	struct ifnet			*sc_ifp;
@@ -754,9 +750,9 @@ struct rsu_softc {
 
 	STAILQ_HEAD(, rsu_data)		sc_rx_active;
 	STAILQ_HEAD(, rsu_data)		sc_rx_inactive;
-	STAILQ_HEAD(, rsu_data)		sc_tx_active[RSU_MAX_TX_EP];
+	STAILQ_HEAD(, rsu_data)		sc_tx_active[RSU_N_TRANSFER];
 	STAILQ_HEAD(, rsu_data)		sc_tx_inactive;
-	STAILQ_HEAD(, rsu_data)		sc_tx_pending[RSU_MAX_TX_EP];
+	STAILQ_HEAD(, rsu_data)		sc_tx_pending[RSU_N_TRANSFER];
 
 	union {
 		struct rsu_rx_radiotap_header th;
