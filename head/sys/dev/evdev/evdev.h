@@ -33,7 +33,7 @@
 #include <sys/malloc.h>
 #include <dev/evdev/input.h>
 
-#define	NAMELEN		32
+#define	NAMELEN		80
 
 MALLOC_DECLARE(M_EVDEV);
 
