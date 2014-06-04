@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * Please contribute any changes back to <jimmy@is-vn.bg>.
+ * Please contribute any changes back to <dimitar.zhekov@gmail.com>.
  */
 
 #include <sys/cdefs.h>
