@@ -1,6 +1,5 @@
 /*-
- * Copyright (c) 2011 Dimitar Toshkov Zhekov <jimmy@is-vn.bg>
- * All rights reserved.
+ * Copyright (c) 2011 Dimitar Toshkov Zhekov.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
