@@ -71,9 +71,9 @@ static driver_filter_t xen_ipi_bitmap_handler;
 static driver_filter_t xen_cpustop_handler;
 static driver_filter_t xen_cpususpend_handler;
 static driver_filter_t xen_cpustophard_handler;
-#endif
 static void xen_ipi_vectored(u_int vector, int dest);
 static void xen_hvm_cpu_resume(void);
+#endif
 static void xen_hvm_cpu_init(void);
 
 /*---------------------------- Extern Declarations ---------------------------*/
@@ -106,11 +106,13 @@ struct xen_ipi_handler
 /*-------------------------------- Global Data -------------------------------*/
 enum xen_domain_type xen_domain_type = XEN_NATIVE;
 
+#ifdef SMP
 struct cpu_ops xen_hvm_cpu_ops = {
 	.ipi_vectored	= lapic_ipi_vectored,
 	.cpu_init	= xen_hvm_cpu_init,
 	.cpu_resume	= xen_hvm_cpu_resume
 };
+#endif
 
 static MALLOC_DEFINE(M_XENHVM, "xen_hvm", "Xen HVM PV Support");
 
@@ -526,7 +528,9 @@ xen_hvm_init(enum xen_hvm_init_type init_type)
 			return;
 
 		setup_xen_features();
+#ifdef SMP
 		cpu_ops = xen_hvm_cpu_ops;
+#endif
  		vm_guest = VM_GUEST_XEN;
 		break;
 	case XEN_HVM_INIT_RESUME:
