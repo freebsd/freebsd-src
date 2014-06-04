@@ -3161,11 +3161,20 @@ dwc_otg_setup_standard_chain(struct usb_xfer *xfer)
 			(xfer->max_packet_size << HCCHAR_MPS_SHIFT) |
 			HCCHAR_CHENA;
 
-		/* XXX stability hack - possible HW issue */
-		if (td->ep_type == UE_CONTROL)
+		/*
+		 * XXX stability hack - possible HW issue
+		 *
+		 * Disable workaround when using a transaction
+		 * translator, hence some TTs reject control endpoint
+		 * traffic using BULK endpoint type:
+		 */
+		if (td->ep_type == UE_CONTROL &&
+		    (xfer->xroot->udev->speed == USB_SPEED_HIGH ||
+		     xfer->xroot->udev->parent_hs_hub == NULL)) {
 			hcchar |= (UE_BULK << HCCHAR_EPTYPE_SHIFT);
-		else
+		} else {
 			hcchar |= (td->ep_type << HCCHAR_EPTYPE_SHIFT);
+		}
 
 		if (usbd_get_speed(xfer->xroot->udev) == USB_SPEED_LOW)
 			hcchar |= HCCHAR_LSPDDEV;
