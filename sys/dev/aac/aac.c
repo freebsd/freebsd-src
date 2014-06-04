@@ -1398,6 +1398,7 @@ aac_release_command(struct aac_command *cm)
 	fwprintf(sc, HBA_FLAGS_DBG_FUNCTION_ENTRY_B, "");
 
 	/* (re)initialize the command/FIB */
+	cm->cm_datalen = 0;
 	cm->cm_sgtable = NULL;
 	cm->cm_flags = 0;
 	cm->cm_complete = NULL;
