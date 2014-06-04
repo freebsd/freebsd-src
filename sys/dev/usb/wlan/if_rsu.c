@@ -1057,7 +1057,8 @@ rsu_join_bss(struct rsu_softc *sc, struct ieee80211_node *ni)
 	struct ndis_wlan_bssid_ex *bss;
 	struct ndis_802_11_fixed_ies *fixed;
 	struct r92s_fw_cmd_auth auth;
-	uint8_t buf[sizeof(*bss) + 128], *frm;
+	uint8_t buf[sizeof(*bss) + 128] __aligned(4);
+	uint8_t *frm;
 	uint8_t opmode;
 	int error;
 
@@ -1071,7 +1072,7 @@ rsu_join_bss(struct rsu_softc *sc, struct ieee80211_node *ni)
 	memset(&auth, 0, sizeof(auth));
 	if (vap->iv_flags & IEEE80211_F_WPA) {
 		auth.mode = R92S_AUTHMODE_WPA;
-		auth.dot1x = ni->ni_authmode == IEEE80211_AUTH_8021X;
+		auth.dot1x = (ni->ni_authmode == IEEE80211_AUTH_8021X);
 	} else
 		auth.mode = R92S_AUTHMODE_OPEN;
 	DPRINTF("setting auth mode to %d\n", auth.mode);
@@ -1192,6 +1193,7 @@ rsu_event_join_bss(struct rsu_softc *sc, uint8_t *buf, int len)
 	struct ieee80211vap *vap = TAILQ_FIRST(&ic->ic_vaps);
 	struct ieee80211_node *ni = vap->iv_bss;
 	struct r92s_event_join_bss *rsp;
+	uint32_t tmp;
 	int res;
 
 	if (__predict_false(len < sizeof(*rsp)))
@@ -1206,9 +1208,14 @@ rsu_event_join_bss(struct rsu_softc *sc, uint8_t *buf, int len)
 		RSU_LOCK(sc);
 		return;
 	}
+	tmp = le32toh(rsp->associd);
+	if (tmp >= vap->iv_max_aid) {
+		DPRINTF("Assoc ID overflow\n");
+		tmp = 1;
+	}
 	DPRINTF("associated with %s associd=%d\n",
-	    ether_sprintf(rsp->bss.macaddr), le32toh(rsp->associd));
-	ni->ni_associd = le32toh(rsp->associd) | 0xc000;
+	    ether_sprintf(rsp->bss.macaddr), tmp);
+	ni->ni_associd = tmp | 0xc000;
 	RSU_UNLOCK(sc);
 	ieee80211_new_state(vap, IEEE80211_S_RUN,
 	    IEEE80211_FC0_SUBTYPE_ASSOC_RESP);
