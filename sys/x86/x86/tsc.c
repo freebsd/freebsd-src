@@ -373,11 +373,11 @@ init_TSC(void)
 static void								\
 tsc_read_##x(void *arg)							\
 {									\
-	uint32_t *tsc = arg;						\
+	uint64_t *tsc = arg;						\
 	u_int cpu = PCPU_GET(cpuid);					\
 									\
 	__asm __volatile("cpuid" : : : "eax", "ebx", "ecx", "edx");	\
-	tsc[cpu * 3 + x] = rdtsc32();					\
+	tsc[cpu * 3 + x] = rdtsc();					\
 }
 TSC_READ(0)
 TSC_READ(1)
@@ -389,8 +389,8 @@ TSC_READ(2)
 static void
 comp_smp_tsc(void *arg)
 {
-	uint32_t *tsc;
-	int32_t d1, d2;
+	uint64_t *tsc;
+	int64_t d1, d2;
 	u_int cpu = PCPU_GET(cpuid);
 	u_int i, j, size;
 
@@ -454,7 +454,7 @@ adj_smp_tsc(void *arg)
 static int
 test_tsc(void)
 {
-	uint32_t *data, *tsc;
+	uint64_t *data, *tsc;
 	u_int i, size, adj;
 
 	if ((!smp_tsc && !tsc_is_invariant) || vm_guest)
