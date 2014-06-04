@@ -108,6 +108,16 @@ f_include $BSDCFG_SHARE/variable.subr
 : ${ZFSBOOT_SWAP_SIZE:=2g}
 
 #
+# Should we use geli(8) to encrypt the swap?
+#
+: ${ZFSBOOT_SWAP_ENCRYPTION=}
+
+#
+# Should we use gmirror(8) to mirror the swap?
+#
+: ${ZFSBOOT_SWAP_MIRROR=}
+
+#
 # Default ZFS datasets for root zpool
 #
 # NOTE: Requires /tmp, /var/tmp, /$ZFSBOOT_BOOTFS_NAME/$ZFSBOOT_BOOTFS_NAME
@@ -121,7 +131,7 @@ f_isset ZFSBOOT_DATASETS || ZFSBOOT_DATASETS="
 	/$ZFSBOOT_BEROOT_NAME/$ZFSBOOT_BOOTFS_NAME	mountpoint=/
 
 	# Compress /tmp, allow exec but not setuid
-	/tmp		mountpoint=/tmp,compression=lz4,exec=on,setuid=off
+	/tmp		mountpoint=/tmp,exec=on,setuid=off
 
 	# Don't mount /usr so that 'base' files go to the BEROOT
 	/usr		mountpoint=/usr,canmount=off
@@ -130,17 +140,17 @@ f_isset ZFSBOOT_DATASETS || ZFSBOOT_DATASETS="
 	/usr/home	# NB: /home is a symlink to /usr/home
 
 	# Ports tree
-	/usr/ports		compression=lz4,setuid=off
+	/usr/ports	setuid=off
 
 	# Source tree (compressed)
-	/usr/src	compression=lz4,exec=off,setuid=off
+	/usr/src
 
 	# Create /var and friends
 	/var		mountpoint=/var
-	/var/crash	compression=lz4,exec=off,setuid=off
-	/var/log	compression=lz4,exec=off,setuid=off
-	/var/mail	compression=lz4,atime=on
-	/var/tmp	compression=lz4,exec=on,setuid=off
+	/var/crash	exec=off,setuid=off
+	/var/log	exec=off,setuid=off
+	/var/mail	atime=on
+	/var/tmp	setuid=off
 " # END-QUOTE
 
 #
@@ -184,6 +194,7 @@ MOUNT_TYPE='mount -t %s "%s" "%s"'
 PRINTF_CONF="printf '%s=\"%%s\"\\\n' %s >> \"%s\""
 PRINTF_FSTAB='printf "$FSTAB_FMT" "%s" "%s" "%s" "%s" "%s" "%s" >> "%s"'
 SHELL_TRUNCATE=':> "%s"'
+SWAP_GMIRROR_LABEL='gmirror label swap %s'
 UMOUNT='umount "%s"'
 ZFS_CREATE_WITH_OPTIONS='zfs create %s "%s"'
 ZFS_SET='zfs set "%s" "%s"'
@@ -209,6 +220,8 @@ msg_configure_options="Configure Options:"
 msg_detailed_disk_info="gpart(8) show %s:\n%s\n\ncamcontrol(8) inquiry %s:\n%s\n\n\ncamcontrol(8) identify %s:\n%s\n"
 msg_disk_info="Disk Info"
 msg_disk_info_help="Get detailed information on disk device(s)"
+msg_disk_singular="disk"
+msg_disk_plural="disks"
 msg_encrypt_disks="Encrypt Disks?"
 msg_encrypt_disks_help="Use geli(8) to encrypt all data partitions"
 msg_error="Error"
@@ -263,6 +276,10 @@ msg_select_a_disk_device="Select a disk device"
 msg_select_virtual_device_type="Select Virtual Device type:"
 msg_stripe_desc="Stripe - No Redundancy"
 msg_stripe_help="[1+ Disks] Striping provides maximum storage but no redundancy"
+msg_swap_encrypt="Encrypt Swap?"
+msg_swap_encrypt_help="Encrypt swap partitions with temporary keys, discarded on reboot"
+msg_swap_mirror="Mirror Swap?"
+msg_swap_mirror_help="Mirror swap partitions for redundancy, breaks crash dumps"
 msg_swap_size="Swap Size"
 msg_swap_size_help="Customize how much swap space is allocated to each selected disk"
 msg_these_disks_are_too_small="These disks are too small given the amount of requested\nswap (%s) and/or geli(8) (%s) partitions, which would\ntake 50%% or more of each of the following selected disk\ndevices (not recommended):\n\n  %s\n\nRecommend changing partition size(s) and/or selecting a\ndifferent set of devices."
@@ -285,15 +302,20 @@ dialog_menu_main()
 	local prompt="$msg_configure_options"
 	local force4k="$msg_no"
 	local usegeli="$msg_no"
+	local swapgeli="$msg_no"
+	local swapmirror="$msg_no"
 	[ "$ZFSBOOT_GNOP_4K_FORCE_ALIGN" ] && force4k="$msg_yes"
 	[ "$ZFSBOOT_GELI_ENCRYPTION" ] && usegeli="$msg_yes"
-	local disks n
+	[ "$ZFSBOOT_SWAP_ENCRYPTION" ] && swapgeli="$msg_yes"
+	[ "$ZFSBOOT_SWAP_MIRROR" ] && swapmirror="$msg_yes"
+	local disks n disks_grammar
 	f_count n $ZFSBOOT_DISKS
-	{ [ $n -eq 1 ] && disks=disk; } || disks=disks # grammar
+	{ [ $n -eq 1 ] && disks_grammar=$msg_disk_singular; } || 
+		disks_grammar=$msg_disk_plural # grammar
 	local menu_list="
 		'>>> $msg_install'        '$msg_install_desc'
 		                          '$msg_install_help'
-		'T $msg_pool_type_disks'  '$ZFSBOOT_VDEV_TYPE: $n $disks'
+		'T $msg_pool_type_disks'  '$ZFSBOOT_VDEV_TYPE: $n $disks_grammar'
                                           '$msg_pool_type_disks_help'
 		'- $msg_rescan_devices'   '*'
 		                          '$msg_rescan_devices_help'
@@ -309,6 +331,10 @@ dialog_menu_main()
 		                          '$msg_partition_scheme_help'
 		'S $msg_swap_size'        '$ZFSBOOT_SWAP_SIZE'
 		                          '$msg_swap_size_help'
+		'M $msg_swap_mirror'      '$swapmirror'
+		                          '$msg_swap_mirror_help'
+		'W $msg_swap_encrypt'     '$swapgeli'
+		                          '$msg_swap_encrypt_help'
 	" # END-QUOTE
 	local defaultitem= # Calculated below
 	local hline="$hline_alnum_arrows_punc_tab_enter"
@@ -747,14 +773,14 @@ zfs_create_diskpart()
 		             return $FAILURE
 
 		# NB: zpool will use the `zfs#' GPT labels
-		bootpart=p2 targetpart=p2
+		bootpart=p2 swappart=p2 targetpart=p2
 		[ ${swapsize:-0} -gt 0 ] && targetpart=p3
 
 		#
 		# Prepare boot pool if enabled (e.g., for geli(8))
 		#
 		if [ "$ZFSBOOT_BOOT_POOL" ]; then
-			bootpart=p2 targetpart=p3
+			bootpart=p2 swappart=p3 targetpart=p3
 			[ ${swapsize:-0} -gt 0 ] && targetpart=p4
 			f_eval_catch $funcname gpart \
 			             "$GPART_ADD_LABEL_WITH_SIZE" boot$index \
@@ -781,12 +807,7 @@ zfs_create_diskpart()
 			             return $FAILURE
 			# Pedantically nuke any old labels on the swap
 			f_eval_catch -d $funcname zpool "$ZPOOL_LABELCLEAR_F" \
-			                /dev/gpt/swap$index
-			# Update fstab(5)
-			f_eval_catch $funcname printf "$PRINTF_FSTAB" \
-			             /dev/gpt/swap$index none swap sw 0 0 \
-			             $BSDINSTALL_TMPETC/fstab ||
-			             return $FAILURE
+			                /dev/$disk$swappart
 		fi
 
 		#
@@ -827,7 +848,7 @@ zfs_create_diskpart()
 		             return $FAILURE
 
 		# NB: zpool will use s1a (no labels)
-		bootpart=s1a targetpart=s1d mbrindex=4
+		bootpart=s1a swappart=s1b targetpart=s1d mbrindex=4
 
 		#
 		# Always prepare a boot pool on MBR
@@ -858,11 +879,6 @@ zfs_create_diskpart()
 			# Pedantically nuke any old labels on the swap
 			f_eval_catch -d $funcname zpool "$ZPOOL_LABELCLEAR_F" \
 			                /dev/${disk}s1b
-			# Update fstab(5)
-			f_eval_catch $funcname printf "$PRINTF_FSTAB" \
-			             /dev/${disk}s1b none swap sw 0 0 \
-			             $BSDINSTALL_TMPETC/fstab ||
-			             return $FAILURE
 		fi
 
 		#
@@ -879,6 +895,33 @@ zfs_create_diskpart()
 
 	esac # $ZFSBOOT_PARTITION_SCHEME
 
+	# Update fstab(5)
+	if [ "$isswapmirror" ]; then
+		# This is not the first disk in the mirror, do nothing
+	elif [ "$ZFSBOOT_SWAP_ENCRYPTION" -a "$ZFSBOOT_SWAP_MIRROR" ]; then
+		f_eval_catch $funcname printf "$PRINTF_FSTAB" \
+		             /dev/mirror/swap.eli none swap sw 0 0 \
+		             $BSDINSTALL_TMPETC/fstab ||
+		             return $FAILURE
+		isswapmirror=1
+	elif [ "$ZFSBOOT_SWAP_MIRROR" ]; then
+		f_eval_catch $funcname printf "$PRINTF_FSTAB" \
+		             /dev/mirror/swap none swap sw 0 0 \
+		             $BSDINSTALL_TMPETC/fstab ||
+		             return $FAILURE
+		isswapmirror=1
+	elif [ "$ZFSBOOT_SWAP_ENCRYPTION" ]; then
+		f_eval_catch $funcname printf "$PRINTF_FSTAB" \
+		             /dev/$disk${swappart}.eli none swap sw 0 0 \
+		             $BSDINSTALL_TMPETC/fstab ||
+		             return $FAILURE
+	else
+		f_eval_catch $funcname printf "$PRINTF_FSTAB" \
+		             /dev/$disk$swappart none swap sw 0 0 \
+		             $BSDINSTALL_TMPETC/fstab ||
+		             return $FAILURE
+	fi
+
 	return $SUCCESS
 }
 
@@ -893,10 +936,12 @@ zfs_create_boot()
 	local zroot_name="$1"
 	local zroot_vdevtype="$2"
 	local zroot_vdevs= # Calculated below
+	local swap_devs= # Calculated below
 	local boot_vdevs= # Used for geli(8) and/or MBR layouts
 	shift 2 # poolname vdev_type
 	local disks="$*" disk
-	local bootpart targetpart # Set by zfs_create_diskpart() below
+	local isswapmirror
+	local bootpart targetpart swappart # Set by zfs_create_diskpart() below
 
 	#
 	# Pedantic checks; should never be seen
@@ -968,7 +1013,8 @@ zfs_create_boot()
 	local n=0
 	for disk in $disks; do
 		zfs_create_diskpart $disk $n || return $FAILURE
-		# Now $bootpart and $targetpart are set (suffix for $disk)
+		# Now $bootpart, $targetpart, and $swappart are set (suffix
+		# for $disk)
 		
 		# Forced 4k alignment support using Geom NOP (see gnop(8))
 		if [ "$ZFSBOOT_GNOP_4K_FORCE_ALIGN" ]; then
@@ -1087,13 +1133,24 @@ zfs_create_boot()
 			return $FAILURE
 		f_eval_catch -d $funcname umount "$UMOUNT" /mnt # tmpfs
 	fi
+	#
+	# Create the gmirror(8) GEOMS for swap
+	#
+	if [ "$ZFSBOOT_SWAP_MIRROR" ]; then
+		for disk in $disks; do
+			swap_devs="$swap_devs $disk$swappart"
+		done
+		f_eval_catch $funcname gmirror "$SWAP_GMIRROR_LABEL" \
+			"$swap_devs" || return $FAILURE
+	fi
 
 	#
 	# Create the ZFS root pool with desired type and disk devices
 	#
 	f_dprintf "$funcname: Creating root pool..."
 	f_eval_catch $funcname zpool "$ZPOOL_CREATE_WITH_OPTIONS" \
-	             "-o altroot=$BSDINSTALL_CHROOT -m none -f" \
+	             "-o altroot=$BSDINSTALL_CHROOT -O compress=lz4
+	             -m none -f" \
 	             "$zroot_name" "$zroot_vdevtype" "$zroot_vdevs" ||
 	             return $FAILURE
 
@@ -1212,6 +1269,14 @@ zfs_create_boot()
 	             $BSDINSTALL_TMPETC/rc.conf.zfs || return $FAILURE
 	f_eval_catch $funcname echo "$ECHO_APPEND" 'zfs_load=\"YES\"' \
 	             $BSDINSTALL_TMPBOOT/loader.conf.zfs || return $FAILURE
+	f_eval_catch $funcname echo "$ECHO_APPEND" \
+	             'kern.geom.label.gptid.enable=\"0\"' \
+	             $BSDINSTALL_TMPBOOT/loader.conf.zfs || return $FAILURE
+
+	if [ "$ZFSBOOT_SWAP_MIRROR" ]; then
+		f_eval_catch $funcname echo "$ECHO_APPEND" 'geom_mirror_load=\"YES\"' \
+		             $BSDINSTALL_TMPBOOT/loader.conf.gmirror || return $FAILURE
+	fi
 
 	# We're all done unless we should go on for boot pool
 	[ "$ZFSBOOT_BOOT_POOL" ] || return $SUCCESS
@@ -1444,6 +1509,22 @@ while :; do
 			"$msg_please_enter_amount_of_swap_space" \
 			"$ZFSBOOT_SWAP_SIZE" &&
 			ZFSBOOT_SWAP_SIZE="${input:-0}"
+		;;
+	?" $msg_swap_mirror")
+		# Toggle the variable referenced both by the menu and later
+		if [ "$ZFSBOOT_SWAP_MIRROR" ]; then
+			ZFSBOOT_SWAP_MIRROR=
+		else
+			ZFSBOOT_SWAP_MIRROR=1
+		fi
+		;;
+	?" $msg_swap_encrypt")
+		# Toggle the variable referenced both by the menu and later
+		if [ "$ZFSBOOT_SWAP_ENCRYPTION" ]; then
+			ZFSBOOT_SWAP_ENCRYPTION=
+		else
+			ZFSBOOT_SWAP_ENCRYPTION=1
+		fi
 		;;
 	esac
 done
