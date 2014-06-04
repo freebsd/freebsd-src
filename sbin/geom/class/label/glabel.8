@@ -223,6 +223,19 @@ This can be set to a number between 0 and 2 inclusive.
 If set to 0 minimal debug information is printed, and if set to 2 the
 maximum amount of debug information is printed.
 .El
+.Bl -tag -width indent
+.It Va kern.geom.label.*.enable : No 1
+Most
+.Nm LABEL
+providers implement a 
+.Xr sysctl 8
+flag and a tunable variable named in the above format. This flag
+controls if the label provider will be active, tasting devices
+and creating label nodes in the 
+.Xr devfs 5
+tree. It is sometimes desirable to disable certain label types if
+they conflict with other classes in complex GEOM topologies.
+.Bl
 .Sh EXIT STATUS
 Exit status is 0 on success, and 1 if the command fails.
 .Sh EXAMPLES
