@@ -220,7 +220,7 @@ utouch_attach(device_t dev)
 		evdev_support_abs(sc->sc_evdev, ABS_Y);
 
 	if (sc->sc_flags & UTOUCH_FLAG_Z_AXIS)
-		evdev_support_rel(sc->sc_evdev, REL_Z);
+		evdev_support_rel(sc->sc_evdev, REL_WHEEL);
 
 	for (i = 0; i < sc->sc_nbuttons; i++)
 		evdev_support_key(sc->sc_evdev, BTN_MOUSE + i);
@@ -296,9 +296,9 @@ utouch_intr_callback(struct usb_xfer *xfer, usb_error_t error)
 		for (i = 0; i < sc->sc_nbuttons; i++) {
 			if (hid_get_data(buf, len, &sc->sc_loc_btn[i]))
 				buttons |= (1 << i);
-
-			changed += buttons != 0;
 		}
+
+		changed += buttons != sc->sc_oldbuttons;
 
 		if (changed) {
 			utouch_report_event(sc, x, y, dz, buttons);
@@ -353,22 +353,26 @@ utouch_report_event(struct utouch_softc *sc, int x, int y, int dz, int buttons)
 {
 	int i;
 
-	if (sc->sc_flags & UTOUCH_FLAG_X_AXIS)
-		evdev_push_event(sc->sc_evdev, EV_ABS, ABS_X, x);
+	if (x != sc->sc_oldx || y != sc->sc_oldy) {
+		if (sc->sc_flags & UTOUCH_FLAG_X_AXIS)
+			evdev_push_event(sc->sc_evdev, EV_ABS, ABS_X, x);
 
-	if (sc->sc_flags & UTOUCH_FLAG_Y_AXIS)
-		evdev_push_event(sc->sc_evdev, EV_ABS, ABS_Y, y);
+		if (sc->sc_flags & UTOUCH_FLAG_Y_AXIS)
+			evdev_push_event(sc->sc_evdev, EV_ABS, ABS_Y, y);
+	}
 
-	if (sc->sc_flags & UTOUCH_FLAG_Z_AXIS)
-		evdev_push_event(sc->sc_evdev, EV_REL, REL_Z, dz);
+	if (sc->sc_flags & UTOUCH_FLAG_Z_AXIS && dz != 0)
+		evdev_push_event(sc->sc_evdev, EV_REL, REL_WHEEL, dz);
 
-	for (i = 0; i < sc->sc_nbuttons; i++) {
-		if (((buttons & (1 << i)) ^
-		    (sc->sc_oldbuttons & (1 << i))) == 0)
-			continue;
+	if (buttons != sc->sc_oldbuttons) {
+		for (i = 0; i < sc->sc_nbuttons; i++) {
+			if (((buttons & (1 << i)) ^
+			    (sc->sc_oldbuttons & (1 << i))) == 0)
+				continue;
 
-		evdev_push_event(sc->sc_evdev, EV_KEY,
-		    BTN_MOUSE + i, !!(buttons & (1 << i)));
+			evdev_push_event(sc->sc_evdev, EV_KEY,
+			    BTN_MOUSE + i, !!(buttons & (1 << i)));
+		}
 	}
 
 	evdev_sync(sc->sc_evdev);
