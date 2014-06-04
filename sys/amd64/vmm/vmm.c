@@ -266,7 +266,8 @@ vmm_handler(module_t mod, int what, void *arg)
 	switch (what) {
 	case MOD_LOAD:
 		vmmdev_init();
-		iommu_init();
+		if (ppt_avail_devices() > 0)
+			iommu_init();
 		error = vmm_init();
 		if (error == 0)
 			vmm_initialized = 1;
@@ -604,7 +605,7 @@ vm_unassign_pptdev(struct vm *vm, int bus, int slot, int func)
 	if (error)
 		return (error);
 
-	if (ppt_num_devices(vm) == 0) {
+	if (ppt_assigned_devices(vm) == 0) {
 		vm_iommu_unmap(vm);
 		vm_gpa_unwire(vm);
 	}
@@ -624,7 +625,7 @@ vm_assign_pptdev(struct vm *vm, int bus, int slot, int func)
 	 *
 	 * We need to do this before the first pci passthru device is attached.
 	 */
-	if (ppt_num_devices(vm) == 0) {
+	if (ppt_assigned_devices(vm) == 0) {
 		KASSERT(vm->iommu == NULL,
 		    ("vm_assign_pptdev: iommu must be NULL"));
 		maxaddr = vmm_mem_maxaddr();
