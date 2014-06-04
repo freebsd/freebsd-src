@@ -7227,8 +7227,8 @@ camisr(void *dummy)
 	while ((sim = TAILQ_FIRST(&queue)) != NULL) {
 		TAILQ_REMOVE(&queue, sim, links);
 		CAM_SIM_LOCK(sim);
-		sim->flags &= ~CAM_SIM_ON_DONEQ;
 		camisr_runqueue(&sim->sim_doneq);
+		sim->flags &= ~CAM_SIM_ON_DONEQ;
 		CAM_SIM_UNLOCK(sim);
 	}
 }
