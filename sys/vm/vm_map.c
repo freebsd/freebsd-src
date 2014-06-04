@@ -1986,11 +1986,8 @@ vm_map_protect(vm_map_t map, vm_offset_t start, vm_offset_t end,
 		 */
 		if ((current->eflags & MAP_ENTRY_USER_WIRED) != 0 &&
 		    (current->protection & VM_PROT_WRITE) != 0 &&
-		    (old_prot & VM_PROT_WRITE) == 0) {
-			KASSERT(old_prot != VM_PROT_NONE,
-			    ("vm_map_protect: inaccessible wired map entry"));
+		    (old_prot & VM_PROT_WRITE) == 0)
 			vm_fault_copy_entry(map, map, current, current, NULL);
-		}
 
 		/*
 		 * When restricting access, update the physical map.  Worry
