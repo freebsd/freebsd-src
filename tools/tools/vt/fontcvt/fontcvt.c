@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2009 The FreeBSD Foundation
+ * Copyright (c) 2009, 2014 The FreeBSD Foundation
  * All rights reserved.
  *
  * This software was developed by Ed Schouten under sponsorship from the
@@ -179,6 +179,30 @@ add_glyph(const uint8_t *bytes, unsigned int map_idx, int fallback)
 }
 
 static int
+add_char(unsigned curchar, unsigned map_idx, uint8_t *bytes, uint8_t *bytes_r)
+{
+	struct glyph *gl;
+
+	/* Prevent adding two glyphs for 0xFFFD */
+	if (curchar == 0xFFFD) {
+		if (map_idx < VFNT_MAP_BOLD)
+			gl = add_glyph(bytes, 0, 1);
+	} else if (curchar >= 0x20) {
+		gl = add_glyph(bytes, map_idx, 0);
+		if (add_mapping(gl, curchar, map_idx) != 0)
+			return (1);
+		if (bytes_r != NULL) {
+			gl = add_glyph(bytes_r, map_idx + 1, 0);
+			if (add_mapping(gl, curchar,
+			    map_idx + 1) != 0)
+				return (1);
+		}
+	}
+	return (0);
+}
+
+
+static int
 parse_bitmap_line(uint8_t *left, uint8_t *right, unsigned int line,
     unsigned int dwidth)
 {
@@ -218,20 +242,12 @@ parse_bitmap_line(uint8_t *left, uint8_t *right, unsigned int line,
 }
 
 static int
-parse_bdf(const char *filename, unsigned int map_idx)
+parse_bdf(FILE *fp, unsigned int map_idx)
 {
-	FILE *fp;
 	char *ln;
 	size_t length;
 	uint8_t bytes[wbytes * height], bytes_r[wbytes * height];
 	unsigned int curchar = 0, dwidth = 0, i, line;
-	struct glyph *gl;
-
-	fp = fopen(filename, "r");
-	if (fp == NULL) {
-		perror(filename);
-		return (1);
-	}
 
 	while ((ln = fgetln(fp, &length)) != NULL) {
 		ln[length - 1] = '\0';
@@ -257,25 +273,71 @@ parse_bdf(const char *filename, unsigned int map_idx)
 					return (1);
 			}
 
-			/* Prevent adding two glyphs for 0xFFFD */
-			if (curchar == 0xFFFD) {
-				if (map_idx < VFNT_MAP_BOLD)
-					gl = add_glyph(bytes, 0, 1);
-			} else if (curchar >= 0x20) {
-				gl = add_glyph(bytes, map_idx, 0);
-				if (add_mapping(gl, curchar, map_idx) != 0)
-					return (1);
-				if (dwidth == width * 2) {
-					gl = add_glyph(bytes_r, map_idx + 1, 0);
-					if (add_mapping(gl, curchar,
-					    map_idx + 1) != 0)
-						return (1);
-				}
-			}
+			if (add_char(curchar, map_idx, bytes,
+			    dwidth == width * 2 ? bytes_r : NULL) != 0)
+				return (1);
 		}
 	}
 
 	return (0);
+}
+
+static int
+parse_hex(FILE *fp, unsigned int map_idx)
+{
+	char *ln, *p;
+	char fmt_str[8];
+	size_t length;
+	uint8_t bytes[wbytes * height], bytes_r[wbytes * height];
+	unsigned curchar = 0, i, line, chars_per_row, dwidth;
+
+	while ((ln = fgetln(fp, &length)) != NULL) {
+		ln[length - 1] = '\0';
+
+		if (strncmp(ln, "# Height: ", 10) == 0) {
+			height = atoi(ln + 10);
+		} else if (strncmp(ln, "# Width: ", 9) == 0) {
+			width = atoi(ln + 9);
+		} else if (sscanf(ln, "%4x:", &curchar)) {
+			p = ln + 5;
+			chars_per_row = strlen(p) / height;
+			dwidth = width;
+			if (chars_per_row / 2 > width / 8)
+				dwidth *= 2; /* Double-width character. */
+			snprintf(fmt_str, sizeof(fmt_str), "%%%ux",
+			    chars_per_row);
+			
+			for (i = 0; i < height; i++) {
+				sscanf(p, fmt_str, &line);
+				p += chars_per_row;
+				if (parse_bitmap_line(bytes + i * wbytes,
+				    bytes_r + i * wbytes, line, dwidth) != 0)
+					return (1);
+			}
+
+			if (add_char(curchar, map_idx, bytes,
+			    dwidth == width * 2 ? bytes_r : NULL) != 0)
+				return (1);
+		}
+	}
+	return (0);
+}
+
+static int
+parse_file(const char *filename, unsigned int map_idx)
+{
+	FILE *fp;
+	size_t len;
+
+	fp = fopen(filename, "r");
+	if (fp == NULL) {
+		perror(filename);
+		return (1);
+	}
+	len = strlen(filename);
+	if (len > 4 && strcasecmp(filename + len - 4, ".hex") == 0)
+		return parse_hex(fp, map_idx);
+	return parse_bdf(fp, map_idx);
 }
 
 static void
@@ -416,12 +478,12 @@ main(int argc, char *argv[])
 
 	wbytes = howmany(width, 8);
 
-	if (parse_bdf(argv[0], VFNT_MAP_NORMAL) != 0)
+	if (parse_file(argv[0], VFNT_MAP_NORMAL) != 0)
 		return (1);
 	argc--;
 	argv++;
 	if (argc == 2) {
-		if (parse_bdf(argv[0], VFNT_MAP_BOLD) != 0)
+		if (parse_file(argv[0], VFNT_MAP_BOLD) != 0)
 			return (1);
 		argc--;
 		argv++;
