@@ -1,0 +1,19 @@
+#
+# BERI -- Kernel for the SRI/Cambridge "BERI" (Bluespec Extensiable RISC
+# Implementation) FPGA soft core, as configured in its Terasic DE-4
+# reference configuration.
+#
+# $FreeBSD$
+#
+
+include		BERI_DE4_SDROOT
+ident		BERI_DE4_USBROOT
+
+makeoptions	MODULES_OVERRIDE=""
+
+nooptions	ROOTDEVNAME
+options         ROOTDEVNAME=\"ufs:/dev/da0\"
+device		scbus
+device		pass
+device		umass
+device		da
