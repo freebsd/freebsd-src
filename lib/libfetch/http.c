@@ -1129,7 +1129,7 @@ CvtHex(IN HASH Bin, OUT HASHHEX Hex)
 		Hex[i*2] = hexchars[j];
 		j = Bin[i] & 0xf;
 		Hex[i*2+1] = hexchars[j];
-	};
+	}
 	Hex[HASHHEXLEN] = '\0';
 };
 
@@ -1164,7 +1164,7 @@ DigestCalcHA1(
 		MD5Update(&Md5Ctx, ":", 1);
 		MD5Update(&Md5Ctx, pszCNonce, strlen(pszCNonce));
 		MD5Final(HA1, &Md5Ctx);
-	};
+	}
 	CvtHex(HA1, SessionKey);
 }
 
@@ -1198,7 +1198,7 @@ DigestCalcResponse(
 	if (strcasecmp(pszQop, "auth-int") == 0) {
 		MD5Update(&Md5Ctx, ":", 1);
 		MD5Update(&Md5Ctx, HEntity, HASHHEXLEN);
-	};
+	}
 	MD5Final(HA2, &Md5Ctx);
 	CvtHex(HA2, HA2Hex);
 
@@ -1215,7 +1215,7 @@ DigestCalcResponse(
 		MD5Update(&Md5Ctx, ":", 1);
 		MD5Update(&Md5Ctx, pszQop, strlen(pszQop));
 		MD5Update(&Md5Ctx, ":", 1);
-	};
+	}
 	MD5Update(&Md5Ctx, HA2Hex, HASHHEXLEN);
 	MD5Final(RespHash, &Md5Ctx);
 	CvtHex(RespHash, Response);
