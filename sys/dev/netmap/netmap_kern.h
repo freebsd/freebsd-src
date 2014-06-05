@@ -678,7 +678,7 @@ static inline uint32_t
 nm_kr_rxspace(struct netmap_kring *k)
 {
 	int space = k->nr_hwtail - k->nr_hwcur;
-	if (space < 0) 
+	if (space < 0)
 		space += k->nkr_num_slots;
 	ND("preserving %d rx slots %d -> %d", space, k->nr_hwcur, k->nr_hwtail);
 
@@ -827,7 +827,7 @@ nm_txsync_finalize(struct netmap_kring *kring)
 {
 	/* update ring tail to what the kernel knows */
 	kring->ring->tail = kring->rtail = kring->nr_hwtail;
-	
+
 	/* note, head/rhead/hwcur might be behind cur/rcur
 	 * if no carrier
 	 */
