@@ -1019,7 +1019,7 @@ netmap_rxsync_from_host(struct netmap_adapter *na, struct thread *td, void *pwai
 
 		nm_i = kring->nr_hwtail;
 		stop_i = nm_prev(nm_i, lim);
-		while ( nm_i != stop_i && (m = mbq_dequeue(q)) != NULL ) { 
+		while ( nm_i != stop_i && (m = mbq_dequeue(q)) != NULL ) {
 			int len = MBUF_LEN(m);
 			struct netmap_slot *slot = &ring->slot[nm_i];
 
@@ -1515,7 +1515,7 @@ netmap_set_ringid(struct netmap_priv_d *priv, uint16_t ringid, uint32_t flags)
 	if (nm_rx_si_user(priv))
 		na->rx_si_users++;
 	if (netmap_verbose) {
-		D("%s: tx [%d,%d) rx [%d,%d) id %d", 
+		D("%s: tx [%d,%d) rx [%d,%d) id %d",
 			NM_IFPNAME(na->ifp),
 			priv->np_txqfirst,
 			priv->np_txqlast,
@@ -2120,7 +2120,7 @@ do_retry_rx:
 	 * Transparent mode: marked bufs on rx rings between
 	 * kring->nr_hwcur and ring->head
 	 * are passed to the other endpoint.
-	 * 
+	 *
 	 * In this mode we also scan the sw rxring, which in
 	 * turn passes packets up.
 	 *

@@ -447,7 +447,7 @@ struct netmap_if {
  *
  * nr_arg1, nr_arg2, nr_arg3  (in/out)		command specific
  *
- *	
+ *
  *
  */
 
@@ -467,7 +467,7 @@ struct netmap_if {
  *	*** INVALID		0xA000
  *	one pipe ring, slave	0xC000	ring index
  *	*** INVALID		0xE000
- * 
+ *
  */
 struct nmreq {
 	char		nr_name[IFNAMSIZ];
