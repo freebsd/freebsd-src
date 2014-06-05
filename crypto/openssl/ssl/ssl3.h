@@ -399,6 +399,7 @@ typedef struct ssl3_buffer_st
  * effected, but we can't prevent that.
  */
 #define SSL3_FLAGS_SGC_RESTART_DONE		0x0040
+#define SSL3_FLAGS_CCS_OK			0x0080
 
 #ifndef OPENSSL_NO_SSL_INTERN
 
