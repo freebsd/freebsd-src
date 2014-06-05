@@ -55,6 +55,7 @@
 #include <sys/malloc.h>
 #include <sys/endian.h>
 #include <sys/errno.h>
+#include <sys/sysctl.h>
 #include <sys/syslog.h>
 
 #include <netgraph/ng_message.h>
@@ -106,6 +107,23 @@ MALLOC_DEFINE(M_NETGRAPH_MPPC, "netgraph_mppc", "netgraph mppc node ");
  * This should instead be a configurable parameter.
  */
 #define MPPE_MAX_REKEY		1000
+
+SYSCTL_NODE(_net_graph, OID_AUTO, mppe, CTLFLAG_RW, 0, "MPPE");
+
+static int mppe_block_on_max_rekey = 0;
+TUNABLE_INT("net.graph.mppe.block_on_max_rekey", &mppe_block_on_max_rekey);
+SYSCTL_INT(_net_graph_mppe, OID_AUTO, block_on_max_rekey, CTLFLAG_RW,
+    &mppe_block_on_max_rekey, 0, "Block node on max MPPE key re-calculations");
+
+static int mppe_log_max_rekey = 1;
+TUNABLE_INT("net.graph.mppe.log_max_rekey", &mppe_log_max_rekey);
+SYSCTL_INT(_net_graph_mppe, OID_AUTO, log_max_rekey, CTLFLAG_RW,
+    &mppe_log_max_rekey, 0, "Log max MPPE key re-calculations event");
+
+static int mppe_max_rekey = MPPE_MAX_REKEY;
+TUNABLE_INT("net.graph.mppe.max_rekey", &mppe_max_rekey);
+SYSCTL_INT(_net_graph_mppe, OID_AUTO, max_rekey, CTLFLAG_RW,
+    &mppe_max_rekey, 0, "Maximum number of MPPE key re-calculations");
 
 /* MPPC packet header bits */
 #define MPPC_FLAG_FLUSHED	0x8000		/* xmitter reset state */
@@ -651,12 +669,23 @@ ng_mppc_decompress(node_p node, struct mbuf **datap)
 			/* How many times are we going to have to re-key? */
 			rekey = ((d->cfg.bits & MPPE_STATELESS) != 0) ?
 			    numLost : (numLost / (MPPE_UPDATE_MASK + 1));
-			if (rekey > MPPE_MAX_REKEY) {
-				log(LOG_ERR, "%s: too many (%d) packets"
-				    " dropped, disabling node %p!",
-				    __func__, numLost, node);
+			if (rekey > mppe_max_rekey) {
+			    if (mppe_block_on_max_rekey) {
+				if (mppe_log_max_rekey) {
+				    log(LOG_ERR, "%s: too many (%d) packets"
+					" dropped, disabling node %p!\n",
+					__func__, numLost, node);
+				}
 				priv->recv.cfg.enable = 0;
 				goto failed;
+			    } else {
+				if (mppe_log_max_rekey) {
+				    log(LOG_ERR, "%s: %d packets"
+					" dropped, node %p\n",
+					__func__, numLost, node);
+				}
+				goto failed;
+			    }
 			}
 
 			/* Re-key as necessary to catch up to peer */
