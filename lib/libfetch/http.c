@@ -1030,7 +1030,7 @@ typedef struct {
 static void
 init_http_auth_params(http_auth_params_t *s)
 {
-	s->scheme = s->realm = s->user = s->password = 0;
+	s->scheme = s->realm = s->user = s->password = NULL;
 }
 
 static void
@@ -1249,7 +1249,7 @@ http_digest_auth(conn_t *conn, const char *hdr, http_auth_challenge_t *c,
 	int r;
 	char noncecount[10];
 	char cnonce[40];
-	char *options = 0;
+	char *options = NULL;
 
 	if (!c->realm || !c->nonce) {
 		DEBUG(fprintf(stderr, "realm/nonce not set in challenge\n"));
