@@ -2098,7 +2098,7 @@ saf1761_otg_device_done(struct usb_xfer *xfer, usb_error_t error)
 	} else {
 		struct saf1761_otg_td *td;
 
-		td = xfer->td_transfer_first;
+		td = xfer->td_transfer_cache;
 
 		if (td != NULL)
 			saf1761_host_channel_free(sc, td);
