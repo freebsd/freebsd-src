@@ -152,6 +152,10 @@ vmcb_read(struct vmcb *vmcb, int ident, uint64_t *retval)
 		*retval = state->cr0;
 		break;
 
+	case VM_REG_GUEST_CR2:
+		*retval = state->cr2;
+		break;
+
 	case VM_REG_GUEST_CR3:
 		*retval = state->cr3;
 		break;
@@ -228,6 +232,10 @@ vmcb_write(struct vmcb *vmcb, int ident, uint64_t val)
 	switch (ident) {
 	case VM_REG_GUEST_CR0:
 		state->cr0 = val;
+		break;
+
+	case VM_REG_GUEST_CR2:
+		state->cr2 = val;
 		break;
 
 	case VM_REG_GUEST_CR3:
