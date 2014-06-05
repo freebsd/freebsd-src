@@ -401,7 +401,7 @@ main(int argc, char *argv[])
 			height = atoi(optarg);
 			break;
 		case 'w':
-			height = atoi(optarg);
+			width = atoi(optarg);
 			break;
 		case '?':
 		default:
