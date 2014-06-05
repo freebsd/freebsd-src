@@ -1383,10 +1383,7 @@ dastrategy(struct bio *bp)
 	 * Place it in the queue of disk activities for this disk
 	 */
 	if (bp->bio_cmd == BIO_DELETE) {
-		if (DA_SIO)
-			bioq_disksort(&softc->delete_queue, bp);
-		else
-			bioq_insert_tail(&softc->delete_queue, bp);
+		bioq_disksort(&softc->delete_queue, bp);
 	} else if (DA_SIO) {
 		bioq_disksort(&softc->bio_queue, bp);
 	} else {
@@ -2805,16 +2802,9 @@ cmd6workaround(union ccb *ccb)
 				  da_delete_method_desc[old_method],
 				  da_delete_method_desc[softc->delete_method]);
 
-		if (DA_SIO) {
-			while ((bp = bioq_takefirst(&softc->delete_run_queue))
-			    != NULL)
-				bioq_disksort(&softc->delete_queue, bp);
-		} else {
-			while ((bp = bioq_takefirst(&softc->delete_run_queue))
-			    != NULL)
-				bioq_insert_tail(&softc->delete_queue, bp);
-		}
-		bioq_insert_tail(&softc->delete_queue,
+		while ((bp = bioq_takefirst(&softc->delete_run_queue)) != NULL)
+			bioq_disksort(&softc->delete_queue, bp);
+		bioq_disksort(&softc->delete_queue,
 		    (struct bio *)ccb->ccb_h.ccb_bp);
 		ccb->ccb_h.ccb_bp = NULL;
 		return (0);
