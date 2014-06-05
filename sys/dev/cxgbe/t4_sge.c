@@ -1424,8 +1424,15 @@ service_iq(struct sge_iq *iq, int budget)
 				}
 #endif
 
-				if (budget)
+				if (budget) {
+					if (fl_bufs_used) {
+						FL_LOCK(fl);
+						fl->needed += fl_bufs_used;
+						refill_fl(sc, fl, 32);
+						FL_UNLOCK(fl);
+					}
 					return (EINPROGRESS);
+				}
 			}
 		}
 
