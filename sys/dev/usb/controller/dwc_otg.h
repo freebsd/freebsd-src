@@ -68,7 +68,8 @@ struct dwc_otg_td {
 	uint8_t did_nak;		/* NAK counter */
 	uint8_t	ep_no;
 	uint8_t ep_type;
-	uint8_t channel[2];
+	uint8_t channel;
+	uint8_t tt_index;		/* TT data */
 	uint8_t tt_start_slot;		/* TT data */
 	uint8_t tt_complete_slot;	/* TT data */
 	uint8_t tt_xactpos;		/* TT data */
@@ -80,7 +81,6 @@ struct dwc_otg_td {
 #define	DWC_CHAN_ST_WAIT_C_PKT 4
 #define	DWC_CHAN_ST_TX_PKT_ISOC 5
 #define	DWC_CHAN_ST_TX_WAIT_ISOC 6
-	uint8_t	error:1;
 	uint8_t	error_any:1;
 	uint8_t	error_stall:1;
 	uint8_t	alt_next:1;
@@ -90,7 +90,12 @@ struct dwc_otg_td {
 	uint8_t set_toggle:1;
 	uint8_t got_short:1;
 	uint8_t tt_scheduled:1;
-	uint8_t tt_channel_tog:1;
+};
+
+struct dwc_otg_tt_info {
+	uint16_t bytes_used;
+	uint8_t slot_index;
+	uint8_t dummy;
 };
 
 struct dwc_otg_std_temp {
@@ -160,6 +165,7 @@ struct dwc_otg_softc {
 	struct usb_bus sc_bus;
 	union dwc_otg_hub_temp sc_hub_temp;
 	struct dwc_otg_profile sc_hw_ep_profile[DWC_OTG_MAX_ENDPOINTS];
+	struct dwc_otg_tt_info sc_tt_info[DWC_OTG_MAX_DEVICES];
 	struct usb_callout sc_timer;
 
 	struct usb_device *sc_devices[DWC_OTG_MAX_DEVICES];
