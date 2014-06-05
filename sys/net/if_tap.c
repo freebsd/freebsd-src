@@ -213,14 +213,10 @@ tap_destroy(struct tap_softc *tp)
 {
 	struct ifnet *ifp = tp->tap_ifp;
 
-	/* Unlocked read. */
-	KASSERT(!(tp->tap_flags & TAP_OPEN),
-		("%s flags is out of sync", ifp->if_xname));
-
 	CURVNET_SET(ifp->if_vnet);
+	destroy_dev(tp->tap_dev);
 	seldrain(&tp->tap_rsel);
 	knlist_destroy(&tp->tap_rsel.si_note);
-	destroy_dev(tp->tap_dev);
 	ether_ifdetach(ifp);
 	if_free_type(ifp, IFT_ETHER);
 
