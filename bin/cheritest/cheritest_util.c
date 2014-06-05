@@ -71,7 +71,7 @@ cheritest_failure_errx(const char *msg, ...)
 	va_start(ap, msg);
 	vcheritest_failure_errx(msg, ap);
 	va_end(ap);
-	exit(1);
+	exit(EX_SOFTWARE);
 }
 
 void
