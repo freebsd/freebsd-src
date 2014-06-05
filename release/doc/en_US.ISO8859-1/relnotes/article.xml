@@ -240,6 +240,12 @@
       to filter by &man.jail.8; ID or name, in followup to the
       &man.ps.1; change in <literal>r265229</literal>.</para>
 
+    <para revision="267113">The default &man.newsyslog.conf.5; now
+      includes files in the
+      <filename>/etc/newsyslog.conf.d/</filename> and
+      <filename>/usr/local/etc/newsyslog.conf.d/</filename>
+      directories by default for &man.newsyslog.8;.</para>
+
     <sect3 xml:id="rc-scripts">
       <title><filename>/etc/rc.d</filename> Scripts</title>
 
