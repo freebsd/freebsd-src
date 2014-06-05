@@ -11,6 +11,9 @@ handbook:
 Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running portupgrade.
 
+20140605:	p8	FreeBSD-SA-14:14.openssl
+	Fix OpenSSL multiple vulnerabilities. [SA-14:14]
+
 20140603:	p7	FreeBSD-SA-14:11.sendmail
 			FreeBSD-SA-14:12.ktrace
 			FreeBSD-SA-14:13.pam
