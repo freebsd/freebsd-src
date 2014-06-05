@@ -1494,6 +1494,14 @@ http_print_html(FILE *out, FILE *in)
  * Core
  */
 
+FILE *
+http_request(struct url *URL, const char *op, struct url_stat *us,
+	struct url *purl, const char *flags)
+{
+
+	return (http_request_body(URL, op, us, purl, flags, NULL, NULL));
+}
+
 /*
  * Send a request and process the reply
  *
@@ -1501,8 +1509,9 @@ http_print_html(FILE *out, FILE *in)
  * XXX off into a separate function.
  */
 FILE *
-http_request(struct url *URL, const char *op, struct url_stat *us,
-	struct url *purl, const char *flags)
+http_request_body(struct url *URL, const char *op, struct url_stat *us,
+	struct url *purl, const char *flags, const char *content_type,
+	const char *body)
 {
 	char timebuf[80];
 	char hbuf[MAXHOSTNAMELEN + 7], *host;
@@ -1519,6 +1528,7 @@ http_request(struct url *URL, const char *op, struct url_stat *us,
 	http_headerbuf_t headerbuf;
 	http_auth_challenges_t server_challenges;
 	http_auth_challenges_t proxy_challenges;
+	size_t body_len;
 
 	/* The following calls don't allocate anything */
 	init_http_headerbuf(&headerbuf);
@@ -1695,7 +1705,18 @@ http_request(struct url *URL, const char *op, struct url_stat *us,
 		if (url->offset > 0)
 			http_cmd(conn, "Range: bytes=%lld-", (long long)url->offset);
 		http_cmd(conn, "Connection: close");
+
+		if (body) {
+			body_len = strlen(body);
+			http_cmd(conn, "Content-Length: %zu", body_len);
+			if (content_type != NULL)
+				http_cmd(conn, "Content-Type: %s", content_type);
+		}
+
 		http_cmd(conn, "");
+
+		if (body)
+			fetch_write(conn, body, body_len);
 
 		/*
 		 * Force the queued request to be dispatched.  Normally, one
@@ -2046,4 +2067,13 @@ fetchListHTTP(struct url *url __unused, const char *flags __unused)
 {
 	warnx("fetchListHTTP(): not implemented");
 	return (NULL);
+}
+
+FILE *
+fetchReqHTTP(struct url *URL, const char *method, const char *flags,
+	const char *content_type, const char *body)
+{
+
+	return (http_request_body(URL, method, NULL, http_get_proxy(URL, flags),
+	    flags, content_type, body));
 }
