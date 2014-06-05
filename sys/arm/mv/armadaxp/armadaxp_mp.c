@@ -97,8 +97,7 @@ platform_mp_init_secondary(void)
 }
 
 void mptramp(void);
-
-
+void mptramp_end(void);
 
 void
 platform_mp_start_ap(void)
@@ -116,7 +115,7 @@ platform_mp_start_ap(void)
 	pmap_kenter_nocache(smp_boot, 0xffff0000);
 	dst = (uint32_t *) smp_boot;
 
-	for (src = (uint32_t *)mptramp; src < (uint32_t *)mpentry;
+	for (src = (uint32_t *)mptramp; src < (uint32_t *)mptramp_end;
 	    src++, dst++) {
 		*dst = *src;
 	}

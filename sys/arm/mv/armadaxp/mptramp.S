@@ -54,3 +54,5 @@ Lpmureg:
         .word   0xd0022124
 END(mptramp)
 
+	.global _C_LABEL(mptramp_end)
+_C_LABEL(mptramp_end):
