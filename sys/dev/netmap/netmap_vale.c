@@ -1783,7 +1783,7 @@ netmap_bwrap_intr_notify(struct netmap_adapter *na, u_int ring_nr, enum txrx tx,
 	if (is_host_ring) {
 		vpna = hostna;
 		ring_nr = 0;
-	} 
+	}
 	/* simulate a user wakeup on the rx ring */
 	/* fetch packets that have arrived.
 	 * XXX maybe do this in a loop ?

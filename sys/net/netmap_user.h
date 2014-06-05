@@ -293,7 +293,7 @@ typedef void (*nm_cb_t)(u_char *, const struct nm_pkthdr *, const u_char *d);
  *		if passed a netmap_desc with mem != NULL,
  *		use that memory instead of mmap.
  */
- 
+
 static struct nm_desc *nm_open(const char *ifname, const struct nmreq *req,
 	uint64_t flags, const struct nm_desc *arg);
 
@@ -531,7 +531,7 @@ nm_open(const char *ifname, const struct nmreq *req,
 	}
     }
 #endif /* debugging */
-		
+
 	d->cur_tx_ring = d->first_tx_ring;
 	d->cur_rx_ring = d->first_rx_ring;
 	return d;
