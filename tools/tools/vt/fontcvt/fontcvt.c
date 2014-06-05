@@ -260,7 +260,8 @@ parse_bdf(FILE *fp, unsigned int map_idx)
 			dwidth = atoi(ln + 7);
 		}
 
-		if (strcmp(ln, "BITMAP") == 0) {
+		if (strncmp(ln, "BITMAP", 6) == 0 &&
+		    (ln[6] == ' ' || ln[6] == '\0')) {
 			for (i = 0; i < height; i++) {
 				if ((ln = fgetln(fp, &length)) == NULL) {
 					fprintf(stderr, "Unexpected EOF!\n");
