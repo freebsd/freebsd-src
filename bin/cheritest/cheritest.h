@@ -102,6 +102,7 @@ void	cheritest_sandbox_setup(void *sandbox_base, void *sandbox_end,
 void	test_fault_creturn(void);
 void	test_nofault_ccall_creturn(void);
 void	test_nofault_ccall_nop_creturn(void);
+void	test_nofault_ccall_dli_creturn(void);
 
 /* cheritest_fault.c */
 void	test_fault_bounds(void);

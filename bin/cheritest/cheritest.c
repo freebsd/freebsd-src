@@ -226,6 +226,10 @@ static const struct cheri_test {
 	  .ct_desc = "Exercise CCall/NOP/NOP/NOP/CReturn",
 	  .ct_func = test_nofault_ccall_nop_creturn },
 
+	{ .ct_name = "test_nofault_ccall_dli_creturn",
+	  .ct_desc = "Exercise CCall/DLI/CReturn",
+	  .ct_func = test_nofault_ccall_dli_creturn },
+
 	/*
 	 * Test libcheri sandboxing -- and kernel sandbox unwind.
 	 */

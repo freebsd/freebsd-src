@@ -124,3 +124,26 @@ test_nofault_ccall_nop_creturn(void)
 	cheritest_ccall(codecap, datacap);
 	cheritest_success();
 }
+
+/*
+ * CCall code that will load a value (0x1234) into a return register,
+ * which we can check for.  We use getpid() to ensure a well-known and quite
+ * different value appears in the return register prior to CCall.
+ */
+#define	DLI_RETVAL	0x1234
+void
+test_nofault_ccall_dli_creturn(void)
+{
+	__capability void *codecap, *datacap;
+	register_t v0;
+
+	v0 = getpid();
+	cheritest_sandbox_setup(&sandbox_dli_creturn,
+	    &sandbox_dli_creturn_end, 0, &codecap, &datacap);
+	v0 = cheritest_ccall(codecap, datacap);
+	if (v0 != DLI_RETVAL)
+		cheritest_failure_errx("Invalid return value (got: 0x%jx; "
+		    "expected 0x%jx)", v0, DLI_RETVAL);
+	else
+		cheritest_success();
+}

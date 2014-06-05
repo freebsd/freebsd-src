@@ -93,3 +93,20 @@ sandbox_nop_creturn:
 
 	.global sandbox_nop_creturn_end
 sandbox_nop_creturn_end:
+
+
+	/*
+	 * Sandbox code that loads a well-known constant into its return
+	 * register before returning.
+	 */
+	.text
+	.global sandbox_dli_creturn
+	.ent sandbox_dli_creturn
+sandbox_dli_creturn:
+
+	dli	$v0, 0x1234
+	creturn
+	.end sandbox_dli_creturn
+
+	.global sandbox_dli_creturn_end
+sandbox_dli_creturn_end:
