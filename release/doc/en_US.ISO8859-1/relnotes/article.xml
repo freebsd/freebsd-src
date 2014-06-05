@@ -320,6 +320,12 @@
       adds event collection after the specified number of
       seconds.</para>
 
+    <para revision="266463">The default &man.newsyslog.conf.5; now
+      includes files in the
+      <filename>/etc/newsyslog.conf.d/</filename> and
+      <filename>/usr/local/etc/newsyslog.conf.d/</filename>
+      directories by default for &man.newsyslog.8;.</para>
+
     <sect3 xml:id="rc-scripts">
       <title><filename>/etc/rc.d</filename> Scripts</title>
 
