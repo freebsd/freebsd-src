@@ -38,6 +38,8 @@
         ..
         mtree
         ..
+        newsyslog.conf.d
+        ..
         ntp             mode=0700
         ..
         pam.d
