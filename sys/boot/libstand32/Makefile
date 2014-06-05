@@ -22,7 +22,7 @@ NO_PIC=
 WARNS?=		0
 
 CFLAGS+= -ffreestanding -Wformat
-CFLAGS+= -I${S}
+CFLAGS+= -I${S} -I${LIBC}/include
 
 .if ${MACHINE_CPUARCH} == "i386" || ${MACHINE_CPUARCH} == "amd64"
 CFLAGS.gcc+=	-mpreferred-stack-boundary=2
