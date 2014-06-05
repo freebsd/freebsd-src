@@ -434,7 +434,8 @@ cheritest_run_test(const struct cheri_test *ctp)
 		goto fail;
 	}
 	if (WEXITSTATUS(status) != 0 && WEXITSTATUS(status) != EX_SOFTWARE) {
-		snprintf(reason, sizeof(reason), "Child status %d", status);
+		snprintf(reason, sizeof(reason), "Child status %d",
+		    WEXITSTATUS(status));
 		goto fail;
 	}
 	if (ccsp->ccs_signum < 0) {
