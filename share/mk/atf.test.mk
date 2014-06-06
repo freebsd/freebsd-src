@@ -104,7 +104,7 @@ CLEANFILES+= ${_T} ${_T}.tmp
 ATF_TESTS_SH_SED_${_T}?= # empty
 ATF_TESTS_SH_SRC_${_T}?= ${_T}.sh
 ${_T}: ${ATF_TESTS_SH_SRC_${_T}}
-	echo '#! /usr/bin/atf-sh' > ${.TARGET}.tmp
+	echo '#! /usr/libexec/atf-sh' > ${.TARGET}.tmp
 	cat ${.ALLSRC} | sed ${ATF_TESTS_SH_SED_${_T}} >>${.TARGET}.tmp
 	chmod +x ${.TARGET}.tmp
 	mv ${.TARGET}.tmp ${.TARGET}
