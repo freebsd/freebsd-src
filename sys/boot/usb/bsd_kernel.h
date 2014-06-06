@@ -38,6 +38,7 @@
 #define	isalpha(x) (((x) >= 'a' && (x) <= 'z') || ((x) >= 'A' && (x) <= 'Z'))
 #define	isdigit(x) ((x) >= '0' && (x) <= '9')
 #define	panic(...) do { printf("USB PANIC: " __VA_ARGS__); while (1) ; } while (0)
+#define	rebooting 0
 #define	M_USB 0
 #define	M_USBDEV 0
 #define	USB_PROC_MAX 3
@@ -182,9 +183,10 @@ typedef uint16_t gid_t;
 typedef uint16_t mode_t;
 
 typedef uint8_t *caddr_t;
-typedef unsigned long __uintptr_t;
+#define	_UINTPTR_T_DECLARED
 typedef unsigned long uintptr_t;
 
+#define	_SIZE_T_DECLARED
 typedef unsigned long size_t;
 typedef unsigned long u_long;
 #endif
