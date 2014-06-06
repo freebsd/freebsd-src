@@ -223,6 +223,14 @@ generic_xmit_frame(struct ifnet *ifp, struct mbuf *m,
 }
 
 
+#if __FreeBSD_version >= 1100005
+struct netmap_adapter *
+netmap_getna(if_t ifp)
+{
+	return (NA((struct ifnet *)ifp));
+}
+#endif /* __FreeBSD_version >= 1100005 */
+
 /*
  * The following two functions are empty until we have a generic
  * way to extract the info from the ifp
