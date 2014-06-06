@@ -40,6 +40,7 @@ LDADD+=	${PTHREAD_LIBS}
 
 MLINKS=
 MLINKS+= cuse.3 cuse_alloc_unit_number.3
+MLINKS+= cuse.3 cuse_alloc_unit_number_by_id.3
 MLINKS+= cuse.3 cuse_copy_in.3
 MLINKS+= cuse.3 cuse_copy_out.3
 MLINKS+= cuse.3 cuse_dev_create.3
@@ -49,7 +50,10 @@ MLINKS+= cuse.3 cuse_dev_get_per_file_handle.3
 MLINKS+= cuse.3 cuse_dev_get_priv0.3
 MLINKS+= cuse.3 cuse_dev_get_priv1.3
 MLINKS+= cuse.3 cuse_dev_set_per_file_handle.3
+MLINKS+= cuse.3 cuse_dev_set_priv0.3
+MLINKS+= cuse.3 cuse_dev_set_priv1.3
 MLINKS+= cuse.3 cuse_free_unit_number.3
+MLINKS+= cuse.3 cuse_free_unit_number_by_id.3
 MLINKS+= cuse.3 cuse_got_peer_signal.3
 MLINKS+= cuse.3 cuse_init.3
 MLINKS+= cuse.3 cuse_poll_wakeup.3
@@ -59,6 +63,7 @@ MLINKS+= cuse.3 cuse_uninit.3
 MLINKS+= cuse.3 cuse_vmalloc.3
 MLINKS+= cuse.3 cuse_is_vmalloc_addr.3
 MLINKS+= cuse.3 cuse_vmfree.3
+MLINKS+= cuse.3 cuse_vmoffset.3
 MLINKS+= cuse.3 cuse_wait_and_process.3
 
 .include <bsd.lib.mk>
