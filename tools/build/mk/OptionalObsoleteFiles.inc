@@ -4112,6 +4112,8 @@ OLD_LIBS+=usr/lib/libatf-c.a
 OLD_LIBS+=usr/lib/libatf-c.so
 OLD_LIBS+=usr/lib/libatf-c.so.1
 OLD_LIBS+=usr/lib/libatf-c_p.a
+OLD_LIBS+=usr/lib/private/libatf-c.so.1
+OLD_LIBS+=usr/lib/private/libatf-c++.so.2
 .if ${TARGET_ARCH} == "amd64" || ${TARGET_ARCH} == "powerpc64"
 OLD_LIBS+=usr/lib32/libatf-c++.a
 OLD_LIBS+=usr/lib32/libatf-c++.so
@@ -4122,6 +4124,8 @@ OLD_LIBS+=usr/lib32/libatf-c.a
 OLD_LIBS+=usr/lib32/libatf-c.so
 OLD_LIBS+=usr/lib32/libatf-c.so.1
 OLD_LIBS+=usr/lib32/libatf-c_p.a
+OLD_LIBS+=usr/lib32/private/libatf-c.so.1
+OLD_LIBS+=usr/lib32/private/libatf-c++.so.2
 .endif
 OLD_FILES+=usr/libdata/pkgconfig/atf-c++.pc
 OLD_FILES+=usr/libdata/pkgconfig/atf-c.pc
