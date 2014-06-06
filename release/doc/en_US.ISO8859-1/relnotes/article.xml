@@ -140,6 +140,45 @@
 	      <entry>8&nbsp;April&nbsp;2014</entry>
 	      <entry><para>ECDSA side channel leak</para></entry>
 	    </row>
+
+	    <row>
+	      <entry><link
+		  xlink:href="http://security.freebsd.org/advisories/FreeBSD-SA-14:08.tcp.asc">FreeBSD-SA-14:08.tcp</link></entry>
+	      <entry>30&nbsp;April&nbsp;2014</entry>
+	      <entry><para>TCP reassembly vulnerability</para></entry>
+	    </row>
+
+	    <row>
+	      <entry><link
+		  xlink:href="http://security.freebsd.org/advisories/FreeBSD-SA-14:11.sendmail.asc">FreeBSD-SA-14:11.sendmail</link></entry>
+	      <entry>26&nbsp;May&nbsp;2014</entry>
+	      <entry><para><application>Sendmail</application>
+		  improper close-on-exec flag handling</para></entry>
+	    </row>
+
+	    <row>
+	      <entry><link
+		  xlink:href="http://security.freebsd.org/advisories/FreeBSD-SA-14:12.ktrace.asc">FreeBSD-SA-14:12.ktrace</link></entry>
+	      <entry>3&nbsp;June&nbsp;2014</entry>
+	      <entry><para>&man.ktrace.1; kernel memory
+		  disclosure</para></entry>
+	    </row>
+
+	    <row>
+	      <entry><link
+		  xlink:href="http://security.freebsd.org/advisories/FreeBSD-SA-14:13.pam.asc">FreeBSD-SA-14:13.pam</link></entry>
+	      <entry>3&nbsp;June&nbsp;2014</entry>
+	      <entry><para>Incorrect error handling in PAM policy
+		  parser</para></entry>
+	    </row>
+
+	    <row>
+	      <entry><link
+		  xlink:href="http://security.freebsd.org/advisories/FreeBSD-SA-14:14.openssl.asc">FreeBSD-SA-14:14.openssl</link></entry>
+	      <entry>5&nbsp;June&nbsp;2014</entry>
+	      <entry><para>Incorrect error handling in PAM policy
+		  parser</para></entry>
+	    </row>
 	  </tbody>
 	</tgroup>
       </informaltable>
