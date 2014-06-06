@@ -176,7 +176,6 @@ default_route_with_multiple_fibs_on_same_subnet_head()
 
 default_route_with_multiple_fibs_on_same_subnet_body()
 {
-	atf_expect_fail "kern/187552 default route uses the wrong interface when multiple interfaces have the same subnet but different fibs"
 	# Configure the TAP interfaces to use a RFC5737 nonrouteable addresses
 	# and a non-default fib
 	ADDR0="192.0.2.2"
@@ -226,7 +225,6 @@ subnet_route_with_multiple_fibs_on_same_subnet_head()
 
 subnet_route_with_multiple_fibs_on_same_subnet_body()
 {
-	atf_expect_fail "kern/187550 Multiple interfaces on different FIBs but the same subnet don't all have a subnet route"
 	# Configure the TAP interfaces to use a RFC5737 nonrouteable addresses
 	# and a non-default fib
 	ADDR0="192.0.2.2"
@@ -258,6 +256,15 @@ subnet_route_with_multiple_fibs_on_same_subnet_cleanup()
 # SO_DONTROUTE set that are sent on non-default FIBs.
 # This bug was discovered with "setfib 1 netperf -t UDP_STREAM -H some_host"
 # Regression test for kern/187553
+#
+# The root cause was that ifa_ifwithnet() did not have a fib argument.  It
+# would return an address from an interface on any FIB that had a subnet route
+# for the destination.  If more than one were available, it would choose the
+# most specific.  This is most easily tested by creating a FIB without a
+# default route, then trying to send a UDP packet with SO_DONTROUTE set to an
+# address which is not routable on that FIB.  Absent the fix for this bug,
+# in_pcbladdr would choose an interface on any FIB with a default route.  With
+# the fix, you will get EUNREACH or ENETUNREACH.
 atf_test_case udp_dontroute cleanup
 udp_dontroute_head()
 {
@@ -271,25 +278,38 @@ udp_dontroute_body()
 	atf_expect_fail "kern/187553 Source address selection for UDP packets with SO_DONTROUTE uses the default FIB"
 	# Configure the TAP interface to use an RFC5737 nonrouteable address
 	# and a non-default fib
-	ADDR="192.0.2.2"
+	ADDR0="192.0.2.2"
+	ADDR1="192.0.2.3"
 	SUBNET="192.0.2.0"
 	MASK="24"
 	# Use a different IP on the same subnet as the target
 	TARGET="192.0.2.100"
+	SRCDIR=`atf_get_srcdir`
 
 	# Check system configuration
 	if [ 0 != `sysctl -n net.add_addr_allfibs` ]; then
 		atf_skip "This test requires net.add_addr_allfibs=0"
 	fi
-	get_fibs 1
+	get_fibs 2
 
-	# Configure a TAP interface
-	setup_tap ${FIB0} ${ADDR} ${MASK}
+	# Configure the TAP interfaces
+	setup_tap ${FIB0} ${ADDR0} ${MASK}
+	TARGET_TAP=${TAP}
+	setup_tap ${FIB1} ${ADDR1} ${MASK}
 
 	# Send a UDP packet with SO_DONTROUTE.  In the failure case, it will
-	# return ENETUNREACH
-	SRCDIR=`atf_get_srcdir`
-	atf_check -o ignore setfib ${FIB0} ${SRCDIR}/udp_dontroute ${TARGET}
+	# return ENETUNREACH, or send the packet to the wrong tap
+	atf_check -o ignore setfib ${FIB0} \
+		${SRCDIR}/udp_dontroute ${TARGET} /dev/${TARGET_TAP}
+	cleanup_tap
+
+	# Repeat, but this time target the other tap
+	setup_tap ${FIB0} ${ADDR0} ${MASK}
+	setup_tap ${FIB1} ${ADDR1} ${MASK}
+	TARGET_TAP=${TAP}
+
+	atf_check -o ignore setfib ${FIB1} \
+		${SRCDIR}/udp_dontroute ${TARGET} /dev/${TARGET_TAP}
 }
 
 udp_dontroute_cleanup()
@@ -367,4 +387,5 @@ cleanup_tap()
 	for TAPD in `cat "tap_devices_to_cleanup"`; do
 		ifconfig ${TAPD} destroy
 	done
+	rm "tap_devices_to_cleanup"
 }
