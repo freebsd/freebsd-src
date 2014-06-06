@@ -210,7 +210,7 @@ i40e_xmit(struct i40e_queue *que, struct mbuf **m_headp)
 	if (error == EFBIG) {
 		struct mbuf *m;
 
-		m = m_defrag(*m_headp, M_DONTWAIT);
+		m = m_defrag(*m_headp, M_NOWAIT);
 		if (m == NULL) {
 			que->mbuf_defrag_failed++;
 			m_freem(*m_headp);
@@ -834,7 +834,7 @@ i40e_refresh_mbufs(struct i40e_queue *que, int limit)
 			goto no_split;
 
 		if (buf->m_head == NULL) {
-			mh = m_gethdr(M_DONTWAIT, MT_DATA);
+			mh = m_gethdr(M_NOWAIT, MT_DATA);
 			if (mh == NULL)
 				goto update;
 		} else
@@ -861,7 +861,7 @@ i40e_refresh_mbufs(struct i40e_queue *que, int limit)
 
 no_split:
 		if (buf->m_pack == NULL) {
-			mp = m_getjcl(M_DONTWAIT, MT_DATA,
+			mp = m_getjcl(M_NOWAIT, MT_DATA,
 			    M_PKTHDR, rxr->mbuf_sz);
 			if (mp == NULL)
 				goto update;
