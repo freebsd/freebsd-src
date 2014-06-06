@@ -116,7 +116,6 @@ loopback_and_network_routes_on_nondefault_fib_head()
 
 loopback_and_network_routes_on_nondefault_fib_body()
 {
-	atf_expect_fail "kern/187549 Host and network routes for a new interface appear in the wrong FIB"
 	# Configure the TAP interface to use an RFC5737 nonrouteable address
 	# and a non-default fib
 	ADDR="192.0.2.2"
