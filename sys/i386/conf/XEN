@@ -6,7 +6,7 @@
 cpu		I686_CPU
 ident		XEN
 
-makeoptions	DEBUG=-g
+makeoptions	DEBUG=-g		# Build kernel with gdb(1) debug symbols
 
 # The following modules don't build with PAE and XEN enabled.
 makeoptions	WITHOUT_MODULES="ctl dpt drm drm2 hptmv ida malo mwl"
