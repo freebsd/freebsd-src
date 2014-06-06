@@ -1184,7 +1184,7 @@ vlapic_read(struct vlapic *vlapic, int mmio_access, uint64_t offset,
 			*data = lapic->version;
 			break;
 		case APIC_OFFSET_TPR:
-			*data = lapic->tpr;
+			*data = vlapic_get_tpr(vlapic);
 			break;
 		case APIC_OFFSET_APR:
 			*data = lapic->apr;
@@ -1305,8 +1305,7 @@ vlapic_write(struct vlapic *vlapic, int mmio_access, uint64_t offset,
 			vlapic_id_write_handler(vlapic);
 			break;
 		case APIC_OFFSET_TPR:
-			lapic->tpr = data & 0xff;
-			vlapic_update_ppr(vlapic);
+			vlapic_set_tpr(vlapic, data & 0xff);
 			break;
 		case APIC_OFFSET_EOI:
 			vlapic_process_eoi(vlapic);
@@ -1610,4 +1609,21 @@ vlapic_set_tmr_level(struct vlapic *vlapic, uint32_t dest, bool phys,
 
 	VLAPIC_CTR1(vlapic, "vector %d set to level-triggered", vector);
 	vlapic_set_tmr(vlapic, vector, true);
+}
+
+void
+vlapic_set_tpr(struct vlapic *vlapic, uint8_t val)
+{
+	struct LAPIC	*lapic = vlapic->apic_page;
+
+	lapic->tpr = val;
+	vlapic_update_ppr(vlapic);
+}
+
+uint8_t
+vlapic_get_tpr(struct vlapic *vlapic)
+{
+	struct LAPIC	*lapic = vlapic->apic_page;
+
+	return (lapic->tpr);
 }
