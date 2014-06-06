@@ -2935,7 +2935,6 @@ vmxnet3_txq_mq_start_locked(struct vmxnet3_txqueue *txq, struct mbuf *m)
 		/* Assume worse case if this mbuf is the head of a chain. */
 		if (m->m_next != NULL && avail < VMXNET3_TX_MAXSEGS) {
 			drbr_putback(ifp, br, m);
-			error = ENOBUFS;
 			break;
 		}
 
@@ -2958,7 +2957,7 @@ vmxnet3_txq_mq_start_locked(struct vmxnet3_txqueue *txq, struct mbuf *m)
 		txq->vxtxq_watchdog = VMXNET3_WATCHDOG_TIMEOUT;
 	}
 
-	return (error);
+	return (0);
 }
 
 static int
