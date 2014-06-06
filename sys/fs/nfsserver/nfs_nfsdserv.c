@@ -1620,13 +1620,6 @@ nfsrvd_link(struct nfsrv_descript *nd, int isdgram,
 			nd->nd_repstat = NFSERR_INVAL;
 		if (tovp)
 			vrele(tovp);
-	} else if (vnode_vtype(vp) == VLNK) {
-		if (nd->nd_flag & ND_NFSV2)
-			nd->nd_repstat = NFSERR_INVAL;
-		else
-			nd->nd_repstat = NFSERR_NOTSUPP;
-		if (tovp)
-			vrele(tovp);
 	}
 	if (!nd->nd_repstat) {
 		if (nd->nd_flag & ND_NFSV4) {
