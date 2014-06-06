@@ -987,10 +987,8 @@ in_scrubprefix(struct in_ifaddr *target, u_int flags)
 {
 	struct in_ifaddr *ia;
 	struct in_addr prefix, mask, p, m;
-	int error = 0, fibnum;
+	int error = 0;
 	struct sockaddr_in prefix0, mask0;
-
-	fibnum = rt_add_addr_allfibs ? RT_ALL_FIBS : target->ia_ifp->if_fib;
 
 	/*
 	 * Remove the loopback route to the interface address.
@@ -1046,6 +1044,10 @@ in_scrubprefix(struct in_ifaddr *target, u_int flags)
 	}
 
 	if ((target->ia_flags & IFA_ROUTE) == 0) {
+		int fibnum;
+		
+		fibnum = rt_add_addr_allfibs ? RT_ALL_FIBS :
+			target->ia_ifp->if_fib;
 		rt_addrmsg(RTM_DELETE, &target->ia_ifa, fibnum);
 		return (0);
 	}
