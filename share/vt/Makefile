@@ -1,5 +1,5 @@
 # $FreeBSD$
 
-SUBDIR= fonts
+SUBDIR= fonts keymaps
 
 .include <bsd.subdir.mk>
