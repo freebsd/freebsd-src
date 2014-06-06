@@ -908,7 +908,7 @@ in_addprefix(struct in_ifaddr *target, int flags)
 {
 	struct in_ifaddr *ia;
 	struct in_addr prefix, mask, p, m;
-	int error, fibnum;
+	int error;
 
 	if ((flags & RTF_HOST) != 0) {
 		prefix = target->ia_dstaddr.sin_addr;
@@ -919,9 +919,8 @@ in_addprefix(struct in_ifaddr *target, int flags)
 		prefix.s_addr &= mask.s_addr;
 	}
 
-	fibnum = rt_add_addr_allfibs ? RT_ALL_FIBS : target->ia_ifp->if_fib;
-
 	IN_IFADDR_RLOCK();
+	/* Look for an existing address with the same prefix, mask, and fib */
 	TAILQ_FOREACH(ia, &V_in_ifaddrhead, ia_link) {
 		if (rtinitflags(ia)) {
 			p = ia->ia_dstaddr.sin_addr;
@@ -937,6 +936,8 @@ in_addprefix(struct in_ifaddr *target, int flags)
 			    mask.s_addr != m.s_addr)
 				continue;
 		}
+		if (target->ia_ifp->if_fib != ia->ia_ifp->if_fib)
+			continue;
 
 		/*
 		 * If we got a matching prefix route inserted by other
@@ -955,6 +956,10 @@ in_addprefix(struct in_ifaddr *target, int flags)
 				IN_IFADDR_RUNLOCK();
 				return (EEXIST);
 			} else {
+				int fibnum;
+
+				fibnum = rt_add_addr_allfibs ? RT_ALL_FIBS :
+					target->ia_ifp->if_fib;
 				rt_addrmsg(RTM_ADD, &target->ia_ifa, fibnum);
 				IN_IFADDR_RUNLOCK();
 				return (0);
