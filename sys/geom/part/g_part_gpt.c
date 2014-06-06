@@ -44,6 +44,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 #include <sys/uuid.h>
 #include <geom/geom.h>
+#include <geom/geom_int.h>
 #include <geom/part/g_part.h>
 
 #include "g_part_if.h"
@@ -1230,16 +1231,16 @@ g_gpt_printf_utf16(struct sbuf *sb, uint16_t *str, size_t len)
 
 		/* Write the Unicode character in UTF-8 */
 		if (ch < 0x80)
-			sbuf_printf(sb, "%c", ch);
+			g_conf_printf_escaped(sb, "%c", ch);
 		else if (ch < 0x800)
-			sbuf_printf(sb, "%c%c", 0xc0 | (ch >> 6),
+			g_conf_printf_escaped(sb, "%c%c", 0xc0 | (ch >> 6),
 			    0x80 | (ch & 0x3f));
 		else if (ch < 0x10000)
-			sbuf_printf(sb, "%c%c%c", 0xe0 | (ch >> 12),
+			g_conf_printf_escaped(sb, "%c%c%c", 0xe0 | (ch >> 12),
 			    0x80 | ((ch >> 6) & 0x3f), 0x80 | (ch & 0x3f));
 		else if (ch < 0x200000)
-			sbuf_printf(sb, "%c%c%c%c", 0xf0 | (ch >> 18),
-			    0x80 | ((ch >> 12) & 0x3f),
+			g_conf_printf_escaped(sb, "%c%c%c%c", 0xf0 |
+			    (ch >> 18), 0x80 | ((ch >> 12) & 0x3f),
 			    0x80 | ((ch >> 6) & 0x3f), 0x80 | (ch & 0x3f));
 	}
 }
