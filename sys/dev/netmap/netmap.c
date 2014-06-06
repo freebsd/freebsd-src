@@ -2260,7 +2260,8 @@ netmap_attach(struct netmap_adapter *arg)
 
 fail:
 	D("fail, arg %p ifp %p na %p", arg, ifp, hwna);
-	netmap_detach(ifp);
+	if (ifp)
+		netmap_detach(ifp);
 	return (hwna ? EINVAL : ENOMEM);
 }
 
