@@ -90,6 +90,7 @@ static bool svm_vmexit(struct svm_softc *svm_sc, int vcpu,
 static int svm_msr_rw_ok(uint8_t *btmap, uint64_t msr);
 static int svm_msr_rd_ok(uint8_t *btmap, uint64_t msr);
 static int svm_msr_index(uint64_t msr, int *index, int *bit);
+static int svm_getdesc(void *arg, int vcpu, int type, struct seg_desc *desc);
 
 static uint32_t svm_feature; /* AMD SVM features. */
 
@@ -469,6 +470,112 @@ cleanup:
 	return (NULL);
 }
 
+static int
+svm_cpl(struct vmcb_state *state)
+{
+
+	/*
+	 * From APMv2:
+	 *   "Retrieve the CPL from the CPL field in the VMCB, not
+	 *    from any segment DPL"
+	 */
+	return (state->cpl);
+}
+
+static enum vm_cpu_mode
+svm_vcpu_mode(uint64_t efer)
+{
+
+	if (efer & EFER_LMA)
+		return (CPU_MODE_64BIT);
+	else
+		return (CPU_MODE_COMPATIBILITY);
+}
+
+static enum vm_paging_mode
+svm_paging_mode(uint64_t cr0, uint64_t cr4, uint64_t efer)
+{
+
+	if ((cr0 & CR0_PG) == 0)
+		return (PAGING_MODE_FLAT);
+	if ((cr4 & CR4_PAE) == 0)
+		return (PAGING_MODE_32);
+	if (efer & EFER_LME)
+		return (PAGING_MODE_64);
+	else
+		return (PAGING_MODE_PAE);
+}
+
+/*
+ * ins/outs utility routines
+ */
+static uint64_t
+svm_inout_str_index(struct svm_regctx *regs, int in)
+{
+	uint64_t val;
+
+	val = in ? regs->e.g.sctx_rdi : regs->e.g.sctx_rsi;
+
+	return (val);
+}
+
+static uint64_t
+svm_inout_str_count(struct svm_regctx *regs, int rep)
+{
+	uint64_t val;
+
+	val = rep ? regs->sctx_rcx : 1;
+
+	return (val);
+}
+
+static void
+svm_inout_str_seginfo(struct svm_softc *svm_sc, int vcpu, int64_t info1,
+    int in, struct vm_inout_str *vis)
+{
+	int error, s;
+
+	if (in) {
+		vis->seg_name = VM_REG_GUEST_ES;
+	} else {
+		/* The segment field has standard encoding */
+		s = (info1 >> 10) & 0x7;
+		vis->seg_name = vm_segment_name(s);
+	}
+
+	error = svm_getdesc(svm_sc, vcpu, vis->seg_name, &vis->seg_desc);
+	KASSERT(error == 0, ("%s: svm_getdesc error %d", __func__, error));
+}
+
+static int
+svm_inout_str_addrsize(uint64_t info1)
+{
+        uint32_t size;
+
+        size = (info1 >> 7) & 0x7;
+        switch (size) {
+        case 1:
+                return (2);     /* 16 bit */
+        case 2:
+                return (4);     /* 32 bit */
+        case 4:
+                return (8);     /* 64 bit */
+        default:
+                panic("%s: invalid size encoding %d", __func__, size);
+        }
+}
+
+static void
+svm_paging_info(struct vmcb_state *state, struct vm_guest_paging *paging)
+{
+
+	paging->cr3 = state->cr3;
+	paging->cpl = svm_cpl(state);
+	paging->cpu_mode = svm_vcpu_mode(state->efer);
+	paging->paging_mode = svm_paging_mode(state->cr0, state->cr4,
+		   	          state->efer);
+}
+
 /*
  * Handle guest I/O intercept.
  */
@@ -477,20 +584,36 @@ svm_handle_io(struct svm_softc *svm_sc, int vcpu, struct vm_exit *vmexit)
 {
 	struct vmcb_ctrl *ctrl;
 	struct vmcb_state *state;
+	struct svm_regctx *regs;
+	struct vm_inout_str *vis;
 	uint64_t info1;
 	
 	state = svm_get_vmcb_state(svm_sc, vcpu);
 	ctrl  = svm_get_vmcb_ctrl(svm_sc, vcpu);
+	regs  = svm_get_guest_regctx(svm_sc, vcpu);
 	info1 = ctrl->exitinfo1;
 	
 	vmexit->exitcode 	= VM_EXITCODE_INOUT;
 	vmexit->u.inout.in 	= (info1 & BIT(0)) ? 1 : 0;
 	vmexit->u.inout.string 	= (info1 & BIT(2)) ? 1 : 0;
-	vmexit->u. inout.rep 	= (info1 & BIT(3)) ? 1 : 0;
+	vmexit->u.inout.rep 	= (info1 & BIT(3)) ? 1 : 0;
 	vmexit->u.inout.bytes 	= (info1 >> 4) & 0x7;
 	vmexit->u.inout.port 	= (uint16_t)(info1 >> 16);
 	vmexit->u.inout.eax 	= (uint32_t)(state->rax);
 
+	if (vmexit->u.inout.string) {
+		vmexit->exitcode = VM_EXITCODE_INOUT_STR;
+		vis = &vmexit->u.inout_str;
+		svm_paging_info(state, &vis->paging);
+		vis->rflags = state->rflags;
+		vis->cr0 = state->cr0;
+		vis->index = svm_inout_str_index(regs, vmexit->u.inout.in);
+		vis->count = svm_inout_str_count(regs, vmexit->u.inout.rep);
+		vis->addrsize = svm_inout_str_addrsize(info1);
+		svm_inout_str_seginfo(svm_sc, vcpu, info1,
+		    vmexit->u.inout.in, vis);
+	}
+	
 	return (false);
 }
 
@@ -544,30 +667,6 @@ svm_efer(struct svm_softc *svm_sc, int vcpu, boolean_t write)
 		state->rax = (uint32_t)state->efer;
 		swctx->e.g.sctx_rdx = (uint32_t)(state->efer >> 32);
 	}
-}
-
-static enum vm_cpu_mode
-svm_vcpu_mode(uint64_t efer)
-{
-
-	if (efer & EFER_LMA)
-		return (CPU_MODE_64BIT);
-	else
-		return (CPU_MODE_COMPATIBILITY);
-}
-
-static enum vm_paging_mode
-svm_paging_mode(uint64_t cr0, uint64_t cr4, uint64_t efer)
-{
-
-	if ((cr0 & CR0_PG) == 0)
-		return (PAGING_MODE_FLAT);
-	if ((cr4 & CR4_PAE) == 0)
-		return (PAGING_MODE_32);
-	if (efer & EFER_LME)
-		return (PAGING_MODE_64);
-	else
-		return (PAGING_MODE_PAE);
 }
 
 /*
@@ -976,7 +1075,6 @@ svm_vmrun(void *arg, int vcpu, register_t rip, pmap_t pmap,
 	struct vlapic *vlapic;
 	struct vm *vm;
 	uint64_t vmcb_pa;
-	static uint64_t host_cr2;
 	bool loop;	/* Continue vcpu execution loop. */
 
 	loop = true;
@@ -1078,16 +1176,9 @@ svm_vmrun(void *arg, int vcpu, register_t rip, pmap_t pmap,
 		 */	
 		disable_gintr();
 
-		save_cr2(&host_cr2);
-		load_cr2(&state->cr2);
-		
-	
 		/* Launch Virtual Machine. */
 		svm_launch(vmcb_pa, gctx, hctx);
 		
-		save_cr2(&state->cr2);
-		load_cr2(&host_cr2);
-
 		/*
 		 * Only GDTR and IDTR of host is saved and restore by SVM,
 		 * LDTR and TR need to be restored by VMM.
@@ -1302,6 +1393,21 @@ svm_getdesc(void *arg, int vcpu, int type, struct seg_desc *desc)
 	desc->access = ((seg->attrib & 0xF00) << 4) | (seg->attrib & 0xFF);
 	desc->base = seg->base;
 	desc->limit = seg->limit;
+
+	/*
+	 * VT-x uses bit 16 (Unusable) to indicate a segment that has been
+	 * loaded with a NULL segment selector. The 'desc->access' field is
+	 * interpreted in the VT-x format by the processor-independent code.
+	 *
+	 * SVM uses the 'P' bit to convey the same information so convert it
+	 * into the VT-x format. For more details refer to section
+	 * "Segment State in the VMCB" in APMv2.
+	 */
+	if (type == VM_REG_GUEST_CS && type == VM_REG_GUEST_TR)
+		desc->access |= 0x80;		/* CS and TS always present */
+
+	if (!(desc->access & 0x80))
+		desc->access |= 0x10000;	/* Unusable segment */
 
 	return (0);
 }
