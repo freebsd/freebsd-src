@@ -24,9 +24,9 @@
  */
 
 /*
- * This is the "Terminus BSD Console" font, a derivative of Terminus that is
- * provided under the 2-clause BSD license for use by the FreeBSD vt(4)
- * console.  Please contribute any changes back to Mr. Zhekov at
+ * This is the "Terminus BSD Console" font.  It is identical to the standard
+ * variant of Terminus Font 8x16, but provided under the 2-clause BSD License
+ * (FreeBSD License).  Please contribute any changes back to Mr. Zhekov at
  * <dimitar.zhekov@gmail.com>.
  */
 
