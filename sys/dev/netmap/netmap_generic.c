@@ -81,18 +81,25 @@ __FBSDID("$FreeBSD$");
 #include <dev/netmap/netmap_kern.h>
 #include <dev/netmap/netmap_mem2.h>
 
-#define rtnl_lock() D("rtnl_lock called");
-#define rtnl_unlock() D("rtnl_unlock called");
+#define rtnl_lock()	ND("rtnl_lock called");
+#define rtnl_unlock()	ND("rtnl_unlock called");
 #define MBUF_TXQ(m)	((m)->m_pkthdr.flowid)
 #define MBUF_RXQ(m)	((m)->m_pkthdr.flowid)
 #define smp_mb()
 
 /*
- * mbuf wrappers
+ * FreeBSD mbuf allocator/deallocator in emulation mode:
+ *
+ * We allocate EXT_PACKET mbuf+clusters, but need to set M_NOFREE
+ * so that the destructor, if invoked, will not free the packet.
+ *    In principle we should set the destructor only on demand,
+ * but since there might be a race we better do it on allocation.
+ * As a consequence, we also need to set the destructor or we
+ * would leak buffers.
  */
 
 /*
- * we allocate an EXT_PACKET
+ * mbuf wrappers
  */
 #define netmap_get_mbuf(len) m_getcl(M_NOWAIT, MT_DATA, M_PKTHDR|M_NOFREE)
 
@@ -808,5 +815,5 @@ generic_netmap_attach(struct ifnet *ifp)
 struct netmap_adapter *
 netmap_getna(if_t ifp)
 {
-	return (NA((struct ifnet *)ifp));	
+	return (NA((struct ifnet *)ifp));
 }
