@@ -1050,7 +1050,7 @@ netmap_rxsync_from_host(struct netmap_adapter *na, struct thread *td, void *pwai
 	(void)pwait;	/* disable unused warnings */
 	(void)td;
 
-	mtx_lock_spin(&q->lock);
+	mbq_lock(q);
 
 	/* First part: import newly received packets */
 	n = mbq_len(q);
@@ -1092,7 +1092,7 @@ netmap_rxsync_from_host(struct netmap_adapter *na, struct thread *td, void *pwai
 	if (kring->rcur == kring->rtail && td) /* no bufs available */
 		selrecord(td, &kring->si);
 
-	mtx_unlock_spin(&q->lock);
+	mbq_unlock(q);
 	return ret;
 }
 
@@ -2459,7 +2459,7 @@ netmap_transmit(struct ifnet *ifp, struct mbuf *m)
 	 * not possible on Linux).
 	 * Also avoid overflowing the queue.
 	 */
-	mtx_lock_spin(&q->lock);
+	mbq_lock(q);
 
         space = kring->nr_hwtail - kring->nr_hwcur;
         if (space < 0)
@@ -2476,7 +2476,7 @@ netmap_transmit(struct ifnet *ifp, struct mbuf *m)
 		m = NULL;
 		error = 0;
 	}
-	mtx_unlock_spin(&q->lock);
+	mbq_unlock(q);
 
 done:
 	if (m)
