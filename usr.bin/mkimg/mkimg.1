@@ -115,6 +115,12 @@ For a complete list of supported partitioning schemes or supported output
 format, or for a detailed description of how to specify partitions, run the
 .Nm
 utility without any arguments.
+.Sh ENVIRONMENT
+.Bl -tag -width "TMPDIR" -compact
+.It Ev TMPDIR
+Directory to put temporary files in; default is
+.Pa /tmp .
+.El
 .Sh EXAMPLES
 To create a bootable disk image that is partitioned using the GPT scheme and
 containing a root file system that was previously created using
@@ -159,11 +165,6 @@ For partitioning schemes that feature partition labels, the
 utility supports assigning labels to the partitions specified.
 In the following example the file system partition is labeled as 'backup':
 .Dl % mkimg -s gpt -p freebsd-ufs/backup:=file-system.ufs -o gpt.img
-.Sh ENVIRONMENT
-.Bl -tag -width "TMPDIR" -compact
-.It Ev TMPDIR
-Directory to put temporary files in; default is
-.Pa /tmp .
 .Sh SEE ALSO
 .Xr gpart 8
 .Xr makefs 8
