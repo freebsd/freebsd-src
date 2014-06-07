@@ -1263,6 +1263,22 @@ dwc_otg_host_data_rx(struct dwc_otg_softc *sc, struct dwc_otg_td *td)
 
 	case DWC_CHAN_ST_WAIT_ANE:
 		if (hcint & (HCINT_RETRY | HCINT_ERRORS)) {
+			if (td->ep_type == UE_INTERRUPT) {
+				/*
+				 * The USB specification does not
+				 * mandate a particular data toggle
+				 * value for USB INTERRUPT
+				 * transfers. Switch the data toggle
+				 * value to receive the packet
+				 * correctly:
+				 */
+				if (hcint & HCINT_DATATGLERR) {
+					DPRINTF("Retrying packet due to "
+					    "data toggle error\n");
+					td->toggle ^= 1;
+					goto receive_pkt;
+				}
+			}
 			td->did_nak++;
 			td->tt_scheduled = 0;
 			if (td->hcsplt != 0)
