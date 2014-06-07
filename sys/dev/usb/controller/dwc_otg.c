@@ -98,6 +98,8 @@
    GINTMSK_USBSUSPMSK |			\
    GINTMSK_IEPINTMSK |			\
    GINTMSK_SESSREQINTMSK |		\
+   GINTMSK_RXFLVLMSK |			\
+   GINTMSK_HCHINTMSK |			\
    GINTMSK_OTGINTMSK |			\
    GINTMSK_PRTINTMSK)
 
@@ -239,7 +241,8 @@ dwc_otg_init_fifo(struct dwc_otg_softc *sc, uint8_t mode)
 
 		for (x = 0; x != sc->sc_host_ch_max; x++) {
 			/* disable all host interrupts */
-			DWC_OTG_WRITE_4(sc, DOTG_HCINTMSK(x), 0);
+			DWC_OTG_WRITE_4(sc, DOTG_HCINTMSK(x),
+			    HCINT_DEFAULT_MASK);
 		}
 
 		DWC_OTG_WRITE_4(sc, DOTG_HPTXFSIZ,
@@ -256,8 +259,9 @@ dwc_otg_init_fifo(struct dwc_otg_softc *sc, uint8_t mode)
 		/* store maximum periodic and non-periodic FIFO TX size */
 		sc->sc_tx_max_size = fifo_size;
 
-		/* disable all host channel interrupts */
-		DWC_OTG_WRITE_4(sc, DOTG_HAINTMSK, 0);
+		/* enable all host channel interrupts */
+		DWC_OTG_WRITE_4(sc, DOTG_HAINTMSK,
+		    (1U << sc->sc_host_ch_max) - 1U);
 	}
 
 	if (mode == DWC_MODE_DEVICE) {
@@ -568,11 +572,9 @@ dwc_otg_common_rx_ack(struct dwc_otg_softc *sc)
 {
 	DPRINTFN(5, "RX status clear\n");
 
-	if (sc->sc_flags.status_device_mode != 0) {
-		/* enable RX FIFO level interrupt */
-		sc->sc_irq_mask |= GINTMSK_RXFLVLMSK;
-		DWC_OTG_WRITE_4(sc, DOTG_GINTMSK, sc->sc_irq_mask);
-	}
+	/* enable RX FIFO level interrupt */
+	sc->sc_irq_mask |= GINTMSK_RXFLVLMSK;
+	DWC_OTG_WRITE_4(sc, DOTG_GINTMSK, sc->sc_irq_mask);
 
 	/* clear cached status */
 	sc->sc_last_rx_status = 0;
@@ -607,8 +609,7 @@ dwc_otg_host_channel_alloc(struct dwc_otg_softc *sc, struct dwc_otg_td *td, uint
 
 	/* compute needed TX FIFO size */
 	if (is_out != 0) {
-		if (td->ep_type == UE_INTERRUPT ||
-		    td->ep_type == UE_ISOCHRONOUS) {
+		if (td->ep_type == UE_ISOCHRONOUS) {
 			tx_p_size = td->max_packet_size;
 			tx_np_size = 0;
 			if (td->hcsplt != 0 && tx_p_size > HCSPLT_XACTLEN_BURST)
@@ -687,7 +688,7 @@ dwc_otg_host_channel_free(struct dwc_otg_softc *sc, struct dwc_otg_td *td)
 	 * after a fixed given amount of time the host channel is no
 	 * longer doing any USB traffic:
 	 */
-	if (td->ep_type == UE_ISOCHRONOUS || td->ep_type == UE_INTERRUPT) {
+	if (td->ep_type == UE_ISOCHRONOUS) {
 		/* double buffered */
 		sc->sc_chan_state[x].wait_sof = DWC_OTG_SLOT_IDLE_MAX;
 	} else {
@@ -874,10 +875,7 @@ send_pkt:
 	    DOTG_DFIFO(td->channel), (uint32_t *)&req, sizeof(req) / 4);
 
 	/* wait until next slot before trying complete split */
-	if (td->ep_type == UE_INTERRUPT || td->ep_type == UE_ISOCHRONOUS)
-		td->tt_complete_slot = sc->sc_last_frame_num + 2;
-	else
-		td->tt_complete_slot = sc->sc_last_frame_num + 1;
+	td->tt_complete_slot = sc->sc_last_frame_num + 1;
 
 	/* store number of bytes transmitted */
 	td->tx_bytes = sizeof(req);
@@ -1352,15 +1350,7 @@ receive_pkt:
 		}
 		delta = sc->sc_last_frame_num - td->tt_start_slot;
 		if (delta > DWC_OTG_TT_SLOT_MAX) {
-			if (td->ep_type == UE_INTERRUPT) {
-				/*
-				 * Happens from time to time avoid
-				 * posting an error, instead retry
-				 * the start split packet:
-				 */
-				td->tt_scheduled = 0;
-				goto receive_spkt;
-			} else if (td->ep_type != UE_ISOCHRONOUS) {
+			if (td->ep_type != UE_ISOCHRONOUS) {
 				/* we missed the service interval */
 				td->error_any = 1;
 			}
@@ -1460,10 +1450,7 @@ receive_spkt:
 	hcchar |= HCCHAR_EPDIR_IN;
 
 	/* wait until next slot before trying complete split */
-	if (td->ep_type == UE_INTERRUPT || td->ep_type == UE_ISOCHRONOUS)
-		td->tt_complete_slot = sc->sc_last_frame_num + 2;
-	else
-		td->tt_complete_slot = sc->sc_last_frame_num + 1;
+	td->tt_complete_slot = sc->sc_last_frame_num + 1;
 
 	/* must enable channel before data can be received */
 	DWC_OTG_WRITE_4(sc, DOTG_HCCHAR(channel), hcchar);
@@ -2346,18 +2333,11 @@ dwc_otg_host_channel_disable(struct dwc_otg_softc *sc, uint8_t x)
 }
 
 static uint16_t
-dwc_otg_compute_tt_slot(struct dwc_otg_tt_info *pinfo, uint16_t io_bytes)
+dwc_otg_compute_isoc_rx_tt_slot(struct dwc_otg_tt_info *pinfo)
 {
-	const uint16_t limit = (188 * 5) / 6;	/* includes bit-stuffing */
-	uint16_t retval = pinfo->slot_index;
-
-	pinfo->bytes_used += io_bytes;
-	while (pinfo->slot_index < 6 &&
-	       pinfo->bytes_used >= limit) {
-		pinfo->bytes_used -= limit;
+	if (pinfo->slot_index < DWC_OTG_TT_SLOT_MAX)
 		pinfo->slot_index++;
-	}
-	return (retval);
+	return (pinfo->slot_index);
 }
 
 static uint8_t
@@ -2412,11 +2392,17 @@ dwc_otg_update_host_transfer_schedule_locked(struct dwc_otg_softc *sc)
 				continue;
 
 			/* compute slot */
-			slot = temp + dwc_otg_compute_tt_slot(
-			    sc->sc_tt_info + td->tt_index, td->remainder);
-
-			/* Start ASAP */
-			td->tt_start_slot = slot + 0;
+			slot = dwc_otg_compute_isoc_rx_tt_slot(
+			    sc->sc_tt_info + td->tt_index);
+			if (slot > 3) {
+				/* 
+				 * Not enough time to get complete
+				 * split executed.
+				 */
+				continue;
+			}
+			/* Delayed start */
+			td->tt_start_slot = temp + slot;
 			td->tt_scheduled = 1;
 			TAILQ_REMOVE(&sc->sc_bus.intr_q.head, xfer, wait_entry);
 			TAILQ_INSERT_TAIL(&head, xfer, wait_entry);
@@ -2439,12 +2425,8 @@ dwc_otg_update_host_transfer_schedule_locked(struct dwc_otg_softc *sc)
 			if (td->hcsplt == 0 || td->tt_scheduled != 0)
 				continue;
 
-			/* compute slot */
-			slot = temp + dwc_otg_compute_tt_slot(
-			    sc->sc_tt_info + td->tt_index, td->remainder);
-
 			/* Start ASAP */
-			td->tt_start_slot = slot + 0;
+			td->tt_start_slot = temp;
 			td->tt_scheduled = 1;
 			TAILQ_REMOVE(&sc->sc_bus.intr_q.head, xfer, wait_entry);
 			TAILQ_INSERT_TAIL(&head, xfer, wait_entry);
@@ -2469,12 +2451,8 @@ dwc_otg_update_host_transfer_schedule_locked(struct dwc_otg_softc *sc)
 				continue;
 			}
 
-			/* compute slot */
-			slot = temp + dwc_otg_compute_tt_slot(sc->sc_tt_info + td->tt_index,
-			    td->max_packet_size);
-
 			/* start ASAP */
-			td->tt_start_slot = slot + 0;
+			td->tt_start_slot = temp;
 			sc->sc_needsof = 1;
 			td->tt_scheduled = 1;
 			TAILQ_REMOVE(&sc->sc_bus.intr_q.head, xfer, wait_entry);
@@ -2494,11 +2472,8 @@ dwc_otg_update_host_transfer_schedule_locked(struct dwc_otg_softc *sc)
 			if (td->hcsplt == 0 || td->tt_scheduled != 0)
 				continue;
 
-			/* compute slot */
-			slot = temp + dwc_otg_compute_tt_slot(sc->sc_tt_info + td->tt_index, 0);
-
 			/* start ASAP */
-			td->tt_start_slot = slot + 0;
+			td->tt_start_slot = temp;
 			td->tt_scheduled = 1;
 			TAILQ_REMOVE(&sc->sc_bus.intr_q.head, xfer, wait_entry);
 			TAILQ_INSERT_TAIL(&head, xfer, wait_entry);
@@ -2518,17 +2493,8 @@ dwc_otg_update_host_transfer_schedule_locked(struct dwc_otg_softc *sc)
 			if (td->hcsplt == 0 || td->tt_scheduled != 0)
 				continue;
 
-			/* compute slot */
-			slot = dwc_otg_compute_tt_slot(sc->sc_tt_info + td->tt_index, 0);
-
-			/* figure out highest slot number */
-			if (slot < (temp & 7))
-				slot = temp;
-			else
-				slot += (temp & ~7);
-
 			/* start ASAP */
-			td->tt_start_slot = slot + 0;
+			td->tt_start_slot = temp;
 			td->tt_scheduled = 1;
 			TAILQ_REMOVE(&sc->sc_bus.intr_q.head, xfer, wait_entry);
 			TAILQ_INSERT_TAIL(&head, xfer, wait_entry);
@@ -2809,8 +2775,6 @@ dwc_otg_interrupt(void *arg)
 
 		/* Disable SOF interrupt */
 		sc->sc_irq_mask &= ~GINTMSK_SOFMSK;
-		/* Enable RX frame interrupt */
-		sc->sc_irq_mask |= GINTMSK_RXFLVLMSK;
 		DWC_OTG_WRITE_4(sc, DOTG_GINTMSK, sc->sc_irq_mask);
 
 		/* complete root HUB interrupt endpoint */
@@ -2851,7 +2815,7 @@ dwc_otg_interrupt(void *arg)
 		 * suspend and RX frame interrupt:
 		 */
 		sc->sc_irq_mask &= ~(GINTMSK_WKUPINTMSK | GINTMSK_SOFMSK);
-		sc->sc_irq_mask |= (GINTMSK_USBSUSPMSK | GINTMSK_RXFLVLMSK);
+		sc->sc_irq_mask |= GINTMSK_USBSUSPMSK;
 		DWC_OTG_WRITE_4(sc, DOTG_GINTMSK, sc->sc_irq_mask);
 
 		/* complete root HUB interrupt endpoint */
@@ -2921,10 +2885,6 @@ dwc_otg_interrupt(void *arg)
 
 		/* complete root HUB interrupt endpoint */
 		dwc_otg_root_intr(sc);
-
-		/* disable RX FIFO level interrupt */
-		sc->sc_irq_mask &= ~GINTMSK_RXFLVLMSK;
-		DWC_OTG_WRITE_4(sc, DOTG_GINTMSK, sc->sc_irq_mask);
 
 		/* update host frame interval */
 		dwc_otg_update_host_frame_interval(sc);
@@ -3222,8 +3182,25 @@ dwc_otg_setup_standard_chain(struct usb_xfer *xfer)
 			(xfer->address << HCCHAR_DEVADDR_SHIFT) |
 			((xfer->endpointno & UE_ADDR) << HCCHAR_EPNUM_SHIFT) |
 			(xfer->max_packet_size << HCCHAR_MPS_SHIFT) |
-			(td->ep_type << HCCHAR_EPTYPE_SHIFT) |
 			HCCHAR_CHENA;
+
+		/*
+		 * We are not always able to meet the timing
+		 * requirements of the USB interrupt endpoint's
+		 * complete split token, when doing transfers going
+		 * via a transaction translator. Use the CONTROL
+		 * transfer type instead of the INTERRUPT transfer
+		 * type in general, as a means to workaround
+		 * that. This trick should work for both FULL and LOW
+		 * speed USB traffic going through a TT. For non-TT
+		 * traffic it works aswell. The reason for using
+		 * CONTROL type instead of BULK is that some TTs might
+		 * reject LOW speed BULK traffic.
+		 */
+		if (td->ep_type == UE_INTERRUPT)
+			hcchar |= (UE_CONTROL << HCCHAR_EPTYPE_SHIFT);
+		else
+			hcchar |= (td->ep_type << HCCHAR_EPTYPE_SHIFT);
 
 		if (usbd_get_speed(xfer->xroot->udev) == USB_SPEED_LOW)
 			hcchar |= HCCHAR_LSPDDEV;
@@ -3262,13 +3239,12 @@ dwc_otg_setup_standard_chain(struct usb_xfer *xfer)
 			break;
 		case USB_SPEED_HIGH:
 			hcsplt = 0;
-			if (td->ep_type == UE_ISOCHRONOUS ||
-			    td->ep_type == UE_INTERRUPT) {
-				hcchar |= ((xfer->max_packet_count & 3)
-				    << HCCHAR_MC_SHIFT);
-			}
 			if (td->ep_type == UE_INTERRUPT) {
 				uint32_t ival;
+#if 0
+				hcchar |= ((xfer->max_packet_count & 3)
+				    << HCCHAR_MC_SHIFT);
+#endif
 				ival = xfer->interval / DWC_OTG_HOST_TIMER_RATE;
 				if (ival == 0)
 					ival = 1;
@@ -3277,6 +3253,8 @@ dwc_otg_setup_standard_chain(struct usb_xfer *xfer)
 				td->tmr_val = sc->sc_tmr_val + ival;
 				td->tmr_res = ival;
 			} else if (td->ep_type == UE_ISOCHRONOUS) {
+				hcchar |= ((xfer->max_packet_count & 3)
+				    << HCCHAR_MC_SHIFT);
 				td->tmr_val = 0;
 				td->tmr_res = 1 << usbd_xfer_get_fps_shift(xfer);
 			} else {

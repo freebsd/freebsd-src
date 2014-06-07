@@ -35,7 +35,7 @@
 #define	DWC_OTG_MAX_ENDPOINTS 16
 #define	DWC_OTG_HOST_TIMER_RATE 10 /* ms */
 #define	DWC_OTG_TT_SLOT_MAX 8
-#define	DWC_OTG_SLOT_IDLE_MAX 4
+#define	DWC_OTG_SLOT_IDLE_MAX 3
 #define	DWC_OTG_SLOT_IDLE_MIN 2
 #define	DWC_OTG_NAK_MAX 8	/* 1 ms */
 
@@ -93,9 +93,7 @@ struct dwc_otg_td {
 };
 
 struct dwc_otg_tt_info {
-	uint16_t bytes_used;
 	uint8_t slot_index;
-	uint8_t dummy;
 };
 
 struct dwc_otg_std_temp {
