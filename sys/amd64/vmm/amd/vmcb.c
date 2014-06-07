@@ -67,10 +67,20 @@ svm_init_vmcb(struct vmcb *vmcb, uint64_t iopm_base_pa,
 	/* Enable nested paging */
 	ctrl->np_enable = 1;
 	ctrl->n_cr3 = np_pml4;
-
+	
 	/* EFER_SVM must always be set when the guest is executing */
 	state->efer = EFER_SVM;
-	
+
+	/* Set up the PAT to power-on state */
+	state->g_pat = PAT_VALUE(0, PAT_WRITE_BACK)	|
+	    PAT_VALUE(1, PAT_WRITE_THROUGH)	|
+	    PAT_VALUE(2, PAT_UNCACHED)		|
+	    PAT_VALUE(3, PAT_UNCACHEABLE)	|
+	    PAT_VALUE(4, PAT_WRITE_BACK)	|
+	    PAT_VALUE(5, PAT_WRITE_THROUGH)	|
+	    PAT_VALUE(6, PAT_UNCACHED)		|
+	    PAT_VALUE(7, PAT_UNCACHEABLE);
+
 	return (0);
 }
 
