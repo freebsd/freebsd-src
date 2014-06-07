@@ -149,6 +149,7 @@ struct vm_page {
 	uint8_t aflags;			/* access is atomic */
 	uint8_t oflags;			/* page VPO_* flags (O) */
 	uint8_t	queue;			/* page queue index (P,Q) */
+	int8_t psind;			/* pagesizes[] index (O) */
 	int8_t segind;
 	uint8_t	order;			/* index of the buddy queue */
 	uint8_t pool;
@@ -447,6 +448,7 @@ vm_page_t vm_page_next(vm_page_t m);
 int vm_page_pa_tryrelock(pmap_t, vm_paddr_t, vm_paddr_t *);
 struct vm_pagequeue *vm_page_pagequeue(vm_page_t m);
 vm_page_t vm_page_prev(vm_page_t m);
+boolean_t vm_page_ps_is_valid(vm_page_t m);
 void vm_page_putfake(vm_page_t m);
 void vm_page_readahead_finish(vm_page_t m);
 void vm_page_reference(vm_page_t m);

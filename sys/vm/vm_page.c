@@ -3044,6 +3044,31 @@ vm_page_is_valid(vm_page_t m, int base, int size)
 }
 
 /*
+ *	vm_page_ps_is_valid:
+ *
+ *	Returns TRUE if the entire (super)page is valid and FALSE otherwise.
+ */
+boolean_t
+vm_page_ps_is_valid(vm_page_t m)
+{
+	int i, npages;
+
+	VM_OBJECT_ASSERT_LOCKED(m->object);
+	npages = atop(pagesizes[m->psind]);
+
+	/*
+	 * The physically contiguous pages that make up a superpage, i.e., a
+	 * page with a page size index ("psind") greater than zero, will
+	 * occupy adjacent entries in vm_page_array[].
+	 */
+	for (i = 0; i < npages; i++) {
+		if (m[i].valid != VM_PAGE_BITS_ALL)
+			return (FALSE);
+	}
+	return (TRUE);
+}
+
+/*
  * Set the page's dirty bits if the page is modified.
  */
 void
