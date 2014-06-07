@@ -899,10 +899,10 @@ usb_bus_mem_alloc_all(struct usb_bus *bus, bus_dma_tag_t dmat,
 	bus->alloc_failed = 0;
 
 	mtx_init(&bus->bus_mtx, device_get_nameunit(bus->parent),
-	    NULL, MTX_DEF | MTX_RECURSE);
+	    "usb_def_mtx", MTX_DEF | MTX_RECURSE);
 
 	mtx_init(&bus->bus_spin_lock, device_get_nameunit(bus->parent),
-	    NULL, MTX_SPIN | MTX_RECURSE);
+	    "usb_spin_mtx", MTX_SPIN | MTX_RECURSE);
 
 	usb_callout_init_mtx(&bus->power_wdog,
 	    &bus->bus_mtx, 0);
