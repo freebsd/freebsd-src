@@ -105,6 +105,7 @@ extern struct vmm_ops vmm_ops_amd;
 
 int vm_create(const char *name, struct vm **retvm);
 void vm_destroy(struct vm *vm);
+int vm_reinit(struct vm *vm);
 const char *vm_name(struct vm *vm);
 int vm_malloc(struct vm *vm, vm_paddr_t gpa, size_t len);
 int vm_map_mmio(struct vm *vm, vm_paddr_t gpa, size_t len, vm_paddr_t hpa);

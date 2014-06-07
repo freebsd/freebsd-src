@@ -220,6 +220,7 @@ vmmdev_ioctl(struct cdev *cdev, u_long cmd, caddr_t data, int fflag,
 	case VM_BIND_PPTDEV:
 	case VM_UNBIND_PPTDEV:
 	case VM_MAP_MEMORY:
+	case VM_REINIT:
 		/*
 		 * ioctls that operate on the entire virtual machine must
 		 * prevent all vcpus from running.
@@ -252,6 +253,9 @@ vmmdev_ioctl(struct cdev *cdev, u_long cmd, caddr_t data, int fflag,
 	case VM_SUSPEND:
 		vmsuspend = (struct vm_suspend *)data;
 		error = vm_suspend(sc->vm, vmsuspend->how);
+		break;
+	case VM_REINIT:
+		error = vm_reinit(sc->vm);
 		break;
 	case VM_STAT_DESC: {
 		statdesc = (struct vm_stat_desc *)data;
