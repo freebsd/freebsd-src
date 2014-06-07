@@ -447,6 +447,8 @@ svm_vminit(struct vm *vm, pmap_t pmap)
 	/* For Nested Paging/RVI only. */
 	svm_msr_rw_ok(svm_sc->msr_bitmap, MSR_PAT);
 
+	svm_msr_rd_ok(svm_sc->msr_bitmap, MSR_TSC);
+
 	 /* Intercept access to all I/O ports. */
 	memset(svm_sc->iopm_bitmap, 0xFF, sizeof(svm_sc->iopm_bitmap));
 
