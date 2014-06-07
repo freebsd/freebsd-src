@@ -1,7 +1,10 @@
 # $FreeBSD$
 
+SYSDIR?=${.CURDIR}/../../../..
+
 test-dts:
 .for dts in ${DTS}
-	dtc -I dts -O dtb -o /dev/null ${dts}
+	@env MACHINE=`basename ${.CURDIR}` ${SYSDIR}/tools/fdt/make_dtb.sh ${SYSDIR} ${dts} /tmp
+
 .endfor
 
