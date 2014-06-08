@@ -1,0 +1,5 @@
+gcov-report.txt
+test-libevdev
+test-link
+test-compile-pedantic
+test-kernel

@@ -1,0 +1,112 @@
+/*
+ * Copyright (c) 2013 David Herrmann <dh.herrmann@gmail.com>
+ *
+ * Permission to use, copy, modify, distribute, and sell this software and its
+ * documentation for any purpose is hereby granted without fee, provided that
+ * the above copyright notice appear in all copies and that both that copyright
+ * notice and this permission notice appear in supporting documentation, and
+ * that the name of the copyright holders not be used in advertising or
+ * publicity pertaining to distribution of the software without specific,
+ * written prior permission.  The copyright holders make no representations
+ * about the suitability of this software for any purpose.  It is provided "as
+ * is" without express or implied warranty.
+ *
+ * THE COPYRIGHT HOLDERS DISCLAIM ALL WARRANTIES WITH REGARD TO THIS SOFTWARE,
+ * INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS, IN NO
+ * EVENT SHALL THE COPYRIGHT HOLDERS BE LIABLE FOR ANY SPECIAL, INDIRECT OR
+ * CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE,
+ * DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
+ * TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE
+ * OF THIS SOFTWARE.
+ */
+
+LIBEVDEV_1 {
+global:
+	libevdev_change_fd;
+	libevdev_disable_event_code;
+	libevdev_disable_event_type;
+	libevdev_enable_event_code;
+	libevdev_enable_event_type;
+	libevdev_enable_property;
+	libevdev_event_code_from_name;
+	libevdev_event_code_from_name_n;
+	libevdev_event_code_get_name;
+	libevdev_event_is_code;
+	libevdev_event_is_type;
+	libevdev_event_type_from_name;
+	libevdev_event_type_from_name_n;
+	libevdev_event_type_get_max;
+	libevdev_event_type_get_name;
+	libevdev_fetch_event_value;
+	libevdev_fetch_slot_value;
+	libevdev_free;
+	libevdev_get_abs_flat;
+	libevdev_get_abs_fuzz;
+	libevdev_get_abs_info;
+	libevdev_get_abs_maximum;
+	libevdev_get_abs_minimum;
+	libevdev_get_abs_resolution;
+	libevdev_get_current_slot;
+	libevdev_get_driver_version;
+	libevdev_get_event_value;
+	libevdev_get_fd;
+	libevdev_get_id_bustype;
+	libevdev_get_id_product;
+	libevdev_get_id_vendor;
+	libevdev_get_id_version;
+	libevdev_get_log_priority;
+	libevdev_get_name;
+	libevdev_get_num_slots;
+	libevdev_get_phys;
+	libevdev_get_repeat;
+	libevdev_get_slot_value;
+	libevdev_get_uniq;
+	libevdev_grab;
+	libevdev_has_event_code;
+	libevdev_has_event_pending;
+	libevdev_has_event_type;
+	libevdev_has_property;
+	libevdev_kernel_set_abs_info;
+	libevdev_kernel_set_led_value;
+	libevdev_kernel_set_led_values;
+	libevdev_new;
+	libevdev_new_from_fd;
+	libevdev_next_event;
+	libevdev_property_get_name;
+	libevdev_set_abs_flat;
+	libevdev_set_abs_fuzz;
+	libevdev_set_abs_info;
+	libevdev_set_abs_maximum;
+	libevdev_set_abs_minimum;
+	libevdev_set_abs_resolution;
+	libevdev_set_clock_id;
+	libevdev_set_event_value;
+	libevdev_set_fd;
+	libevdev_set_id_bustype;
+	libevdev_set_id_product;
+	libevdev_set_id_vendor;
+	libevdev_set_id_version;
+	libevdev_set_log_function;
+	libevdev_set_log_priority;
+	libevdev_set_name;
+	libevdev_set_phys;
+	libevdev_set_slot_value;
+	libevdev_set_uniq;
+	libevdev_uinput_create_from_device;
+	libevdev_uinput_destroy;
+	libevdev_uinput_get_devnode;
+	libevdev_uinput_get_fd;
+	libevdev_uinput_get_syspath;
+	libevdev_uinput_write_event;
+
+local:
+	*;
+};
+
+LIBEVDEV_1_3 {
+global:
+	libevdev_set_device_log_function;
+
+local:
+	*;
+} LIBEVDEV_1;

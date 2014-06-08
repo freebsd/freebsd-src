@@ -1,0 +1,227 @@
+h1 {
+	font-size: 150%;
+	color: #354C7B;
+	border-bottom: 1px solid #879ECB;
+	font-weight: normal;
+	padding-bottom: 4px;
+	padding-bottom: 8px;
+}
+
+#titlearea {
+	width: 30%;
+	margin-left: auto;
+	margin-right: auto;
+	padding: 0px 10px 15px 10px;
+	border: none;
+	border-bottom: 1px solid #879ECB;
+}
+
+#projectname {
+	text-align: center;
+	font-weight: bold;
+	font-size: 300%;
+	margin-top: 5px;
+	padding: 2px 0 0 0;
+	margin-left: auto;
+	margin-right: auto;
+	color: #354C7B;
+}
+
+#projectnumber {
+	font-size: 100%;
+	color: #354C7B;
+}
+
+#projectbrief {
+	text-align: center;
+	margin-left: 20px;
+	margin-top: 5px;
+	padding: 2px 0 0 0;
+	margin-left: auto;
+	margin-right: auto;
+	color: #354C7B;
+}
+
+#MSearchBox {
+	display: none;
+}
+
+#titlearea table {
+	margin-left: auto;
+	margin-right: auto;
+}
+
+#navrow1, #navrow2, #navrow3, #navrow4, #navpath {
+	width: 600px;
+	width: -moz-max-content;
+	margin-left: auto;
+	margin-right: auto;
+}
+
+/* in file list, appears under the nav bars */
+.navpath ul, .navpath li {
+	width: 600px;
+	width: -moz-max-content;
+	margin-left: auto;
+	margin-right: auto;
+	background-image: none;
+	border: none;
+	border-bottom: 1px solid;
+}
+
+.navpath li.navelem a {
+	text-shadow: none;
+	outline: none;
+}
+
+.tabs, .tabs2, .tabs3 {
+	background-image: none;
+}
+
+/* main page/modules/files tabs */
+.tablist li {
+	background-image: none;
+}
+
+/* main page/modules/files link text */
+.tablist a {
+	background-image: none;
+	background-repeat: none;
+}
+
+/* main page/modules/files link text when hovering */
+.tablist a:hover {
+	background-image: none;
+	background-repeat: none;
+	text-shadow: none;
+	color: black;
+}
+
+/* main page/modules/files currently selected */
+.tablist li.current a {
+	background-image: none;
+	text-shadow: none;
+	color: black;
+	border-bottom: 1px solid;
+}
+
+.navpath {
+	background-image: none;
+}
+
+/* libevdev documentation/modules/file list ... superfluous header */
+div.header {
+	display: none;
+	width: -moz-max-content;
+	margin-left: auto;
+	margin-right: auto;
+	background-image: none;
+	background-color: inherit;
+	font-size: 300%;
+}
+
+/* general text blocks */
+.textblock {
+	width: 600px;
+	margin-left: auto;
+	margin-right: auto;
+}
+
+/* code fragments should expand to what's needed */
+.fragment {
+	width: -moz-max-content;
+}
+
+/* list of modules container */
+div .directory{
+	margin-left: auto;
+	margin-right: auto;
+	width: 600px;
+	border: none;
+}
+
+
+.directory td.entry {
+	width: 40%;
+	white-space: normal;
+	padding-left: 5px;
+
+}
+
+.directory td.desc {
+	width: 60%;
+}
+
+.directory td.entry img {
+	display: none;
+}
+
+h2.groupheader {
+	width: -moz-max-content;
+}
+
+/* table for list of functions */
+table.memberdecls {
+	width: -moz-max-content;
+}
+
+div.memitem {
+	width: -moz-max-content;
+	border-bottom: 1px solid;
+}
+
+/* function prototype */
+div.memproto {
+	background-image: none;
+	width: 600px;
+	border: none;
+	box-shadow: none;
+}
+
+/* function documentation */
+div.memdoc {
+	background-image: none;
+	width: -moz-max-content;
+	box-shadow: none;
+	border: none;
+}
+
+div.contents {
+	margin-left: auto;
+	margin-right: auto;
+	width: 600px;
+	width: -moz-max-content;
+}
+
+p {
+	width: 580px;
+}
+
+dl.return {
+	width: 480px;
+}
+
+code {
+	background-color: #F9FAFC;
+}
+
+
+
+.footer {
+	width: 600px;
+	margin-left: auto;
+	margin-right: auto;
+}
+
+img.footer {
+	width: auto;
+}
+
+/* note, see also, returns */
+dl.section {
+	width: 560px;
+}
+
+table.params {
+	width: 560px;
+}

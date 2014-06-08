@@ -1,0 +1,32 @@
+.TH LIBEVDEV 3 @PACKAGE_VERSION@
+.SH NAME
+libevdev \- wrapper library for evdev devices
+.SH SYNOPSIS
+.HP
+#include <libevdev/libevdev.h>
+.PP
+int 
+.B libevdev_new_from_fd
+(int fd, struct libevdev **device)
+.PP
+void 
+.B libevdev_free
+(struct libevdev *device)
+
+.SH DESCRIPTION
+.PP
+.B libevdev
+is a wrapper library for evdev devices. it moves the common
+tasks when dealing with evdev devices into a library and provides a library
+interface to the callers, thus avoiding erroneous ioctls, etc.
+.PP
+This man page is a placeholder only. The documentation for this version of
+.B libevdev
+is available at:
+.PP
+.B http://www.freedesktop.org/software/libevdev/doc/@PACKAGE_VERSION@/
+.SH LICENSE
+.B libevdev
+is licensed under the MIT license.
+
+

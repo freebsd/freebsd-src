@@ -1,0 +1,7 @@
+#!/bin/bash
+
+set -e
+
+make
+rsync --delete -avz doc/html/ freedesktop.org:/srv/www.freedesktop.org/www/software/libevdev/doc/latest
+
