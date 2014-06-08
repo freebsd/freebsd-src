@@ -1,0 +1,21 @@
+# --- Python ---
+*.py[co]
+*.egg
+*.egg-info/
+develop-eggs/
+dist/
+build/
+dropin.cache
+pip-log.txt
+.installed.cfg
+.coverage
+tags
+TAGS
+evdev/*.so
+evdev/ecodes.c
+doc/_build
+__pycache__
+
+evdev/_ecodes.py
+evdev/_input.py
+evdev/_uinput.py
