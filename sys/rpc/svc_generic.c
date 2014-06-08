@@ -86,7 +86,8 @@ svc_create(
 	rpcvers_t versnum,		/* Version number */
 	const char *nettype)		/* Networktype token */
 {
-	int num = 0;
+	int g, num = 0;
+	SVCGROUP *grp;
 	SVCXPRT *xprt;
 	struct netconfig *nconf;
 	void *handle;
@@ -96,11 +97,14 @@ svc_create(
 		return (0);
 	}
 	while ((nconf = __rpc_getconf(handle)) != NULL) {
-		mtx_lock(&pool->sp_lock);
-		TAILQ_FOREACH(xprt, &pool->sp_xlist, xp_link) {
-			if (strcmp(xprt->xp_netid, nconf->nc_netid) == 0) {
+		for (g = 0; g < SVC_MAXGROUPS; g++) {
+			grp = &pool->sp_groups[g];
+			mtx_lock(&grp->sg_lock);
+			TAILQ_FOREACH(xprt, &grp->sg_xlist, xp_link) {
+				if (strcmp(xprt->xp_netid, nconf->nc_netid))
+					continue;
 				/* Found an old one, use it */
-				mtx_unlock(&pool->sp_lock);
+				mtx_unlock(&grp->sg_lock);
 				(void) rpcb_unset(prognum, versnum, nconf);
 				if (svc_reg(xprt, prognum, versnum,
 					dispatch, nconf) == FALSE) {
@@ -108,15 +112,15 @@ svc_create(
 		"svc_create: could not register prog %u vers %u on %s\n",
 					(unsigned)prognum, (unsigned)versnum,
 					 nconf->nc_netid);
-					mtx_lock(&pool->sp_lock);
+					mtx_lock(&grp->sg_lock);
 				} else {
 					num++;
-					mtx_lock(&pool->sp_lock);
+					mtx_lock(&grp->sg_lock);
 					break;
 				}
 			}
+			mtx_unlock(&grp->sg_lock);
 		}
-		mtx_unlock(&pool->sp_lock);
 		if (xprt == NULL) {
 			/* It was not found. Now create a new one */
 			xprt = svc_tp_create(pool, dispatch, prognum, versnum,
