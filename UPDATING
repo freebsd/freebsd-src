@@ -16,6 +16,13 @@ from older versions of FreeBSD, try WITHOUT_CLANG to bootstrap to the tip of
 stable/10, and then rebuild without this option. The bootstrap process from
 older version of current is a bit fragile.
 
+20140608:
+	On i386 and amd64 systems, the onifconsole flag is now set by default
+	in /etc/ttys for ttyu0. This causes ttyu0 to be automatically enabled
+	as a login TTY if it is set in the bootloader as an active kernel
+	console. No changes in behavior should result otherwise. To revert to
+	the previous behavior, set ttyu0 to "off" in /etc/ttys.
+
 20140512:
 	Clang and llvm have been upgraded to 3.4.1 release.
 

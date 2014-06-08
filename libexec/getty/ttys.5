@@ -98,8 +98,11 @@ ttys as a group.
 .Pp
 As flag values, the strings ``on'' and ``off'' specify that
 .Xr init 8
-should (should not) execute the command given in the second field,
-while ``secure'' (if ``on'' is also specified) allows users with a
+should (should not) execute the command given in the second field.
+``onifconsole'' will cause this line to be enabled if and only if it is
+an active kernel console device (it is equivalent to ``on'' in this
+case).
+The flag ``secure'' (if the console is enabled) allows users with a
 uid of 0 to login on
 this line.
 The flag ``dialin'' indicates that a tty entry describes a dialin
