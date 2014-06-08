@@ -1,0 +1,6 @@
+sdkdir=@sdkdir@
+
+Name: xorg-evdev
+Description: X.Org evdev input driver.
+Version: @PACKAGE_VERSION@
+Cflags: -I${sdkdir}
