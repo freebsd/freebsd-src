@@ -995,14 +995,25 @@ void
 getnewvnode_reserve(u_int count)
 {
 	struct thread *td;
+	long num;
 
 	td = curthread;
+	/* First try to be quick and racy. */
+	if (numvnodes + count <= desiredvnodes) {
+		num = atomic_fetchadd_long(&numvnodes, count);
+		if (num + count <= desiredvnodes) {
+			td->td_vp_reserv += count;
+			return;
+		} else
+			atomic_subtract_long(&numvnodes, count);
+	}
+
 	mtx_lock(&vnode_free_list_mtx);
 	while (count > 0) {
 		if (getnewvnode_wait(0) == 0) {
 			count--;
 			td->td_vp_reserv++;
-			numvnodes++;
+			atomic_add_long(&numvnodes, 1);
 		}
 	}
 	mtx_unlock(&vnode_free_list_mtx);
@@ -1014,10 +1025,7 @@ getnewvnode_drop_reserve(void)
 	struct thread *td;
 
 	td = curthread;
-	mtx_lock(&vnode_free_list_mtx);
-	KASSERT(numvnodes >= td->td_vp_reserv, ("reserve too large"));
-	numvnodes -= td->td_vp_reserv;
-	mtx_unlock(&vnode_free_list_mtx);
+	atomic_subtract_long(&numvnodes, td->td_vp_reserv);
 	td->td_vp_reserv = 0;
 }
 
@@ -1054,7 +1062,7 @@ getnewvnode(const char *tag, struct mount *mp, struct vop_vector *vops,
 		return (error);
 	}
 #endif
-	numvnodes++;
+	atomic_add_long(&numvnodes, 1);
 	mtx_unlock(&vnode_free_list_mtx);
 alloc:
 	vp = (struct vnode *) uma_zalloc(vnode_zone, M_WAITOK|M_ZERO);
@@ -2385,9 +2393,7 @@ vdropl(struct vnode *vp)
 	 * The vnode has been marked for destruction, so free it.
 	 */
 	CTR2(KTR_VFS, "%s: destroying the vnode %p", __func__, vp);
-	mtx_lock(&vnode_free_list_mtx);
-	numvnodes--;
-	mtx_unlock(&vnode_free_list_mtx);
+	atomic_subtract_long(&numvnodes, 1);
 	bo = &vp->v_bufobj;
 	VNASSERT((vp->v_iflag & VI_FREE) == 0, vp,
 	    ("cleaned vnode still on the free list."));
