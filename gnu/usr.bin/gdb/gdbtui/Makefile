@@ -15,4 +15,6 @@ LDFLAGS+= -Wl,-E
 DPADD=	${GDBLIBS} ${BULIBS} ${LIBM} ${LIBREADLINE} ${LIBTERMCAP} ${LIBGNUREGEX}
 LDADD=	${GDBLIBS} ${BULIBS} -lm -lreadline -ltermcap -lgnuregex
 
+NO_PIE=	yes
+
 .include <bsd.prog.mk>

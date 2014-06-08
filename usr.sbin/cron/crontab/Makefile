@@ -15,4 +15,6 @@ CFLAGS+= -I${.CURDIR}/../cron
 DPADD=	${LIBCRON} ${LIBMD} ${LIBUTIL}
 LDADD=	${LIBCRON} -lmd -lutil
 
+NO_PIE=	yes
+
 .include <bsd.prog.mk>
