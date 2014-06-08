@@ -995,18 +995,14 @@ void
 getnewvnode_reserve(u_int count)
 {
 	struct thread *td;
-	long num;
 
 	td = curthread;
 	/* First try to be quick and racy. */
-	if (numvnodes + count <= desiredvnodes) {
-		num = atomic_fetchadd_long(&numvnodes, count);
-		if (num + count <= desiredvnodes) {
-			td->td_vp_reserv += count;
-			return;
-		} else
-			atomic_subtract_long(&numvnodes, count);
-	}
+	if (atomic_fetchadd_long(&numvnodes, count) + count <= desiredvnodes) {
+		td->td_vp_reserv += count;
+		return;
+	} else
+		atomic_subtract_long(&numvnodes, count);
 
 	mtx_lock(&vnode_free_list_mtx);
 	while (count > 0) {
