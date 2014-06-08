@@ -104,7 +104,6 @@ ip6_forward(struct mbuf *m, int srcrt)
 	struct in6_addr src_in6, dst_in6, odst;
 #ifdef IPSEC
 	struct secpolicy *sp = NULL;
-	int ipsecrt = 0;
 #endif
 #ifdef SCTP
 	int sw_csum;
@@ -383,11 +382,7 @@ again2:
 		IP6STAT_INC(ip6s_badscope);
 		goto bad;
 	}
-	if (inzone != outzone
-#ifdef IPSEC
-	    && !ipsecrt
-#endif
-	    ) {
+	if (inzone != outzone) {
 		IP6STAT_INC(ip6s_cantforward);
 		IP6STAT_INC(ip6s_badscope);
 		in6_ifstat_inc(rt->rt_ifp, ifs6_in_discard);
@@ -477,9 +472,6 @@ again2:
 	 * modified by a redirect.
 	 */
 	if (V_ip6_sendredirects && rt->rt_ifp == m->m_pkthdr.rcvif && !srcrt &&
-#ifdef IPSEC
-	    !ipsecrt &&
-#endif /* IPSEC */
 	    (rt->rt_flags & (RTF_DYNAMIC|RTF_MODIFIED)) == 0) {
 		if ((rt->rt_ifp->if_flags & IFF_POINTOPOINT) != 0) {
 			/*
@@ -656,10 +648,6 @@ pass:
 bad:
 	m_freem(m);
 out:
-	if (rt != NULL
-#ifdef IPSEC
-	    && !ipsecrt
-#endif
-	    )
+	if (rt != NULL)
 		RTFREE(rt);
 }
