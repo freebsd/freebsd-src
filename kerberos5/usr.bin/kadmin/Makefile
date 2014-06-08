@@ -36,6 +36,8 @@ LDADD=	-lkadm5clnt -lkadm5srv -lhdb -lkrb5 -lhx509 \
 	-ledit -lncurses ${LDAPLDADD}
 LDFLAGS=${LDAPLDFLAGS}
 
+NO_PIE=	yes
+
 .include <bsd.prog.mk>
 
 kadmin-commands.h: ${KRB5DIR}/kadmin/kadmin-commands.in
