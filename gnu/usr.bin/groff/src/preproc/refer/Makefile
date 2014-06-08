@@ -7,4 +7,6 @@ DPADD=		${LIBBIB} ${LIBGROFF} ${LIBM}
 LDADD=		${LIBBIB} ${LIBGROFF} -lm
 CLEANFILES=	label.cpp label_tab.h ${MAN} y.tab.c y.tab.h
 
+NO_PIE=	yes
+
 .include <bsd.prog.mk>

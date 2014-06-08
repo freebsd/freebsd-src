@@ -68,7 +68,8 @@ __DEFAULT_YES_OPTIONS = \
 __DEFAULT_NO_OPTIONS = \
     CTF \
     DEBUG_FILES \
-    INSTALL_AS_USER
+    INSTALL_AS_USER \
+    PIE
 
 .include <bsd.mkopt.mk>
 

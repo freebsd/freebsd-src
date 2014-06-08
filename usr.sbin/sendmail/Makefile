@@ -7,6 +7,8 @@ SENDMAIL_DIR=${.CURDIR}/../../contrib/sendmail
 SMDIR=	${SENDMAIL_DIR}/src
 .PATH: ${SMDIR}
 
+NO_PIE=	yes
+
 BINDIR=	/usr/libexec/sendmail
 
 PROG=	sendmail

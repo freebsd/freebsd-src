@@ -36,6 +36,8 @@ PROG?=		loader
 NEWVERSWHAT=	"BERI loader" ${MACHINE_CPUARCH}
 INSTALLFLAGS=	-b
 
+NO_PIE=	yes
+
 # Architecture-specific loader code
 SRCS=		start.S						\
 		main.c						\
