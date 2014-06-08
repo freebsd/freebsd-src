@@ -31,8 +31,12 @@
 #ifndef EVDEV_H
 #define EVDEV_H
 
+#ifdef __FreeBSD__
+#include <dev/evdev/input.h>
+#else
 #include <linux/input.h>
 #include <linux/types.h>
+#endif
 
 #include <xf86Xinput.h>
 #include <xf86_OSproc.h>
