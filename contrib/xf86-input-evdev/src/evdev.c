@@ -1675,7 +1675,7 @@ static int
 EvdevCacheCompare(InputInfoPtr pInfo, BOOL compare)
 {
     EvdevPtr pEvdev = pInfo->private;
-    size_t len;
+    int ret;
     int i;
 
     char name[1024]                  = {0};
@@ -1698,58 +1698,58 @@ EvdevCacheCompare(InputInfoPtr pInfo, BOOL compare)
         goto error;
     }
 
-    len = ioctl(pInfo->fd, EVIOCGBIT(0, sizeof(bitmask)), bitmask);
-    if (len < 0) {
+    ret = ioctl(pInfo->fd, EVIOCGBIT(0, sizeof(bitmask)), bitmask);
+    if (ret < 0) {
         xf86Msg(X_ERROR, "%s: ioctl EVIOCGBIT failed: %s\n",
                 pInfo->name, strerror(errno));
         goto error;
     }
 
     if (!compare) {
-        memcpy(pEvdev->bitmask, bitmask, len);
-    } else if (memcmp(pEvdev->bitmask, bitmask, len)) {
+        memcpy(pEvdev->bitmask, bitmask, sizeof(bitmask));
+    } else if (memcmp(pEvdev->bitmask, bitmask, sizeof(bitmask))) {
         xf86Msg(X_ERROR, "%s: device bitmask has changed\n", pInfo->name);
         goto error;
     }
 
-    len = ioctl(pInfo->fd, EVIOCGBIT(EV_REL, sizeof(rel_bitmask)), rel_bitmask);
-    if (len < 0) {
+    ret = ioctl(pInfo->fd, EVIOCGBIT(EV_REL, sizeof(rel_bitmask)), rel_bitmask);
+    if (ret < 0) {
         xf86Msg(X_ERROR, "%s: ioctl EVIOCGBIT failed: %s\n",
                 pInfo->name, strerror(errno));
         goto error;
     }
 
     if (!compare) {
-        memcpy(pEvdev->rel_bitmask, rel_bitmask, len);
-    } else if (memcmp(pEvdev->rel_bitmask, rel_bitmask, len)) {
+        memcpy(pEvdev->rel_bitmask, rel_bitmask, sizeof(rel_bitmask));
+    } else if (memcmp(pEvdev->rel_bitmask, rel_bitmask, sizeof(rel_bitmask))) {
         xf86Msg(X_ERROR, "%s: device rel_bitmask has changed\n", pInfo->name);
         goto error;
     }
 
-    len = ioctl(pInfo->fd, EVIOCGBIT(EV_ABS, sizeof(abs_bitmask)), abs_bitmask);
-    if (len < 0) {
+    ret = ioctl(pInfo->fd, EVIOCGBIT(EV_ABS, sizeof(abs_bitmask)), abs_bitmask);
+    if (ret < 0) {
         xf86Msg(X_ERROR, "%s: ioctl EVIOCGBIT failed: %s\n",
                 pInfo->name, strerror(errno));
         goto error;
     }
 
     if (!compare) {
-        memcpy(pEvdev->abs_bitmask, abs_bitmask, len);
-    } else if (memcmp(pEvdev->abs_bitmask, abs_bitmask, len)) {
+        memcpy(pEvdev->abs_bitmask, abs_bitmask, sizeof(abs_bitmask));
+    } else if (memcmp(pEvdev->abs_bitmask, abs_bitmask, sizeof(abs_bitmask))) {
         xf86Msg(X_ERROR, "%s: device abs_bitmask has changed\n", pInfo->name);
         goto error;
     }
 
-    len = ioctl(pInfo->fd, EVIOCGBIT(EV_LED, sizeof(led_bitmask)), led_bitmask);
-    if (len < 0) {
+    ret = ioctl(pInfo->fd, EVIOCGBIT(EV_LED, sizeof(led_bitmask)), led_bitmask);
+    if (ret < 0) {
         xf86Msg(X_ERROR, "%s: ioctl EVIOCGBIT failed: %s\n",
                 pInfo->name, strerror(errno));
         goto error;
     }
 
     if (!compare) {
-        memcpy(pEvdev->led_bitmask, led_bitmask, len);
-    } else if (memcmp(pEvdev->led_bitmask, led_bitmask, len)) {
+        memcpy(pEvdev->led_bitmask, led_bitmask, sizeof(led_bitmask));
+    } else if (memcmp(pEvdev->led_bitmask, led_bitmask, sizeof(led_bitmask))) {
         xf86Msg(X_ERROR, "%s: device led_bitmask has changed\n", pInfo->name);
         goto error;
     }
@@ -1760,8 +1760,8 @@ EvdevCacheCompare(InputInfoPtr pInfo, BOOL compare)
      */
     for (i = ABS_X; i <= ABS_MAX; i++) {
         if (TestBit(i, abs_bitmask)) {
-            len = ioctl(pInfo->fd, EVIOCGABS(i), &pEvdev->absinfo[i]);
-            if (len < 0) {
+            ret = ioctl(pInfo->fd, EVIOCGABS(i), &pEvdev->absinfo[i]);
+            if (ret < 0) {
                 xf86Msg(X_ERROR, "%s: ioctl EVIOCGABSi(%d) failed: %s\n",
                         pInfo->name, i, strerror(errno));
                 goto error;
@@ -1769,8 +1769,8 @@ EvdevCacheCompare(InputInfoPtr pInfo, BOOL compare)
         }
     }
 
-    len = ioctl(pInfo->fd, EVIOCGBIT(EV_KEY, sizeof(key_bitmask)), key_bitmask);
-    if (len < 0) {
+    ret = ioctl(pInfo->fd, EVIOCGBIT(EV_KEY, sizeof(key_bitmask)), key_bitmask);
+    if (ret < 0) {
         xf86Msg(X_ERROR, "%s: ioctl EVIOCGBIT failed: %s\n",
                 pInfo->name, strerror(errno));
         goto error;
@@ -1789,16 +1789,16 @@ EvdevCacheCompare(InputInfoPtr pInfo, BOOL compare)
         size_t end_word = KEY_OK / LONG_BITS;
         size_t end_byte = end_word * sizeof(unsigned long);
 
-        if (len >= start_byte &&
+        if (sizeof(key_bitmask) >= start_byte &&
             memcmp(&pEvdev->key_bitmask[start_word], &key_bitmask[start_word],
-                   min(len, end_byte) - start_byte + 1)) {
+                   min(sizeof(key_bitmask), end_byte) - start_byte + 1)) {
             xf86Msg(X_ERROR, "%s: device key_bitmask has changed\n", pInfo->name);
             goto error;
         }
     }
 
     /* Copy the data so we have reasonably up-to-date info */
-    memcpy(pEvdev->key_bitmask, key_bitmask, len);
+    memcpy(pEvdev->key_bitmask, key_bitmask, sizeof(key_bitmask));
 
     return Success;
 
