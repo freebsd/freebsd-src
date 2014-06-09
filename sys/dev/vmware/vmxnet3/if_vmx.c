@@ -2757,7 +2757,7 @@ vmxnet3_txq_encap(struct vmxnet3_txqueue *txq, struct mbuf **m0)
 		}
 	}
 
-	txr->vxtxr_txbuf[txr->vxtxr_head].vtxb_m = m = *m0;
+	txr->vxtxr_txbuf[txr->vxtxr_head].vtxb_m = m;
 	sop = &txr->vxtxr_txd[txr->vxtxr_head];
 	gen = txr->vxtxr_gen ^ 1;	/* Owned by cpu (yet) */
 
