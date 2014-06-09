@@ -56,6 +56,7 @@ __FBSDID("$FreeBSD$");
 #include "vmm_stat.h"
 #include "vmm_ktr.h"
 #include "vmm_ioport.h"
+#include "vatpic.h"
 #include "vlapic.h"
 #include "vlapic_priv.h"
 
@@ -952,6 +953,7 @@ svm_inj_interrupts(struct svm_softc *svm_sc, int vcpu, struct vlapic *vlapic)
 	struct vmcb_ctrl *ctrl;
 	struct vmcb_state *state;
 	struct vm_exception exc;
+	int extint_pending;
 	int vector;
 	
 	KASSERT(vcpu < svm_sc->vcpu_cnt, ("Guest doesn't have VCPU%d", vcpu));
@@ -988,10 +990,17 @@ svm_inj_interrupts(struct svm_softc *svm_sc, int vcpu, struct vlapic *vlapic)
 		return;
 	}
 
-        /* Ask the local apic for a vector to inject */
-        if (!vlapic_pending_intr(vlapic, &vector))
-                return;
-	
+	extint_pending = vm_extint_pending(svm_sc->vm, vcpu);
+
+	if (!extint_pending) {
+		/* Ask the local apic for a vector to inject */
+		if (!vlapic_pending_intr(vlapic, &vector))
+			return;
+	} else {
+                /* Ask the legacy pic for a vector to inject */
+                vatpic_pending_intr(svm_sc->vm, &vector);
+	}
+
 	if (vector < 32 || vector > 255) {
 		VCPU_CTR1(svm_sc->vm, vcpu, "SVM_ERR:Event injection"
 			"invalid vector=%d.\n", vector);
@@ -1010,8 +1019,18 @@ svm_inj_interrupts(struct svm_softc *svm_sc, int vcpu, struct vlapic *vlapic)
 		return;
 	}	
 
-	/* Acknowledge that event is accepted.*/
-	vlapic_intr_accepted(vlapic, vector);
+        if (!extint_pending) {
+                /* Update the Local APIC ISR */
+                vlapic_intr_accepted(vlapic, vector);
+        } else {
+                vm_extint_clear(svm_sc->vm, vcpu);
+                vatpic_intr_accepted(svm_sc->vm, vector);
+
+                /*
+		 * XXX need to recheck exting_pending ala VT-x
+		 */
+        }
+
 	VCPU_CTR1(svm_sc->vm, vcpu, "SVM:event injected,vector=%d.\n", vector);
 }
 
