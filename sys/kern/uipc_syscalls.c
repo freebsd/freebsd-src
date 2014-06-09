@@ -2715,22 +2715,9 @@ sf_io_done(void *arg)
 	if (!refcount_release(&sfio->nios))
 		return;
 
-	so  = sfio->sock_fp->f_data;
+	so = sfio->sock_fp->f_data;
 
-	if (sbready(&so->so_snd, sfio->m, sfio->npages) == 0) {
-		struct mbuf *m;
-
-		m = m_get(M_NOWAIT, MT_DATA);
-		if (m == NULL) {
-			panic("XXXGL");
-		}
-		m->m_len = 0;
-		CURVNET_SET(so->so_vnet);
-		/* XXXGL: curthread */
-		(void )(so->so_proto->pr_usrreqs->pru_send)
-		    (so, 0, m, NULL, NULL, curthread);
-		CURVNET_RESTORE();
-	}
+	(void)(so->so_proto->pr_usrreqs->pru_ready)(so, sfio->m, sfio->npages);
 
 	/* XXXGL: curthread */
 	fdrop(sfio->sock_fp, curthread);
@@ -3141,7 +3128,8 @@ retry_space:
 			m0->m_data = (char *)sf_buf_kva(sf) +
 			    (vmoff(i, off) & PAGE_MASK);
 			m0->m_len = xfsize(i, npages, off, space);
-			m0->m_flags |= M_NOTREADY;
+			if (nios)
+				m0->m_flags |= M_NOTREADY;
 
 			if (i == 0)
 				sfio->m = m0;
