@@ -2,6 +2,64 @@
  OpenSSL CHANGES
  _______________
 
+ Changes between 0.9.8y and 0.9.8za [5 Jun 2014]
+
+  *) Fix for SSL/TLS MITM flaw. An attacker using a carefully crafted
+     handshake can force the use of weak keying material in OpenSSL
+     SSL/TLS clients and servers.
+
+     Thanks to KIKUCHI Masashi (Lepidum Co. Ltd.) for discovering and
+     researching this issue. (CVE-2014-0224)
+     [KIKUCHI Masashi, Steve Henson]
+
+  *) Fix DTLS recursion flaw. By sending an invalid DTLS handshake to an
+     OpenSSL DTLS client the code can be made to recurse eventually crashing
+     in a DoS attack.
+
+     Thanks to Imre Rad (Search-Lab Ltd.) for discovering this issue.
+     (CVE-2014-0221)
+     [Imre Rad, Steve Henson]
+
+  *) Fix DTLS invalid fragment vulnerability. A buffer overrun attack can
+     be triggered by sending invalid DTLS fragments to an OpenSSL DTLS
+     client or server. This is potentially exploitable to run arbitrary
+     code on a vulnerable client or server.
+
+     Thanks to Jüri Aedla for reporting this issue. (CVE-2014-0195)
+     [Jüri Aedla, Steve Henson]
+
+  *) Fix bug in TLS code where clients enable anonymous ECDH ciphersuites
+     are subject to a denial of service attack.
+
+     Thanks to Felix Gröbert and Ivan Fratric at Google for discovering
+     this issue. (CVE-2014-3470)
+     [Felix Gröbert, Ivan Fratric, Steve Henson]
+
+  *) Fix for the attack described in the paper "Recovering OpenSSL
+     ECDSA Nonces Using the FLUSH+RELOAD Cache Side-channel Attack"
+     by Yuval Yarom and Naomi Benger. Details can be obtained from:
+     http://eprint.iacr.org/2014/140
+
+     Thanks to Yuval Yarom and Naomi Benger for discovering this
+     flaw and to Yuval Yarom for supplying a fix (CVE-2014-0076)
+     [Yuval Yarom and Naomi Benger]
+
+     Thanks to mancha for backporting the fix to the 0.9.8 branch.
+
+  *) Fix handling of warning-level alerts in SSL23 client mode so they
+     don't cause client-side termination (eg. on SNI unrecognized_name
+     warnings). Add client and server support for six additional alerts
+     per RFC 6066 and RFC 4279.
+     [mancha]
+
+  *) Add option SSL_OP_SAFARI_ECDHE_ECDSA_BUG (part of SSL_OP_ALL) which
+     avoids preferring ECDHE-ECDSA ciphers when the client appears to be
+     Safari on OS X.  Safari on OS X 10.8..10.8.3 advertises support for
+     several ECDHE-ECDSA ciphers, but fails to negotiate them.  The bug
+     is fixed in OS X 10.8.4, but Apple have ruled out both hot fixing
+     10.8..10.8.3 and forcing users to upgrade to 10.8.4 or newer.
+     [Rob Stradling, Adam Langley]
+
  Changes between 0.9.8x and 0.9.8y [5 Feb 2013]
 
   *) Make the decoding of SSLv3, TLS and DTLS CBC records constant time.
