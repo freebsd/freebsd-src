@@ -705,6 +705,9 @@
       <para revision="263970"><application>OpenSSH</application> has
 	been updated to version 6.6p1.</para>
 
+      <para revision="267285"><application>OpenSSL</application> has
+	been updated to version 0.9.8za.</para>
+
     </sect2>
 
     <sect2 xml:id="releng">
