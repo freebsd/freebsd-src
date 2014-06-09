@@ -74,7 +74,7 @@ int verbose = 0;
 int sb_vis = 0;
 uint32_t header_height;
 uint32_t *busyarea, *hourglass;
-enum sbtype sb = SB_CHERI;
+enum sbtype sb = SB_NONE;
 enum mtl_display_mode res = MTL_DM_800x480;
 static int zombies_waiting = 0;
 
