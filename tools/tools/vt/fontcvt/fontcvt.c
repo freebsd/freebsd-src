@@ -88,8 +88,8 @@ static void
 usage(void)
 {
 
-	fprintf(stderr,
-"usage: fontcvt [-w width] [-h height] normal.bdf [bold.bdf] out.fnt\n");
+	errx(1,
+"usage: fontcvt [-w width] [-h height] [-v] normal.bdf [bold.bdf] out.fnt\n");
 	exit(1);
 }
 
@@ -137,7 +137,7 @@ add_mapping(struct glyph *gl, unsigned int c, unsigned int map_idx)
 	ml = &maps[map_idx];
 	if (TAILQ_LAST(ml, mapping_list) != NULL &&
 	    TAILQ_LAST(ml, mapping_list)->m_char >= c) {
-		fprintf(stderr, "Bad ordering at character %u\n", c);
+		errx(1, "Bad ordering at character %u\n", c);
 		return (1);
 	}
 	TAILQ_INSERT_TAIL(ml, mp, m_list);
@@ -210,8 +210,8 @@ parse_bitmap_line(uint8_t *left, uint8_t *right, unsigned int line,
 	unsigned int i, subline;
 
 	if (dwidth != width && dwidth != width * 2) {
-		fprintf(stderr,
-		    "Unsupported width %u!\n", dwidth);
+		errx(1,
+		    "Bitmap with unsupported width %u!\n", dwidth);
 		return (1);
 	}
 
@@ -230,7 +230,7 @@ parse_bitmap_line(uint8_t *left, uint8_t *right, unsigned int line,
 			*p++ = subline >> 8;
 			*p = subline;
 		} else {
-			fprintf(stderr,
+			errx(1,
 			    "Unsupported wbytes %u!\n", wbytes);
 			return (1);
 		}
@@ -264,7 +264,7 @@ parse_bdf(FILE *fp, unsigned int map_idx)
 		    (ln[6] == ' ' || ln[6] == '\0')) {
 			for (i = 0; i < height; i++) {
 				if ((ln = fgetln(fp, &length)) == NULL) {
-					fprintf(stderr, "Unexpected EOF!\n");
+					errx(1, "Unexpected EOF!\n");
 					return (1);
 				}
 				ln[length - 1] = '\0';
@@ -450,53 +450,9 @@ write_fnt(const char *filename)
 	return (0);
 }
 
-int
-main(int argc, char *argv[])
+static void
+print_font_info(void)
 {
-	int ch;
-
-	assert(sizeof(struct file_header) == 32);
-	assert(sizeof(struct file_mapping) == 8);
-
-	while ((ch = getopt(argc, argv, "h:w:")) != -1) {
-		switch (ch) {
-		case 'h':
-			height = atoi(optarg);
-			break;
-		case 'w':
-			width = atoi(optarg);
-			break;
-		case '?':
-		default:
-			usage();
-		}
-	}
-	argc -= optind;
-	argv += optind;
-
-	if (argc < 2 || argc > 3)
-		usage();
-
-	wbytes = howmany(width, 8);
-
-	if (parse_file(argv[0], VFNT_MAP_NORMAL) != 0)
-		return (1);
-	argc--;
-	argv++;
-	if (argc == 2) {
-		if (parse_file(argv[0], VFNT_MAP_BOLD) != 0)
-			return (1);
-		argc--;
-		argv++;
-	}
-	number_glyphs();
-	fold_mappings(0);
-	fold_mappings(1);
-	fold_mappings(2);
-	fold_mappings(3);
-	if (write_fnt(argv[0]) != 0)
-		return (1);
-	
 	printf(
 "Statistics:\n"
 "- glyph_total:                 %5u\n"
@@ -529,6 +485,70 @@ main(int argc, char *argv[])
 	    map_count[2], map_folded_count[2],
 	    map_count[3], map_folded_count[3],
 	    mapping_unique, mapping_dupe);
-	
+}
+
+int
+main(int argc, char *argv[])
+{
+	int ch, val, verbose = 0;
+
+	assert(sizeof(struct file_header) == 32);
+	assert(sizeof(struct file_mapping) == 8);
+
+	while ((ch = getopt(argc, argv, "h:w:")) != -1) {
+		switch (ch) {
+		case 'h':
+			val = atoi(optarg);
+			if (val <= 0 || val > 128) {
+				errx(1, "Invalid height %d", val);
+				return (1);
+			}
+			height = val;
+			break;
+		case 'v':
+			verbose = 1;
+			break;
+		case 'w':
+			val = atoi(optarg);
+			if (val <= 0 || val > 128) {
+				errx(1, "Invalid width %d", val);
+				return (1);
+			}
+			width = val;
+			break;
+		case '?':
+		default:
+			usage();
+		}
+	}
+	argc -= optind;
+	argv += optind;
+
+	if (argc < 2 || argc > 3)
+		usage();
+
+	wbytes = howmany(width, 8);
+
+	if (parse_file(argv[0], VFNT_MAP_NORMAL) != 0)
+		return (1);
+	argc--;
+	argv++;
+	if (argc == 2) {
+		if (parse_file(argv[0], VFNT_MAP_BOLD) != 0)
+			return (1);
+		argc--;
+		argv++;
+	}
+	number_glyphs();
+	fold_mappings(0);
+	fold_mappings(1);
+	fold_mappings(2);
+	fold_mappings(3);
+	if (write_fnt(argv[0]) != 0)
+		return (1);
+
+	if (verbose)
+		print_font_info();
+
 	return (0);
 }
