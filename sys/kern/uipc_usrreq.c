@@ -997,7 +997,10 @@ uipc_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *nam,
 
 		mbcnt = so2->so_rcv.sb_mbcnt;
 		sbcc = sbavail(&so2->so_rcv);
-		sorwakeup_locked(so2);
+		if (sbcc)
+			sorwakeup_locked(so2);
+		else
+			SOCKBUF_UNLOCK(&so2->so_rcv);
 
 		/*
 		 * The PCB lock on unp2 protects the SB_STOP flag.  Without it,
@@ -1038,6 +1041,35 @@ release:
 		m_freem(control);
 	if (m != NULL)
 		m_freem(m);
+	return (error);
+}
+
+static int
+uipc_ready(struct socket *so, struct mbuf *m, int count)
+{
+	struct unpcb *unp, *unp2;
+	struct socket *so2;
+	int error;
+
+	unp = sotounpcb(so);
+
+	UNP_LINK_RLOCK();
+	unp2 = unp->unp_conn;
+	UNP_PCB_LOCK(unp2);
+	so2 = unp2->unp_socket;
+
+	SOCKBUF_LOCK(&so2->so_rcv);
+	if (so2->so_rcv.sb_state & SBS_CANTRCVMORE) {
+		SOCKBUF_UNLOCK(&so2->so_rcv);
+		error = ENOTCONN;
+	} else if ((error = sbready(&so2->so_rcv, m, count)) == 0)
+		sorwakeup_locked(so2);
+	else
+		SOCKBUF_UNLOCK(&so2->so_rcv);
+
+	UNP_PCB_UNLOCK(unp2);
+	UNP_LINK_RUNLOCK();
+
 	return (error);
 }
 
@@ -1111,6 +1143,7 @@ static struct pr_usrreqs uipc_usrreqs_dgram = {
 	.pru_peeraddr =		uipc_peeraddr,
 	.pru_rcvd =		uipc_rcvd,
 	.pru_send =		uipc_send,
+	.pru_ready =		uipc_ready,
 	.pru_sense =		uipc_sense,
 	.pru_shutdown =		uipc_shutdown,
 	.pru_sockaddr =		uipc_sockaddr,
@@ -1133,6 +1166,7 @@ static struct pr_usrreqs uipc_usrreqs_seqpacket = {
 	.pru_peeraddr =		uipc_peeraddr,
 	.pru_rcvd =		uipc_rcvd,
 	.pru_send =		uipc_send,
+	.pru_ready =		uipc_ready,
 	.pru_sense =		uipc_sense,
 	.pru_shutdown =		uipc_shutdown,
 	.pru_sockaddr =		uipc_sockaddr,
@@ -1155,6 +1189,7 @@ static struct pr_usrreqs uipc_usrreqs_stream = {
 	.pru_peeraddr =		uipc_peeraddr,
 	.pru_rcvd =		uipc_rcvd,
 	.pru_send =		uipc_send,
+	.pru_ready =		uipc_ready,
 	.pru_sense =		uipc_sense,
 	.pru_shutdown =		uipc_shutdown,
 	.pru_sockaddr =		uipc_sockaddr,
