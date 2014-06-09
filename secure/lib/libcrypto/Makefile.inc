@@ -4,7 +4,7 @@
 
 # OpenSSL version used for manual page generation
 OPENSSL_VER=	0.9.8za
-OPENSSL_DATE=	2013-06-05
+OPENSSL_DATE=	2014-06-05
 
 LCRYPTO_SRC=	${.CURDIR}/../../../crypto/openssl
 LCRYPTO_DOC=	${.CURDIR}/../../../crypto/openssl/doc
