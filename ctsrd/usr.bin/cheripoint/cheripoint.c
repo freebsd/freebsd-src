@@ -73,7 +73,9 @@ enum mtl_display_mode {
 int verbose = 0;
 int sb_vis = 0;
 uint32_t header_height;
+#ifdef HOURGLASS
 uint32_t *busyarea, *hourglass;
+#endif
 enum sbtype sb = SB_NONE;
 enum mtl_display_mode res = MTL_DM_800x480;
 static int zombies_waiting = 0;
@@ -95,6 +97,7 @@ usage(void)
 static void
 init_busy(void)
 {
+#ifdef HOURGLASS
 	int pfd;
 	struct iboxstate *is;
 
@@ -113,11 +116,13 @@ init_busy(void)
 	memcpy(hourglass, __DEVOLATILE(uint32_t *,
 	    is->buffer + (32 * 32 * 20)), sizeof(uint32_t) * 32 * 32);
 	iboxstate_free(is);
+#endif
 }
 
 static void
-busy(int init)
+busy(int init __unused)
 {
+#ifdef HOURGLASS
 	int c, r;
 
 	if (init)
@@ -136,11 +141,13 @@ busy(int init)
 					    pfbp[slide_fcol + r * fb_width + c];
 	/* Draw the hourglass */
 	fb_post_region(hourglass, slide_fcol, 0, ICON_WH, ICON_WH);
+#endif
 }
 
 static void
 unbusy(void)
 {
+#ifdef HOURGLASS
 	int c, r;
 	
 	busy(0);
@@ -152,6 +159,7 @@ unbusy(void)
 			    hourglass[r * ICON_WH + c])
 				pfbp[slide_fcol + r * fb_width + c] =
 				    busyarea[r * ICON_WH + c];
+#endif
 }
 
 static void
