@@ -981,7 +981,7 @@ netmap_sw_to_nic(struct netmap_adapter *na)
 			dst->len = tmp.len;
 			dst->flags = NS_BUF_CHANGED;
 
-			rdst->cur = nm_next(dst_cur, dst_lim);
+			rdst->head = rdst->cur = nm_next(dst_cur, dst_lim);
 		}
 		/* if (sent) XXX txsync ? */
 	}
@@ -1028,11 +1028,6 @@ netmap_txsync_to_host(struct netmap_adapter *na)
  * They have been put in kring->rx_queue by netmap_transmit().
  * We protect access to the kring using kring->rx_queue.lock
  *
- * This routine also does the selrecord if called from the poll handler
- * (we know because td != NULL).
- *
- * NOTE: on linux, selrecord() is defined as a macro and uses pwait
- *     as an additional hidden argument.
  * returns the number of packets delivered to tx queues in
  * transparent mode, or a negative value if error
  */
@@ -1087,10 +1082,6 @@ netmap_rxsync_from_host(struct netmap_adapter *na, struct thread *td, void *pwai
 	}
 
 	nm_rxsync_finalize(kring);
-
-	/* access copies of cur,tail in the kring */
-	if (kring->rcur == kring->rtail && td) /* no bufs available */
-		selrecord(td, &kring->si);
 
 	mbq_unlock(q);
 	return ret;
@@ -2124,8 +2115,6 @@ do_retry_rx:
 			/*
 			 * transparent mode support: collect packets
 			 * from the rxring(s).
-			 * XXX NR_FORWARD should only be read on
-			 * physical or NIC ports
 			 */
 			if (netmap_fwd ||kring->ring->flags & NR_FORWARD) {
 				ND(10, "forwarding some buffers up %d to %d",
@@ -2152,13 +2141,12 @@ do_retry_rx:
 		/* transparent mode XXX only during first pass ? */
 		if (na->na_flags & NAF_HOST_RINGS) {
 			kring = &na->rx_rings[na->num_rx_rings];
-			if (check_all_rx
-			    && (netmap_fwd || kring->ring->flags & NR_FORWARD)) {
-				/* XXX fix to use kring fields */
-				if (nm_ring_empty(kring->ring))
-					send_down = netmap_rxsync_from_host(na, td, dev);
-				if (!nm_ring_empty(kring->ring))
-					revents |= want_rx;
+			if (netmap_fwd || kring->ring->flags & NR_FORWARD) {
+				send_down = netmap_rxsync_from_host(na, td, dev);
+				if (send_down && (netmap_no_timestamp == 0 ||
+				    kring->ring->flags & NR_TIMESTAMP)) {
+					microtime(&kring->ring->ts);
+				}
 			}
 		}
 
