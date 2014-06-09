@@ -31,6 +31,8 @@
 #ifndef __IBOXPRIV_H__
 #define __IBOXPRIV_H__
 
+#include <machine/sysarch.h>
+
 struct ibox_decode_state
 {
 	int			 fd;
@@ -45,7 +47,11 @@ void decode_png(struct ibox_decode_state *ids,
 static inline unsigned mips_cycle_counter_read(void)
 {
        unsigned cc;
+#if 0
        asm volatile("mfc0 %0, $9" : "=r" (cc));
+#else
+	cc = sysarch(MIPS_GET_COUNT, 0);
+#endif
        return (cc);
 }
 #endif
