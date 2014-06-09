@@ -1621,11 +1621,13 @@ vm_mmap(vm_map_t map, vm_offset_t *addr, vm_size_t size, vm_prot_t prot,
 		docow |= MAP_INHERIT_SHARE;
 	if (writecounted)
 		docow |= MAP_VN_WRITECOUNT;
+	if (flags & MAP_STACK) {
+		if (object != NULL)
+			return (EINVAL);
+		docow |= MAP_STACK_GROWS_DOWN;
+	}
 
-	if (flags & MAP_STACK)
-		rv = vm_map_stack(map, *addr, size, prot, maxprot,
-		    docow | MAP_STACK_GROWS_DOWN);
-	else if (fitit) {
+	if (fitit) {
 		if ((flags & MAP_ALIGNMENT_MASK) == MAP_ALIGNED_SUPER)
 			findspace = VMFS_SUPER_SPACE;
 		else if ((flags & MAP_ALIGNMENT_MASK) != 0)
@@ -1638,9 +1640,10 @@ vm_mmap(vm_map_t map, vm_offset_t *addr, vm_size_t size, vm_prot_t prot,
 		    flags & MAP_32BIT ? MAP_32BIT_MAX_ADDR :
 #endif
 		    0, findspace, prot, maxprot, docow);
-	} else
+	} else {
 		rv = vm_map_fixed(map, object, foff, *addr, size,
-				 prot, maxprot, docow);
+		    prot, maxprot, docow);
+	}
 
 	if (rv == KERN_SUCCESS) {
 		/*

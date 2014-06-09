@@ -23,7 +23,7 @@
 cpu		ITANIUM2
 ident		GENERIC
 
-makeoptions	DEBUG=-g	# Build kernel with debug information.
+makeoptions	DEBUG=-g	# Build kernel with gdb(1) debug symbols
 
 options 	AUDIT		# Security event auditing
 options 	CAPABILITY_MODE	# Capsicum capability mode

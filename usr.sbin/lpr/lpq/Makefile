@@ -13,4 +13,6 @@ CFLAGS+= -I${.CURDIR}/../common_source
 DPADD=	${LIBLPR}
 LDADD=	${LIBLPR}
 
+NO_PIE=	yes
+
 .include <bsd.prog.mk>

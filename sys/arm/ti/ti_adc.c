@@ -50,7 +50,7 @@ __FBSDID("$FreeBSD$");
 #include <arm/ti/ti_adcreg.h>
 #include <arm/ti/ti_adcvar.h>
 
-/* Define our 7 steps, one for each input channel. */
+/* Define our 8 steps, one for each input channel. */
 static struct ti_adc_input ti_adc_inputs[TI_ADC_NPINS] = {
 	{ .stepconfig = ADC_STEPCFG1, .stepdelay = ADC_STEPDLY1 },
 	{ .stepconfig = ADC_STEPCFG2, .stepdelay = ADC_STEPDLY2 },
@@ -59,6 +59,7 @@ static struct ti_adc_input ti_adc_inputs[TI_ADC_NPINS] = {
 	{ .stepconfig = ADC_STEPCFG5, .stepdelay = ADC_STEPDLY5 },
 	{ .stepconfig = ADC_STEPCFG6, .stepdelay = ADC_STEPDLY6 },
 	{ .stepconfig = ADC_STEPCFG7, .stepdelay = ADC_STEPDLY7 },
+	{ .stepconfig = ADC_STEPCFG8, .stepdelay = ADC_STEPDLY8 },
 };
 
 static int ti_adc_samples[5] = { 0, 2, 4, 8, 16 };

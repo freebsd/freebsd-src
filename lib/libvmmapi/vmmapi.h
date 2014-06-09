@@ -29,6 +29,9 @@
 #ifndef _VMMAPI_H_
 #define	_VMMAPI_H_
 
+#include <sys/param.h>
+#include <sys/cpuset.h>
+
 struct iovec;
 struct vmctx;
 enum x2apic_state;
@@ -66,6 +69,7 @@ int	vm_get_register(struct vmctx *ctx, int vcpu, int reg, uint64_t *retval);
 int	vm_run(struct vmctx *ctx, int vcpu, uint64_t rip,
 	       struct vm_exit *ret_vmexit);
 int	vm_suspend(struct vmctx *ctx, enum vm_suspend_how how);
+int	vm_reinit(struct vmctx *ctx);
 int	vm_apicid2vcpu(struct vmctx *ctx, int apicid);
 int	vm_inject_exception(struct vmctx *ctx, int vcpu, int vec);
 int	vm_inject_exception2(struct vmctx *ctx, int vcpu, int vec, int errcode);
@@ -124,6 +128,10 @@ void	vm_copyout(struct vmctx *ctx, int vcpu, const void *host_src,
 
 /* Reset vcpu register state */
 int	vcpu_reset(struct vmctx *ctx, int vcpu);
+
+int	vm_active_cpus(struct vmctx *ctx, cpuset_t *cpus);
+int	vm_suspended_cpus(struct vmctx *ctx, cpuset_t *cpus);
+int	vm_activate_cpu(struct vmctx *ctx, int vcpu);
 
 /*
  * FreeBSD specific APIs

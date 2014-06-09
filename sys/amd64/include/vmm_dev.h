@@ -177,6 +177,18 @@ struct vm_gla2gpa {
 	uint64_t	gpa;
 };
 
+struct vm_activate_cpu {
+	int		vcpuid;
+};
+
+struct vm_cpuset {
+	int		which;
+	int		cpusetsize;
+	cpuset_t	*cpus;
+};
+#define	VM_ACTIVE_CPUS		0
+#define	VM_SUSPENDED_CPUS	1
+
 enum {
 	/* general routines */
 	IOCNUM_ABIVERS = 0,
@@ -184,6 +196,7 @@ enum {
 	IOCNUM_SET_CAPABILITY = 2,
 	IOCNUM_GET_CAPABILITY = 3,
 	IOCNUM_SUSPEND = 4,
+	IOCNUM_REINIT = 5,
 
 	/* memory apis */
 	IOCNUM_MAP_MEMORY = 10,
@@ -229,12 +242,18 @@ enum {
 	IOCNUM_ISA_DEASSERT_IRQ = 81,
 	IOCNUM_ISA_PULSE_IRQ = 82,
 	IOCNUM_ISA_SET_IRQ_TRIGGER = 83,
+
+	/* vm_cpuset */
+	IOCNUM_ACTIVATE_CPU = 90,
+	IOCNUM_GET_CPUSET = 91,
 };
 
 #define	VM_RUN		\
 	_IOWR('v', IOCNUM_RUN, struct vm_run)
 #define	VM_SUSPEND	\
 	_IOW('v', IOCNUM_SUSPEND, struct vm_suspend)
+#define	VM_REINIT	\
+	_IO('v', IOCNUM_REINIT)
 #define	VM_MAP_MEMORY	\
 	_IOWR('v', IOCNUM_MAP_MEMORY, struct vm_memory_segment)
 #define	VM_GET_MEMORY_SEG \
@@ -301,4 +320,8 @@ enum {
 	_IOWR('v', IOCNUM_GET_GPA_PMAP, struct vm_gpa_pte)
 #define	VM_GLA2GPA	\
 	_IOWR('v', IOCNUM_GLA2GPA, struct vm_gla2gpa)
+#define	VM_ACTIVATE_CPU	\
+	_IOW('v', IOCNUM_ACTIVATE_CPU, struct vm_activate_cpu)
+#define	VM_GET_CPUS	\
+	_IOW('v', IOCNUM_GET_CPUSET, struct vm_cpuset)
 #endif

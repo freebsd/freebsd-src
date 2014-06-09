@@ -259,6 +259,7 @@ struct vt_window {
 #define	VWF_CONSOLE	0x8	/* Kernel message console window. */
 #define	VWF_VTYLOCK	0x10	/* Prevent window switch. */
 #define	VWF_MOUSE_HIDE	0x20	/* Disable mouse events processing. */
+#define	VWF_READY	0x40	/* Window fully initialized. */
 #define	VWF_SWWAIT_REL	0x10000	/* Program wait for VT acquire is done. */
 #define	VWF_SWWAIT_ACQ	0x20000	/* Program wait for VT release is done. */
 	pid_t			 vw_pid;	/* Terminal holding process */

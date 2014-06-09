@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 9, 2013
+.Dd May 31, 2014
 .Dt SNMP_HAST 3
 .Os
 .Sh NAME
@@ -40,11 +40,12 @@ The
 module implements a private BEGEMOT-HAST-MIB, which allows
 management of HAST resources.
 .Pp
-The module uses
+The module uses the
 .Xr hastd 8
 control socket to communicate with the daemon.
+The
 .Va hastConfigFile
-variable can be used to specify the location of
+variable can be used to specify the location of the
 .Xr hast.conf 5
 file to find the address of the control connection.
 .Sh FILES
@@ -62,8 +63,8 @@ configuration file.
 .Sh SEE ALSO
 .Xr bsnmpd 1 ,
 .Xr gensnmptree 1 ,
+.Xr snmpmod 3 ,
 .Xr hastctl 8 ,
-.Xr hastd 8 ,
-.Xr snmpmod 3
+.Xr hastd 8
 .Sh AUTHORS
 .An Mikolaj Golub Aq trociny@FreeBSD.org

@@ -39,9 +39,11 @@
 
 #include <err.h>
 #include <errno.h>
+#include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 
 /*
  * Sends a single UDP packet to the provided address, with SO_DONTROUTE set
@@ -51,23 +53,31 @@ int
 main(int argc, char **argv)
 {
 	struct sockaddr_in dst;
-	int s;
+	int s, t;
 	int opt;
 	int ret;
-	const char* buf = "Hello, World!";
+	ssize_t len;
+	const char* sendbuf = "Hello, World!";
+	const size_t buflen = 80;
+	char recvbuf[buflen];
 
-	if (argc != 2) {
-		fprintf(stderr, "Usage: %s ip_address\n", argv[0]);
+	if (argc != 3) {
+		fprintf(stderr, "Usage: %s ip_address tapdev\n", argv[0]);
 		exit(2);
 	}
+
+	t = open(argv[2], O_RDWR | O_NONBLOCK);
+	if (t < 0)
+		err(EXIT_FAILURE, "open");
+
 	s = socket(PF_INET, SOCK_DGRAM, 0);
 	if (s < 0)
-		err(errno, "socket");
+		err(EXIT_FAILURE, "socket");
 	opt = 1;
 
 	ret = setsockopt(s, SOL_SOCKET, SO_DONTROUTE, &opt, sizeof(opt));
 	if (ret == -1)
-		err(errno, "setsockopt(SO_DONTROUTE)");
+		err(EXIT_FAILURE, "setsockopt(SO_DONTROUTE)");
 
 	dst.sin_len = sizeof(dst);
 	dst.sin_family = AF_INET;
@@ -77,10 +87,25 @@ main(int argc, char **argv)
 		fprintf(stderr, "Invalid address: %s\n", argv[1]);
 		exit(2);
 	}
-	ret = sendto(s, buf, strlen(buf), 0, (struct sockaddr*)&dst,
+	ret = sendto(s, sendbuf, strlen(sendbuf), 0, (struct sockaddr*)&dst,
 	    dst.sin_len);
 	if (ret == -1)
-		err(errno, "sendto");
+		err(EXIT_FAILURE, "sendto");
 
+	/* Verify that the packet went to the desired tap device */
+
+	len = read(t, recvbuf, buflen);
+	if (len == 0)
+		errx(EXIT_FAILURE, "read returned EOF");
+	else if (len < 0 && errno == EAGAIN)
+		errx(EXIT_FAILURE, "Did not receive any packets");
+	else if (len < 0)
+		err(EXIT_FAILURE, "read");
+
+	/*
+	 * If read returned anything at all, consider it a success.  The packet
+	 * should be an Ethernet frame containing an ARP request for
+	 * ip_address.  We won't bother to decode it
+	 */
 	return (0);
 }

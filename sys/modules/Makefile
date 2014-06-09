@@ -783,6 +783,7 @@ _zfs=		zfs
 .if ${MACHINE_CPUARCH} == "arm"
 _cfi=		cfi
 _cpsw=		cpsw
+_sound=		sound
 .endif
 
 .if ${MACHINE_CPUARCH} == "ia64"

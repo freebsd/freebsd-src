@@ -7,6 +7,8 @@ DPADD=		${LIBGROFF} ${LIBM}
 LDADD=		${LIBGROFF} -lm
 CLEANFILES=	majorminor.cpp ${MAN}
 
+NO_PIE=	yes
+
 .include <bsd.prog.mk>
 
 majorminor.cpp: ${GROFF_DIST}/VERSION ${GROFF_DIST}/REVISION

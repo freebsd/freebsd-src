@@ -1424,8 +1424,15 @@ service_iq(struct sge_iq *iq, int budget)
 				}
 #endif
 
-				if (budget)
+				if (budget) {
+					if (fl_bufs_used) {
+						FL_LOCK(fl);
+						fl->needed += fl_bufs_used;
+						refill_fl(sc, fl, 32);
+						FL_UNLOCK(fl);
+					}
 					return (EINPROGRESS);
+				}
 			}
 		}
 
@@ -1628,6 +1635,7 @@ get_fl_payload(struct adapter *sc, struct sge_fl *fl, uint32_t len_newbuf,
 	nbuf = 0;
 	len = G_RSPD_LEN(len_newbuf);
 	if (__predict_false(fl->m0 != NULL)) {
+		M_ASSERTPKTHDR(fl->m0);
 		MPASS(len == fl->m0->m_pkthdr.len);
 		MPASS(fl->remaining < len);
 
@@ -1651,6 +1659,8 @@ get_fl_payload(struct adapter *sc, struct sge_fl *fl, uint32_t len_newbuf,
 	 */
 
 	m0 = get_scatter_segment(sc, fl, len, M_PKTHDR);
+	if (m0 == NULL)
+		goto done;
 	len -= m0->m_len;
 	pnext = &m0->m_next;
 	while (len > 0) {
@@ -1662,7 +1672,8 @@ get_segment:
 			fl->m0 = m0;
 			fl->pnext = pnext;
 			fl->remaining = len;
-			return (NULL);
+			m0 = NULL;
+			goto done;
 		}
 		*pnext = m;
 		pnext = &m->m_next;
@@ -1671,7 +1682,7 @@ get_segment:
 	*pnext = NULL;
 	if (fl->rx_offset == 0)
 		nbuf++;
-
+done:
 	(*fl_bufs_used) += nbuf;
 	return (m0);
 }

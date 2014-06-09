@@ -8,31 +8,31 @@
 #define _SCSI_SG_H
 
 #define SGIOC	'"'
-#define SG_SET_TIMEOUT		_IO(SGIOC, 0x01)
+#define SG_SET_TIMEOUT		_IOW(SGIOC, 0x01, u_int)
 #define SG_GET_TIMEOUT		_IO(SGIOC, 0x02)
-#define SG_EMULATED_HOST	_IO(SGIOC, 0x03)
+#define SG_EMULATED_HOST	_IOR(SGIOC, 0x03, int)
 #define SG_SET_TRANSFORM	_IO(SGIOC, 0x04)
 #define SG_GET_TRANSFORM	_IO(SGIOC, 0x05)
-#define SG_GET_COMMAND_Q	_IO(SGIOC, 0x70)
-#define SG_SET_COMMAND_Q	_IO(SGIOC, 0x71)
-#define SG_GET_RESERVED_SIZE	_IO(SGIOC, 0x72)
-#define SG_SET_RESERVED_SIZE	_IO(SGIOC, 0x75)
-#define SG_GET_SCSI_ID		_IO(SGIOC, 0x76)
-#define SG_SET_FORCE_LOW_DMA	_IO(SGIOC, 0x79)
-#define SG_GET_LOW_DMA		_IO(SGIOC, 0x7a)
-#define SG_SET_FORCE_PACK_ID	_IO(SGIOC, 0x7b)
-#define SG_GET_PACK_ID		_IO(SGIOC, 0x7c)
-#define SG_GET_NUM_WAITING	_IO(SGIOC, 0x7d)
-#define SG_SET_DEBUG		_IO(SGIOC, 0x7e)
-#define SG_GET_SG_TABLESIZE	_IO(SGIOC, 0x7f)
-#define SG_GET_VERSION_NUM	_IO(SGIOC, 0x82)
-#define SG_NEXT_CMD_LEN		_IO(SGIOC, 0x83)
-#define SG_SCSI_RESET		_IO(SGIOC, 0x84)
-#define SG_IO			_IO(SGIOC, 0x85)
+#define SG_GET_COMMAND_Q	_IOW(SGIOC, 0x70, int)
+#define SG_SET_COMMAND_Q	_IOR(SGIOC, 0x71, int)
+#define SG_GET_RESERVED_SIZE	_IOR(SGIOC, 0x72, int)
+#define SG_SET_RESERVED_SIZE	_IOW(SGIOC, 0x75, int)
+#define SG_GET_SCSI_ID		_IOR(SGIOC, 0x76, struct sg_scsi_id)
+#define SG_SET_FORCE_LOW_DMA	_IOW(SGIOC, 0x79, int)
+#define SG_GET_LOW_DMA		_IOR(SGIOC, 0x7a, int)
+#define SG_SET_FORCE_PACK_ID	_IOW(SGIOC, 0x7b, int)
+#define SG_GET_PACK_ID		_IOR(SGIOC, 0x7c, int)
+#define SG_GET_NUM_WAITING	_IOR(SGIOC, 0x7d, int)
+#define SG_SET_DEBUG		_IOW(SGIOC, 0x7e, int)
+#define SG_GET_SG_TABLESIZE	_IOR(SGIOC, 0x7f, int)
+#define SG_GET_VERSION_NUM	_IOR(SGIOC, 0x82, int)
+#define SG_NEXT_CMD_LEN		_IOW(SGIOC, 0x83, int)
+#define SG_SCSI_RESET		_IOW(SGIOC, 0x84, int)
+#define SG_IO			_IOWR(SGIOC, 0x85, struct sg_io_hdr)
 #define SG_GET_REQUEST_TABLE	_IO(SGIOC, 0x86)
-#define SG_SET_KEEP_ORPHAN	_IO(SGIOC, 0x87)
-#define SG_GET_KEEP_ORPHAN	_IO(SGIOC, 0x88)
-#define SG_GET_ACCESS_COUNT	_IO(SGIOC, 0x89)
+#define SG_SET_KEEP_ORPHAN	_IOW(SGIOC, 0x87, int)
+#define SG_GET_KEEP_ORPHAN	_IOR(SGIOC, 0x88, int)
+#define SG_GET_ACCESS_COUNT	_IOR(SGIOC, 0x89, int)
 
 struct sg_io_hdr {
 	int		interface_id;
@@ -48,6 +48,31 @@ struct sg_io_hdr {
 	u_int		flags;
 	int		pack_id;
 	void		*usr_ptr;
+	u_char		status;
+	u_char		masked_status;
+	u_char		msg_status;
+	u_char		sb_len_wr;
+	u_short		host_status;
+	u_short		driver_status;
+	int		resid;
+	u_int		duration;
+	u_int		info;
+};
+
+struct sg_io_hdr32 {
+	int		interface_id;
+	int		dxfer_direction;
+	u_char		cmd_len;
+	u_char		mx_sb_len;
+	u_short		iovec_count;
+	u_int		dxfer_len;
+	uint32_t	dxferp;
+	uint32_t	cmdp;
+	uint32_t	sbp;
+	u_int		timeout;
+	u_int		flags;
+	int		pack_id;
+	uint32_t	usr_ptr;
 	u_char		status;
 	u_char		masked_status;
 	u_char		msg_status;

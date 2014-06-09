@@ -49,13 +49,13 @@ struct vmm_stat_type {
 	enum vmm_stat_scope scope;
 };
 
-void	vmm_stat_init(void *arg);
+void	vmm_stat_register(void *arg);
 
 #define	VMM_STAT_DEFINE(type, nelems, desc, scope)			\
 	struct vmm_stat_type type[1] = {				\
 		{ -1, nelems, desc, scope }				\
 	};								\
-	SYSINIT(type##_stat, SI_SUB_KLD, SI_ORDER_ANY, vmm_stat_init, type)
+	SYSINIT(type##_stat, SI_SUB_KLD, SI_ORDER_ANY, vmm_stat_register, type)
 
 #define	VMM_STAT_DECLARE(type)						\
 	extern struct vmm_stat_type type[1]
@@ -71,6 +71,7 @@ void	vmm_stat_init(void *arg);
 	VMM_STAT_DEFINE(type, nelems, desc, VMM_STAT_SCOPE_ANY)
 
 void	*vmm_stat_alloc(void);
+void	vmm_stat_init(void *vp);
 void 	vmm_stat_free(void *vp);
 
 /*

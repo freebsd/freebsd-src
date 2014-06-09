@@ -101,6 +101,10 @@
             ..
             include
             ..
+            includes
+                include
+                ..
+            ..
         ..
         bsdinstall
         ..
@@ -1402,6 +1406,12 @@
         ..
         vi
             catalog
+            ..
+        ..
+        vt
+            fonts
+            ..
+            keymaps
             ..
         ..
         zoneinfo

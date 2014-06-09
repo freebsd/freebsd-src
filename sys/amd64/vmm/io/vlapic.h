@@ -92,6 +92,9 @@ void vlapic_reset_tmr(struct vlapic *vlapic);
 void vlapic_set_tmr_level(struct vlapic *vlapic, uint32_t dest, bool phys,
     int delmode, int vector);
 
+void vlapic_set_cr8(struct vlapic *vlapic, uint64_t val);
+uint64_t vlapic_get_cr8(struct vlapic *vlapic);
+
 /* APIC write handlers */
 void vlapic_id_write_handler(struct vlapic *vlapic);
 void vlapic_ldr_write_handler(struct vlapic *vlapic);

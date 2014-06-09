@@ -31,7 +31,6 @@
 ATF=		${.CURDIR:H:H:H}/contrib/atf
 .PATH:		${ATF}/atf-sh
 
-BINDIR=		/usr/libexec
 PROG_CXX=	atf-check
 SRCS=		atf-check.cpp
 MAN=		atf-check.1

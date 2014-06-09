@@ -45,6 +45,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/pci/pcireg.h>
 
 #include <dev/virtio/virtio.h>
+#include <dev/virtio/virtio_config.h>
 #include <dev/virtio/virtqueue.h>
 #include <dev/virtio/pci/virtio_pci.h>
 

@@ -312,13 +312,19 @@
       &man.ps.1; change in <literal>r265229</literal>.</para>
 
     <para revision="265995">The Blowfish &man.crypt.3; default format
-      has been changed tox
+      has been changed to
       <literal>&dollar;2b&dollar;</literal>.</para>
 
     <para revision="266209">The &man.pmcstat.8; utility has been
       updated to include a new flag, <literal>-l</literal>, which
       adds event collection after the specified number of
       seconds.</para>
+
+    <para revision="266463">The default &man.newsyslog.conf.5; now
+      includes files in the
+      <filename>/etc/newsyslog.conf.d/</filename> and
+      <filename>/usr/local/etc/newsyslog.conf.d/</filename>
+      directories by default for &man.newsyslog.8;.</para>
 
     <sect3 xml:id="rc-scripts">
       <title><filename>/etc/rc.d</filename> Scripts</title>
@@ -346,9 +352,6 @@
     <para revision="261071">&man.jemalloc.3; has been updated to
       version 3.5.0.</para>
 
-    <para revision="266527" role="merged"><application>Sendmail</application>
-      has been updated from 8.14.7 to 8.14.9.</para>
-
     <para revision="261212"><application>bmake</application> has been
       updated to version 20140101.</para>
 
@@ -364,6 +367,12 @@
     <para revision="261991"><application>LLVM</application> and
       <application>Clang</application> have been updated to
       version 3.4.</para>
+
+    <para revision="266527" role="merged"><application>Sendmail</application>
+      has been updated from 8.14.7 to 8.14.9.</para>
+
+    <para revision="267256"><application>OpenSSL</application> has
+      been updated to version 1.0.1h.</para>
   </sect2>
 
   <sect2 xml:id="ports">
