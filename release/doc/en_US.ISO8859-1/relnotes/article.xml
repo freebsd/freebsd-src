@@ -370,6 +370,9 @@
 
     <para revision="266527" role="merged"><application>Sendmail</application>
       has been updated from 8.14.7 to 8.14.9.</para>
+
+    <para revision="267256"><application>OpenSSL</application> has
+      been updated to version 1.0.1h.</para>
   </sect2>
 
   <sect2 xml:id="ports">
