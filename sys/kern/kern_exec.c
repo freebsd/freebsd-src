@@ -1101,9 +1101,9 @@ exec_new_vmspace(imgp, sv)
 		return (error);
 #endif
 
-	/* vm_ssize and vm_maxsaddr are somewhat antiquated concepts in the
-	 * VM_STACK case, but they are still used to monitor the size of the
-	 * process stack so we can check the stack rlimit.
+	/*
+	 * vm_ssize and vm_maxsaddr are somewhat antiquated concepts, but they
+	 * are still used to enforce the stack rlimit on the process stack.
 	 */
 	vmspace->vm_ssize = sgrowsiz >> PAGE_SHIFT;
 	vmspace->vm_maxsaddr = (char *)sv->sv_usrstack - ssiz;
