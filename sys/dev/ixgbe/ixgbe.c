@@ -831,12 +831,12 @@ ixgbe_mq_start(struct ifnet *ifp, struct mbuf *m)
 	if (err)
 		return (err);
 	if (IXGBE_TX_TRYLOCK(txr)) {
-		err = ixgbe_mq_start_locked(ifp, txr);
+		ixgbe_mq_start_locked(ifp, txr);
 		IXGBE_TX_UNLOCK(txr);
 	} else
 		taskqueue_enqueue(que->tq, &txr->txq_task);
 
-	return (err);
+	return (0);
 }
 
 static int
