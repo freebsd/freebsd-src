@@ -925,6 +925,38 @@ out:
 	return (error);
 }
 
+static int
+tcp_usr_ready(struct socket *so, struct mbuf *m, int count)
+{
+	struct inpcb *inp;
+	struct tcpcb *tp;
+	int error;
+
+	inp = sotoinpcb(so);
+	INP_WLOCK(inp);
+	if (inp->inp_flags & (INP_TIMEWAIT | INP_DROPPED)) {
+		INP_WUNLOCK(inp);
+		return (ECONNRESET);
+	}
+	tp = intotcpcb(inp);
+
+	SOCKBUF_LOCK(&so->so_snd);
+	if (so->so_snd.sb_state & SBS_CANTSENDMORE) {
+		SOCKBUF_UNLOCK(&so->so_snd);
+		error = ENOTCONN;
+	} else if (sbready(&so->so_snd, m, count) == 0) {
+		SOCKBUF_UNLOCK(&so->so_snd);
+		error = tcp_output(tp);
+	} else {
+		SOCKBUF_UNLOCK(&so->so_snd);
+		error = EINPROGRESS;
+	}
+
+	INP_WUNLOCK(inp);
+
+	return (error);
+}
+
 /*
  * Abort the TCP.  Drop the connection abruptly.
  */
@@ -1059,6 +1091,7 @@ struct pr_usrreqs tcp_usrreqs = {
 	.pru_rcvd =		tcp_usr_rcvd,
 	.pru_rcvoob =		tcp_usr_rcvoob,
 	.pru_send =		tcp_usr_send,
+	.pru_ready =		tcp_usr_ready,
 	.pru_shutdown =		tcp_usr_shutdown,
 	.pru_sockaddr =		in_getsockaddr,
 	.pru_sosetlabel =	in_pcbsosetlabel,
