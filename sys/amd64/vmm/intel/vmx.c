@@ -1602,20 +1602,23 @@ vmx_emulate_cr4_access(struct vmx *vmx, int vcpu, uint64_t exitqual)
 static int
 vmx_emulate_cr8_access(struct vmx *vmx, int vcpu, uint64_t exitqual)
 {
-	uint64_t regval;
+	struct vlapic *vlapic;
+	uint64_t cr8;
+	int regnum;
 
 	/* We only handle mov %cr8 to/from a register at this time. */
 	if ((exitqual & 0xe0) != 0x00) {
 		return (UNHANDLED);
 	}
 
+	vlapic = vm_lapic(vmx->vm, vcpu);
+	regnum = (exitqual >> 8) & 0xf;
 	if (exitqual & 0x10) {
-		regval = vlapic_get_tpr(vm_lapic(vmx->vm, vcpu));
-		vmx_set_guest_reg(vmx, vcpu, (exitqual >> 8) & 0xf,
-				  regval >> 4);
+		cr8 = vlapic_get_cr8(vlapic);
+		vmx_set_guest_reg(vmx, vcpu, regnum, cr8);
 	} else {
-		regval = vmx_get_guest_reg(vmx, vcpu, (exitqual >> 8) & 0xf);
-		vlapic_set_tpr(vm_lapic(vmx->vm, vcpu), regval << 4);
+		cr8 = vmx_get_guest_reg(vmx, vcpu, regnum);
+		vlapic_set_cr8(vlapic, cr8);
 	}
 
 	return (HANDLED);
