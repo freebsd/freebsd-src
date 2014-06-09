@@ -1643,7 +1643,8 @@ dontblock:
 	 */
 	moff = 0;
 	offset = 0;
-	while (m != NULL && uio->uio_resid > 0 && error == 0) {
+	while (m != NULL && !(m->m_flags & M_NOTAVAIL) && uio->uio_resid > 0
+	    && error == 0) {
 		/*
 		 * If the type of mbuf has changed since the last mbuf
 		 * examined ('type'), end the receive operation.
