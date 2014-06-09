@@ -1,6 +1,5 @@
 /*-
- * Copyright (c) 2011 Dimitar Toshkov Zhekov <jimmy@is-vn.bg>
- * All rights reserved.
+ * Copyright (c) 2011 Dimitar Toshkov Zhekov.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -23,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * Please contribute any changes back to <jimmy@is-vn.bg>.
+ * Please contribute any changes back to <dimitar.zhekov@gmail.com>.
  */
 
 #include <sys/cdefs.h>
