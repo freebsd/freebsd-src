@@ -124,7 +124,7 @@
 .\" ========================================================================
 .\"
 .IX Title "SSL_CTX_set_options 3"
-.TH SSL_CTX_set_options 3 "2014-04-07" "1.0.1g" "OpenSSL"
+.TH SSL_CTX_set_options 3 "2014-06-05" "1.0.1h" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -226,6 +226,11 @@ Disables a countermeasure against a \s-1SSL\s0 3.0/TLS 1.0 protocol
 vulnerability affecting \s-1CBC\s0 ciphers, which cannot be handled by some
 broken \s-1SSL\s0 implementations.  This option has no effect for connections
 using other ciphers.
+.IP "\s-1SSL_OP_TLSEXT_PADDING\s0" 4
+.IX Item "SSL_OP_TLSEXT_PADDING"
+Adds a padding extension to ensure the ClientHello size is never between
+256 and 511 bytes in length. This is needed as a workaround for some
+implementations.
 .IP "\s-1SSL_OP_ALL\s0" 4
 .IX Item "SSL_OP_ALL"
 All of the above bug workarounds.
