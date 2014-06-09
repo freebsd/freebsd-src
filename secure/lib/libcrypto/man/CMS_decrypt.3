@@ -124,7 +124,7 @@
 .\" ========================================================================
 .\"
 .IX Title "CMS_decrypt 3"
-.TH CMS_decrypt 3 "2014-04-07" "1.0.1g" "OpenSSL"
+.TH CMS_decrypt 3 "2014-06-05" "1.0.1h" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -156,7 +156,21 @@ function or errors about unknown algorithms will occur.
 .PP
 Although the recipients certificate is not needed to decrypt the data it is
 needed to locate the appropriate (of possible several) recipients in the \s-1CMS\s0
-structure. If \fBcert\fR is set to \s-1NULL\s0 all possible recipients are tried.
+structure.
+.PP
+If \fBcert\fR is set to \s-1NULL\s0 all possible recipients are tried. This case however
+is problematic. To thwart the \s-1MMA\s0 attack (Bleichenbacher's attack on
+\&\s-1PKCS\s0 #1 v1.5 \s-1RSA\s0 padding) all recipients are tried whether they succeed or
+not. If no recipient succeeds then a random symmetric key is used to decrypt
+the content: this will typically output garbage and may (but is not guaranteed
+to) ultimately return a padding error only. If \fICMS_decrypt()\fR just returned an
+error when all recipient encrypted keys failed to decrypt an attacker could
+use this in a timing attack. If the special flag \fB\s-1CMS_DEBUG_DECRYPT\s0\fR is set
+then the above behaviour is modified and an error \fBis\fR returned if no
+recipient encrypted key can be decrypted \fBwithout\fR generating a random
+content encryption key. Applications should use this flag with
+\&\fBextreme caution\fR especially in automated gateways as it can leave them
+open to attack.
 .PP
 It is possible to determine the correct recipient key by other means (for
 example looking them up in a database) and setting them in the \s-1CMS\s0 structure
