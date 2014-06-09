@@ -57,6 +57,8 @@ __FBSDID("$FreeBSD$");
 #include <netinet/udp.h>
 #include <netinet/tcp.h>
 
+#include <machine/in_cksum.h>
+
 #include <machine/bus.h>
 #include <machine/resource.h>
 #include <sys/bus.h>
@@ -2604,6 +2606,12 @@ vmxnet3_txq_offload_ctx(struct vmxnet3_txqueue *txq, struct mbuf *m,
 {
 	struct ether_vlan_header *evh;
 	int offset;
+#if defined(INET)
+	struct ip *ip, iphdr;
+#endif
+#if defined(INET6)
+	struct ip6_hdr *ip6, ip6hdr;
+#endif
 
 	evh = mtod(m, struct ether_vlan_header *);
 	if (evh->evl_encap_proto == htons(ETHERTYPE_VLAN)) {
@@ -2617,8 +2625,7 @@ vmxnet3_txq_offload_ctx(struct vmxnet3_txqueue *txq, struct mbuf *m,
 
 	switch (*etype) {
 #if defined(INET)
-	case ETHERTYPE_IP: {
-		struct ip *ip, iphdr;
+	case ETHERTYPE_IP:
 		if (__predict_false(m->m_len < offset + sizeof(struct ip))) {
 			m_copydata(m, offset, sizeof(struct ip),
 			    (caddr_t) &iphdr);
@@ -2628,10 +2635,16 @@ vmxnet3_txq_offload_ctx(struct vmxnet3_txqueue *txq, struct mbuf *m,
 		*proto = ip->ip_p;
 		*start = offset + (ip->ip_hl << 2);
 		break;
-	}
 #endif
 #if defined(INET6)
 	case ETHERTYPE_IPV6:
+		if (__predict_false(m->m_len <
+		    offset + sizeof(struct ip6_hdr))) {
+			m_copydata(m, offset, sizeof(struct ip6_hdr),
+			    (caddr_t) &ip6hdr);
+			ip6 = &ip6hdr;
+		} else
+			ip6 = mtodo(m, offset);
 		*proto = -1;
 		*start = ip6_lasthdr(m, offset, IPPROTO_IPV6, proto);
 		/* Assert the network stack sent us a valid packet. */
@@ -2646,6 +2659,7 @@ vmxnet3_txq_offload_ctx(struct vmxnet3_txqueue *txq, struct mbuf *m,
 
 	if (m->m_pkthdr.csum_flags & CSUM_TSO) {
 		struct tcphdr *tcp, tcphdr;
+		uint16_t sum;
 
 		if (__predict_false(*proto != IPPROTO_TCP)) {
 			/* Likely failed to correctly parse the mbuf. */
@@ -2654,16 +2668,38 @@ vmxnet3_txq_offload_ctx(struct vmxnet3_txqueue *txq, struct mbuf *m,
 
 		txq->vxtxq_stats.vmtxs_tso++;
 
+		switch (*etype) {
+#if defined(INET)
+		case ETHERTYPE_IP:
+			sum = in_pseudo(ip->ip_src.s_addr, ip->ip_dst.s_addr,
+			    htons(IPPROTO_TCP));
+			break;
+#endif
+#if defined(INET6)
+		case ETHERTYPE_IPV6:
+			sum = in6_cksum_pseudo(ip6, 0, IPPROTO_TCP, 0);
+			break;
+#endif
+		default:
+			sum = 0;
+			break;
+		}
+
+		if (m->m_len < *start + sizeof(struct tcphdr)) {
+			m_copyback(m, *start + offsetof(struct tcphdr, th_sum),
+			    sizeof(uint16_t), (caddr_t) &sum);
+			m_copydata(m, *start, sizeof(struct tcphdr),
+			    (caddr_t) &tcphdr);
+			tcp = &tcphdr;
+		} else {
+			tcp = mtodo(m, *start);
+			tcp->th_sum = sum;
+		}
+
 		/*
 		 * For TSO, the size of the protocol header is also
 		 * included in the descriptor header size.
 		 */
-		if (m->m_len < *start + sizeof(struct tcphdr)) {
-			m_copydata(m, offset, sizeof(struct tcphdr),
-			    (caddr_t) &tcphdr);
-			tcp = &tcphdr;
-		} else
-			tcp = mtodo(m, *start);
 		*start += (tcp->th_off << 2);
 	} else
 		txq->vxtxq_stats.vmtxs_csum++;
@@ -2757,7 +2793,7 @@ vmxnet3_txq_encap(struct vmxnet3_txqueue *txq, struct mbuf **m0)
 		}
 	}
 
-	txr->vxtxr_txbuf[txr->vxtxr_head].vtxb_m = m = *m0;
+	txr->vxtxr_txbuf[txr->vxtxr_head].vtxb_m = m;
 	sop = &txr->vxtxr_txd[txr->vxtxr_head];
 	gen = txr->vxtxr_gen ^ 1;	/* Owned by cpu (yet) */
 
@@ -2935,7 +2971,6 @@ vmxnet3_txq_mq_start_locked(struct vmxnet3_txqueue *txq, struct mbuf *m)
 		/* Assume worse case if this mbuf is the head of a chain. */
 		if (m->m_next != NULL && avail < VMXNET3_TX_MAXSEGS) {
 			drbr_putback(ifp, br, m);
-			error = ENOBUFS;
 			break;
 		}
 
@@ -2958,7 +2993,7 @@ vmxnet3_txq_mq_start_locked(struct vmxnet3_txqueue *txq, struct mbuf *m)
 		txq->vxtxq_watchdog = VMXNET3_WATCHDOG_TIMEOUT;
 	}
 
-	return (error);
+	return (0);
 }
 
 static int

@@ -3228,8 +3228,7 @@ pmap_enter_object(pmap_t pmap, vm_offset_t start, vm_offset_t end,
 	while (m != NULL && (diff = m->pindex - m_start->pindex) < psize) {
 		va = start + ptoa(diff);
 		if ((va & L1_S_OFFSET) == 0 && L2_NEXT_BUCKET(va) <= end &&
-		    (VM_PAGE_TO_PHYS(m) & L1_S_OFFSET) == 0 &&
-		    sp_enabled && vm_reserv_level_iffullpop(m) == 0 &&
+		    m->psind == 1 && sp_enabled &&
 		    pmap_enter_section(pmap, va, m, prot))
 			m = &m[L1_S_SIZE / PAGE_SIZE - 1];
 		else

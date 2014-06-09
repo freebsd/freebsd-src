@@ -586,6 +586,8 @@ void	usbd_m_copy_in(struct usb_page_cache *cache, usb_frlength_t dst_offset,
 void	usbd_frame_zero(struct usb_page_cache *cache, usb_frlength_t offset,
 	    usb_frlength_t len);
 void	usbd_start_re_enumerate(struct usb_device *udev);
+usb_error_t
+	usbd_start_set_config(struct usb_device *, uint8_t);
 
 int	usb_fifo_attach(struct usb_device *udev, void *priv_sc,
 	    struct mtx *priv_mtx, struct usb_fifo_methods *pm,

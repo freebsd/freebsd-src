@@ -50,9 +50,9 @@ static const char rcsid[] =
 #include <unistd.h>
 #include <utmpx.h>
 
-typedef char   namebuf[sizeof(((struct utmpx *)0)->ut_user) + 1];
+typedef char namebuf[sizeof(((struct utmpx *)0)->ut_user) + 1];
+typedef int (*scmp)(const void *, const void *);
 
-int scmp(const void *, const void *);
 static void usage(void);
 
 int
@@ -86,17 +86,17 @@ main(int argc, char **argv)
 				/* NOTREACHED */
 			}
 		}
-		(void)strlcpy(names[ncnt], ut->ut_user, sizeof(*names));
+		strlcpy(names[ncnt], ut->ut_user, sizeof(*names));
 		++ncnt;
 	}
 	endutxent();
 	if (ncnt > 0) {
-		qsort(names, ncnt, sizeof(namebuf), scmp);
-		(void)printf("%s", names[0]);
+		qsort(names, ncnt, sizeof(*names), (scmp)strcmp);
+		printf("%s", names[0]);
 		for (cnt = 1; cnt < ncnt; ++cnt)
 			if (strcmp(names[cnt], names[cnt - 1]) != 0)
-				(void)printf(" %s", names[cnt]);
-		(void)printf("\n");
+				printf(" %s", names[cnt]);
+		printf("\n");
 	}
 	exit(0);
 }
@@ -104,13 +104,6 @@ main(int argc, char **argv)
 static void
 usage(void)
 {
-	(void)fprintf(stderr, "usage: users\n");
+	fprintf(stderr, "usage: users\n");
 	exit(1);
-}
-	
-int
-scmp(const void *p, const void *q)
-{
-
-	return (strcmp(p, q));
 }

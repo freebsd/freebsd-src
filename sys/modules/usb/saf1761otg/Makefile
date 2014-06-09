@@ -33,7 +33,7 @@ S=	${.CURDIR}/../../..
 
 .PATH: $S/dev/usb/controller
 
-KMOD=	saf1761
+KMOD=	saf1761otg
 SRCS=	bus_if.h device_if.h usb_if.h \
 	opt_bus.h opt_usb.h ofw_bus_if.h \
 	saf1761_otg.c saf1761_otg_fdt.c \

@@ -288,7 +288,7 @@ void
 mb_free_ext(struct mbuf *m)
 {
 	int skipmbuf;
-	
+
 	KASSERT((m->m_flags & M_EXT) == M_EXT, ("%s: M_EXT not set", __func__));
 	KASSERT(m->m_ext.ref_cnt != NULL, ("%s: ref_cnt not set", __func__));
 
@@ -339,7 +339,7 @@ mb_free_ext(struct mbuf *m)
 	}
 	if (skipmbuf)
 		return;
-	
+
 	/*
 	 * Free this mbuf back to the mbuf zone with all m_ext
 	 * information purged.
@@ -425,7 +425,7 @@ m_sanity(struct mbuf *m0, int sanitize)
 
 #ifdef INVARIANTS
 #define	M_SANITY_ACTION(s)	panic("mbuf %p: " s, m)
-#else 
+#else
 #define	M_SANITY_ACTION(s)	printf("mbuf %p: " s, m)
 #endif
 
@@ -583,7 +583,7 @@ m_prepend(struct mbuf *m, int len, int how)
 		if (len < MHLEN)
 			MH_ALIGN(m, len);
 	} else {
-		if (len < MLEN) 
+		if (len < MLEN)
 			M_ALIGN(m, len);
 	}
 	m->m_len = len;
@@ -621,7 +621,7 @@ m_copym(struct mbuf *m, int off0, int len, int wait)
 	top = 0;
 	while (len > 0) {
 		if (m == NULL) {
-			KASSERT(len == M_COPYALL, 
+			KASSERT(len == M_COPYALL,
 			    ("m_copym, length > size of mbuf chain"));
 			break;
 		}
@@ -756,9 +756,9 @@ m_copymdata(struct mbuf *m, struct mbuf *n, int off, int len,
 		if (!(mm->m_flags & M_EXT))
 			return NULL;
 		bcopy(&buf, (caddr_t *)mm->m_ext.ext_buf +
-		       mm->m_ext.ext_size - mm->m_len, mm->m_len);
+		    mm->m_ext.ext_size - mm->m_len, mm->m_len);
 		mm->m_data = (caddr_t)mm->m_ext.ext_buf +
-			      mm->m_ext.ext_size - mm->m_len;
+		    mm->m_ext.ext_size - mm->m_len;
 	}
 
 	/* Append/prepend as many mbuf (clusters) as necessary to fit len. */
@@ -772,7 +772,7 @@ m_copymdata(struct mbuf *m, struct mbuf *n, int off, int len,
 		i = 0;
 		for (x = z; x != NULL; x = x->m_next) {
 			i += x->m_flags & M_EXT ? x->m_ext.ext_size :
-			      (x->m_flags & M_PKTHDR ? MHLEN : MLEN);
+			    (x->m_flags & M_PKTHDR ? MHLEN : MLEN);
 			if (!x->m_next)
 				break;
 		}
@@ -1569,7 +1569,7 @@ m_defrag(struct mbuf *m0, int how)
 			goto nospace;
 	}
 #endif
-	
+
 	if (m0->m_pkthdr.len > MHLEN)
 		m_final = m_getcl(how, MT_DATA, M_PKTHDR);
 	else
@@ -1735,7 +1735,7 @@ m_fragment(struct mbuf *m0, int how, int length)
 
 	if (!(m0->m_flags & M_PKTHDR))
 		return (m0);
-	
+
 	if ((length == 0) || (length < -2))
 		return (m0);
 
@@ -1938,7 +1938,7 @@ m_unshare(struct mbuf *m0, int how)
 			    m->m_len <= M_TRAILINGSPACE(mprev)) {
 				/* XXX: this ignores mbuf types */
 				memcpy(mtod(mprev, caddr_t) + mprev->m_len,
-				       mtod(m, caddr_t), m->m_len);
+				    mtod(m, caddr_t), m->m_len);
 				mprev->m_len += m->m_len;
 				mprev->m_next = m->m_next;	/* unlink from chain */
 				m_free(m);			/* reclaim mbuf */
@@ -1970,7 +1970,7 @@ m_unshare(struct mbuf *m0, int how)
 		    m->m_len <= M_TRAILINGSPACE(mprev)) {
 			/* XXX: this ignores mbuf types */
 			memcpy(mtod(mprev, caddr_t) + mprev->m_len,
-			       mtod(m, caddr_t), m->m_len);
+			    mtod(m, caddr_t), m->m_len);
 			mprev->m_len += m->m_len;
 			mprev->m_next = m->m_next;	/* unlink from chain */
 			m_free(m);			/* reclaim mbuf */
@@ -2003,7 +2003,7 @@ m_unshare(struct mbuf *m0, int how)
 			n->m_len = cc;
 			if (mlast != NULL)
 				mlast->m_next = n;
-			mlast = n;	
+			mlast = n;
 #if 0
 			newipsecstat.ips_clcopied++;
 #endif
@@ -2020,7 +2020,7 @@ m_unshare(struct mbuf *m0, int how)
 				return (NULL);
 			}
 		}
-		n->m_next = m->m_next; 
+		n->m_next = m->m_next;
 		if (mprev == NULL)
 			m0 = mfirst;		/* new head of chain */
 		else
@@ -2056,7 +2056,7 @@ m_profile(struct mbuf *m)
 	int segments = 0;
 	int used = 0;
 	int wasted = 0;
-	
+
 	while (m) {
 		segments++;
 		used += m->m_len;
@@ -2091,11 +2091,10 @@ mbprof_textify(void)
 	int offset;
 	char *c;
 	uint64_t *p;
-	
 
 	p = &mbprof.wasted[0];
 	c = mbprofbuf;
-	offset = snprintf(c, MP_MAXLINE + 10, 
+	offset = snprintf(c, MP_MAXLINE + 10,
 	    "wasted:\n"
 	    "%ju %ju %ju %ju %ju %ju %ju %ju "
 	    "%ju %ju %ju %ju %ju %ju %ju %ju\n",
@@ -2104,7 +2103,7 @@ mbprof_textify(void)
 #ifdef BIG_ARRAY
 	p = &mbprof.wasted[16];
 	c += offset;
-	offset = snprintf(c, MP_MAXLINE, 
+	offset = snprintf(c, MP_MAXLINE,
 	    "%ju %ju %ju %ju %ju %ju %ju %ju "
 	    "%ju %ju %ju %ju %ju %ju %ju %ju\n",
 	    p[0], p[1], p[2], p[3], p[4], p[5], p[6], p[7],
@@ -2112,7 +2111,7 @@ mbprof_textify(void)
 #endif
 	p = &mbprof.used[0];
 	c += offset;
-	offset = snprintf(c, MP_MAXLINE + 10, 
+	offset = snprintf(c, MP_MAXLINE + 10,
 	    "used:\n"
 	    "%ju %ju %ju %ju %ju %ju %ju %ju "
 	    "%ju %ju %ju %ju %ju %ju %ju %ju\n",
@@ -2121,7 +2120,7 @@ mbprof_textify(void)
 #ifdef BIG_ARRAY
 	p = &mbprof.used[16];
 	c += offset;
-	offset = snprintf(c, MP_MAXLINE, 
+	offset = snprintf(c, MP_MAXLINE,
 	    "%ju %ju %ju %ju %ju %ju %ju %ju "
 	    "%ju %ju %ju %ju %ju %ju %ju %ju\n",
 	    p[0], p[1], p[2], p[3], p[4], p[5], p[6], p[7],
@@ -2129,7 +2128,7 @@ mbprof_textify(void)
 #endif
 	p = &mbprof.segments[0];
 	c += offset;
-	offset = snprintf(c, MP_MAXLINE + 10, 
+	offset = snprintf(c, MP_MAXLINE + 10,
 	    "segments:\n"
 	    "%ju %ju %ju %ju %ju %ju %ju %ju "
 	    "%ju %ju %ju %ju %ju %ju %ju %ju\n",
@@ -2138,7 +2137,7 @@ mbprof_textify(void)
 #ifdef BIG_ARRAY
 	p = &mbprof.segments[16];
 	c += offset;
-	offset = snprintf(c, MP_MAXLINE, 
+	offset = snprintf(c, MP_MAXLINE,
 	    "%ju %ju %ju %ju %ju %ju %ju %ju "
 	    "%ju %ju %ju %ju %ju %ju %ju %jju",
 	    p[0], p[1], p[2], p[3], p[4], p[5], p[6], p[7],
@@ -2160,16 +2159,16 @@ static int
 mbprof_clr_handler(SYSCTL_HANDLER_ARGS)
 {
 	int clear, error;
- 
+
 	clear = 0;
 	error = sysctl_handle_int(oidp, &clear, 0, req);
 	if (error || !req->newptr)
 		return (error);
- 
+
 	if (clear) {
 		bzero(&mbprof, sizeof(mbprof));
 	}
- 
+
 	return (error);
 }
 

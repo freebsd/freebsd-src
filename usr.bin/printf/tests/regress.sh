@@ -2,7 +2,7 @@
 
 REGRESSION_START($1)
 
-echo '1..15'
+echo '1..23'
 
 REGRESSION_TEST(`b', `printf "abc%b%b" "def\n" "\cghi"')
 REGRESSION_TEST(`d', `printf "%d,%5d,%.5d,%0*d,%.*d\n" 123 123 123 5 123 5 123')

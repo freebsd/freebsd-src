@@ -944,6 +944,8 @@
 
       &hwlist.vr;
 
+      &hwlist.vte;
+
       &hwlist.vx;
 
       &hwlist.vxge;

@@ -52,8 +52,10 @@ static struct vmm_stat_type *vsttab[MAX_VMM_STAT_ELEMS];
 
 static MALLOC_DEFINE(M_VMM_STAT, "vmm stat", "vmm stat");
 
+#define	vst_size	((size_t)vst_num_elems * sizeof(uint64_t))
+
 void
-vmm_stat_init(void *arg)
+vmm_stat_register(void *arg)
 {
 	struct vmm_stat_type *vst = arg;
 
@@ -97,11 +99,15 @@ vmm_stat_copy(struct vm *vm, int vcpu, int *num_stats, uint64_t *buf)
 void *
 vmm_stat_alloc(void)
 {
-	u_long size;
-	
-	size = vst_num_elems * sizeof(uint64_t);
 
-	return (malloc(size, M_VMM_STAT, M_ZERO | M_WAITOK));
+	return (malloc(vst_size, M_VMM_STAT, M_WAITOK));
+}
+
+void
+vmm_stat_init(void *vp)
+{
+
+	bzero(vp, vst_size);
 }
 
 void

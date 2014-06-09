@@ -24,6 +24,8 @@ SRCS+=	ops_nullfs.c ops_pcfs.c ops_tfs.c ops_ufs.c ops_umapfs.c
 SRCS+=	ops_unionfs.c opts.c readdir.c restart.c rpc_fwd.c sched.c
 SRCS+=	srvr_amfs_auto.c srvr_nfs.c
 
+NO_PIE=	yes
+
 CFLAGS+= -I${.CURDIR}/../../../contrib/amd/amd \
 	 -I${DESTDIR}/usr/include/rpcsvc
 

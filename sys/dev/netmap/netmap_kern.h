@@ -183,9 +183,6 @@ extern NMG_LOCK_T	netmap_global_lock;
  * 	the next empty buffer as known by the hardware (next_to_check or so).
  * TX rings: hwcur + hwofs coincides with next_to_send
  *
- * Clients cannot issue concurrent syscall on a ring. The system
- * detects this and reports an error using two flags,
- * NKR_WBUSY and NKR_RBUSY
  * For received packets, slot->flags is set to nkr_slot_flags
  * so we can provide a proper initial value (e.g. set NS_FORWARD
  * when operating in 'transparent' mode).
@@ -208,7 +205,7 @@ extern NMG_LOCK_T	netmap_global_lock;
  * The kring is manipulated by txsync/rxsync and generic netmap function.
  *
  * Concurrent rxsync or txsync on the same ring are prevented through
- * by nm_kr_lock() which in turn uses nr_busy. This is all we need
+ * by nm_kr_(try)lock() which in turn uses nr_busy. This is all we need
  * for NIC rings, and for TX rings attached to the host stack.
  *
  * RX rings attached to the host stack use an mbq (rx_queue) on both
@@ -440,15 +437,18 @@ struct netmap_adapter {
 	/*
 	 * nm_dtor() is the cleanup routine called when destroying
 	 *	the adapter.
+	 *	Called with NMG_LOCK held.
 	 *
 	 * nm_register() is called on NIOCREGIF and close() to enter
 	 *	or exit netmap mode on the NIC
+	 *	Called with NMG_LOCK held.
 	 *
 	 * nm_txsync() pushes packets to the underlying hw/switch
 	 *
 	 * nm_rxsync() collects packets from the underlying hw/switch
 	 *
 	 * nm_config() returns configuration information from the OS
+	 *	Called with NMG_LOCK held.
 	 *
 	 * nm_krings_create() create and init the krings array
 	 * 	(the array layout must conform to the description
@@ -456,13 +456,12 @@ struct netmap_adapter {
 	 *
 	 * nm_krings_delete() cleanup and delete the kring array
 	 *
-	 * nm_notify() is used to act after data have become available.
+	 * nm_notify() is used to act after data have become available
+	 *	(or the stopped state of the ring has changed)
 	 *	For hw devices this is typically a selwakeup(),
 	 *	but for NIC/host ports attached to a switch (or vice-versa)
 	 *	we also need to invoke the 'txsync' code downstream.
 	 */
-
-	/* private cleanup */
 	void (*nm_dtor)(struct netmap_adapter *);
 
 	int (*nm_register)(struct netmap_adapter *, int onoff);
@@ -678,7 +677,7 @@ static inline uint32_t
 nm_kr_rxspace(struct netmap_kring *k)
 {
 	int space = k->nr_hwtail - k->nr_hwcur;
-	if (space < 0) 
+	if (space < 0)
 		space += k->nkr_num_slots;
 	ND("preserving %d rx slots %d -> %d", space, k->nr_hwcur, k->nr_hwtail);
 
@@ -827,7 +826,7 @@ nm_txsync_finalize(struct netmap_kring *kring)
 {
 	/* update ring tail to what the kernel knows */
 	kring->ring->tail = kring->rtail = kring->nr_hwtail;
-	
+
 	/* note, head/rhead/hwcur might be behind cur/rcur
 	 * if no carrier
 	 */
@@ -1262,6 +1261,7 @@ void netmap_catch_tx(struct netmap_generic_adapter *na, int enable);
 int generic_xmit_frame(struct ifnet *ifp, struct mbuf *m, void *addr, u_int len, u_int ring_nr);
 int generic_find_num_desc(struct ifnet *ifp, u_int *tx, u_int *rx);
 void generic_find_num_queues(struct ifnet *ifp, u_int *txq, u_int *rxq);
+struct netmap_adapter *netmap_getna(if_t ifp);
 
 /*
  * netmap_mitigation API. This is used by the generic adapter
@@ -1376,5 +1376,4 @@ void bdg_mismatch_datapath(struct netmap_vp_adapter *na,
 			   struct netmap_vp_adapter *dst_na,
 			   struct nm_bdg_fwd *ft_p, struct netmap_ring *ring,
 			   u_int *j, u_int lim, u_int *howmany);
-
 #endif /* _NET_NETMAP_KERN_H_ */

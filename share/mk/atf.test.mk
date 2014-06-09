@@ -98,10 +98,14 @@ _TESTS+= ${ATF_TESTS_SH}
 SCRIPTSDIR_${_T}= ${TESTSDIR}
 TEST_INTERFACE.${_T}= atf
 CLEANFILES+= ${_T} ${_T}.tmp
+# TODO(jmmv): It seems to me that this SED and SRC functionality should
+# exist in bsd.prog.mk along the support for SCRIPTS.  Move it there if
+# this proves to be useful within the tests.
+ATF_TESTS_SH_SED_${_T}?= # empty
 ATF_TESTS_SH_SRC_${_T}?= ${_T}.sh
 ${_T}: ${ATF_TESTS_SH_SRC_${_T}}
-	echo '#! /usr/bin/atf-sh' > ${.TARGET}.tmp
-	cat ${.ALLSRC} >> ${.TARGET}.tmp
+	echo '#! /usr/libexec/atf-sh' > ${.TARGET}.tmp
+	cat ${.ALLSRC} | sed ${ATF_TESTS_SH_SED_${_T}} >>${.TARGET}.tmp
 	chmod +x ${.TARGET}.tmp
 	mv ${.TARGET}.tmp ${.TARGET}
 .endfor

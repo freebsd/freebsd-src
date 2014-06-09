@@ -82,8 +82,7 @@ test: aftertest
 
 .if !empty(PROGS) || !empty(PROGS_CXX) || !empty(SCRIPTS)
 .include <bsd.progs.mk>
-.elif !empty(FILES)
-.include <bsd.files.mk>
 .endif
+.include <bsd.files.mk>
 
 .include <bsd.obj.mk>

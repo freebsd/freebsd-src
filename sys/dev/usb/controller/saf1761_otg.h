@@ -140,11 +140,15 @@ struct saf1761_otg_softc {
 	bus_space_handle_t sc_io_hdl;
 
 	uint32_t sc_host_async_map;
+	uint32_t sc_host_async_suspend_map;
 	uint32_t sc_host_intr_map;
+	uint32_t sc_host_intr_suspend_map;
 	uint32_t sc_host_isoc_map;
+	uint32_t sc_host_isoc_suspend_map;
 	uint32_t sc_intr_enable;	/* enabled interrupts */
 	uint32_t sc_hw_mode;		/* hardware mode */
 	uint32_t sc_interrupt_cfg;	/* interrupt configuration */
+	uint32_t sc_xfer_complete;
 
 	uint32_t sc_bounce_buffer[1024 / 4];
 
@@ -162,6 +166,7 @@ struct saf1761_otg_softc {
 
 usb_error_t saf1761_otg_init(struct saf1761_otg_softc *sc);
 void	saf1761_otg_uninit(struct saf1761_otg_softc *sc);
-void	saf1761_otg_interrupt(struct saf1761_otg_softc *sc);
+driver_filter_t saf1761_otg_filter_interrupt;
+driver_intr_t saf1761_otg_interrupt;
 
 #endif					/* _SAF1761_OTG_H_ */

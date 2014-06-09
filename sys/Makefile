@@ -1,12 +1,5 @@
 # $FreeBSD$
 
-.include <src.opts.mk>
-
-# The boot loader
-.if ${MK_BOOT} != "no"
-SUBDIR=	boot
-.endif
-
 # Directories to include in cscope name file and TAGS.
 CSCOPEDIRS=	boot bsm cam cddl compat conf contrib crypto ddb dev fs gdb \
 		geom gnu isa kern libkern modules net net80211 \
@@ -25,12 +18,6 @@ CSCOPE_ARCHDIR += ${MACHINE_CPUARCH}
 CSCOPE_ARCHDIR += x86
 .endif
 .endif
-.endif
-
-# Loadable kernel modules
-
-.if defined(MODULES_WITH_WORLD)
-SUBDIR+=modules
 .endif
 
 HTAGSFLAGS+= -at `awk -F= '/^RELEASE *=/{release=$2}; END {print "FreeBSD", release, "kernel"}' < conf/newvers.sh`
@@ -82,4 +69,20 @@ glimpse:
 glimpse-clean:
 	cd ${.CURDIR}; rm -f .glimpse_*
 
+.if !(make(cscope) || make(cscope-clean) || make(cscope-hook) || make(TAGS) || \
+    make(glimpse) || make(glimpse-clean))
+.include <src.opts.mk>
+
+# The boot loader
+.if ${MK_BOOT} != "no"
+SUBDIR=	boot
+.endif
+
+# Loadable kernel modules
+
+.if defined(MODULES_WITH_WORLD)
+SUBDIR+=modules
+.endif
+
 .include <bsd.subdir.mk>
+.endif

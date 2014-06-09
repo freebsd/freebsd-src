@@ -31,6 +31,27 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 11.x IS SLOW:
 	disable the most expensive debugging functionality run
 	"ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20140606:
+	The libatf-c and libatf-c++ major versions were downgraded to 0 and
+	1 respectively to match the upstream numbers.  They were out of
+	sync because, when they were originally added to FreeBSD, the
+	upstream versions were not respected.  These libraries are private
+	and not yet built by default, so renumbering them should be a
+	non-issue.  However, unclean source trees will yield broken test
+	programs once the operator executes "make delete-old-libs" after a
+	"make installworld".
+
+	Additionally, the atf-sh binary was made private by moving it into
+	/usr/libexec/.  Already-built shell test programs will keep the
+	path to the old binary so they will break after "make delete-old"
+	is run.
+
+	If you are using WITH_TESTS=yes (not the default), wipe the object
+	tree and rebuild from scratch to prevent spurious test failures.
+	This is only needed once: the misnumbered libraries and misplaced
+	binaries have been added to OptionalObsoleteFiles.inc so they will
+	be removed during a clean upgrade.
+
 20140512:
 	Clang and llvm have been upgraded to 3.4.1 release.
 

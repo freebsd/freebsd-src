@@ -427,6 +427,86 @@ done:
 	return (retval);
 }
 
+void
+uhub_explore_handle_re_enumerate(struct usb_device *child)
+{
+	uint8_t do_unlock;
+	usb_error_t err;
+
+	/* check if device should be re-enumerated */
+	if (child->flags.usb_mode != USB_MODE_HOST)
+		return;
+
+	do_unlock = usbd_enum_lock(child);
+	switch (child->re_enumerate_wait) {
+	case USB_RE_ENUM_START:
+		err = usbd_set_config_index(child,
+		    USB_UNCONFIG_INDEX);
+		if (err != 0) {
+			DPRINTF("Unconfigure failed: %s: Ignored.\n",
+			    usbd_errstr(err));
+		}
+		if (child->parent_hub == NULL) {
+			/* the root HUB cannot be re-enumerated */
+			DPRINTFN(6, "cannot reset root HUB\n");
+			err = 0;
+		} else {
+			err = usbd_req_re_enumerate(child, NULL);
+		}
+		if (err == 0)
+			err = usbd_set_config_index(child, 0);
+		if (err == 0) {
+			err = usb_probe_and_attach(child,
+			    USB_IFACE_INDEX_ANY);
+		}
+		child->re_enumerate_wait = USB_RE_ENUM_DONE;
+		break;
+
+	case USB_RE_ENUM_PWR_OFF:
+		/* get the device unconfigured */
+		err = usbd_set_config_index(child,
+		    USB_UNCONFIG_INDEX);
+		if (err) {
+			DPRINTFN(0, "Could not unconfigure "
+			    "device (ignored)\n");
+		}
+		if (child->parent_hub == NULL) {
+			/* the root HUB cannot be re-enumerated */
+			DPRINTFN(6, "cannot set port feature\n");
+			err = 0;
+		} else {
+			/* clear port enable */
+			err = usbd_req_clear_port_feature(child->parent_hub,
+			    NULL, child->port_no, UHF_PORT_ENABLE);
+			if (err) {
+				DPRINTFN(0, "Could not disable port "
+				    "(ignored)\n");
+			}
+		}
+		child->re_enumerate_wait = USB_RE_ENUM_DONE;
+		break;
+
+	case USB_RE_ENUM_SET_CONFIG:
+		err = usbd_set_config_index(child,
+		    child->next_config_index);
+		if (err != 0) {
+			DPRINTF("Configure failed: %s: Ignored.\n",
+			    usbd_errstr(err));
+		} else {
+			err = usb_probe_and_attach(child,
+			    USB_IFACE_INDEX_ANY);
+		}
+		child->re_enumerate_wait = USB_RE_ENUM_DONE;
+		break;
+
+	default:
+		child->re_enumerate_wait = USB_RE_ENUM_DONE;
+		break;
+	}
+	if (do_unlock)
+		usbd_enum_unlock(child);
+}
+
 /*------------------------------------------------------------------------*
  *	uhub_explore_sub - subroutine
  *
@@ -455,59 +535,7 @@ uhub_explore_sub(struct uhub_softc *sc, struct usb_port *up)
 		goto done;
 	}
 
-	/* check if device should be re-enumerated */
-
-	if (child->flags.usb_mode == USB_MODE_HOST) {
-		uint8_t do_unlock;
-		
-		do_unlock = usbd_enum_lock(child);
-		switch (child->re_enumerate_wait) {
-		case USB_RE_ENUM_START:
-			err = usbd_set_config_index(child,
-			    USB_UNCONFIG_INDEX);
-			if (err != 0) {
-				DPRINTF("Unconfigure failed: "
-				    "%s: Ignored.\n",
-				    usbd_errstr(err));
-			}
-			err = usbd_req_re_enumerate(child, NULL);
-			if (err == 0)
-				err = usbd_set_config_index(child, 0);
-			if (err == 0) {
-				err = usb_probe_and_attach(child,
-				    USB_IFACE_INDEX_ANY);
-			}
-			child->re_enumerate_wait = USB_RE_ENUM_DONE;
-			err = 0;
-			break;
-
-		case USB_RE_ENUM_PWR_OFF:
-			/* get the device unconfigured */
-			err = usbd_set_config_index(child,
-			    USB_UNCONFIG_INDEX);
-			if (err) {
-				DPRINTFN(0, "Could not unconfigure "
-				    "device (ignored)\n");
-			}
-
-			/* clear port enable */
-			err = usbd_req_clear_port_feature(child->parent_hub,
-			    NULL, child->port_no, UHF_PORT_ENABLE);
-			if (err) {
-				DPRINTFN(0, "Could not disable port "
-				    "(ignored)\n");
-			}
-			child->re_enumerate_wait = USB_RE_ENUM_DONE;
-			err = 0;
-			break;
-
-		default:
-			child->re_enumerate_wait = USB_RE_ENUM_DONE;
-			break;
-		}
-		if (do_unlock)
-			usbd_enum_unlock(child);
-	}
+	uhub_explore_handle_re_enumerate(child);
 
 	/* check if probe and attach should be done */
 
@@ -2798,4 +2826,32 @@ usbd_start_re_enumerate(struct usb_device *udev)
 		udev->re_enumerate_wait = USB_RE_ENUM_START;
 		usb_needs_explore(udev->bus, 0);
 	}
+}
+
+/*-----------------------------------------------------------------------*
+ *	usbd_start_set_config
+ *
+ * This function starts setting a USB configuration. This function
+ * does not need to be called BUS-locked. This function does not wait
+ * until the set USB configuratino is completed.
+ *------------------------------------------------------------------------*/
+usb_error_t
+usbd_start_set_config(struct usb_device *udev, uint8_t index)
+{
+	if (udev->re_enumerate_wait == USB_RE_ENUM_DONE) {
+		if (udev->curr_config_index == index) {
+			/* no change needed */
+			return (0);
+		}
+		udev->next_config_index = index;
+		udev->re_enumerate_wait = USB_RE_ENUM_SET_CONFIG;
+		usb_needs_explore(udev->bus, 0);
+		return (0);
+	} else if (udev->re_enumerate_wait == USB_RE_ENUM_SET_CONFIG) {
+		if (udev->next_config_index == index) {
+			/* no change needed */
+			return (0);
+		}
+	}
+	return (USB_ERR_PENDING_REQUESTS);
 }

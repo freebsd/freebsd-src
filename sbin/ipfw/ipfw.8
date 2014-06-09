@@ -1,7 +1,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 25, 2012
+.Dd May 31, 2014
 .Dt IPFW 8
 .Os
 .Sh NAME
@@ -2441,22 +2441,23 @@ and
 control the maximum lengths that can be specified.
 .Pp
 .It Cm red | gred Ar w_q Ns / Ns Ar min_th Ns / Ns Ar max_th Ns / Ns Ar max_p
+[ecn]
 Make use of the RED (Random Early Detection) queue management algorithm.
 .Ar w_q
 and
 .Ar max_p
 are floating
-point numbers between 0 and 1 (0 not included), while
+point numbers between 0 and 1 (inclusive), while
 .Ar min_th
 and
 .Ar max_th
 are integer numbers specifying thresholds for queue management
 (thresholds are computed in bytes if the queue has been defined
 in bytes, in slots otherwise).
-The
+The two parameters can also be of the same value if needed. The
 .Nm dummynet
-also supports the gentle RED variant (gred).
-Three
+also supports the gentle RED variant (gred) and ECN (Explicit Congestion
+Notification) as optional. Three
 .Xr sysctl 8
 variables can be used to control the RED behaviour:
 .Bl -tag -width indent

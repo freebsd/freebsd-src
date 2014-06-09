@@ -137,6 +137,7 @@ struct xp_ops2 {
 
 #ifdef _KERNEL
 struct __rpc_svcpool;
+struct __rpc_svcgroup;
 struct __rpc_svcthread;
 #endif
 
@@ -150,6 +151,7 @@ typedef struct __rpc_svcxprt {
 	volatile u_int	xp_refs;
 	struct sx	xp_lock;
 	struct __rpc_svcpool *xp_pool;  /* owning pool (see below) */
+	struct __rpc_svcgroup *xp_group; /* owning group (see below) */
 	TAILQ_ENTRY(__rpc_svcxprt) xp_link;
 	TAILQ_ENTRY(__rpc_svcxprt) xp_alink;
 	bool_t		xp_registered;	/* xprt_register has been called */
@@ -245,8 +247,6 @@ struct svc_loss_callout {
 };
 TAILQ_HEAD(svc_loss_callout_list, svc_loss_callout);
 
-struct __rpc_svcthread;
-
 /*
  * Service request
  */
@@ -291,18 +291,47 @@ STAILQ_HEAD(svc_reqlist, svc_req);
  * thread to read and execute pending RPCs.
  */
 typedef struct __rpc_svcthread {
+	struct mtx_padalign	st_lock; /* protects st_reqs field */
 	struct __rpc_svcpool	*st_pool;
 	SVCXPRT			*st_xprt; /* transport we are processing */
 	struct svc_reqlist	st_reqs;  /* RPC requests to execute */
-	int			st_idle; /* thread is on idle list */
 	struct cv		st_cond; /* sleeping for work */
-	LIST_ENTRY(__rpc_svcthread) st_link; /* all threads list */
 	LIST_ENTRY(__rpc_svcthread) st_ilink; /* idle threads list */
 	LIST_ENTRY(__rpc_svcthread) st_alink; /* application thread list */
 	int		st_p2;		/* application workspace */
 	uint64_t	st_p3;		/* application workspace */
 } SVCTHREAD;
 LIST_HEAD(svcthread_list, __rpc_svcthread);
+
+/*
+ * A thread group contain all information needed to assign subset of
+ * transports to subset of threads.  On systems with many CPUs and many
+ * threads that allows to reduce lock congestion and improve performance.
+ * Hundreds of threads on dozens of CPUs sharing the single pool lock do
+ * not scale well otherwise.
+ */
+TAILQ_HEAD(svcxprt_list, __rpc_svcxprt);
+enum svcpool_state {
+	SVCPOOL_INIT,		/* svc_run not called yet */
+	SVCPOOL_ACTIVE,		/* normal running state */
+	SVCPOOL_THREADWANTED,	/* new service thread requested */
+	SVCPOOL_THREADSTARTING,	/* new service thread started */
+	SVCPOOL_CLOSING		/* svc_exit called */
+};
+typedef struct __rpc_svcgroup {
+	struct mtx_padalign sg_lock;	/* protect the thread/req lists */
+	struct __rpc_svcpool	*sg_pool;
+	enum svcpool_state sg_state;	/* current pool state */
+	struct svcxprt_list sg_xlist;	/* all transports in the group */
+	struct svcxprt_list sg_active;	/* transports needing service */
+	struct svcthread_list sg_idlethreads; /* idle service threads */
+
+	int		sg_minthreads;	/* minimum service thread count */
+	int		sg_maxthreads;	/* maximum service thread count */
+	int		sg_threadcount; /* current service thread count */
+	time_t		sg_lastcreatetime; /* when we last started a thread */
+	time_t		sg_lastidlecheck;  /* when we last checked idle transports */
+} SVCGROUP;
 
 /*
  * In the kernel, we can't use global variables to store lists of
@@ -316,32 +345,18 @@ LIST_HEAD(svcthread_list, __rpc_svcthread);
  * this to support something similar to the Solaris multi-threaded RPC
  * server.
  */
-TAILQ_HEAD(svcxprt_list, __rpc_svcxprt);
-enum svcpool_state {
-	SVCPOOL_INIT,		/* svc_run not called yet */
-	SVCPOOL_ACTIVE,		/* normal running state */
-	SVCPOOL_THREADWANTED,	/* new service thread requested */
-	SVCPOOL_THREADSTARTING,	/* new service thread started */
-	SVCPOOL_CLOSING		/* svc_exit called */
-};
 typedef SVCTHREAD *pool_assign_fn(SVCTHREAD *, struct svc_req *);
 typedef void pool_done_fn(SVCTHREAD *, struct svc_req *);
+#define	SVC_MAXGROUPS	16
 typedef struct __rpc_svcpool {
 	struct mtx_padalign sp_lock;	/* protect the transport lists */
 	const char	*sp_name;	/* pool name (e.g. "nfsd", "NLM" */
 	enum svcpool_state sp_state;	/* current pool state */
 	struct proc	*sp_proc;	/* process which is in svc_run */
-	struct svcxprt_list sp_xlist;	/* all transports in the pool */
-	struct svcxprt_list sp_active;	/* transports needing service */
 	struct svc_callout_list sp_callouts; /* (prog,vers)->dispatch list */
 	struct svc_loss_callout_list sp_lcallouts; /* loss->dispatch list */
-	struct svcthread_list sp_threads; /* service threads */
-	struct svcthread_list sp_idlethreads; /* idle service threads */
 	int		sp_minthreads;	/* minimum service thread count */
 	int		sp_maxthreads;	/* maximum service thread count */
-	int		sp_threadcount; /* current service thread count */
-	time_t		sp_lastcreatetime; /* when we last started a thread */
-	time_t		sp_lastidlecheck;  /* when we last checked idle transports */
 
 	/*
 	 * Hooks to allow an application to control request to thread
@@ -364,6 +379,10 @@ typedef struct __rpc_svcpool {
 
 	struct replay_cache *sp_rcache; /* optional replay cache */
 	struct sysctl_ctx_list sp_sysctl;
+
+	int		sp_groupcount;	/* Number of groups in the pool. */
+	int		sp_nextgroup;	/* Next group to assign port. */
+	SVCGROUP	sp_groups[SVC_MAXGROUPS]; /* Thread/port groups. */
 } SVCPOOL;
 
 #else

@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2009 The FreeBSD Foundation
+ * Copyright (c) 2009, 2014 The FreeBSD Foundation
  * All rights reserved.
  *
  * This software was developed by Ed Schouten under sponsorship from the
@@ -30,6 +30,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <sys/types.h>
+#include <sys/fnv_hash.h>
 #include <sys/endian.h>
 #include <sys/param.h>
 #include <sys/queue.h>
@@ -39,20 +41,24 @@ __FBSDID("$FreeBSD$");
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 
 #define VFNT_MAPS 4
 #define VFNT_MAP_NORMAL 0
 #define VFNT_MAP_BOLD 2
 
-static unsigned int width, wbytes, height;
+static unsigned int width = 8, wbytes, height = 16;
 
 struct glyph {
 	TAILQ_ENTRY(glyph)	 g_list;
+	SLIST_ENTRY(glyph)	 g_hash;
 	uint8_t			*g_data;
 	unsigned int		 g_index;
 };
 
+#define	FONTCVT_NHASH 4096
 TAILQ_HEAD(glyph_list, glyph);
+static SLIST_HEAD(, glyph) glyph_hash[FONTCVT_NHASH];
 static struct glyph_list glyphs[VFNT_MAPS] = {
     TAILQ_HEAD_INITIALIZER(glyphs[0]),
     TAILQ_HEAD_INITIALIZER(glyphs[1]),
@@ -83,7 +89,7 @@ usage(void)
 {
 
 	fprintf(stderr,
-"usage: fontcvt width height normal.bdf bold.bdf out.fnt\n");
+"usage: fontcvt [-w width] [-h height] normal.bdf [bold.bdf] out.fnt\n");
 	exit(1);
 }
 
@@ -146,17 +152,16 @@ static struct glyph *
 add_glyph(const uint8_t *bytes, unsigned int map_idx, int fallback)
 {
 	struct glyph *gl;
-	unsigned int i;
+	int hash;
 
 	glyph_total++;
 	glyph_count[map_idx]++;
 
-	for (i = 0; i < VFNT_MAPS; i++) {
-		TAILQ_FOREACH(gl, &glyphs[i], g_list) {
-			if (memcmp(gl->g_data, bytes, wbytes * height) == 0) {
-				glyph_dupe++;
-				return (gl);
-			}
+	hash = fnv_32_buf(bytes, wbytes * height, FNV1_32_INIT) % FONTCVT_NHASH;
+	SLIST_FOREACH(gl, &glyph_hash[hash], g_hash) {
+		if (memcmp(gl->g_data, bytes, wbytes * height) == 0) {
+			glyph_dupe++;
+			return (gl);
 		}
 	}
 
@@ -167,10 +172,35 @@ add_glyph(const uint8_t *bytes, unsigned int map_idx, int fallback)
 		TAILQ_INSERT_HEAD(&glyphs[map_idx], gl, g_list);
 	else
 		TAILQ_INSERT_TAIL(&glyphs[map_idx], gl, g_list);
+	SLIST_INSERT_HEAD(&glyph_hash[hash], gl, g_hash);
 
 	glyph_unique++;
 	return (gl);
 }
+
+static int
+add_char(unsigned curchar, unsigned map_idx, uint8_t *bytes, uint8_t *bytes_r)
+{
+	struct glyph *gl;
+
+	/* Prevent adding two glyphs for 0xFFFD */
+	if (curchar == 0xFFFD) {
+		if (map_idx < VFNT_MAP_BOLD)
+			gl = add_glyph(bytes, 0, 1);
+	} else if (curchar >= 0x20) {
+		gl = add_glyph(bytes, map_idx, 0);
+		if (add_mapping(gl, curchar, map_idx) != 0)
+			return (1);
+		if (bytes_r != NULL) {
+			gl = add_glyph(bytes_r, map_idx + 1, 0);
+			if (add_mapping(gl, curchar,
+			    map_idx + 1) != 0)
+				return (1);
+		}
+	}
+	return (0);
+}
+
 
 static int
 parse_bitmap_line(uint8_t *left, uint8_t *right, unsigned int line,
@@ -212,20 +242,12 @@ parse_bitmap_line(uint8_t *left, uint8_t *right, unsigned int line,
 }
 
 static int
-parse_bdf(const char *filename, unsigned int map_idx)
+parse_bdf(FILE *fp, unsigned int map_idx)
 {
-	FILE *fp;
 	char *ln;
 	size_t length;
 	uint8_t bytes[wbytes * height], bytes_r[wbytes * height];
 	unsigned int curchar = 0, dwidth = 0, i, line;
-	struct glyph *gl;
-
-	fp = fopen(filename, "r");
-	if (fp == NULL) {
-		perror(filename);
-		return (1);
-	}
 
 	while ((ln = fgetln(fp, &length)) != NULL) {
 		ln[length - 1] = '\0';
@@ -238,7 +260,8 @@ parse_bdf(const char *filename, unsigned int map_idx)
 			dwidth = atoi(ln + 7);
 		}
 
-		if (strcmp(ln, "BITMAP") == 0) {
+		if (strncmp(ln, "BITMAP", 6) == 0 &&
+		    (ln[6] == ' ' || ln[6] == '\0')) {
 			for (i = 0; i < height; i++) {
 				if ((ln = fgetln(fp, &length)) == NULL) {
 					fprintf(stderr, "Unexpected EOF!\n");
@@ -251,25 +274,71 @@ parse_bdf(const char *filename, unsigned int map_idx)
 					return (1);
 			}
 
-			/* Prevent adding two glyphs for 0xFFFD */
-			if (curchar == 0xFFFD) {
-				if (map_idx < VFNT_MAP_BOLD)
-					gl = add_glyph(bytes, 0, 1);
-			} else if (curchar >= 0x20) {
-				gl = add_glyph(bytes, map_idx, 0);
-				if (add_mapping(gl, curchar, map_idx) != 0)
-					return (1);
-				if (dwidth == width * 2) {
-					gl = add_glyph(bytes_r, map_idx + 1, 0);
-					if (add_mapping(gl, curchar,
-					    map_idx + 1) != 0)
-						return (1);
-				}
-			}
+			if (add_char(curchar, map_idx, bytes,
+			    dwidth == width * 2 ? bytes_r : NULL) != 0)
+				return (1);
 		}
 	}
 
 	return (0);
+}
+
+static int
+parse_hex(FILE *fp, unsigned int map_idx)
+{
+	char *ln, *p;
+	char fmt_str[8];
+	size_t length;
+	uint8_t bytes[wbytes * height], bytes_r[wbytes * height];
+	unsigned curchar = 0, i, line, chars_per_row, dwidth;
+
+	while ((ln = fgetln(fp, &length)) != NULL) {
+		ln[length - 1] = '\0';
+
+		if (strncmp(ln, "# Height: ", 10) == 0) {
+			height = atoi(ln + 10);
+		} else if (strncmp(ln, "# Width: ", 9) == 0) {
+			width = atoi(ln + 9);
+		} else if (sscanf(ln, "%4x:", &curchar)) {
+			p = ln + 5;
+			chars_per_row = strlen(p) / height;
+			dwidth = width;
+			if (chars_per_row / 2 > width / 8)
+				dwidth *= 2; /* Double-width character. */
+			snprintf(fmt_str, sizeof(fmt_str), "%%%ux",
+			    chars_per_row);
+			
+			for (i = 0; i < height; i++) {
+				sscanf(p, fmt_str, &line);
+				p += chars_per_row;
+				if (parse_bitmap_line(bytes + i * wbytes,
+				    bytes_r + i * wbytes, line, dwidth) != 0)
+					return (1);
+			}
+
+			if (add_char(curchar, map_idx, bytes,
+			    dwidth == width * 2 ? bytes_r : NULL) != 0)
+				return (1);
+		}
+	}
+	return (0);
+}
+
+static int
+parse_file(const char *filename, unsigned int map_idx)
+{
+	FILE *fp;
+	size_t len;
+
+	fp = fopen(filename, "r");
+	if (fp == NULL) {
+		perror(filename);
+		return (1);
+	}
+	len = strlen(filename);
+	if (len > 4 && strcasecmp(filename + len - 4, ".hex") == 0)
+		return parse_hex(fp, map_idx);
+	return parse_bdf(fp, map_idx);
 }
 
 static void
@@ -384,27 +453,48 @@ write_fnt(const char *filename)
 int
 main(int argc, char *argv[])
 {
+	int ch;
 
 	assert(sizeof(struct file_header) == 32);
 	assert(sizeof(struct file_mapping) == 8);
 
-	if (argc != 6)
-		usage();
-	
-	width = atoi(argv[1]);
-	wbytes = howmany(width, 8);
-	height = atoi(argv[2]);
+	while ((ch = getopt(argc, argv, "h:w:")) != -1) {
+		switch (ch) {
+		case 'h':
+			height = atoi(optarg);
+			break;
+		case 'w':
+			width = atoi(optarg);
+			break;
+		case '?':
+		default:
+			usage();
+		}
+	}
+	argc -= optind;
+	argv += optind;
 
-	if (parse_bdf(argv[3], VFNT_MAP_NORMAL) != 0)
+	if (argc < 2 || argc > 3)
+		usage();
+
+	wbytes = howmany(width, 8);
+
+	if (parse_file(argv[0], VFNT_MAP_NORMAL) != 0)
 		return (1);
-	if (parse_bdf(argv[4], VFNT_MAP_BOLD) != 0)
-		return (1);
+	argc--;
+	argv++;
+	if (argc == 2) {
+		if (parse_file(argv[0], VFNT_MAP_BOLD) != 0)
+			return (1);
+		argc--;
+		argv++;
+	}
 	number_glyphs();
 	fold_mappings(0);
 	fold_mappings(1);
 	fold_mappings(2);
 	fold_mappings(3);
-	if (write_fnt(argv[5]) != 0)
+	if (write_fnt(argv[0]) != 0)
 		return (1);
 	
 	printf(
