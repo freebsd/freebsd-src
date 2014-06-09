@@ -4,7 +4,8 @@ PROG=	readpng-cheri-helper
 SRCS=	readpng-cheri.c				\
 	chsbrt.S				\
 	execve.S				\
-	setjmp.S
+	setjmp.S				\
+	sysarch.S
 
 .PATH: ${.CURDIR}/../../lib/libimagebox
 SRCS+=	decode_png.c
