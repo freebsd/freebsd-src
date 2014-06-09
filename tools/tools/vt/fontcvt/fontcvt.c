@@ -37,6 +37,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/queue.h>
 
 #include <assert.h>
+#include <err.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -45,7 +46,9 @@ __FBSDID("$FreeBSD$");
 
 #define VFNT_MAPS 4
 #define VFNT_MAP_NORMAL 0
+#define VFNT_MAP_NORMAL_RH 1
 #define VFNT_MAP_BOLD 2
+#define VFNT_MAP_BOLD_RH 3
 
 static unsigned int width = 8, wbytes, height = 16;
 
@@ -101,34 +104,6 @@ add_mapping(struct glyph *gl, unsigned int c, unsigned int map_idx)
 
 	mapping_total++;
 
-	if (map_idx >= VFNT_MAP_BOLD) {
-		int found = 0;
-		unsigned normal_map_idx = map_idx - VFNT_MAP_BOLD;
-
-		TAILQ_FOREACH(mp, &maps[normal_map_idx], m_list) {
-			if (mp->m_char < c)
-				continue;
-			else if (mp->m_char > c)
-				break;
-			found = 1;
-
-			/*
-			 * No mapping is needed if it's equal to the
-			 * normal mapping.
-			 */
-			if (mp->m_glyph == gl) {
-				mapping_dupe++;
-				return (0);
-			}
-		}
-
-		if (!found) {
-			fprintf(stderr,
-			    "Character %u not in normal font!\n", c);
-			return (1);
-		}
-	}
-
 	mp = malloc(sizeof *mp);
 	mp->m_char = c;
 	mp->m_glyph = gl;
@@ -145,6 +120,33 @@ add_mapping(struct glyph *gl, unsigned int c, unsigned int map_idx)
 	map_count[map_idx]++;
 	mapping_unique++;
 
+	return (0);
+}
+
+static int
+dedup_mapping(unsigned int map_idx)
+{
+	struct mapping *mp_bold, *mp_normal, *mp_temp;
+	unsigned normal_map_idx = map_idx - VFNT_MAP_BOLD;
+
+	assert(map_idx == VFNT_MAP_BOLD || map_idx == VFNT_MAP_BOLD_RH);
+	mp_normal = TAILQ_FIRST(&maps[normal_map_idx]);
+	TAILQ_FOREACH_SAFE(mp_bold, &maps[map_idx], m_list, mp_temp) {
+		while (mp_normal->m_char < mp_bold->m_char)
+			mp_normal = TAILQ_NEXT(mp_normal, m_list);
+		if (mp_bold->m_char != mp_normal->m_char) {
+			errx(1, "Character %u not in normal font!\n",
+			    mp_bold->m_char);
+			return (1);
+		}
+		if (mp_bold->m_glyph != mp_normal->m_glyph)
+			continue;
+
+		/* No mapping is needed if it's equal to the normal mapping. */
+		TAILQ_REMOVE(&maps[map_idx], mp_bold, m_list);
+		free(mp_bold);
+		mapping_dupe++;
+	}
 	return (0);
 }
 
@@ -540,6 +542,8 @@ main(int argc, char *argv[])
 		argv++;
 	}
 	number_glyphs();
+	dedup_mapping(VFNT_MAP_BOLD);
+	dedup_mapping(VFNT_MAP_BOLD_RH);
 	fold_mappings(0);
 	fold_mappings(1);
 	fold_mappings(2);
