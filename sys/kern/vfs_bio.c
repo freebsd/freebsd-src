@@ -476,7 +476,7 @@ bufspacewakeup(void)
 			break;
 	}
 	if (need_wakeup)
-		wakeup((void *)&needsbuffer);
+		wakeup(__DEVOLATILE(void *, &needsbuffer));
 	rw_runlock(&nblock);
 }
 
@@ -559,7 +559,7 @@ bufcountadd(struct buf *bp)
 			break;
 	}
 	if (need_wakeup)
-		wakeup((void *)&needsbuffer);
+		wakeup(__DEVOLATILE(void *, &needsbuffer));
 	rw_runlock(&nblock);
 }
 
@@ -2142,8 +2142,8 @@ getnewbuf_bufd_help(struct vnode *vp, int gbflags, int slpflag, int slptimeo,
 			if ((needsbuffer & flags) == 0)
 				break;
 		}
-		error = rw_sleep((void *)&needsbuffer, &nblock, (PRIBIO + 4) |
-		    slpflag, waitmsg, slptimeo);
+		error = rw_sleep(__DEVOLATILE(void *, &needsbuffer), &nblock,
+		    (PRIBIO + 4) | slpflag, waitmsg, slptimeo);
 		if (error != 0)
 			break;
 	}
