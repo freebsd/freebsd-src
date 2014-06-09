@@ -124,7 +124,7 @@
 .\" ========================================================================
 .\"
 .IX Title "VERIFY 1"
-.TH VERIFY 1 "2014-04-07" "1.0.1g" "OpenSSL"
+.TH VERIFY 1 "2014-06-05" "1.0.1h" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -152,6 +152,7 @@ verify \- Utility to verify certificates.
 [\fB\-untrusted file\fR]
 [\fB\-help\fR]
 [\fB\-issuer_checks\fR]
+[\fB\-attime timestamp\fR]
 [\fB\-verbose\fR]
 [\fB\-\fR]
 [certificates]
@@ -195,6 +196,11 @@ current certificate. This shows why each candidate issuer certificate was
 rejected. The presence of rejection messages does not itself imply that
 anything is wrong; during the normal verification process, several
 rejections may take place.
+.IP "\fB\-attime timestamp\fR" 4
+.IX Item "-attime timestamp"
+Perform validation checks using time specified by \fBtimestamp\fR and not
+current system time. \fBtimestamp\fR is the number of seconds since
+01.01.1970 (\s-1UNIX\s0 time).
 .IP "\fB\-policy arg\fR" 4
 .IX Item "-policy arg"
 Enable policy processing and add \fBarg\fR to the user-initial-policy-set (see
@@ -447,7 +453,7 @@ does not permit certificate signing.
 an application specific error. Unused.
 .SH "BUGS"
 .IX Header "BUGS"
-Although the issuer checks are a considerably improvement over the old technique they still
+Although the issuer checks are a considerable improvement over the old technique they still
 suffer from limitations in the underlying X509_LOOKUP \s-1API\s0. One consequence of this is that
 trusted certificates with matching subject name must either appear in a file (as specified by the
 \&\fB\-CAfile\fR option) or a directory (as specified by \fB\-CApath\fR. If they occur in both then only
