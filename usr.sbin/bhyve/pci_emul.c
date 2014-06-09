@@ -376,7 +376,7 @@ pci_emul_mem_handler(struct vmctx *ctx, int vcpu, int dir, uint64_t addr,
 	offset = addr - pdi->pi_bar[bidx].addr;
 
 	if (dir == MEM_F_WRITE) {
-		if (pdi->pi_bar[bidx].type == PCIBAR_MEM32 && size == 8) {
+		if (size == 8) {
 			(*pe->pe_barwrite)(ctx, vcpu, pdi, bidx, offset,
 					   4, *val & 0xffffffff);
 			(*pe->pe_barwrite)(ctx, vcpu, pdi, bidx, offset + 4,
@@ -386,7 +386,7 @@ pci_emul_mem_handler(struct vmctx *ctx, int vcpu, int dir, uint64_t addr,
 					   size, *val);
 		}
 	} else {
-		if (pdi->pi_bar[bidx].type == PCIBAR_MEM32 && size == 8) {
+		if (size == 8) {
 			*val = (*pe->pe_barread)(ctx, vcpu, pdi, bidx,
 						 offset, 4);
 			*val |= (*pe->pe_barread)(ctx, vcpu, pdi, bidx,
