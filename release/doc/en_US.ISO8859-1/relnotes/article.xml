@@ -246,6 +246,12 @@
       <filename>/usr/local/etc/newsyslog.conf.d/</filename>
       directories by default for &man.newsyslog.8;.</para>
 
+    <para revision="267236">A new flag, <quote>onifconsole</quote> has
+      been added to <filename>/etc/ttys</filename>.  This allows the
+      system to provide a login prompt via serial console if the
+      device is an active kernel console, otherwise it is equivalent
+      to <literal>off</literal>.</para>
+
     <sect3 xml:id="rc-scripts">
       <title><filename>/etc/rc.d</filename> Scripts</title>
 
