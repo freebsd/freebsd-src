@@ -776,7 +776,7 @@ render_slide(int dfd, int slidenum, struct image *slide)
 
 	unbusy();
 
-	if (verbose)
+	if (verbose && !caching)
 		printf("total: %ju  decode: %ju  overhead: %.1f%%\n", total,
 		    decode, 100.0 * (((float)total - decode) / total));
 
