@@ -102,24 +102,30 @@ __FBSDID("$FreeBSD$");
  * mbuf wrappers
  */
 
-/* mbuf destructor, also need to change the type to EXT_EXTREF,
+/*
+ * mbuf destructor, also need to change the type to EXT_EXTREF,
  * add an M_NOFREE flag, and then clear the flag and
  * chain into uma_zfree(zone_pack, mf)
  * (or reinstall the buffer ?)
+ *
+ * On FreeBSD 9 the destructor is called as ext_free(ext_arg1, ext_arg2)
+ * whereas newer version have ext_free(m, ext_arg1, ext_arg2)
+ * For compatibility we set ext_arg1 = m on allocation so we have
+ * the same code on both.
  */
 #define SET_MBUF_DESTRUCTOR(m, fn)	do {		\
-	(m)->m_ext.ext_free = (void *)fn;	\
-	(m)->m_ext.ext_type = EXT_EXTREF;	\
-} while (0)
+		(m)->m_ext.ext_free = (void *)fn;	\
+		(m)->m_ext.ext_type = EXT_EXTREF;	\
+	} while (0)
 
 static void 
-netmap_default_mbuf_destructor(struct mbuf *m) 
+netmap_default_mbuf_destructor(struct mbuf *m)
 { 
-	/* restore original mbuf */
-	m->m_ext.ext_buf = m->m_data = m->m_ext.ext_arg1;
-	m->m_ext.ext_arg1 = NULL;
+	/* restore original data pointer and type */
+	m->m_ext.ext_buf = m->m_data = m->m_ext.ext_arg2;
 	m->m_ext.ext_type = EXT_PACKET;
 	m->m_ext.ext_free = NULL;
+	m->m_ext.ext_arg1 = m->m_ext.ext_arg2 = NULL;
 	if (*(m->m_ext.ref_cnt) == 0)
 		*(m->m_ext.ref_cnt) = 1;
 	uma_zfree(zone_pack, m);
@@ -131,7 +137,8 @@ netmap_get_mbuf(int len)
 	struct mbuf *m;
 	m = m_getcl(M_NOWAIT, MT_DATA, M_PKTHDR | M_NOFREE);
 	if (m) {
-		m->m_ext.ext_arg1 = m->m_ext.ext_buf; // XXX save
+		m->m_ext.ext_arg1 = m; /* FreeBSD 9 compat */
+		m->m_ext.ext_arg2 = m->m_ext.ext_buf; /* save original */
 		m->m_ext.ext_free = (void *)netmap_default_mbuf_destructor;
 		m->m_ext.ext_type = EXT_EXTREF;
 		ND(5, "create m %p refcnt %d", m, *m->m_ext.ref_cnt);
