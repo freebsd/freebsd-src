@@ -70,12 +70,21 @@ enum mtl_display_mode {
 	MTL_DM_640x480_CENTER	/* 640x480 VGA from 480p, center pixels */
 };
 
+struct image {
+        const char      *i_file;
+        uint32_t         i_height;
+        uint32_t         i_width;
+        uint32_t        *i_image;
+};
+
+int caching = 0;
 int verbose = 0;
 int sb_vis = 0;
 uint32_t header_height;
 #ifdef HOURGLASS
 uint32_t *busyarea, *hourglass;
 #endif
+struct image header, sri_logo, cam_logo;
 enum sbtype sb = SB_NONE;
 enum mtl_display_mode res = MTL_DM_800x480;
 static int zombies_waiting = 0;
@@ -90,7 +99,7 @@ static void __dead2
 usage(void)
 {
 	
-	fprintf(stderr, "cheripoint [-f] <slidedir>\n");
+	fprintf(stderr, "cheripoint [-fvCc] <slidedir>\n");
 	exit(1);
 }
 
@@ -433,23 +442,18 @@ error:
 }
 
 static int
-strpcmp(const void *v1, const void *v2)
+image_cmp(const void *v1, const void *v2)
 {
-	const char * const *sp1;
-	const char * const *sp2;
-	const char *s1, *s2;
+	const struct image *i1, *i2;
 
-	sp1 = v1;
-	sp2 = v2;
+	i1 = v1;
+	i2 = v2;
 
-	s1 = *sp1;
-	s2 = *sp2;
-
-	return (strcmp(s1, s2));
+	return (strcmp(i1->i_file, i2->i_file));
 }
 
 static int
-render_slide(int dfd, int slidenum, const char *slide)
+render_slide(int dfd, int slidenum, struct image *slide)
 {
 	int error, pfd;
 	int f_width, f_height;
@@ -464,70 +468,96 @@ render_slide(int dfd, int slidenum, const char *slide)
 
 	error = 0;
 	decode = total = 0;
+	is = NULL;
 
 	busy(1);
 
-	if ((pfd = openat(dfd, slide, O_RDONLY)) == -1) {
-		warn("Failed to open %s", slide);
-		return (-1);
-	}
-	if (sb == SB_CHERI) {
-		olen = sizeof(sv1);
-		sysctlbyname("security.cheri.syscall_violations",
-		    &sv1, &olen, NULL, 0);
-	}
-	if ((is = png_read_start(pfd, fb_width, fb_height, sb)) == NULL) {
-		warn("Failed to start PNG decode for %s", slide);
-		return (-1);
-	}
-	if (png_read_finish(is) != 0) {
-		warnx("png_read_finish() failed for %s", slide);
-		return (-1);
-	}
-	decode += iboxstate_get_dtime(is);
-	total += iboxstate_get_ttime(is);
-	fb_fill_region(white, 0, 0, fb_width, fb_height);
+	if (caching)
+		fb_fill_region(white, 0, 0, fb_width, fb_height);
+	if (slide->i_image == NULL) {
+		if ((pfd = openat(dfd, slide->i_file, O_RDONLY)) == -1) {
+			warn("Failed to open %s", slide->i_file);
+			return (-1);
+		}
+		if (sb == SB_CHERI) {
+			olen = sizeof(sv1);
+			sysctlbyname("security.cheri.syscall_violations",
+			    &sv1, &olen, NULL, 0);
+		}
+		if ((is = png_read_start(pfd, fb_width, fb_height, sb)) ==
+		     NULL) {
+			warn("Failed to start PNG decode for %s",
+			    slide->i_file);
+			return (-1);
+		}
+		if (png_read_finish(is) != 0) {
+			warnx("png_read_finish() failed for %s", slide->i_file);
+			return (-1);
+		}
+		slide->i_height = is->height;
+		slide->i_width = is->width;
+		if (caching) {
+			slide->i_image = malloc(sizeof(uint32_t) *
+			    slide->i_height * slide->i_width);
+			if (slide->i_image == NULL) {
+				warn("malloc cache buffer");
+				return (-1);
+			}
+			memcpy(slide->i_image, __DEVOLATILE(void *, is->buffer),
+			    sizeof(uint32_t) * slide->i_height *
+			    slide->i_width);
+		} else 
+			slide->i_image = __DEVOLATILE(uint32_t *, is->buffer);
+		decode += iboxstate_get_dtime(is);
+		total += iboxstate_get_ttime(is);
+	} else if (verbose)
+		printf("Rendering slide %d from cache\n", slidenum);
+	if (!caching)
+		fb_fill_region(white, 0, 0, fb_width, fb_height);
 	busy(0);
 	/*
 	 * If the image is the full display height, assume it's meant to be
 	 * displayed as a simple slide without compositing.  Make a decent
 	 * effort to display it in a nice place horizontaly.
 	 */
-	if (is->height == (u_int)fb_height) {
+	if (slide->i_height == (u_int)fb_height) {
 		y = 0;
-		h = is->height;
+		h = slide->i_height;
 	} else {
-		h = is->height < slide_height ? is->height : slide_height;
+		h = slide->i_height < slide_height ?
+		    slide->i_height : slide_height;
 		y = header_height;
 	}
-	if (is->width > slide_width) {
-		if (is->width < fb_width - slide_fcol)
+	if (slide->i_width > slide_width) {
+		if (slide->i_width < fb_width - slide_fcol)
 			x = slide_fcol;
 		else
 			x = 0;
 	} else
-		x = slide_fcol + ((slide_width - is->width) / 2);
-	w = is->width;
-	fb_post_region(__DEVOLATILE(uint32_t *, is->buffer), x, y, w, h);
+		x = slide_fcol + ((slide_width - slide->i_width) / 2);
+	w = slide->i_width;
+	fb_post_region(__DEVOLATILE(uint32_t *, slide->i_image), x, y, w, h);
 	if (sb_vis && sb != SB_NONE)
 		fb_rectangle(red, 2,
-		    x, y, is->width,
-		    is->height < (u_int)fb_height - y ?
-		    (u_int)fb_height - y : is->height);
-	switch (sb) {
-	case SB_CAPSICUM:
-		if (is->error == 99)
-			error = 99;
-		break;
-	case SB_CHERI:
-		olen = sizeof(sv2);
-		sysctlbyname("security.cheri.syscall_violations",
-		    &sv2, &olen, NULL, 0);
-		if (sv1 != sv2)
-			error = 99;
-		break;
-	default:
-		break;
+		    x, y, slide->i_width,
+		    slide->i_height < (u_int)fb_height - y ?
+		    (u_int)fb_height - y : slide->i_height);
+	if (is != NULL) {
+		switch (sb) {
+		case SB_CAPSICUM:
+			if (is->error == 99)
+				error = 99;
+			break;
+		case SB_CHERI:
+			olen = sizeof(sv2);
+			sysctlbyname("security.cheri.syscall_violations",
+			    &sv2, &olen, NULL, 0);
+			if (sv1 != sv2)
+				error = 99;
+			break;
+		default:
+			break;
+		}
 	}
 
 	/* 
@@ -537,71 +567,125 @@ render_slide(int dfd, int slidenum, const char *slide)
 	if (y == 0) {
 		if (x > 0) {
 			/* Left extend the image if needed */
-			for (r = 0; r < is->height; r++)
-				fb_fill_region(is->buffer[r * is->width],
+			for (r = 0; r < slide->i_height; r++)
+				fb_fill_region(slide->i_image[r * slide->i_width],
 				    0, r, x, 1);
 		}
-		if (x + is->width < (uint)fb_width) {
+		if (x + slide->i_width < (uint)fb_width) {
 			/* Right extend the image if needed */
-			for (r = 0; r < is->height; r++)
-				fb_fill_region(is->buffer[((r + 1) *
-				    is->width) - 1],
-				    x + is->width, r,
-				    fb_width - (x + is->width), 1);
+			for (r = 0; r < slide->i_height; r++)
+				fb_fill_region(slide->i_image[((r + 1) *
+				    slide->i_width) - 1],
+				    x + slide->i_width, r,
+				    fb_width - (x + slide->i_width), 1);
 		}
-		iboxstate_free(is);
+		if (is != NULL)
+			iboxstate_free(is);
+		if (!caching)
+			slide->i_image = NULL;
 		unbusy();
 		return (0);
 	}
 
-	iboxstate_free(is);
+	if (is != NULL)
+		iboxstate_free(is);
+	if (!caching)
+		slide->i_image = NULL;
 
 	busy(0);
 
-	/* put an SRI logo in the lower left corner */
-	if ((pfd = open("/usr/share/images/sri.png", O_RDONLY)) == -1) {
-		warn("Failed to open sri.png");
-		return (-1);
-	}
-	if ((is = png_read_start(pfd, slide_width, fb_height, sb)) == NULL) {
-		warn("Failed to start PNG decode for sri.png");
-		return (-1);
-	}
-	if (png_read_finish(is) != 0) {
-		warnx("png_read_finish() failed for sri.png");
-		return (-1);
-	}
-	decode += iboxstate_get_dtime(is);
-	total += iboxstate_get_ttime(is);
-	fb_post_region(__DEVOLATILE(uint32_t *, is->buffer),
-	    slide_fcol, fb_height - is->height, is->width, is->height);
+	if (sri_logo.i_image == NULL) {
+		/* put an SRI logo in the lower left corner */
+		if ((pfd = open("/usr/share/images/sri.png", O_RDONLY)) == -1) {
+			warn("Failed to open sri.png");
+			return (-1);
+		}
+		if ((is = png_read_start(pfd, slide_width, fb_height, sb)) == NULL) {
+			warn("Failed to start PNG decode for sri.png");
+			return (-1);
+		}
+		if (png_read_finish(is) != 0) {
+			warnx("png_read_finish() failed for sri.png");
+			return (-1);
+		}
+		decode += iboxstate_get_dtime(is);
+		total += iboxstate_get_ttime(is);
+		sri_logo.i_width = is->width;
+		sri_logo.i_height = is->height;
+		if (caching) {
+			sri_logo.i_image = malloc(sizeof(uint32_t) *
+			    sri_logo.i_width * sri_logo.i_height);
+			if (sri_logo.i_image == NULL) {
+				warn("malloc for SRI logo");
+				return (-1);
+			}
+			memcpy(sri_logo.i_image, __DEVOLATILE(uint32_t *,
+			    is->buffer), sizeof(uint32_t) * sri_logo.i_width
+				* sri_logo.i_height);
+		} else
+			sri_logo.i_image = __DEVOLATILE(uint32_t *,
+			    is->buffer);
+	} else
+		is = NULL;
+	fb_post_region(__DEVOLATILE(uint32_t *, sri_logo.i_image),
+	    slide_fcol, fb_height - sri_logo.i_height, sri_logo.i_width,
+	    sri_logo.i_height);
 	if (sb_vis && sb != SB_NONE)
-		fb_rectangle(red, 2, slide_fcol, fb_height - is->height,
-		    is->width, is->height);
-	iboxstate_free(is);
+		fb_rectangle(red, 2, slide_fcol, fb_height - sri_logo.i_height,
+		    sri_logo.i_width, sri_logo.i_height);
+	if (is != NULL)
+		iboxstate_free(is);
+	if (!caching)
+		sri_logo.i_image = NULL;
 
 	/* put a cambridge logo in the lower right corner */
-	if ((pfd = open("/usr/share/images/ucam.png", O_RDONLY)) == -1) {
-		warn("Failed to open ucam.png");
-		return (-1);
-	}
-	if ((is = png_read_start(pfd, slide_width, fb_height, sb)) == NULL) {
-		warn("Failed to start PNG decode for ucam.png");
-		return (-1);
-	}
-	if (png_read_finish(is) != 0) {
-		warnx("png_read_finish() failed for ucam.png");
-		return (-1);
-	}
-	decode += iboxstate_get_dtime(is);
-	total += iboxstate_get_ttime(is);
-	fb_post_region(__DEVOLATILE(uint32_t *, is->buffer),
-	    slide_fcol + slide_width - is->width, fb_height - is->height,
-	    is->width, is->height);
+	if (cam_logo.i_image == NULL) {
+		if ((pfd = open("/usr/share/images/ucam.png", O_RDONLY)) ==
+		    -1) {
+			warn("Failed to open ucam.png");
+			return (-1);
+		}
+		if ((is = png_read_start(pfd, slide_width, fb_height, sb)) ==
+		    NULL) {
+			warn("Failed to start PNG decode for ucam.png");
+			return (-1);
+		}
+		if (png_read_finish(is) != 0) {
+			warnx("png_read_finish() failed for ucam.png");
+			return (-1);
+		}
+		decode += iboxstate_get_dtime(is);
+		total += iboxstate_get_ttime(is);
+		cam_logo.i_width = is->width;
+		cam_logo.i_height = is->height;
+		if (caching) {
+			cam_logo.i_image = malloc(sizeof(uint32_t) *
+			    cam_logo.i_width * cam_logo.i_height);
+			if (cam_logo.i_image == NULL) {
+				warn("malloc for Cambridge logo");
+				return (-1);
+			}
+			memcpy(cam_logo.i_image, __DEVOLATILE(uint32_t *,
+			    is->buffer),sizeof(uint32_t) * cam_logo.i_width *
+			    cam_logo.i_height);
+		} else
+			cam_logo.i_image = __DEVOLATILE(uint32_t *,
+			    is->buffer);
+	} else
+		is = NULL;
+	fb_post_region(__DEVOLATILE(uint32_t *, cam_logo.i_image),
+	    slide_fcol + slide_width - cam_logo.i_width,
+		fb_height - cam_logo.i_height, cam_logo.i_width,
+		cam_logo.i_height);
 	if (sb_vis && sb != SB_NONE)
-		fb_rectangle(red, 2, slide_fcol + slide_width - is->width,
-		    fb_height - is->height, is->width, is->height);
-	iboxstate_free(is);
+		fb_rectangle(red, 2,
+		    slide_fcol + slide_width - cam_logo.i_width,
+		    fb_height - cam_logo.i_height, cam_logo.i_width,
+		    cam_logo.i_height);
+	if (is != NULL)
+		iboxstate_free(is);
+	if (!caching)
+		cam_logo.i_image = NULL;
 
 	f_width = fb_get_font_width();
 	f_height = fb_get_font_height();
@@ -626,30 +710,54 @@ render_slide(int dfd, int slidenum, const char *slide)
 	 * the background color is the same on each row and that the
 	 * left most pixel of the image is that color.
 	 */
-	if ((pfd = open("/usr/share/images/header.png", O_RDONLY)) == -1) {
-		warn("Failed to open header.png");
-		return (-1);
-	}
-	if ((is = png_read_start(pfd, slide_width, fb_height, sb)) == NULL) {
-		warn("Failed to start PNG decode for header.png");
-		return (-1);
-	}
-	if (png_read_finish(is) != 0) {
-		warnx("png_read_finish() failed for header.png");
-		return (-1);
-	}
-	decode += iboxstate_get_dtime(is);
-	total += iboxstate_get_ttime(is);
+	if (header.i_image == NULL) {
+		if ((pfd = open("/usr/share/images/header.png", O_RDONLY)) ==
+		    -1) {
+			warn("Failed to open header.png");
+			return (-1);
+		}
+		if ((is = png_read_start(pfd, slide_width, fb_height, sb)) ==
+		    NULL) {
+			warn("Failed to start PNG decode for header.png");
+			return (-1);
+		}
+		if (png_read_finish(is) != 0) {
+			warnx("png_read_finish() failed for header.png");
+			return (-1);
+		}
+		decode += iboxstate_get_dtime(is);
+		total += iboxstate_get_ttime(is);
+		header.i_width = is->width;
+		header.i_height = is->height;
+		if (caching) {
+			header.i_image = malloc(sizeof(uint32_t) *
+			    header.i_width * header.i_height);
+			if (header.i_image == NULL) {
+				warn("malloc for Cambridge logo");
+				return (-1);
+			}
+			memcpy(header.i_image, __DEVOLATILE(uint32_t *,
+			    is->buffer),sizeof(uint32_t) * header.i_width *
+			    header.i_height);
+		} else
+			header.i_image = __DEVOLATILE(uint32_t *,
+			    is->buffer);
+	} else
+		is = NULL;
 	/* Fill in the header's background. */
-	for (r = 0; r < is->height; r++)
-		fb_fill_region(is->buffer[r * is->width], 0, r,
+	for (r = 0; r < header.i_height; r++)
+		fb_fill_region(header.i_image[r * header.i_width], 0, r,
 		fb_width, 1);
-	fb_post_region(__DEVOLATILE(uint32_t *, is->buffer),
-	    slide_fcol + slide_width - is->width, 0, is->width, is->height);
+	fb_post_region(__DEVOLATILE(uint32_t *, header.i_image),
+	    slide_fcol + slide_width - header.i_width, 0, header.i_width,
+		header.i_height);
 	if (sb_vis && sb != SB_NONE)
-		fb_rectangle(red, 2, slide_fcol + slide_width - is->width,
-		    0, is->width, is->height);
-	iboxstate_free(is);
+		fb_rectangle(red, 2, slide_fcol + slide_width - header.i_width,
+		    0, header.i_width, header.i_height);
+	if (is != NULL)
+		iboxstate_free(is);
+	if (!caching)
+		header.i_image = NULL;
 
 	unbusy();
 
@@ -661,13 +769,13 @@ render_slide(int dfd, int slidenum, const char *slide)
 }
 
 static void
-addslide(int *np, int *maxp, char ***arrayp, const char *name)
+addslide(int *np, int *maxp, struct image ***arrayp, const char *name)
 {
 
 	if (*maxp == 0) {
 		*maxp = 8;
-		if ((*arrayp = malloc(sizeof(**arrayp) * (*maxp))) == NULL)
-			err(1, "malloc slide array\n");
+		if ((*arrayp = calloc(*maxp, sizeof(**arrayp))) == NULL)
+			err(1, "calloc slide array\n");
 	}
 	if (*np == *maxp) {
 		if (*maxp == 0)
@@ -679,7 +787,9 @@ addslide(int *np, int *maxp, char ***arrayp, const char *name)
 			err(1, "realloc slide array");
 	}
 
-	if (((*arrayp)[*np] = strdup(name)) == NULL)
+	if (((*arrayp)[*np] = calloc(sizeof(***arrayp), 1)) == NULL)
+		err(1, "calloc struct image");
+	if (((*arrayp)[*np]->i_file = strdup(name)) == NULL)
 		err(1, "strdup slide name");
 	(*np)++;
 }
@@ -821,16 +931,25 @@ main(int argc, char **argv)
 	DIR *dirp;
 	struct dirent *entry;
 	char *coverpat;
-	char **covers, **slides;
+	struct image **covers, **slides;
 	uint32_t *save;
 	int error, gesture;
 	int ch, forkflag = 0;
+	int i;
 	int cover, ncovers, maxcovers;
 	int slide, nslides, maxslides;
 	struct tsstate *ts, tshack = {0, 0, 0, 0, 0, 0,};
 
-	while ((ch = getopt(argc, argv, "fv")) != -1) {
+	while ((ch = getopt(argc, argv, "fvCc")) != -1) {
 		switch (ch) {
+		case 'C':
+			caching = 2;
+			break;
+		case 'c':
+			/* -C implies -c so don't override if we get -Cc */
+			if (caching == 0)
+				caching = 1;
+			break;
 		case 'f':
 			forkflag = 1;
 			break;
@@ -893,8 +1012,17 @@ main(int argc, char **argv)
 	}
 	if (verbose)
 		printf("read %d covers and %d slides\n", ncovers, nslides);
-	qsort(slides, nslides, sizeof(*slides), &strpcmp);
-	qsort(covers, ncovers, sizeof(*covers), &strpcmp);
+	qsort(slides, nslides, sizeof(*slides), &image_cmp);
+	qsort(covers, ncovers, sizeof(*covers), &image_cmp);
+
+	if (caching > 1) {
+		printf("pre-rendering %d slides\n", nslides);
+		for (i = 0; i < nslides; i++) {
+			if (verbose)
+				printf("slide %d/%d\n", i, nslides);
+			render_slide(dirfd(dirp), i+1, slides[i]);
+		}
+	}
 	
 	slide = *slidep;
 	for (;;) {
@@ -906,7 +1034,7 @@ main(int argc, char **argv)
 		if (slide == 0) {
 			asprintf(&coverpat, "*-cover-%d.png", slide_width);
 			for (cover = 0; cover < ncovers; cover++)
-				if (fnmatch(coverpat, covers[cover],
+				if (fnmatch(coverpat, covers[cover]->i_file,
 				    FNM_CASEFOLD) == 0)
 					break;
 			free(coverpat);
