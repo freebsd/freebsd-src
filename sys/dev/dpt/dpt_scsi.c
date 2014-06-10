@@ -1149,7 +1149,6 @@ dpt_free(struct dpt_softc *dpt)
 	case 4:
 		bus_dmamem_free(dpt->dccb_dmat, dpt->dpt_dccbs,
 				dpt->dccb_dmamap);
-		bus_dmamap_destroy(dpt->dccb_dmat, dpt->dccb_dmamap);
 	case 3:
 		bus_dma_tag_destroy(dpt->dccb_dmat);
 	case 2:

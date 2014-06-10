@@ -246,7 +246,6 @@ bt_free_softc(device_t dev)
 	case 6:
 		bus_dmamem_free(bt->ccb_dmat, bt->bt_ccb_array,
 				bt->ccb_dmamap);
-		bus_dmamap_destroy(bt->ccb_dmat, bt->ccb_dmamap);
 		/* FALLTHROUGH */
 	case 5:
 		bus_dma_tag_destroy(bt->ccb_dmat);
@@ -257,7 +256,6 @@ bt_free_softc(device_t dev)
 	case 3:
 		bus_dmamem_free(bt->mailbox_dmat, bt->in_boxes,
 				bt->mailbox_dmamap);
-		bus_dmamap_destroy(bt->mailbox_dmat, bt->mailbox_dmamap);
 		/* FALLTHROUGH */
 	case 2:
 		bus_dma_tag_destroy(bt->buffer_dmat);
