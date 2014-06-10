@@ -157,7 +157,16 @@ SUB_MAKE= `test -x ${MYMAKE} && echo ${MYMAKE} || echo ${MAKE}` \
 SUB_MAKE= ${MAKE} -m ${.CURDIR}/share/mk
 .endif
 
-_MAKE=	PATH=${PATH} ${SUB_MAKE} -f Makefile.inc1 TARGET=${_TARGET} TARGET_ARCH=${_TARGET_ARCH}
+.if defined(CHERI)
+TARGET=		mips
+TARGET_ARCH=	mips64
+CHERI_FLAGS=	-DDB_FROM_SRC \
+		LOCAL_DIRS="ctsrd tools/tools/atsectl" \
+		LOCAL_LIB_DIRS=ctsrd/lib \
+		LOCAL_MTREE=ctsrd/ctsrd.mtree
+.endif
+
+_MAKE=	PATH=${PATH} ${SUB_MAKE} -f Makefile.inc1 ${CHERI_FLAGS} TARGET=${_TARGET} TARGET_ARCH=${_TARGET_ARCH}
 
 # Guess machine architecture from machine type, and vice versa.
 .if !defined(TARGET_ARCH) && defined(TARGET)
