@@ -37,6 +37,53 @@ enum vm_suspend_how {
 	VM_SUSPEND_LAST
 };
 
+/*
+ * Identifiers for architecturally defined registers.
+ */
+enum vm_reg_name {
+	VM_REG_GUEST_RAX,
+	VM_REG_GUEST_RBX,
+	VM_REG_GUEST_RCX,
+	VM_REG_GUEST_RDX,
+	VM_REG_GUEST_RSI,
+	VM_REG_GUEST_RDI,
+	VM_REG_GUEST_RBP,
+	VM_REG_GUEST_R8,
+	VM_REG_GUEST_R9,
+	VM_REG_GUEST_R10,
+	VM_REG_GUEST_R11,
+	VM_REG_GUEST_R12,
+	VM_REG_GUEST_R13,
+	VM_REG_GUEST_R14,
+	VM_REG_GUEST_R15,
+	VM_REG_GUEST_CR0,
+	VM_REG_GUEST_CR3,
+	VM_REG_GUEST_CR4,
+	VM_REG_GUEST_DR7,
+	VM_REG_GUEST_RSP,
+	VM_REG_GUEST_RIP,
+	VM_REG_GUEST_RFLAGS,
+	VM_REG_GUEST_ES,
+	VM_REG_GUEST_CS,
+	VM_REG_GUEST_SS,
+	VM_REG_GUEST_DS,
+	VM_REG_GUEST_FS,
+	VM_REG_GUEST_GS,
+	VM_REG_GUEST_LDTR,
+	VM_REG_GUEST_TR,
+	VM_REG_GUEST_IDTR,
+	VM_REG_GUEST_GDTR,
+	VM_REG_GUEST_EFER,
+	VM_REG_GUEST_CR2,
+	VM_REG_LAST
+};
+
+enum x2apic_state {
+	X2APIC_DISABLED,
+	X2APIC_ENABLED,
+	X2APIC_STATE_LAST
+};
+
 #ifdef _KERNEL
 
 #define	VM_MAX_NAMELEN	32
@@ -53,9 +100,6 @@ struct vlapic;
 struct vmspace;
 struct vm_object;
 struct pmap;
-
-enum vm_reg_name;
-enum x2apic_state;
 
 typedef int	(*vmm_init_func_t)(int ipinum);
 typedef int	(*vmm_cleanup_func_t)(void);
@@ -250,47 +294,6 @@ enum vm_reg_name vm_segment_name(int seg_encoding);
 #define	VM_MAXCPU	16			/* maximum virtual cpus */
 
 /*
- * Identifiers for architecturally defined registers.
- */
-enum vm_reg_name {
-	VM_REG_GUEST_RAX,
-	VM_REG_GUEST_RBX,
-	VM_REG_GUEST_RCX,
-	VM_REG_GUEST_RDX,
-	VM_REG_GUEST_RSI,
-	VM_REG_GUEST_RDI,
-	VM_REG_GUEST_RBP,
-	VM_REG_GUEST_R8,
-	VM_REG_GUEST_R9,
-	VM_REG_GUEST_R10,
-	VM_REG_GUEST_R11,
-	VM_REG_GUEST_R12,
-	VM_REG_GUEST_R13,
-	VM_REG_GUEST_R14,
-	VM_REG_GUEST_R15,
-	VM_REG_GUEST_CR0,
-	VM_REG_GUEST_CR3,
-	VM_REG_GUEST_CR4,
-	VM_REG_GUEST_DR7,
-	VM_REG_GUEST_RSP,
-	VM_REG_GUEST_RIP,
-	VM_REG_GUEST_RFLAGS,
-	VM_REG_GUEST_ES,
-	VM_REG_GUEST_CS,
-	VM_REG_GUEST_SS,
-	VM_REG_GUEST_DS,
-	VM_REG_GUEST_FS,
-	VM_REG_GUEST_GS,
-	VM_REG_GUEST_LDTR,
-	VM_REG_GUEST_TR,
-	VM_REG_GUEST_IDTR,
-	VM_REG_GUEST_GDTR,
-	VM_REG_GUEST_EFER,
-	VM_REG_GUEST_CR2,
-	VM_REG_LAST
-};
-
-/*
  * Identifiers for optional vmm capabilities
  */
 enum vm_cap_type {
@@ -300,12 +303,6 @@ enum vm_cap_type {
 	VM_CAP_UNRESTRICTED_GUEST,
 	VM_CAP_ENABLE_INVPCID,
 	VM_CAP_MAX
-};
-
-enum x2apic_state {
-	X2APIC_DISABLED,
-	X2APIC_ENABLED,
-	X2APIC_STATE_LAST
 };
 
 enum vm_intr_trigger {
