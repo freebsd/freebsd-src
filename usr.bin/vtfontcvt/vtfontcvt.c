@@ -92,7 +92,7 @@ usage(void)
 {
 
 	errx(1,
-"usage: fontcvt [-w width] [-h height] [-v] normal.bdf [bold.bdf] out.fnt\n");
+"usage: vtfontcvt [-w width] [-h height] [-v] normal.bdf [bold.bdf] out.fnt\n");
 	exit(1);
 }
 
@@ -239,7 +239,7 @@ parse_bitmap_line(uint8_t *left, uint8_t *right, unsigned int line,
 
 		line >>= width;
 	}
-	
+
 	return (0);
 }
 
@@ -309,7 +309,7 @@ parse_hex(FILE *fp, unsigned int map_idx)
 				dwidth *= 2; /* Double-width character. */
 			snprintf(fmt_str, sizeof(fmt_str), "%%%ux",
 			    chars_per_row);
-			
+
 			for (i = 0; i < height; i++) {
 				sscanf(p, fmt_str, &line);
 				p += chars_per_row;
@@ -449,7 +449,7 @@ write_fnt(const char *filename)
 		perror(filename);
 		return (1);
 	}
-	
+
 	if (write_glyphs(fp) != 0 ||
 	    write_mappings(fp, VFNT_MAP_NORMAL) != 0 ||
 	    write_mappings(fp, 1) != 0 ||
@@ -507,7 +507,7 @@ main(int argc, char *argv[])
 	assert(sizeof(struct file_header) == 32);
 	assert(sizeof(struct file_mapping) == 8);
 
-	while ((ch = getopt(argc, argv, "h:w:")) != -1) {
+	while ((ch = getopt(argc, argv, "h:vw:")) != -1) {
 		switch (ch) {
 		case 'h':
 			val = atoi(optarg);
