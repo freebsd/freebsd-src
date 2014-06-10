@@ -1124,10 +1124,12 @@ usb_detach_device_sub(struct usb_device *udev, device_t *ppdev,
 		 */
 		*ppdev = NULL;
 
-		device_printf(dev, "at %s, port %d, addr %d "
-		    "(disconnected)\n",
-		    device_get_nameunit(udev->parent_dev),
-		    udev->port_no, udev->address);
+		if (!rebooting) {
+			device_printf(dev, "at %s, port %d, addr %d "
+			    "(disconnected)\n",
+			    device_get_nameunit(udev->parent_dev),
+			    udev->port_no, udev->address);
+		}
 
 		if (device_is_attached(dev)) {
 			if (udev->flags.peer_suspended) {
@@ -2143,8 +2145,10 @@ usb_free_device(struct usb_device *udev, uint8_t flag)
 #endif
 
 #if USB_HAVE_UGEN
-	printf("%s: <%s> at %s (disconnected)\n", udev->ugen_name,
-	    usb_get_manufacturer(udev), device_get_nameunit(bus->bdev));
+	if (!rebooting) {
+		printf("%s: <%s> at %s (disconnected)\n", udev->ugen_name,
+		    usb_get_manufacturer(udev), device_get_nameunit(bus->bdev));
+	}
 
 	/* Destroy UGEN symlink, if any */
 	if (udev->ugen_symlink) {
