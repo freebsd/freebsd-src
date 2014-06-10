@@ -577,7 +577,7 @@ vtblk_strategy(struct bio *bp)
 	if (sc->vtblk_flags & VTBLK_FLAG_DETACH)
 		vtblk_finish_bio(bp, ENXIO);
 	else {
-		bioq_disksort(&sc->vtblk_bioq, bp);
+		bioq_insert_tail(&sc->vtblk_bioq, bp);
 
 		if ((sc->vtblk_flags & VTBLK_FLAG_SUSPEND) == 0)
 			vtblk_startio(sc);
