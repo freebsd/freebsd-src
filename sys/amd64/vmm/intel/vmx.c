@@ -1311,9 +1311,13 @@ vmx_inject_interrupts(struct vmx *vmx, int vcpu, struct vlapic *vlapic)
 		 * have posted another one.  If that is the case, set
 		 * the Interrupt Window Exiting execution control so
 		 * we can inject that one too.
+		 *
+		 * Also, interrupt window exiting allows us to inject any
+		 * pending APIC vector that was preempted by the ExtINT
+		 * as soon as possible. This applies both for the software
+		 * emulated vlapic and the hardware assisted virtual APIC.
 		 */
-		if (vm_extint_pending(vmx->vm, vcpu))
-			vmx_set_int_window_exiting(vmx, vcpu);
+		vmx_set_int_window_exiting(vmx, vcpu);
 	}
 
 	VCPU_CTR1(vmx->vm, vcpu, "Injecting hwintr at vector %d", vector);
