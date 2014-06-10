@@ -486,6 +486,44 @@ have been configured will have a uniquely named sub-directory, containing a
 single file
 .Pa options .
 .El
+.Sh MAKE VARIABLES
+The following list provides a name and short description for many of the
+variables that are used when building ports.
+More information on these and other related variables may be found in
+.Pa ${PORTSDIR}/Mk/*
+and the
+.Fx
+Porter's Handbook.
+.Bl -tag -width ".Va OVERRIDE_LINUX_BASE_PORT"
+.It Va WITH_OPENSSL_PORT
+.Pq Vt bool
+If set, causes ports that make use of OpenSSL to use the OpenSSL from
+ports
+.Pq if available
+instead of the OpenSSL from the base system.
+.It Va WITH_DEBUG
+.Pq Vt bool
+If set, debugging symbols are installed for ports binaries.
+.It Va WITH_DEBUG_PORTS
+A list of origins for which to set
+.Va WITH_DEBUG_PORTS .
+.It Va WITH_SSP_PORTS
+.Pq Vt bool
+If set, enables
+.Fl fstack-protector
+for most ports.
+.It Va WITH_GHOSTSCRIPT_VER
+If set, the version of ghostscript to be used by ports.
+.It Va OVERRIDE_LINUX_BASE_PORT
+The default linux base to use.
+.It Va WITH_CCACHE_BUILD
+.Pq Vt bool
+If set, enables the use of
+.Xr ccache 1
+for building ports.
+.It Va CCACHE_DIR
+Which directory to use for the ccache data.
+.El
 .Sh FILES
 .Bl -tag -width ".Pa /usr/ports/Mk/bsd.port.mk" -compact
 .It Pa /usr/ports
@@ -495,6 +533,7 @@ The big Kahuna.
 .El
 .Sh SEE ALSO
 .Xr make 1 ,
+.Xr make.conf 5 ,
 .Xr pkg 8 ,
 .Xr portsnap 8
 .Pp
