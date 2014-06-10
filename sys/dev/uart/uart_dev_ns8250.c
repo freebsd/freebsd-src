@@ -929,6 +929,8 @@ void
 ns8250_bus_grab(struct uart_softc *sc)
 {
 	struct uart_bas *bas = &sc->sc_bas;
+	struct ns8250_softc *ns8250 = (struct ns8250_softc*)sc;
+	u_char ier;
 
 	/*
 	 * turn off all interrupts to enter polling mode. Leave the
@@ -936,7 +938,8 @@ ns8250_bus_grab(struct uart_softc *sc)
 	 * All pending interupt signals are reset when IER is set to 0.
 	 */
 	uart_lock(sc->sc_hwmtx);
-	uart_setreg(bas, REG_IER, 0);
+	ier = uart_getreg(bas, REG_IER);
+	uart_setreg(bas, REG_IER, ier & ns8250->ier_mask);
 	uart_barrier(bas);
 	uart_unlock(sc->sc_hwmtx);
 }

@@ -3,10 +3,11 @@
 SHLIBDIR?=	/lib
 
 .if !defined(ENABLE_WIDEC)
-NO_MAN=
+# Override any MAN= setting below..
+MK_MAN=no
 .endif
 
-.include <bsd.own.mk>
+.include <src.opts.mk>
 
 .include "${.CURDIR}/../config.mk"
 

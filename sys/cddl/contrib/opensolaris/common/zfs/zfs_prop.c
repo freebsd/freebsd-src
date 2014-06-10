@@ -20,7 +20,7 @@
  */
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2013 by Delphix. All rights reserved.
+ * Copyright (c) 2011, 2014 by Delphix. All rights reserved.
  * Copyright (c) 2013 by Saso Kiselkov. All rights reserved.
  * Copyright (c) 2013, Joyent, Inc. All rights reserved.
  */
@@ -206,7 +206,18 @@ zfs_prop_init(void)
 		{ NULL }
 	};
 
+	static zprop_index_t redundant_metadata_table[] = {
+		{ "all",	ZFS_REDUNDANT_METADATA_ALL },
+		{ "most",	ZFS_REDUNDANT_METADATA_MOST },
+		{ NULL }
+	};
+
 	/* inherit index properties */
+	zprop_register_index(ZFS_PROP_REDUNDANT_METADATA, "redundant_metadata",
+	    ZFS_REDUNDANT_METADATA_ALL,
+	    PROP_INHERIT, ZFS_TYPE_FILESYSTEM | ZFS_TYPE_VOLUME,
+	    "all | most", "REDUND_MD",
+	    redundant_metadata_table);
 	zprop_register_index(ZFS_PROP_SYNC, "sync", ZFS_SYNC_STANDARD,
 	    PROP_INHERIT, ZFS_TYPE_FILESYSTEM | ZFS_TYPE_VOLUME,
 	    "standard | always | disabled", "SYNC",
@@ -383,6 +394,18 @@ zfs_prop_init(void)
 	zprop_register_number(ZFS_PROP_REFRESERVATION, "refreservation", 0,
 	    PROP_DEFAULT, ZFS_TYPE_FILESYSTEM | ZFS_TYPE_VOLUME,
 	    "<size> | none", "REFRESERV");
+	zprop_register_number(ZFS_PROP_FILESYSTEM_LIMIT, "filesystem_limit",
+	    UINT64_MAX, PROP_DEFAULT, ZFS_TYPE_FILESYSTEM,
+	    "<count> | none", "FSLIMIT");
+	zprop_register_number(ZFS_PROP_SNAPSHOT_LIMIT, "snapshot_limit",
+	    UINT64_MAX, PROP_DEFAULT, ZFS_TYPE_FILESYSTEM | ZFS_TYPE_VOLUME,
+	    "<count> | none", "SSLIMIT");
+	zprop_register_number(ZFS_PROP_FILESYSTEM_COUNT, "filesystem_count",
+	    UINT64_MAX, PROP_DEFAULT, ZFS_TYPE_FILESYSTEM,
+	    "<count>", "FSCOUNT");
+	zprop_register_number(ZFS_PROP_SNAPSHOT_COUNT, "snapshot_count",
+	    UINT64_MAX, PROP_DEFAULT, ZFS_TYPE_FILESYSTEM | ZFS_TYPE_VOLUME,
+	    "<count>", "SSCOUNT");
 
 	/* inherit number properties */
 	zprop_register_number(ZFS_PROP_RECORDSIZE, "recordsize",

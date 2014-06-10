@@ -44,6 +44,10 @@
 			status = "okay";
 		};
 
+		serial2: serial@12C20000 {
+			status = "okay";
+		};
+
 	};
 
 	chosen {

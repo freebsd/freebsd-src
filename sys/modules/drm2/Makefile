@@ -1,5 +1,6 @@
 # $FreeBSD$
 
+.include <src.opts.mk>
 .include <bsd.own.mk>
 
 .if ${MACHINE_CPUARCH} == "amd64"

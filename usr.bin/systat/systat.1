@@ -37,6 +37,7 @@
 .Sh SYNOPSIS
 .Nm
 .Op Fl display
+.Op Ar display-commands
 .Op Ar refresh-interval
 .Sh DESCRIPTION
 The
@@ -108,6 +109,23 @@ The
 .Ar refresh-value
 specifies the screen refresh time interval in seconds.
 Time interval can be fractional.
+.It Ar display-commands
+A list of commands specific for this display. These commands can also
+be entered interactively and are described for each display separately
+below. If the command of the display requires an argument or arguments,
+it is possible to specify them as separate command line argument. To finish
+display commands it is possible to use double dash at the end
+of the list. For example:
+.Pp
+.Dl Nm Fl ifstat Fl match Ar bge0,em1 Fl pps
+.Pp
+This will display statistics of packets per second for network interfaces 
+named as bge0 and em1.
+.Pp
+.Dl Nm Fl iostat Fl numeric Fl - Ar 2.1
+.Pp
+This will display all IO statistics in a numeric format and the information
+will be refreshed each 2.1 seconds.
 .El
 .Pp
 Certain characters cause immediate action by

@@ -87,9 +87,6 @@
 /* Define to 1 if you have the `inet_pton' function. */
 #define HAVE_INET_PTON 1
 
-/* Define to 1 if the system has the type `intptr_t'. */
-#define HAVE_INTPTR_T 1
-
 /* define if you have inttypes.h */
 #define HAVE_INTTYPES_H 1
 
@@ -277,7 +274,7 @@
 #define PACKAGE_NAME "ldns"
 
 /* Define to the full name and version of this package. */
-#define PACKAGE_STRING "ldns 1.6.16"
+#define PACKAGE_STRING "ldns 1.6.17"
 
 /* Define to the one symbol short name of this package. */
 #define PACKAGE_TARNAME "libdns"
@@ -286,7 +283,22 @@
 #define PACKAGE_URL ""
 
 /* Define to the version of this package. */
-#define PACKAGE_VERSION "1.6.16"
+#define PACKAGE_VERSION "1.6.17"
+
+/* Define this to enable RR type CDS. */
+/* #undef RRTYPE_CDS */
+
+/* Define this to enable RR type NINFO. */
+/* #undef RRTYPE_NINFO */
+
+/* Define this to enable RR type RKEY. */
+/* #undef RRTYPE_RKEY */
+
+/* Define this to enable RR type TA. */
+/* #undef RRTYPE_TA */
+
+/* Define this to enable RR type URI. */
+/* #undef RRTYPE_URI */
 
 /* The size of `time_t', as computed by sizeof. */
 #define SIZEOF_TIME_T 8
@@ -294,8 +306,14 @@
 /* Define to 1 if you have the ANSI C header files. */
 #define STDC_HEADERS 1
 
+/* Define this to enable messages to stderr. */
+/* #undef STDERR_MSGS */
+
 /* System configuration dir */
 #define SYSCONFDIR sysconfdir
+
+/* Define this to enable DANE support. */
+#define USE_DANE 1
 
 /* Define this to enable ECDSA support. */
 #define USE_ECDSA 1
@@ -383,8 +401,7 @@
 /* Define to `char' if <sys/types.h> does not define. */
 /* #undef int8_t */
 
-/* Define to the type of a signed integer type wide enough to hold a pointer,
-   if such a type exists, and if the system does not define it. */
+/* Define to `size_t' if <sys/types.h> does not define. */
 /* #undef intptr_t */
 
 /* Define to rpl_malloc if the replacement function should be used. */
@@ -488,6 +505,32 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+int ldns_b64_ntop(uint8_t const *src, size_t srclength,
+	 	  char *target, size_t targsize);
+/**
+ * calculates the size needed to store the result of b64_ntop
+ */
+/*@unused@*/
+static inline size_t ldns_b64_ntop_calculate_size(size_t srcsize)
+{
+	return ((((srcsize + 2) / 3) * 4) + 1);
+}
+int ldns_b64_pton(char const *src, uint8_t *target, size_t targsize);
+/**
+ * calculates the size needed to store the result of ldns_b64_pton
+ */
+/*@unused@*/
+static inline size_t ldns_b64_pton_calculate_size(size_t srcsize)
+{
+	return (((((srcsize + 3) / 4) * 3)) + 1);
+}
+
+/**
+ * Given in dnssec_zone.c, also used in dnssec_sign.c:w
+
+ */
+int ldns_dname_compare_v(const void *a, const void *b);
 
 #ifndef HAVE_SLEEP
 /* use windows sleep, in millisecs, instead */

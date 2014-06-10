@@ -130,21 +130,21 @@ static const struct arm_devmap_entry ep80219_devmap[] = {
 		IQ80321_OBIO_BASE,
 		IQ80321_OBIO_SIZE,
 		VM_PROT_READ|VM_PROT_WRITE,
-		PTE_NOCACHE,
+		PTE_DEVICE,
 	},
 	{
 		IQ80321_IOW_VBASE,
 		VERDE_OUT_XLATE_IO_WIN0_BASE,
 		VERDE_OUT_XLATE_IO_WIN_SIZE,
 		VM_PROT_READ|VM_PROT_WRITE,
-		PTE_NOCACHE,
+		PTE_DEVICE,
 	},	
 	{
 		IQ80321_80321_VBASE,
 		VERDE_PMMR_BASE,
 		VERDE_PMMR_SIZE,
 		VM_PROT_READ|VM_PROT_WRITE,
-		PTE_NOCACHE,
+		PTE_DEVICE,
 	},
 	{
 		0,
@@ -341,6 +341,10 @@ initarm(struct arm_boot_params *abp)
 	 * Prepare the list of physical memory available to the vm subsystem.
 	 */
 	arm_physmem_hardware_region(IQ80321_SDRAM_START, memsize);
+	arm_physmem_exclude_region(freemem_pt, KERNPHYSADDR -
+	    freemem_pt, EXFLAG_NOALLOC);
+	arm_physmem_exclude_region(freemempos, KERNPHYSADDR - 0x100000 -
+	    freemempos, EXFLAG_NOALLOC);
 	arm_physmem_exclude_region(abp->abp_physaddr, 
 	    virtual_avail - KERNVIRTADDR, EXFLAG_NOALLOC);
 	arm_physmem_init_kernel_globals();

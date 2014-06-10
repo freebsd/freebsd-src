@@ -166,6 +166,7 @@ system: packagesystem
 	ln -fs /tmp/bsdinstall_etc/resolv.conf release/etc/resolv.conf
 	echo sendmail_enable=\"NONE\" > release/etc/rc.conf
 	echo hostid_enable=\"NO\" >> release/etc/rc.conf
+	echo debug.witness.trace=0 >> release/etc/sysctl.conf
 	cp ${.CURDIR}/rc.local release/etc
 	touch ${.TARGET}
 # Apply a hammer to remove *.debug files, if they exist.
@@ -194,6 +195,7 @@ bootonly: packagesystem
 	ln -fs /tmp/bsdinstall_etc/resolv.conf bootonly/etc/resolv.conf
 	echo sendmail_enable=\"NONE\" > bootonly/etc/rc.conf
 	echo hostid_enable=\"NO\" >> bootonly/etc/rc.conf
+	echo debug.witness.trace=0 >> bootonly/etc/sysctl.conf
 	cp ${.CURDIR}/rc.local bootonly/etc
 # Apply a hammer to remove *.debug files, if they exist.
 .if defined(WITH_DEBUG_FILES)
@@ -218,6 +220,7 @@ dvd:
 	ln -fs /tmp/bsdinstall_etc/resolv.conf ${.TARGET}/etc/resolv.conf
 	echo sendmail_enable=\"NONE\" > ${.TARGET}/etc/rc.conf
 	echo hostid_enable=\"NO\" >> ${.TARGET}/etc/rc.conf
+	echo debug.witness.trace=0 >> ${.TARGET}/etc/sysctl.conf
 	cp ${.CURDIR}/rc.local ${.TARGET}/etc
 	touch ${.TARGET}
 # Apply a hammer to remove *.debug files, if they exist.

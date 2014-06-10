@@ -29,12 +29,14 @@
 #
 # $FreeBSD$
 
-.include <bsd.own.mk>
+.include <src.opts.mk>
 MK_SSP=		no
 
 PROG?=		loader
 NEWVERSWHAT=	"BERI loader" ${MACHINE_CPUARCH}
 INSTALLFLAGS=	-b
+
+NO_PIE=	yes
 
 # Architecture-specific loader code
 SRCS=		start.S						\
@@ -134,6 +136,17 @@ FILES+= loader.rc
 
 .if !exists(${DESTDIR}/boot/menu.rc)
 FILES+= menu.rc
+.endif
+
+.if defined(LOADER_USB_SUPPORT)
+# Do garbage collection
+CFLAGS+= -ffunction-sections -fdata-sections
+CFLAGS+= -Wl,--gc-sections
+# Link USB BOOT library
+LDADD+= ${.OBJDIR}/../../../usb/libusbboot.a
+CFLAGS+= -I${.CURDIR}/../../../usb
+# Define USB SUPPORT
+CFLAGS+= -DLOADER_USB_SUPPORT
 .endif
 
 all: loader

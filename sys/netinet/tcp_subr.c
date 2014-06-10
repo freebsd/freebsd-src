@@ -375,7 +375,6 @@ tcp_init(void)
 	tcp_tw_init();
 	syncache_init();
 	tcp_hc_init();
-	tcp_reass_init();
 
 	TUNABLE_INT_FETCH("net.inet.tcp.sack.enable", &V_tcp_do_sack);
 	V_sack_hole_zone = uma_zcreate("sackhole", sizeof(struct sackhole),
@@ -433,7 +432,6 @@ tcp_destroy(void)
 {
 	int error;
 
-	tcp_reass_destroy();
 	tcp_hc_destroy();
 	syncache_destroy();
 	tcp_tw_destroy();
@@ -1819,9 +1817,10 @@ tcp_maxmtu(struct in_conninfo *inc, struct tcp_ifcap *cap)
 		/* Report additional interface capabilities. */
 		if (cap != NULL) {
 			if (ifp->if_capenable & IFCAP_TSO4 &&
-			    ifp->if_hwassist & CSUM_TSO)
+			    ifp->if_hwassist & CSUM_TSO) {
 				cap->ifcap |= CSUM_TSO;
 				cap->tsomax = ifp->if_hw_tsomax;
+			}
 		}
 		RTFREE(sro.ro_rt);
 	}
@@ -1857,9 +1856,10 @@ tcp_maxmtu6(struct in_conninfo *inc, struct tcp_ifcap *cap)
 		/* Report additional interface capabilities. */
 		if (cap != NULL) {
 			if (ifp->if_capenable & IFCAP_TSO6 &&
-			    ifp->if_hwassist & CSUM_TSO)
+			    ifp->if_hwassist & CSUM_TSO) {
 				cap->ifcap |= CSUM_TSO;
 				cap->tsomax = ifp->if_hw_tsomax;
+			}
 		}
 		RTFREE(sro6.ro_rt);
 	}

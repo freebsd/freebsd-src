@@ -1,4 +1,3 @@
-
 /*-
  * Copyright (c) 2010 Damien Bergamini <damien.bergamini@free.fr>
  *
@@ -17,9 +16,6 @@
  * $OpenBSD: if_rsureg.h,v 1.3 2013/04/15 09:23:01 mglocker Exp $
  * $FreeBSD$
  */
-
-/* Maximum number of pipes is 11. */
-#define R92S_MAX_EP	11
 
 /* USB Requests. */
 #define R92S_REQ_REGS	0x05
@@ -519,7 +515,7 @@ struct r92s_rx_stat {
 
 	uint32_t	rxdw4;
 	uint32_t	rxdw5;
-} __packed __attribute__((aligned(4)));
+} __packed __aligned(4);
 
 /* Rx PHY descriptor. */
 struct r92s_rx_phystat {
@@ -531,7 +527,7 @@ struct r92s_rx_phystat {
 	uint32_t	phydw5;
 	uint32_t	phydw6;
 	uint32_t	phydw7;
-} __packed __attribute__((aligned(4)));
+} __packed __aligned(4);
 
 /* Rx PHY CCK descriptor. */
 struct r92s_rx_cck {
@@ -595,18 +591,14 @@ struct r92s_tx_desc {
 
 	uint16_t	txbufsize;
 	uint16_t	reserved1;
-} __packed __attribute__((aligned(4)));
+} __packed __aligned(4);
 
 
 /*
  * Driver definitions.
  */
 #define RSU_RX_LIST_COUNT	1
-#ifdef __OpenBSD__
-#define RSU_TX_LIST_COUNT	(8 + 1)	/* NB: +1 for FW commands. */
-#else
 #define RSU_TX_LIST_COUNT	32
-#endif
 
 #define RSU_HOST_CMD_RING_COUNT	32
 
@@ -706,11 +698,9 @@ struct rsu_host_cmd_ring {
 
 enum {
 	RSU_BULK_RX,
-	RSU_BULK_TX_BE,	/* = WME_AC_BE */
-	RSU_BULK_TX_BK,	/* = WME_AC_BK */
-	RSU_BULK_TX_VI,	/* = WME_AC_VI */
-	RSU_BULK_TX_VO,	/* = WME_AC_VI */
-	RSU_N_TRANSFER = 5,
+	RSU_BULK_TX_BE_BK,	/* = WME_AC_BE/BK */
+	RSU_BULK_TX_VI_VO,	/* = WME_AC_VI/VO */
+	RSU_N_TRANSFER,
 };
 
 struct rsu_data {
@@ -743,15 +733,11 @@ struct rsu_softc {
 					    enum ieee80211_state, int);
 	struct usbd_interface		*sc_iface;
 	struct timeout_task		calib_task;
-	struct callout			sc_watchdog_ch;
-	struct usbd_pipe		*pipe[R92S_MAX_EP];
-	int				npipes;
 	const uint8_t			*qid2idx;
 	struct mtx			sc_mtx;
 
 	u_int				cut;
 	int				scan_pass;
-	int				sc_tx_timer;
 	struct rsu_host_cmd_ring	cmdq;
 	struct rsu_data			sc_rx[RSU_RX_LIST_COUNT];
 	struct rsu_data			sc_tx[RSU_TX_LIST_COUNT];
@@ -764,9 +750,9 @@ struct rsu_softc {
 
 	STAILQ_HEAD(, rsu_data)		sc_rx_active;
 	STAILQ_HEAD(, rsu_data)		sc_rx_inactive;
-	STAILQ_HEAD(, rsu_data)		sc_tx_active;
+	STAILQ_HEAD(, rsu_data)		sc_tx_active[RSU_N_TRANSFER];
 	STAILQ_HEAD(, rsu_data)		sc_tx_inactive;
-	STAILQ_HEAD(, rsu_data)		sc_tx_pending;
+	STAILQ_HEAD(, rsu_data)		sc_tx_pending[RSU_N_TRANSFER];
 
 	union {
 		struct rsu_rx_radiotap_header th;

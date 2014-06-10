@@ -989,12 +989,12 @@ igb_mq_start(struct ifnet *ifp, struct mbuf *m)
 	if (err)
 		return (err);
 	if (IGB_TX_TRYLOCK(txr)) {
-		err = igb_mq_start_locked(ifp, txr);
+		igb_mq_start_locked(ifp, txr);
 		IGB_TX_UNLOCK(txr);
 	} else
 		taskqueue_enqueue(que->tq, &txr->txq_task);
 
-	return (err);
+	return (0);
 }
 
 static int
@@ -4331,7 +4331,7 @@ igb_setup_receive_ring(struct rx_ring *rxr)
 		rxbuf = &rxr->rx_buffers[j];
 #ifdef DEV_NETMAP
 		if (slot) {
-			/* slot sj is mapped to the i-th NIC-ring entry */
+			/* slot sj is mapped to the j-th NIC-ring entry */
 			int sj = netmap_idx_n2k(&na->rx_rings[rxr->me], j);
 			uint64_t paddr;
 			void *addr;

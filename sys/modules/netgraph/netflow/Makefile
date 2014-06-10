@@ -3,7 +3,7 @@
 # Author: Gleb Smirnoff <glebius@freebsd.org>
 #
 
-.include <bsd.own.mk>
+.include <src.opts.mk>
 
 .PATH: ${.CURDIR}/../../../netgraph/netflow
 

@@ -152,8 +152,12 @@ ar5210Reset(struct ath_hal *ah, HAL_OPMODE opmode,
 	/* Restore previous led state */
 	OS_REG_WRITE(ah, AR_PCICFG, OS_REG_READ(ah, AR_PCICFG) | ledstate);
 
+#if 0
 	OS_REG_WRITE(ah, AR_BSS_ID0, LE_READ_4(ahp->ah_bssid));
 	OS_REG_WRITE(ah, AR_BSS_ID1, LE_READ_2(ahp->ah_bssid + 4));
+#endif
+	/* BSSID, association id, ps-poll */
+	ar5210WriteAssocid(ah, ahp->ah_bssid, ahp->ah_associd);
 
 	OS_REG_WRITE(ah, AR_TXDP0, 0);
 	OS_REG_WRITE(ah, AR_TXDP1, 0);

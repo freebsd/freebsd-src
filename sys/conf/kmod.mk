@@ -60,18 +60,13 @@
 #		Unload a module.
 #
 
-# backwards compat option for older systems.
-MACHINE_CPUARCH?=${MACHINE_ARCH:C/mips(n32|64)?(el)?/mips/:C/arm(v6)?(eb)?/arm/:C/powerpc64/powerpc/}
-
 AWK?=		awk
 KMODLOAD?=	/sbin/kldload
 KMODUNLOAD?=	/sbin/kldunload
 OBJCOPY?=	objcopy
 
-.if defined(KMODDEPS)
-.error "Do not use KMODDEPS on 5.0+; use MODULE_VERSION/MODULE_DEPEND"
-.endif
-
+# Grab all the options for a kernel build.
+.include "kern.opts.mk"
 .include <bsd.init.mk>
 .include <bsd.compiler.mk>
 
@@ -109,11 +104,9 @@ CFLAGS+=	-I. -I@
 # for example.
 CFLAGS+=	-I@/contrib/altq
 
-.if ${COMPILER_TYPE} != "clang"
-CFLAGS+=	-finline-limit=${INLINE_LIMIT}
-CFLAGS+= --param inline-unit-growth=100
-CFLAGS+= --param large-function-growth=1000
-.endif
+CFLAGS.gcc+=	-finline-limit=${INLINE_LIMIT}
+CFLAGS.gcc+= --param inline-unit-growth=100
+CFLAGS.gcc+= --param large-function-growth=1000
 
 # Disallow common variables, and if we end up with commons from
 # somewhere unexpected, allocate storage for them in the module itself.
@@ -202,7 +195,7 @@ ${KMOD}.kld: ${OBJS}
 ${FULLPROG}: ${OBJS}
 .endif
 	${LD} ${LDFLAGS} -r -d -o ${.TARGET} ${OBJS}
-.if defined(MK_CTF) && ${MK_CTF} != "no"
+.if ${MK_CTF} != "no"
 	${CTFMERGE} ${CTFFLAGS} -o ${.TARGET} ${OBJS}
 .endif
 .if defined(EXPORT_SYMS)

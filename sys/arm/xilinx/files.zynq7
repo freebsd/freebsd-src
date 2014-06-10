@@ -21,6 +21,7 @@ arm/xilinx/zy7_l2cache.c			standard
 arm/xilinx/zy7_bus_space.c			standard
 arm/xilinx/zy7_slcr.c				standard
 arm/xilinx/zy7_devcfg.c				standard
+arm/xilinx/zy7_mp.c				optional smp
 
 dev/cadence/if_cgem.c				optional if_cgem
 dev/sdhci/sdhci_fdt.c				optional sdhci

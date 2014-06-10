@@ -95,7 +95,7 @@ f_index_initialize()
 	f_media_verify || return $FAILURE
 
 	# Does it move when you kick it?
-	f_device_init media || return $FAILURE
+	f_device_init device_media || return $FAILURE
 
 	f_show_info "$msg_attempting_to_update_repository_catalogue"
 
@@ -130,7 +130,7 @@ f_index_initialize()
 	f_dprintf "PACKAGESITE=[%s]" "$PACKAGESITE"
 	if ! f_eval_catch $__funcname pkg "pkg update"; then
 		f_show_err "$msg_unable_to_update_pkg_from_selected_media"
-		f_device_shutdown media
+		f_device_shutdown device_media
 		return $FAILURE
 	fi
 
@@ -146,7 +146,7 @@ f_index_initialize()
 	local __sqlite_digest
 	if ! __sqlite_digest=$( md5 < "$SQLITE_REPO" 2> /dev/null ); then
 		f_show_err "$msg_no_pkg_database_found"
-		f_device_shutdown media
+		f_device_shutdown device_media
 		return $FAILURE
 	fi
 
@@ -208,7 +208,7 @@ f_index_initialize()
 		}
 	}' )"; then
 		f_show_err "$msg_unable_to_pkg_rquery_package_dependencies"
-		f_device_shutdown media
+		f_device_shutdown device_media
 		return $FAILURE
 	fi
 
@@ -225,7 +225,7 @@ f_index_initialize()
 		}
 	}' )"; then
 		f_show_err "$msg_unable_to_pkg_rquery_package_dependencies"
-		f_device_shutdown media
+		f_device_shutdown device_media
 		return $FAILURE
 	fi
 

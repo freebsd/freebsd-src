@@ -311,7 +311,7 @@ read_patterns(const char *fn)
 		fclose(f);
 		return;
 	}
-        while ((line = fgetln(f, &len)) != NULL)
+	while ((line = fgetln(f, &len)) != NULL)
 		add_pattern(line, line[0] == '\n' ? 0 : len);
 	if (ferror(f))
 		err(2, "%s", fn);

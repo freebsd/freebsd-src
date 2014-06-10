@@ -51,8 +51,7 @@ SUBDIR+= ${TESTS_SUBDIRS}
 
 # it is rare for test cases to have man pages
 .if !defined(MAN)
-NO_MAN=yes
-.export NO_MAN
+MAN=
 .endif
 
 # tell progs.mk we might want to install things
@@ -83,8 +82,7 @@ test: aftertest
 
 .if !empty(PROGS) || !empty(PROGS_CXX) || !empty(SCRIPTS)
 .include <bsd.progs.mk>
-.elif !empty(FILES)
-.include <bsd.files.mk>
 .endif
+.include <bsd.files.mk>
 
 .include <bsd.obj.mk>

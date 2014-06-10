@@ -30,7 +30,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 6, 2012
+.Dd June 6, 2014
 .Dt XNB 4
 .Os
 .Sh NAME
@@ -116,7 +116,9 @@ machine.
 However, when a Xennet interface is bridged to a physical interface,
 a correct checksum must be attached to any packets bound for that physical
 interface.
-Currently, FreeBSD lacks any mechanism for an ethernet device to
+Currently,
+.Fx
+lacks any mechanism for an Ethernet device to
 inform the OS that newly received packets are valid even though their checksums
 are not.
 So if the netfront driver is configured to offload checksum calculations,

@@ -13,7 +13,7 @@
  */
 
 #include <sm/gen.h>
-SM_RCSID("@(#)$Id: vprintf.c,v 1.15 2013/11/22 20:51:44 ca Exp $")
+SM_RCSID("@(#)$Id: vprintf.c,v 1.15 2013-11-22 20:51:44 ca Exp $")
 #include <sm/io.h>
 #include "local.h"
 

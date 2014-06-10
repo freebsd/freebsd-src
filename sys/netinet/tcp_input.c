@@ -229,12 +229,6 @@ static void	 tcp_pulloutofband(struct socket *,
 		     struct tcphdr *, struct mbuf *, int);
 static void	 tcp_xmit_timer(struct tcpcb *, int);
 static void	 tcp_newreno_partial_ack(struct tcpcb *, struct tcphdr *);
-static void inline 	tcp_fields_to_host(struct tcphdr *);
-#ifdef TCP_SIGNATURE
-static void inline 	tcp_fields_to_net(struct tcphdr *);
-static int inline	tcp_signature_verify_input(struct mbuf *, int, int,
-			    int, struct tcpopt *, struct tcphdr *, u_int);
-#endif
 static void inline	cc_ack_received(struct tcpcb *tp, struct tcphdr *th,
 			    uint16_t type);
 static void inline	cc_conn_init(struct tcpcb *tp);
@@ -455,27 +449,7 @@ cc_post_recovery(struct tcpcb *tp, struct tcphdr *th)
 	tp->t_bytes_acked = 0;
 }
 
-static inline void
-tcp_fields_to_host(struct tcphdr *th)
-{
-
-	th->th_seq = ntohl(th->th_seq);
-	th->th_ack = ntohl(th->th_ack);
-	th->th_win = ntohs(th->th_win);
-	th->th_urp = ntohs(th->th_urp);
-}
-
 #ifdef TCP_SIGNATURE
-static inline void
-tcp_fields_to_net(struct tcphdr *th)
-{
-
-	th->th_seq = htonl(th->th_seq);
-	th->th_ack = htonl(th->th_ack);
-	th->th_win = htons(th->th_win);
-	th->th_urp = htons(th->th_urp);
-}
-
 static inline int
 tcp_signature_verify_input(struct mbuf *m, int off0, int tlen, int optlen,
     struct tcpopt *to, struct tcphdr *th, u_int tcpbflag)
@@ -905,6 +879,7 @@ findpcb:
 		inp->inp_flags |= INP_HW_FLOWID;
 		inp->inp_flags &= ~INP_SW_FLOWID;
 		inp->inp_flowid = m->m_pkthdr.flowid;
+		inp->inp_flowtype = M_HASHTYPE_GET(m);
 	}
 #ifdef IPSEC
 #ifdef INET6
@@ -1639,8 +1614,7 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 	    tp->snd_nxt == tp->snd_max &&
 	    tiwin && tiwin == tp->snd_wnd && 
 	    ((tp->t_flags & (TF_NEEDSYN|TF_NEEDFIN)) == 0) &&
-	    LIST_EMPTY(&tp->t_segq) &&
-	    ((to.to_flags & TOF_TS) == 0 ||
+	    tp->t_segq == NULL && ((to.to_flags & TOF_TS) == 0 ||
 	     TSTMP_GEQ(to.to_tsval, tp->ts_recent)) ) {
 
 		/*
@@ -2908,8 +2882,7 @@ dodata:							/* XXX */
 		 * immediately when segments are out of order (so
 		 * fast retransmit can work).
 		 */
-		if (th->th_seq == tp->rcv_nxt &&
-		    LIST_EMPTY(&tp->t_segq) &&
+		if (th->th_seq == tp->rcv_nxt && tp->t_segq == NULL &&
 		    TCPS_HAVEESTABLISHED(tp->t_state)) {
 			if (DELAY_ACK(tp, tlen))
 				tp->t_flags |= TF_DELACK;

@@ -43,7 +43,8 @@ extern "C" {
 typedef struct apr_shm_t apr_shm_t;
 
 /**
- * Create and make accessable a shared memory segment.
+ * Create and make accessible a shared memory segment with default
+ * properties.
  * @param m The shared memory structure to create.
  * @param reqsize The desired size of the segment.
  * @param filename The file to use for shared memory on platforms that
@@ -71,6 +72,52 @@ APR_DECLARE(apr_status_t) apr_shm_create(apr_shm_t **m,
                                          apr_pool_t *pool);
 
 /**
+ * Special processing flags for apr_shm_create_ex() and apr_shm_attach_ex().
+ */
+#define APR_SHM_NS_LOCAL    1 /* Create or attach to named shared memory
+                               * segment in the "Local" namespace on
+                               * Windows.  (Ignored on other platforms.)
+                               * By default, the "Global" namespace is
+                               * used for privileged processes and the
+                               * "Local" namespace is used otherwise.
+                               */
+#define APR_SHM_NS_GLOBAL   2 /* Create or attach to named shared memory
+                               * segment in the "Global" namespace on
+                               * Windows.  (Ignored on other platforms.)
+                               */
+
+/**
+ * Create and make accessible a shared memory segment with platform-
+ * specific processing.
+ * @param m The shared memory structure to create.
+ * @param reqsize The desired size of the segment.
+ * @param filename The file to use for shared memory on platforms that
+ *        require it.
+ * @param pool the pool from which to allocate the shared memory
+ *        structure.
+ * @param flags mask of APR_SHM_* (defined above)
+ * @remark A note about Anonymous vs. Named shared memory segments:
+ *         Not all plaforms support anonymous shared memory segments, but in
+ *         some cases it is prefered over other types of shared memory
+ *         implementations. Passing a NULL 'file' parameter to this function
+ *         will cause the subsystem to use anonymous shared memory segments.
+ *         If such a system is not available, APR_ENOTIMPL is returned.
+ * @remark A note about allocation sizes:
+ *         On some platforms it is necessary to store some metainformation
+ *         about the segment within the actual segment. In order to supply
+ *         the caller with the requested size it may be necessary for the
+ *         implementation to request a slightly greater segment length
+ *         from the subsystem. In all cases, the apr_shm_baseaddr_get()
+ *         function will return the first usable byte of memory.
+ * 
+ */
+APR_DECLARE(apr_status_t) apr_shm_create_ex(apr_shm_t **m,
+                                            apr_size_t reqsize,
+                                            const char *filename,
+                                            apr_pool_t *pool,
+                                            apr_int32_t flags);
+
+/**
  * Remove named resource associated with a shared memory segment,
  * preventing attachments to the resource, but not destroying it.
  * @param filename The filename associated with shared-memory segment which
@@ -80,7 +127,7 @@ APR_DECLARE(apr_status_t) apr_shm_create(apr_shm_t **m,
  * name-based shared memory segments, and will return APR_ENOTIMPL on
  * platforms without such support.  Removing the file while the shm
  * is in use is not entirely portable, caller may use this to enhance
- * obscurity of the resource, but be prepared for the the call to fail,
+ * obscurity of the resource, but be prepared for the call to fail,
  * and for concurrent attempts to create a resource of the same name
  * to also fail.  The pool cleanup of apr_shm_create (apr_shm_destroy)
  * also removes the named resource.
@@ -106,6 +153,21 @@ APR_DECLARE(apr_status_t) apr_shm_destroy(apr_shm_t *m);
 APR_DECLARE(apr_status_t) apr_shm_attach(apr_shm_t **m,
                                          const char *filename,
                                          apr_pool_t *pool);
+
+/**
+ * Attach to a shared memory segment that was created
+ * by another process, with platform-specific processing.
+ * @param m The shared memory structure to create.
+ * @param filename The file used to create the original segment.
+ *        (This MUST match the original filename.)
+ * @param pool the pool from which to allocate the shared memory
+ *        structure for this process.
+ * @param flags mask of APR_SHM_* (defined above)
+ */
+APR_DECLARE(apr_status_t) apr_shm_attach_ex(apr_shm_t **m,
+                                            const char *filename,
+                                            apr_pool_t *pool,
+                                            apr_int32_t flags);
 
 /**
  * Detach from a shared memory segment without destroying it.

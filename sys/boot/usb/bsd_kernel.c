@@ -380,8 +380,10 @@ device_get_parent(device_t dev)
 }
 
 void
-device_set_interrupt(device_t dev, intr_fn_t *fn, void *arg)
+device_set_interrupt(device_t dev, driver_filter_t *filter,
+    driver_intr_t *fn, void *arg)
 {
+	dev->dev_irq_filter = filter;
 	dev->dev_irq_fn = fn;
 	dev->dev_irq_arg = arg;
 }
@@ -395,8 +397,16 @@ device_run_interrupts(device_t parent)
 		return;
 
 	TAILQ_FOREACH(child, &parent->dev_children, dev_link) {
-		if (child->dev_irq_fn != NULL)
-			(child->dev_irq_fn) (child->dev_irq_arg);
+		int status;
+		if (child->dev_irq_filter != NULL)
+			status = child->dev_irq_filter(child->dev_irq_arg);
+		else
+			status = FILTER_SCHEDULE_THREAD;
+
+		if (status == FILTER_SCHEDULE_THREAD) {
+			if (child->dev_irq_fn != NULL)
+				(child->dev_irq_fn) (child->dev_irq_arg);
+		}
 	}
 }
 
@@ -1081,6 +1091,7 @@ usb_proc_mwait(struct usb_process *up, void *_pm0, void *_pm1)
  * SYSTEM attach
  *------------------------------------------------------------------------*/
 
+#ifdef USB_PCI_PROBE_LIST
 static device_method_t pci_methods[] = {
 	DEVMETHOD_END
 };
@@ -1095,9 +1106,7 @@ static devclass_t pci_devclass;
 DRIVER_MODULE(pci, pci, pci_driver, pci_devclass, 0, 0);
 
 static const char *usb_pci_devices[] = {
-#ifdef USB_PROBE_LIST
-	USB_PROBE_LIST
-#endif
+	USB_PCI_PROBE_LIST
 };
 
 #define	USB_PCI_USB_MAX	(sizeof(usb_pci_devices) / sizeof(void *))
@@ -1140,11 +1149,13 @@ usb_pci_mod_unload(void *arg)
 		device_delete_child(NULL, usb_pci_root);
 }
 SYSUNINIT(usb_pci_mod_unload, SI_SUB_RUN_SCHEDULER, SI_ORDER_MIDDLE, usb_pci_mod_unload, 0);
+#endif
 
 /*------------------------------------------------------------------------*
  * MALLOC API
  *------------------------------------------------------------------------*/
 
+#ifndef HAVE_MALLOC
 #define	USB_POOL_ALIGN 8
 
 static uint8_t usb_pool[USB_POOL_SIZE] __aligned(USB_POOL_ALIGN);
@@ -1173,7 +1184,7 @@ usb_malloc(unsigned long size)
 	}
 
 	if (hdr) {
-		printf("MALLOC: Entries = %d; Remainder = %d; Size = %d\n",
+		DPRINTF("MALLOC: Entries = %d; Remainder = %d; Size = %d\n",
 		    (int)usb_pool_entries, (int)usb_pool_rem, (int)size);
 
 		TAILQ_REMOVE(&malloc_head, hdr, entry);
@@ -1187,7 +1198,7 @@ usb_malloc(unsigned long size)
 		usb_pool_rem -= size;
 		usb_pool_entries++;
 
-		printf("MALLOC: Entries = %d; Remainder = %d; Size = %d\n",
+		DPRINTF("MALLOC: Entries = %d; Remainder = %d; Size = %d\n",
 		    (int)usb_pool_entries, (int)usb_pool_rem, (int)size);
 
 		memset(hdr + 1, 0, hdr->size - sizeof(*hdr));
@@ -1209,6 +1220,7 @@ usb_free(void *arg)
 
 	TAILQ_INSERT_TAIL(&malloc_head, hdr, entry);
 }
+#endif
 
 char   *
 usb_strdup(const char *str)
@@ -1218,7 +1230,7 @@ usb_strdup(const char *str)
 
 	len = 1 + strlen(str);
 
-	tmp = usb_malloc(len);
+	tmp = malloc(len,XXX,XXX);
 	if (tmp == NULL)
 		return (NULL);
 

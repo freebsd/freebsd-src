@@ -446,6 +446,43 @@ vatpic_pulse_irq(struct vm *vm, int irq)
 	return (vatpic_set_irqstate(vm, irq, IRQSTATE_PULSE));
 }
 
+int
+vatpic_set_irq_trigger(struct vm *vm, int irq, enum vm_intr_trigger trigger)
+{
+	struct vatpic *vatpic;
+
+	if (irq < 0 || irq > 15)
+		return (EINVAL);
+
+	/*
+	 * See comment in vatpic_elc_handler.  These IRQs must be
+	 * edge triggered.
+	 */
+	if (trigger == LEVEL_TRIGGER) {
+		switch (irq) {
+		case 0:
+		case 1:
+		case 2:
+		case 8:
+		case 13:
+			return (EINVAL);
+		}
+	}
+
+	vatpic = vm_atpic(vm);
+
+	VATPIC_LOCK(vatpic);
+
+	if (trigger == LEVEL_TRIGGER)
+		vatpic->elc[irq >> 3] |=  1 << (irq & 0x7);
+	else
+		vatpic->elc[irq >> 3] &=  ~(1 << (irq & 0x7));
+
+	VATPIC_UNLOCK(vatpic);
+
+	return (0);
+}
+
 void
 vatpic_pending_intr(struct vm *vm, int *vecptr)
 {
@@ -517,7 +554,8 @@ vatpic_intr_accepted(struct vm *vm, int vector)
 }
 
 static int
-vatpic_read(struct vatpic *vatpic, struct atpic *atpic, struct vm_exit *vmexit)
+vatpic_read(struct vatpic *vatpic, struct atpic *atpic, bool in, int port,
+	    int bytes, uint32_t *eax)
 {
 	VATPIC_LOCK(vatpic);
 
@@ -526,16 +564,16 @@ vatpic_read(struct vatpic *vatpic, struct atpic *atpic, struct vm_exit *vmexit)
 		VATPIC_UNLOCK(vatpic);
 		return (-1);
 	} else {
-		if (vmexit->u.inout.port & ICU_IMR_OFFSET) {
+		if (port & ICU_IMR_OFFSET) {
 			/* read interrrupt mask register */
-			vmexit->u.inout.eax = atpic->mask;
+			*eax = atpic->mask;
 		} else {
 			if (atpic->rd_cmd_reg == OCW3_RIS) {
 				/* read interrupt service register */
-				vmexit->u.inout.eax = atpic->service;
+				*eax = atpic->service;
 			} else {
 				/* read interrupt request register */
-				vmexit->u.inout.eax = atpic->request;
+				*eax = atpic->request;
 			}
 		}
 	}
@@ -547,17 +585,18 @@ vatpic_read(struct vatpic *vatpic, struct atpic *atpic, struct vm_exit *vmexit)
 }
 
 static int
-vatpic_write(struct vatpic *vatpic, struct atpic *atpic,
-    struct vm_exit *vmexit)
+vatpic_write(struct vatpic *vatpic, struct atpic *atpic, bool in, int port,
+    int bytes, uint32_t *eax)
 {
 	int error;
 	uint8_t val;
 
-	val = vmexit->u.inout.eax;
+	error = 0;
+	val = *eax;
 
 	VATPIC_LOCK(vatpic);
 
-	if (vmexit->u.inout.port & ICU_IMR_OFFSET) {
+	if (port & ICU_IMR_OFFSET) {
 		if (atpic->ready) {
 			error = vatpic_ocw1(vatpic, atpic, val);
 		} else {
@@ -594,7 +633,8 @@ vatpic_write(struct vatpic *vatpic, struct atpic *atpic,
 }
 
 int
-vatpic_master_handler(void *vm, int vcpuid, struct vm_exit *vmexit)
+vatpic_master_handler(void *vm, int vcpuid, bool in, int port, int bytes,
+    uint32_t *eax)
 {
 	struct vatpic *vatpic;
 	struct atpic *atpic;
@@ -602,18 +642,19 @@ vatpic_master_handler(void *vm, int vcpuid, struct vm_exit *vmexit)
 	vatpic = vm_atpic(vm);
 	atpic = &vatpic->atpic[0];
 
-	if (vmexit->u.inout.bytes != 1)
+	if (bytes != 1)
 		return (-1);
  
-	if (vmexit->u.inout.in) {
-		return (vatpic_read(vatpic, atpic, vmexit));
+	if (in) {
+		return (vatpic_read(vatpic, atpic, in, port, bytes, eax));
 	}
  
-	return (vatpic_write(vatpic, atpic, vmexit));
+	return (vatpic_write(vatpic, atpic, in, port, bytes, eax));
 }
 
 int
-vatpic_slave_handler(void *vm, int vcpuid, struct vm_exit *vmexit)
+vatpic_slave_handler(void *vm, int vcpuid, bool in, int port, int bytes,
+    uint32_t *eax)
 {
 	struct vatpic *vatpic;
 	struct atpic *atpic;
@@ -621,35 +662,36 @@ vatpic_slave_handler(void *vm, int vcpuid, struct vm_exit *vmexit)
 	vatpic = vm_atpic(vm);
 	atpic = &vatpic->atpic[1];
 
-	if (vmexit->u.inout.bytes != 1)
+	if (bytes != 1)
 		return (-1);
 
-	if (vmexit->u.inout.in) {
-		return (vatpic_read(vatpic, atpic, vmexit));
+	if (in) {
+		return (vatpic_read(vatpic, atpic, in, port, bytes, eax));
 	}
 
-	return (vatpic_write(vatpic, atpic, vmexit));
+	return (vatpic_write(vatpic, atpic, in, port, bytes, eax));
 }
 
 int
-vatpic_elc_handler(void *vm, int vcpuid, struct vm_exit *vmexit)
+vatpic_elc_handler(void *vm, int vcpuid, bool in, int port, int bytes,
+    uint32_t *eax)
 {
 	struct vatpic *vatpic;
 	bool is_master;
 
 	vatpic = vm_atpic(vm);
-	is_master = (vmexit->u.inout.port == IO_ELCR1);
+	is_master = (port == IO_ELCR1);
 
-	if (vmexit->u.inout.bytes != 1)
+	if (bytes != 1)
 		return (-1);
 
 	VATPIC_LOCK(vatpic);
 
-	if (vmexit->u.inout.in) {
+	if (in) {
 		if (is_master)
-			vmexit->u.inout.eax = vatpic->elc[0];
+			*eax = vatpic->elc[0];
 		else
-			vmexit->u.inout.eax = vatpic->elc[1];
+			*eax = vatpic->elc[1];
 	} else {
 		/*
 		 * For the master PIC the cascade channel (IRQ2), the
@@ -662,9 +704,9 @@ vatpic_elc_handler(void *vm, int vcpuid, struct vm_exit *vmexit)
 		 * be programmed for level mode.
 		 */
 		if (is_master)
-			vatpic->elc[0] = (vmexit->u.inout.eax & 0xf8);
+			vatpic->elc[0] = (*eax & 0xf8);
 		else
-			vatpic->elc[1] = (vmexit->u.inout.eax & 0xde);
+			vatpic->elc[1] = (*eax & 0xde);
 	}
 
 	VATPIC_UNLOCK(vatpic);

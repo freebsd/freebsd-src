@@ -40,11 +40,15 @@ ucl_hash_create (void)
 void ucl_hash_destroy (ucl_hash_t* hashlin, ucl_hash_free_func *func)
 {
 	ucl_hash_node_t *elt, *tmp;
+	const ucl_object_t *cur, *otmp;
 
 	HASH_ITER (hh, hashlin->buckets, elt, tmp) {
 		HASH_DELETE (hh, hashlin->buckets, elt);
 		if (func) {
-			func (elt->data);
+			DL_FOREACH_SAFE (elt->data, cur, otmp) {
+				/* Need to deconst here */
+				func (__DECONST (ucl_object_t *, cur));
+			}
 		}
 		UCL_FREE (sizeof (ucl_hash_node_t), elt);
 	}
@@ -52,7 +56,8 @@ void ucl_hash_destroy (ucl_hash_t* hashlin, ucl_hash_free_func *func)
 }
 
 void
-ucl_hash_insert (ucl_hash_t* hashlin, ucl_object_t *obj, const char *key, unsigned keylen)
+ucl_hash_insert (ucl_hash_t* hashlin, const ucl_object_t *obj,
+		const char *key, unsigned keylen)
 {
 	ucl_hash_node_t *node;
 
@@ -61,7 +66,7 @@ ucl_hash_insert (ucl_hash_t* hashlin, ucl_object_t *obj, const char *key, unsign
 	HASH_ADD_KEYPTR (hh, hashlin->buckets, key, keylen, node);
 }
 
-void*
+const void*
 ucl_hash_iterate (ucl_hash_t *hashlin, ucl_hash_iter_t *iter)
 {
 	ucl_hash_node_t *elt = *iter;
@@ -92,7 +97,7 @@ ucl_hash_iter_has_next (ucl_hash_iter_t iter)
 }
 
 
-ucl_object_t*
+const ucl_object_t*
 ucl_hash_search (ucl_hash_t* hashlin, const char *key, unsigned keylen)
 {
 	ucl_hash_node_t *found;
@@ -109,7 +114,7 @@ ucl_hash_search (ucl_hash_t* hashlin, const char *key, unsigned keylen)
 }
 
 void
-ucl_hash_delete (ucl_hash_t* hashlin, ucl_object_t *obj)
+ucl_hash_delete (ucl_hash_t* hashlin, const ucl_object_t *obj)
 {
 	ucl_hash_node_t *found;
 

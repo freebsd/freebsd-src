@@ -39,6 +39,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/bus.h>
 #include <machine/devmap.h>
 #include <machine/machdep.h>
+#include <machine/platform.h> 
 
 #include <arm/arm/mpcore_timervar.h>
 #include <arm/freescale/imx/imx6_anatopreg.h>
@@ -46,14 +47,14 @@ __FBSDID("$FreeBSD$");
 #include <arm/freescale/imx/imx_machdep.h>
 
 vm_offset_t
-initarm_lastaddr(void)
+platform_lastaddr(void)
 {
 
 	return (arm_devmap_lastaddr());
 }
 
 void
-initarm_early_init(void)
+platform_probe_and_attach(void)
 {
 
 	/* Inform the MPCore timer driver that its clock is variable. */
@@ -61,13 +62,13 @@ initarm_early_init(void)
 }
 
 void
-initarm_gpio_init(void)
+platform_gpio_init(void)
 {
 
 }
 
 void
-initarm_late_init(void)
+platform_late_init(void)
 {
 
 }
@@ -89,7 +90,7 @@ initarm_late_init(void)
  * as OCRAM that probably shouldn't be mapped as PTE_DEVICE memory.
  */
 int
-initarm_devmap_init(void)
+platform_devmap_init(void)
 {
 	const uint32_t IMX6_ARMMP_PHYS = 0x00a00000;
 	const uint32_t IMX6_ARMMP_SIZE = 0x00100000;

@@ -21,7 +21,7 @@
 
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2013 by Delphix. All rights reserved.
+ * Copyright (c) 2011, 2014 by Delphix. All rights reserved.
  * Copyright 2013 Nexenta Systems, Inc.  All rights reserved.
  * Copyright (c) 2013 Martin Matuska <mm@FreeBSD.org>. All rights reserved.
  */
@@ -138,7 +138,7 @@ static const char *const zio_taskq_types[ZIO_TASKQ_TYPES] = {
 const zio_taskq_info_t zio_taskqs[ZIO_TYPES][ZIO_TASKQ_TYPES] = {
 	/* ISSUE	ISSUE_HIGH	INTR		INTR_HIGH */
 	{ ZTI_ONE,	ZTI_NULL,	ZTI_ONE,	ZTI_NULL }, /* NULL */
-	{ ZTI_N(8),	ZTI_NULL,	ZTI_BATCH,	ZTI_NULL }, /* READ */
+	{ ZTI_N(8),	ZTI_NULL,	ZTI_P(12, 8),	ZTI_NULL }, /* READ */
 	{ ZTI_BATCH,	ZTI_N(5),	ZTI_N(8),	ZTI_N(5) }, /* WRITE */
 	{ ZTI_P(12, 8),	ZTI_NULL,	ZTI_ONE,	ZTI_NULL }, /* FREE */
 	{ ZTI_ONE,	ZTI_NULL,	ZTI_ONE,	ZTI_NULL }, /* CLAIM */
@@ -953,7 +953,11 @@ spa_taskq_dispatch_ent(spa_t *spa, zio_type_t t, zio_taskq_type_t q,
 	if (tqs->stqs_count == 1) {
 		tq = tqs->stqs_taskq[0];
 	} else {
+#ifdef _KERNEL
+		tq = tqs->stqs_taskq[cpu_ticks() % tqs->stqs_count];
+#else
 		tq = tqs->stqs_taskq[gethrtime() % tqs->stqs_count];
+#endif
 	}
 
 	taskq_dispatch_ent(tq, func, arg, flags, ent);
@@ -3919,9 +3923,6 @@ spa_generate_rootconf(const char *name)
 		}
 	}
 
-	/*
-	 * Multi-vdev root pool configuration discovery is not supported yet.
-	 */
 	nchildren = 1;
 	nvlist_lookup_uint64(best_cfg, ZPOOL_CONFIG_VDEV_CHILDREN, &nchildren);
 	holes = NULL;

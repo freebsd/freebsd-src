@@ -1002,9 +1002,6 @@ device		streams		# STREAMS network driver (required for svr4).
 options 	NDISAPI
 device		ndis
 
-# Linux-specific pseudo devices support
-device		lindev
-
 
 #####################################################################
 # VM OPTIONS
@@ -1059,6 +1056,3 @@ options 	VM_KMEM_SIZE_SCALE
 # asr old ioctls support, needed by raidutils
 
 options 	ASR_COMPAT
-
-# Module to enable execution of application via emulators like QEMU
-options         IMAGACT_BINMISC

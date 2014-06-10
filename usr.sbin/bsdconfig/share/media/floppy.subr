@@ -62,26 +62,20 @@ f_media_set_floppy()
 	if [ ${ndevs:=0} -eq 0 ]; then
 		f_interactive && f_show_msg "$msg_no_floppy_devices_found"
 		return $FAILURE
-	elif [ $ndevs -gt 1 ]; then
+	elif [ $ndevs -eq 1 ]; then
+		f_struct_copy $devs device_media
+	else
+		local dev
 		local title="$msg_choose_a_floppy_drive"
 		local prompt="$msg_please_select_a_floppy_drive"
-		local hline=""
+		local hline=
 
-		local dev retval
 		dev=$( f_device_menu \
 			"$title" "$prompt" "$hline" $DEVICE_TYPE_FLOPPY \
-			2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD )
-		retval=$?
-		[ "$dev" ] || return $FAILURE
+			2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD ) ||
+			return $FAILURE
 
-		f_device_find "$dev" $DEVICE_TYPE_FLOPPY devs
-		[ "$devs" ] || return $FAILURE
-		dev="${devs%%[$IFS]*}"
-
-		f_struct_copy device_$dev device_media
-		[ $retval -eq $SUCCESS ] || return $FAILURE
-	else
-		f_struct_copy device_$devs device_media
+		f_struct_copy "$dev" device_media
 	fi
 
 	f_struct device_media &&
@@ -101,7 +95,7 @@ f_media_init_floppy()
 	local funcname=f_media_init_floppy
 	local dev="$1" devname err
 
-	device_$dev get devname devname || return $FAILURE
+	$dev get devname devname || return $FAILURE
 	f_dprintf "Init floppy called for %s distribution. devname=[%s]" \
 	          "${FLOPPY_DISTWANTED:-some}" "$devname"
 
@@ -111,7 +105,7 @@ f_media_init_floppy()
 	fi
 
 	local mp
-	device_$dev get private mp
+	$dev get private mp
 	if [ ! -e "${mp:=$MOUNTPOINT}" ] && ! f_quietly mkdir -p "$mp"; then
 		f_show_msg "$msg_unable_to_make_directory_mountpoint" \
 		           "$mp" "$devname"
@@ -120,7 +114,7 @@ f_media_init_floppy()
 
 	if f_interactive; then
 		local desc
-		device_$dev get desc desc
+		$dev get desc desc
 		if [ "$FLOPPY_DISTWANTED" ]; then
 			f_show_msg "$msg_please_insert_floppy_in_drive" "$desc"
 		else
@@ -138,7 +132,7 @@ f_media_init_floppy()
 	}; then
 		err="${err#mount: }"; err="${err#*: }"
 		local name
-		device_$dev get name name
+		$dev get name name
 		f_show_msg "$msg_error_mounting_floppy_device" \
 		           "$name" "$devname" "$mp" "$err"
 		return $FAILURE
@@ -159,9 +153,11 @@ f_media_get_floppy()
 {
 	local funcname=f_media_get_floppy
 	local dev="$1" file="$2" probe_type="$3"
+	local name
 
+	$dev get name name
 	f_dprintf "f_media_get_floppy: dev=[%s] file=[%s] probe_type=%s" \
-	          "$dev" "$file" "$probe_type"
+	          "$name" "$file" "$probe_type"
 
 	#
 	# floppies don't use f_media_generic_get() because it's too expensive
@@ -169,7 +165,7 @@ f_media_get_floppy()
 	# right or give up with floppies.
 	#
 	local mp
-	device_$dev get private mp
+	$dev get private mp
 	local fp="${mp:=$MOUNTPOINT}/$file"
 	if ! [ -f "$fp" -a -r "$fp" ]; then
 		local nretries=4
@@ -213,14 +209,14 @@ f_media_shutdown_floppy()
 
 	[ "$FLOPPY_MOUNTED" ] || return $FAILURE
 
-	device_$dev get private mp
+	$dev get private mp
 	if f_eval_catch -d $funcname umount \
 		'umount -f "%s"' "${mp:=$MOUNTPOINT}"
 	then
 		FLOPPY_MOUNTED=
 		if f_interactive && [ "$_systemState" != "fixit" ]; then
 			local desc
-			device_$dev get desc desc
+			$dev get desc desc
 			f_show_msg "$msg_you_may_remove_the_floppy" "$desc"
 		fi
 	fi

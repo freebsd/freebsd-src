@@ -1,7 +1,7 @@
 #
 #  Copyright (c) 2014 Spectra Logic Corporation
 #  All rights reserved.
-# 
+#
 #  Redistribution and use in source and binary forms, with or without
 #  modification, are permitted provided that the following conditions
 #  are met:
@@ -13,7 +13,7 @@
 #     ("Disclaimer") and any redistribution must be conditioned upon
 #     including a substantially similar Disclaimer requirement for further
 #     binary redistribution.
-# 
+#
 #  NO WARRANTY
 #  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
 #  "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
@@ -26,7 +26,7 @@
 #  STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
 #  IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 #  POSSIBILITY OF SUCH DAMAGES.
-# 
+#
 #  Authors: Alan Somers         (Spectra Logic Corporation)
 #
 # $FreeBSD$
@@ -43,7 +43,7 @@
 # Simulate a crossover cable between them by using net/socat
 # Use nping (from security/nmap) to send an ICMP echo request from one
 # interface to the other, spoofing the source IP.  The source IP must be
-# spoofed, or else it will already have an entry in the arp table. 
+# spoofed, or else it will already have an entry in the arp table.
 # Check whether an arp entry exists for the spoofed IP
 atf_test_case arpresolve_checks_interface_fib cleanup
 arpresolve_checks_interface_fib_head()
@@ -84,7 +84,7 @@ arpresolve_checks_interface_fib_body()
 	socat /dev/${TAP0} /dev/${TAP1} &
 	SOCAT_PID=$!
 	echo ${SOCAT_PID} >> "processes_to_kill"
-	
+
 	# Send an ICMP echo request with a spoofed source IP
 	setfib 2 nping -c 1 -e ${TAP0} -S ${SPOOF_ADDR} \
 		--source-mac ${SPOOF_MAC} --icmp --icmp-type "echo-request" \
@@ -116,7 +116,6 @@ loopback_and_network_routes_on_nondefault_fib_head()
 
 loopback_and_network_routes_on_nondefault_fib_body()
 {
-	atf_expect_fail "kern/187549 Host and network routes for a new interface appear in the wrong FIB"
 	# Configure the TAP interface to use an RFC5737 nonrouteable address
 	# and a non-default fib
 	ADDR="192.0.2.2"
@@ -176,7 +175,6 @@ default_route_with_multiple_fibs_on_same_subnet_head()
 
 default_route_with_multiple_fibs_on_same_subnet_body()
 {
-	atf_expect_fail "kern/187552 default route uses the wrong interface when multiple interfaces have the same subnet but different fibs"
 	# Configure the TAP interfaces to use a RFC5737 nonrouteable addresses
 	# and a non-default fib
 	ADDR0="192.0.2.2"
@@ -215,6 +213,98 @@ default_route_with_multiple_fibs_on_same_subnet_cleanup()
 }
 
 
+# Regression test for PR kern/189089
+# Create two tap interfaces and assign them both the same IP address but with
+# different netmasks, and both on the default FIB.  Then remove one's IP
+# address.  Hopefully the machine won't panic.
+atf_test_case same_ip_multiple_ifaces_fib0 cleanup
+same_ip_multiple_ifaces_fib0_head()
+{
+	atf_set "descr" "Can remove an IP alias from an interface when the same IP is also assigned to another interface."
+	atf_set "require.user" "root"
+	atf_set "require.config" "fibs"
+}
+same_ip_multiple_ifaces_fib0_body()
+{
+	ADDR="192.0.2.2"
+	MASK0="24"
+	MASK1="32"
+
+	# Unlike most of the tests in this file, this is applicable regardless
+	# of net.add_addr_allfibs
+
+	# Setup the interfaces, then remove one alias.  It should not panic.
+	setup_tap 0 ${ADDR} ${MASK0}
+	TAP0=${TAP}
+	setup_tap 0 ${ADDR} ${MASK1}
+	TAP1=${TAP}
+	ifconfig ${TAP1} -alias ${ADDR}
+
+	# Do it again, in the opposite order.  It should not panic.
+	setup_tap 0 ${ADDR} ${MASK0}
+	TAP0=${TAP}
+	setup_tap 0 ${ADDR} ${MASK1}
+	TAP1=${TAP}
+	ifconfig ${TAP0} -alias ${ADDR}
+}
+same_ip_multiple_ifaces_fib0_cleanup()
+{
+	cleanup_tap
+}
+
+# Regression test for PR kern/189088
+# Test that removing an IP address works even if the same IP is assigned to a
+# different interface, on a different FIB.  Tests the same code that whose
+# panic was regressed by same_ip_multiple_ifaces_fib0.  
+# Create two tap interfaces and assign them both the same IP address but with
+# different netmasks, and on different FIBs.  Then remove one's IP
+# address.  Hopefully the machine won't panic.  Also, the IP's hostroute should
+# dissappear from the correct fib.
+atf_test_case same_ip_multiple_ifaces cleanup
+same_ip_multiple_ifaces_head()
+{
+	atf_set "descr" "Can remove an IP alias from an interface when the same IP is also assigned to another interface, on non-default FIBs."
+	atf_set "require.user" "root"
+	atf_set "require.config" "fibs"
+}
+same_ip_multiple_ifaces_body()
+{
+	atf_expect_fail "kern/189088 Assigning the same IP to multiple interfaces in different FIBs creates a host route for only one"
+	ADDR="192.0.2.2"
+	MASK0="24"
+	MASK1="32"
+
+	# Unlike most of the tests in this file, this is applicable regardless
+	# of net.add_addr_allfibs
+	get_fibs 2
+
+	# Setup the interfaces, then remove one alias.  It should not panic.
+	setup_tap ${FIB0} ${ADDR} ${MASK0}
+	TAP0=${TAP}
+	setup_tap ${FIB1} ${ADDR} ${MASK1}
+	TAP1=${TAP}
+	ifconfig ${TAP1} -alias ${ADDR}
+	atf_check -o not-match:"^${ADDR}[[:space:]]" \
+		setfib ${FIB1} netstat -rn -f inet
+
+	# Do it again, in the opposite order.  It should not panic.
+	setup_tap ${FIB0} ${ADDR} ${MASK0}
+	TAP0=${TAP}
+	setup_tap ${FIB1} ${ADDR} ${MASK1}
+	TAP1=${TAP}
+	ifconfig ${TAP0} -alias ${ADDR}
+	atf_check -o not-match:"^${ADDR}[[:space:]]" \
+		setfib ${FIB0} netstat -rn -f inet
+}
+same_ip_multiple_ifaces_cleanup()
+{
+	# Due to PR kern/189088, we must destroy the interfaces in LIFO order
+	# in order for the routes to be correctly cleaned up.
+	for TAPD in `tail -r "tap_devices_to_cleanup"`; do
+		ifconfig ${TAPD} destroy
+	done
+}
+
 # Regression test for kern/187550
 atf_test_case subnet_route_with_multiple_fibs_on_same_subnet cleanup
 subnet_route_with_multiple_fibs_on_same_subnet_head()
@@ -226,7 +316,6 @@ subnet_route_with_multiple_fibs_on_same_subnet_head()
 
 subnet_route_with_multiple_fibs_on_same_subnet_body()
 {
-	atf_expect_fail "kern/187550 Multiple interfaces on different FIBs but the same subnet don't all have a subnet route"
 	# Configure the TAP interfaces to use a RFC5737 nonrouteable addresses
 	# and a non-default fib
 	ADDR0="192.0.2.2"
@@ -254,43 +343,39 @@ subnet_route_with_multiple_fibs_on_same_subnet_cleanup()
 	cleanup_tap
 }
 
-# Regression test for kern/187553 "Source address selection for UDP packets
-# with SO_DONTROUTE uses the default FIB".  The original complaint was that a
-# UDP packet with SO_DONTROUTE set would select a source address from an
-# interface on the default FIB instead of the process FIB.
+# Test that source address selection works correctly for UDP packets with
+# SO_DONTROUTE set that are sent on non-default FIBs.
 # This bug was discovered with "setfib 1 netperf -t UDP_STREAM -H some_host"
 # Regression test for kern/187553
-
+#
 # The root cause was that ifa_ifwithnet() did not have a fib argument.  It
 # would return an address from an interface on any FIB that had a subnet route
 # for the destination.  If more than one were available, it would choose the
-# most specific.  The root cause is most easily tested by creating two
-# interfaces with overlapping subnet routes, adding a default route to the
-# interface with the less specific subnet route, and looking up a host that
-# requires the default route using the FIB of the interface with the less
-# specific subnet route.  "route get" should provide a route that uses the
-# interface on the chosen FIB.  However, absent the patch for this bug it will
-# instead use the other interface.
-atf_test_case src_addr_selection_by_subnet cleanup
-src_addr_selection_by_subnet_head()
+# most specific.  This is most easily tested by creating a FIB without a
+# default route, then trying to send a UDP packet with SO_DONTROUTE set to an
+# address which is not routable on that FIB.  Absent the fix for this bug,
+# in_pcbladdr would choose an interface on any FIB with a default route.  With
+# the fix, you will get EUNREACH or ENETUNREACH.
+atf_test_case udp_dontroute cleanup
+udp_dontroute_head()
 {
 	atf_set "descr" "Source address selection for UDP packets with SO_DONTROUTE on non-default FIBs works"
 	atf_set "require.user" "root"
 	atf_set "require.config" "fibs"
 }
 
-src_addr_selection_by_subnet_body()
+udp_dontroute_body()
 {
 	atf_expect_fail "kern/187553 Source address selection for UDP packets with SO_DONTROUTE uses the default FIB"
 	# Configure the TAP interface to use an RFC5737 nonrouteable address
 	# and a non-default fib
 	ADDR0="192.0.2.2"
 	ADDR1="192.0.2.3"
-	GATEWAY0="192.0.2.1"
-	TARGET="192.0.2.128"
 	SUBNET="192.0.2.0"
-	MASK0="25"
-	MASK1="26"
+	MASK="24"
+	# Use a different IP on the same subnet as the target
+	TARGET="192.0.2.100"
+	SRCDIR=`atf_get_srcdir`
 
 	# Check system configuration
 	if [ 0 != `sysctl -n net.add_addr_allfibs` ]; then
@@ -298,22 +383,27 @@ src_addr_selection_by_subnet_body()
 	fi
 	get_fibs 2
 
-	# Configure a TAP interface
-	setup_tap ${FIB0} ${ADDR0} ${MASK0}
-	TAP0=${TAP}
-	setup_tap ${FIB1} ${ADDR1} ${MASK1}
-	TAP1=${TAP}
+	# Configure the TAP interfaces
+	setup_tap ${FIB0} ${ADDR0} ${MASK}
+	TARGET_TAP=${TAP}
+	setup_tap ${FIB1} ${ADDR1} ${MASK}
 
-	# Add a gateway to the interface with the less specific subnet route
-	setfib ${FIB0} route add default ${GATEWAY0}
+	# Send a UDP packet with SO_DONTROUTE.  In the failure case, it will
+	# return ENETUNREACH, or send the packet to the wrong tap
+	atf_check -o ignore setfib ${FIB0} \
+		${SRCDIR}/udp_dontroute ${TARGET} /dev/${TARGET_TAP}
+	cleanup_tap
 
-	# Lookup a route
-	echo "Looking up route to ${TARGET} with fib ${FIB0}"
-	echo "Expected behavior is to use interface ${TAP0}"
-	atf_check -o match:"interface:.${TAP0}" setfib ${FIB0} route -n get ${TARGET}
+	# Repeat, but this time target the other tap
+	setup_tap ${FIB0} ${ADDR0} ${MASK}
+	setup_tap ${FIB1} ${ADDR1} ${MASK}
+	TARGET_TAP=${TAP}
+
+	atf_check -o ignore setfib ${FIB1} \
+		${SRCDIR}/udp_dontroute ${TARGET} /dev/${TARGET_TAP}
 }
 
-src_addr_selection_by_subnet_cleanup()
+udp_dontroute_cleanup()
 {
 	cleanup_tap
 }
@@ -322,10 +412,12 @@ src_addr_selection_by_subnet_cleanup()
 atf_init_test_cases()
 {
 	atf_add_test_case arpresolve_checks_interface_fib
-	atf_add_test_case loopback_and_network_routes_on_nondefault_fib 
-	atf_add_test_case default_route_with_multiple_fibs_on_same_subnet 
-	atf_add_test_case subnet_route_with_multiple_fibs_on_same_subnet 
-	atf_add_test_case src_addr_selection_by_subnet
+	atf_add_test_case loopback_and_network_routes_on_nondefault_fib
+	atf_add_test_case default_route_with_multiple_fibs_on_same_subnet
+	atf_add_test_case same_ip_multiple_ifaces_fib0
+	atf_add_test_case same_ip_multiple_ifaces
+	atf_add_test_case subnet_route_with_multiple_fibs_on_same_subnet
+	atf_add_test_case udp_dontroute
 }
 
 # Looks up one or more fibs from the configuration data and validates them.
@@ -388,4 +480,5 @@ cleanup_tap()
 	for TAPD in `cat "tap_devices_to_cleanup"`; do
 		ifconfig ${TAPD} destroy
 	done
+	rm "tap_devices_to_cleanup"
 }

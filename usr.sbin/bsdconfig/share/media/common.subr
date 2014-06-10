@@ -44,7 +44,8 @@ MOUNTPOINT=/dist
 
 #
 # Media probe values to use for `f_media_get_TYPE media $file $PROBE' or
-# `f_device_get media $file $PROBE' (where $PROBE is one of the below values).
+# `f_device_get device_media $file $PROBE' (where $PROBE is one of the below
+# values).
 #
 PROBE_EXIST=1
 PROBE_SIZE=2
@@ -61,7 +62,7 @@ f_media_open()
 	{ # Verify and initialize device media if-defined
 		f_struct device_media &&
 		f_media_verify &&
-		f_device_init media
+		f_device_init device_media
 	} || return $FAILURE
 }
 
@@ -74,7 +75,7 @@ f_media_close()
 {
 	f_dprintf "f_media_close: Shutting down media device"
 	f_struct device_media &&
-		f_device_shutdown media
+		f_device_shutdown device_media
 	f_struct_free device_media
 }
 

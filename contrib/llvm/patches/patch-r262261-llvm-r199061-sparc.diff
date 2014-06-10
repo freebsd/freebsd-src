@@ -8,7 +8,7 @@ Pull in r199061 from upstream llvm trunk (by Jakob Stoklund Olesen):
   Teach isBlockOnlyReachableByFallthrough to find any MBB operands on
   bundled terminators so SPARC doesn't need to specialize this function.
 
-Introduced here: http://svn.freebsd.org/changeset/base/262261
+Introduced here: http://svnweb.freebsd.org/changeset/base/262261
 
 Index: test/CodeGen/SPARC/missinglabel.ll
 ===================================================================

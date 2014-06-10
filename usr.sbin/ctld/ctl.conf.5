@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 11, 2014
+.Dd April 24, 2014
 .Dt CTL.CONF 5
 .Os
 .Sh NAME
@@ -41,7 +41,7 @@ configuration file is used by the
 daemon.
 Lines starting with
 .Ql #
-and empty lines are interpreted as comments.
+are interpreted as comments.
 The general syntax of the
 .Nm
 file is:
@@ -129,7 +129,7 @@ ones will be allowed to connect.
 The following statements are available at the portal-group level:
 .Bl -tag -width indent
 .It Ic discovery-auth-group Aq Ar name
-Assigns previously defined authentication group to that portal group,
+Assigns previously defined authentication group to the portal group,
 to be used for target discovery.
 By default, portal groups that do not specify their own auth settings,
 using clauses such as "chap" or "initiator-name", are assigned
@@ -146,10 +146,10 @@ using iSER (iSCSI over RDMA) protocol.
 The following statements are available at the target level:
 .Bl -tag -width indent
 .It Ic alias Aq Ar text
-Assigns human-readable description to that target.
+Assigns human-readable description to the target.
 There is no default.
 .It Ic auth-group Aq Ar name
-Assigns previously defined authentication group to that target.
+Assigns previously defined authentication group to the target.
 By default, targets that do not specify their own auth settings,
 using clauses such as "chap" or "initiator-name", are assigned
 predefined auth-group "default", which denies all access.
@@ -187,7 +187,7 @@ ones will be allowed to connect.
 This clause is mutually exclusive with auth-group; one cannot use
 both in a single target.
 .It Ic portal-group Aq Ar name
-Assigns previously defined portal group to that target.
+Assigns previously defined portal group to the target.
 Default portal group is "default", which makes the target available
 on TCP port 3260 on all configured IPv4 and IPv6 addresses.
 .It Ic lun Aq Ar number
@@ -203,7 +203,7 @@ Valid choices are
 and
 .Dq ramdisk ;
 block is used for LUNs backed
-by files in the filesystem; ramdisk is a bitsink device, used mostly for
+by files or disk device nodes; ramdisk is a bitsink device, used mostly for
 testing.
 The default backend is block.
 .It Ic blocksize Aq Ar size
@@ -214,7 +214,7 @@ Specifies SCSI Device Identification string presented to the initiator.
 .It Ic option Ao Ar name Ac Aq Ar value
 Specifies CTL-specific options passed to the kernel.
 .It Ic path Aq Ar path
-Specifies path to file used to back the LUN.
+Specifies path to file or device node used to back the LUN.
 .It Ic serial Aq Ar string
 Specifies SCSI serial number presented to the initiator.
 .It Ic size Aq Ar size
@@ -245,7 +245,7 @@ portal-group example2 {
 }
 
 target iqn.2012-06.com.example:target0 {
-	alias "Testing target"
+	alias "Example target"
 	auth-group no-authentication
 	lun 0 {
 		path /dev/zvol/example_0

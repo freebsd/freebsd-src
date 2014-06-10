@@ -301,7 +301,7 @@ ngc_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *addr,
 		}
 	}
 
-	item = ng_package_msg(msg, M_WAITOK);
+	item = ng_package_msg(msg, NG_WAITOK);
 	if ((error = ng_address_path((pcbp->sockdata->node), item, path, 0))
 	    != 0) {
 #ifdef TRACE_MESSAGES

@@ -1,7 +1,7 @@
 This patch eliminates the unnecessary search for various gcc installation
 directories during each startup of clang.
 
-Introduced here: http://svn.freebsd.org/changeset/base/259053
+Introduced here: http://svnweb.freebsd.org/changeset/base/259053
 
 Index: tools/clang/lib/Driver/ToolChains.cpp
 ===================================================================

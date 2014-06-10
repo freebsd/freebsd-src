@@ -3733,8 +3733,7 @@ pmap_enter_object(pmap_t pmap, vm_offset_t start, vm_offset_t end,
 	while (m != NULL && (diff = m->pindex - m_start->pindex) < psize) {
 		va = start + ptoa(diff);
 		if ((va & PDRMASK) == 0 && va + NBPDR <= end &&
-		    (VM_PAGE_TO_PHYS(m) & PDRMASK) == 0 &&
-		    pg_ps_enabled && vm_reserv_level_iffullpop(m) == 0 &&
+		    m->psind == 1 && pg_ps_enabled &&
 		    pmap_enter_pde(pmap, va, m, prot))
 			m = &m[NBPDR / PAGE_SIZE - 1];
 		else

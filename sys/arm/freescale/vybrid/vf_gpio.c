@@ -242,7 +242,7 @@ vf_gpio_pin_get(device_t dev, uint32_t pin, unsigned int *val)
 		return (EINVAL);
 
 	GPIO_LOCK(sc);
-	*val = (READ4(sc, GPIO_PDOR(i)) & (1 << (i % 32)));
+	*val = (READ4(sc, GPIO_PDIR(i)) & (1 << (i % 32))) ? 1 : 0;
 	GPIO_UNLOCK(sc);
 
 	return (0);

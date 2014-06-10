@@ -186,7 +186,7 @@ nsphy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 		 */
 		reg |= 0x0100 | 0x0400;
 
-		if (strcmp(mii->mii_ifp->if_dname, "fxp") == 0)
+		if (strcmp(if_getdname(mii->mii_ifp), "fxp") == 0)
 			PHY_WRITE(sc, MII_NSPHY_PCR, reg);
 
 		mii_phy_setmedia(sc);

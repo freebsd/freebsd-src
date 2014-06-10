@@ -13,7 +13,7 @@ divert(-1)
 #
 divert(0)
 
-VERSIONID(`$Id: proto.m4,v 8.762 2013/11/22 20:51:13 ca Exp $')
+VERSIONID(`$Id: proto.m4,v 8.762 2013-11-22 20:51:13 ca Exp $')
 
 # level CF_LEVEL config file format
 V`'CF_LEVEL`'ifdef(`NO_VENDOR',`', `/ifdef(`VENDOR_NAME', `VENDOR_NAME', `Berkeley')')

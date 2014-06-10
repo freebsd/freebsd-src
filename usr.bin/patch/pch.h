@@ -27,10 +27,10 @@
  * $FreeBSD$
  */
 
-#define OLD_FILE	0
-#define NEW_FILE	1
-#define INDEX_FILE	2
-#define MAX_FILE	3
+#define	OLD_FILE	0
+#define	NEW_FILE	1
+#define	INDEX_FILE	2
+#define	MAX_FILE	3
 
 struct file_name {
 	char *path;

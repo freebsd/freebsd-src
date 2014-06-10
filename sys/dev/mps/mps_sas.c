@@ -749,9 +749,7 @@ mps_attach_sas(struct mps_softc *sc)
 	TASK_INIT(&sassc->ev_task, 0, mpssas_firmware_event_work, sc);
 	sassc->ev_tq = taskqueue_create("mps_taskq", M_NOWAIT | M_ZERO,
 	    taskqueue_thread_enqueue, &sassc->ev_tq);
-
-	/* Run the task queue with lowest priority */
-	taskqueue_start_threads(&sassc->ev_tq, 1, 255, "%s taskq", 
+	taskqueue_start_threads(&sassc->ev_tq, 1, PRIBIO, "%s taskq", 
 	    device_get_nameunit(sc->mps_dev));
 
 	mps_lock(sc);
@@ -2316,8 +2314,9 @@ mpssas_scsiio_complete(struct mps_softc *sc, struct mps_command *cm)
 		    (csio->cdb_io.cdb_bytes[1] & SI_EVPD) &&
 		    (csio->cdb_io.cdb_bytes[2] == SVPD_SUPPORTED_PAGE_LIST) &&
 		    ((csio->ccb_h.flags & CAM_DATA_MASK) == CAM_DATA_VADDR) &&
-		    (csio->data_ptr != NULL) && (((uint8_t *)cm->cm_data)[0] ==
-		    T_SEQUENTIAL) && (sc->control_TLR) &&
+		    (csio->data_ptr != NULL) &&
+		    ((csio->data_ptr[0] & 0x1f) == T_SEQUENTIAL) &&
+		    (sc->control_TLR) &&
 		    (sc->mapping_table[csio->ccb_h.target_id].device_info &
 		    MPI2_SAS_DEVICE_INFO_SSP_TARGET)) {
 			vpd_list = (struct scsi_vpd_supported_page_list *)
@@ -2328,6 +2327,7 @@ mpssas_scsiio_complete(struct mps_softc *sc, struct mps_command *cm)
 			TLR_on = (u8)MPI2_SCSIIO_CONTROL_TLR_ON;
 			alloc_len = ((u16)csio->cdb_io.cdb_bytes[3] << 8) +
 			    csio->cdb_io.cdb_bytes[4];
+			alloc_len -= csio->resid;
 			for (i = 0; i < MIN(vpd_list->length, alloc_len); i++) {
 				if (vpd_list->list[i] == 0x90) {
 					*TLR_bits = TLR_on;
