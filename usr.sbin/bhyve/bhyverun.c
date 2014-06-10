@@ -124,7 +124,7 @@ usage(int code)
 {
 
         fprintf(stderr,
-                "Usage: %s [-aehwAHIPW] [-g <gdb port>] [-s <pci>] [-S <pci>]\n"
+                "Usage: %s [-aehwAHIPW] [-g <gdb port>] [-s <pci>]\n"
 		"       %*s [-c vcpus] [-p pincpu] [-m mem] [-l <lpc>] <vm>\n"
 		"       -a: local apic is in XAPIC mode (default is X2APIC)\n"
 		"       -A: create an ACPI table\n"
@@ -137,7 +137,6 @@ usage(int code)
 		"       -e: exit on unhandled I/O access\n"
 		"       -h: help\n"
 		"       -s: <slot,driver,configinfo> PCI slot config\n"
-		"       -S: <slot,driver,configinfo> legacy PCI slot config\n"
 		"       -l: LPC device configuration\n"
 		"       -m: memory size in MB\n"
 		"       -w: ignore unimplemented MSRs\n",
@@ -599,7 +598,7 @@ main(int argc, char *argv[])
 	guest_ncpus = 1;
 	memsize = 256 * MB;
 
-	while ((c = getopt(argc, argv, "abehwAHIPWp:g:c:s:S:m:l:")) != -1) {
+	while ((c = getopt(argc, argv, "abehwAHIPWp:g:c:s:m:l:")) != -1) {
 		switch (c) {
 		case 'a':
 			disable_x2apic = 1;
@@ -626,12 +625,7 @@ main(int argc, char *argv[])
 			}
 			break;
 		case 's':
-			if (pci_parse_slot(optarg, 0) != 0)
-				exit(1);
-			else
-				break;
-		case 'S':
-			if (pci_parse_slot(optarg, 1) != 0)
+			if (pci_parse_slot(optarg) != 0)
 				exit(1);
 			else
 				break;
