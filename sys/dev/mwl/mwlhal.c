@@ -309,19 +309,12 @@ mwl_hal_attach(device_t dev, uint16_t devid,
 		       NULL,			/* lockarg */
 		       &mh->mh_dmat);
 	if (error != 0) {
-		device_printf(dev, "unable to allocate memory for cmd buffer, "
+		device_printf(dev, "unable to allocate memory for cmd tag, "
 			"error %u\n", error);
 		goto fail0;
 	}
 
 	/* allocate descriptors */
-	error = bus_dmamap_create(mh->mh_dmat, BUS_DMA_NOWAIT, &mh->mh_dmamap);
-	if (error != 0) {
-		device_printf(dev, "unable to create dmamap for cmd buffers, "
-			"error %u\n", error);
-		goto fail0;
-	}
-
 	error = bus_dmamem_alloc(mh->mh_dmat, (void**) &mh->mh_cmdbuf,
 				 BUS_DMA_NOWAIT | BUS_DMA_COHERENT, 
 				 &mh->mh_dmamap);
@@ -365,9 +358,8 @@ mwl_hal_attach(device_t dev, uint16_t devid,
 fail2:
 	bus_dmamem_free(mh->mh_dmat, mh->mh_cmdbuf, mh->mh_dmamap);
 fail1:
-	bus_dmamap_destroy(mh->mh_dmat, mh->mh_dmamap);
-fail0:
 	bus_dma_tag_destroy(mh->mh_dmat);
+fail0:
 	mtx_destroy(&mh->mh_mtx);
 	free(mh, M_DEVBUF);
 	return NULL;
@@ -379,7 +371,6 @@ mwl_hal_detach(struct mwl_hal *mh0)
 	struct mwl_hal_priv *mh = MWLPRIV(mh0);
 
 	bus_dmamem_free(mh->mh_dmat, mh->mh_cmdbuf, mh->mh_dmamap);
-	bus_dmamap_destroy(mh->mh_dmat, mh->mh_dmamap);
 	bus_dma_tag_destroy(mh->mh_dmat);
 	mtx_destroy(&mh->mh_mtx);
 	free(mh, M_DEVBUF);

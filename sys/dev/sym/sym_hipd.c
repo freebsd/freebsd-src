@@ -617,11 +617,8 @@ out_err:
 		bus_dmamap_unload(mp->dmat, vbp->dmamap);
 	if (vaddr)
 		bus_dmamem_free(mp->dmat, vaddr, vbp->dmamap);
-	if (vbp) {
-		if (vbp->dmamap)
-			bus_dmamap_destroy(mp->dmat, vbp->dmamap);
+	if (vbp)
 		__sym_mfree(&mp0, vbp, sizeof(*vbp), "VTOB");
-	}
 	return 0;
 }
 
@@ -639,7 +636,6 @@ static void ___dma_freep(m_pool_s *mp, m_addr_t m)
 		*vbpp = (*vbpp)->next;
 		bus_dmamap_unload(mp->dmat, vbp->dmamap);
 		bus_dmamem_free(mp->dmat, (void *) vbp->vaddr, vbp->dmamap);
-		bus_dmamap_destroy(mp->dmat, vbp->dmamap);
 		__sym_mfree(&mp0, vbp, sizeof(*vbp), "VTOB");
 		--mp->nump;
 	}
