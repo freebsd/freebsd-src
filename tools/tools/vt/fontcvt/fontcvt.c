@@ -354,7 +354,7 @@ number_glyphs(void)
 			gl->g_index = idx++;
 }
 
-static void
+static int
 write_glyphs(FILE *fp)
 {
 	struct glyph *gl;
@@ -362,8 +362,10 @@ write_glyphs(FILE *fp)
 
 	for (i = 0; i < VFNT_MAPS; i++) {
 		TAILQ_FOREACH(gl, &glyphs[i], g_list)
-			fwrite(gl->g_data, wbytes * height, 1, fp);
+			if (fwrite(gl->g_data, wbytes * height, 1, fp) != 1)
+				return (1);
 	}
+	return (0);
 }
 
 static void
@@ -390,7 +392,7 @@ struct file_mapping {
 	uint16_t	length;
 } __packed;
 
-static void
+static int
 write_mappings(FILE *fp, unsigned int map_idx)
 {
 	struct mapping_list *ml = &maps[map_idx];
@@ -405,10 +407,12 @@ write_mappings(FILE *fp, unsigned int map_idx)
 			fm.source = htobe32(mp->m_char);
 			fm.destination = htobe16(mp->m_glyph->g_index);
 			fm.length = htobe16(mp->m_length - 1);
-			fwrite(&fm, sizeof fm, 1, fp);
+			if (fwrite(&fm, sizeof fm, 1, fp) != 1)
+				return (1);
 		}
 	}
 	assert(i == j);
+	return (0);
 }
 
 struct file_header {
@@ -441,13 +445,19 @@ write_fnt(const char *filename)
 	fh.map_count[1] = htobe32(map_folded_count[1]);
 	fh.map_count[2] = htobe32(map_folded_count[2]);
 	fh.map_count[3] = htobe32(map_folded_count[3]);
-	fwrite(&fh, sizeof fh, 1, fp);
+	if (fwrite(&fh, sizeof fh, 1, fp) != 1) {
+		perror(filename);
+		return (1);
+	}
 	
-	write_glyphs(fp);
-	write_mappings(fp, VFNT_MAP_NORMAL);
-	write_mappings(fp, 1);
-	write_mappings(fp, VFNT_MAP_BOLD);
-	write_mappings(fp, 3);
+	if (write_glyphs(fp) != 0 ||
+	    write_mappings(fp, VFNT_MAP_NORMAL) != 0 ||
+	    write_mappings(fp, 1) != 0 ||
+	    write_mappings(fp, VFNT_MAP_BOLD) != 0 ||
+	    write_mappings(fp, 3) != 0) {
+		perror(filename);
+		return (1);
+	}
 
 	return (0);
 }
