@@ -496,13 +496,6 @@ malo_desc_setup(struct malo_softc *sc, const char *name,
 	}
 	
 	/* allocate descriptors */
-	error = bus_dmamap_create(dd->dd_dmat, BUS_DMA_NOWAIT, &dd->dd_dmamap);
-	if (error != 0) {
-		if_printf(ifp, "unable to create dmamap for %s descriptors, "
-		    "error %u\n", dd->dd_name, error);
-		goto fail0;
-	}
-	
 	error = bus_dmamem_alloc(dd->dd_dmat, (void**) &dd->dd_desc,
 	    BUS_DMA_NOWAIT | BUS_DMA_COHERENT, &dd->dd_dmamap);
 	if (error != 0) {
@@ -530,8 +523,6 @@ malo_desc_setup(struct malo_softc *sc, const char *name,
 fail2:
 	bus_dmamem_free(dd->dd_dmat, dd->dd_desc, dd->dd_dmamap);
 fail1:
-	bus_dmamap_destroy(dd->dd_dmat, dd->dd_dmamap);
-fail0:
 	bus_dma_tag_destroy(dd->dd_dmat);
 	memset(dd, 0, sizeof(*dd));
 	return error;
@@ -632,7 +623,6 @@ malo_desc_cleanup(struct malo_softc *sc, struct malo_descdma *dd)
 {
 	bus_dmamap_unload(dd->dd_dmat, dd->dd_dmamap);
 	bus_dmamem_free(dd->dd_dmat, dd->dd_desc, dd->dd_dmamap);
-	bus_dmamap_destroy(dd->dd_dmat, dd->dd_dmamap);
 	bus_dma_tag_destroy(dd->dd_dmat);
 
 	memset(dd, 0, sizeof(*dd));

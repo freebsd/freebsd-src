@@ -1331,6 +1331,32 @@ vm_exit_suspended(struct vm *vm, int vcpuid, uint64_t rip)
 	vmexit->u.suspended.how = vm->suspend;
 }
 
+void
+vm_exit_rendezvous(struct vm *vm, int vcpuid, uint64_t rip)
+{
+	struct vm_exit *vmexit;
+
+	KASSERT(vm->rendezvous_func != NULL, ("rendezvous not in progress"));
+
+	vmexit = vm_exitinfo(vm, vcpuid);
+	vmexit->rip = rip;
+	vmexit->inst_length = 0;
+	vmexit->exitcode = VM_EXITCODE_RENDEZVOUS;
+	vmm_stat_incr(vm, vcpuid, VMEXIT_RENDEZVOUS, 1);
+}
+
+void
+vm_exit_astpending(struct vm *vm, int vcpuid, uint64_t rip)
+{
+	struct vm_exit *vmexit;
+
+	vmexit = vm_exitinfo(vm, vcpuid);
+	vmexit->rip = rip;
+	vmexit->inst_length = 0;
+	vmexit->exitcode = VM_EXITCODE_BOGUS;
+	vmm_stat_incr(vm, vcpuid, VMEXIT_ASTPENDING, 1);
+}
+
 int
 vm_run(struct vm *vm, struct vm_run *vmrun)
 {

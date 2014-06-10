@@ -362,6 +362,10 @@ SUBDIR+=	yacc
 SUBDIR+=	vi
 .endif
 
+.if ${MK_VT_SUPPORT} != "no"
+SUBDIR+=	vtfontcvt
+.endif
+
 .if ${MK_USB} != "no"
 SUBDIR+=	usbhidaction
 SUBDIR+=	usbhidctl
