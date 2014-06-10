@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 2, 2014
+.Dd May 17, 2014
 .Dt MAKE.CONF 5
 .Os
 .Sh NAME
@@ -655,6 +655,14 @@ for simple printers, or
 for postscript or graphics printers with a ghostscript
 filter, or both.
 .El
+.Ss "BUILDING PORTS"
+Several make variables can be set that affect the building of ports.
+These variables and their effects are documented in
+.Xr ports 7 ,
+.Pa ${PORTSDIR}/Mk/*
+and the
+.Fx
+Porter's Handbook.
 .Sh FILES
 .Bl -tag -width ".Pa /usr/share/examples/etc/make.conf" -compact
 .It Pa /etc/make.conf
