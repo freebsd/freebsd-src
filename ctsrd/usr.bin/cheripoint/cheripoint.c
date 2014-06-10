@@ -63,6 +63,21 @@
 
 #define ICON_WH         32
 
+#define SLIDE_NEXT							\
+	do {								\
+		if (slide == nslides)					\
+			slide = 0;					\
+		else							\
+			slide++;					\
+	} while(0)
+#define SLIDE_PREV							\
+	do {								\
+		if (slide == 0 || (slide == 1 && ncovers == 0))		\
+			slide = nslides;				\
+		else							\
+			slide--;					\
+	} while(0)
+
 enum mtl_display_mode {
 	MTL_DM_800x480,		/* Full touch screen */
 	MTL_DM_720x480,		/* Full 480p HDMI out */
@@ -1091,6 +1106,7 @@ nop:
 			gesture = 0;
 		} else
 			ts = ts_poll();
+
 #ifdef DEBUG
 		printf("gesture 0x%x\n", ts->ts_gesture);
 #endif
@@ -1107,16 +1123,18 @@ nop:
 			set_display_mode(res);
 			break;
 		case TSG_EAST:
-			if (slide == 0 || (slide == 1 && ncovers == 0))
-				slide = nslides;
-			else
-				slide--;
+			SLIDE_PREV;
 			break;
 		case TSG_WEST:
-			if (slide == nslides)
-				slide = 0;
+			SLIDE_NEXT;
+			break;
+		case TSG_CLICK:
+			if (ts->ts_x1 < fb_width * .2)
+				SLIDE_PREV;
+			else if (ts->ts_x1 > fb_width * .8)
+				SLIDE_NEXT;
 			else
-				slide++;
+				goto nop;
 			break;
 		default:
 			goto nop;
