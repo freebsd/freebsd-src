@@ -146,6 +146,8 @@ cpuset_t vm_active_cpus(struct vm *vm);
 cpuset_t vm_suspended_cpus(struct vm *vm);
 struct vm_exit *vm_exitinfo(struct vm *vm, int vcpuid);
 void vm_exit_suspended(struct vm *vm, int vcpuid, uint64_t rip);
+void vm_exit_rendezvous(struct vm *vm, int vcpuid, uint64_t rip);
+void vm_exit_astpending(struct vm *vm, int vcpuid, uint64_t rip);
 
 /*
  * Rendezvous all vcpus specified in 'dest' and execute 'func(arg)'.
