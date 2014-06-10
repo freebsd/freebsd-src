@@ -155,7 +155,8 @@ system: packagesystem
 	mkdir -p release
 	cd ${WORLDDIR} && ${IMAKE} installkernel installworld distribution \
 		DESTDIR=${.OBJDIR}/release WITHOUT_RESCUE=1 WITHOUT_KERNEL_SYMBOLS=1 \
-		WITHOUT_PROFILE=1 WITHOUT_SENDMAIL=1 MK_TESTS=no WITHOUT_LIB32=1
+		WITHOUT_PROFILE=1 WITHOUT_SENDMAIL=1 MK_TESTS=no WITHOUT_LIB32=1 \
+		MK_DEBUG_FILES=no
 # Copy distfiles
 	mkdir -p release/usr/freebsd-dist
 	for dist in MANIFEST $$(ls *.txz | grep -v 'debug'); \
@@ -172,10 +173,6 @@ system: packagesystem
 	echo debug.witness.trace=0 >> release/etc/sysctl.conf
 	cp ${.CURDIR}/rc.local release/etc
 	touch ${.TARGET}
-# Apply a hammer to remove *.debug files, if they exist.
-.if defined(WITH_DEBUG_FILES)
-	find ${.OBJDIR}/release -mindepth 1 -name \*.debug -delete
-.endif
 
 bootonly: packagesystem
 # Install system
@@ -186,7 +183,7 @@ bootonly: packagesystem
 	    WITHOUT_INSTALLLIB=1 WITHOUT_LIB32=1 WITHOUT_MAIL=1 \
 	    WITHOUT_NCP=1 WITHOUT_TOOLCHAIN=1 WITHOUT_PROFILE=1 \
 	    WITHOUT_INSTALLIB=1 WITHOUT_RESCUE=1 WITHOUT_DICT=1 \
-	    WITHOUT_KERNEL_SYMBOLS=1 MK_TESTS=no
+	    WITHOUT_KERNEL_SYMBOLS=1 MK_TESTS=no MK_DEBUG_FILES=no
 # Copy manifest only (no distfiles) to get checksums
 	mkdir -p bootonly/usr/freebsd-dist
 	cp MANIFEST bootonly/usr/freebsd-dist
@@ -200,17 +197,13 @@ bootonly: packagesystem
 	echo hostid_enable=\"NO\" >> bootonly/etc/rc.conf
 	echo debug.witness.trace=0 >> bootonly/etc/sysctl.conf
 	cp ${.CURDIR}/rc.local bootonly/etc
-# Apply a hammer to remove *.debug files, if they exist.
-.if defined(WITH_DEBUG_FILES)
-	find ${.OBJDIR}/${.TARGET} -mindepth 1 -name \*.debug -delete
-.endif
 
 dvd:
 # Install system
 	mkdir -p ${.TARGET}
 	cd ${WORLDDIR} && ${IMAKE} installkernel installworld distribution \
 		DESTDIR=${.OBJDIR}/${.TARGET} WITHOUT_RESCUE=1 WITHOUT_KERNEL_SYMBOLS=1 \
-		MK_TESTS=no
+		MK_TESTS=no MK_DEBUG_FILES=no
 # Copy distfiles
 	mkdir -p ${.TARGET}/usr/freebsd-dist
 	for dist in MANIFEST $$(ls *.txz | grep -v 'debug'); \
@@ -227,10 +220,6 @@ dvd:
 	echo debug.witness.trace=0 >> ${.TARGET}/etc/sysctl.conf
 	cp ${.CURDIR}/rc.local ${.TARGET}/etc
 	touch ${.TARGET}
-# Apply a hammer to remove *.debug files, if they exist.
-.if defined(WITH_DEBUG_FILES)
-	find ${.OBJDIR}/${.TARGET} -mindepth 1 -name \*.debug -delete
-.endif
 
 release.iso: disc1.iso
 disc1.iso: system
