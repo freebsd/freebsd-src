@@ -447,17 +447,14 @@ epic_release(epic_softc_t *sc)
 	if (sc->tx_flist) {
 		bus_dmamap_unload(sc->ftag, sc->fmap);
 		bus_dmamem_free(sc->ftag, sc->tx_flist, sc->fmap);
-		bus_dmamap_destroy(sc->ftag, sc->fmap);
 	}
 	if (sc->tx_desc) {
 		bus_dmamap_unload(sc->ttag, sc->tmap);
 		bus_dmamem_free(sc->ttag, sc->tx_desc, sc->tmap);
-		bus_dmamap_destroy(sc->ttag, sc->tmap);
 	}
 	if (sc->rx_desc) {
 		bus_dmamap_unload(sc->rtag, sc->rmap);
 		bus_dmamem_free(sc->rtag, sc->rx_desc, sc->rmap);
-		bus_dmamap_destroy(sc->rtag, sc->rmap);
 	}
 	if (sc->mtag)
 		bus_dma_tag_destroy(sc->mtag);
