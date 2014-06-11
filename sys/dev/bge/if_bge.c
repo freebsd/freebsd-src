@@ -2817,10 +2817,10 @@ bge_dma_free(struct bge_softc *sc)
 		bus_dma_tag_destroy(sc->bge_cdata.bge_tx_mtag);
 
 	/* Destroy standard RX ring. */
-	if (sc->bge_cdata.bge_rx_std_ring_map)
+	if (sc->bge_ldata.bge_rx_std_ring_paddr)
 		bus_dmamap_unload(sc->bge_cdata.bge_rx_std_ring_tag,
 		    sc->bge_cdata.bge_rx_std_ring_map);
-	if (sc->bge_cdata.bge_rx_std_ring_map && sc->bge_ldata.bge_rx_std_ring)
+	if (sc->bge_ldata.bge_rx_std_ring)
 		bus_dmamem_free(sc->bge_cdata.bge_rx_std_ring_tag,
 		    sc->bge_ldata.bge_rx_std_ring,
 		    sc->bge_cdata.bge_rx_std_ring_map);
@@ -2829,12 +2829,11 @@ bge_dma_free(struct bge_softc *sc)
 		bus_dma_tag_destroy(sc->bge_cdata.bge_rx_std_ring_tag);
 
 	/* Destroy jumbo RX ring. */
-	if (sc->bge_cdata.bge_rx_jumbo_ring_map)
+	if (sc->bge_ldata.bge_rx_jumbo_ring_paddr)
 		bus_dmamap_unload(sc->bge_cdata.bge_rx_jumbo_ring_tag,
 		    sc->bge_cdata.bge_rx_jumbo_ring_map);
 
-	if (sc->bge_cdata.bge_rx_jumbo_ring_map &&
-	    sc->bge_ldata.bge_rx_jumbo_ring)
+	if (sc->bge_ldata.bge_rx_jumbo_ring)
 		bus_dmamem_free(sc->bge_cdata.bge_rx_jumbo_ring_tag,
 		    sc->bge_ldata.bge_rx_jumbo_ring,
 		    sc->bge_cdata.bge_rx_jumbo_ring_map);
@@ -2843,12 +2842,11 @@ bge_dma_free(struct bge_softc *sc)
 		bus_dma_tag_destroy(sc->bge_cdata.bge_rx_jumbo_ring_tag);
 
 	/* Destroy RX return ring. */
-	if (sc->bge_cdata.bge_rx_return_ring_map)
+	if (sc->bge_ldata.bge_rx_return_ring_paddr)
 		bus_dmamap_unload(sc->bge_cdata.bge_rx_return_ring_tag,
 		    sc->bge_cdata.bge_rx_return_ring_map);
 
-	if (sc->bge_cdata.bge_rx_return_ring_map &&
-	    sc->bge_ldata.bge_rx_return_ring)
+	if (sc->bge_ldata.bge_rx_return_ring)
 		bus_dmamem_free(sc->bge_cdata.bge_rx_return_ring_tag,
 		    sc->bge_ldata.bge_rx_return_ring,
 		    sc->bge_cdata.bge_rx_return_ring_map);
@@ -2857,11 +2855,11 @@ bge_dma_free(struct bge_softc *sc)
 		bus_dma_tag_destroy(sc->bge_cdata.bge_rx_return_ring_tag);
 
 	/* Destroy TX ring. */
-	if (sc->bge_cdata.bge_tx_ring_map)
+	if (sc->bge_ldata.bge_tx_ring_paddr)
 		bus_dmamap_unload(sc->bge_cdata.bge_tx_ring_tag,
 		    sc->bge_cdata.bge_tx_ring_map);
 
-	if (sc->bge_cdata.bge_tx_ring_map && sc->bge_ldata.bge_tx_ring)
+	if (sc->bge_ldata.bge_tx_ring)
 		bus_dmamem_free(sc->bge_cdata.bge_tx_ring_tag,
 		    sc->bge_ldata.bge_tx_ring,
 		    sc->bge_cdata.bge_tx_ring_map);
@@ -2870,11 +2868,11 @@ bge_dma_free(struct bge_softc *sc)
 		bus_dma_tag_destroy(sc->bge_cdata.bge_tx_ring_tag);
 
 	/* Destroy status block. */
-	if (sc->bge_cdata.bge_status_map)
+	if (sc->bge_ldata.bge_status_block_paddr)
 		bus_dmamap_unload(sc->bge_cdata.bge_status_tag,
 		    sc->bge_cdata.bge_status_map);
 
-	if (sc->bge_cdata.bge_status_map && sc->bge_ldata.bge_status_block)
+	if (sc->bge_ldata.bge_status_block)
 		bus_dmamem_free(sc->bge_cdata.bge_status_tag,
 		    sc->bge_ldata.bge_status_block,
 		    sc->bge_cdata.bge_status_map);
@@ -2883,11 +2881,11 @@ bge_dma_free(struct bge_softc *sc)
 		bus_dma_tag_destroy(sc->bge_cdata.bge_status_tag);
 
 	/* Destroy statistics block. */
-	if (sc->bge_cdata.bge_stats_map)
+	if (sc->bge_ldata.bge_stats_paddr)
 		bus_dmamap_unload(sc->bge_cdata.bge_stats_tag,
 		    sc->bge_cdata.bge_stats_map);
 
-	if (sc->bge_cdata.bge_stats_map && sc->bge_ldata.bge_stats)
+	if (sc->bge_ldata.bge_stats)
 		bus_dmamem_free(sc->bge_cdata.bge_stats_tag,
 		    sc->bge_ldata.bge_stats,
 		    sc->bge_cdata.bge_stats_map);
