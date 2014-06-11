@@ -257,5 +257,21 @@
 			sri-cambridge,fileio = "rw";
 			sri-cambridge,devname = "de4tempfan";
 		};
+
+		hdmireset@7f00b080 {
+			compatible = "sri-cambridge,avgen";
+			reg = <0x7f00b080 0x1>;
+			sri-cambridge,width = <1>;
+			sri-cambridge,fileio = "rw";
+			sri-cambridge,devname = "de4_hdmi_reset";
+		};
+
+		hdmi_i2c@7f00b000 {
+			compatible = "sri-cambridge,avgen";
+			reg = <0x7f00b000 0x8>;
+			sri-cambridge,width = <1>;
+			sri-cambridge,fileio = "rw";
+			sri-cambridge,devname = "de4_hdmi_i2c";
+		};
 	};
 };
