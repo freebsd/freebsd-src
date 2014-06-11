@@ -1156,22 +1156,24 @@ svm_vmrun(void *arg, int vcpu, register_t rip, pmap_t pmap,
 	
 	do {
 		vmexit->inst_length = 0;
-		 /* We are asked to give the cpu by scheduler. */
-		if (curthread->td_flags & (TDF_ASTPENDING | TDF_NEEDRESCHED)) {
-			vmexit->exitcode = VM_EXITCODE_BOGUS;
-			vmm_stat_incr(vm, vcpu, VMEXIT_ASTPENDING, 1);
-			VCPU_CTR1(vm, vcpu, 
-				"SVM: ASTPENDING, RIP:0x%lx\n", state->rip);
-			vmexit->rip = state->rip;
-			break;
-		}
+
+		/*
+		 * Disable global interrupts to guarantee atomicity during
+		 * loading of guest state. This includes not only the state
+		 * loaded by the "vmrun" instruction but also software state
+		 * maintained by the hypervisor: suspended and rendezvous
+		 * state, NPT generation number, vlapic interrupts etc.
+		 */
+		disable_gintr();
 
 		if (vcpu_suspended(suspended_cookie)) {
+			enable_gintr();
 			vm_exit_suspended(vm, vcpu, state->rip);
 			break;
 		}
 
 		if (vcpu_rendezvous_pending(rend_cookie)) {
+			enable_gintr();
 			vmexit->exitcode = VM_EXITCODE_RENDEZVOUS;
 			vmm_stat_incr(vm, vcpu, VMEXIT_RENDEZVOUS, 1);
 			VCPU_CTR1(vm, vcpu, 
@@ -1181,32 +1183,36 @@ svm_vmrun(void *arg, int vcpu, register_t rip, pmap_t pmap,
 			break;
 		}
 
+		/* We are asked to give the cpu by scheduler. */
+		if (curthread->td_flags & (TDF_ASTPENDING | TDF_NEEDRESCHED)) {
+			enable_gintr();
+			vmexit->exitcode = VM_EXITCODE_BOGUS;
+			vmm_stat_incr(vm, vcpu, VMEXIT_ASTPENDING, 1);
+			VCPU_CTR1(vm, vcpu, 
+				"SVM: ASTPENDING, RIP:0x%lx\n", state->rip);
+			vmexit->rip = state->rip;
+			break;
+		}
+
 		(void)svm_set_vmcb(svm_get_vmcb(svm_sc, vcpu), svm_sc->asid);
-		
+
 		svm_handle_exitintinfo(svm_sc, vcpu);
-		
+
 		(void)svm_inj_interrupts(svm_sc, vcpu, vlapic);
-	
+
 		/* Change TSS type to available.*/
 		setup_tss_type();
 
-		/*
-		 * Disable global interrupt to guarantee atomicity
-		 * during loading of guest state.
-		 * See 15.5.1 "Loading guest state" APM2.
-		 */	
-		disable_gintr();
-
 		/* Launch Virtual Machine. */
 		svm_launch(vmcb_pa, gctx, hctx);
-		
+
 		/*
 		 * Only GDTR and IDTR of host is saved and restore by SVM,
 		 * LDTR and TR need to be restored by VMM.
 		 * XXX: kernel doesn't use LDT, only user space.
 		 */
 		ltr(GSEL(GPROC0_SEL, SEL_KPL));
-		
+
 		/*
 		 * Guest FS and GS selector are stashed by vmload and vmsave.
 		 * Host FS and GS selector are stashed by svm_launch().
@@ -1220,15 +1226,14 @@ svm_vmrun(void *arg, int vcpu, register_t rip, pmap_t pmap,
 		 */
 		wrmsr(MSR_GSBASE, (uint64_t)&__pcpu[vcpustate->lastcpu]);
 		wrmsr(MSR_KGSBASE, (uint64_t)&__pcpu[vcpustate->lastcpu]);
-		
-		/* vcpu exit with glbal interrupt disabled. */
+
+		/* #VMEXIT disables interrupts so re-enable them here. */ 
 		enable_gintr();
-		
+
 		/* Handle #VMEXIT and if required return to user space. */
 		loop = svm_vmexit(svm_sc, vcpu, vmexit);
 		vcpustate->loop++;
 		vmm_stat_incr(vm, vcpu, VMEXIT_COUNT, 1);
-
 	} while (loop);
 		
 	return (0);
