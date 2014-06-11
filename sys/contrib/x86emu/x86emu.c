@@ -3753,12 +3753,19 @@ x86emuOp_out_word_IMM_AX(struct x86emu *emu)
 static void
 x86emuOp_call_near_IMM(struct x86emu *emu)
 {
-	int16_t ip;
-
-	ip = (int16_t) fetch_word_imm(emu);
-	ip += (int16_t) emu->x86.R_IP;	/* CHECK SIGN */
-	push_word(emu, emu->x86.R_IP);
-	emu->x86.R_IP = ip;
+	if (emu->x86.mode & SYSMODE_PREFIX_DATA) {
+		int32_t ip;
+		ip = (int32_t) fetch_long_imm(emu);
+		ip += (int32_t) emu->x86.R_EIP;
+		push_long(emu, emu->x86.R_EIP);
+		emu->x86.R_EIP = ip;
+	} else {
+		int16_t ip;
+		ip = (int16_t) fetch_word_imm(emu);
+		ip += (int16_t) emu->x86.R_IP;	/* CHECK SIGN */
+		push_word(emu, emu->x86.R_IP);
+		emu->x86.R_IP = ip;
+	}
 }
 
 /*
