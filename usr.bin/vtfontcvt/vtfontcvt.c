@@ -331,6 +331,7 @@ parse_file(const char *filename, unsigned int map_idx)
 {
 	FILE *fp;
 	size_t len;
+	int rv;
 
 	fp = fopen(filename, "r");
 	if (fp == NULL) {
@@ -339,8 +340,11 @@ parse_file(const char *filename, unsigned int map_idx)
 	}
 	len = strlen(filename);
 	if (len > 4 && strcasecmp(filename + len - 4, ".hex") == 0)
-		return parse_hex(fp, map_idx);
-	return parse_bdf(fp, map_idx);
+		rv = parse_hex(fp, map_idx);
+	else
+		rv = parse_bdf(fp, map_idx);
+	fclose(fp);
+	return (rv);
 }
 
 static void
@@ -447,6 +451,7 @@ write_fnt(const char *filename)
 	fh.map_count[3] = htobe32(map_folded_count[3]);
 	if (fwrite(&fh, sizeof fh, 1, fp) != 1) {
 		perror(filename);
+		fclose(fp);
 		return (1);
 	}
 
@@ -456,9 +461,11 @@ write_fnt(const char *filename)
 	    write_mappings(fp, VFNT_MAP_BOLD) != 0 ||
 	    write_mappings(fp, 3) != 0) {
 		perror(filename);
+		fclose(fp);
 		return (1);
 	}
 
+	fclose(fp);
 	return (0);
 }
 
