@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 2, 2014
+.Dd June 11, 2014
 .Dt GPART 8
 .Os
 .Sh NAME
@@ -490,6 +490,12 @@ called
 .Pc
 Requires the
 .Cm GEOM_PART_BSD
+kernel option.
+.It Cm BSD64
+64-bit implementation of BSD disklabel used in DragonFlyBSD to subdivide MBR
+or GPT partitions.
+Requires the
+.Cm GEOM_PART_BSD64
 kernel option.
 .It Cm LDM
 The Logical Disk Manager is an implementation of volume manager for
