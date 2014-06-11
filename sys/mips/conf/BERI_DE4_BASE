@@ -48,4 +48,5 @@ options 	DEVICE_POLLING
 #options	USB_VERBOSE
 device		usb
 device		saf1761otg
+device		ukbd
 
