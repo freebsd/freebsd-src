@@ -616,24 +616,17 @@ ugen_set_config(struct usb_fifo *f, uint8_t index)
 		/* not possible in device side mode */
 		return (ENOTTY);
 	}
-	if (f->udev->curr_config_index == index) {
-		/* no change needed */
-		return (0);
-	}
+
 	/* make sure all FIFO's are gone */
 	/* else there can be a deadlock */
 	if (ugen_fs_uninit(f)) {
 		/* ignore any errors */
 		DPRINTFN(6, "no FIFOs\n");
 	}
-	/* change setting - will free generic FIFOs, if any */
-	if (usbd_set_config_index(f->udev, index)) {
+
+	if (usbd_start_set_config(f->udev, index) != 0)
 		return (EIO);
-	}
-	/* probe and attach */
-	if (usb_probe_and_attach(f->udev, USB_IFACE_INDEX_ANY)) {
-		return (EIO);
-	}
+
 	return (0);
 }
 
@@ -969,11 +962,6 @@ ugen_re_enumerate(struct usb_fifo *f)
 		/* not possible in device side mode */
 		DPRINTFN(6, "device mode\n");
 		return (ENOTTY);
-	}
-	if (udev->parent_hub == NULL) {
-		/* the root HUB cannot be re-enumerated */
-		DPRINTFN(6, "cannot reset root HUB\n");
-		return (EINVAL);
 	}
 	/* make sure all FIFO's are gone */
 	/* else there can be a deadlock */
