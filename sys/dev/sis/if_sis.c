@@ -1329,9 +1329,9 @@ sis_dma_free(struct sis_softc *sc)
 		bus_dma_tag_destroy(sc->sis_tx_tag);
 
 	/* Destroy RX ring. */
-	if (sc->sis_rx_list_map)
+	if (sc->sis_rx_paddr)
 		bus_dmamap_unload(sc->sis_rx_list_tag, sc->sis_rx_list_map);
-	if (sc->sis_rx_list_map && sc->sis_rx_list)
+	if (sc->sis_rx_list)
 		bus_dmamem_free(sc->sis_rx_list_tag, sc->sis_rx_list,
 		    sc->sis_rx_list_map);
 
@@ -1339,10 +1339,10 @@ sis_dma_free(struct sis_softc *sc)
 		bus_dma_tag_destroy(sc->sis_rx_list_tag);
 
 	/* Destroy TX ring. */
-	if (sc->sis_tx_list_map)
+	if (sc->sis_tx_paddr)
 		bus_dmamap_unload(sc->sis_tx_list_tag, sc->sis_tx_list_map);
 
-	if (sc->sis_tx_list_map && sc->sis_tx_list)
+	if (sc->sis_tx_list)
 		bus_dmamem_free(sc->sis_tx_list_tag, sc->sis_tx_list,
 		    sc->sis_tx_list_map);
 
