@@ -141,6 +141,10 @@ device		bpf			# Berkeley packet filter
 
 device		sound
 
+# SPI
+device		spibus
+device		vf_spi
+
 # Framebuffer
 device		vt
 device		kbdmux
