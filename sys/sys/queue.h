@@ -475,6 +475,18 @@ struct {								\
 	TRASHIT(*oldprev);						\
 } while (0)
 
+#define	LIST_REMOVE_STALE(elm, field) do {				\
+	QMD_SAVELINK(oldnext, (elm)->field.le_next);			\
+	QMD_SAVELINK(oldprev, (elm)->field.le_prev);			\
+	QMD_LIST_CHECK_NEXT(elm, field);				\
+	QMD_LIST_CHECK_PREV(elm, field);				\
+	if (LIST_NEXT((elm), field) != NULL)				\
+		LIST_NEXT((elm), field)->field.le_prev = 		\
+		    (elm)->field.le_prev;				\
+	*(elm)->field.le_prev = LIST_NEXT((elm), field);		\
+} while (0)
+
+
 #define LIST_SWAP(head1, head2, type, field) do {			\
 	struct type *swap_tmp = LIST_FIRST((head1));			\
 	LIST_FIRST((head1)) = LIST_FIRST((head2));			\

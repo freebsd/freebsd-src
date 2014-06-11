@@ -55,6 +55,18 @@ counter_u64_fetch(counter_u64_t c)
 	return (counter_u64_fetch_inline(c));
 }
 
+void
+counter_u64_copy(counter_u64_t dest, counter_u64_t src)
+{
+	counter_u64_copy_inline(dest, src);
+}
+
+int
+counter_u64_is_gte(counter_u64_t s1, counter_u64_t s2)
+{
+	return(counter_u64_is_gte_inline(s1, s2));
+}
+
 counter_u64_t
 counter_u64_alloc(int flags)
 {

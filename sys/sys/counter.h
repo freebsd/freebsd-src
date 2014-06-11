@@ -32,10 +32,17 @@
 typedef uint64_t *counter_u64_t;
 
 #ifdef _KERNEL
+#define COUNTER_GT(a, b) (((a < b) && ((uint64_t)(b - a) > ((uint64_t)1<<63))) || \
+			  ((a > b) && ((uint64_t)(a - b) < ((uint64_t)1<<63))))
+#define COUNTER_GE(a, b) ((a == b) || COUNTER_GT(a, b))
+#define COUNTER_LT(a, b) (!COUNTER_GE(a, b))
+
 #include <machine/counter.h>
 
 counter_u64_t	counter_u64_alloc(int);
 void		counter_u64_free(counter_u64_t);
+void		counter_u64_copy(counter_u64_t dest, counter_u64_t src);
+int		counter_u64_is_gte(counter_u64_t s1, counter_u64_t s2);
 
 void		counter_u64_zero(counter_u64_t);
 uint64_t	counter_u64_fetch(counter_u64_t);

@@ -112,6 +112,74 @@ counter_u64_fetch_inline(uint64_t *p)
 }
 
 static inline void
+counter_u64_copy_inline(uint64_t *dest, uint64_t *src)
+{
+	uint64_t res;
+	uint64_t *p;
+	int i;
+
+	res = 0;
+	if ((cpu_feature & CPUID_CX8) == 0) {
+		/*
+		 * The machines without cmpxchg8b are not SMP.
+		 * Disabling the preemption provides atomicity of the
+		 * counter reading, since update is done in the
+		 * critical section as well.
+		 */
+		critical_enter();
+		for (i = 0; i < mp_ncpus; i++) {
+			res = *(uint64_t *)((char *)src +
+			    sizeof(struct pcpu) * i);
+			p = (uint64_t *)((char *)dest + sizeof(struct pcpu) * i);
+			*p = res;
+		}
+		critical_exit();
+	} else {
+		for (i = 0; i < mp_ncpus; i++) {
+			res = counter_u64_read_one_8b((uint64_t *)((char *)src +
+			    sizeof(struct pcpu) * i));
+			p = (uint64_t *)((char *)dest + sizeof(struct pcpu) * i);
+			*p = res;
+		}
+	}
+}
+
+static inline void
+counter_u64_is_gte_inline(uint64_t *dest, uint64_t *src)
+{
+	uint64_t s1v, s2v;
+	int i;
+
+	if ((cpu_feature & CPUID_CX8) == 0) {
+		/*
+		 * The machines without cmpxchg8b are not SMP.
+		 * Disabling the preemption provides atomicity of the
+		 * counter reading, since update is done in the
+		 * critical section as well.
+		 */
+		critical_enter();
+		for (i = 0; i < mp_ncpus; i++) {
+			s1v = *(uint64_t *)((char *)src + sizeof(struct pcpu) * i);
+			s2v = *(uint64_t *)((char *)dest + sizeof(struct pcpu) * i);
+			if (COUNTER_LT(s1v, s2v)) {
+				critical_exit();
+				return(0);
+			}
+		}
+		critical_exit();
+	} else {
+		for (i = 0; i < mp_ncpus; i++) {
+			s1v = counter_u64_read_one_8b((uint64_t *)((char *)src + sizeof(struct pcpu) * i));
+			s2v = counter_u64_read_one_8b((uint64_t *)((char *)dest + sizeof(struct pcpu) * i));
+			if (COUNTER_LT(s1v, s2v)) {
+				return(0);
+			}
+		}
+	}
+	return(1);
+}
+
+static inline void
 counter_u64_zero_one_8b(uint64_t *p)
 {
 

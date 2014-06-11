@@ -57,6 +57,35 @@ counter_u64_fetch_inline(uint64_t *p)
 	return (r);
 }
 
+static inline void
+counter_u64_copy_inline(uint64_t *dest, uint64_t *src)
+{
+	uint64_t r;
+	int i;
+
+	r = 0;
+	for (i = 0; i < mp_ncpus; i++) {
+		r = counter_u64_read_one((uint64_t *)src, i);
+		*((uint64_t *)((char *)dest + sizeof(struct pcpu) *i)) = r;
+	}
+}
+
+static inline int
+counter_u64_is_gte_inline(uint64_t *s1, uint64_t *s2)
+{
+	uint64_t s1v, s2v;
+	int i;
+
+	for (i = 0; i < mp_ncpus; i++) {
+		s1v = counter_u64_read_one((uint64_t *)s1, i);
+		s2v = counter_u64_read_one((uint64_t *)s2, i);
+		if (COUNTER_LT(s1v, s2v)) {
+			return(0);
+		}
+	}
+	return(1);
+}
+
 static void
 counter_u64_zero_one_cpu(void *arg)
 {
