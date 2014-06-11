@@ -3,7 +3,7 @@
 #
 
 PROG=	sendfile
-NO_MAN=
+MAN=
 WARNS?=	6
 DPADD=	${LIBMD}
 LDADD=	-lmd

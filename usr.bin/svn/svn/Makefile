@@ -1,12 +1,14 @@
 # $FreeBSD$
 
-NO_MAN=	svn.1
+MAN=
 
 .include "${.CURDIR}/../Makefile.inc"
 
 .PATH:	${SVNDIR}/svn
 
 PROG=	svn${SVNLITE}
+
+NO_PIE=	yes
 
 SRCS=	add-cmd.c blame-cmd.c cat-cmd.c changelist-cmd.c checkout-cmd.c \
 	cl-conflicts.c cleanup-cmd.c commit-cmd.c conflict-callbacks.c \

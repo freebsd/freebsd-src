@@ -1,7 +1,7 @@
 #	@(#)Makefile	8.1 (Berkeley) 6/18/93
 # $FreeBSD$
 
-.include <bsd.own.mk>
+.include <src.opts.mk>
 
 MAN=	aac.4 \
 	aacraid.4 \
@@ -142,6 +142,7 @@ MAN=	aac.4 \
 	filemon.4 \
 	firewire.4 \
 	fpa.4 \
+	full.4 \
 	fwe.4 \
 	fwip.4 \
 	fwohci.4 \
@@ -206,6 +207,7 @@ MAN=	aac.4 \
 	ipwfw.4 \
 	isci.4 \
 	iscsi_initiator.4 \
+	ismt.4 \
 	isp.4 \
 	ispfw.4 \
 	iwi.4 \
@@ -226,8 +228,8 @@ MAN=	aac.4 \
 	le.4 \
 	led.4 \
 	lge.4 \
-	${_lindev.4} \
 	${_linux.4} \
+	lm75.4 \
 	lmc.4 \
 	lo.4 \
 	lp.4 \
@@ -262,8 +264,10 @@ MAN=	aac.4 \
 	mod_cc.4 \
 	mos.4 \
 	mouse.4 \
+	mpr.4 \
 	mps.4 \
 	mpt.4 \
+	mrsas.4 \
 	msk.4 \
 	mtio.4 \
 	multicast.4 \
@@ -280,6 +284,7 @@ MAN=	aac.4 \
 	ncv.4 \
 	${_ndis.4} \
 	net80211.4 \
+	netfpga10g_nf10bmac.4 \
 	netgraph.4 \
 	netintro.4 \
 	netmap.4 \
@@ -377,6 +382,7 @@ MAN=	aac.4 \
 	ppc.4 \
 	ppi.4 \
 	procdesc.4 \
+	proto.4 \
 	psm.4 \
 	pst.4 \
 	pt.4 \
@@ -510,6 +516,7 @@ MAN=	aac.4 \
 	udav.4 \
 	udbp.4 \
 	udp.4 \
+	udplite.4 \
 	uep.4 \
 	ufm.4 \
 	ufoma.4 \
@@ -559,6 +566,7 @@ MAN=	aac.4 \
 	${_vmx.4} \
 	vpo.4 \
 	vr.4 \
+	vt.4 \
 	vte.4 \
 	${_vtnet.4} \
 	${_vxge.4} \
@@ -636,6 +644,7 @@ MLINKS+=fxp.4 if_fxp.4
 MLINKS+=gem.4 if_gem.4
 MLINKS+=geom.4 GEOM.4
 MLINKS+=gif.4 if_gif.4
+MLINKS+=gpio.4 gpiobus.4
 MLINKS+=gre.4 if_gre.4
 MLINKS+=hatm.4 if_hatm.4
 MLINKS+=hme.4 if_hme.4
@@ -673,6 +682,7 @@ MLINKS+=mwl.4 if_mwl.4
 MLINKS+=mxge.4 if_mxge.4
 MLINKS+=my.4 if_my.4
 MLINKS+=${_ndis.4} ${_if_ndis.4}
+MLINKS+=netfpga10g_nf10bmac.4 if_nf10bmac.4
 MLINKS+=netintro.4 net.4 \
 	netintro.4 networking.4
 MLINKS+=${_nfe.4} ${_if_nfe.4}
@@ -785,7 +795,6 @@ _if_vxge.4=	if_vxge.4
 _if_wpi.4=	if_wpi.4
 _ipmi.4=	ipmi.4
 _io.4=		io.4
-_lindev.4=	lindev.4
 _linux.4=	linux.4
 _ndis.4=	ndis.4
 _nfe.4=		nfe.4
@@ -814,7 +823,6 @@ _wpi.4=		wpi.4
 _xen.4=		xen.4
 _xnb.4=		xnb.4
 
-MLINKS+=lindev.4 full.4
 .endif
 
 .if ${MACHINE_CPUARCH} == "amd64"

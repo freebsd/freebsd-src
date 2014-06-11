@@ -31,7 +31,7 @@
 .\"     From: @(#)passwd.5	8.1 (Berkeley) 6/5/93
 .\" $FreeBSD$
 .\"
-.Dd June 23, 2012
+.Dd May 29, 2014
 .Dt PASSWD 5
 .Os
 .Sh NAME
@@ -125,18 +125,28 @@ Routines
 that manipulate these files will often return only one of the multiple
 entries, and that one by random selection.
 .Pp
-The login name must never begin with a hyphen
-.Pq Ql - ;
-also, it is strongly
-suggested that neither upper-case characters or dots
-.Pq Ql \&.
-be part
-of the name, as this tends to confuse mailers.
+The login name must not begin with a hyphen
+.Pq Ql \&- ,
+and cannot contain 8-bit characters, tabs or spaces, or any of these
+symbols:
+.Ql \&,:+&#%^\&(\&)!@~*?<>=|\e\\&/" .
+The dollar symbol
+.Pq Ql \&$
+is allowed only as the last character for use with Samba.
 No field may contain a
 colon
 .Pq Ql \&:
 as this has been used historically to separate the fields
 in the user database.
+.Pp
+Case is significant.
+Login names
+.Ql Lrrr
+and
+.Ql lrrr
+represent different users.
+Be aware of this when interoperating with systems that do not have
+case-sensitive login names.
 .Pp
 In the
 .Nm master.passwd

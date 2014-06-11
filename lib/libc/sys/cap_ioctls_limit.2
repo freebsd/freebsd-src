@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 20, 2012
+.Dd March 27, 2014
 .Dt CAP_IOCTLS_LIMIT 2
 .Os
 .Sh NAME
@@ -38,7 +38,7 @@
 .Sh LIBRARY
 .Lb libc
 .Sh SYNOPSIS
-.In sys/capability.h
+.In sys/capsicum.h
 .Ft int
 .Fn cap_ioctls_limit "int fd" "const unsigned long *cmds" "size_t ncmds"
 .Ft ssize_t

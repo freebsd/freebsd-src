@@ -1190,6 +1190,7 @@ product	ASUS RT3070_1		0x1790	RT3070
 product ASUS USBN10		0x1786	USB-N10
 product ASUS RTL8192CU		0x17ab	RTL8192CU
 product ASUS USBN66		0x17ad	USB-N66
+product ASUS USBN10NANO		0x17ba	USB-N10 Nano
 product ASUS RTL8192SU		0x1791  RTL8192SU
 product ASUS A730W		0x4202	ASUS MyPal A730W
 product ASUS P535		0x420f	ASUS P535 PDA
@@ -1614,6 +1615,7 @@ product DLINK DSB650TX		0x4002	10/100 Ethernet
 product DLINK DSB650TX_PNA	0x4003	1/10/100 Ethernet
 product DLINK DSB650TX3		0x400b	10/100 Ethernet
 product DLINK DSB650TX2		0x4102	10/100 Ethernet
+product DLINK DUB1312		0x4a00	10/100/1000 Ethernet
 product DLINK DSB650		0xabc1	10/100 Ethernet
 product DLINK DUBH7		0xf103	DUB-H7 USB 2.0 7-Port Hub
 product DLINK DWR510_CD		0xa805	DWR-510 CD-ROM Mode
@@ -1654,6 +1656,7 @@ product DRAYTEK VIGOR550	0x0550	Vigor550
 /* dresden elektronik products */
 product DRESDENELEKTRONIK SENSORTERMINALBOARD  0x0001 SensorTerminalBoard
 product DRESDENELEKTRONIK WIRELESSHANDHELDTERMINAL  0x0004 Wireless Handheld Terminal
+product DRESDENELEKTRONIK LEVELSHIFTERSTICKLOWCOST  0x0022 Levelshifter Stick Low Cost
 
 /* Dynastream Innovations */
 product DYNASTREAM ANTDEVBOARD	0x1003	ANT dev board
@@ -1841,7 +1844,8 @@ product FTDI 232H		0x6014	FTDI compatible adapter
 product FTDI 232EX		0x6015	FTDI compatible adapter
 product FTDI SERIAL_2232D	0x9e90	FT2232D Dual port Serial
 product FTDI SERIAL_4232H	0x6011	FT4232H Quad port Serial
-product FTDI BEAGLEBONE		0xa6d0	BeagleBone
+product FTDI XDS100V2		0xa6d0	TI XDS100V1/V2 and early Beaglebones
+product FTDI XDS100V3		0xa6d1	TI XDS100V3
 product FTDI KTLINK		0xbbe2	KT-LINK Embedded Hackers Multitool
 product FTDI TURTELIZER2	0xbdc8	egnite Turtelizer 2 JTAG/RS232 Adapter
 /* Gude Analog- und Digitalsysteme products also uses FTDI's id: */
@@ -2504,6 +2508,7 @@ product KEYSPAN UIA11		0x0202	UIA-11 remote control
 /* Kingston products */
 product KINGSTON XX1		0x0008	Ethernet
 product KINGSTON KNU101TX	0x000a	KNU101TX USB Ethernet
+product KINGSTON HYPERX3_0	0x162b	DT HyperX 3.0
 
 /* Kawasaki products */
 product KLSI DUH3E10BT		0x0008	USB Ethernet
@@ -3674,6 +3679,7 @@ product RATOC REXUSB60F		0xb020	USB serial adapter REX-USB60F
 /* Green House and CompUSA OEM this part */
 product REALTEK DUMMY		0x0000	Dummy product
 product REALTEK USB20CRW	0x0158	USB20CRW Card Reader
+product REALTEK RTL8188ETV	0x0179	RTL8188ETV
 product REALTEK RTL8188CTV      0x018a  RTL8188CTV
 product REALTEK USBKR100	0x8150	USBKR100 USB Ethernet
 product REALTEK RTL8188CE_0     0x8170  RTL8188CE
@@ -4089,6 +4095,7 @@ product SITECOMEU RT3072_6	0x004d	RT3072
 product SITECOMEU RTL8188CU_1	0x0052	RTL8188CU
 product SITECOMEU RTL8188CU_2	0x005c	RTL8188CU
 product SITECOMEU RTL8192CU	0x0061	RTL8192CU
+product SITECOMEU LN032		0x0072	LN-032
 product SITECOMEU LN028		0x061c	LN-028
 product SITECOMEU WL113		0x9071	WL-113
 product SITECOMEU ZD1211B	0x9075	ZD1211B
@@ -4535,5 +4542,6 @@ product ZYXEL G220V2		0x340f	G-220 v2
 product ZYXEL G202		0x3410	G-202
 product ZYXEL RT2870_1		0x3416	RT2870
 product ZYXEL RT2870_2		0x341a	RT2870
+product ZYXEL RT3070		0x341e	NWD2105
 product ZYXEL RTL8192CU		0x341f	RTL8192CU
 product ZYXEL NWD2705		0x3421	NWD2705

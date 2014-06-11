@@ -73,7 +73,7 @@ static MALLOC_DEFINE(M_ACPIDEV, "acpidev", "ACPI devices");
 /* Hooks for the ACPI CA debugging infrastructure */
 #define _COMPONENT	ACPI_BUS
 ACPI_MODULE_NAME("ACPI")
-
+uint32_t acpi_panic_hook=0;
 static d_open_t		acpiopen;
 static d_close_t	acpiclose;
 static d_ioctl_t	acpiioctl;
@@ -277,6 +277,9 @@ static int acpi_interpreter_slack = 1;
 TUNABLE_INT("debug.acpi.interpreter_slack", &acpi_interpreter_slack);
 SYSCTL_INT(_debug_acpi, OID_AUTO, interpreter_slack, CTLFLAG_RDTUN,
     &acpi_interpreter_slack, 1, "Turn on interpreter slack mode.");
+
+SYSCTL_INT(_debug_acpi, OID_AUTO, panic_at_sleep, CTLFLAG_RW,
+	&acpi_panic_hook, 0, "Panic when hitting sleep button");
 
 #ifdef __amd64__
 /* Reset system clock while resuming.  XXX Remove once tested. */
@@ -696,7 +699,6 @@ acpi_set_power_children(device_t dev, int state)
 {
 	device_t child, parent;
 	device_t *devlist;
-	struct pci_devinfo *dinfo;
 	int dstate, i, numdevs;
 
 	if (device_get_children(dev, &devlist, &numdevs) != 0)
@@ -709,7 +711,6 @@ acpi_set_power_children(device_t dev, int state)
 	parent = device_get_parent(dev);
 	for (i = 0; i < numdevs; i++) {
 		child = devlist[i];
-		dinfo = device_get_ivars(child);
 		dstate = state;
 		if (device_is_attached(child) &&
 		    acpi_device_pwr_for_sleep(parent, dev, &dstate) == 0)
@@ -3173,6 +3174,9 @@ acpi_system_eventhandler_sleep(void *arg, int state)
     if (state == ACPI_STATE_UNKNOWN)
 	return;
 
+    if (acpi_panic_hook) {
+	    panic("By sleep request");
+    }
     /* Request that the system prepare to enter the given suspend state. */
     ret = acpi_ReqSleepState(sc, state);
     if (ret != 0)

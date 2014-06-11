@@ -683,7 +683,7 @@ pfsync_in_clr(struct pfsync_pkt *pkt, struct mbuf *m, int offset, int count)
 		    pfi_kif_find(clr[i].ifname) == NULL)
 			continue;
 
-		for (int i = 0; i <= V_pf_hashmask; i++) {
+		for (int i = 0; i <= pf_hashmask; i++) {
 			struct pf_idhash *ih = &V_pf_idhash[i];
 			struct pf_state *s;
 relock:
@@ -2048,7 +2048,7 @@ pfsync_bulk_update(void *arg)
 	else
 		i = sc->sc_bulk_hashid;
 
-	for (; i <= V_pf_hashmask; i++) {
+	for (; i <= pf_hashmask; i++) {
 		struct pf_idhash *ih = &V_pf_idhash[i];
 
 		if (s != NULL)

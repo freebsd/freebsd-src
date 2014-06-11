@@ -495,8 +495,12 @@ xhci_start_controller(struct xhci_softc *sc)
 
 	XWRITE4(sc, runt, XHCI_ERSTSZ(0), XHCI_ERSTS_SET(temp));
 
+	/* Check if we should use the default IMOD value */
+	if (sc->sc_imod_default == 0)
+		sc->sc_imod_default = XHCI_IMOD_DEFAULT;
+
 	/* Setup interrupt rate */
-	XWRITE4(sc, runt, XHCI_IMOD(0), XHCI_IMOD_DEFAULT);
+	XWRITE4(sc, runt, XHCI_IMOD(0), sc->sc_imod_default);
 
 	usbd_get_page(&sc->sc_hw.root_pc, 0, &buf_res);
 
@@ -1218,8 +1222,20 @@ retry:
 		 */
 		if (timeout == 0 &&
 		    xhci_reset_command_queue_locked(sc) == 0) {
-			timeout = 1;
-			goto retry;
+			temp = le32toh(trb->dwTrb3);
+
+			/*
+			 * Avoid infinite XHCI reset loops if the set
+			 * address command fails to respond due to a
+			 * non-enumerating device:
+			 */
+			if (XHCI_TRB_3_TYPE_GET(temp) == XHCI_TRB_TYPE_ADDRESS_DEVICE &&
+			    (temp & XHCI_TRB_3_BSR_BIT) == 0) {
+				DPRINTF("Set address timeout\n");
+			} else {
+				timeout = 1;
+				goto retry;
+			}
 		} else {
 			DPRINTF("Controller reset!\n");
 			usb_bus_reset_async_locked(&sc->sc_bus);
@@ -1833,31 +1849,25 @@ restart:
 					    XHCI_TRB_3_ISO_SIA_BIT;
 				}
 				if (temp->direction == UE_DIR_IN)
-					dword |= XHCI_TRB_3_DIR_IN | XHCI_TRB_3_ISP_BIT;
+					dword |= XHCI_TRB_3_ISP_BIT;
 				break;
 			case XHCI_TRB_TYPE_DATA_STAGE:
 				dword = XHCI_TRB_3_CHAIN_BIT | XHCI_TRB_3_CYCLE_BIT |
-				    XHCI_TRB_3_TYPE_SET(XHCI_TRB_TYPE_DATA_STAGE) |
-				    XHCI_TRB_3_TBC_SET(temp->tbc) |
-				    XHCI_TRB_3_TLBPC_SET(temp->tlbpc);
+				    XHCI_TRB_3_TYPE_SET(XHCI_TRB_TYPE_DATA_STAGE);
 				if (temp->direction == UE_DIR_IN)
 					dword |= XHCI_TRB_3_DIR_IN | XHCI_TRB_3_ISP_BIT;
 				break;
 			case XHCI_TRB_TYPE_STATUS_STAGE:
 				dword = XHCI_TRB_3_CHAIN_BIT | XHCI_TRB_3_CYCLE_BIT |
-				    XHCI_TRB_3_TYPE_SET(XHCI_TRB_TYPE_STATUS_STAGE) |
-				    XHCI_TRB_3_TBC_SET(temp->tbc) |
-				    XHCI_TRB_3_TLBPC_SET(temp->tlbpc);
+				    XHCI_TRB_3_TYPE_SET(XHCI_TRB_TYPE_STATUS_STAGE);
 				if (temp->direction == UE_DIR_IN)
 					dword |= XHCI_TRB_3_DIR_IN;
 				break;
 			default:	/* XHCI_TRB_TYPE_NORMAL */
 				dword = XHCI_TRB_3_CHAIN_BIT | XHCI_TRB_3_CYCLE_BIT |
-				    XHCI_TRB_3_TYPE_SET(XHCI_TRB_TYPE_NORMAL) |
-				    XHCI_TRB_3_TBC_SET(temp->tbc) |
-				    XHCI_TRB_3_TLBPC_SET(temp->tlbpc);
+				    XHCI_TRB_3_TYPE_SET(XHCI_TRB_TYPE_NORMAL);
 				if (temp->direction == UE_DIR_IN)
-					dword |= XHCI_TRB_3_DIR_IN | XHCI_TRB_3_ISP_BIT;
+					dword |= XHCI_TRB_3_ISP_BIT;
 				break;
 			}
 			td->td_trb[x].dwTrb3 = htole32(dword);

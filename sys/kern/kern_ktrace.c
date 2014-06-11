@@ -109,21 +109,20 @@ struct ktr_request {
 };
 
 static int data_lengths[] = {
-	0,					/* none */
-	offsetof(struct ktr_syscall, ktr_args),	/* KTR_SYSCALL */
-	sizeof(struct ktr_sysret),		/* KTR_SYSRET */
-	0,					/* KTR_NAMEI */
-	sizeof(struct ktr_genio),		/* KTR_GENIO */
-	sizeof(struct ktr_psig),		/* KTR_PSIG */
-	sizeof(struct ktr_csw),			/* KTR_CSW */
-	0,					/* KTR_USER */
-	0,					/* KTR_STRUCT */
-	0,					/* KTR_SYSCTL */
-	sizeof(struct ktr_proc_ctor),		/* KTR_PROCCTOR */
-	0,					/* KTR_PROCDTOR */
-	sizeof(struct ktr_cap_fail),		/* KTR_CAPFAIL */
-	sizeof(struct ktr_fault),		/* KTR_FAULT */
-	sizeof(struct ktr_faultend),		/* KTR_FAULTEND */
+	[KTR_SYSCALL] = offsetof(struct ktr_syscall, ktr_args),
+	[KTR_SYSRET] = sizeof(struct ktr_sysret),
+	[KTR_NAMEI] = 0,
+	[KTR_GENIO] = sizeof(struct ktr_genio),
+	[KTR_PSIG] = sizeof(struct ktr_psig),
+	[KTR_CSW] = sizeof(struct ktr_csw),
+	[KTR_USER] = 0,
+	[KTR_STRUCT] = 0,
+	[KTR_SYSCTL] = 0,
+	[KTR_PROCCTOR] = sizeof(struct ktr_proc_ctor),
+	[KTR_PROCDTOR] = 0,
+	[KTR_CAPFAIL] = sizeof(struct ktr_cap_fail),
+	[KTR_FAULT] = sizeof(struct ktr_fault),
+	[KTR_FAULTEND] = sizeof(struct ktr_faultend),
 };
 
 static STAILQ_HEAD(, ktr_request) ktr_free;

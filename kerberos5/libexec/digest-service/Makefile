@@ -1,7 +1,7 @@
 # $FreeBSD$
 
 PROG=	digest-service
-NO_MAN=	1
+MAN=
 CFLAGS+=	-I${KRB5DIR}/kdc \
 		-I${KRB5DIR}/lib/asn1 \
 		-I${KRB5DIR}/lib/krb5 \
@@ -13,6 +13,8 @@ DPADD=	${LIBHDB} ${LIBKDC} ${LIBHEIMIPCS} ${LIBKRB5} ${LIBROKEN} ${LIBASN1} \
 LDADD=	-lhdb -lkdc -lheimipcs -lkrb5 -lroken -lasn1 -lcrypto -lcrypt \
 	${LIBVERS} -lheimntlm
 USEPRIVATELIB= heimipcs
+
+NO_PIE=	yes
 
 .include <bsd.prog.mk>
 

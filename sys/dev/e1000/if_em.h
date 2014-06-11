@@ -346,7 +346,7 @@ struct rx_ring {
 
 /* Our adapter structure */
 struct adapter {
-	struct ifnet	*ifp;
+	if_t 		ifp;
 	uint64_t	ring_bytes_max;
 	struct e1000_hw	hw;
 

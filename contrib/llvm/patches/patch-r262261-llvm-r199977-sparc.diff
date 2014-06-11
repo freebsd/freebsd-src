@@ -3,7 +3,7 @@ Pull in r199977 from upstream llvm trunk (by Venkatraman Govindaraju):
   [SparcV9] Add support for JIT in Sparc64.
   With this change, all supported tests in test/ExecutionEngine pass in sparcv9.
 
-Introduced here: http://svn.freebsd.org/changeset/base/262261
+Introduced here: http://svnweb.freebsd.org/changeset/base/262261
 
 Index: lib/Target/Sparc/SparcJITInfo.cpp
 ===================================================================

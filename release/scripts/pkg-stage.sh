@@ -5,7 +5,7 @@
 
 set -e
 
-export ASSUME_ALWAYS_YES=1
+export ASSUME_ALWAYS_YES="YES"
 export PKG_DBDIR="/tmp/pkg"
 export PERMISSIVE="YES"
 export REPO_AUTOUPDATE="NO"
@@ -40,7 +40,10 @@ if [ ! -x /usr/local/sbin/pkg ]; then
 	/usr/bin/make -C /usr/ports/ports-mgmt/pkg install clean
 fi
 
-export PKG_ABI=$(pkg -vv | grep ^ABI | awk '{print $3}')
+PKG_ABI=$(pkg -vv | grep ^ABI | awk '{print $3}')
+PKG_ABI="${PKG_ABI%\";}"
+PKG_ABI="${PKG_ABI#\"}"
+export PKG_ABI
 export PKG_CACHEDIR="dvd/packages/${PKG_ABI}"
 
 /bin/mkdir -p ${PKG_CACHEDIR}

@@ -105,6 +105,9 @@ void
      sctp_mtu_size_reset(struct sctp_inpcb *, struct sctp_association *, uint32_t);
 
 void
+     sctp_wakeup_the_read_socket(struct sctp_inpcb *inp);
+
+void
 sctp_add_to_readq(struct sctp_inpcb *inp,
     struct sctp_tcb *stcb,
     struct sctp_queued_to_read *control,
@@ -254,6 +257,7 @@ sctp_release_pr_sctp_chunk(struct sctp_tcb *, struct sctp_tmit_chunk *,
 );
 
 struct mbuf *sctp_generate_cause(uint16_t, char *);
+struct mbuf *sctp_generate_no_user_data_cause(uint32_t);
 
 void 
 sctp_bindx_add_address(struct socket *so, struct sctp_inpcb *inp,

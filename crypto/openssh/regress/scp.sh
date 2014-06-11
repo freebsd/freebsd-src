@@ -1,4 +1,4 @@
-#	$OpenBSD: scp.sh,v 1.9 2013/05/17 10:35:43 dtucker Exp $
+#	$OpenBSD: scp.sh,v 1.10 2014/01/26 10:49:17 djm Exp $
 #	Placed in the Public Domain.
 
 tid="scp"

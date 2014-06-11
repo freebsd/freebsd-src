@@ -1,4 +1,4 @@
-/* $OpenBSD: bufbn.c,v 1.8 2013/11/08 11:15:19 dtucker Exp $*/
+/* $OpenBSD: bufbn.c,v 1.11 2014/02/27 08:25:09 djm Exp $*/
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -80,7 +80,7 @@ buffer_put_bignum_ret(Buffer *buffer, const BIGNUM *value)
 	/* Store the binary data. */
 	buffer_append(buffer, buf, oi);
 
-	memset(buf, 0, bin_size);
+	explicit_bzero(buf, bin_size);
 	free(buf);
 
 	return (0);
@@ -108,6 +108,11 @@ buffer_get_bignum_ret(Buffer *buffer, BIGNUM *value)
 		return (-1);
 	}
 	bits = get_u16(buf);
+	if (bits > 65535-7) {
+		error("buffer_get_bignum_ret: cannot handle BN of size %d",
+		    bits);
+		return (-1);
+	}
 	/* Compute the number of binary bytes that follow. */
 	bytes = (bits + 7) / 8;
 	if (bytes > 8 * 1024) {
@@ -173,7 +178,7 @@ buffer_put_bignum2_ret(Buffer *buffer, const BIGNUM *value)
 	}
 	hasnohigh = (buf[1] & 0x80) ? 0 : 1;
 	buffer_put_string(buffer, buf+hasnohigh, bytes-hasnohigh);
-	memset(buf, 0, bytes);
+	explicit_bzero(buf, bytes);
 	free(buf);
 	return (0);
 }

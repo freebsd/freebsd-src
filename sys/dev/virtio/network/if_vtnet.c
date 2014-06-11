@@ -2264,7 +2264,6 @@ vtnet_txq_mq_start_locked(struct vtnet_txq *txq, struct mbuf *m)
 	while ((m = drbr_peek(ifp, br, &qnum)) != NULL) {
 		if (virtqueue_full(vq)) {
 			drbr_putback(ifp, br, m, qnum);
-			error = ENOBUFS;
 			break;
 		}
 
@@ -2287,7 +2286,7 @@ vtnet_txq_mq_start_locked(struct vtnet_txq *txq, struct mbuf *m)
 		txq->vtntx_watchdog = VTNET_TX_TIMEOUT;
 	}
 
-	return (error);
+	return (0);
 }
 
 static int

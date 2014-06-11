@@ -435,12 +435,14 @@ rman_adjust_resource(struct resource *rr, u_long start, u_long end)
 	return (0);
 }
 
+#define	SHARE_TYPE(f)	(f & (RF_SHAREABLE | RF_TIMESHARE | RF_PREFETCHABLE))
+
 struct resource *
 rman_reserve_resource_bound(struct rman *rm, u_long start, u_long end,
 		      u_long count, u_long bound,  u_int flags,
 		      struct device *dev)
 {
-	u_int	want_activate;
+	u_int	new_rflags;
 	struct	resource_i *r, *s, *rv;
 	u_long	rstart, rend, amask, bmask;
 
@@ -450,13 +452,15 @@ rman_reserve_resource_bound(struct rman *rm, u_long start, u_long end,
 	       "length %#lx, flags %u, device %s\n", rm->rm_descr, start, end,
 	       count, flags,
 	       dev == NULL ? "<null>" : device_get_nameunit(dev)));
-	want_activate = (flags & RF_ACTIVE);
-	flags &= ~RF_ACTIVE;
+	KASSERT((flags & (RF_WANTED | RF_FIRSTSHARE)) == 0,
+	    ("invalid flags %#x", flags));
+	new_rflags = (flags & ~(RF_ACTIVE | RF_WANTED | RF_FIRSTSHARE)) |
+	    RF_ALLOCATED;
 
 	mtx_lock(rm->rm_mtx);
 
 	for (r = TAILQ_FIRST(&rm->rm_list);
-	     r && r->r_end < start;
+	     r && r->r_end < start + count - 1;
 	     r = TAILQ_NEXT(r, r_link))
 		;
 
@@ -466,6 +470,9 @@ rman_reserve_resource_bound(struct rman *rm, u_long start, u_long end,
 	}
 
 	amask = (1ul << RF_ALIGNMENT(flags)) - 1;
+	KASSERT(start <= ULONG_MAX - amask,
+	    ("start (%#lx) + amask (%#lx) would wrap around", start, amask));
+
 	/* If bound is 0, bmask will also be 0 */
 	bmask = ~(bound - 1);
 	/*
@@ -473,9 +480,18 @@ rman_reserve_resource_bound(struct rman *rm, u_long start, u_long end,
 	 */
 	for (s = r; s; s = TAILQ_NEXT(s, r_link)) {
 		DPRINTF(("considering [%#lx, %#lx]\n", s->r_start, s->r_end));
-		if (s->r_start + count - 1 > end) {
+		/*
+		 * The resource list is sorted, so there is no point in
+		 * searching further once r_start is too large.
+		 */
+		if (s->r_start > end - (count - 1)) {
 			DPRINTF(("s->r_start (%#lx) + count - 1> end (%#lx)\n",
 			    s->r_start, end));
+			break;
+		}
+		if (s->r_start > ULONG_MAX - amask) {
+			DPRINTF(("s->r_start (%#lx) + amask (%#lx) too large\n",
+			    s->r_start, amask));
 			break;
 		}
 		if (s->r_flags & RF_ALLOCATED) {
@@ -508,7 +524,7 @@ rman_reserve_resource_bound(struct rman *rm, u_long start, u_long end,
 			if ((s->r_end - s->r_start + 1) == count) {
 				DPRINTF(("candidate region is entire chunk\n"));
 				rv = s;
-				rv->r_flags |= RF_ALLOCATED | flags;
+				rv->r_flags = new_rflags;
 				rv->r_dev = dev;
 				goto out;
 			}
@@ -528,7 +544,7 @@ rman_reserve_resource_bound(struct rman *rm, u_long start, u_long end,
 				goto out;
 			rv->r_start = rstart;
 			rv->r_end = rstart + count - 1;
-			rv->r_flags = flags | RF_ALLOCATED;
+			rv->r_flags = new_rflags;
 			rv->r_dev = dev;
 			rv->r_rm = rm;
 
@@ -588,15 +604,10 @@ rman_reserve_resource_bound(struct rman *rm, u_long start, u_long end,
 	if ((flags & (RF_SHAREABLE | RF_TIMESHARE)) == 0)
 		goto out;
 
-	for (s = r; s; s = TAILQ_NEXT(s, r_link)) {
-		if (s->r_start > end)
-			break;
-		if ((s->r_flags & flags) != flags)
-			continue;
-		rstart = ulmax(s->r_start, start);
-		rend = ulmin(s->r_end, ulmax(start + count - 1, end));
-		if (s->r_start >= start && s->r_end <= end
-		    && (s->r_end - s->r_start + 1) == count &&
+	for (s = r; s && s->r_end <= end; s = TAILQ_NEXT(s, r_link)) {
+		if (SHARE_TYPE(s->r_flags) == SHARE_TYPE(flags) &&
+		    s->r_start >= start &&
+		    (s->r_end - s->r_start + 1) == count &&
 		    (s->r_start & amask) == 0 &&
 		    ((s->r_start ^ s->r_end) & bmask) == 0) {
 			rv = int_alloc_resource(M_NOWAIT);
@@ -604,8 +615,7 @@ rman_reserve_resource_bound(struct rman *rm, u_long start, u_long end,
 				goto out;
 			rv->r_start = s->r_start;
 			rv->r_end = s->r_end;
-			rv->r_flags = s->r_flags &
-				(RF_ALLOCATED | RF_SHAREABLE | RF_TIMESHARE);
+			rv->r_flags = new_rflags;
 			rv->r_dev = dev;
 			rv->r_rm = rm;
 			if (s->r_sharehead == NULL) {
@@ -632,13 +642,12 @@ rman_reserve_resource_bound(struct rman *rm, u_long start, u_long end,
 	 */
 out:
 	/*
-	 * If the user specified RF_ACTIVE in the initial flags,
-	 * which is reflected in `want_activate', we attempt to atomically
+	 * If the user specified RF_ACTIVE in flags, we attempt to atomically
 	 * activate the resource.  If this fails, we release the resource
 	 * and indicate overall failure.  (This behavior probably doesn't
 	 * make sense for RF_TIMESHARE-type resources.)
 	 */
-	if (rv && want_activate) {
+	if (rv && (flags & RF_ACTIVE) != 0) {
 		struct resource_i *whohas;
 		if (int_rman_activate_resource(rm, rv, &whohas)) {
 			int_rman_release_resource(rm, rv);

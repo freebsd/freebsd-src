@@ -1,7 +1,7 @@
 #
 # Example configuration file.
 #
-# See unbound.conf(5) man page, version 1.4.20.
+# See unbound.conf(5) man page, version 1.4.22.
 #
 # this is a comment.
 
@@ -84,10 +84,17 @@ server:
 	# buffer size for UDP port 53 outgoing (SO_SNDBUF socket option).
 	# 0 is system default.  Use 4m to handle spikes on very busy servers.
 	# so-sndbuf: 0
+	
+	# on Linux(3.9+) use SO_REUSEPORT to distribute queries over threads.
+	# so-reuseport: no
 
 	# EDNS reassembly buffer to advertise to UDP peers (the actual buffer
 	# is set with msg-buffer-size). 1480 can solve fragmentation (timeouts).
 	# edns-buffer-size: 4096
+
+	# Maximum UDP response size (not applied to TCP response).
+	# Suggested values are 512 to 4096. Default is 4096. 65536 disables it.
+	# max-udp-size: 4096
 
 	# buffer size for handling DNS data. No messages larger than this
 	# size can be sent or received, by UDP or TCP. In bytes.
@@ -107,6 +114,9 @@ server:
 
 	# if very busy, 50% queries run to completion, 50% get timeout in msec
 	# jostle-timeout: 200
+	
+	# msec to wait before close of port on timeout UDP. 0 disables.
+	# delay-close: 0
 
 	# the amount of memory to use for the RRset cache.
 	# plain value in bytes or you can append k, m or G. default is "4Mb". 
@@ -161,6 +171,8 @@ server:
 	# By default everything is refused, except for localhost.
 	# Choose deny (drop message), refuse (polite error reply),
 	# allow (recursive ok), allow_snoop (recursive and nonrecursive ok)
+	# deny_non_local (drop queries unless can be answered from local-data)
+	# refuse_non_local (like deny_non_local but polite error reply).
 	# access-control: 0.0.0.0/0 refuse
 	# access-control: 127.0.0.0/8 allow
 	# access-control: ::0/0 refuse
@@ -425,6 +437,47 @@ server:
 	# the amount of memory to use for the negative cache (used for DLV).
 	# plain value in bytes or you can append k, m or G. default is "1Mb". 
 	# neg-cache-size: 1m
+
+	# By default, for a number of zones a small default 'nothing here'
+	# reply is built-in.  Query traffic is thus blocked.  If you
+	# wish to serve such zone you can unblock them by uncommenting one
+	# of the nodefault statements below.
+	# You may also have to use domain-insecure: zone to make DNSSEC work,
+	# unless you have your own trust anchors for this zone.
+	# local-zone: "localhost." nodefault
+	# local-zone: "127.in-addr.arpa." nodefault
+	# local-zone: "1.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.ip6.arpa." nodefault
+	# local-zone: "10.in-addr.arpa." nodefault
+	# local-zone: "16.172.in-addr.arpa." nodefault
+	# local-zone: "17.172.in-addr.arpa." nodefault
+	# local-zone: "18.172.in-addr.arpa." nodefault
+	# local-zone: "19.172.in-addr.arpa." nodefault
+	# local-zone: "20.172.in-addr.arpa." nodefault
+	# local-zone: "21.172.in-addr.arpa." nodefault
+	# local-zone: "22.172.in-addr.arpa." nodefault
+	# local-zone: "23.172.in-addr.arpa." nodefault
+	# local-zone: "24.172.in-addr.arpa." nodefault
+	# local-zone: "25.172.in-addr.arpa." nodefault
+	# local-zone: "26.172.in-addr.arpa." nodefault
+	# local-zone: "27.172.in-addr.arpa." nodefault
+	# local-zone: "28.172.in-addr.arpa." nodefault
+	# local-zone: "29.172.in-addr.arpa." nodefault
+	# local-zone: "30.172.in-addr.arpa." nodefault
+	# local-zone: "31.172.in-addr.arpa." nodefault
+	# local-zone: "168.192.in-addr.arpa." nodefault
+	# local-zone: "0.in-addr.arpa." nodefault
+	# local-zone: "254.169.in-addr.arpa." nodefault
+	# local-zone: "2.0.192.in-addr.arpa." nodefault
+	# local-zone: "100.51.198.in-addr.arpa." nodefault
+	# local-zone: "113.0.203.in-addr.arpa." nodefault
+	# local-zone: "255.255.255.255.in-addr.arpa." nodefault
+	# local-zone: "0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.ip6.arpa." nodefault
+	# local-zone: "d.f.ip6.arpa." nodefault
+	# local-zone: "8.e.f.ip6.arpa." nodefault
+	# local-zone: "9.e.f.ip6.arpa." nodefault
+	# local-zone: "a.e.f.ip6.arpa." nodefault
+	# local-zone: "b.e.f.ip6.arpa." nodefault
+	# local-zone: "8.b.d.0.1.0.0.2.ip6.arpa." nodefault
 
 	# a number of locally served zones can be configured.
 	# 	local-zone: <zone> <type>

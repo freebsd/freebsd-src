@@ -32,7 +32,7 @@ MAGFILES=	${CONTRDIR}/Header\
 		${CONTRDIR}/Magdir/[a-z]*
 
 magic: ${MAGFILES}
-	cat ${.ALLSRC} > ${.TARGET}
+	cat ${.ALLSRC:O} > ${.TARGET}
 
 magic.mgc: mkmagic magic
 	./mkmagic magic

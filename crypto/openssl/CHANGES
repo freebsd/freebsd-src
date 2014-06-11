@@ -2,6 +2,79 @@
  OpenSSL CHANGES
  _______________
 
+ Changes between 1.0.1g and 1.0.1h [5 Jun 2014]
+
+  *) Fix for SSL/TLS MITM flaw. An attacker using a carefully crafted
+     handshake can force the use of weak keying material in OpenSSL
+     SSL/TLS clients and servers.
+
+     Thanks to KIKUCHI Masashi (Lepidum Co. Ltd.) for discovering and
+     researching this issue. (CVE-2014-0224)
+     [KIKUCHI Masashi, Steve Henson]
+
+  *) Fix DTLS recursion flaw. By sending an invalid DTLS handshake to an
+     OpenSSL DTLS client the code can be made to recurse eventually crashing
+     in a DoS attack.
+
+     Thanks to Imre Rad (Search-Lab Ltd.) for discovering this issue.
+     (CVE-2014-0221)
+     [Imre Rad, Steve Henson]
+
+  *) Fix DTLS invalid fragment vulnerability. A buffer overrun attack can
+     be triggered by sending invalid DTLS fragments to an OpenSSL DTLS
+     client or server. This is potentially exploitable to run arbitrary
+     code on a vulnerable client or server.
+
+     Thanks to Jüri Aedla for reporting this issue. (CVE-2014-0195)
+     [Jüri Aedla, Steve Henson]
+
+  *) Fix bug in TLS code where clients enable anonymous ECDH ciphersuites
+     are subject to a denial of service attack.
+
+     Thanks to Felix Gröbert and Ivan Fratric at Google for discovering
+     this issue. (CVE-2014-3470)
+     [Felix Gröbert, Ivan Fratric, Steve Henson]
+
+  *) Harmonize version and its documentation. -f flag is used to display
+     compilation flags.
+     [mancha <mancha1@zoho.com>]
+
+  *) Fix eckey_priv_encode so it immediately returns an error upon a failure
+     in i2d_ECPrivateKey.
+     [mancha <mancha1@zoho.com>]
+
+  *) Fix some double frees. These are not thought to be exploitable.
+     [mancha <mancha1@zoho.com>]
+
+ Changes between 1.0.1f and 1.0.1g [7 Apr 2014]
+
+  *) A missing bounds check in the handling of the TLS heartbeat extension
+     can be used to reveal up to 64k of memory to a connected client or
+     server.
+
+     Thanks for Neel Mehta of Google Security for discovering this bug and to
+     Adam Langley <agl@chromium.org> and Bodo Moeller <bmoeller@acm.org> for
+     preparing the fix (CVE-2014-0160)
+     [Adam Langley, Bodo Moeller]
+
+  *) Fix for the attack described in the paper "Recovering OpenSSL
+     ECDSA Nonces Using the FLUSH+RELOAD Cache Side-channel Attack"
+     by Yuval Yarom and Naomi Benger. Details can be obtained from:
+     http://eprint.iacr.org/2014/140
+
+     Thanks to Yuval Yarom and Naomi Benger for discovering this
+     flaw and to Yuval Yarom for supplying a fix (CVE-2014-0076)
+     [Yuval Yarom and Naomi Benger]
+
+  *) TLS pad extension: draft-agl-tls-padding-03
+
+     Workaround for the "TLS hang bug" (see FAQ and PR#2771): if the
+     TLS client Hello record length value would otherwise be > 255 and
+     less that 512 pad with a dummy extension containing zeroes so it
+     is at least 512 bytes long.
+
+     [Adam Langley, Steve Henson]
+
  Changes between 1.0.1e and 1.0.1f [6 Jan 2014]
 
   *) Fix for TLS record tampering bug. A carefully crafted invalid 

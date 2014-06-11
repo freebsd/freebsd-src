@@ -415,6 +415,9 @@
 /* Define to 1 if you have the `EVP_MD_CTX_cleanup' function. */
 #define HAVE_EVP_MD_CTX_CLEANUP 1
 
+/* Define to 1 if you have the `EVP_MD_CTX_copy_ex' function. */
+#define HAVE_EVP_MD_CTX_COPY_EX 1
+
 /* Define to 1 if you have the `EVP_MD_CTX_init' function. */
 #define HAVE_EVP_MD_CTX_INIT 1
 
@@ -423,6 +426,9 @@
 
 /* Define if you have ut_exit in utmp.h */
 /* #undef HAVE_EXIT_IN_UTMP */
+
+/* Define to 1 if you have the `explicit_bzero' function. */
+/* #undef HAVE_EXPLICIT_BZERO */
 
 /* Define to 1 if you have the `fchmod' function. */
 #define HAVE_FCHMOD 1

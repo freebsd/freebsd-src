@@ -1,12 +1,14 @@
 # $FreeBSD$
 
-.include <bsd.own.mk>
+.include <src.opts.mk>
 MK_SSP=		no
 
 LOADER?=	loader
 PROG=		${LOADER}.sym
 INTERNALPROG=
 NEWVERSWHAT?=	"bootstrap loader" x86
+
+NO_PIE=	yes
 
 # architecture-specific loader code
 SRCS=		main.c conf.c vers.c
@@ -41,7 +43,11 @@ HAVE_ISABUS=	yes
 # Enable BootForth
 BOOT_FORTH=	yes
 CFLAGS+=	-DBOOT_FORTH -I${.CURDIR}/../../ficl -I${.CURDIR}/../../ficl/i386
+.if ${MACHINE_CPUARCH} == "amd64"
+LIBFICL=	${.OBJDIR}/../../ficl32/libficl.a
+.else
 LIBFICL=	${.OBJDIR}/../../ficl/libficl.a
+.endif
 .endif
 
 .if defined(LOADER_BZIP2_SUPPORT)

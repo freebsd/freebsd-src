@@ -2,7 +2,7 @@ Pull in r198580 from upstream llvm trunk (by Venkatraman Govindaraju):
 
   [Sparc] Add ELF Object Writer for Sparc. 
 
-Introduced here: http://svn.freebsd.org/changeset/base/262261
+Introduced here: http://svnweb.freebsd.org/changeset/base/262261
 
 Index: lib/Target/Sparc/MCTargetDesc/SparcMCCodeEmitter.cpp
 ===================================================================

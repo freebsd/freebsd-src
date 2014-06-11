@@ -186,6 +186,9 @@ struct sctp_paramhdr {
 #define SCTP_SS_VALUE			0x00001204
 #define SCTP_CC_OPTION			0x00001205	/* Options for CC
 							 * modules */
+/* For NDATA */
+#define SCTP_NDATA_ENABLE		0x00001206
+
 /* read only */
 #define SCTP_GET_SNDBUF_USE		0x00001101
 #define SCTP_GET_STAT_LOG		0x00001103
@@ -408,6 +411,11 @@ struct sctp_error_unrecognized_chunk {
 	struct sctp_chunkhdr ch;/* header from chunk in error */
 }                             SCTP_PACKED;
 
+struct sctp_error_no_user_data {
+	struct sctp_error_cause cause;	/* code=SCTP_CAUSE_NO_USER_DATA */
+	uint32_t tsn;		/* TSN of the empty data chunk */
+}                       SCTP_PACKED;
+
 /*
  * Main SCTP chunk types we place these here so natd and f/w's in user land
  * can find them.
@@ -432,6 +440,7 @@ struct sctp_error_unrecognized_chunk {
 #define SCTP_AUTHENTICATION     0x0f
 /* EY nr_sack chunk id*/
 #define SCTP_NR_SELECTIVE_ACK	0x10
+#define SCTP_NDATA		0x11
 /************0x40 series ***********/
 /************0x80 series ***********/
 /* RFC5061 */
@@ -547,6 +556,7 @@ struct sctp_error_unrecognized_chunk {
 #define SCTP_PCB_FLAGS_ASSOC_RESETEVNT   0x0000000020000000
 #define SCTP_PCB_FLAGS_STREAM_CHANGEEVNT 0x0000000040000000
 #define SCTP_PCB_FLAGS_RECVNSENDFAILEVNT 0x0000000080000000
+#define SCTP_PCB_FLAGS_USE_NDATA         0x0000000100000000
 
 /*-
  * mobility_features parameters (by micchie).Note

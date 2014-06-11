@@ -1084,7 +1084,6 @@ sctp_init_asoc(struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 	TAILQ_INIT(&asoc->asconf_send_queue);
 	TAILQ_INIT(&asoc->send_queue);
 	TAILQ_INIT(&asoc->sent_queue);
-	TAILQ_INIT(&asoc->reasmqueue);
 	TAILQ_INIT(&asoc->resetHead);
 	asoc->max_inbound_streams = inp->sctp_ep.max_open_streams_intome;
 	TAILQ_INIT(&asoc->asconf_queue);
@@ -3094,7 +3093,13 @@ sctp_notify_partial_delivery_indication(struct sctp_tcb *stcb, uint32_t error,
 	SCTP_BUF_LEN(m_notify) = 0;
 	pdapi = mtod(m_notify, struct sctp_pdapi_event *);
 	pdapi->pdapi_type = SCTP_PARTIAL_DELIVERY_EVENT;
-	pdapi->pdapi_flags = 0;
+	if (stcb->asoc.control_pdapi &&
+	    ((stcb->asoc.control_pdapi->sinfo_flags >> 8) & SCTP_DATA_UNORDERED)) {
+		/* Its un-ordered */
+		pdapi->pdapi_flags = 1;
+	} else {
+		pdapi->pdapi_flags = 0;
+	}
 	pdapi->pdapi_length = sizeof(struct sctp_pdapi_event);
 	pdapi->pdapi_indication = error;
 	pdapi->pdapi_stream = (val >> 16);
@@ -4047,9 +4052,6 @@ sctp_handle_ootb(struct mbuf *m, int iphlen, int offset,
 		case SCTP_INIT:
 			contains_init_chunk = 1;
 			break;
-		case SCTP_COOKIE_ECHO:
-			/* We hit here only if the assoc is being freed */
-			return;
 		case SCTP_PACKET_DROPPED:
 			/* we don't respond to pkt-dropped */
 			return;
@@ -4345,6 +4347,43 @@ sctp_pull_off_control_to_new_inp(struct sctp_inpcb *old_inp,
 }
 
 void
+sctp_wakeup_the_read_socket(struct sctp_inpcb *inp)
+{
+	if (inp && inp->sctp_socket) {
+		if (sctp_is_feature_on(inp, SCTP_PCB_FLAGS_ZERO_COPY_ACTIVE)) {
+			SCTP_ZERO_COPY_EVENT(inp, inp->sctp_socket);
+		} else {
+#if defined(__APPLE__) || defined(SCTP_SO_LOCK_TESTING)
+			struct socket *so;
+
+			so = SCTP_INP_SO(inp);
+			if (!so_locked) {
+				if (stcb) {
+					atomic_add_int(&stcb->asoc.refcnt, 1);
+					SCTP_TCB_UNLOCK(stcb);
+				}
+				SCTP_SOCKET_LOCK(so, 1);
+				if (stcb) {
+					SCTP_TCB_LOCK(stcb);
+					atomic_subtract_int(&stcb->asoc.refcnt, 1);
+				}
+				if (inp->sctp_flags & SCTP_PCB_FLAGS_SOCKET_GONE) {
+					SCTP_SOCKET_UNLOCK(so, 1);
+					return;
+				}
+			}
+#endif
+			sctp_sorwakeup(inp, inp->sctp_socket);
+#if defined(__APPLE__) || defined(SCTP_SO_LOCK_TESTING)
+			if (!so_locked) {
+				SCTP_SOCKET_UNLOCK(so, 1);
+			}
+#endif
+		}
+	}
+}
+
+void
 sctp_add_to_readq(struct sctp_inpcb *inp,
     struct sctp_tcb *stcb,
     struct sctp_queued_to_read *control,
@@ -4434,39 +4473,11 @@ sctp_add_to_readq(struct sctp_inpcb *inp,
 		control->end_added = 1;
 	}
 	TAILQ_INSERT_TAIL(&inp->read_queue, control, next);
+	control->on_read_q = 1;
 	if (inp_read_lock_held == 0)
 		SCTP_INP_READ_UNLOCK(inp);
 	if (inp && inp->sctp_socket) {
-		if (sctp_is_feature_on(inp, SCTP_PCB_FLAGS_ZERO_COPY_ACTIVE)) {
-			SCTP_ZERO_COPY_EVENT(inp, inp->sctp_socket);
-		} else {
-#if defined(__APPLE__) || defined(SCTP_SO_LOCK_TESTING)
-			struct socket *so;
-
-			so = SCTP_INP_SO(inp);
-			if (!so_locked) {
-				if (stcb) {
-					atomic_add_int(&stcb->asoc.refcnt, 1);
-					SCTP_TCB_UNLOCK(stcb);
-				}
-				SCTP_SOCKET_LOCK(so, 1);
-				if (stcb) {
-					SCTP_TCB_LOCK(stcb);
-					atomic_subtract_int(&stcb->asoc.refcnt, 1);
-				}
-				if (inp->sctp_flags & SCTP_PCB_FLAGS_SOCKET_GONE) {
-					SCTP_SOCKET_UNLOCK(so, 1);
-					return;
-				}
-			}
-#endif
-			sctp_sorwakeup(inp, inp->sctp_socket);
-#if defined(__APPLE__) || defined(SCTP_SO_LOCK_TESTING)
-			if (!so_locked) {
-				SCTP_SOCKET_UNLOCK(so, 1);
-			}
-#endif
-		}
+		sctp_wakeup_the_read_socket(inp);
 	}
 }
 
@@ -4650,6 +4661,25 @@ sctp_generate_cause(uint16_t code, char *info)
 		cause->code = htons(code);
 		cause->length = htons((uint16_t) len);
 		memcpy(cause->info, info, info_len);
+	}
+	return (m);
+}
+
+struct mbuf *
+sctp_generate_no_user_data_cause(uint32_t tsn)
+{
+	struct mbuf *m;
+	struct sctp_error_no_user_data *no_user_data_cause;
+	size_t len;
+
+	len = sizeof(struct sctp_error_no_user_data);
+	m = sctp_get_mbuf_for_msg(len, 0, M_NOWAIT, 1, MT_DATA);
+	if (m != NULL) {
+		SCTP_BUF_LEN(m) = len;
+		no_user_data_cause = mtod(m, struct sctp_error_no_user_data *);
+		no_user_data_cause->cause.code = htons(SCTP_CAUSE_NO_USER_DATA);
+		no_user_data_cause->cause.length = htons((uint16_t) len);
+		no_user_data_cause->tsn = tsn;	/* tsn is passed in as NBO */
 	}
 	return (m);
 }
@@ -5966,7 +5996,7 @@ wait_some_more:
 				 * corrupt?
 				 */
 #ifdef INVARIANTS
-				panic("Impossible data==NULL length !=0");
+				panic("Impossible data==NULL length !=0 control:%p stcb:%p length:%d", control, stcb, control->length);
 #endif
 				out_flags |= MSG_EOR;
 				out_flags |= MSG_TRUNC;

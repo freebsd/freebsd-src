@@ -7,6 +7,6 @@ LDADD=	-lmd
 
 BINDIR?=	/usr/sbin
 
-NO_MAN=
+MAN=
 
 .include <bsd.prog.mk>

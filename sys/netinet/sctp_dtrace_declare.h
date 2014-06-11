@@ -35,6 +35,7 @@ __FBSDID("$FreeBSD$");
 #ifndef _NETINET_SCTP_DTRACE_DECLARE_H_
 #define _NETINET_SCTP_DTRACE_DECLARE_H_
 
+#include "opt_kdtrace.h"
 #include <sys/kernel.h>
 #include <sys/sdt.h>
 

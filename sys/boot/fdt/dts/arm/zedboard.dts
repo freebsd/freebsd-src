@@ -183,7 +183,7 @@
 			reg = <0x100000 0x1000>;
 			interrupts = <56>;
 			interrupt-parent = <&GIC>;
-			clock-frequency = <50000000>;
+			max-frequency = <50000000>;
 		};
 
 		// QSPI

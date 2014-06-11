@@ -45,6 +45,11 @@
 #define HAS_PIPES(dt) (dt == APR_POLL_FILE) ? 1 : 0
 #endif
 
+#if defined(HAVE_AIO_H) && defined(HAVE_AIO_MSGQ)
+#define _AIO_OS390	/* enable a bunch of z/OS aio.h definitions */
+#include <aio.h>	/* aiocb	*/
+#endif
+
 /* Choose the best method platform specific to use in apr_pollset */
 #ifdef HAVE_KQUEUE
 #define POLLSET_USES_KQUEUE
@@ -55,6 +60,9 @@
 #elif defined(HAVE_EPOLL)
 #define POLLSET_USES_EPOLL
 #define POLLSET_DEFAULT_METHOD APR_POLLSET_EPOLL
+#elif defined(HAVE_AIO_MSGQ)
+#define POLLSET_USES_AIO_MSGQ
+#define POLLSET_DEFAULT_METHOD APR_POLLSET_AIO_MSGQ
 #elif defined(HAVE_POLL)
 #define POLLSET_USES_POLL
 #define POLLSET_DEFAULT_METHOD APR_POLLSET_POLL
@@ -75,7 +83,7 @@
 #endif
 #endif
 
-#if defined(POLLSET_USES_KQUEUE) || defined(POLLSET_USES_EPOLL) || defined(POLLSET_USES_PORT)
+#if defined(POLLSET_USES_KQUEUE) || defined(POLLSET_USES_EPOLL) || defined(POLLSET_USES_PORT) || defined(POLLSET_USES_AIO_MSGQ)
 
 #include "apr_ring.h"
 
@@ -107,6 +115,7 @@ struct pfd_elem_t {
 typedef struct apr_pollset_private_t apr_pollset_private_t;
 typedef struct apr_pollset_provider_t apr_pollset_provider_t;
 typedef struct apr_pollcb_provider_t apr_pollcb_provider_t;
+
 struct apr_pollset_t
 {
     apr_pool_t *pool;

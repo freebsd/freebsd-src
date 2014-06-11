@@ -191,15 +191,21 @@ usage(void)
 	"       [--get-highmem]\n"
 	"       [--get-gpa-pmap]\n"
 	"       [--assert-lapic-lvt=<pin>]\n"
-	"       [--inject-nmi]\n",
+	"       [--inject-nmi]\n"
+	"       [--force-reset]\n"
+	"       [--force-poweroff]\n"
+	"       [--get-active-cpus]\n"
+	"       [--get-suspended-cpus]\n",
 	progname);
 	exit(1);
 }
 
 static int get_stats, getcap, setcap, capval, get_gpa_pmap;
 static int inject_nmi, assert_lapic_lvt;
+static int force_reset, force_poweroff;
 static const char *capname;
 static int create, destroy, get_lowmem, get_highmem;
+static int get_active_cpus, get_suspended_cpus;
 static uint64_t memsize;
 static int set_cr0, get_cr0, set_cr3, get_cr3, set_cr4, get_cr4;
 static int set_efer, get_efer;
@@ -387,6 +393,25 @@ enum {
 	ASSERT_LAPIC_LVT,
 };
 
+static void
+print_cpus(const char *banner, const cpuset_t *cpus)
+{
+	int i, first;
+
+	first = 1;
+	printf("%s:\t", banner);
+	if (!CPU_EMPTY(cpus)) {
+		for (i = 0; i < CPU_SETSIZE; i++) {
+			if (CPU_ISSET(i, cpus)) {
+				printf("%s%d", first ? " " : ", ", i);
+				first = 0;
+			}
+		}
+	} else
+		printf(" (none)");
+	printf("\n");
+}
+
 int
 main(int argc, char *argv[])
 {
@@ -398,6 +423,7 @@ main(int argc, char *argv[])
 	uint64_t ctl, eptp, bm, addr, u64, pteval[4], *pte;
 	struct vmctx *ctx;
 	int wired;
+	cpuset_t cpus;
 
 	uint64_t cr0, cr3, cr4, dr7, rsp, rip, rflags, efer, pat;
 	uint64_t rax, rbx, rcx, rdx, rsi, rdi, rbp;
@@ -565,10 +591,15 @@ main(int argc, char *argv[])
 		{ "create",	NO_ARG,		&create,	1 },
 		{ "destroy",	NO_ARG,		&destroy,	1 },
 		{ "inject-nmi",	NO_ARG,		&inject_nmi,	1 },
+		{ "force-reset",	NO_ARG,	&force_reset,	1 },
+		{ "force-poweroff", NO_ARG,	&force_poweroff, 1 },
+		{ "get-active-cpus", NO_ARG,	&get_active_cpus, 1 },
+		{ "get-suspended-cpus", NO_ARG,	&get_suspended_cpus, 1 },
 		{ NULL,		0,		NULL,		0 }
 	};
 
 	vcpu = 0;
+	vmname = NULL;
 	assert_lapic_lvt = -1;
 	progname = basename(argv[0]);
 
@@ -1523,6 +1554,18 @@ main(int argc, char *argv[])
 		}
 	}
 
+	if (!error && (get_active_cpus || get_all)) {
+		error = vm_active_cpus(ctx, &cpus);
+		if (!error)
+			print_cpus("active cpus", &cpus);
+	}
+
+	if (!error && (get_suspended_cpus || get_all)) {
+		error = vm_suspended_cpus(ctx, &cpus);
+		if (!error)
+			print_cpus("suspended cpus", &cpus);
+	}
+
 	if (!error && run) {
 		error = vm_get_register(ctx, vcpu, VM_REG_GUEST_RIP, &rip);
 		assert(error == 0);
@@ -1533,6 +1576,12 @@ main(int argc, char *argv[])
 		else
 			printf("vm_run error %d\n", error);
 	}
+
+	if (!error && force_reset)
+		error = vm_suspend(ctx, VM_SUSPEND_RESET);
+
+	if (!error && force_poweroff)
+		error = vm_suspend(ctx, VM_SUSPEND_POWEROFF);
 
 	if (error)
 		printf("errno = %d\n", errno);

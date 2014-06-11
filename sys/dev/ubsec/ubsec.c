@@ -1856,13 +1856,6 @@ ubsec_dma_malloc(
 	if (r != 0) {
 		device_printf(sc->sc_dev, "ubsec_dma_malloc: "
 			"bus_dma_tag_create failed; error %u\n", r);
-		goto fail_0;
-	}
-
-	r = bus_dmamap_create(dma->dma_tag, BUS_DMA_NOWAIT, &dma->dma_map);
-	if (r != 0) {
-		device_printf(sc->sc_dev, "ubsec_dma_malloc: "
-			"bus_dmamap_create failed; error %u\n", r);
 		goto fail_1;
 	}
 
@@ -1894,10 +1887,7 @@ fail_3:
 fail_2:
 	bus_dmamem_free(dma->dma_tag, dma->dma_vaddr, dma->dma_map);
 fail_1:
-	bus_dmamap_destroy(dma->dma_tag, dma->dma_map);
 	bus_dma_tag_destroy(dma->dma_tag);
-fail_0:
-	dma->dma_map = NULL;
 	dma->dma_tag = NULL;
 	return (r);
 }
@@ -1907,7 +1897,6 @@ ubsec_dma_free(struct ubsec_softc *sc, struct ubsec_dma_alloc *dma)
 {
 	bus_dmamap_unload(dma->dma_tag, dma->dma_map);
 	bus_dmamem_free(dma->dma_tag, dma->dma_vaddr, dma->dma_map);
-	bus_dmamap_destroy(dma->dma_tag, dma->dma_map);
 	bus_dma_tag_destroy(dma->dma_tag);
 }
 

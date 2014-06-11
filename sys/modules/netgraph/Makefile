@@ -1,7 +1,7 @@
 # $Whistle: Makefile,v 1.5 1999/01/24 06:48:37 archie Exp $
 # $FreeBSD$
 
-.include <bsd.own.mk>
+.include <src.opts.mk>
 
 SUBDIR=	async \
 	atm \

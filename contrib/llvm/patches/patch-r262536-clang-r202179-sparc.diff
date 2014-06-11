@@ -2,7 +2,7 @@ Pull in r202179 from upstream clang trunk (by Roman Divacky):
 
   Pass the sparc architecture variant to the assembler.
 
-Introduced here: http://svn.freebsd.org/changeset/base/262536
+Introduced here: http://svnweb.freebsd.org/changeset/base/262536
 
 Index: tools/clang/lib/Driver/Tools.cpp
 ===================================================================

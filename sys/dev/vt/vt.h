@@ -78,7 +78,13 @@ one 'device sc' or 'device vt'"
 #endif /* defined(SC_TWOBUTTON_MOUSE) || defined(VT_TWOBUTTON_MOUSE) */
 
 #define	SC_DRIVER_NAME	"vt"
+#ifdef VT_DEBUG
 #define	DPRINTF(_l, ...)	if (vt_debug > (_l)) printf( __VA_ARGS__ )
+#define VT_CONSOLECTL_DEBUG
+#define VT_SYSMOUSE_DEBUG
+#else
+#define	DPRINTF(_l, ...)	do {} while (0)
+#endif
 #define	ISSIGVALID(sig)	((sig) > 0 && (sig) < NSIG)
 
 #define	VT_SYSCTL_INT(_name, _default, _descr)				\
@@ -253,6 +259,7 @@ struct vt_window {
 #define	VWF_CONSOLE	0x8	/* Kernel message console window. */
 #define	VWF_VTYLOCK	0x10	/* Prevent window switch. */
 #define	VWF_MOUSE_HIDE	0x20	/* Disable mouse events processing. */
+#define	VWF_READY	0x40	/* Window fully initialized. */
 #define	VWF_SWWAIT_REL	0x10000	/* Program wait for VT acquire is done. */
 #define	VWF_SWWAIT_ACQ	0x20000	/* Program wait for VT release is done. */
 	pid_t			 vw_pid;	/* Terminal holding process */
@@ -277,9 +284,13 @@ struct vt_window {
  */
 
 typedef int vd_init_t(struct vt_device *vd);
+typedef int vd_probe_t(struct vt_device *vd);
 typedef void vd_postswitch_t(struct vt_device *vd);
 typedef void vd_blank_t(struct vt_device *vd, term_color_t color);
 typedef void vd_bitbltchr_t(struct vt_device *vd, const uint8_t *src,
+    const uint8_t *mask, int bpl, vt_axis_t top, vt_axis_t left,
+    unsigned int width, unsigned int height, term_color_t fg, term_color_t bg);
+typedef void vd_maskbitbltchr_t(struct vt_device *vd, const uint8_t *src,
     const uint8_t *mask, int bpl, vt_axis_t top, vt_axis_t left,
     unsigned int width, unsigned int height, term_color_t fg, term_color_t bg);
 typedef void vd_putchar_t(struct vt_device *vd, term_char_t,
@@ -292,12 +303,15 @@ typedef void vd_drawrect_t(struct vt_device *, int, int, int, int, int,
 typedef void vd_setpixel_t(struct vt_device *, int, int, term_color_t);
 
 struct vt_driver {
+	char		 vd_name[16];
 	/* Console attachment. */
+	vd_probe_t	*vd_probe;
 	vd_init_t	*vd_init;
 
 	/* Drawing. */
 	vd_blank_t	*vd_blank;
 	vd_bitbltchr_t	*vd_bitbltchr;
+	vd_maskbitbltchr_t *vd_maskbitbltchr;
 	vd_drawrect_t	*vd_drawrect;
 	vd_setpixel_t	*vd_setpixel;
 
@@ -333,10 +347,10 @@ void vt_upgrade(struct vt_device *vd);
 #define	PIXEL_HEIGHT(h)	((h) / 16)
 
 #ifndef VT_FB_DEFAULT_WIDTH
-#define	VT_FB_DEFAULT_WIDTH	640
+#define	VT_FB_DEFAULT_WIDTH	2048
 #endif
 #ifndef VT_FB_DEFAULT_HEIGHT
-#define	VT_FB_DEFAULT_HEIGHT	480
+#define	VT_FB_DEFAULT_HEIGHT	1200
 #endif
 
 #define	VT_CONSDEV_DECLARE(driver, width, height, softc)		\
@@ -386,6 +400,9 @@ TERMINAL_DECLARE_EARLY(driver ## _consterm, vt_termclass,		\
     &driver ## _conswindow);						\
 SYSINIT(vt_early_cons, SI_SUB_INT_CONFIG_HOOKS, SI_ORDER_ANY,		\
     vt_upgrade, &driver ## _consdev)
+
+/* name argument is not used yet. */
+#define VT_DRIVER_DECLARE(name, drv) DATA_SET(vt_drv_set, drv)
 
 /*
  * Fonts.

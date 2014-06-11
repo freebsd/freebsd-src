@@ -36,6 +36,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysproto.h>
 #include <sys/kernel.h>
 #include <sys/proc.h>
+#include <sys/efi.h>
 #include <sys/exec.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
@@ -60,7 +61,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/reg.h>
 #include <machine/pal.h>
 #include <machine/fpu.h>
-#include <machine/efi.h>
 #include <machine/pcb.h>
 #ifdef SMP
 #include <machine/smp.h>

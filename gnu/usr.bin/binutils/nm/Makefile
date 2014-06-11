@@ -15,4 +15,6 @@ DPADD+=	${RELTOP}/libbfd/libbfd.a
 DPADD+=	${RELTOP}/libiberty/libiberty.a
 LDADD=	${DPADD}
 
+NO_PIE=	yes
+
 .include <bsd.prog.mk>

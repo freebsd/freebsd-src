@@ -86,6 +86,7 @@
 /* Initial kernel MSR, use IS=1 ad DS=1. */
 #define PSL_KERNSET_INIT	(PSL_IS | PSL_DS)
 #define PSL_KERNSET		(PSL_CE | PSL_ME | PSL_EE)
+#define PSL_SRR1_MASK	0x00000000UL	/* No mask on Book-E */
 #elif defined(BOOKE_PPC4XX)
 #define PSL_KERNSET	(PSL_CE | PSL_ME | PSL_EE | PSL_FP)
 #define PSL_SRR1_MASK	0x00000000UL	/* No mask on Book-E */
@@ -95,7 +96,7 @@
 #else
 #define	PSL_KERNSET	(PSL_EE | PSL_ME | PSL_IR | PSL_DR | PSL_RI)
 #endif
-#define PSL_SRR1_MASK	0x78300000UL	/* Bits 1-4, 10-15 (ppc32), 33-36, 42-47 (ppc64) */
+#define PSL_SRR1_MASK	0x783f0000UL	/* Bits 1-4, 10-15 (ppc32), 33-36, 42-47 (ppc64) */
 #endif
 
 #define	PSL_USERSET	(PSL_KERNSET | PSL_PR)

@@ -1,7 +1,7 @@
 # $FreeBSD$
 
 PROG=	mfi_checkq
-NO_MAN=
+MAN=
 BINDIR?=/usr/local/bin
 
 .include <bsd.prog.mk>

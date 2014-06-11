@@ -204,7 +204,10 @@ buf_ring_dequeue_mc(struct buf_ring *br)
 void *
 buf_ring_dequeue_sc(struct buf_ring *br)
 {
-	uint32_t cons_head, cons_next, cons_next_next;
+	uint32_t cons_head, cons_next;
+#ifdef PREFETCH_DEFINED
+	uint32_t  cons_next_next;
+#endif
 	uint32_t prod_tail;
 	void *buf;
 	
@@ -212,7 +215,9 @@ buf_ring_dequeue_sc(struct buf_ring *br)
 	prod_tail = br->br_prod_tail;
 	
 	cons_next = (cons_head + 1) & br->br_cons_mask;
+#ifdef PREFETCH_DEFINED
 	cons_next_next = (cons_head + 2) & br->br_cons_mask;
+#endif
 	
 	if (cons_head == prod_tail) 
 		return (NULL);
@@ -229,6 +234,11 @@ buf_ring_dequeue_sc(struct buf_ring *br)
 
 #ifdef DEBUG_BUFRING
 	br->br_ring[cons_head] = NULL;
+	if (!mtx_owned(br->br_lock))
+		panic("lock not held on single consumer dequeue");
+	if (br->br_cons_tail != cons_head)
+		panic("inconsistent list cons_tail=%d cons_head=%d",
+		    br->br_cons_tail, cons_head);
 #endif
 	br->br_cons_tail = cons_next;
 	return (buf);

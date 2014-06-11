@@ -1,4 +1,4 @@
-/*	$OpenBSD: bcode.c,v 1.40 2009/10/27 23:59:37 deraadt Exp $	*/
+/*	$OpenBSD: bcode.c,v 1.45 2012/11/07 11:06:14 otto Exp $	*/
 
 /*
  * Copyright (c) 2003, Otto Moerbeek <otto@drijf.net>
@@ -29,7 +29,7 @@ __FBSDID("$FreeBSD$");
 
 #include "extern.h"
 
-#define __inline	
+/* #define	DEBUGGING */
 
 #define MAX_ARRAY_INDEX		2048
 #define READSTACK_SIZE		8
@@ -253,7 +253,7 @@ init_bmachine(bool extended_registers)
 u_int
 bmachine_scale(void)
 {
-	return (bmachine.scale);
+	return bmachine.scale;
 }
 
 /* Reset the things needed before processing a (new) file */
@@ -428,7 +428,6 @@ get_ulong(struct number *n)
 void
 negate(struct number *n)
 {
-
 	BN_set_negative(n->number, !BN_is_negative(n->number));
 }
 
@@ -695,7 +694,7 @@ count_digits(const struct number *n)
 	u_int i;
 
 	if (BN_is_zero(n->number))
-		return (n->scale ? n->scale : 1);
+		return n->scale ? n->scale : 1;
 
 	int_part = new_number();
 	fract_part = new_number();
@@ -1171,9 +1170,10 @@ bdivmod(void)
 static void
 bexp(void)
 {
-	struct number *a, *p, *r;
-	u_int rscale;
-	bool neg;
+	struct number	*a, *p;
+	struct number	*r;
+	bool		neg;
+	u_int		rscale;
 
 	p = pop_number();
 	if (p == NULL) {
@@ -1193,8 +1193,7 @@ bexp(void)
 		bn_checkp(f);
 		split_number(p, i, f);
 		if (!BN_is_zero(f))
-			warnx("Runtime warning: non-zero fractional part "
-			    "in exponent");
+			warnx("Runtime warning: non-zero fractional part in exponent");
 		BN_free(i);
 		BN_free(f);
 	}

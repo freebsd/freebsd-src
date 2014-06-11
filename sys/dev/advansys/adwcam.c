@@ -344,12 +344,10 @@ adw_action(struct cam_sim *sim, union ccb *ccb)
 	case XPT_SCSI_IO:	/* Execute the requested I/O operation */
 	{
 		struct	ccb_scsiio *csio;
-		struct	ccb_hdr *ccbh;
 		struct	acb *acb;
 		int error;
 
 		csio = &ccb->csio;
-		ccbh = &ccb->ccb_h;
 
 		/* Max supported CDB length is 12 bytes */
 		if (csio->cdb_len > 12) { 
@@ -779,7 +777,6 @@ adw_free(struct adw_softc *adw)
 	case 7:
 		bus_dmamem_free(adw->acb_dmat, adw->acbs,
 				adw->acb_dmamap);
-		bus_dmamap_destroy(adw->acb_dmat, adw->acb_dmamap);
 	case 6:
 		bus_dma_tag_destroy(adw->acb_dmat);
 	case 5:
@@ -787,7 +784,6 @@ adw_free(struct adw_softc *adw)
 	case 4:
 		bus_dmamem_free(adw->carrier_dmat, adw->carriers,
 				adw->carrier_dmamap);
-		bus_dmamap_destroy(adw->carrier_dmat, adw->carrier_dmamap);
 	case 3:
 		bus_dma_tag_destroy(adw->carrier_dmat);
 	case 2:

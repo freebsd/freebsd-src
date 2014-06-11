@@ -31,13 +31,4 @@ fi
 
 cat << __EOF
 
-/* Define name of host */
-#define BUILD_HOST "`hostname`"
-
-/* Define user name */
-#define BUILD_USER "`whoami`"
-
-/* Define configuration date */
-#define BUILD_DATE "`LC_ALL=C date`"
-
 __EOF

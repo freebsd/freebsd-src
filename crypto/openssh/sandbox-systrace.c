@@ -1,4 +1,4 @@
-/* $OpenBSD: sandbox-systrace.c,v 1.7 2013/06/01 13:15:52 dtucker Exp $ */
+/* $OpenBSD: sandbox-systrace.c,v 1.9 2014/01/31 16:39:19 tedu Exp $ */
 /*
  * Copyright (c) 2011 Damien Miller <djm@mindrot.org>
  *
@@ -66,6 +66,7 @@ static const struct sandbox_policy preauth_policy[] = {
 	{ SYS_munmap, SYSTR_POLICY_PERMIT },
 	{ SYS_read, SYSTR_POLICY_PERMIT },
 	{ SYS_select, SYSTR_POLICY_PERMIT },
+	{ SYS_shutdown, SYSTR_POLICY_PERMIT },
 	{ SYS_sigprocmask, SYSTR_POLICY_PERMIT },
 	{ SYS_write, SYSTR_POLICY_PERMIT },
 	{ -1, -1 }
@@ -141,7 +142,7 @@ ssh_sandbox_parent(struct ssh_sandbox *box, pid_t child_pid,
 		    box->systrace_fd, child_pid, strerror(errno));
 
 	/* Allocate and assign policy */
-	bzero(&policy, sizeof(policy));
+	memset(&policy, 0, sizeof(policy));
 	policy.strp_op = SYSTR_POLICY_NEW;
 	policy.strp_maxents = SYS_MAXSYSCALL;
 	if (ioctl(box->systrace_fd, STRIOCPOLICY, &policy) == -1)

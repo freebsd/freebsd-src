@@ -42,6 +42,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/bus.h>
 #include <sys/cons.h>
 #include <sys/cpu.h>
+#include <sys/efi.h>
 #include <sys/eventhandler.h>
 #include <sys/exec.h>
 #include <sys/imgact.h>
@@ -83,7 +84,6 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/bootinfo.h>
 #include <machine/cpu.h>
-#include <machine/efi.h>
 #include <machine/elf.h>
 #include <machine/fpu.h>
 #include <machine/intr.h>

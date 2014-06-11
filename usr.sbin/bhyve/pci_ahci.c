@@ -192,6 +192,7 @@ struct pci_ahci_softc {
 	uint32_t em_ctl;
 	uint32_t cap2;
 	uint32_t bohc;
+	uint32_t lintr;
 	struct ahci_port port[MAX_PORTS];
 };
 #define	ahci_ctx(sc)	((sc)->asc_pi->pi_vmctx)
@@ -211,7 +212,10 @@ static inline void lba_to_msf(uint8_t *buf, int lba)
 static void
 ahci_generate_intr(struct pci_ahci_softc *sc)
 {
+	struct pci_devinst *pi;
 	int i;
+
+	pi = sc->asc_pi;
 
 	for (i = 0; i < sc->ports; i++) {
 		struct ahci_port *pr;
@@ -222,8 +226,28 @@ ahci_generate_intr(struct pci_ahci_softc *sc)
 
 	DPRINTF("%s %x\n", __func__, sc->is);
 
-	if (sc->is && (sc->ghc & AHCI_GHC_IE))
-		pci_generate_msi(sc->asc_pi, 0);
+	if (sc->is && (sc->ghc & AHCI_GHC_IE)) {		
+		if (pci_msi_enabled(pi)) {
+			/*
+			 * Generate an MSI interrupt on every edge
+			 */
+			pci_generate_msi(pi, 0);
+		} else if (!sc->lintr) {
+			/*
+			 * Only generate a pin-based interrupt if one wasn't
+			 * in progress
+			 */
+			sc->lintr = 1;
+			pci_lintr_assert(pi);
+		}
+	} else if (sc->lintr) {
+		/*
+		 * No interrupts: deassert pin-based signal if it had
+		 * been asserted
+		 */
+		pci_lintr_deassert(pi);
+		sc->lintr = 0;
+	}
 }
 
 static void
@@ -367,6 +391,12 @@ ahci_reset(struct pci_ahci_softc *sc)
 
 	sc->ghc = AHCI_GHC_AE;
 	sc->is = 0;
+
+	if (sc->lintr) {
+		pci_lintr_deassert(sc->asc_pi);
+		sc->lintr = 0;
+	}
+
 	for (i = 0; i < sc->ports; i++) {
 		sc->port[i].ie = 0;
 		sc->port[i].is = 0;
@@ -543,12 +573,14 @@ write_prdt(struct ahci_port *p, int slot, uint8_t *cfis,
 	for (i = 0; i < hdr->prdtl && len; i++) {
 		uint8_t *ptr;
 		uint32_t dbcsz;
+		int sublen;
 
 		dbcsz = (prdt->dbc & DBCMASK) + 1;
 		ptr = paddr_guest2host(ahci_ctx(p->pr_sc), prdt->dba, dbcsz);
-		memcpy(ptr, from, dbcsz);
-		len -= dbcsz;
-		from += dbcsz;
+		sublen = len < dbcsz ? len : dbcsz;
+		memcpy(ptr, from, sublen);
+		len -= sublen;
+		from += sublen;
 		prdt++;
 	}
 	hdr->prdbc = size - len;
@@ -1754,8 +1786,7 @@ pci_ahci_init(struct vmctx *ctx, struct pci_devinst *pi, char *opts, int atapi)
 	dbg = fopen("/tmp/log", "w+");
 #endif
 
-       	sc = malloc(sizeof(struct pci_ahci_softc));
-	memset(sc, 0, sizeof(struct pci_ahci_softc));
+	sc = calloc(1, sizeof(struct pci_ahci_softc));
 	pi->pi_arg = sc;
 	sc->asc_pi = pi;
 	sc->ports = MAX_PORTS;
@@ -1812,6 +1843,8 @@ pci_ahci_init(struct vmctx *ctx, struct pci_devinst *pi, char *opts, int atapi)
 	pci_emul_add_msicap(pi, 1);
 	pci_emul_alloc_bar(pi, 5, PCIBAR_MEM32,
 	    AHCI_OFFSET + sc->ports * AHCI_STEP);
+
+	pci_lintr_request(pi);
 
 open_fail:
 	if (ret) {

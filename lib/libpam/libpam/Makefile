@@ -39,7 +39,7 @@ OPENPAM=	${.CURDIR}/../../../contrib/openpam
 .PATH: ${OPENPAM}/include ${OPENPAM}/lib/libpam ${OPENPAM}/doc/man
 
 LIB=	pam
-NO_PROFILE=
+MK_PROFILE=no
 
 SRCS=	openpam_asprintf.c \
 	openpam_borrow_cred.c \

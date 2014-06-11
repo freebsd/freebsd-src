@@ -625,6 +625,8 @@ int sctp_destination_is_reachable(struct sctp_tcb *, struct sockaddr *);
 
 int sctp_swap_inpcb_for_listen(struct sctp_inpcb *inp);
 
+void sctp_clean_up_stream(struct sctp_tcb *stcb, struct sctp_readhead *rh);
+
 /*-
  * Null in last arg inpcb indicate run on ALL ep's. Specific inp in last arg
  * indicates run on ONLY assoc's of the specified endpoint.

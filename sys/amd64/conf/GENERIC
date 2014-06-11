@@ -21,7 +21,7 @@
 cpu		HAMMER
 ident		GENERIC
 
-makeoptions	DEBUG=-gdwarf-2		# Build kernel with gdb(1) debug symbols
+makeoptions	DEBUG=-g		# Build kernel with gdb(1) debug symbols
 makeoptions	WITH_CTF=1		# Run ctfconvert(1) for DTrace support
 
 options 	SCHED_ULE		# ULE scheduler
@@ -78,11 +78,11 @@ options 	KDB_TRACE		# Print a stack trace for a panic.
 # For full debugger support use (turn off in stable branch):
 options 	DDB			# Support DDB.
 options 	GDB			# Support remote GDB.
-#options 	DEADLKRES		# Enable the deadlock resolver
-#options 	INVARIANTS		# Enable calls of extra sanity checking
-#options 	INVARIANT_SUPPORT	# Extra sanity checks of internal structures, required by INVARIANTS
-#options 	WITNESS			# Enable checks to detect deadlocks and cycles
-#options 	WITNESS_SKIPSPIN	# Don't run witness on spinlocks for speed
+options 	DEADLKRES		# Enable the deadlock resolver
+options 	INVARIANTS		# Enable calls of extra sanity checking
+options 	INVARIANT_SUPPORT	# Extra sanity checks of internal structures, required by INVARIANTS
+options 	WITNESS			# Enable checks to detect deadlocks and cycles
+options 	WITNESS_SKIPSPIN	# Don't run witness on spinlocks for speed
 options 	MALLOC_DEBUG_MAXZONES=8	# Separate malloc(9) zones
 
 # Make an SMP-capable kernel by default
@@ -119,6 +119,7 @@ device		isp			# Qlogic family
 #device		ispfw			# Firmware for QLogic HBAs- normally a module
 device		mpt			# LSI-Logic MPT-Fusion
 device		mps			# LSI-Logic MPT-Fusion 2
+device		mpr			# LSI-Logic MPT-Fusion 3
 #device		ncr			# NCR/Symbios Logic
 device		sym			# NCR/Symbios Logic (newer chipsets + those of `ncr')
 device		trm			# Tekram DC395U/UW/F DC315U adapters

@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 10, 2012
+.Dd March 27, 2014
 .Dt BUILD 7
 .Os
 .Sh NAME
@@ -411,8 +411,25 @@ then
 is set to the value of
 .Va KERNFAST .
 .It Va LOCAL_DIRS
-If set, this variable supplies a list of additional directories to
-build, relative to the root of the source tree.
+If set, this variable supplies a list of additional directories relative to
+the root of the source tree to build as part of the
+.Cm everything
+target.
+.It Va LOCAL_LIB_DIRS
+If set, this variable supplies a list of additional directories relative to
+the root of the source tree to build as part of the
+.Cm libraries
+target.
+.It Va LOCAL_MTREE
+If set, this variable supplies a list of additional mtrees relative to the
+root of the source tree to use as part of the
+.Cm hierarchy
+target.
+.It Va LOCAL_TOOL_DIRS
+If set, this variable supplies a list of additional directories relative to
+the root of the source tree to build as part of the
+.Cm build-tools
+target.
 .It Va PORTS_MODULES
 A list of ports with kernel modules that should be built and installed
 as part of the

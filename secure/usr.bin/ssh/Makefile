@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.include <bsd.own.mk>
+.include <src.opts.mk>
 
 PROG=	ssh
 CFLAGS+=-I${SSHDIR} -include ssh_namespace.h

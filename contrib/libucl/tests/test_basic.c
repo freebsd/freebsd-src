@@ -78,7 +78,9 @@ main (int argc, char **argv)
 
 	while (!feof (in)) {
 		memset (inbuf, 0, sizeof (inbuf));
-		(void)fread (inbuf, sizeof (inbuf) - 1, 1, in);
+		if (fread (inbuf, 1, sizeof (inbuf) - 1, in) == 0) {
+			break;
+		}
 		inlen = strlen (inbuf);
 		test_in = malloc (inlen);
 		memcpy (test_in, inbuf, inlen);

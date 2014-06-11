@@ -4,7 +4,7 @@
 BINDIR=	/usr/libexec/lpr
 
 PROG=	lpf
-NO_MAN=
+MAN=
 
 CFLAGS+= -I${.CURDIR}/../common_source
 

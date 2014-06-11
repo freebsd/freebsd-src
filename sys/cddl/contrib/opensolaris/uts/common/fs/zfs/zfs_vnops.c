@@ -3723,9 +3723,8 @@ static int
 zfs_rename(vnode_t *sdvp, char *snm, vnode_t *tdvp, char *tnm, cred_t *cr,
     caller_context_t *ct, int flags)
 {
-	znode_t		*tdzp, *szp, *tzp;
-	znode_t		*sdzp = VTOZ(sdvp);
-	zfsvfs_t	*zfsvfs = sdzp->z_zfsvfs;
+	znode_t		*tdzp, *sdzp, *szp, *tzp;
+	zfsvfs_t 	*zfsvfs;
 	zilog_t		*zilog;
 	vnode_t		*realvp;
 	zfs_dirlock_t	*sdl, *tdl;
@@ -3736,24 +3735,27 @@ zfs_rename(vnode_t *sdvp, char *snm, vnode_t *tdvp, char *tnm, cred_t *cr,
 	int		zflg = 0;
 	boolean_t	waited = B_FALSE;
 
-	ZFS_ENTER(zfsvfs);
-	ZFS_VERIFY_ZP(sdzp);
-	zilog = zfsvfs->z_log;
-
-	/*
-	 * Make sure we have the real vp for the target directory.
-	 */
-	if (VOP_REALVP(tdvp, &realvp, ct) == 0)
-		tdvp = realvp;
-
 	tdzp = VTOZ(tdvp);
 	ZFS_VERIFY_ZP(tdzp);
+	zfsvfs = tdzp->z_zfsvfs;
+	ZFS_ENTER(zfsvfs);
+	zilog = zfsvfs->z_log;
+	sdzp = VTOZ(sdvp);
+
+	/*
+	 * In case sdzp is not valid, let's be sure to exit from the right
+	 * zfsvfs_t.
+	 */
+	if (sdzp->z_sa_hdl == NULL) {
+		ZFS_EXIT(zfsvfs);
+		return (SET_ERROR(EIO));
+	}
 
 	/*
 	 * We check z_zfsvfs rather than v_vfsp here, because snapshots and the
 	 * ctldir appear to have the same v_vfsp.
 	 */
-	if (tdzp->z_zfsvfs != zfsvfs || zfsctl_is_node(tdvp)) {
+	if (sdzp->z_zfsvfs != zfsvfs || zfsctl_is_node(tdvp)) {
 		ZFS_EXIT(zfsvfs);
 		return (SET_ERROR(EXDEV));
 	}

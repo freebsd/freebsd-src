@@ -2,7 +2,7 @@ Pull in r199012 from upstream clang trunk (by Jakob Stoklund Olesen):
 
   Select the UltraSPARC instruction set when invoking the assembler.
 
-Introduced here: http://svn.freebsd.org/changeset/base/262262
+Introduced here: http://svnweb.freebsd.org/changeset/base/262262
 
 Index: tools/clang/lib/Driver/Tools.cpp
 ===================================================================

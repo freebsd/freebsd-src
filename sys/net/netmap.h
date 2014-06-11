@@ -124,7 +124,7 @@
  *   space with a parent device. The ifname indicates the parent device,
  *   which must already exist. Flags in nr_flags indicate if we want to
  *   bind the master or slave side, the index (from nr_ringid)
- *   is just a cookie and does need to be sequential.
+ *   is just a cookie and does not need to be sequential.
  *
  * + NIOCREGIF can also attach to 'monitor' rings that replicate
  *   the content of specific rings, also from the same memory space.
@@ -228,7 +228,7 @@ struct netmap_slot {
  *	'head' and 'cur' must be incremented as slots are filled
  *	    with new packets to be sent;
  *	'cur' can be moved further ahead if we need more space
- *	for new transmissions.
+ *	for new transmissions. XXX todo (2014-03-12)
  *
  * In RX rings:
  *
@@ -447,27 +447,13 @@ struct netmap_if {
  *
  * nr_arg1, nr_arg2, nr_arg3  (in/out)		command specific
  *
- *	
+ *
  *
  */
 
 
 /*
  * struct nmreq overlays a struct ifreq (just the name)
- *
- * On input, nr_ringid indicates which rings we are requesting,
- * with the low flags for the specific ring number.
- * selection			FLAGS	RING INDEX
- *
- *	all the NIC rings	0x0000	-
- *	only HOST ring		0x2000	ring index
- *	single NIC ring		0x4000	-
- *	all the NIC+HOST rings	0x6000	-
- *	one pipe ring, master	0x8000	ring index
- *	*** INVALID		0xA000
- *	one pipe ring, slave	0xC000	ring index
- *	*** INVALID		0xE000
- * 
  */
 struct nmreq {
 	char		nr_name[IFNAMSIZ];

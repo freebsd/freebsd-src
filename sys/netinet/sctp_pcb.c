@@ -772,7 +772,14 @@ sctp_del_addr_from_vrf(uint32_t vrf_id, struct sockaddr *addr,
 		}
 		SCTPDBG(SCTP_DEBUG_PCB4, "Deleting ifa %p\n", (void *)sctp_ifap);
 		sctp_ifap->localifa_flags &= SCTP_ADDR_VALID;
-		sctp_ifap->localifa_flags |= SCTP_BEING_DELETED;
+		/*
+		 * We don't set the flag. This means that the structure will
+		 * hang around in EP's that have bound specific to it until
+		 * they close. This gives us TCP like behavior if someone
+		 * removes an address (or for that matter adds it right
+		 * back).
+		 */
+		/* sctp_ifap->localifa_flags |= SCTP_BEING_DELETED; */
 		vrf->total_ifa_count--;
 		LIST_REMOVE(sctp_ifap, next_bucket);
 		sctp_remove_ifa_from_ifn(sctp_ifap);
@@ -2728,7 +2735,6 @@ sctp_inpcb_bind(struct socket *so, struct sockaddr *addr,
 	uint32_t vrf_id;
 
 	lport = 0;
-	error = 0;
 	bindall = 1;
 	inp = (struct sctp_inpcb *)so->so_pcb;
 	ip_inp = (struct inpcb *)so->so_pcb;
@@ -2848,13 +2854,6 @@ sctp_inpcb_bind(struct socket *so, struct sockaddr *addr,
 				SCTP_INP_INFO_WUNLOCK();
 				return (error);
 			}
-		}
-		if (p == NULL) {
-			SCTP_INP_DECR_REF(inp);
-			SCTP_INP_WUNLOCK(inp);
-			SCTP_INP_INFO_WUNLOCK();
-			SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_PCB, error);
-			return (error);
 		}
 		SCTP_INP_WUNLOCK(inp);
 		if (bindall) {
@@ -4553,6 +4552,45 @@ sctp_add_vtag_to_timewait(uint32_t tag, uint32_t time, uint16_t lport, uint16_t 
 	}
 }
 
+void
+sctp_clean_up_stream(struct sctp_tcb *stcb, struct sctp_readhead *rh)
+{
+	struct sctp_tmit_chunk *chk, *nchk;
+	struct sctp_queued_to_read *ctl, *nctl;
+
+	TAILQ_FOREACH_SAFE(ctl, rh, next_instrm, nctl) {
+		TAILQ_REMOVE(rh, ctl, next_instrm);
+		if (ctl->on_read_q == 0) {
+			sctp_free_remote_addr(ctl->whoFrom);
+			if (ctl->data) {
+				sctp_m_freem(ctl->data);
+				ctl->data = NULL;
+			}
+		}
+		/* Reassembly free? */
+		TAILQ_FOREACH_SAFE(chk, &ctl->reasm, sctp_next, nchk) {
+			TAILQ_REMOVE(&ctl->reasm, chk, sctp_next);
+			if (chk->data) {
+				sctp_m_freem(chk->data);
+				chk->data = NULL;
+			}
+			if (chk->holds_key_ref)
+				sctp_auth_key_release(stcb, chk->auth_keyid, SCTP_SO_LOCKED);
+			sctp_free_remote_addr(chk->whoTo);
+			SCTP_ZONE_FREE(SCTP_BASE_INFO(ipi_zone_chunk), chk);
+			SCTP_DECR_CHK_COUNT();
+			/* sa_ignore FREED_MEMORY */
+		}
+		/*
+		 * We don't free the address here since all the net's were
+		 * freed above.
+		 */
+		if (ctl->on_read_q == 0) {
+			SCTP_ZONE_FREE(SCTP_BASE_INFO(ipi_zone_readq), ctl);
+		}
+		SCTP_DECR_READQ_COUNT();
+	}
+}
 
 
 /*-
@@ -5004,20 +5042,6 @@ sctp_free_assoc(struct sctp_inpcb *inp, struct sctp_tcb *stcb, int from_inpcbfre
 		SCTP_DECR_CHK_COUNT();
 		/* sa_ignore FREED_MEMORY */
 	}
-	TAILQ_FOREACH_SAFE(chk, &asoc->reasmqueue, sctp_next, nchk) {
-		TAILQ_REMOVE(&asoc->reasmqueue, chk, sctp_next);
-		if (chk->data) {
-			sctp_m_freem(chk->data);
-			chk->data = NULL;
-		}
-		if (chk->holds_key_ref)
-			sctp_auth_key_release(stcb, chk->auth_keyid, SCTP_SO_LOCKED);
-		sctp_free_remote_addr(chk->whoTo);
-		SCTP_ZONE_FREE(SCTP_BASE_INFO(ipi_zone_chunk), chk);
-		SCTP_DECR_CHK_COUNT();
-		/* sa_ignore FREED_MEMORY */
-	}
-
 	if (asoc->mapping_array) {
 		SCTP_FREE(asoc->mapping_array, SCTP_M_MAP);
 		asoc->mapping_array = NULL;
@@ -5033,23 +5057,9 @@ sctp_free_assoc(struct sctp_inpcb *inp, struct sctp_tcb *stcb, int from_inpcbfre
 	}
 	asoc->strm_realoutsize = asoc->streamoutcnt = 0;
 	if (asoc->strmin) {
-		struct sctp_queued_to_read *ctl, *nctl;
-
 		for (i = 0; i < asoc->streamincnt; i++) {
-			TAILQ_FOREACH_SAFE(ctl, &asoc->strmin[i].inqueue, next, nctl) {
-				TAILQ_REMOVE(&asoc->strmin[i].inqueue, ctl, next);
-				sctp_free_remote_addr(ctl->whoFrom);
-				if (ctl->data) {
-					sctp_m_freem(ctl->data);
-					ctl->data = NULL;
-				}
-				/*
-				 * We don't free the address here since all
-				 * the net's were freed above.
-				 */
-				SCTP_ZONE_FREE(SCTP_BASE_INFO(ipi_zone_readq), ctl);
-				SCTP_DECR_READQ_COUNT();
-			}
+			sctp_clean_up_stream(stcb, &asoc->strmin[i].inqueue);
+			sctp_clean_up_stream(stcb, &asoc->strmin[i].uno_inqueue);
 		}
 		SCTP_FREE(asoc->strmin, SCTP_M_STRMI);
 		asoc->strmin = NULL;
@@ -6399,6 +6409,11 @@ sctp_load_addresses_from_init(struct sctp_tcb *stcb, struct mbuf *m,
 				case SCTP_AUTHENTICATION:
 					stcb->asoc.peer_supports_auth = 1;
 					break;
+				case SCTP_NDATA:
+					if (sctp_is_feature_on(inp, SCTP_PCB_FLAGS_USE_NDATA)) {
+						stcb->asoc.peer_supports_ndata = 1;
+					}
+					break;
 				default:
 					/* one I have not learned yet */
 					break;
@@ -6731,26 +6746,9 @@ sctp_drain_mbufs(struct sctp_tcb *stcb)
 	SCTP_STAT_INCR(sctps_protocol_drains_done);
 	cumulative_tsn_p1 = asoc->cumulative_tsn + 1;
 	cnt = 0;
-	/* First look in the re-assembly queue */
-	TAILQ_FOREACH_SAFE(chk, &asoc->reasmqueue, sctp_next, nchk) {
-		if (SCTP_TSN_GT(chk->rec.data.TSN_seq, cumulative_tsn_p1)) {
-			/* Yep it is above cum-ack */
-			cnt++;
-			SCTP_CALC_TSN_TO_GAP(gap, chk->rec.data.TSN_seq, asoc->mapping_array_base_tsn);
-			asoc->size_on_reasm_queue = sctp_sbspace_sub(asoc->size_on_reasm_queue, chk->send_size);
-			sctp_ucount_decr(asoc->cnt_on_reasm_queue);
-			SCTP_UNSET_TSN_PRESENT(asoc->mapping_array, gap);
-			TAILQ_REMOVE(&asoc->reasmqueue, chk, sctp_next);
-			if (chk->data) {
-				sctp_m_freem(chk->data);
-				chk->data = NULL;
-			}
-			sctp_free_a_chunk(stcb, chk, SCTP_SO_NOT_LOCKED);
-		}
-	}
 	/* Ok that was fun, now we will drain all the inbound streams? */
 	for (strmat = 0; strmat < asoc->streamincnt; strmat++) {
-		TAILQ_FOREACH_SAFE(ctl, &asoc->strmin[strmat].inqueue, next, nctl) {
+		TAILQ_FOREACH_SAFE(ctl, &asoc->strmin[strmat].inqueue, next_instrm, nctl) {
 			if (SCTP_TSN_GT(ctl->sinfo_tsn, cumulative_tsn_p1)) {
 				/* Yep it is above cum-ack */
 				cnt++;
@@ -6764,6 +6762,52 @@ sctp_drain_mbufs(struct sctp_tcb *stcb)
 					ctl->data = NULL;
 				}
 				sctp_free_remote_addr(ctl->whoFrom);
+				/* Now its reasm? */
+				TAILQ_FOREACH_SAFE(chk, &ctl->reasm, sctp_next, nchk) {
+					cnt++;
+					SCTP_CALC_TSN_TO_GAP(gap, chk->rec.data.TSN_seq, asoc->mapping_array_base_tsn);
+					asoc->size_on_reasm_queue = sctp_sbspace_sub(asoc->size_on_reasm_queue, chk->send_size);
+					sctp_ucount_decr(asoc->cnt_on_reasm_queue);
+					SCTP_UNSET_TSN_PRESENT(asoc->mapping_array, gap);
+					TAILQ_REMOVE(&ctl->reasm, chk, sctp_next);
+					if (chk->data) {
+						sctp_m_freem(chk->data);
+						chk->data = NULL;
+					}
+					sctp_free_a_chunk(stcb, chk, SCTP_SO_NOT_LOCKED);
+				}
+				SCTP_ZONE_FREE(SCTP_BASE_INFO(ipi_zone_readq), ctl);
+				SCTP_DECR_READQ_COUNT();
+			}
+		}
+		TAILQ_FOREACH_SAFE(ctl, &asoc->strmin[strmat].uno_inqueue, next_instrm, nctl) {
+			if (SCTP_TSN_GT(ctl->sinfo_tsn, cumulative_tsn_p1)) {
+				/* Yep it is above cum-ack */
+				cnt++;
+				SCTP_CALC_TSN_TO_GAP(gap, ctl->sinfo_tsn, asoc->mapping_array_base_tsn);
+				asoc->size_on_all_streams = sctp_sbspace_sub(asoc->size_on_all_streams, ctl->length);
+				sctp_ucount_decr(asoc->cnt_on_all_streams);
+				SCTP_UNSET_TSN_PRESENT(asoc->mapping_array, gap);
+				TAILQ_REMOVE(&asoc->strmin[strmat].uno_inqueue, ctl, next);
+				if (ctl->data) {
+					sctp_m_freem(ctl->data);
+					ctl->data = NULL;
+				}
+				sctp_free_remote_addr(ctl->whoFrom);
+				/* Now its reasm? */
+				TAILQ_FOREACH_SAFE(chk, &ctl->reasm, sctp_next, nchk) {
+					cnt++;
+					SCTP_CALC_TSN_TO_GAP(gap, chk->rec.data.TSN_seq, asoc->mapping_array_base_tsn);
+					asoc->size_on_reasm_queue = sctp_sbspace_sub(asoc->size_on_reasm_queue, chk->send_size);
+					sctp_ucount_decr(asoc->cnt_on_reasm_queue);
+					SCTP_UNSET_TSN_PRESENT(asoc->mapping_array, gap);
+					TAILQ_REMOVE(&ctl->reasm, chk, sctp_next);
+					if (chk->data) {
+						sctp_m_freem(chk->data);
+						chk->data = NULL;
+					}
+					sctp_free_a_chunk(stcb, chk, SCTP_SO_NOT_LOCKED);
+				}
 				SCTP_ZONE_FREE(SCTP_BASE_INFO(ipi_zone_readq), ctl);
 				SCTP_DECR_READQ_COUNT();
 			}

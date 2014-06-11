@@ -3,7 +3,7 @@
 #
 # Doing a "make install" builds /usr/include.
 
-.include <bsd.own.mk>
+.include <src.opts.mk>
 
 CLEANFILES= osreldate.h version vers.c
 SUBDIR= arpa gssapi protocols rpcsvc rpc xlocale
@@ -45,6 +45,7 @@ LSUBDIRS=	cam/ata cam/scsi \
 	dev/ic dev/iicbus ${_dev_ieee488} dev/io dev/lmc dev/mfi dev/nvme \
 	dev/ofw dev/pbio dev/pci ${_dev_powermac_nvram} dev/ppbus dev/smbus \
 	dev/speaker dev/usb dev/utopia dev/vkbd dev/wi \
+	fs/cuse \
 	fs/devfs fs/fdescfs fs/msdosfs fs/nandfs fs/nfs fs/nullfs \
 	fs/procfs fs/smbfs fs/udf fs/unionfs \
 	geom/cache geom/concat geom/eli geom/gate geom/journal geom/label \

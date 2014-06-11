@@ -74,6 +74,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/uma_int.h>
 
 #include <machine/md_var.h>
+#include <machine/vfp.h>
 
 /*
  * struct switchframe and trapframe must both be a multiple of 8
@@ -147,6 +148,7 @@ cpu_fork(register struct thread *td1, register struct proc *p2,
 	pcb2->un_32.pcb32_sp = td2->td_kstack +
 	    USPACE_SVC_STACK_TOP - sizeof(*pcb2);
 	pcb2->pcb_vfpcpu = -1;
+	pcb2->pcb_vfpstate.fpscr = VFPSCR_DN | VFPSCR_FZ;
 	pmap_activate(td2);
 	td2->td_frame = tf = (struct trapframe *)STACKALIGN(
 	    pcb2->un_32.pcb32_sp - sizeof(struct trapframe));

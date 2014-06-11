@@ -91,6 +91,7 @@ DIRECTIO
 FILEMON		opt_dontuse.h
 FFCLOCK
 FULL_PREEMPTION	opt_sched.h
+IMAGACT_BINMISC		opt_dontuse.h
 IPI_PREEMPTION	opt_sched.h
 GEOM_AES	opt_geom.h
 GEOM_BDE	opt_geom.h
@@ -102,6 +103,7 @@ GEOM_FOX	opt_geom.h
 GEOM_GATE	opt_geom.h
 GEOM_JOURNAL	opt_geom.h
 GEOM_LABEL	opt_geom.h
+GEOM_LABEL_GPT	opt_geom.h
 GEOM_LINUX_LVM	opt_geom.h
 GEOM_MBR	opt_geom.h
 GEOM_MIRROR	opt_geom.h
@@ -124,6 +126,7 @@ GEOM_STRIPE	opt_geom.h
 GEOM_SUNLABEL	opt_geom.h
 GEOM_UNCOMPRESS	opt_geom.h
 GEOM_UZIP	opt_geom.h
+GEOM_VINUM	opt_geom.h
 GEOM_VIRSTOR	opt_geom.h
 GEOM_VOL	opt_geom.h
 GEOM_ZERO	opt_geom.h
@@ -159,6 +162,7 @@ NEW_PCIB	opt_global.h
 NO_ADAPTIVE_MUTEXES	opt_adaptive_mutexes.h
 NO_ADAPTIVE_RWLOCKS
 NO_ADAPTIVE_SX
+NO_EVENTTIMERS		opt_timer.h
 NO_SYSCTL_DESCR	opt_global.h
 NSWBUF_MIN	opt_swap.h
 MBUF_PACKET_ZONE_DISABLE	opt_global.h
@@ -449,8 +453,9 @@ SCTP_MBCNT_LOGGING	opt_sctp.h # Log to KTR mbcnt activity
 SCTP_PACKET_LOGGING	opt_sctp.h # Log to a packet buffer last N packets
 SCTP_LTRACE_CHUNKS	opt_sctp.h # Log to KTR chunks processed
 SCTP_LTRACE_ERRORS	opt_sctp.h # Log to KTR error returns.
-SCTP_USE_PERCPU_STAT    opt_sctp.h # Use per cpu stats.
-SCTP_MCORE_INPUT        opt_sctp.h # Have multiple input threads for input mbufs
+SCTP_USE_PERCPU_STAT	opt_sctp.h # Use per cpu stats.
+SCTP_MCORE_INPUT	opt_sctp.h # Have multiple input threads for input mbufs
+SCTP_LOCAL_TRACE_BUF	opt_sctp.h # Use tracebuffer exported via sysctl
 #
 #
 #

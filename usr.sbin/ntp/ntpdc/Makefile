@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-NO_MAN=
+MAN=
 
 .include <bsd.own.mk>
 
@@ -21,6 +21,8 @@ CFLAGS+=	-DHAVE_LIBEDIT -DHAVE_READLINE_READLINE_H \
 		-I${DESTDIR}/${INCLUDEDIR}/edit
 
 CLEANFILES+= .version version.c
+
+NO_PIE=	yes
 
 version.c:
 	sh -e ${.CURDIR}/../scripts/mkver ntpdc

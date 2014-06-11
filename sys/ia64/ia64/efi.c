@@ -29,9 +29,9 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/efi.h>
 #include <sys/systm.h>
 #include <machine/bootinfo.h>
-#include <machine/efi.h>
 #include <machine/md_var.h>
 #include <machine/sal.h>
 #include <vm/vm.h>

@@ -20,7 +20,7 @@
  */
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2013 by Delphix. All rights reserved.
+ * Copyright (c) 2012, 2014 by Delphix. All rights reserved.
  * Copyright 2013 Nexenta Systems, Inc.  All rights reserved.
  * Copyright (c) 2013 Joyent, Inc.  All rights reserved.
  */
@@ -547,7 +547,7 @@ skip_open:
 		pbsize = DEV_BSIZE;
 	}
 
-	*ashift = highbit(MAX(pbsize, SPA_MINBLOCKSIZE)) - 1;
+	*ashift = highbit64(MAX(pbsize, SPA_MINBLOCKSIZE)) - 1;
 
 	if (vd->vdev_wholedisk == 1) {
 		int wce = 1;

@@ -1179,7 +1179,7 @@ outer:
 				return (rx_npkts);
 			m->m_len = m->m_pkthdr.len = MCLBYTES;
 			/* Make sure upper layers will be aligned. */
-			m_adj(m, 2);
+			m_adj(m, ETHER_ALIGN);
 			sc->atse_rx_m = m;
 		}
 
@@ -1815,7 +1815,7 @@ atse_detach(device_t dev)
 	return (0);
 }
 
-/* Shared between nexus anf fdt implementation. */
+/* Shared between nexus and fdt implementation. */
 void
 atse_detach_resources(device_t dev)
 {

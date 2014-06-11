@@ -561,11 +561,11 @@ int t4_cfg_pfvf(struct adapter *adap, unsigned int mbox, unsigned int pf,
 		unsigned int exactf, unsigned int rcaps, unsigned int wxcaps);
 int t4_alloc_vi_func(struct adapter *adap, unsigned int mbox,
 		     unsigned int port, unsigned int pf, unsigned int vf,
-		     unsigned int nmac, u8 *mac, unsigned int *rss_size,
+		     unsigned int nmac, u8 *mac, u16 *rss_size,
 		     unsigned int portfunc, unsigned int idstype);
 int t4_alloc_vi(struct adapter *adap, unsigned int mbox, unsigned int port,
 		unsigned int pf, unsigned int vf, unsigned int nmac, u8 *mac,
-		unsigned int *rss_size);
+		u16 *rss_size);
 int t4_free_vi(struct adapter *adap, unsigned int mbox,
 	       unsigned int pf, unsigned int vf,
 	       unsigned int viid);
@@ -580,6 +580,8 @@ int t4_change_mac(struct adapter *adap, unsigned int mbox, unsigned int viid,
 int t4_set_addr_hash(struct adapter *adap, unsigned int mbox, unsigned int viid,
 		     bool ucast, u64 vec, bool sleep_ok);
 int t4_enable_vi(struct adapter *adap, unsigned int mbox, unsigned int viid,
+		 bool rx_en, bool tx_en);
+int t4_enable_vi_ns(struct adapter *adap, unsigned int mbox, unsigned int viid,
 		 bool rx_en, bool tx_en);
 int t4_identify_port(struct adapter *adap, unsigned int mbox, unsigned int viid,
 		     unsigned int nblinks);

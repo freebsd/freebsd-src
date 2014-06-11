@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-NO_MAN=	svnversion.1
+MAN=
 
 .include "${.CURDIR}/../Makefile.inc"
 
@@ -31,5 +31,7 @@ LDADD=	-L${LIBSVN_WCDIR} -lsvn_wc \
 DPADD=	${LIBSVN_WC} ${LIBSVN_DELTA} ${LIBSVN_DIFF} ${LIBSVN_SUBR} \
 	${LIBSERF} ${LIBAPR_UTIL} ${LIBBSDXML} ${LIBAPR} ${LIBSQLITE} \
 	${LIBZ} ${LIBCRYPT}
+
+NO_PIE=	yes
 
 .include <bsd.prog.mk>

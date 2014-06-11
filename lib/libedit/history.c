@@ -103,6 +103,7 @@ private int history_getunique(History *, HistEvent *);
 private int history_set_fun(History *, History *);
 private int history_load(History *, const char *);
 private int history_save(History *, const char *);
+private int history_save_fp(History *, FILE*);
 private int history_prev_event(History *, HistEvent *, int);
 private int history_next_event(History *, HistEvent *, int);
 private int history_next_string(History *, HistEvent *, const char *);
@@ -773,21 +774,15 @@ done:
 	return (i);
 }
 
-
-/* history_save():
- *	History save function
+/* history_save_fp():
+ *	History save with open FILE*
  */
-private int
-history_save(History *h, const char *fname)
+private int history_save_fp(History *h, FILE* fp)
 {
-	FILE *fp;
 	HistEvent ev;
 	int i = -1, retval;
 	size_t len, max_size;
 	char *ptr;
-
-	if ((fp = fopen(fname, "w")) == NULL)
-		return (-1);
 
 	if (fchmod(fileno(fp), S_IRUSR|S_IWUSR) == -1)
 		goto done;
@@ -815,6 +810,26 @@ history_save(History *h, const char *fname)
 	}
 oomem:
 	h_free((ptr_t)ptr);
+done:
+	return (i);
+	
+}
+
+
+/* history_save():
+ *	History save function
+ */
+private int
+history_save(History *h, const char *fname)
+{
+	FILE *fp;
+	int i;
+
+	if ((fp = fopen(fname, "w")) == NULL)
+		return (-1);
+
+	i = history_save_fp(h, fp);
+
 done:
 	(void) fclose(fp);
 	return (i);
@@ -997,6 +1012,12 @@ history(History *h, HistEvent *ev, int fun, ...)
 
 	case H_SAVE:
 		retval = history_save(h, va_arg(va, const char *));
+		if (retval == -1)
+			he_seterrev(ev, _HE_HIST_WRITE);
+		break;
+
+	case H_SAVE_FP:
+		retval = history_save_fp(h, va_arg(va, FILE*));
 		if (retval == -1)
 			he_seterrev(ev, _HE_HIST_WRITE);
 		break;

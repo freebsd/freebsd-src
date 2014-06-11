@@ -838,7 +838,7 @@ pmap_bootstrap(vm_paddr_t *firstaddr)
 	kernel_pmap->pm_pml4 = (pdp_entry_t *)PHYS_TO_DMAP(KPML4phys);
 	kernel_pmap->pm_cr3 = KPML4phys;
 	CPU_FILL(&kernel_pmap->pm_active);	/* don't allow deactivation */
-	CPU_ZERO(&kernel_pmap->pm_save);
+	CPU_FILL(&kernel_pmap->pm_save);	/* always superset of pm_active */
 	TAILQ_INIT(&kernel_pmap->pm_pvchunk);
 	kernel_pmap->pm_flags = pmap_flags;
 
@@ -1494,7 +1494,8 @@ pmap_invalidate_all(pmap_t pmap)
 		} else {
 			invltlb_globpcid();
 		}
-		CPU_CLR_ATOMIC(cpuid, &pmap->pm_save);
+		if (!CPU_ISSET(cpuid, &pmap->pm_active))
+			CPU_CLR_ATOMIC(cpuid, &pmap->pm_save);
 		smp_invltlb(pmap);
 	} else {
 		other_cpus = all_cpus;
@@ -1528,7 +1529,8 @@ pmap_invalidate_all(pmap_t pmap)
 			}
 		} else if (CPU_ISSET(cpuid, &pmap->pm_active))
 			invltlb();
-		CPU_CLR_ATOMIC(cpuid, &pmap->pm_save);
+		if (!CPU_ISSET(cpuid, &pmap->pm_active))
+			CPU_CLR_ATOMIC(cpuid, &pmap->pm_save);
 		if (pmap_pcid_enabled)
 			CPU_AND(&other_cpus, &pmap->pm_save);
 		else
@@ -4426,9 +4428,7 @@ pmap_enter_object(pmap_t pmap, vm_offset_t start, vm_offset_t end,
 	while (m != NULL && (diff = m->pindex - m_start->pindex) < psize) {
 		va = start + ptoa(diff);
 		if ((va & PDRMASK) == 0 && va + NBPDR <= end &&
-		    (VM_PAGE_TO_PHYS(m) & PDRMASK) == 0 &&
-		    pmap_ps_enabled(pmap) &&
-		    vm_reserv_level_iffullpop(m) == 0 &&
+		    m->psind == 1 && pmap_ps_enabled(pmap) &&
 		    pmap_enter_pde(pmap, va, m, prot, &lock))
 			m = &m[NBPDR / PAGE_SIZE - 1];
 		else

@@ -31,7 +31,7 @@
 
 typedef struct ucl_hash_node_s
 {
-	ucl_object_t *data;
+	const ucl_object_t *data;
 	UT_hash_handle hh;
 } ucl_hash_node_t;
 
@@ -62,17 +62,19 @@ void ucl_hash_destroy (ucl_hash_t* hashlin, ucl_hash_free_func *func);
 /**
  * Inserts an element in the the hashtable.
  */
-void ucl_hash_insert (ucl_hash_t* hashlin, ucl_object_t *obj, const char *key, unsigned keylen);
+void ucl_hash_insert (ucl_hash_t* hashlin, const ucl_object_t *obj, const char *key,
+		unsigned keylen);
 
 /**
  * Delete an element from the the hashtable.
  */
-void ucl_hash_delete (ucl_hash_t* hashlin, ucl_object_t *obj);
+void ucl_hash_delete (ucl_hash_t* hashlin, const ucl_object_t *obj);
 
 /**
  * Searches an element in the hashtable.
  */
-ucl_object_t* ucl_hash_search (ucl_hash_t* hashlin, const char *key, unsigned keylen);
+const ucl_object_t* ucl_hash_search (ucl_hash_t* hashlin, const char *key,
+		unsigned keylen);
 
 
 /**
@@ -81,7 +83,7 @@ ucl_object_t* ucl_hash_search (ucl_hash_t* hashlin, const char *key, unsigned ke
  * @param iter iterator (must be NULL on first iteration)
  * @return the next object
  */
-void* ucl_hash_iterate (ucl_hash_t *hashlin, ucl_hash_iter_t *iter);
+const void* ucl_hash_iterate (ucl_hash_t *hashlin, ucl_hash_iter_t *iter);
 
 /**
  * Check whether an iterator has next element

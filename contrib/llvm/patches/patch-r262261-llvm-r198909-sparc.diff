@@ -2,7 +2,7 @@ Pull in r198909 from upstream llvm trunk (by Venkatraman Govindaraju):
 
   [Sparc] Add support for parsing jmpl instruction and make indirect call and jmp instructions as aliases to jmpl.
 
-Introduced here: http://svn.freebsd.org/changeset/base/262261
+Introduced here: http://svnweb.freebsd.org/changeset/base/262261
 
 Index: lib/Target/Sparc/AsmParser/SparcAsmParser.cpp
 ===================================================================

@@ -20,6 +20,8 @@
  */
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2014 by Delphix. All rights reserved.
+ * Copyright (c) 2013, Joyent, Inc.  All rights reserved.
  */
 
 #include <assert.h>
@@ -800,20 +802,17 @@ delay(clock_t ticks)
 /*
  * Find highest one bit set.
  *	Returns bit number + 1 of highest bit that is set, otherwise returns 0.
- * High order bit is 31 (or 63 in _LP64 kernel).
  */
 int
-highbit(ulong_t i)
+highbit64(uint64_t i)
 {
-	register int h = 1;
+	int h = 1;
 
 	if (i == 0)
 		return (0);
-#ifdef _LP64
-	if (i & 0xffffffff00000000ul) {
+	if (i & 0xffffffff00000000ULL) {
 		h += 32; i >>= 32;
 	}
-#endif
 	if (i & 0xffff0000) {
 		h += 16; i >>= 16;
 	}

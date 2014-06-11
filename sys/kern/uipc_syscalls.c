@@ -414,14 +414,8 @@ accept1(td, s, uname, anamelen, flags)
 
 	error = kern_accept4(td, s, &name, &namelen, flags, &fp);
 
-	/*
-	 * return a namelen of zero for older code which might
-	 * ignore the return value from accept.
-	 */
-	if (error != 0) {
-		(void) copyout(&namelen, anamelen, sizeof(*anamelen));
+	if (error != 0)
 		return (error);
-	}
 
 	if (error == 0 && uname != NULL) {
 #ifdef COMPAT_OLDSOCK
@@ -555,15 +549,8 @@ kern_accept4(struct thread *td, int s, struct sockaddr **name,
 	(void) fo_ioctl(nfp, FIOASYNC, &tmp, td->td_ucred, td);
 	sa = 0;
 	error = soaccept(so, &sa);
-	if (error != 0) {
-		/*
-		 * return a namelen of zero for older code which might
-		 * ignore the return value from accept.
-		 */
-		if (name)
-			*namelen = 0;
+	if (error != 0)
 		goto noconnection;
-	}
 	if (sa == NULL) {
 		if (name)
 			*namelen = 0;

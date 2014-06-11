@@ -21,7 +21,7 @@ PSEUDO+= _clock_gettime.o _gettimeofday.o
 
 # Sources common to both syscall interfaces:
 SRCS+=	stack_protector.c stack_protector_compat.c __error.c
-.if !defined(WITHOUT_SYSCALL_COMPAT)
+.if ${MK_SYSCALL_COMPAT} != "no"
 SYSCALL_COMPAT_SRCS=	fcntl.c ftruncate.c lseek.c mmap.c pread.c \
 	pwrite.c truncate.c
 SRCS+=	${SYSCALL_COMPAT_SRCS}

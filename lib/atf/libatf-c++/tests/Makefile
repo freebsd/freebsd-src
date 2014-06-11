@@ -26,6 +26,4 @@ ATF_TESTS_CXX+=	${_T}
 SRCS.${_T}=	${_T}.cpp test_helpers.cpp
 .endfor
 
-ATF_TESTS_SH=	pkg_config_test
-
 .include <bsd.test.mk>

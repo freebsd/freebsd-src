@@ -2,7 +2,7 @@
 
 PROG=	cxgbetool
 SRCS=	cxgbetool.c
-NO_MAN=
+MAN=
 CFLAGS+= -I${.CURDIR}/../../../sys/dev/cxgbe -I${.CURDIR}/../../../sys -I.
 BINDIR?= /usr/sbin
 

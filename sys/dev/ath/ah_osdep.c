@@ -138,6 +138,24 @@ ath_hal_ether_sprintf(const u_int8_t *mac)
 
 #ifdef AH_DEBUG
 
+/*
+ * XXX This is highly relevant only for the AR5416 and later
+ * PCI/PCIe NICs.  It'll need adjustment for other hardware
+ * variations.
+ */
+static int
+ath_hal_reg_whilst_asleep(struct ath_hal *ah, uint32_t reg)
+{
+
+	if (reg >= 0x4000 && reg < 0x5000)
+		return (1);
+	if (reg >= 0x6000 && reg < 0x7000)
+		return (1);
+	if (reg >= 0x7000 && reg < 0x8000)
+		return (1);
+	return (0);
+}
+
 void
 DO_HALDEBUG(struct ath_hal *ah, u_int mask, const char* fmt, ...)
 {
@@ -254,7 +272,8 @@ ath_hal_reg_write(struct ath_hal *ah, u_int32_t reg, u_int32_t val)
 	bus_space_handle_t h = ah->ah_sh;
 
 	/* Debug - complain if we haven't fully waken things up */
-	if (ah->ah_powerMode != HAL_PM_AWAKE) {
+	if (! ath_hal_reg_whilst_asleep(ah, reg) &&
+	    ah->ah_powerMode != HAL_PM_AWAKE) {
 		ath_hal_printf(ah, "%s: reg=0x%08x, val=0x%08x, pm=%d\n",
 		    __func__, reg, val, ah->ah_powerMode);
 	}
@@ -285,7 +304,8 @@ ath_hal_reg_read(struct ath_hal *ah, u_int32_t reg)
 	u_int32_t val;
 
 	/* Debug - complain if we haven't fully waken things up */
-	if (ah->ah_powerMode != HAL_PM_AWAKE) {
+	if (! ath_hal_reg_whilst_asleep(ah, reg) &&
+	    ah->ah_powerMode != HAL_PM_AWAKE) {
 		ath_hal_printf(ah, "%s: reg=0x%08x, pm=%d\n",
 		    __func__, reg, ah->ah_powerMode);
 	}
@@ -343,7 +363,8 @@ ath_hal_reg_write(struct ath_hal *ah, u_int32_t reg, u_int32_t val)
 	bus_space_handle_t h = ah->ah_sh;
 
 	/* Debug - complain if we haven't fully waken things up */
-	if (ah->ah_powerMode != HAL_PM_AWAKE) {
+	if (! ath_hal_reg_whilst_asleep(ah, reg) &&
+	    ah->ah_powerMode != HAL_PM_AWAKE) {
 		ath_hal_printf(ah, "%s: reg=0x%08x, val=0x%08x, pm=%d\n",
 		    __func__, reg, val, ah->ah_powerMode);
 	}
@@ -363,7 +384,8 @@ ath_hal_reg_read(struct ath_hal *ah, u_int32_t reg)
 	u_int32_t val;
 
 	/* Debug - complain if we haven't fully waken things up */
-	if (ah->ah_powerMode != HAL_PM_AWAKE) {
+	if (! ath_hal_reg_whilst_asleep(ah, reg) &&
+	    ah->ah_powerMode != HAL_PM_AWAKE) {
 		ath_hal_printf(ah, "%s: reg=0x%08x, pm=%d\n",
 		    __func__, reg, ah->ah_powerMode);
 	}

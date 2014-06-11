@@ -1,10 +1,11 @@
 #	From: @(#)Makefile	5.20 (Berkeley) 6/12/93
 # $FreeBSD$
 
-.include <bsd.own.mk>
+.include <src.opts.mk>
 
 SUBDIR=	adduser \
 	arp \
+	binmiscctl \
 	bootparamd \
 	bsdconfig \
 	bsdinstall \
@@ -319,5 +320,7 @@ SUBDIR+=	wpa
 .include <bsd.arch.inc.mk>
 
 SUBDIR:=	${SUBDIR:O}
+
+SUBDIR_PARALLEL=
 
 .include <bsd.subdir.mk>

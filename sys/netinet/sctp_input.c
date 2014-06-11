@@ -379,17 +379,9 @@ sctp_process_init(struct sctp_init_chunk *cp, struct sctp_tcb *stcb)
 
 	if (asoc->strmin != NULL) {
 		/* Free the old ones */
-		struct sctp_queued_to_read *ctl, *nctl;
-
 		for (i = 0; i < asoc->streamincnt; i++) {
-			TAILQ_FOREACH_SAFE(ctl, &asoc->strmin[i].inqueue, next, nctl) {
-				TAILQ_REMOVE(&asoc->strmin[i].inqueue, ctl, next);
-				sctp_free_remote_addr(ctl->whoFrom);
-				ctl->whoFrom = NULL;
-				sctp_m_freem(ctl->data);
-				ctl->data = NULL;
-				sctp_free_a_readq(stcb, ctl);
-			}
+			sctp_clean_up_stream(stcb, &asoc->strmin[i].inqueue);
+			sctp_clean_up_stream(stcb, &asoc->strmin[i].uno_inqueue);
 		}
 		SCTP_FREE(asoc->strmin, SCTP_M_STRMI);
 	}
@@ -409,6 +401,9 @@ sctp_process_init(struct sctp_init_chunk *cp, struct sctp_tcb *stcb)
 		asoc->strmin[i].stream_no = i;
 		asoc->strmin[i].last_sequence_delivered = 0xffff;
 		TAILQ_INIT(&asoc->strmin[i].inqueue);
+		TAILQ_INIT(&asoc->strmin[i].uno_inqueue);
+		asoc->strmin[i].uno_pd = NULL;
+		asoc->strmin[i].pd_api_started = 0;
 		asoc->strmin[i].delivery_started = 0;
 	}
 	/*
@@ -3944,20 +3939,29 @@ sctp_handle_str_reset_add_strm(struct sctp_tcb *stcb, struct sctp_tmit_chunk *ch
 			/* copy off the old data */
 			for (i = 0; i < stcb->asoc.streamincnt; i++) {
 				TAILQ_INIT(&stcb->asoc.strmin[i].inqueue);
+				TAILQ_INIT(&stcb->asoc.strmin[i].uno_inqueue);
 				stcb->asoc.strmin[i].stream_no = i;
 				stcb->asoc.strmin[i].last_sequence_delivered = oldstrm[i].last_sequence_delivered;
 				stcb->asoc.strmin[i].delivery_started = oldstrm[i].delivery_started;
+				stcb->asoc.strmin[i].pd_api_started = oldstrm[i].pd_api_started;
 				/* now anything on those queues? */
 				TAILQ_FOREACH_SAFE(ctl, &oldstrm[i].inqueue, next, nctl) {
 					TAILQ_REMOVE(&oldstrm[i].inqueue, ctl, next);
 					TAILQ_INSERT_TAIL(&stcb->asoc.strmin[i].inqueue, ctl, next);
 				}
+				TAILQ_FOREACH_SAFE(ctl, &oldstrm[i].uno_inqueue, next, nctl) {
+					TAILQ_REMOVE(&oldstrm[i].uno_inqueue, ctl, next);
+					TAILQ_INSERT_TAIL(&stcb->asoc.strmin[i].uno_inqueue, ctl, next);
+				}
 			}
 			/* Init the new streams */
 			for (i = stcb->asoc.streamincnt; i < num_stream; i++) {
 				TAILQ_INIT(&stcb->asoc.strmin[i].inqueue);
+				TAILQ_INIT(&stcb->asoc.strmin[i].uno_inqueue);
 				stcb->asoc.strmin[i].stream_no = i;
 				stcb->asoc.strmin[i].last_sequence_delivered = 0xffff;
+				stcb->asoc.strmin[i].uno_pd = NULL;
+				stcb->asoc.strmin[i].pd_api_started = 0;
 				stcb->asoc.strmin[i].delivery_started = 0;
 			}
 			SCTP_FREE(oldstrm, SCTP_M_STRMI);
@@ -5810,7 +5814,8 @@ sctp_common_input_processing(struct mbuf **mm, int iphlen, int offset, int lengt
 	if ((length > offset) &&
 	    (stcb != NULL) &&
 	    !SCTP_BASE_SYSCTL(sctp_auth_disable) &&
-	    sctp_auth_is_required_chunk(SCTP_DATA, stcb->asoc.local_auth_chunks) &&
+	    (sctp_auth_is_required_chunk(SCTP_DATA, stcb->asoc.local_auth_chunks) ||
+	    sctp_auth_is_required_chunk(SCTP_NDATA, stcb->asoc.local_auth_chunks)) &&
 	    !stcb->asoc.authenticated) {
 		/* "silently" ignore */
 		SCTP_STAT_INCR(sctps_recvauthmissing);
