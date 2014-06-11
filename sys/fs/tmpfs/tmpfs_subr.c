@@ -595,6 +595,8 @@ loop1:
 	default:
 		panic("tmpfs_alloc_vp: type %p %d", node, (int)node->tn_type);
 	}
+	if (vp->v_type != VFIFO)
+		VN_LOCK_ASHARE(vp);
 
 	error = insmntque1(vp, mp, tmpfs_insmntque_dtr, NULL);
 	if (error)
