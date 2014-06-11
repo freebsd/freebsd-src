@@ -55,6 +55,8 @@ CFLAGS+=	-DSYMBOL_VERSIONING
 
 INCS=		zconf.h zlib.h
 
+.PATH:		${.CURDIR}/test
+
 minigzip:	all minigzip.o
 	$(CC) -o minigzip minigzip.o -L. -lz
 
