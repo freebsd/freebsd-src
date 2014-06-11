@@ -42,7 +42,10 @@ struct evdev_client;
 
 typedef int (evdev_open_t)(struct evdev_dev *, void *);
 typedef void (evdev_close_t)(struct evdev_dev *, void *);
-typedef void (evdev_event_t)(struct evdev_dev *, void *, uint16_t, uint16_t, int32_t);
+typedef void (evdev_event_t)(struct evdev_dev *, void *, uint16_t,
+    uint16_t, int32_t);
+typedef void (evdev_keycode_t)(struct evdev_dev *, void *,
+    struct input_keymap_entry *);
 typedef void (evdev_client_event_t)(struct evdev_client *, void *);
 
 struct evdev_methods
@@ -50,6 +53,8 @@ struct evdev_methods
 	evdev_open_t		*ev_open;
 	evdev_close_t		*ev_close;
 	evdev_event_t		*ev_event;
+	evdev_keycode_t		*ev_get_keycode;
+	evdev_keycode_t		*ev_set_keycode;
 };
 
 struct evdev_dev
@@ -60,6 +65,9 @@ struct evdev_dev
 	device_t		ev_dev;
 	void *			ev_softc;
 	struct cdev *		ev_cdev;
+	struct mtx		ev_mtx;
+	struct input_id		ev_id;
+	bool			ev_grabbed;
 
 	/* Supported features: */
 	uint32_t		ev_type_flags[howmany(EV_CNT, 32)];
@@ -78,6 +86,10 @@ struct evdev_dev
 	uint32_t		ev_snd_states[howmany(SND_CNT, 32)];
 	uint32_t		ev_sw_states[howmany(SW_CNT, 32)];
 
+	/* Keyboard delay/repeat: */
+	int			ev_kbd_delay;
+	int			ev_kbd_repeat;
+
 	/* Counters: */
 	uint64_t		ev_event_count;
 	int			ev_clients_count;
@@ -87,6 +99,9 @@ struct evdev_dev
 	LIST_ENTRY(evdev_dev) ev_link;
 	LIST_HEAD(, evdev_client) ev_clients;
 };
+
+#define	EVDEV_LOCK(evdev)	mtx_lock(&(evdev)->ev_mtx)
+#define	EVDEV_UNLOCK(evdev)	mtx_unlock(&(evdev)->ev_mtx)
 
 struct evdev_client
 {
@@ -118,8 +133,8 @@ void evdev_set_methods(struct evdev_dev *, struct evdev_methods *);
 void evdev_set_softc(struct evdev_dev *, void *);
 int evdev_register(device_t, struct evdev_dev *);
 int evdev_unregister(device_t, struct evdev_dev *);
-int evdev_push_event(struct evdev_dev *, uint16_t type, uint16_t code,
-    int32_t value);
+int evdev_push_event(struct evdev_dev *, uint16_t, uint16_t, int32_t);
+int evdev_inject_event(struct evdev_dev *, uint16_t, uint16_t, int32_t);
 int evdev_sync(struct evdev_dev *);
 int evdev_cdev_create(struct evdev_dev *);
 int evdev_cdev_destroy(struct evdev_dev *);
@@ -136,9 +151,13 @@ void evdev_set_absinfo(struct evdev_dev *, uint16_t, struct input_absinfo *);
 /* Client interface: */
 int evdev_register_client(struct evdev_dev *, struct evdev_client **);
 int evdev_dispose_client(struct evdev_client *);
+int evdev_grab_client(struct evdev_client *);
+int evdev_release_client(struct evdev_client *);
+void evdev_client_filter_queue(struct evdev_client *, uint16_t);
 
 /* Utility functions: */
 uint16_t evdev_hid2key(int);
 uint16_t evdev_at2key(int);
+void evdev_client_dumpqueue(struct evdev_client *);
 
 #endif	/* _DEV_EVDEV_EVDEV_H */

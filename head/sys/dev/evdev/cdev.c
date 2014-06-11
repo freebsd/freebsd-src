@@ -294,12 +294,17 @@ evdev_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag,
 {
 	struct evdev_cdev_softc *sc = dev->si_drv1;
 	struct evdev_dev *evdev = sc->ecs_evdev;
-	//struct input_id id;
-	int len, num, limit;
+	struct evdev_cdev_state *state;
+	struct input_keymap_entry *ke;
+	int ret, len, num, limit;
 
 	len = IOCPARM_LEN(cmd);
 	cmd = IOCBASECMD(cmd);
 	num = IOCNUM(cmd);
+
+	ret = devfs_get_cdevpriv((void **)&state);
+	if (ret != 0)
+		return (ret);
 
 	debugf("cdev: ioctl called: cmd=0x%08lx, data=%p", cmd, data);
 
@@ -309,28 +314,38 @@ evdev_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag,
 		break;
 
 	case EVIOCGID:
+		memcpy(data, &evdev->ev_id, sizeof(struct input_id));
 		break;
 
 	case EVIOCGREP:
-		break;
+		return ENOTSUP;
 
 	case EVIOCSREP:
-		break;
+		return ENOTSUP;
 
 	case EVIOCGKEYCODE:
-		break;
+		return ENOTSUP;
 
 	case EVIOCGKEYCODE_V2:
+		if (evdev->ev_methods->ev_get_keycode == NULL)
+			return ENOTSUP;
+
+		ke = (struct keymap_entry *)data;
+		evdev->ev_methods->ev_get_keycode(evdev, evdev->ev_softc, ke);
 		break;
 
 	case EVIOCSKEYCODE:
-		break;
+		return ENOTSUP;
 
 	case EVIOCSKEYCODE_V2:
+		if (evdev->ev_methods->ev_set_keycode == NULL)
+			return ENOTSUP;
+
+		ke = (struct keymap_entry *)data;
+		evdev->ev_methods->ev_set_keycode(evdev, evdev->ev_softc, ke);
 		break;
 
 	case EVIOCGNAME(0):
-		debugf("EVIOCGNAME: data=%p, ev_name=%s, len=%d", data, evdev->ev_name, len);
 		strlcpy(data, evdev->ev_name, len);
 		break;
 
@@ -348,25 +363,39 @@ evdev_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag,
 		break;
 
 	case EVIOCGKEY(0):
+		evdev_client_filter_queue(state->ecs_client, EV_KEY);
 		limit = MIN(len, howmany(KEY_CNT, 8));
 		memcpy(data, evdev->ev_key_states, limit);
 		break;
 
 	case EVIOCGLED(0):
+		evdev_client_filter_queue(state->ecs_client, EV_LED);
 		limit = MIN(len, howmany(LED_CNT, 8));
 		memcpy(data, evdev->ev_led_states, limit);
 
 		break;
 
 	case EVIOCGSND(0):
+		evdev_client_filter_queue(state->ecs_client, EV_SND);
 		limit = MIN(len, howmany(SND_CNT, 8));
 		memcpy(data, evdev->ev_snd_states, limit);
 
 		break;
 
 	case EVIOCGSW(0):
+		evdev_client_filter_queue(state->ecs_client, EV_SW);
 		limit = MIN(len, howmany(SW_CNT, 8));
 		memcpy(data, evdev->ev_sw_states, limit);
+		break;
+
+	case EVIOCGRAB:
+		if (data)
+			evdev_grab_client(state->ecs_client);
+		else
+			evdev_release_client(state->ecs_client);
+		break;
+
+	case EVIOCREVOKE:
 		break;
 	}
 
@@ -390,7 +419,9 @@ evdev_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag,
 	/* Handle EVIOCSABS variants */
 	if (num >= IOCNUM(EVIOCSABS(0)) && num < IOCNUM(EVIOCSABS(ABS_CNT))) {
 		int index = num - IOCNUM(EVIOCSABS(0));
+		EVDEV_LOCK(evdev);
 		memcpy(&evdev->ev_absinfo[index], data, len);
+		EVDEV_UNLOCK(evdev);
 	}
 
 	return (0);

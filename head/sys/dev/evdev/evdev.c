@@ -44,6 +44,8 @@
 #define	debugf(fmt, args...)
 #endif
 
+#define	DEF_RING_SIZE	16
+
 MALLOC_DEFINE(M_EVDEV, "evdev", "evdev memory");
 
 static inline void changebit(uint32_t *array, int, int);
@@ -76,6 +78,7 @@ evdev_register(device_t dev, struct evdev_dev *evdev)
 
 	/* Initialize internal structures */
 	evdev->ev_dev = dev;
+	mtx_init(&evdev->ev_mtx, "evmtx", "evdev", MTX_DEF);
 	strlcpy(evdev->ev_shortname, device_get_nameunit(dev), NAMELEN);
 	LIST_INIT(&evdev->ev_clients);
 
@@ -228,6 +231,19 @@ evdev_push_event(struct evdev_dev *evdev, uint16_t type, uint16_t code,
 }
 
 int
+evdev_inject_event(struct evdev_dev *evdev, uint16_t type, uint16_t code,
+    int32_t value)
+{
+
+	if (evdev->ev_methods->ev_event != NULL) {
+		evdev->ev_methods->ev_event(evdev, evdev->ev_softc, type,
+		    code, value);
+	}
+
+	return (0);
+}
+
+int
 evdev_sync(struct evdev_dev *evdev)
 {
 	
@@ -241,14 +257,16 @@ evdev_register_client(struct evdev_dev *evdev, struct evdev_client **clientp)
 
 	/* Initialize client structure */
 	client = malloc(sizeof(struct evdev_client), M_EVDEV, M_WAITOK | M_ZERO);
-	mtx_init(&client->ec_buffer_mtx, "evmtx", "evdev", MTX_DEF);
+	mtx_init(&client->ec_buffer_mtx, "evclient", "evdev", MTX_DEF);
 	client->ec_evdev = evdev;
 
 	/* Initialize ring buffer */
-	client->ec_buffer = malloc(sizeof(struct input_event) * 10, M_EVDEV, M_WAITOK | M_ZERO);
-	client->ec_buffer_size = 10;
+	client->ec_buffer = malloc(sizeof(struct input_event) * DEF_RING_SIZE,
+	    M_EVDEV, M_WAITOK | M_ZERO);
+	client->ec_buffer_size = DEF_RING_SIZE;
 	client->ec_buffer_head = 0;
 	client->ec_buffer_tail = 0;
+	client->ec_enabled = true;
 
 	debugf("adding new client for device %s", evdev->ev_shortname);
 
@@ -283,15 +301,68 @@ evdev_dispose_client(struct evdev_client *client)
 	return (0);
 }
 
+int
+evdev_grab_client(struct evdev_client *client)
+{
+	struct evdev_dev *evdev = client->ec_evdev;
+	struct evdev_client *iter;
+
+	EVDEV_LOCK(evdev);
+	if (evdev->ev_grabbed) {
+		EVDEV_UNLOCK(evdev);
+		return (EBUSY);
+	}
+
+	evdev->ev_grabbed = true;
+
+	/* Disable all other clients */
+	LIST_FOREACH(iter, &evdev->ev_clients, ec_link) {
+		if (iter != client)
+			iter->ec_enabled = false;
+	}
+
+	EVDEV_UNLOCK(evdev);
+	return (0);
+}
+
+int
+evdev_release_client(struct evdev_client *client)
+{
+	struct evdev_dev *evdev = client->ec_evdev;
+	struct evdev_client *iter;
+
+	EVDEV_LOCK(evdev);
+	if (!evdev->ev_grabbed) {
+		EVDEV_UNLOCK(evdev);
+		return (EINVAL);
+	}
+
+	evdev->ev_grabbed = false;
+
+	/* Enable all other clients */
+	LIST_FOREACH(iter, &evdev->ev_clients, ec_link) {
+		iter->ec_enabled = true;
+	}
+
+	EVDEV_UNLOCK(evdev);
+	return (0);
+}
+
 static void
 evdev_client_push(struct evdev_client *client, uint16_t type, uint16_t code,
     int32_t value)
 {
 	int count, head, tail;
-	mtx_lock(&client->ec_buffer_mtx);
+	
+	EVDEV_CLIENT_LOCKQ(client);
 	head = client->ec_buffer_head;
 	tail = client->ec_buffer_tail;
 	count = client->ec_buffer_size;
+
+	if (!client->ec_enabled) {
+		EVDEV_CLIENT_UNLOCKQ(client);
+		return;
+	}
 	
 	/* If queue is full, overwrite last element with SYN_DROPPED event */
 	if ((tail + 1) % count == head) {
@@ -303,7 +374,7 @@ evdev_client_push(struct evdev_client *client, uint16_t type, uint16_t code,
 		client->ec_buffer[tail].code = SYN_DROPPED;
 
 		wakeup(client);
-		mtx_unlock(&client->ec_buffer_mtx);
+		EVDEV_CLIENT_UNLOCKQ(client);
 		return;
 	}
 
@@ -314,6 +385,82 @@ evdev_client_push(struct evdev_client *client, uint16_t type, uint16_t code,
 	client->ec_buffer_tail = (tail + 1) % count;
 
 	wakeup(client);
-	mtx_unlock(&client->ec_buffer_mtx);
+	EVDEV_CLIENT_UNLOCKQ(client);
 }
 
+void
+evdev_client_dumpqueue(struct evdev_client *client)
+{
+	struct input_event *event;
+	int i, head, tail, size;
+
+	head = client->ec_buffer_head;
+	tail = client->ec_buffer_tail;
+	size = client->ec_buffer_size;
+
+	printf("evdev client: %p\n", client);
+	printf("evdev provider name: %s\n", client->ec_evdev->ev_name);
+	printf("event queue: head=%d tail=%d size=%d\n", tail, head, size);
+
+	printf("queue contents:\n");
+
+	for (i = 0; i < size; i++) {
+		event = &client->ec_buffer[i];
+		printf("%d: ", i);
+
+		if (i < head || i > tail)
+			printf("unused\n");
+		else
+			printf("type=%d code=%d value=%d ", event->type,
+			    event->code, event->value);
+
+		if (i == head)
+			printf("<- head\n");
+		else if (i == tail)
+			printf("<- tail\n");
+		else
+			printf("\n");
+	}
+}
+
+void
+evdev_client_filter_queue(struct evdev_client *client, uint16_t type)
+{
+	struct input_event *event;
+	int head, tail, count, i;
+	bool last_was_syn = false;
+
+	EVDEV_CLIENT_LOCKQ(client);
+
+	i = head = client->ec_buffer_head;
+	tail = client->ec_buffer_tail;
+	count = client->ec_buffer_size;
+
+	while (i != client->ec_buffer_tail) {
+		event = &client->ec_buffer[i];
+		i = (i + 1) % count;
+
+		/* Skip event of given type */
+		if (event->type == type)
+			continue;
+
+		/* Remove empty SYN_REPORT events */
+		if (event->type == EV_SYN && event->code == SYN_REPORT &&
+		    last_was_syn)
+			continue;
+
+		/* Rewrite entry */
+		memcpy(&client->ec_buffer[tail], event,
+		    sizeof(struct input_event));
+	
+		last_was_syn = (event->type == EV_SYN &&
+		    event->code == SYN_REPORT);
+
+		tail = (tail + 1) % count;
+	}
+
+	client->ec_buffer_head = i;
+	client->ec_buffer_tail = tail;
+
+	EVDEV_CLIENT_UNLOCKQ(client);
+}
