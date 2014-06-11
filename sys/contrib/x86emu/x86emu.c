@@ -5610,6 +5610,7 @@ x86emuOp2_32_movsx_byte_R_RM(struct x86emu *emu)
 {
 	uint32_t *destreg;
 
+	fetch_decode_modrm(emu);
 	destreg = decode_rh_long_register(emu);
 	*destreg = (int32_t)(int8_t)decode_and_fetch_byte(emu);
 }
