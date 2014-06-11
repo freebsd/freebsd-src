@@ -114,7 +114,7 @@ static void __dead2
 usage(void)
 {
 	
-	fprintf(stderr, "cheripoint [-fvCc] <slidedir>\n");
+	fprintf(stderr, "cheripoint [-Ccfiv] <slidedir>\n");
 	exit(1);
 }
 
@@ -949,13 +949,13 @@ main(int argc, char **argv)
 	struct image **covers, **slides;
 	uint32_t *save;
 	int error, gesture;
-	int ch, forkflag = 0;
+	int ch, forkflag = 0, frominit = 0;
 	int i;
 	int cover, ncovers, maxcovers;
 	int slide, nslides, maxslides;
 	struct tsstate *ts, tshack = {0, 0, 0, 0, 0, 0,};
 
-	while ((ch = getopt(argc, argv, "fvCc")) != -1) {
+	while ((ch = getopt(argc, argv, "Ccfiv")) != -1) {
 		switch (ch) {
 		case 'C':
 			caching = 2;
@@ -967,6 +967,9 @@ main(int argc, char **argv)
 			break;
 		case 'f':
 			forkflag = 1;
+			break;
+		case 'i':
+			frominit = 1;
 			break;
 		case 'v':
 			verbose++;
@@ -981,7 +984,7 @@ main(int argc, char **argv)
 	if (verbose)
 		ibox_verbose = verbose;
 
-	if (argc != 1)
+	if (argc != 1 && !(frominit && argc == 2))
 		usage();
 	
 	fb_init();
