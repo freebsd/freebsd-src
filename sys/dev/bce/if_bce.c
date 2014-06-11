@@ -3251,21 +3251,19 @@ bce_dma_free(struct bce_softc *sc)
 	DBENTER(BCE_VERBOSE_RESET | BCE_VERBOSE_UNLOAD | BCE_VERBOSE_CTX);
 
 	/* Free, unmap, and destroy the status block. */
+	if (sc->status_block_paddr != 0) {
+		bus_dmamap_unload(
+		    sc->status_tag,
+		    sc->status_map);
+		sc->status_block_paddr = 0;
+	}
+
 	if (sc->status_block != NULL) {
 		bus_dmamem_free(
 		   sc->status_tag,
 		    sc->status_block,
 		    sc->status_map);
 		sc->status_block = NULL;
-	}
-
-	if (sc->status_map != NULL) {
-		bus_dmamap_unload(
-		    sc->status_tag,
-		    sc->status_map);
-		bus_dmamap_destroy(sc->status_tag,
-		    sc->status_map);
-		sc->status_map = NULL;
 	}
 
 	if (sc->status_tag != NULL) {
@@ -3275,21 +3273,19 @@ bce_dma_free(struct bce_softc *sc)
 
 
 	/* Free, unmap, and destroy the statistics block. */
+	if (sc->stats_block_paddr != 0) {
+		bus_dmamap_unload(
+		    sc->stats_tag,
+		    sc->stats_map);
+		sc->stats_block_paddr = 0;
+	}
+
 	if (sc->stats_block != NULL) {
 		bus_dmamem_free(
 		    sc->stats_tag,
 		    sc->stats_block,
 		    sc->stats_map);
 		sc->stats_block = NULL;
-	}
-
-	if (sc->stats_map != NULL) {
-		bus_dmamap_unload(
-		    sc->stats_tag,
-		    sc->stats_map);
-		bus_dmamap_destroy(sc->stats_tag,
-		    sc->stats_map);
-		sc->stats_map = NULL;
 	}
 
 	if (sc->stats_tag != NULL) {
@@ -3301,22 +3297,19 @@ bce_dma_free(struct bce_softc *sc)
 	/* Free, unmap and destroy all context memory pages. */
 	if (BCE_CHIP_NUM(sc) == BCE_CHIP_NUM_5709) {
 		for (i = 0; i < sc->ctx_pages; i++ ) {
+			if (sc->ctx_paddr[i] != 0) {
+				bus_dmamap_unload(
+				    sc->ctx_tag,
+				    sc->ctx_map[i]);
+				sc->ctx_paddr[i] = 0;
+			}
+
 			if (sc->ctx_block[i] != NULL) {
 				bus_dmamem_free(
 				    sc->ctx_tag,
 				    sc->ctx_block[i],
 				    sc->ctx_map[i]);
 				sc->ctx_block[i] = NULL;
-			}
-
-			if (sc->ctx_map[i] != NULL) {
-				bus_dmamap_unload(
-				    sc->ctx_tag,
-				    sc->ctx_map[i]);
-				bus_dmamap_destroy(
-				    sc->ctx_tag,
-				    sc->ctx_map[i]);
-				sc->ctx_map[i] = NULL;
 			}
 		}
 
@@ -3330,22 +3323,19 @@ bce_dma_free(struct bce_softc *sc)
 
 	/* Free, unmap and destroy all TX buffer descriptor chain pages. */
 	for (i = 0; i < sc->tx_pages; i++ ) {
+		if (sc->tx_bd_chain_paddr[i] != 0) {
+			bus_dmamap_unload(
+			    sc->tx_bd_chain_tag,
+			    sc->tx_bd_chain_map[i]);
+			sc->tx_bd_chain_paddr[i] = 0;
+		}
+
 		if (sc->tx_bd_chain[i] != NULL) {
 			bus_dmamem_free(
 			    sc->tx_bd_chain_tag,
 			    sc->tx_bd_chain[i],
 			    sc->tx_bd_chain_map[i]);
 			sc->tx_bd_chain[i] = NULL;
-		}
-
-		if (sc->tx_bd_chain_map[i] != NULL) {
-			bus_dmamap_unload(
-			    sc->tx_bd_chain_tag,
-			    sc->tx_bd_chain_map[i]);
-			bus_dmamap_destroy(
-			    sc->tx_bd_chain_tag,
-			    sc->tx_bd_chain_map[i]);
-			sc->tx_bd_chain_map[i] = NULL;
 		}
 	}
 
@@ -3358,22 +3348,19 @@ bce_dma_free(struct bce_softc *sc)
 
 	/* Free, unmap and destroy all RX buffer descriptor chain pages. */
 	for (i = 0; i < sc->rx_pages; i++ ) {
+		if (sc->rx_bd_chain_paddr[i] != 0) {
+			bus_dmamap_unload(
+			    sc->rx_bd_chain_tag,
+			    sc->rx_bd_chain_map[i]);
+			sc->rx_bd_chain_paddr[i] = 0;
+		}
+
 		if (sc->rx_bd_chain[i] != NULL) {
 			bus_dmamem_free(
 			    sc->rx_bd_chain_tag,
 			    sc->rx_bd_chain[i],
 			    sc->rx_bd_chain_map[i]);
 			sc->rx_bd_chain[i] = NULL;
-		}
-
-		if (sc->rx_bd_chain_map[i] != NULL) {
-			bus_dmamap_unload(
-			    sc->rx_bd_chain_tag,
-			    sc->rx_bd_chain_map[i]);
-			bus_dmamap_destroy(
-			    sc->rx_bd_chain_tag,
-			    sc->rx_bd_chain_map[i]);
-			sc->rx_bd_chain_map[i] = NULL;
 		}
 	}
 
@@ -3387,22 +3374,19 @@ bce_dma_free(struct bce_softc *sc)
 	/* Free, unmap and destroy all page buffer descriptor chain pages. */
 	if (bce_hdr_split == TRUE) {
 		for (i = 0; i < sc->pg_pages; i++ ) {
+			if (sc->pg_bd_chain_paddr[i] != 0) {
+				bus_dmamap_unload(
+				    sc->pg_bd_chain_tag,
+				    sc->pg_bd_chain_map[i]);
+				sc->pg_bd_chain_paddr[i] = 0;
+			}
+
 			if (sc->pg_bd_chain[i] != NULL) {
 				bus_dmamem_free(
 				    sc->pg_bd_chain_tag,
 				    sc->pg_bd_chain[i],
 				    sc->pg_bd_chain_map[i]);
 				sc->pg_bd_chain[i] = NULL;
-			}
-
-			if (sc->pg_bd_chain_map[i] != NULL) {
-				bus_dmamap_unload(
-				    sc->pg_bd_chain_tag,
-				    sc->pg_bd_chain_map[i]);
-				bus_dmamap_destroy(
-				    sc->pg_bd_chain_tag,
-				    sc->pg_bd_chain_map[i]);
-				sc->pg_bd_chain_map[i] = NULL;
 			}
 		}
 
