@@ -1,0 +1,20 @@
+#!/bin/sh
+#
+# $FreeBSD$
+#
+
+# PROVIDE: de4_hdmi
+# REQUIRE: FILESYSTEMS
+# KEYWORD: nojail
+
+. /etc/rc.subr
+
+name="de4_hdmi"
+rcvar="de4_hdmi_enable"
+desc="Configure HDMI output on a Terasic DE4"
+
+command=/usr/sbin/de4ctl
+command_args="hdmi setup"
+
+load_rc_config $name
+run_rc_command "$1"

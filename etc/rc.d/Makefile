@@ -33,6 +33,7 @@ FILES=	DAEMON \
 	cron \
 	ctld \
 	ddb \
+	de4_hdmi \
 	defaultroute \
 	devd \
 	devfs \
