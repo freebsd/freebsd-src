@@ -1,0 +1,87 @@
+.\"-
+.\" Copyright (c) 2014 SRI International
+.\" All rights reserved.
+.\"
+.\" This software was developed by SRI International and the University of
+.\" Cambridge Computer Laboratory under DARPA/AFRL contract (FA8750-10-C-0237)
+.\" ("CTSRD"), as part of the DARPA CRASH research programme.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd June 11, 2014
+.Dt de4ctl 8
+.Os
+.Sh NAME
+.Nm de4ctl
+.Nd Read and configure parameters from the Terasic DE4
+.Sh SYNOPSIS
+.Nm
+.Op Fl q
+.Ar command
+.\" .Op Ar options
+.Op Ar args
+.Sh DESCRIPTION
+The
+.Nm
+utility allows various parameters of the Terasic DE4 to be read and
+devices to be configured.
+The command line interface of
+.Nm
+is set of commands.
+.Sh OPTIONS
+The .Nm command supports a single option:
+.Bl -tag -width indent
+.It Fl q
+Quiet mode.
+Avoid unnecessicary output including field names when reporting values.
+.El
+.Sh COMMANDS
+.Bl -tag -width 1
+.It Nm fan
+Display power supplied to the fan as a range from 0 to 255.
+.It Nm hdmi
+Controls the HDMI daughter card via subcommands:
+.Bl -tag -width 1
+.It Nm reset
+Reset the HDMI chip via
+.Pa /dev/de4_hdmi_reset .
+.It Nm setup
+Resets the HDMI chip and then configure the output to a fixed 720x480 output via
+.Pa /dev/de4_hdmi_i2c .
+.El
+.It Nm temp
+Display the FPGA temperature in degrees Celsius.
+.El
+.Sh SEE ALSO
+.Xr altera_avgen 4
+.Sh AUTHORS
+This software and this manual page were
+developed by SRI International and the University of Cambridge Computer
+Laboratory under DARPA/AFRL contract
+.Pq FA8750-10-C-0237
+.Pq Do CTSRD Dc ,
+as part of the DARPA CRASH research programme.
+.Sh BUGS
+The
+.Nm hdmi
+command should perform actual negotiation with the attached monitor to
+selection a resolution rather than just spewing 720x480 and praying.

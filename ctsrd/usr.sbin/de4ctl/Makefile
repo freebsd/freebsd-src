@@ -2,6 +2,8 @@
 
 PROG=	de4ctl
 
-MAN=
+SRCS=	de4ctl.c hdmi.c
+
+MAN=	de4ctl.8
 
 .include <bsd.prog.mk>

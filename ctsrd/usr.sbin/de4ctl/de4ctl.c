@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 2013 Robert N. M. Watson
+ * Copyright (c) 2014 SRI International
  * All rights reserved.
  *
  * This software was developed by SRI International and the University of
@@ -40,18 +41,24 @@
 #include <string.h>
 #include <unistd.h>
 
+#include "hdmi.h"
+
 #define	PATH_TEMPFANCTL	"/dev/de4tempfan"
+#define	PATH_HDMI_RESET	"/dev/de4_hdmi_reset"
+#define	PATH_HDMI_I2C	"/dev/de4_hdmi_i2c"
 
 #define	OFF_TEMP	0
 #define	OFF_FAN	4
 
-static int	qflag;	/* Quiet flag -- print only numbers, not field names. */
+int	qflag;		/* Quiet flag -- print only numbers, not field names. */
 
 static void
 usage(void)
 {
 
-	fprintf(stderr, "usage: de4ctl [-q] fan | temp\n");
+	fprintf(stderr,
+	     "usage: de4ctl [-q] fan | temp\n"
+	     "       de4ctl hdmi reset | setup\n");
 	exit(0);
 }
 
@@ -72,6 +79,42 @@ do_temp(void)
 	if (len != sizeof(temp))
 		errx(1, "%s: short read", PATH_TEMPFANCTL);
 	printf("%s%u\n", qflag ? "" : "temp:\t", le32toh(temp));
+	close(fd);
+}
+
+static void
+do_hdmi_reset(void)
+{
+	char c;
+	int fd;
+
+	fd = open(PATH_HDMI_RESET, O_WRONLY);
+	if (fd < 0)
+		err(1, "%s", PATH_HDMI_RESET);
+
+	c = 0;
+	if (pwrite(fd, &c, 1, 0) != 1)
+		err(1, "pwrite(%s, %c, 0)", PATH_HDMI_RESET, c);
+	if (!qflag)
+		printf("resetting HDMI chip\n");
+	c = 1;
+	if (pwrite(fd, &c, 1, 0) != 1)
+		err(1, "pwrite(%s, %c, 0)", PATH_HDMI_RESET, c);
+	close(fd);
+}
+
+static void
+do_hdmi_setup(void)
+{
+	int fd;
+
+	do_hdmi_reset();
+
+	fd = open(PATH_HDMI_I2C, O_RDWR);
+	if (fd < 0)
+		err(1, "%s", PATH_HDMI_I2C);
+
+	brute_force_write_seq(fd);
 	close(fd);
 }
 
@@ -122,7 +165,16 @@ main(int argc, char **argv)
 
 	if (strcmp(argv[0], "fan") == 0)
 		do_fan();
-	else if (strcmp(argv[0], "temp") == 0)
+	else if (strcmp(argv[0], "hdmi") == 0) {
+		if (argc != 2)
+			usage();
+		if (strcmp(argv[1], "reset") == 0)
+			do_hdmi_reset();
+		else if (strcmp(argv[1], "setup") == 0)
+			do_hdmi_setup();
+		else
+			usage();
+	} else if (strcmp(argv[0], "temp") == 0)
 		do_temp();
 	else
 		usage();
