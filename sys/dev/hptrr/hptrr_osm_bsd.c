@@ -61,7 +61,7 @@ static int hpt_probe(device_t dev)
 				memset(hba, 0, sizeof(HBA));
 				hba->ext_type = EXT_TYPE_HBA;
 				hba->ldm_adapter.him = him;
-				return 0;
+				return (BUS_PROBE_DEFAULT);
 			}
 		}
 	}
@@ -482,6 +482,15 @@ static void os_cmddone(PCOMMAND pCmd)
 
 static int os_buildsgl(PCOMMAND pCmd, PSG pSg, int logical)
 {
+	POS_CMDEXT ext = (POS_CMDEXT)pCmd->priv;
+	union ccb *ccb = ext->ccb;
+
+	if (logical) {
+		os_set_sgptr(pSg, (HPT_U8 *)ccb->csio.data_ptr);
+		pSg->size = ccb->csio.dxfer_len;
+		pSg->eot = 1;
+		return TRUE;
+	}
 
 	/* since we have provided physical sg, nobody will ask us to build physical sg */
 	HPT_ASSERT(0);
@@ -555,7 +564,7 @@ static void hpt_scsi_io(PVBUS_EXT vbus_ext, union ccb *ccb)
 	vd = ldm_find_target(vbus, ccb->ccb_h.target_id);
 
 	if (!vd) {
-		ccb->ccb_h.status = CAM_TID_INVALID;
+		ccb->ccb_h.status = CAM_SEL_TIMEOUT;
 		xpt_done(ccb);
 		return;
 	}
