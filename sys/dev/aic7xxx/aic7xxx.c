@@ -4061,8 +4061,6 @@ ahc_free(struct ahc_softc *ahc)
 	case 3:
 		aic_dmamem_free(ahc, ahc->shared_data_dmat, ahc->qoutfifo,
 				ahc->shared_data_dmamap);
-		aic_dmamap_destroy(ahc, ahc->shared_data_dmat,
-				   ahc->shared_data_dmamap);
 		/* FALLTHROUGH */
 	case 2:
 		aic_dma_tag_destroy(ahc, ahc->shared_data_dmat);
@@ -4501,8 +4499,6 @@ ahc_fini_scbdata(struct ahc_softc *ahc)
 	case 5:
 		aic_dmamem_free(ahc, scb_data->sense_dmat, scb_data->sense,
 				scb_data->sense_dmamap);
-		aic_dmamap_destroy(ahc, scb_data->sense_dmat,
-				   scb_data->sense_dmamap);
 	case 4:
 		aic_dma_tag_destroy(ahc, scb_data->sense_dmat);
 	case 3:
@@ -4511,8 +4507,6 @@ ahc_fini_scbdata(struct ahc_softc *ahc)
 	case 2:
 		aic_dmamem_free(ahc, scb_data->hscb_dmat, scb_data->hscbs,
 				scb_data->hscb_dmamap);
-		aic_dmamap_destroy(ahc, scb_data->hscb_dmat,
-				   scb_data->hscb_dmamap);
 	case 1:
 		aic_dma_tag_destroy(ahc, scb_data->hscb_dmat);
 		break;
