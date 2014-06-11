@@ -330,7 +330,7 @@ evdev_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag,
 		if (evdev->ev_methods->ev_get_keycode == NULL)
 			return ENOTSUP;
 
-		ke = (struct keymap_entry *)data;
+		ke = (struct input_keymap_entry *)data;
 		evdev->ev_methods->ev_get_keycode(evdev, evdev->ev_softc, ke);
 		break;
 
@@ -341,7 +341,7 @@ evdev_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag,
 		if (evdev->ev_methods->ev_set_keycode == NULL)
 			return ENOTSUP;
 
-		ke = (struct keymap_entry *)data;
+		ke = (struct input_keymap_entry *)data;
 		evdev->ev_methods->ev_set_keycode(evdev, evdev->ev_softc, ke);
 		break;
 
