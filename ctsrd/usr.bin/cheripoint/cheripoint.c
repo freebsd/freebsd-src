@@ -106,6 +106,7 @@ struct image {
 
 int bleed_edges = 1;
 int caching = 0;
+int preload = 0;
 int verbose = 0;
 int sb_vis = 0;
 uint32_t bgcolor;
@@ -505,8 +506,6 @@ render_slide(int dfd, int slidenum, struct image *slide)
 
 	busy(1);
 
-	if (caching)
-		fb_fill_region(bgcolor, 0, 0, fb_width, fb_height);
 	if (slide->i_image == NULL) {
 		if ((pfd = openat(dfd, slide->i_file, O_RDONLY)) == -1) {
 			warn("Failed to open %s", slide->i_file);
@@ -545,7 +544,7 @@ render_slide(int dfd, int slidenum, struct image *slide)
 		total += iboxstate_get_ttime(is);
 	} else if (verbose)
 		printf("Rendering slide %d from cache\n", slidenum);
-	if (!caching)
+	if (!preload)
 		fb_fill_region(bgcolor, 0, 0, fb_width, fb_height);
 	busy(0);
 	/*
@@ -569,7 +568,9 @@ render_slide(int dfd, int slidenum, struct image *slide)
 	} else
 		x = slide_fcol + ((slide_width - slide->i_width) / 2);
 	w = slide->i_width;
-	fb_post_region(__DEVOLATILE(uint32_t *, slide->i_image), x, y, w, h);
+	if (!preload)
+		fb_post_region(__DEVOLATILE(uint32_t *, slide->i_image), x, y,
+		     w, h);
 	if (sb_vis && sb != SB_NONE)
 		fb_rectangle(red, 2,
 		    x, y, slide->i_width,
@@ -599,7 +600,7 @@ render_slide(int dfd, int slidenum, struct image *slide)
 	 * edges the user selected background color.
 	 */
 	if (y == 0) {
-		if (bleed_edges) {
+		if (bleed_edges && !preload) {
 			if (x > 0) {
 				/* Left extend the image if needed */
 				for (r = 0; r < slide->i_height; r++)
@@ -628,6 +629,9 @@ render_slide(int dfd, int slidenum, struct image *slide)
 		iboxstate_free(is);
 	if (!caching)
 		slide->i_image = NULL;
+
+	if (preload)	/* Pick the the header and footers later */
+		return (0);
 
 	busy(0);
 
@@ -998,10 +1002,10 @@ main(int argc, char **argv)
 			else	/* XXX: add 0xRRGGBB support */
 				usage();
 		case 'C':
-			caching = 2;
+			caching = 1;
+			preload = 1;
 			break;
 		case 'c':
-			/* -C implies -c so don't override if we get -Cc */
 			if (caching == 0)
 				caching = 1;
 			break;
@@ -1103,13 +1107,19 @@ main(int argc, char **argv)
 	qsort(slides, nslides, sizeof(*slides), &image_cmp);
 	qsort(covers, ncovers, sizeof(*covers), &image_cmp);
 
-	if (caching > 1) {
+	if (preload) {
 		printf("pre-rendering %d slides\n", nslides);
 		for (i = 0; i < nslides; i++) {
+			busy_indicator();
+			fb_progress_bar(198, 320, 404, 20, (400 / nslides) * i,
+			    2, white, black, white);
 			if (verbose)
 				printf("slide %d/%d\n", i, nslides);
 			render_slide(dirfd(dirp), i+1, slides[i]);
 		}
+		fb_progress_bar(198, 320, 404, 20, 400,
+		    2, white, black, white);
+		preload = 0;
 	}
 
 	if ((ttyflag = isatty(STDIN_FILENO)) != 0) {
