@@ -100,6 +100,9 @@ CLEANFILES=	packagesystem *.txz MANIFEST system ${IMAGES}
 CLEANFILES+=	${I}.xz
 . endfor
 .endif
+.if defined(WITH_DVD) && !empty(WITH_DVD)
+CLEANFILES+=	pkg-stage
+.endif
 CLEANDIRS=	dist ftp release bootonly dvd
 beforeclean:
 	chflags -R noschg .
