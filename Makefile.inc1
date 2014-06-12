@@ -1196,6 +1196,10 @@ _gperf=		gnu/usr.bin/gperf
 _groff=		gnu/usr.bin/groff
 .endif
 
+.if ${MK_VT_SUPPORT} != "no"
+_vtfontcvt=	usr.bin/vtfontcvt
+.endif
+
 .if ${BOOTSTRAPPING} < 900002
 _sed=		usr.bin/sed
 .endif
@@ -1295,7 +1299,8 @@ bootstrap-tools: .MAKE
     ${_gensnmptree} \
     usr.sbin/config \
     ${_crunch} \
-    ${_nmtree}
+    ${_nmtree} \
+    ${_vtfontcvt}
 	${_+_}@${ECHODIR} "===> ${_tool} (obj,depend,all,install)"; \
 		cd ${.CURDIR}/${_tool} && \
 		${MAKE} DIRPRFX=${_tool}/ obj && \
