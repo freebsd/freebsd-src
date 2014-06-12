@@ -33,7 +33,7 @@
  * These are derived from several virtio specifications.
  *
  * Some useful links:
- *    https://github.com/rustyrussel/virtio-spec
+ *    https://github.com/rustyrussell/virtio-spec
  *    http://people.redhat.com/pbonzini/virtio-spec.pdf
  */
 
