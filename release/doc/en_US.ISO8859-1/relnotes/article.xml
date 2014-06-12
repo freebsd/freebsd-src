@@ -671,7 +671,7 @@
 
       <para revision="267411">The &man.pmcstat.8; utility has been
 	updated to include a new flag, <literal>-l</literal>, which
-	adds event collection after the specified number of
+	ends event collection after the specified number of
 	seconds.</para>
 
       <sect3 xml:id="periodic-scripts">
