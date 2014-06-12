@@ -150,7 +150,7 @@ vmmdev_ioctl(struct cdev *cdev, u_long cmd, caddr_t data, int fflag,
 	struct vm_register *vmreg;
 	struct vm_seg_desc *vmsegdesc;
 	struct vm_run *vmrun;
-	struct vm_event *vmevent;
+	struct vm_exception *vmexc;
 	struct vm_lapic_irq *vmirq;
 	struct vm_lapic_msi *vmmsi;
 	struct vm_ioapic_irq *ioapic_irq;
@@ -181,7 +181,7 @@ vmmdev_ioctl(struct cdev *cdev, u_long cmd, caddr_t data, int fflag,
 	case VM_SET_REGISTER:
 	case VM_GET_SEGMENT_DESCRIPTOR:
 	case VM_SET_SEGMENT_DESCRIPTOR:
-	case VM_INJECT_EVENT:
+	case VM_INJECT_EXCEPTION:
 	case VM_GET_CAPABILITY:
 	case VM_SET_CAPABILITY:
 	case VM_PPTDEV_MSI:
@@ -282,12 +282,9 @@ vmmdev_ioctl(struct cdev *cdev, u_long cmd, caddr_t data, int fflag,
 		error = vm_unassign_pptdev(sc->vm, pptdev->bus, pptdev->slot,
 					   pptdev->func);
 		break;
-	case VM_INJECT_EVENT:
-		vmevent = (struct vm_event *)data;
-		error = vm_inject_event(sc->vm, vmevent->cpuid, vmevent->type,
-					vmevent->vector,
-					vmevent->error_code,
-					vmevent->error_code_valid);
+	case VM_INJECT_EXCEPTION:
+		vmexc = (struct vm_exception *)data;
+		error = vm_inject_exception(sc->vm, vmexc->cpuid, vmexc);
 		break;
 	case VM_INJECT_NMI:
 		vmnmi = (struct vm_nmi *)data;
