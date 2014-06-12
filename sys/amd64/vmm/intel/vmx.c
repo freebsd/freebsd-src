@@ -1337,6 +1337,30 @@ vmx_emulate_cr_access(struct vmx *vmx, int vcpu, uint64_t exitqual)
 	return (HANDLED);
 }
 
+static enum vie_cpu_mode
+vmx_cpu_mode(void)
+{
+
+	if (vmcs_read(VMCS_GUEST_IA32_EFER) & EFER_LMA)
+		return (CPU_MODE_64BIT);
+	else
+		return (CPU_MODE_COMPATIBILITY);
+}
+
+static enum vie_paging_mode
+vmx_paging_mode(void)
+{
+
+	if (!(vmcs_read(VMCS_GUEST_CR0) & CR0_PG))
+		return (PAGING_MODE_FLAT);
+	if (!(vmcs_read(VMCS_GUEST_CR4) & CR4_PAE))
+		return (PAGING_MODE_32);
+	if (vmcs_read(VMCS_GUEST_IA32_EFER) & EFER_LME)
+		return (PAGING_MODE_64);
+	else
+		return (PAGING_MODE_PAE);
+}
+
 static int
 ept_fault_type(uint64_t ept_qual)
 {
@@ -1496,6 +1520,8 @@ vmx_handle_apic_access(struct vmx *vmx, int vcpuid, struct vm_exit *vmexit)
 		vmexit->u.inst_emul.gpa = DEFAULT_APIC_BASE + offset;
 		vmexit->u.inst_emul.gla = VIE_INVALID_GLA;
 		vmexit->u.inst_emul.cr3 = vmcs_guest_cr3();
+		vmexit->u.inst_emul.cpu_mode = vmx_cpu_mode();
+		vmexit->u.inst_emul.paging_mode = vmx_paging_mode();
 	}
 
 	/*
@@ -1714,6 +1740,8 @@ vmx_exit_process(struct vmx *vmx, int vcpu, struct vm_exit *vmexit)
 			vmexit->u.inst_emul.gpa = gpa;
 			vmexit->u.inst_emul.gla = vmcs_gla();
 			vmexit->u.inst_emul.cr3 = vmcs_guest_cr3();
+			vmexit->u.inst_emul.cpu_mode = vmx_cpu_mode();
+			vmexit->u.inst_emul.paging_mode = vmx_paging_mode();
 			vmm_stat_incr(vmx->vm, vcpu, VMEXIT_INST_EMUL, 1);
 		}
 		/*
