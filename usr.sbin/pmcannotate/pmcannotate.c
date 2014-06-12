@@ -41,8 +41,8 @@ __FBSDID("$FreeBSD$");
 
 #include <unistd.h>
 
-#define	FNBUFF	161
-#define	LNBUFF	161
+#define	FNBUFF	512
+#define	LNBUFF	512
 
 #define	TMPPATH	"/tmp/pmcannotate.XXXXXX"
 
