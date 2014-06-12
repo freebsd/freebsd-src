@@ -500,23 +500,53 @@ vfs_getvfs(fsid_t *fsid)
 /*
  * Lookup a mount point by filesystem identifier, busying it before
  * returning.
+ *
+ * To avoid congestion on mountlist_mtx, implement simple direct-mapped
+ * cache for popular filesystem identifiers.  The cache is lockess, using
+ * the fact that struct mount's are never freed.  In worst case we may
+ * get pointer to unmounted or even different filesystem, so we have to
+ * check what we got, and go slow way if so.
  */
 struct mount *
 vfs_busyfs(fsid_t *fsid)
 {
+#define	FSID_CACHE_SIZE	256
+	typedef struct mount * volatile vmp_t;
+	static vmp_t cache[FSID_CACHE_SIZE];
 	struct mount *mp;
 	int error;
+	uint32_t hash;
 
 	CTR2(KTR_VFS, "%s: fsid %p", __func__, fsid);
+	hash = fsid->val[0] ^ fsid->val[1];
+	hash = (hash >> 16 ^ hash) & (FSID_CACHE_SIZE - 1);
+	mp = cache[hash];
+	if (mp == NULL ||
+	    mp->mnt_stat.f_fsid.val[0] != fsid->val[0] ||
+	    mp->mnt_stat.f_fsid.val[1] != fsid->val[1])
+		goto slow;
+	if (vfs_busy(mp, 0) != 0) {
+		cache[hash] = NULL;
+		goto slow;
+	}
+	if (mp->mnt_stat.f_fsid.val[0] == fsid->val[0] &&
+	    mp->mnt_stat.f_fsid.val[1] == fsid->val[1])
+		return (mp);
+	else
+	    vfs_unbusy(mp);
+
+slow:
 	mtx_lock(&mountlist_mtx);
 	TAILQ_FOREACH(mp, &mountlist, mnt_list) {
 		if (mp->mnt_stat.f_fsid.val[0] == fsid->val[0] &&
 		    mp->mnt_stat.f_fsid.val[1] == fsid->val[1]) {
 			error = vfs_busy(mp, MBF_MNTLSTLOCK);
 			if (error) {
+				cache[hash] = NULL;
 				mtx_unlock(&mountlist_mtx);
 				return (NULL);
 			}
+			cache[hash] = mp;
 			return (mp);
 		}
 	}
