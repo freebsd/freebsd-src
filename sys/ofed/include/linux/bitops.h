@@ -286,14 +286,14 @@ bitmap_empty(unsigned long *addr, int size)
 #define	NBLONG	(NBBY * sizeof(long))
 
 #define	set_bit(i, a)							\
-    atomic_set_long(&((volatile long *)(a))[(i)/NBLONG], 1UL << (i) % NBLONG)
+    atomic_set_long(&((volatile long *)(a))[(i)/NBLONG], 1UL << ((i) % NBLONG))
 
 #define	clear_bit(i, a)							\
-    atomic_clear_long(&((volatile long *)(a))[(i)/NBLONG], 1UL << (i) % NBLONG)
+    atomic_clear_long(&((volatile long *)(a))[(i)/NBLONG], 1UL << ((i) % NBLONG))
 
 #define	test_bit(i, a)							\
     !!(atomic_load_acq_long(&((volatile long *)(a))[(i)/NBLONG]) &	\
-    1UL << ((i) % NBLONG))
+    (1UL << ((i) % NBLONG)))
 
 static inline long
 test_and_clear_bit(long bit, long *var)
@@ -302,7 +302,7 @@ test_and_clear_bit(long bit, long *var)
 
 	var += bit / (sizeof(long) * NBBY);
 	bit %= sizeof(long) * NBBY;
-	bit = 1 << bit;
+	bit = (1UL << bit);
 	do {
 		val = *(volatile long *)var;
 	} while (atomic_cmpset_long(var, val, val & ~bit) == 0);
@@ -317,7 +317,7 @@ test_and_set_bit(long bit, long *var)
 
 	var += bit / (sizeof(long) * NBBY);
 	bit %= sizeof(long) * NBBY;
-	bit = 1 << bit;
+	bit = (1UL << bit);
 	do {
 		val = *(volatile long *)var;
 	} while (atomic_cmpset_long(var, val, val | bit) == 0);
