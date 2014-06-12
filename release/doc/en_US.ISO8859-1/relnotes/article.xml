@@ -669,6 +669,11 @@
       <para revision="267379">The &man.arc4random.3; library has been
 	updated to match that of &os;-CURRENT.</para>
 
+      <para revision="267411">The &man.pmcstat.8; utility has been
+	updated to include a new flag, <literal>-l</literal>, which
+	adds event collection after the specified number of
+	seconds.</para>
+
       <sect3 xml:id="periodic-scripts">
 	<title>&man.periodic.8; Scripts</title>
 
