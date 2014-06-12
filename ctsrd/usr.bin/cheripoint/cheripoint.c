@@ -128,8 +128,11 @@ static void __dead2
 usage(void)
 {
 	
-	fprintf(stderr, "cheripoint [-Ccfiv] [-b <color>] <slidedir>\n");
-	fprintf(stderr, "valid colors: black, white\n");
+	fprintf(stderr,
+"cheripoint [-Ccfiv] [-b <color>] [-w <width>] <slidedir>\n"
+"valid colors: black, white\n"
+"valid resolutions: 640, 720, 800\n"
+	);
 	exit(1);
 }
 
@@ -984,7 +987,7 @@ main(int argc, char **argv)
 
 	bgcolor = white;
 
-	while ((ch = getopt(argc, argv, "b:Ccfiv")) != -1) {
+	while ((ch = getopt(argc, argv, "b:Ccfivw:")) != -1) {
 		switch (ch) {
 		case 'b':
 			bleed_edges = 0;
@@ -1010,6 +1013,18 @@ main(int argc, char **argv)
 			break;
 		case 'v':
 			verbose++;
+			break;
+		case 'w':
+			if (strcmp(optarg, "640") == 0)
+				res = MTL_DM_640x480;
+			else if (strcmp(optarg, "720") == 0)
+				res = MTL_DM_720x480;
+			else if (strcmp(optarg, "800") == 0)
+				res = MTL_DM_800x480;
+			else {
+				warnx("Unsupported width '%s'\n", optarg);
+				usage();
+			}
 			break;
 		default:
 			usage();
