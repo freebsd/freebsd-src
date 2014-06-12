@@ -465,7 +465,12 @@ cb_exec(void *arg, uint64_t rip)
 {
 	int error;
 
-	error = vm_setup_freebsd_registers(ctx, BSP, rip, cr3, gdtbase, rsp);
+	if (cr3 == 0)
+		error = vm_setup_freebsd_registers_i386(ctx, BSP, rip, gdtbase,
+		    rsp);
+	else
+		error = vm_setup_freebsd_registers(ctx, BSP, rip, cr3, gdtbase,
+		    rsp);
 	if (error) {
 		perror("vm_setup_freebsd_registers");
 		cb_exit(NULL, USERBOOT_EXIT_QUIT);

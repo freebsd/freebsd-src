@@ -1082,6 +1082,8 @@ vm_handle_inst_emul(struct vm *vm, int vcpuid, bool *retu)
 	struct vm_exit *vme;
 	int error, inst_length;
 	uint64_t rip, gla, gpa, cr3;
+	enum vie_cpu_mode cpu_mode;
+	enum vie_paging_mode paging_mode;
 	mem_region_read_t mread;
 	mem_region_write_t mwrite;
 
@@ -1094,15 +1096,18 @@ vm_handle_inst_emul(struct vm *vm, int vcpuid, bool *retu)
 	gla = vme->u.inst_emul.gla;
 	gpa = vme->u.inst_emul.gpa;
 	cr3 = vme->u.inst_emul.cr3;
+	cpu_mode = vme->u.inst_emul.cpu_mode;
+	paging_mode = vme->u.inst_emul.paging_mode;
 	vie = &vme->u.inst_emul.vie;
 
 	vie_init(vie);
 
 	/* Fetch, decode and emulate the faulting instruction */
-	if (vmm_fetch_instruction(vm, vcpuid, rip, inst_length, cr3, vie) != 0)
+	if (vmm_fetch_instruction(vm, vcpuid, rip, inst_length, cr3,
+	    paging_mode, vie) != 0)
 		return (EFAULT);
 
-	if (vmm_decode_instruction(vm, vcpuid, gla, vie) != 0)
+	if (vmm_decode_instruction(vm, vcpuid, gla, cpu_mode, vie) != 0)
 		return (EFAULT);
 
 	/* return to userland unless this is an in-kernel emulated device */
