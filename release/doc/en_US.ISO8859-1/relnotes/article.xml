@@ -666,6 +666,9 @@
 	device is an active kernel console, otherwise it is equivalent
 	to <literal>off</literal>.</para>
 
+      <para revision="267379">The &man.arc4random.3; library has been
+	updated to match that of &os;-CURRENT.</para>
+
       <sect3 xml:id="periodic-scripts">
 	<title>&man.periodic.8; Scripts</title>
 
