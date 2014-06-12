@@ -16,9 +16,19 @@
 # src tree.
 
 __DEFAULT_YES_OPTIONS = \
+    ARM_EABI \
     FORMAT_EXTENSIONS \
     KERNEL_SYMBOLS
 
-__DEFAULT_NO_OPTIONS = \
+# expanded inline from bsd.mkopt.mk:
 
-.include "../../share/mk/bsd.mkopt.mk"
+.for var in ${__DEFAULT_YES_OPTIONS}
+.if !defined(MK_${var})
+.if defined(WITHOUT_${var})			# WITHOUT always wins
+MK_${var}:=	no
+.else
+MK_${var}:=	yes
+.endif
+.endif
+.endfor
+.undef __DEFAULT_YES_OPTIONS

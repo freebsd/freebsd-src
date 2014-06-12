@@ -1,4 +1,4 @@
-# Kernel configuration for Samsung Exynos 5250 boards.
+# Kernel configuration for Samsung Exynos 5 SoC.
 #
 # For more information on this file, please read the config(5) manual page,
 # and/or the handbook section on Kernel Configuration Files:
@@ -17,8 +17,6 @@
 #
 # $FreeBSD$
 
-include		"../samsung/exynos/std.exynos5"
-
 makeoptions	MODULES_OVERRIDE=""
 makeoptions	WITHOUT_MODULES="ahc"
 
@@ -31,6 +29,7 @@ options 	INET			# InterNETworking
 options 	INET6			# IPv6 communications protocols
 options 	GEOM_PART_BSD		# BSD partition scheme
 options 	GEOM_PART_MBR		# MBR partition scheme
+options 	GEOM_PART_GPT		# GUID partition tables
 options 	TMPFS			# Efficient memory filesystem
 options 	FFS			# Berkeley Fast Filesystem
 options 	SOFTUPDATES
@@ -51,6 +50,8 @@ options 	KBD_INSTALL_CDEV
 options 	PREEMPTION
 options 	FREEBSD_BOOT_LOADER
 options 	VFP			# vfp/neon
+
+options 	SMP
 
 # Debugging
 makeoptions	DEBUG=-g		# Build kernel with gdb(1) debug symbols
@@ -82,8 +83,6 @@ device		mmcsd			# mmc/sd flash cards
 device		sdhci			# generic sdhci
 
 options 	ROOTDEVNAME=\"ufs:/dev/da0\"
-
-#options	SMP
 
 # Pseudo devices
 

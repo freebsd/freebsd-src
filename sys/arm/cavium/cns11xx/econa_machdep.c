@@ -112,7 +112,7 @@ static const struct arm_devmap_entry econa_devmap[] = {
 		ECONA_SDRAM_BASE, /*physical*/
 		ECONA_SDRAM_SIZE, /*size*/
 		VM_PROT_READ|VM_PROT_WRITE,
-		PTE_NOCACHE,
+		PTE_DEVICE,
 	},
 	/*
 	 * Map the on-board devices VA == PA so that we can access them
@@ -127,7 +127,7 @@ static const struct arm_devmap_entry econa_devmap[] = {
 		ECONA_IO_BASE, /*physical*/
 		ECONA_IO_SIZE, /*size*/
 		VM_PROT_READ|VM_PROT_WRITE,
-		PTE_NOCACHE,
+		PTE_DEVICE,
 	},
 	{
 		/*
@@ -137,7 +137,7 @@ static const struct arm_devmap_entry econa_devmap[] = {
 		ECONA_OHCI_PBASE, /*physical*/
 		ECONA_USB_SIZE, /*size*/
 		VM_PROT_READ|VM_PROT_WRITE,
-		PTE_NOCACHE,
+		PTE_DEVICE,
 	},
 	{
 		/*
@@ -147,7 +147,7 @@ static const struct arm_devmap_entry econa_devmap[] = {
 		ECONA_CFI_PBASE, /*physical*/
 		ECONA_CFI_SIZE,
 		VM_PROT_READ|VM_PROT_WRITE,
-		PTE_NOCACHE,
+		PTE_DEVICE,
 	},
 	{
 		0,

@@ -91,6 +91,7 @@ DIRECTIO
 FILEMON		opt_dontuse.h
 FFCLOCK
 FULL_PREEMPTION	opt_sched.h
+IMAGACT_BINMISC		opt_dontuse.h
 IPI_PREEMPTION	opt_sched.h
 GEOM_AES	opt_geom.h
 GEOM_BDE	opt_geom.h
@@ -110,6 +111,7 @@ GEOM_MULTIPATH	opt_geom.h
 GEOM_NOP	opt_geom.h
 GEOM_PART_APM	opt_geom.h
 GEOM_PART_BSD	opt_geom.h
+GEOM_PART_BSD64	opt_geom.h
 GEOM_PART_EBR	opt_geom.h
 GEOM_PART_EBR_COMPAT	opt_geom.h
 GEOM_PART_GPT	opt_geom.h
@@ -452,8 +454,9 @@ SCTP_MBCNT_LOGGING	opt_sctp.h # Log to KTR mbcnt activity
 SCTP_PACKET_LOGGING	opt_sctp.h # Log to a packet buffer last N packets
 SCTP_LTRACE_CHUNKS	opt_sctp.h # Log to KTR chunks processed
 SCTP_LTRACE_ERRORS	opt_sctp.h # Log to KTR error returns.
-SCTP_USE_PERCPU_STAT    opt_sctp.h # Use per cpu stats.
-SCTP_MCORE_INPUT        opt_sctp.h # Have multiple input threads for input mbufs
+SCTP_USE_PERCPU_STAT	opt_sctp.h # Use per cpu stats.
+SCTP_MCORE_INPUT	opt_sctp.h # Have multiple input threads for input mbufs
+SCTP_LOCAL_TRACE_BUF	opt_sctp.h # Use tracebuffer exported via sysctl
 #
 #
 #

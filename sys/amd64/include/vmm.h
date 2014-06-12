@@ -37,6 +37,53 @@ enum vm_suspend_how {
 	VM_SUSPEND_LAST
 };
 
+/*
+ * Identifiers for architecturally defined registers.
+ */
+enum vm_reg_name {
+	VM_REG_GUEST_RAX,
+	VM_REG_GUEST_RBX,
+	VM_REG_GUEST_RCX,
+	VM_REG_GUEST_RDX,
+	VM_REG_GUEST_RSI,
+	VM_REG_GUEST_RDI,
+	VM_REG_GUEST_RBP,
+	VM_REG_GUEST_R8,
+	VM_REG_GUEST_R9,
+	VM_REG_GUEST_R10,
+	VM_REG_GUEST_R11,
+	VM_REG_GUEST_R12,
+	VM_REG_GUEST_R13,
+	VM_REG_GUEST_R14,
+	VM_REG_GUEST_R15,
+	VM_REG_GUEST_CR0,
+	VM_REG_GUEST_CR3,
+	VM_REG_GUEST_CR4,
+	VM_REG_GUEST_DR7,
+	VM_REG_GUEST_RSP,
+	VM_REG_GUEST_RIP,
+	VM_REG_GUEST_RFLAGS,
+	VM_REG_GUEST_ES,
+	VM_REG_GUEST_CS,
+	VM_REG_GUEST_SS,
+	VM_REG_GUEST_DS,
+	VM_REG_GUEST_FS,
+	VM_REG_GUEST_GS,
+	VM_REG_GUEST_LDTR,
+	VM_REG_GUEST_TR,
+	VM_REG_GUEST_IDTR,
+	VM_REG_GUEST_GDTR,
+	VM_REG_GUEST_EFER,
+	VM_REG_GUEST_CR2,
+	VM_REG_LAST
+};
+
+enum x2apic_state {
+	X2APIC_DISABLED,
+	X2APIC_ENABLED,
+	X2APIC_STATE_LAST
+};
+
 #ifdef _KERNEL
 
 #define	VM_MAX_NAMELEN	32
@@ -53,8 +100,6 @@ struct vlapic;
 struct vmspace;
 struct vm_object;
 struct pmap;
-
-enum x2apic_state;
 
 typedef int	(*vmm_init_func_t)(int ipinum);
 typedef int	(*vmm_cleanup_func_t)(void);
@@ -104,6 +149,7 @@ extern struct vmm_ops vmm_ops_amd;
 
 int vm_create(const char *name, struct vm **retvm);
 void vm_destroy(struct vm *vm);
+int vm_reinit(struct vm *vm);
 const char *vm_name(struct vm *vm);
 int vm_malloc(struct vm *vm, vm_paddr_t gpa, size_t len);
 int vm_map_mmio(struct vm *vm, vm_paddr_t gpa, size_t len, vm_paddr_t hpa);
@@ -139,10 +185,13 @@ int vm_set_capability(struct vm *vm, int vcpu, int type, int val);
 int vm_get_x2apic_state(struct vm *vm, int vcpu, enum x2apic_state *state);
 int vm_set_x2apic_state(struct vm *vm, int vcpu, enum x2apic_state state);
 int vm_apicid2vcpuid(struct vm *vm, int apicid);
-void vm_activate_cpu(struct vm *vm, int vcpu);
+int vm_activate_cpu(struct vm *vm, int vcpu);
 cpuset_t vm_active_cpus(struct vm *vm);
+cpuset_t vm_suspended_cpus(struct vm *vm);
 struct vm_exit *vm_exitinfo(struct vm *vm, int vcpuid);
 void vm_exit_suspended(struct vm *vm, int vcpuid, uint64_t rip);
+void vm_exit_rendezvous(struct vm *vm, int vcpuid, uint64_t rip);
+void vm_exit_astpending(struct vm *vm, int vcpuid, uint64_t rip);
 
 /*
  * Rendezvous all vcpus specified in 'dest' and execute 'func(arg)'.
@@ -236,52 +285,13 @@ int vm_exception_pending(struct vm *vm, int vcpuid, struct vm_exception *vme);
 
 void vm_inject_gp(struct vm *vm, int vcpuid); /* general protection fault */
 void vm_inject_ud(struct vm *vm, int vcpuid); /* undefined instruction fault */
+void vm_inject_pf(struct vm *vm, int vcpuid, int error_code, uint64_t cr2);
+
+enum vm_reg_name vm_segment_name(int seg_encoding);
 
 #endif	/* KERNEL */
 
-#include <machine/vmm_instruction_emul.h>
-
 #define	VM_MAXCPU	16			/* maximum virtual cpus */
-
-/*
- * Identifiers for architecturally defined registers.
- */
-enum vm_reg_name {
-	VM_REG_GUEST_RAX,
-	VM_REG_GUEST_RBX,
-	VM_REG_GUEST_RCX,
-	VM_REG_GUEST_RDX,
-	VM_REG_GUEST_RSI,
-	VM_REG_GUEST_RDI,
-	VM_REG_GUEST_RBP,
-	VM_REG_GUEST_R8,
-	VM_REG_GUEST_R9,
-	VM_REG_GUEST_R10,
-	VM_REG_GUEST_R11,
-	VM_REG_GUEST_R12,
-	VM_REG_GUEST_R13,
-	VM_REG_GUEST_R14,
-	VM_REG_GUEST_R15,
-	VM_REG_GUEST_CR0,
-	VM_REG_GUEST_CR3,
-	VM_REG_GUEST_CR4,
-	VM_REG_GUEST_DR7,
-	VM_REG_GUEST_RSP,
-	VM_REG_GUEST_RIP,
-	VM_REG_GUEST_RFLAGS,
-	VM_REG_GUEST_ES,
-	VM_REG_GUEST_CS,
-	VM_REG_GUEST_SS,
-	VM_REG_GUEST_DS,
-	VM_REG_GUEST_FS,
-	VM_REG_GUEST_GS,
-	VM_REG_GUEST_LDTR,
-	VM_REG_GUEST_TR,
-	VM_REG_GUEST_IDTR,
-	VM_REG_GUEST_GDTR,
-	VM_REG_GUEST_EFER,
-	VM_REG_LAST
-};
 
 /*
  * Identifiers for optional vmm capabilities
@@ -295,12 +305,11 @@ enum vm_cap_type {
 	VM_CAP_MAX
 };
 
-enum x2apic_state {
-	X2APIC_DISABLED,
-	X2APIC_ENABLED,
-	X2APIC_STATE_LAST
+enum vm_intr_trigger {
+	EDGE_TRIGGER,
+	LEVEL_TRIGGER
 };
-
+	
 /*
  * The 'access' field has the format specified in Table 21-2 of the Intel
  * Architecture Manual vol 3b.
@@ -312,6 +321,76 @@ struct seg_desc {
 	uint64_t	base;
 	uint32_t	limit;
 	uint32_t	access;
+};
+#define	SEG_DESC_TYPE(desc)		((desc)->access & 0x001f)
+#define	SEG_DESC_PRESENT(desc)		((desc)->access & 0x0080)
+#define	SEG_DESC_DEF32(desc)		((desc)->access & 0x4000)
+#define	SEG_DESC_GRANULARITY(desc)	((desc)->access & 0x8000)
+#define	SEG_DESC_UNUSABLE(desc)		((desc)->access & 0x10000)
+
+enum vm_cpu_mode {
+	CPU_MODE_COMPATIBILITY,		/* IA-32E mode (CS.L = 0) */
+	CPU_MODE_64BIT,			/* IA-32E mode (CS.L = 1) */
+};
+
+enum vm_paging_mode {
+	PAGING_MODE_FLAT,
+	PAGING_MODE_32,
+	PAGING_MODE_PAE,
+	PAGING_MODE_64,
+};
+
+struct vm_guest_paging {
+	uint64_t	cr3;
+	int		cpl;
+	enum vm_cpu_mode cpu_mode;
+	enum vm_paging_mode paging_mode;
+};
+
+/*
+ * The data structures 'vie' and 'vie_op' are meant to be opaque to the
+ * consumers of instruction decoding. The only reason why their contents
+ * need to be exposed is because they are part of the 'vm_exit' structure.
+ */
+struct vie_op {
+	uint8_t		op_byte;	/* actual opcode byte */
+	uint8_t		op_type;	/* type of operation (e.g. MOV) */
+	uint16_t	op_flags;
+};
+
+#define	VIE_INST_SIZE	15
+struct vie {
+	uint8_t		inst[VIE_INST_SIZE];	/* instruction bytes */
+	uint8_t		num_valid;		/* size of the instruction */
+	uint8_t		num_processed;
+
+	uint8_t		rex_w:1,		/* REX prefix */
+			rex_r:1,
+			rex_x:1,
+			rex_b:1,
+			rex_present:1;
+
+	uint8_t		mod:2,			/* ModRM byte */
+			reg:4,
+			rm:4;
+
+	uint8_t		ss:2,			/* SIB byte */
+			index:4,
+			base:4;
+
+	uint8_t		disp_bytes;
+	uint8_t		imm_bytes;
+
+	uint8_t		scale;
+	int		base_register;		/* VM_REG_GUEST_xyz */
+	int		index_register;		/* VM_REG_GUEST_xyz */
+
+	int64_t		displacement;		/* optional addr displacement */
+	int64_t		immediate;		/* optional immediate operand */
+
+	uint8_t		decoded;	/* set to 1 if successfully decoded */
+
+	struct vie_op	op;			/* opcode description */
 };
 
 enum vm_exitcode {
@@ -330,7 +409,29 @@ enum vm_exitcode {
 	VM_EXITCODE_RENDEZVOUS,
 	VM_EXITCODE_IOAPIC_EOI,
 	VM_EXITCODE_SUSPENDED,
+	VM_EXITCODE_INOUT_STR,
 	VM_EXITCODE_MAX
+};
+
+struct vm_inout {
+	uint16_t	bytes:3;	/* 1 or 2 or 4 */
+	uint16_t	in:1;
+	uint16_t	string:1;
+	uint16_t	rep:1;
+	uint16_t	port;
+	uint32_t	eax;		/* valid for out */
+};
+
+struct vm_inout_str {
+	struct vm_inout	inout;		/* must be the first element */
+	struct vm_guest_paging paging;
+	uint64_t	rflags;
+	uint64_t	cr0;
+	uint64_t	index;
+	uint64_t	count;		/* rep=1 (%rcx), rep=0 (1) */
+	int		addrsize;
+	enum vm_reg_name seg_name;
+	struct seg_desc seg_desc;
 };
 
 struct vm_exit {
@@ -338,14 +439,8 @@ struct vm_exit {
 	int			inst_length;	/* 0 means unknown */
 	uint64_t		rip;
 	union {
-		struct {
-			uint16_t	bytes:3;	/* 1 or 2 or 4 */
-			uint16_t	in:1;		/* out is 0, in is 1 */
-			uint16_t	string:1;
-			uint16_t	rep:1;
-			uint16_t	port;
-			uint32_t	eax;		/* valid for out */
-		} inout;
+		struct vm_inout	inout;
+		struct vm_inout_str inout_str;
 		struct {
 			uint64_t	gpa;
 			int		fault_type;
@@ -353,9 +448,7 @@ struct vm_exit {
 		struct {
 			uint64_t	gpa;
 			uint64_t	gla;
-			uint64_t	cr3;
-			enum vie_cpu_mode cpu_mode;
-			enum vie_paging_mode paging_mode;
+			struct vm_guest_paging paging;
 			struct vie	vie;
 		} inst_emul;
 		/*

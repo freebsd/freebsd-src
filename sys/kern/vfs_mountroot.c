@@ -97,6 +97,9 @@ struct vnode *rootvnode;
 
 char *rootdevnames[2] = {NULL, NULL};
 
+struct mtx root_holds_mtx;
+MTX_SYSINIT(root_holds, &root_holds_mtx, "root_holds", MTX_DEF);
+
 struct root_hold_token {
 	const char			*who;
 	LIST_ENTRY(root_hold_token)	list;
@@ -131,9 +134,9 @@ root_mount_hold(const char *identifier)
 
 	h = malloc(sizeof *h, M_DEVBUF, M_ZERO | M_WAITOK);
 	h->who = identifier;
-	mtx_lock(&mountlist_mtx);
+	mtx_lock(&root_holds_mtx);
 	LIST_INSERT_HEAD(&root_holds, h, list);
-	mtx_unlock(&mountlist_mtx);
+	mtx_unlock(&root_holds_mtx);
 	return (h);
 }
 
@@ -143,10 +146,10 @@ root_mount_rel(struct root_hold_token *h)
 
 	if (h == NULL)
 		return;
-	mtx_lock(&mountlist_mtx);
+	mtx_lock(&root_holds_mtx);
 	LIST_REMOVE(h, list);
 	wakeup(&root_holds);
-	mtx_unlock(&mountlist_mtx);
+	mtx_unlock(&root_holds_mtx);
 	free(h, M_DEVBUF);
 }
 
@@ -168,12 +171,12 @@ root_mount_wait(void)
 	 */
 	KASSERT(curthread->td_proc->p_pid != 0,
 	    ("root_mount_wait: cannot be called from the swapper thread"));
-	mtx_lock(&mountlist_mtx);
+	mtx_lock(&root_holds_mtx);
 	while (!root_mount_complete) {
-		msleep(&root_mount_complete, &mountlist_mtx, PZERO, "rootwait",
+		msleep(&root_mount_complete, &root_holds_mtx, PZERO, "rootwait",
 		    hz);
 	}
-	mtx_unlock(&mountlist_mtx);
+	mtx_unlock(&root_holds_mtx);
 }
 
 static void
@@ -908,9 +911,9 @@ vfs_mountroot_wait(void)
 		DROP_GIANT();
 		g_waitidle();
 		PICKUP_GIANT();
-		mtx_lock(&mountlist_mtx);
+		mtx_lock(&root_holds_mtx);
 		if (LIST_EMPTY(&root_holds)) {
-			mtx_unlock(&mountlist_mtx);
+			mtx_unlock(&root_holds_mtx);
 			break;
 		}
 		if (ppsratecheck(&lastfail, &curfail, 1)) {
@@ -919,7 +922,7 @@ vfs_mountroot_wait(void)
 				printf(" %s", h->who);
 			printf("\n");
 		}
-		msleep(&root_holds, &mountlist_mtx, PZERO | PDROP, "roothold",
+		msleep(&root_holds, &root_holds_mtx, PZERO | PDROP, "roothold",
 		    hz);
 	}
 }
@@ -979,10 +982,10 @@ vfs_mountroot(void)
 	vref(prison0.pr_root);
 	mtx_unlock(&prison0.pr_mtx);
 
-	mtx_lock(&mountlist_mtx);
+	mtx_lock(&root_holds_mtx);
 	atomic_store_rel_int(&root_mount_complete, 1);
 	wakeup(&root_mount_complete);
-	mtx_unlock(&mountlist_mtx);
+	mtx_unlock(&root_holds_mtx);
 
 	EVENTHANDLER_INVOKE(mountroot);
 }

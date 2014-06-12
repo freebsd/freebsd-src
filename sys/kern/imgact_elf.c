@@ -261,6 +261,8 @@ __elfN(get_brandinfo)(struct image_params *imgp, const char *interp,
 {
 	const Elf_Ehdr *hdr = (const Elf_Ehdr *)imgp->image_header;
 	Elf_Brandinfo *bi;
+	const char *fname_name, *interp_brand_name;
+	int fname_len, interp_len;
 	boolean_t ret;
 	int i;
 
@@ -309,6 +311,33 @@ __elfN(get_brandinfo)(struct image_params *imgp, const char *interp,
 			    == 0)
 				return (bi);
 		}
+	}
+
+	/* Some ABI allows to run the interpreter itself. */
+	for (i = 0; i < MAX_BRANDS; i++) {
+		bi = elf_brand_list[i];
+		if (bi == NULL || bi->flags & BI_BRAND_NOTE_MANDATORY)
+			continue;
+		if (hdr->e_machine != bi->machine ||
+		    (bi->flags & BI_CAN_EXEC_INTERP) == 0)
+			continue;
+		/*
+		 * Compare the interpreter name not the path to allow run it
+		 * from everywhere.
+		 */
+		interp_brand_name = strrchr(bi->interp_path, '/');
+		if (interp_brand_name == NULL)
+			interp_brand_name = bi->interp_path;
+		interp_len = strlen(interp_brand_name);
+		fname_name = strrchr(imgp->args->fname, '/');
+		if (fname_name == NULL)
+			fname_name = imgp->args->fname;
+		fname_len = strlen(fname_name);
+		if (fname_len < interp_len)
+			continue;
+		ret = strncmp(fname_name, interp_brand_name, interp_len);
+		if (ret == 0)
+			return (bi);
 	}
 
 	/* Lacking a recognized interpreter, try the default brand */

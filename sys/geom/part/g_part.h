@@ -75,6 +75,15 @@ enum g_part_alias {
 	G_PART_ALIAS_VMKDIAG,		/* A VMware vmkDiagnostic partition entry */
 	G_PART_ALIAS_VMRESERVED,	/* A VMware reserved partition entry */
 	G_PART_ALIAS_VMVSANHDR,		/* A VMware vSAN header partition entry */
+	G_PART_ALIAS_DFBSD,		/* A DfBSD label32 partition entry */
+	G_PART_ALIAS_DFBSD64,		/* A DfBSD label64 partition entry */
+	G_PART_ALIAS_DFBSD_SWAP,	/* A DfBSD swap partition entry */
+	G_PART_ALIAS_DFBSD_UFS,		/* A DfBSD UFS partition entry */
+	G_PART_ALIAS_DFBSD_VINUM,	/* A DfBSD Vinum partition entry */
+	G_PART_ALIAS_DFBSD_CCD,		/* A DfBSD CCD partition entry */
+	G_PART_ALIAS_DFBSD_LEGACY,	/* A DfBSD legacy partition entry */
+	G_PART_ALIAS_DFBSD_HAMMER,	/* A DfBSD HAMMER FS partition entry */
+	G_PART_ALIAS_DFBSD_HAMMER2,	/* A DfBSD HAMMER2 FS partition entry */
 	/* Keep the following last */
 	G_PART_ALIAS_COUNT
 };

@@ -26,6 +26,7 @@
 
 #include <stdio.h>
 #include <stdint.h>
+#include <stdlib.h>
 #include <time.h>
 
 extern int usleep(int);
@@ -35,6 +36,20 @@ extern void usb_init(void);
 extern void usb_uninit(void);
 
 #define	hz 1000
+
+#ifdef HAVE_MALLOC
+void *
+usb_malloc(size_t size)
+{
+	return (malloc(size));
+}
+
+void
+usb_free(void *ptr)
+{
+	free(ptr);
+}
+#endif
 
 void
 DELAY(unsigned int delay)

@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2014 Ruslan Bukin <br@bsdpad.com>
+ * Copyright (c) 2013 Andrew Turner
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -22,51 +22,51 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
 
-/dts-v1/;
+#include "opt_platform.h"
 
-/include/ "exynos5250.dtsi"
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
-/ {
-	model = "Samsung Chromebook";
+#include <sys/param.h>
 
-	memory {
-		device_type = "memory";
-		reg = < 0x40000000 0x80000000 >;  /* 2G */
-	};
+#include <arm/include/platform.h>
+#include <arm/include/platformvar.h>
 
-	SOC: Exynos5@0 {
+#include <dev/ofw/openfirm.h>
+#include <dev/fdt/fdt_common.h>
 
-		pad0: pad@11400000 {
-			status = "okay";
-		};
+#include "platform_if.h"
 
-		fimd0: fimd@14400000 {
-			status = "okay";
+#define	FDT_PLATFORM(plat)	\
+    ((fdt_platform_def_t *)(plat)->cls->baseclasses[0])
 
-			panel-size = < 1366 768 >;
-			panel-hsync = < 80 32 48 >;
-			panel-vsync = < 14 5 3 >;
-			panel-clk-div = < 17 >;
-			panel-backlight-pin = < 25 >;
-		};
+static int
+fdt_platform_probe(platform_t plat)
+{
+	const char *compat;
+	phandle_t root;
 
-		i2c4: i2c@12CA0000 {
-			status = "okay";
-		};
+	/*
+	 * TODO: Make these KASSERTs, we should only be here if we
+	 * are using the FDT platform magic.
+	 */
+	if (plat->cls == NULL || FDT_PLATFORM(plat) == NULL)
+		return 1;
 
-		keyboard-controller {
-			compatible = "google,cros-ec-keyb";
-			keypad,num-rows = <8>;
-			keypad,num-columns = <13>;
-		};
-	};
+	/* Is the device is compatible? */
+	root = OF_finddevice("/");
+	compat = FDT_PLATFORM(plat)->fdt_compatible;
+	if (fdt_is_compatible(root, compat) != 0)
+		return 0;
 
-	chosen {
-		stdin = &serial2;
-		stdout = &serial2;
-	};
+	/* Not compatible, return an error */
+	return 1;
+}
+
+platform_method_t fdt_platform_methods[] = {
+	PLATFORMMETHOD(platform_probe,	fdt_platform_probe),
+	PLATFORMMETHOD_END
 };
+

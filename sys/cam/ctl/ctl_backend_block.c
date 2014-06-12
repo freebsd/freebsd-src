@@ -2113,9 +2113,14 @@ ctl_be_block_create(struct ctl_be_block_softc *softc, struct ctl_lun_req *req)
 bailout_error:
 	req->status = CTL_LUN_ERROR;
 
+	if (be_lun->io_taskqueue != NULL)
+		taskqueue_free(be_lun->io_taskqueue);
 	ctl_be_block_close(be_lun);
-
-	free(be_lun->dev_path, M_CTLBLK);
+	if (be_lun->dev_path != NULL)
+		free(be_lun->dev_path, M_CTLBLK);
+	if (be_lun->lun_zone != NULL)
+		uma_zdestroy(be_lun->lun_zone);
+	mtx_destroy(&be_lun->lock);
 	free(be_lun, M_CTLBLK);
 
 	return (retval);

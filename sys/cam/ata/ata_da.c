@@ -729,10 +729,7 @@ adastrategy(struct bio *bp)
 	 */
 	if (bp->bio_cmd == BIO_DELETE &&
 	    (softc->flags & ADA_FLAG_CAN_TRIM)) {
-		if (ADA_SIO)
-		    bioq_disksort(&softc->trim_queue, bp);
-		else
-		    bioq_insert_tail(&softc->trim_queue, bp);
+		bioq_disksort(&softc->trim_queue, bp);
 	} else {
 		if (ADA_SIO)
 		    bioq_disksort(&softc->bio_queue, bp);

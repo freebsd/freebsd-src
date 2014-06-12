@@ -37,7 +37,7 @@
 
 / {
 	model = "Digi ConnectCore Wi-i.MX53";
-	compatible = "digi,imx53-ccwm53";
+	compatible = "digi,imx53-ccwm53", "fsl,imx53";
 
 	memory {
 		/* RAM 512M */

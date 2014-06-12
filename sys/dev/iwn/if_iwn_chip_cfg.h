@@ -219,14 +219,16 @@ static const struct iwn_base_params iwn1000_base_params = {
 	.regulatory_bands = iwn5000_regulatory_bands,
 	.enhanced_TX_power = false,
 	.calib_need =
-	    ( IWN_FLG_NEED_PHY_CALIB_DC
-	    | IWN_FLG_NEED_PHY_CALIB_LO
+	    ( IWN_FLG_NEED_PHY_CALIB_LO
+	    | IWN_FLG_NEED_PHY_CALIB_TX_IQ_PERIODIC
 	    | IWN_FLG_NEED_PHY_CALIB_TX_IQ
-	    | IWN_FLG_NEED_PHY_CALIB_BASE_BAND ),
+	    | IWN_FLG_NEED_PHY_CALIB_BASE_BAND
+	    ),
 	.support_hostap = false,
 	.no_multi_vaps = true,
 	.additional_gp_drv_bit = IWN_GP_DRIVER_NONE,
-	.bt_mode = IWN_BT_NONE,
+	/* XXX 1000 - no BT */
+	.bt_mode = IWN_BT_SIMPLE,
 	.plcp_err_threshold = IWN_PLCP_ERR_EXT_LONG_THRESHOLD,
 };
 static const struct iwn_base_params iwn_6000_base_params = {
