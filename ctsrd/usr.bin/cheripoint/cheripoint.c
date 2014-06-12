@@ -473,8 +473,8 @@ image_cmp(const void *v1, const void *v2)
 {
 	const struct image *i1, *i2;
 
-	i1 = v1;
-	i2 = v2;
+	i1 = *(struct image * const *)v1;
+	i2 = *(struct image * const *)v2;
 
 	return (strcmp(i1->i_file, i2->i_file));
 }
