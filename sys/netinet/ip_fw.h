@@ -37,6 +37,11 @@
 #define	IPFW_DEFAULT_RULE	65535
 
 /*
+ * Number of sets supported by ipfw
+ */
+#define	IPFW_MAX_SETS		32
+
+/*
  * Default number of ipfw tables.
  */
 #define	IPFW_TABLES_MAX		65535
@@ -74,6 +79,7 @@ typedef struct _ip_fw3_opheader {
 #define	IP_FW_TABLE_XDEL	87	/* delete entry */
 #define	IP_FW_TABLE_XGETSIZE	88	/* get table size */
 #define	IP_FW_TABLE_XLIST	89	/* list table contents */
+#define	IP_FW_OBJ_DEL		90	/* del table/pipe/etc */
 
 /*
  * The kernel representation of ipfw rules is made of a list of
@@ -632,12 +638,34 @@ typedef struct	_ipfw_table {
 } ipfw_table;
 
 typedef struct	_ipfw_xtable {
-	ip_fw3_opheader	opheader;	/* eXtended tables are controlled via IP_FW3 */
+	ip_fw3_opheader	opheader;	/* IP_FW3 opcode */
 	uint32_t	size;		/* size of entries in bytes	*/
 	uint32_t	cnt;		/* # of entries			*/
 	uint16_t	tbl;		/* table number			*/
 	uint8_t		type;		/* table type			*/
 	ipfw_table_xentry xent[0];	/* entries			*/
 } ipfw_xtable;
+
+typedef struct  _ipfw_xtable_tlv {
+	uint16_t        type;		/* TLV type */
+	uint16_t        length;		/* Total length, aligned to u32	*/
+} ipfw_xtable_tlv;
+
+#define	IPFW_TLV_NAME	1
+/* Object name TLV */
+typedef struct _ipfw_xtable_ntlv {
+	ipfw_xtable_tlv	head;		/* TLV header */
+	uint16_t	idx;		/* Name index */
+	uint16_t	spare;		/* unused */
+	char		name[64];	/* Null-terminated name */
+} ipfw_xtable_ntlv;
+
+typedef struct _ipfw_obj_header {
+	ip_fw3_opheader	opheader;	/* IP_FW3 opcode		*/
+	uint32_t	set;		/* Set we're operating		*/
+	uint16_t	idx;		/* object name index		*/
+	uint16_t	objtype;	/* object type			*/
+} ipfw_obj_header;
+#define	IPFW_OBJTYPE_TABLE	1
 
 #endif /* _IPFW2_H */

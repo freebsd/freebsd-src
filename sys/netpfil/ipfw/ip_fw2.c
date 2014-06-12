@@ -121,6 +121,7 @@ VNET_DEFINE(int, autoinc_step);
 VNET_DEFINE(int, fw_one_pass) = 1;
 
 VNET_DEFINE(unsigned int, fw_tables_max);
+VNET_DEFINE(unsigned int, fw_tables_sets) = 0;	/* Don't use set-aware tables */
 /* Use 128 tables by default */
 static unsigned int default_fw_tables = IPFW_TABLES_DEFAULT;
 
@@ -2719,7 +2720,6 @@ vnet_ipfw_uninit(const void *unused)
 	ipfw_dyn_uninit(0);	/* run the callout_drain */
 	IPFW_WUNLOCK(chain);
 
-	ipfw_destroy_tables(chain);
 	reap = NULL;
 	IPFW_WLOCK(chain);
 	for (i = 0; i < chain->n_rules; i++) {
@@ -2731,6 +2731,7 @@ vnet_ipfw_uninit(const void *unused)
 		free(chain->map, M_IPFW);
 	IPFW_WUNLOCK(chain);
 	IPFW_UH_WUNLOCK(chain);
+	ipfw_destroy_tables(chain);
 	if (reap != NULL)
 		ipfw_reap_rules(reap);
 	IPFW_LOCK_DESTROY(chain);
