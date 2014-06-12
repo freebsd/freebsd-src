@@ -4243,6 +4243,23 @@ ipfw_table_handler(int ac, char *av[])
 		do {
 			table_list(xent.tbl, is_all);
 		} while (++xent.tbl < a);
+	} else if (_substrcmp(*av, "destroy") == 0) {
+		char xbuf[sizeof(ipfw_obj_header) + sizeof(ipfw_xtable_ntlv)];
+		ipfw_obj_header *oh;
+		ipfw_xtable_ntlv *ntlv;
+
+		memset(xbuf, 0, sizeof(xbuf));
+		oh = (ipfw_obj_header *)xbuf;
+		ntlv = (ipfw_xtable_ntlv *)(oh + 1);
+
+		ntlv->head.type = IPFW_TLV_NAME;
+		ntlv->head.length = sizeof(*ntlv);
+		ntlv->idx = 1;
+		snprintf(ntlv->name, sizeof(ntlv->name), "%d", xent.tbl);
+		oh->idx = 1;
+		oh->objtype = IPFW_OBJTYPE_TABLE;
+		if (do_setcmd3(IP_FW_OBJ_DEL, xbuf, sizeof(xbuf)) != 0)
+			err(EX_OSERR, "setsockopt(IP_FW_OBJ_DEL)");
 	} else
 		errx(EX_USAGE, "invalid table command %s", *av);
 }

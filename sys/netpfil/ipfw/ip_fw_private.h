@@ -212,6 +212,11 @@ VNET_DECLARE(int, autoinc_step);
 VNET_DECLARE(unsigned int, fw_tables_max);
 #define V_fw_tables_max		VNET(fw_tables_max)
 
+VNET_DECLARE(unsigned int, fw_tables_sets);
+#define V_fw_tables_sets	VNET(fw_tables_sets)
+
+struct tables_config;
+
 struct ip_fw_chain {
 	struct ip_fw	**map;		/* array of rule ptrs to ease lookup */
 	uint32_t	id;		/* ruleset id */
@@ -219,7 +224,6 @@ struct ip_fw_chain {
 	LIST_HEAD(nat_list, cfg_nat) nat;       /* list of nat entries */
 	struct radix_node_head **tables;	/* IPv4 tables */
 	struct radix_node_head **xtables;	/* extended tables */
-	uint8_t		*tabletype;	/* Array of table types */
 #if defined( __linux__ ) || defined( _WIN32 )
 	spinlock_t rwmtx;
 #else
@@ -229,6 +233,7 @@ struct ip_fw_chain {
 	uint32_t	gencnt;		/* NAT generation count */
 	struct ip_fw	*reap;		/* list of rules to reap */
 	struct ip_fw	*default_rule;
+	struct tables_config *tblcfg;	/* tables module data */
 #if defined( __linux__ ) || defined( _WIN32 )
 	spinlock_t uh_lock;
 #else
@@ -295,12 +300,83 @@ struct sockopt;	/* used by tcp_var.h */
 #define IPFW_UH_WLOCK(p) rw_wlock(&(p)->uh_lock)
 #define IPFW_UH_WUNLOCK(p) rw_wunlock(&(p)->uh_lock)
 
+struct tid_info {
+	uint32_t	set;	/* table set */
+	uint16_t	uidx;	/* table index */
+	uint8_t		type;	/* table type */
+	uint8_t		spare;
+	void		*tlvs;	/* Pointer to first TLV */
+	int		tlen;	/* Total TLV size block */
+};
+
+struct obj_idx {
+	uint16_t	uidx;	/* internal index supplied by userland */
+	uint16_t	kidx;	/* kernel object index */
+	uint16_t	off;	/* tlv offset from rule end in 4-byte words */
+	uint8_t		new;	/* index is newly-allocated */
+	uint8_t		type;	/* object type within its category */
+};
+
+struct rule_check_info {
+	uint16_t	table_opcodes;	/* count of opcodes referencing table */
+	uint16_t	new_tables;	/* count of opcodes referencing table */
+	uint32_t	tableset;	/* ipfw set id for table */
+	void		*tlvs;		/* Pointer to first TLV if any */
+	int		tlen;		/* *Total TLV size block */
+	uint8_t		fw3;		/* opcode is new */
+	struct ip_fw	*krule;		/* resulting rule pointer */
+	struct obj_idx	obuf[8];	/* table references storage */
+};
+
+struct tentry_info {
+	void		*paddr;
+	int		plen;		/* Total entry length		*/
+	uint8_t		masklen;	/* mask length			*/
+	uint8_t		spare;
+	uint16_t	flags;		/* record flags			*/
+	uint32_t	value;		/* value			*/
+};
+
 /* In ip_fw_sockopt.c */
 int ipfw_find_rule(struct ip_fw_chain *chain, uint32_t key, uint32_t id);
-int ipfw_add_rule(struct ip_fw_chain *chain, struct ip_fw *input_rule);
 int ipfw_ctl(struct sockopt *sopt);
 int ipfw_chk(struct ip_fw_args *args);
 void ipfw_reap_rules(struct ip_fw *head);
+
+struct namedobj_instance;
+
+struct named_object {
+	TAILQ_ENTRY(named_object)	nn_next;	/* namehash */
+	TAILQ_ENTRY(named_object)	nv_next;	/* valuehash */
+	char			*name;	/* object name */
+	uint8_t			type;	/* object type */
+	uint8_t			compat;	/* Object name is number */
+	uint16_t		kidx;	/* object kernel index */
+	uint16_t		uidx;	/* userland idx for compat records */
+	uint32_t		set;	/* set object belongs to */
+	uint32_t		refcnt;	/* number of references */
+};
+TAILQ_HEAD(namedobjects_head, named_object);
+
+typedef void (objhash_cb_t)(struct namedobj_instance *ni, struct named_object *,
+    void *arg);
+struct namedobj_instance *ipfw_objhash_create(uint32_t items);
+void ipfw_objhash_destroy(struct namedobj_instance *);
+void ipfw_objhash_bitmap_alloc(uint32_t items, void **idx, int *pblocks);
+int ipfw_objhash_bitmap_merge(struct namedobj_instance *ni,
+    void **idx, int *blocks);
+void ipfw_objhash_bitmap_free(void *idx, int blocks);
+struct named_object *ipfw_objhash_lookup_name(struct namedobj_instance *ni,
+    uint32_t set, char *name);
+struct named_object *ipfw_objhash_lookup_idx(struct namedobj_instance *ni,
+    uint32_t set, uint16_t idx);
+void ipfw_objhash_add(struct namedobj_instance *ni, struct named_object *no);
+void ipfw_objhash_del(struct namedobj_instance *ni, struct named_object *no);
+void ipfw_objhash_foreach(struct namedobj_instance *ni, objhash_cb_t *f,
+    void *arg);
+int ipfw_objhash_free_idx(struct namedobj_instance *ni, uint32_t set,
+    uint16_t idx);
+int ipfw_objhash_alloc_idx(void *n, uint32_t set, uint16_t *pidx);
 
 /* In ip_fw_table.c */
 struct radix_node;
@@ -309,18 +385,28 @@ int ipfw_lookup_table(struct ip_fw_chain *ch, uint16_t tbl, in_addr_t addr,
 int ipfw_lookup_table_extended(struct ip_fw_chain *ch, uint16_t tbl, void *paddr,
     uint32_t *val, int type);
 int ipfw_init_tables(struct ip_fw_chain *ch);
+int ipfw_destroy_table(struct ip_fw_chain *ch, struct tid_info *ti, int force);
 void ipfw_destroy_tables(struct ip_fw_chain *ch);
-int ipfw_flush_table(struct ip_fw_chain *ch, uint16_t tbl);
-int ipfw_add_table_entry(struct ip_fw_chain *ch, uint16_t tbl, void *paddr,
-    uint8_t plen, uint8_t mlen, uint8_t type, uint32_t value);
-int ipfw_del_table_entry(struct ip_fw_chain *ch, uint16_t tbl, void *paddr,
-    uint8_t plen, uint8_t mlen, uint8_t type);
-int ipfw_count_table(struct ip_fw_chain *ch, uint32_t tbl, uint32_t *cnt);
+int ipfw_flush_table(struct ip_fw_chain *ch, struct tid_info *ti);
+int ipfw_add_table_entry(struct ip_fw_chain *ch, struct tid_info *ti,
+    struct tentry_info *tei);
+int ipfw_del_table_entry(struct ip_fw_chain *ch, struct tid_info *ti,
+    struct tentry_info *tei);
+int ipfw_count_table(struct ip_fw_chain *ch, struct tid_info *ti,
+    uint32_t *cnt);
 int ipfw_dump_table_entry(struct radix_node *rn, void *arg);
-int ipfw_dump_table(struct ip_fw_chain *ch, ipfw_table *tbl);
-int ipfw_count_xtable(struct ip_fw_chain *ch, uint32_t tbl, uint32_t *cnt);
-int ipfw_dump_xtable(struct ip_fw_chain *ch, ipfw_xtable *tbl);
+int ipfw_dump_table(struct ip_fw_chain *ch, struct tid_info *ti,
+    ipfw_table *tbl);
+int ipfw_count_xtable(struct ip_fw_chain *ch, struct tid_info *ti,
+    uint32_t *cnt);
+int ipfw_dump_xtable(struct ip_fw_chain *ch, struct tid_info *ti,
+    ipfw_xtable *tbl);
 int ipfw_resize_tables(struct ip_fw_chain *ch, unsigned int ntables);
+int ipfw_rewrite_table_uidx(struct ip_fw_chain *chain,
+    struct rule_check_info *ci);
+int ipfw_rewrite_table_kidx(struct ip_fw_chain *chain, struct ip_fw *rule);
+void ipfw_unbind_table_rule(struct ip_fw_chain *chain, struct ip_fw *rule);
+void ipfw_unbind_table_list(struct ip_fw_chain *chain, struct ip_fw *head);
 
 /* In ip_fw_nat.c -- XXX to be moved to ip_var.h */
 

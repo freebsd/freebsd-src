@@ -53,6 +53,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/socketvar.h>
 #include <sys/sysctl.h>
 #include <sys/syslog.h>
+#include <sys/fnv_hash.h>
 #include <net/if.h>
 #include <net/route.h>
 #include <net/vnet.h>
@@ -66,6 +67,25 @@ __FBSDID("$FreeBSD$");
 #ifdef MAC
 #include <security/mac/mac_framework.h>
 #endif
+
+#define	NAMEDOBJ_HASH_SIZE	32
+
+struct namedobj_instance {
+	struct namedobjects_head	*names;
+	struct namedobjects_head	*values;
+	uint32_t nn_size;		/* names hash size */
+	uint32_t nv_size;		/* number hash size */
+	u_long *idx_mask;		/* used items bitmask */
+	uint32_t max_blocks;		/* number of "long" blocks in bitmask */
+	uint16_t free_off[IPFW_MAX_SETS];	/* first possible free offset */
+};
+#define	BLOCK_ITEMS	(8 * sizeof(u_long))	/* Number of items for ffsl() */
+
+static uint32_t objhash_hash_name(struct namedobj_instance *ni, uint32_t set,
+    char *name);
+static uint32_t objhash_hash_val(struct namedobj_instance *ni, uint32_t set,
+    uint32_t val);
+
 
 MALLOC_DEFINE(M_IPFW, "IpFw/IpAcct", "IpFw/IpAcct chain's");
 
@@ -152,8 +172,9 @@ swap_map(struct ip_fw_chain *chain, struct ip_fw **new_map, int new_len)
  * XXX DO NOT USE FOR THE DEFAULT RULE.
  * Must be called without IPFW_UH held
  */
-int
-ipfw_add_rule(struct ip_fw_chain *chain, struct ip_fw *input_rule)
+static int
+add_rule(struct ip_fw_chain *chain, struct ip_fw *input_rule,
+    struct rule_check_info *ci)
 {
 	struct ip_fw *rule;
 	int i, l, insert_before;
@@ -164,18 +185,36 @@ ipfw_add_rule(struct ip_fw_chain *chain, struct ip_fw *input_rule)
 
 	l = RULESIZE(input_rule);
 	rule = malloc(l, M_IPFW, M_WAITOK | M_ZERO);
-	/* get_map returns with IPFW_UH_WLOCK if successful */
-	map = get_map(chain, 1, 0 /* not locked */);
-	if (map == NULL) {
-		free(rule, M_IPFW);
-		return ENOSPC;
-	}
-
 	bcopy(input_rule, rule, l);
 	/* clear fields not settable from userland */
 	rule->x_next = NULL;
 	rule->next_rule = NULL;
 	IPFW_ZERO_RULE_COUNTER(rule);
+
+	/* Check if we need to do table remap */
+	if (ci->table_opcodes > 0) {
+		ci->krule = rule;
+		i = ipfw_rewrite_table_uidx(chain, ci);
+		if (i != 0) {
+			/* rewrite failed, return error */
+			free(rule, M_IPFW);
+			return (i);
+		}
+	}
+
+	/* get_map returns with IPFW_UH_WLOCK if successful */
+	map = get_map(chain, 1, 0 /* not locked */);
+	if (map == NULL) {
+		if (ci->table_opcodes > 0) {
+			/* We need to unbind tables */
+			IPFW_UH_WLOCK(chain);
+			ipfw_unbind_table_rule(chain, rule);
+			IPFW_UH_WUNLOCK(chain);
+		}
+
+		free(rule, M_IPFW);
+		return (ENOSPC);
+	}
 
 	if (V_autoinc_step < 1)
 		V_autoinc_step = 1;
@@ -421,6 +460,7 @@ del_entry(struct ip_fw_chain *chain, uint32_t arg)
 
 	rule = chain->reap;
 	chain->reap = NULL;
+	ipfw_unbind_table_list(chain, rule);
 	IPFW_UH_WUNLOCK(chain);
 	ipfw_reap_rules(rule);
 	if (map)
@@ -517,7 +557,7 @@ zero_entry(struct ip_fw_chain *chain, u_int32_t arg, int log_only)
  * Rules are simple, so this mostly need to check rule sizes.
  */
 static int
-check_ipfw_struct(struct ip_fw *rule, int size)
+check_ipfw_struct(struct ip_fw *rule, int size, struct rule_check_info *ci)
 {
 	int l, cmdlen = 0;
 	int have_action=0;
@@ -662,6 +702,7 @@ check_ipfw_struct(struct ip_fw *rule, int size)
 			    cmdlen != F_INSN_SIZE(ipfw_insn_u32) + 1 &&
 			    cmdlen != F_INSN_SIZE(ipfw_insn_u32))
 				goto bad_size;
+			ci->table_opcodes++;
 			break;
 		case O_MACADDR2:
 			if (cmdlen != F_INSN_SIZE(ipfw_insn_mac))
@@ -694,6 +735,8 @@ check_ipfw_struct(struct ip_fw *rule, int size)
 		case O_RECV:
 		case O_XMIT:
 		case O_VIA:
+			if (((ipfw_insn_if *)cmd)->name[0] == '\1')
+				ci->table_opcodes++;
 			if (cmdlen != F_INSN_SIZE(ipfw_insn_if))
 				goto bad_size;
 			break;
@@ -879,7 +922,7 @@ ipfw_getrules(struct ip_fw_chain *chain, void *buf, size_t space)
 	char *bp = buf;
 	char *ep = bp + space;
 	struct ip_fw *rule, *dst;
-	int l, i;
+	int error, i, l;
 	time_t	boot_seconds;
 
         boot_seconds = boottime.tv_sec;
@@ -890,8 +933,11 @@ ipfw_getrules(struct ip_fw_chain *chain, void *buf, size_t space)
 		    /* Convert rule to FreeBSd 7.2 format */
 		    l = RULESIZE7(rule);
 		    if (bp + l + sizeof(uint32_t) <= ep) {
-			int error;
 			bcopy(rule, bp, l + sizeof(uint32_t));
+			error = ipfw_rewrite_table_kidx(chain,
+			    (struct ip_fw *)bp);
+			if (error != 0)
+				return (0);
 			error = convert_rule_to_7((struct ip_fw *) bp);
 			if (error)
 				return 0; /*XXX correct? */
@@ -918,6 +964,13 @@ ipfw_getrules(struct ip_fw_chain *chain, void *buf, size_t space)
 		}
 		dst = (struct ip_fw *)bp;
 		bcopy(rule, dst, l);
+		error = ipfw_rewrite_table_kidx(chain, dst);
+		if (error != 0) {
+			printf("Stop on rule %d. Fail to convert table\n",
+			    rule->rulenum);
+			break;
+		}
+
 		/*
 		 * XXX HACK. Store the disable mask in the "next"
 		 * pointer in a wild attempt to keep the ABI the same.
@@ -949,6 +1002,7 @@ ipfw_ctl(struct sockopt *sopt)
 	uint32_t opt;
 	char xbuf[128];
 	ip_fw3_opheader *op3 = NULL;
+	struct rule_check_info ci;
 
 	error = priv_check(sopt->sopt_td, PRIV_NETINET_IPFW);
 	if (error)
@@ -1027,6 +1081,8 @@ ipfw_ctl(struct sockopt *sopt)
 		error = sooptcopyin(sopt, rule, RULE_MAXSIZE,
 			sizeof(struct ip_fw7) );
 
+		memset(&ci, 0, sizeof(struct rule_check_info));
+
 		/*
 		 * If the size of commands equals RULESIZE7 then we assume
 		 * a FreeBSD7.2 binary is talking to us (set is7=1).
@@ -1044,15 +1100,15 @@ ipfw_ctl(struct sockopt *sopt)
 			return error;
 		    }
 		    if (error == 0)
-			error = check_ipfw_struct(rule, RULESIZE(rule));
+			error = check_ipfw_struct(rule, RULESIZE(rule), &ci);
 		} else {
 		    is7 = 0;
 		if (error == 0)
-			error = check_ipfw_struct(rule, sopt->sopt_valsize);
+			error = check_ipfw_struct(rule, sopt->sopt_valsize,&ci);
 		}
 		if (error == 0) {
-			/* locking is done within ipfw_add_rule() */
-			error = ipfw_add_rule(chain, rule);
+			/* locking is done within add_rule() */
+			error = add_rule(chain, rule, &ci);
 			size = RULESIZE(rule);
 			if (!error && sopt->sopt_dir == SOPT_GET) {
 				if (is7) {
@@ -1114,30 +1170,58 @@ ipfw_ctl(struct sockopt *sopt)
 		break;
 
 	/*--- TABLE manipulations are protected by the IPFW_LOCK ---*/
-	case IP_FW_TABLE_ADD:
+	case IP_FW_OBJ_DEL: /* IP_FW3 */
 		{
-			ipfw_table_entry ent;
+			struct _ipfw_obj_header *oh;
+			struct tid_info ti;
 
-			error = sooptcopyin(sopt, &ent,
-			    sizeof(ent), sizeof(ent));
-			if (error)
+			if (sopt->sopt_valsize < sizeof(*oh)) {
+				error = EINVAL;
 				break;
-			error = ipfw_add_table_entry(chain, ent.tbl,
-			    &ent.addr, sizeof(ent.addr), ent.masklen, 
-			    IPFW_TABLE_CIDR, ent.value);
-		}
-		break;
+			}
 
+			oh = (struct _ipfw_obj_header *)(op3 + 1);
+
+			switch (oh->objtype) {
+			case IPFW_OBJTYPE_TABLE:
+				memset(&ti, 0, sizeof(ti));
+				ti.set = oh->set;
+				ti.uidx = oh->idx;
+				ti.tlvs = (oh + 1);
+				ti.tlen = sopt->sopt_valsize - sizeof(*oh);
+				error = ipfw_destroy_table(chain, &ti, 0);
+				break;
+			default:
+				error = ENOTSUP;
+				break;
+			}
+			break;
+		}
+	case IP_FW_TABLE_ADD:
 	case IP_FW_TABLE_DEL:
 		{
 			ipfw_table_entry ent;
+			struct tentry_info tei;
+			struct tid_info ti;
 
 			error = sooptcopyin(sopt, &ent,
 			    sizeof(ent), sizeof(ent));
 			if (error)
 				break;
-			error = ipfw_del_table_entry(chain, ent.tbl,
-			    &ent.addr, sizeof(ent.addr), ent.masklen, IPFW_TABLE_CIDR);
+
+			memset(&tei, 0, sizeof(tei));
+			tei.paddr = &ent.addr;
+			tei.plen = sizeof(ent.addr);
+			tei.masklen = ent.masklen;
+			tei.value = ent.value;
+			memset(&ti, 0, sizeof(ti));
+			ti.set = RESVD_SET;
+			ti.uidx = ent.tbl;
+			ti.type = IPFW_TABLE_CIDR;
+
+			error = (opt == IP_FW_TABLE_ADD) ?
+			    ipfw_add_table_entry(chain, &ti, &tei) :
+			    ipfw_del_table_entry(chain, &ti, &tei);
 		}
 		break;
 
@@ -1145,6 +1229,8 @@ ipfw_ctl(struct sockopt *sopt)
 	case IP_FW_TABLE_XDEL: /* IP_FW3 */
 		{
 			ipfw_table_xentry *xent = (ipfw_table_xentry *)(op3 + 1);
+			struct tentry_info tei;
+			struct tid_info ti;
 
 			/* Check minimum header size */
 			if (IP_FW3_OPLENGTH(sopt) < offsetof(ipfw_table_xentry, k)) {
@@ -1160,35 +1246,51 @@ ipfw_ctl(struct sockopt *sopt)
 			
 			len = xent->len - offsetof(ipfw_table_xentry, k);
 
+			memset(&tei, 0, sizeof(tei));
+			tei.paddr = &xent->k;
+			tei.plen = len;
+			tei.masklen = xent->masklen;
+			tei.value = xent->value;
+			memset(&ti, 0, sizeof(ti));
+			ti.set = 0;	/* XXX: No way to specify set  */
+			ti.uidx = xent->tbl;
+			ti.type = xent->type;
+
 			error = (opt == IP_FW_TABLE_XADD) ?
-				ipfw_add_table_entry(chain, xent->tbl, &xent->k, 
-					len, xent->masklen, xent->type, xent->value) :
-				ipfw_del_table_entry(chain, xent->tbl, &xent->k,
-					len, xent->masklen, xent->type);
+			    ipfw_add_table_entry(chain, &ti, &tei) :
+			    ipfw_del_table_entry(chain, &ti, &tei);
 		}
 		break;
 
 	case IP_FW_TABLE_FLUSH:
 		{
 			u_int16_t tbl;
+			struct tid_info ti;
 
 			error = sooptcopyin(sopt, &tbl,
 			    sizeof(tbl), sizeof(tbl));
 			if (error)
 				break;
-			error = ipfw_flush_table(chain, tbl);
+			memset(&ti, 0, sizeof(ti));
+			ti.set = 0; /* XXX: No way to specify set */
+			ti.uidx = tbl;
+			error = ipfw_flush_table(chain, &ti);
 		}
 		break;
 
 	case IP_FW_TABLE_GETSIZE:
 		{
 			u_int32_t tbl, cnt;
+			struct tid_info ti;
 
 			if ((error = sooptcopyin(sopt, &tbl, sizeof(tbl),
 			    sizeof(tbl))))
 				break;
+			memset(&ti, 0, sizeof(ti));
+			ti.set = 0; /* XXX: No way to specify set */
+			ti.uidx = tbl;
 			IPFW_RLOCK(chain);
-			error = ipfw_count_table(chain, tbl, &cnt);
+			error = ipfw_count_table(chain, &ti, &cnt);
 			IPFW_RUNLOCK(chain);
 			if (error)
 				break;
@@ -1199,6 +1301,7 @@ ipfw_ctl(struct sockopt *sopt)
 	case IP_FW_TABLE_LIST:
 		{
 			ipfw_table *tbl;
+			struct tid_info ti;
 
 			if (sopt->sopt_valsize < sizeof(*tbl)) {
 				error = EINVAL;
@@ -1213,8 +1316,11 @@ ipfw_ctl(struct sockopt *sopt)
 			}
 			tbl->size = (size - sizeof(*tbl)) /
 			    sizeof(ipfw_table_entry);
+			memset(&ti, 0, sizeof(ti));
+			ti.set = 0; /* XXX: No way to specify set */
+			ti.uidx = tbl->tbl;
 			IPFW_RLOCK(chain);
-			error = ipfw_dump_table(chain, tbl);
+			error = ipfw_dump_table(chain, &ti, tbl);
 			IPFW_RUNLOCK(chain);
 			if (error) {
 				free(tbl, M_TEMP);
@@ -1228,6 +1334,7 @@ ipfw_ctl(struct sockopt *sopt)
 	case IP_FW_TABLE_XGETSIZE: /* IP_FW3 */
 		{
 			uint32_t *tbl;
+			struct tid_info ti;
 
 			if (IP_FW3_OPLENGTH(sopt) < sizeof(uint32_t)) {
 				error = EINVAL;
@@ -1236,8 +1343,11 @@ ipfw_ctl(struct sockopt *sopt)
 
 			tbl = (uint32_t *)(op3 + 1);
 
+			memset(&ti, 0, sizeof(ti));
+			ti.set = 0; /* XXX: No way to specify set */
+			ti.uidx = *tbl;
 			IPFW_RLOCK(chain);
-			error = ipfw_count_xtable(chain, *tbl, tbl);
+			error = ipfw_count_xtable(chain, &ti, tbl);
 			IPFW_RUNLOCK(chain);
 			if (error)
 				break;
@@ -1248,6 +1358,7 @@ ipfw_ctl(struct sockopt *sopt)
 	case IP_FW_TABLE_XLIST: /* IP_FW3 */
 		{
 			ipfw_xtable *tbl;
+			struct tid_info ti;
 
 			if ((size = valsize) < sizeof(ipfw_xtable)) {
 				error = EINVAL;
@@ -1260,8 +1371,11 @@ ipfw_ctl(struct sockopt *sopt)
 			/* Get maximum number of entries we can store */
 			tbl->size = (size - sizeof(ipfw_xtable)) /
 			    sizeof(ipfw_table_xentry);
+			memset(&ti, 0, sizeof(ti));
+			ti.set = 0; /* XXX: No way to specify set */
+			ti.uidx = tbl->tbl;
 			IPFW_RLOCK(chain);
-			error = ipfw_dump_xtable(chain, tbl);
+			error = ipfw_dump_xtable(chain, &ti, tbl);
 			IPFW_RUNLOCK(chain);
 			if (error) {
 				free(tbl, M_TEMP);
@@ -1442,6 +1556,273 @@ convert_rule_to_8(struct ip_fw *rule)
 
 	free (tmp, M_TEMP);
 	return 0;
+}
+
+/*
+ * Named object api
+ *
+ */
+
+void
+ipfw_objhash_bitmap_alloc(uint32_t items, void **idx, int *pblocks)
+{
+	size_t size;
+	int max_blocks;
+	void *idx_mask;
+
+	items = roundup2(items, BLOCK_ITEMS);	/* Align to block size */
+	max_blocks = items / BLOCK_ITEMS;
+	size = items / 8;
+	idx_mask = malloc(size * IPFW_MAX_SETS, M_IPFW, M_WAITOK);
+	/* Mark all as free */
+	memset(idx_mask, 0xFF, size * IPFW_MAX_SETS);
+
+	*idx = idx_mask;
+	*pblocks = max_blocks;
+}
+
+int
+ipfw_objhash_bitmap_merge(struct namedobj_instance *ni, void **idx, int *blocks)
+{
+	int old_blocks, new_blocks;
+	u_long *old_idx, *new_idx;
+	int i;
+
+	old_idx = ni->idx_mask;
+	old_blocks = ni->max_blocks;
+	new_idx = *idx;
+	new_blocks = *blocks;
+
+	/*
+	 * FIXME: Permit reducing total amount of tables
+	 */
+	if (old_blocks > new_blocks)
+		return (1);
+
+	for (i = 0; i < IPFW_MAX_SETS; i++) {
+		memcpy(&new_idx[new_blocks * i], &old_idx[old_blocks * i],
+		    old_blocks * sizeof(u_long));
+	}
+
+	ni->idx_mask = new_idx;
+	ni->max_blocks = new_blocks;
+
+	/* Save old values */
+	*idx = old_idx;
+	*blocks = old_blocks;
+
+	return (0);
+}
+
+void
+ipfw_objhash_bitmap_free(void *idx, int blocks)
+{
+
+	free(idx, M_IPFW);
+}
+
+/*
+ * Creates named hash instance.
+ * Must be called without holding any locks.
+ * Return pointer to new instance.
+ */
+struct namedobj_instance *
+ipfw_objhash_create(uint32_t items)
+{
+	struct namedobj_instance *ni;
+	int i;
+	size_t size;
+
+	size = sizeof(struct namedobj_instance) +
+	    sizeof(struct namedobjects_head) * NAMEDOBJ_HASH_SIZE +
+	    sizeof(struct namedobjects_head) * NAMEDOBJ_HASH_SIZE;
+
+	ni = malloc(size, M_IPFW, M_WAITOK | M_ZERO);
+	ni->nn_size = NAMEDOBJ_HASH_SIZE;
+	ni->nv_size = NAMEDOBJ_HASH_SIZE;
+
+	ni->names = (struct namedobjects_head *)(ni +1);
+	ni->values = &ni->names[ni->nn_size];
+
+	for (i = 0; i < ni->nn_size; i++)
+		TAILQ_INIT(&ni->names[i]);
+
+	for (i = 0; i < ni->nv_size; i++)
+		TAILQ_INIT(&ni->values[i]);
+
+	/* Allocate bitmask separately due to possible resize */
+	ipfw_objhash_bitmap_alloc(items, (void*)&ni->idx_mask, &ni->max_blocks);
+
+	return (ni);
+}
+
+void
+ipfw_objhash_destroy(struct namedobj_instance *ni)
+{
+
+	free(ni->idx_mask, M_IPFW);
+	free(ni, M_IPFW);
+}
+
+static uint32_t
+objhash_hash_name(struct namedobj_instance *ni, uint32_t set, char *name)
+{
+	uint32_t v;
+
+	v = fnv_32_str(name, FNV1_32_INIT);
+
+	return (v % ni->nn_size);
+}
+
+static uint32_t
+objhash_hash_val(struct namedobj_instance *ni, uint32_t set, uint32_t val)
+{
+	uint32_t v;
+
+	v = val % (ni->nv_size - 1);
+
+	return (v);
+}
+
+struct named_object *
+ipfw_objhash_lookup_name(struct namedobj_instance *ni, uint32_t set, char *name)
+{
+	struct named_object *no;
+	uint32_t hash;
+
+	hash = objhash_hash_name(ni, set, name);
+	
+	TAILQ_FOREACH(no, &ni->names[hash], nn_next) {
+		if ((strcmp(no->name, name) == 0) && (no->set == set))
+			return (no);
+	}
+
+	return (NULL);
+}
+
+struct named_object *
+ipfw_objhash_lookup_idx(struct namedobj_instance *ni, uint32_t set,
+    uint16_t idx)
+{
+	struct named_object *no;
+	uint32_t hash;
+
+	hash = objhash_hash_val(ni, set, idx);
+	
+	TAILQ_FOREACH(no, &ni->values[hash], nv_next) {
+		if ((no->kidx == idx) && (no->set == set))
+			return (no);
+	}
+
+	return (NULL);
+}
+
+void
+ipfw_objhash_add(struct namedobj_instance *ni, struct named_object *no)
+{
+	uint32_t hash;
+
+	hash = objhash_hash_name(ni, no->set, no->name);
+	TAILQ_INSERT_HEAD(&ni->names[hash], no, nn_next);
+
+	hash = objhash_hash_val(ni, no->set, no->kidx);
+	TAILQ_INSERT_HEAD(&ni->values[hash], no, nv_next);
+}
+
+void
+ipfw_objhash_del(struct namedobj_instance *ni, struct named_object *no)
+{
+	uint32_t hash;
+
+	hash = objhash_hash_name(ni, no->set, no->name);
+	TAILQ_REMOVE(&ni->names[hash], no, nn_next);
+
+	hash = objhash_hash_val(ni, no->set, no->kidx);
+	TAILQ_REMOVE(&ni->values[hash], no, nv_next);
+}
+
+/*
+ * Runs @func for each found named object.
+ * It is safe to delete objects from callback
+ */
+void
+ipfw_objhash_foreach(struct namedobj_instance *ni, objhash_cb_t *f, void *arg)
+{
+	struct named_object *no, *no_tmp;
+	int i;
+
+	for (i = 0; i < ni->nn_size; i++) {
+		TAILQ_FOREACH_SAFE(no, &ni->names[i], nn_next, no_tmp)
+			f(ni, no, arg);
+	}
+}
+
+/*
+ * Removes index from given set.
+ * Returns 0 on success.
+ */
+int
+ipfw_objhash_free_idx(struct namedobj_instance *ni, uint32_t set, uint16_t idx)
+{
+	u_long *mask;
+	int i, v;
+
+	i = idx / BLOCK_ITEMS;
+	v = idx % BLOCK_ITEMS;
+
+	if ((i >= ni->max_blocks) || set >= IPFW_MAX_SETS)
+		return (1);
+
+	mask = &ni->idx_mask[set * ni->max_blocks + i];
+
+	if ((*mask & ((u_long)1 << v)) != 0)
+		return (1);
+
+	/* Mark as free */
+	*mask |= (u_long)1 << v;
+
+	/* Update free offset */
+	if (ni->free_off[set] > i)
+		ni->free_off[set] = i;
+	
+	return (0);
+}
+
+/*
+ * Allocate new index in given set and stores in in @pidx.
+ * Returns 0 on success.
+ */
+int
+ipfw_objhash_alloc_idx(void *n, uint32_t set, uint16_t *pidx)
+{
+	struct namedobj_instance *ni;
+	u_long *mask;
+	int i, off, v;
+
+	if (set >= IPFW_MAX_SETS)
+		return (-1);
+
+	ni = (struct namedobj_instance *)n;
+
+	off = ni->free_off[set];
+	mask = &ni->idx_mask[set * ni->max_blocks + off];
+
+	for (i = off; i < ni->max_blocks; i++, mask++) {
+		if ((v = ffsl(*mask)) == 0)
+			continue;
+
+		/* Mark as busy */
+		*mask &= ~ ((u_long)1 << (v - 1));
+
+		ni->free_off[set] = i;
+		
+		v = BLOCK_ITEMS * i + v - 1;
+
+		*pidx = v;
+		return (0);
+	}
+
+	return (1);
 }
 
 /* end of file */
