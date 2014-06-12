@@ -454,6 +454,13 @@ vm_ioapic_pulse_irq(struct vmctx *ctx, int irq)
 }
 
 int
+vm_ioapic_pincount(struct vmctx *ctx, int *pincount)
+{
+
+	return (ioctl(ctx->fd, VM_IOAPIC_PINCOUNT, pincount));
+}
+
+int
 vm_inject_nmi(struct vmctx *ctx, int vcpu)
 {
 	struct vm_nmi vmnmi;

@@ -39,6 +39,7 @@ __FBSDID("$FreeBSD$");
 #include "acpi.h"
 #include "bhyverun.h"
 #include "mptbl.h"
+#include "pci_emul.h"
 
 #define MPTABLE_BASE		0xF0000
 
@@ -74,9 +75,6 @@ __FBSDID("$FreeBSD$");
 
 /* Number of local intr entries */
 #define	MPEII_NUM_LOCAL_IRQ	2
-
-/* Number of i/o intr entries */
-#define	MPEII_MAX_IRQ		24
 
 /* Bus entry defines */
 #define MPE_NUM_BUSES		2
@@ -195,8 +193,42 @@ mpt_build_ioapic_entries(io_apic_entry_ptr mpei, int id)
 	mpei->apic_address = IOAPIC_PADDR;
 }
 
+static int
+mpt_count_ioint_entries(void)
+{
+
+	/*
+	 * Always include entries for the first 16 pins along with a entry
+	 * for each active PCI INTx pin.
+	 */
+	return (16 + pci_count_lintr());
+}
+
 static void
-mpt_build_ioint_entries(int_entry_ptr mpie, int num_pins, int id)
+mpt_generate_pci_int(int slot, int pin, int ioapic_irq, void *arg)
+{
+	int_entry_ptr *mpiep, mpie;
+
+	mpiep = arg;
+	mpie = *mpiep;
+	memset(mpie, 0, sizeof(*mpie));
+
+	/*
+	 * This is always after another I/O interrupt entry, so cheat
+	 * and fetch the I/O APIC ID from the prior entry.
+	 */
+	mpie->type = MPCT_ENTRY_INT;
+	mpie->int_type = INTENTRY_TYPE_INT;
+	mpie->src_bus_id = 0;
+	mpie->src_bus_irq = slot << 2 | (pin - 1);
+	mpie->dst_apic_id = mpie[-1].dst_apic_id;
+	mpie->dst_apic_int = ioapic_irq;
+
+	*mpiep = mpie + 1;
+}
+
+static void
+mpt_build_ioint_entries(int_entry_ptr mpie, int id)
 {
 	int pin;
 
@@ -206,8 +238,8 @@ mpt_build_ioint_entries(int_entry_ptr mpie, int num_pins, int id)
 	 * just use the default config, tweek later if needed.
 	 */
 
-	/* Run through all 16 pins. */
-	for (pin = 0; pin < num_pins; pin++) {
+	/* First, generate the first 16 pins. */
+	for (pin = 0; pin < 16; pin++) {
 		memset(mpie, 0, sizeof(*mpie));
 		mpie->type = MPCT_ENTRY_INT;
 		mpie->src_bus_id = 1;
@@ -235,16 +267,6 @@ mpt_build_ioint_entries(int_entry_ptr mpie, int num_pins, int id)
 			mpie->int_type = INTENTRY_TYPE_INT;
 			mpie->src_bus_irq = SCI_INT;
 			break;
-		case 5:
-		case 10:
-		case 11:
-			/*
-			 * PCI Irqs set to level triggered and active-lo.
-			 */
-			mpie->int_flags = INTENTRY_FLAGS_POLARITY_ACTIVELO |
-			    INTENTRY_FLAGS_TRIGGER_LEVEL;
-			mpie->src_bus_id = 0;
-			/* fall through.. */
 		default:
 			/* All other pins are identity mapped. */
 			mpie->int_type = INTENTRY_TYPE_INT;
@@ -254,6 +276,8 @@ mpt_build_ioint_entries(int_entry_ptr mpie, int num_pins, int id)
 		mpie++;
 	}
 
+	/* Next, generate entries for any PCI INTx interrupts. */
+	pci_walk_lintr(mpt_generate_pci_int, &mpie); 
 }
 
 void
@@ -273,6 +297,7 @@ mptable_build(struct vmctx *ctx, int ncpu)
 	proc_entry_ptr		mpep;
 	mpfps_t			mpfp;
 	int_entry_ptr		mpie;
+	int			ioints;
 	char 			*curraddr;
 	char 			*startaddr;
 
@@ -307,9 +332,10 @@ mptable_build(struct vmctx *ctx, int ncpu)
 	mpch->entry_count++;
 
 	mpie = (int_entry_ptr) curraddr;
-	mpt_build_ioint_entries(mpie, MPEII_MAX_IRQ, 0);
-	curraddr += sizeof(*mpie) * MPEII_MAX_IRQ;
-	mpch->entry_count += MPEII_MAX_IRQ;
+	ioints = mpt_count_ioint_entries();
+	mpt_build_ioint_entries(mpie, 0);
+	curraddr += sizeof(*mpie) * ioints;
+	mpch->entry_count += ioints;
 
 	mpie = (int_entry_ptr)curraddr;
 	mpt_build_localint_entries(mpie);
