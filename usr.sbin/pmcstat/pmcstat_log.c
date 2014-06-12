@@ -301,10 +301,10 @@ pmcstat_stats_reset(int reset_global)
 static int
 pmcstat_string_compute_hash(const char *s)
 {
-	int hash;
+	unsigned hash;
 
-	for (hash = 0; *s; s++)
-		hash ^= *s;
+	for (hash = 2166136261; *s; s++)
+		hash = (hash ^ *s) * 16777619;
 
 	return (hash & PMCSTAT_HASH_MASK);
 }
