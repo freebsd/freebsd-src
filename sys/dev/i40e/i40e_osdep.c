@@ -116,7 +116,6 @@ fail_2:
 fail_1:
 	bus_dma_tag_destroy(dma->tag);
 fail_0:
-	dma->map = NULL;
 	dma->tag = NULL;
 	return (err);
 }
