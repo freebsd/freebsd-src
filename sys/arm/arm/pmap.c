@@ -3034,7 +3034,14 @@ pmap_remove_all(vm_page_t m)
 	if (TAILQ_EMPTY(&m->md.pv_list))
 		return;
 	rw_wlock(&pvh_global_lock);
-	pmap_remove_write(m);
+
+	/*
+	 * XXX This call shouldn't exist.  Iterating over the PV list twice,
+	 * once in pmap_clearbit() and again below, is both unnecessary and
+	 * inefficient.  The below code should itself write back the cache
+	 * entry before it destroys the mapping.
+	 */
+	pmap_clearbit(m, PVF_WRITE);
 	curpm = vmspace_pmap(curproc->p_vmspace);
 	while ((pv = TAILQ_FIRST(&m->md.pv_list)) != NULL) {
 		if (flush == FALSE && (pv->pv_pmap == curpm ||
@@ -3043,7 +3050,7 @@ pmap_remove_all(vm_page_t m)
 
 		PMAP_LOCK(pv->pv_pmap);
 		/*
-		 * Cached contents were written-back in pmap_remove_write(),
+		 * Cached contents were written-back in pmap_clearbit(),
 		 * but we still have to invalidate the cache entry to make
 		 * sure stale data are not retrieved when another page will be
 		 * mapped under this virtual address.
