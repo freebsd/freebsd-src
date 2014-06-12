@@ -2527,7 +2527,6 @@ fail_2:
 	bus_dmamem_free(dma->dma_tag, dma->dma_vaddr, dma->dma_map);
 	bus_dma_tag_destroy(dma->dma_tag);
 fail_0:
-	dma->dma_map = NULL;
 	dma->dma_tag = NULL;
 
 	return (error);
@@ -2538,12 +2537,15 @@ lem_dma_free(struct adapter *adapter, struct em_dma_alloc *dma)
 {
 	if (dma->dma_tag == NULL)
 		return;
-	if (dma->dma_map != NULL) {
+	if (dma->dma_paddr != 0) {
 		bus_dmamap_sync(dma->dma_tag, dma->dma_map,
 		    BUS_DMASYNC_POSTREAD | BUS_DMASYNC_POSTWRITE);
 		bus_dmamap_unload(dma->dma_tag, dma->dma_map);
+		dma->dma_paddr = 0;
+	}
+	if (dma->dma_vaddr != NULL) {
 		bus_dmamem_free(dma->dma_tag, dma->dma_vaddr, dma->dma_map);
-		dma->dma_map = NULL;
+		dma->dma_vaddr = NULL;
 	}
 	bus_dma_tag_destroy(dma->dma_tag);
 	dma->dma_tag = NULL;
