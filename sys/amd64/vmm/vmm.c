@@ -89,10 +89,13 @@ struct vcpu {
 	struct vlapic	*vlapic;
 	int		 vcpuid;
 	struct savefpu	*guestfpu;	/* guest fpu state */
+	uint64_t	guest_xcr0;
 	void		*stats;
 	struct vm_exit	exitinfo;
 	enum x2apic_state x2apic_state;
 	int		nmi_pending;
+	struct vm_exception exception;
+	int		exception_pending;
 };
 
 #define	vcpu_lock_init(v)	mtx_init(&((v)->mtx), "vcpu lock", 0, MTX_SPIN)
@@ -156,8 +159,6 @@ static struct vmm_ops *ops;
 	(ops != NULL ? (*ops->vmgetdesc)(vmi, vcpu, num, desc) : ENXIO)
 #define	VMSETDESC(vmi, vcpu, num, desc)		\
 	(ops != NULL ? (*ops->vmsetdesc)(vmi, vcpu, num, desc) : ENXIO)
-#define	VMINJECT(vmi, vcpu, type, vec, ec, ecv)	\
-	(ops != NULL ? (*ops->vminject)(vmi, vcpu, type, vec, ec, ecv) : ENXIO)
 #define	VMGETCAP(vmi, vcpu, num, retval)	\
 	(ops != NULL ? (*ops->vmgetcap)(vmi, vcpu, num, retval) : ENXIO)
 #define	VMSETCAP(vmi, vcpu, num, val)		\
@@ -206,6 +207,7 @@ vcpu_init(struct vm *vm, uint32_t vcpu_id)
 	vcpu->vcpuid = vcpu_id;
 	vcpu->vlapic = VLAPIC_INIT(vm->cookie, vcpu_id);
 	vm_set_x2apic_state(vm, vcpu_id, X2APIC_ENABLED);
+	vcpu->guest_xcr0 = XFEATURE_ENABLED_X87;
 	vcpu->guestfpu = fpu_save_area_alloc();
 	fpu_save_area_reset(vcpu->guestfpu);
 	vcpu->stats = vmm_stat_alloc();
@@ -815,6 +817,10 @@ restore_guest_fpustate(struct vcpu *vcpu)
 	fpu_stop_emulating();
 	fpurestore(vcpu->guestfpu);
 
+	/* restore guest XCR0 if XSAVE is enabled in the host */
+	if (rcr4() & CR4_XSAVE)
+		load_xcr(0, vcpu->guest_xcr0);
+
 	/*
 	 * The FPU is now "dirty" with the guest's state so turn on emulation
 	 * to trap any access to the FPU by the host.
@@ -828,6 +834,12 @@ save_guest_fpustate(struct vcpu *vcpu)
 
 	if ((rcr0() & CR0_TS) == 0)
 		panic("fpu emulation not enabled in host!");
+
+	/* save guest XCR0 and restore host XCR0 */
+	if (rcr4() & CR4_XSAVE) {
+		vcpu->guest_xcr0 = rxcr(0);
+		load_xcr(0, vmm_get_host_xcr0());
+	}
 
 	/* save guest FPU state */
 	fpu_stop_emulating();
@@ -1214,19 +1226,91 @@ restart:
 }
 
 int
-vm_inject_event(struct vm *vm, int vcpuid, int type,
-		int vector, uint32_t code, int code_valid)
+vm_inject_exception(struct vm *vm, int vcpuid, struct vm_exception *exception)
 {
+	struct vcpu *vcpu;
+
 	if (vcpuid < 0 || vcpuid >= VM_MAXCPU)
 		return (EINVAL);
 
-	if ((type > VM_EVENT_NONE && type < VM_EVENT_MAX) == 0)
+	if (exception->vector < 0 || exception->vector >= 32)
 		return (EINVAL);
 
-	if (vector < 0 || vector > 255)
-		return (EINVAL);
+	vcpu = &vm->vcpu[vcpuid];
 
-	return (VMINJECT(vm->cookie, vcpuid, type, vector, code, code_valid));
+	if (vcpu->exception_pending) {
+		VCPU_CTR2(vm, vcpuid, "Unable to inject exception %d due to "
+		    "pending exception %d", exception->vector,
+		    vcpu->exception.vector);
+		return (EBUSY);
+	}
+
+	vcpu->exception_pending = 1;
+	vcpu->exception = *exception;
+	VCPU_CTR1(vm, vcpuid, "Exception %d pending", exception->vector);
+	return (0);
+}
+
+int
+vm_exception_pending(struct vm *vm, int vcpuid, struct vm_exception *exception)
+{
+	struct vcpu *vcpu;
+	int pending;
+
+	KASSERT(vcpuid >= 0 && vcpuid < VM_MAXCPU, ("invalid vcpu %d", vcpuid));
+
+	vcpu = &vm->vcpu[vcpuid];
+	pending = vcpu->exception_pending;
+	if (pending) {
+		vcpu->exception_pending = 0;
+		*exception = vcpu->exception;
+		VCPU_CTR1(vm, vcpuid, "Exception %d delivered",
+		    exception->vector);
+	}
+	return (pending);
+}
+
+static void
+vm_inject_fault(struct vm *vm, int vcpuid, struct vm_exception *exception)
+{
+	struct vm_exit *vmexit;
+	int error;
+
+	error = vm_inject_exception(vm, vcpuid, exception);
+	KASSERT(error == 0, ("vm_inject_exception error %d", error));
+
+	/*
+	 * A fault-like exception allows the instruction to be restarted
+	 * after the exception handler returns.
+	 *
+	 * By setting the inst_length to 0 we ensure that the instruction
+	 * pointer remains at the faulting instruction.
+	 */
+	vmexit = vm_exitinfo(vm, vcpuid);
+	vmexit->inst_length = 0;
+}
+
+void
+vm_inject_gp(struct vm *vm, int vcpuid)
+{
+	struct vm_exception gpf = {
+		.vector = IDT_GP,
+		.error_code_valid = 1,
+		.error_code = 0
+	};
+
+	vm_inject_fault(vm, vcpuid, &gpf);
+}
+
+void
+vm_inject_ud(struct vm *vm, int vcpuid)
+{
+	struct vm_exception udf = {
+		.vector = IDT_UD,
+		.error_code_valid = 0
+	};
+
+	vm_inject_fault(vm, vcpuid, &udf);
 }
 
 static VMM_STAT(VCPU_NMI_COUNT, "number of NMIs delivered to vcpu");

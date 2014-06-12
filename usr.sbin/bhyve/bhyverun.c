@@ -326,8 +326,11 @@ vmexit_rdmsr(struct vmctx *ctx, struct vm_exit *vme, int *pvcpu)
 	if (error != 0) {
 		fprintf(stderr, "rdmsr to register %#x on vcpu %d\n",
 		    vme->u.msr.code, *pvcpu);
-		if (strictmsr)
-			return (VMEXIT_ABORT);
+		if (strictmsr) {
+			error = vm_inject_exception2(ctx, *pvcpu, IDT_GP, 0);
+			assert(error == 0);
+			return (VMEXIT_RESTART);
+		}
 	}
 
 	eax = val;
@@ -350,8 +353,11 @@ vmexit_wrmsr(struct vmctx *ctx, struct vm_exit *vme, int *pvcpu)
 	if (error != 0) {
 		fprintf(stderr, "wrmsr to register %#x(%#lx) on vcpu %d\n",
 		    vme->u.msr.code, vme->u.msr.wval, *pvcpu);
-		if (strictmsr)
-			return (VMEXIT_ABORT);
+		if (strictmsr) {
+			error = vm_inject_exception2(ctx, *pvcpu, IDT_GP, 0);
+			assert(error == 0);
+			return (VMEXIT_RESTART);
+		}
 	}
 	return (VMEXIT_CONTINUE);
 }

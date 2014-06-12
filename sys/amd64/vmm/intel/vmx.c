@@ -50,6 +50,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/vmparam.h>
 
 #include <machine/vmm.h>
+#include <machine/vmm_dev.h>
 #include "vmm_host.h"
 #include "vmm_ipi.h"
 #include "vmm_msr.h"
@@ -1090,9 +1091,26 @@ vmx_inject_nmi(struct vmx *vmx, int vcpu)
 static void
 vmx_inject_interrupts(struct vmx *vmx, int vcpu, struct vlapic *vlapic)
 {
+	struct vm_exception exc;
 	int vector, need_nmi_exiting;
 	uint64_t rflags;
 	uint32_t gi, info;
+
+	if (vm_exception_pending(vmx->vm, vcpu, &exc)) {
+		KASSERT(exc.vector >= 0 && exc.vector < 32,
+		    ("%s: invalid exception vector %d", __func__, exc.vector));
+
+		info = vmcs_read(VMCS_ENTRY_INTR_INFO);
+		KASSERT((info & VMCS_INTR_VALID) == 0, ("%s: cannot inject "
+		     "pending exception %d: %#x", __func__, exc.vector, info));
+
+		info = exc.vector | VMCS_INTR_T_HWEXCEPTION | VMCS_INTR_VALID;
+		if (exc.error_code_valid) {
+			info |= VMCS_INTR_DEL_ERRCODE;
+			vmcs_write(VMCS_ENTRY_EXCEPTION_ERROR, exc.error_code);
+		}
+		vmcs_write(VMCS_ENTRY_INTR_INFO, info);
+	}
 
 	if (vm_nmi_pending(vmx->vm, vcpu)) {
 		/*
@@ -1169,6 +1187,7 @@ vmx_inject_interrupts(struct vmx *vmx, int vcpu, struct vlapic *vlapic)
 		 * This is expected and could happen for multiple reasons:
 		 * - A vectoring VM-entry was aborted due to astpending
 		 * - A VM-exit happened during event injection.
+		 * - An exception was injected above.
 		 * - An NMI was injected above or after "NMI window exiting"
 		 */
 		VCPU_CTR2(vmx->vm, vcpu, "Cannot inject vector %d due to "
@@ -1225,6 +1244,82 @@ vmx_clear_nmi_blocking(struct vmx *vmx, int vcpuid)
 	gi = vmcs_read(VMCS_GUEST_INTERRUPTIBILITY);
 	gi &= ~VMCS_INTERRUPTIBILITY_NMI_BLOCKING;
 	vmcs_write(VMCS_GUEST_INTERRUPTIBILITY, gi);
+}
+
+static int
+vmx_emulate_xsetbv(struct vmx *vmx, int vcpu, struct vm_exit *vmexit)
+{
+	struct vmxctx *vmxctx;
+	uint64_t xcrval;
+	const struct xsave_limits *limits;
+
+	vmxctx = &vmx->ctx[vcpu];
+	limits = vmm_get_xsave_limits();
+
+	/*
+	 * Note that the processor raises a GP# fault on its own if
+	 * xsetbv is executed for CPL != 0, so we do not have to
+	 * emulate that fault here.
+	 */
+
+	/* Only xcr0 is supported. */
+	if (vmxctx->guest_rcx != 0) {
+		vm_inject_gp(vmx->vm, vcpu);
+		return (HANDLED);
+	}
+
+	/* We only handle xcr0 if both the host and guest have XSAVE enabled. */
+	if (!limits->xsave_enabled || !(vmcs_read(VMCS_GUEST_CR4) & CR4_XSAVE)) {
+		vm_inject_ud(vmx->vm, vcpu);
+		return (HANDLED);
+	}
+
+	xcrval = vmxctx->guest_rdx << 32 | (vmxctx->guest_rax & 0xffffffff);
+	if ((xcrval & ~limits->xcr0_allowed) != 0) {
+		vm_inject_gp(vmx->vm, vcpu);
+		return (HANDLED);
+	}
+
+	if (!(xcrval & XFEATURE_ENABLED_X87)) {
+		vm_inject_gp(vmx->vm, vcpu);
+		return (HANDLED);
+	}
+
+	/* AVX (YMM_Hi128) requires SSE. */
+	if (xcrval & XFEATURE_ENABLED_AVX &&
+	    (xcrval & XFEATURE_AVX) != XFEATURE_AVX) {
+		vm_inject_gp(vmx->vm, vcpu);
+		return (HANDLED);
+	}
+
+	/*
+	 * AVX512 requires base AVX (YMM_Hi128) as well as OpMask,
+	 * ZMM_Hi256, and Hi16_ZMM.
+	 */
+	if (xcrval & XFEATURE_AVX512 &&
+	    (xcrval & (XFEATURE_AVX512 | XFEATURE_AVX)) !=
+	    (XFEATURE_AVX512 | XFEATURE_AVX)) {
+		vm_inject_gp(vmx->vm, vcpu);
+		return (HANDLED);
+	}
+
+	/*
+	 * Intel MPX requires both bound register state flags to be
+	 * set.
+	 */
+	if (((xcrval & XFEATURE_ENABLED_BNDREGS) != 0) !=
+	    ((xcrval & XFEATURE_ENABLED_BNDCSR) != 0)) {
+		vm_inject_gp(vmx->vm, vcpu);
+		return (HANDLED);
+	}
+
+	/*
+	 * This runs "inside" vmrun() with the guest's FPU state, so
+	 * modifying xcr0 directly modifies the guest's xcr0, not the
+	 * host's.
+	 */
+	load_xcr(0, xcrval);
+	return (HANDLED);
 }
 
 static int
@@ -1413,7 +1508,7 @@ vmx_handle_apic_write(struct vlapic *vlapic, uint64_t qual)
 	if (!virtual_interrupt_delivery)
 		return (UNHANDLED);
 
-	handled = 1;
+	handled = HANDLED;
 	offset = APIC_WRITE_OFFSET(qual);
 	switch (offset) {
 	case APIC_OFFSET_ID:
@@ -1435,7 +1530,7 @@ vmx_handle_apic_write(struct vlapic *vlapic, uint64_t qual)
 		retu = false;
 		error = vlapic_icrlo_write_handler(vlapic, &retu);
 		if (error != 0 || retu)
-			handled = 0;
+			handled = UNHANDLED;
 		break;
 	case APIC_OFFSET_CMCI_LVT:
 	case APIC_OFFSET_TIMER_LVT ... APIC_OFFSET_ERROR_LVT:
@@ -1448,7 +1543,7 @@ vmx_handle_apic_write(struct vlapic *vlapic, uint64_t qual)
 		vlapic_dcr_write_handler(vlapic);
 		break;
 	default:
-		handled = 0;
+		handled = UNHANDLED;
 		break;
 	}
 	return (handled);
@@ -1548,7 +1643,7 @@ vmx_exit_process(struct vmx *vmx, int vcpu, struct vm_exit *vmexit)
 	CTASSERT((PINBASED_CTLS_ONE_SETTING & PINBASED_VIRTUAL_NMI) != 0);
 	CTASSERT((PINBASED_CTLS_ONE_SETTING & PINBASED_NMI_EXITING) != 0);
 
-	handled = 0;
+	handled = UNHANDLED;
 	vmxctx = &vmx->ctx[vcpu];
 
 	qual = vmexit->u.vmx.exit_qualification;
@@ -1611,7 +1706,7 @@ vmx_exit_process(struct vmx *vmx, int vcpu, struct vm_exit *vmexit)
 			vmexit->exitcode = VM_EXITCODE_RDMSR;
 			vmexit->u.msr.code = ecx;
 		} else if (!retu) {
-			handled = 1;
+			handled = HANDLED;
 		} else {
 			/* Return to userspace with a valid exitcode */
 			KASSERT(vmexit->exitcode != VM_EXITCODE_BOGUS,
@@ -1631,7 +1726,7 @@ vmx_exit_process(struct vmx *vmx, int vcpu, struct vm_exit *vmexit)
 			vmexit->u.msr.code = ecx;
 			vmexit->u.msr.wval = (uint64_t)edx << 32 | eax;
 		} else if (!retu) {
-			handled = 1;
+			handled = HANDLED;
 		} else {
 			/* Return to userspace with a valid exitcode */
 			KASSERT(vmexit->exitcode != VM_EXITCODE_BOGUS,
@@ -1772,6 +1867,9 @@ vmx_exit_process(struct vmx *vmx, int vcpu, struct vm_exit *vmexit)
 		vmexit->inst_length = 0;
 		vlapic = vm_lapic(vmx->vm, vcpu);
 		handled = vmx_handle_apic_write(vlapic, qual);
+		break;
+	case EXIT_REASON_XSETBV:
+		handled = vmx_emulate_xsetbv(vmx, vcpu, vmexit);
 		break;
 	default:
 		vmm_stat_incr(vmx->vm, vcpu, VMEXIT_UNKNOWN, 1);
@@ -2198,50 +2296,6 @@ vmx_setdesc(void *arg, int vcpu, int reg, struct seg_desc *desc)
 }
 
 static int
-vmx_inject(void *arg, int vcpu, int type, int vector, uint32_t code,
-	   int code_valid)
-{
-	int error;
-	uint64_t info;
-	struct vmx *vmx = arg;
-	struct vmcs *vmcs = &vmx->vmcs[vcpu];
-
-	static uint32_t type_map[VM_EVENT_MAX] = {
-		0x1,		/* VM_EVENT_NONE */
-		0x0,		/* VM_HW_INTR */
-		0x2,		/* VM_NMI */
-		0x3,		/* VM_HW_EXCEPTION */
-		0x4,		/* VM_SW_INTR */
-		0x5,		/* VM_PRIV_SW_EXCEPTION */
-		0x6,		/* VM_SW_EXCEPTION */
-	};
-
-	/*
-	 * If there is already an exception pending to be delivered to the
-	 * vcpu then just return.
-	 */
-	error = vmcs_getreg(vmcs, 0, VMCS_IDENT(VMCS_ENTRY_INTR_INFO), &info);
-	if (error)
-		return (error);
-
-	if (info & VMCS_INTR_VALID)
-		return (EAGAIN);
-
-	info = vector | (type_map[type] << 8) | (code_valid ? 1 << 11 : 0);
-	info |= VMCS_INTR_VALID;
-	error = vmcs_setreg(vmcs, 0, VMCS_IDENT(VMCS_ENTRY_INTR_INFO), info);
-	if (error != 0)
-		return (error);
-
-	if (code_valid) {
-		error = vmcs_setreg(vmcs, 0,
-				    VMCS_IDENT(VMCS_ENTRY_EXCEPTION_ERROR),
-				    code);
-	}
-	return (error);
-}
-
-static int
 vmx_getcap(void *arg, int vcpu, int type, int *retval)
 {
 	struct vmx *vmx = arg;
@@ -2643,7 +2697,6 @@ struct vmm_ops vmm_ops_intel = {
 	vmx_setreg,
 	vmx_getdesc,
 	vmx_setdesc,
-	vmx_inject,
 	vmx_getcap,
 	vmx_setcap,
 	ept_vmspace_alloc,
