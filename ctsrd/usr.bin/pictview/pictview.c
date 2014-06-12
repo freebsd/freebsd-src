@@ -1,4 +1,5 @@
 /*-
+ * Copyright (c) 2012-2014 SRI International
  * Copyright (c) 2012 Simon W. Moore
  * All rights reserved.
  *

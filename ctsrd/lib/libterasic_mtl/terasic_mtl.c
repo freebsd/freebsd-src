@@ -1,6 +1,6 @@
 /*-
  * Copyright (c) 2012 Simon W. Moore
- * Copyright (c) 2012 SRI International
+ * Copyright (c) 2012-2014 SRI International
  * All rights reserved.
  *
  * This software was developed by SRI International and the University of
