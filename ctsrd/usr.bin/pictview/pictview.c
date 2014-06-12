@@ -448,7 +448,7 @@ loadcover(const char *dir)
     err(1, "malloc image]");
   fcol = (fb_width - is->width) / 2;
   fb_composite(image, fb_width, fb_height, fcol, 0,
-    is->buffer, is->width, is->height);
+    __DEVOLATILE(uint32_t *, is->buffer), is->width, is->height);
   if (is->width != fb_width) {
     for (r = 0; r < is->height; r++) {
       for (c = 0; c < fcol; c++)
