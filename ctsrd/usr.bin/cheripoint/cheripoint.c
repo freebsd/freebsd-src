@@ -39,6 +39,9 @@
 #include <cheri/sandbox.h>
 
 #include <terasic_mtl.h>
+#if INPUT_DEBUG
+#include <ctype.h>
+#endif
 #include <dirent.h>
 #include <err.h>
 #include <errno.h>
@@ -53,6 +56,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <syslog.h>
+#include <termios.h>
 #include <unistd.h>
 
 #define vwhite(v)       fb_colour((v), (v), (v))
@@ -83,6 +87,14 @@ enum mtl_display_mode {
 	MTL_DM_720x480,		/* Full 480p HDMI out */
 	MTL_DM_640x480,		/* 640x480 VGA from 480p, left pixels */
 	MTL_DM_640x480_CENTER	/* 640x480 VGA from 480p, center pixels */
+};
+
+enum keystate {
+	KS_NONE,
+	KS_ESC,
+	KS_BRACKET,
+	KS_LEFT,
+	KS_RIGHT
 };
 
 struct image {
@@ -945,15 +957,20 @@ main(int argc, char **argv)
 {
 	DIR *dirp;
 	struct dirent *entry;
-	char *coverpat;
+	char *coverpat, c, *devpath;
 	struct image **covers, **slides;
 	uint32_t *save;
 	int error, gesture;
 	int ch, forkflag = 0, frominit = 0;
 	int i;
+	int ttyflag, tty;
+	int fflags;
 	int cover, ncovers, maxcovers;
 	int slide, nslides, maxslides;
+	ssize_t len;
 	struct tsstate *ts, tshack = {0, 0, 0, 0, 0, 0,};
+	struct termios t_saved, t_raw;
+	enum keystate ks;
 
 	while ((ch = getopt(argc, argv, "Ccfiv")) != -1) {
 		switch (ch) {
@@ -984,8 +1001,26 @@ main(int argc, char **argv)
 	if (verbose)
 		ibox_verbose = verbose;
 
-	if (argc != 1 && !(frominit && argc == 2))
-		usage();
+	if (argc != 1) {
+		if (frominit && argc == 2) {
+			if (argv[1][0] != '/')
+				asprintf(&devpath, "/dev/%s", argv[1]);
+			else
+				devpath = argv[1];
+			if ((tty = open(devpath, O_RDWR)) < 0) {
+				syslog(LOG_ALERT, "open of %s failed with %s",
+				    devpath, strerror(errno));
+				err(1, "open(%s)", devpath);
+			}
+
+			if (login_tty(tty) < 0) {
+				syslog(LOG_ALERT, "login_tty failed: %s",
+				    strerror(errno));
+				err(1, "login_tty()");
+			}
+		} else
+			usage();
+	}
 	
 	fb_init();
         ts_drain();
@@ -1041,6 +1076,20 @@ main(int argc, char **argv)
 			render_slide(dirfd(dirp), i+1, slides[i]);
 		}
 	}
+
+	if ((ttyflag = isatty(STDIN_FILENO)) != 0) {
+		syslog(LOG_ALERT, "on a tty");
+		if (tcgetattr(STDIN_FILENO, &t_saved) == -1)
+			err(1, "tcgetattr");
+		t_raw = t_saved;
+		cfmakeraw(&t_raw);
+		t_raw.c_lflag &= ~ECHO;
+		(void)tcsetattr(STDIN_FILENO, TCSAFLUSH, &t_raw);
+	}
+	fflags = fcntl(STDIN_FILENO, F_GETFL);
+	fflags |= O_NONBLOCK;
+	(void)fcntl(STDIN_FILENO, F_SETFL, fflags);
+	ks = KS_NONE;
 	
 	slide = *slidep;
 	for (;;) {
@@ -1049,6 +1098,7 @@ main(int argc, char **argv)
 		if (slide == 0 && ncovers == 0)
 			slide = 1;
 
+newslide:
 		if (slide == 0) {
 			asprintf(&coverpat, "*-cover-%d.png", slide_width);
 			for (cover = 0; cover < ncovers; cover++)
@@ -1103,19 +1153,66 @@ main(int argc, char **argv)
 		}
 		ts_drain();
 nop:
+		/* Check for arrow keys */
+		while ((len = read(STDIN_FILENO, &c, 1)) == 1) {
+#if INPUT_DEBUG
+			if (frominit)
+				syslog(LOG_ALERT, "key %hhx %c\r\n", c,
+				    isprint(c) ? c : '?');
+			printf("key %hhx %c\r\n", c, isprint(c) ? c : '?');
+#endif
+			if (c == 0x1b)
+				ks = KS_ESC;
+			else if (ks == KS_ESC && c == '[')
+				ks = KS_BRACKET;
+			else if (ks == KS_BRACKET && c == '5')
+				ks = KS_LEFT;
+			else if (ks == KS_BRACKET && c == '6')
+				ks = KS_RIGHT;
+			else if (ks == KS_BRACKET && c == 'C') {
+				/* Right arrow in terminal on mac */
+				ks = KS_NONE;
+				SLIDE_NEXT;
+				goto newslide;
+			} else if (ks == KS_BRACKET && c == 'D') {
+				/* Left arrow in terminal on mac */
+				ks = KS_NONE;
+				SLIDE_PREV;
+				goto newslide;
+			} else if (ks == KS_LEFT && c == '~') {
+				/* End of left arrow from Kensington pointer */
+				ks = KS_NONE;
+				SLIDE_PREV;
+				goto newslide;
+			} else if (ks == KS_RIGHT && c == '~') {
+				/* End of right arrow from Kensington pointer */
+				ks = KS_NONE;
+				SLIDE_NEXT;
+				goto newslide;
+			} else if (ks == KS_NONE && c == 'Q') {
+				goto restore_tty;
+			} else
+				ks = KS_NONE;
+		}
+		if (len < 0 && errno != EAGAIN) {
+			syslog(LOG_ALERT, "read from stdin returned %d: %s",
+			    (int)len, strerror(errno));
+			//err(1, "read stdin");
+		}
+
 		if (gesture != 0) {
 			tshack.ts_gesture = tsgf2tsg(gesture);
 			ts = &tshack;
 			gesture = 0;
 		} else
-			ts = ts_poll(0);
+			ts = ts_poll(10);
 
 #ifdef DEBUG
 		printf("gesture 0x%x\n", ts->ts_gesture);
 #endif
 		switch (ts->ts_gesture) {
 		case TSG2_ZOOM_OUT:
-			exit(0);
+			goto restore_tty;
 		case TSG_NORTH:
 			error = config_dialog();
 			ts_drain();
@@ -1144,4 +1241,9 @@ nop:
 		}
 
 	}
+
+restore_tty:
+	if (ttyflag)
+		(void)tcsetattr(STDIN_FILENO, TCSAFLUSH, &t_saved);
+	exit(0);
 }
