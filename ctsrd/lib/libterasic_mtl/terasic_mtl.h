@@ -127,7 +127,7 @@ extern volatile u_int32_t *mtlctrl;
 void multitouch_pole(void);
 void multitouch_filter(void);
 void multitouch_release_event(void);
-struct tsstate* ts_poll(void);
+struct tsstate* ts_poll(int timeout);
 void ts_drain(void);
 int tsg2tsgf(int g);
 int tsgf2tsg(int f);

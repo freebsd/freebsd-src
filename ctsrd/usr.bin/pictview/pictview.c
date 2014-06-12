@@ -704,7 +704,7 @@ pictview_selector(void)
 
   // wait for image selection
   for(display_image=-1; (display_image<0); ) {
-    ts = ts_poll();
+    ts = ts_poll(0);
     switch (ts->ts_gesture) {
     case TSG_CLICK:
       x = ts->ts_x1 / (fb_width / tile);

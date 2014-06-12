@@ -369,7 +369,7 @@ repaint:
 	    d_width + (CD_BORDER_WIDTH * 2), d_height + (CD_BORDER_WIDTH * 2));
 
 	for(;;) {
-		ts = ts_poll();
+		ts = ts_poll(0);
 #if DEBUG
 		printf("gesture 0x%x\n", ts->ts_gesture);
 #endif
@@ -1108,7 +1108,7 @@ nop:
 			ts = &tshack;
 			gesture = 0;
 		} else
-			ts = ts_poll();
+			ts = ts_poll(0);
 
 #ifdef DEBUG
 		printf("gesture 0x%x\n", ts->ts_gesture);

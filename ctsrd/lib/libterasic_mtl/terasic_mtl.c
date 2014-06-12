@@ -218,12 +218,13 @@ tsgf2tsg(int f)
 }
 
 struct tsstate*
-ts_poll(void)
+ts_poll(int timeout)
 {
         struct timespec stime = {0, 1000000};
         int init = 0, first_pass = 1;
         int check_release = 0;
         struct tsstate tmp_s, rel_s;
+	int loops = 0;
 
         if (sp == NULL) {
                 sp = malloc(sizeof(struct tsstate));
@@ -233,6 +234,15 @@ ts_poll(void)
         }
 
         for (;;) {
+		if (timeout != 0 && !check_release && loops > timeout) {
+			/*
+			 * If we have timed out and aren't waiting for a
+			 * release then return an empty gesture.
+			 */
+			sp->ts_count = 0;
+			sp->ts_gesture = 0;
+			return (sp);
+		}
                 tmp_s.ts_x1 = le32toh(mtlctrl[3]);
                 tmp_s.ts_y1 = le32toh(mtlctrl[4]);
                 tmp_s.ts_x2 = le32toh(mtlctrl[5]);
@@ -256,6 +266,7 @@ ts_poll(void)
 			}
 			first_pass = 0;
                         nanosleep(&stime, NULL);
+			loops++;
                         continue;
                 }
                 tmp_s.ts_count = tmp_s.ts_gesture >> 8;
@@ -280,6 +291,7 @@ ts_poll(void)
                 }
 		first_pass = 0;
                 nanosleep(&stime, NULL);
+		loops++;
         }
 }
 
@@ -837,7 +849,7 @@ fb_dialog_gestures(int cgestures, u_int32_t bcolor, u_int32_t bgcolor,
 	ts_drain();
 
 	for (;;) {
-		ts = ts_poll();
+		ts = ts_poll(0);
 		gesture = tsg2tsgf(ts->ts_gesture);
 		if (cgestures & gesture)
 			return (gesture);

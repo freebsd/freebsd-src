@@ -155,7 +155,7 @@ print_gesture(void)
 {
 	static struct tsstate *sp;
 
-	sp = ts_poll();
+	sp = ts_poll(0);
 	printf("gesture %s (%02x) ", gesturetostr(sp->ts_gesture),
 	    sp->ts_gesture);
 	if (sp->ts_x1 >= 0 && sp->ts_y1 >= 0) {

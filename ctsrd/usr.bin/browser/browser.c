@@ -615,7 +615,7 @@ get_action(void)
 	ts_drain();
 
 	for (;;) {
-		ts = ts_poll();
+		ts = ts_poll(0);
 		if (verbose)
 			printf("gesture = %x\n", ts->ts_gesture);
 		if (ts->ts_gesture == TSG_CLICK) {
@@ -694,7 +694,7 @@ show_png(int dfd, const char *name)
 	/* read_png_fd() closes the descriptor */
 	fb_post(image);
 	for (;;) {
-		ts = ts_poll();
+		ts = ts_poll(0);
 		if(ts->ts_gesture == TSG2_ZOOM_OUT) {
 			if (ts->ts_count != 0)
 				ts_drain();
