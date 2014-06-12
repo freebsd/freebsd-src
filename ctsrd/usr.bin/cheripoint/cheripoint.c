@@ -104,9 +104,11 @@ struct image {
         uint32_t        *i_image;
 };
 
+int bleed_edges = 1;
 int caching = 0;
 int verbose = 0;
 int sb_vis = 0;
+uint32_t bgcolor;
 uint32_t header_height;
 #ifdef HOURGLASS
 uint32_t *busyarea, *hourglass;
@@ -126,7 +128,8 @@ static void __dead2
 usage(void)
 {
 	
-	fprintf(stderr, "cheripoint [-Ccfiv] <slidedir>\n");
+	fprintf(stderr, "cheripoint [-Ccfiv] [-b <color>] <slidedir>\n");
+	fprintf(stderr, "valid colors: black, white\n");
 	exit(1);
 }
 
@@ -500,7 +503,7 @@ render_slide(int dfd, int slidenum, struct image *slide)
 	busy(1);
 
 	if (caching)
-		fb_fill_region(white, 0, 0, fb_width, fb_height);
+		fb_fill_region(bgcolor, 0, 0, fb_width, fb_height);
 	if (slide->i_image == NULL) {
 		if ((pfd = openat(dfd, slide->i_file, O_RDONLY)) == -1) {
 			warn("Failed to open %s", slide->i_file);
@@ -540,7 +543,7 @@ render_slide(int dfd, int slidenum, struct image *slide)
 	} else if (verbose)
 		printf("Rendering slide %d from cache\n", slidenum);
 	if (!caching)
-		fb_fill_region(white, 0, 0, fb_width, fb_height);
+		fb_fill_region(bgcolor, 0, 0, fb_width, fb_height);
 	busy(0);
 	/*
 	 * If the image is the full display height, assume it's meant to be
@@ -589,22 +592,26 @@ render_slide(int dfd, int slidenum, struct image *slide)
 
 	/* 
 	 * If the image is full height, then left and right extend the
-	 * edges and skip further compositing
+	 * edges and skip further compositing unless we're leaving the
+	 * edges the user selected background color.
 	 */
 	if (y == 0) {
-		if (x > 0) {
-			/* Left extend the image if needed */
-			for (r = 0; r < slide->i_height; r++)
-				fb_fill_region(slide->i_image[r * slide->i_width],
-				    0, r, x, 1);
-		}
-		if (x + slide->i_width < (uint)fb_width) {
-			/* Right extend the image if needed */
-			for (r = 0; r < slide->i_height; r++)
-				fb_fill_region(slide->i_image[((r + 1) *
-				    slide->i_width) - 1],
-				    x + slide->i_width, r,
-				    fb_width - (x + slide->i_width), 1);
+		if (bleed_edges) {
+			if (x > 0) {
+				/* Left extend the image if needed */
+				for (r = 0; r < slide->i_height; r++)
+					fb_fill_region(slide->i_image[r *
+					    slide->i_width],
+					    0, r, x, 1);
+			}
+			if (x + slide->i_width < (uint)fb_width) {
+				/* Right extend the image if needed */
+				for (r = 0; r < slide->i_height; r++)
+					fb_fill_region(slide->i_image[((r + 1) *
+					    slide->i_width) - 1],
+					    x + slide->i_width, r,
+					    fb_width - (x + slide->i_width), 1);
+			}
 		}
 		if (is != NULL)
 			iboxstate_free(is);
@@ -771,10 +778,13 @@ render_slide(int dfd, int slidenum, struct image *slide)
 			    is->buffer);
 	} else
 		is = NULL;
-	/* Fill in the header's background. */
-	for (r = 0; r < header.i_height; r++)
-		fb_fill_region(header.i_image[r * header.i_width], 0, r,
-		fb_width, 1);
+	if (bleed_edges) {
+		/* XXX-BD what about undersized headers?  Fill display width? */
+		/* Fill in the header's background. */
+		for (r = 0; r < header.i_height; r++)
+			fb_fill_region(header.i_image[r * header.i_width], 0, r,
+			fb_width, 1);
+	}
 	fb_post_region(__DEVOLATILE(uint32_t *, header.i_image),
 	    slide_fcol + slide_width - header.i_width, 0, header.i_width,
 		header.i_height);
@@ -972,8 +982,18 @@ main(int argc, char **argv)
 	struct termios t_saved, t_raw;
 	enum keystate ks;
 
-	while ((ch = getopt(argc, argv, "Ccfiv")) != -1) {
+	bgcolor = white;
+
+	while ((ch = getopt(argc, argv, "b:Ccfiv")) != -1) {
 		switch (ch) {
+		case 'b':
+			bleed_edges = 0;
+			if (strcmp(optarg, "black") == 0)
+				bgcolor = black;
+			else if (strcmp(optarg, "white") == 0)
+				bgcolor = white;
+			else	/* XXX: add 0xRRGGBB support */
+				usage();
 		case 'C':
 			caching = 2;
 			break;
@@ -1025,7 +1045,7 @@ main(int argc, char **argv)
 	fb_init();
         ts_drain();
 	busy_indicator();
-	fb_fill_region(white, 0, 0, fb_width, fb_height);
+	fb_fill_region(bgcolor, 0, 0, fb_width, fb_height);
         fb_fade2on(); 
         fb_load_syscons_font(NULL, "/usr/share/syscons/fonts/iso-8x16.fnt");
 	init_busy();
