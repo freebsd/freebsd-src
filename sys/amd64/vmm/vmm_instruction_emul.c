@@ -58,8 +58,11 @@ enum cpu_mode {
 enum {
 	VIE_OP_TYPE_NONE = 0,
 	VIE_OP_TYPE_MOV,
+	VIE_OP_TYPE_MOVSX,
+	VIE_OP_TYPE_MOVZX,
 	VIE_OP_TYPE_AND,
 	VIE_OP_TYPE_OR,
+	VIE_OP_TYPE_TWO_BYTE,
 	VIE_OP_TYPE_LAST
 };
 
@@ -67,7 +70,22 @@ enum {
 #define	VIE_OP_F_IMM		(1 << 0)	/* immediate operand present */
 #define	VIE_OP_F_IMM8		(1 << 1)	/* 8-bit immediate operand */
 
+static const struct vie_op two_byte_opcodes[256] = {
+	[0xB6] = {
+		.op_byte = 0xB6,
+		.op_type = VIE_OP_TYPE_MOVZX,
+	},
+	[0xBE] = {
+		.op_byte = 0xBE,
+		.op_type = VIE_OP_TYPE_MOVSX,
+	},
+};
+
 static const struct vie_op one_byte_opcodes[256] = {
+	[0x0F] = {
+		.op_byte = 0x0F,
+		.op_type = VIE_OP_TYPE_TWO_BYTE
+	},
 	[0x88] = {
 		.op_byte = 0x88,
 		.op_type = VIE_OP_TYPE_MOV,
@@ -313,6 +331,85 @@ emulate_mov(void *vm, int vcpuid, uint64_t gpa, struct vie *vie,
 	return (error);
 }
 
+/*
+ * The following simplifying assumptions are made during emulation:
+ *
+ * - guest is in 64-bit mode
+ *   - default address size is 64-bits
+ *   - default operand size is 32-bits
+ *
+ * - operand size override is not supported
+ *
+ * - address size override is not supported
+ */
+static int
+emulate_movx(void *vm, int vcpuid, uint64_t gpa, struct vie *vie,
+	     mem_region_read_t memread, mem_region_write_t memwrite,
+	     void *arg)
+{
+	int error, size;
+	enum vm_reg_name reg;
+	uint64_t val;
+
+	size = 4;
+	error = EINVAL;
+
+	switch (vie->op.op_byte) {
+	case 0xB6:
+		/*
+		 * MOV and zero extend byte from mem (ModRM:r/m) to
+		 * reg (ModRM:reg).
+		 *
+		 * 0F B6/r		movzx r/m8, r32
+		 * REX.W + 0F B6/r	movzx r/m8, r64
+		 */
+
+		/* get the first operand */
+		error = memread(vm, vcpuid, gpa, &val, 1, arg);
+		if (error)
+			break;
+
+		/* get the second operand */
+		reg = gpr_map[vie->reg];
+
+		if (vie->rex_w)
+			size = 8;
+
+		/* write the result */
+		error = vie_update_register(vm, vcpuid, reg, val, size);
+		break;
+	case 0xBE:
+		/*
+		 * MOV and sign extend byte from mem (ModRM:r/m) to
+		 * reg (ModRM:reg).
+		 *
+		 * 0F BE/r		movsx r/m8, r32
+		 * REX.W + 0F BE/r	movsx r/m8, r64
+		 */
+
+		/* get the first operand */
+		error = memread(vm, vcpuid, gpa, &val, 1, arg);
+		if (error)
+			break;
+
+		/* get the second operand */
+		reg = gpr_map[vie->reg];
+
+		if (vie->rex_w)
+			size = 8;
+
+		/* sign extend byte */
+		val = (int8_t)val;
+
+		/* write the result */
+		error = vie_update_register(vm, vcpuid, reg, val, size);
+		break;
+	default:
+		break;
+	}
+	return (error);
+}
+
 static int
 emulate_and(void *vm, int vcpuid, uint64_t gpa, struct vie *vie,
 	    mem_region_read_t memread, mem_region_write_t memwrite, void *arg)
@@ -446,6 +543,11 @@ vmm_emulate_instruction(void *vm, int vcpuid, uint64_t gpa, struct vie *vie,
 	case VIE_OP_TYPE_MOV:
 		error = emulate_mov(vm, vcpuid, gpa, vie,
 				    memread, memwrite, memarg);
+		break;
+	case VIE_OP_TYPE_MOVSX:
+	case VIE_OP_TYPE_MOVZX:
+		error = emulate_movx(vm, vcpuid, gpa, vie,
+				     memread, memwrite, memarg);
 		break;
 	case VIE_OP_TYPE_AND:
 		error = emulate_and(vm, vcpuid, gpa, vie,
@@ -609,6 +711,23 @@ decode_rex(struct vie *vie)
 }
 
 static int
+decode_two_byte_opcode(struct vie *vie)
+{
+	uint8_t x;
+
+	if (vie_peek(vie, &x))
+		return (-1);
+
+	vie->op = two_byte_opcodes[x];
+
+	if (vie->op.op_type == VIE_OP_TYPE_NONE)
+		return (-1);
+
+	vie_advance(vie);
+	return (0);
+}
+
+static int
 decode_opcode(struct vie *vie)
 {
 	uint8_t x;
@@ -622,6 +741,10 @@ decode_opcode(struct vie *vie)
 		return (-1);
 
 	vie_advance(vie);
+
+	if (vie->op.op_type == VIE_OP_TYPE_TWO_BYTE)
+		return (decode_two_byte_opcode(vie));
+
 	return (0);
 }
 
