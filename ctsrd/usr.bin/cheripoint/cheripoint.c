@@ -1093,12 +1093,12 @@ main(int argc, char **argv)
 	
 	slide = *slidep;
 	for (;;) {
+newslide:
 		gesture = 0;
 		/* If there isn't a cover, skip over it */
 		if (slide == 0 && ncovers == 0)
 			slide = 1;
 
-newslide:
 		if (slide == 0) {
 			asprintf(&coverpat, "*-cover-%d.png", slide_width);
 			for (cover = 0; cover < ncovers; cover++)
