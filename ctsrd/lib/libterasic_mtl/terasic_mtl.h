@@ -162,6 +162,8 @@ int fb_get_font_height(void);
 int fb_get_font_width(void);
 void fb_render_text(const char *string, int expand, u_int32_t con, u_int32_t coff,
     u_int32_t *buffer, int w, int h);
+void fb_progress_bar(int x, int y, int w, int h, int fill, int border_width,
+    u_int32_t fill_color, u_int32_t empty_color, u_int32_t border_color);
 fb_dialog_action fb_dialog(fb_dialog_type type, u_int32_t bcolor,
     u_int32_t bgcolor, u_int32_t tcolor, const char *title, const char *text);
 int fb_dialog_gestures(int gestures, u_int32_t bcolor, u_int32_t bgcolor,

@@ -32,6 +32,7 @@
 #include <sys/types.h>
 #include <sys/endian.h>
 #include <sys/stat.h>
+#include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <syslog.h>
@@ -730,6 +731,37 @@ busy_indicator(void)
   fb_post_region(busy_indicator_imgs[busy_indicator_state], x0, y0, 64, 64);
 }
 
+void
+fb_progress_bar(int x, int y, int w, int h, int fill, int border_width, 
+    u_int32_t fill_color, u_int32_t empty_color, u_int32_t border_color)
+{
+
+	assert(x >= 0);
+	assert(y >= 0);
+	assert(fill >= 0);
+	assert(fill <= w - border_width * 2);
+	assert(x + w <= fb_width);
+	assert(y + h <= fb_height);
+	assert(w > border_width * 2);
+	assert(h > border_width * 2);
+
+	if (border_width > 0) {
+		fb_fill_region(border_color, x, y, w, border_width);
+		fb_fill_region(border_color, x, y + (h - border_width), w,
+		    border_width);
+		fb_fill_region(border_color, x, y + border_width,
+		    border_width, h - border_width * 2);
+		fb_fill_region(border_color, x + (w - border_width),
+		    y + border_width, border_width, h - border_width * 2);
+	}
+	if (fill > 0)
+		fb_fill_region(fill_color, x + border_width, y + border_width,
+		    fill, h - border_width * 2);
+	if (fill < w - border_width * 2)
+		fb_fill_region(empty_color, x + border_width + fill,
+		    y + border_width, (w - border_width * 2) - fill,
+		    h - border_width * 2);
+}
 
 #define	FBD_BORDER_LWIDTH	2
 #define FBD_BORDER_SPACE	3
