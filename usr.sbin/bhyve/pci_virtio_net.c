@@ -519,6 +519,8 @@ pci_vtnet_init(struct vmctx *ctx, struct pci_devinst *pi, char *opts)
 	pthread_mutex_init(&sc->vsc_mtx, NULL);
 
 	vi_softc_linkup(&sc->vsc_vs, &vtnet_vi_consts, sc, pi, sc->vsc_queues);
+	sc->vsc_vs.vs_mtx = &sc->vsc_mtx;
+
 	sc->vsc_queues[VTNET_RXQ].vq_qsize = VTNET_RINGSZ;
 	sc->vsc_queues[VTNET_RXQ].vq_notify = pci_vtnet_ping_rxq;
 	sc->vsc_queues[VTNET_TXQ].vq_qsize = VTNET_RINGSZ;
@@ -607,6 +609,8 @@ pci_vtnet_init(struct vmctx *ctx, struct pci_devinst *pi, char *opts)
 	pci_set_cfgdata16(pi, PCIR_VENDOR, VIRTIO_VENDOR);
 	pci_set_cfgdata8(pi, PCIR_CLASS, PCIC_NETWORK);
 	pci_set_cfgdata16(pi, PCIR_SUBDEV_0, VIRTIO_TYPE_NET);
+
+	pci_lintr_request(pi);
 
 	/* link always up */
 	sc->vsc_config.status = 1;
