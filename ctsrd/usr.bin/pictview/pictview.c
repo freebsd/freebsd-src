@@ -727,12 +727,21 @@ static void
 run_cheripoint(const char *dir)
 {
   static int pmaster;
-  int pslave, n;
+  int pslave, n, ttyflag;
   char buf[1024];
   ssize_t rlen;
-  struct pollfd pfd[1];
+  struct pollfd pfd[2];
+  struct termios t_saved, t_raw;
+  struct winsize win;
   
-  if (openpty(&pmaster, &pslave, NULL, NULL, NULL) == -1)
+  if ((ttyflag = isatty(STDIN_FILENO)) != 0) {
+    if (tcgetattr(STDIN_FILENO, &t_saved) == -1)
+      err(1, "tcgetattr");
+    if (ioctl(STDIN_FILENO, TIOCGWINSZ, &win) == -1)
+      err(1, "ioctl");
+  }
+  if (openpty(&pmaster, &pslave, NULL, ttyflag ? &t_saved : NULL, ttyflag ?
+      &win : NULL) == -1)
     err(1, "openpty");
   browser_pid = fork();
   if (browser_pid < 0)
@@ -750,6 +759,13 @@ run_cheripoint(const char *dir)
     err(1, "execl()");
   }
 
+  if (ttyflag) {
+    t_raw = t_saved;
+    cfmakeraw(&t_raw);
+    t_raw.c_lflag &= ~ECHO;
+    (void)tcsetattr(STDIN_FILENO, TCSAFLUSH, &t_raw);
+  }
+
   for(;;) {
     /*
      * If the child has exited, reset the state and return to the
@@ -763,7 +779,9 @@ run_cheripoint(const char *dir)
     /* Check for output from the child and post it if needed */
     pfd[0].fd = pmaster;
     pfd[0].events = POLLIN;
-    n = poll(pfd, 1, INFTIM);
+    pfd[1].fd = STDIN_FILENO;
+    pfd[1].events = POLLIN;
+    n = poll(pfd, 2, INFTIM);
     if (n == 0)
       continue;
     else if (n < 0) {
@@ -779,11 +797,21 @@ run_cheripoint(const char *dir)
       rlen = read(pfd[0].fd, buf, sizeof(buf));
       if (rlen < 0) {
         syslog(LOG_ALERT, "read failed: %s", strerror(errno));
-          err(1, "read");
+        err(1, "read");
       } else if (rlen > 0)
-	  writeall(0, buf, rlen);
+	  writeall(STDOUT_FILENO, buf, rlen);
+    }
+    if (pfd[1].revents & POLLIN) {
+      rlen = read(pfd[1].fd, buf, sizeof(buf));
+      if (rlen < 0) {
+        syslog(LOG_ALERT, "read failed: %s", strerror(errno));
+        err(1, "read");
+      } else if (rlen > 0)
+	  writeall(pmaster, buf, rlen);
     }
   }
+  if (ttyflag)
+    (void)tcsetattr(STDIN_FILENO, TCSAFLUSH, &t_saved);
 }
 
 
