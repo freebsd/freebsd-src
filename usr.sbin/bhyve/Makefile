@@ -34,6 +34,7 @@ SRCS=	\
 	pmtmr.c			\
 	post.c			\
 	rtc.c			\
+	smbiostbl.c		\
 	uart_emul.c		\
 	virtio.c		\
 	xmsr.c			\
