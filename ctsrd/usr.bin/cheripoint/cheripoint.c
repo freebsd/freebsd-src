@@ -863,16 +863,30 @@ writeall(int fd, const char *buf, ssize_t len)
 static void
 fork_child(void)
 {
-	int pmaster, pslave, status;
+	int pmaster, pslave, status, ttyflag;
 	ssize_t rlen;
 	pid_t pid;
 	struct sigaction act;
-	struct pollfd pfd[1];
+	struct pollfd pfd[2];
 	char buf[1024];
 	u_int32_t *image;
+	struct termios t_saved, t_raw;
+	struct winsize win;
+
+	if ((ttyflag = isatty(STDIN_FILENO)) != 0) {
+		if (tcgetattr(STDIN_FILENO, &t_saved) == -1)
+			err(1, "tcgetattr");
+		if (ioctl(STDIN_FILENO, TIOCGWINSZ, &win) == -1)
+			err(1, "ioctl");
+		t_raw = t_saved;
+		cfmakeraw(&t_raw);
+		t_raw.c_lflag &= ~ECHO;
+		(void)tcsetattr(STDIN_FILENO, TCSAFLUSH, &t_raw);
+	}
 
 restart:
-	if (openpty(&pmaster, &pslave, NULL, NULL, NULL) == -1)
+	if (openpty(&pmaster, &pslave, NULL, ttyflag ? &t_saved : NULL,
+	    ttyflag ? &win : NULL) == -1)
 		err(1, "openpty");
 	pid = fork();
 	if (pid < 0)
@@ -896,17 +910,21 @@ restart:
 
 	close(pslave);
 	/*
-	 * We poll for data from the child's pty.  Don't bother looking for
-	 * tty input since the child couldn't do anything with it.
+	 * We poll for data from the child's pty and stdin.
 	 */
 	pfd[0].fd = pmaster;
 	pfd[0].events = POLLIN;
+	pfd[1].fd = STDIN_FILENO;
+	pfd[1].events = POLLIN;
 	for (;;) {
 		if (poll(pfd, 2, INFTIM) < 0) {
 			if (errno == EINTR)
 				continue;
 			syslog(LOG_ALERT, "poll failed with %s",
 			    strerror(errno));
+			if (ttyflag)
+				(void)tcsetattr(STDIN_FILENO, TCSAFLUSH,
+				    &t_saved);
 			err(1, "poll");
 		}
 		if (zombies_waiting) {
@@ -935,6 +953,9 @@ restart:
 				warn("child killed by signal %d",
 				    WTERMSIG(status));
 			} else {
+				if (ttyflag)
+					(void)tcsetattr(STDIN_FILENO,
+					    TCSAFLUSH, &t_saved);
 				exit(0);
 			}
 			zombies_waiting = 0;
@@ -949,6 +970,13 @@ restart:
 				err(1, "read");
 			} else if (rlen > 0)
 				writeall(1, buf, rlen);
+		}
+		if (pfd[1].revents & POLLIN) {
+			rlen = read(pfd[1].fd, buf, sizeof(buf));
+			if (rlen < 0) {
+				err(1, "read");
+			} else if (rlen > 0)
+				writeall(pmaster, buf, rlen);
 		}
 	}
 }
