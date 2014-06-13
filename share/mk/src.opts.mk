@@ -68,6 +68,7 @@ __DEFAULT_YES_OPTIONS = \
     CROSS_COMPILER \
     CRYPT \
     CTM \
+    CUSE \
     CXX \
     DICT \
     DMAGENT \
