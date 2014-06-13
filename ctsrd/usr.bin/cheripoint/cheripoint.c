@@ -39,7 +39,7 @@
 #include <cheri/sandbox.h>
 
 #include <terasic_mtl.h>
-#if INPUT_DEBUG
+#ifdef INPUT_DEBUG
 #include <ctype.h>
 #endif
 #include <dirent.h>
@@ -1200,7 +1200,7 @@ newslide:
 nop:
 		/* Check for arrow keys */
 		while ((len = read(STDIN_FILENO, &c, 1)) == 1) {
-#if INPUT_DEBUG
+#ifdef INPUT_DEBUG
 			if (frominit)
 				syslog(LOG_ALERT, "key %hhx %c\r\n", c,
 				    isprint(c) ? c : '?');
