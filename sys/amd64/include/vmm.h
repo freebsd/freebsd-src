@@ -273,9 +273,8 @@ enum vm_cap_type {
 };
 
 enum x2apic_state {
-	X2APIC_ENABLED,
-	X2APIC_AVAILABLE,
 	X2APIC_DISABLED,
+	X2APIC_ENABLED,
 	X2APIC_STATE_LAST
 };
 

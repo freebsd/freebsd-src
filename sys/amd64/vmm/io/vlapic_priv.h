@@ -81,6 +81,7 @@
 #define APIC_OFFSET_TIMER_ICR	0x380	/* Timer's Initial Count	*/
 #define APIC_OFFSET_TIMER_CCR	0x390	/* Timer's Current Count	*/
 #define APIC_OFFSET_TIMER_DCR	0x3E0	/* Timer's Divide Configuration	*/
+#define	APIC_OFFSET_SELF_IPI	0x3F0	/* Self IPI register */
 
 #define	VLAPIC_CTR0(vlapic, format)					\
 	VCPU_CTR0((vlapic)->vm, (vlapic)->vcpuid, format)
@@ -90,6 +91,9 @@
 
 #define	VLAPIC_CTR2(vlapic, format, p1, p2)				\
 	VCPU_CTR2((vlapic)->vm, (vlapic)->vcpuid, format, p1, p2)
+
+#define	VLAPIC_CTR3(vlapic, format, p1, p2, p3)				\
+	VCPU_CTR3((vlapic)->vm, (vlapic)->vcpuid, format, p1, p2, p3)
 
 #define	VLAPIC_CTR_IRR(vlapic, msg)					\
 do {									\
@@ -140,6 +144,7 @@ struct vlapic_ops {
 	void (*intr_accepted)(struct vlapic *vlapic, int vector);
 	void (*post_intr)(struct vlapic *vlapic, int hostcpu);
 	void (*set_tmr)(struct vlapic *vlapic, int vector, bool level);
+	void (*enable_x2apic_mode)(struct vlapic *vlapic);
 };
 
 struct vlapic {
