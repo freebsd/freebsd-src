@@ -206,7 +206,7 @@ vcpu_init(struct vm *vm, uint32_t vcpu_id)
 	vcpu->hostcpu = NOCPU;
 	vcpu->vcpuid = vcpu_id;
 	vcpu->vlapic = VLAPIC_INIT(vm->cookie, vcpu_id);
-	vm_set_x2apic_state(vm, vcpu_id, X2APIC_ENABLED);
+	vm_set_x2apic_state(vm, vcpu_id, X2APIC_DISABLED);
 	vcpu->guest_xcr0 = XFEATURE_ENABLED_X87;
 	vcpu->guestfpu = fpu_save_area_alloc();
 	fpu_save_area_reset(vcpu->guestfpu);

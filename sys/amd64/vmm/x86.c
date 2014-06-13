@@ -149,6 +149,8 @@ x86_emulate_cpuid(struct vm *vm, int vcpu_id,
 
 			if (x2apic_state != X2APIC_DISABLED)
 				regs[2] |= CPUID2_X2APIC;
+			else
+				regs[2] &= ~CPUID2_X2APIC;
 
 			/*
 			 * Only advertise CPUID2_XSAVE in the guest if
