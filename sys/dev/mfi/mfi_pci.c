@@ -113,7 +113,7 @@ SYSCTL_INT(_hw_mfi, OID_AUTO, msi, CTLFLAG_RDTUN, &mfi_msi, 0,
     "Enable use of MSI interrupts");
 
 static int	mfi_mrsas_enable = 0;
-TUNABLE_INT("hw.mfi.mrsas_enable", &mfi_msi);
+TUNABLE_INT("hw.mfi.mrsas_enable", &mfi_mrsas_enable);
 SYSCTL_INT(_hw_mfi, OID_AUTO, mrsas_enable, CTLFLAG_RDTUN, &mfi_mrsas_enable,
      0, "Allow mrasas to take newer cards");
 
