@@ -136,6 +136,7 @@ SUBDIR=	${SUBDIR_ORDERED} \
 	libz \
 	${_atf} \
 	${_clang} \
+	${_cuse} \
 	${_tests}
 
 .if exists(${.CURDIR}/csu/${MACHINE_ARCH}-elf)
@@ -170,6 +171,10 @@ _libcasper=	libcasper
 
 .if ${MK_CLANG} != "no" && !defined(COMPAT_32BIT)
 _clang=		clang
+.endif
+
+.if ${MK_CUSE} != "no"
+_cuse=		libcuse
 .endif
 
 .if ${MK_GPIB} != "no"
