@@ -116,7 +116,7 @@ struct iwn_base_params {
 static const struct iwn_base_params iwn5000_base_params = {
 	.pll_cfg_val = IWN_ANA_PLL_INIT,	/* pll_cfg_val; */
 	.max_ll_items = IWN_OTP_MAX_LL_ITEMS_6x00,	/* max_ll_items */
-	.shadow_ram_support = true,	/* shadow_ram_support */
+	.shadow_ram_support = false,	/* shadow_ram_support */
 	.shadow_reg_enable = false,	/* shadow_reg_enable */
 	.bt_session_2 = false,	/* bt_session_2 */
 	.bt_sco_disable = true,	/* bt_sco_disable */
