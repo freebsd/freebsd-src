@@ -3886,7 +3886,7 @@ vmxnet3_dma_free(struct vmxnet3_softc *sc, struct vmxnet3_dma_alloc *dma)
 {
 
 	if (dma->dma_tag != NULL) {
-		if (dma->dma_map != NULL) {
+		if (dma->dma_paddr != 0) {
 			bus_dmamap_sync(dma->dma_tag, dma->dma_map,
 			    BUS_DMASYNC_POSTREAD | BUS_DMASYNC_POSTWRITE);
 			bus_dmamap_unload(dma->dma_tag, dma->dma_map);
