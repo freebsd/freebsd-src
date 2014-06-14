@@ -83,6 +83,8 @@ typedef struct _ip_fw3_opheader {
 #define	IP_FW_OBJ_LISTSIZE	91	/* get size for table/etc list */
 #define	IP_FW_OBJ_LIST		92	/* list all objects of given type */
 #define	IP_FW_OBJ_INFO		93	/* request info for one object */
+#define	IP_FW_OBJ_FLUSH		94	/* flush data for given object */
+#define	IP_FW_OBJ_DUMP		95	/* dump all data for given object */
 
 /*
  * The kernel representation of ipfw rules is made of a list of
@@ -677,7 +679,10 @@ typedef struct _ipfw_xtable_info {
 } ipfw_xtable_info;
 
 #define	IPFW_OBJTYPE_TABLE	1
-/* IP_FW_OBJ_DEL, IP_FW_OBJ_INFO (followed by ipfw_xtable_info)  */
+/*
+ * IP_FW_OBJ_DEL, IP_FW_OBJ_INFO (followed by ipfw_xtable_info),
+ * IP_FW_OBJ_DUMP (followed by ipfw_xtable_info and ipfw_table_xentry'xN )
+ */
 typedef struct _ipfw_obj_header {
 	ip_fw3_opheader	opheader;	/* IP_FW3 opcode		*/
 	uint32_t	set;		/* Set we're operating		*/

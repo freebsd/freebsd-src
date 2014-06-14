@@ -227,9 +227,10 @@ int _substrcmp2(const char *str1, const char* str2, const char* str3);
 int match_token(struct _s_x *table, char *string);
 char const *match_value(struct _s_x *p, int value);
 
+struct _ip_fw3_opheader;
 int do_cmd(int optname, void *optval, uintptr_t optlen);
-
-uint32_t ipfw_get_tables_max(void);
+int do_set3(int optname, struct _ip_fw3_opheader *op3, uintptr_t optlen);
+int do_get3(int optname, struct _ip_fw3_opheader *op3, size_t *optlen);
 
 struct in6_addr;
 void n2mask(struct in6_addr *mask, int n);
