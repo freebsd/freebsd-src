@@ -64,6 +64,7 @@ __FBSDID("$FreeBSD: projects/ipfw/sys/netpfil/ipfw/ip_fw_table.c 267384 2014-06-
 #include <netinet/ip_fw.h>
 
 #include <netpfil/ipfw/ip_fw_private.h>
+#include <netpfil/ipfw/ip_fw_table.h>
 
 static MALLOC_DEFINE(M_IPFW_TBL, "ipfw_tbl", "IpFw tables");
 
