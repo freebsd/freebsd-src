@@ -77,6 +77,14 @@ struct table_algo {
 void ipfw_add_table_algo(struct ip_fw_chain *ch, struct table_algo *ta);
 extern struct table_algo radix_cidr, radix_iface;
 
+/* direct ipfw_ctl handlers */
+int ipfw_listsize_tables(struct ip_fw_chain *ch, struct sockopt *sopt,
+    ip_fw3_opheader *op3, size_t valsize);
+int ipfw_list_tables(struct ip_fw_chain *ch, struct sockopt *sopt,
+    ip_fw3_opheader *op3, size_t valsize);
+int ipfw_dump_table(struct ip_fw_chain *ch, struct sockopt *sopt,
+    ip_fw3_opheader *op3, size_t valsize);
+
 int ipfw_destroy_table(struct ip_fw_chain *ch, struct tid_info *ti);
 int ipfw_flush_table(struct ip_fw_chain *ch, struct tid_info *ti);
 int ipfw_add_table_entry(struct ip_fw_chain *ch, struct tid_info *ti,
@@ -87,15 +95,13 @@ int ipfw_count_table(struct ip_fw_chain *ch, struct tid_info *ti,
     uint32_t *cnt);
 int ipfw_count_xtable(struct ip_fw_chain *ch, struct tid_info *ti,
     uint32_t *cnt);
-int ipfw_dump_table(struct ip_fw_chain *ch, struct tid_info *ti,
+int ipfw_dump_table_legacy(struct ip_fw_chain *ch, struct tid_info *ti,
     ipfw_table *tbl);
 int ipfw_dump_xtable(struct ip_fw_chain *ch, struct tid_info *ti,
     ipfw_xtable *tbl);
 int ipfw_describe_table(struct ip_fw_chain *ch, struct tid_info *ti,
     ipfw_xtable_info *i);
 int ipfw_count_tables(struct ip_fw_chain *ch, ipfw_obj_lheader *olh);
-int ipfw_list_tables(struct ip_fw_chain *ch, struct tid_info *ti,
-    ipfw_obj_lheader *olh);
 int ipfw_rewrite_table_uidx(struct ip_fw_chain *chain,
     struct rule_check_info *ci);
 int ipfw_rewrite_table_kidx(struct ip_fw_chain *chain, struct ip_fw *rule);

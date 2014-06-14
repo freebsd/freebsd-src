@@ -1174,6 +1174,7 @@ ipfw_ctl(struct sockopt *sopt)
 	/*--- TABLE manipulations are protected by the IPFW_LOCK ---*/
 	case IP_FW_OBJ_DEL: /* IP_FW3 */
 	case IP_FW_OBJ_INFO: /* IP_FW3 */
+	case IP_FW_OBJ_FLUSH: /* IP_FW3 */
 		{
 			struct _ipfw_obj_header *oh;
 			struct tid_info ti;
@@ -1194,6 +1195,8 @@ ipfw_ctl(struct sockopt *sopt)
 				ti.tlen = oh->ntlv.head.length;
 				if (opt == IP_FW_OBJ_DEL)
 					error = ipfw_destroy_table(chain, &ti);
+				else if (opt == IP_FW_OBJ_FLUSH)
+					error = ipfw_flush_table(chain, &ti);
 				else {
 					/* IP_FW_OBJ_INFO */
 					if (sopt->sopt_valsize < sizeof(*oh) +
@@ -1338,7 +1341,7 @@ ipfw_ctl(struct sockopt *sopt)
 			ti.set = 0; /* XXX: No way to specify set */
 			ti.uidx = tbl->tbl;
 			IPFW_RLOCK(chain);
-			error = ipfw_dump_table(chain, &ti, tbl);
+			error = ipfw_dump_table_legacy(chain, &ti, tbl);
 			IPFW_RUNLOCK(chain);
 			if (error) {
 				free(tbl, M_TEMP);
@@ -1364,9 +1367,9 @@ ipfw_ctl(struct sockopt *sopt)
 			memset(&ti, 0, sizeof(ti));
 			ti.set = 0; /* XXX: No way to specify set */
 			ti.uidx = *tbl;
-			IPFW_RLOCK(chain);
+			IPFW_UH_RLOCK(chain);
 			error = ipfw_count_xtable(chain, &ti, tbl);
-			IPFW_RUNLOCK(chain);
+			IPFW_UH_RUNLOCK(chain);
 			if (error)
 				break;
 			error = sooptcopyout(sopt, op3, sopt->sopt_valsize);
@@ -1392,9 +1395,9 @@ ipfw_ctl(struct sockopt *sopt)
 			memset(&ti, 0, sizeof(ti));
 			ti.set = 0; /* XXX: No way to specify set */
 			ti.uidx = tbl->tbl;
-			IPFW_RLOCK(chain);
+			IPFW_UH_RLOCK(chain);
 			error = ipfw_dump_xtable(chain, &ti, tbl);
-			IPFW_RUNLOCK(chain);
+			IPFW_UH_RUNLOCK(chain);
 			if (error) {
 				free(tbl, M_TEMP);
 				break;
@@ -1412,7 +1415,70 @@ ipfw_ctl(struct sockopt *sopt)
 			free(tbl, M_TEMP);
 		}
 		break;
+	case IP_FW_OBJ_LISTSIZE: /* IP_FW3 */
+		{
+			struct _ipfw_obj_lheader *olh;
 
+			if (sopt->sopt_valsize < sizeof(*olh)) {
+				error = EINVAL;
+				break;
+			}
+
+			olh = (struct _ipfw_obj_lheader *)op3;
+
+			switch (olh->objtype) {
+			case IPFW_OBJTYPE_TABLE:
+				error = ipfw_listsize_tables(chain, sopt, op3,
+				    valsize);
+				break;
+			default:
+				error = ENOTSUP;
+				break;
+			}
+			break;
+		}
+	case IP_FW_OBJ_LIST: /* IP_FW3 */
+		{
+			struct _ipfw_obj_lheader *olh;
+
+			if (sopt->sopt_valsize < sizeof(*olh)) {
+				error = EINVAL;
+				break;
+			}
+
+			olh = (struct _ipfw_obj_lheader *)op3;
+			switch (olh->objtype) {
+			case IPFW_OBJTYPE_TABLE:
+				error = ipfw_list_tables(chain, sopt, op3,
+				    valsize);
+				break;
+			default:
+				error = ENOTSUP;
+				break;
+			}
+			break;
+		}
+	case IP_FW_OBJ_DUMP: /* IP_FW3 */
+		{
+			struct _ipfw_obj_header *oh;
+
+			if (sopt->sopt_valsize < sizeof(*oh)) {
+				error = EINVAL;
+				break;
+			}
+
+			oh = (struct _ipfw_obj_header *)op3;
+			switch (oh->objtype) {
+			case IPFW_OBJTYPE_TABLE:
+				error = ipfw_dump_table(chain, sopt, op3,
+				    valsize);
+				break;
+			default:
+				error = ENOTSUP;
+				break;
+			}
+			break;
+		}
 	/*--- NAT operations are protected by the IPFW_LOCK ---*/
 	case IP_FW_NAT_CFG:
 		if (IPFW_NAT_LOADED)
