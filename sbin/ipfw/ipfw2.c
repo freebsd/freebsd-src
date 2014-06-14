@@ -448,6 +448,33 @@ do_cmd(int optname, void *optval, uintptr_t optlen)
 }
 
 /*
+ * do_set3 - pass ipfw control cmd to kernel
+ * @optname: option name
+ * @optval: pointer to option data
+ * @optlen: option length
+ *
+ * Assumes op3 header is already embedded.
+ * Calls setsockopt() with IP_FW3 as kernel-visible opcode.
+ * Returns 0 on success or -1 otherwise.
+ */
+static int
+do_set3(int optname, ip_fw3_opheader *op3, socklen_t optlen)
+{
+
+	if (co.test_only)
+		return (0);
+
+	if (ipfw_socket == -1)
+		ipfw_socket = socket(AF_INET, SOCK_RAW, IPPROTO_RAW);
+	if (ipfw_socket < 0)
+		err(EX_UNAVAILABLE, "socket");
+
+	op3->opcode = optname;
+
+	return (setsockopt(ipfw_socket, IPPROTO_IP, IP_FW3, op3, optlen));
+}
+
+/*
  * do_setcmd3 - pass ipfw control cmd to kernel
  * @optname: option name
  * @optval: pointer to option data
@@ -4124,6 +4151,10 @@ ipfw_flush(int force)
 
 static void table_list(uint16_t num, int need_header);
 static void table_fill_xentry(char *arg, ipfw_table_xentry *xent);
+static int table_destroy(char *name, uint32_t set);
+static int table_get_info(char *name, uint32_t set, ipfw_xtable_info *i);
+static void table_show_info(ipfw_xtable_info *i);
+static void table_fill_ntlv(ipfw_obj_ntlv *ntlv, char *name, uint16_t uidx);
 
 /*
  * Retrieve maximum number of tables supported by ipfw(4) module.
@@ -4167,12 +4198,17 @@ ipfw_table_handler(int ac, char *av[])
 	int is_all;
 	uint32_t a;
 	uint32_t tables_max;
+	uint32_t set;
+	int error;
+	char *tablename;
 
 	tables_max = ipfw_get_tables_max();
 
 	memset(&xent, 0, sizeof(xent));
 
 	ac--; av++;
+	tablename = *av;
+	set = 0;
 	if (ac && isdigit(**av)) {
 		xent.tbl = atoi(*av);
 		is_all = 0;
@@ -4244,22 +4280,13 @@ ipfw_table_handler(int ac, char *av[])
 			table_list(xent.tbl, is_all);
 		} while (++xent.tbl < a);
 	} else if (_substrcmp(*av, "destroy") == 0) {
-		char xbuf[sizeof(ipfw_obj_header) + sizeof(ipfw_xtable_ntlv)];
-		ipfw_obj_header *oh;
-		ipfw_xtable_ntlv *ntlv;
-
-		memset(xbuf, 0, sizeof(xbuf));
-		oh = (ipfw_obj_header *)xbuf;
-		ntlv = (ipfw_xtable_ntlv *)(oh + 1);
-
-		ntlv->head.type = IPFW_TLV_NAME;
-		ntlv->head.length = sizeof(*ntlv);
-		ntlv->idx = 1;
-		snprintf(ntlv->name, sizeof(ntlv->name), "%d", xent.tbl);
-		oh->idx = 1;
-		oh->objtype = IPFW_OBJTYPE_TABLE;
-		if (do_setcmd3(IP_FW_OBJ_DEL, xbuf, sizeof(xbuf)) != 0)
-			err(EX_OSERR, "setsockopt(IP_FW_OBJ_DEL)");
+		if (table_destroy(tablename, set) != 0)
+			err(EX_OSERR, "failed to destroy table %s", tablename);
+	} else if (_substrcmp(*av, "info") == 0) {
+		ipfw_xtable_info i;
+		if ((error = table_get_info(tablename, set, &i)) != 0)
+			err(EX_OSERR, "failed to request table info");
+		table_show_info(&i);
 	} else
 		errx(EX_USAGE, "invalid table command %s", *av);
 }
@@ -4360,6 +4387,93 @@ table_fill_xentry(char *arg, ipfw_table_xentry *xent)
 	xent->type = type;
 	xent->masklen = masklen;
 	xent->len = offsetof(ipfw_table_xentry, k) + addrlen;
+}
+
+static void
+table_fill_ntlv(ipfw_obj_ntlv *ntlv, char *name, uint16_t uidx)
+{
+
+	ntlv->head.type = IPFW_TLV_NAME;
+	ntlv->head.length = sizeof(ipfw_obj_ntlv);
+	ntlv->idx = uidx;
+	strlcpy(ntlv->name, name, sizeof(ntlv->name));
+}
+
+/*
+ * Destroys given table @name in given @set.
+ * Returns 0 on success.
+ */
+static int
+table_destroy(char *name, uint32_t set)
+{
+	ipfw_obj_header oh;
+
+	memset(&oh, 0, sizeof(oh));
+	oh.idx = 1;
+	oh.objtype = IPFW_OBJTYPE_TABLE;
+	table_fill_ntlv(&oh.ntlv, name, 1);
+	if (do_set3(IP_FW_OBJ_DEL, &oh.opheader, sizeof(oh)) != 0)
+		return (-1);
+
+	return (0);
+}
+
+/*
+ * Retrieves info for given table @name in given @set and stores
+ * it inside @i.
+ * Returns 0 on success.
+ */
+static int
+table_get_info(char *name, uint32_t set, ipfw_xtable_info *i)
+{
+	char tbuf[sizeof(ipfw_obj_header)+sizeof(ipfw_xtable_info)];
+	ipfw_obj_header *oh;
+	size_t sz;
+
+	sz = sizeof(tbuf);
+	memset(tbuf, 0, sizeof(tbuf));
+	oh = (ipfw_obj_header *)tbuf;
+
+	oh->opheader.opcode = IP_FW_OBJ_INFO;
+	oh->set = set;
+	oh->idx = 1;
+	oh->objtype = IPFW_OBJTYPE_TABLE;
+	table_fill_ntlv(&oh->ntlv, name, 1);
+
+	if (do_cmd(IP_FW3, oh, (uintptr_t)&sz) < 0)
+		return (-1);
+
+	if (sz < sizeof(tbuf))
+		return (-1);
+
+	*i = *(ipfw_xtable_info *)(oh + 1);
+
+	return (0);
+}
+
+/*
+ * Prints table info struct @i in human-readable form.
+ */
+static void
+table_show_info(ipfw_xtable_info *i)
+{
+	char *type;
+
+	printf("--- table %s, set %u ---\n", i->tablename, i->set);
+	switch (i->type) {
+	case IPFW_TABLE_CIDR:
+		type = "cidr";
+		break;
+	case IPFW_TABLE_INTERFACE:
+		type = "iface";
+		break;
+	default:
+		type = "unknown";
+	}
+	printf("type: %s, kindex: %d\n", type, i->kidx);
+	printf("ftype: %d, algorithm: %d\n", i->ftype, i->atype);
+	printf("references: %u\n", i->refcnt);
+	printf("items: %u, size: %u\n", i->count, i->size);
 }
 
 static void

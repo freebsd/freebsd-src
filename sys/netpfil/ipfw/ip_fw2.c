@@ -360,8 +360,8 @@ iface_match(struct ifnet *ifp, ipfw_insn_if *cmd, struct ip_fw_chain *chain, uin
 	/* Check by name or by IP address */
 	if (cmd->name[0] != '\0') { /* match by name */
 		if (cmd->name[0] == '\1') /* use tablearg to match */
-			return ipfw_lookup_table_extended(chain, cmd->p.glob,
-				ifp->if_xname, tablearg, IPFW_TABLE_INTERFACE);
+			return ipfw_lookup_table_extended(chain, cmd->p.glob, 0,
+				ifp->if_xname, tablearg);
 		/* Check name */
 		if (cmd->p.glob) {
 			if (fnmatch(cmd->name, ifp->if_xname, 0) == 0)
@@ -1506,8 +1506,9 @@ do {								\
 					void *pkey = (cmd->opcode == O_IP_DST_LOOKUP) ?
 						&args->f_id.dst_ip6: &args->f_id.src_ip6;
 					match = ipfw_lookup_table_extended(chain,
-							cmd->arg1, pkey, &v,
-							IPFW_TABLE_CIDR);
+							cmd->arg1,
+							sizeof(struct in6_addr),
+							pkey, &v);
 					if (cmdlen == F_INSN_SIZE(ipfw_insn_u32))
 						match = ((ipfw_insn_u32 *)cmd)->d[0] == v;
 					if (match)
