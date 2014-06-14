@@ -40,11 +40,6 @@ __FBSDID("$FreeBSD$");
  */
 
 #include "opt_ipfw.h"
-#include "opt_inet.h"
-#ifndef INET
-#error IPFIREWALL requires INET.
-#endif /* INET */
-#include "opt_inet6.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -55,7 +50,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/socket.h>
 #include <sys/queue.h>
 #include <net/if.h>	/* ip_fw.h requires IFNAMSIZ */
-#include <net/radix.h>
 #include <net/route.h>
 #include <net/vnet.h>
 
@@ -64,6 +58,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet/ip_fw.h>
 
 #include <netpfil/ipfw/ip_fw_private.h>
+#include <netpfil/ipfw/ip_fw_table.h>
 
 
  /*

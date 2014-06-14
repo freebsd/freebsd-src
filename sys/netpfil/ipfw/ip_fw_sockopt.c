@@ -63,6 +63,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet/ip_fw.h>
 
 #include <netpfil/ipfw/ip_fw_private.h>
+#include <netpfil/ipfw/ip_fw_table.h>
 
 #ifdef MAC
 #include <security/mac/mac_framework.h>
