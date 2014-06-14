@@ -77,6 +77,7 @@ struct namedobj_instance {
 	uint32_t nv_size;		/* number hash size */
 	u_long *idx_mask;		/* used items bitmask */
 	uint32_t max_blocks;		/* number of "long" blocks in bitmask */
+	uint32_t count;			/* number of items */
 	uint16_t free_off[IPFW_MAX_SETS];	/* first possible free offset */
 };
 #define	BLOCK_ITEMS	(8 * sizeof(u_long))	/* Number of items for ffsl() */
@@ -1000,7 +1001,7 @@ ipfw_ctl(struct sockopt *sopt)
 	struct ip_fw_chain *chain;
 	u_int32_t rulenum[2];
 	uint32_t opt;
-	char xbuf[128];
+	char xbuf[256];
 	ip_fw3_opheader *op3 = NULL;
 	struct rule_check_info ci;
 
@@ -1171,6 +1172,7 @@ ipfw_ctl(struct sockopt *sopt)
 
 	/*--- TABLE manipulations are protected by the IPFW_LOCK ---*/
 	case IP_FW_OBJ_DEL: /* IP_FW3 */
+	case IP_FW_OBJ_INFO: /* IP_FW3 */
 		{
 			struct _ipfw_obj_header *oh;
 			struct tid_info ti;
@@ -1180,16 +1182,31 @@ ipfw_ctl(struct sockopt *sopt)
 				break;
 			}
 
-			oh = (struct _ipfw_obj_header *)(op3 + 1);
+			oh = (struct _ipfw_obj_header *)op3;
 
 			switch (oh->objtype) {
 			case IPFW_OBJTYPE_TABLE:
 				memset(&ti, 0, sizeof(ti));
 				ti.set = oh->set;
 				ti.uidx = oh->idx;
-				ti.tlvs = (oh + 1);
-				ti.tlen = sopt->sopt_valsize - sizeof(*oh);
-				error = ipfw_destroy_table(chain, &ti, 0);
+				ti.tlvs = &oh->ntlv;
+				ti.tlen = oh->ntlv.head.length;
+				if (opt == IP_FW_OBJ_DEL)
+					error = ipfw_destroy_table(chain, &ti);
+				else {
+					/* IP_FW_OBJ_INFO */
+					if (sopt->sopt_valsize < sizeof(*oh) +
+					    sizeof(ipfw_xtable_info)) {
+						error = EINVAL;
+						break;
+					}
+
+					error = ipfw_describe_table(chain, &ti,
+					    (ipfw_xtable_info *)(oh + 1));
+					if (error == 0)
+						error = sooptcopyout(sopt, oh,
+						    sopt->sopt_valsize);
+				}
 				break;
 			default:
 				error = ENOTSUP;
@@ -1563,6 +1580,10 @@ convert_rule_to_8(struct ip_fw *rule)
  *
  */
 
+/*
+ * Allocate new bitmask which can be used to enlarge/shrink
+ * named instance index.
+ */
 void
 ipfw_objhash_bitmap_alloc(uint32_t items, void **idx, int *pblocks)
 {
@@ -1581,7 +1602,10 @@ ipfw_objhash_bitmap_alloc(uint32_t items, void **idx, int *pblocks)
 	*pblocks = max_blocks;
 }
 
-int
+/*
+ * Copy current bitmask index to new one.
+ */
+void
 ipfw_objhash_bitmap_merge(struct namedobj_instance *ni, void **idx, int *blocks)
 {
 	int old_blocks, new_blocks;
@@ -1593,25 +1617,30 @@ ipfw_objhash_bitmap_merge(struct namedobj_instance *ni, void **idx, int *blocks)
 	new_idx = *idx;
 	new_blocks = *blocks;
 
-	/*
-	 * FIXME: Permit reducing total amount of tables
-	 */
-	if (old_blocks > new_blocks)
-		return (1);
-
 	for (i = 0; i < IPFW_MAX_SETS; i++) {
 		memcpy(&new_idx[new_blocks * i], &old_idx[old_blocks * i],
 		    old_blocks * sizeof(u_long));
 	}
+}
 
-	ni->idx_mask = new_idx;
-	ni->max_blocks = new_blocks;
+/*
+ * Swaps current @ni index with new one.
+ */
+void
+ipfw_objhash_bitmap_swap(struct namedobj_instance *ni, void **idx, int *blocks)
+{
+	int old_blocks;
+	u_long *old_idx;
+
+	old_idx = ni->idx_mask;
+	old_blocks = ni->max_blocks;
+
+	ni->idx_mask = *idx;
+	ni->max_blocks = *blocks;
 
 	/* Save old values */
 	*idx = old_idx;
 	*blocks = old_blocks;
-
-	return (0);
 }
 
 void
@@ -1727,6 +1756,8 @@ ipfw_objhash_add(struct namedobj_instance *ni, struct named_object *no)
 
 	hash = objhash_hash_val(ni, no->set, no->kidx);
 	TAILQ_INSERT_HEAD(&ni->values[hash], no, nv_next);
+
+	ni->count++;
 }
 
 void
@@ -1739,6 +1770,15 @@ ipfw_objhash_del(struct namedobj_instance *ni, struct named_object *no)
 
 	hash = objhash_hash_val(ni, no->set, no->kidx);
 	TAILQ_REMOVE(&ni->values[hash], no, nv_next);
+
+	ni->count--;
+}
+
+uint32_t
+ipfw_objhash_count(struct namedobj_instance *ni)
+{
+
+	return (ni->count);
 }
 
 /*

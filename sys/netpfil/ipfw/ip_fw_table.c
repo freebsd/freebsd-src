@@ -65,252 +65,133 @@ __FBSDID("$FreeBSD$");
 
 #include <netpfil/ipfw/ip_fw_private.h>
 
-#ifdef MAC
-#include <security/mac/mac_framework.h>
-#endif
-
-static MALLOC_DEFINE(M_IPFW_TBL, "ipfw_tbl", "IpFw tables");
-
-struct table_entry {
-	struct radix_node	rn[2];
-	struct sockaddr_in	addr, mask;
-	u_int32_t		value;
-};
-
-struct xaddr_iface {
-	uint8_t		if_len;		/* length of this struct */
-	uint8_t		pad[7];		/* Align name */
-	char 		ifname[IF_NAMESIZE];	/* Interface name */
-};
-
-struct table_xentry {
-	struct radix_node	rn[2];
-	union {
-#ifdef INET6
-		struct sockaddr_in6	addr6;
-#endif
-		struct xaddr_iface	iface;
-	} a;
-	union {
-#ifdef INET6
-		struct sockaddr_in6	mask6;
-#endif
-		struct xaddr_iface	ifmask;
-	} m;
-	u_int32_t		value;
-};
 
  /*
  * Table has the following `type` concepts:
  *
- * `type` represents lookup key type (cidr, ifp, uid, etc..)
- * `ftype` is pure userland field helping to properly format table data
- * `atype` represents exact lookup algorithm for given tabletype.
+ * `no.type` represents lookup key type (cidr, ifp, uid, etc..)
+ * `ta->atype` represents exact lookup algorithm.
  *     For example, we can use more efficient search schemes if we plan
  *     to use some specific table for storing host-routes only.
+ * `ftype` is pure userland field helping to properly format table data
+ *     e.g. "value is IPv4 nexthop" or "key is port number"
  *
  */
 struct table_config {
 	struct named_object	no;
 	uint8_t		ftype;		/* format table type */
-	uint8_t		atype;		/* algorith type */
 	uint8_t		linked;		/* 1 if already linked */
-	uint8_t		spare0;
+	uint16_t	spare0;
 	uint32_t	count;		/* Number of records */
 	char		tablename[64];	/* table name */
-	void		*state;		/* Store some state if needed */
-	void		*xstate;
+	struct table_algo	*ta;	/* Callbacks for given algo */
+	void		*astate;	/* algorithm state */
+	struct table_info	ti;	/* data to put to table_info */
 };
 #define	TABLE_SET(set)	((V_fw_tables_sets != 0) ? set : 0)
 
 struct tables_config {
 	struct namedobj_instance	*namehash;
+	int				algo_count;
+	struct table_algo 		*algo[256];
 };
 
 static struct table_config *find_table(struct namedobj_instance *ni,
     struct tid_info *ti);
 static struct table_config *alloc_table_config(struct namedobj_instance *ni,
-    struct tid_info *ti);
+    struct tid_info *ti, struct table_algo *ta);
 static void free_table_config(struct namedobj_instance *ni,
     struct table_config *tc);
 static void link_table(struct ip_fw_chain *chain, struct table_config *tc);
 static void unlink_table(struct ip_fw_chain *chain, struct table_config *tc);
-static int alloc_table_state(void **state, void **xstate, uint8_t type);
 static void free_table_state(void **state, void **xstate, uint8_t type);
 
+static struct table_algo *find_table_algo(struct tables_config *tableconf,
+    struct tid_info *ti);
 
 #define	CHAIN_TO_TCFG(chain)	((struct tables_config *)(chain)->tblcfg)
 #define	CHAIN_TO_NI(chain)	(CHAIN_TO_TCFG(chain)->namehash)
+#define	KIDX_TO_TI(ch, k)	(&(((struct table_info *)(ch)->tablestate)[k]))
 
 
-/*
- * The radix code expects addr and mask to be array of bytes,
- * with the first byte being the length of the array. rn_inithead
- * is called with the offset in bits of the lookup key within the
- * array. If we use a sockaddr_in as the underlying type,
- * sin_len is conveniently located at offset 0, sin_addr is at
- * offset 4 and normally aligned.
- * But for portability, let's avoid assumption and make the code explicit
- */
-#define KEY_LEN(v)	*((uint8_t *)&(v))
-#define KEY_OFS		(8*offsetof(struct sockaddr_in, sin_addr))
-/*
- * Do not require radix to compare more than actual IPv4/IPv6 address
- */
-#define KEY_LEN_INET	(offsetof(struct sockaddr_in, sin_addr) + sizeof(in_addr_t))
-#define KEY_LEN_INET6	(offsetof(struct sockaddr_in6, sin6_addr) + sizeof(struct in6_addr))
-#define KEY_LEN_IFACE	(offsetof(struct xaddr_iface, ifname))
-
-#define OFF_LEN_INET	(8 * offsetof(struct sockaddr_in, sin_addr))
-#define OFF_LEN_INET6	(8 * offsetof(struct sockaddr_in6, sin6_addr))
-#define OFF_LEN_IFACE	(8 * offsetof(struct xaddr_iface, ifname))
-
-
-#ifdef INET6
-static inline void
-ipv6_writemask(struct in6_addr *addr6, uint8_t mask)
-{
-	uint32_t *cp;
-
-	for (cp = (uint32_t *)addr6; mask >= 32; mask -= 32)
-		*cp++ = 0xFFFFFFFF;
-	*cp = htonl(mask ? ~((1 << (32 - mask)) - 1) : 0);
-}
-#endif
 
 int
 ipfw_add_table_entry(struct ip_fw_chain *ch, struct tid_info *ti,
     struct tentry_info *tei)
 {
-	struct radix_node_head *rnh;
-	struct table_entry *ent;
-	struct table_xentry *xent;
-	struct radix_node *rn;
-	in_addr_t addr;
-	int offset;
-	void *ent_ptr;
-	struct sockaddr *addr_ptr, *mask_ptr;
 	struct table_config *tc, *tc_new;
+	struct table_algo *ta;
 	struct namedobj_instance *ni;
-	char c;
-	uint8_t mlen;
 	uint16_t kidx;
+	int error;
+	char ta_buf[128];
 
+#if 0
 	if (ti->uidx >= V_fw_tables_max)
 		return (EINVAL);
-
-	mlen = tei->masklen;
-
-	switch (ti->type) {
-	case IPFW_TABLE_CIDR:
-		if (tei->plen == sizeof(in_addr_t)) {
-#ifdef INET
-			/* IPv4 case */
-			if (mlen > 32)
-				return (EINVAL);
-			ent = malloc(sizeof(*ent), M_IPFW_TBL, M_WAITOK | M_ZERO);
-			ent->value = tei->value;
-			/* Set 'total' structure length */
-			KEY_LEN(ent->addr) = KEY_LEN_INET;
-			KEY_LEN(ent->mask) = KEY_LEN_INET;
-			/* Set offset of IPv4 address in bits */
-			offset = OFF_LEN_INET;
-			ent->mask.sin_addr.s_addr =
-			    htonl(mlen ? ~((1 << (32 - mlen)) - 1) : 0);
-			addr = *((in_addr_t *)tei->paddr);
-			ent->addr.sin_addr.s_addr = addr & ent->mask.sin_addr.s_addr;
-			/* Set pointers */
-			ent_ptr = ent;
-			addr_ptr = (struct sockaddr *)&ent->addr;
-			mask_ptr = (struct sockaddr *)&ent->mask;
 #endif
-#ifdef INET6
-		} else if (tei->plen == sizeof(struct in6_addr)) {
-			/* IPv6 case */
-			if (mlen > 128)
-				return (EINVAL);
-			xent = malloc(sizeof(*xent), M_IPFW_TBL, M_WAITOK | M_ZERO);
-			xent->value = tei->value;
-			/* Set 'total' structure length */
-			KEY_LEN(xent->a.addr6) = KEY_LEN_INET6;
-			KEY_LEN(xent->m.mask6) = KEY_LEN_INET6;
-			/* Set offset of IPv6 address in bits */
-			offset = OFF_LEN_INET6;
-			ipv6_writemask(&xent->m.mask6.sin6_addr, mlen);
-			memcpy(&xent->a.addr6.sin6_addr, tei->paddr,
-			    sizeof(struct in6_addr));
-			APPLY_MASK(&xent->a.addr6.sin6_addr, &xent->m.mask6.sin6_addr);
-			/* Set pointers */
-			ent_ptr = xent;
-			addr_ptr = (struct sockaddr *)&xent->a.addr6;
-			mask_ptr = (struct sockaddr *)&xent->m.mask6;
-#endif
-		} else {
-			/* Unknown CIDR type */
+
+	IPFW_UH_WLOCK(ch);
+	ni = CHAIN_TO_NI(ch);
+
+	/*
+	 * Find and reference existing table.
+	 */
+	ta = NULL;
+	if ((tc = find_table(ni, ti)) != NULL) {
+		/* check table type */
+		if (tc->no.type != ti->type) {
+			IPFW_UH_WUNLOCK(ch);
 			return (EINVAL);
 		}
-		break;
-	
-	case IPFW_TABLE_INTERFACE:
-		/* Check if string is terminated */
-		c = ((char *)tei->paddr)[IF_NAMESIZE - 1];
-		((char *)tei->paddr)[IF_NAMESIZE - 1] = '\0';
-		mlen = strlen((char *)tei->paddr);
-		if ((mlen == IF_NAMESIZE - 1) && (c != '\0'))
-			return (EINVAL);
 
-		/* Include last \0 into comparison */
-		mlen++;
+		/* Reference and unlock */
+		tc->no.refcnt++;
+		ta = tc->ta;
+	}
+	IPFW_UH_WUNLOCK(ch);
 
-		xent = malloc(sizeof(*xent), M_IPFW_TBL, M_WAITOK | M_ZERO);
-		xent->value = tei->value;
-		/* Set 'total' structure length */
-		KEY_LEN(xent->a.iface) = KEY_LEN_IFACE + mlen;
-		KEY_LEN(xent->m.ifmask) = KEY_LEN_IFACE + mlen;
-		/* Set offset of interface name in bits */
-		offset = OFF_LEN_IFACE;
-		memcpy(xent->a.iface.ifname, tei->paddr, mlen);
-		/* Assume direct match */
-		/* TODO: Add interface pattern matching */
-#if 0
-		memset(xent->m.ifmask.ifname, 0xFF, IF_NAMESIZE);
-		mask_ptr = (struct sockaddr *)&xent->m.ifmask;
-#endif
-		/* Set pointers */
-		ent_ptr = xent;
-		addr_ptr = (struct sockaddr *)&xent->a.iface;
-		mask_ptr = NULL;
-		break;
+	tc_new = NULL;
+	if (ta == NULL) {
+		/* Table not found. We have to create new one */
+		if ((ta = find_table_algo(CHAIN_TO_TCFG(ch), ti)) == NULL)
+			return (ENOTSUP);
 
-	default:
-		return (EINVAL);
+		tc_new = alloc_table_config(ni, ti, ta);
+		if (tc_new == NULL)
+			return (ENOMEM);
+	}
+
+	/* Prepare record (allocate memory) */
+	memset(&ta_buf, 0, sizeof(ta_buf));
+	error = ta->prepare_add(tei, &ta_buf);
+	if (error != 0) {
+		if (tc_new != NULL)
+			free_table_config(ni, tc_new);
+		return (error);
 	}
 
 	IPFW_UH_WLOCK(ch);
 
 	ni = CHAIN_TO_NI(ch);
 
-	tc_new = NULL;
-	if ((tc = find_table(ni, ti)) == NULL) {
-		/* Not found. We have to create new one */
-		IPFW_UH_WUNLOCK(ch);
-
-		tc_new = alloc_table_config(ni, ti);
-		if (tc_new == NULL)
-			return (ENOMEM);
-
-		IPFW_UH_WLOCK(ch);
-
-		/* Check if table has already allocated by other thread */
+	if (tc == NULL) {
+		/* Check if another table was allocated by other thread */
 		if ((tc = find_table(ni, ti)) != NULL) {
-			if (tc->no.type != ti->type) {
+
+			/*
+			 * Check if algoritm is the same since we've
+			 * already allocated state using @ta algoritm
+			 * callbacks.
+			 */
+			if (tc->ta != ta) {
 				IPFW_UH_WUNLOCK(ch);
 				free_table_config(ni, tc);
 				return (EINVAL);
 			}
 		} else {
 			/*
-			 * New table.
+			 * We're first to create this table.
 			 * Set tc_new to zero not to free it afterwards.
 			 */
 			tc = tc_new;
@@ -331,212 +212,103 @@ ipfw_add_table_entry(struct ip_fw_chain *ch, struct tid_info *ti,
 			tc->no.kidx = kidx;
 		}
 	} else {
-		/* We still have to check table type */
-		if (tc->no.type != ti->type) {
-			IPFW_UH_WUNLOCK(ch);
-			return (EINVAL);
-		}
+		/* Drop reference we've used in first search */
+		tc->no.refcnt--;
 	}
-	kidx = tc->no.kidx;
-
+	
 	/* We've got valid table in @tc. Let's add data */
+	kidx = tc->no.kidx;
+	ta = tc->ta;
+
 	IPFW_WLOCK(ch);
 
 	if (tc->linked == 0) {
 		link_table(ch, tc);
 	}
 
-	/* XXX: Temporary until splitting add/del to per-type functions */
-	rnh = NULL;
-	switch (ti->type) {
-	case IPFW_TABLE_CIDR:
-		if (tei->plen == sizeof(in_addr_t))
-			rnh = ch->tables[kidx];
-		else
-			rnh = ch->xtables[kidx];
-		break;
-	case IPFW_TABLE_INTERFACE:
-		rnh = ch->xtables[kidx];
-		break;
-	}
+	error = ta->add(tc->astate, KIDX_TO_TI(ch, kidx), tei, &ta_buf);
 
-	rn = rnh->rnh_addaddr(addr_ptr, mask_ptr, rnh, ent_ptr);
 	IPFW_WUNLOCK(ch);
+
+	if (error == 0)
+		tc->count++;
+
 	IPFW_UH_WUNLOCK(ch);
 
 	if (tc_new != NULL)
 		free_table_config(ni, tc);
 
-	if (rn == NULL) {
-		free(ent_ptr, M_IPFW_TBL);
-		return (EEXIST);
-	}
+	if (error != 0)
+		ta->flush_entry(tei, &ta_buf);
 
-	return (0);
+	return (error);
 }
 
 int
 ipfw_del_table_entry(struct ip_fw_chain *ch, struct tid_info *ti,
     struct tentry_info *tei)
 {
-	struct radix_node_head *rnh;
-	struct table_entry *ent;
-	in_addr_t addr;
-	struct sockaddr_in sa, mask;
-	struct sockaddr *sa_ptr, *mask_ptr;
 	struct table_config *tc;
+	struct table_algo *ta;
 	struct namedobj_instance *ni;
-	char c;
-	uint8_t mlen;
 	uint16_t kidx;
+	int error;
+	char ta_buf[128];
 
-	if (ti->uidx >= V_fw_tables_max)
-		return (EINVAL);
-
-	mlen = tei->masklen;
-
-	switch (ti->type) {
-	case IPFW_TABLE_CIDR:
-		if (tei->plen == sizeof(in_addr_t)) {
-			/* Set 'total' structure length */
-			KEY_LEN(sa) = KEY_LEN_INET;
-			KEY_LEN(mask) = KEY_LEN_INET;
-			mask.sin_addr.s_addr = htonl(mlen ? ~((1 << (32 - mlen)) - 1) : 0);
-			addr = *((in_addr_t *)tei->paddr);
-			sa.sin_addr.s_addr = addr & mask.sin_addr.s_addr;
-			sa_ptr = (struct sockaddr *)&sa;
-			mask_ptr = (struct sockaddr *)&mask;
-#ifdef INET6
-		} else if (tei->plen == sizeof(struct in6_addr)) {
-			/* IPv6 case */
-			if (mlen > 128)
-				return (EINVAL);
-			struct sockaddr_in6 sa6, mask6;
-			memset(&sa6, 0, sizeof(struct sockaddr_in6));
-			memset(&mask6, 0, sizeof(struct sockaddr_in6));
-			/* Set 'total' structure length */
-			KEY_LEN(sa6) = KEY_LEN_INET6;
-			KEY_LEN(mask6) = KEY_LEN_INET6;
-			ipv6_writemask(&mask6.sin6_addr, mlen);
-			memcpy(&sa6.sin6_addr, tei->paddr,
-			    sizeof(struct in6_addr));
-			APPLY_MASK(&sa6.sin6_addr, &mask6.sin6_addr);
-			sa_ptr = (struct sockaddr *)&sa6;
-			mask_ptr = (struct sockaddr *)&mask6;
-#endif
-		} else {
-			/* Unknown CIDR type */
-			return (EINVAL);
-		}
-		break;
-
-	case IPFW_TABLE_INTERFACE:
-		/* Check if string is terminated */
-		c = ((char *)tei->paddr)[IF_NAMESIZE - 1];
-		((char *)tei->paddr)[IF_NAMESIZE - 1] = '\0';
-		mlen = strlen((char *)tei->paddr);
-		if ((mlen == IF_NAMESIZE - 1) && (c != '\0'))
-			return (EINVAL);
-
-		struct xaddr_iface ifname, ifmask;
-		memset(&ifname, 0, sizeof(ifname));
-
-		/* Include last \0 into comparison */
-		mlen++;
-
-		/* Set 'total' structure length */
-		KEY_LEN(ifname) = KEY_LEN_IFACE + mlen;
-		KEY_LEN(ifmask) = KEY_LEN_IFACE + mlen;
-		/* Assume direct match */
-		/* FIXME: Add interface pattern matching */
-#if 0
-		memset(ifmask.ifname, 0xFF, IF_NAMESIZE);
-		mask_ptr = (struct sockaddr *)&ifmask;
-#endif
-		mask_ptr = NULL;
-		memcpy(ifname.ifname, tei->paddr, mlen);
-		/* Set pointers */
-		sa_ptr = (struct sockaddr *)&ifname;
-
-		break;
-
-	default:
-		return (EINVAL);
-	}
-
-	IPFW_UH_RLOCK(ch);
+	IPFW_UH_WLOCK(ch);
 	ni = CHAIN_TO_NI(ch);
 	if ((tc = find_table(ni, ti)) == NULL) {
-		IPFW_UH_RUNLOCK(ch);
+		IPFW_UH_WUNLOCK(ch);
 		return (ESRCH);
 	}
 
 	if (tc->no.type != ti->type) {
-		IPFW_UH_RUNLOCK(ch);
+		IPFW_UH_WUNLOCK(ch);
 		return (EINVAL);
 	}
+
+	ta = tc->ta;
+
+	memset(&ta_buf, 0, sizeof(ta_buf));
+	if ((error = ta->prepare_del(tei, &ta_buf)) != 0) {
+		IPFW_UH_WUNLOCK(ch);
+		return (error);
+	}
+
 	kidx = tc->no.kidx;
 
 	IPFW_WLOCK(ch);
-
-	rnh = NULL;
-	switch (ti->type) {
-	case IPFW_TABLE_CIDR:
-		if (tei->plen == sizeof(in_addr_t))
-			rnh = ch->tables[kidx];
-		else
-			rnh = ch->xtables[kidx];
-		break;
-	case IPFW_TABLE_INTERFACE:
-		rnh = ch->xtables[kidx];
-		break;
-	}
-
-	ent = (struct table_entry *)rnh->rnh_deladdr(sa_ptr, mask_ptr, rnh);
+	error = ta->del(tc->astate, KIDX_TO_TI(ch, kidx), tei, &ta_buf);
 	IPFW_WUNLOCK(ch);
 
-	IPFW_UH_RUNLOCK(ch);
+	if (error == 0)
+		tc->count--;
 
-	if (ent == NULL)
-		return (ESRCH);
+	IPFW_UH_WUNLOCK(ch);
 
-	free(ent, M_IPFW_TBL);
-	return (0);
-}
+	if (error != 0)
+		return (error);
 
-static int
-flush_table_entry(struct radix_node *rn, void *arg)
-{
-	struct radix_node_head * const rnh = arg;
-	struct table_entry *ent;
-
-	ent = (struct table_entry *)
-	    rnh->rnh_deladdr(rn->rn_key, rn->rn_mask, rnh);
-	if (ent != NULL)
-		free(ent, M_IPFW_TBL);
+	ta->flush_entry(tei, &ta_buf);
 	return (0);
 }
 
 /*
- * Flushes all entries in given table minimizing hoding chain WLOCKs.
- *
+ * Flushes all entries in given table.
  */
 int
 ipfw_flush_table(struct ip_fw_chain *ch, struct tid_info *ti)
 {
 	struct namedobj_instance *ni;
 	struct table_config *tc;
-	void *ostate, *oxstate;
-	void *state, *xstate;
+	struct table_algo *ta;
+	struct table_info ti_old, ti_new, *tablestate;
+	void *astate_old, *astate_new;
 	int error;
-	uint8_t type;
 	uint16_t kidx;
 
-	if (ti->uidx >= V_fw_tables_max)
-		return (EINVAL);
-
 	/*
-	 * Stage 1: determine table type.
+	 * Stage 1: save table algoritm.
 	 * Reference found table to ensure it won't disappear.
 	 */
 	IPFW_UH_WLOCK(ch);
@@ -545,14 +317,15 @@ ipfw_flush_table(struct ip_fw_chain *ch, struct tid_info *ti)
 		IPFW_UH_WUNLOCK(ch);
 		return (ESRCH);
 	}
-	type = tc->no.type;
+	ta = tc->ta;
 	tc->no.refcnt++;
 	IPFW_UH_WUNLOCK(ch);
 
 	/*
-	 * Stage 2: allocate new state for given type.
+	 * Stage 2: allocate new table instance using same algo.
 	 */
-	if ((error = alloc_table_state(&state, &xstate, type)) != 0) {
+	memset(&ti_new, 0, sizeof(struct table_info));
+	if ((error = ta->init(&astate_new, &ti_new)) != 0) {
 		IPFW_UH_WLOCK(ch);
 		tc->no.refcnt--;
 		IPFW_UH_WUNLOCK(ch);
@@ -564,34 +337,37 @@ ipfw_flush_table(struct ip_fw_chain *ch, struct tid_info *ti)
 	 * Decrease refcount.
 	 */
 	IPFW_UH_WLOCK(ch);
-	IPFW_WLOCK(ch);
 
 	ni = CHAIN_TO_NI(ch);
 	kidx = tc->no.kidx;
+	tablestate = (struct table_info *)ch->tablestate;
 
-	ostate = ch->tables[kidx];
-	ch->tables[kidx] = state;
-	oxstate = ch->xtables[kidx];
-	ch->xtables[kidx] = xstate;
+	IPFW_WLOCK(ch);
+	ti_old = tablestate[kidx];
+	tablestate[kidx] = ti_new;
+	IPFW_WUNLOCK(ch);
 
+	astate_old = tc->astate;
+	tc->astate = astate_new;
+	tc->ti = ti_new;
+	tc->count = 0;
 	tc->no.refcnt--;
 
-	IPFW_WUNLOCK(ch);
 	IPFW_UH_WUNLOCK(ch);
 
 	/*
 	 * Stage 4: perform real flush.
 	 */
-	free_table_state(&ostate, &xstate, tc->no.type);
+	ta->destroy(astate_old, &ti_old);
 
 	return (0);
 }
 
 /*
- * Destroys given table @ti: flushes it,
+ * Destroys table specified by @ti.
  */
 int
-ipfw_destroy_table(struct ip_fw_chain *ch, struct tid_info *ti, int force)
+ipfw_destroy_table(struct ip_fw_chain *ch, struct tid_info *ti)
 {
 	struct namedobj_instance *ni;
 	struct table_config *tc;
@@ -606,8 +382,8 @@ ipfw_destroy_table(struct ip_fw_chain *ch, struct tid_info *ti, int force)
 		return (ESRCH);
 	}
 
-	/* Do not permit destroying used tables */
-	if (tc->no.refcnt > 0 && force == 0) {
+	/* Do not permit destroying referenced tables */
+	if (tc->no.refcnt > 0) {
 		IPFW_UH_WUNLOCK(ch);
 		return (EBUSY);
 	}
@@ -652,8 +428,9 @@ ipfw_destroy_tables(struct ip_fw_chain *ch)
 	IPFW_UH_WUNLOCK(ch);
 
 	/* Free pointers itself */
-	free(ch->tables, M_IPFW);
-	free(ch->xtables, M_IPFW);
+	free(ch->tablestate, M_IPFW);
+
+	ipfw_table_algo_destroy(ch);
 
 	ipfw_objhash_destroy(CHAIN_TO_NI(ch));
 	free(CHAIN_TO_TCFG(ch), M_IPFW);
@@ -665,12 +442,14 @@ ipfw_init_tables(struct ip_fw_chain *ch)
 	struct tables_config *tcfg;
 
 	/* Allocate pointers */
-	ch->tables = malloc(V_fw_tables_max * sizeof(void *), M_IPFW, M_WAITOK | M_ZERO);
-	ch->xtables = malloc(V_fw_tables_max * sizeof(void *), M_IPFW, M_WAITOK | M_ZERO);
+	ch->tablestate = malloc(V_fw_tables_max * sizeof(struct table_info),
+	    M_IPFW, M_WAITOK | M_ZERO);
 
 	tcfg = malloc(sizeof(struct tables_config), M_IPFW, M_WAITOK | M_ZERO);
 	tcfg->namehash = ipfw_objhash_create(V_fw_tables_max);
 	ch->tblcfg = tcfg;
+
+	ipfw_table_algo_init(ch);
 
 	return (0);
 }
@@ -678,11 +457,9 @@ ipfw_init_tables(struct ip_fw_chain *ch)
 int
 ipfw_resize_tables(struct ip_fw_chain *ch, unsigned int ntables)
 {
-	struct radix_node_head **tables, **xtables, *rnh;
-	struct radix_node_head **tables_old, **xtables_old;
 	unsigned int ntables_old, tbl;
 	struct namedobj_instance *ni;
-	void *new_idx;
+	void *new_idx, *old_tablestate, *tablestate;
 	int new_blocks;
 
 	/* Check new value for validity */
@@ -690,57 +467,45 @@ ipfw_resize_tables(struct ip_fw_chain *ch, unsigned int ntables)
 		ntables = IPFW_TABLES_MAX;
 
 	/* Allocate new pointers */
-	tables = malloc(ntables * sizeof(void *), M_IPFW, M_WAITOK | M_ZERO);
-	xtables = malloc(ntables * sizeof(void *), M_IPFW, M_WAITOK | M_ZERO);
+	tablestate = malloc(ntables * sizeof(struct table_info),
+	    M_IPFW, M_WAITOK | M_ZERO);
+
 	ipfw_objhash_bitmap_alloc(ntables, (void *)&new_idx, &new_blocks);
 
-	IPFW_WLOCK(ch);
+	IPFW_UH_WLOCK(ch);
 
 	tbl = (ntables >= V_fw_tables_max) ? V_fw_tables_max : ntables;
 	ni = CHAIN_TO_NI(ch);
 
-	/* Temportary restrict decreasing max_tables  */
-	if (ipfw_objhash_bitmap_merge(ni, &new_idx, &new_blocks) != 0) {
-		IPFW_WUNLOCK(ch);
-		free(tables, M_IPFW);
-		free(xtables, M_IPFW);
-		ipfw_objhash_bitmap_free(new_idx, new_blocks);
+	/* Temporary restrict decreasing max_tables */
+	if (ntables < V_fw_tables_max) {
+
+		/*
+		 * FIXME: Check if we really can shrink
+		 */
+		IPFW_UH_WUNLOCK(ch);
 		return (EINVAL);
 	}
 
-	/* Copy old table pointers */
-	memcpy(tables, ch->tables, sizeof(void *) * tbl);
-	memcpy(xtables, ch->xtables, sizeof(void *) * tbl);
+	/* Copy table info/indices */
+	memcpy(tablestate, ch->tablestate, sizeof(struct table_info) * tbl);
+	ipfw_objhash_bitmap_merge(ni, &new_idx, &new_blocks);
 
-	/* Change pointers and number of tables */
-	tables_old = ch->tables;
-	xtables_old = ch->xtables;
-	ch->tables = tables;
-	ch->xtables = xtables;
+	IPFW_WLOCK(ch);
+
+	/* Change pointers */
+	old_tablestate = ch->tablestate;
+	ch->tablestate = tablestate;
+	ipfw_objhash_bitmap_swap(ni, &new_idx, &new_blocks);
 
 	ntables_old = V_fw_tables_max;
 	V_fw_tables_max = ntables;
 
 	IPFW_WUNLOCK(ch);
-
-	/* Check if we need to destroy radix trees */
-	if (ntables < ntables_old) {
-		for (tbl = ntables; tbl < ntables_old; tbl++) {
-			if ((rnh = tables_old[tbl]) != NULL) {
-				rnh->rnh_walktree(rnh, flush_table_entry, rnh);
-				rn_detachhead((void **)&rnh);
-			}
-
-			if ((rnh = xtables_old[tbl]) != NULL) {
-				rnh->rnh_walktree(rnh, flush_table_entry, rnh);
-				rn_detachhead((void **)&rnh);
-			}
-		}
-	}
+	IPFW_UH_WUNLOCK(ch);
 
 	/* Free old pointers */
-	free(tables_old, M_IPFW);
-	free(xtables_old, M_IPFW);
+	free(old_tablestate, M_IPFW);
 	ipfw_objhash_bitmap_free(new_idx, new_blocks);
 
 	return (0);
@@ -750,246 +515,287 @@ int
 ipfw_lookup_table(struct ip_fw_chain *ch, uint16_t tbl, in_addr_t addr,
     uint32_t *val)
 {
-	struct radix_node_head *rnh;
-	struct table_entry *ent;
-	struct sockaddr_in sa;
+	struct table_info *ti;
 
-	if (tbl >= V_fw_tables_max)
-		return (0);
-	if ((rnh = ch->tables[tbl]) == NULL)
-		return (0);
-	KEY_LEN(sa) = KEY_LEN_INET;
-	sa.sin_addr.s_addr = addr;
-	ent = (struct table_entry *)(rnh->rnh_matchaddr(&sa, rnh));
-	if (ent != NULL) {
-		*val = ent->value;
-		return (1);
-	}
+	ti = &(((struct table_info *)ch->tablestate)[tbl]);
+
+	return (ti->lookup(ti, &addr, sizeof(in_addr_t), val));
+}
+
+int
+ipfw_lookup_table_extended(struct ip_fw_chain *ch, uint16_t tbl, uint16_t plen,
+    void *paddr, uint32_t *val)
+{
+	struct table_info *ti;
+
+	ti = &(((struct table_info *)ch->tablestate)[tbl]);
+
+	return (ti->lookup(ti, paddr, plen, val));
+}
+
+/*
+ * Info/List/dump support for tables.
+ *
+ */
+
+static void
+export_table_info(struct table_config *tc, ipfw_xtable_info *i)
+{
+	
+	i->type = tc->no.type;
+	i->ftype = tc->ftype;
+	i->atype = tc->ta->idx;
+	i->set = tc->no.set;
+	i->kidx = tc->no.kidx;
+	i->refcnt = tc->no.refcnt;
+	i->count = tc->count;
+	i->size = tc->count * sizeof(ipfw_table_xentry);
+	if (tc->count > 0)
+		i->size += sizeof(ipfw_xtable);
+	strlcpy(i->tablename, tc->tablename, sizeof(i->tablename));
+}
+
+int
+ipfw_count_tables(struct ip_fw_chain *ch, ipfw_obj_lheader *olh)
+{
+	uint32_t count;
+
+	count = ipfw_objhash_count(CHAIN_TO_NI(ch));
+
+	olh->count = count;
+	olh->size = count * sizeof(ipfw_xtable_info) + sizeof(ipfw_obj_lheader);
+	olh->objsize = sizeof(ipfw_xtable_info);
+
 	return (0);
 }
 
 int
-ipfw_lookup_table_extended(struct ip_fw_chain *ch, uint16_t tbl, void *paddr,
-    uint32_t *val, int type)
+ipfw_describe_table(struct ip_fw_chain *ch, struct tid_info *ti,
+    ipfw_xtable_info *i)
 {
-	struct radix_node_head *rnh;
-	struct table_xentry *xent;
-	struct sockaddr_in6 sa6;
-	struct xaddr_iface iface;
+	struct table_config *tc;
 
-	if (tbl >= V_fw_tables_max)
-		return (0);
-	if ((rnh = ch->xtables[tbl]) == NULL)
-		return (0);
+	if ((tc = find_table(CHAIN_TO_NI(ch), ti)) == NULL)
+		return (ESRCH);
 
-	switch (type) {
-	case IPFW_TABLE_CIDR:
-		KEY_LEN(sa6) = KEY_LEN_INET6;
-		memcpy(&sa6.sin6_addr, paddr, sizeof(struct in6_addr));
-		xent = (struct table_xentry *)(rnh->rnh_matchaddr(&sa6, rnh));
-		break;
+	export_table_info(tc, i);
 
-	case IPFW_TABLE_INTERFACE:
-		KEY_LEN(iface) = KEY_LEN_IFACE +
-		    strlcpy(iface.ifname, (char *)paddr, IF_NAMESIZE) + 1;
-		/* Assume direct match */
-		/* FIXME: Add interface pattern matching */
-		xent = (struct table_xentry *)(rnh->rnh_matchaddr(&iface, rnh));
-		break;
-
-	default:
-		return (0);
-	}
-
-	if (xent != NULL) {
-		*val = xent->value;
-		return (1);
-	}
 	return (0);
 }
 
-static int
-count_table_entry(struct radix_node *rn, void *arg)
+static void
+export_table_internal(struct namedobj_instance *ni, struct named_object *no,
+    void *arg)
 {
-	u_int32_t * const cnt = arg;
+	ipfw_obj_lheader *olh;
+	ipfw_xtable_info *i;
 
-	(*cnt)++;
+	olh = (ipfw_obj_lheader *)arg;
+	i = (ipfw_xtable_info *)(caddr_t)(olh + 1) + olh->count;
+	olh->count++;
+
+	export_table_info((struct table_config *)no, i);
+}
+
+int
+ipfw_list_tables(struct ip_fw_chain *ch, struct tid_info *ti,
+    ipfw_obj_lheader *olh)
+{
+	uint32_t size;
+	uint32_t count;
+
+	count = ipfw_objhash_count(CHAIN_TO_NI(ch));
+	size = count * sizeof(ipfw_xtable_info) + sizeof(ipfw_obj_lheader);
+	if (size > olh->size)
+		return (ENOMEM);
+
+	olh->count = 0;
+	ipfw_objhash_foreach(CHAIN_TO_NI(ch), export_table_internal, olh);
+
+	olh->count = count;
+	olh->size = size;
+	olh->objsize = sizeof(ipfw_xtable_info);
+
 	return (0);
 }
 
 int
 ipfw_count_table(struct ip_fw_chain *ch, struct tid_info *ti, uint32_t *cnt)
 {
-	struct radix_node_head *rnh;
 	struct table_config *tc;
 
-	if (ti->uidx >= V_fw_tables_max)
-		return (EINVAL);
 	if ((tc = find_table(CHAIN_TO_NI(ch), ti)) == NULL)
 		return (ESRCH);
-	*cnt = 0;
-	if ((rnh = ch->tables[tc->no.kidx]) == NULL)
-		return (0);
-	rnh->rnh_walktree(rnh, count_table_entry, cnt);
+	*cnt = tc->count;
 	return (0);
 }
 
-static int
-dump_table_entry(struct radix_node *rn, void *arg)
+
+int
+ipfw_count_xtable(struct ip_fw_chain *ch, struct tid_info *ti, uint32_t *cnt)
 {
-	struct table_entry * const n = (struct table_entry *)rn;
-	ipfw_table * const tbl = arg;
+	struct table_config *tc;
+
+	if ((tc = find_table(CHAIN_TO_NI(ch), ti)) == NULL)
+		return (0); /* 'table all list' requires success */
+	*cnt = tc->count * sizeof(ipfw_table_xentry);
+	if (tc->count > 0)
+		*cnt += sizeof(ipfw_xtable);
+	return (0);
+}
+
+struct dump_args {
+	struct table_info *ti;
+	struct table_config *tc;
+	ipfw_table *tbl;
+	ipfw_xtable *xtbl;
+};
+
+static int
+dump_table_entry(void *e, void *arg)
+{
+	ipfw_table *tbl;
+	struct dump_args *da;
+	struct table_config *tc;
+	struct table_algo *ta;
 	ipfw_table_entry *ent;
 
+	da = (struct dump_args *)arg;
+
+	tbl = da->tbl;
+	tc = da->tc;
+	ta = tc->ta;
+
+	/* Out of memory, returning */
 	if (tbl->cnt == tbl->size)
 		return (1);
 	ent = &tbl->ent[tbl->cnt];
 	ent->tbl = tbl->tbl;
-	if (in_nullhost(n->mask.sin_addr))
-		ent->masklen = 0;
-	else
-		ent->masklen = 33 - ffs(ntohl(n->mask.sin_addr.s_addr));
-	ent->addr = n->addr.sin_addr.s_addr;
-	ent->value = n->value;
 	tbl->cnt++;
-	return (0);
+
+	return (ta->dump_entry(tc->astate, da->ti, e, ent));
 }
 
 int
 ipfw_dump_table(struct ip_fw_chain *ch, struct tid_info *ti, ipfw_table *tbl)
 {
-	struct radix_node_head *rnh;
 	struct table_config *tc;
+	struct table_algo *ta;
+	struct dump_args da;
 
-	if (ti->uidx >= V_fw_tables_max)
-		return (EINVAL);
-	if ((tc = find_table(CHAIN_TO_NI(ch), ti)) == NULL)
-		return (ESRCH);
 	tbl->cnt = 0;
-	if ((rnh = ch->tables[tc->no.kidx]) == NULL)
-		return (0);
-	rnh->rnh_walktree(rnh, dump_table_entry, tbl);
-	return (0);
-}
 
-static int
-count_table_xentry(struct radix_node *rn, void *arg)
-{
-	uint32_t * const cnt = arg;
-
-	(*cnt) += sizeof(ipfw_table_xentry);
-	return (0);
-}
-
-int
-ipfw_count_xtable(struct ip_fw_chain *ch, struct tid_info *ti, uint32_t *cnt)
-{
-	struct radix_node_head *rnh;
-	struct table_config *tc;
-
-	if (ti->uidx >= V_fw_tables_max)
-		return (EINVAL);
-	*cnt = 0;
 	if ((tc = find_table(CHAIN_TO_NI(ch), ti)) == NULL)
 		return (0);	/* XXX: We should return ESRCH */
-	if ((rnh = ch->tables[tc->no.kidx]) != NULL)
-		rnh->rnh_walktree(rnh, count_table_xentry, cnt);
-	if ((rnh = ch->xtables[tc->no.kidx]) != NULL)
-		rnh->rnh_walktree(rnh, count_table_xentry, cnt);
-	/* Return zero if table is empty */
-	if (*cnt > 0)
-		(*cnt) += sizeof(ipfw_xtable);
+
+	ta = tc->ta;
+
+	if (ta->dump_entry == NULL)
+		return (0);	/* Legacy dump support is not necessary */
+
+	da.ti = KIDX_TO_TI(ch, tc->no.kidx);
+	da.tc = tc;
+	da.tbl = tbl;
+
+	tbl->cnt = 0;
+	ta->foreach(tc->astate, da.ti, dump_table_entry, &da);
+
 	return (0);
 }
 
 
 static int
-dump_table_xentry_base(struct radix_node *rn, void *arg)
+dump_table_xentry(void *e, void *arg)
 {
-	struct table_entry * const n = (struct table_entry *)rn;
-	ipfw_xtable * const tbl = arg;
+	ipfw_xtable *xtbl;
+	struct dump_args *da;
+	struct table_config *tc;
+	struct table_algo *ta;
 	ipfw_table_xentry *xent;
 
+	da = (struct dump_args *)arg;
+
+	xtbl = da->xtbl;
+	tc = da->tc;
+	ta = tc->ta;
+
 	/* Out of memory, returning */
-	if (tbl->cnt == tbl->size)
+	if (xtbl->cnt == xtbl->size)
 		return (1);
-	xent = &tbl->xent[tbl->cnt];
+	xent = &xtbl->xent[xtbl->cnt];
 	xent->len = sizeof(ipfw_table_xentry);
-	xent->tbl = tbl->tbl;
-	if (in_nullhost(n->mask.sin_addr))
-		xent->masklen = 0;
-	else
-		xent->masklen = 33 - ffs(ntohl(n->mask.sin_addr.s_addr));
-	/* Save IPv4 address as deprecated IPv6 compatible */
-	xent->k.addr6.s6_addr32[3] = n->addr.sin_addr.s_addr;
-	xent->flags = IPFW_TCF_INET;
-	xent->value = n->value;
-	tbl->cnt++;
+	xent->tbl = xtbl->tbl;
+	xtbl->cnt++;
+
+	return (ta->dump_xentry(tc->astate, da->ti, e, xent));
+}
+
+
+int
+ipfw_dump_xtable(struct ip_fw_chain *ch, struct tid_info *ti, ipfw_xtable *xtbl)
+{
+	struct table_config *tc;
+	struct table_algo *ta;
+	struct dump_args da;
+
+	xtbl->cnt = 0;
+
+	if ((tc = find_table(CHAIN_TO_NI(ch), ti)) == NULL)
+		return (0);	/* XXX: We should return ESRCH */
+
+	da.ti = KIDX_TO_TI(ch, tc->no.kidx);
+	da.tc = tc;
+	da.xtbl = xtbl;
+	xtbl->type = tc->no.type;
+	ta = tc->ta;
+
+	ta->foreach(tc->astate, da.ti, dump_table_xentry, &da);
+
 	return (0);
 }
 
-static int
-dump_table_xentry_extended(struct radix_node *rn, void *arg)
-{
-	struct table_xentry * const n = (struct table_xentry *)rn;
-	ipfw_xtable * const tbl = arg;
-	ipfw_table_xentry *xent;
-#ifdef INET6
-	int i;
-	uint32_t *v;
-#endif
-	/* Out of memory, returning */
-	if (tbl->cnt == tbl->size)
-		return (1);
-	xent = &tbl->xent[tbl->cnt];
-	xent->len = sizeof(ipfw_table_xentry);
-	xent->tbl = tbl->tbl;
+/*
+ * Table algorithms
+ */ 
 
-	switch (tbl->type) {
-#ifdef INET6
-	case IPFW_TABLE_CIDR:
-		/* Count IPv6 mask */
-		v = (uint32_t *)&n->m.mask6.sin6_addr;
-		for (i = 0; i < sizeof(struct in6_addr) / 4; i++, v++)
-			xent->masklen += bitcount32(*v);
-		memcpy(&xent->k, &n->a.addr6.sin6_addr, sizeof(struct in6_addr));
-		break;
-#endif
-	case IPFW_TABLE_INTERFACE:
-		/* Assume exact mask */
-		xent->masklen = 8 * IF_NAMESIZE;
-		memcpy(&xent->k, &n->a.iface.ifname, IF_NAMESIZE);
-		break;
-	
-	default:
-		/* unknown, skip entry */
-		return (0);
+/*
+ * Finds algoritm by index or table type
+ */
+static struct table_algo *
+find_table_algo(struct tables_config *tcfg, struct tid_info *ti)
+{
+
+	/* Search by index */
+	if (ti->atype != 0) {
+		if (ti->atype > tcfg->algo_count)
+			return (NULL);
+		return (tcfg->algo[ti->atype]);
 	}
 
-	xent->value = n->value;
-	tbl->cnt++;
-	return (0);
+	/* Search by type */
+	switch (ti->type) {
+	case IPFW_TABLE_CIDR:
+		return (&radix_cidr);
+	case IPFW_TABLE_INTERFACE:
+		return (&radix_iface);
+	}
+
+	return (NULL);
 }
 
-int
-ipfw_dump_xtable(struct ip_fw_chain *ch, struct tid_info *ti, ipfw_xtable *tbl)
+void
+ipfw_add_table_algo(struct ip_fw_chain *ch, struct table_algo *ta)
 {
-	struct radix_node_head *rnh;
-	struct table_config *tc;
+	struct tables_config *tcfg;
 
-	if (tbl->tbl >= V_fw_tables_max)
-		return (EINVAL);
-	tbl->cnt = 0;
+	tcfg = CHAIN_TO_TCFG(ch);
 
-	if ((tc = find_table(CHAIN_TO_NI(ch), ti)) == NULL)
-		return (0);	/* XXX: We should return ESRCH */
-	tbl->type = tc->no.type;
-	if ((rnh = ch->tables[tc->no.kidx]) != NULL)
-		rnh->rnh_walktree(rnh, dump_table_xentry_base, tbl);
-	if ((rnh = ch->xtables[tc->no.kidx]) != NULL)
-		rnh->rnh_walktree(rnh, dump_table_xentry_extended, tbl);
-	return (0);
+	KASSERT(tcfg->algo_count < 255, ("Increase algo array size"));
+
+	tcfg->algo[++tcfg->algo_count] = ta;
+	ta->idx = tcfg->algo_count;
 }
+
 
 /*
  * Tables rewriting code 
@@ -1093,7 +899,7 @@ update_table_opcode(ipfw_insn *cmd, uint16_t idx)
 static char *
 find_name_tlv(void *tlvs, int len, uint16_t uidx)
 {
-	ipfw_xtable_ntlv *ntlv;
+	ipfw_obj_ntlv *ntlv;
 	uintptr_t pa, pe;
 	int l;
 
@@ -1101,7 +907,7 @@ find_name_tlv(void *tlvs, int len, uint16_t uidx)
 	pe = pa + len;
 	l = 0;
 	for (; pa < pe; pa += l) {
-		ntlv = (ipfw_xtable_ntlv *)pa;
+		ntlv = (ipfw_obj_ntlv *)pa;
 		l = ntlv->head.length;
 		if (ntlv->head.type != IPFW_TLV_NAME)
 			continue;
@@ -1134,32 +940,9 @@ find_table(struct namedobj_instance *ni, struct tid_info *ti)
 	return ((struct table_config *)no);
 }
 
-static int
-alloc_table_state(void **state, void **xstate, uint8_t type)
-{
-
-	switch (type) {
-	case IPFW_TABLE_CIDR:
-		if (!rn_inithead(state, OFF_LEN_INET))
-			return (ENOMEM);
-		if (!rn_inithead(xstate, OFF_LEN_INET6)) {
-			rn_detachhead(state);
-			return (ENOMEM);
-		}
-		break;
-	case IPFW_TABLE_INTERFACE:
-		*state = NULL;
-		if (!rn_inithead(xstate, OFF_LEN_IFACE))
-			return (ENOMEM);
-		break;
-	}
-	
-	return (0);
-}
-
-
 static struct table_config *
-alloc_table_config(struct namedobj_instance *ni, struct tid_info *ti)
+alloc_table_config(struct namedobj_instance *ni, struct tid_info *ti,
+    struct table_algo *ta)
 {
 	char *name, bname[16];
 	struct table_config *tc;
@@ -1178,6 +961,7 @@ alloc_table_config(struct namedobj_instance *ni, struct tid_info *ti)
 	tc->no.name = tc->tablename;
 	tc->no.type = ti->type;
 	tc->no.set = ti->set;
+	tc->ta = ta;
 	strlcpy(tc->tablename, name, sizeof(tc->tablename));
 
 	if (ti->tlvs == NULL) {
@@ -1186,7 +970,7 @@ alloc_table_config(struct namedobj_instance *ni, struct tid_info *ti)
 	}
 
 	/* Preallocate data structures for new tables */
-	error = alloc_table_state(&tc->state, &tc->xstate, ti->type);
+	error = ta->init(&tc->astate, &tc->ti);
 	if (error != 0) {
 		free(tc, M_IPFW);
 		return (NULL);
@@ -1196,34 +980,11 @@ alloc_table_config(struct namedobj_instance *ni, struct tid_info *ti)
 }
 
 static void
-free_table_state(void **state, void **xstate, uint8_t type)
-{
-	struct radix_node_head *rnh;
-
-	switch (type) {
-	case IPFW_TABLE_CIDR:
-		rnh = (struct radix_node_head *)(*state);
-		rnh->rnh_walktree(rnh, flush_table_entry, rnh);
-		rn_detachhead(state);
-
-		rnh = (struct radix_node_head *)(*xstate);
-		rnh->rnh_walktree(rnh, flush_table_entry, rnh);
-		rn_detachhead(xstate);
-		break;
-	case IPFW_TABLE_INTERFACE:
-		rnh = (struct radix_node_head *)(*xstate);
-		rnh->rnh_walktree(rnh, flush_table_entry, rnh);
-		rn_detachhead(xstate);
-		break;
-	}
-}
-
-static void
 free_table_config(struct namedobj_instance *ni, struct table_config *tc)
 {
 
 	if (tc->linked == 0)
-		free_table_state(&tc->state, &tc->xstate, tc->no.type);
+		tc->ta->destroy(&tc->astate, &tc->ti);
 
 	free(tc, M_IPFW);
 }
@@ -1233,20 +994,22 @@ free_table_config(struct namedobj_instance *ni, struct table_config *tc)
  * Sets appropriate type/states in @chain table info.
  */
 static void
-link_table(struct ip_fw_chain *chain, struct table_config *tc)
+link_table(struct ip_fw_chain *ch, struct table_config *tc)
 {
 	struct namedobj_instance *ni;
+	struct table_info *ti;
 	uint16_t kidx;
 
-	IPFW_UH_WLOCK_ASSERT(chain);
-	IPFW_WLOCK_ASSERT(chain);
+	IPFW_UH_WLOCK_ASSERT(ch);
+	IPFW_WLOCK_ASSERT(ch);
 
-	ni = CHAIN_TO_NI(chain);
+	ni = CHAIN_TO_NI(ch);
 	kidx = tc->no.kidx;
 
 	ipfw_objhash_add(ni, &tc->no);
-	chain->tables[kidx] = tc->state;
-	chain->xtables[kidx] = tc->xstate;
+
+	ti = KIDX_TO_TI(ch, kidx);
+	*ti = tc->ti;
 
 	tc->linked = 1;
 }
@@ -1256,24 +1019,22 @@ link_table(struct ip_fw_chain *chain, struct table_config *tc)
  * Zeroes states in @chain and stores them in @tc.
  */
 static void
-unlink_table(struct ip_fw_chain *chain, struct table_config *tc)
+unlink_table(struct ip_fw_chain *ch, struct table_config *tc)
 {
 	struct namedobj_instance *ni;
+	struct table_info *ti;
 	uint16_t kidx;
 
-	IPFW_UH_WLOCK_ASSERT(chain);
-	IPFW_WLOCK_ASSERT(chain);
+	IPFW_UH_WLOCK_ASSERT(ch);
+	IPFW_WLOCK_ASSERT(ch);
 
-	ni = CHAIN_TO_NI(chain);
+	ni = CHAIN_TO_NI(ch);
 	kidx = tc->no.kidx;
 
-	/* Clear state and save pointers for flush */
+	/* Clear state. @ti copy is already saved inside @tc */
 	ipfw_objhash_del(ni, &tc->no);
-	tc->state = chain->tables[kidx];
-	chain->tables[kidx] = NULL;
-	tc->xstate = chain->xtables[kidx];
-	chain->xtables[kidx] = NULL;
-
+	ti = KIDX_TO_TI(ch, kidx);
+	memset(ti, 0, sizeof(struct table_info));
 	tc->linked = 0;
 }
 
@@ -1290,10 +1051,10 @@ bind_table(struct namedobj_instance *ni, struct rule_check_info *ci,
 {
 	struct table_config *tc;
 
-	tc = find_table(ni, ti);
-
 	pidx->uidx = ti->uidx;
 	pidx->type = ti->type;
+
+	tc = find_table(ni, ti);
 
 	if (tc == NULL) {
 		/* Try to acquire refcount */
@@ -1383,6 +1144,7 @@ ipfw_rewrite_table_uidx(struct ip_fw_chain *chain,
 	uint16_t uidx;
 	uint8_t type;
 	struct table_config *tc;
+	struct table_algo *ta;
 	struct namedobj_instance *ni;
 	struct named_object *no, *no_n, *no_tmp;
 	struct obj_idx *pidx, *p, *oib;
@@ -1435,8 +1197,10 @@ ipfw_rewrite_table_uidx(struct ip_fw_chain *chain,
 		 * Try to reference existing tables and allocate
 		 * indices for non-existing one while holding write lock.
 		 */
-		if ((error = bind_table(ni, ci, pidx, &ti)) != 0)
+		if ((error = bind_table(ni, ci, pidx, &ti)) != 0) {
+			printf("error!\n");
 			break;
+		}
 
 		/*
 		 * @pidx stores either existing ref'd table id or new one.
@@ -1476,10 +1240,9 @@ ipfw_rewrite_table_uidx(struct ip_fw_chain *chain,
 	 * Stage 2: allocate table configs for every non-existent table
 	 */
 
+	/* Prepare queue to store configs */
+	TAILQ_INIT(&nh);
 	if (ci->new_tables > 0) {
-		/* Prepare queue to store configs */
-		TAILQ_INIT(&nh);
-
 		for (p = oib; p < pidx; p++) {
 			if (p->new == 0)
 				continue;
@@ -1487,8 +1250,14 @@ ipfw_rewrite_table_uidx(struct ip_fw_chain *chain,
 			/* TODO: get name from TLV */
 			ti.uidx = p->uidx;
 			ti.type = p->type;
+			ti.atype = 0;
 
-			tc = alloc_table_config(ni, &ti);
+			ta = find_table_algo(CHAIN_TO_TCFG(chain), &ti);
+			if (ta == NULL) {
+				error = ENOTSUP;
+				goto free;
+			}
+			tc = alloc_table_config(ni, &ti, ta);
 
 			if (tc == NULL) {
 				error = ENOMEM;
@@ -1516,12 +1285,15 @@ ipfw_rewrite_table_uidx(struct ip_fw_chain *chain,
 				}
 			}
 		}
+	}
 
+	IPFW_UH_WLOCK(chain);
+
+	if (ci->new_tables > 0) {
 		/*
 		 * Stage 3: link & reference new table configs
 		 */
 
-		IPFW_UH_WLOCK(chain);
 
 		/*
 		 * Step 3.1: Check if some tables we need to create have been
@@ -1553,8 +1325,8 @@ ipfw_rewrite_table_uidx(struct ip_fw_chain *chain,
 
 
 		/*
-		 * Finally, attach tables and rewrite rule.
-		 * We need to set table type for each new table,
+		 * Attach new tables.
+		 * We need to set table pointers for each new table,
 		 * so we have to acquire main WLOCK.
 		 */
 		IPFW_WLOCK(chain);
@@ -1580,23 +1352,23 @@ ipfw_rewrite_table_uidx(struct ip_fw_chain *chain,
 			link_table(chain, (struct table_config *)no);
 		}
 		IPFW_WUNLOCK(chain);
-
-		/* Perform rule rewrite */
-		l = ci->krule->cmd_len;
-		cmd = ci->krule->cmd;
-		cmdlen = 0;
-		pidx = oib;
-		for ( ;	l > 0 ; l -= cmdlen, cmd += cmdlen) {
-			cmdlen = F_LEN(cmd);
-
-			if (classify_table_opcode(cmd, &uidx, &type) != 0)
-				continue;
-			update_table_opcode(cmd, pidx->kidx);
-			pidx++;
-		}
-
-		IPFW_UH_WUNLOCK(chain);
 	}
+
+	/* Perform rule rewrite */
+	l = ci->krule->cmd_len;
+	cmd = ci->krule->cmd;
+	cmdlen = 0;
+	pidx = oib;
+	for ( ;	l > 0 ; l -= cmdlen, cmd += cmdlen) {
+		cmdlen = F_LEN(cmd);
+
+		if (classify_table_opcode(cmd, &uidx, &type) != 0)
+			continue;
+		update_table_opcode(cmd, pidx->kidx);
+		pidx++;
+	}
+
+	IPFW_UH_WUNLOCK(chain);
 
 	error = 0;
 

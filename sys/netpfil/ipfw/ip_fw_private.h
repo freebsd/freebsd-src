@@ -222,8 +222,7 @@ struct ip_fw_chain {
 	uint32_t	id;		/* ruleset id */
 	int		n_rules;	/* number of static rules */
 	LIST_HEAD(nat_list, cfg_nat) nat;       /* list of nat entries */
-	struct radix_node_head **tables;	/* IPv4 tables */
-	struct radix_node_head **xtables;	/* extended tables */
+	void		*tablestate;		/* runtime table info */
 #if defined( __linux__ ) || defined( _WIN32 )
 	spinlock_t rwmtx;
 #else
@@ -304,7 +303,7 @@ struct tid_info {
 	uint32_t	set;	/* table set */
 	uint16_t	uidx;	/* table index */
 	uint8_t		type;	/* table type */
-	uint8_t		spare;
+	uint8_t		atype;
 	void		*tlvs;	/* Pointer to first TLV */
 	int		tlen;	/* Total TLV size block */
 };
@@ -363,7 +362,9 @@ typedef void (objhash_cb_t)(struct namedobj_instance *ni, struct named_object *,
 struct namedobj_instance *ipfw_objhash_create(uint32_t items);
 void ipfw_objhash_destroy(struct namedobj_instance *);
 void ipfw_objhash_bitmap_alloc(uint32_t items, void **idx, int *pblocks);
-int ipfw_objhash_bitmap_merge(struct namedobj_instance *ni,
+void ipfw_objhash_bitmap_merge(struct namedobj_instance *ni,
+    void **idx, int *blocks);
+void ipfw_objhash_bitmap_swap(struct namedobj_instance *ni,
     void **idx, int *blocks);
 void ipfw_objhash_bitmap_free(void *idx, int blocks);
 struct named_object *ipfw_objhash_lookup_name(struct namedobj_instance *ni,
@@ -372,6 +373,7 @@ struct named_object *ipfw_objhash_lookup_idx(struct namedobj_instance *ni,
     uint32_t set, uint16_t idx);
 void ipfw_objhash_add(struct namedobj_instance *ni, struct named_object *no);
 void ipfw_objhash_del(struct namedobj_instance *ni, struct named_object *no);
+uint32_t ipfw_objhash_count(struct namedobj_instance *ni);
 void ipfw_objhash_foreach(struct namedobj_instance *ni, objhash_cb_t *f,
     void *arg);
 int ipfw_objhash_free_idx(struct namedobj_instance *ni, uint32_t set,
@@ -379,13 +381,60 @@ int ipfw_objhash_free_idx(struct namedobj_instance *ni, uint32_t set,
 int ipfw_objhash_alloc_idx(void *n, uint32_t set, uint16_t *pidx);
 
 /* In ip_fw_table.c */
+struct table_info;
+
+typedef int (table_lookup_t)(struct table_info *ti, void *key, uint32_t keylen,
+    uint32_t *val);
+struct table_info {
+	table_lookup_t	*lookup;	/* Lookup function */
+	void		*state;		/* Lookup radix/other structure */
+	void		*xstate;	/* eXtended state */
+	u_long		data;		/* Hints for given func */
+};
+
+typedef int (ta_init)(void **ta_state, struct table_info *ti);
+typedef void (ta_destroy)(void *ta_state, struct table_info *ti);
+typedef int (ta_prepare_add)(struct tentry_info *tei, void *ta_buf);
+typedef int (ta_prepare_del)(struct tentry_info *tei, void *ta_buf);
+typedef int (ta_add)(void *ta_state, struct table_info *ti,
+    struct tentry_info *tei, void *ta_buf);
+typedef int (ta_del)(void *ta_state, struct table_info *ti,
+    struct tentry_info *tei, void *ta_buf);
+typedef void (ta_flush_entry)(struct tentry_info *tei, void *ta_buf);
+
+typedef int ta_foreach_f(void *node, void *arg);
+typedef void ta_foreach(void *ta_state, struct table_info *ti, ta_foreach_f *f,
+  void *arg);
+typedef int ta_dump_entry(void *ta_state, struct table_info *ti, void *e,
+    ipfw_table_entry *ent);
+typedef int ta_dump_xentry(void *ta_state, struct table_info *ti, void *e,
+    ipfw_table_xentry *xent);
+
+struct table_algo {
+	char		name[64];
+	int		idx;
+	ta_init		*init;
+	ta_destroy	*destroy;
+	table_lookup_t	*lookup;
+	ta_prepare_add	*prepare_add;
+	ta_prepare_del	*prepare_del;
+	ta_add		*add;
+	ta_del		*del;
+	ta_flush_entry	*flush_entry;
+	ta_foreach	*foreach;
+	ta_dump_entry	*dump_entry;
+	ta_dump_xentry	*dump_xentry;
+};
+void ipfw_add_table_algo(struct ip_fw_chain *ch, struct table_algo *ta);
+extern struct table_algo radix_cidr, radix_iface;
+
 struct radix_node;
 int ipfw_lookup_table(struct ip_fw_chain *ch, uint16_t tbl, in_addr_t addr,
     uint32_t *val);
-int ipfw_lookup_table_extended(struct ip_fw_chain *ch, uint16_t tbl, void *paddr,
-    uint32_t *val, int type);
+int ipfw_lookup_table_extended(struct ip_fw_chain *ch, uint16_t tbl, uint16_t plen,
+    void *paddr, uint32_t *val);
 int ipfw_init_tables(struct ip_fw_chain *ch);
-int ipfw_destroy_table(struct ip_fw_chain *ch, struct tid_info *ti, int force);
+int ipfw_destroy_table(struct ip_fw_chain *ch, struct tid_info *ti);
 void ipfw_destroy_tables(struct ip_fw_chain *ch);
 int ipfw_flush_table(struct ip_fw_chain *ch, struct tid_info *ti);
 int ipfw_add_table_entry(struct ip_fw_chain *ch, struct tid_info *ti,
@@ -394,19 +443,26 @@ int ipfw_del_table_entry(struct ip_fw_chain *ch, struct tid_info *ti,
     struct tentry_info *tei);
 int ipfw_count_table(struct ip_fw_chain *ch, struct tid_info *ti,
     uint32_t *cnt);
-int ipfw_dump_table_entry(struct radix_node *rn, void *arg);
-int ipfw_dump_table(struct ip_fw_chain *ch, struct tid_info *ti,
-    ipfw_table *tbl);
 int ipfw_count_xtable(struct ip_fw_chain *ch, struct tid_info *ti,
     uint32_t *cnt);
+int ipfw_dump_table(struct ip_fw_chain *ch, struct tid_info *ti,
+    ipfw_table *tbl);
 int ipfw_dump_xtable(struct ip_fw_chain *ch, struct tid_info *ti,
     ipfw_xtable *tbl);
+int ipfw_describe_table(struct ip_fw_chain *ch, struct tid_info *ti,
+    ipfw_xtable_info *i);
+int ipfw_count_tables(struct ip_fw_chain *ch, ipfw_obj_lheader *olh);
+int ipfw_list_tables(struct ip_fw_chain *ch, struct tid_info *ti,
+    ipfw_obj_lheader *olh);
 int ipfw_resize_tables(struct ip_fw_chain *ch, unsigned int ntables);
 int ipfw_rewrite_table_uidx(struct ip_fw_chain *chain,
     struct rule_check_info *ci);
 int ipfw_rewrite_table_kidx(struct ip_fw_chain *chain, struct ip_fw *rule);
 void ipfw_unbind_table_rule(struct ip_fw_chain *chain, struct ip_fw *rule);
 void ipfw_unbind_table_list(struct ip_fw_chain *chain, struct ip_fw *head);
+
+void ipfw_table_algo_init(struct ip_fw_chain *chain);
+void ipfw_table_algo_destroy(struct ip_fw_chain *chain);
 
 /* In ip_fw_nat.c -- XXX to be moved to ip_var.h */
 

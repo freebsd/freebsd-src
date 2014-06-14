@@ -80,6 +80,9 @@ typedef struct _ip_fw3_opheader {
 #define	IP_FW_TABLE_XGETSIZE	88	/* get table size */
 #define	IP_FW_TABLE_XLIST	89	/* list table contents */
 #define	IP_FW_OBJ_DEL		90	/* del table/pipe/etc */
+#define	IP_FW_OBJ_LISTSIZE	91	/* get size for table/etc list */
+#define	IP_FW_OBJ_LIST		92	/* list all objects of given type */
+#define	IP_FW_OBJ_INFO		93	/* request info for one object */
 
 /*
  * The kernel representation of ipfw rules is made of a list of
@@ -646,26 +649,53 @@ typedef struct	_ipfw_xtable {
 	ipfw_table_xentry xent[0];	/* entries			*/
 } ipfw_xtable;
 
-typedef struct  _ipfw_xtable_tlv {
+typedef struct  _ipfw_obj_tlv {
 	uint16_t        type;		/* TLV type */
 	uint16_t        length;		/* Total length, aligned to u32	*/
-} ipfw_xtable_tlv;
+} ipfw_obj_tlv;
 
 #define	IPFW_TLV_NAME	1
 /* Object name TLV */
-typedef struct _ipfw_xtable_ntlv {
-	ipfw_xtable_tlv	head;		/* TLV header */
+typedef struct _ipfw_obj_ntlv {
+	ipfw_obj_tlv	head;		/* TLV header */
 	uint16_t	idx;		/* Name index */
 	uint16_t	spare;		/* unused */
 	char		name[64];	/* Null-terminated name */
-} ipfw_xtable_ntlv;
+} ipfw_obj_ntlv;
 
+typedef struct _ipfw_xtable_info {
+	uint8_t		type;		/* table type (cidr,iface,..)	*/
+	uint8_t		ftype;		/* format table type		*/
+	uint8_t		atype;		/* algorithm type		*/
+	uint8_t		spare0;
+	uint32_t	set;		/* set table is in		*/
+	uint32_t	kidx;		/* kernel index			*/
+	uint32_t	refcnt;		/* number of references		*/
+	uint32_t	count;		/* Number of records		*/
+	uint32_t	size;		/* Total size of records	*/
+	char		tablename[64];	/* table name */
+} ipfw_xtable_info;
+
+#define	IPFW_OBJTYPE_TABLE	1
+/* IP_FW_OBJ_DEL, IP_FW_OBJ_INFO (followed by ipfw_xtable_info)  */
 typedef struct _ipfw_obj_header {
 	ip_fw3_opheader	opheader;	/* IP_FW3 opcode		*/
 	uint32_t	set;		/* Set we're operating		*/
 	uint16_t	idx;		/* object name index		*/
-	uint16_t	objtype;	/* object type			*/
+	uint8_t		objtype;	/* object type			*/
+	uint8_t		objsubtype;	/* object subtype		*/
+	ipfw_obj_ntlv	ntlv;		/* object name tlv		*/
 } ipfw_obj_header;
-#define	IPFW_OBJTYPE_TABLE	1
+
+/* IP_FW_OBJ_LISTSIZE, IP_FW_OBJ_LIST (followd by ipfw_xtable_info) */
+typedef struct _ipfw_obj_lheader {
+	ip_fw3_opheader	opheader;	/* IP_FW3 opcode		*/
+	uint8_t		objtype;	/* object type			*/
+	uint8_t		spare0;
+	uint16_t	spare1;
+	uint32_t	count;		/* Total objects count		*/
+	uint32_t	size;		/* Total objects size		*/
+	uint32_t	objsize;	/* Size of one object		*/
+} ipfw_obj_lheader;
 
 #endif /* _IPFW2_H */
