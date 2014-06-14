@@ -477,20 +477,25 @@ amr_pci_free(struct amr_softc *sc)
 	bus_dma_tag_destroy(sc->amr_buffer64_dmat);
 
     /* free and destroy DMA memory and tag for passthrough pool */
-    if (sc->amr_ccb)
+    if (sc->amr_ccb) {
+	bus_dmamap_unload(sc->amr_ccb_dmat, sc->amr_ccb_dmamap);
 	bus_dmamem_free(sc->amr_ccb_dmat, sc->amr_ccb, sc->amr_ccb_dmamap);
+    }
     if (sc->amr_ccb_dmat)
 	bus_dma_tag_destroy(sc->amr_ccb_dmat);
 
     /* free and destroy DMA memory and tag for s/g lists */
-    if (sc->amr_sgtable)
+    if (sc->amr_sgtable) {
+	bus_dmamap_unload(sc->amr_sg_dmat, sc->amr_sg_dmamap);
 	bus_dmamem_free(sc->amr_sg_dmat, sc->amr_sgtable, sc->amr_sg_dmamap);
+    }
     if (sc->amr_sg_dmat)
 	bus_dma_tag_destroy(sc->amr_sg_dmat);
 
     /* free and destroy DMA memory and tag for mailbox */
     p = (void *)(uintptr_t)(volatile void *)sc->amr_mailbox64;
     if (sc->amr_mailbox) {
+	bus_dmamap_unload(sc->amr_mailbox_dmat, sc->amr_mailbox_dmamap);
 	bus_dmamem_free(sc->amr_mailbox_dmat, p, sc->amr_mailbox_dmamap);
     }
     if (sc->amr_mailbox_dmat)

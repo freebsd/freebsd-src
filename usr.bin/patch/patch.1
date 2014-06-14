@@ -19,9 +19,9 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\" $OpenBSD: patch.1,v 1.26 2010/09/03 11:09:29 jmc Exp $
+.\" $OpenBSD: patch.1,v 1.27 2014/04/15 06:26:54 jmc Exp $
 .\" $FreeBSD$
-.Dd January 29, 2013
+.Dd June 12, 2014
 .Dt PATCH 1
 .Os
 .Sh NAME
@@ -639,13 +639,10 @@ The
 .Nm
 utility is compliant with the
 .St -p1003.1-2008
-specification
-(except as detailed above for the
+specification,
+except as detailed above for the
 .Fl -posix
-option),
-though the presence of
-.Nm
-itself is optional.
+option.
 .Pp
 The flags
 .Op Fl BCEFfstVvxz

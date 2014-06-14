@@ -1833,6 +1833,9 @@ OLD_DIRS+=usr/share/tmac
 .endif
 
 .if ${MK_GSSAPI} == no
+OLD_FILES+=usr/include/gssapi/gssapi.h
+OLD_DIRS+=usr/include/gssapi
+OLD_FILES+=usr/include/gssapi.h
 OLD_FILES+=usr/lib/libgssapi.a
 OLD_FILES+=usr/lib/libgssapi.so
 OLD_LIBS+=usr/lib/libgssapi.so.10

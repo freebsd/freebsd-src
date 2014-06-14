@@ -483,6 +483,16 @@ static void os_cmddone(PCOMMAND pCmd)
 
 static int os_buildsgl(PCOMMAND pCmd, PSG pSg, int logical)
 {
+	POS_CMDEXT ext = (POS_CMDEXT)pCmd->priv;
+	union ccb *ccb = ext->ccb;
+
+	if (logical) {
+		os_set_sgptr(pSg, (HPT_U8 *)ccb->csio.data_ptr);
+		pSg->size = ccb->csio.dxfer_len;
+		pSg->eot = 1;
+		return TRUE;
+	}
+
 	/* since we have provided physical sg, nobody will ask us to build physical sg */
 	HPT_ASSERT(0);
 	return FALSE;
@@ -555,7 +565,7 @@ static void hpt_scsi_io(PVBUS_EXT vbus_ext, union ccb *ccb)
 	vd = ldm_find_target(vbus, ccb->ccb_h.target_id);
 
 	if (!vd) {
-		ccb->ccb_h.status = CAM_TID_INVALID;
+		ccb->ccb_h.status = CAM_SEL_TIMEOUT;
 		xpt_done(ccb);
 		return;
 	}
@@ -1348,19 +1358,16 @@ static int	hpt_rescan_bus(void)
 	ldm_for_each_vbus(vbus, vbus_ext) {
 		if ((ccb = xpt_alloc_ccb()) == NULL)
 		{
-			mtx_unlock(&Giant);
 			return(ENOMEM);
 		}
 		if (xpt_create_path(&ccb->ccb_h.path, NULL, cam_sim_path(vbus_ext->sim),
 			CAM_TARGET_WILDCARD, CAM_LUN_WILDCARD) != CAM_REQ_CMP)	
 		{
 			xpt_free_ccb(ccb);
-			mtx_unlock(&Giant);
 			return(EIO);
 		}
 		xpt_rescan(ccb);
 	}
-	mtx_unlock(&Giant);
 	return(0);
 }
 

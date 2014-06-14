@@ -1735,76 +1735,71 @@ alc_dma_free(struct alc_softc *sc)
 	}
 	/* Tx descriptor ring. */
 	if (sc->alc_cdata.alc_tx_ring_tag != NULL) {
-		if (sc->alc_cdata.alc_tx_ring_map != NULL)
+		if (sc->alc_rdata.alc_tx_ring_paddr != 0)
 			bus_dmamap_unload(sc->alc_cdata.alc_tx_ring_tag,
 			    sc->alc_cdata.alc_tx_ring_map);
-		if (sc->alc_cdata.alc_tx_ring_map != NULL &&
-		    sc->alc_rdata.alc_tx_ring != NULL)
+		if (sc->alc_rdata.alc_tx_ring != NULL)
 			bus_dmamem_free(sc->alc_cdata.alc_tx_ring_tag,
 			    sc->alc_rdata.alc_tx_ring,
 			    sc->alc_cdata.alc_tx_ring_map);
+		sc->alc_rdata.alc_tx_ring_paddr = 0;
 		sc->alc_rdata.alc_tx_ring = NULL;
-		sc->alc_cdata.alc_tx_ring_map = NULL;
 		bus_dma_tag_destroy(sc->alc_cdata.alc_tx_ring_tag);
 		sc->alc_cdata.alc_tx_ring_tag = NULL;
 	}
 	/* Rx ring. */
 	if (sc->alc_cdata.alc_rx_ring_tag != NULL) {
-		if (sc->alc_cdata.alc_rx_ring_map != NULL)
+		if (sc->alc_rdata.alc_rx_ring_paddr != 0)
 			bus_dmamap_unload(sc->alc_cdata.alc_rx_ring_tag,
 			    sc->alc_cdata.alc_rx_ring_map);
-		if (sc->alc_cdata.alc_rx_ring_map != NULL &&
-		    sc->alc_rdata.alc_rx_ring != NULL)
+		if (sc->alc_rdata.alc_rx_ring != NULL)
 			bus_dmamem_free(sc->alc_cdata.alc_rx_ring_tag,
 			    sc->alc_rdata.alc_rx_ring,
 			    sc->alc_cdata.alc_rx_ring_map);
+		sc->alc_rdata.alc_rx_ring_paddr = 0;
 		sc->alc_rdata.alc_rx_ring = NULL;
-		sc->alc_cdata.alc_rx_ring_map = NULL;
 		bus_dma_tag_destroy(sc->alc_cdata.alc_rx_ring_tag);
 		sc->alc_cdata.alc_rx_ring_tag = NULL;
 	}
 	/* Rx return ring. */
 	if (sc->alc_cdata.alc_rr_ring_tag != NULL) {
-		if (sc->alc_cdata.alc_rr_ring_map != NULL)
+		if (sc->alc_rdata.alc_rr_ring_paddr != 0)
 			bus_dmamap_unload(sc->alc_cdata.alc_rr_ring_tag,
 			    sc->alc_cdata.alc_rr_ring_map);
-		if (sc->alc_cdata.alc_rr_ring_map != NULL &&
-		    sc->alc_rdata.alc_rr_ring != NULL)
+		if (sc->alc_rdata.alc_rr_ring != NULL)
 			bus_dmamem_free(sc->alc_cdata.alc_rr_ring_tag,
 			    sc->alc_rdata.alc_rr_ring,
 			    sc->alc_cdata.alc_rr_ring_map);
+		sc->alc_rdata.alc_rr_ring_paddr = 0;
 		sc->alc_rdata.alc_rr_ring = NULL;
-		sc->alc_cdata.alc_rr_ring_map = NULL;
 		bus_dma_tag_destroy(sc->alc_cdata.alc_rr_ring_tag);
 		sc->alc_cdata.alc_rr_ring_tag = NULL;
 	}
 	/* CMB block */
 	if (sc->alc_cdata.alc_cmb_tag != NULL) {
-		if (sc->alc_cdata.alc_cmb_map != NULL)
+		if (sc->alc_rdata.alc_cmb_paddr != 0)
 			bus_dmamap_unload(sc->alc_cdata.alc_cmb_tag,
 			    sc->alc_cdata.alc_cmb_map);
-		if (sc->alc_cdata.alc_cmb_map != NULL &&
-		    sc->alc_rdata.alc_cmb != NULL)
+		if (sc->alc_rdata.alc_cmb != NULL)
 			bus_dmamem_free(sc->alc_cdata.alc_cmb_tag,
 			    sc->alc_rdata.alc_cmb,
-			    sc->alc_cdata.alc_cmb_map);
+			    sc->alc_cdata.alc_cmb_map);		
+		sc->alc_rdata.alc_cmb_paddr = 0;
 		sc->alc_rdata.alc_cmb = NULL;
-		sc->alc_cdata.alc_cmb_map = NULL;
 		bus_dma_tag_destroy(sc->alc_cdata.alc_cmb_tag);
 		sc->alc_cdata.alc_cmb_tag = NULL;
 	}
 	/* SMB block */
 	if (sc->alc_cdata.alc_smb_tag != NULL) {
-		if (sc->alc_cdata.alc_smb_map != NULL)
+		if (sc->alc_rdata.alc_smb_paddr != 0)
 			bus_dmamap_unload(sc->alc_cdata.alc_smb_tag,
 			    sc->alc_cdata.alc_smb_map);
-		if (sc->alc_cdata.alc_smb_map != NULL &&
-		    sc->alc_rdata.alc_smb != NULL)
+		if (sc->alc_rdata.alc_smb != NULL)
 			bus_dmamem_free(sc->alc_cdata.alc_smb_tag,
 			    sc->alc_rdata.alc_smb,
 			    sc->alc_cdata.alc_smb_map);
+		sc->alc_rdata.alc_smb_paddr = 0;
 		sc->alc_rdata.alc_smb = NULL;
-		sc->alc_cdata.alc_smb_map = NULL;
 		bus_dma_tag_destroy(sc->alc_cdata.alc_smb_tag);
 		sc->alc_cdata.alc_smb_tag = NULL;
 	}
