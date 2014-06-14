@@ -301,6 +301,14 @@ int ctl_lun_online(struct ctl_be_lun *be_lun);
  */
 void ctl_lun_capacity_changed(struct ctl_be_lun *be_lun);
 
+/*
+ * KPI to manipulate LUN options
+ */
+struct ctl_lun_req;
+void ctl_init_opts(struct ctl_be_lun *be_lun, struct ctl_lun_req *req);
+void ctl_free_opts(struct ctl_be_lun *be_lun);
+char * ctl_get_opt(struct ctl_be_lun *be_lun, const char *name);
+
 #endif /* _KERNEL */
 #endif /* _CTL_BACKEND_H_ */
 

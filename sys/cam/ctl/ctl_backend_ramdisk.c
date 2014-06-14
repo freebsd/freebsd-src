@@ -502,6 +502,7 @@ ctl_backend_ramdisk_rm(struct ctl_be_ramdisk_softc *softc,
 	if (retval == 0) {
 		taskqueue_drain(be_lun->io_taskqueue, &be_lun->io_task);
 		taskqueue_free(be_lun->io_taskqueue);
+		ctl_free_opts(&be_lun->ctl_be_lun);
 		mtx_destroy(&be_lun->lock);
 		free(be_lun, M_RAMDISK);
 	}
@@ -523,8 +524,9 @@ ctl_backend_ramdisk_create(struct ctl_be_ramdisk_softc *softc,
 	struct ctl_be_ramdisk_lun *be_lun;
 	struct ctl_lun_create_params *params;
 	uint32_t blocksize;
+	char *value;
 	char tmpstr[32];
-	int i, retval, unmap;
+	int retval, unmap;
 
 	retval = 0;
 	params = &req->reqdata.create;
@@ -543,7 +545,7 @@ ctl_backend_ramdisk_create(struct ctl_be_ramdisk_softc *softc,
 		goto bailout_error;
 	}
 	sprintf(be_lun->lunname, "cram%d", softc->num_luns);
-	STAILQ_INIT(&be_lun->ctl_be_lun.options);
+	ctl_init_opts(&be_lun->ctl_be_lun, req);
 
 	if (params->flags & CTL_LUN_FLAG_DEV_TYPE)
 		be_lun->ctl_be_lun.lun_type = params->device_type;
@@ -581,21 +583,9 @@ ctl_backend_ramdisk_create(struct ctl_be_ramdisk_softc *softc,
 	be_lun->softc = softc;
 
 	unmap = 0;
-	for (i = 0; i < req->num_be_args; i++) {
-		if (strcmp(req->kern_be_args[i].kname, "unmap") == 0 &&
-		    strcmp(req->kern_be_args[i].kvalue, "on") == 0) {
-			unmap = 1;
-		} else {
-			struct ctl_be_lun_option *opt;
-
-			opt = malloc(sizeof(*opt), M_RAMDISK, M_WAITOK);
-			opt->name = malloc(strlen(req->kern_be_args[i].kname) + 1, M_RAMDISK, M_WAITOK);
-			strcpy(opt->name, req->kern_be_args[i].kname);
-			opt->value = malloc(strlen(req->kern_be_args[i].kvalue) + 1, M_RAMDISK, M_WAITOK);
-			strcpy(opt->value, req->kern_be_args[i].kvalue);
-			STAILQ_INSERT_TAIL(&be_lun->ctl_be_lun.options, opt, links);
-		}
-	}
+	value = ctl_get_opt(&be_lun->ctl_be_lun, "unmap");
+	if (value != NULL && strcmp(value, "on") == 0)
+		unmap = 1;
 
 	be_lun->flags = CTL_BE_RAMDISK_LUN_UNCONFIGURED;
 	be_lun->ctl_be_lun.flags = CTL_LUN_FLAG_PRIMARY;
@@ -728,6 +718,7 @@ bailout_error:
 		if (be_lun->io_taskqueue != NULL) {
 			taskqueue_free(be_lun->io_taskqueue);
 		}
+		ctl_free_opts(&be_lun->ctl_be_lun);
 		mtx_destroy(&be_lun->lock);
 		free(be_lun, M_RAMDISK);
 	}
