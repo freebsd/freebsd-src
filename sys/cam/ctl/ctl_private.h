@@ -426,7 +426,6 @@ struct ctl_softc {
 	struct sysctl_ctx_list sysctl_ctx;
 	struct sysctl_oid *sysctl_tree;
 	struct ctl_ioctl_info ioctl_info;
-	struct ctl_lun lun;
 	struct ctl_io_pool *internal_pool;
 	struct ctl_io_pool *emergency_pool;
 	struct ctl_io_pool *othersc_pool;
