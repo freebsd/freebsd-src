@@ -9634,6 +9634,7 @@ ctl_inquiry_std(struct ctl_scsiio *ctsio)
 	struct scsi_inquiry *cdb;
 	struct ctl_softc *ctl_softc;
 	struct ctl_lun *lun;
+	char *val;
 	uint32_t alloc_len;
 	int is_fc;
 
@@ -9778,10 +9779,16 @@ ctl_inquiry_std(struct ctl_scsiio *ctsio)
 	 * We have 8 bytes for the vendor name, and 16 bytes for the device
 	 * name and 4 bytes for the revision.
 	 */
-	strncpy(inq_ptr->vendor, CTL_VENDOR, sizeof(inq_ptr->vendor));
+	if (lun == NULL || (val = ctl_get_opt(lun->be_lun, "vendor")) == NULL) {
+		strcpy(inq_ptr->vendor, CTL_VENDOR);
+	} else {
+		memset(inq_ptr->vendor, ' ', sizeof(inq_ptr->vendor));
+		strncpy(inq_ptr->vendor, val,
+		    min(sizeof(inq_ptr->vendor), strlen(val)));
+	}
 	if (lun == NULL) {
 		strcpy(inq_ptr->product, CTL_DIRECT_PRODUCT);
-	} else {
+	} else if ((val = ctl_get_opt(lun->be_lun, "product")) == NULL) {
 		switch (lun->be_lun->lun_type) {
 		case T_DIRECT:
 			strcpy(inq_ptr->product, CTL_DIRECT_PRODUCT);
@@ -9793,13 +9800,23 @@ ctl_inquiry_std(struct ctl_scsiio *ctsio)
 			strcpy(inq_ptr->product, CTL_UNKNOWN_PRODUCT);
 			break;
 		}
+	} else {
+		memset(inq_ptr->product, ' ', sizeof(inq_ptr->product));
+		strncpy(inq_ptr->product, val,
+		    min(sizeof(inq_ptr->product), strlen(val)));
 	}
 
 	/*
 	 * XXX make this a macro somewhere so it automatically gets
 	 * incremented when we make changes.
 	 */
-	strncpy(inq_ptr->revision, "0001", sizeof(inq_ptr->revision));
+	if (lun == NULL || (val = ctl_get_opt(lun->be_lun, "revision")) == NULL) {
+		strncpy(inq_ptr->revision, "0001", sizeof(inq_ptr->revision));
+	} else {
+		memset(inq_ptr->revision, ' ', sizeof(inq_ptr->revision));
+		strncpy(inq_ptr->revision, val,
+		    min(sizeof(inq_ptr->revision), strlen(val)));
+	}
 
 	/*
 	 * For parallel SCSI, we support double transition and single
