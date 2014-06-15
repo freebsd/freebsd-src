@@ -327,15 +327,6 @@ struct rule_check_info {
 	struct obj_idx	obuf[8];	/* table references storage */
 };
 
-struct tentry_info {
-	void		*paddr;
-	int		plen;		/* Total entry length		*/
-	uint8_t		masklen;	/* mask length			*/
-	uint8_t		spare;
-	uint16_t	flags;		/* record flags			*/
-	uint32_t	value;		/* value			*/
-};
-
 /* In ip_fw_sockopt.c */
 int ipfw_find_rule(struct ip_fw_chain *chain, uint32_t key, uint32_t id);
 int ipfw_ctl(struct sockopt *sopt);

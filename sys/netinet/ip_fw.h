@@ -70,21 +70,47 @@
 /* IP_FW3 header/opcodes */
 typedef struct _ip_fw3_opheader {
 	uint16_t opcode;	/* Operation opcode */
-	uint16_t reserved[3];	/* Align to 64-bit boundary */
+	uint16_t version;	/* Opcode version */
+	uint16_t reserved[2];	/* Align to 64-bit boundary */
 } ip_fw3_opheader;
 
 
 /* IPFW extented tables support */
 #define	IP_FW_TABLE_XADD	86	/* add entry */
 #define	IP_FW_TABLE_XDEL	87	/* delete entry */
-#define	IP_FW_TABLE_XGETSIZE	88	/* get table size */
+#define	IP_FW_TABLE_XGETSIZE	88	/* get table size (deprecated) */
 #define	IP_FW_TABLE_XLIST	89	/* list table contents */
-#define	IP_FW_OBJ_DEL		90	/* del table/pipe/etc */
-#define	IP_FW_OBJ_LISTSIZE	91	/* get size for table/etc list */
-#define	IP_FW_OBJ_LIST		92	/* list all objects of given type */
-#define	IP_FW_OBJ_INFO		93	/* request info for one object */
-#define	IP_FW_OBJ_FLUSH		94	/* flush data for given object */
-#define	IP_FW_OBJ_DUMP		95	/* dump all data for given object */
+#define	IP_FW_TABLE_XDESTROY	90	/* destroy table */
+#define	IP_FW_TABLES_XGETSIZE	91	/* get size for table/etc list */
+#define	IP_FW_TABLES_XLIST	92	/* list all objects of given type */
+#define	IP_FW_TABLE_XINFO	93	/* request info for one object */
+#define	IP_FW_TABLE_XFLUSH	94	/* flush data for given object */
+
+/*
+ * Usage guidelines:
+ *
+ * IP_FW_TABLE_XLIST(ver 1): Dumps all table data
+ *   Request(getsockopt): [ ipfw_obj_lheader ], size = ipfw_xtable_info.size
+ *   Reply: [ ipfw_obj_lheader ipfw_xtable_info ipfw_table_xentry x N ]
+ *
+ * IP_FW_TABLE_XDESTROY: Destroys given table
+ *   Request(setsockopt): [ ipfw_obj_header ]
+ *
+ * IP_FW_TABLES_XGETSIZE: Get buffer size needed to list info for all tables.
+ *   Request(getsockopt): [ empty ], size = sizeof(ipfw_obj_lheader)
+ *   Reply: [ ipfw_obj_lheader ]
+ *
+ * IP_FW_TABLES_XLIST: Lists all tables currently available in kernel.
+ *   Request(getsockopt): [ ipfw_obj_lheader ], size = ipfw_obj_lheader.size
+ *   Reply: [ ipfw_obj_lheader ipfw_xtable_info x N ]
+ *
+ * IP_FW_TABLE_XINFO: Store table info to buffer.
+ *   Request(getsockopt): [ ipfw_obj_header ipfw_xtable_info(empty)]
+ *   Reply: [ ipfw_obj_header ipfw_xtable_info ]
+ *
+ * IP_FW_TABLE_XFLUSH: Removes all data from given table leaving type etc..
+ *   Request(setsockopt): [ ipfw_obj_header ]
+ */
 
 /*
  * The kernel representation of ipfw rules is made of a list of
@@ -679,10 +705,6 @@ typedef struct _ipfw_xtable_info {
 } ipfw_xtable_info;
 
 #define	IPFW_OBJTYPE_TABLE	1
-/*
- * IP_FW_OBJ_DEL, IP_FW_OBJ_INFO (followed by ipfw_xtable_info),
- * IP_FW_OBJ_DUMP (followed by ipfw_xtable_info and ipfw_table_xentry'xN )
- */
 typedef struct _ipfw_obj_header {
 	ip_fw3_opheader	opheader;	/* IP_FW3 opcode		*/
 	uint32_t	set;		/* Set we're operating		*/
@@ -692,12 +714,9 @@ typedef struct _ipfw_obj_header {
 	ipfw_obj_ntlv	ntlv;		/* object name tlv		*/
 } ipfw_obj_header;
 
-/* IP_FW_OBJ_LISTSIZE, IP_FW_OBJ_LIST (followd by ipfw_xtable_info) */
 typedef struct _ipfw_obj_lheader {
 	ip_fw3_opheader	opheader;	/* IP_FW3 opcode		*/
-	uint8_t		objtype;	/* object type			*/
-	uint8_t		spare0;
-	uint16_t	spare1;
+	uint32_t	spare;
 	uint32_t	count;		/* Total objects count		*/
 	uint32_t	size;		/* Total objects size		*/
 	uint32_t	objsize;	/* Size of one object		*/

@@ -317,7 +317,6 @@ table_fill_objheader(ipfw_obj_header *oh, ipfw_xtable_info *i)
 
 	oh->set = i->set;
 	oh->idx = 1;
-	oh->objtype = IPFW_OBJTYPE_TABLE;
 	table_fill_ntlv(&oh->ntlv, i->tablename, 1);
 }
 
@@ -332,9 +331,8 @@ table_destroy(char *name, uint32_t set)
 
 	memset(&oh, 0, sizeof(oh));
 	oh.idx = 1;
-	oh.objtype = IPFW_OBJTYPE_TABLE;
 	table_fill_ntlv(&oh.ntlv, name, 1);
-	if (do_set3(IP_FW_OBJ_DEL, &oh.opheader, sizeof(oh)) != 0)
+	if (do_set3(IP_FW_TABLE_XDESTROY, &oh.opheader, sizeof(oh)) != 0)
 		return (-1);
 
 	return (0);
@@ -351,9 +349,8 @@ table_flush(char *name, uint32_t set)
 
 	memset(&oh, 0, sizeof(oh));
 	oh.idx = 1;
-	oh.objtype = IPFW_OBJTYPE_TABLE;
 	table_fill_ntlv(&oh.ntlv, name, 1);
-	if (do_set3(IP_FW_OBJ_FLUSH, &oh.opheader, sizeof(oh)) != 0)
+	if (do_set3(IP_FW_TABLE_XFLUSH, &oh.opheader, sizeof(oh)) != 0)
 		return (-1);
 
 	return (0);
@@ -380,7 +377,7 @@ table_get_info(char *name, uint32_t set, ipfw_xtable_info *i)
 
 	table_fill_objheader(oh, i);
 
-	if (do_get3(IP_FW_OBJ_INFO, &oh->opheader, &sz) < 0)
+	if (do_get3(IP_FW_TABLE_XINFO, &oh->opheader, &sz) < 0)
 		return (-1);
 
 	if (sz < sizeof(tbuf))
@@ -486,17 +483,15 @@ tables_foreach(table_cb_t *f, void *arg, int sort)
 	memset(&req, 0, sizeof(req));
 	sz = sizeof(req);
 
-	req.objtype = IPFW_OBJTYPE_TABLE;
-	if ((error = do_get3(IP_FW_OBJ_LISTSIZE, &req.opheader, &sz)) != 0)
+	if ((error = do_get3(IP_FW_TABLES_XGETSIZE, &req.opheader, &sz)) != 0)
 		return (errno);
 
 	sz = req.size;
 	if ((olh = calloc(1, sz)) == NULL)
 		return (ENOMEM);
 
-	olh->objtype = IPFW_OBJTYPE_TABLE;
 	olh->size = sz;
-	if ((error = do_get3(IP_FW_OBJ_LIST, &olh->opheader, &sz)) != 0) {
+	if ((error = do_get3(IP_FW_TABLES_XLIST, &olh->opheader, &sz)) != 0) {
 		free(olh);
 		return (errno);
 	}
@@ -517,7 +512,8 @@ tables_foreach(table_cb_t *f, void *arg, int sort)
 
 /*
  * Retrieves all entries for given table @i in
- * eXtended format, returning  pointer vi @ooh.
+ * eXtended format. Assumes buffer of size
+ * @i->size has already been allocated by caller.
  *
  * Returns 0 on success.
  */
@@ -530,7 +526,9 @@ table_get_list(ipfw_xtable_info *i, ipfw_obj_header *oh)
 	table_fill_objheader(oh, i);
 	sz = i->size;
 
-	if ((error = do_get3(IP_FW_OBJ_DUMP, &oh->opheader, &sz)) != 0)
+	oh->opheader.version = 1; /* Current version */
+
+	if ((error = do_get3(IP_FW_TABLE_XLIST, &oh->opheader, &sz)) != 0)
 		return (errno);
 
 	return (0);
