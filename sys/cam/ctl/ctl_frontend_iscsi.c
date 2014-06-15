@@ -2038,6 +2038,7 @@ cfiscsi_devid(struct ctl_scsiio *ctsio, int alloc_len)
 	struct scsi_vpd_id_t10 *t10id;
 	struct ctl_lun *lun;
 	const struct icl_pdu *request;
+	char *val;
 	size_t devid_len, wwpn_len;
 
 	lun = (struct ctl_lun *)ctsio->io_hdr.ctl_private[CTL_PRIV_LUN].ptr;
@@ -2102,7 +2103,13 @@ cfiscsi_devid(struct ctl_scsiio *ctsio, int alloc_len)
 	desc->proto_codeset = (SCSI_PROTO_ISCSI << 4) | SVPD_ID_CODESET_ASCII;
 	desc->id_type = SVPD_ID_PIV | SVPD_ID_ASSOC_LUN | SVPD_ID_TYPE_T10;
 	desc->length = sizeof(*t10id) + CTL_DEVID_LEN;
-	strncpy((char *)t10id->vendor, CTL_VENDOR, sizeof(t10id->vendor));
+	if (lun == NULL || (val = ctl_get_opt(lun->be_lun, "vendor")) == NULL) {
+		strncpy((char *)t10id->vendor, CTL_VENDOR, sizeof(t10id->vendor));
+	} else {
+		memset(t10id->vendor, ' ', sizeof(t10id->vendor));
+		strncpy(t10id->vendor, val,
+		    min(sizeof(t10id->vendor), strlen(val)));
+	}
 
 	/*
 	 * If we've actually got a backend, copy the device id from the
