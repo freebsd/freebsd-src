@@ -3388,7 +3388,7 @@ vm_map_stack(vm_map_t map, vm_offset_t addrbos, vm_size_t max_ssize,
 		rv = KERN_NO_SPACE;
 		goto out;
 	}
-	rv = vm_map_stack_locked(map, addrbos, max_ssize, sgrowsiz, prot,
+	rv = vm_map_stack_locked(map, addrbos, max_ssize, growsize, prot,
 	    max, cow);
 out:
 	vm_map_unlock(map);
