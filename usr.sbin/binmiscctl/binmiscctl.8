@@ -146,10 +146,10 @@ Look up and print out the activator entry identified with
 Take a snapshot and print all the activator entries currently configured.
 .El
 .Sh EXAMPLES
-.Bl
-# binmiscctl add llvmbc --interpreter ''/usr/bin/lli --fake-argv0=#a'' \\
-  --magic ''BC\\xc0\\xde'' --size 4 --set-enabled
-.El
+.Bd -ragged -offset indent
+# binmiscctl add llvmbc --interpreter ''/usr/bin/lli --fake-argv0=#a''
+--magic ''BC\\xc0\\xde'' --size 4 --set-enabled
+.Ed
 .Pp
 Add an image activator to run the LLVM interpreter (lli) on bitcode
 compiled files.
