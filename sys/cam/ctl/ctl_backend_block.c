@@ -1383,14 +1383,10 @@ ctl_be_block_worker(void *context, int pending)
 static int
 ctl_be_block_submit(union ctl_io *io)
 {
-	struct ctl_lba_len lbalen;
 	struct ctl_be_block_lun *be_lun;
 	struct ctl_be_lun *ctl_be_lun;
-	int retval;
 
 	DPRINTF("entered\n");
-
-	retval = CTL_RETVAL_COMPLETE;
 
 	ctl_be_lun = (struct ctl_be_lun *)io->io_hdr.ctl_private[
 		CTL_PRIV_BACKEND_LUN].ptr;
@@ -1402,11 +1398,6 @@ ctl_be_block_submit(union ctl_io *io)
 	KASSERT(io->io_hdr.io_type == CTL_IO_SCSI, ("Non-SCSI I/O (type "
 		"%#x) encountered", io->io_hdr.io_type));
 
-	memcpy(&lbalen, io->io_hdr.ctl_private[CTL_PRIV_LBA_LEN].bytes,
-	       sizeof(lbalen));
-	io->scsiio.kern_total_len = lbalen.len * be_lun->blocksize;
-	io->scsiio.kern_rel_offset = 0;
-
 	mtx_lock(&be_lun->lock);
 	/*
 	 * XXX KDM make sure that links is okay to use at this point.
@@ -1415,10 +1406,9 @@ ctl_be_block_submit(union ctl_io *io)
 	 */
 	STAILQ_INSERT_TAIL(&be_lun->input_queue, &io->io_hdr, links);
 	mtx_unlock(&be_lun->lock);
-
 	taskqueue_enqueue(be_lun->io_taskqueue, &be_lun->io_task);
 
-	return (retval);
+	return (CTL_RETVAL_COMPLETE);
 }
 
 static int
