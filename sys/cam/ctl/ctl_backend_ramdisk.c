@@ -274,20 +274,8 @@ ctl_backend_ramdisk_move_done(union ctl_io *io)
 static int
 ctl_backend_ramdisk_submit(union ctl_io *io)
 {
-	struct ctl_lba_len lbalen;
-	struct ctl_be_lun *ctl_be_lun;
 
-	ctl_be_lun = (struct ctl_be_lun *)io->io_hdr.ctl_private[
-		CTL_PRIV_BACKEND_LUN].ptr;
-
-	memcpy(&lbalen, io->io_hdr.ctl_private[CTL_PRIV_LBA_LEN].bytes,
-	       sizeof(lbalen));
-	io->scsiio.be_move_done = ctl_backend_ramdisk_move_done;
-	io->scsiio.kern_total_len = lbalen.len * ctl_be_lun->blocksize;
-	io->scsiio.kern_rel_offset = 0;
-	io->scsiio.kern_data_resid = 0;
 	ctl_backend_ramdisk_continue(io);
-
 	return (CTL_RETVAL_COMPLETE);
 }
 
@@ -328,6 +316,8 @@ ctl_backend_ramdisk_continue(union ctl_io *io)
 	io->scsiio.kern_data_ptr = softc->ramdisk_buffer;
 #endif /* CTL_RAMDISK_PAGES */
 
+	io->scsiio.be_move_done = ctl_backend_ramdisk_move_done;
+	io->scsiio.kern_data_resid = 0;
 	io->scsiio.kern_data_len = len_filled;
 	io->scsiio.kern_sg_entries = sg_filled;
 	io->io_hdr.flags |= CTL_FLAG_ALLOCATED;
