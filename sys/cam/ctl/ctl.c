@@ -5779,7 +5779,7 @@ int
 ctl_write_same(struct ctl_scsiio *ctsio)
 {
 	struct ctl_lun *lun;
-	struct ctl_lba_len_flags lbalen;
+	struct ctl_lba_len_flags *lbalen;
 	uint64_t lba;
 	uint32_t num_blocks;
 	int len, retval;
@@ -5872,11 +5872,10 @@ ctl_write_same(struct ctl_scsiio *ctsio)
 		return (CTL_RETVAL_COMPLETE);
 	}
 
-	lbalen.lba = lba;
-	lbalen.len = num_blocks;
-	lbalen.flags = byte2;
-	memcpy(ctsio->io_hdr.ctl_private[CTL_PRIV_LBA_LEN].bytes, &lbalen,
-	       sizeof(lbalen));
+	lbalen = (struct ctl_lba_len_flags *)&ctsio->io_hdr.ctl_private[CTL_PRIV_LBA_LEN];
+	lbalen->lba = lba;
+	lbalen->len = num_blocks;
+	lbalen->flags = byte2;
 	retval = lun->backend->config_write((union ctl_io *)ctsio);
 
 	return (retval);
@@ -5887,7 +5886,7 @@ ctl_unmap(struct ctl_scsiio *ctsio)
 {
 	struct ctl_lun *lun;
 	struct scsi_unmap *cdb;
-	struct ctl_ptr_len_flags ptrlen;
+	struct ctl_ptr_len_flags *ptrlen;
 	struct scsi_unmap_header *hdr;
 	struct scsi_unmap_desc *buf, *end;
 	uint64_t lba;
@@ -5942,11 +5941,10 @@ ctl_unmap(struct ctl_scsiio *ctsio)
 	buf = (struct scsi_unmap_desc *)(hdr + 1);
 	end = buf + len / sizeof(*buf);
 
-	ptrlen.ptr = (void *)buf;
-	ptrlen.len = len;
-	ptrlen.flags = byte2;
-	memcpy(ctsio->io_hdr.ctl_private[CTL_PRIV_LBA_LEN].bytes, &ptrlen,
-	       sizeof(ptrlen));
+	ptrlen = (struct ctl_ptr_len_flags *)&ctsio->io_hdr.ctl_private[CTL_PRIV_LBA_LEN];
+	ptrlen->ptr = (void *)buf;
+	ptrlen->len = len;
+	ptrlen->flags = byte2;
 
 	for (; buf < end; buf++) {
 		lba = scsi_8btou64(buf->lba);
@@ -12755,7 +12753,7 @@ ctl_process_done(union ctl_io *io, int have_lock)
 		switch (io->io_hdr.io_type) {
 		case CTL_IO_SCSI: {
 			int isread;
-			struct ctl_lba_len lbalen;
+			struct ctl_lba_len *lbalen;
 
 			isread = 0;
 			switch (io->scsiio.cdb[0]) {
@@ -12772,12 +12770,12 @@ ctl_process_done(union ctl_io *io, int have_lock)
 			case WRITE_VERIFY_10:
 			case WRITE_VERIFY_12:
 			case WRITE_VERIFY_16:
-				memcpy(&lbalen, io->io_hdr.ctl_private[
-				       CTL_PRIV_LBA_LEN].bytes, sizeof(lbalen));
+				lbalen = (struct ctl_lba_len *)
+				    &io->io_hdr.ctl_private[CTL_PRIV_LBA_LEN];
 
 				if (isread) {
 					lun->stats.ports[targ_port].bytes[CTL_STATS_READ] +=
-						lbalen.len * blocksize;
+					    lbalen->len * blocksize;
 					lun->stats.ports[targ_port].operations[CTL_STATS_READ]++;
 
 #ifdef CTL_TIME_IO
@@ -12807,7 +12805,7 @@ ctl_process_done(union ctl_io *io, int have_lock)
 #endif /* CTL_TIME_IO */
 				} else {
 					lun->stats.ports[targ_port].bytes[CTL_STATS_WRITE] +=
-						lbalen.len * blocksize;
+					    lbalen->len * blocksize;
 					lun->stats.ports[targ_port].operations[
 						CTL_STATS_WRITE]++;
 
