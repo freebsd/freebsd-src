@@ -241,7 +241,7 @@ ctl_backend_ramdisk_move_done(union ctl_io *io)
 	if ((io->io_hdr.port_status == 0)
 	 && ((io->io_hdr.flags & CTL_FLAG_ABORT) == 0)
 	 && ((io->io_hdr.status & CTL_STATUS_MASK) == CTL_STATUS_NONE)) {
-		if (io->scsiio.kern_rel_offset < io->scsiio.kern_total_len) {
+		if (io->io_hdr.ctl_private[CTL_PRIV_BACKEND].integer > 0) {
 			mtx_lock(&be_lun->lock);
 			STAILQ_INSERT_TAIL(&be_lun->cont_queue,
 			    &io->io_hdr, links);
@@ -274,7 +274,14 @@ ctl_backend_ramdisk_move_done(union ctl_io *io)
 static int
 ctl_backend_ramdisk_submit(union ctl_io *io)
 {
+	struct ctl_be_lun *ctl_be_lun;
+	struct ctl_lba_len *lbalen;
 
+	ctl_be_lun = (struct ctl_be_lun *)io->io_hdr.ctl_private[
+		CTL_PRIV_BACKEND_LUN].ptr;
+	lbalen = (struct ctl_lba_len *)&io->io_hdr.ctl_private[CTL_PRIV_LBA_LEN];
+	io->io_hdr.ctl_private[CTL_PRIV_BACKEND].integer =
+	    lbalen->len * ctl_be_lun->blocksize;
 	ctl_backend_ramdisk_continue(io);
 	return (CTL_RETVAL_COMPLETE);
 }
@@ -290,7 +297,7 @@ ctl_backend_ramdisk_continue(union ctl_io *io)
 #endif
 
 	softc = &rd_softc;
-	len = io->scsiio.kern_total_len - io->scsiio.kern_rel_offset;
+	len = io->io_hdr.ctl_private[CTL_PRIV_BACKEND].integer;
 #ifdef CTL_RAMDISK_PAGES
 	sg_filled = min(btoc(len), softc->num_pages);
 	if (sg_filled > 1) {
@@ -321,6 +328,7 @@ ctl_backend_ramdisk_continue(union ctl_io *io)
 	io->scsiio.kern_data_len = len_filled;
 	io->scsiio.kern_sg_entries = sg_filled;
 	io->io_hdr.flags |= CTL_FLAG_ALLOCATED;
+	io->io_hdr.ctl_private[CTL_PRIV_BACKEND].integer -= len_filled;
 #ifdef CTL_TIME_IO
 	getbintime(&io->io_hdr.dma_start_bt);
 #endif
