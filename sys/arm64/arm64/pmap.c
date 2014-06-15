@@ -36,6 +36,7 @@ __FBSDID("$FreeBSD$");
 
 #include <vm/vm.h>
 #include <vm/vm_page.h>
+#include <vm/vm_pageout.h>
 #include <vm/vm_map.h>
 
 #include <machine/machdep.h>
@@ -583,8 +584,22 @@ pmap_pinit0(pmap_t pmap)
 int
 pmap_pinit(pmap_t pmap)
 {
+	vm_paddr_t l1phys;
+	vm_page_t l1pt;
 
-	panic("pmap_pinit");
+	while ((l1pt = vm_page_alloc(NULL, 0, VM_ALLOC_NORMAL |
+	    VM_ALLOC_NOOBJ | VM_ALLOC_WIRED | VM_ALLOC_ZERO)) == NULL)
+		VM_WAIT;
+
+	l1phys = VM_PAGE_TO_PHYS(l1pt);
+	pmap->pm_l1 = (pd_entry_t *)PHYS_TO_DMAP(l1phys);
+
+	if ((l1pt->flags & PG_ZERO) == 0)
+		bzero(pmap->pm_l1, PAGE_SIZE);
+
+	bzero(&pmap->pm_stats, sizeof(pmap->pm_stats));
+
+	return (1);
 }
 
 /***************************************************
