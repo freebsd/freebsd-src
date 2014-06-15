@@ -105,6 +105,14 @@ static int export_tables(struct ip_fw_chain *ch, ipfw_obj_lheader *olh);
 static void export_table_info(struct table_config *tc, ipfw_xtable_info *i);
 static int dump_table_xentry(void *e, void *arg);
 
+static int check_buffer(size_t items, size_t item_size, size_t header,
+    size_t bufsize);
+
+static int ipfw_dump_table_v0(struct ip_fw_chain *ch, struct sockopt *sopt,
+    ip_fw3_opheader *op3, size_t valsize);
+static int ipfw_dump_table_v1(struct ip_fw_chain *ch, struct sockopt *sopt,
+    ip_fw3_opheader *op3, size_t valsize);
+
 static struct table_algo *find_table_algo(struct tables_config *tableconf,
     struct tid_info *ti);
 
@@ -538,13 +546,25 @@ ipfw_lookup_table_extended(struct ip_fw_chain *ch, uint16_t tbl, uint16_t plen,
  */
 
 /*
- * High-level handlers for setsockopt
+ * High-level 'get' cmds sysctl handlers
+ */
+
+/*
+ * Get buffer size needed to list info for all tables.
+ * Data layout:
+ * Request: [ empty ], size = sizeof(ipfw_obj_lheader)
+ * Reply: [ ipfw_obj_lheader ]
+ *
+ * Returns 0 on success
  */
 int
 ipfw_listsize_tables(struct ip_fw_chain *ch, struct sockopt *sopt,
     ip_fw3_opheader *op3, size_t valsize)
 {
 	struct _ipfw_obj_lheader *olh;
+
+	if (sopt->sopt_valsize < sizeof(*olh))
+		return (EINVAL);
 
 	olh = (struct _ipfw_obj_lheader *)op3;
 	
@@ -558,14 +578,24 @@ ipfw_listsize_tables(struct ip_fw_chain *ch, struct sockopt *sopt,
 	return (sooptcopyout(sopt, olh, sopt->sopt_valsize));
 }
 
-
+/*
+ * Lists all tables currently available in kernel.
+ * Data layout:
+ * Request: [ ipfw_obj_lheader ], size = ipfw_obj_lheader.size
+ * Reply: [ ipfw_obj_lheader ipfw_xtable_info x N ]
+ *
+ * Returns 0 on success
+ */
 int
 ipfw_list_tables(struct ip_fw_chain *ch, struct sockopt *sopt,
     ip_fw3_opheader *op3, size_t valsize)
 {
 	struct _ipfw_obj_lheader *olh;
-	uint32_t sz, sz_min, sz_max;
+	uint32_t sz;
 	int error;
+
+	if (sopt->sopt_valsize < sizeof(*olh))
+		return (EINVAL);
 
 	olh = (struct _ipfw_obj_lheader *)op3;
 
@@ -580,11 +610,9 @@ ipfw_list_tables(struct ip_fw_chain *ch, struct sockopt *sopt,
 	IPFW_UH_RLOCK(ch);
 	sz = ipfw_objhash_count(CHAIN_TO_NI(ch));
 	IPFW_UH_RUNLOCK(ch);
-	
-	sz_min = sz * sizeof(ipfw_xtable_info) + sizeof(*olh);
-	sz_max = sz_min + (sz + 1) * sizeof(ipfw_xtable_info);
 
-	if (valsize < sz_min || valsize > sz_max)
+	if (check_buffer(sz, sizeof(ipfw_xtable_info),
+	    sizeof(*olh), valsize) != 0)
 		return (EINVAL);
 	
 	olh = malloc(valsize, M_TEMP, M_ZERO | M_WAITOK);
@@ -612,6 +640,46 @@ ipfw_list_tables(struct ip_fw_chain *ch, struct sockopt *sopt,
 	return (0);
 }
 
+/*
+ * Store table info to buffer provided by @op3.
+ * Data layout:
+ * Request: [ ipfw_obj_header ipfw_xtable_info(empty)]
+ * Reply: [ ipfw_obj_header ipfw_xtable_info ]
+ *
+ * Returns 0 on success.
+ */
+int
+ipfw_describe_table(struct ip_fw_chain *ch, struct sockopt *sopt,
+    ip_fw3_opheader *op3, size_t valsize)
+{
+	struct _ipfw_obj_header *oh;
+	struct table_config *tc;
+	struct tid_info ti;
+	size_t sz;
+	int error;
+
+	sz = sizeof(*oh) + sizeof(ipfw_xtable_info);
+	if (sopt->sopt_valsize < sz)
+		return (EINVAL);
+
+	oh = (struct _ipfw_obj_header *)op3;
+
+	objheader_to_ti(oh, &ti);
+
+	IPFW_UH_RLOCK(ch);
+	if ((tc = find_table(CHAIN_TO_NI(ch), &ti)) == NULL) {
+		IPFW_UH_RUNLOCK(ch);
+		return (ESRCH);
+	}
+
+	export_table_info(tc, (ipfw_xtable_info *)(oh + 1));
+	IPFW_UH_RUNLOCK(ch);
+
+	error = sooptcopyout(sopt, oh, sz);
+
+	return (error);
+}
+
 struct dump_args {
 	struct table_info *ti;
 	struct table_config *tc;
@@ -626,22 +694,49 @@ int
 ipfw_dump_table(struct ip_fw_chain *ch, struct sockopt *sopt,
     ip_fw3_opheader *op3, size_t valsize)
 {
+	int error;
+
+	switch (op3->version) {
+	case 0:
+		error = ipfw_dump_table_v0(ch, sopt, op3, valsize);
+		break;
+	case 1:
+		error = ipfw_dump_table_v1(ch, sopt, op3, valsize);
+		break;
+	default:
+		error = ENOTSUP;
+	}
+
+	return (error);
+}
+
+/*
+ * Dumps all table data
+ * Data layout (version 1):
+ * Request: [ ipfw_obj_lheader ], size = ipfw_xtable_info.size
+ * Reply: [ ipfw_obj_lheader ipfw_xtable_info ipfw_table_xentry x N ]
+ *
+ * Returns 0 on success
+ */
+static int
+ipfw_dump_table_v1(struct ip_fw_chain *ch, struct sockopt *sopt,
+    ip_fw3_opheader *op3, size_t valsize)
+{
 	struct _ipfw_obj_header *oh;
 	ipfw_xtable_info *i;
 	struct tid_info ti;
 	struct table_config *tc;
 	struct table_algo *ta;
 	struct dump_args da;
-	uint32_t sz, sz_min, sz_max;
+	uint32_t sz;
 	int error;
+
+	if (sopt->sopt_valsize < sizeof(*oh))
+		return (EINVAL);
 
 	oh = (struct _ipfw_obj_header *)op3;
 
-	memset(&ti, 0, sizeof(ti));
-	ti.set = oh->set;
-	ti.uidx = oh->idx;
-	ti.tlvs = &oh->ntlv;
-	ti.tlen = oh->ntlv.head.length;
+	objheader_to_ti(oh, &ti);
 
 	IPFW_UH_RLOCK(ch);
 	if ((tc = find_table(CHAIN_TO_NI(ch), &ti)) == NULL) {
@@ -651,20 +746,10 @@ ipfw_dump_table(struct ip_fw_chain *ch, struct sockopt *sopt,
 	sz = tc->count;
 	IPFW_UH_RUNLOCK(ch);
 
-	/*
-	 * Check if array size is "reasonable":
-	 * Permit valsize between current size and
-	 * 2x current size + 1
-	 */
-	
-	sz_min = sz * sizeof(ipfw_table_xentry) + sizeof(ipfw_xtable_info) +
-	    sizeof(*oh);
-
-	sz_max = sz_min + (sz + 1) * sizeof(ipfw_table_xentry);
-
-	if (valsize < sz_min || valsize > sz_max)
+	if (check_buffer(sz, sizeof(ipfw_table_xentry),
+	    sizeof(ipfw_xtable_info) + sizeof(*oh), valsize) != 0)
 		return (EINVAL);
-	
+
 	oh = malloc(valsize, M_TEMP, M_ZERO | M_WAITOK);
 	i = (ipfw_xtable_info *)(oh + 1);
 	/* Copy header to new storage */
@@ -689,6 +774,7 @@ ipfw_dump_table(struct ip_fw_chain *ch, struct sockopt *sopt,
 	/*
 	 * Do the actual dump in eXtended format
 	 */
+	memset(&da, 0, sizeof(da));
 	da.ti = KIDX_TO_TI(ch, tc->no.kidx);
 	da.tc = tc;
 	da.xent = (ipfw_table_xentry *)(i + 1);
@@ -712,6 +798,122 @@ ipfw_dump_table(struct ip_fw_chain *ch, struct sockopt *sopt,
 	return (0);
 }
 
+/*
+ * Dumps all table data
+ * Data layout (version 0):
+ * Request: [ ipfw_xtable ], size = IP_FW_TABLE_XGETSIZE()
+ * Reply: [ ipfw_xtable ipfw_table_xentry x N ]
+ *
+ * Returns 0 on success
+ */
+static int
+ipfw_dump_table_v0(struct ip_fw_chain *ch, struct sockopt *sopt,
+    ip_fw3_opheader *op3, size_t valsize)
+{
+	ipfw_xtable *xtbl;
+	struct tid_info ti;
+	struct table_config *tc;
+	struct table_algo *ta;
+	struct dump_args da;
+	int error;
+	size_t sz;
+
+	if (valsize < sizeof(ipfw_xtable))
+		return (EINVAL);
+
+	xtbl = (ipfw_xtable *)op3;
+
+	memset(&ti, 0, sizeof(ti));
+	ti.set = 0; /* XXX: No way to specify set */
+	ti.uidx = xtbl->tbl;
+	
+	IPFW_UH_RLOCK(ch);
+	if ((tc = find_table(CHAIN_TO_NI(ch), &ti)) == NULL) {
+		IPFW_UH_RUNLOCK(ch);
+		return (0);
+	}
+	sz = tc->count;
+	IPFW_UH_RUNLOCK(ch);
+
+	if (check_buffer(sz, sizeof(ipfw_table_xentry),
+	    sizeof(ipfw_xtable) - sizeof(ipfw_table_xentry), valsize) != 0)
+		return (EINVAL);
+
+	xtbl = malloc(valsize, M_TEMP, M_ZERO | M_WAITOK);
+	memcpy(xtbl, op3, sizeof(ipfw_xtable));
+
+	IPFW_UH_RLOCK(ch);
+	if ((tc = find_table(CHAIN_TO_NI(ch), &ti)) == NULL) {
+		IPFW_UH_RUNLOCK(ch);
+		free(xtbl, M_TEMP);
+		return (0);
+	}
+
+	/* Check size another time */
+	sz = tc->count * sizeof(ipfw_table_xentry) + sizeof(ipfw_xtable);
+	if (sz > valsize) {
+		IPFW_UH_RUNLOCK(ch);
+		free(xtbl, M_TEMP);
+		return (EINVAL);
+	}
+
+	/* Do the actual dump in eXtended format */
+	memset(&da, 0, sizeof(da));
+	da.ti = KIDX_TO_TI(ch, tc->no.kidx);
+	da.tc = tc;
+	da.xent = &xtbl->xent[0];
+	da.size = tc->count;
+	xtbl->type = tc->no.type;
+	xtbl->tbl = ti.uidx;
+	ta = tc->ta;
+
+	ta->foreach(tc->astate, da.ti, dump_table_xentry, &da);
+	xtbl->cnt = da.cnt;
+	xtbl->size = sz;
+
+	IPFW_UH_RUNLOCK(ch);
+
+	/* 
+	 * Since we call sooptcopyin() with small buffer, sopt_valsize is
+	 * decreased to reflect supplied buffer size. Set it back to original value
+	 */
+	sopt->sopt_valsize = valsize;
+	error = sooptcopyout(sopt, xtbl, sz);
+	free(xtbl, M_TEMP);
+
+	return (error);
+}
+
+/*
+ * Checks if supplied buffer size is "reasonable".
+ * Permit valsize between current needed size and
+ * 2x  needed size + 1
+ */
+static int
+check_buffer(size_t items, size_t item_size, size_t header, size_t bufsize)
+{
+	size_t sz_min, sz_max;
+
+	sz_min = items * item_size + header;
+	sz_max = (2 * items + 1) * item_size + header;
+
+	if (bufsize < sz_min || bufsize > sz_max)
+		return (EINVAL);
+
+	return (0);	
+}
+
+void
+objheader_to_ti(struct _ipfw_obj_header *oh, struct tid_info *ti)
+{
+
+	memset(ti, 0, sizeof(struct tid_info));
+	ti->set = oh->set;
+	ti->uidx = oh->idx;
+	ti->tlvs = &oh->ntlv;
+	ti->tlen = oh->ntlv.head.length;
+}
+
 static void
 export_table_info(struct table_config *tc, ipfw_xtable_info *i)
 {
@@ -726,34 +928,6 @@ export_table_info(struct table_config *tc, ipfw_xtable_info *i)
 	i->size = tc->count * sizeof(ipfw_table_xentry);
 	i->size += sizeof(ipfw_obj_header) + sizeof(ipfw_xtable_info);
 	strlcpy(i->tablename, tc->tablename, sizeof(i->tablename));
-}
-
-int
-ipfw_count_tables(struct ip_fw_chain *ch, ipfw_obj_lheader *olh)
-{
-	uint32_t count;
-
-	count = ipfw_objhash_count(CHAIN_TO_NI(ch));
-
-	olh->count = count;
-	olh->size = count * sizeof(ipfw_xtable_info) + sizeof(ipfw_obj_lheader);
-	olh->objsize = sizeof(ipfw_xtable_info);
-
-	return (0);
-}
-
-int
-ipfw_describe_table(struct ip_fw_chain *ch, struct tid_info *ti,
-    ipfw_xtable_info *i)
-{
-	struct table_config *tc;
-
-	if ((tc = find_table(CHAIN_TO_NI(ch), ti)) == NULL)
-		return (ESRCH);
-
-	export_table_info(tc, i);
-
-	return (0);
 }
 
 static void
@@ -818,8 +992,10 @@ ipfw_count_xtable(struct ip_fw_chain *ch, struct tid_info *ti, uint32_t *cnt)
 {
 	struct table_config *tc;
 
-	if ((tc = find_table(CHAIN_TO_NI(ch), ti)) == NULL)
+	if ((tc = find_table(CHAIN_TO_NI(ch), ti)) == NULL) {
+		*cnt = 0;
 		return (0); /* 'table all list' requires success */
+	}
 	*cnt = tc->count * sizeof(ipfw_table_xentry);
 	if (tc->count > 0)
 		*cnt += sizeof(ipfw_xtable);
@@ -870,10 +1046,10 @@ ipfw_dump_table_legacy(struct ip_fw_chain *ch, struct tid_info *ti,
 	if (ta->dump_entry == NULL)
 		return (0);	/* Legacy dump support is not necessary */
 
+	memset(&da, 0, sizeof(da));
 	da.ti = KIDX_TO_TI(ch, tc->no.kidx);
 	da.tc = tc;
 	da.ent = &tbl->ent[0];
-	da.cnt = 0;
 	da.size = tbl->size;
 
 	tbl->cnt = 0;
@@ -921,11 +1097,11 @@ ipfw_dump_xtable(struct ip_fw_chain *ch, struct tid_info *ti, ipfw_xtable *xtbl)
 	if ((tc = find_table(CHAIN_TO_NI(ch), ti)) == NULL)
 		return (0);	/* XXX: We should return ESRCH */
 
+	memset(&da, 0, sizeof(da));
 	da.ti = KIDX_TO_TI(ch, tc->no.kidx);
 	da.tc = tc;
 	da.xent = &xtbl->xent[0];
 	da.size = xtbl->size;
-	da.cnt = 0;
 	xtbl->type = tc->no.type;
 	xtbl->tbl = ti->uidx;
 	ta = tc->ta;

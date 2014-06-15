@@ -1171,10 +1171,9 @@ ipfw_ctl(struct sockopt *sopt)
 			sopt->sopt_name == IP_FW_RESETLOG);
 		break;
 
-	/*--- TABLE manipulations are protected by the IPFW_LOCK ---*/
-	case IP_FW_OBJ_DEL: /* IP_FW3 */
-	case IP_FW_OBJ_INFO: /* IP_FW3 */
-	case IP_FW_OBJ_FLUSH: /* IP_FW3 */
+	/*--- TABLE opcodes ---*/
+	case IP_FW_TABLE_XDESTROY: /* IP_FW3 */
+	case IP_FW_TABLE_XFLUSH: /* IP_FW3 */
 		{
 			struct _ipfw_obj_header *oh;
 			struct tid_info ti;
@@ -1186,64 +1185,31 @@ ipfw_ctl(struct sockopt *sopt)
 
 			oh = (struct _ipfw_obj_header *)op3;
 
-			switch (oh->objtype) {
-			case IPFW_OBJTYPE_TABLE:
-				memset(&ti, 0, sizeof(ti));
-				ti.set = oh->set;
-				ti.uidx = oh->idx;
-				ti.tlvs = &oh->ntlv;
-				ti.tlen = oh->ntlv.head.length;
-				if (opt == IP_FW_OBJ_DEL)
-					error = ipfw_destroy_table(chain, &ti);
-				else if (opt == IP_FW_OBJ_FLUSH)
-					error = ipfw_flush_table(chain, &ti);
-				else {
-					/* IP_FW_OBJ_INFO */
-					if (sopt->sopt_valsize < sizeof(*oh) +
-					    sizeof(ipfw_xtable_info)) {
-						error = EINVAL;
-						break;
-					}
+			objheader_to_ti(oh, &ti);
 
-					error = ipfw_describe_table(chain, &ti,
-					    (ipfw_xtable_info *)(oh + 1));
-					if (error == 0)
-						error = sooptcopyout(sopt, oh,
-						    sopt->sopt_valsize);
-				}
-				break;
-			default:
+			if (opt == IP_FW_TABLE_XDESTROY)
+				error = ipfw_destroy_table(chain, &ti);
+			else if (opt == IP_FW_TABLE_XFLUSH)
+				error = ipfw_flush_table(chain, &ti);
+			else
 				error = ENOTSUP;
-				break;
-			}
 			break;
 		}
-	case IP_FW_TABLE_ADD:
-	case IP_FW_TABLE_DEL:
-		{
-			ipfw_table_entry ent;
-			struct tentry_info tei;
-			struct tid_info ti;
 
-			error = sooptcopyin(sopt, &ent,
-			    sizeof(ent), sizeof(ent));
-			if (error)
-				break;
+	case IP_FW_TABLE_XINFO: /* IP_FW3 */
+		error = ipfw_describe_table(chain, sopt, op3, valsize);
+		break;
 
-			memset(&tei, 0, sizeof(tei));
-			tei.paddr = &ent.addr;
-			tei.plen = sizeof(ent.addr);
-			tei.masklen = ent.masklen;
-			tei.value = ent.value;
-			memset(&ti, 0, sizeof(ti));
-			ti.set = RESVD_SET;
-			ti.uidx = ent.tbl;
-			ti.type = IPFW_TABLE_CIDR;
+	case IP_FW_TABLES_XGETSIZE: /* IP_FW3 */
+		error = ipfw_listsize_tables(chain, sopt, op3, valsize);
+		break;
 
-			error = (opt == IP_FW_TABLE_ADD) ?
-			    ipfw_add_table_entry(chain, &ti, &tei) :
-			    ipfw_del_table_entry(chain, &ti, &tei);
-		}
+	case IP_FW_TABLES_XLIST: /* IP_FW3 */
+		error = ipfw_list_tables(chain, sopt, op3, valsize);
+		break;
+
+	case IP_FW_TABLE_XLIST: /* IP_FW3 */
+		error = ipfw_dump_table(chain, sopt, op3, valsize);
 		break;
 
 	case IP_FW_TABLE_XADD: /* IP_FW3 */
@@ -1282,6 +1248,36 @@ ipfw_ctl(struct sockopt *sopt)
 			    ipfw_del_table_entry(chain, &ti, &tei);
 		}
 		break;
+
+	/*--- LEGACY API ---*/
+	case IP_FW_TABLE_ADD:
+	case IP_FW_TABLE_DEL:
+		{
+			ipfw_table_entry ent;
+			struct tentry_info tei;
+			struct tid_info ti;
+
+			error = sooptcopyin(sopt, &ent,
+			    sizeof(ent), sizeof(ent));
+			if (error)
+				break;
+
+			memset(&tei, 0, sizeof(tei));
+			tei.paddr = &ent.addr;
+			tei.plen = sizeof(ent.addr);
+			tei.masklen = ent.masklen;
+			tei.value = ent.value;
+			memset(&ti, 0, sizeof(ti));
+			ti.set = RESVD_SET;
+			ti.uidx = ent.tbl;
+			ti.type = IPFW_TABLE_CIDR;
+
+			error = (opt == IP_FW_TABLE_ADD) ?
+			    ipfw_add_table_entry(chain, &ti, &tei) :
+			    ipfw_del_table_entry(chain, &ti, &tei);
+		}
+		break;
+
 
 	case IP_FW_TABLE_FLUSH:
 		{
@@ -1375,110 +1371,6 @@ ipfw_ctl(struct sockopt *sopt)
 			error = sooptcopyout(sopt, op3, sopt->sopt_valsize);
 		}
 		break;
-
-	case IP_FW_TABLE_XLIST: /* IP_FW3 */
-		{
-			ipfw_xtable *tbl;
-			struct tid_info ti;
-
-			if ((size = valsize) < sizeof(ipfw_xtable)) {
-				error = EINVAL;
-				break;
-			}
-
-			tbl = malloc(size, M_TEMP, M_ZERO | M_WAITOK);
-			memcpy(tbl, op3, sizeof(ipfw_xtable));
-
-			/* Get maximum number of entries we can store */
-			tbl->size = (size - sizeof(ipfw_xtable)) /
-			    sizeof(ipfw_table_xentry);
-			memset(&ti, 0, sizeof(ti));
-			ti.set = 0; /* XXX: No way to specify set */
-			ti.uidx = tbl->tbl;
-			IPFW_UH_RLOCK(chain);
-			error = ipfw_dump_xtable(chain, &ti, tbl);
-			IPFW_UH_RUNLOCK(chain);
-			if (error) {
-				free(tbl, M_TEMP);
-				break;
-			}
-
-			/* Revert size field back to bytes */
-			tbl->size = tbl->size * sizeof(ipfw_table_xentry) +
-				sizeof(ipfw_table);
-			/* 
-			 * Since we call sooptcopyin() with small buffer, sopt_valsize is
-			 * decreased to reflect supplied buffer size. Set it back to original value
-			 */
-			sopt->sopt_valsize = valsize;
-			error = sooptcopyout(sopt, tbl, size);
-			free(tbl, M_TEMP);
-		}
-		break;
-	case IP_FW_OBJ_LISTSIZE: /* IP_FW3 */
-		{
-			struct _ipfw_obj_lheader *olh;
-
-			if (sopt->sopt_valsize < sizeof(*olh)) {
-				error = EINVAL;
-				break;
-			}
-
-			olh = (struct _ipfw_obj_lheader *)op3;
-
-			switch (olh->objtype) {
-			case IPFW_OBJTYPE_TABLE:
-				error = ipfw_listsize_tables(chain, sopt, op3,
-				    valsize);
-				break;
-			default:
-				error = ENOTSUP;
-				break;
-			}
-			break;
-		}
-	case IP_FW_OBJ_LIST: /* IP_FW3 */
-		{
-			struct _ipfw_obj_lheader *olh;
-
-			if (sopt->sopt_valsize < sizeof(*olh)) {
-				error = EINVAL;
-				break;
-			}
-
-			olh = (struct _ipfw_obj_lheader *)op3;
-			switch (olh->objtype) {
-			case IPFW_OBJTYPE_TABLE:
-				error = ipfw_list_tables(chain, sopt, op3,
-				    valsize);
-				break;
-			default:
-				error = ENOTSUP;
-				break;
-			}
-			break;
-		}
-	case IP_FW_OBJ_DUMP: /* IP_FW3 */
-		{
-			struct _ipfw_obj_header *oh;
-
-			if (sopt->sopt_valsize < sizeof(*oh)) {
-				error = EINVAL;
-				break;
-			}
-
-			oh = (struct _ipfw_obj_header *)op3;
-			switch (oh->objtype) {
-			case IPFW_OBJTYPE_TABLE:
-				error = ipfw_dump_table(chain, sopt, op3,
-				    valsize);
-				break;
-			default:
-				error = ENOTSUP;
-				break;
-			}
-			break;
-		}
 	/*--- NAT operations are protected by the IPFW_LOCK ---*/
 	case IP_FW_NAT_CFG:
 		if (IPFW_NAT_LOADED)
