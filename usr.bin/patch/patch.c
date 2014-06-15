@@ -469,6 +469,7 @@ get_some_switches(void)
 		{"context",		no_argument,		0,	'c'},
 		{"debug",		required_argument,	0,	'x'},
 		{"directory",		required_argument,	0,	'd'},
+		{"dry-run",		no_argument,		0,	'C'},
 		{"ed",			no_argument,		0,	'e'},
 		{"force",		no_argument,		0,	'f'},
 		{"forward",		no_argument,		0,	'N'},
