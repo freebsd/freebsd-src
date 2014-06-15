@@ -1084,34 +1084,6 @@ dump_table_xentry(void *e, void *arg)
 	return (ta->dump_xentry(tc->astate, da->ti, e, xent));
 }
 
-
-int
-ipfw_dump_xtable(struct ip_fw_chain *ch, struct tid_info *ti, ipfw_xtable *xtbl)
-{
-	struct table_config *tc;
-	struct table_algo *ta;
-	struct dump_args da;
-
-	xtbl->cnt = 0;
-
-	if ((tc = find_table(CHAIN_TO_NI(ch), ti)) == NULL)
-		return (0);	/* XXX: We should return ESRCH */
-
-	memset(&da, 0, sizeof(da));
-	da.ti = KIDX_TO_TI(ch, tc->no.kidx);
-	da.tc = tc;
-	da.xent = &xtbl->xent[0];
-	da.size = xtbl->size;
-	xtbl->type = tc->no.type;
-	xtbl->tbl = ti->uidx;
-	ta = tc->ta;
-
-	ta->foreach(tc->astate, da.ti, dump_table_xentry, &da);
-	xtbl->cnt = da.cnt;
-
-	return (0);
-}
-
 /*
  * Table algorithms
  */ 

@@ -122,8 +122,6 @@ int ipfw_count_xtable(struct ip_fw_chain *ch, struct tid_info *ti,
     uint32_t *cnt);
 int ipfw_dump_table_legacy(struct ip_fw_chain *ch, struct tid_info *ti,
     ipfw_table *tbl);
-int ipfw_dump_xtable(struct ip_fw_chain *ch, struct tid_info *ti,
-    ipfw_xtable *tbl);
 
 
 #endif /* _KERNEL */
