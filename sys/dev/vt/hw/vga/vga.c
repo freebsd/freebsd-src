@@ -71,6 +71,7 @@ struct vga_softc {
 #define	VT_VGA_HEIGHT	480
 #define	VT_VGA_MEMSIZE	(VT_VGA_WIDTH * VT_VGA_HEIGHT / 8)
 
+static vd_probe_t	vga_probe;
 static vd_init_t	vga_init;
 static vd_blank_t	vga_blank;
 static vd_bitbltchr_t	vga_bitbltchr;
@@ -81,6 +82,8 @@ static vd_putchar_t	vga_putchar;
 static vd_postswitch_t	vga_postswitch;
 
 static const struct vt_driver vt_vga_driver = {
+	.vd_name	= "vga",
+	.vd_probe	= vga_probe,
 	.vd_init	= vga_init,
 	.vd_blank	= vga_blank,
 	.vd_bitbltchr	= vga_bitbltchr,
@@ -97,8 +100,7 @@ static const struct vt_driver vt_vga_driver = {
  * buffer is always big enough to support both.
  */
 static struct vga_softc vga_conssoftc;
-VT_CONSDEV_DECLARE(vt_vga_driver, MAX(80, PIXEL_WIDTH(VT_VGA_WIDTH)),
-    MAX(25, PIXEL_HEIGHT(VT_VGA_HEIGHT)), &vga_conssoftc);
+VT_DRIVER_DECLARE(vt_vga, vt_vga_driver);
 
 static inline void
 vga_setcolor(struct vt_device *vd, term_color_t color)
@@ -349,7 +351,8 @@ static const struct unicp437 cp437table[] = {
 	{ 0x263a, 0x01, 0x01 }, { 0x263c, 0x0f, 0x00 },
 	{ 0x2640, 0x0c, 0x00 }, { 0x2642, 0x0b, 0x00 },
 	{ 0x2660, 0x06, 0x00 }, { 0x2663, 0x05, 0x00 },
-	{ 0x2665, 0x03, 0x01 }, { 0x266a, 0x0d, 0x01 },
+	{ 0x2665, 0x03, 0x01 }, { 0x266a, 0x0d, 0x00 },
+	{ 0x266c, 0x0e, 0x00 },
 };
 
 static uint8_t
@@ -631,10 +634,22 @@ vga_initialize(struct vt_device *vd, int textmode)
 }
 
 static int
+vga_probe(struct vt_device *vd)
+{
+
+	return (CN_INTERNAL);
+}
+
+static int
 vga_init(struct vt_device *vd)
 {
-	struct vga_softc *sc = vd->vd_softc;
-	int textmode = 0;
+	struct vga_softc *sc;
+	int textmode;
+
+	if (vd->vd_softc == NULL)
+		vd->vd_softc = (void *)&vga_conssoftc;
+	sc = vd->vd_softc;
+	textmode = 0;
 
 #if defined(__amd64__) || defined(__i386__)
 	sc->vga_fb_tag = X86_BUS_SPACE_MEM;
