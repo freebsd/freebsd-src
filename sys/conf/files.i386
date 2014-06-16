@@ -595,3 +595,4 @@ x86/x86/delay.c			standard
 x86/xen/hvm.c			optional xenhvm
 x86/xen/xen_intr.c		optional xen | xenhvm
 x86/xen/xen_apic.c		optional xenhvm
+x86/xen/xenpv.c			optional xen | xenhvm
