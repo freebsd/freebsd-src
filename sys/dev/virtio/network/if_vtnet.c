@@ -3068,7 +3068,7 @@ vtnet_exec_ctrl_cmd(struct vtnet_softc *sc, void *cookie,
 static int
 vtnet_ctrl_mac_cmd(struct vtnet_softc *sc, uint8_t *hwaddr)
 {
-	struct virtio_net_ctrl_hdr hdr;
+	struct virtio_net_ctrl_hdr hdr __aligned(2);
 	struct sglist_seg segs[3];
 	struct sglist sg;
 	uint8_t ack;
@@ -3102,7 +3102,7 @@ vtnet_ctrl_mq_cmd(struct vtnet_softc *sc, uint16_t npairs)
 		struct virtio_net_ctrl_mq mq;
 		uint8_t pad2;
 		uint8_t ack;
-	} s;
+	} s __aligned(2);
 	int error;
 
 	s.hdr.class = VIRTIO_NET_CTRL_MQ;
@@ -3134,7 +3134,7 @@ vtnet_ctrl_rx_cmd(struct vtnet_softc *sc, int cmd, int on)
 		uint8_t onoff;
 		uint8_t pad2;
 		uint8_t ack;
-	} s;
+	} s __aligned(2);
 	int error;
 
 	KASSERT(sc->vtnet_flags & VTNET_FLAG_CTRL_RX,
@@ -3217,7 +3217,7 @@ vtnet_rx_filter(struct vtnet_softc *sc)
 static void
 vtnet_rx_filter_mac(struct vtnet_softc *sc)
 {
-	struct virtio_net_ctrl_hdr hdr;
+	struct virtio_net_ctrl_hdr hdr __aligned(2);
 	struct vtnet_mac_filter *filter;
 	struct sglist_seg segs[4];
 	struct sglist sg;
@@ -3330,7 +3330,7 @@ vtnet_exec_vlan_filter(struct vtnet_softc *sc, int add, uint16_t tag)
 		uint16_t tag;
 		uint8_t pad2;
 		uint8_t ack;
-	} s;
+	} s __aligned(2);
 	int error;
 
 	s.hdr.class = VIRTIO_NET_CTRL_VLAN;
