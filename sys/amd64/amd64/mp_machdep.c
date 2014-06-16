@@ -125,9 +125,7 @@ static u_long *ipi_hardclock_counts[MAXCPU];
 #endif
 
 /* Default cpu_ops implementation. */
-struct cpu_ops cpu_ops = {
-	.ipi_vectored = lapic_ipi_vectored
-};
+struct cpu_ops cpu_ops;
 
 extern inthand_t IDTVEC(fast_syscall), IDTVEC(fast_syscall32);
 
@@ -1125,7 +1123,7 @@ ipi_send_cpu(int cpu, u_int ipi)
 		if (old_pending)
 			return;
 	}
-	cpu_ops.ipi_vectored(ipi, cpu_apic_ids[cpu]);
+	lapic_ipi_vectored(ipi, cpu_apic_ids[cpu]);
 }
 
 /*
@@ -1395,7 +1393,7 @@ ipi_all_but_self(u_int ipi)
 		CPU_OR_ATOMIC(&ipi_nmi_pending, &other_cpus);
 
 	CTR2(KTR_SMP, "%s: ipi: %x", __func__, ipi);
-	cpu_ops.ipi_vectored(ipi, APIC_IPI_DEST_OTHERS);
+	lapic_ipi_vectored(ipi, APIC_IPI_DEST_OTHERS);
 }
 
 int
