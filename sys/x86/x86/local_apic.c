@@ -169,10 +169,75 @@ static void	lapic_timer_stop(struct lapic *);
 static void	lapic_timer_set_divisor(u_int divisor);
 static uint32_t	lvt_mode(struct lapic *la, u_int pin, uint32_t value);
 static int	lapic_et_start(struct eventtimer *et,
-    sbintime_t first, sbintime_t period);
+		    sbintime_t first, sbintime_t period);
 static int	lapic_et_stop(struct eventtimer *et);
+static u_int	apic_idt_to_irq(u_int apic_id, u_int vector);
+static void	lapic_set_tpr(u_int vector);
 
 struct pic lapic_pic = { .pic_resume = lapic_resume };
+
+/* Forward declarations for apic_ops */
+static void	native_lapic_create(u_int apic_id, int boot_cpu);
+static void	native_lapic_init(vm_paddr_t addr);
+static void	native_lapic_setup(int boot);
+static void	native_lapic_dump(const char *str);
+static void	native_lapic_disable(void);
+static void	native_lapic_eoi(void);
+static int	native_lapic_id(void);
+static int	native_lapic_intr_pending(u_int vector);
+static u_int	native_apic_cpuid(u_int apic_id);
+static u_int	native_apic_alloc_vector(u_int apic_id, u_int irq);
+static u_int	native_apic_alloc_vectors(u_int apic_id, u_int *irqs,
+		    u_int count, u_int align);
+static void 	native_apic_disable_vector(u_int apic_id, u_int vector);
+static void 	native_apic_enable_vector(u_int apic_id, u_int vector);
+static void 	native_apic_free_vector(u_int apic_id, u_int vector, u_int irq);
+static void 	native_lapic_set_logical_id(u_int apic_id, u_int cluster,
+		    u_int cluster_id);
+static int 	native_lapic_enable_pmc(void);
+static void 	native_lapic_disable_pmc(void);
+static void 	native_lapic_reenable_pmc(void);
+static void 	native_lapic_enable_cmc(void);
+static void 	native_lapic_ipi_raw(register_t icrlo, u_int dest);
+static void 	native_lapic_ipi_vectored(u_int vector, int dest);
+static int 	native_lapic_ipi_wait(int delay);
+static int 	native_lapic_set_lvt_mask(u_int apic_id, u_int lvt,
+		    u_char masked);
+static int 	native_lapic_set_lvt_mode(u_int apic_id, u_int lvt,
+		    uint32_t mode);
+static int 	native_lapic_set_lvt_polarity(u_int apic_id, u_int lvt,
+		    enum intr_polarity pol);
+static int 	native_lapic_set_lvt_triggermode(u_int apic_id, u_int lvt,
+		    enum intr_trigger trigger);
+
+struct apic_ops apic_ops = {
+	.create			= native_lapic_create,
+	.init			= native_lapic_init,
+	.setup			= native_lapic_setup,
+	.dump			= native_lapic_dump,
+	.disable		= native_lapic_disable,
+	.eoi			= native_lapic_eoi,
+	.id			= native_lapic_id,
+	.intr_pending		= native_lapic_intr_pending,
+	.set_logical_id		= native_lapic_set_logical_id,
+	.cpuid			= native_apic_cpuid,
+	.alloc_vector		= native_apic_alloc_vector,
+	.alloc_vectors		= native_apic_alloc_vectors,
+	.enable_vector		= native_apic_enable_vector,
+	.disable_vector		= native_apic_disable_vector,
+	.free_vector		= native_apic_free_vector,
+	.enable_pmc		= native_lapic_enable_pmc,
+	.disable_pmc		= native_lapic_disable_pmc,
+	.reenable_pmc		= native_lapic_reenable_pmc,
+	.enable_cmc		= native_lapic_enable_cmc,
+	.ipi_raw		= native_lapic_ipi_raw,
+	.ipi_vectored		= native_lapic_ipi_vectored,
+	.ipi_wait		= native_lapic_ipi_wait,
+	.set_lvt_mask		= native_lapic_set_lvt_mask,
+	.set_lvt_mode		= native_lapic_set_lvt_mode,
+	.set_lvt_polarity	= native_lapic_set_lvt_polarity,
+	.set_lvt_triggermode	= native_lapic_set_lvt_triggermode,
+};
 
 static uint32_t
 lvt_mode(struct lapic *la, u_int pin, uint32_t value)
@@ -218,8 +283,8 @@ lvt_mode(struct lapic *la, u_int pin, uint32_t value)
 /*
  * Map the local APIC and setup necessary interrupt vectors.
  */
-void
-lapic_init(vm_paddr_t addr)
+static void
+native_lapic_init(vm_paddr_t addr)
 {
 	u_int regs[4];
 	int i, arat;
@@ -280,8 +345,8 @@ lapic_init(vm_paddr_t addr)
 /*
  * Create a local APIC instance.
  */
-void
-lapic_create(u_int apic_id, int boot_cpu)
+static void
+native_lapic_create(u_int apic_id, int boot_cpu)
 {
 	int i;
 
@@ -326,8 +391,8 @@ lapic_create(u_int apic_id, int boot_cpu)
 /*
  * Dump contents of local APIC registers
  */
-void
-lapic_dump(const char* str)
+static void
+native_lapic_dump(const char* str)
 {
 	uint32_t maxlvt;
 
@@ -346,8 +411,8 @@ lapic_dump(const char* str)
 		printf("   cmci: 0x%08x\n", lapic->lvt_cmci);
 }
 
-void
-lapic_setup(int boot)
+static void
+native_lapic_setup(int boot)
 {
 	struct lapic *la;
 	u_int32_t maxlvt;
@@ -405,8 +470,8 @@ lapic_setup(int boot)
 	intr_restore(saveintr);
 }
 
-void
-lapic_reenable_pmc(void)
+static void
+native_lapic_reenable_pmc(void)
 {
 #ifdef HWPMC_HOOKS
 	uint32_t value;
@@ -428,8 +493,8 @@ lapic_update_pmc(void *dummy)
 }
 #endif
 
-int
-lapic_enable_pmc(void)
+static int
+native_lapic_enable_pmc(void)
 {
 #ifdef HWPMC_HOOKS
 	u_int32_t maxlvt;
@@ -462,8 +527,8 @@ lapic_enable_pmc(void)
 #endif
 }
 
-void
-lapic_disable_pmc(void)
+static void
+native_lapic_disable_pmc(void)
 {
 #ifdef HWPMC_HOOKS
 	u_int32_t maxlvt;
@@ -540,8 +605,8 @@ lapic_et_stop(struct eventtimer *et)
 	return (0);
 }
 
-void
-lapic_disable(void)
+static void
+native_lapic_disable(void)
 {
 	uint32_t value;
 
@@ -571,16 +636,16 @@ lapic_resume(struct pic *pic, bool suspend_cancelled)
 	lapic_setup(0);
 }
 
-int
-lapic_id(void)
+static int
+native_lapic_id(void)
 {
 
 	KASSERT(lapic != NULL, ("local APIC is not mapped"));
 	return (lapic->id >> APIC_ID_SHIFT);
 }
 
-int
-lapic_intr_pending(u_int vector)
+static int
+native_lapic_intr_pending(u_int vector)
 {
 	volatile u_int32_t *irr;
 
@@ -597,8 +662,8 @@ lapic_intr_pending(u_int vector)
 	return (irr[(vector / 32) * 4] & 1 << (vector % 32));
 }
 
-void
-lapic_set_logical_id(u_int apic_id, u_int cluster, u_int cluster_id)
+static void
+native_lapic_set_logical_id(u_int apic_id, u_int cluster, u_int cluster_id)
 {
 	struct lapic *la;
 
@@ -613,8 +678,8 @@ lapic_set_logical_id(u_int apic_id, u_int cluster, u_int cluster_id)
 	la->la_cluster_id = cluster_id;
 }
 
-int
-lapic_set_lvt_mask(u_int apic_id, u_int pin, u_char masked)
+static int
+native_lapic_set_lvt_mask(u_int apic_id, u_int pin, u_char masked)
 {
 
 	if (pin > APIC_LVT_MAX)
@@ -636,8 +701,8 @@ lapic_set_lvt_mask(u_int apic_id, u_int pin, u_char masked)
 	return (0);
 }
 
-int
-lapic_set_lvt_mode(u_int apic_id, u_int pin, u_int32_t mode)
+static int
+native_lapic_set_lvt_mode(u_int apic_id, u_int pin, u_int32_t mode)
 {
 	struct lvt *lvt;
 
@@ -692,8 +757,8 @@ lapic_set_lvt_mode(u_int apic_id, u_int pin, u_int32_t mode)
 	return (0);
 }
 
-int
-lapic_set_lvt_polarity(u_int apic_id, u_int pin, enum intr_polarity pol)
+static int
+native_lapic_set_lvt_polarity(u_int apic_id, u_int pin, enum intr_polarity pol)
 {
 
 	if (pin > APIC_LVT_MAX || pol == INTR_POLARITY_CONFORM)
@@ -717,8 +782,9 @@ lapic_set_lvt_polarity(u_int apic_id, u_int pin, enum intr_polarity pol)
 	return (0);
 }
 
-int
-lapic_set_lvt_triggermode(u_int apic_id, u_int pin, enum intr_trigger trigger)
+static int
+native_lapic_set_lvt_triggermode(u_int apic_id, u_int pin,
+     enum intr_trigger trigger)
 {
 
 	if (pin > APIC_LVT_MAX || trigger == INTR_TRIGGER_CONFORM)
@@ -746,7 +812,7 @@ lapic_set_lvt_triggermode(u_int apic_id, u_int pin, enum intr_trigger trigger)
  * Adjust the TPR of the current CPU so that it blocks all interrupts below
  * the passed in vector.
  */
-void
+static void
 lapic_set_tpr(u_int vector)
 {
 #ifdef CHEAP_TPR
@@ -760,8 +826,8 @@ lapic_set_tpr(u_int vector)
 #endif
 }
 
-void
-lapic_eoi(void)
+static void
+native_lapic_eoi(void)
 {
 
 	lapic->eoi = 0;
@@ -882,8 +948,8 @@ lapic_handle_cmc(void)
  * is called prior to lapic_setup() during boot, this just needs to unmask
  * this CPU's LVT_CMCI entry.
  */
-void
-lapic_enable_cmc(void)
+static void
+native_lapic_enable_cmc(void)
 {
 	u_int apic_id;
 
@@ -918,8 +984,8 @@ lapic_handle_error(void)
 	lapic_eoi();
 }
 
-u_int
-apic_cpuid(u_int apic_id)
+static u_int
+native_apic_cpuid(u_int apic_id)
 {
 #ifdef SMP
 	return apic_cpuids[apic_id];
@@ -929,8 +995,8 @@ apic_cpuid(u_int apic_id)
 }
 
 /* Request a free IDT vector to be used by the specified IRQ. */
-u_int
-apic_alloc_vector(u_int apic_id, u_int irq)
+static u_int
+native_apic_alloc_vector(u_int apic_id, u_int irq)
 {
 	u_int vector;
 
@@ -958,8 +1024,8 @@ apic_alloc_vector(u_int apic_id, u_int irq)
  * aligned on a boundary of 'align'.  If the request cannot be
  * satisfied, 0 is returned.
  */
-u_int
-apic_alloc_vectors(u_int apic_id, u_int *irqs, u_int count, u_int align)
+static u_int
+native_apic_alloc_vectors(u_int apic_id, u_int *irqs, u_int count, u_int align)
 {
 	u_int first, run, vector;
 
@@ -1018,8 +1084,8 @@ apic_alloc_vectors(u_int apic_id, u_int *irqs, u_int count, u_int align)
  * which do not have the vector configured would report spurious interrupts
  * should it fire.
  */
-void
-apic_enable_vector(u_int apic_id, u_int vector)
+static void
+native_apic_enable_vector(u_int apic_id, u_int vector)
 {
 
 	KASSERT(vector != IDT_SYSCALL, ("Attempt to overwrite syscall entry"));
@@ -1033,8 +1099,8 @@ apic_enable_vector(u_int apic_id, u_int vector)
 	    GSEL_APIC);
 }
 
-void
-apic_disable_vector(u_int apic_id, u_int vector)
+static void
+native_apic_disable_vector(u_int apic_id, u_int vector)
 {
 
 	KASSERT(vector != IDT_SYSCALL, ("Attempt to overwrite syscall entry"));
@@ -1054,8 +1120,8 @@ apic_disable_vector(u_int apic_id, u_int vector)
 }
 
 /* Release an APIC vector when it's no longer in use. */
-void
-apic_free_vector(u_int apic_id, u_int vector, u_int irq)
+static void
+native_apic_free_vector(u_int apic_id, u_int vector, u_int irq)
 {
 	struct thread *td;
 
@@ -1093,7 +1159,7 @@ apic_free_vector(u_int apic_id, u_int vector, u_int irq)
 }
 
 /* Map an IDT vector (APIC) to an IRQ (interrupt source). */
-u_int
+static u_int
 apic_idt_to_irq(u_int apic_id, u_int vector)
 {
 	int irq;
@@ -1389,8 +1455,8 @@ SYSINIT(apic_setup_io, SI_SUB_INTR, SI_ORDER_SECOND, apic_setup_io, NULL);
  * private to the MD code.  The public interface for the rest of the
  * kernel is defined in mp_machdep.c.
  */
-int
-lapic_ipi_wait(int delay)
+static int
+native_lapic_ipi_wait(int delay)
 {
 	int x, incr;
 
@@ -1412,8 +1478,8 @@ lapic_ipi_wait(int delay)
 	return (0);
 }
 
-void
-lapic_ipi_raw(register_t icrlo, u_int dest)
+static void
+native_lapic_ipi_raw(register_t icrlo, u_int dest)
 {
 	register_t value, saveintr;
 
@@ -1446,8 +1512,8 @@ lapic_ipi_raw(register_t icrlo, u_int dest)
 #define	AFTER_SPIN	1000
 #endif
 
-void
-lapic_ipi_vectored(u_int vector, int dest)
+static void
+native_lapic_ipi_vectored(u_int vector, int dest)
 {
 	register_t icrlo, destfield;
 

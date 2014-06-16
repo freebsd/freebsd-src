@@ -108,7 +108,6 @@ enum xen_domain_type xen_domain_type = XEN_NATIVE;
 
 #ifdef SMP
 struct cpu_ops xen_hvm_cpu_ops = {
-	.ipi_vectored	= lapic_ipi_vectored,
 	.cpu_init	= xen_hvm_cpu_init,
 	.cpu_resume	= xen_hvm_cpu_resume
 };
@@ -365,7 +364,7 @@ xen_setup_cpus(void)
 		xen_cpu_ipi_init(i);
 
 	/* Set the xen pv ipi ops to replace the native ones */
-	cpu_ops.ipi_vectored = xen_ipi_vectored;
+	apic_ops.ipi_vectored = xen_ipi_vectored;
 }
 #endif
 
