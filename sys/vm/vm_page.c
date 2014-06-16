@@ -147,7 +147,7 @@ static uma_zone_t fakepg_zone;
 static struct vnode *vm_page_alloc_init(vm_page_t m);
 static void vm_page_cache_turn_free(vm_page_t m);
 static void vm_page_clear_dirty_mask(vm_page_t m, vm_page_bits_t pagebits);
-static void vm_page_enqueue(int queue, vm_page_t m);
+static void vm_page_enqueue(uint8_t queue, vm_page_t m);
 static void vm_page_init_fakepg(void *dummy);
 static int vm_page_insert_after(vm_page_t m, vm_object_t object,
     vm_pindex_t pindex, vm_page_t mpred);
@@ -2029,8 +2029,8 @@ vm_page_dequeue(vm_page_t m)
 	struct vm_pagequeue *pq;
 
 	vm_page_assert_locked(m);
-	KASSERT(m->queue == PQ_ACTIVE || m->queue == PQ_INACTIVE,
-	    ("vm_page_dequeue: page %p is not queued", m));
+	KASSERT(m->queue < PQ_COUNT, ("vm_page_dequeue: page %p is not queued",
+	    m));
 	pq = vm_page_pagequeue(m);
 	vm_pagequeue_lock(pq);
 	m->queue = PQ_NONE;
@@ -2067,11 +2067,14 @@ vm_page_dequeue_locked(vm_page_t m)
  *	The page must be locked.
  */
 static void
-vm_page_enqueue(int queue, vm_page_t m)
+vm_page_enqueue(uint8_t queue, vm_page_t m)
 {
 	struct vm_pagequeue *pq;
 
 	vm_page_lock_assert(m, MA_OWNED);
+	KASSERT(queue < PQ_COUNT,
+	    ("vm_page_enqueue: invalid queue %u request for page %p",
+	    queue, m));
 	pq = &vm_phys_domain(m)->vmd_pagequeues[queue];
 	vm_pagequeue_lock(pq);
 	m->queue = queue;
@@ -2330,9 +2333,7 @@ vm_page_wire(vm_page_t m)
  *
  * Release one wiring of the specified page, potentially enabling it to be
  * paged again.  If paging is enabled, then the value of the parameter
- * "activate" determines to which queue the page is added.  If "activate" is
- * non-zero, then the page is added to the active queue.  Otherwise, it is
- * added to the inactive queue.
+ * "queue" determines the queue to which the page is added.
  *
  * However, unless the page belongs to an object, it is not enqueued because
  * it cannot be paged out.
@@ -2342,9 +2343,12 @@ vm_page_wire(vm_page_t m)
  * A managed page must be locked.
  */
 void
-vm_page_unwire(vm_page_t m, int activate)
+vm_page_unwire(vm_page_t m, uint8_t queue)
 {
 
+	KASSERT(queue < PQ_COUNT,
+	    ("vm_page_unwire: invalid queue %u request for page %p",
+	    queue, m));
 	if ((m->oflags & VPO_UNMANAGED) == 0)
 		vm_page_lock_assert(m, MA_OWNED);
 	if ((m->flags & PG_FICTITIOUS) != 0) {
@@ -2359,9 +2363,9 @@ vm_page_unwire(vm_page_t m, int activate)
 			if ((m->oflags & VPO_UNMANAGED) != 0 ||
 			    m->object == NULL)
 				return;
-			if (!activate)
+			if (queue == PQ_INACTIVE)
 				m->flags &= ~PG_WINATCFLS;
-			vm_page_enqueue(activate ? PQ_ACTIVE : PQ_INACTIVE, m);
+			vm_page_enqueue(queue, m);
 		}
 	} else
 		panic("vm_page_unwire: page %p's wire count is zero", m);

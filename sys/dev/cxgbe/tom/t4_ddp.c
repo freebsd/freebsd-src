@@ -869,7 +869,7 @@ unwire_ddp_buffer(struct ddp_buffer *db)
 	for (i = 0; i < db->npages; i++) {
 		p = db->pages[i];
 		vm_page_lock(p);
-		vm_page_unwire(p, 0);
+		vm_page_unwire(p, PQ_INACTIVE);
 		vm_page_unlock(p);
 	}
 }

@@ -755,7 +755,7 @@ vnode_locked:
 					vm_page_unlock(fs.first_m);
 					
 					vm_page_lock(fs.m);
-					vm_page_unwire(fs.m, FALSE);
+					vm_page_unwire(fs.m, PQ_INACTIVE);
 					vm_page_unlock(fs.m);
 				}
 				/*
@@ -917,7 +917,7 @@ vnode_locked:
 		if (wired)
 			vm_page_wire(fs.m);
 		else
-			vm_page_unwire(fs.m, 1);
+			vm_page_unwire(fs.m, PQ_ACTIVE);
 	} else
 		vm_page_activate(fs.m);
 	if (m_hold != NULL) {
@@ -1208,7 +1208,7 @@ vm_fault_unwire(vm_map_t map, vm_offset_t start, vm_offset_t end,
 			if (!fictitious) {
 				m = PHYS_TO_VM_PAGE(pa);
 				vm_page_lock(m);
-				vm_page_unwire(m, TRUE);
+				vm_page_unwire(m, PQ_ACTIVE);
 				vm_page_unlock(m);
 			}
 		}
@@ -1390,7 +1390,7 @@ again:
 		if (upgrade) {
 			if (src_m != dst_m) {
 				vm_page_lock(src_m);
-				vm_page_unwire(src_m, 0);
+				vm_page_unwire(src_m, PQ_INACTIVE);
 				vm_page_unlock(src_m);
 				vm_page_lock(dst_m);
 				vm_page_wire(dst_m);
