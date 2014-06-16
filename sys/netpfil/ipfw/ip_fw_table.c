@@ -69,8 +69,9 @@ __FBSDID("$FreeBSD$");
  * `ta->atype` represents exact lookup algorithm.
  *     For example, we can use more efficient search schemes if we plan
  *     to use some specific table for storing host-routes only.
- * `ftype` is pure userland field helping to properly format table data
- *     e.g. "value is IPv4 nexthop" or "key is port number"
+ * `ftype` (at the moment )is pure userland field helping to properly
+ *     format value data e.g. "value is IPv4 nexthop" or "value is DSCP"
+ *     or "value is port".
  *
  */
 struct table_config {
@@ -95,7 +96,7 @@ struct tables_config {
 static struct table_config *find_table(struct namedobj_instance *ni,
     struct tid_info *ti);
 static struct table_config *alloc_table_config(struct namedobj_instance *ni,
-    struct tid_info *ti, struct table_algo *ta);
+    struct tid_info *ti, struct table_algo *ta, char *adata);
 static void free_table_config(struct namedobj_instance *ni,
     struct table_config *tc);
 static void link_table(struct ip_fw_chain *chain, struct table_config *tc);
@@ -114,7 +115,7 @@ static int ipfw_dump_table_v1(struct ip_fw_chain *ch, struct sockopt *sopt,
     ip_fw3_opheader *op3, size_t valsize);
 
 static struct table_algo *find_table_algo(struct tables_config *tableconf,
-    struct tid_info *ti);
+    struct tid_info *ti, char *name);
 
 #define	CHAIN_TO_TCFG(chain)	((struct tables_config *)(chain)->tblcfg)
 #define	CHAIN_TO_NI(chain)	(CHAIN_TO_TCFG(chain)->namehash)
@@ -161,10 +162,10 @@ ipfw_add_table_entry(struct ip_fw_chain *ch, struct tid_info *ti,
 	tc_new = NULL;
 	if (ta == NULL) {
 		/* Table not found. We have to create new one */
-		if ((ta = find_table_algo(CHAIN_TO_TCFG(ch), ti)) == NULL)
+		if ((ta = find_table_algo(CHAIN_TO_TCFG(ch), ti, NULL)) == NULL)
 			return (ENOTSUP);
 
-		tc_new = alloc_table_config(ni, ti, ta);
+		tc_new = alloc_table_config(ni, ti, ta, NULL);
 		if (tc_new == NULL)
 			return (ENOMEM);
 	}
@@ -330,9 +331,10 @@ ipfw_flush_table(struct ip_fw_chain *ch, struct tid_info *ti)
 
 	/*
 	 * Stage 2: allocate new table instance using same algo.
+	 * TODO: pass startup parametes somehow.
 	 */
 	memset(&ti_new, 0, sizeof(struct table_info));
-	if ((error = ta->init(&astate_new, &ti_new)) != 0) {
+	if ((error = ta->init(&astate_new, &ti_new, NULL)) != 0) {
 		IPFW_UH_WLOCK(ch);
 		tc->no.refcnt--;
 		IPFW_UH_WUNLOCK(ch);
@@ -885,6 +887,99 @@ ipfw_dump_table_v0(struct ip_fw_chain *ch, struct sockopt *sopt,
 }
 
 /*
+ * High-level setsockopt cmds
+ */
+int
+ipfw_modify_table(struct ip_fw_chain *ch, struct sockopt *sopt,
+    ip_fw3_opheader *op3)
+{
+
+	return (ENOTSUP);
+}
+
+/*
+ * Creates new table.
+ * Data layout:
+ * Request: [ ipfw_obj_header ipfw_xtable_info ]
+ *
+ * Returns 0 on success
+ */
+int
+ipfw_create_table(struct ip_fw_chain *ch, struct sockopt *sopt,
+    ip_fw3_opheader *op3)
+{
+	struct _ipfw_obj_header *oh;
+	ipfw_xtable_info *i;
+	char *tname, *aname;
+	struct tid_info ti;
+	struct namedobj_instance *ni;
+	struct table_config *tc;
+	struct table_algo *ta;
+	uint16_t kidx;
+
+	if (sopt->sopt_valsize < sizeof(*oh) + sizeof(ipfw_xtable_info))
+		return (EINVAL);
+
+	oh = (struct _ipfw_obj_header *)op3;
+	i = (ipfw_xtable_info *)(oh + 1);
+
+	/*
+	 * Verify user-supplied strings.
+	 * Check for null-terminated/zero-lenght strings/
+	 */
+	tname = i->tablename;
+	aname = i->algoname;
+	if (strnlen(tname, sizeof(i->tablename)) == sizeof(i->tablename) ||
+	    tname[0] == '\0' ||
+	    strnlen(aname, sizeof(i->algoname)) == sizeof(i->algoname))
+		return (EINVAL);
+
+	if (aname[0] == '\0') {
+		/* Use default algorithm */
+		aname = NULL;
+	}
+
+	objheader_to_ti(oh, &ti);
+
+	ni = CHAIN_TO_NI(ch);
+
+	IPFW_UH_RLOCK(ch);
+	if ((tc = find_table(ni, &ti)) != NULL) {
+		IPFW_UH_RUNLOCK(ch);
+		return (EEXIST);
+	}
+	ta = find_table_algo(CHAIN_TO_TCFG(ch), &ti, aname);
+	IPFW_UH_RUNLOCK(ch);
+
+	if (ta == NULL)
+		return (ENOTSUP);
+	
+	if ((tc = alloc_table_config(ni, &ti, ta, aname)) == NULL)
+		return (ENOMEM);
+
+	IPFW_UH_WLOCK(ch);
+	if (ipfw_objhash_alloc_idx(ni, ti.set, &kidx) != 0) {
+		IPFW_UH_WUNLOCK(ch);
+		printf("Unable to allocate table index for table %s in set %u."
+		    " Consider increasing net.inet.ip.fw.tables_max",
+		    tname, ti.set);
+		free_table_config(ni, tc);
+		return (EBUSY);
+	}
+
+	tc->no.kidx = kidx;
+
+	IPFW_WLOCK(ch);
+	link_table(ch, tc);
+	IPFW_WUNLOCK(ch);
+
+	IPFW_UH_WUNLOCK(ch);
+
+	return (0);
+}
+
+
+/*
  * Checks if supplied buffer size is "reasonable".
  * Permit valsize between current needed size and
  * 2x  needed size + 1
@@ -1059,7 +1154,9 @@ ipfw_dump_table_legacy(struct ip_fw_chain *ch, struct tid_info *ti,
 	return (0);
 }
 
-
+/*
+ * Dumps table entry in eXtended format (current).
+ */
 static int
 dump_table_xentry(void *e, void *arg)
 {
@@ -1089,17 +1186,43 @@ dump_table_xentry(void *e, void *arg)
  */ 
 
 /*
- * Finds algoritm by index or table type
+ * Finds algoritm by index, table type or supplied name
  */
 static struct table_algo *
-find_table_algo(struct tables_config *tcfg, struct tid_info *ti)
+find_table_algo(struct tables_config *tcfg, struct tid_info *ti, char *name)
 {
+	int i, l;
+	struct table_algo *ta;
 
 	/* Search by index */
 	if (ti->atype != 0) {
 		if (ti->atype > tcfg->algo_count)
 			return (NULL);
 		return (tcfg->algo[ti->atype]);
+	}
+
+	/* Search by name if supplied */
+	if (name != NULL) {
+		/* TODO: better search */
+		for (i = 1; i <= tcfg->algo_count; i++) {
+			ta = tcfg->algo[i];
+
+			/*
+			 * One can supply additional algorithm
+			 * parameters so we compare only the first word
+			 * of supplied name:
+			 * 'hash_cidr hsize=32'
+			 * '^^^^^^^^^'
+			 *
+			 */
+			l = strlen(ta->name);
+			if (strncmp(name, ta->name, l) == 0) {
+				if (name[l] == '\0' || name[l] == ' ')
+					return (ta);
+			}
+		}
+
+		return (NULL);
 	}
 
 	/* Search by type */
@@ -1272,7 +1395,7 @@ find_table(struct namedobj_instance *ni, struct tid_info *ti)
 
 static struct table_config *
 alloc_table_config(struct namedobj_instance *ni, struct tid_info *ti,
-    struct table_algo *ta)
+    struct table_algo *ta, char *aname)
 {
 	char *name, bname[16];
 	struct table_config *tc;
@@ -1300,7 +1423,7 @@ alloc_table_config(struct namedobj_instance *ni, struct tid_info *ti,
 	}
 
 	/* Preallocate data structures for new tables */
-	error = ta->init(&tc->astate, &tc->ti);
+	error = ta->init(&tc->astate, &tc->ti, aname);
 	if (error != 0) {
 		free(tc, M_IPFW);
 		return (NULL);
@@ -1371,45 +1494,89 @@ unlink_table(struct ip_fw_chain *ch, struct table_config *tc)
 /*
  * Finds named object by @uidx number.
  * Refs found object, allocate new index for non-existing object.
- * Fills in @pidx with userland/kernel indexes.
+ * Fills in @oib with userland/kernel indexes.
+ * First free oidx pointer is saved back in @oib.
  *
  * Returns 0 on success.
  */
 static int
-bind_table(struct namedobj_instance *ni, struct rule_check_info *ci,
-    struct obj_idx *pidx, struct tid_info *ti)
+bind_table_rule(struct ip_fw_chain *ch, struct ip_fw *rule,
+    struct rule_check_info *ci, struct obj_idx **oib, struct tid_info *ti)
 {
 	struct table_config *tc;
+	struct namedobj_instance *ni;
+	struct named_object *no;
+	int error, l, cmdlen;
+	ipfw_insn *cmd;
+	struct obj_idx *pidx, *p;
 
-	pidx->uidx = ti->uidx;
-	pidx->type = ti->type;
+	pidx = *oib;
+	l = rule->cmd_len;
+	cmd = rule->cmd;
+	cmdlen = 0;
+	error = 0;
 
-	tc = find_table(ni, ti);
+	IPFW_UH_WLOCK(ch);
+	ni = CHAIN_TO_NI(ch);
 
-	if (tc == NULL) {
-		/* Try to acquire refcount */
+	for ( ;	l > 0 ; l -= cmdlen, cmd += cmdlen) {
+		cmdlen = F_LEN(cmd);
+
+		if (classify_table_opcode(cmd, &ti->uidx, &ti->type) != 0)
+			continue;
+
+		pidx->uidx = ti->uidx;
+		pidx->type = ti->type;
+
+		if ((tc = find_table(ni, ti)) != NULL) {
+			if (tc->no.type != ti->type) {
+				/* Incompatible types */
+				error = EINVAL;
+				break;
+			}
+
+			/* Reference found table and save kidx */
+			tc->no.refcnt++;
+			pidx->kidx = tc->no.kidx;
+			pidx++;
+			continue;
+		}
+
+		/* Table not found. Allocate new index and save for later */
 		if (ipfw_objhash_alloc_idx(ni, ti->set, &pidx->kidx) != 0) {
 			printf("Unable to allocate table index in set %u."
 			    " Consider increasing net.inet.ip.fw.tables_max",
-				    ti->set);
-			return (EBUSY);
+			    ti->set);
+			error = EBUSY;
+			break;
 		}
 
-		pidx->new = 1;
 		ci->new_tables++;
-
-		return (0);
+		pidx->new = 1;
+		pidx++;
 	}
 
-	/* Check if table type if valid first */
-	if (tc->no.type != ti->type)
-		return (EINVAL);
+	if (error != 0) {
+		/* Unref everything we have already done */
+		for (p = *oib; p < pidx; p++) {
+			if (p->new != 0) {
+				ipfw_objhash_free_idx(ni, ci->tableset,p->kidx);
+				continue;
+			}
 
-	tc->no.refcnt++;
+			/* Find & unref by existing idx */
+			no = ipfw_objhash_lookup_idx(ni, ci->tableset, p->kidx);
+			KASSERT(no != NULL, ("Ref'd table %d disappeared",
+			    p->kidx));
 
-	pidx->kidx = tc->no.kidx;
+			no->refcnt--;
+		}
+	}
+	IPFW_UH_WUNLOCK(ch);
 
-	return (0);
+	*oib = pidx;
+
+	return (error);
 }
 
 /*
@@ -1477,11 +1644,14 @@ ipfw_rewrite_table_uidx(struct ip_fw_chain *chain,
 	struct table_algo *ta;
 	struct namedobj_instance *ni;
 	struct named_object *no, *no_n, *no_tmp;
-	struct obj_idx *pidx, *p, *oib;
+	struct obj_idx *p, *pidx_first, *pidx_last;
 	struct namedobjects_head nh;
 	struct tid_info ti;
 
 	ni = CHAIN_TO_NI(chain);
+
+	/* Prepare queue to store configs */
+	TAILQ_INIT(&nh);
 
 	/*
 	 * Prepare an array for storing opcode indices.
@@ -1489,12 +1659,12 @@ ipfw_rewrite_table_uidx(struct ip_fw_chain *chain,
 	 */
 	if (ci->table_opcodes <= (sizeof(ci->obuf)/sizeof(ci->obuf[0]))) {
 		/* Stack */
-		pidx = ci->obuf;
+		pidx_first = ci->obuf;
 	} else
-		pidx = malloc(ci->table_opcodes * sizeof(struct obj_idx),
+		pidx_first = malloc(ci->table_opcodes * sizeof(struct obj_idx),
 		    M_IPFW, M_WAITOK | M_ZERO);
 
-	oib = pidx;
+	pidx_last = pidx_first;
 	error = 0;
 
 	type = 0;
@@ -1508,72 +1678,24 @@ ipfw_rewrite_table_uidx(struct ip_fw_chain *chain,
 	ti.tlen = ci->tlen;
 
 	/*
-	 * Stage 1: reference existing tables and determine number
-	 * of tables we need to allocate
+	 * Stage 1: reference existing tables, determine number
+	 * of tables we need to allocate and allocate indexes for each.
 	 */
-	IPFW_UH_WLOCK(chain);
-
-	l = ci->krule->cmd_len;
-	cmd = ci->krule->cmd;
-	cmdlen = 0;
-	for ( ;	l > 0 ; l -= cmdlen, cmd += cmdlen) {
-		cmdlen = F_LEN(cmd);
-
-		if (classify_table_opcode(cmd, &ti.uidx, &ti.type) != 0)
-			continue;
-
-		/*
-		 * Got table opcode with necessary info.
-		 * Try to reference existing tables and allocate
-		 * indices for non-existing one while holding write lock.
-		 */
-		if ((error = bind_table(ni, ci, pidx, &ti)) != 0) {
-			printf("error!\n");
-			break;
-		}
-
-		/*
-		 * @pidx stores either existing ref'd table id or new one.
-		 * Move to next index
-		 */
-
-		pidx++;
-	}
+	error = bind_table_rule(chain, ci->krule, ci, &pidx_last, &ti);
 
 	if (error != 0) {
-		/* Unref everything we have already done */
-		for (p = oib; p < pidx; p++) {
-			if (p->new != 0) {
-				ipfw_objhash_free_idx(ni, ci->tableset,p->kidx);
-				continue;
-			}
-
-			/* Find & unref by existing idx */
-			no = ipfw_objhash_lookup_idx(ni, ci->tableset, p->kidx);
-			KASSERT(no!=NULL, ("Ref'd table %d disappeared",
-			    p->kidx));
-
-			no->refcnt--;
-		}
-
-		IPFW_UH_WUNLOCK(chain);
-
-		if (oib != ci->obuf)
-			free(oib, M_IPFW);
+		if (pidx_first != ci->obuf)
+			free(pidx_first, M_IPFW);
 
 		return (error);
 	}
-
-	IPFW_UH_WUNLOCK(chain);
 
 	/*
 	 * Stage 2: allocate table configs for every non-existent table
 	 */
 
-	/* Prepare queue to store configs */
-	TAILQ_INIT(&nh);
 	if (ci->new_tables > 0) {
-		for (p = oib; p < pidx; p++) {
+		for (p = pidx_first; p < pidx_last; p++) {
 			if (p->new == 0)
 				continue;
 
@@ -1582,12 +1704,12 @@ ipfw_rewrite_table_uidx(struct ip_fw_chain *chain,
 			ti.type = p->type;
 			ti.atype = 0;
 
-			ta = find_table_algo(CHAIN_TO_TCFG(chain), &ti);
+			ta = find_table_algo(CHAIN_TO_TCFG(chain), &ti, NULL);
 			if (ta == NULL) {
 				error = ENOTSUP;
 				goto free;
 			}
-			tc = alloc_table_config(ni, &ti, ta);
+			tc = alloc_table_config(ni, &ti, ta, NULL);
 
 			if (tc == NULL) {
 				error = ENOMEM;
@@ -1607,7 +1729,7 @@ ipfw_rewrite_table_uidx(struct ip_fw_chain *chain,
 		 */
 		TAILQ_FOREACH(no, &nh, nn_next) {
 			TAILQ_FOREACH(no_tmp, &nh, nn_next) {
-				if (strcmp(no->name, no_tmp->name) != 0)
+				if (ipfw_objhash_same_name(ni, no, no_tmp) == 0)
 					continue;
 				if (no->type != no_tmp->type) {
 					error = EINVAL;
@@ -1649,7 +1771,6 @@ ipfw_rewrite_table_uidx(struct ip_fw_chain *chain,
 			 * We have to rollback everything.
 			 */
 			IPFW_UH_WUNLOCK(chain);
-
 			goto free;
 		}
 
@@ -1662,24 +1783,28 @@ ipfw_rewrite_table_uidx(struct ip_fw_chain *chain,
 		IPFW_WLOCK(chain);
 		TAILQ_FOREACH_SAFE(no, &nh, nn_next, no_tmp) {
 			no_n = ipfw_objhash_lookup_name(ni, no->set, no->name);
-			if (no_n != NULL) {
-				/* Increase refcount for existing table */
-				no_n->refcnt++;
-				/* Keep oib array in sync: update kindx */
-				for (p = oib; p < pidx; p++) {
-					if (p->kidx == no->kidx) {
-						p->kidx = no_n->kidx;
-						break;
-					}
-				}
 
+			if (no_n == NULL) {
+				/* New table. Attach to runtime hash */
+				TAILQ_REMOVE(&nh, no, nn_next);
+				link_table(chain, (struct table_config *)no);
 				continue;
 			}
 
-			/* New table. Attach to runtime hash */
-			TAILQ_REMOVE(&nh, no, nn_next);
-
-			link_table(chain, (struct table_config *)no);
+			/*
+			 * Newly-allocated table with the same type.
+			 * Reference it and update out @pidx array
+			 * rewrite info.
+			 */
+			no_n->refcnt++;
+			/* Keep oib array in sync: update kidx */
+			for (p = pidx_first; p < pidx_last; p++) {
+				if (p->kidx != no->kidx)
+					continue;
+				/* Update kidx */
+				p->kidx = no_n->kidx;
+				break;
+			}
 		}
 		IPFW_WUNLOCK(chain);
 	}
@@ -1688,14 +1813,14 @@ ipfw_rewrite_table_uidx(struct ip_fw_chain *chain,
 	l = ci->krule->cmd_len;
 	cmd = ci->krule->cmd;
 	cmdlen = 0;
-	pidx = oib;
+	p = pidx_first;
 	for ( ;	l > 0 ; l -= cmdlen, cmd += cmdlen) {
 		cmdlen = F_LEN(cmd);
 
 		if (classify_table_opcode(cmd, &uidx, &type) != 0)
 			continue;
-		update_table_opcode(cmd, pidx->kidx);
-		pidx++;
+		update_table_opcode(cmd, p->kidx);
+		p++;
 	}
 
 	IPFW_UH_WUNLOCK(chain);
@@ -1706,11 +1831,20 @@ ipfw_rewrite_table_uidx(struct ip_fw_chain *chain,
 	 * Stage 4: free resources
 	 */
 free:
-	TAILQ_FOREACH_SAFE(no, &nh, nn_next, no_tmp)
-		free_table_config(ni, tc);
+	if (!TAILQ_EMPTY(&nh)) {
+		/* Free indexes first */
+		IPFW_UH_WLOCK(chain);
+		TAILQ_FOREACH_SAFE(no, &nh, nn_next, no_tmp) {
+			ipfw_objhash_free_idx(ni, ci->tableset, no->kidx);
+		}
+		IPFW_UH_WUNLOCK(chain);
+		/* Free configs */
+		TAILQ_FOREACH_SAFE(no, &nh, nn_next, no_tmp)
+			free_table_config(ni, tc);
+	}
 
-	if (oib != ci->obuf)
-		free(oib, M_IPFW);
+	if (pidx_first != ci->obuf)
+		free(pidx_first, M_IPFW);
 
 	return (error);
 }

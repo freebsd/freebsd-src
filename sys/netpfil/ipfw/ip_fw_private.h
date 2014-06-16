@@ -362,6 +362,8 @@ struct named_object *ipfw_objhash_lookup_name(struct namedobj_instance *ni,
     uint32_t set, char *name);
 struct named_object *ipfw_objhash_lookup_idx(struct namedobj_instance *ni,
     uint32_t set, uint16_t idx);
+int ipfw_objhash_same_name(struct namedobj_instance *ni, struct named_object *a,
+    struct named_object *b);
 void ipfw_objhash_add(struct namedobj_instance *ni, struct named_object *no);
 void ipfw_objhash_del(struct namedobj_instance *ni, struct named_object *no);
 uint32_t ipfw_objhash_count(struct namedobj_instance *ni);

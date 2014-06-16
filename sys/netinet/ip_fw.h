@@ -81,10 +81,12 @@ typedef struct _ip_fw3_opheader {
 #define	IP_FW_TABLE_XGETSIZE	88	/* get table size (deprecated) */
 #define	IP_FW_TABLE_XLIST	89	/* list table contents */
 #define	IP_FW_TABLE_XDESTROY	90	/* destroy table */
-#define	IP_FW_TABLES_XGETSIZE	91	/* get size for table/etc list */
-#define	IP_FW_TABLES_XLIST	92	/* list all objects of given type */
-#define	IP_FW_TABLE_XINFO	93	/* request info for one object */
-#define	IP_FW_TABLE_XFLUSH	94	/* flush data for given object */
+#define	IP_FW_TABLES_XGETSIZE	91	/* get size for tables list */
+#define	IP_FW_TABLES_XLIST	92	/* list all tables  */
+#define	IP_FW_TABLE_XINFO	93	/* request info for one table */
+#define	IP_FW_TABLE_XFLUSH	94	/* flush table data */
+#define	IP_FW_TABLE_XCREATE	95	/* create new table  */
+#define	IP_FW_TABLE_XMODIFY	96	/* modify existing table */
 
 /*
  * Usage guidelines:
@@ -693,7 +695,7 @@ typedef struct _ipfw_obj_ntlv {
 
 typedef struct _ipfw_xtable_info {
 	uint8_t		type;		/* table type (cidr,iface,..)	*/
-	uint8_t		ftype;		/* format table type		*/
+	uint8_t		ftype;		/* table value format type	*/
 	uint8_t		atype;		/* algorithm type		*/
 	uint8_t		spare0;
 	uint32_t	set;		/* set table is in		*/
@@ -702,6 +704,7 @@ typedef struct _ipfw_xtable_info {
 	uint32_t	count;		/* Number of records		*/
 	uint32_t	size;		/* Total size of records	*/
 	char		tablename[64];	/* table name */
+	char		algoname[32];	/* algorithm name		*/
 } ipfw_xtable_info;
 
 #define	IPFW_OBJTYPE_TABLE	1
