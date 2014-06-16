@@ -91,17 +91,12 @@ struct evdev_cdev_softc
 	LIST_ENTRY(evdev_cdev_softc) ecs_link;
 };
 
-struct uinput_cdev_state
+struct evdev_cdev_state
 {
-	struct mtx		ucs_mtx;
-	struct evdev_dev *	ucs_dev;
-	struct selinfo		ucs_selp;
-	struct sigio *		ucs_sigio;
-
-	struct input_event *	ucs_buffer;
-	int			ucs_buffer_size;
-	int			ucs_buffer_head;
-	int			ucs_buffer_tail;
+	struct mtx		ecs_mtx;
+	struct evdev_client *	ecs_client;
+	struct selinfo		ecs_selp;
+	struct sigio *		ecs_sigio;
 };
 
 static int evdev_cdev_count = 0;
