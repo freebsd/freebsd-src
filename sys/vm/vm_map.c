@@ -1112,18 +1112,20 @@ vm_map_lookup_entry(
  */
 int
 vm_map_insert(vm_map_t map, vm_object_t object, vm_ooffset_t offset,
-	      vm_offset_t start, vm_offset_t end, vm_prot_t prot, vm_prot_t max,
-	      int cow)
+    vm_offset_t start, vm_offset_t end, vm_prot_t prot, vm_prot_t max, int cow)
 {
-	vm_map_entry_t new_entry;
-	vm_map_entry_t prev_entry;
-	vm_map_entry_t temp_entry;
+	vm_map_entry_t new_entry, prev_entry, temp_entry;
 	vm_eflags_t protoeflags;
 	struct ucred *cred;
 	vm_inherit_t inheritance;
 	boolean_t charge_prev_obj;
 
 	VM_MAP_ASSERT_LOCKED(map);
+	KASSERT((object != kmem_object && object != kernel_object) ||
+	    (cow & MAP_COPY_ON_WRITE) == 0,
+	    ("vm_map_insert: kmem or kernel object and COW"));
+	KASSERT(object == NULL || (cow & MAP_NOFAULT) == 0,
+	    ("vm_map_insert: paradoxical MAP_NOFAULT request"));
 
 	/*
 	 * Check that the start and end points are not bogus.
@@ -1149,17 +1151,10 @@ vm_map_insert(vm_map_t map, vm_object_t object, vm_ooffset_t offset,
 		return (KERN_NO_SPACE);
 
 	protoeflags = 0;
-	charge_prev_obj = FALSE;
-
 	if (cow & MAP_COPY_ON_WRITE)
-		protoeflags |= MAP_ENTRY_COW|MAP_ENTRY_NEEDS_COPY;
-
-	if (cow & MAP_NOFAULT) {
+		protoeflags |= MAP_ENTRY_COW | MAP_ENTRY_NEEDS_COPY;
+	if (cow & MAP_NOFAULT)
 		protoeflags |= MAP_ENTRY_NOFAULT;
-
-		KASSERT(object == NULL,
-			("vm_map_insert: paradoxical MAP_NOFAULT request"));
-	}
 	if (cow & MAP_DISABLE_SYNCER)
 		protoeflags |= MAP_ENTRY_NOSYNC;
 	if (cow & MAP_DISABLE_COREDUMP)
@@ -1172,10 +1167,7 @@ vm_map_insert(vm_map_t map, vm_object_t object, vm_ooffset_t offset,
 		inheritance = VM_INHERIT_DEFAULT;
 
 	cred = NULL;
-	KASSERT((object != kmem_object && object != kernel_object) ||
-	    ((object == kmem_object || object == kernel_object) &&
-		!(protoeflags & MAP_ENTRY_NEEDS_COPY)),
-	    ("kmem or kernel object and cow"));
+	charge_prev_obj = FALSE;
 	if (cow & (MAP_ACC_NO_CHARGE | MAP_NOFAULT))
 		goto charged;
 	if ((cow & MAP_ACC_CHARGED) || ((prot & VM_PROT_WRITE) &&
@@ -1254,12 +1246,6 @@ charged:
 			cred = NULL;
 		}
 	}
-
-	/*
-	 * NOTE: if conditionals fail, object can be NULL here.  This occurs
-	 * in things like the buffer map where we manage kva but do not manage
-	 * backing objects.
-	 */
 
 	/*
 	 * Create a new entry
