@@ -50,7 +50,7 @@ struct tentry_info {
 	uint32_t	value;		/* value			*/
 };
 
-typedef int (ta_init)(void **ta_state, struct table_info *ti);
+typedef int (ta_init)(void **ta_state, struct table_info *ti, char *data);
 typedef void (ta_destroy)(void *ta_state, struct table_info *ti);
 typedef int (ta_prepare_add)(struct tentry_info *tei, void *ta_buf);
 typedef int (ta_prepare_del)(struct tentry_info *tei, void *ta_buf);
@@ -69,7 +69,7 @@ typedef int ta_dump_xentry(void *ta_state, struct table_info *ti, void *e,
     ipfw_table_xentry *xent);
 
 struct table_algo {
-	char		name[64];
+	char		name[16];
 	int		idx;
 	ta_init		*init;
 	ta_destroy	*destroy;
@@ -99,6 +99,11 @@ int ipfw_dump_table(struct ip_fw_chain *ch, struct sockopt *sopt,
     ip_fw3_opheader *op3, size_t valsize);
 int ipfw_describe_table(struct ip_fw_chain *ch, struct sockopt *sopt,
     ip_fw3_opheader *op3, size_t valsize);
+
+int ipfw_create_table(struct ip_fw_chain *ch, struct sockopt *sopt,
+    ip_fw3_opheader *op3);
+int ipfw_modify_table(struct ip_fw_chain *ch, struct sockopt *sopt,
+    ip_fw3_opheader *op3);
 
 int ipfw_destroy_table(struct ip_fw_chain *ch, struct tid_info *ti);
 int ipfw_flush_table(struct ip_fw_chain *ch, struct tid_info *ti);

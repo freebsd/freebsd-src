@@ -1172,6 +1172,14 @@ ipfw_ctl(struct sockopt *sopt)
 		break;
 
 	/*--- TABLE opcodes ---*/
+	case IP_FW_TABLE_XCREATE: /* IP_FW3 */
+	case IP_FW_TABLE_XMODIFY: /* IP_FW3 */
+		if (opt == IP_FW_TABLE_XCREATE)
+			error = ipfw_create_table(chain, sopt, op3);
+		else
+			error= ipfw_modify_table(chain, sopt, op3);
+		break;
+
 	case IP_FW_TABLE_XDESTROY: /* IP_FW3 */
 	case IP_FW_TABLE_XFLUSH: /* IP_FW3 */
 		{
@@ -1703,6 +1711,17 @@ ipfw_objhash_lookup_idx(struct namedobj_instance *ni, uint32_t set,
 	}
 
 	return (NULL);
+}
+
+int
+ipfw_objhash_same_name(struct namedobj_instance *ni, struct named_object *a,
+    struct named_object *b)
+{
+
+	if ((strcmp(a->name, b->name) == 0) && a->set == b->set)
+		return (1);
+
+	return (0);
 }
 
 void

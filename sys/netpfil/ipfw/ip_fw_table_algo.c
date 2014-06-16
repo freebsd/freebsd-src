@@ -164,7 +164,7 @@ ta_lookup_radix(struct table_info *ti, void *key, uint32_t keylen,
  * New table
  */
 static int
-ta_init_radix(void **ta_state, struct table_info *ti)
+ta_init_radix(void **ta_state, struct table_info *ti, char *data)
 {
 
 	if (!rn_inithead(&ti->state, OFF_LEN_INET))
@@ -537,7 +537,7 @@ flush_iface_entry(struct radix_node *rn, void *arg)
 }
 
 static int
-ta_init_iface(void **ta_state, struct table_info *ti)
+ta_init_iface(void **ta_state, struct table_info *ti, char *data)
 {
 
 	if (!rn_inithead(&ti->xstate, OFF_LEN_IFACE))
