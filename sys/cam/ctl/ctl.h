@@ -195,6 +195,7 @@ int ctl_debugconf_sp_select_handler(struct ctl_scsiio *ctsio,
 int ctl_config_move_done(union ctl_io *io);
 void ctl_datamove(union ctl_io *io);
 void ctl_done(union ctl_io *io);
+void ctl_data_submit_done(union ctl_io *io);
 void ctl_config_write_done(union ctl_io *io);
 #if 0
 int ctl_thread(void *arg);
