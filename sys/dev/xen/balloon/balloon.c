@@ -255,7 +255,7 @@ increase_reservation(unsigned long nr_pages)
 
 		set_phys_to_machine(pfn, frame_list[i]);
 
-		vm_page_unwire(page, 0);
+		vm_page_unwire(page, PQ_INACTIVE);
 		vm_page_free(page);
 	}
 
@@ -297,7 +297,7 @@ decrease_reservation(unsigned long nr_pages)
 
 		set_phys_to_machine(pfn, INVALID_P2M_ENTRY);
 		if (balloon_append(page) != 0) {
-			vm_page_unwire(page, 0);
+			vm_page_unwire(page, PQ_INACTIVE);
 			vm_page_free(page);
 
 			nr_pages = i;

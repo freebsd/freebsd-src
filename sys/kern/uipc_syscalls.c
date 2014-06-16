@@ -1996,7 +1996,7 @@ sf_buf_mext(struct mbuf *mb, void *addr, void *args)
 	m = sf_buf_page(args);
 	sf_buf_free(args);
 	vm_page_lock(m);
-	vm_page_unwire(m, 0);
+	vm_page_unwire(m, PQ_INACTIVE);
 	/*
 	 * Check for the object going away on us. This can
 	 * happen since we don't hold a reference to it.
@@ -2692,7 +2692,7 @@ sendfile_readpage(vm_object_t obj, struct vnode *vp, int nd,
 	} else if (m != NULL) {
 free_page:
 		vm_page_lock(m);
-		vm_page_unwire(m, 0);
+		vm_page_unwire(m, PQ_INACTIVE);
 
 		/*
 		 * See if anyone else might know about this page.  If
@@ -3050,7 +3050,7 @@ retry_space:
 			if (sf == NULL) {
 				SFSTAT_INC(sf_allocfail);
 				vm_page_lock(pg);
-				vm_page_unwire(pg, 0);
+				vm_page_unwire(pg, PQ_INACTIVE);
 				KASSERT(pg->object != NULL,
 				    ("%s: object disappeared", __func__));
 				vm_page_unlock(pg);
