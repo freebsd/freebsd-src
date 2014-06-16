@@ -932,7 +932,7 @@ free_pv_chunk(struct pv_chunk *pc)
 	PV_STAT(pc_chunk_frees++);
 	/* entire chunk is free, return it */
 	m = PHYS_TO_VM_PAGE(IA64_RR_MASK((vm_offset_t)pc));
-	vm_page_unwire(m, 0);
+	vm_page_unwire(m, PQ_INACTIVE);
 	vm_page_free(m);
 }
 

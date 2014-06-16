@@ -1896,7 +1896,7 @@ vfs_vmio_release(struct buf *bp)
 		 * everything on the inactive queue.
 		 */
 		vm_page_lock(m);
-		vm_page_unwire(m, 0);
+		vm_page_unwire(m, PQ_INACTIVE);
 
 		/*
 		 * Might as well free the page if we can and it has
@@ -3483,7 +3483,7 @@ allocbuf(struct buf *bp, int size)
 
 					bp->b_pages[i] = NULL;
 					vm_page_lock(m);
-					vm_page_unwire(m, 0);
+					vm_page_unwire(m, PQ_INACTIVE);
 					vm_page_unlock(m);
 				}
 				VM_OBJECT_WUNLOCK(bp->b_bufobj->bo_object);
