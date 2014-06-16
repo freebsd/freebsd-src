@@ -471,7 +471,8 @@ static struct op_table_entry scsi_op_codes[] = {
 	 */
 	/* 88  MM  O O   O     READ(16) */
 	{ 0x88,	D | T | W | O | B, "READ(16)" },
-	/* 89 */
+	/* 89  O               COMPARE AND WRITE*/
+	{ 0x89,	D, "COMPARE AND WRITE" },
 	/* 8A  OM  O O   O     WRITE(16) */
 	{ 0x8A,	D | T | W | O | B, "WRITE(16)" },
 	/* 8B  O               ORWRITE */

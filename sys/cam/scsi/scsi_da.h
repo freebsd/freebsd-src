@@ -222,18 +222,49 @@ struct scsi_read_format_capacities
 	uint8_t	reserved1[3];
 };
 
-struct scsi_verify
+struct scsi_verify_10
 {
-	uint8_t	opcode;		/* VERIFY */
+	uint8_t	opcode;		/* VERIFY(10) */
 	uint8_t	byte2;
 #define	SVFY_LUN_MASK	0xE0
 #define	SVFY_RELADR	0x01
-#define	SVFY_BYTECHK	0x02
+#define	SVFY_BYTCHK	0x02
 #define	SVFY_DPO	0x10
 	uint8_t	addr[4];	/* LBA to begin verification at */
-	uint8_t	reserved0[1];
-	uint8_t	len[2];		/* number of blocks to verify */
-	uint8_t	reserved1[3];
+	uint8_t	group;
+	uint8_t	length[2];		/* number of blocks to verify */
+	uint8_t	control;
+};
+
+struct scsi_verify_12
+{
+	uint8_t	opcode;		/* VERIFY(12) */
+	uint8_t	byte2;
+	uint8_t	addr[4];	/* LBA to begin verification at */
+	uint8_t	length[4];		/* number of blocks to verify */
+	uint8_t	group;
+	uint8_t	control;
+};
+
+struct scsi_verify_16
+{
+	uint8_t	opcode;		/* VERIFY(16) */
+	uint8_t	byte2;
+	uint8_t	addr[8];	/* LBA to begin verification at */
+	uint8_t	length[4];		/* number of blocks to verify */
+	uint8_t	group;
+	uint8_t	control;
+};
+
+struct scsi_compare_and_write
+{
+	uint8_t	opcode;		/* COMPARE AND WRITE */
+	uint8_t	byte2;
+	uint8_t	addr[8];	/* LBA to begin verification at */
+	uint8_t	reserved[3];
+	uint8_t	length;		/* number of blocks */
+	uint8_t	group;
+	uint8_t	control;
 };
 
 struct scsi_write_and_verify

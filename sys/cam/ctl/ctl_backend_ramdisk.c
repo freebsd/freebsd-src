@@ -267,7 +267,7 @@ ctl_backend_ramdisk_move_done(union ctl_io *io)
 					 /*retry_count*/
 					 io->io_hdr.port_status);
 	}
-	ctl_done(io);
+	ctl_data_submit_done(io);
 	return(0);
 }
 
@@ -275,11 +275,16 @@ static int
 ctl_backend_ramdisk_submit(union ctl_io *io)
 {
 	struct ctl_be_lun *ctl_be_lun;
-	struct ctl_lba_len *lbalen;
+	struct ctl_lba_len_flags *lbalen;
 
 	ctl_be_lun = (struct ctl_be_lun *)io->io_hdr.ctl_private[
 		CTL_PRIV_BACKEND_LUN].ptr;
-	lbalen = (struct ctl_lba_len *)&io->io_hdr.ctl_private[CTL_PRIV_LBA_LEN];
+	lbalen = (struct ctl_lba_len_flags *)&io->io_hdr.ctl_private[CTL_PRIV_LBA_LEN];
+	if (lbalen->flags & CTL_LLF_VERIFY) {
+		ctl_set_success(&io->scsiio);
+		ctl_data_submit_done(io);
+		return (CTL_RETVAL_COMPLETE);
+	}
 	io->io_hdr.ctl_private[CTL_PRIV_BACKEND].integer =
 	    lbalen->len * ctl_be_lun->blocksize;
 	ctl_backend_ramdisk_continue(io);
