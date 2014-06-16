@@ -552,37 +552,38 @@ vtnet_negotiate_features(struct vtnet_softc *sc)
 		mask |= VTNET_TSO_FEATURES;
 	if (vtnet_tunable_int(sc, "lro_disable", vtnet_lro_disable))
 		mask |= VTNET_LRO_FEATURES;
+#ifndef VTNET_LEGACY_TX
 	if (vtnet_tunable_int(sc, "mq_disable", vtnet_mq_disable))
 		mask |= VIRTIO_NET_F_MQ;
-#ifdef VTNET_LEGACY_TX
+#else
 	mask |= VIRTIO_NET_F_MQ;
 #endif
 
 	features = VTNET_FEATURES & ~mask;
 	sc->vtnet_features = virtio_negotiate_features(dev, features);
 
-	if (virtio_with_feature(dev, VTNET_LRO_FEATURES) == 0)
-		return;
-	if (virtio_with_feature(dev, VIRTIO_NET_F_MRG_RXBUF))
-		return;
+	if (virtio_with_feature(dev, VTNET_LRO_FEATURES) &&
+	    virtio_with_feature(dev, VIRTIO_NET_F_MRG_RXBUF) == 0) {
+		/*
+		 * LRO without mergeable buffers requires special care. This
+		 * is not ideal because every receive buffer must be large
+		 * enough to hold the maximum TCP packet, the Ethernet header,
+		 * and the header. This requires up to 34 descriptors with
+		 * MCLBYTES clusters. If we do not have indirect descriptors,
+		 * LRO is disabled since the virtqueue will not contain very
+		 * many receive buffers.
+		 */
+		if (!virtio_with_feature(dev, VIRTIO_RING_F_INDIRECT_DESC)) {
+			device_printf(dev,
+			    "LRO disabled due to both mergeable buffers and "
+			    "indirect descriptors not negotiated\n");
 
-	/*
-	 * LRO without mergeable buffers requires special care. This is not
-	 * ideal because every receive buffer must be large enough to hold
-	 * the maximum TCP packet, the Ethernet header, and the header. This
-	 * requires up to 34 descriptors with MCLBYTES clusters. If we do
-	 * not have indirect descriptors, LRO is disabled since the virtqueue
-	 * will not contain very many receive buffers.
-	 */
-	if (virtio_with_feature(dev, VIRTIO_RING_F_INDIRECT_DESC) == 0) {
-		device_printf(dev,
-		    "LRO disabled due to both mergeable buffers and indirect "
-		    "descriptors not negotiated\n");
-
-		features &= ~VTNET_LRO_FEATURES;
-		sc->vtnet_features = virtio_negotiate_features(dev, features);
-	} else
-		sc->vtnet_flags |= VTNET_FLAG_LRO_NOMRG;
+			features &= ~VTNET_LRO_FEATURES;
+			sc->vtnet_features =
+			    virtio_negotiate_features(dev, features);
+		} else
+			sc->vtnet_flags |= VTNET_FLAG_LRO_NOMRG;
+	}
 }
 
 static void
