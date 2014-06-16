@@ -357,17 +357,17 @@ void
 vtbuf_fill_locked(struct vt_buf *vb, const term_rect_t *r, term_char_t c)
 {
 	KASSERT(r->tr_begin.tp_row < vb->vb_scr_size.tp_row,
-	    ("vtbuf_fill_locked begin.tp_row %d must be < screen width %d",
+	    ("vtbuf_fill_locked begin.tp_row %d must be < screen height %d",
 		r->tr_begin.tp_row, vb->vb_scr_size.tp_row));
 	KASSERT(r->tr_begin.tp_col < vb->vb_scr_size.tp_col,
-	    ("vtbuf_fill_locked begin.tp_col %d must be < screen height %d",
+	    ("vtbuf_fill_locked begin.tp_col %d must be < screen width %d",
 		r->tr_begin.tp_col, vb->vb_scr_size.tp_col));
 
 	KASSERT(r->tr_end.tp_row <= vb->vb_scr_size.tp_row,
-	    ("vtbuf_fill_locked end.tp_row %d must be <= screen width %d",
+	    ("vtbuf_fill_locked end.tp_row %d must be <= screen height %d",
 		r->tr_end.tp_row, vb->vb_scr_size.tp_row));
 	KASSERT(r->tr_end.tp_col <= vb->vb_scr_size.tp_col,
-	    ("vtbuf_fill_locked end.tp_col %d must be <= screen height %d",
+	    ("vtbuf_fill_locked end.tp_col %d must be <= screen width %d",
 		r->tr_end.tp_col, vb->vb_scr_size.tp_col));
 
 	VTBUF_LOCK(vb);
@@ -448,8 +448,9 @@ vtbuf_grow(struct vt_buf *vb, const term_pos_t *p, int history_size)
 
 	history_size = MAX(history_size, p->tp_row);
 
-	if (history_size > vb->vb_history_size || p->tp_col >
-	    vb->vb_scr_size.tp_col) {
+	/* If new screen/history size bigger or buffer is VBF_STATIC. */
+	if ((history_size > vb->vb_history_size) || (p->tp_col >
+	    vb->vb_scr_size.tp_col) || (vb->vb_flags & VBF_STATIC)) {
 		/* Allocate new buffer. */
 		bufsize = history_size * p->tp_col * sizeof(term_char_t);
 		new = malloc(bufsize, M_VTBUF, M_WAITOK | M_ZERO);
@@ -495,6 +496,9 @@ vtbuf_grow(struct vt_buf *vb, const term_pos_t *p, int history_size)
 		/* Deallocate old buffer. */
 		free(old, M_VTBUF);
 		free(oldrows, M_VTBUF);
+	} else {
+		/* Just update the size. */
+		vb->vb_scr_size = *p;
 	}
 }
 
