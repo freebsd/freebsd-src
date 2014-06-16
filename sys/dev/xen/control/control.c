@@ -287,7 +287,7 @@ xctrl_suspend()
 	}
 	HYPERVISOR_shared_info->arch.max_pfn = max_pfn;
 
-	gnttab_resume();
+	gnttab_resume(NULL);
 	intr_resume(suspend_cancelled != 0);
 	local_irq_enable();
 	xencons_resume();
@@ -385,7 +385,7 @@ xctrl_suspend()
 	/*
 	 * Reset grant table info.
 	 */
-	gnttab_resume();
+	gnttab_resume(NULL);
 
 #ifdef SMP
 	if (smp_started && !CPU_EMPTY(&cpu_suspend_map)) {

@@ -108,13 +108,6 @@ xenpci_deallocate_resources(device_t dev)
 			scp->rid_irq, scp->res_irq);
 		scp->res_irq = 0;
 	}
-	if (scp->res_memory != 0) {
-		bus_deactivate_resource(dev, SYS_RES_MEMORY,
-			scp->rid_memory, scp->res_memory);
-		bus_release_resource(dev, SYS_RES_MEMORY,
-			scp->rid_memory, scp->res_memory);
-		scp->res_memory = 0;
-	}
 
 	return (0);
 }
@@ -134,56 +127,12 @@ xenpci_allocate_resources(device_t dev)
 		goto errexit;
 	}
 
-	scp->rid_memory = PCIR_BAR(1);
-	scp->res_memory = bus_alloc_resource_any(dev, SYS_RES_MEMORY,
-			&scp->rid_memory, RF_ACTIVE);
-	if (scp->res_memory == NULL) {
-		printf("xenpci Could not allocate memory bar.\n");
-		goto errexit;
-	}
-
-	scp->phys_next = rman_get_start(scp->res_memory);
-
 	return (0);
 
 errexit:
 	/* Cleanup anything we may have assigned. */
 	xenpci_deallocate_resources(dev);
 	return (ENXIO); /* For want of a better idea. */
-}
-
-/*
- * Allocate a physical address range from our mmio region.
- */
-static int
-xenpci_alloc_space_int(struct xenpci_softc *scp, size_t sz,
-    vm_paddr_t *pa)
-{
-
-	if (scp->phys_next + sz > rman_get_end(scp->res_memory)) {
-		return (ENOMEM);
-	}
-
-	*pa = scp->phys_next;
-	scp->phys_next += sz;
-
-	return (0);
-}
-
-/*
- * Allocate a physical address range from our mmio region.
- */
-int
-xenpci_alloc_space(size_t sz, vm_paddr_t *pa)
-{
-	device_t dev = devclass_get_device(xenpci_devclass, 0);
-
-	if (dev) {
-		return (xenpci_alloc_space_int(device_get_softc(dev),
-			sz, pa));
-	} else {
-		return (ENOMEM);
-	}
 }
 
 /*
