@@ -48,7 +48,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/rman.h>
 
 #include <dev/virtio/virtio.h>
-#include <dev/virtio/virtio_config.h>
 #include <dev/virtio/virtqueue.h>
 #include <dev/virtio/virtio_ring.h>
 
