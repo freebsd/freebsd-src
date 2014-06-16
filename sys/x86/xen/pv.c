@@ -93,12 +93,12 @@ extern char *bootSTK;
 /*-------------------------------- Global Data -------------------------------*/
 /* Xen init_ops implementation. */
 struct init_ops xen_init_ops = {
-	.parse_preload_data =	xen_pv_parse_preload_data,
-	.early_clock_source_init =	xen_clock_init,
-	.early_delay =			xen_delay,
-	.parse_memmap =			xen_pv_parse_memmap,
+	.parse_preload_data		= xen_pv_parse_preload_data,
+	.early_clock_source_init	= xen_clock_init,
+	.early_delay			= xen_delay,
+	.parse_memmap			= xen_pv_parse_memmap,
 #ifdef SMP
-	.start_all_aps =		xen_pv_start_all_aps,
+	.start_all_aps			= xen_pv_start_all_aps,
 #endif
 };
 
@@ -155,15 +155,24 @@ hammer_time_xen(start_info_t *si, uint64_t xenstack)
 	 * by the boot trampoline).
 	 */
 	for (i = 0; i < (PAGE_SIZE / sizeof(uint64_t)); i++) {
-		/* Each slot of the level 4 pages points to the same level 3 page */
+		/*
+		 * Each slot of the level 4 pages points
+		 * to the same level 3 page
+		 */
 		PT4[i] = ((uint64_t)&PT3[0]) - KERNBASE;
 		PT4[i] |= PG_V | PG_RW | PG_U;
 
-		/* Each slot of the level 3 pages points to the same level 2 page */
+		/*
+		 * Each slot of the level 3 pages points
+		 * to the same level 2 page
+		 */
 		PT3[i] = ((uint64_t)&PT2[0]) - KERNBASE;
 		PT3[i] |= PG_V | PG_RW | PG_U;
 
-		/* The level 2 page slots are mapped with 2MB pages for 1GB. */
+		/*
+		 * The level 2 page slots are mapped with
+		 * 2MB pages for 1GB.
+		 */
 		PT2[i] = i * (2 * 1024 * 1024);
 		PT2[i] |= PG_V | PG_RW | PG_PS | PG_U;
 	}
