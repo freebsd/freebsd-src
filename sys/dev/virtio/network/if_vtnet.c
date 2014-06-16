@@ -2113,13 +2113,11 @@ fail:
 static int
 vtnet_txq_encap(struct vtnet_txq *txq, struct mbuf **m_head)
 {
-	struct vtnet_softc *sc;
 	struct vtnet_tx_header *txhdr;
 	struct virtio_net_hdr *hdr;
 	struct mbuf *m;
 	int error;
 
-	sc = txq->vtntx_sc;
 	m = *m_head;
 	M_ASSERTPKTHDR(m);
 
@@ -2946,11 +2944,9 @@ vtnet_set_active_vq_pairs(struct vtnet_softc *sc)
 static int
 vtnet_reinit(struct vtnet_softc *sc)
 {
-	device_t dev;
 	struct ifnet *ifp;
 	int error;
 
-	dev = sc->vtnet_dev;
 	ifp = sc->vtnet_ifp;
 
 	/* Use the current MAC address. */
