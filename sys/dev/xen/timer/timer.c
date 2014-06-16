@@ -645,5 +645,5 @@ static driver_t xentimer_driver = {
 	sizeof(struct xentimer_softc),
 };
 
-DRIVER_MODULE(xentimer, nexus, xentimer_driver, xentimer_devclass, 0, 0);
-MODULE_DEPEND(xentimer, nexus, 1, 1, 1);
+DRIVER_MODULE(xentimer, xenpv, xentimer_driver, xentimer_devclass, 0, 0);
+MODULE_DEPEND(xentimer, xenpv, 1, 1, 1);

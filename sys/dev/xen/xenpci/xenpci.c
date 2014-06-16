@@ -51,8 +51,6 @@ __FBSDID("$FreeBSD$");
 
 extern void xen_intr_handle_upcall(struct trapframe *trap_frame);
 
-static device_t nexus;
-
 /*
  * This is used to find our platform device instance.
  */
@@ -188,36 +186,6 @@ xenpci_alloc_space(size_t sz, vm_paddr_t *pa)
 	}
 }
 
-static struct resource *
-xenpci_alloc_resource(device_t dev, device_t child, int type, int *rid,
-    u_long start, u_long end, u_long count, u_int flags)
-{
-	return (BUS_ALLOC_RESOURCE(nexus, child, type, rid, start,
-	    end, count, flags));
-}
-
-
-static int
-xenpci_release_resource(device_t dev, device_t child, int type, int rid,
-    struct resource *r)
-{
-	return (BUS_RELEASE_RESOURCE(nexus, child, type, rid, r));
-}
-
-static int
-xenpci_activate_resource(device_t dev, device_t child, int type, int rid,
-    struct resource *r)
-{
-	return (BUS_ACTIVATE_RESOURCE(nexus, child, type, rid, r));
-}
-
-static int
-xenpci_deactivate_resource(device_t dev, device_t child, int type,
-    int rid, struct resource *r)
-{
-	return (BUS_DEACTIVATE_RESOURCE(nexus, child, type, rid, r));
-}
-
 /*
  * Probe - just check device ID.
  */
@@ -229,7 +197,7 @@ xenpci_probe(device_t dev)
 		return (ENXIO);
 
 	device_set_desc(dev, "Xen Platform Device");
-	return (bus_generic_probe(dev));
+	return (BUS_PROBE_DEFAULT);
 }
 
 /*
@@ -239,19 +207,7 @@ static int
 xenpci_attach(device_t dev)
 {
 	struct xenpci_softc *scp = device_get_softc(dev);
-	devclass_t dc;
 	int error;
-
-	/*
-	 * Find and record nexus0.  Since we are not really on the
-	 * PCI bus, all resource operations are directed to nexus
-	 * instead of through our parent.
-	 */
-	if ((dc = devclass_find("nexus"))  == 0
-	 || (nexus = devclass_get_device(dc, 0)) == 0) {
-		device_printf(dev, "unable to find nexus.");
-		return (ENOENT);
-	}
 
 	error = xenpci_allocate_resources(dev);
 	if (error) {
@@ -270,7 +226,7 @@ xenpci_attach(device_t dev)
 		goto errexit;
 	}
 
-	return (bus_generic_attach(dev));
+	return (0);
 
 errexit:
 	/*
@@ -309,16 +265,10 @@ xenpci_detach(device_t dev)
 }
 
 static int
-xenpci_suspend(device_t dev)
-{
-	return (bus_generic_suspend(dev));
-}
-
-static int
 xenpci_resume(device_t dev)
 {
 	xen_hvm_set_callback(dev);
-	return (bus_generic_resume(dev));
+	return (0);
 }
 
 static device_method_t xenpci_methods[] = {
@@ -326,15 +276,7 @@ static device_method_t xenpci_methods[] = {
 	DEVMETHOD(device_probe,		xenpci_probe),
 	DEVMETHOD(device_attach,	xenpci_attach),
 	DEVMETHOD(device_detach,	xenpci_detach),
-	DEVMETHOD(device_suspend,	xenpci_suspend),
 	DEVMETHOD(device_resume,	xenpci_resume),
-
-	/* Bus interface */
-	DEVMETHOD(bus_add_child,	bus_generic_add_child),
-	DEVMETHOD(bus_alloc_resource,   xenpci_alloc_resource),
-	DEVMETHOD(bus_release_resource, xenpci_release_resource),
-	DEVMETHOD(bus_activate_resource, xenpci_activate_resource),
-	DEVMETHOD(bus_deactivate_resource, xenpci_deactivate_resource),
 
 	{ 0, 0 }
 };
