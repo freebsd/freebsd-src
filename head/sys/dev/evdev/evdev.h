@@ -48,6 +48,13 @@ typedef void (evdev_keycode_t)(struct evdev_dev *, void *,
     struct input_keymap_entry *);
 typedef void (evdev_client_event_t)(struct evdev_client *, void *);
 
+enum evdev_repeat_mode
+{
+	NO_REPEAT,
+	DRIVER_REPEAT,
+	EVDEV_REPEAT
+};
+
 struct evdev_methods
 {
 	evdev_open_t		*ev_open;
@@ -68,6 +75,7 @@ struct evdev_dev
 	struct mtx		ev_mtx;
 	struct input_id		ev_id;
 	bool			ev_grabbed;
+	enum evdev_repeat_mode	ev_repeat_mode;
 
 	/* Supported features: */
 	uint32_t		ev_type_flags[howmany(EV_CNT, 32)];
@@ -80,15 +88,15 @@ struct evdev_dev
 	uint32_t		ev_sw_flags[howmany(SW_CNT, 32)];
 	struct input_absinfo	ev_absinfo[ABS_CNT];
 
+	/* Repeat parameters & callout: */
+	int			ev_rep[REP_CNT];
+	struct callout		ev_rep_callout;
+
 	/* State: */
 	uint32_t		ev_key_states[howmany(KEY_CNT, 32)];
 	uint32_t		ev_led_states[howmany(LED_CNT, 32)];
 	uint32_t		ev_snd_states[howmany(SND_CNT, 32)];
 	uint32_t		ev_sw_states[howmany(SW_CNT, 32)];
-
-	/* Keyboard delay/repeat: */
-	int			ev_kbd_delay;
-	int			ev_kbd_repeat;
 
 	/* Counters: */
 	uint64_t		ev_event_count;
@@ -146,7 +154,9 @@ void evdev_support_msc(struct evdev_dev *, uint16_t);
 void evdev_support_led(struct evdev_dev *, uint16_t);
 void evdev_support_snd(struct evdev_dev *, uint16_t);
 void evdev_support_sw(struct evdev_dev *, uint16_t);
+void evdev_support_repeat(struct evdev_dev *, enum evdev_repeat_mode);
 void evdev_set_absinfo(struct evdev_dev *, uint16_t, struct input_absinfo *);
+void evdev_set_repeat_params(struct evdev_dev *, uint16_t, int);
 
 /* Client interface: */
 int evdev_register_client(struct evdev_dev *, struct evdev_client **);

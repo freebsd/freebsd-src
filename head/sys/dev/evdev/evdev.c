@@ -34,10 +34,15 @@
 #include <sys/conf.h>
 #include <sys/malloc.h>
 
+#include <dev/pci/pcireg.h>
+#include <dev/pci/pcivar.h>
+#include <dev/usb/usb.h>
+#include <dev/usb/usbdi.h>
+
 #include <dev/evdev/input.h>
 #include <dev/evdev/evdev.h>
 
-#define	DEBUG
+//#define	DEBUG
 #ifdef DEBUG
 #define	debugf(fmt, args...)	printf("evdev: " fmt "\n", ##args)
 #else
@@ -50,6 +55,9 @@ MALLOC_DEFINE(M_EVDEV, "evdev", "evdev memory");
 
 static inline void changebit(uint32_t *array, int, int);
 static struct evdev_client *evdev_client_alloc(void);
+static void evdev_assign_id(struct evdev_dev *);
+static void evdev_start_repeat(struct evdev_dev *, int32_t);
+static void evdev_stop_repeat(struct evdev_dev *);
 static void evdev_client_push(struct evdev_client *, uint16_t, uint16_t,
     int32_t);
 
@@ -65,6 +73,7 @@ changebit(uint32_t *array, int bit, int value)
 struct evdev_dev *
 evdev_alloc(void)
 {
+
 	return malloc(sizeof(struct evdev_dev), M_EVDEV, M_WAITOK | M_ZERO);
 }
 
@@ -81,6 +90,21 @@ evdev_register(device_t dev, struct evdev_dev *evdev)
 	mtx_init(&evdev->ev_mtx, "evmtx", "evdev", MTX_DEF);
 	strlcpy(evdev->ev_shortname, device_get_nameunit(dev), NAMELEN);
 	LIST_INIT(&evdev->ev_clients);
+
+	if (evdev->ev_repeat_mode == EVDEV_REPEAT) {
+		/* Initialize callout */
+		callout_init(&evdev->ev_rep_callout, 1);
+
+		if (evdev->ev_rep[REP_DELAY] == 0 &&
+		    evdev->ev_rep[REP_PERIOD] == 0) {
+			/* Supply default values */
+			evdev->ev_rep[REP_DELAY] = 300;
+			evdev->ev_rep[REP_PERIOD] = 50;
+		}
+	}
+
+	/* Retrieve bus info */
+	evdev_assign_id(evdev);
 
 	/* Create char device node */
 	ret = evdev_cdev_create(evdev);
@@ -186,12 +210,32 @@ evdev_support_sw(struct evdev_dev *evdev, uint16_t code)
 }
 
 inline void
+evdev_support_repeat(struct evdev_dev *evdev, enum evdev_repeat_mode mode)
+{
+
+	if (mode != NO_REPEAT)
+		setbit(&evdev->ev_type_flags, EV_REP)
+
+	evdev->ev_repeat_mode = mode;
+}
+
+
+inline void
 evdev_set_absinfo(struct evdev_dev *evdev, uint16_t axis,
     struct input_absinfo *absinfo)
 {
 
 	memcpy(&evdev->ev_absinfo[axis], absinfo, sizeof(struct input_absinfo));
 }
+
+inline void
+evdev_set_repeat_params(struct evdev_dev *evdev, uint16_t property, int value)
+{
+
+	KASSERT(property < REP_CNT, ("invalid evdev repeat property"));
+	evdev->ev_rep[property] = value;
+}
+
 
 int
 evdev_push_event(struct evdev_dev *evdev, uint16_t type, uint16_t code,
@@ -346,6 +390,60 @@ evdev_release_client(struct evdev_client *client)
 
 	EVDEV_UNLOCK(evdev);
 	return (0);
+}
+
+static void
+evdev_assign_id(struct evdev_dev *dev)
+{
+	device_t parent;
+	devclass_t devclass;
+	const char *classname;
+
+	if (dev->ev_dev == NULL) {
+		dev->ev_id.bustype = BUS_VIRTUAL;
+		return;
+	}
+
+	parent = device_get_parent(dev->ev_dev);
+	if (parent == NULL) {
+		dev->ev_id.bustype = BUS_HOST;
+		return;
+	}
+
+	devclass = device_get_devclass(parent);
+	classname = devclass_get_name(devclass);
+
+	debugf("parent bus classname: %s", classname);
+
+	if (strcmp(classname, "pci") == 0) {
+		dev->ev_id.bustype = BUS_PCI;
+		dev->ev_id.vendor = pci_get_vendor(dev->ev_dev);
+		dev->ev_id.product = pci_get_device(dev->ev_dev);
+		dev->ev_id.version = pci_get_revid(dev->ev_dev);
+		return;
+	}
+
+	if (strcmp(classname, "uhub") == 0) {
+		struct usb_attach_arg *uaa = device_get_ivars(dev->ev_dev);
+		dev->ev_id.bustype = BUS_USB;
+		dev->ev_id.vendor = uaa->info.idVendor;
+		dev->ev_id.product = uaa->info.idProduct;
+		return;
+	}
+
+	dev->ev_id.bustype = BUS_HOST;
+}
+
+static void
+evdev_start_repeat(struct evdev_dev *dev, int32_t key)
+{
+	
+}
+
+static void
+evdev_stop_repeat(struct evdev_dev *dev)
+{
+
 }
 
 static void

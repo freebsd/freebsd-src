@@ -40,7 +40,7 @@
 #include <dev/evdev/input.h>
 #include <dev/evdev/evdev.h>
 
-#define	DEBUG
+//#define	DEBUG
 #ifdef DEBUG
 #define	debugf(fmt, args...)	printf("evdev: " fmt "\n", ##args);
 #else
@@ -91,12 +91,17 @@ struct evdev_cdev_softc
 	LIST_ENTRY(evdev_cdev_softc) ecs_link;
 };
 
-struct evdev_cdev_state
+struct uinput_cdev_state
 {
-	struct mtx		ecs_mtx;
-	struct evdev_client *	ecs_client;
-	struct selinfo		ecs_selp;
-	struct sigio *		ecs_sigio;
+	struct mtx		ucs_mtx;
+	struct evdev_dev *	ucs_dev;
+	struct selinfo		ucs_selp;
+	struct sigio *		ucs_sigio;
+
+	struct input_event *	ucs_buffer;
+	int			ucs_buffer_size;
+	int			ucs_buffer_head;
+	int			ucs_buffer_tail;
 };
 
 static int evdev_cdev_count = 0;
@@ -296,6 +301,7 @@ evdev_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag,
 	struct evdev_dev *evdev = sc->ecs_evdev;
 	struct evdev_cdev_state *state;
 	struct input_keymap_entry *ke;
+	int rep_params[2];
 	int ret, len, num, limit;
 
 	len = IOCPARM_LEN(cmd);
@@ -309,24 +315,42 @@ evdev_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag,
 	debugf("cdev: ioctl called: cmd=0x%08lx, data=%p", cmd, data);
 
 	switch (cmd) {
-	case EVIOCGVERSION:
+	case IOCBASECMD(EVIOCGVERSION):
 		data = (caddr_t)EV_VERSION;
 		break;
 
-	case EVIOCGID:
+	case IOCBASECMD(EVIOCGID):
+		debugf("cdev: EVIOCGID: bus=%d vendor=0x%04x product=0x%04x",
+		    evdev->ev_id.bustype, evdev->ev_id.vendor,
+		    evdev->ev_id.product);
 		memcpy(data, &evdev->ev_id, sizeof(struct input_id));
 		break;
 
-	case EVIOCGREP:
-		return ENOTSUP;
+	case IOCBASECMD(EVIOCGREP):
+		if (evdev->ev_repeat_mode == NO_REPEAT)
+			return ENOTSUP;
 
-	case EVIOCSREP:
-		return ENOTSUP;
+		rep_params[0] = evdev->ev_rep[REP_DELAY];
+		rep_params[1] = evdev->ev_rep[REP_PERIOD];
+		memcpy(data, rep_params, sizeof(rep_params));
+		break;
 
-	case EVIOCGKEYCODE:
-		return ENOTSUP;
+	case IOCBASECMD(EVIOCSREP):
+		if (evdev->ev_repeat_mode == NO_REPEAT)
+			return ENOTSUP;
 
-	case EVIOCGKEYCODE_V2:
+		memcpy(rep_params, data, sizeof(rep_params));
+		evdev->ev_rep[REP_DELAY] = rep_params[0];
+		evdev->ev_rep[REP_PERIOD] = rep_params[1];
+
+		if (evdev->ev_repeat_mode == DRIVER_REPEAT) {
+			evdev_inject_event(evdev, EV_REP, REP_DELAY, rep_params[0]);
+			evdev_inject_event(evdev, EV_REP, REP_PERIOD, rep_params[1]);
+		}
+
+		break;
+
+	case IOCBASECMD(EVIOCGKEYCODE_V2):
 		if (evdev->ev_methods->ev_get_keycode == NULL)
 			return ENOTSUP;
 
@@ -334,10 +358,7 @@ evdev_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag,
 		evdev->ev_methods->ev_get_keycode(evdev, evdev->ev_softc, ke);
 		break;
 
-	case EVIOCSKEYCODE:
-		return ENOTSUP;
-
-	case EVIOCSKEYCODE_V2:
+	case IOCBASECMD(EVIOCSKEYCODE_V2):
 		if (evdev->ev_methods->ev_set_keycode == NULL)
 			return ENOTSUP;
 
@@ -388,14 +409,14 @@ evdev_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag,
 		memcpy(data, evdev->ev_sw_states, limit);
 		break;
 
-	case EVIOCGRAB:
+	case IOCBASECMD(EVIOCGRAB):
 		if (data)
 			evdev_grab_client(state->ecs_client);
 		else
 			evdev_release_client(state->ecs_client);
 		break;
 
-	case EVIOCREVOKE:
+	case IOCBASECMD(EVIOCREVOKE):
 		break;
 	}
 
