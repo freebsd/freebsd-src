@@ -2143,6 +2143,10 @@ cfiscsi_devid(struct ctl_scsiio *ctsio, int alloc_len)
 
 	/*
 	 * desc1 is for the unique LUN name.
+	 *
+	 * XXX: According to SPC-3, LUN must report the same ID through
+	 *      all the ports.  The code below, however, reports the
+	 *      ID only via iSCSI.
 	 */
 	desc1->proto_codeset = (SCSI_PROTO_ISCSI << 4) | SVPD_ID_CODESET_UTF8;
 	desc1->id_type = SVPD_ID_PIV | SVPD_ID_ASSOC_LUN |
