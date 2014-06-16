@@ -58,6 +58,7 @@ __FBSDID("$FreeBSD$");
 #include <xen/xen-os.h>
 #include <xen/hypervisor.h>
 #include <xen/xenstore/xenstorevar.h>
+#include <xen/xen_pv.h>
 
 #include <xen/interface/vcpu.h>
 
@@ -180,6 +181,7 @@ hammer_time_xen(start_info_t *si, uint64_t xenstack)
 
 	/* Set the hooks for early functions that diverge from bare metal */
 	init_ops = xen_init_ops;
+	apic_ops = xen_apic_ops;
 
 	/* Now we can jump into the native init function */
 	return (hammer_time(0, physfree));
