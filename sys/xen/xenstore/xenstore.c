@@ -229,13 +229,11 @@ struct xs_softc {
 	 */
 	struct sx xenwatch_mutex;
 
-#ifdef XENHVM
 	/**
 	 * The HVM guest pseudo-physical frame number.  This is Xen's mapping
 	 * of the true machine frame number into our "physical address space".
 	 */
 	unsigned long gpfn;
-#endif
 
 	/**
 	 * The event channel for communicating with the
@@ -1147,13 +1145,15 @@ xs_attach(device_t dev)
 	/* Initialize the interface to xenstore. */
 	struct proc *p;
 
-#ifdef XENHVM
-	xs.evtchn = hvm_get_parameter(HVM_PARAM_STORE_EVTCHN);
-	xs.gpfn = hvm_get_parameter(HVM_PARAM_STORE_PFN);
-	xen_store = pmap_mapdev(xs.gpfn * PAGE_SIZE, PAGE_SIZE);
-#else
-	xs.evtchn = xen_start_info->store_evtchn;
-#endif
+	if (xen_hvm_domain()) {
+		xs.evtchn = hvm_get_parameter(HVM_PARAM_STORE_EVTCHN);
+		xs.gpfn = hvm_get_parameter(HVM_PARAM_STORE_PFN);
+		xen_store = pmap_mapdev(xs.gpfn * PAGE_SIZE, PAGE_SIZE);
+	} else if (xen_pv_domain()) {
+		xs.evtchn = HYPERVISOR_start_info->store_evtchn;
+	} else {
+		panic("Unknown domain type, cannot initialize xenstore.");
+	}
 
 	TAILQ_INIT(&xs.reply_list);
 	TAILQ_INIT(&xs.watch_events);
