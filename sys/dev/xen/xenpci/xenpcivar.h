@@ -31,13 +31,7 @@
  */
 struct xenpci_softc {
 	int rid_ioport;
-	int rid_memory;
 	int rid_irq;
-	struct resource* res_memory;	/* Resource for mem range. */
 	struct resource* res_irq;	/* Resource for irq range. */
 	void	*intr_cookie;
-
-	vm_paddr_t phys_next;		/* next page from mem range */
 };
-
-extern int xenpci_alloc_space(size_t sz, vm_paddr_t *pa);
