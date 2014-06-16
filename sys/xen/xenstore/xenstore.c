@@ -52,7 +52,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/stdarg.h>
 
 #include <xen/xen-os.h>
-#include <xen/gnttab.h>
 #include <xen/hypervisor.h>
 #include <xen/xen_intr.h>
 
@@ -1127,20 +1126,6 @@ xs_attach(device_t dev)
 	/* Allow us to get device_t from softc and vice-versa. */
 	xs.xs_dev = dev;
 	device_set_softc(dev, &xs);
-
-	/*
-	 * This seems to be a layering violation.  The XenStore is just
-	 * one of many clients of the Grant Table facility.  It happens
-	 * to be the first and a gating consumer to all other devices,
-	 * so this does work.  A better place would be in the PV support
-	 * code for fully PV kernels and the xenpci driver for HVM kernels.
-	 */
-	error = gnttab_init();
-	if (error != 0) {
-		log(LOG_WARNING,
-		    "XENSTORE: Error initializing grant tables: %d\n", error);
-		return (ENXIO);
-	}
 
 	/* Initialize the interface to xenstore. */
 	struct proc *p;
