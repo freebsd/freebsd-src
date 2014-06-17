@@ -17,6 +17,7 @@
 #	-DNO_DOCUPDATE do not update doc in ${MAKE} update
 #	-DWITHOUT_CTF do not run the DTrace CTF conversion tools on built objects
 #	LOCAL_DIRS="list of dirs" to add additional dirs to the SUBDIR list
+#	LOCAL_ITOOLS="list of tools" to add additional tools to the ITOOLS list
 #	LOCAL_LIB_DIRS="list of dirs" to add additional dirs to libraries target
 #	LOCAL_MTREE="list of mtree files" to process to allow local directories
 #	    to be created before files are installed
@@ -756,7 +757,8 @@ _zoneinfo=	zic tzsetup
 ITOOLS=	[ awk cap_mkdb cat chflags chmod chown \
 	date echo egrep find grep id install ${_install-info} \
 	ln lockf make mkdir mtree mv pwd_mkdb \
-	rm sed services_mkdb sh sysctl test true uname wc ${_zoneinfo}
+	rm sed services_mkdb sh sysctl test true uname wc ${_zoneinfo} \
+	${LOCAL_ITOOLS}
 
 #
 # distributeworld
