@@ -254,6 +254,8 @@ zvol_map_block(spa_t *spa, zilog_t *zilog, const blkptr_t *bp,
 	    zb->zb_object != ZVOL_OBJ || zb->zb_level != 0)
 		return (0);
 
+	VERIFY(!BP_IS_EMBEDDED(bp));
+
 	VERIFY3U(ma->ma_blks, ==, zb->zb_blkid);
 	ma->ma_blks++;
 

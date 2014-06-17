@@ -84,6 +84,12 @@ enum zio_checksum {
 	ZIO_CHECKSUM_FUNCTIONS
 };
 
+/*
+ * The number of "legacy" compression functions which can be set on individual
+ * objects.
+ */
+#define	ZIO_CHECKSUM_LEGACY_FUNCTIONS ZIO_CHECKSUM_ZILOG2
+
 #define	ZIO_CHECKSUM_ON_VALUE	ZIO_CHECKSUM_FLETCHER_4
 #define	ZIO_CHECKSUM_DEFAULT	ZIO_CHECKSUM_ON
 
@@ -112,6 +118,12 @@ enum zio_compress {
 	ZIO_COMPRESS_LZ4,
 	ZIO_COMPRESS_FUNCTIONS
 };
+
+/*
+ * The number of "legacy" compression functions which can be set on individual
+ * objects.
+ */
+#define	ZIO_COMPRESS_LEGACY_FUNCTIONS ZIO_COMPRESS_LZ4
 
 /* N.B. when altering this value, also change BOOTFS_COMPRESS_VALID below */
 #define	ZIO_COMPRESS_ON_VALUE	ZIO_COMPRESS_LZJB
