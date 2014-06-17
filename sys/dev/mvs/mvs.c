@@ -402,7 +402,6 @@ mvs_dmafini(device_t dev)
 		bus_dmamem_free(ch->dma.workrp_tag,
 		    ch->dma.workrp, ch->dma.workrp_map);
 		ch->dma.workrp_bus = 0;
-		ch->dma.workrp_map = NULL;
 		ch->dma.workrp = NULL;
 	}
 	if (ch->dma.workrp_tag) {
@@ -414,7 +413,6 @@ mvs_dmafini(device_t dev)
 		bus_dmamem_free(ch->dma.workrq_tag,
 		    ch->dma.workrq, ch->dma.workrq_map);
 		ch->dma.workrq_bus = 0;
-		ch->dma.workrq_map = NULL;
 		ch->dma.workrq = NULL;
 	}
 	if (ch->dma.workrq_tag) {

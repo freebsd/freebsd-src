@@ -1410,7 +1410,6 @@ nfe_free_rx_ring(struct nfe_softc *sc, struct nfe_rx_ring *ring)
 		bus_dmamem_free(ring->rx_desc_tag, desc, ring->rx_desc_map);
 		ring->desc64 = NULL;
 		ring->desc32 = NULL;
-		ring->rx_desc_map = NULL;
 	}
 	if (ring->rx_desc_tag != NULL) {
 		bus_dma_tag_destroy(ring->rx_desc_tag);
@@ -1464,7 +1463,6 @@ nfe_free_jrx_ring(struct nfe_softc *sc, struct nfe_jrx_ring *ring)
 		bus_dmamem_free(ring->jrx_desc_tag, desc, ring->jrx_desc_map);
 		ring->jdesc64 = NULL;
 		ring->jdesc32 = NULL;
-		ring->jrx_desc_map = NULL;
 	}
 
 	if (ring->jrx_desc_tag != NULL) {
@@ -1626,7 +1624,6 @@ nfe_free_tx_ring(struct nfe_softc *sc, struct nfe_tx_ring *ring)
 		bus_dmamem_free(ring->tx_desc_tag, desc, ring->tx_desc_map);
 		ring->desc64 = NULL;
 		ring->desc32 = NULL;
-		ring->tx_desc_map = NULL;
 		bus_dma_tag_destroy(ring->tx_desc_tag);
 		ring->tx_desc_tag = NULL;
 	}
