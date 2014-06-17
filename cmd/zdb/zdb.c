@@ -112,7 +112,7 @@ usage(void)
 {
 	(void) fprintf(stderr,
 	    "Usage: %s [-CumdibcsDvhLXFPA] [-t txg] [-e [-p path...]] "
-	    "[-U config] [-M inflight I/Os] poolname [object...]\n"
+	    "[-U config] [-M inflight I/Os] [-x dumpdir] poolname [object...]\n"
 	    "       %s [-divPA] [-e -p path...] [-U config] dataset "
 	    "[object...]\n"
 	    "       %s -m [-LXFPA] [-t txg] [-e [-p path...]] [-U config] "
@@ -150,7 +150,7 @@ usage(void)
 	(void) fprintf(stderr, "        -R read and display block from a "
 	    "device\n\n");
 	(void) fprintf(stderr, "    Below options are intended for use "
-	    "with other options (except -l):\n");
+	    "with other options:\n");
 	(void) fprintf(stderr, "        -A ignore assertions (-A), enable "
 	    "panic recovery (-AA) or both (-AAA)\n");
 	(void) fprintf(stderr, "        -F attempt automatic rewind within "
@@ -163,11 +163,14 @@ usage(void)
 	    "has altroot/not in a cachefile\n");
 	(void) fprintf(stderr, "        -p <path> -- use one or more with "
 	    "-e to specify path to vdev dir\n");
+	(void) fprintf(stderr, "        -x <dumpdir> -- "
+	    "dump all read blocks into specified directory\n");
 	(void) fprintf(stderr, "        -P print numbers in parseable form\n");
 	(void) fprintf(stderr, "        -t <txg> -- highest txg to use when "
 	    "searching for uberblocks\n");
 	(void) fprintf(stderr, "        -M <number of inflight I/Os> -- "
-	    "specify the maximum number of checksumming I/Os [default is 200]");
+	    "specify the maximum number of "
+	    "checksumming I/Os [default is 200]\n");
 	(void) fprintf(stderr, "Specify an option more than once (e.g. -bb) "
 	    "to make only that option verbose\n");
 	(void) fprintf(stderr, "Default is to dump everything non-verbosely\n");
@@ -3325,7 +3328,8 @@ main(int argc, char **argv)
 
 	dprintf_setup(&argc, argv);
 
-	while ((c = getopt(argc, argv, "bcdhilmM:suCDRSAFLXevp:t:U:P")) != -1) {
+	while ((c = getopt(argc, argv,
+	    "bcdhilmM:suCDRSAFLXx:evp:t:U:P")) != -1) {
 		switch (c) {
 		case 'b':
 		case 'c':
@@ -3377,6 +3381,9 @@ main(int argc, char **argv)
 				searchdirs = tmp;
 			}
 			searchdirs[nsearch++] = optarg;
+			break;
+		case 'x':
+			vn_dumpdir = optarg;
 			break;
 		case 't':
 			max_txg = strtoull(optarg, NULL, 0);
