@@ -1533,10 +1533,8 @@ devfs_setattr(struct vop_setattr_args *ap)
 	}
 
 	if (vap->va_atime.tv_sec != VNOVAL || vap->va_mtime.tv_sec != VNOVAL) {
-		/* See the comment in ufs_vnops::ufs_setattr(). */
-		if ((error = VOP_ACCESS(vp, VADMIN, ap->a_cred, td)) &&
-		    ((vap->va_vaflags & VA_UTIMES_NULL) == 0 ||
-		    (error = VOP_ACCESS(vp, VWRITE, ap->a_cred, td))))
+		error = vn_utimes_perm(vp, vap, ap->a_cred, td);
+		if (error != 0)
 			return (error);
 		if (vap->va_atime.tv_sec != VNOVAL) {
 			if (vp->v_type == VCHR)

@@ -696,6 +696,8 @@ int	vn_extattr_rm(struct vnode *vp, int ioflg, int attrnamespace,
 	    const char *attrname, struct thread *td);
 int	vn_vget_ino(struct vnode *vp, ino_t ino, int lkflags,
 	    struct vnode **rvp);
+int	vn_utimes_perm(struct vnode *vp, struct vattr *vap,
+	    struct ucred *cred, struct thread *td);
 
 int	vn_io_fault_uiomove(char *data, int xfersize, struct uio *uio);
 int	vn_io_fault_pgmove(vm_page_t ma[], vm_offset_t offset, int xfersize,
