@@ -2170,3 +2170,27 @@ drop:
 	foffset_unlock(fp, offset, error != 0 ? FOF_NOUPDATE : 0);
 	return (error);
 }
+
+int
+vn_utimes_perm(struct vnode *vp, struct vattr *vap, struct ucred *cred,
+    struct thread *td)
+{
+	int error;
+
+	error = VOP_ACCESSX(vp, VWRITE_ATTRIBUTES, cred, td);
+
+	/*
+	 * From utimes(2):
+	 * Grant permission if the caller is the owner of the file or
+	 * the super-user.  If the time pointer is null, then write
+	 * permission on the file is also sufficient.
+	 *
+	 * From NFSv4.1, draft 21, 6.2.1.3.1, Discussion of Mask Attributes:
+	 * A user having ACL_WRITE_DATA or ACL_WRITE_ATTRIBUTES
+	 * will be allowed to set the times [..] to the current
+	 * server time.
+	 */
+	if (error != 0 && (vap->va_vaflags & VA_UTIMES_NULL) != 0)
+		error = VOP_ACCESS(vp, VWRITE, cred, td);
+	return (error);
+}

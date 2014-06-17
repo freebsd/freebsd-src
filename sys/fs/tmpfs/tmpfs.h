@@ -425,8 +425,8 @@ int	tmpfs_chmod(struct vnode *, mode_t, struct ucred *, struct thread *);
 int	tmpfs_chown(struct vnode *, uid_t, gid_t, struct ucred *,
 	    struct thread *);
 int	tmpfs_chsize(struct vnode *, u_quad_t, struct ucred *, struct thread *);
-int	tmpfs_chtimes(struct vnode *, struct timespec *, struct timespec *,
-	    struct timespec *, int, struct ucred *, struct thread *);
+int	tmpfs_chtimes(struct vnode *, struct vattr *, struct ucred *cred,
+	    struct thread *);
 void	tmpfs_itimes(struct vnode *, const struct timespec *,
 	    const struct timespec *);
 
