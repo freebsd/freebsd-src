@@ -334,13 +334,6 @@
 	is now available as a loadable module,
 	<literal>xenhvm.ko</literal>.</para>
 
-      <sect3 xml:id="boot">
-	<title>Boot Loader Changes</title>
-
-	<para>&nbsp;</para>
-
-      </sect3>
-
       <sect3 xml:id="proc">
 	<title>Hardware Support</title>
 
@@ -359,13 +352,6 @@
 
 	<para revision="263340">The &man.aacraid.4; driver has been
 	  updated to version 3.2.5.</para>
-
-	<sect4 xml:id="mm">
-	  <title>Multimedia Support</title>
-
-	  <para>&nbsp;</para>
-
-	</sect4>
 
 	<sect4 xml:id="net-if">
 	  <title>Network Interface Support</title>
@@ -432,20 +418,6 @@
 	    updated to version 1.78.78.</para>
 
 	</sect4>
-      </sect3>
-
-      <sect3 xml:id="net-proto">
-	<title>Network Protocols</title>
-
-	<para>&nbsp;</para>
-
-      </sect3>
-
-      <sect3 xml:id="disks">
-	<title>Disks and Storage</title>
-
-	<para>&nbsp;</para>
-
       </sect3>
 
       <sect3 xml:id="fs">
