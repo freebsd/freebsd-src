@@ -1,0 +1,28 @@
+<!-- -*- sgml -*-
+
+     $FreeBSD$
+
+     Sponsors of various works.
+
+     Please keep the entity list sorted alphabetically.
+
+-->
+
+<!ENTITY afrl		"AFRL">
+
+<!ENTITY citrix		"Citrix Systems">
+<!ENTITY citrix.rd	"Citrix Systems R&amp;D">
+
+<!ENTITY darpa		"DARPA">
+<!ENTITY darpa_afrl	"DARPA, AFRL">
+
+<!ENTITY ff		"The&nbsp;&os;&nbsp;Foundation">
+<!ENTITY ff.url		"https://www.FreeBSDFoundation.org/">
+
+<!ENTITY google		"Google, Inc.">
+
+<!ENTITY lsi		"LSI">
+
+<!ENTITY netgate	"Netgate">
+
+<!ENTITY spectralogic	"Spectra Logic">
