@@ -230,9 +230,11 @@ struct apic_ops apic_ops = {
 	.disable_pmc		= native_lapic_disable_pmc,
 	.reenable_pmc		= native_lapic_reenable_pmc,
 	.enable_cmc		= native_lapic_enable_cmc,
+#ifdef SMP
 	.ipi_raw		= native_lapic_ipi_raw,
 	.ipi_vectored		= native_lapic_ipi_vectored,
 	.ipi_wait		= native_lapic_ipi_wait,
+#endif
 	.set_lvt_mask		= native_lapic_set_lvt_mask,
 	.set_lvt_mode		= native_lapic_set_lvt_mode,
 	.set_lvt_polarity	= native_lapic_set_lvt_polarity,
