@@ -273,7 +273,7 @@
       <para revision="260644">Hardware Random Number Generators have
 	been disabled by default.</para>
 
-      <para revision="261483">Support for GPS ports has been added
+      <para revision="261485">Support for GPS ports has been added
 	to the &man.uhso.4; driver.</para>
 
       <para revision="262116">A memory leak of compressed buffers
