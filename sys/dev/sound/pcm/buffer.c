@@ -139,10 +139,9 @@ sndbuf_free(struct snd_dbuf *b)
 
 	if (b->buf) {
 		if (b->flags & SNDBUF_F_MANAGED) {
-			if (b->dmamap)
+			if (b->buf_addr)
 				bus_dmamap_unload(b->dmatag, b->dmamap);
-			if (b->dmatag)
-				bus_dmamem_free(b->dmatag, b->buf, b->dmamap);
+			bus_dmamem_free(b->dmatag, b->buf, b->dmamap);
 		} else
 			free(b->buf, M_DEVBUF);
 	}
