@@ -39,7 +39,6 @@
 # done
 
 # 20140614: send-pr removal
-OLD_FILES+=usr/bin/send-pr
 OLD_FILES+=usr/share/man/man1/send-pr.1.gz
 OLD_FILES+=etc/gnats/freefall
 OLD_DIRS+=etc/gnats
