@@ -130,7 +130,8 @@
       which should be resolved due to several change in the VM
       subsystem.</para>
 
-    <para revision="260385">The &man.geom.4; RAID driver has been
+    <para revision="260385" contrib="sponsor" sponsor="&ix;">The
+      &man.geom.4; RAID driver has been
       updated to support unmapped I/O.</para>
 
     <para revision="260431">A new &man.sysctl.8;,
@@ -138,11 +139,13 @@
       which allows controlling how long the system will wait after
       &man.panic.9; before rebooting.</para>
 
-    <para revision="265388">The &man.mpr.4; device has been added,
+    <para revision="265388" contrib="sponsor" sponsor="&lsi;">The
+      &man.mpr.4; device has been added,
       providing support for LSI Fusion-MPT 3 12Gb SCSI/SATA
       controllers.</para>
 
-    <para revision="265922">The &man.mrsas.4; driver has been added,
+    <para revision="265922" contrib="sponsor" sponsor="&lsi;">The
+      &man.mrsas.4; driver has been added,
       providing support for LSI MegaRAID SAS controllers.  The
       &man.mfi.4; driver will attach to the controller, by default.
       To enable &man.mrsas.4; add
@@ -229,7 +232,8 @@
   <sect2 xml:id="userland">
     <title>Userland Changes</title>
 
-    <para revision="260177">A new flag is added to &man.camcontrol.8;,
+    <para revision="260177" contrib="sponsor"
+      sponsor="&netflix;">A new flag is added to &man.camcontrol.8;,
       <literal>-b</literal>, which outputs the existing buses and
       their parents.</para>
 
