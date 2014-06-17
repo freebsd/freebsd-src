@@ -677,7 +677,10 @@
       <sect3 xml:id="periodic-scripts">
 	<title>&man.periodic.8; Scripts</title>
 
-	<para>&nbsp;</para>
+	<para revision="263662">The
+	  <filename>/etc/periodic/security/800.loginfail</filename>
+	  &man.periodic.8; script has been refined to catch more
+	  authentication failures and reduce false positives.</para>
 
       </sect3>
 
