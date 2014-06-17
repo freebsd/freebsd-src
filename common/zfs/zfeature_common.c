@@ -215,4 +215,9 @@ zpool_feature_init(void)
 	    "com.joyent:filesystem_limits", "filesystem_limits",
 	    "Filesystem and snapshot limits.", B_TRUE, B_FALSE, B_FALSE,
 	    filesystem_limits_deps);
+
+	zfeature_register(SPA_FEATURE_EMBEDDED_DATA,
+	    "com.delphix:embedded_data", "embedded_data",
+	    "Blocks which compress very well use even less space.",
+	    B_FALSE, B_TRUE, B_TRUE, NULL);
 }
