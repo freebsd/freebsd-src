@@ -953,7 +953,11 @@ spa_taskq_dispatch_ent(spa_t *spa, zio_type_t t, zio_taskq_type_t q,
 	if (tqs->stqs_count == 1) {
 		tq = tqs->stqs_taskq[0];
 	} else {
+#ifdef _KERNEL
+		tq = tqs->stqs_taskq[cpu_ticks() % tqs->stqs_count];
+#else
 		tq = tqs->stqs_taskq[gethrtime() % tqs->stqs_count];
+#endif
 	}
 
 	taskq_dispatch_ent(tq, func, arg, flags, ent);
