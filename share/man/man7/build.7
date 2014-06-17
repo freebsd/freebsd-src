@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 27, 2014
+.Dd June 17, 2014
 .Dt BUILD 7
 .Os
 .Sh NAME
@@ -415,6 +415,12 @@ If set, this variable supplies a list of additional directories relative to
 the root of the source tree to build as part of the
 .Cm everything
 target.
+.It Va LOCAL_ITOOLS
+If set, this variable supplies a list of additional tools that are used by the
+.Cm installworld
+and
+.Cm distributeworld
+targets.
 .It Va LOCAL_LIB_DIRS
 If set, this variable supplies a list of additional directories relative to
 the root of the source tree to build as part of the
