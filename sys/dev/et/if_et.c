@@ -120,7 +120,7 @@ static int	et_dma_ring_alloc(struct et_softc *, bus_size_t, bus_size_t,
 		    bus_dma_tag_t *, uint8_t **, bus_dmamap_t *, bus_addr_t *,
 		    const char *);
 static void	et_dma_ring_free(struct et_softc *, bus_dma_tag_t *, uint8_t **,
-		    bus_dmamap_t *);
+		    bus_dmamap_t, bus_addr_t *);
 static void	et_init_tx_ring(struct et_softc *);
 static int	et_init_rx_ring(struct et_softc *);
 static void	et_free_tx_ring(struct et_softc *);
@@ -841,15 +841,16 @@ et_dma_ring_alloc(struct et_softc *sc, bus_size_t alignment, bus_size_t maxsize,
 
 static void
 et_dma_ring_free(struct et_softc *sc, bus_dma_tag_t *tag, uint8_t **ring,
-    bus_dmamap_t *map)
+    bus_dmamap_t map, bus_addr_t *paddr)
 {
 
-	if (*map != NULL)
-		bus_dmamap_unload(*tag, *map);
-	if (*map != NULL && *ring != NULL) {
-		bus_dmamem_free(*tag, *ring, *map);
+	if (*paddr != 0) {
+		bus_dmamap_unload(*tag, map);
+		*paddr = 0;
+	}
+	if (*ring != NULL) {
+		bus_dmamem_free(*tag, *ring, map);
 		*ring = NULL;
-		*map = NULL;
 	}
 	if (*tag) {
 		bus_dma_tag_destroy(*tag);
@@ -1101,27 +1102,27 @@ et_dma_free(struct et_softc *sc)
 	/* Destroy mini RX ring, ring 0. */
 	rx_ring = &sc->sc_rx_ring[0];
 	et_dma_ring_free(sc, &rx_ring->rr_dtag, (void *)&rx_ring->rr_desc,
-	    &rx_ring->rr_dmap);
+	    rx_ring->rr_dmap, &rx_ring->rr_paddr);
 	/* Destroy standard RX ring, ring 1. */
 	rx_ring = &sc->sc_rx_ring[1];
 	et_dma_ring_free(sc, &rx_ring->rr_dtag, (void *)&rx_ring->rr_desc,
-	    &rx_ring->rr_dmap);
+	    rx_ring->rr_dmap, &rx_ring->rr_paddr);
 	/* Destroy RX stat ring. */
 	rxst_ring = &sc->sc_rxstat_ring;
 	et_dma_ring_free(sc, &rxst_ring->rsr_dtag, (void *)&rxst_ring->rsr_stat,
-	    &rxst_ring->rsr_dmap);
+	    rxst_ring->rsr_dmap, &rxst_ring->rsr_paddr);
 	/* Destroy RX status block. */
 	rxsd = &sc->sc_rx_status;
 	et_dma_ring_free(sc, &rxst_ring->rsr_dtag, (void *)&rxst_ring->rsr_stat,
-	    &rxst_ring->rsr_dmap);
+	    rxst_ring->rsr_dmap, &rxst_ring->rsr_paddr);
 	/* Destroy TX ring. */
 	tx_ring = &sc->sc_tx_ring;
 	et_dma_ring_free(sc, &tx_ring->tr_dtag, (void *)&tx_ring->tr_desc,
-	    &tx_ring->tr_dmap);
+	    tx_ring->tr_dmap, &tx_ring->tr_paddr);
 	/* Destroy TX status block. */
 	txsd = &sc->sc_tx_status;
 	et_dma_ring_free(sc, &txsd->txsd_dtag, (void *)&txsd->txsd_status,
-	    &txsd->txsd_dmap);
+	    txsd->txsd_dmap, &txsd->txsd_paddr);
 
 	/* Destroy the parent tag. */
 	if (sc->sc_dtag) {
