@@ -416,7 +416,6 @@
 
 	  <para revision="263582">The &man.bxe.4; driver has been
 	    updated to version 1.78.78.</para>
-
 	</sect4>
       </sect3>
 
@@ -426,7 +425,6 @@
 	<para revision="263410">The &man.zfs.8; filesystem has been
 	  updated to support the <literal>bookmarks</literal>
 	  feature.</para>
-
       </sect3>
     </sect2>
 
@@ -653,7 +651,6 @@
 	  <filename>/etc/periodic/security/800.loginfail</filename>
 	  &man.periodic.8; script has been refined to catch more
 	  authentication failures and reduce false positives.</para>
-
       </sect3>
 
       <sect3 xml:id="rc-scripts">
@@ -666,7 +663,6 @@
 	<para revision="260432">The &man.rc.8; system will now
 	  re-source &man.rc.conf.5; on receipt of
 	  <literal>SIGALRM</literal>.</para>
-
       </sect3>
     </sect2>
 
@@ -690,7 +686,6 @@
 
       <para revision="267285"><application>OpenSSL</application> has
 	been updated to version 0.9.8za.</para>
-
     </sect2>
 
     <sect2 xml:id="releng">
@@ -711,7 +706,6 @@
 	&man.cap.mkdb.1;, the <filename>services.db</filename> will
 	be created with proper endinanness as part of
 	cross-architecture release builds.</para>
-
     </sect2>
   </sect1>
 
