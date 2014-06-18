@@ -2021,6 +2021,7 @@ iap_allocate_pmc(int cpu, int ri, struct pmc *pm,
 
 	switch (core_cputype) {
 	case PMC_CPU_INTEL_COREI7:
+	case PMC_CPU_INTEL_NEHALEM_EX:
 		if (iap_event_corei7_ok_on_counter(ev, ri) == 0)
 			return (EINVAL);
 		break;
@@ -2033,6 +2034,7 @@ iap_allocate_pmc(int cpu, int ri, struct pmc *pm,
 			return (EINVAL);
 		break;
 	case PMC_CPU_INTEL_WESTMERE:
+	case PMC_CPU_INTEL_WESTMERE_EX:
 		if (iap_event_westmere_ok_on_counter(ev, ri) == 0)
 			return (EINVAL);
 		break;
@@ -2186,7 +2188,9 @@ iap_allocate_pmc(int cpu, int ri, struct pmc *pm,
 		    ev == PMC_EV_IAP_EVENT_BBH_01H)
 			return (EINVAL);
 		if ((core_cputype == PMC_CPU_INTEL_COREI7 ||
-		    core_cputype == PMC_CPU_INTEL_WESTMERE) &&
+		    core_cputype == PMC_CPU_INTEL_WESTMERE ||
+		    core_cputype == PMC_CPU_INTEL_NEHALEM_EX ||
+		    core_cputype == PMC_CPU_INTEL_WESTMERE_EX) &&
 		    a->pm_md.pm_iap.pm_iap_rsp & ~IA_OFFCORE_RSP_MASK_I7WM)
 			return (EINVAL);
 		else if ((core_cputype == PMC_CPU_INTEL_SANDYBRIDGE ||
