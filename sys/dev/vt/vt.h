@@ -50,11 +50,6 @@
 #include "opt_syscons.h"
 #include "opt_splash.h"
 
-#ifdef DEV_SC
-#error "Build with both syscons and vt is not supported. Please enable only \
-one 'device sc' or 'device vt'"
-#endif
-
 #ifndef	VT_MAXWINDOWS
 #ifdef	MAXCONS
 #define	VT_MAXWINDOWS	MAXCONS
