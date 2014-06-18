@@ -30,6 +30,7 @@
  */
 
 #include <sys/types.h>
+#include <sys/ioctl.h>
 #include <assert.h>
 #include <stdbool.h>
 #include <stdio.h>
@@ -158,6 +159,60 @@ login_target_error_str(int class, int detail)
 	}
 }
 
+static void
+kernel_modify(const struct connection *conn, const char *target_address)
+{
+	struct iscsi_session_modify ism;
+	int error;
+
+	memset(&ism, 0, sizeof(ism));
+	ism.ism_session_id = conn->conn_session_id;
+	memcpy(&ism.ism_conf, &conn->conn_conf, sizeof(ism.ism_conf));
+	strlcpy(ism.ism_conf.isc_target_addr, target_address,
+	    sizeof(ism.ism_conf.isc_target));
+	error = ioctl(conn->conn_iscsi_fd, ISCSISMODIFY, &ism);
+	if (error != 0) {
+		log_err(1, "failed to redirect to %s: ISCSISMODIFY",
+		    target_address);
+	}
+}
+
+/*
+ * XXX:	The way it works is suboptimal; what should happen is described
+ *	in draft-gilligan-iscsi-fault-tolerance-00.  That, however, would
+ *	be much more complicated: we would need to keep "dependencies"
+ *	for sessions, so that, in case described in draft and using draft
+ *	terminology, we would have three sessions: one for discovery,
+ *	one for initial target portal, and one for redirect portal.  
+ *	This would allow us to "backtrack" on connection failure,
+ *	as described in draft.
+ */
+static void
+login_handle_redirection(struct connection *conn, struct pdu *response)
+{
+	struct iscsi_bhs_login_response *bhslr;
+	struct keys *response_keys;
+	const char *target_address;
+
+	bhslr = (struct iscsi_bhs_login_response *)response->pdu_bhs;
+	assert (bhslr->bhslr_status_class == 1);
+
+	response_keys = keys_new();
+	keys_load(response_keys, response);
+
+	target_address = keys_find(response_keys, "TargetAddress");
+	if (target_address == NULL)
+		log_errx(1, "received redirection without TargetAddress");
+	if (target_address[0] == '\0')
+		log_errx(1, "received redirection with empty TargetAddress");
+	if (strlen(target_address) >=
+	    sizeof(conn->conn_conf.isc_target_addr) - 1)
+		log_errx(1, "received TargetAddress is too long");
+
+	log_debugx("received redirection to \"%s\"", target_address);
+	kernel_modify(conn, target_address);
+}
+
 static struct pdu *
 login_receive(struct connection *conn)
 {
@@ -184,6 +239,11 @@ login_receive(struct connection *conn)
 	if (bhslr->bhslr_version_active != 0x00)
 		log_errx(1, "received Login PDU with unsupported "
 		    "Version-active 0x%x", bhslr->bhslr_version_active);
+	if (bhslr->bhslr_status_class == 1) {
+		login_handle_redirection(conn, response);
+		log_debugx("redirection handled; exiting");
+		exit(0);
+	}
 	if (bhslr->bhslr_status_class != 0) {
 		errorstr = login_target_error_str(bhslr->bhslr_status_class,
 		    bhslr->bhslr_status_detail);
