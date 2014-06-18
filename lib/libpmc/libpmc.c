@@ -190,6 +190,11 @@ static const struct pmc_event_descr corei7_event_table[] =
 	__PMC_EV_ALIAS_COREI7()
 };
 
+static const struct pmc_event_descr nehalem_ex_event_table[] =
+{
+	__PMC_EV_ALIAS_COREI7()
+};
+
 static const struct pmc_event_descr haswell_event_table[] =
 {
 	__PMC_EV_ALIAS_HASWELL()
@@ -216,6 +221,11 @@ static const struct pmc_event_descr sandybridge_xeon_event_table[] =
 };
 
 static const struct pmc_event_descr westmere_event_table[] =
+{
+	__PMC_EV_ALIAS_WESTMERE()
+};
+
+static const struct pmc_event_descr westmere_ex_event_table[] =
 {
 	__PMC_EV_ALIAS_WESTMERE()
 };
@@ -255,12 +265,14 @@ PMC_MDEP_TABLE(atom_silvermont, IAP, PMC_CLASS_SOFT, PMC_CLASS_IAF, PMC_CLASS_TS
 PMC_MDEP_TABLE(core, IAP, PMC_CLASS_SOFT, PMC_CLASS_TSC);
 PMC_MDEP_TABLE(core2, IAP, PMC_CLASS_SOFT, PMC_CLASS_IAF, PMC_CLASS_TSC);
 PMC_MDEP_TABLE(corei7, IAP, PMC_CLASS_SOFT, PMC_CLASS_IAF, PMC_CLASS_TSC, PMC_CLASS_UCF, PMC_CLASS_UCP);
+PMC_MDEP_TABLE(nehalem_ex, IAP, PMC_CLASS_SOFT, PMC_CLASS_IAF, PMC_CLASS_TSC);
 PMC_MDEP_TABLE(haswell, IAP, PMC_CLASS_SOFT, PMC_CLASS_IAF, PMC_CLASS_TSC, PMC_CLASS_UCF, PMC_CLASS_UCP);
 PMC_MDEP_TABLE(ivybridge, IAP, PMC_CLASS_SOFT, PMC_CLASS_IAF, PMC_CLASS_TSC);
 PMC_MDEP_TABLE(ivybridge_xeon, IAP, PMC_CLASS_SOFT, PMC_CLASS_IAF, PMC_CLASS_TSC);
 PMC_MDEP_TABLE(sandybridge, IAP, PMC_CLASS_SOFT, PMC_CLASS_IAF, PMC_CLASS_TSC, PMC_CLASS_UCF, PMC_CLASS_UCP);
 PMC_MDEP_TABLE(sandybridge_xeon, IAP, PMC_CLASS_SOFT, PMC_CLASS_IAF, PMC_CLASS_TSC);
 PMC_MDEP_TABLE(westmere, IAP, PMC_CLASS_SOFT, PMC_CLASS_IAF, PMC_CLASS_TSC, PMC_CLASS_UCF, PMC_CLASS_UCP);
+PMC_MDEP_TABLE(westmere_ex, IAP, PMC_CLASS_SOFT, PMC_CLASS_IAF, PMC_CLASS_TSC);
 PMC_MDEP_TABLE(k7, K7, PMC_CLASS_SOFT, PMC_CLASS_TSC);
 PMC_MDEP_TABLE(k8, K8, PMC_CLASS_SOFT, PMC_CLASS_TSC);
 PMC_MDEP_TABLE(p4, P4, PMC_CLASS_SOFT, PMC_CLASS_TSC);
@@ -298,12 +310,14 @@ PMC_CLASS_TABLE_DESC(atom_silvermont, IAP, atom_silvermont, iap);
 PMC_CLASS_TABLE_DESC(core, IAP, core, iap);
 PMC_CLASS_TABLE_DESC(core2, IAP, core2, iap);
 PMC_CLASS_TABLE_DESC(corei7, IAP, corei7, iap);
+PMC_CLASS_TABLE_DESC(nehalem_ex, IAP, nehalem_ex, iap);
 PMC_CLASS_TABLE_DESC(haswell, IAP, haswell, iap);
 PMC_CLASS_TABLE_DESC(ivybridge, IAP, ivybridge, iap);
 PMC_CLASS_TABLE_DESC(ivybridge_xeon, IAP, ivybridge_xeon, iap);
 PMC_CLASS_TABLE_DESC(sandybridge, IAP, sandybridge, iap);
 PMC_CLASS_TABLE_DESC(sandybridge_xeon, IAP, sandybridge_xeon, iap);
 PMC_CLASS_TABLE_DESC(westmere, IAP, westmere, iap);
+PMC_CLASS_TABLE_DESC(westmere_ex, IAP, westmere_ex, iap);
 PMC_CLASS_TABLE_DESC(ucf, UCF, ucf, ucf);
 PMC_CLASS_TABLE_DESC(corei7uc, UCP, corei7uc, ucp);
 PMC_CLASS_TABLE_DESC(haswelluc, UCP, haswelluc, ucp);
@@ -608,6 +622,8 @@ static struct pmc_event_alias core2_aliases_without_iaf[] = {
 #define	atom_silvermont_aliases_without_iaf	core2_aliases_without_iaf
 #define corei7_aliases			core2_aliases
 #define corei7_aliases_without_iaf	core2_aliases_without_iaf
+#define nehalem_ex_aliases		core2_aliases
+#define nehalem_ex_aliases_without_iaf	core2_aliases_without_iaf
 #define haswell_aliases			core2_aliases
 #define haswell_aliases_without_iaf	core2_aliases_without_iaf
 #define ivybridge_aliases		core2_aliases
@@ -620,6 +636,8 @@ static struct pmc_event_alias core2_aliases_without_iaf[] = {
 #define sandybridge_xeon_aliases_without_iaf	core2_aliases_without_iaf
 #define westmere_aliases		core2_aliases
 #define westmere_aliases_without_iaf	core2_aliases_without_iaf
+#define westmere_ex_aliases		core2_aliases
+#define westmere_ex_aliases_without_iaf	core2_aliases_without_iaf
 
 #define	IAF_KW_OS		"os"
 #define	IAF_KW_USR		"usr"
@@ -863,7 +881,9 @@ iap_allocate_pmc(enum pmc_event pe, char *ctrspec,
 			} else
 				return (-1);
 		} else if (cpu_info.pm_cputype == PMC_CPU_INTEL_COREI7 ||
-		    cpu_info.pm_cputype == PMC_CPU_INTEL_WESTMERE) {
+		    cpu_info.pm_cputype == PMC_CPU_INTEL_WESTMERE ||
+		    cpu_info.pm_cputype == PMC_CPU_INTEL_NEHALEM_EX ||
+		    cpu_info.pm_cputype == PMC_CPU_INTEL_WESTMERE_EX) {
 			if (KWPREFIXMATCH(p, IAP_KW_RSP "=")) {
 				n = pmc_parse_mask(iap_rsp_mask_i7_wm, p, &rsp);
 			} else
@@ -2760,6 +2780,10 @@ pmc_event_names_of_class(enum pmc_class cl, const char ***eventnames,
 			ev = corei7_event_table;
 			count = PMC_EVENT_TABLE_SIZE(corei7);
 			break;
+		case PMC_CPU_INTEL_NEHALEM_EX:
+			ev = nehalem_ex_event_table;
+			count = PMC_EVENT_TABLE_SIZE(nehalem_ex);
+			break;
 		case PMC_CPU_INTEL_HASWELL:
 			ev = haswell_event_table;
 			count = PMC_EVENT_TABLE_SIZE(haswell);
@@ -2783,6 +2807,10 @@ pmc_event_names_of_class(enum pmc_class cl, const char ***eventnames,
 		case PMC_CPU_INTEL_WESTMERE:
 			ev = westmere_event_table;
 			count = PMC_EVENT_TABLE_SIZE(westmere);
+			break;
+		case PMC_CPU_INTEL_WESTMERE_EX:
+			ev = westmere_ex_event_table;
+			count = PMC_EVENT_TABLE_SIZE(westmere_ex);
 			break;
 		}
 		break;
@@ -3079,6 +3107,9 @@ pmc_init(void)
 		pmc_class_table[n++] = &corei7uc_class_table_descr;
 		PMC_MDEP_INIT_INTEL_V2(corei7);
 		break;
+	case PMC_CPU_INTEL_NEHALEM_EX:
+		PMC_MDEP_INIT_INTEL_V2(nehalem_ex);
+		break;
 	case PMC_CPU_INTEL_HASWELL:
 		pmc_class_table[n++] = &ucf_class_table_descr;
 		pmc_class_table[n++] = &haswelluc_class_table_descr;
@@ -3102,6 +3133,9 @@ pmc_init(void)
 		pmc_class_table[n++] = &ucf_class_table_descr;
 		pmc_class_table[n++] = &westmereuc_class_table_descr;
 		PMC_MDEP_INIT_INTEL_V2(westmere);
+		break;
+	case PMC_CPU_INTEL_WESTMERE_EX:
+		PMC_MDEP_INIT_INTEL_V2(westmere_ex);
 		break;
 	case PMC_CPU_INTEL_PIV:
 		PMC_MDEP_INIT(p4);
@@ -3237,6 +3271,11 @@ _pmc_name_of_event(enum pmc_event pe, enum pmc_cputype cpu)
 			ev = corei7_event_table;
 			evfence = corei7_event_table + PMC_EVENT_TABLE_SIZE(corei7);
 			break;
+		case PMC_CPU_INTEL_NEHALEM_EX:
+			ev = nehalem_ex_event_table;
+			evfence = nehalem_ex_event_table +
+			    PMC_EVENT_TABLE_SIZE(nehalem_ex);
+			break;
 		case PMC_CPU_INTEL_HASWELL:
 			ev = haswell_event_table;
 			evfence = haswell_event_table + PMC_EVENT_TABLE_SIZE(haswell);
@@ -3260,6 +3299,11 @@ _pmc_name_of_event(enum pmc_event pe, enum pmc_cputype cpu)
 		case PMC_CPU_INTEL_WESTMERE:
 			ev = westmere_event_table;
 			evfence = westmere_event_table + PMC_EVENT_TABLE_SIZE(westmere);
+			break;
+		case PMC_CPU_INTEL_WESTMERE_EX:
+			ev = westmere_ex_event_table;
+			evfence = westmere_ex_event_table +
+			    PMC_EVENT_TABLE_SIZE(westmere_ex);
 			break;
 		default:	/* Unknown CPU type. */
 			break;
