@@ -1045,7 +1045,7 @@ cfiscsi_session_terminate_tasks(struct cfiscsi_session *cs)
 {
 	struct cfiscsi_data_wait *cdw, *tmpcdw;
 	union ctl_io *io;
-	int error;
+	int error, last;
 
 #ifdef notyet
 	io = ctl_alloc_io(cs->cs_target->ct_softc->fe.ctl_pool_ref);
@@ -1102,12 +1102,31 @@ cfiscsi_session_terminate_tasks(struct cfiscsi_session *cs)
 		CFISCSI_SESSION_DEBUG(cs, "removing csw for initiator task tag "
 		    "0x%x", cdw->cdw_initiator_task_tag);
 #endif
+		/*
+		 * Set nonzero port status; this prevents backends from
+		 * assuming that the data transfer actually succeeded
+		 * and writing uninitialized data to disk.
+		 */
+		cdw->cdw_ctl_io->scsiio.io_hdr.port_status = 42;
 		cdw->cdw_ctl_io->scsiio.be_move_done(cdw->cdw_ctl_io);
 		TAILQ_REMOVE(&cs->cs_waiting_for_data_out, cdw, cdw_next);
 		uma_zfree(cfiscsi_data_wait_zone, cdw);
 	}
 	CFISCSI_SESSION_UNLOCK(cs);
 #endif
+
+	/*
+	 * Wait for CTL to terminate all the tasks.
+	 */
+	for (;;) {
+		refcount_acquire(&cs->cs_outstanding_ctl_pdus);
+		last = refcount_release(&cs->cs_outstanding_ctl_pdus);
+		if (last != 0)
+			break;
+		CFISCSI_SESSION_WARN(cs, "waiting for CTL to terminate tasks, "
+		    "%d remaining", cs->cs_outstanding_ctl_pdus);
+		pause("cfiscsi_terminate", 1);
+	}
 }
 
 static void
@@ -1124,19 +1143,22 @@ cfiscsi_maintenance_thread(void *arg)
 		CFISCSI_SESSION_UNLOCK(cs);
 
 		if (cs->cs_terminating) {
-			cfiscsi_session_terminate_tasks(cs);
-			callout_drain(&cs->cs_callout);
 
+			/*
+			 * We used to wait up to 30 seconds to deliver queued
+			 * PDUs to the initiator.  We also tried hard to deliver
+			 * SCSI Responses for the aborted PDUs.  We don't do
+			 * that anymore.  We might need to revisit that.
+			 */
+			callout_drain(&cs->cs_callout);
 			icl_conn_shutdown(cs->cs_conn);
 			icl_conn_close(cs->cs_conn);
 
 			/*
-			 * XXX: We used to wait up to 30 seconds to deliver queued PDUs
-			 * 	to the initiator.  We also tried hard to deliver SCSI Responses
-			 * 	for the aborted PDUs.  We don't do that anymore.  We might need
-			 * 	to revisit that.
+			 * At this point ICL receive thread is no longer
+			 * running; no new tasks can be queued.
 			 */
-
+			cfiscsi_session_terminate_tasks(cs);
 			cfiscsi_session_delete(cs);
 			kthread_exit();
 			return;
