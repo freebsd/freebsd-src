@@ -159,11 +159,12 @@ login_target_error_str(int class, int detail)
 }
 
 static struct pdu *
-login_receive(struct connection *conn, bool initial)
+login_receive(struct connection *conn)
 {
 	struct pdu *response;
 	struct iscsi_bhs_login_response *bhslr;
 	const char *errorstr;
+	static bool initial = true;
 
 	response = pdu_new(conn);
 	pdu_receive(response);
@@ -200,6 +201,8 @@ login_receive(struct connection *conn, bool initial)
 		    conn->conn_statsn + 1);
 	}
 	conn->conn_statsn = ntohl(bhslr->bhslr_statsn);
+
+	initial = false;
 
 	return (response);
 }
@@ -550,7 +553,7 @@ login_negotiate(struct connection *conn)
 	pdu_delete(request);
 	request = NULL;
 
-	response = login_receive(conn, false);
+	response = login_receive(conn);
 	response_keys = keys_new();
 	keys_load(response_keys, response);
 	for (i = 0; i < KEYS_MAX; i++) {
@@ -742,7 +745,7 @@ login_chap(struct connection *conn)
 	login_send_chap_a(conn);
 
 	log_debugx("waiting for CHAP_A/CHAP_C/CHAP_I");
-	response = login_receive(conn, false);
+	response = login_receive(conn);
 
 	log_debugx("sending CHAP_N/CHAP_R");
 	login_send_chap_r(response);
@@ -753,7 +756,7 @@ login_chap(struct connection *conn)
 	 */
 
 	log_debugx("waiting for CHAP result");
-	response = login_receive(conn, false);
+	response = login_receive(conn);
 	if (conn->conn_conf.isc_mutual_user[0] != '\0')
 		login_verify_mutual(response);
 	pdu_delete(response);
@@ -831,7 +834,7 @@ login(struct connection *conn)
 	pdu_send(request);
 	pdu_delete(request);
 
-	response = login_receive(conn, true);
+	response = login_receive(conn);
 
 	response_keys = keys_new();
 	keys_load(response_keys, response);
