@@ -24,9 +24,9 @@
 #ifndef NOID
 static const char	elsieid[] = "@(#)strftime.3	8.3";
 /*
-** Based on the UCB version with the ID appearing below.
-** This is ANSIish only when "multibyte character == plain character".
-*/
+ * Based on the UCB version with the ID appearing below.
+ * This is ANSIish only when "multibyte character == plain character".
+ */
 #endif /* !defined NOID */
 #endif /* !defined lint */
 
@@ -57,32 +57,32 @@ extern char *	tzname[];
 #define YEAR_2000_NAME	"CHECK_STRFTIME_FORMATS_FOR_TWO_DIGIT_YEARS"
 #endif /* !defined YEAR_2000_NAME */
 
-#define IN_NONE	0
-#define IN_SOME	1
-#define IN_THIS	2
-#define IN_ALL	3
+#define	IN_NONE	0
+#define	IN_SOME	1
+#define	IN_THIS	2
+#define	IN_ALL	3
 
-#define PAD_DEFAULT	0
-#define PAD_LESS	1
-#define PAD_SPACE	2
-#define PAD_ZERO	3
+#define	PAD_DEFAULT	0
+#define	PAD_LESS	1
+#define	PAD_SPACE	2
+#define	PAD_ZERO	3
 
 static const char fmt_padding[][4][5] = {
 	/* DEFAULT,	LESS,	SPACE,	ZERO */
-#define PAD_FMT_MONTHDAY	0
-#define PAD_FMT_HMS		0
-#define PAD_FMT_CENTURY		0
-#define PAD_FMT_SHORTYEAR	0
-#define PAD_FMT_MONTH		0
-#define PAD_FMT_WEEKOFYEAR	0
-#define PAD_FMT_DAYOFMONTH	0
+#define	PAD_FMT_MONTHDAY	0
+#define	PAD_FMT_HMS		0
+#define	PAD_FMT_CENTURY		0
+#define	PAD_FMT_SHORTYEAR	0
+#define	PAD_FMT_MONTH		0
+#define	PAD_FMT_WEEKOFYEAR	0
+#define	PAD_FMT_DAYOFMONTH	0
 	{ "%02d",	"%d",	"%2d",	"%02d" },
-#define PAD_FMT_SDAYOFMONTH	1
-#define PAD_FMT_SHMS		1
+#define	PAD_FMT_SDAYOFMONTH	1
+#define	PAD_FMT_SHMS		1
 	{ "%2d",	"%d",	"%2d",	"%02d" },
 #define	PAD_FMT_DAYOFYEAR	2
 	{ "%03d",	"%d",	"%3d",	"%03d" },
-#define PAD_FMT_YEAR		3
+#define	PAD_FMT_YEAR		3
 	{ "%04d",	"%d",	"%4d",	"%04d" }
 };
 
@@ -114,7 +114,7 @@ strftime_l(char * __restrict s, size_t maxsize, const char * __restrict format,
 	}
 #endif /* !defined NO_RUN_TIME_WARNINGS_ABOUT_YEAR_2000_PROBLEMS_THANK_YOU */
 	if (p == s + maxsize)
-		return 0;
+		return (0);
 	*p = '\0';
 	return p - s;
 }
@@ -176,12 +176,12 @@ label:
 				continue;
 			case 'C':
 				/*
-				** %C used to do a...
-				**	_fmt("%a %b %e %X %Y", t);
-				** ...whereas now POSIX 1003.2 calls for
-				** something completely different.
-				** (ado, 1993-05-24)
-				*/
+				 * %C used to do a...
+				 *	_fmt("%a %b %e %X %Y", t);
+				 * ...whereas now POSIX 1003.2 calls for
+				 * something completely different.
+				 * (ado, 1993-05-24)
+				 */
 				pt = _yconv(t->tm_year, TM_YEAR_BASE, 1, 0,
 					pt, ptlim);
 				continue;
@@ -210,17 +210,17 @@ label:
 				goto label;
 			case 'O':
 				/*
-				** C99 locale modifiers.
-				** The sequences
-				**	%Ec %EC %Ex %EX %Ey %EY
-				**	%Od %oe %OH %OI %Om %OM
-				**	%OS %Ou %OU %OV %Ow %OW %Oy
-				** are supposed to provide alternate
-				** representations.
-				**
-				** FreeBSD extension
-				**      %OB
-				*/
+				 * C99 locale modifiers.
+				 * The sequences
+				 *	%Ec %EC %Ex %EX %Ey %EY
+				 *	%Od %oe %OH %OI %Om %OM
+				 *	%OS %Ou %OU %OV %Ow %OW %Oy
+				 * are supposed to provide alternate
+				 * representations.
+				 *
+				 * FreeBSD extension
+				 *      %OB
+				 */
 				if (Ealternative || Oalternative)
 					break;
 				Oalternative++;
@@ -239,7 +239,8 @@ label:
 			case 'I':
 				pt = _conv((t->tm_hour % 12) ?
 					(t->tm_hour % 12) : 12,
-					fmt_padding[PAD_FMT_HMS][PadIndex], pt, ptlim);
+					fmt_padding[PAD_FMT_HMS][PadIndex],
+					pt, ptlim);
 				continue;
 			case 'j':
 				pt = _conv(t->tm_yday + 1,
@@ -247,15 +248,15 @@ label:
 				continue;
 			case 'k':
 				/*
-				** This used to be...
-				**	_conv(t->tm_hour % 12 ?
-				**		t->tm_hour % 12 : 12, 2, ' ');
-				** ...and has been changed to the below to
-				** match SunOS 4.1.1 and Arnold Robbins'
-				** strftime version 3.0. That is, "%k" and
-				** "%l" have been swapped.
-				** (ado, 1993-05-24)
-				*/
+				 * This used to be...
+				 *	_conv(t->tm_hour % 12 ?
+				 *		t->tm_hour % 12 : 12, 2, ' ');
+				 * ...and has been changed to the below to
+				 * match SunOS 4.1.1 and Arnold Robbins'
+				 * strftime version 3.0. That is, "%k" and
+				 * "%l" have been swapped.
+				 * (ado, 1993-05-24)
+				 */
 				pt = _conv(t->tm_hour, fmt_padding[PAD_FMT_SHMS][PadIndex],
 					pt, ptlim);
 				continue;
@@ -269,17 +270,18 @@ label:
 #endif /* defined KITCHEN_SINK */
 			case 'l':
 				/*
-				** This used to be...
-				**	_conv(t->tm_hour, 2, ' ');
-				** ...and has been changed to the below to
-				** match SunOS 4.1.1 and Arnold Robbin's
-				** strftime version 3.0. That is, "%k" and
-				** "%l" have been swapped.
-				** (ado, 1993-05-24)
-				*/
+				 * This used to be...
+				 *	_conv(t->tm_hour, 2, ' ');
+				 * ...and has been changed to the below to
+				 * match SunOS 4.1.1 and Arnold Robbin's
+				 * strftime version 3.0. That is, "%k" and
+				 * "%l" have been swapped.
+				 * (ado, 1993-05-24)
+				 */
 				pt = _conv((t->tm_hour % 12) ?
 					(t->tm_hour % 12) : 12,
-					fmt_padding[PAD_FMT_SHMS][PadIndex], pt, ptlim);
+					fmt_padding[PAD_FMT_SHMS][PadIndex],
+					pt, ptlim);
 				continue;
 			case 'M':
 				pt = _conv(t->tm_min, fmt_padding[PAD_FMT_HMS][PadIndex],
@@ -287,15 +289,15 @@ label:
 				continue;
 			case 'm':
 				pt = _conv(t->tm_mon + 1,
-					fmt_padding[PAD_FMT_MONTH][PadIndex], pt, ptlim);
+					fmt_padding[PAD_FMT_MONTH][PadIndex],
+					pt, ptlim);
 				continue;
 			case 'n':
 				pt = _add("\n", pt, ptlim);
 				continue;
 			case 'p':
 				pt = _add((t->tm_hour >= (HOURSPERDAY / 2)) ?
-					tptr->pm :
-					tptr->am,
+					tptr->pm : tptr->am,
 					pt, ptlim);
 				continue;
 			case 'R':
@@ -339,11 +341,11 @@ label:
 				continue;
 			case 'u':
 				/*
-				** From Arnold Robbins' strftime version 3.0:
-				** "ISO 8601: Weekday as a decimal number
-				** [1 (Monday) - 7]"
-				** (ado, 1993-05-24)
-				*/
+				 * From Arnold Robbins' strftime version 3.0:
+				 * "ISO 8601: Weekday as a decimal number
+				 * [1 (Monday) - 7]"
+				 * (ado, 1993-05-24)
+				 */
 				pt = _conv((t->tm_wday == 0) ?
 					DAYSPERWEEK : t->tm_wday,
 					"%d", pt, ptlim);
@@ -352,23 +354,23 @@ label:
 			case 'G':	/* ISO 8601 year (four digits) */
 			case 'g':	/* ISO 8601 year (two digits) */
 /*
-** From Arnold Robbins' strftime version 3.0: "the week number of the
-** year (the first Monday as the first day of week 1) as a decimal number
-** (01-53)."
-** (ado, 1993-05-24)
-**
-** From "http://www.ft.uni-erlangen.de/~mskuhn/iso-time.html" by Markus Kuhn:
-** "Week 01 of a year is per definition the first week which has the
-** Thursday in this year, which is equivalent to the week which contains
-** the fourth day of January. In other words, the first week of a new year
-** is the week which has the majority of its days in the new year. Week 01
-** might also contain days from the previous year and the week before week
-** 01 of a year is the last week (52 or 53) of the previous year even if
-** it contains days from the new year. A week starts with Monday (day 1)
-** and ends with Sunday (day 7). For example, the first week of the year
-** 1997 lasts from 1996-12-30 to 1997-01-05..."
-** (ado, 1996-01-02)
-*/
+ * From Arnold Robbins' strftime version 3.0: "the week number of the
+ * year (the first Monday as the first day of week 1) as a decimal number
+ * (01-53)."
+ * (ado, 1993-05-24)
+ *
+ * From "http://www.ft.uni-erlangen.de/~mskuhn/iso-time.html" by Markus Kuhn:
+ * "Week 01 of a year is per definition the first week which has the
+ * Thursday in this year, which is equivalent to the week which contains
+ * the fourth day of January. In other words, the first week of a new year
+ * is the week which has the majority of its days in the new year. Week 01
+ * might also contain days from the previous year and the week before week
+ * 01 of a year is the last week (52 or 53) of the previous year even if
+ * it contains days from the new year. A week starts with Monday (day 1)
+ * and ends with Sunday (day 7). For example, the first week of the year
+ * 1997 lasts from 1996-12-30 to 1997-01-05..."
+ * (ado, 1996-01-02)
+ */
 				{
 					int	year;
 					int	base;
@@ -389,15 +391,15 @@ label:
 							DAYSPERLYEAR :
 							DAYSPERNYEAR;
 						/*
-						** What yday (-3 ... 3) does
-						** the ISO year begin on?
-						*/
+						 * What yday (-3 ... 3) does
+						 * the ISO year begin on?
+						 */
 						bot = ((yday + 11 - wday) %
 							DAYSPERWEEK) - 3;
 						/*
-						** What yday does the NEXT
-						** ISO year begin on?
-						*/
+						 * What yday does the NEXT
+						 * ISO year begin on?
+						 */
 						top = bot -
 							(len % DAYSPERWEEK);
 						if (top < -3)
@@ -438,10 +440,10 @@ label:
 				continue;
 			case 'v':
 				/*
-				** From Arnold Robbins' strftime version 3.0:
-				** "date as dd-bbb-YYYY"
-				** (ado, 1993-05-24)
-				*/
+				 * From Arnold Robbins' strftime version 3.0:
+				 * "date as dd-bbb-YYYY"
+				 * (ado, 1993-05-24)
+				 */
 				pt = _fmt("%e-%b-%Y", t, pt, ptlim, warnp, loc);
 				continue;
 			case 'W':
@@ -487,10 +489,10 @@ label:
 					pt = _add(tzname[t->tm_isdst != 0],
 						pt, ptlim);
 				/*
-				** C99 says that %Z must be replaced by the
-				** empty string if the time zone is not
-				** determinable.
-				*/
+				 * C99 says that %Z must be replaced by the
+				 * empty string if the time zone is not
+				 * determinable.
+				 */
 				continue;
 			case 'z':
 				{
@@ -503,24 +505,24 @@ label:
 				diff = t->TM_GMTOFF;
 #else /* !defined TM_GMTOFF */
 				/*
-				** C99 says that the UTC offset must
-				** be computed by looking only at
-				** tm_isdst. This requirement is
-				** incorrect, since it means the code
-				** must rely on magic (in this case
-				** altzone and timezone), and the
-				** magic might not have the correct
-				** offset. Doing things correctly is
-				** tricky and requires disobeying C99;
-				** see GNU C strftime for details.
-				** For now, punt and conform to the
-				** standard, even though it's incorrect.
-				**
-				** C99 says that %z must be replaced by the
-				** empty string if the time zone is not
-				** determinable, so output nothing if the
-				** appropriate variables are not available.
-				*/
+				 * C99 says that the UTC offset must
+				 * be computed by looking only at
+				 * tm_isdst. This requirement is
+				 * incorrect, since it means the code
+				 * must rely on magic (in this case
+				 * altzone and timezone), and the
+				 * magic might not have the correct
+				 * offset. Doing things correctly is
+				 * tricky and requires disobeying C99;
+				 * see GNU C strftime for details.
+				 * For now, punt and conform to the
+				 * standard, even though it's incorrect.
+				 *
+				 * C99 says that %z must be replaced by the
+				 * empty string if the time zone is not
+				 * determinable, so output nothing if the
+				 * appropriate variables are not available.
+				 */
 				if (t->tm_isdst == 0)
 #ifdef USG_COMPAT
 					diff = -timezone;
@@ -537,7 +539,8 @@ label:
 				if (diff < 0) {
 					sign = "-";
 					diff = -diff;
-				} else	sign = "+";
+				} else
+					sign = "+";
 				pt = _add(sign, pt, ptlim);
 				diff /= SECSPERMIN;
 				diff = (diff / MINSPERHOUR) * 100 +
@@ -567,10 +570,10 @@ label:
 				goto label;
 			case '%':
 			/*
-			** X311J/88-090 (4.12.3.5): if conversion char is
-			** undefined, behavior is undefined. Print out the
-			** character itself as printf(3) also does.
-			*/
+			 * X311J/88-090 (4.12.3.5): if conversion char is
+			 * undefined, behavior is undefined. Print out the
+			 * character itself as printf(3) also does.
+			 */
 			default:
 				break;
 			}
@@ -579,7 +582,7 @@ label:
 			break;
 		*pt++ = *format;
 	}
-	return pt;
+	return (pt);
 }
 
 static char *
@@ -603,16 +606,16 @@ const char * const	ptlim;
 {
 	while (pt < ptlim && (*pt = *str++) != '\0')
 		++pt;
-	return pt;
+	return (pt);
 }
 
 /*
-** POSIX and the C Standard are unclear or inconsistent about
-** what %C and %y do if the year is negative or exceeds 9999.
-** Use the convention that %C concatenated with %y yields the
-** same output as %Y, and that %Y contains at least 4 bytes,
-** with more only if necessary.
-*/
+ * POSIX and the C Standard are unclear or inconsistent about
+ * what %C and %y do if the year is negative or exceeds 9999.
+ * Use the convention that %C concatenated with %y yields the
+ * same output as %Y, and that %Y contains at least 4 bytes,
+ * with more only if necessary.
+ */
 
 static char *
 _yconv(a, b, convert_top, convert_yy, pt, ptlim)
@@ -626,7 +629,7 @@ const char * const	ptlim;
 	register int	lead;
 	register int	trail;
 
-#define DIVISOR	100
+#define	DIVISOR	100
 	trail = a % DIVISOR + b % DIVISOR;
 	lead = a / DIVISOR + b / DIVISOR + trail / DIVISOR;
 	trail %= DIVISOR;
@@ -644,5 +647,5 @@ const char * const	ptlim;
 	}
 	if (convert_yy)
 		pt = _conv(((trail < 0) ? -trail : trail), "%02d", pt, ptlim);
-	return pt;
+	return (pt);
 }
