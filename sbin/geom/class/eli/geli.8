@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 1, 2013
+.Dd June 18, 2014
 .Dt GELI 8
 .Os
 .Sh NAME
@@ -331,7 +331,7 @@ key length.
 .It Nm AES-XTS
 .Em 128 ,
 256
-.It Nm AES-CBC , Nm Camilla-CBC
+.It Nm AES-CBC , Nm Camellia-CBC
 .Em 128 ,
 192,
 256
@@ -353,13 +353,14 @@ because encryption/decryption which requires an initialization vector
 is done per sector; fewer sectors means less computational work.
 .It Fl V Ar version
 Metadata version to use.
-This option is helpful when creating provider that may be used by older
+This option is helpful when creating a provider that may be used by older
 .Nm FreeBSD/GELI
 versions.
 Consult the
 .Sx HISTORY
 section to find which metadata version is supported by which FreeBSD version.
-Note that using older metadata version may limit numer of features available.
+Note that using an older version of metadata may limit the number of
+features available.
 .El
 .It Cm attach
 Attach the given provider.
@@ -619,7 +620,7 @@ devices.
 .El
 .It Cm resume
 Resume previously suspended device.
-The caller must ensure that executing this subcommand doesn't access the
+The caller must ensure that executing this subcommand does not access the
 suspended device, leading to a deadlock.
 For example suspending a device which contains the file system where the
 .Nm
@@ -823,7 +824,7 @@ Enter passphrase:
 .Pp
 Create an encrypted provider, but use two User Keys:
 one for your employee and one for you as the company's security officer
-(so it's not a tragedy if the employee
+(so it is not a tragedy if the employee
 .Qq accidentally
 forgets his passphrase):
 .Bd -literal -offset indent
