@@ -585,7 +585,7 @@ main(int argc, char **argv)
 {
 	int Aflag = 0, Mflag = 0, Rflag = 0, Lflag = 0, aflag = 0, vflag = 0;
 	const char *conf_path = DEFAULT_CONFIG_PATH;
-	char *nickname = NULL, *discovery_host = NULL, *host = NULL,
+	char *nickname = NULL, *discovery_host = NULL, *portal = NULL,
 	     *target = NULL, *user = NULL, *secret = NULL;
 	long long session_id = -1;
 	char *end;
@@ -631,7 +631,7 @@ main(int argc, char **argv)
 			nickname = optarg;
 			break;
 		case 'p':
-			host = optarg;
+			portal = optarg;
 			break;
 		case 't':
 			target = optarg;
@@ -666,7 +666,7 @@ main(int argc, char **argv)
 	 */
 	if (Aflag != 0) {
 		if (aflag != 0) {
-			if (host != NULL)
+			if (portal != NULL)
 				errx(1, "-a and -p and mutually exclusive");
 			if (target != NULL)
 				errx(1, "-a and -t and mutually exclusive");
@@ -679,7 +679,7 @@ main(int argc, char **argv)
 			if (discovery_host != NULL)
 				errx(1, "-a and -d and mutually exclusive");
 		} else if (nickname != NULL) {
-			if (host != NULL)
+			if (portal != NULL)
 				errx(1, "-n and -p and mutually exclusive");
 			if (target != NULL)
 				errx(1, "-n and -t and mutually exclusive");
@@ -690,17 +690,17 @@ main(int argc, char **argv)
 			if (discovery_host != NULL)
 				errx(1, "-n and -d and mutually exclusive");
 		} else if (discovery_host != NULL) {
-			if (host != NULL)
+			if (portal != NULL)
 				errx(1, "-d and -p and mutually exclusive");
 			if (target != NULL)
 				errx(1, "-d and -t and mutually exclusive");
 		} else {
-			if (target == NULL && host == NULL)
+			if (target == NULL && portal == NULL)
 				errx(1, "must specify -a, -n or -t/-p");
 
-			if (target != NULL && host == NULL)
+			if (target != NULL && portal == NULL)
 				errx(1, "-t must always be used with -p");
-			if (host != NULL && target == NULL)
+			if (portal != NULL && target == NULL)
 				errx(1, "-p must always be used with -t");
 		}
 
@@ -723,7 +723,7 @@ main(int argc, char **argv)
 		if (aflag != 0)
 			errx(1, "-M and -a are mutually exclusive");
 		if (nickname != NULL) {
-			if (host != NULL)
+			if (portal != NULL)
 				errx(1, "-n and -p and mutually exclusive");
 			if (target != NULL)
 				errx(1, "-n and -t and mutually exclusive");
@@ -745,22 +745,22 @@ main(int argc, char **argv)
 			errx(1, "-R and -d are mutually exclusive");
 
 		if (aflag != 0) {
-			if (host != NULL)
+			if (portal != NULL)
 				errx(1, "-a and -p and mutually exclusive");
 			if (target != NULL)
 				errx(1, "-a and -t and mutually exclusive");
 			if (nickname != NULL)
 				errx(1, "-a and -n and mutually exclusive");
 		} else if (nickname != NULL) {
-			if (host != NULL)
+			if (portal != NULL)
 				errx(1, "-n and -p and mutually exclusive");
 			if (target != NULL)
 				errx(1, "-n and -t and mutually exclusive");
-		} else if (host != NULL) {
+		} else if (portal != NULL) {
 			if (target != NULL)
 				errx(1, "-p and -t and mutually exclusive");
 		} else if (target != NULL) {
-			if (host != NULL)
+			if (portal != NULL)
 				errx(1, "-t and -p and mutually exclusive");
 		} else
 			errx(1, "must specify either -a, -n, -t, or -p");
@@ -773,7 +773,7 @@ main(int argc, char **argv)
 	} else {
 		assert(Lflag != 0);
 
-		if (host != NULL)
+		if (portal != NULL)
 			errx(1, "-L and -p and mutually exclusive");
 		if (target != NULL)
 			errx(1, "-L and -t and mutually exclusive");
@@ -823,7 +823,7 @@ main(int argc, char **argv)
 		else
 			failed += kernel_list(iscsi_fd, targ, vflag);
 	} else if (Mflag != 0) {
-		kernel_modify_some(iscsi_fd, session_id, target, host,
+		kernel_modify_some(iscsi_fd, session_id, target, portal,
 		    user, secret);
 	} else {
 		if (Aflag != 0 && target != NULL) {
@@ -841,7 +841,7 @@ main(int argc, char **argv)
 			targ->t_address = discovery_host;
 		} else {
 			targ->t_session_type = SESSION_TYPE_NORMAL;
-			targ->t_address = host;
+			targ->t_address = portal;
 		}
 		targ->t_user = user;
 		targ->t_secret = secret;
