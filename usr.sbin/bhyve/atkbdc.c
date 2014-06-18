@@ -39,7 +39,7 @@ __FBSDID("$FreeBSD$");
 #define	KBD_DATA_PORT		0x60
 
 #define	KBD_STS_CTL_PORT	0x64
-#define	 KDB_SYS_FLAG		0x4
+#define	 KBD_SYS_FLAG		0x4
 
 #define	KBDC_RESET		0xfe
 
@@ -66,7 +66,7 @@ atkbdc_sts_ctl_handler(struct vmctx *ctx, int vcpu, int in, int port,
 
 	retval = INOUT_OK;
 	if (in) {
-		*eax = KDB_SYS_FLAG;	/* system passed POST */
+		*eax = KBD_SYS_FLAG;	/* system passed POST */
 	} else {
 		switch (*eax) {
 		case KBDC_RESET:	/* Pulse "reset" line. */
