@@ -279,7 +279,6 @@ dev/viawd/viawd.c		optional viawd
 dev/vmware/vmxnet3/if_vmx.c	optional vmx
 dev/acpica/acpi_if.m		standard
 dev/acpi_support/acpi_wmi_if.m	standard
-dev/vt/hw/xboxfb/xboxfb.c	optional vt_xboxfb
 dev/wbwd/wbwd.c			optional wbwd
 dev/wpi/if_wpi.c		optional wpi
 dev/isci/isci.c							optional isci
