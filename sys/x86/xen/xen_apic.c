@@ -272,7 +272,7 @@ xen_pv_lapic_ipi_vectored(u_int vector, int dest)
 	int ipi_idx, to_cpu, self;
 
 	ipi_idx = IPI_TO_IDX(vector);
-	if (ipi_idx > nitems(xen_ipis))
+	if (ipi_idx >= nitems(xen_ipis))
 		panic("IPI out of range");
 
 	switch(dest) {
