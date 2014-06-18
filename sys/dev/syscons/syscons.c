@@ -1589,6 +1589,11 @@ sc_cnprobe(struct consdev *cp)
     int unit;
     int flags;
 
+    if (getenv("hw.syscons.disable")) {
+	cp->cn_pri = CN_DEAD;
+	return;
+    }
+
     cp->cn_pri = sc_get_cons_priority(&unit, &flags);
 
     /* a video card is always required */
