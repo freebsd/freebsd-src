@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 24, 2014
+.Dd June 18, 2014
 .Dt ISCSICTL 8
 .Os
 .Sh NAME
@@ -46,6 +46,17 @@
 .Nm
 .Fl A
 .Fl n Ar nickname Op Fl c Ar path
+.Nm
+.Fl M
+.Fl i Ar session-id
+.Op Fl p Ar portal
+.Op Fl t Ar target
+.Op Fl u Ar user
+.Op Fl s Ar secret
+.Nm
+.Fl M
+.Fl i Ar session-id
+.Op Fl n Ar nickname Op Fl c Ar path
 .Nm
 .Fl R
 .Op Fl p Ar portal
@@ -68,6 +79,8 @@ The following options are available:
 .Bl -tag -width ".Fl A"
 .It Fl A
 Add session.
+.It Fl M
+Modify session.
 .It Fl R
 Remove session.
 .It Fl L
@@ -84,6 +97,10 @@ Target host name or address used for SendTargets discovery.
 When used, it will add a temporary discovery session.
 After discovery is done, sessions will be added for each discovered target,
 and the temporary discovery sesion will be removed.
+.It Fl i
+Session ID, as displayed by
+.Nm
+.Fl v .
 .It Fl n
 The "nickname" of session defined in the configuration file.
 .It Fl p
