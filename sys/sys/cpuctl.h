@@ -35,7 +35,8 @@ typedef struct {
 } cpuctl_msr_args_t;
 
 typedef struct {
-	int		level;	/* CPUID level */
+	int		level;		/* CPUID level */
+	int		level_type;	/* CPUID level type */
 	uint32_t	data[4];
 } cpuctl_cpuid_args_t;
 
@@ -50,5 +51,6 @@ typedef struct {
 #define	CPUCTL_UPDATE	_IOWR('c', 4, cpuctl_update_args_t)
 #define	CPUCTL_MSRSBIT	_IOWR('c', 5, cpuctl_msr_args_t)
 #define	CPUCTL_MSRCBIT	_IOWR('c', 6, cpuctl_msr_args_t)
+#define	CPUCTL_CPUID_COUNT _IOWR('c', 7, cpuctl_cpuid_args_t)
 
 #endif /* _CPUCTL_H_ */
