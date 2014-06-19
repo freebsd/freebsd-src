@@ -1589,7 +1589,7 @@ is_ifdisabled(char *name)
 	struct in6_ndireq nd;
 	int fd;
 
-	if ((fd = _socket(AF_INET6, SOCK_DGRAM, 0)) < 0)
+	if ((fd = _socket(AF_INET6, SOCK_DGRAM | SOCK_CLOEXEC, 0)) < 0)
 		return -1;
 	memset(&nd, 0, sizeof(nd));
 	strlcpy(nd.ifname, name, sizeof(nd.ifname));
