@@ -942,8 +942,9 @@ ctl_be_block_cw_done_ws(struct ctl_be_block_io *beio)
 
 	io = beio->io;
 	ctl_free_beio(beio);
-	if (((io->io_hdr.status & CTL_STATUS_MASK) != CTL_STATUS_NONE)
-	  && ((io->io_hdr.status & CTL_STATUS_MASK) != CTL_SUCCESS)) {
+	if ((io->io_hdr.flags & CTL_FLAG_ABORT) ||
+	    ((io->io_hdr.status & CTL_STATUS_MASK) != CTL_STATUS_NONE &&
+	     (io->io_hdr.status & CTL_STATUS_MASK) != CTL_SUCCESS)) {
 		ctl_config_write_done(io);
 		return;
 	}
@@ -1184,8 +1185,9 @@ ctl_be_block_next(struct ctl_be_block_io *beio)
 	io = beio->io;
 	be_lun = beio->lun;
 	ctl_free_beio(beio);
-	if (((io->io_hdr.status & CTL_STATUS_MASK) != CTL_STATUS_NONE)
-	  && ((io->io_hdr.status & CTL_STATUS_MASK) != CTL_SUCCESS)) {
+	if ((io->io_hdr.flags & CTL_FLAG_ABORT) ||
+	    ((io->io_hdr.status & CTL_STATUS_MASK) != CTL_STATUS_NONE &&
+	     (io->io_hdr.status & CTL_STATUS_MASK) != CTL_SUCCESS)) {
 		ctl_data_submit_done(io);
 		return;
 	}
