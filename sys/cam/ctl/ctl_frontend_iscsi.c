@@ -2054,12 +2054,13 @@ cfiscsi_devid(struct ctl_scsiio *ctsio, int alloc_len)
 	struct cfiscsi_session *cs;
 	struct scsi_vpd_device_id *devid_ptr;
 	struct scsi_vpd_id_descriptor *desc, *desc1, *desc2, *desc3, *desc4;
+	struct scsi_vpd_id_descriptor *desc5;
 	struct scsi_vpd_id_t10 *t10id;
 	struct ctl_lun *lun;
 	const struct icl_pdu *request;
 	int i, ret;
 	char *val;
-	size_t devid_len, wwpn_len, lun_name_len;
+	size_t devid_len, wwnn_len, wwpn_len, lun_name_len;
 
 	lun = (struct ctl_lun *)ctsio->io_hdr.ctl_private[CTL_PRIV_LUN].ptr;
 	request = ctsio->io_hdr.ctl_private[CTL_PRIV_FRONTEND].ptr;
@@ -2070,6 +2071,11 @@ cfiscsi_devid(struct ctl_scsiio *ctsio, int alloc_len)
 	wwpn_len += 1; /* '\0' */
 	if ((wwpn_len % 4) != 0)
 		wwpn_len += (4 - (wwpn_len % 4));
+
+	wwnn_len = strlen(cs->cs_target->ct_name);
+	wwnn_len += 1; /* '\0' */
+	if ((wwnn_len % 4) != 0)
+		wwnn_len += (4 - (wwnn_len % 4));
 
 	if (lun == NULL) {
 		lun_name_len = 0;
@@ -2085,6 +2091,7 @@ cfiscsi_devid(struct ctl_scsiio *ctsio, int alloc_len)
 		sizeof(struct scsi_vpd_id_descriptor) +
 		sizeof(struct scsi_vpd_id_t10) + CTL_DEVID_LEN +
 		sizeof(struct scsi_vpd_id_descriptor) + lun_name_len +
+		sizeof(struct scsi_vpd_id_descriptor) + wwnn_len +
 		sizeof(struct scsi_vpd_id_descriptor) + wwpn_len +
 		sizeof(struct scsi_vpd_id_descriptor) +
 		sizeof(struct scsi_vpd_id_rel_trgt_port_id) +
@@ -2115,8 +2122,10 @@ cfiscsi_devid(struct ctl_scsiio *ctsio, int alloc_len)
 	desc2 = (struct scsi_vpd_id_descriptor *)(&desc1->identifier[0] +
 	    lun_name_len);
 	desc3 = (struct scsi_vpd_id_descriptor *)(&desc2->identifier[0] +
-	    wwpn_len);
+	    wwnn_len);
 	desc4 = (struct scsi_vpd_id_descriptor *)(&desc3->identifier[0] +
+	    wwpn_len);
+	desc5 = (struct scsi_vpd_id_descriptor *)(&desc4->identifier[0] +
 	    sizeof(struct scsi_vpd_id_rel_trgt_port_id));
 
 	if (lun != NULL)
@@ -2190,32 +2199,41 @@ cfiscsi_devid(struct ctl_scsiio *ctsio, int alloc_len)
 	}
 
 	/*
-	 * desc2 is for the WWPN which is a port asscociation.
+	 * desc2 is for the Target Name.
 	 */
-       	desc2->proto_codeset = (SCSI_PROTO_ISCSI << 4) | SVPD_ID_CODESET_UTF8;
-	desc2->id_type = SVPD_ID_PIV | SVPD_ID_ASSOC_PORT |
+	desc2->proto_codeset = (SCSI_PROTO_ISCSI << 4) | SVPD_ID_CODESET_UTF8;
+	desc2->id_type = SVPD_ID_PIV | SVPD_ID_ASSOC_TARGET |
 	    SVPD_ID_TYPE_SCSI_NAME;
-	desc2->length = wwpn_len;
-	snprintf(desc2->identifier, wwpn_len, "%s,t,0x%4.4x",
+	desc2->length = wwnn_len;
+	snprintf(desc2->identifier, wwnn_len, "%s", cs->cs_target->ct_name);
+
+	/*
+	 * desc3 is for the WWPN which is a port asscociation.
+	 */
+	desc3->proto_codeset = (SCSI_PROTO_ISCSI << 4) | SVPD_ID_CODESET_UTF8;
+	desc3->id_type = SVPD_ID_PIV | SVPD_ID_ASSOC_PORT |
+	    SVPD_ID_TYPE_SCSI_NAME;
+	desc3->length = wwpn_len;
+	snprintf(desc3->identifier, wwpn_len, "%s,t,0x%4.4x",
 	    cs->cs_target->ct_name, cs->cs_portal_group_tag);
 
 	/*
 	 * desc3 is for the Relative Target Port(type 4h) identifier
 	 */
-       	desc3->proto_codeset = (SCSI_PROTO_ISCSI << 4) | SVPD_ID_CODESET_BINARY;
-	desc3->id_type = SVPD_ID_PIV | SVPD_ID_ASSOC_PORT |
+	desc4->proto_codeset = (SCSI_PROTO_ISCSI << 4) | SVPD_ID_CODESET_BINARY;
+	desc4->id_type = SVPD_ID_PIV | SVPD_ID_ASSOC_PORT |
 	    SVPD_ID_TYPE_RELTARG;
-	desc3->length = 4;
-	desc3->identifier[3] = 1;
+	desc4->length = 4;
+	desc4->identifier[3] = 1;
 
 	/*
 	 * desc4 is for the Target Port Group(type 5h) identifier
 	 */
-       	desc4->proto_codeset = (SCSI_PROTO_ISCSI << 4) | SVPD_ID_CODESET_BINARY;
-	desc4->id_type = SVPD_ID_PIV | SVPD_ID_ASSOC_PORT |
+	desc5->proto_codeset = (SCSI_PROTO_ISCSI << 4) | SVPD_ID_CODESET_BINARY;
+	desc5->id_type = SVPD_ID_PIV | SVPD_ID_ASSOC_PORT |
 	    SVPD_ID_TYPE_TPORTGRP;
-	desc4->length = 4;
-	desc4->identifier[3] = 1;
+	desc5->length = 4;
+	desc5->identifier[3] = 1;
 
 	ctsio->scsi_status = SCSI_STATUS_OK;
 
