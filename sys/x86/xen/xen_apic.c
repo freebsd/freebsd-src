@@ -84,8 +84,6 @@ extern void pmap_lazyfix_action(void);
 extern int pmap_pcid_enabled;
 #endif
 
-extern int xen_vector_callback_enabled;
-
 /*---------------------------------- Macros ----------------------------------*/
 #define	IPI_TO_IDX(ipi) ((ipi) - APIC_IPI_INTS)
 
