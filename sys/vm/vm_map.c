@@ -1159,6 +1159,10 @@ vm_map_insert(vm_map_t map, vm_object_t object, vm_ooffset_t offset,
 		protoeflags |= MAP_ENTRY_NOSYNC;
 	if (cow & MAP_DISABLE_COREDUMP)
 		protoeflags |= MAP_ENTRY_NOCOREDUMP;
+	if (cow & MAP_STACK_GROWS_DOWN)
+		protoeflags |= MAP_ENTRY_GROWS_DOWN;
+	if (cow & MAP_STACK_GROWS_UP)
+		protoeflags |= MAP_ENTRY_GROWS_UP;
 	if (cow & MAP_VN_WRITECOUNT)
 		protoeflags |= MAP_ENTRY_VN_WRITECNT;
 	if (cow & MAP_INHERIT_SHARE)
@@ -3445,17 +3449,17 @@ vm_map_stack_locked(vm_map_t map, vm_offset_t addrbos, vm_size_t max_ssize,
 
 	/* Now set the avail_ssize amount. */
 	if (rv == KERN_SUCCESS) {
-		if (prev_entry != &map->header)
-			vm_map_clip_end(map, prev_entry, bot);
 		new_entry = prev_entry->next;
 		if (new_entry->end != top || new_entry->start != bot)
 			panic("Bad entry start/end for new stack entry");
 
 		new_entry->avail_ssize = max_ssize - init_ssize;
-		if (orient & MAP_STACK_GROWS_DOWN)
-			new_entry->eflags |= MAP_ENTRY_GROWS_DOWN;
-		if (orient & MAP_STACK_GROWS_UP)
-			new_entry->eflags |= MAP_ENTRY_GROWS_UP;
+		KASSERT((orient & MAP_STACK_GROWS_DOWN) == 0 ||
+		    (new_entry->eflags & MAP_ENTRY_GROWS_DOWN) != 0,
+		    ("new entry lacks MAP_ENTRY_GROWS_DOWN"));
+		KASSERT((orient & MAP_STACK_GROWS_UP) == 0 ||
+		    (new_entry->eflags & MAP_ENTRY_GROWS_UP) != 0,
+		    ("new entry lacks MAP_ENTRY_GROWS_UP"));
 	}
 
 	return (rv);
@@ -3675,21 +3679,21 @@ Retry:
 		}
 
 		rv = vm_map_insert(map, NULL, 0, addr, stack_entry->start,
-		    next_entry->protection, next_entry->max_protection, 0);
+		    next_entry->protection, next_entry->max_protection,
+		    MAP_STACK_GROWS_DOWN);
 
 		/* Adjust the available stack space by the amount we grew. */
 		if (rv == KERN_SUCCESS) {
-			if (prev_entry != &map->header)
-				vm_map_clip_end(map, prev_entry, addr);
 			new_entry = prev_entry->next;
 			KASSERT(new_entry == stack_entry->prev, ("foo"));
 			KASSERT(new_entry->end == stack_entry->start, ("foo"));
 			KASSERT(new_entry->start == addr, ("foo"));
+			KASSERT((new_entry->eflags & MAP_ENTRY_GROWS_DOWN) !=
+			    0, ("new entry lacks MAP_ENTRY_GROWS_DOWN"));
 			grow_amount = new_entry->end - new_entry->start;
 			new_entry->avail_ssize = stack_entry->avail_ssize -
 			    grow_amount;
 			stack_entry->eflags &= ~MAP_ENTRY_GROWS_DOWN;
-			new_entry->eflags |= MAP_ENTRY_GROWS_DOWN;
 		}
 	} else {
 		/*
