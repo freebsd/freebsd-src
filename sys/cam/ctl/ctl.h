@@ -96,7 +96,8 @@ union ctl_modepage_info {
 /*
  * Device ID length, for VPD page 0x83.
  */
-#define	CTL_DEVID_LEN	16
+#define	CTL_DEVID_LEN	64
+#define	CTL_DEVID_MIN_LEN	16
 /*
  * WWPN length, for VPD page 0x83.
  */
