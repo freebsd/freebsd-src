@@ -401,7 +401,6 @@ struct ctl_lun {
 };
 
 typedef enum {
-	CTL_FLAG_TASK_PENDING	= 0x01,
 	CTL_FLAG_REAL_SYNC	= 0x02,
 	CTL_FLAG_MASTER_SHELF	= 0x04
 } ctl_gen_flags;
@@ -438,7 +437,6 @@ struct ctl_softc {
 	uint64_t aps_locked_lun;
 	STAILQ_HEAD(, ctl_lun) lun_list;
 	STAILQ_HEAD(, ctl_be_lun) pending_lun_queue;
-	STAILQ_HEAD(, ctl_io_hdr) task_queue;
 	STAILQ_HEAD(, ctl_io_hdr) incoming_queue;
 	STAILQ_HEAD(, ctl_io_hdr) rtr_queue;
 	STAILQ_HEAD(, ctl_io_hdr) done_queue;
