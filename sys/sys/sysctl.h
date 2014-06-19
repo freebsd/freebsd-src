@@ -278,19 +278,16 @@ SYSCTL_ALLOWED_TYPES(UINT64, uint64_t *a; unsigned long long *b; );
 /* This constructs a "raw" MIB oid. */
 #define	SYSCTL_OID(parent, nbr, name, kind, a1, a2, handler, fmt, descr)\
 	static struct sysctl_oid sysctl__##parent##_##name = {		\
-		&sysctl_##parent##_children,				\
-		{ NULL },						\
-		nbr,							\
-		kind,							\
-		a1,							\
-		a2,							\
-		#name,							\
-		handler,						\
-		fmt,							\
-		0,							\
-		0,							\
-		__DESCR(descr)						\
-		};							\
+		.oid_parent = &sysctl_##parent##_children,		\
+		.oid_number = (nbr),					\
+		.oid_kind = (kind),					\
+		.oid_arg1 = (a1),					\
+		.oid_arg2 = (a2),					\
+		.oid_name = #name,					\
+		.oid_handler = (handler),				\
+		.oid_fmt = (fmt),					\
+		.oid_descr = __DESCR(descr)				\
+	};								\
 	DATA_SET(sysctl_set, sysctl__##parent##_##name)
 
 #define	SYSCTL_ADD_OID(ctx, parent, nbr, name, kind, a1, a2, handler, fmt, descr) \
