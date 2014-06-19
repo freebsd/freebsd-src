@@ -193,7 +193,8 @@
       <para revision="256033">The &man.arcmsr.4; driver has been
 	updated to version 1.20.00.28.</para>
 
-      <para revision="256437">The &man.isci.4; driver is now loadable
+      <para revision="256437" contrib="sponsor"
+	  sponsor="&ff;">The &man.isci.4; driver is now loadable
 	via &man.kldload.8;.</para>
 
       <para revision="256759">System-level &man.sysctl.8; values are
@@ -206,16 +207,17 @@
 	<literal>zfs_root()</literal> after a failed rollback has
 	been fixed.</para>
 
-      <para revision="257125">A new &man.sysctl.8;,
+      <para revision="257125" contrib="sponsor"
+	  sponsor="&ff;">A new &man.sysctl.8;,
 	<literal>debug.devfs_iosize_max_clamp</literal> has been added
 	which enables and disables <literal>SSIZE_MAX</literal>-sized
 	I/O requests on &man.devfs.5; files.</para>
 
-      <para revision="257126">A new &man.sysctl.8;,
-	<literal>kern.disallow_high_osrel</literal>, has been added
-	which disables executing the images compiled on a userland
-	with a higher major version number than the major version
-	number of the running kernel.</para>
+      <para revision="257126" contrib="sponsor" sponsor="&ff;">A new
+	&man.sysctl.8;, <literal>kern.disallow_high_osrel</literal>,
+	has been added which disables executing the images compiled on
+	a userland with a higher major version number than the major
+	version number of the running kernel.</para>
 
       <para revision="257253">A kernel panic triggered by unmounting
 	a busy &man.zfs.8; filesystem has been fixed.</para>
@@ -254,11 +256,13 @@
 	which will list the <envar>MACHINE_ARCH</envar> values
 	whose binaries can be run on the system.</para>
 
-      <para revision="259519">Several problems that could trigger
+      <para revision="259519" contrib="sponsor"
+	  sponsor="&spectralogic;">Several problems that could trigger
 	kernel panic on &man.kldload.8; and &man.kldunload.8; have
 	been fixed.</para>
 
-      <para revision="260082">A kernel panic triggered by some
+      <para revision="260082" contrib="sponsor"
+	  sponsor="&ff;">A kernel panic triggered by some
 	multi-threaded applications has been fixed.</para>
 
       <para revision="260134">The &man.runfw.4; firmware has been
@@ -302,7 +306,8 @@
 	a USB ethernet device on VIMAGE-enabled systems has been
 	fixed.</para>
 
-      <para revision="262988">TTM, a memory manager used by video
+      <para revision="262988" contrib="sponsor" sponsor="&ff;">TTM,
+	a memory manager used by video
 	drivers, has been merged.</para>
 
       <para revision="263103">Support for
@@ -321,12 +326,14 @@
       <para revision="263408">A memory leak has been fixed in
 	<literal>libzfs</literal>.</para>
 
-      <para revision="263817,263818">The <literal>vt</literal> driver
+      <para revision="263817,263818" contrib="sponsor"
+	  sponsor="&ff;">The <literal>vt</literal> driver
 	has been merged from <literal>head/</literal>.</para>
 
-      <para revision="265729">The &man.mpr.4; device has been added,
-	providing support for LSI Fusion-MPT 3 12Gb SCSI/SATA
-	controllers.</para>
+      <para revision="265729" contrib="sponsor"
+	  sponsor="&lsi;, &spectralogic;">The &man.mpr.4; device has
+	been added, providing support for LSI Fusion-MPT 3 12Gb
+	SCSI/SATA controllers.</para>
 
       <para revision="266167">A kernel bug that inhibited proper
 	functionality of the <literal>dev.cpu.0.freq</literal>
@@ -468,7 +475,8 @@
 	compiler error bug in &man.gcc.1; triggered by throwing
 	a warning before parsing any tokens has been fixed.</para>
 
-      <para revision="259269,259406">Several updates to &man.gcc.1;
+      <para revision="259269,259406" contrib="vendor"
+	  vendor="&google;">Several updates to &man.gcc.1;
 	have been imported from Google.</para>
 
       <para revision="259448">A byte-order bug in the Heimdal
@@ -679,7 +687,8 @@
       <para revision="266711"><application>Sendmail</application> has
 	been updated to version 8.14.9.</para>
 
-      <para revision="262706"><application>BIND</application> has
+      <para revision="262706" contrib="sponsor"
+	  sponsor="&dkhostmaster;"><application>BIND</application> has
 	been updated to version 9.9.5.</para>
 
       <para revision="263286">The &man.xz.1; utility has been updated
@@ -700,7 +709,8 @@
 	&man.etcupdate.8; to work after the first upgrade of a
 	system.</para>
 
-      <para revision="262879">The <filename>release.sh</filename>
+      <para revision="262879" contrib="sponsor"
+	  sponsor="&ff;">The <filename>release.sh</filename>
 	script and release <filename>Makefile</filename> have been
 	updated to use &man.pkg.7; to populate the dvd installation
 	medium.</para>
