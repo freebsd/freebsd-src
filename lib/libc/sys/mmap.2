@@ -28,7 +28,7 @@
 .\"	@(#)mmap.2	8.4 (Berkeley) 5/11/95
 .\" $FreeBSD$
 .\"
-.Dd September 9, 2013
+.Dd June 19, 2014
 .Dt MMAP 2
 .Os
 .Sh NAME
@@ -141,6 +141,12 @@ argument must be 0.
 This flag is identical to
 .Dv MAP_ANON
 and is provided for compatibility.
+.It Dv MAP_EXCL
+This flag can only be used in combination with
+.Dv MAP_FIXED .
+Please see the definition of
+.Dv MAP_FIXED
+for the description of its effect.
 .It Dv MAP_FIXED
 Do not permit the system to select a different address than the one
 specified.
@@ -152,17 +158,21 @@ If
 is specified,
 .Fa addr
 must be a multiple of the pagesize.
-If a
+If
+.Dv MAP_EXCL
+is not specified, a successfull
 .Dv MAP_FIXED
-request is successful, the mapping established by
-.Fn mmap
-replaces any previous mappings for the process' pages in the range from
+request replaces any previous mappings for the process'
+pages in the range from
 .Fa addr
 to
 .Fa addr
 +
 .Fa len .
-Use of this option is discouraged.
+In contrast, if
+.Dv MAP_EXCL
+is specified, the request will fail if a mapping
+already exists within the range.
 .It Dv MAP_HASSEMAPHORE
 Notify the kernel that the region may contain semaphores and that special
 handling may be necessary.
@@ -393,6 +403,17 @@ argument was not -1.
 was specified and the
 .Fa offset
 argument was not 0.
+.It Bq Er EINVAL
+Both
+.Dv MAP_FIXED
+and
+.Dv MAP_EXCL
+were specified, but the requested region is already used by a mapping.
+.It Bq Er EINVAL
+.Dv MAP_EXCL
+was specified, but
+.Dv MAP_FIXED
+was not.
 .It Bq Er ENODEV
 .Dv MAP_ANON
 has not been specified and
