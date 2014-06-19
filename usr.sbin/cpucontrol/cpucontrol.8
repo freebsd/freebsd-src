@@ -65,6 +65,12 @@ device
 .Ek
 .Nm
 .Op Fl vh
+.Fl i Ar level,level_type
+.Bk
+.Ar device
+.Ek
+.Nm
+.Op Fl vh
 .Op Fl d Ar datadir
 .Fl u
 .Bk
@@ -114,6 +120,9 @@ In this case the inverted value of mask will be used.
 .It Fl i Ar level
 Retrieve CPUID info.
 Level should be given as a hex number.
+.It Fl i Ar level,level_type
+Retrieve CPUID info.
+Level and level_type should be given as hex numbers.
 .It Fl u
 Apply CPU firmware updates.
 The

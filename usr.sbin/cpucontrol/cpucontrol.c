@@ -99,6 +99,7 @@ static struct ucode_handler {
 static void	usage(void);
 static int	isdir(const char *path);
 static int	do_cpuid(const char *cmdarg, const char *dev);
+static int	do_cpuid_count(const char *cmdarg, const char *dev);
 static int	do_msr(const char *cmdarg, const char *dev);
 static int	do_update(const char *dev);
 static void	datadir_add(const char *path);
@@ -112,7 +113,7 @@ usage(void)
 	if (name == NULL)
 		name = "cpuctl";
 	fprintf(stderr, "Usage: %s [-vh] [-d datadir] [-m msr[=value] | "
-	    "-i level | -u] device\n", name);
+	    "-i level | -i level,level_type | -u] device\n", name);
 	exit(EX_USAGE);
 }
 
@@ -165,6 +166,57 @@ do_cpuid(const char *cmdarg, const char *dev)
 	}
 	fprintf(stdout, "cpuid level 0x%x: 0x%.8x 0x%.8x 0x%.8x 0x%.8x\n",
 	    level, args.data[0], args.data[1], args.data[2], args.data[3]);
+	close(fd);
+	return (0);
+}
+
+static int
+do_cpuid_count(const char *cmdarg, const char *dev)
+{
+	char *cmdarg1, *endptr, *endptr1;
+	unsigned int level, level_type;
+	cpuctl_cpuid_args_t args;
+	int fd, error;
+
+	assert(cmdarg != NULL);
+	assert(dev != NULL);
+
+	level = strtoul(cmdarg, &endptr, 16);
+	if (*cmdarg == '\0' || *endptr == '\0') {
+		WARNX(0, "incorrect or missing operand: %s", cmdarg);
+		usage();
+		/* NOTREACHED */
+	}
+	/* Locate the comma... */
+	cmdarg1 = strstr(endptr, ",");
+	/* ... and skip past it */
+	cmdarg1 += 1;
+	level_type = strtoul(cmdarg1, &endptr1, 16);
+	if (*cmdarg1 == '\0' || *endptr1 != '\0') {
+		WARNX(0, "incorrect or missing operand: %s", cmdarg);
+		usage();
+		/* NOTREACHED */
+	}
+
+	/*
+	 * Fill ioctl argument structure.
+	 */
+	args.level = level;
+	args.level_type = level_type;
+	fd = open(dev, O_RDONLY);
+	if (fd < 0) {
+		WARN(0, "error opening %s for reading", dev);
+		return (1);
+	}
+	error = ioctl(fd, CPUCTL_CPUID_COUNT, &args);
+	if (error < 0) {
+		WARN(0, "ioctl(%s, CPUCTL_CPUID_COUNT)", dev);
+		close(fd);
+		return (error);
+	}
+	fprintf(stdout, "cpuid level 0x%x, level_type 0x%x: 0x%.8x 0x%.8x "
+	    "0x%.8x 0x%.8x\n", level, level_type, args.data[0], args.data[1],
+	    args.data[2], args.data[3]);
 	close(fd);
 	return (0);
 }
@@ -414,7 +466,10 @@ main(int argc, char *argv[])
 	c = flags & (FLAG_I | FLAG_M | FLAG_U);
 	switch (c) {
 		case FLAG_I:
-			error = do_cpuid(cmdarg, dev);
+			if (strstr(cmdarg, ",") != NULL)
+				error = do_cpuid_count(cmdarg, dev);
+			else
+				error = do_cpuid(cmdarg, dev);
 			break;
 		case FLAG_M:
 			error = do_msr(cmdarg, dev);
