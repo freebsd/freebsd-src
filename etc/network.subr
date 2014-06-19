@@ -1058,7 +1058,7 @@ ifalias_af_common_handler()
 	# Process the last component if any.
 	if [ -n "$_tmpargs}" ]; then
 		case $_tmpargs in
-		${_af}\ *[0-9][a-f][A-F]-*)
+		${_af}\ *[0-9a-fA-F]-*)
 			ifalias_af_common_handler $_if $_af $_action \
 			`ifalias_expand_addr $_af $_action ${_tmpargs#${_af}\ }`
 		;;
