@@ -86,19 +86,27 @@ Set/clear MSR bits according to the mask given in the
 .Va data
 field.
 .It Dv CPUCTL_CPUID Fa cpuctl_cpuid_args_t *args
+.It Dv CPUCTL_CPUID_COUNT Fa cpuctl_cpuid_args_t *args
 Retrieve CPUID information.
 Arguments are supplied in
 the following struct:
 .Bd -literal
 typedef struct {
-	int		level;	/* CPUID level */
+	int		level;		/* CPUID level */
+	int		level_type;	/* CPUID level type */
 	uint32_t	data[4];
 } cpuctl_cpuid_args_t;
 .Ed
 .Pp
 The
 .Va level
-field indicates the CPUID level to retrieve information for, while the
+field indicates the CPUID level to retrieve.
+The
+.Va level_type
+field indicates the CPUID level type to retrieve.
+It is overriden to 0 for
+.Va CPUCTL_CPUID .
+Finally, the
 .Va data
 field is used to store the received CPUID data.
 .It Dv CPUCTL_UPDATE cpuctl_update_args_t *args

@@ -69,6 +69,8 @@ static int cpuctl_do_msr(int cpu, cpuctl_msr_args_t *data, u_long cmd,
     struct thread *td);
 static int cpuctl_do_cpuid(int cpu, cpuctl_cpuid_args_t *data,
     struct thread *td);
+static int cpuctl_do_cpuid_count(int cpu, cpuctl_cpuid_args_t *data,
+    struct thread *td);
 static int cpuctl_do_update(int cpu, cpuctl_update_args_t *data,
     struct thread *td);
 static int update_intel(int cpu, cpuctl_update_args_t *args,
@@ -177,6 +179,10 @@ cpuctl_ioctl(struct cdev *dev, u_long cmd, caddr_t data,
 			goto fail;
 		ret = cpuctl_do_update(cpu, (cpuctl_update_args_t *)data, td);
 		break;
+	case CPUCTL_CPUID_COUNT:
+		ret = cpuctl_do_cpuid_count(cpu, (cpuctl_cpuid_args_t *)data,
+		    td);
+		break;
 	default:
 		ret = EINVAL;
 		break;
@@ -189,7 +195,7 @@ fail:
  * Actually perform cpuid operation.
  */
 static int
-cpuctl_do_cpuid(int cpu, cpuctl_cpuid_args_t *data, struct thread *td)
+cpuctl_do_cpuid_count(int cpu, cpuctl_cpuid_args_t *data, struct thread *td)
 {
 	int is_bound = 0;
 	int oldcpu;
@@ -199,14 +205,23 @@ cpuctl_do_cpuid(int cpu, cpuctl_cpuid_args_t *data, struct thread *td)
 
 	/* Explicitly clear cpuid data to avoid returning stale info. */
 	bzero(data->data, sizeof(data->data));
-	DPRINTF("[cpuctl,%d]: retriving cpuid level %#0x for %d cpu\n",
-	    __LINE__, data->level, cpu);
+	DPRINTF("[cpuctl,%d]: retrieving cpuid lev %#0x type %#0x for %d cpu\n",
+	    __LINE__, data->level, data->level_type, cpu);
 	oldcpu = td->td_oncpu;
 	is_bound = cpu_sched_is_bound(td);
 	set_cpu(cpu, td);
-	cpuid_count(data->level, 0, data->data);
+	cpuid_count(data->level, data->level_type, data->data);
 	restore_cpu(oldcpu, is_bound, td);
 	return (0);
+}
+
+static int
+cpuctl_do_cpuid(int cpu, cpuctl_cpuid_args_t *data, struct thread *td)
+{
+
+	/* Override the level type. */
+	data->level_type = 0;
+	return (cpuctl_do_cpuid_count(cpu, data, td));
 }
 
 /*
