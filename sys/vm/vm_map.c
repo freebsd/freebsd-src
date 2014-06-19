@@ -3730,9 +3730,6 @@ Retry:
 			stack_entry->avail_ssize -= grow_amount;
 			vm_map_entry_resize_free(map, stack_entry);
 			rv = KERN_SUCCESS;
-
-			if (next_entry != &map->header)
-				vm_map_clip_start(map, next_entry, addr);
 		} else
 			rv = KERN_FAILURE;
 	}
