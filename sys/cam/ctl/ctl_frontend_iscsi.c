@@ -2060,7 +2060,7 @@ cfiscsi_devid(struct ctl_scsiio *ctsio, int alloc_len)
 	const struct icl_pdu *request;
 	int i, ret;
 	char *val;
-	size_t devid_len, wwnn_len, wwpn_len, lun_name_len;
+	size_t data_len, devid_len, wwnn_len, wwpn_len, lun_name_len;
 
 	lun = (struct ctl_lun *)ctsio->io_hdr.ctl_private[CTL_PRIV_LUN].ptr;
 	request = ctsio->io_hdr.ctl_private[CTL_PRIV_FRONTEND].ptr;
@@ -2078,8 +2078,11 @@ cfiscsi_devid(struct ctl_scsiio *ctsio, int alloc_len)
 		wwnn_len += (4 - (wwnn_len % 4));
 
 	if (lun == NULL) {
+		devid_len = CTL_DEVID_MIN_LEN;
 		lun_name_len = 0;
 	} else {
+		devid_len = max(CTL_DEVID_MIN_LEN,
+		    strnlen(lun->be_lun->device_id, CTL_DEVID_LEN));
 		lun_name_len = strlen(cs->cs_target->ct_name);
 		lun_name_len += strlen(",lun,XXXXXXXX");
 		lun_name_len += 1; /* '\0' */
@@ -2087,9 +2090,9 @@ cfiscsi_devid(struct ctl_scsiio *ctsio, int alloc_len)
 			lun_name_len += (4 - (lun_name_len % 4));
 	}
 
-	devid_len = sizeof(struct scsi_vpd_device_id) +
+	data_len = sizeof(struct scsi_vpd_device_id) +
 		sizeof(struct scsi_vpd_id_descriptor) +
-		sizeof(struct scsi_vpd_id_t10) + CTL_DEVID_LEN +
+		sizeof(struct scsi_vpd_id_t10) + devid_len +
 		sizeof(struct scsi_vpd_id_descriptor) + lun_name_len +
 		sizeof(struct scsi_vpd_id_descriptor) + wwnn_len +
 		sizeof(struct scsi_vpd_id_descriptor) + wwpn_len +
@@ -2098,14 +2101,14 @@ cfiscsi_devid(struct ctl_scsiio *ctsio, int alloc_len)
 		sizeof(struct scsi_vpd_id_descriptor) +
 		sizeof(struct scsi_vpd_id_trgt_port_grp_id);
 
-	ctsio->kern_data_ptr = malloc(devid_len, M_CTL, M_WAITOK | M_ZERO);
+	ctsio->kern_data_ptr = malloc(data_len, M_CTL, M_WAITOK | M_ZERO);
 	devid_ptr = (struct scsi_vpd_device_id *)ctsio->kern_data_ptr;
 	ctsio->kern_sg_entries = 0;
 
-	if (devid_len < alloc_len) {
-		ctsio->residual = alloc_len - devid_len;
-		ctsio->kern_data_len = devid_len;
-		ctsio->kern_total_len = devid_len;
+	if (data_len < alloc_len) {
+		ctsio->residual = alloc_len - data_len;
+		ctsio->kern_data_len = data_len;
+		ctsio->kern_total_len = data_len;
 	} else {
 		ctsio->residual = 0;
 		ctsio->kern_data_len = alloc_len;
@@ -2118,7 +2121,7 @@ cfiscsi_devid(struct ctl_scsiio *ctsio, int alloc_len)
 	desc = (struct scsi_vpd_id_descriptor *)devid_ptr->desc_list;
 	t10id = (struct scsi_vpd_id_t10 *)&desc->identifier[0];
 	desc1 = (struct scsi_vpd_id_descriptor *)(&desc->identifier[0] +
-	    sizeof(struct scsi_vpd_id_t10) + CTL_DEVID_LEN);
+	    sizeof(struct scsi_vpd_id_t10) + devid_len);
 	desc2 = (struct scsi_vpd_id_descriptor *)(&desc1->identifier[0] +
 	    lun_name_len);
 	desc3 = (struct scsi_vpd_id_descriptor *)(&desc2->identifier[0] +
@@ -2136,7 +2139,7 @@ cfiscsi_devid(struct ctl_scsiio *ctsio, int alloc_len)
 
 	devid_ptr->page_code = SVPD_DEVICE_ID;
 
-	scsi_ulto2b(devid_len - 4, devid_ptr->length);
+	scsi_ulto2b(data_len - 4, devid_ptr->length);
 
 	/*
 	 * We're using a LUN association here.  i.e., this device ID is a
@@ -2144,7 +2147,7 @@ cfiscsi_devid(struct ctl_scsiio *ctsio, int alloc_len)
 	 */
 	desc->proto_codeset = (SCSI_PROTO_ISCSI << 4) | SVPD_ID_CODESET_ASCII;
 	desc->id_type = SVPD_ID_PIV | SVPD_ID_ASSOC_LUN | SVPD_ID_TYPE_T10;
-	desc->length = sizeof(*t10id) + CTL_DEVID_LEN;
+	desc->length = sizeof(*t10id) + devid_len;
 	if (lun == NULL || (val = ctl_get_opt(lun->be_lun, "vendor")) == NULL) {
 		strncpy((char *)t10id->vendor, CTL_VENDOR, sizeof(t10id->vendor));
 	} else {
@@ -2162,12 +2165,12 @@ cfiscsi_devid(struct ctl_scsiio *ctsio, int alloc_len)
 		 * Copy the backend's LUN ID.
 		 */
 		strncpy((char *)t10id->vendor_spec_id,
-		    (char *)lun->be_lun->device_id, CTL_DEVID_LEN);
+		    (char *)lun->be_lun->device_id, devid_len);
 	} else {
 		/*
 		 * No backend, set this to spaces.
 		 */
-		memset(t10id->vendor_spec_id, 0x20, CTL_DEVID_LEN);
+		memset(t10id->vendor_spec_id, 0x20, devid_len);
 	}
 
 	/*
