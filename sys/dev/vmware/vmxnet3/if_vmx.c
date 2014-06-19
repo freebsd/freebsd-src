@@ -2607,10 +2607,12 @@ vmxnet3_txq_offload_ctx(struct vmxnet3_txqueue *txq, struct mbuf *m,
 	struct ether_vlan_header *evh;
 	int offset;
 #if defined(INET)
-	struct ip *ip, iphdr;
+	struct ip *ip = NULL;
+	struct ip iphdr;
 #endif
 #if defined(INET6)
-	struct ip6_hdr *ip6, ip6hdr;
+	struct ip6_hdr *ip6 = NULL;
+	struct ip6_hdr ip6hdr;
 #endif
 
 	evh = mtod(m, struct ether_vlan_header *);
