@@ -2087,17 +2087,25 @@ vmxnet3_rxq_eof(struct vmxnet3_rxqueue *rxq)
 	sc = rxq->vxrxq_sc;
 	ifp = sc->vmx_ifp;
 	rxc = &rxq->vxrxq_comp_ring;
-	m_head = m_tail = NULL;
 
 	VMXNET3_RXQ_LOCK_ASSERT(rxq);
 
 	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0)
 		return;
 
+	m_head = rxq->vxrxq_mhead;
+	rxq->vxrxq_mhead = NULL;
+	m_tail = rxq->vxrxq_mtail;
+	rxq->vxrxq_mtail = NULL;
+	MPASS(m_head == NULL || m_tail != NULL);
+
 	for (;;) {
 		rxcd = &rxc->vxcr_u.rxcd[rxc->vxcr_next];
-		if (rxcd->gen != rxc->vxcr_gen)
+		if (rxcd->gen != rxc->vxcr_gen) {
+			rxq->vxrxq_mhead = m_head;
+			rxq->vxrxq_mtail = m_tail;
 			break;
+		}
 		vmxnet3_barrier(sc, VMXNET3_BARRIER_RD);
 
 		if (++rxc->vxcr_next == rxc->vxcr_ndesc) {
@@ -2328,6 +2336,12 @@ vmxnet3_rxstop(struct vmxnet3_softc *sc, struct vmxnet3_rxqueue *rxq)
 	struct vmxnet3_rxring *rxr;
 	struct vmxnet3_rxbuf *rxb;
 	int i, j;
+
+	if (rxq->vxrxq_mhead != NULL) {
+		m_freem(rxq->vxrxq_mhead);
+		rxq->vxrxq_mhead = NULL;
+		rxq->vxrxq_mtail = NULL;
+	}
 
 	for (i = 0; i < VMXNET3_RXRINGS_PERQ; i++) {
 		rxr = &rxq->vxrxq_cmd_ring[i];
