@@ -850,6 +850,8 @@ get_process_info(struct system_info *si, struct process_select *sel,
 			continue;
 
 		PCTCPU(pp) = proc_calc_pctcpu(pp);
+		if (sel->thread && PCTCPU(pp) > 1.0)
+			PCTCPU(pp) = 1.0;
 		if (displaymode == DISP_CPU && !show_idle &&
 		    (!proc_used_cpu(pp) ||
 		     pp->ki_stat == SSTOP || pp->ki_stat == SIDL))
