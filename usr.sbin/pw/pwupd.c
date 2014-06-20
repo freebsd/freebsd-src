@@ -45,9 +45,6 @@ static const char rcsid[] =
 
 #include "pwupd.h"
 
-#define HAVE_PWDB_C	1
-#define	HAVE_PWDB_U	1
-
 static char pathpwd[] = _PATH_PWD;
 static char * pwpath = pathpwd;
  
@@ -112,22 +109,14 @@ pw_update(struct passwd * pwd, char const * user)
 {
 	int             rc = 0;
 
-	/*
-	 * First, let's check the see if the database is alright
-	 * Note: -C is only available in FreeBSD 2.2 and above
-	 */
-#ifdef HAVE_PWDB_C
 	rc = pwdb("-C", (char *)NULL);	/* Check only */
 	if (rc == 0) {
-#else
-	{				/* No -C */
-#endif
 		int pfd, tfd;
 		struct passwd *pw = NULL;
 		struct passwd *old_pw = NULL;
 
-	       	if (pwd != NULL)
-		       pw = pw_dup(pwd);
+		if (pwd != NULL)
+			pw = pw_dup(pwd);
 
 		if (user != NULL)
 			old_pw = GETPWNAM(user);
