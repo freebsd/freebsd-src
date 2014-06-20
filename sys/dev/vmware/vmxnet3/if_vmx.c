@@ -2856,7 +2856,8 @@ vmxnet3_txq_encap(struct vmxnet3_txqueue *txq, struct mbuf **m0)
 	vmxnet3_barrier(sc, VMXNET3_BARRIER_WR);
 	sop->gen ^= 1;
 
-	if (++txq->vxtxq_ts->npending >= txq->vxtxq_ts->intr_threshold) {
+	txq->vxtxq_ts->npending += nsegs;
+	if (txq->vxtxq_ts->npending >= txq->vxtxq_ts->intr_threshold) {
 		txq->vxtxq_ts->npending = 0;
 		vmxnet3_write_bar0(sc, VMXNET3_BAR0_TXH(txq->vxtxq_id),
 		    txr->vxtxr_head);
@@ -2973,8 +2974,7 @@ vmxnet3_txq_mq_start_locked(struct vmxnet3_txqueue *txq, struct mbuf *m)
 			break;
 		}
 
-		error = vmxnet3_txq_encap(txq, &m);
-		if (error) {
+		if (vmxnet3_txq_encap(txq, &m) != 0) {
 			if (m != NULL)
 				drbr_putback(ifp, br, m);
 			else
