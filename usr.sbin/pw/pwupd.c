@@ -139,7 +139,7 @@ pw_update(struct passwd * pwd, char const * user)
 		 * in case of deletion of a user, the whole database
 		 * needs to be regenerated
 		 */
-		if (pw_mkdb(pw != NULL ? user : NULL) == -1) {
+		if (pw_mkdb(pw != NULL ? pw->pw_name : NULL) == -1) {
 			pw_fini();
 			err(1, "pw_mkdb()");
 		}
