@@ -168,7 +168,6 @@ static int	vmxnet3_txq_load_mbuf(struct vmxnet3_txqueue *, struct mbuf **,
 		    bus_dmamap_t, bus_dma_segment_t [], int *);
 static void	vmxnet3_txq_unload_mbuf(struct vmxnet3_txqueue *, bus_dmamap_t);
 static int	vmxnet3_txq_encap(struct vmxnet3_txqueue *, struct mbuf **);
-static void	vmxnet3_txq_update_pending(struct vmxnet3_txqueue *);
 #ifdef VMXNET3_LEGACY_TX
 static void	vmxnet3_start_locked(struct ifnet *);
 static void	vmxnet3_start(struct ifnet *);
@@ -2852,20 +2851,6 @@ vmxnet3_txq_encap(struct vmxnet3_txqueue *txq, struct mbuf **m0)
 	return (0);
 }
 
-static void
-vmxnet3_txq_update_pending(struct vmxnet3_txqueue *txq)
-{
-	struct vmxnet3_txring *txr;
-
-	txr = &txq->vxtxq_cmd_ring;
-
-	if (txq->vxtxq_ts->npending > 0) {
-		txq->vxtxq_ts->npending = 0;
-		vmxnet3_write_bar0(txq->vxtxq_sc,
-		    VMXNET3_BAR0_TXH(txq->vxtxq_id), txr->vxtxr_head);
-	}
-}
-
 #ifdef VMXNET3_LEGACY_TX
 
 static void
@@ -2912,10 +2897,8 @@ vmxnet3_start_locked(struct ifnet *ifp)
 		ETHER_BPF_MTAP(ifp, m_head);
 	}
 
-	if (tx > 0) {
-		vmxnet3_txq_update_pending(txq);
+	if (tx > 0)
 		txq->vxtxq_watchdog = VMXNET3_WATCHDOG_TIMEOUT;
-	}
 }
 
 static void
@@ -2990,10 +2973,8 @@ vmxnet3_txq_mq_start_locked(struct vmxnet3_txqueue *txq, struct mbuf *m)
 		ETHER_BPF_MTAP(ifp, m);
 	}
 
-	if (tx > 0) {
-		vmxnet3_txq_update_pending(txq);
+	if (tx > 0)
 		txq->vxtxq_watchdog = VMXNET3_WATCHDOG_TIMEOUT;
-	}
 
 	return (0);
 }
