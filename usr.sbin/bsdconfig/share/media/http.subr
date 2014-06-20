@@ -77,7 +77,8 @@ f_dialog_menu_media_http()
 	f_dialog_title_restore
 	local prompt="$msg_please_select_the_site_closest_to_you_or_other"
 	local menu_list="
-		'$msg_main_site'      'ftp.freebsd.org'
+		'dist $msg_main_site' 'ftp.freebsd.org'
+		'pkg $msg_main_site'  'pkg.freebsd.org'
 		'URL'                 '$msg_specify_some_other_http_site'
 	" # END-QUOTE
 	local hline="$msg_select_a_site_thats_close"
@@ -322,7 +323,7 @@ f_media_set_http()
 	device_http set type     $DEVICE_TYPE_HTTP
 	device_http set init     f_media_init_http
 	device_http set get      f_media_get_http
-	device_http set shutdown :
+	device_http set shutdown f_media_shutdown_http
 	device_http set private  device_network
 	f_struct_copy device_http device_media
 	f_struct_free device_http
@@ -453,6 +454,11 @@ f_media_init_http()
 	local dev="$1"
 	f_dprintf "Init routine called for HTTP device. dev=[%s]" "$dev"
 
+	if [ "$HTTP_INITIALIZED" ]; then
+		f_dprintf "HTTP device already initialized."
+		return $SUCCESS
+	fi
+
 	#
 	# First verify access
 	#
@@ -494,22 +500,31 @@ f_media_init_http()
 			#
 			local fdir hp
 			f_getvar $VAR_HTTP_PATH%/ hp
-			for fdir in $HTTP_DIRS; do
-				setvar $VAR_HTTP_PATH "$hp/$fdir/$rel"
-				if f_http_check_access; then
-					http_found=$SUCCESS
-					break
-				fi
-			done
+			setvar $VAR_HTTP_PATH "$hp/$PKG_ABI/latest"
+			if [ "$PKG_ABI" ] && f_http_check_access; then
+				http_found=$SUCCESS
+				setvar $VAR_HTTP_PATH "$hp"
+			else
+				for fdir in $HTTP_DIRS; do
+					setvar $VAR_HTTP_PATH "$hp/$fdir/$rel"
+					if f_http_check_access; then
+						http_found=$SUCCESS
+						break
+					fi
+				done
+			fi
 		esac
 
-		[ $http_found -eq $SUCCESS ] && break
+		if [ $http_found -eq $SUCCESS ]; then
+			HTTP_INITIALIZED=YES
+			break
+		fi
 
 		f_getvar $VAR_HTTP_PATH http_path
 		f_show_msg "$msg_please_check_the_url_and_try_again" \
 		           "$http_path"
 
-		unset $VAR_HTTP_PATH
+		unset HTTP_INITIALIZED $VAR_HTTP_PATH
 		f_media_set_http || break
 	done
 
@@ -560,6 +575,11 @@ f_media_get_http()
 	local http_host http_port
 	f_getvar $VAR_HTTP_HOST http_host
 	f_getvar $VAR_HTTP_PORT http_port
+
+	if [ ! "$HTTP_INITIALIZED" ]; then
+		f_dprintf "No HTTP connection open, can't get file %s" "$file"
+		return $FAILURE
+	fi
 
 	if ! {
 		f_validate_ipaddr "$http_host" ||
@@ -650,6 +670,18 @@ f_media_get_http()
 	  *) f_show_msg "$msg_error_when_requesting_url" "$url" ;;
 	esac
 	return $FAILURE
+}
+
+# f_media_shutdown_http $device
+#
+# Shuts down the HTTP device. Return status should be ignored. Note that since
+# we don't maintain an open connection to the HTTP server, nothing to do.
+#
+f_media_shutdown_http()
+{
+	[ "$HTTP_INITIALIZED" ] || return $SUCCESS
+
+	unset HTTP_INITIALIZED
 }
 
 ############################################################ MAIN
