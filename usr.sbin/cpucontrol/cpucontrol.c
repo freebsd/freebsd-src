@@ -175,7 +175,7 @@ do_cpuid_count(const char *cmdarg, const char *dev)
 {
 	char *cmdarg1, *endptr, *endptr1;
 	unsigned int level, level_type;
-	cpuctl_cpuid_args_t args;
+	cpuctl_cpuid_count_args_t args;
 	int fd, error;
 
 	assert(cmdarg != NULL);

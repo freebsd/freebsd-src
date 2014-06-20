@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 30, 2009
+.Dd June 20, 2014
 .Dt CPUCTL 4
 .Os
 .Sh NAME
@@ -65,7 +65,7 @@ All of the supported operations are invoked using the
 .Xr ioctl 2
 system call.
 Currently, the following ioctls are defined:
-.Bl -tag -width CPUCTL_UPDATE
+.Bl -tag -width CPUCTL_CPUID_COUNT
 .It Dv CPUCTL_RDMSR Fa cpuctl_msr_args_t *args
 .It Dv CPUCTL_WRMSR Fa cpuctl_msr_args_t *args
 Read/write CPU machine specific register.
@@ -86,29 +86,60 @@ Set/clear MSR bits according to the mask given in the
 .Va data
 field.
 .It Dv CPUCTL_CPUID Fa cpuctl_cpuid_args_t *args
-.It Dv CPUCTL_CPUID_COUNT Fa cpuctl_cpuid_args_t *args
 Retrieve CPUID information.
-Arguments are supplied in
-the following struct:
+Arguments are supplied in the following structure:
+.Bd -literal
+typedef struct {
+	int		level;		/* CPUID level */
+	uint32_t	data[4];
+} cpuctl_cpuid_args_t;
+.Ed
+It is equivalent to the
+.Dv CPUCTL_CPUID_COUNT
+request with
+.Va level_type
+set to 0.
+.It Dv CPUCTL_CPUID_COUNT Fa cpuctl_cpuid_count_args_t *args
+Retrieve CPUID information.
+Arguments are supplied in the following structure:
 .Bd -literal
 typedef struct {
 	int		level;		/* CPUID level */
 	int		level_type;	/* CPUID level type */
 	uint32_t	data[4];
-} cpuctl_cpuid_args_t;
+} cpuctl_cpuid_count_args_t;
 .Ed
-.Pp
 The
 .Va level
-field indicates the CPUID level to retrieve.
+field indicates the CPUID level to retrieve,
+it is loaded into the
+.Va %eax
+register before the CPUID instruction is executed,
 The
 .Va level_type
-field indicates the CPUID level type to retrieve.
-It is overriden to 0 for
-.Va CPUCTL_CPUID .
-Finally, the
+field indicates the CPUID level type to retrieve,
+it is loaded into the
+.Va %ecx
+register.
+.Pp
+The
 .Va data
 field is used to store the received CPUID data.
+That is,
+.Va data[0]
+contains the value of
+.Va %eax
+register after the CPUID instruction is executed,
+.Va data[1]
+is for
+.Va %ebx ,
+.Va data[2]
+for
+.Va %ecx ,
+and
+.Va data[3]
+for
+.Va %edx .
 .It Dv CPUCTL_UPDATE cpuctl_update_args_t *args
 Update CPU firmware (microcode).
 The structure is defined in
