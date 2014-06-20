@@ -153,6 +153,54 @@
 
 	    <entry><para>OpenSSL multiple vulnerabilities</para></entry>
 	  </row>
+
+	  <row>
+	    <entry><link xlink:href="http://www.freebsd.org/security/advisories/FreeBSD-SA-14:07.devfs.asc">SA-14:07.devfs</link></entry>
+	    <entry>30&nbsp;April&nbsp;2014</entry>
+	    <entry><para>Fix devfs rules not applied by default for
+		jails</para></entry>
+	  </row>
+
+	  <row>
+	    <entry><link xlink:href="http://www.freebsd.org/security/advisories/FreeBSD-SA-14:08.tcp.asc">SA-14:08.tcp</link></entry>
+	    <entry>30&nbsp;April&nbsp;2014</entry>
+	    <entry><para>Fix TCP reassembly
+		vulnerability</para></entry>
+	  </row>
+
+	  <row>
+	    <entry><link xlink:href="http://www.freebsd.org/security/advisories/FreeBSD-SA-14:09.openssl.asc">SA-14:09.openssl</link></entry>
+	    <entry>30&nbsp;April&nbsp;2014</entry>
+	    <entry><para>Fix OpenSSL use-after-free
+		vulnerability</para></entry>
+	  </row>
+
+	  <row>
+	    <entry><link xlink:href="http://www.freebsd.org/security/advisories/FreeBSD-SA-14:10.openssl.asc">SA-14:10.openssl</link></entry>
+	    <entry>15&nbsp;May&nbsp;2014</entry>
+	    <entry><para>Fix OpenSSL NULL pointer deference
+		vulnerability</para></entry>
+	  </row>
+
+	  <row>
+	    <entry><link xlink:href="http://www.freebsd.org/security/advisories/FreeBSD-SA-14:11.sendmail.asc">SA-14:11.sendmail</link></entry>
+	    <entry>3&nbsp;June&nbsp;2014</entry>
+	    <entry><para>Fix sendmail improper close-on-exec flag
+		handling</para></entry>
+	  </row>
+
+	  <row>
+	    <entry><link xlink:href="http://www.freebsd.org/security/advisories/FreeBSD-SA-14:13.pam.asc">SA-14:13.pam</link></entry>
+	    <entry>3&nbsp;June&nbsp;2014</entry>
+	    <entry><para>Fix incorrect error handling in PAM policy
+		parser</para></entry>
+	  </row>
+
+	  <row>
+	    <entry><link xlink:href="http://www.freebsd.org/security/advisories/FreeBSD-SA-14:14.openssl.asc">SA-14:14.openssl</link></entry>
+	    <entry>5&nbsp;June&nbsp;2014</entry>
+	    <entry><para>Multiple vulnerabilities</para></entry>
+	  </row>
 	</tbody>
       </tgroup>
     </informaltable>
