@@ -744,12 +744,10 @@
 	supported using to the instructions in
 	<filename>/usr/src/UPDATING</filename>.</para>
 
-      <?ignore
       <para>For more specific information about upgrading
 	instructions, see <uri
 	  xlink:href="http://www.FreeBSD.org/releases/9.3R/installation.html">http://www.FreeBSD.org/releases/9.3R/installation.html</uri>.</para>
 
-      ?>
       <important>
 	<para>Upgrading &os; should only be attempted
 	  after backing up <emphasis>all</emphasis> data and
