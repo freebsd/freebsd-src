@@ -759,10 +759,10 @@
       <title xml:id="upgrade-pitfalls">User-Visible
 	Incompatibilities</title>
 
-      <para>&os;&nbsp;9.0 and later have several incompatibilities in
-	system configuration which you might want to know before
-	upgrading your system.  <emphasis>Please read this section and
-	  the <link
+      <para>&os;&nbsp;9.0 and later versions have several
+	configuration incompatibilities with earlier versions of &os;.
+	These differences are best understood before upgrading.
+	<emphasis>Please read this section and the <link
 	    xlink:href="http://www.freebsd.org/releases/9.0R/relnotes-detailed.html#UPGRADE">Upgrading
 	    Section in 9.0-RELEASE Release Notes</link> carefully
 	  before submitting a problem report and/or posting a question
