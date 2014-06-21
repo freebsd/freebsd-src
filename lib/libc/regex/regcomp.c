@@ -1111,7 +1111,7 @@ allocset(struct parse *p)
 {
 	cset *cs, *ncs;
 
-	ncs = reallocf(p->g->sets, (p->g->ncsets + 1) * sizeof(*ncs));
+	ncs = realloc(p->g->sets, (p->g->ncsets + 1) * sizeof(*ncs));
 	if (ncs == NULL) {
 		SETERROR(REG_ESPACE);
 		return (NULL);
@@ -1174,7 +1174,7 @@ CHadd(struct parse *p, cset *cs, wint_t ch)
 	if (ch < NC)
 		cs->bmp[ch >> 3] |= 1 << (ch & 7);
 	else {
-		newwides = reallocf(cs->wides, (cs->nwides + 1) *
+		newwides = realloc(cs->wides, (cs->nwides + 1) *
 		    sizeof(*cs->wides));
 		if (newwides == NULL) {
 			SETERROR(REG_ESPACE);
@@ -1203,7 +1203,7 @@ CHaddrange(struct parse *p, cset *cs, wint_t min, wint_t max)
 		CHadd(p, cs, min);
 	if (min >= max)
 		return;
-	newranges = reallocf(cs->ranges, (cs->nranges + 1) *
+	newranges = realloc(cs->ranges, (cs->nranges + 1) *
 	    sizeof(*cs->ranges));
 	if (newranges == NULL) {
 		SETERROR(REG_ESPACE);
@@ -1227,7 +1227,7 @@ CHaddtype(struct parse *p, cset *cs, wctype_t wct)
 	for (i = 0; i < NC; i++)
 		if (iswctype(i, wct))
 			CHadd(p, cs, i);
-	newtypes = reallocf(cs->types, (cs->ntypes + 1) *
+	newtypes = realloc(cs->types, (cs->ntypes + 1) *
 	    sizeof(*cs->types));
 	if (newtypes == NULL) {
 		SETERROR(REG_ESPACE);
@@ -1350,7 +1350,7 @@ enlarge(struct parse *p, sopno size)
 	if (p->ssize >= size)
 		return 1;
 
-	sp = (sop *)reallocf(p->strip, size*sizeof(sop));
+	sp = (sop *)realloc(p->strip, size*sizeof(sop));
 	if (sp == NULL) {
 		SETERROR(REG_ESPACE);
 		return 0;
@@ -1368,7 +1368,7 @@ static void
 stripsnug(struct parse *p, struct re_guts *g)
 {
 	g->nstates = p->slen;
-	g->strip = (sop *)reallocf((char *)p->strip, p->slen * sizeof(sop));
+	g->strip = (sop *)realloc((char *)p->strip, p->slen * sizeof(sop));
 	if (g->strip == NULL) {
 		SETERROR(REG_ESPACE);
 		g->strip = p->strip;
