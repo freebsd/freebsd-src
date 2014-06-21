@@ -162,20 +162,14 @@ main(int argc, char *argv[])
 			ispan = 0;	/* don't span across input files */
 			break;
 		case 'l':
-			if(setlinebuf(stdout) != 0)
-				warnx("setlinebuf() failed");
+			if(setvbuf(stdout, NULL, _IOLBF, 0) != 0)
+				warnx("setting line buffered output failed");
 			break;
 		case 'n':
 			nflag = 1;
 			break;
 		case 'u':
-#ifdef _IONBF
-			c = setvbuf(stdout, NULL, _IONBF, 0);
-#else
-			c = -1;
-			errno = EOPNOTSUPP;
-#endif
-			if (c)
+			if(setvbuf(stdout, NULL, _IONBF, 0) != 0)
 				warnx("setting unbuffered output failed");
 			break;
 		default:
