@@ -132,11 +132,11 @@ void
 set_hunkmax(void)
 {
 	if (p_line == NULL)
-		p_line = calloc((size_t) hunkmax, sizeof(char *));
+		p_line = malloc(hunkmax * sizeof(char *));
 	if (p_len == NULL)
-		p_len = calloc((size_t) hunkmax, sizeof(short));
+		p_len = malloc(hunkmax * sizeof(short));
 	if (p_char == NULL)
-		p_char = calloc((size_t) hunkmax, sizeof(char));
+		p_char = malloc(hunkmax * sizeof(char));
 }
 
 /*
@@ -145,31 +145,14 @@ set_hunkmax(void)
 static void
 grow_hunkmax(void)
 {
-	int		new_hunkmax;
-	char		**new_p_line;
-	short		*new_p_len;
-	char		*new_p_char;
-
-	new_hunkmax = hunkmax * 2;
+	int new_hunkmax = hunkmax * 2;
 
 	if (p_line == NULL || p_len == NULL || p_char == NULL)
 		fatal("Internal memory allocation error\n");
 
-	new_p_line = realloc(p_line, new_hunkmax * sizeof(char *));
-	if (new_p_line == NULL)
-		free(p_line);
-
-	new_p_len = realloc(p_len, new_hunkmax * sizeof(short));
-	if (new_p_len == NULL)
-		free(p_len);
-
-	new_p_char = realloc(p_char, new_hunkmax * sizeof(char));
-	if (new_p_char == NULL)
-		free(p_char);
-
-	p_char = new_p_char;
-	p_len = new_p_len;
-	p_line = new_p_line;
+	p_line = reallocf(p_line, new_hunkmax * sizeof(char *));
+	p_len = reallocf(p_len, new_hunkmax * sizeof(short));
+	p_char = reallocf(p_char, new_hunkmax * sizeof(char));
 
 	if (p_line != NULL && p_len != NULL && p_char != NULL) {
 		hunkmax = new_hunkmax;
