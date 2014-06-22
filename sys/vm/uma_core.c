@@ -205,7 +205,7 @@ struct uma_bucket_zone {
 #define	BUCKET_SIZE(n)						\
     (((sizeof(void *) * (n)) - sizeof(struct uma_bucket)) / sizeof(void *))
 
-#define	BUCKET_MAX	BUCKET_SIZE(128)
+#define	BUCKET_MAX	BUCKET_SIZE(256)
 
 struct uma_bucket_zone bucket_zones[] = {
 	{ NULL, "4 Bucket", BUCKET_SIZE(4), 4096 },
@@ -216,6 +216,7 @@ struct uma_bucket_zone bucket_zones[] = {
 	{ NULL, "32 Bucket", BUCKET_SIZE(32), 512 },
 	{ NULL, "64 Bucket", BUCKET_SIZE(64), 256 },
 	{ NULL, "128 Bucket", BUCKET_SIZE(128), 128 },
+	{ NULL, "256 Bucket", BUCKET_SIZE(256), 64 },
 	{ NULL, NULL, 0}
 };
 
