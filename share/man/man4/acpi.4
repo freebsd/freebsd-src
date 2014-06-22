@@ -61,6 +61,8 @@ If the default settings are not optimal, the following sysctls can be
 used to modify or monitor
 .Nm
 behavior.
+Note that some variables will be available only if given hardware supports
+them (such as hw.acpi.acline).
 .Bl -tag -width indent
 .It Va debug.acpi.enable_debug_objects
 Enable dumping Debug objects without
