@@ -110,7 +110,6 @@ lib/libbluetooth	emax	Pre-commit review preferred.
 lib/libsdp		emax	Pre-commit review preferred.
 usr.bin/bluetooth	emax	Pre-commit review preferred.
 usr.sbin/bluetooth	emax	Pre-commit review preferred.
-gnu/usr.bin/send-pr	bugmaster	Pre-commit review requested.
 *env(3)		secteam	Due to the problematic security history of this
 			code, please have patches reviewed by secteam.
 share/zoneinfo		edwin	Heads-up appreciated, since our data is coming
