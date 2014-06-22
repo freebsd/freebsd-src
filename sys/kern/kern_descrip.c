@@ -1234,7 +1234,7 @@ sys_closefrom(struct thread *td, struct closefrom_args *uap)
 	if (uap->lowfd < 0)
 		uap->lowfd = 0;
 	FILEDESC_SLOCK(fdp);
-	for (fd = uap->lowfd; fd < fdp->fd_nfiles; fd++) {
+	for (fd = uap->lowfd; fd <= fdp->fd_lastfile; fd++) {
 		if (fdp->fd_ofiles[fd].fde_file != NULL) {
 			FILEDESC_SUNLOCK(fdp);
 			(void)kern_close(td, fd);
@@ -2916,7 +2916,7 @@ sysctl_kern_file(SYSCTL_HANDLER_ARGS)
 		if (fdp == NULL)
 			continue;
 		FILEDESC_SLOCK(fdp);
-		for (n = 0; fdp->fd_refcnt > 0 && n < fdp->fd_nfiles; ++n) {
+		for (n = 0; fdp->fd_refcnt > 0 && n <= fdp->fd_lastfile; ++n) {
 			if ((fp = fdp->fd_ofiles[n].fde_file) == NULL)
 				continue;
 			xf.xf_fd = n;
@@ -3026,7 +3026,7 @@ sysctl_kern_proc_ofiledesc(SYSCTL_HANDLER_ARGS)
 	if (fdp->fd_jdir != NULL)
 		export_vnode_for_osysctl(fdp->fd_jdir, KF_FD_TYPE_JAIL, kif,
 				fdp, req);
-	for (i = 0; fdp->fd_refcnt > 0 && i < fdp->fd_nfiles; i++) {
+	for (i = 0; fdp->fd_refcnt > 0 && i <= fdp->fd_lastfile; i++) {
 		if ((fp = fdp->fd_ofiles[i].fde_file) == NULL)
 			continue;
 		bzero(kif, sizeof(*kif));
@@ -3395,7 +3395,7 @@ kern_proc_filedesc_out(struct proc *p,  struct sbuf *sb, ssize_t maxlen)
 		export_fd_to_sb(data, KF_TYPE_VNODE, KF_FD_TYPE_JAIL,
 		    FREAD, -1, -1, NULL, efbuf);
 	}
-	for (i = 0; fdp->fd_refcnt > 0 && i < fdp->fd_nfiles; i++) {
+	for (i = 0; fdp->fd_refcnt > 0 && i <= fdp->fd_lastfile; i++) {
 		if ((fp = fdp->fd_ofiles[i].fde_file) == NULL)
 			continue;
 		data = NULL;
@@ -3766,7 +3766,7 @@ file_to_first_proc(struct file *fp)
 		fdp = p->p_fd;
 		if (fdp == NULL)
 			continue;
-		for (n = 0; n < fdp->fd_nfiles; n++) {
+		for (n = 0; n <= fdp->fd_lastfile; n++) {
 			if (fp == fdp->fd_ofiles[n].fde_file)
 				return (p);
 		}
@@ -3816,7 +3816,7 @@ DB_SHOW_COMMAND(files, db_show_files)
 			continue;
 		if ((fdp = p->p_fd) == NULL)
 			continue;
-		for (n = 0; n < fdp->fd_nfiles; ++n) {
+		for (n = 0; n <= fdp->fd_lastfile; ++n) {
 			if ((fp = fdp->fd_ofiles[n].fde_file) == NULL)
 				continue;
 			db_print_file(fp, header);

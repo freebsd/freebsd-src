@@ -175,7 +175,7 @@ fget_locked(struct filedesc *fdp, int fd)
 
 	FILEDESC_LOCK_ASSERT(fdp);
 
-	if (fd < 0 || fd >= fdp->fd_nfiles)
+	if (fd < 0 || fd > fdp->fd_lastfile)
 		return (NULL);
 
 	return (fdp->fd_ofiles[fd].fde_file);
