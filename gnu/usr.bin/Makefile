@@ -14,7 +14,6 @@ SUBDIR= ${_binutils} \
 	${_groff} \
 	${_rcs} \
 	sdiff \
-	send-pr \
 	${_tests} \
 	${_texinfo}
 
