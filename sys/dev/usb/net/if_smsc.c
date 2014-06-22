@@ -82,6 +82,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/priv.h>
 #include <sys/random.h>
 
+#include <netinet/in.h>
+#include <netinet/ip.h>
+
 #include "opt_platform.h"
 
 #ifdef FDT
@@ -1021,25 +1024,32 @@ smsc_bulk_read_callback(struct usb_xfer *xfer, usb_error_t error)
 					 *
 					 * Ignore H/W csum for non-IPv4 packets.
 					 */
-					if (be16toh(eh->ether_type) == ETHERTYPE_IP && pktlen > ETHER_MIN_LEN) {
-					
-						/* Indicate the UDP/TCP csum has been calculated */
-						m->m_pkthdr.csum_flags |= CSUM_DATA_VALID;
-										 
-						/* Copy the TCP/UDP checksum from the last 2 bytes
-						 * of the transfer and put in the csum_data field.
-						 */
-						usbd_copy_out(pc, (off + pktlen),
-									  &m->m_pkthdr.csum_data, 2);
-					
-						/* The data is copied in network order, but the
-						 * csum algorithm in the kernel expects it to be
-						 * in host network order.
-						 */
-						m->m_pkthdr.csum_data = ntohs(m->m_pkthdr.csum_data);
-					
-						smsc_dbg_printf(sc, "RX checksum offloaded (0x%04x)\n",
-										m->m_pkthdr.csum_data);
+					if ((be16toh(eh->ether_type) == ETHERTYPE_IP) &&
+					    (pktlen > ETHER_MIN_LEN)) {
+						struct ip *ip;
+
+						ip = (struct ip *)(eh + 1);
+						if ((ip->ip_v == IPVERSION) &&
+						    ((ip->ip_p == IPPROTO_TCP) ||
+						     (ip->ip_p == IPPROTO_UDP))) {
+							/* Indicate the UDP/TCP csum has been calculated */
+							m->m_pkthdr.csum_flags |= CSUM_DATA_VALID;
+
+							/* Copy the TCP/UDP checksum from the last 2 bytes
+							 * of the transfer and put in the csum_data field.
+							 */
+							usbd_copy_out(pc, (off + pktlen),
+							              &m->m_pkthdr.csum_data, 2);
+
+							/* The data is copied in network order, but the
+							 * csum algorithm in the kernel expects it to be
+							 * in host network order.
+							 */
+							m->m_pkthdr.csum_data = ntohs(m->m_pkthdr.csum_data);
+
+							smsc_dbg_printf(sc, "RX checksum offloaded (0x%04x)\n",
+							                m->m_pkthdr.csum_data);
+						}
 					}
 					
 					/* Need to adjust the offset as well or we'll be off

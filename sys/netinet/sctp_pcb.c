@@ -2735,7 +2735,6 @@ sctp_inpcb_bind(struct socket *so, struct sockaddr *addr,
 	uint32_t vrf_id;
 
 	lport = 0;
-	error = 0;
 	bindall = 1;
 	inp = (struct sctp_inpcb *)so->so_pcb;
 	ip_inp = (struct inpcb *)so->so_pcb;
@@ -2855,13 +2854,6 @@ sctp_inpcb_bind(struct socket *so, struct sockaddr *addr,
 				SCTP_INP_INFO_WUNLOCK();
 				return (error);
 			}
-		}
-		if (p == NULL) {
-			SCTP_INP_DECR_REF(inp);
-			SCTP_INP_WUNLOCK(inp);
-			SCTP_INP_INFO_WUNLOCK();
-			SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_PCB, error);
-			return (error);
 		}
 		SCTP_INP_WUNLOCK(inp);
 		if (bindall) {
