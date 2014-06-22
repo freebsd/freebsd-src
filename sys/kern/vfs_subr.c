@@ -3654,11 +3654,8 @@ sync_fsync(struct vop_fsync_args *ap)
 	 * Walk the list of vnodes pushing all that are dirty and
 	 * not already on the sync list.
 	 */
-	mtx_lock(&mountlist_mtx);
-	if (vfs_busy(mp, MBF_NOWAIT | MBF_MNTLSTLOCK) != 0) {
-		mtx_unlock(&mountlist_mtx);
+	if (vfs_busy(mp, MBF_NOWAIT) != 0)
 		return (0);
-	}
 	if (vn_start_write(NULL, &mp, V_NOWAIT) != 0) {
 		vfs_unbusy(mp);
 		return (0);
