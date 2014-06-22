@@ -288,11 +288,7 @@ fha_hash_entry_add_op(struct fha_hash_entry *fhe, int locktype, int count)
  * Get the service thread currently associated with the fhe that is
  * appropriate to handle this operation.
  */
-SVCTHREAD *
-fha_hash_entry_choose_thread(struct fha_params *softc,
-    struct fha_hash_entry *fhe, struct fha_info *i, SVCTHREAD *this_thread);
-
-SVCTHREAD *
+static SVCTHREAD *
 fha_hash_entry_choose_thread(struct fha_params *softc,
     struct fha_hash_entry *fhe, struct fha_info *i, SVCTHREAD *this_thread)
 {
@@ -428,13 +424,13 @@ fha_assign(SVCTHREAD *this_thread, struct svc_req *req,
 	 * Grab the pool lock here to not let chosen thread go away before
 	 * the new request inserted to its queue while we drop fhe lock.
 	 */
-	mtx_lock(&(*softc->pool)->sp_lock);
+	mtx_lock(&thread->st_lock);
 	mtx_unlock(fhe->mtx);
 
 	return (thread);
 thist:
 	req->rq_p1 = NULL;
-	mtx_lock(&(*softc->pool)->sp_lock);
+	mtx_lock(&this_thread->st_lock);
 	return (this_thread);
 }
 
