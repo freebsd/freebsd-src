@@ -340,7 +340,6 @@ xprt_assignthread(SVCXPRT *xprt)
 	st = LIST_FIRST(&pool->sp_idlethreads);
 	if (st) {
 		LIST_REMOVE(st, st_ilink);
-		st->st_idle = FALSE;
 		SVC_ACQUIRE(xprt);
 		xprt->xp_thread = st;
 		st->st_xprt = xprt;
@@ -1138,7 +1137,6 @@ svc_run_internal(SVCPOOL *pool, bool_t ismaster)
 			}
 
 			LIST_INSERT_HEAD(&pool->sp_idlethreads, st, st_ilink);
-			st->st_idle = TRUE;
 			if (ismaster || (!ismaster &&
 			    pool->sp_threadcount > pool->sp_minthreads))
 				error = cv_timedwait_sig(&st->st_cond,
@@ -1146,10 +1144,8 @@ svc_run_internal(SVCPOOL *pool, bool_t ismaster)
 			else
 				error = cv_wait_sig(&st->st_cond,
 				    &pool->sp_lock);
-			if (st->st_idle) {
+			if (st->st_xprt == NULL)
 				LIST_REMOVE(st, st_ilink);
-				st->st_idle = FALSE;
-			}
 
 			/*
 			 * Reduce worker thread count when idle.
