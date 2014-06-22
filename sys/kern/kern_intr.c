@@ -295,7 +295,6 @@ intr_event_create(struct intr_event **event, void *source, int flags, int irq,
 int
 intr_event_bind(struct intr_event *ie, u_char cpu)
 {
-	cpuset_t mask;
 	lwpid_t id;
 	int error;
 
@@ -316,14 +315,9 @@ intr_event_bind(struct intr_event *ie, u_char cpu)
 	 */
 	mtx_lock(&ie->ie_lock);
 	if (ie->ie_thread != NULL) {
-		CPU_ZERO(&mask);
-		if (cpu == NOCPU)
-			CPU_COPY(cpuset_root, &mask);
-		else
-			CPU_SET(cpu, &mask);
 		id = ie->ie_thread->it_thread->td_tid;
 		mtx_unlock(&ie->ie_lock);
-		error = cpuset_setthread(id, &mask);
+		error = cpuset_setithread(id, cpu);
 		if (error)
 			return (error);
 	} else
@@ -332,14 +326,10 @@ intr_event_bind(struct intr_event *ie, u_char cpu)
 	if (error) {
 		mtx_lock(&ie->ie_lock);
 		if (ie->ie_thread != NULL) {
-			CPU_ZERO(&mask);
-			if (ie->ie_cpu == NOCPU)
-				CPU_COPY(cpuset_root, &mask);
-			else
-				CPU_SET(ie->ie_cpu, &mask);
+			cpu = ie->ie_cpu;
 			id = ie->ie_thread->it_thread->td_tid;
 			mtx_unlock(&ie->ie_lock);
-			(void)cpuset_setthread(id, &mask);
+			(void)cpuset_setithread(id, cpu);
 		} else
 			mtx_unlock(&ie->ie_lock);
 		return (error);
