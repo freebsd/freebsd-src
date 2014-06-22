@@ -205,6 +205,7 @@ void
 sctp_handle_ootb(struct mbuf *, int, int,
     struct sockaddr *, struct sockaddr *,
     struct sctphdr *, struct sctp_inpcb *,
+    struct mbuf *,
     uint8_t, uint32_t,
     uint32_t, uint16_t);
 
@@ -252,7 +253,7 @@ sctp_release_pr_sctp_chunk(struct sctp_tcb *, struct sctp_tmit_chunk *,
 #endif
 );
 
-struct mbuf *sctp_generate_invmanparam(int);
+struct mbuf *sctp_generate_cause(uint16_t, char *);
 
 void 
 sctp_bindx_add_address(struct socket *so, struct sctp_inpcb *inp,
