@@ -7367,7 +7367,8 @@ dont_do_it:
 	chk->pad_inplace = 0;
 	chk->no_fr_allowed = 0;
 	chk->rec.data.stream_seq = strq->next_sequence_send;
-	if (rcv_flags & SCTP_DATA_LAST_FRAG) {
+	if ((rcv_flags & SCTP_DATA_LAST_FRAG) &&
+	    !(rcv_flags & SCTP_DATA_UNORDERED)) {
 		strq->next_sequence_send++;
 	}
 	chk->rec.data.stream_number = sp->stream;
