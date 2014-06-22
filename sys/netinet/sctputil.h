@@ -254,6 +254,7 @@ sctp_release_pr_sctp_chunk(struct sctp_tcb *, struct sctp_tmit_chunk *,
 );
 
 struct mbuf *sctp_generate_cause(uint16_t, char *);
+struct mbuf *sctp_generate_no_user_data_cause(uint32_t);
 
 void 
 sctp_bindx_add_address(struct socket *so, struct sctp_inpcb *inp,
