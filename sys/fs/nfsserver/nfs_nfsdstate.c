@@ -2267,7 +2267,9 @@ tryagain:
 	     */
 	    LIST_FOREACH(stp, &lfp->lf_deleg, ls_file) {
 		if (!(stp->ls_flags & NFSLCK_OLDDELEG) &&
-		    stateidp->seqid == stp->ls_stateid.seqid &&
+		    (((nd->nd_flag & ND_NFSV41) != 0 &&
+		    stateidp->seqid == 0) ||
+		    stateidp->seqid == stp->ls_stateid.seqid) &&
 		    !NFSBCMP(stateidp->other, stp->ls_stateid.other,
 			  NFSX_STATEIDOTHER))
 			break;
@@ -2524,7 +2526,9 @@ tryagain:
 	     */
 	    LIST_FOREACH(stp, &lfp->lf_deleg, ls_file) {
 		if (!(stp->ls_flags & NFSLCK_OLDDELEG) &&
-		    stateidp->seqid == stp->ls_stateid.seqid &&
+		    (((nd->nd_flag & ND_NFSV41) != 0 &&
+		    stateidp->seqid == 0) ||
+		    stateidp->seqid == stp->ls_stateid.seqid) &&
 		    !NFSBCMP(stateidp->other, stp->ls_stateid.other,
 			NFSX_STATEIDOTHER))
 			break;
