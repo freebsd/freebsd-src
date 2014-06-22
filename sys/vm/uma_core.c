@@ -381,6 +381,8 @@ bucket_alloc(uma_zone_t zone, void *udata, int flags)
 	if ((uintptr_t)udata & UMA_ZFLAG_CACHEONLY)
 		flags |= M_NOVM;
 	ubz = bucket_zone_lookup(zone->uz_count);
+	if (ubz->ubz_zone == zone && (ubz + 1)->ubz_entries != 0)
+		ubz++;
 	bucket = uma_zalloc_arg(ubz->ubz_zone, udata, flags);
 	if (bucket) {
 #ifdef INVARIANTS
