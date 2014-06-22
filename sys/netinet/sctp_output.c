@@ -3671,7 +3671,6 @@ sctp_add_cookie(struct mbuf *init, int init_offset,
 	int sig_offset;
 	uint16_t cookie_sz;
 
-	mret = NULL;
 	mret = sctp_get_mbuf_for_msg((sizeof(struct sctp_state_cookie) +
 	    sizeof(struct sctp_paramhdr)), 0,
 	    M_NOWAIT, 1, MT_DATA);
@@ -8960,7 +8959,6 @@ sctp_send_cookie_ack(struct sctp_tcb *stcb)
 	struct sctp_chunkhdr *hdr;
 	struct sctp_tmit_chunk *chk;
 
-	cookie_ack = NULL;
 	SCTP_TCB_LOCK_ASSERT(stcb);
 
 	cookie_ack = sctp_get_mbuf_for_msg(sizeof(struct sctp_chunkhdr), 0, M_NOWAIT, 1, MT_HEADER);

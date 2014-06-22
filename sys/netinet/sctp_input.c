@@ -439,7 +439,6 @@ sctp_process_init_ack(struct mbuf *m, int iphlen, int offset,
 
 	/* First verify that we have no illegal param's */
 	abort_flag = 0;
-	op_err = NULL;
 
 	op_err = sctp_arethere_unrecognized_parameters(m,
 	    (offset + sizeof(struct sctp_init_chunk)),
@@ -1553,8 +1552,7 @@ sctp_process_cookie_existing(struct mbuf *m, int iphlen, int offset,
 			return (NULL);
 
 		}
-		switch SCTP_GET_STATE
-			(asoc) {
+		switch (SCTP_GET_STATE(asoc)) {
 		case SCTP_STATE_COOKIE_WAIT:
 		case SCTP_STATE_COOKIE_ECHOED:
 			/*
@@ -1644,7 +1642,7 @@ sctp_process_cookie_existing(struct mbuf *m, int iphlen, int offset,
 			 * have simply lost the COOKIE-ACK
 			 */
 			break;
-			}	/* end switch */
+		}		/* end switch */
 		sctp_stop_all_cookie_timers(stcb);
 		/*
 		 * We ignore the return code here.. not sure if we should
