@@ -1029,6 +1029,7 @@ main(int argc, char **argv)
 				bgcolor = white;
 			else	/* XXX: add 0xRRGGBB support */
 				usage();
+			break;
 		case 'C':
 			caching = 1;
 			preload = 1;
