@@ -103,18 +103,25 @@ main(int argc, char *argv[])
 		err(EX_USAGE, "%s", source);
 
 	if (subdir(target, source) || subdir(source, target))
-		errx(EX_USAGE, "%s (%s) and %s are not distinct paths",
+		errx(EX_USAGE, "%s (%s) and %s are not lldistinct paths",
 		    argv[0], target, argv[1]);
 
+	printf("Debug: 1\n");
 	build_iovec(&iov, &iovlen, "fstype", nullfs, (size_t)-1);
 	build_iovec(&iov, &iovlen, "fspath", source, (size_t)-1);
 	build_iovec(&iov, &iovlen, "target", target, (size_t)-1);
 	build_iovec(&iov, &iovlen, "errmsg", errmsg, sizeof(errmsg));
+	printf("Debug: 2, source: %zd target: %zdd\n", strlen(source), strlen(target));
 	if (nmount(iov, iovlen, 0) < 0) {
-		if (errmsg[0] != 0)
+	printf("Debug: 3\n");
+		if (errmsg[0] != 0) {
+                        printf("Debug 4\n");
 			err(1, "%s: %s", source, errmsg);
-		else
+                }  
+		else {
+                        printf("Debug 5\n");
 			err(1, "%s", source);
+                 }
 	}
 	exit(0);
 }
