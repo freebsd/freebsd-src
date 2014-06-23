@@ -1215,7 +1215,7 @@ charged:
 	}
 	else if ((prev_entry != &map->header) &&
 		 (prev_entry->eflags == protoeflags) &&
-		 (cow & (MAP_ENTRY_GROWS_DOWN | MAP_ENTRY_GROWS_UP)) == 0 &&
+		 (cow & (MAP_STACK_GROWS_DOWN | MAP_STACK_GROWS_UP)) == 0 &&
 		 (prev_entry->end == start) &&
 		 (prev_entry->wired_count == 0) &&
 		 (prev_entry->cred == cred ||
