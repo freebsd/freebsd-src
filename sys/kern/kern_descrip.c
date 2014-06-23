@@ -2081,15 +2081,8 @@ setugidsafety(struct thread *td)
 	struct file *fp;
 	int i;
 
-	/* Certain daemons might not have file descriptors. */
 	fdp = td->td_proc->p_fd;
-	if (fdp == NULL)
-		return;
-
-	/*
-	 * Note: fdp->fd_ofiles may be reallocated out from under us while
-	 * we are blocked in a close.  Be careful!
-	 */
+	KASSERT(fdp->fd_refcnt == 1, ("the fdtable should not be shared"));
 	FILEDESC_XLOCK(fdp);
 	for (i = 0; i <= fdp->fd_lastfile; i++) {
 		if (i > 2)
@@ -2141,15 +2134,8 @@ fdcloseexec(struct thread *td)
 	struct file *fp;
 	int i;
 
-	/* Certain daemons might not have file descriptors. */
 	fdp = td->td_proc->p_fd;
-	if (fdp == NULL)
-		return;
-
-	/*
-	 * We cannot cache fd_ofiles since operations
-	 * may block and rip them out from under us.
-	 */
+	KASSERT(fdp->fd_refcnt == 1, ("the fdtable should not be shared"));
 	FILEDESC_XLOCK(fdp);
 	for (i = 0; i <= fdp->fd_lastfile; i++) {
 		fde = &fdp->fd_ofiles[i];
@@ -2180,8 +2166,6 @@ fdcheckstd(struct thread *td)
 	int i, error, devnull;
 
 	fdp = td->td_proc->p_fd;
-	if (fdp == NULL)
-		return (0);
 	KASSERT(fdp->fd_refcnt == 1, ("the fdtable should not be shared"));
 	devnull = -1;
 	error = 0;
