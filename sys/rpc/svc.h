@@ -291,7 +291,7 @@ STAILQ_HEAD(svc_reqlist, svc_req);
  * thread to read and execute pending RPCs.
  */
 typedef struct __rpc_svcthread {
-	struct mtx_padalign	st_lock; /* protects st_reqs field */
+	struct mtx		st_lock; /* protects st_reqs field */
 	struct __rpc_svcpool	*st_pool;
 	SVCXPRT			*st_xprt; /* transport we are processing */
 	struct svc_reqlist	st_reqs;  /* RPC requests to execute */
@@ -319,7 +319,7 @@ enum svcpool_state {
 	SVCPOOL_CLOSING		/* svc_exit called */
 };
 typedef struct __rpc_svcgroup {
-	struct mtx_padalign sg_lock;	/* protect the thread/req lists */
+	struct mtx	sg_lock;	/* protect the thread/req lists */
 	struct __rpc_svcpool	*sg_pool;
 	enum svcpool_state sg_state;	/* current pool state */
 	struct svcxprt_list sg_xlist;	/* all transports in the group */
