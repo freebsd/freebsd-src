@@ -23,8 +23,8 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 21, 2014
-.Dt KERN_FPU 9
+.Dd June 23, 2014
+.Dt FPU_KERN 9
 .Os
 .Sh NAME
 .Nm fpu_kern
@@ -47,11 +47,11 @@ The
 .Nm
 family of functions allows the use of FPU hardware in kernel code.
 Modern FPUs are not limited to providing hardware implementation for
-floating point arithmetic, they offer advanced accelerators for cryptography
+floating point arithmetic; they offer advanced accelerators for cryptography
 and other computational-intensive algorithms.
 These facilities share registers with the FPU hardware.
 .Pp
-Typical kernel code does not need to access to the FPU.
+Typical kernel code does not need access to the FPU.
 Saving a large register file on each entry to the kernel would waste
 time.
 When kernel code uses the FPU, the current FPU state must be saved to
@@ -80,6 +80,7 @@ without sleep.
 .It 0
 No special handling is required.
 .El
+.Pp
 The function returns the allocated context area, or
 .Va NULL
 if the allocation failed.
@@ -121,6 +122,7 @@ The
 function correctly handles such contexts.
 .El
 .El
+.Pp
 The function does not sleep or block.
 It could cause the
 .Nm Device Not Available
@@ -173,7 +175,7 @@ and false otherwise.
 .Sh NOTES
 The
 .Nm
-is currently implemented only for i386 and amd64 architectures.
+is currently implemented only for the i386 and amd64 architectures.
 .Pp
 There is no way to handle floating point exceptions raised from
 kernel mode.
