@@ -136,6 +136,9 @@ static void vm_map_entry_dispose(vm_map_t map, vm_map_entry_t entry);
 static void vm_map_zdtor(void *mem, int size, void *arg);
 static void vmspace_zdtor(void *mem, int size, void *arg);
 #endif
+static int vm_map_stack_locked(vm_map_t map, vm_offset_t addrbos,
+    vm_size_t max_ssize, vm_size_t growsize, vm_prot_t prot, vm_prot_t max,
+    int cow);
 
 #define	ENTRY_CHARGED(e) ((e)->cred != NULL || \
     ((e)->object.vm_object != NULL && (e)->object.vm_object->cred != NULL && \
@@ -1399,11 +1402,19 @@ vm_map_fixed(vm_map_t map, vm_object_t object, vm_ooffset_t offset,
 	int result;
 
 	end = start + length;
+	KASSERT((cow & (MAP_STACK_GROWS_DOWN | MAP_STACK_GROWS_UP)) == 0 ||
+	    object == NULL,
+	    ("vm_map_fixed: non-NULL backing object for stack"));
 	vm_map_lock(map);
 	VM_MAP_RANGE_CHECK(map, start, end);
 	(void) vm_map_delete(map, start, end);
-	result = vm_map_insert(map, object, offset, start, end, prot,
-	    max, cow);
+	if ((cow & (MAP_STACK_GROWS_DOWN | MAP_STACK_GROWS_UP)) != 0) {
+		result = vm_map_stack_locked(map, start, length, sgrowsiz,
+		    prot, max, cow);
+	} else {
+		result = vm_map_insert(map, object, offset, start, end,
+		    prot, max, cow);
+	}
 	vm_map_unlock(map);
 	return (result);
 }
@@ -1426,6 +1437,9 @@ vm_map_find(vm_map_t map, vm_object_t object, vm_ooffset_t offset,
 	vm_offset_t alignment, initial_addr, start;
 	int result;
 
+	KASSERT((cow & (MAP_STACK_GROWS_DOWN | MAP_STACK_GROWS_UP)) == 0 ||
+	    object == NULL,
+	    ("vm_map_find: non-NULL backing object for stack"));
 	if (find_space == VMFS_OPTIMAL_SPACE && (object == NULL ||
 	    (object->flags & OBJ_COLORED) == 0))
 		find_space = VMFS_ANY_SPACE;
@@ -1467,8 +1481,13 @@ again:
 
 			start = *addr;
 		}
-		result = vm_map_insert(map, object, offset, start, start +
-		    length, prot, max, cow);
+		if ((cow & (MAP_STACK_GROWS_DOWN | MAP_STACK_GROWS_UP)) != 0) {
+			result = vm_map_stack_locked(map, start, length,
+			    sgrowsiz, prot, max, cow);
+		} else {
+			result = vm_map_insert(map, object, offset, start,
+			    start + length, prot, max, cow);
+		}
 	} while (result == KERN_NO_SPACE && find_space != VMFS_NO_SPACE &&
 	    find_space != VMFS_ANY_SPACE);
 	vm_map_unlock(map);
@@ -3334,11 +3353,43 @@ int
 vm_map_stack(vm_map_t map, vm_offset_t addrbos, vm_size_t max_ssize,
     vm_prot_t prot, vm_prot_t max, int cow)
 {
+	vm_size_t growsize, init_ssize;
+	rlim_t lmemlim, vmemlim;
+	int rv;
+
+	growsize = sgrowsiz;
+	init_ssize = (max_ssize < growsize) ? max_ssize : growsize;
+	vm_map_lock(map);
+	PROC_LOCK(curproc);
+	lmemlim = lim_cur(curproc, RLIMIT_MEMLOCK);
+	vmemlim = lim_cur(curproc, RLIMIT_VMEM);
+	PROC_UNLOCK(curproc);
+	if (!old_mlock && map->flags & MAP_WIREFUTURE) {
+		if (ptoa(pmap_wired_count(map->pmap)) + init_ssize > lmemlim) {
+			rv = KERN_NO_SPACE;
+			goto out;
+		}
+	}
+	/* If we would blow our VMEM resource limit, no go */
+	if (map->size + init_ssize > vmemlim) {
+		rv = KERN_NO_SPACE;
+		goto out;
+	}
+	rv = vm_map_stack_locked(map, addrbos, max_ssize, growsize, prot,
+	    max, cow);
+out:
+	vm_map_unlock(map);
+	return (rv);
+}
+
+static int
+vm_map_stack_locked(vm_map_t map, vm_offset_t addrbos, vm_size_t max_ssize,
+    vm_size_t growsize, vm_prot_t prot, vm_prot_t max, int cow)
+{
 	vm_map_entry_t new_entry, prev_entry;
 	vm_offset_t bot, top;
-	vm_size_t growsize, init_ssize;
+	vm_size_t init_ssize;
 	int orient, rv;
-	rlim_t lmemlim, vmemlim;
 
 	/*
 	 * The stack orientation is piggybacked with the cow argument.
@@ -3354,34 +3405,11 @@ vm_map_stack(vm_map_t map, vm_offset_t addrbos, vm_size_t max_ssize,
 	    addrbos + max_ssize < addrbos)
 		return (KERN_NO_SPACE);
 
-	growsize = sgrowsiz;
 	init_ssize = (max_ssize < growsize) ? max_ssize : growsize;
 
-	PROC_LOCK(curproc);
-	lmemlim = lim_cur(curproc, RLIMIT_MEMLOCK);
-	vmemlim = lim_cur(curproc, RLIMIT_VMEM);
-	PROC_UNLOCK(curproc);
-
-	vm_map_lock(map);
-
 	/* If addr is already mapped, no go */
-	if (vm_map_lookup_entry(map, addrbos, &prev_entry)) {
-		vm_map_unlock(map);
+	if (vm_map_lookup_entry(map, addrbos, &prev_entry))
 		return (KERN_NO_SPACE);
-	}
-
-	if (!old_mlock && map->flags & MAP_WIREFUTURE) {
-		if (ptoa(pmap_wired_count(map->pmap)) + init_ssize > lmemlim) {
-			vm_map_unlock(map);
-			return (KERN_NO_SPACE);
-		}
-	}
-
-	/* If we would blow our VMEM resource limit, no go */
-	if (map->size + init_ssize > vmemlim) {
-		vm_map_unlock(map);
-		return (KERN_NO_SPACE);
-	}
 
 	/*
 	 * If we can't accomodate max_ssize in the current mapping, no go.
@@ -3393,10 +3421,8 @@ vm_map_stack(vm_map_t map, vm_offset_t addrbos, vm_size_t max_ssize,
 	 * grow the stack.
 	 */
 	if ((prev_entry->next != &map->header) &&
-	    (prev_entry->next->start < addrbos + max_ssize)) {
-		vm_map_unlock(map);
+	    (prev_entry->next->start < addrbos + max_ssize))
 		return (KERN_NO_SPACE);
-	}
 
 	/*
 	 * We initially map a stack of only init_ssize.  We will grow as
@@ -3432,7 +3458,6 @@ vm_map_stack(vm_map_t map, vm_offset_t addrbos, vm_size_t max_ssize,
 			new_entry->eflags |= MAP_ENTRY_GROWS_UP;
 	}
 
-	vm_map_unlock(map);
 	return (rv);
 }
 
