@@ -295,7 +295,6 @@ typedef struct __rpc_svcthread {
 	struct __rpc_svcpool	*st_pool;
 	SVCXPRT			*st_xprt; /* transport we are processing */
 	struct svc_reqlist	st_reqs;  /* RPC requests to execute */
-	int			st_idle; /* thread is on idle list */
 	struct cv		st_cond; /* sleeping for work */
 	LIST_ENTRY(__rpc_svcthread) st_link; /* all threads list */
 	LIST_ENTRY(__rpc_svcthread) st_ilink; /* idle threads list */
