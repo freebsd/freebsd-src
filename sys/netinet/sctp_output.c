@@ -2060,6 +2060,20 @@ sctp_add_addresses_to_i_ia(struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 				continue;
 			}
 			LIST_FOREACH(sctp_ifap, &sctp_ifnp->ifalist, next_ifa) {
+#ifdef INET
+				if ((sctp_ifap->address.sa.sa_family == AF_INET) &&
+				    (prison_check_ip4(inp->ip_inp.inp.inp_cred,
+				    &sctp_ifap->address.sin.sin_addr) != 0)) {
+					continue;
+				}
+#endif
+#ifdef INET6
+				if ((sctp_ifap->address.sa.sa_family == AF_INET6) &&
+				    (prison_check_ip6(inp->ip_inp.inp.inp_cred,
+				    &sctp_ifap->address.sin6.sin6_addr) != 0)) {
+					continue;
+				}
+#endif
 				if (sctp_is_addr_restricted(stcb, sctp_ifap)) {
 					continue;
 				}
@@ -2089,6 +2103,20 @@ skip_count:
 					continue;
 				}
 				LIST_FOREACH(sctp_ifap, &sctp_ifnp->ifalist, next_ifa) {
+#ifdef INET
+					if ((sctp_ifap->address.sa.sa_family == AF_INET) &&
+					    (prison_check_ip4(inp->ip_inp.inp.inp_cred,
+					    &sctp_ifap->address.sin.sin_addr) != 0)) {
+						continue;
+					}
+#endif
+#ifdef INET6
+					if ((sctp_ifap->address.sa.sa_family == AF_INET6) &&
+					    (prison_check_ip6(inp->ip_inp.inp.inp_cred,
+					    &sctp_ifap->address.sin6.sin6_addr) != 0)) {
+						continue;
+					}
+#endif
 					if (sctp_is_addr_restricted(stcb, sctp_ifap)) {
 						continue;
 					}
@@ -2453,6 +2481,20 @@ sctp_choose_boundspecific_inp(struct sctp_inpcb *inp,
 	if (sctp_ifn) {
 		/* is a preferred one on the interface we route out? */
 		LIST_FOREACH(sctp_ifa, &sctp_ifn->ifalist, next_ifa) {
+#ifdef INET
+			if ((sctp_ifa->address.sa.sa_family == AF_INET) &&
+			    (prison_check_ip4(inp->ip_inp.inp.inp_cred,
+			    &sctp_ifa->address.sin.sin_addr) != 0)) {
+				continue;
+			}
+#endif
+#ifdef INET6
+			if ((sctp_ifa->address.sa.sa_family == AF_INET6) &&
+			    (prison_check_ip6(inp->ip_inp.inp.inp_cred,
+			    &sctp_ifa->address.sin6.sin6_addr) != 0)) {
+				continue;
+			}
+#endif
 			if ((sctp_ifa->localifa_flags & SCTP_ADDR_DEFER_USE) &&
 			    (non_asoc_addr_ok == 0))
 				continue;
@@ -2576,6 +2618,20 @@ sctp_choose_boundspecific_stcb(struct sctp_inpcb *inp,
 	if (sctp_ifn) {
 		/* first try for a preferred address on the ep */
 		LIST_FOREACH(sctp_ifa, &sctp_ifn->ifalist, next_ifa) {
+#ifdef INET
+			if ((sctp_ifa->address.sa.sa_family == AF_INET) &&
+			    (prison_check_ip4(inp->ip_inp.inp.inp_cred,
+			    &sctp_ifa->address.sin.sin_addr) != 0)) {
+				continue;
+			}
+#endif
+#ifdef INET6
+			if ((sctp_ifa->address.sa.sa_family == AF_INET6) &&
+			    (prison_check_ip6(inp->ip_inp.inp.inp_cred,
+			    &sctp_ifa->address.sin6.sin6_addr) != 0)) {
+				continue;
+			}
+#endif
 			if ((sctp_ifa->localifa_flags & SCTP_ADDR_DEFER_USE) && (non_asoc_addr_ok == 0))
 				continue;
 			if (sctp_is_addr_in_ep(inp, sctp_ifa)) {
@@ -2596,6 +2652,20 @@ sctp_choose_boundspecific_stcb(struct sctp_inpcb *inp,
 		}
 		/* next try for an acceptable address on the ep */
 		LIST_FOREACH(sctp_ifa, &sctp_ifn->ifalist, next_ifa) {
+#ifdef INET
+			if ((sctp_ifa->address.sa.sa_family == AF_INET) &&
+			    (prison_check_ip4(inp->ip_inp.inp.inp_cred,
+			    &sctp_ifa->address.sin.sin_addr) != 0)) {
+				continue;
+			}
+#endif
+#ifdef INET6
+			if ((sctp_ifa->address.sa.sa_family == AF_INET6) &&
+			    (prison_check_ip6(inp->ip_inp.inp.inp_cred,
+			    &sctp_ifa->address.sin6.sin6_addr) != 0)) {
+				continue;
+			}
+#endif
 			if ((sctp_ifa->localifa_flags & SCTP_ADDR_DEFER_USE) && (non_asoc_addr_ok == 0))
 				continue;
 			if (sctp_is_addr_in_ep(inp, sctp_ifa)) {
@@ -2700,6 +2770,7 @@ sctp_from_the_top2:
 
 static struct sctp_ifa *
 sctp_select_nth_preferred_addr_from_ifn_boundall(struct sctp_ifn *ifn,
+    struct sctp_inpcb *inp,
     struct sctp_tcb *stcb,
     int non_asoc_addr_ok,
     uint8_t dest_is_loop,
@@ -2721,6 +2792,20 @@ sctp_select_nth_preferred_addr_from_ifn_boundall(struct sctp_ifn *ifn,
 	}
 #endif				/* INET6 */
 	LIST_FOREACH(ifa, &ifn->ifalist, next_ifa) {
+#ifdef INET
+		if ((ifa->address.sa.sa_family == AF_INET) &&
+		    (prison_check_ip4(inp->ip_inp.inp.inp_cred,
+		    &ifa->address.sin.sin_addr) != 0)) {
+			continue;
+		}
+#endif
+#ifdef INET6
+		if ((ifa->address.sa.sa_family == AF_INET6) &&
+		    (prison_check_ip6(inp->ip_inp.inp.inp_cred,
+		    &ifa->address.sin6.sin6_addr) != 0)) {
+			continue;
+		}
+#endif
 		if ((ifa->localifa_flags & SCTP_ADDR_DEFER_USE) &&
 		    (non_asoc_addr_ok == 0))
 			continue;
@@ -2806,6 +2891,7 @@ sctp_select_nth_preferred_addr_from_ifn_boundall(struct sctp_ifn *ifn,
 
 static int
 sctp_count_num_preferred_boundall(struct sctp_ifn *ifn,
+    struct sctp_inpcb *inp,
     struct sctp_tcb *stcb,
     int non_asoc_addr_ok,
     uint8_t dest_is_loop,
@@ -2816,6 +2902,21 @@ sctp_count_num_preferred_boundall(struct sctp_ifn *ifn,
 	int num_eligible_addr = 0;
 
 	LIST_FOREACH(ifa, &ifn->ifalist, next_ifa) {
+#ifdef INET
+		if ((ifa->address.sa.sa_family == AF_INET) &&
+		    (prison_check_ip4(inp->ip_inp.inp.inp_cred,
+		    &ifa->address.sin.sin_addr) != 0)) {
+			continue;
+		}
+#endif
+#ifdef INET6
+		if ((ifa->address.sa.sa_family == AF_INET6) &&
+		    (stcb != NULL) &&
+		    (prison_check_ip6(inp->ip_inp.inp.inp_cred,
+		    &ifa->address.sin6.sin6_addr) != 0)) {
+			continue;
+		}
+#endif
 		if ((ifa->localifa_flags & SCTP_ADDR_DEFER_USE) &&
 		    (non_asoc_addr_ok == 0)) {
 			continue;
@@ -2847,7 +2948,8 @@ sctp_count_num_preferred_boundall(struct sctp_ifn *ifn,
 }
 
 static struct sctp_ifa *
-sctp_choose_boundall(struct sctp_tcb *stcb,
+sctp_choose_boundall(struct sctp_inpcb *inp,
+    struct sctp_tcb *stcb,
     struct sctp_nets *net,
     sctp_route_t * ro,
     uint32_t vrf_id,
@@ -2902,7 +3004,7 @@ sctp_choose_boundall(struct sctp_tcb *stcb,
 		cur_addr_num = net->indx_of_eligible_next_to_use;
 	}
 	num_preferred = sctp_count_num_preferred_boundall(sctp_ifn,
-	    stcb,
+	    inp, stcb,
 	    non_asoc_addr_ok,
 	    dest_is_loop,
 	    dest_is_priv, fam);
@@ -2929,7 +3031,7 @@ sctp_choose_boundall(struct sctp_tcb *stcb,
 	 */
 	SCTPDBG(SCTP_DEBUG_OUTPUT2, "cur_addr_num:%d\n", cur_addr_num);
 
-	sctp_ifa = sctp_select_nth_preferred_addr_from_ifn_boundall(sctp_ifn, stcb, non_asoc_addr_ok, dest_is_loop,
+	sctp_ifa = sctp_select_nth_preferred_addr_from_ifn_boundall(sctp_ifn, inp, stcb, non_asoc_addr_ok, dest_is_loop,
 	    dest_is_priv, cur_addr_num, fam, ro);
 
 	/* if sctp_ifa is NULL something changed??, fall to plan b. */
@@ -2960,7 +3062,7 @@ bound_all_plan_b:
 			SCTPDBG(SCTP_DEBUG_OUTPUT2, "already seen\n");
 			continue;
 		}
-		num_preferred = sctp_count_num_preferred_boundall(sctp_ifn, stcb, non_asoc_addr_ok,
+		num_preferred = sctp_count_num_preferred_boundall(sctp_ifn, inp, stcb, non_asoc_addr_ok,
 		    dest_is_loop, dest_is_priv, fam);
 		SCTPDBG(SCTP_DEBUG_OUTPUT2,
 		    "Found ifn:%p %d preferred source addresses\n",
@@ -2982,7 +3084,7 @@ bound_all_plan_b:
 		if (cur_addr_num >= num_preferred) {
 			cur_addr_num = 0;
 		}
-		sifa = sctp_select_nth_preferred_addr_from_ifn_boundall(sctp_ifn, stcb, non_asoc_addr_ok, dest_is_loop,
+		sifa = sctp_select_nth_preferred_addr_from_ifn_boundall(sctp_ifn, inp, stcb, non_asoc_addr_ok, dest_is_loop,
 		    dest_is_priv, cur_addr_num, fam, ro);
 		if (sifa == NULL)
 			continue;
@@ -3010,6 +3112,22 @@ again_with_private_addresses_allowed:
 	}
 	LIST_FOREACH(sctp_ifa, &emit_ifn->ifalist, next_ifa) {
 		SCTPDBG(SCTP_DEBUG_OUTPUT2, "ifa:%p\n", (void *)sctp_ifa);
+#ifdef INET
+		if ((sctp_ifa->address.sa.sa_family == AF_INET) &&
+		    (prison_check_ip4(inp->ip_inp.inp.inp_cred,
+		    &sctp_ifa->address.sin.sin_addr) != 0)) {
+			SCTPDBG(SCTP_DEBUG_OUTPUT2, "Jailed\n");
+			continue;
+		}
+#endif
+#ifdef INET6
+		if ((sctp_ifa->address.sa.sa_family == AF_INET6) &&
+		    (prison_check_ip6(inp->ip_inp.inp.inp_cred,
+		    &sctp_ifa->address.sin6.sin6_addr) != 0)) {
+			SCTPDBG(SCTP_DEBUG_OUTPUT2, "Jailed\n");
+			continue;
+		}
+#endif
 		if ((sctp_ifa->localifa_flags & SCTP_ADDR_DEFER_USE) &&
 		    (non_asoc_addr_ok == 0)) {
 			SCTPDBG(SCTP_DEBUG_OUTPUT2, "Defer\n");
@@ -3060,6 +3178,20 @@ plan_d:
 			continue;
 		}
 		LIST_FOREACH(sctp_ifa, &sctp_ifn->ifalist, next_ifa) {
+#ifdef INET
+			if ((sctp_ifa->address.sa.sa_family == AF_INET) &&
+			    (prison_check_ip4(inp->ip_inp.inp.inp_cred,
+			    &sctp_ifa->address.sin.sin_addr) != 0)) {
+				continue;
+			}
+#endif
+#ifdef INET6
+			if ((sctp_ifa->address.sa.sa_family == AF_INET6) &&
+			    (prison_check_ip6(inp->ip_inp.inp.inp_cred,
+			    &sctp_ifa->address.sin6.sin6_addr) != 0)) {
+				continue;
+			}
+#endif
 			if ((sctp_ifa->localifa_flags & SCTP_ADDR_DEFER_USE) &&
 			    (non_asoc_addr_ok == 0))
 				continue;
@@ -3110,6 +3242,20 @@ out:
 				LIST_FOREACH(sctp_ifa, &sctp_ifn->ifalist, next_ifa) {
 					struct sctp_ifa *tmp_sifa;
 
+#ifdef INET
+					if ((sctp_ifa->address.sa.sa_family == AF_INET) &&
+					    (prison_check_ip4(inp->ip_inp.inp.inp_cred,
+					    &sctp_ifa->address.sin.sin_addr) != 0)) {
+						continue;
+					}
+#endif
+#ifdef INET6
+					if ((sctp_ifa->address.sa.sa_family == AF_INET6) &&
+					    (prison_check_ip6(inp->ip_inp.inp.inp_cred,
+					    &sctp_ifa->address.sin6.sin6_addr) != 0)) {
+						continue;
+					}
+#endif
 					if ((sctp_ifa->localifa_flags & SCTP_ADDR_DEFER_USE) &&
 					    (non_asoc_addr_ok == 0))
 						continue;
@@ -3295,7 +3441,7 @@ sctp_source_address_selection(struct sctp_inpcb *inp,
 		/*
 		 * Bound all case
 		 */
-		answer = sctp_choose_boundall(stcb, net, ro, vrf_id,
+		answer = sctp_choose_boundall(inp, stcb, net, ro, vrf_id,
 		    dest_is_priv, dest_is_loop,
 		    non_asoc_addr_ok, fam);
 		SCTP_IPI_ADDR_RUNLOCK();
