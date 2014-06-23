@@ -1708,7 +1708,7 @@ t4_wrq_tx_locked(struct adapter *sc, struct sge_wrq *wrq, struct wrqe *wr)
 
 	can_reclaim = reclaimable(eq);
 	if (__predict_false(eq->flags & EQ_STALLED)) {
-		if (can_reclaim < tx_resume_threshold(eq))
+		if (eq->avail + can_reclaim < tx_resume_threshold(eq))
 			return;
 		eq->flags &= ~EQ_STALLED;
 		eq->unstalled++;
@@ -1829,7 +1829,7 @@ t4_eth_tx(struct ifnet *ifp, struct sge_txq *txq, struct mbuf *m)
 
 	can_reclaim = reclaimable(eq);
 	if (__predict_false(eq->flags & EQ_STALLED)) {
-		if (can_reclaim < tx_resume_threshold(eq)) {
+		if (eq->avail + can_reclaim < tx_resume_threshold(eq)) {
 			txq->m = m;
 			return (0);
 		}
@@ -2003,7 +2003,8 @@ t4_update_fl_bufsize(struct ifnet *ifp)
 int
 can_resume_tx(struct sge_eq *eq)
 {
-	return (reclaimable(eq) >= tx_resume_threshold(eq));
+
+	return (eq->avail + reclaimable(eq) >= tx_resume_threshold(eq));
 }
 
 static inline void
