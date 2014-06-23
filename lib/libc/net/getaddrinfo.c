@@ -1009,7 +1009,8 @@ comp_dst(const void *arg1, const void *arg2)
 	 * We compare the match length in a same AF only.
 	 */
 	if (dst1->aio_ai->ai_addr->sa_family ==
-	    dst2->aio_ai->ai_addr->sa_family) {
+	    dst2->aio_ai->ai_addr->sa_family &&
+	    dst1->aio_ai->ai_addr->sa_family != AF_INET) {
 		if (dst1->aio_matchlen > dst2->aio_matchlen) {
 			return(-1);
 		}
