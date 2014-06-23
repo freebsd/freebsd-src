@@ -5642,7 +5642,7 @@ sctp_setopt(struct socket *so, int optname, void *optval, size_t optsize,
 			SCTP_FIND_STCB(inp, stcb, thlds->spt_assoc_id);
 			net = NULL;
 			if (stcb) {
-				net = sctp_findnet(stcb, (struct sockaddr *)&thlds->spt_assoc_id);
+				net = sctp_findnet(stcb, (struct sockaddr *)&thlds->spt_address);
 			} else {
 				/*
 				 * We increment here since
@@ -5653,7 +5653,7 @@ sctp_setopt(struct socket *so, int optname, void *optval, size_t optsize,
 				 */
 				SCTP_INP_INCR_REF(inp);
 				stcb = sctp_findassociation_ep_addr(&inp,
-				    (struct sockaddr *)&thlds->spt_assoc_id,
+				    (struct sockaddr *)&thlds->spt_address,
 				    &net, NULL, NULL);
 				if (stcb == NULL) {
 					SCTP_INP_DECR_REF(inp);
@@ -5662,7 +5662,7 @@ sctp_setopt(struct socket *so, int optname, void *optval, size_t optsize,
 			if (stcb && (net == NULL)) {
 				struct sockaddr *sa;
 
-				sa = (struct sockaddr *)&thlds->spt_assoc_id;
+				sa = (struct sockaddr *)&thlds->spt_address;
 #ifdef INET
 				if (sa->sa_family == AF_INET) {
 
