@@ -5642,7 +5642,7 @@ sctp_setopt(struct socket *so, int optname, void *optval, size_t optsize,
 			SCTP_FIND_STCB(inp, stcb, thlds->spt_assoc_id);
 			net = NULL;
 			if (stcb) {
-				net = sctp_findnet(stcb, (struct sockaddr *)&thlds->spt_assoc_id);
+				net = sctp_findnet(stcb, (struct sockaddr *)&thlds->spt_address);
 			} else {
 				/*
 				 * We increment here since
@@ -5653,7 +5653,7 @@ sctp_setopt(struct socket *so, int optname, void *optval, size_t optsize,
 				 */
 				SCTP_INP_INCR_REF(inp);
 				stcb = sctp_findassociation_ep_addr(&inp,
-				    (struct sockaddr *)&thlds->spt_assoc_id,
+				    (struct sockaddr *)&thlds->spt_address,
 				    &net, NULL, NULL);
 				if (stcb == NULL) {
 					SCTP_INP_DECR_REF(inp);
@@ -5662,7 +5662,7 @@ sctp_setopt(struct socket *so, int optname, void *optval, size_t optsize,
 			if (stcb && (net == NULL)) {
 				struct sockaddr *sa;
 
-				sa = (struct sockaddr *)&thlds->spt_assoc_id;
+				sa = (struct sockaddr *)&thlds->spt_address;
 #ifdef INET
 				if (sa->sa_family == AF_INET) {
 
@@ -6098,30 +6098,29 @@ sctp_listen(struct socket *so, int backlog, struct thread *p)
 	if (sctp_is_feature_on(inp, SCTP_PCB_FLAGS_PORTREUSE)) {
 		/* See if we have a listener */
 		struct sctp_inpcb *tinp;
-		union sctp_sockstore store, *sp;
+		union sctp_sockstore store;
 
-		sp = &store;
 		if ((inp->sctp_flags & SCTP_PCB_FLAGS_BOUNDALL) == 0) {
 			/* not bound all */
 			struct sctp_laddr *laddr;
 
 			LIST_FOREACH(laddr, &inp->sctp_addr_list, sctp_nxt_addr) {
 				memcpy(&store, &laddr->ifa->address, sizeof(store));
-				switch (sp->sa.sa_family) {
+				switch (store.sa.sa_family) {
 #ifdef INET
 				case AF_INET:
-					sp->sin.sin_port = inp->sctp_lport;
+					store.sin.sin_port = inp->sctp_lport;
 					break;
 #endif
 #ifdef INET6
 				case AF_INET6:
-					sp->sin6.sin6_port = inp->sctp_lport;
+					store.sin6.sin6_port = inp->sctp_lport;
 					break;
 #endif
 				default:
 					break;
 				}
-				tinp = sctp_pcb_findep(&sp->sa, 0, 0, inp->def_vrf_id);
+				tinp = sctp_pcb_findep(&store.sa, 0, 0, inp->def_vrf_id);
 				if (tinp && (tinp != inp) &&
 				    ((tinp->sctp_flags & SCTP_PCB_FLAGS_SOCKET_ALLGONE) == 0) &&
 				    ((tinp->sctp_flags & SCTP_PCB_FLAGS_SOCKET_GONE) == 0) &&
@@ -6139,20 +6138,6 @@ sctp_listen(struct socket *so, int backlog, struct thread *p)
 		} else {
 			/* Setup a local addr bound all */
 			memset(&store, 0, sizeof(store));
-			switch (sp->sa.sa_family) {
-#ifdef INET
-			case AF_INET:
-				store.sin.sin_port = inp->sctp_lport;
-				break;
-#endif
-#ifdef INET6
-			case AF_INET6:
-				sp->sin6.sin6_port = inp->sctp_lport;
-				break;
-#endif
-			default:
-				break;
-			}
 #ifdef INET6
 			if (inp->sctp_flags & SCTP_PCB_FLAGS_BOUND_V6) {
 				store.sa.sa_family = AF_INET6;
@@ -6165,7 +6150,21 @@ sctp_listen(struct socket *so, int backlog, struct thread *p)
 				store.sa.sa_len = sizeof(struct sockaddr_in);
 			}
 #endif
-			tinp = sctp_pcb_findep(&sp->sa, 0, 0, inp->def_vrf_id);
+			switch (store.sa.sa_family) {
+#ifdef INET
+			case AF_INET:
+				store.sin.sin_port = inp->sctp_lport;
+				break;
+#endif
+#ifdef INET6
+			case AF_INET6:
+				store.sin6.sin6_port = inp->sctp_lport;
+				break;
+#endif
+			default:
+				break;
+			}
+			tinp = sctp_pcb_findep(&store.sa, 0, 0, inp->def_vrf_id);
 			if (tinp && (tinp != inp) &&
 			    ((tinp->sctp_flags & SCTP_PCB_FLAGS_SOCKET_ALLGONE) == 0) &&
 			    ((tinp->sctp_flags & SCTP_PCB_FLAGS_SOCKET_GONE) == 0) &&
