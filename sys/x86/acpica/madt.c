@@ -306,11 +306,10 @@ interrupt_polarity(UINT16 IntiFlags, UINT8 Source)
 	case ACPI_MADT_POLARITY_ACTIVE_HIGH:
 		return (INTR_POLARITY_HIGH);
 	case ACPI_MADT_POLARITY_ACTIVE_LOW:
-		break;
+		return (INTR_POLARITY_LOW);
 	default:
-		printf("WARNING: Bogus Interrupt Polarity. Assume POLALITY LOW");
+		panic("Bogus Interrupt Polarity");
 	}
-	return (INTR_POLARITY_LOW);
 }
 
 static enum intr_trigger
@@ -326,13 +325,10 @@ interrupt_trigger(UINT16 IntiFlags, UINT8 Source)
 	case ACPI_MADT_TRIGGER_EDGE:
 		return (INTR_TRIGGER_EDGE);
 	case ACPI_MADT_TRIGGER_LEVEL:
-		break;
+		return (INTR_TRIGGER_LEVEL);
 	default:
-		printf("WARNING: Bogus Interrupt Trigger Mode. Assume Level trigger.");
-		
-		break;
+		panic("Bogus Interrupt Trigger Mode");
 	}
-	return (INTR_TRIGGER_LEVEL);
 }
 
 /*
