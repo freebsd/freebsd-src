@@ -314,7 +314,7 @@ usb_shutdown(device_t dev)
 		return (0);
 	}
 
-	device_printf(bus->bdev, "Controller shutdown\n");
+	DPRINTF("%s: Controller shutdown\n", device_get_nameunit(bus->bdev));
 
 	USB_BUS_LOCK(bus);
 	usb_proc_msignal(&bus->explore_proc,
@@ -326,7 +326,8 @@ usb_shutdown(device_t dev)
 	}
 	USB_BUS_UNLOCK(bus);
 
-	device_printf(bus->bdev, "Controller shutdown complete\n");
+	DPRINTF("%s: Controller shutdown complete\n",
+	    device_get_nameunit(bus->bdev));
 
 	return (0);
 }
