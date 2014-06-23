@@ -28,6 +28,7 @@ SUBDIR=	${_colldef} \
 	termcap \
 	${_tests} \
 	${_timedef} \
+	${_vt} \
 	${_zoneinfo}
 
 # NB: keep these sorted by MK_* knobs
@@ -83,6 +84,10 @@ _syscons=	syscons
 
 .if ${MK_TESTS} != "no"
 _tests=		tests
+.endif
+
+.if ${MK_VT_SUPPORT} != "no"
+_vt=		vt
 .endif
 
 .if ${MK_ZONEINFO} != "no"
