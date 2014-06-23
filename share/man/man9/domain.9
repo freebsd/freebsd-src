@@ -111,7 +111,7 @@ struct protosw {
 	pr_slowtimo_t *pr_slowtimo;	/* slow timeout (500ms) */
 	pr_drain_t *pr_drain;		/* flush any excess space possible */
 
-	struct	pr_usrreqs *pr_usrreqs;	/* supersedes pr_usrreq() */
+	struct	pr_usrreqs *pr_usrreqs;	/* user-protocol hook */
 };
 .Ed
 .Pp
