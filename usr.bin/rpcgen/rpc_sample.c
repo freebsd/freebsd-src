@@ -270,6 +270,7 @@ write_sample_clnt_main(void)
 	version_list *vp;
 
 	f_print(fout, "\n\n");
+	f_print(fout, "int\n");
 	f_print(fout, "main(int argc, char *argv[])\n{\n");
 
 	f_print(fout, "\tchar *host;");
