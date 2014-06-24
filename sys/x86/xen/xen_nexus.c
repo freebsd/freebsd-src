@@ -1,8 +1,6 @@
-/*-
- * Copyright (c) 2011 The FreeBSD Foundation
+/*
+ * Copyright (c) 2013 Roger Pau Monné <roger.pau@citrix.com>
  * All rights reserved.
- *
- * Developed by Damjan Marion <damjan.marion@gmail.com>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -13,10 +11,10 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
  * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
  * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
  * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
@@ -30,51 +28,50 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
-#include <sys/systm.h>
 #include <sys/bus.h>
 #include <sys/kernel.h>
+#include <sys/module.h>
+#include <sys/sysctl.h>
+#include <sys/systm.h>
+#include <sys/smp.h>
 
-#include <dev/fdt/fdt_common.h>
-#include <dev/ofw/openfirm.h>
+#include <machine/nexusvar.h>
 
-#include <machine/bus.h>
-#include <machine/fdt.h>
+#include <xen/xen-os.h>
 
-/* FIXME move to header file */
-#define TEGRA2_CLK_RST_PA_BASE		0x60006000
-
-void
-cpu_reset(void)
-{
-	bus_space_handle_t bsh;
-	printf("Resetting...\n");
-	bus_space_map(fdtbus_bs_tag,TEGRA2_CLK_RST_PA_BASE, 0x1000, 0, &bsh);
-	bus_space_write_4(fdtbus_bs_tag, bsh, 4, 4);
-
-	while(1);
-}
-
-struct fdt_fixup_entry fdt_fixup_table[] = {
-	{ NULL, NULL }
-};
-
+/*
+ * Xen nexus(4) driver.
+ */
 static int
-fdt_pic_decode_ic(phandle_t node, pcell_t *intr, int *interrupt, int *trig,
-    int *pol)
+nexus_xen_probe(device_t dev)
 {
-	if (!fdt_is_compatible(node, "arm,gic"))
+
+	if (!xen_pv_domain())
 		return (ENXIO);
 
-	*interrupt = fdt32_to_cpu(intr[0]);
-	*trig = INTR_TRIGGER_CONFORM;
-	*pol = INTR_POLARITY_CONFORM;
+	return (BUS_PROBE_DEFAULT);
+}
+
+static int
+nexus_xen_attach(device_t dev)
+{
+
+	nexus_init_resources();
+	bus_generic_probe(dev);
+	bus_generic_attach(dev);
+
 	return (0);
 }
 
-fdt_pic_decode_t fdt_pic_table[] = {
-	&fdt_pic_decode_ic,
-	NULL
+static device_method_t nexus_xen_methods[] = {
+	/* Device interface */
+	DEVMETHOD(device_probe,		nexus_xen_probe),
+	DEVMETHOD(device_attach,	nexus_xen_attach),
+
+	{ 0, 0 }
 };
 
+DEFINE_CLASS_1(nexus, nexus_xen_driver, nexus_xen_methods, 1, nexus_driver);
+static devclass_t nexus_devclass;
 
-
+DRIVER_MODULE(nexus_xen, root, nexus_xen_driver, nexus_devclass, 0, 0);

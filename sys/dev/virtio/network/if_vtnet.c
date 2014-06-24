@@ -552,37 +552,38 @@ vtnet_negotiate_features(struct vtnet_softc *sc)
 		mask |= VTNET_TSO_FEATURES;
 	if (vtnet_tunable_int(sc, "lro_disable", vtnet_lro_disable))
 		mask |= VTNET_LRO_FEATURES;
+#ifndef VTNET_LEGACY_TX
 	if (vtnet_tunable_int(sc, "mq_disable", vtnet_mq_disable))
 		mask |= VIRTIO_NET_F_MQ;
-#ifdef VTNET_LEGACY_TX
+#else
 	mask |= VIRTIO_NET_F_MQ;
 #endif
 
 	features = VTNET_FEATURES & ~mask;
 	sc->vtnet_features = virtio_negotiate_features(dev, features);
 
-	if (virtio_with_feature(dev, VTNET_LRO_FEATURES) == 0)
-		return;
-	if (virtio_with_feature(dev, VIRTIO_NET_F_MRG_RXBUF))
-		return;
+	if (virtio_with_feature(dev, VTNET_LRO_FEATURES) &&
+	    virtio_with_feature(dev, VIRTIO_NET_F_MRG_RXBUF) == 0) {
+		/*
+		 * LRO without mergeable buffers requires special care. This
+		 * is not ideal because every receive buffer must be large
+		 * enough to hold the maximum TCP packet, the Ethernet header,
+		 * and the header. This requires up to 34 descriptors with
+		 * MCLBYTES clusters. If we do not have indirect descriptors,
+		 * LRO is disabled since the virtqueue will not contain very
+		 * many receive buffers.
+		 */
+		if (!virtio_with_feature(dev, VIRTIO_RING_F_INDIRECT_DESC)) {
+			device_printf(dev,
+			    "LRO disabled due to both mergeable buffers and "
+			    "indirect descriptors not negotiated\n");
 
-	/*
-	 * LRO without mergeable buffers requires special care. This is not
-	 * ideal because every receive buffer must be large enough to hold
-	 * the maximum TCP packet, the Ethernet header, and the header. This
-	 * requires up to 34 descriptors with MCLBYTES clusters. If we do
-	 * not have indirect descriptors, LRO is disabled since the virtqueue
-	 * will not contain very many receive buffers.
-	 */
-	if (virtio_with_feature(dev, VIRTIO_RING_F_INDIRECT_DESC) == 0) {
-		device_printf(dev,
-		    "LRO disabled due to both mergeable buffers and indirect "
-		    "descriptors not negotiated\n");
-
-		features &= ~VTNET_LRO_FEATURES;
-		sc->vtnet_features = virtio_negotiate_features(dev, features);
-	} else
-		sc->vtnet_flags |= VTNET_FLAG_LRO_NOMRG;
+			features &= ~VTNET_LRO_FEATURES;
+			sc->vtnet_features =
+			    virtio_negotiate_features(dev, features);
+		} else
+			sc->vtnet_flags |= VTNET_FLAG_LRO_NOMRG;
+	}
 }
 
 static void
@@ -2113,13 +2114,11 @@ fail:
 static int
 vtnet_txq_encap(struct vtnet_txq *txq, struct mbuf **m_head)
 {
-	struct vtnet_softc *sc;
 	struct vtnet_tx_header *txhdr;
 	struct virtio_net_hdr *hdr;
 	struct mbuf *m;
 	int error;
 
-	sc = txq->vtntx_sc;
 	m = *m_head;
 	M_ASSERTPKTHDR(m);
 
@@ -2946,11 +2945,9 @@ vtnet_set_active_vq_pairs(struct vtnet_softc *sc)
 static int
 vtnet_reinit(struct vtnet_softc *sc)
 {
-	device_t dev;
 	struct ifnet *ifp;
 	int error;
 
-	dev = sc->vtnet_dev;
 	ifp = sc->vtnet_ifp;
 
 	/* Use the current MAC address. */
@@ -3071,7 +3068,7 @@ vtnet_exec_ctrl_cmd(struct vtnet_softc *sc, void *cookie,
 static int
 vtnet_ctrl_mac_cmd(struct vtnet_softc *sc, uint8_t *hwaddr)
 {
-	struct virtio_net_ctrl_hdr hdr;
+	struct virtio_net_ctrl_hdr hdr __aligned(2);
 	struct sglist_seg segs[3];
 	struct sglist sg;
 	uint8_t ack;
@@ -3105,7 +3102,7 @@ vtnet_ctrl_mq_cmd(struct vtnet_softc *sc, uint16_t npairs)
 		struct virtio_net_ctrl_mq mq;
 		uint8_t pad2;
 		uint8_t ack;
-	} s;
+	} s __aligned(2);
 	int error;
 
 	s.hdr.class = VIRTIO_NET_CTRL_MQ;
@@ -3137,7 +3134,7 @@ vtnet_ctrl_rx_cmd(struct vtnet_softc *sc, int cmd, int on)
 		uint8_t onoff;
 		uint8_t pad2;
 		uint8_t ack;
-	} s;
+	} s __aligned(2);
 	int error;
 
 	KASSERT(sc->vtnet_flags & VTNET_FLAG_CTRL_RX,
@@ -3220,7 +3217,7 @@ vtnet_rx_filter(struct vtnet_softc *sc)
 static void
 vtnet_rx_filter_mac(struct vtnet_softc *sc)
 {
-	struct virtio_net_ctrl_hdr hdr;
+	struct virtio_net_ctrl_hdr hdr __aligned(2);
 	struct vtnet_mac_filter *filter;
 	struct sglist_seg segs[4];
 	struct sglist sg;
@@ -3333,7 +3330,7 @@ vtnet_exec_vlan_filter(struct vtnet_softc *sc, int add, uint16_t tag)
 		uint16_t tag;
 		uint8_t pad2;
 		uint8_t ack;
-	} s;
+	} s __aligned(2);
 	int error;
 
 	s.hdr.class = VIRTIO_NET_CTRL_VLAN;

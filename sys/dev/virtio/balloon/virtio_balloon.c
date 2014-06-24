@@ -450,7 +450,7 @@ static void
 vtballoon_free_page(struct vtballoon_softc *sc, vm_page_t m)
 {
 
-	vm_page_unwire(m, 0);
+	vm_page_unwire(m, PQ_INACTIVE);
 	vm_page_free(m);
 	sc->vtballoon_current_npages--;
 }

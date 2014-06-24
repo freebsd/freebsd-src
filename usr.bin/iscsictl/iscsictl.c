@@ -350,6 +350,82 @@ kernel_add(int iscsi_fd, const struct target *targ)
 }
 
 static int
+kernel_modify(int iscsi_fd, unsigned int session_id, const struct target *targ)
+{
+	struct iscsi_session_modify ism;
+	int error;
+
+	memset(&ism, 0, sizeof(ism));
+	ism.ism_session_id = session_id;
+	conf_from_target(&ism.ism_conf, targ);
+	error = ioctl(iscsi_fd, ISCSISMODIFY, &ism);
+	if (error != 0)
+		warn("ISCSISMODIFY");
+	return (error);
+}
+
+static void
+kernel_modify_some(int iscsi_fd, unsigned int session_id, const char *target,
+  const char *target_addr, const char *user, const char *secret)
+{
+	struct iscsi_session_state *states = NULL;
+	struct iscsi_session_state *state;
+	struct iscsi_session_conf *conf;
+	struct iscsi_session_list isl;
+	struct iscsi_session_modify ism;
+	unsigned int i, nentries = 1;
+	int error;
+
+	for (;;) {
+		states = realloc(states,
+		    nentries * sizeof(struct iscsi_session_state));
+		if (states == NULL)
+			err(1, "realloc");
+
+		memset(&isl, 0, sizeof(isl));
+		isl.isl_nentries = nentries;
+		isl.isl_pstates = states;
+
+		error = ioctl(iscsi_fd, ISCSISLIST, &isl);
+		if (error != 0 && errno == EMSGSIZE) {
+			nentries *= 4;
+			continue;
+		}
+		break;
+	}
+	if (error != 0)
+		errx(1, "ISCSISLIST");
+
+	for (i = 0; i < isl.isl_nentries; i++) {
+		state = &states[i];
+
+		if (state->iss_id == session_id)
+			break;
+	}
+	if (i == isl.isl_nentries)
+		errx(1, "session-id %u not found", session_id);
+
+	conf = &state->iss_conf;
+
+	if (target != NULL)
+		strlcpy(conf->isc_target, target, sizeof(conf->isc_target));
+	if (target_addr != NULL)
+		strlcpy(conf->isc_target_addr, target_addr,
+		    sizeof(conf->isc_target_addr));
+	if (user != NULL)
+		strlcpy(conf->isc_user, user, sizeof(conf->isc_user));
+	if (secret != NULL)
+		strlcpy(conf->isc_secret, secret, sizeof(conf->isc_secret));
+
+	memset(&ism, 0, sizeof(ism));
+	ism.ism_session_id = session_id;
+	memcpy(&ism.ism_conf, conf, sizeof(ism.ism_conf));
+	error = ioctl(iscsi_fd, ISCSISMODIFY, &ism);
+	if (error != 0)
+		warn("ISCSISMODIFY");
+}
+
+static int
 kernel_remove(int iscsi_fd, const struct target *targ)
 {
 	struct iscsi_session_remove isr;
@@ -404,7 +480,7 @@ kernel_list(int iscsi_fd, const struct target *targ __unused,
 			state = &states[i];
 			conf = &state->iss_conf;
 
-			printf("Session ID:       %d\n", state->iss_id);
+			printf("Session ID:       %u\n", state->iss_id);
 			printf("Initiator name:   %s\n", conf->isc_initiator);
 			printf("Initiator portal: %s\n",
 			    conf->isc_initiator_addr);
@@ -482,6 +558,10 @@ usage(void)
 	    "[-u user -s secret]\n");
 	fprintf(stderr, "       iscsictl -A -a [-c path]\n");
 	fprintf(stderr, "       iscsictl -A -n nickname [-c path]\n");
+	fprintf(stderr, "       iscsictl -M -i session-id [-p portal] "
+	    "[-t target] [-u user] [-s secret]\n");
+	fprintf(stderr, "       iscsictl -M -i session-id -n nickname "
+	    "[-c path]\n");
 	fprintf(stderr, "       iscsictl -R [-p portal] [-t target]\n");
 	fprintf(stderr, "       iscsictl -R -a\n");
 	fprintf(stderr, "       iscsictl -R -n nickname [-c path]\n");
@@ -503,19 +583,24 @@ checked_strdup(const char *s)
 int
 main(int argc, char **argv)
 {
-	int Aflag = 0, Rflag = 0, Lflag = 0, aflag = 0, vflag = 0;
+	int Aflag = 0, Mflag = 0, Rflag = 0, Lflag = 0, aflag = 0, vflag = 0;
 	const char *conf_path = DEFAULT_CONFIG_PATH;
-	char *nickname = NULL, *discovery_host = NULL, *host = NULL,
+	char *nickname = NULL, *discovery_host = NULL, *portal = NULL,
 	     *target = NULL, *user = NULL, *secret = NULL;
+	long long session_id = -1;
+	char *end;
 	int ch, error, iscsi_fd, retval, saved_errno;
 	int failed = 0;
 	struct conf *conf;
 	struct target *targ;
 
-	while ((ch = getopt(argc, argv, "ARLac:d:n:p:t:u:s:v")) != -1) {
+	while ((ch = getopt(argc, argv, "AMRLac:d:i:n:p:t:u:s:v")) != -1) {
 		switch (ch) {
 		case 'A':
 			Aflag = 1;
+			break;
+		case 'M':
+			Mflag = 1;
 			break;
 		case 'R':
 			Rflag = 1;
@@ -532,11 +617,21 @@ main(int argc, char **argv)
 		case 'd':
 			discovery_host = optarg;
 			break;
+		case 'i':
+			session_id = strtol(optarg, &end, 10);
+			if ((size_t)(end - optarg) != strlen(optarg))
+				errx(1, "trailing characters after session-id");
+			if (session_id < 0)
+				errx(1, "session-id cannot be negative");
+			if (session_id > UINT_MAX)
+				errx(1, "session-id cannot be greater than %u",
+				    UINT_MAX);
+			break;
 		case 'n':
 			nickname = optarg;
 			break;
 		case 'p':
-			host = optarg;
+			portal = optarg;
 			break;
 		case 't':
 			target = optarg;
@@ -559,10 +654,10 @@ main(int argc, char **argv)
 	if (argc != 0)
 		usage();
 
-	if (Aflag + Rflag + Lflag == 0)
+	if (Aflag + Mflag + Rflag + Lflag == 0)
 		Lflag = 1;
-	if (Aflag + Rflag + Lflag > 1)
-		errx(1, "at most one of -A, -R, or -L may be specified");
+	if (Aflag + Mflag + Rflag + Lflag > 1)
+		errx(1, "at most one of -A, -M, -R, or -L may be specified");
 
 	/*
 	 * Note that we ignore unneccessary/inapplicable "-c" flag; so that
@@ -571,7 +666,7 @@ main(int argc, char **argv)
 	 */
 	if (Aflag != 0) {
 		if (aflag != 0) {
-			if (host != NULL)
+			if (portal != NULL)
 				errx(1, "-a and -p and mutually exclusive");
 			if (target != NULL)
 				errx(1, "-a and -t and mutually exclusive");
@@ -584,7 +679,7 @@ main(int argc, char **argv)
 			if (discovery_host != NULL)
 				errx(1, "-a and -d and mutually exclusive");
 		} else if (nickname != NULL) {
-			if (host != NULL)
+			if (portal != NULL)
 				errx(1, "-n and -p and mutually exclusive");
 			if (target != NULL)
 				errx(1, "-n and -t and mutually exclusive");
@@ -595,17 +690,17 @@ main(int argc, char **argv)
 			if (discovery_host != NULL)
 				errx(1, "-n and -d and mutually exclusive");
 		} else if (discovery_host != NULL) {
-			if (host != NULL)
+			if (portal != NULL)
 				errx(1, "-d and -p and mutually exclusive");
 			if (target != NULL)
 				errx(1, "-d and -t and mutually exclusive");
 		} else {
-			if (target == NULL && host == NULL)
+			if (target == NULL && portal == NULL)
 				errx(1, "must specify -a, -n or -t/-p");
 
-			if (target != NULL && host == NULL)
+			if (target != NULL && portal == NULL)
 				errx(1, "-t must always be used with -p");
-			if (host != NULL && target == NULL)
+			if (portal != NULL && target == NULL)
 				errx(1, "-p must always be used with -t");
 		}
 
@@ -614,8 +709,32 @@ main(int argc, char **argv)
 		if (secret != NULL && user == NULL)
 			errx(1, "-s must always be used with -u");
 
+		if (session_id != -1)
+			errx(1, "-i cannot be used with -A");
 		if (vflag != 0)
 			errx(1, "-v cannot be used with -A");
+
+	} else if (Mflag != 0) {
+		if (session_id == -1)
+			errx(1, "-M requires -i");
+
+		if (discovery_host != NULL)
+			errx(1, "-M and -d are mutually exclusive");
+		if (aflag != 0)
+			errx(1, "-M and -a are mutually exclusive");
+		if (nickname != NULL) {
+			if (portal != NULL)
+				errx(1, "-n and -p and mutually exclusive");
+			if (target != NULL)
+				errx(1, "-n and -t and mutually exclusive");
+			if (user != NULL)
+				errx(1, "-n and -u and mutually exclusive");
+			if (secret != NULL)
+				errx(1, "-n and -s and mutually exclusive");
+		}
+
+		if (vflag != 0)
+			errx(1, "-v cannot be used with -M");
 
 	} else if (Rflag != 0) {
 		if (user != NULL)
@@ -626,33 +745,35 @@ main(int argc, char **argv)
 			errx(1, "-R and -d are mutually exclusive");
 
 		if (aflag != 0) {
-			if (host != NULL)
+			if (portal != NULL)
 				errx(1, "-a and -p and mutually exclusive");
 			if (target != NULL)
 				errx(1, "-a and -t and mutually exclusive");
 			if (nickname != NULL)
 				errx(1, "-a and -n and mutually exclusive");
 		} else if (nickname != NULL) {
-			if (host != NULL)
+			if (portal != NULL)
 				errx(1, "-n and -p and mutually exclusive");
 			if (target != NULL)
 				errx(1, "-n and -t and mutually exclusive");
-		} else if (host != NULL) {
+		} else if (portal != NULL) {
 			if (target != NULL)
 				errx(1, "-p and -t and mutually exclusive");
 		} else if (target != NULL) {
-			if (host != NULL)
+			if (portal != NULL)
 				errx(1, "-t and -p and mutually exclusive");
 		} else
 			errx(1, "must specify either -a, -n, -t, or -p");
 
+		if (session_id != -1)
+			errx(1, "-i cannot be used with -R");
 		if (vflag != 0)
 			errx(1, "-v cannot be used with -R");
 
 	} else {
 		assert(Lflag != 0);
 
-		if (host != NULL)
+		if (portal != NULL)
 			errx(1, "-L and -p and mutually exclusive");
 		if (target != NULL)
 			errx(1, "-L and -t and mutually exclusive");
@@ -664,6 +785,9 @@ main(int argc, char **argv)
 			errx(1, "-L and -n and mutually exclusive");
 		if (discovery_host != NULL)
 			errx(1, "-L and -d and mutually exclusive");
+
+		if (session_id != -1)
+			errx(1, "-i cannot be used with -L");
 	}
 
 	iscsi_fd = open(ISCSI_PATH, O_RDWR);
@@ -687,15 +811,20 @@ main(int argc, char **argv)
 		conf = conf_new_from_file(conf_path);
 		targ = target_find(conf, nickname);
 		if (targ == NULL)
-			errx(1, "target %s not found in the configuration file",
-			    nickname);
+			errx(1, "target %s not found in %s",
+			    nickname, conf_path);
 
 		if (Aflag != 0)
 			failed += kernel_add(iscsi_fd, targ);
+		else if (Mflag != 0)
+			failed += kernel_modify(iscsi_fd, session_id, targ);
 		else if (Rflag != 0)
 			failed += kernel_remove(iscsi_fd, targ);
 		else
 			failed += kernel_list(iscsi_fd, targ, vflag);
+	} else if (Mflag != 0) {
+		kernel_modify_some(iscsi_fd, session_id, target, portal,
+		    user, secret);
 	} else {
 		if (Aflag != 0 && target != NULL) {
 			if (valid_iscsi_name(target) == false)
@@ -712,7 +841,7 @@ main(int argc, char **argv)
 			targ->t_address = discovery_host;
 		} else {
 			targ->t_session_type = SESSION_TYPE_NORMAL;
-			targ->t_address = host;
+			targ->t_address = portal;
 		}
 		targ->t_user = user;
 		targ->t_secret = secret;

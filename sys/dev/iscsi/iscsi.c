@@ -1589,6 +1589,33 @@ iscsi_sanitize_session_conf(struct iscsi_session_conf *isc)
 	isc->isc_mutual_secret[ISCSI_SECRET_LEN - 1] = '\0';
 }
 
+static bool
+iscsi_valid_session_conf(const struct iscsi_session_conf *isc)
+{
+
+	if (isc->isc_initiator[0] == '\0') {
+		ISCSI_DEBUG("empty isc_initiator");
+		return (false);
+	}
+
+	if (isc->isc_target_addr[0] == '\0') {
+		ISCSI_DEBUG("empty isc_target_addr");
+		return (false);
+	}
+
+	if (isc->isc_discovery != 0 && isc->isc_target[0] != 0) {
+		ISCSI_DEBUG("non-empty isc_target for discovery session");
+		return (false);
+	}
+
+	if (isc->isc_discovery == 0 && isc->isc_target[0] == 0) {
+		ISCSI_DEBUG("empty isc_target for non-discovery session");
+		return (false);
+	}
+
+	return (true);
+}
+
 static int
 iscsi_ioctl_session_add(struct iscsi_softc *sc, struct iscsi_session_add *isa)
 {
@@ -1597,21 +1624,11 @@ iscsi_ioctl_session_add(struct iscsi_softc *sc, struct iscsi_session_add *isa)
 	int error;
 
 	iscsi_sanitize_session_conf(&isa->isa_conf);
+	if (iscsi_valid_session_conf(&isa->isa_conf) == false)
+		return (EINVAL);
 
 	is = malloc(sizeof(*is), M_ISCSI, M_ZERO | M_WAITOK);
 	memcpy(&is->is_conf, &isa->isa_conf, sizeof(is->is_conf));
-
-	if (is->is_conf.isc_initiator[0] == '\0' ||
-	    is->is_conf.isc_target_addr[0] == '\0') {
-		free(is, M_ISCSI);
-		return (EINVAL);
-	}
-
-	if ((is->is_conf.isc_discovery != 0 && is->is_conf.isc_target[0] != 0) ||
-	    (is->is_conf.isc_discovery == 0 && is->is_conf.isc_target[0] == 0)) {
-		free(is, M_ISCSI);
-		return (EINVAL);
-	}
 
 	sx_xlock(&sc->sc_lock);
 
@@ -1769,7 +1786,38 @@ iscsi_ioctl_session_list(struct iscsi_softc *sc, struct iscsi_session_list *isl)
 
 	return (0);
 }
-	
+
+static int
+iscsi_ioctl_session_modify(struct iscsi_softc *sc,
+    struct iscsi_session_modify *ism)
+{
+	struct iscsi_session *is;
+
+	iscsi_sanitize_session_conf(&ism->ism_conf);
+	if (iscsi_valid_session_conf(&ism->ism_conf) == false)
+		return (EINVAL);
+
+	sx_xlock(&sc->sc_lock);
+	TAILQ_FOREACH(is, &sc->sc_sessions, is_next) {
+		ISCSI_SESSION_LOCK(is);
+		if (is->is_id == ism->ism_session_id)
+			break;
+		ISCSI_SESSION_UNLOCK(is);
+	}
+	if (is == NULL) {
+		sx_xunlock(&sc->sc_lock);
+		return (ESRCH);
+	}
+	sx_xunlock(&sc->sc_lock);
+
+	memcpy(&is->is_conf, &ism->ism_conf, sizeof(is->is_conf));
+	ISCSI_SESSION_UNLOCK(is);
+
+	iscsi_session_reconnect(is);
+
+	return (0);
+}
+
 static int
 iscsi_ioctl(struct cdev *dev, u_long cmd, caddr_t arg, int mode,
     struct thread *td)
@@ -1808,6 +1856,9 @@ iscsi_ioctl(struct cdev *dev, u_long cmd, caddr_t arg, int mode,
 	case ISCSISLIST:
 		return (iscsi_ioctl_session_list(sc,
 		    (struct iscsi_session_list *)arg));
+	case ISCSISMODIFY:
+		return (iscsi_ioctl_session_modify(sc,
+		    (struct iscsi_session_modify *)arg));
 	default:
 		return (EINVAL);
 	}

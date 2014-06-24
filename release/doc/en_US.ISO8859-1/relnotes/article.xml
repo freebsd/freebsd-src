@@ -187,6 +187,15 @@
 
       <para revision="260847">The &man.virtio_random.4; driver has
 	been added to harvest entropy from the host system.</para>
+
+      <para revision="267536" contrib="sponsor"
+	sponsor="&citrix.rd;">Support for running a &os;/&arch.amd64;
+	<application>Xen</application> guest instance as
+	<acronym>PVH</acronym> guest has been added.
+	<acronym>PVH</acronym> mode, short for <quote>Para-Virtualized
+	  Hardware</quote>, uses para-virtualized drivers for boot
+	and I/O, and uses hardware virtualization extensions for all
+	other tasks, without the need for emulation.</para>
     </sect3>
 
     <sect3 xml:id="kernel-arm">

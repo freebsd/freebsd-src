@@ -160,6 +160,7 @@ struct emu_memblk {
 	void *buf;
 	bus_addr_t buf_addr;
 	u_int32_t pte_start, pte_size;
+	bus_dmamap_t buf_map;
 };
 
 struct emu_mem {
@@ -168,6 +169,8 @@ struct emu_mem {
 	void *silent_page;
 	bus_addr_t silent_page_addr;
 	bus_addr_t ptb_pages_addr;
+	bus_dmamap_t ptb_map;
+	bus_dmamap_t silent_map;
 	SLIST_HEAD(, emu_memblk) blocks;
 };
 
@@ -239,7 +242,7 @@ struct sc_info {
 /* stuff */
 static int emu_init(struct sc_info *);
 static void emu_intr(void *);
-static void *emu_malloc(struct sc_info *sc, u_int32_t sz, bus_addr_t *addr);
+static void *emu_malloc(struct sc_info *sc, u_int32_t sz, bus_addr_t *addr, bus_dmamap_t *map);
 static void *emu_memalloc(struct sc_info *sc, u_int32_t sz, bus_addr_t *addr);
 static int emu_memfree(struct sc_info *sc, void *buf);
 static int emu_memstart(struct sc_info *sc, void *buf);
@@ -1315,24 +1318,27 @@ emu_setmap(void *arg, bus_dma_segment_t *segs, int nseg, int error)
 }
 
 static void *
-emu_malloc(struct sc_info *sc, u_int32_t sz, bus_addr_t *addr)
+emu_malloc(struct sc_info *sc, u_int32_t sz, bus_addr_t *addr,
+    bus_dmamap_t *map)
 {
 	void *buf;
-	bus_dmamap_t map;
 
 	*addr = 0;
-	if (bus_dmamem_alloc(sc->parent_dmat, &buf, BUS_DMA_NOWAIT, &map))
+	if (bus_dmamem_alloc(sc->parent_dmat, &buf, BUS_DMA_NOWAIT, map))
 		return NULL;
-	if (bus_dmamap_load(sc->parent_dmat, map, buf, sz, emu_setmap, addr, 0)
-	    || !*addr)
+	if (bus_dmamap_load(sc->parent_dmat, *map, buf, sz, emu_setmap, addr, 0)
+	    || !*addr) {
+		bus_dmamem_free(sc->parent_dmat, buf, *map);
 		return NULL;
+	}
 	return buf;
 }
 
 static void
-emu_free(struct sc_info *sc, void *buf)
+emu_free(struct sc_info *sc, void *buf, bus_dmamap_t map)
 {
-	bus_dmamem_free(sc->parent_dmat, buf, NULL);
+	bus_dmamap_unload(sc->parent_dmat, map);
+	bus_dmamem_free(sc->parent_dmat, buf, map);
 }
 
 static void *
@@ -1362,7 +1368,7 @@ emu_memalloc(struct sc_info *sc, u_int32_t sz, bus_addr_t *addr)
 	blk = malloc(sizeof(*blk), M_DEVBUF, M_NOWAIT);
 	if (blk == NULL)
 		return NULL;
-	buf = emu_malloc(sc, sz, &blk->buf_addr);
+	buf = emu_malloc(sc, sz, &blk->buf_addr, &blk->buf_map);
 	*addr = blk->buf_addr;
 	if (buf == NULL) {
 		free(blk, M_DEVBUF);
@@ -1405,7 +1411,7 @@ emu_memfree(struct sc_info *sc, void *buf)
 	if (blk == NULL)
 		return EINVAL;
 	SLIST_REMOVE(&mem->blocks, blk, emu_memblk, link);
-	emu_free(sc, buf);
+	emu_free(sc, buf, blk->buf_map);
 	tmp = (u_int32_t)(sc->mem.silent_page_addr) << 1;
 	for (idx = blk->pte_start; idx < blk->pte_start + blk->pte_size; idx++) {
 		mem->bmap[idx >> 3] &= ~(1 << (idx & 7));
@@ -1882,14 +1888,14 @@ emu_init(struct sc_info *sc)
 
 	SLIST_INIT(&sc->mem.blocks);
 	sc->mem.ptb_pages = emu_malloc(sc, EMUMAXPAGES * sizeof(u_int32_t),
-	    &sc->mem.ptb_pages_addr);
+	    &sc->mem.ptb_pages_addr, &sc->mem.ptb_map);
 	if (sc->mem.ptb_pages == NULL)
 		return -1;
 
 	sc->mem.silent_page = emu_malloc(sc, EMUPAGESIZE,
-	    &sc->mem.silent_page_addr);
+	    &sc->mem.silent_page_addr, &sc->mem.silent_map);
 	if (sc->mem.silent_page == NULL) {
-		emu_free(sc, sc->mem.ptb_pages);
+		emu_free(sc, sc->mem.ptb_pages, sc->mem.ptb_map);
 		return -1;
 	}
 	/* Clear page with silence & setup all pointers to this page */
@@ -2025,8 +2031,8 @@ emu_uninit(struct sc_info *sc)
 	/* init envelope engine */
 	if (!SLIST_EMPTY(&sc->mem.blocks))
 		device_printf(sc->dev, "warning: memblock list not empty\n");
-	emu_free(sc, sc->mem.ptb_pages);
-	emu_free(sc, sc->mem.silent_page);
+	emu_free(sc, sc->mem.ptb_pages, sc->mem.ptb_map);
+	emu_free(sc, sc->mem.silent_page, sc->mem.silent_map);
 
 	if(sc->mpu)
 	    mpu401_uninit(sc->mpu);

@@ -405,6 +405,8 @@ static void
 sysmouse_drvinit(void *unused)
 {
 
+	if (getenv("kern.vt.disable"))
+		return;
 	mtx_init(&sysmouse_lock, "sysmouse", NULL, MTX_DEF);
 	cv_init(&sysmouse_sleep, "sysmrd");
 	make_dev(&sysmouse_cdevsw, 0, UID_ROOT, GID_WHEEL, 0600,

@@ -78,8 +78,8 @@ isofile=${DEFAULT_ISOFILE}
 memsize=${DEFAULT_MEMSIZE}
 console=${DEFAULT_CONSOLE}
 cpus=${DEFAULT_CPUS}
-virtio_diskdev=${DEFAULT_VIRTIO_DISK}
-tapdev=${DEFAULT_TAPDEV}
+tap_total=0
+disk_total=0
 apic_opt=""
 gdbport=0
 loader_opt=""
@@ -96,7 +96,8 @@ while getopts ac:C:d:e:g:hH:iI:m:t: c ; do
 		console=${OPTARG}
 		;;
 	d)
-		virtio_diskdev=${OPTARG}
+		eval "disk_dev${disk_total}=\"${OPTARG}\""
+		disk_total=$(($disk_total + 1))
 		;;
 	e)
 		loader_opt="${loader_opt} -e ${OPTARG}"
@@ -117,13 +118,24 @@ while getopts ac:C:d:e:g:hH:iI:m:t: c ; do
 		memsize=${OPTARG}
 		;;
 	t)
-		tapdev=${OPTARG}
+		eval "tap_dev${tap_total}=\"${OPTARG}\""
+		tap_total=$(($tap_total + 1))
 		;;
 	*)
 		usage
 		;;
 	esac
 done
+
+if [ $tap_total -eq 0 ] ; then
+    tap_total=1
+    tap_dev0="${DEFAULT_TAPDEV}"
+fi
+if [ $disk_total -eq 0 ] ; then
+    disk_total=1
+    disk_dev0="${DEFAULT_VIRTIO_DISK}"
+
+fi
 
 shift $((${OPTIND} - 1))
 
@@ -136,24 +148,30 @@ if [ -n "${host_base}" ]; then
 	loader_opt="${loader_opt} -h ${host_base}"
 fi
 
-# Create the virtio diskdev file if needed
-if [ ! -f ${virtio_diskdev} ]; then
-	echo "virtio disk device file \"${virtio_diskdev}\" does not exist."
-	echo "Creating it ..."
-	truncate -s 8G ${virtio_diskdev} > /dev/null
-fi
+make_and_check_diskdev()
+{
+    local virtio_diskdev="$1"
+    # Create the virtio diskdev file if needed
+    if [ ! -f ${virtio_diskdev} ]; then
+	    echo "virtio disk device file \"${virtio_diskdev}\" does not exist."
+	    echo "Creating it ..."
+	    truncate -s 8G ${virtio_diskdev} > /dev/null
+    fi
 
-if [ ! -r ${virtio_diskdev} ]; then
-	echo "virtio disk device file \"${virtio_diskdev}\" is not readable"
-	exit 1
-fi
+    if [ ! -r ${virtio_diskdev} ]; then
+	    echo "virtio disk device file \"${virtio_diskdev}\" is not readable"
+	    exit 1
+    fi
 
-if [ ! -w ${virtio_diskdev} ]; then
-	echo "virtio disk device file \"${virtio_diskdev}\" is not writable"
-	exit 1
-fi
+    if [ ! -w ${virtio_diskdev} ]; then
+	    echo "virtio disk device file \"${virtio_diskdev}\" is not writable"
+	    exit 1
+    fi
+}
 
 echo "Launching virtual machine \"$vmname\" ..."
+
+virtio_diskdev="$disk_dev0"
 
 while [ 1 ]; do
 	${BHYVECTL} --vm=${vmname} --destroy > /dev/null 2>&1
@@ -189,12 +207,33 @@ while [ 1 ]; do
 		break
 	fi
 
+	#
+	# Build up args for additional tap and disk devices now.
+	#
+	nextslot=2  # slot 0 is hostbridge, slot 1 is lpc
+	devargs=""  # accumulate disk/tap args here
+	i=0
+	while [ $i -lt $tap_total ] ; do
+	    eval "tapname=\$tap_dev${i}"
+	    devargs="$devargs -s $nextslot:0,virtio-net,${tapname} "
+	    nextslot=$(($nextslot + 1))
+	    i=$(($i + 1))
+	done
+
+	i=0
+	while [ $i -lt $disk_total ] ; do
+	    eval "disk=\$disk_dev${i}"
+	    make_and_check_diskdev "${disk}"
+	    devargs="$devargs -s $nextslot:0,virtio-blk,${disk} "
+	    nextslot=$(($nextslot + 1))
+	    i=$(($i + 1))
+	done
+
 	${FBSDRUN} -c ${cpus} -m ${memsize} ${apic_opt} -A -H -P	\
 		-g ${gdbport}						\
 		-s 0:0,hostbridge					\
 		-s 1:0,lpc						\
-		-s 2:0,virtio-net,${tapdev}				\
-		-s 3:0,virtio-blk,${virtio_diskdev}			\
+		${devargs}						\
 		-l com1,${console}					\
 		${installer_opt}					\
 		${vmname}

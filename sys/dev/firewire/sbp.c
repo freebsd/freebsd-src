@@ -622,7 +622,6 @@ END_DEBUG
 	}
 	/* new target */
 	target = &sbp->targets[i];
-	target->sbp = sbp;
 	target->fwdev = fwdev;
 	target->target_id = i;
 	/* XXX we may want to reload mgm port after each bus reset */
@@ -1976,6 +1975,7 @@ END_DEBUG
 	for( i = 0 ; i < SBP_NUM_TARGETS ; i++){
 		sbp->targets[i].fwdev = NULL;
 		sbp->targets[i].luns = NULL;
+		sbp->targets[i].sbp = sbp;
 	}
 
 	sbp->sim = cam_sim_alloc(sbp_action, sbp_poll, "sbp", sbp,

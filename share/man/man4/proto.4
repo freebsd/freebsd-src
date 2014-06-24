@@ -76,6 +76,7 @@ with
 .Pa pci<d>:<b>:<s>:<f>
 representing the location of the PCI device in the PCI hierarchy.
 A location includes:
+.Pp
 .Bl -tag -width XXXXXX -compact
 .It <d>
 The PCI domain number
@@ -101,11 +102,17 @@ representing I/O port or memory mapped I/O space (resp.)
 .Sh EXAMPLES
 A single function PCI device in domain 0, on bus 1, in slot 2 and having a
 single memory mapped I/O region will have the following device special files:
-.Bl -tag -compact
+.Pp
+.Bl -tag -width XXXXXX -compact
 .It Pa /dev/proto/pci0:1:2:0/10.mem
 .It Pa /dev/proto/pci0:1:2:0/pcicfg
 .El
-.\" 
+.\"
+.Sh AUTHORS
+The
+.Nm
+device driver and this manual page were written by
+.An Marcel Moolenaar Aq marcel@xcllnt.net .
 .Sh SECURITY CONSIDERATIONS
 Because programs have direct access to the hardware, the
 .Nm
@@ -126,9 +133,3 @@ The details of how a program can set up and
 initiate DMA still need to be fleshed out.
 .Pp
 Support for non-PCI devices has not been implemented yet.
-.\"
-.Sh AUTHORS
-The
-.Nm
-device driver and this manual page were written by
-.An Marcel Moolenaar Aq marcel@xcllnt.net .

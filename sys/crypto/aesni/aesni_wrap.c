@@ -382,22 +382,16 @@ int
 aesni_cipher_setup(struct aesni_session *ses, struct cryptoini *encini)
 {
 	struct thread *td;
-	int error, saved_ctx;
+	int error;
 
 	td = curthread;
-	if (!is_fpu_kern_thread(0)) {
-		error = fpu_kern_enter(td, ses->fpu_ctx, FPU_KERN_NORMAL);
-		saved_ctx = 1;
-	} else {
-		error = 0;
-		saved_ctx = 0;
-	}
-	if (error == 0) {
-		error = aesni_cipher_setup_common(ses, encini->cri_key,
-		    encini->cri_klen);
-		if (saved_ctx)
-			fpu_kern_leave(td, ses->fpu_ctx);
-	}
+	error = fpu_kern_enter(td, ses->fpu_ctx, FPU_KERN_NORMAL |
+	    FPU_KERN_KTHR);
+	if (error != 0)
+		return (error);
+	error = aesni_cipher_setup_common(ses, encini->cri_key,
+	    encini->cri_klen);
+	fpu_kern_leave(td, ses->fpu_ctx);
 	return (error);
 }
 
@@ -407,22 +401,17 @@ aesni_cipher_process(struct aesni_session *ses, struct cryptodesc *enccrd,
 {
 	struct thread *td;
 	uint8_t *buf;
-	int error, allocated, saved_ctx;
+	int error, allocated;
 
 	buf = aesni_cipher_alloc(enccrd, crp, &allocated);
 	if (buf == NULL)
 		return (ENOMEM);
 
 	td = curthread;
-	if (!is_fpu_kern_thread(0)) {
-		error = fpu_kern_enter(td, ses->fpu_ctx, FPU_KERN_NORMAL);
-		if (error != 0)
-			goto out;
-		saved_ctx = 1;
-	} else {
-		saved_ctx = 0;
-		error = 0;
-	}
+	error = fpu_kern_enter(td, ses->fpu_ctx, FPU_KERN_NORMAL |
+	    FPU_KERN_KTHR);
+	if (error != 0)
+		goto out1;
 
 	if ((enccrd->crd_flags & CRD_F_KEY_EXPLICIT) != 0) {
 		error = aesni_cipher_setup_common(ses, enccrd->crd_key,
@@ -460,8 +449,6 @@ aesni_cipher_process(struct aesni_session *ses, struct cryptodesc *enccrd,
 			    ses->iv);
 		}
 	}
-	if (saved_ctx)
-		fpu_kern_leave(td, ses->fpu_ctx);
 	if (allocated)
 		crypto_copyback(crp->crp_flags, crp->crp_buf, enccrd->crd_skip,
 		    enccrd->crd_len, buf);
@@ -469,7 +456,9 @@ aesni_cipher_process(struct aesni_session *ses, struct cryptodesc *enccrd,
 		crypto_copydata(crp->crp_flags, crp->crp_buf,
 		    enccrd->crd_skip + enccrd->crd_len - AES_BLOCK_LEN,
 		    AES_BLOCK_LEN, ses->iv);
- out:
+out:
+	fpu_kern_leave(td, ses->fpu_ctx);
+out1:
 	if (allocated) {
 		bzero(buf, enccrd->crd_len);
 		free(buf, M_AESNI);

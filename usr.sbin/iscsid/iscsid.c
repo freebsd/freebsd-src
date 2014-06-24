@@ -304,10 +304,10 @@ capsicate(struct connection *conn)
 	cap_rights_t rights;
 #ifdef ICL_KERNEL_PROXY
 	const unsigned long cmds[] = { ISCSIDCONNECT, ISCSIDSEND, ISCSIDRECEIVE,
-	    ISCSIDHANDOFF, ISCSIDFAIL, ISCSISADD, ISCSISREMOVE };
+	    ISCSIDHANDOFF, ISCSIDFAIL, ISCSISADD, ISCSISREMOVE, ISCSISMODIFY };
 #else
 	const unsigned long cmds[] = { ISCSIDHANDOFF, ISCSIDFAIL, ISCSISADD,
-	    ISCSISREMOVE };
+	    ISCSISREMOVE, ISCSISMODIFY };
 #endif
 
 	cap_rights_init(&rights, CAP_IOCTL);

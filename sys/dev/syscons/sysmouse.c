@@ -165,6 +165,8 @@ static struct ttydevsw smdev_ttydevsw = {
 static void
 sm_attach_mouse(void *unused)
 {
+	if (getenv("hw.syscons.disable"))
+		return;
 	sysmouse_tty = tty_alloc(&smdev_ttydevsw, NULL);
 	tty_makedev(sysmouse_tty, NULL, "sysmouse");
 }

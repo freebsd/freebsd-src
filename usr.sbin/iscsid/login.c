@@ -30,6 +30,7 @@
  */
 
 #include <sys/types.h>
+#include <sys/ioctl.h>
 #include <assert.h>
 #include <stdbool.h>
 #include <stdio.h>
@@ -158,12 +159,67 @@ login_target_error_str(int class, int detail)
 	}
 }
 
+static void
+kernel_modify(const struct connection *conn, const char *target_address)
+{
+	struct iscsi_session_modify ism;
+	int error;
+
+	memset(&ism, 0, sizeof(ism));
+	ism.ism_session_id = conn->conn_session_id;
+	memcpy(&ism.ism_conf, &conn->conn_conf, sizeof(ism.ism_conf));
+	strlcpy(ism.ism_conf.isc_target_addr, target_address,
+	    sizeof(ism.ism_conf.isc_target));
+	error = ioctl(conn->conn_iscsi_fd, ISCSISMODIFY, &ism);
+	if (error != 0) {
+		log_err(1, "failed to redirect to %s: ISCSISMODIFY",
+		    target_address);
+	}
+}
+
+/*
+ * XXX:	The way it works is suboptimal; what should happen is described
+ *	in draft-gilligan-iscsi-fault-tolerance-00.  That, however, would
+ *	be much more complicated: we would need to keep "dependencies"
+ *	for sessions, so that, in case described in draft and using draft
+ *	terminology, we would have three sessions: one for discovery,
+ *	one for initial target portal, and one for redirect portal.  
+ *	This would allow us to "backtrack" on connection failure,
+ *	as described in draft.
+ */
+static void
+login_handle_redirection(struct connection *conn, struct pdu *response)
+{
+	struct iscsi_bhs_login_response *bhslr;
+	struct keys *response_keys;
+	const char *target_address;
+
+	bhslr = (struct iscsi_bhs_login_response *)response->pdu_bhs;
+	assert (bhslr->bhslr_status_class == 1);
+
+	response_keys = keys_new();
+	keys_load(response_keys, response);
+
+	target_address = keys_find(response_keys, "TargetAddress");
+	if (target_address == NULL)
+		log_errx(1, "received redirection without TargetAddress");
+	if (target_address[0] == '\0')
+		log_errx(1, "received redirection with empty TargetAddress");
+	if (strlen(target_address) >=
+	    sizeof(conn->conn_conf.isc_target_addr) - 1)
+		log_errx(1, "received TargetAddress is too long");
+
+	log_debugx("received redirection to \"%s\"", target_address);
+	kernel_modify(conn, target_address);
+}
+
 static struct pdu *
-login_receive(struct connection *conn, bool initial)
+login_receive(struct connection *conn)
 {
 	struct pdu *response;
 	struct iscsi_bhs_login_response *bhslr;
 	const char *errorstr;
+	static bool initial = true;
 
 	response = pdu_new(conn);
 	pdu_receive(response);
@@ -183,6 +239,11 @@ login_receive(struct connection *conn, bool initial)
 	if (bhslr->bhslr_version_active != 0x00)
 		log_errx(1, "received Login PDU with unsupported "
 		    "Version-active 0x%x", bhslr->bhslr_version_active);
+	if (bhslr->bhslr_status_class == 1) {
+		login_handle_redirection(conn, response);
+		log_debugx("redirection handled; exiting");
+		exit(0);
+	}
 	if (bhslr->bhslr_status_class != 0) {
 		errorstr = login_target_error_str(bhslr->bhslr_status_class,
 		    bhslr->bhslr_status_detail);
@@ -201,22 +262,38 @@ login_receive(struct connection *conn, bool initial)
 	}
 	conn->conn_statsn = ntohl(bhslr->bhslr_statsn);
 
+	initial = false;
+
 	return (response);
 }
 
 static struct pdu *
-login_new_request(struct connection *conn)
+login_new_request(struct connection *conn, int csg)
 {
 	struct pdu *request;
 	struct iscsi_bhs_login_request *bhslr;
+	int nsg;
 
 	request = pdu_new(conn);
 	bhslr = (struct iscsi_bhs_login_request *)request->pdu_bhs;
 	bhslr->bhslr_opcode = ISCSI_BHS_OPCODE_LOGIN_REQUEST |
 	    ISCSI_BHS_OPCODE_IMMEDIATE;
+
 	bhslr->bhslr_flags = BHSLR_FLAGS_TRANSIT;
-	login_set_csg(request, BHSLR_STAGE_SECURITY_NEGOTIATION);
-	login_set_nsg(request, BHSLR_STAGE_OPERATIONAL_NEGOTIATION);
+	switch (csg) {
+	case BHSLR_STAGE_SECURITY_NEGOTIATION:
+		nsg = BHSLR_STAGE_OPERATIONAL_NEGOTIATION;
+		break;
+	case BHSLR_STAGE_OPERATIONAL_NEGOTIATION:
+		nsg = BHSLR_STAGE_FULL_FEATURE_PHASE;
+		break;
+	default:
+		assert(!"invalid csg");
+		log_errx(1, "invalid csg %d", csg);
+	}
+	login_set_csg(request, csg);
+	login_set_nsg(request, nsg);
+
 	memcpy(bhslr->bhslr_isid, &conn->conn_isid, sizeof(bhslr->bhslr_isid));
 	bhslr->bhslr_initiator_task_tag = 0;
 	bhslr->bhslr_cmdsn = 0;
@@ -495,10 +572,8 @@ login_negotiate(struct connection *conn)
 	struct iscsi_bhs_login_response *bhslr;
 	int i;
 
-	log_debugx("beginning parameter negotiation");
-	request = login_new_request(conn);
-	login_set_csg(request, BHSLR_STAGE_OPERATIONAL_NEGOTIATION);
-	login_set_nsg(request, BHSLR_STAGE_FULL_FEATURE_PHASE);
+	log_debugx("beginning operational parameter negotiation");
+	request = login_new_request(conn, BHSLR_STAGE_OPERATIONAL_NEGOTIATION);
 	request_keys = keys_new();
 
 	/*
@@ -538,7 +613,7 @@ login_negotiate(struct connection *conn)
 	pdu_delete(request);
 	request = NULL;
 
-	response = login_receive(conn, false);
+	response = login_receive(conn);
 	response_keys = keys_new();
 	keys_load(response_keys, response);
 	for (i = 0; i < KEYS_MAX; i++) {
@@ -557,7 +632,7 @@ login_negotiate(struct connection *conn)
 		log_warnx("received final login response with wrong NSG 0x%x",
 		    login_nsg(response));
 
-	log_debugx("parameter negotiation done; "
+	log_debugx("operational parameter negotiation done; "
 	    "transitioning to Full Feature phase");
 
 	keys_delete(response_keys);
@@ -570,7 +645,7 @@ login_send_chap_a(struct connection *conn)
 	struct pdu *request;
 	struct keys *request_keys;
 
-	request = login_new_request(conn);
+	request = login_new_request(conn, BHSLR_STAGE_SECURITY_NEGOTIATION);
 	request_keys = keys_new();
 	keys_add(request_keys, "CHAP_A", "5");
 	keys_save(request_keys, request);
@@ -632,7 +707,7 @@ login_send_chap_r(struct pdu *response)
 
 	keys_delete(response_keys);
 
-	request = login_new_request(conn);
+	request = login_new_request(conn, BHSLR_STAGE_SECURITY_NEGOTIATION);
 	request_keys = keys_new();
 	keys_add(request_keys, "CHAP_N", conn->conn_conf.isc_user);
 	keys_add(request_keys, "CHAP_R", chap_r);
@@ -730,7 +805,7 @@ login_chap(struct connection *conn)
 	login_send_chap_a(conn);
 
 	log_debugx("waiting for CHAP_A/CHAP_C/CHAP_I");
-	response = login_receive(conn, false);
+	response = login_receive(conn);
 
 	log_debugx("sending CHAP_N/CHAP_R");
 	login_send_chap_r(response);
@@ -741,7 +816,7 @@ login_chap(struct connection *conn)
 	 */
 
 	log_debugx("waiting for CHAP result");
-	response = login_receive(conn, false);
+	response = login_receive(conn);
 	if (conn->conn_conf.isc_mutual_user[0] != '\0')
 		login_verify_mutual(response);
 	pdu_delete(response);
@@ -779,7 +854,7 @@ login(struct connection *conn)
 	login_create_isid(conn);
 
 	log_debugx("beginning Login phase; sending Login PDU");
-	request = login_new_request(conn);
+	request = login_new_request(conn, BHSLR_STAGE_SECURITY_NEGOTIATION);
 	request_keys = keys_new();
 	if (conn->conn_conf.isc_mutual_user[0] != '\0') {
 		keys_add(request_keys, "AuthMethod", "CHAP");
@@ -819,7 +894,7 @@ login(struct connection *conn)
 	pdu_send(request);
 	pdu_delete(request);
 
-	response = login_receive(conn, true);
+	response = login_receive(conn);
 
 	response_keys = keys_new();
 	keys_load(response_keys, response);
@@ -848,12 +923,12 @@ login(struct connection *conn)
 	    login_nsg(response) == BHSLR_STAGE_OPERATIONAL_NEGOTIATION) {
 		if (conn->conn_conf.isc_mutual_user[0] != '\0') {
 			log_errx(1, "target requested transition "
-			    "to operational negotiation, but we require "
-			    "mutual CHAP");
+			    "to operational parameter negotiation, "
+			    "but we require mutual CHAP");
 		}
 
 		log_debugx("target requested transition "
-		    "to operational negotiation");
+		    "to operational parameter negotiation");
 		keys_delete(response_keys);
 		pdu_delete(response);
 		login_negotiate(conn);

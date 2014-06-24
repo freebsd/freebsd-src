@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 16, 2012
+.Dd June 23, 2014
 .Dt ACPI 4
 .Os
 .Sh NAME
@@ -61,6 +61,9 @@ If the default settings are not optimal, the following sysctls can be
 used to modify or monitor
 .Nm
 behavior.
+Note that some variables will be available only if the given hardware supports
+them (such as
+.Va hw.acpi.acline ) .
 .Bl -tag -width indent
 .It Va debug.acpi.enable_debug_objects
 Enable dumping Debug objects without
@@ -84,8 +87,7 @@ To enable ACPI CPU idling control,
 should be set to
 .Li acpi
 if it is listed in
-.Va machdep.idle_available
-.
+.Va machdep.idle_available .
 .It Va hw.acpi.cpu.cx_supported
 List of supported CPU idle states and their transition latency
 in microseconds.

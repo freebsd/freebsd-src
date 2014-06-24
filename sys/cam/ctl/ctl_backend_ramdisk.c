@@ -241,7 +241,7 @@ ctl_backend_ramdisk_move_done(union ctl_io *io)
 	if ((io->io_hdr.port_status == 0)
 	 && ((io->io_hdr.flags & CTL_FLAG_ABORT) == 0)
 	 && ((io->io_hdr.status & CTL_STATUS_MASK) == CTL_STATUS_NONE)) {
-		if (io->scsiio.kern_rel_offset < io->scsiio.kern_total_len) {
+		if (io->io_hdr.ctl_private[CTL_PRIV_BACKEND].integer > 0) {
 			mtx_lock(&be_lun->lock);
 			STAILQ_INSERT_TAIL(&be_lun->cont_queue,
 			    &io->io_hdr, links);
@@ -267,27 +267,27 @@ ctl_backend_ramdisk_move_done(union ctl_io *io)
 					 /*retry_count*/
 					 io->io_hdr.port_status);
 	}
-	ctl_done(io);
+	ctl_data_submit_done(io);
 	return(0);
 }
 
 static int
 ctl_backend_ramdisk_submit(union ctl_io *io)
 {
-	struct ctl_lba_len lbalen;
 	struct ctl_be_lun *ctl_be_lun;
+	struct ctl_lba_len_flags *lbalen;
 
 	ctl_be_lun = (struct ctl_be_lun *)io->io_hdr.ctl_private[
 		CTL_PRIV_BACKEND_LUN].ptr;
-
-	memcpy(&lbalen, io->io_hdr.ctl_private[CTL_PRIV_LBA_LEN].bytes,
-	       sizeof(lbalen));
-	io->scsiio.be_move_done = ctl_backend_ramdisk_move_done;
-	io->scsiio.kern_total_len = lbalen.len * ctl_be_lun->blocksize;
-	io->scsiio.kern_rel_offset = 0;
-	io->scsiio.kern_data_resid = 0;
+	lbalen = (struct ctl_lba_len_flags *)&io->io_hdr.ctl_private[CTL_PRIV_LBA_LEN];
+	if (lbalen->flags & CTL_LLF_VERIFY) {
+		ctl_set_success(&io->scsiio);
+		ctl_data_submit_done(io);
+		return (CTL_RETVAL_COMPLETE);
+	}
+	io->io_hdr.ctl_private[CTL_PRIV_BACKEND].integer =
+	    lbalen->len * ctl_be_lun->blocksize;
 	ctl_backend_ramdisk_continue(io);
-
 	return (CTL_RETVAL_COMPLETE);
 }
 
@@ -302,7 +302,7 @@ ctl_backend_ramdisk_continue(union ctl_io *io)
 #endif
 
 	softc = &rd_softc;
-	len = io->scsiio.kern_total_len - io->scsiio.kern_rel_offset;
+	len = io->io_hdr.ctl_private[CTL_PRIV_BACKEND].integer;
 #ifdef CTL_RAMDISK_PAGES
 	sg_filled = min(btoc(len), softc->num_pages);
 	if (sg_filled > 1) {
@@ -328,9 +328,12 @@ ctl_backend_ramdisk_continue(union ctl_io *io)
 	io->scsiio.kern_data_ptr = softc->ramdisk_buffer;
 #endif /* CTL_RAMDISK_PAGES */
 
+	io->scsiio.be_move_done = ctl_backend_ramdisk_move_done;
+	io->scsiio.kern_data_resid = 0;
 	io->scsiio.kern_data_len = len_filled;
 	io->scsiio.kern_sg_entries = sg_filled;
 	io->io_hdr.flags |= CTL_FLAG_ALLOCATED;
+	io->io_hdr.ctl_private[CTL_PRIV_BACKEND].integer -= len_filled;
 #ifdef CTL_TIME_IO
 	getbintime(&io->io_hdr.dma_start_bt);
 #endif
@@ -502,6 +505,7 @@ ctl_backend_ramdisk_rm(struct ctl_be_ramdisk_softc *softc,
 	if (retval == 0) {
 		taskqueue_drain(be_lun->io_taskqueue, &be_lun->io_task);
 		taskqueue_free(be_lun->io_taskqueue);
+		ctl_free_opts(&be_lun->ctl_be_lun);
 		mtx_destroy(&be_lun->lock);
 		free(be_lun, M_RAMDISK);
 	}
@@ -523,8 +527,9 @@ ctl_backend_ramdisk_create(struct ctl_be_ramdisk_softc *softc,
 	struct ctl_be_ramdisk_lun *be_lun;
 	struct ctl_lun_create_params *params;
 	uint32_t blocksize;
+	char *value;
 	char tmpstr[32];
-	int i, retval, unmap;
+	int retval, unmap;
 
 	retval = 0;
 	params = &req->reqdata.create;
@@ -543,7 +548,7 @@ ctl_backend_ramdisk_create(struct ctl_be_ramdisk_softc *softc,
 		goto bailout_error;
 	}
 	sprintf(be_lun->lunname, "cram%d", softc->num_luns);
-	STAILQ_INIT(&be_lun->ctl_be_lun.options);
+	ctl_init_opts(&be_lun->ctl_be_lun, req);
 
 	if (params->flags & CTL_LUN_FLAG_DEV_TYPE)
 		be_lun->ctl_be_lun.lun_type = params->device_type;
@@ -581,21 +586,9 @@ ctl_backend_ramdisk_create(struct ctl_be_ramdisk_softc *softc,
 	be_lun->softc = softc;
 
 	unmap = 0;
-	for (i = 0; i < req->num_be_args; i++) {
-		if (strcmp(req->kern_be_args[i].kname, "unmap") == 0 &&
-		    strcmp(req->kern_be_args[i].kvalue, "on") == 0) {
-			unmap = 1;
-		} else {
-			struct ctl_be_lun_option *opt;
-
-			opt = malloc(sizeof(*opt), M_RAMDISK, M_WAITOK);
-			opt->name = malloc(strlen(req->kern_be_args[i].kname) + 1, M_RAMDISK, M_WAITOK);
-			strcpy(opt->name, req->kern_be_args[i].kname);
-			opt->value = malloc(strlen(req->kern_be_args[i].kvalue) + 1, M_RAMDISK, M_WAITOK);
-			strcpy(opt->value, req->kern_be_args[i].kvalue);
-			STAILQ_INSERT_TAIL(&be_lun->ctl_be_lun.options, opt, links);
-		}
-	}
+	value = ctl_get_opt(&be_lun->ctl_be_lun, "unmap");
+	if (value != NULL && strcmp(value, "on") == 0)
+		unmap = 1;
 
 	be_lun->flags = CTL_BE_RAMDISK_LUN_UNCONFIGURED;
 	be_lun->ctl_be_lun.flags = CTL_LUN_FLAG_PRIMARY;
@@ -728,6 +721,7 @@ bailout_error:
 		if (be_lun->io_taskqueue != NULL) {
 			taskqueue_free(be_lun->io_taskqueue);
 		}
+		ctl_free_opts(&be_lun->ctl_be_lun);
 		mtx_destroy(&be_lun->lock);
 		free(be_lun, M_RAMDISK);
 	}

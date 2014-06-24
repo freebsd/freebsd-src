@@ -885,8 +885,6 @@ do_dup(struct thread *td, int flags, int old, int new,
 		newfde->fde_flags = oldfde->fde_flags | UF_EXCLOSE;
 	else
 		newfde->fde_flags = oldfde->fde_flags & ~UF_EXCLOSE;
-	if (new > fdp->fd_lastfile)
-		fdp->fd_lastfile = new;
 	*retval = new;
 
 	if (delfp != NULL) {
@@ -1236,7 +1234,7 @@ sys_closefrom(struct thread *td, struct closefrom_args *uap)
 	if (uap->lowfd < 0)
 		uap->lowfd = 0;
 	FILEDESC_SLOCK(fdp);
-	for (fd = uap->lowfd; fd < fdp->fd_nfiles; fd++) {
+	for (fd = uap->lowfd; fd <= fdp->fd_lastfile; fd++) {
 		if (fdp->fd_ofiles[fd].fde_file != NULL) {
 			FILEDESC_SUNLOCK(fdp);
 			(void)kern_close(td, fd);
@@ -1854,17 +1852,14 @@ fdshare(struct filedesc *fdp)
 void
 fdunshare(struct proc *p, struct thread *td)
 {
+	struct filedesc *tmp;
 
-	FILEDESC_XLOCK(p->p_fd);
-	if (p->p_fd->fd_refcnt > 1) {
-		struct filedesc *tmp;
+	if (p->p_fd->fd_refcnt == 1)
+		return;
 
-		FILEDESC_XUNLOCK(p->p_fd);
-		tmp = fdcopy(p->p_fd);
-		fdescfree(td);
-		p->p_fd = tmp;
-	} else
-		FILEDESC_XUNLOCK(p->p_fd);
+	tmp = fdcopy(p->p_fd);
+	fdescfree(td);
+	p->p_fd = tmp;
 }
 
 /*
@@ -2086,15 +2081,8 @@ setugidsafety(struct thread *td)
 	struct file *fp;
 	int i;
 
-	/* Certain daemons might not have file descriptors. */
 	fdp = td->td_proc->p_fd;
-	if (fdp == NULL)
-		return;
-
-	/*
-	 * Note: fdp->fd_ofiles may be reallocated out from under us while
-	 * we are blocked in a close.  Be careful!
-	 */
+	KASSERT(fdp->fd_refcnt == 1, ("the fdtable should not be shared"));
 	FILEDESC_XLOCK(fdp);
 	for (i = 0; i <= fdp->fd_lastfile; i++) {
 		if (i > 2)
@@ -2146,15 +2134,8 @@ fdcloseexec(struct thread *td)
 	struct file *fp;
 	int i;
 
-	/* Certain daemons might not have file descriptors. */
 	fdp = td->td_proc->p_fd;
-	if (fdp == NULL)
-		return;
-
-	/*
-	 * We cannot cache fd_ofiles since operations
-	 * may block and rip them out from under us.
-	 */
+	KASSERT(fdp->fd_refcnt == 1, ("the fdtable should not be shared"));
 	FILEDESC_XLOCK(fdp);
 	for (i = 0; i <= fdp->fd_lastfile; i++) {
 		fde = &fdp->fd_ofiles[i];
@@ -2185,8 +2166,6 @@ fdcheckstd(struct thread *td)
 	int i, error, devnull;
 
 	fdp = td->td_proc->p_fd;
-	if (fdp == NULL)
-		return (0);
 	KASSERT(fdp->fd_refcnt == 1, ("the fdtable should not be shared"));
 	devnull = -1;
 	error = 0;
@@ -2918,7 +2897,7 @@ sysctl_kern_file(SYSCTL_HANDLER_ARGS)
 		if (fdp == NULL)
 			continue;
 		FILEDESC_SLOCK(fdp);
-		for (n = 0; fdp->fd_refcnt > 0 && n < fdp->fd_nfiles; ++n) {
+		for (n = 0; fdp->fd_refcnt > 0 && n <= fdp->fd_lastfile; ++n) {
 			if ((fp = fdp->fd_ofiles[n].fde_file) == NULL)
 				continue;
 			xf.xf_fd = n;
@@ -3028,7 +3007,7 @@ sysctl_kern_proc_ofiledesc(SYSCTL_HANDLER_ARGS)
 	if (fdp->fd_jdir != NULL)
 		export_vnode_for_osysctl(fdp->fd_jdir, KF_FD_TYPE_JAIL, kif,
 				fdp, req);
-	for (i = 0; fdp->fd_refcnt > 0 && i < fdp->fd_nfiles; i++) {
+	for (i = 0; fdp->fd_refcnt > 0 && i <= fdp->fd_lastfile; i++) {
 		if ((fp = fdp->fd_ofiles[i].fde_file) == NULL)
 			continue;
 		bzero(kif, sizeof(*kif));
@@ -3397,7 +3376,7 @@ kern_proc_filedesc_out(struct proc *p,  struct sbuf *sb, ssize_t maxlen)
 		export_fd_to_sb(data, KF_TYPE_VNODE, KF_FD_TYPE_JAIL,
 		    FREAD, -1, -1, NULL, efbuf);
 	}
-	for (i = 0; fdp->fd_refcnt > 0 && i < fdp->fd_nfiles; i++) {
+	for (i = 0; fdp->fd_refcnt > 0 && i <= fdp->fd_lastfile; i++) {
 		if ((fp = fdp->fd_ofiles[i].fde_file) == NULL)
 			continue;
 		data = NULL;
@@ -3768,7 +3747,7 @@ file_to_first_proc(struct file *fp)
 		fdp = p->p_fd;
 		if (fdp == NULL)
 			continue;
-		for (n = 0; n < fdp->fd_nfiles; n++) {
+		for (n = 0; n <= fdp->fd_lastfile; n++) {
 			if (fp == fdp->fd_ofiles[n].fde_file)
 				return (p);
 		}
@@ -3818,7 +3797,7 @@ DB_SHOW_COMMAND(files, db_show_files)
 			continue;
 		if ((fdp = p->p_fd) == NULL)
 			continue;
-		for (n = 0; n < fdp->fd_nfiles; ++n) {
+		for (n = 0; n <= fdp->fd_lastfile; ++n) {
 			if ((fp = fdp->fd_ofiles[n].fde_file) == NULL)
 				continue;
 			db_print_file(fp, header);

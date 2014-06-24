@@ -901,13 +901,13 @@ static void
 wpi_dma_contig_free(struct wpi_dma_info *dma)
 {
 	if (dma->tag) {
-		if (dma->map != NULL) {
+		if (dma->vaddr_start != NULL) {
 			if (dma->paddr_start != 0) {
 				bus_dmamap_sync(dma->tag, dma->map,
 				    BUS_DMASYNC_POSTREAD | BUS_DMASYNC_POSTWRITE);
 				bus_dmamap_unload(dma->tag, dma->map);
 			}
-			bus_dmamem_free(dma->tag, &dma->vaddr_start, dma->map);
+			bus_dmamem_free(dma->tag, dma->vaddr_start, dma->map);
 		}
 		bus_dma_tag_destroy(dma->tag);
 	}

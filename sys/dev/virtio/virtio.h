@@ -30,6 +30,7 @@
 #define _VIRTIO_H_
 
 #include <dev/virtio/virtio_ids.h>
+#include <dev/virtio/virtio_config.h>
 
 struct vq_alloc_info;
 

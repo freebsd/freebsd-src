@@ -74,7 +74,6 @@ struct vtnet_rxq {
 	struct virtqueue	*vtnrx_vq;
 	struct sglist		*vtnrx_sg;
 	int			 vtnrx_id;
-	int			 vtnrx_process_limit;
 	struct vtnet_rxq_stats	 vtnrx_stats;
 	struct taskqueue	*vtnrx_tq;
 	struct task		 vtnrx_intrtask;

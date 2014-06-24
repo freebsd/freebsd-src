@@ -401,7 +401,6 @@ struct ctl_lun {
 };
 
 typedef enum {
-	CTL_FLAG_TASK_PENDING	= 0x01,
 	CTL_FLAG_REAL_SYNC	= 0x02,
 	CTL_FLAG_MASTER_SHELF	= 0x04
 } ctl_gen_flags;
@@ -426,7 +425,6 @@ struct ctl_softc {
 	struct sysctl_ctx_list sysctl_ctx;
 	struct sysctl_oid *sysctl_tree;
 	struct ctl_ioctl_info ioctl_info;
-	struct ctl_lun lun;
 	struct ctl_io_pool *internal_pool;
 	struct ctl_io_pool *emergency_pool;
 	struct ctl_io_pool *othersc_pool;
@@ -439,7 +437,6 @@ struct ctl_softc {
 	uint64_t aps_locked_lun;
 	STAILQ_HEAD(, ctl_lun) lun_list;
 	STAILQ_HEAD(, ctl_be_lun) pending_lun_queue;
-	STAILQ_HEAD(, ctl_io_hdr) task_queue;
 	STAILQ_HEAD(, ctl_io_hdr) incoming_queue;
 	STAILQ_HEAD(, ctl_io_hdr) rtr_queue;
 	STAILQ_HEAD(, ctl_io_hdr) done_queue;
@@ -478,9 +475,11 @@ int ctl_mode_sense(struct ctl_scsiio *ctsio);
 int ctl_read_capacity(struct ctl_scsiio *ctsio);
 int ctl_service_action_in(struct ctl_scsiio *ctsio);
 int ctl_read_write(struct ctl_scsiio *ctsio);
+int ctl_cnw(struct ctl_scsiio *ctsio);
 int ctl_report_luns(struct ctl_scsiio *ctsio);
 int ctl_request_sense(struct ctl_scsiio *ctsio);
 int ctl_tur(struct ctl_scsiio *ctsio);
+int ctl_verify(struct ctl_scsiio *ctsio);
 int ctl_inquiry(struct ctl_scsiio *ctsio);
 int ctl_persistent_reserve_in(struct ctl_scsiio *ctsio);
 int ctl_persistent_reserve_out(struct ctl_scsiio *ctsio);
