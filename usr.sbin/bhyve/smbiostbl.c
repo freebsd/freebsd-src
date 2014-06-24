@@ -779,13 +779,8 @@ smbios_build(struct vmctx *ctx)
 	int				i;
 	int				err;
 
-	err = vm_get_memory_seg(ctx, 0, &guest_lomem, NULL);
-	if (err != 0)
-		return (err);
-
-	err = vm_get_memory_seg(ctx, 4*GB, &guest_himem, NULL);
-	if (err != 0)
-		return (err);
+	guest_lomem = vm_get_lowmem_size(ctx);
+	guest_himem = vm_get_highmem_size(ctx);
 
 	startaddr = paddr_guest2host(ctx, SMBIOS_BASE, SMBIOS_MAX_LENGTH);
 	if (startaddr == NULL) {
