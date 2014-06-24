@@ -49,7 +49,8 @@
 !:mime	text/x-awk
 0	string/wt	#!\ /usr/bin/awk	awk script text executable
 !:mime	text/x-awk
-0	regex		=^\\s*BEGIN\\s*[{]	awk script text
+0	regex		=^\\s{0,100}BEGIN\\s{0,100}[{]	awk script text
+!:strength - 12
 
 # AT&T Bell Labs' Plan 9 shell
 0	string/wt	#!\ /bin/rc	Plan 9 rc shell script text executable
