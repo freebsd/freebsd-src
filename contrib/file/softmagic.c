@@ -43,9 +43,9 @@ FILE_RCSID("@(#)$File: softmagic.c,v 1.147 2011/11/05 15:44:22 rrt Exp $")
 
 
 private int match(struct magic_set *, struct magic *, uint32_t,
-    const unsigned char *, size_t, int, int);
+    const unsigned char *, size_t, int, int, int);
 private int mget(struct magic_set *, const unsigned char *,
-    struct magic *, size_t, unsigned int, int);
+    struct magic *, size_t, unsigned int, int, int);
 private int magiccheck(struct magic_set *, struct magic *);
 private int32_t mprint(struct magic_set *, struct magic *);
 private int32_t moffset(struct magic_set *, struct magic *);
@@ -60,6 +60,7 @@ private void cvt_16(union VALUETYPE *, const struct magic *);
 private void cvt_32(union VALUETYPE *, const struct magic *);
 private void cvt_64(union VALUETYPE *, const struct magic *);
 
+#define OFFSET_OOB(n, o, i)	((n) < (o) || (i) > ((n) - (o)))
 /*
  * softmagic - lookup one file in parsed, in-memory copy of database
  * Passed the name and FILE * of one file to be typed.
@@ -67,13 +68,13 @@ private void cvt_64(union VALUETYPE *, const struct magic *);
 /*ARGSUSED1*/		/* nbytes passed for regularity, maybe need later */
 protected int
 file_softmagic(struct magic_set *ms, const unsigned char *buf, size_t nbytes,
-    int mode, int text)
+    size_t level, int mode, int text)
 {
 	struct mlist *ml;
 	int rv;
 	for (ml = ms->mlist->next; ml != ms->mlist; ml = ml->next)
 		if ((rv = match(ms, ml->magic, ml->nmagic, buf, nbytes, mode,
-		    text)) != 0)
+		    text, level)) != 0)
 			return rv;
 
 	return 0;
@@ -108,7 +109,8 @@ file_softmagic(struct magic_set *ms, const unsigned char *buf, size_t nbytes,
  */
 private int
 match(struct magic_set *ms, struct magic *magic, uint32_t nmagic,
-    const unsigned char *s, size_t nbytes, int mode, int text)
+    const unsigned char *s, size_t nbytes, int mode, int text,
+    int recursion_level)
 {
 	uint32_t magindex = 0;
 	unsigned int cont_level = 0;
@@ -140,7 +142,7 @@ match(struct magic_set *ms, struct magic *magic, uint32_t nmagic,
 		ms->line = m->lineno;
 
 		/* if main entry matches, print it... */
-		switch (mget(ms, s, m, nbytes, cont_level, text)) {
+		switch (mget(ms, s, m, nbytes, cont_level, text, recursion_level + 1)) {
 		case -1:
 			return -1;
 		case 0:
@@ -223,7 +225,7 @@ match(struct magic_set *ms, struct magic *magic, uint32_t nmagic,
 					continue;
 			}
 #endif
-			switch (mget(ms, s, m, nbytes, cont_level, text)) {
+			switch (mget(ms, s, m, nbytes, cont_level, text, recursion_level + 1)) {
 			case -1:
 				return -1;
 			case 0:
@@ -1018,11 +1020,17 @@ mcopy(struct magic_set *ms, union VALUETYPE *p, int type, int indir,
 
 private int
 mget(struct magic_set *ms, const unsigned char *s,
-    struct magic *m, size_t nbytes, unsigned int cont_level, int text)
+    struct magic *m, size_t nbytes, unsigned int cont_level, int text,
+    int recursion_level)
 {
 	uint32_t offset = ms->offset;
 	uint32_t count = m->str_range;
 	union VALUETYPE *p = &ms->ms_value;
+
+        if (recursion_level >= 20) {
+                file_error(ms, 0, "recursion nesting exceeded");
+                return -1;
+        }
 
 	if (mcopy(ms, p, m->type, m->flag & INDIR, s, offset, nbytes, count) == -1)
 		return -1;
@@ -1073,7 +1081,7 @@ mget(struct magic_set *ms, const unsigned char *s,
 		}
 		switch (m->in_type) {
 		case FILE_BYTE:
-			if (nbytes < (offset + 1))
+			if (OFFSET_OOB(nbytes, offset, 1))
 				return 0;
 			if (off) {
 				switch (m->in_op & FILE_OPS_MASK) {
@@ -1108,7 +1116,7 @@ mget(struct magic_set *ms, const unsigned char *s,
 				offset = ~offset;
 			break;
 		case FILE_BESHORT:
-			if (nbytes < (offset + 2))
+			if (OFFSET_OOB(nbytes, offset, 2))
 				return 0;
 			if (off) {
 				switch (m->in_op & FILE_OPS_MASK) {
@@ -1160,7 +1168,7 @@ mget(struct magic_set *ms, const unsigned char *s,
 				offset = ~offset;
 			break;
 		case FILE_LESHORT:
-			if (nbytes < (offset + 2))
+			if (OFFSET_OOB(nbytes, offset, 2))
 				return 0;
 			if (off) {
 				switch (m->in_op & FILE_OPS_MASK) {
@@ -1212,7 +1220,7 @@ mget(struct magic_set *ms, const unsigned char *s,
 				offset = ~offset;
 			break;
 		case FILE_SHORT:
-			if (nbytes < (offset + 2))
+			if (OFFSET_OOB(nbytes, offset, 2))
 				return 0;
 			if (off) {
 				switch (m->in_op & FILE_OPS_MASK) {
@@ -1249,7 +1257,7 @@ mget(struct magic_set *ms, const unsigned char *s,
 			break;
 		case FILE_BELONG:
 		case FILE_BEID3:
-			if (nbytes < (offset + 4))
+			if (OFFSET_OOB(nbytes, offset, 4))
 				return 0;
 			if (off) {
 				switch (m->in_op & FILE_OPS_MASK) {
@@ -1320,7 +1328,7 @@ mget(struct magic_set *ms, const unsigned char *s,
 			break;
 		case FILE_LELONG:
 		case FILE_LEID3:
-			if (nbytes < (offset + 4))
+			if (OFFSET_OOB(nbytes, offset, 4))
 				return 0;
 			if (off) {
 				switch (m->in_op & FILE_OPS_MASK) {
@@ -1390,7 +1398,7 @@ mget(struct magic_set *ms, const unsigned char *s,
 				offset = ~offset;
 			break;
 		case FILE_MELONG:
-			if (nbytes < (offset + 4))
+			if (OFFSET_OOB(nbytes, offset, 4))
 				return 0;
 			if (off) {
 				switch (m->in_op & FILE_OPS_MASK) {
@@ -1460,7 +1468,7 @@ mget(struct magic_set *ms, const unsigned char *s,
 				offset = ~offset;
 			break;
 		case FILE_LONG:
-			if (nbytes < (offset + 4))
+			if (OFFSET_OOB(nbytes, offset, 4))
 				return 0;
 			if (off) {
 				switch (m->in_op & FILE_OPS_MASK) {
@@ -1527,14 +1535,14 @@ mget(struct magic_set *ms, const unsigned char *s,
 	/* Verify we have enough data to match magic type */
 	switch (m->type) {
 	case FILE_BYTE:
-		if (nbytes < (offset + 1)) /* should alway be true */
+		if (OFFSET_OOB(nbytes, offset, 1))
 			return 0;
 		break;
 
 	case FILE_SHORT:
 	case FILE_BESHORT:
 	case FILE_LESHORT:
-		if (nbytes < (offset + 2))
+		if (OFFSET_OOB(nbytes, offset, 2))
 			return 0;
 		break;
 
@@ -1553,21 +1561,21 @@ mget(struct magic_set *ms, const unsigned char *s,
 	case FILE_FLOAT:
 	case FILE_BEFLOAT:
 	case FILE_LEFLOAT:
-		if (nbytes < (offset + 4))
+		if (OFFSET_OOB(nbytes, offset, 4))
 			return 0;
 		break;
 
 	case FILE_DOUBLE:
 	case FILE_BEDOUBLE:
 	case FILE_LEDOUBLE:
-		if (nbytes < (offset + 8))
+		if (OFFSET_OOB(nbytes, offset, 8))
 			return 0;
 		break;
 
 	case FILE_STRING:
 	case FILE_PSTRING:
 	case FILE_SEARCH:
-		if (nbytes < (offset + m->vallen))
+		if (OFFSET_OOB(nbytes, offset, m->vallen))
 			return 0;
 		break;
 
@@ -1577,13 +1585,15 @@ mget(struct magic_set *ms, const unsigned char *s,
 		break;
 
 	case FILE_INDIRECT:
+		if (offset == 0)
+			return 0;
 	  	if ((ms->flags & (MAGIC_MIME|MAGIC_APPLE)) == 0 &&
 		    file_printf(ms, "%s", m->desc) == -1)
 			return -1;
 		if (nbytes < offset)
 			return 0;
 		return file_softmagic(ms, s + offset, nbytes - offset,
-		    BINTEST, text);
+		    recursion_level, BINTEST, text);
 
 	case FILE_DEFAULT:	/* nothing to check */
 	default:
