@@ -65,8 +65,8 @@ typedef enum {
 } charset_t;
 
 typedef struct {
-	int	 end;
 	int	 start;
+	int	 end;
 	int	 width;
 } range_t;
 
@@ -503,12 +503,12 @@ _citrus_HZ_encoding_module_uninit(_HZEncodingInfo *ei)
 }
 
 static int
-_citrus_HZ_parse_char(void **context, const char *name __unused, const char *s)
+_citrus_HZ_parse_char(void *context, const char *name __unused, const char *s)
 {
 	escape_t *escape;
 	void **p;
 
-	p = (void **)*context;
+	p = (void **)context;
 	escape = (escape_t *)p[0];
 	if (escape->ch != '\0')
 		return (EINVAL);
@@ -520,14 +520,14 @@ _citrus_HZ_parse_char(void **context, const char *name __unused, const char *s)
 }
 
 static int
-_citrus_HZ_parse_graphic(void **context, const char *name, const char *s)
+_citrus_HZ_parse_graphic(void *context, const char *name, const char *s)
 {
 	_HZEncodingInfo *ei;
 	escape_t *escape;
 	graphic_t *graphic;
 	void **p;
 
-	p = (void **)*context;
+	p = (void **)context;
 	escape = (escape_t *)p[0];
 	ei = (_HZEncodingInfo *)p[1];
 	graphic = malloc(sizeof(*graphic));
@@ -589,13 +589,13 @@ _CITRUS_PROP_HINT_END
 };
 
 static int
-_citrus_HZ_parse_escape(void **context, const char *name, const char *s)
+_citrus_HZ_parse_escape(void *context, const char *name, const char *s)
 {
 	_HZEncodingInfo *ei;
 	escape_t *escape;
 	void *p[2];
 
-	ei = (_HZEncodingInfo *)*context;
+	ei = (_HZEncodingInfo *)context;
 	escape = malloc(sizeof(*escape));
 	if (escape == NULL)
 		return (EINVAL);

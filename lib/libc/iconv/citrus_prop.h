@@ -42,7 +42,7 @@ typedef struct _citrus_prop_hint_t _citrus_prop_hint_t;
 
 #define _CITRUS_PROP_CB0_T(_func_, _type_) \
 typedef int (*_citrus_prop_##_func_##_cb_func_t) \
-    (void ** __restrict, const char *, _type_); \
+    (void * __restrict, const char *, _type_); \
 typedef struct { \
 	_citrus_prop_##_func_##_cb_func_t func; \
 } _citrus_prop_##_func_##_cb_t;
@@ -52,7 +52,7 @@ _CITRUS_PROP_CB0_T(str, const char *)
 
 #define _CITRUS_PROP_CB1_T(_func_, _type_) \
 typedef int (*_citrus_prop_##_func_##_cb_func_t) \
-    (void ** __restrict, const char *, _type_, _type_); \
+    (void * __restrict, const char *, _type_, _type_); \
 typedef struct { \
 	_citrus_prop_##_func_##_cb_func_t func; \
 } _citrus_prop_##_func_##_cb_t;

@@ -431,7 +431,6 @@ static int
 _citrus_VIQR_encoding_module_init(_VIQREncodingInfo * __restrict ei,
     const void * __restrict var __unused, size_t lenvar __unused)
 {
-	const mnemonic_def_t *p;
 	const char *s;
 	size_t i, n;
 	int errnum;
@@ -455,7 +454,10 @@ _citrus_VIQR_encoding_module_init(_VIQREncodingInfo * __restrict ei,
 			return (errnum);
 		}
 	}
-	for (i = 0;; ++i) {
+	/* a + 1 < b + 1 here to silence gcc warning about unsigned < 0. */
+	for (i = 0; i + 1 < mnemonic_ext_size + 1; ++i) {
+		const mnemonic_def_t *p;
+
 		p = &mnemonic_ext[i];
 		n = strlen(p->name);
 		if (ei->mb_cur_max < n)
