@@ -31,6 +31,11 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 11.x IS SLOW:
 	disable the most expensive debugging functionality run
 	"ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20140619:
+	Maximal length of the serial number in CTL was increased from 16 to
+	64 chars, that breaks ABI.  All CTL-related tools, such as ctladm
+	and ctld, need to be rebuilt to work with a new kernel.
+
 20140606:
 	The libatf-c and libatf-c++ major versions were downgraded to 0 and
 	1 respectively to match the upstream numbers.  They were out of
