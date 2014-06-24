@@ -15,6 +15,14 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 8.x IS SLOW ON IA64 OR SUN4V:
 	debugging tools present in HEAD were left in place because
 	sun4v support still needs work to become production ready.
 
+20140624:	p13	FreeBSD-SA-14:16.file
+			FreeBSD-EN-14:08.heimdal
+
+	Fix multiple vulnerabilities in file(1) and libmagic(3).
+	[SA-14:16]
+
+	Fix gss_pseudo_random interoperability issue. [EN-14:08]
+
 20140605:	p12	FreeBSD-SA-14:14.openssl
 	Fix OpenSSL multiple vulnerabilities. [SA-14:14]
 
