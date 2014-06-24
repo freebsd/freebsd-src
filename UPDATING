@@ -67,11 +67,12 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 11.x IS SLOW:
 	behavior back, you can .include /etc/src.conf from /etc/make.conf
 	(which is still global and isn't changed). This also changes the
 	behavior of incremental builds inside the tree of individual
-	directories. Set MAKESYSPATH to "/usr/src/share/mk" to do that.
+	directories. Set MAKESYSPATH to ".../share/mk" to do that.
 	Although this has survived make universe and some upgrade scenarios,
 	other upgrade scenarios may have broken. At least one form of
 	temporary breakage was fixed with MAKESYSPATH settings for buildworld
-	as well...
+	as well... In cases where MAKESYSPATH isn't working with this
+	setting, you'll need to set it to the full path to your tree.
 
 	One side effect of all this cleaning up is that bsd.compiler.mk
 	is no longer implicitly included by bsd.own.mk. If you wish to
