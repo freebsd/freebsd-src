@@ -11,6 +11,14 @@ handbook:
 Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running portupgrade.
 
+20140624:	p9	FreeBSD-SA-14:16.file
+			FreeBSD-EN-14:08.heimdal
+
+	Fix multiple vulnerabilities in file(1) and libmagic(3).
+	[SA-14:16]
+
+	Fix gss_pseudo_random interoperability issue. [EN-14:08]
+
 20140605:	p8	FreeBSD-SA-14:14.openssl
 	Fix OpenSSL multiple vulnerabilities. [SA-14:14]
 
