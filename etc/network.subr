@@ -1077,7 +1077,7 @@ ifalias_af_common_handler()
 ifalias_af_common()
 {
 	local _ret _if _af _action alias ifconfig_args _aliasn _c _tmpargs _iaf
-	local _punct=".-/+"
+	local _vif _punct=".-/+"
 
 	_ret=1
 	_aliasn=
@@ -1086,11 +1086,11 @@ ifalias_af_common()
 	_action=$3
 
 	# Normalize $_if before using it in a pattern to list_vars()
-	ltr "$_if" "$_punct" "_" _if
+	ltr "$_if" "$_punct" "_" _vif
 
 	# ifconfig_IF_aliasN which starts with $_af
-	for alias in `list_vars ifconfig_${_if}_alias[0-9]\* |
-		sort_lite -nk1.$((9+${#_if}+7))`
+	for alias in `list_vars ifconfig_${_vif}_alias[0-9]\* |
+		sort_lite -nk1.$((9+${#_vif}+7))`
 	do
 		eval ifconfig_args=\"\$$alias\"
 		_iaf=
@@ -1118,8 +1118,8 @@ ifalias_af_common()
 	# backward compatibility: ipv6_ifconfig_IF_aliasN.
 	case $_af in
 	inet6)
-		for alias in `list_vars ipv6_ifconfig_${_if}_alias[0-9]\* |
-			sort_lite -nk1.$((14+${#_if}+7))`
+		for alias in `list_vars ipv6_ifconfig_${_vif}_alias[0-9]\* |
+			sort_lite -nk1.$((14+${#_vif}+7))`
 		do
 			eval ifconfig_args=\"\$$alias\"
 			case ${_action}:"${ifconfig_args}" in
@@ -1129,7 +1129,7 @@ ifalias_af_common()
 			alias:*)
 				_aliasn="${_aliasn} inet6 ${ifconfig_args}"
 				warn "\$${alias} is obsolete. " \
-				    "Use ifconfig_$1_aliasN instead."
+				    "Use ifconfig_${_vif}_aliasN instead."
 			;;
 			esac
 		done
