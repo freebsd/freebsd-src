@@ -301,6 +301,12 @@ cheri_log_exception(struct trapframe *frame, int trap_type)
 	CHERI_CGETTAG(ctag, CHERI_CR_CTEMP0);
 	CHERI_REG_PRINT(c, ctag, 4);
 
+	/* C11 */
+	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &cheriframe->cf_c11, 0);
+	CHERI_GETCAPREG(CHERI_CR_CTEMP0, c);
+	CHERI_CGETTAG(ctag, CHERI_CR_CTEMP0);
+	CHERI_REG_PRINT(c, ctag, 11);
+
 	/* C24 - RCC */
 	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &cheriframe->cf_rcc, 0);
 	CHERI_GETCAPREG(CHERI_CR_CTEMP0, c);
