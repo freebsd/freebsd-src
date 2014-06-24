@@ -1,5 +1,5 @@
 #-
-# Copyright (c) 2012-2013 Robert N. M. Watson
+# Copyright (c) 2012-2014 Robert N. M. Watson
 # All rights reserved.
 #
 # This software was developed by SRI International and the University of
@@ -114,7 +114,7 @@ cheri_invoke:
 	# Save capability registers we later need to restore (that won't be
 	# handled by CCall for us).
 	#
-	daddiu	$sp, -256
+	daddiu	$sp, -288
 	csc	$c17, $sp, 0($c0)
 	csc	$c18, $sp, 32($c0)
 	csc	$c19, $sp, 64($c0)
@@ -123,6 +123,7 @@ cheri_invoke:
 	csc	$c22, $sp, 160($c0)
 	csc	$c23, $sp, 192($c0)
 	csc	$c24, $sp, 224($c0)
+	csc	$c11, $sp, 256($c0)
 
 	#
 	# Scrub callee-save non-argument general-purpose registers.
@@ -202,7 +203,8 @@ cheri_invoke:
 	clc	$c22, $sp, 160($c0)
 	clc	$c23, $sp, 192($c0)
 	clc	$c24, $sp, 224($c0)
-	daddiu	$sp, 256
+	clc	$c11, $sp, 256($c0)
+	daddiu	$sp, 288
 
 	#
 	# Conservative: clear capability registers that aren't return values
