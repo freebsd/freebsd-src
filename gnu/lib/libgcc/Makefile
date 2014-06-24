@@ -317,7 +317,7 @@ ${_src:R:S/$/.So/}: ${_src} ${COMMONHDRS}
 # Generated headers
 #
 ${COMMONHDRS}: ${.CURDIR}/../../usr.bin/cc/cc_tools/Makefile
-	${MAKE} -f ${.ALLSRC} MFILE=${.ALLSRC} GCCDIR=${GCCDIR} ${.TARGET}
+	(cd ${.CURDIR}; ${MAKE} -f ${.ALLSRC} MFILE=${.ALLSRC} GCCDIR=${GCCDIR} ${.TARGET})
 
 CLEANFILES += ${COMMONHDRS}
 CLEANFILES += cs-*.h option*
