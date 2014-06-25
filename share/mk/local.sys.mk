@@ -170,11 +170,17 @@ WITH_STAGING_PROG= yes
 PYTHON ?= /usr/local/bin/python
 
 .if ${.MAKE.LEVEL} == 0
-.if ${MAKESYSPATH:Uno:M*.../*} != ""
-# make sure this is resolved
-MAKESYSPATH:= ${MAKESYSPATH:S,:, ,g:C,\.\.\./.*,${_this:H},:ts:}
+# just in case -m, MAKESYSPATH or our default has .../ 
+# export a sanitised version...
+# first any -m* from command line,
+# then any MAKESYSPATH and finally ${.PARSEDIR}
+_makesyspath:= ${.MAKEFLAGS:tW:S/ -m / -m/g:tw:M-m*:S,^-m,,} \
+	${MAKESYSPATH:U} \
+	${.PARSEDIR}
+# replace .../.* with ${.PARSEDIR}, not perfect but pretty close
+MAKESYSPATH:= ${_makesyspath:S,:, ,g:C,^\.\.\./.*,${.PARSEDIR},:u:ts:}
 .export MAKESYSPATH
-.endif
+
 # this works best if share/mk is ready for it.
 BUILD_AT_LEVEL0= no
 # By default only MACHINE0 updates dependencies
