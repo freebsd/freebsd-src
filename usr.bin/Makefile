@@ -266,10 +266,6 @@ SUBDIR+=	drill
 SUBDIR+=	host
 .endif
 
-.if ${MK_LIBTHR} != "no"
-SUBDIR+=	csup
-.endif
-
 .if ${MK_LOCATE} != "no"
 SUBDIR+=	locate
 .endif
