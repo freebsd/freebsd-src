@@ -990,7 +990,6 @@ g_eli_keyfiles_load(struct hmac_ctx *ctx, const char *provider)
 		G_ELI_DEBUG(1, "Loaded keyfile %s for %s (type: %s).", file,
 		    provider, name);
 		g_eli_crypto_hmac_update(ctx, data, size);
-		bzero(data, size);
 	}
 }
 
@@ -1140,6 +1139,7 @@ g_eli_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 			g_eli_keyfiles_clear(pp->name);
 			return (NULL);
 		}
+		g_eli_keyfiles_clear(pp->name);
 		G_ELI_DEBUG(1, "Using Master Key %u for %s.", nkey, pp->name);
 		break;
 	}
