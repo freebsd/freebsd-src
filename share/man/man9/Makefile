@@ -918,10 +918,12 @@ MLINKS+=\
 	mbuf.9 m_move_pkthdr.9 \
 	mbuf.9 M_PREPEND.9 \
 	mbuf.9 m_prepend.9 \
+	mbuf.9 m_pulldown.9 \
 	mbuf.9 m_pullup.9 \
 	mbuf.9 m_split.9 \
 	mbuf.9 mtod.9 \
 	mbuf.9 M_TRAILINGSPACE.9 \
+	mbuf.9 m_unshare.9 \
 	mbuf.9 M_WRITABLE.9
 MLINKS+=\
 	mbuf_tags.9 m_tag_alloc.9 \
