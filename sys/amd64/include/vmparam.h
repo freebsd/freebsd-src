@@ -73,8 +73,6 @@
  * We provide a machine specific single page allocator through the use
  * of the direct mapped segment.  This uses 2MB pages for reduced
  * TLB pressure.
- * Note: XEN does not use this as kmem_alloc() is functional via its
- * own boot time mapped backend allocator.
  */
 #define	UMA_MD_SMALL_ALLOC
 
