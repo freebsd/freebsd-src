@@ -87,6 +87,10 @@ SYSCTL_UINT(_security_cheri, OID_AUTO, debugger_on_exception, CTLFLAG_RW,
 	CHERI_CAP_PRINT(c, ctag);					\
 } while (0)
 
+static void	cheri_capability_set_user_c0(struct chericap *);
+static void	cheri_capability_set_user_stack(struct chericap *);
+static void	cheri_capability_set_user_pcc(struct chericap *);
+
 /*
  * Given an existing more privileged capability (fromcrn), build a new
  * capability in tocrn with the contents of the passed flattened
@@ -126,19 +130,20 @@ cheri_capability_clear(struct chericap *cp)
 
 /*
  * Functions to store a common set of capability values to in-memory
- * capabilities: full privilege, userspace privilege, and null privilege.
- * These are used to initialise capability registers when creating new
+ * capabilities used in various aspects of user context.
  * contexts.
  */
-void
+#ifdef _UNUSED
+static void
 cheri_capability_set_priv(struct chericap *cp)
 {
 
 	cheri_capability_set(cp, CHERI_CAP_PRIV_PERMS, CHERI_CAP_PRIV_OTYPE,
 	    CHERI_CAP_PRIV_BASE, CHERI_CAP_PRIV_LENGTH);
 }
+#endif
 
-void
+static void
 cheri_capability_set_user_c0(struct chericap *cp)
 {
 
@@ -146,7 +151,19 @@ cheri_capability_set_user_c0(struct chericap *cp)
 	    CHERI_CAP_USER_BASE, CHERI_CAP_USER_LENGTH);
 }
 
-void
+static void
+cheri_capability_set_user_stack(struct chericap *cp)
+{
+
+	/*
+	 * For now, initialise stack as ambient with identical rights as $c0.
+	 * In the future, we will likely want to change this to be ephemeral.
+	 */
+	cheri_capability_set(cp, CHERI_CAP_USER_PERMS, CHERI_CAP_USER_OTYPE,
+	    CHERI_CAP_USER_BASE, CHERI_CAP_USER_LENGTH);
+}
+
+static void
 cheri_capability_set_user_pcc(struct chericap *cp)
 {
 
@@ -201,6 +218,7 @@ cheri_exec_setregs(struct thread *td)
 	cfp = &td->td_pcb->pcb_cheriframe;
 	bzero(cfp, sizeof(*cfp));
 	cheri_capability_set_user_c0(&cfp->cf_c0);
+	cheri_capability_set_user_stack(&cfp->cf_c11);
 	cheri_capability_set_user_pcc(&cfp->cf_pcc);
 }
 
