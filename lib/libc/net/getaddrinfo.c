@@ -62,12 +62,15 @@ __FBSDID("$FreeBSD$");
 #include <sys/socket.h>
 #include <net/if.h>
 #include <netinet/in.h>
+#include <net/if_types.h>
+#include <ifaddrs.h>
 #include <sys/queue.h>
 #ifdef INET6
 #include <net/if_var.h>
 #include <sys/sysctl.h>
 #include <sys/ioctl.h>
-#include <netinet6/in6_var.h>	/* XXX */
+#include <netinet6/in6_var.h>
+#include <netinet6/nd6.h>
 #endif
 #include <arpa/inet.h>
 #include <arpa/nameser.h>
@@ -245,6 +248,9 @@ static int get_portmatch(const struct addrinfo *, const char *);
 static int get_port(struct addrinfo *, const char *, int);
 static const struct afd *find_afd(int);
 static int addrconfig(struct addrinfo *);
+#ifdef INET6
+static int is_ifdisabled(char *);
+#endif
 static void set_source(struct ai_order *, struct policyhead *);
 static int comp_dst(const void *, const void *);
 #ifdef INET6
@@ -1525,10 +1531,11 @@ find_afd(int af)
 }
 
 /*
- * post-2553: AI_ADDRCONFIG check.  if we use getipnodeby* as backend, backend
- * will take care of it.
- * the semantics of AI_ADDRCONFIG is not defined well.  we are not sure
- * if the code is right or not.
+ * post-2553: AI_ADDRCONFIG check.  Determines which address families are
+ * configured on the local system and correlates with pai->ai_family value.
+ * If an address family is not configured on the system, it will not be
+ * queried for.  For this purpose, loopback addresses are not considered
+ * configured addresses.
  *
  * XXX PF_UNSPEC -> PF_INET6 + PF_INET mapping needs to be in sync with
  * _dns_getaddrinfo.
@@ -1536,38 +1543,64 @@ find_afd(int af)
 static int
 addrconfig(struct addrinfo *pai)
 {
-	int s, af;
+	struct ifaddrs *ifaddrs, *ifa;
+	int seen_inet = 0, seen_inet6 = 0;
 
-	/*
-	 * TODO:
-	 * Note that implementation dependent test for address
-	 * configuration should be done everytime called
-	 * (or apropriate interval),
-	 * because addresses will be dynamically assigned or deleted.
-	 */
-	af = pai->ai_family;
-	if (af == AF_UNSPEC) {
-		if ((s = _socket(AF_INET6, SOCK_DGRAM | SOCK_CLOEXEC, 0)) < 0)
-			af = AF_INET;
-		else {
-			_close(s);
-			if ((s = _socket(AF_INET, SOCK_DGRAM | SOCK_CLOEXEC,
-			    0)) < 0)
-				af = AF_INET6;
-			else
-				_close(s);
+	if (getifaddrs(&ifaddrs) != 0)
+		return 0;
+
+	for (ifa = ifaddrs; ifa != NULL; ifa = ifa->ifa_next) {
+		if (ifa->ifa_addr == NULL || (ifa->ifa_flags & IFF_UP) == 0)
+			continue;
+		if ((ifa->ifa_flags & IFT_LOOP) != 0)
+			continue;
+		switch (ifa->ifa_addr->sa_family) {
+		case AF_INET:
+			seen_inet = 1;
+			break;
+#ifdef INET6
+		case AF_INET6:
+			if (!seen_inet6 && !is_ifdisabled(ifa->ifa_name))
+				seen_inet6 = 1;
+			break;
+#endif
 		}
 	}
-	if (af != AF_UNSPEC) {
-		if ((s = _socket(af, SOCK_DGRAM | SOCK_CLOEXEC, 0)) < 0)
-			return 0;
-		_close(s);
+	freeifaddrs(ifaddrs);
+
+	switch(pai->ai_family) {
+	case AF_INET6:
+		return seen_inet6;
+	case AF_INET:
+		return seen_inet;
+	case AF_UNSPEC:
+		if (seen_inet == seen_inet6)
+			return seen_inet;
+		pai->ai_family = seen_inet ? AF_INET : AF_INET6;
+		return 1;
 	}
-	pai->ai_family = af;
 	return 1;
 }
 
 #ifdef INET6
+static int
+is_ifdisabled(char *name)
+{
+	struct in6_ndireq nd;
+	int fd;
+
+	if ((fd = _socket(AF_INET6, SOCK_DGRAM | SOCK_CLOEXEC, 0)) < 0)
+		return -1;
+	memset(&nd, 0, sizeof(nd));
+	strlcpy(nd.ifname, name, sizeof(nd.ifname));
+	if (_ioctl(fd, SIOCGIFINFO_IN6, &nd) < 0) {
+		_close(fd);
+		return -1;
+	}
+	_close(fd);
+	return ((nd.ndi.flags & ND6_IFF_IFDISABLED) != 0);
+}
+
 /* convert a string to a scope identifier. XXX: IPv6 specific */
 static int
 ip6_str2scopeid(char *scope, struct sockaddr_in6 *sin6, u_int32_t *scopeid)
