@@ -336,7 +336,7 @@ procline(struct str *l, int nottext)
 		}
 
 		/* One pass if we are not recording matches */
-		if ((color == NULL && !oflag) || qflag || lflag)
+		if (!wflag && ((color == NULL && !oflag) || qflag || lflag))
 			break;
 
 		if (st == (size_t)pmatch.rm_so)
