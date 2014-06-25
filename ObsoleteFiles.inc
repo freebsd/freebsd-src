@@ -38,6 +38,11 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20140625: csup removal
+OLD_FILES+=usr/bin/csup
+OLD_FILES+=usr/bin/cpasswd
+OLD_FILES+=usr/share/man/man1/csup.1.gz
+OLD_FILES+=usr/share/man/man1/cpasswd.1.gz
 # 20140614: send-pr removal
 OLD_FILES+=usr/share/info/send-pr.info.gz
 OLD_FILES+=usr/share/man/man1/send-pr.1.gz
