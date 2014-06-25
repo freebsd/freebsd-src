@@ -182,9 +182,8 @@ cheri_stack_sandboxexception(struct thread *td, struct trapframe *tf,
 	cheri_capability_store(CHERI_CR_CTEMP0, &pcb->pcb_cheriframe.cf_pcc);
 
 	/*
-	 * Pop SP, PC (+4 already done).
+	 * Pop PC (+4 already done).
 	 */
-	pcb->pcb_regs.sp = csfp->csf_sp;
 	pcb->pcb_regs.pc = csfp->csf_pc;
 
 	/*
@@ -244,8 +243,7 @@ DB_SHOW_COMMAND(cheristack, ddb_dump_cheristack)
 		db_printf("\t\tbase 0x%016jx length 0x%016jx\n",
 		    (uintmax_t)c.c_base, (uintmax_t)c.c_length);
 
-		db_printf("\tPC: %p SP: %p\n", (void *)csfp->csf_pc,
-		    (void *)csfp->csf_sp);
+		db_printf("\tPC: %p\n", (void *)csfp->csf_pc);
 	}
 }
 #endif

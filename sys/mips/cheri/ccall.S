@@ -199,13 +199,6 @@ CHERICCall:
 	/* Push PCC. */
 	csc		CHERI_REG_EPCC, k0, CHERI_STACKFRAME_PCC(CHERI_REG_KDC)
 
-	/*
-	 * Push SP; zero register afterwards since the caller is unable to do
-	 * that before CCall.
-	 */
-	csd		sp, k0, CHERI_STACKFRAME_SP(CHERI_REG_KDC)
-	move		sp, zero
-
 	/* Push PC + 4; k1 is overwritten, so no longer PCB pointer. */
 	MFC0		k1, MIPS_COP_0_EXC_PC
 	PTR_ADDU	k1, k1, 4
@@ -331,11 +324,6 @@ CHERICReturn:
 
 	/* Pop PCC. */
 	clc		CHERI_REG_EPCC, k0, CHERI_STACKFRAME_PCC(CHERI_REG_KDC)
-
-	/*
-	 * Pop SP.
-	 */
-	cld		sp, k0, CHERI_STACKFRAME_SP(CHERI_REG_KDC)
 
 	/* Pop PC + padding; +4 already done; toasts k0; k1 still PCB. */
 	cld		k0, k0, CHERI_STACKFRAME_PC(CHERI_REG_KDC)

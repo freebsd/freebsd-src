@@ -121,7 +121,6 @@ ASSYM(U_PCB_CHERIKFRAME, offsetof(struct pcb, pcb_cherikframe));
 ASSYM(U_PCB_CHERISTACK_TSP, offsetof(struct pcb, pcb_cheristack.cs_tsp));
 ASSYM(U_PCB_CHERISTACK_FRAMES, offsetof(struct pcb, pcb_cheristack.cs_frames));
 ASSYM(CHERI_STACKFRAME_PC, offsetof(struct cheri_stack_frame, csf_pc));
-ASSYM(CHERI_STACKFRAME_SP, offsetof(struct cheri_stack_frame, csf_sp));
 ASSYM(CHERI_STACKFRAME_PCC, offsetof(struct cheri_stack_frame, csf_pcc));
 ASSYM(CHERI_STACKFRAME_IDC, offsetof(struct cheri_stack_frame, csf_idc));
 #endif
