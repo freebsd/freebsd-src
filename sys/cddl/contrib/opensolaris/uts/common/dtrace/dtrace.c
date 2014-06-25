@@ -15716,9 +15716,7 @@ dtrace_attach(dev_info_t *devi, ddi_attach_cmd_t cmd)
 #endif
 
 #if !defined(sun)
-#if __FreeBSD_version >= 800039
 static void dtrace_dtr(void *);
-#endif
 #endif
 
 /*ARGSUSED*/
@@ -15745,27 +15743,7 @@ dtrace_open(struct cdev *dev, int oflags, int devtype, struct thread *td)
 	ASSERT(getminor(*devp) == DTRACEMNRN_DTRACE);
 #else
 	cred_t *cred_p = NULL;
-
-#if __FreeBSD_version < 800039
-	/*
-	 * The first minor device is the one that is cloned so there is
-	 * nothing more to do here.
-	 */
-	if (dev2unit(dev) == 0)
-		return 0;
-
-	/*
-	 * Devices are cloned, so if the DTrace state has already
-	 * been allocated, that means this device belongs to a
-	 * different client. Each client should open '/dev/dtrace'
-	 * to get a cloned device.
-	 */
-	if (dev->si_drv1 != NULL)
-		return (EBUSY);
-#endif
-
 	cred_p = dev->si_cred;
-#endif
 
 	/*
 	 * If no DTRACE_PRIV_* bits are set in the credential, then the
@@ -15773,11 +15751,6 @@ dtrace_open(struct cdev *dev, int oflags, int devtype, struct thread *td)
 	 */
 	dtrace_cred2priv(cred_p, &priv, &uid, &zoneid);
 	if (priv == DTRACE_PRIV_NONE) {
-#if !defined(sun)
-#if __FreeBSD_version < 800039
-		/* Destroy the cloned device. */
-                destroy_dev(dev);
-#endif
 #endif
 
 		return (EACCES);
@@ -15810,11 +15783,7 @@ dtrace_open(struct cdev *dev, int oflags, int devtype, struct thread *td)
 	state = dtrace_state_create(devp, cred_p);
 #else
 	state = dtrace_state_create(dev);
-#if __FreeBSD_version < 800039
-	dev->si_drv1 = state;
-#else
 	devfs_set_cdevpriv(state, dtrace_dtr);
-#endif
 #endif
 
 	mutex_exit(&cpu_lock);
@@ -15827,12 +15796,6 @@ dtrace_open(struct cdev *dev, int oflags, int devtype, struct thread *td)
 		--dtrace_opens;
 #endif
 		mutex_exit(&dtrace_lock);
-#if !defined(sun)
-#if __FreeBSD_version < 800039
-		/* Destroy the cloned device. */
-                destroy_dev(dev);
-#endif
-#endif
 		return (EAGAIN);
 	}
 
@@ -15845,9 +15808,6 @@ dtrace_open(struct cdev *dev, int oflags, int devtype, struct thread *td)
 #if defined(sun)
 static int
 dtrace_close(dev_t dev, int flag, int otyp, cred_t *cred_p)
-#elif __FreeBSD_version < 800039
-static int
-dtrace_close(struct cdev *dev, int flags, int fmt __unused, struct thread *td)
 #else
 static void
 dtrace_dtr(void *data)
@@ -15862,16 +15822,7 @@ dtrace_dtr(void *data)
 
 	state = ddi_get_soft_state(dtrace_softstate, minor);
 #else
-#if __FreeBSD_version < 800039
-	dtrace_state_t *state = dev->si_drv1;
-
-	/* Check if this is not a cloned device. */
-	if (dev2unit(dev) == 0)
-		return (0);
-#else
 	dtrace_state_t *state = data;
-#endif
-
 #endif
 
 	mutex_enter(&cpu_lock);
@@ -15890,9 +15841,6 @@ dtrace_dtr(void *data)
 
 #if !defined(sun)
 		kmem_free(state, 0);
-#if __FreeBSD_version < 800039
-		dev->si_drv1 = NULL;
-#endif
 #endif
 	}
 
@@ -15907,12 +15855,7 @@ dtrace_dtr(void *data)
 	mutex_exit(&dtrace_lock);
 	mutex_exit(&cpu_lock);
 
-#if __FreeBSD_version < 800039
-	/* Schedule this cloned device to be destroyed. */
-	destroy_dev_sched(dev);
-#endif
-
-#if defined(sun) || __FreeBSD_version < 800039
+#if defined(sun)
 	return (0);
 #endif
 }
@@ -16949,24 +16892,14 @@ static d_ioctl_t	dtrace_ioctl;
 static d_ioctl_t	dtrace_ioctl_helper;
 static void		dtrace_load(void *);
 static int		dtrace_unload(void);
-#if __FreeBSD_version < 800039
-static void		dtrace_clone(void *, struct ucred *, char *, int , struct cdev **);
-static struct clonedevs	*dtrace_clones;		/* Ptr to the array of cloned devices. */
-static eventhandler_tag	eh_tag;			/* Event handler tag. */
-#else
 static struct cdev	*dtrace_dev;
 static struct cdev	*helper_dev;
-#endif
 
 void dtrace_invop_init(void);
 void dtrace_invop_uninit(void);
 
 static struct cdevsw dtrace_cdevsw = {
 	.d_version	= D_VERSION,
-#if __FreeBSD_version < 800039
-	.d_flags	= D_TRACKCLOSE | D_NEEDMINOR,
-	.d_close	= dtrace_close,
-#endif
 	.d_ioctl	= dtrace_ioctl,
 	.d_open		= dtrace_open,
 	.d_name		= "dtrace",
@@ -16979,9 +16912,6 @@ static struct cdevsw helper_cdevsw = {
 };
 
 #include <dtrace_anon.c>
-#if __FreeBSD_version < 800039
-#include <dtrace_clone.c>
-#endif
 #include <dtrace_ioctl.c>
 #include <dtrace_load.c>
 #include <dtrace_modevent.c>
