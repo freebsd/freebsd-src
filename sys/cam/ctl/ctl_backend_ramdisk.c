@@ -84,7 +84,7 @@ struct ctl_be_ramdisk_lun {
 	struct taskqueue *io_taskqueue;
 	struct task io_task;
 	STAILQ_HEAD(, ctl_io_hdr) cont_queue;
-	struct mtx lock;
+	struct mtx_padalign queue_lock;
 };
 
 struct ctl_be_ramdisk_softc {
@@ -150,7 +150,7 @@ ctl_backend_ramdisk_init(void)
 
 	memset(softc, 0, sizeof(*softc));
 
-	mtx_init(&softc->lock, "ramdisk", NULL, MTX_DEF);
+	mtx_init(&softc->lock, "ctlramdisk", NULL, MTX_DEF);
 
 	STAILQ_INIT(&softc->lun_list);
 	softc->rd_size = 1024 * 1024;
@@ -242,10 +242,10 @@ ctl_backend_ramdisk_move_done(union ctl_io *io)
 	 && ((io->io_hdr.flags & CTL_FLAG_ABORT) == 0)
 	 && ((io->io_hdr.status & CTL_STATUS_MASK) == CTL_STATUS_NONE)) {
 		if (io->io_hdr.ctl_private[CTL_PRIV_BACKEND].integer > 0) {
-			mtx_lock(&be_lun->lock);
+			mtx_lock(&be_lun->queue_lock);
 			STAILQ_INSERT_TAIL(&be_lun->cont_queue,
 			    &io->io_hdr, links);
-			mtx_unlock(&be_lun->lock);
+			mtx_unlock(&be_lun->queue_lock);
 			taskqueue_enqueue(be_lun->io_taskqueue,
 			    &be_lun->io_task);
 			return (0);
@@ -350,18 +350,18 @@ ctl_backend_ramdisk_worker(void *context, int pending)
 	be_lun = (struct ctl_be_ramdisk_lun *)context;
 	softc = be_lun->softc;
 
-	mtx_lock(&be_lun->lock);
+	mtx_lock(&be_lun->queue_lock);
 	for (;;) {
 		io = (union ctl_io *)STAILQ_FIRST(&be_lun->cont_queue);
 		if (io != NULL) {
 			STAILQ_REMOVE(&be_lun->cont_queue, &io->io_hdr,
 				      ctl_io_hdr, links);
 
-			mtx_unlock(&be_lun->lock);
+			mtx_unlock(&be_lun->queue_lock);
 
 			ctl_backend_ramdisk_continue(io);
 
-			mtx_lock(&be_lun->lock);
+			mtx_lock(&be_lun->queue_lock);
 			continue;
 		}
 
@@ -371,7 +371,7 @@ ctl_backend_ramdisk_worker(void *context, int pending)
 		 */
 		break;
 	}
-	mtx_unlock(&be_lun->lock);
+	mtx_unlock(&be_lun->queue_lock);
 }
 
 static int
@@ -506,7 +506,7 @@ ctl_backend_ramdisk_rm(struct ctl_be_ramdisk_softc *softc,
 		taskqueue_drain(be_lun->io_taskqueue, &be_lun->io_task);
 		taskqueue_free(be_lun->io_taskqueue);
 		ctl_free_opts(&be_lun->ctl_be_lun);
-		mtx_destroy(&be_lun->lock);
+		mtx_destroy(&be_lun->queue_lock);
 		free(be_lun, M_RAMDISK);
 	}
 
@@ -639,7 +639,7 @@ ctl_backend_ramdisk_create(struct ctl_be_ramdisk_softc *softc,
 	}
 
 	STAILQ_INIT(&be_lun->cont_queue);
-	mtx_init(&be_lun->lock, "CTL ramdisk", NULL, MTX_DEF);
+	mtx_init(&be_lun->queue_lock, "cram queue lock", NULL, MTX_DEF);
 	TASK_INIT(&be_lun->io_task, /*priority*/0, ctl_backend_ramdisk_worker,
 	    be_lun);
 
@@ -722,7 +722,7 @@ bailout_error:
 			taskqueue_free(be_lun->io_taskqueue);
 		}
 		ctl_free_opts(&be_lun->ctl_be_lun);
-		mtx_destroy(&be_lun->lock);
+		mtx_destroy(&be_lun->queue_lock);
 		free(be_lun, M_RAMDISK);
 	}
 
