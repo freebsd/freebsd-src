@@ -163,6 +163,7 @@ cheri_invoke:
 	li	$s7, 0
 	li	$gp, 0
 	li	$fp, 0
+	li	$sp, 0
 	li	$ra, 0
 
 	#
