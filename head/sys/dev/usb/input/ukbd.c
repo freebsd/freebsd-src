@@ -382,11 +382,13 @@ static device_probe_t ukbd_probe;
 static device_attach_t ukbd_attach;
 static device_detach_t ukbd_detach;
 static device_resume_t ukbd_resume;
+static evdev_event_t ukbd_ev_event;
 
 #ifdef EVDEV
 static struct evdev_methods ukbd_evdev_methods = {
 	.ev_open = NULL,
 	.ev_close = NULL,
+	.ev_event = ukbd_ev_event,
 };
 #endif
 
@@ -1306,9 +1308,11 @@ ukbd_attach(device_t dev)
 	sc->sc_evdev = evdev_alloc();
 	evdev_set_name(sc->sc_evdev, device_get_desc(dev));
 	evdev_set_serial(sc->sc_evdev, "0");
+	evdev_set_softc(sc->sc_evdev, sc);
 	evdev_set_methods(sc->sc_evdev, &ukbd_evdev_methods);
 	evdev_support_event(sc->sc_evdev, EV_SYN);
 	evdev_support_event(sc->sc_evdev, EV_KEY);
+	evdev_support_repeat(sc->sc_evdev, DRIVER_REPEAT);
 
 	for (i = 0x01; i < 0x59; i++)
 		evdev_support_key(sc->sc_evdev, i);
@@ -1419,6 +1423,19 @@ ukbd_resume(device_t dev)
 	ukbd_clear_state(&sc->sc_kbd);
 
 	return (0);
+}
+
+static void
+ukbd_ev_event(struct evdev_dev *evdev, void *softc, uint16_t type,
+    uint16_t code, int32_t value)
+{
+	struct ukbd_softc *sc = (struct ukbd_softc *)softc;
+
+	if (type == EV_REP && code == REP_DELAY)
+		sc->sc_kbd.kb_delay1 = value;
+
+	if (type == EV_REP && code == REP_PERIOD)
+		sc->sc_kbd.kb_delay2 = value;
 }
 
 /* early keyboard probe, not supported */
@@ -1920,6 +1937,10 @@ ukbd_ioctl_locked(keyboard_t *kbd, u_long cmd, caddr_t arg)
 		else
 			kbd->kb_delay1 = ((int *)arg)[0];
 		kbd->kb_delay2 = ((int *)arg)[1];
+		evdev_set_repeat_params(sc->sc_evdev, REP_DELAY,
+		    kbd->kb_delay1);
+		evdev_set_repeat_params(sc->sc_evdev, REP_PERIOD,
+		    kbd->kb_delay2);
 		return (0);
 
 #if defined(COMPAT_FREEBSD6) || defined(COMPAT_FREEBSD5) || \
@@ -2059,6 +2080,7 @@ ukbd_set_leds(struct ukbd_softc *sc, uint8_t leds)
 static int
 ukbd_set_typematic(keyboard_t *kbd, int code)
 {
+	struct ukbd_softc *sc = kbd->kb_data;
 	static const int delays[] = {250, 500, 750, 1000};
 	static const int rates[] = {34, 38, 42, 46, 50, 55, 59, 63,
 		68, 76, 84, 92, 100, 110, 118, 126,
@@ -2070,6 +2092,8 @@ ukbd_set_typematic(keyboard_t *kbd, int code)
 	}
 	kbd->kb_delay1 = delays[(code >> 5) & 3];
 	kbd->kb_delay2 = rates[code & 0x1f];
+	evdev_set_repeat_params(sc->sc_evdev, REP_DELAY, kbd->kb_delay1);
+	evdev_set_repeat_params(sc->sc_evdev, REP_PERIOD, kbd->kb_delay2);
 	return (0);
 }
 
