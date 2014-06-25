@@ -438,8 +438,7 @@ vtballoon_alloc_page(struct vtballoon_softc *sc)
 {
 	vm_page_t m;
 
-	m = vm_page_alloc(NULL, 0, VM_ALLOC_NORMAL | VM_ALLOC_WIRED |
-	    VM_ALLOC_NOOBJ);
+	m = vm_page_alloc(NULL, 0, VM_ALLOC_NORMAL | VM_ALLOC_NOOBJ);
 	if (m != NULL)
 		sc->vtballoon_current_npages++;
 
@@ -450,7 +449,6 @@ static void
 vtballoon_free_page(struct vtballoon_softc *sc, vm_page_t m)
 {
 
-	vm_page_unwire(m, PQ_INACTIVE);
 	vm_page_free(m);
 	sc->vtballoon_current_npages--;
 }
