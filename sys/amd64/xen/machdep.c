@@ -621,6 +621,7 @@ initxen(struct start_info *si)
 
 	identify_cpu();		/* Final stage of CPU initialization */
 	initializecpu();
+	pg_nx = 0; /* XXX: Handle this properly for Xen PV */
 	initializecpucache();
 
 	init_param2(physmem);
