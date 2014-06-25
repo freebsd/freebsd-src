@@ -94,13 +94,8 @@ SYSCTL_ULONG(_dev_xen_balloon, OID_AUTO, low_mem, CTLFLAG_RD,
 SYSCTL_ULONG(_dev_xen_balloon, OID_AUTO, high_mem, CTLFLAG_RD,
     &bs.balloon_high, 0, "High-mem balloon");
 
-struct balloon_entry {
-	vm_page_t page;
-	STAILQ_ENTRY(balloon_entry) list;
-};
-
 /* List of ballooned pages, threaded through the mem_map array. */
-static STAILQ_HEAD(,balloon_entry) ballooned_pages;
+static TAILQ_HEAD(,vm_page) ballooned_pages;
 
 /* Main work function, always executed in process context. */
 static void balloon_process(void *unused);
@@ -109,47 +104,6 @@ static void balloon_process(void *unused);
 	printk(KERN_INFO "xen_mem: " fmt, ##args)
 #define WPRINTK(fmt, args...) \
 	printk(KERN_WARNING "xen_mem: " fmt, ##args)
-
-/* balloon_append: add the given page to the balloon. */
-static int
-balloon_append(vm_page_t page)
-{
-	struct balloon_entry *entry;
-
-	mtx_assert(&balloon_mutex, MA_OWNED);
-
-	entry = malloc(sizeof(struct balloon_entry), M_BALLOON, M_NOWAIT);
-	if (!entry)
-		return (ENOMEM);
-	entry->page = page;
-	STAILQ_INSERT_HEAD(&ballooned_pages, entry, list);
-	bs.balloon_low++;
-
-	return (0);
-}
-
-/* balloon_retrieve: rescue a page from the balloon, if it is not empty. */
-static vm_page_t
-balloon_retrieve(void)
-{
-	vm_page_t page;
-	struct balloon_entry *entry;
-
-	mtx_assert(&balloon_mutex, MA_OWNED);
-
-	if (STAILQ_EMPTY(&ballooned_pages))
-		return (NULL);
-
-	entry = STAILQ_FIRST(&ballooned_pages);
-	STAILQ_REMOVE_HEAD(&ballooned_pages, list);
-
-	page = entry->page;
-	free(entry, M_BALLOON);
-	
-	bs.balloon_low--;
-
-	return (page);
-}
 
 static unsigned long 
 current_target(void)
@@ -203,7 +157,6 @@ static int
 increase_reservation(unsigned long nr_pages)
 {
 	unsigned long  pfn, i;
-	struct balloon_entry *entry;
 	vm_page_t      page;
 	long           rc;
 	struct xen_memory_reservation reservation = {
@@ -217,10 +170,9 @@ increase_reservation(unsigned long nr_pages)
 	if (nr_pages > nitems(frame_list))
 		nr_pages = nitems(frame_list);
 
-	for (entry = STAILQ_FIRST(&ballooned_pages), i = 0;
-	     i < nr_pages; i++, entry = STAILQ_NEXT(entry, list)) {
-		KASSERT(entry, ("ballooned_pages list corrupt"));
-		page = entry->page;
+	for (page = TAILQ_FIRST(&ballooned_pages), i = 0;
+	    i < nr_pages; i++, page = TAILQ_NEXT(page, plinks.q)) {
+		KASSERT(page != NULL, ("ballooned_pages list corrupt"));
 		frame_list[i] = (VM_PAGE_TO_PHYS(page) >> PAGE_SHIFT);
 	}
 
@@ -245,8 +197,10 @@ increase_reservation(unsigned long nr_pages)
 	}
 
 	for (i = 0; i < nr_pages; i++) {
-		page = balloon_retrieve();
-		KASSERT(page, ("balloon_retrieve failed"));
+		page = TAILQ_FIRST(&ballooned_pages);
+		KASSERT(page != NULL, ("Unable to get ballooned page"));
+		TAILQ_REMOVE(&ballooned_pages, page, plinks.q);
+		bs.balloon_low--;
 
 		pfn = (VM_PAGE_TO_PHYS(page) >> PAGE_SHIFT);
 		KASSERT((xen_feature(XENFEAT_auto_translated_physmap) ||
@@ -255,7 +209,6 @@ increase_reservation(unsigned long nr_pages)
 
 		set_phys_to_machine(pfn, frame_list[i]);
 
-		vm_page_unwire(page, PQ_INACTIVE);
 		vm_page_free(page);
 	}
 
@@ -286,24 +239,29 @@ decrease_reservation(unsigned long nr_pages)
 	for (i = 0; i < nr_pages; i++) {
 		if ((page = vm_page_alloc(NULL, 0, 
 			    VM_ALLOC_NORMAL | VM_ALLOC_NOOBJ | 
-			    VM_ALLOC_WIRED | VM_ALLOC_ZERO)) == NULL) {
+			    VM_ALLOC_ZERO)) == NULL) {
 			nr_pages = i;
 			need_sleep = 1;
 			break;
+		}
+
+		if ((page->flags & PG_ZERO) == 0) {
+			/*
+			 * Zero the page, or else we might be leaking
+			 * important data to other domains on the same
+			 * host. Xen doesn't scrub ballooned out memory
+			 * pages, the guest is in charge of making
+			 * sure that no information is leaked.
+			 */
+			pmap_zero_page(page);
 		}
 
 		pfn = (VM_PAGE_TO_PHYS(page) >> PAGE_SHIFT);
 		frame_list[i] = PFNTOMFN(pfn);
 
 		set_phys_to_machine(pfn, INVALID_P2M_ENTRY);
-		if (balloon_append(page) != 0) {
-			vm_page_unwire(page, PQ_INACTIVE);
-			vm_page_free(page);
-
-			nr_pages = i;
-			need_sleep = 1;
-			break;
-		}
+		TAILQ_INSERT_HEAD(&ballooned_pages, page, plinks.q);
+		bs.balloon_low++;
 	}
 
 	set_xen_guest_handle(reservation.extent_start, frame_list);
@@ -438,7 +396,8 @@ balloon_init(void *arg)
 	/* Initialise the balloon with excess memory space. */
 	for (pfn = xen_start_info->nr_pages; pfn < max_pfn; pfn++) {
 		page = PHYS_TO_VM_PAGE(pfn << PAGE_SHIFT);
-		balloon_append(page);
+		TAILQ_INSERT_HEAD(&ballooned_pages, page, plinks.q);
+		bs.balloon_low++;
 	}
 #undef max_pfn
 #endif
