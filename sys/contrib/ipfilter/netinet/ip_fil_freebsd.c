@@ -787,7 +787,7 @@ ipf_fastroute(m0, mpp, fin, fdp)
 		dst->sin_addr = fdp->fd_ip;
 
 	dst->sin_len = sizeof(*dst);
-	in_rtalloc(ro, 0);
+	in_rtalloc(ro, M_GETFIB(m0));
 
 	if ((ifp == NULL) && (ro->ro_rt != NULL))
 		ifp = ro->ro_rt->rt_ifp;
