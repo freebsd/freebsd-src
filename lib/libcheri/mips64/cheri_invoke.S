@@ -70,6 +70,8 @@
 #   the compiler more.  Would also be nice to have a CClearMask that took a
 #   bitmask of capability registers to flush -- and likeways ClearMask for
 #   MIPS registers.
+# - Not yet using $c11 for stack access, so we depend on $c0 and $c11 being
+#   the same.  At least we save/restore $c11?
 #
 
 	.text
@@ -77,6 +79,23 @@
 	.ent	cheri_invoke
 cheri_invoke:
 
+	#
+	# Wrap up all caller-save state suitable to be preseved by CCall and
+	# restored by CReturn.  This happens in two phases:
+	#
+	# 1. First, use the conventional stack to save as many caller-save
+	# general-purpose and capability registers as possible.
+	#
+	# 2. Produce a value for $idc that bundles these up suitable to
+	# bootstrap trestoration.  This will save the original $idc, $csp,
+	# $sp, and $c0.
+	#
+	# Then after CReturn, reverse these steps by first unwrapping $idc,
+	# and then performing a more normal function return.
+	#
+	# The caller $idc will describe a stack fragment, which gives us a bit
+	# of space to store useful things, such as $sp, that are otherwise
+	# quite hard to restore (for obvious reasons).
 	#
 	# Save callee-save general-purpose registers.
 	#
@@ -103,18 +122,10 @@ cheri_invoke:
 	sd	$ra, 80($sp)
 
 	#
-	# Save $c0 where CCall will preserve it, and CReturn will restore it.
-	#
-	# XXXRW: Arguably $c0's value should already be there, so we restore
-	# it after CCall returns, but shouldn't need to save it here.
-	#
-	cmove	$c26, $c0
-
-	#
 	# Save capability registers we later need to restore (that won't be
 	# handled by CCall for us).
 	#
-	daddiu	$sp, -288
+	daddiu	$sp, -256
 	csc	$c17, $sp, 0($c0)
 	csc	$c18, $sp, 32($c0)
 	csc	$c19, $sp, 64($c0)
@@ -123,7 +134,19 @@ cheri_invoke:
 	csc	$c22, $sp, 160($c0)
 	csc	$c23, $sp, 192($c0)
 	csc	$c24, $sp, 224($c0)
-	csc	$c11, $sp, 256($c0)
+
+	#
+	# Prepare $idc to be saved (and restored) by CCall; don't need to seal
+	# as CCall will protect its integrity.
+	#
+	daddiu		$sp, -128
+	csd		$sp, $sp, 96($c0)	# Save MIPS stack pointer
+	csc		$c0, $sp, 64($c0)	# Save CHERI legacy capability
+	csc		$c11, $sp, 32($c0)	# Save CHERI stack capability
+	csc		$c26, $sp, 0($c0)	# Save original $idc
+	cfromptr	$c26, $c0, $sp
+	dli		$t0, 128
+	csetlen		$c26, $c26, $t0
 
 	#
 	# Scrub callee-save non-argument general-purpose registers.
@@ -165,6 +188,9 @@ cheri_invoke:
 	# general-purpose registers as clearing $c0 will disable MIPS memory
 	# instructions.
 	#
+	# XXXRW: For information-leakage reasons, we'd rather install a null
+	# capability?
+	#
 	ccleartag	$c0, $c0
 	ccleartag	$c11, $c11
 	ccleartag	$c12, $c12
@@ -188,9 +214,13 @@ cheri_invoke:
 	ccall	$c1, $c2
 
 	#
-	# CReturn restores IDC; propagate to $c0
+	# Restore $idc-saved recovery state; $idc must be restored last.
 	#
-	cmove	$c0, $c26
+	cld		$sp, $zero, 96($c26)	# Restore MIPS stack pointer
+	clc		$c0, $zero, 64($c26)	# Restore CHERI $c0
+	clc		$c11, $zero, 32($c26)	# Restore CHERI $c11
+	clc		$c26, $zero, 0($c26)	# Restore original $idc
+	daddiu		$sp, 128
 
 	#
 	# Restore capability registers from stack.
@@ -203,13 +233,14 @@ cheri_invoke:
 	clc	$c22, $sp, 160($c0)
 	clc	$c23, $sp, 192($c0)
 	clc	$c24, $sp, 224($c0)
-	clc	$c11, $sp, 256($c0)
-	daddiu	$sp, 288
+	daddiu	$sp, 256
 
 	#
 	# Conservative: clear capability registers that aren't return values
 	# and haven't been restored, to prevent accidental use.  Could save on
 	# cycles by not doing this, but have to trust the compiler more.
+	#
+	# NB: $c11 intentionally skipped, as we restored it earlier.
 	#
 	ccleartag	$c1, $c1
 	ccleartag	$c2, $c2
@@ -221,7 +252,6 @@ cheri_invoke:
 	ccleartag	$c8, $c8
 	ccleartag	$c9, $c9
 	ccleartag	$c10, $c10
-	ccleartag	$c11, $c11
 	ccleartag	$c12, $c12
 	ccleartag	$c13, $c13
 	ccleartag	$c14, $c14
