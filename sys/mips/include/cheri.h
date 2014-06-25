@@ -149,7 +149,7 @@ struct cheri_stack_frame {
 	register_t	csf_sp;		/* MIPS stack pointer. */
 	register_t	_csf_pad0;
 	register_t	_csf_pad1;
-	struct chericap	csf_pcc;
+	struct chericap	csf_pcc;	/* XXXRW: Should contain $pc? */
 	struct chericap	csf_idc;
 };
 
