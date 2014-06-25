@@ -8,6 +8,9 @@ KMOD=		fasttrap
 SRCS=		fasttrap.c fasttrap_isa.c opt_compat.h
 SRCS+=		vnode_if.h
 
+.PATH:		${.CURDIR}/../../../cddl/contrib/opensolaris/common/unicode
+SRCS+=		u8_textprep.c
+
 CFLAGS+=	-I${SYSDIR}/cddl/compat/opensolaris \
 		-I${SYSDIR}/cddl/contrib/opensolaris/uts/common \
 		-I${SYSDIR}
