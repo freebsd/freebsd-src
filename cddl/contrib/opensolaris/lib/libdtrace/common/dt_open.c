@@ -125,8 +125,9 @@
 #define	DT_VERS_1_10	DT_VERSION_NUMBER(1, 10, 0)
 #define	DT_VERS_1_11	DT_VERSION_NUMBER(1, 11, 0)
 #define	DT_VERS_1_12	DT_VERSION_NUMBER(1, 12, 0)
-#define	DT_VERS_LATEST	DT_VERS_1_12
-#define	DT_VERS_STRING	"Sun D 1.12"
+#define	DT_VERS_1_12_1	DT_VERSION_NUMBER(1, 12, 1)
+#define	DT_VERS_LATEST	DT_VERS_1_12_1
+#define	DT_VERS_STRING	"Sun D 1.12.1"
 
 const dt_version_t _dtrace_versions[] = {
 	DT_VERS_1_0,	/* D API 1.0.0 (PSARC 2001/466) Solaris 10 FCS */
@@ -151,6 +152,7 @@ const dt_version_t _dtrace_versions[] = {
 	DT_VERS_1_10,	/* D API 1.10 */
 	DT_VERS_1_11,	/* D API 1.11 */
 	DT_VERS_1_12,	/* D API 1.12 */
+	DT_VERS_1_12_1,	/* D API 1.12.1 */
 	0
 };
 
@@ -1156,6 +1158,7 @@ alloc:
 	dtp->dt_linktype = DT_LTYP_ELF;
 	dtp->dt_xlatemode = DT_XL_STATIC;
 	dtp->dt_stdcmode = DT_STDC_XA;
+	dtp->dt_encoding = DT_ENCODING_UNSET;
 	dtp->dt_version = version;
 	dtp->dt_fd = dtfd;
 	dtp->dt_ftfd = ftfd;
