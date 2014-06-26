@@ -1,3 +1,245 @@
+2014-06-12  12:28  Christos Zoulas <christos@zoulas.com>
+
+	* release 5.19
+
+2014-06-09   9:04  Christos Zoulas <christos@zoulas.com>
+	
+	* Misc buffer overruns and missing buffer size tests in cdf parsing
+	  (Francisco Alonso, Jan Kaluza)
+
+2014-06-02  14:50  Christos Zoulas <christos@zoulas.com>
+
+	* Enforce limit of 8K on regex searches that have no limits
+	* Allow the l modifier for regex to mean line count. Default
+	  to byte count. If line count is specified, assume a max
+	  of 80 characters per line to limit the byte count.
+	* Don't allow conversions to be used for dates, allowing
+	  the mask field to be used as an offset.
+
+2014-05-30  12:51  Christos Zoulas <christos@zoulas.com>
+
+	* Make the range operator limit the length of the
+	  regex search.
+
+2014-05-14  19:23  Christos Zoulas <christos@zoulas.com>
+
+	* PR/347: Windows fixes
+	* PR/352: Hangul word processor recognition
+	* PR/354: Encoding irregularities in text files
+
+2014-05-06  6:12  Christos Zoulas <christos@zoulas.com>
+
+	* Fix uninitialized title in CDF files (Jan Kaluza)
+
+2014-05-04  14:55  Christos Zoulas <christos@zoulas.com>
+
+	* PR/351: Fix compilation of empty files 
+
+2014-04-30  17:39  Christos Zoulas <christos@zoulas.com>
+
+	* Fix integer formats: We don't specify 'l' or
+	  'h' and 'hh' specifiers anymore, only 'll' for
+	  quads and nothing for the rest. This is so that
+	  magic writing is simpler.
+
+2014-04-01  15:25  Christos Zoulas <christos@zoulas.com>
+
+	* PR/341: Jan Kaluza, fix memory leak
+	* PR/342: Jan Kaluza, fix out of bounds read
+
+2014-03-28  15:25  Christos Zoulas <christos@zoulas.com>
+
+	* Fix issue with long formats not matching fmtcheck
+
+2014-03-26  11:25  Christos Zoulas <christos@zoulas.com>
+
+	* release 5.18
+
+2014-03-15  17:45  Christos Zoulas <christos@zoulas.com>
+
+	* add fmtcheck(3) for those who don't have it
+
+2014-03-14  15:12  Christos Zoulas <christos@zoulas.com>
+
+	* prevent mime entries from being attached to magic
+	  entries with no descriptions
+
+	* adjust magic strength for regex type
+
+	* remove superfluous ascmagic with encoding test
+
+2014-03-06  12:01  Christos Zoulas <christos@zoulas.com>
+
+	* fix regression fix echo -ne "\012\013\014" | file -i -
+	  which printed "binary" instead of "application/octet-stream"
+
+	* add size_t overflow check for magic file size
+
+2014-02-27  16:01  Christos Zoulas <christos@zoulas.com>
+
+	* experimental support for matching with CFD CLSID
+
+2014-02-18  13:04  Kimmo Suominen (kimmo@suominen.com)
+
+	* Cache old LC_CTYPE locale before setting it to "C", so
+	  we can use it to restore LC_CTYPE instead of asking
+	  setlocale() to scan the environment variables.
+
+2014-02-12  18:21  Christos Zoulas <christos@zoulas.com>
+
+	* Count recursion levels through indirect magic
+
+2014-02-11  10:40  Christos Zoulas <christos@zoulas.com>
+
+	* Prevent infinite recursion on files with indirect offsets of 0
+
+2014-01-30  21:00  Christos Zoulas <christos@zoulas.com>
+
+	* Add -E flag that makes file print filesystem errors to stderr
+	  and exit.
+
+2014-01-08  17:20  Christos Zoulas <christos@zoulas.com>
+
+	* mime printing could print results from multiple magic entries
+	  if there were multiple matches.
+	* in some cases overflow was not detected when computing offsets
+	  in softmagic.
+
+2013-12-05  12:00  Christos Zoulas <christos@zoulas.com>
+
+	* use strcasestr() to for cdf strings
+	* reset to the "C" locale while doing regex operations, or case
+	  insensitive comparisons; this is provisional
+
+2013-11-19  20:10  Christos Zoulas <christos@zoulas.com>
+
+	* always leave magic file loaded, don't unload for magic_check, etc.
+	* fix default encoding to binary instead of unknown which broke recently
+	* handle empty and one byte files, less specially so that
+	  --mime-encoding does not break completely.
+		`
+2013-11-06  14:40  Christos Zoulas <christos@zoulas.com>
+
+	* fix erroneous non-zero exit code from non-existant file and message
+
+2013-10-29  14:25  Christos Zoulas <christos@zoulas.com>
+
+	* add CDF MSI file detection (Guy Helmer)
+
+2013-09-03  11:56  Christos Zoulas <christos@zoulas.com>
+
+	* Don't mix errors and regular output if there was an error
+	* in magic_descriptor() don't close the file and try to restore
+	  its position
+
+2013-05-30  17:25  Christos Zoulas <christos@zoulas.com>
+
+	* Don't treat magic as an error if offset was past EOF (Christoph Biedl)
+
+2013-05-28  17:25  Christos Zoulas <christos@zoulas.com>
+	
+	* Fix spacing issues in softmagic and elf (Jan Kaluza)
+
+2013-05-02  18:00  Christos Zoulas <christos@zoulas.com>
+
+	* Fix segmentation fault with multiple magic_load commands.
+
+2013-04-22  11:20  Christos Zoulas <christos@zoulas.com>
+
+	* The way "default" was implemented was not very useful
+	  because the "if something was printed at that level"
+	  was not easily controlled by the user, and the format
+	  was bound to a string which is too restrictive. Add
+	  a "clear" for that level keyword and make "default"
+	  void. This way one can do:
+
+		>>13	clear	x
+		>>13	lelong	1	foo
+		>>13	lelong	2	bar
+		>>13	default	x
+		>>>13	lelong	x	unknown %x
+
+2013-03-25  13:20  Christos Zoulas <christos@zoulas.com>
+
+	* disallow strength setting in "name" entries
+
+2013-03-06  21:24  Christos Zoulas <christos@zoulas.com>
+
+	* fix recursive magic separator printing
+
+2013-02-26  19:28  Christos Zoulas <christos@zoulas.com>
+
+	* limit recursion level for mget
+	* fix pread() related breakage in cdf
+	* handle offsets properly in recursive "use"
+
+2013-02-18  10:39  Christos Zoulas <christos@zoulas.com>
+
+	* add elf reading of debug info to determine if file is stripped
+	  (Jan Kaluza)
+	* use pread()
+
+2013-01-25  18:05  Christos Zoulas <christos@zoulas.com>
+
+	* change mime description size from 64 to 80 to accommodate OOXML.
+
+2013-01-11  14:50  Christos Zoulas <christos@zoulas.com>
+
+	* Warn about inconsistent continuation levels.
+	* Change fsmagic to add a space after it prints.
+
+2013-01-10  21:00  Christos Zoulas <christos@zoulas.com>
+
+	* Make getline public so that file can link against it.
+	  Perhaps it is better to rename it, or hide it differently.
+	  Fixes builds on platforms that do not provide it.
+	  
+2013-01-07  16:30  Christos Zoulas <christos@zoulas.com>
+
+	* Add SuS d{,1,2,4,8}, u{,1,2,4,8} and document
+	  what long, int, short, etc is (Guy Harris)
+
+2013-01-06  11:20  Christos Zoulas <christos@zoulas.com>
+
+	* add magic_version function and constant
+	* Redo memory allocation and de-allocation.
+	  (prevents double frees on non mmap platforms)
+	* Fix bug with name/use having to do with passing
+	  found state from the parent to the child and back.
+
+2012-12-19   8:47  Christos Zoulas <christos@zoulas.com>
+
+	* Only print elf capabilities for archs we know (Jan Kaluza)
+
+2012-10-30  19:14  Christos Zoulas <christos@zoulas.com>
+
+	* Add "name" and "use" file types in order to look
+	  inside mach-o files.
+
+2012-09-06  10:40  Christos Zoulas <christos@zoulas.com>
+
+	* make --version exit 0 (Matthew Schultz)
+	* add string/T (Jan Kaluza)
+
+2012-08-09  2:15  Christos Zoulas <christos@zoulas.com>
+
+	* add z and t modifiers for our own vasprintf
+	* search for $HOME/.magic.mgc if it is there first
+	* fix reads from a pipe, and preserve errno
+
+2012-05-15  13:12  Christos Zoulas <christos@zoulas.com>
+
+	* use ctime_r, asctime_r
+
+2012-04-06  17:18  Christos Zoulas <christos@zoulas.com>
+
+	* Fixes for indirect offsets to handle apple disk formats
+
+2012-04-03  18:26  Christos Zoulas <christos@zoulas.com>
+
+	* Add windows date field types
+	* More info for windows shortcuts (incomplete)
+
 2012-02-20  17:33  Christos Zoulas <christos@zoulas.com>
 
 	* Fix CDF parsing issues found by CERT's fuzzing tool (Will Dormann)
@@ -851,7 +1093,7 @@
 
 	* Identify gnu tar vs. posix tar
 
-	* When keep going, don't print spurious newlines (Radek Vokál)
+	* When keep going, don't print spurious newlines (Radek Vokal)
 
 2006-04-01 12:02 Christos Zoulas <christos@astron.com>
 
@@ -875,7 +1117,7 @@
 2005-10-31 8:54 Christos Zoulas <christos@astron.com>
 
 	* Fix regression where the core info was not completely processed
-	    (Radek Vokál)
+	    (Radek Vokal)
 
 2005-10-20 11:15 Christos Zoulas <christos@astron.com>
 
@@ -892,7 +1134,7 @@
 2005-09-20 13:33 Christos Zoulas <christos@astron.com>
 
 	* Don't print SVR4 Style in core files multiple times
-	    (Radek Vokál)
+	    (Radek Vokal)
 
 2005-08-27 04:09 Christos Zoulas <christos@astron.com>
 
