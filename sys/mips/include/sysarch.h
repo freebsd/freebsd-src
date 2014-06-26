@@ -39,6 +39,13 @@
 #define	MIPS_GET_TLS	2
 #define	MIPS_GET_COUNT	3
 
+/*
+ * XXXRW: Is there an ifdef of some sort I should be using here?  The kernel
+ * code is ifdef'd so it probably doesn't matter.
+ */
+#define	CHERI_GET_STACK	4
+#define	CHERI_SET_STACK	5
+
 #ifndef _KERNEL
 #include <sys/cdefs.h>
 

@@ -512,11 +512,14 @@ int	cheri_syscall_authorize(struct thread *td, u_int code,
  * Functions to set up and manipulate CHERI contexts and stacks.
  */
 struct pcb;
+struct sysarch_args;
 void	cheri_context_copy(struct pcb *dst, struct pcb *src);
 void	cheri_stack_copy(struct pcb *dst, struct pcb *src);
 void	cheri_stack_init(struct pcb *pcb);
 int	cheri_stack_sandboxexception(struct thread *td, struct trapframe *tf,
 	    int signum);
+int	cheri_sysarch_getstack(struct thread *td, struct sysarch_args *uap);
+int	cheri_sysarch_setstack(struct thread *td, struct sysarch_args *uap);
 
 /*
  * Global sysctl definitions required outside of cheri.c.

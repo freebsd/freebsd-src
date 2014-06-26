@@ -35,6 +35,7 @@
 #include <sys/proc.h>
 #include <sys/syscall.h>
 #include <sys/sysctl.h>
+#include <sys/sysproto.h>
 
 #include <ddb/ddb.h>
 #include <sys/kdb.h>
@@ -197,6 +198,33 @@ cheri_stack_sandboxexception(struct thread *td, struct trapframe *tf,
 	pcb->pcb_regs.v0 = -1;
 	pcb->pcb_regs.v1 = signum;
 	return (1);
+}
+
+int
+cheri_sysarch_getstack(struct thread *td, struct sysarch_args *uap)
+{
+
+	KASSERT(uap->op == CHERI_GET_STACK, ("%s: invalid opcode %d",
+	    __func__, uap->op));
+
+	return (copyoutcap(&td->td_pcb->pcb_cheristack.cs_tsp, uap->parms,
+	    sizeof(td->td_pcb->pcb_cheristack.cs_tsp)));
+}
+
+int
+cheri_sysarch_setstack(struct thread *td, struct sysarch_args *uap)
+{
+	struct cheri_stack cs;
+	int error;
+
+	KASSERT(uap->op == CHERI_SET_STACK, ("%s: invalid opcode %d",
+	    __func__, uap->op));
+
+	error = copyincap(uap->parms, &cs, sizeof(cs));
+	if (error)
+		return (error);
+	cheri_bcopy(&cs, &td->td_pcb->pcb_cheristack.cs_tsp, sizeof(cs));
+	return (0);
 }
 
 #ifdef DDB

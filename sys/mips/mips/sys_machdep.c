@@ -91,6 +91,14 @@ sysarch(struct thread *td, struct sysarch_args *uap)
 		td->td_retval[0] = mips_rd_count();
 		return (0);
 
+#ifdef CPU_CHERI
+	case CHERI_GET_STACK:
+		return (cheri_sysarch_getstack(td, uap));
+
+	case CHERI_SET_STACK:
+		return (cheri_sysarch_setstack(td, uap));
+#endif
+
 	default:
 		break;
 	}
