@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 27, 2014
+.Dd May 22, 2014
 .Dt MKIMG 1
 .Os
 .Sh NAME
@@ -115,6 +115,12 @@ For a complete list of supported partitioning schemes or supported output
 format, or for a detailed description of how to specify partitions, run the
 .Nm
 utility without any arguments.
+.Sh ENVIRONMENT
+.Bl -tag -width "TMPDIR" -compact
+.It Ev TMPDIR
+Directory to put temporary files in; default is
+.Pa /tmp .
+.El
 .Sh EXAMPLES
 To create a bootable disk image that is partitioned using the GPT scheme and
 containing a root file system that was previously created using
