@@ -2239,6 +2239,7 @@ cfiscsi_devid(struct ctl_scsiio *ctsio, int alloc_len)
 
 	ctsio->scsi_status = SCSI_STATUS_OK;
 
+	ctsio->io_hdr.flags |= CTL_FLAG_ALLOCATED;
 	ctsio->be_move_done = ctl_config_move_done;
 	ctl_datamove((union ctl_io *)ctsio);
 
