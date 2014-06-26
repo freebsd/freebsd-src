@@ -229,7 +229,7 @@ nf10bmac_tx_locked(struct nf10bmac_softc *sc, struct mbuf *m)
 				int sl;
 
 				if (l == (ml - 1))
-					len = 4;
+					len = sizeof(val);
 				cl = len;
 
 				for (s = 0, sl = len; sl > 0; sl--)
