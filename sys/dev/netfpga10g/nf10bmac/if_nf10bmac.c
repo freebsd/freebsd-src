@@ -117,40 +117,62 @@ static poll_handler_t nf10bmac_poll;
 #define	NF10BMAC_DATA_SPORT_MASK	0x00ff0000
 #define	NF10BMAC_DATA_SPORT_SHIFT	16
 #define	NF10BMAC_DATA_LAST		0x00008000
+#ifdef NF10BMAC_64BIT
+#define	NF10BMAC_DATA_STRB		0x000000ff
+#define	REGWTYPE			uint64_t
+#else
 #define	NF10BMAC_DATA_STRB		0x0000000f
+#define	REGWTYPE			uint32_t
+#endif
 
 
 static inline void
-nf10bmac_write(struct resource *res, uint32_t reg, uint32_t val,
+nf10bmac_write(struct resource *res, REGWTYPE reg, REGWTYPE val,
     const char *f __unused, const int l __unused)
 {
 
+#ifdef NF10BMAC_64BIT
+	bus_write_8(res, reg, htole64(val));
+#else
 	bus_write_4(res, reg, htole32(val));
+#endif
 }
 
-static inline uint32_t
-nf10bmac_read(struct resource *res, uint32_t reg,
+static inline REGWTYPE
+nf10bmac_read(struct resource *res, REGWTYPE reg,
     const char *f __unused, const int l __unused)
 {
 
+#ifdef NF10BMAC_64BIT
+	return (le64toh(bus_read_8(res, reg)));
+#else
 	return (le32toh(bus_read_4(res, reg)));
+#endif
 }
 
 static inline void
-nf10bmac_write_be(struct resource *res, uint32_t reg, uint32_t val,
+nf10bmac_write_be(struct resource *res, REGWTYPE reg, REGWTYPE val,
     const char *f __unused, const int l __unused)
 {
 
+#ifdef NF10BMAC_64BIT
+	bus_write_8(res, reg, htobe64(val));
+#else
 	bus_write_4(res, reg, htobe32(val));
+#endif
 }
 
 
-static inline uint32_t
-nf10bmac_read_be(struct resource *res, uint32_t reg,
+static inline REGWTYPE
+nf10bmac_read_be(struct resource *res, REGWTYPE reg,
     const char *f __unused, const int l __unused)
 {
 
+#ifdef NF10BMAC_64BIT
+	return (be64toh(bus_read_8(res, reg)));
+#else
 	return (be32toh(bus_read_4(res, reg)));
+#endif
 }
 
 #define	NF10BMAC_WRITE_CTRL(sc, reg, val)				\
@@ -196,7 +218,7 @@ static int
 nf10bmac_tx_locked(struct nf10bmac_softc *sc, struct mbuf *m)
 {
 	int32_t len, l, ml;
-	uint32_t md, val;
+	REGWTYPE md, val;
 
 	NF10BMAC_LOCK_ASSERT(sc);
 
@@ -311,7 +333,7 @@ nf10bmac_start(struct ifnet *ifp)
 static void
 nf10bmac_eat_packet_munch_munch(struct nf10bmac_softc *sc)
 {
-	uint32_t md, val;
+	REGWTYPE md, val;
 
 	do {
 		md = NF10BMAC_READ_BE(sc, NF10BMAC_RX_META);
@@ -326,7 +348,7 @@ nf10bmac_rx_locked(struct nf10bmac_softc *sc)
 {
 	struct ifnet *ifp;
 	struct mbuf *m;
-	uint32_t md, val;
+	REGWTYPE md, val;
 	int32_t len, l;
 
 	/*
@@ -421,7 +443,7 @@ nf10bmac_rx_locked(struct nf10bmac_softc *sc)
 	/* We should get out of this loop with tlast and tsrb. */
 	if ((md & NF10BMAC_DATA_LAST) == 0 || (md & NF10BMAC_DATA_STRB) == 0) {
 		device_printf(sc->nf10bmac_dev, "Unexpected rx loop end state: "
-		    "md=0x%08x len=%d l=%d\n", md, len, l);
+		    "md=0x%08jx len=%d l=%d\n", (uintmax_t)md, len, l);
 		ifp->if_ierrors++;
 		m_freem(m);
 		return (0);
