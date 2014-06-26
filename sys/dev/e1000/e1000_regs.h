@@ -1,6 +1,6 @@
 /******************************************************************************
 
-  Copyright (c) 2001-2013, Intel Corporation 
+  Copyright (c) 2001-2014, Intel Corporation 
   All rights reserved.
   
   Redistribution and use in source and binary forms, with or without 
@@ -59,6 +59,7 @@
 #define E1000_SCTL	0x00024  /* SerDes Control - RW */
 #define E1000_FCAL	0x00028  /* Flow Control Address Low - RW */
 #define E1000_FCAH	0x0002C  /* Flow Control Address High -RW */
+#define E1000_FEXT	0x0002C  /* Future Extended - RW */
 #define E1000_FEXTNVM	0x00028  /* Future Extended NVM - RW */
 #define E1000_FEXTNVM3	0x0003C  /* Future Extended NVM 3 - RW */
 #define E1000_FEXTNVM4	0x00024  /* Future Extended NVM 4 - RW */
@@ -108,6 +109,7 @@
 #define E1000_PBECCSTS	0x0100C  /* Packet Buffer ECC Status - RW */
 #define E1000_EEMNGCTL	0x01010  /* MNG EEprom Control */
 #define E1000_EEARBC	0x01024  /* EEPROM Auto Read Bus Control */
+#define E1000_EEARBC_I210	0x12024 /* EEPROM Auto Read Bus Control */
 #define E1000_FLASHT	0x01028  /* FLASH Timer Register */
 #define E1000_EEWR	0x0102C  /* EEPROM Write Register - RW */
 #define E1000_FLSWCTL	0x01030  /* FLASH control register */
@@ -207,7 +209,7 @@
 /* QAV Tx mode control register bitfields masks */
 #define E1000_TQAVCC_IDLE_SLOPE		0xFFFF /* Idle slope */
 #define E1000_TQAVCC_KEEP_CREDITS	(1 << 30) /* Keep credits opt enable */
-#define E1000_TQAVCC_QUEUE_MODE		(1U << 31) /* SP vs. SR Tx mode */
+#define E1000_TQAVCC_QUEUE_MODE		(1 << 31) /* SP vs. SR Tx mode */
 
 /* Good transmitted packets counter registers */
 #define E1000_PQGPTC(_n)		(0x010014 + (0x100 * (_n)))
