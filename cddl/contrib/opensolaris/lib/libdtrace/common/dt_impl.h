@@ -146,6 +146,10 @@ typedef struct dt_module {
 	caddr_t dm_reloc_offset;	/* Symbol relocation offset. */
 	uintptr_t *dm_sec_offsets;
 #endif
+	pid_t dm_pid;		/* pid for this module */
+	uint_t dm_nctflibs;	/* number of ctf children libraries */
+	ctf_file_t **dm_libctfp; /* process library ctf pointers */
+	char **dm_libctfn;	/* names of process ctf containers */
 } dt_module_t;
 
 #define	DT_DM_LOADED	0x1	/* module symbol and type data is loaded */
@@ -536,7 +540,8 @@ enum {
 	EDT_BADAGGVAR,		/* invalid aggregation variable identifier */
 	EDT_OVERSION,		/* client is requesting deprecated version */
 	EDT_ENABLING_ERR,	/* failed to enable probe */
-	EDT_NOPROBES		/* no probes sites for declared provider */
+	EDT_NOPROBES,		/* no probes sites for declared provider */
+	EDT_CANTLOAD		/* failed to load a module */
 };
 
 /*

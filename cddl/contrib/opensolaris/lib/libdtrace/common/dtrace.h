@@ -25,7 +25,8 @@
  */
 
 /*
- * Copyright (c) 2011, Joyent, Inc. All rights reserved.
+ * Copyright (c) 2013 by Delphix. All rights reserved.
+ * Copyright (c) 2013, Joyent, Inc. All rights reserved.
  */
 
 #ifndef	_DTRACE_H
@@ -495,7 +496,10 @@ typedef struct dtrace_typeinfo {
 	const char *dtt_object;			/* object containing type */
 	ctf_file_t *dtt_ctfp;			/* CTF container handle */
 	ctf_id_t dtt_type;			/* CTF type identifier */
+	uint_t dtt_flags;			/* Misc. flags */
 } dtrace_typeinfo_t;
+
+#define	DTT_FL_USER	0x1			/* user type */
 
 extern int dtrace_lookup_by_type(dtrace_hdl_t *, const char *, const char *,
     dtrace_typeinfo_t *);

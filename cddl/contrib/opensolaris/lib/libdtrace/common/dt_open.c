@@ -21,7 +21,7 @@
 
 /*
  * Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2012, Joyent, Inc. All rights reserved.
+ * Copyright (c) 2013, Joyent, Inc. All rights reserved.
  * Copyright (c) 2012 by Delphix. All rights reserved.
  */
 
@@ -124,8 +124,9 @@
 #define	DT_VERS_1_9_1	DT_VERSION_NUMBER(1, 9, 1)
 #define	DT_VERS_1_10	DT_VERSION_NUMBER(1, 10, 0)
 #define	DT_VERS_1_11	DT_VERSION_NUMBER(1, 11, 0)
-#define	DT_VERS_LATEST	DT_VERS_1_11
-#define	DT_VERS_STRING	"Sun D 1.11"
+#define	DT_VERS_1_12	DT_VERSION_NUMBER(1, 12, 0)
+#define	DT_VERS_LATEST	DT_VERS_1_12
+#define	DT_VERS_STRING	"Sun D 1.12"
 
 const dt_version_t _dtrace_versions[] = {
 	DT_VERS_1_0,	/* D API 1.0.0 (PSARC 2001/466) Solaris 10 FCS */
@@ -149,6 +150,7 @@ const dt_version_t _dtrace_versions[] = {
 	DT_VERS_1_9_1,	/* D API 1.9.1 */
 	DT_VERS_1_10,	/* D API 1.10 */
 	DT_VERS_1_11,	/* D API 1.11 */
+	DT_VERS_1_12,	/* D API 1.12 */
 	0
 };
 
