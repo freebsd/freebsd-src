@@ -1244,9 +1244,14 @@ ip_ctloutput(struct socket *so, struct sockopt *sopt)
 				optval = inp->inp_flowtype;
 				break;
 #ifdef	RSS
-			case IP_RSSCPUID:
-				optval = rss_hash2cpuid(inp->inp_flowid,
-				    inp->inp_flowtype);
+			case IP_RSSBUCKETID:
+				retval = rss_hash2bucket(inp->inp_flowid,
+				    inp->inp_flowtype,
+				    &rss_bucket);
+				if (retval == 0)
+					optval = rss_bucket;
+				else
+					error = EINVAL;
 				break;
 #endif
 			}

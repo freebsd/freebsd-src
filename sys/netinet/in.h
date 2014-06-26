@@ -468,9 +468,10 @@ __END_DECLS
 #define	IP_MINTTL		66   /* minimum TTL for packet or drop */
 #define	IP_DONTFRAG		67   /* don't fragment packet */
 #define	IP_RECVTOS		68   /* bool; receive IP TOS w/dgram */
-#define	IP_FLOWID		69   /* flow id for the given socket/inp */
-#define	IP_FLOWTYPE		70   /* flow type (M_HASHTYPE) */
-#define	IP_RSSCPUID		71   /* RSS flowid -> CPU id mapping */
+#define	IP_FLOWID		69   /* get flow id for the given socket/inp */
+#define	IP_FLOWTYPE		70   /* get flow type (M_HASHTYPE) */
+/* 71 - XXX was IP_RSSCPUID - can recycle whenever */
+#define	IP_RSSBUCKETID		72   /* get RSS flowid -> bucket mapping */
 
 /* IPv4 Source Filter Multicast API [RFC3678] */
 #define	IP_ADD_SOURCE_MEMBERSHIP	70   /* join a source-specific group */
