@@ -205,7 +205,7 @@ f_netinteractive()
 	f_getvar $VAR_NETINTERACTIVE value && [ "$value" ]
 }
 
-# f_zfsinteractive()
+# f_zfsinteractive
 #
 # Has the user specifically requested the ZFS-portion of configuration and
 # setup to be performed interactively? Returns success if the user has asked
