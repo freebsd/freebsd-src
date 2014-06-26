@@ -1546,7 +1546,9 @@ addrconfig(struct addrinfo *pai)
 {
 	struct ifaddrs *ifaddrs, *ifa;
 	struct sockaddr_in *sin;
+#ifdef INET6
 	struct sockaddr_in6 *sin6;
+#endif
 	int seen_inet = 0, seen_inet6 = 0;
 
 	if (getifaddrs(&ifaddrs) != 0)
