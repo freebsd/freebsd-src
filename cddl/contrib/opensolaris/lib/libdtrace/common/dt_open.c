@@ -123,8 +123,9 @@
 #define	DT_VERS_1_9	DT_VERSION_NUMBER(1, 9, 0)
 #define	DT_VERS_1_9_1	DT_VERSION_NUMBER(1, 9, 1)
 #define	DT_VERS_1_10	DT_VERSION_NUMBER(1, 10, 0)
-#define	DT_VERS_LATEST	DT_VERS_1_10
-#define	DT_VERS_STRING	"Sun D 1.10"
+#define	DT_VERS_1_11	DT_VERSION_NUMBER(1, 11, 0)
+#define	DT_VERS_LATEST	DT_VERS_1_11
+#define	DT_VERS_STRING	"Sun D 1.11"
 
 const dt_version_t _dtrace_versions[] = {
 	DT_VERS_1_0,	/* D API 1.0.0 (PSARC 2001/466) Solaris 10 FCS */
@@ -147,6 +148,7 @@ const dt_version_t _dtrace_versions[] = {
 	DT_VERS_1_9,	/* D API 1.9 */
 	DT_VERS_1_9_1,	/* D API 1.9.1 */
 	DT_VERS_1_10,	/* D API 1.10 */
+	DT_VERS_1_11,	/* D API 1.11 */
 	0
 };
 
@@ -301,6 +303,8 @@ static const dt_ident_t _dtrace_globals[] = {
 	DT_VERS_1_5, &dt_idops_func, "string(int, void *)" },
 { "ipl", DT_IDENT_SCALAR, 0, DIF_VAR_IPL, DT_ATTR_STABCMN, DT_VERS_1_0,
 	&dt_idops_type, "uint_t" },
+{ "json", DT_IDENT_FUNC, 0, DIF_SUBR_JSON, DT_ATTR_STABCMN, DT_VERS_1_11,
+	&dt_idops_func, "string(const char *, const char *)" },
 { "jstack", DT_IDENT_ACTFUNC, 0, DT_ACT_JSTACK, DT_ATTR_STABCMN, DT_VERS_1_0,
 	&dt_idops_func, "stack(...)" },
 { "lltostr", DT_IDENT_FUNC, 0, DIF_SUBR_LLTOSTR, DT_ATTR_STABCMN, DT_VERS_1_0,
@@ -452,6 +456,8 @@ static const dt_ident_t _dtrace_globals[] = {
 	&dt_idops_func, "string(const char *, const char *)" },
 { "strtok", DT_IDENT_FUNC, 0, DIF_SUBR_STRTOK, DT_ATTR_STABCMN, DT_VERS_1_1,
 	&dt_idops_func, "string(const char *, const char *)" },
+{ "strtoll", DT_IDENT_FUNC, 0, DIF_SUBR_STRTOLL, DT_ATTR_STABCMN, DT_VERS_1_11,
+	&dt_idops_func, "int64_t(const char *, [int])" },
 { "substr", DT_IDENT_FUNC, 0, DIF_SUBR_SUBSTR, DT_ATTR_STABCMN, DT_VERS_1_1,
 	&dt_idops_func, "string(const char *, int, [int])" },
 { "sum", DT_IDENT_AGGFUNC, 0, DTRACEAGG_SUM, DT_ATTR_STABCMN, DT_VERS_1_0,
