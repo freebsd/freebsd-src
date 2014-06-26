@@ -864,6 +864,7 @@ fill_kinfo_proc_only(struct proc *p, struct kinfo_proc *kp)
 	kp->ki_swtime = (ticks - p->p_swtick) / hz;
 	kp->ki_pid = p->p_pid;
 	kp->ki_nice = p->p_nice;
+	kp->ki_fibnum = p->p_fibnum;
 	kp->ki_start = p->p_stats->p_start;
 	timevaladd(&kp->ki_start, &boottime);
 	PROC_SLOCK(p);
