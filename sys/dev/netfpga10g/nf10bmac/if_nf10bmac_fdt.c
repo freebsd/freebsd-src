@@ -90,7 +90,7 @@ nf10bmac_attach_fdt(device_t dev)
 
 	/*
 	 * LOOP memory region (this could be a general control region).
-	 * 0x00: 32bit register to enable a Y-"lopback".
+	 * 0x00: 32/64bit register to enable a Y-"lopback".
 	 */
         sc->nf10bmac_ctrl_rid = 0;
         sc->nf10bmac_ctrl_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY,
@@ -108,9 +108,9 @@ nf10bmac_attach_fdt(device_t dev)
 
         /*
          * TX and TX metadata FIFO memory region.
-         * 0x00: 32bit FIFO data,
-	 * 0x08: 32bit FIFO metadata,
-         * 0x10: 32bit packet length.
+         * 0x00: 32/64bit FIFO data,
+	 * 0x08: 32/64bit FIFO metadata,
+         * 0x10: 32/64bit packet length.
          */
         sc->nf10bmac_tx_mem_rid = 1;
         sc->nf10bmac_tx_mem_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY,
@@ -128,9 +128,9 @@ nf10bmac_attach_fdt(device_t dev)
 
         /*
          * RX and RXC metadata FIFO memory region.
-         * 0x00: 32bit FIFO data,
-	 * 0x08: 32bit FIFO metadata,
-         * 0x10: 32bit packet length.
+         * 0x00: 32/64bit FIFO data,
+	 * 0x08: 32/64bit FIFO metadata,
+         * 0x10: 32/64bit packet length.
          */
         sc->nf10bmac_rx_mem_rid = 2;
         sc->nf10bmac_rx_mem_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY,
@@ -148,8 +148,8 @@ nf10bmac_attach_fdt(device_t dev)
 
 	/*
 	 * Interrupt handling registers.
-	 * 0x00: 32bit register to clear (and disable) the RX interrupt.
-	 * 0x08: 32bit register to enable or disable the RX interrupt.
+	 * 0x00: 32/64bit register to clear (and disable) the RX interrupt.
+	 * 0x08: 32/64bit register to enable or disable the RX interrupt.
 	 */
         sc->nf10bmac_intr_rid = 3;
         sc->nf10bmac_intr_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY,
