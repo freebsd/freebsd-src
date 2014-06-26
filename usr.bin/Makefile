@@ -139,6 +139,7 @@ SUBDIR=	alias \
 	rwall \
 	script \
 	sed \
+	send-pr \
 	seq \
 	shar \
 	showmount \

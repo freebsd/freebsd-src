@@ -16,7 +16,6 @@ SUBDIR= ${_binutils} \
 	patch \
 	${_rcs} \
 	sdiff \
-	send-pr \
 	sort \
 	${_texinfo}
 
