@@ -28,16 +28,90 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
-#include <sys/apm.h>
 #include <sys/endian.h>
 #include <sys/errno.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <uuid.h>
 
 #include "image.h"
 #include "format.h"
 #include "mkimg.h"
+
+/*
+ * Notes:
+ * o   File is in network byte order.
+ * o   File layout:
+ *	copy of disk footer
+ *	dynamic disk header
+ *	block allocation table (BAT)
+ *	data blocks
+ *	disk footer
+ * o   The timestamp is seconds since 1/1/2000 12:00:00 AM UTC
+ */
+
+struct vhd_footer {
+	char		cookie[8];
+#define	VHD_COOKIE_MICROSOFT	"conectix"
+#define	VHD_COOKIE_FREEBSD	"FreeBSD"
+	uint32_t	features;
+#define	VHD_FEATURES_TEMPORARY	0x01
+#define	VHD_FEATURES_RESERVED	0x02
+	uint32_t	version;
+#define	VHD_VERSION		0x00010000
+	uint64_t	data_offset;
+	uint32_t	timestamp;
+	char		creator_tool;
+#define	VHD_CREATOR_TOOL_MS_VPC	"vpc "		/* Virtual PC */
+#define	VHD_CREATOR_TOOL_MS_VS	"vs  "		/* Virtual Server */
+#define	VHD_CREATOR_TOOL_FBSD	"mkim"		/* FreeBSD mkimg */
+	uint32_t	creator_version;
+#define	VHD_CREATOR_VERS_MS_VPC	0x00050000
+#define	VHD_CREATOR_VERS_MS_VS	0x00010000
+#define	VHD_CREATOR_VERS_FBSD	0x00010000
+	char		creator_os[4];
+#define	VHD_CREATOR_OS_WINDOWS	"Wi2k"
+#define	VHD_CREATOR_OS_MAC	"Mac "
+#define	VHD_CREATOR_OS_FREEBSD	"FBSD"
+	uint64_t	original_size;
+	uint64_t	current_size;
+	uint16_t	cylinders;
+	uint8_t		heads;
+	uint8_t		sectors;
+	uint32_t	disk_type;
+#define	VHD_DISK_TYPE_FIXED	2
+#define	VHD_DISK_TYPE_DYNAMIC	3
+#define	VHD_DISK_TYPE_DIFF	4
+	uint32_t	checksum;
+	uuid_t		id;
+	uint8_t		saved_state;
+	uint8_t		_reserved[427];
+};
+_Static_assert(sizeof(struct vhd_footer) == 512, "Wrong size for footer");
+
+struct vhd_dyn_header {
+	uint64_t	cookie;
+	uint64_t	data_offset;
+	uint64_t	table_offset;
+	uint32_t	version;
+	uint32_t	max_entries;
+	uint32_t	block_size;
+	uint32_t	checksum;
+	uuid_t		parent_id;
+	uint32_t	parent_timestamp;
+	char		_reserved1[4];
+	uint16_t	parent_name[256];	/* UTF-16 */
+	struct {
+		uint32_t	code;
+		uint32_t	data_space;
+		uint32_t	data_length;
+		uint32_t	_reserved;
+		uint64_t	data_offset;
+	} parent_locator[8];
+	char		_reserved2[256];
+};
+_Static_assert(sizeof(struct vhd_dyn_header) == 1024, "Wrong size for header");
 
 static int
 vhd_resize(lba_t imgsz __unused)
