@@ -219,6 +219,7 @@ static dtrace_provider_t *dtrace_provider;	/* provider list */
 static dtrace_meta_t	*dtrace_meta_pid;	/* user-land meta provider */
 static int		dtrace_opens;		/* number of opens */
 static int		dtrace_helpers;		/* number of helpers */
+static int		dtrace_getf;		/* number of unpriv getf()s */
 #if defined(sun)
 static void		*dtrace_softstate;	/* softstate pointer */
 #endif
@@ -468,8 +469,8 @@ static kmutex_t dtrace_errlock;
  * disallow all negative sizes.  Ranges of size 0 are allowed.
  */
 #define	DTRACE_INRANGE(testaddr, testsz, baseaddr, basesz) \
-	((testaddr) - (baseaddr) < (basesz) && \
-	(testaddr) + (testsz) - (baseaddr) <= (basesz) && \
+	((testaddr) - (uintptr_t)(baseaddr) < (basesz) && \
+	(testaddr) + (testsz) - (uintptr_t)(baseaddr) <= (basesz) && \
 	(testaddr) + (testsz) >= (testaddr))
 
 /*
@@ -578,6 +579,8 @@ void dtrace_dynvar_clean(dtrace_dstate_t *);
 dtrace_dynvar_t *dtrace_dynvar(dtrace_dstate_t *, uint_t, dtrace_key_t *,
     size_t, dtrace_dynvar_op_t, dtrace_mstate_t *, dtrace_vstate_t *);
 uintptr_t dtrace_dif_varstr(uintptr_t, dtrace_state_t *, dtrace_mstate_t *);
+static int dtrace_priv_proc(dtrace_state_t *);
+static void dtrace_getf_barrier(void);
 
 /*
  * DTrace Probe Context Functions
@@ -722,7 +725,7 @@ dtrace_canstore(uint64_t addr, size_t sz, dtrace_mstate_t *mstate,
 	 * up both thread-local variables and any global dynamically-allocated
 	 * variables.
 	 */
-	if (DTRACE_INRANGE(addr, sz, (uintptr_t)vstate->dtvs_dynvars.dtds_base,
+	if (DTRACE_INRANGE(addr, sz, vstate->dtvs_dynvars.dtds_base,
 	    vstate->dtvs_dynvars.dtds_size)) {
 		dtrace_dstate_t *dstate = &vstate->dtvs_dynvars;
 		uintptr_t base = (uintptr_t)dstate->dtds_base +
@@ -789,6 +792,7 @@ dtrace_canload(uint64_t addr, size_t sz, dtrace_mstate_t *mstate,
     dtrace_vstate_t *vstate)
 {
 	volatile uintptr_t *illval = &cpu_core[curcpu].cpuc_dtrace_illval;
+	file_t *fp;
 
 	/*
 	 * If we hold the privilege to read from kernel memory, then
@@ -806,9 +810,103 @@ dtrace_canload(uint64_t addr, size_t sz, dtrace_mstate_t *mstate,
 	/*
 	 * We're allowed to read from our own string table.
 	 */
-	if (DTRACE_INRANGE(addr, sz, (uintptr_t)mstate->dtms_difo->dtdo_strtab,
+	if (DTRACE_INRANGE(addr, sz, mstate->dtms_difo->dtdo_strtab,
 	    mstate->dtms_difo->dtdo_strlen))
 		return (1);
+
+	if (vstate->dtvs_state != NULL &&
+	    dtrace_priv_proc(vstate->dtvs_state)) {
+		proc_t *p;
+
+		/*
+		 * When we have privileges to the current process, there are
+		 * several context-related kernel structures that are safe to
+		 * read, even absent the privilege to read from kernel memory.
+		 * These reads are safe because these structures contain only
+		 * state that (1) we're permitted to read, (2) is harmless or
+		 * (3) contains pointers to additional kernel state that we're
+		 * not permitted to read (and as such, do not present an
+		 * opportunity for privilege escalation).  Finally (and
+		 * critically), because of the nature of their relation with
+		 * the current thread context, the memory associated with these
+		 * structures cannot change over the duration of probe context,
+		 * and it is therefore impossible for this memory to be
+		 * deallocated and reallocated as something else while it's
+		 * being operated upon.
+		 */
+		if (DTRACE_INRANGE(addr, sz, curthread, sizeof (kthread_t)))
+			return (1);
+
+		if ((p = curthread->t_procp) != NULL && DTRACE_INRANGE(addr,
+		    sz, curthread->t_procp, sizeof (proc_t))) {
+			return (1);
+		}
+
+		if (curthread->t_cred != NULL && DTRACE_INRANGE(addr, sz,
+		    curthread->t_cred, sizeof (cred_t))) {
+			return (1);
+		}
+
+#if defined(sun)
+		if (p != NULL && p->p_pidp != NULL && DTRACE_INRANGE(addr, sz,
+		    &(p->p_pidp->pid_id), sizeof (pid_t))) {
+			return (1);
+		}
+
+		if (curthread->t_cpu != NULL && DTRACE_INRANGE(addr, sz,
+		    curthread->t_cpu, offsetof(cpu_t, cpu_pause_thread))) {
+			return (1);
+		}
+#endif
+	}
+
+	if ((fp = mstate->dtms_getf) != NULL) {
+		uintptr_t psz = sizeof (void *);
+		vnode_t *vp;
+		vnodeops_t *op;
+
+		/*
+		 * When getf() returns a file_t, the enabling is implicitly
+		 * granted the (transient) right to read the returned file_t
+		 * as well as the v_path and v_op->vnop_name of the underlying
+		 * vnode.  These accesses are allowed after a successful
+		 * getf() because the members that they refer to cannot change
+		 * once set -- and the barrier logic in the kernel's closef()
+		 * path assures that the file_t and its referenced vode_t
+		 * cannot themselves be stale (that is, it impossible for
+		 * either dtms_getf itself or its f_vnode member to reference
+		 * freed memory).
+		 */
+		if (DTRACE_INRANGE(addr, sz, fp, sizeof (file_t)))
+			return (1);
+
+		if ((vp = fp->f_vnode) != NULL) {
+#if defined(sun)
+			if (DTRACE_INRANGE(addr, sz, &vp->v_path, psz))
+				return (1);
+			if (vp->v_path != NULL && DTRACE_INRANGE(addr, sz,
+			    vp->v_path, strlen(vp->v_path) + 1)) {
+				return (1);
+			}
+#endif
+
+			if (DTRACE_INRANGE(addr, sz, &vp->v_op, psz))
+				return (1);
+
+#if defined(sun)
+			if ((op = vp->v_op) != NULL &&
+			    DTRACE_INRANGE(addr, sz, &op->vnop_name, psz)) {
+				return (1);
+			}
+
+			if (op != NULL && op->vnop_name != NULL &&
+			    DTRACE_INRANGE(addr, sz, op->vnop_name,
+			    strlen(op->vnop_name) + 1)) {
+				return (1);
+			}
+#endif
+		}
+	}
 
 	DTRACE_CPUFLAG_SET(CPU_DTRACE_KPRIV);
 	*illval = addr;
@@ -1189,8 +1287,7 @@ dtrace_priv_proc_common_zone(dtrace_state_t *state)
 	 */
 	ASSERT(s_cr != NULL);
 
-	if ((cr = CRED()) != NULL &&
-	    s_cr->cr_zone == cr->cr_zone)
+	if ((cr = CRED()) != NULL && s_cr->cr_zone == cr->cr_zone)
 		return (1);
 
 	return (0);
@@ -1287,6 +1384,115 @@ dtrace_priv_kernel_destructive(dtrace_state_t *state)
 	cpu_core[curcpu].cpuc_dtrace_flags |= CPU_DTRACE_KPRIV;
 
 	return (0);
+}
+
+/*
+ * Determine if the dte_cond of the specified ECB allows for processing of
+ * the current probe to continue.  Note that this routine may allow continued
+ * processing, but with access(es) stripped from the mstate's dtms_access
+ * field.
+ */
+static int
+dtrace_priv_probe(dtrace_state_t *state, dtrace_mstate_t *mstate,
+    dtrace_ecb_t *ecb)
+{
+	dtrace_probe_t *probe = ecb->dte_probe;
+	dtrace_provider_t *prov = probe->dtpr_provider;
+	dtrace_pops_t *pops = &prov->dtpv_pops;
+	int mode = DTRACE_MODE_NOPRIV_DROP;
+
+	ASSERT(ecb->dte_cond);
+
+#if defined(sun)
+	if (pops->dtps_mode != NULL) {
+		mode = pops->dtps_mode(prov->dtpv_arg,
+		    probe->dtpr_id, probe->dtpr_arg);
+
+		ASSERT((mode & DTRACE_MODE_USER) ||
+		    (mode & DTRACE_MODE_KERNEL));
+		ASSERT((mode & DTRACE_MODE_NOPRIV_RESTRICT) ||
+		    (mode & DTRACE_MODE_NOPRIV_DROP));
+	}
+
+	/*
+	 * If the dte_cond bits indicate that this consumer is only allowed to
+	 * see user-mode firings of this probe, call the provider's dtps_mode()
+	 * entry point to check that the probe was fired while in a user
+	 * context.  If that's not the case, use the policy specified by the
+	 * provider to determine if we drop the probe or merely restrict
+	 * operation.
+	 */
+	if (ecb->dte_cond & DTRACE_COND_USERMODE) {
+		ASSERT(mode != DTRACE_MODE_NOPRIV_DROP);
+
+		if (!(mode & DTRACE_MODE_USER)) {
+			if (mode & DTRACE_MODE_NOPRIV_DROP)
+				return (0);
+
+			mstate->dtms_access &= ~DTRACE_ACCESS_ARGS;
+		}
+	}
+#endif
+
+	/*
+	 * This is more subtle than it looks. We have to be absolutely certain
+	 * that CRED() isn't going to change out from under us so it's only
+	 * legit to examine that structure if we're in constrained situations.
+	 * Currently, the only times we'll this check is if a non-super-user
+	 * has enabled the profile or syscall providers -- providers that
+	 * allow visibility of all processes. For the profile case, the check
+	 * above will ensure that we're examining a user context.
+	 */
+	if (ecb->dte_cond & DTRACE_COND_OWNER) {
+		cred_t *cr;
+		cred_t *s_cr = state->dts_cred.dcr_cred;
+		proc_t *proc;
+
+		ASSERT(s_cr != NULL);
+
+		if ((cr = CRED()) == NULL ||
+		    s_cr->cr_uid != cr->cr_uid ||
+		    s_cr->cr_uid != cr->cr_ruid ||
+		    s_cr->cr_uid != cr->cr_suid ||
+		    s_cr->cr_gid != cr->cr_gid ||
+		    s_cr->cr_gid != cr->cr_rgid ||
+		    s_cr->cr_gid != cr->cr_sgid ||
+		    (proc = ttoproc(curthread)) == NULL ||
+		    (proc->p_flag & SNOCD)) {
+			if (mode & DTRACE_MODE_NOPRIV_DROP)
+				return (0);
+
+#if defined(sun)
+			mstate->dtms_access &= ~DTRACE_ACCESS_PROC;
+#endif
+		}
+	}
+
+#if defined(sun)
+	/*
+	 * If our dte_cond is set to DTRACE_COND_ZONEOWNER and we are not
+	 * in our zone, check to see if our mode policy is to restrict rather
+	 * than to drop; if to restrict, strip away both DTRACE_ACCESS_PROC
+	 * and DTRACE_ACCESS_ARGS
+	 */
+	if (ecb->dte_cond & DTRACE_COND_ZONEOWNER) {
+		cred_t *cr;
+		cred_t *s_cr = state->dts_cred.dcr_cred;
+
+		ASSERT(s_cr != NULL);
+
+		if ((cr = CRED()) == NULL ||
+		    s_cr->cr_zone->zone_id != cr->cr_zone->zone_id) {
+			if (mode & DTRACE_MODE_NOPRIV_DROP)
+				return (0);
+
+			mstate->dtms_access &=
+			    ~(DTRACE_ACCESS_PROC | DTRACE_ACCESS_ARGS);
+		}
+	}
+#endif
+
+	return (1);
 }
 
 /*
@@ -2907,7 +3113,7 @@ dtrace_dif_variable(dtrace_mstate_t *mstate, dtrace_state_t *state, uint64_t v,
 #endif
 
 	case DIF_VAR_CURTHREAD:
-		if (!dtrace_priv_kernel(state))
+		if (!dtrace_priv_proc(state))
 			return (0);
 		return ((uint64_t)(uintptr_t)curthread);
 
@@ -4577,11 +4783,32 @@ dtrace_dif_subr(uint_t subr, uint_t rd, uint64_t *regs,
 		break;
 	}
 
+	case DIF_SUBR_GETF: {
+		uintptr_t fd = tupregs[0].dttk_value;
+		struct filedesc *fdp;
+		file_t *fp;
+
+		if (!dtrace_priv_proc(state)) {
+			regs[rd] = 0;
+			break;
+		}
+		fdp = curproc->p_fd;
+		FILEDESC_SLOCK(fdp);
+		fp = fget_locked(fdp, fd);
+		mstate->dtms_getf = fp;
+		regs[rd] = (uintptr_t)fp;
+		FILEDESC_SUNLOCK(fdp);
+		break;
+	}
+
 	case DIF_SUBR_CLEANPATH: {
 		char *dest = (char *)mstate->dtms_scratch_ptr, c;
 		uint64_t size = state->dts_options[DTRACEOPT_STRSIZE];
 		uintptr_t src = tupregs[0].dttk_value;
 		int i = 0, j = 0;
+#if defined(sun)
+		zone_t *z;
+#endif
 
 		if (!dtrace_strcanload(src, size, mstate, vstate)) {
 			regs[rd] = 0;
@@ -4680,6 +4907,25 @@ next:
 		} while (c != '\0');
 
 		dest[j] = '\0';
+
+#if defined(sun)
+		if (mstate->dtms_getf != NULL &&
+		    !(mstate->dtms_access & DTRACE_ACCESS_KERNEL) &&
+		    (z = state->dts_cred.dcr_cred->cr_zone) != kcred->cr_zone) {
+			/*
+			 * If we've done a getf() as a part of this ECB and we
+			 * don't have kernel access (and we're not in the global
+			 * zone), check if the path we cleaned up begins with
+			 * the zone's root path, and trim it off if so.  Note
+			 * that this is an output cleanliness issue, not a
+			 * security issue: knowing one's zone root path does
+			 * not enable privilege escalation.
+			 */
+			if (strstr(dest, z->zone_rootpath) == dest)
+				dest += strlen(z->zone_rootpath) - 1;
+		}
+#endif
+
 		regs[rd] = (uintptr_t)dest;
 		mstate->dtms_scratch_ptr += size;
 		break;
@@ -5153,71 +5399,50 @@ dtrace_dif_emulate(dtrace_difo_t *difo, dtrace_mstate_t *mstate,
 				pc = DIF_INSTR_LABEL(instr);
 			break;
 		case DIF_OP_RLDSB:
-			if (!dtrace_canstore(regs[r1], 1, mstate, vstate)) {
-				*flags |= CPU_DTRACE_KPRIV;
-				*illval = regs[r1];
+			if (!dtrace_canload(regs[r1], 1, mstate, vstate))
 				break;
-			}
 			/*FALLTHROUGH*/
 		case DIF_OP_LDSB:
 			regs[rd] = (int8_t)dtrace_load8(regs[r1]);
 			break;
 		case DIF_OP_RLDSH:
-			if (!dtrace_canstore(regs[r1], 2, mstate, vstate)) {
-				*flags |= CPU_DTRACE_KPRIV;
-				*illval = regs[r1];
+			if (!dtrace_canload(regs[r1], 2, mstate, vstate))
 				break;
-			}
 			/*FALLTHROUGH*/
 		case DIF_OP_LDSH:
 			regs[rd] = (int16_t)dtrace_load16(regs[r1]);
 			break;
 		case DIF_OP_RLDSW:
-			if (!dtrace_canstore(regs[r1], 4, mstate, vstate)) {
-				*flags |= CPU_DTRACE_KPRIV;
-				*illval = regs[r1];
+			if (!dtrace_canload(regs[r1], 4, mstate, vstate))
 				break;
-			}
 			/*FALLTHROUGH*/
 		case DIF_OP_LDSW:
 			regs[rd] = (int32_t)dtrace_load32(regs[r1]);
 			break;
 		case DIF_OP_RLDUB:
-			if (!dtrace_canstore(regs[r1], 1, mstate, vstate)) {
-				*flags |= CPU_DTRACE_KPRIV;
-				*illval = regs[r1];
+			if (!dtrace_canload(regs[r1], 1, mstate, vstate))
 				break;
-			}
 			/*FALLTHROUGH*/
 		case DIF_OP_LDUB:
 			regs[rd] = dtrace_load8(regs[r1]);
 			break;
 		case DIF_OP_RLDUH:
-			if (!dtrace_canstore(regs[r1], 2, mstate, vstate)) {
-				*flags |= CPU_DTRACE_KPRIV;
-				*illval = regs[r1];
+			if (!dtrace_canload(regs[r1], 2, mstate, vstate))
 				break;
-			}
 			/*FALLTHROUGH*/
 		case DIF_OP_LDUH:
 			regs[rd] = dtrace_load16(regs[r1]);
 			break;
 		case DIF_OP_RLDUW:
-			if (!dtrace_canstore(regs[r1], 4, mstate, vstate)) {
-				*flags |= CPU_DTRACE_KPRIV;
-				*illval = regs[r1];
+			if (!dtrace_canload(regs[r1], 4, mstate, vstate))
 				break;
-			}
 			/*FALLTHROUGH*/
 		case DIF_OP_LDUW:
 			regs[rd] = dtrace_load32(regs[r1]);
 			break;
 		case DIF_OP_RLDX:
-			if (!dtrace_canstore(regs[r1], 8, mstate, vstate)) {
-				*flags |= CPU_DTRACE_KPRIV;
-				*illval = regs[r1];
+			if (!dtrace_canload(regs[r1], 8, mstate, vstate))
 				break;
-			}
 			/*FALLTHROUGH*/
 		case DIF_OP_LDX:
 			regs[rd] = dtrace_load64(regs[r1]);
@@ -6180,6 +6405,8 @@ dtrace_probe(dtrace_id_t id, uintptr_t arg0, uintptr_t arg1,
 		uint64_t val = 0;
 
 		mstate.dtms_present = DTRACE_MSTATE_ARGS | DTRACE_MSTATE_PROBE;
+		mstate.dtms_getf = NULL;
+
 		*flags &= ~CPU_DTRACE_ERROR;
 
 		if (prov == dtrace_provider) {
@@ -8853,6 +9080,20 @@ dtrace_difo_validate(dtrace_difo_t *dp, dtrace_vstate_t *vstate, uint_t nregs,
 			    subr == DIF_SUBR_COPYOUTSTR) {
 				dp->dtdo_destructive = 1;
 			}
+
+			if (subr == DIF_SUBR_GETF) {
+				/*
+				 * If we have a getf() we need to record that
+				 * in our state.  Note that our state can be
+				 * NULL if this is a helper -- but in that
+				 * case, the call to getf() is itself illegal,
+				 * and will be caught (slightly later) when
+				 * the helper is validated.
+				 */
+				if (vstate->dtvs_state != NULL)
+					vstate->dtvs_state->dts_getf++;
+			}
+
 			break;
 		case DIF_OP_PUSHTR:
 			if (type != DIF_TYPE_STRING && type != DIF_TYPE_CTF)
@@ -13758,6 +13999,24 @@ dtrace_state_go(dtrace_state_t *state, processorid_t *cpu)
 
 	state->dts_activity = DTRACE_ACTIVITY_WARMUP;
 
+#if defined(sun)
+	if (state->dts_getf != 0 &&
+	    !(state->dts_cred.dcr_visible & DTRACE_CRV_KERNEL)) {
+		/*
+		 * We don't have kernel privs but we have at least one call
+		 * to getf(); we need to bump our zone's count, and (if
+		 * this is the first enabling to have an unprivileged call
+		 * to getf()) we need to hook into closef().
+		 */
+		state->dts_cred.dcr_cred->cr_zone->zone_dtrace_getf++;
+
+		if (dtrace_getf++ == 0) {
+			ASSERT(dtrace_closef == NULL);
+			dtrace_closef = dtrace_getf_barrier;
+		}
+	}
+#endif
+
 	/*
 	 * Now it's time to actually fire the BEGIN probe.  We need to disable
 	 * interrupts here both to record the CPU on which we fired the BEGIN
@@ -13873,6 +14132,26 @@ dtrace_state_stop(dtrace_state_t *state, processorid_t *cpu)
 
 	state->dts_activity = DTRACE_ACTIVITY_STOPPED;
 	dtrace_sync();
+
+#if defined(sun)
+	if (state->dts_getf != 0 &&
+	    !(state->dts_cred.dcr_visible & DTRACE_CRV_KERNEL)) {
+		/*
+		 * We don't have kernel privs but we have at least one call
+		 * to getf(); we need to lower our zone's count, and (if
+		 * this is the last enabling to have an unprivileged call
+		 * to getf()) we need to clear the closef() hook.
+		 */
+		ASSERT(state->dts_cred.dcr_cred->cr_zone->zone_dtrace_getf > 0);
+		ASSERT(dtrace_closef == dtrace_getf_barrier);
+		ASSERT(dtrace_getf > 0);
+
+		state->dts_cred.dcr_cred->cr_zone->zone_dtrace_getf--;
+
+		if (--dtrace_getf == 0)
+			dtrace_closef = NULL;
+	}
+#endif
 
 	return (0);
 }
@@ -15543,6 +15822,25 @@ dtrace_toxrange_add(uintptr_t base, uintptr_t limit)
 	dtrace_toxranges++;
 }
 
+static void
+dtrace_getf_barrier()
+{
+#if defined(sun)
+	/*
+	 * When we have unprivileged (that is, non-DTRACE_CRV_KERNEL) enablings
+	 * that contain calls to getf(), this routine will be called on every
+	 * closef() before either the underlying vnode is released or the
+	 * file_t itself is freed.  By the time we are here, it is essential
+	 * that the file_t can no longer be accessed from a call to getf()
+	 * in probe context -- that assures that a dtrace_sync() can be used
+	 * to clear out any enablings referring to the old structures.
+	 */
+	if (curthread->t_procp->p_zone->zone_dtrace_getf != 0 ||
+	    kcred->cr_zone->zone_dtrace_getf != 0)
+		dtrace_sync();
+#endif
+}
+
 /*
  * DTrace Driver Cookbook Functions
  */
@@ -16743,6 +17041,9 @@ dtrace_detach(dev_info_t *dip, ddi_detach_cmd_t cmd)
 	dtrace_debugger_fini = NULL;
 	dtrace_modload = NULL;
 	dtrace_modunload = NULL;
+
+	ASSERT(dtrace_getf == 0);
+	ASSERT(dtrace_closef == NULL);
 
 	mutex_exit(&cpu_lock);
 

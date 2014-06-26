@@ -21,7 +21,7 @@
 
 /*
  * Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2011, Joyent, Inc. All rights reserved.
+ * Copyright (c) 2012, Joyent, Inc. All rights reserved.
  * Copyright (c) 2012 by Delphix. All rights reserved.
  */
 
@@ -122,8 +122,9 @@
 #define	DT_VERS_1_8_1	DT_VERSION_NUMBER(1, 8, 1)
 #define	DT_VERS_1_9	DT_VERSION_NUMBER(1, 9, 0)
 #define	DT_VERS_1_9_1	DT_VERSION_NUMBER(1, 9, 1)
-#define	DT_VERS_LATEST	DT_VERS_1_9_1
-#define	DT_VERS_STRING	"Sun D 1.9.1"
+#define	DT_VERS_1_10	DT_VERSION_NUMBER(1, 10, 0)
+#define	DT_VERS_LATEST	DT_VERS_1_10
+#define	DT_VERS_STRING	"Sun D 1.10"
 
 const dt_version_t _dtrace_versions[] = {
 	DT_VERS_1_0,	/* D API 1.0.0 (PSARC 2001/466) Solaris 10 FCS */
@@ -145,6 +146,7 @@ const dt_version_t _dtrace_versions[] = {
 	DT_VERS_1_8_1,	/* D API 1.8.1 */
 	DT_VERS_1_9,	/* D API 1.9 */
 	DT_VERS_1_9_1,	/* D API 1.9.1 */
+	DT_VERS_1_10,	/* D API 1.10 */
 	0
 };
 
@@ -275,6 +277,8 @@ static const dt_ident_t _dtrace_globals[] = {
 	&dt_idops_func, "uint64_t(uint64_t)" },
 { "htons", DT_IDENT_FUNC, 0, DIF_SUBR_HTONS, DT_ATTR_EVOLCMN, DT_VERS_1_3,
 	&dt_idops_func, "uint16_t(uint16_t)" },
+{ "getf", DT_IDENT_FUNC, 0, DIF_SUBR_GETF, DT_ATTR_STABCMN, DT_VERS_1_10,
+	&dt_idops_func, "file_t *(int)" },
 { "gid", DT_IDENT_SCALAR, 0, DIF_VAR_GID, DT_ATTR_STABCMN, DT_VERS_1_0,
 	&dt_idops_type, "gid_t" },
 { "id", DT_IDENT_SCALAR, 0, DIF_VAR_ID, DT_ATTR_STABCMN, DT_VERS_1_0,

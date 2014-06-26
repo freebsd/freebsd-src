@@ -25,7 +25,7 @@
  */
 
 /*
- * Copyright (c) 2011, Joyent, Inc. All rights reserved.
+ * Copyright (c) 2012, Joyent, Inc. All rights reserved.
  * Copyright (c) 2012 by Delphix. All rights reserved.
  */
 
@@ -312,8 +312,8 @@ typedef enum dtrace_probespec {
 #define	DIF_SUBR_SX_EXCLUSIVE_HELD	49
 #define	DIF_SUBR_SX_ISEXCLUSIVE		50
 #define	DIF_SUBR_MEMSTR			51
-
-#define	DIF_SUBR_MAX			51	/* max subroutine value */
+#define	DIF_SUBR_GETF			52
+#define	DIF_SUBR_MAX			52	/* max subroutine value */
 
 typedef uint32_t dif_instr_t;
 
@@ -1706,7 +1706,22 @@ typedef struct dof_helper {
  *
  * 1.10.3  Return value
  *
- *   A boolean value.
+ *   A bitwise OR that encapsulates both the mode (either DTRACE_MODE_KERNEL
+ *   or DTRACE_MODE_USER) and the policy when the privilege of the enabling
+ *   is insufficient for that mode (a combination of DTRACE_MODE_NOPRIV_DROP,
+ *   DTRACE_MODE_NOPRIV_RESTRICT, and DTRACE_MODE_LIMITEDPRIV_RESTRICT).  If
+ *   DTRACE_MODE_NOPRIV_DROP bit is set, insufficient privilege will result
+ *   in the probe firing being silently ignored for the enabling; if the
+ *   DTRACE_NODE_NOPRIV_RESTRICT bit is set, insufficient privilege will not
+ *   prevent probe processing for the enabling, but restrictions will be in
+ *   place that induce a UPRIV fault upon attempt to examine probe arguments
+ *   or current process state.  If the DTRACE_MODE_LIMITEDPRIV_RESTRICT bit
+ *   is set, similar restrictions will be placed upon operation if the
+ *   privilege is sufficient to process the enabling, but does not otherwise
+ *   entitle the enabling to all zones.  The DTRACE_MODE_NOPRIV_DROP and
+ *   DTRACE_MODE_NOPRIV_RESTRICT are mutually exclusive (and one of these
+ *   two policies must be specified), but either may be combined (or not)
+ *   with DTRACE_MODE_LIMITEDPRIV_RESTRICT.
  *
  * 1.10.4  Caller's context
  *
@@ -2101,6 +2116,12 @@ typedef struct dtrace_pops {
 	void (*dtps_destroy)(void *arg, dtrace_id_t id, void *parg);
 } dtrace_pops_t;
 
+#define	DTRACE_MODE_KERNEL			0x01
+#define	DTRACE_MODE_USER			0x02
+#define	DTRACE_MODE_NOPRIV_DROP			0x10
+#define	DTRACE_MODE_NOPRIV_RESTRICT		0x20
+#define	DTRACE_MODE_LIMITEDPRIV_RESTRICT	0x40
+
 typedef uintptr_t	dtrace_provider_id_t;
 
 extern int dtrace_register(const char *, const dtrace_pattr_t *, uint32_t,
@@ -2321,6 +2342,7 @@ extern void (*dtrace_helpers_cleanup)(void);
 extern void (*dtrace_helpers_fork)(proc_t *parent, proc_t *child);
 extern void (*dtrace_cpustart_init)(void);
 extern void (*dtrace_cpustart_fini)(void);
+extern void (*dtrace_closef)(void);
 
 extern void (*dtrace_debugger_init)(void);
 extern void (*dtrace_debugger_fini)(void);
