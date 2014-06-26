@@ -32,6 +32,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/errno.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 #include <unistd.h>
 #include <uuid.h>
 
@@ -51,7 +52,8 @@ __FBSDID("$FreeBSD$");
  * o   The timestamp is seconds since 1/1/2000 12:00:00 AM UTC
  */
 
-#define	VHD_BLOCK_SIZE	4096	/* 2MB blocks */
+#define	VHD_BLOCK_SIZE	4096	/* In sectors; 2MB blocks */
+#define	VHD_SECTOR_SIZE	512
 
 struct vhd_footer {
 	char		cookie[8];
@@ -64,7 +66,7 @@ struct vhd_footer {
 #define	VHD_VERSION		0x00010000
 	uint64_t	data_offset;
 	uint32_t	timestamp;
-	char		creator_tool;
+	char		creator_tool[4];
 #define	VHD_CREATOR_TOOL_MS_VPC	"vpc "		/* Virtual PC */
 #define	VHD_CREATOR_TOOL_MS_VS	"vs  "		/* Virtual Server */
 #define	VHD_CREATOR_TOOL_FBSD	"mkim"		/* FreeBSD mkimg */
@@ -90,7 +92,8 @@ struct vhd_footer {
 	uint8_t		saved_state;
 	uint8_t		_reserved[427];
 };
-_Static_assert(sizeof(struct vhd_footer) == 512, "Wrong size for footer");
+_Static_assert(sizeof(struct vhd_footer) == VHD_SECTOR_SIZE,
+    "Wrong size for footer");
 
 struct vhd_dyn_header {
 	uint64_t	cookie;
@@ -113,7 +116,8 @@ struct vhd_dyn_header {
 	} parent_locator[8];
 	char		_reserved2[256];
 };
-_Static_assert(sizeof(struct vhd_dyn_header) == 1024, "Wrong size for header");
+_Static_assert(sizeof(struct vhd_dyn_header) == VHD_SECTOR_SIZE * 2,
+    "Wrong size for header");
 
 static int
 vhd_resize(lba_t imgsz)
@@ -124,10 +128,76 @@ vhd_resize(lba_t imgsz)
 	return (image_set_size(imgsz));
 }
 
+static uint32_t
+vhd_checksum(void *buf, size_t sz)
+{
+	uint8_t *p = buf;
+	uint32_t sum;
+	size_t ofs;
+
+	sum = 0;
+	for (ofs = 0; ofs < sz; ofs++)
+		sum += p[ofs];
+	return (~sum);
+}
+
+static uint32_t
+vhd_timestamp(void)
+{
+	time_t t;
+
+	t = time(NULL);
+	return (t - 0x386d4380);
+}
+
+static void
+vhd_uuid_enc(void *buf, const uuid_t *uuid)
+{
+	uint8_t *p = buf;
+	int i;
+
+	be32enc(p, uuid->time_low);
+	be16enc(p + 4, uuid->time_mid);
+	be16enc(p + 6, uuid->time_hi_and_version);
+	p[8] = uuid->clock_seq_hi_and_reserved;
+	p[9] = uuid->clock_seq_low;
+	for (i = 0; i < _UUID_NODE_LEN; i++)
+		p[10 + i] = uuid->node[i];
+}
+
 static int
 vhd_write(int fd)
 {
+	struct vhd_footer footer;
+	struct vhd_dyn_header header;
+	uuid_t id;
+	uint64_t imgsz;
 
+	imgsz = image_get_size() * secsz;
+
+	memset(&footer, 0, sizeof(footer));
+	strncpy(footer.cookie, VHD_COOKIE_FREEBSD, sizeof(footer.cookie));
+	be32enc(&footer.features, VHD_FEATURES_RESERVED);
+	be32enc(&footer.version, VHD_VERSION);
+	be32enc(&footer.data_offset, VHD_SECTOR_SIZE);
+	be32enc(&footer.timestamp, vhd_timestamp());
+	strncpy(footer.creator_tool, VHD_CREATOR_TOOL_FBSD,
+	    sizeof(footer.creator_tool));
+	be32enc(&footer.creator_version, VHD_CREATOR_VERS_FBSD);
+	strncpy(footer.creator_os, VHD_CREATOR_OS_FREEBSD,
+	    sizeof(footer.creator_os));
+	be64enc(&footer.original_size, imgsz);
+	be64enc(&footer.current_size, imgsz);
+	/* XXX Geometry */
+	be32enc(&footer.disk_type, VHD_DISK_TYPE_DYNAMIC);
+	uuidgen(&id, 1);
+	vhd_uuid_enc(&footer.id, &id);
+	be32enc(&footer.checksum, vhd_checksum(&footer, sizeof(footer)));
+
+	if (sparse_write(fd, &footer, VHD_SECTOR_SIZE) < 0)
+		return (errno);
+
+	memset(&header, 0, sizeof(header));
 	return (image_copyout(fd));
 }
 
