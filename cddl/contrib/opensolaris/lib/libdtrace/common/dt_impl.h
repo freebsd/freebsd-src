@@ -189,9 +189,6 @@ typedef struct dt_print_aggdata {
 	dtrace_aggvarid_t dtpa_id;	/* aggregation variable of interest */
 	FILE *dtpa_fp;			/* file pointer */
 	int dtpa_allunprint;		/* print only unprinted aggregations */
-	int dtpa_agghist;		/* print aggregation as histogram */
-	int dtpa_agghisthdr;		/* aggregation histogram hdr printed */
-	int dtpa_aggpack;		/* pack quantized aggregations */
 } dt_print_aggdata_t;
 
 typedef struct dt_dirpath {
@@ -286,7 +283,6 @@ struct dtrace_hdl {
 	uint_t dt_linktype;	/* dtrace link output file type (see below) */
 	uint_t dt_xlatemode;	/* dtrace translator linking mode (see below) */
 	uint_t dt_stdcmode;	/* dtrace stdc compatibility mode (see below) */
-	uint_t dt_encoding;	/* dtrace output encoding (see below) */
 	uint_t dt_treedump;	/* dtrace tree debug bitmap (see below) */
 	uint64_t dt_options[DTRACEOPT_MAX]; /* dtrace run-time options */
 	int dt_version;		/* library version requested by client */
@@ -376,14 +372,6 @@ struct dtrace_hdl {
 #define	DT_STDC_XC	1	/* Strict ISO C: __STDC__=1 */
 #define	DT_STDC_XS	2	/* K&R C: __STDC__ not defined */
 #define	DT_STDC_XT	3	/* ISO C + K&R C compat with ISO: __STDC__=0 */
-
-/*
- * Values for the dt_encoding property, which is used to force a particular
- * character encoding (overriding default behavior and/or automatic detection).
- */
-#define	DT_ENCODING_UNSET	0
-#define	DT_ENCODING_ASCII	1
-#define	DT_ENCODING_UTF8	2
 
 /*
  * Macro to test whether a given pass bit is set in the dt_treedump bit-vector.
