@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 2, 2014
+.Dd June 26, 2014
 .Dt BHYVE 8
 .Os
 .Sh NAME
@@ -32,12 +32,14 @@
 .Nd "run a guest operating system inside a virtual machine"
 .Sh SYNOPSIS
 .Nm
-.Op Fl aehwxACHPW
+.Op Fl abehwxACHPWY
 .Op Fl c Ar numcpus
 .Op Fl g Ar gdbport
+.Op Fl m Ar size Ns Op Ar K|k|M|m|G|g|T|t
 .Op Fl p Ar vcpu:hostcpu
 .Op Fl s Ar slot,emulation Ns Op , Ns Ar conf
 .Op Fl l Ar lpcdev Ns Op , Ns Ar conf
+.Op Fl U Ar uuid
 .Ar vmname
 .Sh DESCRIPTION
 .Nm
@@ -66,6 +68,11 @@ Generate ACPI tables.
 Required for
 .Fx Ns /amd64
 guests.
+.It Fl b
+Enable a low-level console device supported by
+.Fx kernels compiled with
+.Cd "device bvmconsole" .
+This option will be deprecated in a future version.
 .It Fl c Ar numcpus
 Number of guest virtual CPUs.
 The default is 1 and the maximum is 16.
@@ -76,8 +83,9 @@ Yield the virtual CPU thread when a HLT instruction is detected.
 If this option is not specified, virtual CPUs will use 100% of a host CPU.
 .It Fl g Ar gdbport
 For
-.Fx Ns /amd64 kernels compiled with
-.Cd "option bvmdebug" ,
+.Fx
+kernels compiled with
+.Cd "device bvmdebug" ,
 allow a remote kernel kgdb to be relayed to the guest kernel gdb stub
 via a local IPv4 address and this port.
 This option will be deprecated in a future version.
@@ -231,6 +239,12 @@ Force
 .Nm
 to exit when a guest issues an access to an I/O port that is not emulated.
 This is intended for debug purposes.
+.It Fl U Ar uuid
+Set the universally unique identifier
+.Pq UUID
+in the guest's System Management BIOS System Information structure.
+By default a UUID is generated from the host's hostname and
+.Ar vmname .
 .It Fl w
 Ignore accesses to unimplemented Model Specific Registers (MSRs). This is intended for debug purposes.
 .It Fl x

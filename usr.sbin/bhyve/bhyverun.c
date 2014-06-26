@@ -129,10 +129,10 @@ usage(int code)
 {
 
         fprintf(stderr,
-                "Usage: %s [-aehwAHIPW] [-g <gdb port>] [-s <pci>] [-c vcpus]\n"
-		"       %*s [-p vcpu:hostcpu] [-m mem] [-l <lpc>] <vm>\n"
+                "Usage: %s [-abehwxACHPWY] [-g <gdb port>] [-s <pci>] [-c vcpus]\n"
+		"       %*s [-p vcpu:hostcpu] [-m mem] [-l <lpc>] [-U uuid] <vm>\n"
 		"       -a: local apic is in xAPIC mode (deprecated)\n"
-		"       -A: create an ACPI table\n"
+		"       -A: create ACPI tables\n"
 		"       -g: gdb port\n"
 		"       -c: # cpus (default 1)\n"
 		"       -C: include guest memory in core file\n"
