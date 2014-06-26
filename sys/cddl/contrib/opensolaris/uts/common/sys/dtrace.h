@@ -25,8 +25,8 @@
  */
 
 /*
- * Copyright (c) 2012, Joyent, Inc. All rights reserved.
- * Copyright (c) 2012 by Delphix. All rights reserved.
+ * Copyright (c) 2013, Joyent, Inc. All rights reserved.
+ * Copyright (c) 2013 by Delphix. All rights reserved.
  */
 
 #ifndef _SYS_DTRACE_H
@@ -377,6 +377,7 @@ typedef struct dtrace_diftype {
 #define	DIF_TYPE_STRING		1	/* type is a D string */
 
 #define	DIF_TF_BYREF		0x1	/* type is passed by reference */
+#define	DIF_TF_BYUREF		0x2	/* user type is passed by reference */
 
 /*
  * A DTrace Intermediate Format variable record is used to describe each of the
