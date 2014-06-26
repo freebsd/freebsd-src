@@ -4,6 +4,8 @@ SYSDIR?=	${.CURDIR}/../../..
 
 ARCHDIR=	${MACHINE_CPUARCH}
 
+SUNW=	${.CURDIR}/../../../../cddl/contrib/opensolaris
+
 .PATH: ${SYSDIR}/cddl/contrib/opensolaris/uts/common/dtrace
 .PATH: ${SYSDIR}/cddl/compat/opensolaris/kern
 .PATH: ${SYSDIR}/cddl/kern
@@ -20,7 +22,8 @@ SRCS=		dtrace.c \
 SRCS+=		dis_tables.c \
 		instr_size.c
 CFLAGS+=	-I${SYSDIR}/cddl/contrib/opensolaris/uts/intel \
-		-I${SYSDIR}/cddl/dev/dtrace/x86
+		-I${SYSDIR}/cddl/dev/dtrace/x86 \
+		-I${SUNW}/common/util
 .endif
 
 SRCS+=		bus_if.h device_if.h vnode_if.h
