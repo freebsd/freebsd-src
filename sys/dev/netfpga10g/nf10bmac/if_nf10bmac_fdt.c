@@ -92,78 +92,78 @@ nf10bmac_attach_fdt(device_t dev)
 	 * LOOP memory region (this could be a general control region).
 	 * 0x00: 32/64bit register to enable a Y-"lopback".
 	 */
-        sc->nf10bmac_ctrl_rid = 0;
-        sc->nf10bmac_ctrl_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY,
-            &sc->nf10bmac_ctrl_rid, RF_ACTIVE);
-        if (sc->nf10bmac_ctrl_res == NULL) {
-                device_printf(dev, "failed to map memory for CTRL region\n");
-                error = ENXIO;
-                goto err;
-        } 
-        if (bootverbose)
-                device_printf(sc->nf10bmac_dev, "CTRL region at mem %p-%p\n",
-                    (void *)rman_get_start(sc->nf10bmac_ctrl_res),
-                    (void *)(rman_get_start(sc->nf10bmac_ctrl_res) + 
-                    rman_get_size(sc->nf10bmac_ctrl_res)));
+	sc->nf10bmac_ctrl_rid = 0;
+	sc->nf10bmac_ctrl_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY,
+	    &sc->nf10bmac_ctrl_rid, RF_ACTIVE);
+	if (sc->nf10bmac_ctrl_res == NULL) {
+		device_printf(dev, "failed to map memory for CTRL region\n");
+		error = ENXIO;
+		goto err;
+	} 
+	if (bootverbose)
+		device_printf(sc->nf10bmac_dev, "CTRL region at mem %p-%p\n",
+		    (void *)rman_get_start(sc->nf10bmac_ctrl_res),
+		    (void *)(rman_get_start(sc->nf10bmac_ctrl_res) + 
+		    rman_get_size(sc->nf10bmac_ctrl_res)));
 
-        /*
-         * TX and TX metadata FIFO memory region.
-         * 0x00: 32/64bit FIFO data,
+	/*
+	 * TX and TX metadata FIFO memory region.
+	 * 0x00: 32/64bit FIFO data,
 	 * 0x08: 32/64bit FIFO metadata,
-         * 0x10: 32/64bit packet length.
-         */
-        sc->nf10bmac_tx_mem_rid = 1;
-        sc->nf10bmac_tx_mem_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY,
-            &sc->nf10bmac_tx_mem_rid, RF_ACTIVE);
-        if (sc->nf10bmac_tx_mem_res == NULL) {
-                device_printf(dev, "failed to map memory for TX FIFO\n");
-                error = ENXIO;
-                goto err;
-        }
-        if (bootverbose)
-                device_printf(sc->nf10bmac_dev, "TX FIFO at mem %p-%p\n",
-                    (void *)rman_get_start(sc->nf10bmac_tx_mem_res),
-                    (void *)(rman_get_start(sc->nf10bmac_tx_mem_res) +
-                    rman_get_size(sc->nf10bmac_tx_mem_res)));
+	 * 0x10: 32/64bit packet length.
+	 */
+	sc->nf10bmac_tx_mem_rid = 1;
+	sc->nf10bmac_tx_mem_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY,
+	    &sc->nf10bmac_tx_mem_rid, RF_ACTIVE);
+	if (sc->nf10bmac_tx_mem_res == NULL) {
+		device_printf(dev, "failed to map memory for TX FIFO\n");
+		error = ENXIO;
+		goto err;
+	}
+	if (bootverbose)
+		device_printf(sc->nf10bmac_dev, "TX FIFO at mem %p-%p\n",
+		    (void *)rman_get_start(sc->nf10bmac_tx_mem_res),
+		    (void *)(rman_get_start(sc->nf10bmac_tx_mem_res) +
+		    rman_get_size(sc->nf10bmac_tx_mem_res)));
 
-        /*
-         * RX and RXC metadata FIFO memory region.
-         * 0x00: 32/64bit FIFO data,
+	/*
+	 * RX and RXC metadata FIFO memory region.
+	 * 0x00: 32/64bit FIFO data,
 	 * 0x08: 32/64bit FIFO metadata,
-         * 0x10: 32/64bit packet length.
-         */
-        sc->nf10bmac_rx_mem_rid = 2;
-        sc->nf10bmac_rx_mem_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY,
-            &sc->nf10bmac_rx_mem_rid, RF_ACTIVE);
-        if (sc->nf10bmac_rx_mem_res == NULL) {
-                device_printf(dev, "failed to map memory for RX FIFO\n");
-                error = ENXIO;
-                goto err;
-        } 
-        if (bootverbose)
-                device_printf(sc->nf10bmac_dev, "RX FIFO at mem %p-%p\n",
-                    (void *)rman_get_start(sc->nf10bmac_rx_mem_res),
-                    (void *)(rman_get_start(sc->nf10bmac_rx_mem_res) + 
-                    rman_get_size(sc->nf10bmac_rx_mem_res)));
+	 * 0x10: 32/64bit packet length.
+	 */
+	sc->nf10bmac_rx_mem_rid = 2;
+	sc->nf10bmac_rx_mem_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY,
+	    &sc->nf10bmac_rx_mem_rid, RF_ACTIVE);
+	if (sc->nf10bmac_rx_mem_res == NULL) {
+		device_printf(dev, "failed to map memory for RX FIFO\n");
+		error = ENXIO;
+		goto err;
+	} 
+	if (bootverbose)
+		device_printf(sc->nf10bmac_dev, "RX FIFO at mem %p-%p\n",
+		    (void *)rman_get_start(sc->nf10bmac_rx_mem_res),
+		    (void *)(rman_get_start(sc->nf10bmac_rx_mem_res) + 
+		    rman_get_size(sc->nf10bmac_rx_mem_res)));
 
 	/*
 	 * Interrupt handling registers.
 	 * 0x00: 32/64bit register to clear (and disable) the RX interrupt.
 	 * 0x08: 32/64bit register to enable or disable the RX interrupt.
 	 */
-        sc->nf10bmac_intr_rid = 3;
-        sc->nf10bmac_intr_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY,
-            &sc->nf10bmac_intr_rid, RF_ACTIVE);
-        if (sc->nf10bmac_intr_res == NULL) {
-                device_printf(dev, "failed to map memory for INTR region\n");
-                error = ENXIO;
-                goto err;
-        } 
-        if (bootverbose)
-                device_printf(sc->nf10bmac_dev, "INTR region at mem %p-%p\n",
-                    (void *)rman_get_start(sc->nf10bmac_intr_res),
-                    (void *)(rman_get_start(sc->nf10bmac_intr_res) + 
-                    rman_get_size(sc->nf10bmac_intr_res)));
+	sc->nf10bmac_intr_rid = 3;
+	sc->nf10bmac_intr_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY,
+	    &sc->nf10bmac_intr_rid, RF_ACTIVE);
+	if (sc->nf10bmac_intr_res == NULL) {
+		device_printf(dev, "failed to map memory for INTR region\n");
+		error = ENXIO;
+		goto err;
+	} 
+	if (bootverbose)
+		device_printf(sc->nf10bmac_dev, "INTR region at mem %p-%p\n",
+		    (void *)rman_get_start(sc->nf10bmac_intr_res),
+		    (void *)(rman_get_start(sc->nf10bmac_intr_res) + 
+		    rman_get_size(sc->nf10bmac_intr_res)));
 
 	/* (Optional) RX and TX IRQ. */
 	sc->nf10bmac_rx_irq_rid = 0;
