@@ -45,8 +45,10 @@
 #define	Pgrab_error strerror
 #define	Plmid_to_map(p, l, o) proc_obj2map((p), (o))
 #define	Plookup_by_addr proc_addr2sym
+#define	Pname_to_ctf(p, obj) NULL
 #define	Pname_to_map proc_name2map
 #define	Pobject_iter proc_iter_objs
+#define	Pobject_iter_resolved(p, f, arg) 1
 #define	Pobjname proc_objname
 #define	Pread proc_read
 #define	Prd_agent proc_rdagent
