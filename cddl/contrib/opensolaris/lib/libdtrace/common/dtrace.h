@@ -356,6 +356,12 @@ extern int dtrace_handle_setopt(dtrace_hdl_t *,
 #define	DTRACE_A_PERCPU		0x0001
 #define	DTRACE_A_KEEPDELTA	0x0002
 #define	DTRACE_A_ANONYMOUS	0x0004
+#define	DTRACE_A_TOTAL		0x0008
+#define	DTRACE_A_MINMAXBIN	0x0010
+#define	DTRACE_A_HASNEGATIVES	0x0020
+#define	DTRACE_A_HASPOSITIVES	0x0040
+
+#define	DTRACE_AGGZOOM_MAX		0.95	/* height of max bar */
 
 #define	DTRACE_AGGWALK_ERROR		-1	/* error while processing */
 #define	DTRACE_AGGWALK_NEXT		0	/* proceed to next element */
@@ -376,6 +382,10 @@ struct dtrace_aggdata {
 	caddr_t dtada_delta;			/* delta data, if available */
 	caddr_t *dtada_percpu;			/* per CPU data, if avail */
 	caddr_t *dtada_percpu_delta;		/* per CPU delta, if avail */
+	int64_t dtada_total;			/* per agg total, if avail */
+	uint16_t dtada_minbin;			/* minimum bin, if avail */
+	uint16_t dtada_maxbin;			/* maximum bin, if avail */
+	uint32_t dtada_flags;			/* flags */
 };
 
 typedef int dtrace_aggregate_f(const dtrace_aggdata_t *, void *);

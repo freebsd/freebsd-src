@@ -1031,7 +1031,14 @@ typedef struct dtrace_fmtdesc {
 #define	DTRACEOPT_AGGSORTPOS	25	/* agg. position to sort on */
 #define	DTRACEOPT_AGGSORTKEYPOS	26	/* agg. key position to sort on */
 #define	DTRACEOPT_TEMPORAL	27	/* temporally ordered output */
-#define	DTRACEOPT_MAX		28	/* number of options */
+#define	DTRACEOPT_AGGHIST	28	/* histogram aggregation output */
+#define	DTRACEOPT_AGGPACK	29	/* packed aggregation output */
+#define	DTRACEOPT_AGGZOOM	30	/* zoomed aggregation scaling */
+#define	DTRACEOPT_ZONE		31	/* zone in which to enable probes */
+#define	DTRACEOPT_MAX		32	/* number of options */
+ 
+ #define	DTRACEOPT_UNSET		(dtrace_optval_t)-2	/* unset option */
+ 
 
 #define	DTRACEOPT_UNSET		(dtrace_optval_t)-2	/* unset option */
 
