@@ -51,6 +51,8 @@ __FBSDID("$FreeBSD$");
  * o   The timestamp is seconds since 1/1/2000 12:00:00 AM UTC
  */
 
+#define	VHD_BLOCK_SIZE	4096	/* 2MB blocks */
+
 struct vhd_footer {
 	char		cookie[8];
 #define	VHD_COOKIE_MICROSOFT	"conectix"
@@ -114,10 +116,12 @@ struct vhd_dyn_header {
 _Static_assert(sizeof(struct vhd_dyn_header) == 1024, "Wrong size for header");
 
 static int
-vhd_resize(lba_t imgsz __unused)
+vhd_resize(lba_t imgsz)
 {
 
-	return (0);
+	/* Round to a multiple of the block size. */
+	imgsz = (imgsz + VHD_BLOCK_SIZE - 1) & ~(VHD_BLOCK_SIZE - 1);
+	return (image_set_size(imgsz));
 }
 
 static int
