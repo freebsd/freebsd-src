@@ -400,6 +400,26 @@ rss_getbucket(u_int hash)
 }
 
 /*
+ * Query the RSS layer bucket associated with the given
+ * entry in the RSS hash space.
+ *
+ * The RSS indirection table is 0 .. rss_buckets-1,
+ * covering the low 'rss_bits' of the total 128 slot
+ * RSS indirection table.  So just mask off rss_bits and
+ * return that.
+ *
+ * NIC drivers can then iterate over the 128 slot RSS
+ * indirection table and fetch which RSS bucket to
+ * map it to.  This will typically be a CPU queue
+ */
+u_int
+rss_get_indirection_to_bucket(u_int index)
+{
+
+	return (index & rss_mask);
+}
+
+/*
  * Query the RSS CPU associated with an RSS bucket.
  */
 u_int
