@@ -87,6 +87,7 @@ static VAR var[] = {
 	{"etimes", "ELAPSED", NULL, USER, elapseds, 0, CHAR, NULL, 0},
 	{"euid", "", "uid", 0, NULL, 0, CHAR, NULL, 0},
 	{"f", "F", NULL, 0, kvar, KOFF(ki_flag), INT, "x", 0},
+	{"fib", "FIB", NULL, 0, kvar, KOFF(ki_fibnum), INT, "d", 0},
 	{"flags", "", "f", 0, NULL, 0, CHAR, NULL, 0},
 	{"gid", "GID", NULL, 0, kvar, KOFF(ki_groups), UINT, UIDFMT, 0},
 	{"group", "GROUP", NULL, LJUST, egroupname, 0, CHAR, NULL, 0},
