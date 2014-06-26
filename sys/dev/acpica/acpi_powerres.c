@@ -92,9 +92,9 @@ struct acpi_powerresource {
 };
 
 static TAILQ_HEAD(acpi_powerresource_list, acpi_powerresource)
-	acpi_powerresources;
+    acpi_powerresources = TAILQ_HEAD_INITIALIZER(acpi_powerresources);
 static TAILQ_HEAD(acpi_powerconsumer_list, acpi_powerconsumer)
-	acpi_powerconsumers;
+    acpi_powerconsumers = TAILQ_HEAD_INITIALIZER(acpi_powerconsumers);
 ACPI_SERIAL_DECL(powerres, "ACPI power resources");
 
 static ACPI_STATUS	acpi_pwr_register_consumer(ACPI_HANDLE consumer);
@@ -114,15 +114,6 @@ static struct acpi_powerresource
 			*acpi_pwr_find_resource(ACPI_HANDLE res);
 static struct acpi_powerconsumer
 			*acpi_pwr_find_consumer(ACPI_HANDLE consumer);
-
-/* Initialise our lists. */    
-static void
-acpi_pwr_init(void *junk)
-{
-    TAILQ_INIT(&acpi_powerresources);
-    TAILQ_INIT(&acpi_powerconsumers);
-}
-SYSINIT(acpi_powerresource, SI_SUB_TUNABLES, SI_ORDER_ANY, acpi_pwr_init, NULL);
 
 /*
  * Register a power resource.
