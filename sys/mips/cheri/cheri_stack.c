@@ -223,6 +223,13 @@ cheri_sysarch_setstack(struct thread *td, struct sysarch_args *uap)
 	error = copyincap(uap->parms, &cs, sizeof(cs));
 	if (error)
 		return (error);
+
+	/*
+	 * Validate trusted-stack fields to prevent, for example, setting an
+	 * improper stack pointer.
+	 */
+	if (cs.cs_tsp < 0 || cs.cs_tsp > CHERI_STACK_SIZE)
+		return (EINVAL);
 	cheri_bcopy(&cs, &td->td_pcb->pcb_cheristack.cs_tsp, sizeof(cs));
 	return (0);
 }
