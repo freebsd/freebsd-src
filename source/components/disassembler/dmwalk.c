@@ -958,6 +958,13 @@ AcpiDmAscendingOp (
         }
 
         /*
+         * The parent Op is guaranteed to be valid because of the flag
+         * ACPI_PARSEOP_PARAMLIST -- which means that this op is part of
+         * a parameter list and thus has a valid parent.
+         */
+        ParentOp = Op->Common.Parent;
+
+        /*
          * Just completed a parameter node for something like "Buffer (param)".
          * Close the paren and open up the term list block with a brace
          */
@@ -965,25 +972,24 @@ AcpiDmAscendingOp (
         {
             AcpiOsPrintf (")");
 
-            /* Emit description comment for Name() with a predefined ACPI name */
-
-            ParentOp = Op->Common.Parent;
-            if (ParentOp)
+            /*
+             * Emit a description comment for a Name() operator that is a
+             * predefined ACPI name. Must check the grandparent.
+             */
+            ParentOp = ParentOp->Common.Parent;
+            if (ParentOp &&
+                (ParentOp->Asl.AmlOpcode == AML_NAME_OP))
             {
-                ParentOp = ParentOp->Common.Parent;
-                if (ParentOp && ParentOp->Asl.AmlOpcode == AML_NAME_OP)
-                {
-                    AcpiDmPredefinedDescription (ParentOp);
-                }
+                AcpiDmPredefinedDescription (ParentOp);
             }
+
             AcpiOsPrintf ("\n");
             AcpiDmIndent (Level - 1);
             AcpiOsPrintf ("{\n");
         }
         else
         {
-            Op->Common.Parent->Common.DisasmFlags |=
-                                    ACPI_PARSEOP_EMPTY_TERMLIST;
+            ParentOp->Common.DisasmFlags |= ACPI_PARSEOP_EMPTY_TERMLIST;
             AcpiOsPrintf (") {");
         }
     }

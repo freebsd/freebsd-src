@@ -105,7 +105,7 @@ NsDumpEntireNamespace (
 
     /* Open the binary AML file and read the entire table */
 
-    Status = AcpiDbReadTableFromFile (AmlFilename, &Table);
+    Status = AcpiUtReadTableFromFile (AmlFilename, &Table);
     if (ACPI_FAILURE (Status))
     {
         printf ("**** Could not get input table %s, %s\n", AmlFilename,
@@ -241,25 +241,29 @@ main (
 
 
     ACPI_DEBUG_INITIALIZE (); /* For debug version only */
-    printf (ACPI_COMMON_SIGNON (AN_UTILITY_NAME));
 
+    /* Init debug globals and ACPICA */
+
+    AcpiDbgLevel = ACPI_LV_TABLES;
+    AcpiDbgLayer = 0xFFFFFFFF;
+
+    Status = AcpiInitializeSubsystem ();
+    AE_CHECK_OK (AcpiInitializeSubsystem, Status);
+    if (ACPI_FAILURE (Status))
+    {
+        return (-1);
+    }
+
+    printf (ACPI_COMMON_SIGNON (AN_UTILITY_NAME));
     if (argc < 2)
     {
         usage ();
         return (0);
     }
 
-    /* Init globals and ACPICA */
-
-    AcpiDbgLevel = ACPI_NORMAL_DEFAULT | ACPI_LV_TABLES;
-    AcpiDbgLayer = 0xFFFFFFFF;
-
-    Status = AcpiInitializeSubsystem ();
-    AE_CHECK_OK (AcpiInitializeSubsystem, Status);
-
     /* Get the command line options */
 
-    while ((j = AcpiGetopt (argc, argv, AN_SUPPORTED_OPTIONS)) != EOF) switch(j)
+    while ((j = AcpiGetopt (argc, argv, AN_SUPPORTED_OPTIONS)) != ACPI_OPT_END) switch(j)
     {
     case 'v': /* -v: (Version): signon already emitted, just exit */
 

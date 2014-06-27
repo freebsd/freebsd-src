@@ -60,10 +60,6 @@ AeTableOverride (
     ACPI_TABLE_HEADER       *ExistingTable,
     ACPI_TABLE_HEADER       **NewTable);
 
-ACPI_PHYSICAL_ADDRESS
-AeLocalGetRootPointer (
-    void);
-
 /* User table (DSDT) */
 
 static ACPI_TABLE_HEADER        *DsdtToInstallOverride;
@@ -545,7 +541,7 @@ AeInstallTables (
 
 /******************************************************************************
  *
- * FUNCTION:    AeLocalGetRootPointer
+ * FUNCTION:    AcpiOsGetRootPointer
  *
  * PARAMETERS:  Flags       - not used
  *              Address     - Where the root pointer is returned
@@ -558,7 +554,7 @@ AeInstallTables (
  *****************************************************************************/
 
 ACPI_PHYSICAL_ADDRESS
-AeLocalGetRootPointer (
+AcpiOsGetRootPointer (
     void)
 {
 

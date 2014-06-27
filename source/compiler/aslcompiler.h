@@ -275,11 +275,6 @@ void
 ApCheckRegMethod (
     ACPI_PARSE_OBJECT       *Op);
 
-BOOLEAN
-ApFindNameInScope (
-    char                    *Name,
-    ACPI_PARSE_OBJECT       *Op);
-
 
 /*
  * aslerror - error handling/reporting
@@ -348,10 +343,6 @@ AePrintErrorLog (
 
 void
 AeClearErrorLog (
-    void);
-
-ACPI_PHYSICAL_ADDRESS
-AeLocalGetRootPointer (
     void);
 
 

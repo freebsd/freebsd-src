@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Name: accygwin.h - OS specific defines, etc. for cygwin environment
+ * Name: acenvex.h - Extra host and compiler configuration
  *
  *****************************************************************************/
 
@@ -41,65 +41,23 @@
  * POSSIBILITY OF SUCH DAMAGES.
  */
 
-#ifndef __ACCYGWIN_H__
-#define __ACCYGWIN_H__
+#ifndef __ACENVEX_H__
+#define __ACENVEX_H__
 
-/*
- * ACPICA configuration
- */
-#define ACPI_USE_SYSTEM_CLIBRARY
-#define ACPI_USE_DO_WHILE_0
-#define ACPI_FLUSH_CPU_CACHE()
+/*! [Begin] no source code translation */
 
-/*
- * This is needed since sem_timedwait does not appear to work properly
- * on cygwin (always hangs forever).
- */
-#define ACPI_USE_ALTERNATE_TIMEOUT
+/******************************************************************************
+ *
+ * Extra host configuration files. All ACPICA headers are included before
+ * including these files.
+ *
+ *****************************************************************************/
 
+#if defined(_LINUX) || defined(__linux__)
+#include "aclinuxex.h"
 
-#include <stdarg.h>
-#include <string.h>
-#include <stdlib.h>
-#include <ctype.h>
-#include <unistd.h>
-
-#if defined(__ia64__) || defined(__x86_64__)
-#define ACPI_MACHINE_WIDTH          64
-#define COMPILER_DEPENDENT_INT64    long
-#define COMPILER_DEPENDENT_UINT64   unsigned long
-#else
-#define ACPI_MACHINE_WIDTH          32
-#define COMPILER_DEPENDENT_INT64    long long
-#define COMPILER_DEPENDENT_UINT64   unsigned long long
-#define ACPI_USE_NATIVE_DIVIDE
 #endif
 
-#ifndef __cdecl
-#define __cdecl
-#endif
+/*! [End] no source code translation !*/
 
-#define ACPI_ACQUIRE_GLOBAL_LOCK(GLptr, Acq) if (GLptr) Acq=1; else Acq=0;
-#define ACPI_RELEASE_GLOBAL_LOCK(GLptr, Pending) Pending = 1
-
-/* On Cygwin, pthread_t is a pointer */
-
-#define ACPI_CAST_PTHREAD_T(pthread) ((ACPI_THREAD_ID) ACPI_TO_INTEGER (pthread))
-
-/* Cygwin uses GCC */
-
-#include "acgcc.h"
-
-
-/*
- * The vsnprintf/snprintf functions are defined by c99, but cygwin/gcc
- * does not enable this prototype when the -ansi flag is set. Also related
- * to __STRICT_ANSI__. So, we just declare the prototype here.
- */
-int
-vsnprintf (char *s, size_t n, const char *format, va_list ap);
-
-int
-snprintf (char *s, size_t n, const char *format, ...);
-
-#endif /* __ACCYGWIN_H__ */
+#endif /* __ACENVEX_H__ */

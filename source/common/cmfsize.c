@@ -59,33 +59,34 @@
  * RETURN:      File Size. On error, -1 (ACPI_UINT32_MAX)
  *
  * DESCRIPTION: Get the size of a file. Uses seek-to-EOF. File must be open.
- *              Does not disturb the current file pointer. Uses perror for
- *              error messages.
+ *              Does not disturb the current file pointer.
  *
  ******************************************************************************/
 
 UINT32
 CmGetFileSize (
-    FILE                    *File)
+    ACPI_FILE               File)
 {
     long                    FileSize;
     long                    CurrentOffset;
+    ACPI_STATUS             Status;
 
 
     /* Save the current file pointer, seek to EOF to obtain file size */
 
-    CurrentOffset = ftell (File);
+    CurrentOffset = AcpiOsGetFileOffset (File);
     if (CurrentOffset < 0)
     {
         goto OffsetError;
     }
 
-    if (fseek (File, 0, SEEK_END))
+    Status = AcpiOsSetFileOffset (File, 0, ACPI_FILE_END);
+    if (ACPI_FAILURE (Status))
     {
         goto SeekError;
     }
 
-    FileSize = ftell (File);
+    FileSize = AcpiOsGetFileOffset (File);
     if (FileSize < 0)
     {
         goto OffsetError;
@@ -93,7 +94,8 @@ CmGetFileSize (
 
     /* Restore original file pointer */
 
-    if (fseek (File, CurrentOffset, SEEK_SET))
+    Status = AcpiOsSetFileOffset (File, CurrentOffset, ACPI_FILE_BEGIN);
+    if (ACPI_FAILURE (Status))
     {
         goto SeekError;
     }
@@ -102,10 +104,10 @@ CmGetFileSize (
 
 
 OffsetError:
-    perror ("Could not get file offset");
+    AcpiLogError ("Could not get file offset");
     return (ACPI_UINT32_MAX);
 
 SeekError:
-    perror ("Could not seek file");
+    AcpiLogError ("Could not set file offset");
     return (ACPI_UINT32_MAX);
 }

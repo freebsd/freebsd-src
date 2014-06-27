@@ -98,8 +98,8 @@ DisplayUsage (
     ACPI_OPTION ("-s <signature>",      "Extract all tables with <signature>");
     ACPI_OPTION ("-v",                  "Display version information");
 
-    printf ("\nExtract binary ACPI tables from text acpidump output\n");
-    printf ("Default invocation extracts the DSDT and all SSDTs\n");
+    ACPI_USAGE_TEXT ("\nExtract binary ACPI tables from text acpidump output\n");
+    ACPI_USAGE_TEXT ("Default invocation extracts the DSDT and all SSDTs\n");
 }
 
 
@@ -122,6 +122,7 @@ main (
 
 
     ACPI_DEBUG_INITIALIZE (); /* For debug version only */
+    AcpiOsInitialize ();
     printf (ACPI_COMMON_SIGNON (AX_UTILITY_NAME));
 
     if (argc < 2)
@@ -132,7 +133,7 @@ main (
 
     /* Command line options */
 
-    while ((j = AcpiGetopt (argc, argv, AX_SUPPORTED_OPTIONS)) != EOF) switch (j)
+    while ((j = AcpiGetopt (argc, argv, AX_SUPPORTED_OPTIONS)) != ACPI_OPT_END) switch (j)
     {
     case 'a':
 

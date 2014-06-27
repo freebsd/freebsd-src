@@ -71,6 +71,8 @@ AcpiDmPldBuffer (
     UINT8                   *ByteData,
     UINT32                  ByteCount);
 
+#define ACPI_BUFFER_BYTES_PER_LINE      8
+
 
 /*******************************************************************************
  *
@@ -94,6 +96,9 @@ AcpiDmDisasmByteList (
     UINT32                  ByteCount)
 {
     UINT32                  i;
+    UINT32                  j;
+    UINT32                  CurrentIndex;
+    UINT8                   BufChar;
 
 
     if (!ByteCount)
@@ -101,39 +106,68 @@ AcpiDmDisasmByteList (
         return;
     }
 
-    /* Dump the byte list */
-
-    for (i = 0; i < ByteCount; i++)
+    for (i = 0; i < ByteCount; i += ACPI_BUFFER_BYTES_PER_LINE)
     {
-        /* New line every 8 bytes */
+        /* Line indent and offset prefix for each new line */
 
-        if (((i % 8) == 0) && (i < ByteCount))
+        AcpiDmIndent (Level);
+        if (ByteCount > ACPI_BUFFER_BYTES_PER_LINE)
         {
-            if (i > 0)
+            AcpiOsPrintf ("/* %04X */ ", i);
+        }
+
+        /* Dump the actual hex values */
+
+        for (j = 0; j < ACPI_BUFFER_BYTES_PER_LINE; j++)
+        {
+            CurrentIndex = i + j;
+            if (CurrentIndex >= ByteCount)
             {
-                AcpiOsPrintf ("\n");
+                /* Dump fill spaces */
+
+                AcpiOsPrintf ("      ");
+                continue;
             }
 
-            AcpiDmIndent (Level);
-            if (ByteCount > 8)
+            AcpiOsPrintf (" 0x%2.2X", ByteData[CurrentIndex]);
+
+            /* Add comma if there are more bytes to display */
+
+            if (CurrentIndex < (ByteCount - 1))
             {
-                AcpiOsPrintf ("/* %04X */  ", i);
+                AcpiOsPrintf (",");
+            }
+            else
+            {
+                AcpiOsPrintf (" ");
             }
         }
 
-        AcpiOsPrintf (" 0x%2.2X", (UINT32) ByteData[i]);
+        /* Dump the ASCII equivalents within a comment */
 
-        /* Add comma if there are more bytes to display */
-
-        if (i < (ByteCount -1))
+        AcpiOsPrintf ("  /* ");
+        for (j = 0; j < ACPI_BUFFER_BYTES_PER_LINE; j++)
         {
-            AcpiOsPrintf (",");
-        }
-    }
+            CurrentIndex = i + j;
+            if (CurrentIndex >= ByteCount)
+            {
+                break;
+            }
 
-    if (Level)
-    {
-        AcpiOsPrintf ("\n");
+            BufChar = ByteData[CurrentIndex];
+            if (ACPI_IS_PRINT (BufChar))
+            {
+                AcpiOsPrintf ("%c", BufChar);
+            }
+            else
+            {
+                AcpiOsPrintf (".");
+            }
+        }
+
+        /* Finished with this line */
+
+        AcpiOsPrintf (" */\n");
     }
 }
 
