@@ -215,7 +215,7 @@ static void
 vt_update_static(void *dummy)
 {
 
-	if (getenv("kern.vt.disable"))
+	if (!vty_enabled(VTY_VT))
 		return;
 	if (main_vd->vd_driver != NULL)
 		printf("VT: running with driver \"%s\".\n",
@@ -959,7 +959,7 @@ vtterm_cnprobe(struct terminal *tm, struct consdev *cp)
 	struct vt_device *vd = vw->vw_device;
 	struct winsize wsz;
 
-	if (getenv("kern.vt.disable"))
+	if (!vty_enabled(VTY_VT))
 		return;
 
 	if (vd->vd_flags & VDF_INITIALIZED)
@@ -1996,7 +1996,7 @@ vt_upgrade(struct vt_device *vd)
 	struct vt_window *vw;
 	unsigned int i;
 
-	if (getenv("kern.vt.disable"))
+	if (!vty_enabled(VTY_VT))
 		return;
 
 	for (i = 0; i < VT_MAXWINDOWS; i++) {
@@ -2064,7 +2064,7 @@ vt_allocate(struct vt_driver *drv, void *softc)
 	struct vt_device *vd;
 	struct winsize wsz;
 
-	if (getenv("kern.vt.disable"))
+	if (!vty_enabled(VTY_VT))
 		return;
 
 	if (main_vd->vd_driver == NULL) {
