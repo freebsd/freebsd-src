@@ -929,14 +929,19 @@ axge_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 static int
 axge_rx_frame(struct usb_ether *ue, struct usb_page_cache *pc, int actlen)
 {
-	int error, pos;
+	int error;
+	int pos;
 	int pkt_cnt;
-	uint32_t rxhdr, pkt_hdr;
-	uint16_t hdr_off;
-	uint16_t len, pktlen; 
+	uint32_t rxhdr;
+	uint32_t pkt_hdr;
+	uint32_t hdr_off;
+	uint32_t pktlen; 
+
+	/* verify we have enough data */
+	if (actlen < (int)sizeof(rxhdr))
+		return (EINVAL);
 
 	pos = 0;
-	len = 0;
 	error = 0;
 
 	usbd_copy_out(pc, actlen - sizeof(rxhdr), &rxhdr, sizeof(rxhdr));
@@ -945,25 +950,29 @@ axge_rx_frame(struct usb_ether *ue, struct usb_page_cache *pc, int actlen)
 	pkt_cnt = (uint16_t)rxhdr;
 	hdr_off = (uint16_t)(rxhdr >> 16);
 
-	usbd_copy_out(pc, hdr_off, &pkt_hdr, sizeof(pkt_hdr));
-
 	while (pkt_cnt > 0) {
-		if ((int)(sizeof(pkt_hdr)) > actlen) {
+		/* verify the header offset */
+		if ((int)(hdr_off + sizeof(pkt_hdr)) > actlen) {
 			error = EINVAL;
 			break;
 		}
+		usbd_copy_out(pc, hdr_off, &pkt_hdr, sizeof(pkt_hdr));
+
 		pkt_hdr = le32toh(pkt_hdr);
 		pktlen = (pkt_hdr >> 16) & 0x1fff;
 		if ((pkt_hdr & AXGE_RXHDR_CRC_ERR) ||
 		    (pkt_hdr & AXGE_RXHDR_DROP_ERR))
 			ue->ue_ifp->if_ierrors++;
+		/* verify the data payload */
+		if (pktlen < 6 || (int)(pos + 2 + pktlen - 6) > actlen) {
+			error = EINVAL;
+			break;
+		}
 		axge_rxeof(ue, pc, pos + 2, pktlen - 6, pkt_hdr);
-		len = (pktlen + 7) & ~7;
-		pos += len;
-		pkt_hdr++;
+		pos += (pktlen + 7) & ~7;
+		hdr_off += sizeof(pkt_hdr);
 		pkt_cnt--;
 	}
-
 	if (error != 0)
 		ue->ue_ifp->if_ierrors++;
 	return (error);
