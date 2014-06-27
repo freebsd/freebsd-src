@@ -355,6 +355,10 @@ static const struct cheri_test {
 	{ .ct_name = "revoke_fd",
 	  .ct_desc = "Exercise revoke_c() on a cheri_fd",
 	  .ct_func = cheritest_revoke_fd },
+
+	{ .ct_name = "libcheri_userfn",
+	  .ct_desc = "Exercise user-defined system-class method",
+	  .ct_func = cheritest_libcheri_userfn },
 };
 static const u_int cheri_tests_len = sizeof(cheri_tests) /
 	    sizeof(cheri_tests[0]);

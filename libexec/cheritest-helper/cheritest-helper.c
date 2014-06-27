@@ -35,6 +35,7 @@
 #include <machine/cheri.h>
 #include <machine/cheric.h>
 
+#include <cheri/cheri_enter.h>
 #include <cheri/cheri_fd.h>
 #include <cheri/cheri_invoke.h>
 #include <cheri/cheri_memcpy.h>
@@ -235,6 +236,14 @@ invoke_clock_gettime(void)
 	return (0);
 }
 
+static int
+invoke_libcheri_userfn(size_t len, struct cheri_object system_object)
+{
+
+	return (cheri_invoke(system_object, CHERI_SYSTEM_USER_BASE, len, 0, 0,
+	    0, 0, 0, 0, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL));
+}
+
 /*
  * Sample sandboxed code.  Calculate an MD5 checksum of the data arriving via
  * c3, and place the checksum in c4.  a0 will hold input data length.  a1
@@ -312,6 +321,8 @@ invoke(register_t op, size_t len, struct cheri_object system_object,
 	case CHERITEST_HELPER_OP_CS_CLOCK_GETTIME:
 		return (invoke_clock_gettime());
 
+	case CHERITEST_HELPER_LIBCHERI_USERFN:
+		return (invoke_libcheri_userfn(len, system_object));
 	}
 	return (-1);
 }

@@ -43,6 +43,7 @@
 #include <machine/cheric.h>
 #include <machine/cpuregs.h>
 
+#include <cheri/cheri_enter.h>
 #include <cheri/cheri_fd.h>
 #include <cheri/sandbox.h>
 
@@ -184,6 +185,45 @@ cheritest_invoke_md5(void)
 	cheritest_success();
 }
 
+static register_t cheritest_libcheri_userfn_handler(register_t, register_t,
+    register_t, register_t, register_t, register_t, register_t, register_t,
+    struct cheri_object, __capability void *, __capability void *,
+    __capability void *, __capability void *, __capability void *)
+    __attribute__((cheri_ccall));
+
+static register_t
+cheritest_libcheri_userfn_handler(register_t methodnum __unused, register_t i,
+    register_t a2 __unused, register_t a3 __unused,
+    register_t a4 __unused, register_t a5 __unused, register_t a6 __unused,
+    register_t a7 __unused, struct cheri_object system_object __unused,
+    __capability void *c3 __unused, __capability void *c4 __unused,
+    __capability void *c5 __unused, __capability void *c6 __unused,
+    __capability void *c7 __unused)
+{
+
+	printf("%s: method %ld, value %ld\n", __func__, methodnum, i);
+	return (i);
+}
+
+void
+cheritest_libcheri_userfn(void)
+{
+	__capability void *cclear;
+	register_t i, v;
+
+	for (i = 0; i < 10; i++) {
+		v = sandbox_object_cinvoke(cheritest_objectp,
+		    CHERITEST_HELPER_LIBCHERI_USERFN, i, 0, 0, 0, 0, 0, 0,
+		   sandbox_object_getsystemobject(cheritest_objectp).co_codecap,
+		   sandbox_object_getsystemobject(cheritest_objectp).co_datacap,
+		    cclear, cclear, cclear, cclear, cclear, cclear);
+		if (v != i)
+			cheritest_failure_errx("Incorrect return value "
+			    "0x%lx (expected 0xlx)\n", v, i);
+	}
+	cheritest_success();
+}
+
 int
 cheritest_libcheri_setup(void)
 {
@@ -238,6 +278,9 @@ cheritest_libcheri_setup(void)
 	    CHERITEST_HELPER_OP_MALLOC, "malloc");
 	(void)sandbox_class_method_declare(cheritest_classp,
 	    CHERITEST_HELPER_OP_CS_CLOCK_GETTIME, "clock_gettime");
+
+	cheri_system_user_register_fn(&cheritest_libcheri_userfn_handler);
+
 	return (0);
 }
 

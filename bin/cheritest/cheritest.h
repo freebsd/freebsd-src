@@ -126,6 +126,7 @@ void	cheritest_revoke_fd(void);
 void	cheritest_invoke_simple_op(int op);
 void	cheritest_invoke_syscall(void);
 void	cheritest_invoke_md5(void);
+void	cheritest_libcheri_userfn(void);
 int	cheritest_libcheri_setup(void);
 void	cheritest_libcheri_destroy(void);
 
