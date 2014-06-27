@@ -21,7 +21,8 @@ PROG = $(OBJDIR)/acpihelp
 vpath %.c \
     $(ACPIHELP)\
     $(ACPICA_COMMON)\
-    $(ACPICA_UTILITIES)
+    $(ACPICA_UTILITIES)\
+    $(ACPICA_OSL)
 
 HEADERS = \
     $(wildcard $(ACPIHELP)/*.h)
@@ -35,8 +36,14 @@ OBJECTS = \
 	$(OBJDIR)/ahpredef.o\
 	$(OBJDIR)/ahmain.o\
 	$(OBJDIR)/getopt.o\
+	$(OBJDIR)/oslibcfs.o\
+	$(OBJDIR)/osunixxf.o\
+	$(OBJDIR)/utdebug.o\
 	$(OBJDIR)/utexcep.o\
-	$(OBJDIR)/utpredef.o
+	$(OBJDIR)/utglobal.o\
+	$(OBJDIR)/utmath.o\
+	$(OBJDIR)/utpredef.o\
+	$(OBJDIR)/utprint.o
 
 #
 # Flags specific to acpihelp

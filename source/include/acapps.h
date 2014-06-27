@@ -84,10 +84,13 @@
 /* Macros for usage messages */
 
 #define ACPI_USAGE_HEADER(Usage) \
-    printf ("Usage: %s\nOptions:\n", Usage);
+    AcpiOsPrintf ("Usage: %s\nOptions:\n", Usage);
+
+#define ACPI_USAGE_TEXT(Description) \
+    AcpiOsPrintf (Description);
 
 #define ACPI_OPTION(Name, Description) \
-    printf ("  %-18s%s\n", Name, Description);
+    AcpiOsPrintf ("  %-18s%s\n", Name, Description);
 
 
 #define FILE_SUFFIX_DISASSEMBLY     "dsl"
@@ -119,7 +122,7 @@ extern char                 *AcpiGbl_Optarg;
  */
 UINT32
 CmGetFileSize (
-    FILE                    *File);
+    ACPI_FILE               File);
 
 
 #ifndef ACPI_DUMP_APP

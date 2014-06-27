@@ -217,7 +217,6 @@ const AH_PREDEFINED_NAME    AslPredefinedInfo[] =
     AH_PREDEF ("_PR3",    "Power Resources for D3hot", "Returns a list of dependent power resources to enter state D3hot"),
     AH_PREDEF ("_PRE",    "Power Resources for Enumeration", "Returns a list of dependent power resources to enumerate devices on a bus"),
     AH_PREDEF ("_PRL",    "Power Source Redundancy List", "Returns a list of power source devices in the same redundancy grouping"),
-    AH_PREDEF ("_PRP",    "Device Properties", "Returns a list of device property information"),
     AH_PREDEF ("_PRS",    "Possible Resource Settings", "Returns a list of a device's possible resource settings"),
     AH_PREDEF ("_PRT",    "PCI Routing Table", "Returns a list of PCI interrupt mappings"),
     AH_PREDEF ("_PRW",    "Power Resources for Wake", "Returns a list of dependent power resources for waking"),

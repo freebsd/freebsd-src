@@ -127,6 +127,7 @@
 typedef unsigned char                   BOOLEAN;
 typedef unsigned char                   UINT8;
 typedef unsigned short                  UINT16;
+typedef short                           INT16;
 typedef COMPILER_DEPENDENT_UINT64       UINT64;
 typedef COMPILER_DEPENDENT_INT64        INT64;
 
@@ -1334,6 +1335,21 @@ typedef struct acpi_memory_list
 #define ACPI_OSI_WIN_VISTA_SP2          0x0A
 #define ACPI_OSI_WIN_7                  0x0B
 #define ACPI_OSI_WIN_8                  0x0C
+
+
+/* Definitions of file IO */
+
+#define ACPI_FILE_READING               0x01
+#define ACPI_FILE_WRITING               0x02
+#define ACPI_FILE_BINARY                0x04
+
+#define ACPI_FILE_BEGIN                 0x01
+#define ACPI_FILE_END                   0x02
+
+
+/* Definitions of getopt */
+
+#define ACPI_OPT_END                    -1
 
 
 #endif /* __ACTYPES_H__ */

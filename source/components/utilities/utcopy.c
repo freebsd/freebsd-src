@@ -1063,5 +1063,12 @@ AcpiUtCopyIobjectToIobject (
         Status = AcpiUtCopySimpleObject (SourceDesc, *DestDesc);
     }
 
+    /* Delete the allocated object if copy failed */
+
+    if (ACPI_FAILURE (Status))
+    {
+        AcpiUtRemoveReference(*DestDesc);
+    }
+
     return_ACPI_STATUS (Status);
 }

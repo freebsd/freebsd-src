@@ -48,10 +48,6 @@
 
 /* Local prototypes */
 
-ACPI_PHYSICAL_ADDRESS
-AeLocalGetRootPointer (
-    void);
-
 /* Non-AML tables that are constructed locally and installed */
 
 static ACPI_TABLE_RSDP          LocalRSDP;
@@ -284,7 +280,7 @@ AeBuildLocalTables (
 
 /******************************************************************************
  *
- * FUNCTION:    AeLocalGetRootPointer
+ * FUNCTION:    AcpiOsGetRootPointer
  *
  * PARAMETERS:  None
  *
@@ -296,7 +292,7 @@ AeBuildLocalTables (
  *****************************************************************************/
 
 ACPI_PHYSICAL_ADDRESS
-AeLocalGetRootPointer (
+AcpiOsGetRootPointer (
     void)
 {
 

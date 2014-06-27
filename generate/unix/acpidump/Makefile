@@ -33,13 +33,18 @@ OBJECTS = \
 	$(OBJDIR)/apmain.o\
 	$(OBJDIR)/cmfsize.o\
 	$(OBJDIR)/getopt.o\
+	$(OBJDIR)/oslibcfs.o\
 	$(OBJDIR)/osunixdir.o\
 	$(OBJDIR)/osunixmap.o\
+	$(OBJDIR)/osunixxf.o\
 	$(OBJDIR)/tbprint.o\
 	$(OBJDIR)/tbxfroot.o\
 	$(OBJDIR)/utbuffer.o\
+	$(OBJDIR)/utdebug.o\
 	$(OBJDIR)/utexcep.o\
+	$(OBJDIR)/utglobal.o\
 	$(OBJDIR)/utmath.o\
+	$(OBJDIR)/utprint.o\
 	$(OBJDIR)/utstring.o\
 	$(OBJDIR)/utxferror.o
 

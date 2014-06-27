@@ -341,6 +341,7 @@ main (
         return (-1);
     }
 
+    AcpiOsInitialize ();
     ACPI_DEBUG_INITIALIZE (); /* For debug version only */
 
     /* Initialize preprocessor and compiler before command line processing */

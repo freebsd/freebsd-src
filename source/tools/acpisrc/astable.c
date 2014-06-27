@@ -253,6 +253,9 @@ ACPI_TYPED_IDENTIFIER_TABLE           AcpiIdentifiers[] = {
     {"ACPI_INTERPRETER_MODE",               SRC_TYPE_SIMPLE},
     {"ACPI_IO_ADDRESS",                     SRC_TYPE_SIMPLE},
     {"ACPI_IO_ATTRIBUTE",                   SRC_TYPE_STRUCT},
+    {"ACPI_LPIT_HEADER",                    SRC_TYPE_STRUCT},
+    {"ACPI_LPIT_IO",                        SRC_TYPE_STRUCT},
+    {"ACPI_LPIT_NATIVE",                    SRC_TYPE_STRUCT},
     {"ACPI_MEM_SPACE_CONTEXT",              SRC_TYPE_STRUCT},
     {"ACPI_MEMORY_ATTRIBUTE",               SRC_TYPE_STRUCT},
     {"ACPI_MEMORY_LIST",                    SRC_TYPE_STRUCT},
@@ -400,6 +403,7 @@ ACPI_TYPED_IDENTIFIER_TABLE           AcpiIdentifiers[] = {
     {"ACPI_TABLE_HEADER",                   SRC_TYPE_STRUCT},
     {"ACPI_TABLE_INFO",                     SRC_TYPE_STRUCT},
     {"ACPI_TABLE_LIST",                     SRC_TYPE_STRUCT},
+    {"ACPI_TABLE_LPIT",                     SRC_TYPE_STRUCT},
     {"ACPI_TABLE_MTMR",                     SRC_TYPE_STRUCT},
     {"ACPI_TABLE_SUPPORT",                  SRC_TYPE_STRUCT},
     {"ACPI_TABLE_TYPE",                     SRC_TYPE_SIMPLE},
@@ -720,8 +724,10 @@ ACPI_STRING_TABLE           LinuxSpecialStrings[] = {
     {"\"actbl3.h\"",            "<acpi/actbl3.h>",              REPLACE_WHOLE_WORD},
     {"\"actypes.h\"",           "<acpi/actypes.h>",             REPLACE_WHOLE_WORD},
     {"\"platform/acenv.h\"",    "<acpi/platform/acenv.h>",      REPLACE_WHOLE_WORD},
+    {"\"platform/acenvex.h\"",  "<acpi/platform/acenvex.h>",    REPLACE_WHOLE_WORD},
     {"\"acgcc.h\"",             "<acpi/platform/acgcc.h>",      REPLACE_WHOLE_WORD},
     {"\"aclinux.h\"",           "<acpi/platform/aclinux.h>",    REPLACE_WHOLE_WORD},
+    {"\"aclinuxex.h\"",         "<acpi/platform/aclinuxex.h>",  REPLACE_WHOLE_WORD},
 
     {NULL,                      NULL,               0}
 };

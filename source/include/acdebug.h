@@ -377,11 +377,6 @@ AcpiDbGetTableFromFile (
     char                    *Filename,
     ACPI_TABLE_HEADER       **Table);
 
-ACPI_STATUS
-AcpiDbReadTableFromFile (
-    char                    *Filename,
-    ACPI_TABLE_HEADER       **Table);
-
 
 /*
  * dbhistry - debugger HISTORY command

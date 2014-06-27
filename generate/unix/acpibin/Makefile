@@ -34,6 +34,7 @@ OBJECTS = \
 	$(OBJDIR)/utalloc.o\
 	$(OBJDIR)/utbuffer.o\
 	$(OBJDIR)/utcache.o\
+	$(OBJDIR)/utdebug.o\
 	$(OBJDIR)/utdecode.o\
 	$(OBJDIR)/utexcep.o\
 	$(OBJDIR)/utglobal.o\
@@ -41,9 +42,11 @@ OBJECTS = \
 	$(OBJDIR)/utmath.o\
 	$(OBJDIR)/utmisc.o\
 	$(OBJDIR)/utmutex.o\
+	$(OBJDIR)/utprint.o\
 	$(OBJDIR)/utstate.o\
 	$(OBJDIR)/utstring.o\
 	$(OBJDIR)/utxferror.o\
+	$(OBJDIR)/oslibcfs.o\
 	$(OBJDIR)/osunixxf.o
 
 #

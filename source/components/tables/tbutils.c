@@ -427,10 +427,6 @@ NextTable:
         TableEntry += TableEntrySize;
     }
 
-    /*
-     * It is not possible to map more than one entry in some environments,
-     * so unmap the root table here before mapping other tables
-     */
     AcpiOsUnmapMemory (Table, Length);
 
     return_ACPI_STATUS (AE_OK);

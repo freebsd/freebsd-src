@@ -297,7 +297,7 @@ AsDisplayUsage (
     ACPI_OPTION ("-l",          "Generate Linux version of the source");
     ACPI_OPTION ("-u",          "Generate Custom source translation");
 
-    printf ("\n");
+    ACPI_USAGE_TEXT ("\n");
     ACPI_OPTION ("-d",          "Leave debug statements in code");
     ACPI_OPTION ("-s",          "Generate source statistics only");
     ACPI_OPTION ("-v",          "Display version information");
@@ -327,6 +327,7 @@ main (
 
 
     ACPI_DEBUG_INITIALIZE (); /* For debug version only */
+    AcpiOsInitialize ();
     printf (ACPI_COMMON_SIGNON (AS_UTILITY_NAME));
 
     if (argc < 2)
@@ -337,7 +338,7 @@ main (
 
     /* Command line options */
 
-    while ((j = AcpiGetopt (argc, argv, AS_SUPPORTED_OPTIONS)) != EOF) switch(j)
+    while ((j = AcpiGetopt (argc, argv, AS_SUPPORTED_OPTIONS)) != ACPI_OPT_END) switch(j)
     {
     case 'l':
 

@@ -235,7 +235,6 @@ typedef enum
     ASL_MSG_WRITE,
     ASL_MSG_RANGE,
     ASL_MSG_BUFFER_ALLOCATION,
-    ASL_MSG_MISSING_DEPENDENCY,
 
     /* These messages are used by the Data Table compiler only */
 

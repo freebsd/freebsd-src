@@ -265,6 +265,17 @@ AcpiNsDetachObject (
         }
     }
 
+    /*
+     * Detach the object from any data objects (which are still held by
+     * the namespace node)
+     */
+
+    if (ObjDesc->Common.NextObject &&
+       ((ObjDesc->Common.NextObject)->Common.Type == ACPI_TYPE_LOCAL_DATA))
+    {
+       ObjDesc->Common.NextObject = NULL;
+    }
+
     /* Reset the node type to untyped */
 
     Node->Type = ACPI_TYPE_ANY;

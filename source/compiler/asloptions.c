@@ -168,7 +168,7 @@ AslDoOptions (
 
     /* Get the command line options */
 
-    while ((j = AcpiGetopt (argc, argv, ASL_SUPPORTED_OPTIONS)) != EOF) switch (j)
+    while ((j = AcpiGetopt (argc, argv, ASL_SUPPORTED_OPTIONS)) != ACPI_OPT_END) switch (j)
     {
     case '@':   /* Begin a response file */
 
