@@ -405,7 +405,7 @@ static void
 sysmouse_drvinit(void *unused)
 {
 
-	if (getenv("kern.vt.disable"))
+	if (!vty_enabled(VTY_VT))
 		return;
 	mtx_init(&sysmouse_lock, "sysmouse", NULL, MTX_DEF);
 	cv_init(&sysmouse_sleep, "sysmrd");
