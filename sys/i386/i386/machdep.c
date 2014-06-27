@@ -2387,7 +2387,7 @@ physmap_done:
 	phys_avail[pa_indx++] = physmap[0];
 	phys_avail[pa_indx] = physmap[0];
 	dump_avail[da_indx] = physmap[0];
-	pte = CMAP1;
+	pte = CMAP3;
 
 	/*
 	 * Get dcons buffer address
@@ -2409,7 +2409,7 @@ physmap_done:
 			end = trunc_page(physmap[i + 1]);
 		for (pa = round_page(physmap[i]); pa < end; pa += PAGE_SIZE) {
 			int tmp, page_bad, full;
-			int *ptr = (int *)CADDR1;
+			int *ptr = (int *)CADDR3;
 
 			full = FALSE;
 			/*
