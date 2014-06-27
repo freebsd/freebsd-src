@@ -940,6 +940,15 @@ vm_map_entry_link(vm_map_t map,
 	    "vm_map_entry_link: map %p, nentries %d, entry %p, after %p", map,
 	    map->nentries, entry, after_where);
 	VM_MAP_ASSERT_LOCKED(map);
+	KASSERT(after_where == &map->header ||
+	    after_where->end <= entry->start,
+	    ("vm_map_entry_link: prev end %jx new start %jx overlap",
+	    (uintmax_t)after_where->end, (uintmax_t)entry->start));
+	KASSERT(after_where->next == &map->header ||
+	    entry->end <= after_where->next->start,
+	    ("vm_map_entry_link: new end %jx next start %jx overlap",
+	    (uintmax_t)entry->end, (uintmax_t)after_where->next->start));
+
 	map->nentries++;
 	entry->prev = after_where;
 	entry->next = after_where->next;
