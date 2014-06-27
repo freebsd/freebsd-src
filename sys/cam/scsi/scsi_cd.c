@@ -277,12 +277,15 @@ static int cd_retry_count = CD_DEFAULT_RETRY;
 static int cd_timeout = CD_DEFAULT_TIMEOUT;
 
 static SYSCTL_NODE(_kern_cam, OID_AUTO, cd, CTLFLAG_RD, 0, "CAM CDROM driver");
-SYSCTL_INT(_kern_cam_cd, OID_AUTO, poll_period, CTLFLAG_RWTUN,
+SYSCTL_INT(_kern_cam_cd, OID_AUTO, poll_period, CTLFLAG_RW,
            &cd_poll_period, 0, "Media polling period in seconds");
-SYSCTL_INT(_kern_cam_cd, OID_AUTO, retry_count, CTLFLAG_RWTUN,
+TUNABLE_INT("kern.cam.cd.poll_period", &cd_poll_period);
+SYSCTL_INT(_kern_cam_cd, OID_AUTO, retry_count, CTLFLAG_RW,
            &cd_retry_count, 0, "Normal I/O retry count");
-SYSCTL_INT(_kern_cam_cd, OID_AUTO, timeout, CTLFLAG_RWTUN,
+TUNABLE_INT("kern.cam.cd.retry_count", &cd_retry_count);
+SYSCTL_INT(_kern_cam_cd, OID_AUTO, timeout, CTLFLAG_RW,
 	   &cd_timeout, 0, "Timeout, in us, for read operations");
+TUNABLE_INT("kern.cam.cd.timeout", &cd_timeout);
 
 static MALLOC_DEFINE(M_SCSICD, "scsi_cd", "scsi_cd buffers");
 

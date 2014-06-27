@@ -50,7 +50,8 @@ __FBSDID("$FreeBSD$");
 CTASSERT(sizeof(struct kerneldumpheader) == 512);
 
 int do_minidump = 1;
-SYSCTL_INT(_debug, OID_AUTO, minidump, CTLFLAG_RWTUN, &do_minidump, 0,
+TUNABLE_INT("debug.minidump", &do_minidump);
+SYSCTL_INT(_debug, OID_AUTO, minidump, CTLFLAG_RW, &do_minidump, 0,
     "Enable mini crash dumps");
 
 /*

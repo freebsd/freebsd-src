@@ -136,7 +136,8 @@ SYSCTL_INT(_kern_sigqueue, OID_AUTO, max_pending_per_proc, CTLFLAG_RW,
     &max_pending_per_proc, 0, "Max pending signals per proc");
 
 static int	preallocate_siginfo = 1024;
-SYSCTL_INT(_kern_sigqueue, OID_AUTO, preallocate, CTLFLAG_RDTUN,
+TUNABLE_INT("kern.sigqueue.preallocate", &preallocate_siginfo);
+SYSCTL_INT(_kern_sigqueue, OID_AUTO, preallocate, CTLFLAG_RD,
     &preallocate_siginfo, 0, "Preallocated signal memory size");
 
 static int	signal_overflow = 0;
@@ -162,11 +163,13 @@ SYSINIT(signal, SI_SUB_P1003_1B, SI_ORDER_FIRST+3, sigqueue_start, NULL);
 	    (cr1)->cr_uid == (cr2)->cr_uid)
 
 static int	sugid_coredump;
-SYSCTL_INT(_kern, OID_AUTO, sugid_coredump, CTLFLAG_RWTUN,
+TUNABLE_INT("kern.sugid_coredump", &sugid_coredump);
+SYSCTL_INT(_kern, OID_AUTO, sugid_coredump, CTLFLAG_RW,
     &sugid_coredump, 0, "Allow setuid and setgid processes to dump core");
 
 static int	capmode_coredump;
-SYSCTL_INT(_kern, OID_AUTO, capmode_coredump, CTLFLAG_RWTUN,
+TUNABLE_INT("kern.capmode_coredump", &capmode_coredump);
+SYSCTL_INT(_kern, OID_AUTO, capmode_coredump, CTLFLAG_RW,
     &capmode_coredump, 0, "Allow processes in capability mode to dump core");
 
 static int	do_coredump = 1;
@@ -3049,7 +3052,8 @@ SYSCTL_INT(_kern, OID_AUTO, compress_user_cores_gzlevel, CTLFLAG_RW,
 #endif
 
 static char corefilename[MAXPATHLEN] = {"%N.core"};
-SYSCTL_STRING(_kern, OID_AUTO, corefile, CTLFLAG_RWTUN, corefilename,
+TUNABLE_STR("kern.corefile", corefilename, sizeof(corefilename));
+SYSCTL_STRING(_kern, OID_AUTO, corefile, CTLFLAG_RW, corefilename,
     sizeof(corefilename), "Process corefile name format string");
 
 /*

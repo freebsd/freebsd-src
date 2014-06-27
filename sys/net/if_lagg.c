@@ -180,11 +180,13 @@ SYSCTL_INT(_net_link_lagg, OID_AUTO, failover_rx_all, CTLFLAG_RW,
     &lagg_failover_rx_all, 0,
     "Accept input from any interface in a failover lagg");
 static int def_use_flowid = 1; /* Default value for using M_FLOWID */
-SYSCTL_INT(_net_link_lagg, OID_AUTO, default_use_flowid, CTLFLAG_RWTUN,
+TUNABLE_INT("net.link.lagg.default_use_flowid", &def_use_flowid);
+SYSCTL_INT(_net_link_lagg, OID_AUTO, default_use_flowid, CTLFLAG_RW,
     &def_use_flowid, 0,
     "Default setting for using flow id for load sharing");
 static int def_flowid_shift = 16; /* Default value for using M_FLOWID */
-SYSCTL_INT(_net_link_lagg, OID_AUTO, default_flowid_shift, CTLFLAG_RWTUN,
+TUNABLE_INT("net.link.lagg.default_flowid_shift", &def_flowid_shift);
+SYSCTL_INT(_net_link_lagg, OID_AUTO, default_flowid_shift, CTLFLAG_RW,
     &def_flowid_shift, 0,
     "Default setting for flowid shift for load sharing");
 

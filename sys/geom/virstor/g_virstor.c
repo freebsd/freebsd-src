@@ -84,16 +84,20 @@ static SYSCTL_NODE(_kern_geom, OID_AUTO, virstor, CTLFLAG_RW, 0,
     "GEOM_GVIRSTOR information");
 
 static u_int g_virstor_debug = 2; /* XXX: lower to 2 when released to public */
-SYSCTL_UINT(_kern_geom_virstor, OID_AUTO, debug, CTLFLAG_RWTUN, &g_virstor_debug,
+TUNABLE_INT("kern.geom.virstor.debug", &g_virstor_debug);
+SYSCTL_UINT(_kern_geom_virstor, OID_AUTO, debug, CTLFLAG_RW, &g_virstor_debug,
     0, "Debug level (2=production, 5=normal, 15=excessive)");
 
 static u_int g_virstor_chunk_watermark = 100;
-SYSCTL_UINT(_kern_geom_virstor, OID_AUTO, chunk_watermark, CTLFLAG_RWTUN,
+TUNABLE_INT("kern.geom.virstor.chunk_watermark", &g_virstor_chunk_watermark);
+SYSCTL_UINT(_kern_geom_virstor, OID_AUTO, chunk_watermark, CTLFLAG_RW,
     &g_virstor_chunk_watermark, 0,
     "Minimum number of free chunks before issuing administrative warning");
 
 static u_int g_virstor_component_watermark = 1;
-SYSCTL_UINT(_kern_geom_virstor, OID_AUTO, component_watermark, CTLFLAG_RWTUN,
+TUNABLE_INT("kern.geom.virstor.component_watermark",
+    &g_virstor_component_watermark);
+SYSCTL_UINT(_kern_geom_virstor, OID_AUTO, component_watermark, CTLFLAG_RW,
     &g_virstor_component_watermark, 0,
     "Minimum number of free components before issuing administrative warning");
 

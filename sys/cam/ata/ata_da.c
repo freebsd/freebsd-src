@@ -546,22 +546,30 @@ static int ada_write_cache = ADA_DEFAULT_WRITE_CACHE;
 
 static SYSCTL_NODE(_kern_cam, OID_AUTO, ada, CTLFLAG_RD, 0,
             "CAM Direct Access Disk driver");
-SYSCTL_INT(_kern_cam_ada, OID_AUTO, legacy_aliases, CTLFLAG_RWTUN,
+SYSCTL_INT(_kern_cam_ada, OID_AUTO, legacy_aliases, CTLFLAG_RW,
            &ada_legacy_aliases, 0, "Create legacy-like device aliases");
-SYSCTL_INT(_kern_cam_ada, OID_AUTO, retry_count, CTLFLAG_RWTUN,
+TUNABLE_INT("kern.cam.ada.legacy_aliases", &ada_legacy_aliases);
+SYSCTL_INT(_kern_cam_ada, OID_AUTO, retry_count, CTLFLAG_RW,
            &ada_retry_count, 0, "Normal I/O retry count");
-SYSCTL_INT(_kern_cam_ada, OID_AUTO, default_timeout, CTLFLAG_RWTUN,
+TUNABLE_INT("kern.cam.ada.retry_count", &ada_retry_count);
+SYSCTL_INT(_kern_cam_ada, OID_AUTO, default_timeout, CTLFLAG_RW,
            &ada_default_timeout, 0, "Normal I/O timeout (in seconds)");
-SYSCTL_INT(_kern_cam_ada, OID_AUTO, send_ordered, CTLFLAG_RWTUN,
+TUNABLE_INT("kern.cam.ada.default_timeout", &ada_default_timeout);
+SYSCTL_INT(_kern_cam_ada, OID_AUTO, send_ordered, CTLFLAG_RW,
            &ada_send_ordered, 0, "Send Ordered Tags");
-SYSCTL_INT(_kern_cam_ada, OID_AUTO, spindown_shutdown, CTLFLAG_RWTUN,
+TUNABLE_INT("kern.cam.ada.send_ordered", &ada_send_ordered);
+SYSCTL_INT(_kern_cam_ada, OID_AUTO, spindown_shutdown, CTLFLAG_RW,
            &ada_spindown_shutdown, 0, "Spin down upon shutdown");
-SYSCTL_INT(_kern_cam_ada, OID_AUTO, spindown_suspend, CTLFLAG_RWTUN,
+TUNABLE_INT("kern.cam.ada.spindown_shutdown", &ada_spindown_shutdown);
+SYSCTL_INT(_kern_cam_ada, OID_AUTO, spindown_suspend, CTLFLAG_RW,
            &ada_spindown_suspend, 0, "Spin down upon suspend");
-SYSCTL_INT(_kern_cam_ada, OID_AUTO, read_ahead, CTLFLAG_RWTUN,
+TUNABLE_INT("kern.cam.ada.spindown_suspend", &ada_spindown_suspend);
+SYSCTL_INT(_kern_cam_ada, OID_AUTO, read_ahead, CTLFLAG_RW,
            &ada_read_ahead, 0, "Enable disk read-ahead");
-SYSCTL_INT(_kern_cam_ada, OID_AUTO, write_cache, CTLFLAG_RWTUN,
+TUNABLE_INT("kern.cam.ada.read_ahead", &ada_read_ahead);
+SYSCTL_INT(_kern_cam_ada, OID_AUTO, write_cache, CTLFLAG_RW,
            &ada_write_cache, 0, "Enable disk write cache");
+TUNABLE_INT("kern.cam.ada.write_cache", &ada_write_cache);
 
 /*
  * ADA_ORDEREDTAG_INTERVAL determines how often, relative
