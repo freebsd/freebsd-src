@@ -129,26 +129,26 @@ usage(int code)
 {
 
         fprintf(stderr,
-                "Usage: %s [-abehwxACHPWY] [-g <gdb port>] [-s <pci>] [-c vcpus]\n"
-		"       %*s [-p vcpu:hostcpu] [-m mem] [-l <lpc>] [-U uuid] <vm>\n"
+                "Usage: %s [-abehwxACHPWY] [-c vcpus] [-g <gdb port>] [-l <lpc>]\n"
+		"       %*s [-m mem] [-p vcpu:hostcpu] [-s <pci>] [-U uuid] <vm>\n"
 		"       -a: local apic is in xAPIC mode (deprecated)\n"
 		"       -A: create ACPI tables\n"
-		"       -g: gdb port\n"
 		"       -c: # cpus (default 1)\n"
 		"       -C: include guest memory in core file\n"
-		"       -p: pin 'vcpu' to 'hostcpu'\n"
-		"       -H: vmexit from the guest on hlt\n"
-		"       -P: vmexit from the guest on pause\n"
-		"       -W: force virtio to use single-vector MSI\n"
 		"       -e: exit on unhandled I/O access\n"
+		"       -g: gdb port\n"
 		"       -h: help\n"
-		"       -s: <slot,driver,configinfo> PCI slot config\n"
+		"       -H: vmexit from the guest on hlt\n"
 		"       -l: LPC device configuration\n"
 		"       -m: memory size in MB\n"
+		"       -p: pin 'vcpu' to 'hostcpu'\n"
+		"       -P: vmexit from the guest on pause\n"
+		"       -s: <slot,driver,configinfo> PCI slot config\n"
+		"       -U: uuid\n"
 		"       -w: ignore unimplemented MSRs\n"
+		"       -W: force virtio to use single-vector MSI\n"
 		"       -x: local apic is in x2APIC mode\n"
-		"       -Y: disable MPtable generation\n"
-		"       -U: uuid\n",
+		"       -Y: disable MPtable generation\n",
 		progname, (int)strlen(progname), "");
 
 	exit(code);
