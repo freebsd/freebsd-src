@@ -337,8 +337,8 @@ err:		if (unlink(to))
 	 * on a file that we copied, i.e., that we didn't create.)
 	 */
 	errno = 0;
-	if (fchflags(to_fd, sbp->st_flags))
-		if (errno != EOPNOTSUPP || sbp->st_flags != 0)
+	if (fchflags(to_fd, sbp->st_flags | UF_ARCHIVE))
+		if (errno != EOPNOTSUPP || ((sbp->st_flags & ~UF_ARCHIVE) != 0))
 			warn("%s: set flags (was: 0%07o)", to, sbp->st_flags);
 
 	tval[0].tv_sec = sbp->st_atime;
