@@ -399,6 +399,16 @@ vmexit_spinup_ap(struct vmctx *ctx, struct vm_exit *vme, int *pvcpu)
 	return (retval);
 }
 
+#define	DEBUG_EPT_MISCONFIG
+#ifdef DEBUG_EPT_MISCONFIG
+#define	EXIT_REASON_EPT_MISCONFIG	49
+#define	VMCS_GUEST_PHYSICAL_ADDRESS	0x00002400
+#define	VMCS_IDENT(x)			((x) | 0x80000000)
+
+static uint64_t ept_misconfig_gpa, ept_misconfig_pte[4];
+static int ept_misconfig_ptenum;
+#endif
+
 static int
 vmexit_vmx(struct vmctx *ctx, struct vm_exit *vmexit, int *pvcpu)
 {
@@ -413,7 +423,21 @@ vmexit_vmx(struct vmctx *ctx, struct vm_exit *vmexit, int *pvcpu)
 	    vmexit->u.vmx.exit_qualification);
 	fprintf(stderr, "\tinst_type\t\t%d\n", vmexit->u.vmx.inst_type);
 	fprintf(stderr, "\tinst_error\t\t%d\n", vmexit->u.vmx.inst_error);
-
+#ifdef DEBUG_EPT_MISCONFIG
+	if (vmexit->u.vmx.exit_reason == EXIT_REASON_EPT_MISCONFIG) {
+		vm_get_register(ctx, *pvcpu,
+		    VMCS_IDENT(VMCS_GUEST_PHYSICAL_ADDRESS),
+		    &ept_misconfig_gpa);
+		vm_get_gpa_pmap(ctx, ept_misconfig_gpa, ept_misconfig_pte,
+		    &ept_misconfig_ptenum);
+		fprintf(stderr, "\tEPT misconfiguration:\n");
+		fprintf(stderr, "\t\tGPA: %#lx\n", ept_misconfig_gpa);
+		fprintf(stderr, "\t\tPTE(%d): %#lx %#lx %#lx %#lx\n",
+		    ept_misconfig_ptenum, ept_misconfig_pte[0],
+		    ept_misconfig_pte[1], ept_misconfig_pte[2],
+		    ept_misconfig_pte[3]);
+	}
+#endif	/* DEBUG_EPT_MISCONFIG */
 	return (VMEXIT_ABORT);
 }
 
