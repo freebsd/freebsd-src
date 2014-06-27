@@ -266,6 +266,8 @@ static struct cdevsw consolectl_devsw = {
 int
 sc_probe_unit(int unit, int flags)
 {
+    if (!vty_enabled(VTY_SC))
+        return ENXIO;
     if (!scvidprobe(unit, flags, FALSE)) {
 	if (bootverbose)
 	    printf("%s%d: no video adapter found.\n", SC_DRIVER_NAME, unit);
@@ -491,6 +493,9 @@ sc_attach_unit(int unit, int flags)
     struct cdev *dev;
     int vc;
 
+    if (!vty_enabled(VTY_SC))
+        return ENXIO;
+
     flags &= ~SC_KERNEL_CONSOLE;
 
     if (sc_console_unit == unit) {
@@ -575,6 +580,8 @@ sc_attach_unit(int unit, int flags)
 static void
 scmeminit(void *arg)
 {
+    if (!vty_enabled(VTY_SC))
+        return;
     if (sc_malloc)
 	return;
     sc_malloc = TRUE;
@@ -1588,7 +1595,7 @@ sc_cnprobe(struct consdev *cp)
     int unit;
     int flags;
 
-    if (getenv("hw.syscons.disable")) {
+    if (!vty_enabled(VTY_SC)) {
 	cp->cn_pri = CN_DEAD;
 	return;
     }

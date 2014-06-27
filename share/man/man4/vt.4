@@ -43,6 +43,7 @@
 In
 .Xr loader.conf 5 :
 .Cd hw.vga.textmode=1
+.Cd kern.vty=vt
 .Sh DESCRIPTION
 The
 .Nm
@@ -171,6 +172,12 @@ prompt or in
 Set to 1 to use virtual terminals in text mode instead of graphics mode.
 Features that require graphics mode, like loadable fonts, will be
 disabled.
+.It Va kern.vty
+Set to vt to choose the
+.Nm
+driver for the system console, if the
+.Xr syscons 4
+driver is also compiled in and is the default.
 .El
 .Sh FILES
 .Bl -tag -width /usr/share/syscons/keymaps/* -compact

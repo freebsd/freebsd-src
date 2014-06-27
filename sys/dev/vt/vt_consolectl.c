@@ -73,7 +73,7 @@ static void
 consolectl_drvinit(void *unused)
 {
 
-	if (getenv("kern.vt.disable"))
+	if (!vty_enabled(VTY_VT))
 		return;
 	make_dev(&consolectl_cdevsw, 0, UID_ROOT, GID_WHEEL, 0600,
 	    "consolectl");
