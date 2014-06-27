@@ -167,8 +167,14 @@ vhd_write(int fd)
 	struct vhd_dyn_header header;
 	uuid_t id;
 	uint64_t imgsz;
+	uint32_t *bat;
+	void *bitmap;
+	size_t batsz;
+	uint32_t sector;
+	int entry, bat_entries;
 
 	imgsz = image_get_size() * secsz;
+	bat_entries = imgsz / VHD_BLOCK_SIZE;
 
 	memset(&footer, 0, sizeof(footer));
 	be64enc(&footer.cookie, VHD_FOOTER_COOKIE);
@@ -194,11 +200,38 @@ vhd_write(int fd)
 	be64enc(&header.data_offset, ~0ULL);
 	be64enc(&header.table_offset, sizeof(footer) + sizeof(header));
 	be32enc(&header.version, VHD_VERSION);
-	be32enc(&header.max_entries, imgsz / VHD_BLOCK_SIZE);
+	be32enc(&header.max_entries, bat_entries);
 	be32enc(&header.block_size, VHD_BLOCK_SIZE);
 	be32enc(&header.checksum, vhd_checksum(&header, sizeof(header)));
 	if (sparse_write(fd, &header, sizeof(header)) < 0)
 		return (errno);
+
+	batsz = bat_entries * sizeof(uint32_t);
+	batsz = (batsz + VHD_SECTOR_SIZE - 1) & ~(VHD_SECTOR_SIZE - 1);
+	bat = malloc(batsz);
+	if (bat == NULL)
+		return (errno);
+	memset(bat, 0xff, batsz);
+	sector = (sizeof(footer) + sizeof(header) + batsz) / VHD_SECTOR_SIZE;
+	for (entry = 0; entry < bat_entries; entry++) {
+		be32enc(&bat[entry], sector);
+		sector += (VHD_BLOCK_SIZE / VHD_SECTOR_SIZE) + 1;
+	}
+	if (sparse_write(fd, bat, batsz) < 0) {
+		free(bat);
+		return (errno);
+	}
+	free(bat);
+
+	bitmap = malloc(VHD_SECTOR_SIZE);
+	if (bitmap == NULL)
+		return (errno);
+	memset(bitmap, 0xff, VHD_SECTOR_SIZE);
+	if (sparse_write(fd, bitmap, VHD_SECTOR_SIZE) < 0) {
+		free(bitmap);
+		return (errno);
+	}
+	free(bitmap);
 
 	return (image_copyout(fd));
 }
