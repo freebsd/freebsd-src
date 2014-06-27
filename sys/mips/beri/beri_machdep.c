@@ -204,7 +204,7 @@ platform_start(__register_t a0, __register_t a1,  __register_t a2,
 	 * kernel.  Miniboot simply provides a 'memsize' in a3, whereas the
 	 * FreeBSD boot loader provides a 'bootinfo *' in a3.  While slightly
 	 * grody, we support both here by detecting 'pointer-like' values in
-	 * a3 and assuming physical memory can never be that back.
+	 * a3 and assuming physical memory can never be that big.
 	 *
 	 * XXXRW: Pull more values than memsize out of bootinfop -- e.g.,
 	 * module information.
