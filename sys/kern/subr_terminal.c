@@ -119,20 +119,20 @@ static teken_funcs_t terminal_drawmethods = {
 
 /* Kernel message formatting. */
 static const teken_attr_t kernel_message = {
-	.ta_fgcolor	= TC_WHITE,
-	.ta_bgcolor	= TC_BLACK,
-	.ta_format	= TF_BOLD,
+	.ta_fgcolor	= TCHAR_FGCOLOR(TERMINAL_KERN_ATTR),
+	.ta_bgcolor	= TCHAR_BGCOLOR(TERMINAL_KERN_ATTR),
+	.ta_format	= TCHAR_FORMAT(TERMINAL_KERN_ATTR)
 };
 
 static const teken_attr_t default_message = {
-	.ta_fgcolor	= TC_WHITE,
-	.ta_bgcolor	= TC_BLACK,
+	.ta_fgcolor	= TCHAR_FGCOLOR(TERMINAL_NORM_ATTR),
+	.ta_bgcolor	= TCHAR_BGCOLOR(TERMINAL_NORM_ATTR),
+	.ta_format	= TCHAR_FORMAT(TERMINAL_NORM_ATTR)
 };
 
-#define	TCHAR_CREATE(c, a)	((c) | \
-	(a)->ta_format << 21 | \
-	teken_256to8((a)->ta_fgcolor) << 26 | \
-	teken_256to8((a)->ta_bgcolor) << 29)
+#define	TCHAR_CREATE(c, a)	((c) | TFORMAT((a)->ta_format) |	\
+	TCOLOR_FG(teken_256to8((a)->ta_fgcolor)) |			\
+	TCOLOR_BG(teken_256to8((a)->ta_bgcolor)))
 
 static void
 terminal_init(struct terminal *tm)
@@ -191,7 +191,7 @@ terminal_maketty(struct terminal *tm, const char *fmt, ...)
 
 void
 terminal_set_winsize_blank(struct terminal *tm, const struct winsize *size,
-    int blank)
+    int blank, const term_attr_t *attr)
 {
 	term_rect_t r;
 
@@ -209,8 +209,8 @@ terminal_set_winsize_blank(struct terminal *tm, const struct winsize *size,
 	TERMINAL_UNLOCK(tm);
 
 	if ((blank != 0) && !(tm->tm_flags & TF_MUTE))
-		tm->tm_class->tc_fill(tm, &r, TCHAR_CREATE((teken_char_t)' ',
-		    &default_message));
+		tm->tm_class->tc_fill(tm, &r,
+		    TCHAR_CREATE((teken_char_t)' ', attr));
 
 	terminal_sync_ttysize(tm);
 }
@@ -219,7 +219,8 @@ void
 terminal_set_winsize(struct terminal *tm, const struct winsize *size)
 {
 
-	terminal_set_winsize_blank(tm, size, 1);
+	terminal_set_winsize_blank(tm, size, 1,
+	    (const term_attr_t *)&default_message);
 }
 
 /*
