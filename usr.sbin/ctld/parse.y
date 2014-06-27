@@ -659,6 +659,19 @@ lun_serial:	SERIAL STR
 		}
 		lun_set_serial(lun, $2);
 		free($2);
+	} |	SERIAL NUM
+	{
+		char *str = NULL;
+
+		if (lun->l_serial != NULL) {
+			log_warnx("serial for lun %d, target \"%s\" "
+			    "specified more than once",
+			    lun->l_lun, target->t_name);
+			return (1);
+		}
+		asprintf(&str, "%ju", $2);
+		lun_set_serial(lun, str);
+		free(str);
 	}
 	;
 
