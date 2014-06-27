@@ -65,7 +65,7 @@ Display file descriptor information for the process.
 .It Fl i
 Display signal pending and disposition information for the process.
 .It Fl j
-Display signal pending and blocked information for the process threads.
+Display signal pending and blocked information for the process's threads.
 .It Fl k
 Display the stacks of kernel threads in the process, excluding stacks of
 threads currently running on a CPU and threads with stacks swapped to disk.
@@ -262,15 +262,15 @@ If
 .Fl n
 switch is given, the signal numbers are shown instead of signal names.
 .Ss Thread Signal Information
-Display signal pending and blocked for a process threads:
+Display signal pending and blocked for a process's threads:
 .Pp
 .Bl -tag -width ident -compact
 .It PID
 process ID
-.It COMM
-command
 .It TID
 thread ID
+.It COMM
+command
 .It SIG
 signal name
 .It FLAGS
@@ -287,7 +287,7 @@ The
 .Fl n
 switch has the same effect as for the
 .Fl i
-switch, the signals numbers are shown instead of signal names.
+switch: the signal numbers are shown instead of signal names.
 .Ss Kernel Thread Stacks
 Display kernel thread stacks for a process, allowing further interpretation
 of thread wait channels.
