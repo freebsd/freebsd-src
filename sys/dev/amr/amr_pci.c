@@ -92,7 +92,6 @@ static int		amr_setup_mbox(struct amr_softc *sc);
 static int		amr_ccb_map(struct amr_softc *sc);
 
 static u_int amr_force_sg32 = 0;
-TUNABLE_INT("hw.amr.force_sg32", &amr_force_sg32);
 SYSCTL_DECL(_hw_amr);
 SYSCTL_UINT(_hw_amr, OID_AUTO, force_sg32, CTLFLAG_RDTUN, &amr_force_sg32, 0,
     "Force the AMR driver to use 32bit scatter gather");

@@ -88,20 +88,16 @@ static int tx_speed = 2;
 static int rx_queue_len = FWMAXQUEUE;
 
 static MALLOC_DEFINE(M_FWE, "if_fwe", "Ethernet over FireWire interface");
-SYSCTL_INT(_debug, OID_AUTO, if_fwe_debug, CTLFLAG_RW, &fwedebug, 0, "");
+SYSCTL_INT(_debug, OID_AUTO, if_fwe_debug, CTLFLAG_RWTUN, &fwedebug, 0, "");
 SYSCTL_DECL(_hw_firewire);
 static SYSCTL_NODE(_hw_firewire, OID_AUTO, fwe, CTLFLAG_RD, 0,
 	"Ethernet emulation subsystem");
-SYSCTL_INT(_hw_firewire_fwe, OID_AUTO, stream_ch, CTLFLAG_RW, &stream_ch, 0,
+SYSCTL_INT(_hw_firewire_fwe, OID_AUTO, stream_ch, CTLFLAG_RWTUN, &stream_ch, 0,
 	"Stream channel to use");
-SYSCTL_INT(_hw_firewire_fwe, OID_AUTO, tx_speed, CTLFLAG_RW, &tx_speed, 0,
+SYSCTL_INT(_hw_firewire_fwe, OID_AUTO, tx_speed, CTLFLAG_RWTUN, &tx_speed, 0,
 	"Transmission speed");
-SYSCTL_INT(_hw_firewire_fwe, OID_AUTO, rx_queue_len, CTLFLAG_RW, &rx_queue_len,
+SYSCTL_INT(_hw_firewire_fwe, OID_AUTO, rx_queue_len, CTLFLAG_RWTUN, &rx_queue_len,
 	0, "Length of the receive queue");
-
-TUNABLE_INT("hw.firewire.fwe.stream_ch", &stream_ch);
-TUNABLE_INT("hw.firewire.fwe.tx_speed", &tx_speed);
-TUNABLE_INT("hw.firewire.fwe.rx_queue_len", &rx_queue_len);
 
 #ifdef DEVICE_POLLING
 static poll_handler_t fwe_poll;

@@ -55,7 +55,6 @@ SYSCTL_NODE(_vfs_zfs, OID_AUTO, metaslab, CTLFLAG_RW, 0, "ZFS metaslab");
 
 uint64_t metaslab_aliquot = 512ULL << 10;
 uint64_t metaslab_gang_bang = SPA_MAXBLOCKSIZE + 1;	/* force gang blocks */
-TUNABLE_QUAD("vfs.zfs.metaslab.gang_bang", &metaslab_gang_bang);
 SYSCTL_QUAD(_vfs_zfs_metaslab, OID_AUTO, gang_bang, CTLFLAG_RWTUN,
     &metaslab_gang_bang, 0,
     "Force gang block allocation for blocks larger than or equal to this value");
@@ -67,7 +66,6 @@ SYSCTL_QUAD(_vfs_zfs_metaslab, OID_AUTO, gang_bang, CTLFLAG_RWTUN,
  * Values should be greater than or equal to 100.
  */
 int zfs_condense_pct = 200;
-TUNABLE_INT("vfs.zfs.condense_pct", &zfs_condense_pct);
 SYSCTL_INT(_vfs_zfs, OID_AUTO, condense_pct, CTLFLAG_RWTUN,
     &zfs_condense_pct, 0,
     "Condense on-disk spacemap when it is more than this many percents"
@@ -87,7 +85,6 @@ SYSCTL_INT(_vfs_zfs, OID_AUTO, condense_pct, CTLFLAG_RWTUN,
  * no metaslab group will be excluded based on this criterion.
  */
 int zfs_mg_noalloc_threshold = 0;
-TUNABLE_INT("vfs.zfs.mg_noalloc_threshold", &zfs_mg_noalloc_threshold);
 SYSCTL_INT(_vfs_zfs, OID_AUTO, mg_noalloc_threshold, CTLFLAG_RWTUN,
     &zfs_mg_noalloc_threshold, 0,
     "Percentage of metaslab group size that should be free"
@@ -97,7 +94,6 @@ SYSCTL_INT(_vfs_zfs, OID_AUTO, mg_noalloc_threshold, CTLFLAG_RWTUN,
  * When set will load all metaslabs when pool is first opened.
  */
 int metaslab_debug_load = 0;
-TUNABLE_INT("vfs.zfs.metaslab.debug_load", &metaslab_debug_load);
 SYSCTL_INT(_vfs_zfs_metaslab, OID_AUTO, debug_load, CTLFLAG_RWTUN,
     &metaslab_debug_load, 0,
     "Load all metaslabs when pool is first opened");
@@ -106,7 +102,6 @@ SYSCTL_INT(_vfs_zfs_metaslab, OID_AUTO, debug_load, CTLFLAG_RWTUN,
  * When set will prevent metaslabs from being unloaded.
  */
 int metaslab_debug_unload = 0;
-TUNABLE_INT("vfs.zfs.metaslab.debug_unload", &metaslab_debug_unload);
 SYSCTL_INT(_vfs_zfs_metaslab, OID_AUTO, debug_unload, CTLFLAG_RWTUN,
     &metaslab_debug_unload, 0,
     "Prevent metaslabs from being unloaded");
@@ -118,8 +113,6 @@ SYSCTL_INT(_vfs_zfs_metaslab, OID_AUTO, debug_unload, CTLFLAG_RWTUN,
  * aggressive strategy (i.e search by size rather than offset).
  */
 uint64_t metaslab_df_alloc_threshold = SPA_MAXBLOCKSIZE;
-TUNABLE_QUAD("vfs.zfs.metaslab.df_alloc_threshold",
-    &metaslab_df_alloc_threshold);
 SYSCTL_QUAD(_vfs_zfs_metaslab, OID_AUTO, df_alloc_threshold, CTLFLAG_RWTUN,
     &metaslab_df_alloc_threshold, 0,
     "Minimum size which forces the dynamic allocator to change it's allocation strategy");
@@ -131,27 +124,25 @@ SYSCTL_QUAD(_vfs_zfs_metaslab, OID_AUTO, df_alloc_threshold, CTLFLAG_RWTUN,
  * switch to using best-fit allocations.
  */
 int metaslab_df_free_pct = 4;
-TUNABLE_INT("vfs.zfs.metaslab.df_free_pct", &metaslab_df_free_pct);
 SYSCTL_INT(_vfs_zfs_metaslab, OID_AUTO, df_free_pct, CTLFLAG_RWTUN,
     &metaslab_df_free_pct, 0,
-    "The minimum free space, in percent, which must be available in a space map to continue allocations in a first-fit fashion");
+    "The minimum free space, in percent, which must be available in a "
+    "space map to continue allocations in a first-fit fashion");
 
 /*
  * A metaslab is considered "free" if it contains a contiguous
  * segment which is greater than metaslab_min_alloc_size.
  */
 uint64_t metaslab_min_alloc_size = DMU_MAX_ACCESS;
-TUNABLE_QUAD("vfs.zfs.metaslab.min_alloc_size",
-    &metaslab_min_alloc_size);
 SYSCTL_QUAD(_vfs_zfs_metaslab, OID_AUTO, min_alloc_size, CTLFLAG_RWTUN,
     &metaslab_min_alloc_size, 0,
-    "A metaslab is considered \"free\" if it contains a contiguous segment which is greater than vfs.zfs.metaslab.min_alloc_size");
+    "A metaslab is considered \"free\" if it contains a contiguous "
+    "segment which is greater than vfs.zfs.metaslab.min_alloc_size");
 
 /*
  * Percentage of all cpus that can be used by the metaslab taskq.
  */
 int metaslab_load_pct = 50;
-TUNABLE_INT("vfs.zfs.metaslab.load_pct", &metaslab_load_pct);
 SYSCTL_INT(_vfs_zfs_metaslab, OID_AUTO, load_pct, CTLFLAG_RWTUN,
     &metaslab_load_pct, 0,
     "Percentage of cpus that can be used by the metaslab taskq");
@@ -162,7 +153,6 @@ SYSCTL_INT(_vfs_zfs_metaslab, OID_AUTO, load_pct, CTLFLAG_RWTUN,
  * keep it loaded.
  */
 int metaslab_unload_delay = TXG_SIZE * 2;
-TUNABLE_INT("vfs.zfs.metaslab.unload_delay", &metaslab_unload_delay);
 SYSCTL_INT(_vfs_zfs_metaslab, OID_AUTO, unload_delay, CTLFLAG_RWTUN,
     &metaslab_unload_delay, 0,
     "Number of TXGs that an unused metaslab can be kept in memory");
@@ -173,13 +163,11 @@ SYSCTL_INT(_vfs_zfs_metaslab, OID_AUTO, unload_delay, CTLFLAG_RWTUN,
 boolean_t zfs_write_to_degraded = B_FALSE;
 SYSCTL_INT(_vfs_zfs, OID_AUTO, write_to_degraded, CTLFLAG_RWTUN,
     &zfs_write_to_degraded, 0, "Allow writing data to degraded vdevs");
-TUNABLE_INT("vfs.zfs.write_to_degraded", &zfs_write_to_degraded);
 
 /*
  * Max number of metaslabs per group to preload.
  */
 int metaslab_preload_limit = SPA_DVAS_PER_BP;
-TUNABLE_INT("vfs.zfs.metaslab.preload_limit", &metaslab_preload_limit);
 SYSCTL_INT(_vfs_zfs_metaslab, OID_AUTO, preload_limit, CTLFLAG_RWTUN,
     &metaslab_preload_limit, 0,
     "Max number of metaslabs per group to preload");
@@ -188,7 +176,6 @@ SYSCTL_INT(_vfs_zfs_metaslab, OID_AUTO, preload_limit, CTLFLAG_RWTUN,
  * Enable/disable preloading of metaslab.
  */
 boolean_t metaslab_preload_enabled = B_TRUE;
-TUNABLE_INT("vfs.zfs.metaslab.preload_enabled", &metaslab_preload_enabled);
 SYSCTL_INT(_vfs_zfs_metaslab, OID_AUTO, preload_enabled, CTLFLAG_RWTUN,
     &metaslab_preload_enabled, 0,
     "Max number of metaslabs per group to preload");
@@ -197,8 +184,6 @@ SYSCTL_INT(_vfs_zfs_metaslab, OID_AUTO, preload_enabled, CTLFLAG_RWTUN,
  * Enable/disable additional weight factor for each metaslab.
  */
 boolean_t metaslab_weight_factor_enable = B_FALSE;
-TUNABLE_INT("vfs.zfs.metaslab.weight_factor_enable",
-    &metaslab_weight_factor_enable);
 SYSCTL_INT(_vfs_zfs_metaslab, OID_AUTO, weight_factor_enable, CTLFLAG_RWTUN,
     &metaslab_weight_factor_enable, 0,
     "Enable additional weight factor for each metaslab");

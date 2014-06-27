@@ -220,10 +220,9 @@ struct ctl_be_block_io {
 };
 
 static int cbb_num_threads = 14;
-TUNABLE_INT("kern.cam.ctl.block.num_threads", &cbb_num_threads);
 SYSCTL_NODE(_kern_cam_ctl, OID_AUTO, block, CTLFLAG_RD, 0,
 	    "CAM Target Layer Block Backend");
-SYSCTL_INT(_kern_cam_ctl_block, OID_AUTO, num_threads, CTLFLAG_RW,
+SYSCTL_INT(_kern_cam_ctl_block, OID_AUTO, num_threads, CTLFLAG_RWTUN,
            &cbb_num_threads, 0, "Number of threads per backing file");
 
 static struct ctl_be_block_io *ctl_alloc_beio(struct ctl_be_block_softc *softc);
