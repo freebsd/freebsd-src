@@ -95,12 +95,15 @@ static int ukbd_no_leds = 0;
 static int ukbd_pollrate = 0;
 
 static SYSCTL_NODE(_hw_usb, OID_AUTO, ukbd, CTLFLAG_RW, 0, "USB keyboard");
-SYSCTL_INT(_hw_usb_ukbd, OID_AUTO, debug, CTLFLAG_RWTUN,
+SYSCTL_INT(_hw_usb_ukbd, OID_AUTO, debug, CTLFLAG_RW | CTLFLAG_TUN,
     &ukbd_debug, 0, "Debug level");
-SYSCTL_INT(_hw_usb_ukbd, OID_AUTO, no_leds, CTLFLAG_RWTUN,
+TUNABLE_INT("hw.usb.ukbd.debug", &ukbd_debug);
+SYSCTL_INT(_hw_usb_ukbd, OID_AUTO, no_leds, CTLFLAG_RW | CTLFLAG_TUN,
     &ukbd_no_leds, 0, "Disables setting of keyboard leds");
-SYSCTL_INT(_hw_usb_ukbd, OID_AUTO, pollrate, CTLFLAG_RWTUN,
+TUNABLE_INT("hw.usb.ukbd.no_leds", &ukbd_no_leds);
+SYSCTL_INT(_hw_usb_ukbd, OID_AUTO, pollrate, CTLFLAG_RW | CTLFLAG_TUN,
     &ukbd_pollrate, 0, "Force this polling rate, 1-1000Hz");
+TUNABLE_INT("hw.usb.ukbd.pollrate", &ukbd_pollrate);
 #endif
 
 #define	UKBD_EMULATE_ATSCANCODE	       1

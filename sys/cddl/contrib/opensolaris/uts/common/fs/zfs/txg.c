@@ -112,7 +112,8 @@ int zfs_txg_timeout = 5;	/* max seconds worth of delta per txg */
 
 SYSCTL_DECL(_vfs_zfs);
 SYSCTL_NODE(_vfs_zfs, OID_AUTO, txg, CTLFLAG_RW, 0, "ZFS TXG");
-SYSCTL_INT(_vfs_zfs_txg, OID_AUTO, timeout, CTLFLAG_RWTUN, &zfs_txg_timeout, 0,
+TUNABLE_INT("vfs.zfs.txg.timeout", &zfs_txg_timeout);
+SYSCTL_INT(_vfs_zfs_txg, OID_AUTO, timeout, CTLFLAG_RW, &zfs_txg_timeout, 0,
     "Maximum seconds worth of delta per txg");
 
 /*

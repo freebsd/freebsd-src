@@ -380,7 +380,8 @@ static SYSCTL_NODE(_debug, OID_AUTO, witness, CTLFLAG_RW, NULL,
  * completely disabled.
  */
 static int witness_watch = 1;
-SYSCTL_PROC(_debug_witness, OID_AUTO, watch, CTLFLAG_RWTUN | CTLTYPE_INT, NULL, 0,
+TUNABLE_INT("debug.witness.watch", &witness_watch);
+SYSCTL_PROC(_debug_witness, OID_AUTO, watch, CTLFLAG_RW | CTLTYPE_INT, NULL, 0,
     sysctl_debug_witness_watch, "I", "witness is watching lock operations");
 
 #ifdef KDB
@@ -395,7 +396,8 @@ int	witness_kdb = 1;
 #else
 int	witness_kdb = 0;
 #endif
-SYSCTL_INT(_debug_witness, OID_AUTO, kdb, CTLFLAG_RWTUN, &witness_kdb, 0, "");
+TUNABLE_INT("debug.witness.kdb", &witness_kdb);
+SYSCTL_INT(_debug_witness, OID_AUTO, kdb, CTLFLAG_RW, &witness_kdb, 0, "");
 
 /*
  * When KDB is enabled and witness_trace is 1, it will cause the system
@@ -404,7 +406,8 @@ SYSCTL_INT(_debug_witness, OID_AUTO, kdb, CTLFLAG_RWTUN, &witness_kdb, 0, "");
  *	- locks are held when going to sleep.
  */
 int	witness_trace = 1;
-SYSCTL_INT(_debug_witness, OID_AUTO, trace, CTLFLAG_RWTUN, &witness_trace, 0, "");
+TUNABLE_INT("debug.witness.trace", &witness_trace);
+SYSCTL_INT(_debug_witness, OID_AUTO, trace, CTLFLAG_RW, &witness_trace, 0, "");
 #endif /* KDB */
 
 #ifdef WITNESS_SKIPSPIN
@@ -412,7 +415,9 @@ int	witness_skipspin = 1;
 #else
 int	witness_skipspin = 0;
 #endif
-SYSCTL_INT(_debug_witness, OID_AUTO, skipspin, CTLFLAG_RDTUN, &witness_skipspin, 0, "");
+TUNABLE_INT("debug.witness.skipspin", &witness_skipspin);
+SYSCTL_INT(_debug_witness, OID_AUTO, skipspin, CTLFLAG_RDTUN, &witness_skipspin,
+    0, "");
 
 /*
  * Call this to print out the relations between locks.

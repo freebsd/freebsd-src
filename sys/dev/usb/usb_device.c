@@ -118,7 +118,8 @@ int	usb_template = USB_TEMPLATE;
 int	usb_template;
 #endif
 
-SYSCTL_INT(_hw_usb, OID_AUTO, template, CTLFLAG_RWTUN,
+TUNABLE_INT("hw.usb.usb_template", &usb_template);
+SYSCTL_INT(_hw_usb, OID_AUTO, template, CTLFLAG_RW | CTLFLAG_TUN,
     &usb_template, 0, "Selected USB device side template");
 
 /* English is default language */
@@ -126,10 +127,12 @@ SYSCTL_INT(_hw_usb, OID_AUTO, template, CTLFLAG_RWTUN,
 static int usb_lang_id = 0x0009;
 static int usb_lang_mask = 0x00FF;
 
-SYSCTL_INT(_hw_usb, OID_AUTO, usb_lang_id, CTLFLAG_RWTUN,
+TUNABLE_INT("hw.usb.usb_lang_id", &usb_lang_id);
+SYSCTL_INT(_hw_usb, OID_AUTO, usb_lang_id, CTLFLAG_RW | CTLFLAG_TUN,
     &usb_lang_id, 0, "Preferred USB language ID");
 
-SYSCTL_INT(_hw_usb, OID_AUTO, usb_lang_mask, CTLFLAG_RWTUN,
+TUNABLE_INT("hw.usb.usb_lang_mask", &usb_lang_mask);
+SYSCTL_INT(_hw_usb, OID_AUTO, usb_lang_mask, CTLFLAG_RW | CTLFLAG_TUN,
     &usb_lang_mask, 0, "Preferred USB language mask");
 
 static const char* statestr[USB_STATE_MAX] = {

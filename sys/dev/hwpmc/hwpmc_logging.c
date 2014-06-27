@@ -66,7 +66,8 @@ SYSCTL_DECL(_kern_hwpmc);
  */
 
 static int pmclog_buffer_size = PMC_LOG_BUFFER_SIZE;
-SYSCTL_INT(_kern_hwpmc, OID_AUTO, logbuffersize, CTLFLAG_RDTUN,
+TUNABLE_INT(PMC_SYSCTL_NAME_PREFIX "logbuffersize", &pmclog_buffer_size);
+SYSCTL_INT(_kern_hwpmc, OID_AUTO, logbuffersize, CTLFLAG_TUN|CTLFLAG_RD,
     &pmclog_buffer_size, 0, "size of log buffers in kilobytes");
 
 /*
@@ -74,7 +75,8 @@ SYSCTL_INT(_kern_hwpmc, OID_AUTO, logbuffersize, CTLFLAG_RDTUN,
  */
 
 static int pmc_nlogbuffers = PMC_NLOGBUFFERS;
-SYSCTL_INT(_kern_hwpmc, OID_AUTO, nbuffers, CTLFLAG_RDTUN,
+TUNABLE_INT(PMC_SYSCTL_NAME_PREFIX "nbuffers", &pmc_nlogbuffers);
+SYSCTL_INT(_kern_hwpmc, OID_AUTO, nbuffers, CTLFLAG_TUN|CTLFLAG_RD,
     &pmc_nlogbuffers, 0, "number of global log buffers");
 
 /*

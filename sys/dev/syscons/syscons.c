@@ -154,7 +154,8 @@ SYSCTL_INT(_hw_syscons, OID_AUTO, kbd_reboot, CTLFLAG_RW|CTLFLAG_SECURE, &enable
 SYSCTL_INT(_hw_syscons, OID_AUTO, kbd_debug, CTLFLAG_RW|CTLFLAG_SECURE, &enable_kdbkey,
     0, "enable keyboard debug");
 #endif
-SYSCTL_INT(_hw_syscons, OID_AUTO, sc_no_suspend_vtswitch, CTLFLAG_RWTUN,
+TUNABLE_INT("hw.syscons.sc_no_suspend_vtswitch", &sc_no_suspend_vtswitch);
+SYSCTL_INT(_hw_syscons, OID_AUTO, sc_no_suspend_vtswitch, CTLFLAG_RW,
     &sc_no_suspend_vtswitch, 0, "Disable VT switch before suspend.");
 #if !defined(SC_NO_FONT_LOADING) && defined(SC_DFLT_FONT)
 #include "font.h"

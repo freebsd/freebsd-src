@@ -54,6 +54,7 @@
  */
 int zfs_nopwrite_enabled = 1;
 SYSCTL_DECL(_vfs_zfs);
+TUNABLE_INT("vfs.zfs.nopwrite_enabled", &zfs_nopwrite_enabled);
 SYSCTL_INT(_vfs_zfs, OID_AUTO, nopwrite_enabled, CTLFLAG_RDTUN,
     &zfs_nopwrite_enabled, 0, "Enable nopwrite feature");
 
@@ -1625,7 +1626,8 @@ dmu_object_set_compress(objset_t *os, uint64_t object, uint8_t compress,
 }
 
 int zfs_mdcomp_disable = 0;
-SYSCTL_INT(_vfs_zfs, OID_AUTO, mdcomp_disable, CTLFLAG_RWTUN,
+TUNABLE_INT("vfs.zfs.mdcomp_disable", &zfs_mdcomp_disable);
+SYSCTL_INT(_vfs_zfs, OID_AUTO, mdcomp_disable, CTLFLAG_RW,
     &zfs_mdcomp_disable, 0, "Disable metadata compression");
 
 /*

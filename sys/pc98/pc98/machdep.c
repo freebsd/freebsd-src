@@ -1113,7 +1113,8 @@ cpu_halt(void)
 }
 
 static int	idle_mwait = 1;		/* Use MONITOR/MWAIT for short idle. */
-SYSCTL_INT(_machdep, OID_AUTO, idle_mwait, CTLFLAG_RWTUN, &idle_mwait,
+TUNABLE_INT("machdep.idle_mwait", &idle_mwait);
+SYSCTL_INT(_machdep, OID_AUTO, idle_mwait, CTLFLAG_RW, &idle_mwait,
     0, "Use MONITOR/MWAIT for short idle");
 
 #define	STATE_RUNNING	0x0

@@ -134,7 +134,8 @@ SYSCTL_INT(_machdep, OID_AUTO, apm_suspend_delay, CTLFLAG_RW, &apm_suspend_delay
 SYSCTL_INT(_machdep, OID_AUTO, apm_standby_delay, CTLFLAG_RW, &apm_standby_delay, 1, "");
 SYSCTL_INT(_debug, OID_AUTO, apm_debug, CTLFLAG_RW, &apm_debug, 0, "");
 
-SYSCTL_INT(_machdep, OID_AUTO, apm_swab_batt_minutes, CTLFLAG_RWTUN,
+TUNABLE_INT("machdep.apm_swab_batt_minutes", &apm_swab_batt_minutes);
+SYSCTL_INT(_machdep, OID_AUTO, apm_swab_batt_minutes, CTLFLAG_RW,
 	   &apm_swab_batt_minutes, 0, "Byte swap battery time value.");
 
 #ifdef PC98
