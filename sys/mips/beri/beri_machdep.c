@@ -218,11 +218,19 @@ platform_start(__register_t a0, __register_t a1,  __register_t a2,
 		memsize = a3;
 	}
 
+	kmdp = preload_search_by_type("elf kernel");
+	if (kmdp != NULL) {
+		/*
+		 * Configure boot-time parameters passed in by loader.
+		 */
+		boothowto = MD_FETCH(kmdp, MODINFOMD_HOWTO, int);
+		kern_envp = MD_FETCH(kmdp, MODINFOMD_ENVP, char *);
+	}
+
 #ifdef FDT
 	/*
 	 * Find the dtb passed in by the boot loader (currently fictional).
 	 */
-	kmdp = preload_search_by_type("elf kernel");
 	if (kmdp != NULL)
 		dtbp = MD_FETCH(kmdp, MODINFOMD_DTBP, vm_offset_t);
 	else
@@ -243,12 +251,6 @@ platform_start(__register_t a0, __register_t a1,  __register_t a2,
 		while (1);
 	if (OF_init((void *)dtbp) != 0)
 		while (1);
-
-	/*
-	 * Configure more boot-time parameters passed in by loader.
-	 */
-	boothowto = MD_FETCH(kmdp, MODINFOMD_HOWTO, int);
-	kern_envp = MD_FETCH(kmdp, MODINFOMD_ENVP, char *);
 
 	/*
 	 * Get bootargs from FDT if specified.
