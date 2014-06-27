@@ -4,7 +4,7 @@ SYSDIR?=	${.CURDIR}/../../..
 
 ARCHDIR=	${MACHINE_CPUARCH}
 
-SUNW=	${.CURDIR}/../../../../cddl/contrib/opensolaris
+SUNW=	${SYSDIR}/../cddl/contrib/opensolaris
 
 .PATH: ${SYSDIR}/cddl/contrib/opensolaris/uts/common/dtrace
 .PATH: ${SYSDIR}/cddl/compat/opensolaris/kern
