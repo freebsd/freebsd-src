@@ -88,6 +88,7 @@ static uint32_t objhash_hash_name(struct namedobj_instance *ni, uint32_t set,
 static uint32_t objhash_hash_val(struct namedobj_instance *ni, uint32_t set,
     uint32_t val);
 
+static int ipfw_flush_sopt_data(struct sockopt_data *sd);
 
 MALLOC_DEFINE(M_IPFW, "IpFw/IpAcct", "IpFw/IpAcct chain's");
 
@@ -989,6 +990,7 @@ ipfw_getrules(struct ip_fw_chain *chain, void *buf, size_t space)
 
 
 #define IP_FW3_OPLENGTH(x)	((x)->sopt_valsize - sizeof(ip_fw3_opheader))
+#define	IP_FW3_OPTBUF	4096	/* page-size */
 /**
  * {set|get}sockopt parser.
  */
@@ -1002,7 +1004,8 @@ ipfw_ctl(struct sockopt *sopt)
 	struct ip_fw_chain *chain;
 	u_int32_t rulenum[2];
 	uint32_t opt;
-	char xbuf[256];
+	char xbuf[128];
+	struct sockopt_data sdata;
 	ip_fw3_opheader *op3 = NULL;
 	struct rule_check_info ci;
 
@@ -1026,15 +1029,40 @@ ipfw_ctl(struct sockopt *sopt)
 
 	/* Save original valsize before it is altered via sooptcopyin() */
 	valsize = sopt->sopt_valsize;
+	memset(&sdata, 0, sizeof(sdata));
 	if ((opt = sopt->sopt_name) == IP_FW3) {
-		/* 
-		 * Copy not less than sizeof(ip_fw3_opheader).
-		 * We hope any IP_FW3 command will fit into 128-byte buffer.
+		/*
+		 * Fill in sockopt_data structure that may be useful for
+		 * IP_FW3 get requests
 		 */
-		if ((error = sooptcopyin(sopt, xbuf, sizeof(xbuf),
-			sizeof(ip_fw3_opheader))) != 0)
+		if (valsize <= sizeof(xbuf)) {
+			sdata.kbuf = xbuf;
+			sdata.ksize = sizeof(xbuf);
+			sdata.kavail = valsize;
+		} else {
+			if (valsize < IP_FW3_OPTBUF)
+				size = valsize;
+			else
+				size = IP_FW3_OPTBUF;
+
+			sdata.kbuf = malloc(size, M_TEMP, M_WAITOK | M_ZERO);
+			sdata.ksize = size;
+			sdata.kavail = size;
+		}
+
+		sdata.sopt = sopt;
+		sdata.valsize = valsize;
+
+		/*
+		 * Copy either all request (if valsize < IP_FW3_OPTBUF)
+		 * or first IP_FW3_OPTBUF bytes to guarantee most consumers
+		 * that all necessary data has been copied).
+		 * Anyway, copy not less than sizeof(ip_fw3_opheader).
+		 */
+		if ((error = sooptcopyin(sopt, sdata.kbuf, sdata.ksize,
+		    sizeof(ip_fw3_opheader))) != 0)
 			return (error);
-		op3 = (ip_fw3_opheader *)xbuf;
+		op3 = (ip_fw3_opheader *)sdata.kbuf;
 		opt = op3->opcode;
 	}
 
@@ -1205,19 +1233,19 @@ ipfw_ctl(struct sockopt *sopt)
 		}
 
 	case IP_FW_TABLE_XINFO: /* IP_FW3 */
-		error = ipfw_describe_table(chain, sopt, op3, valsize);
+		error = ipfw_describe_table(chain, &sdata);
 		break;
 
 	case IP_FW_TABLES_XGETSIZE: /* IP_FW3 */
-		error = ipfw_listsize_tables(chain, sopt, op3, valsize);
+		error = ipfw_listsize_tables(chain, &sdata);
 		break;
 
 	case IP_FW_TABLES_XLIST: /* IP_FW3 */
-		error = ipfw_list_tables(chain, sopt, op3, valsize);
+		error = ipfw_list_tables(chain, &sdata);
 		break;
 
 	case IP_FW_TABLE_XLIST: /* IP_FW3 */
-		error = ipfw_dump_table(chain, sopt, op3, valsize);
+		error = ipfw_dump_table(chain, op3, &sdata);
 		break;
 
 	case IP_FW_TABLE_XADD: /* IP_FW3 */
@@ -1425,10 +1453,78 @@ ipfw_ctl(struct sockopt *sopt)
 		error = EINVAL;
 	}
 
+	if (op3 != NULL) {
+		/* Flush state and free buffers */
+		if (error == 0)
+			error = ipfw_flush_sopt_data(&sdata);
+		else
+			ipfw_flush_sopt_data(&sdata);
+
+		if (sdata.kbuf != xbuf)
+			free(sdata.kbuf, M_TEMP);
+	}
+
 	return (error);
 #undef RULE_MAXSIZE
 }
 
+static int
+ipfw_flush_sopt_data(struct sockopt_data *sd)
+{
+	int error;
+
+	if (sd->koff == 0)
+		return (0);
+
+	if ((error = sooptcopyout(sd->sopt, sd->kbuf, sd->koff)) != 0)
+		return (error);
+
+	memset(sd->kbuf, 0, sd->ksize);
+	sd->ktotal += sd->koff;
+	sd->koff = 0;
+	if (sd->ktotal + sd->ksize < sd->valsize)
+		sd->kavail = sd->ksize;
+	else
+		sd->kavail = sd->valsize - sd->ktotal;
+
+	return (0);
+}
+
+caddr_t
+ipfw_get_sopt_space(struct sockopt_data *sd, size_t needed)
+{
+	int error;
+	caddr_t addr;
+
+	if (sd->kavail < needed) {
+		/*
+		 * Flush data and try another time.
+		 */
+		error = ipfw_flush_sopt_data(sd);
+
+		if (sd->kavail < needed || error != 0)
+			return (NULL);
+	}
+
+	addr = sd->kbuf + sd->koff;
+	sd->koff += needed;
+	sd->kavail -= needed;
+	return (addr);
+}
+
+caddr_t
+ipfw_get_sopt_header(struct sockopt_data *sd, size_t needed)
+{
+	caddr_t addr;
+
+	if ((addr = ipfw_get_sopt_space(sd, needed)) == NULL)
+		return (NULL);
+
+	if (sd->kavail > 0)
+		memset(sd->kbuf + sd->koff, 0, sd->kavail);
+	
+	return (addr);
+}
 
 #define	RULE_MAXSIZE	(256*sizeof(u_int32_t))
 
