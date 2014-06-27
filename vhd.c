@@ -171,7 +171,7 @@ vhd_write(int fd)
 	void *bitmap;
 	size_t batsz;
 	uint32_t sector;
-	int entry, bat_entries;
+	int bat_entries, error, entry;
 
 	imgsz = image_get_size() * secsz;
 	bat_entries = imgsz / VHD_BLOCK_SIZE;
@@ -233,7 +233,14 @@ vhd_write(int fd)
 	}
 	free(bitmap);
 
-	return (image_copyout(fd));
+	error = image_copyout(fd);
+	if (error)
+		return (error);
+
+	if (sparse_write(fd, &footer, sizeof(footer)) < 0)
+		return (errno);
+
+	return (0);
 }
 
 static struct mkimg_format vhd_format = {
