@@ -172,7 +172,7 @@ sysctlgetnext(int *oid, int nlen, int *next, size_t *nextlen)
 }
 
 static int
-update_sensor_sysctl(char *obuf, size_t *obuflen, int idx, const char *name)
+update_sensor_sysctl(void *obuf, size_t *obuflen, int idx, const char *name)
 {
 	char buf[LM75BUF];
 	int mib[5];
@@ -213,22 +213,18 @@ update_sensor(struct lm75_snmp_sensor *sensor, int idx)
 }
 
 static int
-add_sensor(char *buf, size_t nlen)
+add_sensor(char *buf)
 {
-	int idx, mib[5], temp;
+	int idx, temp;
 	size_t len;
 	struct lm75_snmp_sensor *sensor;
 
 	if (sscanf(buf, "dev.lm75.%d.temperature", &idx) != 1)
 		return (-1);
 
-	/* Fill out the mib information. */
-	if (sysctlnametomib(buf, mib, &nlen) == -1)
-		return (-1);
-
 	/* Read the sensor temperature. */
 	len = sizeof(temp);
-	if (sysctl(mib, nlen, &temp, &len, NULL, 0) == -1)
+	if (update_sensor_sysctl(&temp, &len, idx, "temperature") != 0)
 		return (-1);
 
 	/* Add the sensor data to the table. */
@@ -326,7 +322,7 @@ update_sensors(void)
 			continue;
 
 		if (strstr(buf, "temperature"))
-			if (add_sensor(buf, len) != 0) {
+			if (add_sensor(buf) != 0) {
 				free(oid);
 				return (-1);
 			}
