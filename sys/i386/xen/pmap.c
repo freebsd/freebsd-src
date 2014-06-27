@@ -249,9 +249,9 @@ struct sysmaps {
 	caddr_t	CADDR2;
 };
 static struct sysmaps sysmaps_pcpu[MAXCPU];
-static pt_entry_t *CMAP3;
+pt_entry_t *CMAP3;
 caddr_t ptvmmap = 0;
-static caddr_t CADDR3;
+caddr_t CADDR3;
 struct msgbuf *msgbufp = 0;
 
 /*
