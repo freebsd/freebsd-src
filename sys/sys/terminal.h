@@ -41,6 +41,9 @@
 
 #include <teken/teken.h>
 
+#include "opt_syscons.h"
+#include "opt_teken.h"
+
 struct terminal;
 struct thread;
 struct tty;
@@ -71,11 +74,71 @@ typedef uint32_t term_char_t;
 #define	TCHAR_CHARACTER(c)	((c) & 0x1fffff)
 #define	TCHAR_FORMAT(c)		(((c) >> 21) & 0x1f)
 #define	TCHAR_FGCOLOR(c)	(((c) >> 26) & 0x7)
-#define	TCHAR_BGCOLOR(c)	((c) >> 29)
+#define	TCHAR_BGCOLOR(c)	(((c) >> 29) & 0x7)
+
+typedef teken_attr_t term_attr_t;
 
 typedef teken_color_t term_color_t;
+#define	TCOLOR_FG(c)	(((c) & 0x7) << 26)
+#define	TCOLOR_BG(c)	(((c) & 0x7) << 29)
 #define	TCOLOR_LIGHT(c)	((c) | 0x8)
 #define	TCOLOR_DARK(c)	((c) & ~0x8)
+
+#define	TFORMAT(c)	(((c) & 0x1f) << 21)
+
+/* syscons(4) compatible color attributes for foreground text */
+#define	FG_BLACK		TCOLOR_FG(TC_BLACK)
+#define	FG_BLUE			TCOLOR_FG(TC_BLUE)
+#define	FG_GREEN		TCOLOR_FG(TC_GREEN)
+#define	FG_CYAN			TCOLOR_FG(TC_CYAN)
+#define	FG_RED			TCOLOR_FG(TC_RED)
+#define	FG_MAGENTA		TCOLOR_FG(TC_MAGENTA)
+#define	FG_BROWN		TCOLOR_FG(TC_BROWN)
+#define	FG_LIGHTGREY		TCOLOR_FG(TC_WHITE)
+#define	FG_DARKGREY		(TFORMAT(TF_BOLD) | TCOLOR_FG(TC_BLACK))
+#define	FG_LIGHTBLUE		(TFORMAT(TF_BOLD) | TCOLOR_FG(TC_BLUE))
+#define	FG_LIGHTGREEN		(TFORMAT(TF_BOLD) | TCOLOR_FG(TC_GREEN))
+#define	FG_LIGHTCYAN		(TFORMAT(TF_BOLD) | TCOLOR_FG(TC_CYAN))
+#define	FG_LIGHTRED		(TFORMAT(TF_BOLD) | TCOLOR_FG(TC_RED))
+#define	FG_LIGHTMAGENTA		(TFORMAT(TF_BOLD) | TCOLOR_FG(TC_MAGENTA))
+#define	FG_YELLOW		(TFORMAT(TF_BOLD) | TCOLOR_FG(TC_BROWN))
+#define	FG_WHITE		(TFORMAT(TF_BOLD) | TCOLOR_FG(TC_WHITE))
+#define	FG_BLINK		TFORMAT(TF_BLINK)
+
+/* syscons(4) compatible color attributes for text background */
+#define	BG_BLACK		TCOLOR_BG(TC_BLACK)
+#define	BG_BLUE			TCOLOR_BG(TC_BLUE)
+#define	BG_GREEN		TCOLOR_BG(TC_GREEN)
+#define	BG_CYAN			TCOLOR_BG(TC_CYAN)
+#define	BG_RED			TCOLOR_BG(TC_RED)
+#define	BG_MAGENTA		TCOLOR_BG(TC_MAGENTA)
+#define	BG_BROWN		TCOLOR_BG(TC_BROWN)
+#define	BG_LIGHTGREY		TCOLOR_BG(TC_WHITE)
+#define	BG_DARKGREY		(TFORMAT(TF_BOLD) | TCOLOR_BG(TC_BLACK))
+#define	BG_LIGHTBLUE		(TFORMAT(TF_BOLD) | TCOLOR_BG(TC_BLUE))
+#define	BG_LIGHTGREEN		(TFORMAT(TF_BOLD) | TCOLOR_BG(TC_GREEN))
+#define	BG_LIGHTCYAN		(TFORMAT(TF_BOLD) | TCOLOR_BG(TC_CYAN))
+#define	BG_LIGHTRED		(TFORMAT(TF_BOLD) | TCOLOR_BG(TC_RED))
+#define	BG_LIGHTMAGENTA		(TFORMAT(TF_BOLD) | TCOLOR_BG(TC_MAGENTA))
+#define	BG_YELLOW		(TFORMAT(TF_BOLD) | TCOLOR_BG(TC_BROWN))
+#define	BG_WHITE		(TFORMAT(TF_BOLD) | TCOLOR_BG(TC_WHITE))
+
+#ifndef TERMINAL_NORM_ATTR
+#ifdef SC_NORM_ATTR
+#define	TERMINAL_NORM_ATTR	SC_NORM_ATTR
+#else
+#define	TERMINAL_NORM_ATTR	(FG_LIGHTGREY | BG_BLACK)
+#endif
+#endif
+
+#ifndef TERMINAL_KERN_ATTR
+#ifdef SC_KERNEL_CONS_ATTR
+#define	TERMINAL_KERN_ATTR	SC_KERNEL_CONS_ATTR
+#else
+#define	TERMINAL_KERN_ATTR	(FG_WHITE | BG_BLACK)
+#endif
+#endif
+
 typedef teken_pos_t term_pos_t;
 typedef teken_rect_t term_rect_t;
 
@@ -138,7 +201,7 @@ struct terminal {
 struct terminal *terminal_alloc(const struct terminal_class *tc, void *softc);
 void	terminal_maketty(struct terminal *tm, const char *fmt, ...);
 void	terminal_set_winsize_blank(struct terminal *tm,
-    const struct winsize *size, int blank);
+    const struct winsize *size, int blank, const term_attr_t *attr);
 void	terminal_set_winsize(struct terminal *tm, const struct winsize *size);
 void	terminal_mute(struct terminal *tm, int yes);
 void	terminal_input_char(struct terminal *tm, term_char_t c);

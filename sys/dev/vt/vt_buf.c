@@ -38,6 +38,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mutex.h>
+#include <sys/reboot.h>
 #include <sys/systm.h>
 
 #include <dev/vt/vt.h>
@@ -385,13 +386,13 @@ vtbuf_init_rows(struct vt_buf *vb)
 	vb->vb_history_size = MAX(vb->vb_history_size, vb->vb_scr_size.tp_row);
 
 	for (r = 0; r < vb->vb_history_size; r++)
-		vb->vb_rows[r] = &vb->vb_buffer[r *
-		    vb->vb_scr_size.tp_col];
+		vb->vb_rows[r] = &vb->vb_buffer[r * vb->vb_scr_size.tp_col];
 }
 
 void
 vtbuf_init_early(struct vt_buf *vb)
 {
+	term_rect_t rect;
 
 	vb->vb_flags |= VBF_CURSOR;
 	vb->vb_roffset = 0;
@@ -402,6 +403,10 @@ vtbuf_init_early(struct vt_buf *vb)
 	vb->vb_mark_end.tp_col = 0;
 
 	vtbuf_init_rows(vb);
+	rect.tr_begin.tp_row = rect.tr_begin.tp_col = 0;
+	rect.tr_end = vb->vb_scr_size;
+	vtbuf_fill(vb, &rect, VTBUF_SPACE_CHAR((boothowto & RB_MUTE) == 0 ?
+	    TERMINAL_KERN_ATTR : TERMINAL_NORM_ATTR));
 	vtbuf_make_undirty(vb);
 	if ((vb->vb_flags & VBF_MTX_INIT) == 0) {
 		mtx_init(&vb->vb_lock, "vtbuf", NULL, MTX_SPIN);
@@ -474,20 +479,27 @@ vtbuf_grow(struct vt_buf *vb, const term_pos_t *p, int history_size)
 
 		/* Copy history and fill extra space. */
 		for (r = 0; r < history_size; r ++) {
+			/*
+			 * XXX VTBUF_SPACE_CHAR(TERMINAL_NORM_ATTR) will
+			 * extended lines of kernel text using the wrong
+			 * background color.
+			 */
 			row = rows[r];
 			if (r < h) { /* Copy. */
 				memmove(rows[r], copyrows[r],
 				    MIN(p->tp_col, w) * sizeof(term_char_t));
 				for (c = MIN(p->tp_col, w); c < p->tp_col;
 				    c++) {
-					row[c] = VTBUF_SPACE_CHAR;
+					row[c] = VTBUF_SPACE_CHAR(
+					    TERMINAL_NORM_ATTR);
 				}
 			} else { /* Just fill. */
 				rect.tr_begin.tp_col = 0;
 				rect.tr_begin.tp_row = r;
 				rect.tr_end.tp_col = p->tp_col;
 				rect.tr_end.tp_row = p->tp_row;
-				vtbuf_fill(vb, &rect, VTBUF_SPACE_CHAR);
+				vtbuf_fill(vb, &rect,
+				    VTBUF_SPACE_CHAR(TERMINAL_NORM_ATTR));
 				break;
 			}
 		}
