@@ -2410,7 +2410,7 @@ cfiscsi_lun_enable(void *arg, struct ctl_id target_id, int lun_id)
 	target = ctl_get_opt(control_softc->ctl_luns[lun_id]->be_lun,
 	    "cfiscsi_target");
 	target_alias = ctl_get_opt(control_softc->ctl_luns[lun_id]->be_lun,
-	    "cfiscsi_target)alias");
+	    "cfiscsi_target_alias");
 	lun = ctl_get_opt(control_softc->ctl_luns[lun_id]->be_lun,
 	    "cfiscsi_lun");
 
