@@ -241,6 +241,15 @@ struct ip_fw_chain {
 };
 
 struct sockopt;	/* used by tcp_var.h */
+struct sockopt_data {
+	caddr_t		kbuf;		/* allocated buffer */
+	size_t		ksize;		/* given buffer size */
+	size_t		koff;		/* data already used */
+	size_t		kavail;		/* number of bytes available */
+	size_t		ktotal;		/* total bytes pushed */
+	struct sockopt	*sopt;		/* socket data */
+	size_t		valsize;	/* original data size */
+};
 
 /* Macro for working with various counters */
 #define	IPFW_INC_RULE_COUNTER(_cntr, _bytes)	do {	\
@@ -332,6 +341,9 @@ int ipfw_find_rule(struct ip_fw_chain *chain, uint32_t key, uint32_t id);
 int ipfw_ctl(struct sockopt *sopt);
 int ipfw_chk(struct ip_fw_args *args);
 void ipfw_reap_rules(struct ip_fw *head);
+
+caddr_t ipfw_get_sopt_space(struct sockopt_data *sd, size_t needed);
+caddr_t ipfw_get_sopt_header(struct sockopt_data *sd, size_t needed);
 
 struct namedobj_instance;
 
