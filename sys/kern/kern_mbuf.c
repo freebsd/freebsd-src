@@ -105,7 +105,7 @@ int nmbjumbo16;			/* limits number of 16k jumbo clusters */
 
 static quad_t maxmbufmem;	/* overall real memory limit for all mbufs */
 
-SYSCTL_QUAD(_kern_ipc, OID_AUTO, maxmbufmem, CTLFLAG_RDTUN, &maxmbufmem, 0,
+SYSCTL_QUAD(_kern_ipc, OID_AUTO, maxmbufmem, CTLFLAG_RDTUN | CTLFLAG_NOFETCH, &maxmbufmem, 0,
     "Maximum real memory allocatable to various mbuf types");
 
 /*

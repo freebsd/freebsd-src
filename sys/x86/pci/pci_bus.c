@@ -575,7 +575,6 @@ legacy_pcib_write_ivar(device_t dev, device_t child, int which,
 SYSCTL_DECL(_hw_pci);
 
 static unsigned long host_mem_start = 0x80000000;
-TUNABLE_ULONG("hw.pci.host_mem_start", &host_mem_start);
 SYSCTL_ULONG(_hw_pci, OID_AUTO, host_mem_start, CTLFLAG_RDTUN, &host_mem_start,
     0, "Limit the host bridge memory to being above this address.");
 

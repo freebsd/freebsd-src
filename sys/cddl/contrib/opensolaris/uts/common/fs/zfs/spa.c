@@ -84,8 +84,7 @@
 static int check_hostid = 1;
 
 SYSCTL_DECL(_vfs_zfs);
-TUNABLE_INT("vfs.zfs.check_hostid", &check_hostid);
-SYSCTL_INT(_vfs_zfs, OID_AUTO, check_hostid, CTLFLAG_RW, &check_hostid, 0,
+SYSCTL_INT(_vfs_zfs, OID_AUTO, check_hostid, CTLFLAG_RWTUN, &check_hostid, 0,
     "Check hostid on import?");
 
 /*

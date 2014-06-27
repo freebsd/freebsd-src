@@ -119,7 +119,6 @@ static uint32_t zvol_minors;
 SYSCTL_DECL(_vfs_zfs);
 SYSCTL_NODE(_vfs_zfs, OID_AUTO, vol, CTLFLAG_RW, 0, "ZFS VOLUME");
 static int	volmode = ZFS_VOLMODE_GEOM;
-TUNABLE_INT("vfs.zfs.vol.mode", &volmode);
 SYSCTL_INT(_vfs_zfs_vol, OID_AUTO, mode, CTLFLAG_RWTUN, &volmode, 0,
     "Expose as GEOM providers (1), device files (2) or neither");
 

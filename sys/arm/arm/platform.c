@@ -65,8 +65,8 @@ static platform_t	plat_obj;
 static struct kobj_ops	plat_kernel_kops;
 static struct platform_kobj	plat_kernel_obj;
 
-static char plat_name[64] = "";
-SYSCTL_STRING(_hw, OID_AUTO, platform, CTLFLAG_RDTUN, plat_name, 0,
+static char plat_name[64];
+SYSCTL_STRING(_hw, OID_AUTO, platform, CTLFLAG_RDTUN | CTLFLAG_NOFETCH, plat_name, 0,
     "Platform currently in use");
 
 /*

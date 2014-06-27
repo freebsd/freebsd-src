@@ -77,11 +77,11 @@ struct mtx iscsi_dbg_mtx;
 #endif
 
 static int max_sessions = MAX_SESSIONS;
-SYSCTL_INT(_net, OID_AUTO, iscsi_initiator_max_sessions, CTLFLAG_RDTUN, &max_sessions, MAX_SESSIONS,
-	   "Max sessions allowed");
+SYSCTL_INT(_net, OID_AUTO, iscsi_initiator_max_sessions, CTLFLAG_RDTUN,
+    &max_sessions, 0, "Max sessions allowed");
 static int max_pdus = MAX_PDUS;
-SYSCTL_INT(_net, OID_AUTO, iscsi_initiator_max_pdus, CTLFLAG_RDTUN, &max_pdus, MAX_PDUS,
-	   "Max pdu pool");
+SYSCTL_INT(_net, OID_AUTO, iscsi_initiator_max_pdus, CTLFLAG_RDTUN,
+    &max_pdus, 0, "Max PDU pool");
 
 static char isid[6+1] = {
      0x80,
@@ -710,9 +710,6 @@ static int
 iscsi_start(void)
 {
      debug_called(8);
-
-     TUNABLE_INT_FETCH("net.iscsi_initiator.max_sessions", &max_sessions);
-     TUNABLE_INT_FETCH("net.iscsi_initiator.max_pdus", &max_pdus);
 
      isc =  malloc(sizeof(struct isc_softc), M_ISCSI, M_ZERO|M_WAITOK);
      mtx_init(&isc->isc_mtx, "iscsi-isc", NULL, MTX_DEF);

@@ -119,14 +119,11 @@ static int ucom_cons_subunit = 0;
 static int ucom_cons_baud = 9600;
 static struct ucom_softc *ucom_cons_softc = NULL;
 
-TUNABLE_INT("hw.usb.ucom.cons_unit", &ucom_cons_unit);
-SYSCTL_INT(_hw_usb_ucom, OID_AUTO, cons_unit, CTLFLAG_RW | CTLFLAG_TUN,
+SYSCTL_INT(_hw_usb_ucom, OID_AUTO, cons_unit, CTLFLAG_RWTUN,
     &ucom_cons_unit, 0, "console unit number");
-TUNABLE_INT("hw.usb.ucom.cons_subunit", &ucom_cons_subunit);
-SYSCTL_INT(_hw_usb_ucom, OID_AUTO, cons_subunit, CTLFLAG_RW | CTLFLAG_TUN,
+SYSCTL_INT(_hw_usb_ucom, OID_AUTO, cons_subunit, CTLFLAG_RWTUN,
     &ucom_cons_subunit, 0, "console subunit number");
-TUNABLE_INT("hw.usb.ucom.cons_baud", &ucom_cons_baud);
-SYSCTL_INT(_hw_usb_ucom, OID_AUTO, cons_baud, CTLFLAG_RW | CTLFLAG_TUN,
+SYSCTL_INT(_hw_usb_ucom, OID_AUTO, cons_baud, CTLFLAG_RWTUN,
     &ucom_cons_baud, 0, "console baud rate");
 
 static usb_proc_callback_t ucom_cfg_start_transfers;

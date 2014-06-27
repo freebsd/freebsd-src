@@ -58,34 +58,28 @@ static eventhandler_tag tsc_levels_tag, tsc_pre_tag, tsc_post_tag;
 
 SYSCTL_INT(_kern_timecounter, OID_AUTO, invariant_tsc, CTLFLAG_RDTUN,
     &tsc_is_invariant, 0, "Indicates whether the TSC is P-state invariant");
-TUNABLE_INT("kern.timecounter.invariant_tsc", &tsc_is_invariant);
 
 #ifdef SMP
 int	smp_tsc;
 SYSCTL_INT(_kern_timecounter, OID_AUTO, smp_tsc, CTLFLAG_RDTUN, &smp_tsc, 0,
     "Indicates whether the TSC is safe to use in SMP mode");
-TUNABLE_INT("kern.timecounter.smp_tsc", &smp_tsc);
 
 int	smp_tsc_adjust = 0;
 SYSCTL_INT(_kern_timecounter, OID_AUTO, smp_tsc_adjust, CTLFLAG_RDTUN,
     &smp_tsc_adjust, 0, "Try to adjust TSC on APs to match BSP");
-TUNABLE_INT("kern.timecounter.smp_tsc_adjust", &smp_tsc_adjust);
 #endif
 
 static int	tsc_shift = 1;
 SYSCTL_INT(_kern_timecounter, OID_AUTO, tsc_shift, CTLFLAG_RDTUN,
     &tsc_shift, 0, "Shift to pre-apply for the maximum TSC frequency");
-TUNABLE_INT("kern.timecounter.tsc_shift", &tsc_shift);
 
 static int	tsc_disabled;
 SYSCTL_INT(_machdep, OID_AUTO, disable_tsc, CTLFLAG_RDTUN, &tsc_disabled, 0,
     "Disable x86 Time Stamp Counter");
-TUNABLE_INT("machdep.disable_tsc", &tsc_disabled);
 
 static int	tsc_skip_calibration;
 SYSCTL_INT(_machdep, OID_AUTO, disable_tsc_calibration, CTLFLAG_RDTUN,
     &tsc_skip_calibration, 0, "Disable TSC frequency calibration");
-TUNABLE_INT("machdep.disable_tsc_calibration", &tsc_skip_calibration);
 
 static void tsc_freq_changed(void *arg, const struct cf_level *level,
     int status);

@@ -112,14 +112,13 @@ static int dwc_otg_use_hsic;
 
 static SYSCTL_NODE(_hw_usb, OID_AUTO, dwc_otg, CTLFLAG_RW, 0, "USB DWC OTG");
 
-SYSCTL_INT(_hw_usb_dwc_otg, OID_AUTO, use_hsic, CTLFLAG_RD | CTLFLAG_TUN,
+SYSCTL_INT(_hw_usb_dwc_otg, OID_AUTO, use_hsic, CTLFLAG_RDTUN,
     &dwc_otg_use_hsic, 0, "DWC OTG uses HSIC interface");
-TUNABLE_INT("hw.usb.dwc_otg.use_hsic", &dwc_otg_use_hsic);
 
 #ifdef USB_DEBUG
 static int dwc_otg_debug;
 
-SYSCTL_INT(_hw_usb_dwc_otg, OID_AUTO, debug, CTLFLAG_RW,
+SYSCTL_INT(_hw_usb_dwc_otg, OID_AUTO, debug, CTLFLAG_RWTUN,
     &dwc_otg_debug, 0, "DWC OTG debug level");
 #endif
 

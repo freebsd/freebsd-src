@@ -244,7 +244,6 @@ int zfs_flags = ~(ZFS_DEBUG_DPRINTF | ZFS_DEBUG_SPA);
 int zfs_flags = 0;
 #endif
 SYSCTL_DECL(_debug);
-TUNABLE_INT("debug.zfs_flags", &zfs_flags);
 SYSCTL_INT(_debug, OID_AUTO, zfs_flags, CTLFLAG_RWTUN, &zfs_flags, 0,
     "ZFS debug flags.");
 
@@ -257,7 +256,6 @@ SYSCTL_INT(_debug, OID_AUTO, zfs_flags, CTLFLAG_RWTUN, &zfs_flags, 0,
  */
 int zfs_recover = 0;
 SYSCTL_DECL(_vfs_zfs);
-TUNABLE_INT("vfs.zfs.recover", &zfs_recover);
 SYSCTL_INT(_vfs_zfs, OID_AUTO, recover, CTLFLAG_RDTUN, &zfs_recover, 0,
     "Try to recover from otherwise-fatal errors.");
 
@@ -270,7 +268,6 @@ SYSCTL_INT(_vfs_zfs, OID_AUTO, recover, CTLFLAG_RDTUN, &zfs_recover, 0,
  * in a system panic.
  */
 uint64_t zfs_deadman_synctime_ms = 1000000ULL;
-TUNABLE_QUAD("vfs.zfs.deadman_synctime_ms", &zfs_deadman_synctime_ms);
 SYSCTL_UQUAD(_vfs_zfs, OID_AUTO, deadman_synctime_ms, CTLFLAG_RDTUN,
     &zfs_deadman_synctime_ms, 0,
     "Stalled ZFS I/O expiration time in milliseconds");
@@ -280,7 +277,6 @@ SYSCTL_UQUAD(_vfs_zfs, OID_AUTO, deadman_synctime_ms, CTLFLAG_RDTUN,
  * for hung I/O.
  */
 uint64_t zfs_deadman_checktime_ms = 5000ULL;
-TUNABLE_QUAD("vfs.zfs.deadman_checktime_ms", &zfs_deadman_checktime_ms);
 SYSCTL_UQUAD(_vfs_zfs, OID_AUTO, deadman_checktime_ms, CTLFLAG_RDTUN,
     &zfs_deadman_checktime_ms, 0,
     "Period of checks for stalled ZFS I/O in milliseconds");
@@ -290,7 +286,6 @@ SYSCTL_UQUAD(_vfs_zfs, OID_AUTO, deadman_checktime_ms, CTLFLAG_RDTUN,
  * zfs_deadman_init()
  */
 int zfs_deadman_enabled = -1;
-TUNABLE_INT("vfs.zfs.deadman_enabled", &zfs_deadman_enabled);
 SYSCTL_INT(_vfs_zfs, OID_AUTO, deadman_enabled, CTLFLAG_RDTUN,
     &zfs_deadman_enabled, 0, "Kernel panic on stalled ZFS I/O");
 
@@ -304,7 +299,6 @@ SYSCTL_INT(_vfs_zfs, OID_AUTO, deadman_enabled, CTLFLAG_RDTUN,
  *     (VDEV_RAIDZ_MAXPARITY + 1) * SPA_DVAS_PER_BP * 2 == 24
  */
 int spa_asize_inflation = 24;
-TUNABLE_INT("vfs.zfs.spa_asize_inflation", &spa_asize_inflation);
 SYSCTL_INT(_vfs_zfs, OID_AUTO, spa_asize_inflation, CTLFLAG_RWTUN,
     &spa_asize_inflation, 0, "Worst case inflation factor for single sector writes");
 

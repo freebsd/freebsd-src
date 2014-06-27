@@ -70,8 +70,7 @@
  */
 int zil_replay_disable = 0;
 SYSCTL_DECL(_vfs_zfs);
-TUNABLE_INT("vfs.zfs.zil_replay_disable", &zil_replay_disable);
-SYSCTL_INT(_vfs_zfs, OID_AUTO, zil_replay_disable, CTLFLAG_RW,
+SYSCTL_INT(_vfs_zfs, OID_AUTO, zil_replay_disable, CTLFLAG_RWTUN,
     &zil_replay_disable, 0, "Disable intent logging replay");
 
 /*
@@ -80,12 +79,10 @@ SYSCTL_INT(_vfs_zfs, OID_AUTO, zil_replay_disable, CTLFLAG_RW,
  * out-of-order write cache is enabled.
  */
 boolean_t zfs_nocacheflush = B_FALSE;
-TUNABLE_INT("vfs.zfs.cache_flush_disable", &zfs_nocacheflush);
 SYSCTL_INT(_vfs_zfs, OID_AUTO, cache_flush_disable, CTLFLAG_RDTUN,
     &zfs_nocacheflush, 0, "Disable cache flush");
 boolean_t zfs_trim_enabled = B_TRUE;
 SYSCTL_DECL(_vfs_zfs_trim);
-TUNABLE_INT("vfs.zfs.trim.enabled", &zfs_trim_enabled);
 SYSCTL_INT(_vfs_zfs_trim, OID_AUTO, enabled, CTLFLAG_RDTUN, &zfs_trim_enabled, 0,
     "Enable ZFS TRIM");
 
