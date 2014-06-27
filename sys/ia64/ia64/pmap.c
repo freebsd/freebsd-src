@@ -240,8 +240,9 @@ int pmap_vhpt_nbuckets;
 SYSCTL_INT(_machdep_vhpt, OID_AUTO, nbuckets, CTLFLAG_RD,
     &pmap_vhpt_nbuckets, 0, "");
 
-int pmap_vhpt_log2size;
-SYSCTL_INT(_machdep_vhpt, OID_AUTO, log2size, CTLFLAG_RDTUN | CTLFLAG_NOFETCH,
+int pmap_vhpt_log2size = 0;
+TUNABLE_INT("machdep.vhpt.log2size", &pmap_vhpt_log2size);
+SYSCTL_INT(_machdep_vhpt, OID_AUTO, log2size, CTLFLAG_RD,
     &pmap_vhpt_log2size, 0, "");
 
 static int pmap_vhpt_inserts;

@@ -89,10 +89,12 @@ static int uhcidebug = 0;
 static int uhcinoloop = 0;
 
 static SYSCTL_NODE(_hw_usb, OID_AUTO, uhci, CTLFLAG_RW, 0, "USB uhci");
-SYSCTL_INT(_hw_usb_uhci, OID_AUTO, debug, CTLFLAG_RWTUN,
+SYSCTL_INT(_hw_usb_uhci, OID_AUTO, debug, CTLFLAG_RW | CTLFLAG_TUN,
     &uhcidebug, 0, "uhci debug level");
-SYSCTL_INT(_hw_usb_uhci, OID_AUTO, loop, CTLFLAG_RWTUN,
+TUNABLE_INT("hw.usb.uhci.debug", &uhcidebug);
+SYSCTL_INT(_hw_usb_uhci, OID_AUTO, loop, CTLFLAG_RW | CTLFLAG_TUN,
     &uhcinoloop, 0, "uhci noloop");
+TUNABLE_INT("hw.usb.uhci.loop", &uhcinoloop);
 
 static void uhci_dumpregs(uhci_softc_t *sc);
 static void uhci_dump_tds(uhci_td_t *td);

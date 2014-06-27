@@ -125,7 +125,8 @@ static uint32_t *feeder_chain_formats[FEEDER_CHAIN_LAST] = {
 static int feeder_chain_mode = FEEDER_CHAIN_DEFAULT;
 
 #if defined(_KERNEL) && defined(SND_DEBUG) && defined(SND_FEEDER_FULL_MULTIFORMAT)
-SYSCTL_INT(_hw_snd, OID_AUTO, feeder_chain_mode, CTLFLAG_RWTUN,
+TUNABLE_INT("hw.snd.feeder_chain_mode", &feeder_chain_mode);
+SYSCTL_INT(_hw_snd, OID_AUTO, feeder_chain_mode, CTLFLAG_RW,
     &feeder_chain_mode, 0,
     "feeder chain mode "
     "(0=lean, 1=16bit, 2=32bit, 3=multiformat, 4=fullmultiformat)");

@@ -139,12 +139,15 @@ static int pmp_hide_special = PMP_DEFAULT_HIDE_SPECIAL;
 
 static SYSCTL_NODE(_kern_cam, OID_AUTO, pmp, CTLFLAG_RD, 0,
             "CAM Direct Access Disk driver");
-SYSCTL_INT(_kern_cam_pmp, OID_AUTO, retry_count, CTLFLAG_RWTUN,
+SYSCTL_INT(_kern_cam_pmp, OID_AUTO, retry_count, CTLFLAG_RW,
            &pmp_retry_count, 0, "Normal I/O retry count");
-SYSCTL_INT(_kern_cam_pmp, OID_AUTO, default_timeout, CTLFLAG_RWTUN,
+TUNABLE_INT("kern.cam.pmp.retry_count", &pmp_retry_count);
+SYSCTL_INT(_kern_cam_pmp, OID_AUTO, default_timeout, CTLFLAG_RW,
            &pmp_default_timeout, 0, "Normal I/O timeout (in seconds)");
-SYSCTL_INT(_kern_cam_pmp, OID_AUTO, hide_special, CTLFLAG_RWTUN,
+TUNABLE_INT("kern.cam.pmp.default_timeout", &pmp_default_timeout);
+SYSCTL_INT(_kern_cam_pmp, OID_AUTO, hide_special, CTLFLAG_RW,
            &pmp_hide_special, 0, "Hide extra ports");
+TUNABLE_INT("kern.cam.pmp.hide_special", &pmp_hide_special);
 
 static struct periph_driver pmpdriver =
 {

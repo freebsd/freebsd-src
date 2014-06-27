@@ -80,7 +80,8 @@ __FBSDID("$FreeBSD$");
 #include <dev/puc/puc_bfe.h>
 
 static int puc_msi_disable;
-SYSCTL_INT(_hw_puc, OID_AUTO, msi_disable, CTLFLAG_RDTUN,
+TUNABLE_INT("hw.puc.msi_disable", &puc_msi_disable);
+SYSCTL_INT(_hw_puc, OID_AUTO, msi_disable, CTLFLAG_RD | CTLFLAG_TUN,
     &puc_msi_disable, 0, "Disable use of MSI interrupts by puc(9)");
 
 static const struct puc_cfg *

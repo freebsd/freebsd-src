@@ -68,7 +68,8 @@ static int	watchdog_dontfire = 1;
 static int	watchdog_timer = -1;
 static int	watchdog_nmi = 1;
 
-SYSCTL_INT(_debug, OID_AUTO, watchdog_nmi, CTLFLAG_RWTUN, &watchdog_nmi, 0,
+TUNABLE_INT("debug.watchdog", &watchdog_cpu);
+SYSCTL_INT(_debug, OID_AUTO, watchdog_nmi, CTLFLAG_RW, &watchdog_nmi, 0,
     "IPI the boot processor with an NMI to enter the debugger");
 
 static struct callout	watchdog_callout;

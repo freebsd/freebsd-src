@@ -156,29 +156,29 @@ static int sysctl_shmsegs(SYSCTL_HANDLER_ARGS);
 #endif
 
 struct	shminfo shminfo = {
-	.shmmax = SHMMAX,
-	.shmmin = SHMMIN,
-	.shmmni = SHMMNI,
-	.shmseg = SHMSEG,
-	.shmall = SHMALL
+	SHMMAX,
+	SHMMIN,
+	SHMMNI,
+	SHMSEG,
+	SHMALL
 };
 
 static int shm_use_phys;
 static int shm_allow_removed;
 
-SYSCTL_ULONG(_kern_ipc, OID_AUTO, shmmax, CTLFLAG_RWTUN, &shminfo.shmmax, 0,
+SYSCTL_ULONG(_kern_ipc, OID_AUTO, shmmax, CTLFLAG_RW, &shminfo.shmmax, 0,
     "Maximum shared memory segment size");
-SYSCTL_ULONG(_kern_ipc, OID_AUTO, shmmin, CTLFLAG_RWTUN, &shminfo.shmmin, 0,
+SYSCTL_ULONG(_kern_ipc, OID_AUTO, shmmin, CTLFLAG_RW, &shminfo.shmmin, 0,
     "Minimum shared memory segment size");
 SYSCTL_ULONG(_kern_ipc, OID_AUTO, shmmni, CTLFLAG_RDTUN, &shminfo.shmmni, 0,
     "Number of shared memory identifiers");
 SYSCTL_ULONG(_kern_ipc, OID_AUTO, shmseg, CTLFLAG_RDTUN, &shminfo.shmseg, 0,
     "Number of segments per process");
-SYSCTL_ULONG(_kern_ipc, OID_AUTO, shmall, CTLFLAG_RWTUN, &shminfo.shmall, 0,
+SYSCTL_ULONG(_kern_ipc, OID_AUTO, shmall, CTLFLAG_RW, &shminfo.shmall, 0,
     "Maximum number of pages available for shared memory");
-SYSCTL_INT(_kern_ipc, OID_AUTO, shm_use_phys, CTLFLAG_RWTUN,
+SYSCTL_INT(_kern_ipc, OID_AUTO, shm_use_phys, CTLFLAG_RW,
     &shm_use_phys, 0, "Enable/Disable locking of shared memory pages in core");
-SYSCTL_INT(_kern_ipc, OID_AUTO, shm_allow_removed, CTLFLAG_RWTUN,
+SYSCTL_INT(_kern_ipc, OID_AUTO, shm_allow_removed, CTLFLAG_RW,
     &shm_allow_removed, 0,
     "Enable/Disable attachment to attached segments marked for removal");
 SYSCTL_PROC(_kern_ipc, OID_AUTO, shmsegs, CTLTYPE_OPAQUE | CTLFLAG_RD,
@@ -887,14 +887,20 @@ shminit()
 	if (TUNABLE_ULONG_FETCH("kern.ipc.shmmaxpgs", &shminfo.shmall) != 0)
 		printf("kern.ipc.shmmaxpgs is now called kern.ipc.shmall!\n");
 #endif
-	if (shminfo.shmmax == SHMMAX) {
+	TUNABLE_ULONG_FETCH("kern.ipc.shmall", &shminfo.shmall);
+	if (!TUNABLE_ULONG_FETCH("kern.ipc.shmmax", &shminfo.shmmax)) {
 		/* Initialize shmmax dealing with possible overflow. */
-		for (i = PAGE_SIZE; i != 0; i--) {
+		for (i = PAGE_SIZE; i > 0; i--) {
 			shminfo.shmmax = shminfo.shmall * i;
-			if ((shminfo.shmmax / shminfo.shmall) == (u_long)i)
+			if (shminfo.shmmax >= shminfo.shmall)
 				break;
 		}
 	}
+	TUNABLE_ULONG_FETCH("kern.ipc.shmmin", &shminfo.shmmin);
+	TUNABLE_ULONG_FETCH("kern.ipc.shmmni", &shminfo.shmmni);
+	TUNABLE_ULONG_FETCH("kern.ipc.shmseg", &shminfo.shmseg);
+	TUNABLE_INT_FETCH("kern.ipc.shm_use_phys", &shm_use_phys);
+
 	shmalloced = shminfo.shmmni;
 	shmsegs = malloc(shmalloced * sizeof(shmsegs[0]), M_SHM, M_WAITOK);
 	for (i = 0; i < shmalloced; i++) {

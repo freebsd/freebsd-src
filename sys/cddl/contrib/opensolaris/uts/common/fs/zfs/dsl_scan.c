@@ -71,23 +71,32 @@ boolean_t zfs_no_scrub_io = B_FALSE; /* set to disable scrub i/o */
 boolean_t zfs_no_scrub_prefetch = B_FALSE; /* set to disable srub prefetching */
 
 SYSCTL_DECL(_vfs_zfs);
-SYSCTL_UINT(_vfs_zfs, OID_AUTO, top_maxinflight, CTLFLAG_RWTUN,
+TUNABLE_INT("vfs.zfs.top_maxinflight", &zfs_top_maxinflight);
+SYSCTL_UINT(_vfs_zfs, OID_AUTO, top_maxinflight, CTLFLAG_RW,
     &zfs_top_maxinflight, 0, "Maximum I/Os per top-level vdev");
-SYSCTL_UINT(_vfs_zfs, OID_AUTO, resilver_delay, CTLFLAG_RWTUN,
+TUNABLE_INT("vfs.zfs.resilver_delay", &zfs_resilver_delay);
+SYSCTL_UINT(_vfs_zfs, OID_AUTO, resilver_delay, CTLFLAG_RW,
     &zfs_resilver_delay, 0, "Number of ticks to delay resilver");
-SYSCTL_UINT(_vfs_zfs, OID_AUTO, scrub_delay, CTLFLAG_RWTUN,
+TUNABLE_INT("vfs.zfs.scrub_delay", &zfs_scrub_delay);
+SYSCTL_UINT(_vfs_zfs, OID_AUTO, scrub_delay, CTLFLAG_RW,
     &zfs_scrub_delay, 0, "Number of ticks to delay scrub");
-SYSCTL_UINT(_vfs_zfs, OID_AUTO, scan_idle, CTLFLAG_RWTUN,
+TUNABLE_INT("vfs.zfs.scan_idle", &zfs_scan_idle);
+SYSCTL_UINT(_vfs_zfs, OID_AUTO, scan_idle, CTLFLAG_RW,
     &zfs_scan_idle, 0, "Idle scan window in clock ticks");
-SYSCTL_UINT(_vfs_zfs, OID_AUTO, scan_min_time_ms, CTLFLAG_RWTUN,
+TUNABLE_INT("vfs.zfs.scan_min_time_ms", &zfs_scan_min_time_ms);
+SYSCTL_UINT(_vfs_zfs, OID_AUTO, scan_min_time_ms, CTLFLAG_RW,
     &zfs_scan_min_time_ms, 0, "Min millisecs to scrub per txg");
-SYSCTL_UINT(_vfs_zfs, OID_AUTO, free_min_time_ms, CTLFLAG_RWTUN,
+TUNABLE_INT("vfs.zfs.free_min_time_ms", &zfs_free_min_time_ms);
+SYSCTL_UINT(_vfs_zfs, OID_AUTO, free_min_time_ms, CTLFLAG_RW,
     &zfs_free_min_time_ms, 0, "Min millisecs to free per txg");
-SYSCTL_UINT(_vfs_zfs, OID_AUTO, resilver_min_time_ms, CTLFLAG_RWTUN,
+TUNABLE_INT("vfs.zfs.resilver_min_time_ms", &zfs_resilver_min_time_ms);
+SYSCTL_UINT(_vfs_zfs, OID_AUTO, resilver_min_time_ms, CTLFLAG_RW,
     &zfs_resilver_min_time_ms, 0, "Min millisecs to resilver per txg");
-SYSCTL_INT(_vfs_zfs, OID_AUTO, no_scrub_io, CTLFLAG_RWTUN,
+TUNABLE_INT("vfs.zfs.no_scrub_io", &zfs_no_scrub_io);
+SYSCTL_INT(_vfs_zfs, OID_AUTO, no_scrub_io, CTLFLAG_RW,
     &zfs_no_scrub_io, 0, "Disable scrub I/O");
-SYSCTL_INT(_vfs_zfs, OID_AUTO, no_scrub_prefetch, CTLFLAG_RWTUN,
+TUNABLE_INT("vfs.zfs.no_scrub_prefetch", &zfs_no_scrub_prefetch);
+SYSCTL_INT(_vfs_zfs, OID_AUTO, no_scrub_prefetch, CTLFLAG_RW,
     &zfs_no_scrub_prefetch, 0, "Disable scrub prefetching");
 
 enum ddt_class zfs_scrub_ddt_class_max = DDT_CLASS_DUPLICATE;

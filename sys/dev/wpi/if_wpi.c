@@ -130,8 +130,9 @@ enum {
 	WPI_DEBUG_ANY		= 0xffffffff
 };
 
-static int wpi_debug;
-SYSCTL_INT(_debug, OID_AUTO, wpi, CTLFLAG_RWTUN, &wpi_debug, 0, "wpi debug level");
+static int wpi_debug = 0;
+SYSCTL_INT(_debug, OID_AUTO, wpi, CTLFLAG_RW, &wpi_debug, 0, "wpi debug level");
+TUNABLE_INT("debug.wpi", &wpi_debug);
 
 #else
 #define DPRINTF(x)
