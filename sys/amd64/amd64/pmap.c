@@ -619,7 +619,7 @@ void
 pmap_bootstrap(vm_paddr_t *firstaddr)
 {
 	vm_offset_t va;
-	pt_entry_t *pte, *unused;
+	pt_entry_t *pte;
 
 	/*
 	 * Create an initial set of page tables to run the kernel in.
@@ -663,14 +663,11 @@ pmap_bootstrap(vm_paddr_t *firstaddr)
 	pte = vtopte(va);
 
 	/*
-	 * CMAP1 is only used for the memory test.
+	 * Crashdump maps.  The first page is reused as CMAP1 for the
+	 * memory test.
 	 */
-	SYSMAP(caddr_t, CMAP1, CADDR1, 1)
-
-	/*
-	 * Crashdump maps.
-	 */
-	SYSMAP(caddr_t, unused, crashdumpmap, MAXDUMPPGS)
+	SYSMAP(caddr_t, CMAP1, crashdumpmap, MAXDUMPPGS)
+	CADDR1 = crashdumpmap;
 
 	virtual_avail = va;
 
