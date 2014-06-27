@@ -1859,7 +1859,7 @@ unp_internalize(struct mbuf **controlp, struct thread *td)
 	*controlp = NULL;
 	while (cm != NULL) {
 		if (sizeof(*cm) > clen || cm->cmsg_level != SOL_SOCKET
-		    || cm->cmsg_len > clen) {
+		    || cm->cmsg_len > clen || cm->cmsg_len < sizeof(*cm)) {
 			error = EINVAL;
 			goto out;
 		}
