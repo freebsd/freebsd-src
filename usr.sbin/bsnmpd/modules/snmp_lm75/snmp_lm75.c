@@ -140,7 +140,7 @@ sysctlname(int *oid, int nlen, char *name, size_t len)
 {
 	int mib[12];
 
-	if (nlen > (int)sizeof(mib) + 2)
+	if (nlen > (int)(sizeof(mib) / sizeof(int) - 2))
 		return (-1);
 
 	mib[0] = 0;
@@ -158,7 +158,7 @@ sysctlgetnext(int *oid, int nlen, int *next, size_t *nextlen)
 {
 	int mib[12];
 
-	if (nlen  > (int)sizeof(mib) + 2)
+	if (nlen > (int)(sizeof(mib) / sizeof(int) - 2))
 		return (-1);
 
 	mib[0] = 0;
@@ -180,8 +180,11 @@ update_sensor_sysctl(char *obuf, size_t *obuflen, int idx, const char *name)
 
 	/* Fill out the mib information. */
 	snprintf(buf, sizeof(buf) - 1, "dev.lm75.%d.%s", idx, name);
-	len = 4;
+	len = sizeof(mib) / sizeof(int);
 	if (sysctlnametomib(buf, mib, &len) == -1)
+		return (-1);
+
+	if (len != 4)
 		return (-1);
 
 	/* Read the sysctl data. */
