@@ -52,13 +52,12 @@ __FBSDID("$FreeBSD$");
  * o   The timestamp is seconds since 1/1/2000 12:00:00 AM UTC
  */
 
-#define	VHD_BLOCK_SIZE	4096	/* In sectors; 2MB blocks */
 #define	VHD_SECTOR_SIZE	512
+#define	VHD_BLOCK_SIZE	(4096 * VHD_SECTOR_SIZE)	/* 2MB blocks */
 
 struct vhd_footer {
-	char		cookie[8];
-#define	VHD_COOKIE_MICROSOFT	"conectix"
-#define	VHD_COOKIE_FREEBSD	"FreeBSD"
+	uint64_t	cookie;
+#define	VHD_FOOTER_COOKIE	0x636f6e6563746978
 	uint32_t	features;
 #define	VHD_FEATURES_TEMPORARY	0x01
 #define	VHD_FEATURES_RESERVED	0x02
@@ -66,18 +65,12 @@ struct vhd_footer {
 #define	VHD_VERSION		0x00010000
 	uint64_t	data_offset;
 	uint32_t	timestamp;
-	char		creator_tool[4];
-#define	VHD_CREATOR_TOOL_MS_VPC	"vpc "		/* Virtual PC */
-#define	VHD_CREATOR_TOOL_MS_VS	"vs  "		/* Virtual Server */
-#define	VHD_CREATOR_TOOL_FBSD	"mkim"		/* FreeBSD mkimg */
+	uint32_t	creator_tool;
+#define	VHD_CREATOR_TOOL	0x2a696d67	/* FreeBSD mkimg */
 	uint32_t	creator_version;
-#define	VHD_CREATOR_VERS_MS_VPC	0x00050000
-#define	VHD_CREATOR_VERS_MS_VS	0x00010000
-#define	VHD_CREATOR_VERS_FBSD	0x00010000
-	char		creator_os[4];
-#define	VHD_CREATOR_OS_WINDOWS	"Wi2k"
-#define	VHD_CREATOR_OS_MAC	"Mac "
-#define	VHD_CREATOR_OS_FREEBSD	"FBSD"
+#define	VHD_CREATOR_VERSION	0x00010000
+	uint32_t	creator_os;
+#define	VHD_CREATOR_OS		0x46425344
 	uint64_t	original_size;
 	uint64_t	current_size;
 	uint16_t	cylinders;
@@ -97,6 +90,7 @@ _Static_assert(sizeof(struct vhd_footer) == VHD_SECTOR_SIZE,
 
 struct vhd_dyn_header {
 	uint64_t	cookie;
+#define	VHD_HEADER_COOKIE	0x6378737061727365
 	uint64_t	data_offset;
 	uint64_t	table_offset;
 	uint32_t	version;
@@ -122,10 +116,11 @@ _Static_assert(sizeof(struct vhd_dyn_header) == VHD_SECTOR_SIZE * 2,
 static int
 vhd_resize(lba_t imgsz)
 {
+	uint64_t imagesz;
 
-	/* Round to a multiple of the block size. */
-	imgsz = (imgsz + VHD_BLOCK_SIZE - 1) & ~(VHD_BLOCK_SIZE - 1);
-	return (image_set_size(imgsz));
+	imagesz = imgsz * secsz;
+	imagesz = (imagesz + VHD_BLOCK_SIZE - 1) & ~(VHD_BLOCK_SIZE - 1);
+	return (image_set_size(imagesz / secsz));
 }
 
 static uint32_t
@@ -176,16 +171,14 @@ vhd_write(int fd)
 	imgsz = image_get_size() * secsz;
 
 	memset(&footer, 0, sizeof(footer));
-	strncpy(footer.cookie, VHD_COOKIE_FREEBSD, sizeof(footer.cookie));
+	be64enc(&footer.cookie, VHD_FOOTER_COOKIE);
 	be32enc(&footer.features, VHD_FEATURES_RESERVED);
 	be32enc(&footer.version, VHD_VERSION);
-	be32enc(&footer.data_offset, VHD_SECTOR_SIZE);
+	be64enc(&footer.data_offset, sizeof(footer));
 	be32enc(&footer.timestamp, vhd_timestamp());
-	strncpy(footer.creator_tool, VHD_CREATOR_TOOL_FBSD,
-	    sizeof(footer.creator_tool));
-	be32enc(&footer.creator_version, VHD_CREATOR_VERS_FBSD);
-	strncpy(footer.creator_os, VHD_CREATOR_OS_FREEBSD,
-	    sizeof(footer.creator_os));
+	be32enc(&footer.creator_tool, VHD_CREATOR_TOOL);
+	be32enc(&footer.creator_version, VHD_CREATOR_VERSION);
+	be32enc(&footer.creator_os, VHD_CREATOR_OS);
 	be64enc(&footer.original_size, imgsz);
 	be64enc(&footer.current_size, imgsz);
 	/* XXX Geometry */
@@ -193,11 +186,20 @@ vhd_write(int fd)
 	uuidgen(&id, 1);
 	vhd_uuid_enc(&footer.id, &id);
 	be32enc(&footer.checksum, vhd_checksum(&footer, sizeof(footer)));
-
-	if (sparse_write(fd, &footer, VHD_SECTOR_SIZE) < 0)
+	if (sparse_write(fd, &footer, sizeof(footer)) < 0)
 		return (errno);
 
 	memset(&header, 0, sizeof(header));
+	be64enc(&header.cookie, VHD_HEADER_COOKIE);
+	be64enc(&header.data_offset, ~0ULL);
+	be64enc(&header.table_offset, sizeof(footer) + sizeof(header));
+	be32enc(&header.version, VHD_VERSION);
+	be32enc(&header.max_entries, imgsz / VHD_BLOCK_SIZE);
+	be32enc(&header.block_size, VHD_BLOCK_SIZE);
+	be32enc(&header.checksum, vhd_checksum(&header, sizeof(header)));
+	if (sparse_write(fd, &header, sizeof(header)) < 0)
+		return (errno);
+
 	return (image_copyout(fd));
 }
 
