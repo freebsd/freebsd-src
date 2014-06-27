@@ -102,23 +102,20 @@ static void  snprintf_func(int ch, void *arg);
 static int msgbufmapped;		/* Set when safe to use msgbuf */
 int msgbuftrigger;
 
-static int      log_console_output = 1;
-TUNABLE_INT("kern.log_console_output", &log_console_output);
-SYSCTL_INT(_kern, OID_AUTO, log_console_output, CTLFLAG_RW,
-    &log_console_output, 0, "Duplicate console output to the syslog.");
+static int log_console_output = 1;
+SYSCTL_INT(_kern, OID_AUTO, log_console_output, CTLFLAG_RWTUN,
+    &log_console_output, 0, "Duplicate console output to the syslog");
 
 /*
  * See the comment in log_console() below for more explanation of this.
  */
-static int log_console_add_linefeed = 0;
-TUNABLE_INT("kern.log_console_add_linefeed", &log_console_add_linefeed);
-SYSCTL_INT(_kern, OID_AUTO, log_console_add_linefeed, CTLFLAG_RW,
-    &log_console_add_linefeed, 0, "log_console() adds extra newlines.");
+static int log_console_add_linefeed;
+SYSCTL_INT(_kern, OID_AUTO, log_console_add_linefeed, CTLFLAG_RWTUN,
+    &log_console_add_linefeed, 0, "log_console() adds extra newlines");
 
-static int	always_console_output = 0;
-TUNABLE_INT("kern.always_console_output", &always_console_output);
-SYSCTL_INT(_kern, OID_AUTO, always_console_output, CTLFLAG_RW,
-    &always_console_output, 0, "Always output to console despite TIOCCONS.");
+static int always_console_output;
+SYSCTL_INT(_kern, OID_AUTO, always_console_output, CTLFLAG_RWTUN,
+    &always_console_output, 0, "Always output to console despite TIOCCONS");
 
 /*
  * Warn that a system table is full.

@@ -74,32 +74,26 @@ static SYSCTL_NODE(_vfs_zfs_vdev, OID_AUTO, mirror, CTLFLAG_RD, 0,
 
 /* Rotating media load calculation configuration. */
 static int rotating_inc = 0;
-TUNABLE_INT("vfs.zfs.vdev.mirror.rotating_inc", &rotating_inc);
-SYSCTL_INT(_vfs_zfs_vdev_mirror, OID_AUTO, rotating_inc, CTLFLAG_RW,
+SYSCTL_INT(_vfs_zfs_vdev_mirror, OID_AUTO, rotating_inc, CTLFLAG_RWTUN,
     &rotating_inc, 0, "Rotating media load increment for non-seeking I/O's");
 
 static int rotating_seek_inc = 5;
-TUNABLE_INT("vfs.zfs.vdev.mirror.rotating_seek_inc", &rotating_seek_inc);
-SYSCTL_INT(_vfs_zfs_vdev_mirror, OID_AUTO, rotating_seek_inc, CTLFLAG_RW,
+SYSCTL_INT(_vfs_zfs_vdev_mirror, OID_AUTO, rotating_seek_inc, CTLFLAG_RWTUN,
     &rotating_seek_inc, 0, "Rotating media load increment for seeking I/O's");
 
 static int rotating_seek_offset = 1 * 1024 * 1024;
-TUNABLE_INT("vfs.zfs.vdev.mirror.rotating_seek_offset", &rotating_seek_offset);
-SYSCTL_INT(_vfs_zfs_vdev_mirror, OID_AUTO, rotating_seek_offset, CTLFLAG_RW,
+SYSCTL_INT(_vfs_zfs_vdev_mirror, OID_AUTO, rotating_seek_offset, CTLFLAG_RWTUN,
     &rotating_seek_offset, 0, "Offset in bytes from the last I/O which "
     "triggers a reduced rotating media seek increment");
 
 /* Non-rotating media load calculation configuration. */
 static int non_rotating_inc = 0;
-TUNABLE_INT("vfs.zfs.vdev.mirror.non_rotating_inc", &non_rotating_inc);
-SYSCTL_INT(_vfs_zfs_vdev_mirror, OID_AUTO, non_rotating_inc, CTLFLAG_RW,
+SYSCTL_INT(_vfs_zfs_vdev_mirror, OID_AUTO, non_rotating_inc, CTLFLAG_RWTUN,
     &non_rotating_inc, 0,
     "Non-rotating media load increment for non-seeking I/O's");
 
 static int non_rotating_seek_inc = 1;
-TUNABLE_INT("vfs.zfs.vdev.mirror.non_rotating_seek_inc",
-     &non_rotating_seek_inc);
-SYSCTL_INT(_vfs_zfs_vdev_mirror, OID_AUTO, non_rotating_seek_inc, CTLFLAG_RW,
+SYSCTL_INT(_vfs_zfs_vdev_mirror, OID_AUTO, non_rotating_seek_inc, CTLFLAG_RWTUN,
     &non_rotating_seek_inc, 0,
     "Non-rotating media load increment for seeking I/O's");
 

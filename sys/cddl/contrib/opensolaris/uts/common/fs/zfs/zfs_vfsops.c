@@ -74,8 +74,7 @@ SYSCTL_INT(_vfs_zfs, OID_AUTO, super_owner, CTLFLAG_RW, &zfs_super_owner, 0,
     "File system owner can perform privileged operation on his file systems");
 
 int zfs_debug_level;
-TUNABLE_INT("vfs.zfs.debug", &zfs_debug_level);
-SYSCTL_INT(_vfs_zfs, OID_AUTO, debug, CTLFLAG_RW, &zfs_debug_level, 0,
+SYSCTL_INT(_vfs_zfs, OID_AUTO, debug, CTLFLAG_RWTUN, &zfs_debug_level, 0,
     "Debug level");
 
 SYSCTL_NODE(_vfs_zfs, OID_AUTO, version, CTLFLAG_RD, 0, "ZFS versions");

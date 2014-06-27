@@ -276,10 +276,10 @@ busdma_init(void *dummy)
 /*
  * This init historically used SI_SUB_VM, but now the init code requires
  * malloc(9) using M_DEVBUF memory, which is set up later than SI_SUB_VM, by
- * SI_SUB_KMEM and SI_ORDER_SECOND, so we'll go right after that by using
- * SI_SUB_KMEM and SI_ORDER_THIRD.
+ * SI_SUB_KMEM and SI_ORDER_THIRD, so we'll go right after that by using
+ * SI_SUB_KMEM and SI_ORDER_FOURTH.
  */
-SYSINIT(busdma, SI_SUB_KMEM, SI_ORDER_THIRD, busdma_init, NULL);
+SYSINIT(busdma, SI_SUB_KMEM, SI_ORDER_FOURTH, busdma_init, NULL);
 
 /*
  * End block of code useful to transplant to other implementations.

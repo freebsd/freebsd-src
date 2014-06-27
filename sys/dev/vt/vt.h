@@ -84,9 +84,8 @@
 
 #define	VT_SYSCTL_INT(_name, _default, _descr)				\
 static int vt_##_name = _default;					\
-SYSCTL_INT(_kern_vt, OID_AUTO, _name, CTLFLAG_RW, &vt_##_name, _default,\
-		_descr);						\
-TUNABLE_INT("kern.vt." #_name, &vt_##_name);
+SYSCTL_INT(_kern_vt, OID_AUTO, _name, CTLFLAG_RWTUN, &vt_##_name, _default,\
+		_descr);
 
 struct vt_driver;
 

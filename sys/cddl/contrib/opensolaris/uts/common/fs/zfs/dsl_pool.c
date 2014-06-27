@@ -141,23 +141,19 @@ extern int zfs_vdev_async_write_active_max_dirty_percent;
 
 SYSCTL_DECL(_vfs_zfs);
 
-TUNABLE_QUAD("vfs.zfs.dirty_data_max", &zfs_dirty_data_max);
 SYSCTL_UQUAD(_vfs_zfs, OID_AUTO, dirty_data_max, CTLFLAG_RWTUN,
     &zfs_dirty_data_max, 0,
     "The maximum amount of dirty data in bytes after which new writes are "
     "halted until space becomes available");
 
-TUNABLE_QUAD("vfs.zfs.dirty_data_max_max", &zfs_dirty_data_max_max);
 SYSCTL_UQUAD(_vfs_zfs, OID_AUTO, dirty_data_max_max, CTLFLAG_RDTUN,
     &zfs_dirty_data_max_max, 0,
     "The absolute cap on dirty_data_max when auto calculating");
 
-TUNABLE_INT("vfs.zfs.dirty_data_max_percent", &zfs_dirty_data_max_percent);
 SYSCTL_INT(_vfs_zfs, OID_AUTO, dirty_data_max_percent, CTLFLAG_RDTUN,
     &zfs_dirty_data_max_percent, 0,
     "The percent of physical memory used to auto calculate dirty_data_max");
 
-TUNABLE_QUAD("vfs.zfs.dirty_data_sync", &zfs_dirty_data_sync);
 SYSCTL_UQUAD(_vfs_zfs, OID_AUTO, dirty_data_sync, CTLFLAG_RWTUN,
     &zfs_dirty_data_sync, 0,
     "Force a txg if the number of dirty buffer bytes exceed this value");

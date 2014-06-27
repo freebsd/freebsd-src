@@ -101,23 +101,20 @@ SYSCTL_INT(_security_mac_mls, OID_AUTO, label_size, CTLFLAG_RD,
     &mls_label_size, 0, "Size of struct mac_mls");
 
 static int	mls_enabled = 1;
-SYSCTL_INT(_security_mac_mls, OID_AUTO, enabled, CTLFLAG_RW, &mls_enabled, 0,
+SYSCTL_INT(_security_mac_mls, OID_AUTO, enabled, CTLFLAG_RWTUN, &mls_enabled, 0,
     "Enforce MAC/MLS policy");
-TUNABLE_INT("security.mac.mls.enabled", &mls_enabled);
 
 static int	destroyed_not_inited;
 SYSCTL_INT(_security_mac_mls, OID_AUTO, destroyed_not_inited, CTLFLAG_RD,
     &destroyed_not_inited, 0, "Count of labels destroyed but not inited");
 
 static int	ptys_equal = 0;
-SYSCTL_INT(_security_mac_mls, OID_AUTO, ptys_equal, CTLFLAG_RW,
+SYSCTL_INT(_security_mac_mls, OID_AUTO, ptys_equal, CTLFLAG_RWTUN,
     &ptys_equal, 0, "Label pty devices as mls/equal on create");
-TUNABLE_INT("security.mac.mls.ptys_equal", &ptys_equal);
 
 static int	revocation_enabled = 0;
-SYSCTL_INT(_security_mac_mls, OID_AUTO, revocation_enabled, CTLFLAG_RW,
+SYSCTL_INT(_security_mac_mls, OID_AUTO, revocation_enabled, CTLFLAG_RWTUN,
     &revocation_enabled, 0, "Revoke access to objects on relabel");
-TUNABLE_INT("security.mac.mls.revocation_enabled", &revocation_enabled);
 
 static int	max_compartments = MAC_MLS_MAX_COMPARTMENTS;
 SYSCTL_INT(_security_mac_mls, OID_AUTO, max_compartments, CTLFLAG_RD,

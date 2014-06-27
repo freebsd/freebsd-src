@@ -70,7 +70,7 @@ int drm_sysctl_init(struct drm_device *dev)
 	dev->sysctl = info;
 
 	/* Add the sysctl node for DRI if it doesn't already exist */
-	drioid = SYSCTL_ADD_NODE( &info->ctx, &sysctl__hw_children, OID_AUTO, "dri", CTLFLAG_RW, NULL, "DRI Graphics");
+	drioid = SYSCTL_ADD_NODE(&info->ctx, SYSCTL_CHILDREN(&sysctl___hw), OID_AUTO, "dri", CTLFLAG_RW, NULL, "DRI Graphics");
 	if (!drioid)
 		return 1;
 
