@@ -828,6 +828,21 @@ oce_media_status(struct ifnet *ifp, struct ifmediareq *req)
 		req->ifm_active |= IFM_10G_SR | IFM_FDX;
 		sc->speed = 10000;
 		break;
+	case 5: /* 20 Gbps */
+		req->ifm_active |= IFM_10G_SR | IFM_FDX;
+		sc->speed = 20000;
+		break;
+	case 6: /* 25 Gbps */
+		req->ifm_active |= IFM_10G_SR | IFM_FDX;
+		sc->speed = 25000;
+		break;
+	case 7: /* 40 Gbps */
+		req->ifm_active |= IFM_40G_SR4 | IFM_FDX;
+		sc->speed = 40000;
+		break;
+	default:
+		sc->speed = 0;
+		break;
 	}
 	
 	return;
@@ -1940,7 +1955,6 @@ done:
 	/* Is there atleast one eq that needs to be modified? */
 	if(num)
 		oce_mbox_eqd_modify_periodic(sc, set_eqd, num);
-
 }
 
 static void oce_detect_hw_error(POCE_SOFTC sc)
@@ -2140,11 +2154,6 @@ process_link_state(POCE_SOFTC sc, struct oce_async_cqe_link_state *acqe)
 		sc->link_status = ASYNC_EVENT_LINK_DOWN;
 		if_link_state_change(sc->ifp, LINK_STATE_DOWN);
 	}
-
-	/* Update speed */
-	sc->link_speed = acqe->u0.s.speed;
-	sc->qos_link_speed = (uint32_t) acqe->u0.s.qos_link_speed * 10;
-
 }
 
 
@@ -2218,13 +2227,16 @@ setup_max_queues_want(POCE_SOFTC sc)
 	    (sc->function_mode & FNM_UMC_MODE)    ||
 	    (sc->function_mode & FNM_VNIC_MODE)	  ||
 	    (!is_rss_enabled(sc))		  ||
-	    (sc->flags & OCE_FLAGS_BE2)) {
+	    IS_BE2(sc)) {
 		sc->nrqs = 1;
 		sc->nwqs = 1;
 	} else {
 		sc->nrqs = MIN(OCE_NCPUS, sc->nrssqs) + 1;
 		sc->nwqs = MIN(OCE_NCPUS, sc->nrssqs);
 	}
+
+	if (IS_BE2(sc) && is_rss_enabled(sc))
+		sc->nrqs = MIN(OCE_NCPUS, sc->nrssqs) + 1;
 }
 
 
@@ -2238,6 +2250,9 @@ update_queues_got(POCE_SOFTC sc)
 		sc->nrqs = 1;
 		sc->nwqs = 1;
 	}
+
+	if (IS_BE2(sc))
+		sc->nwqs = 1;
 }
 
 static int 
@@ -2329,18 +2344,17 @@ oce_get_config(POCE_SOFTC sc)
 		max_rss = OCE_MAX_RSS;
 
 	if (!IS_BE(sc)) {
-		rc = oce_get_func_config(sc);
+		rc = oce_get_profile_config(sc, max_rss);
 		if (rc) {
 			sc->nwqs = OCE_MAX_WQ;
 			sc->nrssqs = max_rss;
 			sc->nrqs = sc->nrssqs + 1;
 		}
 	}
-	else {
-		rc = oce_get_profile_config(sc);
+	else { /* For BE3 don't rely on fw for determining the resources */
 		sc->nrssqs = max_rss;
 		sc->nrqs = sc->nrssqs + 1;
-		if (rc)
-			sc->nwqs = OCE_MAX_WQ;
+		sc->nwqs = OCE_MAX_WQ;
+		sc->max_vlans = MAX_VLANFILTER_SIZE; 
 	}
 }
