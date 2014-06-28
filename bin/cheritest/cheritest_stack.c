@@ -66,25 +66,38 @@ cheritest_libcheri_userfn_getstack(void)
 	struct cheri_object sandbox_object;
 	struct cheri_stack cs;
 	struct cheri_stack_frame *csfp;
+	u_int stack_depth;
 	int retval;
 
 	retval = sysarch(CHERI_GET_STACK, &cs);
 	if (retval != 0)
 		cheritest_failure_err("sysarch(CHERI_GET_STACK) failed");
 
+	/* Does stack layout look sensible enough to continue? */
+	if ((cs.cs_tsize % CHERI_FRAME_SIZE) != 0)
+		cheritest_failure_errx(
+		    "stack size (%ld) not a multiple of frame size",
+		    cs.cs_tsize);
+	stack_depth = cs.cs_tsize / CHERI_FRAME_SIZE;
+
+	if ((cs.cs_tsp % CHERI_FRAME_SIZE) != 0)
+		cheritest_failure_errx(
+		    "stack pointer (%ld) not a multiple of frame size",
+		    cs.cs_tsp);
+
 	/* Validate that two stack frames are found. */
-	if (cs.cs_tsp != CHERI_STACK_SIZE - (2 * CHERI_FRAME_SIZE))
+	if (cs.cs_tsp != cs.cs_tsize - (register_t)(2 * CHERI_FRAME_SIZE))
 		cheritest_failure_errx("stack contains %d frames; expected "
-		    "2", (CHERI_STACK_SIZE - (2 * CHERI_FRAME_SIZE)) /
+		    "2", (cs.cs_tsize - (2 * CHERI_FRAME_SIZE)) /
 		    CHERI_FRAME_SIZE);
 
 	/* Validate that the first is a saved ambient context. */
-	csfp = &cs.cs_frames[CHERI_STACK_DEPTH - 1];
+	csfp = &cs.cs_frames[stack_depth - 1];
 	if (csfp->csf_pcc != cheri_getpcc())
 		cheritest_failure_errx("frame 0: not global code cap");
 
 	/* Validate that the second is cheritest_objectp. */
-	csfp = &cs.cs_frames[CHERI_STACK_DEPTH - 2];
+	csfp = &cs.cs_frames[stack_depth - 2];
 	if (csfp->csf_pcc !=
 	    sandbox_object_getobject(cheritest_objectp).co_codecap)
 		cheritest_failure_errx("frame 1: not sandbox code cap");
