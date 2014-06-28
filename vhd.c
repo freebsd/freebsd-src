@@ -214,6 +214,7 @@ vhd_write(int fd)
 	struct vhd_dyn_header header;
 	uuid_t id;
 	uint64_t imgsz;
+	lba_t blk, nblks;
 	uint32_t *bat;
 	void *bitmap;
 	size_t batsz;
@@ -274,14 +275,21 @@ vhd_write(int fd)
 	if (bitmap == NULL)
 		return (errno);
 	memset(bitmap, 0xff, VHD_SECTOR_SIZE);
-	if (sparse_write(fd, bitmap, VHD_SECTOR_SIZE) < 0) {
-		free(bitmap);
-		return (errno);
+
+	blk = 0;
+	nblks = image_get_size();
+	while (blk < nblks) {
+		if (sparse_write(fd, bitmap, VHD_SECTOR_SIZE) < 0) {
+			error = errno;
+			break;
+		}
+		error = image_copyout_region(fd, blk, VHD_BLOCK_SIZE / secsz);
+		if (error)
+			break;
+		blk += VHD_BLOCK_SIZE / secsz;
 	}
 	free(bitmap);
-
-	error = image_copyout(fd);
-	if (error)
+	if (blk != nblks)
 		return (error);
 
 	if (sparse_write(fd, &footer, sizeof(footer)) < 0)
