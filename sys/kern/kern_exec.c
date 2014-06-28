@@ -594,7 +594,7 @@ interpret:
 	 * For security and other reasons, the file descriptor table cannot
 	 * be shared after an exec.
 	 */
-	fdunshare(p, td);
+	fdunshare(td);
 
 	/*
 	 * Malloc things before we need locks.
