@@ -188,31 +188,25 @@ static	int mwl_rxdesc = MWL_RXDESC;		/* # rx desc's to allocate */
 SYSCTL_INT(_hw_mwl, OID_AUTO, rxdesc, CTLFLAG_RW, &mwl_rxdesc,
 	    0, "rx descriptors allocated");
 static	int mwl_rxbuf = MWL_RXBUF;		/* # rx buffers to allocate */
-SYSCTL_INT(_hw_mwl, OID_AUTO, rxbuf, CTLFLAG_RW, &mwl_rxbuf,
+SYSCTL_INT(_hw_mwl, OID_AUTO, rxbuf, CTLFLAG_RWTUN, &mwl_rxbuf,
 	    0, "rx buffers allocated");
-TUNABLE_INT("hw.mwl.rxbuf", &mwl_rxbuf);
 static	int mwl_txbuf = MWL_TXBUF;		/* # tx buffers to allocate */
-SYSCTL_INT(_hw_mwl, OID_AUTO, txbuf, CTLFLAG_RW, &mwl_txbuf,
+SYSCTL_INT(_hw_mwl, OID_AUTO, txbuf, CTLFLAG_RWTUN, &mwl_txbuf,
 	    0, "tx buffers allocated");
-TUNABLE_INT("hw.mwl.txbuf", &mwl_txbuf);
 static	int mwl_txcoalesce = 8;		/* # tx packets to q before poking f/w*/
-SYSCTL_INT(_hw_mwl, OID_AUTO, txcoalesce, CTLFLAG_RW, &mwl_txcoalesce,
+SYSCTL_INT(_hw_mwl, OID_AUTO, txcoalesce, CTLFLAG_RWTUN, &mwl_txcoalesce,
 	    0, "tx buffers to send at once");
-TUNABLE_INT("hw.mwl.txcoalesce", &mwl_txcoalesce);
 static	int mwl_rxquota = MWL_RXBUF;		/* # max buffers to process */
-SYSCTL_INT(_hw_mwl, OID_AUTO, rxquota, CTLFLAG_RW, &mwl_rxquota,
+SYSCTL_INT(_hw_mwl, OID_AUTO, rxquota, CTLFLAG_RWTUN, &mwl_rxquota,
 	    0, "max rx buffers to process per interrupt");
-TUNABLE_INT("hw.mwl.rxquota", &mwl_rxquota);
 static	int mwl_rxdmalow = 3;			/* # min buffers for wakeup */
-SYSCTL_INT(_hw_mwl, OID_AUTO, rxdmalow, CTLFLAG_RW, &mwl_rxdmalow,
+SYSCTL_INT(_hw_mwl, OID_AUTO, rxdmalow, CTLFLAG_RWTUN, &mwl_rxdmalow,
 	    0, "min free rx buffers before restarting traffic");
-TUNABLE_INT("hw.mwl.rxdmalow", &mwl_rxdmalow);
 
 #ifdef MWL_DEBUG
 static	int mwl_debug = 0;
-SYSCTL_INT(_hw_mwl, OID_AUTO, debug, CTLFLAG_RW, &mwl_debug,
+SYSCTL_INT(_hw_mwl, OID_AUTO, debug, CTLFLAG_RWTUN, &mwl_debug,
 	    0, "control debugging printfs");
-TUNABLE_INT("hw.mwl.debug", &mwl_debug);
 enum {
 	MWL_DEBUG_XMIT		= 0x00000001,	/* basic xmit operation */
 	MWL_DEBUG_XMIT_DESC	= 0x00000002,	/* xmit descriptors */

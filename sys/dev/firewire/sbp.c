@@ -134,30 +134,22 @@ static int sbp_tags = 0;
 SYSCTL_DECL(_hw_firewire);
 static SYSCTL_NODE(_hw_firewire, OID_AUTO, sbp, CTLFLAG_RD, 0,
 	"SBP-II Subsystem");
-SYSCTL_INT(_debug, OID_AUTO, sbp_debug, CTLFLAG_RW, &debug, 0,
+SYSCTL_INT(_debug, OID_AUTO, sbp_debug, CTLFLAG_RWTUN, &debug, 0,
 	"SBP debug flag");
-SYSCTL_INT(_hw_firewire_sbp, OID_AUTO, auto_login, CTLFLAG_RW, &auto_login, 0,
+SYSCTL_INT(_hw_firewire_sbp, OID_AUTO, auto_login, CTLFLAG_RWTUN, &auto_login, 0,
 	"SBP perform login automatically");
-SYSCTL_INT(_hw_firewire_sbp, OID_AUTO, max_speed, CTLFLAG_RW, &max_speed, 0,
+SYSCTL_INT(_hw_firewire_sbp, OID_AUTO, max_speed, CTLFLAG_RWTUN, &max_speed, 0,
 	"SBP transfer max speed");
-SYSCTL_INT(_hw_firewire_sbp, OID_AUTO, exclusive_login, CTLFLAG_RW,
+SYSCTL_INT(_hw_firewire_sbp, OID_AUTO, exclusive_login, CTLFLAG_RWTUN,
 	&ex_login, 0, "SBP enable exclusive login");
-SYSCTL_INT(_hw_firewire_sbp, OID_AUTO, login_delay, CTLFLAG_RW,
+SYSCTL_INT(_hw_firewire_sbp, OID_AUTO, login_delay, CTLFLAG_RWTUN,
 	&login_delay, 0, "SBP login delay in msec");
-SYSCTL_INT(_hw_firewire_sbp, OID_AUTO, scan_delay, CTLFLAG_RW,
+SYSCTL_INT(_hw_firewire_sbp, OID_AUTO, scan_delay, CTLFLAG_RWTUN,
 	&scan_delay, 0, "SBP scan delay in msec");
-SYSCTL_INT(_hw_firewire_sbp, OID_AUTO, use_doorbell, CTLFLAG_RW,
+SYSCTL_INT(_hw_firewire_sbp, OID_AUTO, use_doorbell, CTLFLAG_RWTUN,
 	&use_doorbell, 0, "SBP use doorbell request");
-SYSCTL_INT(_hw_firewire_sbp, OID_AUTO, tags, CTLFLAG_RW, &sbp_tags, 0,
+SYSCTL_INT(_hw_firewire_sbp, OID_AUTO, tags, CTLFLAG_RWTUN, &sbp_tags, 0,
 	"SBP tagged queuing support");
-
-TUNABLE_INT("hw.firewire.sbp.auto_login", &auto_login);
-TUNABLE_INT("hw.firewire.sbp.max_speed", &max_speed);
-TUNABLE_INT("hw.firewire.sbp.exclusive_login", &ex_login);
-TUNABLE_INT("hw.firewire.sbp.login_delay", &login_delay);
-TUNABLE_INT("hw.firewire.sbp.scan_delay", &scan_delay);
-TUNABLE_INT("hw.firewire.sbp.use_doorbell", &use_doorbell);
-TUNABLE_INT("hw.firewire.sbp.tags", &sbp_tags);
 
 #define NEED_RESPONSE 0
 

@@ -100,8 +100,7 @@ struct resource_i {
 };
 
 static int     rman_debug = 0;
-TUNABLE_INT("debug.rman_debug", &rman_debug);
-SYSCTL_INT(_debug, OID_AUTO, rman_debug, CTLFLAG_RW,
+SYSCTL_INT(_debug, OID_AUTO, rman_debug, CTLFLAG_RWTUN,
     &rman_debug, 0, "rman debug");
 
 #define DPRINTF(params) if (rman_debug) printf params

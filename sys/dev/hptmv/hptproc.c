@@ -617,7 +617,7 @@ out:
 	NULL, 0, hpt_status, "A", "Get/Set " #name " state")
 #else 
 #define hptregister_node(name) \
-	SYSCTL_NODE(, OID_AUTO,	name, CTLFLAG_RW, 0, "Get/Set " #name " state root node"); \
+	SYSCTL_ROOT_NODE(OID_AUTO, name, CTLFLAG_RW, 0, "Get/Set " #name " state root node"); \
 	SYSCTL_OID(_ ## name, OID_AUTO, status, CTLTYPE_STRING|CTLFLAG_RW, \
 	NULL, 0, hpt_status, "A", "Get/Set " #name " state");
 #endif

@@ -86,9 +86,8 @@ enum {
 static int uhub_debug = 0;
 
 static SYSCTL_NODE(_hw_usb, OID_AUTO, uhub, CTLFLAG_RW, 0, "USB HUB");
-SYSCTL_INT(_hw_usb_uhub, OID_AUTO, debug, CTLFLAG_RW | CTLFLAG_TUN, &uhub_debug, 0,
+SYSCTL_INT(_hw_usb_uhub, OID_AUTO, debug, CTLFLAG_RWTUN, &uhub_debug, 0,
     "Debug level");
-TUNABLE_INT("hw.usb.uhub.debug", &uhub_debug);
 #endif
 
 #if USB_HAVE_POWERD

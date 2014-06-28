@@ -104,32 +104,16 @@ struct	ktr_entry *ktr_buf = ktr_buf_init;
 cpuset_t ktr_cpumask = CPUSET_T_INITIALIZER(KTR_CPUMASK);
 static char ktr_cpumask_str[CPUSETBUFSIZ];
 
-TUNABLE_INT("debug.ktr.mask", &ktr_mask);
-
-TUNABLE_STR("debug.ktr.cpumask", ktr_cpumask_str, sizeof(ktr_cpumask_str));
-
 static SYSCTL_NODE(_debug, OID_AUTO, ktr, CTLFLAG_RD, 0, "KTR options");
+
+SYSCTL_INT(_debug_ktr, OID_AUTO, mask, CTLFLAG_RDTUN,
+    &ktr_mask, 0, "KTR mask");
 
 SYSCTL_INT(_debug_ktr, OID_AUTO, version, CTLFLAG_RD,
     &ktr_version, 0, "Version of the KTR interface");
 
 SYSCTL_UINT(_debug_ktr, OID_AUTO, compile, CTLFLAG_RD,
     &ktr_compile, 0, "Bitmask of KTR event classes compiled into the kernel");
-
-static void
-ktr_cpumask_initializer(void *dummy __unused)
-{
-
-	/*
-	 * TUNABLE_STR() runs with SI_ORDER_MIDDLE priority, thus it must be
-	 * already set, if necessary.
-	 */
-	if (ktr_cpumask_str[0] != '\0' &&
-	    cpusetobj_strscan(&ktr_cpumask, ktr_cpumask_str) == -1)
-		CPU_FILL(&ktr_cpumask);
-}
-SYSINIT(ktr_cpumask_initializer, SI_SUB_TUNABLES, SI_ORDER_ANY,
-    ktr_cpumask_initializer, NULL);
 
 static int
 sysctl_debug_ktr_cpumask(SYSCTL_HANDLER_ARGS)
@@ -150,7 +134,7 @@ sysctl_debug_ktr_cpumask(SYSCTL_HANDLER_ARGS)
 	return (error);
 }
 SYSCTL_PROC(_debug_ktr, OID_AUTO, cpumask,
-    CTLFLAG_RW | CTLFLAG_MPSAFE | CTLTYPE_STRING, NULL, 0,
+    CTLFLAG_RWTUN | CTLFLAG_MPSAFE | CTLTYPE_STRING, NULL, 0,
     sysctl_debug_ktr_cpumask, "S",
     "Bitmask of CPUs on which KTR logging is enabled");
 
