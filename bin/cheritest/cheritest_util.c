@@ -42,6 +42,7 @@
 #include <sys/wait.h>
 
 #include <err.h>
+#include <errno.h>
 #include <fcntl.h>
 #include <inttypes.h>
 #include <signal.h>
@@ -63,6 +64,23 @@ vcheritest_failure_errx(const char *msg, va_list ap)
 	    msg, ap);
 }
 
+static void
+vcheritest_failure_err(const char *msg, va_list ap)
+{
+	size_t buflen;
+	int len;
+
+	ccsp->ccs_testresult = TESTRESULT_FAILURE;
+	buflen = sizeof(ccsp->ccs_testresult_str);
+	len = vsnprintf(ccsp->ccs_testresult_str, buflen, msg, ap);
+	if (len < 0)
+		return;
+	if ((size_t)len >= buflen)	/* No room for further strings. */
+		return;
+	vsnprintf(ccsp->ccs_testresult_str + len, buflen - len, ": %s",
+	    strerror(errno));
+}
+
 void
 cheritest_failure_errx(const char *msg, ...)
 {
@@ -70,6 +88,16 @@ cheritest_failure_errx(const char *msg, ...)
 
 	va_start(ap, msg);
 	vcheritest_failure_errx(msg, ap);
+	va_end(ap);
+	exit(EX_SOFTWARE);
+}
+
+void
+cheritest_failure_err(const char *msg, ...)
+{
+	va_list ap;
+	va_start(ap, msg);
+	vcheritest_failure_err(msg, ap);
 	va_end(ap);
 	exit(EX_SOFTWARE);
 }
