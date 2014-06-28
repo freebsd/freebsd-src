@@ -325,6 +325,10 @@ SYSCTL_ALLOWED_TYPES(UINT64, uint64_t *a; unsigned long long *b; );
 	sysctl_add_oid(ctx, parent, nbr, name, CTLTYPE_NODE|(access),	    \
 	NULL, 0, handler, "N", __DESCR(descr))
 
+#define	SYSCTL_ADD_ROOT_NODE(ctx, nbr, name, access, handler, descr)	\
+	sysctl_add_oid(ctx, &sysctl__children, nbr, name,		\
+        CTLTYPE_NODE|(access), NULL, 0, handler, "N", __DESCR(descr))
+
 /* Oid for a string.  len can be 0 to indicate '\0' termination. */
 #define	SYSCTL_STRING(parent, nbr, name, access, arg, len, descr) \
 	SYSCTL_OID(parent, nbr, name, CTLTYPE_STRING|(access), \
