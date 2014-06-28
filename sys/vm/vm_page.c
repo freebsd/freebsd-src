@@ -134,8 +134,7 @@ long first_page;
 int vm_page_zero_count;
 
 static int boot_pages = UMA_BOOT_PAGES;
-TUNABLE_INT("vm.boot_pages", &boot_pages);
-SYSCTL_INT(_vm, OID_AUTO, boot_pages, CTLFLAG_RD, &boot_pages, 0,
+SYSCTL_INT(_vm, OID_AUTO, boot_pages, CTLFLAG_RDTUN, &boot_pages, 0,
 	"number of pages allocated for bootstrapping the VM system");
 
 static int pa_tryrelock_restart;

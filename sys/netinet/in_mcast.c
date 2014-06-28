@@ -166,20 +166,17 @@ static SYSCTL_NODE(_net_inet_ip, OID_AUTO, mcast, CTLFLAG_RW, 0,
 
 static u_long in_mcast_maxgrpsrc = IP_MAX_GROUP_SRC_FILTER;
 SYSCTL_ULONG(_net_inet_ip_mcast, OID_AUTO, maxgrpsrc,
-    CTLFLAG_RW | CTLFLAG_TUN, &in_mcast_maxgrpsrc, 0,
+    CTLFLAG_RWTUN, &in_mcast_maxgrpsrc, 0,
     "Max source filters per group");
-TUNABLE_ULONG("net.inet.ip.mcast.maxgrpsrc", &in_mcast_maxgrpsrc);
 
 static u_long in_mcast_maxsocksrc = IP_MAX_SOCK_SRC_FILTER;
 SYSCTL_ULONG(_net_inet_ip_mcast, OID_AUTO, maxsocksrc,
-    CTLFLAG_RW | CTLFLAG_TUN, &in_mcast_maxsocksrc, 0,
+    CTLFLAG_RWTUN, &in_mcast_maxsocksrc, 0,
     "Max source filters per socket");
-TUNABLE_ULONG("net.inet.ip.mcast.maxsocksrc", &in_mcast_maxsocksrc);
 
 int in_mcast_loop = IP_DEFAULT_MULTICAST_LOOP;
-SYSCTL_INT(_net_inet_ip_mcast, OID_AUTO, loop, CTLFLAG_RW | CTLFLAG_TUN,
+SYSCTL_INT(_net_inet_ip_mcast, OID_AUTO, loop, CTLFLAG_RWTUN,
     &in_mcast_loop, 0, "Loopback multicast datagrams by default");
-TUNABLE_INT("net.inet.ip.mcast.loop", &in_mcast_loop);
 
 static SYSCTL_NODE(_net_inet_ip_mcast, OID_AUTO, filters,
     CTLFLAG_RD | CTLFLAG_MPSAFE, sysctl_ip_mcast_filters,

@@ -67,9 +67,8 @@
 int	usb_debug = 0;
 
 SYSCTL_NODE(_hw, OID_AUTO, usb, CTLFLAG_RW, 0, "USB debugging");
-SYSCTL_INT(_hw_usb, OID_AUTO, debug, CTLFLAG_RW | CTLFLAG_TUN,
+SYSCTL_INT(_hw_usb, OID_AUTO, debug, CTLFLAG_RWTUN,
     &usb_debug, 0, "Debug level");
-TUNABLE_INT("hw.usb.debug", &usb_debug);
 
 #ifdef USB_DEBUG
 /*
@@ -78,44 +77,34 @@ TUNABLE_INT("hw.usb.debug", &usb_debug);
 static SYSCTL_NODE(_hw_usb, OID_AUTO, timings, CTLFLAG_RW, 0, "Timings");
 static int usb_timings_sysctl_handler(SYSCTL_HANDLER_ARGS);
 
-TUNABLE_INT("hw.usb.timings.port_reset_delay", (int *)&usb_port_reset_delay);
-SYSCTL_PROC(_hw_usb_timings, OID_AUTO, port_reset_delay, CTLTYPE_UINT | CTLFLAG_RW | CTLFLAG_TUN,
+SYSCTL_PROC(_hw_usb_timings, OID_AUTO, port_reset_delay, CTLTYPE_UINT | CTLFLAG_RWTUN,
     &usb_port_reset_delay, sizeof(usb_port_reset_delay),
     usb_timings_sysctl_handler, "IU", "Port Reset Delay");
-TUNABLE_INT("hw.usb.timings.port_root_reset_delay", (int *)&usb_port_root_reset_delay);
-SYSCTL_PROC(_hw_usb_timings, OID_AUTO, port_root_reset_delay, CTLTYPE_UINT | CTLFLAG_RW | CTLFLAG_TUN,
+SYSCTL_PROC(_hw_usb_timings, OID_AUTO, port_root_reset_delay, CTLTYPE_UINT | CTLFLAG_RWTUN,
     &usb_port_root_reset_delay, sizeof(usb_port_root_reset_delay),
     usb_timings_sysctl_handler, "IU", "Root Port Reset Delay");
-TUNABLE_INT("hw.usb.timings.port_reset_recovery", (int *)&usb_port_reset_recovery);
-SYSCTL_PROC(_hw_usb_timings, OID_AUTO, port_reset_recovery, CTLTYPE_UINT | CTLFLAG_RW | CTLFLAG_TUN,
+SYSCTL_PROC(_hw_usb_timings, OID_AUTO, port_reset_recovery, CTLTYPE_UINT | CTLFLAG_RWTUN,
     &usb_port_reset_recovery, sizeof(usb_port_reset_recovery),
     usb_timings_sysctl_handler, "IU", "Port Reset Recovery");
-TUNABLE_INT("hw.usb.timings.port_powerup_delay", (int *)&usb_port_powerup_delay);
-SYSCTL_PROC(_hw_usb_timings, OID_AUTO, port_powerup_delay, CTLTYPE_UINT | CTLFLAG_RW | CTLFLAG_TUN,
+SYSCTL_PROC(_hw_usb_timings, OID_AUTO, port_powerup_delay, CTLTYPE_UINT | CTLFLAG_RWTUN,
     &usb_port_powerup_delay, sizeof(usb_port_powerup_delay),
     usb_timings_sysctl_handler, "IU", "Port PowerUp Delay");
-TUNABLE_INT("hw.usb.timings.port_resume_delay", (int *)&usb_port_resume_delay);
-SYSCTL_PROC(_hw_usb_timings, OID_AUTO, port_resume_delay, CTLTYPE_UINT | CTLFLAG_RW | CTLFLAG_TUN,
+SYSCTL_PROC(_hw_usb_timings, OID_AUTO, port_resume_delay, CTLTYPE_UINT | CTLFLAG_RWTUN,
     &usb_port_resume_delay, sizeof(usb_port_resume_delay),
     usb_timings_sysctl_handler, "IU", "Port Resume Delay");
-TUNABLE_INT("hw.usb.timings.set_address_settle", (int *)&usb_set_address_settle);
-SYSCTL_PROC(_hw_usb_timings, OID_AUTO, set_address_settle, CTLTYPE_UINT | CTLFLAG_RW | CTLFLAG_TUN,
+SYSCTL_PROC(_hw_usb_timings, OID_AUTO, set_address_settle, CTLTYPE_UINT | CTLFLAG_RWTUN,
     &usb_set_address_settle, sizeof(usb_set_address_settle),
     usb_timings_sysctl_handler, "IU", "Set Address Settle");
-TUNABLE_INT("hw.usb.timings.resume_delay", (int *)&usb_resume_delay);
-SYSCTL_PROC(_hw_usb_timings, OID_AUTO, resume_delay, CTLTYPE_UINT | CTLFLAG_RW | CTLFLAG_TUN,
+SYSCTL_PROC(_hw_usb_timings, OID_AUTO, resume_delay, CTLTYPE_UINT | CTLFLAG_RWTUN,
     &usb_resume_delay, sizeof(usb_resume_delay),
     usb_timings_sysctl_handler, "IU", "Resume Delay");
-TUNABLE_INT("hw.usb.timings.resume_wait", (int *)&usb_resume_wait);
-SYSCTL_PROC(_hw_usb_timings, OID_AUTO, resume_wait, CTLTYPE_UINT | CTLFLAG_RW | CTLFLAG_TUN,
+SYSCTL_PROC(_hw_usb_timings, OID_AUTO, resume_wait, CTLTYPE_UINT | CTLFLAG_RWTUN,
     &usb_resume_wait, sizeof(usb_resume_wait),
     usb_timings_sysctl_handler, "IU", "Resume Wait");
-TUNABLE_INT("hw.usb.timings.resume_recovery", (int *)&usb_resume_recovery);
-SYSCTL_PROC(_hw_usb_timings, OID_AUTO, resume_recovery, CTLTYPE_UINT | CTLFLAG_RW | CTLFLAG_TUN,
+SYSCTL_PROC(_hw_usb_timings, OID_AUTO, resume_recovery, CTLTYPE_UINT | CTLFLAG_RWTUN,
     &usb_resume_recovery, sizeof(usb_resume_recovery),
     usb_timings_sysctl_handler, "IU", "Resume Recovery");
-TUNABLE_INT("hw.usb.timings.extra_power_up_time", (int *)&usb_extra_power_up_time);
-SYSCTL_PROC(_hw_usb_timings, OID_AUTO, extra_power_up_time, CTLTYPE_UINT | CTLFLAG_RW | CTLFLAG_TUN,
+SYSCTL_PROC(_hw_usb_timings, OID_AUTO, extra_power_up_time, CTLTYPE_UINT | CTLFLAG_RWTUN,
     &usb_extra_power_up_time, sizeof(usb_extra_power_up_time),
     usb_timings_sysctl_handler, "IU", "Extra PowerUp Time");
 #endif

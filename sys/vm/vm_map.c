@@ -3471,8 +3471,7 @@ vm_map_stack_locked(vm_map_t map, vm_offset_t addrbos, vm_size_t max_ssize,
 }
 
 static int stack_guard_page = 0;
-TUNABLE_INT("security.bsd.stack_guard_page", &stack_guard_page);
-SYSCTL_INT(_security_bsd, OID_AUTO, stack_guard_page, CTLFLAG_RW,
+SYSCTL_INT(_security_bsd, OID_AUTO, stack_guard_page, CTLFLAG_RWTUN,
     &stack_guard_page, 0,
     "Insert stack guard page ahead of the growable segments.");
 

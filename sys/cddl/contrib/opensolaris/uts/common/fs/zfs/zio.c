@@ -46,11 +46,9 @@ static int zio_use_uma = 1;
 #else
 static int zio_use_uma = 0;
 #endif
-TUNABLE_INT("vfs.zfs.zio.use_uma", &zio_use_uma);
 SYSCTL_INT(_vfs_zfs_zio, OID_AUTO, use_uma, CTLFLAG_RDTUN, &zio_use_uma, 0,
     "Use uma(9) for ZIO allocations");
 static int zio_exclude_metadata = 0;
-TUNABLE_INT("vfs.zfs.zio.exclude_metadata", &zio_exclude_metadata);
 SYSCTL_INT(_vfs_zfs_zio, OID_AUTO, exclude_metadata, CTLFLAG_RDTUN, &zio_exclude_metadata, 0,
     "Exclude metadata buffers from dumps as well");
 
@@ -104,15 +102,12 @@ extern vmem_t *zio_alloc_arena;
  * regular blocks are not deferred.
  */
 int zfs_sync_pass_deferred_free = 2; /* defer frees starting in this pass */
-TUNABLE_INT("vfs.zfs.sync_pass_deferred_free", &zfs_sync_pass_deferred_free);
 SYSCTL_INT(_vfs_zfs, OID_AUTO, sync_pass_deferred_free, CTLFLAG_RDTUN,
     &zfs_sync_pass_deferred_free, 0, "defer frees starting in this pass");
 int zfs_sync_pass_dont_compress = 5; /* don't compress starting in this pass */
-TUNABLE_INT("vfs.zfs.sync_pass_dont_compress", &zfs_sync_pass_dont_compress);
 SYSCTL_INT(_vfs_zfs, OID_AUTO, sync_pass_dont_compress, CTLFLAG_RDTUN,
     &zfs_sync_pass_dont_compress, 0, "don't compress starting in this pass");
 int zfs_sync_pass_rewrite = 2; /* rewrite new bps starting in this pass */
-TUNABLE_INT("vfs.zfs.sync_pass_rewrite", &zfs_sync_pass_rewrite);
 SYSCTL_INT(_vfs_zfs, OID_AUTO, sync_pass_rewrite, CTLFLAG_RDTUN,
     &zfs_sync_pass_rewrite, 0, "rewrite new bps starting in this pass");
 

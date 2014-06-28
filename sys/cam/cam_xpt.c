@@ -149,7 +149,6 @@ typedef int	xpt_pdrvfunc_t (struct periph_driver **pdrv, void *arg);
 /* Transport layer configuration information */
 static struct xpt_softc xsoftc;
 
-TUNABLE_INT("kern.cam.boot_delay", &xsoftc.boot_delay);
 SYSCTL_INT(_kern_cam, OID_AUTO, boot_delay, CTLFLAG_RDTUN,
            &xsoftc.boot_delay, 0, "Bus registration wait time");
 
@@ -163,7 +162,6 @@ static struct cam_doneq cam_doneqs[MAXCPU];
 static int cam_num_doneqs;
 static struct proc *cam_proc;
 
-TUNABLE_INT("kern.cam.num_doneqs", &cam_num_doneqs);
 SYSCTL_INT(_kern_cam, OID_AUTO, num_doneqs, CTLFLAG_RDTUN,
            &cam_num_doneqs, 0, "Number of completion queues/threads");
 
@@ -197,12 +195,10 @@ static struct cdevsw xpt_cdevsw = {
 /* Storage for debugging datastructures */
 struct cam_path *cam_dpath;
 u_int32_t cam_dflags = CAM_DEBUG_FLAGS;
-TUNABLE_INT("kern.cam.dflags", &cam_dflags);
-SYSCTL_UINT(_kern_cam, OID_AUTO, dflags, CTLFLAG_RW,
+SYSCTL_UINT(_kern_cam, OID_AUTO, dflags, CTLFLAG_RWTUN,
 	&cam_dflags, 0, "Enabled debug flags");
 u_int32_t cam_debug_delay = CAM_DEBUG_DELAY;
-TUNABLE_INT("kern.cam.debug_delay", &cam_debug_delay);
-SYSCTL_UINT(_kern_cam, OID_AUTO, debug_delay, CTLFLAG_RW,
+SYSCTL_UINT(_kern_cam, OID_AUTO, debug_delay, CTLFLAG_RWTUN,
 	&cam_debug_delay, 0, "Delay in us after each debug message");
 
 /* Our boot-time initialization hook */

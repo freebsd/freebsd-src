@@ -71,11 +71,9 @@ SYSCTL_DECL(_kern_geom);
 static SYSCTL_NODE(_kern_geom, OID_AUTO, stripe, CTLFLAG_RW, 0,
     "GEOM_STRIPE stuff");
 static u_int g_stripe_debug = 0;
-TUNABLE_INT("kern.geom.stripe.debug", &g_stripe_debug);
-SYSCTL_UINT(_kern_geom_stripe, OID_AUTO, debug, CTLFLAG_RW, &g_stripe_debug, 0,
+SYSCTL_UINT(_kern_geom_stripe, OID_AUTO, debug, CTLFLAG_RWTUN, &g_stripe_debug, 0,
     "Debug level");
 static int g_stripe_fast = 0;
-TUNABLE_INT("kern.geom.stripe.fast", &g_stripe_fast);
 static int
 g_sysctl_stripe_fast(SYSCTL_HANDLER_ARGS)
 {
@@ -87,11 +85,10 @@ g_sysctl_stripe_fast(SYSCTL_HANDLER_ARGS)
 		g_stripe_fast = fast;
 	return (error);
 }
-SYSCTL_PROC(_kern_geom_stripe, OID_AUTO, fast, CTLTYPE_INT | CTLFLAG_RW,
+SYSCTL_PROC(_kern_geom_stripe, OID_AUTO, fast, CTLTYPE_INT | CTLFLAG_RWTUN,
     NULL, 0, g_sysctl_stripe_fast, "I", "Fast, but memory-consuming, mode");
 static u_int g_stripe_maxmem = MAXPHYS * 100;
-TUNABLE_INT("kern.geom.stripe.maxmem", &g_stripe_maxmem);
-SYSCTL_UINT(_kern_geom_stripe, OID_AUTO, maxmem, CTLFLAG_RD, &g_stripe_maxmem,
+SYSCTL_UINT(_kern_geom_stripe, OID_AUTO, maxmem, CTLFLAG_RDTUN, &g_stripe_maxmem,
     0, "Maximum memory that can be allocated in \"fast\" mode (in bytes)");
 static u_int g_stripe_fast_failed = 0;
 SYSCTL_UINT(_kern_geom_stripe, OID_AUTO, fast_failed, CTLFLAG_RD,

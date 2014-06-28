@@ -199,7 +199,6 @@ SYSCTL_NODE(_hw, OID_AUTO, vmm, CTLFLAG_RW, NULL, NULL);
  * interrupts disabled.
  */
 static int halt_detection_enabled = 1;
-TUNABLE_INT("hw.vmm.halt_detection", &halt_detection_enabled);
 SYSCTL_INT(_hw_vmm, OID_AUTO, halt_detection, CTLFLAG_RDTUN,
     &halt_detection_enabled, 0,
     "Halt VM if all vcpus execute HLT with interrupts disabled");
