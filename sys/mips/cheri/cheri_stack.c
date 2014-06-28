@@ -207,8 +207,8 @@ cheri_sysarch_getstack(struct thread *td, struct sysarch_args *uap)
 	KASSERT(uap->op == CHERI_GET_STACK, ("%s: invalid opcode %d",
 	    __func__, uap->op));
 
-	return (copyoutcap(&td->td_pcb->pcb_cheristack.cs_tsp, uap->parms,
-	    sizeof(td->td_pcb->pcb_cheristack.cs_tsp)));
+	return (copyoutcap(&td->td_pcb->pcb_cheristack, uap->parms,
+	    sizeof(td->td_pcb->pcb_cheristack)));
 }
 
 int
@@ -230,7 +230,7 @@ cheri_sysarch_setstack(struct thread *td, struct sysarch_args *uap)
 	 */
 	if (cs.cs_tsp < 0 || cs.cs_tsp > CHERI_STACK_SIZE)
 		return (EINVAL);
-	cheri_bcopy(&cs, &td->td_pcb->pcb_cheristack.cs_tsp, sizeof(cs));
+	cheri_bcopy(&cs, &td->td_pcb->pcb_cheristack, sizeof(cs));
 	return (0);
 }
 
