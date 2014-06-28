@@ -38,6 +38,7 @@
 .Nm sandbox_class_destroy ,
 .Nm sandbox_object_new ,
 .Nm sandbox_object_getbase ,
+.Nm sandbox_object_getobject ,
 .Nm sandbox_object_getsystemobject ,
 .Nm sandbox_object_cinvoke ,
 .Nm sandbox_object_invoke ,
@@ -76,6 +77,10 @@
 .Fc
 .Ft "void *"
 .Fo sandbox_object_getbase
+.Fa "struct sandbox_object *sbop"
+.Fc
+.Ft struct cheri_object
+.Fo sandbox_object_getobject
 .Fa "struct sandbox_object *sbop"
 .Fc
 .Ft struct cheri_object
@@ -189,9 +194,11 @@ returns the base address for a sandbox's micro-address space in virtual
 memory; use of this function is discouraged as the underlying implementation
 of sandbox objects may change over time.
 .Pp
+.Fn sandbox_object_getobject
+returns the sandbox object's underlying CHERI object.
 .Fn sandbox_object_getsystemobject
-may be used to query a reference to a CHERI system class reference suitable
-for passing into the sandbox.
+returns the CHERI system-class instance suitable for passing into the sandbox
+object.
 .Ss Object invocation
 Sandbox methods may be invoked using
 .Fn sandbox_object_cinvoke

@@ -113,6 +113,11 @@ register_t	sandbox_object_invoke(struct sandbox_object *sbop,
 void	sandbox_object_destroy(struct sandbox_object *sbop);
 
 /*
+ * API to query the object-capability pair for the sandbox itself
+ */
+struct cheri_object	sandbox_object_getobject(struct sandbox_object *sbop);
+
+/*
  * API to query system capabilities for use by sandboxes.
  */
 struct cheri_object	sandbox_object_getsystemobject(

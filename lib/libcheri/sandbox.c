@@ -314,6 +314,13 @@ sandbox_object_destroy(struct sandbox_object *sbop)
 }
 
 struct cheri_object
+sandbox_object_getobject(struct sandbox_object *sbop)
+{
+
+	return (sbop->sbo_cheri_object);
+}
+
+struct cheri_object
 sandbox_object_getsystemobject(struct sandbox_object *sbop)
 {
 
