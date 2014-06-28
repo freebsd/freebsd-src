@@ -134,6 +134,7 @@ struct cheri_kframe {
 	struct chericap	ckf_c11;
 	struct chericap	ckf_c12;
 };
+#endif
 
 /*
  * Per-thread CHERI CCall/CReturn stack, which preserves the calling PC/PCC/
@@ -143,14 +144,24 @@ struct cheri_kframe {
  * persist in its current form, or at all.  For more complex userspace
  * language, there's a reasonable expectation that it, rather than the kernel,
  * will want to manage the idea of a "trusted stack".
+ *
+ * XXXRW: This is currently part of the kernel-user ABI due to the
+ * CHERI_GET_STACK and CHERI_SET_STACK sysarch() calls.  In due course we need
+ * to revise those APIs and differentiate the kernel-internal representation
+ * from the public one.
  */
 struct cheri_stack_frame {
 	register_t	csf_pc;		/* MIPS program counter. */
 	register_t	_csf_pad0;
 	register_t	_csf_pad1;
 	register_t	_csf_pad2;
+#if !defined(_KERNEL) && __has_feature(capabilities)
+	__capability void	*csf_pcc;
+	__capability void	*csf_idc;
+#else
 	struct chericap	csf_pcc;	/* XXXRW: Store $pc in here? */
 	struct chericap	csf_idc;
+#endif
 };
 
 #define	CHERI_STACK_DEPTH	4	/* XXXRW: 4 is a nice round number. */
@@ -164,7 +175,6 @@ struct cheri_stack {
 
 #define	CHERI_FRAME_SIZE	sizeof(struct cheri_stack_frame)
 #define	CHERI_STACK_SIZE	(CHERI_STACK_DEPTH * CHERI_FRAME_SIZE)
-#endif
 
 /*
  * CHERI capability register manipulation macros.
