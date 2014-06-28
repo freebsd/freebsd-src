@@ -91,9 +91,8 @@ SYSCTL_NODE(_net_inet, OID_AUTO, rss, CTLFLAG_RW, 0, "Receive-side steering");
  * default.
  */
 static u_int	rss_hashalgo = RSS_HASH_TOEPLITZ;
-SYSCTL_INT(_net_inet_rss, OID_AUTO, hashalgo, CTLFLAG_RD, &rss_hashalgo, 0,
+SYSCTL_INT(_net_inet_rss, OID_AUTO, hashalgo, CTLFLAG_RDTUN, &rss_hashalgo, 0,
     "RSS hash algorithm");
-TUNABLE_INT("net.inet.rss.hashalgo", &rss_hashalgo);
 
 /*
  * Size of the indirection table; at most 128 entries per the RSS spec.  We
@@ -104,9 +103,8 @@ TUNABLE_INT("net.inet.rss.hashalgo", &rss_hashalgo);
  * XXXRW: buckets might be better to use for the tunable than bits.
  */
 static u_int	rss_bits;
-SYSCTL_INT(_net_inet_rss, OID_AUTO, bits, CTLFLAG_RD, &rss_bits, 0,
+SYSCTL_INT(_net_inet_rss, OID_AUTO, bits, CTLFLAG_RDTUN, &rss_bits, 0,
     "RSS bits");
-TUNABLE_INT("net.inet.rss.bits", &rss_bits);
 
 static u_int	rss_mask;
 SYSCTL_INT(_net_inet_rss, OID_AUTO, mask, CTLFLAG_RD, &rss_mask, 0,

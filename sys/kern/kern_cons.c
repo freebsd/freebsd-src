@@ -652,9 +652,9 @@ sysbeep(int pitch __unused, int period __unused)
 /*
  * Temporary support for sc(4) to vt(4) transition.
  */
-static char vty_name[16] = "";
-SYSCTL_STRING(_kern, OID_AUTO, vty, CTLFLAG_RDTUN, vty_name, 0,
-    "Console vty driver");
+static char vty_name[16];
+SYSCTL_STRING(_kern, OID_AUTO, vty, CTLFLAG_RDTUN | CTLFLAG_NOFETCH, vty_name,
+    0, "Console vty driver");
 
 int
 vty_enabled(unsigned vty)

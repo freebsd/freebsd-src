@@ -67,7 +67,7 @@ static SYSCTL_NODE(_vm, OID_AUTO, memguard, CTLFLAG_RW, NULL, "MemGuard data");
  * reserved for MemGuard.
  */
 static u_int vm_memguard_divisor;
-SYSCTL_UINT(_vm_memguard, OID_AUTO, divisor, CTLFLAG_RDTUN,
+SYSCTL_UINT(_vm_memguard, OID_AUTO, divisor, CTLFLAG_RDTUN | CTLFLAG_NOFETCH,
     &vm_memguard_divisor,
     0, "(kmem_size/memguard_divisor) == memguard submap size");     
 
@@ -132,8 +132,7 @@ SYSCTL_ULONG(_vm_memguard, OID_AUTO, fail_pgs, CTLFLAG_RD,
 #define MG_GUARD_ALLLARGE	0x002
 #define MG_GUARD_NOFREE		0x004
 static int memguard_options = MG_GUARD_AROUND;
-TUNABLE_INT("vm.memguard.options", &memguard_options);
-SYSCTL_INT(_vm_memguard, OID_AUTO, options, CTLFLAG_RW,
+SYSCTL_INT(_vm_memguard, OID_AUTO, options, CTLFLAG_RWTUN,
     &memguard_options, 0,
     "MemGuard options:\n"
     "\t0x001 - add guard pages around each allocation\n"
@@ -149,8 +148,7 @@ SYSCTL_ULONG(_vm_memguard, OID_AUTO, minsize_reject, CTLFLAG_RD,
 
 static u_int memguard_frequency;
 static u_long memguard_frequency_hits;
-TUNABLE_INT("vm.memguard.frequency", &memguard_frequency);
-SYSCTL_UINT(_vm_memguard, OID_AUTO, frequency, CTLFLAG_RW,
+SYSCTL_UINT(_vm_memguard, OID_AUTO, frequency, CTLFLAG_RWTUN,
     &memguard_frequency, 0, "Times in 100000 that MemGuard will randomly run");
 SYSCTL_ULONG(_vm_memguard, OID_AUTO, frequency_hits, CTLFLAG_RD,
     &memguard_frequency_hits, 0, "# times MemGuard randomly chose");

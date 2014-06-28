@@ -176,23 +176,18 @@ int zfs_vdev_write_gap_limit = 4 << 10;
 
 #ifdef __FreeBSD__
 SYSCTL_DECL(_vfs_zfs_vdev);
-TUNABLE_INT("vfs.zfs.vdev.max_active", &zfs_vdev_max_active);
-SYSCTL_UINT(_vfs_zfs_vdev, OID_AUTO, max_active, CTLFLAG_RW,
+SYSCTL_UINT(_vfs_zfs_vdev, OID_AUTO, max_active, CTLFLAG_RWTUN,
     &zfs_vdev_max_active, 0,
     "The maximum number of I/Os of all types active for each device.");
 
 #define ZFS_VDEV_QUEUE_KNOB_MIN(name)					\
-TUNABLE_INT("vfs.zfs.vdev." #name "_min_active",			\
-    &zfs_vdev_ ## name ## _min_active);					\
-SYSCTL_UINT(_vfs_zfs_vdev, OID_AUTO, name ## _min_active, CTLFLAG_RW,	\
+SYSCTL_UINT(_vfs_zfs_vdev, OID_AUTO, name ## _min_active, CTLFLAG_RWTUN,\
     &zfs_vdev_ ## name ## _min_active, 0,				\
     "Initial number of I/O requests of type " #name			\
     " active for each device");
 
 #define ZFS_VDEV_QUEUE_KNOB_MAX(name)					\
-TUNABLE_INT("vfs.zfs.vdev." #name "_max_active",			\
-    &zfs_vdev_ ## name ## _max_active);					\
-SYSCTL_UINT(_vfs_zfs_vdev, OID_AUTO, name ## _max_active, CTLFLAG_RW,	\
+SYSCTL_UINT(_vfs_zfs_vdev, OID_AUTO, name ## _max_active, CTLFLAG_RWTUN,\
     &zfs_vdev_ ## name ## _max_active, 0,				\
     "Maximum number of I/O requests of type " #name			\
     " active for each device");
@@ -212,16 +207,13 @@ ZFS_VDEV_QUEUE_KNOB_MAX(trim);
 
 #undef ZFS_VDEV_QUEUE_KNOB
 
-TUNABLE_INT("vfs.zfs.vdev.aggregation_limit", &zfs_vdev_aggregation_limit);
-SYSCTL_INT(_vfs_zfs_vdev, OID_AUTO, aggregation_limit, CTLFLAG_RW,
+SYSCTL_INT(_vfs_zfs_vdev, OID_AUTO, aggregation_limit, CTLFLAG_RWTUN,
     &zfs_vdev_aggregation_limit, 0,
     "I/O requests are aggregated up to this size");
-TUNABLE_INT("vfs.zfs.vdev.read_gap_limit", &zfs_vdev_read_gap_limit);
-SYSCTL_INT(_vfs_zfs_vdev, OID_AUTO, read_gap_limit, CTLFLAG_RW,
+SYSCTL_INT(_vfs_zfs_vdev, OID_AUTO, read_gap_limit, CTLFLAG_RWTUN,
     &zfs_vdev_read_gap_limit, 0,
     "Acceptable gap between two reads being aggregated");
-TUNABLE_INT("vfs.zfs.vdev.write_gap_limit", &zfs_vdev_write_gap_limit);
-SYSCTL_INT(_vfs_zfs_vdev, OID_AUTO, write_gap_limit, CTLFLAG_RW,
+SYSCTL_INT(_vfs_zfs_vdev, OID_AUTO, write_gap_limit, CTLFLAG_RWTUN,
     &zfs_vdev_write_gap_limit, 0,
     "Acceptable gap between two writes being aggregated");
 #endif

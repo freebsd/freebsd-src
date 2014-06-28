@@ -79,8 +79,7 @@ SYSCTL_DECL(_kern_geom);
 SYSCTL_NODE(_kern_geom, OID_AUTO, linux_lvm, CTLFLAG_RW, 0,
     "GEOM_LINUX_LVM stuff");
 static u_int g_llvm_debug = 0;
-TUNABLE_INT("kern.geom.linux_lvm.debug", &g_llvm_debug);
-SYSCTL_UINT(_kern_geom_linux_lvm, OID_AUTO, debug, CTLFLAG_RW, &g_llvm_debug, 0,
+SYSCTL_UINT(_kern_geom_linux_lvm, OID_AUTO, debug, CTLFLAG_RWTUN, &g_llvm_debug, 0,
     "Debug level");
 
 LIST_HEAD(, g_llvm_vg) vg_list;

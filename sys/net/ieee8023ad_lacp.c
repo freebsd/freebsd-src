@@ -192,9 +192,8 @@ static void	lacp_dprintf(const struct lacp_port *, const char *, ...)
 
 static int lacp_debug = 0;
 SYSCTL_NODE(_net_link_lagg, OID_AUTO, lacp, CTLFLAG_RD, 0, "ieee802.3ad");
-SYSCTL_INT(_net_link_lagg_lacp, OID_AUTO, debug, CTLFLAG_RW | CTLFLAG_TUN,
+SYSCTL_INT(_net_link_lagg_lacp, OID_AUTO, debug, CTLFLAG_RWTUN,
     &lacp_debug, 0, "Enable LACP debug logging (1=debug, 2=trace)");
-TUNABLE_INT("net.link.lagg.lacp.debug", &lacp_debug);
 
 #define LACP_DPRINTF(a) if (lacp_debug & 0x01) { lacp_dprintf a ; }
 #define LACP_TRACE(a) if (lacp_debug & 0x02) { lacp_dprintf(a,"%s\n",__func__); }

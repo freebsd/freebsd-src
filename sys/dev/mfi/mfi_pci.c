@@ -108,12 +108,10 @@ DRIVER_MODULE(mfi, pci, mfi_pci_driver, mfi_devclass, 0, 0);
 MODULE_VERSION(mfi, 1);
 
 static int	mfi_msi = 1;
-TUNABLE_INT("hw.mfi.msi", &mfi_msi);
 SYSCTL_INT(_hw_mfi, OID_AUTO, msi, CTLFLAG_RDTUN, &mfi_msi, 0,
     "Enable use of MSI interrupts");
 
-static int	mfi_mrsas_enable = 0;
-TUNABLE_INT("hw.mfi.mrsas_enable", &mfi_mrsas_enable);
+static int	mfi_mrsas_enable;
 SYSCTL_INT(_hw_mfi, OID_AUTO, mrsas_enable, CTLFLAG_RDTUN, &mfi_mrsas_enable,
      0, "Allow mrasas to take newer cards");
 
@@ -186,7 +184,6 @@ mfi_pci_probe(device_t dev)
 		device_set_desc(dev, id->desc);
 
 		/* give priority to mrsas if tunable set */
-		TUNABLE_INT_FETCH("hw.mfi.mrsas_enable", &mfi_mrsas_enable);
 		if ((id->flags & MFI_FLAGS_MRSAS) && mfi_mrsas_enable)
 			return (BUS_PROBE_LOW_PRIORITY);
 		else
