@@ -1027,7 +1027,7 @@ bool PPCFastISel::SelectFPToI(const Instruction *I, bool IsSigned) {
     return false;
 
   // If we don't have FCTIDUZ and we need it, punt to SelectionDAG.
-  if (DstVT == MVT::i64 && !IsSigned && !PPCSubTarget->hasFPCVT())
+  if (DstVT == MVT::i64 && !IsSigned && !PPCSubTarget.hasFPCVT())
     return false;
 
   Value *Src = I->getOperand(0);
