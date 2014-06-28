@@ -191,7 +191,7 @@ static u_long vm_kmem_size_max;
 SYSCTL_ULONG(_vm, OID_AUTO, kmem_size_max, CTLFLAG_RDTUN, &vm_kmem_size_max, 0,
     "Maximum size of kernel memory");
 
-static u_int vm_kmem_size_scale = VM_KMEM_SIZE_SCALE;
+static u_int vm_kmem_size_scale;
 SYSCTL_UINT(_vm, OID_AUTO, kmem_size_scale, CTLFLAG_RDTUN, &vm_kmem_size_scale, 0,
     "Scale factor for kernel memory size");
 
