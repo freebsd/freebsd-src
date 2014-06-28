@@ -22,8 +22,7 @@ SRCS=		dtrace.c \
 SRCS+=		dis_tables.c \
 		instr_size.c
 CFLAGS+=	-I${SYSDIR}/cddl/contrib/opensolaris/uts/intel \
-		-I${SYSDIR}/cddl/dev/dtrace/x86 \
-		-I${SUNW}/common/util
+		-I${SYSDIR}/cddl/dev/dtrace/x86
 .endif
 
 SRCS+=		bus_if.h device_if.h vnode_if.h
@@ -45,6 +44,7 @@ CFLAGS+=	-I${SYSDIR}/cddl/compat/opensolaris \
 		-I${SYSDIR}/cddl/dev/dtrace \
 		-I${SYSDIR}/cddl/dev/dtrace/${ARCHDIR} \
 		-I${SYSDIR}/cddl/contrib/opensolaris/uts/common \
+		-I${SUNW}/common/util \
 		-I${SYSDIR} -DDIS_MEM
 
 CFLAGS+=	-DSMP
