@@ -35,6 +35,7 @@
 #include <netdb.h>
 #include <pwd.h>
 #include <stdio.h>
+#include <stdarg.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sysexits.h>
@@ -55,6 +56,15 @@
 #include <arpa/inet.h>
 
 struct cmdline_opts co;	/* global options */
+
+struct format_opts {
+	int bcwidth;
+	int pcwidth;
+	int show_counters;
+	int first;
+	int last;
+	ipfw_obj_ctlv *tstate;
+};
 
 int resvd_set_number = RESVD_SET;
 
@@ -364,6 +374,102 @@ static struct _s_x rule_options[] = {
 	{ NULL, 0 }	/* terminator */
 };
 
+void bprint_uint_arg(struct buf_pr *bp, const char *str, uint32_t arg);
+static int ipfw_get_config(struct cmdline_opts *co, uint32_t flags,
+    ipfw_cfg_lheader **pcfg, size_t *psize);
+static int ipfw_show_config(struct cmdline_opts *co, struct format_opts *fo,
+    ipfw_cfg_lheader *cfg, size_t sz, int ac, char **av);
+
+/*
+ * Simple string buffer API.
+ * Used to simplify buffer passing between function and for
+ * transparent overrun handling.
+ */
+
+/*
+ * Allocates new buffer of given size @sz.
+ *
+ * Returns 0 on success.
+ */
+int
+bp_alloc(struct buf_pr *b, size_t size)
+{
+	memset(b, 0, sizeof(struct buf_pr));
+
+	if ((b->buf = calloc(1, size)) == NULL)
+		return (ENOMEM);
+
+	b->ptr = b->buf;
+	b->size = size;
+	b->avail = b->size;
+
+	return (0);
+}
+
+void
+bp_free(struct buf_pr *b)
+{
+
+	free(b->buf);
+}
+
+/*
+ * Flushes buffer so new writer start from beginning.
+ */
+void
+bp_flush(struct buf_pr *b)
+{
+
+	b->ptr = b->buf;
+	b->avail = b->size;
+}
+
+/*
+ * Print message specified by @format and args.
+ * Automatically manage buffer space and transparently handle
+ * buffer overruns.
+ *
+ * Returns number of bytes that should have been printed.
+ */
+int
+bprintf(struct buf_pr *b, char *format, ...)
+{
+	va_list args;
+	int i;
+
+	va_start(args, format);
+
+	i = vsnprintf(b->ptr, b->avail, format, args);
+	va_end(args);
+
+	if (i > b->avail || i < 0) {
+		/* Overflow or print error */
+		b->avail = 0;
+	} else {
+		b->ptr += i;
+		b->avail -= i;
+	} 
+
+	b->needed += i;
+
+	return (i);
+}
+
+/*
+ * Special values printer for tablearg-aware opcodes.
+ */
+void
+bprint_uint_arg(struct buf_pr *bp, const char *str, uint32_t arg)
+{
+
+	if (str != NULL)
+		bprintf(bp, "%s", str);
+	if (arg == IP_FW_TABLEARG)
+		bprintf(bp, "tablearg");
+	else
+		bprintf(bp, "%u", arg);
+}
+
 /*
  * Helper routine to print a possibly unaligned uint64_t on
  * various platform. If width > 0, print the value with
@@ -371,7 +477,7 @@ static struct _s_x rule_options[] = {
  * otherwise, return the required width.
  */
 int
-pr_u64(uint64_t *pd, int width)
+pr_u64(struct buf_pr *b, uint64_t *pd, int width)
 {
 #ifdef TCC
 #define U64_FMT "I64"
@@ -384,10 +490,11 @@ pr_u64(uint64_t *pd, int width)
 	bcopy (pd, &u, sizeof(u));
 	d = u;
 	return (width > 0) ?
-		printf("%*" U64_FMT " ", width, d) :
+		bprintf(b, "%*" U64_FMT " ", width, d) :
 		snprintf(NULL, 0, "%" U64_FMT, d) ;
 #undef U64_FMT
 }
+
 
 void *
 safe_calloc(size_t number, size_t size)
@@ -866,14 +973,14 @@ fill_reject_code(u_short *codep, char *str)
 }
 
 static void
-print_reject_code(uint16_t code)
+print_reject_code(struct buf_pr *bp, uint16_t code)
 {
-	char const *s = match_value(icmpcodes, code);
+	char const *s;
 
-	if (s != NULL)
-		printf("unreach %s", s);
+	if ((s = match_value(icmpcodes, code)) != NULL)
+		bprintf(bp, "unreach %s", s);
 	else
-		printf("unreach %u", code);
+		bprintf(bp, "unreach %u", code);
 }
 
 /*
@@ -937,7 +1044,7 @@ print_flags(char const *name, ipfw_insn *cmd, struct _s_x *list)
  * Print the ip address contained in a command.
  */
 static void
-print_ip(ipfw_insn_ip *cmd, char const *s)
+print_ip(struct format_opts *fo, ipfw_insn_ip *cmd, char const *s)
 {
 	struct hostent *he = NULL;
 	uint32_t len = F_LEN((ipfw_insn *)cmd);
@@ -961,7 +1068,9 @@ print_ip(ipfw_insn_ip *cmd, char const *s)
 	}
 	if (cmd->o.opcode == O_IP_SRC_LOOKUP ||
 	    cmd->o.opcode == O_IP_DST_LOOKUP) {
-		printf("table(%u", ((ipfw_insn *)cmd)->arg1);
+		char *t;
+		t = table_search_ctlv(fo->tstate, ((ipfw_insn *)cmd)->arg1);
+		printf("table(%s", t);
 		if (len == F_INSN_SIZE(ipfw_insn_u32))
 			printf(",%u", *a);
 		printf(")");
@@ -1162,7 +1271,8 @@ show_prerequisites(int *flags, int want, int cmd)
 }
 
 static void
-show_ipfw(struct ip_fw *rule, int pcwidth, int bcwidth)
+show_static_rule(struct cmdline_opts *co, struct format_opts *fo,
+    struct buf_pr *bp, struct ip_fw *rule)
 {
 	static int twidth = 0;
 	int l;
@@ -1178,21 +1288,21 @@ show_ipfw(struct ip_fw *rule, int pcwidth, int bcwidth)
 	bcopy(&rule->next_rule, &set_disable, sizeof(set_disable));
 
 	if (set_disable & (1 << rule->set)) { /* disabled */
-		if (!co.show_sets)
+		if (!co->show_sets)
 			return;
 		else
-			printf("# DISABLED ");
+			bprintf(bp, "# DISABLED ");
 	}
-	printf("%05u ", rule->rulenum);
+	bprintf(bp, "%05u ", rule->rulenum);
 
-	if (pcwidth > 0 || bcwidth > 0) {
-		pr_u64(&rule->pcnt, pcwidth);
-		pr_u64(&rule->bcnt, bcwidth);
+	if (fo->pcwidth > 0 || fo->bcwidth > 0) {
+		pr_u64(bp, &rule->pcnt, fo->pcwidth);
+		pr_u64(bp, &rule->bcnt, fo->bcwidth);
 	}
 
-	if (co.do_time == 2)
-		printf("%10u ", rule->timestamp);
-	else if (co.do_time == 1) {
+	if (co->do_time == 2)
+		bprintf(bp, "%10u ", rule->timestamp);
+	else if (co->do_time == 1) {
 		char timestr[30];
 		time_t t = (time_t)0;
 
@@ -1206,14 +1316,14 @@ show_ipfw(struct ip_fw *rule, int pcwidth, int bcwidth)
 
 			strcpy(timestr, ctime(&t));
 			*strchr(timestr, '\n') = '\0';
-			printf("%s ", timestr);
+			bprintf(bp, "%s ", timestr);
 		} else {
-			printf("%*s", twidth, " ");
+			bprintf(bp, "%*s", twidth, " ");
 		}
 	}
 
-	if (co.show_sets)
-		printf("set %d ", rule->set);
+	if (co->show_sets)
+		bprintf(bp, "set %d ", rule->set);
 
 	/*
 	 * print the optional "match probability"
@@ -1225,7 +1335,7 @@ show_ipfw(struct ip_fw *rule, int pcwidth, int bcwidth)
 			double d = 1.0 * p->d[0];
 
 			d = (d / 0x7fffffff);
-			printf("prob %f ", d);
+			bprintf(bp, "prob %f ", d);
 		}
 	}
 
@@ -1236,66 +1346,66 @@ show_ipfw(struct ip_fw *rule, int pcwidth, int bcwidth)
 			l > 0 ; l -= F_LEN(cmd), cmd += F_LEN(cmd)) {
 		switch(cmd->opcode) {
 		case O_CHECK_STATE:
-			printf("check-state");
+			bprintf(bp, "check-state");
 			/* avoid printing anything else */
 			flags = HAVE_PROTO | HAVE_SRCIP |
 				HAVE_DSTIP | HAVE_IP;
 			break;
 
 		case O_ACCEPT:
-			printf("allow");
+			bprintf(bp, "allow");
 			break;
 
 		case O_COUNT:
-			printf("count");
+			bprintf(bp, "count");
 			break;
 
 		case O_DENY:
-			printf("deny");
+			bprintf(bp, "deny");
 			break;
 
 		case O_REJECT:
 			if (cmd->arg1 == ICMP_REJECT_RST)
-				printf("reset");
+				bprintf(bp, "reset");
 			else if (cmd->arg1 == ICMP_UNREACH_HOST)
-				printf("reject");
+				bprintf(bp, "reject");
 			else
-				print_reject_code(cmd->arg1);
+				print_reject_code(bp, cmd->arg1);
 			break;
 
 		case O_UNREACH6:
 			if (cmd->arg1 == ICMP6_UNREACH_RST)
-				printf("reset6");
+				bprintf(bp, "reset6");
 			else
 				print_unreach6_code(cmd->arg1);
 			break;
 
 		case O_SKIPTO:
-			PRINT_UINT_ARG("skipto ", cmd->arg1);
+			bprint_uint_arg(bp, "skipto ", cmd->arg1);
 			break;
 
 		case O_PIPE:
-			PRINT_UINT_ARG("pipe ", cmd->arg1);
+			bprint_uint_arg(bp, "pipe ", cmd->arg1);
 			break;
 
 		case O_QUEUE:
-			PRINT_UINT_ARG("queue ", cmd->arg1);
+			bprint_uint_arg(bp, "queue ", cmd->arg1);
 			break;
 
 		case O_DIVERT:
-			PRINT_UINT_ARG("divert ", cmd->arg1);
+			bprint_uint_arg(bp, "divert ", cmd->arg1);
 			break;
 
 		case O_TEE:
-			PRINT_UINT_ARG("tee ", cmd->arg1);
+			bprint_uint_arg(bp, "tee ", cmd->arg1);
 			break;
 
 		case O_NETGRAPH:
-			PRINT_UINT_ARG("netgraph ", cmd->arg1);
+			bprint_uint_arg(bp, "netgraph ", cmd->arg1);
 			break;
 
 		case O_NGTEE:
-			PRINT_UINT_ARG("ngtee ", cmd->arg1);
+			bprint_uint_arg(bp, "ngtee ", cmd->arg1);
 			break;
 
 		case O_FORWARD_IP:
@@ -1303,12 +1413,12 @@ show_ipfw(struct ip_fw *rule, int pcwidth, int bcwidth)
 			ipfw_insn_sa *s = (ipfw_insn_sa *)cmd;
 
 			if (s->sa.sin_addr.s_addr == INADDR_ANY) {
-				printf("fwd tablearg");
+				bprintf(bp, "fwd tablearg");
 			} else {
-				printf("fwd %s", inet_ntoa(s->sa.sin_addr));
+				bprintf(bp, "fwd %s",inet_ntoa(s->sa.sin_addr));
 			}
 			if (s->sa.sin_port)
-				printf(",%d", s->sa.sin_port);
+				bprintf(bp, ",%d", s->sa.sin_port);
 		    }
 			break;
 
@@ -1317,10 +1427,10 @@ show_ipfw(struct ip_fw *rule, int pcwidth, int bcwidth)
 			char buf[4 + INET6_ADDRSTRLEN + 1];
 			ipfw_insn_sa6 *s = (ipfw_insn_sa6 *)cmd;
 
-			printf("fwd %s", inet_ntop(AF_INET6, &s->sa.sin6_addr,
-			    buf, sizeof(buf)));
+			bprintf(bp, "fwd %s", inet_ntop(AF_INET6,
+			    &s->sa.sin6_addr, buf, sizeof(buf)));
 			if (s->sa.sin6_port)
-				printf(",%d", s->sa.sin6_port);
+				bprintf(bp, ",%d", s->sa.sin6_port);
 		    }
 			break;
 
@@ -1338,13 +1448,13 @@ show_ipfw(struct ip_fw *rule, int pcwidth, int bcwidth)
 
 		case O_NAT:
 			if (cmd->arg1 != 0)
-				PRINT_UINT_ARG("nat ", cmd->arg1);
+				bprint_uint_arg(bp, "nat ", cmd->arg1);
 			else
-				printf("nat global");
+				bprintf(bp, "nat global");
 			break;
 
 		case O_SETFIB:
-			PRINT_UINT_ARG("setfib ", cmd->arg1);
+			bprint_uint_arg(bp, "setfib ", cmd->arg1);
  			break;
 
 		case O_SETDSCP:
@@ -1352,45 +1462,51 @@ show_ipfw(struct ip_fw *rule, int pcwidth, int bcwidth)
 			const char *code;
 
 			if ((code = match_value(f_ipdscp, cmd->arg1)) != NULL)
-				printf("setdscp %s", code);
+				bprintf(bp, "setdscp %s", code);
 			else
-				PRINT_UINT_ARG("setdscp ", cmd->arg1);
+				bprint_uint_arg(bp, "setdscp ", cmd->arg1);
 		    }
  			break;
 
 		case O_REASS:
-			printf("reass");
+			bprintf(bp, "reass");
 			break;
 
 		case O_CALLRETURN:
 			if (cmd->len & F_NOT)
-				printf("return");
+				bprintf(bp, "return");
 			else
-				PRINT_UINT_ARG("call ", cmd->arg1);
+				bprint_uint_arg(bp, "call ", cmd->arg1);
 			break;
 
 		default:
-			printf("** unrecognized action %d len %d ",
+			bprintf(bp, "** unrecognized action %d len %d ",
 				cmd->opcode, cmd->len);
 		}
 	}
 	if (logptr) {
 		if (logptr->max_log > 0)
-			printf(" log logamount %d", logptr->max_log);
+			bprintf(bp, " log logamount %d", logptr->max_log);
 		else
-			printf(" log");
+			bprintf(bp, " log");
 	}
 #ifndef NO_ALTQ
 	if (altqptr) {
-		print_altq_cmd(altqptr);
+		print_altq_cmd(bp, altqptr);
 	}
 #endif
 	if (tagptr) {
 		if (tagptr->len & F_NOT)
-			PRINT_UINT_ARG(" untag ", tagptr->arg1);
+			bprint_uint_arg(bp, " untag ", tagptr->arg1);
 		else
-			PRINT_UINT_ARG(" tag ", tagptr->arg1);
+			bprint_uint_arg(bp, " tag ", tagptr->arg1);
 	}
+
+	/*
+	 * TODO: convert remainings to use @bp buffer
+	 *
+	 */
+	printf("%s", bp->buf);
 
 	/*
 	 * then print the body.
@@ -1408,7 +1524,7 @@ show_ipfw(struct ip_fw *rule, int pcwidth, int bcwidth)
 		}
 	}
 	if (rule->_pad & 1) {	/* empty rules before options */
-		if (!co.do_compact) {
+		if (!co->do_compact) {
 			show_prerequisites(&flags, HAVE_PROTO, 0);
 			printf(" from any to any");
 		}
@@ -1416,7 +1532,7 @@ show_ipfw(struct ip_fw *rule, int pcwidth, int bcwidth)
 			 HAVE_SRCIP | HAVE_DSTIP;
 	}
 
-	if (co.comment_only)
+	if (co->comment_only)
 		comment = "...";
 
 	for (l = rule->act_ofs, cmd = rule->cmd ;
@@ -1424,7 +1540,7 @@ show_ipfw(struct ip_fw *rule, int pcwidth, int bcwidth)
 		/* useful alias */
 		ipfw_insn_u32 *cmd32 = (ipfw_insn_u32 *)cmd;
 
-		if (co.comment_only) {
+		if (co->comment_only) {
 			if (cmd->opcode != O_NOP)
 				continue;
 			printf(" // %s\n", (char *)(cmd + 1));
@@ -1450,7 +1566,7 @@ show_ipfw(struct ip_fw *rule, int pcwidth, int bcwidth)
 				printf(" from");
 			if ((cmd->len & F_OR) && !or_block)
 				printf(" {");
-			print_ip((ipfw_insn_ip *)cmd,
+			print_ip(fo, (ipfw_insn_ip *)cmd,
 				(flags & HAVE_OPTIONS) ? " src-ip" : "");
 			flags |= HAVE_SRCIP;
 			break;
@@ -1465,7 +1581,7 @@ show_ipfw(struct ip_fw *rule, int pcwidth, int bcwidth)
 				printf(" to");
 			if ((cmd->len & F_OR) && !or_block)
 				printf(" {");
-			print_ip((ipfw_insn_ip *)cmd,
+			print_ip(fo, (ipfw_insn_ip *)cmd,
 				(flags & HAVE_OPTIONS) ? " dst-ip" : "");
 			flags |= HAVE_DSTIP;
 			break;
@@ -1610,7 +1726,7 @@ show_ipfw(struct ip_fw *rule, int pcwidth, int bcwidth)
 			case O_RECV:
 			case O_VIA:
 			    {
-				char const *s;
+				char const *s, *t;
 				ipfw_insn_if *cmdif = (ipfw_insn_if *)cmd;
 
 				if (cmd->opcode == O_XMIT)
@@ -1622,9 +1738,12 @@ show_ipfw(struct ip_fw *rule, int pcwidth, int bcwidth)
 				if (cmdif->name[0] == '\0')
 					printf(" %s %s", s,
 					    inet_ntoa(cmdif->p.ip));
-				else if (cmdif->name[0] == '\1') /* interface table */
-					printf(" %s table(%d)", s, cmdif->p.glob);
-				else
+				else if (cmdif->name[0] == '\1') {
+					/* interface table */
+					t = table_search_ctlv(fo->tstate,
+					    cmdif->p.glob);
+					printf(" %s table(%s)", s, t);
+				} else
 					printf(" %s %s", s, cmdif->name);
 
 				break;
@@ -1825,57 +1944,56 @@ show_ipfw(struct ip_fw *rule, int pcwidth, int bcwidth)
 }
 
 static void
-show_dyn_ipfw(ipfw_dyn_rule *d, int pcwidth, int bcwidth)
+show_dyn_state(struct cmdline_opts *co, struct format_opts *fo,
+    struct buf_pr *bp, ipfw_dyn_rule *d)
 {
 	struct protoent *pe;
 	struct in_addr a;
 	uint16_t rulenum;
 	char buf[INET6_ADDRSTRLEN];
 
-	if (!co.do_expired) {
+	if (!co->do_expired) {
 		if (!d->expire && !(d->dyn_type == O_LIMIT_PARENT))
 			return;
 	}
 	bcopy(&d->rule, &rulenum, sizeof(rulenum));
-	printf("%05d", rulenum);
-	if (pcwidth > 0 || bcwidth > 0) {
-		printf(" ");
-		pr_u64(&d->pcnt, pcwidth);
-		pr_u64(&d->bcnt, bcwidth);
-		printf("(%ds)", d->expire);
+	bprintf(bp, "%05d", rulenum);
+	if (fo->pcwidth > 0 || fo->bcwidth > 0) {
+		bprintf(bp, " ");
+		pr_u64(bp, &d->pcnt, fo->pcwidth);
+		pr_u64(bp, &d->bcnt, fo->bcwidth);
+		bprintf(bp, "(%ds)", d->expire);
 	}
 	switch (d->dyn_type) {
 	case O_LIMIT_PARENT:
-		printf(" PARENT %d", d->count);
+		bprintf(bp, " PARENT %d", d->count);
 		break;
 	case O_LIMIT:
-		printf(" LIMIT");
+		bprintf(bp, " LIMIT");
 		break;
 	case O_KEEP_STATE: /* bidir, no mask */
-		printf(" STATE");
+		bprintf(bp, " STATE");
 		break;
 	}
 
 	if ((pe = getprotobynumber(d->id.proto)) != NULL)
-		printf(" %s", pe->p_name);
+		bprintf(bp, " %s", pe->p_name);
 	else
-		printf(" proto %u", d->id.proto);
+		bprintf(bp, " proto %u", d->id.proto);
 
 	if (d->id.addr_type == 4) {
 		a.s_addr = htonl(d->id.src_ip);
-		printf(" %s %d", inet_ntoa(a), d->id.src_port);
+		bprintf(bp, " %s %d", inet_ntoa(a), d->id.src_port);
 
 		a.s_addr = htonl(d->id.dst_ip);
-		printf(" <-> %s %d", inet_ntoa(a), d->id.dst_port);
+		bprintf(bp, " <-> %s %d", inet_ntoa(a), d->id.dst_port);
 	} else if (d->id.addr_type == 6) {
-		printf(" %s %d", inet_ntop(AF_INET6, &d->id.src_ip6, buf,
+		bprintf(bp, " %s %d", inet_ntop(AF_INET6, &d->id.src_ip6, buf,
 		    sizeof(buf)), d->id.src_port);
-		printf(" <-> %s %d", inet_ntop(AF_INET6, &d->id.dst_ip6, buf,
-		    sizeof(buf)), d->id.dst_port);
+		bprintf(bp, " <-> %s %d", inet_ntop(AF_INET6, &d->id.dst_ip6,
+		    buf, sizeof(buf)), d->id.dst_port);
 	} else
-		printf(" UNKNOWN <-> UNKNOWN\n");
-
-	printf("\n");
+		bprintf(bp, " UNKNOWN <-> UNKNOWN\n");
 }
 
 /*
@@ -2026,28 +2144,112 @@ ipfw_sysctl_handler(char *av[], int which)
 	}
 }
 
+static void
+prepare_format_opts(struct cmdline_opts *co, struct format_opts *fo,
+    struct ip_fw *r, ipfw_dyn_rule *d, int rcnt, int dcnt)
+{
+	int bcwidth, pcwidth, width;
+	int n;
+	uint32_t set;
+#define NEXT(r)	((struct ip_fw *)((char *)r + RULESIZE(r)))
+
+	bcwidth = 0;
+	pcwidth = 0;
+	if (fo->show_counters != 0) {
+		for (n = 0; n < rcnt; n++, r = NEXT(r)) {
+			/* skip rules from another set */
+			if (co->use_set && r->set != co->use_set - 1)
+				continue;
+
+			/* packet counter */
+			width = pr_u64(NULL, &r->pcnt, 0);
+			if (width > pcwidth)
+				pcwidth = width;
+
+			/* byte counter */
+			width = pr_u64(NULL, &r->bcnt, 0);
+			if (width > bcwidth)
+				bcwidth = width;
+		}
+	}
+	if (co->do_dynamic && dcnt > 0) {
+		for (n = 0; n < dcnt; n++, d++) {
+			if (co->use_set) {
+				/* skip rules from another set */
+				bcopy((char *)&d->rule + sizeof(uint16_t),
+				      &set, sizeof(uint8_t));
+				if (set != co->use_set - 1)
+					continue;
+			}
+			width = pr_u64(NULL, &d->pcnt, 0);
+			if (width > pcwidth)
+				pcwidth = width;
+
+			width = pr_u64(NULL, &d->bcnt, 0);
+			if (width > bcwidth)
+				bcwidth = width;
+		}
+	}
+
+	fo->bcwidth = bcwidth;
+	fo->pcwidth = pcwidth;
+}
+
+static int
+ipfw_list_static_range(struct cmdline_opts *co, struct format_opts *fo,
+    struct buf_pr *bp, struct ip_fw *r, int nstat)
+{
+	int n, seen;
+
+	for (n = seen = 0; n < nstat; n++, r = NEXT(r) ) {
+		if (r->rulenum > fo->last)
+			break;
+		if (co->use_set && r->set != co->use_set - 1)
+			continue;
+		if (r->rulenum >= fo->first && r->rulenum <= fo->last) {
+			show_static_rule(co, fo, bp, r);
+			bp_flush(bp);
+			seen++;
+		}
+	}
+
+	return (seen);
+}
+
+static void
+ipfw_list_dyn_range(struct cmdline_opts *co, struct format_opts *fo,
+    struct buf_pr *bp, ipfw_dyn_rule *d, int ndyn)
+{
+	int n;
+	uint8_t set;
+	uint16_t rulenum;
+
+	for (n = 0; n < ndyn; n++, d++) {
+		bcopy(&d->rule, &rulenum, sizeof(rulenum));
+		if (rulenum > fo->last)
+			break;
+		if (co->use_set) {
+			bcopy((char *)&d->rule + sizeof(uint16_t),
+			      &set, sizeof(uint8_t));
+			if (set != co->use_set - 1)
+				continue;
+		}
+		if (rulenum >= fo->first) {
+			show_dyn_state(co, fo, bp, d);
+			printf("%s\n", bp->buf);
+			bp_flush(bp);
+		}
+	}
+}
+
 void
 ipfw_list(int ac, char *av[], int show_counters)
 {
-	struct ip_fw *r;
-	ipfw_dyn_rule *dynrules, *d;
-
-#define NEXT(r)	((struct ip_fw *)((char *)r + RULESIZE(r)))
-	char *lim;
-	void *data = NULL;
-	int bcwidth, n, nbytes, nstat, ndyn, pcwidth, width;
-	int exitval = EX_OK;
-	int lac;
-	char **lav;
-	u_long rnum, last;
-	char *endptr;
-	int seen = 0;
-	uint8_t set;
-
-	const int ocmd = co.do_pipe ? IP_DUMMYNET_GET : IP_FW_GET;
-	int nalloc = 1024;	/* start somewhere... */
-
-	last = 0;
+	ipfw_cfg_lheader *cfg;
+	struct format_opts sfo;
+	size_t sz;
+	int error;
+	uint32_t flags;
 
 	if (co.test_only) {
 		fprintf(stderr, "Testing only, list disabled\n");
@@ -2061,119 +2263,108 @@ ipfw_list(int ac, char *av[], int show_counters)
 	ac--;
 	av++;
 
-	/* get rules or pipes from kernel, resizing array as necessary */
-	nbytes = nalloc;
+	/* get configuraion from kernel */
+	cfg = NULL;
+	flags = IPFW_CFG_GET_STATIC;
+	if (co.do_dynamic != 0)
+		flags |= IPFW_CFG_GET_STATES;
+	if ((error = ipfw_get_config(&co, flags, &cfg, &sz)) != 0)
+		err(EX_OSERR, "retrieving config failed");
 
-	while (nbytes >= nalloc) {
-		nalloc = nalloc * 2 + 200;
-		nbytes = nalloc;
-		data = safe_realloc(data, nbytes);
-		if (do_cmd(ocmd, data, (uintptr_t)&nbytes) < 0)
-			err(EX_OSERR, "getsockopt(IP_%s_GET)",
-				co.do_pipe ? "DUMMYNET" : "FW");
-	}
+	memset(&sfo, 0, sizeof(sfo));
+	sfo.show_counters = show_counters;
+	error = ipfw_show_config(&co, &sfo, cfg, sz, ac, av);
+
+	free(cfg);
+
+	if (error != EX_OK)
+		exit(error);
+#undef NEXT
+}
+
+static int
+ipfw_show_config(struct cmdline_opts *co, struct format_opts *fo,
+    ipfw_cfg_lheader *cfg, size_t sz, int ac, char *av[])
+{
+	struct ip_fw *rbase;
+	ipfw_dyn_rule *dynbase;
+	int rcnt, dcnt;
+	int exitval = EX_OK;
+	int lac;
+	char **lav;
+	u_long rnum;
+	char *endptr;
+	size_t read;
+	struct buf_pr bp;
+	ipfw_obj_ctlv *ctlv, *tstate;
 
 	/*
-	 * Count static rules. They have variable size so we
-	 * need to scan the list to count them.
+	 * Handle tablenames TLV first, if any
 	 */
-	for (nstat = 1, r = data, lim = (char *)data + nbytes;
-		    r->rulenum < IPFW_DEFAULT_RULE && (char *)r < lim;
-		    ++nstat, r = NEXT(r) )
-		; /* nothing */
+	tstate = NULL;
+	rbase = NULL;
+	dynbase = NULL;
+	read = 0;
 
-	/*
-	 * Count dynamic rules. This is easier as they have
-	 * fixed size.
-	 */
-	r = NEXT(r);
-	dynrules = (ipfw_dyn_rule *)r ;
-	n = (char *)r - (char *)data;
-	ndyn = (nbytes - n) / sizeof *dynrules;
+	ctlv = (ipfw_obj_ctlv *)(cfg + 1);
 
-	/* if showing stats, figure out column widths ahead of time */
-	bcwidth = pcwidth = 0;
-	if (show_counters) {
-		for (n = 0, r = data; n < nstat; n++, r = NEXT(r)) {
-			/* skip rules from another set */
-			if (co.use_set && r->set != co.use_set - 1)
-				continue;
+	if (cfg->flags & IPFW_CFG_GET_STATIC) {
+		/* We've requested static rules */
+		if (ctlv->head.type == IPFW_TLV_TBLNAME_LIST) {
+			fo->tstate = ctlv;
+			read += ctlv->head.length;
+			ctlv = (ipfw_obj_ctlv *)((caddr_t)ctlv +
+			    ctlv->head.length);
+		}
 
-			/* packet counter */
-			width = pr_u64(&r->pcnt, 0);
-			if (width > pcwidth)
-				pcwidth = width;
-
-			/* byte counter */
-			width = pr_u64(&r->bcnt, 0);
-			if (width > bcwidth)
-				bcwidth = width;
+		if (ctlv->head.type == IPFW_TLV_RULE_LIST) {
+			rbase = (struct ip_fw *)(ctlv + 1);
+			rcnt = ctlv->count;
+			read += ctlv->head.length;
+			ctlv = (ipfw_obj_ctlv *)((caddr_t)ctlv +
+			    ctlv->head.length);
 		}
 	}
-	if (co.do_dynamic && ndyn) {
-		for (n = 0, d = dynrules; n < ndyn; n++, d++) {
-			if (co.use_set) {
-				/* skip rules from another set */
-				bcopy((char *)&d->rule + sizeof(uint16_t),
-				      &set, sizeof(uint8_t));
-				if (set != co.use_set - 1)
-					continue;
-			}
-			width = pr_u64(&d->pcnt, 0);
-			if (width > pcwidth)
-				pcwidth = width;
 
-			width = pr_u64(&d->bcnt, 0);
-			if (width > bcwidth)
-				bcwidth = width;
-		}
+	if ((cfg->flags & IPFW_CFG_GET_STATES) && (read != sz))  {
+		/* We may have some dynamic rules */
+		read += sizeof(ipfw_obj_ctlv);
+		dcnt = ((sz - read) / ctlv->objsize);
+		if (dcnt != 0)
+			dynbase = (ipfw_dyn_rule *)(ctlv + 1);
 	}
+
+	prepare_format_opts(co, fo, rbase, dynbase, rcnt, dcnt);
+	bp_alloc(&bp, 4096);
+
 	/* if no rule numbers were specified, list all rules */
 	if (ac == 0) {
-		for (n = 0, r = data; n < nstat; n++, r = NEXT(r)) {
-			if (co.use_set && r->set != co.use_set - 1)
-				continue;
-			show_ipfw(r, pcwidth, bcwidth);
+		fo->first = 0;
+		fo->last = IPFW_DEFAULT_RULE;
+		ipfw_list_static_range(co, fo, &bp, rbase, rcnt);
+
+		if (co->do_dynamic && dcnt) {
+			printf("## Dynamic rules (%d):\n", dcnt);
+			ipfw_list_dyn_range(co, fo, &bp, dynbase, dcnt);
 		}
 
-		if (co.do_dynamic && ndyn) {
-			printf("## Dynamic rules (%d):\n", ndyn);
-			for (n = 0, d = dynrules; n < ndyn; n++, d++) {
-				if (co.use_set) {
-					bcopy((char *)&d->rule + sizeof(uint16_t),
-					      &set, sizeof(uint8_t));
-					if (set != co.use_set - 1)
-						continue;
-				}
-				show_dyn_ipfw(d, pcwidth, bcwidth);
-		}
-		}
-		goto done;
+		bp_free(&bp);
+		return (EX_OK);
 	}
 
 	/* display specific rules requested on command line */
-
 	for (lac = ac, lav = av; lac != 0; lac--) {
 		/* convert command line rule # */
-		last = rnum = strtoul(*lav++, &endptr, 10);
+		fo->last = fo->first = strtoul(*lav++, &endptr, 10);
 		if (*endptr == '-')
-			last = strtoul(endptr+1, &endptr, 10);
+			fo->last = strtoul(endptr + 1, &endptr, 10);
 		if (*endptr) {
 			exitval = EX_USAGE;
 			warnx("invalid rule number: %s", *(lav - 1));
 			continue;
 		}
-		for (n = seen = 0, r = data; n < nstat; n++, r = NEXT(r) ) {
-			if (r->rulenum > last)
-				break;
-			if (co.use_set && r->set != co.use_set - 1)
-				continue;
-			if (r->rulenum >= rnum && r->rulenum <= last) {
-				show_ipfw(r, pcwidth, bcwidth);
-				seen = 1;
-			}
-		}
-		if (!seen) {
+
+		if (ipfw_list_static_range(co, fo, &bp, rbase, rcnt) == 0) {
 			/* give precedence to other error(s) */
 			if (exitval == EX_OK)
 				exitval = EX_UNAVAILABLE;
@@ -2181,41 +2372,78 @@ ipfw_list(int ac, char *av[], int show_counters)
 		}
 	}
 
-	if (co.do_dynamic && ndyn) {
+	if (co->do_dynamic && dcnt > 0) {
 		printf("## Dynamic rules:\n");
 		for (lac = ac, lav = av; lac != 0; lac--) {
-			last = rnum = strtoul(*lav++, &endptr, 10);
+			fo->last = fo->first = strtoul(*lav++, &endptr, 10);
 			if (*endptr == '-')
-				last = strtoul(endptr+1, &endptr, 10);
+				fo->last = strtoul(endptr+1, &endptr, 10);
 			if (*endptr)
 				/* already warned */
 				continue;
-			for (n = 0, d = dynrules; n < ndyn; n++, d++) {
-				uint16_t rulenum;
-
-				bcopy(&d->rule, &rulenum, sizeof(rulenum));
-				if (rulenum > rnum)
-					break;
-				if (co.use_set) {
-					bcopy((char *)&d->rule + sizeof(uint16_t),
-					      &set, sizeof(uint8_t));
-					if (set != co.use_set - 1)
-						continue;
-				}
-				if (r->rulenum >= rnum && r->rulenum <= last)
-					show_dyn_ipfw(d, pcwidth, bcwidth);
-			}
+			ipfw_list_dyn_range(co, fo, &bp, dynbase, dcnt);
 		}
 	}
 
-	ac = 0;
+	bp_free(&bp);
+	return (exitval);
+}
 
-done:
-	free(data);
 
-	if (exitval != EX_OK)
-		exit(exitval);
-#undef NEXT
+/*
+ * Retrieves current ipfw configuration of given type
+ * and stores its pointer to @pcfg.
+ *
+ * Caller is responsible for freeing @pcfg.
+ *
+ * Returns 0 on success.
+ */
+
+static int
+ipfw_get_config(struct cmdline_opts *co, uint32_t flags,
+    ipfw_cfg_lheader **pcfg, size_t *psize)
+{
+	ipfw_cfg_lheader *cfg;
+	size_t sz;
+	int error, i;
+
+
+	if (co->test_only != 0) {
+		fprintf(stderr, "Testing only, list disabled\n");
+		return (0);
+	}
+
+	/* Start with some data size */
+	sz = 4096;
+	cfg = NULL;
+
+	for (i = 0; i < 10; i++) {
+		if (cfg != NULL)
+			free(cfg);
+		if ((cfg = calloc(1, sz)) == NULL)
+			return (ENOMEM);
+
+		cfg->flags = flags;
+
+		if (do_get3(IP_FW_XGET, &cfg->opheader, &sz) < 0) {
+			if (error != ENOMEM) {
+				free(cfg);
+				return (error);
+			}
+
+			/* Buffer size is not enough. Try to increase */
+			sz = sz * 2 + 200;
+			if (sz < cfg->size)
+				sz = cfg->size + 200;
+		}
+
+		*pcfg = cfg;
+		*psize = sz;
+		return (0);
+	}
+
+	free(cfg);
+	return (ENOMEM);
 }
 
 static int
@@ -4064,8 +4292,14 @@ done:
 	i = (char *)dst - (char *)rule;
 	if (do_cmd(IP_FW_ADD, rule, (uintptr_t)&i) == -1)
 		err(EX_UNAVAILABLE, "getsockopt(%s)", "IP_FW_ADD");
-	if (!co.do_quiet)
-		show_ipfw(rule, 0, 0);
+	if (!co.do_quiet) {
+		struct format_opts sfo;
+		struct buf_pr bp;
+		memset(&sfo, 0, sizeof(sfo));
+		bp_alloc(&bp, 4096);
+		show_static_rule(&co, &sfo, &bp, rule);
+		bp_free(&bp);
+	}
 }
 
 /*

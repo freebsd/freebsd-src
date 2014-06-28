@@ -111,6 +111,10 @@ int ipfw_del_table_entry(struct ip_fw_chain *ch, struct tid_info *ti,
 int ipfw_rewrite_table_uidx(struct ip_fw_chain *chain,
     struct rule_check_info *ci);
 int ipfw_rewrite_table_kidx(struct ip_fw_chain *chain, struct ip_fw *rule);
+int ipfw_mark_table_kidx(struct ip_fw_chain *chain, struct ip_fw *rule,
+    uint32_t *bmask);
+int ipfw_export_table_ntlv(struct ip_fw_chain *ch, uint16_t kidx,
+    struct sockopt_data *sd);
 void ipfw_unbind_table_rule(struct ip_fw_chain *chain, struct ip_fw *rule);
 void ipfw_unbind_table_list(struct ip_fw_chain *chain, struct ip_fw *head);
 

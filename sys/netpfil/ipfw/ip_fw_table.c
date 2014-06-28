@@ -27,16 +27,15 @@
 __FBSDID("$FreeBSD$");
 
 /*
- * Lookup table support for ipfw
+ * Lookup table support for ipfw.
  *
- * Lookup tables are implemented (at the moment) using the radix
- * tree used for routing tables. Tables store key-value entries, where
- * keys are network prefixes (addr/masklen), and values are integers.
- * As a degenerate case we can interpret keys as 32-bit integers
- * (with a /32 mask).
+ * This file containg handlers for all generic tables operations:
+ * add/del/flush entries, list/dump tables etc..
  *
- * The table is protected by the IPFW lock even for manipulation coming
- * from userland, because operations are typically fast.
+ * Table data modification is protected by both UH and runtimg lock
+ * while reading configuration/data is protected by UH lock.
+ *
+ * Lookup algorithms for all table types are located in ip_fw_table_algo.c
  */
 
 #include "opt_ipfw.h"
@@ -901,6 +900,31 @@ objheader_to_ti(struct _ipfw_obj_header *oh, struct tid_info *ti)
 	ti->tlen = oh->ntlv.head.length;
 }
 
+int
+ipfw_export_table_ntlv(struct ip_fw_chain *ch, uint16_t kidx,
+    struct sockopt_data *sd)
+{
+	struct namedobj_instance *ni;
+	struct named_object *no;
+	ipfw_obj_ntlv *ntlv;
+
+	ni = CHAIN_TO_NI(ch);
+
+	no = ipfw_objhash_lookup_idx(ni, 0, kidx);
+	KASSERT(no != NULL, ("invalid table kidx passed"));
+
+	ntlv = (ipfw_obj_ntlv *)ipfw_get_sopt_space(sd, sizeof(*ntlv));
+	if (ntlv == NULL)
+		return (ENOMEM);
+
+	ntlv->head.type = IPFW_TLV_TBL_NAME;
+	ntlv->head.length = sizeof(*ntlv);
+	ntlv->idx = no->kidx;
+	strlcpy(ntlv->name, no->name, sizeof(ntlv->name));
+
+	return (0);
+}
+
 static void
 export_table_info(struct table_config *tc, ipfw_xtable_info *i)
 {
@@ -1253,7 +1277,7 @@ find_name_tlv(void *tlvs, int len, uint16_t uidx)
 	for (; pa < pe; pa += l) {
 		ntlv = (ipfw_obj_ntlv *)pa;
 		l = ntlv->head.length;
-		if (ntlv->head.type != IPFW_TLV_NAME)
+		if (ntlv->head.type != IPFW_TLV_TBL_NAME)
 			continue;
 		if (ntlv->idx != uidx)
 			continue;
@@ -1514,6 +1538,40 @@ ipfw_rewrite_table_kidx(struct ip_fw_chain *chain, struct ip_fw *rule)
 
 	return (0);
 }
+
+/*
+ * Sets every table kidx in @bmask which is used in rule @rule.
+ * 
+ * Returns number of newly-referenced tables.
+ */
+int
+ipfw_mark_table_kidx(struct ip_fw_chain *chain, struct ip_fw *rule,
+    uint32_t *bmask)
+{
+	int cmdlen, l, count;
+	ipfw_insn *cmd;
+	uint16_t kidx;
+	uint8_t type;
+
+	l = rule->cmd_len;
+	cmd = rule->cmd;
+	cmdlen = 0;
+	count = 0;
+	for ( ;	l > 0 ; l -= cmdlen, cmd += cmdlen) {
+		cmdlen = F_LEN(cmd);
+
+		if (classify_table_opcode(cmd, &kidx, &type) != 0)
+			continue;
+
+		if ((bmask[kidx / 32] & (1 << (kidx % 32))) == 0)
+			count++;
+
+		bmask[kidx / 32] |= 1 << (kidx % 32);
+	}
+
+	return (count);
+}
+
 
 
 /*

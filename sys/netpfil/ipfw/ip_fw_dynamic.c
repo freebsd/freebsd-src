@@ -1454,6 +1454,74 @@ ipfw_dyn_len(void)
 		(DYN_COUNT * sizeof(ipfw_dyn_rule));
 }
 
+static void
+export_dyn_rule(ipfw_dyn_rule *src, ipfw_dyn_rule *dst)
+{
+
+	memcpy(dst, src, sizeof(*src));
+	memcpy(&(dst->rule), &(src->rule->rulenum), sizeof(src->rule->rulenum));
+	/*
+	 * store set number into high word of
+	 * dst->rule pointer.
+	 */
+	memcpy((char *)&dst->rule + sizeof(src->rule->rulenum),
+	    &(src->rule->set), sizeof(src->rule->set));
+	/*
+	 * store a non-null value in "next".
+	 * The userland code will interpret a
+	 * NULL here as a marker
+	 * for the last dynamic rule.
+	 */
+	memcpy(&dst->next, &dst, sizeof(dst));
+	dst->expire =
+	    TIME_LEQ(dst->expire, time_uptime) ?  0 : dst->expire - time_uptime;
+}
+
+/*
+ * Fills int buffer given by @sd with dynamic states.
+ *
+ * Returns 0 on success.
+ */
+int
+ipfw_dump_states(struct ip_fw_chain *chain, struct sockopt_data *sd)
+{
+	ipfw_dyn_rule *p, *dst, *last = NULL;
+	ipfw_obj_ctlv *ctlv;
+	int i;
+
+	if (V_ipfw_dyn_v == NULL)
+		return (0);
+
+	IPFW_UH_RLOCK_ASSERT(chain);
+
+	ctlv = (ipfw_obj_ctlv *)ipfw_get_sopt_space(sd, sizeof(*ctlv));
+	if (ctlv == NULL)
+		return (ENOMEM);
+	ctlv->head.type = IPFW_TLV_TBLNAME_LIST;
+	ctlv->objsize = sizeof(ipfw_dyn_rule);
+
+	for (i = 0 ; i < V_curr_dyn_buckets; i++) {
+		IPFW_BUCK_LOCK(i);
+		for (p = V_ipfw_dyn_v[i].head ; p != NULL; p = p->next) {
+			dst = (ipfw_dyn_rule *)ipfw_get_sopt_space(sd,
+			    sizeof(*dst));
+			if (dst == NULL) {
+				IPFW_BUCK_UNLOCK(i);
+				return (ENOMEM);
+			}
+
+			export_dyn_rule(p, dst);
+			last = dst;
+		}
+		IPFW_BUCK_UNLOCK(i);
+	}
+
+	if (last != NULL) /* mark last dynamic rule */
+		bzero(&last->next, sizeof(last));
+
+	return (0);
+}
+
 /*
  * Fill given buffer with dynamic states.
  * IPFW_UH_RLOCK has to be held while calling.
@@ -1477,28 +1545,9 @@ ipfw_get_dynamic(struct ip_fw_chain *chain, char **pbp, const char *ep)
 			if (bp + sizeof *p <= ep) {
 				ipfw_dyn_rule *dst =
 					(ipfw_dyn_rule *)bp;
-				bcopy(p, dst, sizeof *p);
-				bcopy(&(p->rule->rulenum), &(dst->rule),
-				    sizeof(p->rule->rulenum));
-				/*
-				 * store set number into high word of
-				 * dst->rule pointer.
-				 */
-				bcopy(&(p->rule->set),
-				    (char *)&dst->rule +
-				    sizeof(p->rule->rulenum),
-				    sizeof(p->rule->set));
-				/*
-				 * store a non-null value in "next".
-				 * The userland code will interpret a
-				 * NULL here as a marker
-				 * for the last dynamic rule.
-				 */
-				bcopy(&dst, &dst->next, sizeof(dst));
+
+				export_dyn_rule(p, dst);
 				last = dst;
-				dst->expire =
-				    TIME_LEQ(dst->expire, time_uptime) ?
-					0 : dst->expire - time_uptime ;
 				bp += sizeof(ipfw_dyn_rule);
 			}
 		}

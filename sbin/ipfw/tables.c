@@ -305,7 +305,7 @@ static void
 table_fill_ntlv(ipfw_obj_ntlv *ntlv, char *name, uint16_t uidx)
 {
 
-	ntlv->head.type = IPFW_TLV_NAME;
+	ntlv->head.type = IPFW_TLV_TBL_NAME;
 	ntlv->head.length = sizeof(ipfw_obj_ntlv);
 	ntlv->idx = uidx;
 	strlcpy(ntlv->name, name, sizeof(ntlv->name));
@@ -591,5 +591,45 @@ table_show_list(ipfw_obj_header *oh, int need_header)
 		xent = (ipfw_table_xentry *)((caddr_t)xent + xent->len);
 		count--;
 	}
+}
+
+
+int
+compare_ntlv(const void *k, const void *v)
+{
+	ipfw_obj_ntlv *ntlv;
+	uint16_t key;
+
+	key = *((uint16_t *)k);
+	ntlv = (ipfw_obj_ntlv *)v;
+
+	if (key < ntlv->idx)
+		return (-1);
+	else if (key > ntlv->idx)
+		return (1);
+	
+	return (0);
+}
+
+/*
+ * Finds table name in @ctlv by @idx.
+ * Uses the following facts:
+ * 1) All TLVs are the same size
+ * 2) Kernel implementation provides already sorted list.
+ *
+ * Returns table name or NULL.
+ */
+char *
+table_search_ctlv(ipfw_obj_ctlv *ctlv, uint16_t idx)
+{
+	ipfw_obj_ntlv *ntlv;
+
+	ntlv = bsearch(&idx, (ctlv + 1), ctlv->count, ctlv->objsize,
+	    compare_ntlv);
+
+	if (ntlv != 0)
+		return (ntlv->name);
+
+	return (NULL);
 }
 

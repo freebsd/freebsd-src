@@ -176,6 +176,7 @@ enum { /* result for matching dynamic rules */
  * Eventually we may implement it with a callback on the function.
  */
 struct ip_fw_chain;
+struct sockopt_data;
 void ipfw_expire_dyn_rules(struct ip_fw_chain *, struct ip_fw *, int);
 void ipfw_dyn_unlock(ipfw_dyn_rule *q);
 
@@ -188,6 +189,7 @@ ipfw_dyn_rule *ipfw_lookup_dyn_rule(struct ipfw_flow_id *pkt,
 	int *match_direction, struct tcphdr *tcp);
 void ipfw_remove_dyn_children(struct ip_fw *rule);
 void ipfw_get_dynamic(struct ip_fw_chain *chain, char **bp, const char *ep);
+int ipfw_dump_states(struct ip_fw_chain *chain, struct sockopt_data *sd);
 
 void ipfw_dyn_init(struct ip_fw_chain *);	/* per-vnet initialization */
 void ipfw_dyn_uninit(int);	/* per-vnet deinitialization */
