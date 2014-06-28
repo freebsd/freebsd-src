@@ -49,9 +49,9 @@
 
 #include "cheritest-helper.h"
 
-int	invoke(register_t op, size_t len, struct cheri_object system_object,
-	    __capability char *data_input, __capability char *data_output,
-	    struct cheri_object fd_object);
+int	invoke(register_t op, register_t arg, size_t len,
+	    struct cheri_object system_object, __capability char *data_input,
+	    __capability char *data_output, struct cheri_object fd_object);
 
 static int
 invoke_md5(size_t len, __capability char *data_input,
@@ -237,23 +237,25 @@ invoke_clock_gettime(void)
 }
 
 static int
-invoke_libcheri_userfn(size_t len, struct cheri_object system_object)
+invoke_libcheri_userfn(register_t arg __unused, size_t len __unused,
+    struct cheri_object system_object __unused)
 {
 
-	return (cheri_invoke(system_object, CHERI_SYSTEM_USER_BASE, len, 0, 0,
-	    0, 0, 0, 0, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL));
+	/*
+	 * Argument passed to the cheritest-helper method turns into the
+	 * method number for the underlying system class invocation.
+	 */
+	return (cheri_invoke(system_object, arg, len, 0, 0, 0, 0, 0, 0,
+	    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL));
 }
 
 /*
- * Sample sandboxed code.  Calculate an MD5 checksum of the data arriving via
- * c3, and place the checksum in c4.  a0 will hold input data length.  a1
- * indicates whether we should try a system call (abort()).  c4 must be (at
- * least) 33 bytes.
+ * Demux of various cheritest test cases to run within a sandbox.
  */
 int
-invoke(register_t op, size_t len, struct cheri_object system_object,
-    __capability char *data_input, __capability char *data_output,
-    struct cheri_object fd_object)
+invoke(register_t op, register_t arg, size_t len,
+    struct cheri_object system_object, __capability char *data_input,
+    __capability char *data_output, struct cheri_object fd_object)
 {
 	int i = 0;
 	volatile int *ip = &i;
@@ -322,7 +324,7 @@ invoke(register_t op, size_t len, struct cheri_object system_object,
 		return (invoke_clock_gettime());
 
 	case CHERITEST_HELPER_LIBCHERI_USERFN:
-		return (invoke_libcheri_userfn(len, system_object));
+		return (invoke_libcheri_userfn(arg, len, system_object));
 	}
 	return (-1);
 }

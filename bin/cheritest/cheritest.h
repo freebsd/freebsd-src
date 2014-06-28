@@ -86,14 +86,23 @@ extern struct cheritest_child_state *ccsp;
 #define	TESTRESULT_FAILURE	2	/* Test declares failure. */
 
 /*
+ * We use system-class extensions to allow cheritest-helper code to call back
+ * into cheritest to exercise various cases (e.g., stack-related tests).
+ * These are the corresponding method numbers.
+ */
+#define CHERITEST_USERFN_RETURNARG	(CHERI_SYSTEM_USER_BASE)
+#define CHERITEST_USERFN_GETSTACK	(CHERI_SYSTEM_USER_BASE + 1)
+
+/*
  * Useful APIs for tests.  These terminate the process returning either
  * success or failure with a test-defined, human-readable string describing
  * the error.
  *
  * XXXRW: It would be nice to also offer a cheritest_failure_err().
  */
-void	cheritest_failure_errx(const char *msg, ...);
-void	cheritest_success(void);
+void	cheritest_failure_err(const char *msg, ...) __dead2;
+void	cheritest_failure_errx(const char *msg, ...) __dead2;
+void	cheritest_success(void) __dead2;
 
 /* cheritest_ccall.c */
 void	cheritest_sandbox_setup(void *sandbox_base, void *sandbox_end,
@@ -121,6 +130,9 @@ void	test_fault_read_epcc(void);
 void	test_nofault_ccheck_user_pass(void);
 
 /* cheritest_libcheri.c */
+extern struct sandbox_class	*cheritest_classp;
+extern struct sandbox_object	*cheritest_objectp;
+
 void	cheritest_invoke_fd_op(int op);
 void	cheritest_revoke_fd(void);
 void	cheritest_invoke_simple_op(int op);
@@ -129,6 +141,10 @@ void	cheritest_invoke_md5(void);
 void	cheritest_libcheri_userfn(void);
 int	cheritest_libcheri_setup(void);
 void	cheritest_libcheri_destroy(void);
+
+/* cheritest_stack.c */
+register_t	cheritest_libcheri_userfn_getstack(void);
+void	cheritest_getstack(void);
 
 /* cheritest_registers.c */
 void	cheritest_copyregs(void);

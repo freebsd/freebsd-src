@@ -7,6 +7,7 @@ SRCS=	cheritest.c							\
 	cheritest_libcheri.c						\
 	cheritest_registers.c						\
 	cheritest_sandbox.S						\
+	cheritest_stack.c						\
 	cheritest_util.c
 
 MAN=

@@ -42,6 +42,7 @@
 #include <machine/cheri.h>
 #include <machine/cheric.h>
 #include <machine/cpuregs.h>
+#include <machine/sysarch.h>
 
 #include <cheri/cheri_enter.h>
 #include <cheri/cheri_fd.h>
@@ -60,8 +61,8 @@
 
 #include "cheritest.h"
 
-static struct sandbox_class	*cheritest_classp;
-static struct sandbox_object	*cheritest_objectp;
+struct sandbox_class	*cheritest_classp;
+struct sandbox_object	*cheritest_objectp;
 
 static int zero_fd = -1;
 static struct cheri_object zero_fd_object;
@@ -173,7 +174,7 @@ cheritest_invoke_md5(void)
 	bufcap = cheri_ptrperm(buf, sizeof(buf), CHERI_PERM_STORE);
 
 	v = sandbox_object_cinvoke(cheritest_objectp, CHERITEST_HELPER_OP_MD5,
-	    strlen(string_to_md5), 0, 0, 0, 0, 0, 0,
+	    0, strlen(string_to_md5), 0, 0, 0, 0, 0,
 	    sandbox_object_getsystemobject(cheritest_objectp).co_codecap,
 	    sandbox_object_getsystemobject(cheritest_objectp).co_datacap,
 	    md5cap, bufcap, cclear, cclear, cclear, cclear);
@@ -192,7 +193,7 @@ static register_t cheritest_libcheri_userfn_handler(register_t, register_t,
     __attribute__((cheri_ccall));
 
 static register_t
-cheritest_libcheri_userfn_handler(register_t methodnum __unused, register_t i,
+cheritest_libcheri_userfn_handler(register_t methodnum, register_t i,
     register_t a2 __unused, register_t a3 __unused,
     register_t a4 __unused, register_t a5 __unused, register_t a6 __unused,
     register_t a7 __unused, struct cheri_object system_object __unused,
@@ -201,8 +202,17 @@ cheritest_libcheri_userfn_handler(register_t methodnum __unused, register_t i,
     __capability void *c7 __unused)
 {
 
-	printf("%s: method %ld, value %ld\n", __func__, methodnum, i);
-	return (i);
+	switch (methodnum) {
+	case CHERITEST_USERFN_RETURNARG:
+		return (i);
+
+	case CHERITEST_USERFN_GETSTACK:
+		return (cheritest_libcheri_userfn_getstack());
+
+	default:
+		cheritest_failure_errx("%s: unexpected method %ld", __func__,
+		    methodnum);
+	}
 }
 
 void
@@ -211,15 +221,17 @@ cheritest_libcheri_userfn(void)
 	__capability void *cclear;
 	register_t i, v;
 
+	cclear = cheri_zerocap();
 	for (i = 0; i < 10; i++) {
 		v = sandbox_object_cinvoke(cheritest_objectp,
-		    CHERITEST_HELPER_LIBCHERI_USERFN, i, 0, 0, 0, 0, 0, 0,
+		    CHERITEST_HELPER_LIBCHERI_USERFN,
+		    CHERITEST_USERFN_RETURNARG, i, 0, 0, 0, 0, 0,
 		   sandbox_object_getsystemobject(cheritest_objectp).co_codecap,
 		   sandbox_object_getsystemobject(cheritest_objectp).co_datacap,
 		    cclear, cclear, cclear, cclear, cclear, cclear);
 		if (v != i)
 			cheritest_failure_errx("Incorrect return value "
-			    "0x%lx (expected 0xlx)\n", v, i);
+			    "0x%lx (expected 0x%lx)\n", v, i);
 	}
 	cheritest_success();
 }
