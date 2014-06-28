@@ -88,6 +88,7 @@ cheri_stack_init(struct pcb *pcb)
 {
 
 	bzero(&pcb->pcb_cheristack, sizeof(pcb->pcb_cheristack));
+	pcb->pcb_cheristack.cs_tsize = CHERI_STACK_SIZE;
 	pcb->pcb_cheristack.cs_tsp = CHERI_STACK_SIZE;
 }
 
@@ -226,8 +227,10 @@ cheri_sysarch_setstack(struct thread *td, struct sysarch_args *uap)
 
 	/*
 	 * Validate trusted-stack fields to prevent, for example, setting an
-	 * improper stack pointer.
+	 * improper stack pointer or change in stack size.
 	 */
+	if (cs.cs_tsize != td->td_pcb->pcb_cheristack.cs_tsize)
+		return (EINVAL);
 	if (cs.cs_tsp < 0 || cs.cs_tsp > CHERI_STACK_SIZE)
 		return (EINVAL);
 	cheri_bcopy(&cs, &td->td_pcb->pcb_cheristack, sizeof(cs));
