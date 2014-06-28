@@ -102,12 +102,8 @@ int	ktr_version = KTR_VERSION;
 struct	ktr_entry ktr_buf_init[KTR_BOOT_ENTRIES];
 struct	ktr_entry *ktr_buf = ktr_buf_init;
 cpuset_t ktr_cpumask = CPUSET_T_INITIALIZER(KTR_CPUMASK);
-static char ktr_cpumask_str[CPUSETBUFSIZ];
 
 static SYSCTL_NODE(_debug, OID_AUTO, ktr, CTLFLAG_RD, 0, "KTR options");
-
-SYSCTL_INT(_debug_ktr, OID_AUTO, mask, CTLFLAG_RDTUN,
-    &ktr_mask, 0, "KTR mask");
 
 SYSCTL_INT(_debug_ktr, OID_AUTO, version, CTLFLAG_RD,
     &ktr_version, 0, "Version of the KTR interface");
@@ -175,7 +171,7 @@ sysctl_debug_ktr_mask(SYSCTL_HANDLER_ARGS)
 	return (error);
 }
 
-SYSCTL_PROC(_debug_ktr, OID_AUTO, mask, CTLTYPE_UINT|CTLFLAG_RW, 0, 0,
+SYSCTL_PROC(_debug_ktr, OID_AUTO, mask, CTLTYPE_UINT|CTLFLAG_RWTUN, 0, 0,
     sysctl_debug_ktr_mask, "IU",
     "Bitmask of KTR event classes for which logging is enabled");
 
