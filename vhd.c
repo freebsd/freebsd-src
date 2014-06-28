@@ -141,8 +141,12 @@ vhd_timestamp(void)
 {
 	time_t t;
 
-	t = time(NULL);
-	return (t - 0x386d4380);
+	if (!unit_testing) {
+		t = time(NULL);
+		return (t - 0x386d4380);
+	}
+
+	return (0x01234567);
 }
 
 static void
@@ -189,7 +193,7 @@ vhd_write(int fd)
 	be64enc(&footer.current_size, imgsz);
 	/* XXX Geometry */
 	be32enc(&footer.disk_type, VHD_DISK_TYPE_DYNAMIC);
-	uuidgen(&id, 1);
+	mkimg_uuid(&id);
 	vhd_uuid_enc(&footer.id, &id);
 	be32enc(&footer.checksum, vhd_checksum(&footer, sizeof(footer)));
 	if (sparse_write(fd, &footer, sizeof(footer)) < 0)
