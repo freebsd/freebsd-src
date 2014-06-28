@@ -1210,9 +1210,12 @@ sysctl_handle_string(SYSCTL_HANDLER_ARGS)
 	size_t outlen;
 	int error = 0;
 
-	/* check for zero-length buffer */
+	/*
+	 * A zero-length buffer indicates a fixed size read-only
+	 * string:
+	 */
 	if (arg2 == 0)
-		return (ENOMEM);
+		arg2 = strlen((char *)arg1) + 1;
 
 	if (req->oldptr != NULL) {
 		char *tmparg;
