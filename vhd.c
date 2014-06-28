@@ -164,6 +164,49 @@ vhd_uuid_enc(void *buf, const uuid_t *uuid)
 		p[10 + i] = uuid->node[i];
 }
 
+static void
+vhd_geometry(struct vhd_footer *footer)
+{
+	lba_t imgsz;
+	long cth;
+
+	/* Respect command line options if possible. */
+	if (nheads > 1 && nheads < 256 &&
+	    nsecs > 1 && nsecs < 256 &&
+	    ncyls < 65536) {
+		be16enc(&footer->cylinders, ncyls);
+		footer->heads = nheads;
+		footer->sectors = nsecs;
+		return;
+	}
+
+	imgsz = (image_get_size() * secsz) / VHD_SECTOR_SIZE;
+	if (imgsz > 65536 * 16 * 255)
+		imgsz = 65536 * 16 * 255;
+	if (imgsz >= 65535 * 16 * 63) {
+		be16enc(&footer->cylinders, imgsz / (16 * 255));
+		footer->heads = 16;
+		footer->sectors = 255;
+		return;
+	}
+	footer->sectors = 17;
+	cth = imgsz / 17;
+	footer->heads = (cth + 1023) / 1024;
+	if (footer->heads < 4)
+		footer->heads = 4;
+	if (cth >= (footer->heads * 1024) || footer->heads > 16) {
+		footer->heads = 16;
+		footer->sectors = 31;
+		cth = imgsz / 31;
+	}
+	if (cth >= (footer->heads * 1024)) {
+		footer->heads = 16;
+		footer->sectors = 63;
+		cth = imgsz / 63;
+	}
+	be16enc(&footer->cylinders, cth / footer->heads);
+}
+
 static int
 vhd_write(int fd)
 {
@@ -191,7 +234,7 @@ vhd_write(int fd)
 	be32enc(&footer.creator_os, VHD_CREATOR_OS);
 	be64enc(&footer.original_size, imgsz);
 	be64enc(&footer.current_size, imgsz);
-	/* XXX Geometry */
+	vhd_geometry(&footer);
 	be32enc(&footer.disk_type, VHD_DISK_TYPE_DYNAMIC);
 	mkimg_uuid(&id);
 	vhd_uuid_enc(&footer.id, &id);
