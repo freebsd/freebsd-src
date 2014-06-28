@@ -31,6 +31,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/queue.h>
 #include <sys/stat.h>
 #include <sys/types.h>
+#include <sys/uuid.h>
 #include <errno.h>
 #include <err.h>
 #include <fcntl.h>
@@ -50,6 +51,7 @@ __FBSDID("$FreeBSD$");
 struct partlisthead partlist = STAILQ_HEAD_INITIALIZER(partlist);
 u_int nparts = 0;
 
+u_int unit_testing;
 u_int verbose;
 
 u_int ncyls = 0;
@@ -258,6 +260,22 @@ sparse_write(int fd, const void *ptr, size_t sz)
 }
 #endif /* SPARSE_WRITE */
 
+void
+mkimg_uuid(struct uuid *uuid)
+{
+	static uint8_t gen[sizeof(struct uuid)];
+	u_int i;
+
+	if (!unit_testing) {
+		uuidgen(uuid, 1);
+		return;
+	}
+
+	for (i = 0; i < sizeof(gen); i++)
+		gen[i]++;
+	memcpy(uuid, gen, sizeof(uuid_t));
+}
+
 static void
 mkimg(void)
 {
@@ -337,7 +355,7 @@ main(int argc, char *argv[])
 
 	bcfd = -1;
 	outfd = 1;	/* Write to stdout by default */
-	while ((c = getopt(argc, argv, "b:f:o:p:s:vH:P:S:T:")) != -1) {
+	while ((c = getopt(argc, argv, "b:f:o:p:s:vyH:P:S:T:")) != -1) {
 		switch (c) {
 		case 'b':	/* BOOT CODE */
 			if (bcfd != -1)
@@ -372,6 +390,9 @@ main(int argc, char *argv[])
 			error = scheme_select(optarg);
 			if (error)
 				errc(EX_DATAERR, error, "scheme");
+			break;
+		case 'y':
+			unit_testing++;
 			break;
 		case 'v':
 			verbose++;
