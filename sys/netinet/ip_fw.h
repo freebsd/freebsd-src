@@ -87,6 +87,7 @@ typedef struct _ip_fw3_opheader {
 #define	IP_FW_TABLE_XFLUSH	94	/* flush table data */
 #define	IP_FW_TABLE_XCREATE	95	/* create new table  */
 #define	IP_FW_TABLE_XMODIFY	96	/* modify existing table */
+#define	IP_FW_XGET		97	/* Retrieve configuration */
 
 /*
  * Usage guidelines:
@@ -681,17 +682,29 @@ typedef struct	_ipfw_xtable {
 
 typedef struct  _ipfw_obj_tlv {
 	uint16_t        type;		/* TLV type */
-	uint16_t        length;		/* Total length, aligned to u32	*/
+	uint16_t	flags;		/* unused */
+	uint32_t        length;		/* Total length, aligned to u64	*/
 } ipfw_obj_tlv;
+#define	IPFW_TLV_TBL_NAME	1
+#define	IPFW_TLV_TBLNAME_LIST	2
+#define	IPFW_TLV_RULE_LIST	3
+#define	IPFW_TLV_STATE_LIST	4
 
-#define	IPFW_TLV_NAME	1
 /* Object name TLV */
 typedef struct _ipfw_obj_ntlv {
-	ipfw_obj_tlv	head;		/* TLV header */
-	uint16_t	idx;		/* Name index */
-	uint16_t	spare;		/* unused */
-	char		name[64];	/* Null-terminated name */
+	ipfw_obj_tlv	head;		/* TLV header			*/
+	uint16_t	idx;		/* Name index			*/
+	uint16_t	spare0;		/* unused			*/
+	uint32_t	spare1;		/* unused			*/
+	char		name[64];	/* Null-terminated name		*/
 } ipfw_obj_ntlv;
+
+/* Containter TLVs */
+typedef struct _ipfw_obj_ctlv {
+	ipfw_obj_tlv	head;		/* TLV header			*/
+	uint32_t	count;		/* Number of sub-TLVs		*/
+	uint32_t	objsize;	/* Single object size		*/
+} ipfw_obj_ctlv;
 
 typedef struct _ipfw_xtable_info {
 	uint8_t		type;		/* table type (cidr,iface,..)	*/
@@ -724,5 +737,16 @@ typedef struct _ipfw_obj_lheader {
 	uint32_t	size;		/* Total objects size		*/
 	uint32_t	objsize;	/* Size of one object		*/
 } ipfw_obj_lheader;
+
+#define	IPFW_CFG_GET_STATIC	1
+#define	IPFW_CFG_GET_STATES	2
+typedef struct _ipfw_cfg_lheader {
+	ip_fw3_opheader	opheader;	/* IP_FW3 opcode		*/
+	uint32_t	set_mask;	/* disabled set mask		*/
+	uint32_t	flags;		/* Request flags		*/
+	uint32_t	size;		/* neded buffer size		*/
+	uint32_t	start_rule;
+	uint32_t	end_rule;
+} ipfw_cfg_lheader;
 
 #endif /* _IPFW2_H */

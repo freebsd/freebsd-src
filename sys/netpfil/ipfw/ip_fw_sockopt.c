@@ -989,6 +989,178 @@ ipfw_getrules(struct ip_fw_chain *chain, void *buf, size_t space)
 }
 
 
+struct dump_args {
+	uint32_t	b;	/* start rule */
+	uint32_t	e;	/* end rule */
+	uint32_t	rcount;	/* number of rules */
+	uint32_t	rsize;	/* rules size */
+	uint32_t	tcount;	/* number of tables */
+};
+
+/*
+ * Dumps static rules with table TLVs in buffer @sd.
+ *
+ * Returns 0 on success.
+ */
+static int
+dump_static_rules(struct ip_fw_chain *chain, struct dump_args *da,
+    uint32_t *bmask, struct sockopt_data *sd)
+{
+	int error;
+	int i, l;
+	uint32_t tcount;
+	ipfw_obj_ctlv *ctlv;
+	struct ip_fw *dst, *rule;
+	time_t boot_seconds;
+
+	/* Dump table names first (if any) */
+	if (da->tcount > 0) {
+		/* Header first */
+		ctlv = (ipfw_obj_ctlv *)ipfw_get_sopt_space(sd, sizeof(*ctlv));
+		if (ctlv == NULL)
+			return (ENOMEM);
+		ctlv->head.type = IPFW_TLV_TBLNAME_LIST;
+		ctlv->head.length = da->tcount * sizeof(ipfw_obj_ntlv) + 
+		    sizeof(*ctlv);
+		ctlv->count = da->tcount;
+		ctlv->objsize = sizeof(ipfw_obj_ntlv);
+	}
+
+	i = 0;
+	tcount = da->tcount;
+	while (tcount > 0) {
+		if ((bmask[i / 32] & (1 << (i % 32))) == 0) {
+			i++;
+			continue;
+		}
+
+		if ((error = ipfw_export_table_ntlv(chain, i, sd)) != 0)
+			return (error);
+
+		i++;
+		tcount--;
+	}
+
+	/* Dump rules */
+	ctlv = (ipfw_obj_ctlv *)ipfw_get_sopt_space(sd, sizeof(*ctlv));
+	if (ctlv == NULL)
+		return (ENOMEM);
+	ctlv->head.type = IPFW_TLV_RULE_LIST;
+	ctlv->head.length = da->rsize + sizeof(*ctlv);
+	ctlv->count = da->rcount;
+
+        boot_seconds = boottime.tv_sec;
+	for (i = da->b; i < da->e; i++) {
+		rule = chain->map[i];
+
+		l = RULESIZE(rule);
+		/* XXX: align to u64 */
+		dst = (struct ip_fw *)ipfw_get_sopt_space(sd, l);
+		if (rule == NULL)
+			return (ENOMEM);
+
+		bcopy(rule, dst, l);
+		if (dst->timestamp != 0)
+			dst->timestamp += boot_seconds;
+	}
+
+	return (0);
+}
+
+/*
+ * Dumps requested objects data
+ * Data layout (version 0)(current):
+ * Request: [ ipfw_cfg_lheader ] + IPFW_CFG_GET_* flags
+ *   size = ipfw_cfg_lheader.size
+ * Reply: [ ipfw_rules_lheader 
+ *   [ ipfw_obj_ctlv(IPFW_TLV_TBL_LIST) ipfw_obj_ntlv x N ] (optional)
+ *   [ ipfw_obj_ctlv(IPFW_TLV_RULE_LIST) ip_fw x N ] (optional)
+ *   [ ipfw_obj_ctlv(IPFW_TLV_STATE_LIST) ipfw_dyn_rule x N ] (optional)
+ * ]
+ * * NOTE IPFW_TLV_STATE_LIST has the single valid field: objsize.
+ * The rest (size, count) are set to zero and needs to be ignored.
+ *
+ * Returns 0 on success.
+ */
+static int
+dump_config(struct ip_fw_chain *chain, struct sockopt_data *sd)
+{
+	ipfw_cfg_lheader *hdr;
+	struct ip_fw *rule;
+	uint32_t sz;
+	int error, i;
+	struct dump_args da;
+	uint32_t *bmask;
+
+	hdr = (ipfw_cfg_lheader *)ipfw_get_sopt_header(sd, sizeof(*hdr));
+	if (hdr == NULL)
+		return (EINVAL);
+
+	/* Allocate needed state */
+	error = 0;
+	bmask = NULL;
+	if (hdr->flags & IPFW_CFG_GET_STATIC)
+		bmask = malloc(IPFW_TABLES_MAX / 8, M_TEMP, M_WAITOK | M_ZERO);
+
+	IPFW_UH_RLOCK(chain);
+
+	/*
+	 * STAGE 1: Determine size/count for objects in range.
+	 * Prepare used tables bitmask.
+	 */
+	sz = 0;
+	memset(&da, 0, sizeof(da));
+
+	da.b = 0;
+	da.e = chain->n_rules;
+
+	if (hdr->flags & IPFW_CFG_GET_STATIC) {
+		for (i = da.b; i < da.e; i++) {
+			rule = chain->map[i];
+			da.rsize += RULESIZE(rule);
+			da.rcount++;
+			da.tcount += ipfw_mark_table_kidx(chain, rule, bmask);
+		}
+
+		if (da.tcount > 0)
+			sz += da.tcount * sizeof(ipfw_obj_ntlv) +
+			    sizeof(ipfw_obj_ctlv);
+		sz += da.rsize + sizeof(ipfw_obj_ctlv);
+	}
+
+	if (hdr->flags & IPFW_CFG_GET_STATES) {
+		sz += ipfw_dyn_len();
+	}
+
+	/* Fill header anyway */
+	hdr->size = sz;
+	hdr->set_mask = V_set_disable;
+
+	if (sd->valsize < sz) {
+		IPFW_UH_RUNLOCK(chain);
+		return (ENOMEM);
+	}
+
+	/* STAGE2: Store actual data */
+	if (hdr->flags & IPFW_CFG_GET_STATIC) {
+		error = dump_static_rules(chain, &da, bmask, sd);
+		if (error != 0) {
+			IPFW_UH_RUNLOCK(chain);
+			return (error);
+		}
+	}
+
+	if (hdr->flags & IPFW_CFG_GET_STATES)
+		error = ipfw_dump_states(chain, sd);
+
+	IPFW_UH_RUNLOCK(chain);
+
+	if (bmask != NULL)
+		free(bmask, M_TEMP);
+
+	return (error);
+}
+
 #define IP_FW3_OPLENGTH(x)	((x)->sopt_valsize - sizeof(ip_fw3_opheader))
 #define	IP_FW3_OPTBUF	4096	/* page-size */
 /**
@@ -1099,6 +1271,10 @@ ipfw_ctl(struct sockopt *sopt)
 			if (size >= want)
 				break;
 		}
+		break;
+
+	case IP_FW_XGET: /* IP_FW3 */
+		error = dump_config(chain, &sdata);
 		break;
 
 	case IP_FW_FLUSH:

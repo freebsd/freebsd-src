@@ -213,7 +213,19 @@ enum tokens {
 #define NEED(_p, msg)      {if (!_p) errx(EX_USAGE, msg);}
 #define NEED1(msg)      {if (!(*av)) errx(EX_USAGE, msg);}
 
-int pr_u64(uint64_t *pd, int width);
+struct buf_pr {
+	char	*buf;	/* allocated buffer */
+	char	*ptr;	/* current pointer */
+	size_t	size;	/* total buffer size */
+	size_t	avail;	/* available storage */
+	size_t	needed;	/* length needed */
+};
+
+int pr_u64(struct buf_pr *bp, uint64_t *pd, int width);
+int bp_alloc(struct buf_pr *b, size_t size);
+void bp_free(struct buf_pr *b);
+int bprintf(struct buf_pr *b, char *format, ...);
+
 
 /* memory allocation support */
 void *safe_calloc(size_t number, size_t size);
@@ -274,7 +286,7 @@ void ipfw_list(int ac, char *av[], int show_counters);
 /* altq.c */
 void altq_set_enabled(int enabled);
 u_int32_t altq_name_to_qid(const char *name);
-void print_altq_cmd(struct _ipfw_insn_altq *altqptr);
+void print_altq_cmd(struct buf_pr *bp, struct _ipfw_insn_altq *altqptr);
 #else
 #define NO_ALTQ
 #endif
@@ -298,3 +310,8 @@ void fill_flow6(struct _ipfw_insn_u32 *cmd, char *av, int cblen);
 void fill_unreach6_code(u_short *codep, char *str);
 void fill_icmp6types(struct _ipfw_insn_icmp6 *cmd, char *av, int cblen);
 int fill_ext6hdr(struct _ipfw_insn *cmd, char *av);
+
+/* tables.c */
+struct _ipfw_obj_ctlv;
+char *table_search_ctlv(struct _ipfw_obj_ctlv *ctlv, uint16_t idx);
+
