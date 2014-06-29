@@ -166,7 +166,6 @@ static int	vmxnet3_txq_load_mbuf(struct vmxnet3_txqueue *, struct mbuf **,
 		    bus_dmamap_t, bus_dma_segment_t [], int *);
 static void	vmxnet3_txq_unload_mbuf(struct vmxnet3_txqueue *, bus_dmamap_t);
 static int	vmxnet3_txq_encap(struct vmxnet3_txqueue *, struct mbuf **);
-static void	vmxnet3_txq_update_pending(struct vmxnet3_txqueue *);
 #ifdef VMXNET3_LEGACY_TX
 static void	vmxnet3_start_locked(struct ifnet *);
 static void	vmxnet3_start(struct ifnet *);
@@ -2086,17 +2085,25 @@ vmxnet3_rxq_eof(struct vmxnet3_rxqueue *rxq)
 	sc = rxq->vxrxq_sc;
 	ifp = sc->vmx_ifp;
 	rxc = &rxq->vxrxq_comp_ring;
-	m_head = m_tail = NULL;
 
 	VMXNET3_RXQ_LOCK_ASSERT(rxq);
 
 	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0)
 		return;
 
+	m_head = rxq->vxrxq_mhead;
+	rxq->vxrxq_mhead = NULL;
+	m_tail = rxq->vxrxq_mtail;
+	rxq->vxrxq_mtail = NULL;
+	MPASS(m_head == NULL || m_tail != NULL);
+
 	for (;;) {
 		rxcd = &rxc->vxcr_u.rxcd[rxc->vxcr_next];
-		if (rxcd->gen != rxc->vxcr_gen)
+		if (rxcd->gen != rxc->vxcr_gen) {
+			rxq->vxrxq_mhead = m_head;
+			rxq->vxrxq_mtail = m_tail;
 			break;
+		}
 		vmxnet3_barrier(sc, VMXNET3_BARRIER_RD);
 
 		if (++rxc->vxcr_next == rxc->vxcr_ndesc) {
@@ -2327,6 +2334,12 @@ vmxnet3_rxstop(struct vmxnet3_softc *sc, struct vmxnet3_rxqueue *rxq)
 	struct vmxnet3_rxring *rxr;
 	struct vmxnet3_rxbuf *rxb;
 	int i, j;
+
+	if (rxq->vxrxq_mhead != NULL) {
+		m_freem(rxq->vxrxq_mhead);
+		rxq->vxrxq_mhead = NULL;
+		rxq->vxrxq_mtail = NULL;
+	}
 
 	for (i = 0; i < VMXNET3_RXRINGS_PERQ; i++) {
 		rxr = &rxq->vxrxq_cmd_ring[i];
@@ -2839,27 +2852,14 @@ vmxnet3_txq_encap(struct vmxnet3_txqueue *txq, struct mbuf **m0)
 	vmxnet3_barrier(sc, VMXNET3_BARRIER_WR);
 	sop->gen ^= 1;
 
-	if (++txq->vxtxq_ts->npending >= txq->vxtxq_ts->intr_threshold) {
+	txq->vxtxq_ts->npending += nsegs;
+	if (txq->vxtxq_ts->npending >= txq->vxtxq_ts->intr_threshold) {
 		txq->vxtxq_ts->npending = 0;
 		vmxnet3_write_bar0(sc, VMXNET3_BAR0_TXH(txq->vxtxq_id),
 		    txr->vxtxr_head);
 	}
 
 	return (0);
-}
-
-static void
-vmxnet3_txq_update_pending(struct vmxnet3_txqueue *txq)
-{
-	struct vmxnet3_txring *txr;
-
-	txr = &txq->vxtxq_cmd_ring;
-
-	if (txq->vxtxq_ts->npending > 0) {
-		txq->vxtxq_ts->npending = 0;
-		vmxnet3_write_bar0(txq->vxtxq_sc,
-		    VMXNET3_BAR0_TXH(txq->vxtxq_id), txr->vxtxr_head);
-	}
 }
 
 #ifdef VMXNET3_LEGACY_TX
@@ -2908,10 +2908,8 @@ vmxnet3_start_locked(struct ifnet *ifp)
 		ETHER_BPF_MTAP(ifp, m_head);
 	}
 
-	if (tx > 0) {
-		vmxnet3_txq_update_pending(txq);
+	if (tx > 0)
 		txq->vxtxq_watchdog = VMXNET3_WATCHDOG_TIMEOUT;
-	}
 }
 
 static void
@@ -2972,8 +2970,7 @@ vmxnet3_txq_mq_start_locked(struct vmxnet3_txqueue *txq, struct mbuf *m)
 			break;
 		}
 
-		error = vmxnet3_txq_encap(txq, &m);
-		if (error) {
+		if (vmxnet3_txq_encap(txq, &m) != 0) {
 			if (m != NULL)
 				drbr_putback(ifp, br, m);
 			else
@@ -2986,10 +2983,8 @@ vmxnet3_txq_mq_start_locked(struct vmxnet3_txqueue *txq, struct mbuf *m)
 		ETHER_BPF_MTAP(ifp, m);
 	}
 
-	if (tx > 0) {
-		vmxnet3_txq_update_pending(txq);
+	if (tx > 0)
 		txq->vxtxq_watchdog = VMXNET3_WATCHDOG_TIMEOUT;
-	}
 
 	return (0);
 }
