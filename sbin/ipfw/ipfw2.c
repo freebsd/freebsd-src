@@ -61,9 +61,10 @@ struct format_opts {
 	int bcwidth;
 	int pcwidth;
 	int show_counters;
-	int first;
-	int last;
-	ipfw_obj_ctlv *tstate;
+	uint32_t flags;		/* request flags */
+	uint32_t first;		/* first rule to request */
+	uint32_t last;		/* last rule to request */
+	ipfw_obj_ctlv *tstate;	/* table state data */
 };
 
 int resvd_set_number = RESVD_SET;
@@ -375,7 +376,7 @@ static struct _s_x rule_options[] = {
 };
 
 void bprint_uint_arg(struct buf_pr *bp, const char *str, uint32_t arg);
-static int ipfw_get_config(struct cmdline_opts *co, uint32_t flags,
+static int ipfw_get_config(struct cmdline_opts *co, struct format_opts *fo,
     ipfw_cfg_lheader **pcfg, size_t *psize);
 static int ipfw_show_config(struct cmdline_opts *co, struct format_opts *fo,
     ipfw_cfg_lheader *cfg, size_t sz, int ac, char **av);
@@ -592,6 +593,11 @@ do_get3(int optname, ip_fw3_opheader *op3, size_t *optlen)
 
 	error = getsockopt(ipfw_socket, IPPROTO_IP, IP_FW3, op3,
 	    (socklen_t *)optlen);
+
+	if (error == -1) {
+		if (errno != 0)
+			error = errno;
+	}
 
 	return (error);
 }
@@ -2197,11 +2203,11 @@ prepare_format_opts(struct cmdline_opts *co, struct format_opts *fo,
 
 static int
 ipfw_list_static_range(struct cmdline_opts *co, struct format_opts *fo,
-    struct buf_pr *bp, struct ip_fw *r, int nstat)
+    struct buf_pr *bp, struct ip_fw *r, int rcnt)
 {
 	int n, seen;
 
-	for (n = seen = 0; n < nstat; n++, r = NEXT(r) ) {
+	for (n = seen = 0; n < rcnt; n++, r = NEXT(r) ) {
 		if (r->rulenum > fo->last)
 			break;
 		if (co->use_set && r->set != co->use_set - 1)
@@ -2218,27 +2224,31 @@ ipfw_list_static_range(struct cmdline_opts *co, struct format_opts *fo,
 
 static void
 ipfw_list_dyn_range(struct cmdline_opts *co, struct format_opts *fo,
-    struct buf_pr *bp, ipfw_dyn_rule *d, int ndyn)
+    struct buf_pr *bp, ipfw_dyn_rule *d, int dcnt, int objsize)
 {
 	int n;
 	uint8_t set;
 	uint16_t rulenum;
 
-	for (n = 0; n < ndyn; n++, d++) {
+	for (n = 0; n < dcnt; n++) {
 		bcopy(&d->rule, &rulenum, sizeof(rulenum));
 		if (rulenum > fo->last)
 			break;
 		if (co->use_set) {
 			bcopy((char *)&d->rule + sizeof(uint16_t),
 			      &set, sizeof(uint8_t));
-			if (set != co->use_set - 1)
+			if (set != co->use_set - 1) {
+				d = (ipfw_dyn_rule *)((caddr_t)d + objsize);
 				continue;
+			}
 		}
 		if (rulenum >= fo->first) {
 			show_dyn_state(co, fo, bp, d);
 			printf("%s\n", bp->buf);
 			bp_flush(bp);
 		}
+
+		d = (ipfw_dyn_rule *)((caddr_t)d + objsize);
 	}
 }
 
@@ -2249,7 +2259,10 @@ ipfw_list(int ac, char *av[], int show_counters)
 	struct format_opts sfo;
 	size_t sz;
 	int error;
-	uint32_t flags;
+	int lac;
+	char **lav;
+	uint32_t rnum;
+	char *endptr;
 
 	if (co.test_only) {
 		fprintf(stderr, "Testing only, list disabled\n");
@@ -2262,16 +2275,30 @@ ipfw_list(int ac, char *av[], int show_counters)
 
 	ac--;
 	av++;
+	memset(&sfo, 0, sizeof(sfo));
+
+	/* Determine rule range to request */
+	if (ac > 0) {
+		for (lac = ac, lav = av; lac != 0; lac--) {
+			rnum = strtoul(*lav++, &endptr, 10);
+			if (sfo.first == 0 || rnum < sfo.first)
+				sfo.first = rnum;
+
+			if (*endptr == '-')
+				rnum = strtoul(endptr + 1, &endptr, 10);
+			if (sfo.last == 0 || rnum > sfo.last)
+				sfo.last = rnum;
+		}
+	}
 
 	/* get configuraion from kernel */
 	cfg = NULL;
-	flags = IPFW_CFG_GET_STATIC;
+	sfo.flags = IPFW_CFG_GET_STATIC;
 	if (co.do_dynamic != 0)
-		flags |= IPFW_CFG_GET_STATES;
-	if ((error = ipfw_get_config(&co, flags, &cfg, &sz)) != 0)
+		sfo.flags |= IPFW_CFG_GET_STATES;
+	if ((error = ipfw_get_config(&co, &sfo, &cfg, &sz)) != 0)
 		err(EX_OSERR, "retrieving config failed");
 
-	memset(&sfo, 0, sizeof(sfo));
 	sfo.show_counters = show_counters;
 	error = ipfw_show_config(&co, &sfo, cfg, sz, ac, av);
 
@@ -2292,9 +2319,8 @@ ipfw_show_config(struct cmdline_opts *co, struct format_opts *fo,
 	int exitval = EX_OK;
 	int lac;
 	char **lav;
-	u_long rnum;
 	char *endptr;
-	size_t read;
+	size_t dobjsz, read;
 	struct buf_pr bp;
 	ipfw_obj_ctlv *ctlv, *tstate;
 
@@ -2304,6 +2330,7 @@ ipfw_show_config(struct cmdline_opts *co, struct format_opts *fo,
 	tstate = NULL;
 	rbase = NULL;
 	dynbase = NULL;
+	dobjsz = 0;
 	read = 0;
 
 	ctlv = (ipfw_obj_ctlv *)(cfg + 1);
@@ -2329,7 +2356,8 @@ ipfw_show_config(struct cmdline_opts *co, struct format_opts *fo,
 	if ((cfg->flags & IPFW_CFG_GET_STATES) && (read != sz))  {
 		/* We may have some dynamic rules */
 		read += sizeof(ipfw_obj_ctlv);
-		dcnt = ((sz - read) / ctlv->objsize);
+		dobjsz = ctlv->objsize;
+		dcnt = (sz - read) / dobjsz;
 		if (dcnt != 0)
 			dynbase = (ipfw_dyn_rule *)(ctlv + 1);
 	}
@@ -2345,7 +2373,7 @@ ipfw_show_config(struct cmdline_opts *co, struct format_opts *fo,
 
 		if (co->do_dynamic && dcnt) {
 			printf("## Dynamic rules (%d):\n", dcnt);
-			ipfw_list_dyn_range(co, fo, &bp, dynbase, dcnt);
+			ipfw_list_dyn_range(co, fo, &bp, dynbase, dcnt, dobjsz);
 		}
 
 		bp_free(&bp);
@@ -2368,7 +2396,11 @@ ipfw_show_config(struct cmdline_opts *co, struct format_opts *fo,
 			/* give precedence to other error(s) */
 			if (exitval == EX_OK)
 				exitval = EX_UNAVAILABLE;
-			warnx("rule %lu does not exist", rnum);
+			if (fo->first == fo->last)
+				warnx("rule %u does not exist", fo->first);
+			else
+				warnx("no rules in range %u-%u",
+				    fo->first, fo->last);
 		}
 	}
 
@@ -2381,7 +2413,7 @@ ipfw_show_config(struct cmdline_opts *co, struct format_opts *fo,
 			if (*endptr)
 				/* already warned */
 				continue;
-			ipfw_list_dyn_range(co, fo, &bp, dynbase, dcnt);
+			ipfw_list_dyn_range(co, fo, &bp, dynbase, dcnt, dobjsz);
 		}
 	}
 
@@ -2400,7 +2432,7 @@ ipfw_show_config(struct cmdline_opts *co, struct format_opts *fo,
  */
 
 static int
-ipfw_get_config(struct cmdline_opts *co, uint32_t flags,
+ipfw_get_config(struct cmdline_opts *co, struct format_opts *fo,
     ipfw_cfg_lheader **pcfg, size_t *psize)
 {
 	ipfw_cfg_lheader *cfg;
@@ -2423,9 +2455,11 @@ ipfw_get_config(struct cmdline_opts *co, uint32_t flags,
 		if ((cfg = calloc(1, sz)) == NULL)
 			return (ENOMEM);
 
-		cfg->flags = flags;
+		cfg->flags = fo->flags;
+		cfg->start_rule = fo->first;
+		cfg->end_rule = fo->last;
 
-		if (do_get3(IP_FW_XGET, &cfg->opheader, &sz) < 0) {
+		if ((error = do_get3(IP_FW_XGET, &cfg->opheader, &sz)) != 0) {
 			if (error != ENOMEM) {
 				free(cfg);
 				return (error);
