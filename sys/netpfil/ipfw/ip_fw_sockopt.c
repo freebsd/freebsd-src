@@ -1087,7 +1087,7 @@ dump_config(struct ip_fw_chain *chain, struct sockopt_data *sd)
 {
 	ipfw_cfg_lheader *hdr;
 	struct ip_fw *rule;
-	uint32_t sz;
+	uint32_t sz, rnum;
 	int error, i;
 	struct dump_args da;
 	uint32_t *bmask;
@@ -1113,6 +1113,16 @@ dump_config(struct ip_fw_chain *chain, struct sockopt_data *sd)
 
 	da.b = 0;
 	da.e = chain->n_rules;
+
+	if (hdr->end_rule != 0) {
+		/* Handle custom range */
+		if ((rnum = hdr->start_rule) > IPFW_DEFAULT_RULE)
+			rnum = IPFW_DEFAULT_RULE;
+		da.b = ipfw_find_rule(chain, rnum, 0);
+		rnum = hdr->end_rule;
+		rnum = (rnum < IPFW_DEFAULT_RULE) ? rnum+1 : IPFW_DEFAULT_RULE;
+		da.e = ipfw_find_rule(chain, rnum, 0);
+	}
 
 	if (hdr->flags & IPFW_CFG_GET_STATIC) {
 		for (i = da.b; i < da.e; i++) {
