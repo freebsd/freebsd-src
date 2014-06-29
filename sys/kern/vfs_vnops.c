@@ -8,7 +8,7 @@
  * the permission of UNIX System Laboratories, Inc.
  *
  * Copyright (c) 2012 Konstantin Belousov <kib@FreeBSD.org>
- * Copyright (c) 2013 The FreeBSD Foundation
+ * Copyright (c) 2013, 2014 The FreeBSD Foundation
  *
  * Portions of this software were developed by Konstantin Belousov
  * under sponsorship from the FreeBSD Foundation.
@@ -105,6 +105,53 @@ struct 	fileops vnops = {
 	.fo_seek = vn_seek,
 	.fo_flags = DFLAG_PASSABLE | DFLAG_SEEKABLE
 };
+
+static const int io_hold_cnt = 16;
+static int vn_io_fault_enable = 1;
+SYSCTL_INT(_debug, OID_AUTO, vn_io_fault_enable, CTLFLAG_RW,
+    &vn_io_fault_enable, 0, "Enable vn_io_fault lock avoidance");
+static u_long vn_io_faults_cnt;
+SYSCTL_ULONG(_debug, OID_AUTO, vn_io_faults, CTLFLAG_RD,
+    &vn_io_faults_cnt, 0, "Count of vn_io_fault lock avoidance triggers");
+
+/*
+ * Returns true if vn_io_fault mode of handling the i/o request should
+ * be used.
+ */
+static bool
+do_vn_io_fault(struct vnode *vp, struct uio *uio)
+{
+	struct mount *mp;
+
+	return (uio->uio_segflg == UIO_USERSPACE && vp->v_type == VREG &&
+	    (mp = vp->v_mount) != NULL &&
+	    (mp->mnt_kern_flag & MNTK_NO_IOPF) != 0 && vn_io_fault_enable);
+}
+
+/*
+ * Structure used to pass arguments to vn_io_fault1(), to do either
+ * file- or vnode-based I/O calls.
+ */
+struct vn_io_fault_args {
+	enum {
+		VN_IO_FAULT_FOP,
+		VN_IO_FAULT_VOP
+	} kind;
+	struct ucred *cred;
+	int flags;
+	union {
+		struct fop_args_tag {
+			struct file *fp;
+			fo_rdwr_t *doio;
+		} fop_args;
+		struct vop_args_tag {
+			struct vnode *vp;
+		} vop_args;
+	} args;
+};
+
+static int vn_io_fault1(struct vnode *vp, struct uio *uio,
+    struct vn_io_fault_args *args, struct thread *td);
 
 int
 vn_open(ndp, flagp, cmode, fp)
@@ -439,6 +486,7 @@ vn_rdwr(enum uio_rw rw, struct vnode *vp, void *base, int len, off_t offset,
 	struct mount *mp;
 	struct ucred *cred;
 	void *rl_cookie;
+	struct vn_io_fault_args args;
 	int error, lock_flags;
 
 	auio.uio_iov = &aiov;
@@ -493,10 +541,17 @@ vn_rdwr(enum uio_rw rw, struct vnode *vp, void *base, int len, off_t offset,
 			cred = file_cred;
 		else
 			cred = active_cred;
-		if (rw == UIO_READ)
+		if (do_vn_io_fault(vp, &auio)) {
+			args.kind = VN_IO_FAULT_VOP;
+			args.cred = cred;
+			args.flags = ioflg;
+			args.args.vop_args.vp = vp;
+			error = vn_io_fault1(vp, &auio, &args, td);
+		} else if (rw == UIO_READ) {
 			error = VOP_READ(vp, &auio, ioflg, cred);
-		else
+		} else /* if (rw == UIO_WRITE) */ {
 			error = VOP_WRITE(vp, &auio, ioflg, cred);
+		}
 	}
 	if (aresid)
 		*aresid = auio.uio_resid;
@@ -883,14 +938,6 @@ unlock:
 	return (error);
 }
 
-static const int io_hold_cnt = 16;
-static int vn_io_fault_enable = 1;
-SYSCTL_INT(_debug, OID_AUTO, vn_io_fault_enable, CTLFLAG_RW,
-    &vn_io_fault_enable, 0, "Enable vn_io_fault lock avoidance");
-static u_long vn_io_faults_cnt;
-SYSCTL_ULONG(_debug, OID_AUTO, vn_io_faults, CTLFLAG_RD,
-    &vn_io_faults_cnt, 0, "Count of vn_io_fault lock avoidance triggers");
-
 /*
  * The vn_io_fault() is a wrapper around vn_read() and vn_write() to
  * prevent the following deadlock:
@@ -924,38 +971,55 @@ SYSCTL_ULONG(_debug, OID_AUTO, vn_io_faults, CTLFLAG_RD,
  * make the current i/o request atomic with respect to other i/os and
  * truncations.
  */
+
+/*
+ * Decode vn_io_fault_args and perform the corresponding i/o.
+ */
 static int
-vn_io_fault(struct file *fp, struct uio *uio, struct ucred *active_cred,
-    int flags, struct thread *td)
+vn_io_fault_doio(struct vn_io_fault_args *args, struct uio *uio,
+    struct thread *td)
+{
+
+	switch (args->kind) {
+	case VN_IO_FAULT_FOP:
+		return ((args->args.fop_args.doio)(args->args.fop_args.fp,
+		    uio, args->cred, args->flags, td));
+	case VN_IO_FAULT_VOP:
+		if (uio->uio_rw == UIO_READ) {
+			return (VOP_READ(args->args.vop_args.vp, uio,
+			    args->flags, args->cred));
+		} else if (uio->uio_rw == UIO_WRITE) {
+			return (VOP_WRITE(args->args.vop_args.vp, uio,
+			    args->flags, args->cred));
+		}
+		break;
+	}
+	panic("vn_io_fault_doio: unknown kind of io %d %d", args->kind,
+	    uio->uio_rw);
+}
+
+/*
+ * Common code for vn_io_fault(), agnostic to the kind of i/o request.
+ * Uses vn_io_fault_doio() to make the call to an actual i/o function.
+ * Used from vn_rdwr() and vn_io_fault(), which encode the i/o request
+ * into args and call vn_io_fault1() to handle faults during the user
+ * mode buffer accesses.
+ */
+static int
+vn_io_fault1(struct vnode *vp, struct uio *uio, struct vn_io_fault_args *args,
+    struct thread *td)
 {
 	vm_page_t ma[io_hold_cnt + 2];
 	struct uio *uio_clone, short_uio;
 	struct iovec short_iovec[1];
-	fo_rdwr_t *doio;
-	struct vnode *vp;
-	void *rl_cookie;
-	struct mount *mp;
 	vm_page_t *prev_td_ma;
-	int error, cnt, save, saveheld, prev_td_ma_cnt;
-	vm_offset_t addr, end;
 	vm_prot_t prot;
+	vm_offset_t addr, end;
 	size_t len, resid;
 	ssize_t adv;
+	int error, cnt, save, saveheld, prev_td_ma_cnt;
 
-	if (uio->uio_rw == UIO_READ)
-		doio = vn_read;
-	else
-		doio = vn_write;
-	vp = fp->f_vnode;
-	foffset_lock_uio(fp, uio, flags);
-
-	if (uio->uio_segflg != UIO_USERSPACE || vp->v_type != VREG ||
-	    ((mp = vp->v_mount) != NULL &&
-	    (mp->mnt_kern_flag & MNTK_NO_IOPF) == 0) ||
-	    !vn_io_fault_enable) {
-		error = doio(fp, uio, active_cred, flags | FOF_OFFSET, td);
-		goto out_last;
-	}
+	prot = uio->uio_rw == UIO_READ ? VM_PROT_WRITE : VM_PROT_READ;
 
 	/*
 	 * The UFS follows IO_UNIT directive and replays back both
@@ -973,22 +1037,8 @@ vn_io_fault(struct file *fp, struct uio *uio, struct ucred *active_cred,
 	short_uio.uio_rw = uio->uio_rw;
 	short_uio.uio_td = uio->uio_td;
 
-	if (uio->uio_rw == UIO_READ) {
-		prot = VM_PROT_WRITE;
-		rl_cookie = vn_rangelock_rlock(vp, uio->uio_offset,
-		    uio->uio_offset + uio->uio_resid);
-	} else {
-		prot = VM_PROT_READ;
-		if ((fp->f_flag & O_APPEND) != 0 || (flags & FOF_OFFSET) == 0)
-			/* For appenders, punt and lock the whole range. */
-			rl_cookie = vn_rangelock_wlock(vp, 0, OFF_MAX);
-		else
-			rl_cookie = vn_rangelock_wlock(vp, uio->uio_offset,
-			    uio->uio_offset + uio->uio_resid);
-	}
-
 	save = vm_fault_disable_pagefaults();
-	error = doio(fp, uio, active_cred, flags | FOF_OFFSET, td);
+	error = vn_io_fault_doio(args, uio, td);
 	if (error != EFAULT)
 		goto out;
 
@@ -1038,8 +1088,7 @@ vn_io_fault(struct file *fp, struct uio *uio, struct ucred *active_cred,
 		td->td_ma = ma;
 		td->td_ma_cnt = cnt;
 
-		error = doio(fp, &short_uio, active_cred, flags | FOF_OFFSET,
-		    td);
+		error = vn_io_fault_doio(args, &short_uio, td);
 		vm_page_unhold_pages(ma, cnt);
 		adv = len - short_uio.uio_resid;
 
@@ -1060,9 +1109,45 @@ vn_io_fault(struct file *fp, struct uio *uio, struct ucred *active_cred,
 	curthread_pflags_restore(saveheld);
 out:
 	vm_fault_enable_pagefaults(save);
-	vn_rangelock_unlock(vp, rl_cookie);
 	free(uio_clone, M_IOV);
-out_last:
+	return (error);
+}
+
+static int
+vn_io_fault(struct file *fp, struct uio *uio, struct ucred *active_cred,
+    int flags, struct thread *td)
+{
+	fo_rdwr_t *doio;
+	struct vnode *vp;
+	void *rl_cookie;
+	struct vn_io_fault_args args;
+	int error;
+
+	doio = uio->uio_rw == UIO_READ ? vn_read : vn_write;
+	vp = fp->f_vnode;
+	foffset_lock_uio(fp, uio, flags);
+	if (do_vn_io_fault(vp, uio)) {
+		args.kind = VN_IO_FAULT_FOP;
+		args.args.fop_args.fp = fp;
+		args.args.fop_args.doio = doio;
+		args.cred = active_cred;
+		args.flags = flags | FOF_OFFSET;
+		if (uio->uio_rw == UIO_READ) {
+			rl_cookie = vn_rangelock_rlock(vp, uio->uio_offset,
+			    uio->uio_offset + uio->uio_resid);
+		} else if ((fp->f_flag & O_APPEND) != 0 ||
+		    (flags & FOF_OFFSET) == 0) {
+			/* For appenders, punt and lock the whole range. */
+			rl_cookie = vn_rangelock_wlock(vp, 0, OFF_MAX);
+		} else {
+			rl_cookie = vn_rangelock_wlock(vp, uio->uio_offset,
+			    uio->uio_offset + uio->uio_resid);
+		}
+		error = vn_io_fault1(vp, uio, &args, td);
+		vn_rangelock_unlock(vp, rl_cookie);
+	} else {
+		error = doio(fp, uio, active_cred, flags | FOF_OFFSET, td);
+	}
 	foffset_unlock_uio(fp, uio, flags);
 	return (error);
 }
