@@ -88,6 +88,7 @@ typedef struct _ip_fw3_opheader {
 #define	IP_FW_TABLE_XCREATE	95	/* create new table  */
 #define	IP_FW_TABLE_XMODIFY	96	/* modify existing table */
 #define	IP_FW_XGET		97	/* Retrieve configuration */
+#define	IP_FW_XADD		98	/* add entry */
 
 /*
  * Usage guidelines:
@@ -695,7 +696,7 @@ typedef struct _ipfw_obj_ntlv {
 	ipfw_obj_tlv	head;		/* TLV header			*/
 	uint16_t	idx;		/* Name index			*/
 	uint16_t	spare0;		/* unused			*/
-	uint32_t	spare1;		/* unused			*/
+	uint32_t	set;		/* set, if applicable		*/
 	char		name[64];	/* Null-terminated name		*/
 } ipfw_obj_ntlv;
 

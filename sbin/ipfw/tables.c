@@ -593,9 +593,29 @@ table_show_list(ipfw_obj_header *oh, int need_header)
 	}
 }
 
+int
+compare_ntlv(const void *_a, const void *_b)
+{
+	ipfw_obj_ntlv *a, *b;
+
+	a = (ipfw_obj_ntlv *)_a;
+	b = (ipfw_obj_ntlv *)_b;
+
+	if (a->set < b->set)
+		return (-1);
+	else if (a->set > b->set)
+		return (1);
+
+	if (a->idx < b->idx)
+		return (-1);
+	else if (a->idx > b->idx)
+		return (1);
+
+	return (0);
+}
 
 int
-compare_ntlv(const void *k, const void *v)
+compare_kntlv(const void *k, const void *v)
 {
 	ipfw_obj_ntlv *ntlv;
 	uint16_t key;
@@ -625,11 +645,45 @@ table_search_ctlv(ipfw_obj_ctlv *ctlv, uint16_t idx)
 	ipfw_obj_ntlv *ntlv;
 
 	ntlv = bsearch(&idx, (ctlv + 1), ctlv->count, ctlv->objsize,
-	    compare_ntlv);
+	    compare_kntlv);
 
 	if (ntlv != 0)
 		return (ntlv->name);
 
 	return (NULL);
+}
+
+void
+table_sort_ctlv(ipfw_obj_ctlv *ctlv)
+{
+
+	qsort(ctlv + 1, ctlv->count, ctlv->objsize, compare_ntlv);
+}
+
+int
+table_check_name(char *tablename)
+{
+	int c, i, l;
+
+	/*
+	 * Check if tablename is null-terminated and contains
+	 * valid symbols only. Valid mask is:
+	 * [a-zA-Z\-\.][a-zA-Z0-9\-_\.]{0,62}
+	 */
+	l = strlen(tablename);
+	if (l == 0 || l >= 64)
+		return (EINVAL);
+	/* Restrict first symbol to non-digit */
+	if (isdigit(tablename[0]))
+		return (EINVAL);
+	for (i = 0; i < l; i++) {
+		c = tablename[i];
+		if (isalpha(c) || isdigit(c) || c == '_' ||
+		    c == '-' || c == '.')
+			continue;
+		return (EINVAL);	
+	}
+
+	return (0);
 }
 

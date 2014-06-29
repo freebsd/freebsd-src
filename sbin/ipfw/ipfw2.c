@@ -2493,6 +2493,56 @@ lookup_host (char *host, struct in_addr *ipaddr)
 	return(0);
 }
 
+struct tidx {
+	ipfw_obj_ntlv *idx;
+	uint32_t count;
+	uint32_t size;
+	uint16_t counter;
+};
+
+static uint16_t
+pack_table(struct tidx *tstate, char *name, uint32_t set)
+{
+	char *p;
+	int i;
+	ipfw_obj_ntlv *ntlv;
+
+	if ((p = strchr(name, ')')) == NULL)
+		return (0);
+	*p = '\0';
+
+	if (table_check_name(name) != 0)
+		return (0);
+
+	for (i = 0; i < tstate->count; i++) {
+		if (strcmp(tstate->idx[i].name, name) != 0)
+			continue;
+		if (tstate->idx[i].set != set)
+			continue;
+
+		return (tstate->idx[i].idx);
+	}
+
+	if (tstate->count + 1 > tstate->size) {
+		tstate->size += 4;
+		tstate->idx = realloc(tstate->idx, tstate->size *
+		    sizeof(ipfw_obj_ntlv));
+		if (tstate->idx == NULL)
+			return (0);
+	}
+
+	ntlv = &tstate->idx[i];
+	memset(ntlv, 0, sizeof(ipfw_obj_ntlv));
+	strlcpy(ntlv->name, name, sizeof(ntlv->name));
+	ntlv->head.type = IPFW_TLV_TBL_NAME;
+	ntlv->head.length = sizeof(ipfw_obj_ntlv);
+	ntlv->set = set;
+	ntlv->idx = ++tstate->counter;
+	tstate->count++;
+
+	return (ntlv->idx);
+}
+
 /*
  * fills the addr and mask fields in the instruction as appropriate from av.
  * Update length as appropriate.
@@ -2505,10 +2555,12 @@ lookup_host (char *host, struct in_addr *ipaddr)
  * We can have multiple comma-separated address/mask entries.
  */
 static void
-fill_ip(ipfw_insn_ip *cmd, char *av, int cblen)
+fill_ip(ipfw_insn_ip *cmd, char *av, int cblen, struct tidx *tstate)
 {
 	int len = 0;
 	uint32_t *d = ((ipfw_insn_u32 *)cmd)->d;
+	uint16_t uidx;
+	char *p;
 
 	cmd->o.len &= ~F_LEN_MASK;	/* zero len */
 
@@ -2521,12 +2573,15 @@ fill_ip(ipfw_insn_ip *cmd, char *av, int cblen)
 	}
 
 	if (strncmp(av, "table(", 6) == 0) {
-		char *p = strchr(av + 6, ',');
-
+		p = strchr(av + 6, ',');
 		if (p)
 			*p++ = '\0';
+
+		if ((uidx = pack_table(tstate, av + 6, 0)) == 0)
+			errx(EX_DATAERR, "Invalid table name: %s", av + 6);
+
 		cmd->o.opcode = O_IP_DST_LOOKUP;
-		cmd->o.arg1 = strtoul(av + 6, NULL, 0);
+		cmd->o.arg1 = uidx;
 		if (p) {
 			cmd->o.len |= F_INSN_SIZE(ipfw_insn_u32);
 			d[0] = strtoul(p, NULL, 0);
@@ -2805,8 +2860,10 @@ ipfw_delete(char *av[])
  * patterns which match interfaces.
  */
 static void
-fill_iface(ipfw_insn_if *cmd, char *arg, int cblen)
+fill_iface(ipfw_insn_if *cmd, char *arg, int cblen, struct tidx *tstate)
 {
+	uint16_t uidx;
+
 	cmd->name[0] = '\0';
 	cmd->o.len |= F_INSN_SIZE(ipfw_insn_if);
 
@@ -2819,8 +2876,11 @@ fill_iface(ipfw_insn_if *cmd, char *arg, int cblen)
 		char *p = strchr(arg + 6, ',');
 		if (p)
 			*p++ = '\0';
+		if ((uidx = pack_table(tstate, arg + 6, 0)) == 0)
+			errx(EX_DATAERR, "Invalid table name: %s", arg + 6);
+
 		cmd->name[0] = '\1'; /* Special value indicating table */
-		cmd->p.glob = strtoul(arg + 6, NULL, 0);
+		cmd->p.glob = uidx;
 	} else if (!isdigit(*arg)) {
 		strlcpy(cmd->name, arg, sizeof(cmd->name));
 		cmd->p.glob = strpbrk(arg, "*?[") != NULL ? 1 : 0;
@@ -3034,9 +3094,9 @@ add_proto_compat(ipfw_insn *cmd, char *av, u_char *protop)
 }
 
 static ipfw_insn *
-add_srcip(ipfw_insn *cmd, char *av, int cblen)
+add_srcip(ipfw_insn *cmd, char *av, int cblen, struct tidx *tstate)
 {
-	fill_ip((ipfw_insn_ip *)cmd, av, cblen);
+	fill_ip((ipfw_insn_ip *)cmd, av, cblen, tstate);
 	if (cmd->opcode == O_IP_DST_SET)			/* set */
 		cmd->opcode = O_IP_SRC_SET;
 	else if (cmd->opcode == O_IP_DST_LOOKUP)		/* table */
@@ -3051,9 +3111,9 @@ add_srcip(ipfw_insn *cmd, char *av, int cblen)
 }
 
 static ipfw_insn *
-add_dstip(ipfw_insn *cmd, char *av, int cblen)
+add_dstip(ipfw_insn *cmd, char *av, int cblen, struct tidx *tstate)
 {
-	fill_ip((ipfw_insn_ip *)cmd, av, cblen);
+	fill_ip((ipfw_insn_ip *)cmd, av, cblen, tstate);
 	if (cmd->opcode == O_IP_DST_SET)			/* set */
 		;
 	else if (cmd->opcode == O_IP_DST_LOOKUP)		/* table */
@@ -3082,7 +3142,7 @@ add_ports(ipfw_insn *cmd, char *av, u_char proto, int opcode, int cblen)
 }
 
 static ipfw_insn *
-add_src(ipfw_insn *cmd, char *av, u_char proto, int cblen)
+add_src(ipfw_insn *cmd, char *av, u_char proto, int cblen, struct tidx *tstate)
 {
 	struct in6_addr a;
 	char *host, *ch, buf[INET6_ADDRSTRLEN];
@@ -3105,7 +3165,7 @@ add_src(ipfw_insn *cmd, char *av, u_char proto, int cblen)
 	/* XXX: should check for IPv4, not !IPv6 */
 	if (ret == NULL && (proto == IPPROTO_IP || strcmp(av, "me") == 0 ||
 	    inet_pton(AF_INET6, host, &a) != 1))
-		ret = add_srcip(cmd, av, cblen);
+		ret = add_srcip(cmd, av, cblen, tstate);
 	if (ret == NULL && strcmp(av, "any") != 0)
 		ret = cmd;
 
@@ -3113,7 +3173,7 @@ add_src(ipfw_insn *cmd, char *av, u_char proto, int cblen)
 }
 
 static ipfw_insn *
-add_dst(ipfw_insn *cmd, char *av, u_char proto, int cblen)
+add_dst(ipfw_insn *cmd, char *av, u_char proto, int cblen, struct tidx *tstate)
 {
 	struct in6_addr a;
 	char *host, *ch, buf[INET6_ADDRSTRLEN];
@@ -3136,7 +3196,7 @@ add_dst(ipfw_insn *cmd, char *av, u_char proto, int cblen)
 	/* XXX: should check for IPv4, not !IPv6 */
 	if (ret == NULL && (proto == IPPROTO_IP || strcmp(av, "me") == 0 ||
 	    inet_pton(AF_INET6, host, &a) != 1))
-		ret = add_dstip(cmd, av, cblen);
+		ret = add_dstip(cmd, av, cblen, tstate);
 	if (ret == NULL && strcmp(av, "any") != 0)
 		ret = cmd;
 
@@ -3156,7 +3216,7 @@ add_dst(ipfw_insn *cmd, char *av, u_char proto, int cblen)
  *
  */
 void
-ipfw_add(char *av[])
+compile_rule(char *av[], uint32_t *rbuf, int *rbufsize, struct tidx *tstate)
 {
 	/*
 	 * rules are added into the 'rulebuf' and then copied in
@@ -3164,7 +3224,7 @@ ipfw_add(char *av[])
 	 * Some things that need to go out of order (prob, action etc.)
 	 * go into actbuf[].
 	 */
-	static uint32_t rulebuf[255], actbuf[255], cmdbuf[255];
+	static uint32_t actbuf[255], cmdbuf[255];
 	int rblen, ablen, cblen;
 
 	ipfw_insn *src, *dst, *cmd, *action, *prev=NULL;
@@ -3190,14 +3250,14 @@ ipfw_add(char *av[])
 
 	bzero(actbuf, sizeof(actbuf));		/* actions go here */
 	bzero(cmdbuf, sizeof(cmdbuf));
-	bzero(rulebuf, sizeof(rulebuf));
+	bzero(rbuf, *rbufsize);
 
-	rule = (struct ip_fw *)rulebuf;
+	rule = (struct ip_fw *)rbuf;
 	cmd = (ipfw_insn *)cmdbuf;
 	action = (ipfw_insn *)actbuf;
 
-	rblen = sizeof(rulebuf) / sizeof(rulebuf[0]);
-	rblen -= offsetof(struct ip_fw, cmd) / sizeof(rulebuf[0]);
+	rblen = *rbufsize / sizeof(uint32_t);
+	rblen -= offsetof(struct ip_fw, cmd) / sizeof(uint32_t);
 	ablen = sizeof(actbuf) / sizeof(actbuf[0]);
 	cblen = sizeof(cmdbuf) / sizeof(cmdbuf[0]);
 	cblen -= F_INSN_SIZE(ipfw_insn_u32) + 1;
@@ -3685,7 +3745,7 @@ chkarg:
     OR_START(source_ip);
 	NOT_BLOCK;	/* optional "not" */
 	NEED1("missing source address");
-	if (add_src(cmd, *av, proto, cblen)) {
+	if (add_src(cmd, *av, proto, cblen, tstate)) {
 		av++;
 		if (F_LEN(cmd) != 0) {	/* ! any */
 			prev = cmd;
@@ -3721,7 +3781,7 @@ chkarg:
     OR_START(dest_ip);
 	NOT_BLOCK;	/* optional "not" */
 	NEED1("missing dst address");
-	if (add_dst(cmd, *av, proto, cblen)) {
+	if (add_dst(cmd, *av, proto, cblen, tstate)) {
 		av++;
 		if (F_LEN(cmd) != 0) {	/* ! any */
 			prev = cmd;
@@ -3828,7 +3888,7 @@ read_options:
 		case TOK_VIA:
 			NEED1("recv, xmit, via require interface name"
 				" or address");
-			fill_iface((ipfw_insn_if *)cmd, av[0], cblen);
+			fill_iface((ipfw_insn_if *)cmd, av[0], cblen, tstate);
 			av++;
 			if (F_LEN(cmd) == 0)	/* not a valid address */
 				break;
@@ -4074,14 +4134,14 @@ read_options:
 
 		case TOK_SRCIP:
 			NEED1("missing source IP");
-			if (add_srcip(cmd, *av, cblen)) {
+			if (add_srcip(cmd, *av, cblen, tstate)) {
 				av++;
 			}
 			break;
 
 		case TOK_DSTIP:
 			NEED1("missing destination IP");
-			if (add_dstip(cmd, *av, cblen)) {
+			if (add_dstip(cmd, *av, cblen, tstate)) {
 				av++;
 			}
 			break;
@@ -4323,17 +4383,111 @@ done:
 	}
 
 	rule->cmd_len = (uint32_t *)dst - (uint32_t *)(rule->cmd);
-	i = (char *)dst - (char *)rule;
-	if (do_cmd(IP_FW_ADD, rule, (uintptr_t)&i) == -1)
-		err(EX_UNAVAILABLE, "getsockopt(%s)", "IP_FW_ADD");
+	*rbufsize = (char *)dst - (char *)rule;
+}
+
+/*
+ * Adds one or more rules to ipfw chain.
+ * Data layout:
+ * Request:
+ * [
+ *   ip_fw3_opheader
+ *   [ ipfw_obj_ctlv(IPFW_TLV_TBL_LIST) ipfw_obj_ntlv x N ] (optional *1)
+ *   [ ipfw_obj_ctlv(IPFW_TLV_RULE_LIST) ip_fw x N ] (*2) (*3)
+ * ]
+ * Reply:
+ * [
+ *   ip_fw3_opheader
+ *   [ ipfw_obj_ctlv(IPFW_TLV_TBL_LIST) ipfw_obj_ntlv x N ] (optional)
+ *   [ ipfw_obj_ctlv(IPFW_TLV_RULE_LIST) ip_fw x N ]
+ * ]
+ *
+ * Rules in reply are modified to store their actual ruleset number.
+ *
+ * (*1) TLVs inside IPFW_TLV_TBL_LIST needs to be sorted ascending
+ * accoring to their idx field and there has to be no duplicates.
+ * (*2) Numbered rules inside IPFW_TLV_RULE_LIST needs to be sorted ascending.
+ * (*3) Each ip_fw structure needs to be aligned to u64 boundary.
+ */
+void
+ipfw_add(char *av[])
+{
+	uint32_t rulebuf[1024];
+	int rbufsize, default_off, tlen, rlen;
+	size_t sz;
+	struct tidx ts;
+	struct ip_fw *rule;
+	caddr_t tbuf;
+	ip_fw3_opheader *op3;
+	ipfw_obj_ctlv *ctlv, *tstate;
+
+	rbufsize = sizeof(rulebuf);
+	memset(&ts, 0, sizeof(ts));
+
+	/* Optimize case with no tables */
+	default_off = sizeof(ipfw_obj_ctlv) + sizeof(ip_fw3_opheader);
+	op3 = (ip_fw3_opheader *)rulebuf;
+	ctlv = (ipfw_obj_ctlv *)(op3 + 1);
+	rule = (struct ip_fw *)(ctlv + 1);
+	rbufsize -= default_off;
+
+	compile_rule(av, (uint32_t *)rule, &rbufsize, &ts);
+	/* Align rule size to u64 boundary */
+	rlen = roundup2(rbufsize, sizeof(uint64_t));
+
+	tbuf = NULL;
+	sz = 0;
+	tstate = NULL;
+	if (ts.count != 0) {
+		/* Some tables. We have to alloc more data */
+		tlen = ts.count * sizeof(ipfw_obj_ntlv);
+		sz = default_off + sizeof(ipfw_obj_ctlv) + tlen + rlen;
+
+		if ((tbuf = calloc(1, sz)) == NULL)
+			err(EX_UNAVAILABLE, "malloc() failed for IP_FW_ADD");
+		op3 = (ip_fw3_opheader *)tbuf;
+		/* Tables first */
+		ctlv = (ipfw_obj_ctlv *)(op3 + 1);
+		ctlv->head.type = IPFW_TLV_TBLNAME_LIST;
+		ctlv->head.length = sizeof(ipfw_obj_ctlv) + tlen;
+		ctlv->count = ts.count;
+		ctlv->objsize = sizeof(ipfw_obj_ntlv);
+		memcpy(ctlv + 1, ts.idx, tlen);
+		table_sort_ctlv(ctlv);
+		tstate = ctlv;
+		/* Rule next */
+		ctlv = (ipfw_obj_ctlv *)((caddr_t)ctlv + ctlv->head.length);
+		ctlv->head.type = IPFW_TLV_RULE_LIST;
+		ctlv->head.length = sizeof(ipfw_obj_ctlv) + rlen;
+		ctlv->count = 1;
+		memcpy(ctlv + 1, rule, rbufsize);
+	} else {
+		/* Simply add header */
+		sz = rlen + default_off;
+		memset(ctlv, 0, sizeof(*ctlv));
+		ctlv->head.type = IPFW_TLV_RULE_LIST;
+		ctlv->head.length = sizeof(ipfw_obj_ctlv) + rlen;
+		ctlv->count = 1;
+	}
+
+	if (do_get3(IP_FW_XADD, op3, &sz) != 0)
+		err(EX_UNAVAILABLE, "getsockopt(%s)", "IP_FW_XADD");
+
 	if (!co.do_quiet) {
 		struct format_opts sfo;
 		struct buf_pr bp;
 		memset(&sfo, 0, sizeof(sfo));
+		sfo.tstate = tstate;
 		bp_alloc(&bp, 4096);
 		show_static_rule(&co, &sfo, &bp, rule);
 		bp_free(&bp);
 	}
+
+	if (tbuf != NULL)
+		free(tbuf);
+
+	if (ts.idx != NULL)
+		free(ts.idx);
 }
 
 /*
