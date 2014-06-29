@@ -249,6 +249,22 @@ invoke_libcheri_userfn(register_t arg __unused, size_t len __unused,
 	    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL));
 }
 
+static int
+invoke_libcheri_userfn_setstack(register_t arg,
+    struct cheri_object system_object)
+{
+	int v;
+
+	/*
+	 * In the setstack test, ensure that execution of the return path via
+	 * the sandbox has a visible effect that can be tested for.
+	 */
+	v = (cheri_invoke(system_object, CHERITEST_USERFN_SETSTACK, arg, 0, 0,
+	    0, 0, 0, 0, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL));
+	v += 10;
+	return (v);
+}
+
 /*
  * Demux of various cheritest test cases to run within a sandbox.
  */
@@ -325,6 +341,9 @@ invoke(register_t op, register_t arg, size_t len,
 
 	case CHERITEST_HELPER_LIBCHERI_USERFN:
 		return (invoke_libcheri_userfn(arg, len, system_object));
+
+	case CHERITEST_HELPER_LIBCHERI_USERFN_SETSTACK:
+		return (invoke_libcheri_userfn_setstack(arg, system_object));
 	}
 	return (-1);
 }

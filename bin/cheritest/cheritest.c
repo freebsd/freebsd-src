@@ -363,6 +363,14 @@ static const struct cheri_test {
 	{ .ct_name = "getstack",
 	  .ct_desc = "Exercise CHERI_GET_STACK sysarch()",
 	  .ct_func = cheritest_getstack },
+
+	{ .ct_name = "setstack_nop",
+	  .ct_desc = "Exercise CHERI_SET_STACK sysarch() for nop rewrite",
+	  .ct_func = cheritest_setstack_nop },
+
+	{ .ct_name = "setstack",
+	  .ct_desc = "Exercise CHERI_SET_STACK sysarch() to change stack",
+	  .ct_func = cheritest_setstack },
 };
 static const u_int cheri_tests_len = sizeof(cheri_tests) /
 	    sizeof(cheri_tests[0]);

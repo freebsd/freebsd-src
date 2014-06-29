@@ -56,5 +56,15 @@
 #define	CHERITEST_HELPER_OP_FD_WRITE_C	22
 #define	CHERITEST_HELPER_OP_CS_CLOCK_GETTIME	23
 #define	CHERITEST_HELPER_LIBCHERI_USERFN	24
+#define	CHERITEST_HELPER_LIBCHERI_USERFN_SETSTACK	25
+
+/*
+ * We use system-class extensions to allow cheritest-helper code to call back
+ * into cheritest to exercise various cases (e.g., stack-related tests).
+ * These are the corresponding method numbers.
+ */
+#define	CHERITEST_USERFN_RETURNARG	(CHERI_SYSTEM_USER_BASE)
+#define	CHERITEST_USERFN_GETSTACK	(CHERI_SYSTEM_USER_BASE + 1)
+#define	CHERITEST_USERFN_SETSTACK	(CHERI_SYSTEM_USER_BASE + 2)
 
 #endif /* !_LIBEXEC_CHERITEST_CHERITEST_HELPER_H_ */

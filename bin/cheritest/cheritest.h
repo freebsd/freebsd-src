@@ -86,14 +86,6 @@ extern struct cheritest_child_state *ccsp;
 #define	TESTRESULT_FAILURE	2	/* Test declares failure. */
 
 /*
- * We use system-class extensions to allow cheritest-helper code to call back
- * into cheritest to exercise various cases (e.g., stack-related tests).
- * These are the corresponding method numbers.
- */
-#define CHERITEST_USERFN_RETURNARG	(CHERI_SYSTEM_USER_BASE)
-#define CHERITEST_USERFN_GETSTACK	(CHERI_SYSTEM_USER_BASE + 1)
-
-/*
  * Useful APIs for tests.  These terminate the process returning either
  * success or failure with a test-defined, human-readable string describing
  * the error.
@@ -144,7 +136,10 @@ void	cheritest_libcheri_destroy(void);
 
 /* cheritest_stack.c */
 register_t	cheritest_libcheri_userfn_getstack(void);
+register_t	cheritest_libcheri_userfn_setstack(register_t arg);
 void	cheritest_getstack(void);
+void	cheritest_setstack(void);
+void	cheritest_setstack_nop(void);
 
 /* cheritest_registers.c */
 void	cheritest_copyregs(void);

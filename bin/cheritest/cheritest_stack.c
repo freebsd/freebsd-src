@@ -63,7 +63,6 @@
 register_t
 cheritest_libcheri_userfn_getstack(void)
 {
-	struct cheri_object sandbox_object;
 	struct cheri_stack cs;
 	struct cheri_stack_frame *csfp;
 	u_int stack_depth;
@@ -120,5 +119,111 @@ cheritest_getstack(void)
 	if (v != 0)
 		cheritest_failure_errx("Incorrect return value 0x%ld"
 		    " (expected 0)\n", v);
+	cheritest_success();
+}
+
+#define	CHERITEST_SETSTACK_CONSTANT	37568
+
+register_t
+cheritest_libcheri_userfn_setstack(register_t arg)
+{
+	struct cheri_stack cs;
+	struct cheri_stack_frame *csfp;
+	u_int stack_depth;
+	int retval;
+
+	/* Validate stack as retrieved. */
+	retval = sysarch(CHERI_GET_STACK, &cs);
+	if (retval != 0)
+		cheritest_failure_err("sysarch(CHERI_GET_STACK) failed");
+
+	/* Does stack layout look sensible enough to continue? */
+	if ((cs.cs_tsize % CHERI_FRAME_SIZE) != 0)
+		cheritest_failure_errx(
+		    "stack size (%ld) not a multiple of frame size",
+		    cs.cs_tsize);
+	stack_depth = cs.cs_tsize / CHERI_FRAME_SIZE;
+
+	if ((cs.cs_tsp % CHERI_FRAME_SIZE) != 0)
+		cheritest_failure_errx(
+		    "stack pointer (%ld) not a multiple of frame size",
+		    cs.cs_tsp);
+
+	/* Validate that two stack frames are found. */
+	if (cs.cs_tsp != cs.cs_tsize - (register_t)(2 * CHERI_FRAME_SIZE))
+		cheritest_failure_errx("stack contains %d frames; expected "
+		    "2", (cs.cs_tsize - (2 * CHERI_FRAME_SIZE)) /
+		    CHERI_FRAME_SIZE);
+
+	/* Validate that the first is a saved ambient context. */
+	csfp = &cs.cs_frames[stack_depth - 1];
+	if (csfp->csf_pcc != cheri_getpcc())
+		cheritest_failure_errx("frame 0: not global code cap");
+
+	/* Validate that the second is cheritest_objectp. */
+	csfp = &cs.cs_frames[stack_depth - 2];
+	if (csfp->csf_pcc !=
+	    sandbox_object_getobject(cheritest_objectp).co_codecap)
+		cheritest_failure_errx("frame 1: not sandbox code cap");
+
+	if (arg) {
+		/* Rewrite to remove sandbox frame. */
+		cs.cs_tsp += CHERI_FRAME_SIZE;
+	}
+
+	/* Update kernel view of trusted stack. */
+	retval = sysarch(CHERI_SET_STACK, &cs);
+	if (retval != 0)
+		cheritest_failure_err("sysarch(CHERI_SET_STACK) failed");
+
+	/* Leave behind a distinctive value we can test for. */
+	return (CHERITEST_SETSTACK_CONSTANT);
+}
+
+void
+cheritest_setstack(void)
+{
+	__capability void *cclear;
+	register_t v;
+
+	/*
+	 * Note use of CHERITEST_HELPER_LIBCHERI_USERFN_SETSTACK here: this
+	 * method adds 10 to thr system-class return value.  We can detect
+	 * whether stack rewrite worked to elide that return path by
+	 * inspecting the return value.
+	 *
+	 * Request stack rewrite by using a non-zero argument value.
+	 */
+	cclear = cheri_zerocap();
+	v = sandbox_object_cinvoke(cheritest_objectp,
+	    CHERITEST_HELPER_LIBCHERI_USERFN_SETSTACK,
+	    CHERITEST_USERFN_SETSTACK, 1, 0, 0, 0, 0, 0,
+	    sandbox_object_getsystemobject(cheritest_objectp).co_codecap,
+	    sandbox_object_getsystemobject(cheritest_objectp).co_datacap,
+	    cclear, cclear, cclear, cclear, cclear, cclear);
+	if (v == CHERITEST_SETSTACK_CONSTANT + 10)
+		cheritest_failure_errx("sandbox return path improperly "
+		    "executed");
+	if (v != CHERITEST_SETSTACK_CONSTANT)
+		cheritest_failure_errx("unexpected return value (%ld)", v);
+	cheritest_success();
+}
+
+void
+cheritest_setstack_nop(void)
+{
+	__capability void *cclear;
+	register_t v;
+
+	/* Request no stack rewrite by using an argument of 0. */
+	cclear = cheri_zerocap();
+	v = sandbox_object_cinvoke(cheritest_objectp,
+	    CHERITEST_HELPER_LIBCHERI_USERFN_SETSTACK,
+	    CHERITEST_USERFN_SETSTACK, 0, 0, 0, 0, 0, 0,
+	    sandbox_object_getsystemobject(cheritest_objectp).co_codecap,
+	    sandbox_object_getsystemobject(cheritest_objectp).co_datacap,
+	    cclear, cclear, cclear, cclear, cclear, cclear);
+	if (v != CHERITEST_SETSTACK_CONSTANT)
+		cheritest_failure_errx("unexpected return value (%ld)", v);
 	cheritest_success();
 }

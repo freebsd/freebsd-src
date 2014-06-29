@@ -193,7 +193,7 @@ static register_t cheritest_libcheri_userfn_handler(register_t, register_t,
     __attribute__((cheri_ccall));
 
 static register_t
-cheritest_libcheri_userfn_handler(register_t methodnum, register_t i,
+cheritest_libcheri_userfn_handler(register_t methodnum, register_t arg,
     register_t a2 __unused, register_t a3 __unused,
     register_t a4 __unused, register_t a5 __unused, register_t a6 __unused,
     register_t a7 __unused, struct cheri_object system_object __unused,
@@ -204,10 +204,13 @@ cheritest_libcheri_userfn_handler(register_t methodnum, register_t i,
 
 	switch (methodnum) {
 	case CHERITEST_USERFN_RETURNARG:
-		return (i);
+		return (arg);
 
 	case CHERITEST_USERFN_GETSTACK:
 		return (cheritest_libcheri_userfn_getstack());
+
+	case CHERITEST_USERFN_SETSTACK:
+		return (cheritest_libcheri_userfn_setstack(arg));
 
 	default:
 		cheritest_failure_errx("%s: unexpected method %ld", __func__,
