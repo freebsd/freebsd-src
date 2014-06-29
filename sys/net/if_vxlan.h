@@ -65,7 +65,7 @@ struct ifvxlanparam {
 #define VXLAN_PARAM_WITH_PORT_RANGE	0x0080
 #define VXLAN_PARAM_WITH_FTABLE_TIMEOUT	0x0100
 #define VXLAN_PARAM_WITH_FTABLE_MAX	0x0200
-#define VXLAN_PARAM_WITH_MC_INTERFACE	0x0400
+#define VXLAN_PARAM_WITH_MULTICAST_IF	0x0400
 #define VXLAN_PARAM_WITH_TTL		0x0800
 #define VXLAN_PARAM_WITH_LEARN		0x1000
 
@@ -105,7 +105,7 @@ union vxlan_sockaddr {
 #define VXLAN_CMD_SET_PORT_RANGE	7
 #define VXLAN_CMD_SET_FTABLE_TIMEOUT	8
 #define VXLAN_CMD_SET_FTABLE_MAX	9
-#define VXLAN_CMD_SET_MC_INTERFACE	10
+#define VXLAN_CMD_SET_MULTICAST_IF	10
 #define VXLAN_CMD_SET_TTL		11
 #define VXLAN_CMD_SET_LEARN		12
 #define VXLAN_CMD_FTABLE_ENTRY_ADD	13
@@ -121,6 +121,8 @@ struct ifvxlancfg {
 	uint32_t		vxlc_ftable_cnt;
 	uint32_t		vxlc_ftable_max;
 	uint32_t		vxlc_ftable_timeout;
+	uint16_t		vxlc_port_min;
+	uint16_t		vxlc_port_max;
 	uint8_t			vxlc_learn;
 	uint8_t			vxlc_ttl;
 };

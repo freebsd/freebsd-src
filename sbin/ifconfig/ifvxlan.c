@@ -504,7 +504,7 @@ DECL_CMD_FUNC(setvxlan_dev, arg, d)
 	struct ifvxlancmd cmd;
 
 	if (!vxlan_exists(s)) {
-		params.vxlp_with |= VXLAN_PARAM_WITH_MC_INTERFACE;
+		params.vxlp_with |= VXLAN_PARAM_WITH_MULTICAST_IF;
 		strlcpy(params.vxlp_mc_ifname, arg,
 		    sizeof(params.vxlp_mc_ifname));
 		return;
@@ -513,8 +513,8 @@ DECL_CMD_FUNC(setvxlan_dev, arg, d)
 	bzero(&cmd, sizeof(cmd));
 	strlcpy(cmd.vxlcmd_ifname, arg, sizeof(cmd.vxlcmd_ifname));
 
-	if (do_cmd(s, VXLAN_CMD_SET_MC_INTERFACE, &cmd, sizeof(cmd), 1) < 0)
-		err(1, "VXLAN_CMD_SET_MC_INTERFACE");
+	if (do_cmd(s, VXLAN_CMD_SET_MULTICAST_IF, &cmd, sizeof(cmd), 1) < 0)
+		err(1, "VXLAN_CMD_SET_MULTICAST_IF");
 }
 
 static

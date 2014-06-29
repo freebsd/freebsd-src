@@ -299,7 +299,7 @@ static int	vxlan_ctrl_set_remote_port(struct vxlan_softc *, void *);
 static int	vxlan_ctrl_set_port_range(struct vxlan_softc *, void *);
 static int	vxlan_ctrl_set_ftable_timeout(struct vxlan_softc *, void *);
 static int	vxlan_ctrl_set_ftable_max(struct vxlan_softc *, void *);
-static int	vxlan_ctrl_set_mc_interface(struct vxlan_softc * , void *);
+static int	vxlan_ctrl_set_multicast_if(struct vxlan_softc * , void *);
 static int	vxlan_ctrl_set_ttl(struct vxlan_softc *, void *);
 static int	vxlan_ctrl_set_learn(struct vxlan_softc *, void *);
 static int	vxlan_ctrl_ftable_entry_add(struct vxlan_softc *, void *);
@@ -459,8 +459,8 @@ static const struct vxlan_control vxlan_control_table[] = {
 		VXLAN_CTRL_FLAG_COPYIN | VXLAN_CTRL_FLAG_SUSER,
 	    },
 
-	[VXLAN_CMD_SET_MC_INTERFACE] =
-	    {	vxlan_ctrl_set_mc_interface, sizeof(struct ifvxlancmd),
+	[VXLAN_CMD_SET_MULTICAST_IF] =
+	    {	vxlan_ctrl_set_multicast_if, sizeof(struct ifvxlancmd),
 		VXLAN_CTRL_FLAG_COPYIN | VXLAN_CTRL_FLAG_SUSER,
 	    },
 
@@ -753,6 +753,7 @@ vxlan_ftable_entry_insert(struct vxlan_softc *sc,
 
 out:
 	sc->vxl_ftable_cnt++;
+
 	return (0);
 }
 
@@ -983,8 +984,10 @@ vxlan_socket_create(struct ifnet *ifp, int multicast,
 	if (multicast != 0) {
 		if (VXLAN_SOCKADDR_IS_IPV4(&laddr))
 			laddr.in4.sin_addr.s_addr = INADDR_ANY;
+#ifdef INET6
 		else
 			laddr.in6.sin6_addr = in6addr_any;
+#endif
 	}
 
 	vso = vxlan_socket_alloc(&laddr);
@@ -1040,8 +1043,10 @@ vxlan_socket_mc_lookup(const union vxlan_sockaddr *vxlsa)
 
 	if (VXLAN_SOCKADDR_IS_IPV4(&laddr))
 		laddr.in4.sin_addr.s_addr = INADDR_ANY;
+#ifdef INET6
 	else
 		laddr.in6.sin6_addr = in6addr_any;
+#endif
 
 	vso = vxlan_socket_lookup(&laddr);
 
@@ -1699,10 +1704,8 @@ vxlan_teardown_locked(struct vxlan_softc *sc)
 {
 	struct ifnet *ifp;
 	struct vxlan_socket *vso;
-	union vxlan_sockaddr *daddr;
 
 	ifp = sc->vxl_ifp;
-	daddr = &sc->vxl_dst_addr;
 
 	VXLAN_LOCK_WASSERT(sc);
 	MPASS(sc->vxl_flags & VXLAN_FLAG_TEARDOWN);
@@ -1820,6 +1823,8 @@ vxlan_ctrl_get_config(struct vxlan_softc *sc, void *arg)
 	cfg->vxlc_ftable_cnt = sc->vxl_ftable_cnt;
 	cfg->vxlc_ftable_max = sc->vxl_ftable_max;
 	cfg->vxlc_ftable_timeout = sc->vxl_ftable_timeout;
+	cfg->vxlc_port_min = sc->vxl_min_port;
+	cfg->vxlc_port_max = sc->vxl_max_port;
 	cfg->vxlc_learn = (sc->vxl_flags & VXLAN_FLAG_LEARN) != 0;
 	cfg->vxlc_ttl = sc->vxl_ttl;
 	VXLAN_RUNLOCK(sc);
@@ -2008,7 +2013,7 @@ vxlan_ctrl_set_ftable_max(struct vxlan_softc *sc, void *arg)
 }
 
 static int
-vxlan_ctrl_set_mc_interface(struct vxlan_softc * sc, void *arg)
+vxlan_ctrl_set_multicast_if(struct vxlan_softc * sc, void *arg)
 {
 	struct ifvxlancmd *cmd;
 	int error;
@@ -2447,8 +2452,6 @@ vxlan_rcv_udp_packet(struct mbuf *m, int offset, struct inpcb *inpcb,
 	uint32_t vni;
 	int error;
 
-	INP_RUNLOCK(inpcb);
-
 	M_ASSERTPKTHDR(m);
 	vso = xvso;
 	offset += sizeof(struct udphdr);
@@ -2477,8 +2480,6 @@ vxlan_rcv_udp_packet(struct mbuf *m, int offset, struct inpcb *inpcb,
 out:
 	if (m != NULL)
 		m_freem(m);
-
-	INP_RLOCK(inpcb);
 }
 
 static int
@@ -2515,7 +2516,7 @@ vxlan_input(struct vxlan_socket *vso, uint32_t vni, struct mbuf **m0,
 	m->m_pkthdr.rcvif = ifp;
 	M_SETFIB(m, ifp->if_fib);
 
-	error = netisr_dispatch(NETISR_ETHER, m);
+	error = netisr_queue_src(NETISR_ETHER, 0 ,m);
 	*m0 = NULL;
 
 out:
@@ -2600,7 +2601,7 @@ vxlan_set_user_config(struct vxlan_softc *sc, struct ifvxlanparam *vxlp)
 		}
 	}
 
-	if (vxlp->vxlp_with & VXLAN_PARAM_WITH_MC_INTERFACE)
+	if (vxlp->vxlp_with & VXLAN_PARAM_WITH_MULTICAST_IF)
 		strlcpy(sc->vxl_mc_ifname, vxlp->vxlp_mc_ifname, IFNAMSIZ);
 
 	if (vxlp->vxlp_with & VXLAN_PARAM_WITH_FTABLE_TIMEOUT) {
