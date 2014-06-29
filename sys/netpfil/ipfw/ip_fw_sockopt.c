@@ -169,53 +169,92 @@ swap_map(struct ip_fw_chain *chain, struct ip_fw **new_map, int new_len)
 }
 
 /*
- * Add a new rule to the list. Copy the rule into a malloc'ed area, then
- * possibly create a rule number and add the rule to the list.
+ * Copies rule @urule from userland format to kernel @krule.
+ */
+static void
+copy_rule(struct ip_fw *urule, struct ip_fw *krule)
+{
+	int l;
+
+	l = RULESIZE(urule);
+	bcopy(urule, krule, l);
+	/* clear fields not settable from userland */
+	krule->x_next = NULL;
+	krule->next_rule = NULL;
+	IPFW_ZERO_RULE_COUNTER(krule);
+}
+
+/*
+ * Add new rule(s) to the list possibly creating rule number for each.
  * Update the rule_number in the input struct so the caller knows it as well.
- * XXX DO NOT USE FOR THE DEFAULT RULE.
  * Must be called without IPFW_UH held
  */
 static int
-add_rule(struct ip_fw_chain *chain, struct ip_fw *input_rule,
-    struct rule_check_info *ci)
+commit_rules(struct ip_fw_chain *chain, struct rule_check_info *rci, int count)
 {
-	struct ip_fw *rule;
-	int i, l, insert_before;
+	int error, i, l, insert_before, tcount;
+	struct rule_check_info *ci;
+	struct ip_fw *rule, *urule;
 	struct ip_fw **map;	/* the new array of pointers */
 
-	if (chain->map == NULL || input_rule->rulenum > IPFW_DEFAULT_RULE - 1)
-		return (EINVAL);
-
-	l = RULESIZE(input_rule);
-	rule = malloc(l, M_IPFW, M_WAITOK | M_ZERO);
-	bcopy(input_rule, rule, l);
-	/* clear fields not settable from userland */
-	rule->x_next = NULL;
-	rule->next_rule = NULL;
-	IPFW_ZERO_RULE_COUNTER(rule);
-
 	/* Check if we need to do table remap */
-	if (ci->table_opcodes > 0) {
-		ci->krule = rule;
-		i = ipfw_rewrite_table_uidx(chain, ci);
-		if (i != 0) {
-			/* rewrite failed, return error */
-			free(rule, M_IPFW);
-			return (i);
+	tcount = 0;
+	for (ci = rci, i = 0; i < count; ci++, i++) {
+		if (ci->table_opcodes == 0)
+			continue;
+
+		/*
+		 * Rule has some table opcodes.
+		 * Reference & allocate needed tables/
+		 */
+		error = ipfw_rewrite_table_uidx(chain, ci);
+		if (error != 0) {
+
+			/*
+			 * rewrite failed, state for current rule
+			 * has been reverted. Check if we need to
+			 * revert more.
+			 */
+			if (tcount > 0) {
+
+				/*
+				 * We have some more table rules
+				 * we need to rollback.
+				 */
+
+				IPFW_UH_WLOCK(chain);
+				while (ci != rci) {
+					ci--;
+					if (ci->table_opcodes == 0)
+						continue;
+					ipfw_unbind_table_rule(chain,ci->krule);
+
+				}
+				IPFW_UH_WUNLOCK(chain);
+
+			}
+
+			return (error);
 		}
+
+		tcount++;
 	}
 
 	/* get_map returns with IPFW_UH_WLOCK if successful */
-	map = get_map(chain, 1, 0 /* not locked */);
+	map = get_map(chain, count, 0 /* not locked */);
 	if (map == NULL) {
-		if (ci->table_opcodes > 0) {
-			/* We need to unbind tables */
+		if (tcount > 0) {
+			/* Unbind tables */
 			IPFW_UH_WLOCK(chain);
-			ipfw_unbind_table_rule(chain, rule);
+			for (ci = rci, i = 0; i < count; ci++, i++) {
+				if (ci->table_opcodes == 0)
+					continue;
+
+				ipfw_unbind_table_rule(chain, ci->krule);
+			}
 			IPFW_UH_WUNLOCK(chain);
 		}
 
-		free(rule, M_IPFW);
 		return (ENOSPC);
 	}
 
@@ -223,6 +262,13 @@ add_rule(struct ip_fw_chain *chain, struct ip_fw *input_rule,
 		V_autoinc_step = 1;
 	else if (V_autoinc_step > 1000)
 		V_autoinc_step = 1000;
+
+	/* FIXME: Handle count > 1 */
+	ci = rci;
+	rule = ci->krule;
+	urule = ci->urule;
+	l = RULESIZE(rule);
+
 	/* find the insertion point, we will insert before */
 	insert_before = rule->rulenum ? rule->rulenum + 1 : IPFW_DEFAULT_RULE;
 	i = ipfw_find_rule(chain, insert_before, 0);
@@ -238,7 +284,7 @@ add_rule(struct ip_fw_chain *chain, struct ip_fw *input_rule,
 		rule->rulenum = i > 0 ? map[i-1]->rulenum : 0;
 		if (rule->rulenum < IPFW_DEFAULT_RULE - V_autoinc_step)
 			rule->rulenum += V_autoinc_step;
-		input_rule->rulenum = rule->rulenum;
+		urule->rulenum = rule->rulenum;
 	}
 
 	rule->id = chain->id + 1;
@@ -581,6 +627,10 @@ check_ipfw_struct(struct ip_fw *rule, int size, struct rule_check_info *ci)
 		    rule->act_ofs, rule->cmd_len - 1);
 		return (EINVAL);
 	}
+
+	if (rule->rulenum > IPFW_DEFAULT_RULE - 1)
+		return (EINVAL);
+
 	/*
 	 * Now go for the individual checks. Very simple ones, basically only
 	 * instruction sizes.
@@ -1172,7 +1222,219 @@ dump_config(struct ip_fw_chain *chain, struct sockopt_data *sd)
 }
 
 #define IP_FW3_OPLENGTH(x)	((x)->sopt_valsize - sizeof(ip_fw3_opheader))
-#define	IP_FW3_OPTBUF	4096	/* page-size */
+#define	IP_FW3_WRITEBUF	4096			/* small page-size write buffer */
+#define	IP_FW3_READBUF	16 * 1024 * 1024	/* handle large rulesets */
+
+
+static int
+check_object_name(ipfw_obj_ntlv *ntlv)
+{
+
+	if (strnlen(ntlv->name, sizeof(ntlv->name)) == sizeof(ntlv->name))
+		return (EINVAL);
+
+	/*
+	 * TODO: do some more complicated checks
+	 */
+
+	return (0);
+}
+
+/*
+ * Adds one or more rules to ipfw @chain.
+ * Data layout (version 0)(current):
+ * Request:
+ * [
+ *   ip_fw3_opheader
+ *   [ ipfw_obj_ctlv(IPFW_TLV_TBL_LIST) ipfw_obj_ntlv x N ] (optional *1)
+ *   [ ipfw_obj_ctlv(IPFW_TLV_RULE_LIST) ip_fw x N ] (*2) (*3)
+ * ]
+ * Reply:
+ * [
+ *   ip_fw3_opheader
+ *   [ ipfw_obj_ctlv(IPFW_TLV_TBL_LIST) ipfw_obj_ntlv x N ] (optional)
+ *   [ ipfw_obj_ctlv(IPFW_TLV_RULE_LIST) ip_fw x N ]
+ * ]
+ *
+ * Rules in reply are modified to store their actual ruleset number.
+ *
+ * (*1) TLVs inside IPFW_TLV_TBL_LIST needs to be sorted ascending
+ * accoring to their idx field and there has to be no duplicates.
+ * (*2) Numbered rules inside IPFW_TLV_RULE_LIST needs to be sorted ascending.
+ * (*3) Each ip_fw structure needs to be aligned to u64 boundary.
+ *
+ * Returns 0 on success.
+ */
+static int
+add_entry(struct ip_fw_chain *chain, struct sockopt_data *sd)
+{
+	ipfw_obj_ctlv *ctlv, *rtlv, *tstate;
+	ipfw_obj_ntlv *ntlv;
+	int clen, error, idx;
+	uint32_t count, read;
+	struct ip_fw *r;
+	struct rule_check_info rci, *ci, *cbuf;
+	ip_fw3_opheader *op3;
+	int i, rsize;
+
+	if (sd->valsize > IP_FW3_READBUF)
+		return (EINVAL);
+
+	op3 = (ip_fw3_opheader *)ipfw_get_sopt_space(sd, sd->valsize);
+	ctlv = (ipfw_obj_ctlv *)(op3 + 1);
+
+	read = sizeof(ip_fw3_opheader);
+	rtlv = NULL;
+	tstate = NULL;
+	cbuf = NULL;
+	memset(&rci, 0, sizeof(struct rule_check_info));
+
+	if (read + sizeof(*ctlv) > sd->valsize)
+		return (EINVAL);
+
+	if (ctlv->head.type == IPFW_TLV_TBLNAME_LIST) {
+		clen = ctlv->head.length;
+		if (clen > sd->valsize || clen < sizeof(*ctlv))
+			return (EINVAL);
+
+		/*
+		 * Some table names or other named objects.
+		 * Check for validness.
+		 */
+		count = (ctlv->head.length - sizeof(*ctlv)) / sizeof(*ntlv);
+		if (ctlv->count != count || ctlv->objsize != sizeof(*ntlv))
+			return (EINVAL);
+
+		/*
+		 * Check each TLV.
+		 * Ensure TLVs are sorted ascending and
+		 * there are no duplicates.
+		 */
+		idx = -1;
+		ntlv = (ipfw_obj_ntlv *)(ctlv + 1);
+		while (count > 0) {
+			if (ntlv->head.length != sizeof(ipfw_obj_ntlv))
+				return (EINVAL);
+
+			error = check_object_name(ntlv);
+			if (error != 0)
+				return (error);
+
+			if (ntlv->idx <= idx)
+				return (EINVAL);
+
+			idx = ntlv->idx;
+			count--;
+			ntlv++;
+		}
+
+		tstate = ctlv;
+		read += ctlv->head.length;
+		ctlv = (ipfw_obj_ctlv *)((caddr_t)ctlv + ctlv->head.length);
+	}
+
+	if (read + sizeof(*ctlv) > sd->valsize)
+		return (EINVAL);
+
+	if (ctlv->head.type == IPFW_TLV_RULE_LIST) {
+		clen = ctlv->head.length;
+		if (clen + read > sd->valsize || clen < sizeof(*ctlv))
+			return (EINVAL);
+
+		/*
+		 * TODO: Permit adding multiple rules at once
+		 */
+		if (ctlv->count != 1)
+			return (ENOTSUP);
+
+		clen -= sizeof(*ctlv);
+
+		if (ctlv->count > clen / sizeof(struct ip_fw))
+			return (EINVAL);
+
+		/* Allocate state for each rule or use stack */
+		if (ctlv->count == 1) {
+			memset(&rci, 0, sizeof(struct rule_check_info));
+			cbuf = &rci;
+		} else
+			cbuf = malloc(ctlv->count * sizeof(*ci), M_TEMP,
+			    M_WAITOK | M_ZERO);
+		ci = cbuf;
+
+		/*
+		 * Check each rule for validness.
+		 * Ensure numbered rules are sorted ascending.
+		 */
+		idx = -1;
+		r = (struct ip_fw *)(ctlv + 1);
+		count = 0;
+		error = 0;
+		while (clen > 0) {
+			rsize = RULESIZE(r);
+			if (rsize > clen || ctlv->count <= count) {
+				error = EINVAL;
+				break;
+			}
+
+			ci->ctlv = tstate;
+			error = check_ipfw_struct(r, rsize, ci);
+			if (error != 0)
+				break;
+
+			/* Check sorting */
+			if (r->rulenum != 0 && r->rulenum < idx) {
+				error = EINVAL;
+				break;
+			}
+			idx = r->rulenum;
+
+			ci->urule = r;
+
+			rsize = roundup2(rsize, sizeof(uint64_t));
+			clen -= rsize;
+			r = (struct ip_fw *)((caddr_t)r + rsize);
+			count++;
+			ci++;
+		}
+
+		if (ctlv->count != count || error != 0) {
+			if (cbuf != &rci)
+				free(cbuf, M_TEMP);
+			return (EINVAL);
+		}
+
+		rtlv = ctlv;
+		read += ctlv->head.length;
+		ctlv = (ipfw_obj_ctlv *)((caddr_t)ctlv + ctlv->head.length);
+	}
+
+	if (read != sd->valsize || rtlv == NULL || rtlv->count == 0) {
+		if (cbuf != NULL && cbuf != &rci)
+			free(cbuf, M_TEMP);
+		return (EINVAL);
+	}
+
+	/*
+	 * Passed rules seems to be valid.
+	 * Allocate storage and try to add them to chain.
+	 */
+	for (i = 0, ci = cbuf; i < rtlv->count; i++, ci++) {
+		ci->krule = malloc(RULESIZE(ci->urule), M_IPFW, M_WAITOK);
+		copy_rule(ci->urule, ci->krule);
+	}
+
+	if ((error = commit_rules(chain, cbuf, rtlv->count)) != 0) {
+		/* Free allocate krules */
+		for (i = 0, ci = cbuf; i < rtlv->count; i++, ci++)
+			free(ci->krule, M_IPFW);
+	}
+
+	if (cbuf != NULL && cbuf != &rci)
+		free(cbuf, M_TEMP);
+
+	return (error);
+}
+
 /**
  * {set|get}sockopt parser.
  */
@@ -1181,7 +1443,7 @@ ipfw_ctl(struct sockopt *sopt)
 {
 #define	RULE_MAXSIZE	(256*sizeof(u_int32_t))
 	int error;
-	size_t size, len, valsize;
+	size_t bsize_max, size, len, valsize;
 	struct ip_fw *buf, *rule;
 	struct ip_fw_chain *chain;
 	u_int32_t rulenum[2];
@@ -1195,37 +1457,62 @@ ipfw_ctl(struct sockopt *sopt)
 	if (error)
 		return (error);
 
-	/*
-	 * Disallow modifications in really-really secure mode, but still allow
-	 * the logging counters to be reset.
-	 */
-	if (sopt->sopt_name == IP_FW_ADD ||
-	    (sopt->sopt_dir == SOPT_SET && sopt->sopt_name != IP_FW_RESETLOG)) {
-		error = securelevel_ge(sopt->sopt_td->td_ucred, 3);
-		if (error)
-			return (error);
-	}
-
 	chain = &V_layer3_chain;
 	error = 0;
 
 	/* Save original valsize before it is altered via sooptcopyin() */
 	valsize = sopt->sopt_valsize;
 	memset(&sdata, 0, sizeof(sdata));
+	/* Read op3 header first to determine actual operation */
 	if ((opt = sopt->sopt_name) == IP_FW3) {
+		op3 = (ip_fw3_opheader *)xbuf;
+		error = sooptcopyin(sopt, op3, sizeof(*op3), sizeof(*op3));
+		if (error != 0)
+			return (error);
+		opt = op3->opcode;
+		sopt->sopt_valsize = valsize;
+	}
+
+	/*
+	 * Disallow modifications in really-really secure mode, but still allow
+	 * the logging counters to be reset.
+	 */
+	if (opt == IP_FW_ADD ||
+	    (sopt->sopt_dir == SOPT_SET && opt != IP_FW_RESETLOG)) {
+		error = securelevel_ge(sopt->sopt_td->td_ucred, 3);
+		if (error != 0) {
+			if (sdata.kbuf != xbuf)
+				free(sdata.kbuf, M_TEMP);
+			return (error);
+		}
+	}
+
+	if (op3 != NULL) {
+
+		/*
+		 * Determine buffer size:
+		 * use on-stack xbuf for short request,
+		 * allocate sliding-window buf for data export or
+		 * contigious buffer for special ops.
+		 */
+		bsize_max = IP_FW3_WRITEBUF;
+		if (opt == IP_FW_ADD)
+			bsize_max = IP_FW3_READBUF;
+
 		/*
 		 * Fill in sockopt_data structure that may be useful for
-		 * IP_FW3 get requests
+		 * IP_FW3 get requests.
 		 */
+
 		if (valsize <= sizeof(xbuf)) {
 			sdata.kbuf = xbuf;
 			sdata.ksize = sizeof(xbuf);
 			sdata.kavail = valsize;
 		} else {
-			if (valsize < IP_FW3_OPTBUF)
+			if (valsize < bsize_max)
 				size = valsize;
 			else
-				size = IP_FW3_OPTBUF;
+				size = bsize_max;
 
 			sdata.kbuf = malloc(size, M_TEMP, M_WAITOK | M_ZERO);
 			sdata.ksize = size;
@@ -1236,8 +1523,8 @@ ipfw_ctl(struct sockopt *sopt)
 		sdata.valsize = valsize;
 
 		/*
-		 * Copy either all request (if valsize < IP_FW3_OPTBUF)
-		 * or first IP_FW3_OPTBUF bytes to guarantee most consumers
+		 * Copy either all request (if valsize < bsize_max)
+		 * or first bsize_max bytes to guarantee most consumers
 		 * that all necessary data has been copied).
 		 * Anyway, copy not less than sizeof(ip_fw3_opheader).
 		 */
@@ -1287,6 +1574,10 @@ ipfw_ctl(struct sockopt *sopt)
 		error = dump_config(chain, &sdata);
 		break;
 
+	case IP_FW_XADD: /* IP_FW3 */
+		error = add_entry(chain, &sdata);
+		break;
+
 	case IP_FW_FLUSH:
 		/* locking is done within del_entry() */
 		error = del_entry(chain, 0); /* special case, rule=0, cmd=0 means all */
@@ -1324,7 +1615,12 @@ ipfw_ctl(struct sockopt *sopt)
 		}
 		if (error == 0) {
 			/* locking is done within add_rule() */
-			error = add_rule(chain, rule, &ci);
+			struct ip_fw *krule;
+			krule = malloc(RULESIZE(rule), M_IPFW, M_WAITOK);
+			copy_rule(rule, krule);
+			ci.urule = rule;
+			ci.krule = krule;
+			error = commit_rules(chain, &ci, 1);
 			size = RULESIZE(rule);
 			if (!error && sopt->sopt_dir == SOPT_GET) {
 				if (is7) {

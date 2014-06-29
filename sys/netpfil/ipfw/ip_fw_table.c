@@ -1623,8 +1623,10 @@ ipfw_rewrite_table_uidx(struct ip_fw_chain *chain,
 
 	memset(&ti, 0, sizeof(ti));
 	ti.set = ci->tableset;
-	ti.tlvs = ci->tlvs;
-	ti.tlen = ci->tlen;
+	if (ci->ctlv != NULL) {
+		ti.tlvs = (void *)(ci->ctlv + 1);
+		ti.tlen = ci->ctlv->head.length - sizeof(ipfw_obj_ctlv);
+	}
 
 	/*
 	 * Stage 1: reference existing tables, determine number
@@ -1722,7 +1724,6 @@ ipfw_rewrite_table_uidx(struct ip_fw_chain *chain,
 			IPFW_UH_WUNLOCK(chain);
 			goto free;
 		}
-
 
 		/*
 		 * Attach new tables.

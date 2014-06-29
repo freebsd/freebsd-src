@@ -331,10 +331,9 @@ struct rule_check_info {
 	uint16_t	table_opcodes;	/* count of opcodes referencing table */
 	uint16_t	new_tables;	/* count of opcodes referencing table */
 	uint32_t	tableset;	/* ipfw set id for table */
-	void		*tlvs;		/* Pointer to first TLV if any */
-	int		tlen;		/* *Total TLV size block */
-	uint8_t		fw3;		/* opcode is new */
+	ipfw_obj_ctlv	*ctlv;		/* name TLV containter */
 	struct ip_fw	*krule;		/* resulting rule pointer */
+	struct ip_fw	*urule;		/* original rule pointer */
 	struct obj_idx	obuf[8];	/* table references storage */
 };
 
