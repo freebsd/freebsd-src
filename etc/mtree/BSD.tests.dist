@@ -21,6 +21,8 @@
     ..
     tests
         bin
+            chown
+            ..
             date
             ..
             mv
