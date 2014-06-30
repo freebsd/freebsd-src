@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 9, 2014
+.Dd June 27, 2014
 .Dt "VIRTUAL TERMINALS" 4
 .Os
 .Sh NAME
@@ -37,7 +37,6 @@
 .Cd "options VT_FB_DEFAULT_WIDTH=X"
 .Cd "options VT_FB_DEFAULT_HEIGHT=Y"
 .Cd "options SC_NO_CUTPASTE"
-.Cd "options SC_NO_SYSMOUSE"
 .Cd "device vt"
 .Pp
 In
@@ -139,7 +138,6 @@ version.
 .It Dv VT_TWOBUTTON_MOUSE Ta Dv SC_TWOBUTTON_MOUSE
 .It Dv VT_MAXWINDOWS Ta Dv MAXCONS
 .It none Ta Dv SC_NO_CUTPASTE
-.It none Ta Dv SC_NO_SYSMOUSE
 .El
 .Sh START-UP OPERATION WITH X86 BIOS SYSTEMS
 The computer BIOS starts in text mode, and
@@ -153,13 +151,13 @@ is set, the system remains in text mode.
 Otherwise,
 .Nm
 switches to 640x480x16 VGA mode using
-.Fn vt_vga .
+.Xr vt_vga 4 .
 If a KMS
 .Pq Kernel Mode Switching
 video driver is available, the display is switched to high resolution
 and the KMS driver takes over.
 When a KMS driver is not available,
-.Fn vt_vga
+.Xr vt_vga 4
 remains active.
 .Sh LOADER TUNABLES
 These settings can be entered at the
@@ -201,12 +199,11 @@ terminal initialization information
 .Xr kbdmux 8 ,
 .Xr kldload 8 ,
 .Xr moused 8
-.\" WB: to be uncommented when an actual release contains vt(4)
-.\" .Sh HISTORY
-.\" The
-.\" Nm
-.\" driver first appeared in
-.\" .Fx 9.3 .
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Fx 9.3 .
 .Sh AUTHORS
 .An -nosplit
 The
