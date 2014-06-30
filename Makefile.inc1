@@ -1198,7 +1198,7 @@ _gperf=		gnu/usr.bin/gperf
 _groff=		gnu/usr.bin/groff
 .endif
 
-.if ${MK_VT_SUPPORT} != "no"
+.if ${MK_VT} != "no"
 _vtfontcvt=	usr.bin/vtfontcvt
 .endif
 
