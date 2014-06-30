@@ -1979,7 +1979,7 @@ OLD_FILES+=usr/share/man/man8/traceroute6.8.gz
 OLD_FILES+=rescue/ping6
 .endif
 
-#.if ${MK_INFO} == no
+.if ${MK_INFO} == no
 OLD_FILES+=usr/bin/info
 OLD_FILES+=usr/bin/infokey
 OLD_FILES+=usr/bin/install-info
@@ -2005,7 +2005,7 @@ OLD_FILES+=usr/share/info/regex.info.gz
 OLD_FILES+=usr/share/info/rluserman.info.gz
 OLD_FILES+=usr/share/info/stabs.info.gz
 OLD_FILES+=usr/share/info/texinfo.info.gz
-#.endif
+.endif
 
 .if ${MK_IPFILTER} == no
 OLD_FILES+=etc/periodic/security/510.ipfdenied
