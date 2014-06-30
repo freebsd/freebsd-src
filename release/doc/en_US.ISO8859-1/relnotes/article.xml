@@ -333,7 +333,7 @@
 	<literal>libzfs</literal>.</para>
 
       <para revision="263817,263818" contrib="sponsor"
-	  sponsor="&ff;">The <literal>vt</literal> driver
+	  sponsor="&ff;">The &man.vt.4; driver
 	has been merged from <literal>head/</literal>.</para>
 
       <para revision="265729" contrib="sponsor"
