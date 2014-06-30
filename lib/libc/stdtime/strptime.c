@@ -1,4 +1,6 @@
 /*-
+ * Copyright (c) 2014 Gary Mills
+ * Copyright 2011, Nexenta Systems, Inc.  All rights reserved.
  * Copyright (c) 1994 Powerdog Industries.  All rights reserved.
  *
  * Copyright (c) 2011 The FreeBSD Foundation
@@ -224,11 +226,6 @@ label:
 				tm->tm_sec = i;
 			}
 
-			if (*buf != 0 &&
-				isspace_l((unsigned char)*buf, locale))
-				while (*ptr != 0 &&
-				       !isspace_l((unsigned char)*ptr, locale))
-					ptr++;
 			break;
 
 		case 'H':
@@ -261,11 +258,6 @@ label:
 
 			tm->tm_hour = i;
 
-			if (*buf != 0 &&
-			    isspace_l((unsigned char)*buf, locale))
-				while (*ptr != 0 &&
-				       !isspace_l((unsigned char)*ptr, locale))
-					ptr++;
 			break;
 
 		case 'p':
@@ -335,11 +327,6 @@ label:
 			if (i > 53)
 				return (NULL);
 
-			if (*buf != 0 &&
-			    isspace_l((unsigned char)*buf, locale))
-				while (*ptr != 0 &&
-				       !isspace_l((unsigned char)*ptr, locale))
-					ptr++;
 			break;
 
 		case 'w':
@@ -352,18 +339,22 @@ label:
 
 			tm->tm_wday = i;
 
-			if (*buf != 0 &&
-			    isspace_l((unsigned char)*buf, locale))
-				while (*ptr != 0 &&
-				       !isspace_l((unsigned char)*ptr, locale))
-					ptr++;
 			break;
 
-		case 'd':
 		case 'e':
 			/*
-			 * The %e specifier is explicitly documented as not
-			 * being zero-padded but there is no harm in allowing
+			 * With %e format, our strftime(3) adds a blank space
+			 * before single digits.
+			 */
+			if (*buf != 0 &&
+			    isspace_l((unsigned char)*buf, locale))
+			       buf++;
+			/* FALLTHROUGH */
+		case 'd':
+			/*
+			 * The %e specifier was once explicitly documented as
+			 * not being zero-padded but was later changed to
+			 * equivalent to %d.  There is no harm in allowing
 			 * such padding.
 			 *
 			 * XXX The %e specifier may gobble one too many
@@ -384,11 +375,6 @@ label:
 
 			tm->tm_mday = i;
 
-			if (*buf != 0 &&
-			    isspace_l((unsigned char)*buf, locale))
-				while (*ptr != 0 &&
-				       !isspace_l((unsigned char)*ptr, locale))
-					ptr++;
 			break;
 
 		case 'B':
@@ -445,11 +431,6 @@ label:
 
 			tm->tm_mon = i - 1;
 
-			if (*buf != 0 &&
-			    isspace_l((unsigned char)*buf, locale))
-				while (*ptr != 0 &&
-				       !isspace_l((unsigned char)*ptr, locale))
-					ptr++;
 			break;
 
 		case 's':
@@ -498,11 +479,6 @@ label:
 
 			tm->tm_year = i;
 
-			if (*buf != 0 &&
-			    isspace_l((unsigned char)*buf, locale))
-				while (*ptr != 0 &&
-				       !isspace_l((unsigned char)*ptr, locale))
-					ptr++;
 			break;
 
 		case 'Z':
@@ -558,6 +534,12 @@ label:
 			tm->tm_min  -= sign * (i % 100);
 			*GMTp = 1;
 			}
+			break;
+
+		case 'n':
+		case 't':
+			while (isspace_l((unsigned char)*buf, locale))
+				buf++;
 			break;
 		}
 	}
