@@ -230,7 +230,7 @@ void vtbuf_extract_marked(struct vt_buf *vb, term_char_t *buf, int sz);
 	((mask)->vbm_row & ((uint64_t)1 << ((row) % 64)))
 #define	VTBUF_DIRTYCOL(mask, col) \
 	((mask)->vbm_col & ((uint64_t)1 << ((col) % 64)))
-#define	VTBUF_SPACE_CHAR	(' ' | TC_WHITE << 26 | TC_BLACK << 29)
+#define	VTBUF_SPACE_CHAR(attr)	(' ' | (attr))
 
 #define	VHS_SET	0
 #define	VHS_CUR	1

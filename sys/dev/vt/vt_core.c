@@ -956,6 +956,8 @@ vtterm_cnprobe(struct terminal *tm, struct consdev *cp)
 	struct vt_window *vw = tm->tm_softc;
 	struct vt_device *vd = vw->vw_device;
 	struct winsize wsz;
+	term_attr_t attr;
+	term_char_t c;
 
 	if (vd->vd_flags & VDF_INITIALIZED)
 		/* Initialization already done. */
@@ -997,7 +999,12 @@ vtterm_cnprobe(struct terminal *tm, struct consdev *cp)
 
 	vtbuf_init_early(&vw->vw_buf);
 	vt_winsize(vd, vw->vw_font, &wsz);
-	terminal_set_winsize(tm, &wsz);
+	c = (boothowto & RB_MUTE) == 0 ? TERMINAL_KERN_ATTR :
+	    TERMINAL_NORM_ATTR;
+	attr.ta_format = TCHAR_FORMAT(c);
+	attr.ta_fgcolor = TCHAR_FGCOLOR(c);
+	attr.ta_bgcolor = TCHAR_BGCOLOR(c);
+	terminal_set_winsize_blank(tm, &wsz, 1, &attr);
 
 	if (vtdbest != NULL) {
 #ifdef DEV_SPLASH
@@ -1155,7 +1162,7 @@ vt_change_font(struct vt_window *vw, struct vt_font *vf)
 	/* Grow the screen buffer and terminal. */
 	terminal_mute(tm, 1);
 	vtbuf_grow(&vw->vw_buf, &size, vw->vw_buf.vb_history_size);
-	terminal_set_winsize_blank(tm, &wsz, 0);
+	terminal_set_winsize_blank(tm, &wsz, 0, NULL);
 	terminal_mute(tm, 0);
 
 	/* Actually apply the font to the current window. */
@@ -2116,7 +2123,7 @@ vt_allocate(struct vt_driver *drv, void *softc)
 	/* Update console window sizes to actual. */
 	vt_winsize(vd, vd->vd_windows[VT_CONSWINDOW]->vw_font, &wsz);
 	terminal_set_winsize_blank(vd->vd_windows[VT_CONSWINDOW]->vw_terminal,
-	    &wsz, 0);
+	    &wsz, 0, NULL);
 }
 
 void
