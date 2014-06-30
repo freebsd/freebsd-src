@@ -2364,7 +2364,7 @@ ixgbe_allocate_msix(struct adapter *adapter)
 	struct 		ix_queue *que = adapter->queues;
 	struct  	tx_ring *txr = adapter->tx_rings;
 	int 		error, rid, vector = 0;
-	int		cpu_id;
+	int		cpu_id = 0;
 
 #ifdef	RSS
 	/*
