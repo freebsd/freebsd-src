@@ -31,6 +31,11 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 11.x IS SLOW:
 	disable the most expensive debugging functionality run
 	"ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20140629:
+	The WITHOUT_VT_SUPPORT kernel config knob has been renamed
+	WITHOUT_VT.  (The other _SUPPORT knobs have a consistent meaning
+	which differs from the behaviour controlled by this knob.)
+
 20140619:
 	Maximal length of the serial number in CTL was increased from 16 to
 	64 chars, that breaks ABI.  All CTL-related tools, such as ctladm

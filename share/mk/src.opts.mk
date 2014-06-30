@@ -149,7 +149,7 @@ __DEFAULT_YES_OPTIONS = \
     USB \
     UTMPX \
     VI \
-    VT_SUPPORT \
+    VT \
     WIRELESS \
     WPA_SUPPLICANT_EAPOL \
     ZFS \
