@@ -736,8 +736,6 @@ SAFE_RNDTEST		opt_safe.h
 
 # syscons/vt options
 MAXCONS			opt_syscons.h
-VT_FB_DEFAULT_WIDTH	opt_syscons.h
-VT_FB_DEFAULT_HEIGHT	opt_syscons.h
 SC_ALT_MOUSE_IMAGE	opt_syscons.h
 SC_CUT_SPACES2TABS	opt_syscons.h
 SC_CUT_SEPCHARS		opt_syscons.h
@@ -760,6 +758,11 @@ SC_NORM_REV_ATTR	opt_syscons.h
 SC_PIXEL_MODE		opt_syscons.h
 SC_RENDER_DEBUG		opt_syscons.h
 SC_TWOBUTTON_MOUSE	opt_syscons.h
+VT_ALT_TO_ESC_HACK	opt_syscons.h
+VT_FB_DEFAULT_WIDTH	opt_syscons.h
+VT_FB_DEFAULT_HEIGHT	opt_syscons.h
+VT_MAXWINDOWS		opt_syscons.h
+VT_TWOBUTTON_MOUSE	opt_syscons.h
 DEV_SC			opt_syscons.h
 DEV_VT			opt_syscons.h
 
