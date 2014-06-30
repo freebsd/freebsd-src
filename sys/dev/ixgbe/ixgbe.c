@@ -35,7 +35,12 @@
 
 #include "opt_inet.h"
 #include "opt_inet6.h"
+#include "opt_rss.h"
 #include "ixgbe.h"
+
+#ifdef	RSS
+#include <netinet/in_rss.h>
+#endif
 
 /*********************************************************************
  *  Set this to one to display debug statistics
@@ -809,12 +814,33 @@ ixgbe_mq_start(struct ifnet *ifp, struct mbuf *m)
 	struct ix_queue	*que;
 	struct tx_ring	*txr;
 	int 		i, err = 0;
+#ifdef	RSS
+	uint32_t bucket_id;
+#endif
 
 	/* Which queue to use */
-	if ((m->m_flags & M_FLOWID) != 0)
-		i = m->m_pkthdr.flowid % adapter->num_queues;
-	else
+	/*
+	 * When doing RSS, map it to the same outbound queue
+	 * as the incoming flow would be mapped to.
+	 *
+	 * If everything is setup correctly, it should be the
+	 * same bucket that the current CPU we're on is.
+	 */
+	if ((m->m_flags & M_FLOWID) != 0) {
+#ifdef	RSS
+		if (rss_hash2bucket(m->m_pkthdr.flowid,
+		    M_HASHTYPE_GET(m), &bucket_id) == 0) {
+			/* XXX TODO: spit out something if bucket_id > num_queues? */
+			i = bucket_id % adapter->num_queues;
+		} else {
+#endif
+			i = m->m_pkthdr.flowid % adapter->num_queues;
+#ifdef	RSS
+		}
+#endif
+	} else {
 		i = curcpu % adapter->num_queues;
+	}
 
 	txr = &adapter->tx_rings[i];
 	que = &adapter->queues[i];
@@ -2338,6 +2364,31 @@ ixgbe_allocate_msix(struct adapter *adapter)
 	struct 		ix_queue *que = adapter->queues;
 	struct  	tx_ring *txr = adapter->tx_rings;
 	int 		error, rid, vector = 0;
+	int		cpu_id;
+
+#ifdef	RSS
+	/*
+	 * If we're doing RSS, the number of queues needs to
+	 * match the number of RSS buckets that are configured.
+	 *
+	 * + If there's more queues than RSS buckets, we'll end
+	 *   up with queues that get no traffic.
+	 *
+	 * + If there's more RSS buckets than queues, we'll end
+	 *   up having multiple RSS buckets map to the same queue,
+	 *   so there'll be some contention.
+	 */
+	if (adapter->num_queues != rss_getnumbuckets()) {
+		device_printf(dev,
+		    "%s: number of queues (%d) != number of RSS buckets (%d)"
+		    "; performance will be impacted.\n",
+		    __func__,
+		    adapter->num_queues,
+		    rss_getnumbuckets());
+	}
+#endif
+
+
 
 	for (int i = 0; i < adapter->num_queues; i++, vector++, que++, txr++) {
 		rid = vector + 1;
@@ -2362,12 +2413,37 @@ ixgbe_allocate_msix(struct adapter *adapter)
 #endif
 		que->msix = vector;
         	adapter->que_mask |= (u64)(1 << que->msix);
+#ifdef	RSS
 		/*
-		** Bind the msix vector, and thus the
-		** ring to the corresponding cpu.
-		*/
+		 * The queue ID is used as the RSS layer bucket ID.
+		 * We look up the queue ID -> RSS CPU ID and select
+		 * that.
+		 */
+		cpu_id = rss_getcpu(i % rss_getnumbuckets());
+#else
+		/*
+		 * Bind the msix vector, and thus the
+		 * rings to the corresponding cpu.
+		 *
+		 * This just happens to match the default RSS round-robin
+		 * bucket -> queue -> CPU allocation.
+		 */
 		if (adapter->num_queues > 1)
-			bus_bind_intr(dev, que->res, i);
+			cpu_id = i;
+#endif
+		if (adapter->num_queues > 1)
+			bus_bind_intr(dev, que->res, cpu_id);
+
+#ifdef	RSS
+		device_printf(dev,
+		    "Bound RSS bucket %d to CPU %d\n",
+		    i, cpu_id);
+#else
+		device_printf(dev,
+		    "Bound queue %d to cpu %d\n",
+		    i, cpu_id);
+#endif
+
 
 #ifndef IXGBE_LEGACY_TX
 		TASK_INIT(&txr->txq_task, 0, ixgbe_deferred_mq_start, txr);
@@ -2375,8 +2451,16 @@ ixgbe_allocate_msix(struct adapter *adapter)
 		TASK_INIT(&que->que_task, 0, ixgbe_handle_que, que);
 		que->tq = taskqueue_create_fast("ixgbe_que", M_NOWAIT,
 		    taskqueue_thread_enqueue, &que->tq);
+#ifdef	RSS
+		taskqueue_start_threads_pinned(&que->tq, 1, PI_NET,
+		    cpu_id,
+		    "%s (bucket %d)",
+		    device_get_nameunit(adapter->dev),
+		    cpu_id);
+#else
 		taskqueue_start_threads(&que->tq, 1, PI_NET, "%s que",
 		    device_get_nameunit(adapter->dev));
+#endif
 	}
 
 	/* and Link */
@@ -2450,6 +2534,11 @@ ixgbe_setup_msix(struct adapter *adapter)
 
 	/* Figure out a reasonable auto config value */
 	queues = (mp_ncpus > (msgs-1)) ? (msgs-1) : mp_ncpus;
+#ifdef	RSS
+	/* If we're doing RSS, clamp at the number of RSS buckets */
+	if (queues > rss_getnumbuckets())
+		queues = rss_getnumbuckets();
+#endif
 
 	if (ixgbe_num_queues != 0)
 		queues = ixgbe_num_queues;
@@ -4107,6 +4196,65 @@ fail:
 	return (ENOBUFS);
 }
 
+static void
+ixgbe_initialise_rss_mapping(struct adapter *adapter)
+{
+	struct ixgbe_hw	*hw = &adapter->hw;
+	uint32_t reta;
+	int i, j, queue_id;
+	uint32_t rss_key[10];
+	uint32_t mrqc;
+
+	/* Setup RSS */
+	reta = 0;
+
+#ifdef	RSS
+	/* Fetch the configured RSS key */
+	rss_getkey((uint8_t *) &rss_key);
+#else
+	/* set up random bits */
+	arc4rand(&rss_key, sizeof(rss_key), 0);
+#endif
+
+	/* Set up the redirection table */
+	for (i = 0, j = 0; i < 128; i++, j++) {
+		if (j == adapter->num_queues) j = 0;
+#ifdef	RSS
+		/*
+		 * Fetch the RSS bucket id for the given indirection entry.
+		 * Cap it at the number of configured buckets (which is
+		 * num_queues.)
+		 */
+		queue_id = rss_get_indirection_to_bucket(i);
+		queue_id = queue_id % adapter->num_queues;
+#else
+		queue_id = (j * 0x11);
+#endif
+		/* XXX endian? */
+		reta = (reta << 8) | queue_id;
+		if ((i & 3) == 3)
+			IXGBE_WRITE_REG(hw, IXGBE_RETA(i >> 2), reta);
+	}
+
+	/* Now fill our hash function seeds */
+	for (int i = 0; i < 10; i++)
+		IXGBE_WRITE_REG(hw, IXGBE_RSSRK(i), rss_key[i]);
+
+	/* Perform hash on these packet types */
+	mrqc = IXGBE_MRQC_RSSEN
+	     | IXGBE_MRQC_RSS_FIELD_IPV4
+	     | IXGBE_MRQC_RSS_FIELD_IPV4_TCP
+	     | IXGBE_MRQC_RSS_FIELD_IPV4_UDP
+	     | IXGBE_MRQC_RSS_FIELD_IPV6_EX_TCP
+	     | IXGBE_MRQC_RSS_FIELD_IPV6_EX
+	     | IXGBE_MRQC_RSS_FIELD_IPV6
+	     | IXGBE_MRQC_RSS_FIELD_IPV6_TCP
+	     | IXGBE_MRQC_RSS_FIELD_IPV6_UDP
+	     | IXGBE_MRQC_RSS_FIELD_IPV6_EX_UDP;
+	IXGBE_WRITE_REG(hw, IXGBE_MRQC, mrqc);
+}
+
+
 /*********************************************************************
  *
  *  Setup receive registers and features.
@@ -4123,7 +4271,7 @@ ixgbe_initialize_receive_units(struct adapter *adapter)
 	struct ixgbe_hw	*hw = &adapter->hw;
 	struct ifnet   *ifp = adapter->ifp;
 	u32		bufsz, rxctrl, fctrl, srrctl, rxcsum;
-	u32		reta, mrqc = 0, hlreg, random[10];
+	u32		hlreg;
 
 
 	/*
@@ -4195,39 +4343,9 @@ ixgbe_initialize_receive_units(struct adapter *adapter)
 
 	rxcsum = IXGBE_READ_REG(hw, IXGBE_RXCSUM);
 
-	/* Setup RSS */
+	ixgbe_initialise_rss_mapping(adapter);
+
 	if (adapter->num_queues > 1) {
-		int i, j;
-		reta = 0;
-
-		/* set up random bits */
-		arc4rand(&random, sizeof(random), 0);
-
-		/* Set up the redirection table */
-		for (i = 0, j = 0; i < 128; i++, j++) {
-			if (j == adapter->num_queues) j = 0;
-			reta = (reta << 8) | (j * 0x11);
-			if ((i & 3) == 3)
-				IXGBE_WRITE_REG(hw, IXGBE_RETA(i >> 2), reta);
-		}
-
-		/* Now fill our hash function seeds */
-		for (int i = 0; i < 10; i++)
-			IXGBE_WRITE_REG(hw, IXGBE_RSSRK(i), random[i]);
-
-		/* Perform hash on these packet types */
-		mrqc = IXGBE_MRQC_RSSEN
-		     | IXGBE_MRQC_RSS_FIELD_IPV4
-		     | IXGBE_MRQC_RSS_FIELD_IPV4_TCP
-		     | IXGBE_MRQC_RSS_FIELD_IPV4_UDP
-		     | IXGBE_MRQC_RSS_FIELD_IPV6_EX_TCP
-		     | IXGBE_MRQC_RSS_FIELD_IPV6_EX
-		     | IXGBE_MRQC_RSS_FIELD_IPV6
-		     | IXGBE_MRQC_RSS_FIELD_IPV6_TCP
-		     | IXGBE_MRQC_RSS_FIELD_IPV6_UDP
-		     | IXGBE_MRQC_RSS_FIELD_IPV6_EX_UDP;
-		IXGBE_WRITE_REG(hw, IXGBE_MRQC, mrqc);
-
 		/* RSS and RX IPP Checksum are mutually exclusive */
 		rxcsum |= IXGBE_RXCSUM_PCSD;
 	}
@@ -4400,6 +4518,7 @@ ixgbe_rxeof(struct ix_queue *que)
 	u16			count = rxr->process_limit;
 	union ixgbe_adv_rx_desc	*cur;
 	struct ixgbe_rx_buf	*rbuf, *nbuf;
+	u16			pkt_info;
 
 	IXGBE_RX_LOCK(rxr);
 
@@ -4424,6 +4543,7 @@ ixgbe_rxeof(struct ix_queue *que)
 
 		cur = &rxr->rx_base[i];
 		staterr = le32toh(cur->wb.upper.status_error);
+		pkt_info = le16toh(cur->wb.lower.lo_dword.hs_rss.pkt_info);
 
 		if ((staterr & IXGBE_RXD_STAT_DD) == 0)
 			break;
@@ -4556,9 +4676,44 @@ ixgbe_rxeof(struct ix_queue *que)
 			if ((ifp->if_capenable & IFCAP_RXCSUM) != 0)
 				ixgbe_rx_checksum(staterr, sendmp, ptype);
 #if __FreeBSD_version >= 800000
+#ifdef RSS
+			sendmp->m_pkthdr.flowid =
+			    le32toh(cur->wb.lower.hi_dword.rss);
+			sendmp->m_flags |= M_FLOWID;
+			switch (pkt_info & IXGBE_RXDADV_RSSTYPE_MASK) {
+			case IXGBE_RXDADV_RSSTYPE_IPV4_TCP:
+				M_HASHTYPE_SET(sendmp, M_HASHTYPE_RSS_TCP_IPV4);
+				break;
+			case IXGBE_RXDADV_RSSTYPE_IPV4:
+				M_HASHTYPE_SET(sendmp, M_HASHTYPE_RSS_IPV4);
+				break;
+			case IXGBE_RXDADV_RSSTYPE_IPV6_TCP:
+				M_HASHTYPE_SET(sendmp, M_HASHTYPE_RSS_TCP_IPV6);
+				break;
+			case IXGBE_RXDADV_RSSTYPE_IPV6_EX:
+				M_HASHTYPE_SET(sendmp, M_HASHTYPE_RSS_IPV6_EX);
+				break;
+			case IXGBE_RXDADV_RSSTYPE_IPV6:
+				M_HASHTYPE_SET(sendmp, M_HASHTYPE_RSS_IPV6);
+				break;
+			case IXGBE_RXDADV_RSSTYPE_IPV6_TCP_EX:
+				M_HASHTYPE_SET(sendmp, M_HASHTYPE_RSS_TCP_IPV6_EX);
+				break;
+			/* XXX no UDP support in RSS just yet */
+#ifdef	notyet
+			case IGXBE_RXDADV_RSSTYPE_IPV4_UDP:
+			case IGXBE_RXDADV_RSSTYPE_IPV6_UDP:
+			case IGXBE_RXDADV_RSSTYPE_IPV6_UDP_EX:
+#endif /* notyet */
+			default:
+				/* XXX fallthrough */
+				M_HASHTYPE_SET(sendmp, M_HASHTYPE_NONE);
+			}
+#else /* RSS */
 			sendmp->m_pkthdr.flowid = que->msix;
 			sendmp->m_flags |= M_FLOWID;
-#endif
+#endif /* RSS */
+#endif /* FreeBSD_version */
 		}
 next_desc:
 		bus_dmamap_sync(rxr->rxdma.dma_tag, rxr->rxdma.dma_map,
