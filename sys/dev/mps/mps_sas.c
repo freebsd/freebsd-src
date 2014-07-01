@@ -1852,7 +1852,7 @@ mpssas_action_scsiio(struct mpssas_softc *sassc, union ccb *ccb)
 	 * the I/O to the IR volume itself.
 	 */
 	if (sc->WD_valid_config) {
-		if (mpssas_get_ccbstatus(ccb) != MPS_WD_RETRY) {
+		if (ccb->ccb_h.sim_priv.entries[0].field == MPS_WD_RETRY) {
 			mpssas_direct_drive_io(sassc, cm, ccb);
 		} else {
 			mpssas_set_ccbstatus(ccb, CAM_REQ_INPROG);
@@ -2219,10 +2219,11 @@ mpssas_scsiio_complete(struct mps_softc *sc, struct mps_command *cm)
 	 */
 	if (cm->cm_flags & MPS_CM_FLAGS_DD_IO) {
 		mps_free_command(sc, cm);
-		mpssas_set_ccbstatus(ccb, MPS_WD_RETRY);
+		ccb->ccb_h.sim_priv.entries[0].field = MPS_WD_RETRY;
 		mpssas_action_scsiio(sassc, ccb);
 		return;
-	}
+	} else
+		ccb->ccb_h.sim_priv.entries[0].field = 0;
 
 	switch (le16toh(rep->IOCStatus) & MPI2_IOCSTATUS_MASK) {
 	case MPI2_IOCSTATUS_SCSI_DATA_UNDERRUN:
