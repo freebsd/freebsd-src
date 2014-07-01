@@ -268,7 +268,7 @@ rtl8366rb_update_ifmedia(int portstatus, u_int *media_status, u_int *media_activ
 		*media_active |= IFM_1000_T;
 		break;
 	}
-	if ((portstatus & RTL8366RB_PLSR_FULLDUPLEX) == 0)
+	if ((portstatus & RTL8366RB_PLSR_FULLDUPLEX) != 0)
 		*media_active |= IFM_FDX;
 	else
 		*media_active |= IFM_HDX;
