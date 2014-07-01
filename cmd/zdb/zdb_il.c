@@ -24,7 +24,7 @@
  */
 
 /*
- * Copyright (c) 2013 by Delphix. All rights reserved.
+ * Copyright (c) 2013, 2014 by Delphix. All rights reserved.
  */
 
 /*
@@ -122,7 +122,7 @@ zil_prt_rec_write(zilog_t *zilog, int txtype, lr_write_t *lr)
 {
 	char *data, *dlimit;
 	blkptr_t *bp = &lr->lr_blkptr;
-	zbookmark_t zb;
+	zbookmark_phys_t zb;
 	char buf[SPA_MAXBLOCKSIZE];
 	int verbose = MAX(dump_opt['d'], dump_opt['i']);
 	int error;

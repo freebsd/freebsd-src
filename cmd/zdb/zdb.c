@@ -21,7 +21,7 @@
 
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2012, 2014 by Delphix. All rights reserved.
+ * Copyright (c) 2011, 2014 by Delphix. All rights reserved.
  */
 
 #include <stdio.h>
@@ -1008,7 +1008,8 @@ dump_dnode(objset_t *os, uint64_t object, void *data, size_t size)
 }
 
 static uint64_t
-blkid2offset(const dnode_phys_t *dnp, const blkptr_t *bp, const zbookmark_t *zb)
+blkid2offset(const dnode_phys_t *dnp, const blkptr_t *bp,
+    const zbookmark_phys_t *zb)
 {
 	if (dnp == NULL) {
 		ASSERT(zb->zb_level < 0);
@@ -1070,7 +1071,7 @@ snprintf_blkptr_compact(char *blkbuf, size_t buflen, const blkptr_t *bp)
 }
 
 static void
-print_indirect(blkptr_t *bp, const zbookmark_t *zb,
+print_indirect(blkptr_t *bp, const zbookmark_phys_t *zb,
     const dnode_phys_t *dnp)
 {
 	char blkbuf[BP_SPRINTF_LEN];
@@ -1099,7 +1100,7 @@ print_indirect(blkptr_t *bp, const zbookmark_t *zb,
 
 static int
 visit_indirect(spa_t *spa, const dnode_phys_t *dnp,
-    blkptr_t *bp, const zbookmark_t *zb)
+    blkptr_t *bp, const zbookmark_phys_t *zb)
 {
 	int err = 0;
 
@@ -1125,7 +1126,7 @@ visit_indirect(spa_t *spa, const dnode_phys_t *dnp,
 		/* recursively visit blocks below this */
 		cbp = buf->b_data;
 		for (i = 0; i < epb; i++, cbp++) {
-			zbookmark_t czb;
+			zbookmark_phys_t czb;
 
 			SET_BOOKMARK(&czb, zb->zb_objset, zb->zb_object,
 			    zb->zb_level - 1,
@@ -1149,7 +1150,7 @@ dump_indirect(dnode_t *dn)
 {
 	dnode_phys_t *dnp = dn->dn_phys;
 	int j;
-	zbookmark_t czb;
+	zbookmark_phys_t czb;
 
 	(void) printf("Indirect blocks:\n");
 
@@ -2220,7 +2221,7 @@ zdb_blkptr_done(zio_t *zio)
 	blkptr_t *bp = zio->io_bp;
 	int ioerr = zio->io_error;
 	zdb_cb_t *zcb = zio->io_private;
-	zbookmark_t *zb = &zio->io_bookmark;
+	zbookmark_phys_t *zb = &zio->io_bookmark;
 
 	zio_data_buf_free(zio->io_data, zio->io_size);
 
@@ -2254,7 +2255,7 @@ zdb_blkptr_done(zio_t *zio)
 
 static int
 zdb_blkptr_cb(spa_t *spa, zilog_t *zilog, const blkptr_t *bp,
-    const zbookmark_t *zb, const dnode_phys_t *dnp, void *arg)
+    const zbookmark_phys_t *zb, const dnode_phys_t *dnp, void *arg)
 {
 	zdb_cb_t *zcb = arg;
 	dmu_object_type_t type;
@@ -2718,7 +2719,7 @@ typedef struct zdb_ddt_entry {
 /* ARGSUSED */
 static int
 zdb_ddt_add_cb(spa_t *spa, zilog_t *zilog, const blkptr_t *bp,
-    const zbookmark_t *zb, const dnode_phys_t *dnp, void *arg)
+    const zbookmark_phys_t *zb, const dnode_phys_t *dnp, void *arg)
 {
 	avl_tree_t *t = arg;
 	avl_index_t where;
