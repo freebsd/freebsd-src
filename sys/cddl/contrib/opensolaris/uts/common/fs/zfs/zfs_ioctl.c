@@ -24,6 +24,7 @@
  * Copyright (c) 2011-2012 Pawel Jakub Dawidek <pawel@dawidek.net>.
  * All rights reserved.
  * Copyright 2013 Martin Matuska <mm@FreeBSD.org>. All rights reserved.
+ * Copyright 2014 Xin Li <delphij@FreeBSD.org>. All rights reserved.
  * Copyright 2011 Nexenta Systems, Inc.  All rights reserved.
  * Copyright (c) 2014, Joyent, Inc. All rights reserved.
  * Copyright (c) 2013 by Delphix. All rights reserved.
@@ -5922,6 +5923,7 @@ zfsdev_ioctl(struct cdev *dev, u_long zcmd, caddr_t arg, int flag,
 	zfs_iocparm_t *zc_iocparm;
 	int cflag, cmd, oldvecnum;
 	boolean_t newioc, compat;
+	void *compat_zc = NULL;
 	cred_t *cr = td->td_ucred;
 #endif
 	const zfs_ioc_vec_t *vec;
@@ -5930,10 +5932,10 @@ zfsdev_ioctl(struct cdev *dev, u_long zcmd, caddr_t arg, int flag,
 
 	cflag = ZFS_CMD_COMPAT_NONE;
 	compat = B_FALSE;
-	newioc = B_TRUE;
+	newioc = B_TRUE;	/* "new" style (zfs_iocparm_t) ioctl */
 
 	len = IOCPARM_LEN(zcmd);
-	cmd = zcmd & 0xff;
+	vecnum = cmd = zcmd & 0xff;
 
 	/*
 	 * Check if we are talking to supported older binaries
@@ -5941,96 +5943,112 @@ zfsdev_ioctl(struct cdev *dev, u_long zcmd, caddr_t arg, int flag,
 	 */
 	if (len != sizeof(zfs_iocparm_t)) {
 		newioc = B_FALSE;
-		if (len == sizeof(zfs_cmd_t)) {
-			cflag = ZFS_CMD_COMPAT_LZC;
-			vecnum = cmd;
-		} else if (len == sizeof(zfs_cmd_deadman_t)) {
-			cflag = ZFS_CMD_COMPAT_DEADMAN;
-			compat = B_TRUE;
-			vecnum = cmd;
-		} else if (len == sizeof(zfs_cmd_v28_t)) {
-			cflag = ZFS_CMD_COMPAT_V28;
-			compat = B_TRUE;
-			vecnum = cmd;
-		} else if (len == sizeof(zfs_cmd_v15_t)) {
-			cflag = ZFS_CMD_COMPAT_V15;
-			compat = B_TRUE;
-			vecnum = zfs_ioctl_v15_to_v28[cmd];
-		} else
-			return (EINVAL);
-	} else
+		compat = B_TRUE;
+
 		vecnum = cmd;
+
+		switch (len) {
+		case sizeof(zfs_cmd_zcmd_t):
+			cflag = ZFS_CMD_COMPAT_LZC;
+			break;
+		case sizeof(zfs_cmd_deadman_t):
+			cflag = ZFS_CMD_COMPAT_DEADMAN;
+			break;
+		case sizeof(zfs_cmd_v28_t):
+			cflag = ZFS_CMD_COMPAT_V28;
+			break;
+		case sizeof(zfs_cmd_v15_t):
+			cflag = ZFS_CMD_COMPAT_V15;
+			vecnum = zfs_ioctl_v15_to_v28[cmd];
+
+			/*
+			 * Return without further handling
+			 * if the command is blacklisted.
+			 */
+			if (vecnum == ZFS_IOC_COMPAT_PASS)
+				return (0);
+			else if (vecnum == ZFS_IOC_COMPAT_FAIL)
+				return (ENOTSUP);
+			break;
+		default:
+			return (EINVAL);
+		}
+	}
 
 #ifdef illumos
 	vecnum = cmd - ZFS_IOC_FIRST;
 	ASSERT3U(getmajor(dev), ==, ddi_driver_major(zfs_dip));
 #endif
 
-	if (compat) {
-		if (vecnum == ZFS_IOC_COMPAT_PASS)
-			return (0);
-		else if (vecnum == ZFS_IOC_COMPAT_FAIL)
-			return (ENOTSUP);
-	}
-
-	/*
-	 * Check if we have sufficient kernel memory allocated
-	 * for the zfs_cmd_t request.  Bail out if not so we
-	 * will not access undefined memory region.
-	 */
 	if (vecnum >= sizeof (zfs_ioc_vec) / sizeof (zfs_ioc_vec[0]))
 		return (SET_ERROR(EINVAL));
 	vec = &zfs_ioc_vec[vecnum];
 
-#ifdef illumos
 	zc = kmem_zalloc(sizeof(zfs_cmd_t), KM_SLEEP);
-	bzero(zc, sizeof(zfs_cmd_t));
 
+#ifdef illumos
 	error = ddi_copyin((void *)arg, zc, sizeof (zfs_cmd_t), flag);
 	if (error != 0) {
 		error = SET_ERROR(EFAULT);
 		goto out;
 	}
 #else	/* !illumos */
-	/*
-	 * We don't alloc/free zc only if talking to library ioctl version 2
-	 */
-	if (cflag != ZFS_CMD_COMPAT_LZC) {
-		zc = kmem_zalloc(sizeof(zfs_cmd_t), KM_SLEEP);
-		bzero(zc, sizeof(zfs_cmd_t));
-	} else {
-		zc = (void *)arg;
-		error = 0;
-	}
+	bzero(zc, sizeof(zfs_cmd_t));
 
 	if (newioc) {
 		zc_iocparm = (void *)arg;
-		if (zc_iocparm->zfs_cmd_size != sizeof(zfs_cmd_t)) {
-			error = SET_ERROR(EFAULT);
-			goto out;
-		}
-		error = ddi_copyin((void *)(uintptr_t)zc_iocparm->zfs_cmd, zc,
-		    sizeof(zfs_cmd_t), flag);
-		if (error != 0) {
-			error = SET_ERROR(EFAULT);
-			goto out;
-		}
-		if (zc_iocparm->zfs_ioctl_version != ZFS_IOCVER_CURRENT) {
-			compat = B_TRUE;
 
-			switch (zc_iocparm->zfs_ioctl_version) {
-			case ZFS_IOCVER_ZCMD:
-				cflag = ZFS_CMD_COMPAT_ZCMD;
-				break;
-			default:
+		switch (zc_iocparm->zfs_ioctl_version) {
+		case ZFS_IOCVER_CURRENT:
+			if (zc_iocparm->zfs_cmd_size != sizeof(zfs_cmd_t)) {
 				error = SET_ERROR(EINVAL);
+				goto out;
+			}
+			break;
+		case ZFS_IOCVER_ZCMD:
+			if (zc_iocparm->zfs_cmd_size > sizeof(zfs_cmd_t) ||
+			    zc_iocparm->zfs_cmd_size < sizeof(zfs_cmd_zcmd_t)) {
+				error = SET_ERROR(EFAULT);
+				goto out;
+			}
+			compat = B_TRUE;
+			cflag = ZFS_CMD_COMPAT_ZCMD;
+			break;
+		default:
+			error = SET_ERROR(EINVAL);
+			goto out;
+			/* NOTREACHED */
+		}
+
+		if (compat) {
+			ASSERT(sizeof(zfs_cmd_t) >= zc_iocparm->zfs_cmd_size);
+			compat_zc = kmem_zalloc(sizeof(zfs_cmd_t), KM_SLEEP);
+			bzero(compat_zc, sizeof(zfs_cmd_t));
+
+			error = ddi_copyin((void *)(uintptr_t)zc_iocparm->zfs_cmd,
+			    compat_zc, zc_iocparm->zfs_cmd_size, flag);
+			if (error != 0) {
+				error = SET_ERROR(EFAULT);
+				goto out;
+			}
+		} else {
+			error = ddi_copyin((void *)(uintptr_t)zc_iocparm->zfs_cmd,
+			    zc, zc_iocparm->zfs_cmd_size, flag);
+			if (error != 0) {
+				error = SET_ERROR(EFAULT);
 				goto out;
 			}
 		}
 	}
 
 	if (compat) {
-		zfs_cmd_compat_get(zc, arg, cflag);
+		if (newioc) {
+			ASSERT(compat_zc != NULL);
+			zfs_cmd_compat_get(zc, compat_zc, cflag);
+		} else {
+			ASSERT(compat_zc == NULL);
+			zfs_cmd_compat_get(zc, arg, cflag);
+		}
 		oldvecnum = vecnum;
 		error = zfs_ioctl_compat_pre(zc, &vecnum, cflag);
 		if (error != 0)
@@ -6126,7 +6144,7 @@ zfsdev_ioctl(struct cdev *dev, u_long zcmd, caddr_t arg, int flag,
 		fnvlist_free(lognv);
 
 		/* rewrite outnvl for backwards compatibility */
-		if (cflag != ZFS_CMD_COMPAT_NONE && cflag != ZFS_CMD_COMPAT_LZC)
+		if (compat)
 			outnvl = zfs_ioctl_compat_outnvl(zc, outnvl, vecnum,
 			    cflag);
 
@@ -6151,17 +6169,30 @@ zfsdev_ioctl(struct cdev *dev, u_long zcmd, caddr_t arg, int flag,
 out:
 	nvlist_free(innvl);
 
-	if (compat) {
-		zfs_ioctl_compat_post(zc, cmd, cflag);
-		zfs_cmd_compat_put(zc, arg, vecnum, cflag);
-	}
-
 #ifdef illumos
 	rc = ddi_copyout(zc, (void *)arg, sizeof (zfs_cmd_t), flag);
 	if (error == 0 && rc != 0)
 		error = SET_ERROR(EFAULT);
 #else
-	if (newioc) {
+	if (compat) {
+		zfs_ioctl_compat_post(zc, cmd, cflag);
+		if (newioc) {
+			ASSERT(compat_zc != NULL);
+			ASSERT(sizeof(zfs_cmd_t) >= zc_iocparm->zfs_cmd_size);
+
+			zfs_cmd_compat_put(zc, compat_zc, vecnum, cflag);
+			rc = ddi_copyout(compat_zc,
+			    (void *)(uintptr_t)zc_iocparm->zfs_cmd,
+			    zc_iocparm->zfs_cmd_size, flag);
+			if (error == 0 && rc != 0)
+				error = SET_ERROR(EFAULT);
+			kmem_free(compat_zc, sizeof (zfs_cmd_t));
+		} else {
+			zfs_cmd_compat_put(zc, arg, vecnum, cflag);
+		}
+	} else {
+		ASSERT(newioc);
+
 		rc = ddi_copyout(zc, (void *)(uintptr_t)zc_iocparm->zfs_cmd,
 		    sizeof (zfs_cmd_t), flag);
 		if (error == 0 && rc != 0)
@@ -6178,15 +6209,7 @@ out:
 			strfree(saved_poolname);
 	}
 
-#ifdef illumos
 	kmem_free(zc, sizeof (zfs_cmd_t));
-#else
-	/*
-	 * We don't alloc/free zc only if talking to library ioctl version 2
-	 */
-	if (cflag != ZFS_CMD_COMPAT_LZC)
-		kmem_free(zc, sizeof (zfs_cmd_t));
-#endif
 	return (error);
 }
 
