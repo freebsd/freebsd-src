@@ -782,6 +782,11 @@ EXTRA_DISTRIBUTIONS+=	lib32
 EXTRA_DISTRIBUTIONS+=	tests
 .endif
 
+DEBUG_DISTRIBUTIONS=
+.if ${MK_DEBUG_FILES} != "no"
+DEBUG_DISTRIBUTIONS+=	base ${EXTRA_DISTRIBUTIONS:S,doc,,}
+.endif
+
 MTREE_MAGIC?=	mtree 2.0
 
 distributeworld installworld: _installcheck_world
@@ -858,8 +863,7 @@ distributeworld installworld: _installcheck_world
 	awk 'BEGIN { print "#${MTREE_MAGIC}" } !/ type=/ { file = $$1 } / type=/ { if ($$1 == file) { sub(/^\.\/${dist}\//, "./"); print } }' > \
 	${DESTDIR}/${DISTDIR}/${dist}.meta
 .endfor
-.if ${MK_DEBUG_FILES} != "no"
-. for dist in base ${EXTRA_DISTRIBUTIONS}
+.for dist in ${DEBUG_DISTRIBUTIONS}
 	@# For each file that exists in this dist, print the corresponding
 	@# line from the METALOG.  This relies on the fact that
 	@# a line containing only the filename will sort immediatly before
@@ -868,8 +872,7 @@ distributeworld installworld: _installcheck_world
 	find ./${dist}/usr/lib/debug | sort -u ${METALOG} - | \
 	awk 'BEGIN { print "#${MTREE_MAGIC}" } !/ type=/ { file = $$1 } / type=/ { if ($$1 == file) { sub(/^\.\/${dist}\//, "./"); print } }' > \
 	${DESTDIR}/${DISTDIR}/${dist}.debug.meta
-. endfor
-.endif
+.endfor
 .endif
 .endif
 
@@ -887,19 +890,17 @@ packageworld:
 .endif
 .endfor
 
-.if ${MK_DEBUG_FILES} != "no"
-. for dist in base ${EXTRA_DISTRIBUTIONS}
-.  if defined(NO_ROOT)
+.for dist in ${DEBUG_DISTRIBUTIONS}
+. if defined(NO_ROOT)
 	${_+_}cd ${DESTDIR}/${DISTDIR}/${dist}; \
-	    tar cvJf ${DESTDIR}/${DISTDIR}/${dist}.debug.txz \
+	    tar cvJf ${DESTDIR}/${DISTDIR}/${dist}-dbg.txz \
 	    @${DESTDIR}/${DISTDIR}/${dist}.debug.meta
-.  else
+. else
 	${_+_}cd ${DESTDIR}/${DISTDIR}/${dist}; \
-	    tar cvJfL ${DESTDIR}/${DISTDIR}/${dist}.debug.txz \
+	    tar cvJfL ${DESTDIR}/${DISTDIR}/${dist}-dbg.txz \
 	    usr/lib/debug
-.  endif
-. endfor
-.endif
+. endif
+.endfor
 
 #
 # reinstall
