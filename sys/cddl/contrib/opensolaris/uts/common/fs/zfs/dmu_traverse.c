@@ -20,7 +20,7 @@
  */
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2013 by Delphix. All rights reserved.
+ * Copyright (c) 2012, 2014 by Delphix. All rights reserved.
  */
 
 #include <sys/zfs_context.h>
@@ -197,6 +197,16 @@ traverse_prefetch_metadata(traverse_data_t *td,
 	    ZIO_PRIORITY_ASYNC_READ, ZIO_FLAG_CANFAIL, &flags, zb);
 }
 
+static boolean_t
+prefetch_needed(prefetch_data_t *pfd, const blkptr_t *bp)
+{
+	ASSERT(pfd->pd_flags & TRAVERSE_PREFETCH_DATA);
+	if (BP_IS_HOLE(bp) || BP_IS_EMBEDDED(bp) ||
+	    BP_GET_TYPE(bp) == DMU_OT_INTENT_LOG)
+		return (B_FALSE);
+	return (B_TRUE);
+}
+
 static int
 traverse_visitbp(traverse_data_t *td, const dnode_phys_t *dnp,
     const blkptr_t *bp, const zbookmark_t *zb)
@@ -242,16 +252,7 @@ traverse_visitbp(traverse_data_t *td, const dnode_phys_t *dnp,
 		return (0);
 	}
 
-	if (BP_IS_HOLE(bp)) {
-		err = td->td_func(td->td_spa, NULL, bp, zb, dnp, td->td_arg);
-		if (err != 0)
-			goto post;
-		return (0);
-	}
-
-	if (pd && !pd->pd_exited &&
-	    ((pd->pd_flags & TRAVERSE_PREFETCH_DATA) ||
-	    BP_GET_TYPE(bp) == DMU_OT_DNODE || BP_GET_LEVEL(bp) > 0)) {
+	if (pd != NULL && !pd->pd_exited && prefetch_needed(pd, bp)) {
 		mutex_enter(&pd->pd_mtx);
 		ASSERT(pd->pd_blks_fetched >= 0);
 		while (pd->pd_blks_fetched == 0 && !pd->pd_exited)
@@ -259,6 +260,13 @@ traverse_visitbp(traverse_data_t *td, const dnode_phys_t *dnp,
 		pd->pd_blks_fetched--;
 		cv_broadcast(&pd->pd_cv);
 		mutex_exit(&pd->pd_mtx);
+	}
+
+	if (BP_IS_HOLE(bp)) {
+		err = td->td_func(td->td_spa, NULL, bp, zb, dnp, td->td_arg);
+		if (err != 0)
+			goto post;
+		return (0);
 	}
 
 	if (td->td_flags & TRAVERSE_PRE) {
@@ -444,10 +452,7 @@ traverse_prefetcher(spa_t *spa, zilog_t *zilog, const blkptr_t *bp,
 	if (pfd->pd_cancel)
 		return (SET_ERROR(EINTR));
 
-	if (BP_IS_HOLE(bp) || BP_IS_EMBEDDED(bp) ||
-	    !((pfd->pd_flags & TRAVERSE_PREFETCH_DATA) ||
-	    BP_GET_TYPE(bp) == DMU_OT_DNODE || BP_GET_LEVEL(bp) > 0) ||
-	    BP_GET_TYPE(bp) == DMU_OT_INTENT_LOG)
+	if (!prefetch_needed(pfd, bp))
 		return (0);
 
 	mutex_enter(&pfd->pd_mtx);
