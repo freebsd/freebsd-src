@@ -977,6 +977,88 @@ struct scsi_maintenance_in
 	uint8_t  control;
 };
 
+struct scsi_report_supported_opcodes
+{
+        uint8_t  opcode;
+        uint8_t  service_action;
+        uint8_t  options;
+#define RSO_RCTD		0x80
+#define RSO_OPTIONS_MASK	0x07
+#define RSO_OPTIONS_ALL		0x00
+#define RSO_OPTIONS_OC		0x01
+#define RSO_OPTIONS_OC_SA	0x02
+        uint8_t  requested_opcode;
+        uint8_t  requested_service_action[2];
+	uint8_t  length[4];
+	uint8_t  reserved1;
+	uint8_t  control;
+};
+
+struct scsi_report_supported_opcodes_timeout
+{
+	uint8_t  length[2];
+	uint8_t  reserved;
+	uint8_t  cmd_specific;
+	uint8_t  nominal_time[4];
+	uint8_t  recommended_time[4];
+};
+
+struct scsi_report_supported_opcodes_descr
+{
+	uint8_t  opcode;
+	uint8_t  reserved;
+	uint8_t  service_action[2];
+	uint8_t  reserved2;
+	uint8_t  flags;
+#define RSO_SERVACTV		0x01
+#define RSO_CTDP		0x02
+	uint8_t  cdb_length[2];
+	struct scsi_report_supported_opcodes_timeout timeout[0];
+};
+
+struct scsi_report_supported_opcodes_all
+{
+	uint8_t  length[4];
+	struct scsi_report_supported_opcodes_descr descr[0];
+};
+
+struct scsi_report_supported_opcodes_one
+{
+	uint8_t  reserved;
+	uint8_t  support;
+#define RSO_ONE_CTDP		0x80
+	uint8_t  cdb_length[2];
+	uint8_t  cdb_usage[];
+};
+
+struct scsi_report_supported_tmf
+{
+	uint8_t  opcode;
+	uint8_t  service_action;
+	uint8_t  reserved[4];
+	uint8_t  length[4];
+	uint8_t  reserved1;
+	uint8_t  control;
+};
+
+struct scsi_report_supported_tmf_data
+{
+	uint8_t  byte1;
+#define RST_WAKES		0x01
+#define RST_TRS			0x02
+#define RST_QTS			0x04
+#define RST_LURS		0x08
+#define RST_CTSS		0x10
+#define RST_CACAS		0x20
+#define RST_ATSS		0x40
+#define RST_ATS			0x80
+	uint8_t  byte2;
+#define RST_ITNRS		0x01
+#define RST_QTSS		0x02
+#define RST_QAES		0x04
+	uint8_t  reserved[2];
+};
+
 struct ata_pass_16 {
 	u_int8_t opcode;
 	u_int8_t protocol;

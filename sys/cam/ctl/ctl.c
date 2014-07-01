@@ -390,7 +390,7 @@ static ctl_action ctl_check_ooa(struct ctl_lun *lun, union ctl_io *pending_io,
 static int ctl_check_blocked(struct ctl_lun *lun);
 static int ctl_scsiio_lun_check(struct ctl_softc *ctl_softc,
 				struct ctl_lun *lun,
-				struct ctl_cmd_entry *entry,
+				const struct ctl_cmd_entry *entry,
 				struct ctl_scsiio *ctsio);
 //static int ctl_check_rtr(union ctl_io *pending_io, struct ctl_softc *softc);
 static void ctl_failover(void);
@@ -428,6 +428,12 @@ static void ctl_enqueue_incoming(union ctl_io *io);
 static void ctl_enqueue_rtr(union ctl_io *io);
 static void ctl_enqueue_done(union ctl_io *io);
 static void ctl_enqueue_isc(union ctl_io *io);
+static const struct ctl_cmd_entry *
+    ctl_get_cmd_entry(struct ctl_scsiio *ctsio);
+static const struct ctl_cmd_entry *
+    ctl_validate_command(struct ctl_scsiio *ctsio);
+static int ctl_cmd_applicable(uint8_t lun_type,
+    const struct ctl_cmd_entry *entry);
 
 /*
  * Load the serialization table.  This isn't very pretty, but is probably
@@ -619,11 +625,9 @@ ctl_isc_event_handler(ctl_ha_channel channel, ctl_ha_event event, int param)
 			memcpy(io->scsiio.cdb, msg_info.scsi.cdb,
 			       CTL_MAX_CDBLEN);
 			if (ctl_softc->ha_mode == CTL_HA_MODE_XFER) {
-				struct ctl_cmd_entry *entry;
-				uint8_t opcode;
+				const struct ctl_cmd_entry *entry;
 
-				opcode = io->scsiio.cdb[0];
-				entry = &ctl_cmd_table[opcode];
+				entry = ctl_get_cmd_entry(&io->scsiio);
 				io->io_hdr.flags &= ~CTL_FLAG_DATA_MASK;
 				io->io_hdr.flags |=
 					entry->flags & CTL_FLAG_DATA_MASK;
@@ -4969,49 +4973,10 @@ ctl_scsi_release(struct ctl_scsiio *ctsio)
 	ctl_softc = control_softc;
 
 	switch (ctsio->cdb[0]) {
-	case RELEASE: {
-		struct scsi_release *cdb;
-
-		cdb = (struct scsi_release *)ctsio->cdb;
-		if ((cdb->byte2 & 0x1f) != 0) {
-			ctl_set_invalid_field(ctsio,
-					      /*sks_valid*/ 1,
-					      /*command*/ 1,
-					      /*field*/ 1,
-					      /*bit_valid*/ 0,
-					      /*bit*/ 0);
-			ctl_done((union ctl_io *)ctsio);
-			return (CTL_RETVAL_COMPLETE);
-		}
-		break;
-	}
 	case RELEASE_10: {
 		struct scsi_release_10 *cdb;
 
 		cdb = (struct scsi_release_10 *)ctsio->cdb;
-
-		if ((cdb->byte2 & SR10_EXTENT) != 0) {
-			ctl_set_invalid_field(ctsio,
-					      /*sks_valid*/ 1,
-					      /*command*/ 1,
-					      /*field*/ 1,
-					      /*bit_valid*/ 1,
-					      /*bit*/ 0);
-			ctl_done((union ctl_io *)ctsio);
-			return (CTL_RETVAL_COMPLETE);
-
-		}
-
-		if ((cdb->byte2 & SR10_3RDPTY) != 0) {
-			ctl_set_invalid_field(ctsio,
-					      /*sks_valid*/ 1,
-					      /*command*/ 1,
-					      /*field*/ 1,
-					      /*bit_valid*/ 1,
-					      /*bit*/ 4);
-			ctl_done((union ctl_io *)ctsio);
-			return (CTL_RETVAL_COMPLETE);
-		}
 
 		if (cdb->byte2 & SR10_LONGID)
 			longid = 1;
@@ -5106,49 +5071,11 @@ ctl_scsi_reserve(struct ctl_scsiio *ctsio)
 	ctl_softc = control_softc;
 
 	switch (ctsio->cdb[0]) {
-	case RESERVE: {
-		struct scsi_reserve *cdb;
-
-		cdb = (struct scsi_reserve *)ctsio->cdb;
-		if ((cdb->byte2 & 0x1f) != 0) {
-			ctl_set_invalid_field(ctsio,
-					      /*sks_valid*/ 1,
-					      /*command*/ 1,
-					      /*field*/ 1,
-					      /*bit_valid*/ 0,
-					      /*bit*/ 0);
-			ctl_done((union ctl_io *)ctsio);
-			return (CTL_RETVAL_COMPLETE);
-		}
-		resv_id = cdb->resv_id;
-		length = scsi_2btoul(cdb->length);
-		break;
-	}
 	case RESERVE_10: {
 		struct scsi_reserve_10 *cdb;
 
 		cdb = (struct scsi_reserve_10 *)ctsio->cdb;
 
-		if ((cdb->byte2 & SR10_EXTENT) != 0) {
-			ctl_set_invalid_field(ctsio,
-					      /*sks_valid*/ 1,
-					      /*command*/ 1,
-					      /*field*/ 1,
-					      /*bit_valid*/ 1,
-					      /*bit*/ 0);
-			ctl_done((union ctl_io *)ctsio);
-			return (CTL_RETVAL_COMPLETE);
-		}
-		if ((cdb->byte2 & SR10_3RDPTY) != 0) {
-			ctl_set_invalid_field(ctsio,
-					      /*sks_valid*/ 1,
-					      /*command*/ 1,
-					      /*field*/ 1,
-					      /*bit_valid*/ 1,
-					      /*bit*/ 4);
-			ctl_done((union ctl_io *)ctsio);
-			return (CTL_RETVAL_COMPLETE);
-		}
 		if (cdb->byte2 & SR10_LONGID)
 			longid = 1;
 		else
@@ -5261,35 +5188,6 @@ ctl_start_stop(struct ctl_scsiio *ctsio)
 		return (CTL_RETVAL_COMPLETE);
 	}
 
-	/*
-	 * We don't support the power conditions field.  We need to check
-	 * this prior to checking the load/eject and start/stop bits.
-	 */
-	if ((cdb->how & SSS_PC_MASK) != SSS_PC_START_VALID) {
-		ctl_set_invalid_field(ctsio,
-				      /*sks_valid*/ 1,
-				      /*command*/ 1,
-				      /*field*/ 4,
-				      /*bit_valid*/ 1,
-				      /*bit*/ 4);
-		ctl_done((union ctl_io *)ctsio);
-		return (CTL_RETVAL_COMPLETE);
-	}
-
-	/*
-	 * Media isn't removable, so we can't load or eject it.
-	 */
-	if ((cdb->how & SSS_LOEJ) != 0) {
-		ctl_set_invalid_field(ctsio,
-				      /*sks_valid*/ 1,
-				      /*command*/ 1,
-				      /*field*/ 4,
-				      /*bit_valid*/ 1,
-				      /*bit*/ 1);
-		ctl_done((union ctl_io *)ctsio);
-		return (CTL_RETVAL_COMPLETE);
-	}
-
 	if ((lun->flags & CTL_LUN_PR_RESERVED)
 	 && ((cdb->how & SSS_START)==0)) {
 		uint32_t residx;
@@ -5387,7 +5285,6 @@ ctl_sync_cache(struct ctl_scsiio *ctsio)
 	struct ctl_softc *ctl_softc;
 	uint64_t starting_lba;
 	uint32_t block_count;
-	int reladr, immed;
 	int retval;
 
 	CTL_DEBUG_PRINT(("ctl_sync_cache\n"));
@@ -5395,19 +5292,11 @@ ctl_sync_cache(struct ctl_scsiio *ctsio)
 	lun = (struct ctl_lun *)ctsio->io_hdr.ctl_private[CTL_PRIV_LUN].ptr;
 	ctl_softc = control_softc;
 	retval = 0;
-	reladr = 0;
-	immed = 0;
 
 	switch (ctsio->cdb[0]) {
 	case SYNCHRONIZE_CACHE: {
 		struct scsi_sync_cache *cdb;
 		cdb = (struct scsi_sync_cache *)ctsio->cdb;
-
-		if (cdb->byte2 & SSC_RELADR)
-			reladr = 1;
-
-		if (cdb->byte2 & SSC_IMMED)
-			immed = 1;
 
 		starting_lba = scsi_4btoul(cdb->begin_lba);
 		block_count = scsi_2btoul(cdb->lb_count);
@@ -5416,12 +5305,6 @@ ctl_sync_cache(struct ctl_scsiio *ctsio)
 	case SYNCHRONIZE_CACHE_16: {
 		struct scsi_sync_cache_16 *cdb;
 		cdb = (struct scsi_sync_cache_16 *)ctsio->cdb;
-
-		if (cdb->byte2 & SSC_RELADR)
-			reladr = 1;
-
-		if (cdb->byte2 & SSC_IMMED)
-			immed = 1;
 
 		starting_lba = scsi_8btou64(cdb->begin_lba);
 		block_count = scsi_4btoul(cdb->lb_count);
@@ -5432,41 +5315,6 @@ ctl_sync_cache(struct ctl_scsiio *ctsio)
 		ctl_done((union ctl_io *)ctsio);
 		goto bailout;
 		break; /* NOTREACHED */
-	}
-
-	if (immed) {
-		/*
-		 * We don't support the immediate bit.  Since it's in the
-		 * same place for the 10 and 16 byte SYNCHRONIZE CACHE
-		 * commands, we can just return the same error in either
-		 * case.
-		 */
-		ctl_set_invalid_field(ctsio,
-				      /*sks_valid*/ 1,
-				      /*command*/ 1,
-				      /*field*/ 1,
-				      /*bit_valid*/ 1,
-				      /*bit*/ 1);
-		ctl_done((union ctl_io *)ctsio);
-		goto bailout;
-	}
-
-	if (reladr) {
-		/*
-		 * We don't support the reladr bit either.  It can only be
-		 * used with linked commands, and we don't support linked
-		 * commands.  Since the bit is in the same place for the
-		 * 10 and 16 byte SYNCHRONIZE CACHE * commands, we can
-		 * just return the same error in either case.
-		 */
-		ctl_set_invalid_field(ctsio,
-				      /*sks_valid*/ 1,
-				      /*command*/ 1,
-				      /*field*/ 1,
-				      /*bit_valid*/ 1,
-				      /*bit*/ 0);
-		ctl_done((union ctl_io *)ctsio);
-		goto bailout;
 	}
 
 	/*
@@ -5655,16 +5503,6 @@ ctl_read_buffer(struct ctl_scsiio *ctsio)
 		ctl_done((union ctl_io *)ctsio);
 		return (CTL_RETVAL_COMPLETE);
 	}
-	if (cdb->buffer_id != 0) {
-		ctl_set_invalid_field(ctsio,
-				      /*sks_valid*/ 1,
-				      /*command*/ 1,
-				      /*field*/ 2,
-				      /*bit_valid*/ 0,
-				      /*bit*/ 0);
-		ctl_done((union ctl_io *)ctsio);
-		return (CTL_RETVAL_COMPLETE);
-	}
 
 	len = scsi_3btoul(cdb->length);
 	buffer_offset = scsi_3btoul(cdb->offset);
@@ -5720,16 +5558,6 @@ ctl_write_buffer(struct ctl_scsiio *ctsio)
 				      /*field*/ 1,
 				      /*bit_valid*/ 1,
 				      /*bit*/ 4);
-		ctl_done((union ctl_io *)ctsio);
-		return (CTL_RETVAL_COMPLETE);
-	}
-	if (cdb->buffer_id != 0) {
-		ctl_set_invalid_field(ctsio,
-				      /*sks_valid*/ 1,
-				      /*command*/ 1,
-				      /*field*/ 2,
-				      /*bit_valid*/ 0,
-				      /*bit*/ 0);
 		ctl_done((union ctl_io *)ctsio);
 		return (CTL_RETVAL_COMPLETE);
 	}
@@ -7049,7 +6877,7 @@ ctl_read_capacity(struct ctl_scsiio *ctsio)
 	return (CTL_RETVAL_COMPLETE);
 }
 
-static int
+int
 ctl_read_capacity_16(struct ctl_scsiio *ctsio)
 {
 	struct scsi_read_capacity_16 *cdb;
@@ -7113,37 +6941,7 @@ ctl_read_capacity_16(struct ctl_scsiio *ctsio)
 }
 
 int
-ctl_service_action_in(struct ctl_scsiio *ctsio)
-{
-	struct scsi_service_action_in *cdb;
-	int retval;
-
-	CTL_DEBUG_PRINT(("ctl_service_action_in\n"));
-
-	cdb = (struct scsi_service_action_in *)ctsio->cdb;
-
-	retval = CTL_RETVAL_COMPLETE;
-
-	switch (cdb->service_action) {
-	case SRC16_SERVICE_ACTION:
-		retval = ctl_read_capacity_16(ctsio);
-		break;
-	default:
-		ctl_set_invalid_field(/*ctsio*/ ctsio,
-				      /*sks_valid*/ 1,
-				      /*command*/ 1,
-				      /*field*/ 1,
-				      /*bit_valid*/ 1,
-				      /*bit*/ 4);
-		ctl_done((union ctl_io *)ctsio);
-		break;
-	}
-
-	return (retval);
-}
-
-int
-ctl_maintenance_in(struct ctl_scsiio *ctsio)
+ctl_report_tagret_port_groups(struct ctl_scsiio *ctsio)
 {
 	struct scsi_maintenance_in *cdb;
 	int retval;
@@ -7156,24 +6954,13 @@ ctl_maintenance_in(struct ctl_scsiio *ctsio)
 	struct scsi_target_port_descriptor  *tp_desc_ptr1_1, *tp_desc_ptr1_2,
 	                                    *tp_desc_ptr2_1, *tp_desc_ptr2_2;
 
-	CTL_DEBUG_PRINT(("ctl_maintenance_in\n"));
+	CTL_DEBUG_PRINT(("ctl_report_tagret_port_groups\n"));
 
 	cdb = (struct scsi_maintenance_in *)ctsio->cdb;
 	softc = control_softc;
 	lun = (struct ctl_lun *)ctsio->io_hdr.ctl_private[CTL_PRIV_LUN].ptr;
 
 	retval = CTL_RETVAL_COMPLETE;
-
-	if ((cdb->byte2 & SERVICE_ACTION_MASK) != SA_RPRT_TRGT_GRP) {
-		ctl_set_invalid_field(/*ctsio*/ ctsio,
-				      /*sks_valid*/ 1,
-				      /*command*/ 1,
-				      /*field*/ 1,
-				      /*bit_valid*/ 1,
-				      /*bit*/ 4);
-		ctl_done((union ctl_io *)ctsio);
-		return(retval);
-	}
 
 	single = ctl_is_single;
 	if (single)
@@ -7290,6 +7077,217 @@ ctl_maintenance_in(struct ctl_scsiio *ctsio)
 }
 
 int
+ctl_report_supported_opcodes(struct ctl_scsiio *ctsio)
+{
+	struct ctl_lun *lun;
+	struct scsi_report_supported_opcodes *cdb;
+	const struct ctl_cmd_entry *entry, *sentry;
+	struct scsi_report_supported_opcodes_all *all;
+	struct scsi_report_supported_opcodes_descr *descr;
+	struct scsi_report_supported_opcodes_one *one;
+	int retval;
+	int alloc_len, total_len;
+	int opcode, service_action, i, j, num;
+
+	CTL_DEBUG_PRINT(("ctl_report_supported_opcodes\n"));
+
+	cdb = (struct scsi_report_supported_opcodes *)ctsio->cdb;
+	lun = (struct ctl_lun *)ctsio->io_hdr.ctl_private[CTL_PRIV_LUN].ptr;
+
+	retval = CTL_RETVAL_COMPLETE;
+
+	opcode = cdb->requested_opcode;
+	service_action = scsi_2btoul(cdb->requested_service_action);
+	switch (cdb->options & RSO_OPTIONS_MASK) {
+	case RSO_OPTIONS_ALL:
+		num = 0;
+		for (i = 0; i < 256; i++) {
+			entry = &ctl_cmd_table[i];
+			if (entry->flags & CTL_CMD_FLAG_SA5) {
+				for (j = 0; j < 32; j++) {
+					sentry = &((const struct ctl_cmd_entry *)
+					    entry->execute)[j];
+					if (ctl_cmd_applicable(
+					    lun->be_lun->lun_type, sentry))
+						num++;
+				}
+			} else {
+				if (ctl_cmd_applicable(lun->be_lun->lun_type,
+				    entry))
+					num++;
+			}
+		}
+		total_len = sizeof(struct scsi_report_supported_opcodes_all) +
+		    num * sizeof(struct scsi_report_supported_opcodes_descr);
+		break;
+	case RSO_OPTIONS_OC:
+		if (ctl_cmd_table[opcode].flags & CTL_CMD_FLAG_SA5) {
+			ctl_set_invalid_field(/*ctsio*/ ctsio,
+					      /*sks_valid*/ 1,
+					      /*command*/ 1,
+					      /*field*/ 2,
+					      /*bit_valid*/ 1,
+					      /*bit*/ 2);
+			ctl_done((union ctl_io *)ctsio);
+			return (CTL_RETVAL_COMPLETE);
+		}
+		total_len = sizeof(struct scsi_report_supported_opcodes_one) + 32;
+		break;
+	case RSO_OPTIONS_OC_SA:
+		if ((ctl_cmd_table[opcode].flags & CTL_CMD_FLAG_SA5) == 0 ||
+		    service_action >= 32) {
+			ctl_set_invalid_field(/*ctsio*/ ctsio,
+					      /*sks_valid*/ 1,
+					      /*command*/ 1,
+					      /*field*/ 2,
+					      /*bit_valid*/ 1,
+					      /*bit*/ 2);
+			ctl_done((union ctl_io *)ctsio);
+			return (CTL_RETVAL_COMPLETE);
+		}
+		total_len = sizeof(struct scsi_report_supported_opcodes_one) + 32;
+		break;
+	default:
+		ctl_set_invalid_field(/*ctsio*/ ctsio,
+				      /*sks_valid*/ 1,
+				      /*command*/ 1,
+				      /*field*/ 2,
+				      /*bit_valid*/ 1,
+				      /*bit*/ 2);
+		ctl_done((union ctl_io *)ctsio);
+		return (CTL_RETVAL_COMPLETE);
+	}
+
+	alloc_len = scsi_4btoul(cdb->length);
+
+	ctsio->kern_data_ptr = malloc(total_len, M_CTL, M_WAITOK | M_ZERO);
+
+	ctsio->kern_sg_entries = 0;
+
+	if (total_len < alloc_len) {
+		ctsio->residual = alloc_len - total_len;
+		ctsio->kern_data_len = total_len;
+		ctsio->kern_total_len = total_len;
+	} else {
+		ctsio->residual = 0;
+		ctsio->kern_data_len = alloc_len;
+		ctsio->kern_total_len = alloc_len;
+	}
+	ctsio->kern_data_resid = 0;
+	ctsio->kern_rel_offset = 0;
+
+	switch (cdb->options & RSO_OPTIONS_MASK) {
+	case RSO_OPTIONS_ALL:
+		all = (struct scsi_report_supported_opcodes_all *)
+		    ctsio->kern_data_ptr;
+		num = 0;
+		for (i = 0; i < 256; i++) {
+			entry = &ctl_cmd_table[i];
+			if (entry->flags & CTL_CMD_FLAG_SA5) {
+				for (j = 0; j < 32; j++) {
+					sentry = &((const struct ctl_cmd_entry *)
+					    entry->execute)[j];
+					if (!ctl_cmd_applicable(
+					    lun->be_lun->lun_type, sentry))
+						continue;
+					descr = &all->descr[num++];
+					descr->opcode = i;
+					scsi_ulto2b(j, descr->service_action);
+					descr->flags = RSO_SERVACTV;
+					scsi_ulto2b(sentry->length,
+					    descr->cdb_length);
+				}
+			} else {
+				if (!ctl_cmd_applicable(lun->be_lun->lun_type,
+				    entry))
+					continue;
+				descr = &all->descr[num++];
+				descr->opcode = i;
+				scsi_ulto2b(0, descr->service_action);
+				descr->flags = 0;
+				scsi_ulto2b(entry->length, descr->cdb_length);
+			}
+		}
+		scsi_ulto4b(
+		    num * sizeof(struct scsi_report_supported_opcodes_descr),
+		    all->length);
+		break;
+	case RSO_OPTIONS_OC:
+		one = (struct scsi_report_supported_opcodes_one *)
+		    ctsio->kern_data_ptr;
+		entry = &ctl_cmd_table[opcode];
+		goto fill_one;
+	case RSO_OPTIONS_OC_SA:
+		one = (struct scsi_report_supported_opcodes_one *)
+		    ctsio->kern_data_ptr;
+		entry = &ctl_cmd_table[opcode];
+		entry = &((const struct ctl_cmd_entry *)
+		    entry->execute)[service_action];
+fill_one:
+		if (ctl_cmd_applicable(lun->be_lun->lun_type, entry)) {
+			one->support = 3;
+			scsi_ulto2b(entry->length, one->cdb_length);
+			one->cdb_usage[0] = opcode;
+			memcpy(&one->cdb_usage[1], entry->usage,
+			    entry->length - 1);
+		} else
+			one->support = 1;
+		break;
+	}
+
+	ctsio->io_hdr.flags |= CTL_FLAG_ALLOCATED;
+	ctsio->be_move_done = ctl_config_move_done;
+
+	ctl_datamove((union ctl_io *)ctsio);
+	return(retval);
+}
+
+int
+ctl_report_supported_tmf(struct ctl_scsiio *ctsio)
+{
+	struct ctl_lun *lun;
+	struct scsi_report_supported_tmf *cdb;
+	struct scsi_report_supported_tmf_data *data;
+	int retval;
+	int alloc_len, total_len;
+
+	CTL_DEBUG_PRINT(("ctl_report_supported_tmf\n"));
+
+	cdb = (struct scsi_report_supported_tmf *)ctsio->cdb;
+	lun = (struct ctl_lun *)ctsio->io_hdr.ctl_private[CTL_PRIV_LUN].ptr;
+
+	retval = CTL_RETVAL_COMPLETE;
+
+	total_len = sizeof(struct scsi_report_supported_tmf_data);
+	alloc_len = scsi_4btoul(cdb->length);
+
+	ctsio->kern_data_ptr = malloc(total_len, M_CTL, M_WAITOK | M_ZERO);
+
+	ctsio->kern_sg_entries = 0;
+
+	if (total_len < alloc_len) {
+		ctsio->residual = alloc_len - total_len;
+		ctsio->kern_data_len = total_len;
+		ctsio->kern_total_len = total_len;
+	} else {
+		ctsio->residual = 0;
+		ctsio->kern_data_len = alloc_len;
+		ctsio->kern_total_len = alloc_len;
+	}
+	ctsio->kern_data_resid = 0;
+	ctsio->kern_rel_offset = 0;
+
+	data = (struct scsi_report_supported_tmf_data *)ctsio->kern_data_ptr;
+	data->byte1 |= RST_ATS | RST_LURS | RST_TRS;
+
+	ctsio->io_hdr.flags |= CTL_FLAG_ALLOCATED;
+	ctsio->be_move_done = ctl_config_move_done;
+
+	ctl_datamove((union ctl_io *)ctsio);
+	return (retval);
+}
+
+int
 ctl_persistent_reserve_in(struct ctl_scsiio *ctsio)
 {
 	struct scsi_per_res_in *cdb;
@@ -7325,18 +7323,8 @@ retry:
 	case SPRI_RC: /* report capabilities */
 		total_len = sizeof(struct scsi_per_res_cap);
 		break;
-	case SPRI_RS: /* read full status */
 	default:
-		mtx_unlock(&lun->lun_lock);
-		ctl_set_invalid_field(ctsio,
-				      /*sks_valid*/ 1,
-				      /*command*/ 1,
-				      /*field*/ 1,
-				      /*bit_valid*/ 1,
-				      /*bit*/ 0);
-		ctl_done((union ctl_io *)ctsio);
-		return (CTL_RETVAL_COMPLETE);
-		break; /* NOTREACHED */
+		panic("Invalid PR type %x", cdb->action);
 	}
 	mtx_unlock(&lun->lun_lock);
 
@@ -8045,28 +8033,6 @@ ctl_persistent_reserve_out(struct ctl_scsiio *ctsio)
 		}
 	}
 
-	switch (cdb->action & SPRO_ACTION_MASK) {
-	case SPRO_REGISTER:
-	case SPRO_RESERVE:
-	case SPRO_RELEASE:
-	case SPRO_CLEAR:
-	case SPRO_PREEMPT:
-	case SPRO_REG_IGNO:
-		break;
-	case SPRO_REG_MOVE:
-	case SPRO_PRE_ABO:
-	default:
-		ctl_set_invalid_field(/*ctsio*/ ctsio,
-				      /*sks_valid*/ 1,
-				      /*command*/ 1,
-				      /*field*/ 1,
-				      /*bit_valid*/ 1,
-				      /*bit*/ 0);
-		ctl_done((union ctl_io *)ctsio);
-		return (CTL_RETVAL_COMPLETE);
-		break; /* NOTREACHED */
-	}
-
 	param_len = scsi_4btoul(cdb->length);
 
 	if ((ctsio->io_hdr.flags & CTL_FLAG_ALLOCATED) == 0) {
@@ -8435,19 +8401,8 @@ ctl_persistent_reserve_out(struct ctl_scsiio *ctsio)
 			return (CTL_RETVAL_COMPLETE);
 		break;
 	}
-	case SPRO_REG_MOVE:
-	case SPRO_PRE_ABO:
 	default:
-		free(ctsio->kern_data_ptr, M_CTL);
-		ctl_set_invalid_field(/*ctsio*/ ctsio,
-				      /*sks_valid*/ 1,
-				      /*command*/ 1,
-				      /*field*/ 1,
-				      /*bit_valid*/ 1,
-				      /*bit*/ 0);
-		ctl_done((union ctl_io *)ctsio);
-		return (CTL_RETVAL_COMPLETE);
-		break; /* NOTREACHED */
+		panic("Invalid PR type %x", cdb->action);
 	}
 
 done:
@@ -8596,7 +8551,7 @@ ctl_read_write(struct ctl_scsiio *ctsio)
 	struct ctl_lba_len_flags *lbalen;
 	uint64_t lba;
 	uint32_t num_blocks;
-	int reladdr, fua, dpo, ebp;
+	int fua, dpo;
 	int retval;
 	int isread;
 
@@ -8604,10 +8559,8 @@ ctl_read_write(struct ctl_scsiio *ctsio)
 
 	CTL_DEBUG_PRINT(("ctl_read_write: command: %#x\n", ctsio->cdb[0]));
 
-	reladdr = 0;
 	fua = 0;
 	dpo = 0;
-	ebp = 0;
 
 	retval = CTL_RETVAL_COMPLETE;
 
@@ -8655,16 +8608,10 @@ ctl_read_write(struct ctl_scsiio *ctsio)
 
 		cdb = (struct scsi_rw_10 *)ctsio->cdb;
 
-		if (cdb->byte2 & SRW10_RELADDR)
-			reladdr = 1;
 		if (cdb->byte2 & SRW10_FUA)
 			fua = 1;
 		if (cdb->byte2 & SRW10_DPO)
 			dpo = 1;
-
-		if ((cdb->opcode == WRITE_10)
-		 && (cdb->byte2 & SRW10_EBP))
-			ebp = 1;
 
 		lba = scsi_4btoul(cdb->addr);
 		num_blocks = scsi_2btoul(cdb->length);
@@ -8695,8 +8642,6 @@ ctl_read_write(struct ctl_scsiio *ctsio)
 
 		cdb = (struct scsi_rw_12 *)ctsio->cdb;
 
-		if (cdb->byte2 & SRW12_RELADDR)
-			reladdr = 1;
 		if (cdb->byte2 & SRW12_FUA)
 			fua = 1;
 		if (cdb->byte2 & SRW12_DPO)
@@ -8724,8 +8669,6 @@ ctl_read_write(struct ctl_scsiio *ctsio)
 
 		cdb = (struct scsi_rw_16 *)ctsio->cdb;
 
-		if (cdb->byte2 & SRW12_RELADDR)
-			reladdr = 1;
 		if (cdb->byte2 & SRW12_FUA)
 			fua = 1;
 		if (cdb->byte2 & SRW12_DPO)
@@ -8765,20 +8708,6 @@ ctl_read_write(struct ctl_scsiio *ctsio)
 	 * getting it to do write-through for a particular transaction may
 	 * not be possible.
 	 */
-	/*
-	 * We don't support relative addressing.  That also requires
-	 * supporting linked commands, which we don't do.
-	 */
-	if (reladdr != 0) {
-		ctl_set_invalid_field(ctsio,
-				      /*sks_valid*/ 1,
-				      /*command*/ 1,
-				      /*field*/ 1,
-				      /*bit_valid*/ 1,
-				      /*bit*/ 0);
-		ctl_done((union ctl_io *)ctsio);
-		return (CTL_RETVAL_COMPLETE);
-	}
 
 	/*
 	 * The first check is to make sure we're in bounds, the second
@@ -10328,7 +10257,7 @@ ctl_extent_check(union ctl_io *io1, union ctl_io *io2)
 static ctl_action
 ctl_check_for_blockage(union ctl_io *pending_io, union ctl_io *ooa_io)
 {
-	struct ctl_cmd_entry *pending_entry, *ooa_entry;
+	const struct ctl_cmd_entry *pending_entry, *ooa_entry;
 	ctl_serialize_action *serialize_row;
 
 	/*
@@ -10401,8 +10330,8 @@ ctl_check_for_blockage(union ctl_io *pending_io, union ctl_io *ooa_io)
 	  || (ooa_io->scsiio.tag_type == CTL_TAG_ORDERED)))
 		return (CTL_ACTION_BLOCK);
 
-	pending_entry = &ctl_cmd_table[pending_io->scsiio.cdb[0]];
-	ooa_entry = &ctl_cmd_table[ooa_io->scsiio.cdb[0]];
+	pending_entry = ctl_get_cmd_entry(&pending_io->scsiio);
+	ooa_entry = ctl_get_cmd_entry(&ooa_io->scsiio);
 
 	serialize_row = ctl_serialize_table[ooa_entry->seridx];
 
@@ -10532,9 +10461,8 @@ ctl_check_blocked(struct ctl_lun *lun)
 		case CTL_ACTION_PASS:
 		case CTL_ACTION_SKIP: {
 			struct ctl_softc *softc;
-			struct ctl_cmd_entry *entry;
+			const struct ctl_cmd_entry *entry;
 			uint32_t initidx;
-			uint8_t opcode;
 			int isc_retval;
 
 			/*
@@ -10571,8 +10499,7 @@ ctl_check_blocked(struct ctl_lun *lun)
 				}
 				break;
 			}
-			opcode = cur_blocked->scsiio.cdb[0];
-			entry = &ctl_cmd_table[opcode];
+			entry = ctl_get_cmd_entry(&cur_blocked->scsiio);
 			softc = control_softc;
 
 			initidx = ctl_get_initindex(&cur_blocked->io_hdr.nexus);
@@ -10620,7 +10547,7 @@ ctl_check_blocked(struct ctl_lun *lun)
  */
 static int
 ctl_scsiio_lun_check(struct ctl_softc *ctl_softc, struct ctl_lun *lun,
-		     struct ctl_cmd_entry *entry, struct ctl_scsiio *ctsio)
+    const struct ctl_cmd_entry *entry, struct ctl_scsiio *ctsio)
 {
 	int retval;
 
@@ -10980,16 +10907,13 @@ static int
 ctl_scsiio_precheck(struct ctl_softc *ctl_softc, struct ctl_scsiio *ctsio)
 {
 	struct ctl_lun *lun;
-	struct ctl_cmd_entry *entry;
-	uint8_t opcode;
+	const struct ctl_cmd_entry *entry;
 	uint32_t initidx, targ_lun;
 	int retval;
 
 	retval = 0;
 
 	lun = NULL;
-
-	opcode = ctsio->cdb[0];
 
 	targ_lun = ctsio->io_hdr.nexus.targ_mapped_lun;
 	if ((targ_lun < CTL_MAX_LUNS)
@@ -11009,13 +10933,27 @@ ctl_scsiio_precheck(struct ctl_softc *ctl_softc, struct ctl_scsiio *ctsio)
 			if (lun->be_lun->lun_type == T_PROCESSOR) {
 				ctsio->io_hdr.flags |= CTL_FLAG_CONTROL_DEV;
 			}
+
+			/*
+			 * Every I/O goes into the OOA queue for a
+			 * particular LUN, and stays there until completion.
+			 */
+			mtx_lock(&lun->lun_lock);
+			TAILQ_INSERT_TAIL(&lun->ooa_queue, &ctsio->io_hdr,
+			    ooa_links);
 		}
 	} else {
 		ctsio->io_hdr.ctl_private[CTL_PRIV_LUN].ptr = NULL;
 		ctsio->io_hdr.ctl_private[CTL_PRIV_BACKEND_LUN].ptr = NULL;
 	}
 
-	entry = &ctl_cmd_table[opcode];
+	/* Get command entry and return error if it is unsuppotyed. */
+	entry = ctl_validate_command(ctsio);
+	if (entry == NULL) {
+		if (lun)
+			mtx_unlock(&lun->lun_lock);
+		return (retval);
+	}
 
 	ctsio->io_hdr.flags &= ~CTL_FLAG_DATA_MASK;
 	ctsio->io_hdr.flags |= entry->flags & CTL_FLAG_DATA_MASK;
@@ -11039,43 +10977,15 @@ ctl_scsiio_precheck(struct ctl_softc *ctl_softc, struct ctl_scsiio *ctsio)
 		CTL_DEBUG_PRINT(("ctl_scsiio_precheck: bailing out due to invalid LUN\n"));
 		return (retval);
 	} else {
-		mtx_lock(&lun->lun_lock);
-
-		/*
-		 * Every I/O goes into the OOA queue for a particular LUN, and
-		 * stays there until completion.
-		 */
-		TAILQ_INSERT_TAIL(&lun->ooa_queue, &ctsio->io_hdr, ooa_links);
-
 		/*
 		 * Make sure we support this particular command on this LUN.
 		 * e.g., we don't support writes to the control LUN.
 		 */
-		switch (lun->be_lun->lun_type) {
-		case T_PROCESSOR:
-		 	if (((entry->flags & CTL_CMD_FLAG_OK_ON_PROC) == 0)
-			 && ((entry->flags & CTL_CMD_FLAG_OK_ON_ALL_LUNS)
-			      == 0)) {
-				mtx_unlock(&lun->lun_lock);
-				ctl_set_invalid_opcode(ctsio);
-				ctl_done((union ctl_io *)ctsio);
-				return (retval);
-			}
-			break;
-		case T_DIRECT:
-			if (((entry->flags & CTL_CMD_FLAG_OK_ON_SLUN) == 0)
-			 && ((entry->flags & CTL_CMD_FLAG_OK_ON_ALL_LUNS)
-			      == 0)){
-				mtx_unlock(&lun->lun_lock);
-				ctl_set_invalid_opcode(ctsio);
-				ctl_done((union ctl_io *)ctsio);
-				return (retval);
-			}
-			break;
-		default:
+		if (!ctl_cmd_applicable(lun->be_lun->lun_type, entry)) {
 			mtx_unlock(&lun->lun_lock);
-			panic("Unsupported CTL LUN type %d\n",
-			      lun->be_lun->lun_type);
+			ctl_set_invalid_opcode(ctsio);
+			ctl_done((union ctl_io *)ctsio);
+			return (retval);
 		}
 	}
 
@@ -11087,7 +10997,7 @@ ctl_scsiio_precheck(struct ctl_softc *ctl_softc, struct ctl_scsiio *ctsio)
 	 * this initiator, clear it, because it sent down a command other
 	 * than request sense.
 	 */
-	if ((opcode != REQUEST_SENSE)
+	if ((ctsio->cdb[0] != REQUEST_SENSE)
 	 && (ctl_is_set(lun->have_ca, initidx)))
 		ctl_clear_mask(lun->have_ca, initidx);
 
@@ -11183,7 +11093,7 @@ ctl_scsiio_precheck(struct ctl_softc *ctl_softc, struct ctl_scsiio *ctsio)
 		    CTL_HA_STATUS_SUCCESS) {
 			printf("CTL:precheck, ctl_ha_msg_send returned %d\n",
 			       isc_retval);
-			printf("CTL:opcode is %x\n",opcode);
+			printf("CTL:opcode is %x\n", ctsio->cdb[0]);
 		} else {
 #if 0
 			printf("CTL:Precheck sent msg, opcode is %x\n",opcode);
@@ -11238,17 +11148,85 @@ ctl_scsiio_precheck(struct ctl_softc *ctl_softc, struct ctl_scsiio *ctsio)
 	return (retval);
 }
 
+const struct ctl_cmd_entry *
+ctl_get_cmd_entry(struct ctl_scsiio *ctsio)
+{
+	const struct ctl_cmd_entry *entry;
+	int service_action;
+
+	entry = &ctl_cmd_table[ctsio->cdb[0]];
+	if (entry->flags & CTL_CMD_FLAG_SA5) {
+		service_action = ctsio->cdb[1] & SERVICE_ACTION_MASK;
+		entry = &((const struct ctl_cmd_entry *)
+		    entry->execute)[service_action];
+	}
+	return (entry);
+}
+
+const struct ctl_cmd_entry *
+ctl_validate_command(struct ctl_scsiio *ctsio)
+{
+	const struct ctl_cmd_entry *entry;
+	int i;
+	uint8_t diff;
+
+	entry = ctl_get_cmd_entry(ctsio);
+	if (entry->execute == NULL) {
+		ctl_set_invalid_opcode(ctsio);
+		ctl_done((union ctl_io *)ctsio);
+		return (NULL);
+	}
+	KASSERT(entry->length > 0,
+	    ("Not defined length for command 0x%02x/0x%02x",
+	     ctsio->cdb[0], ctsio->cdb[1]));
+	for (i = 1; i < entry->length; i++) {
+		diff = ctsio->cdb[i] & ~entry->usage[i - 1];
+		if (diff == 0)
+			continue;
+		ctl_set_invalid_field(ctsio,
+				      /*sks_valid*/ 1,
+				      /*command*/ 1,
+				      /*field*/ i,
+				      /*bit_valid*/ 1,
+				      /*bit*/ fls(diff) - 1);
+		ctl_done((union ctl_io *)ctsio);
+		return (NULL);
+	}
+	return (entry);
+}
+
+static int
+ctl_cmd_applicable(uint8_t lun_type, const struct ctl_cmd_entry *entry)
+{
+
+	switch (lun_type) {
+	case T_PROCESSOR:
+		if (((entry->flags & CTL_CMD_FLAG_OK_ON_PROC) == 0) &&
+		    ((entry->flags & CTL_CMD_FLAG_OK_ON_ALL_LUNS) == 0))
+			return (0);
+		break;
+	case T_DIRECT:
+		if (((entry->flags & CTL_CMD_FLAG_OK_ON_SLUN) == 0) &&
+		    ((entry->flags & CTL_CMD_FLAG_OK_ON_ALL_LUNS) == 0))
+			return (0);
+		break;
+	default:
+		return (0);
+	}
+	return (1);
+}
+
 static int
 ctl_scsiio(struct ctl_scsiio *ctsio)
 {
 	int retval;
-	struct ctl_cmd_entry *entry;
+	const struct ctl_cmd_entry *entry;
 
 	retval = CTL_RETVAL_COMPLETE;
 
 	CTL_DEBUG_PRINT(("ctl_scsiio cdb[0]=%02X\n", ctsio->cdb[0]));
 
-	entry = &ctl_cmd_table[ctsio->cdb[0]];
+	entry = ctl_get_cmd_entry(ctsio);
 
 	/*
 	 * If this I/O has been aborted, just send it straight to
@@ -11684,15 +11662,13 @@ ctl_handle_isc(union ctl_io *io)
 		free_io = ctl_serialize_other_sc_cmd(&io->scsiio);
 		break;
 	case CTL_MSG_R2R: {
-		uint8_t opcode;
-		struct ctl_cmd_entry *entry;
+		const struct ctl_cmd_entry *entry;
 
 		/*
 		 * This is only used in SER_ONLY mode.
 		 */
 		free_io = 0;
-		opcode = io->scsiio.cdb[0];
-		entry = &ctl_cmd_table[opcode];
+		entry = ctl_get_cmd_entry(&io->scsiio);
 		mtx_lock(&lun->lun_lock);
 		if (ctl_scsiio_lun_check(ctl_softc, lun,
 		    entry, (struct ctl_scsiio *)io) != 0) {
@@ -11756,9 +11732,8 @@ ctl_handle_isc(union ctl_io *io)
 static ctl_lun_error_pattern
 ctl_cmd_pattern_match(struct ctl_scsiio *ctsio, struct ctl_error_desc *desc)
 {
-	struct ctl_cmd_entry *entry;
+	const struct ctl_cmd_entry *entry;
 	ctl_lun_error_pattern filtered_pattern, pattern;
-	uint8_t opcode;
 
 	pattern = desc->error_pattern;
 
@@ -11773,8 +11748,7 @@ ctl_cmd_pattern_match(struct ctl_scsiio *ctsio, struct ctl_error_desc *desc)
 	if ((pattern & CTL_LUN_PAT_MASK) == CTL_LUN_PAT_ANY)
 		return (CTL_LUN_PAT_ANY);
 
-	opcode = ctsio->cdb[0];
-	entry = &ctl_cmd_table[opcode];
+	entry = ctl_get_cmd_entry(ctsio);
 
 	filtered_pattern = entry->pattern & pattern;
 
