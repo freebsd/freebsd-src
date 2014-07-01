@@ -64,6 +64,8 @@
 
 #include "cheritest.h"
 
+#define	max(x, y)	((x) > (y) ? (x) : (y))
+
 #define	CT_FLAG_SIGNAL		0x00000001  /* Should fault; checks signum. */
 #define	CT_FLAG_MIPS_EXCCODE	0x00000002  /* Check MIPS exception code. */
 #define	CT_FLAG_CP2_EXCCODE	0x00000004  /* Check CP2 exception code. */
@@ -423,7 +425,7 @@ cheritest_run_test(const struct cheri_test *ctp)
 	if (childpid == 0) {
 		/* Install signal handlers. */
 		sa.sa_sigaction = signal_handler;
-		sa.sa_flags = SA_SIGINFO;
+		sa.sa_flags = SA_SIGINFO | SA_ONSTACK;
 		sigemptyset(&sa.sa_mask);
 		if (sigaction(SIGALRM, &sa, NULL) < 0)
 			err(EX_OSERR, "sigaction(SIGALRM)");
@@ -548,6 +550,7 @@ cheritest_run_test_name(const char *name)
 int
 main(__unused int argc, __unused char *argv[])
 {
+	stack_t stack;
 	int i, opt;
 	u_int t;
 
@@ -561,6 +564,22 @@ main(__unused int argc, __unused char *argv[])
 	argv += optind;
 	if (argc == 0)
 		usage();
+
+	/*
+	 * Allocate an alternative stack, required to safely process signals in
+	 * sandboxes.
+	 *
+	 * XXXRW: It is unclear if this should be done by libcheri rather than
+	 * the main program?
+	 */
+	stack.ss_size = max(getpagesize(), SIGSTKSZ);
+	stack.ss_sp = mmap(NULL, stack.ss_size, PROT_READ | PROT_WRITE,
+	    MAP_ANON, -1, 0);
+	if (stack.ss_sp == MAP_FAILED)
+		err(EX_OSERR, "mmap");
+	stack.ss_flags = 0;
+	if (sigaltstack(&stack, NULL) < 0)
+		err(EX_OSERR, "sigaltstack");
 
 	/*
 	 * Allocate a page shared with children processes to return success/
