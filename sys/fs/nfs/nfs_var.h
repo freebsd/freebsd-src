@@ -61,6 +61,7 @@ union nethostaddr;
 struct nfsstate;
 struct nfslock;
 struct nfsclient;
+struct nfsdsession;
 struct nfslockconflict;
 struct nfsd_idargs;
 struct nfsd_clid;
@@ -90,8 +91,11 @@ NFS_READDIR_ARGS;
 /* nfs_nfsdstate.c */
 int nfsrv_setclient(struct nfsrv_descript *, struct nfsclient **,
     nfsquad_t *, nfsquad_t *, NFSPROC_T *);
-int nfsrv_getclient(nfsquad_t, int, struct nfsclient **, nfsquad_t,
-    struct nfsrv_descript *, NFSPROC_T *);
+int nfsrv_getclient(nfsquad_t, int, struct nfsclient **, struct nfsdsession *,
+    nfsquad_t, uint32_t, struct nfsrv_descript *, NFSPROC_T *);
+int nfsrv_destroyclient(nfsquad_t, NFSPROC_T *);
+int nfsrv_destroysession(struct nfsrv_descript *, uint8_t *);
+int nfsrv_freestateid(struct nfsrv_descript *, nfsv4stateid_t *, NFSPROC_T *);
 int nfsrv_adminrevoke(struct nfsd_clid *, NFSPROC_T *);
 void nfsrv_dumpclients(struct nfsd_dumpclients *, int);
 void nfsrv_dumplocks(vnode_t, struct nfsd_dumplocks *, int, NFSPROC_T *);
@@ -105,8 +109,8 @@ int nfsrv_opencheck(nfsquad_t, nfsv4stateid_t *, struct nfsstate *,
     vnode_t, struct nfsrv_descript *, NFSPROC_T *, int);
 int nfsrv_openupdate(vnode_t, struct nfsstate *, nfsquad_t,
     nfsv4stateid_t *, struct nfsrv_descript *, NFSPROC_T *);
-int nfsrv_delegupdate(nfsquad_t, nfsv4stateid_t *, vnode_t, int,
-    struct ucred *, NFSPROC_T *);
+int nfsrv_delegupdate(struct nfsrv_descript *, nfsquad_t, nfsv4stateid_t *,
+    vnode_t, int, struct ucred *, NFSPROC_T *);
 int nfsrv_releaselckown(struct nfsstate *, nfsquad_t, NFSPROC_T *);
 void nfsrv_zapclient(struct nfsclient *, NFSPROC_T *);
 int nfssvc_idname(struct nfsd_idargs *);
@@ -127,6 +131,10 @@ int nfsrv_checkgetattr(struct nfsrv_descript *, vnode_t,
 int nfsrv_nfsuserdport(u_short, NFSPROC_T *);
 void nfsrv_nfsuserddelport(void);
 void nfsrv_throwawayallstate(NFSPROC_T *);
+int nfsrv_checksequence(struct nfsrv_descript *, uint32_t, uint32_t *,
+    uint32_t *, int, uint32_t *, NFSPROC_T *);
+int nfsrv_checkreclaimcomplete(struct nfsrv_descript *);
+void nfsrv_cache_session(uint8_t *, uint32_t, int, struct mbuf **);
 
 /* nfs_nfsdserv.c */
 int nfsrvd_access(struct nfsrv_descript *, int,
@@ -211,10 +219,27 @@ int nfsrvd_releaselckown(struct nfsrv_descript *, int,
     vnode_t, NFSPROC_T *, struct nfsexstuff *);
 int nfsrvd_pathconf(struct nfsrv_descript *, int,
     vnode_t, NFSPROC_T *, struct nfsexstuff *);
+int nfsrvd_exchangeid(struct nfsrv_descript *, int,
+    vnode_t, NFSPROC_T *, struct nfsexstuff *);
+int nfsrvd_createsession(struct nfsrv_descript *, int,
+    vnode_t, NFSPROC_T *, struct nfsexstuff *);
+int nfsrvd_sequence(struct nfsrv_descript *, int,
+    vnode_t, NFSPROC_T *, struct nfsexstuff *);
+int nfsrvd_reclaimcomplete(struct nfsrv_descript *, int,
+    vnode_t, NFSPROC_T *, struct nfsexstuff *);
+int nfsrvd_destroyclientid(struct nfsrv_descript *, int,
+    vnode_t, NFSPROC_T *, struct nfsexstuff *);
+int nfsrvd_destroysession(struct nfsrv_descript *, int,
+    vnode_t, NFSPROC_T *, struct nfsexstuff *);
+int nfsrvd_freestateid(struct nfsrv_descript *, int,
+    vnode_t, NFSPROC_T *, struct nfsexstuff *);
+int nfsrvd_notsupp(struct nfsrv_descript *, int,
+    vnode_t, NFSPROC_T *, struct nfsexstuff *);
 
 /* nfs_nfsdsocket.c */
 void nfsrvd_rephead(struct nfsrv_descript *);
-void nfsrvd_dorpc(struct nfsrv_descript *, int, NFSPROC_T *);
+void nfsrvd_dorpc(struct nfsrv_descript *, int, u_char *, int, u_int32_t,
+    NFSPROC_T *);
 
 /* nfs_nfsdcache.c */
 void nfsrvd_initcache(void);
@@ -264,9 +289,11 @@ int nfsv4_getipaddr(struct nfsrv_descript *, struct sockaddr_storage *,
     int *);
 int nfsv4_seqsession(uint32_t, uint32_t, uint32_t, struct nfsslot *,
     struct mbuf **, uint16_t);
-void nfsv4_seqsess_cacherep(uint32_t, struct nfsslot *, struct mbuf *);
+void nfsv4_seqsess_cacherep(uint32_t, struct nfsslot *, int, struct mbuf **);
 void nfsv4_setsequence(struct nfsmount *, struct nfsrv_descript *,
     struct nfsclsession *, int);
+int nfsv4_sequencelookup(struct nfsmount *, struct nfsclsession *, int *,
+    int *, uint32_t *, uint8_t *);
 void nfsv4_freeslot(struct nfsclsession *, int);
 
 /* nfs_clcomsubs.c */
@@ -322,6 +349,8 @@ int nfsrv_parsename(struct nfsrv_descript *, char *, u_long *,
     NFSPATHLEN_T *);
 void nfsd_init(void);
 int nfsd_checkrootexp(struct nfsrv_descript *);
+void nfsd_getminorvers(struct nfsrv_descript *, u_char *, u_char **, int *,
+    u_int32_t *);
 
 /* nfs_clvfsops.c */
 void nfscl_retopts(struct nfsmount *, char *, size_t);
@@ -628,6 +657,7 @@ int nfsvno_advlock(vnode_t, int, u_int64_t, u_int64_t, NFSPROC_T *);
 int nfsrv_v4rootexport(void *, struct ucred *, NFSPROC_T *);
 int nfsvno_testexp(struct nfsrv_descript *, struct nfsexstuff *);
 uint32_t nfsrv_hashfh(fhandle_t *);
+uint32_t nfsrv_hashsessionid(uint8_t *);
 void nfsrv_backupstable(void);
 
 /* nfs_commonkrpc.c */
