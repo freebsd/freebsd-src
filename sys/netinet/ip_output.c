@@ -1177,9 +1177,6 @@ ip_ctloutput(struct socket *so, struct sockopt *sopt)
 		case IP_RECVTOS:
 		case IP_FLOWID:
 		case IP_FLOWTYPE:
-#ifdef	RSS
-		case IP_RSSCPUID:
-#endif
 			switch (sopt->sopt_name) {
 
 			case IP_TOS:
