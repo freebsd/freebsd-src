@@ -135,6 +135,17 @@ command
 .It ARGS
 command line arguments (if available)
 .El
+.Ss Environment Variables
+Display the process ID, command, and environment variables:
+.Pp
+.Bl -tag -width "ENVIRONMENT" -compact
+.It PID
+process ID
+.It COMM
+command
+.It ENVIRONMENT
+environment variables (if available)
+.El
 .Ss File Descriptors
 Display detailed information about each file descriptor referenced by a
 process, including the process ID, command, file descriptor number, and
@@ -244,7 +255,7 @@ present for each capability descriptor.
 .Ss Signal Disposition Information
 Display signal pending and disposition for a process:
 .Pp
-.Bl -tag -width ident -compact
+.Bl -tag -width indent -compact
 .It PID
 process ID
 .It COMM
@@ -269,7 +280,7 @@ switch is given, the signal numbers are shown instead of signal names.
 .Ss Thread Signal Information
 Display signal pending and blocked for a process's threads:
 .Pp
-.Bl -tag -width ident -compact
+.Bl -tag -width indent -compact
 .It PID
 process ID
 .It TID
@@ -317,6 +328,45 @@ command
 thread name
 .It KSTACK
 kernel thread call stack
+.El
+.Ss Resource Limits
+Display resource limits for a process:
+.Pp
+.Bl -tag -width indent -compact
+.It PID
+process ID
+.It COMM
+command
+.It RLIMIT
+resource limit name
+.It SOFT
+soft limit
+.It HARD
+hard limit
+.El
+.Ss Resource Usage
+Display resource usage for a process.
+If the
+.Fl H
+flag is specified,
+resource usage for individual threads is displayed instead.
+.Pp
+.Bl -tag -width "RESOURCE" -compact
+.It PID
+process ID
+.It TID
+thread ID
+.Po
+if
+.Fl H
+is specified
+.Pc
+.It COMM
+command
+.It RESOURCE
+resource name
+.It VALUE
+current usage
 .El
 .Ss Security Credentials
 Display process credential information:
@@ -449,6 +499,19 @@ one or more superpage mappings are used
 grows down (top-down stack)
 .It U
 grows up (bottom-up stack)
+.El
+.Ss ELF Auxiliary Vector
+Display ELF auxiliary vector values:
+.Pp
+.Bl -tag -width indent -compact
+.It PID
+process ID
+.It COMM
+command
+.It AUXV
+auxiliary vector name
+.It VALUE
+auxiliary vector value
 .El
 .Sh EXIT STATUS
 .Ex -std
