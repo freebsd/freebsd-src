@@ -31,6 +31,13 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 11.x IS SLOW:
 	disable the most expensive debugging functionality run
 	"ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20140701:
+	Commit r268115 has added NFSv4.1 server support, merged from
+	projects/nfsv4.1-server.  Since this includes changes to the
+	internal interfaces between the NFS related modules, a full
+	build of the kernel and modules will be necessary.
+	__FreeBSD_version has been bumped.
+
 20140629:
 	The WITHOUT_VT_SUPPORT kernel config knob has been renamed
 	WITHOUT_VT.  (The other _SUPPORT knobs have a consistent meaning
