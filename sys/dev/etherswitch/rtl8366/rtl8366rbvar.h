@@ -168,9 +168,10 @@
 	(RTL8366RB_PACR | (1 << (((phy) & 0x1f) + 9)) | (((page) & 0xf) << 5) | ((reg) & 0x1f))
 
 /* general characteristics of the chip */
-#define RTL8366RB_NUM_PORTS			6
-#define RTL8366RB_NUM_PHYS			(RTL8366RB_NUM_PORTS-1)
-#define RTL8366RB_NUM_VLANS			16
-#define RTL8366RB_NUM_PHY_REG			32
+#define	RTL8366RB_CPU_PORT			5
+#define	RTL8366RB_NUM_PORTS			6
+#define	RTL8366RB_NUM_PHYS			(RTL8366RB_NUM_PORTS-1)
+#define	RTL8366RB_NUM_VLANS			16
+#define	RTL8366RB_NUM_PHY_REG			32
 
 #endif
