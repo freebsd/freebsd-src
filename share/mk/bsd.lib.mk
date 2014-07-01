@@ -45,7 +45,8 @@ STRIP?=	-s
 
 .if ${MK_DEBUG_FILES} != "no" && empty(DEBUG_FLAGS:M-g) && \
     empty(DEBUG_FLAGS:M-gdwarf*)
-CFLAGS+= -g
+SHARED_CFLAGS+= -g
+SHARED_CXXFLAGS+= -g
 CTFFLAGS+= -g
 .endif
 
