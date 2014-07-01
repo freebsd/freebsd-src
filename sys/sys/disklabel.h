@@ -229,6 +229,8 @@ static const char *dktypenames[] = {
 #define	FS_NTFS		18		/* Windows/NT file system */
 #define	FS_CCD		20		/* concatenated disk component */
 #define	FS_JFS2		21		/* IBM JFS2 */
+#define	FS_HAMMER	22		/* DragonFlyBSD Hammer FS */
+#define	FS_HAMMER2	23		/* DragonFlyBSD Hammer2 FS */
 #define	FS_UDF		24		/* UDF */
 #define	FS_EFS		26		/* SGI's Extent File system */
 #define	FS_ZFS		27		/* Sun's ZFS */
@@ -258,8 +260,8 @@ static const char *fstypenames[] = {
 	"?",
 	"ccd",
 	"jfs",
-	"?",
-	"?",
+	"HAMMER",
+	"HAMMER2",
 	"UDF",
 	"?",
 	"EFS",
