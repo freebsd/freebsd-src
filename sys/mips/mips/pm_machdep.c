@@ -95,6 +95,7 @@ sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	vm_offset_t sp;
 #ifdef CPU_CHERI
 	size_t cp2_len;
+	int cheri_signal_handling;
 #endif
 	int sig;
 	int oonstack;
@@ -108,6 +109,24 @@ sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 
 	regs = td->td_frame;
 	oonstack = sigonstack(regs->sp);
+
+#ifdef CPU_CHERI
+	/*
+	 * Normally, the kernel must detect and handle the case where signal
+	 * execution is already taking place on the alternative signal stack,
+	 * and if so, rather than reinstalling that stack pointer, simply
+	 * continue on the same stack.  Sandboxed code may use $sp relative to
+	 * other base addresses, and could even manipulate it maliciously:
+	 * instead, assume that if we're not in a state with ambient
+	 * authority, as defined by CHERI_PERM_SYSCALL, we are by definition
+	 * not already processing a signal, and hence will now want to
+	 * relocate to the signal stack.  We'll also need to install suitable
+	 * CHERI-related register state.
+	 */
+	cheri_signal_handling = cheri_signal_sandboxed(td);
+	if (cheri_signal_handling != 0)
+		oonstack = 0;
+#endif
 
 	/* save user context */
 	bzero(&sf, sizeof(struct sigframe));
@@ -138,8 +157,26 @@ sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	    SIGISMEMBER(psp->ps_sigonstack, sig)) {
 		sp = (vm_offset_t)(td->td_sigstk.ss_sp +
 		    td->td_sigstk.ss_size);
-	} else
+	} else {
+#ifdef CPU_CHERI
+		/*
+		 * Signals delivered when a CHERI sandbox is present must be
+		 * delivered on the alternative stack rather than a local one.
+		 * If an alternative stack isn't present, then terminate or
+		 * risk leaking capabilities (and control) to the sandbox (or
+		 * just crashing the sandbox).
+		 */
+		if (cheri_signal_handling) {
+			mtx_unlock(&psp->ps_mtx);
+			printf("pid %d, tid %d: signal in sandbox without "
+			    "alternative stack defined\n", td->td_proc->p_pid,
+			    td->td_tid);
+			sigexit(td, SIGILL);
+			/* NOTREACHED */
+		}
+#endif
 		sp = (vm_offset_t)regs->sp;
+	}
 #ifdef CPU_CHERI
 	cp2_len = sizeof(td->td_pcb->pcb_cheriframe);
 	sp -= cp2_len;
@@ -204,6 +241,15 @@ sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 		sigexit(td, SIGILL);
 		/* NOTREACHED */
 	}
+
+#ifdef CPU_CHERI
+	/*
+	 * Install CHERI signal-delivery register state for handler to run
+	 * in.  As we don't install this in the CHERI frame on the user stack,
+	 * it will be (genrally) be removed automatically on sigreturn().
+	 */
+	cheri_sendsig(td);
+#endif
 
 	regs->pc = (register_t)(intptr_t)catcher;
 	regs->t9 = (register_t)(intptr_t)catcher;

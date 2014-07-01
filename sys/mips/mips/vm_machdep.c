@@ -167,6 +167,7 @@ cpu_fork(register struct thread *td1,register struct proc *p2,
 	 * capability-oblivious, we can lose this.
 	 */
 	cheri_context_copy(pcb2, td1->td_pcb);
+	cheri_signal_copy(pcb2, td1->td_pcb);
 	cheri_stack_copy(pcb2, td1->td_pcb);
 #endif
 
@@ -453,6 +454,7 @@ cpu_set_upcall(struct thread *td, struct thread *td0)
 	 * capability-oblivious, we can lose this.
 	 */
 	cheri_context_copy(pcb2, td0->td_pcb);
+	cheri_signal_copy(pcb2, td0->td_pcb);
 	cheri_stack_copy(pcb2, td0->td_pcb);
 #endif
 

@@ -137,6 +137,27 @@ struct cheri_kframe {
 #endif
 
 /*
+ * Data structure describing CHERI's sigaltstack-like extensions to signal
+ * delivery.  In the event that a thread takes a signal when $pcc doesn't hold
+ * CHERI_PERM_SYSCALL, we will need to install new $pcc, $c0, $c11, and $idc
+ * state, and move execution to the per-thread alternative stack, whose
+ * pointer should (presumably) be relative to the c0/c11 defined here.
+ */
+struct cheri_signal {
+#if !defined(_KERNEL) && __has_feature(capabilities)
+	__capability void	*csig_pcc;
+	__capability void	*csig_c0;
+	__capability void	*csig_c11;
+	__capability void	*csig_idc;
+#else
+	struct chericap		 csig_pcc;
+	struct chericap		 csig_c0;
+	struct chericap		 csig_c11;
+	struct chericap		 csig_idc;
+#endif
+};
+
+/*
  * Per-thread CHERI CCall/CReturn stack, which preserves the calling PC/PCC/
  * IDC across CCall so that CReturn can restore them.
  *
@@ -517,6 +538,8 @@ void	cheri_exec_setregs(struct thread *td);
 void	cheri_log_exception(struct trapframe *frame, int trap_type);
 int	cheri_syscall_authorize(struct thread *td, u_int code,
 	    int nargs, register_t *args);
+int	cheri_signal_sandboxed(struct thread *td);
+void	cheri_sendsig(struct thread *td);
 
 /*
  * Functions to set up and manipulate CHERI contexts and stacks.
@@ -524,6 +547,7 @@ int	cheri_syscall_authorize(struct thread *td, u_int code,
 struct pcb;
 struct sysarch_args;
 void	cheri_context_copy(struct pcb *dst, struct pcb *src);
+void	cheri_signal_copy(struct pcb *dst, struct pcb *src);
 void	cheri_stack_copy(struct pcb *dst, struct pcb *src);
 void	cheri_stack_init(struct pcb *pcb);
 int	cheri_stack_sandboxexception(struct thread *td, struct trapframe *tf,

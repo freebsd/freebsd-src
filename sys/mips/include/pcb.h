@@ -130,6 +130,7 @@ struct pcb
 #ifdef CPU_CHERI
 	struct cheri_frame pcb_cheriframe;	/* Userspace capabilities. */
 	struct cheri_stack pcb_cheristack;	/* CCall/CReturn stack. */
+	struct cheri_signal pcb_cherisignal;	/* CHERI signal-related state. */
 #endif
 	__register_t pcb_context[14];	/* kernel context for resume */
 #ifdef CPU_CHERI

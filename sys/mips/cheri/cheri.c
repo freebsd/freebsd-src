@@ -70,6 +70,10 @@ static u_int	security_cheri_syscall_violations;
 SYSCTL_UINT(_security_cheri, OID_AUTO, syscall_violations, CTLFLAG_RD,
     &security_cheri_syscall_violations, 0, "Number of system calls blocked");
 
+static u_int	security_cheri_sandboxed_signals;
+SYSCTL_UINT(_security_cheri, OID_AUTO, sandboxed_signals, CTLFLAG_RD,
+    &security_cheri_sandboxed_signals, 0, "Number of signals in sandboxes");
+
 static u_int	security_cheri_debugger_on_exception;
 SYSCTL_UINT(_security_cheri, OID_AUTO, debugger_on_exception, CTLFLAG_RW,
     &security_cheri_debugger_on_exception, 0,
@@ -164,6 +168,17 @@ cheri_capability_set_user_stack(struct chericap *cp)
 }
 
 static void
+cheri_capability_set_user_idc(struct chericap *cp)
+{
+
+	/*
+	 * The default invoked data capability is also identical to $c0.
+	 */
+	cheri_capability_set(cp, CHERI_CAP_USER_PERMS, CHERI_CAP_USER_OTYPE,
+	    CHERI_CAP_USER_BASE, CHERI_CAP_USER_LENGTH);
+}
+
+static void
 cheri_capability_set_user_pcc(struct chericap *cp)
 {
 
@@ -208,6 +223,7 @@ void
 cheri_exec_setregs(struct thread *td)
 {
 	struct cheri_frame *cfp;
+	struct cheri_signal *csigp;
 
 	/*
 	 * XXXRW: Experimental CHERI ABI initialises $c0 with full user
@@ -219,7 +235,57 @@ cheri_exec_setregs(struct thread *td)
 	bzero(cfp, sizeof(*cfp));
 	cheri_capability_set_user_c0(&cfp->cf_c0);
 	cheri_capability_set_user_stack(&cfp->cf_c11);
+	cheri_capability_set_user_idc(&cfp->cf_idc);
 	cheri_capability_set_user_pcc(&cfp->cf_pcc);
+
+	/*
+	 * Also initialise signal-handling state; this can't yet be modified
+	 * by userspace, but the principle is that signal handlers should run
+	 * with ambient authority unless given up by the userspace runtime
+	 * explicitly.
+	 */
+	csigp = &td->td_pcb->pcb_cherisignal;
+	bzero(csigp, sizeof(*csigp));
+	cheri_capability_set_user_c0(&csigp->csig_c0);
+	cheri_capability_set_user_stack(&csigp->csig_c11);
+	cheri_capability_set_user_idc(&csigp->csig_idc);
+	cheri_capability_set_user_pcc(&csigp->csig_pcc);
+}
+
+/*
+ * When new threads are forked, by default simply replicate the parent
+ * thread's CHERI-related signal-handling state.
+ *
+ * XXXRW: Is this, in fact, the right thing?
+ */
+void
+cheri_signal_copy(struct pcb *dst, struct pcb *src)
+{
+
+	cheri_memcpy(&dst->pcb_cherisignal, &src->pcb_cherisignal,
+	    sizeof(dst->pcb_cherisignal));
+}
+
+/*
+ * Configure CHERI register state for a thread about to resume in a signal
+ * handler.  Eventually, csigp should contain configurable values, but for
+ * now, this ensures handlers run with ambient authority in a useful way.
+ * Note that this doesn't touch the already copied-out CHERI register frame
+ * (see sendsig()), and hence when sigreturn() is called, the previous CHERI
+ * state will be restored by default.
+ */
+void
+cheri_sendsig(struct thread *td)
+{
+	struct cheri_frame *cfp;
+	struct cheri_signal *csigp;
+
+	cfp = &td->td_pcb->pcb_cheriframe;
+	csigp = &td->td_pcb->pcb_cherisignal;
+	cheri_capability_copy(&cfp->cf_c0, &csigp->csig_c0);
+	cheri_capability_copy(&cfp->cf_c11, &csigp->csig_c11);
+	cheri_capability_copy(&cfp->cf_idc, &csigp->csig_idc);
+	cheri_capability_copy(&cfp->cf_pcc, &csigp->csig_pcc);
 }
 
 static const char *cheri_exccode_array[] = {
@@ -389,6 +455,28 @@ cheri_syscall_authorize(struct thread *td, u_int code, int nargs,
 			kdb_enter(KDB_WHY_CHERI,
 			    "blocked system call within sandbox");
 #endif
+		return (ECAPMODE);
+	}
+	return (0);
+}
+
+/*
+ * As with system calls, handling signal delivery connotes special authority
+ * in the runtime environment.  In the signal delivery code, we need to
+ * determine whether to trust the executing thread to have valid stack state,
+ * and use this function to query whether the execution environment is
+ * suitable for direct handler execution, or if (in effect) a security-domain
+ * transition is required first.
+ */
+int
+cheri_signal_sandboxed(struct thread *td)
+{
+	struct chericap c;
+	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC,
+	    &td->td_pcb->pcb_cheriframe.cf_pcc, 0);
+	CHERI_GETCAPREG(CHERI_CR_CTEMP0, c);
+	if ((c.c_perms & CHERI_PERM_SYSCALL) == 0) {
+		atomic_add_int(&security_cheri_sandboxed_signals, 1);
 		return (ECAPMODE);
 	}
 	return (0);
