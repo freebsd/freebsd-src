@@ -2764,6 +2764,7 @@ geom/part/g_part.c		standard
 geom/part/g_part_if.m		standard
 geom/part/g_part_apm.c		optional geom_part_apm
 geom/part/g_part_bsd.c		optional geom_part_bsd
+geom/part/g_part_bsd64.c	optional geom_part_bsd64
 geom/part/g_part_ebr.c		optional geom_part_ebr
 geom/part/g_part_gpt.c		optional geom_part_gpt
 geom/part/g_part_ldm.c		optional geom_part_ldm

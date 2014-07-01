@@ -181,6 +181,15 @@ static struct uuid gpt_uuid_netbsd_raid = GPT_ENT_TYPE_NETBSD_RAID;
 static struct uuid gpt_uuid_netbsd_swap = GPT_ENT_TYPE_NETBSD_SWAP;
 static struct uuid gpt_uuid_mbr = GPT_ENT_TYPE_MBR;
 static struct uuid gpt_uuid_unused = GPT_ENT_TYPE_UNUSED;
+static struct uuid gpt_uuid_dfbsd_swap = GPT_ENT_TYPE_DRAGONFLY_SWAP;
+static struct uuid gpt_uuid_dfbsd_ufs1 = GPT_ENT_TYPE_DRAGONFLY_UFS1;
+static struct uuid gpt_uuid_dfbsd_vinum = GPT_ENT_TYPE_DRAGONFLY_VINUM;
+static struct uuid gpt_uuid_dfbsd_ccd = GPT_ENT_TYPE_DRAGONFLY_CCD;
+static struct uuid gpt_uuid_dfbsd_legacy = GPT_ENT_TYPE_DRAGONFLY_LEGACY;
+static struct uuid gpt_uuid_dfbsd_hammer = GPT_ENT_TYPE_DRAGONFLY_HAMMER;
+static struct uuid gpt_uuid_dfbsd_hammer2 = GPT_ENT_TYPE_DRAGONFLY_HAMMER2;
+static struct uuid gpt_uuid_dfbsd_label32 = GPT_ENT_TYPE_DRAGONFLY_LABEL32;
+static struct uuid gpt_uuid_dfbsd_label64 = GPT_ENT_TYPE_DRAGONFLY_LABEL64;
 
 static struct g_part_uuid_alias {
 	struct uuid *uuid;
@@ -222,6 +231,15 @@ static struct g_part_uuid_alias {
 	{ &gpt_uuid_netbsd_lfs,		G_PART_ALIAS_NETBSD_LFS,	 0 },
 	{ &gpt_uuid_netbsd_raid,	G_PART_ALIAS_NETBSD_RAID,	 0 },
 	{ &gpt_uuid_netbsd_swap,	G_PART_ALIAS_NETBSD_SWAP,	 0 },
+	{ &gpt_uuid_dfbsd_swap,		G_PART_ALIAS_DFBSD_SWAP,	 0 },
+	{ &gpt_uuid_dfbsd_ufs1,		G_PART_ALIAS_DFBSD_UFS,		 0 },
+	{ &gpt_uuid_dfbsd_vinum,	G_PART_ALIAS_DFBSD_VINUM,	 0 },
+	{ &gpt_uuid_dfbsd_ccd,		G_PART_ALIAS_DFBSD_CCD,		 0 },
+	{ &gpt_uuid_dfbsd_legacy,	G_PART_ALIAS_DFBSD_LEGACY,	 0 },
+	{ &gpt_uuid_dfbsd_hammer,	G_PART_ALIAS_DFBSD_HAMMER,	 0 },
+	{ &gpt_uuid_dfbsd_hammer2,	G_PART_ALIAS_DFBSD_HAMMER2,	 0 },
+	{ &gpt_uuid_dfbsd_label32,	G_PART_ALIAS_DFBSD,		 0xa5 },
+	{ &gpt_uuid_dfbsd_label64,	G_PART_ALIAS_DFBSD64,		 0xa5 },
 	{ NULL, 0, 0 }
 };
 
@@ -706,7 +724,8 @@ g_part_gpt_dumpto(struct g_part_table *table, struct g_part_entry *baseentry)
 
 	entry = (struct g_part_gpt_entry *)baseentry;
 	return ((EQUUID(&entry->ent.ent_type, &gpt_uuid_freebsd_swap) ||
-	    EQUUID(&entry->ent.ent_type, &gpt_uuid_linux_swap)) ? 1 : 0);
+	    EQUUID(&entry->ent.ent_type, &gpt_uuid_linux_swap) ||
+	    EQUUID(&entry->ent.ent_type, &gpt_uuid_dfbsd_swap)) ? 1 : 0);
 }
 
 static int

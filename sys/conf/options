@@ -109,6 +109,7 @@ GEOM_MULTIPATH	opt_geom.h
 GEOM_NOP	opt_geom.h
 GEOM_PART_APM	opt_geom.h
 GEOM_PART_BSD	opt_geom.h
+GEOM_PART_BSD64	opt_geom.h
 GEOM_PART_EBR	opt_geom.h
 GEOM_PART_EBR_COMPAT	opt_geom.h
 GEOM_PART_GPT	opt_geom.h
