@@ -136,6 +136,7 @@ typedef enum {
  *
  * Note:  "OK_ON_ALL_LUNS" == we don't have to have a lun configured
  *        "OK_ON_BOTH"     == we have to have a lun configured
+ *        "SA5"            == command has 5-bit service action at byte 1
  */
 typedef enum {
 	CTL_CMD_FLAG_NONE		= 0x0000,
@@ -149,7 +150,8 @@ typedef enum {
 	CTL_CMD_FLAG_OK_ON_INOPERABLE	= 0x0800,
 	CTL_CMD_FLAG_OK_ON_OFFLINE	= 0x1000,
 	CTL_CMD_FLAG_OK_ON_SECONDARY	= 0x2000,
-	CTL_CMD_FLAG_ALLOW_ON_PR_RESV   = 0x4000
+	CTL_CMD_FLAG_ALLOW_ON_PR_RESV	= 0x4000,
+	CTL_CMD_FLAG_SA5		= 0x8000
 } ctl_cmd_flags;
 
 typedef enum {
@@ -182,6 +184,9 @@ struct ctl_cmd_entry {
 	ctl_seridx		seridx;
 	ctl_cmd_flags		flags;
 	ctl_lun_error_pattern	pattern;
+	uint8_t			length;		/* CDB length */
+	uint8_t			usage[15];	/* Mask of allowed CDB bits
+						 * after the opcode byte. */
 };
 
 typedef enum {
@@ -465,7 +470,7 @@ struct ctl_softc {
 
 #ifdef _KERNEL
 
-extern struct ctl_cmd_entry ctl_cmd_table[];
+extern const struct ctl_cmd_entry ctl_cmd_table[256];
 
 uint32_t ctl_get_initindex(struct ctl_nexus *nexus);
 int ctl_pool_create(struct ctl_softc *ctl_softc, ctl_pool_type pool_type,
@@ -483,7 +488,7 @@ int ctl_unmap(struct ctl_scsiio *ctsio);
 int ctl_mode_select(struct ctl_scsiio *ctsio);
 int ctl_mode_sense(struct ctl_scsiio *ctsio);
 int ctl_read_capacity(struct ctl_scsiio *ctsio);
-int ctl_service_action_in(struct ctl_scsiio *ctsio);
+int ctl_read_capacity_16(struct ctl_scsiio *ctsio);
 int ctl_read_write(struct ctl_scsiio *ctsio);
 int ctl_cnw(struct ctl_scsiio *ctsio);
 int ctl_report_luns(struct ctl_scsiio *ctsio);
@@ -493,7 +498,9 @@ int ctl_verify(struct ctl_scsiio *ctsio);
 int ctl_inquiry(struct ctl_scsiio *ctsio);
 int ctl_persistent_reserve_in(struct ctl_scsiio *ctsio);
 int ctl_persistent_reserve_out(struct ctl_scsiio *ctsio);
-int ctl_maintenance_in(struct ctl_scsiio *ctsio);
+int ctl_report_tagret_port_groups(struct ctl_scsiio *ctsio);
+int ctl_report_supported_opcodes(struct ctl_scsiio *ctsio);
+int ctl_report_supported_tmf(struct ctl_scsiio *ctsio);
 int ctl_isc(struct ctl_scsiio *ctsio);
 
 #endif	/* _KERNEL */
