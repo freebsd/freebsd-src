@@ -20,7 +20,7 @@
  */
 /*
  * Copyright (c) 2008, 2010, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2013 by Delphix. All rights reserved.
+ * Copyright (c) 2011, 2014 by Delphix. All rights reserved.
  */
 
 #include <sys/dsl_scan.h>
@@ -50,7 +50,8 @@
 #include <sys/zfs_vfsops.h>
 #endif
 
-typedef int (scan_cb_t)(dsl_pool_t *, const blkptr_t *, const zbookmark_t *);
+typedef int (scan_cb_t)(dsl_pool_t *, const blkptr_t *,
+    const zbookmark_phys_t *);
 
 static scan_cb_t dsl_scan_scrub_cb;
 static void dsl_scan_cancel_sync(void *, dmu_tx_t *);
@@ -349,7 +350,7 @@ dsl_scan_cancel(dsl_pool_t *dp)
 }
 
 static void dsl_scan_visitbp(blkptr_t *bp,
-    const zbookmark_t *zb, dnode_phys_t *dnp, arc_buf_t *pbuf,
+    const zbookmark_phys_t *zb, dnode_phys_t *dnp, arc_buf_t *pbuf,
     dsl_dataset_t *ds, dsl_scan_t *scn, dmu_objset_type_t ostype,
     dmu_tx_t *tx);
 static void dsl_scan_visitdnode(dsl_scan_t *, dsl_dataset_t *ds,
@@ -388,7 +389,7 @@ dsl_scan_sync_state(dsl_scan_t *scn, dmu_tx_t *tx)
 }
 
 static boolean_t
-dsl_scan_check_pause(dsl_scan_t *scn, const zbookmark_t *zb)
+dsl_scan_check_pause(dsl_scan_t *scn, const zbookmark_phys_t *zb)
 {
 	uint64_t elapsed_nanosecs;
 	int mintime;
@@ -446,7 +447,7 @@ dsl_scan_zil_block(zilog_t *zilog, blkptr_t *bp, void *arg, uint64_t claim_txg)
 	dsl_pool_t *dp = zsa->zsa_dp;
 	dsl_scan_t *scn = dp->dp_scan;
 	zil_header_t *zh = zsa->zsa_zh;
-	zbookmark_t zb;
+	zbookmark_phys_t zb;
 
 	if (BP_IS_HOLE(bp) || bp->blk_birth <= scn->scn_phys.scn_cur_min_txg)
 		return (0);
@@ -478,7 +479,7 @@ dsl_scan_zil_record(zilog_t *zilog, lr_t *lrc, void *arg, uint64_t claim_txg)
 		zil_header_t *zh = zsa->zsa_zh;
 		lr_write_t *lr = (lr_write_t *)lrc;
 		blkptr_t *bp = &lr->lr_blkptr;
-		zbookmark_t zb;
+		zbookmark_phys_t zb;
 
 		if (BP_IS_HOLE(bp) ||
 		    bp->blk_birth <= scn->scn_phys.scn_cur_min_txg)
@@ -528,7 +529,7 @@ static void
 dsl_scan_prefetch(dsl_scan_t *scn, arc_buf_t *buf, blkptr_t *bp,
     uint64_t objset, uint64_t object, uint64_t blkid)
 {
-	zbookmark_t czb;
+	zbookmark_phys_t czb;
 	uint32_t flags = ARC_NOWAIT | ARC_PREFETCH;
 
 	if (zfs_no_scrub_prefetch)
@@ -547,7 +548,7 @@ dsl_scan_prefetch(dsl_scan_t *scn, arc_buf_t *buf, blkptr_t *bp,
 
 static boolean_t
 dsl_scan_check_resume(dsl_scan_t *scn, const dnode_phys_t *dnp,
-    const zbookmark_t *zb)
+    const zbookmark_phys_t *zb)
 {
 	/*
 	 * We never skip over user/group accounting objects (obj<0)
@@ -587,7 +588,7 @@ dsl_scan_check_resume(dsl_scan_t *scn, const dnode_phys_t *dnp,
 static int
 dsl_scan_recurse(dsl_scan_t *scn, dsl_dataset_t *ds, dmu_objset_type_t ostype,
     dnode_phys_t *dnp, const blkptr_t *bp,
-    const zbookmark_t *zb, dmu_tx_t *tx, arc_buf_t **bufp)
+    const zbookmark_phys_t *zb, dmu_tx_t *tx, arc_buf_t **bufp)
 {
 	dsl_pool_t *dp = scn->scn_dp;
 	int zio_flags = ZIO_FLAG_CANFAIL | ZIO_FLAG_SCAN_THREAD;
@@ -610,7 +611,7 @@ dsl_scan_recurse(dsl_scan_t *scn, dsl_dataset_t *ds, dmu_objset_type_t ostype,
 			    zb->zb_object, zb->zb_blkid * epb + i);
 		}
 		for (i = 0, cbp = (*bufp)->b_data; i < epb; i++, cbp++) {
-			zbookmark_t czb;
+			zbookmark_phys_t czb;
 
 			SET_BOOKMARK(&czb, zb->zb_objset, zb->zb_object,
 			    zb->zb_level - 1,
@@ -694,7 +695,7 @@ dsl_scan_visitdnode(dsl_scan_t *scn, dsl_dataset_t *ds,
 	int j;
 
 	for (j = 0; j < dnp->dn_nblkptr; j++) {
-		zbookmark_t czb;
+		zbookmark_phys_t czb;
 
 		SET_BOOKMARK(&czb, ds ? ds->ds_object : 0, object,
 		    dnp->dn_nlevels - 1, j);
@@ -703,7 +704,7 @@ dsl_scan_visitdnode(dsl_scan_t *scn, dsl_dataset_t *ds,
 	}
 
 	if (dnp->dn_flags & DNODE_FLAG_SPILL_BLKPTR) {
-		zbookmark_t czb;
+		zbookmark_phys_t czb;
 		SET_BOOKMARK(&czb, ds ? ds->ds_object : 0, object,
 		    0, DMU_SPILL_BLKID);
 		dsl_scan_visitbp(&dnp->dn_spill,
@@ -716,7 +717,7 @@ dsl_scan_visitdnode(dsl_scan_t *scn, dsl_dataset_t *ds,
  * first 5; we want them to be useful.
  */
 static void
-dsl_scan_visitbp(blkptr_t *bp, const zbookmark_t *zb,
+dsl_scan_visitbp(blkptr_t *bp, const zbookmark_phys_t *zb,
     dnode_phys_t *dnp, arc_buf_t *pbuf,
     dsl_dataset_t *ds, dsl_scan_t *scn, dmu_objset_type_t ostype,
     dmu_tx_t *tx)
@@ -780,7 +781,7 @@ static void
 dsl_scan_visit_rootbp(dsl_scan_t *scn, dsl_dataset_t *ds, blkptr_t *bp,
     dmu_tx_t *tx)
 {
-	zbookmark_t zb;
+	zbookmark_phys_t zb;
 
 	SET_BOOKMARK(&zb, ds ? ds->ds_object : DMU_META_OBJSET,
 	    ZB_ROOT_OBJECT, ZB_ROOT_LEVEL, ZB_ROOT_BLKID);
@@ -1207,7 +1208,7 @@ dsl_scan_ddt_entry(dsl_scan_t *scn, enum zio_checksum checksum,
 	const ddt_key_t *ddk = &dde->dde_key;
 	ddt_phys_t *ddp = dde->dde_phys;
 	blkptr_t bp;
-	zbookmark_t zb = { 0 };
+	zbookmark_phys_t zb = { 0 };
 
 	if (scn->scn_phys.scn_state != DSS_SCANNING)
 		return;
@@ -1275,7 +1276,7 @@ dsl_scan_visit(dsl_scan_t *scn, dmu_tx_t *tx)
 	 * In case we were paused right at the end of the ds, zero the
 	 * bookmark so we don't think that we're still trying to resume.
 	 */
-	bzero(&scn->scn_phys.scn_bookmark, sizeof (zbookmark_t));
+	bzero(&scn->scn_phys.scn_bookmark, sizeof (zbookmark_phys_t));
 
 	/* keep pulling things out of the zap-object-as-queue */
 	while (zap_cursor_init(&zc, dp->dp_meta_objset,
@@ -1672,7 +1673,7 @@ dsl_scan_scrub_done(zio_t *zio)
 
 static int
 dsl_scan_scrub_cb(dsl_pool_t *dp,
-    const blkptr_t *bp, const zbookmark_t *zb)
+    const blkptr_t *bp, const zbookmark_phys_t *zb)
 {
 	dsl_scan_t *scn = dp->dp_scan;
 	size_t size = BP_GET_PSIZE(bp);
