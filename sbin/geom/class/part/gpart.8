@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 11, 2014
+.Dd July 1, 2014
 .Dt GPART 8
 .Os
 .Sh NAME
@@ -550,8 +550,9 @@ The
 .Nm
 utility also allows the user to specify scheme-specific partition types
 for partition types that do not have symbolic names.
-Symbolic names currently understood are:
-.Bl -tag -width ".Cm ms-ldm-metadata"
+Symbolic names currently understood and used by
+.Fx are:
+.Bl -tag -width ".Cm dragonfly-disklabel64"
 .It Cm bios-boot
 The system partition dedicated to second stage of the boot loader program.
 Usually it is used by the GRUB 2 loader for GPT partitioning schemes.
@@ -563,16 +564,6 @@ Interface (EFI).
 In such cases, the GPT partitioning scheme is used and the
 actual partition type for the system partition can also be specified as
 .Qq Li "!c12a7328-f81f-11d2-ba4b-00a0c93ec93b" .
-.It Cm fat16
-A partition that contains a FAT16 filesystem.
-The scheme-specific type is
-.Qq Li "!6"
-for MBR.
-.It Cm fat32
-A partition that contains a FAT32 filesystem.
-The scheme-specific type is
-.Qq Li "!11"
-for MBR.
 .It Cm freebsd
 A
 .Fx
@@ -631,6 +622,145 @@ The scheme-specific types are
 for APM,
 .Qq Li "!516e7cba-6ecf-11d6-8ff8-00022d09712b"
 for GPT, and 0x0904 for VTOC8.
+.El
+.Pp
+Another symbolic names that can be used with
+.Cm gpart
+utility are:
+.Bl -tag -width ".Cm dragonfly-disklabel64"
+.It Cm apple-boot
+An Apple Mac OS X partition dedicated to bootloader.
+The scheme-specific types are
+.Qq Li "!Apple_Bootstrap"
+for APM and
+.Qq Li "!426f6f74-0000-11aa-aa11-00306543ecac"
+for GPT.
+.It Cm apple-hfs
+An Apple Mac OS X partition that contains a HFS or HFS+ filesystem.
+The scheme-specific types are
+.Qq Li "!Apple_HFS"
+for APM and
+.Qq Li "!48465300-0000-11aa-aa11-00306543ecac"
+for GPT.
+.It Cm apple-label
+An Apple Mac OS X partition dedicated to partition metadata that descibes
+disk device.
+The scheme-specific type is
+.Qq Li "!4c616265-6c00-11aa-aa11-00306543ecac"
+for GPT.
+.It Cm apple-raid
+An Apple Mac OS X partition used in a software RAID configuration.
+The scheme-specific type is
+.Qq Li "!52414944-0000-11aa-aa11-00306543ecac"
+for GPT.
+.It Cm apple-raid-offline
+An Apple Mac OS X partition used in a software RAID configuration.
+The scheme-specific type is
+.Qq Li "!52414944-5f4f-11aa-aa11-00306543ecac"
+for GPT.
+.It Cm apple-tv-recovery
+An Apple Mac OS X partition used by Apple TV.
+The scheme-specific type is
+.Qq Li "!5265636f-7665-11aa-aa11-00306543ecac"
+for GPT.
+.It Cm apple-ufs
+An Apple Mac OS X partition that contains a UFS filesystem.
+The scheme-specific types are
+.Qq Li "!Apple_UNIX_SVR2"
+for APM and
+.Qq Li "!55465300-0000-11aa-aa11-00306543ecac"
+for GPT.
+.It Cm dragonfly-label32
+A DragonFlyBSD partition subdivided into filesystems with a
+.Bx
+disklabel.
+The scheme-specific type is
+.Qq Li "!9d087404-1ca5-11dc-8817-01301bb8a9f5"
+for GPT.
+.It Cm dragonfly-label64
+A DragonFlyBSD partition subdivided into filesystems with a
+disklabel64.
+The scheme-specific type is
+.Qq Li "!3d48ce54-1d16-11dc-8696-01301bb8a9f5"
+for GPT.
+.It Cm dragonfly-legacy
+A legacy partition type used in DragonFlyBSD.
+The scheme-specific type is
+.Qq Li "!bd215ab2-1d16-11dc-8696-01301bb8a9f5"
+for GPT.
+.It Cm dragonfly-ccd
+A DragonFlyBSD partition used with Concatenated Disk driver.
+The scheme-specific type is
+.Qq Li "!dbd5211b-1ca5-11dc-8817-01301bb8a9f5"
+for GPT.
+.It Cm dragonfly-hammer
+A DragonFlyBSD partition that contains a Hammer filesystem.
+The scheme-specific type is
+.Qq Li "!61dc63ac-6e38-11dc-8513-01301bb8a9f5"
+for GPT.
+.It Cm dragonfly-hammer2
+A DragonFlyBSD partition that contains a Hammer2 filesystem.
+The scheme-specific type is
+.Qq Li "!5cbb9ad1-862d-11dc-a94d-01301bb8a9f5"
+for GPT.
+.It Cm dragonfly-swap
+A DragonFlyBSD partition dedicated to swap space.
+The scheme-specific type is
+.Qq Li "!9d58fdbd-1ca5-11dc-8817-01301bb8a9f5"
+for GPT.
+.It Cm dragonfly-ufs
+A DragonFlyBSD partition that contains an UFS1 filesystem.
+The scheme-specific type is
+.Qq Li "!9d94ce7c-1ca5-11dc-8817-01301bb8a9f5"
+for GPT.
+.It Cm dragonfly-vinum
+A DragonFlyBSD partition used with Logical Volume Manager.
+The scheme-specific type is
+.Qq Li "!9dd4478f-1ca5-11dc-8817-01301bb8a9f5"
+for GPT.
+.It Cm ebr
+A partition subdivided into filesystems with a EBR.
+The scheme-specific type is
+.Qq Li "!5"
+for MBR.
+.It Cm fat16
+A partition that contains a FAT16 filesystem.
+The scheme-specific type is
+.Qq Li "!6"
+for MBR.
+.It Cm fat32
+A partition that contains a FAT32 filesystem.
+The scheme-specific type is
+.Qq Li "!11"
+for MBR.
+.It Cm linux-data
+A Linux partition that contains some filesystem with data.
+The scheme-specific types are
+.Qq Li "!131"
+for MBR and
+.Qq Li "!0fc63daf-8483-4772-8e79-3d69d8477de4"
+for GPT.
+.It Cm linux-lvm
+A Linux partition dedicated to Logical Volume Manager.
+The scheme-specific types are
+.Qq Li "!142"
+for MBR and
+.Qq Li "!e6d6d379-f507-44c2-a23c-238f2a3df928"
+for GPT.
+.It Cm linux-raid
+A Linux partition used in a software RAID configuration.
+The scheme-specific types are
+.Qq Li "!253"
+for MBR and
+.Qq Li "!a19d880f-05fc-4d3b-a006-743f0f84911e"
+for GPT.
+.It Cm linux-swap
+A Linux partition dedicated to swap space.
+The scheme-specific types are
+.Qq Li "!130"
+for MBR and
+.Qq Li "!0657fd6d-a4ab-43c4-84e5-0933c84b4f4f"
+for GPT.
 .It Cm mbr
 A partition that is sub-partitioned by a Master Boot Record (MBR).
 This type is known as
@@ -657,6 +787,36 @@ for GPT.
 A partition that contains Logical Disk Manager (LDM) database.
 The scheme-specific type is
 .Qq Li "!5808c8aa-7e8f-42e0-85d2-e1e90434cfb3"
+for GPT.
+.It Cm netbsd-ccd
+A NetBSD partition used with Concatenated Disk driver.
+The scheme-specific type is
+.Qq Li "!2db519c4-b10f-11dc-b99b-0019d1879648"
+for GPT.
+.It Cm netbsd-cgd
+An encrypted NetBSD partition.
+The scheme-specific type is
+.Qq Li "!2db519ec-b10f-11dc-b99b-0019d1879648"
+for GPT.
+.It Cm netbsd-ffs
+A NetBSD partition that contains an UFS filesystem.
+The scheme-specific type is
+.Qq Li "!49f48d5a-b10e-11dc-b99b-0019d1879648"
+for GPT.
+.It Cm netbsd-lfs
+A NetBSD partition that contains an LFS filesystem.
+The scheme-specific type is
+.Qq Li "!49f48d82-b10e-11dc-b99b-0019d1879648"
+for GPT.
+.It Cm netbsd-raid
+A NetBSD partition used in a software RAID configuration.
+The scheme-specific type is
+.Qq Li "!49f48daa-b10e-11dc-b99b-0019d1879648"
+for GPT.
+.It Cm netbsd-swap
+A NetBSD partition dedicated to swap space.
+The scheme-specific type is
+.Qq Li "!49f48d32-b10e-11dc-b99b-0019d1879648"
 for GPT.
 .It Cm ntfs
 A partition that contains a NTFS or exFAT filesystem.
