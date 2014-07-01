@@ -3591,3 +3591,33 @@ mpssas_check_id(struct mpssas_softc *sassc, int id)
 
 	return (0);
 }
+
+void
+mpssas_realloc_targets(struct mps_softc *sc, int maxtargets)
+{
+	struct mpssas_softc *sassc;
+	struct mpssas_lun *lun, *lun_tmp;
+	struct mpssas_target *targ;
+	int i;
+
+	sassc = sc->sassc;
+	/*
+	 * The number of targets is based on IOC Facts, so free all of
+	 * the allocated LUNs for each target and then the target buffer
+	 * itself.
+	 */
+	for (i=0; i< maxtargets; i++) {
+		targ = &sassc->targets[i];
+		SLIST_FOREACH_SAFE(lun, &targ->luns, lun_link, lun_tmp) {
+			free(lun, M_MPT2);
+		}
+	}
+	free(sassc->targets, M_MPT2);
+
+	sassc->targets = malloc(sizeof(struct mpssas_target) * maxtargets,
+	    M_MPT2, M_WAITOK|M_ZERO);
+	if (!sassc->targets) {
+		panic("%s failed to alloc targets with error %d\n",
+		    __func__, ENOMEM);
+	}
+}
