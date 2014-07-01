@@ -200,7 +200,7 @@ ucom_uninit(void *arg)
 
 	mtx_destroy(&ucom_mtx);
 }
-SYSUNINIT(ucom_uninit, SI_SUB_KLD - 2, SI_ORDER_ANY, ucom_uninit, NULL);
+SYSUNINIT(ucom_uninit, SI_SUB_KLD - 3, SI_ORDER_ANY, ucom_uninit, NULL);
 
 /*
  * Mark a unit number (the X in cuaUX) as in use.
