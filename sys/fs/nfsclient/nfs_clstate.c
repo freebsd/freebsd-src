@@ -3548,7 +3548,7 @@ out:
 		if (clp != NULL) {
 			nfsv4_seqsess_cacherep(slotid,
 			    NFSMNT_MDSSESSION(clp->nfsc_nmp)->nfsess_cbslots,
-			    rep);
+			    NFSERR_OK, &rep);
 			NFSUNLOCKCLSTATE();
 		} else {
 			NFSUNLOCKCLSTATE();
