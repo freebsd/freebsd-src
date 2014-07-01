@@ -1452,6 +1452,20 @@ options 	SC_NO_SUSPEND_VTYSWITCH
 options 	TEKEN_CONS25		# cons25-style terminal emulation
 options 	TEKEN_UTF8		# UTF-8 output handling
 
+# The vt video console driver.
+device		vt
+options		VT_ALT_TO_ESC_HACK=1	# Prepend ESC sequence to ALT keys
+options		VT_MAXWINDOWS=16	# Number of virtual consoles
+options		VT_TWOBUTTON_MOUSE	# Use right mouse button to paste
+
+# The following options set the default framebuffer size.
+options		VT_FB_DEFAULT_HEIGHT=480
+options		VT_FB_DEFAULT_WIDTH=640
+
+# The following options will let you change the default vt terminal colors.
+options		TERMINAL_NORM_ATTR=(FG_GREEN|BG_BLACK)
+options		TERMINAL_KERN_ATTR=(FG_LIGHTRED|BG_BLACK)
+
 #
 # Optional devices:
 #
