@@ -108,10 +108,6 @@
   <sect2 xml:id="kernel">
     <title>Kernel Changes</title>
 
-    <para revision="260888">The <filename>VT</filename> kernel
-      configuration file has been added, which enables the new
-      <literal>vt</literal> console driver.</para>
-
     <para revision="260903">Support for GPS ports has been added to
       &man.uhso.4;.</para>
 
@@ -159,6 +155,14 @@
       functionality of the <literal>dev.cpu.0.freq</literal>
       &man.sysctl.8; on &intel; processors with Turbo
       Boost&nbsp;&trade; enabled has been fixed.</para>
+
+    <para revision="268045">The <literal>VT</literal> kernel
+      configuration file has been removed, and the &man.vt.4;
+      driver is included in the <literal>GENERIC</literal> kernel.
+      To enable &man.vt.4;, enter <literal>set kern.vty=vt</literal>
+      at the &man.loader.8; prompt during boot, or add
+      <literal>kern.vty=vt</literal> to &man.loader.conf.5; and
+      reboot the system.</para>
 
     <sect3 xml:id="kernel-virtualization">
       <title>Virtualization support</title>
