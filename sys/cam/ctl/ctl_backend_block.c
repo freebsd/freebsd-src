@@ -160,7 +160,6 @@ struct ctl_be_block_lun {
 	cbb_dispatch_t dispatch;
 	cbb_dispatch_t lun_flush;
 	cbb_dispatch_t unmap;
-	struct mtx lock;
 	uma_zone_t lun_zone;
 	uint64_t size_blocks;
 	uint64_t size_bytes;
@@ -179,6 +178,8 @@ struct ctl_be_block_lun {
 	STAILQ_HEAD(, ctl_io_hdr) input_queue;
 	STAILQ_HEAD(, ctl_io_hdr) config_write_queue;
 	STAILQ_HEAD(, ctl_io_hdr) datamove_queue;
+	struct mtx_padalign io_lock;
+	struct mtx_padalign queue_lock;
 };
 
 /*
@@ -219,10 +220,9 @@ struct ctl_be_block_io {
 };
 
 static int cbb_num_threads = 14;
-TUNABLE_INT("kern.cam.ctl.block.num_threads", &cbb_num_threads);
 SYSCTL_NODE(_kern_cam_ctl, OID_AUTO, block, CTLFLAG_RD, 0,
 	    "CAM Target Layer Block Backend");
-SYSCTL_INT(_kern_cam_ctl_block, OID_AUTO, num_threads, CTLFLAG_RW,
+SYSCTL_INT(_kern_cam_ctl_block, OID_AUTO, num_threads, CTLFLAG_RWTUN,
            &cbb_num_threads, 0, "Number of threads per backing file");
 
 static struct ctl_be_block_io *ctl_alloc_beio(struct ctl_be_block_softc *softc);
@@ -336,22 +336,7 @@ ctl_free_beio(struct ctl_be_block_io *beio)
 static void
 ctl_complete_beio(struct ctl_be_block_io *beio)
 {
-	union ctl_io *io;
-	int io_len;
-
-	io = beio->io;
-
-	if ((io->io_hdr.status & CTL_STATUS_MASK) == CTL_SUCCESS)
-		io_len = beio->io_len;
-	else
-		io_len = 0;
-
-	devstat_end_transaction(beio->lun->disk_stats,
-				/*bytes*/ io_len,
-				beio->ds_tag_type,
-				beio->ds_trans_type,
-				/*now*/ NULL,
-				/*then*/&beio->ds_t0);
+	union ctl_io *io = beio->io;
 
 	if (beio->beio_cont != NULL) {
 		beio->beio_cont(beio);
@@ -449,14 +434,14 @@ ctl_be_block_move_done(union ctl_io *io)
 	 * This move done routine is generally called in the SIM's
 	 * interrupt context, and therefore we cannot block.
 	 */
-	mtx_lock(&be_lun->lock);
+	mtx_lock(&be_lun->queue_lock);
 	/*
 	 * XXX KDM make sure that links is okay to use at this point.
 	 * Otherwise, we either need to add another field to ctl_io_hdr,
 	 * or deal with resource allocation here.
 	 */
 	STAILQ_INSERT_TAIL(&be_lun->datamove_queue, &io->io_hdr, links);
-	mtx_unlock(&be_lun->lock);
+	mtx_unlock(&be_lun->queue_lock);
 
 	taskqueue_enqueue(be_lun->io_taskqueue, &be_lun->io_task);
 
@@ -478,7 +463,7 @@ ctl_be_block_biodone(struct bio *bio)
 	DPRINTF("entered\n");
 
 	error = bio->bio_error;
-	mtx_lock(&be_lun->lock);
+	mtx_lock(&be_lun->io_lock);
 	if (error != 0)
 		beio->num_errors++;
 
@@ -496,7 +481,7 @@ ctl_be_block_biodone(struct bio *bio)
 	 */
 	if ((beio->send_complete == 0)
 	 || (beio->num_bios_done < beio->num_bios_sent)) {
-		mtx_unlock(&be_lun->lock);
+		mtx_unlock(&be_lun->io_lock);
 		return;
 	}
 
@@ -504,7 +489,10 @@ ctl_be_block_biodone(struct bio *bio)
 	 * At this point, we've verified that we are the last I/O to
 	 * complete, so it's safe to drop the lock.
 	 */
-	mtx_unlock(&be_lun->lock);
+	devstat_end_transaction(beio->lun->disk_stats, beio->io_len,
+	    beio->ds_tag_type, beio->ds_trans_type,
+	    /*now*/ NULL, /*then*/&beio->ds_t0);
+	mtx_unlock(&be_lun->io_lock);
 
 	/*
 	 * If there are any errors from the backing device, we fail the
@@ -546,15 +534,18 @@ static void
 ctl_be_block_flush_file(struct ctl_be_block_lun *be_lun,
 			struct ctl_be_block_io *beio)
 {
-	union ctl_io *io;
+	union ctl_io *io = beio->io;
 	struct mount *mountpoint;
 	int error, lock_flags;
 
 	DPRINTF("entered\n");
 
-	io = beio->io;
+	binuptime(&beio->ds_t0);
+	mtx_lock(&be_lun->io_lock);
+	devstat_start_transaction(beio->lun->disk_stats, &beio->ds_t0);
+	mtx_unlock(&be_lun->io_lock);
 
-       	(void) vn_start_write(be_lun->vn, &mountpoint, V_WAIT);
+	(void) vn_start_write(be_lun->vn, &mountpoint, V_WAIT);
 
 	if (MNT_SHARED_WRITES(mountpoint)
 	 || ((mountpoint == NULL)
@@ -565,13 +556,16 @@ ctl_be_block_flush_file(struct ctl_be_block_lun *be_lun,
 
 	vn_lock(be_lun->vn, lock_flags | LK_RETRY);
 
-	binuptime(&beio->ds_t0);
-	devstat_start_transaction(beio->lun->disk_stats, &beio->ds_t0);
-
 	error = VOP_FSYNC(be_lun->vn, MNT_WAIT, curthread);
 	VOP_UNLOCK(be_lun->vn, 0);
 
 	vn_finished_write(mountpoint);
+
+	mtx_lock(&be_lun->io_lock);
+	devstat_end_transaction(beio->lun->disk_stats, beio->io_len,
+	    beio->ds_tag_type, beio->ds_trans_type,
+	    /*now*/ NULL, /*then*/&beio->ds_t0);
+	mtx_unlock(&be_lun->io_lock);
 
 	if (error == 0)
 		ctl_set_success(&io->scsiio);
@@ -627,11 +621,13 @@ ctl_be_block_dispatch_file(struct ctl_be_block_lun *be_lun,
 		xiovec->iov_len = beio->sg_segs[i].len;
 	}
 
+	binuptime(&beio->ds_t0);
+	mtx_lock(&be_lun->io_lock);
+	devstat_start_transaction(beio->lun->disk_stats, &beio->ds_t0);
+	mtx_unlock(&be_lun->io_lock);
+
 	if (beio->bio_cmd == BIO_READ) {
 		vn_lock(be_lun->vn, LK_SHARED | LK_RETRY);
-
-		binuptime(&beio->ds_t0);
-		devstat_start_transaction(beio->lun->disk_stats, &beio->ds_t0);
 
 		/*
 		 * UFS pays attention to IO_DIRECT for reads.  If the
@@ -673,9 +669,6 @@ ctl_be_block_dispatch_file(struct ctl_be_block_lun *be_lun,
 
 		vn_lock(be_lun->vn, lock_flags | LK_RETRY);
 
-		binuptime(&beio->ds_t0);
-		devstat_start_transaction(beio->lun->disk_stats, &beio->ds_t0);
-
 		/*
 		 * UFS pays attention to IO_DIRECT for writes.  The write
 		 * is done asynchronously.  (Normally the write would just
@@ -701,6 +694,12 @@ ctl_be_block_dispatch_file(struct ctl_be_block_lun *be_lun,
 		vn_finished_write(mountpoint);
 		SDT_PROBE(cbb, kernel, write, file_done, 0, 0, 0, 0, 0);
         }
+
+	mtx_lock(&be_lun->io_lock);
+	devstat_end_transaction(beio->lun->disk_stats, beio->io_len,
+	    beio->ds_tag_type, beio->ds_trans_type,
+	    /*now*/ NULL, /*then*/&beio->ds_t0);
+	mtx_unlock(&be_lun->io_lock);
 
 	/*
 	 * If we got an error, set the sense data to "MEDIUM ERROR" and
@@ -771,7 +770,9 @@ ctl_be_block_flush_dev(struct ctl_be_block_lun *be_lun,
 	beio->send_complete = 1;
 
 	binuptime(&beio->ds_t0);
+	mtx_lock(&be_lun->io_lock);
 	devstat_start_transaction(be_lun->disk_stats, &beio->ds_t0);
+	mtx_unlock(&be_lun->io_lock);
 
 	(*dev_data->csw->d_strategy)(bio);
 }
@@ -802,11 +803,11 @@ ctl_be_block_unmap_dev_range(struct ctl_be_block_lun *be_lun,
 		off += bio->bio_length;
 		len -= bio->bio_length;
 
-		mtx_lock(&be_lun->lock);
+		mtx_lock(&be_lun->io_lock);
 		beio->num_bios_sent++;
 		if (last && len == 0)
 			beio->send_complete = 1;
-		mtx_unlock(&be_lun->lock);
+		mtx_unlock(&be_lun->io_lock);
 
 		(*dev_data->csw->d_strategy)(bio);
 	}
@@ -828,7 +829,9 @@ ctl_be_block_unmap_dev(struct ctl_be_block_lun *be_lun,
 	DPRINTF("entered\n");
 
 	binuptime(&beio->ds_t0);
+	mtx_lock(&be_lun->io_lock);
 	devstat_start_transaction(be_lun->disk_stats, &beio->ds_t0);
+	mtx_unlock(&be_lun->io_lock);
 
 	if (beio->io_offset == -1) {
 		beio->io_len = 0;
@@ -852,6 +855,7 @@ static void
 ctl_be_block_dispatch_dev(struct ctl_be_block_lun *be_lun,
 			  struct ctl_be_block_io *beio)
 {
+	TAILQ_HEAD(, bio) queue = TAILQ_HEAD_INITIALIZER(queue);
 	int i;
 	struct bio *bio;
 	struct ctl_be_block_devdata *dev_data;
@@ -872,14 +876,6 @@ ctl_be_block_dispatch_dev(struct ctl_be_block_lun *be_lun,
 		max_iosize = DFLTPHYS;
 
 	cur_offset = beio->io_offset;
-
-	/*
-	 * XXX KDM need to accurately reflect the number of I/Os outstanding
-	 * to a device.
-	 */
-	binuptime(&beio->ds_t0);
-	devstat_start_transaction(be_lun->disk_stats, &beio->ds_t0);
-
 	for (i = 0; i < beio->num_segs; i++) {
 		size_t cur_size;
 		uint8_t *cur_ptr;
@@ -907,31 +903,22 @@ ctl_be_block_dispatch_dev(struct ctl_be_block_lun *be_lun,
 			cur_ptr += bio->bio_length;
 			cur_size -= bio->bio_length;
 
-			/*
-			 * Make sure we set the complete bit just before we
-			 * issue the last bio so we don't wind up with a
-			 * race.
-			 *
-			 * Use the LUN mutex here instead of a combination
-			 * of atomic variables for simplicity.
-			 *
-			 * XXX KDM we could have a per-IO lock, but that
-			 * would cause additional per-IO setup and teardown
-			 * overhead.  Hopefully there won't be too much
-			 * contention on the LUN lock.
-			 */
-			mtx_lock(&be_lun->lock);
-
+			TAILQ_INSERT_TAIL(&queue, bio, bio_queue);
 			beio->num_bios_sent++;
-
-			if ((i == beio->num_segs - 1)
-			 && (cur_size == 0))
-				beio->send_complete = 1;
-
-			mtx_unlock(&be_lun->lock);
-
-			(*dev_data->csw->d_strategy)(bio);
 		}
+	}
+	binuptime(&beio->ds_t0);
+	mtx_lock(&be_lun->io_lock);
+	devstat_start_transaction(be_lun->disk_stats, &beio->ds_t0);
+	beio->send_complete = 1;
+	mtx_unlock(&be_lun->io_lock);
+
+	/*
+	 * Fire off all allocated requests!
+	 */
+	while ((bio = TAILQ_FIRST(&queue)) != NULL) {
+		TAILQ_REMOVE(&queue, bio, bio_queue);
+		(*dev_data->csw->d_strategy)(bio);
 	}
 }
 
@@ -1195,14 +1182,14 @@ ctl_be_block_next(struct ctl_be_block_io *beio)
 	io->io_hdr.status &= ~CTL_STATUS_MASK;
 	io->io_hdr.status |= CTL_STATUS_NONE;
 
-	mtx_lock(&be_lun->lock);
+	mtx_lock(&be_lun->queue_lock);
 	/*
 	 * XXX KDM make sure that links is okay to use at this point.
 	 * Otherwise, we either need to add another field to ctl_io_hdr,
 	 * or deal with resource allocation here.
 	 */
 	STAILQ_INSERT_TAIL(&be_lun->input_queue, &io->io_hdr, links);
-	mtx_unlock(&be_lun->lock);
+	mtx_unlock(&be_lun->queue_lock);
 
 	taskqueue_enqueue(be_lun->io_taskqueue, &be_lun->io_task);
 }
@@ -1350,7 +1337,7 @@ ctl_be_block_worker(void *context, int pending)
 
 	DPRINTF("entered\n");
 
-	mtx_lock(&be_lun->lock);
+	mtx_lock(&be_lun->queue_lock);
 	for (;;) {
 		io = (union ctl_io *)STAILQ_FIRST(&be_lun->datamove_queue);
 		if (io != NULL) {
@@ -1361,13 +1348,13 @@ ctl_be_block_worker(void *context, int pending)
 			STAILQ_REMOVE(&be_lun->datamove_queue, &io->io_hdr,
 				      ctl_io_hdr, links);
 
-			mtx_unlock(&be_lun->lock);
+			mtx_unlock(&be_lun->queue_lock);
 
 			beio = (struct ctl_be_block_io *)PRIV(io)->ptr;
 
 			be_lun->dispatch(be_lun, beio);
 
-			mtx_lock(&be_lun->lock);
+			mtx_lock(&be_lun->queue_lock);
 			continue;
 		}
 		io = (union ctl_io *)STAILQ_FIRST(&be_lun->config_write_queue);
@@ -1378,11 +1365,11 @@ ctl_be_block_worker(void *context, int pending)
 			STAILQ_REMOVE(&be_lun->config_write_queue, &io->io_hdr,
 				      ctl_io_hdr, links);
 
-			mtx_unlock(&be_lun->lock);
+			mtx_unlock(&be_lun->queue_lock);
 
 			ctl_be_block_cw_dispatch(be_lun, io);
 
-			mtx_lock(&be_lun->lock);
+			mtx_lock(&be_lun->queue_lock);
 			continue;
 		}
 		io = (union ctl_io *)STAILQ_FIRST(&be_lun->input_queue);
@@ -1391,7 +1378,7 @@ ctl_be_block_worker(void *context, int pending)
 
 			STAILQ_REMOVE(&be_lun->input_queue, &io->io_hdr,
 				      ctl_io_hdr, links);
-			mtx_unlock(&be_lun->lock);
+			mtx_unlock(&be_lun->queue_lock);
 
 			/*
 			 * We must drop the lock, since this routine and
@@ -1399,7 +1386,7 @@ ctl_be_block_worker(void *context, int pending)
 			 */
 			ctl_be_block_dispatch(be_lun, io);
 
-			mtx_lock(&be_lun->lock);
+			mtx_lock(&be_lun->queue_lock);
 			continue;
 		}
 
@@ -1409,7 +1396,7 @@ ctl_be_block_worker(void *context, int pending)
 		 */
 		break;
 	}
-	mtx_unlock(&be_lun->lock);
+	mtx_unlock(&be_lun->queue_lock);
 }
 
 /*
@@ -1437,14 +1424,14 @@ ctl_be_block_submit(union ctl_io *io)
 
 	PRIV(io)->len = 0;
 
-	mtx_lock(&be_lun->lock);
+	mtx_lock(&be_lun->queue_lock);
 	/*
 	 * XXX KDM make sure that links is okay to use at this point.
 	 * Otherwise, we either need to add another field to ctl_io_hdr,
 	 * or deal with resource allocation here.
 	 */
 	STAILQ_INSERT_TAIL(&be_lun->input_queue, &io->io_hdr, links);
-	mtx_unlock(&be_lun->lock);
+	mtx_unlock(&be_lun->queue_lock);
 	taskqueue_enqueue(be_lun->io_taskqueue, &be_lun->io_task);
 
 	return (CTL_RETVAL_COMPLETE);
@@ -1868,7 +1855,8 @@ ctl_be_block_create(struct ctl_be_block_softc *softc, struct ctl_lun_req *req)
 	STAILQ_INIT(&be_lun->config_write_queue);
 	STAILQ_INIT(&be_lun->datamove_queue);
 	sprintf(be_lun->lunname, "cblk%d", softc->num_luns);
-	mtx_init(&be_lun->lock, be_lun->lunname, NULL, MTX_DEF);
+	mtx_init(&be_lun->io_lock, "cblk io lock", NULL, MTX_DEF);
+	mtx_init(&be_lun->queue_lock, "cblk queue lock", NULL, MTX_DEF);
 	ctl_init_opts(&be_lun->ctl_be_lun, req);
 
 	be_lun->lun_zone = uma_zcreate(be_lun->lunname, CTLBLK_MAX_SEG,
@@ -2115,7 +2103,8 @@ bailout_error:
 	if (be_lun->lun_zone != NULL)
 		uma_zdestroy(be_lun->lun_zone);
 	ctl_free_opts(&be_lun->ctl_be_lun);
-	mtx_destroy(&be_lun->lock);
+	mtx_destroy(&be_lun->queue_lock);
+	mtx_destroy(&be_lun->io_lock);
 	free(be_lun, M_CTLBLK);
 
 	return (retval);
@@ -2203,7 +2192,8 @@ ctl_be_block_rm(struct ctl_be_block_softc *softc, struct ctl_lun_req *req)
 
 	ctl_free_opts(&be_lun->ctl_be_lun);
 	free(be_lun->dev_path, M_CTLBLK);
-
+	mtx_destroy(&be_lun->queue_lock);
+	mtx_destroy(&be_lun->io_lock);
 	free(be_lun, M_CTLBLK);
 
 	req->status = CTL_LUN_OK;
@@ -2450,10 +2440,10 @@ ctl_be_block_config_write(union ctl_io *io)
 		 * user asked to be synced out.  When they issue a sync
 		 * cache command, we'll sync out the whole thing.
 		 */
-		mtx_lock(&be_lun->lock);
+		mtx_lock(&be_lun->queue_lock);
 		STAILQ_INSERT_TAIL(&be_lun->config_write_queue, &io->io_hdr,
 				   links);
-		mtx_unlock(&be_lun->lock);
+		mtx_unlock(&be_lun->queue_lock);
 		taskqueue_enqueue(be_lun->io_taskqueue, &be_lun->io_task);
 		break;
 	case START_STOP_UNIT: {
@@ -2544,7 +2534,7 @@ ctl_be_block_init(void)
 	softc = &backend_block_softc;
 	retval = 0;
 
-	mtx_init(&softc->lock, "ctlblk", NULL, MTX_DEF);
+	mtx_init(&softc->lock, "ctlblock", NULL, MTX_DEF);
 	beio_zone = uma_zcreate("beio", sizeof(struct ctl_be_block_io),
 	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, 0);
 	STAILQ_INIT(&softc->disk_list);

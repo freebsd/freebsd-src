@@ -28,9 +28,9 @@
  * Use is subject to license terms.
  */
 
-#if defined(sun)
-#pragma ident	"%Z%%M%	%I%	%E% SMI"
-#endif
+/*
+ * Copyright (c) 2013, Joyent, Inc. All rights reserved.
+ */
 
 #include <sys/atomic.h>
 #include <sys/errno.h>
@@ -63,6 +63,7 @@
 #if !defined(sun)
 #include <sys/dtrace_bsd.h>
 #include <sys/eventhandler.h>
+#include <sys/u8_textprep.h>
 #include <sys/user.h>
 #include <vm/vm.h>
 #include <vm/pmap.h>
@@ -2256,8 +2257,7 @@ fasttrap_ioctl(struct cdev *dev, u_long cmd, caddr_t arg, int fflag,
 		fasttrap_probe_spec_t *probe;
 		uint64_t noffs;
 		size_t size;
-		int ret;
-		char *c;
+		int ret, err;
 
 		if (copyin(&uprobe->ftps_noffs, &noffs,
 		    sizeof (uprobe->ftps_noffs)))
@@ -2286,18 +2286,16 @@ fasttrap_ioctl(struct cdev *dev, u_long cmd, caddr_t arg, int fflag,
 		 * Verify that the function and module strings contain no
 		 * funny characters.
 		 */
-		for (c = &probe->ftps_func[0]; *c != '\0'; c++) {
-			if (*c < 0x20 || 0x7f <= *c) {
-				ret = EINVAL;
-				goto err;
-			}
+		if (u8_validate(probe->ftps_func, strlen(probe->ftps_func),
+		    NULL, U8_VALIDATE_ENTIRE, &err) < 0) {
+			ret = EINVAL;
+			goto err;
 		}
 
-		for (c = &probe->ftps_mod[0]; *c != '\0'; c++) {
-			if (*c < 0x20 || 0x7f <= *c) {
-				ret = EINVAL;
-				goto err;
-			}
+		if (u8_validate(probe->ftps_mod, strlen(probe->ftps_mod),
+		    NULL, U8_VALIDATE_ENTIRE, &err) < 0) {
+			ret = EINVAL;
+			goto err;
 		}
 
 #ifdef notyet

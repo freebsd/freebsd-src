@@ -101,7 +101,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/mps/mps_ioctl.h>
 #include <dev/mps/mpsvar.h>
 #include <dev/mps/mps_table.h>
-#include <dev/mps/mps_sas.h>
 #include <dev/pci/pcivar.h>
 #include <dev/pci/pcireg.h>
 

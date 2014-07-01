@@ -130,21 +130,6 @@ typedef enum {
 
 MALLOC_DECLARE(M_CTL);
 
-typedef enum {
-	CTL_THREAD_NONE		= 0x00,
-	CTL_THREAD_WAKEUP	= 0x01
-} ctl_thread_flags;
-
-struct ctl_thread {
-	void			(*thread_func)(void *arg);
-	void			*arg;
-	struct cv		wait_queue;
-	const char		*thread_name;
-	ctl_thread_flags	thread_flags;
-	struct completion	*thread_event;
-	struct task_struct	*task;
-};
-
 struct ctl_page_index;
 
 #ifdef SYSCTL_DECL	/* from sysctl.h */
@@ -198,16 +183,6 @@ void ctl_datamove(union ctl_io *io);
 void ctl_done(union ctl_io *io);
 void ctl_data_submit_done(union ctl_io *io);
 void ctl_config_write_done(union ctl_io *io);
-#if 0
-int ctl_thread(void *arg);
-#endif
-void ctl_wakeup_thread(void);
-#if 0
-struct ctl_thread *ctl_create_thread(void (*thread_func)
-	(void *thread_arg), void *thread_arg, const char *thread_name);
-void ctl_signal_thread(struct ctl_thread *thread);
-void ctl_shutdown_thread(struct ctl_thread *thread);
-#endif
 void ctl_portDB_changed(int portnum);
 void ctl_init_isc_msg(void);
 

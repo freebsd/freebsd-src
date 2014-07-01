@@ -85,19 +85,15 @@ static uma_zone_t cfiscsi_data_wait_zone;
 SYSCTL_NODE(_kern_cam_ctl, OID_AUTO, iscsi, CTLFLAG_RD, 0,
     "CAM Target Layer iSCSI Frontend");
 static int debug = 3;
-TUNABLE_INT("kern.cam.ctl.iscsi.debug", &debug);
 SYSCTL_INT(_kern_cam_ctl_iscsi, OID_AUTO, debug, CTLFLAG_RWTUN,
     &debug, 1, "Enable debug messages");
 static int ping_timeout = 5;
-TUNABLE_INT("kern.cam.ctl.iscsi.ping_timeout", &ping_timeout);
 SYSCTL_INT(_kern_cam_ctl_iscsi, OID_AUTO, ping_timeout, CTLFLAG_RWTUN,
     &ping_timeout, 5, "Interval between ping (NOP-Out) requests, in seconds");
 static int login_timeout = 60;
-TUNABLE_INT("kern.cam.ctl.iscsi.login_timeout", &login_timeout);
 SYSCTL_INT(_kern_cam_ctl_iscsi, OID_AUTO, login_timeout, CTLFLAG_RWTUN,
     &login_timeout, 60, "Time to wait for ctld(8) to finish Login Phase, in seconds");
 static int maxcmdsn_delta = 256;
-TUNABLE_INT("kern.cam.ctl.iscsi.maxcmdsn_delta", &maxcmdsn_delta);
 SYSCTL_INT(_kern_cam_ctl_iscsi, OID_AUTO, maxcmdsn_delta, CTLFLAG_RWTUN,
     &maxcmdsn_delta, 256, "Number of commands the initiator can send "
     "without confirmation");
@@ -737,12 +733,15 @@ cfiscsi_handle_data_segment(struct icl_pdu *request, struct cfiscsi_data_wait *c
 		buffer_offset = ntohl(bhsdo->bhsdo_buffer_offset);
 	else
 		buffer_offset = 0;
+	len = icl_pdu_data_segment_length(request);
 
 	/*
 	 * Make sure the offset, as sent by the initiator, matches the offset
 	 * we're supposed to be at in the scatter-gather list.
 	 */
-	if (buffer_offset !=
+	if (buffer_offset >
+	    io->scsiio.kern_rel_offset + io->scsiio.ext_data_filled ||
+	    buffer_offset + len <=
 	    io->scsiio.kern_rel_offset + io->scsiio.ext_data_filled) {
 		CFISCSI_SESSION_WARN(cs, "received bad buffer offset %zd, "
 		    "expected %zd; dropping connection", buffer_offset,
@@ -758,8 +757,8 @@ cfiscsi_handle_data_segment(struct icl_pdu *request, struct cfiscsi_data_wait *c
 	 * to buffer_offset, which is the offset within the task (SCSI
 	 * command).
 	 */
-	off = 0;
-	len = icl_pdu_data_segment_length(request);
+	off = io->scsiio.kern_rel_offset + io->scsiio.ext_data_filled -
+	    buffer_offset;
 
 	/*
 	 * Iterate over the scatter/gather segments, filling them with data
@@ -816,12 +815,8 @@ cfiscsi_handle_data_segment(struct icl_pdu *request, struct cfiscsi_data_wait *c
 		 * This obviously can only happen with SCSI Command PDU. 
 		 */
 		if ((request->ip_bhs->bhs_opcode & ~ISCSI_BHS_OPCODE_IMMEDIATE) ==
-		    ISCSI_BHS_OPCODE_SCSI_COMMAND) {
-			CFISCSI_SESSION_DEBUG(cs, "received too much immediate "
-			    "data: got %zd bytes, expected %zd",
-			    icl_pdu_data_segment_length(request), off);
+		    ISCSI_BHS_OPCODE_SCSI_COMMAND)
 			return (true);
-		}
 
 		CFISCSI_SESSION_WARN(cs, "received too much data: got %zd bytes, "
 		    "expected %zd; dropping connection",
@@ -2240,6 +2235,7 @@ cfiscsi_devid(struct ctl_scsiio *ctsio, int alloc_len)
 
 	ctsio->scsi_status = SCSI_STATUS_OK;
 
+	ctsio->io_hdr.flags |= CTL_FLAG_ALLOCATED;
 	ctsio->be_move_done = ctl_config_move_done;
 	ctl_datamove((union ctl_io *)ctsio);
 
@@ -2410,7 +2406,7 @@ cfiscsi_lun_enable(void *arg, struct ctl_id target_id, int lun_id)
 	target = ctl_get_opt(control_softc->ctl_luns[lun_id]->be_lun,
 	    "cfiscsi_target");
 	target_alias = ctl_get_opt(control_softc->ctl_luns[lun_id]->be_lun,
-	    "cfiscsi_target)alias");
+	    "cfiscsi_target_alias");
 	lun = ctl_get_opt(control_softc->ctl_luns[lun_id]->be_lun,
 	    "cfiscsi_lun");
 
@@ -2708,8 +2704,8 @@ cfiscsi_datamove_out(union ctl_io *io)
 	cdw->cdw_target_transfer_tag = target_transfer_tag;
 	cdw->cdw_initiator_task_tag = bhssc->bhssc_initiator_task_tag;
 
-	if (cs->cs_immediate_data && io->scsiio.kern_rel_offset == 0 &&
-	    icl_pdu_data_segment_length(request) > 0) {
+	if (cs->cs_immediate_data && io->scsiio.kern_rel_offset <
+	    icl_pdu_data_segment_length(request)) {
 		done = cfiscsi_handle_data_segment(request, cdw);
 		if (done) {
 			uma_zfree(cfiscsi_data_wait_zone, cdw);

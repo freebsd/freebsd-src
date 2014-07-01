@@ -1532,7 +1532,7 @@ find_afd(int af)
 }
 
 /*
- * post-2553: AI_ADDRCONFIG check.  Determines which address families are
+ * RFC 3493: AI_ADDRCONFIG check.  Determines which address families are
  * configured on the local system and correlates with pai->ai_family value.
  * If an address family is not configured on the system, it will not be
  * queried for.  For this purpose, loopback addresses are not considered
@@ -1545,24 +1545,40 @@ static int
 addrconfig(struct addrinfo *pai)
 {
 	struct ifaddrs *ifaddrs, *ifa;
+	struct sockaddr_in *sin;
+#ifdef INET6
+	struct sockaddr_in6 *sin6;
+#endif
 	int seen_inet = 0, seen_inet6 = 0;
 
 	if (getifaddrs(&ifaddrs) != 0)
-		return 0;
+		return (0);
 
 	for (ifa = ifaddrs; ifa != NULL; ifa = ifa->ifa_next) {
 		if (ifa->ifa_addr == NULL || (ifa->ifa_flags & IFF_UP) == 0)
 			continue;
-		if ((ifa->ifa_flags & IFT_LOOP) != 0)
-			continue;
 		switch (ifa->ifa_addr->sa_family) {
 		case AF_INET:
+			if (seen_inet)
+				continue;
+			sin = (struct sockaddr_in *)(ifa->ifa_addr);
+			if (IN_LOOPBACK(htonl(sin->sin_addr.s_addr)))
+				continue;
 			seen_inet = 1;
 			break;
 #ifdef INET6
 		case AF_INET6:
-			if (!seen_inet6 && !is_ifdisabled(ifa->ifa_name))
-				seen_inet6 = 1;
+			if (seen_inet6)
+				continue;
+			sin6 = (struct sockaddr_in6 *)(ifa->ifa_addr);
+			if (IN6_IS_ADDR_LOOPBACK(&sin6->sin6_addr))
+				continue;
+			if ((ifa->ifa_flags & IFT_LOOP) != 0 &&
+			    IN6_IS_ADDR_LINKLOCAL(&sin6->sin6_addr))
+				continue;
+			if (is_ifdisabled(ifa->ifa_name))
+				continue;
+			seen_inet6 = 1;
 			break;
 #endif
 		}
@@ -1571,16 +1587,16 @@ addrconfig(struct addrinfo *pai)
 
 	switch(pai->ai_family) {
 	case AF_INET6:
-		return seen_inet6;
+		return (seen_inet6);
 	case AF_INET:
-		return seen_inet;
+		return (seen_inet);
 	case AF_UNSPEC:
 		if (seen_inet == seen_inet6)
-			return seen_inet;
+			return (seen_inet);
 		pai->ai_family = seen_inet ? AF_INET : AF_INET6;
-		return 1;
+		return (1);
 	}
-	return 1;
+	return (1);
 }
 
 #ifdef INET6
@@ -1591,12 +1607,12 @@ is_ifdisabled(char *name)
 	int fd;
 
 	if ((fd = _socket(AF_INET6, SOCK_DGRAM | SOCK_CLOEXEC, 0)) < 0)
-		return -1;
+		return (-1);
 	memset(&nd, 0, sizeof(nd));
 	strlcpy(nd.ifname, name, sizeof(nd.ifname));
 	if (_ioctl(fd, SIOCGIFINFO_IN6, &nd) < 0) {
 		_close(fd);
-		return -1;
+		return (-1);
 	}
 	_close(fd);
 	return ((nd.ndi.flags & ND6_IFF_IFDISABLED) != 0);

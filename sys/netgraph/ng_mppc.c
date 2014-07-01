@@ -111,18 +111,15 @@ static MALLOC_DEFINE(M_NETGRAPH_MPPC, "netgraph_mppc", "netgraph mppc node");
 SYSCTL_NODE(_net_graph, OID_AUTO, mppe, CTLFLAG_RW, 0, "MPPE");
 
 static int mppe_block_on_max_rekey = 0;
-TUNABLE_INT("net.graph.mppe.block_on_max_rekey", &mppe_block_on_max_rekey);
-SYSCTL_INT(_net_graph_mppe, OID_AUTO, block_on_max_rekey, CTLFLAG_RW,
+SYSCTL_INT(_net_graph_mppe, OID_AUTO, block_on_max_rekey, CTLFLAG_RWTUN,
     &mppe_block_on_max_rekey, 0, "Block node on max MPPE key re-calculations");
 
 static int mppe_log_max_rekey = 1;
-TUNABLE_INT("net.graph.mppe.log_max_rekey", &mppe_log_max_rekey);
-SYSCTL_INT(_net_graph_mppe, OID_AUTO, log_max_rekey, CTLFLAG_RW,
+SYSCTL_INT(_net_graph_mppe, OID_AUTO, log_max_rekey, CTLFLAG_RWTUN,
     &mppe_log_max_rekey, 0, "Log max MPPE key re-calculations event");
 
 static int mppe_max_rekey = MPPE_MAX_REKEY;
-TUNABLE_INT("net.graph.mppe.max_rekey", &mppe_max_rekey);
-SYSCTL_INT(_net_graph_mppe, OID_AUTO, max_rekey, CTLFLAG_RW,
+SYSCTL_INT(_net_graph_mppe, OID_AUTO, max_rekey, CTLFLAG_RWTUN,
     &mppe_max_rekey, 0, "Maximum number of MPPE key re-calculations");
 
 /* MPPC packet header bits */

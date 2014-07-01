@@ -35,11 +35,11 @@
 guest inside a bhyve virtual machine
 .Sh SYNOPSIS
 .Nm
-.Op Fl m Ar mem-size
-.Op Fl d Ar disk-path
-.Op Fl h Ar host-path
-.Op Fl e Ar name=value
 .Op Fl c Ar cons-dev
+.Op Fl d Ar disk-path
+.Op Fl e Ar name=value
+.Op Fl h Ar host-path
+.Op Fl m Ar mem-size
 .Ar vmname
 .Sh DESCRIPTION
 .Nm
@@ -62,6 +62,32 @@ and will be created if it does not already exist.
 .Sh OPTIONS
 The following options are available:
 .Bl -tag -width indent
+.It Fl c Ar cons-dev
+.Ar cons-dev
+is a
+.Xr tty 4
+device to use for
+.Nm
+terminal I/O.
+.Pp
+The text string "stdio" is also accepted and selects the use of
+unbuffered standard I/O. This is the default value.
+.It Fl d Ar disk-path
+The
+.Ar disk-path
+is the pathname of the guest's boot disk image.
+.It Fl e Ar name=value
+Set the FreeBSD loader environment variable
+.Ar name
+to
+.Ar value .
+.Pp
+The option may be used more than once to set more than one environment
+variable.
+.It Fl h Ar host-path
+The
+.Ar host-path
+is the directory at the top of the guest's boot filesystem.
 .It Fl m Ar mem-size Xo
 .Sm off
 .Op Cm K | k | M | m | G | g | T | t
@@ -85,32 +111,6 @@ respectively.
 The default value of
 .Ar mem-size
 is 256M.
-.It Fl d Ar disk-path
-The
-.Ar disk-path
-is the pathname of the guest's boot disk image.
-.It Fl h Ar host-path
-The
-.Ar host-path
-is the directory at the top of the guest's boot filesystem.
-.It Fl e Ar name=value
-Set the FreeBSD loader environment variable
-.Ar name
-to
-.Ar value .
-.Pp
-The option may be used more than once to set more than one environment
-variable.
-.It Fl c Ar cons-dev
-.Ar cons-dev
-is a
-.Xr tty 4
-device to use for
-.Nm
-terminal I/O.
-.Pp
-The text string "stdio" is also accepted and selects the use of
-unbuffered standard I/O. This is the default value.
 .El
 .Sh EXAMPLES
 To create a virtual machine named

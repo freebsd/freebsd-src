@@ -49,8 +49,7 @@
 
 static	int	ad_geom_method = AD_GEOM_ADJUST_COMPATIDE;
 
-TUNABLE_INT("machdep.ad_geom_method", &ad_geom_method);
-SYSCTL_INT(_machdep, OID_AUTO, ad_geom_method, CTLFLAG_RW, &ad_geom_method, 0,
+SYSCTL_INT(_machdep, OID_AUTO, ad_geom_method, CTLFLAG_RWTUN, &ad_geom_method, 0,
     "IDE disk geometry conversion method");
 
 /*

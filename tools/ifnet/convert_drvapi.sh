@@ -94,7 +94,7 @@ handle_set() {
 
 handle_inc() {
 	line=$1	
-	inc=`echo $line | grep "$__ifp__->.*++"`
+	inc=`echo $line | grep "$__ifp__->.*++\|++$__ifp__->.*"`
 	if [ ! -z "$inc" ]
 	then
 		word=`echo $line | awk -F"if_" '{ print $2 }'|awk -F"\+" '{ print $1}'`
@@ -161,6 +161,17 @@ handle_and() {
 
 }
 
+handle_toggle() {
+	line=$1
+	if [ ! -z `echo $line | grep "\^="` ]
+	then
+		line=`echo $line | sed -e 's/'"$__ifp__"'->if_\(.*\) ^=\(.*\);/if_toggle\1('"$__ifp__"',\2);/g'`
+		return 0;
+	fi
+	return 1
+
+}
+
 # XXX - this needs updating
 handle_misc() {
 	line=$1
@@ -177,6 +188,35 @@ handle_misc() {
 	fi
 	return 1;
 
+}
+
+replace_str ()
+{
+	line=$1
+	orig=$2
+	new=$3
+	line=`echo $line | sed -e 's/'"$orig"'\(.*\)/'"$new"'\1/g'`
+	return 0;
+}
+
+# Handle special cases which do not fall under regular patterns
+handle_special ()
+{
+	line=$1
+	replace_str $line "(\*$__ifp__->if_input)" "if_input"
+	replace_str $line "if_setinit" "if_setinitfn"
+	replace_str $line "if_setioctl" "if_setioctlfn"
+	replace_str $line "if_getdrv_flags" "if_getdrvflags"
+	replace_str $line "if_setdrv_flagsbit" "if_setdrvflagbits"
+	replace_str $line "if_setstart" "if_setstartfn"
+	replace_str $line "if_sethwassistbit" "if_sethwassistbits"
+	replace_str $line "ifmedia_init" "ifmedia_init_drv"
+	replace_str $line "IFQ_DRV_IS_EMPTY(&$__ifp__->if_snd)" "if_sendq_empty($__ifp__)"
+	replace_str $line "IFQ_DRV_PREPEND(&$__ifp__->if_snd" "if_sendq_prepend($__ifp__"
+	replace_str $line "IFQ_SET_READY(&ifp->if_snd)" "if_setsendqready($__ifp__)"
+	line=`echo $line | sed -e 's/IFQ_SET_MAXLEN(&'$__ifp__'->if_snd, \(.*\))/if_setsendqlen('$__ifp__', \1)/g'`
+	line=`echo $line | sed -e 's/IFQ_DRV_DEQUEUE(&'$__ifp__'->if_snd, \(.*\))/\1 = if_dequeue('$__ifp__')/g'`
+	return 0
 }
 
 if [ -e $file.tmp ]
@@ -201,9 +241,9 @@ do
 	fi
 
 	handle_set $line
-	
+
 	if [ $? != 0 ]
-		then 
+	then 
 		handle_inc $line
 	fi
 
@@ -223,19 +263,26 @@ do
 	fi
 
 	if [ $? != 0 ]
+	then
+		handle_toggle $line
+	fi
 
+	if [ $? != 0 ]
 	then
 		handle_misc $line
 	fi
 	
 	if [ $? != 0 ]
 	then
-		if [ ! -z `echo $line | grep "$__ifp__->"` ]
-		then
-			line=`echo $line | sed -e 's:$: \/* '${FAIL_PAT}' *\/:g'`
-		fi
+		handle_special $line
+	fi	
+
+	if [ ! -z `echo $line | grep "$__ifp__->"` ]
+	then
+		line=`echo $line | sed -e 's:$: \/* '${FAIL_PAT}' *\/:g'`
 	fi
 done
+	line=`echo "$line" | sed -e 's:VLAN_CAPABILITIES('$__ifp__'):if_vlancap('$__ifp__'):g'`
 	# Replace the ifnet * with if_t
 	if [ ! -z `echo $line | grep "struct ifnet"` ]
 	then

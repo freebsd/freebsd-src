@@ -24,25 +24,27 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 9, 2014
+.Dd June 27, 2014
 .Dt "VIRTUAL TERMINALS" 4
 .Os
 .Sh NAME
 .Nm vt
 .Nd virtual terminal console driver
 .Sh SYNOPSIS
+.Cd "options TERMINAL_KERN_ATTR=_attribute_"
+.Cd "options TERMINAL_NORM_ATTR=_attribute_"
 .Cd "options VT_MAXWINDOWS=N"
 .Cd "options VT_ALT_TO_ESC_HACK=1"
 .Cd "options VT_TWOBUTTON_MOUSE"
 .Cd "options VT_FB_DEFAULT_WIDTH=X"
 .Cd "options VT_FB_DEFAULT_HEIGHT=Y"
 .Cd "options SC_NO_CUTPASTE"
-.Cd "options SC_NO_SYSMOUSE"
 .Cd "device vt"
 .Pp
 In
 .Xr loader.conf 5 :
 .Cd hw.vga.textmode=1
+.Cd kern.vty=vt
 .Sh DESCRIPTION
 The
 .Nm
@@ -107,6 +109,15 @@ These kernel options control the
 .Nm
 driver.
 .Bl -tag -width MAXCONS
+.It Dv TERMINAL_NORM_ATTR=_attribute_
+.It Dv TERMINAL_KERN_ATTR=_attribute_
+These options allow to change the default colors used for normal and kernel
+text respectively.
+Available colors are defined in
+.In sys/terminal.h .
+See
+.Sx EXAMPLES
+below.
 .It Dv VT_MAXWINDOWS=N
 Set the number of virtual terminals to be created to
 .Fa N .
@@ -136,10 +147,11 @@ These options will be removed in a future
 version.
 .Bl -column -offset indent ".Sy vt VT_TWOBUTTON_MOUSE" ".Sy SC_TWOBUTTON_MOUSE"
 .It Sy vt Option Name Ta Sy sc Option Name
+.It Dv TERMINAL_KERN_ATTR Ta Dv SC_KERNEL_CONS_ATTR
+.It Dv TERMINAL_NORM_ATTR Ta Dv SC_NORM_ATTR
 .It Dv VT_TWOBUTTON_MOUSE Ta Dv SC_TWOBUTTON_MOUSE
 .It Dv VT_MAXWINDOWS Ta Dv MAXCONS
 .It none Ta Dv SC_NO_CUTPASTE
-.It none Ta Dv SC_NO_SYSMOUSE
 .El
 .Sh START-UP OPERATION WITH X86 BIOS SYSTEMS
 The computer BIOS starts in text mode, and
@@ -153,13 +165,13 @@ is set, the system remains in text mode.
 Otherwise,
 .Nm
 switches to 640x480x16 VGA mode using
-.Fn vt_vga .
+.Xr vt_vga 4 .
 If a KMS
 .Pq Kernel Mode Switching
 video driver is available, the display is switched to high resolution
 and the KMS driver takes over.
 When a KMS driver is not available,
-.Fn vt_vga
+.Xr vt_vga 4
 remains active.
 .Sh LOADER TUNABLES
 These settings can be entered at the
@@ -171,7 +183,28 @@ prompt or in
 Set to 1 to use virtual terminals in text mode instead of graphics mode.
 Features that require graphics mode, like loadable fonts, will be
 disabled.
+.It Va kern.vty
+Set to vt to choose the
+.Nm
+driver for the system console, if the
+.Xr syscons 4
+driver is also compiled in and is the default.
 .El
+.Sh EXAMPLES
+The following line will change the default color of normal text.
+Normal text will be green on black background.
+Reversed normal text will be black on green background.
+Note that you cannot put any white space inside the quoted string,
+because of the current implementation of
+.Xr config 8 .
+.Pp
+.Dl "options TERMINAL_NORM_ATTR=(FG_GREEN|BG_BLACK)"
+.Pp
+The following line will change the default color of kernel messages.
+Kernel messages will be printed bright red on black background.
+Reversed kernel messages will be black on bright red background.
+.Pp
+.Dl "options TERMINAL_KERN_ATTR=(FG_LIGHTRED|BG_BLACK)"
 .Sh FILES
 .Bl -tag -width /usr/share/syscons/keymaps/* -compact
 .It Pa /dev/console
@@ -201,26 +234,25 @@ terminal initialization information
 .Xr kbdmux 8 ,
 .Xr kldload 8 ,
 .Xr moused 8
-.\" WB: to be uncommented when an actual release contains vt(4)
-.\" .Sh HISTORY
-.\" The
-.\" Nm
-.\" driver first appeared in
-.\" .Fx 9.3 .
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Fx 9.3 .
 .Sh AUTHORS
 .An -nosplit
 The
 .Nm
 device driver was developed by
-.An Ed Schouten Aq ed@FreeBSD.org ,
-.An Ed Maste Aq emaste@FreeBSD.org ,
+.An Ed Schouten Aq Mt ed@FreeBSD.org ,
+.An Ed Maste Aq Mt emaste@FreeBSD.org ,
 and
-.An Aleksandr Rybalko Aq ray@FreeBSD.org ,
+.An Aleksandr Rybalko Aq Mt ray@FreeBSD.org ,
 with sponsorship provided by the
 .Fx
 Foundation.
 This manual page was written by
-.An Warren Block <wblock@FreeBSD.org>.
+.An Warren Block Aq Mt wblock@FreeBSD.org .
 .Sh CAVEATS
 Paste buffer size is limited by the system value
 .Brq Dv MAX_INPUT ,

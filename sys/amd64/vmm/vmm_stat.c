@@ -83,12 +83,21 @@ vmm_stat_register(void *arg)
 int
 vmm_stat_copy(struct vm *vm, int vcpu, int *num_stats, uint64_t *buf)
 {
-	int i;
+	struct vmm_stat_type *vst;
 	uint64_t *stats;
+	int i;
 
 	if (vcpu < 0 || vcpu >= VM_MAXCPU)
 		return (EINVAL);
-		
+
+	/* Let stats functions update their counters */
+	for (i = 0; i < vst_num_types; i++) {
+		vst = vsttab[i];
+		if (vst->func != NULL)
+			(*vst->func)(vm, vcpu, vst);
+	}
+
+	/* Copy over the stats */
 	stats = vcpu_stats(vm, vcpu);
 	for (i = 0; i < vst_num_elems; i++)
 		buf[i] = stats[i];

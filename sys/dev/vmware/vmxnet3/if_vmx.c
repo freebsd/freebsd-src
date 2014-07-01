@@ -694,6 +694,8 @@ vmxnet3_setup_msix_interrupts(struct vmxnet3_softc *sc)
 		     vmxnet3_txq_intr, txq, &intr->vmxi_handler);
 		if (error)
 			return (error);
+		bus_describe_intr(dev, intr->vmxi_irq, intr->vmxi_handler,
+		    "tq%d", i);
 		txq->vxtxq_intr_idx = intr->vmxi_rid - 1;
 	}
 
@@ -703,6 +705,8 @@ vmxnet3_setup_msix_interrupts(struct vmxnet3_softc *sc)
 		    vmxnet3_rxq_intr, rxq, &intr->vmxi_handler);
 		if (error)
 			return (error);
+		bus_describe_intr(dev, intr->vmxi_irq, intr->vmxi_handler,
+		    "rq%d", i);
 		rxq->vxrxq_intr_idx = intr->vmxi_rid - 1;
 	}
 
@@ -710,6 +714,7 @@ vmxnet3_setup_msix_interrupts(struct vmxnet3_softc *sc)
 	    vmxnet3_event_intr, sc, &intr->vmxi_handler);
 	if (error)
 		return (error);
+	bus_describe_intr(dev, intr->vmxi_irq, intr->vmxi_handler, "event");
 	sc->vmx_event_intr_idx = intr->vmxi_rid - 1;
 
 	return (0);

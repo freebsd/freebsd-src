@@ -84,9 +84,8 @@
 
 #define	VT_SYSCTL_INT(_name, _default, _descr)				\
 static int vt_##_name = _default;					\
-SYSCTL_INT(_kern_vt, OID_AUTO, _name, CTLFLAG_RW, &vt_##_name, _default,\
-		_descr);						\
-TUNABLE_INT("kern.vt." #_name, &vt_##_name);
+SYSCTL_INT(_kern_vt, OID_AUTO, _name, CTLFLAG_RWTUN, &vt_##_name, _default,\
+		_descr);
 
 struct vt_driver;
 
@@ -225,7 +224,7 @@ void vtbuf_extract_marked(struct vt_buf *vb, term_char_t *buf, int sz);
 	((mask)->vbm_row & ((uint64_t)1 << ((row) % 64)))
 #define	VTBUF_DIRTYCOL(mask, col) \
 	((mask)->vbm_col & ((uint64_t)1 << ((col) % 64)))
-#define	VTBUF_SPACE_CHAR	(' ' | TC_WHITE << 26 | TC_BLACK << 29)
+#define	VTBUF_SPACE_CHAR(attr)	(' ' | (attr))
 
 #define	VHS_SET	0
 #define	VHS_CUR	1

@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# $NetBSD: install-sh.in,v 1.5 2010/10/08 19:57:05 tez Exp $
+# $NetBSD: install-sh.in,v 1.6 2012/01/11 13:07:31 hans Exp $
 # This script now also installs multiple files, but might choke on installing
 # multiple files with spaces in the file names.
 #
@@ -45,6 +45,7 @@ rmprog="${RMPROG-rm}"
 mkdirprog="${MKDIRPROG-mkdir}"
 
 instcmd="$cpprog"
+instflags=""
 pathcompchmodcmd="$chmodprog 755"
 chmodcmd="$chmodprog 755"
 chowncmd=""
@@ -84,6 +85,11 @@ while [ x"$1" != x ]; do
 	    shift
 	    continue;;
 
+	-m*)
+	    chmodcmd="$chmodprog ${1#-m}"
+	    shift
+	    continue;;
+
 	-o) chowncmd="$chownprog $2"
 	    shift
 	    shift
@@ -101,6 +107,10 @@ while [ x"$1" != x ]; do
 	-S) stripcmd="$stripprog"
 	    stripflags="-S $2 $stripflags"
 	    shift
+	    shift
+	    continue;;
+
+	-p) instflags="-p"
 	    shift
 	    continue;;
 
@@ -154,7 +164,7 @@ else
 
 	if [ -f "$srcarg" ]
 	then
-		doinst="$instcmd"
+		doinst="$instcmd $instflags"
 	elif [ -d "$srcarg" ]
 	then
 		echo "install: $srcarg: not a regular file"

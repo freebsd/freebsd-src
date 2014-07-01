@@ -31,6 +31,16 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 11.x IS SLOW:
 	disable the most expensive debugging functionality run
 	"ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20140629:
+	The WITHOUT_VT_SUPPORT kernel config knob has been renamed
+	WITHOUT_VT.  (The other _SUPPORT knobs have a consistent meaning
+	which differs from the behaviour controlled by this knob.)
+
+20140619:
+	Maximal length of the serial number in CTL was increased from 16 to
+	64 chars, that breaks ABI.  All CTL-related tools, such as ctladm
+	and ctld, need to be rebuilt to work with a new kernel.
+
 20140606:
 	The libatf-c and libatf-c++ major versions were downgraded to 0 and
 	1 respectively to match the upstream numbers.  They were out of
@@ -67,11 +77,12 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 11.x IS SLOW:
 	behavior back, you can .include /etc/src.conf from /etc/make.conf
 	(which is still global and isn't changed). This also changes the
 	behavior of incremental builds inside the tree of individual
-	directories. Set MAKESYSPATH to "/usr/src/share/mk" to do that.
+	directories. Set MAKESYSPATH to ".../share/mk" to do that.
 	Although this has survived make universe and some upgrade scenarios,
 	other upgrade scenarios may have broken. At least one form of
 	temporary breakage was fixed with MAKESYSPATH settings for buildworld
-	as well...
+	as well... In cases where MAKESYSPATH isn't working with this
+	setting, you'll need to set it to the full path to your tree.
 
 	One side effect of all this cleaning up is that bsd.compiler.mk
 	is no longer implicitly included by bsd.own.mk. If you wish to

@@ -28,7 +28,7 @@
 list_t zfs_dbgmsgs;
 int zfs_dbgmsg_size;
 kmutex_t zfs_dbgmsgs_lock;
-int zfs_dbgmsg_maxsize = 1<<20; /* 1MB */
+int zfs_dbgmsg_maxsize = 4<<20; /* 4MB */
 
 void
 zfs_dbgmsg_init(void)

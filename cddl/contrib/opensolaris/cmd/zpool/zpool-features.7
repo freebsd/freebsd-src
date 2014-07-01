@@ -23,7 +23,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 23, 2014
+.Dd June 30, 2014
 .Dt ZPOOL-FEATURES 7
 .Os
 .Sh NAME
@@ -390,6 +390,34 @@ of all new holes will be recorded.
 Incremental sends between snapshots
 created after this feature is enabled will use this new metadata to avoid
 sending information about holes that already exist on the receiving side.
+.Pp
+This feature becomes
+.Sy active
+as soon as it is enabled and will
+never return to being
+.Sy enabled .
+.It Sy embedded_data
+.Bl -column "READ\-ONLY COMPATIBLE" "com.delphix:embedded_data"
+.It GUID Ta com.delphix:embedded_data
+.It READ\-ONLY COMPATIBLE Ta no
+.It DEPENDENCIES Ta none
+.El
+.Pp
+This feature improves the performance and compression ratio of
+highly-compressible blocks.
+Blocks whose contents can compress to 112 bytes
+or smaller can take advantage of this feature.
+.Pp
+When this feature is enabled, the contents of highly-compressible blocks are
+stored in the block "pointer" itself
+.Po a misnomer in this case, as it contains
+the compresseed data, rather than a pointer to its location on disk
+.Pc .
+Thus
+the space of the block
+.Pq one sector, typically 512 bytes or 4KB
+is saved,
+and no additional i/o is needed to read and write the data block.
 .Pp
 This feature becomes
 .Sy active

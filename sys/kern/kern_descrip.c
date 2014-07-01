@@ -1850,9 +1850,10 @@ fdshare(struct filedesc *fdp)
  * Unshare a filedesc structure, if necessary by making a copy
  */
 void
-fdunshare(struct proc *p, struct thread *td)
+fdunshare(struct thread *td)
 {
 	struct filedesc *tmp;
+	struct proc *p = td->td_proc;
 
 	if (p->p_fd->fd_refcnt == 1)
 		return;
@@ -2003,6 +2004,11 @@ fdescfree(struct thread *td)
 		if (fdtol != NULL)
 			free(fdtol, M_FILEDESC_TO_LEADER);
 	}
+
+	mtx_lock(&fdesc_mtx);
+	td->td_proc->p_fd = NULL;
+	mtx_unlock(&fdesc_mtx);
+
 	FILEDESC_XLOCK(fdp);
 	i = --fdp->fd_refcnt;
 	FILEDESC_XUNLOCK(fdp);
@@ -2019,11 +2025,6 @@ fdescfree(struct thread *td)
 		}
 	}
 	FILEDESC_XLOCK(fdp);
-
-	/* XXX This should happen earlier. */
-	mtx_lock(&fdesc_mtx);
-	td->td_proc->p_fd = NULL;
-	mtx_unlock(&fdesc_mtx);
 
 	if (fdp->fd_nfiles > NDFILE)
 		free(fdp->fd_ofiles, M_FILEDESC);

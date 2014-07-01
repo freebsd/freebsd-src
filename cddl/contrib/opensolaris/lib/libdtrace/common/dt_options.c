@@ -25,6 +25,7 @@
  */
 
 /*
+ * Copyright (c) 2013, Joyent, Inc. All rights reserved.
  * Copyright (c) 2012 by Delphix. All rights reserved.
  */
 
@@ -330,6 +331,23 @@ dt_opt_linktype(dtrace_hdl_t *dtp, const char *arg, uintptr_t option)
 		dtp->dt_linktype = DT_LTYP_ELF;
 	else if (strcasecmp(arg, "dof") == 0)
 		dtp->dt_linktype = DT_LTYP_DOF;
+	else
+		return (dt_set_errno(dtp, EDT_BADOPTVAL));
+
+	return (0);
+}
+
+/*ARGSUSED*/
+static int
+dt_opt_encoding(dtrace_hdl_t *dtp, const char *arg, uintptr_t option)
+{
+	if (arg == NULL)
+		return (dt_set_errno(dtp, EDT_BADOPTVAL));
+
+	if (strcmp(arg, "ascii") == 0)
+		dtp->dt_encoding = DT_ENCODING_ASCII;
+	else if (strcmp(arg, "utf8") == 0)
+		dtp->dt_encoding = DT_ENCODING_UTF8;
 	else
 		return (dt_set_errno(dtp, EDT_BADOPTVAL));
 
@@ -928,6 +946,7 @@ static const dt_option_t _dtrace_ctoptions[] = {
 	{ "define", dt_opt_cpp_opts, (uintptr_t)"-D" },
 	{ "droptags", dt_opt_droptags },
 	{ "empty", dt_opt_cflags, DTRACE_C_EMPTY },
+	{ "encoding", dt_opt_encoding },
 	{ "errtags", dt_opt_cflags, DTRACE_C_ETAGS },
 	{ "evaltime", dt_opt_evaltime },
 	{ "incdir", dt_opt_cpp_opts, (uintptr_t)"-I" },
@@ -988,11 +1007,14 @@ static const dt_option_t _dtrace_rtoptions[] = {
  * Dynamic run-time options.
  */
 static const dt_option_t _dtrace_drtoptions[] = {
+	{ "agghist", dt_opt_runtime, DTRACEOPT_AGGHIST },
+	{ "aggpack", dt_opt_runtime, DTRACEOPT_AGGPACK },
 	{ "aggrate", dt_opt_rate, DTRACEOPT_AGGRATE },
 	{ "aggsortkey", dt_opt_runtime, DTRACEOPT_AGGSORTKEY },
 	{ "aggsortkeypos", dt_opt_runtime, DTRACEOPT_AGGSORTKEYPOS },
 	{ "aggsortpos", dt_opt_runtime, DTRACEOPT_AGGSORTPOS },
 	{ "aggsortrev", dt_opt_runtime, DTRACEOPT_AGGSORTREV },
+	{ "aggzoom", dt_opt_runtime, DTRACEOPT_AGGZOOM },
 	{ "flowindent", dt_opt_runtime, DTRACEOPT_FLOWINDENT },
 	{ "quiet", dt_opt_runtime, DTRACEOPT_QUIET },
 	{ "rawbytes", dt_opt_runtime, DTRACEOPT_RAWBYTES },
