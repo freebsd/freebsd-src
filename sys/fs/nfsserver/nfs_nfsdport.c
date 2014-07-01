@@ -1551,7 +1551,7 @@ nfsrvd_readdir(struct nfsrv_descript *nd, int isdgram,
 	u_long *cookies = NULL, *cookiep;
 	struct uio io;
 	struct iovec iv;
-	int not_zfs;
+	int is_ufs;
 
 	if (nd->nd_repstat) {
 		nfsrv_postopattr(nd, getret, &at);
@@ -1606,7 +1606,7 @@ nfsrvd_readdir(struct nfsrv_descript *nd, int isdgram,
 			nfsrv_postopattr(nd, getret, &at);
 		goto out;
 	}
-	not_zfs = strcmp(vp->v_mount->mnt_vfc->vfc_name, "zfs");
+	is_ufs = strcmp(vp->v_mount->mnt_vfc->vfc_name, "ufs") == 0;
 	MALLOC(rbuf, caddr_t, siz, M_TEMP, M_WAITOK);
 again:
 	eofflag = 0;
@@ -1686,12 +1686,10 @@ again:
 	 * skip over the records that precede the requested offset. This
 	 * requires the assumption that file offset cookies monotonically
 	 * increase.
-	 * Since the offset cookies don't monotonically increase for ZFS,
-	 * this is not done when ZFS is the file system.
 	 */
 	while (cpos < cend && ncookies > 0 &&
 	    (dp->d_fileno == 0 || dp->d_type == DT_WHT ||
-	     (not_zfs != 0 && ((u_quad_t)(*cookiep)) <= toff))) {
+	     (is_ufs == 1 && ((u_quad_t)(*cookiep)) <= toff))) {
 		cpos += dp->d_reclen;
 		dp = (struct dirent *)cpos;
 		cookiep++;
@@ -1804,7 +1802,7 @@ nfsrvd_readdirplus(struct nfsrv_descript *nd, int isdgram,
 	struct uio io;
 	struct iovec iv;
 	struct componentname cn;
-	int at_root, needs_unbusy, not_zfs, supports_nfsv4acls;
+	int at_root, is_ufs, is_zfs, needs_unbusy, supports_nfsv4acls;
 	struct mount *mp, *new_mp;
 	uint64_t mounted_on_fileno;
 
@@ -1884,7 +1882,8 @@ nfsrvd_readdirplus(struct nfsrv_descript *nd, int isdgram,
 			nfsrv_postopattr(nd, getret, &at);
 		goto out;
 	}
-	not_zfs = strcmp(vp->v_mount->mnt_vfc->vfc_name, "zfs");
+	is_ufs = strcmp(vp->v_mount->mnt_vfc->vfc_name, "ufs") == 0;
+	is_zfs = strcmp(vp->v_mount->mnt_vfc->vfc_name, "zfs") == 0;
 
 	MALLOC(rbuf, caddr_t, siz, M_TEMP, M_WAITOK);
 again:
@@ -1957,12 +1956,10 @@ again:
 	 * skip over the records that precede the requested offset. This
 	 * requires the assumption that file offset cookies monotonically
 	 * increase.
-	 * Since the offset cookies don't monotonically increase for ZFS,
-	 * this is not done when ZFS is the file system.
 	 */
 	while (cpos < cend && ncookies > 0 &&
 	  (dp->d_fileno == 0 || dp->d_type == DT_WHT ||
-	   (not_zfs != 0 && ((u_quad_t)(*cookiep)) <= toff) ||
+	   (is_ufs == 1 && ((u_quad_t)(*cookiep)) <= toff) ||
 	   ((nd->nd_flag & ND_NFSV4) &&
 	    ((dp->d_namlen == 1 && dp->d_name[0] == '.') ||
 	     (dp->d_namlen==2 && dp->d_name[0]=='.' && dp->d_name[1]=='.'))))) {
@@ -2004,7 +2001,7 @@ again:
 	 * This needs to be done here for NFSv4, since NFSv4 never does
 	 * a VFS_VGET() for "." or "..".
 	 */
-	if (not_zfs == 0) {
+	if (is_zfs == 1) {
 		r = VFS_VGET(mp, at.na_fileid, LK_SHARED, &nvp);
 		if (r == EOPNOTSUPP) {
 			usevget = 0;
@@ -2153,7 +2150,7 @@ again:
 					if (!r)
 					    r = nfsvno_getattr(nvp, nvap,
 						nd->nd_cred, p, 1);
-					if (r == 0 && not_zfs == 0 &&
+					if (r == 0 && is_zfs == 1 &&
 					    nfsrv_enable_crossmntpt != 0 &&
 					    (nd->nd_flag & ND_NFSV4) != 0 &&
 					    nvp->v_type == VDIR &&
