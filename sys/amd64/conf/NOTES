@@ -248,6 +248,10 @@ options 	VGA_WIDTH90		# support 90 column modes
 # Debugging.
 options 	VGA_DEBUG
 
+# vt(4) drivers.
+device		vt_vga		# VGA
+device		vt_efifb	# EFI framebuffer
+
 # Linear framebuffer driver for S3 VESA 1.2 cards. Works on top of VESA.
 device		s3pci
 
