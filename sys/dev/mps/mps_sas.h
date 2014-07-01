@@ -145,6 +145,19 @@ mpssas_set_lun(uint8_t *lun, u_int ccblun)
 	return (0);
 }
 
+static __inline void
+mpssas_set_ccbstatus(union ccb *ccb, int status)
+{
+	ccb->ccb_h.status &= ~CAM_STATUS_MASK;
+	ccb->ccb_h.status |= status;
+}
+
+static __inline int
+mpssas_get_ccbstatus(union ccb *ccb)
+{
+	return (ccb->ccb_h.status & CAM_STATUS_MASK);
+}
+
 #define MPS_SET_SINGLE_LUN(req, lun)	\
 do {					\
 	bzero((req)->LUN, 8);		\
