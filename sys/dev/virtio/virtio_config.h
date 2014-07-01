@@ -44,6 +44,12 @@
  */
 #define VIRTIO_F_NOTIFY_ON_EMPTY (1 << 24)
 
+/* Support for indirect buffer descriptors. */
+#define VIRTIO_RING_F_INDIRECT_DESC	(1 << 28)
+
+/* Support to suppress interrupt until specific index is reached. */
+#define VIRTIO_RING_F_EVENT_IDX		(1 << 29)
+
 /*
  * The guest should never negotiate this feature; it
  * is used to detect faulty drivers.

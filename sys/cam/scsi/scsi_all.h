@@ -308,6 +308,11 @@ struct scsi_per_res_cap
 #define	SPRI_PTPL_C	0x01
 	uint8_t flags2;
 #define	SPRI_TMV	0x80
+#define	SPRI_ALLOW_MASK	0x70
+#define	SPRI_ALLOW_0	0x00
+#define	SPRI_ALLOW_1	0x10
+#define	SPRI_ALLOW_2	0x20
+#define	SPRI_ALLOW_3	0x30
 #define	SPRI_PTPL_A	0x01
 	uint8_t type_mask[2];
 #define	SPRI_TM_WR_EX_AR	0x8000
@@ -746,12 +751,16 @@ struct scsi_read_buffer
 {
 	u_int8_t opcode;
 	u_int8_t byte2;
-#define	RWB_MODE		0x07
+#define	RWB_MODE		0x1F
 #define	RWB_MODE_HDR_DATA	0x00
 #define	RWB_MODE_VENDOR		0x01
 #define	RWB_MODE_DATA		0x02
+#define	RWB_MODE_DESCR		0x03
 #define	RWB_MODE_DOWNLOAD	0x04
 #define	RWB_MODE_DOWNLOAD_SAVE	0x05
+#define	RWB_MODE_ECHO		0x0A
+#define	RWB_MODE_ECHO_DESCR	0x0B
+#define	RWB_MODE_ERROR_HISTORY	0x1C
         u_int8_t buffer_id;
         u_int8_t offset[3];
         u_int8_t length[3];
@@ -1041,8 +1050,10 @@ struct ata_pass_16 {
 #define	PERSISTENT_RES_OUT	0x5F
 #define	ATA_PASS_16		0x85
 #define	READ_16			0x88
+#define	COMPARE_AND_WRITE	0x89
 #define	WRITE_16		0x8A
 #define	WRITE_VERIFY_16		0x8E
+#define	VERIFY_16		0x8F
 #define	SYNCHRONIZE_CACHE_16	0x91
 #define	WRITE_SAME_16		0x93
 #define	SERVICE_ACTION_IN	0x9E
@@ -1054,6 +1065,7 @@ struct ata_pass_16 {
 #define	READ_12			0xA8
 #define	WRITE_12		0xAA
 #define	WRITE_VERIFY_12		0xAE
+#define	VERIFY_12		0xAF
 #define	READ_ELEMENT_STATUS	0xB8
 #define	READ_CD			0xBE
 

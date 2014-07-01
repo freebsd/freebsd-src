@@ -1167,7 +1167,7 @@ t4fw.fwo		optional cxgbe					\
 	no-implicit-rule						\
 	clean		"t4fw.fwo"
 t4fw.fw			optional cxgbe					\
-	dependency	"$S/dev/cxgbe/firmware/t4fw-1.9.12.0.bin.uu"	\
+	dependency	"$S/dev/cxgbe/firmware/t4fw-1.11.27.0.bin.uu"	\
 	compile-with	"${NORMAL_FW}"					\
 	no-obj no-implicit-rule						\
 	clean		"t4fw.fw"
@@ -1191,7 +1191,7 @@ t5fw.fwo		optional cxgbe					\
 	no-implicit-rule						\
 	clean		"t5fw.fwo"
 t5fw.fw			optional cxgbe					\
-	dependency	"$S/dev/cxgbe/firmware/t5fw-1.9.12.0.bin.uu"	\
+	dependency	"$S/dev/cxgbe/firmware/t5fw-1.11.27.0.bin.uu"	\
 	compile-with	"${NORMAL_FW}"					\
 	no-obj no-implicit-rule						\
 	clean		"t5fw.fw"
@@ -2526,7 +2526,7 @@ dev/vt/font/vt_font_default.c	optional vt
 dev/vt/font/vt_mouse_cursor.c	optional vt
 dev/vt/hw/efifb/efifb.c		optional vt_efifb
 dev/vt/hw/fb/vt_fb.c		optional vt
-dev/vt/hw/vga/vga.c		optional vt vt_vga
+dev/vt/hw/vga/vt_vga.c		optional vt vt_vga
 dev/vt/logo/logo_freebsd.c	optional vt splash
 dev/vt/vt_buf.c			optional vt
 dev/vt/vt_consolectl.c		optional vt
@@ -2589,6 +2589,7 @@ dev/xen/netback/netback.c	optional xen | xenhvm
 dev/xen/netfront/netfront.c	optional xen | xenhvm
 dev/xen/xenpci/xenpci.c		optional xenpci
 dev/xen/timer/timer.c		optional xen | xenhvm
+dev/xen/pvcpu/pvcpu.c		optional xen | xenhvm
 dev/xl/if_xl.c			optional xl pci
 dev/xl/xlphy.c			optional xl pci
 fs/deadfs/dead_vnops.c		standard

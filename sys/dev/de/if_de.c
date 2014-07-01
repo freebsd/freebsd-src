@@ -4473,7 +4473,6 @@ tulip_busdma_freering(tulip_ringinfo_t *ri)
     }
     if (ri->ri_descs != NULL) {
 	bus_dmamem_free(ri->ri_ring_tag, ri->ri_descs, ri->ri_ring_map);
-	ri->ri_ring_map = NULL;
 	ri->ri_descs = NULL;
     }
     if (ri->ri_ring_tag != NULL) {
@@ -4558,7 +4557,6 @@ tulip_busdma_cleanup(tulip_softc_t * const sc)
     if (sc->tulip_setupbuf != NULL) {
 	bus_dmamem_free(sc->tulip_setup_tag, sc->tulip_setupbuf,
 	    sc->tulip_setup_map);
-	sc->tulip_setup_map = NULL;
 	sc->tulip_setupbuf = NULL;
     }
     if (sc->tulip_setup_tag != NULL) {

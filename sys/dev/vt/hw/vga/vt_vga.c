@@ -38,7 +38,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 
 #include <dev/vt/vt.h>
-#include <dev/vt/hw/vga/vga_reg.h>
+#include <dev/vt/hw/vga/vt_vga_reg.h>
 
 #include <machine/bus.h>
 

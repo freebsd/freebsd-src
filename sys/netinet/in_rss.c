@@ -91,9 +91,8 @@ SYSCTL_NODE(_net_inet, OID_AUTO, rss, CTLFLAG_RW, 0, "Receive-side steering");
  * default.
  */
 static u_int	rss_hashalgo = RSS_HASH_TOEPLITZ;
-SYSCTL_INT(_net_inet_rss, OID_AUTO, hashalgo, CTLFLAG_RD, &rss_hashalgo, 0,
+SYSCTL_INT(_net_inet_rss, OID_AUTO, hashalgo, CTLFLAG_RDTUN, &rss_hashalgo, 0,
     "RSS hash algorithm");
-TUNABLE_INT("net.inet.rss.hashalgo", &rss_hashalgo);
 
 /*
  * Size of the indirection table; at most 128 entries per the RSS spec.  We
@@ -104,9 +103,8 @@ TUNABLE_INT("net.inet.rss.hashalgo", &rss_hashalgo);
  * XXXRW: buckets might be better to use for the tunable than bits.
  */
 static u_int	rss_bits;
-SYSCTL_INT(_net_inet_rss, OID_AUTO, bits, CTLFLAG_RD, &rss_bits, 0,
+SYSCTL_INT(_net_inet_rss, OID_AUTO, bits, CTLFLAG_RDTUN, &rss_bits, 0,
     "RSS bits");
-TUNABLE_INT("net.inet.rss.bits", &rss_bits);
 
 static u_int	rss_mask;
 SYSCTL_INT(_net_inet_rss, OID_AUTO, mask, CTLFLAG_RD, &rss_mask, 0,
@@ -397,6 +395,26 @@ rss_getbucket(u_int hash)
 {
 
 	return (hash & rss_mask);
+}
+
+/*
+ * Query the RSS layer bucket associated with the given
+ * entry in the RSS hash space.
+ *
+ * The RSS indirection table is 0 .. rss_buckets-1,
+ * covering the low 'rss_bits' of the total 128 slot
+ * RSS indirection table.  So just mask off rss_bits and
+ * return that.
+ *
+ * NIC drivers can then iterate over the 128 slot RSS
+ * indirection table and fetch which RSS bucket to
+ * map it to.  This will typically be a CPU queue
+ */
+u_int
+rss_get_indirection_to_bucket(u_int index)
+{
+
+	return (index & rss_mask);
 }
 
 /*

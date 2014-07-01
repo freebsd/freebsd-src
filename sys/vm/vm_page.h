@@ -465,7 +465,7 @@ vm_offset_t vm_page_startup(vm_offset_t vaddr);
 void vm_page_sunbusy(vm_page_t m);
 int vm_page_trysbusy(vm_page_t m);
 void vm_page_unhold_pages(vm_page_t *ma, int count);
-void vm_page_unwire (vm_page_t, int);
+void vm_page_unwire (vm_page_t m, uint8_t queue);
 void vm_page_updatefake(vm_page_t m, vm_paddr_t paddr, vm_memattr_t memattr);
 void vm_page_wire (vm_page_t);
 void vm_page_xunbusy_hard(vm_page_t m);

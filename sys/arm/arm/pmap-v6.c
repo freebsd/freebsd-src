@@ -465,7 +465,7 @@ static SYSCTL_NODE(_vm, OID_AUTO, pmap, CTLFLAG_RD, 0, "VM/pmap parameters");
 
 /* Superpages utilization enabled = 1 / disabled = 0 */
 static int sp_enabled = 1;
-SYSCTL_INT(_vm_pmap, OID_AUTO, sp_enabled, CTLFLAG_RDTUN, &sp_enabled, 0,
+SYSCTL_INT(_vm_pmap, OID_AUTO, sp_enabled, CTLFLAG_RDTUN | CTLFLAG_NOFETCH, &sp_enabled, 0,
     "Are large page mappings enabled?");
 
 SYSCTL_INT(_vm_pmap, OID_AUTO, pv_entry_count, CTLFLAG_RD, &pv_entry_count, 0,
@@ -4222,7 +4222,7 @@ pmap_free_pv_chunk(struct pv_chunk *pc)
 	/* entire chunk is free, return it */
 	m = PHYS_TO_VM_PAGE(pmap_kextract((vm_offset_t)pc));
 	pmap_qremove((vm_offset_t)pc, 1);
-	vm_page_unwire(m, 0);
+	vm_page_unwire(m, PQ_INACTIVE);
 	vm_page_free(m);
 	pmap_ptelist_free(&pv_vafree, (vm_offset_t)pc);
 

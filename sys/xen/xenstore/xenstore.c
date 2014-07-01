@@ -52,7 +52,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/stdarg.h>
 
 #include <xen/xen-os.h>
-#include <xen/gnttab.h>
 #include <xen/hypervisor.h>
 #include <xen/xen_intr.h>
 
@@ -229,13 +228,11 @@ struct xs_softc {
 	 */
 	struct sx xenwatch_mutex;
 
-#ifdef XENHVM
 	/**
 	 * The HVM guest pseudo-physical frame number.  This is Xen's mapping
 	 * of the true machine frame number into our "physical address space".
 	 */
 	unsigned long gpfn;
-#endif
 
 	/**
 	 * The event channel for communicating with the
@@ -1130,30 +1127,18 @@ xs_attach(device_t dev)
 	xs.xs_dev = dev;
 	device_set_softc(dev, &xs);
 
-	/*
-	 * This seems to be a layering violation.  The XenStore is just
-	 * one of many clients of the Grant Table facility.  It happens
-	 * to be the first and a gating consumer to all other devices,
-	 * so this does work.  A better place would be in the PV support
-	 * code for fully PV kernels and the xenpci driver for HVM kernels.
-	 */
-	error = gnttab_init();
-	if (error != 0) {
-		log(LOG_WARNING,
-		    "XENSTORE: Error initializing grant tables: %d\n", error);
-		return (ENXIO);
-	}
-
 	/* Initialize the interface to xenstore. */
 	struct proc *p;
 
-#ifdef XENHVM
-	xs.evtchn = hvm_get_parameter(HVM_PARAM_STORE_EVTCHN);
-	xs.gpfn = hvm_get_parameter(HVM_PARAM_STORE_PFN);
-	xen_store = pmap_mapdev(xs.gpfn * PAGE_SIZE, PAGE_SIZE);
-#else
-	xs.evtchn = xen_start_info->store_evtchn;
-#endif
+	if (xen_hvm_domain()) {
+		xs.evtchn = hvm_get_parameter(HVM_PARAM_STORE_EVTCHN);
+		xs.gpfn = hvm_get_parameter(HVM_PARAM_STORE_PFN);
+		xen_store = pmap_mapdev(xs.gpfn * PAGE_SIZE, PAGE_SIZE);
+	} else if (xen_pv_domain()) {
+		xs.evtchn = HYPERVISOR_start_info->store_evtchn;
+	} else {
+		panic("Unknown domain type, cannot initialize xenstore.");
+	}
 
 	TAILQ_INIT(&xs.reply_list);
 	TAILQ_INIT(&xs.watch_events);
@@ -1261,11 +1246,7 @@ static device_method_t xenstore_methods[] = {
 DEFINE_CLASS_0(xenstore, xenstore_driver, xenstore_methods, 0);
 static devclass_t xenstore_devclass; 
  
-#ifdef XENHVM
-DRIVER_MODULE(xenstore, xenpci, xenstore_driver, xenstore_devclass, 0, 0);
-#else
-DRIVER_MODULE(xenstore, nexus, xenstore_driver, xenstore_devclass, 0, 0);
-#endif
+DRIVER_MODULE(xenstore, xenpv, xenstore_driver, xenstore_devclass, 0, 0);
 
 /*------------------------------- Sysctl Data --------------------------------*/
 /* XXX Shouldn't the node be somewhere else? */

@@ -35,7 +35,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/capsicum.h>
 #include <sys/systm.h>
-#include <sys/capsicum.h>
 #include <sys/eventhandler.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
@@ -128,8 +127,7 @@ SYSCTL_INT(_kern, OID_AUTO, disallow_high_osrel, CTLFLAG_RW,
     "Disallow execution of binaries built for higher version of the world");
 
 static int map_at_zero = 0;
-TUNABLE_INT("security.bsd.map_at_zero", &map_at_zero);
-SYSCTL_INT(_security_bsd, OID_AUTO, map_at_zero, CTLFLAG_RW, &map_at_zero, 0,
+SYSCTL_INT(_security_bsd, OID_AUTO, map_at_zero, CTLFLAG_RWTUN, &map_at_zero, 0,
     "Permit processes to map an object at virtual address 0.");
 
 static int
@@ -596,7 +594,9 @@ interpret:
 	 * For security and other reasons, the file descriptor table cannot
 	 * be shared after an exec.
 	 */
-	fdunshare(p, td);
+	fdunshare(td);
+	/* close files on exec */
+	fdcloseexec(td);
 
 	/*
 	 * Malloc things before we need locks.
@@ -610,8 +610,6 @@ interpret:
 		bcopy(imgp->args->begin_argv, newargs->ar_args, i);
 	}
 
-	/* close files on exec */
-	fdcloseexec(td);
 	vn_lock(imgp->vp, LK_SHARED | LK_RETRY);
 
 	/* Get a reference to the vnode prior to locking the proc */

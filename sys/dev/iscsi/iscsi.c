@@ -78,27 +78,21 @@ static struct iscsi_softc	*sc;
 
 SYSCTL_NODE(_kern, OID_AUTO, iscsi, CTLFLAG_RD, 0, "iSCSI initiator");
 static int debug = 1;
-TUNABLE_INT("kern.iscsi.debug", &debug);
 SYSCTL_INT(_kern_iscsi, OID_AUTO, debug, CTLFLAG_RWTUN,
     &debug, 0, "Enable debug messages");
 static int ping_timeout = 5;
-TUNABLE_INT("kern.iscsi.ping_timeout", &ping_timeout);
 SYSCTL_INT(_kern_iscsi, OID_AUTO, ping_timeout, CTLFLAG_RWTUN, &ping_timeout,
     0, "Timeout for ping (NOP-Out) requests, in seconds");
 static int iscsid_timeout = 60;
-TUNABLE_INT("kern.iscsi.iscsid_timeout", &iscsid_timeout);
 SYSCTL_INT(_kern_iscsi, OID_AUTO, iscsid_timeout, CTLFLAG_RWTUN, &iscsid_timeout,
     0, "Time to wait for iscsid(8) to handle reconnection, in seconds");
 static int login_timeout = 60;
-TUNABLE_INT("kern.iscsi.login_timeout", &login_timeout);
 SYSCTL_INT(_kern_iscsi, OID_AUTO, login_timeout, CTLFLAG_RWTUN, &login_timeout,
     0, "Time to wait for iscsid(8) to finish Login Phase, in seconds");
 static int maxtags = 255;
-TUNABLE_INT("kern.iscsi.maxtags", &maxtags);
 SYSCTL_INT(_kern_iscsi, OID_AUTO, maxtags, CTLFLAG_RWTUN, &maxtags,
     0, "Max number of IO requests queued");
 static int fail_on_disconnection = 0;
-TUNABLE_INT("kern.iscsi.fail_on_disconnection", &fail_on_disconnection);
 SYSCTL_INT(_kern_iscsi, OID_AUTO, fail_on_disconnection, CTLFLAG_RWTUN,
     &fail_on_disconnection, 0, "Destroy CAM SIM on connection failure");
 
@@ -1589,6 +1583,33 @@ iscsi_sanitize_session_conf(struct iscsi_session_conf *isc)
 	isc->isc_mutual_secret[ISCSI_SECRET_LEN - 1] = '\0';
 }
 
+static bool
+iscsi_valid_session_conf(const struct iscsi_session_conf *isc)
+{
+
+	if (isc->isc_initiator[0] == '\0') {
+		ISCSI_DEBUG("empty isc_initiator");
+		return (false);
+	}
+
+	if (isc->isc_target_addr[0] == '\0') {
+		ISCSI_DEBUG("empty isc_target_addr");
+		return (false);
+	}
+
+	if (isc->isc_discovery != 0 && isc->isc_target[0] != 0) {
+		ISCSI_DEBUG("non-empty isc_target for discovery session");
+		return (false);
+	}
+
+	if (isc->isc_discovery == 0 && isc->isc_target[0] == 0) {
+		ISCSI_DEBUG("empty isc_target for non-discovery session");
+		return (false);
+	}
+
+	return (true);
+}
+
 static int
 iscsi_ioctl_session_add(struct iscsi_softc *sc, struct iscsi_session_add *isa)
 {
@@ -1597,21 +1618,11 @@ iscsi_ioctl_session_add(struct iscsi_softc *sc, struct iscsi_session_add *isa)
 	int error;
 
 	iscsi_sanitize_session_conf(&isa->isa_conf);
+	if (iscsi_valid_session_conf(&isa->isa_conf) == false)
+		return (EINVAL);
 
 	is = malloc(sizeof(*is), M_ISCSI, M_ZERO | M_WAITOK);
 	memcpy(&is->is_conf, &isa->isa_conf, sizeof(is->is_conf));
-
-	if (is->is_conf.isc_initiator[0] == '\0' ||
-	    is->is_conf.isc_target_addr[0] == '\0') {
-		free(is, M_ISCSI);
-		return (EINVAL);
-	}
-
-	if ((is->is_conf.isc_discovery != 0 && is->is_conf.isc_target[0] != 0) ||
-	    (is->is_conf.isc_discovery == 0 && is->is_conf.isc_target[0] == 0)) {
-		free(is, M_ISCSI);
-		return (EINVAL);
-	}
 
 	sx_xlock(&sc->sc_lock);
 
@@ -1769,7 +1780,38 @@ iscsi_ioctl_session_list(struct iscsi_softc *sc, struct iscsi_session_list *isl)
 
 	return (0);
 }
-	
+
+static int
+iscsi_ioctl_session_modify(struct iscsi_softc *sc,
+    struct iscsi_session_modify *ism)
+{
+	struct iscsi_session *is;
+
+	iscsi_sanitize_session_conf(&ism->ism_conf);
+	if (iscsi_valid_session_conf(&ism->ism_conf) == false)
+		return (EINVAL);
+
+	sx_xlock(&sc->sc_lock);
+	TAILQ_FOREACH(is, &sc->sc_sessions, is_next) {
+		ISCSI_SESSION_LOCK(is);
+		if (is->is_id == ism->ism_session_id)
+			break;
+		ISCSI_SESSION_UNLOCK(is);
+	}
+	if (is == NULL) {
+		sx_xunlock(&sc->sc_lock);
+		return (ESRCH);
+	}
+	sx_xunlock(&sc->sc_lock);
+
+	memcpy(&is->is_conf, &ism->ism_conf, sizeof(is->is_conf));
+	ISCSI_SESSION_UNLOCK(is);
+
+	iscsi_session_reconnect(is);
+
+	return (0);
+}
+
 static int
 iscsi_ioctl(struct cdev *dev, u_long cmd, caddr_t arg, int mode,
     struct thread *td)
@@ -1808,6 +1850,9 @@ iscsi_ioctl(struct cdev *dev, u_long cmd, caddr_t arg, int mode,
 	case ISCSISLIST:
 		return (iscsi_ioctl_session_list(sc,
 		    (struct iscsi_session_list *)arg));
+	case ISCSISMODIFY:
+		return (iscsi_ioctl_session_modify(sc,
+		    (struct iscsi_session_modify *)arg));
 	default:
 		return (EINVAL);
 	}

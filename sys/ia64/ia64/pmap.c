@@ -240,9 +240,8 @@ int pmap_vhpt_nbuckets;
 SYSCTL_INT(_machdep_vhpt, OID_AUTO, nbuckets, CTLFLAG_RD,
     &pmap_vhpt_nbuckets, 0, "");
 
-int pmap_vhpt_log2size = 0;
-TUNABLE_INT("machdep.vhpt.log2size", &pmap_vhpt_log2size);
-SYSCTL_INT(_machdep_vhpt, OID_AUTO, log2size, CTLFLAG_RD,
+int pmap_vhpt_log2size;
+SYSCTL_INT(_machdep_vhpt, OID_AUTO, log2size, CTLFLAG_RDTUN | CTLFLAG_NOFETCH,
     &pmap_vhpt_log2size, 0, "");
 
 static int pmap_vhpt_inserts;
@@ -932,7 +931,7 @@ free_pv_chunk(struct pv_chunk *pc)
 	PV_STAT(pc_chunk_frees++);
 	/* entire chunk is free, return it */
 	m = PHYS_TO_VM_PAGE(IA64_RR_MASK((vm_offset_t)pc));
-	vm_page_unwire(m, 0);
+	vm_page_unwire(m, PQ_INACTIVE);
 	vm_page_free(m);
 }
 

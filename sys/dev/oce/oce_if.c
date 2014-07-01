@@ -829,9 +829,20 @@ oce_media_status(struct ifnet *ifp, struct ifmediareq *req)
 		req->ifm_active |= IFM_10G_SR | IFM_FDX;
 		sc->speed = 10000;
 		break;
+	case 5: /* 20 Gbps */
+		req->ifm_active |= IFM_10G_SR | IFM_FDX;
+		sc->speed = 20000;
+		break;
+	case 6: /* 25 Gbps */
+		req->ifm_active |= IFM_10G_SR | IFM_FDX;
+		sc->speed = 25000;
+		break;
 	case 7: /* 40 Gbps */
 		req->ifm_active |= IFM_40G_SR4 | IFM_FDX;
 		sc->speed = 40000;
+		break;
+	default:
+		sc->speed = 0;
 		break;
 	}
 	
@@ -2217,13 +2228,16 @@ setup_max_queues_want(POCE_SOFTC sc)
 	    (sc->function_mode & FNM_UMC_MODE)    ||
 	    (sc->function_mode & FNM_VNIC_MODE)	  ||
 	    (!is_rss_enabled(sc))		  ||
-	    (sc->flags & OCE_FLAGS_BE2)) {
+	    IS_BE2(sc)) {
 		sc->nrqs = 1;
 		sc->nwqs = 1;
 	} else {
 		sc->nrqs = MIN(OCE_NCPUS, sc->nrssqs) + 1;
 		sc->nwqs = MIN(OCE_NCPUS, sc->nrssqs);
 	}
+
+	if (IS_BE2(sc) && is_rss_enabled(sc))
+		sc->nrqs = MIN(OCE_NCPUS, sc->nrssqs) + 1;
 }
 
 
@@ -2237,6 +2251,9 @@ update_queues_got(POCE_SOFTC sc)
 		sc->nrqs = 1;
 		sc->nwqs = 1;
 	}
+
+	if (IS_BE2(sc))
+		sc->nwqs = 1;
 }
 
 static int 

@@ -72,7 +72,7 @@ struct cfiscsi_session {
 	int				cs_timeout;
 	int				cs_portal_group_tag;
 	struct cv			cs_maintenance_cv;
-	int				cs_terminating;
+	bool				cs_terminating;
 	size_t				cs_max_data_segment_length;
 	size_t				cs_max_burst_length;
 	bool				cs_immediate_data;

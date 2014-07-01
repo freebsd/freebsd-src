@@ -281,8 +281,7 @@ SYSCTL_PROC(_vm, OID_AUTO, zone_stats, CTLFLAG_RD|CTLTYPE_STRUCT,
     0, 0, sysctl_vm_zone_stats, "s,struct uma_type_header", "Zone Stats");
 
 static int zone_warnings = 1;
-TUNABLE_INT("vm.zone_warnings", &zone_warnings);
-SYSCTL_INT(_vm, OID_AUTO, zone_warnings, CTLFLAG_RW, &zone_warnings, 0,
+SYSCTL_INT(_vm, OID_AUTO, zone_warnings, CTLFLAG_RWTUN, &zone_warnings, 0,
     "Warn when UMA zones becomes full");
 
 /*
@@ -1154,7 +1153,7 @@ noobj_alloc(uma_zone_t zone, int bytes, uint8_t *flags, int wait)
 		 * exit.
 		 */
 		TAILQ_FOREACH_SAFE(p, &alloctail, listq, p_next) {
-			vm_page_unwire(p, 0);
+			vm_page_unwire(p, PQ_INACTIVE);
 			vm_page_free(p); 
 		}
 		return (NULL);

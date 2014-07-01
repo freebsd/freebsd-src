@@ -1,6 +1,6 @@
 /******************************************************************************
 
-  Copyright (c) 2001-2013, Intel Corporation 
+  Copyright (c) 2001-2014, Intel Corporation 
   All rights reserved.
   
   Redistribution and use in source and binary forms, with or without 
@@ -77,6 +77,7 @@
 #define E1000_CTRL_EXT_EE_RST	0x00002000 /* Reinitialize from EEPROM */
 /* Physical Func Reset Done Indication */
 #define E1000_CTRL_EXT_PFRSTD	0x00004000
+#define E1000_CTRL_EXT_SDLPE	0X00040000  /* SerDes Low Power Enable */
 #define E1000_CTRL_EXT_SPD_BYPS	0x00008000 /* Speed Select Bypass */
 #define E1000_CTRL_EXT_RO_DIS	0x00020000 /* Relaxed Ordering disable */
 #define E1000_CTRL_EXT_DMA_DYN_CLK_EN	0x00080000 /* DMA Dynamic Clk Gating */
@@ -131,7 +132,7 @@
 #define E1000_RXD_ERR_RXE	0x80    /* Rx Data Error */
 #define E1000_RXD_SPC_VLAN_MASK	0x0FFF  /* VLAN ID is in lower 12 bits */
 
-#define E1000_RXDEXT_STATERR_TST	0x00010000 /* Time Stamp taken */
+#define E1000_RXDEXT_STATERR_TST	0x00000100 /* Time Stamp taken */
 #define E1000_RXDEXT_STATERR_LB		0x00040000
 #define E1000_RXDEXT_STATERR_CE		0x01000000
 #define E1000_RXDEXT_STATERR_SE		0x02000000
@@ -464,6 +465,7 @@
 
 #define ETHERNET_FCS_SIZE		4
 #define MAX_JUMBO_FRAME_SIZE		0x3F00
+#define E1000_TX_PTR_GAP		0x1F
 
 /* Extended Configuration Control and Size */
 #define E1000_EXTCNF_CTRL_MDIO_SW_OWNERSHIP	0x00000020
@@ -853,6 +855,10 @@
 #define E1000_PCS_STATUS_ADDR_I354	1
 #define E1000_PCS_STATUS_RX_LPI_RCVD	0x0400
 #define E1000_PCS_STATUS_TX_LPI_RCVD	0x0800
+#define E1000_M88E1512_CFG_REG_1	0x0010
+#define E1000_M88E1512_CFG_REG_2	0x0011
+#define E1000_M88E1512_CFG_REG_3	0x0007
+#define E1000_M88E1512_MODE		0x0014
 #define E1000_EEE_SU_LPI_CLK_STP	0x00800000 /* EEE LPI Clock Stop */
 #define E1000_EEE_LP_ADV_DEV_I210	7          /* EEE LP Adv Device */
 #define E1000_EEE_LP_ADV_ADDR_I210	61         /* EEE LP Adv Register */
@@ -1429,6 +1435,9 @@
 #define E1000_RXPBS_CFG_TS_EN		0x80000000 /* Timestamp in Rx buffer */
 #define E1000_RXPBS_SIZE_I210_MASK	0x0000003F /* Rx packet buffer size */
 #define E1000_TXPB0S_SIZE_I210_MASK	0x0000003F /* Tx packet buffer 0 size */
+#define I210_RXPBSIZE_DEFAULT		0x000000A2 /* RXPBSIZE default */
+#define I210_TXPBSIZE_DEFAULT		0x04000014 /* TXPBSIZE default */
+
 #define E1000_DOBFFCTL_OBFFTHR_MASK	0x000000FF /* OBFF threshold */
 #define E1000_DOBFFCTL_EXIT_ACT_MASK	0x01000000 /* Exit active CB */
 
@@ -1455,5 +1464,7 @@
 #define E1000_STATUS_LAN_ID_OFFSET	2
 #define E1000_VFTA_ENTRIES		128
 #define E1000_UNUSEDARG
+#ifndef ERROR_REPORT
 #define ERROR_REPORT(fmt)	do { } while (0)
+#endif /* ERROR_REPORT */
 #endif /* _E1000_DEFINES_H_ */

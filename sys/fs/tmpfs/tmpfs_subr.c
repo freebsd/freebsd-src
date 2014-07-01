@@ -1677,8 +1677,8 @@ tmpfs_chsize(struct vnode *vp, u_quad_t size, struct ucred *cred,
  * The vnode must be locked on entry and remain locked on exit.
  */
 int
-tmpfs_chtimes(struct vnode *vp, struct timespec *atime, struct timespec *mtime,
-	struct timespec *birthtime, int vaflags, struct ucred *cred, struct thread *l)
+tmpfs_chtimes(struct vnode *vp, struct vattr *vap,
+    struct ucred *cred, struct thread *l)
 {
 	int error;
 	struct tmpfs_node *node;
@@ -1695,29 +1695,25 @@ tmpfs_chtimes(struct vnode *vp, struct timespec *atime, struct timespec *mtime,
 	if (node->tn_flags & (IMMUTABLE | APPEND))
 		return EPERM;
 
-	/* Determine if the user have proper privilege to update time. */
-	if (vaflags & VA_UTIMES_NULL) {
-		error = VOP_ACCESS(vp, VADMIN, cred, l);
-		if (error)
-			error = VOP_ACCESS(vp, VWRITE, cred, l);
-	} else
-		error = VOP_ACCESS(vp, VADMIN, cred, l);
-	if (error)
+	error = vn_utimes_perm(vp, vap, cred, l);
+	if (error != 0)
 		return (error);
 
-	if (atime->tv_sec != VNOVAL && atime->tv_nsec != VNOVAL)
+	if (vap->va_atime.tv_sec != VNOVAL && vap->va_atime.tv_nsec != VNOVAL)
 		node->tn_status |= TMPFS_NODE_ACCESSED;
 
-	if (mtime->tv_sec != VNOVAL && mtime->tv_nsec != VNOVAL)
+	if (vap->va_mtime.tv_sec != VNOVAL && vap->va_mtime.tv_nsec != VNOVAL)
 		node->tn_status |= TMPFS_NODE_MODIFIED;
 
-	if (birthtime->tv_nsec != VNOVAL && birthtime->tv_nsec != VNOVAL)
+	if (vap->va_birthtime.tv_nsec != VNOVAL &&
+	    vap->va_birthtime.tv_nsec != VNOVAL)
 		node->tn_status |= TMPFS_NODE_MODIFIED;
 
-	tmpfs_itimes(vp, atime, mtime);
+	tmpfs_itimes(vp, &vap->va_atime, &vap->va_mtime);
 
-	if (birthtime->tv_nsec != VNOVAL && birthtime->tv_nsec != VNOVAL)
-		node->tn_birthtime = *birthtime;
+	if (vap->va_birthtime.tv_nsec != VNOVAL &&
+	    vap->va_birthtime.tv_nsec != VNOVAL)
+		node->tn_birthtime = vap->va_birthtime;
 	MPASS(VOP_ISLOCKED(vp));
 
 	return 0;
