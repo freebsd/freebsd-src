@@ -12615,7 +12615,8 @@ dtrace_enabling_matchall(void)
 #if defined(sun)
 		cred_t *cr = enab->dten_vstate->dtvs_state->dts_cred.dcr_cred;
 
-		if (INGLOBALZONE(curproc) || getzoneid() == crgetzoneid(cr))
+		if (INGLOBALZONE(curproc) ||
+		    cr != NULL && getzoneid() == crgetzoneid(cr))
 #endif
 			(void) dtrace_enabling_match(enab, NULL);
 	}
@@ -16678,7 +16679,8 @@ dtrace_open(struct cdev *dev, int oflags, int devtype, struct thread *td)
 	 * If this wasn't an open with the "helper" minor, then it must be
 	 * the "dtrace" minor.
 	 */
-	ASSERT(getminor(*devp) == DTRACEMNRN_DTRACE);
+	if (getminor(*devp) == DTRACEMNRN_DTRACE)
+		return (ENXIO);
 #else
 	cred_t *cred_p = NULL;
 	cred_p = dev->si_cred;
