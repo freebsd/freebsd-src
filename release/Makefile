@@ -155,10 +155,13 @@ system: packagesystem
 	mkdir -p release
 	cd ${WORLDDIR} && ${IMAKE} installkernel installworld distribution \
 		DESTDIR=${.OBJDIR}/release MK_RESCUE=no MK_KERNEL_SYMBOLS=no \
-		MK_PROFILE=no MK_SENDMAIL=no MK_TESTS=no MK_LIB32=no
+		MK_PROFILE=no MK_SENDMAIL=no MK_TESTS=no MK_LIB32=no \
+		MK_DEBUG_FILES=no
 # Copy distfiles
 	mkdir -p release/usr/freebsd-dist
-	cp *.txz MANIFEST release/usr/freebsd-dist
+	for dist in MANIFEST $$(ls *.txz | grep -v -- '-dbg'); \
+	    do cp $${dist} release/usr/freebsd-dist; \
+	done
 # Copy documentation, if generated
 .if !defined(NODOC)
 	cp reldoc/* release
@@ -180,7 +183,7 @@ bootonly: packagesystem
 	    MK_INSTALLLIB=no MK_LIB32=no MK_MAIL=no \
 	    MK_NCP=no MK_TOOLCHAIN=no MK_PROFILE=no \
 	    MK_INSTALLIB=no MK_RESCUE=no MK_DICT=no \
-	    MK_KERNEL_SYMBOLS=no MK_TESTS=no
+	    MK_KERNEL_SYMBOLS=no MK_TESTS=no MK_DEBUG_FILES=no
 # Copy manifest only (no distfiles) to get checksums
 	mkdir -p bootonly/usr/freebsd-dist
 	cp MANIFEST bootonly/usr/freebsd-dist
@@ -200,10 +203,12 @@ dvd:
 	mkdir -p ${.TARGET}
 	cd ${WORLDDIR} && ${IMAKE} installkernel installworld distribution \
 		DESTDIR=${.OBJDIR}/${.TARGET} MK_RESCUE=no MK_KERNEL_SYMBOLS=no \
-		MK_TESTS=no
+		MK_TESTS=no MK_DEBUG_FILES=no
 # Copy distfiles
 	mkdir -p ${.TARGET}/usr/freebsd-dist
-	cp *.txz MANIFEST ${.TARGET}/usr/freebsd-dist
+	for dist in MANIFEST $$(ls *.txz | grep -v -- '-dbg'); \
+	    do cp $${dist} ${.TARGET}/usr/freebsd-dist; \
+	done
 # Copy documentation, if generated
 .if !defined(NODOC)
 	cp reldoc/* ${.TARGET}
