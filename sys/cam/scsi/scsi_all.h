@@ -1059,6 +1059,29 @@ struct scsi_report_supported_tmf_data
 	uint8_t  reserved[2];
 };
 
+struct scsi_report_timestamp
+{
+	uint8_t  opcode;
+	uint8_t  service_action;
+	uint8_t  reserved[4];
+	uint8_t  length[4];
+	uint8_t  reserved1;
+	uint8_t  control;
+};
+
+struct scsi_report_timestamp_data
+{
+	uint8_t  length[2];
+	uint8_t  origin;
+#define RTS_ORIG_MASK		0x00
+#define RTS_ORIG_ZERO		0x00
+#define RTS_ORIG_SET		0x02
+#define RTS_ORIG_OUTSIDE	0x03
+	uint8_t  reserved;
+	uint8_t  timestamp[6];
+	uint8_t  reserve2[2];
+};
+
 struct ata_pass_16 {
 	u_int8_t opcode;
 	u_int8_t protocol;

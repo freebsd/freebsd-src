@@ -309,7 +309,19 @@ const struct ctl_cmd_entry ctl_cmd_table_a3[32] =
  CTL_LUN_PAT_NONE,
  12, {0x0d, 0, 0, 0, 0, 0xff, 0xff, 0xff, 0xff, 0, 0x07}},
 
-/* 0e-1f */
+/* 0E */
+{NULL, CTL_SERIDX_INVLD, CTL_CMD_FLAG_NONE, CTL_LUN_PAT_NONE},
+
+/* 0F REPORT TIMESTAMP */
+{ctl_report_timestamp, CTL_SERIDX_MAIN_IN, CTL_CMD_FLAG_OK_ON_BOTH |
+					   CTL_CMD_FLAG_OK_ON_STOPPED |
+					   CTL_CMD_FLAG_OK_ON_INOPERABLE |
+					   CTL_CMD_FLAG_OK_ON_SECONDARY |
+					   CTL_FLAG_DATA_IN,
+ CTL_LUN_PAT_NONE,
+ 12, {0x0f, 0, 0, 0, 0, 0xff, 0xff, 0xff, 0xff, 0, 0x07}},
+
+/* 10-1f */
 };
 
 const struct ctl_cmd_entry ctl_cmd_table[256] =

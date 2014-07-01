@@ -501,6 +501,7 @@ int ctl_persistent_reserve_out(struct ctl_scsiio *ctsio);
 int ctl_report_tagret_port_groups(struct ctl_scsiio *ctsio);
 int ctl_report_supported_opcodes(struct ctl_scsiio *ctsio);
 int ctl_report_supported_tmf(struct ctl_scsiio *ctsio);
+int ctl_report_timestamp(struct ctl_scsiio *ctsio);
 int ctl_isc(struct ctl_scsiio *ctsio);
 
 #endif	/* _KERNEL */
