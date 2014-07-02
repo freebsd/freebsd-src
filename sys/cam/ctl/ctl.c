@@ -961,7 +961,6 @@ ctl_init(void)
 	struct ctl_softc *softc;
 	struct ctl_io_pool *internal_pool, *emergency_pool, *other_pool;
 	struct ctl_frontend *fe;
-	struct ctl_lun *lun;
         uint8_t sc_id =0;
 	int i, error, retval;
 	//int isc_retval;
@@ -1049,8 +1048,6 @@ ctl_init(void)
 	STAILQ_INIT(&softc->be_list);
 	STAILQ_INIT(&softc->io_pools);
 
-	lun = &softc->lun;
-
 	/*
 	 * We don't bother calling these with ctl_lock held here, because,
 	 * in theory, no one else can try to do anything while we're in our
@@ -1085,16 +1082,6 @@ ctl_init(void)
 	softc->emergency_pool = emergency_pool;
 	softc->othersc_pool = other_pool;
 
-	/*
-	 * We used to allocate a processor LUN here.  The new scheme is to
-	 * just let the user allocate LUNs as he sees fit.
-	 */
-#if 0
-	mtx_lock(&softc->ctl_lock);
-	ctl_alloc_lun(softc, lun, /*be_lun*/NULL, /*target*/softc->target);
-	mtx_unlock(&softc->ctl_lock);
-#endif
-
 	if (worker_threads > MAXCPU || worker_threads == 0) {
 		printf("invalid kern.cam.ctl.worker_threads value; "
 		    "setting to 1");
@@ -1116,9 +1103,6 @@ ctl_init(void)
 		    &softc->work_thread, NULL, 0, 0, "ctl", "work%d", i);
 		if (error != 0) {
 			printf("error creating CTL work thread!\n");
-			mtx_lock(&softc->ctl_lock);
-			ctl_free_lun(lun);
-			mtx_unlock(&softc->ctl_lock);
 			ctl_pool_free(internal_pool);
 			ctl_pool_free(emergency_pool);
 			ctl_pool_free(other_pool);
