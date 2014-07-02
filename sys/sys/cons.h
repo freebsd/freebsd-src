@@ -137,6 +137,7 @@ void	constty_clear(void);
 #define	VTY_SC 0x01
 #define	VTY_VT 0x02
 int	vty_enabled(unsigned int);
+void	vty_set_preferred(unsigned int);
 
 #endif /* _KERNEL */
 

@@ -1955,6 +1955,14 @@ hammer_time(u_int64_t modulep, u_int64_t physfree)
 	clock_init();
 
 	/*
+	 * Use vt(4) by default for UEFI boot (during the sc(4)/vt(4)
+	 * transition).
+	 */
+	if (preload_search_info(kmdp, MODINFO_METADATA | MODINFOMD_EFI_MAP) !=
+	    NULL)
+		vty_set_preferred(VTY_VT);
+
+	/*
 	 * Initialize the console before we print anything out.
 	 */
 	cninit();
