@@ -41,6 +41,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/alq.h>
 #include <sys/cons.h>
 #include <sys/cpuset.h>
+#include <sys/kdb.h>
 #include <sys/kernel.h>
 #include <sys/ktr.h>
 #include <sys/libkern.h>
@@ -323,7 +324,7 @@ ktr_tracepoint(u_int mask, const char *file, int line, const char *format,
 #endif
 	int cpu;
 
-	if (panicstr)
+	if (panicstr || kdb_active)
 		return;
 	if ((ktr_mask & mask) == 0 || ktr_buf == NULL)
 		return;
