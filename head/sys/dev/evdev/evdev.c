@@ -77,6 +77,13 @@ evdev_alloc(void)
 	return malloc(sizeof(struct evdev_dev), M_EVDEV, M_WAITOK | M_ZERO);
 }
 
+void
+evdev_free(struct evdev_dev *evdev)
+{
+
+	free(evdev, M_EVDEV);
+}
+
 int
 evdev_register(device_t dev, struct evdev_dev *evdev)
 {
@@ -88,8 +95,12 @@ evdev_register(device_t dev, struct evdev_dev *evdev)
 	/* Initialize internal structures */
 	evdev->ev_dev = dev;
 	mtx_init(&evdev->ev_mtx, "evmtx", "evdev", MTX_DEF);
-	strlcpy(evdev->ev_shortname, device_get_nameunit(dev), NAMELEN);
 	LIST_INIT(&evdev->ev_clients);
+
+	if (dev != NULL)
+		strlcpy(evdev->ev_shortname, device_get_nameunit(dev), NAMELEN);
+	else
+		strlcpy(evdev->ev_shortname, "uinput", NAMELEN);
 
 	if (evdev->ev_repeat_mode == EVDEV_REPEAT) {
 		/* Initialize callout */
@@ -214,7 +225,7 @@ evdev_support_repeat(struct evdev_dev *evdev, enum evdev_repeat_mode mode)
 {
 
 	if (mode != NO_REPEAT)
-		setbit(&evdev->ev_type_flags, EV_REP)
+		setbit(&evdev->ev_type_flags, EV_REP);
 
 	evdev->ev_repeat_mode = mode;
 }

@@ -135,6 +135,7 @@ struct evdev_client
 
 /* Input device interface: */
 struct evdev_dev *evdev_alloc(void);
+void evdev_free(struct evdev_dev *);
 void evdev_set_name(struct evdev_dev *, const char *);
 void evdev_set_serial(struct evdev_dev *, const char *);
 void evdev_set_methods(struct evdev_dev *, struct evdev_methods *);
