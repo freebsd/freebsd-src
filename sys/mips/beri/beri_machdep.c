@@ -238,7 +238,8 @@ platform_start(__register_t a0, __register_t a1,  __register_t a2,
 		dtbp = MD_FETCH(kmdp, MODINFOMD_DTBP, vm_offset_t);
 	else
 		dtbp = (vm_offset_t)NULL;
-	if (dtbp == (vm_offset_t)NULL && bootinfop->bi_dtb != (bi_ptr_t)NULL)
+	if (dtbp == (vm_offset_t)NULL &&
+	    bootinfop != NULL && bootinfop->bi_dtb != (bi_ptr_t)NULL)
 		dtbp = bootinfop->bi_dtb;
 
 #if defined(FDT_DTB_STATIC)
