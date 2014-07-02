@@ -1,5 +1,5 @@
 # RCSid:
-#	$Id: host-target.mk,v 1.6 2011/03/02 05:05:21 sjg Exp $
+#	$Id: host-target.mk,v 1.7 2014/05/16 17:54:52 sjg Exp $
 
 # Host platform information; may be overridden
 .if !defined(_HOST_OSNAME)
@@ -17,6 +17,10 @@ _HOST_ARCH   !=	uname -p 2>/dev/null || uname -m
 _HOST_ARCH != uname -m
 .endif
 .export _HOST_ARCH
+.endif
+.if !defined(HOST_MACHINE)
+HOST_MACHINE != uname -m
+.export HOST_MACHINE
 .endif
 
 HOST_OSMAJOR := ${_HOST_OSREL:C/[^0-9].*//}
