@@ -105,6 +105,9 @@ __FBSDID("$FreeBSD$");
 #define DPRINTF(fmt, args...) do {} while(0)
 #endif
 
+#define PRIV(io)	\
+    ((struct ctl_ptr_len_flags *)&(io)->io_hdr.ctl_private[CTL_PRIV_BACKEND])
+
 SDT_PROVIDER_DEFINE(cbb);
 
 typedef enum {
@@ -358,9 +361,7 @@ ctl_be_block_move_done(union ctl_io *io)
 	struct bintime cur_bt;
 #endif  
 
-	beio = (struct ctl_be_block_io *)
-		io->io_hdr.ctl_private[CTL_PRIV_BACKEND].ptr;
-
+	beio = (struct ctl_be_block_io *)PRIV(io)->ptr;
 	be_lun = beio->lun;
 
 	DPRINTF("entered\n");
@@ -934,7 +935,7 @@ ctl_be_block_cw_dispatch_ws(struct ctl_be_block_lun *be_lun,
 
 	DPRINTF("entered\n");
 
-	beio = io->io_hdr.ctl_private[CTL_PRIV_BACKEND].ptr;
+	beio = (struct ctl_be_block_io *)PRIV(io)->ptr;
 	softc = be_lun->softc;
 	lbalen = (struct ctl_lba_len_flags *)&io->io_hdr.ctl_private[CTL_PRIV_LBA_LEN];
 
@@ -1041,7 +1042,7 @@ ctl_be_block_cw_dispatch_unmap(struct ctl_be_block_lun *be_lun,
 
 	DPRINTF("entered\n");
 
-	beio = io->io_hdr.ctl_private[CTL_PRIV_BACKEND].ptr;
+	beio = (struct ctl_be_block_io *)PRIV(io)->ptr;
 	softc = be_lun->softc;
 	ptrlen = (struct ctl_ptr_len_flags *)&io->io_hdr.ctl_private[CTL_PRIV_LBA_LEN];
 
@@ -1116,7 +1117,7 @@ ctl_be_block_cw_dispatch(struct ctl_be_block_lun *be_lun,
 	beio->io = io;
 	beio->lun = be_lun;
 	beio->beio_cont = ctl_be_block_cw_done;
-	io->io_hdr.ctl_private[CTL_PRIV_BACKEND].ptr = beio;
+	PRIV(io)->ptr = (void *)beio;
 
 	switch (io->scsiio.cdb[0]) {
 	case SYNCHRONIZE_CACHE:
@@ -1183,7 +1184,8 @@ ctl_be_block_dispatch(struct ctl_be_block_lun *be_lun,
 	struct ctl_be_block_io *beio;
 	struct ctl_be_block_softc *softc;
 	struct ctl_lba_len *lbalen;
-	uint64_t len_left, lbaoff;
+	struct ctl_ptr_len_flags *bptrlen;
+	uint64_t len_left, lbas;
 	int i;
 
 	softc = be_lun->softc;
@@ -1199,7 +1201,8 @@ ctl_be_block_dispatch(struct ctl_be_block_lun *be_lun,
 	beio = ctl_alloc_beio(softc);
 	beio->io = io;
 	beio->lun = be_lun;
-	io->io_hdr.ctl_private[CTL_PRIV_BACKEND].ptr = beio;
+	bptrlen = PRIV(io);
+	bptrlen->ptr = (void *)beio;
 
 	/*
 	 * If the I/O came down with an ordered or head of queue tag, set
@@ -1245,12 +1248,12 @@ ctl_be_block_dispatch(struct ctl_be_block_lun *be_lun,
 	lbalen = (struct ctl_lba_len *)&io->io_hdr.ctl_private[CTL_PRIV_LBA_LEN];
 	DPRINTF("%s at LBA %jx len %u @%ju\n",
 	       (beio->bio_cmd == BIO_READ) ? "READ" : "WRITE",
-	       (uintmax_t)lbalen->lba, lbalen->len, lbaoff);
-	lbaoff = io->scsiio.kern_rel_offset / be_lun->blocksize;
-	beio->io_offset = (lbalen->lba + lbaoff) * be_lun->blocksize;
-	beio->io_len = MIN((lbalen->len - lbaoff) * be_lun->blocksize,
-	    CTLBLK_MAX_IO_SIZE);
-	beio->io_len -= beio->io_len % be_lun->blocksize;
+	       (uintmax_t)lbalen->lba, lbalen->len, bptrlen->len);
+	lbas = MIN(lbalen->len - bptrlen->len,
+	    CTLBLK_MAX_IO_SIZE / be_lun->blocksize);
+	beio->io_offset = (lbalen->lba + bptrlen->len) * be_lun->blocksize;
+	beio->io_len = lbas * be_lun->blocksize;
+	bptrlen->len += lbas;
 
 	for (i = 0, len_left = beio->io_len; len_left > 0; i++) {
 		KASSERT(i < CTLBLK_MAX_SEGS, ("Too many segs (%d >= %d)",
@@ -1268,8 +1271,7 @@ ctl_be_block_dispatch(struct ctl_be_block_lun *be_lun,
 		beio->num_segs++;
 		len_left -= beio->sg_segs[i].len;
 	}
-	if (io->scsiio.kern_rel_offset + beio->io_len <
-	    io->scsiio.kern_total_len)
+	if (bptrlen->len < lbalen->len)
 		beio->beio_cont = ctl_be_block_next;
 	io->scsiio.be_move_done = ctl_be_block_move_done;
 	io->scsiio.kern_data_ptr = (uint8_t *)beio->sg_segs;
@@ -1320,8 +1322,7 @@ ctl_be_block_worker(void *context, int pending)
 
 			mtx_unlock(&be_lun->lock);
 
-			beio = (struct ctl_be_block_io *)
-			    io->io_hdr.ctl_private[CTL_PRIV_BACKEND].ptr;
+			beio = (struct ctl_be_block_io *)PRIV(io)->ptr;
 
 			be_lun->dispatch(be_lun, beio);
 
@@ -1392,6 +1393,8 @@ ctl_be_block_submit(union ctl_io *io)
 	 */
 	KASSERT(io->io_hdr.io_type == CTL_IO_SCSI, ("Non-SCSI I/O (type "
 		"%#x) encountered", io->io_hdr.io_type));
+
+	PRIV(io)->len = 0;
 
 	mtx_lock(&be_lun->lock);
 	/*
