@@ -3738,7 +3738,7 @@ bge_attach(device_t dev)
 	if_setioctlfn(ifp, bge_ioctl);
 	if_setstartfn(ifp, bge_start);
 	if_setinitfn(ifp, bge_init);
-	if_setsendqlen(ifp, BGE_TX_RING_CNT);
+	if_setsendqlen(ifp, BGE_TX_RING_CNT - 1);
 	if_setsendqready(ifp);
 	if_sethwassist(ifp, sc->bge_csum_features);
 	if_setcapabilities(ifp, IFCAP_HWCSUM | IFCAP_VLAN_HWTAGGING |
