@@ -1,6 +1,6 @@
 /*-
  * Copyright (c) 2012-2014 Robert N. M. Watson
- * Copyright (c) 2013 SRI International 
+ * Copyright (c) 2013 SRI International
  * All rights reserved.
  *
  * This software was developed by SRI International and the University of
@@ -134,7 +134,7 @@ platform_cpu_mask(cpuset_t *mask)
 				continue;
 			}
 		}
-			
+
 		CPU_SET(reg, mask);
 	} while ((cpu = OF_peer(cpu)) > 0);
 	return;
@@ -250,7 +250,7 @@ platform_start_ap(int cpuid)
 	KASSERT(cpuid != 0, ("%s: can't start CPU 0!\n", __func__));
 	KASSERT((cpuid > 0 && cpuid < MAXCPU),
 	    ("%s: invalid CPU id %d", __func__, cpuid));
-	
+
 	cpu = cpu_of_nodes[cpuid];
 	if (OF_getprop(cpu, "status", &prop, sizeof(prop)) <= 0) {
 		if (bootverbose)
@@ -264,7 +264,7 @@ platform_start_ap(int cpuid)
 	if (strcmp("disabled", prop) != 0)
 		panic("%s: CPU %d status is '%s' not 'disabled'",
 		    __func__, cpuid, prop);
-	
+
 	if (OF_getprop(cpu, "enable-method", &prop, sizeof(prop)) <= 0) {
 		if (bootverbose)
 			printf("%s: CPU %d has no enable-method, "
