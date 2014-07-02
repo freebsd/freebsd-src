@@ -285,6 +285,16 @@ parse_bdf(FILE *fp, unsigned int map_idx)
 	return (0);
 }
 
+static void
+set_width(int w)
+{
+
+	if (w <= 0 || w > 128)
+		errx(1, "invalid width %d", w);
+	width = w;
+	wbytes = howmany(width, 8);
+}
+
 static int
 parse_hex(FILE *fp, unsigned int map_idx)
 {
@@ -300,12 +310,12 @@ parse_hex(FILE *fp, unsigned int map_idx)
 		if (strncmp(ln, "# Height: ", 10) == 0) {
 			height = atoi(ln + 10);
 		} else if (strncmp(ln, "# Width: ", 9) == 0) {
-			width = atoi(ln + 9);
+			set_width(atoi(ln + 9));
 		} else if (sscanf(ln, "%4x:", &curchar)) {
 			p = ln + 5;
 			chars_per_row = strlen(p) / height;
 			dwidth = width;
-			if (chars_per_row / 2 > width / 8)
+			if (chars_per_row / 2 > (width + 7) / 8)
 				dwidth *= 2; /* Double-width character. */
 			snprintf(fmt_str, sizeof(fmt_str), "%%%ux",
 			    chars_per_row);
@@ -528,12 +538,7 @@ main(int argc, char *argv[])
 			verbose = 1;
 			break;
 		case 'w':
-			val = atoi(optarg);
-			if (val <= 0 || val > 128) {
-				errx(1, "Invalid width %d", val);
-				return (1);
-			}
-			width = val;
+			set_width(atoi(optarg));
 			break;
 		case '?':
 		default:
