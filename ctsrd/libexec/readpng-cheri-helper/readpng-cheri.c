@@ -1,6 +1,6 @@
 /*-
  * Copyright (c) 2012-2013 Robert N. M. Watson
- * Copyright (c) 2012 SRI International
+ * Copyright (c) 2012-2014 SRI International
  * All rights reserved.
  *
  * This software was developed by SRI International and the University of
@@ -37,14 +37,18 @@
 #include <machine/sysarch.h>
 
 #include <cheri/cheri_memcpy.h>
+#include <cheri/cheri_system.h>
 
 #include <png.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include "imagebox.h"
 #include "iboxpriv.h"
 
-int	invoke(register_t a0, register_t a1, register_t a2, register_t a3);
+int invoke(uint32_t width, uint32_t height, size_t pnglen,
+    struct cheri_object system_object, __capability uint8_t *png_out,
+    __capability uint8_t *png_in, __capability uint32_t *times);
 
 int pngwidth;
 
@@ -54,7 +58,7 @@ cheri_read_data(png_structp png_ptr __unused, png_bytep data, png_size_t length)
 	struct ibox_decode_state *ids;
 
 	ids = png_get_io_ptr(png_ptr);
-	memcpy_fromcap(data, 4, ids->offset, length);
+	memcpy_c_fromcap(data, ids->incap + ids->offset, length);
 	ids->offset += length;
 }
 
@@ -76,41 +80,47 @@ cheri_read_row_callback(png_structp png_ptr __unused, png_uint_32 row __unused,
 /*
  * Sandboxed imagebox png reader.  
  * 
- * The output buffer is passed in c1.  The pngfile is accessable via c2.
- * a0 holds the image width, a1 the height, and a2 holds the length of the
- * pngfile (currently unused).
+ * XXX The output buffer is passed in c1.  The pngfile is accessable via c2.
+ * XXX a0 holds the image width, a1 the height, and a2 holds the length of the
+ * XXX pngfile (currently unused).
  */
 int
-invoke(register_t a0, register_t a1, register_t a2 __unused,
-    register_t a3 __unused)
+invoke(uint32_t width, uint32_t height, size_t pnglen __unused,
+    struct cheri_object system_object, __capability uint8_t *png_out,
+    __capability uint8_t *png_in, __capability uint32_t *times)
 {
 	struct ibox_decode_state	ids;
 	struct iboxstate		is;
 
-	pngwidth = a0;
+	cheri_system_setup(system_object);
+	printf("in the sandbox\n");
 
-	is.width = a0;
-	is.height = a1;
+
+	pngwidth = width;
+
+	is.width = width;
+	is.height = height;
 	is.error = 0;
 	is.sb = SB_CHERI;
 
 	ids.fd = -1;
 	ids.offset = 0;
 	/*
-	 * in principle we could update this via a capabilty,
-	 * but in practice we can reconstruct it on exit
+	 * In principle we could update this via a capabilty,
+	 * but in practice we can do it on exit.
 	 */
 	ids.is = &is;
-	if ((ids.buffer = malloc(sizeof(uint32_t) * a0 * a1)) == NULL)
+	if ((ids.buffer = malloc(sizeof(uint32_t) * width * height)) == NULL)
 		return (1);
+	ids.incap = png_in;
 
 	decode_png(&ids, cheri_read_data, cheri_read_row_callback);
 
 	/* Copy the whole image out */
 	if (is.error == 0)
-		memcpy_tocap(3, ids.buffer, 0, sizeof(uint32_t) * a0 * a1);
+		memcpy_c_tocap(png_out, ids.buffer, sizeof(uint32_t) * width * height);
 
-	memcpy_tocap(5, (uint32_t*)is.times + 1, 0, sizeof(uint32_t) * 2);
+	memcpy_c_tocap(times, __DEVOLATILE(void *, is.times + 1), sizeof(uint32_t) * 2);
 
 	return (is.error);
 }

@@ -31,6 +31,8 @@
 #ifndef __IBOXPRIV_H__
 #define __IBOXPRIV_H__
 
+#include <sys/cdefs.h>
+
 #include <machine/sysarch.h>
 
 struct ibox_decode_state
@@ -39,6 +41,11 @@ struct ibox_decode_state
 	size_t			 offset;
 	struct iboxstate	*is;
 	uint32_t		*buffer;
+
+#if __has_feature(capabilities)
+	__capability uint8_t	*incap;
+#endif
+
 };
 
 void decode_png(struct ibox_decode_state *ids,

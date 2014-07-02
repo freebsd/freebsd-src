@@ -1,5 +1,8 @@
 # $FreeBSD$
 
+USE_CHERI=	yes
+.include <src.opts.mk>
+
 PROG=	readpng-cheri-helper
 SRCS=	readpng-cheri.c				\
 	chsbrt.S				\

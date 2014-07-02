@@ -227,7 +227,8 @@ static struct iboxstate*
 cheri_png_read_start(char *pngbuffer, size_t pnglen,
     uint32_t width, uint32_t height, enum sbtype sb)
 {
-	static struct sandbox		*sandbox = NULL;
+	static struct sandbox_class	*sandbox_class = NULL;
+	static struct sandbox_object	*sandbox_object = NULL;
 	struct iboxstate		*is = NULL;
         register_t			 v;
 
@@ -247,22 +248,27 @@ cheri_png_read_start(char *pngbuffer, size_t pnglen,
 	if (ibox_verbose)
 		sb_verbose = ibox_verbose;
 
-	if (sandbox == NULL)
-		if (sandbox_setup("/usr/libexec/readpng-cheri-helper.bin",
-		    4*1024*1024, &sandbox) < 0)
+	if (sandbox_class == NULL)
+		if (sandbox_class_new("/usr/libexec/readpng-cheri-helper.bin",
+		    4*1024*1024, &sandbox_class) < 0)
+			goto error;
+	if (sandbox_object == NULL)
+		if (sandbox_object_new(sandbox_class, &sandbox_object) < 0)
 			goto error;
 
-        v = sandbox_cinvoke(sandbox, width, height, pnglen, 0, 0, 0, 0, 0,
+        v = sandbox_object_cinvoke(sandbox_object, width, height, pnglen,
+	    0, 0, 0, 0, 0,
+	    sandbox_object_getsystemobject(sandbox_object).co_codecap,
+	    sandbox_object_getsystemobject(sandbox_object).co_datacap,
             cheri_ptrperm((void *)is->buffer,
 	     is->width * is->height * sizeof(uint32_t),
 	     CHERI_PERM_STORE),
 	    cheri_ptrperm(pngbuffer, pnglen, CHERI_PERM_LOAD),
 	    cheri_ptrperm((void *)(is->times + 1), sizeof(uint32_t) * 2,
 	     CHERI_PERM_STORE),
-	    cheri_zerocap(), cheri_zerocap(), cheri_zerocap(),
-	    cheri_zerocap(), cheri_zerocap());
+	    cheri_zerocap(), cheri_zerocap(), cheri_zerocap());
 	if (ibox_verbose)
-		printf("%s: sandbox returned %ju\n", __func__, (uintmax_t)v);
+		printf("%s: sandbox returned %ju\n", __func__, (intmax_t)v);
 	is->valid_rows = height;
 	is->passes_remaining = 0;
 	is->times[3] = mips_cycle_counter_read();
