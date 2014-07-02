@@ -2045,7 +2045,7 @@ cfiscsi_devid(struct ctl_scsiio *ctsio, int alloc_len)
 	cs = PDU_SESSION(request);
 
 	wwpn_len = strlen(cs->cs_target->ct_name);
-	wwpn_len += strlen(",t,0x01");
+	wwpn_len += strlen(",t,0x0001");
 	wwpn_len += 1; /* '\0' */
 	if ((wwpn_len % 4) != 0)
 		wwpn_len += (4 - (wwpn_len % 4));
@@ -2134,7 +2134,7 @@ cfiscsi_devid(struct ctl_scsiio *ctsio, int alloc_len)
 	desc1->id_type = SVPD_ID_PIV | SVPD_ID_ASSOC_PORT |
 	    SVPD_ID_TYPE_SCSI_NAME;
 	desc1->length = wwpn_len;
-	snprintf(desc1->identifier, wwpn_len, "%s,t,0x%x",
+	snprintf(desc1->identifier, wwpn_len, "%s,t,0x%4.4x",
 	    cs->cs_target->ct_name, cs->cs_portal_group_tag);
 
 	/*
