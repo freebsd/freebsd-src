@@ -90,7 +90,7 @@ vrrp_print(packetbody_t bp, register u_int len, int ttl)
 	int version, type, auth_type;
 	const char *type_s;
 
-	PACKET_HAS_ONE_OR_TRUNC(bp);
+	TCHECK(bp[0]);
 	version = (bp[0] & 0xf0) >> 4;
 	type = bp[0] & 0x0f;
 	type_s = tok2str(type2str, "unknown type (%u)", type);
@@ -99,9 +99,9 @@ vrrp_print(packetbody_t bp, register u_int len, int ttl)
 		printf(", (ttl %u)", ttl);
 	if (version != 2 || type != VRRP_TYPE_ADVERTISEMENT)
 		return;
-	PACKET_HAS_SPACE_OR_TRUNC(bp, 3);
+	TCHECK(bp[2]);
 	printf(", vrid %u, prio %u", bp[1], bp[2]);
-	PACKET_HAS_SPACE_OR_TRUNC(bp, 6);
+	TCHECK(bp[5]);
 	auth_type = bp[4];
 	printf(", authtype %s", tok2str(auth2str, NULL, auth_type));
 	printf(", intvl %us, length %u", bp[5],len);
@@ -110,7 +110,7 @@ vrrp_print(packetbody_t bp, register u_int len, int ttl)
 		int i;
 		char c;
 
-		if (PACKET_HAS_SPACE(bp, len)) {
+		if (TTEST2(bp[0], len)) {
 			struct cksum_vec vec[1];
 
 			vec[0].ptr = bp;
@@ -126,13 +126,13 @@ vrrp_print(packetbody_t bp, register u_int len, int ttl)
 		c = ' ';
 		bp += 8;
 		for (i = 0; i < naddrs; i++) {
-			PACKET_HAS_SPACE_OR_TRUNC(bp, 4);
+			TCHECK(bp[3]);
 			printf("%c%s", c, ipaddr_string(bp));
 			c = ',';
 			bp += 4;
 		}
 		if (auth_type == VRRP_AUTH_SIMPLE) { /* simple text password */
-			PACKET_HAS_SPACE_OR_TRUNC(bp, 8);
+			TCHECK(bp[7]);
 			printf(" auth \"");
 			if (fn_printn(bp, 8, snapend)) {
 				printf("\"");

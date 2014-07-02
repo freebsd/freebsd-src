@@ -200,58 +200,58 @@ print_nfsaddr(packetbody_t bp, const char *s, const char *d)
 static __capability const u_int32_t *
 parse_sattr3(__capability const u_int32_t *dp, struct nfsv3_sattr *sa3)
 {
-	PACKET_HAS_ONE_OR_TRUNC(dp);
+	TCHECK(dp[0]);
 	sa3->sa_modeset = EXTRACT_32BITS(dp);
 	dp++;
 	if (sa3->sa_modeset) {
-		PACKET_HAS_ONE_OR_TRUNC(dp);
+		TCHECK(dp[0]);
 		sa3->sa_mode = EXTRACT_32BITS(dp);
 		dp++;
 	}
 
-	PACKET_HAS_ONE_OR_TRUNC(dp);
+	TCHECK(dp[0]);
 	sa3->sa_uidset = EXTRACT_32BITS(dp);
 	dp++;
 	if (sa3->sa_uidset) {
-		PACKET_HAS_ONE_OR_TRUNC(dp);
+		TCHECK(dp[0]);
 		sa3->sa_uid = EXTRACT_32BITS(dp);
 		dp++;
 	}
 
-	PACKET_HAS_ONE_OR_TRUNC(dp);
+	TCHECK(dp[0]);
 	sa3->sa_gidset = EXTRACT_32BITS(dp);
 	dp++;
 	if (sa3->sa_gidset) {
-		PACKET_HAS_ONE_OR_TRUNC(dp);
+		TCHECK(dp[0]);
 		sa3->sa_gid = EXTRACT_32BITS(dp);
 		dp++;
 	}
 
-	PACKET_HAS_ONE_OR_TRUNC(dp);
+	TCHECK(dp[0]);
 	sa3->sa_sizeset = EXTRACT_32BITS(dp);
 	dp++;
 	if (sa3->sa_sizeset) {
-		PACKET_HAS_ONE_OR_TRUNC(dp);
+		TCHECK(dp[0]);
 		sa3->sa_size = EXTRACT_32BITS(dp);
 		dp++;
 	}
 
-	PACKET_HAS_ONE_OR_TRUNC(dp);
+	TCHECK(dp[0]);
 	sa3->sa_atimetype = EXTRACT_32BITS(dp);
 	dp++;
 	if (sa3->sa_atimetype == NFSV3SATTRTIME_TOCLIENT) {
-		PACKET_HAS_SPACE_OR_TRUNC(dp, 8);
+		TCHECK(dp[1]);
 		sa3->sa_atime.nfsv3_sec = EXTRACT_32BITS(dp);
 		dp++;
 		sa3->sa_atime.nfsv3_nsec = EXTRACT_32BITS(dp);
 		dp++;
 	}
 
-	PACKET_HAS_ONE_OR_TRUNC(dp);
+	TCHECK(dp[0]);
 	sa3->sa_mtimetype = EXTRACT_32BITS(dp);
 	dp++;
 	if (sa3->sa_mtimetype == NFSV3SATTRTIME_TOCLIENT) {
-		PACKET_HAS_SPACE_OR_TRUNC(dp, 8);
+		TCHECK(dp[1]);
 		sa3->sa_mtime.nfsv3_sec = EXTRACT_32BITS(dp);
 		dp++;
 		sa3->sa_mtime.nfsv3_nsec = EXTRACT_32BITS(dp);
@@ -298,7 +298,7 @@ nfsreply_print(packetbody_t bp, u_int length, packetbody_t bp2)
 	nfserr = 0;		/* assume no error */
 	rp = (__capability const struct sunrpc_msg *)bp;
 
-	PACKET_HAS_ELEMENT_OR_TRUNC(rp, rm_xid);
+	TCHECK(rp->rm_xid);
 	if (!nflag) {
 		strlcpy(srcid, "nfs", sizeof(srcid));
 		snprintf(dstid, sizeof(dstid), "%u",
@@ -309,7 +309,7 @@ nfsreply_print(packetbody_t bp, u_int length, packetbody_t bp2)
 		    EXTRACT_32BITS(&rp->rm_xid));
 	}
 	print_nfsaddr(bp2, srcid, dstid);
-	PACKET_HAS_ELEMENT_OR_TRUNC(rp, rm_reply.rp_stat);
+	TCHECK(rp->rm_reply.rp_stat);
 	reply_stat = EXTRACT_32BITS(&rp->rm_reply.rp_stat);
 	switch (reply_stat) {
 
@@ -321,12 +321,12 @@ nfsreply_print(packetbody_t bp, u_int length, packetbody_t bp2)
 
 	case SUNRPC_MSG_DENIED:
 		(void)printf("reply ERR %u: ", length);
-		PACKET_HAS_ELEMENT_OR_TRUNC(rp, rm_reply.rp_reject.rj_stat);
+		TCHECK(rp->rm_reply.rp_reject.rj_stat);
 		rstat = EXTRACT_32BITS(&rp->rm_reply.rp_reject.rj_stat);
 		switch (rstat) {
 
 		case SUNRPC_RPC_MISMATCH:
-			PACKET_HAS_ELEMENT_OR_TRUNC(rp, rm_reply.rp_reject.rj_vers.high);
+			TCHECK(rp->rm_reply.rp_reject.rj_vers.high);
 			rlow = EXTRACT_32BITS(&rp->rm_reply.rp_reject.rj_vers.low);
 			rhigh = EXTRACT_32BITS(&rp->rm_reply.rp_reject.rj_vers.high);
 			(void)printf("RPC Version mismatch (%u-%u)",
@@ -334,7 +334,7 @@ nfsreply_print(packetbody_t bp, u_int length, packetbody_t bp2)
 			break;
 
 		case SUNRPC_AUTH_ERROR:
-			PACKET_HAS_ELEMENT_OR_TRUNC(rp, rm_reply.rp_reject.rj_why);
+			TCHECK(rp->rm_reply.rp_reject.rj_why);
 			rwhy = EXTRACT_32BITS(&rp->rm_reply.rp_reject.rj_why);
 			(void)printf("Auth ");
 			switch (rwhy) {
@@ -411,15 +411,15 @@ parsereq(__capability const struct sunrpc_msg *rp, register u_int length)
 	 * find the start of the req data (if we captured it)
 	 */
 	dp = (__capability u_int32_t *)&rp->rm_call.cb_cred;
-	PACKET_HAS_SPACE_OR_TRUNC(dp, 8);
+	TCHECK(dp[1]);
 	len = EXTRACT_32BITS(&dp[1]);
 	if (len < length) {
 		dp += (len + (2 * sizeof(*dp) + 3)) / sizeof(*dp);
-		PACKET_HAS_SPACE_OR_TRUNC(dp, 8);
+		TCHECK(dp[1]);
 		len = EXTRACT_32BITS(&dp[1]);
 		if (len < length) {
 			dp += (len + (2 * sizeof(*dp) + 3)) / sizeof(*dp);
-			PACKET_HAS_SPACE_OR_TRUNC(dp, 1);
+			TCHECK2(dp[0], 0);
 			return (dp);
 		}
 	}
@@ -437,13 +437,13 @@ parsefh(__capability  const u_int32_t *dp, int v3)
 	u_int len;
 
 	if (v3) {
-		PACKET_HAS_ONE_OR_TRUNC(dp);
+		TCHECK(dp[0]);
 		len = EXTRACT_32BITS(dp) / 4;
 		dp++;
 	} else
 		len = NFSX_V2FH / 4;
 
-	if (PACKET_HAS_SPACE(dp, len * sizeof(*dp))) {
+	if (TTEST2(*dp, len * sizeof(*dp))) {
 		nfs_printfh(dp, len);
 		return (dp + len);
 	}
@@ -462,14 +462,14 @@ parsefn(__capability const u_int32_t *dp)
 	packetbody_t cp;
 
 	/* Bail if we don't have the string length */
-	PACKET_HAS_ONE_OR_TRUNC(dp);
+	TCHECK(*dp);
 
 	/* Fetch string length; convert to host order */
 	len = *dp++;
 	NTOHL(len);
 
 #ifndef CHERI_TCPDUMP_VULNERABILITY
-	PACKET_HAS_SPACE_OR_TRUNC(dp, ((len + 3) & ~3));
+	TCHECK2(*dp, ((len + 3) & ~3));
 #endif
 
 	cp = (packetbody_t)dp;
@@ -521,7 +521,7 @@ nfsreq_print(packetbody_t bp, u_int length, packetbody_t bp2)
 	nfserr = 0;		/* assume no error */
 	rp = (__capability const struct sunrpc_msg *)bp;
 
-	PACKET_HAS_ELEMENT_OR_TRUNC(rp, rm_xid);
+	TCHECK(rp->rm_xid);
 	if (!nflag) {
 		snprintf(srcid, sizeof(srcid), "%u",
 		    EXTRACT_32BITS(&rp->rm_xid));
@@ -576,7 +576,7 @@ nfsreq_print(packetbody_t bp, u_int length, packetbody_t bp2)
 		printf(" access");
 		if ((dp = parsereq(rp, length)) != NULL &&
 		    (dp = parsefh(dp, v3)) != NULL) {
-			PACKET_HAS_ONE_OR_TRUNC(dp);
+			TCHECK(dp[0]);
 			access_flags = EXTRACT_32BITS(&dp[0]);
 			if (access_flags & ~NFSV3ACCESS_FULL) {
 				/* NFSV3ACCESS definitions aren't up to date */
@@ -624,12 +624,12 @@ nfsreq_print(packetbody_t bp, u_int length, packetbody_t bp2)
 		if ((dp = parsereq(rp, length)) != NULL &&
 		    (dp = parsefh(dp, v3)) != NULL) {
 			if (v3) {
-				PACKET_HAS_SPACE_OR_TRUNC(dp, 12);
+				TCHECK(dp[2]);
 				printf(" %u bytes @ %" PRIu64,
 				       EXTRACT_32BITS(&dp[2]),
 				       EXTRACT_64BITS(&dp[0]));
 			} else {
-				PACKET_HAS_SPACE_OR_TRUNC(dp, 8);
+				TCHECK(dp[1]);
 				printf(" %u bytes @ %u",
 				    EXTRACT_32BITS(&dp[1]),
 				    EXTRACT_32BITS(&dp[0]));
@@ -643,20 +643,20 @@ nfsreq_print(packetbody_t bp, u_int length, packetbody_t bp2)
 		if ((dp = parsereq(rp, length)) != NULL &&
 		    (dp = parsefh(dp, v3)) != NULL) {
 			if (v3) {
-				PACKET_HAS_SPACE_OR_TRUNC(dp, 12);
+				TCHECK(dp[2]);
 				printf(" %u (%u) bytes @ %" PRIu64,
 						EXTRACT_32BITS(&dp[4]),
 						EXTRACT_32BITS(&dp[2]),
 						EXTRACT_64BITS(&dp[0]));
 				if (vflag) {
 					dp += 3;
-					PACKET_HAS_ONE_OR_TRUNC(dp);
+					TCHECK(dp[0]);
 					printf(" <%s>",
 						tok2str(nfsv3_writemodes,
 							NULL, EXTRACT_32BITS(dp)));
 				}
 			} else {
-				PACKET_HAS_SPACE_OR_TRUNC(dp, 16);
+				TCHECK(dp[3]);
 				printf(" %u (%u) bytes @ %u (%u)",
 						EXTRACT_32BITS(&dp[3]),
 						EXTRACT_32BITS(&dp[2]),
@@ -699,14 +699,14 @@ nfsreq_print(packetbody_t bp, u_int length, packetbody_t bp2)
 		printf(" mknod");
 		if ((dp = parsereq(rp, length)) != 0 &&
 		    (dp = parsefhn(dp, v3)) != 0) {
-			PACKET_HAS_ONE_OR_TRUNC(dp);
+			TCHECK(*dp);
 			type = (nfs_type)EXTRACT_32BITS(dp);
 			dp++;
 			if ((dp = parse_sattr3(dp, &sa3)) == 0)
 				break;
 			printf(" %s", tok2str(type2str, "unk-ft %d", type));
 			if (vflag && (type == NFCHR || type == NFBLK)) {
-				PACKET_HAS_SPACE_OR_TRUNC(dp, 8);
+				TCHECK(dp[1]);
 				printf(" %u/%u",
 				       EXTRACT_32BITS(&dp[0]),
 				       EXTRACT_32BITS(&dp[1]));
@@ -757,7 +757,7 @@ nfsreq_print(packetbody_t bp, u_int length, packetbody_t bp2)
 		if ((dp = parsereq(rp, length)) != NULL &&
 		    (dp = parsefh(dp, v3)) != NULL) {
 			if (v3) {
-				PACKET_HAS_SPACE_OR_TRUNC(dp, 20);
+				TCHECK(dp[4]);
 				/*
 				 * We shouldn't really try to interpret the
 				 * offset cookie here.
@@ -769,7 +769,7 @@ nfsreq_print(packetbody_t bp, u_int length, packetbody_t bp2)
 					printf(" verf %08x%08x", dp[2],
 					       dp[3]);
 			} else {
-				PACKET_HAS_SPACE_OR_TRUNC(dp, 8);
+				TCHECK(dp[1]);
 				/*
 				 * Print the offset as signed, since -1 is
 				 * common, but offsets > 2^31 aren't.
@@ -786,7 +786,7 @@ nfsreq_print(packetbody_t bp, u_int length, packetbody_t bp2)
 		printf(" readdirplus");
 		if ((dp = parsereq(rp, length)) != NULL &&
 		    (dp = parsefh(dp, v3)) != NULL) {
-			PACKET_HAS_SPACE_OR_TRUNC(dp, 20);
+			TCHECK(dp[4]);
 			/*
 			 * We don't try to interpret the offset
 			 * cookie here.
@@ -795,7 +795,7 @@ nfsreq_print(packetbody_t bp, u_int length, packetbody_t bp2)
 				EXTRACT_32BITS(&dp[4]),
 				EXTRACT_64BITS(&dp[0]));
 			if (vflag) {
-				PACKET_HAS_SPACE_OR_TRUNC(dp, 24);
+				TCHECK(dp[5]);
 				printf(" max %u verf %08x%08x",
 				       EXTRACT_32BITS(&dp[5]), dp[2], dp[3]);
 			}
@@ -828,7 +828,7 @@ nfsreq_print(packetbody_t bp, u_int length, packetbody_t bp2)
 		printf(" commit");
 		if ((dp = parsereq(rp, length)) != NULL &&
 		    (dp = parsefh(dp, v3)) != NULL) {
-			PACKET_HAS_SPACE_OR_TRUNC(dp, 12);
+			TCHECK(dp[2]);
 			printf(" %u bytes @ %" PRIu64,
 				EXTRACT_32BITS(&dp[2]),
 				EXTRACT_64BITS(&dp[0]));
@@ -945,7 +945,7 @@ xid_map_enter(__capability const struct sunrpc_msg *rp, packetbody_t bp)
 #endif
 	struct xid_map_entry *xmep;
 
-	if (!PACKET_HAS_ELEMENT(rp, rm_call.cb_vers))
+	if (!TTEST(rp->rm_call.cb_vers))
 		return (0);
 	switch (IP_V((struct ip *)bp)) {
 	case 4:
@@ -1077,7 +1077,7 @@ parserep(__capability const struct sunrpc_msg *rp, register u_int length)
 	 * which is an "enum" and so occupies one 32-bit word.
 	 */
 	dp = ((__capability const u_int32_t *)&rp->rm_reply) + 1;
-	PACKET_HAS_SPACE_OR_TRUNC(dp, 2);
+	TCHECK(dp[1]);
 	len = EXTRACT_32BITS(&dp[1]);
 	if (len >= length)
 		return (NULL);
@@ -1085,7 +1085,7 @@ parserep(__capability const struct sunrpc_msg *rp, register u_int length)
 	 * skip past the ar_verf credentials.
 	 */
 	dp += (len + (2*sizeof(u_int32_t) + 3)) / sizeof(u_int32_t);
-	PACKET_HAS_SPACE_OR_TRUNC(dp, 1);
+	TCHECK2(dp[0], 0);
 
 	/*
 	 * now we can check the ar_stat field
@@ -1127,7 +1127,7 @@ parserep(__capability const struct sunrpc_msg *rp, register u_int length)
 		return (NULL);
 	}
 	/* successful return */
-	PACKET_HAS_SPACE_OR_TRUNC(dp, sizeof(astat));
+	TCHECK2(*dp, sizeof(astat));
 	return ((__capability u_int32_t *) (sizeof(astat) + ((packetbody_t)dp)));
 trunc:
 	return (0);
@@ -1138,7 +1138,7 @@ parsestatus(__capability const u_int32_t *dp, int *er)
 {
 	int errnum;
 
-	PACKET_HAS_ONE_OR_TRUNC(dp);
+	TCHECK(dp[0]);
 
 	errnum = EXTRACT_32BITS(&dp[0]);
 	if (er)
@@ -1160,7 +1160,7 @@ parsefattr(__capability const u_int32_t *dp, int verbose, int v3)
 	__capability const struct nfs_fattr *fap;
 
 	fap = (__capability const struct nfs_fattr *)dp;
-	PACKET_HAS_ELEMENT_OR_TRUNC(fap, fa_gid);
+	TCHECK(fap->fa_gid);
 	if (verbose) {
 		printf(" %s %o ids %d/%d",
 		    tok2str(type2str, "unk-ft %d ",
@@ -1169,18 +1169,18 @@ parsefattr(__capability const u_int32_t *dp, int verbose, int v3)
 		    EXTRACT_32BITS(&fap->fa_uid),
 		    EXTRACT_32BITS(&fap->fa_gid));
 		if (v3) {
-			PACKET_HAS_ELEMENT_OR_TRUNC(fap, fa3_size);
+			TCHECK(fap->fa3_size);
 			printf(" sz %" PRIu64,
 				EXTRACT_64BITS((__capability u_int32_t *)&fap->fa3_size));
 		} else {
-			PACKET_HAS_ELEMENT_OR_TRUNC(fap, fa2_size);
+			TCHECK(fap->fa2_size);
 			printf(" sz %d", EXTRACT_32BITS(&fap->fa2_size));
 		}
 	}
 	/* print lots more stuff */
 	if (verbose > 1) {
 		if (v3) {
-			PACKET_HAS_ELEMENT_OR_TRUNC(fap, fa3_ctime);
+			TCHECK(fap->fa3_ctime);
 			printf(" nlink %d rdev %d/%d",
 			       EXTRACT_32BITS(&fap->fa_nlink),
 			       EXTRACT_32BITS(&fap->fa3_rdev.specdata1),
@@ -1199,7 +1199,7 @@ parsefattr(__capability const u_int32_t *dp, int verbose, int v3)
 			       EXTRACT_32BITS(&fap->fa3_ctime.nfsv3_sec),
 			       EXTRACT_32BITS(&fap->fa3_ctime.nfsv3_nsec));
 		} else {
-			PACKET_HAS_ELEMENT_OR_TRUNC(fap, fa2_ctime);
+			TCHECK(fap->fa2_ctime);
 			printf(" nlink %d rdev %x fsid %x nodeid %x a/m/ctime",
 			       EXTRACT_32BITS(&fap->fa_nlink),
 			       EXTRACT_32BITS(&fap->fa2_rdev),
@@ -1291,7 +1291,7 @@ parsestatfs(__capability const u_int32_t *dp, int v3)
 			return (0);
 	}
 
-	PACKET_HAS_SPACE_OR_TRUNC(dp, (v3 ? NFSX_V3STATFS : NFSX_V2STATFS));
+	TCHECK2(*dp, (v3 ? NFSX_V3STATFS : NFSX_V2STATFS));
 
 	sfsp = (__capability const struct nfs_statfs *)dp;
 
@@ -1334,7 +1334,7 @@ parserddires(__capability const u_int32_t *dp)
 	if (qflag)
 		return (1);
 
-	PACKET_HAS_SPACE_OR_TRUNC(dp, 12);
+	TCHECK(dp[2]);
 	printf(" offset %x size %d ",
 	       EXTRACT_32BITS(&dp[0]), EXTRACT_32BITS(&dp[1]));
 	if (dp[2] != 0)
@@ -1361,11 +1361,11 @@ parse_wcc_attr(__capability const u_int32_t *dp)
 static __capability const u_int32_t *
 parse_pre_op_attr(__capability const u_int32_t *dp, int verbose)
 {
-	PACKET_HAS_ONE_OR_TRUNC(dp);
+	TCHECK(dp[0]);
 	if (!EXTRACT_32BITS(&dp[0]))
 		return (dp + 1);
 	dp++;
-	PACKET_HAS_SPACE_OR_TRUNC(dp, 24);
+	TCHECK2(*dp, 24);
 	if (verbose > 1) {
 		return parse_wcc_attr(dp);
 	} else {
@@ -1382,7 +1382,7 @@ trunc:
 static __capability const u_int32_t *
 parse_post_op_attr(__capability const u_int32_t *dp, int verbose)
 {
-	PACKET_HAS_ONE_OR_TRUNC(dp);
+	TCHECK(dp[0]);
 	if (!EXTRACT_32BITS(&dp[0]))
 		return (dp + 1);
 	dp++;
@@ -1417,7 +1417,7 @@ parsecreateopres(__capability const u_int32_t *dp, int verbose)
 	if (er)
 		dp = parse_wcc_data(dp, verbose);
 	else {
-		PACKET_HAS_ONE_OR_TRUNC(dp);
+		TCHECK(dp[0]);
 		if (!EXTRACT_32BITS(&dp[0]))
 			return (dp + 1);
 		dp++;
@@ -1461,7 +1461,7 @@ parsev3rddirres(__capability const u_int32_t *dp, int verbose)
 	if (er)
 		return dp;
 	if (vflag) {
-		PACKET_HAS_SPACE_OR_TRUNC(dp, 2);
+		TCHECK(dp[1]);
 		printf(" verf %08x%08x", dp[0], dp[1]);
 		dp += 2;
 	}
@@ -1486,7 +1486,7 @@ parsefsinfo(__capability const u_int32_t *dp)
 		return (1);
 
 	sfp = (__capability struct nfsv3_fsinfo *)dp;
-	PACKET_HAS_ONE_OR_TRUNC(sfp);
+	TCHECK(*sfp);
 	printf(" rtmax %u rtpref %u wtmax %u wtpref %u dtpref %u",
 	       EXTRACT_32BITS(&sfp->fs_rtmax),
 	       EXTRACT_32BITS(&sfp->fs_rtpref),
@@ -1523,7 +1523,7 @@ parsepathconf(__capability const u_int32_t *dp)
 		return (1);
 
 	spp = (__capability struct nfsv3_pathconf *)dp;
-	PACKET_HAS_ONE_OR_TRUNC(spp);
+	TCHECK(*spp);
 
 	printf(" linkmax %u namemax %u %s %s %s %s",
 	       EXTRACT_32BITS(&spp->pc_linkmax),
@@ -1641,7 +1641,7 @@ interp_reply(__capability const struct sunrpc_msg *rp, u_int32_t proc, u_int32_t
 			if (er)
 				return;
 			if (vflag) {
-				PACKET_HAS_SPACE_OR_TRUNC(dp, 2);
+				TCHECK(dp[1]);
 				printf(" %u bytes", EXTRACT_32BITS(&dp[0]));
 				if (EXTRACT_32BITS(&dp[1]))
 					printf(" EOF");
@@ -1665,10 +1665,10 @@ interp_reply(__capability const struct sunrpc_msg *rp, u_int32_t proc, u_int32_t
 			if (er)
 				return;
 			if (vflag) {
-				PACKET_HAS_ONE_OR_TRUNC(dp);
+				TCHECK(dp[0]);
 				printf(" %u bytes", EXTRACT_32BITS(&dp[0]));
 				if (vflag > 1) {
-					PACKET_HAS_SPACE_OR_TRUNC(dp, 2);
+					TCHECK(dp[1]);
 					printf(" <%s>",
 						tok2str(nfsv3_writemodes,
 							NULL, EXTRACT_32BITS(&dp[1])));

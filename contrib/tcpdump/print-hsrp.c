@@ -102,23 +102,23 @@ hsrp_print(packetbody_t bp, register u_int len)
 {
 	__capability struct hsrp *hp = (__capability struct hsrp *) bp;
 
-	PACKET_HAS_ELEMENT_OR_TRUNC(hp, hsrp_version);
+	TCHECK(hp->hsrp_version);
 	printf("HSRPv%d", hp->hsrp_version);
 	if (hp->hsrp_version != 0)
 		return;
-	PACKET_HAS_ELEMENT_OR_TRUNC(hp, hsrp_op_code);
+	TCHECK(hp->hsrp_op_code);
 	printf("-");
 	printf("%s ", tok2strary(op_code_str, "unknown (%d)", hp->hsrp_op_code));
 	printf("%d: ", len);
-	PACKET_HAS_ELEMENT_OR_TRUNC(hp, hsrp_state);
+	TCHECK(hp->hsrp_state);
 	printf("state=%s ", tok2str(states, "Unknown (%d)", hp->hsrp_state));
-	PACKET_HAS_ELEMENT_OR_TRUNC(hp, hsrp_group);
+	TCHECK(hp->hsrp_group);
 	printf("group=%d ", hp->hsrp_group);
-	PACKET_HAS_ELEMENT_OR_TRUNC(hp, hsrp_reserved);
+	TCHECK(hp->hsrp_reserved);
 	if (hp->hsrp_reserved != 0) {
 		printf("[reserved=%d!] ", hp->hsrp_reserved);
 	}
-	PACKET_HAS_ELEMENT_OR_TRUNC(hp, hsrp_virtaddr);
+	TCHECK(hp->hsrp_virtaddr);
 	printf("addr=%s", ipaddr_string(&hp->hsrp_virtaddr));
 	if (vflag) {
 		printf(" hellotime=");

@@ -181,13 +181,13 @@ lwapp_control_print(packetbody_t pptr, u_int len, int has_ap_ident) {
 
     if (has_ap_ident) {
         /* check if enough bytes for AP identity */
-        if (!PACKET_HAS_SPACE(tptr, 6))
+        if (!TTEST2(*tptr, 6))
             goto trunc;
         lwapp_trans_header = (__capability const struct lwapp_transport_header *)(pptr+6);
     } else {
         lwapp_trans_header = (__capability const struct lwapp_transport_header *)pptr;
     }
-    PACKET_HAS_ONE_OR_TRUNC(lwapp_trans_header);
+    TCHECK(*lwapp_trans_header);
 
     /*
      * Sanity checking of the header.
@@ -230,7 +230,7 @@ lwapp_control_print(packetbody_t pptr, u_int len, int has_ap_ident) {
     while(tlen>0) {
 
         /* did we capture enough for fully decoding the object header ? */
-        if (!PACKET_HAS_SPACE(tptr, sizeof(struct lwapp_control_header)))
+        if (!TTEST2(*tptr, sizeof(struct lwapp_control_header)))
             goto trunc;
 
         lwapp_control_header = (__capability const struct lwapp_control_header *)tptr;
@@ -245,7 +245,7 @@ lwapp_control_print(packetbody_t pptr, u_int len, int has_ap_ident) {
                EXTRACT_32BITS(lwapp_control_header->session_id));
 
         /* did we capture enough for fully decoding the message */
-        if (!PACKET_HAS_SPACE(tptr, msg_tlen))
+        if (!TTEST2(*tptr, msg_tlen))
             goto trunc;
 
 	/* XXX - Decode sub messages for each message */
@@ -304,10 +304,10 @@ lwapp_data_print(packetbody_t pptr, u_int len) {
     tptr=pptr;
 
     /* check if enough bytes for AP identity */
-    if (!PACKET_HAS_SPACE(tptr, 6))
+    if (!TTEST2(*tptr, 6))
         goto trunc;
     lwapp_trans_header = (__capability const struct lwapp_transport_header *)pptr;
-    PACKET_HAS_ONE_OR_TRUNC(lwapp_trans_header);
+    TCHECK(*lwapp_trans_header);
 
     /*
      * Sanity checking of the header.

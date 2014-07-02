@@ -91,7 +91,7 @@ cnfp_print(packetbody_t cp, packetbody_t bp _U_)
 
 	nh = (__capability const struct nfhdr *)cp;
 
-	if (!PACKET_HAS_ONE(nh))
+	if (!TTEST(*nh))
 		return;
 
 	nrecs = EXTRACT_32BITS(&nh->ver_cnt) & 0xffff;
@@ -122,7 +122,7 @@ cnfp_print(packetbody_t cp, packetbody_t bp _U_)
 	printf("%2u recs", nrecs);
 
 	/* XXX-BD: OVERFLOW: previous code overflowed if truncated mid rec */
-	for (; nrecs-- && PACKET_HAS_ONE(nr); nr++) {
+	for (; nrecs-- && TTEST(*nr); nr++) {
 		char buf[20];
 		char asbuf[20];
 

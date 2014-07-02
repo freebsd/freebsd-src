@@ -44,7 +44,7 @@ sip_print(packetbody_t pptr, register u_int len)
         return;
 
     for (idx = 0; idx < len; idx++) {
-        PACKET_HAS_SPACE_OR_TRUNC(pptr, idx + 2);
+        TCHECK2(*(pptr+idx), 2);
         if (EXTRACT_16BITS(pptr+idx) != 0x0d0a) { /* linefeed ? */
             safeputchar(*(pptr+idx));
         } else {

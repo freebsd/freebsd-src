@@ -781,7 +781,7 @@ static int clnp_print (packetbody_t pptr, u_int length)
         u_int8_t rfd_error_major,rfd_error_minor;
 
 	clnp_header = (__capability const struct clnp_header_t *) pptr;
-        PACKET_HAS_ONE_OR_TRUNC(clnp_header);
+        TCHECK(*clnp_header);
 
         li = clnp_header->length_indicator;
         optr = pptr;
@@ -850,7 +850,7 @@ static int clnp_print (packetbody_t pptr, u_int length)
 
         if (clnp_flags & CLNP_SEGMENT_PART) {
             	clnp_segment_header = (__capability const struct clnp_segment_header_t *) pptr;
-                PACKET_HAS_ONE_OR_TRUNC(clnp_segment_header);
+                TCHECK(*clnp_segment_header);
                 printf("\n\tData Unit ID: 0x%04x, Segment Offset: %u, Total PDU Length: %u",
                        EXTRACT_16BITS(clnp_segment_header->data_unit_id),
                        EXTRACT_16BITS(clnp_segment_header->segment_offset),
@@ -864,7 +864,7 @@ static int clnp_print (packetbody_t pptr, u_int length)
             u_int op, opli;
             packetbody_t tptr;
             
-            PACKET_HAS_SPACE_OR_TRUNC(pptr, 2);
+            TCHECK2(*pptr, 2);
             if (li < 2) {
                 printf(", bad opts/li");
                 return (0);
@@ -872,7 +872,7 @@ static int clnp_print (packetbody_t pptr, u_int length)
             op = *pptr++;
             opli = *pptr++;
             li -= 2;
-            PACKET_HAS_SPACE_OR_TRUNC(pptr, opli);
+            TCHECK2(*pptr, opli);
             if (opli > li) {
                 printf(", opt (%d) too long", op);
                 return (0);
@@ -914,7 +914,7 @@ static int clnp_print (packetbody_t pptr, u_int length)
                             }
                             if (source_address_length > 0) {
                                     source_address=(tptr+1);
-                                    PACKET_HAS_SPACE_OR_TRUNC(source_address, source_address_length);
+                                    TCHECK2(*source_address, source_address_length);
                                     printf("\n\t    NSAP address (length %u): %s",
                                            source_address_length,
                                            isonsap_string(source_address, source_address_length));
@@ -976,7 +976,7 @@ static int clnp_print (packetbody_t pptr, u_int length)
 
         case    CLNP_PDU_ER: /* fall through */
         case 	CLNP_PDU_ERP:
-            PACKET_HAS_ONE_OR_TRUNC(pptr);
+            TCHECK(*pptr);
             if (*(pptr) == NLPID_CLNP) {
                 printf("\n\t-----original packet-----\n\t");
                 /* FIXME recursion protection */
@@ -1045,7 +1045,7 @@ esis_print(packetbody_t pptr, u_int length)
 	}
 
 	esis_header = (__capability const struct esis_header_t *) pptr;
-        PACKET_HAS_ONE_OR_TRUNC(esis_header);
+        TCHECK(*esis_header);
         li = esis_header->length_indicator;
         optr = pptr;
 
@@ -1108,7 +1108,7 @@ esis_print(packetbody_t pptr, u_int length)
 		packetbody_t dst, snpa, neta;
 		u_int dstl, snpal, netal;
 
-		PACKET_HAS_ONE_OR_TRUNC(pptr);
+		TCHECK(*pptr);
 		if (li < 1) {
 			printf(", bad redirect/li");
 			return;
@@ -1116,7 +1116,7 @@ esis_print(packetbody_t pptr, u_int length)
 		dstl = *pptr;
 		pptr++;
 		li--;
-		PACKET_HAS_SPACE_OR_TRUNC(pptr, dstl);
+		TCHECK2(*pptr, dstl);
 		if (li < dstl) {
 			printf(", bad redirect/li");
 			return;
@@ -1126,7 +1126,7 @@ esis_print(packetbody_t pptr, u_int length)
                 li -= dstl;
 		printf("\n\t  %s", isonsap_string(dst,dstl));
 
-		PACKET_HAS_ONE_OR_TRUNC(pptr);
+		TCHECK(*pptr);
 		if (li < 1) {
 			printf(", bad redirect/li");
 			return;
@@ -1134,7 +1134,7 @@ esis_print(packetbody_t pptr, u_int length)
 		snpal = *pptr;
 		pptr++;
 		li--;
-		PACKET_HAS_SPACE_OR_TRUNC(pptr, snpal);
+		TCHECK2(*pptr, snpal);
 		if (li < snpal) {
 			printf(", bad redirect/li");
 			return;
@@ -1142,14 +1142,14 @@ esis_print(packetbody_t pptr, u_int length)
 		snpa = pptr;
 		pptr += snpal;
                 li -= snpal;
-		PACKET_HAS_ONE_OR_TRUNC(pptr);
+		TCHECK(*pptr);
 		if (li < 1) {
 			printf(", bad redirect/li");
 			return;
 		}
 		netal = *pptr;
 		pptr++;
-		PACKET_HAS_SPACE_OR_TRUNC(pptr, netal);
+		TCHECK2(*pptr, netal);
 		if (li < netal) {
 			printf(", bad redirect/li");
 			return;
@@ -1166,7 +1166,7 @@ esis_print(packetbody_t pptr, u_int length)
 	}
 
 	case ESIS_PDU_ESH:
-            PACKET_HAS_ONE_OR_TRUNC(pptr);
+            TCHECK(*pptr);
             if (li < 1) {
                 printf(", bad esh/li");
                 return;
@@ -1178,7 +1178,7 @@ esis_print(packetbody_t pptr, u_int length)
             printf("\n\t  Number of Source Addresses: %u", source_address_number);
            
             while (source_address_number > 0) {
-                PACKET_HAS_ONE_OR_TRUNC(pptr);
+                TCHECK(*pptr);
             	if (li < 1) {
                     printf(", bad esh/li");
             	    return;
@@ -1187,7 +1187,7 @@ esis_print(packetbody_t pptr, u_int length)
                 pptr++;
             	li--;
 
-                PACKET_HAS_SPACE_OR_TRUNC(pptr, source_address_length);
+                TCHECK2(*pptr, source_address_length);
             	if (li < source_address_length) {
                     printf(", bad esh/li");
             	    return;
@@ -1203,7 +1203,7 @@ esis_print(packetbody_t pptr, u_int length)
             break;
 
 	case ESIS_PDU_ISH: {
-            PACKET_HAS_ONE_OR_TRUNC(pptr);
+            TCHECK(*pptr);
             if (li < 1) {
                 printf(", bad ish/li");
                 return;
@@ -1211,7 +1211,7 @@ esis_print(packetbody_t pptr, u_int length)
             source_address_length = *pptr;
             pptr++;
             li--;
-            PACKET_HAS_SPACE_OR_TRUNC(pptr, source_address_length);
+            TCHECK2(*pptr, source_address_length);
             if (li < source_address_length) {
                 printf(", bad ish/li");
                 return;
@@ -1240,7 +1240,7 @@ esis_print(packetbody_t pptr, u_int length)
                 printf(", bad opts/li");
                 return;
             }
-            PACKET_HAS_SPACE_OR_TRUNC(pptr, 2);
+            TCHECK2(*pptr, 2);
             op = *pptr++;
             opli = *pptr++;
             li -= 2;
@@ -1260,7 +1260,7 @@ esis_print(packetbody_t pptr, u_int length)
 
             case ESIS_OPTION_ES_CONF_TIME:
                 if (opli == 2) {
-                    PACKET_HAS_SPACE_OR_TRUNC(pptr, 2);
+                    TCHECK2(*pptr, 2);
                     printf("%us", EXTRACT_16BITS(tptr));
                 } else
                     printf("(bad length)");
@@ -1268,7 +1268,7 @@ esis_print(packetbody_t pptr, u_int length)
 
             case ESIS_OPTION_PROTOCOLS:
                 while (opli>0) {
-                    PACKET_HAS_ONE_OR_TRUNC(pptr);
+                    TCHECK(*pptr);
                     printf("%s (0x%02x)",
                            tok2str(nlpid_values,
                                    "unknown",
@@ -1353,7 +1353,7 @@ isis_print_mt_port_cap_subtlv (packetbody_t tptr, int len)
     {
       case ISIS_SUBTLV_SPB_MCID:
       {
-        if (!PACKET_HAS_SPACE((tptr), ISIS_SUBTLV_SPB_MCID_MIN_LEN))
+        if (!TTEST2(*(tptr), ISIS_SUBTLV_SPB_MCID_MIN_LEN))
           goto trunctlv;
 
         subtlv_spb_mcid = (__capability const struct isis_subtlv_spb_mcid *)tptr;
@@ -1377,7 +1377,7 @@ isis_print_mt_port_cap_subtlv (packetbody_t tptr, int len)
 
       case ISIS_SUBTLV_SPB_DIGEST:
       {
-        if (!PACKET_HAS_SPACE((tptr), ISIS_SUBTLV_SPB_DIGEST_MIN_LEN))
+        if (!TTEST2(*(tptr), ISIS_SUBTLV_SPB_DIGEST_MIN_LEN))
           goto trunctlv;
 
         printf ("\n\t        RES: %d V: %d A: %d D: %d",
@@ -1403,12 +1403,12 @@ isis_print_mt_port_cap_subtlv (packetbody_t tptr, int len)
 
       case ISIS_SUBTLV_SPB_BVID:
       {
-        if (!PACKET_HAS_SPACE((tptr), stlv_len))
+        if (!TTEST2(*(tptr), stlv_len))
           goto trunctlv;
 
         while (len)
         {
-          if (!PACKET_HAS_SPACE((tptr), ISIS_SUBTLV_SPB_BVID_MIN_LEN))
+          if (!TTEST2(*(tptr), ISIS_SUBTLV_SPB_BVID_MIN_LEN))
             goto trunctlv;
 
           printf("\n\t           ECT: %08x", 
@@ -1462,7 +1462,7 @@ isis_print_mt_capability_subtlv (packetbody_t tptr, int len)
     {    
       case ISIS_SUBTLV_SPB_INSTANCE:
 
-          if (!PACKET_HAS_SPACE((tptr), ISIS_SUBTLV_SPB_INSTANCE_MIN_LEN)) 
+          if (!TTEST2(*(tptr), ISIS_SUBTLV_SPB_INSTANCE_MIN_LEN)) 
             goto trunctlv;
 
           printf("\n\t        CIST Root-ID: %08x", EXTRACT_32BITS(tptr));
@@ -1488,7 +1488,7 @@ isis_print_mt_capability_subtlv (packetbody_t tptr, int len)
 
           while (tmp)
           {
-            if (!PACKET_HAS_SPACE((tptr), ISIS_SUBTLV_SPB_INSTANCE_VLAN_TUPLE_LEN))
+            if (!TTEST2(*(tptr), ISIS_SUBTLV_SPB_INSTANCE_VLAN_TUPLE_LEN))
               goto trunctlv;
 
             printf ("\n\t         U:%d, M:%d, A:%d, RES:%d",
@@ -1514,7 +1514,7 @@ isis_print_mt_capability_subtlv (packetbody_t tptr, int len)
 
       case ISIS_SUBTLV_SPBM_SI:
 
-          if (!PACKET_HAS_SPACE((tptr), 6)) 
+          if (!TTEST2(*(tptr), 6)) 
             goto trunctlv;
 
           printf("\n\t        BMAC: %08x", EXTRACT_32BITS(tptr));
@@ -1618,7 +1618,7 @@ isis_print_tlv_ip_reach (packetbody_t cp, const char *ident, int length)
 			return (0);
 		}
 
-		if (!PACKET_HAS_ONE(tlv_ip_reach))
+		if (!TTEST(*tlv_ip_reach))
 		    return (0);
 
 		prefix_len = mask2plen(EXTRACT_32BITS(tlv_ip_reach->mask));
@@ -1680,7 +1680,7 @@ isis_print_ip_reach_subtlv (packetbody_t tptr,int subt,int subl,const char *iden
                subt,
                subl);
 
-	if (!PACKET_HAS_SPACE(tptr,subl))
+	if (!TTEST2(*tptr,subl))
 	    goto trunctlv;
 
     switch(subt) {
@@ -1739,7 +1739,7 @@ isis_print_is_reach_subtlv (packetbody_t tptr,u_int subt,u_int subl,const char *
                subt,
                subl);
 
-	if (!PACKET_HAS_SPACE(tptr,subl))
+	if (!TTEST2(*tptr,subl))
 	    goto trunctlv;
 
         switch(subt) {
@@ -1892,20 +1892,20 @@ isis_print_ext_is_reach (packetbody_t tptr,const char *ident, int tlv_type) {
     int subtlv_type,subtlv_len,subtlv_sum_len;
     int proc_bytes = 0; /* how many bytes did we process ? */
     
-    if (!PACKET_HAS_SPACE(tptr, NODE_ID_LEN))
+    if (!TTEST2(*tptr, NODE_ID_LEN))
         return(0);
 
     printf("%sIS Neighbor: %s", ident, isis_print_id(tptr, NODE_ID_LEN));
     tptr+=(NODE_ID_LEN);
 
     if (tlv_type != ISIS_TLV_IS_ALIAS_ID) { /* the Alias TLV Metric field is implicit 0 */
-        if (!PACKET_HAS_SPACE(tptr, 3))    /* and is therefore skipped */
+        if (!TTEST2(*tptr, 3))    /* and is therefore skipped */
 	    return(0);
 	printf(", Metric: %d",EXTRACT_24BITS(tptr));
 	tptr+=3;
     }
         
-    if (!PACKET_HAS_SPACE(tptr, 1))
+    if (!TTEST2(*tptr, 1))
         return(0);
     subtlv_sum_len=*(tptr++); /* read out subTLV length */
     proc_bytes=NODE_ID_LEN+3+1;
@@ -1913,7 +1913,7 @@ isis_print_ext_is_reach (packetbody_t tptr,const char *ident, int tlv_type) {
     if (subtlv_sum_len) {
         printf(" (%u)",subtlv_sum_len);
         while (subtlv_sum_len>0) {
-            if (!PACKET_HAS_SPACE(tptr,2))
+            if (!TTEST2(*tptr,2))
                 return(0);
             subtlv_type=*(tptr++);
             subtlv_len=*(tptr++);
@@ -1937,7 +1937,7 @@ isis_print_ext_is_reach (packetbody_t tptr,const char *ident, int tlv_type) {
 static int
 isis_print_mtid (packetbody_t tptr,const char *ident) {
     
-    if (!PACKET_HAS_SPACE(tptr, 2))
+    if (!TTEST2(*tptr, 2))
         return(0);
 
     printf("%s%s",
@@ -1971,14 +1971,14 @@ isis_print_extd_ip_reach (packetbody_t tptr, const char *ident, u_int16_t afi) {
 #endif
     u_int metric, status_byte, bit_length, byte_length, sublen, processed, subtlvtype, subtlvlen;
 
-    if (!PACKET_HAS_SPACE(tptr, 4))
+    if (!TTEST2(*tptr, 4))
         return (0);
     metric = EXTRACT_32BITS(tptr);
     processed=4;
     tptr+=4;
     
     if (afi == AF_INET) {
-        if (!PACKET_HAS_SPACE(tptr, 1)) /* fetch status byte */
+        if (!TTEST2(*tptr, 1)) /* fetch status byte */
             return (0);
         status_byte=*(tptr++);
         bit_length = status_byte&0x3f;
@@ -1991,7 +1991,7 @@ isis_print_extd_ip_reach (packetbody_t tptr, const char *ident, u_int16_t afi) {
         processed++;
 #ifdef INET6
     } else if (afi == AF_INET6) {
-        if (!PACKET_HAS_SPACE(tptr, 1)) /* fetch status & prefix_len byte */
+        if (!TTEST2(*tptr, 1)) /* fetch status & prefix_len byte */
             return (0);
         status_byte=*(tptr++);
         bit_length=*(tptr++);
@@ -2008,7 +2008,7 @@ isis_print_extd_ip_reach (packetbody_t tptr, const char *ident, u_int16_t afi) {
 
     byte_length = (bit_length + 7) / 8; /* prefix has variable length encoding */
    
-    if (!PACKET_HAS_SPACE(tptr, byte_length))
+    if (!TTEST2(*tptr, byte_length))
         return (0);
     memset(prefix, 0, sizeof prefix);   /* clear the copy buffer */
     p_memcpy_from_packet(prefix,tptr,byte_length);    /* copy as much as is stored in the TLV */
@@ -2050,14 +2050,14 @@ isis_print_extd_ip_reach (packetbody_t tptr, const char *ident, u_int16_t afi) {
            than one subTLV - therefore the first byte must reflect
            the aggregate bytecount of the subTLVs for this prefix
         */
-        if (!PACKET_HAS_SPACE(tptr, 1))
+        if (!TTEST2(*tptr, 1))
             return (0);
         sublen=*(tptr++);
         processed+=sublen+1;
         printf(" (%u)",sublen);   /* print out subTLV length */
         
         while (sublen>0) {
-            if (!PACKET_HAS_SPACE(tptr,2))
+            if (!TTEST2(*tptr,2))
                 return (0);
             subtlvtype=*(tptr++);
             subtlvlen=*(tptr++);
@@ -2104,7 +2104,7 @@ static int isis_print (packetbody_t p, u_int length)
                  need it for parsing the checksum TLV and authentication
                  TLV verification */
     isis_header = (__capability const struct isis_common_header *)p;
-    PACKET_HAS_ONE_OR_TRUNC(isis_header);
+    TCHECK(*isis_header);
     pptr = p+(ISIS_COMMON_HEADER_SIZE);
     header_iih_lan = (__capability const struct isis_iih_lan_header *)pptr;
     header_iih_ptp = (__capability const struct isis_iih_ptp_header *)pptr;
@@ -2253,7 +2253,7 @@ static int isis_print (packetbody_t p, u_int length)
             length=pdu_len;
 	}
 
-	PACKET_HAS_ONE_OR_TRUNC(header_iih_lan);
+	TCHECK(*header_iih_lan);
 	printf("\n\t  source-id: %s,  holding time: %us, Flags: [%s]",
                isis_print_id(header_iih_lan->source_id,SYSTEM_ID_LEN),
                EXTRACT_16BITS(header_iih_lan->holding_time),
@@ -2288,7 +2288,7 @@ static int isis_print (packetbody_t p, u_int length)
             length=pdu_len;
 	}
 
-	PACKET_HAS_ONE_OR_TRUNC(header_iih_ptp);
+	TCHECK(*header_iih_ptp);
 	printf("\n\t  source-id: %s, holding time: %us, Flags: [%s]",
                isis_print_id(header_iih_ptp->source_id,SYSTEM_ID_LEN),
                EXTRACT_16BITS(header_iih_ptp->holding_time),
@@ -2323,7 +2323,7 @@ static int isis_print (packetbody_t p, u_int length)
             length=pdu_len;
 	}
 
-	PACKET_HAS_ONE_OR_TRUNC(header_lsp);
+	TCHECK(*header_lsp);
 	printf("\n\t  lsp-id: %s, seq: 0x%08x, lifetime: %5us\n\t  chksum: 0x%04x",
                isis_print_id(header_lsp->lsp_id, LSP_ID_LEN),
                EXTRACT_32BITS(header_lsp->sequence_number),
@@ -2380,7 +2380,7 @@ static int isis_print (packetbody_t p, u_int length)
             length=pdu_len;
 	}
 
-	PACKET_HAS_ONE_OR_TRUNC(header_csnp);
+	TCHECK(*header_csnp);
 	printf("\n\t  source-id:    %s, PDU length: %u",
                isis_print_id(header_csnp->source_id, NODE_ID_LEN),
                pdu_len);
@@ -2412,7 +2412,7 @@ static int isis_print (packetbody_t p, u_int length)
             length=pdu_len;
 	}
 
-	PACKET_HAS_ONE_OR_TRUNC(header_psnp);
+	TCHECK(*header_psnp);
 	printf("\n\t  source-id:    %s, PDU length: %u",
                isis_print_id(header_psnp->source_id, NODE_ID_LEN),
                pdu_len);
@@ -2441,7 +2441,7 @@ static int isis_print (packetbody_t p, u_int length)
 	    return (1);
         }
 
-	if (!PACKET_HAS_SPACE(pptr, 2)) {
+	if (!TTEST2(*pptr, 2)) {
 	    printf("\n\t\t packet exceeded snapshot (%ld) bytes",
                    PACKET_REMAINING(pptr));
 	    return (1);
@@ -2469,7 +2469,7 @@ static int isis_print (packetbody_t p, u_int length)
         /* now check if we have a decoder otherwise do a hexdump at the end*/
 	switch (tlv_type) {
 	case ISIS_TLV_AREA_ADDR:
-	    if (!PACKET_HAS_SPACE(tptr, 1))
+	    if (!TTEST2(*tptr, 1))
 		goto trunctlv;
 	    alen = *tptr++;
 	    while (tmp && alen < tmp) {
@@ -2480,14 +2480,14 @@ static int isis_print (packetbody_t p, u_int length)
 		tmp -= alen + 1;
 		if (tmp==0) /* if this is the last area address do not attemt a boundary check */
                     break;
-		if (!PACKET_HAS_SPACE(tptr, 1))
+		if (!TTEST2(*tptr, 1))
 		    goto trunctlv;
 		alen = *tptr++;
 	    }
 	    break;
 	case ISIS_TLV_ISNEIGH:
 	    while (tmp >= ETHER_ADDR_LEN) {
-                if (!PACKET_HAS_SPACE(tptr, ETHER_ADDR_LEN))
+                if (!TTEST2(*tptr, ETHER_ADDR_LEN))
                     goto trunctlv;
                 printf("\n\t      SNPA: %s",isis_print_id(tptr,ETHER_ADDR_LEN));
                 tmp -= ETHER_ADDR_LEN;
@@ -2496,7 +2496,7 @@ static int isis_print (packetbody_t p, u_int length)
 	    break;
 
         case ISIS_TLV_ISNEIGH_VARLEN:
-            if (!PACKET_HAS_SPACE(tptr, 1) || tmp < 3) /* min. TLV length */
+            if (!TTEST2(*tptr, 1) || tmp < 3) /* min. TLV length */
 		goto trunctlv;
 	    lan_alen = *tptr++; /* LAN address length */
 	    if (lan_alen == 0) {
@@ -2506,7 +2506,7 @@ static int isis_print (packetbody_t p, u_int length)
             tmp --;
             printf("\n\t      LAN address length %u bytes ",lan_alen);
 	    while (tmp >= lan_alen) {
-                if (!PACKET_HAS_SPACE(tptr, lan_alen))
+                if (!TTEST2(*tptr, lan_alen))
                     goto trunctlv;
                 printf("\n\t\tIS Neighbor: %s",isis_print_id(tptr,lan_alen));
                 tmp -= lan_alen;
@@ -2553,7 +2553,7 @@ static int isis_print (packetbody_t p, u_int length)
             }
             break;
         case ISIS_TLV_IS_REACH:
-	    if (!PACKET_HAS_SPACE(tptr,1))  /* check if there is one byte left to read out the virtual flag */
+	    if (!TTEST2(*tptr,1))  /* check if there is one byte left to read out the virtual flag */
                 goto trunctlv;
             printf("\n\t      %s",
                    tok2str(isis_is_reach_virtual_values,
@@ -2561,7 +2561,7 @@ static int isis_print (packetbody_t p, u_int length)
                            *tptr++));
 	    tlv_is_reach = (__capability const struct isis_tlv_is_reach *)tptr;
             while (tmp >= sizeof(struct isis_tlv_is_reach)) {
-		if (!PACKET_HAS_ONE(tlv_is_reach))
+		if (!TTEST(*tlv_is_reach))
 		    goto trunctlv;
 		printf("\n\t      IS Neighbor: %s",
 		       isis_print_id(tlv_is_reach->neighbor_nodeid, NODE_ID_LEN));
@@ -2574,7 +2574,7 @@ static int isis_print (packetbody_t p, u_int length)
         case ISIS_TLV_ESNEIGH:
 	    tlv_es_reach = (__capability const struct isis_tlv_es_reach *)tptr;
             while (tmp >= sizeof(struct isis_tlv_es_reach)) {
-		if (!PACKET_HAS_ONE(tlv_es_reach))
+		if (!TTEST(*tlv_es_reach))
 		    goto trunctlv;
 		printf("\n\t      ES Neighbor: %s",
                        isis_print_id(tlv_es_reach->neighbor_sysid,SYSTEM_ID_LEN));
@@ -2648,7 +2648,7 @@ static int isis_print (packetbody_t p, u_int length)
 
 	case ISIS_TLV_IP6ADDR:
 	    while (tmp>=sizeof(struct in6_addr)) {
-		if (!PACKET_HAS_SPACE(tptr, sizeof(struct in6_addr)))
+		if (!TTEST2(*tptr, sizeof(struct in6_addr)))
 		    goto trunctlv;
 
                 printf("\n\t      IPv6 interface address: %s",
@@ -2660,7 +2660,7 @@ static int isis_print (packetbody_t p, u_int length)
 	    break;
 #endif
 	case ISIS_TLV_AUTH:
-	    if (!PACKET_HAS_SPACE(tptr, 1))
+	    if (!TTEST2(*tptr, 1))
 		goto trunctlv;
 
             printf("\n\t      %s: ",
@@ -2671,14 +2671,14 @@ static int isis_print (packetbody_t p, u_int length)
 	    switch (*tptr) {
 	    case ISIS_SUBTLV_AUTH_SIMPLE:
 		for(i=1;i<tlv_len;i++) {
-		    if (!PACKET_HAS_SPACE(tptr, i))
+		    if (!TTEST2(*(tptr+i), 1))
 			goto trunctlv;
 		    printf("%c",*(tptr+i));
 		}
 		break;
 	    case ISIS_SUBTLV_AUTH_MD5:
 		for(i=1;i<tlv_len;i++) {
-		    if (!PACKET_HAS_SPACE(tptr, i))
+		    if (!TTEST2(*(tptr+i), 1))
 			goto trunctlv;
 		    printf("%02x",*(tptr+i));
 		}
@@ -2698,7 +2698,7 @@ static int isis_print (packetbody_t p, u_int length)
                 key_id = EXTRACT_16BITS((tptr+1));
                 printf("%u, password: ", key_id); 
                 for(i=1 + sizeof(u_int16_t);i<tlv_len;i++) {
-                    if (!PACKET_HAS_SPACE(tptr, i))
+                    if (!TTEST2(*(tptr+i), 1))
                         goto trunctlv;
                     printf("%02x",*(tptr+i));
                 }
@@ -2714,7 +2714,7 @@ static int isis_print (packetbody_t p, u_int length)
 	case ISIS_TLV_PTP_ADJ:
 	    tlv_ptp_adj = (__capability const struct isis_tlv_ptp_adj *)tptr;
 	    if(tmp>=1) {
-		if (!PACKET_HAS_SPACE(tptr, 1))
+		if (!TTEST2(*tptr, 1))
 		    goto trunctlv;
 		printf("\n\t      Adjacency State: %s (%u)",
 		       tok2str(isis_ptp_adjancey_values, "unknown", *tptr),
@@ -2722,21 +2722,21 @@ static int isis_print (packetbody_t p, u_int length)
 		tmp--;
 	    }
 	    if(tmp>sizeof(tlv_ptp_adj->extd_local_circuit_id)) {
-		if (!PACKET_HAS_ELEMENT(tlv_ptp_adj, extd_local_circuit_id))
+		if (!TTEST(tlv_ptp_adj->extd_local_circuit_id))
 		    goto trunctlv;
 		printf("\n\t      Extended Local circuit-ID: 0x%08x",
 		       EXTRACT_32BITS(tlv_ptp_adj->extd_local_circuit_id));
 		tmp-=sizeof(tlv_ptp_adj->extd_local_circuit_id);
 	    }
 	    if(tmp>=SYSTEM_ID_LEN) {
-		if (!PACKET_HAS_ONE(tlv_ptp_adj))
+		if (!TTEST(tlv_ptp_adj->neighbor_sysid))
 		    goto trunctlv;
 		printf("\n\t      Neighbor System-ID: %s",
 		       isis_print_id(tlv_ptp_adj->neighbor_sysid,SYSTEM_ID_LEN));
 		tmp-=SYSTEM_ID_LEN;
 	    }
 	    if(tmp>=sizeof(tlv_ptp_adj->neighbor_extd_local_circuit_id)) {
-		if (!PACKET_HAS_ELEMENT(tlv_ptp_adj, neighbor_extd_local_circuit_id))
+		if (!TTEST(tlv_ptp_adj->neighbor_extd_local_circuit_id))
 		    goto trunctlv;
 		printf("\n\t      Neighbor Extended Local circuit-ID: 0x%08x",
 		       EXTRACT_32BITS(tlv_ptp_adj->neighbor_extd_local_circuit_id));
@@ -2746,7 +2746,7 @@ static int isis_print (packetbody_t p, u_int length)
 	case ISIS_TLV_PROTOCOLS:
 	    printf("\n\t      NLPID(s): ");
 	    while (tmp>0) {
-		if (!PACKET_HAS_SPACE((tptr), 1))
+		if (!TTEST2(*(tptr), 1))
 		    goto trunctlv;
 		printf("%s (0x%02x)",
                        tok2str(nlpid_values,
@@ -2762,7 +2762,7 @@ static int isis_print (packetbody_t p, u_int length)
 
     case ISIS_TLV_MT_PORT_CAP:
     {
-      if (!PACKET_HAS_SPACE((tptr), 2))
+      if (!TTEST2(*(tptr), 2))
         goto trunctlv;
 
       printf("\n\t       RES: %d, MTID(s): %d",
@@ -2780,7 +2780,7 @@ static int isis_print (packetbody_t p, u_int length)
 
     case ISIS_TLV_MT_CAPABILITY:
 
-      if (!PACKET_HAS_SPACE((tptr), 2))
+      if (!TTEST2(*(tptr), 2))
         goto trunctlv;
 
       printf("\n\t      O: %d, RES: %d, MTID(s): %d",
@@ -2797,14 +2797,14 @@ static int isis_print (packetbody_t p, u_int length)
       break;
 
 	case ISIS_TLV_TE_ROUTER_ID:
-	    if (!PACKET_HAS_SPACE(pptr, sizeof(struct in_addr)))
+	    if (!TTEST2(*pptr, sizeof(struct in_addr)))
 		goto trunctlv;
 	    printf("\n\t      Traffic Engineering Router ID: %s", ipaddr_string(pptr));
 	    break;
 
 	case ISIS_TLV_IPADDR:
 	    while (tmp>=sizeof(struct in_addr)) {
-		if (!PACKET_HAS_SPACE(tptr, sizeof(struct in_addr)))
+		if (!TTEST2(*tptr, sizeof(struct in_addr)))
 		    goto trunctlv;
 		printf("\n\t      IPv4 interface address: %s", ipaddr_string(tptr));
 		tptr += sizeof(struct in_addr);
@@ -2815,7 +2815,7 @@ static int isis_print (packetbody_t p, u_int length)
 	case ISIS_TLV_HOSTNAME:
 	    printf("\n\t      Hostname: ");
 	    while (tmp>0) {
-		if (!PACKET_HAS_SPACE(tptr, 1))
+		if (!TTEST2(*tptr, 1))
 		    goto trunctlv;
 		printf("%c",*tptr++);
                 tmp--;
@@ -2825,7 +2825,7 @@ static int isis_print (packetbody_t p, u_int length)
 	case ISIS_TLV_SHARED_RISK_GROUP:
 	    if (tmp < NODE_ID_LEN)
 	        break;
-	    if (!PACKET_HAS_SPACE(tptr, NODE_ID_LEN))
+	    if (!TTEST2(*tptr, NODE_ID_LEN))
                 goto trunctlv;
 	    printf("\n\t      IS Neighbor: %s", isis_print_id(tptr, NODE_ID_LEN));
 	    tptr+=(NODE_ID_LEN);
@@ -2833,14 +2833,14 @@ static int isis_print (packetbody_t p, u_int length)
 
 	    if (tmp < 1)
 	        break;
-	    if (!PACKET_HAS_SPACE(tptr, 1))
+	    if (!TTEST2(*tptr, 1))
                 goto trunctlv;
 	    printf(", Flags: [%s]", ISIS_MASK_TLV_SHARED_RISK_GROUP(*tptr++) ? "numbered" : "unnumbered");
 	    tmp--;
 
 	    if (tmp < sizeof(struct in_addr))
 	        break;
-	    if (!PACKET_HAS_SPACE(tptr,sizeof(struct in_addr)))
+	    if (!TTEST2(*tptr,sizeof(struct in_addr)))
                 goto trunctlv;
 	    printf("\n\t      IPv4 interface address: %s", ipaddr_string(tptr));
 	    tptr+=sizeof(struct in_addr);
@@ -2848,14 +2848,14 @@ static int isis_print (packetbody_t p, u_int length)
 
 	    if (tmp < sizeof(struct in_addr))
 	        break;
-	    if (!PACKET_HAS_SPACE(tptr,sizeof(struct in_addr)))
+	    if (!TTEST2(*tptr,sizeof(struct in_addr)))
                 goto trunctlv;
 	    printf("\n\t      IPv4 neighbor address: %s", ipaddr_string(tptr));
 	    tptr+=sizeof(struct in_addr);
 	    tmp-=sizeof(struct in_addr);
 
 	    while (tmp>=4) {
-                if (!PACKET_HAS_SPACE(tptr, 4))
+                if (!TTEST2(*tptr, 4))
                     goto trunctlv;
                 printf("\n\t      Link-ID: 0x%08x", EXTRACT_32BITS(tptr));
                 tptr+=4;
@@ -2866,17 +2866,17 @@ static int isis_print (packetbody_t p, u_int length)
 	case ISIS_TLV_LSP:
 	    tlv_lsp = (__capability const struct isis_tlv_lsp *)tptr;
 	    while(tmp>=sizeof(struct isis_tlv_lsp)) {
-		if (!PACKET_HAS_ELEMENT(tlv_lsp, lsp_id))
+		if (!TTEST((tlv_lsp->lsp_id)[LSP_ID_LEN-1]))
 		    goto trunctlv;
 		printf("\n\t      lsp-id: %s",
                        isis_print_id(tlv_lsp->lsp_id, LSP_ID_LEN));
-		if (!PACKET_HAS_ELEMENT(tlv_lsp, sequence_number))
+		if (!TTEST(tlv_lsp->sequence_number))
 		    goto trunctlv;
 		printf(", seq: 0x%08x",EXTRACT_32BITS(tlv_lsp->sequence_number));
-		if (!PACKET_HAS_ELEMENT(tlv_lsp, remaining_lifetime))
+		if (!TTEST(tlv_lsp->remaining_lifetime))
 		    goto trunctlv;
 		printf(", lifetime: %5ds",EXTRACT_16BITS(tlv_lsp->remaining_lifetime));
-		if (!PACKET_HAS_ELEMENT(tlv_lsp, checksum))
+		if (!TTEST(tlv_lsp->checksum))
 		    goto trunctlv;
 		printf(", chksum: 0x%04x",EXTRACT_16BITS(tlv_lsp->checksum));
 		tmp-=sizeof(struct isis_tlv_lsp);
@@ -2887,7 +2887,7 @@ static int isis_print (packetbody_t p, u_int length)
 	case ISIS_TLV_CHECKSUM:
 	    if (tmp < ISIS_TLV_CHECKSUM_MINLEN)
 	        break;
-	    if (!PACKET_HAS_SPACE(tptr, ISIS_TLV_CHECKSUM_MINLEN))
+	    if (!TTEST2(*tptr, ISIS_TLV_CHECKSUM_MINLEN))
 		goto trunctlv;
 	    printf("\n\t      checksum: 0x%04x ", EXTRACT_16BITS(tptr));
             /* do not attempt to verify the checksum if it is zero
@@ -2921,7 +2921,7 @@ static int isis_print (packetbody_t p, u_int length)
             /* first attempt to decode the flags */
             if (tmp < ISIS_TLV_RESTART_SIGNALING_FLAGLEN)
                 break;
-            if (!PACKET_HAS_SPACE(tptr, ISIS_TLV_RESTART_SIGNALING_FLAGLEN))
+            if (!TTEST2(*tptr, ISIS_TLV_RESTART_SIGNALING_FLAGLEN))
                 goto trunctlv;
             printf("\n\t      Flags [%s]",
                    bittok2str(isis_restart_flag_values, "none", *tptr));
@@ -2934,7 +2934,7 @@ static int isis_print (packetbody_t p, u_int length)
 
             if (tmp < ISIS_TLV_RESTART_SIGNALING_HOLDTIMELEN)
                 break;
-            if (!PACKET_HAS_SPACE(tptr, ISIS_TLV_RESTART_SIGNALING_HOLDTIMELEN))
+            if (!TTEST2(*tptr, ISIS_TLV_RESTART_SIGNALING_HOLDTIMELEN))
                 goto trunctlv;
 
             printf(", Remaining holding time %us", EXTRACT_16BITS(tptr));
@@ -2943,7 +2943,7 @@ static int isis_print (packetbody_t p, u_int length)
 
             /* is there an additional sysid field present ?*/
             if (tmp == SYSTEM_ID_LEN) {
-                    if (!PACKET_HAS_SPACE(tptr, SYSTEM_ID_LEN))
+                    if (!TTEST2(*tptr, SYSTEM_ID_LEN))
                             goto trunctlv;
                     printf(", for %s",isis_print_id(tptr,SYSTEM_ID_LEN));
             } 
@@ -2952,7 +2952,7 @@ static int isis_print (packetbody_t p, u_int length)
         case ISIS_TLV_IDRP_INFO:
 	    if (tmp < ISIS_TLV_IDRP_INFO_MINLEN)
 	        break;
-            if (!PACKET_HAS_SPACE(tptr, ISIS_TLV_IDRP_INFO_MINLEN))
+            if (!TTEST2(*tptr, ISIS_TLV_IDRP_INFO_MINLEN))
                 goto trunctlv;
             printf("\n\t      Inter-Domain Information Type: %s",
                    tok2str(isis_subtlv_idrp_values,
@@ -2960,7 +2960,7 @@ static int isis_print (packetbody_t p, u_int length)
                            *tptr));
             switch (*tptr++) {
             case ISIS_SUBTLV_IDRP_ASN:
-                if (!PACKET_HAS_SPACE(tptr, 2)) /* fetch AS number */
+                if (!TTEST2(*tptr, 2)) /* fetch AS number */
                     goto trunctlv;
                 printf("AS Number: %u",EXTRACT_16BITS(tptr));
                 break;
@@ -2976,14 +2976,14 @@ static int isis_print (packetbody_t p, u_int length)
         case ISIS_TLV_LSP_BUFFERSIZE:
 	    if (tmp < ISIS_TLV_LSP_BUFFERSIZE_MINLEN)
 	        break;
-            if (!PACKET_HAS_SPACE(tptr, ISIS_TLV_LSP_BUFFERSIZE_MINLEN))
+            if (!TTEST2(*tptr, ISIS_TLV_LSP_BUFFERSIZE_MINLEN))
                 goto trunctlv;
             printf("\n\t      LSP Buffersize: %u",EXTRACT_16BITS(tptr));
             break;
 
         case ISIS_TLV_PART_DIS:
             while (tmp >= SYSTEM_ID_LEN) {
-                if (!PACKET_HAS_SPACE(tptr, SYSTEM_ID_LEN))
+                if (!TTEST2(*tptr, SYSTEM_ID_LEN))
                     goto trunctlv;
                 printf("\n\t      %s",isis_print_id(tptr,SYSTEM_ID_LEN));
                 tptr+=SYSTEM_ID_LEN;
@@ -2994,7 +2994,7 @@ static int isis_print (packetbody_t p, u_int length)
         case ISIS_TLV_PREFIX_NEIGH:
 	    if (tmp < sizeof(struct isis_metric_block))
 	        break;
-            if (!PACKET_HAS_SPACE(tptr, sizeof(struct isis_metric_block)))
+            if (!TTEST2(*tptr, sizeof(struct isis_metric_block)))
                 goto trunctlv;
             printf("\n\t      Metric Block");
             isis_print_metric_block((__capability const struct isis_metric_block *)tptr);
@@ -3002,7 +3002,7 @@ static int isis_print (packetbody_t p, u_int length)
             tmp-=sizeof(struct isis_metric_block);
 
             while(tmp>0) {
-                if (!PACKET_HAS_SPACE(tptr, 1))
+                if (!TTEST2(*tptr, 1))
                     goto trunctlv;
                 prefix_len=*tptr++; /* read out prefix length in semioctets*/
                 if (prefix_len < 2) {
@@ -3012,7 +3012,7 @@ static int isis_print (packetbody_t p, u_int length)
                 tmp--;
                 if (tmp < prefix_len/2)
                     break;
-                if (!PACKET_HAS_SPACE(tptr, prefix_len/2))
+                if (!TTEST2(*tptr, prefix_len/2))
                     goto trunctlv;
                 printf("\n\t\tAddress: %s/%u",
                        isonsap_string(tptr,prefix_len/2),
@@ -3025,7 +3025,7 @@ static int isis_print (packetbody_t p, u_int length)
         case ISIS_TLV_IIH_SEQNR:
 	    if (tmp < ISIS_TLV_IIH_SEQNR_MINLEN)
 	        break;
-            if (!PACKET_HAS_SPACE(tptr, ISIS_TLV_IIH_SEQNR_MINLEN)) /* check if four bytes are on the wire */
+            if (!TTEST2(*tptr, ISIS_TLV_IIH_SEQNR_MINLEN)) /* check if four bytes are on the wire */
                 goto trunctlv;
             printf("\n\t      Sequence number: %u", EXTRACT_32BITS(tptr) );
             break;
@@ -3033,7 +3033,7 @@ static int isis_print (packetbody_t p, u_int length)
         case ISIS_TLV_VENDOR_PRIVATE:
 	    if (tmp < ISIS_TLV_VENDOR_PRIVATE_MINLEN)
 	        break;
-            if (!PACKET_HAS_SPACE(tptr, ISIS_TLV_VENDOR_PRIVATE_MINLEN)) /* check if enough byte for a full oui */
+            if (!TTEST2(*tptr, ISIS_TLV_VENDOR_PRIVATE_MINLEN)) /* check if enough byte for a full oui */
                 goto trunctlv;
             vendor_id = EXTRACT_24BITS(tptr);
             printf("\n\t      Vendor: %s (%u)",

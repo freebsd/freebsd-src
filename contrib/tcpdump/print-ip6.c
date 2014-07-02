@@ -95,7 +95,7 @@ ip6_print(netdissect_options *ndo, packetbody_t bp, u_int length)
 
 	ip6 = (__capability const struct ip6_hdr *)bp;
 
-	PACKET_HAS_ONE_OR_TRUNC(ip6);
+	TCHECK(*ip6);
 	if (length < sizeof (struct ip6_hdr)) {
 		(void)ND_PRINT((ndo, "truncated-ip6 %u", length));
 		return;
@@ -145,7 +145,7 @@ ip6_print(netdissect_options *ndo, packetbody_t bp, u_int length)
 	advance = sizeof(struct ip6_hdr);
 	nh = ip6->ip6_nxt;
 	/* XXX-BD: previously could run off the end */
-	while (ND_PACKET_HAS_SPACE(cp, advance)) {
+	while (ND_TTEST2(cp, advance)) {
 		cp += advance;
 		len -= advance;
 
@@ -167,7 +167,7 @@ ip6_print(netdissect_options *ndo, packetbody_t bp, u_int length)
 			break;
 		case IPPROTO_FRAGMENT:
 			advance = frag6_print(cp, (packetbody_t)ip6);
-			if (!ND_PACKET_HAS_SPACE(cp, advance))
+			if (!ND_TTEST2(cp, advance))
 				return;
 			nh = *cp;
 			fragmented = 1;

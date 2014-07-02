@@ -666,7 +666,7 @@ _U_
 
     while(tlen>=sizeof(struct rsvp_object_header)) {
         /* did we capture enough for fully decoding the object header ? */
-        if (!PACKET_HAS_SPACE(tptr, sizeof(struct rsvp_object_header)))
+        if (!TTEST2(*tptr, sizeof(struct rsvp_object_header)))
             goto trunc;
 
         rsvp_obj_header = (__capability const struct rsvp_object_header *)tptr;
@@ -711,7 +711,7 @@ _U_
         obj_tlen=rsvp_obj_len-sizeof(struct rsvp_object_header);
 
         /* did we capture enough for fully decoding the object ? */
-        if (!PACKET_HAS_SPACE(tptr, rsvp_obj_len))
+        if (!TTEST2(*tptr, rsvp_obj_len))
             return -1;
         hexdump=FALSE;
 
@@ -1813,7 +1813,7 @@ rsvp_print(packetbody_t pptr, register u_int len) {
     tptr=pptr;
 
     rsvp_com_header = (__capability struct rsvp_common_header *)pptr;
-    PACKET_HAS_ONE_OR_TRUNC(rsvp_com_header);
+    TCHECK(*rsvp_com_header);
 
     /*
      * Sanity checking of the header.
@@ -1869,7 +1869,7 @@ rsvp_print(packetbody_t pptr, register u_int len) {
         while(tlen > 0) {
             subtptr=tptr;
             rsvp_com_header = (__capability const struct rsvp_common_header *)subtptr;
-            PACKET_HAS_ONE_OR_TRUNC(rsvp_com_header);
+            TCHECK(*rsvp_com_header);
 
             /*
              * Sanity checking of the header.

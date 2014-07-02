@@ -51,7 +51,7 @@ rt6_print(packetbody_t bp, packetbody_t bp2 _U_)
 	dp = (__capability const struct ip6_rthdr *)bp;
 	len = dp->ip6r_len;
 
-	PACKET_HAS_ELEMENT_OR_TRUNC(dp, ip6r_segleft);
+	TCHECK(dp->ip6r_segleft);
 
 	printf("srcrt (len=%d", dp->ip6r_len);	/*)*/
 	printf(", type=%d", dp->ip6r_type);
@@ -68,7 +68,7 @@ rt6_print(packetbody_t bp, packetbody_t bp2 _U_)
 	case IPV6_RTHDR_TYPE_2:			/* Mobile IPv6 ID-20 */
 		dp0 = (__capability const struct ip6_rthdr0 *)dp;
 
-		PACKET_HAS_ELEMENT_OR_TRUNC(dp0, ip6r0_reserved);
+		TCHECK(dp0->ip6r0_reserved);
 		if (dp0->ip6r0_reserved || vflag) {
 			printf(", rsv=0x%0x",
 			    EXTRACT_32BITS(&dp0->ip6r0_reserved));
@@ -79,7 +79,7 @@ rt6_print(packetbody_t bp, packetbody_t bp2 _U_)
 		len >>= 1;
 		addr = &dp0->ip6r0_addr[0];
 		for (i = 0; i < len; i++) {
-			PACKET_HAS_ONE_OR_TRUNC(addr);
+			TCHECK(*addr);
 
 			printf(", [%d]%s", i, ip6addr_string(addr));
 			addr++;

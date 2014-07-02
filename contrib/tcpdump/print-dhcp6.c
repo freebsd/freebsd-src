@@ -342,7 +342,7 @@ dhcp6opt_print(packetbody_t cp, packetbody_t ep)
 		if (ep < cp + sizeof(*dh6o))
 			goto trunc;
 		dh6o = (__capability const struct dhcp6opt *)cp;
-		PACKET_HAS_ONE_OR_TRUNC(dh6o);
+		TCHECK(*dh6o);
 		optlen = EXTRACT_16BITS(&dh6o->dh6opt_len);
 		if (ep < cp + sizeof(*dh6o) + optlen)
 			goto trunc;
@@ -775,7 +775,7 @@ dhcp6_print(packetbody_t cp, u_int length)
 
 	dh6 = (__capability const struct dhcp6 *)cp;
 	dh6relay = (__capability const struct dhcp6_relay *)cp;
-	PACKET_HAS_ELEMENT_OR_TRUNC(dh6, dh6_xid);
+	TCHECK(dh6->dh6_xid);
 	switch (dh6->dh6_msgtype) {
 	case DH6_SOLICIT:
 		name = "solicit";
@@ -851,7 +851,7 @@ dhcp6_print(packetbody_t cp, u_int length)
 	} else {		/* relay messages */
 		struct in6_addr addr6;
 
-		PACKET_HAS_ELEMENT_OR_TRUNC(dh6relay, dh6relay_peeraddr);
+		TCHECK(dh6relay->dh6relay_peeraddr);
 
 		p_memcpy_from_packet(&addr6, dh6relay->dh6relay_linkaddr, sizeof (addr6));
 		printf("linkaddr=%s", ip6addr_string(&addr6));

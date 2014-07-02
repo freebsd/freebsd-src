@@ -80,7 +80,7 @@ dvmrp_print(packetbody_t bp, register u_int len)
 	if (PACKET_REMAINING(bp) == 0)
 		return;
 
-	PACKET_HAS_SPACE_OR_TRUNC(bp, 2);
+	TCHECK(bp[1]);
 	type = bp[1];
 
 	/* Skip IGMP header */
@@ -126,7 +126,7 @@ dvmrp_print(packetbody_t bp, register u_int len)
 		 * address field
 		 */
 		bp -= 4;
-		PACKET_HAS_SPACE_OR_TRUNC(bp, 4);
+		TCHECK2(bp[0], 4);
 		target_level = (bp[0] << 24) | (bp[1] << 16) |
 		    (bp[2] << 8) | bp[3];
 		bp += 4;
@@ -175,7 +175,7 @@ print_report(packetbody_t bp, register u_int len)
 			printf(" [|]");
 			return (0);
 		}
-		PACKET_HAS_SPACE_OR_TRUNC(bp, 3);
+		TCHECK2(bp[0], 3);
 		mask = (u_int32_t)0xff << 24 | bp[0] << 16 | bp[1] << 8 | bp[2];
 		width = 1;
 		if (bp[0])
@@ -189,7 +189,7 @@ print_report(packetbody_t bp, register u_int len)
 		bp += 3;
 		len -= 3;
 		do {
-			if (!PACKET_HAS_SPACE(bp, width)) {
+			if (!TTEST2(*bp, width)) {
 				printf(" [|]");
 				return (0);
 			}
@@ -199,13 +199,13 @@ print_report(packetbody_t bp, register u_int len)
 			}
 			origin = 0;
 			for (i = 0; i < width; ++i) {
-				PACKET_HAS_ONE_OR_TRUNC(bp);
+				TCHECK(*bp);
 				origin = origin << 8 | *bp++;
 			}
 			for ( ; i < 4; ++i)
 				origin <<= 8;
 
-			PACKET_HAS_ONE_OR_TRUNC(bp);
+			TCHECK(*bp);
 			metric = *bp++;
 			done = metric & 0x80;
 			metric &= 0x7f;
@@ -224,7 +224,7 @@ print_probe(packetbody_t bp, register u_int len)
 {
 	register u_int32_t genid;
 
-	PACKET_HAS_SPACE_OR_TRUNC(bp, 4);
+	TCHECK2(bp[0], 4);
 	if (len < 4) {
 		/* { (ctags) */
 		printf(" [|}");
@@ -242,7 +242,7 @@ print_probe(packetbody_t bp, register u_int len)
 		return (0);
 
 	while (len > 0 && PACKET_REMAINING(bp)) {
-		PACKET_HAS_SPACE_OR_TRUNC(bp, 4);
+		TCHECK2(bp[0], 4);
 		printf("\n\tneighbor %s", ipaddr_string(bp));
 		bp += 4; len -= 4;
 	}
@@ -260,7 +260,7 @@ print_neighbors(packetbody_t bp, register u_int len)
 	register int ncount;
 
 	while (len > 0 && PACKET_REMAINING(bp)) {
-		PACKET_HAS_SPACE_OR_TRUNC(bp, 7);
+		TCHECK2(bp[0], 7);
 		laddr = bp;
 		bp += 4;
 		metric = *bp++;
@@ -268,7 +268,7 @@ print_neighbors(packetbody_t bp, register u_int len)
 		ncount = *bp++;
 		len -= 7;
 		while (--ncount >= 0) {
-			PACKET_HAS_SPACE_OR_TRUNC(bp, 4);
+			TCHECK2(bp[0], 4);
 			printf(" [%s ->", ipaddr_string(laddr));
 			printf(" %s, (%d/%d)]",
 				   ipaddr_string(bp), metric, thresh);
@@ -293,7 +293,7 @@ print_neighbors2(packetbody_t bp, register u_int len)
 	       (int)(target_level >> 8) & 0xff);
 
 	while (len > 0 && PACKET_REMAINING(bp)) {
-		PACKET_HAS_SPACE_OR_TRUNC(bp, 8);
+		TCHECK2(bp[0], 8);
 		laddr = bp;
 		bp += 4;
 		metric = *bp++;
@@ -301,7 +301,7 @@ print_neighbors2(packetbody_t bp, register u_int len)
 		flags = *bp++;
 		ncount = *bp++;
 		len -= 8;
-		while (--ncount >= 0 && (len >= 4) && PACKET_HAS_SPACE(bp, 4)) {
+		while (--ncount >= 0 && (len >= 4) && TTEST2(*bp, 4)) {
 			printf(" [%s -> ", ipaddr_string(laddr));
 			printf("%s (%d/%d", ipaddr_string(bp),
 				     metric, thresh);
@@ -332,7 +332,7 @@ trunc:
 static int
 print_prune(packetbody_t bp)
 {
-	PACKET_HAS_SPACE_OR_TRUNC(bp, 12);
+	TCHECK2(bp[0], 12);
 	printf(" src %s grp %s", ipaddr_string(bp), ipaddr_string(bp + 4));
 	bp += 8;
 	(void)printf(" timer ");
@@ -345,7 +345,7 @@ trunc:
 static int
 print_graft(packetbody_t bp)
 {
-	PACKET_HAS_SPACE_OR_TRUNC(bp, 8);
+	TCHECK2(bp[0], 8);
 	printf(" src %s grp %s", ipaddr_string(bp), ipaddr_string(bp + 4));
 	return (0);
 trunc:
@@ -355,7 +355,7 @@ trunc:
 static int
 print_graft_ack(packetbody_t bp)
 {
-	PACKET_HAS_SPACE_OR_TRUNC(bp, 8);
+	TCHECK2(bp[0], 8);
 	printf(" src %s grp %s", ipaddr_string(bp), ipaddr_string(bp + 4));
 	return (0);
 trunc:

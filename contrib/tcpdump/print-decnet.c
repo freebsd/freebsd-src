@@ -78,7 +78,7 @@ decnet_print(packetbody_t ap, register u_int length,
 		return;
 	}
 
-	PACKET_HAS_SPACE_OR_TRUNC(ap, sizeof(short));
+	TCHECK2(*ap, sizeof(short));
 	pktlen = EXTRACT_LE_16BITS(ap);
 	if (pktlen < sizeof(struct shorthdr)) {
 		(void)printf("[|decnet]");
@@ -91,7 +91,7 @@ decnet_print(packetbody_t ap, register u_int length,
 	length = pktlen;
 
 	rhp = (__capability const union routehdr *)&(ap[sizeof(short)]);
-	PACKET_HAS_ELEMENT_OR_TRUNC(rhp, rh_short.sh_flags);
+	TCHECK(rhp->rh_short.sh_flags);
 	mflags = EXTRACT_LE_8BITS(rhp->rh_short.sh_flags);
 
 	if (mflags & RMF_PAD) {
@@ -103,7 +103,7 @@ decnet_print(packetbody_t ap, register u_int length,
 		(void)printf("[|decnet]");
 		return;
 	    }
-	    PACKET_HAS_SPACE_OR_TRUNC(ap, sizeof(short) + padlen);
+	    TCHECK2(ap[sizeof(short)], padlen);
 	    ap += padlen;
 	    length -= padlen;
 	    caplen -= padlen;
@@ -130,7 +130,7 @@ decnet_print(packetbody_t ap, register u_int length,
 		(void)printf("[|decnet]");
 		return;
 	    }
-	    PACKET_HAS_ELEMENT_OR_TRUNC(rhp, rh_long);
+	    TCHECK(rhp->rh_long);
 	    dst =
 		EXTRACT_LE_16BITS(rhp->rh_long.lg_dst.dne_remote.dne_nodeaddr);
 	    src =
@@ -140,7 +140,7 @@ decnet_print(packetbody_t ap, register u_int length,
 	    nsplen = length - sizeof(struct longhdr);
 	    break;
 	case RMF_SHORT:
-	    PACKET_HAS_ELEMENT_OR_TRUNC(rhp, rh_short);
+	    TCHECK(rhp->rh_short);
 	    dst = EXTRACT_LE_16BITS(rhp->rh_short.sh_dst);
 	    src = EXTRACT_LE_16BITS(rhp->rh_short.sh_src);
 	    hops = (EXTRACT_LE_8BITS(rhp->rh_short.sh_visits) & VIS_MASK)+1;
@@ -191,7 +191,7 @@ print_decnet_ctlmsg(__capability const union routehdr *rhp, u_int length,
 	    (void)printf("init ");
 	    if (length < sizeof(struct initmsg))
 		goto trunc;
-	    PACKET_HAS_ELEMENT_OR_TRUNC(cmp, cm_init);
+	    TCHECK(cmp->cm_init);
 	    src = EXTRACT_LE_16BITS(cmp->cm_init.in_src);
 	    info = EXTRACT_LE_8BITS(cmp->cm_init.in_info);
 	    blksize = EXTRACT_LE_16BITS(cmp->cm_init.in_blksize);
@@ -210,7 +210,7 @@ print_decnet_ctlmsg(__capability const union routehdr *rhp, u_int length,
 	    (void)printf("verification ");
 	    if (length < sizeof(struct verifmsg))
 		goto trunc;
-	    PACKET_HAS_ELEMENT_OR_TRUNC(cmp, cm_ver);
+	    TCHECK(cmp->cm_ver);
 	    src = EXTRACT_LE_16BITS(cmp->cm_ver.ve_src);
 	    other = EXTRACT_LE_8BITS(cmp->cm_ver.ve_fcnval);
 	    (void)printf("src %s fcnval %o", dnaddr_string(src), other);
@@ -220,7 +220,7 @@ print_decnet_ctlmsg(__capability const union routehdr *rhp, u_int length,
 	    (void)printf("test ");
 	    if (length < sizeof(struct testmsg))
 		goto trunc;
-	    PACKET_HAS_ELEMENT_OR_TRUNC(cmp, cm_test);
+	    TCHECK(cmp->cm_test);
 	    src = EXTRACT_LE_16BITS(cmp->cm_test.te_src);
 	    other = EXTRACT_LE_8BITS(cmp->cm_test.te_data);
 	    (void)printf("src %s data %o", dnaddr_string(src), other);
@@ -230,7 +230,7 @@ print_decnet_ctlmsg(__capability const union routehdr *rhp, u_int length,
 	    (void)printf("lev-1-routing ");
 	    if (length < sizeof(struct l1rout))
 		goto trunc;
-	    PACKET_HAS_ELEMENT_OR_TRUNC(cmp, cm_l1rou);
+	    TCHECK(cmp->cm_l1rou);
 	    src = EXTRACT_LE_16BITS(cmp->cm_l1rou.r1_src);
 	    (void)printf("src %s ", dnaddr_string(src));
 	    ret = print_l1_routes(&(rhpx[sizeof(struct l1rout)]),
@@ -240,7 +240,7 @@ print_decnet_ctlmsg(__capability const union routehdr *rhp, u_int length,
 	    (void)printf("lev-2-routing ");
 	    if (length < sizeof(struct l2rout))
 		goto trunc;
-	    PACKET_HAS_ELEMENT_OR_TRUNC(cmp, cm_l2rout);
+	    TCHECK(cmp->cm_l2rout);
 	    src = EXTRACT_LE_16BITS(cmp->cm_l2rout.r2_src);
 	    (void)printf("src %s ", dnaddr_string(src));
 	    ret = print_l2_routes(&(rhpx[sizeof(struct l2rout)]),
@@ -250,7 +250,7 @@ print_decnet_ctlmsg(__capability const union routehdr *rhp, u_int length,
 	    (void)printf("router-hello ");
 	    if (length < sizeof(struct rhellomsg))
 		goto trunc;
-	    PACKET_HAS_ELEMENT_OR_TRUNC(cmp, cm_rhello);
+	    TCHECK(cmp->cm_rhello);
 	    vers = EXTRACT_LE_8BITS(cmp->cm_rhello.rh_vers);
 	    eco = EXTRACT_LE_8BITS(cmp->cm_rhello.rh_eco);
 	    ueco = EXTRACT_LE_8BITS(cmp->cm_rhello.rh_ueco);
@@ -273,7 +273,7 @@ print_decnet_ctlmsg(__capability const union routehdr *rhp, u_int length,
 	    (void)printf("endnode-hello ");
 	    if (length < sizeof(struct ehellomsg))
 		goto trunc;
-	    PACKET_HAS_ELEMENT_OR_TRUNC(cmp, cm_ehello);
+	    TCHECK(cmp->cm_ehello);
 	    vers = EXTRACT_LE_8BITS(cmp->cm_ehello.eh_vers);
 	    eco = EXTRACT_LE_8BITS(cmp->cm_ehello.eh_eco);
 	    ueco = EXTRACT_LE_8BITS(cmp->cm_ehello.eh_ueco);
@@ -333,7 +333,7 @@ print_l1_routes(__capability const char *rp, u_int len)
 
 	/* The last short is a checksum */
 	while (len > (3 * sizeof(short))) {
-	    PACKET_HAS_SPACE_OR_TRUNC(rp, 3 * sizeof(short));
+	    TCHECK2(*rp, 3 * sizeof(short));
 	    count = EXTRACT_LE_16BITS(rp);
 	    if (count > 1024)
 		return (1);	/* seems to be bogus from here on */
@@ -363,7 +363,7 @@ print_l2_routes(__capability const char *rp, u_int len)
 
 	/* The last short is a checksum */
 	while (len > (3 * sizeof(short))) {
-	    PACKET_HAS_SPACE_OR_TRUNC(rp, 3 * sizeof(short));
+	    TCHECK2(*rp, 3 * sizeof(short));
 	    count = EXTRACT_LE_16BITS(rp);
 	    if (count > 1024)
 		return (1);	/* seems to be bogus from here on */
@@ -417,7 +417,7 @@ print_nsp(packetbody_t nspp, u_int nsplen)
 
 	if (nsplen < sizeof(struct nsphdr))
 		goto trunc;
-	PACKET_HAS_ONE_OR_TRUNC(nsphp);
+	TCHECK(*nsphp);
 	flags = EXTRACT_LE_8BITS(nsphp->nh_flags);
 	dst = EXTRACT_LE_16BITS(nsphp->nh_dst);
 	src = EXTRACT_LE_16BITS(nsphp->nh_src);
@@ -440,7 +440,7 @@ print_nsp(packetbody_t nspp, u_int nsplen)
 
 		    if (nsplen < data_off)
 			goto trunc;
-		    PACKET_HAS_ELEMENT_OR_TRUNC(shp, sh_seq[0]);
+		    TCHECK(shp->sh_seq[0]);
 		    ack = EXTRACT_LE_16BITS(shp->sh_seq[0]);
 		    if (ack & SGQ_ACK) {	/* acknum field */
 			if ((ack & SGQ_NAK) == SGQ_NAK)
@@ -450,7 +450,7 @@ print_nsp(packetbody_t nspp, u_int nsplen)
 			data_off += sizeof(short);
 			if (nsplen < data_off)
 			    goto trunc;
-			PACKET_HAS_ELEMENT_OR_TRUNC(shp, sh_seq[1]);
+			TCHECK(shp->sh_seq[1]);
 		        ack = EXTRACT_LE_16BITS(shp->sh_seq[1]);
 			if (ack & SGQ_OACK) {	/* ackoth field */
 			    if ((ack & SGQ_ONAK) == SGQ_ONAK)
@@ -460,7 +460,7 @@ print_nsp(packetbody_t nspp, u_int nsplen)
 			    data_off += sizeof(short);
 			    if (nsplen < data_off)
 				goto trunc;
-			    PACKET_HAS_ELEMENT_OR_TRUNC(shp, sh_seq[2]);
+			    TCHECK(shp->sh_seq[2]);
 			    ack = EXTRACT_LE_16BITS(shp->sh_seq[2]);
 			}
 		    }
@@ -468,7 +468,7 @@ print_nsp(packetbody_t nspp, u_int nsplen)
 #ifdef	PRINT_NSPDATA
 		    if (nsplen > data_off) {
 			dp = &(nspp[data_off]);
-			PACKET_HAS_SPACE_OR_TRUNC(dp, nsplen - data_off);
+			TCHECK2(*dp, nsplen - data_off);
 			pdata(dp, nsplen - data_off);
 		    }
 #endif
@@ -486,7 +486,7 @@ print_nsp(packetbody_t nspp, u_int nsplen)
 
 		    if (nsplen < data_off)
 			goto trunc;
-		    PACKET_HAS_ELEMENT_OR_TRUNC(shp, sh_seq[0]);
+		    TCHECK(shp->sh_seq[0]);
 		    ack = EXTRACT_LE_16BITS(shp->sh_seq[0]);
 		    if (ack & SGQ_ACK) {	/* acknum field */
 			if ((ack & SGQ_NAK) == SGQ_NAK)
@@ -496,7 +496,7 @@ print_nsp(packetbody_t nspp, u_int nsplen)
 			data_off += sizeof(short);
 			if (nsplen < data_off)
 			    goto trunc;
-			PACKET_HAS_ELEMENT_OR_TRUNC(shp, sh_seq[1]);
+			TCHECK(shp->sh_seq[1]);
 		        ack = EXTRACT_LE_16BITS(shp->sh_seq[1]);
 			if (ack & SGQ_OACK) {	/* ackdat field */
 			    if ((ack & SGQ_ONAK) == SGQ_ONAK)
@@ -506,7 +506,7 @@ print_nsp(packetbody_t nspp, u_int nsplen)
 			    data_off += sizeof(short);
 			    if (nsplen < data_off)
 				goto trunc;
-			    PACKET_HAS_ELEMENT_OR_TRUNC(shp, sh_seq[2]);
+			    TCHECK(shp->sh_seq[2]);
 			    ack = EXTRACT_LE_16BITS(shp->sh_seq[2]);
 			}
 		    }
@@ -514,7 +514,7 @@ print_nsp(packetbody_t nspp, u_int nsplen)
 #ifdef	PRINT_NSPDATA
 		    if (nsplen > data_off) {
 			dp = &(nspp[data_off]);
-			PACKET_HAS_SPACE_OR_TRUNC(dp, nsplen - data_off);
+			TCHECK2(*dp, nsplen - data_off);
 			pdata(dp, nsplen - data_off);
 		    }
 #endif
@@ -531,26 +531,26 @@ print_nsp(packetbody_t nspp, u_int nsplen)
 
 		    if (nsplen < sizeof(struct seghdr) + sizeof(struct lsmsg))
 			goto trunc;
-		    PACKET_HAS_ELEMENT_OR_TRUNC(shp, sh_seq[0]);
+		    TCHECK(shp->sh_seq[0]);
 		    ack = EXTRACT_LE_16BITS(shp->sh_seq[0]);
 		    if (ack & SGQ_ACK) {	/* acknum field */
 			if ((ack & SGQ_NAK) == SGQ_NAK)
 			    (void)printf("nak %d ", ack & SGQ_MASK);
 			else
 			    (void)printf("ack %d ", ack & SGQ_MASK);
-			PACKET_HAS_ELEMENT_OR_TRUNC(shp, sh_seq[1]);
+			TCHECK(shp->sh_seq[1]);
 		        ack = EXTRACT_LE_16BITS(shp->sh_seq[1]);
 			if (ack & SGQ_OACK) {	/* ackdat field */
 			    if ((ack & SGQ_ONAK) == SGQ_ONAK)
 				(void)printf("nakdat %d ", ack & SGQ_MASK);
 			    else
 				(void)printf("ackdat %d ", ack & SGQ_MASK);
-			    PACKET_HAS_ELEMENT_OR_TRUNC(shp, sh_seq[2]);
+			    TCHECK(shp->sh_seq[2]);
 			    ack = EXTRACT_LE_16BITS(shp->sh_seq[2]);
 			}
 		    }
 		    (void)printf("seg %d ", ack & SGQ_MASK);
-		    PACKET_HAS_ONE_OR_TRUNC(lsmp);
+		    TCHECK(*lsmp);
 		    lsflags = EXTRACT_LE_8BITS(lsmp->ls_lsflags);
 		    fcval = EXTRACT_LE_8BITS(lsmp->ls_fcval);
 		    switch (lsflags & LSI_MASK) {
@@ -594,7 +594,7 @@ print_nsp(packetbody_t nspp, u_int nsplen)
 
 		    if (nsplen < sizeof(struct ackmsg))
 			goto trunc;
-		    PACKET_HAS_ONE_OR_TRUNC(amp);
+		    TCHECK(*amp);
 		    ack = EXTRACT_LE_16BITS(amp->ak_acknum[0]);
 		    if (ack & SGQ_ACK) {	/* acknum field */
 			if ((ack & SGQ_NAK) == SGQ_NAK)
@@ -619,14 +619,14 @@ print_nsp(packetbody_t nspp, u_int nsplen)
 
 		    if (nsplen < sizeof(struct ackmsg))
 			goto trunc;
-		    PACKET_HAS_ONE_OR_TRUNC(amp);
+		    TCHECK(*amp);
 		    ack = EXTRACT_LE_16BITS(amp->ak_acknum[0]);
 		    if (ack & SGQ_ACK) {	/* acknum field */
 			if ((ack & SGQ_NAK) == SGQ_NAK)
 			    (void)printf("nak %d ", ack & SGQ_MASK);
 			else
 			    (void)printf("ack %d ", ack & SGQ_MASK);
-			PACKET_HAS_ELEMENT_OR_TRUNC(amp, ak_acknum[1]);
+			TCHECK(amp->ak_acknum[1]);
 		        ack = EXTRACT_LE_16BITS(amp->ak_acknum[1]);
 			if (ack & SGQ_OACK) {	/* ackdat field */
 			    if ((ack & SGQ_ONAK) == SGQ_ONAK)
@@ -663,7 +663,7 @@ print_nsp(packetbody_t nspp, u_int nsplen)
 
 		    if (nsplen < sizeof(struct cimsg))
 			goto trunc;
-		    PACKET_HAS_ONE_OR_TRUNC(cimp);
+		    TCHECK(*cimp);
 		    services = EXTRACT_LE_8BITS(cimp->ci_services);
 		    info = EXTRACT_LE_8BITS(cimp->ci_info);
 		    segsize = EXTRACT_LE_16BITS(cimp->ci_segsize);
@@ -699,7 +699,7 @@ print_nsp(packetbody_t nspp, u_int nsplen)
 #ifdef	PRINT_NSPDATA
 		    if (nsplen > sizeof(struct cimsg)) {
 			dp = &(nspp[sizeof(struct cimsg)]);
-			PACKET_HAS_SPACE_OR_TRUNC(dp, nsplen - sizeof(struct cimsg));
+			TCHECK2(*dp, nsplen - sizeof(struct cimsg));
 			pdata(dp, nsplen - sizeof(struct cimsg));
 		    }
 #endif
@@ -717,7 +717,7 @@ print_nsp(packetbody_t nspp, u_int nsplen)
 
 		    if (nsplen < sizeof(struct ccmsg))
 			goto trunc;
-		    PACKET_HAS_ONE_OR_TRUNC(ccmp);
+		    TCHECK(*ccmp);
 		    services = EXTRACT_LE_8BITS(ccmp->cc_services);
 		    info = EXTRACT_LE_8BITS(ccmp->cc_info);
 		    segsize = EXTRACT_LE_16BITS(ccmp->cc_segsize);
@@ -757,7 +757,7 @@ print_nsp(packetbody_t nspp, u_int nsplen)
 			if (optlen > nsplen - sizeof(struct ccmsg))
 			    goto trunc;
 			dp = &(nspp[sizeof(struct ccmsg)]);
-			PACKET_HAS_SPACE_OR_TRUNC(dp, optlen);
+			TCHECK2(*dp, optlen);
 			pdata(dp, optlen);
 #endif
 		    }
@@ -775,7 +775,7 @@ print_nsp(packetbody_t nspp, u_int nsplen)
 
 		    if (nsplen < sizeof(struct dimsg))
 			goto trunc;
-		    PACKET_HAS_ONE_OR_TRUNC(dimp);
+		    TCHECK(*dimp);
 		    reason = EXTRACT_LE_16BITS(dimp->di_reason);
 		    optlen = EXTRACT_LE_8BITS(dimp->di_optlen);
 
@@ -786,7 +786,7 @@ print_nsp(packetbody_t nspp, u_int nsplen)
 			if (optlen > nsplen - sizeof(struct dimsg))
 			    goto trunc;
 			dp = &(nspp[sizeof(struct dimsg)]);
-			PACKET_HAS_SPACE_OR_TRUNC(dp, optlen);
+			TCHECK2(*dp, optlen);
 			pdata(dp, optlen);
 #endif
 		    }
@@ -798,7 +798,7 @@ print_nsp(packetbody_t nspp, u_int nsplen)
 		    struct dcmsg *dcmp = (struct dcmsg *)nspp;
 		    int reason;
 
-		    PACKET_HAS_ONE_OR_TRUNC(dcmp);
+		    TCHECK(*dcmp);
 		    reason = EXTRACT_LE_16BITS(dcmp->dc_reason);
 
 		    print_reason(reason);

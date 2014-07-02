@@ -261,7 +261,7 @@ slow_print(packetbody_t pptr, register u_int len) {
     int print_version;
 
     slow_com_header = (__capability const struct slow_common_header_t *)pptr;
-    PACKET_HAS_ONE_OR_TRUNC(slow_com_header);
+    TCHECK(*slow_com_header);
 
     /*
      * Sanity checking of the header.
@@ -352,7 +352,7 @@ void slow_marker_lacp_print(packetbody_t tptr, register u_int tlen) {
     
     while(tlen>0) {
         /* did we capture enough for fully decoding the tlv header ? */
-        PACKET_HAS_SPACE_OR_TRUNC(tptr, sizeof(struct tlv_header_t));
+        TCHECK2(*tptr, sizeof(struct tlv_header_t));
         tlv_header = (__capability const struct tlv_header_t *)tptr;
         tlv_len = tlv_header->length;
 
@@ -376,7 +376,7 @@ void slow_marker_lacp_print(packetbody_t tptr, register u_int tlen) {
         tlv_tlen=tlv_len-sizeof(struct tlv_header_t);
 
         /* did we capture enough for fully decoding the tlv ? */
-        PACKET_HAS_SPACE_OR_TRUNC(tptr, tlv_len);
+        TCHECK2(*tptr, tlv_len);
 
         switch((slow_com_header->proto_subtype << 8) + tlv_header->type) {
 
@@ -428,8 +428,8 @@ void slow_marker_lacp_print(packetbody_t tptr, register u_int tlen) {
                     printf(" (=%u)",tlv_len);
                 /* we have messed around with the length field - now we need to check
                  * again if there are enough bytes on the wire for the hexdump */
-                PACKET_HAS_ELEMENT_OR_TRUNC(tlv_ptr.lacp_marker_tlv_terminator,
-		    pad);
+                TCHECK2(tlv_ptr.lacp_marker_tlv_terminator->pad[0],
+                        sizeof(tlv_ptr.lacp_marker_tlv_terminator->pad));
             }
 
             break;

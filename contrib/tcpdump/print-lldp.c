@@ -934,7 +934,7 @@ lldp_private_dcbx_print(packetbody_t pptr, u_int len)
 
     while (tlen >= sizeof(tlv)) {
 
-        PACKET_HAS_SPACE_OR_TRUNC(tptr, sizeof(tlv));
+        TCHECK2(*tptr, sizeof(tlv));
 
         tlv = EXTRACT_16BITS(tptr);
 
@@ -950,7 +950,7 @@ lldp_private_dcbx_print(packetbody_t pptr, u_int len)
             break;
         }
 
-        PACKET_HAS_SPACE_OR_TRUNC(tptr, tlv_len);
+        TCHECK2(*tptr, tlv_len);
         if (tlen < tlv_len) {
             goto trunc;
         }
@@ -1188,7 +1188,7 @@ lldp_print(packetbody_t pptr, register u_int len) {
 
     while (tlen >= sizeof(tlv)) {
 
-        PACKET_HAS_SPACE_OR_TRUNC(tptr, sizeof(tlv));
+        TCHECK2(*tptr, sizeof(tlv));
 
         tlv = EXTRACT_16BITS(tptr);
 
@@ -1210,7 +1210,7 @@ lldp_print(packetbody_t pptr, register u_int len) {
             break;
         }
 
-        PACKET_HAS_SPACE_OR_TRUNC(tptr, tlv_len);
+        TCHECK2(*tptr, tlv_len);
         if (tlen < tlv_len) {
             goto trunc;
         }

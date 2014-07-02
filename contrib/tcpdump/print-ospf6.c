@@ -143,8 +143,8 @@ static int
 ospf6_print_lshdr(__capability const struct lsa6_hdr *lshp)
 {
 
-	PACKET_HAS_ELEMENT_OR_TRUNC(lshp, ls_type);
-	PACKET_HAS_ELEMENT_OR_TRUNC(lshp, ls_seq);
+	TCHECK(lshp->ls_type);
+	TCHECK(lshp->ls_seq);
 
 	printf("\n\t  Advertising Router %s, seq 0x%08x, age %us, length %u",
                ipaddr_string(&lshp->ls_router),
@@ -170,7 +170,7 @@ ospf6_print_lsaprefix(packetbody_t tptr, u_int lsa_length)
 	if (lsa_length < sizeof (*lsapp) - 4)
 		goto trunc;
 	lsa_length -= sizeof (*lsapp) - 4;
-	PACKET_HAS_SPACE_OR_TRUNC(lsapp, sizeof (*lsapp) - 4);
+	TCHECK2(*lsapp, sizeof (*lsapp) - 4);
 	wordlen = (lsapp->lsa_p_len + 31) / 32;
 	if (wordlen * 4 > sizeof(struct in6_addr)) {
 		printf(" bogus prefixlen /%d", lsapp->lsa_p_len);
@@ -179,8 +179,7 @@ ospf6_print_lsaprefix(packetbody_t tptr, u_int lsa_length)
 	if (lsa_length < wordlen * 4)
 		goto trunc;
 	lsa_length -= wordlen * 4;
-	PACKET_HAS_SPACE_OR_TRUNC(lsapp,
-	    offsetof(struct lsa6_prefix, lsa_p_prefix) + wordlen * 4);
+	TCHECK2(lsapp->lsa_p_prefix, wordlen * 4);
 	memset(&prefix, 0, sizeof(prefix));
 	p_memcpy_from_packet(&prefix, lsapp->lsa_p_prefix, wordlen * 4);
 	printf("\n\t\t%s/%d", ip6addr_string(&prefix),
@@ -226,7 +225,7 @@ ospf6_print_lsa(__capability const struct lsa6 *lsap)
 
 	if (ospf6_print_lshdr(&lsap->ls_hdr))
 		return (1);
-	PACKET_HAS_ELEMENT_OR_TRUNC(lsap, ls_hdr.ls_length);
+	TCHECK(lsap->ls_hdr.ls_length);
         length = EXTRACT_16BITS(&lsap->ls_hdr.ls_length);
 
 	/*
@@ -245,7 +244,7 @@ ospf6_print_lsa(__capability const struct lsa6 *lsap)
 		if (lsa_length < sizeof (lsap->lsa_un.un_rla.rla_options))
 			return (1);
 		lsa_length -= sizeof (lsap->lsa_un.un_rla.rla_options);
-		PACKET_HAS_ELEMENT_OR_TRUNC(lsap, lsa_un.un_rla.rla_options);
+		TCHECK(lsap->lsa_un.un_rla.rla_options);
                 printf("\n\t      Options [%s]",
                        bittok2str(ospf6_option_values, "none",
                                   EXTRACT_32BITS(&lsap->lsa_un.un_rla.rla_options)));
@@ -258,7 +257,7 @@ ospf6_print_lsa(__capability const struct lsa6 *lsap)
 			if (lsa_length < sizeof (*rlp))
 				return (1);
 			lsa_length -= sizeof (*rlp);
-			PACKET_HAS_ONE_OR_TRUNC(rlp);
+			TCHECK(*rlp);
 			switch (rlp->link_type) {
 
 			case RLA_TYPE_VIRTUAL:
@@ -299,7 +298,7 @@ ospf6_print_lsa(__capability const struct lsa6 *lsap)
 		if (lsa_length < sizeof (lsap->lsa_un.un_nla.nla_options))
 			return (1);
 		lsa_length -= sizeof (lsap->lsa_un.un_nla.nla_options);
-		PACKET_HAS_ELEMENT_OR_TRUNC(lsap, lsa_un.un_nla.nla_options);
+		TCHECK(lsap->lsa_un.un_nla.nla_options);
                 printf("\n\t      Options [%s]",
                        bittok2str(ospf6_option_values, "none",
                                   EXTRACT_32BITS(&lsap->lsa_un.un_nla.nla_options)));
@@ -310,7 +309,7 @@ ospf6_print_lsa(__capability const struct lsa6 *lsap)
 			if (lsa_length < sizeof (*ap))
 				return (1);
 			lsa_length -= sizeof (*ap);
-			PACKET_HAS_ONE_OR_TRUNC(ap);
+			TCHECK(*ap);
 			printf("\n\t\t%s", ipaddr_string(ap));
 			++ap;
 		}
@@ -320,7 +319,7 @@ ospf6_print_lsa(__capability const struct lsa6 *lsap)
 		if (lsa_length < sizeof (lsap->lsa_un.un_inter_ap.inter_ap_metric))
 			return (1);
 		lsa_length -= sizeof (lsap->lsa_un.un_inter_ap.inter_ap_metric);
-		PACKET_HAS_ELEMENT_OR_TRUNC(lsap, lsa_un.un_inter_ap.inter_ap_metric);
+		TCHECK(lsap->lsa_un.un_inter_ap.inter_ap_metric);
 		printf(", metric %u",
 			EXTRACT_32BITS(&lsap->lsa_un.un_inter_ap.inter_ap_metric) & SLA_MASK_METRIC);
 
@@ -338,7 +337,7 @@ ospf6_print_lsa(__capability const struct lsa6 *lsap)
 		if (lsa_length < sizeof (lsap->lsa_un.un_asla.asla_metric))
 			return (1);
 		lsa_length -= sizeof (lsap->lsa_un.un_asla.asla_metric);
-		PACKET_HAS_ELEMENT_OR_TRUNC(lsap, lsa_un.un_asla.asla_metric);
+		TCHECK(lsap->lsa_un.un_asla.asla_metric);
 		flags32 = EXTRACT_32BITS(&lsap->lsa_un.un_asla.asla_metric);
                 printf("\n\t     Flags [%s]",
                        bittok2str(ospf6_asla_flag_values, "none", flags32));
@@ -361,35 +360,29 @@ ospf6_print_lsa(__capability const struct lsa6 *lsap)
 			if (lsa_length < sizeof (*fwdaddr6))
 				return (1);
 			lsa_length -= sizeof (*fwdaddr6);
-			PACKET_HAS_ONE_OR_TRUNC(fwdaddr6);
+			TCHECK(*fwdaddr6);
 			printf(" forward %s",
 			       ip6addr_string(fwdaddr6));
 			tptr += sizeof(*fwdaddr6);
 		}
 
 		if ((flags32 & ASLA_FLAG_ROUTETAG) != 0) {
-			__capability const u_int32_t *addr;
-
-			addr = (__capability const u_int32_t *)tptr;
 			if (lsa_length < sizeof (u_int32_t))
 				return (1);
 			lsa_length -= sizeof (u_int32_t);
-			PACKET_HAS_ONE_OR_TRUNC(addr);
+			TCHECK(*(__capability const u_int32_t *)tptr);
 			printf(" tag %s",
-			       ipaddr_string(addr));
+			       ipaddr_string((__capability const u_int32_t *)tptr));
 			tptr += sizeof(u_int32_t);
 		}
 
 		if (lsapp->lsa_p_metric) {
-			__capability const u_int32_t *addr;
-
-			addr = (__capability const u_int32_t *)tptr;
 			if (lsa_length < sizeof (u_int32_t))
 				return (1);
 			lsa_length -= sizeof (u_int32_t);
-			PACKET_HAS_ONE_OR_TRUNC(addr);
+			TCHECK(*(__capability const u_int32_t *)tptr);
 			printf(" RefLSID: %s",
-			       ipaddr_string(addr));
+			       ipaddr_string((__capability const u_int32_t *)tptr));
 			tptr += sizeof(u_int32_t);
 		}
 		break;
@@ -400,7 +393,7 @@ ospf6_print_lsa(__capability const struct lsa6 *lsap)
 		if (lsa_length < sizeof (llsap->llsa_priandopt))
 			return (1);
 		lsa_length -= sizeof (llsap->llsa_priandopt);
-		PACKET_HAS_ELEMENT_OR_TRUNC(llsap, llsa_priandopt);
+		TCHECK(llsap->llsa_priandopt);
                 printf("\n\t      Options [%s]",
                        bittok2str(ospf6_option_values, "none",
                                   EXTRACT_32BITS(&llsap->llsa_options)));
@@ -430,7 +423,7 @@ ospf6_print_lsa(__capability const struct lsa6 *lsap)
 		if (lsa_length < sizeof (lsap->lsa_un.un_intra_ap.intra_ap_rtid))
 			return (1);
 		lsa_length -= sizeof (lsap->lsa_un.un_intra_ap.intra_ap_rtid);
-		PACKET_HAS_ELEMENT_OR_TRUNC(lsap, lsa_un.un_intra_ap.intra_ap_rtid);
+		TCHECK(lsap->lsa_un.un_intra_ap.intra_ap_rtid);
 		ospf6_print_ls_type(
 			EXTRACT_16BITS(&lsap->lsa_un.un_intra_ap.intra_ap_lstype),
 			&lsap->lsa_un.un_intra_ap.intra_ap_lsid);
@@ -438,7 +431,7 @@ ospf6_print_lsa(__capability const struct lsa6 *lsap)
 		if (lsa_length < sizeof (lsap->lsa_un.un_intra_ap.intra_ap_nprefix))
 			return (1);
 		lsa_length -= sizeof (lsap->lsa_un.un_intra_ap.intra_ap_nprefix);
-		PACKET_HAS_ELEMENT_OR_TRUNC(lsap, lsa_un.un_intra_ap.intra_ap_nprefix);
+		TCHECK(lsap->lsa_un.un_intra_ap.intra_ap_nprefix);
                 prefixes = EXTRACT_16BITS(&lsap->lsa_un.un_intra_ap.intra_ap_nprefix);
 		printf("\n\t      Prefixes %d:", prefixes);
 
@@ -496,18 +489,18 @@ ospf6_decode_v3(__capability const struct ospf6hdr *op,
                        bittok2str(ospf6_option_values, "none",
                                   EXTRACT_32BITS(&op->ospf6_hello.hello_options)));
 
-                PACKET_HAS_ELEMENT_OR_TRUNC(op, ospf6_hello.hello_deadint);
+                TCHECK(op->ospf6_hello.hello_deadint);
                 printf("\n\t  Hello Timer %us, Dead Timer %us, Interface-ID %s, Priority %u",
                        EXTRACT_16BITS(&op->ospf6_hello.hello_helloint),
                        EXTRACT_16BITS(&op->ospf6_hello.hello_deadint),
                        ipaddr_string(&op->ospf6_hello.hello_ifid),
                        op->ospf6_hello.hello_priority);
 
-		PACKET_HAS_ELEMENT_OR_TRUNC(op, ospf6_hello.hello_dr);
+		TCHECK(op->ospf6_hello.hello_dr);
 		if (op->ospf6_hello.hello_dr != 0)
 			printf("\n\t  Designated Router %s",
 			    ipaddr_string(&op->ospf6_hello.hello_dr));
-		PACKET_HAS_ELEMENT_OR_TRUNC(op, ospf6_hello.hello_bdr);
+		TCHECK(op->ospf6_hello.hello_bdr);
 		if (op->ospf6_hello.hello_bdr != 0)
 			printf(", Backup Designated Router %s",
 			    ipaddr_string(&op->ospf6_hello.hello_bdr));
@@ -515,7 +508,7 @@ ospf6_decode_v3(__capability const struct ospf6hdr *op,
 			printf("\n\t  Neighbor List:");
 			ap = op->ospf6_hello.hello_neighbor;
 			while ((packetbody_t)ap < dataend) {
-				PACKET_HAS_ONE_OR_TRUNC(ap);
+				TCHECK(*ap);
 				printf("\n\t    %s", ipaddr_string(ap));
 				++ap;
 			}
@@ -523,15 +516,15 @@ ospf6_decode_v3(__capability const struct ospf6hdr *op,
 		break;	/* HELLO */
 
 	case OSPF_TYPE_DD:
-		PACKET_HAS_ELEMENT_OR_TRUNC(op, ospf6_db.db_options);
+		TCHECK(op->ospf6_db.db_options);
                 printf("\n\tOptions [%s]",
                        bittok2str(ospf6_option_values, "none",
                                   EXTRACT_32BITS(&op->ospf6_db.db_options)));
-		PACKET_HAS_ELEMENT_OR_TRUNC(op, ospf6_db.db_flags);
+		TCHECK(op->ospf6_db.db_flags);
                 printf(", DD Flags [%s]",
                        bittok2str(ospf6_dd_flag_values,"none",op->ospf6_db.db_flags));
 
-		PACKET_HAS_ELEMENT_OR_TRUNC(op, ospf6_db.db_seq);
+		TCHECK(op->ospf6_db.db_seq);
 		printf(", MTU %u, DD-Sequence 0x%08x",
                        EXTRACT_16BITS(&op->ospf6_db.db_mtu),
                        EXTRACT_32BITS(&op->ospf6_db.db_seq));
@@ -547,7 +540,7 @@ ospf6_decode_v3(__capability const struct ospf6hdr *op,
 		if (vflag) {
 			lsrp = op->ospf6_lsr;
 			while ((packetbody_t)lsrp < dataend) {
-				PACKET_HAS_ONE_OR_TRUNC(lsrp);
+				TCHECK(*lsrp);
                                 printf("\n\t  Advertising Router %s",
                                        ipaddr_string(&lsrp->ls_router));
 				ospf6_print_ls_type(EXTRACT_16BITS(&lsrp->ls_type),
@@ -560,7 +553,7 @@ ospf6_decode_v3(__capability const struct ospf6hdr *op,
 	case OSPF_TYPE_LS_UPDATE:
 		if (vflag) {
 			lsap = op->ospf6_lsu.lsu_lsa;
-			PACKET_HAS_ELEMENT_OR_TRUNC(op, ospf6_lsu.lsu_count);
+			TCHECK(op->ospf6_lsu.lsu_count);
 			i = EXTRACT_32BITS(&op->ospf6_lsu.lsu_count);
 			while (i--) {
 				if (ospf6_print_lsa(lsap))
@@ -601,7 +594,7 @@ ospf6_print(packetbody_t bp, register u_int length)
 
 	/* If the type is valid translate it, or just print the type */
 	/* value.  If it's not valid, say so and return */
-	PACKET_HAS_ELEMENT_OR_TRUNC(op, ospf6_type);
+	TCHECK(op->ospf6_type);
 	cp = tok2str(ospf6_type_values, "unknown LS-type", op->ospf6_type);
 	printf("OSPFv%u, %s, length %d", op->ospf6_version, cp, length);
 	if (*cp == 'u') {
@@ -612,7 +605,7 @@ ospf6_print(packetbody_t bp, register u_int length)
                 return;
         }
 
-	PACKET_HAS_ELEMENT_OR_TRUNC(op, ospf6_len);
+	TCHECK(op->ospf6_len);
 	if (length != EXTRACT_16BITS(&op->ospf6_len)) {
 		printf(" [len %d]", EXTRACT_16BITS(&op->ospf6_len));
 		return;
@@ -620,15 +613,15 @@ ospf6_print(packetbody_t bp, register u_int length)
 	dataend = bp + length;
 
 	/* Print the routerid if it is not the same as the source */
-	PACKET_HAS_ELEMENT_OR_TRUNC(op, ospf6_routerid);
+	TCHECK(op->ospf6_routerid);
 	printf("\n\tRouter-ID %s", ipaddr_string(&op->ospf6_routerid));
 
-	PACKET_HAS_ELEMENT_OR_TRUNC(op, ospf6_areaid);
+	TCHECK(op->ospf6_areaid);
 	if (op->ospf6_areaid != 0)
 		printf(", Area %s", ipaddr_string(&op->ospf6_areaid));
 	else
 		printf(", Backbone Area");
-	PACKET_HAS_ELEMENT_OR_TRUNC(op, ospf6_instanceid);
+	TCHECK(op->ospf6_instanceid);
 	if (op->ospf6_instanceid)
 		printf(", Instance %u", op->ospf6_instanceid);
 

@@ -378,7 +378,7 @@ lmp_print(packetbody_t pptr, register u_int len) {
 
     tptr=pptr;
     lmp_com_header = (__capability const struct lmp_common_header *)pptr;
-    PACKET_HAS_ONE_OR_TRUNC(lmp_com_header);
+    TCHECK(*lmp_com_header);
 
     /*
      * Sanity checking of the header.
@@ -413,7 +413,7 @@ lmp_print(packetbody_t pptr, register u_int len) {
 
     while(tlen>0) {
         /* did we capture enough for fully decoding the object header ? */
-        if (!PACKET_HAS_SPACE(tptr, sizeof(struct lmp_object_header)))
+        if (!TTEST2(*tptr, sizeof(struct lmp_object_header)))
             goto trunc;
 
         lmp_obj_header = (__capability const struct lmp_object_header *)tptr;
@@ -439,7 +439,7 @@ lmp_print(packetbody_t pptr, register u_int len) {
         obj_tlen=lmp_obj_len-sizeof(struct lmp_object_header);
 
         /* did we capture enough for fully decoding the object ? */
-        if (!PACKET_HAS_SPACE(tptr, lmp_obj_len))
+        if (!TTEST2(*tptr, lmp_obj_len))
             goto trunc;
         hexdump=FALSE;
 

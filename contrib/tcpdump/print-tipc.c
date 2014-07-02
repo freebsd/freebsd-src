@@ -178,7 +178,7 @@ print_payload(netdissect_options *ndo, __capability const struct payload_tipc_pk
 	u_int orig_node;
 	u_int dest_node;
 
-	ND_PACKET_HAS_ELEMENT_OR_TRUNC(ap, dest_port);
+	ND_TCHECK(ap->dest_port);
 	w0 = EXTRACT_32BITS(&ap->w0);
 	user = TIPC_USER(w0);
 	hsize = TIPC_HSIZE(w0);
@@ -197,7 +197,7 @@ print_payload(netdissect_options *ndo, __capability const struct payload_tipc_pk
 		    tok2str(tipcuser_values, "unknown", user),
 		    tok2str(tipcmtype_values, "Unknown", mtype)));
 	} else {
-		ND_PACKET_HAS_ELEMENT_OR_TRUNC(ap, dest_node);
+		ND_TCHECK(ap->dest_node);
 		orig_node = EXTRACT_32BITS(&ap->orig_node);
 		dest_node = EXTRACT_32BITS(&ap->dest_node);
 		ND_PRINT((ndo, "TIPC v%u.0 %u.%u.%u:%u > %u.%u.%u:%u, headerlength %u bytes, MessageSize %u bytes, %s, messageType %s",
@@ -248,7 +248,7 @@ print_internal(netdissect_options *ndo, __capability const struct internal_tipc_
 	u_int msg_cnt;
 	u_int link_tol;
 
-	ND_PACKET_HAS_ELEMENT_OR_TRUNC(ap, dest_node);
+	ND_TCHECK(ap->dest_node);
 	w0 = EXTRACT_32BITS(&ap->w0);
 	user = TIPC_USER(w0);
 	hsize = TIPC_HSIZE(w0);
@@ -266,7 +266,7 @@ print_internal(netdissect_options *ndo, __capability const struct internal_tipc_
 	    tok2str(tipcmtype_values, "Unknown", mtype), w1));
 
 	if (ndo->ndo_vflag) {
-		ND_PACKET_HAS_ONE_OR_TRUNC(ap);
+		ND_TCHECK(*ap);
 		seq_gap = TIPC_SEQ_GAP(w1);
 		broadcast_ack = TIPC_BROADCAST_ACK(w1);
 		w2 = EXTRACT_32BITS(&ap->w2);
@@ -308,7 +308,7 @@ print_link_conf(netdissect_options *ndo, __capability const struct link_conf_tip
 	u_int ntwrk_id;
 	u_int media_id;
 
-	ND_PACKET_HAS_ELEMENT_OR_TRUNC(ap, prev_node);
+	ND_TCHECK(ap->prev_node);
 	w0 = EXTRACT_32BITS(&ap->w0);
 	user = TIPC_USER(w0);
 	hsize = TIPC_HSIZE(w0);
@@ -327,7 +327,7 @@ print_link_conf(netdissect_options *ndo, __capability const struct link_conf_tip
 	    tok2str(tipcuser_values, "unknown", user),
 	    tok2str(tipc_linkconf_mtype_values, "Unknown", mtype)));
 	if (ndo->ndo_vflag) {
-		ND_PACKET_HAS_ELEMENT_OR_TRUNC(ap, w5);
+		ND_TCHECK(ap->w5);
 		node_sig = TIPC_NODE_SIG(w1);
 		ntwrk_id = EXTRACT_32BITS(&ap->ntwrk_id);
 		w5 = EXTRACT_32BITS(&ap->w5);
@@ -350,7 +350,7 @@ tipc_print(netdissect_options *ndo, packetbody_t bp, u_int length _U_,
 	u_int user;
 
 	ap = (__capability const struct tipc_pkthdr *)bp;
-	ND_PACKET_HAS_ELEMENT_OR_TRUNC(ap, w0);
+	ND_TCHECK(ap->w0);
 	w0 = EXTRACT_32BITS(&ap->w0);
 	user = TIPC_USER(w0);
 

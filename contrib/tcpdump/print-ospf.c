@@ -203,7 +203,7 @@ ospf_print_grace_lsa (packetbody_t tptr, u_int ls_length) {
 
 
     while (ls_length > 0) {
-        PACKET_HAS_SPACE_OR_TRUNC(tptr, 4);
+        TCHECK2(*tptr, 4);
         if (ls_length < 4) {
             printf("\n\t    Remaining LS length %u < 4", ls_length);
             return -1;
@@ -229,7 +229,7 @@ ospf_print_grace_lsa (packetbody_t tptr, u_int ls_length) {
             return -1;
         }
 
-        PACKET_HAS_SPACE_OR_TRUNC(tptr, tlv_length);
+        TCHECK2(*tptr, tlv_length);
         switch(tlv_type) {
 
         case LS_OPAQUE_GRACE_TLV_PERIOD:
@@ -289,7 +289,7 @@ ospf_print_te_lsa (packetbody_t tptr, u_int ls_length) {
     } bw;
 
     while (ls_length != 0) {
-        PACKET_HAS_SPACE_OR_TRUNC(tptr, 4);
+        TCHECK2(*tptr, 4);
         if (ls_length < 4) {
             printf("\n\t    Remaining LS length %u < 4", ls_length);
             return -1;
@@ -323,7 +323,7 @@ ospf_print_te_lsa (packetbody_t tptr, u_int ls_length) {
                            tlv_length);
                     return -1;
                 }
-                PACKET_HAS_SPACE_OR_TRUNC(tptr, 4);
+                TCHECK2(*tptr, 4);
                 subtlv_type = EXTRACT_16BITS(tptr);
                 subtlv_length = EXTRACT_16BITS(tptr+2);
                 tptr+=4;
@@ -334,7 +334,7 @@ ospf_print_te_lsa (packetbody_t tptr, u_int ls_length) {
                        subtlv_type,
                        subtlv_length);
                             
-                PACKET_HAS_SPACE_OR_TRUNC(tptr, subtlv_length);
+                TCHECK2(*tptr, subtlv_length);
                 switch(subtlv_type) {
                 case LS_OPAQUE_TE_LINK_SUBTLV_ADMIN_GROUP:
                     printf(", 0x%08x", EXTRACT_32BITS(tptr));
@@ -440,7 +440,7 @@ ospf_print_te_lsa (packetbody_t tptr, u_int ls_length) {
                 printf("\n\t    TLV length %u < 4", tlv_length);
                 return -1;
             }
-            PACKET_HAS_SPACE_OR_TRUNC(tptr, 4);
+            TCHECK2(*tptr, 4);
             printf(", %s", ipaddr_string(tptr));
             break;
                         
@@ -468,7 +468,7 @@ ospf_print_lshdr(__capability const struct lsa_hdr *lshp)
 {
         u_int ls_length;
 
-        PACKET_HAS_ELEMENT_OR_TRUNC(lshp, ls_length);
+        TCHECK(lshp->ls_length);
         ls_length = EXTRACT_16BITS(&lshp->ls_length);
         if (ls_length < sizeof(struct lsa_hdr)) {
                 printf("\n\t    Bogus length %u < header (%lu)", ls_length,
@@ -476,14 +476,14 @@ ospf_print_lshdr(__capability const struct lsa_hdr *lshp)
                 return(-1);
         }
 
-        PACKET_HAS_ELEMENT_OR_TRUNC(lshp, ls_seq);	/* XXX - ls_length check checked this */
+        TCHECK(lshp->ls_seq);	/* XXX - ls_length check checked this */
 	printf("\n\t  Advertising Router %s, seq 0x%08x, age %us, length %u",
 	       ipaddr_string(&lshp->ls_router),
 	       EXTRACT_32BITS(&lshp->ls_seq),
 	       EXTRACT_16BITS(&lshp->ls_age),
                ls_length-(u_int)sizeof(struct lsa_hdr));
 
-	PACKET_HAS_ELEMENT_OR_TRUNC(lshp, ls_type);	/* XXX - ls_length check checked this */
+	TCHECK(lshp->ls_type);	/* XXX - ls_length check checked this */
         switch (lshp->ls_type) {
 	/* the LSA header for opaque LSAs was slightly changed */
         case LS_TYPE_OPAQUE_LL:
@@ -511,7 +511,7 @@ ospf_print_lshdr(__capability const struct lsa_hdr *lshp)
             break;
         }
 
-	PACKET_HAS_ELEMENT_OR_TRUNC(lshp, ls_options);	/* XXX - ls_length check checked this */
+	TCHECK(lshp->ls_options);	/* XXX - ls_length check checked this */
         printf("\n\t    Options: [%s]", bittok2str(ospf_option_values,"none",lshp->ls_options));
 
         return (ls_length);
@@ -582,15 +582,15 @@ ospf_print_lsa(__capability const struct lsa *lsap)
 	switch (lsap->ls_hdr.ls_type) {
 
 	case LS_TYPE_ROUTER:
-		PACKET_HAS_ELEMENT_OR_TRUNC(lsap, lsa_un.un_rla.rla_flags);
+		TCHECK(lsap->lsa_un.un_rla.rla_flags);
                 printf("\n\t    Router LSA Options: [%s]", bittok2str(ospf_rla_flag_values,"none",lsap->lsa_un.un_rla.rla_flags));
 
-		PACKET_HAS_ELEMENT_OR_TRUNC(lsap, lsa_un.un_rla.rla_count);
+		TCHECK(lsap->lsa_un.un_rla.rla_count);
 		j = EXTRACT_16BITS(&lsap->lsa_un.un_rla.rla_count);
-		PACKET_HAS_ELEMENT_OR_TRUNC(lsap, lsa_un.un_rla.rla_link);
+		TCHECK(lsap->lsa_un.un_rla.rla_link);
 		rlp = lsap->lsa_un.un_rla.rla_link;
 		while (j--) {
-			PACKET_HAS_ONE_OR_TRUNC(rlp);
+			TCHECK(*rlp);
 			switch (rlp->un_tos.link.link_type) {
 
 			case RLA_TYPE_VIRTUAL:
@@ -631,27 +631,27 @@ ospf_print_lsa(__capability const struct lsa *lsap)
 		break;
 
 	case LS_TYPE_NETWORK:
-		PACKET_HAS_ELEMENT_OR_TRUNC(lsap, lsa_un.un_nla.nla_mask);
+		TCHECK(lsap->lsa_un.un_nla.nla_mask);
 		printf("\n\t    Mask %s\n\t    Connected Routers:",
 		    ipaddr_string(&lsap->lsa_un.un_nla.nla_mask));
 		ap = lsap->lsa_un.un_nla.nla_router;
 		while ((u_char *)ap < ls_end) {
-			PACKET_HAS_ONE_OR_TRUNC(ap);
+			TCHECK(*ap);
 			printf("\n\t      %s", ipaddr_string(ap));
 			++ap;
 		}
 		break;
 
 	case LS_TYPE_SUM_IP:
-		PACKET_HAS_ELEMENT_OR_TRUNC(lsap, lsa_un.un_nla.nla_mask);
+		TCHECK(lsap->lsa_un.un_nla.nla_mask);
 		printf("\n\t    Mask %s",
 		    ipaddr_string(&lsap->lsa_un.un_sla.sla_mask));
-		PACKET_HAS_ELEMENT_OR_TRUNC(lsap, lsa_un.un_sla.sla_tosmetric);
+		TCHECK(lsap->lsa_un.un_sla.sla_tosmetric);
 		lp = lsap->lsa_un.un_sla.sla_tosmetric;
 		while ((u_char *)lp < ls_end) {
 			register u_int32_t ul;
 
-			PACKET_HAS_ONE_OR_TRUNC(lp);
+			TCHECK(*lp);
 			ul = EXTRACT_32BITS(lp);
                         topology = (ul & SLA_MASK_TOS) >> SLA_SHIFT_TOS;
 			printf("\n\t\ttopology %s(%u) metric %d",
@@ -663,12 +663,12 @@ ospf_print_lsa(__capability const struct lsa *lsap)
 		break;
 
 	case LS_TYPE_SUM_ABR:
-		PACKET_HAS_ELEMENT_OR_TRUNC(lsap, lsa_un.un_sla.sla_tosmetric);
+		TCHECK(lsap->lsa_un.un_sla.sla_tosmetric);
 		lp = lsap->lsa_un.un_sla.sla_tosmetric;
 		while ((u_char *)lp < ls_end) {
 			register u_int32_t ul;
 
-			PACKET_HAS_ONE_OR_TRUNC(lp);
+			TCHECK(*lp);
 			ul = EXTRACT_32BITS(lp);
                         topology = (ul & SLA_MASK_TOS) >> SLA_SHIFT_TOS;
 			printf("\n\t\ttopology %s(%u) metric %d",
@@ -681,16 +681,16 @@ ospf_print_lsa(__capability const struct lsa *lsap)
 
 	case LS_TYPE_ASE:
         case LS_TYPE_NSSA: /* fall through - those LSAs share the same format */
-		PACKET_HAS_ELEMENT_OR_TRUNC(lsap, lsa_un.un_nla.nla_mask);
+		TCHECK(lsap->lsa_un.un_nla.nla_mask);
 		printf("\n\t    Mask %s",
 		    ipaddr_string(&lsap->lsa_un.un_asla.asla_mask));
 
-		PACKET_HAS_ELEMENT_OR_TRUNC(lsap, lsa_un.un_sla.sla_tosmetric);
+		TCHECK(lsap->lsa_un.un_sla.sla_tosmetric);
 		almp = lsap->lsa_un.un_asla.asla_metric;
 		while ((u_char *)almp < ls_end) {
 			register u_int32_t ul;
 
-			PACKET_HAS_ELEMENT_OR_TRUNC(almp, asla_tosmetric);
+			TCHECK(almp->asla_tosmetric);
 			ul = EXTRACT_32BITS(&almp->asla_tosmetric);
                         topology = ((ul & ASLA_MASK_TOS) >> ASLA_SHIFT_TOS);
 			printf("\n\t\ttopology %s(%u), type %d, metric",
@@ -702,12 +702,12 @@ ospf_print_lsa(__capability const struct lsa *lsap)
                         else
                             printf(" %d", (ul & ASLA_MASK_METRIC));
 
-			PACKET_HAS_ELEMENT_OR_TRUNC(almp, asla_forward);
+			TCHECK(almp->asla_forward);
 			if (almp->asla_forward.s_addr) {
 				printf(", forward %s",
 				    ipaddr_string(&almp->asla_forward));
 			}
-			PACKET_HAS_ELEMENT_OR_TRUNC(almp, asla_tag);
+			TCHECK(almp->asla_tag);
 			if (almp->asla_tag.s_addr) {
 				printf(", tag %s",
 				    ipaddr_string(&almp->asla_tag));
@@ -720,7 +720,7 @@ ospf_print_lsa(__capability const struct lsa *lsap)
 		/* Multicast extensions as of 23 July 1991 */
 		mcp = lsap->lsa_un.un_mcla;
 		while ((u_char *)mcp < ls_end) {
-			PACKET_HAS_ELEMENT_OR_TRUNC(mcp, mcla_vid);
+			TCHECK(mcp->mcla_vid);
 			switch (EXTRACT_32BITS(&mcp->mcla_vtype)) {
 
 			case MCLA_VERTEX_ROUTER:
@@ -751,7 +751,7 @@ ospf_print_lsa(__capability const struct lsa *lsap)
 		tptr = (packetbody_t)(&lsap->lsa_un.un_ri_tlv.type);
 
 		while (ls_length != 0) {
-                    PACKET_HAS_SPACE_OR_TRUNC(tptr, 4);
+                    TCHECK2(*tptr, 4);
 		    if (ls_length < 4) {
                         printf("\n\t    Remaining LS length %u < 4", ls_length);
                         return(ls_end);
@@ -771,7 +771,7 @@ ospf_print_lsa(__capability const struct lsa *lsap)
                             ls_length);
                         return(ls_end);
                     }
-                    PACKET_HAS_SPACE_OR_TRUNC(tptr, tlv_length);
+                    TCHECK2(*tptr, tlv_length);
                     switch(tlv_type) {
 
                     case LS_OPAQUE_RI_TLV_CAP:
@@ -870,24 +870,24 @@ ospf_decode_lls(__capability const struct ospfhdr *op,
         printf("\n\t[LLS truncated]");
         return (1);
     }
-    PACKET_HAS_SPACE_OR_TRUNC(dptr, 2);
+    TCHECK2(*dptr, 2);
     printf("\n\t  LLS: checksum: 0x%04x", (u_int)EXTRACT_16BITS(dptr));
 
     dptr += 2;
-    PACKET_HAS_SPACE_OR_TRUNC(dptr, 2);
+    TCHECK2(*dptr, 2);
     length2 = EXTRACT_16BITS(dptr);
     printf(", length: %u", length2);
 
     dptr += 2;
-    PACKET_HAS_ONE_OR_TRUNC(dptr);
+    TCHECK(*dptr);
     while (dptr < dataend) {
-        PACKET_HAS_SPACE_OR_TRUNC(dptr, 2);
+        TCHECK2(*dptr, 2);
         lls_type = EXTRACT_16BITS(dptr);
         printf("\n\t    %s (%u)",
                tok2str(ospf_lls_tlv_values,"Unknown TLV",lls_type),
                lls_type);
         dptr += 2;
-        PACKET_HAS_SPACE_OR_TRUNC(dptr, 2);
+        TCHECK2(*dptr, 2);
         lls_len = EXTRACT_16BITS(dptr);
         printf(", length: %u", lls_len);
         dptr += 2;
@@ -898,7 +898,7 @@ ospf_decode_lls(__capability const struct ospfhdr *op,
                 printf(" [should be 4]");
                 lls_len = 4;
             }
-            PACKET_HAS_SPACE_OR_TRUNC(dptr, 4);
+            TCHECK2(*dptr, 4);
             lls_flags = EXTRACT_32BITS(dptr);
             printf("\n\t      Options: 0x%08x [%s]", lls_flags,
                    bittok2str(ospf_lls_eo_options,"?",lls_flags));
@@ -910,7 +910,7 @@ ospf_decode_lls(__capability const struct ospfhdr *op,
                 printf(" [should be 20]");
                 lls_len = 20;
             }
-			PACKET_HAS_SPACE_OR_TRUNC(dptr, 4);
+			TCHECK2(*dptr, 4);
             printf("\n\t      Sequence number: 0x%08x", EXTRACT_32BITS(dptr));
             break;
         }
@@ -945,19 +945,19 @@ ospf_decode_v2(__capability const struct ospfhdr *op, packetbody_t dataend)
                 printf("\n\tOptions [%s]",
                        bittok2str(ospf_option_values,"none",op->ospf_hello.hello_options));
 
-                PACKET_HAS_ELEMENT_OR_TRUNC(op, ospf_hello.hello_deadint);
+                TCHECK(op->ospf_hello.hello_deadint);
                 printf("\n\t  Hello Timer %us, Dead Timer %us, Mask %s, Priority %u",
                        EXTRACT_16BITS(&op->ospf_hello.hello_helloint),
                        EXTRACT_32BITS(&op->ospf_hello.hello_deadint),
                        ipaddr_string(&op->ospf_hello.hello_mask),
                        op->ospf_hello.hello_priority);
 
-		PACKET_HAS_ELEMENT_OR_TRUNC(op, ospf_hello.hello_dr);
+		TCHECK(op->ospf_hello.hello_dr);
 		if (op->ospf_hello.hello_dr.s_addr != 0)
 			printf("\n\t  Designated Router %s",
 			    ipaddr_string(&op->ospf_hello.hello_dr));
 
-		PACKET_HAS_ELEMENT_OR_TRUNC(op, ospf_hello.hello_bdr);
+		TCHECK(op->ospf_hello.hello_bdr);
 		if (op->ospf_hello.hello_bdr.s_addr != 0)
 			printf(", Backup Designated Router %s",
 			    ipaddr_string(&op->ospf_hello.hello_bdr));
@@ -966,24 +966,24 @@ ospf_decode_v2(__capability const struct ospfhdr *op, packetbody_t dataend)
                 if ((u_char *)ap < dataend)
                         printf("\n\t  Neighbor List:");
                 while ((u_char *)ap < dataend) {
-                        PACKET_HAS_ONE_OR_TRUNC(ap);
+                        TCHECK(*ap);
                         printf("\n\t    %s", ipaddr_string(ap));
                         ++ap;
                 }
 		break;	/* HELLO */
 
 	case OSPF_TYPE_DD:
-		PACKET_HAS_ELEMENT_OR_TRUNC(op, ospf_db.db_options);
+		TCHECK(op->ospf_db.db_options);
                 printf("\n\tOptions [%s]",
                        bittok2str(ospf_option_values,"none",op->ospf_db.db_options));
-		PACKET_HAS_ELEMENT_OR_TRUNC(op, ospf_db.db_flags);
+		TCHECK(op->ospf_db.db_flags);
                 printf(", DD Flags [%s]",
                        bittok2str(ospf_dd_flag_values,"none",op->ospf_db.db_flags));
-                PACKET_HAS_ELEMENT_OR_TRUNC(op, ospf_db.db_ifmtu);
+                TCHECK(op->ospf_db.db_ifmtu);
                 if (op->ospf_db.db_ifmtu) {
                         printf(", MTU: %u", EXTRACT_16BITS(&op->ospf_db.db_ifmtu));
                 }
-                PACKET_HAS_ELEMENT_OR_TRUNC(op, ospf_db.db_seq);
+                TCHECK(op->ospf_db.db_seq);
                 printf(", Sequence: 0x%08x", EXTRACT_32BITS(&op->ospf_db.db_seq));
 
                 /* Print all the LS adv's */
@@ -996,7 +996,7 @@ ospf_decode_v2(__capability const struct ospfhdr *op, packetbody_t dataend)
 	case OSPF_TYPE_LS_REQ:
                 lsrp = op->ospf_lsr;
                 while ((u_char *)lsrp < dataend) {
-                    PACKET_HAS_ONE_OR_TRUNC(lsrp);
+                    TCHECK(*lsrp);
 
                     printf("\n\t  Advertising Router: %s, %s LSA (%u)",
                            ipaddr_string(&lsrp->ls_router),
@@ -1025,7 +1025,7 @@ ospf_decode_v2(__capability const struct ospfhdr *op, packetbody_t dataend)
 
 	case OSPF_TYPE_LS_UPDATE:
                 lsap = op->ospf_lsu.lsu_lsa;
-                PACKET_HAS_ELEMENT_OR_TRUNC(op, ospf_lsu.lsu_count);
+                TCHECK(op->ospf_lsu.lsu_count);
                 lsa_count_max = EXTRACT_32BITS(&op->ospf_lsu.lsu_count);
                 printf(", %d LSA%s",lsa_count_max, PLURAL_SUFFIX(lsa_count_max));
                 for (lsa_count=1;lsa_count <= lsa_count_max;lsa_count++) {
@@ -1062,7 +1062,7 @@ ospf_print(packetbody_t bp, register u_int length, packetbody_t bp2 _U_)
 
         /* XXX Before we do anything else, strip off the MD5 trailer */
 	/* XXX-BD: should we truncate the capabilities? */
-        PACKET_HAS_ELEMENT_OR_TRUNC(op, ospf_authtype);
+        TCHECK(op->ospf_authtype);
         if (EXTRACT_16BITS(&op->ospf_authtype) == OSPF_AUTH_MD5) {
                 length -= OSPF_AUTH_MD5_LEN;
                 snapend -= OSPF_AUTH_MD5_LEN;
@@ -1070,7 +1070,7 @@ ospf_print(packetbody_t bp, register u_int length, packetbody_t bp2 _U_)
 
 	/* If the type is valid translate it, or just print the type */
 	/* value.  If it's not valid, say so and return */
-	PACKET_HAS_ELEMENT_OR_TRUNC(op, ospf_type);
+	TCHECK(op->ospf_type);
 	cp = tok2str(type2str, "unknown LS-type", op->ospf_type);
 	printf("OSPFv%u, %s, length %u",
 	       op->ospf_version,
@@ -1083,7 +1083,7 @@ ospf_print(packetbody_t bp, register u_int length, packetbody_t bp2 _U_)
                 return;
         }
 
-	PACKET_HAS_ELEMENT_OR_TRUNC(op, ospf_len);
+	TCHECK(op->ospf_len);
 	if (length != EXTRACT_16BITS(&op->ospf_len)) {
 		printf(" [len %d]", EXTRACT_16BITS(&op->ospf_len));
 	}
@@ -1094,10 +1094,10 @@ ospf_print(packetbody_t bp, register u_int length, packetbody_t bp2 _U_)
 		dataend = bp + length;
 	}
 
-	PACKET_HAS_ELEMENT_OR_TRUNC(op, ospf_routerid);
+	TCHECK(op->ospf_routerid);
         printf("\n\tRouter-ID %s", ipaddr_string(&op->ospf_routerid));
 
-	PACKET_HAS_ELEMENT_OR_TRUNC(op, ospf_areaid);
+	TCHECK(op->ospf_areaid);
 	if (op->ospf_areaid.s_addr != 0)
 		printf(", Area %s", ipaddr_string(&op->ospf_areaid));
 	else
@@ -1105,7 +1105,7 @@ ospf_print(packetbody_t bp, register u_int length, packetbody_t bp2 _U_)
 
 	if (vflag) {
 		/* Print authentication data (should we really do this?) */
-		PACKET_HAS_ELEMENT_OR_TRUNC(op, ospf_authdata);
+		TCHECK2(op->ospf_authdata[0], sizeof(op->ospf_authdata));
 
                 printf(", Authentication Type: %s (%u)",
                        tok2str(ospf_authtype_values,"unknown",EXTRACT_16BITS(&op->ospf_authtype)),

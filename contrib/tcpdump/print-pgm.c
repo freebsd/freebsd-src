@@ -187,7 +187,7 @@ pgm_print(packetbody_t bp, register u_int length, packetbody_t bp2)
 	}
 #endif /* INET6 */
 	ch = '\0';
-	if (!PACKET_HAS_ELEMENT(pgm, pgm_dport)) {
+	if (!TTEST(pgm->pgm_dport)) {
 #ifdef INET6
 		if (ip6) {
 			(void)printf("%s > %s: [|pgm]",
@@ -234,7 +234,7 @@ pgm_print(packetbody_t bp, register u_int length, packetbody_t bp2)
 		}
 	}
 
-	PACKET_HAS_ONE_OR_TRUNC(pgm);
+	TCHECK(*pgm);
 
         (void)printf("PGM, length %u", pgm->pgm_length);
 
@@ -256,7 +256,7 @@ pgm_print(packetbody_t bp, register u_int length, packetbody_t bp2)
 	    __capability struct pgm_spm *spm;
 
 	    spm = (__capability struct pgm_spm *)(pgm + 1);
-	    PACKET_HAS_ONE_OR_TRUNC(spm);
+	    TCHECK(*spm);
 
 	    switch (EXTRACT_16BITS(&spm->pgms_nla_afi)) {
 	    case AFI_IP:
@@ -274,7 +274,7 @@ pgm_print(packetbody_t bp, register u_int length, packetbody_t bp2)
 		break;
 	    }
 	    bp = (packetbody_t)(spm + 1);
-	    PACKET_HAS_SPACE_OR_TRUNC(bp, addr_size);
+	    TCHECK2(*bp, addr_size);
 	    nla = bp;
 	    bp += addr_size;
 
@@ -291,7 +291,7 @@ pgm_print(packetbody_t bp, register u_int length, packetbody_t bp2)
 	    __capability struct pgm_poll *poll;
 
 	    poll = (__capability struct pgm_poll *)(pgm + 1);
-	    PACKET_HAS_ONE_OR_TRUNC(poll);
+	    TCHECK(*poll);
 	    (void)printf("POLL seq %u round %u",
 			 EXTRACT_32BITS(&poll->pgmp_seq),
                          EXTRACT_16BITS(&poll->pgmp_round));
@@ -303,7 +303,7 @@ pgm_print(packetbody_t bp, register u_int length, packetbody_t bp2)
 	    u_int32_t ivl, rnd, mask;
 
 	    polr = (__capability struct pgm_polr *)(pgm + 1);
-	    PACKET_HAS_ONE_OR_TRUNC(polr);
+	    TCHECK(*polr);
 
 	    switch (EXTRACT_16BITS(&polr->pgmp_nla_afi)) {
 	    case AFI_IP:
@@ -321,21 +321,21 @@ pgm_print(packetbody_t bp, register u_int length, packetbody_t bp2)
 		break;
 	    }
 	    bp = (packetbody_t) (polr + 1);
-	    PACKET_HAS_SPACE_OR_TRUNC(bp, addr_size);
+	    TCHECK2(*bp, addr_size);
 	    nla = bp;
 	    bp += addr_size;
 
 	    inet_ntop_cap(nla_af, nla, nla_buf, sizeof(nla_buf));
 
-	    PACKET_HAS_SPACE_OR_TRUNC(bp, sizeof(u_int32_t));
+	    TCHECK2(*bp, sizeof(u_int32_t));
 	    ivl = EXTRACT_32BITS(bp);
 	    bp += sizeof(u_int32_t);
 
-	    PACKET_HAS_SPACE_OR_TRUNC(bp, sizeof(u_int32_t));
+	    TCHECK2(*bp, sizeof(u_int32_t));
 	    rnd = EXTRACT_32BITS(bp);
 	    bp += sizeof(u_int32_t);
 
-	    PACKET_HAS_SPACE_OR_TRUNC(bp, sizeof(u_int32_t));
+	    TCHECK2(*bp, sizeof(u_int32_t));
 	    mask = EXTRACT_32BITS(bp);
 	    bp += sizeof(u_int32_t);
 
@@ -348,7 +348,7 @@ pgm_print(packetbody_t bp, register u_int length, packetbody_t bp2)
 	    __capability struct pgm_data *odata;
 
 	    odata = (__capability struct pgm_data *)(pgm + 1);
-	    PACKET_HAS_ONE_OR_TRUNC(odata);
+	    TCHECK(*odata);
 	    (void)printf("ODATA trail %u seq %u",
 			 EXTRACT_32BITS(&odata->pgmd_trailseq),
 			 EXTRACT_32BITS(&odata->pgmd_seq));
@@ -360,7 +360,7 @@ pgm_print(packetbody_t bp, register u_int length, packetbody_t bp2)
 	    __capability struct pgm_data *rdata;
 
 	    rdata = (__capability struct pgm_data *)(pgm + 1);
-	    PACKET_HAS_ONE_OR_TRUNC(rdata);
+	    TCHECK(*rdata);
 	    (void)printf("RDATA trail %u seq %u",
 			 EXTRACT_32BITS(&rdata->pgmd_trailseq),
 			 EXTRACT_32BITS(&rdata->pgmd_seq));
@@ -381,7 +381,7 @@ pgm_print(packetbody_t bp, register u_int length, packetbody_t bp2)
 #endif
 
 	    nak = (__capability struct pgm_nak *)(pgm + 1);
-	    PACKET_HAS_ONE_OR_TRUNC(nak);
+	    TCHECK(*nak);
 
 	    /*
 	     * Skip past the source, saving info along the way
@@ -403,7 +403,7 @@ pgm_print(packetbody_t bp, register u_int length, packetbody_t bp2)
 		break;
 	    }
 	    bp = (packetbody_t) (nak + 1);
-	    PACKET_HAS_SPACE_OR_TRUNC(bp, addr_size);
+	    TCHECK2(*bp, addr_size);
 	    source = bp;
 	    bp += addr_size;
 
@@ -427,7 +427,7 @@ pgm_print(packetbody_t bp, register u_int length, packetbody_t bp2)
 		break;
 	    }
 	    bp += (2 * sizeof(u_int16_t));
-	    PACKET_HAS_SPACE_OR_TRUNC(bp, addr_size);
+	    TCHECK2(*bp, addr_size);
 	    group = bp;
 	    bp += addr_size;
 
@@ -458,7 +458,7 @@ pgm_print(packetbody_t bp, register u_int length, packetbody_t bp2)
 	    __capability struct pgm_ack *ack;
 
 	    ack = (__capability struct pgm_ack *)(pgm + 1);
-	    PACKET_HAS_ONE_OR_TRUNC(ack);
+	    TCHECK(*ack);
 	    (void)printf("ACK seq %u",
 			 EXTRACT_32BITS(&ack->pgma_rx_max_seq));
 	    bp = (packetbody_t) (ack + 1);
@@ -479,7 +479,7 @@ pgm_print(packetbody_t bp, register u_int length, packetbody_t bp2)
 	    /*
 	     * make sure there's enough for the first option header
 	     */
-	    if (!PACKET_HAS_SPACE(bp, PGM_MIN_OPT_LEN)) {
+	    if (!TTEST2(*bp, PGM_MIN_OPT_LEN)) {
 		(void)printf("[|OPT]");
 		return;
 	    } 
@@ -523,7 +523,7 @@ pgm_print(packetbody_t bp, register u_int length, packetbody_t bp2)
 		    (void)printf("[Total option length leaves no room for final option]");
 		    return;
 		}
-		if (!PACKET_HAS_SPACE(bp, opt_len - 2)) {
+		if (!TTEST2(*bp, opt_len - 2)) {
 		    (void)printf(" [|OPT]");
 		    return;
 		} 
@@ -566,7 +566,7 @@ pgm_print(packetbody_t bp, register u_int length, packetbody_t bp2)
 			    (void)printf("[Option length not a multiple of 4]");
 			    return;
 			}
-			PACKET_HAS_SPACE_OR_TRUNC(bp, sizeof(u_int32_t));
+			TCHECK2(*bp, sizeof(u_int32_t));
 			(void)printf(" %u", EXTRACT_32BITS(bp));
 			bp += sizeof(u_int32_t);
 			opt_len -= sizeof(u_int32_t);
@@ -640,7 +640,7 @@ pgm_print(packetbody_t bp, register u_int length, packetbody_t bp2)
 			(void)printf("[Bad OPT_REDIRECT option, length %u != 4 + address size]", opt_len);
 			return;
 		    }
-		    PACKET_HAS_SPACE_OR_TRUNC(bp, addr_size);
+		    TCHECK2(*bp, addr_size);
 		    nla = bp;
 		    bp += addr_size;
 
@@ -780,7 +780,7 @@ pgm_print(packetbody_t bp, register u_int length, packetbody_t bp2)
 			(void)printf("[Bad OPT_PGMCC_DATA option, length %u != 12 + address size]", opt_len);
 			return;
 		    }
-		    PACKET_HAS_SPACE_OR_TRUNC(bp, addr_size);
+		    TCHECK2(*bp, addr_size);
 		    nla = bp;
 		    bp += addr_size;
 
@@ -814,7 +814,7 @@ pgm_print(packetbody_t bp, register u_int length, packetbody_t bp2)
 			(void)printf("[Bad OPT_PGMCC_FEEDBACK option, length %u != 12 + address size]", opt_len);
 			return;
 		    }
-		    PACKET_HAS_SPACE_OR_TRUNC(bp, addr_size);
+		    TCHECK2(*bp, addr_size);
 		    nla = bp;
 		    bp += addr_size;
 

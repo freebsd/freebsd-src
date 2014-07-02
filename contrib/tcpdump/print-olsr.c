@@ -272,7 +272,7 @@ olsr_print (packetbody_t pptr, u_int length, int is_ipv6)
         goto trunc;
     }
 
-    if (!PACKET_HAS_SPACE(tptr, sizeof(struct olsr_common))) {
+    if (!TTEST2(*tptr, sizeof(struct olsr_common))) {
         goto trunc;
     }
 
@@ -301,7 +301,7 @@ olsr_print (packetbody_t pptr, u_int length, int is_ipv6)
         } msgptr;
         int msg_len_valid = 0;
 
-        if (!PACKET_HAS_SPACE(tptr, sizeof(struct olsr_msg4)))
+        if (!TTEST2(*tptr, sizeof(struct olsr_msg4)))
             goto trunc;
 
 #if INET6
@@ -364,7 +364,7 @@ olsr_print (packetbody_t pptr, u_int length, int is_ipv6)
         switch (msg_type) {
         case OLSR_HELLO_MSG:
         case OLSR_HELLO_LQ_MSG:
-            if (!PACKET_HAS_SPACE(msg_data, sizeof(struct olsr_hello)))
+            if (!TTEST2(*msg_data, sizeof(struct olsr_hello)))
                 goto trunc;
 
             ptr.hello = (__capability struct olsr_hello *)msg_data;
@@ -379,7 +379,7 @@ olsr_print (packetbody_t pptr, u_int length, int is_ipv6)
                 /*
                  * link-type.
                  */
-                if (!PACKET_HAS_SPACE(msg_data, sizeof(struct olsr_hello_link)))
+                if (!TTEST2(*msg_data, sizeof(struct olsr_hello_link)))
                     goto trunc;
 
                 ptr.hello_link = (__capability struct olsr_hello_link *)msg_data;
@@ -423,7 +423,7 @@ olsr_print (packetbody_t pptr, u_int length, int is_ipv6)
 
         case OLSR_TC_MSG:
         case OLSR_TC_LQ_MSG:
-            if (!PACKET_HAS_SPACE(msg_data, sizeof(struct olsr_tc)))
+            if (!TTEST2(*msg_data, sizeof(struct olsr_tc)))
                 goto trunc;
 
             ptr.tc = (__capability struct olsr_tc *)msg_data;
@@ -454,7 +454,7 @@ olsr_print (packetbody_t pptr, u_int length, int is_ipv6)
 #endif
 
             while (msg_tlen >= addr_size) {
-                if (!PACKET_HAS_SPACE(msg_data, addr_size))
+                if (!TTEST2(*msg_data, addr_size))
                     goto trunc;
 
                 printf("\n\t  interface address %s",
@@ -478,7 +478,7 @@ olsr_print (packetbody_t pptr, u_int length, int is_ipv6)
                 while (msg_tlen >= sizeof(struct olsr_hna6)) {
                     __capability struct olsr_hna6 *hna6;
 
-                    if (!PACKET_HAS_SPACE(msg_data, sizeof(struct olsr_hna6)))
+                    if (!TTEST2(*msg_data, sizeof(struct olsr_hna6)))
                         goto trunc;
 
                     hna6 = (__capability struct olsr_hna6 *)msg_data;
@@ -496,7 +496,7 @@ olsr_print (packetbody_t pptr, u_int length, int is_ipv6)
             {
                 int col = 0;
                 while (msg_tlen >= sizeof(struct olsr_hna4)) {
-                    if (!PACKET_HAS_SPACE(msg_data, sizeof(struct olsr_hna4)))
+                    if (!TTEST2(*msg_data, sizeof(struct olsr_hna4)))
                         goto trunc;
 
                     ptr.hna = (__capability struct olsr_hna4 *)msg_data;
@@ -535,7 +535,7 @@ olsr_print (packetbody_t pptr, u_int length, int is_ipv6)
 
             if (msg_tlen < 4)
                 goto trunc;
-            if (!PACKET_HAS_SPACE(msg_data, 4))
+            if (!TTEST2(*msg_data, 4))
                 goto trunc;
 
             printf("\n\t  Version %u, Entries %u%s",
@@ -553,7 +553,7 @@ olsr_print (packetbody_t pptr, u_int length, int is_ipv6)
 
                 if (msg_tlen < 4)
                     break;
-                if (!PACKET_HAS_SPACE(msg_data, 4))
+                if (!TTEST2(*msg_data, 4))
                     goto trunc;
 
                 name_entry_type = EXTRACT_16BITS(msg_data);
@@ -580,7 +580,7 @@ olsr_print (packetbody_t pptr, u_int length, int is_ipv6)
                 if (msg_tlen < addr_size + name_entry_len + name_entry_padding)
                     goto trunc;
 
-                if (!PACKET_HAS_SPACE(msg_data, addr_size + name_entry_len + name_entry_padding))
+                if (!TTEST2(*msg_data, addr_size + name_entry_len + name_entry_padding))
                     goto trunc;
 
 #if INET6

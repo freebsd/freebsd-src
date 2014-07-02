@@ -124,12 +124,12 @@ static void dccp_print_ack_no(__capability const u_char *bp)
 	u_int32_t ack_high;
 	u_int64_t ackno;
 
-	PACKET_HAS_SPACE_OR_TRUNC(dh_ack,4);
+	TCHECK2(*dh_ack,4);
 	ack_high = DCCPH_ACK(dh_ack);
 	ackno = EXTRACT_24BITS(&ack_high) & 0xFFFFFF;
 
 	if (DCCPH_X(dh) != 0) {
-		PACKET_HAS_SPACE_OR_TRUNC(dh_ack,8);
+		TCHECK2(*dh_ack,8);
 
 		ackno &= 0x00FFFF;  /* clear reserved field */
 		ackno = (ackno << 32) +
@@ -189,7 +189,7 @@ void dccp_print(packetbody_t bp, packetbody_t data2, u_int len)
 	else
 		ip6 = NULL;
 #endif /*INET6*/
-	if (!PACKET_HAS_ONE(dh)) {
+	if (!TTEST(*dh)) {
 		printf("[Invalid packet|dccp]");
 		return;
 	}
@@ -233,7 +233,7 @@ void dccp_print(packetbody_t bp, packetbody_t data2, u_int len)
 	}
 
 	/* checksum calculation */
-	if (vflag && PACKET_HAS_SPACE(bp, len)) {
+	if (vflag && TTEST2(bp[0], len)) {
 		u_int16_t sum = 0, dccp_sum;
 
 		dccp_sum = EXTRACT_16BITS(&dh->dccph_checksum);
@@ -254,7 +254,7 @@ void dccp_print(packetbody_t bp, packetbody_t data2, u_int len)
 	case DCCP_PKT_REQUEST: {
 		__capability struct dccp_hdr_request *dhr =
 			(__capability struct dccp_hdr_request *)(bp + dccp_basic_hdr_len(dh));
-		PACKET_HAS_ONE_OR_TRUNC(dhr);
+		TCHECK(*dhr);
 		(void)printf("request (service=%d) ",
 			     EXTRACT_32BITS(&dhr->dccph_req_service));
 		extlen += 4;
@@ -263,7 +263,7 @@ void dccp_print(packetbody_t bp, packetbody_t data2, u_int len)
 	case DCCP_PKT_RESPONSE: {
 		__capability struct dccp_hdr_response *dhr =
 			(__capability struct dccp_hdr_response *)(bp + dccp_basic_hdr_len(dh));
-		PACKET_HAS_ONE_OR_TRUNC(dhr);
+		TCHECK(*dhr);
 		(void)printf("response (service=%d) ",
 			     EXTRACT_32BITS(&dhr->dccph_resp_service));
 		extlen += 12;
@@ -293,7 +293,7 @@ void dccp_print(packetbody_t bp, packetbody_t data2, u_int len)
 	case DCCP_PKT_RESET: {
 		__capability struct dccp_hdr_reset *dhr =
 			(__capability struct dccp_hdr_reset *)(bp + dccp_basic_hdr_len(dh));
-		PACKET_HAS_ONE_OR_TRUNC(dhr);
+		TCHECK(*dhr);
 		(void)printf("reset (code=%s) ",
 			     dccp_reset_code(dhr->dccph_reset_code));
 		extlen += 12;
@@ -330,7 +330,7 @@ void dccp_print(packetbody_t bp, packetbody_t data2, u_int len)
 
 		hlen -= dccp_basic_hdr_len(dh) + extlen;
 		while(1){
-			PACKET_HAS_ONE_OR_TRUNC(cp);
+			TCHECK(*cp);
 			optlen = dccp_print_option(cp);
 			if (!optlen) goto trunc2;
 			if (hlen <= optlen) break; 
@@ -351,18 +351,18 @@ static int dccp_print_option(packetbody_t option)
 {	
 	u_int8_t optlen, i;
 
-	PACKET_HAS_ONE_OR_TRUNC(option);
+	TCHECK(*option);
 
 	if (*option >= 32) {
-		PACKET_HAS_SPACE_OR_TRUNC(option, 2);
-		optlen = *(option+1);
+		TCHECK(*(option+1));
+		optlen = *(option +1);
 		if (optlen < 2) {
 			printf("Option %d optlen too short",*option);
 			return 1;
 		}
 	} else optlen = 1;
 
-	PACKET_HAS_SPACE_OR_TRUNC(option,optlen);
+	TCHECK2(*option,optlen);
 
 	switch (*option){
 	case 0:

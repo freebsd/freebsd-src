@@ -159,7 +159,7 @@ tcp_print(packetbody_t bp, register u_int length,
                 ip6 = NULL;
 #endif /*INET6*/
         ch = '\0';
-        if (!PACKET_HAS_ELEMENT(tp, th_dport)) {
+        if (!TTEST(tp->th_dport)) {
                 (void)printf("%s > %s: [|tcp]",
                              ipaddr_string(&ip->ip_src),
                              ipaddr_string(&ip->ip_dst));
@@ -185,12 +185,12 @@ tcp_print(packetbody_t bp, register u_int length,
 		enum sunrpc_msg_type direction;
 
 		fraglenp = (packetbody_t)tp + hlen;
-		if (PACKET_HAS_SPACE(fraglenp, 4)) {
+		if (TTEST2(*fraglenp, 4)) {
 			fraglen = EXTRACT_32BITS(fraglenp) & 0x7FFFFFFF;
 			if (fraglen > (length - hlen) - 4)
 				fraglen = (length - hlen) - 4;
 			rp = (__capability const struct sunrpc_msg *)(fraglenp + 4);
-			if (PACKET_HAS_ELEMENT(rp, rm_direction)) {
+			if (TTEST(rp->rm_direction)) {
 				direction = (enum sunrpc_msg_type)EXTRACT_32BITS(&rp->rm_direction);
 				if (dport == NFS_PORT &&
 				    direction == SUNRPC_CALL) {
@@ -240,7 +240,7 @@ tcp_print(packetbody_t bp, register u_int length,
                 return;
         }
 
-        PACKET_HAS_ONE_OR_TRUNC(tp);
+        TCHECK(*tp);
 
         seq = EXTRACT_32BITS(&tp->th_seq);
         ack = EXTRACT_32BITS(&tp->th_ack);
@@ -395,7 +395,7 @@ tcp_print(packetbody_t bp, register u_int length,
                 u_int16_t sum, tcp_sum;
 
                 if (IP_V(ip) == 4) {
-                        if (PACKET_HAS_SPACE(tp, length)) {
+                        if (TTEST2(tp->th_sport, length)) {
                                 sum = tcp_cksum(ip, tp, length);
                                 tcp_sum = EXTRACT_16BITS(&tp->th_sum);
 
@@ -409,7 +409,7 @@ tcp_print(packetbody_t bp, register u_int length,
                 }
 #ifdef INET6
                 else if (IP_V(ip) == 6 && ip6->ip6_plen) {
-                        if (PACKET_HAS_SPACE(tp, length)) {
+                        if (TTEST2(tp->th_sport, length)) {
                                 sum = nextproto6_cksum(ip6, (packetbody_t)tp, length, IPPROTO_TCP);
                                 tcp_sum = EXTRACT_16BITS(&tp->th_sum);
 
@@ -456,12 +456,12 @@ tcp_print(packetbody_t bp, register u_int length,
                 while (hlen > 0) {
                         if (ch != '\0')
                                 putchar(ch);
-                        PACKET_HAS_ONE_OR_TRUNC(cp);
+                        TCHECK(*cp);
                         opt = *cp++;
                         if (ZEROLENOPT(opt))
                                 len = 1;
                         else {
-                                PACKET_HAS_ONE_OR_TRUNC(cp);
+                                TCHECK(*cp);
                                 len = *cp++;	/* total including type, len */
                                 if (len < 2 || len > hlen)
                                         goto bad;
@@ -471,7 +471,7 @@ tcp_print(packetbody_t bp, register u_int length,
                         datalen = 0;
 
 /* Bail if "l" bytes of data are not left or were not captured  */
-#define LENCHECK(l) { if ((l) > hlen) goto bad; PACKET_HAS_SPACE_OR_TRUNC(cp, l); }
+#define LENCHECK(l) { if ((l) > hlen) goto bad; TCHECK2(*cp, l); }
 
 
                         printf("%s", tok2str(tcp_option_values, "Unknown Option %u", opt));
@@ -712,7 +712,7 @@ print_tcp_rst_data(packetbody_t sp, u_int length)
 {
         int c;
 
-        if (PACKET_HAS_SPACE(sp, length))
+        if (TTEST2(*sp, length))
                 printf(" [RST");
         else
                 printf(" [!RST");
@@ -745,7 +745,7 @@ tcp_verify_signature(const struct ip *ip, const struct tcphdr *tp,
         u_int8_t nxt;
 #endif
 
-	if (!PACKET_HAS_SPACE(data, length)) {
+	if (!TTEST2(*data, length)) {
 		printf("snaplen too short, ");
 		return (CANT_CHECK_SIGNATURE);
 	}

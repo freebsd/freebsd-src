@@ -491,7 +491,7 @@ decode_prefix4(packetbody_t pptr, u_int itemlen, char *buf, u_int buflen)
 	struct in_addr addr;
 	u_int plen, plenbytes;
 
-	PACKET_HAS_ONE_OR_TRUNC(pptr);
+	TCHECK(pptr[0]);
 	ITEMCHECK(1);
 	plen = pptr[0];
 	if (32 < plen)
@@ -500,7 +500,7 @@ decode_prefix4(packetbody_t pptr, u_int itemlen, char *buf, u_int buflen)
 
 	memset(&addr, 0, sizeof(addr));
 	plenbytes = (plen + 7) / 8;
-	PACKET_HAS_SPACE_OR_TRUNC(pptr, 1 + plenbytes);
+	TCHECK2(pptr[1], plenbytes);
 	ITEMCHECK(plenbytes);
 	p_memcpy_from_packet(&addr, &pptr[1], plenbytes);
 	if (plen % 8) {
@@ -524,7 +524,7 @@ decode_labeled_prefix4(packetbody_t pptr, u_int itemlen, char *buf, u_int buflen
 	u_int plen, plenbytes;
 
 	/* prefix length and label = 4 bytes */
-	PACKET_HAS_SPACE_OR_TRUNC(pptr, 4);
+	TCHECK2(pptr[0], 4);
 	ITEMCHECK(4);
 	plen = pptr[0];   /* get prefix length */
 
@@ -547,7 +547,7 @@ decode_labeled_prefix4(packetbody_t pptr, u_int itemlen, char *buf, u_int buflen
 
 	memset(&addr, 0, sizeof(addr));
 	plenbytes = (plen + 7) / 8;
-	PACKET_HAS_SPACE_OR_TRUNC(pptr, 4 + plenbytes);
+	TCHECK2(pptr[4], plenbytes);
 	ITEMCHECK(plenbytes);
 	p_memcpy_from_packet(&addr, &pptr[4], plenbytes);
 	if (plen % 8) {
@@ -584,12 +584,12 @@ bgp_vpn_ip_print (packetbody_t pptr, u_int addr_length) {
 
     switch(addr_length) {
     case (sizeof(struct in_addr) << 3): /* 32 */
-        PACKET_HAS_SPACE_OR_TRUNC(pptr, sizeof(struct in_addr));
+        TCHECK2(pptr[0], sizeof(struct in_addr));
         snprintf(pos, sizeof(addr), "%s", ipaddr_string(pptr));
         break;
 #ifdef INET6
     case (sizeof(struct in6_addr) << 3): /* 128 */
-        PACKET_HAS_SPACE_OR_TRUNC(pptr, sizeof(struct in6_addr));
+        TCHECK2(pptr[0], sizeof(struct in6_addr));
         snprintf(pos, sizeof(addr), "%s", ip6addr_string(pptr));
         break;
 #endif
@@ -631,11 +631,11 @@ bgp_vpn_sg_print(packetbody_t pptr, char *buf, u_int buflen) {
     total_length = 0;
 
     /* Source address length, encoded in bits */
-    PACKET_HAS_SPACE_OR_TRUNC(pptr, 1);
+    TCHECK2(pptr[0], 1);
     addr_length =  *pptr++;
 
     /* Source address */
-    PACKET_HAS_SPACE_OR_TRUNC(pptr, (addr_length >> 3));
+    TCHECK2(pptr[0], (addr_length >> 3));
     total_length += (addr_length >> 3) + 1;
     offset = strlen(buf);
     if (addr_length) {
@@ -645,11 +645,11 @@ bgp_vpn_sg_print(packetbody_t pptr, char *buf, u_int buflen) {
     }
     
     /* Group address length, encoded in bits */
-    PACKET_HAS_SPACE_OR_TRUNC(pptr, 1);
+    TCHECK2(pptr[0], 1);
     addr_length =  *pptr++;
 
     /* Group address */
-    PACKET_HAS_SPACE_OR_TRUNC(pptr, (addr_length >> 3));
+    TCHECK2(pptr[0], (addr_length >> 3));
     total_length += (addr_length >> 3) + 1;
     offset = strlen(buf);
     if (addr_length) {
@@ -712,7 +712,7 @@ decode_rt_routing_info(packetbody_t pptr, char *buf, u_int buflen)
 	u_int8_t route_target[8];
 	u_int plen;
 
-	PACKET_HAS_ONE_OR_TRUNC(pptr);
+	TCHECK(pptr[0]);
 	plen = pptr[0];   /* get prefix length */
 
 	if (0 == plen)
@@ -727,7 +727,7 @@ decode_rt_routing_info(packetbody_t pptr, char *buf, u_int buflen)
 		return -1;
 
 	memset(&route_target, 0, sizeof(route_target));
-	PACKET_HAS_SPACE_OR_TRUNC(pptr, 1 + (plen + 7) / 8);
+	TCHECK2(pptr[1], (plen + 7) / 8);
 	p_memcpy_from_packet(&route_target, &pptr[1], (plen + 7) / 8);
 	if (plen % 8) {
 		((u_char *)&route_target)[(plen + 7) / 8 - 1] &=
@@ -749,7 +749,7 @@ decode_labeled_vpn_prefix4(packetbody_t pptr, char *buf, u_int buflen)
 	struct in_addr addr;
 	u_int plen;
 
-	PACKET_HAS_ONE_OR_TRUNC(pptr);
+	TCHECK(pptr[0]);
 	plen = pptr[0];   /* get prefix length */
 
 	if ((24+64) > plen)
@@ -761,7 +761,7 @@ decode_labeled_vpn_prefix4(packetbody_t pptr, char *buf, u_int buflen)
 		return -1;
 
 	memset(&addr, 0, sizeof(addr));
-	PACKET_HAS_SPACE_OR_TRUNC(pptr, 12 + (plen + 7) / 8);
+	TCHECK2(pptr[12], (plen + 7) / 8);
 	p_memcpy_from_packet(&addr, &pptr[12], (plen + 7) / 8);
 	if (plen % 8) {
 		((u_char *)&addr)[(plen + 7) / 8 - 1] &=
@@ -800,7 +800,7 @@ decode_mdt_vpn_nlri(packetbody_t pptr, char *buf, u_int buflen)
     __capability const u_char *rd;
     __capability const u_char *vpn_ip;
     
-    PACKET_HAS_ONE_OR_TRUNC(pptr);
+    TCHECK(pptr[0]);
 
     /* if the NLRI is not predefined length, quit.*/
     if (*pptr != MDT_VPN_NLRI_LEN * NBBY)
@@ -808,17 +808,17 @@ decode_mdt_vpn_nlri(packetbody_t pptr, char *buf, u_int buflen)
     pptr++;
 
     /* RD */
-    PACKET_HAS_SPACE_OR_TRUNC(pptr, 8);
+    TCHECK2(pptr[0], 8);
     rd = pptr;
     pptr+=8;
 
     /* IPv4 address */
-    PACKET_HAS_SPACE_OR_TRUNC(pptr, sizeof(struct in_addr));
+    TCHECK2(pptr[0], sizeof(struct in_addr));
     vpn_ip = pptr;
     pptr+=sizeof(struct in_addr);
 
     /* MDT Group Address */
-    PACKET_HAS_SPACE_OR_TRUNC(pptr, sizeof(struct in_addr));
+    TCHECK2(pptr[0], sizeof(struct in_addr));
 
     snprintf(buf, buflen, "RD: %s, VPN IP Address: %s, MC Group Address: %s",
 	     bgp_vpn_rd_print(rd), ipaddr_string(vpn_ip), ipaddr_string(pptr));
@@ -854,7 +854,7 @@ decode_multicast_vpn(packetbody_t pptr, char *buf, u_int buflen)
         u_int8_t route_type, route_length, addr_length, sg_length;
         u_int offset;
 
-	PACKET_HAS_SPACE_OR_TRUNC(pptr, 2);
+	TCHECK2(pptr[0], 2);
         route_type = *pptr++;
         route_length = *pptr++;
 
@@ -865,7 +865,7 @@ decode_multicast_vpn(packetbody_t pptr, char *buf, u_int buflen)
 
         switch(route_type) {
         case BGP_MULTICAST_VPN_ROUTE_TYPE_INTRA_AS_I_PMSI:
-            PACKET_HAS_SPACE_OR_TRUNC(pptr, BGP_VPN_RD_LEN);
+            TCHECK2(pptr[0], BGP_VPN_RD_LEN);
             offset = strlen(buf);
             snprintf(buf + offset, buflen - offset, ", RD: %s, Originator %s",
                      bgp_vpn_rd_print(pptr),
@@ -873,7 +873,7 @@ decode_multicast_vpn(packetbody_t pptr, char *buf, u_int buflen)
                                       (route_length - BGP_VPN_RD_LEN) << 3));
             break;
         case BGP_MULTICAST_VPN_ROUTE_TYPE_INTER_AS_I_PMSI:
-            PACKET_HAS_SPACE_OR_TRUNC(pptr, BGP_VPN_RD_LEN + 4);
+            TCHECK2(pptr[0], BGP_VPN_RD_LEN + 4);
             offset = strlen(buf);
 	    snprintf(buf + offset, buflen - offset, ", RD: %s, Source-AS %s",
 		bgp_vpn_rd_print(pptr),
@@ -882,7 +882,7 @@ decode_multicast_vpn(packetbody_t pptr, char *buf, u_int buflen)
             break;
 
         case BGP_MULTICAST_VPN_ROUTE_TYPE_S_PMSI:
-            PACKET_HAS_SPACE_OR_TRUNC(pptr, BGP_VPN_RD_LEN);
+            TCHECK2(pptr[0], BGP_VPN_RD_LEN);
             offset = strlen(buf);
             snprintf(buf + offset, buflen - offset, ", RD: %s",
                      bgp_vpn_rd_print(pptr));
@@ -891,14 +891,14 @@ decode_multicast_vpn(packetbody_t pptr, char *buf, u_int buflen)
             sg_length = bgp_vpn_sg_print(pptr, buf, buflen);
             addr_length =  route_length - sg_length;
 
-            PACKET_HAS_SPACE_OR_TRUNC(pptr, addr_length);
+            TCHECK2(pptr[0], addr_length);
             offset = strlen(buf);
             snprintf(buf + offset, buflen - offset, ", Originator %s",
                      bgp_vpn_ip_print(pptr, addr_length << 3));
             break;
 
         case BGP_MULTICAST_VPN_ROUTE_TYPE_SOURCE_ACTIVE:
-            PACKET_HAS_SPACE_OR_TRUNC(pptr, BGP_VPN_RD_LEN);
+            TCHECK2(pptr[0], BGP_VPN_RD_LEN);
             offset = strlen(buf);
             snprintf(buf + offset, buflen - offset, ", RD: %s",
                      bgp_vpn_rd_print(pptr));
@@ -909,7 +909,7 @@ decode_multicast_vpn(packetbody_t pptr, char *buf, u_int buflen)
 
         case BGP_MULTICAST_VPN_ROUTE_TYPE_SHARED_TREE_JOIN: /* fall through */
         case BGP_MULTICAST_VPN_ROUTE_TYPE_SOURCE_TREE_JOIN:
-            PACKET_HAS_SPACE_OR_TRUNC(pptr, BGP_VPN_RD_LEN);
+            TCHECK2(pptr[0], BGP_VPN_RD_LEN);
             offset = strlen(buf);
 	    snprintf(buf + offset, buflen - offset, ", RD: %s, Source-AS %s",
 		bgp_vpn_rd_print(pptr),
@@ -959,7 +959,7 @@ decode_labeled_vpn_l2(packetbody_t pptr, char *buf, u_int buflen)
 {
         int plen,tlen,strlen,tlv_type,tlv_len,ttlv_len;
 
-	PACKET_HAS_SPACE_OR_TRUNC(pptr, 2);
+	TCHECK2(pptr[0], 2);
         plen=EXTRACT_16BITS(pptr);
         tlen=plen;
         pptr+=2;
@@ -969,7 +969,7 @@ decode_labeled_vpn_l2(packetbody_t pptr, char *buf, u_int buflen)
          */
         if (plen==12) { 
 	    /* assume AD-only with RD, BGPNH */
-	    PACKET_HAS_SPACE_OR_TRUNC(pptr,12);
+	    TCHECK2(pptr[0],12);
 	    buf[0]='\0';
 	    strlen=snprintf(buf, buflen, "RD: %s, BGPNH: %s",
 			    bgp_vpn_rd_print(pptr), 
@@ -984,7 +984,7 @@ decode_labeled_vpn_l2(packetbody_t pptr, char *buf, u_int buflen)
 	    /* assume old format */
 	    /* RD, ID, LBLKOFF, LBLBASE */
 
-	    PACKET_HAS_SPACE_OR_TRUNC(pptr,15);
+	    TCHECK2(pptr[0],15);
 	    buf[0]='\0';
 	    strlen=snprintf(buf, buflen, "RD: %s, CE-ID: %u, Label-Block Offset: %u, Label Base %u",
 			    bgp_vpn_rd_print(pptr),
@@ -999,7 +999,7 @@ decode_labeled_vpn_l2(packetbody_t pptr, char *buf, u_int buflen)
 	    while (tlen>0) {
 		if (tlen < 3)
 		    return -1;
-		PACKET_HAS_SPACE_OR_TRUNC(pptr, 3);
+		TCHECK2(pptr[0], 3);
 		tlv_type=*pptr++;
 		tlv_len=EXTRACT_16BITS(pptr);
 		ttlv_len=tlv_len;
@@ -1015,7 +1015,7 @@ decode_labeled_vpn_l2(packetbody_t pptr, char *buf, u_int buflen)
 		    }
 		    ttlv_len=ttlv_len/8+1; /* how many bytes do we need to read ? */
 		    while (ttlv_len>0) {
-			PACKET_HAS_ONE_OR_TRUNC(pptr);
+			TCHECK(pptr[0]);
 			if (buflen!=0) {
 			    strlen=snprintf(buf,buflen, "%02x",*pptr++);
 			    UPDATE_BUF_BUFLEN(buf, buflen, strlen);
@@ -1053,7 +1053,7 @@ decode_prefix6(packetbody_t pd, u_int itemlen, char *buf, u_int buflen)
 	struct in6_addr addr;
 	u_int plen, plenbytes;
 
-	PACKET_HAS_ONE_OR_TRUNC(pd);
+	TCHECK(pd[0]);
 	ITEMCHECK(1);
 	plen = pd[0];
 	if (128 < plen)
@@ -1062,7 +1062,7 @@ decode_prefix6(packetbody_t pd, u_int itemlen, char *buf, u_int buflen)
 
 	memset(&addr, 0, sizeof(addr));
 	plenbytes = (plen + 7) / 8;
-	PACKET_HAS_SPACE_OR_TRUNC(pd, 1 + plenbytes);
+	TCHECK2(pd[1], plenbytes);
 	ITEMCHECK(plenbytes);
 	p_memcpy_from_packet(&addr, &pd[1], plenbytes);
 	if (plen % 8) {
@@ -1086,7 +1086,7 @@ decode_labeled_prefix6(packetbody_t pptr, u_int itemlen, char *buf, u_int buflen
 	u_int plen, plenbytes;
 
 	/* prefix length and label = 4 bytes */
-	PACKET_HAS_SPACE_OR_TRUNC(pptr, 4);
+	TCHECK2(pptr[0], 4);
 	ITEMCHECK(4);
 	plen = pptr[0]; /* get prefix length */
 
@@ -1101,7 +1101,7 @@ decode_labeled_prefix6(packetbody_t pptr, u_int itemlen, char *buf, u_int buflen
 
 	memset(&addr, 0, sizeof(addr));
 	plenbytes = (plen + 7) / 8;
-	PACKET_HAS_SPACE_OR_TRUNC(pptr, 4 + plenbytes);
+	TCHECK2(pptr[4], plenbytes);
 	p_memcpy_from_packet(&addr, &pptr[4], plenbytes);
 	if (plen % 8) {
 		addr.s6_addr[plenbytes - 1] &=
@@ -1129,7 +1129,7 @@ decode_labeled_vpn_prefix6(packetbody_t pptr, char *buf, u_int buflen)
 	struct in6_addr addr;
 	u_int plen;
 
-	PACKET_HAS_ONE_OR_TRUNC(pptr);
+	TCHECK(pptr[0]);
 	plen = pptr[0];   /* get prefix length */
 
 	if ((24+64) > plen)
@@ -1141,7 +1141,7 @@ decode_labeled_vpn_prefix6(packetbody_t pptr, char *buf, u_int buflen)
 		return -1;
 
 	memset(&addr, 0, sizeof(addr));
-	PACKET_HAS_SPACE_OR_TRUNC(pptr, 12 + (plen + 7) / 8);
+	TCHECK2(pptr[12], (plen + 7) / 8);
 	p_memcpy_from_packet(&addr, &pptr[12], (plen + 7) / 8);
 	if (plen % 8) {
 		addr.s6_addr[(plen + 7) / 8 - 1] &=
@@ -1168,14 +1168,14 @@ decode_clnp_prefix(packetbody_t pptr, char *buf, u_int buflen)
         u_int8_t addr[19];
 	u_int plen;
 
-	PACKET_HAS_ONE_OR_TRUNC(pptr);
+	TCHECK(pptr[0]);
 	plen = pptr[0]; /* get prefix length */
 
 	if (152 < plen)
 		return -1;
 
 	memset(&addr, 0, sizeof(addr));
-	PACKET_HAS_SPACE_OR_TRUNC(pptr, 4 + (plen + 7) / 8);
+	TCHECK2(pptr[4], (plen + 7) / 8);
 	p_memcpy_from_packet(&addr, &pptr[4], (plen + 7) / 8);
 	if (plen % 8) {
 		addr[(plen + 7) / 8 - 1] &=
@@ -1197,7 +1197,7 @@ decode_labeled_vpn_clnp_prefix(packetbody_t pptr, char *buf, u_int buflen)
         u_int8_t addr[19];
 	u_int plen;
 
-	PACKET_HAS_ONE_OR_TRUNC(pptr);
+	TCHECK(pptr[0]);
 	plen = pptr[0];   /* get prefix length */
 
 	if ((24+64) > plen)
@@ -1209,7 +1209,7 @@ decode_labeled_vpn_clnp_prefix(packetbody_t pptr, char *buf, u_int buflen)
 		return -1;
 
 	memset(&addr, 0, sizeof(addr));
-	PACKET_HAS_SPACE_OR_TRUNC(pptr, 12 + (plen + 7) / 8);
+	TCHECK2(pptr[12], (plen + 7) / 8);
 	p_memcpy_from_packet(&addr, &pptr[12], (plen + 7) / 8);
 	if (plen % 8) {
 		addr[(plen + 7) / 8 - 1] &=
@@ -1256,7 +1256,7 @@ bgp_attr_get_as_size (u_int8_t bgpa_type, packetbody_t pptr, int len)
      * each.
      */
     while (tptr < pptr + len) {
-        PACKET_HAS_ONE_OR_TRUNC(tptr);
+        TCHECK(tptr[0]);
 
         /*
          * If we do not find a valid segment type, our guess might be wrong.
@@ -1264,7 +1264,7 @@ bgp_attr_get_as_size (u_int8_t bgpa_type, packetbody_t pptr, int len)
         if (tptr[0] < BGP_AS_SEG_TYPE_MIN || tptr[0] > BGP_AS_SEG_TYPE_MAX) {
             goto trunc;
         }
-        PACKET_HAS_SPACE_OR_TRUNC(tptr, 2);
+        TCHECK(tptr[1]);
 	incr = 2 + tptr[1] * 2;
 	if ((tptr - pptr) + incr > len)
 		break;
@@ -1315,7 +1315,7 @@ bgp_attr_print(u_int atype, packetbody_t pptr, u_int len)
 		if (len != 1)
 			printf("invalid len");
 		else {
-			PACKET_HAS_ONE_OR_TRUNC(tptr);
+			TCHECK(*tptr);
 			printf("%s", tok2strbuf(bgp_origin_values,
 						"Unknown Origin Typecode",
 						tptr[0],
@@ -1349,23 +1349,23 @@ bgp_attr_print(u_int atype, packetbody_t pptr, u_int len)
                 as_size = bgp_attr_get_as_size(atype, pptr, len);
 
 		while (tptr < pptr + len) {
-			PACKET_HAS_ONE_OR_TRUNC(tptr);
+			TCHECK(tptr[0]);
                         printf("%s", tok2strbuf(bgp_as_path_segment_open_values,
 						"?", tptr[0],
 						tokbuf, sizeof(tokbuf)));
                         for (i = 0; i < tptr[1] * as_size; i += as_size) {
-                            PACKET_HAS_SPACE_OR_TRUNC(tptr, (2 + i) + as_size);
+                            TCHECK2(tptr[2 + i], as_size);
 			    printf("%s ",
 				as_printf(astostr, sizeof(astostr),
 				as_size == 2 ? 
 				EXTRACT_16BITS(&tptr[2 + i]) :
 				EXTRACT_32BITS(&tptr[2 + i])));
                         }
-			PACKET_HAS_ONE_OR_TRUNC(tptr);
+			TCHECK(tptr[0]);
                         printf("%s", tok2strbuf(bgp_as_path_segment_close_values,
 						"?", tptr[0],
 						tokbuf, sizeof(tokbuf)));
-                        PACKET_HAS_SPACE_OR_TRUNC(tptr, 2);
+                        TCHECK(tptr[1]);
                         tptr += 2 + tptr[1] * as_size;
 		}
 		break;
@@ -1373,7 +1373,7 @@ bgp_attr_print(u_int atype, packetbody_t pptr, u_int len)
 		if (len != 4)
 			printf("invalid len");
 		else {
-			PACKET_HAS_SPACE_OR_TRUNC(tptr, 4);
+			TCHECK2(tptr[0], 4);
 			printf("%s", getname(tptr));
 		}
 		break;
@@ -1382,7 +1382,7 @@ bgp_attr_print(u_int atype, packetbody_t pptr, u_int len)
 		if (len != 4)
 			printf("invalid len");
 		else {
-			PACKET_HAS_SPACE_OR_TRUNC(tptr, 4);
+			TCHECK2(tptr[0], 4);
 			printf("%u", EXTRACT_32BITS(tptr));
 		}
 		break;
@@ -1400,7 +1400,7 @@ bgp_attr_print(u_int atype, packetbody_t pptr, u_int len)
                     printf("invalid len");
                     break;
                 }
-                PACKET_HAS_SPACE_OR_TRUNC(tptr, len);
+                TCHECK2(tptr[0], len);
                 if (len == 6) {
 		    printf(" AS #%s, origin %s",
 			as_printf(astostr, sizeof(astostr), EXTRACT_16BITS(tptr)),
@@ -1416,7 +1416,7 @@ bgp_attr_print(u_int atype, packetbody_t pptr, u_int len)
 			printf("invalid len");
 			break;
 		}
-		PACKET_HAS_SPACE_OR_TRUNC(tptr, 8);
+		TCHECK2(tptr[0], 8);
 		printf(" AS #%s, origin %s",
 	   	    as_printf(astostr, sizeof(astostr), EXTRACT_32BITS(tptr)),
 		    getname(tptr + 4));
@@ -1428,7 +1428,7 @@ bgp_attr_print(u_int atype, packetbody_t pptr, u_int len)
 		}
 		while (tlen>0) {
 			u_int32_t comm;
-			PACKET_HAS_SPACE_OR_TRUNC(tptr, 4);
+			TCHECK2(tptr[0], 4);
 			comm = EXTRACT_32BITS(tptr);
 			switch (comm) {
 			case BGP_COMMUNITY_NO_EXPORT:
@@ -1456,7 +1456,7 @@ bgp_attr_print(u_int atype, packetbody_t pptr, u_int len)
 			printf("invalid len");
 			break;
 		}
-		PACKET_HAS_SPACE_OR_TRUNC(tptr, 4);
+		TCHECK2(tptr[0], 4);
                 printf("%s",getname(tptr));
                 break;
         case BGPTYPE_CLUSTER_LIST:
@@ -1465,7 +1465,7 @@ bgp_attr_print(u_int atype, packetbody_t pptr, u_int len)
 			break;
 		}
                 while (tlen>0) {
-			PACKET_HAS_SPACE_OR_TRUNC(tptr, 4);
+			TCHECK2(tptr[0], 4);
                         printf("%s%s",
                                getname(tptr),
                                 (tlen>4) ? ", " : "");
@@ -1474,7 +1474,7 @@ bgp_attr_print(u_int atype, packetbody_t pptr, u_int len)
                 }
                 break;
 	case BGPTYPE_MP_REACH_NLRI:
-		PACKET_HAS_SPACE_OR_TRUNC(tptr, 3);
+		TCHECK2(tptr[0], 3);
 		af = EXTRACT_16BITS(tptr);
 		safi = tptr[2];
 	
@@ -1519,7 +1519,7 @@ bgp_attr_print(u_int atype, packetbody_t pptr, u_int len)
                 case (AFNUM_VPLS<<8 | SAFNUM_VPLS):
                     break;
                 default:
-                    PACKET_HAS_SPACE_OR_TRUNC(tptr, tlen);
+                    TCHECK2(tptr[0], tlen);
                     printf("\n\t    no AFI %u / SAFI %u decoder",af,safi);
                     if (vflag <= 1)
                         print_unknown_data(tptr,"\n\t    ",tlen);
@@ -1529,7 +1529,7 @@ bgp_attr_print(u_int atype, packetbody_t pptr, u_int len)
 
                 tptr +=3;
 
-		PACKET_HAS_ONE_OR_TRUNC(tptr);
+		TCHECK(tptr[0]);
 		nhlen = tptr[0];
                 tlen = nhlen;
                 tptr++;
@@ -1553,7 +1553,7 @@ bgp_attr_print(u_int atype, packetbody_t pptr, u_int len)
                                 printf("invalid len");
                                 tlen = 0;
                             } else {
-                                PACKET_HAS_SPACE_OR_TRUNC(tptr, sizeof(struct in_addr));
+                                TCHECK2(tptr[0], sizeof(struct in_addr));
                                 printf("%s",getname(tptr));
                                 tlen -= sizeof(struct in_addr);
                                 tptr += sizeof(struct in_addr);
@@ -1566,7 +1566,7 @@ bgp_attr_print(u_int atype, packetbody_t pptr, u_int len)
                                 printf("invalid len");
                                 tlen = 0;
                             } else {
-                                PACKET_HAS_SPACE_OR_TRUNC(tptr, sizeof(struct in_addr)+BGP_VPN_RD_LEN);
+                                TCHECK2(tptr[0], sizeof(struct in_addr)+BGP_VPN_RD_LEN);
                                 printf("RD: %s, %s",
                                        bgp_vpn_rd_print(tptr),
                                        getname(tptr+BGP_VPN_RD_LEN));
@@ -1583,7 +1583,7 @@ bgp_attr_print(u_int atype, packetbody_t pptr, u_int len)
                                 printf("invalid len");
                                 tlen = 0;
                             } else {
-                                PACKET_HAS_SPACE_OR_TRUNC(tptr, sizeof(struct in6_addr));
+                                TCHECK2(tptr[0], sizeof(struct in6_addr));
                                 printf("%s", getname6(tptr));
                                 tlen -= sizeof(struct in6_addr);
                                 tptr += sizeof(struct in6_addr);
@@ -1596,7 +1596,7 @@ bgp_attr_print(u_int atype, packetbody_t pptr, u_int len)
                                 printf("invalid len");
                                 tlen = 0;
                             } else {
-                                PACKET_HAS_SPACE_OR_TRUNC(tptr, sizeof(struct in6_addr)+BGP_VPN_RD_LEN);
+                                TCHECK2(tptr[0], sizeof(struct in6_addr)+BGP_VPN_RD_LEN);
                                 printf("RD: %s, %s",
                                        bgp_vpn_rd_print(tptr),
                                        getname6(tptr+BGP_VPN_RD_LEN));
@@ -1613,7 +1613,7 @@ bgp_attr_print(u_int atype, packetbody_t pptr, u_int len)
                                 printf("invalid len");
                                 tlen = 0;
                             } else {
-                                PACKET_HAS_SPACE_OR_TRUNC(tptr, sizeof(struct in_addr));
+                                TCHECK2(tptr[0], sizeof(struct in_addr));
                                 printf("%s", getname(tptr));
                                 tlen -= (sizeof(struct in_addr));
                                 tptr += (sizeof(struct in_addr));
@@ -1622,7 +1622,7 @@ bgp_attr_print(u_int atype, packetbody_t pptr, u_int len)
                         case (AFNUM_NSAP<<8 | SAFNUM_UNICAST):
                         case (AFNUM_NSAP<<8 | SAFNUM_MULTICAST):
                         case (AFNUM_NSAP<<8 | SAFNUM_UNIMULTICAST):
-                            PACKET_HAS_SPACE_OR_TRUNC(tptr, tlen);
+                            TCHECK2(tptr[0], tlen);
                             printf("%s",isonsap_string(tptr,tlen));
                             tptr += tlen;
                             tlen = 0;
@@ -1635,7 +1635,7 @@ bgp_attr_print(u_int atype, packetbody_t pptr, u_int len)
                                 printf("invalid len");
                                 tlen = 0;
                             } else {
-                                PACKET_HAS_SPACE_OR_TRUNC(tptr, tlen);
+                                TCHECK2(tptr[0], tlen);
                                 printf("RD: %s, %s",
                                        bgp_vpn_rd_print(tptr),
                                        isonsap_string(tptr+BGP_VPN_RD_LEN,tlen-BGP_VPN_RD_LEN));
@@ -1652,7 +1652,7 @@ bgp_attr_print(u_int atype, packetbody_t pptr, u_int len)
                             }
                             break;
                         default:
-                            PACKET_HAS_SPACE_OR_TRUNC(tptr, tlen);
+                            TCHECK2(tptr[0], tlen);
                             printf("no AFI %u/SAFI %u decoder",af,safi);
                             if (vflag <= 1)
                                 print_unknown_data(tptr,"\n\t    ",tlen);
@@ -1666,14 +1666,14 @@ bgp_attr_print(u_int atype, packetbody_t pptr, u_int len)
                 printf(", nh-length: %u", nhlen);
 		tptr += tlen;
 
-		PACKET_HAS_ONE_OR_TRUNC(tptr);
+		TCHECK(tptr[0]);
 		snpa = tptr[0];
 		tptr++;
 
 		if (snpa) {
 			printf("\n\t    %u SNPA", snpa);
 			for (/*nothing*/; snpa > 0; snpa--) {
-				PACKET_HAS_ONE_OR_TRUNC(tptr);
+				TCHECK(tptr[0]);
 				printf("\n\t      %d bytes", tptr[0]);
 				tptr += tptr[0] + 1;
 			}
@@ -1819,7 +1819,7 @@ bgp_attr_print(u_int atype, packetbody_t pptr, u_int len)
                             printf("\n\t      %s", buf);
                         break;                                   
                     default:
-                        PACKET_HAS_SPACE_OR_TRUNC(tptr,tlen);
+                        TCHECK2(*tptr,tlen);
                         printf("\n\t    no AFI %u / SAFI %u decoder",af,safi);
                         if (vflag <= 1)
                             print_unknown_data(tptr,"\n\t    ",tlen);
@@ -1835,7 +1835,7 @@ bgp_attr_print(u_int atype, packetbody_t pptr, u_int len)
 		break;
 
 	case BGPTYPE_MP_UNREACH_NLRI:
-		PACKET_HAS_SPACE_OR_TRUNC(tptr, BGP_MP_NLRI_MINSIZE);
+		TCHECK2(tptr[0], BGP_MP_NLRI_MINSIZE);
 		af = EXTRACT_16BITS(tptr);
 		safi = tptr[2];
 
@@ -1981,7 +1981,7 @@ bgp_attr_print(u_int atype, packetbody_t pptr, u_int len)
                             printf("\n\t      %s", buf);
                         break;
                     default:
-                        PACKET_HAS_SPACE_OR_TRUNC((tptr-3),tlen);
+                        TCHECK2(*(tptr-3),tlen);
                         printf("no AFI %u / SAFI %u decoder",af,safi);
                         if (vflag <= 1)
                             print_unknown_data(tptr-3,"\n\t    ",tlen);                                        
@@ -2002,7 +2002,7 @@ bgp_attr_print(u_int atype, packetbody_t pptr, u_int len)
                 while (tlen>0) {
                     u_int16_t extd_comm;
 
-                    PACKET_HAS_SPACE_OR_TRUNC(tptr, 2);
+                    TCHECK2(tptr[0], 2);
                     extd_comm=EXTRACT_16BITS(tptr);
 
 		    printf("\n\t    %s (0x%04x), Flags [%s]",
@@ -2012,7 +2012,7 @@ bgp_attr_print(u_int atype, packetbody_t pptr, u_int len)
 			   extd_comm,
 			   bittok2str(bgp_extd_comm_flag_values, "none", extd_comm));
 
-                    PACKET_HAS_SPACE_OR_TRUNC(tptr, 8);
+                    TCHECK2(*(tptr+2), 6);
                     switch(extd_comm) {
                     case BGP_EXT_COM_RT_0:
                     case BGP_EXT_COM_RO_0:
@@ -2073,7 +2073,7 @@ bgp_attr_print(u_int atype, packetbody_t pptr, u_int len)
                         printf(": AS %u", EXTRACT_16BITS(tptr+2));
                         break;
                     default:
-                        PACKET_HAS_SPACE_OR_TRUNC(tptr,8);
+                        TCHECK2(*tptr,8);
                         print_unknown_data(tptr,"\n\t      ",8);
                         break;
                     }
@@ -2090,7 +2090,7 @@ bgp_attr_print(u_int atype, packetbody_t pptr, u_int len)
                 flags = *tptr;
                 tlen = len;
 
-                PACKET_HAS_SPACE_OR_TRUNC(tptr, 5);
+                TCHECK2(tptr[0], 5);
                 printf("\n\t    Tunnel-type %s (%u), Flags [%s], MPLS Label %u",
                        tok2str(bgp_pmsi_tunnel_values, "Unknown", tunnel_type),
                        tunnel_type,
@@ -2103,32 +2103,32 @@ bgp_attr_print(u_int atype, packetbody_t pptr, u_int len)
                 switch (tunnel_type) {
                 case BGP_PMSI_TUNNEL_PIM_SM: /* fall through */
                 case BGP_PMSI_TUNNEL_PIM_BIDIR:
-                    PACKET_HAS_SPACE_OR_TRUNC(tptr, 8);
+                    TCHECK2(tptr[0], 8);
                     printf("\n\t      Sender %s, P-Group %s",
                            ipaddr_string(tptr),
                            ipaddr_string(tptr+4));
                     break;
 
                 case BGP_PMSI_TUNNEL_PIM_SSM:
-                    PACKET_HAS_SPACE_OR_TRUNC(tptr, 8);
+                    TCHECK2(tptr[0], 8);
                     printf("\n\t      Root-Node %s, P-Group %s",
                            ipaddr_string(tptr),
                            ipaddr_string(tptr+4));
                     break;
                 case BGP_PMSI_TUNNEL_INGRESS:
-                    PACKET_HAS_SPACE_OR_TRUNC(tptr, 4);
+                    TCHECK2(tptr[0], 4);
                     printf("\n\t      Tunnel-Endpoint %s",
                            ipaddr_string(tptr));
                     break;
                 case BGP_PMSI_TUNNEL_LDP_P2MP: /* fall through */
                 case BGP_PMSI_TUNNEL_LDP_MP2MP:
-                    PACKET_HAS_SPACE_OR_TRUNC(tptr, 8);
+                    TCHECK2(tptr[0], 8);
                     printf("\n\t      Root-Node %s, LSP-ID 0x%08x",
                            ipaddr_string(tptr),
                            EXTRACT_32BITS(tptr+4));
                     break;
                 case BGP_PMSI_TUNNEL_RSVP_P2MP:
-                    PACKET_HAS_SPACE_OR_TRUNC(tptr, 8);
+                    TCHECK2(tptr[0], 8);
                     printf("\n\t      Extended-Tunnel-ID %s, P2MP-ID 0x%08x",
                            ipaddr_string(tptr),
                            EXTRACT_32BITS(tptr+4));
@@ -2141,7 +2141,7 @@ bgp_attr_print(u_int atype, packetbody_t pptr, u_int len)
                 break;
         }
         case BGPTYPE_ATTR_SET:
-                PACKET_HAS_SPACE_OR_TRUNC(tptr, 4);
+                TCHECK2(tptr[0], 4);
                 if (len < 4)
                 	goto trunc;
 		printf("\n\t    Origin AS: %s",
@@ -2153,7 +2153,7 @@ bgp_attr_print(u_int atype, packetbody_t pptr, u_int len)
                 while (len) {
                     u_int aflags, _atype, alenlen, alen;
                     
-                    PACKET_HAS_SPACE_OR_TRUNC(tptr, 2);
+                    TCHECK2(tptr[0], 2);
                     if (len < 2)
                         goto trunc;
                     aflags = *tptr;
@@ -2161,7 +2161,7 @@ bgp_attr_print(u_int atype, packetbody_t pptr, u_int len)
                     tptr += 2;
                     len -= 2;
                     alenlen = bgp_attr_lenlen(aflags, tptr);
-                    PACKET_HAS_SPACE_OR_TRUNC(tptr, alenlen);
+                    TCHECK2(tptr[0], alenlen);
                     if (len < alenlen)
                         goto trunc;
                     alen = bgp_attr_len(aflags, tptr);
@@ -2195,14 +2195,14 @@ bgp_attr_print(u_int atype, packetbody_t pptr, u_int len)
            
 
 	default:
-	    PACKET_HAS_SPACE_OR_TRUNC(pptr,len);
+	    TCHECK2(*pptr,len);
             printf("\n\t    no Attribute %u decoder",atype); /* we have no decoder for the attribute */
             if (vflag <= 1)
                 print_unknown_data(pptr,"\n\t    ",len);
             break;
 	}
         if (vflag > 1 && len) { /* omit zero length attributes*/
-            PACKET_HAS_SPACE_OR_TRUNC(pptr,len);
+            TCHECK2(*pptr,len);
             print_unknown_data(pptr,"\n\t    ",len);
         }
         return 1;
@@ -2220,7 +2220,7 @@ bgp_capabilities_print(packetbody_t opt, int caps_len)
         int i = 0;
 
         while (i < caps_len) {
-                PACKET_HAS_SPACE_OR_TRUNC(opt, i + BGP_CAP_HEADER_SIZE);
+                TCHECK2(opt[i], BGP_CAP_HEADER_SIZE);
                 cap_type=opt[i];
                 cap_len=opt[i+1];
                 tcap_len=cap_len;
@@ -2229,7 +2229,7 @@ bgp_capabilities_print(packetbody_t opt, int caps_len)
                                   cap_type, tokbuf, sizeof(tokbuf)),
                        cap_type,
                        cap_len);
-                PACKET_HAS_SPACE_OR_TRUNC(opt, i + 2 + cap_len);
+                TCHECK2(opt[i+2], cap_len);
                 switch (cap_type) {
                 case BGP_CAPCODE_MP:
                     printf("\n\t\tAFI %s (%u), SAFI %s (%u)",
@@ -2304,7 +2304,7 @@ bgp_open_print(packetbody_t dat, int length)
 	int i;
 	char tokbuf[TOKBUFSIZE];
 
-	PACKET_HAS_SPACE_OR_TRUNC(dat, BGP_OPEN_SIZE);
+	TCHECK2(dat[0], BGP_OPEN_SIZE);
 	p_memcpy_from_packet(&bgpo, dat, BGP_OPEN_SIZE);
 
 	printf("\n\t  Version %d, ", bgpo.bgpo_version);
@@ -2324,7 +2324,7 @@ bgp_open_print(packetbody_t dat, int length)
 
 	i = 0;
 	while (i < bgpo.bgpo_optlen) {
-		PACKET_HAS_SPACE_OR_TRUNC(opt, i + BGP_OPT_SIZE);
+		TCHECK2(opt[i], BGP_OPT_SIZE);
 		p_memcpy_from_packet(&bgpopt, &opt[i], BGP_OPT_SIZE);
 		if (i + 2 + bgpopt.bgpopt_len > bgpo.bgpo_optlen) {
 			printf("\n\t     Option %d, length: %u", bgpopt.bgpopt_type, bgpopt.bgpopt_len);
@@ -2373,7 +2373,7 @@ bgp_update_print(packetbody_t dat, int length)
 	int wpfx;
 #endif
 
-	PACKET_HAS_SPACE_OR_TRUNC(dat, BGP_SIZE);
+	TCHECK2(dat[0], BGP_SIZE);
 	if (length < BGP_SIZE)
 		goto trunc;
 	p_memcpy_from_packet(&bgp, dat, BGP_SIZE);
@@ -2381,7 +2381,7 @@ bgp_update_print(packetbody_t dat, int length)
 	length -= BGP_SIZE;
 
 	/* Unfeasible routes */
-	PACKET_HAS_SPACE_OR_TRUNC(p, 2);
+	TCHECK2(p[0], 2);
 	if (length < 2)
 		goto trunc;
 	withdrawn_routes_len = EXTRACT_16BITS(p);
@@ -2393,7 +2393,7 @@ bgp_update_print(packetbody_t dat, int length)
 		 * it's not possible to tell if this a v4 or v6 route,
 		 * so only try to decode it if we're not v6 enabled.
 	         */
-		PACKET_HAS_SPACE_OR_TRUNC(p, withdrawn_routes_len);
+		TCHECK2(p[0], withdrawn_routes_len);
 		if (length < withdrawn_routes_len)
 			goto trunc;
 #ifdef INET6
@@ -2428,7 +2428,7 @@ bgp_update_print(packetbody_t dat, int length)
 #endif
 	}
 
-	PACKET_HAS_SPACE_OR_TRUNC(p, 2);
+	TCHECK2(p[0], 2);
 	if (length < 2)
 		goto trunc;
 	len = EXTRACT_16BITS(p);
@@ -2446,7 +2446,7 @@ bgp_update_print(packetbody_t dat, int length)
 		while (len) {
 			int aflags, atype, alenlen, alen;
 
-			PACKET_HAS_SPACE_OR_TRUNC(p, 2);
+			TCHECK2(p[0], 2);
 			if (len < 2)
 			    goto trunc;
 			if (length < 2)
@@ -2457,7 +2457,7 @@ bgp_update_print(packetbody_t dat, int length)
 			len -= 2;
 			length -= 2;
 			alenlen = bgp_attr_lenlen(aflags, p);
-			PACKET_HAS_SPACE_OR_TRUNC(p, alenlen);
+			TCHECK2(p[0], alenlen);
 			if (len < alenlen)
 			    goto trunc;
 			if (length < alenlen)
@@ -2536,7 +2536,7 @@ bgp_notification_print(packetbody_t dat, int length)
 	char tokbuf[TOKBUFSIZE];
 	char tokbuf2[TOKBUFSIZE];
 
-	PACKET_HAS_SPACE_OR_TRUNC(dat, BGP_NOTIFICATION_SIZE);
+	TCHECK2(dat[0], BGP_NOTIFICATION_SIZE);
 	p_memcpy_from_packet(&bgpn, dat, BGP_NOTIFICATION_SIZE);
 
         /* some little sanity checking */
@@ -2584,7 +2584,7 @@ bgp_notification_print(packetbody_t dat, int length)
              */
 	    if(bgpn.bgpn_minor == BGP_NOTIFY_MINOR_CEASE_MAXPRFX && length >= BGP_NOTIFICATION_SIZE + 7) {
 		tptr = dat + BGP_NOTIFICATION_SIZE;
-		PACKET_HAS_SPACE_OR_TRUNC(tptr, 7);
+		TCHECK2(*tptr, 7);
 		printf(", AFI %s (%u), SAFI %s (%u), Max Prefixes: %u",
 		       tok2strbuf(af_values, "Unknown",
 				  EXTRACT_16BITS(tptr), tokbuf, sizeof(tokbuf)),
@@ -2611,7 +2611,7 @@ bgp_route_refresh_print(packetbody_t pptr, int len) {
 	char tokbuf[TOKBUFSIZE];
 	char tokbuf2[TOKBUFSIZE];
 
-	PACKET_HAS_SPACE_OR_TRUNC(pptr, BGP_ROUTE_REFRESH_SIZE);
+	TCHECK2(pptr[0], BGP_ROUTE_REFRESH_SIZE);
 
         /* some little sanity checking */
         if (len<BGP_ROUTE_REFRESH_SIZE)
@@ -2632,7 +2632,7 @@ bgp_route_refresh_print(packetbody_t pptr, int len) {
                bgp_route_refresh_header->safi);
 
         if (vflag > 1) {
-            PACKET_HAS_SPACE_OR_TRUNC(pptr, len);
+            TCHECK2(*pptr, len);
             print_unknown_data(pptr,"\n\t  ", len);
         }
         
@@ -2647,7 +2647,7 @@ bgp_header_print(packetbody_t dat, int length)
 	struct bgp bgp;
 	char tokbuf[TOKBUFSIZE];
 
-	PACKET_HAS_SPACE_OR_TRUNC(dat, BGP_SIZE);
+	TCHECK2(dat[0], BGP_SIZE);
 	p_memcpy_from_packet(&bgp, dat, BGP_SIZE);
 	printf("\n\t%s Message (%u), length: %u",
                tok2strbuf(bgp_msg_values, "Unknown", bgp.bgp_type,
@@ -2672,7 +2672,7 @@ bgp_header_print(packetbody_t dat, int length)
                 break;
         default:
                 /* we have no decoder for the BGP message */
-                PACKET_HAS_SPACE_OR_TRUNC(dat, length);
+                TCHECK2(*dat, length);
                 printf("\n\t  no Message %u decoder",bgp.bgp_type);
                 print_unknown_data(dat,"\n\t  ",length);
                 break;
@@ -2708,14 +2708,14 @@ bgp_print(packetbody_t dat, int length)
 	p = dat;
 	start = p;
 	while (p < ep) {
-		if (!PACKET_HAS_SPACE(p, 1))
+		if (!TTEST2(p[0], 1))
 			break;
 		if (p[0] != 0xff) {
 			p++;
 			continue;
 		}
 
-		if (!PACKET_HAS_SPACE(p, sizeof(marker)))
+		if (!TTEST2(p[0], sizeof(marker)))
 			break;
 		if (p_memcmp(p, cheri_ptr((void *)marker, sizeof(marker)), sizeof(marker)) != 0) {
 			p++;
@@ -2723,7 +2723,7 @@ bgp_print(packetbody_t dat, int length)
 		}
 
 		/* found BGP header */
-		PACKET_HAS_SPACE_OR_TRUNC(p, BGP_SIZE);	/*XXX*/
+		TCHECK2(p[0], BGP_SIZE);	/*XXX*/
 		p_memcpy_from_packet(&bgp, p, BGP_SIZE);
 
 		if (start != p)
@@ -2736,7 +2736,7 @@ bgp_print(packetbody_t dat, int length)
 			break;
 		}
 
-		if (PACKET_HAS_SPACE(p, hlen)) {
+		if (TTEST2(p[0], hlen)) {
 			if (!bgp_header_print(p, hlen))
 				return;
 			p += hlen;

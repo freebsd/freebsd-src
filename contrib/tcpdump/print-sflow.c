@@ -824,7 +824,7 @@ sflow_print(packetbody_t pptr, u_int len) {
     tptr = pptr;
     tlen = len;
     sflow_datagram = (__capability const struct sflow_datagram_t *)pptr;
-    PACKET_HAS_ONE_OR_TRUNC(sflow_datagram);
+    TCHECK(*sflow_datagram);
 
     /*
      * Sanity checking of the header.
@@ -863,7 +863,7 @@ sflow_print(packetbody_t pptr, u_int len) {
 
     while (nsamples > 0 && tlen > 0) {
         sflow_sample = (__capability const struct sflow_sample_header *)tptr;
-        PACKET_HAS_ONE_OR_TRUNC(sflow_sample);
+        TCHECK(*sflow_sample);
 
         sflow_sample_type = (EXTRACT_32BITS(sflow_sample->format)&0x0FFF);
         sflow_sample_len = EXTRACT_32BITS(sflow_sample->len);
@@ -888,7 +888,7 @@ sflow_print(packetbody_t pptr, u_int len) {
 	    goto trunc;
 
         /* did we capture enough for fully decoding the sample ? */
-        PACKET_HAS_SPACE_OR_TRUNC(tptr, sflow_sample_len);
+        TCHECK2(*tptr, sflow_sample_len);
 
 	switch(sflow_sample_type) {
         case SFLOW_FLOW_SAMPLE:

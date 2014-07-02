@@ -93,13 +93,11 @@ rrcp_print(netdissect_options *ndo,
 	char opcode_str[32];
 
 	ep = (__capability const struct ether_header *)cp;
-
-	ND_PACKET_HAS_SPACE_OR_TRUNC(cp, ETHER_HDRLEN);
-
 	rrcp = cp + ETHER_HDRLEN;
-	/* RRCP_PROTO_OFFSET is 0 */
+
+	ND_TCHECK(*(rrcp + RRCP_PROTO_OFFSET));
 	rrcp_proto = *(rrcp + RRCP_PROTO_OFFSET);
-	ND_PACKET_HAS_SPACE_OR_TRUNC(rrcp, RRCP_OPCODE_ISREPLY_OFFSET);
+	ND_TCHECK(*(rrcp + RRCP_OPCODE_ISREPLY_OFFSET));
 	rrcp_opcode = (*(rrcp + RRCP_OPCODE_ISREPLY_OFFSET)) & RRCP_OPCODE_MASK;
         ND_PRINT((ndo, "%s > %s, %s %s",
 		etheraddr_string(ESRC(ep)),
@@ -111,19 +109,19 @@ rrcp_print(netdissect_options *ndo,
 		     tok2strbuf(opcode_values,"unknown opcode (0x%02x)",rrcp_opcode,opcode_str,sizeof(opcode_str))));
 	}
 	if (rrcp_opcode==1 || rrcp_opcode==2){
-	    ND_PACKET_HAS_SPACE_OR_TRUNC(rrcp, RRCP_REG_ADDR_OFFSET + 6);
+	    ND_TCHECK2(*(rrcp + RRCP_REG_ADDR_OFFSET), 6);
     	    ND_PRINT((ndo, " addr=0x%04x, data=0x%08x",
                      EXTRACT_LE_16BITS(rrcp + RRCP_REG_ADDR_OFFSET),
                      EXTRACT_LE_32BITS(rrcp + RRCP_REG_DATA_OFFSET)));
 	}
 	if (rrcp_proto==1){
-	    ND_PACKET_HAS_SPACE_OR_TRUNC(rrcp, RRCP_AUTHKEY_OFFSET + 2);
+	    ND_TCHECK2(*(rrcp + RRCP_AUTHKEY_OFFSET), 2);
     	    ND_PRINT((ndo, ", auth=0x%04x",
 		  EXTRACT_16BITS(rrcp + RRCP_AUTHKEY_OFFSET)));
 	}
 	if (rrcp_proto==1 && rrcp_opcode==0 &&
 	     ((*(rrcp + RRCP_OPCODE_ISREPLY_OFFSET)) & RRCP_ISREPLY)){
-	    ND_PACKET_HAS_SPACE_OR_TRUNC(rrcp, RRCP_VENDOR_ID_OFFSET + 4);
+	    ND_TCHECK2(*(rrcp + RRCP_VENDOR_ID_OFFSET), 4);
 	    ND_PRINT((ndo, " downlink_port=%d, uplink_port=%d, uplink_mac=%s, vendor_id=%08x ,chip_id=%04x ",
 		     *(rrcp + RRCP_DOWNLINK_PORT_OFFSET),
 		     *(rrcp + RRCP_UPLINK_PORT_OFFSET),
@@ -131,7 +129,7 @@ rrcp_print(netdissect_options *ndo,
 		     EXTRACT_32BITS(rrcp + RRCP_VENDOR_ID_OFFSET),
 		     EXTRACT_16BITS(rrcp + RRCP_CHIP_ID_OFFSET)));
 	}else if (rrcp_opcode==1 || rrcp_opcode==2 || rrcp_proto==2){
-	    ND_PACKET_HAS_SPACE_OR_TRUNC(rrcp, RRCP_COOKIE2_OFFSET + 4);
+	    ND_TCHECK2(*(rrcp + RRCP_COOKIE2_OFFSET), 4);
 	    ND_PRINT((ndo, ", cookie=0x%08x%08x ",
 		    EXTRACT_32BITS(rrcp + RRCP_COOKIE2_OFFSET),
 		    EXTRACT_32BITS(rrcp + RRCP_COOKIE1_OFFSET)));

@@ -499,7 +499,7 @@ lspping_print(packetbody_t pptr, register u_int len) {
 
     tptr=pptr;
     lspping_com_header = (__capability const struct lspping_common_header *)pptr;
-    PACKET_HAS_ONE_OR_TRUNC(lspping_com_header);
+    TCHECK(*lspping_com_header);
 
     /*
      * Sanity checking of the header.
@@ -576,7 +576,7 @@ lspping_print(packetbody_t pptr, register u_int len) {
     while(tlen>(int)sizeof(struct lspping_tlv_header)) {
 
         /* did we capture enough for fully decoding the tlv header ? */
-        if (!PACKET_HAS_SPACE(tptr, sizeof(struct lspping_tlv_header)))
+        if (!TTEST2(*tptr, sizeof(struct lspping_tlv_header)))
             goto trunc;
 
         lspping_tlv_header = (__capability const struct lspping_tlv_header *)tptr;
@@ -603,7 +603,7 @@ lspping_print(packetbody_t pptr, register u_int len) {
         tlv_tlen=lspping_tlv_len; /* header not included -> no adjustment */
 
         /* did we capture enough for fully decoding the tlv ? */
-        if (!PACKET_HAS_SPACE(tptr, lspping_tlv_len))
+        if (!TTEST2(*tptr, lspping_tlv_len))
             goto trunc;
         tlv_hexdump=FALSE;
 
@@ -612,7 +612,7 @@ lspping_print(packetbody_t pptr, register u_int len) {
             while(tlv_tlen>(int)sizeof(struct lspping_tlv_header)) {
 
                 /* did we capture enough for fully decoding the subtlv header ? */
-                if (!PACKET_HAS_SPACE(tptr, sizeof(struct lspping_tlv_header)))
+                if (!TTEST2(*tptr, sizeof(struct lspping_tlv_header)))
                     goto trunc;
                 subtlv_hexdump=FALSE;
 
@@ -845,7 +845,7 @@ lspping_print(packetbody_t pptr, register u_int len) {
 
         case LSPPING_TLV_BFD_DISCRIMINATOR:
             tptr += sizeof(struct lspping_tlv_header);
-            if (!PACKET_HAS_SPACE(tptr, LSPPING_TLV_BFD_DISCRIMINATOR_LEN))
+            if (!TTEST2(*tptr, LSPPING_TLV_BFD_DISCRIMINATOR_LEN))
                 goto trunc;
             printf("\n\t    BFD Discriminator 0x%08x", EXTRACT_32BITS(tptr));
             break;
@@ -854,7 +854,7 @@ lspping_print(packetbody_t pptr, register u_int len) {
         {
             u_int32_t vendor_id;
 
-            if (!PACKET_HAS_SPACE(tptr, LSPPING_TLV_VENDOR_ENTERPRISE_LEN))
+            if (!TTEST2(*tptr, LSPPING_TLV_VENDOR_ENTERPRISE_LEN))
                 goto trunc;
             vendor_id = EXTRACT_32BITS(tlv_tptr);
             printf("\n\t    Vendor: %s (0x%04x)",

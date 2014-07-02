@@ -190,7 +190,7 @@ wb_id(__capability const struct pkt_id *id, u_int len)
 	int nid;
 
 	printf(" wb-id:");
-	if (len < sizeof(*id) || !PACKET_HAS_ONE(id))
+	if (len < sizeof(*id) || !TTEST(*id))
 		return (-1);
 	len -= sizeof(*id);
 
@@ -206,14 +206,14 @@ wb_id(__capability const struct pkt_id *id, u_int len)
 	len -= sizeof(*io) * nid;
 	io = (__capability struct id_off *)(id + 1);
 	cp = (packetbody_t)(io + nid);
-	if (!PACKET_HAS_SPACE(cp, len)) {
+	if (!TTEST2(*cp, len)) {
 		putchar('"');
 		(void)fn_print(cp, cp + len);
 		putchar('"');
 	}
 
 	c = '<';
-	for (i = 0; i < nid && PACKET_HAS_ONE(io); ++io, ++i) {
+	for (i = 0; i < nid && TTEST(*io); ++io, ++i) {
 		printf("%c%s:%u",
 		    c, ipaddr_string(&io->id), EXTRACT_32BITS(&io->off));
 		c = ',';
@@ -229,7 +229,7 @@ static int
 wb_rreq(__capability const struct pkt_rreq *rreq, u_int len)
 {
 	printf(" wb-rreq:");
-	if (len < sizeof(*rreq) || !PACKET_HAS_ONE(rreq))
+	if (len < sizeof(*rreq) || !TTEST(*rreq))
 		return (-1);
 
 	printf(" please repair %s %s:%u<%u:%u>",
@@ -245,7 +245,7 @@ static int
 wb_preq(__capability const struct pkt_preq *preq, u_int len)
 {
 	printf(" wb-preq:");
-	if (len < sizeof(*preq) || !PACKET_HAS_ONE(preq))
+	if (len < sizeof(*preq) || !TTEST(*preq))
 		return (-1);
 
 	printf(" need %u/%s:%u",
@@ -262,12 +262,12 @@ wb_prep(__capability const struct pkt_prep *prep, u_int len)
 	__capability const struct pgstate *ps;
 
 	printf(" wb-prep:");
-	if (len < sizeof(*prep) || !PACKET_HAS_ONE(prep)) {
+	if (len < sizeof(*prep) || !TTEST(*prep)) {
 		return (-1);
 	}
 	n = EXTRACT_32BITS(&prep->pp_n);
 	ps = (__capability const struct pgstate *)(prep + 1);
-	while (--n >= 0 && PACKET_HAS_ONE(ps)) {
+	while (--n >= 0 && TTEST(*ps)) {
 		__capability const struct id_off *io, *ie;
 		char c = '<';
 
@@ -276,7 +276,7 @@ wb_prep(__capability const struct pkt_prep *prep, u_int len)
 		    ipaddr_string(&ps->page.p_sid),
 		    EXTRACT_32BITS(&ps->page.p_uid));
 		io = (__capability struct id_off *)(ps + 1);
-		for (ie = io + ps->nid; io < ie && PACKET_HAS_ONE(io); ++io) {
+		for (ie = io + ps->nid; io < ie && TTEST(*io); ++io) {
 			printf("%c%s:%u", c, ipaddr_string(&io->id),
 			    EXTRACT_32BITS(&io->off));
 			c = ',';
@@ -321,7 +321,7 @@ wb_dops(__capability const struct dophdr *dh, u_int32_t ss, u_int32_t es)
 		 * XXX-BD: OVERFLOW: previous code didn't check if dh header
 		 * was all there!
 		 */
-		if (!PACKET_HAS_ONE(dh)) {
+		if (!TTEST(*dh)) {
 			printf("[|wb]");
 			break;
 		}
@@ -343,7 +343,7 @@ wb_dops(__capability const struct dophdr *dh, u_int32_t ss, u_int32_t es)
 				ss = ts;
 			}
 		}
-		if ((size_t)DOP_LEN(dh) > PACKET_REMAINING(dh))
+		if (DOP_LEN(dh) > PACKET_REMAINING(dh))
 			dh = DOP_NEXT(dh);
 		else {
 			printf("[|wb]");
@@ -360,7 +360,7 @@ wb_rrep(__capability const struct pkt_rrep *rrep, u_int len)
 	__capability const struct pkt_dop *dop = &rrep->pr_dop;
 
 	printf(" wb-rrep:");
-	if (len < sizeof(*rrep) || !PACKET_HAS_ONE(rrep))
+	if (len < sizeof(*rrep) || !TTEST(*rrep))
 		return (-1);
 	len -= sizeof(*rrep);
 
@@ -382,7 +382,7 @@ static int
 wb_drawop(__capability const struct pkt_dop *dop, u_int len)
 {
 	printf(" wb-dop:");
-	if (len < sizeof(*dop) || !PACKET_HAS_ONE(dop))
+	if (len < sizeof(*dop) || !TTEST(*dop))
 		return (-1);
 	len -= sizeof(*dop);
 
@@ -408,7 +408,7 @@ wb_print(packetbody_t hdr, register u_int len)
 	__capability const struct pkt_hdr *ph;
 
 	ph = (__capability const struct pkt_hdr *)hdr;
-	if (len < sizeof(*ph) || !PACKET_HAS_ONE(ph)) {
+	if (len < sizeof(*ph) || !TTEST(*ph)) {
 		printf("[|wb]");
 		return;
 	}

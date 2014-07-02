@@ -242,7 +242,7 @@ rpl_print(netdissect_options *ndo,
         int secured = hdr->icmp6_code & 0x80;
         int basecode= hdr->icmp6_code & 0x7f;
 
-        ND_PACKET_HAS_ELEMENT_OR_TRUNC(dio, rpl_dagid);
+        ND_TCHECK(dio->rpl_dagid);
 
         if(secured) {
                 ND_PRINT((ndo, ", (SEC)"));
@@ -316,12 +316,12 @@ icmp6_print(netdissect_options *ndo,
 	ip = (__capability const struct ip6_hdr *)bp2;
 	oip = (__capability const struct ip6_hdr *)(dp + 1);
 
-	PACKET_HAS_ELEMENT_OR_TRUNC(dp, icmp6_cksum);
+	TCHECK(dp->icmp6_cksum);
 
 	if (vflag && !fragmented) {
 		u_int16_t sum, udp_sum;
 
-		if (PACKET_HAS_SPACE(bp, length)) {
+		if (TTEST2(bp[0], length)) {
 			udp_sum = EXTRACT_16BITS(&dp->icmp6_cksum);
 			sum = icmp6_cksum(ip, dp, length);
 			if (sum != 0)
@@ -347,7 +347,7 @@ icmp6_print(netdissect_options *ndo,
                       
 	switch (dp->icmp6_type) {
 	case ICMP6_DST_UNREACH:
-		PACKET_HAS_ELEMENT_OR_TRUNC(oip, ip6_dst);
+		TCHECK(oip->ip6_dst);
                 printf(", %s", tok2str(icmp6_dst_unreach_code_values,"unknown unreach code (%u)",dp->icmp6_code));
 		switch (dp->icmp6_code) {
 
@@ -394,11 +394,11 @@ icmp6_print(netdissect_options *ndo,
 		}
 		break;
 	case ICMP6_PACKET_TOO_BIG:
-		PACKET_HAS_ELEMENT_OR_TRUNC(dp, icmp6_mtu);
+		TCHECK(dp->icmp6_mtu);
 		printf(", mtu %u", EXTRACT_32BITS(&dp->icmp6_mtu));
 		break;
 	case ICMP6_TIME_EXCEEDED:
-		PACKET_HAS_ELEMENT_OR_TRUNC(oip, ip6_dst);
+		TCHECK(oip->ip6_dst);
 		switch (dp->icmp6_code) {
 		case ICMP6_TIME_EXCEED_TRANSIT:
 			printf(" for %s",
@@ -413,7 +413,7 @@ icmp6_print(netdissect_options *ndo,
 		}
 		break;
 	case ICMP6_PARAM_PROB:
-		PACKET_HAS_ELEMENT_OR_TRUNC(oip, ip6_dst);
+		TCHECK(oip->ip6_dst);
 		switch (dp->icmp6_code) {
 		case ICMP6_PARAMPROB_HEADER:
 			printf(", errorneous - octet %u", EXTRACT_32BITS(&dp->icmp6_pptr));
@@ -432,7 +432,7 @@ icmp6_print(netdissect_options *ndo,
 		break;
 	case ICMP6_ECHO_REQUEST:
 	case ICMP6_ECHO_REPLY:
-		PACKET_HAS_ELEMENT_OR_TRUNC(dp, icmp6_seq);
+		TCHECK(dp->icmp6_seq);
 		printf(", seq %u", EXTRACT_16BITS(&dp->icmp6_seq));
 		break;
 	case ICMP6_MEMBERSHIP_QUERY:
@@ -464,7 +464,7 @@ icmp6_print(netdissect_options *ndo,
 			__capability const struct nd_router_advert *p;
 
 			p = (__capability const struct nd_router_advert *)dp;
-			PACKET_HAS_ELEMENT_OR_TRUNC(p, nd_ra_retransmit);
+			TCHECK(p->nd_ra_retransmit);
 			printf("\n\thop limit %u, Flags [%s]" \
                                ", pref %s, router lifetime %us, reachable time %us, retrans time %us",
                                (u_int)p->nd_ra_curhoplimit,
@@ -482,7 +482,7 @@ icmp6_print(netdissect_options *ndo,
 	    {
 		__capability const struct nd_neighbor_solicit *p;
 		p = (__capability const struct nd_neighbor_solicit *)dp;
-		PACKET_HAS_ELEMENT_OR_TRUNC(p, nd_ns_target);
+		TCHECK(p->nd_ns_target);
 		printf(", who has %s", ip6addr_string(&p->nd_ns_target));
 		if (vflag) {
 #define NDSOLLEN 24
@@ -496,7 +496,7 @@ icmp6_print(netdissect_options *ndo,
 		__capability const struct nd_neighbor_advert *p;
 
 		p = (__capability const struct nd_neighbor_advert *)dp;
-		PACKET_HAS_ELEMENT_OR_TRUNC(p, nd_na_target);
+		TCHECK(p->nd_na_target);
 		printf(", tgt is %s",
 			ip6addr_string(&p->nd_na_target));
 		if (vflag) {
@@ -513,9 +513,9 @@ icmp6_print(netdissect_options *ndo,
 		break;
 	case ND_REDIRECT:
 #define RDR(i) ((__capability const struct nd_redirect *)(i))
-		PACKET_HAS_ELEMENT_OR_TRUNC(RDR(dp), nd_rd_dst);
+		TCHECK(RDR(dp)->nd_rd_dst);
 		printf(", %s", getname6((packetbody_t)&RDR(dp)->nd_rd_dst));
-		PACKET_HAS_ELEMENT_OR_TRUNC(RDR(dp), nd_rd_target);
+		TCHECK(RDR(dp)->nd_rd_target);
 		printf(" to %s",
 		    getname6((packetbody_t)&RDR(dp)->nd_rd_target));
 #define REDIRECTLEN 40
@@ -541,7 +541,7 @@ icmp6_print(netdissect_options *ndo,
 		break;
 	case ICMP6_MOBILEPREFIX_SOLICIT: /* fall through */
 	case ICMP6_HADISCOV_REQUEST:
-                PACKET_HAS_ELEMENT_OR_TRUNC(dp, icmp6_data16[0]);
+                TCHECK(dp->icmp6_data16[0]);
                 printf(", id 0x%04x", EXTRACT_16BITS(&dp->icmp6_data16[0]));
                 break;
 	case ICMP6_HADISCOV_REPLY:
@@ -549,19 +549,19 @@ icmp6_print(netdissect_options *ndo,
 			__capability const struct in6_addr *in6;
 			packetbody_t cp;
 
-			PACKET_HAS_ELEMENT_OR_TRUNC(dp, icmp6_data16[0]);
+			TCHECK(dp->icmp6_data16[0]);
 			printf(", id 0x%04x", EXTRACT_16BITS(&dp->icmp6_data16[0]));
 			cp = (packetbody_t)dp + length;
 			in6 = (__capability const struct in6_addr *)(dp + 1);
 			for (; (packetbody_t)in6 < cp; in6++) {
-				PACKET_HAS_ONE_OR_TRUNC(in6);
+				TCHECK(*in6);
 				printf(", %s", ip6addr_string(in6));
 			}
 		}
 		break;
 	case ICMP6_MOBILEPREFIX_ADVERT:
 		if (vflag) {
-			PACKET_HAS_ELEMENT_OR_TRUNC(dp, icmp6_data16[0]);
+			TCHECK(dp->icmp6_data16[0]);
 			printf(", id 0x%04x", EXTRACT_16BITS(&dp->icmp6_data16[0]));
 			if (dp->icmp6_data16[1] & 0xc0)
 				printf(" ");
@@ -600,9 +600,9 @@ get_upperlayer(packetbody_t bp, u_int *prot)
 	__capability const struct ip6_frag *fragh;
 	__capability const struct ah *ah;
 	u_int nh;
-	size_t hlen;
+	int hlen;
 
-	if (!PACKET_HAS_ELEMENT(ip6, ip6_nxt))
+	if (!TTEST(ip6->ip6_nxt))
 		return NULL;
 
 	nh = ip6->ip6_nxt;
@@ -621,7 +621,7 @@ get_upperlayer(packetbody_t bp, u_int *prot)
 		case IPPROTO_UDP:
 		case IPPROTO_TCP:
 			uh = (__capability const struct udphdr *)bp;
-			if (PACKET_HAS_ELEMENT(uh, uh_dport)) {
+			if (TTEST(uh->uh_dport)) {
 				*prot = nh;
 				return(uh);
 			}
@@ -633,7 +633,7 @@ get_upperlayer(packetbody_t bp, u_int *prot)
 		case IPPROTO_DSTOPTS:
 		case IPPROTO_ROUTING:
 			hbh = (__capability const struct ip6_hbh *)bp;
-			if (!PACKET_HAS_ELEMENT(hbh, ip6h_len))
+			if (!TTEST(hbh->ip6h_len))
 				return(NULL);
 			nh = hbh->ip6h_nxt;
 			hlen = (hbh->ip6h_len + 1) << 3;
@@ -642,7 +642,7 @@ get_upperlayer(packetbody_t bp, u_int *prot)
 		case IPPROTO_FRAGMENT: /* this should be odd, but try anyway */
 			/* XXX-BD: was this checking enough? */
 			fragh = (__capability const struct ip6_frag *)bp;
-			if (!PACKET_HAS_ELEMENT(fragh, ip6f_offlg))
+			if (!TTEST(fragh->ip6f_offlg))
 				return(NULL);
 			/* fragments with non-zero offset are meaningless */
 			if ((EXTRACT_16BITS(&fragh->ip6f_offlg) & IP6F_OFF_MASK) != 0)
@@ -653,7 +653,7 @@ get_upperlayer(packetbody_t bp, u_int *prot)
 
 		case IPPROTO_AH:
 			ah = (__capability const struct ah *)bp;
-			if (!PACKET_HAS_ELEMENT(ah, ah_len))
+			if (!TTEST(ah->ah_len))
 				return(NULL);
 			nh = ah->ah_nxt;
 			hlen = (ah->ah_len + 2) << 2;
@@ -692,13 +692,13 @@ icmp6_opt_print(packetbody_t bp, int resid)
 	while (PACKET_REMAINING(cp) > 0) {
 		op = (__capability const struct nd_opt_hdr *)cp;
 
-		if (!PACKET_HAS_ELEMENT(op, nd_opt_len))
+		if (!TTEST(op->nd_opt_len))
 			return;
 		if (resid <= 0)
 			return;
 		if (op->nd_opt_len == 0)
 			goto trunc;
-		PACKET_HAS_SPACE_OR_TRUNC(cp, (op->nd_opt_len << 3));
+		TCHECK2(*cp, (op->nd_opt_len << 3));
 
                 printf("\n\t  %s option (%u), length %u (%u): ",
                        tok2str(icmp6_opt_values, "unknown", op->nd_opt_type),
@@ -719,7 +719,7 @@ icmp6_opt_print(packetbody_t bp, int resid)
 			break;
 		case ND_OPT_PREFIX_INFORMATION:
 			opp = (__capability const struct nd_opt_prefix_info *)op;
-			PACKET_HAS_ELEMENT_OR_TRUNC(opp, nd_opt_pi_prefix);
+			TCHECK(opp->nd_opt_pi_prefix);
                         printf("%s/%u%s, Flags [%s], valid time %s",
                                ip6addr_string(&opp->nd_opt_pi_prefix),
                                opp->nd_opt_pi_prefix_len,
@@ -735,7 +735,7 @@ icmp6_opt_print(packetbody_t bp, int resid)
 			break;
 		case ND_OPT_MTU:
 			opm = (__capability const struct nd_opt_mtu *)op;
-			PACKET_HAS_ELEMENT_OR_TRUNC(opm, nd_opt_mtu_mtu);
+			TCHECK(opm->nd_opt_mtu_mtu);
 			printf(" %u%s",
                                EXTRACT_32BITS(&opm->nd_opt_mtu_mtu),
                                (op->nd_opt_len != 1) ? "bad option length" : "" );
@@ -746,10 +746,7 @@ icmp6_opt_print(packetbody_t bp, int resid)
 			printf(" lifetime %us,", 
 				EXTRACT_32BITS(&oprd->nd_opt_rdnss_lifetime)); 
 			for (i = 0; i < l; i++) {
-				PACKET_HAS_SPACE_OR_TRUNC(oprd,
-				    offsetof(struct nd_opt_rdnss,
-					nd_opt_rdnss_addr) +
-					(sizeof(struct in6_addr) * i));
+				TCHECK(oprd->nd_opt_rdnss_addr[i]);
 				printf(" addr: %s", 
 				    ip6addr_string(&oprd->nd_opt_rdnss_addr[i]));
 			}
@@ -768,30 +765,30 @@ icmp6_opt_print(packetbody_t bp, int resid)
 			break;
 		case ND_OPT_ADVINTERVAL:
 			opa = (__capability const struct nd_opt_advinterval *)op;
-			PACKET_HAS_ELEMENT_OR_TRUNC(opa, nd_opt_adv_interval);
+			TCHECK(opa->nd_opt_adv_interval);
 			printf(" %ums", EXTRACT_32BITS(&opa->nd_opt_adv_interval));
 			break;
 		case ND_OPT_HOMEAGENT_INFO:
 			oph = (__capability const struct nd_opt_homeagent_info *)op;
-			PACKET_HAS_ELEMENT_OR_TRUNC(oph, nd_opt_hai_lifetime);
+			TCHECK(oph->nd_opt_hai_lifetime);
 			printf(" preference %u, lifetime %u",
                                EXTRACT_16BITS(&oph->nd_opt_hai_preference),
                                EXTRACT_16BITS(&oph->nd_opt_hai_lifetime));
 			break;
 		case ND_OPT_ROUTE_INFO:
 			opri = (__capability const struct nd_opt_route_info *)op;
-			PACKET_HAS_ELEMENT_OR_TRUNC(opri, nd_opt_rti_lifetime);
+			TCHECK(opri->nd_opt_rti_lifetime);
 			memset(&in6, 0, sizeof(in6));
 			in6p = (__capability const struct in6_addr *)(opri + 1);
 			switch (op->nd_opt_len) {
 			case 1:
 				break;
 			case 2:
-				PACKET_HAS_SPACE_OR_TRUNC(in6p, 8);
+				TCHECK2(*in6p, 8);
 				p_memcpy_from_packet(&in6, opri + 1, 8);
 				break;
 			case 3:
-				PACKET_HAS_ONE_OR_TRUNC(in6p);
+				TCHECK(*in6p);
 				p_memcpy_from_packet(&in6, opri + 1, sizeof(in6));
 				break;
 			default:
@@ -834,7 +831,7 @@ mld6_print(packetbody_t bp)
 	__capability const struct mld6_hdr *mp =
 	    (__capability const struct mld6_hdr *)bp;
 
-	if (!PACKET_HAS_ONE(mp))
+	if (!TTEST(*mp))
 		return;
 
 	printf("max resp delay: %d ", EXTRACT_16BITS(&mp->mld6_maxdelay));
@@ -855,7 +852,7 @@ mldv2_report_print(packetbody_t bp, u_int len)
 	return;
     }
 
-    PACKET_HAS_ELEMENT_OR_TRUNC(icp, icmp6_data16[1]);
+    TCHECK(icp->icmp6_data16[1]);
     ngroups = EXTRACT_16BITS(&icp->icmp6_data16[1]);
     printf(", %d group record(s)", ngroups);
     if (vflag > 0) {
@@ -867,7 +864,7 @@ mldv2_report_print(packetbody_t bp, u_int len)
 		printf(" [invalid number of groups]");
 		return;
 	    }
-            PACKET_HAS_SPACE_OR_TRUNC(bp, group + 4 + sizeof(struct in6_addr));
+            TCHECK2(bp[group + 4], sizeof(struct in6_addr));
             printf(" [gaddr %s", ip6addr_string(&bp[group + 4]));
 	    printf(" %s", tok2str(mldv2report2str, " [v2-report-#%d]",
 								bp[group]));
@@ -883,7 +880,8 @@ mldv2_report_print(packetbody_t bp, u_int len)
 		/* Print the sources */
                 (void)printf(" {");
                 for (j = 0; j < nsrcs; j++) {
-                    PACKET_HAS_SPACE_OR_TRUNC(bp, group + 20 + (j + 1) * sizeof(struct in6_addr));
+                    TCHECK2(bp[group + 20 + j * sizeof(struct in6_addr)],
+                            sizeof(struct in6_addr));
 		    printf(" %s", ip6addr_string(&bp[group + 20 + j * sizeof(struct in6_addr)]));
 		}
                 (void)printf(" }");
@@ -914,7 +912,7 @@ mldv2_query_print(packetbody_t bp, u_int len)
 	printf(" [invalid len %d]", len);
 	return;
     }
-    PACKET_HAS_ELEMENT_OR_TRUNC(icp, icmp6_data16[0]);
+    TCHECK(icp->icmp6_data16[0]);
     mrc = EXTRACT_16BITS(&icp->icmp6_data16[0]);
     if (mrc < 32768) {
 	mrt = mrc;
@@ -924,11 +922,11 @@ mldv2_query_print(packetbody_t bp, u_int len)
     if (vflag) {
 	(void)printf(" [max resp delay=%d]", mrt);
     }
-    PACKET_HAS_SPACE_OR_TRUNC(bp, 8 + sizeof(struct in6_addr));
+    TCHECK2(bp[8], sizeof(struct in6_addr));
     printf(" [gaddr %s", ip6addr_string(&bp[8]));
 
     if (vflag) {
-        PACKET_HAS_SPACE_OR_TRUNC(bp, 26);
+        TCHECK(bp[25]);
 	if (bp[24] & 0x08) {
 		printf(" sflag");
 	}
@@ -943,7 +941,7 @@ mldv2_query_print(packetbody_t bp, u_int len)
 	printf(" qqi=%d", qqi);
     }
 
-    PACKET_HAS_SPACE_OR_TRUNC(bp, 26 + 2);
+    TCHECK2(bp[26], 2);
     nsrcs = EXTRACT_16BITS(&bp[26]);
     if (nsrcs > 0) {
 	if (len < 28 + nsrcs * sizeof(struct in6_addr))
@@ -951,7 +949,8 @@ mldv2_query_print(packetbody_t bp, u_int len)
 	else if (vflag > 1) {
 	    printf(" {");
 	    for (i = 0; i < nsrcs; i++) {
-		PACKET_HAS_SPACE_OR_TRUNC(bp, (28 + (i + 1) * sizeof(struct in6_addr)));
+		TCHECK2(bp[28 + i * sizeof(struct in6_addr)],
+                        sizeof(struct in6_addr));
 		printf(" %s", ip6addr_string(&bp[28 + i * sizeof(struct in6_addr)]));
 	    }
 	    printf(" }");
@@ -975,7 +974,7 @@ dnsname_print(packetbody_t cp)
 	while (PACKET_REMAINING(cp)) {
 		i = *cp++;
 		if (i) {
-			if (!PACKET_HAS_SPACE(cp, i)) {
+			if (!TTEST2(*cp, i)) {
 				printf("???");
 				break;
 			}
@@ -1018,7 +1017,7 @@ icmp6_nodeinfo_print(u_int icmp6len, packetbody_t bp)
 	siz = PACKET_REMAINING(bp);
 
 	/* XXX-BD: OVERFLOW: old code accessed at least ni6->ni_type blindly. */
-	PACKET_HAS_ONE_OR_TRUNC(ni6);
+	TCHECK(*ni6);
 
 	switch (ni6->ni_type) {
 	case ICMP6_NI_QUERY:
@@ -1029,7 +1028,7 @@ icmp6_nodeinfo_print(u_int icmp6len, packetbody_t bp)
 		}
 		printf(" node information query");
 
-		PACKET_HAS_SPACE_OR_TRUNC(dp, sizeof(*ni6));
+		TCHECK2(*dp, sizeof(*ni6));
 		ni6 = (__capability const struct icmp6_nodeinfo *)dp;
 		printf(" (");	/*)*/
 		switch (EXTRACT_16BITS(&ni6->ni_qtype)) {
@@ -1086,7 +1085,7 @@ icmp6_nodeinfo_print(u_int icmp6len, packetbody_t bp)
 
 		switch (ni6->ni_code) {
 		case ICMP6_NI_SUBJ_IPV6:
-			if (!PACKET_HAS_SPACE(dp,
+			if (!TTEST2(*dp,
 			    sizeof(*ni6) + sizeof(struct in6_addr)))
 				break;
 			if (siz != sizeof(*ni6) + sizeof(struct in6_addr)) {
@@ -1115,7 +1114,7 @@ icmp6_nodeinfo_print(u_int icmp6len, packetbody_t bp)
 				dnsname_print(cp);
 			break;
 		case ICMP6_NI_SUBJ_IPV4:
-			if (!PACKET_HAS_SPACE(dp, sizeof(*ni6) + sizeof(struct in_addr)))
+			if (!TTEST2(*dp, sizeof(*ni6) + sizeof(struct in_addr)))
 				break;
 			if (siz != sizeof(*ni6) + sizeof(struct in_addr)) {
 				if (vflag)
@@ -1269,7 +1268,7 @@ icmp6_rrenum_print(packetbody_t bp)
 	rr6 = (__capability const struct icmp6_router_renum *)bp;
 	cp = (packetbody_t)(rr6 + 1);
 
-	PACKET_HAS_ELEMENT_OR_TRUNC(rr6, rr_reserved);
+	TCHECK(rr6->rr_reserved);
 	switch (rr6->rr_code) {
 	case ICMP6_ROUTER_RENUMBERING_COMMAND:
 		printf("router renum: command");
@@ -1310,7 +1309,7 @@ icmp6_rrenum_print(packetbody_t bp)
 		match = (__capability const struct rr_pco_match *)cp;
 		cp = (packetbody_t)(match + 1);
 
-		PACKET_HAS_ELEMENT_OR_TRUNC(match, rpm_prefix);
+		TCHECK(match->rpm_prefix);
 
 		if (vflag > 1)
 			printf("\n\t");
@@ -1344,7 +1343,7 @@ icmp6_rrenum_print(packetbody_t bp)
 			use = (__capability const struct rr_pco_use *)cp;
 			cp = (packetbody_t)(use + 1);
 
-			PACKET_HAS_ELEMENT_OR_TRUNC(use, rpu_prefix);
+			TCHECK(use->rpu_prefix);
 
 			if (vflag > 1)
 				printf("\n\t");

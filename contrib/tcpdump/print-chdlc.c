@@ -153,7 +153,7 @@ chdlc_slarp_print(packetbody_t cp, u_int length)
 		goto trunc;
 
 	slarp = (__capability const struct cisco_slarp *)cp;
-	PACKET_HAS_SPACE_OR_TRUNC(slarp, SLARP_MIN_LEN);
+	TCHECK2(*slarp, SLARP_MIN_LEN);
 	switch (EXTRACT_32BITS(&slarp->code)) {
 	case SLARP_REQUEST:
 		printf("request");
@@ -180,7 +180,7 @@ chdlc_slarp_print(packetbody_t cp, u_int length)
 
                 if (length >= SLARP_MAX_LEN) { /* uptime-stamp is optional */
                         cp += SLARP_MIN_LEN;
-                        if (!PACKET_HAS_SPACE(cp, 4))
+                        if (!TTEST2(*cp, 4))
                                 goto trunc;
                         sec = EXTRACT_32BITS(cp) / 1000;
                         min = sec / 60; sec -= min * 60;

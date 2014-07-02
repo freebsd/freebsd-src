@@ -151,7 +151,7 @@ mpcp_print(packetbody_t pptr, register u_int length) {
     tptr=pptr;
     mpcp.common_header = (__capability const struct mpcp_common_header_t *)pptr;
 
-    if (!PACKET_HAS_SPACE(tptr, sizeof(const struct mpcp_common_header_t)))
+    if (!TTEST2(*tptr, sizeof(const struct mpcp_common_header_t)))
         goto trunc;
     opcode = EXTRACT_16BITS(mpcp.common_header->opcode);
     printf("MPCP, Opcode %s", tok2str(mpcp_opcode_values, "Unknown (%u)", opcode));
@@ -170,7 +170,7 @@ mpcp_print(packetbody_t pptr, register u_int length) {
         break;
 
     case MPCP_OPCODE_GATE:
-	if (!PACKET_HAS_SPACE(tptr, MPCP_GRANT_NUMBER_LEN))
+	if (!TTEST2(*tptr, MPCP_GRANT_NUMBER_LEN))
 	    goto trunc;
         grant_numbers = *tptr & MPCP_GRANT_NUMBER_MASK;
         printf("\n\tGrant Numbers %u, Flags [ %s ]",
@@ -181,7 +181,7 @@ mpcp_print(packetbody_t pptr, register u_int length) {
         tptr++;
 
         for (grant = 1; grant <= grant_numbers; grant++) {
-            if (!PACKET_HAS_SPACE(tptr, sizeof(const struct mpcp_grant_t)))
+            if (!TTEST2(*tptr, sizeof(const struct mpcp_grant_t)))
                 goto trunc;
             mpcp.grant = (__capability const struct mpcp_grant_t *)tptr;        
             printf("\n\tGrant #%u, Start-Time %u ticks, duration %u ticks",
@@ -191,21 +191,21 @@ mpcp_print(packetbody_t pptr, register u_int length) {
             tptr += sizeof(const struct mpcp_grant_t);
         }
 
-	if (!PACKET_HAS_SPACE(tptr, MPCP_TIMESTAMP_DURATION_LEN))
+	if (!TTEST2(*tptr, MPCP_TIMESTAMP_DURATION_LEN))
 	    goto trunc;
         printf("\n\tSync-Time %u ticks", EXTRACT_16BITS(tptr));
         break;
 
 
     case MPCP_OPCODE_REPORT:
-	if (!PACKET_HAS_SPACE(tptr, MPCP_REPORT_QUEUESETS_LEN))
+	if (!TTEST2(*tptr, MPCP_REPORT_QUEUESETS_LEN))
 	    goto trunc;
         queue_sets = *tptr;
         tptr+=MPCP_REPORT_QUEUESETS_LEN;
         printf("\n\tTotal Queue-Sets %u", queue_sets);
 
         for (queue_set = 1; queue_set < queue_sets; queue_set++) {
-            if (!PACKET_HAS_SPACE(tptr, MPCP_REPORT_REPORTBITMAP_LEN))
+            if (!TTEST2(*tptr, MPCP_REPORT_REPORTBITMAP_LEN))
                 goto trunc;
             report_bitmap = *(tptr);
             printf("\n\t  Queue-Set #%u, Report-Bitmap [ %s ]",
@@ -216,7 +216,7 @@ mpcp_print(packetbody_t pptr, register u_int length) {
             report=1;
             while (report_bitmap != 0) { 
                 if (report_bitmap & 1) {
-                    if (!PACKET_HAS_SPACE(tptr, MPCP_TIMESTAMP_DURATION_LEN))
+                    if (!TTEST2(*tptr, MPCP_TIMESTAMP_DURATION_LEN))
                         goto trunc;
                     printf("\n\t    Q%u Report, Duration %u ticks",
                            report,
@@ -230,7 +230,7 @@ mpcp_print(packetbody_t pptr, register u_int length) {
         break;
 
     case MPCP_OPCODE_REG_REQ:
-        if (!PACKET_HAS_SPACE(tptr, sizeof(const struct mpcp_reg_req_t)))
+        if (!TTEST2(*tptr, sizeof(const struct mpcp_reg_req_t)))
             goto trunc;
         mpcp.reg_req = (__capability const struct mpcp_reg_req_t *)tptr;        
         printf("\n\tFlags [ %s ], Pending-Grants %u",
@@ -239,7 +239,7 @@ mpcp_print(packetbody_t pptr, register u_int length) {
         break;
 
     case MPCP_OPCODE_REG:
-        if (!PACKET_HAS_SPACE(tptr, sizeof(const struct mpcp_reg_t)))
+        if (!TTEST2(*tptr, sizeof(const struct mpcp_reg_t)))
             goto trunc;
         mpcp.reg = (__capability const struct mpcp_reg_t *)tptr;        
         printf("\n\tAssigned-Port %u, Flags [ %s ]" \
@@ -251,7 +251,7 @@ mpcp_print(packetbody_t pptr, register u_int length) {
         break;
 
     case MPCP_OPCODE_REG_ACK:
-        if (!PACKET_HAS_SPACE(tptr, sizeof(const struct mpcp_reg_ack_t)))
+        if (!TTEST2(*tptr, sizeof(const struct mpcp_reg_ack_t)))
             goto trunc;
         mpcp.reg_ack = (__capability const struct mpcp_reg_ack_t *)tptr;        
         printf("\n\tEchoed-Assigned-Port %u, Flags [ %s ]" \

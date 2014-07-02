@@ -113,7 +113,7 @@ trans2_qfsinfo(packetbody_t param, packetbody_t data, int pcnt, int dcnt)
     const char *fmt="";
 
     if (request) {
-	PACKET_HAS_SPACE_OR_TRUNC(param, 2);
+	TCHECK2(*param, 2);
 	level = EXTRACT_LE_16BITS(param);
 	fmt = "InfoLevel=[d]\n";
 	smb_fdata(param, fmt, param + pcnt, unicodestr);
@@ -179,9 +179,9 @@ print_trans2(packetbody_t words, packetbody_t dat, packetbody_t buf, packetbody_
     const char *f1 = NULL, *f2 = NULL;
     int pcnt, dcnt;
 
-    PACKET_HAS_ONE_OR_TRUNC(words);
+    TCHECK(words[0]);
     if (request) {
-	PACKET_HAS_SPACE_OR_TRUNC(w, (14 * 2) + 2);
+	TCHECK2(w[14 * 2], 2);
 	pcnt = EXTRACT_LE_16BITS(w + 9 * 2);
 	param = buf + EXTRACT_LE_16BITS(w + 10 * 2);
 	dcnt = EXTRACT_LE_16BITS(w + 11 * 2);
@@ -193,7 +193,7 @@ print_trans2(packetbody_t words, packetbody_t dat, packetbody_t buf, packetbody_
 	    printf("Trans2Interim\n");
 	    return;
 	}
-	PACKET_HAS_SPACE_OR_TRUNC(w, (7 * 2) + 2);
+	TCHECK2(w[7 * 2], 2);
 	pcnt = EXTRACT_LE_16BITS(w + 3 * 2);
 	param = buf + EXTRACT_LE_16BITS(w + 4 * 2);
 	dcnt = EXTRACT_LE_16BITS(w + 6 * 2);
@@ -223,7 +223,7 @@ print_trans2(packetbody_t words, packetbody_t dat, packetbody_t buf, packetbody_
 	f2 = fn->descript.rep_f2;
     }
 
-    PACKET_HAS_SPACE_OR_TRUNC(dat, 2);
+    TCHECK2(*dat, 2);
     bcc = EXTRACT_LE_16BITS(dat);
     printf("smb_bcc=%u\n", bcc);
     if (fn->descript.fn)
@@ -245,7 +245,7 @@ print_browse(packetbody_t param, int paramlen, packetbody_t data, int datalen)
     packetbody_t maxbuf = data + datalen;
     int command;
 
-    PACKET_HAS_ONE_OR_TRUNC(data);
+    TCHECK(data[0]);
     command = data[0];
 
     smb_fdata(param, "BROWSE PACKET\n|Param ", param+paramlen, unicodestr);
@@ -342,7 +342,7 @@ print_trans(packetbody_t words, packetbody_t data1, packetbody_t buf, packetbody
     int datalen, paramlen;
 
     if (request) {
-	PACKET_HAS_SPACE_OR_TRUNC(w, (12 * 2) + 2);
+	TCHECK2(w[12 * 2], 2);
 	paramlen = EXTRACT_LE_16BITS(w + 9 * 2);
 	param = buf + EXTRACT_LE_16BITS(w + 10 * 2);
 	datalen = EXTRACT_LE_16BITS(w + 11 * 2);
@@ -352,7 +352,7 @@ print_trans(packetbody_t words, packetbody_t data1, packetbody_t buf, packetbody
 	f3 = "|Param ";
 	f4 = "|Data ";
     } else {
-	PACKET_HAS_SPACE_OR_TRUNC(w, (7 * 2) + 2);
+	TCHECK2(w[7 * 2], 2);
 	paramlen = EXTRACT_LE_16BITS(w + 3 * 2);
 	param = buf + EXTRACT_LE_16BITS(w + 4 * 2);
 	datalen = EXTRACT_LE_16BITS(w + 6 * 2);
@@ -366,7 +366,7 @@ print_trans(packetbody_t words, packetbody_t data1, packetbody_t buf, packetbody
     smb_fdata(words + 1, f1, SMBMIN(words + 1 + 2 * words[0], maxbuf),
         unicodestr);
 
-    PACKET_HAS_SPACE_OR_TRUNC(data1, 2);
+    TCHECK2(*data1, 2);
     bcc = EXTRACT_LE_16BITS(data1);
     printf("smb_bcc=%u\n", bcc);
     if (bcc > 0) {
@@ -400,7 +400,7 @@ print_negprot(packetbody_t words, packetbody_t data, packetbody_t buf _U_, packe
     u_int wct, bcc;
     const char *f1 = NULL, *f2 = NULL;
 
-    PACKET_HAS_ONE_OR_TRUNC(words);
+    TCHECK(words[0]);
     wct = words[0];
     if (request)
 	f2 = "*|Dialect=[Y]\n";
@@ -419,7 +419,7 @@ print_negprot(packetbody_t words, packetbody_t data, packetbody_t buf _U_, packe
     else
 	print_data(words + 1, SMBMIN(wct * 2, PTR_DIFF(maxbuf, words + 1)));
 
-    PACKET_HAS_SPACE_OR_TRUNC(data, 2);
+    TCHECK2(*data, 2);
     bcc = EXTRACT_LE_16BITS(data);
     printf("smb_bcc=%u\n", bcc);
     if (bcc > 0) {
@@ -441,7 +441,7 @@ print_sesssetup(packetbody_t words, packetbody_t data, packetbody_t buf _U_, pac
     u_int wct, bcc;
     const char *f1 = NULL, *f2 = NULL;
 
-    PACKET_HAS_ONE_OR_TRUNC(words);
+    TCHECK(words[0]);
     wct = words[0];
     if (request) {
 	if (wct == 10)
@@ -463,7 +463,7 @@ print_sesssetup(packetbody_t words, packetbody_t data, packetbody_t buf _U_, pac
     else
 	print_data(words + 1, SMBMIN(wct * 2, PTR_DIFF(maxbuf, words + 1)));
 
-    PACKET_HAS_SPACE_OR_TRUNC(data, 2);
+    TCHECK2(*data, 2);
     bcc = EXTRACT_LE_16BITS(data);
     printf("smb_bcc=%u\n", bcc);
     if (bcc > 0) {
@@ -486,11 +486,11 @@ print_lockingandx(packetbody_t words, packetbody_t data, packetbody_t buf _U_, p
     packetbody_t maxwords;
     const char *f1 = NULL, *f2 = NULL;
 
-    PACKET_HAS_ONE_OR_TRUNC(words);
+    TCHECK(words[0]);
     wct = words[0];
     if (request) {
 	f1 = "Com2=[w]\nOff2=[d]\nHandle=[d]\nLockType=[w]\nTimeOut=[D]\nUnlockCount=[d]\nLockCount=[d]\n";
-	PACKET_HAS_SPACE_OR_TRUNC(words, 8);
+	TCHECK(words[7]);
 	if (words[7] & 0x10)
 	    f2 = "*Process=[d]\n[P2]Offset=[M]\nLength=[M]\n";
 	else
@@ -503,7 +503,7 @@ print_lockingandx(packetbody_t words, packetbody_t data, packetbody_t buf _U_, p
     if (wct)
 	smb_fdata(words + 1, f1, maxwords, unicodestr);
 
-    PACKET_HAS_SPACE_OR_TRUNC(data, 2);
+    TCHECK2(*data, 2);
     bcc = EXTRACT_LE_16BITS(data);
     printf("smb_bcc=%u\n", bcc);
     if (bcc > 0) {
@@ -804,7 +804,7 @@ print_smb(packetbody_t buf, packetbody_t maxbuf)
         "[P4]SMB Command   =  [B]\nError class   =  [BP1]\nError code    =  [d]\nFlags1        =  [B]\nFlags2        =  [B][P13]\nTree ID       =  [d]\nProc ID       =  [d]\nUID           =  [d]\nMID           =  [d]\nWord Count    =  [b]\n";
     int smboffset;
 
-    PACKET_HAS_SPACE_OR_TRUNC(buf, 10);
+    TCHECK(buf[9]);
     request = (buf[9] & 0x80) ? 0 : 1;
     flags2 = EXTRACT_LE_16BITS(&buf[10]);
     unicodestr = flags2 & 0x8000;
@@ -844,7 +844,7 @@ print_smb(packetbody_t buf, packetbody_t maxbuf)
 	int newsmboffset;
 
 	words = buf + smboffset;
-	PACKET_HAS_ONE_OR_TRUNC(words);
+	TCHECK(words[0]);
 	wct = words[0];
 	data = words + 1 + wct * 2;
 	maxwords = SMBMIN(data, maxbuf);
@@ -868,14 +868,14 @@ print_smb(packetbody_t buf, packetbody_t maxbuf)
 		    int v;
 
 		    for (i = 0; &words[1 + 2 * i] < maxwords; i++) {
-			PACKET_HAS_SPACE_OR_TRUNC(words, (1 + 2 * i) + 2);
+			TCHECK2(words[1 + 2 * i], 2);
 			v = EXTRACT_LE_16BITS(words + 1 + 2 * i);
 			printf("smb_vwv[%d]=%d (0x%X)\n", i, v, v);
 		    }
 		}
 	    }
 
-	    PACKET_HAS_SPACE_OR_TRUNC(data, 2);
+	    TCHECK2(*data, 2);
 	    bcc = EXTRACT_LE_16BITS(data);
 	    printf("smb_bcc=%u\n", bcc);
 	    if (f2) {
@@ -893,11 +893,11 @@ print_smb(packetbody_t buf, packetbody_t maxbuf)
 	    break;
 	if (wct == 0)
 	    break;
-	PACKET_HAS_SPACE_OR_TRUNC(words, 2);
+	TCHECK(words[1]);
 	command = words[1];
 	if (command == 0xFF)
 	    break;
-	PACKET_HAS_SPACE_OR_TRUNC(words, 5);
+	TCHECK2(words[3], 2);
 	newsmboffset = EXTRACT_LE_16BITS(words + 3); 
 
 	fn = smbfind(command, smb_fns);
@@ -1096,7 +1096,7 @@ nbt_udp137_print(packetbody_t data, int length)
     packetbody_t p;
     int total, i;
 
-    PACKET_HAS_SPACE_OR_TRUNC(data, 12);
+    TCHECK2(data[10], 2);
     name_trn_id = EXTRACT_16BITS(data);
     response = (data[2] >> 7);
     opcode = (data[2] >> 3) & 0xF;
@@ -1195,7 +1195,7 @@ nbt_udp137_print(packetbody_t data, int length)
 		if (restype == 0x21) {
 		    int numnames;
 
-		    PACKET_HAS_ONE_OR_TRUNC(p);
+		    TCHECK(*p);
 		    numnames = p[0];
 		    p = smb_fdata(p, "NumNames=[B]\n", p + 1, 0);
 		    if (p == NULL)
@@ -1204,7 +1204,7 @@ nbt_udp137_print(packetbody_t data, int length)
 			p = smb_fdata(p, "Name=[n2]\t#", maxbuf, 0);
 			if (p == NULL)
 			    goto out;
-			PACKET_HAS_ONE_OR_TRUNC(p);
+			TCHECK(*p);
 			if (p[0] & 0x80)
 			    printf("<GROUP> ");
 			switch (p[0] & 0x60) {
@@ -1388,10 +1388,10 @@ netbeui_print(u_short control, packetbody_t data, int length)
     int is_truncated = 0;
 
     maxbuf = PACKET_SECTION_END(data, length);
-    PACKET_HAS_SPACE_OR_TRUNC(data, 5);
+    TCHECK(data[4]);
     len = EXTRACT_LE_16BITS(data);
     command = data[4];
-    if ((size_t)len <= PACKET_REMAINING(data))
+    if (len <= PACKET_REMAINING(data))
 	data2 = data + len;
     else {
 	data2 = maxbuf;

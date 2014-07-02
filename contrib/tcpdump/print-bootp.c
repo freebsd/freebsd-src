@@ -70,14 +70,13 @@ bootp_print(packetbody_t cp, u_int length)
 	static const u_char vm_rfc1048[4] = VM_RFC1048;
 
 	bp = (__capability const struct bootp *)cp;
-	PACKET_HAS_ELEMENT_OR_TRUNC(bp, bp_op);
+	TCHECK(bp->bp_op);
 
         printf("BOOTP/DHCP, %s",
 	       tok2str(bootp_op_values, "unknown (0x%02x)", bp->bp_op));
 
 	if (bp->bp_htype == 1 && bp->bp_hlen == 6 && bp->bp_op == BOOTPREQUEST) {
-		PACKET_HAS_SPACE_OR_TRUNC(bp,
-		    offsetof(struct bootp, bp_chaddr) + 6);
+		TCHECK2(bp->bp_chaddr[0], 6);
 		printf(" from %s", etheraddr_string(bp->bp_chaddr));
 	}
 
@@ -86,7 +85,7 @@ bootp_print(packetbody_t cp, u_int length)
         if (!vflag)
             return;
 
-	PACKET_HAS_ELEMENT_OR_TRUNC(bp, bp_secs);
+	TCHECK(bp->bp_secs);
 
 	/* The usual hardware address type is 1 (10Mb Ethernet) */
 	if (bp->bp_htype != 1)
@@ -110,34 +109,32 @@ bootp_print(packetbody_t cp, u_int length)
 		printf(" (0x%04x)", EXTRACT_16BITS(&bp->bp_flags));
 
 	/* Client's ip address */
-	PACKET_HAS_ELEMENT_OR_TRUNC(bp, bp_ciaddr);
+	TCHECK(bp->bp_ciaddr);
 	if (bp->bp_ciaddr.s_addr)
 		printf("\n\t  Client-IP %s", ipaddr_string(&bp->bp_ciaddr));
 
 	/* 'your' ip address (bootp client) */
-	PACKET_HAS_ELEMENT_OR_TRUNC(bp, bp_yiaddr);
+	TCHECK(bp->bp_yiaddr);
 	if (bp->bp_yiaddr.s_addr)
 		printf("\n\t  Your-IP %s", ipaddr_string(&bp->bp_yiaddr));
 
 	/* Server's ip address */
-	PACKET_HAS_ELEMENT_OR_TRUNC(bp, bp_siaddr);
+	TCHECK(bp->bp_siaddr);
 	if (bp->bp_siaddr.s_addr)
 		printf("\n\t  Server-IP %s", ipaddr_string(&bp->bp_siaddr));
 
 	/* Gateway's ip address */
-	PACKET_HAS_ELEMENT_OR_TRUNC(bp, bp_giaddr);
+	TCHECK(bp->bp_giaddr);
 	if (bp->bp_giaddr.s_addr)
 		printf("\n\t  Gateway-IP %s", ipaddr_string(&bp->bp_giaddr));
 
 	/* Client's Ethernet address */
 	if (bp->bp_htype == 1 && bp->bp_hlen == 6) {
-		PACKET_HAS_SPACE_OR_TRUNC(bp,
-		    offsetof(struct bootp, bp_chaddr) + 6);
+		TCHECK2(bp->bp_chaddr[0], 6);
 		printf("\n\t  Client-Ethernet-Address %s", etheraddr_string(bp->bp_chaddr));
 	}
 
-	/* check first char only and let fn_print handle truncation */
-	PACKET_HAS_SPACE_OR_TRUNC(bp, offsetof(struct bootp, bp_sname));
+	TCHECK2(bp->bp_sname[0], 1);		/* check first char only */
 	if (*bp->bp_sname) {
 		printf("\n\t  sname \"");
 		if (fn_print(bp->bp_sname, snapend)) {
@@ -147,8 +144,7 @@ bootp_print(packetbody_t cp, u_int length)
 		}
 		putchar('"');
 	}
-	/* check first char only and let fn_print handle truncation */
-	PACKET_HAS_SPACE_OR_TRUNC(bp, offsetof(struct bootp, bp_file));
+	TCHECK2(bp->bp_file[0], 1);		/* check first char only */
 	if (*bp->bp_file) {
 		printf("\n\t  file \"");
 		if (fn_print(bp->bp_file, snapend)) {
@@ -160,12 +156,11 @@ bootp_print(packetbody_t cp, u_int length)
 	}
 
 	/* Decode the vendor buffer */
-	/* XXX-BD: OVERFLOW: previous code only checked one byte */
-	PACKET_HAS_ELEMENT_OR_TRUNC(bp, bp_vend);
-	if (p_strncmp_static(bp->bp_vend, vm_rfc1048,
+	TCHECK(bp->bp_vend[0]);
+	if (memcmp((const char *)bp->bp_vend, vm_rfc1048,
 		 sizeof(u_int32_t)) == 0)
 		rfc1048_print(bp->bp_vend);
-	else if (p_strncmp_static(bp->bp_vend, vm_cmu,
+	else if (memcmp((const char *)bp->bp_vend, vm_cmu,
 		      sizeof(u_int32_t)) == 0)
 		cmu_print(bp->bp_vend);
 	else {
@@ -389,14 +384,14 @@ rfc1048_print(packetbody_t bp)
 	bp += sizeof(int32_t);
 
 	/* Loop while we there is a tag left in the buffer */
-	while (PACKET_HAS_SPACE(bp, 1)) {
+	while (TTEST2(*bp, 1)) {
 		tag = *bp++;
 		if (tag == TAG_PAD && vflag < 3)
 			continue;
 		if (tag == TAG_END && vflag < 3)
 			return;
 		if (tag == TAG_EXTENDED_OPTION) {
-			PACKET_HAS_SPACE_OR_TRUNC(bp, 3);
+			TCHECK2(*(bp + 1), 2);
 			tag = EXTRACT_16BITS(bp + 1);
 			/* XXX we don't know yet if the IANA will
 			 * preclude overlap of 1-byte and 2-byte spaces.
@@ -411,7 +406,7 @@ rfc1048_print(packetbody_t bp)
 			len = 0;
 		else {
 			/* Get the length; check for truncation */
-			PACKET_HAS_SPACE_OR_TRUNC(bp, 1);
+			TCHECK2(*bp, 1);
 			len = *bp++;
 		}
 
@@ -420,7 +415,7 @@ rfc1048_print(packetbody_t bp)
 
 		if (tag == TAG_PAD && vflag > 2) {
 			u_int ntag = 1;
-			while (PACKET_HAS_SPACE(bp, 1) && *bp == TAG_PAD) {
+			while (TTEST2(*bp, 1) && *bp == TAG_PAD) {
 				bp++;
 				ntag++;
 			}
@@ -428,7 +423,7 @@ rfc1048_print(packetbody_t bp)
 				printf(", occurs %u", ntag);
 		}
 
-		if (!PACKET_HAS_SPACE(bp, len)) {
+		if (!TTEST2(*bp, len)) {
 			printf("[|rfc1048 %u]", len);
 			return;
 		}
@@ -786,7 +781,7 @@ cmu_print(packetbody_t bp)
 {
 	__capability const struct cmu_vend *cmu;
 
-#define PRINTCMUADDR(m, s) { PACKET_HAS_ELEMENT_OR_TRUNC(cmu, m); \
+#define PRINTCMUADDR(m, s) { TCHECK(cmu->m); \
     if (cmu->m.s_addr != 0) \
 	printf(" %s:%s", s, ipaddr_string(&cmu->m.s_addr)); }
 
@@ -794,7 +789,7 @@ cmu_print(packetbody_t bp)
 	cmu = (__capability const struct cmu_vend *)bp;
 
 	/* Only print if there are unknown bits */
-	PACKET_HAS_ELEMENT_OR_TRUNC(cmu, v_flags);
+	TCHECK(cmu->v_flags);
 	if ((cmu->v_flags & ~(VF_SMASK)) != 0)
 		printf(" F:0x%x", cmu->v_flags);
 	PRINTCMUADDR(v_dgate, "DG");

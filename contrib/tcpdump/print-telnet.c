@@ -116,7 +116,7 @@ telnet_parse(packetbody_t sp, u_int length, int print)
 	do { \
 		if (length < 1) \
 			goto pktend; \
-		PACKET_HAS_ONE_OR_TRUNC(sp); \
+		TCHECK(*sp); \
 		c = *sp++; \
 		length--; \
 	} while (0)

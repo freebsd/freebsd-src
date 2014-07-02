@@ -239,7 +239,7 @@ int ldp_tlv_print(packetbody_t);
  */
 
 #define TLV_TCHECK(minlen) \
-    PACKET_HAS_SPACE_OR_TRUNC(tptr, minlen); if (tlv_tlen < minlen) goto badtlv;
+    TCHECK2(*tptr, minlen); if (tlv_tlen < minlen) goto badtlv;
 
 int
 ldp_tlv_print(packetbody_t tptr) {
@@ -309,7 +309,7 @@ ldp_tlv_print(packetbody_t tptr) {
         switch (af) {
         case AFNUM_INET:
 	    while(tlv_tlen >= sizeof(struct in_addr)) {
-		PACKET_HAS_SPACE_OR_TRUNC(tptr, sizeof(struct in_addr));
+		TCHECK2(*tptr, sizeof(struct in_addr));
 		printf(" %s",ipaddr_string(tptr));
 		tlv_tlen-=sizeof(struct in_addr);
 		tptr+=sizeof(struct in_addr);                
@@ -318,7 +318,7 @@ ldp_tlv_print(packetbody_t tptr) {
 #ifdef INET6
         case AFNUM_INET6:
 	    while(tlv_tlen >= sizeof(struct in6_addr)) {
-		PACKET_HAS_SPACE_OR_TRUNC(tptr, sizeof(struct in6_addr));
+		TCHECK2(*tptr, sizeof(struct in6_addr));
 		printf(" %s",ip6addr_string(tptr));
 		tlv_tlen-=sizeof(struct in6_addr);
 		tptr+=sizeof(struct in6_addr);                
@@ -570,7 +570,7 @@ ldp_msg_print(packetbody_t pptr) {
 
     tptr=pptr;
     ldp_com_header = (__capability const struct ldp_common_header *)pptr;
-    PACKET_HAS_ONE_OR_TRUNC(ldp_com_header);
+    TCHECK(*ldp_com_header);
 
     /*
      * Sanity checking of the header.
@@ -602,7 +602,7 @@ ldp_msg_print(packetbody_t pptr) {
 
     while(tlen>0) {
         /* did we capture enough for fully decoding the msg header ? */
-        PACKET_HAS_SPACE_OR_TRUNC(tptr, sizeof(struct ldp_msg_header));
+        TCHECK2(*tptr, sizeof(struct ldp_msg_header));
 
         ldp_msg_header = (__capability const struct ldp_msg_header *)tptr;
         msg_len=EXTRACT_16BITS(ldp_msg_header->length);
@@ -625,7 +625,7 @@ ldp_msg_print(packetbody_t pptr) {
         msg_tlen=msg_len-sizeof(struct ldp_msg_header)+4; /* Type & Length fields not included */
 
         /* did we capture enough for fully decoding the message ? */
-        PACKET_HAS_SPACE_OR_TRUNC(tptr, msg_len);
+        TCHECK2(*tptr, msg_len);
         hexdump=FALSE;
 
         switch(msg_type) {

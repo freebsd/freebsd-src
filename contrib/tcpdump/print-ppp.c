@@ -438,7 +438,7 @@ handle_ctrl_proto(u_int proto, packetbody_t pptr, int length)
 
 	if (length < 4) /* FIXME weak boundary checking */
 		goto trunc;
-	PACKET_HAS_SPACE_OR_TRUNC(tptr, 2);
+	TCHECK2(*tptr, 2);
 
 	code = *tptr++;
 	
@@ -454,7 +454,7 @@ handle_ctrl_proto(u_int proto, packetbody_t pptr, int length)
 	if (length <= 4)
 		return;    /* there may be a NULL confreq etc. */
 
-	PACKET_HAS_SPACE_OR_TRUNC(tptr, 2);
+	TCHECK2(*tptr, 2);
 	len = EXTRACT_16BITS(tptr);
 	tptr += 2;
 
@@ -468,10 +468,10 @@ handle_ctrl_proto(u_int proto, packetbody_t pptr, int length)
 	case CPCODES_VEXT:
 		if (length < 11)
 			break;
-		PACKET_HAS_SPACE_OR_TRUNC(tptr, 4);
+		TCHECK2(*tptr, 4);
 		printf("\n\t  Magic-Num 0x%08x", EXTRACT_32BITS(tptr));
 		tptr += 4;
-		PACKET_HAS_SPACE_OR_TRUNC(tptr, 3);
+		TCHECK2(*tptr, 3);
 		printf(" Vendor: %s (%u)",
                        tok2str(oui_values,"Unknown",EXTRACT_24BITS(tptr)),
                        EXTRACT_24BITS(tptr));
@@ -528,7 +528,7 @@ handle_ctrl_proto(u_int proto, packetbody_t pptr, int length)
 	case CPCODES_PROT_REJ:
 		if (length < 6)
 			break;
-		PACKET_HAS_SPACE_OR_TRUNC(tptr, 2);
+		TCHECK2(*tptr, 2);
 		printf("\n\t  Rejected %s Protocol (0x%04x)",
 		       tok2str(ppptype2str,"unknown", EXTRACT_16BITS(tptr)),
 		       EXTRACT_16BITS(tptr));
@@ -543,19 +543,19 @@ handle_ctrl_proto(u_int proto, packetbody_t pptr, int length)
 	case CPCODES_DISC_REQ:
 		if (length < 8)
 			break;
-		PACKET_HAS_SPACE_OR_TRUNC(tptr, 4);
+		TCHECK2(*tptr, 4);
 		printf("\n\t  Magic-Num 0x%08x", EXTRACT_32BITS(tptr));
 		/* XXX: need to decode Data? - hexdump for now */
                 if (len > 8) {
                         printf("\n\t  -----trailing data-----");
-                        PACKET_HAS_SPACE_OR_TRUNC(tptr, 4 + len-8);
+                        TCHECK2(tptr[4], len-8);
                         print_unknown_data(tptr+4,"\n\t  ",len-8);
                 }
 		break;
 	case CPCODES_ID:
 		if (length < 8)
 			break;
-		PACKET_HAS_SPACE_OR_TRUNC(tptr, 4);
+		TCHECK2(*tptr, 4);
 		printf("\n\t  Magic-Num 0x%08x", EXTRACT_32BITS(tptr));
 		/* RFC 1661 says this is intended to be human readable */
                 if (len > 8) {
@@ -566,9 +566,9 @@ handle_ctrl_proto(u_int proto, packetbody_t pptr, int length)
 	case CPCODES_TIME_REM:
 		if (length < 12)
 			break;
-		PACKET_HAS_SPACE_OR_TRUNC(tptr, 4);
+		TCHECK2(*tptr, 4);
 		printf("\n\t  Magic-Num 0x%08x", EXTRACT_32BITS(tptr));
-		PACKET_HAS_SPACE_OR_TRUNC(tptr, 8);
+		TCHECK2(*(tptr + 4), 4);
 		printf(", Seconds-Remaining %us", EXTRACT_32BITS(tptr + 4));
 		/* XXX: need to decode Message? */
 		break;
@@ -594,7 +594,7 @@ print_lcp_config_options(packetbody_t p, int length)
 
 	if (length < 2)
 		return 0;
-	PACKET_HAS_SPACE_OR_TRUNC(p, 2);
+	TCHECK2(*p, 2);
 	len = p[1];
 	opt = p[0];
 	if (length < len)
@@ -616,16 +616,16 @@ print_lcp_config_options(packetbody_t p, int length)
 	switch (opt) {
 	case LCPOPT_VEXT:
 		if (len >= 6) {
-			PACKET_HAS_SPACE_OR_TRUNC(p, 5);
+			TCHECK2(*(p + 2), 3);
 			printf("Vendor: %s (%u)",
                                tok2str(oui_values,"Unknown",EXTRACT_24BITS(p+2)),
                                EXTRACT_24BITS(p+2));
 #if 0
-			PACKET_HAS_SPACE_OR_TRUNC(p, 6);
+			TCHECK(p[5]);
 			printf(", kind: 0x%02x", p[5]);
 			printf(", Value: 0x")
 			for (i = 0; i < len - 6; i++) {
-				PACKET_HAS_SPACE_OR_TRUNC(p, 1 + 6 + i);
+				TCHECK(p[6 + i]);
 				printf("%02x", p[6 + i]);
 			}
 #endif
@@ -633,24 +633,24 @@ print_lcp_config_options(packetbody_t p, int length)
 		break;
 	case LCPOPT_MRU:
 		if (len == 4) {
-			PACKET_HAS_SPACE_OR_TRUNC(p, 4);
+			TCHECK2(*(p + 2), 2);
 			printf("%u", EXTRACT_16BITS(p + 2));
 		}
 		break;
 	case LCPOPT_ACCM:
 		if (len == 6) {
-			PACKET_HAS_SPACE_OR_TRUNC(p, 6);
+			TCHECK2(*(p + 2), 4);
 			printf("0x%08x", EXTRACT_32BITS(p + 2));
 		}
 		break;
 	case LCPOPT_AP:
 		if (len >= 4) {
-		    PACKET_HAS_SPACE_OR_TRUNC(p, 4);
+		    TCHECK2(*(p + 2), 2);
                     printf("%s", tok2str(ppptype2str,"Unknown Auth Proto (0x04x)",EXTRACT_16BITS(p+2)));
 
 		    switch (EXTRACT_16BITS(p+2)) {
 		    case PPP_CHAP:
-		        PACKET_HAS_SPACE_OR_TRUNC(p, 5);
+		        TCHECK(p[4]);
                         printf(", %s",tok2str(authalg_values,"Unknown Auth Alg %u",p[4]));
 			break;
 		    case PPP_PAP: /* fall through */
@@ -665,7 +665,7 @@ print_lcp_config_options(packetbody_t p, int length)
 		break;
 	case LCPOPT_QP:
 		if (len >= 4) {
-			PACKET_HAS_SPACE_OR_TRUNC(p, 4);
+			TCHECK2(*(p + 2), 2);
 		        if (EXTRACT_16BITS(p+2) == PPP_LQM)
 				printf(" LQR");
 			else
@@ -674,7 +674,7 @@ print_lcp_config_options(packetbody_t p, int length)
 		break;
 	case LCPOPT_MN:
 		if (len == 6) {
-			PACKET_HAS_SPACE_OR_TRUNC(p, 6);
+			TCHECK2(*(p + 2), 4);
 			printf("0x%08x", EXTRACT_32BITS(p + 2));
 		}
 		break;
@@ -684,28 +684,28 @@ print_lcp_config_options(packetbody_t p, int length)
 		break;
 	case LCPOPT_LD:
 		if (len == 4) {
-			PACKET_HAS_SPACE_OR_TRUNC(p, 4);
+			TCHECK2(*(p + 2), 2);
 			printf("0x%04x", EXTRACT_16BITS(p + 2));
 		}
 		break;
 	case LCPOPT_CBACK:
 		if (len < 3)
 			break;
-		PACKET_HAS_SPACE_OR_TRUNC(p, 3);
+		TCHECK(p[2]);
                 printf("Callback Operation %s (%u)",
                        tok2str(ppp_callback_values,"Unknown",p[2]),
                        p[2]);
 		break;
 	case LCPOPT_MLMRRU:
 		if (len == 4) {
-			PACKET_HAS_SPACE_OR_TRUNC(p, 4);
+			TCHECK2(*(p + 2), 2);
 			printf("%u", EXTRACT_16BITS(p + 2));
 		}
 		break;
 	case LCPOPT_MLED:
 		if (len < 3)
 			break;
-		PACKET_HAS_SPACE_OR_TRUNC(p, 3);
+		TCHECK(p[2]);
 		switch (p[2]) {		/* class */
 		case MEDCLASS_NULL:
 			printf("Null");
@@ -716,13 +716,13 @@ print_lcp_config_options(packetbody_t p, int length)
 		case MEDCLASS_IPV4:
 			if (len != 7)
 				break;
-			PACKET_HAS_SPACE_OR_TRUNC(p, 7);
+			TCHECK2(*(p + 3), 4);
 			printf("IPv4 %s", ipaddr_string(p + 3));
 			break;
 		case MEDCLASS_MAC:
 			if (len != 9)
 				break;
-			PACKET_HAS_SPACE_OR_TRUNC(p, 9);
+			TCHECK(p[8]);
 			printf("MAC %02x:%02x:%02x:%02x:%02x:%02x",
 			       p[3], p[4], p[5], p[6], p[7], p[8]);
 			break;
@@ -809,23 +809,23 @@ handle_chap(packetbody_t p, int length)
 		printf("[|chap]");
 		return;
 	} else if (length < 4) {
-		PACKET_HAS_ONE_OR_TRUNC(p);
+		TCHECK(*p);
 		printf("[|chap 0x%02x]", *p);
 		return;
 	}
 
-	PACKET_HAS_ONE_OR_TRUNC(p);
+	TCHECK(*p);
 	code = *p;
         printf("CHAP, %s (0x%02x)",
                tok2str(chapcode_values,"unknown",code),
                code);
 	p++;
 
-	PACKET_HAS_ONE_OR_TRUNC(p);
+	TCHECK(*p);
 	printf(", id %u", *p);		/* ID */
 	p++;
 
-	PACKET_HAS_SPACE_OR_TRUNC(p, 2);
+	TCHECK2(*p, 2);
 	len = EXTRACT_16BITS(p);
 	p += 2;
 
@@ -841,20 +841,20 @@ handle_chap(packetbody_t p, int length)
 	case CHAP_RESP:
 		if (length - (p - p0) < 1)
 			return;
-		PACKET_HAS_ONE_OR_TRUNC(p);
+		TCHECK(*p);
 		val_size = *p;		/* value size */
 		p++;
 		if (length - (p - p0) < val_size)
 			return;
 		printf(", Value ");
 		for (i = 0; i < val_size; i++) {
-			PACKET_HAS_ONE_OR_TRUNC(p);
+			TCHECK(*p);
 			printf("%02x", *p++);
 		}
 		name_size = len - (p - p0);
 		printf(", Name ");
 		for (i = 0; i < name_size; i++) {
-			PACKET_HAS_ONE_OR_TRUNC(p);
+			TCHECK(*p);
 			safeputchar(*p++);
 		}
 		break;
@@ -863,7 +863,7 @@ handle_chap(packetbody_t p, int length)
 		msg_size = len - (p - p0);
 		printf(", Msg ");
 		for (i = 0; i< msg_size; i++) {
-			PACKET_HAS_ONE_OR_TRUNC(p);
+			TCHECK(*p);
 			safeputchar(*p++);
 		}
 		break;
@@ -888,23 +888,23 @@ handle_pap(packetbody_t p, int length)
 		printf("[|pap]");
 		return;
 	} else if (length < 4) {
-		PACKET_HAS_ONE_OR_TRUNC(p);
+		TCHECK(*p);
 		printf("[|pap 0x%02x]", *p);
 		return;
 	}
 
-	PACKET_HAS_ONE_OR_TRUNC(p);
+	TCHECK(*p);
 	code = *p;
         printf("PAP, %s (0x%02x)",
                tok2str(papcode_values,"unknown",code),
                code);
 	p++;
 
-	PACKET_HAS_ONE_OR_TRUNC(p);
+	TCHECK(*p);
 	printf(", id %u", *p);		/* ID */
 	p++;
 
-	PACKET_HAS_SPACE_OR_TRUNC(p, 2);
+	TCHECK2(*p, 2);
 	len = EXTRACT_16BITS(p);
 	p += 2;
 
@@ -922,27 +922,27 @@ handle_pap(packetbody_t p, int length)
 	case PAP_AREQ:
 		if (length - (p - p0) < 1)
 			return;
-		PACKET_HAS_ONE_OR_TRUNC(p);
+		TCHECK(*p);
 		peerid_len = *p;	/* Peer-ID Length */
 		p++;
 		if (length - (p - p0) < peerid_len)
 			return;
 		printf(", Peer ");
 		for (i = 0; i < peerid_len; i++) {
-			PACKET_HAS_ONE_OR_TRUNC(p);
+			TCHECK(*p);
 			safeputchar(*p++);
 		}
 
 		if (length - (p - p0) < 1)
 			return;
-		PACKET_HAS_ONE_OR_TRUNC(p);
+		TCHECK(*p);
 		passwd_len = *p;	/* Password Length */
 		p++;
 		if (length - (p - p0) < passwd_len)
 			return;
 		printf(", Name ");
 		for (i = 0; i < passwd_len; i++) {
-			PACKET_HAS_ONE_OR_TRUNC(p);
+			TCHECK(*p);
 			safeputchar(*p++);
 		}
 		break;
@@ -950,14 +950,14 @@ handle_pap(packetbody_t p, int length)
 	case PAP_ANAK:
 		if (length - (p - p0) < 1)
 			return;
-		PACKET_HAS_ONE_OR_TRUNC(p);
+		TCHECK(*p);
 		msg_len = *p;		/* Msg-Length */
 		p++;
 		if (length - (p - p0) < msg_len)
 			return;
 		printf(", Msg ");
 		for (i = 0; i< msg_len; i++) {
-			PACKET_HAS_ONE_OR_TRUNC(p);
+			TCHECK(*p);
 			safeputchar(*p++);
 		}
 		break;
@@ -985,7 +985,7 @@ print_ipcp_config_options(packetbody_t p, int length)
 
 	if (length < 2)
 		return 0;
-	PACKET_HAS_SPACE_OR_TRUNC(p, 2);
+	TCHECK2(*p, 2);
 	len = p[1];
 	opt = p[0];
 	if (length < len)
@@ -1007,7 +1007,7 @@ print_ipcp_config_options(packetbody_t p, int length)
 	case IPCPOPT_2ADDR:		/* deprecated */
 		if (len != 10)
 			goto invlen;
-		PACKET_HAS_SPACE_OR_TRUNC(p, 10);
+		TCHECK2(*(p + 6), 4);
 		printf("src %s, dst %s",
 		       ipaddr_string(p + 2),
 		       ipaddr_string(p + 6));
@@ -1015,7 +1015,7 @@ print_ipcp_config_options(packetbody_t p, int length)
 	case IPCPOPT_IPCOMP:
 		if (len < 4)
 			goto invlen;
-		PACKET_HAS_SPACE_OR_TRUNC(p, 4);
+		TCHECK2(*(p + 2), 2);
                 compproto = EXTRACT_16BITS(p+2);
 
                 printf("%s (0x%02x):",
@@ -1030,7 +1030,7 @@ print_ipcp_config_options(packetbody_t p, int length)
                         if (len < IPCPOPT_IPCOMP_MINLEN)
                                 goto invlen;
 
-                        PACKET_HAS_SPACE_OR_TRUNC(p, 2 + IPCPOPT_IPCOMP_MINLEN);
+                        TCHECK2(*(p + 2), IPCPOPT_IPCOMP_MINLEN);
                         printf("\n\t    TCP Space %u, non-TCP Space %u" \
                                ", maxPeriod %u, maxTime %u, maxHdr %u",
                                EXTRACT_16BITS(p+4),
@@ -1047,7 +1047,7 @@ print_ipcp_config_options(packetbody_t p, int length)
                                 printf("\n\t      Suboptions, length %u", ipcomp_subopttotallen);
 
                                 while (ipcomp_subopttotallen >= 2) {
-                                        PACKET_HAS_SPACE_OR_TRUNC(p, 2);
+                                        TCHECK2(*p, 2);
                                         ipcomp_subopt = *p;
                                         ipcomp_suboptlen = *(p+1);
                                         
@@ -1082,7 +1082,7 @@ print_ipcp_config_options(packetbody_t p, int length)
 	case IPCPOPT_SECNBNS:
 		if (len != 6)
 			goto invlen;
-		PACKET_HAS_SPACE_OR_TRUNC(p, 6);
+		TCHECK2(*(p + 2), 4);
 		printf("%s", ipaddr_string(p + 2));
 		break;
 	default:
@@ -1111,7 +1111,7 @@ print_ip6cp_config_options(packetbody_t p, int length)
 
 	if (length < 2)
 		return 0;
-	PACKET_HAS_SPACE_OR_TRUNC(p, 2);
+	TCHECK2(*p, 2);
 	len = p[1];
 	opt = p[0];
 	if (length < len)
@@ -1133,7 +1133,7 @@ print_ip6cp_config_options(packetbody_t p, int length)
 	case IP6CP_IFID:
 		if (len != 10)
 			goto invlen;
-		PACKET_HAS_SPACE_OR_TRUNC(p, 10);
+		TCHECK2(*(p + 2), 8);
 		printf("%04x:%04x:%04x:%04x",
 		       EXTRACT_16BITS(p + 2),
 		       EXTRACT_16BITS(p + 4),
@@ -1168,7 +1168,7 @@ print_ccp_config_options(packetbody_t p, int length)
 
 	if (length < 2)
 		return 0;
-	PACKET_HAS_SPACE_OR_TRUNC(p, 2);
+	TCHECK2(*p, 2);
 	len = p[1];
 	opt = p[0];
 	if (length < len)
@@ -1226,7 +1226,7 @@ print_bacp_config_options(packetbody_t p, int length)
 
 	if (length < 2)
 		return 0;
-	PACKET_HAS_SPACE_OR_TRUNC(p, 2);
+	TCHECK2(*p, 2);
 	len = p[1];
 	opt = p[0];
 	if (length < len)
@@ -1246,7 +1246,7 @@ print_bacp_config_options(packetbody_t p, int length)
 
 	switch (opt) {
 	case BACPOPT_FPEER:
-		PACKET_HAS_SPACE_OR_TRUNC(p, 6);
+		TCHECK2(*(p + 2), 4);
 		printf(", Magic-Num 0x%08x", EXTRACT_32BITS(p + 2));
                 break;
 	default:
@@ -1410,7 +1410,7 @@ ppp_print(packetbody_t p, u_int length)
 	 */
 	if (length < 2)
 		goto trunc;
-	PACKET_HAS_SPACE_OR_TRUNC(p, 2);
+	TCHECK2(*p, 2);
         ppp_header = EXTRACT_16BITS(p);
 
         switch(ppp_header) {
@@ -1438,14 +1438,14 @@ ppp_print(packetbody_t p, u_int length)
 
 	if (length < 2)
 		goto trunc;
-	PACKET_HAS_ONE_OR_TRUNC(p);
+	TCHECK(*p);
 	if (*p % 2) {
 		proto = *p;		/* PFC is used */
 		p++;
 		length--;
 		hdr_len++;
 	} else {
-		PACKET_HAS_SPACE_OR_TRUNC(p, 2);
+		TCHECK2(*p, 2);
 		proto = EXTRACT_16BITS(p);
 		p += 2;
 		length -= 2;

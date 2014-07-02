@@ -295,9 +295,9 @@ hbhopt_print(packetbody_t bp)
 	(__capability const struct ip6_hbh *)bp;
     int hbhlen = 0;
 
-    PACKET_HAS_ELEMENT_OR_TRUNC(dp, ip6h_len);
+    TCHECK(dp->ip6h_len);
     hbhlen = (int)((dp->ip6h_len + 1) << 3);
-    PACKET_HAS_SPACE_OR_TRUNC(dp, hbhlen);
+    TCHECK2(*dp, hbhlen);
     printf("HBH ");
     if (vflag)
 	ip6_opt_print((packetbody_t)dp + sizeof(*dp), hbhlen - sizeof(*dp));
@@ -316,9 +316,9 @@ dstopt_print(packetbody_t bp)
 	(__capability const struct ip6_dest *)bp;
     int dstoptlen = 0;
 
-    PACKET_HAS_ELEMENT_OR_TRUNC(dp, ip6d_len);
+    TCHECK(dp->ip6d_len);
     dstoptlen = (int)((dp->ip6d_len + 1) << 3);
-    PACKET_HAS_SPACE_OR_TRUNC(dp, dstoptlen);
+    TCHECK2(*dp, dstoptlen);
     printf("DSTOPT ");
     if (vflag) {
 	ip6_opt_print((packetbody_t)dp + sizeof(*dp),

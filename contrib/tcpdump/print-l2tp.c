@@ -463,7 +463,7 @@ l2tp_avp_print(packetbody_t dat, int length)
 
 	printf(" ");
 
-	PACKET_HAS_ONE_OR_TRUNC(ptr);	/* Flags & Length */
+	TCHECK(*ptr);	/* Flags & Length */
 	len = EXTRACT_16BITS(ptr) & L2TP_AVP_HDR_LEN_MASK;
 
 	/* If it is not long enough to contain the header, we'll give up. */
@@ -477,7 +477,7 @@ l2tp_avp_print(packetbody_t dat, int length)
 
 	/* If it goes past the end of the remaining length of the captured
 	   data, we'll give up. */
-	PACKET_HAS_SPACE_OR_TRUNC(ptr, len);
+	TCHECK2(*ptr, len);
 	/* After this point, no need to worry about truncation */
 
 	if (EXTRACT_16BITS(ptr) & L2TP_AVP_HDR_FLAG_MANDATORY) {
@@ -614,7 +614,7 @@ l2tp_print(packetbody_t dat, u_int length)
 
 	flag_t = flag_l = flag_s = flag_o = FALSE;
 
-	PACKET_HAS_SPACE_OR_TRUNC(ptr, 2);	/* Flags & Version */
+	TCHECK2(*ptr, 2);	/* Flags & Version */
 	if ((EXTRACT_16BITS(ptr) & L2TP_VERSION_MASK) == L2TP_VERSION_L2TP) {
 		printf(" l2tp:");
 	} else if ((EXTRACT_16BITS(ptr) & L2TP_VERSION_MASK) == L2TP_VERSION_L2F) {
@@ -650,7 +650,7 @@ l2tp_print(packetbody_t dat, u_int length)
 	cnt += 2;
 
 	if (flag_l) {
-		PACKET_HAS_SPACE_OR_TRUNC(ptr, 2);	/* Length */
+		TCHECK2(*ptr, 2);	/* Length */
 		l2tp_len = EXTRACT_16BITS(ptr);
 		ptr += 2;
 		cnt += 2;
@@ -658,28 +658,28 @@ l2tp_print(packetbody_t dat, u_int length)
 		l2tp_len = 0;
 	}
 
-	PACKET_HAS_SPACE_OR_TRUNC(ptr, 2);		/* Tunnel ID */
+	TCHECK2(*ptr, 2);		/* Tunnel ID */
 	printf("(%u/", EXTRACT_16BITS(ptr));
 	ptr += 2;
 	cnt += 2;
-	PACKET_HAS_SPACE_OR_TRUNC(ptr, 2);		/* Session ID */
+	TCHECK2(*ptr, 2);		/* Session ID */
 	printf("%u)",  EXTRACT_16BITS(ptr));
 	ptr += 2;
 	cnt += 2;
 
 	if (flag_s) {
-		PACKET_HAS_SPACE_OR_TRUNC(ptr, 2);	/* Ns */
+		TCHECK2(*ptr, 2);	/* Ns */
 		printf("Ns=%u,", EXTRACT_16BITS(ptr));
 		ptr += 2;
 		cnt += 2;
-		PACKET_HAS_SPACE_OR_TRUNC(ptr, 2);	/* Nr */
+		TCHECK2(*ptr, 2);	/* Nr */
 		printf("Nr=%u",  EXTRACT_16BITS(ptr));
 		ptr += 2;
 		cnt += 2;
 	}
 
 	if (flag_o) {
-		PACKET_HAS_SPACE_OR_TRUNC(ptr, 2);	/* Offset Size */
+		TCHECK2(*ptr, 2);	/* Offset Size */
 		pad =  EXTRACT_16BITS(ptr);
 		ptr += (2 + pad);
 		cnt += (2 + pad);

@@ -57,7 +57,7 @@ dtp_print (packetbody_t pptr, u_int length)
 
     tptr = pptr; 
 
-    if (!PACKET_HAS_SPACE(tptr, DTP_HEADER_LEN))	
+    if (!TTEST2(*tptr, DTP_HEADER_LEN))	
 	goto trunc;
 
     printf("DTPv%u, length %u", 
@@ -75,7 +75,7 @@ dtp_print (packetbody_t pptr, u_int length)
 
     while (tptr < (pptr+length)) {
 
-        if (!PACKET_HAS_SPACE(tptr, 4)) 
+        if (!TTEST2(*tptr, 4)) 
             goto trunc;
 
 	type = EXTRACT_16BITS(tptr);

@@ -149,7 +149,7 @@ pflog_if_print(const struct pcap_pkthdr *h, packetbody_t p)
 
 	/* print what we know */
 	hdr = (__capability const struct pfloghdr *)p;
-	PACKET_HAS_ONE_OR_TRUNC(hdr);
+	TCHECK(*hdr);
 	if (eflag)
 		pflog_print(hdr);
 	

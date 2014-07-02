@@ -171,7 +171,7 @@ eap_print(netdissect_options *ndo _U_,
     tptr = cp;
     tlen = length;
     eap = (__capability const struct eap_frame_t *)cp;
-    PACKET_HAS_ONE_OR_TRUNC(eap);
+    TCHECK(*eap);
 
     /* in non-verbose mode just lets print the basic info */
     if (vflag < 1) {
@@ -202,7 +202,7 @@ eap_print(netdissect_options *ndo _U_,
                *(tptr+1),
                len);
 
-        if (!PACKET_HAS_SPACE(tptr, len)) 
+        if (!TTEST2(*tptr, len)) 
             goto trunc;
 
         if (type <= 2) { /* For EAP_REQUEST and EAP_RESPONSE only */

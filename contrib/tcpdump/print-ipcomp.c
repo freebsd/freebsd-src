@@ -64,7 +64,7 @@ ipcomp_print(packetbody_t bp, int *nhdr _U_)
 	 * old code checked for space for 2 struct ipcomp's, but only
 	 * used one.
 	 */
-	if (!PACKET_HAS_ONE(ipcomp)) {
+	if (!TTEST(*ipcomp)) {
 		fputs("[|IPCOMP]", stdout);
 		goto fail;
 	}

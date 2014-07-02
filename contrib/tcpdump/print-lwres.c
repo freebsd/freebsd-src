@@ -200,7 +200,7 @@ lwres_printname(size_t l, packetbody_t p0)
 
 	p = p0;
 	/* + 1 for terminating \0 */
-	PACKET_HAS_SPACE_OR_TRUNC(p, l + 1);
+	TCHECK2(*p, l + 1);
 
 	printf(" ");
 	for (i = 0; i < l; i++)
@@ -219,7 +219,7 @@ lwres_printnamelen(packetbody_t p)
 	u_int16_t l;
 	int advance;
 
-	PACKET_HAS_SPACE_OR_TRUNC(p, 2);
+	TCHECK2(*p, 2);
 	l = EXTRACT_16BITS(p);
 	advance = lwres_printname(l, p + 2);
 	if (advance < 0)
@@ -238,10 +238,10 @@ lwres_printbinlen(packetbody_t p0)
 	int i;
 
 	p = p0;
-	PACKET_HAS_SPACE_OR_TRUNC(p, 2);
+	TCHECK2(*p, 2);
 	l = EXTRACT_16BITS(p);
 	p += 2;
-	PACKET_HAS_SPACE_OR_TRUNC(p, l);
+	TCHECK2(*p, l);
 	for (i = 0; i < l; i++)
 		printf("%02x", *p++);
 	return p - p0;
@@ -257,11 +257,11 @@ lwres_printaddr(__capability lwres_addr_t *ap)
 	const char *p;
 	int i;
 
-	PACKET_HAS_ELEMENT_OR_TRUNC(ap, length);
+	TCHECK(ap->length);
 	l = EXTRACT_16BITS(&ap->length);
 	/* XXX ap points to packed struct */
 	p = (const char *)&ap->length + sizeof(ap->length);
-	PACKET_HAS_SPACE_OR_TRUNC(p, l);
+	TCHECK2(*p, l);
 
 	switch (EXTRACT_32BITS(&ap->family)) {
 	case 1:	/* IPv4 */
@@ -301,7 +301,7 @@ lwres_print(packetbody_t bp, u_int length)
 	int unsupported = 0;
 
 	np = (__capability const struct lwres_lwpacket *)bp;
-	PACKET_HAS_ELEMENT_OR_TRUNC(np, authlength);
+	TCHECK(np->authlength);
 
 	printf(" lwres");
 	v = EXTRACT_16BITS(&np->version);
@@ -356,7 +356,7 @@ lwres_print(packetbody_t bp, u_int length)
 			break;
 		case LWRES_OPCODE_GETADDRSBYNAME:
 			gabn = (__capability lwres_gabnrequest_t *)(np + 1);
-			PACKET_HAS_ELEMENT_OR_TRUNC(gabn, namelen);
+			TCHECK(gabn->namelen);
 			/* XXX gabn points to packed struct */
 			s = (packetbody_t)&gabn->namelen +
 			    sizeof(gabn->namelen);
@@ -390,7 +390,7 @@ lwres_print(packetbody_t bp, u_int length)
 			break;
 		case LWRES_OPCODE_GETNAMEBYADDR:
 			gnba = (__capability lwres_gnbarequest_t *)(np + 1);
-			PACKET_HAS_ELEMENT_OR_TRUNC(gnba, addr);
+			TCHECK(gnba->addr);
 
 			/* BIND910: not used */
 			if (vflag > 2) {
@@ -408,7 +408,7 @@ lwres_print(packetbody_t bp, u_int length)
 		case LWRES_OPCODE_GETRDATABYNAME:
 			/* XXX no trace, not tested */
 			grbn = (__capability lwres_grbnrequest_t *)(np + 1);
-			PACKET_HAS_ELEMENT_OR_TRUNC(grbn, namelen);
+			TCHECK(grbn->namelen);
 
 			/* BIND910: not used */
 			if (vflag > 2) {
@@ -456,7 +456,7 @@ lwres_print(packetbody_t bp, u_int length)
 			break;
 		case LWRES_OPCODE_GETADDRSBYNAME:
 			gabn = (__capability lwres_gabnresponse_t *)(np + 1);
-			PACKET_HAS_ELEMENT_OR_TRUNC(gabn, realnamelen);
+			TCHECK(gabn->realnamelen);
 			/* XXX gabn points to packed struct */
 			s = (packetbody_t)&gabn->realnamelen +
 			    sizeof(gabn->realnamelen);
@@ -496,7 +496,7 @@ lwres_print(packetbody_t bp, u_int length)
 			break;
 		case LWRES_OPCODE_GETNAMEBYADDR:
 			gnba = (__capability lwres_gnbaresponse_t *)(np + 1);
-			PACKET_HAS_ELEMENT_OR_TRUNC(gnba, realnamelen);
+			TCHECK(gnba->realnamelen);
 			/* XXX gnba points to packed struct */
 			s = (packetbody_t)&gnba->realnamelen +
 			    sizeof(gnba->realnamelen);
@@ -527,7 +527,7 @@ lwres_print(packetbody_t bp, u_int length)
 		case LWRES_OPCODE_GETRDATABYNAME:
 			/* XXX no trace, not tested */
 			grbn = (__capability lwres_grbnresponse_t *)(np + 1);
-			PACKET_HAS_ELEMENT_OR_TRUNC(grbn, nsigs);
+			TCHECK(grbn->nsigs);
 
 			/* BIND910: not used */
 			if (vflag > 2) {

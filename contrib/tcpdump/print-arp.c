@@ -207,13 +207,13 @@ atmarp_print(netdissect_options *ndo,
 	u_short pro, hrd, op;
 
 	ap = (__capability const struct atmarp_pkthdr *)bp;
-	ND_PACKET_HAS_ONE_OR_TRUNC(ap);
+	ND_TCHECK(*ap);
 
 	hrd = ATMHRD(ap);
 	pro = ATMPRO(ap);
 	op = ATMOP(ap);
 
-	if (!ND_PACKET_HAS_SPACE(aar_tpa(ap), ATMTPROTO_LEN(ap))) {
+	if (!ND_TTEST2(*aar_tpa(ap), ATMTPROTO_LEN(ap))) {
 		ND_PRINT((ndo, "[|ARP]"));
 		ND_DEFAULTPRINT((__capability const u_char *)ap, length);
 		return;
@@ -303,7 +303,7 @@ arp_print(netdissect_options *ndo,
 	u_short pro, hrd, op, linkaddr;
 
 	ap = (__capability const struct arp_pkthdr *)bp;
-	ND_PACKET_HAS_ONE_OR_TRUNC(ap);
+	ND_TCHECK(*ap);
 
 	hrd = HRD(ap);
 	pro = PRO(ap);
@@ -327,7 +327,7 @@ arp_print(netdissect_options *ndo,
             break;
 	}
 
-	if (!ND_PACKET_HAS_SPACE(ar_tpa(ap), PROTO_LEN(ap))) {
+	if (!ND_TTEST2(*ar_tpa(ap), PROTO_LEN(ap))) {
 		ND_PRINT((ndo, "[|ARP]"));
 		ND_DEFAULTPRINT((__capability const u_char *)ap, length);
 		return;

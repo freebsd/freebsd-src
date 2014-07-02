@@ -78,7 +78,7 @@ mobile_print(packetbody_t bp, u_int length)
 
 	mob = (__capability const struct mobile_ip *)bp;
 
-	if (length < MOBILE_SIZE || !PACKET_HAS_ONE(mob)) {
+	if (length < MOBILE_SIZE || !TTEST(*mob)) {
 		fputs("[|mobile]", stdout);
 		return;
 	}

@@ -80,7 +80,7 @@ zmtp1_print_frame(packetbody_t cp, packetbody_t ep) {
 	u_int8_t flags;
 
 	printf("\n\t");
-	PACKET_HAS_SPACE_OR_TRUNC(cp, 1); /* length/0xFF */
+	TCHECK2(*cp, 1); /* length/0xFF */
 
 	if (cp[0] != 0xFF) {
 		header_len = 1; /* length */
@@ -88,17 +88,17 @@ zmtp1_print_frame(packetbody_t cp, packetbody_t ep) {
 		if (body_len_declared == 0)
 			return cp + header_len; /* skip to next frame */
 		printf(" frame flags+body  (8-bit) length %"PRIu8"", cp[0]);
-		PACKET_HAS_SPACE_OR_TRUNC(cp, header_len + 1); /* length, flags */
+		TCHECK2(*cp, header_len + 1); /* length, flags */
 		flags = cp[1];
 	} else {
 		header_len = 1 + 8; /* 0xFF, length */
 		printf(" frame flags+body (64-bit) length");
-		PACKET_HAS_SPACE_OR_TRUNC(cp, header_len); /* 0xFF, length */
+		TCHECK2(*cp, header_len); /* 0xFF, length */
 		body_len_declared = EXTRACT_64BITS(cp + 1);
 		if (body_len_declared == 0)
 			return cp + header_len; /* skip to next frame */
 		printf(" %"PRIu64"", body_len_declared);
-		PACKET_HAS_SPACE_OR_TRUNC(cp, header_len + 1); /* 0xFF, length, flags */
+		TCHECK2(*cp, header_len + 1); /* 0xFF, length, flags */
 		flags = cp[9];
 	}
 
@@ -129,7 +129,7 @@ zmtp1_print_frame(packetbody_t cp, packetbody_t ep) {
 		}
 	}
 
-	PACKET_HAS_SPACE_OR_TRUNC(cp, header_len + body_len_declared); /* Next frame within the buffer ? */
+	TCHECK2(*cp, header_len + body_len_declared); /* Next frame within the buffer ? */
 	return cp + header_len + body_len_declared;
 
 trunc:

@@ -449,7 +449,7 @@ print_attr_string(packetbody_t data, u_int length, u_short attr_code )
 {
    register u_int i;
 
-   PACKET_HAS_SPACE_OR_TRUNC(data,length);
+   TCHECK2(data[0],length);
 
    switch(attr_code)
    {
@@ -510,7 +510,7 @@ print_vendor_attr(packetbody_t data, u_int length, u_short attr_code _U_)
 
     if (length < 4)
         goto trunc;
-    PACKET_HAS_SPACE_OR_TRUNC(data, 4);
+    TCHECK2(*data, 4);
     vendor_id = EXTRACT_32BITS(data);
     data+=4;
     length-=4;
@@ -520,7 +520,7 @@ print_vendor_attr(packetbody_t data, u_int length, u_short attr_code _U_)
            vendor_id);
 
     while (length >= 2) {
-	PACKET_HAS_SPACE_OR_TRUNC(data, 2);
+	TCHECK2(*data, 2);
 
         vendor_type = *(data);
         vendor_length = *(data+1);
@@ -542,7 +542,7 @@ print_vendor_attr(packetbody_t data, u_int length, u_short attr_code _U_)
         data+=2;
         vendor_length-=2;
         length-=2;
-	PACKET_HAS_SPACE_OR_TRUNC(data, vendor_length);
+	TCHECK2(*data, vendor_length);
 
         printf("\n\t    Vendor Attribute: %u, Length: %u, Value: ",
                vendor_type,
@@ -578,7 +578,7 @@ print_attr_num(packetbody_t data, u_int length, u_short attr_code )
        return;
    }
 
-   PACKET_HAS_SPACE_OR_TRUNC(data,4);
+   TCHECK2(data[0],4);
                           /* This attribute has standard values */
    if (attr_type[attr_code].siz_subtypes)
    {
@@ -691,7 +691,7 @@ print_attr_address(packetbody_t data, u_int length, u_short attr_code )
        return;
    }
 
-   PACKET_HAS_SPACE_OR_TRUNC(data,4);
+   TCHECK2(data[0],4);
 
    switch(attr_code)
    {
@@ -737,7 +737,7 @@ static void print_attr_time(packetbody_t data, u_int length, u_short attr_code _
        return;
    }
 
-   PACKET_HAS_SPACE_OR_TRUNC(data,4);
+   TCHECK2(data[0],4);
 
    attr_time = EXTRACT_32BITS(data);
    strlcpy(string, ctime(&attr_time), sizeof(string));
@@ -771,11 +771,11 @@ static void print_attr_strange(packetbody_t data, u_int length, u_short attr_cod
                return;
            }
            printf("User_challenge (");
-           PACKET_HAS_SPACE_OR_TRUNC(data,8);
+           TCHECK2(data[0],8);
            len_data = 8;
            PRINT_HEX(len_data, data);
            printf(") User_resp(");
-           PACKET_HAS_SPACE_OR_TRUNC(data,8);
+           TCHECK2(data[0],8);
            len_data = 8;
            PRINT_HEX(len_data, data);
            printf(")");
@@ -787,25 +787,25 @@ static void print_attr_strange(packetbody_t data, u_int length, u_short attr_cod
                printf("ERROR: length %u != 14", length);
                return;
            }
-           PACKET_HAS_SPACE_OR_TRUNC(data,1);
+           TCHECK2(data[0],1);
            if (*data)
               printf("User can change password");
            else
               printf("User cannot change password");
            data++;
-           PACKET_HAS_SPACE_OR_TRUNC(data,1);
+           TCHECK2(data[0],1);
            printf(", Min password length: %d",*data);
            data++;
            printf(", created at: ");
-           PACKET_HAS_SPACE_OR_TRUNC(data,4);
+           TCHECK2(data[0],4);
            len_data = 4;
            PRINT_HEX(len_data, data);
            printf(", expires in: ");
-           PACKET_HAS_SPACE_OR_TRUNC(data,4);
+           TCHECK2(data[0],4);
            len_data = 4;
            PRINT_HEX(len_data, data);
            printf(", Current Time: ");
-           PACKET_HAS_SPACE_OR_TRUNC(data,4);
+           TCHECK2(data[0],4);
            len_data = 4;
            PRINT_HEX(len_data, data);
         break;
@@ -816,7 +816,7 @@ static void print_attr_strange(packetbody_t data, u_int length, u_short attr_cod
                printf("ERROR: length %u != 8", length);
                return;
            }
-           PACKET_HAS_SPACE_OR_TRUNC(data,8);
+           TCHECK2(data[0],8);
            len_data = 8;
            PRINT_HEX(len_data, data);
         break;
@@ -839,7 +839,7 @@ radius_attrs_print(packetbody_t attr, u_int length)
    {
      if (length < 2)
         goto trunc;
-     PACKET_HAS_ONE_OR_TRUNC(rad_attr);
+     TCHECK(*rad_attr);
      
      if (rad_attr->type > 0 && rad_attr->type < TAM_SIZE(attr_type))
 	attr_string = attr_type[rad_attr->type].name;
@@ -896,7 +896,7 @@ radius_print(packetbody_t dat, u_int length)
    __capability const struct radius_hdr *rad;
    u_int len, auth_idx;
 
-   PACKET_HAS_SPACE_OR_TRUNC(dat, MIN_RADIUS_LEN);
+   TCHECK2(*dat, MIN_RADIUS_LEN);
    rad = (__capability struct radius_hdr *)dat;
    len = EXTRACT_16BITS(&rad->len);
 

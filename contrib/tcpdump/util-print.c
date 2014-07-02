@@ -269,7 +269,7 @@ print_unknown_data(packetbody_t cp, const char *ident, int len)
 		    ident);
 		return(0);
 	}
-	if (PACKET_REMAINING(cp) < (size_t)len)
+	if (PACKET_REMAINING(cp) < len)
 		len = PACKET_REMAINING(cp);
         hex_print(ident,cp,len);
 	return(1); /* everything is ok */

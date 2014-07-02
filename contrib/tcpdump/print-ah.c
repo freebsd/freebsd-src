@@ -49,7 +49,7 @@ ah_print(packetbody_t bp)
 
 	ah = (__capability const struct ah *)bp;
 
-	PACKET_HAS_ONE_OR_TRUNC(ah);
+	TCHECK(*ah);
 
 	sumlen = ah->ah_len << 2;
 	spi = EXTRACT_32BITS(&ah->ah_spi);
@@ -59,7 +59,7 @@ ah_print(packetbody_t bp)
 		printf(",sumlen=%d", sumlen);
 	printf(",seq=0x%x", EXTRACT_32BITS(ah + 1));
 	/* XXX-BD: previous code allowed 1-byte short packets */
-	if (!PACKET_HAS_SPACE(bp, sizeof(struct ah) + sumlen))
+	if (!TTEST2(*bp, sizeof(struct ah) + sumlen))
 		fputs("[truncated]", stdout);
 	fputs("): ", stdout);
 

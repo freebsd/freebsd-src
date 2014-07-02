@@ -50,7 +50,7 @@ timed_print(packetbody_t bp)
 	long sec, usec;
 	packetbody_t end;
 
-	if (!PACKET_HAS_ELEMENT(tsp, tsp_type)) {
+	if (!TTEST(tsp->tsp_type)) {
 		fputs("[|timed]", stdout);
 		return;
 	}
@@ -59,20 +59,20 @@ timed_print(packetbody_t bp)
 	else
 		printf("(tsp_type %#x)", tsp->tsp_type);
 
-	if (!PACKET_HAS_ELEMENT(tsp, tsp_vers)) {
+	if (!TTEST(tsp->tsp_vers)) {
 		fputs(" [|timed]", stdout);
 		return;
 	}
 	printf(" vers %d", tsp->tsp_vers);
 
-	if (!PACKET_HAS_ELEMENT(tsp, tsp_seq)) {
+	if (!TTEST(tsp->tsp_seq)) {
 		fputs(" [|timed]", stdout);
 		return;
 	}
 	printf(" seq %d", tsp->tsp_seq);
 
 	if (tsp->tsp_type == TSP_LOOP) {
-		if (!PACKET_HAS_ELEMENT(tsp, tsp_hopcnt)) {
+		if (!TTEST(tsp->tsp_hopcnt)) {
 			fputs(" [|timed]", stdout);
 			return;
 		}
@@ -81,7 +81,7 @@ timed_print(packetbody_t bp)
 	  tsp->tsp_type == TSP_ADJTIME ||
 	  tsp->tsp_type == TSP_SETDATE ||
 	  tsp->tsp_type == TSP_SETDATEREQ) {
-		if (!PACKET_HAS_ELEMENT(tsp, tsp_time)) {
+		if (!TTEST(tsp->tsp_time)) {
 			fputs(" [|timed]", stdout);
 			return;
 		}

@@ -39,7 +39,6 @@
 /* snprintf et al */
 
 #include <stdarg.h>
-#include <stddef.h>
 
 #include "packetbody.h"
 
@@ -226,29 +225,25 @@ struct netdissect_options {
 #define HTONS(x)	(x) = htons(x)
 #endif
 
-#ifndef HAS_CHERI_CAPABILITIES
-#define	ND_PACKET_VALID(pptr)	((const u_char *)(pptr) <= ndo->ndo_snapend)
-#define ND_PACKET_REMAINING(pptr) \
-	(size_t)(ND_PACKET_VALID(pptr) ? ndo->ndo_snapend - (const u_char *)(pptr) : 0)
-#else
-#define ND_PACKET_REMAINING(pptr)	cheri_getlen((__capability void *)pptr)
-#endif
+/*
+ * True if "l" bytes of "var" were captured.
+ *
+ * The "ndo->ndo_snapend - (l) <= ndo->ndo_snapend" checks to make sure
+ * "l" isn't so large that "ndo->ndo_snapend - (l)" underflows.
+ *
+ * The check is for <= rather than < because "l" might be 0.
+ */
+#define ND_TTEST2(var, l) (ndo->ndo_snapend - (l) <= ndo->ndo_snapend && \
+			(const u_char *)&(var) <= ndo->ndo_snapend - (l))
 
-#define	ND_PACKET_HAS_SPACE(pptr, len) \
-	((size_t)(len) <= ND_PACKET_REMAINING(pptr))
-#define	ND_PACKET_HAS_SPACE_OR_TRUNC(pptr, len) \
-	if (!ND_PACKET_HAS_SPACE(pptr, len)) goto trunc
-/* True if the packet has room for at least one full *pptr */
-#define	ND_PACKET_HAS_ONE(pptr) \
-	ND_PACKET_HAS_SPACE(pptr, sizeof(*pptr))
-#define	ND_PACKET_HAS_ONE_OR_TRUNC(pptr) \
-	if (!ND_PACKET_HAS_ONE(pptr)) goto trunc
-/* True if the packet has all of the given element */
-#define	ND_PACKET_HAS_ELEMENT(pptr, elem) \
-	ND_PACKET_HAS_SPACE(pptr, \
-	    offsetof(typeof(*(pptr)), elem) + sizeof((pptr)->elem))
-#define	ND_PACKET_HAS_ELEMENT_OR_TRUNC(pptr, elem) \
-	if (!ND_PACKET_HAS_ELEMENT(pptr, elem)) goto trunc
+/* True if "var" was captured */
+#define ND_TTEST(var) ND_TTEST2(var, sizeof(var))
+
+/* Bail if "l" bytes of "var" were not captured */
+#define ND_TCHECK2(var, l) if (!ND_TTEST2(var, l)) goto trunc
+
+/* Bail if "var" was not captured */
+#define ND_TCHECK(var) ND_TCHECK2(var, sizeof(var))
 
 #define ND_PRINT(STUFF) (*ndo->ndo_printf)STUFF
 #define ND_DEFAULTPRINT(ap, length) (*ndo->ndo_default_print)(ndo, ap, length)

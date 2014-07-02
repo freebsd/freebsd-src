@@ -120,7 +120,7 @@ vqp_print(packetbody_t pptr, register u_int len)
     tptr=pptr;
     tlen = len;
     vqp_common_header = (__capability const struct vqp_common_header_t *)pptr;
-    PACKET_HAS_ONE_OR_TRUNC(vqp_common_header);
+    TCHECK(*vqp_common_header);
 
     /*
      * Sanity checking of the header.
@@ -175,7 +175,7 @@ vqp_print(packetbody_t pptr, register u_int len)
         }
 
         /* did we capture enough for fully decoding the object ? */
-        if (!PACKET_HAS_SPACE(tptr, vqp_obj_len)) 
+        if (!TTEST2(*tptr, vqp_obj_len)) 
             goto trunc;
 
         switch(vqp_obj_type) {

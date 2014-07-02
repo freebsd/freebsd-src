@@ -98,7 +98,7 @@ cdp_print(packetbody_t pptr, u_int length, u_int caplen)
 
         tptr = pptr; /* temporary pointer */
 
-        if (!PACKET_HAS_SPACE(tptr, CDP_HEADER_LEN))
+        if (!TTEST2(*tptr, CDP_HEADER_LEN))
                 goto trunc;
 	printf("CDPv%u, ttl: %us", *tptr, *(tptr+1));
         if (vflag)
@@ -107,14 +107,14 @@ cdp_print(packetbody_t pptr, u_int length, u_int caplen)
 
 	while (tptr < (pptr+length)) {
 
-                if (!PACKET_HAS_SPACE(tptr, 4)) /* read out Type and Length */
+                if (!TTEST2(*tptr, 4)) /* read out Type and Length */
                     goto trunc;
 		type = EXTRACT_16BITS(tptr);
 		len  = EXTRACT_16BITS(tptr+2); /* object length includes the 4 bytes header length */
                 tptr += 4;
                 len -= 4;
 
-		if (!PACKET_HAS_SPACE(tptr, len))
+		if (!TTEST2(*tptr, len))
 			goto trunc;
 
                 if (vflag || type == 1) { /* in non-verbose mode just print Device-ID */
@@ -257,19 +257,19 @@ cdp_print_addr(packetbody_t p, int l)
 	};
 #endif
 
-	PACKET_HAS_SPACE_OR_TRUNC(p, 2);
+	TCHECK2(*p, 2);
 	num = EXTRACT_32BITS(p);
 	p += 4;
 
 	while (p < endp && num >= 0) {
-		PACKET_HAS_SPACE_OR_TRUNC(p, 2);
+		TCHECK2(*p, 2);
 		if (p + 2 > endp)
 			goto trunc;
 		pt = p[0];		/* type of "protocol" field */
 		pl = p[1];		/* length of "protocol" field */
 		p += 2;
 
-		PACKET_HAS_SPACE_OR_TRUNC(p, pl + 2);
+		TCHECK2(p[pl], 2);
 		if (p + pl + 2 > endp)
 			goto trunc;
 		al = EXTRACT_16BITS(&p[pl]);	/* address length */
@@ -282,7 +282,7 @@ cdp_print_addr(packetbody_t p, int l)
 			 */
 			p += 3;
 
-			PACKET_HAS_SPACE_OR_TRUNC(p, 4);
+			TCHECK2(*p, 4);
 			if (p + 4 > endp)
 				goto trunc;
 			printf("IPv4 (%u) %s",
@@ -300,7 +300,7 @@ cdp_print_addr(packetbody_t p, int l)
 			 * Ethertype, address length = 16
 			 */
 			p += 10;
-			PACKET_HAS_SPACE_OR_TRUNC(p, al);
+			TCHECK2(*p, al);
 			if (p + al > endp)
 				goto trunc;
 
@@ -314,19 +314,19 @@ cdp_print_addr(packetbody_t p, int l)
 			/*
 			 * Generic case: just print raw data
 			 */
-			PACKET_HAS_SPACE_OR_TRUNC(p, pl);
+			TCHECK2(*p, pl);
 			if (p + pl > endp)
 				goto trunc;
 			printf("pt=0x%02x, pl=%d, pb=", *(p - 2), pl);
 			while (pl-- > 0)
 				printf(" %02x", *p++);
-			PACKET_HAS_SPACE_OR_TRUNC(p, 2);
+			TCHECK2(*p, 2);
 			if (p + 2 > endp)
 				goto trunc;
 			al = (*p << 8) + *(p + 1);
 			printf(", al=%d, a=", al);
 			p += 2;
-			PACKET_HAS_SPACE_OR_TRUNC(p, al);
+			TCHECK2(*p, al);
 			if (p + al > endp)
 				goto trunc;
 			while (al-- > 0)

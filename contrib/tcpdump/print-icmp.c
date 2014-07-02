@@ -359,12 +359,12 @@ icmp_print(packetbody_t bp, u_int plen, packetbody_t bp2, int fragmented)
 	ip = (__capability struct ip *)bp2;
 	str = buf;
 
-	PACKET_HAS_ELEMENT_OR_TRUNC(dp, icmp_code);
+	TCHECK(dp->icmp_code);
 	switch (dp->icmp_type) {
 
 	case ICMP_ECHO:
 	case ICMP_ECHOREPLY:
-		PACKET_HAS_ELEMENT_OR_TRUNC(dp, icmp_seq);
+		TCHECK(dp->icmp_seq);
 		(void)snprintf(buf, sizeof(buf), "echo %s, id %u, seq %u",
                                dp->icmp_type == ICMP_ECHO ?
                                "request" : "reply",
@@ -386,11 +386,11 @@ icmp_print(packetbody_t bp, u_int plen, packetbody_t bp2, int fragmented)
 		break;
 
 	case ICMP_UNREACH:
-		PACKET_HAS_ELEMENT_OR_TRUNC(dp, icmp_ip.ip_dst);
+		TCHECK(dp->icmp_ip.ip_dst);
 		switch (dp->icmp_code) {
 
 		case ICMP_UNREACH_PROTOCOL:
-			PACKET_HAS_ELEMENT_OR_TRUNC(dp, icmp_ip.ip_p);
+			TCHECK(dp->icmp_ip.ip_p);
 			(void)snprintf(buf, sizeof(buf),
 			    "%s protocol %d unreachable",
 			    ipaddr_string(&dp->icmp_ip.ip_dst),
@@ -398,11 +398,11 @@ icmp_print(packetbody_t bp, u_int plen, packetbody_t bp2, int fragmented)
 			break;
 
 		case ICMP_UNREACH_PORT:
-			PACKET_HAS_ELEMENT_OR_TRUNC(dp, icmp_ip.ip_p);
+			TCHECK(dp->icmp_ip.ip_p);
 			oip = &dp->icmp_ip;
 			hlen = IP_HL(oip) * 4;
 			ouh = (__capability struct udphdr *)(((__capability u_char *)oip) + hlen);
-			PACKET_HAS_ELEMENT_OR_TRUNC(ouh, uh_dport);
+			TCHECK(ouh->uh_dport);
 			dport = EXTRACT_16BITS(&ouh->uh_dport);
 			switch (oip->ip_p) {
 
@@ -456,7 +456,7 @@ icmp_print(packetbody_t bp, u_int plen, packetbody_t bp2, int fragmented)
 		break;
 
 	case ICMP_REDIRECT:
-		PACKET_HAS_ELEMENT_OR_TRUNC(dp, icmp_ip.ip_dst);
+		TCHECK(dp->icmp_ip.ip_dst);
 		fmt = tok2str(type2str, "redirect-#%d %%s to net %%s",
 		    dp->icmp_code);
 		(void)snprintf(buf, sizeof(buf), fmt,
@@ -474,7 +474,7 @@ icmp_print(packetbody_t bp, u_int plen, packetbody_t bp2, int fragmented)
 		cp = buf + strlen(buf);
 
 		ihp = (__capability const struct ih_rdiscovery *)&dp->icmp_void;
-		PACKET_HAS_ONE_OR_TRUNC(ihp);
+		TCHECK(*ihp);
 		(void)strncpy(cp, " lifetime ", sizeof(buf) - (cp - buf));
 		cp = buf + strlen(buf);
 		lifetime = EXTRACT_16BITS(&ihp->ird_lifetime);
@@ -505,7 +505,7 @@ icmp_print(packetbody_t bp, u_int plen, packetbody_t bp2, int fragmented)
 		}
 		idp = (__capability const struct id_rdiscovery *)&dp->icmp_data;
 		while (num-- > 0) {
-			PACKET_HAS_ONE_OR_TRUNC(idp);
+			TCHECK(*idp);
 			(void)snprintf(cp, sizeof(buf) - (cp - buf), " {%s %u}",
 			    ipaddr_string(&idp->ird_addr),
 			    EXTRACT_32BITS(&idp->ird_pref));
@@ -516,7 +516,7 @@ icmp_print(packetbody_t bp, u_int plen, packetbody_t bp2, int fragmented)
 		break;
 
 	case ICMP_TIMXCEED:
-		PACKET_HAS_ELEMENT_OR_TRUNC(dp, icmp_ip.ip_dst);
+		TCHECK(dp->icmp_ip.ip_dst);
 		switch (dp->icmp_code) {
 
 		case ICMP_TIMXCEED_INTRANS:
@@ -539,20 +539,20 @@ icmp_print(packetbody_t bp, u_int plen, packetbody_t bp2, int fragmented)
 			(void)snprintf(buf, sizeof(buf),
 			    "parameter problem - code %d", dp->icmp_code);
 		else {
-			PACKET_HAS_ELEMENT_OR_TRUNC(dp, icmp_pptr);
+			TCHECK(dp->icmp_pptr);
 			(void)snprintf(buf, sizeof(buf),
 			    "parameter problem - octet %d", dp->icmp_pptr);
 		}
 		break;
 
 	case ICMP_MASKREPLY:
-		PACKET_HAS_ELEMENT_OR_TRUNC(dp, icmp_mask);
+		TCHECK(dp->icmp_mask);
 		(void)snprintf(buf, sizeof(buf), "address mask is 0x%08x",
 		    EXTRACT_32BITS(&dp->icmp_mask));
 		break;
 
 	case ICMP_TSTAMP:
-		PACKET_HAS_ELEMENT_OR_TRUNC(dp, icmp_seq);
+		TCHECK(dp->icmp_seq);
 		(void)snprintf(buf, sizeof(buf),
 		    "time stamp query id %u seq %u",
 		    EXTRACT_16BITS(&dp->icmp_id),
@@ -560,7 +560,7 @@ icmp_print(packetbody_t bp, u_int plen, packetbody_t bp2, int fragmented)
 		break;
 
 	case ICMP_TSTAMPREPLY:
-		PACKET_HAS_ELEMENT_OR_TRUNC(dp, icmp_ttime);
+		TCHECK(dp->icmp_ttime);
 		(void)snprintf(buf, sizeof(buf),
 		    "time stamp reply id %u seq %u: org %s",
                                EXTRACT_16BITS(&dp->icmp_id),
@@ -580,7 +580,7 @@ icmp_print(packetbody_t bp, u_int plen, packetbody_t bp2, int fragmented)
 	(void)printf("ICMP %s, length %u", str, plen);
 	if (vflag && !fragmented) { /* don't attempt checksumming if this is a frag */
 		u_int16_t sum, icmp_sum;
-		if (PACKET_HAS_SPACE(bp, plen)) {
+		if (TTEST2(*bp, plen)) {
 			vec[0].ptr = (packetbody_t)dp;
 			vec[0].len = plen;
 			sum = in_cksum(vec, 1);
@@ -612,7 +612,7 @@ icmp_print(packetbody_t bp, u_int plen, packetbody_t bp2, int fragmented)
          */
         if (vflag >= 1 && plen > ICMP_EXTD_MINLEN && ICMP_MPLS_EXT_TYPE(dp->icmp_type)) {
 
-            PACKET_HAS_ONE_OR_TRUNC(ext_dp);
+            TCHECK(*ext_dp);
 
             /*
              * Check first if the mpls extension header shows a non-zero length.
@@ -654,7 +654,7 @@ icmp_print(packetbody_t bp, u_int plen, packetbody_t bp2, int fragmented)
             while (hlen > sizeof(struct icmp_mpls_ext_object_header_t)) {
 
                 icmp_mpls_ext_object_header = (__capability const struct icmp_mpls_ext_object_header_t *)obj_tptr;
-                PACKET_HAS_ONE_OR_TRUNC(icmp_mpls_ext_object_header);
+                TCHECK(*icmp_mpls_ext_object_header);
                 obj_tlen = EXTRACT_16BITS(icmp_mpls_ext_object_header->length);
                 obj_class_num = icmp_mpls_ext_object_header->class_num;
                 obj_ctype = icmp_mpls_ext_object_header->ctype;
@@ -679,7 +679,7 @@ icmp_print(packetbody_t bp, u_int plen, packetbody_t bp2, int fragmented)
                 case 1:
                     switch(obj_ctype) {
                     case 1:
-                        PACKET_HAS_SPACE_OR_TRUNC(obj_tptr, 4);
+                        TCHECK2(*obj_tptr, 4);
                         raw_label = EXTRACT_32BITS(obj_tptr);
                         printf("\n\t    label %u, exp %u", MPLS_LABEL(raw_label), MPLS_EXP(raw_label));
                         if (MPLS_STACK(raw_label))

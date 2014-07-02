@@ -415,7 +415,7 @@ asn1_parse(packetbody_t p, u_int len, struct be *elem)
 		fputs("[nothing to parse]", stdout);
 		return -1;
 	}
-	PACKET_HAS_ONE_OR_TRUNC(p);
+	TCHECK(*p);
 
 	/*
 	 * it would be nice to use a bit field, but you can't depend on them.
@@ -454,14 +454,14 @@ asn1_parse(packetbody_t p, u_int len, struct be *elem)
 				fputs("[Xtagfield?]", stdout);
 				return -1;
 			}
-			PACKET_HAS_ONE_OR_TRUNC(p);
+			TCHECK(*p);
 			id = (id << 7) | (*p & ~ASN_BIT8);
 		}
 		if (len < 1) {
 			fputs("[Xtagfield?]", stdout);
 			return -1;
 		}
-		PACKET_HAS_ONE_OR_TRUNC(p);
+		TCHECK(*p);
 		elem->id = id = (id << 7) | *p;
 		--len;
 		++hdr;
@@ -471,7 +471,7 @@ asn1_parse(packetbody_t p, u_int len, struct be *elem)
 		fputs("[no asnlen]", stdout);
 		return -1;
 	}
-	PACKET_HAS_ONE_OR_TRUNC(p);
+	TCHECK(*p);
 	elem->asnlen = *p;
 	p++; len--; hdr++;
 	if (elem->asnlen & ASN_BIT8) {
@@ -481,7 +481,7 @@ asn1_parse(packetbody_t p, u_int len, struct be *elem)
 			printf("[asnlen? %d<%d]", len, noct);
 			return -1;
 		}
-		PACKET_HAS_SPACE_OR_TRUNC(p, noct);
+		TCHECK2(*p, noct);
 		for (; noct-- > 0; len--, hdr++)
 			elem->asnlen = (elem->asnlen << ASN_SHIFT8) | *p++;
 	}
@@ -517,7 +517,7 @@ asn1_parse(packetbody_t p, u_int len, struct be *elem)
 				elem->type = BE_INT;
 				data = 0;
 
-				PACKET_HAS_SPACE_OR_TRUNC(p, elem->asnlen);
+				TCHECK2(*p, elem->asnlen);
 				if (*p & ASN_BIT8)	/* negative */
 					data = -1;
 				for (i = elem->asnlen; i-- > 0; p++)
@@ -556,7 +556,7 @@ asn1_parse(packetbody_t p, u_int len, struct be *elem)
 			case GAUGE:
 			case TIMETICKS: {
 				register u_int32_t data;
-				PACKET_HAS_SPACE_OR_TRUNC(p, elem->asnlen);
+				TCHECK2(*p, elem->asnlen);
 				elem->type = BE_UNS;
 				data = 0;
 				for (i = elem->asnlen; i-- > 0; p++)
@@ -567,7 +567,7 @@ asn1_parse(packetbody_t p, u_int len, struct be *elem)
 
 			case COUNTER64: {
 				register u_int32_t high, low;
-				PACKET_HAS_SPACE_OR_TRUNC(p, elem->asnlen);
+				TCHECK2(*p, elem->asnlen);
 			        elem->type = BE_UNS64;
 				high = 0, low = 0;
 				for (i = elem->asnlen; i-- > 0; p++) {
@@ -611,7 +611,7 @@ asn1_parse(packetbody_t p, u_int len, struct be *elem)
 		default:
 			printf("[P/%s/%s]",
 				Class[class].name, Class[class].Id[id]);
-			PACKET_HAS_SPACE_OR_TRUNC(p, elem->asnlen);
+			TCHECK2(*p, elem->asnlen);
 			elem->type = BE_OCTET;
 			elem->data.raw = p;
 			break;
@@ -673,7 +673,7 @@ asn1_print(struct be *elem)
 	switch (elem->type) {
 
 	case BE_OCTET:
-		PACKET_HAS_SPACE_OR_TRUNC(p, asnlen);
+		TCHECK2(*p, asnlen);
 		for (i = asnlen; i-- > 0; p++)
 			printf("_%.2x", *p);
 		break;
@@ -689,7 +689,7 @@ asn1_print(struct be *elem)
 			struct obj_abrev *a = &obj_abrev_list[0];
 			size_t a_len = strlen(a->oid);
 			for (; a->node; a++) {
-				PACKET_HAS_SPACE_OR_TRUNC(p, a_len);
+				TCHECK2(*p, a_len);
 				if (memcmp(a->oid, (char *)p, a_len) == 0) {
 					objp = a->node->child;
 					i -= strlen(a->oid);
@@ -702,7 +702,7 @@ asn1_print(struct be *elem)
 		}
 
 		for (; !sflag && i-- > 0; p++) {
-			PACKET_HAS_ONE_OR_TRUNC(p);
+			TCHECK(*p);
 			o = (o << ASN_SHIFT7) + (*p & ~ASN_BIT8);
 			if (*p & ASN_LONGLEN)
 			        continue;
@@ -782,7 +782,7 @@ asn1_print(struct be *elem)
 	case BE_STR: {
 		register int printable = 1, first = 1;
 		p = elem->data.str;
-		PACKET_HAS_SPACE_OR_TRUNC(p, asnlen);
+		TCHECK2(*p, asnlen);
 		for (i = asnlen; printable && i-- > 0; p++)
 			printable = isprint(*p) || isspace(*p);
 		p = elem->data.str;
@@ -808,7 +808,7 @@ asn1_print(struct be *elem)
 	case BE_INETADDR:
 		if (asnlen != ASNLEN_INETADDR)
 			printf("[inetaddr len!=%d]", ASNLEN_INETADDR);
-		PACKET_HAS_SPACE_OR_TRUNC(p, asnlen);
+		TCHECK2(*p, asnlen);
 		for (i = asnlen; i-- != 0; p++) {
 			printf((i == asnlen-1) ? "%u" : ".%u", *p);
 		}
@@ -906,7 +906,7 @@ smi_decode_oid(struct be *elem, unsigned int *oid,
 	int o = 0, first = -1, i = asnlen;
 
 	for (*oidlen = 0; sflag && i-- > 0; p++) {
-		PACKET_HAS_ONE_OR_TRUNC(p);
+		TCHECK(*p);
 	        o = (o << ASN_SHIFT7) + (*p & ~ASN_BIT8);
 		if (*p & ASN_LONGLEN)
 		    continue;

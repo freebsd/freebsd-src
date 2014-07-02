@@ -45,7 +45,7 @@ void
 babel_print(packetbody_t cp, u_int length) {
     printf("babel");
 
-    PACKET_HAS_SPACE_OR_TRUNC(cp, 4);
+    TCHECK2(*cp, 4);
 
     if(cp[0] != 42) {
         printf(" malformed header");
@@ -199,7 +199,7 @@ babel_print_v2(packetbody_t cp, u_int length) {
         {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0xFF, 0xFF, 0, 0, 0, 0 };
     u_char v6_prefix[16] = {0};
 
-    PACKET_HAS_SPACE_OR_TRUNC(cp, 4);
+    TCHECK2(*cp, 4);
     if (length < 4)
         goto corrupt;
     bodylen = EXTRACT_16BITS(cp + 2);
@@ -212,12 +212,12 @@ babel_print_v2(packetbody_t cp, u_int length) {
         u_int type, len;
 
         message = cp + 4 + i;
-        PACKET_HAS_SPACE_OR_TRUNC(message, 2);
+        TCHECK2(*message, 2);
         ICHECK(i, 2);
         type = message[0];
         len = message[1];
 
-        PACKET_HAS_SPACE_OR_TRUNC(message, 2 + len);
+        TCHECK2(*message, 2 + len);
         ICHECK(i, 2 + len);
 
         switch(type) {

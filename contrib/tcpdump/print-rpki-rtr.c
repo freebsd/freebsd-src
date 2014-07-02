@@ -331,7 +331,7 @@ rpki_rtr_print(packetbody_t pptr, register u_int len) {
 
     while (tlen >= sizeof(rpki_rtr_pdu)) {
 
-        PACKET_HAS_SPACE_OR_TRUNC(tptr, sizeof(rpki_rtr_pdu));
+        TCHECK2(*tptr, sizeof(rpki_rtr_pdu));
 
 	pdu_header = (__capability const rpki_rtr_pdu *)tptr;
         pdu_type = pdu_header->pdu_type;
@@ -342,7 +342,7 @@ rpki_rtr_print(packetbody_t pptr, register u_int len) {
             break;
         }
 
-        PACKET_HAS_SPACE_OR_TRUNC(tptr, pdu_len);
+        TCHECK2(*tptr, pdu_len);
         if (tlen < pdu_len) {
             goto trunc;
         }

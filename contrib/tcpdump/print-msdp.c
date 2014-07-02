@@ -40,7 +40,7 @@ msdp_print(packetbody_t sp, u_int length)
 {
 	unsigned int type, len;
 
-	PACKET_HAS_SPACE_OR_TRUNC(sp, 3);
+	TCHECK2(*sp, 3);
 	/* See if we think we're at the beginning of a compound packet */
 	type = *sp;
 	len = EXTRACT_16BITS(sp + 1);
@@ -48,7 +48,7 @@ msdp_print(packetbody_t sp, u_int length)
 		goto trunc;	/* not really truncated, but still not decodable */
 	(void)printf(" msdp:");
 	while (length > 0) {
-		PACKET_HAS_SPACE_OR_TRUNC(sp, 3);
+		TCHECK2(*sp, 3);
 		type = *sp;
 		len = EXTRACT_16BITS(sp + 1);
 		if (len > 1400 || vflag)
@@ -64,7 +64,7 @@ msdp_print(packetbody_t sp, u_int length)
 				(void)printf(" SA");
 			else
 				(void)printf(" SA-Response");
-			PACKET_HAS_ONE_OR_TRUNC(sp);
+			TCHECK(*sp);
 			(void)printf(" %u entries", *sp);
 			if ((u_int)((*sp * 12) + 8) < len) {
 				(void)printf(" [w/data]");
@@ -77,7 +77,7 @@ msdp_print(packetbody_t sp, u_int length)
 			break;
 		case 2:
 			(void)printf(" SA-Request");
-			PACKET_HAS_SPACE_OR_TRUNC(sp, 5);
+			TCHECK2(*sp, 5);
 			(void)printf(" for %s", ipaddr_string(sp + 1));
 			break;
 		case 4:

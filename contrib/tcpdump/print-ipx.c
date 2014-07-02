@@ -61,7 +61,7 @@ ipx_print(packetbody_t p, u_int length)
 	if (!eflag)
 		printf("IPX ");
 
-	PACKET_HAS_ELEMENT_OR_TRUNC(ipx, srcSkt);
+	TCHECK(ipx->srcSkt);
 	(void)printf("%s.%04x > ",
 		     ipxaddr_string(EXTRACT_32BITS(ipx->srcNet), ipx->srcNode),
 		     EXTRACT_16BITS(&ipx->srcSkt));
@@ -71,7 +71,7 @@ ipx_print(packetbody_t p, u_int length)
 		     EXTRACT_16BITS(&ipx->dstSkt));
 
 	/* take length from ipx header */
-	PACKET_HAS_ELEMENT_OR_TRUNC(ipx, length);
+	TCHECK(ipx->length);
 	length = EXTRACT_16BITS(&ipx->length);
 
 	ipx_decode(ipx, (packetbody_t)ipx + ipxSize, length - ipxSize);
@@ -136,7 +136,7 @@ ipx_sap_print(__capability const u_short *ipx, u_int length)
 {
     int command, i;
 
-    PACKET_HAS_ONE_OR_TRUNC(ipx);
+    TCHECK(ipx[0]);
     command = EXTRACT_16BITS(ipx);
     ipx++;
     length -= 2;
@@ -149,7 +149,7 @@ ipx_sap_print(__capability const u_short *ipx, u_int length)
 	else
 	    (void)printf("ipx-sap-nearest-req");
 
-	PACKET_HAS_ONE_OR_TRUNC(ipx);
+	TCHECK(ipx[0]);
 	(void)printf(" %s", ipxsap_string(htons(EXTRACT_16BITS(&ipx[0]))));
 	break;
 
@@ -161,13 +161,13 @@ ipx_sap_print(__capability const u_short *ipx, u_int length)
 	    (void)printf("ipx-sap-nearest-resp");
 
 	for (i = 0; i < 8 && length > 0; i++) {
-	    PACKET_HAS_ONE_OR_TRUNC(ipx);
+	    TCHECK(ipx[0]);
 	    (void)printf(" %s '", ipxsap_string(htons(EXTRACT_16BITS(&ipx[0]))));
 	    if (fn_printzp((packetbody_t)&ipx[1], 48, snapend)) {
 		printf("'");
 		goto trunc;
 	    }
-	    PACKET_HAS_SPACE_OR_TRUNC(ipx, (2 * 25) + 10);
+	    TCHECK2(ipx[25], 10);
 	    printf("' addr %s",
 		ipxaddr_string(EXTRACT_32BITS(&ipx[25]), (packetbody_t)&ipx[27]));
 	    ipx += 32;
@@ -188,7 +188,7 @@ ipx_rip_print(__capability const u_short *ipx, u_int length)
 {
     int command, i;
 
-    PACKET_HAS_ONE_OR_TRUNC(ipx);
+    TCHECK(ipx[0]);
     command = EXTRACT_16BITS(ipx);
     ipx++;
     length -= 2;
@@ -197,7 +197,7 @@ ipx_rip_print(__capability const u_short *ipx, u_int length)
       case 1:
 	(void)printf("ipx-rip-req");
 	if (length > 0) {
-	    PACKET_HAS_SPACE_OR_TRUNC(ipx, 8);
+	    TCHECK(ipx[3]);
 	    (void)printf(" %08x/%d.%d", EXTRACT_32BITS(&ipx[0]),
 			 EXTRACT_16BITS(&ipx[2]), EXTRACT_16BITS(&ipx[3]));
 	}
@@ -205,7 +205,7 @@ ipx_rip_print(__capability const u_short *ipx, u_int length)
       case 2:
 	(void)printf("ipx-rip-resp");
 	for (i = 0; i < 50 && length > 0; i++) {
-	    PACKET_HAS_SPACE_OR_TRUNC(ipx, 8);
+	    TCHECK(ipx[3]);
 	    (void)printf(" %08x/%d.%d", EXTRACT_32BITS(&ipx[0]),
 			 EXTRACT_16BITS(&ipx[2]), EXTRACT_16BITS(&ipx[3]));
 

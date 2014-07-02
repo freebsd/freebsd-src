@@ -307,7 +307,7 @@ cfm_print(packetbody_t pptr, register u_int length) {
 
     tptr=pptr;
     cfm_common_header = (__capability const struct cfm_common_header_t *)pptr;
-    PACKET_HAS_ONE_OR_TRUNC(cfm_common_header);
+    TCHECK(*cfm_common_header);
 
     /*
      * Sanity checking of the header.
@@ -487,12 +487,12 @@ cfm_print(packetbody_t pptr, register u_int length) {
         cfm_tlv_header = (__capability const struct cfm_tlv_header_t *)tptr;
 
         /* Enough to read the tlv type ? */
-        PACKET_HAS_SPACE_OR_TRUNC(tptr, 1);
+        TCHECK2(*tptr, 1);
         cfm_tlv_type=cfm_tlv_header->type;
 
         if (cfm_tlv_type != CFM_TLV_END) {
             /* did we capture enough for fully decoding the object header ? */
-            PACKET_HAS_SPACE_OR_TRUNC(tptr, sizeof(struct cfm_tlv_header_t));            
+            TCHECK2(*tptr, sizeof(struct cfm_tlv_header_t));            
             cfm_tlv_len=EXTRACT_16BITS(&cfm_tlv_header->length);
         } else {
             cfm_tlv_len = 0;
@@ -517,7 +517,7 @@ cfm_print(packetbody_t pptr, register u_int length) {
 
         /* did we capture enough for fully decoding the object ? */
         if (cfm_tlv_type != CFM_TLV_END) {
-            PACKET_HAS_SPACE_OR_TRUNC(tptr, cfm_tlv_len);
+            TCHECK2(*tptr, cfm_tlv_len);
         }
         hexdump = FALSE;
 

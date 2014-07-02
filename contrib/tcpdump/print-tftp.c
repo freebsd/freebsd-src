@@ -86,7 +86,7 @@ tftp_print(packetbody_t bp, u_int length)
 	printf(" %d", length);
 
 	/* Print tftp request type */
-	PACKET_HAS_ELEMENT_OR_TRUNC(tp, th_opcode);
+	TCHECK(tp->th_opcode);
 	opcode = EXTRACT_16BITS(&tp->th_opcode);
 	cp = tok2str(op2str, "tftp-#%d", opcode);
 	printf(" %s", cp);
@@ -125,13 +125,13 @@ tftp_print(packetbody_t bp, u_int length)
 
 	case ACK:
 	case DATA:
-		PACKET_HAS_ELEMENT_OR_TRUNC(tp, th_block);
+		TCHECK(tp->th_block);
 		printf(" block %d", EXTRACT_16BITS(&tp->th_block));
 		break;
 
 	case TFTP_ERROR:
 		/* Print error code string */
-		PACKET_HAS_ELEMENT_OR_TRUNC(tp, th_code);
+		TCHECK(tp->th_code);
 		printf(" %s \"", tok2str(err2str, "tftp-err-#%d \"",
 				       EXTRACT_16BITS(&tp->th_code)));
 		/* Print error message string */

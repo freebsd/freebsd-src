@@ -49,7 +49,7 @@ frag6_print(packetbody_t bp, packetbody_t bp2)
 	dp = (__capability const struct ip6_frag *)bp;
 	ip6 = (__capability const struct ip6_hdr *)bp2;
 
-	PACKET_HAS_ELEMENT_OR_TRUNC(dp, ip6f_offlg);
+	TCHECK(dp->ip6f_offlg);
 
 	if (vflag) {
 		printf("frag (0x%08x:%d|%ld)",
@@ -77,5 +77,6 @@ frag6_print(packetbody_t bp, packetbody_t bp2)
 trunc:
 	fputs("[|frag]", stdout);
 	return -1;
+#undef TCHECK
 }
 #endif /* INET6 */

@@ -113,7 +113,7 @@ pppoe_print(packetbody_t bp, u_int length)
 	}
 	length -= PPPOE_HDRLEN;
 	pppoe_packet = bp;
-	PACKET_HAS_SPACE_OR_TRUNC(pppoe_packet, PPPOE_HDRLEN);
+	TCHECK2(*pppoe_packet, PPPOE_HDRLEN);
 	pppoe_ver  = (pppoe_packet[0] & 0xF0) >> 4;
 	pppoe_type  = (pppoe_packet[0] & 0x0F);
 	pppoe_code = pppoe_packet[1];
@@ -151,7 +151,7 @@ pppoe_print(packetbody_t bp, u_int length)
 		 * tag_type is previous tag or 0xffff for first iteration
 		 */
 		while (tag_type && p < pppoe_payload + pppoe_length) {
-			PACKET_HAS_SPACE_OR_TRUNC(p, 4);
+			TCHECK2(*p, 4);
 			tag_type = EXTRACT_16BITS(p);
 			tag_len = EXTRACT_16BITS(p + 2);
 			p += 4;
@@ -164,7 +164,7 @@ pppoe_print(packetbody_t bp, u_int length)
 				unsigned tag_str_len = 0;
 
 				/* TODO print UTF-8 decoded text */
-				PACKET_HAS_SPACE_OR_TRUNC(p, tag_len);
+				TCHECK2(*p, tag_len);
 				for (v = p; v < p + tag_len && tag_str_len < MAXTAGPRINT-1; v++)
 					if (*v >= 32 && *v < 127) {
 						tag_str[tag_str_len++] = *v;

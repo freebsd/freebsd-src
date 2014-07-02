@@ -231,7 +231,7 @@ eigrp_print(packetbody_t pptr, register u_int len) {
 
     tptr=pptr;
     eigrp_com_header = (__capability const struct eigrp_common_header *)pptr;
-    PACKET_HAS_ONE_OR_TRUNC(eigrp_com_header);
+    TCHECK(*eigrp_com_header);
 
     /*
      * Sanity checking of the header.
@@ -271,7 +271,7 @@ eigrp_print(packetbody_t pptr, register u_int len) {
 
     while(tlen>0) {
         /* did we capture enough for fully decoding the object header ? */
-        PACKET_HAS_SPACE_OR_TRUNC(tptr, sizeof(struct eigrp_tlv_header));
+        TCHECK2(*tptr, sizeof(struct eigrp_tlv_header));
 
         eigrp_tlv_header = (__capability const struct eigrp_tlv_header *)tptr;
         eigrp_tlv_len=EXTRACT_16BITS(&eigrp_tlv_header->length);
@@ -295,7 +295,7 @@ eigrp_print(packetbody_t pptr, register u_int len) {
         tlv_tlen=eigrp_tlv_len-sizeof(struct eigrp_tlv_header);
 
         /* did we capture enough for fully decoding the object ? */
-        PACKET_HAS_SPACE_OR_TRUNC(tptr, eigrp_tlv_len);
+        TCHECK2(*tptr, eigrp_tlv_len);
 
         switch(eigrp_tlv_type) {
 

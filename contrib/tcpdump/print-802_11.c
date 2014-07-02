@@ -641,7 +641,7 @@ wep_print(packetbody_t p)
 {
 	u_int32_t iv;
 
-	if (!PACKET_HAS_SPACE(p, IEEE802_11_IV_LEN + IEEE802_11_KID_LEN))
+	if (!TTEST2(*p, IEEE802_11_IV_LEN + IEEE802_11_KID_LEN))
 		return 0;
 	iv = EXTRACT_LE_32BITS(p);
 
@@ -674,13 +674,13 @@ parse_elements(struct mgmt_body_t *pbody, packetbody_t p, int offset,
 	pbody->tim_present = 0;
 
 	while (length != 0) {
-		if (!PACKET_HAS_SPACE(p, offset + 1))
+		if (!TTEST2(*(p + offset), 1))
 			return 0;
 		if (length < 1)
 			return 0;
 		switch (*(p + offset)) {
 		case E_SSID:
-			if (!PACKET_HAS_SPACE(p, offset + 2))
+			if (!TTEST2(*(p + offset), 2))
 				return 0;
 			if (length < 2)
 				return 0;
@@ -690,7 +690,7 @@ parse_elements(struct mgmt_body_t *pbody, packetbody_t p, int offset,
 			if (ssid.length != 0) {
 				if (ssid.length > sizeof(ssid.ssid) - 1)
 					return 0;
-				if (!PACKET_HAS_SPACE(p, offset + ssid.length))
+				if (!TTEST2(*(p + offset), ssid.length))
 					return 0;
 				if (length < ssid.length)
 					return 0;
@@ -712,7 +712,7 @@ parse_elements(struct mgmt_body_t *pbody, packetbody_t p, int offset,
 			}
 			break;
 		case E_CHALLENGE:
-			if (!PACKET_HAS_SPACE(p, offset + 2))
+			if (!TTEST2(*(p + offset), 2))
 				return 0;
 			if (length < 2)
 				return 0;
@@ -723,7 +723,7 @@ parse_elements(struct mgmt_body_t *pbody, packetbody_t p, int offset,
 				if (challenge.length >
 				    sizeof(challenge.text) - 1)
 					return 0;
-				if (!PACKET_HAS_SPACE(p, offset + challenge.length))
+				if (!TTEST2(*(p + offset), challenge.length))
 					return 0;
 				if (length < challenge.length)
 					return 0;
@@ -746,7 +746,7 @@ parse_elements(struct mgmt_body_t *pbody, packetbody_t p, int offset,
 			}
 			break;
 		case E_RATES:
-			if (!PACKET_HAS_SPACE(p, offset + 2))
+			if (!TTEST2(*(p + offset), 2))
 				return 0;
 			if (length < 2)
 				return 0;
@@ -756,7 +756,7 @@ parse_elements(struct mgmt_body_t *pbody, packetbody_t p, int offset,
 			if (rates.length != 0) {
 				if (rates.length > sizeof rates.rate)
 					return 0;
-				if (!PACKET_HAS_SPACE(p, offset + rates.length))
+				if (!TTEST2(*(p + offset), rates.length))
 					return 0;
 				if (length < rates.length)
 					return 0;
@@ -786,7 +786,7 @@ parse_elements(struct mgmt_body_t *pbody, packetbody_t p, int offset,
 			}
 			break;
 		case E_DS:
-			if (!PACKET_HAS_SPACE(p, offset + 3))
+			if (!TTEST2(*(p + offset), 3))
 				return 0;
 			if (length < 3)
 				return 0;
@@ -806,7 +806,7 @@ parse_elements(struct mgmt_body_t *pbody, packetbody_t p, int offset,
 			}
 			break;
 		case E_CF:
-			if (!PACKET_HAS_SPACE(p, offset + 8))
+			if (!TTEST2(*(p + offset), 8))
 				return 0;
 			if (length < 8)
 				return 0;
@@ -826,14 +826,14 @@ parse_elements(struct mgmt_body_t *pbody, packetbody_t p, int offset,
 			}
 			break;
 		case E_TIM:
-			if (!PACKET_HAS_SPACE(p, offset + 2))
+			if (!TTEST2(*(p + offset), 2))
 				return 0;
 			if (length < 2)
 				return 0;
 			p_memcpy_from_packet(&tim, p + offset, 2);
 			offset += 2;
 			length -= 2;
-			if (!PACKET_HAS_SPACE(p, offset + 3))
+			if (!TTEST2(*(p + offset), 3))
 				return 0;
 			if (length < 3)
 				return 0;
@@ -845,7 +845,7 @@ parse_elements(struct mgmt_body_t *pbody, packetbody_t p, int offset,
 				break;
 			if (tim.length - 3 > (int)sizeof tim.bitmap)
 				return 0;
-			if (!PACKET_HAS_SPACE(p, offset + tim.length - 3))
+			if (!TTEST2(*(p + offset), tim.length - 3))
 				return 0;
 			if (length < (u_int)(tim.length - 3))
 				return 0;
@@ -870,12 +870,12 @@ parse_elements(struct mgmt_body_t *pbody, packetbody_t p, int offset,
 			printf("(1) unhandled element_id (%d)  ",
 			    *(p + offset));
 #endif
-			if (!PACKET_HAS_SPACE(p, offset + 2))
+			if (!TTEST2(*(p + offset), 2))
 				return 0;
 			if (length < 2)
 				return 0;
 			elementlen = *(p + offset + 1);
-			if (!PACKET_HAS_SPACE(p, offset + 2 + elementlen))
+			if (!TTEST2(*(p + offset + 2), elementlen))
 				return 0;
 			if (length < elementlen + 2)
 				return 0;
@@ -902,7 +902,7 @@ handle_beacon(packetbody_t p, u_int length)
 
 	memset(&pbody, 0, sizeof(pbody));
 
-	if (!PACKET_HAS_SPACE(p, IEEE802_11_TSTAMP_LEN + IEEE802_11_BCNINT_LEN +
+	if (!TTEST2(*p, IEEE802_11_TSTAMP_LEN + IEEE802_11_BCNINT_LEN +
 	    IEEE802_11_CAPINFO_LEN))
 		return 0;
 	if (length < IEEE802_11_TSTAMP_LEN + IEEE802_11_BCNINT_LEN +
@@ -938,7 +938,7 @@ handle_assoc_request(packetbody_t p, u_int length)
 
 	memset(&pbody, 0, sizeof(pbody));
 
-	if (!PACKET_HAS_SPACE(p, IEEE802_11_CAPINFO_LEN + IEEE802_11_LISTENINT_LEN))
+	if (!TTEST2(*p, IEEE802_11_CAPINFO_LEN + IEEE802_11_LISTENINT_LEN))
 		return 0;
 	if (length < IEEE802_11_CAPINFO_LEN + IEEE802_11_LISTENINT_LEN)
 		return 0;
@@ -965,7 +965,7 @@ handle_assoc_response(packetbody_t p, u_int length)
 
 	memset(&pbody, 0, sizeof(pbody));
 
-	if (!PACKET_HAS_SPACE(p, IEEE802_11_CAPINFO_LEN + IEEE802_11_STATUS_LEN +
+	if (!TTEST2(*p, IEEE802_11_CAPINFO_LEN + IEEE802_11_STATUS_LEN +
 	    IEEE802_11_AID_LEN))
 		return 0;
 	if (length < IEEE802_11_CAPINFO_LEN + IEEE802_11_STATUS_LEN +
@@ -1001,7 +1001,7 @@ handle_reassoc_request(packetbody_t p, u_int length)
 
 	memset(&pbody, 0, sizeof(pbody));
 
-	if (!PACKET_HAS_SPACE(p, IEEE802_11_CAPINFO_LEN + IEEE802_11_LISTENINT_LEN +
+	if (!TTEST2(*p, IEEE802_11_CAPINFO_LEN + IEEE802_11_LISTENINT_LEN +
 	    IEEE802_11_AP_LEN))
 		return 0;
 	if (length < IEEE802_11_CAPINFO_LEN + IEEE802_11_LISTENINT_LEN +
@@ -1058,7 +1058,7 @@ handle_probe_response(packetbody_t p, u_int length)
 
 	memset(&pbody, 0, sizeof(pbody));
 
-	if (!PACKET_HAS_SPACE(p, IEEE802_11_TSTAMP_LEN + IEEE802_11_BCNINT_LEN +
+	if (!TTEST2(*p, IEEE802_11_TSTAMP_LEN + IEEE802_11_BCNINT_LEN +
 	    IEEE802_11_CAPINFO_LEN))
 		return 0;
 	if (length < IEEE802_11_TSTAMP_LEN + IEEE802_11_BCNINT_LEN +
@@ -1097,7 +1097,7 @@ handle_disassoc(packetbody_t p, u_int length)
 
 	memset(&pbody, 0, sizeof(pbody));
 
-	if (!PACKET_HAS_SPACE(p, IEEE802_11_REASON_LEN))
+	if (!TTEST2(*p, IEEE802_11_REASON_LEN))
 		return 0;
 	if (length < IEEE802_11_REASON_LEN)
 		return 0;
@@ -1120,7 +1120,7 @@ handle_auth(packetbody_t p, u_int length)
 
 	memset(&pbody, 0, sizeof(pbody));
 
-	if (!PACKET_HAS_SPACE(p, 6))
+	if (!TTEST2(*p, 6))
 		return 0;
 	if (length < 6)
 		return 0;
@@ -1173,7 +1173,7 @@ handle_deauth(const struct mgmt_header_t *pmh, packetbody_t p, u_int length)
 
 	memset(&pbody, 0, sizeof(pbody));
 
-	if (!PACKET_HAS_SPACE(p, IEEE802_11_REASON_LEN))
+	if (!TTEST2(*p, IEEE802_11_REASON_LEN))
 		return 0;
 	if (length < IEEE802_11_REASON_LEN)
 		return 0;
@@ -1254,7 +1254,7 @@ handle_deauth(const struct mgmt_header_t *pmh, packetbody_t p, u_int length)
 static int
 handle_action(const struct mgmt_header_t *pmh, packetbody_t p, u_int length)
 {
-	if (!PACKET_HAS_SPACE(p, 2))
+	if (!TTEST2(*p, 2))
 		return 0;
 	if (length < 2)
 		return 0;
@@ -1324,7 +1324,7 @@ mgmt_body_print(u_int16_t fc, const struct mgmt_header_t *pmh,
 		return handle_disassoc(p, length);
 	case ST_AUTH:
 		printf("Authentication");
-		if (!PACKET_HAS_SPACE(p, 3))
+		if (!TTEST2(*p, 3))
 			return 0;
 		if ((p[0] == 0 ) && (p[1] == 0) && (p[2] == 0)) {
 			printf("Authentication (Shared-Key)-3 ");
@@ -1361,7 +1361,7 @@ ctrl_body_print(u_int16_t fc, packetbody_t p)
 		break;
 	case CTRL_BAR:
 		printf("BAR");
-		if (!PACKET_HAS_SPACE(p, CTRL_BAR_HDRLEN))
+		if (!TTEST2(*p, CTRL_BAR_HDRLEN))
 			return 0;
 		if (!eflag)
 			printf(" RA:%s TA:%s CTL(%x) SEQ(%u) ",
@@ -1372,7 +1372,7 @@ ctrl_body_print(u_int16_t fc, packetbody_t p)
 		break;
 	case CTRL_BA:
 		printf("BA");
-		if (!PACKET_HAS_SPACE(p, CTRL_BA_HDRLEN))
+		if (!TTEST2(*p, CTRL_BA_HDRLEN))
 			return 0;
 		if (!eflag)
 			printf(" RA:%s ",
@@ -1380,14 +1380,14 @@ ctrl_body_print(u_int16_t fc, packetbody_t p)
 		break;
 	case CTRL_PS_POLL:
 		printf("Power Save-Poll");
-		if (!PACKET_HAS_SPACE(p, CTRL_PS_POLL_HDRLEN))
+		if (!TTEST2(*p, CTRL_PS_POLL_HDRLEN))
 			return 0;
 		printf(" AID(%x)",
 		    EXTRACT_LE_16BITS(&(((const struct ctrl_ps_poll_t *)p)->aid)));
 		break;
 	case CTRL_RTS:
 		printf("Request-To-Send");
-		if (!PACKET_HAS_SPACE(p, CTRL_RTS_HDRLEN))
+		if (!TTEST2(*p, CTRL_RTS_HDRLEN))
 			return 0;
 		if (!eflag)
 			printf(" TA:%s ",
@@ -1395,7 +1395,7 @@ ctrl_body_print(u_int16_t fc, packetbody_t p)
 		break;
 	case CTRL_CTS:
 		printf("Clear-To-Send");
-		if (!PACKET_HAS_SPACE(p, CTRL_CTS_HDRLEN))
+		if (!TTEST2(*p, CTRL_CTS_HDRLEN))
 			return 0;
 		if (!eflag)
 			printf(" RA:%s ",
@@ -1403,7 +1403,7 @@ ctrl_body_print(u_int16_t fc, packetbody_t p)
 		break;
 	case CTRL_ACK:
 		printf("Acknowledgment");
-		if (!PACKET_HAS_SPACE(p, CTRL_ACK_HDRLEN))
+		if (!TTEST2(*p, CTRL_ACK_HDRLEN))
 			return 0;
 		if (!eflag)
 			printf(" RA:%s ",
@@ -1411,7 +1411,7 @@ ctrl_body_print(u_int16_t fc, packetbody_t p)
 		break;
 	case CTRL_CF_END:
 		printf("CF-End");
-		if (!PACKET_HAS_SPACE(p, CTRL_END_HDRLEN))
+		if (!TTEST2(*p, CTRL_END_HDRLEN))
 			return 0;
 		if (!eflag)
 			printf(" RA:%s ",
@@ -1419,7 +1419,7 @@ ctrl_body_print(u_int16_t fc, packetbody_t p)
 		break;
 	case CTRL_END_ACK:
 		printf("CF-End+CF-Ack");
-		if (!PACKET_HAS_SPACE(p, CTRL_END_ACK_HDRLEN))
+		if (!TTEST2(*p, CTRL_END_ACK_HDRLEN))
 			return 0;
 		if (!eflag)
 			printf(" RA:%s ",

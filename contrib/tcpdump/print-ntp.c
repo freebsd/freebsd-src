@@ -92,7 +92,7 @@ ntp_print(packetbody_t cp, u_int length)
 
 	bp = (__capability struct ntpdata *)cp;
 
-	PACKET_HAS_ELEMENT_OR_TRUNC(bp, status);
+	TCHECK(bp->status);
 
 	version = (int)(bp->status & VERSIONMASK) >> 3;
 	printf("NTPv%d", version);
@@ -114,27 +114,27 @@ ntp_print(packetbody_t cp, u_int length)
                 tok2str(ntp_leapind_values, "Unknown", leapind),
                 leapind);
 
-	PACKET_HAS_ELEMENT_OR_TRUNC(bp, stratum);
+	TCHECK(bp->stratum);
 	printf(", Stratum %u (%s)", 	
 		bp->stratum,
 		tok2str(ntp_stratum_values, (bp->stratum >=2 && bp->stratum<=15) ? "secondary reference" : "reserved", bp->stratum));
 
-	PACKET_HAS_ELEMENT_OR_TRUNC(bp, ppoll);
+	TCHECK(bp->ppoll);
 	printf(", poll %u (%us)", bp->ppoll, 1 << bp->ppoll);
 
-	/* Can't get offset of bp->precision bitfield so next - 1 instead */
-	PACKET_HAS_SPACE_OR_TRUNC(bp, offsetof(struct ntpdata, root_delay) - 1);
+	/* Can't TCHECK bp->precision bitfield so bp->distance + 0 instead */
+	TCHECK2(bp->root_delay, 0);
 	printf(", precision %d", bp->precision);
 
-	PACKET_HAS_ELEMENT_OR_TRUNC(bp, root_delay);
+	TCHECK(bp->root_delay);
 	fputs("\n\tRoot Delay: ", stdout);
 	p_sfix(&bp->root_delay);
 
-	PACKET_HAS_ELEMENT_OR_TRUNC(bp, root_dispersion);
+	TCHECK(bp->root_dispersion);
 	fputs(", Root dispersion: ", stdout);
 	p_sfix(&bp->root_dispersion);
 
-	PACKET_HAS_ELEMENT_OR_TRUNC(bp, refid);
+	TCHECK(bp->refid);
 	fputs(", Reference-ID: ", stdout);
 	/* Interpretation depends on stratum */
 	switch (bp->stratum) {
@@ -163,19 +163,19 @@ ntp_print(packetbody_t cp, u_int length)
 		break;
 	}
 
-	PACKET_HAS_ELEMENT_OR_TRUNC(bp, ref_timestamp);
+	TCHECK(bp->ref_timestamp);
 	fputs("\n\t  Reference Timestamp:  ", stdout);
 	p_ntp_time(&(bp->ref_timestamp));
 
-	PACKET_HAS_ELEMENT_OR_TRUNC(bp, org_timestamp);
+	TCHECK(bp->org_timestamp);
 	fputs("\n\t  Originator Timestamp: ", stdout);
 	p_ntp_time(&(bp->org_timestamp));
 
-	PACKET_HAS_ELEMENT_OR_TRUNC(bp, rec_timestamp);
+	TCHECK(bp->rec_timestamp);
 	fputs("\n\t  Receive Timestamp:    ", stdout);
 	p_ntp_time(&(bp->rec_timestamp));
 
-	PACKET_HAS_ELEMENT_OR_TRUNC(bp, xmt_timestamp);
+	TCHECK(bp->xmt_timestamp);
 	fputs("\n\t  Transmit Timestamp:   ", stdout);
 	p_ntp_time(&(bp->xmt_timestamp));
 
@@ -186,12 +186,12 @@ ntp_print(packetbody_t cp, u_int length)
 	p_ntp_delta(&(bp->org_timestamp), &(bp->xmt_timestamp));
 
 	if ( (sizeof(struct ntpdata) - length) == 16) { 	/* Optional: key-id */
-		PACKET_HAS_ELEMENT_OR_TRUNC(bp, key_id);
+		TCHECK(bp->key_id);
 		printf("\n\tKey id: %u", bp->key_id);
 	} else if ( (sizeof(struct ntpdata) - length) == 0) { 	/* Optional: key-id + authentication */
-		PACKET_HAS_ELEMENT_OR_TRUNC(bp, key_id);
+		TCHECK(bp->key_id);
 		printf("\n\tKey id: %u", bp->key_id);
-		PACKET_HAS_ELEMENT_OR_TRUNC(bp, message_digest);
+		TCHECK2(bp->message_digest, sizeof (bp->message_digest));
                 printf("\n\tAuthentication: %08x%08x%08x%08x",
         		       EXTRACT_32BITS(bp->message_digest),
 		               EXTRACT_32BITS(bp->message_digest + 4),

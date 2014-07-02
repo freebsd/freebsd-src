@@ -88,7 +88,7 @@ igrp_print(packetbody_t bp, u_int length, packetbody_t bp2 _U_)
         (void)printf("igrp:");
 
 	/* Header */
-	PACKET_HAS_ONE_OR_TRUNC(hdr);
+	TCHECK(*hdr);
 	nint = EXTRACT_16BITS(&hdr->ig_ni);
 	nsys = EXTRACT_16BITS(&hdr->ig_ns);
 	next = EXTRACT_16BITS(&hdr->ig_nx);
@@ -105,15 +105,15 @@ igrp_print(packetbody_t bp, u_int length, packetbody_t bp2 _U_)
 	length -= sizeof(*hdr);
 	while (length >= IGRP_RTE_SIZE) {
 		if (nint > 0) {
-			PACKET_HAS_SPACE_OR_TRUNC(cp, IGRP_RTE_SIZE);
+			TCHECK2(*cp, IGRP_RTE_SIZE);
 			igrp_entry_print((__capability const struct igrprte *)cp, 1, 0);
 			--nint;
 		} else if (nsys > 0) {
-			PACKET_HAS_SPACE_OR_TRUNC(cp, IGRP_RTE_SIZE);
+			TCHECK2(*cp, IGRP_RTE_SIZE);
 			igrp_entry_print((__capability const struct igrprte *)cp, 0, 0);
 			--nsys;
 		} else if (next > 0) {
-			PACKET_HAS_SPACE_OR_TRUNC(cp, IGRP_RTE_SIZE);
+			TCHECK2(*cp, IGRP_RTE_SIZE);
 			igrp_entry_print((__capability const struct igrprte *)cp, 0, 1);
 			--next;
 		} else {

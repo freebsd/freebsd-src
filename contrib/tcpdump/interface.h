@@ -34,7 +34,6 @@
 /* snprintf et al */
 
 #include <stdarg.h>
-#include <stddef.h>
 
 #if HAVE_STDINT_H
 #include <stdint.h>
@@ -107,40 +106,35 @@ extern const char *program_name;/* used to generate self-identifying messages */
 
 extern int32_t thiszone;	/* seconds offset from gmt to local time */
 
-#ifndef HAS_CHERI_CAPABILITIES
+/*
+ * True if  "l" bytes of "var" were captured.
+ *
+ * The "snapend - (l) <= snapend" checks to make sure "l" isn't so large
+ * that "snapend - (l)" underflows.
+ *
+ * The check is for <= rather than < because "l" might be 0.
+ */
+#define TTEST2(var, l) (snapend - (l) <= snapend && \
+			(const u_char *)&(var) <= snapend - (l))
+
+/* True if "var" was captured */
+#define TTEST(var) TTEST2(var, sizeof(var))
+
+/* Bail if "l" bytes of "var" were not captured */
+#define TCHECK2(var, l) if (!TTEST2(var, l)) goto trunc
+
+/* Bail if "var" was not captured */
+#define TCHECK(var) TCHECK2(var, sizeof(var))
+
 /* Does "pptr" point to a valid section of the packet? */
 #define	PACKET_VALID(pptr)	((const u_char *)(pptr) <= snapend)
 /* How much space is left in "pptr"? */
 #define	PACKET_REMAINING(pptr) \
-	(size_t)(PACKET_VALID(pptr) ? snapend - (const u_char *)(pptr) : 0)
+	(PACKET_VALID(pptr) ? snapend - (const u_char *)(pptr) : 0)
 /* Get the end pointer for a run of data */
 #define	PACKET_SECTION_END(pptr, len) \
-	((size_t)(len) > PACKET_REMAINING(pptr) ? snapend : \
+	((len) > PACKET_REMAINING(pptr) ? snapend : \
 	    (void *)((const u_char *)(pptr) + len))
-#else /* HAS_CHERI_CAPABILITIES */
-/* Making invalid packet pointers is a runtime error and a bug. */
-#define PACKET_VALID(pptr)		1
-#define	PACKET_REMAINING(pptr)		cheri_getlen((__capability void *)pptr)
-#define	PACKET_SECTION_END(pptr, len)	\
-	((packetbody_t)(pptr) + MIN(cheri_getlen((__capability void *)pptr), (size_t)len))
-#endif /* HAS_CHERI_CAPABILITIES */
-
-#define	PACKET_HAS_SPACE(pptr, len) \
-	((size_t)(len) <= PACKET_REMAINING(pptr))
-#define	PACKET_HAS_SPACE_OR_TRUNC(pptr, len) \
-	if (!PACKET_HAS_SPACE(pptr, len)) goto trunc
-/* True if the packet has room for at least one full *pptr */
-#define	PACKET_HAS_ONE(pptr) \
-	PACKET_HAS_SPACE(pptr, sizeof(*pptr))
-#define PACKET_HAS_ONE_OR_TRUNC(pptr) \
-	if (!PACKET_HAS_ONE(pptr)) goto trunc
-/* True if the packet has all of the given element */
-#define PACKET_HAS_ELEMENT(pptr, elem) \
-	PACKET_HAS_SPACE(pptr, \
-	    offsetof(typeof(*(pptr)), elem) + sizeof((pptr)->elem))
-#define PACKET_HAS_ELEMENT_OR_TRUNC(pptr, elem) \
-	if (!PACKET_HAS_ELEMENT(pptr, elem)) goto trunc
-
 
 extern void ts_print(const struct timeval *);
 extern void relts_print(int);

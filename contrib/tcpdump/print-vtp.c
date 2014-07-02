@@ -134,7 +134,7 @@ vtp_print (packetbody_t pptr, u_int length)
 
     tptr = pptr; 
 
-    if (!PACKET_HAS_SPACE(tptr, VTP_HEADER_LEN))	
+    if (!TTEST2(*tptr, VTP_HEADER_LEN))	
 	goto trunc;
 
     type = *(tptr+1);
@@ -246,7 +246,7 @@ vtp_print (packetbody_t pptr, u_int length)
 	    if (len == 0)
 		break;
 
-	    if (!PACKET_HAS_SPACE(tptr, len))
+	    if (!TTEST2(*tptr, len))
 		goto trunc;
 
 	    vtp_vlan = (__capability const struct vtp_vlan_*)tptr;
@@ -291,7 +291,7 @@ vtp_print (packetbody_t pptr, u_int length)
                     return;
                 }
 
-                if (!PACKET_HAS_SPACE(tptr, tlv_len*2 +2))
+                if (!TTEST2(*tptr, tlv_len*2 +2))
                     goto trunc;
 
                 tlv_value = EXTRACT_16BITS(tptr+2);

@@ -165,7 +165,7 @@ egpnrprint(__capability const struct egp_packet *egp)
 	for (gateways = 0; gateways < t_gateways; ++gateways) {
 		/* Pickup host part of gateway address */
 		addr = 0;
-		PACKET_HAS_SPACE_OR_TRUNC(cp, 4 - netlen);
+		TCHECK2(cp[0], 4 - netlen);
 		switch (netlen) {
 
 		case 1:
@@ -178,7 +178,7 @@ egpnrprint(__capability const struct egp_packet *egp)
 			addr = (addr << 8) | *cp++;
 		}
 		addr |= net;
-		PACKET_HAS_SPACE_OR_TRUNC(cp, 1);
+		TCHECK2(cp[0], 1);
 		distances = *cp++;
 		printf(" %s %s ",
 		       gateways < (int)egp->egp_intgw ? "int" : "ext",
@@ -187,19 +187,19 @@ egpnrprint(__capability const struct egp_packet *egp)
 		comma = "";
 		putchar('(');
 		while (--distances >= 0) {
-			PACKET_HAS_SPACE_OR_TRUNC(cp, 2);
+			TCHECK2(cp[0], 2);
 			printf("%sd%d:", comma, (int)*cp++);
 			comma = ", ";
 			networks = *cp++;
 			while (--networks >= 0) {
 				/* Pickup network number */
-				PACKET_HAS_SPACE_OR_TRUNC(cp, 1);
+				TCHECK2(cp[0], 1);
 				addr = (u_int32_t)*cp++ << 24;
 				if (IN_CLASSB(addr)) {
-					PACKET_HAS_SPACE_OR_TRUNC(cp, 1);
+					TCHECK2(cp[0], 1);
 					addr |= (u_int32_t)*cp++ << 16;
 				} else if (!IN_CLASSA(addr)) {
-					PACKET_HAS_SPACE_OR_TRUNC(cp, 2);
+					TCHECK2(cp[0], 2);
 					addr |= (u_int32_t)*cp++ << 16;
 					addr |= (u_int32_t)*cp++ << 8;
 				}
@@ -222,7 +222,7 @@ egp_print(packetbody_t bp, register u_int length)
 	register int type;
 
 	egp = (__capability struct egp_packet *)bp;
-        if (!PACKET_HAS_SPACE(egp, length)) {
+        if (!TTEST2(*egp, length)) {
 		printf("[|egp]");
 		return;
 	}

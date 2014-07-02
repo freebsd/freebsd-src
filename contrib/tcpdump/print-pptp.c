@@ -273,7 +273,7 @@ struct pptp_msg_sli {
 /******************************************/
 
 /* In these attribute-specific print-out functions, it't not necessary
-   to check for validity  because they are already checked in the caller of
+   to do TCHECK because they are already checked in the caller of
    these functions. */
 
 static void
@@ -602,20 +602,20 @@ pptp_sccrq_print(packetbody_t dat)
 	__capability struct pptp_msg_sccrq *ptr =
 	    (__capability struct pptp_msg_sccrq *)dat;
 
-	PACKET_HAS_ELEMENT_OR_TRUNC(ptr, proto_ver);
+	TCHECK(ptr->proto_ver);
 	pptp_proto_ver_print(&ptr->proto_ver);
-	PACKET_HAS_ELEMENT_OR_TRUNC(ptr, reserved1);
-	PACKET_HAS_ELEMENT_OR_TRUNC(ptr, framing_cap);
+	TCHECK(ptr->reserved1);
+	TCHECK(ptr->framing_cap);
 	pptp_framing_cap_print(&ptr->framing_cap);
-	PACKET_HAS_ELEMENT_OR_TRUNC(ptr, bearer_cap);
+	TCHECK(ptr->bearer_cap);
 	pptp_bearer_cap_print(&ptr->bearer_cap);
-	PACKET_HAS_ELEMENT_OR_TRUNC(ptr, max_channel);
+	TCHECK(ptr->max_channel);
 	pptp_max_channel_print(&ptr->max_channel);
-	PACKET_HAS_ELEMENT_OR_TRUNC(ptr, firm_rev);
+	TCHECK(ptr->firm_rev);
 	pptp_firm_rev_print(&ptr->firm_rev);
-	PACKET_HAS_ELEMENT_OR_TRUNC(ptr, hostname);
+	TCHECK(ptr->hostname);
 	pptp_hostname_print(&ptr->hostname[0]);
-	PACKET_HAS_ELEMENT_OR_TRUNC(ptr, vendor);
+	TCHECK(ptr->vendor);
 	pptp_vendor_print(&ptr->vendor[0]);
 
 	return;
@@ -630,23 +630,23 @@ pptp_sccrp_print(packetbody_t dat)
 	__capability struct pptp_msg_sccrp *ptr =
 	    (__capability struct pptp_msg_sccrp *)dat;
 
-	PACKET_HAS_ELEMENT_OR_TRUNC(ptr, proto_ver);
+	TCHECK(ptr->proto_ver);
 	pptp_proto_ver_print(&ptr->proto_ver);
-	PACKET_HAS_ELEMENT_OR_TRUNC(ptr, result_code);
+	TCHECK(ptr->result_code);
 	pptp_result_code_print(&ptr->result_code, PPTP_CTRL_MSG_TYPE_SCCRP);
-	PACKET_HAS_ELEMENT_OR_TRUNC(ptr, err_code);
+	TCHECK(ptr->err_code);
 	pptp_err_code_print(&ptr->err_code);
-	PACKET_HAS_ELEMENT_OR_TRUNC(ptr, framing_cap);
+	TCHECK(ptr->framing_cap);
 	pptp_framing_cap_print(&ptr->framing_cap);
-	PACKET_HAS_ELEMENT_OR_TRUNC(ptr, bearer_cap);
+	TCHECK(ptr->bearer_cap);
 	pptp_bearer_cap_print(&ptr->bearer_cap);
-	PACKET_HAS_ELEMENT_OR_TRUNC(ptr, max_channel);
+	TCHECK(ptr->max_channel);
 	pptp_max_channel_print(&ptr->max_channel);
-	PACKET_HAS_ELEMENT_OR_TRUNC(ptr, firm_rev);
+	TCHECK(ptr->firm_rev);
 	pptp_firm_rev_print(&ptr->firm_rev);
-	PACKET_HAS_ELEMENT_OR_TRUNC(ptr, hostname);
+	TCHECK(ptr->hostname);
 	pptp_hostname_print(&ptr->hostname[0]);
-	PACKET_HAS_ELEMENT_OR_TRUNC(ptr, vendor);
+	TCHECK(ptr->vendor);
 	pptp_vendor_print(&ptr->vendor[0]);
 
 	return;
@@ -661,7 +661,7 @@ pptp_stopccrq_print(packetbody_t dat)
 	__capability struct pptp_msg_stopccrq *ptr =
 	    (__capability struct pptp_msg_stopccrq *)dat;
 
-	PACKET_HAS_ELEMENT_OR_TRUNC(ptr, reason);
+	TCHECK(ptr->reason);
 	printf(" REASON(%u", ptr->reason);
 	if (vflag) {
 		switch (ptr->reason) {
@@ -680,8 +680,8 @@ pptp_stopccrq_print(packetbody_t dat)
 		}
 	}
 	printf(")");
-	PACKET_HAS_ELEMENT_OR_TRUNC(ptr, reserved1);
-	PACKET_HAS_ELEMENT_OR_TRUNC(ptr, reserved2);
+	TCHECK(ptr->reserved1);
+	TCHECK(ptr->reserved2);
 
 	return;
 
@@ -695,11 +695,11 @@ pptp_stopccrp_print(packetbody_t dat)
 	__capability struct pptp_msg_stopccrp *ptr =
 	    (__capability struct pptp_msg_stopccrp *)dat;
 
-	PACKET_HAS_ELEMENT_OR_TRUNC(ptr, result_code);
+	TCHECK(ptr->result_code);
 	pptp_result_code_print(&ptr->result_code, PPTP_CTRL_MSG_TYPE_StopCCRP);
-	PACKET_HAS_ELEMENT_OR_TRUNC(ptr, err_code);
+	TCHECK(ptr->err_code);
 	pptp_err_code_print(&ptr->err_code);
-	PACKET_HAS_ELEMENT_OR_TRUNC(ptr, reserved1);
+	TCHECK(ptr->reserved1);
 
 	return;
 
@@ -713,7 +713,7 @@ pptp_echorq_print(packetbody_t dat)
 	__capability struct pptp_msg_echorq *ptr =
 	    (__capability struct pptp_msg_echorq *)dat;
 
-	PACKET_HAS_ELEMENT_OR_TRUNC(ptr, id);
+	TCHECK(ptr->id);
 	pptp_id_print(&ptr->id);
 
 	return;
@@ -728,13 +728,13 @@ pptp_echorp_print(packetbody_t dat)
 	__capability struct pptp_msg_echorp *ptr =
 	    (__capability struct pptp_msg_echorp *)dat;
 
-	PACKET_HAS_ELEMENT_OR_TRUNC(ptr, id);
+	TCHECK(ptr->id);
 	pptp_id_print(&ptr->id);
-	PACKET_HAS_ELEMENT_OR_TRUNC(ptr, result_code);
+	TCHECK(ptr->result_code);
 	pptp_result_code_print(&ptr->result_code, PPTP_CTRL_MSG_TYPE_ECHORP);
-	PACKET_HAS_ELEMENT_OR_TRUNC(ptr, err_code);
+	TCHECK(ptr->err_code);
 	pptp_err_code_print(&ptr->err_code);
-	PACKET_HAS_ELEMENT_OR_TRUNC(ptr, reserved1);
+	TCHECK(ptr->reserved1);
 
 	return;
 
@@ -749,29 +749,29 @@ pptp_ocrq_print(packetbody_t dat)
 	__capability struct pptp_msg_ocrq *ptr =
 	(__capability struct pptp_msg_ocrq *)dat;
 
-	PACKET_HAS_ELEMENT_OR_TRUNC(ptr, call_id);
+	TCHECK(ptr->call_id);
 	pptp_call_id_print(&ptr->call_id);
-	PACKET_HAS_ELEMENT_OR_TRUNC(ptr, call_ser);
+	TCHECK(ptr->call_ser);
 	pptp_call_ser_print(&ptr->call_ser);
-	PACKET_HAS_ELEMENT_OR_TRUNC(ptr, min_bps);
+	TCHECK(ptr->min_bps);
 	printf(" MIN_BPS(%u)", EXTRACT_32BITS(&ptr->min_bps));
-	PACKET_HAS_ELEMENT_OR_TRUNC(ptr, max_bps);
+	TCHECK(ptr->max_bps);
 	printf(" MAX_BPS(%u)", EXTRACT_32BITS(&ptr->max_bps));
-	PACKET_HAS_ELEMENT_OR_TRUNC(ptr, bearer_type);
+	TCHECK(ptr->bearer_type);
 	pptp_bearer_type_print(&ptr->bearer_type);
-	PACKET_HAS_ELEMENT_OR_TRUNC(ptr, framing_type);
+	TCHECK(ptr->framing_type);
 	pptp_framing_type_print(&ptr->framing_type);
-	PACKET_HAS_ELEMENT_OR_TRUNC(ptr, recv_winsiz);
+	TCHECK(ptr->recv_winsiz);
 	pptp_recv_winsiz_print(&ptr->recv_winsiz);
-	PACKET_HAS_ELEMENT_OR_TRUNC(ptr, pkt_proc_delay);
+	TCHECK(ptr->pkt_proc_delay);
 	pptp_pkt_proc_delay_print(&ptr->pkt_proc_delay);
-	PACKET_HAS_ELEMENT_OR_TRUNC(ptr, phone_no_len);
+	TCHECK(ptr->phone_no_len);
 	printf(" PHONE_NO_LEN(%u)", EXTRACT_16BITS(&ptr->phone_no_len));
-	PACKET_HAS_ELEMENT_OR_TRUNC(ptr, reserved1);
-	PACKET_HAS_ELEMENT_OR_TRUNC(ptr, phone_no);
+	TCHECK(ptr->reserved1);
+	TCHECK(ptr->phone_no);
 	p_strncpy(buf, ptr->phone_no, 64);
 	printf(" PHONE_NO(%.64s)", buf);
-	PACKET_HAS_ELEMENT_OR_TRUNC(ptr, subaddr);
+	TCHECK(ptr->subaddr);
 	pptp_subaddr_print(&ptr->subaddr[0]);
 
 	return;
@@ -786,23 +786,23 @@ pptp_ocrp_print(packetbody_t dat)
 	__capability struct pptp_msg_ocrp *ptr =
 	(__capability struct pptp_msg_ocrp *)dat;
 
-	PACKET_HAS_ELEMENT_OR_TRUNC(ptr, call_id);
+	TCHECK(ptr->call_id);
 	pptp_call_id_print(&ptr->call_id);
-	PACKET_HAS_ELEMENT_OR_TRUNC(ptr, peer_call_id);
+	TCHECK(ptr->peer_call_id);
 	pptp_peer_call_id_print(&ptr->peer_call_id);
-	PACKET_HAS_ELEMENT_OR_TRUNC(ptr, result_code);
+	TCHECK(ptr->result_code);
 	pptp_result_code_print(&ptr->result_code, PPTP_CTRL_MSG_TYPE_OCRP);
-	PACKET_HAS_ELEMENT_OR_TRUNC(ptr, err_code);
+	TCHECK(ptr->err_code);
 	pptp_err_code_print(&ptr->err_code);
-	PACKET_HAS_ELEMENT_OR_TRUNC(ptr, cause_code);
+	TCHECK(ptr->cause_code);
 	pptp_cause_code_print(&ptr->cause_code);
-	PACKET_HAS_ELEMENT_OR_TRUNC(ptr, conn_speed);
+	TCHECK(ptr->conn_speed);
 	pptp_conn_speed_print(&ptr->conn_speed);
-	PACKET_HAS_ELEMENT_OR_TRUNC(ptr, recv_winsiz);
+	TCHECK(ptr->recv_winsiz);
 	pptp_recv_winsiz_print(&ptr->recv_winsiz);
-	PACKET_HAS_ELEMENT_OR_TRUNC(ptr, pkt_proc_delay);
+	TCHECK(ptr->pkt_proc_delay);
 	pptp_pkt_proc_delay_print(&ptr->pkt_proc_delay);
-	PACKET_HAS_ELEMENT_OR_TRUNC(ptr, phy_chan_id);
+	TCHECK(ptr->phy_chan_id);
 	pptp_phy_chan_id_print(&ptr->phy_chan_id);
 
 	return;
@@ -818,25 +818,25 @@ pptp_icrq_print(packetbody_t dat)
 	__capability struct pptp_msg_icrq *ptr =
 	(__capability struct pptp_msg_icrq *)dat;
 
-	PACKET_HAS_ELEMENT_OR_TRUNC(ptr, call_id);
+	TCHECK(ptr->call_id);
 	pptp_call_id_print(&ptr->call_id);
-	PACKET_HAS_ELEMENT_OR_TRUNC(ptr, call_ser);
+	TCHECK(ptr->call_ser);
 	pptp_call_ser_print(&ptr->call_ser);
-	PACKET_HAS_ELEMENT_OR_TRUNC(ptr, bearer_type);
+	TCHECK(ptr->bearer_type);
 	pptp_bearer_type_print(&ptr->bearer_type);
-	PACKET_HAS_ELEMENT_OR_TRUNC(ptr, phy_chan_id);
+	TCHECK(ptr->phy_chan_id);
 	pptp_phy_chan_id_print(&ptr->phy_chan_id);
-	PACKET_HAS_ELEMENT_OR_TRUNC(ptr, dialed_no_len);
+	TCHECK(ptr->dialed_no_len);
 	printf(" DIALED_NO_LEN(%u)", EXTRACT_16BITS(&ptr->dialed_no_len));
-	PACKET_HAS_ELEMENT_OR_TRUNC(ptr, dialing_no_len);
+	TCHECK(ptr->dialing_no_len);
 	printf(" DIALING_NO_LEN(%u)", EXTRACT_16BITS(&ptr->dialing_no_len));
-	PACKET_HAS_ELEMENT_OR_TRUNC(ptr, dialed_no);
+	TCHECK(ptr->dialed_no);
 	p_strncpy(buf, ptr->dialed_no, 64);
 	printf(" DIALED_NO(%.64s)", buf);
-	PACKET_HAS_ELEMENT_OR_TRUNC(ptr, dialing_no);
+	TCHECK(ptr->dialing_no);
 	p_strncpy(buf, ptr->dialing_no, 64);
 	printf(" DIALING_NO(%.64s)", buf);
-	PACKET_HAS_ELEMENT_OR_TRUNC(ptr, subaddr);
+	TCHECK(ptr->subaddr);
 	pptp_subaddr_print(&ptr->subaddr[0]);
 
 	return;
@@ -851,19 +851,19 @@ pptp_icrp_print(packetbody_t dat)
 	__capability struct pptp_msg_icrp *ptr =
 	(__capability struct pptp_msg_icrp *)dat;
 
-	PACKET_HAS_ELEMENT_OR_TRUNC(ptr, call_id);
+	TCHECK(ptr->call_id);
 	pptp_call_id_print(&ptr->call_id);
-	PACKET_HAS_ELEMENT_OR_TRUNC(ptr, peer_call_id);
+	TCHECK(ptr->peer_call_id);
 	pptp_peer_call_id_print(&ptr->peer_call_id);
-	PACKET_HAS_ELEMENT_OR_TRUNC(ptr, result_code);
+	TCHECK(ptr->result_code);
 	pptp_result_code_print(&ptr->result_code, PPTP_CTRL_MSG_TYPE_ICRP);
-	PACKET_HAS_ELEMENT_OR_TRUNC(ptr, err_code);
+	TCHECK(ptr->err_code);
 	pptp_err_code_print(&ptr->err_code);
-	PACKET_HAS_ELEMENT_OR_TRUNC(ptr, recv_winsiz);
+	TCHECK(ptr->recv_winsiz);
 	pptp_recv_winsiz_print(&ptr->recv_winsiz);
-	PACKET_HAS_ELEMENT_OR_TRUNC(ptr, pkt_proc_delay);
+	TCHECK(ptr->pkt_proc_delay);
 	pptp_pkt_proc_delay_print(&ptr->pkt_proc_delay);
-	PACKET_HAS_ELEMENT_OR_TRUNC(ptr, reserved1);
+	TCHECK(ptr->reserved1);
 
 	return;
 
@@ -877,16 +877,16 @@ pptp_iccn_print(packetbody_t dat)
 	__capability struct pptp_msg_iccn *ptr =
 	(__capability struct pptp_msg_iccn *)dat;
 
-	PACKET_HAS_ELEMENT_OR_TRUNC(ptr, peer_call_id);
+	TCHECK(ptr->peer_call_id);
 	pptp_peer_call_id_print(&ptr->peer_call_id);
-	PACKET_HAS_ELEMENT_OR_TRUNC(ptr, reserved1);
-	PACKET_HAS_ELEMENT_OR_TRUNC(ptr, conn_speed);
+	TCHECK(ptr->reserved1);
+	TCHECK(ptr->conn_speed);
 	pptp_conn_speed_print(&ptr->conn_speed);
-	PACKET_HAS_ELEMENT_OR_TRUNC(ptr, recv_winsiz);
+	TCHECK(ptr->recv_winsiz);
 	pptp_recv_winsiz_print(&ptr->recv_winsiz);
-	PACKET_HAS_ELEMENT_OR_TRUNC(ptr, pkt_proc_delay);
+	TCHECK(ptr->pkt_proc_delay);
 	pptp_pkt_proc_delay_print(&ptr->pkt_proc_delay);
-	PACKET_HAS_ELEMENT_OR_TRUNC(ptr, framing_type);
+	TCHECK(ptr->framing_type);
 	pptp_framing_type_print(&ptr->framing_type);
 
 	return;
@@ -901,9 +901,9 @@ pptp_ccrq_print(packetbody_t dat)
 	__capability struct pptp_msg_ccrq *ptr =
 	(__capability struct pptp_msg_ccrq *)dat;
 
-	PACKET_HAS_ELEMENT_OR_TRUNC(ptr, call_id);
+	TCHECK(ptr->call_id);
 	pptp_call_id_print(&ptr->call_id);
-	PACKET_HAS_ELEMENT_OR_TRUNC(ptr, reserved1);
+	TCHECK(ptr->reserved1);
 
 	return;
 
@@ -918,16 +918,16 @@ pptp_cdn_print(packetbody_t dat)
 	__capability struct pptp_msg_cdn *ptr =
 	(__capability struct pptp_msg_cdn *)dat;
 
-	PACKET_HAS_ELEMENT_OR_TRUNC(ptr, call_id);
+	TCHECK(ptr->call_id);
 	pptp_call_id_print(&ptr->call_id);
-	PACKET_HAS_ELEMENT_OR_TRUNC(ptr, result_code);
+	TCHECK(ptr->result_code);
 	pptp_result_code_print(&ptr->result_code, PPTP_CTRL_MSG_TYPE_CDN);
-	PACKET_HAS_ELEMENT_OR_TRUNC(ptr, err_code);
+	TCHECK(ptr->err_code);
 	pptp_err_code_print(&ptr->err_code);
-	PACKET_HAS_ELEMENT_OR_TRUNC(ptr, cause_code);
+	TCHECK(ptr->cause_code);
 	pptp_cause_code_print(&ptr->cause_code);
-	PACKET_HAS_ELEMENT_OR_TRUNC(ptr, reserved1);
-	PACKET_HAS_ELEMENT_OR_TRUNC(ptr, call_stats);
+	TCHECK(ptr->reserved1);
+	TCHECK(ptr->call_stats);
 	p_strncpy(buf, ptr->call_stats, 128);
 	printf(" CALL_STATS(%.128s)", buf);
 
@@ -943,20 +943,20 @@ pptp_wen_print(packetbody_t dat)
 	__capability struct pptp_msg_wen *ptr =
 	(__capability struct pptp_msg_wen *)dat;
 
-	PACKET_HAS_ELEMENT_OR_TRUNC(ptr, peer_call_id);
+	TCHECK(ptr->peer_call_id);
 	pptp_peer_call_id_print(&ptr->peer_call_id);
-	PACKET_HAS_ELEMENT_OR_TRUNC(ptr, reserved1);
-	PACKET_HAS_ELEMENT_OR_TRUNC(ptr, crc_err);
+	TCHECK(ptr->reserved1);
+	TCHECK(ptr->crc_err);
 	printf(" CRC_ERR(%u)", EXTRACT_32BITS(&ptr->crc_err));
-	PACKET_HAS_ELEMENT_OR_TRUNC(ptr, framing_err);
+	TCHECK(ptr->framing_err);
 	printf(" FRAMING_ERR(%u)", EXTRACT_32BITS(&ptr->framing_err));
-	PACKET_HAS_ELEMENT_OR_TRUNC(ptr, hardware_overrun);
+	TCHECK(ptr->hardware_overrun);
 	printf(" HARDWARE_OVERRUN(%u)", EXTRACT_32BITS(&ptr->hardware_overrun));
-	PACKET_HAS_ELEMENT_OR_TRUNC(ptr, buffer_overrun);
+	TCHECK(ptr->buffer_overrun);
 	printf(" BUFFER_OVERRUN(%u)", EXTRACT_32BITS(&ptr->buffer_overrun));
-	PACKET_HAS_ELEMENT_OR_TRUNC(ptr, timeout_err);
+	TCHECK(ptr->timeout_err);
 	printf(" TIMEOUT_ERR(%u)", EXTRACT_32BITS(&ptr->timeout_err));
-	PACKET_HAS_ELEMENT_OR_TRUNC(ptr, align_err);
+	TCHECK(ptr->align_err);
 	printf(" ALIGN_ERR(%u)", EXTRACT_32BITS(&ptr->align_err));
 
 	return;
@@ -971,12 +971,12 @@ pptp_sli_print(packetbody_t dat)
 	__capability struct pptp_msg_sli *ptr =
 	(__capability struct pptp_msg_sli *)dat;
 
-	PACKET_HAS_ELEMENT_OR_TRUNC(ptr, peer_call_id);
+	TCHECK(ptr->peer_call_id);
 	pptp_peer_call_id_print(&ptr->peer_call_id);
-	PACKET_HAS_ELEMENT_OR_TRUNC(ptr, reserved1);
-	PACKET_HAS_ELEMENT_OR_TRUNC(ptr, send_accm);
+	TCHECK(ptr->reserved1);
+	TCHECK(ptr->send_accm);
 	printf(" SEND_ACCM(0x%08x)", EXTRACT_32BITS(&ptr->send_accm));
-	PACKET_HAS_ELEMENT_OR_TRUNC(ptr, recv_accm);
+	TCHECK(ptr->recv_accm);
 	printf(" RECV_ACCM(0x%08x)", EXTRACT_32BITS(&ptr->recv_accm));
 
 	return;
@@ -996,11 +996,11 @@ pptp_print(packetbody_t dat)
 
 	hdr = (__capability struct pptp_hdr *)dat;
 
-	PACKET_HAS_ELEMENT_OR_TRUNC(hdr, length);
+	TCHECK(hdr->length);
 	if (vflag) {
 		printf(" Length=%u", EXTRACT_16BITS(&hdr->length));
 	}
-	PACKET_HAS_ELEMENT_OR_TRUNC(hdr, msg_type);
+	TCHECK(hdr->msg_type);
 	if (vflag) {
 		switch(EXTRACT_16BITS(&hdr->msg_type)) {
 		case PPTP_MSG_TYPE_CTRL:
@@ -1015,7 +1015,7 @@ pptp_print(packetbody_t dat)
 		}
 	}
 
-	PACKET_HAS_ELEMENT_OR_TRUNC(hdr, magic_cookie);
+	TCHECK(hdr->magic_cookie);
 	mc = EXTRACT_32BITS(&hdr->magic_cookie);
 	if (mc != PPTP_MAGIC_COOKIE) {
 		printf(" UNEXPECTED Magic-Cookie!!(%08x)", mc);
@@ -1023,7 +1023,7 @@ pptp_print(packetbody_t dat)
 	if (vflag || mc != PPTP_MAGIC_COOKIE) {
 		printf(" Magic-Cookie=%08x", mc);
 	}
-	PACKET_HAS_ELEMENT_OR_TRUNC(hdr, ctrl_msg_type);
+	TCHECK(hdr->ctrl_msg_type);
 	ctrl_msg_type = EXTRACT_16BITS(&hdr->ctrl_msg_type);
 	if (ctrl_msg_type < PPTP_MAX_MSGTYPE_INDEX) {
 		printf(" CTRL_MSGTYPE=%s",
@@ -1031,7 +1031,7 @@ pptp_print(packetbody_t dat)
 	} else {
 		printf(" UNKNOWN_CTRL_MSGTYPE(%u)", ctrl_msg_type);
 	}
-	PACKET_HAS_ELEMENT_OR_TRUNC(hdr, reserved0);
+	TCHECK(hdr->reserved0);
 
 	dat += 12;
 

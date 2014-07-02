@@ -103,19 +103,19 @@ ip_finddst(__capability const struct ip *ip)
 	for (; length > 0; cp += len, length -= len) {
 		int tt;
 
-		PACKET_HAS_ONE_OR_TRUNC(cp);
+		TCHECK(*cp);
 		tt = *cp;
 		if (tt == IPOPT_EOL)
 			break;
 		else if (tt == IPOPT_NOP)
 			len = 1;
 		else {
-			PACKET_HAS_SPACE_OR_TRUNC(cp, 2);
+			TCHECK(cp[1]);
 			len = cp[1];
 			if (len < 2)
 				break;
 		}
-		PACKET_HAS_SPACE_OR_TRUNC(cp, len);
+		TCHECK2(*cp, len);
 		switch (tt) {
 
 		case IPOPT_SSRR:
@@ -242,7 +242,7 @@ ip_optprint(packetbody_t cp, u_int length)
 		printf("%s", sep);
 		sep = ",";
 
-		PACKET_HAS_ONE_OR_TRUNC(cp);
+		TCHECK(*cp);
 		option_code = *cp;
 
                 printf("%s",
@@ -253,7 +253,7 @@ ip_optprint(packetbody_t cp, u_int length)
 			option_len = 1;
 
 		else {
-			PACKET_HAS_SPACE_OR_TRUNC(cp, 2);
+			TCHECK(cp[1]);
 			option_len = cp[1];
 			if (option_len < 2) {
 		                printf(" [bad length %u]", option_len);
@@ -266,7 +266,7 @@ ip_optprint(packetbody_t cp, u_int length)
 			return;
 		}
 
-                PACKET_HAS_SPACE_OR_TRUNC(cp, option_len);
+                TCHECK2(*cp, option_len);
 
 		switch (option_code) {
 		case IPOPT_EOL:
@@ -287,7 +287,7 @@ ip_optprint(packetbody_t cp, u_int length)
 				printf(" [bad length %u]", option_len);
 				break;
 			}
-                        PACKET_HAS_SPACE_OR_TRUNC(cp, 4);
+                        TCHECK(cp[3]);
                         if (EXTRACT_16BITS(&cp[2]) != 0)
                             printf(" value %u", EXTRACT_16BITS(&cp[2]));
 			break;
@@ -543,7 +543,7 @@ ip_print(netdissect_options *ndo,
         else if (!eflag)
 	    printf("IP ");
 
-	if (!ND_PACKET_HAS_ELEMENT(ipds, ip)) {
+	if (!ND_TTEST(*ipds->ip)) {
 		printf("[|ip]");
 		return;
 	}
@@ -628,7 +628,7 @@ ip_print(netdissect_options *ndo,
                 printf(")");
             }
 
-	    if (!Kflag && ND_PACKET_HAS_SPACE(ipds->ip, hlen)) {
+	    if (!Kflag && ND_TTEST2(*ipds->ip, hlen)) {
 	        vec[0].ptr = (packetbody_t)(void *)ipds->ip;
 	        vec[0].len = hlen;
 	        sum = in_cksum(vec, 1);

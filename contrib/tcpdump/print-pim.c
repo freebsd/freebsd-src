@@ -127,7 +127,7 @@ pimv1_join_prune_print(packetbody_t bp, register u_int len)
 	int njp;
 
 	/* If it's a single group and a single source, use 1-line output. */
-	if (PACKET_HAS_SPACE(bp, 30) && bp[11] == 1 &&
+	if (TTEST2(bp[0], 30) && bp[11] == 1 &&
 	    ((njoin = EXTRACT_16BITS(&bp[20])) + EXTRACT_16BITS(&bp[22])) == 1) {
 		int hold;
 
@@ -149,11 +149,11 @@ pimv1_join_prune_print(packetbody_t bp, register u_int len)
 		return;
 	}
 
-	PACKET_HAS_SPACE_OR_TRUNC(bp, sizeof(struct in_addr));
+	TCHECK2(bp[0], sizeof(struct in_addr));
 	if (vflag > 1)
 		(void)printf("\n");
 	(void)printf(" Upstream Nbr: %s", ipaddr_string(bp));
-	PACKET_HAS_SPACE_OR_TRUNC(bp, 8);
+	TCHECK2(bp[6], 2);
 	if (vflag > 1)
 		(void)printf("\n");
 	(void)printf(" Hold time: ");
@@ -163,7 +163,7 @@ pimv1_join_prune_print(packetbody_t bp, register u_int len)
 	bp += 8;
 	len -= 8;
 
-	PACKET_HAS_SPACE_OR_TRUNC(bp, 4);
+	TCHECK2(bp[0], 4);
 	maddrlen = bp[1];
 	addrlen = bp[2];
 	ngroups = bp[3];
@@ -174,12 +174,12 @@ pimv1_join_prune_print(packetbody_t bp, register u_int len)
 		 * XXX - does the address have length "addrlen" and the
 		 * mask length "maddrlen"?
 		 */
-		PACKET_HAS_SPACE_OR_TRUNC(bp, sizeof(struct in_addr));
+		TCHECK2(bp[0], sizeof(struct in_addr));
 		(void)printf("\n\tGroup: %s", ipaddr_string(bp));
-		PACKET_HAS_SPACE_OR_TRUNC(bp, 4 + sizeof(struct in_addr));
+		TCHECK2(bp[4], sizeof(struct in_addr));
 		if (EXTRACT_32BITS(&bp[4]) != 0xffffffff)
 			(void)printf("/%s", ipaddr_string(&bp[4]));
-		PACKET_HAS_SPACE_OR_TRUNC(bp, 12);
+		TCHECK2(bp[8], 4);
 		njoin = EXTRACT_16BITS(&bp[8]);
 		nprune = EXTRACT_16BITS(&bp[10]);
 		(void)printf(" joined: %d pruned: %d", njoin, nprune);
@@ -192,7 +192,7 @@ pimv1_join_prune_print(packetbody_t bp, register u_int len)
 				type = "Join ";
 			else
 				type = "Prune";
-			PACKET_HAS_SPACE_OR_TRUNC(bp, 6);
+			TCHECK2(bp[0], 6);
 			(void)printf("\n\t%s %s%s%s%s/%d", type,
 			    (bp[0] & 0x01) ? "Sparse " : "Dense ",
 			    (bp[1] & 0x80) ? "WC " : "",
@@ -216,13 +216,13 @@ pimv1_print(packetbody_t bp, register u_int len)
 	if (PACKET_REMAINING(bp) < 1)
 		return;
 
-	PACKET_HAS_SPACE_OR_TRUNC(bp, 2);
+	TCHECK(bp[1]);
 	type = bp[1];
 
 	switch (type) {
 	case 0:
 		(void)printf(" Query");
-		if (PACKET_HAS_SPACE(bp, 9)) {
+		if (TTEST(bp[8])) {
 			switch (bp[8] >> 4) {
 			case 0:
 				(void)printf(" Dense-mode");
@@ -239,7 +239,7 @@ pimv1_print(packetbody_t bp, register u_int len)
 			}
 		}
 		if (vflag) {
-			PACKET_HAS_SPACE_OR_TRUNC(bp, 12);
+			TCHECK2(bp[10],2);
 			(void)printf(" (Hold-time ");
 			relts_print(EXTRACT_16BITS(&bp[10]));
 			(void)printf(")");
@@ -248,13 +248,13 @@ pimv1_print(packetbody_t bp, register u_int len)
 
 	case 1:
 		(void)printf(" Register");
-		PACKET_HAS_SPACE_OR_TRUNC(bp, 8 + 2 * sizeof(struct in_addr));
+		TCHECK2(bp[8], 20);			/* ip header */
 		(void)printf(" for %s > %s", ipaddr_string(&bp[20]),
 		    ipaddr_string(&bp[24]));
 		break;
 	case 2:
 		(void)printf(" Register-Stop");
-		PACKET_HAS_SPACE_OR_TRUNC(bp, 8 + 2 * sizeof(struct in_addr));
+		TCHECK2(bp[12], sizeof(struct in_addr));
 		(void)printf(" for %s > %s", ipaddr_string(&bp[8]),
 		    ipaddr_string(&bp[12]));
 		break;
@@ -266,7 +266,7 @@ pimv1_print(packetbody_t bp, register u_int len)
 	case 4:
 		(void)printf(" RP-reachable");
 		if (vflag) {
-			PACKET_HAS_SPACE_OR_TRUNC(bp, 24);
+			TCHECK2(bp[22], 2);
 			(void)printf(" group %s",
 			ipaddr_string(&bp[8]));
 			if (EXTRACT_32BITS(&bp[12]) != 0xffffffff)
@@ -277,12 +277,12 @@ pimv1_print(packetbody_t bp, register u_int len)
 		break;
 	case 5:
 		(void)printf(" Assert");
-		PACKET_HAS_SPACE_OR_TRUNC(bp, 16 + sizeof(struct in_addr));
+		TCHECK2(bp[16], sizeof(struct in_addr));
 		(void)printf(" for %s > %s", ipaddr_string(&bp[16]),
 		    ipaddr_string(&bp[8]));
 		if (EXTRACT_32BITS(&bp[12]) != 0xffffffff)
 			(void)printf("/%s", ipaddr_string(&bp[12]));
-		PACKET_HAS_SPACE_OR_TRUNC(bp, 28);
+		TCHECK2(bp[24], 4);
 		(void)printf(" %s pref %d metric %d",
 		    (bp[20] & 0x80) ? "RP-tree" : "SPT",
 		EXTRACT_32BITS(&bp[20]) & 0x7fffffff,
@@ -327,7 +327,7 @@ cisco_autorp_print(packetbody_t bp, register u_int len)
 	int numrps;
 	int hold;
 
-	PACKET_HAS_ONE_OR_TRUNC(bp);
+	TCHECK(bp[0]);
 	(void)printf(" auto-rp ");
 	type = bp[0];
 	switch (type) {
@@ -342,10 +342,10 @@ cisco_autorp_print(packetbody_t bp, register u_int len)
 		break;
 	}
 
-	PACKET_HAS_SPACE_OR_TRUNC(bp, 2);
+	TCHECK(bp[1]);
 	numrps = bp[1];
 
-	PACKET_HAS_SPACE_OR_TRUNC(bp, 4);
+	TCHECK2(bp[2], 2);
 	(void)printf(" Hold ");
 	hold = EXTRACT_16BITS(&bp[2]);
 	if (hold)
@@ -374,9 +374,9 @@ cisco_autorp_print(packetbody_t bp, register u_int len)
 		int nentries;
 		char s;
 
-		PACKET_HAS_SPACE_OR_TRUNC(bp, 4);
+		TCHECK2(bp[0], 4);
 		(void)printf(" RP %s", ipaddr_string(bp));
-		PACKET_HAS_SPACE_OR_TRUNC(bp, 5);
+		TCHECK(bp[4]);
 		switch (bp[4] & 0x3) {
 		case 0: printf(" PIMv?");
 			break;
@@ -389,12 +389,12 @@ cisco_autorp_print(packetbody_t bp, register u_int len)
 		}
 		if (bp[4] & 0xfc)
 			(void)printf(" [rsvd=0x%02x]", bp[4] & 0xfc);
-		PACKET_HAS_SPACE_OR_TRUNC(bp, 6);
+		TCHECK(bp[5]);
 		nentries = bp[5];
 		bp += 6; len -= 6;
 		s = ' ';
 		for (; nentries; nentries--) {
-			PACKET_HAS_SPACE_OR_TRUNC(bp, 6);
+			TCHECK2(bp[0], 6);
 			(void)printf("%c%s%s/%d", s, bp[0] & 1 ? "!" : "",
 			    ipaddr_string(&bp[2]), bp[1]);
 			if (bp[0] & 0x02) {
@@ -422,7 +422,7 @@ pim_print(packetbody_t bp, register u_int len, u_int cksum)
 	if (PACKET_REMAINING(bp) < 1)
 		return;
 #ifdef notyet			/* currently we see only version and type */
-	PACKET_HAS_ELEMENT_OR_TRUNC(pim, pim_rsv);
+	TCHECK(pim->pim_rsv);
 #endif
 
 	switch (PIM_VER(pim->pim_typever)) {
@@ -522,10 +522,10 @@ pimv2_addr_print(packetbody_t bp, enum pimv2_addrtype at, int silent)
 	int af;
 	int len, hdrlen;
 
-	PACKET_HAS_ONE_OR_TRUNC(bp);
+	TCHECK(bp[0]);
 
 	if (pimv2_addr_len == 0) {
-		PACKET_HAS_SPACE_OR_TRUNC(bp, 2);
+		TCHECK(bp[1]);
 		switch (bp[0]) {
 		case 1:
 			af = AF_INET;
@@ -564,7 +564,7 @@ pimv2_addr_print(packetbody_t bp, enum pimv2_addrtype at, int silent)
 	bp += hdrlen;
 	switch (at) {
 	case pimv2_unicast:
-		PACKET_HAS_SPACE_OR_TRUNC(bp, len);
+		TCHECK2(bp[0], len);
 		if (af == AF_INET) {
 			if (!silent)
 				(void)printf("%s", ipaddr_string(bp));
@@ -578,7 +578,7 @@ pimv2_addr_print(packetbody_t bp, enum pimv2_addrtype at, int silent)
 		return hdrlen + len;
 	case pimv2_group:
 	case pimv2_source:
-		PACKET_HAS_SPACE_OR_TRUNC(bp, len + 2);
+		TCHECK2(bp[0], len + 2);
 		if (af == AF_INET) {
 			if (!silent) {
 				(void)printf("%s", ipaddr_string(bp + 2));
@@ -627,7 +627,7 @@ pimv2_print(packetbody_t bp, register u_int len, u_int cksum)
 	if (PACKET_REMAINING(bp) < 1)
 		return;
 	ep = PACKET_SECTION_END(bp, len);
-	PACKET_HAS_ELEMENT_OR_TRUNC(pim, pim_rsv);
+	TCHECK(pim->pim_rsv);
 	pimv2_addr_len = pim->pim_rsv;
 	if (pimv2_addr_len != 0)
 		(void)printf(", RFC2117-encoding");
@@ -636,7 +636,7 @@ pimv2_print(packetbody_t bp, register u_int len, u_int cksum)
         if (EXTRACT_16BITS(&pim->pim_cksum) == 0) {
                 printf("(unverified)");
         } else {
-                printf("(%scorrect)", PACKET_HAS_SPACE(bp, len) && cksum ? "in" : "" );
+                printf("(%scorrect)", TTEST2(bp[0], len) && cksum ? "in" : "" );
         }
 
 	switch (PIM_TYPE(pim->pim_typever)) {
@@ -645,10 +645,10 @@ pimv2_print(packetbody_t bp, register u_int len, u_int cksum)
 		u_int16_t otype, olen;
 		bp += 4;
 		while (bp < ep) {
-			PACKET_HAS_SPACE_OR_TRUNC(bp, 4);
+			TCHECK2(bp[0], 4);
 			otype = EXTRACT_16BITS(&bp[0]);
 			olen = EXTRACT_16BITS(&bp[2]);
-			PACKET_HAS_SPACE_OR_TRUNC(bp, 4 + olen);
+			TCHECK2(bp[0], 4 + olen);
 
                         printf("\n\t  %s Option (%u), length %u, Value: ",
                                tok2str( pimv2_hello_option_values,"Unknown",otype),
@@ -741,9 +741,9 @@ pimv2_print(packetbody_t bp, register u_int len, u_int cksum)
 
 	case PIMV2_TYPE_REGISTER:
 	{
-		__capability struct ip *ip;
+		struct ip *ip;
 
-                if (!PACKET_HAS_SPACE(bp, 4 + PIMV2_REGISTER_FLAG_LEN))
+                if (!TTEST2(*(bp+4), PIMV2_REGISTER_FLAG_LEN))
                         goto trunc;
 
                 printf(", Flags [ %s ]\n\t",
@@ -753,7 +753,7 @@ pimv2_print(packetbody_t bp, register u_int len, u_int cksum)
 
 		bp += 8; len -= 8;
 		/* encapsulated multicast packet */
-		ip = (__capability struct ip *)bp;
+		ip = (struct ip *)bp;
 		switch (IP_V(ip)) {
                 case 0: /* Null header */
 			(void)printf("IP-Null-header %s > %s",
@@ -1064,7 +1064,7 @@ pimv2_print(packetbody_t bp, register u_int len, u_int cksum)
 			break;
 		}
 		bp += advance;
-		PACKET_HAS_SPACE_OR_TRUNC(bp, 2);
+		TCHECK2(bp[0], 2);
 		(void)printf(" TUNR ");
 		relts_print(EXTRACT_16BITS(bp));
 		break;

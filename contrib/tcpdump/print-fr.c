@@ -220,7 +220,7 @@ fr_if_print(const struct pcap_pkthdr *h, packetbody_t p)
 	register u_int length = h->len;
 	register u_int caplen = h->caplen;
 
-        PACKET_HAS_SPACE_OR_TRUNC(p, 4); /* minimum frame header length */
+        TCHECK2(*p, 4); /* minimum frame header length */
 
         if ((length = fr_print(p, length)) == 0)
             return (0);
@@ -246,9 +246,9 @@ fr_print(packetbody_t p, u_int length)
 		return 0;
 	}
 
-        PACKET_HAS_SPACE_OR_TRUNC(p,addr_len+1+1);
+        TCHECK2(*p,addr_len+1+1);
 	hdr_len = fr_hdrlen(p, addr_len);
-        PACKET_HAS_SPACE_OR_TRUNC(p,hdr_len);
+        TCHECK2(*p,hdr_len);
 
 	if (p[addr_len] != 0x03 && dlci != 0) {
 
@@ -342,7 +342,7 @@ mfr_if_print(const struct pcap_pkthdr *h, packetbody_t p)
 	register u_int length = h->len;
 	register u_int caplen = h->caplen;
 
-        PACKET_HAS_SPACE_OR_TRUNC(p, 2); /* minimum frame header length */
+        TCHECK2(*p, 2); /* minimum frame header length */
 
         if ((length = mfr_print(p, length)) == 0)
             return (0);
@@ -419,7 +419,7 @@ mfr_print(packetbody_t p, u_int length)
  *    +----+----+----+----+----+----+----+----+
  */
 
-    PACKET_HAS_SPACE_OR_TRUNC(p, 4); /* minimum frame header length */
+    TCHECK2(*p, 4); /* minimum frame header length */
 
     if ((p[0] & MFR_BEC_MASK) == MFR_CTRL_FRAME && p[1] == 0) {
         printf("FRF.16 Control, Flags [%s], %s, length %u",
@@ -434,7 +434,7 @@ mfr_print(packetbody_t p, u_int length)
             return hdr_len;
 
         while (tlen>sizeof(struct ie_tlv_header_t)) {
-            PACKET_HAS_SPACE_OR_TRUNC(tptr, sizeof(struct ie_tlv_header_t));
+            TCHECK2(*tptr, sizeof(struct ie_tlv_header_t));
             ie_type=tptr[0];
             ie_len=tptr[1];
 
@@ -447,7 +447,7 @@ mfr_print(packetbody_t p, u_int length)
             if (ie_type == 0 || ie_len <= sizeof(struct ie_tlv_header_t))
                 return hdr_len;
 
-            PACKET_HAS_SPACE_OR_TRUNC(tptr,ie_len);
+            TCHECK2(*tptr,ie_len);
             tptr+=sizeof(struct ie_tlv_header_t);
             /* tlv len includes header */
             ie_len-=sizeof(struct ie_tlv_header_t);

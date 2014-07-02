@@ -60,7 +60,7 @@ ns_nskip(packetbody_t cp)
 {
 	register u_char i;
 
-	if (!PACKET_HAS_SPACE(cp, 1))
+	if (!TTEST2(*cp, 1))
 		return (NULL);
 	i = *cp++;
 	while (i) {
@@ -71,7 +71,7 @@ ns_nskip(packetbody_t cp)
 
 			if ((i & ~INDIR_MASK) != EDNS0_ELT_BITLABEL)
 				return(NULL); /* unknown ELT */
-			if (!PACKET_HAS_SPACE(cp, 1))
+			if (!TTEST2(*cp, 1))
 				return (NULL);
 			if ((bitlen = *cp++) == 0)
 				bitlen = 256;
@@ -79,7 +79,7 @@ ns_nskip(packetbody_t cp)
 			cp += bytelen;
 		} else
 			cp += i;
-		if (!PACKET_HAS_SPACE(cp, 1))
+		if (!TTEST2(*cp, 1))
 			return (NULL);
 		i = *cp++;
 	}
@@ -94,7 +94,7 @@ blabel_print(packetbody_t cp)
 	packetbody_t bitp, lim;
 	char tc;
 
-	if (!PACKET_HAS_SPACE(cp, 1))
+	if (!TTEST2(*cp, 1))
 		return(NULL);
 	if ((bitlen = *cp) == 0)
 		bitlen = 256;
@@ -104,15 +104,15 @@ blabel_print(packetbody_t cp)
 	/* print the bit string as a hex string */
 	printf("\\[x");
 	for (bitp = cp + 1, b = bitlen; bitp < lim && b > 7; b -= 8, bitp++) {
-		PACKET_HAS_ONE_OR_TRUNC(bitp);
+		TCHECK(*bitp);
 		printf("%02x", *bitp);
 	}
 	if (b > 4) {
-		PACKET_HAS_ONE_OR_TRUNC(bitp);
+		TCHECK(*bitp);
 		tc = *bitp++;
 		printf("%02x", tc & (0xff << (8 - b)));
 	} else if (b > 0) {
-		PACKET_HAS_ONE_OR_TRUNC(bitp);
+		TCHECK(*bitp);
 		tc = *bitp++;
 		printf("%1x", ((tc >> 4) & 0x0f) & (0x0f << (4 - b)));
 	}
@@ -128,7 +128,7 @@ labellen(packetbody_t cp)
 {
 	register u_int i;
 
-	if (!PACKET_HAS_SPACE(cp, 1))
+	if (!TTEST2(*cp, 1))
 		return(-1);
 	i = *cp;
 	if ((i & INDIR_MASK) == EDNS0_MASK) {
@@ -137,7 +137,7 @@ labellen(packetbody_t cp)
 			printf("<ELT %d>", elt);
 			return(-1);
 		}
-		if (!PACKET_HAS_SPACE(cp, 2))
+		if (!TTEST2(*(cp + 1), 1))
 			return(-1);
 		if ((bitlen = *(cp + 1)) == 0)
 			bitlen = 256;
@@ -158,7 +158,7 @@ ns_nprint(packetbody_t cp, packetbody_t bp)
 
 	if ((l = labellen(cp)) == (u_int)-1)
 		return(NULL);
-	if (!PACKET_HAS_SPACE(cp, 1))
+	if (!TTEST2(*cp, 1))
 		return(NULL);
 	chars_processed = 1;
 	if (((i = *cp++) & INDIR_MASK) != INDIR_MASK) {
@@ -173,12 +173,12 @@ ns_nprint(packetbody_t cp, packetbody_t bp)
 					rp = cp + 1;
 					compress = 1;
 				}
-				if (!PACKET_HAS_SPACE(cp, 1))
+				if (!TTEST2(*cp, 1))
 					return(NULL);
 				cp = bp + (((i << 8) | *cp) & 0x3fff);
 				if ((l = labellen(cp)) == (u_int)-1)
 					return(NULL);
-				if (!PACKET_HAS_SPACE(cp, 1))
+				if (!TTEST2(*cp, 1))
 					return(NULL);
 				i = *cp++;
 				chars_processed++;
@@ -217,7 +217,7 @@ ns_nprint(packetbody_t cp, packetbody_t bp)
 			putchar('.');
 			if ((l = labellen(cp)) == (u_int)-1)
 				return(NULL);
-			if (!PACKET_HAS_SPACE(cp, 1))
+			if (!TTEST2(*cp, 1))
 				return(NULL);
 			i = *cp++;
 			chars_processed++;
@@ -235,7 +235,7 @@ ns_cprint(packetbody_t cp)
 {
 	register u_int i;
 
-	if (!PACKET_HAS_SPACE(cp, 1))
+	if (!TTEST2(*cp, 1))
 		return (NULL);
 	i = *cp++;
 	if (fn_printn(cp, i, snapend))
@@ -326,7 +326,7 @@ ns_qprint(packetbody_t cp, packetbody_t bp, int is_mdns)
 
 	cp = ns_nskip(cp);
 
-	if (cp == NULL || !PACKET_HAS_SPACE(cp, 4))
+	if (cp == NULL || !TTEST2(*cp, 4))
 		return(NULL);
 
 	/* print the qtype */
@@ -369,7 +369,7 @@ ns_rprint(packetbody_t cp, packetbody_t bp, int is_mdns)
 	} else
 		cp = ns_nskip(cp);
 
-	if (cp == NULL || !PACKET_HAS_SPACE(cp, 10))
+	if (cp == NULL || !TTEST2(*cp, 10))
 		return (snapend);
 
 	/* print the type/qtype */
@@ -411,13 +411,13 @@ ns_rprint(packetbody_t cp, packetbody_t bp, int is_mdns)
 
 
 	printf(" %s", tok2str(ns_type2str, "Type%d", typ));
-	if (!PACKET_HAS_SPACE(cp, len))
+	if (!TTEST2(*cp, len))
 		return(NULL);
 	rp = cp + len;
 
 	switch (typ) {
 	case T_A:
-		if (!PACKET_HAS_SPACE(cp, sizeof(struct in_addr)))
+		if (!TTEST2(*cp, sizeof(struct in_addr)))
 			return(NULL);
 		printf(" %s", intoa(htonl(EXTRACT_32BITS(cp))));
 		break;
@@ -442,7 +442,7 @@ ns_rprint(packetbody_t cp, packetbody_t bp, int is_mdns)
 		putchar(' ');
 		if ((cp = ns_nprint(cp, bp)) == NULL)
 			return(NULL);
-		if (!PACKET_HAS_SPACE(cp, 5 * 4))
+		if (!TTEST2(*cp, 5 * 4))
 			return(NULL);
 		printf(" %u", EXTRACT_32BITS(cp));
 		cp += 4;
@@ -457,7 +457,7 @@ ns_rprint(packetbody_t cp, packetbody_t bp, int is_mdns)
 		break;
 	case T_MX:
 		putchar(' ');
-		if (!PACKET_HAS_SPACE(cp, 2))
+		if (!TTEST2(*cp, 2))
 			return(NULL);
 		if (ns_nprint(cp + 2, bp) == NULL)
 			return(NULL);
@@ -476,7 +476,7 @@ ns_rprint(packetbody_t cp, packetbody_t bp, int is_mdns)
 
 	case T_SRV:
 		putchar(' ');
-		if (!PACKET_HAS_SPACE(cp, 6))
+		if (!TTEST2(*cp, 6))
 			return(NULL);
 		if (ns_nprint(cp + 6, bp) == NULL)
 			return(NULL);
@@ -490,7 +490,7 @@ ns_rprint(packetbody_t cp, packetbody_t bp, int is_mdns)
 		struct in6_addr addr;
 		char ntop_buf[INET6_ADDRSTRLEN];
 
-		if (!PACKET_HAS_SPACE(cp, sizeof(struct in6_addr)))
+		if (!TTEST2(*cp, sizeof(struct in6_addr)))
 			return(NULL);
 		p_memcpy_from_packet(&addr, cp, sizeof(struct in6_addr));
 		printf(" %s",
@@ -505,7 +505,7 @@ ns_rprint(packetbody_t cp, packetbody_t bp, int is_mdns)
 		int pbit, pbyte;
 		char ntop_buf[INET6_ADDRSTRLEN];
 
-		if (!PACKET_HAS_SPACE(cp, 1))
+		if (!TTEST2(*cp, 1))
 			return(NULL);
 		pbit = *cp;
 		pbyte = (pbit & ~7) / 8;
@@ -513,7 +513,7 @@ ns_rprint(packetbody_t cp, packetbody_t bp, int is_mdns)
 			printf(" %u(bad plen)", pbit);
 			break;
 		} else if (pbit < 128) {
-			if (!PACKET_HAS_SPACE(cp, 1 + sizeof(a) - pbyte))
+			if (!TTEST2(*(cp + 1), sizeof(a) - pbyte))
 				return(NULL);
 			memset(&a, 0, sizeof(a));
 			p_memcpy_from_packet(&a.s6_addr[pbyte], cp + 1, sizeof(a) - pbyte);
@@ -536,7 +536,7 @@ ns_rprint(packetbody_t cp, packetbody_t bp, int is_mdns)
 		break;
 
 	case T_UNSPECA:		/* One long string */
-		if (!PACKET_HAS_SPACE(cp, len))
+		if (!TTEST2(*cp, len))
 			return(NULL);
 		if (fn_printn(cp, len, snapend))
 			return(NULL);
@@ -544,7 +544,7 @@ ns_rprint(packetbody_t cp, packetbody_t bp, int is_mdns)
 
 	case T_TSIG:
 	    {
-		if (!PACKET_HAS_SPACE(cp, len))
+		if (!TTEST2(*cp, len))
 			return(NULL);
 		if (!vflag)
 			break;
@@ -552,23 +552,23 @@ ns_rprint(packetbody_t cp, packetbody_t bp, int is_mdns)
 		if ((cp = ns_nprint(cp, bp)) == NULL)
 			return(NULL);
 		cp += 6;
-		if (!PACKET_HAS_SPACE(cp, 2))
+		if (!TTEST2(*cp, 2))
 			return(NULL);
 		printf(" fudge=%u", EXTRACT_16BITS(cp));
 		cp += 2;
-		if (!PACKET_HAS_SPACE(cp, 2))
+		if (!TTEST2(*cp, 2))
 			return(NULL);
 		printf(" maclen=%u", EXTRACT_16BITS(cp));
 		cp += 2 + EXTRACT_16BITS(cp);
-		if (!PACKET_HAS_SPACE(cp, 2))
+		if (!TTEST2(*cp, 2))
 			return(NULL);
 		printf(" origid=%u", EXTRACT_16BITS(cp));
 		cp += 2;
-		if (!PACKET_HAS_SPACE(cp, 2))
+		if (!TTEST2(*cp, 2))
 			return(NULL);
 		printf(" error=%u", EXTRACT_16BITS(cp));
 		cp += 2;
-		if (!PACKET_HAS_SPACE(cp, 2))
+		if (!TTEST2(*cp, 2))
 			return(NULL);
 		printf(" otherlen=%u", EXTRACT_16BITS(cp));
 		cp += 2;
@@ -586,7 +586,7 @@ ns_print(packetbody_t bp, u_int length, int is_mdns)
 	u_int16_t b2;
 
 	np = (__capability const HEADER *)bp;
-	PACKET_HAS_ONE_OR_TRUNC(np);
+	TCHECK(*np);
 	/* get the byte-order right */
 	qdcount = EXTRACT_16BITS(&np->qdcount);
 	ancount = EXTRACT_16BITS(&np->ancount);

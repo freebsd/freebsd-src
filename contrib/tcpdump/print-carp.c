@@ -56,7 +56,7 @@ carp_print(packetbody_t bp, register u_int len, int ttl)
 	int version, type;
 	const char *type_s;
 
-	PACKET_HAS_ONE_OR_TRUNC(bp);
+	TCHECK(bp[0]);
 	version = (bp[0] & 0xf0) >> 4;
 	type = bp[0] & 0x0f;
 	if (type == 1)
@@ -68,14 +68,15 @@ carp_print(packetbody_t bp, register u_int len, int ttl)
 		printf("[ttl=%d!] ", ttl);
 	if (version != 2 || type != 1)
 		return;
-	PACKET_HAS_SPACE_OR_TRUNC(bp, 6);
+	TCHECK(bp[2]);
+	TCHECK(bp[5]);
 	printf("vhid=%d advbase=%d advskew=%d authlen=%d ",
 	    bp[1], bp[5], bp[2], bp[3]);
 	if (vflag) {
 		struct cksum_vec vec[1];
 		vec[0].ptr = (packetbody_t)bp;
 		vec[0].len = len;
-		if (PACKET_HAS_SPACE(bp, len) && in_cksum(vec, 1))
+		if (TTEST2(bp[0], len) && in_cksum(vec, 1))
 			printf(" (bad carp cksum %x!)",
 				EXTRACT_16BITS(&bp[6]));
 	}

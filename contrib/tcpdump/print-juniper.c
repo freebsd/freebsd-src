@@ -1148,7 +1148,7 @@ juniper_parse_header (packetbody_t p, const struct pcap_pkthdr *h, struct junipe
 
     l2info->length = h->len;
     l2info->caplen = h->caplen;
-    PACKET_HAS_SPACE_OR_TRUNC(p,4);
+    TCHECK2(p[0],4);
     l2info->flags = p[3];
     l2info->direction = p[3]&JUNIPER_BPF_PKT_IN;
     
@@ -1173,7 +1173,7 @@ juniper_parse_header (packetbody_t p, const struct pcap_pkthdr *h, struct junipe
         tptr = p+jnx_header_len;
 
         /* ok to read extension length ? */
-        PACKET_HAS_SPACE_OR_TRUNC(tptr, 2);
+        TCHECK2(tptr[0], 2);
         jnx_ext_len = EXTRACT_16BITS(tptr);
         jnx_header_len += 2;
         tptr +=2;
@@ -1187,7 +1187,7 @@ juniper_parse_header (packetbody_t p, const struct pcap_pkthdr *h, struct junipe
             printf(", PCAP Extension(s) total length %u",
                    jnx_ext_len);
         
-        PACKET_HAS_SPACE_OR_TRUNC(tptr, jnx_ext_len);
+        TCHECK2(tptr[0], jnx_ext_len);
         while (jnx_ext_len > JUNIPER_EXT_TLV_OVERHEAD) {
             tlv_type = *(tptr++);
             tlv_len = *(tptr++);
@@ -1253,7 +1253,7 @@ juniper_parse_header (packetbody_t p, const struct pcap_pkthdr *h, struct junipe
          * perform the v4/v6 heuristics
          * to figure out what it is
          */
-        PACKET_HAS_SPACE_OR_TRUNC(p, (jnx_header_len+4) + 1);
+        TCHECK2(p[jnx_header_len+4],1);
         if(ip_heuristic_guess(p+jnx_header_len+4,l2info->length-(jnx_header_len+4)) == 0)
             printf("no IP-hdr found!");
 
@@ -1306,7 +1306,7 @@ juniper_parse_header (packetbody_t p, const struct pcap_pkthdr *h, struct junipe
                        l2info->cookie_len);
 
             if (l2info->cookie_len > 0) {
-                PACKET_HAS_SPACE_OR_TRUNC(p,l2info->cookie_len);
+                TCHECK2(p[0],l2info->cookie_len);
                 if (eflag)
                     printf(", cookie 0x");
                 for (idx = 0; idx < l2info->cookie_len; idx++) {
@@ -1388,7 +1388,7 @@ juniper_parse_header (packetbody_t p, const struct pcap_pkthdr *h, struct junipe
 #endif
 #ifdef DLT_JUNIPER_ATM2
     case DLT_JUNIPER_ATM2:
-        PACKET_HAS_SPACE_OR_TRUNC(p,4);
+        TCHECK2(p[0],4);
         /* ATM cell relay control word present ? */
         if (l2info->cookie[7] & ATM2_PKT_TYPE_MASK) {
             control_word = EXTRACT_32BITS(p);

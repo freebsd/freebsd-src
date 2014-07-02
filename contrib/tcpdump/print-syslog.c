@@ -94,24 +94,27 @@ syslog_print(packetbody_t pptr, register u_int len)
      * severity and facility values
      */
 
-    if (!PACKET_HAS_SPACE(pptr, 1))
+    if (!TTEST2(*pptr, 1))
         goto trunc;
 
     if (*(pptr+msg_off) == '<') {
         msg_off++;
 
-        PACKET_HAS_SPACE_OR_TRUNC(pptr, msg_off + 1);
+        if (!TTEST2(*(pptr+msg_off), 1))
+            goto trunc;
 
         while ( *(pptr+msg_off) >= '0' &&
                 *(pptr+msg_off) <= '9' &&
                 msg_off <= SYSLOG_MAX_DIGITS) {
 
-            PACKET_HAS_SPACE_OR_TRUNC(pptr, msg_off + 1);
+            if (!TTEST2(*(pptr+msg_off), 1))
+                goto trunc;
 
             pri = pri * 10 + (*(pptr+msg_off) - '0');
             msg_off++;
 
-            PACKET_HAS_SPACE_OR_TRUNC(pptr, msg_off + 1);
+            if (!TTEST2(*(pptr+msg_off), 1))
+                goto trunc;
 
         if (*(pptr+msg_off) == '>')
             msg_off++;
@@ -143,7 +146,8 @@ syslog_print(packetbody_t pptr, register u_int len)
 
     /* print the syslog text in verbose mode */
     for (; msg_off < len; msg_off++) {
-        PACKET_HAS_SPACE_OR_TRUNC(pptr, msg_off + 1);
+        if (!TTEST2(*(pptr+msg_off), 1))
+            goto trunc;
         safeputchar(*(pptr+msg_off));        
     }
 

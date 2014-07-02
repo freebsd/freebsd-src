@@ -175,7 +175,7 @@ bfd_print(packetbody_t pptr, register u_int len, register u_int port)
 
         bfd_header = (__capability const struct bfd_header_t *)pptr;
         if (port == BFD_CONTROL_PORT) {
-            PACKET_HAS_ONE_OR_TRUNC(bfd_header);
+            TCHECK(*bfd_header);
             version = BFD_EXTRACT_VERSION(bfd_header->version_diag);
         } else if (port == BFD_ECHO_PORT) {
             /* Echo is BFD v1 only */
@@ -253,7 +253,7 @@ bfd_print(packetbody_t pptr, register u_int len, register u_int port)
             if (bfd_header->flags & BFD_FLAG_AUTH) {
                 pptr += sizeof (const struct bfd_header_t);
                 bfd_auth_header = (const struct bfd_auth_header_t *)pptr;
-                PACKET_HAS_SPACE_OR_TRUNC(bfd_auth_header, sizeof(const struct bfd_auth_header_t));
+                TCHECK2(*bfd_auth_header, sizeof(const struct bfd_auth_header_t));
                 printf("\n\t%s (%u) Authentication, length %u present",
                        tok2str(bfd_v1_authentication_values,"Unknown",bfd_auth_header->auth_type),
                        bfd_auth_header->auth_type,

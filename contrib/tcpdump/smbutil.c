@@ -136,7 +136,7 @@ name_interpret(packetbody_t in, packetbody_t maxbuf, char *out)
 
     if (in >= maxbuf)
 	return(-1);	/* name goes past the end of the buffer */
-    PACKET_HAS_SPACE_OR_TRUNC(in, 1);
+    TCHECK2(*in, 1);
     len = (*in++) / 2;
 
     *out=0;
@@ -145,7 +145,7 @@ name_interpret(packetbody_t in, packetbody_t maxbuf, char *out)
 	return(0);
 
     while (len--) {
-	PACKET_HAS_SPACE_OR_TRUNC(in, 2);
+	TCHECK2(*in, 2);
 	if (in + 1 >= maxbuf)
 	    return(-1);	/* name goes past the end of the buffer */
 	if (in[0] < 'A' || in[0] > 'P' || in[1] < 'A' || in[1] > 'P') {
@@ -177,7 +177,7 @@ name_ptr(packetbody_t buf, int ofs, packetbody_t maxbuf)
     p = buf + ofs;
     if (p >= maxbuf)
 	return(NULL);	/* name goes past the end of the buffer */
-    PACKET_HAS_SPACE_OR_TRUNC(p, 1);
+    TCHECK2(*p, 1);
 
     c = *p;
 
@@ -185,7 +185,7 @@ name_ptr(packetbody_t buf, int ofs, packetbody_t maxbuf)
     if ((c & 0xC0) == 0xC0) {
 	u_int16_t l;
 
-	PACKET_HAS_SPACE_OR_TRUNC(p, 2);
+	TCHECK2(*p, 2);
 	if ((p + 1) >= maxbuf)
 	    return(NULL);	/* name goes past the end of the buffer */
 	l = EXTRACT_16BITS(p) & 0x3FFF;
@@ -196,7 +196,7 @@ name_ptr(packetbody_t buf, int ofs, packetbody_t maxbuf)
 	p = buf + l;
 	if (p >= maxbuf)
 	    return(NULL);	/* name goes past the end of the buffer */
-	PACKET_HAS_SPACE_OR_TRUNC(p, 1);
+	TCHECK2(*p, 1);
     }
     return(p);
 
@@ -229,14 +229,14 @@ name_len(packetbody_t s, packetbody_t maxbuf)
 
     if (s >= maxbuf)
 	return(-1);	/* name goes past the end of the buffer */
-    PACKET_HAS_SPACE_OR_TRUNC(s, 1);
+    TCHECK2(*s, 1);
     c = *s;
     if ((c & 0xC0) == 0xC0)
 	return(2);
     while (*s) {
 	if (s >= maxbuf)
 	    return(-1);	/* name goes past the end of the buffer */
-	PACKET_HAS_SPACE_OR_TRUNC(s, 1);
+	TCHECK2(*s, 1);
 	s += (*s) + 1;
     }
     return(PTR_DIFF(s, s0) + 1);
@@ -279,7 +279,7 @@ print_data(packetbody_t buf, int len)
 	return;
     printf("[%03X] ", i);
     for (i = 0; i < len; /*nothing*/) {
-        PACKET_HAS_SPACE_OR_TRUNC(buf, i);
+        TCHECK(buf[i]);
 	printf("%02X ", buf[i] & 0xff);
 	i++;
 	if (i%8 == 0)
@@ -349,7 +349,7 @@ unistr(packetbody_t s, u_int32_t *len, int use_unicode)
 	 * Skip padding that puts the string on an even boundary.
 	 */
 	if (((s - startbuf) % 2) != 0) {
-	    PACKET_HAS_ONE_OR_TRUNC(s);
+	    TCHECK(s[0]);
 	    s++;
 	}
     }
@@ -361,7 +361,7 @@ unistr(packetbody_t s, u_int32_t *len, int use_unicode)
 	sp = s;
 	if (!use_unicode) {
 	    for (;;) {
-		PACKET_HAS_ONE_OR_TRUNC(sp);
+		TCHECK(sp[0]);
 		*len += 1;
 		if (sp[0] == 0)
 		    break;
@@ -370,7 +370,7 @@ unistr(packetbody_t s, u_int32_t *len, int use_unicode)
 	    strsize = *len - 1;
 	} else {
 	    for (;;) {
-		PACKET_HAS_SPACE_OR_TRUNC(sp, 2);
+		TCHECK2(sp[0], 2);
 		*len += 2;
 		if (sp[0] == 0 && sp[1] == 0)
 		    break;
@@ -386,7 +386,7 @@ unistr(packetbody_t s, u_int32_t *len, int use_unicode)
     }
     if (!use_unicode) {
     	while (strsize != 0) {
-	    PACKET_HAS_ONE_OR_TRUNC(s);
+    	    TCHECK(s[0]);
 	    if (l >= MAX_UNISTR_SIZE)
 		break;
 	    if (isprint(s[0]))
@@ -402,7 +402,7 @@ unistr(packetbody_t s, u_int32_t *len, int use_unicode)
 	}
     } else {
 	while (strsize != 0) {
-	    PACKET_HAS_SPACE_OR_TRUNC(s, 2);
+	    TCHECK2(s[0], 2);
 	    if (l >= MAX_UNISTR_SIZE)
 		break;
 	    if (s[1] == 0 && isprint(s[0])) {
@@ -438,14 +438,14 @@ smb_fdata1(packetbody_t buf, const char *fmt, packetbody_t maxbuf,
     while (*fmt && buf<maxbuf) {
 	switch (*fmt) {
 	case 'a':
-	    PACKET_HAS_ONE_OR_TRUNC(buf);
+	    TCHECK(buf[0]);
 	    write_bits(buf[0], attrib_fmt);
 	    buf++;
 	    fmt++;
 	    break;
 
 	case 'A':
-	    PACKET_HAS_SPACE_OR_TRUNC(buf, 2);
+	    TCHECK2(buf[0], 2);
 	    write_bits(EXTRACT_LE_16BITS(buf), attrib_fmt);
 	    buf += 2;
 	    fmt++;
@@ -466,7 +466,7 @@ smb_fdata1(packetbody_t buf, const char *fmt, packetbody_t maxbuf,
 	    strncpy(bitfmt, fmt, l);
 	    bitfmt[l] = '\0';
 	    fmt = p + 1;
-	    PACKET_HAS_ONE_OR_TRUNC(buf);
+	    TCHECK(buf[0]);
 	    write_bits(buf[0], bitfmt);
 	    buf++;
 	    break;
@@ -475,7 +475,7 @@ smb_fdata1(packetbody_t buf, const char *fmt, packetbody_t maxbuf,
 	case 'P':
 	  {
 	    int l = atoi(fmt + 1);
-	    PACKET_HAS_SPACE_OR_TRUNC(buf, l);
+	    TCHECK2(buf[0], l);
 	    buf += l;
 	    fmt++;
 	    while (isdigit((unsigned char)*fmt))
@@ -489,7 +489,7 @@ smb_fdata1(packetbody_t buf, const char *fmt, packetbody_t maxbuf,
 	case 'b':
 	  {
 	    unsigned int x;
-	    PACKET_HAS_ONE_OR_TRUNC(buf);
+	    TCHECK(buf[0]);
 	    x = buf[0];
 	    printf("%u (0x%x)", x, x);
 	    buf += 1;
@@ -499,7 +499,7 @@ smb_fdata1(packetbody_t buf, const char *fmt, packetbody_t maxbuf,
 	case 'd':
 	  {
 	    unsigned int x;
-	    PACKET_HAS_SPACE_OR_TRUNC(buf, 2);
+	    TCHECK2(buf[0], 2);
 	    x = reverse ? EXTRACT_16BITS(buf) :
 			  EXTRACT_LE_16BITS(buf);
 	    printf("%d (0x%x)", x, x);
@@ -510,7 +510,7 @@ smb_fdata1(packetbody_t buf, const char *fmt, packetbody_t maxbuf,
 	case 'D':
 	  {
 	    unsigned int x;
-	    PACKET_HAS_SPACE_OR_TRUNC(buf, 4);
+	    TCHECK2(buf[0], 4);
 	    x = reverse ? EXTRACT_32BITS(buf) :
 			  EXTRACT_LE_32BITS(buf);
 	    printf("%d (0x%x)", x, x);
@@ -521,7 +521,7 @@ smb_fdata1(packetbody_t buf, const char *fmt, packetbody_t maxbuf,
 	case 'L':
 	  {
 	    u_int64_t x;
-	    PACKET_HAS_SPACE_OR_TRUNC(buf, 8);
+	    TCHECK2(buf[0], 8);
 	    x = reverse ? EXTRACT_64BITS(buf) :
 			  EXTRACT_LE_64BITS(buf);
 	    printf("%" PRIu64 " (0x%" PRIx64 ")", x, x);
@@ -534,7 +534,7 @@ smb_fdata1(packetbody_t buf, const char *fmt, packetbody_t maxbuf,
 	    /* Weird mixed-endian length values in 64-bit locks */
 	    u_int32_t x1, x2;
 	    u_int64_t x;
-	    PACKET_HAS_SPACE_OR_TRUNC(buf, 8);
+	    TCHECK2(buf[0], 8);
 	    x1 = reverse ? EXTRACT_32BITS(buf) :
 			   EXTRACT_LE_32BITS(buf);
 	    x2 = reverse ? EXTRACT_32BITS(buf + 4) :
@@ -548,7 +548,7 @@ smb_fdata1(packetbody_t buf, const char *fmt, packetbody_t maxbuf,
 	case 'B':
 	  {
 	    unsigned int x;
-	    PACKET_HAS_ONE_OR_TRUNC(buf);
+	    TCHECK(buf[0]);
 	    x = buf[0];
 	    printf("0x%X", x);
 	    buf += 1;
@@ -558,7 +558,7 @@ smb_fdata1(packetbody_t buf, const char *fmt, packetbody_t maxbuf,
 	case 'w':
 	  {
 	    unsigned int x;
-	    PACKET_HAS_SPACE_OR_TRUNC(buf, 2);
+	    TCHECK2(buf[0], 2);
 	    x = reverse ? EXTRACT_16BITS(buf) :
 			  EXTRACT_LE_16BITS(buf);
 	    printf("0x%X", x);
@@ -569,7 +569,7 @@ smb_fdata1(packetbody_t buf, const char *fmt, packetbody_t maxbuf,
 	case 'W':
 	  {
 	    unsigned int x;
-	    PACKET_HAS_SPACE_OR_TRUNC(buf, 4);
+	    TCHECK2(buf[0], 4);
 	    x = reverse ? EXTRACT_32BITS(buf) :
 			  EXTRACT_LE_32BITS(buf);
 	    printf("0x%X", x);
@@ -583,14 +583,14 @@ smb_fdata1(packetbody_t buf, const char *fmt, packetbody_t maxbuf,
 	    switch (*fmt) {
 
 	    case 'b':
-		PACKET_HAS_ONE_OR_TRUNC(buf);
+		TCHECK(buf[0]);
 		stringlen = buf[0];
 		printf("%u", stringlen);
 		buf += 1;
 		break;
 
 	    case 'd':
-		PACKET_HAS_SPACE_OR_TRUNC(buf, 2);
+		TCHECK2(buf[0], 2);
 		stringlen = reverse ? EXTRACT_16BITS(buf) :
 				      EXTRACT_LE_16BITS(buf);
 		printf("%u", stringlen);
@@ -598,7 +598,7 @@ smb_fdata1(packetbody_t buf, const char *fmt, packetbody_t maxbuf,
 		break;
 
 	    case 'D':
-		PACKET_HAS_SPACE_OR_TRUNC(buf, 4);
+		TCHECK2(buf[0], 4);
 		stringlen = reverse ? EXTRACT_32BITS(buf) :
 				      EXTRACT_LE_32BITS(buf);
 		printf("%u", stringlen);
@@ -630,7 +630,7 @@ smb_fdata1(packetbody_t buf, const char *fmt, packetbody_t maxbuf,
 	    const char *s;
 	    u_int32_t len;
 
-	    PACKET_HAS_ONE_OR_TRUNC(buf);
+	    TCHECK(*buf);
 	    if (*buf != 4 && *buf != 2) {
 		printf("Error! ASCIIZ buffer of type %u", *buf);
 		return maxbuf;	/* give up */
@@ -648,7 +648,7 @@ smb_fdata1(packetbody_t buf, const char *fmt, packetbody_t maxbuf,
 	  {
 	    char *tbuf;
 	    int l = atoi(fmt + 1);
-	    PACKET_HAS_SPACE_OR_TRUNC(buf, l);
+	    TCHECK2(*buf, l);
 	    if ((tbuf = malloc(l + 1)) != NULL) {
 		p_strncpy(tbuf, buf, l);
 		tbuf[l] = '\0';
@@ -664,7 +664,7 @@ smb_fdata1(packetbody_t buf, const char *fmt, packetbody_t maxbuf,
 	case 'c':
 	  {
 	    char *tbuf;
-	    PACKET_HAS_SPACE_OR_TRUNC(buf, stringlen);
+	    TCHECK2(*buf, stringlen);
 	    if ((tbuf = malloc(stringlen + 1)) != NULL) {
 		p_strncpy(tbuf, buf, stringlen);
 		tbuf[stringlen] = '\0';
@@ -692,7 +692,7 @@ smb_fdata1(packetbody_t buf, const char *fmt, packetbody_t maxbuf,
 	case 'h':
 	  {
 	    int l = atoi(fmt + 1);
-	    PACKET_HAS_SPACE_OR_TRUNC(buf, l);
+	    TCHECK2(*buf, l);
 	    while (l--)
 		printf("%02x", *buf++);
 	    fmt++;
@@ -721,7 +721,7 @@ smb_fdata1(packetbody_t buf, const char *fmt, packetbody_t maxbuf,
 		    name_type_str(name_type));
 		break;
 	    case 2:
-		PACKET_HAS_SPACE_OR_TRUNC(buf, 15);
+		TCHECK(buf[15]);
 		name_type = buf[15];
 		p_strncpy(nbuf, buf, 15);
 		nbuf[15] = '\0';
@@ -744,7 +744,7 @@ smb_fdata1(packetbody_t buf, const char *fmt, packetbody_t maxbuf,
 
 	    switch (atoi(fmt + 1)) {
 	    case 1:
-		PACKET_HAS_SPACE_OR_TRUNC(buf, 4);
+		TCHECK2(buf[0], 4);
 		x = EXTRACT_LE_32BITS(buf);
 		if (x == 0 || x == 0xFFFFFFFF)
 		    t = 0;
@@ -753,7 +753,7 @@ smb_fdata1(packetbody_t buf, const char *fmt, packetbody_t maxbuf,
 		buf += 4;
 		break;
 	    case 2:
-		PACKET_HAS_SPACE_OR_TRUNC(buf, 4);
+		TCHECK2(buf[0], 4);
 		x = EXTRACT_LE_32BITS(buf);
 		if (x == 0 || x == 0xFFFFFFFF)
 		    t = 0;
@@ -762,7 +762,7 @@ smb_fdata1(packetbody_t buf, const char *fmt, packetbody_t maxbuf,
 		buf += 4;
 		break;
 	    case 3:
-		PACKET_HAS_SPACE_OR_TRUNC(buf, 8);
+		TCHECK2(buf[0], 8);
 		t = interpret_long_date(buf);
 		buf += 8;
 		break;

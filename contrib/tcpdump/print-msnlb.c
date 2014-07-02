@@ -54,7 +54,7 @@ msnlb_print(netdissect_options *ndo, packetbody_t bp, u_int length _U_)
 	__capability const struct msnlb_heartbeat_pkt *hb;
 
 	hb = (__capability struct msnlb_heartbeat_pkt *)bp;
-	ND_PACKET_HAS_ONE_OR_TRUNC(hb);
+	ND_TCHECK(*hb);
 
 	ND_PRINT((ndo, "MS NLB heartbeat, host priority: %u,",
 		EXTRACT_LE_32BITS(&(hb->host_prio))));

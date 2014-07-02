@@ -457,7 +457,7 @@ rx_print(const u_char *bp, int length, int sport, int dport,
 	int i;
 	int32_t opcode;
 
-	if (!PACKET_HAS_SPACE(bp, sizeof(struct rx_header))) {
+	if (!TTEST2(*bp, sizeof(struct rx_header))) {
 		printf(" [|rx] (%d)", length);
 		return;
 	}
@@ -608,7 +608,7 @@ rx_cache_insert(const u_char *bp, const struct ip *ip, int dport)
 	struct rx_cache_entry *rxent;
 	const struct rx_header *rxh = (const struct rx_header *) bp;
 
-	if (!PACKET_HAS_SPACE(bp, (int)(sizeof(struct rx_header) + sizeof(int32_t) + 1)))
+	if (!TTEST2(*bp, (int)(sizeof(struct rx_header) + sizeof(int32_t) + 1)))
 		return;
 
 	rxent = &rx_cache[rx_cache_next];
@@ -670,7 +670,7 @@ rx_cache_find(const struct rx_header *rxh, const struct ip *ip, int sport,
  */
 
 #ifdef CHERI_TCPDUMP_VULNERABILITY
-#define	TRUNC(n) PACKET_HAS_SPACE(bp, (n))
+#define	TRUNC(n) TCHECK2(bp, (n))
 #define FIDOUT() { unsigned long n1, n2, n3; \
 			TRUNC(sizeof(int32_t) *3); \
 			n1 = EXTRACT_32BITS(bp); \
@@ -683,7 +683,7 @@ rx_cache_find(const struct rx_header *rxh, const struct ip *ip, int sport,
 		}
 #else
 #define FIDOUT() { unsigned long n1, n2, n3; \
-			PACKET_HAS_SPACE_OR_TRUNC(bp, sizeof(int32_t) * 3); \
+			TCHECK2(bp[0], sizeof(int32_t) * 3); \
 			n1 = EXTRACT_32BITS(bp); \
 			bp += sizeof(int32_t); \
 			n2 = EXTRACT_32BITS(bp); \
@@ -695,7 +695,7 @@ rx_cache_find(const struct rx_header *rxh, const struct ip *ip, int sport,
 #endif
 
 #define STROUT(MAX) { unsigned int i; \
-			PACKET_HAS_SPACE_OR_TRUNC(bp, sizeof(int32_t)); \
+			TCHECK2(bp[0], sizeof(int32_t)); \
 			i = EXTRACT_32BITS(bp); \
 			if (i > (MAX)) \
 				goto trunc; \
@@ -708,28 +708,28 @@ rx_cache_find(const struct rx_header *rxh, const struct ip *ip, int sport,
 		}
 
 #define INTOUT() { int i; \
-			PACKET_HAS_SPACE_OR_TRUNC(bp, sizeof(int32_t)); \
+			TCHECK2(bp[0], sizeof(int32_t)); \
 			i = (int) EXTRACT_32BITS(bp); \
 			bp += sizeof(int32_t); \
 			printf(" %d", i); \
 		}
 
 #define UINTOUT() { unsigned long i; \
-			PACKET_HAS_SPACE_OR_TRUNC(bp, sizeof(int32_t)); \
+			TCHECK2(bp[0], sizeof(int32_t)); \
 			i = EXTRACT_32BITS(bp); \
 			bp += sizeof(int32_t); \
 			printf(" %lu", i); \
 		}
 
 #define UINT64OUT() { u_int64_t i; \
-			PACKET_HAS_SPACE_OR_TRUNC(bp, sizeof(u_int64_t)); \
+			TCHECK2(bp[0], sizeof(u_int64_t)); \
 			i = EXTRACT_64BITS(bp); \
 			bp += sizeof(u_int64_t); \
 			printf(" %" PRIu64, i); \
 		}
 
 #define DATEOUT() { time_t t; struct tm *tm; char str[256]; \
-			PACKET_HAS_SPACE_OR_TRUNC(bp, sizeof(int32_t)); \
+			TCHECK2(bp[0], sizeof(int32_t)); \
 			t = (time_t) EXTRACT_32BITS(bp); \
 			bp += sizeof(int32_t); \
 			tm = localtime(&t); \
@@ -738,7 +738,7 @@ rx_cache_find(const struct rx_header *rxh, const struct ip *ip, int sport,
 		}
 
 #define STOREATTROUT() { unsigned long mask, i; \
-			PACKET_HAS_SPACE_OR_TRUNC(bp, (sizeof(int32_t)*6)); \
+			TCHECK2(bp[0], (sizeof(int32_t)*6)); \
 			mask = EXTRACT_32BITS(bp); bp += sizeof(int32_t); \
 			if (mask) printf (" StoreStatus"); \
 		        if (mask & 1) { printf(" date"); DATEOUT(); } \
@@ -756,7 +756,7 @@ rx_cache_find(const struct rx_header *rxh, const struct ip *ip, int sport,
 		}
 
 #define UBIK_VERSIONOUT() {int32_t epoch; int32_t counter; \
-			PACKET_HAS_SPACE_OR_TRUNC(bp, sizeof(int32_t) * 2); \
+			TCHECK2(bp[0], sizeof(int32_t) * 2); \
 			epoch = EXTRACT_32BITS(bp); \
 			bp += sizeof(int32_t); \
 			counter = EXTRACT_32BITS(bp); \
@@ -765,7 +765,7 @@ rx_cache_find(const struct rx_header *rxh, const struct ip *ip, int sport,
 		}
 
 #define AFSUUIDOUT() {u_int32_t temp; int i; \
-			PACKET_HAS_SPACE_OR_TRUNC(bp, 11*sizeof(u_int32_t)); \
+			TCHECK2(bp[0], 11*sizeof(u_int32_t)); \
 			temp = EXTRACT_32BITS(bp); \
 			bp += sizeof(u_int32_t); \
 			printf(" %08x", temp); \
@@ -791,7 +791,7 @@ rx_cache_find(const struct rx_header *rxh, const struct ip *ip, int sport,
 			int k; \
 			if ((MAX) + 1 > sizeof(s)) \
 				goto trunc; \
-			PACKET_HAS_SPACE_OR_TRUNC(bp, (MAX) * sizeof(int32_t)); \
+			TCHECK2(bp[0], (MAX) * sizeof(int32_t)); \
 			sp = s; \
 			for (k = 0; k < (MAX); k++) { \
 				*sp++ = (u_char) EXTRACT_32BITS(bp); \
@@ -804,7 +804,7 @@ rx_cache_find(const struct rx_header *rxh, const struct ip *ip, int sport,
 		}
 
 #define DESTSERVEROUT() { unsigned long n1, n2, n3; \
-			PACKET_HAS_SPACE_OR_TRUNC(bp, sizeof(int32_t) * 3); \
+			TCHECK2(bp[0], sizeof(int32_t) * 3); \
 			n1 = EXTRACT_32BITS(bp); \
 			bp += sizeof(int32_t); \
 			n2 = EXTRACT_32BITS(bp); \
@@ -827,7 +827,7 @@ fs_print(const u_char *bp, int length)
 	if (length <= (int)sizeof(struct rx_header))
 		return;
 
-	PACKET_HAS_SPACE_OR_TRUNC(bp, (int)(sizeof(struct rx_header) + sizeof(int32_t)) + 1);
+	TCHECK2(*bp, (int)(sizeof(struct rx_header) + sizeof(int32_t)) + 1);
 
 	/*
 	 * Print out the afs call we're invoking.  The table used here was
@@ -886,12 +886,12 @@ fs_print(const u_char *bp, int length)
 			char a[AFSOPAQUEMAX+1];
 			FIDOUT();
 #ifndef CHERI_TCPDUMP_VULNERABILITY
-			PACKET_HAS_SPACE_OR_TRUNC(bp, 4);
+			TCHECK2(bp[0], 4);
 #endif
 			i = EXTRACT_32BITS(bp);
 			bp += sizeof(int32_t);
 #ifndef CHERI_TCPDUMP_VULNERABILITY
-			PACKET_HAS_SPACE_OR_TRUNC(bp, i);
+			TCHECK2(bp[0], i);
 #endif
 			i = min(AFSOPAQUEMAX, i);
 			strncpy(a, (char *) bp, i);
@@ -950,7 +950,7 @@ fs_print(const u_char *bp, int length)
 		case 65536:     /* Inline bulk stat */
 		{
 			unsigned long j;
-			PACKET_HAS_SPACE_OR_TRUNC(bp, 4);
+			TCHECK2(bp[0], 4);
 			j = EXTRACT_32BITS(bp);
 			bp += sizeof(int32_t);
 
@@ -1025,10 +1025,10 @@ fs_reply_print(const u_char *bp, int length, int32_t opcode)
 		case 131:	/* Fetch ACL */
 		{
 			char a[AFSOPAQUEMAX+1];
-			PACKET_HAS_SPACE_OR_TRUNC(bp, 4);
+			TCHECK2(bp[0], 4);
 			i = EXTRACT_32BITS(bp);
 			bp += sizeof(int32_t);
-			PACKET_HAS_SPACE_OR_TRUNC(bp, i);
+			TCHECK2(bp[0], i);
 			i = min(AFSOPAQUEMAX, i);
 			strncpy(a, (char *) bp, i);
 			a[i] = '\0';
@@ -1060,7 +1060,7 @@ fs_reply_print(const u_char *bp, int length, int32_t opcode)
 		/*
 		 * Otherwise, just print out the return code
 		 */
-		PACKET_HAS_SPACE_OR_TRUNC(bp, sizeof(int32_t));
+		TCHECK2(bp[0], sizeof(int32_t));
 		i = (int) EXTRACT_32BITS(bp);
 		bp += sizeof(int32_t);
 
@@ -1233,7 +1233,7 @@ cb_print(const u_char *bp, int length)
 	if (length <= (int)sizeof(struct rx_header))
 		return;
  
-	PACKET_HAS_SPACE_OR_TRUNC(bp, sizeof(struct rx_header) + sizeof(int32_t) + 1);
+	TCHECK2(*bp, sizeof(struct rx_header) + sizeof(int32_t) + 1);
 
 	/*
 	 * Print out the afs call we're invoking.  The table used here was
@@ -1255,7 +1255,7 @@ cb_print(const u_char *bp, int length)
 		case 204:		/* Callback */
 		{
 			unsigned long j, t;
-			PACKET_HAS_SPACE_OR_TRUNC(bp, 4);
+			TCHECK2(bp[0], 4);
 			j = EXTRACT_32BITS(bp);
 			bp += sizeof(int32_t);
 
@@ -1279,7 +1279,7 @@ cb_print(const u_char *bp, int length)
 				INTOUT();
 				printf(" expires");
 				DATEOUT();
-				PACKET_HAS_SPACE_OR_TRUNC(bp, 4);
+				TCHECK2(bp[0], 4);
 				t = EXTRACT_32BITS(bp);
 				bp += sizeof(int32_t);
 				tok2str(cb_types, "type %d", t);
@@ -1362,7 +1362,7 @@ prot_print(const u_char *bp, int length)
 	if (length <= (int)sizeof(struct rx_header))
 		return;
 
-	PACKET_HAS_SPACE_OR_TRUNC(bp, sizeof(struct rx_header) + sizeof (int32_t) + 1);
+	TCHECK2(*bp, sizeof(struct rx_header) + sizeof (int32_t) + 1);
 
 	/*
 	 * Print out the afs call we're invoking.  The table used here was
@@ -1421,7 +1421,7 @@ prot_print(const u_char *bp, int length)
 		case 504:	/* Name to ID */
 		{
 			unsigned long j;
-			PACKET_HAS_SPACE_OR_TRUNC(bp, 4);
+			TCHECK2(bp[0], 4);
 			j = EXTRACT_32BITS(bp);
 			bp += sizeof(int32_t);
 
@@ -1443,7 +1443,7 @@ prot_print(const u_char *bp, int length)
 		{
 			unsigned long j;
 			printf(" ids:");
-			PACKET_HAS_SPACE_OR_TRUNC(bp, 4);
+			TCHECK2(bp[0], 4);
 			i = EXTRACT_32BITS(bp);
 			bp += sizeof(int32_t);
 			for (j = 0; j < i; j++)
@@ -1532,7 +1532,7 @@ prot_reply_print(const u_char *bp, int length, int32_t opcode)
 		{
 			unsigned long j;
 			printf(" ids:");
-			PACKET_HAS_SPACE_OR_TRUNC(bp, 4);
+			TCHECK2(bp[0], 4);
 			i = EXTRACT_32BITS(bp);
 			bp += sizeof(int32_t);
 			for (j = 0; j < i; j++)
@@ -1544,7 +1544,7 @@ prot_reply_print(const u_char *bp, int length, int32_t opcode)
 		case 505:		/* ID to name */
 		{
 			unsigned long j;
-			PACKET_HAS_SPACE_OR_TRUNC(bp, 4);
+			TCHECK2(bp[0], 4);
 			j = EXTRACT_32BITS(bp);
 			bp += sizeof(int32_t);
 
@@ -1569,7 +1569,7 @@ prot_reply_print(const u_char *bp, int length, int32_t opcode)
 		case 519:		/* Get host CPS */
 		{
 			unsigned long j;
-			PACKET_HAS_SPACE_OR_TRUNC(bp, 4);
+			TCHECK2(bp[0], 4);
 			j = EXTRACT_32BITS(bp);
 			bp += sizeof(int32_t);
 			for (i = 0; i < j; i++) {
@@ -1615,7 +1615,7 @@ vldb_print(const u_char *bp, int length)
 	if (length <= (int)sizeof(struct rx_header))
 		return;
 
-	PACKET_HAS_SPACE_OR_TRUNC(bp, sizeof(struct rx_header) + sizeof (int32_t) + 1);
+	TCHECK2(*bp, sizeof(struct rx_header) + sizeof (int32_t) + 1);
 
 	/*
 	 * Print out the afs call we're invoking.  The table used here was
@@ -1651,7 +1651,7 @@ vldb_print(const u_char *bp, int length)
 		case 518:	/* Get entry by ID N */
 			printf(" volid");
 			INTOUT();
-			PACKET_HAS_SPACE_OR_TRUNC(bp, sizeof(int32_t));
+			TCHECK2(bp[0], sizeof(int32_t));
 			i = EXTRACT_32BITS(bp);
 			bp += sizeof(int32_t);
 			if (i <= 2)
@@ -1671,7 +1671,7 @@ vldb_print(const u_char *bp, int length)
 		case 520:	/* Replace entry N */
 			printf(" volid");
 			INTOUT();
-			PACKET_HAS_SPACE_OR_TRUNC(bp, sizeof(int32_t));
+			TCHECK2(bp[0], sizeof(int32_t));
 			i = EXTRACT_32BITS(bp);
 			bp += sizeof(int32_t);
 			if (i <= 2)
@@ -1740,16 +1740,16 @@ vldb_reply_print(const u_char *bp, int length, int32_t opcode)
 		case 504:	/* Get entry by name */
 		{	unsigned long nservers, j;
 			VECOUT(VLNAMEMAX);
-			PACKET_HAS_SPACE_OR_TRUNC(bp, sizeof(int32_t));
+			TCHECK2(bp[0], sizeof(int32_t));
 			bp += sizeof(int32_t);
 			printf(" numservers");
-			PACKET_HAS_SPACE_OR_TRUNC(bp, sizeof(int32_t));
+			TCHECK2(bp[0], sizeof(int32_t));
 			nservers = EXTRACT_32BITS(bp);
 			bp += sizeof(int32_t);
 			printf(" %lu", nservers);
 			printf(" servers");
 			for (i = 0; i < 8; i++) {
-				PACKET_HAS_SPACE_OR_TRUNC(bp, sizeof(int32_t));
+				TCHECK2(bp[0], sizeof(int32_t));
 				if (i < nservers)
 					printf(" %s",
 					   intoa(((struct in_addr *) bp)->s_addr));
@@ -1757,7 +1757,7 @@ vldb_reply_print(const u_char *bp, int length, int32_t opcode)
 			}
 			printf(" partitions");
 			for (i = 0; i < 8; i++) {
-				PACKET_HAS_SPACE_OR_TRUNC(bp, sizeof(int32_t));
+				TCHECK2(bp[0], sizeof(int32_t));
 				j = EXTRACT_32BITS(bp);
 				if (i < nservers && j <= 26)
 					printf(" %c", 'a' + (int)j);
@@ -1765,7 +1765,7 @@ vldb_reply_print(const u_char *bp, int length, int32_t opcode)
 					printf(" %lu", j);
 				bp += sizeof(int32_t);
 			}
-			PACKET_HAS_SPACE_OR_TRUNC(bp, 8 * sizeof(int32_t));
+			TCHECK2(bp[0], 8 * sizeof(int32_t));
 			bp += 8 * sizeof(int32_t);
 			printf(" rwvol");
 			UINTOUT();
@@ -1790,13 +1790,13 @@ vldb_reply_print(const u_char *bp, int length, int32_t opcode)
 		{	unsigned long nservers, j;
 			VECOUT(VLNAMEMAX);
 			printf(" numservers");
-			PACKET_HAS_SPACE_OR_TRUNC(bp, sizeof(int32_t));
+			TCHECK2(bp[0], sizeof(int32_t));
 			nservers = EXTRACT_32BITS(bp);
 			bp += sizeof(int32_t);
 			printf(" %lu", nservers);
 			printf(" servers");
 			for (i = 0; i < 13; i++) {
-				PACKET_HAS_SPACE_OR_TRUNC(bp, sizeof(int32_t));
+				TCHECK2(bp[0], sizeof(int32_t));
 				if (i < nservers)
 					printf(" %s",
 					   intoa(((struct in_addr *) bp)->s_addr));
@@ -1804,7 +1804,7 @@ vldb_reply_print(const u_char *bp, int length, int32_t opcode)
 			}
 			printf(" partitions");
 			for (i = 0; i < 13; i++) {
-				PACKET_HAS_SPACE_OR_TRUNC(bp, sizeof(int32_t));
+				TCHECK2(bp[0], sizeof(int32_t));
 				j = EXTRACT_32BITS(bp);
 				if (i < nservers && j <= 26)
 					printf(" %c", 'a' + (int)j);
@@ -1812,7 +1812,7 @@ vldb_reply_print(const u_char *bp, int length, int32_t opcode)
 					printf(" %lu", j);
 				bp += sizeof(int32_t);
 			}
-			PACKET_HAS_SPACE_OR_TRUNC(bp, 13 * sizeof(int32_t));
+			TCHECK2(bp[0], 13 * sizeof(int32_t));
 			bp += 13 * sizeof(int32_t);
 			printf(" rwvol");
 			UINTOUT();
@@ -1827,7 +1827,7 @@ vldb_reply_print(const u_char *bp, int length, int32_t opcode)
 		{	unsigned long nservers, j;
 			VECOUT(VLNAMEMAX);
 			printf(" numservers");
-			PACKET_HAS_SPACE_OR_TRUNC(bp, sizeof(int32_t));
+			TCHECK2(bp[0], sizeof(int32_t));
 			nservers = EXTRACT_32BITS(bp);
 			bp += sizeof(int32_t);
 			printf(" %lu", nservers);
@@ -1837,15 +1837,15 @@ vldb_reply_print(const u_char *bp, int length, int32_t opcode)
 					printf(" afsuuid");
 					AFSUUIDOUT();
 				} else {
-					PACKET_HAS_SPACE_OR_TRUNC(bp, 44);
+					TCHECK2(bp[0], 44);
 					bp += 44;
 				}
 			}
-			PACKET_HAS_SPACE_OR_TRUNC(bp, 4 * 13);
+			TCHECK2(bp[0], 4 * 13);
 			bp += 4 * 13;
 			printf(" partitions");
 			for (i = 0; i < 13; i++) {
-				PACKET_HAS_SPACE_OR_TRUNC(bp, sizeof(int32_t));
+				TCHECK2(bp[0], sizeof(int32_t));
 				j = EXTRACT_32BITS(bp);
 				if (i < nservers && j <= 26)
 					printf(" %c", 'a' + (int)j);
@@ -1853,7 +1853,7 @@ vldb_reply_print(const u_char *bp, int length, int32_t opcode)
 					printf(" %lu", j);
 				bp += sizeof(int32_t);
 			}
-			PACKET_HAS_SPACE_OR_TRUNC(bp, 13 * sizeof(int32_t));
+			TCHECK2(bp[0], 13 * sizeof(int32_t));
 			bp += 13 * sizeof(int32_t);
 			printf(" rwvol");
 			UINTOUT();
@@ -1892,7 +1892,7 @@ kauth_print(const u_char *bp, int length)
 	if (length <= (int)sizeof(struct rx_header))
 		return;
 
-	PACKET_HAS_SPACE_OR_TRUNC(bp, sizeof(struct rx_header) + sizeof (int32_t) + 1);
+	TCHECK2(*bp, sizeof(struct rx_header) + sizeof (int32_t) + 1);
 
 	/*
 	 * Print out the afs call we're invoking.  The table used here was
@@ -1940,10 +1940,10 @@ kauth_print(const u_char *bp, int length)
 			INTOUT();
 			printf(" domain");
 			STROUT(KANAMEMAX);
-			PACKET_HAS_SPACE_OR_TRUNC(bp, sizeof(int32_t));
+			TCHECK2(bp[0], sizeof(int32_t));
 			i = (int) EXTRACT_32BITS(bp);
 			bp += sizeof(int32_t);
-			PACKET_HAS_SPACE_OR_TRUNC(bp, i);
+			TCHECK2(bp[0], i);
 			bp += i;
 			printf(" principal");
 			STROUT(KANAMEMAX);
@@ -2034,7 +2034,7 @@ vol_print(const u_char *bp, int length)
 	if (length <= (int)sizeof(struct rx_header))
 		return;
 
-	PACKET_HAS_SPACE_OR_TRUNC(bp, sizeof(struct rx_header) + sizeof (int32_t) + 1);
+	TCHECK2(*bp, sizeof(struct rx_header) + sizeof (int32_t) + 1);
 
 	/*
 	 * Print out the afs call we're invoking.  The table used here was
@@ -2192,7 +2192,7 @@ vol_print(const u_char *bp, int length)
 			DATEOUT();
 			{
 				unsigned long i, j;
-				PACKET_HAS_SPACE_OR_TRUNC(bp, 4);
+				TCHECK2(bp[0], 4);
 				j = EXTRACT_32BITS(bp);
 				bp += sizeof(int32_t);
 				for (i = 0; i < j; i++) {
@@ -2319,7 +2319,7 @@ vol_reply_print(const u_char *bp, int length, int32_t opcode)
 			case 121:	/* List one volume */
 				{
 					unsigned long i, j;
-					PACKET_HAS_SPACE_OR_TRUNC(bp, 4);
+					TCHECK2(bp[0], 4);
 					j = EXTRACT_32BITS(bp);
 					bp += sizeof(int32_t);
 					for (i = 0; i < j; i++) {
@@ -2367,7 +2367,7 @@ bos_print(const u_char *bp, int length)
 	if (length <= (int)sizeof(struct rx_header))
 		return;
 
-	PACKET_HAS_SPACE_OR_TRUNC(bp, sizeof(struct rx_header) + sizeof (int32_t) + 1);
+	TCHECK2(*bp, sizeof(struct rx_header) + sizeof (int32_t) + 1);
 
 	/*
 	 * Print out the afs call we're invoking.  The table used here was
@@ -2529,7 +2529,7 @@ ubik_print(const u_char *bp)
 
 	switch (ubik_op) {
 		case 10000:		/* Beacon */
-			PACKET_HAS_SPACE_OR_TRUNC(bp, 4);
+			TCHECK2(bp[0], 4);
 			temp = EXTRACT_32BITS(bp);
 			bp += sizeof(int32_t);
 			printf(" syncsite %s", temp ? "yes" : "no");
@@ -2698,7 +2698,7 @@ rx_ack_print(const u_char *bp, int length)
 	 * rx_ackPacket structure.
 	 */
 
-	PACKET_HAS_SPACE_OR_TRUNC(bp, sizeof(struct rx_ackPacket) - RX_MAXACKS);
+	TCHECK2(bp[0], sizeof(struct rx_ackPacket) - RX_MAXACKS);
 
 	rxa = (struct rx_ackPacket *) bp;
 	bp += (sizeof(struct rx_ackPacket) - RX_MAXACKS);
@@ -2738,7 +2738,7 @@ rx_ack_print(const u_char *bp, int length)
 
 	if (rxa->nAcks != 0) {
 
-		PACKET_HAS_SPACE_OR_TRUNC(bp, rxa->nAcks);
+		TCHECK2(bp[0], rxa->nAcks);
 
 		/*
 		 * Sigh, this is gross, but it seems to work to collapse
@@ -2844,7 +2844,7 @@ rx_ack_print(const u_char *bp, int length)
 	 */
 
 /* XXX-BD: OVERFLOW: old code allowed 1 byte too small buffers */
-#define TRUNCRET(n)	if (!PACKET_HAS_SPACE(bp, n)) return;
+#define TRUNCRET(n)	if (!TTEST2(*bp, n)) return;
 
 	if (vflag > 1) {
 		TRUNCRET(4);
