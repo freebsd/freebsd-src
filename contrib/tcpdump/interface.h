@@ -126,16 +126,6 @@ extern int32_t thiszone;	/* seconds offset from gmt to local time */
 /* Bail if "var" was not captured */
 #define TCHECK(var) TCHECK2(var, sizeof(var))
 
-/* Does "pptr" point to a valid section of the packet? */
-#define	PACKET_VALID(pptr)	((const u_char *)(pptr) <= snapend)
-/* How much space is left in "pptr"? */
-#define	PACKET_REMAINING(pptr) \
-	(PACKET_VALID(pptr) ? snapend - (const u_char *)(pptr) : 0)
-/* Get the end pointer for a run of data */
-#define	PACKET_SECTION_END(pptr, len) \
-	((len) > PACKET_REMAINING(pptr) ? snapend : \
-	    (void *)((const u_char *)(pptr) + len))
-
 extern void ts_print(const struct timeval *);
 extern void relts_print(int);
 

@@ -364,13 +364,14 @@ udp_print(packetbody_t bp, u_int length, packetbody_t bp2, int fragmented)
 	__capability const struct udphdr *up;
 	__capability const struct ip *ip;
 	packetbody_t cp;
-	packetbody_t ep;
+	packetbody_t ep = bp + length;
 	u_int16_t sport, dport, ulen;
 #ifdef INET6
 	__capability const struct ip6_hdr *ip6;
 #endif
 
-	ep = PACKET_SECTION_END(bp, length);
+	if (ep > snapend)
+		ep = snapend;
 	up = (__capability const struct udphdr *)bp;
 	ip = (__capability const struct ip *)bp2;
 #ifdef INET6
@@ -379,6 +380,7 @@ udp_print(packetbody_t bp, u_int length, packetbody_t bp2, int fragmented)
 	else
 		ip6 = NULL;
 #endif /*INET6*/
+	cp = (packetbody_t)(up + 1);
 	if (!TTEST(up->uh_dport)) {
 		udpipaddr_print(ip, -1, -1);
 		(void)printf("[|udp]");
@@ -395,7 +397,7 @@ udp_print(packetbody_t bp, u_int length, packetbody_t bp2, int fragmented)
 	}
 	length -= sizeof(struct udphdr);
 
-	if (!TTEST(*up)) {
+	if (cp > snapend) {
 		udpipaddr_print(ip, sport, dport);
 		(void)printf("[|udp]");
 		return;

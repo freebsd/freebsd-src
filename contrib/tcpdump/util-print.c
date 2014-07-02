@@ -264,13 +264,13 @@ print_unknown_data(packetbody_t cp, const char *ident, int len)
 		    ident);
 		return(0);
 	}
-	if (!PACKET_VALID(cp)) {
+	if (snapend - cp < len)
+		len = snapend - cp;
+	if (len < 0) {
 		printf("%sDissector error: print_unknown_data called with pointer past end of packet",
 		    ident);
 		return(0);
 	}
-	if (PACKET_REMAINING(cp) < len)
-		len = PACKET_REMAINING(cp);
         hex_print(ident,cp,len);
 	return(1); /* everything is ok */
 }
@@ -519,7 +519,7 @@ p_strdup(packetbody_t data) {
         char *str;
         size_t len;
 
-        len = strnlen_c(data, PACKET_REMAINING(data)) + 1;
+        len = strnlen_c(data, snapend - data) + 1;
         if ((str = malloc(len)) != NULL) {
                 strncpy_c_fromcap(str, data, len - 1);
 		str[len] = '\0';

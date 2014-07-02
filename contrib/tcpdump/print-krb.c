@@ -163,7 +163,7 @@ krb4_print(packetbody_t cp)
 
 	kp = (__capability const struct krb *)cp;
 
-	if (!TTEST(kp->type)) {
+	if ((&kp->type) >= snapend) {
 		fputs(tstr, stdout);
 		return;
 	}
@@ -233,7 +233,7 @@ krb_print(packetbody_t dat)
 
 	kp = (__capability const struct krb *)dat;
 
-	if (!TTEST(kp->pvno)) {
+	if (dat >= snapend) {
 		fputs(tstr, stdout);
 		return;
 	}

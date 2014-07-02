@@ -101,7 +101,10 @@ void sctp_print(packetbody_t bp,        /* beginning of sctp packet */
 
 
   sctpPktHdr = (__capability const struct sctpHeader*) bp;
-  endPacketPtr = PACKET_SECTION_END(sctpPktHdr, sctpPacketLength);
+  endPacketPtr = (packetbody_t)sctpPktHdr+sctpPacketLength;
+
+  if( (u_long) endPacketPtr > (u_long) snapend)
+    endPacketPtr = snapend;
   ip = (__capability struct ip *)bp2;
 #ifdef INET6
   if (IP_V(ip) == 6)
@@ -156,7 +159,6 @@ void sctp_print(packetbody_t bp,        /* beginning of sctp packet */
   else
     sep = " (";
   /* cycle through all chunks, printing information on each one */
-/* XXX-BED broken for cheri */
   for (chunkCount = 0,
 	 chunkDescPtr = (__capability const struct sctpChunkDesc *)
 	    ((packetbody_t) sctpPktHdr + sizeof(struct sctpHeader));

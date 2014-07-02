@@ -51,10 +51,9 @@ static const char rcsid[] _U_ =
  */
 #define DOP_ALIGN 4
 #define DOP_ROUNDUP(x)	((((int)(x)) + (DOP_ALIGN - 1)) & ~(DOP_ALIGN - 1))
-#define DOP_LEN(d)\
-	DOP_ROUNDUP(EXTRACT_16BITS(&(d)->dh_len) + sizeof(*(d)))
 #define DOP_NEXT(d)\
-	((__capability struct dophdr *)((packetbody_t)(d) + DOP_LEN(d)))
+	((__capability struct dophdr *)((packetbody_t)(d) + \
+			  DOP_ROUNDUP(EXTRACT_16BITS(&(d)->dh_len) + sizeof(*(d)))))
 
 /*
  * Format of the whiteboard packet header.
@@ -190,7 +189,7 @@ wb_id(__capability const struct pkt_id *id, u_int len)
 	int nid;
 
 	printf(" wb-id:");
-	if (len < sizeof(*id) || !TTEST(*id))
+	if (len < sizeof(*id) || (u_char *)(id + 1) > snapend)
 		return (-1);
 	len -= sizeof(*id);
 
@@ -206,14 +205,14 @@ wb_id(__capability const struct pkt_id *id, u_int len)
 	len -= sizeof(*io) * nid;
 	io = (__capability struct id_off *)(id + 1);
 	cp = (packetbody_t)(io + nid);
-	if (!TTEST2(*cp, len)) {
+	if (cp + len <= snapend) {
 		putchar('"');
 		(void)fn_print(cp, cp + len);
 		putchar('"');
 	}
 
 	c = '<';
-	for (i = 0; i < nid && TTEST(*io); ++io, ++i) {
+	for (i = 0; i < nid && (u_char *)(io + 1) <= snapend; ++io, ++i) {
 		printf("%c%s:%u",
 		    c, ipaddr_string(&io->id), EXTRACT_32BITS(&io->off));
 		c = ',';
@@ -229,7 +228,7 @@ static int
 wb_rreq(__capability const struct pkt_rreq *rreq, u_int len)
 {
 	printf(" wb-rreq:");
-	if (len < sizeof(*rreq) || !TTEST(*rreq))
+	if (len < sizeof(*rreq) || (u_char *)(rreq + 1) > snapend)
 		return (-1);
 
 	printf(" please repair %s %s:%u<%u:%u>",
@@ -245,7 +244,7 @@ static int
 wb_preq(__capability const struct pkt_preq *preq, u_int len)
 {
 	printf(" wb-preq:");
-	if (len < sizeof(*preq) || !TTEST(*preq))
+	if (len < sizeof(*preq) || (u_char *)(preq + 1) > snapend)
 		return (-1);
 
 	printf(" need %u/%s:%u",
@@ -260,14 +259,15 @@ wb_prep(__capability const struct pkt_prep *prep, u_int len)
 {
 	int n;
 	__capability const struct pgstate *ps;
+	packetbody_t ep = snapend;
 
 	printf(" wb-prep:");
-	if (len < sizeof(*prep) || !TTEST(*prep)) {
+	if (len < sizeof(*prep)) {
 		return (-1);
 	}
 	n = EXTRACT_32BITS(&prep->pp_n);
 	ps = (__capability const struct pgstate *)(prep + 1);
-	while (--n >= 0 && TTEST(*ps)) {
+	while (--n >= 0 && (packetbody_t)(ps + 1) <= ep) {
 		__capability const struct id_off *io, *ie;
 		char c = '<';
 
@@ -276,7 +276,7 @@ wb_prep(__capability const struct pkt_prep *prep, u_int len)
 		    ipaddr_string(&ps->page.p_sid),
 		    EXTRACT_32BITS(&ps->page.p_uid));
 		io = (__capability struct id_off *)(ps + 1);
-		for (ie = io + ps->nid; io < ie && TTEST(*io); ++io) {
+		for (ie = io + ps->nid; io < ie && (u_char *)(io + 1) <= ep; ++io) {
 			printf("%c%s:%u", c, ipaddr_string(&io->id),
 			    EXTRACT_32BITS(&io->off));
 			c = ',';
@@ -287,7 +287,7 @@ wb_prep(__capability const struct pkt_prep *prep, u_int len)
 		 */
 		ps = (__capability struct pgstate *)io;
 	}
-	return (PACKET_VALID(ps) ? 0 : -1);
+	return ((u_char *)ps <= ep? 0 : -1);
 }
 
 
@@ -315,18 +315,7 @@ wb_dops(__capability const struct dophdr *dh, u_int32_t ss, u_int32_t es)
 {
 	printf(" <");
 	for ( ; ss <= es; ++ss) {
-		int t;
-
-		/*
-		 * XXX-BD: OVERFLOW: previous code didn't check if dh header
-		 * was all there!
-		 */
-		if (!TTEST(*dh)) {
-			printf("[|wb]");
-			break;
-		}
-
-		t = dh->dh_type;
+		register int t = dh->dh_type;
 
 		if (t > DT_MAXTYPE)
 			printf(" dop-%d!", t);
@@ -343,9 +332,8 @@ wb_dops(__capability const struct dophdr *dh, u_int32_t ss, u_int32_t es)
 				ss = ts;
 			}
 		}
-		if (DOP_LEN(dh) > PACKET_REMAINING(dh))
-			dh = DOP_NEXT(dh);
-		else {
+		dh = DOP_NEXT(dh);
+		if ((u_char *)dh > snapend) {
 			printf("[|wb]");
 			break;
 		}
@@ -360,7 +348,7 @@ wb_rrep(__capability const struct pkt_rrep *rrep, u_int len)
 	__capability const struct pkt_dop *dop = &rrep->pr_dop;
 
 	printf(" wb-rrep:");
-	if (len < sizeof(*rrep) || !TTEST(*rrep))
+	if (len < sizeof(*rrep) || (u_char *)(rrep + 1) > snapend)
 		return (-1);
 	len -= sizeof(*rrep);
 
@@ -382,7 +370,7 @@ static int
 wb_drawop(__capability const struct pkt_dop *dop, u_int len)
 {
 	printf(" wb-dop:");
-	if (len < sizeof(*dop) || !TTEST(*dop))
+	if (len < sizeof(*dop) || (u_char *)(dop + 1) > snapend)
 		return (-1);
 	len -= sizeof(*dop);
 
@@ -408,7 +396,7 @@ wb_print(packetbody_t hdr, register u_int len)
 	__capability const struct pkt_hdr *ph;
 
 	ph = (__capability const struct pkt_hdr *)hdr;
-	if (len < sizeof(*ph) || !TTEST(*ph)) {
+	if (len < sizeof(*ph) || (packetbody_t)(ph + 1) > snapend) {
 		printf("[|wb]");
 		return;
 	}

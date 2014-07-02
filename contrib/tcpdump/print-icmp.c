@@ -601,7 +601,7 @@ icmp_print(packetbody_t bp, u_int plen, packetbody_t bp2, int fragmented)
 		bp += 8;
 		(void)printf("\n\t");
 		ip = (__capability const struct ip *)bp;
-		snaplen = PACKET_REMAINING(bp);
+		snaplen = snapend - bp;
                 snapend_save = snapend;
 		ip_print(gndo, bp, EXTRACT_16BITS(&ip->ip_len));
                 snapend = snapend_save;

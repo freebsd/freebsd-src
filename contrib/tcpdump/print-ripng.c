@@ -69,9 +69,9 @@ ripng_print(packetbody_t dat, unsigned int length)
 	int j;
 	int trunc;
 
-	if (!PACKET_VALID(dat))
+	if (snapend < dat)
 		return;
-	amt = PACKET_REMAINING(dat);
+	amt = snapend - dat;
 	i = min(length, amt);
 	if (i < (sizeof(struct rip6) - sizeof(struct netinfo6)))
 		return;

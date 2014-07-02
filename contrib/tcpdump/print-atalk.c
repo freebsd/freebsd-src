@@ -70,10 +70,12 @@ static char tstr[] = "[|atalk]";
 static void atp_print(__capability const struct atATP *, u_int);
 static void atp_bitmap_print(u_char);
 static void nbp_print(__capability const struct atNBP *, u_int, u_short, u_char, u_char);
-static __capability const char *print_cstring(__capability const char *);
+static packetbody_t print_cstring(packetbody_t, packetbody_t);
 static __capability const struct atNBPtuple *nbp_tuple_print(__capability const struct atNBPtuple *,
+						packetbody_t,
 						u_short, u_char, u_char);
-static __capability const struct atNBPtuple *nbp_name_print(__capability const struct atNBPtuple *);
+static __capability const struct atNBPtuple *nbp_name_print(__capability const struct atNBPtuple *,
+						packetbody_t);
 static const char *ataddr_string(u_short, u_char);
 static void ddp_print(packetbody_t, u_int, int, u_short, u_char, u_char);
 static const char *ddpskt_string(int);
@@ -256,7 +258,7 @@ atp_print(__capability const struct atATP *ap, u_int length)
 	char c;
 	u_int32_t data;
 
-	if (!TTEST(*ap)) {
+	if ((const u_char *)(ap + 1) > snapend) {
 		/* Just bail if we don't have the whole chunk. */
 		fputs(tstr, stdout);
 		return;
@@ -381,8 +383,10 @@ static void
 nbp_print(__capability const struct atNBP *np, u_int length, register u_short snet,
 	  register u_char snode, register u_char skt)
 {
-	__capability const struct atNBPtuple *tp;
+	__capability const struct atNBPtuple *tp =
+		(__capability const struct atNBPtuple *)((packetbody_t)np + nbpHeaderSize);
 	int i;
+	packetbody_t ep;
 
 	if (length < nbpHeaderSize) {
 		(void)printf(" truncated-nbp %u", length);
@@ -395,22 +399,23 @@ nbp_print(__capability const struct atNBP *np, u_int length, register u_short sn
 		(void)printf(" truncated-nbp %u", length + nbpHeaderSize);
 		return;
 	}
-	if (PACKET_REMAINING(np) < nbpHeaderSize) {
+	/* ep points to end of available data */
+	ep = snapend;
+	if ((packetbody_t)tp > ep) {
 		fputs(tstr, stdout);
 		return;
 	}
-	tp = (__capability const struct atNBPtuple *)((u_char *)np + nbpHeaderSize);
 	switch (i = np->control & 0xf0) {
 
 	case nbpBrRq:
 	case nbpLkUp:
 		(void)printf(i == nbpLkUp? " nbp-lkup %d:":" nbp-brRq %d:",
 			     np->id);
-		if (!TTEST(*tp)) {
+		if ((const u_char *)(tp + 1) > ep) {
 			fputs(tstr, stdout);
 			return;
 		}
-		(void)nbp_name_print(tp);
+		(void)nbp_name_print(tp, ep);
 		/*
 		 * look for anomalies: the spec says there can only
 		 * be one tuple, the address must match the source
@@ -432,7 +437,7 @@ nbp_print(__capability const struct atNBP *np, u_int length, register u_short sn
 
 		/* print each of the tuples in the reply */
 		for (i = np->control & 0xf; --i >= 0 && tp; )
-			tp = nbp_tuple_print(tp, snet, snode, skt);
+			tp = nbp_tuple_print(tp, ep, snet, snode, skt);
 		break;
 
 	default:
@@ -443,12 +448,12 @@ nbp_print(__capability const struct atNBP *np, u_int length, register u_short sn
 }
 
 /* print a counted string */
-static __capability const char *
-print_cstring(__capability const char *cp)
+static packetbody_t
+print_cstring(packetbody_t cp, packetbody_t ep)
 {
 	register u_int length;
 
-	if (PACKET_REMAINING(cp) == 0) {
+	if (cp >= ep) {
 		fputs(tstr, stdout);
 		return (0);
 	}
@@ -460,7 +465,7 @@ print_cstring(__capability const char *cp)
 		return (0);
 	}
 	while ((int)--length >= 0) {
-		if (PACKET_REMAINING(cp) == 0) {
+		if (cp >= ep) {
 			fputs(tstr, stdout);
 			return (0);
 		}
@@ -471,16 +476,17 @@ print_cstring(__capability const char *cp)
 
 static __capability const struct atNBPtuple *
 nbp_tuple_print(__capability const struct atNBPtuple *tp,
+		__capability const u_char *ep,
 		register u_short snet, register u_char snode,
 		register u_char skt)
 {
 	__capability const struct atNBPtuple *tpn;
 
-	if (!TTEST(*tp)) {
+	if ((const u_char *)(tp + 1) > ep) {
 		fputs(tstr, stdout);
 		return 0;
 	}
-	tpn = nbp_name_print(tp);
+	tpn = nbp_name_print(tp, ep);
 
 	/* if the enumerator isn't 1, print it */
 	if (tp->enumerator != 1)
@@ -499,7 +505,7 @@ nbp_tuple_print(__capability const struct atNBPtuple *tp,
 }
 
 static __capability const struct atNBPtuple *
-nbp_name_print(__capability const struct atNBPtuple *tp)
+nbp_name_print(__capability const struct atNBPtuple *tp, __capability const u_char *ep)
 {
 	__capability const char *cp = (__capability const char *)tp + nbpTupleSize;
 
@@ -507,13 +513,13 @@ nbp_name_print(__capability const struct atNBPtuple *tp)
 
 	/* Object */
 	putchar('"');
-	if ((cp = print_cstring(cp)) != NULL) {
+	if ((cp = print_cstring(cp, ep)) != NULL) {
 		/* Type */
 		putchar(':');
-		if ((cp = print_cstring(cp)) != NULL) {
+		if ((cp = print_cstring(cp, ep)) != NULL) {
 			/* Zone */
 			putchar('@');
-			if ((cp = print_cstring(cp)) != NULL)
+			if ((cp = print_cstring(cp, ep)) != NULL)
 				putchar('"');
 		}
 	}

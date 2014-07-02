@@ -62,10 +62,10 @@ static const char rcsid[] _U_ =
 #define DVMRP_NF_DISABLED	0x20	/* administratively disabled */
 #define DVMRP_NF_QUERIER	0x40	/* I am the subnet's querier */
 
-static int print_probe(packetbody_t, u_int);
-static int print_report(packetbody_t, u_int);
-static int print_neighbors(packetbody_t, u_int);
-static int print_neighbors2(packetbody_t, u_int);
+static int print_probe(packetbody_t, packetbody_t, u_int);
+static int print_report(packetbody_t, packetbody_t, u_int);
+static int print_neighbors(packetbody_t, packetbody_t, u_int);
+static int print_neighbors2(packetbody_t, packetbody_t, u_int);
 static int print_prune(packetbody_t);
 static int print_graft(packetbody_t);
 static int print_graft_ack(packetbody_t);
@@ -75,9 +75,11 @@ static u_int32_t target_level;
 void
 dvmrp_print(packetbody_t bp, register u_int len)
 {
+	packetbody_t ep;
 	register u_char type;
 
-	if (PACKET_REMAINING(bp) == 0)
+	ep = snapend;
+	if (bp >= ep)
 		return;
 
 	TCHECK(bp[1]);
@@ -92,7 +94,7 @@ dvmrp_print(packetbody_t bp, register u_int len)
 	case DVMRP_PROBE:
 		printf(" Probe");
 		if (vflag) {
-			if (print_probe(bp, len) < 0)
+			if (print_probe(bp, ep, len) < 0)
 				goto trunc;
 		}
 		break;
@@ -100,7 +102,7 @@ dvmrp_print(packetbody_t bp, register u_int len)
 	case DVMRP_REPORT:
 		printf(" Report");
 		if (vflag > 1) {
-			if (print_report(bp, len) < 0)
+			if (print_report(bp, ep, len) < 0)
 				goto trunc;
 		}
 		break;
@@ -111,7 +113,7 @@ dvmrp_print(packetbody_t bp, register u_int len)
 
 	case DVMRP_NEIGHBORS:
 		printf(" Neighbors(old)");
-		if (print_neighbors(bp, len) < 0)
+		if (print_neighbors(bp, ep, len) < 0)
 			goto trunc;
 		break;
 
@@ -130,7 +132,7 @@ dvmrp_print(packetbody_t bp, register u_int len)
 		target_level = (bp[0] << 24) | (bp[1] << 16) |
 		    (bp[2] << 8) | bp[3];
 		bp += 4;
-		if (print_neighbors2(bp, len) < 0)
+		if (print_neighbors2(bp, ep, len) < 0)
 			goto trunc;
 		break;
 
@@ -164,7 +166,7 @@ trunc:
 }
 
 static int 
-print_report(packetbody_t bp, register u_int len)
+print_report(packetbody_t bp, packetbody_t ep, register u_int len)
 {
 	register u_int32_t mask, origin;
 	register int metric, done;
@@ -189,7 +191,7 @@ print_report(packetbody_t bp, register u_int len)
 		bp += 3;
 		len -= 3;
 		do {
-			if (!TTEST2(*bp, width)) {
+			if (bp + width + 1 > ep) {
 				printf(" [|]");
 				return (0);
 			}
@@ -220,12 +222,12 @@ trunc:
 }
 
 static int
-print_probe(packetbody_t bp, register u_int len)
+print_probe(packetbody_t bp, packetbody_t ep, register u_int len)
 {
 	register u_int32_t genid;
 
 	TCHECK2(bp[0], 4);
-	if (len < 4) {
+	if ((len < 4) || ((bp + 4) > ep)) {
 		/* { (ctags) */
 		printf(" [|}");
 		return (0);
@@ -241,7 +243,7 @@ print_probe(packetbody_t bp, register u_int len)
 	if (vflag < 2)
 		return (0);
 
-	while (len > 0 && PACKET_REMAINING(bp)) {
+	while ((len > 0) && (bp < ep)) {
 		TCHECK2(bp[0], 4);
 		printf("\n\tneighbor %s", ipaddr_string(bp));
 		bp += 4; len -= 4;
@@ -252,14 +254,14 @@ trunc:
 }
 
 static int
-print_neighbors(packetbody_t bp, register u_int len)
+print_neighbors(packetbody_t bp, packetbody_t ep, register u_int len)
 {
 	packetbody_t laddr;
 	register u_char metric;
 	register u_char thresh;
 	register int ncount;
 
-	while (len > 0 && PACKET_REMAINING(bp)) {
+	while (len > 0 && bp < ep) {
 		TCHECK2(bp[0], 7);
 		laddr = bp;
 		bp += 4;
@@ -282,7 +284,7 @@ trunc:
 }
 
 static int
-print_neighbors2(packetbody_t bp, register u_int len)
+print_neighbors2(packetbody_t bp, packetbody_t ep, register u_int len)
 {
 	packetbody_t laddr;
 	register u_char metric, thresh, flags;
@@ -292,7 +294,7 @@ print_neighbors2(packetbody_t bp, register u_int len)
 	       (int)target_level & 0xff,
 	       (int)(target_level >> 8) & 0xff);
 
-	while (len > 0 && PACKET_REMAINING(bp)) {
+	while (len > 0 && bp < ep) {
 		TCHECK2(bp[0], 8);
 		laddr = bp;
 		bp += 4;
@@ -301,7 +303,7 @@ print_neighbors2(packetbody_t bp, register u_int len)
 		flags = *bp++;
 		ncount = *bp++;
 		len -= 8;
-		while (--ncount >= 0 && (len >= 4) && TTEST2(*bp, 4)) {
+		while (--ncount >= 0 && (len >= 4) && (bp + 4) <= ep) {
 			printf(" [%s -> ", ipaddr_string(laddr));
 			printf("%s (%d/%d", ipaddr_string(bp),
 				     metric, thresh);

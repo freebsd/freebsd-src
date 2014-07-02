@@ -771,7 +771,9 @@ dhcp6_print(packetbody_t cp, u_int length)
 
 	printf("dhcp6");
 
-	ep = PACKET_SECTION_END(cp, length);
+	ep = (packetbody_t)snapend;
+	if (cp + length < ep)
+		ep = cp + length;
 
 	dh6 = (__capability const struct dhcp6 *)cp;
 	dh6relay = (__capability const struct dhcp6_relay *)cp;

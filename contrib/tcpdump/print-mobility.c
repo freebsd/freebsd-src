@@ -171,9 +171,13 @@ int
 mobility_print(packetbody_t bp, packetbody_t bp2 _U_)
 {
 	__capability const struct ip6_mobility *mh;
+	packetbody_t ep;
 	int mhlen, hlen, type;
 
 	mh = (__capability const struct ip6_mobility *)bp;
+
+	/* 'ep' points to the end of available data. */
+	ep = snapend;
 
 	if (!TTEST(mh->ip6m_len)) {
 		/*
@@ -188,7 +192,7 @@ mobility_print(packetbody_t bp, packetbody_t bp2 _U_)
 		 * returned length, however, as it breaks out of the
 		 * header-processing loop.
 		 */
-		mhlen = PACKET_REMAINING(bp);
+		mhlen = ep - bp;
 		goto trunc;
 	}
 	mhlen = (int)((mh->ip6m_len + 1) << 3);

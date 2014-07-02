@@ -154,7 +154,7 @@ ns_nprint(packetbody_t cp, packetbody_t bp)
 	register int compress = 0;
 	int chars_processed;
 	int elt;
-	int data_size = PACKET_REMAINING(bp);
+	int data_size = snapend - bp;
 
 	if ((l = labellen(cp)) == (u_int)-1)
 		return(NULL);
@@ -167,7 +167,7 @@ ns_nprint(packetbody_t cp, packetbody_t bp)
 	}
 
 	if (i != 0)
-		while (i && PACKET_REMAINING(cp)) {
+		while (i && cp < snapend) {
 			if ((i & INDIR_MASK) == INDIR_MASK) {
 				if (!compress) {
 					rp = cp + 1;
@@ -409,11 +409,11 @@ ns_rprint(packetbody_t cp, packetbody_t bp, int is_mdns)
 	len = EXTRACT_16BITS(cp);
 	cp += 2;
 
+	rp = cp + len;
 
 	printf(" %s", tok2str(ns_type2str, "Type%d", typ));
-	if (!TTEST2(*cp, len))
+	if (rp > snapend)
 		return(NULL);
-	rp = cp + len;
 
 	switch (typ) {
 	case T_A:
@@ -544,7 +544,7 @@ ns_rprint(packetbody_t cp, packetbody_t bp, int is_mdns)
 
 	case T_TSIG:
 	    {
-		if (!TTEST2(*cp, len))
+		if (cp + len > snapend)
 			return(NULL);
 		if (!vflag)
 			break;
@@ -625,7 +625,7 @@ ns_print(packetbody_t bp, u_int length, int is_mdns)
 		if (ancount--) {
 			if ((cp = ns_rprint(cp, bp, is_mdns)) == NULL)
 				goto trunc;
-			while (PACKET_REMAINING(cp) && ancount--) {
+			while (cp < snapend && ancount--) {
 				putchar(',');
 				if ((cp = ns_rprint(cp, bp, is_mdns)) == NULL)
 					goto trunc;
@@ -635,11 +635,11 @@ ns_print(packetbody_t bp, u_int length, int is_mdns)
 			goto trunc;
 		/* Print NS and AR sections on -vv */
 		if (vflag > 1) {
-			if (PACKET_REMAINING(cp) && nscount--) {
+			if (cp < snapend && nscount--) {
 				fputs(" ns:", stdout);
 				if ((cp = ns_rprint(cp, bp, is_mdns)) == NULL)
 					goto trunc;
-				while (PACKET_REMAINING(cp) && nscount--) {
+				while (cp < snapend && nscount--) {
 					putchar(',');
 					if ((cp = ns_rprint(cp, bp, is_mdns)) == NULL)
 						goto trunc;
@@ -647,11 +647,11 @@ ns_print(packetbody_t bp, u_int length, int is_mdns)
 			}
 			if (nscount > 0)
 				goto trunc;
-			if (PACKET_REMAINING(cp) && arcount--) {
+			if (cp < snapend && arcount--) {
 				fputs(" ar:", stdout);
 				if ((cp = ns_rprint(cp, bp, is_mdns)) == NULL)
 					goto trunc;
-				while (PACKET_REMAINING(cp) && arcount--) {
+				while (cp < snapend && arcount--) {
 					putchar(',');
 					if ((cp = ns_rprint(cp, bp, is_mdns)) == NULL)
 						goto trunc;
@@ -694,8 +694,8 @@ ns_print(packetbody_t bp, u_int length, int is_mdns)
 			cp = ns_qprint(cp, (packetbody_t) np, is_mdns);
 			if (!cp)
 				goto trunc;
-			while (PACKET_REMAINING(cp) && qdcount--) {
-				cp = ns_qprint(cp,
+			while (cp < snapend && qdcount--) {
+				cp = ns_qprint((packetbody_t)cp,
 					       (packetbody_t)np,
 					       is_mdns);
 				if (!cp)
@@ -710,7 +710,7 @@ ns_print(packetbody_t bp, u_int length, int is_mdns)
 			if (ancount--) {
 				if ((cp = ns_rprint(cp, bp, is_mdns)) == NULL)
 					goto trunc;
-				while (PACKET_REMAINING(cp) && ancount--) {
+				while (cp < snapend && ancount--) {
 					putchar(',');
 					if ((cp = ns_rprint(cp, bp, is_mdns)) == NULL)
 						goto trunc;
@@ -718,11 +718,11 @@ ns_print(packetbody_t bp, u_int length, int is_mdns)
 			}
 			if (ancount > 0)
 				goto trunc;
-			if (PACKET_REMAINING(cp) && nscount--) {
+			if (cp < snapend && nscount--) {
 				fputs(" ns:", stdout);
 				if ((cp = ns_rprint(cp, bp, is_mdns)) == NULL)
 					goto trunc;
-				while (nscount-- && PACKET_REMAINING(cp)) {
+				while (nscount-- && cp < snapend) {
 					putchar(',');
 					if ((cp = ns_rprint(cp, bp, is_mdns)) == NULL)
 						goto trunc;
@@ -730,11 +730,11 @@ ns_print(packetbody_t bp, u_int length, int is_mdns)
 			}
 			if (nscount > 0)
 				goto trunc;
-			if (PACKET_REMAINING(cp) && arcount--) {
+			if (cp < snapend && arcount--) {
 				fputs(" ar:", stdout);
 				if ((cp = ns_rprint(cp, bp, is_mdns)) == NULL)
 					goto trunc;
-				while (PACKET_REMAINING(cp) && arcount--) {
+				while (cp < snapend && arcount--) {
 					putchar(',');
 					if ((cp = ns_rprint(cp, bp, is_mdns)) == NULL)
 						goto trunc;

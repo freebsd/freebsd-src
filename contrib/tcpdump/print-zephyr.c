@@ -91,22 +91,18 @@ parse_field(packetbody_t *pptr, int *len)
 
     if (*len <= 0 || !pptr || !*pptr)
 	return NULL;
-    if (!PACKET_VALID(*pptr))
+    if (*pptr > snapend)
 	return NULL;
 
     s = *pptr;
-    /*
-     * XXX-BD: OVERFLOW: Previous code incremented two past the end and
-     * dereferenced one past.
-     */
-    while (PACKET_REMAINING(*pptr) && *len >= 0 && **pptr) {
+    while (*pptr <= snapend && *len >= 0 && **pptr) {
 	(*pptr)++;
 	(*len)--;
     }
-    if (*len == 0 || !PACKET_REMAINING(*pptr))
-	return NULL;
     (*pptr)++;
     (*len)--;
+    if (*len < 0 || *pptr > snapend)
+	return NULL;
     return s;
 }
 

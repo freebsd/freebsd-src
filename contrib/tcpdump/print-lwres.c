@@ -200,7 +200,8 @@ lwres_printname(size_t l, packetbody_t p0)
 
 	p = p0;
 	/* + 1 for terminating \0 */
-	TCHECK2(*p, l + 1);
+	if (p + l + 1 > snapend)
+		goto trunc;
 
 	printf(" ");
 	for (i = 0; i < l; i++)
@@ -219,7 +220,8 @@ lwres_printnamelen(packetbody_t p)
 	u_int16_t l;
 	int advance;
 
-	TCHECK2(*p, 2);
+	if (p + 2 > snapend)
+		goto trunc;
 	l = EXTRACT_16BITS(p);
 	advance = lwres_printname(l, p + 2);
 	if (advance < 0)
@@ -238,10 +240,12 @@ lwres_printbinlen(packetbody_t p0)
 	int i;
 
 	p = p0;
-	TCHECK2(*p, 2);
+	if (p + 2 > snapend)
+		goto trunc;
 	l = EXTRACT_16BITS(p);
+	if (p + 2 + l > snapend)
+		goto trunc;
 	p += 2;
-	TCHECK2(*p, l);
 	for (i = 0; i < l; i++)
 		printf("%02x", *p++);
 	return p - p0;

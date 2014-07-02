@@ -2697,8 +2697,9 @@ bgp_print(packetbody_t dat, int length)
 	u_int16_t hlen;
 	char tokbuf[TOKBUFSIZE];
 
-	/* XXX-BD: truncate in CHERI? */
-	ep = PACKET_SECTION_END(dat, length);
+	ep = dat + length;
+	if (snapend < dat + length)
+		ep = snapend;
 
 	printf(": BGP, length: %u",length);
 

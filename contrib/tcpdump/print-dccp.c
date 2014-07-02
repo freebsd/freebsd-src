@@ -176,6 +176,7 @@ void dccp_print(packetbody_t bp, packetbody_t data2, u_int len)
 #ifdef INET6
 	__capability const struct ip6_hdr *ip6;
 #endif
+	packetbody_t cp;
 	u_short sport, dport;
 	u_int hlen;
 	u_int extlen = 0;
@@ -189,7 +190,8 @@ void dccp_print(packetbody_t bp, packetbody_t data2, u_int len)
 	else
 		ip6 = NULL;
 #endif /*INET6*/
-	if (!TTEST(*dh)) {
+	cp = (packetbody_t)(dh + 1);
+	if (cp > snapend) {
 		printf("[Invalid packet|dccp]");
 		return;
 	}
@@ -323,7 +325,6 @@ void dccp_print(packetbody_t bp, packetbody_t data2, u_int len)
 
 	/* process options */
 	if (hlen > dccp_basic_hdr_len(dh) + extlen){
-		packetbody_t cp;
 		u_int optlen;
 		cp = bp + dccp_basic_hdr_len(dh) + extlen;
 		printf(" <");	

@@ -211,9 +211,11 @@ trunc:
 void
 pimv1_print(packetbody_t bp, register u_int len)
 {
+	register const u_char *ep;
 	register u_char type;
 
-	if (PACKET_REMAINING(bp) < 1)
+	ep = (const u_char *)snapend;
+	if (bp >= ep)
 		return;
 
 	TCHECK(bp[1]);
@@ -417,9 +419,11 @@ trunc:
 void
 pim_print(packetbody_t bp, register u_int len, u_int cksum)
 {
+	register const u_char *ep;
 	register struct pim *pim = (struct pim *)bp;
 
-	if (PACKET_REMAINING(bp) < 1)
+	ep = (const u_char *)snapend;
+	if (bp >= ep)
 		return;
 #ifdef notyet			/* currently we see only version and type */
 	TCHECK(pim->pim_rsv);
@@ -624,9 +628,11 @@ pimv2_print(packetbody_t bp, register u_int len, u_int cksum)
 	__capability const struct pim *pim = (__capability const struct pim *)bp;
 	int advance;
 
-	if (PACKET_REMAINING(bp) < 1)
+	ep = snapend;
+	if (bp >= ep)
 		return;
-	ep = PACKET_SECTION_END(bp, len);
+	if (ep > bp + len)
+		ep = bp + len;
 	TCHECK(pim->pim_rsv);
 	pimv2_addr_len = pim->pim_rsv;
 	if (pimv2_addr_len != 0)

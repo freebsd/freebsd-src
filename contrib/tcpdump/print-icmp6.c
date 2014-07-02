@@ -54,9 +54,9 @@ static void mld6_print(packetbody_t);
 static void mldv2_report_print(packetbody_t, u_int);
 static void mldv2_query_print(packetbody_t, u_int);
 static __capability const struct udphdr *get_upperlayer(packetbody_t, u_int *);
-static void dnsname_print(packetbody_t);
-static void icmp6_nodeinfo_print(u_int, packetbody_t);
-static void icmp6_rrenum_print(packetbody_t);
+static void dnsname_print(packetbody_t, packetbody_t);
+static void icmp6_nodeinfo_print(u_int, packetbody_t, packetbody_t);
+static void icmp6_rrenum_print(packetbody_t, packetbody_t);
 
 #ifndef abs
 #define abs(a)	((0 < (a)) ? (a) : -(a))
@@ -310,11 +310,14 @@ icmp6_print(netdissect_options *ndo,
 	__capability const struct ip6_hdr *oip;
 	__capability const struct udphdr *ouh;
 	int dport;
+	packetbody_t ep;
 	u_int prot;
 
 	dp = (__capability const struct icmp6_hdr *)bp;
 	ip = (__capability const struct ip6_hdr *)bp2;
 	oip = (__capability const struct ip6_hdr *)(dp + 1);
+	/* 'ep' points to the end of available data. */
+	ep = snapend;
 
 	TCHECK(dp->icmp6_cksum);
 
@@ -527,11 +530,11 @@ icmp6_print(netdissect_options *ndo,
 #undef REDIRECTLEN
 #undef RDR
 	case ICMP6_ROUTER_RENUMBERING:
-		icmp6_rrenum_print(bp);
+		icmp6_rrenum_print(bp, ep);
 		break;
 	case ICMP6_NI_QUERY:
 	case ICMP6_NI_REPLY:
-		icmp6_nodeinfo_print(length, bp);
+		icmp6_nodeinfo_print(length, bp, ep);
 		break;
 	case IND_SOLICIT:
 	case IND_ADVERT:
@@ -593,6 +596,7 @@ trunc:
 static __capability const struct udphdr *
 get_upperlayer(packetbody_t bp, u_int *prot)
 {
+	packetbody_t ep;
 	__capability const struct ip6_hdr *ip6 =
 	    (__capability const struct ip6_hdr *)bp;
 	__capability const struct udphdr *uh;
@@ -602,19 +606,16 @@ get_upperlayer(packetbody_t bp, u_int *prot)
 	u_int nh;
 	int hlen;
 
+	/* 'ep' points to the end of available data. */
+	ep = snapend;
+
 	if (!TTEST(ip6->ip6_nxt))
 		return NULL;
 
 	nh = ip6->ip6_nxt;
 	hlen = sizeof(__capability const struct ip6_hdr);
 
-	/*
-	 * XXX-BD: the previous code required the error prone pattern of
-	 * generating a potententially bad pointer and then checking its
-	 * validity in each individual case.  Each is still checked as
-	 * it may be short, but the pointer is now always valid.
-	 */
-	while (PACKET_REMAINING(bp) >= hlen) {
+	while (bp < ep) {
 		bp += hlen;
 
 		switch(nh) {
@@ -665,7 +666,7 @@ get_upperlayer(packetbody_t bp, u_int *prot)
 		}
 	}
 
-	return(NULL);
+	return(NULL);		/* should be notreached, though */
 }
 
 static void
@@ -681,24 +682,28 @@ icmp6_opt_print(packetbody_t bp, int resid)
 	__capability const struct nd_opt_advinterval *opa;
 	__capability const struct nd_opt_homeagent_info *oph;
 	__capability const struct nd_opt_route_info *opri;
-	packetbody_t cp, domp;
+	packetbody_t cp, ep, domp;
 	struct in6_addr in6;
 	__capability const struct in6_addr *in6p;
 	size_t l;
 	u_int i;
 
-	cp = bp;
+#define ECHECK(var) if ((u_char *)&(var) > ep - sizeof(var)) return
 
-	while (PACKET_REMAINING(cp) > 0) {
+	cp = bp;
+	/* 'ep' points to the end of available data. */
+	ep = snapend;
+
+	while (cp < ep) {
 		op = (__capability const struct nd_opt_hdr *)cp;
 
-		if (!TTEST(op->nd_opt_len))
-			return;
+		ECHECK(op->nd_opt_len);
 		if (resid <= 0)
 			return;
 		if (op->nd_opt_len == 0)
 			goto trunc;
-		TCHECK2(*cp, (op->nd_opt_len << 3));
+		if (cp + (op->nd_opt_len << 3) > ep)
+			goto trunc;
 
                 printf("\n\t  %s option (%u), length %u (%u): ",
                        tok2str(icmp6_opt_values, "unknown", op->nd_opt_type),
@@ -811,10 +816,6 @@ icmp6_opt_print(packetbody_t bp, int resid)
                 if (vflag> 1)
                     print_unknown_data(cp+2,"\n\t    ", (op->nd_opt_len << 3) - 2); /* skip option header */
 
-		/*
-		 * XXX-BD: Safe due to checks at top that bail if we don't
-		 * have a full option header.
-		 */
 		cp += op->nd_opt_len << 3;
 		resid -= op->nd_opt_len << 3;
 	}
@@ -823,6 +824,7 @@ icmp6_opt_print(packetbody_t bp, int resid)
  trunc:
 	fputs("[ndp opt]", stdout);
 	return;
+#undef ECHECK
 }
 
 static void
@@ -830,8 +832,12 @@ mld6_print(packetbody_t bp)
 {
 	__capability const struct mld6_hdr *mp =
 	    (__capability const struct mld6_hdr *)bp;
+	packetbody_t ep;
 
-	if (!TTEST(*mp))
+	/* 'ep' points to the end of available data. */
+	ep = snapend;
+
+	if ((u_char *)mp + sizeof(*mp) > ep)
 		return;
 
 	printf("max resp delay: %d ", EXTRACT_16BITS(&mp->mld6_maxdelay));
@@ -965,32 +971,31 @@ trunc:
 }
 
 static void
-dnsname_print(packetbody_t cp)
+dnsname_print(packetbody_t cp, packetbody_t ep)
 {
 	int i;
 
 	/* DNS name decoding - no decompression */
 	printf(", \"");
-	while (PACKET_REMAINING(cp)) {
+	while (cp < ep) {
 		i = *cp++;
 		if (i) {
-			if (!TTEST2(*cp, i)) {
+			if (i > ep - cp) {
 				printf("???");
 				break;
 			}
-			while (i--) {
+			while (i-- && cp < ep) {
 				safeputchar(*cp);
 				cp++;
 			}
-			if (PACKET_REMAINING(cp) > 0 && *cp)
+			if (cp + 1 < ep && *cp)
 				printf(".");
 		} else {
-			if (PACKET_REMAINING(cp) == 0) {
+			if (cp == ep) {
 				/* FQDN */
 				printf(".");
-			} else if (PACKET_REMAINING(cp) == 1 && *cp == '\0') {
+			} else if (cp + 1 == ep && *cp == '\0') {
 				/* truncated */
-				/* XXX-BD: truncated if it's NUL terminated!? */
 			} else {
 				/* invalid */
 				printf("???");
@@ -1002,7 +1007,7 @@ dnsname_print(packetbody_t cp)
 }
 
 static void
-icmp6_nodeinfo_print(u_int icmp6len, packetbody_t bp)
+icmp6_nodeinfo_print(u_int icmp6len, packetbody_t bp, packetbody_t ep)
 {
 	__capability const struct icmp6_nodeinfo *ni6;
 	__capability const struct icmp6_hdr *dp;
@@ -1010,11 +1015,11 @@ icmp6_nodeinfo_print(u_int icmp6len, packetbody_t bp)
 	size_t siz, i;
 	int needcomma;
 
-	if (!PACKET_VALID(bp))
+	if (ep < bp)
 		return;
 	dp = (__capability const struct icmp6_hdr *)bp;
 	ni6 = (__capability const struct icmp6_nodeinfo *)bp;
-	siz = PACKET_REMAINING(bp);
+	siz = ep - bp;
 
 	/* XXX-BD: OVERFLOW: old code accessed at least ni6->ni_type blindly. */
 	TCHECK(*ni6);
@@ -1099,19 +1104,19 @@ icmp6_nodeinfo_print(u_int icmp6len, packetbody_t bp)
 		case ICMP6_NI_SUBJ_FQDN:
 			printf(", subject=DNS name");
 			cp = (packetbody_t)(ni6 + 1);
-			if (cp[0] == PACKET_REMAINING(cp) - 1) {
+			if (cp[0] == ep - cp - 1) {
 				/* icmp-name-lookup-03, pascal string */
 				if (vflag)
 					printf(", 03 draft");
 				cp++;
 				printf(", \"");
-				while (PACKET_REMAINING(cp)) {
+				while (cp < ep) {
 					safeputchar(*cp);
 					cp++;
 				}
 				printf("\"");
 			} else
-				dnsname_print(cp);
+				dnsname_print(cp, ep);
 			break;
 		case ICMP6_NI_SUBJ_IPV4:
 			if (!TTEST2(*dp, sizeof(*ni6) + sizeof(struct in_addr)))
@@ -1195,19 +1200,19 @@ icmp6_nodeinfo_print(u_int icmp6len, packetbody_t bp)
 				printf(", ");
 			printf("DNS name");
 			cp = (packetbody_t)(ni6 + 1) + 4;
-			if (cp[0] == PACKET_REMAINING(cp) - 1) {
+			if (cp[0] == ep - cp - 1) {
 				/* icmp-name-lookup-03, pascal string */
 				if (vflag)
 					printf(", 03 draft");
 				cp++;
 				printf(", \"");
-				while (PACKET_REMAINING(cp)) {
+				while (cp < ep) {
 					safeputchar(*cp);
 					cp++;
 				}
 				printf("\"");
 			} else
-				dnsname_print(cp);
+				dnsname_print(cp, ep);
 			if ((EXTRACT_16BITS(&ni6->ni_flags) & 0x01) != 0)
 				printf(" [TTL=%u]", *(u_int32_t *)(ni6 + 1));
 			break;
@@ -1254,7 +1259,7 @@ trunc:
 }
 
 static void
-icmp6_rrenum_print(packetbody_t bp)
+icmp6_rrenum_print(packetbody_t bp, packetbody_t ep)
 {
 	__capability const struct icmp6_router_renum *rr6;
 	packetbody_t cp;
@@ -1263,7 +1268,7 @@ icmp6_rrenum_print(packetbody_t bp)
 	char hbuf[NI_MAXHOST];
 	int n;
 
-	if (!PACKET_VALID(bp))
+	if (ep < bp)
 		return;
 	rr6 = (__capability const struct icmp6_router_renum *)bp;
 	cp = (packetbody_t)(rr6 + 1);

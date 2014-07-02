@@ -529,6 +529,7 @@ ip_print(netdissect_options *ndo,
 {
 	struct ip_print_demux_state  ipd;
 	struct ip_print_demux_state *ipds=&ipd;
+	packetbody_t ipend;
 	u_int hlen;
 	struct cksum_vec vec[1];
 	u_int16_t sum, ip_sum;
@@ -543,7 +544,7 @@ ip_print(netdissect_options *ndo,
         else if (!eflag)
 	    printf("IP ");
 
-	if (!ND_TTEST(*ipds->ip)) {
+	if ((u_char *)(ipds->ip + 1) > ndo->ndo_snapend) {
 		printf("[|ip]");
 		return;
 	}
@@ -580,9 +581,9 @@ ip_print(netdissect_options *ndo,
 	/*
 	 * Cut off the snapshot length to the end of the IP payload.
 	 */
-	/* XXX-BD: should create new truncated capability on CHERI */
-	if (PACKET_REMAINING(bp) > ipds->len)
-		ndo->ndo_snapend = bp + ipds->len;
+	ipend = bp + ipds->len;
+	if (ipend < ndo->ndo_snapend)
+		ndo->ndo_snapend = ipend;
 
 	ipds->len -= hlen;
 

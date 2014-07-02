@@ -139,7 +139,7 @@ trunc:
 
 void
 zmtp1_print(packetbody_t cp, u_int len) {
-	packetbody_t ep = PACKET_SECTION_END(cp, len);
+	packetbody_t ep = MIN(snapend, cp + len);
 
 	printf(": ZMTP/1.0");
 	while (cp < ep)

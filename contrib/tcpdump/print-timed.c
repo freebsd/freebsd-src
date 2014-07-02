@@ -46,11 +46,12 @@ static const char *tsptype[TSPTYPENUMBER] =
 void
 timed_print(packetbody_t bp)
 {
+#define endof(x) ((packetbody_t)&(x) + sizeof (x))
 	__capability const struct tsp *tsp = (__capability const struct tsp *)bp;
 	long sec, usec;
 	packetbody_t end;
 
-	if (!TTEST(tsp->tsp_type)) {
+	if (endof(tsp->tsp_type) > snapend) {
 		fputs("[|timed]", stdout);
 		return;
 	}
@@ -59,20 +60,20 @@ timed_print(packetbody_t bp)
 	else
 		printf("(tsp_type %#x)", tsp->tsp_type);
 
-	if (!TTEST(tsp->tsp_vers)) {
+	if (endof(tsp->tsp_vers) > snapend) {
 		fputs(" [|timed]", stdout);
 		return;
 	}
 	printf(" vers %d", tsp->tsp_vers);
 
-	if (!TTEST(tsp->tsp_seq)) {
+	if (endof(tsp->tsp_seq) > snapend) {
 		fputs(" [|timed]", stdout);
 		return;
 	}
 	printf(" seq %d", tsp->tsp_seq);
 
 	if (tsp->tsp_type == TSP_LOOP) {
-		if (!TTEST(tsp->tsp_hopcnt)) {
+		if (endof(tsp->tsp_hopcnt) > snapend) {
 			fputs(" [|timed]", stdout);
 			return;
 		}
@@ -81,7 +82,7 @@ timed_print(packetbody_t bp)
 	  tsp->tsp_type == TSP_ADJTIME ||
 	  tsp->tsp_type == TSP_SETDATE ||
 	  tsp->tsp_type == TSP_SETDATEREQ) {
-		if (!TTEST(tsp->tsp_time)) {
+		if (endof(tsp->tsp_time) > snapend) {
 			fputs(" [|timed]", stdout);
 			return;
 		}
@@ -100,7 +101,7 @@ timed_print(packetbody_t bp)
 		printf("%ld.%06ld", sec, usec);
 	}
 
-	end = p_memchr(tsp->tsp_name, '\0', PACKET_REMAINING(tsp->tsp_name));
+	end = p_memchr(tsp->tsp_name, '\0', snapend - (u_char *)tsp->tsp_name);
 	if (end == NULL)
 		fputs(" [|timed]", stdout);
 	else {

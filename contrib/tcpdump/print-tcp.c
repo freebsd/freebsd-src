@@ -721,8 +721,7 @@ print_tcp_rst_data(packetbody_t sp, u_int length)
                 putchar('+');			/* indicate we truncate */
         }
         putchar(' ');
-	/* XXX-BD: OVERFLOW: 1 byte if length was wrong */
-        while (length-- && PACKET_REMAINING(sp) > 0) {
+        while (length-- && sp <= snapend) {
                 c = *sp++;
                 safeputchar(c);
         }
@@ -745,7 +744,7 @@ tcp_verify_signature(const struct ip *ip, const struct tcphdr *tp,
         u_int8_t nxt;
 #endif
 
-	if (!TTEST2(*data, length)) {
+	if (data + length > snapend) {
 		printf("snaplen too short, ");
 		return (CANT_CHECK_SIGNATURE);
 	}

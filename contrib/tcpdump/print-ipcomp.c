@@ -51,24 +51,22 @@ int
 ipcomp_print(packetbody_t bp, int *nhdr _U_)
 {
 	__capability const struct ipcomp *ipcomp;
+	packetbody_t ep;
 	u_int16_t cpi;
 #if defined(HAVE_LIBZ) && defined(HAVE_ZLIB_H)
 	int advance;
 #endif
 
 	ipcomp = (__capability const struct ipcomp *)bp;
+	cpi = EXTRACT_16BITS(&ipcomp->comp_cpi);
 
-	/*
-	 * XXX-BD: OVERFLOW: prior blind dereference of ipcomp->comp_cpi.
-	 *
-	 * old code checked for space for 2 struct ipcomp's, but only
-	 * used one.
-	 */
-	if (!TTEST(*ipcomp)) {
+	/* 'ep' points to the end of available data. */
+	ep = snapend;
+
+	if ((u_char *)(ipcomp + 1) >= ep - sizeof(struct ipcomp)) {
 		fputs("[|IPCOMP]", stdout);
 		goto fail;
 	}
-	cpi = EXTRACT_16BITS(&ipcomp->comp_cpi);
 	printf("IPComp(cpi=0x%04x)", cpi);
 
 #if defined(HAVE_LIBZ) && defined(HAVE_ZLIB_H)

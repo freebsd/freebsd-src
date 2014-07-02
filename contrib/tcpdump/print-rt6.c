@@ -45,11 +45,15 @@ rt6_print(packetbody_t bp, packetbody_t bp2 _U_)
 {
 	__capability const struct ip6_rthdr *dp;
 	__capability const struct ip6_rthdr0 *dp0;
+	packetbody_t ep;
 	int i, len;
 	__capability const struct in6_addr *addr;
 
 	dp = (__capability const struct ip6_rthdr *)bp;
 	len = dp->ip6r_len;
+
+	/* 'ep' points to the end of available data. */
+	ep = snapend;
 
 	TCHECK(dp->ip6r_segleft);
 
@@ -79,7 +83,8 @@ rt6_print(packetbody_t bp, packetbody_t bp2 _U_)
 		len >>= 1;
 		addr = &dp0->ip6r0_addr[0];
 		for (i = 0; i < len; i++) {
-			TCHECK(*addr);
+			if ((u_char *)(addr + 1) > ep)
+				goto trunc;
 
 			printf(", [%d]%s", i, ip6addr_string(addr));
 			addr++;
