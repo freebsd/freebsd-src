@@ -1629,7 +1629,11 @@ zvol_write(struct cdev *dev, struct uio *uio, int ioflag)
 	}
 #endif
 
+#ifdef sun
 	sync = !(zv->zv_flags & ZVOL_WCE) ||
+#else
+	sync =
+#endif
 	    (zv->zv_objset->os_sync == ZFS_SYNC_ALWAYS);
 
 	rl = zfs_range_lock(&zv->zv_znode, uio->uio_loffset, uio->uio_resid,
