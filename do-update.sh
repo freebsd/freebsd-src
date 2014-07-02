@@ -80,6 +80,6 @@ test -s $TF.rmlist && xargs $SVN rm < $TF.rmlist
 test -s $TF.addlist && xargs $SVN --parents add < $TF.addlist
 )
 
-url=`$SVN info | sed -n '/URL:/s,URL: ,,p'`
+url=`$SVN info | sed -n '/^URL:/s,URL: ,,p'`
 echo After committing dist...
 echo $SVN cp $url/dist $url/$MAKE_VERSION
