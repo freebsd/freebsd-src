@@ -133,6 +133,7 @@ SYSCTL_UINT(_hw_freq, OID_AUTO, itc, CTLFLAG_RD, &itc_freq, 0,
     "ITC frequency");
 
 int cold = 1;
+int unmapped_buf_allowed = 0;
 
 struct bootinfo *bootinfo;
 
@@ -746,8 +747,8 @@ ia64_init(void)
 		mdlen = md->md_pages * EFI_PAGE_SIZE;
 		switch (md->md_type) {
 		case EFI_MD_TYPE_IOPORT:
-			ia64_port_base = (uintptr_t)pmap_mapdev(md->md_phys,
-			    mdlen);
+			ia64_port_base = pmap_mapdev_priv(md->md_phys,
+			    mdlen, VM_MEMATTR_UNCACHEABLE);
 			break;
 		case EFI_MD_TYPE_PALCODE:
 			ia64_pal_base = md->md_phys;
