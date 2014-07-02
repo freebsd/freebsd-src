@@ -80,20 +80,12 @@ dvmrp_print(packetbody_t bp, register u_int len)
 	if (PACKET_REMAINING(bp) == 0)
 		return;
 
-	PACKET_HAS_SPACE_OR_TRUNC(bp, 8);
+	PACKET_HAS_SPACE_OR_TRUNC(bp, 2);
 	type = bp[1];
 
-	if (type == DVMRP_NEIGHBORS2) {
-		bp += 4;
-		target_level = (bp[0] << 24) | (bp[1] << 16) |
-		    (bp[2] << 8) | bp[3];
-		bp += 4;
-		len -= 8;
-	} else {
-		/* Skip IGMP header */
-		bp += 8;
-		len -= 8;
-	}
+	/* Skip IGMP header */
+	bp += 8;
+	len -= 8;
 
 	switch (type) {
 
@@ -133,6 +125,11 @@ dvmrp_print(packetbody_t bp, register u_int len)
 		 * extract version and capabilities from IGMP group
 		 * address field
 		 */
+		bp -= 4;
+		PACKET_HAS_SPACE_OR_TRUNC(bp, 4);
+		target_level = (bp[0] << 24) | (bp[1] << 16) |
+		    (bp[2] << 8) | bp[3];
+		bp += 4;
 		if (print_neighbors2(bp, len) < 0)
 			goto trunc;
 		break;

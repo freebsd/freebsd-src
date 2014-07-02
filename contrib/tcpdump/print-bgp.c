@@ -1981,12 +1981,10 @@ bgp_attr_print(u_int atype, packetbody_t pptr, u_int len)
                             printf("\n\t      %s", buf);
                         break;
                     default:
-                        PACKET_HAS_SPACE_OR_TRUNC(PACKET_SUBTRACT(tptr, 3),
-			    tlen);
+                        PACKET_HAS_SPACE_OR_TRUNC((tptr-3),tlen);
                         printf("no AFI %u / SAFI %u decoder",af,safi);
                         if (vflag <= 1)
-                            print_unknown_data(PACKET_SUBTRACT(tptr, 3),
-				"\n\t    ",tlen);
+                            print_unknown_data(tptr-3,"\n\t    ",tlen);                                        
                         advance = 0;
                         tptr = pptr + len;
                         break;

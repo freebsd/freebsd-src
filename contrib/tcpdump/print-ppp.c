@@ -461,7 +461,7 @@ handle_ctrl_proto(u_int proto, packetbody_t pptr, int length)
         printf("\n\tencoded length %u (=Option(s) length %u)",len,len-4);
 
         if (vflag>1)
-            print_unknown_data(PACKET_SUBTRACT(pptr,2), "\n\t", 6);
+            print_unknown_data(pptr-2,"\n\t",6);
 
 
 	switch (code) {
@@ -577,8 +577,7 @@ handle_ctrl_proto(u_int proto, packetbody_t pptr, int length)
              * original pointer passed to the begin
              * the PPP packet */
                 if (vflag <= 1)
-			print_unknown_data(PACKET_SUBTRACT(pptr, 2), "\n\t  ",
-			    length+2);
+                    print_unknown_data(pptr-2,"\n\t  ",length+2);
 		break;
 	}
 	return;
@@ -1339,7 +1338,7 @@ static void
 handle_ppp(u_int proto, packetbody_t p, int length)
 {
         if ((proto & 0xff00) == 0x7e00) {/* is this an escape code ? */
-            ppp_hdlc(PACKET_SUBTRACT(p, 1), length);
+            ppp_hdlc(p-1, length);
             return;
         }
 

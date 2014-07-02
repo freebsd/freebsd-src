@@ -435,7 +435,7 @@ static int ike_show_somedata(struct netdissect_options *ndo,
 			     packetbody_t cp, packetbody_t ep)
 {
 	/* there is too much data, just show some of it */
-	packetbody_t end = PACKET_SUBTRACT(ep, 20);
+	packetbody_t end = ep - 20;
 	int  elen = 20;
 	int   len = ep - cp;
 	if(len > 10) {

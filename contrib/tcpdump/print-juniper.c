@@ -795,7 +795,7 @@ juniper_mlppp_print(const struct pcap_pkthdr *h, packetbody_t p)
         /* zero length cookie ? */
         switch (EXTRACT_16BITS(cheri_ptr(&l2info.cookie, 2))) {
         case PPP_OSI:
-            ppp_print(PACKET_SUBTRACT(p,2),l2info.length+2);
+            ppp_print(p-2,l2info.length+2);
             break;
         case (PPP_ADDRESS << 8 | PPP_CONTROL): /* fall through */
         default:
@@ -859,8 +859,7 @@ juniper_mfr_print(const struct pcap_pkthdr *h, packetbody_t p)
         case (LLC_UI<<8 | NLPID_IP):
         case (LLC_UI<<8 | NLPID_IP6):
             /* pass IP{4,6} to the OSI layer for proper link-layer printing */
-            isoclns_print(PACKET_SUBTRACT(p, 1), l2info.length+1,
-		l2info.caplen+1); 
+            isoclns_print(p-1, l2info.length+1, l2info.caplen+1); 
             break;
         default:
             printf("unknown protocol 0x%04x, length %u",l2info.proto, l2info.length);
@@ -893,7 +892,7 @@ juniper_mlfr_print(const struct pcap_pkthdr *h, packetbody_t p)
         case (LLC_UI<<8 | NLPID_IP):
         case (LLC_UI<<8 | NLPID_IP6):
             /* pass IP{4,6} to the OSI layer for proper link-layer printing */
-            isoclns_print(PACKET_SUBTRACT(p, 1), l2info.length+1, l2info.caplen+1);
+            isoclns_print(p-1, l2info.length+1, l2info.caplen+1);
             break;
         default:
             printf("unknown protocol 0x%04x, length %u",l2info.proto, l2info.length);

@@ -522,7 +522,7 @@ ns_rprint(packetbody_t cp, packetbody_t bp, int is_mdns)
 		}
 		if (pbit > 0) {
 			putchar(' ');
-			if (ns_nprint(cp + (1 + sizeof(a) - pbyte), bp) == NULL)
+			if (ns_nprint(cp + 1 + sizeof(a) - pbyte, bp) == NULL)
 				return(NULL);
 		}
 		break;

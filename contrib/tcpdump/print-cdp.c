@@ -317,8 +317,7 @@ cdp_print_addr(packetbody_t p, int l)
 			PACKET_HAS_SPACE_OR_TRUNC(p, pl);
 			if (p + pl > endp)
 				goto trunc;
-			printf("pt=0x%02x, pl=%d, pb=",
-			    *(PACKET_SUBTRACT(p, 2)), pl);
+			printf("pt=0x%02x, pl=%d, pb=", *(p - 2), pl);
 			while (pl-- > 0)
 				printf(" %02x", *p++);
 			PACKET_HAS_SPACE_OR_TRUNC(p, 2);

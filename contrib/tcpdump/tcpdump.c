@@ -1852,19 +1852,14 @@ print_packet(u_char *user, const struct pcap_pkthdr *h, const u_char *sp)
 	print_info = (struct print_info *)user;
 
 	/*
-	 * Store a global pointer to the packet to allow use to fake
-	 * pointer subtraction when using CHERI capabilities later on.
-	 */
-	packetp = cheri_ptrperm((void *)sp, h->caplen,
-	    CHERI_PERM_LOAD | CHERI_PERM_LOAD_CAP);
-	/*
 	 * Some printers want to check that they're not walking off the
 	 * end of the packet.
 	 * Rather than pass it all the way down, we set this global.
 	 */
 	snapend = packetp + h->caplen;
 
-	pretty_print_packet(print_info, h, packetp);
+	pretty_print_packet(print_info, h, cheri_ptrperm((void *)sp, h->caplen,
+	    CHERI_PERM_LOAD | CHERI_PERM_LOAD_CAP));
 
 	putchar('\n');
 

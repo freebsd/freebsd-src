@@ -377,7 +377,7 @@ ethertype_print(netdissect_options *ndo,
 		return (1);
 
 	case ETHERTYPE_RRCP:
-	        rrcp_print(ndo, PACKET_SUBTRACT(p, 14), length + 14);
+	        rrcp_print(ndo, p - 14 , length + 14);
 		return (1);
 
 	case ETHERTYPE_PPP:

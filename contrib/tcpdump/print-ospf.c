@@ -1065,7 +1065,7 @@ ospf_print(packetbody_t bp, register u_int length, packetbody_t bp2 _U_)
         PACKET_HAS_ELEMENT_OR_TRUNC(op, ospf_authtype);
         if (EXTRACT_16BITS(&op->ospf_authtype) == OSPF_AUTH_MD5) {
                 length -= OSPF_AUTH_MD5_LEN;
-                snapend = PACKET_SUBTRACT(snapend, OSPF_AUTH_MD5_LEN);
+                snapend -= OSPF_AUTH_MD5_LEN;
         }
 
 	/* If the type is valid translate it, or just print the type */

@@ -1165,8 +1165,7 @@ handle_auth(packetbody_t p, u_int length)
 }
 
 static int
-handle_deauth(__capability const struct mgmt_header_t *pmh, packetbody_t p,
-    u_int length)
+handle_deauth(const struct mgmt_header_t *pmh, packetbody_t p, u_int length)
 {
 	struct mgmt_body_t  pbody;
 	int offset = 0;
@@ -1253,8 +1252,7 @@ handle_deauth(__capability const struct mgmt_header_t *pmh, packetbody_t p,
 )
 
 static int
-handle_action(__capability const struct mgmt_header_t *pmh, packetbody_t p,
-    u_int length)
+handle_action(const struct mgmt_header_t *pmh, packetbody_t p, u_int length)
 {
 	if (!PACKET_HAS_SPACE(p, 2))
 		return 0;
@@ -1293,7 +1291,7 @@ handle_action(__capability const struct mgmt_header_t *pmh, packetbody_t p,
 
 
 static int
-mgmt_body_print(u_int16_t fc, __capability const struct mgmt_header_t *pmh,
+mgmt_body_print(u_int16_t fc, const struct mgmt_header_t *pmh,
     packetbody_t p, u_int length)
 {
 	switch (FC_SUBTYPE(fc)) {
@@ -1712,7 +1710,7 @@ ieee802_11_print(packetbody_t p, u_int length, u_int orig_caplen, int pad,
 {
 	u_int16_t fc;
 	u_int caplen, hdrlen, meshdrlen;
-	packetbody_t src, dst, hdrp;
+	packetbody_t src, dst;
 	u_short extracted_ethertype;
 
 	caplen = orig_caplen;
@@ -1727,7 +1725,7 @@ ieee802_11_print(packetbody_t p, u_int length, u_int orig_caplen, int pad,
 		fcslen = caplen - length;
 		caplen -= fcslen;
 		/* XXX-BD: truncate capability in CHERI */
-		snapend = p + ((snapend - p) - fcslen);
+		snapend -= fcslen;
 	}
 
 	if (caplen < IEEE802_11_FC_LEN) {
@@ -1759,19 +1757,18 @@ ieee802_11_print(packetbody_t p, u_int length, u_int orig_caplen, int pad,
 	 */
 	length -= hdrlen;
 	caplen -= hdrlen;
-	hdrp = p;
 	p += hdrlen;
 
 	switch (FC_TYPE(fc)) {
 	case T_MGMT:
 		if (!mgmt_body_print(fc,
-		    (__capability struct mgmt_header_t *)hdrp, p, length)) {
+		    (const struct mgmt_header_t *)(p - hdrlen), p, length)) {
 			printf("[|802.11]");
 			return hdrlen;
 		}
 		break;
 	case T_CTRL:
-		if (!ctrl_body_print(fc, hdrp)) {
+		if (!ctrl_body_print(fc, p - hdrlen)) {
 			printf("[|802.11]");
 			return hdrlen;
 		}
@@ -1792,7 +1789,7 @@ ieee802_11_print(packetbody_t p, u_int length, u_int orig_caplen, int pad,
 			 * handle intelligently
 			 */
 			if (!eflag)
-				ieee_802_11_hdr_print(fc, hdrp, hdrlen,
+				ieee_802_11_hdr_print(fc, p - hdrlen, hdrlen,
 				    meshdrlen, NULL, NULL);
 			if (extracted_ethertype)
 				printf("(LLC %s) ",

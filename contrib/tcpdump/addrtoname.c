@@ -428,7 +428,7 @@ lookup_nsap(packetbody_t nsap)
 	register u_int i, j, k;
 	unsigned int nlen = *nsap;
 	struct enamemem *tp;
-	__capability const u_char *ensap = nsap + (nlen - 6);
+	__capability const u_char *ensap = nsap + nlen - 6;
 
 	if (nlen > 6) {
 		k = (ensap[0] << 8) | ensap[1];
@@ -553,8 +553,8 @@ le64addr_string(__capability const u_char *ep)
 
 	cp = buf;
 	for (i = len; i > 0 ; --i) {
-		*cp++ = hex[*(ep + (i - 1)) >> 4];
-		*cp++ = hex[*(ep + (i - 1)) & 0xf];
+		*cp++ = hex[*(ep + i - 1) >> 4];
+		*cp++ = hex[*(ep + i - 1) & 0xf];
 		*cp++ = ':';
 	}
 	cp --;

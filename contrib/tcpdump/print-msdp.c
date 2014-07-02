@@ -70,7 +70,7 @@ msdp_print(packetbody_t sp, u_int length)
 				(void)printf(" [w/data]");
 				if (vflag > 1) {
 					(void)printf(" ");
-					ip_print(gndo, sp + (*sp * 12 + 8 - 3),
+					ip_print(gndo, sp + *sp * 12 + 8 - 3,
 					         len - (*sp * 12 + 8));
 				}
 			}

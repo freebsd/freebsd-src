@@ -77,7 +77,6 @@ lane_hdr_print(netdissect_options *ndo, packetbody_t bp)
 void
 lane_print(packetbody_t p, u_int length, u_int caplen)
 {
-	packetbody_t hdr;
 	__capability struct lane_controlhdr *lec;
 
 	if (caplen < sizeof(struct lane_controlhdr)) {
@@ -96,7 +95,6 @@ lane_print(packetbody_t p, u_int length, u_int caplen)
 		return;
 	}
 
-	hdr = p;
 	/*
 	 * Go past the LE header.
 	 */
@@ -108,7 +106,7 @@ lane_print(packetbody_t p, u_int length, u_int caplen)
 	 * Now print the encapsulated frame, under the assumption
 	 * that it's an Ethernet frame.
 	 */
-	ether_print(gndo, p, length, caplen, lane_hdr_print, hdr);
+	ether_print(gndo, p, length, caplen, lane_hdr_print, p - 2);
 }
 
 u_int

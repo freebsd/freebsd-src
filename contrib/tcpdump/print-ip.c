@@ -122,7 +122,7 @@ ip_finddst(__capability const struct ip *ip)
 		case IPOPT_LSRR:
 			if (len < 7)
 				break;
-			p_memcpy_from_packet(&retval, cp + (len - 4), 4);
+			p_memcpy_from_packet(&retval, cp + len - 4, 4);
 			return retval;
 		}
 	}

@@ -370,8 +370,7 @@ print_trans(packetbody_t words, packetbody_t data1, packetbody_t buf, packetbody
     bcc = EXTRACT_LE_16BITS(data1);
     printf("smb_bcc=%u\n", bcc);
     if (bcc > 0) {
-	smb_fdata(data1 + 2, f2, PACKET_SUBTRACT(maxbuf, (paramlen + datalen)),
-	    unicodestr);
+	smb_fdata(data1 + 2, f2, maxbuf - (paramlen + datalen), unicodestr);
 
 	if (strcmp((const char *)(data1 + 2), "\\MAILSLOT\\BROWSE") == 0) {
 	    print_browse(param, paramlen, data, datalen);

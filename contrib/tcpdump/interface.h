@@ -117,22 +117,12 @@ extern int32_t thiszone;	/* seconds offset from gmt to local time */
 #define	PACKET_SECTION_END(pptr, len) \
 	((size_t)(len) > PACKET_REMAINING(pptr) ? snapend : \
 	    (void *)((const u_char *)(pptr) + len))
-/* Construct a pointer equivalent to pptr - len */
-#define	PACKET_SUBTRACT(pptr, len)	((pptr) - (len))
 #else /* HAS_CHERI_CAPABILITIES */
 /* Making invalid packet pointers is a runtime error and a bug. */
 #define PACKET_VALID(pptr)		1
 #define	PACKET_REMAINING(pptr)		cheri_getlen((__capability void *)pptr)
 #define	PACKET_SECTION_END(pptr, len)	\
 	((packetbody_t)(pptr) + MIN(cheri_getlen((__capability void *)pptr), (size_t)len))
-/* Construct a pointer equivalent to pptr - len */
-#ifndef NETDISSECT_REWORKED
-#define	PACKET_SUBTRACT(pptr, len) \
-	(packetp + ((pptr - packetp) - (len)))
-#else
-#define	PACKET_SUBTRACT(pptr, len) \
-	(ndo->ndo_packetp + ((pptr - ndo->ndo_packetp) - (len)))
-#endif
 #endif /* HAS_CHERI_CAPABILITIES */
 
 #define	PACKET_HAS_SPACE(pptr, len) \
@@ -431,7 +421,6 @@ extern netdissect_options *gndo;
 #define Gflag_count gndo->ndo_Gflag_count
 #define Gflag_time gndo->ndo_Gflag_time 
 #define Hflag gndo->ndo_Hflag
-#define	packetp     gndo->ndo_packetp
 #define snaplen     gndo->ndo_snaplen
 #define snapend     gndo->ndo_snapend
 
