@@ -94,9 +94,11 @@ __FBSDID("$FreeBSD$");
  * The idea here is that we'll allocate enough S/G space to hold a 1MB
  * I/O.  If we get an I/O larger than that, we'll split it.
  */
-#define	CTLBLK_MAX_IO_SIZE	(1024 * 1024)
+#define	CTLBLK_HALF_IO_SIZE	(512 * 1024)
+#define	CTLBLK_MAX_IO_SIZE	(CTLBLK_HALF_IO_SIZE * 2)
 #define	CTLBLK_MAX_SEG		MAXPHYS
-#define	CTLBLK_MAX_SEGS		MAX(CTLBLK_MAX_IO_SIZE / CTLBLK_MAX_SEG, 1)
+#define	CTLBLK_HALF_SEGS	MAX(CTLBLK_HALF_IO_SIZE / CTLBLK_MAX_SEG, 1)
+#define	CTLBLK_MAX_SEGS		(CTLBLK_HALF_SEGS * 2)
 
 #ifdef CTLBLK_DEBUG
 #define DPRINTF(fmt, args...) \
@@ -107,6 +109,8 @@ __FBSDID("$FreeBSD$");
 
 #define PRIV(io)	\
     ((struct ctl_ptr_len_flags *)&(io)->io_hdr.ctl_private[CTL_PRIV_BACKEND])
+#define ARGS(io)	\
+    ((struct ctl_lba_len_flags *)&(io)->io_hdr.ctl_private[CTL_PRIV_LBA_LEN])
 
 SDT_PROVIDER_DEFINE(cbb);
 
@@ -314,6 +318,13 @@ ctl_free_beio(struct ctl_be_block_io *beio)
 
 		uma_zfree(beio->lun->lun_zone, beio->sg_segs[i].addr);
 		beio->sg_segs[i].addr = NULL;
+
+		/* For compare we had two equal S/G lists. */
+		if (ARGS(beio->io)->flags & CTL_LLF_COMPARE) {
+			uma_zfree(beio->lun->lun_zone,
+			    beio->sg_segs[i + CTLBLK_HALF_SEGS].addr);
+			beio->sg_segs[i + CTLBLK_HALF_SEGS].addr = NULL;
+		}
 	}
 
 	if (duplicate_free > 0) {
@@ -348,7 +359,7 @@ ctl_complete_beio(struct ctl_be_block_io *beio)
 		beio->beio_cont(beio);
 	} else {
 		ctl_free_beio(beio);
-		ctl_done(io);
+		ctl_data_submit_done(io);
 	}
 }
 
@@ -357,9 +368,11 @@ ctl_be_block_move_done(union ctl_io *io)
 {
 	struct ctl_be_block_io *beio;
 	struct ctl_be_block_lun *be_lun;
+	struct ctl_lba_len_flags *lbalen;
 #ifdef CTL_TIME_IO
 	struct bintime cur_bt;
-#endif  
+#endif
+	int i;
 
 	beio = (struct ctl_be_block_io *)PRIV(io)->ptr;
 	be_lun = beio->lun;
@@ -372,16 +385,37 @@ ctl_be_block_move_done(union ctl_io *io)
 	bintime_add(&io->io_hdr.dma_bt, &cur_bt);
 	io->io_hdr.num_dmas++;
 #endif  
+	io->scsiio.kern_rel_offset += io->scsiio.kern_data_len;
 
 	/*
 	 * We set status at this point for read commands, and write
 	 * commands with errors.
 	 */
-	if ((beio->bio_cmd == BIO_READ)
-	 && (io->io_hdr.port_status == 0)
-	 && ((io->io_hdr.flags & CTL_FLAG_ABORT) == 0)
-	 && ((io->io_hdr.status & CTL_STATUS_MASK) == CTL_STATUS_NONE))
-		ctl_set_success(&io->scsiio);
+	if ((io->io_hdr.port_status == 0) &&
+	    ((io->io_hdr.flags & CTL_FLAG_ABORT) == 0) &&
+	    ((io->io_hdr.status & CTL_STATUS_MASK) == CTL_STATUS_NONE)) {
+		lbalen = ARGS(beio->io);
+		if (lbalen->flags & CTL_LLF_READ) {
+			ctl_set_success(&io->scsiio);
+		} else if (lbalen->flags & CTL_LLF_COMPARE) {
+			/* We have two data blocks ready for comparison. */
+			for (i = 0; i < beio->num_segs; i++) {
+				if (memcmp(beio->sg_segs[i].addr,
+				    beio->sg_segs[i + CTLBLK_HALF_SEGS].addr,
+				    beio->sg_segs[i].len) != 0)
+					break;
+			}
+			if (i < beio->num_segs)
+				ctl_set_sense(&io->scsiio,
+				    /*current_error*/ 1,
+				    /*sense_key*/ SSD_KEY_MISCOMPARE,
+				    /*asc*/ 0x1D,
+				    /*ascq*/ 0x00,
+				    SSD_ELEM_NONE);
+			else
+				ctl_set_success(&io->scsiio);
+		}
+	}
 	else if ((io->io_hdr.port_status != 0)
 	      && ((io->io_hdr.flags & CTL_FLAG_ABORT) == 0)
 	      && ((io->io_hdr.status & CTL_STATUS_MASK) == CTL_STATUS_NONE)) {
@@ -493,12 +527,13 @@ ctl_be_block_biodone(struct bio *bio)
 	}
 
 	/*
-	 * If this is a write, a flush or a delete, we're all done.
+	 * If this is a write, a flush, a delete or verify, we're all done.
 	 * If this is a read, we can now send the data to the user.
 	 */
 	if ((beio->bio_cmd == BIO_WRITE)
 	 || (beio->bio_cmd == BIO_FLUSH)
-	 || (beio->bio_cmd == BIO_DELETE)) {
+	 || (beio->bio_cmd == BIO_DELETE)
+	 || (ARGS(io)->flags & CTL_LLF_VERIFY)) {
 		ctl_set_success(&io->scsiio);
 		ctl_complete_beio(beio);
 	} else {
@@ -574,18 +609,14 @@ ctl_be_block_dispatch_file(struct ctl_be_block_lun *be_lun,
 	io = beio->io;
 	flags = beio->bio_flags;
 
+	bzero(&xuio, sizeof(xuio));
 	if (beio->bio_cmd == BIO_READ) {
 		SDT_PROBE(cbb, kernel, read, file_start, 0, 0, 0, 0, 0);
+		xuio.uio_rw = UIO_READ;
 	} else {
 		SDT_PROBE(cbb, kernel, write, file_start, 0, 0, 0, 0, 0);
-	}
-
-	bzero(&xuio, sizeof(xuio));
-	if (beio->bio_cmd == BIO_READ)
-		xuio.uio_rw = UIO_READ;
-	else
 		xuio.uio_rw = UIO_WRITE;
-
+	}
 	xuio.uio_offset = beio->io_offset;
 	xuio.uio_resid = beio->io_len;
 	xuio.uio_segflg = UIO_SYSSPACE;
@@ -628,6 +659,7 @@ ctl_be_block_dispatch_file(struct ctl_be_block_lun *be_lun,
 				 (IO_DIRECT|IO_SYNC) : 0, file_data->cred);
 
 		VOP_UNLOCK(be_lun->vn, 0);
+		SDT_PROBE(cbb, kernel, read, file_done, 0, 0, 0, 0, 0);
 	} else {
 		struct mount *mountpoint;
 		int lock_flags;
@@ -669,6 +701,7 @@ ctl_be_block_dispatch_file(struct ctl_be_block_lun *be_lun,
 		VOP_UNLOCK(be_lun->vn, 0);
 
 		vn_finished_write(mountpoint);
+		SDT_PROBE(cbb, kernel, write, file_done, 0, 0, 0, 0, 0);
         }
 
 	/*
@@ -695,12 +728,10 @@ ctl_be_block_dispatch_file(struct ctl_be_block_lun *be_lun,
 	 * If this is a write, we're all done.
 	 * If this is a read, we can now send the data to the user.
 	 */
-	if (beio->bio_cmd == BIO_WRITE) {
+	if (ARGS(io)->flags & (CTL_LLF_WRITE | CTL_LLF_VERIFY)) {
 		ctl_set_success(&io->scsiio);
-		SDT_PROBE(cbb, kernel, write, file_done, 0, 0, 0, 0, 0);
 		ctl_complete_beio(beio);
 	} else {
-		SDT_PROBE(cbb, kernel, read, file_done, 0, 0, 0, 0, 0);
 #ifdef CTL_TIME_IO
         	getbintime(&io->io_hdr.dma_start_bt);
 #endif  
@@ -937,7 +968,7 @@ ctl_be_block_cw_dispatch_ws(struct ctl_be_block_lun *be_lun,
 
 	beio = (struct ctl_be_block_io *)PRIV(io)->ptr;
 	softc = be_lun->softc;
-	lbalen = (struct ctl_lba_len_flags *)&io->io_hdr.ctl_private[CTL_PRIV_LBA_LEN];
+	lbalen = ARGS(beio->io);
 
 	if (lbalen->flags & ~(SWS_LBDATA | SWS_UNMAP) ||
 	    (lbalen->flags & SWS_UNMAP && be_lun->unmap == NULL)) {
@@ -1157,11 +1188,10 @@ ctl_be_block_next(struct ctl_be_block_io *beio)
 	ctl_free_beio(beio);
 	if (((io->io_hdr.status & CTL_STATUS_MASK) != CTL_STATUS_NONE)
 	  && ((io->io_hdr.status & CTL_STATUS_MASK) != CTL_SUCCESS)) {
-		ctl_done(io);
+		ctl_data_submit_done(io);
 		return;
 	}
 
-	io->scsiio.kern_rel_offset += io->scsiio.kern_data_len;
 	io->io_hdr.status &= ~CTL_STATUS_MASK;
 	io->io_hdr.status |= CTL_STATUS_NONE;
 
@@ -1183,7 +1213,7 @@ ctl_be_block_dispatch(struct ctl_be_block_lun *be_lun,
 {
 	struct ctl_be_block_io *beio;
 	struct ctl_be_block_softc *softc;
-	struct ctl_lba_len *lbalen;
+	struct ctl_lba_len_flags *lbalen;
 	struct ctl_ptr_len_flags *bptrlen;
 	uint64_t len_left, lbas;
 	int i;
@@ -1192,10 +1222,11 @@ ctl_be_block_dispatch(struct ctl_be_block_lun *be_lun,
 
 	DPRINTF("entered\n");
 
-	if ((io->io_hdr.flags & CTL_FLAG_DATA_MASK) == CTL_FLAG_DATA_IN) {
-		SDT_PROBE(cbb, kernel, read, start, 0, 0, 0, 0, 0);
-	} else {
+	lbalen = ARGS(io);
+	if (lbalen->flags & CTL_LLF_WRITE) {
 		SDT_PROBE(cbb, kernel, write, start, 0, 0, 0, 0, 0);
+	} else {
+		SDT_PROBE(cbb, kernel, read, start, 0, 0, 0, 0, 0);
 	}
 
 	beio = ctl_alloc_beio(softc);
@@ -1233,24 +1264,22 @@ ctl_be_block_dispatch(struct ctl_be_block_lun *be_lun,
 		break;
 	}
 
-	/*
-	 * This path handles read and write only.  The config write path
-	 * handles flush operations.
-	 */
-	if ((io->io_hdr.flags & CTL_FLAG_DATA_MASK) == CTL_FLAG_DATA_IN) {
-		beio->bio_cmd = BIO_READ;
-		beio->ds_trans_type = DEVSTAT_READ;
-	} else {
+	if (lbalen->flags & CTL_LLF_WRITE) {
 		beio->bio_cmd = BIO_WRITE;
 		beio->ds_trans_type = DEVSTAT_WRITE;
+	} else {
+		beio->bio_cmd = BIO_READ;
+		beio->ds_trans_type = DEVSTAT_READ;
 	}
 
-	lbalen = (struct ctl_lba_len *)&io->io_hdr.ctl_private[CTL_PRIV_LBA_LEN];
 	DPRINTF("%s at LBA %jx len %u @%ju\n",
 	       (beio->bio_cmd == BIO_READ) ? "READ" : "WRITE",
 	       (uintmax_t)lbalen->lba, lbalen->len, bptrlen->len);
-	lbas = MIN(lbalen->len - bptrlen->len,
-	    CTLBLK_MAX_IO_SIZE / be_lun->blocksize);
+	if (lbalen->flags & CTL_LLF_COMPARE)
+		lbas = CTLBLK_HALF_IO_SIZE;
+	else
+		lbas = CTLBLK_MAX_IO_SIZE;
+	lbas = MIN(lbalen->len - bptrlen->len, lbas / be_lun->blocksize);
 	beio->io_offset = (lbalen->lba + bptrlen->len) * be_lun->blocksize;
 	beio->io_len = lbas * be_lun->blocksize;
 	bptrlen->len += lbas;
@@ -1268,13 +1297,25 @@ ctl_be_block_dispatch(struct ctl_be_block_lun *be_lun,
 		DPRINTF("segment %d addr %p len %zd\n", i,
 			beio->sg_segs[i].addr, beio->sg_segs[i].len);
 
+		/* Set up second segment for compare operation. */
+		if (lbalen->flags & CTL_LLF_COMPARE) {
+			beio->sg_segs[i + CTLBLK_HALF_SEGS].len =
+			    beio->sg_segs[i].len;
+			beio->sg_segs[i + CTLBLK_HALF_SEGS].addr =
+			    uma_zalloc(be_lun->lun_zone, M_WAITOK);
+		}
+
 		beio->num_segs++;
 		len_left -= beio->sg_segs[i].len;
 	}
 	if (bptrlen->len < lbalen->len)
 		beio->beio_cont = ctl_be_block_next;
 	io->scsiio.be_move_done = ctl_be_block_move_done;
-	io->scsiio.kern_data_ptr = (uint8_t *)beio->sg_segs;
+	/* For compare we have separate S/G lists for read and datamove. */
+	if (lbalen->flags & CTL_LLF_COMPARE)
+		io->scsiio.kern_data_ptr = (uint8_t *)&beio->sg_segs[CTLBLK_HALF_SEGS];
+	else
+		io->scsiio.kern_data_ptr = (uint8_t *)beio->sg_segs;
 	io->scsiio.kern_data_len = beio->io_len;
 	io->scsiio.kern_data_resid = 0;
 	io->scsiio.kern_sg_entries = beio->num_segs;

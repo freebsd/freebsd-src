@@ -4996,6 +4996,30 @@ bailout:
 
 /*
  * This gets called by a backend driver when it is done with a
+ * data_submit method.
+ */
+void
+ctl_data_submit_done(union ctl_io *io)
+{
+	/*
+	 * If the IO_CONT flag is set, we need to call the supplied
+	 * function to continue processing the I/O, instead of completing
+	 * the I/O just yet.
+	 *
+	 * If there is an error, though, we don't want to keep processing.
+	 * Instead, just send status back to the initiator.
+	 */
+	if ((io->io_hdr.flags & CTL_FLAG_IO_CONT)
+	 && (((io->io_hdr.status & CTL_STATUS_MASK) == CTL_STATUS_NONE)
+	  || ((io->io_hdr.status & CTL_STATUS_MASK) == CTL_SUCCESS))) {
+		io->scsiio.io_cont(io);
+		return;
+	}
+	ctl_done(io);
+}
+
+/*
+ * This gets called by a backend driver when it is done with a
  * configuration write.
  */
 void
@@ -8582,7 +8606,7 @@ int
 ctl_read_write(struct ctl_scsiio *ctsio)
 {
 	struct ctl_lun *lun;
-	struct ctl_lba_len lbalen;
+	struct ctl_lba_len_flags *lbalen;
 	uint64_t lba;
 	uint32_t num_blocks;
 	int reladdr, fua, dpo, ebp;
@@ -8793,10 +8817,11 @@ ctl_read_write(struct ctl_scsiio *ctsio)
 		return (CTL_RETVAL_COMPLETE);
 	}
 
-	lbalen.lba = lba;
-	lbalen.len = num_blocks;
-	memcpy(ctsio->io_hdr.ctl_private[CTL_PRIV_LBA_LEN].bytes, &lbalen,
-	       sizeof(lbalen));
+	lbalen = (struct ctl_lba_len_flags *)
+	    &ctsio->io_hdr.ctl_private[CTL_PRIV_LBA_LEN];
+	lbalen->lba = lba;
+	lbalen->len = num_blocks;
+	lbalen->flags = isread ? CTL_LLF_READ : CTL_LLF_WRITE;
 
 	ctsio->kern_total_len = num_blocks * lun->be_lun->blocksize;
 	ctsio->kern_rel_offset = 0;
@@ -8805,6 +8830,228 @@ ctl_read_write(struct ctl_scsiio *ctsio)
 
 	retval = lun->backend->data_submit((union ctl_io *)ctsio);
 
+	return (retval);
+}
+
+static int
+ctl_cnw_cont(union ctl_io *io)
+{
+	struct ctl_scsiio *ctsio;
+	struct ctl_lun *lun;
+	struct ctl_lba_len_flags *lbalen;
+	int retval;
+
+	ctsio = &io->scsiio;
+	ctsio->io_hdr.status = CTL_STATUS_NONE;
+	ctsio->io_hdr.flags &= ~CTL_FLAG_IO_CONT;
+	lun = (struct ctl_lun *)ctsio->io_hdr.ctl_private[CTL_PRIV_LUN].ptr;
+	lbalen = (struct ctl_lba_len_flags *)
+	    &ctsio->io_hdr.ctl_private[CTL_PRIV_LBA_LEN];
+	lbalen->flags = CTL_LLF_WRITE;
+
+	CTL_DEBUG_PRINT(("ctl_cnw_cont: calling data_submit()\n"));
+	retval = lun->backend->data_submit((union ctl_io *)ctsio);
+	return (retval);
+}
+
+int
+ctl_cnw(struct ctl_scsiio *ctsio)
+{
+	struct ctl_lun *lun;
+	struct ctl_lba_len_flags *lbalen;
+	uint64_t lba;
+	uint32_t num_blocks;
+	int fua, dpo;
+	int retval;
+
+	lun = (struct ctl_lun *)ctsio->io_hdr.ctl_private[CTL_PRIV_LUN].ptr;
+
+	CTL_DEBUG_PRINT(("ctl_cnw: command: %#x\n", ctsio->cdb[0]));
+
+	fua = 0;
+	dpo = 0;
+
+	retval = CTL_RETVAL_COMPLETE;
+
+	switch (ctsio->cdb[0]) {
+	case COMPARE_AND_WRITE: {
+		struct scsi_compare_and_write *cdb;
+
+		cdb = (struct scsi_compare_and_write *)ctsio->cdb;
+
+		if (cdb->byte2 & SRW10_FUA)
+			fua = 1;
+		if (cdb->byte2 & SRW10_DPO)
+			dpo = 1;
+		lba = scsi_8btou64(cdb->addr);
+		num_blocks = cdb->length;
+		break;
+	}
+	default:
+		/*
+		 * We got a command we don't support.  This shouldn't
+		 * happen, commands should be filtered out above us.
+		 */
+		ctl_set_invalid_opcode(ctsio);
+		ctl_done((union ctl_io *)ctsio);
+
+		return (CTL_RETVAL_COMPLETE);
+		break; /* NOTREACHED */
+	}
+
+	/*
+	 * XXX KDM what do we do with the DPO and FUA bits?  FUA might be
+	 * interesting for us, but if RAIDCore is in write-back mode,
+	 * getting it to do write-through for a particular transaction may
+	 * not be possible.
+	 */
+
+	/*
+	 * The first check is to make sure we're in bounds, the second
+	 * check is to catch wrap-around problems.  If the lba + num blocks
+	 * is less than the lba, then we've wrapped around and the block
+	 * range is invalid anyway.
+	 */
+	if (((lba + num_blocks) > (lun->be_lun->maxlba + 1))
+	 || ((lba + num_blocks) < lba)) {
+		ctl_set_lba_out_of_range(ctsio);
+		ctl_done((union ctl_io *)ctsio);
+		return (CTL_RETVAL_COMPLETE);
+	}
+
+	/*
+	 * According to SBC-3, a transfer length of 0 is not an error.
+	 */
+	if (num_blocks == 0) {
+		ctl_set_success(ctsio);
+		ctl_done((union ctl_io *)ctsio);
+		return (CTL_RETVAL_COMPLETE);
+	}
+
+	ctsio->kern_total_len = 2 * num_blocks * lun->be_lun->blocksize;
+	ctsio->kern_rel_offset = 0;
+
+	/*
+	 * Set the IO_CONT flag, so that if this I/O gets passed to
+	 * ctl_data_submit_done(), it'll get passed back to
+	 * ctl_ctl_cnw_cont() for further processing.
+	 */
+	ctsio->io_hdr.flags |= CTL_FLAG_IO_CONT;
+	ctsio->io_cont = ctl_cnw_cont;
+
+	lbalen = (struct ctl_lba_len_flags *)
+	    &ctsio->io_hdr.ctl_private[CTL_PRIV_LBA_LEN];
+	lbalen->lba = lba;
+	lbalen->len = num_blocks;
+	lbalen->flags = CTL_LLF_COMPARE;
+
+	CTL_DEBUG_PRINT(("ctl_cnw: calling data_submit()\n"));
+	retval = lun->backend->data_submit((union ctl_io *)ctsio);
+	return (retval);
+}
+
+int
+ctl_verify(struct ctl_scsiio *ctsio)
+{
+	struct ctl_lun *lun;
+	struct ctl_lba_len_flags *lbalen;
+	uint64_t lba;
+	uint32_t num_blocks;
+	int bytchk, dpo;
+	int retval;
+
+	lun = (struct ctl_lun *)ctsio->io_hdr.ctl_private[CTL_PRIV_LUN].ptr;
+
+	CTL_DEBUG_PRINT(("ctl_verify: command: %#x\n", ctsio->cdb[0]));
+
+	bytchk = 0;
+	dpo = 0;
+	retval = CTL_RETVAL_COMPLETE;
+
+	switch (ctsio->cdb[0]) {
+	case VERIFY_10: {
+		struct scsi_verify_10 *cdb;
+
+		cdb = (struct scsi_verify_10 *)ctsio->cdb;
+		if (cdb->byte2 & SVFY_BYTCHK)
+			bytchk = 1;
+		if (cdb->byte2 & SVFY_DPO)
+			dpo = 1;
+		lba = scsi_4btoul(cdb->addr);
+		num_blocks = scsi_2btoul(cdb->length);
+		break;
+	}
+	case VERIFY_12: {
+		struct scsi_verify_12 *cdb;
+
+		cdb = (struct scsi_verify_12 *)ctsio->cdb;
+		if (cdb->byte2 & SVFY_BYTCHK)
+			bytchk = 1;
+		if (cdb->byte2 & SVFY_DPO)
+			dpo = 1;
+		lba = scsi_4btoul(cdb->addr);
+		num_blocks = scsi_4btoul(cdb->length);
+		break;
+	}
+	case VERIFY_16: {
+		struct scsi_rw_16 *cdb;
+
+		cdb = (struct scsi_rw_16 *)ctsio->cdb;
+		if (cdb->byte2 & SVFY_BYTCHK)
+			bytchk = 1;
+		if (cdb->byte2 & SVFY_DPO)
+			dpo = 1;
+		lba = scsi_8btou64(cdb->addr);
+		num_blocks = scsi_4btoul(cdb->length);
+		break;
+	}
+	default:
+		/*
+		 * We got a command we don't support.  This shouldn't
+		 * happen, commands should be filtered out above us.
+		 */
+		ctl_set_invalid_opcode(ctsio);
+		ctl_done((union ctl_io *)ctsio);
+		return (CTL_RETVAL_COMPLETE);
+	}
+
+	/*
+	 * The first check is to make sure we're in bounds, the second
+	 * check is to catch wrap-around problems.  If the lba + num blocks
+	 * is less than the lba, then we've wrapped around and the block
+	 * range is invalid anyway.
+	 */
+	if (((lba + num_blocks) > (lun->be_lun->maxlba + 1))
+	 || ((lba + num_blocks) < lba)) {
+		ctl_set_lba_out_of_range(ctsio);
+		ctl_done((union ctl_io *)ctsio);
+		return (CTL_RETVAL_COMPLETE);
+	}
+
+	/*
+	 * According to SBC-3, a transfer length of 0 is not an error.
+	 */
+	if (num_blocks == 0) {
+		ctl_set_success(ctsio);
+		ctl_done((union ctl_io *)ctsio);
+		return (CTL_RETVAL_COMPLETE);
+	}
+
+	lbalen = (struct ctl_lba_len_flags *)
+	    &ctsio->io_hdr.ctl_private[CTL_PRIV_LBA_LEN];
+	lbalen->lba = lba;
+	lbalen->len = num_blocks;
+	if (bytchk) {
+		lbalen->flags = CTL_LLF_COMPARE;
+		ctsio->kern_total_len = num_blocks * lun->be_lun->blocksize;
+	} else {
+		lbalen->flags = CTL_LLF_VERIFY;
+		ctsio->kern_total_len = 0;
+	}
+	ctsio->kern_rel_offset = 0;
+
+	CTL_DEBUG_PRINT(("ctl_verify: calling data_submit()\n"));
+	retval = lun->backend->data_submit((union ctl_io *)ctsio);
 	return (retval);
 }
 
@@ -9526,6 +9773,7 @@ ctl_inquiry_evpd_block_limits(struct ctl_scsiio *ctsio, int alloc_len)
 
 	bl_ptr->page_code = SVPD_BLOCK_LIMITS;
 	scsi_ulto2b(sizeof(*bl_ptr), bl_ptr->page_length);
+	bl_ptr->max_cmp_write_len = 0xff;
 	scsi_ulto4b(0xffffffff, bl_ptr->max_txfer_len);
 	scsi_ulto4b(MAXPHYS / bs, bl_ptr->opt_txfer_len);
 	if (lun->be_lun->flags & CTL_LUN_FLAG_UNMAP) {
@@ -9937,6 +10185,15 @@ ctl_get_lba_len(union ctl_io *io, uint64_t *lba, uint32_t *len)
 		return (1);
 
 	switch (io->scsiio.cdb[0]) {
+	case COMPARE_AND_WRITE: {
+		struct scsi_compare_and_write *cdb;
+
+		cdb = (struct scsi_compare_and_write *)io->scsiio.cdb;
+
+		*lba = scsi_8btou64(cdb->addr);
+		*len = cdb->length;
+		break;
+	}
 	case READ_6:
 	case WRITE_6: {
 		struct scsi_rw_6 *cdb;
@@ -10020,6 +10277,33 @@ ctl_get_lba_len(union ctl_io *io, uint64_t *lba, uint32_t *len)
 		struct scsi_write_same_16 *cdb;
 
 		cdb = (struct scsi_write_same_16 *)io->scsiio.cdb;
+
+		*lba = scsi_8btou64(cdb->addr);
+		*len = scsi_4btoul(cdb->length);
+		break;
+	}
+	case VERIFY_10: {
+		struct scsi_verify_10 *cdb;
+
+		cdb = (struct scsi_verify_10 *)io->scsiio.cdb;
+
+		*lba = scsi_4btoul(cdb->addr);
+		*len = scsi_2btoul(cdb->length);
+		break;
+	}
+	case VERIFY_12: {
+		struct scsi_verify_12 *cdb;
+
+		cdb = (struct scsi_verify_12 *)io->scsiio.cdb;
+
+		*lba = scsi_4btoul(cdb->addr);
+		*len = scsi_4btoul(cdb->length);
+		break;
+	}
+	case VERIFY_16: {
+		struct scsi_verify_16 *cdb;
+
+		cdb = (struct scsi_verify_16 *)io->scsiio.cdb;
 
 		*lba = scsi_8btou64(cdb->addr);
 		*len = scsi_4btoul(cdb->length);
@@ -12753,7 +13037,7 @@ ctl_process_done(union ctl_io *io, int have_lock)
 		switch (io->io_hdr.io_type) {
 		case CTL_IO_SCSI: {
 			int isread;
-			struct ctl_lba_len *lbalen;
+			struct ctl_lba_len_flags *lbalen;
 
 			isread = 0;
 			switch (io->scsiio.cdb[0]) {
@@ -12770,7 +13054,7 @@ ctl_process_done(union ctl_io *io, int have_lock)
 			case WRITE_VERIFY_10:
 			case WRITE_VERIFY_12:
 			case WRITE_VERIFY_16:
-				lbalen = (struct ctl_lba_len *)
+				lbalen = (struct ctl_lba_len_flags *)
 				    &io->io_hdr.ctl_private[CTL_PRIV_LBA_LEN];
 
 				if (isread) {
