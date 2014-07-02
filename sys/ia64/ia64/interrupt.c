@@ -25,6 +25,7 @@
  */
 
 #include "opt_ddb.h"
+#include "opt_xtrace.h"
 
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
@@ -305,6 +306,11 @@ ia64_handle_intr(struct trapframe *tf)
 
 	td = curthread;
 	ia64_set_fpsr(IA64_FPSR_DEFAULT);
+
+#ifdef XTRACE
+	ia64_xtrace_save();
+#endif
+
 	PCPU_INC(cnt.v_intr);
 
 	xiv = ia64_get_ivr();
