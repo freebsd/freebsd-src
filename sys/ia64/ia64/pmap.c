@@ -262,7 +262,6 @@ static vm_page_t pmap_pv_reclaim(pmap_t locked_pmap);
 static void	pmap_enter_quick_locked(pmap_t pmap, vm_offset_t va,
 		    vm_page_t m, vm_prot_t prot);
 static void	pmap_free_pte(struct ia64_lpte *pte, vm_offset_t va);
-static void	pmap_invalidate_all(void);
 static int	pmap_remove_pte(pmap_t pmap, struct ia64_lpte *pte,
 		    vm_offset_t va, pv_entry_t pv, int freepte);
 static int	pmap_remove_vhpt(vm_offset_t va);
@@ -537,13 +536,12 @@ pmap_invalidate_page(vm_offset_t va)
 	critical_exit();
 }
 
-static void
-pmap_invalidate_all_1(void *arg)
+void
+pmap_invalidate_all(void)
 {
 	uint64_t addr;
 	int i, j;
 
-	critical_enter();
 	addr = pmap_ptc_e_base;
 	for (i = 0; i < pmap_ptc_e_count1; i++) {
 		for (j = 0; j < pmap_ptc_e_count2; j++) {
@@ -552,20 +550,7 @@ pmap_invalidate_all_1(void *arg)
 		}
 		addr += pmap_ptc_e_stride1;
 	}
-	critical_exit();
-}
-
-static void
-pmap_invalidate_all(void)
-{
-
-#ifdef SMP
-	if (mp_ncpus > 1) {
-		smp_rendezvous(NULL, pmap_invalidate_all_1, NULL, NULL);
-		return;
-	}
-#endif
-	pmap_invalidate_all_1(NULL);
+	ia64_srlz_i();
 }
 
 static uint32_t
