@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 27, 2014
+.Dd July 2, 2014
 .Dt "VIRTUAL TERMINALS" 4
 .Os
 .Sh NAME
@@ -109,10 +109,10 @@ These kernel options control the
 .Nm
 driver.
 .Bl -tag -width MAXCONS
-.It Dv TERMINAL_NORM_ATTR=_attribute_
-.It Dv TERMINAL_KERN_ATTR=_attribute_
-These options allow to change the default colors used for normal and kernel
-text respectively.
+.It Dv TERMINAL_NORM_ATTR= Ns Pa attribute
+.It Dv TERMINAL_KERN_ATTR= Ns Pa attribute
+These options allow changing the default colors used for normal and kernel
+text.
 Available colors are defined in
 .In sys/terminal.h .
 See
@@ -165,13 +165,13 @@ is set, the system remains in text mode.
 Otherwise,
 .Nm
 switches to 640x480x16 VGA mode using
-.Xr vt_vga 4 .
+.Cm vt_vga .
 If a KMS
 .Pq Kernel Mode Switching
 video driver is available, the display is switched to high resolution
 and the KMS driver takes over.
 When a KMS driver is not available,
-.Xr vt_vga 4
+.Cm vt_vga
 remains active.
 .Sh LOADER TUNABLES
 These settings can be entered at the
@@ -184,27 +184,18 @@ Set to 1 to use virtual terminals in text mode instead of graphics mode.
 Features that require graphics mode, like loadable fonts, will be
 disabled.
 .It Va kern.vty
-Set to vt to choose the
+When both
 .Nm
-driver for the system console, if the
-.Xr syscons 4
-driver is also compiled in and is the default.
+and
+.Xr sc 4 have been compiled into the kernel, the one to use for the
+system console can be selected by setting this value to
+.Ql vt
+or
+.Ql sc .
+If this value is not set,
+.Xr sc 4
+is used.
 .El
-.Sh EXAMPLES
-The following line will change the default color of normal text.
-Normal text will be green on black background.
-Reversed normal text will be black on green background.
-Note that you cannot put any white space inside the quoted string,
-because of the current implementation of
-.Xr config 8 .
-.Pp
-.Dl "options TERMINAL_NORM_ATTR=(FG_GREEN|BG_BLACK)"
-.Pp
-The following line will change the default color of kernel messages.
-Kernel messages will be printed bright red on black background.
-Reversed kernel messages will be black on bright red background.
-.Pp
-.Dl "options TERMINAL_KERN_ATTR=(FG_LIGHTRED|BG_BLACK)"
 .Sh FILES
 .Bl -tag -width /usr/share/syscons/keymaps/* -compact
 .It Pa /dev/console
@@ -214,6 +205,19 @@ virtual terminals
 .It Pa /etc/ttys
 terminal initialization information
 .El
+.Sh EXAMPLES
+This example changes the default color of normal text to green on a
+black background, or black on a green background when reversed.
+Note that white space cannot be used inside the attribute string
+because of the current implementation of
+.Xr config 8 .
+.Pp
+.Dl "options TERMINAL_NORM_ATTR=(FG_GREEN|BG_BLACK)"
+.Pp
+This line changes the default color of kernel messages to be bright red
+on a black background, or black on a bright red background when reversed.
+.Pp
+.Dl "options TERMINAL_KERN_ATTR=(FG_LIGHTRED|BG_BLACK)"
 .Sh SEE ALSO
 .Xr kbdcontrol 1 ,
 .Xr login 1 ,
