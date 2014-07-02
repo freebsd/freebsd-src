@@ -788,7 +788,7 @@ ctl_be_block_unmap_dev(struct ctl_be_block_lun *be_lun,
 {
 	union ctl_io *io;
 	struct ctl_be_block_devdata *dev_data;
-	struct ctl_ptr_len_flags ptrlen;
+	struct ctl_ptr_len_flags *ptrlen;
 	struct scsi_unmap_desc *buf, *end;
 	uint64_t len;
 
@@ -802,10 +802,9 @@ ctl_be_block_unmap_dev(struct ctl_be_block_lun *be_lun,
 
 	if (beio->io_offset == -1) {
 		beio->io_len = 0;
-		memcpy(&ptrlen, io->io_hdr.ctl_private[CTL_PRIV_LBA_LEN].bytes,
-		       sizeof(ptrlen));
-		buf = (struct scsi_unmap_desc *)ptrlen.ptr;
-		end = buf + ptrlen.len / sizeof(*buf);
+		ptrlen = (struct ctl_ptr_len_flags *)&io->io_hdr.ctl_private[CTL_PRIV_LBA_LEN];
+		buf = (struct scsi_unmap_desc *)ptrlen->ptr;
+		end = buf + ptrlen->len / sizeof(*buf);
 		for (; buf < end; buf++) {
 			len = (uint64_t)scsi_4btoul(buf->length) *
 			    be_lun->blocksize;
@@ -928,7 +927,7 @@ ctl_be_block_cw_dispatch_ws(struct ctl_be_block_lun *be_lun,
 {
 	struct ctl_be_block_io *beio;
 	struct ctl_be_block_softc *softc;
-	struct ctl_lba_len_flags lbalen;
+	struct ctl_lba_len_flags *lbalen;
 	uint64_t len_left, lba;
 	int i, seglen;
 	uint8_t *buf, *end;
@@ -937,11 +936,10 @@ ctl_be_block_cw_dispatch_ws(struct ctl_be_block_lun *be_lun,
 
 	beio = io->io_hdr.ctl_private[CTL_PRIV_BACKEND].ptr;
 	softc = be_lun->softc;
-	memcpy(&lbalen, io->io_hdr.ctl_private[CTL_PRIV_LBA_LEN].bytes,
-	       sizeof(lbalen));
+	lbalen = (struct ctl_lba_len_flags *)&io->io_hdr.ctl_private[CTL_PRIV_LBA_LEN];
 
-	if (lbalen.flags & ~(SWS_LBDATA | SWS_UNMAP) ||
-	    (lbalen.flags & SWS_UNMAP && be_lun->unmap == NULL)) {
+	if (lbalen->flags & ~(SWS_LBDATA | SWS_UNMAP) ||
+	    (lbalen->flags & SWS_UNMAP && be_lun->unmap == NULL)) {
 		ctl_free_beio(beio);
 		ctl_set_invalid_field(&io->scsiio,
 				      /*sks_valid*/ 1,
@@ -977,9 +975,9 @@ ctl_be_block_cw_dispatch_ws(struct ctl_be_block_lun *be_lun,
 		break;
 	}
 
-	if (lbalen.flags & SWS_UNMAP) {
-		beio->io_offset = lbalen.lba * be_lun->blocksize;
-		beio->io_len = (uint64_t)lbalen.len * be_lun->blocksize;
+	if (lbalen->flags & SWS_UNMAP) {
+		beio->io_offset = lbalen->lba * be_lun->blocksize;
+		beio->io_len = (uint64_t)lbalen->len * be_lun->blocksize;
 		beio->bio_cmd = BIO_DELETE;
 		beio->ds_trans_type = DEVSTAT_FREE;
 
@@ -991,9 +989,9 @@ ctl_be_block_cw_dispatch_ws(struct ctl_be_block_lun *be_lun,
 	beio->ds_trans_type = DEVSTAT_WRITE;
 
 	DPRINTF("WRITE SAME at LBA %jx len %u\n",
-	       (uintmax_t)lbalen.lba, lbalen.len);
+	       (uintmax_t)lbalen->lba, lbalen->len);
 
-	len_left = (uint64_t)lbalen.len * be_lun->blocksize;
+	len_left = (uint64_t)lbalen->len * be_lun->blocksize;
 	for (i = 0, lba = 0; i < CTLBLK_MAX_SEGS && len_left > 0; i++) {
 
 		/*
@@ -1014,21 +1012,19 @@ ctl_be_block_cw_dispatch_ws(struct ctl_be_block_lun *be_lun,
 		end = buf + seglen;
 		for (; buf < end; buf += be_lun->blocksize) {
 			memcpy(buf, io->scsiio.kern_data_ptr, be_lun->blocksize);
-			if (lbalen.flags & SWS_LBDATA)
-				scsi_ulto4b(lbalen.lba + lba, buf);
+			if (lbalen->flags & SWS_LBDATA)
+				scsi_ulto4b(lbalen->lba + lba, buf);
 			lba++;
 		}
 	}
 
-	beio->io_offset = lbalen.lba * be_lun->blocksize;
+	beio->io_offset = lbalen->lba * be_lun->blocksize;
 	beio->io_len = lba * be_lun->blocksize;
 
 	/* We can not do all in one run. Correct and schedule rerun. */
 	if (len_left > 0) {
-		lbalen.lba += lba;
-		lbalen.len -= lba;
-		memcpy(io->io_hdr.ctl_private[CTL_PRIV_LBA_LEN].bytes, &lbalen,
-		       sizeof(lbalen));
+		lbalen->lba += lba;
+		lbalen->len -= lba;
 		beio->beio_cont = ctl_be_block_cw_done_ws;
 	}
 
@@ -1041,16 +1037,15 @@ ctl_be_block_cw_dispatch_unmap(struct ctl_be_block_lun *be_lun,
 {
 	struct ctl_be_block_io *beio;
 	struct ctl_be_block_softc *softc;
-	struct ctl_ptr_len_flags ptrlen;
+	struct ctl_ptr_len_flags *ptrlen;
 
 	DPRINTF("entered\n");
 
 	beio = io->io_hdr.ctl_private[CTL_PRIV_BACKEND].ptr;
 	softc = be_lun->softc;
-	memcpy(&ptrlen, io->io_hdr.ctl_private[CTL_PRIV_LBA_LEN].bytes,
-	       sizeof(ptrlen));
+	ptrlen = (struct ctl_ptr_len_flags *)&io->io_hdr.ctl_private[CTL_PRIV_LBA_LEN];
 
-	if (ptrlen.flags != 0 || be_lun->unmap == NULL) {
+	if (ptrlen->flags != 0 || be_lun->unmap == NULL) {
 		ctl_free_beio(beio);
 		ctl_set_invalid_field(&io->scsiio,
 				      /*sks_valid*/ 0,
@@ -1092,8 +1087,7 @@ ctl_be_block_cw_dispatch_unmap(struct ctl_be_block_lun *be_lun,
 	beio->bio_cmd = BIO_DELETE;
 	beio->ds_trans_type = DEVSTAT_FREE;
 
-	DPRINTF("WRITE SAME at LBA %jx len %u\n",
-	       (uintmax_t)lbalen.lba, lbalen.len);
+	DPRINTF("UNMAP\n");
 
 	be_lun->unmap(be_lun, beio);
 }
@@ -1188,7 +1182,7 @@ ctl_be_block_dispatch(struct ctl_be_block_lun *be_lun,
 {
 	struct ctl_be_block_io *beio;
 	struct ctl_be_block_softc *softc;
-	struct ctl_lba_len lbalen;
+	struct ctl_lba_len *lbalen;
 	uint64_t len_left, lbaoff;
 	int i;
 
@@ -1248,14 +1242,13 @@ ctl_be_block_dispatch(struct ctl_be_block_lun *be_lun,
 		beio->ds_trans_type = DEVSTAT_WRITE;
 	}
 
-	memcpy(&lbalen, io->io_hdr.ctl_private[CTL_PRIV_LBA_LEN].bytes,
-	       sizeof(lbalen));
+	lbalen = (struct ctl_lba_len *)&io->io_hdr.ctl_private[CTL_PRIV_LBA_LEN];
 	DPRINTF("%s at LBA %jx len %u @%ju\n",
 	       (beio->bio_cmd == BIO_READ) ? "READ" : "WRITE",
-	       (uintmax_t)lbalen.lba, lbalen.len, lbaoff);
+	       (uintmax_t)lbalen->lba, lbalen->len, lbaoff);
 	lbaoff = io->scsiio.kern_rel_offset / be_lun->blocksize;
-	beio->io_offset = (lbalen.lba + lbaoff) * be_lun->blocksize;
-	beio->io_len = MIN((lbalen.len - lbaoff) * be_lun->blocksize,
+	beio->io_offset = (lbalen->lba + lbaoff) * be_lun->blocksize;
+	beio->io_len = MIN((lbalen->len - lbaoff) * be_lun->blocksize,
 	    CTLBLK_MAX_IO_SIZE);
 	beio->io_len -= beio->io_len % be_lun->blocksize;
 
