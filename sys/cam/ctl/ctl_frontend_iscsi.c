@@ -2311,22 +2311,18 @@ cfiscsi_lun_enable(void *arg, struct ctl_id target_id, int lun_id)
 {
 	struct cfiscsi_softc *softc;
 	struct cfiscsi_target *ct;
-	struct ctl_be_lun_option *opt;
 	const char *target = NULL, *target_alias = NULL;
 	const char *lun = NULL;
 	unsigned long tmp;
 
 	softc = (struct cfiscsi_softc *)arg;
 
-	STAILQ_FOREACH(opt,
-	    &control_softc->ctl_luns[lun_id]->be_lun->options, links) {
-		if (strcmp(opt->name, "cfiscsi_target") == 0)
-			target = opt->value;
-		else if (strcmp(opt->name, "cfiscsi_target_alias") == 0)
-			target_alias = opt->value;
-		else if (strcmp(opt->name, "cfiscsi_lun") == 0)
-			lun = opt->value;
-	}
+	target = ctl_get_opt(control_softc->ctl_luns[lun_id]->be_lun,
+	    "cfiscsi_target");
+	target_alias = ctl_get_opt(control_softc->ctl_luns[lun_id]->be_lun,
+	    "cfiscsi_target_alias");
+	lun = ctl_get_opt(control_softc->ctl_luns[lun_id]->be_lun,
+	    "cfiscsi_lun");
 
 	if (target == NULL && lun == NULL)
 		return (0);

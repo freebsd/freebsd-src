@@ -1824,9 +1824,12 @@ ctl_be_block_create(struct ctl_be_block_softc *softc, struct ctl_lun_req *req)
 	struct ctl_be_block_lun *be_lun;
 	struct ctl_lun_create_params *params;
 	struct ctl_be_arg *file_arg;
+	char num_thread_str[16];
 	char tmpstr[32];
+	char *value;
 	int retval, num_threads, unmap;
 	int i;
+	int tmp_num_threads;
 
 	params = &req->reqdata.create;
 	retval = 0;
@@ -1841,9 +1844,9 @@ ctl_be_block_create(struct ctl_be_block_softc *softc, struct ctl_lun_req *req)
 	STAILQ_INIT(&be_lun->input_queue);
 	STAILQ_INIT(&be_lun->config_write_queue);
 	STAILQ_INIT(&be_lun->datamove_queue);
-	STAILQ_INIT(&be_lun->ctl_be_lun.options);
 	sprintf(be_lun->lunname, "cblk%d", softc->num_luns);
 	mtx_init(&be_lun->lock, be_lun->lunname, NULL, MTX_DEF);
+	ctl_init_opts(&be_lun->ctl_be_lun, req);
 
 	be_lun->lun_zone = uma_zcreate(be_lun->lunname, CTLBLK_MAX_SEG,
 	    NULL, NULL, NULL, NULL, /*align*/ 0, /*flags*/0);
@@ -1916,50 +1919,27 @@ ctl_be_block_create(struct ctl_be_block_softc *softc, struct ctl_lun_req *req)
 	 * XXX This searching loop might be refactored to be combined with
 	 * the loop above,
 	 */
-	unmap = 0;
-	for (i = 0; i < req->num_be_args; i++) {
-		if (strcmp(req->kern_be_args[i].kname, "num_threads") == 0) {
-			struct ctl_be_arg *thread_arg;
-			char num_thread_str[16];
-			int tmp_num_threads;
+	value = ctl_get_opt(&be_lun->ctl_be_lun, "num_threads");
+	if (value != NULL) {
+		tmp_num_threads = strtol(value, NULL, 0);
 
-
-			thread_arg = &req->kern_be_args[i];
-
-			strlcpy(num_thread_str, (char *)thread_arg->kvalue,
-				min(thread_arg->vallen,
-				sizeof(num_thread_str)));
-
-			tmp_num_threads = strtol(num_thread_str, NULL, 0);
-
-			/*
-			 * We don't let the user specify less than one
-			 * thread, but hope he's clueful enough not to
-			 * specify 1000 threads.
-			 */
-			if (tmp_num_threads < 1) {
-				snprintf(req->error_str, sizeof(req->error_str),
-					 "%s: invalid number of threads %s",
-				         __func__, num_thread_str);
-				goto bailout_error;
-			}
-
-			num_threads = tmp_num_threads;
-		} else if (strcmp(req->kern_be_args[i].kname, "unmap") == 0 &&
-		    strcmp(req->kern_be_args[i].kvalue, "on") == 0) {
-			unmap = 1;
-		} else if (strcmp(req->kern_be_args[i].kname, "file") != 0 &&
-		    strcmp(req->kern_be_args[i].kname, "dev") != 0) {
-			struct ctl_be_lun_option *opt;
-
-			opt = malloc(sizeof(*opt), M_CTLBLK, M_WAITOK);
-			opt->name = malloc(strlen(req->kern_be_args[i].kname) + 1, M_CTLBLK, M_WAITOK);
-			strcpy(opt->name, req->kern_be_args[i].kname);
-			opt->value = malloc(strlen(req->kern_be_args[i].kvalue) + 1, M_CTLBLK, M_WAITOK);
-			strcpy(opt->value, req->kern_be_args[i].kvalue);
-			STAILQ_INSERT_TAIL(&be_lun->ctl_be_lun.options, opt, links);
+		/*
+		 * We don't let the user specify less than one
+		 * thread, but hope he's clueful enough not to
+		 * specify 1000 threads.
+		 */
+		if (tmp_num_threads < 1) {
+			snprintf(req->error_str, sizeof(req->error_str),
+				 "%s: invalid number of threads %s",
+			         __func__, num_thread_str);
+			goto bailout_error;
 		}
+		num_threads = tmp_num_threads;
 	}
+	unmap = 0;
+	value = ctl_get_opt(&be_lun->ctl_be_lun, "unmap");
+	if (value != NULL && strcmp(value, "on") == 0)
+		unmap = 1;
 
 	be_lun->flags = CTL_BE_BLOCK_LUN_UNCONFIGURED;
 	be_lun->ctl_be_lun.flags = CTL_LUN_FLAG_PRIMARY;
@@ -2122,6 +2102,7 @@ bailout_error:
 		free(be_lun->dev_path, M_CTLBLK);
 	if (be_lun->lun_zone != NULL)
 		uma_zdestroy(be_lun->lun_zone);
+	ctl_free_opts(&be_lun->ctl_be_lun);
 	mtx_destroy(&be_lun->lock);
 	free(be_lun, M_CTLBLK);
 
@@ -2208,6 +2189,7 @@ ctl_be_block_rm(struct ctl_be_block_softc *softc, struct ctl_lun_req *req)
 
 	uma_zdestroy(be_lun->lun_zone);
 
+	ctl_free_opts(&be_lun->ctl_be_lun);
 	free(be_lun->dev_path, M_CTLBLK);
 
 	free(be_lun, M_CTLBLK);
