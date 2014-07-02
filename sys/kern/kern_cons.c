@@ -702,10 +702,10 @@ vty_set_preferred(unsigned vty)
 
 	vty_prefer = vty;
 #if !defined(DEV_SC)
-	vty_prefer &= ~DEV_SC;
+	vty_prefer &= ~VTY_SC;
 #endif
 #if !defined(DEV_VT)
-	vty_prefer &= ~DEV_VT;
+	vty_prefer &= ~VTY_VT;
 #endif
 }
 
