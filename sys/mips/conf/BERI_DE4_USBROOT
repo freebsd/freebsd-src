@@ -12,7 +12,7 @@ ident		BERI_DE4_USBROOT
 makeoptions	MODULES_OVERRIDE=""
 
 nooptions	ROOTDEVNAME
-options         ROOTDEVNAME=\"ufs:/dev/da0\"
+options 	ROOTDEVNAME=\"ufs:/dev/da0\"
 device		scbus
 device		pass
 device		umass
