@@ -4716,6 +4716,7 @@ OLD_FILES+=usr/bin/svnliterdump
 OLD_FILES+=usr/bin/svnliteserve
 OLD_FILES+=usr/bin/svnlitesync
 OLD_FILES+=usr/bin/svnliteversion
+OLD_FILES+=usr/share/man/man1/svnlite.1.gz
 .endif
 
 .if ${MK_SVN} == no
