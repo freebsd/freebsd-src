@@ -4796,7 +4796,7 @@ bge_tick(void *xsc)
 		 */
 #ifdef DEVICE_POLLING
 		/* In polling mode we poll link state in bge_poll(). */
-		if (!(sc->bge_if_getcapenable(ifp) & IFCAP_POLLING))
+		if (!(if_getcapenable(sc->bge_ifp) & IFCAP_POLLING))
 #endif
 		{
 		sc->bge_link_evt++;
@@ -5830,7 +5830,7 @@ bge_ioctl(if_t ifp, u_long command, caddr_t data)
 #ifdef DEVICE_POLLING
 		if (mask & IFCAP_POLLING) {
 			if (ifr->ifr_reqcap & IFCAP_POLLING) {
-				error = ether_poll_register(bge_poll, ifp);
+				error = ether_poll_register_drv(bge_poll, ifp);
 				if (error)
 					return (error);
 				BGE_LOCK(sc);
