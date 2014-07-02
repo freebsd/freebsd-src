@@ -1823,20 +1823,16 @@ ctl_be_block_create(struct ctl_be_block_softc *softc, struct ctl_lun_req *req)
 {
 	struct ctl_be_block_lun *be_lun;
 	struct ctl_lun_create_params *params;
-	struct ctl_be_arg *file_arg;
 	char num_thread_str[16];
 	char tmpstr[32];
 	char *value;
 	int retval, num_threads, unmap;
-	int i;
 	int tmp_num_threads;
 
 	params = &req->reqdata.create;
 	retval = 0;
 
 	num_threads = cbb_num_threads;
-
-	file_arg = NULL;
 
 	be_lun = malloc(sizeof(*be_lun), M_CTLBLK, M_ZERO | M_WAITOK);
 
@@ -1863,24 +1859,13 @@ ctl_be_block_create(struct ctl_be_block_softc *softc, struct ctl_lun_req *req)
 		be_lun->ctl_be_lun.lun_type = T_DIRECT;
 
 	if (be_lun->ctl_be_lun.lun_type == T_DIRECT) {
-		for (i = 0; i < req->num_be_args; i++) {
-			if (strcmp(req->kern_be_args[i].kname, "file") == 0) {
-				file_arg = &req->kern_be_args[i];
-				break;
-			}
-		}
-
-		if (file_arg == NULL) {
+		value = ctl_get_opt(&be_lun->ctl_be_lun, "file");
+		if (value == NULL) {
 			snprintf(req->error_str, sizeof(req->error_str),
 				 "%s: no file argument specified", __func__);
 			goto bailout_error;
 		}
-
-		be_lun->dev_path = malloc(file_arg->vallen, M_CTLBLK,
-					  M_WAITOK | M_ZERO);
-
-		strlcpy(be_lun->dev_path, (char *)file_arg->kvalue,
-			file_arg->vallen);
+		be_lun->dev_path = strdup(value, M_CTLBLK);
 
 		retval = ctl_be_block_open(softc, be_lun, req);
 		if (retval != 0) {
@@ -2517,25 +2502,6 @@ ctl_be_block_lun_info(void *be_lun, struct sbuf *sb)
 		goto bailout;
 
 	retval = sbuf_printf(sb, "</num_threads>");
-
-	/*
-	 * For processor devices, we don't have a path variable.
-	 */
-	if ((retval != 0)
-	 || (lun->dev_path == NULL))
-		goto bailout;
-
-	retval = sbuf_printf(sb, "<file>");
-
-	if (retval != 0)
-		goto bailout;
-
-	retval = ctl_sbuf_printf_esc(sb, lun->dev_path);
-
-	if (retval != 0)
-		goto bailout;
-
-	retval = sbuf_printf(sb, "</file>\n");
 
 bailout:
 
