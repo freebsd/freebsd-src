@@ -563,9 +563,6 @@ oce_multiq_start(struct ifnet *ifp, struct mbuf *m)
 	int queue_index = 0;
 	int status = 0;
 
-	if (!sc->link_status)
-		return ENXIO;
-
 	if ((m->m_flags & M_FLOWID) != 0)
 		queue_index = m->m_pkthdr.flowid % sc->nwqs;
 
@@ -1274,7 +1271,6 @@ oce_multiq_transmit(struct ifnet *ifp, struct mbuf *m, struct oce_wq *wq)
 				drbr_putback(ifp, br, next);
 				wq->tx_stats.tx_stops ++;
 				ifp->if_drv_flags |= IFF_DRV_OACTIVE;
-				status = drbr_enqueue(ifp, br, next);
 			}  
 			break;
 		}
@@ -1285,7 +1281,7 @@ oce_multiq_transmit(struct ifnet *ifp, struct mbuf *m, struct oce_wq *wq)
 		ETHER_BPF_MTAP(ifp, next);
 	}
 
-	return status;
+	return 0;
 }
 
 
