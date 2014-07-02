@@ -484,7 +484,7 @@ void
 pmap_page_init(vm_page_t m)
 {
 
-	CTR2(KTR_PMAP, "%s(%p)", __func__, m);
+	CTR2(KTR_PMAP, "%s(m=%p)", __func__, m);
 
 	TAILQ_INIT(&m->md.pv_list);
 	m->md.memattr = VM_MEMATTR_DEFAULT;
@@ -623,7 +623,7 @@ void
 pmap_pinit0(pmap_t pmap)
 {
 
-	CTR2(KTR_PMAP, "%s(%p)", __func__, pmap);
+	CTR2(KTR_PMAP, "%s(pm=%p)", __func__, pmap);
 
 	PMAP_LOCK_INIT(pmap);
 	pmap_pinit_common(pmap);
@@ -637,7 +637,7 @@ int
 pmap_pinit(pmap_t pmap)
 {
 
-	CTR2(KTR_PMAP, "%s(%p)", __func__, pmap);
+	CTR2(KTR_PMAP, "%s(pm=%p)", __func__, pmap);
 
 	pmap_pinit_common(pmap);
 	return (1);
@@ -657,7 +657,7 @@ pmap_release(pmap_t pmap)
 {
 	int i;
 
-	CTR2(KTR_PMAP, "%s(%p)", __func__, pmap);
+	CTR2(KTR_PMAP, "%s(pm=%p)", __func__, pmap);
 
 	for (i = 0; i < IA64_VM_MINKERN_REGION; i++)
 		if (pmap->pm_rid[i])
@@ -674,7 +674,7 @@ pmap_growkernel(vm_offset_t addr)
 	struct ia64_lpte *leaf;
 	vm_page_t nkpg;
 
-	CTR2(KTR_PMAP, "%s(%#x)", __func__, addr);
+	CTR2(KTR_PMAP, "%s(va=%#lx)", __func__, addr);
 
 	while (kernel_vm_end <= addr) {
 		if (nkpt == PAGE_SIZE/8 + PAGE_SIZE*PAGE_SIZE/64)
@@ -1170,7 +1170,7 @@ pmap_extract(pmap_t pmap, vm_offset_t va)
 	pmap_t oldpmap;
 	vm_paddr_t pa;
 
-	CTR3(KTR_PMAP, "%s(%p, %#x)", __func__, pmap, va);
+	CTR3(KTR_PMAP, "%s(pm=%p, va=%#lx)", __func__, pmap, va);
 
 	pa = 0;
 	PMAP_LOCK(pmap);
@@ -1198,7 +1198,8 @@ pmap_extract_and_hold(pmap_t pmap, vm_offset_t va, vm_prot_t prot)
 	vm_page_t m;
 	vm_paddr_t pa;
 
-	CTR4(KTR_PMAP, "%s(%p, %#x, %#x)", __func__, pmap, va, prot);
+	CTR4(KTR_PMAP, "%s(pm=%p, va=%#lx, prot=%#x)", __func__, pmap, va,
+	    prot);
 
 	pa = 0;
 	m = NULL;
@@ -1381,7 +1382,7 @@ pmap_kextract(vm_offset_t va)
 	vm_paddr_t pa;
 	u_int idx;
 
-	CTR2(KTR_PMAP, "%s(%#x)", __func__, va);
+	CTR2(KTR_PMAP, "%s(va=%#lx)", __func__, va);
 
 	KASSERT(va >= VM_MAXUSER_ADDRESS, ("Must be kernel VA"));
 
@@ -1443,7 +1444,7 @@ pmap_qenter(vm_offset_t va, vm_page_t *m, int count)
 	struct ia64_lpte *pte;
 	int i;
 
-	CTR4(KTR_PMAP, "%s(%#x, %p, %d)", __func__, va, m, count);
+	CTR4(KTR_PMAP, "%s(va=%#lx, m_p=%p, cnt=%d)", __func__, va, m, count);
 
 	for (i = 0; i < count; i++) {
 		pte = pmap_find_kpte(va);
@@ -1468,7 +1469,7 @@ pmap_qremove(vm_offset_t va, int count)
 	struct ia64_lpte *pte;
 	int i;
 
-	CTR3(KTR_PMAP, "%s(%#x, %d)", __func__, va, count);
+	CTR3(KTR_PMAP, "%s(va=%#lx, cnt=%d)", __func__, va, count);
 
 	for (i = 0; i < count; i++) {
 		pte = pmap_find_kpte(va);
@@ -1490,7 +1491,7 @@ pmap_kenter(vm_offset_t va, vm_paddr_t pa)
 {
 	struct ia64_lpte *pte;
 
-	CTR3(KTR_PMAP, "%s(%#x, %#x)", __func__, va, pa);
+	CTR3(KTR_PMAP, "%s(va=%#lx, pa=%#lx)", __func__, va, pa);
 
 	pte = pmap_find_kpte(va);
 	if (pmap_present(pte))
@@ -1510,7 +1511,7 @@ pmap_kremove(vm_offset_t va)
 {
 	struct ia64_lpte *pte;
 
-	CTR2(KTR_PMAP, "%s(%#x)", __func__, va);
+	CTR2(KTR_PMAP, "%s(va=%#lx)", __func__, va);
 
 	pte = pmap_find_kpte(va);
 	if (pmap_present(pte)) {
@@ -1536,8 +1537,8 @@ vm_offset_t
 pmap_map(vm_offset_t *virt, vm_offset_t start, vm_offset_t end, int prot)
 {
 
-	CTR5(KTR_PMAP, "%s(%p, %#x, %#x, %#x)", __func__, virt, start, end,
-	    prot);
+	CTR5(KTR_PMAP, "%s(va_p=%p, sva=%#lx, eva=%#lx, prot=%#x)", __func__,
+	    virt, start, end, prot);
 
 	return IA64_PHYS_TO_RR7(start);
 }
@@ -1558,7 +1559,8 @@ pmap_remove(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 	vm_offset_t va;
 	struct ia64_lpte *pte;
 
-	CTR4(KTR_PMAP, "%s(%p, %#x, %#x)", __func__, pmap, sva, eva);
+	CTR4(KTR_PMAP, "%s(pm=%p, sva=%#lx, eva=%#lx)", __func__, pmap, sva,
+	    eva);
 
 	/*
 	 * Perform an unsynchronized read.  This is, however, safe.
@@ -1597,7 +1599,7 @@ pmap_remove_all(vm_page_t m)
 	pmap_t oldpmap;
 	pv_entry_t pv;
 
-	CTR2(KTR_PMAP, "%s(%p)", __func__, m);
+	CTR2(KTR_PMAP, "%s(m=%p)", __func__, m);
 
 	KASSERT((m->oflags & VPO_UNMANAGED) == 0,
 	    ("pmap_remove_all: page %p is not managed", m));
@@ -1631,8 +1633,8 @@ pmap_protect(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
 	pmap_t oldpmap;
 	struct ia64_lpte *pte;
 
-	CTR5(KTR_PMAP, "%s(%p, %#x, %#x, %#x)", __func__, pmap, sva, eva,
-	    prot);
+	CTR5(KTR_PMAP, "%s(pm=%p, sva=%#lx, eva=%#lx, prot=%#x)", __func__,
+	    pmap, sva, eva, prot);
 
 	if ((prot & VM_PROT_READ) == VM_PROT_NONE) {
 		pmap_remove(pmap, sva, eva);
@@ -1700,8 +1702,8 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_prot_t access, vm_page_t m,
 	struct ia64_lpte *pte;
 	boolean_t icache_inval, managed;
 
-	CTR6(KTR_PMAP, "pmap_enter(%p, %#x, %#x, %p, %#x, %u)", pmap, va,
-	    access, m, prot, wired);
+	CTR6(KTR_PMAP, "pmap_enter(pm=%p, va=%#lx, acc=%#x, m=%p, prot=%#x, "
+	    "wired=%u)", pmap, va, access, m, prot, wired);
 
 	rw_wlock(&pvh_global_lock);
 	PMAP_LOCK(pmap);
@@ -1834,8 +1836,8 @@ pmap_enter_object(pmap_t pmap, vm_offset_t start, vm_offset_t end,
 	vm_page_t m;
 	vm_pindex_t diff, psize;
 
-	CTR6(KTR_PMAP, "%s(%p, %#x, %#x, %p, %#x)", __func__, pmap, start,
-	    end, m_start, prot);
+	CTR6(KTR_PMAP, "%s(pm=%p, sva=%#lx, eva=%#lx, m=%p, prot=%#x)",
+	    __func__, pmap, start, end, m_start, prot);
 
 	VM_OBJECT_ASSERT_LOCKED(m_start->object);
 
@@ -1866,7 +1868,8 @@ pmap_enter_quick(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot)
 {
 	pmap_t oldpmap;
 
-	CTR5(KTR_PMAP, "%s(%p, %#x, %p, %#x)", __func__, pmap, va, m, prot);
+	CTR5(KTR_PMAP, "%s(pm=%p, va=%#lx, m=%p, prot=%#x)", __func__, pmap,
+	    va, m, prot);
 
 	rw_wlock(&pvh_global_lock);
 	PMAP_LOCK(pmap);
@@ -1929,8 +1932,8 @@ pmap_object_init_pt(pmap_t pmap, vm_offset_t addr, vm_object_t object,
     vm_pindex_t pindex, vm_size_t size)
 {
 
-	CTR6(KTR_PMAP, "%s(%p, %#x, %p, %u, %#x)", __func__, pmap, addr,
-	    object, pindex, size);
+	CTR6(KTR_PMAP, "%s(pm=%p, va=%#lx, obj=%p, idx=%lu, sz=%#lx)",
+	    __func__, pmap, addr, object, pindex, size);
 
 	VM_OBJECT_ASSERT_WLOCKED(object);
 	KASSERT(object->type == OBJT_DEVICE || object->type == OBJT_SG,
@@ -1950,7 +1953,8 @@ pmap_change_wiring(pmap_t pmap, vm_offset_t va, boolean_t wired)
 	pmap_t oldpmap;
 	struct ia64_lpte *pte;
 
-	CTR4(KTR_PMAP, "%s(%p, %#x, %u)", __func__, pmap, va, wired);
+	CTR4(KTR_PMAP, "%s(pm=%p, va=%#lx, wired=%u)", __func__, pmap, va,
+	    wired);
 
 	PMAP_LOCK(pmap);
 	oldpmap = pmap_switch(pmap);
@@ -1981,8 +1985,8 @@ pmap_copy(pmap_t dst_pmap, pmap_t src_pmap, vm_offset_t dst_va, vm_size_t len,
     vm_offset_t src_va)
 {
 
-	CTR6(KTR_PMAP, "%s(%p, %p, %#x, %#x, %#x)", __func__, dst_pmap,
-	    src_pmap, dst_va, len, src_va);
+	CTR6(KTR_PMAP, "%s(dpm=%p, spm=%p, dva=%#lx, sz=%#lx, sva=%#lx)",
+	    __func__, dst_pmap, src_pmap, dst_va, len, src_va);
 }
 
 /*
@@ -1995,7 +1999,7 @@ pmap_zero_page(vm_page_t m)
 {
 	void *p;
 
-	CTR2(KTR_PMAP, "%s(%p)", __func__, m);
+	CTR2(KTR_PMAP, "%s(m=%p)", __func__, m);
 
 	p = (void *)pmap_page_to_va(m);
 	bzero(p, PAGE_SIZE);
@@ -2013,7 +2017,7 @@ pmap_zero_page_area(vm_page_t m, int off, int size)
 {
 	char *p;
 
-	CTR4(KTR_PMAP, "%s(%p, %d, %d)", __func__, m, off, size);
+	CTR4(KTR_PMAP, "%s(m=%p, ofs=%d, len=%d)", __func__, m, off, size);
 
 	p = (void *)pmap_page_to_va(m);
 	bzero(p + off, size);
@@ -2029,7 +2033,7 @@ pmap_zero_page_idle(vm_page_t m)
 {
 	void *p;
 
-	CTR2(KTR_PMAP, "%s(%p)", __func__, m);
+	CTR2(KTR_PMAP, "%s(m=%p)", __func__, m);
 
 	p = (void *)pmap_page_to_va(m);
 	bzero(p, PAGE_SIZE);
@@ -2046,7 +2050,7 @@ pmap_copy_page(vm_page_t msrc, vm_page_t mdst)
 {
 	void *dst, *src;
 
-	CTR3(KTR_PMAP, "%s(%p, %p)", __func__, msrc, mdst);
+	CTR3(KTR_PMAP, "%s(sm=%p, dm=%p)", __func__, msrc, mdst);
 
 	src = (void *)pmap_page_to_va(msrc);
 	dst = (void *)pmap_page_to_va(mdst);
@@ -2061,8 +2065,8 @@ pmap_copy_pages(vm_page_t ma[], vm_offset_t a_offset, vm_page_t mb[],
 	vm_offset_t a_pg_offset, b_pg_offset;
 	int cnt;
 
-	CTR6(KTR_PMAP, "%s(%p, %#x, %p, %#x, %#x)", __func__, ma,
-	    a_offset, mb, b_offset, xfersize);
+	CTR6(KTR_PMAP, "%s(m0=%p, va0=%#lx, m1=%p, va1=%#lx, sz=%#x)",
+	    __func__, ma, a_offset, mb, b_offset, xfersize);
 
 	while (xfersize > 0) {
 		a_pg_offset = a_offset & PAGE_MASK;
@@ -2094,7 +2098,7 @@ pmap_page_exists_quick(pmap_t pmap, vm_page_t m)
 	int loops = 0;
 	boolean_t rv;
 
-	CTR3(KTR_PMAP, "%s(%p, %p)", __func__, pmap, m);
+	CTR3(KTR_PMAP, "%s(pm=%p, m=%p)", __func__, pmap, m);
 
 	KASSERT((m->oflags & VPO_UNMANAGED) == 0,
 	    ("pmap_page_exists_quick: page %p is not managed", m));
@@ -2127,7 +2131,7 @@ pmap_page_wired_mappings(vm_page_t m)
 	pv_entry_t pv;
 	int count;
 
-	CTR2(KTR_PMAP, "%s(%p)", __func__, m);
+	CTR2(KTR_PMAP, "%s(m=%p)", __func__, m);
 
 	count = 0;
 	if ((m->oflags & VPO_UNMANAGED) != 0)
@@ -2168,7 +2172,7 @@ pmap_remove_pages(pmap_t pmap)
 	u_long inuse, bitmask;
 	int allfree, bit, field, idx;
 
-	CTR2(KTR_PMAP, "%s(%p)", __func__, pmap);
+	CTR2(KTR_PMAP, "%s(pm=%p)", __func__, pmap);
 
 	rw_wlock(&pvh_global_lock);
 	PMAP_LOCK(pmap);
@@ -2237,7 +2241,7 @@ pmap_ts_referenced(vm_page_t m)
 	pv_entry_t pv;
 	int count = 0;
 
-	CTR2(KTR_PMAP, "%s(%p)", __func__, m);
+	CTR2(KTR_PMAP, "%s(m=%p)", __func__, m);
 
 	KASSERT((m->oflags & VPO_UNMANAGED) == 0,
 	    ("pmap_ts_referenced: page %p is not managed", m));
@@ -2274,7 +2278,7 @@ pmap_is_modified(vm_page_t m)
 	pv_entry_t pv;
 	boolean_t rv;
 
-	CTR2(KTR_PMAP, "%s(%p)", __func__, m);
+	CTR2(KTR_PMAP, "%s(m=%p)", __func__, m);
 
 	KASSERT((m->oflags & VPO_UNMANAGED) == 0,
 	    ("pmap_is_modified: page %p is not managed", m));
@@ -2316,7 +2320,7 @@ pmap_is_prefaultable(pmap_t pmap, vm_offset_t addr)
 {
 	struct ia64_lpte *pte;
 
-	CTR3(KTR_PMAP, "%s(%p, %#x)", __func__, pmap, addr);
+	CTR3(KTR_PMAP, "%s(pm=%p, va=%#lx)", __func__, pmap, addr);
 
 	pte = pmap_find_vhpt(addr);
 	if (pte != NULL && pmap_present(pte))
@@ -2338,7 +2342,7 @@ pmap_is_referenced(vm_page_t m)
 	pv_entry_t pv;
 	boolean_t rv;
 
-	CTR2(KTR_PMAP, "%s(%p)", __func__, m);
+	CTR2(KTR_PMAP, "%s(m=%p)", __func__, m);
 
 	KASSERT((m->oflags & VPO_UNMANAGED) == 0,
 	    ("pmap_is_referenced: page %p is not managed", m));
@@ -2372,8 +2376,8 @@ pmap_advise(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, int advice)
 	pmap_t oldpmap;
 	vm_page_t m;
 
-	CTR5(KTR_PMAP, "%s(%p, %#x, %#x, %d)", __func__, pmap, sva, eva,
-	    advice);
+	CTR5(KTR_PMAP, "%s(pm=%p, sva=%#lx, eva=%#lx, adv=%d)", __func__,
+	    pmap, sva, eva, advice);
 
 	PMAP_LOCK(pmap);
 	oldpmap = pmap_switch(pmap);
@@ -2417,7 +2421,7 @@ pmap_clear_modify(vm_page_t m)
 	pmap_t oldpmap, pmap;
 	pv_entry_t pv;
 
-	CTR2(KTR_PMAP, "%s(%p)", __func__, m);
+	CTR2(KTR_PMAP, "%s(m=%p)", __func__, m);
 
 	KASSERT((m->oflags & VPO_UNMANAGED) == 0,
 	    ("pmap_clear_modify: page %p is not managed", m));
@@ -2460,7 +2464,7 @@ pmap_remove_write(vm_page_t m)
 	pv_entry_t pv;
 	vm_prot_t prot;
 
-	CTR2(KTR_PMAP, "%s(%p)", __func__, m);
+	CTR2(KTR_PMAP, "%s(m=%p)", __func__, m);
 
 	KASSERT((m->oflags & VPO_UNMANAGED) == 0,
 	    ("pmap_remove_write: page %p is not managed", m));
@@ -2540,7 +2544,8 @@ pmap_mapdev_attr(vm_paddr_t pa, vm_size_t sz, vm_memattr_t attr)
 {
 	vm_offset_t va;
 
-	CTR4(KTR_PMAP, "%s(%#x, %#x, %#x)", __func__, pa, sz, attr);
+	CTR4(KTR_PMAP, "%s(pa=%#lx, sz=%#lx, attr=%#x)", __func__, pa, sz,
+	    attr);
 
 	va = pmap_mapdev_priv(pa, sz, attr);
 	return ((void *)(uintptr_t)va);
@@ -2553,7 +2558,7 @@ void
 pmap_unmapdev(vm_offset_t va, vm_size_t size)
 {
 
-	CTR3(KTR_PMAP, "%s(%#x, %#x)", __func__, va, size);
+	CTR3(KTR_PMAP, "%s(va=%#lx, sz=%#lx)", __func__, va, size);
 }
 
 /*
@@ -2579,7 +2584,7 @@ pmap_page_set_memattr(vm_page_t m, vm_memattr_t ma)
 	pv_entry_t pv;
 	void *va;
 
-	CTR3(KTR_PMAP, "%s(%p, %#x)", __func__, m, ma);
+	CTR3(KTR_PMAP, "%s(m=%p, attr=%#x)", __func__, m, ma);
 
 	rw_wlock(&pvh_global_lock);
 	m->md.memattr = ma;
@@ -2627,7 +2632,8 @@ pmap_mincore(pmap_t pmap, vm_offset_t addr, vm_paddr_t *locked_pa)
 	vm_paddr_t pa;
 	int val;
 
-	CTR4(KTR_PMAP, "%s(%p, %#x, %p)", __func__, pmap, addr, locked_pa);
+	CTR4(KTR_PMAP, "%s(pm=%p, va=%#lx, pa_p=%p)", __func__, pmap, addr,
+	    locked_pa);
 
 	PMAP_LOCK(pmap);
 retry:
@@ -2668,7 +2674,7 @@ void
 pmap_activate(struct thread *td)
 {
 
-	CTR2(KTR_PMAP, "%s(%p)", __func__, td);
+	CTR2(KTR_PMAP, "%s(td=%p)", __func__, td);
 
 	pmap_switch(vmspace_pmap(td->td_proc->p_vmspace));
 }
@@ -2713,7 +2719,7 @@ pmap_sync_icache(pmap_t pm, vm_offset_t va, vm_size_t sz)
 	vm_offset_t lim;
 	vm_size_t len;
 
-	CTR4(KTR_PMAP, "%s(%p, %#x, %#x)", __func__, pm, va, sz);
+	CTR4(KTR_PMAP, "%s(pm=%p, va=%#lx, sz=%#lx)", __func__, pm, va, sz);
 
 	sz += va & 31;
 	va &= ~31;
@@ -2743,8 +2749,8 @@ pmap_align_superpage(vm_object_t object, vm_ooffset_t offset,
     vm_offset_t *addr, vm_size_t size)
 {
 
-	CTR5(KTR_PMAP, "%s(%p, %#x, %p, %#x)", __func__, object, offset, addr,
-	    size);
+	CTR5(KTR_PMAP, "%s(obj=%p, ofs=%#lx, va_p=%p, sz=%#lx)", __func__,
+	    object, offset, addr, size);
 }
 
 #include "opt_ddb.h"
