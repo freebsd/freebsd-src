@@ -75,22 +75,13 @@ static struct cdevsw uinput_cdevsw = {
 	.d_write = uinput_write,
 	.d_ioctl = uinput_ioctl,
 	.d_poll = uinput_poll,
-	.d_kqfilter = uinput_kqfilter,
 	.d_name = "uinput",
 	.d_flags = D_TRACKCLOSE,
 };
 
-static struct filterops uinput_cdev_filterops = {
-	.f_isfd = 1,
-	.f_attach = NULL,
-	.f_detach = uinput_kqdetach,
-	.f_event = uinput_kqread,
-};
-
 static struct evdev_methods uinput_ev_methods = {
-	.ev_open = uinput_ev_open,
-	.ev_close = uinput_ev_close,
-	.ev_event = uinput_ev_event,
+	.ev_open = NULL,
+	.ev_close = NULL,
 };
 
 struct uinput_cdev_softc
@@ -106,8 +97,6 @@ struct uinput_cdev_state
 	struct evdev_dev *	ucs_evdev;
 	struct evdev_dev	ucs_state;
 	struct mtx		ucs_mtx;
-	struct selinfo		ucs_selp;
-	struct sigio *		ucs_sigio;
 };
 
 static int
@@ -117,8 +106,6 @@ uinput_open(struct cdev *dev, int oflags, int devtype, struct thread *td)
 
 	state = malloc(sizeof(struct uinput_cdev_state), M_EVDEV, M_WAITOK | M_ZERO);
 	state->ucs_evdev = evdev_alloc();
-
-	knlist_init_mtx(&state->ucs_selp.si_note, NULL);
 
 	devfs_set_cdevpriv(state, uinput_dtor);
 	return (0);
@@ -141,7 +128,6 @@ uinput_dtor(void *data)
 	evdev_unregister(NULL, state->ucs_evdev);
 	evdev_free(state->ucs_evdev);
 
-	seldrain(&state->ucs_selp);
 	free(data, M_EVDEV);
 }
 
@@ -238,52 +224,13 @@ uinput_setup_provider(struct evdev_dev *evdev, struct uinput_user_dev *udev)
 static int
 uinput_poll(struct cdev *dev, int events, struct thread *td)
 {
-	struct uinput_cdev_state *state;
-	int ret;
 	int revents = 0;
 
-	debugf("cdev: poll by thread %d", td->td_tid);
-
-	ret = devfs_get_cdevpriv((void **)&state);
-	if (ret != 0)
-		return (ret);
+	/* Always allow write */
+	if (events & (POLLOUT | POLLWRNORM))
+		revents |= (events & (POLLOUT | POLLWRNORM));
 
 	return (revents);
-}
-
-static int
-uinput_kqfilter(struct cdev *dev, struct knote *kn)
-{
-	struct uinput_cdev_state *state;
-	int ret;
-
-	ret = devfs_get_cdevpriv((void **)&state);
-	if (ret != 0)
-		return (ret);
-
-	kn->kn_hook = (caddr_t)state;
-	kn->kn_fop = &uinput_cdev_filterops;
-
-	knlist_add(&state->ucs_selp.si_note, kn, 0);
-	return (0);
-}
-
-static int
-uinput_kqread(struct knote *kn, long hint)
-{
-	struct uinput_cdev_state *state;
-
-	state = (struct uinput_cdev_state *)kn->kn_hook;
-	return (0);
-}
-
-static void
-uinput_kqdetach(struct knote *kn)
-{
-	struct uinput_cdev_state *state;
-
-	state = (struct uinput_cdev_state *)kn->kn_hook;
-	knlist_remove(&state->ucs_selp.si_note, kn, 0);
 }
 
 static int
@@ -296,7 +243,6 @@ uinput_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag,
 	len = IOCPARM_LEN(cmd);
 
 	debugf("uinput: ioctl called: cmd=0x%08lx, data=%p", cmd, data);
-
 
 	ret = devfs_get_cdevpriv((void **)&state);
 	if (ret != 0)
@@ -360,32 +306,6 @@ uinput_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag,
 	}
 	
 	return (0);
-}
-
-static void
-uinput_notify_event(struct evdev_client *client, void *data)
-{
-	struct uinput_cdev_state *state = (struct uinput_cdev_state *)data;
-
-	selwakeup(&state->ucs_selp);
-}
-
-static int uinput_ev_open(struct evdev_dev *dev, void *softc)
-{
-
-	return (0);
-}
-
-
-static void uinput_ev_close(struct evdev_dev *dev, void *softc)
-{
-
-}
-
-static void uinput_ev_event(struct evdev_dev *dev, void *softc, uint16_t type,
-    uint16_t code, int32_t value)
-{
-
 }
 
 static int
