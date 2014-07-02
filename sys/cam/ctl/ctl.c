@@ -8800,6 +8800,9 @@ ctl_read_write(struct ctl_scsiio *ctsio)
 	memcpy(ctsio->io_hdr.ctl_private[CTL_PRIV_LBA_LEN].bytes, &lbalen,
 	       sizeof(lbalen));
 
+	ctsio->kern_total_len = num_blocks * lun->be_lun->blocksize;
+	ctsio->kern_rel_offset = 0;
+
 	CTL_DEBUG_PRINT(("ctl_read_write: calling data_submit()\n"));
 
 	retval = lun->backend->data_submit((union ctl_io *)ctsio);
