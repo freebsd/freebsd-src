@@ -230,7 +230,7 @@ evdev_poll(struct cdev *dev, int events, struct thread *td)
 
 	ret = devfs_get_cdevpriv((void **)&state);
 	if (ret != 0)
-		return (ret);
+		return (POLLNVAL);
 
 	client = state->ecs_client;
 
