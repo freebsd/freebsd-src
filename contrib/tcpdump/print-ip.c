@@ -543,7 +543,7 @@ ip_print(netdissect_options *ndo,
         else if (!eflag)
 	    printf("IP ");
 
-	if (!ND_PACKET_HAS_SPACE(ipds->ip, 1)) {
+	if (!ND_PACKET_HAS_ELEMENT(ipds, ip)) {
 		printf("[|ip]");
 		return;
 	}
