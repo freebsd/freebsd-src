@@ -1179,9 +1179,6 @@ OLD_FILES+=usr/include/xmmintrin.h
 .if ${TARGET_ARCH} == "amd64" || ${TARGET_ARCH} == "i386" || ${TARGET_ARCH} == "arm"
 OLD_FILES+=usr/include/mmintrin.h
 .endif
-.if ${TARGET_ARCH} == "ia64"
-OLD_FILES+=usr/include/ia64intrin.h
-.endif
 .if ${TARGET_ARCH} == "powerpc"
 OLD_FILES+=usr/include/altivec.h
 OLD_FILES+=usr/include/ppc-asm.h
@@ -1199,10 +1196,6 @@ OLD_FILES+=usr/include/machine/rm7000.h
 OLD_FILES+=usr/include/machine/defs.h
 OLD_FILES+=usr/include/machine/queue.h
 .endif
-# 20100326: [ia64] removed <machine/nexusvar.h>
-.if ${TARGET_ARCH} == "ia64"
-OLD_FILES+=usr/include/machine/nexusvar.h
-.endif
 # 20100326: gcpio removal
 OLD_FILES+=usr/bin/gcpio
 OLD_FILES+=usr/share/info/cpio.info.gz
@@ -1216,11 +1209,6 @@ OLD_FILES+=usr/share/man/man3/regexp.3.gz
 OLD_FILES+=usr/share/man/man3/regsub.3.gz
 # 20100303: actual removal of utmp.h
 OLD_FILES+=usr/include/utmp.h
-# 20100227: [ia64] removed <machine/sapicreg.h> and <machine/sapicvar.h>
-.if ${TARGET_ARCH} == "ia64"
-OLD_FILES+=usr/include/machine/sapicreg.h
-OLD_FILES+=usr/include/machine/sapicvar.h
-.endif
 # 20100208: man pages moved
 .if ${TARGET_ARCH} == "i386"
 OLD_FILES+=usr/share/man/man4/i386/alpm.4.gz
@@ -1913,14 +1901,6 @@ OLD_FILES+=usr/share/man/man8/arlcontrol.8.gz
 OLD_FILES+=sbin/sunlabel
 OLD_FILES+=usr/share/man/man8/sunlabel.8.gz
 .endif
-# 20080703: bsdlabel & fdisk removed on ia64
-.if ${TARGET_ARCH} == "ia64"
-OLD_FILES+=sbin/bsdlabel
-OLD_FILES+=usr/share/man/man8/bsdlabel.8.gz
-OLD_FILES+=usr/share/man/man8/disklabel.8.gz
-OLD_FILES+=sbin/fdisk
-OLD_FILES+=usr/share/man/man8/fdisk.8.gz
-.endif
 # 20080701: wpa_supplicant.conf moved to share/examples/etc/
 OLD_FILES+=usr/share/examples/wpa_supplicant/wpa_supplicant.conf
 OLD_DIRS+=usr/share/examples/wpa_supplicant
@@ -2129,12 +2109,6 @@ OLD_FILES+=usr/include/sys/_elf_solaris.h
 OLD_FILES+=usr/share/man/man3/pmc_x86_get_msr.3.gz
 # 20071108: Removed very crunch OLDCARD support file
 OLD_FILES+=etc/defaults/pccard.conf
-# 20071104: Removed bsdlabel, fdisk and gpt from rescue on ia64.
-.if ${TARGET_ARCH} == "ia64"
-OLD_FILES+=rescue/bsdlabel
-OLD_FILES+=rescue/fdisk
-OLD_FILES+=rescue/gpt
-.endif
 # 20071025: rc.d/nfslocking superceeded by rc.d/lockd and rc.d/statd
 OLD_FILES+=etc/rc.d/nfslocking
 # 20070930: rename of cached to nscd
@@ -2795,10 +2769,6 @@ OLD_FILES+=usr/share/man/man8/mount_std.8.gz
 OLD_FILES+=usr/share/man/man4/uhidev.4.gz
 # 20061106: archive_write_prepare.3 removed
 OLD_FILES+=usr/share/man/man3/archive_write_prepare.3.gz
-.if ${TARGET_ARCH} == "ia64"
-# 20061104: skiload.help removed
-OLD_FILES+=boot/skiload.help
-.endif
 # 20061018: pccardc removed
 OLD_FILES+=usr/sbin/pccardc usr/share/man/man8/pccardc.8.gz
 # 20060930: demangle.h from contrib/libstdc++/include/ext/

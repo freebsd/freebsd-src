@@ -31,6 +31,11 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 11.x IS SLOW:
 	disable the most expensive debugging functionality run
 	"ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20140702:
+	The Itanium architecture (ia64) has been removed from the list of
+	known architectures. This is the first step in the removal of the
+	architecture.
+
 20140701:
 	Commit r268115 has added NFSv4.1 server support, merged from
 	projects/nfsv4.1-server.  Since this includes changes to the
