@@ -453,7 +453,7 @@ void
 rx_print(const u_char *bp, int length, int sport, int dport,
 	 u_char *bp2)
 {
-	struct rx_header *rxh;
+	register struct rx_header *rxh;
 	int i;
 	int32_t opcode;
 
@@ -819,7 +819,7 @@ rx_cache_find(const struct rx_header *rxh, const struct ip *ip, int sport,
  */
 
 static void
-fs_print(const u_char *bp, int length)
+fs_print(register const u_char *bp, int length)
 {
 	int fs_op;
 	unsigned long i;
@@ -997,7 +997,7 @@ trunc:
  */
 
 static void
-fs_reply_print(const u_char *bp, int length, int32_t opcode)
+fs_reply_print(register const u_char *bp, int length, int32_t opcode)
 {
 	unsigned long i;
 	struct rx_header *rxh;
@@ -1225,7 +1225,7 @@ finish:
  */
 
 static void
-cb_print(const u_char *bp, int length)
+cb_print(register const u_char *bp, int length)
 {
 	int cb_op;
 	unsigned long i;
@@ -1305,7 +1305,7 @@ trunc:
  */
 
 static void
-cb_reply_print(const u_char *bp, int length, int32_t opcode)
+cb_reply_print(register const u_char *bp, int length, int32_t opcode)
 {
 	struct rx_header *rxh;
 
@@ -1354,7 +1354,7 @@ trunc:
  */
 
 static void
-prot_print(const u_char *bp, int length)
+prot_print(register const u_char *bp, int length)
 {
 	unsigned long i;
 	int pt_op;
@@ -1495,7 +1495,7 @@ trunc:
  */
 
 static void
-prot_reply_print(const u_char *bp, int length, int32_t opcode)
+prot_reply_print(register const u_char *bp, int length, int32_t opcode)
 {
 	struct rx_header *rxh;
 	unsigned long i;
@@ -1607,7 +1607,7 @@ trunc:
  */
 
 static void
-vldb_print(const u_char *bp, int length)
+vldb_print(register const u_char *bp, int length)
 {
 	int vldb_op;
 	unsigned long i;
@@ -1698,7 +1698,7 @@ trunc:
  */
 
 static void
-vldb_reply_print(const u_char *bp, int length, int32_t opcode)
+vldb_reply_print(register const u_char *bp, int length, int32_t opcode)
 {
 	struct rx_header *rxh;
 	unsigned long i;
@@ -1885,7 +1885,7 @@ trunc:
  */
 
 static void
-kauth_print(const u_char *bp, int length)
+kauth_print(register const u_char *bp, int length)
 {
 	int kauth_op;
 
@@ -1976,7 +1976,7 @@ trunc:
  */
 
 static void
-kauth_reply_print(const u_char *bp, int length, int32_t opcode)
+kauth_reply_print(register const u_char *bp, int length, int32_t opcode)
 {
 	struct rx_header *rxh;
 
@@ -2027,7 +2027,7 @@ trunc:
  */
 
 static void
-vol_print(const u_char *bp, int length)
+vol_print(register const u_char *bp, int length)
 {
 	int vol_op;
 
@@ -2226,7 +2226,7 @@ trunc:
  */
 
 static void
-vol_reply_print(const u_char *bp, int length, int32_t opcode)
+vol_reply_print(register const u_char *bp, int length, int32_t opcode)
 {
 	struct rx_header *rxh;
 
@@ -2360,7 +2360,7 @@ trunc:
  */
 
 static void
-bos_print(const u_char *bp, int length)
+bos_print(register const u_char *bp, int length)
 {
 	int bos_op;
 
@@ -2449,7 +2449,7 @@ trunc:
  */
 
 static void
-bos_reply_print(const u_char *bp, int length, int32_t opcode)
+bos_reply_print(register const u_char *bp, int length, int32_t opcode)
 {
 	struct rx_header *rxh;
 
@@ -2507,7 +2507,7 @@ is_ubik(u_int32_t opcode)
  */
 
 static void
-ubik_print(const u_char *bp)
+ubik_print(register const u_char *bp)
 {
 	int ubik_op;
 	int32_t temp;
@@ -2616,7 +2616,7 @@ trunc:
  */
 
 static void
-ubik_reply_print(const u_char *bp, int length, int32_t opcode)
+ubik_reply_print(register const u_char *bp, int length, int32_t opcode)
 {
 	struct rx_header *rxh;
 
@@ -2679,7 +2679,7 @@ trunc:
  */
 
 static void
-rx_ack_print(const u_char *bp, int length)
+rx_ack_print(register const u_char *bp, int length)
 {
 	struct rx_ackPacket *rxa;
 	int i, start, last;
