@@ -34,7 +34,7 @@
 .\" $Id: //depot/users/kenm/FreeBSD-test2/usr.sbin/ctladm/ctladm.8#3 $
 .\" $FreeBSD$
 .\"
-.Dd October 30, 2013
+.Dd June 15, 2014
 .Dt CTLADM 8
 .Os
 .Sh NAME
@@ -932,6 +932,29 @@ Specify initiator portal (hostname or IP address).
 Display
 .Nm
 usage information.
+.El
+.Sh OPTIONS
+Number of additional configuration options may be specified for LUNs.
+Some options are global, others are backend-specific.
+.Pp
+Global options:
+.Bl -tag
+.It Va vendor
+Specifies LUN vendor string up to 8 chars.
+.It Va product
+Specifies LUN product string up to 16 chars.
+.It Va revision
+Specifies LUN revision string up to 4 chars.
+.It Va unmap
+Set to "on", enables UNMAP support for the LUN.
+.El
+.Pp
+Options specific for block backend:
+.Bl -tag
+.It Va file
+Specifies file or device name to use for backing store.
+.It Va num_threads
+Specifies number of backend threads to use for this LUN.
 .El
 .Sh EXAMPLES
 .Dl ctladm tur 0:1
