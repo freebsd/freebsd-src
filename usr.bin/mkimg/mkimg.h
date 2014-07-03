@@ -50,6 +50,7 @@ struct part {
 extern STAILQ_HEAD(partlisthead, part) partlist;
 extern u_int nparts;
 
+extern u_int unit_testing;
 extern u_int verbose;
 
 extern u_int ncyls;
@@ -70,5 +71,8 @@ round_block(lba_t n)
 #else
 ssize_t sparse_write(int, const void *, size_t);
 #endif
+
+struct uuid;
+void mkimg_uuid(struct uuid *);
 
 #endif /* _MKIMG_MKIMG_H_ */
