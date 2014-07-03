@@ -16750,7 +16750,7 @@ dtrace_open(struct cdev *dev, int oflags, int devtype, struct thread *td)
 
 	if (state == NULL) {
 #if defined(sun)
-		if (--dtrace_opens == 0)
+		if (--dtrace_opens == 0 && dtrace_anon.dta_enabling == NULL)
 			(void) kdi_dtrace_set(KDI_DTSET_DTRACE_DEACTIVATE);
 #else
 		--dtrace_opens;
@@ -16806,7 +16806,11 @@ dtrace_dtr(void *data)
 
 	ASSERT(dtrace_opens > 0);
 #if defined(sun)
-	if (--dtrace_opens == 0)
+	/*
+	 * Only relinquish control of the kernel debugger interface when there
+	 * are no consumers and no anonymous enablings.
+	 */
+	if (--dtrace_opens == 0 && dtrace_anon.dta_enabling == NULL)
 		(void) kdi_dtrace_set(KDI_DTSET_DTRACE_DEACTIVATE);
 #else
 	--dtrace_opens;
