@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 6, 2013
+.Dd November 20, 2013
 .Dt CAMCONTROL 8
 .Os
 .Sh NAME
@@ -268,6 +268,21 @@
 .Op Fl s Ar max_sectors
 .Op Fl U Ar pwd
 .Op Fl y
+.Nm
+.Ic persist
+.Op device id
+.Op generic args
+.Aq Fl i Ar action | Fl o Ar action
+.Op Fl a
+.Op Fl I Ar trans_id
+.Op Fl k Ar key
+.Op Fl K Ar sa_key
+.Op Fl p
+.Op Fl R Ar rel_tgt_port
+.Op Fl s Ar scope
+.Op Fl S
+.Op Fl T Ar res_type
+.Op Fl U
 .Nm
 .Ic help
 .Sh DESCRIPTION
@@ -1473,6 +1488,276 @@ to output a line for every firmware segment that is sent to the device by the
 fwdownload command
 -- the same as the ones shown in simulation mode.
 .El
+.It Ic persist
+Persistent reservation support.
+Persistent reservations are a way to reserve a particular
+.Tn SCSI
+LUN for use by one or more
+.Tn SCSI
+initiators.
+If the
+.Fl i
+option is specified,
+.Nm
+will issue the
+.Tn SCSI
+PERSISTENT RESERVE IN
+command using the requested service action.
+If the
+.Fl o
+option is specified,
+.Nm
+will issue the
+.Tn SCSI
+PERSISTENT RESERVE OUT
+command using the requested service action.
+One of those two options is required.
+.Pp
+Persistent reservations are complex, and fully explaining them is outside
+the scope of this manual.
+Please visit
+http://www.t10.org
+and download the latest SPC spec for a full explanation of persistent
+reservations.
+.Bl -tag -width 8n
+.It Fl i Ar mode
+Specify the service action for the PERSISTENT RESERVE IN command.
+Supported service actions:
+.Bl -tag -width 19n
+.It read_keys
+Report the current persistent reservation generation (PRgeneration) and any
+registered keys.
+.It read_reservation
+Report the persistent reservation, if any.
+.It report_capabilities
+Report the persistent reservation capabilities of the LUN.
+.It read_full_status
+Report the full status of persistent reservations on the LUN.
+.El
+.It Fl o Ar mode
+Specify the service action for the PERSISTENT RESERVE OUT command.
+For service actions like register that are components of other service
+action names, the entire name must be specified.
+Otherwise, enough of the service action name must be specified to
+distinguish it from other possible service actions.
+Supported service actions:
+.Bl -tag -width 15n
+.It register
+Register a reservation key with the LUN or unregister a reservation key.
+To register a key, specify the requested key as the Service Action
+Reservation Key.
+To unregister a key, specify the previously registered key as the
+Reservation Key.
+To change a key, specify the old key as the Reservation Key and the new
+key as the Service Action Reservation Key.
+.It register_ignore
+This is similar to the register subcommand, except that the Reservation Key
+is ignored.
+The Service Action Reservation Key will overwrite any previous key
+registered for the initiator.
+.It reserve
+Create a reservation.
+A key must be registered with the LUN before the LUN can be reserved, and
+it must be specified as the Reservation Key.
+The type of reservation must also be specified.
+The scope defaults to LUN scope (LU_SCOPE), but may be changed.
+.It release
+Release a reservation.
+The Reservation Key must be specified.
+.It clear
+Release a reservation and remove all keys from the device.
+The Reservation Key must be specified.
+.It preempt
+Remove a reservation belonging to another initiator.
+The Reservation Key must be specified.
+The Service Action Reservation Key may be specified, depending on the
+operation being performed.
+.It preempt_abort
+Remove a reservation belonging to another initiator and abort all
+outstanding commands from that initiator.
+The Reservation Key must be specified.
+The Service Action Reservation Key may be specified, depending on the
+operation being performed.
+.It register_move
+Register another initiator with the LUN, and establish a reservation on the
+LUN for that initiator.
+The Reservation Key and Service Action Reservation Key must be specified.
+.It replace_lost
+Replace Lost Reservation information.
+.El
+.It Fl a
+Set the All Target Ports (ALL_TG_PT) bit.
+This requests that the key registration be applied to all target ports and
+not just the particular target port that receives the command.
+This only applies to the register and register_ignore actions.
+.It Fl I Ar tid
+Specify a Transport ID.
+This only applies to the Register and Register and Move service actions for
+Persistent Reserve Out.
+Multiple Transport IDs may be specified with multiple
+.Fl I
+arguments.
+With the Register service action, specifying one or more Transport IDs
+implicitly enables the
+.Fl S
+option which turns on the SPEC_I_PT bit.
+Transport IDs generally have the format protocol,id.
+.Bl -tag -width 5n
+.It SAS
+A SAS Transport ID consists of
+.Dq sas,
+followed by a 64-bit SAS address.
+For example:
+.Pp
+.Dl sas,0x1234567812345678
+.It FC
+A Fibre Channel Transport ID consists of
+.Dq fcp,
+followed by a 64-bit Fibre Channel World Wide Name. 
+For example:
+.Pp
+.Dl fcp,0x1234567812345678
+.It SPI
+A Parallel SCSI address consists of
+.Dq spi,
+followed by a SCSI target ID and a relative target port identifier.
+For example:
+.Pp
+.Dl spi,4,1
+.It 1394
+An IEEE 1394 (Firewire) Transport ID consists of
+.Dq sbp,
+followed by a 64-bit EUI-64 IEEE 1394 node unique identifier.
+For example:
+.Pp
+.Dl sbp,0x1234567812345678
+.It RDMA
+A SCSI over RDMA Transport ID consists of
+.Dq srp,
+followed by a 128-bit RDMA initiator port identifier.
+The port identifier must be exactly 32 or 34 (if the leading 0x is
+included) hexadecimal digits.
+Only hexadecimal (base 16) numbers are supported.
+For example:
+.Pp
+.Dl srp,0x12345678123456781234567812345678
+.It iSCSI
+An iSCSI Transport ID consists an iSCSI name and optionally a separator and
+iSCSI session ID.
+For example, if only the iSCSI name is specified:
+.Pp
+.Dl iqn.2012-06.com.example:target0
+.Pp
+If the iSCSI separator and initiator session ID are specified:
+.Pp
+.Dl iqn.2012-06.com.example:target0,i,0x123
+.It PCIe
+A SCSI over PCIe Transport ID consists of
+.Dq sop,
+followed by a PCIe Routing ID.
+The Routing ID consists of a bus, device and function or in the alternate
+form, a bus and function.
+The bus must be in the range of 0 to 255 inclusive and the device must be
+in the range of 0 to 31 inclusive.
+The function must be in the range of 0 to 7 inclusive if the standard form
+is used, and in the range of 0 to 255 inclusive if the alternate form is
+used.
+For example, if a bus, device and function are specified for the standard
+Routing ID form:
+.Pp
+.Dl sop,4,5,1
+.Pp
+If the alternate Routing ID form is used:
+.Pp
+.Dl sop,4,1
+.El
+.It Fl k Ar key
+Specify the Reservation Key.
+This may be in decimal, octal or hexadecimal format.
+The value is zero by default if not otherwise specified.
+The value must be between 0 and 2^64 - 1, inclusive.
+.It Fl K Ar key
+Specify the Service Action Reservation Key.
+This may be in decimal, octal or hexadecimal format.
+The value is zero by default if not otherwise specified.
+The value must be between 0 and 2^64 - 1, inclusive.
+.It Fl p
+Enable the Activate Persist Through Power Loss bit.
+This is only used for the register and register_ignore actions.
+This requests that the reservation persist across power loss events.
+.It Fl s Ar scope
+Specify the scope of the reservation.
+The scope may be specified by name or by number.
+The scope is ignored for register, register_ignore and clear.
+If the desired scope isn't available by name, you may specify the number.
+.Bl -tag -width 7n
+.It lun
+LUN scope (0x00).
+This encompasses the entire LUN.
+.It extent
+Extent scope (0x01).
+.It element
+Element scope (0x02).
+.El
+.It Fl R Ar rtp
+Specify the Relative Target Port.
+This only applies to the Register and Move service action of the Persistent
+Reserve Out command.
+.It Fl S
+Enable the SPEC_I_PT bit.
+This only applies to the Register service action of Persistent Reserve Out.
+You must also specify at least one Transport ID with
+.Fl I
+if this option is set.
+If you specify a Transport ID, this option is automatically set.
+It is an error to specify this option for any service action other than
+Register.
+.It Fl T Ar type
+Specify the reservation type.
+The reservation type may be specified by name or by number.
+If the desired reservation type isn't available by name, you may specify
+the number.
+Supported reservation type names:
+.Bl -tag -width 11n
+.It read_shared
+Read Shared mode.
+.It wr_ex
+Write Exclusive mode.
+May also be specified as
+.Dq write_exclusive .
+.It rd_ex
+Read Exclusive mode.
+May also be specified as
+.Dq read_exclusive .
+.It ex_ac
+Exclusive access mode.
+May also be specified as
+.Dq exclusive_access .
+.It wr_ex_ro
+Write Exclusive Registrants Only mode.
+May also be specified as 
+.Dq write_exclusive_reg_only .
+.It ex_ac_ro
+Exclusive Access Registrants Only mode.
+May also be specified as 
+.Dq exclusive_access_reg_only .
+.It wr_ex_ar
+Write Exclusive All Registrants mode.
+May also be specified as
+.Dq write_exclusive_all_regs .
+.It ex_ac_ar
+Exclusive Access All Registrants mode.
+May also be specified as 
+.Dq exclusive_access_all_regs .
+.El
+.It Fl U
+Specify that the target should unregister the initiator that sent
+the Register and Move request.
+By default, the target will not unregister the initiator that sends the
+Register and Move request.
+This option only applies to the Register and Move service action of the
+Persistent Reserve Out command.
+.El
 .It Ic help
 Print out verbose usage information.
 .El
@@ -1639,6 +1924,66 @@ power-on or hardware reset!
 .Pp
 .Em DO NOT
 use this on a device which has an active filesystem!
+.Pp
+.Bd -literal -offset indent
+camcontrol persist da0 -v -i read_keys
+.Ed
+.Pp
+This will read any persistent reservation keys registered with da0, and
+display any errors encountered when sending the PERSISTENT RESERVE IN
+.Tn SCSI 
+command.
+.Bd -literal -offset indent
+camcontrol persist da0 -v -o register -a -K 0x12345678
+.Ed
+.Pp
+This will register the persistent reservation key 0x12345678 with da0,
+apply that registration to all ports on da0, and display any errors that
+occur when sending the PERSISTENT RESERVE OUT command.
+.Bd -literal -offset indent
+camcontrol persist da0 -v -o reserve -s lun -k 0x12345678 -T ex_ac
+.Ed
+.Pp
+This will reserve da0 for the exlusive use of the initiator issuing the
+command.
+The scope of the reservation is the entire LUN.
+Any errors sending the PERSISTENT RESERVE OUT command will be displayed.
+.Bd -literal -offset indent
+camcontrol persist da0 -v -i read_full
+.Ed
+.Pp
+This will display the full status of all reservations on da0 and print out
+status if there are any errors.
+.Bd -literal -offset indent
+camcontrol persist da0 -v -o release -k 0x12345678 -T ex_ac
+.Ed
+.Pp
+This will release a reservation on da0 of the type ex_ac
+(Exclusive Access).
+The Reservation Key for this registration is 0x12345678.
+Any errors that occur will be displayed.
+.Bd -literal -offset indent
+camcontrol persist da0 -v -o register -K 0x12345678 -S \e
+	-I sas,0x1234567812345678 -I sas,0x8765432187654321
+.Ed
+.Pp
+This will register the key 0x12345678 with da0, specifying that it applies
+to the SAS initiators with SAS addresses 0x1234567812345678 and
+0x8765432187654321.
+.Bd -literal -offset indent
+camcontrol persist da0 -v -o register_move -k 0x87654321 \e
+	-K 0x12345678 -U -p -R 2 -I fcp,0x1234567812345678
+.Ed
+.Pp
+This will move the registration from the current initiator, whose
+Registration Key is 0x87654321, to the Fibre Channel initiator with the 
+Fiber Channel World Wide Node Name 0x1234567812345678.
+A new registration key, 0x12345678, will be registered for the initiator 
+with the Fibre Channel World Wide Node Name 0x1234567812345678, and the
+current initiator will be unregistered from the target.
+The reservation will be moved to relative target port 2 on the target
+device.
+The registration will persist across power losses.
 .Sh SEE ALSO
 .Xr cam 3 ,
 .Xr cam_cdbparse 3 ,
