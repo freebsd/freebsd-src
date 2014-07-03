@@ -75,7 +75,8 @@ struct rtl8366rb_softc {
 static etherswitch_info_t etherswitch_info = {
 	.es_nports =		RTL8366RB_NUM_PORTS,
 	.es_nvlangroups =	RTL8366RB_NUM_VLANS,
-	.es_name =			"Realtek RTL8366RB"
+	.es_name =		"Realtek RTL8366RB",
+	.es_vlan_caps =		ETHERSWITCH_VLAN_DOT1Q,
 };
 
 #define RTL_LOCK(_sc)	mtx_lock(&(_sc)->sc_mtx)
@@ -148,6 +149,9 @@ rtl8366rb_probe(device_t dev)
 static void
 rtl8366rb_init(device_t dev)
 {
+	int i;
+	struct rtl8366rb_softc *sc;
+
 	/* Initialisation for TL-WR1043ND */
 	smi_rmw(dev, RTL8366RB_RCR,
 		RTL8366RB_RCR_HARD_RESET,
@@ -157,17 +161,21 @@ rtl8366rb_init(device_t dev)
 	smi_rmw(dev, RTL8366RB_SGCR,
 		RTL8366RB_SGCR_EN_VLAN | RTL8366RB_SGCR_EN_VLAN_4KTB,
 		RTL8366RB_SGCR_EN_VLAN, RTL_WAITOK);
-	/* remove port 0 form VLAN 0 */
+	/* Initialize our vlan table. */
+	sc = device_get_softc(dev);
+	for (i = 0; i <= 1; i++)
+		sc->vid[i] = (i + 1) | ETHERSWITCH_VID_VALID;
+	/* Remove port 0 from VLAN 1. */
 	smi_rmw(dev, RTL8366RB_VMCR(RTL8366RB_VMCR_MU_REG, 0),
 		(1 << 0), 0, RTL_WAITOK);
-	/* add port 0 untagged and port 5 tagged to VLAN 1 */
+	/* Add port 0 untagged and port 5 tagged to VLAN 2. */
 	smi_rmw(dev, RTL8366RB_VMCR(RTL8366RB_VMCR_MU_REG, 1),
 		((1 << 5 | 1 << 0) << RTL8366RB_VMCR_MU_MEMBER_SHIFT)
 			| ((1 << 5 | 1 << 0) << RTL8366RB_VMCR_MU_UNTAG_SHIFT),
 		((1 << 5 | 1 << 0) << RTL8366RB_VMCR_MU_MEMBER_SHIFT
 			| ((1 << 0) << RTL8366RB_VMCR_MU_UNTAG_SHIFT)),
 		RTL_WAITOK);
-	/* set PVLAN 1 for port 0 */
+	/* Set PVID 2 for port 0. */
 	smi_rmw(dev, RTL8366RB_PVCR_REG(0),
 		RTL8366RB_PVCR_VAL(0, RTL8366RB_PVCR_PORT_MASK),
 		RTL8366RB_PVCR_VAL(0, 1), RTL_WAITOK);
@@ -560,7 +568,7 @@ rtl_getport(device_t dev, etherswitch_port_t *p)
 	sc = device_get_softc(dev);
 	vlangroup = RTL8366RB_PVCR_GET(p->es_port,
 		rtl_readreg(dev, RTL8366RB_PVCR_REG(p->es_port)));
-	p->es_pvid = sc->vid[vlangroup];
+	p->es_pvid = sc->vid[vlangroup] & ETHERSWITCH_VID_MASK;
 	
 	if (p->es_port < RTL8366RB_NUM_PHYS) {
 		mii = device_get_softc(sc->miibus[p->es_port]);
@@ -595,7 +603,7 @@ rtl_setport(device_t dev, etherswitch_port_t *p)
 	sc = device_get_softc(dev);
 	vlangroup = -1;
 	for (i = 0; i < RTL8366RB_NUM_VLANS; i++) {
-		if (sc->vid[i] == p->es_pvid) {
+		if ((sc->vid[i] & ETHERSWITCH_VID_MASK) == p->es_pvid) {
 			vlangroup = i;
 			break;
 		}
@@ -618,13 +626,15 @@ rtl_setport(device_t dev, etherswitch_port_t *p)
 static int
 rtl_getvgroup(device_t dev, etherswitch_vlangroup_t *vg)
 {
+	struct rtl8366rb_softc *sc;
 	uint16_t vmcr[3];
 	int i;
 	
 	for (i=0; i<3; i++)
 		vmcr[i] = rtl_readreg(dev, RTL8366RB_VMCR(i, vg->es_vlangroup));
 		
-	vg->es_vid = RTL8366RB_VMCR_VID(vmcr) | ETHERSWITCH_VID_VALID;
+	sc = device_get_softc(dev);
+	vg->es_vid = sc->vid[vg->es_vlangroup];
 	vg->es_member_ports = RTL8366RB_VMCR_MEMBER(vmcr);
 	vg->es_untagged_ports = RTL8366RB_VMCR_UNTAG(vmcr);
 	vg->es_fid = RTL8366RB_VMCR_FID(vmcr);
@@ -639,6 +649,10 @@ rtl_setvgroup(device_t dev, etherswitch_vlangroup_t *vg)
 
 	sc = device_get_softc(dev);
 	sc->vid[g] = vg->es_vid;
+	/* VLAN group disabled ? */
+	if (vg->es_member_ports == 0 && vg->es_untagged_ports == 0 && vg->es_vid == 0)
+		return (0);
+	sc->vid[g] |= ETHERSWITCH_VID_VALID;
 	rtl_writereg(dev, RTL8366RB_VMCR(RTL8366RB_VMCR_DOT1Q_REG, g),
 		(vg->es_vid << RTL8366RB_VMCR_DOT1Q_VID_SHIFT) & RTL8366RB_VMCR_DOT1Q_VID_MASK);
 	rtl_writereg(dev, RTL8366RB_VMCR(RTL8366RB_VMCR_MU_REG, g),
@@ -646,6 +660,17 @@ rtl_setvgroup(device_t dev, etherswitch_vlangroup_t *vg)
 		((vg->es_untagged_ports << RTL8366RB_VMCR_MU_UNTAG_SHIFT) & RTL8366RB_VMCR_MU_UNTAG_MASK));
 	rtl_writereg(dev, RTL8366RB_VMCR(RTL8366RB_VMCR_FID_REG, g),
 		vg->es_fid);
+	return (0);
+}
+
+static int
+rtl_getconf(device_t dev, etherswitch_conf_t *conf)
+{
+
+	/* Return the VLAN mode. */
+	conf->cmd = ETHERSWITCH_CONF_VLAN_MODE;
+	conf->vlan_mode = ETHERSWITCH_VLAN_DOT1Q;
+
 	return (0);
 }
 
@@ -748,6 +773,7 @@ static device_method_t rtl8366rb_methods[] = {
 	DEVMETHOD(miibus_writereg,	rtl_writephy),
 
 	/* etherswitch interface */
+	DEVMETHOD(etherswitch_getconf,	rtl_getconf),
 	DEVMETHOD(etherswitch_getinfo,	rtl_getinfo),
 	DEVMETHOD(etherswitch_readreg,	rtl_readreg),
 	DEVMETHOD(etherswitch_writereg,	rtl_writereg),
