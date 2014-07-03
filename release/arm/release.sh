@@ -111,6 +111,9 @@ main() {
 			BATCH=1 FORCE_PKG_REGISTER=1 install clean distclean
 	done
 
+	eval chroot ${CHROOTDIR} make -C /usr/src/gnu/usr.bin/cc \
+		WITH_GCC=1 ${WORLD_FLAGS} -j1 obj depend all install
+
 	mkdir -p ${CHROOTDIR}/tmp/crochet/work
 	before_build
 	install_crochet
