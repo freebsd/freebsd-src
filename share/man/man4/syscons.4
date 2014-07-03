@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 11, 2009
+.Dd July 3, 2014
 .Dt SYSCONS 4
 .Os
 .Sh NAME
@@ -62,6 +62,10 @@ In
 .Pa /boot/device.hints :
 .Cd hint.sc.0.at="isa"
 .Cd hint.sc.0.vesa_mode=0x103
+.Pp
+In
+.Pa /boot/loader.conf :
+.Cd kern.vty=sc
 .Sh DESCRIPTION
 The
 .Nm
@@ -447,6 +451,26 @@ A list of the available mode can be obtained via
 This option instructs the syscons driver to periodically scan
 for a keyboard device if it is not currently attached to one.
 Otherwise, the driver only probes for a keyboard once during bootup.
+.El
+.Ss Loader Tunables
+These settings can be entered at the
+.Xr loader 8
+prompt or in
+.Xr loader.conf 5 .
+.Bl -tag -width indent
+.It Va kern.vty
+When both
+.Nm
+and
+.Xr vt 4
+have been compiled into the kernel, the one to use for the system console can
+be selected by setting this variable to
+.Ql sc
+or
+.Ql vt .
+If not set,
+.Nm
+provides the default system console.
 .El
 .Sh FILES
 .Bl -tag -width /usr/share/syscons/xxxxyyyyzzz -compact
