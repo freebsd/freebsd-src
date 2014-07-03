@@ -178,7 +178,10 @@ SYSCTL_UINT(_net_inet_ip_fw, OID_AUTO, default_rule, CTLFLAG_RD,
     "The default/max possible rule number.");
 SYSCTL_VNET_PROC(_net_inet_ip_fw, OID_AUTO, tables_max,
     CTLTYPE_UINT|CTLFLAG_RW, 0, 0, sysctl_ipfw_table_num, "IU",
-    "Maximum number of tables");
+    "Maximum number of concurrently used tables");
+SYSCTL_VNET_INT(_net_inet_ip_fw, OID_AUTO, tables_sets,
+    CTLFLAG_RW, &VNET_NAME(fw_tables_sets), 0,
+    "Use per-set namespace for tables");
 SYSCTL_INT(_net_inet_ip_fw, OID_AUTO, default_to_accept, CTLFLAG_RDTUN,
     &default_to_accept, 0,
     "Make the default rule accept all packets.");

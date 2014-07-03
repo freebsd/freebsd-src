@@ -174,7 +174,7 @@ static struct _s_x f_iptos[] = {
 	{ NULL,	0 }
 };
 
-static struct _s_x f_ipdscp[] = {
+struct _s_x f_ipdscp[] = {
 	{ "af11", IPTOS_DSCP_AF11 >> 2 },	/* 001010 */
 	{ "af12", IPTOS_DSCP_AF12 >> 2 },	/* 001100 */
 	{ "af13", IPTOS_DSCP_AF13 >> 2 },	/* 001110 */
@@ -649,7 +649,7 @@ match_token(struct _s_x *table, char *string)
 	for (pt = table ; i && pt->s != NULL ; pt++)
 		if (strlen(pt->s) == i && !bcmp(string, pt->s, i))
 			return pt->x;
-	return -1;
+	return (-1);
 }
 
 /**
@@ -663,6 +663,25 @@ match_value(struct _s_x *p, int value)
 		if (p->x == value)
 			return p->s;
 	return NULL;
+}
+
+size_t
+concat_tokens(char *buf, size_t bufsize, struct _s_x *table, char *delimiter)
+{
+	struct _s_x *pt;
+	int l;
+	size_t sz;
+
+	for (sz = 0, pt = table ; pt->s != NULL; pt++) {
+		l = snprintf(buf + sz, bufsize - sz, "%s%s",
+		    (sz == 0) ? "" : delimiter, pt->s);
+		sz += l;
+		bufsize += l;
+		if (sz > bufsize)
+			return (bufsize);
+	}
+
+	return (sz);
 }
 
 /*
@@ -2012,46 +2031,38 @@ show_dyn_state(struct cmdline_opts *co, struct format_opts *fo,
 void
 ipfw_sets_handler(char *av[])
 {
-	uint32_t set_disable, masks[2];
-	int i, nbytes;
+	uint32_t masks[2];
+	int i;
 	uint16_t rulenum;
 	uint8_t cmd, new_set;
+	char *msg;
+	size_t size;
 
 	av++;
 
 	if (av[0] == NULL)
 		errx(EX_USAGE, "set needs command");
 	if (_substrcmp(*av, "show") == 0) {
-		void *data = NULL;
-		char const *msg;
-		int nalloc;
+		struct format_opts fo;
+		ipfw_cfg_lheader *cfg;
 
-		nalloc = nbytes = sizeof(struct ip_fw);
-		while (nbytes >= nalloc) {
-			if (data)
-				free(data);
-			nalloc = nalloc * 2 + 200;
-			nbytes = nalloc;
-			data = safe_calloc(1, nbytes);
-			if (do_cmd(IP_FW_GET, data, (uintptr_t)&nbytes) < 0)
-				err(EX_OSERR, "getsockopt(IP_FW_GET)");
-		}
+		memset(&fo, 0, sizeof(fo));
+		if (ipfw_get_config(&co, &fo, &cfg, &size) != 0)
+			err(EX_OSERR, "requesting config failed");
 
-		bcopy(&((struct ip_fw *)data)->next_rule,
-			&set_disable, sizeof(set_disable));
-
-		for (i = 0, msg = "disable" ; i < RESVD_SET; i++)
-			if ((set_disable & (1<<i))) {
+		for (i = 0, msg = "disable"; i < RESVD_SET; i++)
+			if ((cfg->set_mask & (1<<i)) == 0) {
 				printf("%s %d", msg, i);
 				msg = "";
 			}
-		msg = (set_disable) ? " enable" : "enable";
+		msg = (cfg->set_mask != (uint32_t)-1) ? " enable" : "enable";
 		for (i = 0; i < RESVD_SET; i++)
-			if (!(set_disable & (1<<i))) {
+			if ((cfg->set_mask & (1<<i)) != 0) {
 				printf("%s %d", msg, i);
 				msg = "";
 			}
 		printf("\n");
+		free(cfg);
 	} else if (_substrcmp(*av, "swap") == 0) {
 		av++;
 		if ( av[0] == NULL || av[1] == NULL )

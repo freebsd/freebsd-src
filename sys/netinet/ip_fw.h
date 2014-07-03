@@ -86,7 +86,7 @@ typedef struct _ip_fw3_opheader {
 #define	IP_FW_TABLE_XINFO	93	/* request info for one table */
 #define	IP_FW_TABLE_XFLUSH	94	/* flush table data */
 #define	IP_FW_TABLE_XCREATE	95	/* create new table  */
-#define	IP_FW_TABLE_XMODIFY	96	/* modify existing table */
+//#define	IP_FW_TABLE_XMODIFY	96	/* modify existing table */
 #define	IP_FW_XGET		97	/* Retrieve configuration */
 #define	IP_FW_XADD		98	/* add entry */
 
@@ -641,7 +641,12 @@ struct _ipfw_dyn_rule {
 
 #define	IPFW_TABLE_CIDR		1	/* Table for holding IPv4/IPv6 prefixes */
 #define	IPFW_TABLE_INTERFACE	2	/* Table for holding interface names */
-#define	IPFW_TABLE_MAXTYPE	2	/* Maximum valid number */
+#define	IPFW_TABLE_U32		3	/* Table for holidng ports/uid/gid/etc */
+#define	IPFW_TABLE_MAXTYPE	3	/* Maximum valid number */
+
+#define	IPFW_VTYPE_U32		1	/* Skipto/tablearg integer */
+#define	IPFW_VTYPE_IP		2	/* Nexthop IP address */
+#define	IPFW_VTYPE_DSCP		3	/* DiffServ codepoints */
 
 typedef struct	_ipfw_table_entry {
 	in_addr_t	addr;		/* network address		*/
@@ -683,22 +688,44 @@ typedef struct	_ipfw_xtable {
 
 typedef struct  _ipfw_obj_tlv {
 	uint16_t        type;		/* TLV type */
-	uint16_t	flags;		/* unused */
+	uint16_t	flags;		/* TLV-specific flags		*/
 	uint32_t        length;		/* Total length, aligned to u64	*/
 } ipfw_obj_tlv;
 #define	IPFW_TLV_TBL_NAME	1
 #define	IPFW_TLV_TBLNAME_LIST	2
 #define	IPFW_TLV_RULE_LIST	3
 #define	IPFW_TLV_STATE_LIST	4
+#define	IPFW_TLV_TBL_ENT	5
 
 /* Object name TLV */
 typedef struct _ipfw_obj_ntlv {
 	ipfw_obj_tlv	head;		/* TLV header			*/
 	uint16_t	idx;		/* Name index			*/
-	uint16_t	spare0;		/* unused			*/
+	uint8_t		spare;		/* unused			*/
+	uint8_t		type;		/* object type, if applicable	*/
 	uint32_t	set;		/* set, if applicable		*/
 	char		name[64];	/* Null-terminated name		*/
 } ipfw_obj_ntlv;
+
+/* Table entry TLV */
+typedef struct	_ipfw_obj_tentry {
+	ipfw_obj_tlv	head;		/* TLV header			*/
+	uint8_t		subtype;	/* subtype (IPv4,IPv6)		*/
+	uint8_t		masklen;	/* mask length			*/
+	uint16_t	idx;		/* Table name index		*/
+	uint16_t	flags;		/* Entry flags			*/
+	uint16_t	spare0;
+	uint32_t	spare1;
+	uint32_t	value;		/* value			*/
+	union {
+		/* Longest field needs to be aligned by 8-byte boundary	*/
+		struct in_addr addr;	/* IPv4 address			*/
+		uint32_t key;		/* uid/gid/port			*/
+		struct in6_addr	addr6;	/* IPv6 address 		*/
+		char	iface[IF_NAMESIZE];	/* interface name	*/
+	} k;
+} ipfw_obj_tentry;
+#define	IPFW_TF_UPDATE	0x01		/* Update record if exists	*/
 
 /* Containter TLVs */
 typedef struct _ipfw_obj_ctlv {
@@ -710,8 +737,8 @@ typedef struct _ipfw_obj_ctlv {
 typedef struct _ipfw_xtable_info {
 	uint8_t		type;		/* table type (cidr,iface,..)	*/
 	uint8_t		ftype;		/* table value format type	*/
-	uint8_t		atype;		/* algorithm type		*/
-	uint8_t		spare0;
+	uint8_t		vtype;		/* value type			*/
+	uint16_t	spare0;
 	uint32_t	set;		/* set table is in		*/
 	uint32_t	kidx;		/* kernel index			*/
 	uint32_t	refcnt;		/* number of references		*/
@@ -733,7 +760,7 @@ typedef struct _ipfw_obj_header {
 
 typedef struct _ipfw_obj_lheader {
 	ip_fw3_opheader	opheader;	/* IP_FW3 opcode		*/
-	uint32_t	spare;
+	uint32_t	set_mask;	/* disabled set mask		*/
 	uint32_t	count;		/* Total objects count		*/
 	uint32_t	size;		/* Total objects size		*/
 	uint32_t	objsize;	/* Size of one object		*/
@@ -743,7 +770,7 @@ typedef struct _ipfw_obj_lheader {
 #define	IPFW_CFG_GET_STATES	2
 typedef struct _ipfw_cfg_lheader {
 	ip_fw3_opheader	opheader;	/* IP_FW3 opcode		*/
-	uint32_t	set_mask;	/* disabled set mask		*/
+	uint32_t	set_mask;	/* enabled set mask		*/
 	uint32_t	flags;		/* Request flags		*/
 	uint32_t	size;		/* neded buffer size		*/
 	uint32_t	start_rule;

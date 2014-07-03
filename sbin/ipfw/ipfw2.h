@@ -71,6 +71,8 @@ struct _s_x {
 	int x;
 };
 
+extern struct _s_x f_ipdscp[];
+
 enum tokens {
 	TOK_NULL=0,
 
@@ -205,6 +207,16 @@ enum tokens {
 	TOK_LOOKUP,
 	TOK_SOCKARG,
 	TOK_SETDSCP,
+	/* Table tokens */
+	TOK_CREATE,
+	TOK_DESTROY,
+	TOK_LIST,
+	TOK_INFO,
+	TOK_FLUSH,
+	TOK_ADD,
+	TOK_DEL,
+	TOK_VALTYPE,
+	TOK_ALGO,
 };
 /*
  * the following macro returns an error message if we run out of
@@ -238,6 +250,8 @@ int _substrcmp2(const char *str1, const char* str2, const char* str3);
 /* utility functions */
 int match_token(struct _s_x *table, char *string);
 char const *match_value(struct _s_x *p, int value);
+size_t concat_tokens(char *buf, size_t bufsize, struct _s_x *table,
+    char *delimiter);
 
 struct _ip_fw3_opheader;
 int do_cmd(int optname, void *optval, uintptr_t optlen);

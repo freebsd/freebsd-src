@@ -310,15 +310,6 @@ struct sockopt_data {
 #define IPFW_UH_WLOCK(p) rw_wlock(&(p)->uh_lock)
 #define IPFW_UH_WUNLOCK(p) rw_wunlock(&(p)->uh_lock)
 
-struct tid_info {
-	uint32_t	set;	/* table set */
-	uint16_t	uidx;	/* table index */
-	uint8_t		type;	/* table type */
-	uint8_t		atype;
-	void		*tlvs;	/* Pointer to first TLV */
-	int		tlen;	/* Total TLV size block */
-};
-
 struct obj_idx {
 	uint16_t	uidx;	/* internal index supplied by userland */
 	uint16_t	kidx;	/* kernel object index */
@@ -330,7 +321,6 @@ struct obj_idx {
 struct rule_check_info {
 	uint16_t	table_opcodes;	/* count of opcodes referencing table */
 	uint16_t	new_tables;	/* count of opcodes referencing table */
-	uint32_t	tableset;	/* ipfw set id for table */
 	ipfw_obj_ctlv	*ctlv;		/* name TLV containter */
 	struct ip_fw	*krule;		/* resulting rule pointer */
 	struct ip_fw	*urule;		/* original rule pointer */
@@ -373,8 +363,8 @@ void ipfw_objhash_bitmap_swap(struct namedobj_instance *ni,
 void ipfw_objhash_bitmap_free(void *idx, int blocks);
 struct named_object *ipfw_objhash_lookup_name(struct namedobj_instance *ni,
     uint32_t set, char *name);
-struct named_object *ipfw_objhash_lookup_idx(struct namedobj_instance *ni,
-    uint32_t set, uint16_t idx);
+struct named_object *ipfw_objhash_lookup_kidx(struct namedobj_instance *ni,
+    uint16_t idx);
 int ipfw_objhash_same_name(struct namedobj_instance *ni, struct named_object *a,
     struct named_object *b);
 void ipfw_objhash_add(struct namedobj_instance *ni, struct named_object *no);
@@ -382,9 +372,8 @@ void ipfw_objhash_del(struct namedobj_instance *ni, struct named_object *no);
 uint32_t ipfw_objhash_count(struct namedobj_instance *ni);
 void ipfw_objhash_foreach(struct namedobj_instance *ni, objhash_cb_t *f,
     void *arg);
-int ipfw_objhash_free_idx(struct namedobj_instance *ni, uint32_t set,
-    uint16_t idx);
-int ipfw_objhash_alloc_idx(void *n, uint32_t set, uint16_t *pidx);
+int ipfw_objhash_free_idx(struct namedobj_instance *ni, uint16_t idx);
+int ipfw_objhash_alloc_idx(void *n, uint16_t *pidx);
 
 /* In ip_fw_table.c */
 struct table_info;
