@@ -55,20 +55,22 @@ int
 pmc_save_kernel_callchain(uintptr_t *cc, int maxsamples,
     struct trapframe *tf)
 {
+	uintptr_t *osp, *sp;
 	int frames = 0;
-	uintptr_t *sp;
 
 	cc[frames++] = PMC_TRAPFRAME_TO_PC(tf);
 	sp = (uintptr_t *)PMC_TRAPFRAME_TO_FP(tf);
+	osp = NULL;
 
 	for (; frames < maxsamples; frames++) {
-		if (!INKERNEL(sp))
+		if (!INKERNEL(sp) || sp <= osp)
 			break;
 #ifdef __powerpc64__
-		cc[frames++] = sp[2];
+		cc[frames] = sp[2];
 #else
-		cc[frames++] = sp[1];
+		cc[frames] = sp[1];
 #endif
+		osp = sp;
 		sp = (uintptr_t *)*sp;
 	}
 	return (frames);
@@ -184,26 +186,28 @@ int
 pmc_save_user_callchain(uintptr_t *cc, int maxsamples,
     struct trapframe *tf)
 {
-	uintptr_t *sp;
+	uintptr_t *osp, *sp;
 	int frames = 0;
 
 	cc[frames++] = PMC_TRAPFRAME_TO_PC(tf);
 	sp = (uintptr_t *)PMC_TRAPFRAME_TO_FP(tf);
+	osp = NULL;
 
 	for (; frames < maxsamples; frames++) {
-		if (!INUSER(sp))
+		if (!INUSER(sp) || sp <= osp)
 			break;
+		osp = sp;
 #ifdef __powerpc64__
 		/* Check if 32-bit mode. */
 		if (!(tf->srr1 & PSL_SF)) {
-			cc[frames++] = fuword32((uint32_t *)sp + 1);
+			cc[frames] = fuword32((uint32_t *)sp + 1);
 			sp = (uintptr_t *)(uintptr_t)fuword32(sp);
 		} else {
-			cc[frames++] = fuword(sp + 2);
+			cc[frames] = fuword(sp + 2);
 			sp = (uintptr_t *)fuword(sp);
 		}
 #else
-		cc[frames++] = fuword32((uint32_t *)sp + 1);
+		cc[frames] = fuword32((uint32_t *)sp + 1);
 		sp = (uintptr_t *)fuword32(sp);
 #endif
 	}
