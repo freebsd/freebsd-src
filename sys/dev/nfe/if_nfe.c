@@ -1376,15 +1376,12 @@ nfe_free_rx_ring(struct nfe_softc *sc, struct nfe_rx_ring *ring)
 {
 	struct nfe_rx_data *data;
 	void *desc;
-	int i, descsize;
+	int i;
 
-	if (sc->nfe_flags & NFE_40BIT_ADDR) {
+	if (sc->nfe_flags & NFE_40BIT_ADDR)
 		desc = ring->desc64;
-		descsize = sizeof (struct nfe_desc64);
-	} else {
+	else
 		desc = ring->desc32;
-		descsize = sizeof (struct nfe_desc32);
-	}
 
 	for (i = 0; i < NFE_RX_RING_COUNT; i++) {
 		data = &ring->data[i];
