@@ -324,12 +324,13 @@ ta_prepare_add_cidr(struct tentry_info *tei, void *ta_buf)
 	memset(tb, 0, sizeof(struct ta_buf_cidr));
 
 	mlen = tei->masklen;
-
-	if (tei->plen == sizeof(in_addr_t)) {
+	
+	if (tei->subtype == AF_INET) {
 #ifdef INET
 		/* IPv4 case */
 		if (mlen > 32)
 			return (EINVAL);
+
 		ent = malloc(sizeof(*ent), M_IPFW_TBL, M_WAITOK | M_ZERO);
 		ent->value = tei->value;
 		/* Set 'total' structure length */
@@ -346,7 +347,7 @@ ta_prepare_add_cidr(struct tentry_info *tei, void *ta_buf)
 		tb->mask_ptr = (struct sockaddr *)&ent->mask;
 #endif
 #ifdef INET6
-	} else if (tei->plen == sizeof(struct in6_addr)) {
+	} else if (tei->subtype == AF_INET6) {
 		/* IPv6 case */
 		if (mlen > 128)
 			return (EINVAL);
@@ -380,18 +381,46 @@ ta_add_cidr(void *ta_state, struct table_info *ti,
 	struct radix_node_head *rnh;
 	struct radix_node *rn;
 	struct ta_buf_cidr *tb;
+	uint32_t value;
 
 	tb = (struct ta_buf_cidr *)ta_buf;
 
-	if (tei->plen == sizeof(in_addr_t))
+	if (tei->subtype == AF_INET)
 		rnh = ti->state;
 	else
 		rnh = ti->xstate;
 
 	rn = rnh->rnh_addaddr(tb->addr_ptr, tb->mask_ptr, rnh, tb->ent_ptr);
 	
-	if (rn == NULL)
-		return (EEXIST);
+	if (rn == NULL) {
+		if ((tei->flags & TEI_FLAGS_UPDATE) == 0)
+			return (EEXIST);
+		/* Record already exists. Update value if we're asked to */
+		rn = rnh->rnh_lookup(tb->addr_ptr, tb->mask_ptr, rnh);
+		if (rn == NULL) {
+
+			/*
+			 * Radix may have failed addition for other reasons
+			 * like failure in mask allocation code.
+			 */
+			return (EINVAL);
+		}
+		
+		if (tei->subtype == AF_INET) {
+			/* IPv4. */
+			value = ((struct table_entry *)tb->ent_ptr)->value;
+			((struct table_entry *)rn)->value = value;
+		} else {
+			/* IPv6 */
+			value = ((struct table_xentry *)tb->ent_ptr)->value;
+			((struct table_xentry *)rn)->value = value;
+		}
+
+		/* Indicate that update has happened instead of addition */
+		tei->flags |= TEI_FLAGS_UPDATED;
+	}
+
+	tb->ent_ptr = NULL;
 
 	return (0);
 }
@@ -408,7 +437,7 @@ ta_prepare_del_cidr(struct tentry_info *tei, void *ta_buf)
 
 	mlen = tei->masklen;
 
-	if (tei->plen == sizeof(in_addr_t)) {
+	if (tei->subtype == AF_INET) {
 		/* Set 'total' structure length */
 		struct sockaddr_in sa, mask;
 		KEY_LEN(sa) = KEY_LEN_INET;
@@ -421,7 +450,7 @@ ta_prepare_del_cidr(struct tentry_info *tei, void *ta_buf)
 		tb->addr_ptr = (struct sockaddr *)&tb->addr.a4.sa;
 		tb->mask_ptr = (struct sockaddr *)&tb->addr.a4.ma;
 #ifdef INET6
-	} else if (tei->plen == sizeof(struct in6_addr)) {
+	} else if (tei->subtype == AF_INET6) {
 		/* IPv6 case */
 		if (mlen > 128)
 			return (EINVAL);
@@ -456,7 +485,7 @@ ta_del_cidr(void *ta_state, struct table_info *ti,
 
 	tb = (struct ta_buf_cidr *)ta_buf;
 
-	if (tei->plen == sizeof(in_addr_t))
+	if (tei->subtype == AF_INET)
 		rnh = ti->state;
 	else
 		rnh = ti->xstate;
@@ -478,11 +507,12 @@ ta_flush_cidr_entry(struct tentry_info *tei, void *ta_buf)
 
 	tb = (struct ta_buf_cidr *)ta_buf;
 
-	free(tb->ent_ptr, M_IPFW_TBL);
+	if (tb->ent_ptr != NULL)
+		free(tb->ent_ptr, M_IPFW_TBL);
 }
 
 struct table_algo radix_cidr = {
-	.name		= "cidr",
+	.name		= "radix_cidr",
 	.lookup		= ta_lookup_radix,
 	.init		= ta_init_radix,
 	.destroy	= ta_destroy_radix,
@@ -557,7 +587,7 @@ ta_destroy_iface(void *ta_state, struct table_info *ti)
 
 	rnh = (struct radix_node_head *)(ti->xstate);
 	rnh->rnh_walktree(rnh, flush_iface_entry, rnh);
-	rn_detachhead(&ti->state);
+	rn_detachhead(&ti->xstate);
 }
 
 struct ta_buf_iface
@@ -613,14 +643,31 @@ ta_add_iface(void *ta_state, struct table_info *ti,
 	struct radix_node_head *rnh;
 	struct radix_node *rn;
 	struct ta_buf_iface *tb;
+	uint32_t value;
 
 	tb = (struct ta_buf_iface *)ta_buf;
 
 	rnh = ti->xstate;
 	rn = rnh->rnh_addaddr(tb->addr_ptr, tb->mask_ptr, rnh, tb->ent_ptr);
 	
-	if (rn == NULL)
-		return (1);
+	if (rn == NULL) {
+		if ((tei->flags & TEI_FLAGS_UPDATE) == 0)
+			return (EEXIST);
+		/* Record already exists. Update value if we're asked to */
+		rn = rnh->rnh_lookup(tb->addr_ptr, tb->mask_ptr, rnh);
+		if (rn == NULL) {
+			/* Radix may have failed addition for other reasons */
+			return (EINVAL);
+		}
+		
+		value = ((struct table_xentry *)tb->ent_ptr)->value;
+		((struct table_xentry *)rn)->value = value;
+
+		/* Indicate that update has happened instead of addition */
+		tei->flags |= TEI_FLAGS_UPDATED;
+	}
+
+	tb->ent_ptr = NULL;
 
 	return (0);
 }
@@ -689,7 +736,8 @@ ta_flush_iface_entry(struct tentry_info *tei, void *ta_buf)
 
 	tb = (struct ta_buf_iface *)ta_buf;
 
-	free(tb->ent_ptr, M_IPFW_TBL);
+	if (tb->ent_ptr != NULL)
+		free(tb->ent_ptr, M_IPFW_TBL);
 }
 
 static int
@@ -717,7 +765,7 @@ ta_foreach_iface(void *ta_state, struct table_info *ti, ta_foreach_f *f,
 }
 
 struct table_algo radix_iface = {
-	.name		= "iface",
+	.name		= "radix_iface",
 	.lookup		= ta_lookup_iface,
 	.init		= ta_init_iface,
 	.destroy		= ta_destroy_iface,

@@ -41,14 +41,26 @@ struct table_info {
 	u_long		data;		/* Hints for given func */
 };
 
+
+/* Internal structures for handling sockopt data */
+struct tid_info {
+	uint32_t	set;	/* table set */
+	uint16_t	uidx;	/* table index */
+	uint8_t		type;	/* table type */
+	uint8_t		atype;
+	void		*tlvs;	/* Pointer to first TLV */
+	int		tlen;	/* Total TLV size block */
+};
+
 struct tentry_info {
 	void		*paddr;
-	int		plen;		/* Total entry length		*/
 	uint8_t		masklen;	/* mask length			*/
-	uint8_t		spare;
+	uint8_t		subtype;
 	uint16_t	flags;		/* record flags			*/
 	uint32_t	value;		/* value			*/
 };
+#define	TEI_FLAGS_UPDATE	0x01	/* Update record if exists	*/
+#define	TEI_FLAGS_UPDATED	0x02	/* Entry has been updated	*/
 
 typedef int (ta_init)(void **ta_state, struct table_info *ti, char *data);
 typedef void (ta_destroy)(void *ta_state, struct table_info *ti);
@@ -59,6 +71,8 @@ typedef int (ta_add)(void *ta_state, struct table_info *ti,
 typedef int (ta_del)(void *ta_state, struct table_info *ti,
     struct tentry_info *tei, void *ta_buf);
 typedef void (ta_flush_entry)(struct tentry_info *tei, void *ta_buf);
+typedef void (ta_print_config)(void *ta_state, struct table_info *ti, char *buf,
+    size_t bufsize);
 
 typedef int ta_foreach_f(void *node, void *arg);
 typedef void ta_foreach(void *ta_state, struct table_info *ti, ta_foreach_f *f,
@@ -82,6 +96,7 @@ struct table_algo {
 	ta_foreach	*foreach;
 	ta_dump_entry	*dump_entry;
 	ta_dump_xentry	*dump_xentry;
+	ta_print_config	*print_config;
 };
 void ipfw_add_table_algo(struct ip_fw_chain *ch, struct table_algo *ta);
 extern struct table_algo radix_cidr, radix_iface;
@@ -97,17 +112,17 @@ int ipfw_dump_table(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
     struct sockopt_data *sd);
 int ipfw_describe_table(struct ip_fw_chain *ch, struct sockopt_data *sd);
 
-int ipfw_create_table(struct ip_fw_chain *ch, struct sockopt *sopt,
-    ip_fw3_opheader *op3);
-int ipfw_modify_table(struct ip_fw_chain *ch, struct sockopt *sopt,
-    ip_fw3_opheader *op3);
-
-int ipfw_destroy_table(struct ip_fw_chain *ch, struct tid_info *ti);
-int ipfw_flush_table(struct ip_fw_chain *ch, struct tid_info *ti);
+int ipfw_create_table(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
+    struct sockopt_data *sd);
+int ipfw_modify_table(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
+    struct sockopt_data *sd);
 int ipfw_add_table_entry(struct ip_fw_chain *ch, struct tid_info *ti,
     struct tentry_info *tei);
 int ipfw_del_table_entry(struct ip_fw_chain *ch, struct tid_info *ti,
     struct tentry_info *tei);
+
+int ipfw_destroy_table(struct ip_fw_chain *ch, struct tid_info *ti);
+int ipfw_flush_table(struct ip_fw_chain *ch, struct tid_info *ti);
 int ipfw_rewrite_table_uidx(struct ip_fw_chain *chain,
     struct rule_check_info *ci);
 int ipfw_rewrite_table_kidx(struct ip_fw_chain *chain, struct ip_fw *rule);
@@ -120,6 +135,7 @@ void ipfw_unbind_table_list(struct ip_fw_chain *chain, struct ip_fw *head);
 
 /* utility functions  */
 void objheader_to_ti(struct _ipfw_obj_header *oh, struct tid_info *ti);
+int ipfw_check_table_name(char *name);
 
 /* Legacy interfaces */
 int ipfw_count_table(struct ip_fw_chain *ch, struct tid_info *ti,
