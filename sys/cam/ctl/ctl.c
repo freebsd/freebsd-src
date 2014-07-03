@@ -455,6 +455,7 @@ static struct cdevsw ctl_cdevsw = {
 
 
 MALLOC_DEFINE(M_CTL, "ctlmem", "Memory used for CTL");
+MALLOC_DEFINE(M_CTLIO, "ctlio", "Memory used for CTL requests");
 
 static int ctl_module_event_handler(module_t, int /*modeventtype_t*/, void *);
 
@@ -3358,7 +3359,7 @@ ctl_pool_create(struct ctl_softc *ctl_softc, ctl_pool_type pool_type,
 	 * tracking.
 	 */
 	for (i = 0; i < total_ctl_io; i++) {
-		cur_io = (union ctl_io *)malloc(sizeof(*cur_io), M_CTL,
+		cur_io = (union ctl_io *)malloc(sizeof(*cur_io), M_CTLIO,
 						M_NOWAIT);
 		if (cur_io == NULL) {
 			retval = ENOMEM;
@@ -3377,7 +3378,7 @@ ctl_pool_create(struct ctl_softc *ctl_softc, ctl_pool_type pool_type,
 							      links);
 			STAILQ_REMOVE(&pool->free_queue, &cur_io->io_hdr,
 				      ctl_io_hdr, links);
-			free(cur_io, M_CTL);
+			free(cur_io, M_CTLIO);
 		}
 
 		free(pool, M_CTL);
@@ -3439,7 +3440,7 @@ ctl_pool_release(struct ctl_io_pool *pool)
 	while ((io = (union ctl_io *)STAILQ_FIRST(&pool->free_queue)) != NULL) {
 		STAILQ_REMOVE(&pool->free_queue, &io->io_hdr, ctl_io_hdr,
 			      links);
-		free(io, M_CTL);
+		free(io, M_CTLIO);
 	}
 
 	STAILQ_REMOVE(&ctl_softc->io_pools, pool, ctl_io_pool, links);
@@ -3543,7 +3544,7 @@ ctl_alloc_io(void *pool_ref)
 	 * The emergency pool (if it exists) didn't have one, so try an
 	 * atomic (i.e. nonblocking) malloc and see if we get lucky.
 	 */
-	io = (union ctl_io *)malloc(sizeof(*io), M_CTL, M_NOWAIT);
+	io = (union ctl_io *)malloc(sizeof(*io), M_CTLIO, M_NOWAIT);
 	if (io != NULL) {
 		/*
 		 * If the emergency pool exists but is empty, add this
@@ -3595,7 +3596,7 @@ ctl_free_io(union ctl_io *io)
 		 * Otherwise, just free it.  We probably malloced it and
 		 * the emergency pool wasn't available.
 		 */
-		free(io, M_CTL);
+		free(io, M_CTLIO);
 	}
 
 }
