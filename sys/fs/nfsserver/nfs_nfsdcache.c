@@ -977,6 +977,9 @@ nfsrvd_refcache(struct nfsrvcache *rp)
 {
 	struct mtx *mutex;
 
+	if (rp == NULL)
+		/* For NFSv4.1, there is no cache entry. */
+		return;
 	mutex = nfsrc_cachemutex(rp);
 	mtx_lock(mutex);
 	if (rp->rc_refcnt < 0)

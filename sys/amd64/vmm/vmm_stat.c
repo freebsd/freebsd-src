@@ -52,8 +52,10 @@ static struct vmm_stat_type *vsttab[MAX_VMM_STAT_ELEMS];
 
 static MALLOC_DEFINE(M_VMM_STAT, "vmm stat", "vmm stat");
 
+#define	vst_size	((size_t)vst_num_elems * sizeof(uint64_t))
+
 void
-vmm_stat_init(void *arg)
+vmm_stat_register(void *arg)
 {
 	struct vmm_stat_type *vst = arg;
 
@@ -81,12 +83,21 @@ vmm_stat_init(void *arg)
 int
 vmm_stat_copy(struct vm *vm, int vcpu, int *num_stats, uint64_t *buf)
 {
-	int i;
+	struct vmm_stat_type *vst;
 	uint64_t *stats;
+	int i;
 
 	if (vcpu < 0 || vcpu >= VM_MAXCPU)
 		return (EINVAL);
-		
+
+	/* Let stats functions update their counters */
+	for (i = 0; i < vst_num_types; i++) {
+		vst = vsttab[i];
+		if (vst->func != NULL)
+			(*vst->func)(vm, vcpu, vst);
+	}
+
+	/* Copy over the stats */
 	stats = vcpu_stats(vm, vcpu);
 	for (i = 0; i < vst_num_elems; i++)
 		buf[i] = stats[i];
@@ -97,11 +108,15 @@ vmm_stat_copy(struct vm *vm, int vcpu, int *num_stats, uint64_t *buf)
 void *
 vmm_stat_alloc(void)
 {
-	u_long size;
-	
-	size = vst_num_elems * sizeof(uint64_t);
 
-	return (malloc(size, M_VMM_STAT, M_ZERO | M_WAITOK));
+	return (malloc(vst_size, M_VMM_STAT, M_WAITOK));
+}
+
+void
+vmm_stat_init(void *vp)
+{
+
+	bzero(vp, vst_size);
 }
 
 void

@@ -321,8 +321,8 @@ db_cmd_list(table)
 	register struct command	*cmd;
 
 	LIST_FOREACH(cmd, table, next) {
-		db_printf("%-12s", cmd->name);
-		db_end_line(12);
+		db_printf("%-16s", cmd->name);
+		db_end_line(16);
 	}
 }
 

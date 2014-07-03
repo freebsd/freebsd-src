@@ -204,7 +204,7 @@ int	wcwidth(wchar_t);
 #define	wcwidth(_c)	__wcwidth(_c)
 #endif
 
-#if __POSIX_VISIBLE >= 200809 || __BSD_VISIBLE
+#if __POSIX_VISIBLE >= 200809
 size_t	mbsnrtowcs(wchar_t * __restrict, const char ** __restrict, size_t,
 	    size_t, mbstate_t * __restrict);
 FILE	*open_wmemstream(wchar_t **, size_t *);

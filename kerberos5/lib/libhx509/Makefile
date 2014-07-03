@@ -286,10 +286,10 @@ ${GEN_CRMF}: crmf.asn1
 .SUFFIXES: .h .c .x .hx
 
 .x.c:   
-	cmp -s ${.IMPSRC} ${.TARGET} 2> /dev/null || cp ${.IMPSRC} ${.TARGET}
+	cp ${.IMPSRC} ${.TARGET}
 
 .hx.h:
-	cmp -s ${.IMPSRC} ${.TARGET} 2> /dev/null || cp ${.IMPSRC} ${.TARGET}
+	cp ${.IMPSRC} ${.TARGET}
 
 .include <bsd.lib.mk>
 

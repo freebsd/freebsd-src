@@ -136,6 +136,7 @@ typedef enum {
  *
  * Note:  "OK_ON_ALL_LUNS" == we don't have to have a lun configured
  *        "OK_ON_BOTH"     == we have to have a lun configured
+ *        "SA5"            == command has 5-bit service action at byte 1
  */
 typedef enum {
 	CTL_CMD_FLAG_NONE		= 0x0000,
@@ -149,13 +150,15 @@ typedef enum {
 	CTL_CMD_FLAG_OK_ON_INOPERABLE	= 0x0800,
 	CTL_CMD_FLAG_OK_ON_OFFLINE	= 0x1000,
 	CTL_CMD_FLAG_OK_ON_SECONDARY	= 0x2000,
-	CTL_CMD_FLAG_ALLOW_ON_PR_RESV   = 0x4000
+	CTL_CMD_FLAG_ALLOW_ON_PR_RESV	= 0x4000,
+	CTL_CMD_FLAG_SA5		= 0x8000
 } ctl_cmd_flags;
 
 typedef enum {
 	CTL_SERIDX_TUR	= 0,
 	CTL_SERIDX_READ,
 	CTL_SERIDX_WRITE,
+	CTL_SERIDX_UNMAP,
 	CTL_SERIDX_MD_SNS,
 	CTL_SERIDX_MD_SEL,
 	CTL_SERIDX_RQ_SNS,
@@ -181,6 +184,9 @@ struct ctl_cmd_entry {
 	ctl_seridx		seridx;
 	ctl_cmd_flags		flags;
 	ctl_lun_error_pattern	pattern;
+	uint8_t			length;		/* CDB length */
+	uint8_t			usage[15];	/* Mask of allowed CDB bits
+						 * after the opcode byte. */
 };
 
 typedef enum {
@@ -400,7 +406,6 @@ struct ctl_lun {
 };
 
 typedef enum {
-	CTL_FLAG_TASK_PENDING	= 0x01,
 	CTL_FLAG_REAL_SYNC	= 0x02,
 	CTL_FLAG_MASTER_SHELF	= 0x04
 } ctl_gen_flags;
@@ -410,6 +415,18 @@ struct ctl_wwpn_iid {
 	uint64_t wwpn;
 	uint32_t iid;
 	int32_t port;
+};
+
+#define CTL_MAX_THREADS		16
+
+struct ctl_thread {
+	struct mtx_padalign queue_lock;
+	struct ctl_softc	*ctl_softc;
+	struct thread		*thread;
+	STAILQ_HEAD(, ctl_io_hdr) incoming_queue;
+	STAILQ_HEAD(, ctl_io_hdr) rtr_queue;
+	STAILQ_HEAD(, ctl_io_hdr) done_queue;
+	STAILQ_HEAD(, ctl_io_hdr) isc_queue;
 };
 
 struct ctl_softc {
@@ -425,11 +442,10 @@ struct ctl_softc {
 	struct sysctl_ctx_list sysctl_ctx;
 	struct sysctl_oid *sysctl_tree;
 	struct ctl_ioctl_info ioctl_info;
-	struct ctl_lun lun;
 	struct ctl_io_pool *internal_pool;
 	struct ctl_io_pool *emergency_pool;
 	struct ctl_io_pool *othersc_pool;
-	struct proc *work_thread;
+	struct proc *ctl_proc;
 	int targ_online;
 	uint32_t ctl_lun_mask[CTL_MAX_LUNS >> 5];
 	struct ctl_lun *ctl_luns[CTL_MAX_LUNS];
@@ -438,11 +454,6 @@ struct ctl_softc {
 	uint64_t aps_locked_lun;
 	STAILQ_HEAD(, ctl_lun) lun_list;
 	STAILQ_HEAD(, ctl_be_lun) pending_lun_queue;
-	STAILQ_HEAD(, ctl_io_hdr) task_queue;
-	STAILQ_HEAD(, ctl_io_hdr) incoming_queue;
-	STAILQ_HEAD(, ctl_io_hdr) rtr_queue;
-	STAILQ_HEAD(, ctl_io_hdr) done_queue;
-	STAILQ_HEAD(, ctl_io_hdr) isc_queue;
 	uint32_t num_frontends;
 	STAILQ_HEAD(, ctl_frontend) fe_list;
 	struct ctl_frontend *ctl_ports[CTL_MAX_PORTS];
@@ -454,11 +465,12 @@ struct ctl_softc {
 	STAILQ_HEAD(, ctl_io_pool) io_pools;
 	time_t last_print_jiffies;
 	uint32_t skipped_prints;
+	struct ctl_thread threads[CTL_MAX_THREADS];
 };
 
 #ifdef _KERNEL
 
-extern struct ctl_cmd_entry ctl_cmd_table[];
+extern const struct ctl_cmd_entry ctl_cmd_table[256];
 
 uint32_t ctl_get_initindex(struct ctl_nexus *nexus);
 int ctl_pool_create(struct ctl_softc *ctl_softc, ctl_pool_type pool_type,
@@ -469,20 +481,27 @@ int ctl_scsi_reserve(struct ctl_scsiio *ctsio);
 int ctl_start_stop(struct ctl_scsiio *ctsio);
 int ctl_sync_cache(struct ctl_scsiio *ctsio);
 int ctl_format(struct ctl_scsiio *ctsio);
+int ctl_read_buffer(struct ctl_scsiio *ctsio);
 int ctl_write_buffer(struct ctl_scsiio *ctsio);
+int ctl_write_same(struct ctl_scsiio *ctsio);
+int ctl_unmap(struct ctl_scsiio *ctsio);
 int ctl_mode_select(struct ctl_scsiio *ctsio);
 int ctl_mode_sense(struct ctl_scsiio *ctsio);
 int ctl_read_capacity(struct ctl_scsiio *ctsio);
-int ctl_service_action_in(struct ctl_scsiio *ctsio);
+int ctl_read_capacity_16(struct ctl_scsiio *ctsio);
 int ctl_read_write(struct ctl_scsiio *ctsio);
+int ctl_cnw(struct ctl_scsiio *ctsio);
 int ctl_report_luns(struct ctl_scsiio *ctsio);
 int ctl_request_sense(struct ctl_scsiio *ctsio);
 int ctl_tur(struct ctl_scsiio *ctsio);
+int ctl_verify(struct ctl_scsiio *ctsio);
 int ctl_inquiry(struct ctl_scsiio *ctsio);
 int ctl_persistent_reserve_in(struct ctl_scsiio *ctsio);
 int ctl_persistent_reserve_out(struct ctl_scsiio *ctsio);
-int ctl_maintenance_in(struct ctl_scsiio *ctsio);
-void ctl_done_lock(union ctl_io *io, int have_lock);
+int ctl_report_tagret_port_groups(struct ctl_scsiio *ctsio);
+int ctl_report_supported_opcodes(struct ctl_scsiio *ctsio);
+int ctl_report_supported_tmf(struct ctl_scsiio *ctsio);
+int ctl_report_timestamp(struct ctl_scsiio *ctsio);
 int ctl_isc(struct ctl_scsiio *ctsio);
 
 #endif	/* _KERNEL */

@@ -13,6 +13,8 @@ libucl_la_CFLAGS=	$(libucl_common_cflags) \
 					@CURL_CFLAGS@
 libucl_la_LDFLAGS = -version-info @SO_VERSION@
 libucl_la_LIBADD=	@LIBFETCH_LIBS@ \
+					@LIBCRYPTO_LIB@ \
+					@LIBREGEX_LIB@ \
 					@CURL_LIBS@
 
 include_HEADERS=	$(top_srcdir)/include/ucl.h

@@ -45,6 +45,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/smp.h>
 #include <sys/sysctl.h>
+#include <sys/sbuf.h>
 
 #include <net/if.h>
 #include <net/if_var.h>
@@ -90,9 +91,8 @@ SYSCTL_NODE(_net_inet, OID_AUTO, rss, CTLFLAG_RW, 0, "Receive-side steering");
  * default.
  */
 static u_int	rss_hashalgo = RSS_HASH_TOEPLITZ;
-SYSCTL_INT(_net_inet_rss, OID_AUTO, hashalgo, CTLFLAG_RD, &rss_hashalgo, 0,
+SYSCTL_INT(_net_inet_rss, OID_AUTO, hashalgo, CTLFLAG_RDTUN, &rss_hashalgo, 0,
     "RSS hash algorithm");
-TUNABLE_INT("net.inet.rss.hashalgo", &rss_hashalgo);
 
 /*
  * Size of the indirection table; at most 128 entries per the RSS spec.  We
@@ -103,9 +103,8 @@ TUNABLE_INT("net.inet.rss.hashalgo", &rss_hashalgo);
  * XXXRW: buckets might be better to use for the tunable than bits.
  */
 static u_int	rss_bits;
-SYSCTL_INT(_net_inet_rss, OID_AUTO, bits, CTLFLAG_RD, &rss_bits, 0,
+SYSCTL_INT(_net_inet_rss, OID_AUTO, bits, CTLFLAG_RDTUN, &rss_bits, 0,
     "RSS bits");
-TUNABLE_INT("net.inet.rss.bits", &rss_bits);
 
 static u_int	rss_mask;
 SYSCTL_INT(_net_inet_rss, OID_AUTO, mask, CTLFLAG_RD, &rss_mask, 0,
@@ -176,6 +175,7 @@ static void
 rss_init(__unused void *arg)
 {
 	u_int i;
+	u_int cpuid;
 
 	/*
 	 * Validate tunables, coerce to sensible values.
@@ -245,11 +245,12 @@ rss_init(__unused void *arg)
 
 	/*
 	 * Set up initial CPU assignments: round-robin by default.
-	 *
-	 * XXXRW: Need a mapping to non-contiguous IDs here.
 	 */
-	for (i = 0; i < rss_buckets; i++)
-		rss_table[i].rte_cpu = i % rss_ncpus;
+	cpuid = CPU_FIRST();
+	for (i = 0; i < rss_buckets; i++) {
+		rss_table[i].rte_cpu = cpuid;
+		cpuid = CPU_NEXT(cpuid);
+	}
 
 	/*
 	 * Randomize rrs_key.
@@ -397,6 +398,26 @@ rss_getbucket(u_int hash)
 }
 
 /*
+ * Query the RSS layer bucket associated with the given
+ * entry in the RSS hash space.
+ *
+ * The RSS indirection table is 0 .. rss_buckets-1,
+ * covering the low 'rss_bits' of the total 128 slot
+ * RSS indirection table.  So just mask off rss_bits and
+ * return that.
+ *
+ * NIC drivers can then iterate over the 128 slot RSS
+ * indirection table and fetch which RSS bucket to
+ * map it to.  This will typically be a CPU queue
+ */
+u_int
+rss_get_indirection_to_bucket(u_int index)
+{
+
+	return (index & rss_mask);
+}
+
+/*
  * Query the RSS CPU associated with an RSS bucket.
  */
 u_int
@@ -407,6 +428,40 @@ rss_getcpu(u_int bucket)
 }
 
 /*
+ * netisr CPU affinity lookup given just the hash and hashtype.
+ */
+u_int
+rss_hash2cpuid(uint32_t hash_val, uint32_t hash_type)
+{
+
+	switch (hash_type) {
+	case M_HASHTYPE_RSS_IPV4:
+	case M_HASHTYPE_RSS_TCP_IPV4:
+		return (rss_getcpu(rss_getbucket(hash_val)));
+	default:
+		return (NETISR_CPUID_NONE);
+	}
+}
+
+/*
+ * Query the RSS bucket associated with the given hash value and
+ * type.
+ */
+int
+rss_hash2bucket(uint32_t hash_val, uint32_t hash_type, uint32_t *bucket_id)
+{
+
+	switch (hash_type) {
+	case M_HASHTYPE_RSS_IPV4:
+	case M_HASHTYPE_RSS_TCP_IPV4:
+		*bucket_id = rss_getbucket(hash_val);
+		return (0);
+	default:
+		return (-1);
+	}
+}
+
+/*
  * netisr CPU affinity lookup routine for use by protocols.
  */
 struct mbuf *
@@ -414,17 +469,18 @@ rss_m2cpuid(struct mbuf *m, uintptr_t source, u_int *cpuid)
 {
 
 	M_ASSERTPKTHDR(m);
+	*cpuid = rss_hash2cpuid(m->m_pkthdr.flowid, M_HASHTYPE_GET(m));
+	return (m);
+}
 
-	switch (M_HASHTYPE_GET(m)) {
-	case M_HASHTYPE_RSS_IPV4:
-	case M_HASHTYPE_RSS_TCP_IPV4:
-		*cpuid = rss_getcpu(rss_getbucket(m->m_pkthdr.flowid));
-		return (m);
+int
+rss_m2bucket(struct mbuf *m, uint32_t *bucket_id)
+{
 
-	default:
-		*cpuid = NETISR_CPUID_NONE;
-		return (m);
-	}
+	M_ASSERTPKTHDR(m);
+
+	return(rss_hash2bucket(m->m_pkthdr.flowid, M_HASHTYPE_GET(m),
+	    bucket_id));
 }
 
 /*
@@ -503,3 +559,31 @@ sysctl_rss_key(SYSCTL_HANDLER_ARGS)
 SYSCTL_PROC(_net_inet_rss, OID_AUTO, key,
     CTLTYPE_OPAQUE | CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, 0, sysctl_rss_key,
     "", "RSS keying material");
+
+static int
+sysctl_rss_bucket_mapping(SYSCTL_HANDLER_ARGS)
+{
+	struct sbuf *sb;
+	int error;
+	int i;
+
+	error = 0;
+	error = sysctl_wire_old_buffer(req, 0);
+	if (error != 0)
+		return (error);
+	sb = sbuf_new_for_sysctl(NULL, NULL, 512, req);
+	if (sb == NULL)
+		return (ENOMEM);
+	for (i = 0; i < rss_buckets; i++) {
+		sbuf_printf(sb, "%s%d:%d", i == 0 ? "" : " ",
+		    i,
+		    rss_getcpu(i));
+	}
+	error = sbuf_finish(sb);
+	sbuf_delete(sb);
+
+	return (error);
+}
+SYSCTL_PROC(_net_inet_rss, OID_AUTO, bucket_mapping,
+    CTLTYPE_STRING | CTLFLAG_RD, NULL, 0,
+    sysctl_rss_bucket_mapping, "", "RSS bucket -> CPU mapping");

@@ -32,6 +32,8 @@
 BINDIR?=	/boot
 INSTALLFLAGS=	-b
 
+NO_PIE=	yes
+
 LOADERS=	flashboot jtagboot
 FILES=		${LOADERS} ${LOADERS:S/$/.md5/}
 
@@ -42,7 +44,7 @@ SRCS=		relocate.S		\
 		cfi.c			\
 		sdcard.c
 
-NO_MAN=
+MAN=
 
 AFLAGS=		-G0
 

@@ -677,7 +677,7 @@ disitrap:
 	mtcr	%r31
 	bt	17,realtrap		/* branch is user mode */
 	mfsprg1	%r31			/* get old SP */
-	clrrwi	%r31,%r31,11		/* Round SP down to nearest page */
+	clrrwi	%r31,%r31,12		/* Round SP down to nearest page */
 	sub.	%r30,%r31,%r30		/* SP - DAR */
 	bge	1f
 	neg	%r30,%r30		/* modulo value */

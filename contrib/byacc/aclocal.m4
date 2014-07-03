@@ -1,4 +1,4 @@
-dnl $Id: aclocal.m4,v 1.33 2014/01/01 14:08:07 tom Exp $
+dnl $Id: aclocal.m4,v 1.34 2014/04/06 19:16:18 tom Exp $
 dnl Macros for byacc configure script (Thomas E. Dickey)
 dnl ---------------------------------------------------------------------------
 dnl Copyright 2004-2013,2014 Thomas E. Dickey
@@ -600,7 +600,7 @@ make an error
 test "$cf_cv_gnu_source" = yes && CPPFLAGS="$CPPFLAGS -D_GNU_SOURCE"
 ])dnl
 dnl ---------------------------------------------------------------------------
-dnl CF_INTEL_COMPILER version: 5 updated: 2013/02/10 10:41:05
+dnl CF_INTEL_COMPILER version: 6 updated: 2014/03/17 13:13:07
 dnl -----------------
 dnl Check if the given compiler is really the Intel compiler for Linux.  It
 dnl tries to imitate gcc, but does not return an error when it finds a mismatch
@@ -629,7 +629,7 @@ if test "$ifelse([$1],,[$1],GCC)" = yes ; then
 make an error
 #endif
 ],[ifelse([$2],,INTEL_COMPILER,[$2])=yes
-cf_save_CFLAGS="$cf_save_CFLAGS -we147 -no-gcc"
+cf_save_CFLAGS="$cf_save_CFLAGS -we147"
 ],[])
 		ifelse([$3],,CFLAGS,[$3])="$cf_save_CFLAGS"
 		AC_MSG_RESULT($ifelse([$2],,INTEL_COMPILER,[$2]))
@@ -638,7 +638,7 @@ cf_save_CFLAGS="$cf_save_CFLAGS -we147 -no-gcc"
 fi
 ])dnl
 dnl ---------------------------------------------------------------------------
-dnl CF_MAKE_DOCS version: 2 updated: 2013/01/02 20:04:08
+dnl CF_MAKE_DOCS version: 3 updated: 2014/01/05 13:21:25
 dnl ------------
 dnl $1 = name(s) to generate rules for
 dnl $2 = suffix of corresponding manpages used as input.
@@ -684,10 +684,10 @@ clean \\
 docs-clean ::
 	rm -f $cf_name.html $cf_name.pdf $cf_name.ps $cf_name.txt
 
-$cf_name.html : $cf_name.$2
+$cf_name.html : $cf_name.\$2
 $cf_name.pdf : $cf_name.ps
-$cf_name.ps : $cf_name.$2
-$cf_name.txt : $cf_name.$2
+$cf_name.ps : $cf_name.\$2
+$cf_name.txt : $cf_name.\$2
 CF_EOF
 done
 ])dnl
@@ -921,6 +921,15 @@ fi
 
 ])dnl
 dnl ---------------------------------------------------------------------------
+dnl CF_PROG_AWK version: 1 updated: 2006/09/16 11:40:59
+dnl -----------
+dnl Check for awk, ensure that the check found something.
+AC_DEFUN([CF_PROG_AWK],
+[
+AC_PROG_AWK
+test -z "$AWK" && AC_MSG_ERROR(No awk program found)
+])dnl
+dnl ---------------------------------------------------------------------------
 dnl CF_PROG_CC version: 3 updated: 2012/10/06 15:31:55
 dnl ----------
 dnl standard check for CC, plus followup sanity checks
@@ -1076,7 +1085,7 @@ fi
 fi
 ])dnl
 dnl ---------------------------------------------------------------------------
-dnl CF_XOPEN_SOURCE version: 45 updated: 2013/09/07 14:06:25
+dnl CF_XOPEN_SOURCE version: 46 updated: 2014/02/09 19:30:15
 dnl ---------------
 dnl Try to get _XOPEN_SOURCE defined properly that we can use POSIX functions,
 dnl or adapt to the vendor's definitions to get equivalent functionality,
@@ -1154,6 +1163,7 @@ sco*) #(vi
 	;;
 solaris2.*) #(vi
 	cf_xopen_source="-D__EXTENSIONS__"
+	cf_cv_xopen_source=broken
 	;;
 *)
 	CF_TRY_XOPEN_SOURCE

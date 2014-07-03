@@ -1,7 +1,7 @@
 # $FreeBSD$
 
 PROG=	demo
-NO_MAN=
+MAN=
 DPADD=	${LIBVGL}
 LDADD=	-lvgl
 

@@ -92,7 +92,7 @@
         ..
     ..
     clang
-        3.4
+        3.4.1
         ..
     ..
     crypto
@@ -162,6 +162,8 @@
         ..
     ..
     fs
+        cuse
+        ..
         devfs
         ..
         fdescfs

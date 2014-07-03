@@ -31,6 +31,8 @@
 	#address-cells = <1>;
 	#size-cells = <1>;
 
+	interrupt-parent = <&GIC>;
+
 	aliases {
 		soc = &SOC;
 	};

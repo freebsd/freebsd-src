@@ -112,10 +112,8 @@ static int compress_core(gzFile, char *, char *, unsigned int,
 
 int __elfN(fallback_brand) = -1;
 SYSCTL_INT(__CONCAT(_kern_elf, __ELF_WORD_SIZE), OID_AUTO,
-    fallback_brand, CTLFLAG_RW, &__elfN(fallback_brand), 0,
+    fallback_brand, CTLFLAG_RWTUN, &__elfN(fallback_brand), 0,
     __XSTRING(__CONCAT(ELF, __ELF_WORD_SIZE)) " brand of last resort");
-TUNABLE_INT("kern.elf" __XSTRING(__ELF_WORD_SIZE) ".fallback_brand",
-    &__elfN(fallback_brand));
 
 static int elf_legacy_coredump = 0;
 SYSCTL_INT(_debug, OID_AUTO, __elfN(legacy_coredump), CTLFLAG_RW, 
@@ -1740,14 +1738,16 @@ __elfN(note_threadmd)(void *arg, struct sbuf *sb, size_t *sizep)
 
 	td = (struct thread *)arg;
 	size = *sizep;
-	buf = NULL;
 	if (size != 0 && sb != NULL)
 		buf = malloc(size, M_TEMP, M_ZERO | M_WAITOK);
+	else
+		buf = NULL;
 	size = 0;
 	__elfN(dump_thread)(td, buf, &size);
 	KASSERT(*sizep == size, ("invalid size"));
 	if (size != 0 && sb != NULL)
 		sbuf_bcat(sb, buf, size);
+	free(buf, M_TEMP);
 	*sizep = size;
 }
 

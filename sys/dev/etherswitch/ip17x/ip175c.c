@@ -63,7 +63,7 @@ ip175c_reset(struct ip17x_softc *sc)
 	if (ip17x_writephy(sc->sc_dev, IP175C_RESET_PHY, IP175C_RESET_REG,
 	    0x175c))
 		return (-1);
-	DELAY(2);
+	DELAY(2000);
 
 	/* Force IP175C mode. */
 	data = ip17x_readphy(sc->sc_dev, IP175C_MODE_PHY, IP175C_MODE_REG);

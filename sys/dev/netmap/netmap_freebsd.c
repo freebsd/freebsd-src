@@ -61,7 +61,8 @@
 
 /* ======================== FREEBSD-SPECIFIC ROUTINES ================== */
 
-rawsum_t nm_csum_raw(uint8_t *data, size_t len, rawsum_t cur_sum)
+rawsum_t
+nm_csum_raw(uint8_t *data, size_t len, rawsum_t cur_sum)
 {
 	/* TODO XXX please use the FreeBSD implementation for this. */
 	uint16_t *words = (uint16_t *)data;
@@ -80,7 +81,8 @@ rawsum_t nm_csum_raw(uint8_t *data, size_t len, rawsum_t cur_sum)
 /* Fold a raw checksum: 'cur_sum' is in host byte order, while the
  * return value is in network byte order.
  */
-uint16_t nm_csum_fold(rawsum_t cur_sum)
+uint16_t
+nm_csum_fold(rawsum_t cur_sum)
 {
 	/* TODO XXX please use the FreeBSD implementation for this. */
 	while (cur_sum >> 16)
@@ -89,7 +91,8 @@ uint16_t nm_csum_fold(rawsum_t cur_sum)
 	return htobe16((~cur_sum) & 0xFFFF);
 }
 
-uint16_t nm_csum_ipv4(struct nm_iphdr *iph)
+uint16_t
+nm_csum_ipv4(struct nm_iphdr *iph)
 {
 #if 0
 	return in_cksum_hdr((void *)iph);
@@ -98,7 +101,8 @@ uint16_t nm_csum_ipv4(struct nm_iphdr *iph)
 #endif
 }
 
-void nm_csum_tcpudp_ipv4(struct nm_iphdr *iph, void *data,
+void
+nm_csum_tcpudp_ipv4(struct nm_iphdr *iph, void *data,
 					size_t datalen, uint16_t *check)
 {
 #ifdef INET
@@ -120,7 +124,8 @@ void nm_csum_tcpudp_ipv4(struct nm_iphdr *iph, void *data,
 #endif
 }
 
-void nm_csum_tcpudp_ipv6(struct nm_ipv6hdr *ip6h, void *data,
+void
+nm_csum_tcpudp_ipv6(struct nm_ipv6hdr *ip6h, void *data,
 					size_t datalen, uint16_t *check)
 {
 #ifdef INET6
@@ -143,7 +148,8 @@ void nm_csum_tcpudp_ipv6(struct nm_ipv6hdr *ip6h, void *data,
 int
 netmap_catch_rx(struct netmap_adapter *na, int intercept)
 {
-	struct netmap_generic_adapter *gna = (struct netmap_generic_adapter *)na;
+	struct netmap_generic_adapter *gna =
+		(struct netmap_generic_adapter *)na;
 	struct ifnet *ifp = na->ifp;
 
 	if (intercept) {
@@ -209,11 +215,29 @@ generic_xmit_frame(struct ifnet *ifp, struct mbuf *m,
 {
 	int ret;
 
-	m->m_len = m->m_pkthdr.len = 0;
+	/*
+	 * The mbuf should be a cluster from our special pool,
+	 * so we do not need to do an m_copyback but just copy
+	 * (and eventually, just reference the netmap buffer)
+	 */
 
-	// copy data to the mbuf
-	m_copyback(m, 0, len, addr);
-	// inc refcount. We are alone, so we can skip the atomic
+	if (*m->m_ext.ref_cnt != 1) {
+		D("invalid refcnt %d for %p",
+			*m->m_ext.ref_cnt, m);
+		panic("in generic_xmit_frame");
+	}
+	// XXX the ext_size check is unnecessary if we link the netmap buf
+	if (m->m_ext.ext_size < len) {
+		RD(5, "size %d < len %d", m->m_ext.ext_size, len);
+		len = m->m_ext.ext_size;
+	}
+	if (0) { /* XXX seems to have negligible benefits */
+		m->m_ext.ext_buf = m->m_data = addr;
+	} else {
+		bcopy(addr, m->m_data, len);
+	}
+	m->m_len = m->m_pkthdr.len = len;
+	// inc refcount. All ours, we could skip the atomic
 	atomic_fetchadd_int(m->m_ext.ref_cnt, 1);
 	m->m_flags |= M_FLOWID;
 	m->m_pkthdr.flowid = ring_nr;
@@ -223,6 +247,14 @@ generic_xmit_frame(struct ifnet *ifp, struct mbuf *m,
 }
 
 
+#if __FreeBSD_version >= 1100005
+struct netmap_adapter *
+netmap_getna(if_t ifp)
+{
+	return (NA((struct ifnet *)ifp));
+}
+#endif /* __FreeBSD_version >= 1100005 */
+
 /*
  * The following two functions are empty until we have a generic
  * way to extract the info from the ifp
@@ -230,7 +262,7 @@ generic_xmit_frame(struct ifnet *ifp, struct mbuf *m,
 int
 generic_find_num_desc(struct ifnet *ifp, unsigned int *tx, unsigned int *rx)
 {
-	D("called");
+	D("called, in tx %d rx %d", *tx, *rx);
 	return 0;
 }
 
@@ -238,13 +270,14 @@ generic_find_num_desc(struct ifnet *ifp, unsigned int *tx, unsigned int *rx)
 void
 generic_find_num_queues(struct ifnet *ifp, u_int *txq, u_int *rxq)
 {
-	D("called");
+	D("called, in txq %d rxq %d", *txq, *rxq);
 	*txq = netmap_generic_rings;
 	*rxq = netmap_generic_rings;
 }
 
 
-void netmap_mitigation_init(struct nm_generic_mit *mit, struct netmap_adapter *na)
+void
+netmap_mitigation_init(struct nm_generic_mit *mit, struct netmap_adapter *na)
 {
 	ND("called");
 	mit->mit_pending = 0;
@@ -252,26 +285,30 @@ void netmap_mitigation_init(struct nm_generic_mit *mit, struct netmap_adapter *n
 }
 
 
-void netmap_mitigation_start(struct nm_generic_mit *mit)
+void
+netmap_mitigation_start(struct nm_generic_mit *mit)
 {
 	ND("called");
 }
 
 
-void netmap_mitigation_restart(struct nm_generic_mit *mit)
+void
+netmap_mitigation_restart(struct nm_generic_mit *mit)
 {
 	ND("called");
 }
 
 
-int netmap_mitigation_active(struct nm_generic_mit *mit)
+int
+netmap_mitigation_active(struct nm_generic_mit *mit)
 {
 	ND("called");
 	return 0;
 }
 
 
-void netmap_mitigation_cleanup(struct nm_generic_mit *mit)
+void
+netmap_mitigation_cleanup(struct nm_generic_mit *mit)
 {
 	ND("called");
 }

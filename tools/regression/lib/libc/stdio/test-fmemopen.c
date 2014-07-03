@@ -138,6 +138,13 @@ test_autoalloc()
 	/* Close the FILE *. */
 	rc = fclose(fp);
 	assert(rc == 0);
+
+	/* Open a FILE * using a wrong mode */
+	fp = fmemopen(NULL, 512, "r");
+	assert(fp == NULL);
+
+	fp = fmemopen(NULL, 512, "w");
+	assert(fp == NULL);
 }
 
 void
@@ -241,6 +248,44 @@ test_binary()
 	assert(rc == 0);
 }
 
+void
+test_append_binary_pos()
+{
+	/*
+	 * For compatibility with other implementations (glibc), we set the
+	 * position to 0 when opening an automatically allocated binary stream
+	 * for appending.
+	 */
+
+	FILE *fp;
+
+	fp = fmemopen(NULL, 16, "ab+");
+	assert(ftell(fp) == 0L);
+	fclose(fp);
+
+	/*
+	 * Make sure that a pre-allocated buffer behaves correctly.
+	 */
+	char buf[] = "Hello";
+	fp = fmemopen(buf, sizeof(buf), "ab+");
+	assert(ftell(fp) == strlen(buf));
+	fclose(fp);
+}
+
+void
+test_size_0()
+{
+	/*
+	 * POSIX mandates that we return EINVAL if size is 0.
+	 */
+
+	FILE *fp;
+
+	fp = fmemopen(NULL, 0, "r+");
+	assert(fp == NULL);
+	assert(errno == EINVAL);
+}
+
 int
 main(void)
 {
@@ -248,5 +293,7 @@ main(void)
 	test_preexisting();
 	test_data_length();
 	test_binary();
+	test_append_binary_pos();
+	test_size_0();
 	return (0);
 }

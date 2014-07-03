@@ -3,6 +3,6 @@
 PROG=	test_ugidfw
 DPADD=	${LIBUGIDFW}
 LDADD=	-lugidfw
-NO_MAN=
+MAN=
 
 .include <bsd.prog.mk>

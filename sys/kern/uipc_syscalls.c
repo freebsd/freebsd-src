@@ -414,14 +414,8 @@ accept1(td, s, uname, anamelen, flags)
 
 	error = kern_accept4(td, s, &name, &namelen, flags, &fp);
 
-	/*
-	 * return a namelen of zero for older code which might
-	 * ignore the return value from accept.
-	 */
-	if (error != 0) {
-		(void) copyout(&namelen, anamelen, sizeof(*anamelen));
+	if (error != 0)
 		return (error);
-	}
 
 	if (error == 0 && uname != NULL) {
 #ifdef COMPAT_OLDSOCK
@@ -555,15 +549,8 @@ kern_accept4(struct thread *td, int s, struct sockaddr **name,
 	(void) fo_ioctl(nfp, FIOASYNC, &tmp, td->td_ucred, td);
 	sa = 0;
 	error = soaccept(so, &sa);
-	if (error != 0) {
-		/*
-		 * return a namelen of zero for older code which might
-		 * ignore the return value from accept.
-		 */
-		if (name)
-			*namelen = 0;
+	if (error != 0)
 		goto noconnection;
-	}
 	if (sa == NULL) {
 		if (name)
 			*namelen = 0;
@@ -2009,7 +1996,7 @@ sf_buf_mext(struct mbuf *mb, void *addr, void *args)
 	m = sf_buf_page(args);
 	sf_buf_free(args);
 	vm_page_lock(m);
-	vm_page_unwire(m, 0);
+	vm_page_unwire(m, PQ_INACTIVE);
 	/*
 	 * Check for the object going away on us. This can
 	 * happen since we don't hold a reference to it.
@@ -2705,7 +2692,7 @@ sendfile_readpage(vm_object_t obj, struct vnode *vp, int nd,
 	} else if (m != NULL) {
 free_page:
 		vm_page_lock(m);
-		vm_page_unwire(m, 0);
+		vm_page_unwire(m, PQ_INACTIVE);
 
 		/*
 		 * See if anyone else might know about this page.  If
@@ -3063,7 +3050,7 @@ retry_space:
 			if (sf == NULL) {
 				SFSTAT_INC(sf_allocfail);
 				vm_page_lock(pg);
-				vm_page_unwire(pg, 0);
+				vm_page_unwire(pg, PQ_INACTIVE);
 				KASSERT(pg->object != NULL,
 				    ("%s: object disappeared", __func__));
 				vm_page_unlock(pg);

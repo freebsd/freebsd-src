@@ -72,7 +72,7 @@ struct cfiscsi_session {
 	int				cs_timeout;
 	int				cs_portal_group_tag;
 	struct cv			cs_maintenance_cv;
-	int				cs_terminating;
+	bool				cs_terminating;
 	size_t				cs_max_data_segment_length;
 	size_t				cs_max_burst_length;
 	bool				cs_immediate_data;
@@ -82,6 +82,8 @@ struct cfiscsi_session {
 	unsigned int			cs_id;
 	int				cs_ctl_initid;
 #ifdef ICL_KERNEL_PROXY
+	struct sockaddr			*cs_initiator_sa;
+	int				cs_portal_id;
 	bool				cs_login_phase;
 	bool				cs_waiting_for_ctld;
 	struct cv			cs_login_cv;

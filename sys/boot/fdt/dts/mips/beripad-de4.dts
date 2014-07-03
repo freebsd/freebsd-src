@@ -222,7 +222,7 @@
 		};
 
 		usb@0x7f100000 {
-			compatible = "philips,isp1761";
+			compatible = "nxp,usb-isp1761";
 			reg = <0x7f100000 0x40000
 			       0x7f140000 0x4>;
 			// IRQ 4 is DC, IRQ 5 is HC.
@@ -253,14 +253,5 @@
 			sri-cambridge,fileio = "rw";
 			sri-cambridge,devname = "de4tempfan";
 		};
-
-		avgen@0x7f100000 {
-			compatible = "sri-cambridge,avgen";
-			reg = <0x7f100000 0x40000>;
-			sri-cambridge,width = <4>;
-			sri-cambridge,fileio = "r";
-			sri-cambridge,devname = "usbmem";
-		};
-
 	};
 };

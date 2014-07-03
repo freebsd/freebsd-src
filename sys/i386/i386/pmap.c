@@ -225,8 +225,8 @@ SYSCTL_INT(_vm_pmap, OID_AUTO, pat_works, CTLFLAG_RD, &pat_works, 1,
     "Is page attribute table fully functional?");
 
 static int pg_ps_enabled = 1;
-SYSCTL_INT(_vm_pmap, OID_AUTO, pg_ps_enabled, CTLFLAG_RDTUN, &pg_ps_enabled, 0,
-    "Are large page mappings enabled?");
+SYSCTL_INT(_vm_pmap, OID_AUTO, pg_ps_enabled, CTLFLAG_RDTUN | CTLFLAG_NOFETCH,
+    &pg_ps_enabled, 0, "Are large page mappings enabled?");
 
 #define	PAT_INDEX_SIZE	8
 static int pat_index[PAT_INDEX_SIZE];	/* cache mode to PAT index conversion */
@@ -2368,7 +2368,7 @@ free_pv_chunk(struct pv_chunk *pc)
 	/* entire chunk is free, return it */
 	m = PHYS_TO_VM_PAGE(pmap_kextract((vm_offset_t)pc));
 	pmap_qremove((vm_offset_t)pc, 1);
-	vm_page_unwire(m, 0);
+	vm_page_unwire(m, PQ_INACTIVE);
 	vm_page_free(m);
 	pmap_ptelist_free(&pv_vafree, (vm_offset_t)pc);
 }
@@ -3733,8 +3733,7 @@ pmap_enter_object(pmap_t pmap, vm_offset_t start, vm_offset_t end,
 	while (m != NULL && (diff = m->pindex - m_start->pindex) < psize) {
 		va = start + ptoa(diff);
 		if ((va & PDRMASK) == 0 && va + NBPDR <= end &&
-		    (VM_PAGE_TO_PHYS(m) & PDRMASK) == 0 &&
-		    pg_ps_enabled && vm_reserv_level_iffullpop(m) == 0 &&
+		    m->psind == 1 && pg_ps_enabled &&
 		    pmap_enter_pde(pmap, va, m, prot))
 			m = &m[NBPDR / PAGE_SIZE - 1];
 		else

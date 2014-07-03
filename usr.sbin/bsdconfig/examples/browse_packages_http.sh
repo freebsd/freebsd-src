@@ -18,7 +18,7 @@ if [ ! -e "$TMPDIR/packages/INDEX" ]; then
 	mediaSetHTTP
 	mediaOpen
 	f_show_info "Downloading packages/INDEX from\n %s" "$_httpPath"
-	f_device_get media packages/INDEX > $TMPDIR/packages/INDEX
+	f_device_get device_media packages/INDEX > $TMPDIR/packages/INDEX
 fi
 _directoryPath=$TMPDIR
 mediaSetDirectory

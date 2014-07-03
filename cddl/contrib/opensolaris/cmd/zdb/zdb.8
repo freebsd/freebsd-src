@@ -14,12 +14,12 @@
 .\"
 .\" Copyright 2012, Richard Lowe.
 .\" Copyright (c) 2012, Marcelo Araujo <araujo@FreeBSD.org>.
-.\" Copyright (c) 2012 by Delphix. All rights reserved.
+.\" Copyright (c) 2012, 2014 by Delphix. All rights reserved.
 .\" All Rights Reserved.
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 20, 2014
+.Dd July 1, 2014
 .Dt ZDB 8
 .Os
 .Sh NAME
@@ -32,6 +32,7 @@
 .Op Fl t Ar txg
 .Op Fl U Ar cache
 .Op Fl M Ar inflight I/Os
+.Op Fl x Ar dumpdir
 .Ar poolname
 .Op Ar object ...
 .Nm
@@ -217,6 +218,14 @@ Operate on an exported pool, not present in
 The
 .Fl p
 flag specifies the path under which devices are to be searched.
+.It Fl x Ar dumpdir
+All blocks accessed will be copied to files in the specified directory.
+The blocks will be placed in sparse files whose name is the same as
+that of the file or device read.  zdb can be then run on the generated files.
+Note that the
+.Fl bbc
+flags are sufficient to access (and thus copy)
+all metadata on the pool.
 .It Fl F
 Attempt to make an unreadable pool readable by trying progressively older
 transactions.

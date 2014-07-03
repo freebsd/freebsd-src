@@ -282,7 +282,7 @@ Libucl provides the following functions for emitting UCL objects:
 ### ucl_object_emit
 
 ~~~C
-unsigned char *ucl_object_emit (ucl_object_t *obj, enum ucl_emitter emit_type);
+unsigned char *ucl_object_emit (const ucl_object_t *obj, enum ucl_emitter emit_type);
 ~~~
 
 Allocate a string that is suitable to fit the underlying UCL object `obj` and fill it with the textual representation of the object `obj` according to style `emit_type`. The caller should free the returned string after using.
@@ -290,7 +290,7 @@ Allocate a string that is suitable to fit the underlying UCL object `obj` and fi
 ### ucl_object_emit_full
 
 ~~~C
-bool ucl_object_emit_full (ucl_object_t *obj, enum ucl_emitter emit_type,
+bool ucl_object_emit_full (const ucl_object_t *obj, enum ucl_emitter emit_type,
 		struct ucl_emitter_functions *emitter);
 ~~~
 
@@ -381,7 +381,7 @@ Iteration are used to iterate over UCL compound types: arrays and objects. Moreo
 
 ## ucl_iterate_object
 ~~~C
-ucl_object_t* ucl_iterate_object (ucl_object_t *obj, 
+const ucl_object_t* ucl_iterate_object (const ucl_object_t *obj, 
 	ucl_object_iter_t *iter, bool expand_values);
 ~~~
 
@@ -389,7 +389,7 @@ This function accept opaque iterator pointer `iter`. In the first call this iter
 
 ~~~C
 ucl_object_iter_t it = NULL, it_obj = NULL;
-ucl_object_t *cur, *tmp;
+const ucl_object_t *cur, *tmp;
 
 /* Iterate over the object */
 while ((obj = ucl_iterate_object (top, &it, true))) {
@@ -408,8 +408,8 @@ Currently, there is only one validation function called `ucl_object_validate`. I
 
 ## ucl_object_validate
 ~~~C
-bool ucl_object_validate (ucl_object_t *schema,
-	ucl_object_t *obj, struct ucl_schema_error *err);
+bool ucl_object_validate (const ucl_object_t *schema,
+	const ucl_object_t *obj, struct ucl_schema_error *err);
 ~~~
 
 This function uses ucl object `schema`, that must be valid in terms of `json-schema` draft v4, to validate input object `obj`. If this function returns `true` then validation procedure has been succeed. Otherwise, `false` is returned and `err` is set to a specific value. If caller set `err` to NULL then this function does not set any error just returning `false`. Error is the structure defined as following:

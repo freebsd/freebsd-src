@@ -21,16 +21,16 @@
  * specific prior written permission.
  * 
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
- * TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE
- * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
- * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
- * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
- * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
+ * TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+ * PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+ * LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+ * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+ * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
 /**
@@ -39,7 +39,7 @@
  * This file contains the infrastructure cache.
  */
 #include "config.h"
-#include <ldns/rr.h>
+#include "ldns/rrdef.h"
 #include "services/cache/infra.h"
 #include "util/storage/slabhash.h"
 #include "util/storage/lookup3.h"
@@ -189,7 +189,7 @@ infra_lookup_nottl(struct infra_cache* infra, struct sockaddr_storage* addr,
 /** init the data elements */
 static void
 data_entry_init(struct infra_cache* infra, struct lruhash_entry* e, 
-	uint32_t timenow)
+	time_t timenow)
 {
 	struct infra_data* data = (struct infra_data*)e->data;
 	data->ttl = timenow + infra->host_ttl;
@@ -218,7 +218,7 @@ data_entry_init(struct infra_cache* infra, struct lruhash_entry* e,
  */
 static struct lruhash_entry*
 new_entry(struct infra_cache* infra, struct sockaddr_storage* addr, 
-	socklen_t addrlen, uint8_t* name, size_t namelen, uint32_t tm)
+	socklen_t addrlen, uint8_t* name, size_t namelen, time_t tm)
 {
 	struct infra_data* data;
 	struct infra_key* key = (struct infra_key*)malloc(sizeof(*key));
@@ -248,7 +248,7 @@ new_entry(struct infra_cache* infra, struct sockaddr_storage* addr,
 
 int 
 infra_host(struct infra_cache* infra, struct sockaddr_storage* addr,
-        socklen_t addrlen, uint8_t* nm, size_t nmlen, uint32_t timenow,
+        socklen_t addrlen, uint8_t* nm, size_t nmlen, time_t timenow,
 	int* edns_vs, uint8_t* edns_lame_known, int* to)
 {
 	struct lruhash_entry* e = infra_lookup_nottl(infra, addr, addrlen,
@@ -317,7 +317,7 @@ infra_host(struct infra_cache* infra, struct sockaddr_storage* addr,
 
 int 
 infra_set_lame(struct infra_cache* infra, struct sockaddr_storage* addr,
-	socklen_t addrlen, uint8_t* nm, size_t nmlen, uint32_t timenow,
+	socklen_t addrlen, uint8_t* nm, size_t nmlen, time_t timenow,
 	int dnsseclame, int reclame, uint16_t qtype)
 {
 	struct infra_data* data;
@@ -374,7 +374,7 @@ infra_update_tcp_works(struct infra_cache* infra,
 int 
 infra_rtt_update(struct infra_cache* infra, struct sockaddr_storage* addr,
 	socklen_t addrlen, uint8_t* nm, size_t nmlen, int qtype,
-	int roundtrip, int orig_rtt, uint32_t timenow)
+	int roundtrip, int orig_rtt, time_t timenow)
 {
 	struct lruhash_entry* e = infra_lookup_nottl(infra, addr, addrlen,
 		nm, nmlen, 1);
@@ -425,19 +425,19 @@ infra_rtt_update(struct infra_cache* infra, struct sockaddr_storage* addr,
 	return rto;
 }
 
-int infra_get_host_rto(struct infra_cache* infra,
+long long infra_get_host_rto(struct infra_cache* infra,
         struct sockaddr_storage* addr, socklen_t addrlen, uint8_t* nm,
-	size_t nmlen, struct rtt_info* rtt, int* delay, uint32_t timenow,
+	size_t nmlen, struct rtt_info* rtt, int* delay, time_t timenow,
 	int* tA, int* tAAAA, int* tother)
 {
 	struct lruhash_entry* e = infra_lookup_nottl(infra, addr, addrlen,
 		nm, nmlen, 0);
 	struct infra_data* data;
-	int ttl = -2;
+	long long ttl = -2;
 	if(!e) return -1;
 	data = (struct infra_data*)e->data;
 	if(data->ttl >= timenow) {
-		ttl = (int)(data->ttl - timenow);
+		ttl = (long long)(data->ttl - timenow);
 		memmove(rtt, &data->rtt, sizeof(*rtt));
 		if(timenow < data->probedelay)
 			*delay = (int)(data->probedelay - timenow);
@@ -453,7 +453,7 @@ int infra_get_host_rto(struct infra_cache* infra,
 int 
 infra_edns_update(struct infra_cache* infra, struct sockaddr_storage* addr,
 	socklen_t addrlen, uint8_t* nm, size_t nmlen, int edns_version,
-	uint32_t timenow)
+	time_t timenow)
 {
 	struct lruhash_entry* e = infra_lookup_nottl(infra, addr, addrlen,
 		nm, nmlen, 1);
@@ -485,7 +485,7 @@ int
 infra_get_lame_rtt(struct infra_cache* infra,
         struct sockaddr_storage* addr, socklen_t addrlen,
         uint8_t* name, size_t namelen, uint16_t qtype, 
-	int* lame, int* dnsseclame, int* reclame, int* rtt, uint32_t timenow)
+	int* lame, int* dnsseclame, int* reclame, int* rtt, time_t timenow)
 {
 	struct infra_data* host;
 	struct lruhash_entry* e = infra_lookup_nottl(infra, addr, addrlen,

@@ -368,7 +368,7 @@ static u_int64_t elf_get_half(Elf32_Ehdr *e, void *base, elf_member_t member);
 static u_int64_t elf_get_word(Elf32_Ehdr *e, void *base, elf_member_t member);
 static u_int64_t elf_get_quad(Elf32_Ehdr *e, void *base, elf_member_t member);
 
-static void elf_print_ehdr(Elf32_Ehdr *e);
+static void elf_print_ehdr(Elf32_Ehdr *e, void *sh);
 static void elf_print_phdr(Elf32_Ehdr *e, void *p);
 static void elf_print_shdr(Elf32_Ehdr *e, void *sh);
 static void elf_print_symtab(Elf32_Ehdr *e, void *sh, char *str);
@@ -381,6 +381,33 @@ static void elf_print_hash(Elf32_Ehdr *e, void *sh);
 static void elf_print_note(Elf32_Ehdr *e, void *sh);
 
 static void usage(void);
+
+/*
+ * Helpers for ELF files with shnum or shstrndx values that don't fit in the
+ * ELF header.  If the values are too large then an escape value is used to
+ * indicate that the actual value is found in one of section 0's fields.
+ */
+static uint64_t
+elf_get_shnum(Elf32_Ehdr *e, void *sh)
+{
+	uint64_t shnum;
+
+	shnum = elf_get_quarter(e, e, E_SHNUM);
+	if (shnum == 0)
+		shnum = elf_get_word(e, (char *)sh, SH_SIZE);
+	return shnum;
+}
+
+static uint64_t
+elf_get_shstrndx(Elf32_Ehdr *e, void *sh)
+{
+	uint64_t shstrndx;
+
+	shstrndx = elf_get_quarter(e, e, E_SHSTRNDX);
+	if (shstrndx == SHN_XINDEX)
+		shstrndx = elf_get_word(e, (char *)sh, SH_LINK);
+	return shstrndx;
+}
 
 int
 main(int ac, char **av)
@@ -467,12 +494,20 @@ main(int ac, char **av)
 	phentsize = elf_get_quarter(e, e, E_PHENTSIZE);
 	phnum = elf_get_quarter(e, e, E_PHNUM);
 	shentsize = elf_get_quarter(e, e, E_SHENTSIZE);
-	shnum = elf_get_quarter(e, e, E_SHNUM);
-	shstrndx = elf_get_quarter(e, e, E_SHSTRNDX);
 	p = (char *)e + phoff;
-	sh = (char *)e + shoff;
-	offset = elf_get_off(e, (char *)sh + shstrndx * shentsize, SH_OFFSET);
-	shstrtab = (char *)e + offset;
+	if (shoff > 0) {
+		sh = (char *)e + shoff;
+		shnum = elf_get_shnum(e, sh);
+		shstrndx = elf_get_shstrndx(e, sh);
+		offset = elf_get_off(e, (char *)sh + shstrndx * shentsize,
+		    SH_OFFSET);
+		shstrtab = (char *)e + offset;
+	} else {
+		sh = NULL;
+		shnum = 0;
+		shstrndx = 0;
+		shstrtab = NULL;
+	}
 	for (i = 0; (u_int64_t)i < shnum; i++) {
 		name = elf_get_word(e, (char *)sh + i * shentsize, SH_NAME);
 		offset = elf_get_off(e, (char *)sh + i * shentsize, SH_OFFSET);
@@ -482,7 +517,7 @@ main(int ac, char **av)
 			dynstr = (char *)e + offset;
 	}
 	if (flags & ED_EHDR)
-		elf_print_ehdr(e);
+		elf_print_ehdr(e, sh);
 	if (flags & ED_PHDR)
 		elf_print_phdr(e, p);
 	if (flags & ED_SHDR)
@@ -556,7 +591,7 @@ main(int ac, char **av)
 }
 
 static void
-elf_print_ehdr(Elf32_Ehdr *e)
+elf_print_ehdr(Elf32_Ehdr *e, void *sh)
 {
 	u_int64_t class;
 	u_int64_t data;
@@ -589,8 +624,6 @@ elf_print_ehdr(Elf32_Ehdr *e)
 	phentsize = elf_get_quarter(e, e, E_PHENTSIZE);
 	phnum = elf_get_quarter(e, e, E_PHNUM);
 	shentsize = elf_get_quarter(e, e, E_SHENTSIZE);
-	shnum = elf_get_quarter(e, e, E_SHNUM);
-	shstrndx = elf_get_quarter(e, e, E_SHSTRNDX);
 	fprintf(out, "\nelf header:\n");
 	fprintf(out, "\n");
 	fprintf(out, "\te_ident: %s %s %s\n", ei_classes[class], ei_data[data],
@@ -606,8 +639,12 @@ elf_print_ehdr(Elf32_Ehdr *e)
 	fprintf(out, "\te_phentsize: %jd\n", (intmax_t)phentsize);
 	fprintf(out, "\te_phnum: %jd\n", (intmax_t)phnum);
 	fprintf(out, "\te_shentsize: %jd\n", (intmax_t)shentsize);
-	fprintf(out, "\te_shnum: %jd\n", (intmax_t)shnum);
-	fprintf(out, "\te_shstrndx: %jd\n", (intmax_t)shstrndx);
+	if (sh != NULL) {
+		shnum = elf_get_shnum(e, sh);
+		shstrndx = elf_get_shstrndx(e, sh);
+		fprintf(out, "\te_shnum: %jd\n", (intmax_t)shnum);
+		fprintf(out, "\te_shstrndx: %jd\n", (intmax_t)shstrndx);
+	}
 }
 
 static void
@@ -670,8 +707,13 @@ elf_print_shdr(Elf32_Ehdr *e, void *sh)
 	void *v;
 	int i;
 
+	if (sh == NULL) {
+		fprintf(out, "\nNo section headers\n");
+		return;
+	}
+
 	shentsize = elf_get_quarter(e, e, E_SHENTSIZE);
-	shnum = elf_get_quarter(e, e, E_SHNUM);
+	shnum = elf_get_shnum(e, sh);
 	fprintf(out, "\nsection header:\n");
 	for (i = 0; (u_int64_t)i < shnum; i++) {
 		v = (char *)sh + i * shentsize;

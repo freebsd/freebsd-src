@@ -46,9 +46,7 @@
 
 struct connection {
 	int			conn_iscsi_fd;
-#ifndef ICL_KERNEL_PROXY
 	int			conn_socket;
-#endif
 	unsigned int		conn_session_id;
 	struct iscsi_session_conf	conn_conf;
 	char			conn_target_alias[ISCSI_ADDR_LEN];

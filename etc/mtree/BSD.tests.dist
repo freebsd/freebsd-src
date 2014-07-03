@@ -12,8 +12,6 @@
         ..
     ..
     share
-        aclocal
-        ..
         atf
         ..
         doc
@@ -23,6 +21,8 @@
     ..
     tests
         bin
+            chown
+            ..
             date
             ..
             mv
@@ -50,6 +50,26 @@
             test
             ..
         ..
+        cddl
+            lib
+            ..
+            sbin
+            ..
+            usr.bin
+            ..
+            usr.sbin
+            ..
+        ..
+        etc
+        ..
+        games
+        ..
+        gnu
+            lib
+            ..
+            usr.bin
+            ..
+        ..
         lib
             atf
                 libatf-c
@@ -70,6 +90,10 @@
             atf
                 atf-check
                 ..
+                atf-sh
+                ..
+            ..
+            rtld-elf
             ..
         ..
         sbin
@@ -77,9 +101,17 @@
             ..
             growfs
             ..
-            ifconfig
-            ..
             mdconfig
+            ..
+        ..
+        secure
+            lib
+            ..
+            libexec
+            ..
+            usr.bin
+            ..
+            usr.sbin
             ..
         ..
         share
@@ -101,25 +133,7 @@
         usr.bin
             apply
             ..
-            atf
-                atf-sh
-                ..
-            ..
-            calendar
-            ..
-            comm
-            ..
-            file2c
-            ..
-            join
-            ..
-            jot
-            ..
-            lastcomm
-            ..
-            m4
-            ..
-            make
+            bmake
                 archives
                     fmt_44bsd
                     ..
@@ -217,6 +231,20 @@
                     ..
                 ..
             ..
+            calendar
+            ..
+            comm
+            ..
+            file2c
+            ..
+            join
+            ..
+            jot
+            ..
+            lastcomm
+            ..
+            m4
+            ..
             ncal
             ..
             printf
@@ -226,6 +254,8 @@
                 ..
             ..
             tr
+            ..
+            truncate
             ..
             uudecode
             ..

@@ -4,7 +4,7 @@
 # -DEXTENDED 
 # 	if you want the paste & spaste macros.
 
-.include <bsd.own.mk>
+.include <src.opts.mk>
 
 PROG=	m4
 CFLAGS+=-DEXTENDED -I${.CURDIR} -I${.CURDIR}/lib

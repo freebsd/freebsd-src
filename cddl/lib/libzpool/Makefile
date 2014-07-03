@@ -60,7 +60,7 @@ DPADD=		${LIBMD} ${LIBPTHREAD} ${LIBZ}
 LDADD=		-lmd -lpthread -lz
 
 # atomic.S doesn't like profiling.
-NO_PROFILE=
+MK_PROFILE=	no
 
 CSTD=	c99
 

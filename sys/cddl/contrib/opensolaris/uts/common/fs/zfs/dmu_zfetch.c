@@ -55,16 +55,12 @@ SYSCTL_DECL(_vfs_zfs);
 SYSCTL_INT(_vfs_zfs, OID_AUTO, prefetch_disable, CTLFLAG_RW,
     &zfs_prefetch_disable, 0, "Disable prefetch");
 SYSCTL_NODE(_vfs_zfs, OID_AUTO, zfetch, CTLFLAG_RW, 0, "ZFS ZFETCH");
-TUNABLE_INT("vfs.zfs.zfetch.max_streams", &zfetch_max_streams);
-SYSCTL_UINT(_vfs_zfs_zfetch, OID_AUTO, max_streams, CTLFLAG_RW,
+SYSCTL_UINT(_vfs_zfs_zfetch, OID_AUTO, max_streams, CTLFLAG_RWTUN,
     &zfetch_max_streams, 0, "Max # of streams per zfetch");
-TUNABLE_INT("vfs.zfs.zfetch.min_sec_reap", &zfetch_min_sec_reap);
 SYSCTL_UINT(_vfs_zfs_zfetch, OID_AUTO, min_sec_reap, CTLFLAG_RDTUN,
     &zfetch_min_sec_reap, 0, "Min time before stream reclaim");
-TUNABLE_INT("vfs.zfs.zfetch.block_cap", &zfetch_block_cap);
 SYSCTL_UINT(_vfs_zfs_zfetch, OID_AUTO, block_cap, CTLFLAG_RDTUN,
     &zfetch_block_cap, 0, "Max number of blocks to fetch at a time");
-TUNABLE_QUAD("vfs.zfs.zfetch.array_rd_sz", &zfetch_array_rd_sz);
 SYSCTL_UQUAD(_vfs_zfs_zfetch, OID_AUTO, array_rd_sz, CTLFLAG_RDTUN,
     &zfetch_array_rd_sz, 0,
     "Number of bytes in a array_read at which we stop prefetching");

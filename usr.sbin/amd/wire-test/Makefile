@@ -13,4 +13,6 @@ MAN=	wire-test.8
 DPADD=	${LIBAMU}
 LDADD=	${LIBAMU}
 
+NO_PIE=	yes
+
 .include <bsd.prog.mk>

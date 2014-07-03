@@ -7,8 +7,6 @@ LIB=		sqlite3
 
 SRCS=		sqlite3.c
 
-NOMAN=		internalonly
-
 .PATH:		${SQLITE}
 
 CFLAGS+= 	-DHAVE_CONFIG_H -I${.CURDIR} \

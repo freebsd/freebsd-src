@@ -223,7 +223,7 @@ get_bank(int gpio_number, struct gpio_bank *bank, int *pin_shift)
 	for (i = 0; i < NGRP; i++) {
 		ngpio = gpio_map[i].ngpio;
 
-		if ((n + ngpio) >= gpio_number) {
+		if ((n + ngpio) > gpio_number) {
 			*bank = gpio_map[i];
 			*pin_shift = (gpio_number - n);
 			return (0);

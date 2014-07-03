@@ -268,7 +268,7 @@ rtl8366rb_update_ifmedia(int portstatus, u_int *media_status, u_int *media_activ
 		*media_active |= IFM_1000_T;
 		break;
 	}
-	if ((portstatus & RTL8366RB_PLSR_FULLDUPLEX) == 0)
+	if ((portstatus & RTL8366RB_PLSR_FULLDUPLEX) != 0)
 		*media_active |= IFM_FDX;
 	else
 		*media_active |= IFM_HDX;
@@ -570,6 +570,7 @@ rtl_getport(device_t dev, etherswitch_port_t *p)
 			return (err);
 	} else {
 		/* fill in fixed values for CPU port */
+		p->es_flags |= ETHERSWITCH_PORT_CPU;
 		ifmr->ifm_count = 0;
 		smi_read(dev, RTL8366RB_PLSR_BASE + (RTL8366RB_NUM_PHYS)/2, &v, RTL_WAITOK);
 		v = v >> (8 * ((RTL8366RB_NUM_PHYS) % 2));
@@ -606,6 +607,8 @@ rtl_setport(device_t dev, etherswitch_port_t *p)
 		RTL8366RB_PVCR_VAL(p->es_port, vlangroup), RTL_WAITOK);
 	if (err)
 		return (err);
+	if (p->es_port == RTL8366RB_CPU_PORT)
+		return (0);
 	mii = device_get_softc(sc->miibus[p->es_port]);
 	ifm = &mii->mii_media;
 	err = ifmedia_ioctl(sc->ifp[p->es_port], &p->es_ifr, ifm, SIOCSIFMEDIA);

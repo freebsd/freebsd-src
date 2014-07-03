@@ -169,8 +169,8 @@ static int txp_alloc_rings(struct txp_softc *);
 static void txp_init_rings(struct txp_softc *);
 static int txp_dma_alloc(struct txp_softc *, char *, bus_dma_tag_t *,
     bus_size_t, bus_size_t, bus_dmamap_t *, void **, bus_size_t, bus_addr_t *);
-static void txp_dma_free(struct txp_softc *, bus_dma_tag_t *, bus_dmamap_t *,
-    void **);
+static void txp_dma_free(struct txp_softc *, bus_dma_tag_t *, bus_dmamap_t,
+    void **, bus_addr_t *);
 static void txp_free_rings(struct txp_softc *);
 static int txp_rxring_fill(struct txp_softc *);
 static void txp_rxring_empty(struct txp_softc *);
@@ -787,7 +787,7 @@ txp_download_fw_section(struct txp_softc *sc,
 
 	bus_dmamap_sync(sec_tag, sec_map, BUS_DMASYNC_POSTWRITE);
 bail:
-	txp_dma_free(sc, &sec_tag, &sec_map, (void **)&sec_buf);
+	txp_dma_free(sc, &sec_tag, sec_map, (void **)&sec_buf, &sec_paddr);
 	return (err);
 }
 
@@ -1265,17 +1265,17 @@ txp_dma_alloc(struct txp_softc *sc, char *type, bus_dma_tag_t *tag,
 }
 
 static void
-txp_dma_free(struct txp_softc *sc, bus_dma_tag_t *tag, bus_dmamap_t *map,
-    void **buf)
+txp_dma_free(struct txp_softc *sc, bus_dma_tag_t *tag, bus_dmamap_t map,
+    void **buf, bus_addr_t *paddr)
 {
 
 	if (*tag != NULL) {
-		if (*map != NULL)
-			bus_dmamap_unload(*tag, *map);
-		if (*map != NULL && buf != NULL)
-			bus_dmamem_free(*tag, *(uint8_t **)buf, *map);
+		if (*paddr != 0)
+			bus_dmamap_unload(*tag, map);
+		if (buf != NULL)
+			bus_dmamem_free(*tag, *(uint8_t **)buf, map);
 		*(uint8_t **)buf = NULL;
-		*map = NULL;
+		*paddr = 0;
 		bus_dma_tag_destroy(*tag);
 		*tag = NULL;
 	}
@@ -1649,38 +1649,48 @@ txp_free_rings(struct txp_softc *sc)
 
 	/* Hi priority Tx ring. */
 	txp_dma_free(sc, &sc->sc_cdata.txp_txhiring_tag,
-	    &sc->sc_cdata.txp_txhiring_map,
-	    (void **)&sc->sc_ldata.txp_txhiring);
+	    sc->sc_cdata.txp_txhiring_map,
+	    (void **)&sc->sc_ldata.txp_txhiring,
+	    &sc->sc_ldata.txp_txhiring_paddr);
 	/* Low priority Tx ring. */
 	txp_dma_free(sc, &sc->sc_cdata.txp_txloring_tag,
-	    &sc->sc_cdata.txp_txloring_map,
-	    (void **)&sc->sc_ldata.txp_txloring);
+	    sc->sc_cdata.txp_txloring_map,
+	    (void **)&sc->sc_ldata.txp_txloring,
+	    &sc->sc_ldata.txp_txloring_paddr);
 	/* Hi priority Rx ring. */
 	txp_dma_free(sc, &sc->sc_cdata.txp_rxhiring_tag,
-	    &sc->sc_cdata.txp_rxhiring_map,
-	    (void **)&sc->sc_ldata.txp_rxhiring);
+	    sc->sc_cdata.txp_rxhiring_map,
+	    (void **)&sc->sc_ldata.txp_rxhiring,
+	    &sc->sc_ldata.txp_rxhiring_paddr);
 	/* Low priority Rx ring. */
 	txp_dma_free(sc, &sc->sc_cdata.txp_rxloring_tag,
-	    &sc->sc_cdata.txp_rxloring_map,
-	    (void **)&sc->sc_ldata.txp_rxloring);
+	    sc->sc_cdata.txp_rxloring_map,
+	    (void **)&sc->sc_ldata.txp_rxloring,
+	    &sc->sc_ldata.txp_rxloring_paddr);
 	/* Receive buffer ring. */
 	txp_dma_free(sc, &sc->sc_cdata.txp_rxbufs_tag,
-	    &sc->sc_cdata.txp_rxbufs_map, (void **)&sc->sc_ldata.txp_rxbufs);
+	    sc->sc_cdata.txp_rxbufs_map, (void **)&sc->sc_ldata.txp_rxbufs,
+	    &sc->sc_ldata.txp_rxbufs_paddr);
 	/* Command ring. */
 	txp_dma_free(sc, &sc->sc_cdata.txp_cmdring_tag,
-	    &sc->sc_cdata.txp_cmdring_map, (void **)&sc->sc_ldata.txp_cmdring);
+	    sc->sc_cdata.txp_cmdring_map, (void **)&sc->sc_ldata.txp_cmdring,
+	    &sc->sc_ldata.txp_cmdring_paddr);
 	/* Response ring. */
 	txp_dma_free(sc, &sc->sc_cdata.txp_rspring_tag,
-	    &sc->sc_cdata.txp_rspring_map, (void **)&sc->sc_ldata.txp_rspring);
+	    sc->sc_cdata.txp_rspring_map, (void **)&sc->sc_ldata.txp_rspring,
+	    &sc->sc_ldata.txp_rspring_paddr);
 	/* Zero ring. */
 	txp_dma_free(sc, &sc->sc_cdata.txp_zero_tag,
-	    &sc->sc_cdata.txp_zero_map, (void **)&sc->sc_ldata.txp_zero);
+	    sc->sc_cdata.txp_zero_map, (void **)&sc->sc_ldata.txp_zero,
+	    &sc->sc_ldata.txp_zero_paddr);
 	/* Host variables. */
 	txp_dma_free(sc, &sc->sc_cdata.txp_hostvar_tag,
-	    &sc->sc_cdata.txp_hostvar_map, (void **)&sc->sc_ldata.txp_hostvar);
+	    sc->sc_cdata.txp_hostvar_map, (void **)&sc->sc_ldata.txp_hostvar,
+	    &sc->sc_ldata.txp_hostvar_paddr);
 	/* Boot record. */
 	txp_dma_free(sc, &sc->sc_cdata.txp_boot_tag,
-	    &sc->sc_cdata.txp_boot_map, (void **)&sc->sc_ldata.txp_boot);
+	    sc->sc_cdata.txp_boot_map, (void **)&sc->sc_ldata.txp_boot,
+	    &sc->sc_ldata.txp_boot_paddr);
 
 	if (sc->sc_cdata.txp_parent_tag != NULL) {
 		bus_dma_tag_destroy(sc->sc_cdata.txp_parent_tag);

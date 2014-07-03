@@ -21,9 +21,9 @@
 
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2013 by Delphix. All rights reserved.
+ * Copyright (c) 2011, 2014 by Delphix. All rights reserved.
  * Copyright 2011 Nexenta Systems, Inc.  All rights reserved.
- * Copyright (c) 2012, Joyent, Inc. All rights reserved.
+ * Copyright (c) 2013, Joyent, Inc. All rights reserved.
  * Copyright (c) 2012, Martin Matuska <mm@FreeBSD.org>. All rights reserved.
  */
 
@@ -146,6 +146,12 @@ typedef enum {
 	ZFS_PROP_LOGICALREFERENCED,
 	ZFS_PROP_INCONSISTENT,		/* not exposed to the user */
 	ZFS_PROP_VOLMODE,
+	ZFS_PROP_FILESYSTEM_LIMIT,
+	ZFS_PROP_SNAPSHOT_LIMIT,
+	ZFS_PROP_FILESYSTEM_COUNT,
+	ZFS_PROP_SNAPSHOT_COUNT,
+	ZFS_PROP_REDUNDANT_METADATA,
+	ZFS_PROP_PREV_SNAP,
 	ZFS_NUM_PROPS
 } zfs_prop_t;
 
@@ -188,6 +194,7 @@ typedef enum {
 	ZPOOL_PROP_COMMENT,
 	ZPOOL_PROP_EXPANDSZ,
 	ZPOOL_PROP_FREEING,
+	ZPOOL_PROP_LEAKED,
 	ZPOOL_NUM_PROPS
 } zpool_prop_t;
 
@@ -344,6 +351,11 @@ typedef enum {
 	ZFS_VOLMODE_DEV = 2,
 	ZFS_VOLMODE_NONE = 3
 } zfs_volmode_t;
+
+typedef enum {
+	ZFS_REDUNDANT_METADATA_ALL,
+	ZFS_REDUNDANT_METADATA_MOST
+} zfs_redundant_metadata_type_t;
 
 /*
  * On-disk version number.

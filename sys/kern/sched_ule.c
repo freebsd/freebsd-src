@@ -2686,7 +2686,6 @@ sched_throw(struct thread *td)
 void
 sched_fork_exit(struct thread *td)
 {
-	struct td_sched *ts;
 	struct tdq *tdq;
 	int cpuid;
 
@@ -2696,7 +2695,6 @@ sched_fork_exit(struct thread *td)
 	 */
 	cpuid = PCPU_GET(cpuid);
 	tdq = TDQ_CPU(cpuid);
-	ts = td->td_sched;
 	if (TD_IS_IDLETHREAD(td))
 		td->td_lock = TDQ_LOCKPTR(tdq);
 	MPASS(td->td_lock == TDQ_LOCKPTR(tdq));

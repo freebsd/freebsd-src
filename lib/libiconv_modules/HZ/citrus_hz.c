@@ -532,10 +532,9 @@ _citrus_HZ_parse_graphic(void *context, const char *name, const char *s)
 	p = (void **)context;
 	escape = (escape_t *)p[0];
 	ei = (_HZEncodingInfo *)p[1];
-	graphic = malloc(sizeof(*graphic));
+	graphic = calloc(1, sizeof(*graphic));
 	if (graphic == NULL)
 		return (ENOMEM);
-	memset(graphic, 0, sizeof(*graphic));
 	if (strcmp("GL", name) == 0) {
 		if (GL(escape) != NULL)
 			goto release;
@@ -598,10 +597,9 @@ _citrus_HZ_parse_escape(void *context, const char *name, const char *s)
 	void *p[2];
 
 	ei = (_HZEncodingInfo *)context;
-	escape = malloc(sizeof(*escape));
+	escape = calloc(1, sizeof(*escape));
 	if (escape == NULL)
 		return (EINVAL);
-	memset(escape, 0, sizeof(*escape));
 	if (strcmp("0", name) == 0) {
 		escape->set = E0SET(ei);
 		TAILQ_INSERT_TAIL(E0SET(ei), escape, entry);

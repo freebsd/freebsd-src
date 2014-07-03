@@ -137,7 +137,7 @@ fw_init(void)
 		if (sc->state == FWOHCI_STATE_DEAD)
 			break;
 		avail ++;
-			break;
+		break;
 	}
 	fw_initialized = 1;
 

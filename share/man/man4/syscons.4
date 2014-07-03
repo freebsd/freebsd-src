@@ -403,7 +403,9 @@ option too.
 The following driver flags can be used to control the
 .Nm
 driver.
-They can be set either in
+Driver flags can be set with the
+.Cd hint.sc.0.flags
+tunable, either in
 .Pa /boot/device.hints ,
 or else at the loader prompt (see
 .Xr loader 8 ) .
@@ -533,6 +535,7 @@ to the kernel.
 .Xr splash 4 ,
 .Xr ukbd 4 ,
 .Xr vga 4 ,
+.Xr vt 4 ,
 .Xr kbdmap 5 ,
 .Xr rc.conf 5 ,
 .Xr ttys 5 ,
@@ -550,9 +553,9 @@ driver first appeared in
 The
 .Nm
 driver was written by
-.An S\(/oren Schmidt Aq sos@FreeBSD.org .
+.An S\(/oren Schmidt Aq Mt sos@FreeBSD.org .
 This manual page was written by
-.An Kazutaka Yokota Aq yokota@FreeBSD.org .
+.An Kazutaka Yokota Aq Mt yokota@FreeBSD.org .
 .Sh CAVEATS
 The amount of data that is possible to insert from the cut buffer is limited
 by the

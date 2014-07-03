@@ -68,6 +68,7 @@ map_object(int fd, const char *path, const struct stat *sb)
     Elf_Addr base_vaddr;
     Elf_Addr base_vlimit;
     caddr_t base_addr;
+    int base_flags;
     Elf_Off data_offset;
     Elf_Addr data_vaddr;
     Elf_Addr data_vlimit;
@@ -176,9 +177,11 @@ map_object(int fd, const char *path, const struct stat *sb)
     base_vlimit = round_page(segs[nsegs]->p_vaddr + segs[nsegs]->p_memsz);
     mapsize = base_vlimit - base_vaddr;
     base_addr = (caddr_t) base_vaddr;
+    base_flags = MAP_PRIVATE | MAP_ANON | MAP_NOCORE;
+    if (npagesizes > 1 && round_page(segs[0]->p_filesz) >= pagesizes[1])
+	base_flags |= MAP_ALIGNED_SUPER;
 
-    mapbase = mmap(base_addr, mapsize, PROT_NONE, MAP_ANON | MAP_PRIVATE |
-      MAP_NOCORE, -1, 0);
+    mapbase = mmap(base_addr, mapsize, PROT_NONE, base_flags, -1, 0);
     if (mapbase == (caddr_t) -1) {
 	_rtld_error("%s: mmap of entire address space failed: %s",
 	  path, rtld_strerror(errno));

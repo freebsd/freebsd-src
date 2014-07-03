@@ -320,10 +320,21 @@ sfxge_mac_filter_set(struct sfxge_softc *sc)
 	struct sfxge_port *port = &sc->port;
 	int rc;
 
-	KASSERT(port->init_state == SFXGE_PORT_STARTED, ("port not started"));
-
 	mtx_lock(&port->lock);
-	rc = sfxge_mac_filter_set_locked(sc);
+	/*
+	 * The function may be called without softc_lock held in the
+	 * case of SIOCADDMULTI and SIOCDELMULTI ioctls. ioctl handler
+	 * checks IFF_DRV_RUNNING flag which implies port started, but
+	 * it is not guaranteed to remain. softc_lock shared lock can't
+	 * be held in the case of these ioctls processing, since it
+	 * results in failure where kernel complains that non-sleepable
+	 * lock is held in sleeping thread. Both problems are repeatable
+	 * on LAG with LACP proto bring up.
+	 */
+	if (port->init_state == SFXGE_PORT_STARTED)
+		rc = sfxge_mac_filter_set_locked(sc);
+	else
+		rc = 0;
 	mtx_unlock(&port->lock);
 	return rc;
 }

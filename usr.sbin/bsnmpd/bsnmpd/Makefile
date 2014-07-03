@@ -2,7 +2,7 @@
 #
 # Author: Harti Brandt <harti@freebsd.org>
 
-.include <bsd.own.mk>
+.include <src.opts.mk>
 
 CONTRIB=${.CURDIR}/../../../contrib/bsnmp
 .PATH: ${CONTRIB}/snmpd

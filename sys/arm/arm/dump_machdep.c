@@ -50,8 +50,7 @@ __FBSDID("$FreeBSD$");
 CTASSERT(sizeof(struct kerneldumpheader) == 512);
 
 int do_minidump = 1;
-TUNABLE_INT("debug.minidump", &do_minidump);
-SYSCTL_INT(_debug, OID_AUTO, minidump, CTLFLAG_RW, &do_minidump, 0,
+SYSCTL_INT(_debug, OID_AUTO, minidump, CTLFLAG_RWTUN, &do_minidump, 0,
     "Enable mini crash dumps");
 
 /*
@@ -174,8 +173,14 @@ cb_dumpdata(struct md_pa *mdp, int seqnr, void *arg)
 	printf("  chunk %d: %dMB (%d pages)", seqnr, pgs * PAGE_SIZE / (
 	    1024*1024), pgs);
 
-	/* Make sure we write coherent datas. */
+	/*
+	 * Make sure we write coherent data.  Note that in the SMP case this
+	 * only operates on the L1 cache of the current CPU, but all other CPUs
+	 * have already been stopped, and their flush/invalidate was done as
+	 * part of stopping.
+	 */
 	cpu_idcache_wbinv_all();
+	cpu_l2cache_wbinv_all();
 #ifdef __XSCALE__
 	xscale_cache_clean_minidata();
 #endif

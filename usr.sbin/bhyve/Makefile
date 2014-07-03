@@ -9,6 +9,7 @@ DEBUG_FLAGS= -g -O0
 MAN=	bhyve.8
 
 SRCS=	\
+	atkbdc.c		\
 	acpi.c			\
 	bhyverun.c		\
 	block_if.c		\
@@ -22,6 +23,7 @@ SRCS=	\
 	pci_ahci.c		\
 	pci_emul.c		\
 	pci_hostbridge.c	\
+	pci_irq.c		\
 	pci_lpc.c		\
 	pci_passthru.c		\
 	pci_virtio_block.c	\

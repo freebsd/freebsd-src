@@ -1,7 +1,7 @@
 # $FreeBSD$
 
 .include "../Makefile.inc0"
-.include <bsd.own.mk>
+.include <src.opts.mk>
 
 .PATH: ${SRCDIR}/ld
 

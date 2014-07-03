@@ -23,7 +23,7 @@ cpu		I586_CPU
 cpu		I686_CPU
 ident		GENERIC
 
-makeoptions	DEBUG=-g
+makeoptions	DEBUG=-g		# Build kernel with gdb(1) debug symbols
 makeoptions	WITH_CTF=1		# Run ctfconvert(1) for DTrace support
 
 options 	SCHED_ULE		# ULE scheduler
@@ -94,7 +94,6 @@ device		cpufreq
 
 # Bus support.
 device		acpi
-device		eisa
 device		pci
 
 # Floppy drives
@@ -108,7 +107,6 @@ device		mvs			# Marvell 88SX50XX/88SX60XX/88SX70XX/SoC SATA
 device		siis			# SiliconImage SiI3124/SiI3132/SiI3531 SATA
 
 # SCSI Controllers
-device		ahb			# EISA AHA1742 family
 device		ahc			# AHA2940 and onboard AIC7xxx devices
 options 	AHC_REG_PRETTY_PRINT	# Print register bitfields in debug
 					# output.  Adds ~128k to driver.
@@ -121,6 +119,7 @@ device		isp			# Qlogic family
 #device		ispfw			# Firmware for QLogic HBAs- normally a module
 device		mpt			# LSI-Logic MPT-Fusion
 device		mps			# LSI-Logic MPT-Fusion 2
+device		mpr			# LSI-Logic MPT-Fusion 3
 #device		ncr			# NCR/Symbios Logic
 device		sym			# NCR/Symbios Logic (newer chipsets + those of `ncr')
 device		trm			# Tekram DC395U/UW/F DC315U adapters
@@ -187,6 +186,10 @@ device		splash			# Splash screen and screen saver support
 # syscons is the default console driver, resembling an SCO console
 device		sc
 options 	SC_PIXEL_MODE		# add support for the raster text mode
+
+# vt is the new video console driver
+device		vt
+device		vt_vga
 
 device		agp			# support several AGP chipsets
 

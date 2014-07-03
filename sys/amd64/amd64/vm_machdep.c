@@ -597,7 +597,7 @@ cpu_reset()
 	cpuset_t map;
 	u_int cnt;
 
-	if (smp_active) {
+	if (smp_started) {
 		map = all_cpus;
 		CPU_CLR(PCPU_GET(cpuid), &map);
 		CPU_NAND(&map, &stopped_cpus);

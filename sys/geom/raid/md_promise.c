@@ -1106,15 +1106,12 @@ g_raid_md_taste_promise(struct g_raid_md_object *md, struct g_class *mp,
 	/* Read metadata from device. */
 	meta = NULL;
 	vendor = 0xffff;
-	if (g_access(cp, 1, 0, 0) != 0)
-		return (G_RAID_MD_TASTE_FAIL);
 	g_topology_unlock();
 	len = 2;
 	if (pp->geom->rank == 1)
 		g_io_getattr("GEOM::hba_vendor", cp, &len, &vendor);
 	subdisks = promise_meta_read(cp, metaarr);
 	g_topology_lock();
-	g_access(cp, -1, 0, 0);
 	if (subdisks == 0) {
 		if (g_raid_aggressive_spare) {
 			if (vendor == 0x105a || vendor == 0x1002) {
@@ -1174,6 +1171,9 @@ search:
 		md->mdo_softc = sc;
 		geom = sc->sc_geom;
 	}
+
+	/* There is no return after this point, so we close passed consumer. */
+	g_access(cp, -1, 0, 0);
 
 	rcp = g_new_consumer(geom);
 	rcp->flags |= G_CF_DIRECT_RECEIVE;

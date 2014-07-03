@@ -2,7 +2,7 @@ Pull in r201994 from upstream llvm trunk (by Benjamin Kramer):
 
   SPARC: Implement TRAP lowering. Matches what GCC emits.
 
-Introduced here: http://svn.freebsd.org/changeset/base/262415
+Introduced here: http://svnweb.freebsd.org/changeset/base/262415
 
 Index: lib/Target/Sparc/SparcInstrInfo.td
 ===================================================================

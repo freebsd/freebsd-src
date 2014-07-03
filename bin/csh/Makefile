@@ -6,7 +6,7 @@
 #
 # To profile, put -DPROF in DEFS and -pg in CFLAGS, and recompile.
 
-.include <bsd.own.mk>
+.include <src.opts.mk>
 
 TCSHDIR= ${.CURDIR}/../../contrib/tcsh
 .PATH: ${TCSHDIR}

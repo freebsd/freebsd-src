@@ -70,6 +70,26 @@ typedef	struct	ipfrstat {
 	struct	ipfr	**ifs_nattab;
 } ipfrstat_t;
 
+typedef struct ipf_frag_softc_s  {
+	ipfrwlock_t	ipfr_ipidfrag;
+	ipfrwlock_t	ipfr_frag;
+	ipfrwlock_t	ipfr_natfrag;
+	int		ipfr_size;
+	int		ipfr_ttl;
+	int		ipfr_lock;
+	int		ipfr_inited;
+	ipfr_t		*ipfr_list;
+	ipfr_t		**ipfr_tail;
+	ipfr_t		*ipfr_natlist;
+	ipfr_t		**ipfr_nattail;
+	ipfr_t		*ipfr_ipidlist;
+	ipfr_t		**ipfr_ipidtail;
+	ipfr_t		**ipfr_heads;
+	ipfr_t		**ipfr_nattab;
+	ipfr_t		**ipfr_ipidtab;
+	ipfrstat_t	ipfr_stats;
+} ipf_frag_softc_t;
+
 #define	IPFR_CMPSZ	(offsetof(ipfr_t, ipfr_pass) - \
 			 offsetof(ipfr_t, ipfr_ifp))
 

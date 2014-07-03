@@ -13,7 +13,7 @@ divert(-1)
 #
 
 divert(0)
-VERSIONID(`$Id: linux.m4,v 8.14 2013/11/22 20:51:15 ca Exp $')
+VERSIONID(`$Id: linux.m4,v 8.14 2013-11-22 20:51:15 ca Exp $')
 define(`confEBINDIR', `/usr/sbin')
 ifdef(`PROCMAIL_MAILER_PATH',,
 	define(`PROCMAIL_MAILER_PATH', `/usr/bin/procmail'))

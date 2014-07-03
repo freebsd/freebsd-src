@@ -704,7 +704,7 @@ basl_fwrite_dsdt(FILE *fp)
 	dsdt_line("DefinitionBlock (\"bhyve_dsdt.aml\", \"DSDT\", 2,"
 		 "\"BHYVE \", \"BVDSDT  \", 0x00000001)");
 	dsdt_line("{");
-	dsdt_line("  Name (_S5, Package (0x02)");
+	dsdt_line("  Name (_S5, Package ()");
 	dsdt_line("  {");
 	dsdt_line("      0x05,");
 	dsdt_line("      Zero,");

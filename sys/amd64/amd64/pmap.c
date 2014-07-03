@@ -332,8 +332,8 @@ SYSCTL_INT(_vm_pmap, OID_AUTO, pat_works, CTLFLAG_RD, &pat_works, 1,
     "Is page attribute table fully functional?");
 
 static int pg_ps_enabled = 1;
-SYSCTL_INT(_vm_pmap, OID_AUTO, pg_ps_enabled, CTLFLAG_RDTUN, &pg_ps_enabled, 0,
-    "Are large page mappings enabled?");
+SYSCTL_INT(_vm_pmap, OID_AUTO, pg_ps_enabled, CTLFLAG_RDTUN | CTLFLAG_NOFETCH,
+    &pg_ps_enabled, 0, "Are large page mappings enabled?");
 
 #define	PAT_INDEX_SIZE	8
 static int pat_index[PAT_INDEX_SIZE];	/* cache mode to PAT index conversion */
@@ -368,8 +368,8 @@ static int pmap_flags = PMAP_PDE_SUPERPAGE;	/* flags for x86 pmaps */
 static struct unrhdr pcid_unr;
 static struct mtx pcid_mtx;
 int pmap_pcid_enabled = 0;
-SYSCTL_INT(_vm_pmap, OID_AUTO, pcid_enabled, CTLFLAG_RDTUN, &pmap_pcid_enabled,
-    0, "Is TLB Context ID enabled ?");
+SYSCTL_INT(_vm_pmap, OID_AUTO, pcid_enabled, CTLFLAG_RDTUN | CTLFLAG_NOFETCH,
+    &pmap_pcid_enabled, 0, "Is TLB Context ID enabled ?");
 int invpcid_works = 0;
 SYSCTL_INT(_vm_pmap, OID_AUTO, invpcid_works, CTLFLAG_RD, &invpcid_works, 0,
     "Is the invpcid instruction available ?");
@@ -2868,7 +2868,7 @@ free_pv_chunk(struct pv_chunk *pc)
 	/* entire chunk is free, return it */
 	m = PHYS_TO_VM_PAGE(DMAP_TO_PHYS((vm_offset_t)pc));
 	dump_drop_page(m->phys_addr);
-	vm_page_unwire(m, 0);
+	vm_page_unwire(m, PQ_INACTIVE);
 	vm_page_free(m);
 }
 
@@ -4428,9 +4428,7 @@ pmap_enter_object(pmap_t pmap, vm_offset_t start, vm_offset_t end,
 	while (m != NULL && (diff = m->pindex - m_start->pindex) < psize) {
 		va = start + ptoa(diff);
 		if ((va & PDRMASK) == 0 && va + NBPDR <= end &&
-		    (VM_PAGE_TO_PHYS(m) & PDRMASK) == 0 &&
-		    pmap_ps_enabled(pmap) &&
-		    vm_reserv_level_iffullpop(m) == 0 &&
+		    m->psind == 1 && pmap_ps_enabled(pmap) &&
 		    pmap_enter_pde(pmap, va, m, prot, &lock))
 			m = &m[NBPDR / PAGE_SIZE - 1];
 		else

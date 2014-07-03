@@ -40,10 +40,10 @@
 #include <math.h>
 #endif
 
-static bool ucl_schema_validate (ucl_object_t *schema,
-		ucl_object_t *obj, bool try_array,
+static bool ucl_schema_validate (const ucl_object_t *schema,
+		const ucl_object_t *obj, bool try_array,
 		struct ucl_schema_error *err,
-		ucl_object_t *root);
+		const ucl_object_t *root);
 
 static bool
 ucl_string_to_type (const char *input, ucl_type_t *res)
@@ -115,7 +115,7 @@ ucl_object_type_to_string (ucl_type_t type)
  */
 static void
 ucl_schema_create_error (struct ucl_schema_error *err,
-		enum ucl_schema_error_code code, ucl_object_t *obj,
+		enum ucl_schema_error_code code, const ucl_object_t *obj,
 		const char *fmt, ...)
 {
 	va_list va;
@@ -132,11 +132,13 @@ ucl_schema_create_error (struct ucl_schema_error *err,
 /*
  * Check whether we have a pattern specified
  */
-static ucl_object_t *
-ucl_schema_test_pattern (ucl_object_t *obj, const char *pattern)
+static const ucl_object_t *
+ucl_schema_test_pattern (const ucl_object_t *obj, const char *pattern)
 {
+	const ucl_object_t *res = NULL;
+#ifdef HAVE_REGEX_H
 	regex_t reg;
-	ucl_object_t *res = NULL, *elt;
+	const ucl_object_t *elt;
 	ucl_object_iter_t iter = NULL;
 
 	if (regcomp (&reg, pattern, REG_EXTENDED | REG_NOSUB) == 0) {
@@ -148,7 +150,7 @@ ucl_schema_test_pattern (ucl_object_t *obj, const char *pattern)
 		}
 		regfree (&reg);
 	}
-
+#endif
 	return res;
 }
 
@@ -156,11 +158,11 @@ ucl_schema_test_pattern (ucl_object_t *obj, const char *pattern)
  * Check dependencies for an object
  */
 static bool
-ucl_schema_validate_dependencies (ucl_object_t *deps,
-		ucl_object_t *obj, struct ucl_schema_error *err,
-		ucl_object_t *root)
+ucl_schema_validate_dependencies (const ucl_object_t *deps,
+		const ucl_object_t *obj, struct ucl_schema_error *err,
+		const ucl_object_t *root)
 {
-	ucl_object_t *elt, *cur, *cur_dep;
+	const ucl_object_t *elt, *cur, *cur_dep;
 	ucl_object_iter_t iter = NULL, piter;
 	bool ret = true;
 
@@ -193,11 +195,11 @@ ucl_schema_validate_dependencies (ucl_object_t *deps,
  * Validate object
  */
 static bool
-ucl_schema_validate_object (ucl_object_t *schema,
-		ucl_object_t *obj, struct ucl_schema_error *err,
-		ucl_object_t *root)
+ucl_schema_validate_object (const ucl_object_t *schema,
+		const ucl_object_t *obj, struct ucl_schema_error *err,
+		const ucl_object_t *root)
 {
-	ucl_object_t *elt, *prop, *found, *additional_schema = NULL,
+	const ucl_object_t *elt, *prop, *found, *additional_schema = NULL,
 			*required = NULL, *pat, *pelt;
 	ucl_object_iter_t iter = NULL, piter = NULL;
 	bool ret = true, allow_additional = true;
@@ -334,10 +336,10 @@ ucl_schema_validate_object (ucl_object_t *schema,
 }
 
 static bool
-ucl_schema_validate_number (ucl_object_t *schema,
-		ucl_object_t *obj, struct ucl_schema_error *err)
+ucl_schema_validate_number (const ucl_object_t *schema,
+		const ucl_object_t *obj, struct ucl_schema_error *err)
 {
-	ucl_object_t *elt, *test;
+	const ucl_object_t *elt, *test;
 	ucl_object_iter_t iter = NULL;
 	bool ret = true, exclusive = false;
 	double constraint, val;
@@ -400,14 +402,16 @@ ucl_schema_validate_number (ucl_object_t *schema,
 }
 
 static bool
-ucl_schema_validate_string (ucl_object_t *schema,
-		ucl_object_t *obj, struct ucl_schema_error *err)
+ucl_schema_validate_string (const ucl_object_t *schema,
+		const ucl_object_t *obj, struct ucl_schema_error *err)
 {
-	ucl_object_t *elt;
+	const ucl_object_t *elt;
 	ucl_object_iter_t iter = NULL;
 	bool ret = true;
 	int64_t constraint;
+#ifdef HAVE_REGEX_H
 	regex_t re;
+#endif
 
 	while (ret && (elt = ucl_iterate_object (schema, &iter, true)) != NULL) {
 		if (elt->type == UCL_INT &&
@@ -432,6 +436,7 @@ ucl_schema_validate_string (ucl_object_t *schema,
 				break;
 			}
 		}
+#ifdef HAVE_REGEX_H
 		else if (elt->type == UCL_STRING &&
 				strcmp (ucl_object_key (elt), "pattern") == 0) {
 			if (regcomp (&re, ucl_object_tostring (elt),
@@ -449,13 +454,14 @@ ucl_schema_validate_string (ucl_object_t *schema,
 			}
 			regfree (&re);
 		}
+#endif
 	}
 
 	return ret;
 }
 
 struct ucl_compare_node {
-	ucl_object_t *obj;
+	const ucl_object_t *obj;
 	TREE_ENTRY(ucl_compare_node) link;
 	struct ucl_compare_node *next;
 };
@@ -467,17 +473,17 @@ TREE_DEFINE(ucl_compare_node, link)
 static int
 ucl_schema_elt_compare (struct ucl_compare_node *n1, struct ucl_compare_node *n2)
 {
-	ucl_object_t *o1 = n1->obj, *o2 = n2->obj;
+	const ucl_object_t *o1 = n1->obj, *o2 = n2->obj;
 
 	return ucl_object_compare (o1, o2);
 }
 
 static bool
-ucl_schema_array_is_unique (ucl_object_t *obj, struct ucl_schema_error *err)
+ucl_schema_array_is_unique (const ucl_object_t *obj, struct ucl_schema_error *err)
 {
 	ucl_compare_tree_t tree = TREE_INITIALIZER (ucl_schema_elt_compare);
 	ucl_object_iter_t iter = NULL;
-	ucl_object_t *elt;
+	const ucl_object_t *elt;
 	struct ucl_compare_node *node, test, *nodes = NULL, *tmp;
 	bool ret = true;
 
@@ -510,11 +516,11 @@ ucl_schema_array_is_unique (ucl_object_t *obj, struct ucl_schema_error *err)
 }
 
 static bool
-ucl_schema_validate_array (ucl_object_t *schema,
-		ucl_object_t *obj, struct ucl_schema_error *err,
-		ucl_object_t *root)
+ucl_schema_validate_array (const ucl_object_t *schema,
+		const ucl_object_t *obj, struct ucl_schema_error *err,
+		const ucl_object_t *root)
 {
-	ucl_object_t *elt, *it, *found, *additional_schema = NULL,
+	const ucl_object_t *elt, *it, *found, *additional_schema = NULL,
 			*first_unvalidated = NULL;
 	ucl_object_iter_t iter = NULL, piter = NULL;
 	bool ret = true, allow_additional = true, need_unique = false;
@@ -627,11 +633,11 @@ ucl_schema_validate_array (ucl_object_t *schema,
  * Returns whether this object is allowed for this type
  */
 static bool
-ucl_schema_type_is_allowed (ucl_object_t *type, ucl_object_t *obj,
+ucl_schema_type_is_allowed (const ucl_object_t *type, const ucl_object_t *obj,
 		struct ucl_schema_error *err)
 {
 	ucl_object_iter_t iter = NULL;
-	ucl_object_t *elt;
+	const ucl_object_t *elt;
 	const char *type_str;
 	ucl_type_t t;
 
@@ -683,11 +689,11 @@ ucl_schema_type_is_allowed (ucl_object_t *type, ucl_object_t *obj,
  * Check if object is equal to one of elements of enum
  */
 static bool
-ucl_schema_validate_enum (ucl_object_t *en, ucl_object_t *obj,
+ucl_schema_validate_enum (const ucl_object_t *en, const ucl_object_t *obj,
 		struct ucl_schema_error *err)
 {
 	ucl_object_iter_t iter = NULL;
-	ucl_object_t *elt;
+	const ucl_object_t *elt;
 	bool ret = false;
 
 	while ((elt = ucl_iterate_object (en, &iter, true)) != NULL) {
@@ -709,12 +715,12 @@ ucl_schema_validate_enum (ucl_object_t *en, ucl_object_t *obj,
 /*
  * Check a single ref component
  */
-static ucl_object_t *
-ucl_schema_resolve_ref_component (ucl_object_t *cur,
+static const ucl_object_t *
+ucl_schema_resolve_ref_component (const ucl_object_t *cur,
 		const char *refc, int len,
 		struct ucl_schema_error *err)
 {
-	ucl_object_t *res = NULL;
+	const ucl_object_t *res = NULL;
 	char *err_str;
 	int num, i;
 
@@ -762,12 +768,12 @@ ucl_schema_resolve_ref_component (ucl_object_t *cur,
 /*
  * Find reference schema
  */
-static ucl_object_t *
-ucl_schema_resolve_ref (ucl_object_t *root, const char *ref,
+static const ucl_object_t *
+ucl_schema_resolve_ref (const ucl_object_t *root, const char *ref,
 		struct ucl_schema_error *err)
 {
 	const char *p, *c;
-	ucl_object_t *res = NULL;
+	const ucl_object_t *res = NULL;
 
 
 	if (ref[0] != '#') {
@@ -822,10 +828,10 @@ ucl_schema_resolve_ref (ucl_object_t *root, const char *ref,
 }
 
 static bool
-ucl_schema_validate_values (ucl_object_t *schema, ucl_object_t *obj,
+ucl_schema_validate_values (const ucl_object_t *schema, const ucl_object_t *obj,
 		struct ucl_schema_error *err)
 {
-	ucl_object_t *elt, *cur;
+	const ucl_object_t *elt, *cur;
 	int64_t constraint, i;
 
 	elt = ucl_object_find_key (schema, "maxValues");
@@ -868,12 +874,12 @@ ucl_schema_validate_values (ucl_object_t *schema, ucl_object_t *obj,
 }
 
 static bool
-ucl_schema_validate (ucl_object_t *schema,
-		ucl_object_t *obj, bool try_array,
+ucl_schema_validate (const ucl_object_t *schema,
+		const ucl_object_t *obj, bool try_array,
 		struct ucl_schema_error *err,
-		ucl_object_t *root)
+		const ucl_object_t *root)
 {
-	ucl_object_t *elt, *cur;
+	const ucl_object_t *elt, *cur;
 	ucl_object_iter_t iter = NULL;
 	bool ret;
 
@@ -1001,8 +1007,8 @@ ucl_schema_validate (ucl_object_t *schema,
 }
 
 bool
-ucl_object_validate (ucl_object_t *schema,
-		ucl_object_t *obj, struct ucl_schema_error *err)
+ucl_object_validate (const ucl_object_t *schema,
+		const ucl_object_t *obj, struct ucl_schema_error *err)
 {
 	return ucl_schema_validate (schema, obj, true, err, schema);
 }

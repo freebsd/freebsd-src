@@ -3,6 +3,8 @@
 PROG=   crunchide
 SRCS=	crunchide.c
 
+NO_PIE=	yes
+
 TARGET_ARCH?=	${MACHINE_ARCH}
 
 .if ${TARGET_ARCH} == i386 && ${MACHINE_ARCH} == i386

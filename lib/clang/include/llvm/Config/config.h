@@ -8,9 +8,6 @@
 /* Get __FreeBSD_version. */
 #include <osreldate.h>
 
-/* Define if building universal (internal helper macro) */
-/* #undef AC_APPLE_UNIVERSAL_BUILD */
-
 /* Bug report URL. */
 #define BUG_REPORT_URL "http://llvm.org/bugs/"
 
@@ -634,7 +631,7 @@
 /* #undef LLVM_PATH_XDOT */
 
 /* Installation prefix directory */
-#define LLVM_PREFIX ""
+#define LLVM_PREFIX "/usr"
 
 /* Define if we have the Intel JIT API runtime support library */
 #define LLVM_USE_INTEL_JITEVENTS 0
@@ -647,6 +644,9 @@
 
 /* Minor version of the LLVM API */
 #define LLVM_VERSION_MINOR 4
+
+/* Patch version of the LLVM API */
+#define LLVM_VERSION_PATCH 1
 
 /* Define if the OS needs help to load dependent libraries for dlopen(). */
 #define LTDL_DLOPEN_DEPLIBS 1
@@ -675,16 +675,13 @@
 #define PACKAGE_NAME "LLVM"
 
 /* Define to the full name and version of this package. */
-#define PACKAGE_STRING "LLVM 3.4"
+#define PACKAGE_STRING "LLVM 3.4.1"
 
 /* Define to the one symbol short name of this package. */
 #define PACKAGE_TARNAME "llvm"
 
-/* Define to the home page for this package. */
-/* #undef PACKAGE_URL */
-
 /* Define to the version of this package. */
-#define PACKAGE_VERSION "3.4"
+#define PACKAGE_VERSION "3.4.1"
 
 /* Define as the return type of signal handlers (`int' or `void'). */
 #define RETSIGTYPE void
@@ -706,18 +703,6 @@
 
 /* Type of 1st arg on ELM Callback */
 /* #undef WIN32_ELMCB_PCSTR */
-
-/* Define WORDS_BIGENDIAN to 1 if your processor stores words with the most
-   significant byte first (like Motorola and SPARC, unlike Intel). */
-#if defined AC_APPLE_UNIVERSAL_BUILD
-# if defined __BIG_ENDIAN__
-#  define WORDS_BIGENDIAN 1
-# endif
-#else
-# ifndef WORDS_BIGENDIAN
-/* #  undef WORDS_BIGENDIAN */
-# endif
-#endif
 
 /* Define to empty if `const' does not conform to ANSI C. */
 /* #undef const */

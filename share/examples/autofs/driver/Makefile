@@ -2,7 +2,7 @@
 # $FreeBSD$
 
 PROG=		autodriver
-NO_MAN=
+MAN=
 
 SRCS=		autodriver.c
 WARNS?=		4

@@ -17,6 +17,6 @@ CFLAGS+=-I${.CURDIR}/../../../lib/libcasper
 CFLAGS+=-I${.CURDIR}/../../../lib/libpjdlog
 CFLAGS+=-I${.CURDIR}/../../../sbin/casper
 
-NO_MAN=
+MAN=
 
 .include <bsd.prog.mk>

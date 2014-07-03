@@ -935,6 +935,9 @@ libusb10_get_buffsize(struct libusb20_device *pdev, libusb_transfer *xfer)
 		case LIBUSB20_SPEED_FULL:
 			ret = 4096;
 			break;
+		case LIBUSB20_SPEED_SUPER:
+			ret = 65536;
+			break;
 		default:
 			ret = 16384;
 			break;

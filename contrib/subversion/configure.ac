@@ -98,7 +98,7 @@ dnl   now generating errors instead of silently ignoring
 dnl   them.  Only .7 and later can guarantee repository
 dnl   integrity with FSFS.
 
-APR_VER_REGEXES=["0\.9\.[7-9] 0\.9\.1[0-9] 1\. 2\."]
+APR_VER_REGEXES=["0\.9\.[7-9] 0\.9\.[12][0-9] 1\. 2\."]
 
 SVN_LIB_APR($APR_VER_REGEXES)
 
@@ -755,7 +755,7 @@ AC_ARG_WITH(libmagic,AS_HELP_STRING([--with-libmagic=PREFIX],
     CPPFLAGS="$CPPFLAGS -I$libmagic_prefix/include"
     AC_CHECK_HEADERS(magic.h,[
       save_ldflags="$LDFLAGS"
-      LDFLAGS="-L$libmagic_prefix/lib"
+      LDFLAGS="-L$libmagic_prefix/lib $LDFLAGS"
       AC_CHECK_LIB(magic, magic_open, [libmagic_found="yes"])
       LDFLAGS="$save_ldflags"
     ])

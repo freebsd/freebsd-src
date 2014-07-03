@@ -2,7 +2,7 @@
 # $FreeBSD$
 #
 
-.include <bsd.own.mk>
+.include <src.opts.mk>
 
 LIB=	wrap
 SHLIB_MAJOR= 6

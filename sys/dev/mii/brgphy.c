@@ -44,6 +44,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/socket.h>
 #include <sys/bus.h>
 #include <sys/busdma.h>
+#include <sys/taskqueue.h>
 
 #include <net/if.h>
 #include <net/if_var.h>
@@ -198,7 +199,7 @@ brgphy_attach(device_t dev)
 	struct bge_softc *bge_sc = NULL;
 	struct bce_softc *bce_sc = NULL;
 	struct mii_softc *sc;
-	struct ifnet *ifp;
+	if_t ifp;
 
 	bsc = device_get_softc(dev);
 	sc = &bsc->mii_sc;
@@ -210,10 +211,10 @@ brgphy_attach(device_t dev)
 	ifp = sc->mii_pdata->mii_ifp;
 
 	/* Find the MAC driver associated with this PHY. */
-	if (strcmp(ifp->if_dname, "bge") == 0)
-		bge_sc = ifp->if_softc;
-	else if (strcmp(ifp->if_dname, "bce") == 0)
-		bce_sc = ifp->if_softc;
+	if (strcmp(if_getdname(ifp), "bge") == 0)
+		bge_sc = if_getsoftc(ifp);
+	else if (strcmp(if_getdname(ifp), "bce") == 0)
+		bce_sc = if_getsoftc(ifp);
 
 	/* Handle any special cases based on the PHY ID */
 	switch (sc->mii_mpd_oui) {
@@ -880,7 +881,7 @@ brgphy_reset(struct mii_softc *sc)
 {
 	struct bge_softc *bge_sc = NULL;
 	struct bce_softc *bce_sc = NULL;
-	struct ifnet *ifp;
+	if_t ifp;
 	int i, val;
 
 	/*
@@ -933,10 +934,10 @@ brgphy_reset(struct mii_softc *sc)
 	ifp = sc->mii_pdata->mii_ifp;
 
 	/* Find the driver associated with this PHY. */
-	if (strcmp(ifp->if_dname, "bge") == 0)	{
-		bge_sc = ifp->if_softc;
-	} else if (strcmp(ifp->if_dname, "bce") == 0) {
-		bce_sc = ifp->if_softc;
+	if (strcmp(if_getdname(ifp), "bge") == 0)	{
+		bge_sc = if_getsoftc(ifp);
+	} else if (strcmp(if_getdname(ifp), "bce") == 0) {
+		bce_sc = if_getsoftc(ifp);
 	}
 
 	if (bge_sc) {
@@ -955,7 +956,7 @@ brgphy_reset(struct mii_softc *sc)
 			brgphy_fixup_jitter_bug(sc);
 
 		if (bge_sc->bge_flags & BGE_FLAG_JUMBO)
-			brgphy_jumbo_settings(sc, ifp->if_mtu);
+			brgphy_jumbo_settings(sc, if_getmtu(ifp));
 
 		if ((bge_sc->bge_phy_flags & BGE_PHY_NO_WIRESPEED) == 0)
 			brgphy_ethernet_wirespeed(sc);
@@ -1066,11 +1067,11 @@ brgphy_reset(struct mii_softc *sc)
 				(BCE_CHIP_REV(bce_sc) == BCE_CHIP_REV_Bx))
 				brgphy_fixup_disable_early_dac(sc);
 
-			brgphy_jumbo_settings(sc, ifp->if_mtu);
+			brgphy_jumbo_settings(sc, if_getmtu(ifp));
 			brgphy_ethernet_wirespeed(sc);
 		} else {
 			brgphy_fixup_ber_bug(sc);
-			brgphy_jumbo_settings(sc, ifp->if_mtu);
+			brgphy_jumbo_settings(sc, if_getmtu(ifp));
 			brgphy_ethernet_wirespeed(sc);
 		}
 	}

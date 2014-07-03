@@ -18,7 +18,7 @@
    forward us bugs reported to you, if you determine that they are
    not bugs in your modifications.)  */
 
-const char bug_report_url[] = "<URL:http://www.freebsd.org/send-pr.html>";
+const char bug_report_url[] = "<URL:http://www.freebsd.org/support.html>";
 
 /* The complete version string, assembled from several pieces.
    BASEVER, DATESTAMP, and DEVPHASE are defined by the Makefile.  */

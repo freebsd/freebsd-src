@@ -250,6 +250,17 @@ ENTRY(armv7_idcache_wbinv_range)
 	RET
 END(armv7_idcache_wbinv_range)
 
+ENTRY_NP(armv7_icache_sync_all)
+#ifdef SMP
+	mcr	p15, 0, r0, c7, c1, 0	/* Invalidate all I cache to PoU Inner Shareable */
+#else
+	mcr	p15, 0, r0, c7, c5, 0	/* Invalidate all I cache to PoU (ICIALLU) */
+#endif
+	isb				/* instruction synchronization barrier */
+	dsb				/* data synchronization barrier */
+	RET
+END(armv7_icache_sync_all)
+
 ENTRY_NP(armv7_icache_sync_range)
 	ldr	ip, .Larmv7_line_size
 .Larmv7_sync_next:
@@ -308,6 +319,10 @@ ENTRY(armv7_auxctrl)
 	RET
 END(armv7_auxctrl)
 
+/*
+ * Invalidate all I+D+branch cache.  Used by startup code, which counts
+ * on the fact that only r0-r3,ip are modified and no stack space is used.
+ */
 ENTRY(armv7_idcache_inv_all)
 	mov     r0, #0
 	mcr     p15, 2, r0, c0, c0, 0   @ set cache level to L1

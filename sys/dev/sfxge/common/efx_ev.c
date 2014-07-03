@@ -407,24 +407,24 @@ efx_ev_driver(
 
 	switch (EFX_QWORD_FIELD(*eqp, FSF_AZ_DRIVER_EV_SUBCODE)) {
 	case FSE_AZ_TX_DESCQ_FLS_DONE_EV: {
-		uint32_t label;
+		uint32_t txq_index;
 
 		EFX_EV_QSTAT_INCR(eep, EV_DRIVER_TX_DESCQ_FLS_DONE);
 
-		label = EFX_QWORD_FIELD(*eqp, FSF_AZ_DRIVER_EV_SUBDATA);
+		txq_index = EFX_QWORD_FIELD(*eqp, FSF_AZ_DRIVER_EV_SUBDATA);
 
-		EFSYS_PROBE1(tx_descq_fls_done, uint32_t, label);
+		EFSYS_PROBE1(tx_descq_fls_done, uint32_t, txq_index);
 
 		EFSYS_ASSERT(eecp->eec_txq_flush_done != NULL);
-		should_abort = eecp->eec_txq_flush_done(arg, label);
+		should_abort = eecp->eec_txq_flush_done(arg, txq_index);
 
 		break;
 	}
 	case FSE_AZ_RX_DESCQ_FLS_DONE_EV: {
-		uint32_t label;
+		uint32_t rxq_index;
 		uint32_t failed;
 
-		label = EFX_QWORD_FIELD(*eqp, FSF_AZ_DRIVER_EV_RX_DESCQ_ID);
+		rxq_index = EFX_QWORD_FIELD(*eqp, FSF_AZ_DRIVER_EV_RX_DESCQ_ID);
 		failed = EFX_QWORD_FIELD(*eqp, FSF_AZ_DRIVER_EV_RX_FLUSH_FAIL);
 
 		EFSYS_ASSERT(eecp->eec_rxq_flush_done != NULL);
@@ -433,15 +433,15 @@ efx_ev_driver(
 		if (failed) {
 			EFX_EV_QSTAT_INCR(eep, EV_DRIVER_RX_DESCQ_FLS_FAILED);
 
-			EFSYS_PROBE1(rx_descq_fls_failed, uint32_t, label);
+			EFSYS_PROBE1(rx_descq_fls_failed, uint32_t, rxq_index);
 
-			should_abort = eecp->eec_rxq_flush_failed(arg, label);
+			should_abort = eecp->eec_rxq_flush_failed(arg, rxq_index);
 		} else {
 			EFX_EV_QSTAT_INCR(eep, EV_DRIVER_RX_DESCQ_FLS_DONE);
 
-			EFSYS_PROBE1(rx_descq_fls_done, uint32_t, label);
+			EFSYS_PROBE1(rx_descq_fls_done, uint32_t, rxq_index);
 
-			should_abort = eecp->eec_rxq_flush_done(arg, label);
+			should_abort = eecp->eec_rxq_flush_done(arg, rxq_index);
 		}
 
 		break;

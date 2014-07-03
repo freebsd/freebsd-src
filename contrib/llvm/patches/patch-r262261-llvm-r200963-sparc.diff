@@ -2,7 +2,7 @@ Pull in r200963 from upstream llvm trunk (by Venkatraman Govindaraju):
 
   [Sparc] Emit correct encoding for atomic instructions. Also, add support for parsing CAS instructions to test the CAS encoding.
 
-Introduced here: http://svn.freebsd.org/changeset/base/262261
+Introduced here: http://svnweb.freebsd.org/changeset/base/262261
 
 Index: test/MC/Sparc/sparc-atomic-instructions.s
 ===================================================================

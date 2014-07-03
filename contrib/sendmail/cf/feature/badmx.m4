@@ -10,7 +10,7 @@ divert(-1)
 #
 
 divert(0)
-VERSIONID(`$Id: badmx.m4,v 1.2 2013/11/22 20:51:11 ca Exp $')
+VERSIONID(`$Id: badmx.m4,v 1.2 2013-11-22 20:51:11 ca Exp $')
 divert(-1)
 
 define(`_BADMX_CHK_', 1)

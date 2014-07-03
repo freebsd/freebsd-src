@@ -21,7 +21,7 @@
 
 /*
  * Copyright (c) 2009, 2010, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2013 by Delphix. All rights reserved.
+ * Copyright (c) 2012, 2014 by Delphix. All rights reserved.
  */
 
 #include <sys/zfs_context.h>
@@ -44,8 +44,7 @@ int zfs_dedup_prefetch = 1;
 
 SYSCTL_DECL(_vfs_zfs);
 SYSCTL_NODE(_vfs_zfs, OID_AUTO, dedup, CTLFLAG_RW, 0, "ZFS DEDUP");
-TUNABLE_INT("vfs.zfs.dedup.prefetch", &zfs_dedup_prefetch);
-SYSCTL_INT(_vfs_zfs_dedup, OID_AUTO, prefetch, CTLFLAG_RW, &zfs_dedup_prefetch,
+SYSCTL_INT(_vfs_zfs_dedup, OID_AUTO, prefetch, CTLFLAG_RWTUN, &zfs_dedup_prefetch,
     0, "Enable/disable prefetching of dedup-ed blocks which are going to be freed");
 
 static const ddt_ops_t *ddt_ops[DDT_TYPES] = {
@@ -416,7 +415,7 @@ ddt_stat_update(ddt_t *ddt, ddt_entry_t *dde, uint64_t neg)
 
 	ddt_stat_generate(ddt, dde, &dds);
 
-	bucket = highbit(dds.dds_ref_blocks) - 1;
+	bucket = highbit64(dds.dds_ref_blocks) - 1;
 	ASSERT(bucket >= 0);
 
 	ddh = &ddt->ddt_histogram[dde->dde_type][dde->dde_class];

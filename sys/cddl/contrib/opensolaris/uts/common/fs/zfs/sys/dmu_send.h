@@ -23,7 +23,7 @@
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2013 by Delphix. All rights reserved.
  * Copyright 2011 Nexenta Systems, Inc. All rights reserved.
- * Copyright (c) 2012, Joyent, Inc. All rights reserved.
+ * Copyright (c) 2013, Joyent, Inc. All rights reserved.
  */
 
 #ifndef _DMU_SEND_H
@@ -36,19 +36,19 @@ struct dsl_dataset;
 struct drr_begin;
 struct avl_tree;
 
-int dmu_send(const char *tosnap, const char *fromsnap, int outfd,
+int dmu_send(const char *tosnap, const char *fromsnap, boolean_t embedok,
 #ifdef illumos
-    struct vnode *vp, offset_t *off);
+    int outfd, struct vnode *vp, offset_t *off);
 #else
-    struct file *fp, offset_t *off);
+    int outfd, struct file *fp, offset_t *off);
 #endif
 int dmu_send_estimate(struct dsl_dataset *ds, struct dsl_dataset *fromds,
     uint64_t *sizep);
 int dmu_send_obj(const char *pool, uint64_t tosnap, uint64_t fromsnap,
 #ifdef illumos
-    int outfd, struct vnode *vp, offset_t *off);
+    boolean_t embedok, int outfd, vnode_t *vp, offset_t *off);
 #else
-    int outfd, struct file *fp, offset_t *off);
+    boolean_t embedok, int outfd, struct file *fp, offset_t *off);
 #endif
 
 typedef struct dmu_recv_cookie {
@@ -63,6 +63,7 @@ typedef struct dmu_recv_cookie {
 	zio_cksum_t drc_cksum;
 	uint64_t drc_newsnapobj;
 	void *drc_owner;
+	cred_t *drc_cred;
 } dmu_recv_cookie_t;
 
 int dmu_recv_begin(char *tofs, char *tosnap, struct drr_begin *drrb,

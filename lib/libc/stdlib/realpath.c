@@ -132,26 +132,7 @@ realpath(const char * __restrict path, char * __restrict resolved)
 			resolved[resolved_len] = '\0';
 		}
 		if (next_token[0] == '\0') {
-			/*
-			 * Handle consequential slashes.  The path
-			 * before slash shall point to a directory.
-			 *
-			 * Only the trailing slashes are not covered
-			 * by other checks in the loop, but we verify
-			 * the prefix for any (rare) "//" or "/\0"
-			 * occurrence to not implement lookahead.
-			 */
-			if (lstat(resolved, &sb) != 0) {
-				if (m)
-					free(resolved);
-				return (NULL);
-			}
-			if (!S_ISDIR(sb.st_mode)) {
-				if (m)
-					free(resolved);
-				errno = ENOTDIR;
-				return (NULL);
-			}
+			/* Handle consequential slashes. */
 			continue;
 		}
 		else if (strcmp(next_token, ".") == 0)
@@ -236,6 +217,11 @@ realpath(const char * __restrict path, char * __restrict resolved)
 				}
 			}
 			left_len = strlcpy(left, symlink, sizeof(left));
+		} else if (!S_ISDIR(sb.st_mode) && p != NULL) {
+			if (m)
+				free(resolved);
+			errno = ENOTDIR;
+			return (NULL);
 		}
 	}
 

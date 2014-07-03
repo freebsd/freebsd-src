@@ -3,7 +3,7 @@
 PROG=	ttls4
 DPADD=	${LIBPTHREAD}
 LDADD=	-lpthread
-NO_MAN=
+MAN=
 DEBUG_FLAGS= -g
 
 .include <bsd.prog.mk>

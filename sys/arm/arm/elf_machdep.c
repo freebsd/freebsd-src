@@ -220,9 +220,19 @@ int
 elf_cpu_load_file(linker_file_t lf __unused)
 {
 
-	cpu_idcache_wbinv_all();
-	cpu_l2cache_wbinv_all();
-	cpu_tlb_flushID();
+	/*
+	 * The pmap code does not do an icache sync upon establishing executable
+	 * mappings in the kernel pmap.  It's an optimization based on the fact
+	 * that kernel memory allocations always have EXECUTABLE protection even
+	 * when the memory isn't going to hold executable code.  The only time
+	 * kernel memory holding instructions does need a sync is after loading
+	 * a kernel module, and that's when this function gets called.  Normal
+	 * data cache maintenance has already been done by the IO code, and TLB
+	 * maintenance has been done by the pmap code, so all we have to do here
+	 * is invalidate the instruction cache (which also invalidates the
+	 * branch predictor cache on platforms that have one).
+	 */
+	cpu_icache_sync_all();
 	return (0);
 }
 

@@ -1,7 +1,7 @@
 # $FreeBSD$
 
 PROG=	cv_cancel1
-NO_MAN=
+MAN=
 DPADD=	${LIBPTHREAD}
 LDADD=	-lpthread
 

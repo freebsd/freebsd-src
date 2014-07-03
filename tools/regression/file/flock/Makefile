@@ -1,7 +1,7 @@
 # $FreeBSD$
 
 PROG=	flock
-NO_MAN=
+MAN=
 WARNS?=	6
 DPADD=	${LIBPTHREAD}
 LDADD=	-lpthread

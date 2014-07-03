@@ -41,7 +41,7 @@ typedef struct {
 	/* XXX ssize_t? */
 	size_t		dbcnt;		/* current buffer byte count */
 	size_t		dbrcnt;		/* last read byte count */
-	size_t		dbsz;		/* buffer size */
+	size_t		dbsz;		/* block size */
 
 #define	ISCHR		0x01		/* character device (warn on short) */
 #define	ISPIPE		0x02		/* pipe-like (see position.c) */
@@ -64,7 +64,7 @@ typedef struct {
 	uintmax_t	trunc;		/* # of truncated records */
 	uintmax_t	swab;		/* # of odd-length swab blocks */
 	uintmax_t	bytes;		/* # of bytes written */
-	double		start;		/* start time of dd */
+	struct timespec	start;		/* start time of dd */
 } STAT;
 
 /* Flags (in ddflags). */

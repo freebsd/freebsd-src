@@ -1214,6 +1214,18 @@ atahpa_print(struct ata_params *parm, u_int64_t hpasize, int header)
 	}
 }
 
+static int
+atasata(struct ata_params *parm)
+{
+
+
+	if (parm->satacapabilities != 0xffff &&
+	    parm->satacapabilities != 0x0000)
+		return 1;
+
+	return 0;
+}
+
 static void
 atacapprint(struct ata_params *parm)
 {
@@ -1370,6 +1382,17 @@ atacapprint(struct ata_params *parm)
 		    ATA_QUEUE_LEN(parm->queue) + 1);
 	} else
 		printf("no\n");
+
+	printf("NCQ Queue Management           %s\n", atasata(parm) &&
+		parm->satacapabilities2 & ATA_SUPPORT_NCQ_QMANAGEMENT ?
+		"yes" : "no");
+	printf("NCQ Streaming                  %s\n", atasata(parm) &&
+		parm->satacapabilities2 & ATA_SUPPORT_NCQ_STREAM ?
+		"yes" : "no");
+	printf("Receive & Send FPDMA Queued    %s\n", atasata(parm) &&
+		parm->satacapabilities2 & ATA_SUPPORT_RCVSND_FPDMA_QUEUED ?
+		"yes" : "no");
+
 	printf("SMART                          %s	%s\n",
 		parm->support.command1 & ATA_SUPPORT_SMART ? "yes" : "no",
 		parm->enabled.command1 & ATA_SUPPORT_SMART ? "yes" : "no");
@@ -1418,6 +1441,9 @@ atacapprint(struct ata_params *parm)
 	printf("unload                         %s	%s\n",
 		parm->support.extension & ATA_SUPPORT_UNLOAD ? "yes" : "no",
 		parm->enabled.extension & ATA_SUPPORT_UNLOAD ? "yes" : "no");
+	printf("general purpose logging        %s	%s\n",
+		parm->support.extension & ATA_SUPPORT_GENLOG ? "yes" : "no",
+		parm->enabled.extension & ATA_SUPPORT_GENLOG ? "yes" : "no");
 	printf("free-fall                      %s	%s\n",
 		parm->support2 & ATA_SUPPORT_FREEFALL ? "yes" : "no",
 		parm->enabled2 & ATA_SUPPORT_FREEFALL ? "yes" : "no");

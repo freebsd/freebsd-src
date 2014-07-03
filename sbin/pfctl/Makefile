@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.include <bsd.own.mk>
+.include <src.opts.mk>
 
 # pf_ruleset.c is shared between kernel and pfctl
 .PATH: ${.CURDIR}/../../sys/netpfil/pf

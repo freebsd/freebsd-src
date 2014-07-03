@@ -219,9 +219,18 @@ x86_emulate_cpuid(struct vm *vm, int vcpu_id,
 
 			/*
 			 * Do not expose topology.
+			 *
+			 * The maximum number of processor cores in
+			 * this physical processor package and the
+			 * maximum number of threads sharing this
+			 * cache are encoded with "plus 1" encoding.
+			 * Adding one to the value in this register
+			 * field to obtains the actual value.
+			 *
+			 * Therefore 0 for both indicates 1 core per
+			 * package and no cache sharing.
 			 */
 			regs[0] &= 0xffff8000;
-			regs[0] |= 0x04008000;
 			break;
 
 		case CPUID_0000_0007:
@@ -232,6 +241,26 @@ x86_emulate_cpuid(struct vm *vm, int vcpu_id,
 
 			/* leaf 0 */
 			if (*ecx == 0) {
+				cpuid_count(*eax, *ecx, regs);
+
+				/* Only leaf 0 is supported */
+				regs[0] = 0;
+
+				/*
+				 * Expose known-safe features.
+				 */
+				regs[1] &= (CPUID_STDEXT_FSGSBASE |
+				    CPUID_STDEXT_BMI1 | CPUID_STDEXT_HLE |
+				    CPUID_STDEXT_AVX2 | CPUID_STDEXT_BMI2 |
+				    CPUID_STDEXT_ERMS | CPUID_STDEXT_RTM |
+				    CPUID_STDEXT_AVX512F |
+				    CPUID_STDEXT_AVX512PF |
+				    CPUID_STDEXT_AVX512ER |
+				    CPUID_STDEXT_AVX512CD);
+				regs[2] = 0;
+				regs[3] = 0;
+
+				/* Advertise INVPCID if it is enabled. */
 				error = vm_get_capability(vm, vcpu_id,
 				    VM_CAP_ENABLE_INVPCID, &enable_invpcid);
 				if (error == 0 && enable_invpcid)

@@ -1,7 +1,7 @@
 # $FreeBSD$
 # $Whistle: Makefile,v 1.3 1999/01/16 00:10:11 archie Exp $
 
-.include <bsd.own.mk>
+.include <src.opts.mk>
 
 PROG=	ngctl
 MAN=	ngctl.8

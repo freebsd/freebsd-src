@@ -38,7 +38,7 @@
 #define EVFILT_PROC		(-5)	/* attached to struct proc */
 #define EVFILT_SIGNAL		(-6)	/* attached to struct proc */
 #define EVFILT_TIMER		(-7)	/* timers */
-/*	EVFILT_NETDEV		(-8)	   no longer supported */
+#define EVFILT_PROCDESC		(-8)	/* attached to process descriptors */
 #define EVFILT_FS		(-9)	/* filesystem events */
 #define EVFILT_LIO		(-10)	/* attached to lio requests */
 #define EVFILT_USER		(-11)	/* User events */
@@ -120,7 +120,7 @@ struct kevent {
 #define	NOTE_REVOKE	0x0040			/* vnode access was revoked */
 
 /*
- * data/hint flags for EVFILT_PROC, shared with userspace
+ * data/hint flags for EVFILT_PROC and EVFILT_PROCDESC, shared with userspace
  */
 #define	NOTE_EXIT	0x80000000		/* process exited */
 #define	NOTE_FORK	0x40000000		/* process forked */

@@ -188,7 +188,6 @@ NOTWORK+= \
 # Tests that just don't complete (even to fail) at the moment...
 
 NOTWORK+= \
-	${TESTSRCDIR}/tst/common/dtraceUtil/tst.ZeroModuleProbes.d.ksh	\
 	${TESTSRCDIR}/tst/common/printa/tst.many.d			\
 	${TESTSRCDIR}/tst/common/scalars/err.D_OP_INCOMPAT.dupgtype.d	\
 	${TESTSRCDIR}/tst/common/scalars/err.D_OP_INCOMPAT.dupltype.d	\

@@ -66,7 +66,7 @@ SRCS+=	test_utils.c
 
 CLEANFILES+= list.h
 
-NO_MAN=yes
+MAN=
 
 PROG=bsdtar_test
 DPADD=${LIBARCHIVE} ${LIBBZ2} ${LIBZ} ${LIBLZMA}

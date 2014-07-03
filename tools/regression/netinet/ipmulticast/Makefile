@@ -4,7 +4,7 @@
 
 PROG=	ipmulticast
 SRCS=	ipmulticast.c
-NO_MAN=
+MAN=
 
 WARNS?=	2
 

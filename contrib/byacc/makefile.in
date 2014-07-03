@@ -1,4 +1,4 @@
-# $Id: makefile.in,v 1.19 2014/01/01 14:09:43 tom Exp $
+# $Id: makefile.in,v 1.23 2014/04/09 12:15:52 tom Exp $
 #
 # UNIX template-makefile for Berkeley Yacc
 
@@ -24,9 +24,11 @@ CFLAGS		= @CFLAGS@ $(CPPFLAGS) $(EXTRA_CFLAGS)
 LDFLAGS		= @LDFLAGS@
 LIBS		= @LIBS@
 
+AWK		= @AWK@
 CTAGS		= @CTAGS@
 ETAGS		= @ETAGS@
 LINT		= @LINT@
+LINTFLAGS	= @LINT_OPTS@
 
 prefix		= @prefix@
 exec_prefix	= @exec_prefix@
@@ -38,6 +40,7 @@ manext		= 1
 
 testdir		= $(srcdir)/test
 
+SKELETON	= @SKELETON@
 x		= @EXEEXT@
 o		= .@OBJEXT@
 
@@ -57,9 +60,10 @@ C_FILES = \
 	lr0.c \
 	main.c \
 	mkpar.c \
+	mstring.c \
 	output.c \
 	reader.c \
-	skeleton.c \
+	$(SKELETON).c \
 	symtab.c \
 	verbose.c \
 	warshall.c
@@ -72,12 +76,17 @@ OBJS	= \
 	lr0$o \
 	main$o \
 	mkpar$o \
+	mstring$o \
 	output$o \
 	reader$o \
-	skeleton$o \
+	$(SKELETON)$o \
 	symtab$o \
 	verbose$o \
 	warshall$o
+
+YACCPAR	= \
+	btyaccpar.c \
+	yaccpar.c
 
 TRANSFORM_BIN = sed 's/$x$$//'       |sed '$(transform)'|sed 's/$$/$x/'
 TRANSFORM_MAN = sed 's/$(manext)$$//'|sed '$(transform)'|sed 's/$$/$(manext)/'
@@ -100,7 +109,7 @@ uninstall:
 	- rm -f $(mandir)/$(actual_man)
 
 ################################################################################
-.SUFFIXES : $o .i
+.SUFFIXES : .c $o .i .skel
 
 .c$o:
 	@RULE_CC@
@@ -109,6 +118,9 @@ uninstall:
 .c.i :
 	@RULE_CC@
 	@ECHO_CC@$(CPP) -C $(CPPFLAGS) $*.c >$@
+
+.skel.c :
+	$(AWK) -f $(srcdir)/skel2c $*.skel > $@
 
 ################################################################################
 
@@ -123,10 +135,15 @@ clean :: mostlyclean
 
 distclean :: clean
 	- rm -f config.log config.cache config.status config.h makefile
-	- cd test && rm -f test-*
+	- rm -f $(testdir)/yacc/test-* $(testdir)/btyacc/test-*
 
 realclean :: distclean
 	- rm -f tags TAGS
+
+sources : $(YACCPAR)
+
+maintainer-clean :: realclean
+	rm -f $(YACCPAR)
 
 ################################################################################
 check:	$(THIS)$x
@@ -142,7 +159,7 @@ tags: $(H_FILES) $(C_FILES)
 	$(CTAGS) $(C_FILES) $(H_FILES)
 
 lint: $(C_FILES) 
-	$(LINT) $(CPPFLAGS) $(C_FILES)
+	$(LINT) $(LINTFLAGS) $(CPPFLAGS) $(C_FILES)
 
 @MAKE_UPPER_TAGS@TAGS: $(H_FILES) $(C_FILES) 
 @MAKE_UPPER_TAGS@	$(ETAGS) $(C_FILES) $(H_FILES)
@@ -150,9 +167,9 @@ lint: $(C_FILES)
 depend:
 	makedepend -- $(CPPFLAGS) -- $(C_FILES)
 
-$(OBJS) : defs.h
+$(OBJS) : defs.h makefile
 
 main$o \
-skeleton$o : makefile VERSION
+$(SKELETON)$o : VERSION
 
 # DO NOT DELETE THIS LINE -- make depend depends on it.

@@ -20,8 +20,9 @@
  */
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2013 by Delphix. All rights reserved.
+ * Copyright (c) 2012, 2014 by Delphix. All rights reserved.
  * Copyright (c) 2013 Steven Hartland. All rights reserved.
+ * Copyright (c) 2013 by Joyent, Inc. All rights reserved.
  */
 
 #include <sys/zfs_context.h>
@@ -430,7 +431,7 @@ dsl_destroy_snapshot_sync_impl(dsl_dataset_t *ds, boolean_t defer, dmu_tx_t *tx)
 		ASSERT3U(val, ==, obj);
 	}
 #endif
-	VERIFY0(dsl_dataset_snap_remove(ds_head, ds->ds_snapname, tx));
+	VERIFY0(dsl_dataset_snap_remove(ds_head, ds->ds_snapname, tx, B_TRUE));
 	dsl_dataset_rele(ds_head, FTAG);
 
 	if (ds_prev != NULL)
@@ -533,12 +534,12 @@ struct killarg {
 /* ARGSUSED */
 static int
 kill_blkptr(spa_t *spa, zilog_t *zilog, const blkptr_t *bp,
-    const zbookmark_t *zb, const dnode_phys_t *dnp, void *arg)
+    const zbookmark_phys_t *zb, const dnode_phys_t *dnp, void *arg)
 {
 	struct killarg *ka = arg;
 	dmu_tx_t *tx = ka->tx;
 
-	if (BP_IS_HOLE(bp))
+	if (BP_IS_HOLE(bp) || BP_IS_EMBEDDED(bp))
 		return (0);
 
 	if (zb->zb_level == ZB_ZIL_LEVEL) {
@@ -588,6 +589,7 @@ dsl_destroy_head_check_impl(dsl_dataset_t *ds, int expected_holds)
 	uint64_t count;
 	objset_t *mos;
 
+	ASSERT(!dsl_dataset_is_snapshot(ds));
 	if (dsl_dataset_is_snapshot(ds))
 		return (SET_ERROR(EINVAL));
 
@@ -657,6 +659,17 @@ dsl_dir_destroy_sync(uint64_t ddobj, dmu_tx_t *tx)
 	ASSERT0(dd->dd_phys->dd_head_dataset_obj);
 
 	/*
+	 * Decrement the filesystem count for all parent filesystems.
+	 *
+	 * When we receive an incremental stream into a filesystem that already
+	 * exists, a temporary clone is created.  We never count this temporary
+	 * clone, whose name begins with a '%'.
+	 */
+	if (dd->dd_myname[0] != '%' && dd->dd_parent != NULL)
+		dsl_fs_ss_count_adjust(dd->dd_parent, -1,
+		    DD_FIELD_FILESYSTEM_COUNT, tx);
+
+	/*
 	 * Remove our reservation. The impl() routine avoids setting the
 	 * actual property, which would require the (already destroyed) ds.
 	 */
@@ -699,7 +712,7 @@ dsl_destroy_head_sync_impl(dsl_dataset_t *ds, dmu_tx_t *tx)
 	    ds->ds_prev->ds_phys->ds_num_children == 2 &&
 	    ds->ds_prev->ds_userrefs == 0);
 
-	/* Remove our reservation */
+	/* Remove our reservation. */
 	if (ds->ds_reserved != 0) {
 		dsl_dataset_set_refreservation_sync_impl(ds,
 		    (ZPROP_SRC_NONE | ZPROP_SRC_LOCAL | ZPROP_SRC_RECEIVED),

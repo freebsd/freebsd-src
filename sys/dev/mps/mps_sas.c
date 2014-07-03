@@ -154,7 +154,7 @@ mpssas_find_target_by_handle(struct mpssas_softc *sassc, int start, uint16_t han
 	struct mpssas_target *target;
 	int i;
 
-	for (i = start; i < sassc->sc->facts->MaxTargets; i++) {
+	for (i = start; i < sassc->maxtargets; i++) {
 		target = &sassc->targets[i];
 		if (target->handle == handle)
 			return (target);
@@ -597,7 +597,7 @@ mpssas_remove_device(struct mps_softc *sc, struct mps_command *tm)
 
 		mps_dprint(sc, MPS_XINFO, "Completing missed command %p\n", tm);
 		ccb = tm->cm_complete_data;
-		ccb->ccb_h.status = CAM_DEV_NOT_THERE;
+		mpssas_set_ccbstatus(ccb, CAM_DEV_NOT_THERE);
 		mpssas_scsiio_complete(sc, tm);
 	}
 }
@@ -709,8 +709,16 @@ mps_attach_sas(struct mps_softc *sc)
 		__func__, __LINE__);
 		return (ENOMEM);
 	}
+
+	/*
+	 * XXX MaxTargets could change during a reinit.  Since we don't
+	 * resize the targets[] array during such an event, cache the value
+	 * of MaxTargets here so that we don't get into trouble later.  This
+	 * should move into the reinit logic.
+	 */
+	sassc->maxtargets = sc->facts->MaxTargets;
 	sassc->targets = malloc(sizeof(struct mpssas_target) *
-	    sc->facts->MaxTargets, M_MPT2, M_WAITOK|M_ZERO);
+	    sassc->maxtargets, M_MPT2, M_WAITOK|M_ZERO);
 	if(!sassc->targets) {
 		device_printf(sc->mps_dev, "Cannot allocate memory %s %d\n",
 		__func__, __LINE__);
@@ -741,9 +749,7 @@ mps_attach_sas(struct mps_softc *sc)
 	TASK_INIT(&sassc->ev_task, 0, mpssas_firmware_event_work, sc);
 	sassc->ev_tq = taskqueue_create("mps_taskq", M_NOWAIT | M_ZERO,
 	    taskqueue_thread_enqueue, &sassc->ev_tq);
-
-	/* Run the task queue with lowest priority */
-	taskqueue_start_threads(&sassc->ev_tq, 1, 255, "%s taskq", 
+	taskqueue_start_threads(&sassc->ev_tq, 1, PRIBIO, "%s taskq", 
 	    device_get_nameunit(sc->mps_dev));
 
 	mps_lock(sc);
@@ -868,7 +874,7 @@ mps_detach_sas(struct mps_softc *sc)
 	if (sassc->devq != NULL)
 		cam_simq_free(sassc->devq);
 
-	for(i=0; i< sc->facts->MaxTargets ;i++) {
+	for(i=0; i< sassc->maxtargets ;i++) {
 		targ = &sassc->targets[i];
 		SLIST_FOREACH_SAFE(lun, &targ->luns, lun_link, lun_tmp) {
 			free(lun, M_MPT2);
@@ -959,9 +965,9 @@ mpssas_action(struct cam_sim *sim, union ccb *ccb)
 		cpi->hba_misc = PIM_NOBUSRESET | PIM_UNMAPPED;
 #endif
 		cpi->hba_eng_cnt = 0;
-		cpi->max_target = sassc->sc->facts->MaxTargets - 1;
+		cpi->max_target = sassc->maxtargets - 1;
 		cpi->max_lun = 255;
-		cpi->initiator_id = sassc->sc->facts->MaxTargets - 1;
+		cpi->initiator_id = sassc->maxtargets - 1;
 		strncpy(cpi->sim_vid, "FreeBSD", SIM_IDLEN);
 		strncpy(cpi->hba_vid, "LSILogic", HBA_IDLEN);
 		strncpy(cpi->dev_name, cam_sim_name(sim), DEV_IDLEN);
@@ -978,7 +984,7 @@ mpssas_action(struct cam_sim *sim, union ccb *ccb)
 		 */
 		cpi->maxio = 256 * 1024;
 #endif
-		cpi->ccb_h.status = CAM_REQ_CMP;
+		mpssas_set_ccbstatus(ccb, CAM_REQ_CMP);
 		break;
 	}
 	case XPT_GET_TRAN_SETTINGS:
@@ -992,9 +998,12 @@ mpssas_action(struct cam_sim *sim, union ccb *ccb)
 		sas = &cts->xport_specific.sas;
 		scsi = &cts->proto_specific.scsi;
 
+		KASSERT(cts->ccb_h.target_id < sassc->maxtargets,
+		    ("Target %d out of bounds in XPT_GET_TRANS_SETTINGS\n",
+		    cts->ccb_h.target_id));
 		targ = &sassc->targets[cts->ccb_h.target_id];
 		if (targ->handle == 0x0) {
-			cts->ccb_h.status = CAM_SEL_TIMEOUT;
+			mpssas_set_ccbstatus(ccb, CAM_SEL_TIMEOUT);
 			break;
 		}
 
@@ -1021,12 +1030,12 @@ mpssas_action(struct cam_sim *sim, union ccb *ccb)
 		scsi->valid = CTS_SCSI_VALID_TQ;
 		scsi->flags = CTS_SCSI_FLAGS_TAG_ENB;
 
-		cts->ccb_h.status = CAM_REQ_CMP;
+		mpssas_set_ccbstatus(ccb, CAM_REQ_CMP);
 		break;
 	}
 	case XPT_CALC_GEOMETRY:
 		cam_calc_geometry(&ccb->ccg, /*extended*/1);
-		ccb->ccb_h.status = CAM_REQ_CMP;
+		mpssas_set_ccbstatus(ccb, CAM_REQ_CMP);
 		break;
 	case XPT_RESET_DEV:
 		mps_dprint(sassc->sc, MPS_XINFO, "mpssas_action XPT_RESET_DEV\n");
@@ -1037,7 +1046,7 @@ mpssas_action(struct cam_sim *sim, union ccb *ccb)
 	case XPT_TERM_IO:
 		mps_dprint(sassc->sc, MPS_XINFO,
 		    "mpssas_action faking success for abort or reset\n");
-		ccb->ccb_h.status = CAM_REQ_CMP;
+		mpssas_set_ccbstatus(ccb, CAM_REQ_CMP);
 		break;
 	case XPT_SCSI_IO:
 		mpssas_action_scsiio(sassc, ccb);
@@ -1048,7 +1057,7 @@ mpssas_action(struct cam_sim *sim, union ccb *ccb)
 		return;
 #endif
 	default:
-		ccb->ccb_h.status = CAM_FUNC_NOTAVAIL;
+		mpssas_set_ccbstatus(ccb, CAM_FUNC_NOTAVAIL);
 		break;
 	}
 	xpt_done(ccb);
@@ -1155,7 +1164,7 @@ mpssas_handle_reinit(struct mps_softc *sc)
 	 * reset, and we have to rediscover all the targets and use the new
 	 * handles.  
 	 */
-	for (i = 0; i < sc->facts->MaxTargets; i++) {
+	for (i = 0; i < sc->sassc->maxtargets; i++) {
 		if (sc->sassc->targets[i].outstanding != 0)
 			mps_dprint(sc, MPS_INIT, "target %u outstanding %u\n", 
 			    i, sc->sassc->targets[i].outstanding);
@@ -1577,8 +1586,7 @@ mpssas_scsiio_timeout(void *data)
 	/* XXX first, check the firmware state, to see if it's still
 	 * operational.  if not, do a diag reset.
 	 */
-
-	cm->cm_ccb->ccb_h.status = CAM_CMD_TIMEOUT;
+	mpssas_set_ccbstatus(cm->cm_ccb, CAM_CMD_TIMEOUT);
 	cm->cm_state = MPS_CM_STATE_TIMEDOUT;
 	TAILQ_INSERT_TAIL(&targ->timedout_commands, cm, cm_recovery);
 
@@ -1631,19 +1639,22 @@ mpssas_action_scsiio(struct mpssas_softc *sassc, union ccb *ccb)
 	mtx_assert(&sc->mps_mtx, MA_OWNED);
 
 	csio = &ccb->csio;
+	KASSERT(csio->ccb_h.target_id < sassc->maxtargets,
+	    ("Target %d out of bounds in XPT_SCSI_IO\n",
+	     csio->ccb_h.target_id));
 	targ = &sassc->targets[csio->ccb_h.target_id];
 	mps_dprint(sc, MPS_TRACE, "ccb %p target flag %x\n", ccb, targ->flags);
 	if (targ->handle == 0x0) {
 		mps_dprint(sc, MPS_ERROR, "%s NULL handle for target %u\n", 
 		    __func__, csio->ccb_h.target_id);
-		csio->ccb_h.status = CAM_SEL_TIMEOUT;
+		mpssas_set_ccbstatus(ccb, CAM_SEL_TIMEOUT);
 		xpt_done(ccb);
 		return;
 	}
 	if (targ->flags & MPS_TARGET_FLAGS_RAID_COMPONENT) {
 		mps_dprint(sc, MPS_ERROR, "%s Raid component no SCSI IO "
 		    "supported %u\n", __func__, csio->ccb_h.target_id);
-		csio->ccb_h.status = CAM_TID_INVALID;
+		mpssas_set_ccbstatus(ccb, CAM_TID_INVALID);
 		xpt_done(ccb);
 		return;
 	}
@@ -1652,7 +1663,7 @@ mpssas_action_scsiio(struct mpssas_softc *sassc, union ccb *ccb)
 	 * Progress" and was actually aborted by the upper layer.  Check for
 	 * this here and complete the command without error.
 	 */
-	if (ccb->ccb_h.status != CAM_REQ_INPROG) {
+	if (mpssas_get_ccbstatus(ccb) != CAM_REQ_INPROG) {
 		mps_dprint(sc, MPS_TRACE, "%s Command is not in progress for "
 		    "target %u\n", __func__, csio->ccb_h.target_id);
 		xpt_done(ccb);
@@ -1665,16 +1676,16 @@ mpssas_action_scsiio(struct mpssas_softc *sassc, union ccb *ccb)
 	 */
 	if (targ->flags & MPSSAS_TARGET_INREMOVAL) {
 		if (targ->devinfo == 0)
-			csio->ccb_h.status = CAM_REQ_CMP;
+			mpssas_set_ccbstatus(ccb, CAM_REQ_CMP);
 		else
-			csio->ccb_h.status = CAM_SEL_TIMEOUT;
+			mpssas_set_ccbstatus(ccb, CAM_SEL_TIMEOUT);
 		xpt_done(ccb);
 		return;
 	}
 
 	if ((sc->mps_flags & MPS_FLAGS_SHUTDOWN) != 0) {
 		mps_dprint(sc, MPS_INFO, "%s shutting down\n", __func__);
-		csio->ccb_h.status = CAM_TID_INVALID;
+		mpssas_set_ccbstatus(ccb, CAM_TID_INVALID);
 		xpt_done(ccb);
 		return;
 	}
@@ -1753,7 +1764,7 @@ mpssas_action_scsiio(struct mpssas_softc *sassc, union ccb *ccb)
 	req->Control = htole32(mpi_control);
 	if (MPS_SET_LUN(req->LUN, csio->ccb_h.target_lun) != 0) {
 		mps_free_command(sc, cm);
-		ccb->ccb_h.status = CAM_LUN_INVALID;
+		mpssas_set_ccbstatus(ccb, CAM_LUN_INVALID);
 		xpt_done(ccb);
 		return;
 	}
@@ -1841,10 +1852,10 @@ mpssas_action_scsiio(struct mpssas_softc *sassc, union ccb *ccb)
 	 * the I/O to the IR volume itself.
 	 */
 	if (sc->WD_valid_config) {
-		if (ccb->ccb_h.status != MPS_WD_RETRY) {
+		if (ccb->ccb_h.sim_priv.entries[0].field == MPS_WD_RETRY) {
 			mpssas_direct_drive_io(sassc, cm, ccb);
 		} else {
-			ccb->ccb_h.status = CAM_REQ_INPROG;
+			mpssas_set_ccbstatus(ccb, CAM_REQ_INPROG);
 		}
 	}
 
@@ -2138,7 +2149,7 @@ mpssas_scsiio_complete(struct mps_softc *sc, struct mps_command *cm)
 		 * because there can be no reply when we haven't actually
 		 * gone out to the hardware.
 		 */
-		ccb->ccb_h.status = CAM_REQUEUE_REQ;
+		mpssas_set_ccbstatus(ccb, CAM_REQUEUE_REQ);
 
 		/*
 		 * Currently the only error included in the mask is
@@ -2161,11 +2172,11 @@ mpssas_scsiio_complete(struct mps_softc *sc, struct mps_command *cm)
 
 	/* Take the fast path to completion */
 	if (cm->cm_reply == NULL) {
-		if ((ccb->ccb_h.status & CAM_STATUS_MASK) == CAM_REQ_INPROG) {
+		if (mpssas_get_ccbstatus(ccb) == CAM_REQ_INPROG) {
 			if ((sc->mps_flags & MPS_FLAGS_DIAGRESET) != 0)
-				ccb->ccb_h.status = CAM_SCSI_BUS_RESET;
+				mpssas_set_ccbstatus(ccb, CAM_SCSI_BUS_RESET);
 			else {
-				ccb->ccb_h.status = CAM_REQ_CMP;
+				mpssas_set_ccbstatus(ccb, CAM_REQ_CMP);
 				ccb->csio.scsi_status = SCSI_STATUS_OK;
 			}
 			if (sassc->flags & MPSSAS_QUEUE_FROZEN) {
@@ -2181,10 +2192,10 @@ mpssas_scsiio_complete(struct mps_softc *sc, struct mps_command *cm)
 		 * CAM_REQ_CMP.  The first is if MPS_CM_FLAGS_ERROR_MASK is
 		 * set, the second is in the MPS_FLAGS_DIAGRESET above.
 		 */
-		if ((ccb->ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP) {
+		if (mpssas_get_ccbstatus(ccb) != CAM_REQ_CMP) {
 			/*
 			 * Freeze the dev queue so that commands are
-			 * executed in the correct order with after error
+			 * executed in the correct order after error
 			 * recovery.
 			 */
 			ccb->ccb_h.status |= CAM_DEV_QFRZN;
@@ -2208,10 +2219,11 @@ mpssas_scsiio_complete(struct mps_softc *sc, struct mps_command *cm)
 	 */
 	if (cm->cm_flags & MPS_CM_FLAGS_DD_IO) {
 		mps_free_command(sc, cm);
-		ccb->ccb_h.status = MPS_WD_RETRY;
+		ccb->ccb_h.sim_priv.entries[0].field = MPS_WD_RETRY;
 		mpssas_action_scsiio(sassc, ccb);
 		return;
-	}
+	} else
+		ccb->ccb_h.sim_priv.entries[0].field = 0;
 
 	switch (le16toh(rep->IOCStatus) & MPI2_IOCSTATUS_MASK) {
 	case MPI2_IOCSTATUS_SCSI_DATA_UNDERRUN:
@@ -2227,7 +2239,7 @@ mpssas_scsiio_complete(struct mps_softc *sc, struct mps_command *cm)
 		/* Completion failed at the transport level. */
 		if (rep->SCSIState & (MPI2_SCSI_STATE_NO_SCSI_STATUS |
 		    MPI2_SCSI_STATE_TERMINATED)) {
-			ccb->ccb_h.status = CAM_REQ_CMP_ERR;
+			mpssas_set_ccbstatus(ccb, CAM_REQ_CMP_ERR);
 			break;
 		}
 
@@ -2236,7 +2248,7 @@ mpssas_scsiio_complete(struct mps_softc *sc, struct mps_command *cm)
 		 * recover the command.
 		 */
 		if (rep->SCSIState & MPI2_SCSI_STATE_AUTOSENSE_FAILED) {
-			ccb->ccb_h.status = CAM_AUTOSENSE_FAIL;
+			mpssas_set_ccbstatus(ccb, CAM_AUTOSENSE_FAIL);
 			break;
 		}
 
@@ -2260,16 +2272,16 @@ mpssas_scsiio_complete(struct mps_softc *sc, struct mps_command *cm)
 		 */
 		if ((rep->SCSIStatus == MPI2_SCSI_STATUS_COMMAND_TERMINATED) ||
 		    (rep->SCSIStatus == MPI2_SCSI_STATUS_TASK_ABORTED)) {
-			ccb->ccb_h.status = CAM_REQ_ABORTED;
+			mpssas_set_ccbstatus(ccb, CAM_REQ_ABORTED);
 			break;
 		}
 
 		/* Handle normal status and sense */
 		csio->scsi_status = rep->SCSIStatus;
 		if (rep->SCSIStatus == MPI2_SCSI_STATUS_GOOD)
-			ccb->ccb_h.status = CAM_REQ_CMP;
+			mpssas_set_ccbstatus(ccb, CAM_REQ_CMP);
 		else
-			ccb->ccb_h.status = CAM_SCSI_STATUS_ERROR;
+			mpssas_set_ccbstatus(ccb, CAM_SCSI_STATUS_ERROR);
 
 		if (rep->SCSIState & MPI2_SCSI_STATE_AUTOSENSE_VALID) {
 			int sense_len, returned_sense_len;
@@ -2302,8 +2314,9 @@ mpssas_scsiio_complete(struct mps_softc *sc, struct mps_command *cm)
 		    (csio->cdb_io.cdb_bytes[1] & SI_EVPD) &&
 		    (csio->cdb_io.cdb_bytes[2] == SVPD_SUPPORTED_PAGE_LIST) &&
 		    ((csio->ccb_h.flags & CAM_DATA_MASK) == CAM_DATA_VADDR) &&
-		    (csio->data_ptr != NULL) && (((uint8_t *)cm->cm_data)[0] ==
-		    T_SEQUENTIAL) && (sc->control_TLR) &&
+		    (csio->data_ptr != NULL) &&
+		    ((csio->data_ptr[0] & 0x1f) == T_SEQUENTIAL) &&
+		    (sc->control_TLR) &&
 		    (sc->mapping_table[csio->ccb_h.target_id].device_info &
 		    MPI2_SAS_DEVICE_INFO_SSP_TARGET)) {
 			vpd_list = (struct scsi_vpd_supported_page_list *)
@@ -2314,6 +2327,7 @@ mpssas_scsiio_complete(struct mps_softc *sc, struct mps_command *cm)
 			TLR_on = (u8)MPI2_SCSIIO_CONTROL_TLR_ON;
 			alloc_len = ((u16)csio->cdb_io.cdb_bytes[3] << 8) +
 			    csio->cdb_io.cdb_bytes[4];
+			alloc_len -= csio->resid;
 			for (i = 0; i < MIN(vpd_list->length, alloc_len); i++) {
 				if (vpd_list->list[i] == 0x90) {
 					*TLR_bits = TLR_on;
@@ -2331,13 +2345,13 @@ mpssas_scsiio_complete(struct mps_softc *sc, struct mps_command *cm)
 		 * failed.
 		 */
 		if (cm->cm_targ->devinfo == 0)
-			ccb->ccb_h.status = CAM_REQ_CMP;
+			mpssas_set_ccbstatus(ccb, CAM_REQ_CMP);
 		else
-			ccb->ccb_h.status = CAM_DEV_NOT_THERE;
+			mpssas_set_ccbstatus(ccb, CAM_DEV_NOT_THERE);
 		break;
 	case MPI2_IOCSTATUS_INVALID_SGL:
 		mps_print_scsiio_cmd(sc, cm);
-		ccb->ccb_h.status = CAM_UNREC_HBA_ERROR;
+		mpssas_set_ccbstatus(ccb, CAM_UNREC_HBA_ERROR);
 		break;
 	case MPI2_IOCSTATUS_SCSI_TASK_TERMINATED:
 		/*
@@ -2350,14 +2364,14 @@ mpssas_scsiio_complete(struct mps_softc *sc, struct mps_command *cm)
 		 * on the console.
 		 */
 		if (cm->cm_state == MPS_CM_STATE_TIMEDOUT)
-			ccb->ccb_h.status = CAM_CMD_TIMEOUT;
+			mpssas_set_ccbstatus(ccb, CAM_CMD_TIMEOUT);
 		else
-			ccb->ccb_h.status = CAM_REQ_ABORTED;
+			mpssas_set_ccbstatus(ccb, CAM_REQ_ABORTED);
 		break;
 	case MPI2_IOCSTATUS_SCSI_DATA_OVERRUN:
 		/* resid is ignored for this condition */
 		csio->resid = 0;
-		ccb->ccb_h.status = CAM_DATA_RUN_ERR;
+		mpssas_set_ccbstatus(ccb, CAM_DATA_RUN_ERR);
 		break;
 	case MPI2_IOCSTATUS_SCSI_IOC_TERMINATED:
 	case MPI2_IOCSTATUS_SCSI_EXT_TERMINATED:
@@ -2366,7 +2380,7 @@ mpssas_scsiio_complete(struct mps_softc *sc, struct mps_command *cm)
 		 * transient transport-related) errors, retry these without
 		 * decrementing the retry count.
 		 */
-		ccb->ccb_h.status = CAM_REQUEUE_REQ;
+		mpssas_set_ccbstatus(ccb, CAM_REQUEUE_REQ);
 		mpssas_log_command(cm, MPS_INFO,
 		    "terminated ioc %x scsi %x state %x xfer %u\n",
 		    le16toh(rep->IOCStatus), rep->SCSIStatus, rep->SCSIState,
@@ -2388,7 +2402,7 @@ mpssas_scsiio_complete(struct mps_softc *sc, struct mps_command *cm)
 		    le16toh(rep->IOCStatus), rep->SCSIStatus, rep->SCSIState,
 		    le32toh(rep->TransferCount));
 		csio->resid = cm->cm_length;
-		ccb->ccb_h.status = CAM_REQ_CMP_ERR;
+		mpssas_set_ccbstatus(ccb, CAM_REQ_CMP_ERR);
 		break;
 	}
 	
@@ -2401,7 +2415,7 @@ mpssas_scsiio_complete(struct mps_softc *sc, struct mps_command *cm)
 		    "unfreezing SIM queue\n");
 	}
 
-	if ((ccb->ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP) {
+	if (mpssas_get_ccbstatus(ccb) != CAM_REQ_CMP) {
 		ccb->ccb_h.status |= CAM_DEV_QFRZN;
 		xpt_freeze_devq(ccb->ccb_h.path, /*count*/ 1);
 	}
@@ -2699,14 +2713,14 @@ mpssas_smpio_complete(struct mps_softc *sc, struct mps_command *cm)
 	if ((cm->cm_flags & MPS_CM_FLAGS_ERROR_MASK) != 0) {
 		mps_dprint(sc, MPS_ERROR,"%s: cm_flags = %#x on SMP request!\n",
 			   __func__, cm->cm_flags);
-		ccb->ccb_h.status = CAM_REQ_CMP_ERR;
+		mpssas_set_ccbstatus(ccb, CAM_REQ_CMP_ERR);
 		goto bailout;
         }
 
 	rpl = (MPI2_SMP_PASSTHROUGH_REPLY *)cm->cm_reply;
 	if (rpl == NULL) {
 		mps_dprint(sc, MPS_ERROR, "%s: NULL cm_reply!\n", __func__);
-		ccb->ccb_h.status = CAM_REQ_CMP_ERR;
+		mpssas_set_ccbstatus(ccb, CAM_REQ_CMP_ERR);
 		goto bailout;
 	}
 
@@ -2719,7 +2733,7 @@ mpssas_smpio_complete(struct mps_softc *sc, struct mps_command *cm)
 	    rpl->SASStatus != MPI2_SASSTATUS_SUCCESS) {
 		mps_dprint(sc, MPS_XINFO, "%s: IOCStatus %04x SASStatus %02x\n",
 		    __func__, le16toh(rpl->IOCStatus), rpl->SASStatus);
-		ccb->ccb_h.status = CAM_REQ_CMP_ERR;
+		mpssas_set_ccbstatus(ccb, CAM_REQ_CMP_ERR);
 		goto bailout;
 	}
 
@@ -2728,9 +2742,9 @@ mpssas_smpio_complete(struct mps_softc *sc, struct mps_command *cm)
 		   (uintmax_t)sasaddr);
 
 	if (ccb->smpio.smp_response[2] == SMP_FR_ACCEPTED)
-		ccb->ccb_h.status = CAM_REQ_CMP;
+		mpssas_set_ccbstatus(ccb, CAM_REQ_CMP);
 	else
-		ccb->ccb_h.status = CAM_SMP_STATUS_ERROR;
+		mpssas_set_ccbstatus(ccb, CAM_SMP_STATUS_ERROR);
 
 bailout:
 	/*
@@ -2766,7 +2780,7 @@ mpssas_send_smpcmd(struct mpssas_softc *sassc, union ccb *ccb, uint64_t sasaddr)
 	case CAM_DATA_SG_PADDR:
 		mps_dprint(sc, MPS_ERROR,
 			   "%s: physical addresses not supported\n", __func__);
-		ccb->ccb_h.status = CAM_REQ_INVALID;
+		mpssas_set_ccbstatus(ccb, CAM_REQ_INVALID);
 		xpt_done(ccb);
 		return;
 	case CAM_DATA_SG:
@@ -2780,7 +2794,7 @@ mpssas_send_smpcmd(struct mpssas_softc *sassc, union ccb *ccb, uint64_t sasaddr)
 				   "%s: multiple request or response "
 				   "buffer segments not supported for SMP\n",
 				   __func__);
-			ccb->ccb_h.status = CAM_REQ_INVALID;
+			mpssas_set_ccbstatus(ccb, CAM_REQ_INVALID);
 			xpt_done(ccb);
 			return;
 		}
@@ -2814,7 +2828,7 @@ mpssas_send_smpcmd(struct mpssas_softc *sassc, union ccb *ccb, uint64_t sasaddr)
 		response = ccb->smpio.smp_response;
 		break;
 	default:
-		ccb->ccb_h.status = CAM_REQ_INVALID;
+		mpssas_set_ccbstatus(ccb, CAM_REQ_INVALID);
 		xpt_done(ccb);
 		return;
 	}
@@ -2823,7 +2837,7 @@ mpssas_send_smpcmd(struct mpssas_softc *sassc, union ccb *ccb, uint64_t sasaddr)
 	if (cm == NULL) {
 		mps_dprint(sc, MPS_ERROR,
 		    "%s: cannot allocate command\n", __func__);
-		ccb->ccb_h.status = CAM_RESRC_UNAVAIL;
+		mpssas_set_ccbstatus(ccb, CAM_RESRC_UNAVAIL);
 		xpt_done(ccb);
 		return;
 	}
@@ -2911,7 +2925,7 @@ mpssas_send_smpcmd(struct mpssas_softc *sassc, union ccb *ccb, uint64_t sasaddr)
 
 bailout_error:
 	mps_free_command(sc, cm);
-	ccb->ccb_h.status = CAM_RESRC_UNAVAIL;
+	mpssas_set_ccbstatus(ccb, CAM_RESRC_UNAVAIL);
 	xpt_done(ccb);
 	return;
 
@@ -2929,12 +2943,14 @@ mpssas_action_smpio(struct mpssas_softc *sassc, union ccb *ccb)
 	/*
 	 * Make sure the target exists.
 	 */
+	KASSERT(ccb->ccb_h.target_id < sassc->maxtargets,
+	    ("Target %d out of bounds in XPT_SMP_IO\n", ccb->ccb_h.target_id));
 	targ = &sassc->targets[ccb->ccb_h.target_id];
 	if (targ->handle == 0x0) {
 		mps_dprint(sc, MPS_ERROR,
 			   "%s: target %d does not exist!\n", __func__,
 			   ccb->ccb_h.target_id);
-		ccb->ccb_h.status = CAM_SEL_TIMEOUT;
+		mpssas_set_ccbstatus(ccb, CAM_SEL_TIMEOUT);
 		xpt_done(ccb);
 		return;
 	}
@@ -2983,7 +2999,7 @@ mpssas_action_smpio(struct mpssas_softc *sassc, union ccb *ccb)
 			mps_dprint(sc, MPS_ERROR,
 				   "%s: handle %d does not have a valid "
 				   "parent handle!\n", __func__, targ->handle);
-			ccb->ccb_h.status = CAM_REQ_INVALID;
+			mpssas_set_ccbstatus(ccb, CAM_REQ_INVALID);
 			goto bailout;
 		}
 #ifdef OLD_MPS_PROBE
@@ -2994,7 +3010,7 @@ mpssas_action_smpio(struct mpssas_softc *sassc, union ccb *ccb)
 			mps_dprint(sc, MPS_ERROR,
 				   "%s: handle %d does not have a valid "
 				   "parent target!\n", __func__, targ->handle);
-			ccb->ccb_h.status = CAM_REQ_INVALID;
+			mpssas_set_ccbstatus(ccb, CAM_REQ_INVALID);
 			goto bailout;
 		}
 
@@ -3004,7 +3020,7 @@ mpssas_action_smpio(struct mpssas_softc *sassc, union ccb *ccb)
 				   "%s: handle %d parent %d does not "
 				   "have an SMP target!\n", __func__,
 				   targ->handle, parent_target->handle);
-			ccb->ccb_h.status = CAM_REQ_INVALID;
+			mpssas_set_ccbstatus(ccb, CAM_REQ_INVALID);
 			goto bailout;
 
 		}
@@ -3017,7 +3033,7 @@ mpssas_action_smpio(struct mpssas_softc *sassc, union ccb *ccb)
 				   "%s: handle %d parent %d does not "
 				   "have an SMP target!\n", __func__,
 				   targ->handle, targ->parent_handle);
-			ccb->ccb_h.status = CAM_REQ_INVALID;
+			mpssas_set_ccbstatus(ccb, CAM_REQ_INVALID);
 			goto bailout;
 
 		}
@@ -3026,7 +3042,7 @@ mpssas_action_smpio(struct mpssas_softc *sassc, union ccb *ccb)
 				   "%s: handle %d parent handle %d does "
 				   "not have a valid SAS address!\n",
 				   __func__, targ->handle, targ->parent_handle);
-			ccb->ccb_h.status = CAM_REQ_INVALID;
+			mpssas_set_ccbstatus(ccb, CAM_REQ_INVALID);
 			goto bailout;
 		}
 
@@ -3039,7 +3055,7 @@ mpssas_action_smpio(struct mpssas_softc *sassc, union ccb *ccb)
 		mps_dprint(sc, MPS_INFO,
 			   "%s: unable to find SAS address for handle %d\n",
 			   __func__, targ->handle);
-		ccb->ccb_h.status = CAM_REQ_INVALID;
+		mpssas_set_ccbstatus(ccb, CAM_REQ_INVALID);
 		goto bailout;
 	}
 	mpssas_send_smpcmd(sassc, ccb, sasaddr);
@@ -3063,12 +3079,15 @@ mpssas_action_resetdev(struct mpssas_softc *sassc, union ccb *ccb)
 	MPS_FUNCTRACE(sassc->sc);
 	mtx_assert(&sassc->sc->mps_mtx, MA_OWNED);
 
+	KASSERT(ccb->ccb_h.target_id < sassc->maxtargets,
+	    ("Target %d out of bounds in XPT_RESET_DEV\n",
+	     ccb->ccb_h.target_id));
 	sc = sassc->sc;
 	tm = mps_alloc_command(sc);
 	if (tm == NULL) {
 		mps_dprint(sc, MPS_ERROR,
 		    "command alloc failure in mpssas_action_resetdev\n");
-		ccb->ccb_h.status = CAM_RESRC_UNAVAIL;
+		mpssas_set_ccbstatus(ccb, CAM_RESRC_UNAVAIL);
 		xpt_done(ccb);
 		return;
 	}
@@ -3116,7 +3135,7 @@ mpssas_resetdev_complete(struct mps_softc *sc, struct mps_command *tm)
 			   "%s: cm_flags = %#x for reset of handle %#04x! "
 			   "This should not happen!\n", __func__, tm->cm_flags,
 			   req->DevHandle);
-		ccb->ccb_h.status = CAM_REQ_CMP_ERR;
+		mpssas_set_ccbstatus(ccb, CAM_REQ_CMP_ERR);
 		goto bailout;
 	}
 
@@ -3125,12 +3144,12 @@ mpssas_resetdev_complete(struct mps_softc *sc, struct mps_command *tm)
 	    le16toh(resp->IOCStatus), le32toh(resp->ResponseCode));
 
 	if (le32toh(resp->ResponseCode) == MPI2_SCSITASKMGMT_RSP_TM_COMPLETE) {
-		ccb->ccb_h.status = CAM_REQ_CMP;
+		mpssas_set_ccbstatus(ccb, CAM_REQ_CMP);
 		mpssas_announce_reset(sc, AC_SENT_BDR, tm->cm_targ->tid,
 		    CAM_LUN_WILDCARD);
 	}
 	else
-		ccb->ccb_h.status = CAM_REQ_CMP_ERR;
+		mpssas_set_ccbstatus(ccb, CAM_REQ_CMP_ERR);
 
 bailout:
 
@@ -3191,6 +3210,9 @@ mpssas_async(void *callback_arg, uint32_t code, struct cam_path *path,
 		/*
 		 * We should have a handle for this, but check to make sure.
 		 */
+		KASSERT(xpt_path_target_id(path) < sassc->maxtargets,
+		    ("Target %d out of bounds in mpssas_async\n",
+		    xpt_path_target_id(path)));
 		target = &sassc->targets[xpt_path_target_id(path)];
 		if (target->handle == 0)
 			break;
@@ -3229,7 +3251,7 @@ mpssas_async(void *callback_arg, uint32_t code, struct cam_path *path,
 			cam_release_devq(cdai.ccb_h.path,
 					 0, 0, 0, FALSE);
 
-		if (((cdai.ccb_h.status & CAM_STATUS_MASK) == CAM_REQ_CMP)
+		if ((mpssas_get_ccbstatus((union ccb *)&cdai) == CAM_REQ_CMP)
 		 && (rcap_buf.prot & SRC16_PROT_EN)) {
 			lun->eedp_formatted = TRUE;
 			lun->eedp_block_size = scsi_4btoul(rcap_buf.length);
@@ -3278,6 +3300,9 @@ mpssas_check_eedp(struct mps_softc *sc, struct cam_path *path,
 	targetid = xpt_path_target_id(path);
 	lunid = xpt_path_lun_id(path);
 
+	KASSERT(targetid < sassc->maxtargets,
+	    ("Target %d out of bounds in mpssas_check_eedp\n",
+	     targetid));
 	target = &sassc->targets[targetid];
 	if (target->handle == 0x0)
 		return;
@@ -3413,6 +3438,9 @@ mpssas_read_cap_done(struct cam_periph *periph, union ccb *done_ccb)
 	 * target.
 	 */
 	sassc = (struct mpssas_softc *)done_ccb->ccb_h.ppriv_ptr1;
+	KASSERT(done_ccb->ccb_h.target_id < sassc->maxtargets,
+	    ("Target %d out of bounds in mpssas_read_cap_done\n",
+	     done_ccb->ccb_h.target_id));
 	target = &sassc->targets[done_ccb->ccb_h.target_id];
 	SLIST_FOREACH(lun, &target->luns, lun_link) {
 		if (lun->lun_id != done_ccb->ccb_h.target_lun)
@@ -3425,7 +3453,7 @@ mpssas_read_cap_done(struct cam_periph *periph, union ccb *done_ccb)
 		 * the lun as not supporting EEDP and set the block size
 		 * to 0.
 		 */
-		if (((done_ccb->ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP)
+		if ((mpssas_get_ccbstatus(done_ccb) != CAM_REQ_CMP)
 		 || (done_ccb->csio.scsi_status != SCSI_STATUS_OK)) {
 			lun->eedp_formatted = FALSE;
 			lun->eedp_block_size = 0;
@@ -3562,4 +3590,34 @@ mpssas_check_id(struct mpssas_softc *sassc, int id)
 	}
 
 	return (0);
+}
+
+void
+mpssas_realloc_targets(struct mps_softc *sc, int maxtargets)
+{
+	struct mpssas_softc *sassc;
+	struct mpssas_lun *lun, *lun_tmp;
+	struct mpssas_target *targ;
+	int i;
+
+	sassc = sc->sassc;
+	/*
+	 * The number of targets is based on IOC Facts, so free all of
+	 * the allocated LUNs for each target and then the target buffer
+	 * itself.
+	 */
+	for (i=0; i< maxtargets; i++) {
+		targ = &sassc->targets[i];
+		SLIST_FOREACH_SAFE(lun, &targ->luns, lun_link, lun_tmp) {
+			free(lun, M_MPT2);
+		}
+	}
+	free(sassc->targets, M_MPT2);
+
+	sassc->targets = malloc(sizeof(struct mpssas_target) * maxtargets,
+	    M_MPT2, M_WAITOK|M_ZERO);
+	if (!sassc->targets) {
+		panic("%s failed to alloc targets with error %d\n",
+		    __func__, ENOMEM);
+	}
 }

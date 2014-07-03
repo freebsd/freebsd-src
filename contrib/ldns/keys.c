@@ -368,40 +368,50 @@ ldns_key_new_frm_fp_l(ldns_key **key, FILE *fp, int *line_nr)
 #ifdef USE_SHA2
 		alg = LDNS_SIGN_RSASHA256;
 #else
+# ifdef STDERR_MSGS
 		fprintf(stderr, "Warning: SHA256 not compiled into this ");
 		fprintf(stderr, "version of ldns\n");
+# endif
 #endif
 	}
 	if (strncmp(d, "10 RSASHA512", 3) == 0) {
 #ifdef USE_SHA2
 		alg = LDNS_SIGN_RSASHA512;
 #else
+# ifdef STDERR_MSGS
 		fprintf(stderr, "Warning: SHA512 not compiled into this ");
 		fprintf(stderr, "version of ldns\n");
+# endif
 #endif
 	}
 	if (strncmp(d, "12 ECC-GOST", 3) == 0) {
 #ifdef USE_GOST
 		alg = LDNS_SIGN_ECC_GOST;
 #else
+# ifdef STDERR_MSGS
 		fprintf(stderr, "Warning: ECC-GOST not compiled into this ");
 		fprintf(stderr, "version of ldns, use --enable-gost\n");
+# endif
 #endif
 	}
 	if (strncmp(d, "13 ECDSAP256SHA256", 3) == 0) {
 #ifdef USE_ECDSA
                 alg = LDNS_SIGN_ECDSAP256SHA256;
 #else
+# ifdef STDERR_MSGS
 		fprintf(stderr, "Warning: ECDSA not compiled into this ");
 		fprintf(stderr, "version of ldns, use --enable-ecdsa\n");
+# endif
 #endif
         }
 	if (strncmp(d, "14 ECDSAP384SHA384", 3) == 0) {
 #ifdef USE_ECDSA
                 alg = LDNS_SIGN_ECDSAP384SHA384;
 #else
+# ifdef STDERR_MSGS
 		fprintf(stderr, "Warning: ECDSA not compiled into this ");
 		fprintf(stderr, "version of ldns, use --enable-ecdsa\n");
+# endif
 #endif
         }
 	if (strncmp(d, "157 HMAC-MD5", 4) == 0) {
@@ -1317,8 +1327,10 @@ ldns_key_dsa2bin(unsigned char *data, DSA *k, uint16_t *size)
 	memcpy(data, &T, 1);
 
 	if (T > 8) {
+#ifdef STDERR_MSGS
 		fprintf(stderr, "DSA key with T > 8 (ie. > 1024 bits)");
 		fprintf(stderr, " not implemented\n");
+#endif
 		return false;
 	}
 
@@ -1605,7 +1617,9 @@ ldns_read_anchor_file(const char *filename)
 
 	fp = fopen(filename, "r");
 	if (!fp) {
+#ifdef STDERR_MSGS
 		fprintf(stderr, "Unable to open %s: %s\n", filename, strerror(errno));
+#endif
 		LDNS_FREE(line);
 		return NULL;
 	}
@@ -1619,7 +1633,9 @@ ldns_read_anchor_file(const char *filename)
 	fclose(fp);
 	
 	if (i <= 0) {
+#ifdef STDERR_MSGS
 		fprintf(stderr, "nothing read from %s", filename);
+#endif
 		LDNS_FREE(line);
 		return NULL;
 	} else {
@@ -1628,7 +1644,9 @@ ldns_read_anchor_file(const char *filename)
 			LDNS_FREE(line);
 			return r;
 		} else {
+#ifdef STDERR_MSGS
 			fprintf(stderr, "Error creating DNSKEY or DS rr from %s: %s\n", filename, ldns_get_errorstr_by_id(status));
+#endif
 			LDNS_FREE(line);
 			return NULL;
 		}

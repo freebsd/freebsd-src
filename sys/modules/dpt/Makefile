@@ -1,5 +1,6 @@
 # $FreeBSD$
-#
+
+.include <src.opts.mk>
 
 .PATH:	${.CURDIR}/../../dev/dpt
 KMOD=	dpt
@@ -9,7 +10,7 @@ SRCS=	dpt_scsi.c dpt.h \
 	opt_cam.h opt_scsi.h \
 	device_if.h bus_if.h
 
-.if ${MACHINE} != "i386"
+.if ${MK_EISA} == "no"
 # Create an empty opt_eisa.h in order to keep kmod.mk from linking in an
 # existing one from KERNBUILDDIR which possibly has DEV_EISA defined so
 # dpt.ko is always built without EISA support.

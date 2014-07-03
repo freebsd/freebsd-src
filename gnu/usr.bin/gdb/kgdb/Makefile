@@ -17,4 +17,6 @@ LDADD=	${GDBLIBS} ${BULIBS} -lkvm${GDB_SUFFIX} -lm -lreadline -ltermcap \
 CFLAGS+= -Wl,-export-dynamic
 .endif
 
+NO_PIE=	yes
+
 .include <bsd.prog.mk>

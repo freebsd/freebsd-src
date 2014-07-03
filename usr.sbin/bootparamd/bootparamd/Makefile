@@ -1,7 +1,7 @@
 #	from: @(#)Makefile	5.8 (Berkeley) 7/28/90
 # $FreeBSD$
 
-.include <bsd.own.mk>
+.include <src.opts.mk>
 
 PROG=	bootparamd
 MAN=	bootparams.5 bootparamd.8

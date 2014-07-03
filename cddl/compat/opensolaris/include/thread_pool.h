@@ -1,39 +1,78 @@
-/*-
- * Copyright (c) 2010 Pawel Jakub Dawidek <pjd@FreeBSD.org>
- * All rights reserved.
+/*
+ * CDDL HEADER START
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
- *    documentation and/or other materials provided with the distribution.
+ * The contents of this file are subject to the terms of the
+ * Common Development and Distribution License (the "License").
+ * You may not use this file except in compliance with the License.
  *
- * THIS SOFTWARE IS PROVIDED BY THE AUTHORS AND CONTRIBUTORS ``AS IS'' AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHORS OR CONTRIBUTORS BE LIABLE
- * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
- * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
- * SUCH DAMAGE.
+ * You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
+ * or http://www.opensolaris.org/os/licensing.
+ * See the License for the specific language governing permissions
+ * and limitations under the License.
  *
+ * When distributing Covered Code, include this CDDL HEADER in each
+ * file and include the License file at usr/src/OPENSOLARIS.LICENSE.
+ * If applicable, add the following below this CDDL HEADER, with the
+ * fields enclosed by brackets "[]" replaced with your own identifying
+ * information: Portions Copyright [yyyy] [name of copyright owner]
+ *
+ * CDDL HEADER END
+ */
+
+/*
+ * Copyright 2006 Sun Microsystems, Inc.  All rights reserved.
+ * Use is subject to license terms.
+ */
+
+/*
  * $FreeBSD$
  */
 
-#ifndef _OPENSOLARIS_THREAD_POOL_H_
-#define _OPENSOLARIS_THREAD_POOL_H_
+#ifndef	_THREAD_POOL_H_
+#define	_THREAD_POOL_H_
 
-typedef int tpool_t;
+#pragma ident	"%Z%%M%	%I%	%E% SMI"
 
-#define	tpool_create(a, b, c, d)	(0)
-#define	tpool_dispatch(pool, func, arg)	func(arg)
-#define	tpool_wait(pool)		do { } while (0)
-#define	tpool_destroy(pool)		do { } while (0)
+#include <sys/types.h>
+#include <thread.h>
+#include <pthread.h>
 
-#endif	/* !_OPENSOLARIS_THREAD_POOL_H_ */
+#ifdef	__cplusplus
+extern "C" {
+#endif
+
+typedef	struct tpool tpool_t;	/* opaque thread pool descriptor */
+
+#if defined(__STDC__)
+
+extern	tpool_t	*tpool_create(uint_t min_threads, uint_t max_threads,
+			uint_t linger, pthread_attr_t *attr);
+extern	int	tpool_dispatch(tpool_t *tpool,
+			void (*func)(void *), void *arg);
+extern	void	tpool_destroy(tpool_t *tpool);
+extern	void	tpool_abandon(tpool_t *tpool);
+extern	void	tpool_wait(tpool_t *tpool);
+extern	void	tpool_suspend(tpool_t *tpool);
+extern	int	tpool_suspended(tpool_t *tpool);
+extern	void	tpool_resume(tpool_t *tpool);
+extern	int	tpool_member(tpool_t *tpool);
+
+#else	/* Non ANSI */
+
+extern	tpool_t	*tpool_create();
+extern	int	tpool_dispatch();
+extern	void	tpool_destroy();
+extern	void	tpool_abandon();
+extern	void	tpool_wait();
+extern	void	tpool_suspend();
+extern	int	tpool_suspended();
+extern	void	tpool_resume();
+extern	int	tpool_member();
+
+#endif	/* __STDC__ */
+
+#ifdef	__cplusplus
+}
+#endif
+
+#endif	/* _THREAD_POOL_H_ */

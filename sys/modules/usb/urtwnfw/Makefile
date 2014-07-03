@@ -1,5 +1,5 @@
 # $FreeBSD$
 
-SUBDIR=	urtwnrtl8192cT urtwnrtl8192cU
+SUBDIR=	urtwnrtl8188eu urtwnrtl8192cT urtwnrtl8192cU
 
 .include <bsd.subdir.mk>

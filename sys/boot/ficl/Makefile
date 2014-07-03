@@ -6,7 +6,7 @@ FICLDIR?=	${.CURDIR}
 .if defined(FICL32)
 .PATH: ${FICLDIR}/${MACHINE_CPUARCH:S/amd64/i386/}
 .elif ${MACHINE_ARCH} == "mips64" || ${MACHINE_ARCH} == "mips64el"
-.PATH: ${FICLDIR}/${MACHINE_ARCH}
+.PATH: ${FICLDIR}/mips64
 .else
 .PATH: ${FICLDIR}/${MACHINE_CPUARCH}
 .endif

@@ -71,7 +71,6 @@ static int	vga_pci_release_resource(device_t dev, device_t child, int type,
     int rid, struct resource *r);
 
 int vga_pci_default_unit = -1;
-TUNABLE_INT("hw.pci.default_vgapci_unit", &vga_pci_default_unit);
 SYSCTL_INT(_hw_pci, OID_AUTO, default_vgapci_unit, CTLFLAG_RDTUN,
     &vga_pci_default_unit, -1, "Default VGA-compatible display");
 

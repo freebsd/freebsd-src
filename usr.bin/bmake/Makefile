@@ -106,7 +106,6 @@ COPTS.meta.c += -DHAVE_FILEMON_H -I${FILEMON_H:H}
 SUBDIR+= unit-tests
 .endif
 
-
 MAN= ${PROG}.1
 MAN1= ${MAN}
 
@@ -167,7 +166,6 @@ accept test:
 # override some simple things
 BINDIR= /usr/bin
 MANDIR= /usr/share/man/man
-DEFAULT_SYS_PATH= /usr/share/mk
 
 # make sure we get this
 CFLAGS+= ${COPTS.${.IMPSRC:T}}

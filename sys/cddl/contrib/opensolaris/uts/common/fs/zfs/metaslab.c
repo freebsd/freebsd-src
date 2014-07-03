@@ -20,7 +20,7 @@
  */
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2013 by Delphix. All rights reserved.
+ * Copyright (c) 2011, 2014 by Delphix. All rights reserved.
  * Copyright (c) 2013 by Saso Kiselkov. All rights reserved.
  */
 
@@ -41,7 +41,7 @@ SYSCTL_NODE(_vfs_zfs, OID_AUTO, metaslab, CTLFLAG_RW, 0, "ZFS metaslab");
  * avoid having to load lots of space_maps in a given txg. There are,
  * however, some cases where we want to avoid "fast" ganging and instead
  * we want to do an exhaustive search of all metaslabs on this device.
- * Currently we don't allow any gang, zil, or dump device related allocations
+ * Currently we don't allow any gang, slog, or dump device related allocations
  * to "fast" gang.
  */
 #define	CAN_FASTGANG(flags) \
@@ -55,7 +55,6 @@ SYSCTL_NODE(_vfs_zfs, OID_AUTO, metaslab, CTLFLAG_RW, 0, "ZFS metaslab");
 
 uint64_t metaslab_aliquot = 512ULL << 10;
 uint64_t metaslab_gang_bang = SPA_MAXBLOCKSIZE + 1;	/* force gang blocks */
-TUNABLE_QUAD("vfs.zfs.metaslab.gang_bang", &metaslab_gang_bang);
 SYSCTL_QUAD(_vfs_zfs_metaslab, OID_AUTO, gang_bang, CTLFLAG_RWTUN,
     &metaslab_gang_bang, 0,
     "Force gang block allocation for blocks larger than or equal to this value");
@@ -67,23 +66,10 @@ SYSCTL_QUAD(_vfs_zfs_metaslab, OID_AUTO, gang_bang, CTLFLAG_RWTUN,
  * Values should be greater than or equal to 100.
  */
 int zfs_condense_pct = 200;
-TUNABLE_INT("vfs.zfs.condense_pct", &zfs_condense_pct);
 SYSCTL_INT(_vfs_zfs, OID_AUTO, condense_pct, CTLFLAG_RWTUN,
     &zfs_condense_pct, 0,
     "Condense on-disk spacemap when it is more than this many percents"
     " of in-memory counterpart");
-
-/*
- * This value defines the number of allowed allocation failures per vdev.
- * If a device reaches this threshold in a given txg then we consider skipping
- * allocations on that device. The value of zfs_mg_alloc_failures is computed
- * in zio_init() unless it has been overridden in /etc/system.
- */
-int zfs_mg_alloc_failures = 0;
-TUNABLE_INT("vfs.zfs.mg_alloc_failures", &zfs_mg_alloc_failures);
-SYSCTL_INT(_vfs_zfs, OID_AUTO, mg_alloc_failures, CTLFLAG_RWTUN,
-    &zfs_mg_alloc_failures, 0,
-    "Number of allowed allocation failures per vdev");
 
 /*
  * The zfs_mg_noalloc_threshold defines which metaslab groups should
@@ -99,7 +85,6 @@ SYSCTL_INT(_vfs_zfs, OID_AUTO, mg_alloc_failures, CTLFLAG_RWTUN,
  * no metaslab group will be excluded based on this criterion.
  */
 int zfs_mg_noalloc_threshold = 0;
-TUNABLE_INT("vfs.zfs.mg_noalloc_threshold", &zfs_mg_noalloc_threshold);
 SYSCTL_INT(_vfs_zfs, OID_AUTO, mg_noalloc_threshold, CTLFLAG_RWTUN,
     &zfs_mg_noalloc_threshold, 0,
     "Percentage of metaslab group size that should be free"
@@ -109,7 +94,6 @@ SYSCTL_INT(_vfs_zfs, OID_AUTO, mg_noalloc_threshold, CTLFLAG_RWTUN,
  * When set will load all metaslabs when pool is first opened.
  */
 int metaslab_debug_load = 0;
-TUNABLE_INT("vfs.zfs.metaslab.debug_load", &metaslab_debug_load);
 SYSCTL_INT(_vfs_zfs_metaslab, OID_AUTO, debug_load, CTLFLAG_RWTUN,
     &metaslab_debug_load, 0,
     "Load all metaslabs when pool is first opened");
@@ -118,7 +102,6 @@ SYSCTL_INT(_vfs_zfs_metaslab, OID_AUTO, debug_load, CTLFLAG_RWTUN,
  * When set will prevent metaslabs from being unloaded.
  */
 int metaslab_debug_unload = 0;
-TUNABLE_INT("vfs.zfs.metaslab.debug_unload", &metaslab_debug_unload);
 SYSCTL_INT(_vfs_zfs_metaslab, OID_AUTO, debug_unload, CTLFLAG_RWTUN,
     &metaslab_debug_unload, 0,
     "Prevent metaslabs from being unloaded");
@@ -130,8 +113,6 @@ SYSCTL_INT(_vfs_zfs_metaslab, OID_AUTO, debug_unload, CTLFLAG_RWTUN,
  * aggressive strategy (i.e search by size rather than offset).
  */
 uint64_t metaslab_df_alloc_threshold = SPA_MAXBLOCKSIZE;
-TUNABLE_QUAD("vfs.zfs.metaslab.df_alloc_threshold",
-    &metaslab_df_alloc_threshold);
 SYSCTL_QUAD(_vfs_zfs_metaslab, OID_AUTO, df_alloc_threshold, CTLFLAG_RWTUN,
     &metaslab_df_alloc_threshold, 0,
     "Minimum size which forces the dynamic allocator to change it's allocation strategy");
@@ -143,27 +124,25 @@ SYSCTL_QUAD(_vfs_zfs_metaslab, OID_AUTO, df_alloc_threshold, CTLFLAG_RWTUN,
  * switch to using best-fit allocations.
  */
 int metaslab_df_free_pct = 4;
-TUNABLE_INT("vfs.zfs.metaslab.df_free_pct", &metaslab_df_free_pct);
 SYSCTL_INT(_vfs_zfs_metaslab, OID_AUTO, df_free_pct, CTLFLAG_RWTUN,
     &metaslab_df_free_pct, 0,
-    "The minimum free space, in percent, which must be available in a space map to continue allocations in a first-fit fashion");
+    "The minimum free space, in percent, which must be available in a "
+    "space map to continue allocations in a first-fit fashion");
 
 /*
  * A metaslab is considered "free" if it contains a contiguous
  * segment which is greater than metaslab_min_alloc_size.
  */
 uint64_t metaslab_min_alloc_size = DMU_MAX_ACCESS;
-TUNABLE_QUAD("vfs.zfs.metaslab.min_alloc_size",
-    &metaslab_min_alloc_size);
 SYSCTL_QUAD(_vfs_zfs_metaslab, OID_AUTO, min_alloc_size, CTLFLAG_RWTUN,
     &metaslab_min_alloc_size, 0,
-    "A metaslab is considered \"free\" if it contains a contiguous segment which is greater than vfs.zfs.metaslab.min_alloc_size");
+    "A metaslab is considered \"free\" if it contains a contiguous "
+    "segment which is greater than vfs.zfs.metaslab.min_alloc_size");
 
 /*
  * Percentage of all cpus that can be used by the metaslab taskq.
  */
 int metaslab_load_pct = 50;
-TUNABLE_INT("vfs.zfs.metaslab.load_pct", &metaslab_load_pct);
 SYSCTL_INT(_vfs_zfs_metaslab, OID_AUTO, load_pct, CTLFLAG_RWTUN,
     &metaslab_load_pct, 0,
     "Percentage of cpus that can be used by the metaslab taskq");
@@ -174,7 +153,6 @@ SYSCTL_INT(_vfs_zfs_metaslab, OID_AUTO, load_pct, CTLFLAG_RWTUN,
  * keep it loaded.
  */
 int metaslab_unload_delay = TXG_SIZE * 2;
-TUNABLE_INT("vfs.zfs.metaslab.unload_delay", &metaslab_unload_delay);
 SYSCTL_INT(_vfs_zfs_metaslab, OID_AUTO, unload_delay, CTLFLAG_RWTUN,
     &metaslab_unload_delay, 0,
     "Number of TXGs that an unused metaslab can be kept in memory");
@@ -185,13 +163,11 @@ SYSCTL_INT(_vfs_zfs_metaslab, OID_AUTO, unload_delay, CTLFLAG_RWTUN,
 boolean_t zfs_write_to_degraded = B_FALSE;
 SYSCTL_INT(_vfs_zfs, OID_AUTO, write_to_degraded, CTLFLAG_RWTUN,
     &zfs_write_to_degraded, 0, "Allow writing data to degraded vdevs");
-TUNABLE_INT("vfs.zfs.write_to_degraded", &zfs_write_to_degraded);
 
 /*
  * Max number of metaslabs per group to preload.
  */
 int metaslab_preload_limit = SPA_DVAS_PER_BP;
-TUNABLE_INT("vfs.zfs.metaslab.preload_limit", &metaslab_preload_limit);
 SYSCTL_INT(_vfs_zfs_metaslab, OID_AUTO, preload_limit, CTLFLAG_RWTUN,
     &metaslab_preload_limit, 0,
     "Max number of metaslabs per group to preload");
@@ -200,7 +176,6 @@ SYSCTL_INT(_vfs_zfs_metaslab, OID_AUTO, preload_limit, CTLFLAG_RWTUN,
  * Enable/disable preloading of metaslab.
  */
 boolean_t metaslab_preload_enabled = B_TRUE;
-TUNABLE_INT("vfs.zfs.metaslab.preload_enabled", &metaslab_preload_enabled);
 SYSCTL_INT(_vfs_zfs_metaslab, OID_AUTO, preload_enabled, CTLFLAG_RWTUN,
     &metaslab_preload_enabled, 0,
     "Max number of metaslabs per group to preload");
@@ -209,8 +184,6 @@ SYSCTL_INT(_vfs_zfs_metaslab, OID_AUTO, preload_enabled, CTLFLAG_RWTUN,
  * Enable/disable additional weight factor for each metaslab.
  */
 boolean_t metaslab_weight_factor_enable = B_FALSE;
-TUNABLE_INT("vfs.zfs.metaslab.weight_factor_enable",
-    &metaslab_weight_factor_enable);
 SYSCTL_INT(_vfs_zfs_metaslab, OID_AUTO, weight_factor_enable, CTLFLAG_RWTUN,
     &metaslab_weight_factor_enable, 0,
     "Enable additional weight factor for each metaslab");
@@ -423,7 +396,7 @@ metaslab_group_create(metaslab_class_t *mc, vdev_t *vd)
 	mg->mg_class = mc;
 	mg->mg_activation_count = 0;
 
-	mg->mg_taskq = taskq_create("metaslab_group_tasksq", metaslab_load_pct,
+	mg->mg_taskq = taskq_create("metaslab_group_taskq", metaslab_load_pct,
 	    minclsyspri, 10, INT_MAX, TASKQ_THREADS_CPU_PCT);
 
 	return (mg);
@@ -441,6 +414,7 @@ metaslab_group_destroy(metaslab_group_t *mg)
 	 */
 	ASSERT(mg->mg_activation_count <= 0);
 
+	taskq_destroy(mg->mg_taskq);
 	avl_destroy(&mg->mg_metaslab_tree);
 	mutex_destroy(&mg->mg_lock);
 	kmem_free(mg, sizeof (metaslab_group_t));
@@ -789,7 +763,7 @@ metaslab_ff_alloc(metaslab_t *msp, uint64_t size)
 	 * may exist in the same region.
 	 */
 	uint64_t align = size & -size;
-	uint64_t *cursor = &msp->ms_lbas[highbit(align) - 1];
+	uint64_t *cursor = &msp->ms_lbas[highbit64(align) - 1];
 	avl_tree_t *t = &msp->ms_tree->rt_root;
 
 	return (metaslab_block_picker(t, cursor, size, align));
@@ -826,7 +800,7 @@ metaslab_df_alloc(metaslab_t *msp, uint64_t size)
 	 * may exist in the same region.
 	 */
 	uint64_t align = size & -size;
-	uint64_t *cursor = &msp->ms_lbas[highbit(align) - 1];
+	uint64_t *cursor = &msp->ms_lbas[highbit64(align) - 1];
 	range_tree_t *rt = msp->ms_tree;
 	avl_tree_t *t = &rt->rt_root;
 	uint64_t max_size = metaslab_block_maxsize(msp);
@@ -942,7 +916,7 @@ metaslab_ndf_alloc(metaslab_t *msp, uint64_t size)
 	avl_tree_t *t = &msp->ms_tree->rt_root;
 	avl_index_t where;
 	range_seg_t *rs, rsearch;
-	uint64_t hbit = highbit(size);
+	uint64_t hbit = highbit64(size);
 	uint64_t *cursor = &msp->ms_lbas[hbit - 1];
 	uint64_t max_size = metaslab_block_maxsize(msp);
 
@@ -1185,7 +1159,7 @@ metaslab_weight_factor(metaslab_t *msp)
 	if (msp->ms_sm == NULL) {
 		vdev_t *vd = msp->ms_group->mg_vd;
 
-		i = highbit(msp->ms_size) - 1;
+		i = highbit64(msp->ms_size) - 1;
 		sectors = msp->ms_size >> vd->vdev_ashift;
 		return (sectors * i * vd->vdev_ashift);
 	}
@@ -1310,6 +1284,8 @@ metaslab_preload(void *arg)
 	metaslab_t *msp = arg;
 	spa_t *spa = msp->ms_group->mg_vd->vdev_spa;
 
+	ASSERT(!MUTEX_HELD(&msp->ms_group->mg_lock));
+
 	mutex_enter(&msp->ms_lock);
 	metaslab_load_wait(msp);
 	if (!msp->ms_loaded)
@@ -1334,19 +1310,36 @@ metaslab_group_preload(metaslab_group_t *mg)
 		taskq_wait(mg->mg_taskq);
 		return;
 	}
-	mutex_enter(&mg->mg_lock);
 
+	mutex_enter(&mg->mg_lock);
 	/*
-	 * Prefetch the next potential metaslabs
+	 * Load the next potential metaslabs
 	 */
-	for (msp = avl_first(t); msp != NULL; msp = AVL_NEXT(t, msp)) {
+	msp = avl_first(t);
+	while (msp != NULL) {
+		metaslab_t *msp_next = AVL_NEXT(t, msp);
 
 		/* If we have reached our preload limit then we're done */
 		if (++m > metaslab_preload_limit)
 			break;
 
+		/*
+		 * We must drop the metaslab group lock here to preserve
+		 * lock ordering with the ms_lock (when grabbing both
+		 * the mg_lock and the ms_lock, the ms_lock must be taken
+		 * first).  As a result, it is possible that the ordering
+		 * of the metaslabs within the avl tree may change before
+		 * we reacquire the lock. The metaslab cannot be removed from
+		 * the tree while we're in syncing context so it is safe to
+		 * drop the mg_lock here. If the metaslabs are reordered
+		 * nothing will break -- we just may end up loading a
+		 * less than optimal one.
+		 */
+		mutex_exit(&mg->mg_lock);
 		VERIFY(taskq_dispatch(mg->mg_taskq, metaslab_preload,
 		    msp, TQ_SLEEP) != 0);
+		mutex_enter(&mg->mg_lock);
+		msp = msp_next;
 	}
 	mutex_exit(&mg->mg_lock);
 }
@@ -1707,10 +1700,7 @@ metaslab_sync_done(metaslab_t *msp, uint64_t txg)
 void
 metaslab_sync_reassess(metaslab_group_t *mg)
 {
-	int64_t failures = mg->mg_alloc_failures;
-
 	metaslab_group_alloc_update(mg);
-	atomic_add_64(&mg->mg_alloc_failures, -failures);
 
 	/*
 	 * Preload the next potential metaslabs
@@ -1737,7 +1727,7 @@ metaslab_distance(metaslab_t *msp, dva_t *dva)
 
 static uint64_t
 metaslab_group_alloc(metaslab_group_t *mg, uint64_t psize, uint64_t asize,
-    uint64_t txg, uint64_t min_distance, dva_t *dva, int d, int flags)
+    uint64_t txg, uint64_t min_distance, dva_t *dva, int d)
 {
 	spa_t *spa = mg->mg_vd->vdev_spa;
 	metaslab_t *msp = NULL;
@@ -1764,10 +1754,9 @@ metaslab_group_alloc(metaslab_group_t *mg, uint64_t psize, uint64_t asize,
 				spa_dbgmsg(spa, "%s: failed to meet weight "
 				    "requirement: vdev %llu, txg %llu, mg %p, "
 				    "msp %p, psize %llu, asize %llu, "
-				    "failures %llu, weight %llu",
-				    spa_name(spa), mg->mg_vd->vdev_id, txg,
-				    mg, msp, psize, asize,
-				    mg->mg_alloc_failures, msp->ms_weight);
+				    "weight %llu", spa_name(spa),
+				    mg->mg_vd->vdev_id, txg,
+				    mg, msp, psize, asize, msp->ms_weight);
 				mutex_exit(&mg->mg_lock);
 				return (-1ULL);
 			}
@@ -1798,27 +1787,6 @@ metaslab_group_alloc(metaslab_group_t *mg, uint64_t psize, uint64_t asize,
 			return (-1ULL);
 
 		mutex_enter(&msp->ms_lock);
-
-		/*
-		 * If we've already reached the allowable number of failed
-		 * allocation attempts on this metaslab group then we
-		 * consider skipping it. We skip it only if we're allowed
-		 * to "fast" gang, the physical size is larger than
-		 * a gang block, and we're attempting to allocate from
-		 * the primary metaslab.
-		 */
-		if (mg->mg_alloc_failures > zfs_mg_alloc_failures &&
-		    CAN_FASTGANG(flags) && psize > SPA_GANGBLOCKSIZE &&
-		    activation_weight == METASLAB_WEIGHT_PRIMARY) {
-			spa_dbgmsg(spa, "%s: skipping metaslab group: "
-			    "vdev %llu, txg %llu, mg %p, msp[%llu] %p, "
-			    "psize %llu, asize %llu, failures %llu",
-			    spa_name(spa), mg->mg_vd->vdev_id, txg, mg,
-			    msp->ms_id, msp, psize, asize,
-			    mg->mg_alloc_failures);
-			mutex_exit(&msp->ms_lock);
-			return (-1ULL);
-		}
 
 		/*
 		 * Ensure that the metaslab we have selected is still
@@ -1858,8 +1826,6 @@ metaslab_group_alloc(metaslab_group_t *mg, uint64_t psize, uint64_t asize,
 
 		if ((offset = metaslab_block_alloc(msp, asize)) != -1ULL)
 			break;
-
-		atomic_inc_64(&mg->mg_alloc_failures);
 
 		metaslab_passivate(msp, metaslab_block_maxsize(msp));
 		mutex_exit(&msp->ms_lock);
@@ -2015,7 +1981,7 @@ top:
 		ASSERT(P2PHASE(asize, 1ULL << vd->vdev_ashift) == 0);
 
 		offset = metaslab_group_alloc(mg, psize, asize, txg, distance,
-		    dva, d, flags);
+		    dva, d);
 		if (offset != -1ULL) {
 			/*
 			 * If we've just selected this metaslab group,

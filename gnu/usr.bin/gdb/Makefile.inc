@@ -52,7 +52,7 @@ GENSRCS+= nm.h tm.h
 .if defined(GDB_CROSS_DEBUGGER)
 CFLAGS+= -DCROSS_DEBUGGER -I${BMAKE_ROOT}/../..
 GDB_SUFFIX= -${TARGET_ARCH}
-NO_MAN=
+MAN=
 .endif
 
 .include "${TARGET_SUBDIR}/Makefile"

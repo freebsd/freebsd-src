@@ -43,6 +43,51 @@
 	    <xsl:value-of select="concat('[r', @revision, ']')"/>
 	  </xsl:element>
 	</xsl:if>
+	<xsl:if test="@contrib">
+	  <xsl:element name="span">
+	    <xsl:attribute name="class">
+	      <xsl:value-of select="'contrib'"/>
+	    </xsl:attribute>
+	    <xsl:choose>
+	      <xsl:when test="@contrib = 'sponsor'">
+		<xsl:if test="@sponsor != ''">
+		  (Sponsored by
+		  <xsl:choose>
+		    <xsl:when test="@sponsorurl != ''">
+		      <xsl:element name="a">
+			<xsl:attribute name="href">
+			  <xsl:value-of select="@sponsorurl"/>
+			</xsl:attribute>
+			<xsl:value-of select="concat(@sponsor, ')')"/>
+		      </xsl:element>
+		    </xsl:when>
+		    <xsl:otherwise>
+		      <xsl:value-of select="concat(@sponsor, ')')"/>
+		    </xsl:otherwise>
+		  </xsl:choose>
+		</xsl:if>
+	      </xsl:when>
+	      <xsl:when test="@contrib = 'vendor'">
+		<xsl:if test="@vendor != ''">
+		  (Contributed / provided by
+		  <xsl:choose>
+		    <xsl:when test="@vendorurl != ''">
+		      <xsl:element name="a">
+			<xsl:attribute name="href">
+			  <xsl:value-of select="@vendorurl"/>
+			</xsl:attribute>
+			<xsl:value-of select="concat(@vendor, ')')"/>
+		      </xsl:element>
+		    </xsl:when>
+		    <xsl:otherwise>
+		      <xsl:value-of select="concat(@vendor, ')')"/>
+		    </xsl:otherwise>
+		  </xsl:choose>
+		</xsl:if>
+	      </xsl:when>
+	    </xsl:choose>
+	  </xsl:element>
+	</xsl:if>
        </p>
      </xsl:variable>
 

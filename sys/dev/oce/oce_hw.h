@@ -1023,7 +1023,7 @@ struct mbx_hdr {
 #define	OCE_MBX_ADDL_STATUS(_MHDR) ((_MHDR)->u0.rsp.additional_status)
 #define	OCE_MBX_STATUS(_MHDR) ((_MHDR)->u0.rsp.status)
 
-/* [05] OPCODE_COMMON_QUERY_LINK_CONFIG */
+/* [05] OPCODE_COMMON_QUERY_LINK_CONFIG_V1 */
 struct mbx_query_common_link_config {
 	struct mbx_hdr hdr;
 	union {
@@ -1032,16 +1032,37 @@ struct mbx_query_common_link_config {
 		} req;
 
 		struct {
-			/* dw 0 */
-			uint8_t physical_port;
-			uint8_t mac_duplex;
-			uint8_t mac_speed;
-			uint8_t mac_fault;
-			/* dw 1 */
-			uint8_t mgmt_mac_duplex;
-			uint8_t mgmt_mac_speed;
+		#ifdef _BIG_ENDIAN
+			uint32_t physical_port_fault:8;
+			uint32_t physical_port_speed:8;
+			uint32_t link_duplex:8;
+			uint32_t pt:2;
+			uint32_t port_number:6;
+
 			uint16_t qos_link_speed;
-			uint32_t logical_link_status;
+			uint16_t rsvd0;
+
+			uint32_t rsvd1:21;
+			uint32_t phys_fcv:1;
+			uint32_t phys_rxf:1;
+			uint32_t phys_txf:1;
+			uint32_t logical_link_status:8;
+		#else
+			uint32_t port_number:6;
+			uint32_t pt:2;
+			uint32_t link_duplex:8;
+			uint32_t physical_port_speed:8;
+			uint32_t physical_port_fault:8;
+
+			uint16_t rsvd0;
+			uint16_t qos_link_speed;
+
+			uint32_t logical_link_status:8;
+			uint32_t phys_txf:1;
+			uint32_t phys_rxf:1;
+			uint32_t phys_fcv:1;
+			uint32_t rsvd1:21;
+		#endif
 		} rsp;
 	} params;
 };

@@ -90,7 +90,7 @@ f_media_init_directory()
 {
 	local dev="$1" path
 
-	device_$dev get private path || return $FAILURE
+	$dev get private path || return $FAILURE
 	f_dprintf "Init routine called for Directory device. path=[%s]" \
 	          "$path"
 
@@ -125,11 +125,13 @@ f_media_init_directory()
 f_media_get_directory()
 {
 	local dev="$1" file="$2" probe_type="$3" path
+	local name
 
+	$dev get name name
 	f_dprintf "f_media_get_directory: dev=[%s] file=[%s] probe_type=%s" \
-	          "$dev" "$file" "$probe_type"
+	          "$name" "$file" "$probe_type"
 
-	device_$dev get private path
+	$dev get private path
 	f_media_generic_get "$path" "$file" "$probe_type"
 }
 

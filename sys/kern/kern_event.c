@@ -290,7 +290,7 @@ static struct {
 	{ &proc_filtops },			/* EVFILT_PROC */
 	{ &sig_filtops },			/* EVFILT_SIGNAL */
 	{ &timer_filtops },			/* EVFILT_TIMER */
-	{ &null_filtops },			/* former EVFILT_NETDEV */
+	{ &file_filtops },			/* EVFILT_PROCDESC */
 	{ &fs_filtops },			/* EVFILT_FS */
 	{ &null_filtops },			/* EVFILT_LIO */
 	{ &user_filtops },			/* EVFILT_USER */
@@ -417,27 +417,22 @@ filt_procdetach(struct knote *kn)
 static int
 filt_proc(struct knote *kn, long hint)
 {
-	struct proc *p = kn->kn_ptr.p_proc;
+	struct proc *p;
 	u_int event;
 
-	/*
-	 * mask off extra data
-	 */
+	p = kn->kn_ptr.p_proc;
+	/* Mask off extra data. */
 	event = (u_int)hint & NOTE_PCTRLMASK;
 
-	/*
-	 * if the user is interested in this event, record it.
-	 */
+	/* If the user is interested in this event, record it. */
 	if (kn->kn_sfflags & event)
 		kn->kn_fflags |= event;
 
-	/*
-	 * process is gone, so flag the event as finished.
-	 */
+	/* Process is gone, so flag the event as finished. */
 	if (event == NOTE_EXIT) {
 		if (!(kn->kn_status & KN_DETACHED))
 			knlist_remove_inevent(&p->p_klist, kn);
-		kn->kn_flags |= (EV_EOF | EV_ONESHOT);
+		kn->kn_flags |= EV_EOF | EV_ONESHOT;
 		kn->kn_ptr.p_proc = NULL;
 		if (kn->kn_fflags & NOTE_EXIT)
 			kn->kn_data = p->p_xstat;
@@ -533,8 +528,8 @@ timer2sbintime(intptr_t data)
 {
 
 #ifdef __LP64__
-	if (data > INT64_MAX / SBT_1MS)
-		return INT64_MAX;
+	if (data > SBT_MAX / SBT_1MS)
+		return (SBT_MAX);
 #endif
 	return (SBT_1MS * data);
 }
@@ -1404,7 +1399,7 @@ kqueue_scan(struct kqueue *kq, int maxevents, struct kevent_copyops *k_ops,
 				rsbt = tstosbt(*tsp);
 				if (TIMESEL(&asbt, rsbt))
 					asbt += tc_tick_sbt;
-				if (asbt <= INT64_MAX - rsbt)
+				if (asbt <= SBT_MAX - rsbt)
 					asbt += rsbt;
 				else
 					asbt = 0;

@@ -992,7 +992,7 @@ netmap_mem_private_new(const char *name, u_int txr, u_int txd,
 	if (p[NETMAP_RING_POOL].num < v)
 		p[NETMAP_RING_POOL].num = v;
 	/* for each pipe we only need the buffers for the 4 "real" rings.
-         * On the other end, the pipe ring dimension may be different from 
+         * On the other end, the pipe ring dimension may be different from
          * the parent port ring dimension. As a compromise, we allocate twice the
          * space actually needed if the pipe rings were the same size as the parent rings
          */

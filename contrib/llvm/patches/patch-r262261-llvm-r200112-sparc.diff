@@ -2,7 +2,7 @@ Pull in r200112 from upstream llvm trunk (by Venkatraman Govindaraju):
 
   [Sparc] Add support for sparc relocation types in ELF object file.
 
-Introduced here: http://svn.freebsd.org/changeset/base/262261
+Introduced here: http://svnweb.freebsd.org/changeset/base/262261
 
 Index: test/MC/Sparc/sparc-relocations.s
 ===================================================================

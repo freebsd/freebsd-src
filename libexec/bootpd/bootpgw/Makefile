@@ -2,7 +2,7 @@
 # $FreeBSD$
 
 PROG=	bootpgw
-NO_MAN=
+MAN=
 SRCS=	bootpgw.c getif.c hwaddr.c report.c rtmsg.c
 
 SRCDIR=	${.CURDIR}/..

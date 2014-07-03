@@ -6,7 +6,7 @@
  * forth in the LICENSE file which can be found at the top level of
  * the sendmail distribution.
  *
- *	$Id: daemon.h,v 8.4 2013/11/22 20:51:55 ca Exp $
+ *	$Id: daemon.h,v 8.4 2013-11-22 20:51:55 ca Exp $
  */
 
 #ifndef DAEMON_H

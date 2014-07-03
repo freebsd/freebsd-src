@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-NO_MAN=
+MAN=
 .include <bsd.own.mk>
 
 PROG_CXX=llvm-rtdyld

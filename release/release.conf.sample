@@ -56,6 +56,18 @@ PORTBRANCH="ports/head@rHEAD"
 ## means.
 #CHROOTBUILD_SKIP=
 
+## Set to a non-empty value skip checkout or update of /usr/src in
+## the chroot.  This is intended for use when /usr/src already exists.
+#SRC_UPDATE_SKIP=
+
+## Set to a non-empty value skip checkout or update of /usr/doc in
+## the chroot.  This is intended for use when /usr/doc already exists.
+#DOC_UPDATE_SKIP=
+
+## Set to a non-empty value skip checkout or update of /usr/ports in
+## the chroot.  This is intended for use when /usr/ports already exists.
+#PORTS_UPDATE_SKIP=
+
 ## Set to pass additional flags to make(1) for the build chroot setup, such
 ## as TARGET/TARGET_ARCH.
 #CHROOT_MAKEENV=

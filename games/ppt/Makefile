@@ -2,7 +2,7 @@
 # $FreeBSD$
 
 PROG=	ppt
-NO_MAN=
+MAN=
 
 .include <bsd.prog.mk>
 

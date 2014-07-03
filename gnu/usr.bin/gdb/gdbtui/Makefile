@@ -2,7 +2,7 @@
 
 PROG=	gdbtui${GDB_SUFFIX}
 SRCS=	tui-main.c
-NO_MAN=
+MAN=
 
 BULIBS= ${OBJ_BU}/libbfd/libbfd.a ${OBJ_BU}/libopcodes/libopcodes.a \
 	${OBJ_BU}/libiberty/libiberty.a
@@ -14,5 +14,7 @@ LDFLAGS+= -Wl,-E
 
 DPADD=	${GDBLIBS} ${BULIBS} ${LIBM} ${LIBREADLINE} ${LIBTERMCAP} ${LIBGNUREGEX}
 LDADD=	${GDBLIBS} ${BULIBS} -lm -lreadline -ltermcap -lgnuregex
+
+NO_PIE=	yes
 
 .include <bsd.prog.mk>

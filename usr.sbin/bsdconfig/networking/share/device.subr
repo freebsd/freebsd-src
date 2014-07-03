@@ -75,10 +75,11 @@ f_dialog_menu_netdev()
 	#
 	# Get list of usable network interfaces
 	#
-	local devs if iflist= # Calculated below
+	local dev devs if iflist= # Calculated below
 	f_device_rescan_network
 	f_device_find "" $DEVICE_TYPE_NETWORK devs
-	for if in $devs; do
+	for dev in $devs; do
+		f_struct "$dev" get name if || continue
 		# Skip unsavory interfaces
 		case "$if" in
 		lo[0-9]*|ppp[0-9]*|sl[0-9]*|faith[0-9]*) continue ;;

@@ -1,6 +1,6 @@
 # $FreeBSD$
 
 PROG=	tionxcl
-NO_MAN=	defined
+MAN=
 
 .include <bsd.prog.mk>

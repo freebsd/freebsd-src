@@ -548,10 +548,10 @@ int radeon_dummy_page_init(struct radeon_device *rdev)
 	if (rdev->dummy_page.dmah)
 		return 0;
 	rdev->dummy_page.dmah = drm_pci_alloc(rdev->ddev,
-	    PAGE_SIZE, PAGE_SIZE, ~0);
+	    PAGE_SIZE, PAGE_SIZE, BUS_SPACE_MAXSIZE_32BIT);
 	if (rdev->dummy_page.dmah == NULL)
 		return -ENOMEM;
-	rdev->dummy_page.addr = (dma_addr_t)rdev->dummy_page.dmah->vaddr;
+	rdev->dummy_page.addr = rdev->dummy_page.dmah->busaddr;
 	return 0;
 }
 

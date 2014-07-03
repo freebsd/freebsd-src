@@ -1,5 +1,5 @@
 .\"	$FreeBSD$
-.\"	$OpenBSD: dc.1,v 1.24 2010/01/02 19:48:56 schwarze Exp $
+.\"	$OpenBSD: dc.1,v 1.27 2012/08/19 12:07:21 jmc Exp $
 .\"
 .\" Copyright (C) Caldera International Inc.  2001-2002.
 .\" All rights reserved.
@@ -35,7 +35,7 @@
 .\"
 .\"	@(#)dc.1	8.1 (Berkeley) 6/6/93
 .\"
-.Dd January 22, 2010
+.Dd April 16, 2014
 .Dt DC 1
 .Os
 .Sh NAME
@@ -73,12 +73,6 @@ Evaluate
 If multiple
 .Fl e
 options are specified, they will be processed in the order given.
-If no
-.Ar filename
-argument is given, execution will stop after processing the expressions
-given on the command line,
-otherwise processing will continue with the contents of
-.Ar filename .
 .It Fl f Ar filename , Fl Fl file Ar filename
 Process the content of the given file before further calculations are done.
 If multiple
@@ -98,14 +92,26 @@ See
 for a more detailed description.
 .El
 .Pp
+If neither
+.Ar expression
+nor
+.Ar file
+are specified on the command line,
+.Nm
+reads from the standard input.
+Otherwise
+.Ar expression
+and
+.Ar file
+are processed and
+.Nm
+exits.
+.Pp
 Ordinarily,
 .Nm
 operates on decimal integers,
 but one may specify an input base, output base,
 and a number of fractional digits (scale) to be maintained.
-If an argument is given,
-input is taken from that file until its end,
-then from the standard input.
 Whitespace is ignored, except where it signals the end of a number,
 end of a line or when a register name is expected.
 The following constructions are recognized:
