@@ -437,7 +437,7 @@ vq_endchains(struct vqueue_info *vq, int used_all_avail)
 	if (used_all_avail &&
 	    (vs->vs_negotiated_caps & VIRTIO_F_NOTIFY_ON_EMPTY))
 		intr = 1;
-	else if (vs->vs_flags & VIRTIO_EVENT_IDX) {
+	else if (vs->vs_negotiated_caps & VIRTIO_RING_F_EVENT_IDX) {
 		event_idx = VQ_USED_EVENT_IDX(vq);
 		/*
 		 * This calculation is per docs and the kernel
