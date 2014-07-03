@@ -2277,7 +2277,8 @@ fasttrap_ioctl(struct cdev *dev, u_long cmd, caddr_t arg, int fflag,
 
 		probe = kmem_alloc(size, KM_SLEEP);
 
-		if (copyin(uprobe, probe, size) != 0) {
+		if (copyin(uprobe, probe, size) != 0 ||
+		    probe->ftps_noffs != noffs) {
 			kmem_free(probe, size);
 			return (EFAULT);
 		}
