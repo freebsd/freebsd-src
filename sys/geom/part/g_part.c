@@ -117,6 +117,7 @@ struct g_part_alias_list {
 	{ "dragonfly-legacy", G_PART_ALIAS_DFBSD_LEGACY },
 	{ "dragonfly-hammer", G_PART_ALIAS_DFBSD_HAMMER },
 	{ "dragonfly-hammer2", G_PART_ALIAS_DFBSD_HAMMER2 },
+	{ "prep-boot", G_PART_ALIAS_PREP_BOOT },
 };
 
 SYSCTL_DECL(_kern_geom);
