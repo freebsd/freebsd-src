@@ -192,8 +192,6 @@ int cfi_init(void);
 void cfi_shutdown(void) __unused;
 static void cfi_online(void *arg);
 static void cfi_offline(void *arg);
-static int cfi_targ_enable(void *arg, struct ctl_id targ_id);
-static int cfi_targ_disable(void *arg, struct ctl_id targ_id);
 static int cfi_lun_enable(void *arg, struct ctl_id target_id, int lun_id);
 static int cfi_lun_disable(void *arg, struct ctl_id target_id, int lun_id);
 static void cfi_datamove(union ctl_io *io);
@@ -261,8 +259,6 @@ cfi_init(void)
 	fe->port_online = cfi_online;
 	fe->port_offline = cfi_offline;
 	fe->onoff_arg = softc;
-	fe->targ_enable = cfi_targ_enable;
-	fe->targ_disable = cfi_targ_disable;
 	fe->lun_enable = cfi_lun_enable;
 	fe->lun_disable = cfi_lun_disable;
 	fe->targ_lun_arg = softc;
@@ -344,18 +340,6 @@ cfi_offline(void *arg)
 	softc = (struct cfi_softc *)arg;
 
 	softc->flags &= ~CFI_ONLINE;
-}
-
-static int
-cfi_targ_enable(void *arg, struct ctl_id targ_id)
-{
-	return (0);
-}
-
-static int
-cfi_targ_disable(void *arg, struct ctl_id targ_id)
-{
-	return (0);
 }
 
 static int
