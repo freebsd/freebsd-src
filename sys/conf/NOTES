@@ -1823,7 +1823,7 @@ hint.uart.0.baud="115200"
 #
 
 # Options for serial drivers that support consoles:
-options 	BREAK_TO_DEBUGGER	# A BREAK on a serial console goes to
+options 	BREAK_TO_DEBUGGER	# A BREAK/DBG on the console goes to
 					# ddb, if available.
 
 # Solaris implements a new BREAK which is initiated by a character
