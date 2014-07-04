@@ -75,6 +75,8 @@ usage(const char *why)
 	fprintf(stderr, "\t-o <file>\t-  file to write image into\n");
 	fprintf(stderr, "\t-p <partition>\n");
 	fprintf(stderr, "\t-s <scheme>\n");
+	fprintf(stderr, "\t-v\t\t-  increase verbosity\n");
+	fprintf(stderr, "\t-y\t\t-  [developers] enable unit test\n");
 	fprintf(stderr, "\t-H <num>\t-  number of heads to simulate\n");
 	fprintf(stderr, "\t-P <num>\t-  physical sector size\n");
 	fprintf(stderr, "\t-S <num>\t-  logical sector size\n");
