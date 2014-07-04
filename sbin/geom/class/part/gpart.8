@@ -553,6 +553,16 @@ for partition types that do not have symbolic names.
 Symbolic names currently understood and used by
 .Fx are:
 .Bl -tag -width ".Cm dragonfly-disklabel64"
+.It Cm apple-boot
+The system partition dedicated to storing boot loaders on some Apple
+systems.
+The scheme-specific types are
+.Qq Li "!171"
+for MBR,
+.Qq Li "!Apple_Bootstrap"
+for APM, and
+.Qq Li "!426f6f74-0000-11aa-aa11-00306543ecac"
+for GPT.
 .It Cm bios-boot
 The system partition dedicated to second stage of the boot loader program.
 Usually it is used by the GRUB 2 loader for GPT partitioning schemes.
@@ -823,6 +833,14 @@ A partition that contains a NTFS or exFAT filesystem.
 The scheme-specific type is
 .Qq Li "!7"
 for MBR.
+.It Cm prep-boot
+The system partition dedicated to storing boot loaders on some PowerPC systems,
+notably those made by IBM.
+The scheme-specific types are
+.Qq Li "!65"
+for MBR and
+.Qq Li "!0x9e1a2d38-c612-4316-aa26-8b49521e5a8b"
+for GPT.
 .It Cm vmware-vmfs
 A partition that contains a VMware File System (VMFS).
 The scheme-specific types are
@@ -1018,7 +1036,7 @@ Instead, the 800 KBytes bootstrap code image
 should be written with the
 .Cm gpart bootcode
 command to a partition of type
-.Cm freebsd-boot ,
+.Cm apple-boot ,
 which should also be 800 KB in size.
 .Sh OPERATIONAL FLAGS
 Actions other than the
