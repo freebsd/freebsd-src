@@ -79,16 +79,25 @@ SYSCTL_UINT(_security_cheri, OID_AUTO, debugger_on_exception, CTLFLAG_RW,
     &security_cheri_debugger_on_exception, 0,
     "Run debugger on CHERI exception");
 
-#define	CHERI_CAP_PRINT(c, ctag) do {					\
+#define	CHERI_CAP_PRINT(crn) do {					\
+	uintmax_t c_perms, c_otype, c_base, c_length;			\
+	u_int ctag, c_unsealed;						\
+									\
+	CHERI_CGETTAG(ctag, (crn));					\
+	CHERI_CGETUNSEALED(c_unsealed, (crn));				\
+	CHERI_CGETPERM(c_perms, (crn));					\
+	CHERI_CGETTYPE(c_otype, (crn));					\
+	CHERI_CGETBASE(c_base, (crn));					\
+	CHERI_CGETLEN(c_length, (crn));					\
+									\
 	printf("t: %u u: %u perms 0x%08jx otype 0x%016jx\n", ctag,	\
-	    c.c_unsealed, (uintmax_t)c.c_perms,	(uintmax_t)c.c_otype);	\
-	printf("\tbase 0x%016jx length 0x%016jx\n",			\
-	    (uintmax_t)c.c_base, (uintmax_t)c.c_length);		\
+	    c_unsealed, c_perms, c_otype);				\
+	printf("\tbase 0x%016jx length 0x%016jx\n", c_base, c_length);	\
 } while (0)
 
-#define	CHERI_REG_PRINT(c, ctag, num) do {				\
+#define	CHERI_REG_PRINT(crn, num) do {					\
 	printf("C%u ", num);						\
-	CHERI_CAP_PRINT(c, ctag);					\
+	CHERI_CAP_PRINT(crn);						\
 } while (0)
 
 static void	cheri_capability_set_user_c0(struct chericap *);
@@ -337,9 +346,7 @@ void
 cheri_log_exception(struct trapframe *frame, int trap_type)
 {
 	struct cheri_frame *cheriframe;
-	struct chericap c;
 	register_t cause;
-	u_int ctag;
 	uint8_t exccode, regnum;
 
 #ifdef SMP
@@ -357,57 +364,39 @@ cheri_log_exception(struct trapframe *frame, int trap_type)
 
 	/* C0 */
 	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &cheriframe->cf_c0, 0);
-	CHERI_GETCAPREG(CHERI_CR_CTEMP0, c);
-	CHERI_CGETTAG(ctag, CHERI_CR_CTEMP0);
-	CHERI_REG_PRINT(c, ctag, 0);
+	CHERI_REG_PRINT(CHERI_CR_CTEMP0, 0);
 
 	/* C1 */
 	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &cheriframe->cf_c1, 0);
-	CHERI_GETCAPREG(CHERI_CR_CTEMP0, c);
-	CHERI_CGETTAG(ctag, CHERI_CR_CTEMP0);
-	CHERI_REG_PRINT(c, ctag, 1);
+	CHERI_REG_PRINT(CHERI_CR_CTEMP0, 1);
 
 	/* C2 */
 	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &cheriframe->cf_c2, 0);
-	CHERI_GETCAPREG(CHERI_CR_CTEMP0, c);
-	CHERI_CGETTAG(ctag, CHERI_CR_CTEMP0);
-	CHERI_REG_PRINT(c, ctag, 2);
+	CHERI_REG_PRINT(CHERI_CR_CTEMP0, 2);
 
 	/* C3 */
 	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &cheriframe->cf_c3, 0);
-	CHERI_GETCAPREG(CHERI_CR_CTEMP0, c);
-	CHERI_CGETTAG(ctag, CHERI_CR_CTEMP0);
-	CHERI_REG_PRINT(c, ctag, 3);
+	CHERI_REG_PRINT(CHERI_CR_CTEMP0, 3);
 
 	/* C4 */
 	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &cheriframe->cf_c4, 0);
-	CHERI_GETCAPREG(CHERI_CR_CTEMP0, c);
-	CHERI_CGETTAG(ctag, CHERI_CR_CTEMP0);
-	CHERI_REG_PRINT(c, ctag, 4);
+	CHERI_REG_PRINT(CHERI_CR_CTEMP0, 4);
 
 	/* C11 */
 	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &cheriframe->cf_c11, 0);
-	CHERI_GETCAPREG(CHERI_CR_CTEMP0, c);
-	CHERI_CGETTAG(ctag, CHERI_CR_CTEMP0);
-	CHERI_REG_PRINT(c, ctag, 11);
+	CHERI_REG_PRINT(CHERI_CR_CTEMP0, 11);
 
 	/* C24 - RCC */
 	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &cheriframe->cf_rcc, 0);
-	CHERI_GETCAPREG(CHERI_CR_CTEMP0, c);
-	CHERI_CGETTAG(ctag, CHERI_CR_CTEMP0);
-	CHERI_REG_PRINT(c, ctag, 24);
+	CHERI_REG_PRINT(CHERI_CR_CTEMP0, 24);
 
 	/* C26 - IDC */
 	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &cheriframe->cf_idc, 0);
-	CHERI_GETCAPREG(CHERI_CR_CTEMP0, c);
-	CHERI_CGETTAG(ctag, CHERI_CR_CTEMP0);
-	CHERI_REG_PRINT(c, ctag, 26);
+	CHERI_REG_PRINT(CHERI_CR_CTEMP0, 26);
 
 	/* C31 - saved PCC */
 	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &cheriframe->cf_pcc, 0);
-	CHERI_GETCAPREG(CHERI_CR_CTEMP0, c);
-	CHERI_CGETTAG(ctag, CHERI_CR_CTEMP0);
-	CHERI_REG_PRINT(c, ctag, 31);
+	CHERI_REG_PRINT(CHERI_CR_CTEMP0, 31);
 
 #if DDB
 	if (security_cheri_debugger_on_exception)
@@ -426,7 +415,7 @@ int
 cheri_syscall_authorize(struct thread *td, u_int code, int nargs,
     register_t *args)
 {
-	struct chericap c;
+	uintmax_t c_perms;
 
 	/*
 	 * Allow the cycle counter to be read via sysarch.
@@ -446,8 +435,8 @@ cheri_syscall_authorize(struct thread *td, u_int code, int nargs,
 	 */
 	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC,
 	    &td->td_pcb->pcb_cheriframe.cf_pcc, 0);
-	CHERI_GETCAPREG(CHERI_CR_CTEMP0, c);
-	if ((c.c_perms & CHERI_PERM_SYSCALL) == 0) {
+	CHERI_CGETPERM(c_perms, CHERI_CR_CTEMP0);
+	if ((c_perms & CHERI_PERM_SYSCALL) == 0) {
 		atomic_add_int(&security_cheri_syscall_violations, 1);
 
 #if DDB
@@ -471,11 +460,12 @@ cheri_syscall_authorize(struct thread *td, u_int code, int nargs,
 int
 cheri_signal_sandboxed(struct thread *td)
 {
-	struct chericap c;
+	uintmax_t c_perms;
+
 	CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC,
 	    &td->td_pcb->pcb_cheriframe.cf_pcc, 0);
-	CHERI_GETCAPREG(CHERI_CR_CTEMP0, c);
-	if ((c.c_perms & CHERI_PERM_SYSCALL) == 0) {
+	CHERI_CGETPERM(c_perms, CHERI_CR_CTEMP0);
+	if ((c_perms & CHERI_PERM_SYSCALL) == 0) {
 		atomic_add_int(&security_cheri_sandboxed_signals, 1);
 		return (ECAPMODE);
 	}
@@ -484,16 +474,20 @@ cheri_signal_sandboxed(struct thread *td)
 
 #ifdef DDB
 #define	DB_CHERI_REG_PRINT_NUM(crn, num) do {				\
-	struct chericap c;						\
-	u_int ctag;							\
+	uintmax_t c_perms, c_otype, c_base, c_length;			\
+	u_int ctag, c_unsealed;						\
 									\
-	CHERI_GETCAPREG((crn), c);					\
 	CHERI_CGETTAG(ctag, (crn));					\
+	CHERI_CGETUNSEALED(c_unsealed, (crn));				\
+	CHERI_CGETPERM(c_perms, (crn));					\
+	CHERI_CGETTYPE(c_otype, (crn));					\
+	CHERI_CGETBASE(c_base, (crn));					\
+	CHERI_CGETLEN(c_length, (crn));					\
+									\
 	db_printf("C%u t: %u u: %u perms 0x%08jx otype 0x%016jx\n",	\
-	    num, ctag, c.c_unsealed, (uintmax_t)c.c_perms,		\
-	    (uintmax_t)c.c_otype);					\
-	db_printf("\tbase 0x%016jx length 0x%016jx\n",			\
-	    (uintmax_t)c.c_base, (uintmax_t)c.c_length);		\
+	    num, ctag, c_unsealed, c_perms, c_otype);			\
+	db_printf("\tbase 0x%016jx length 0x%016jx\n", c_base,		\
+	    c_length);							\
 } while (0)
 
 #define	DB_CHERI_REG_PRINT(crn)	 DB_CHERI_REG_PRINT_NUM(crn, crn)

@@ -32,6 +32,12 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD: head/sys/dev/cheri/compositor/cheri_compositor_reg.c 239691 2013-05-04 12:16:00Z pwithnall $");
 
+/*
+ * XXXRW: Direct access to capability internals via memory is discouraged;
+ * this code should be updated to use CHERI builtins.
+ */
+#define	CHERICAP_INTERNAL
+
 #include <sys/param.h>
 #include <sys/bus.h>
 #include <sys/conf.h>

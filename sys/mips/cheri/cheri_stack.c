@@ -246,10 +246,10 @@ cheri_sysarch_setstack(struct thread *td, struct sysarch_args *uap)
  */
 DB_SHOW_COMMAND(cheristack, ddb_dump_cheristack)
 {
-	struct chericap c;
+	uintmax_t c_perms, c_otype, c_base, c_length;
 	struct cheri_stack_frame *csfp;
 	struct pcb *pcb = curthread->td_pcb;
-	u_int ctag;
+	u_int ctag, c_unsealed;
 	int i;
 
 	db_printf("Trusted stack for TID %d; TSP 0x%016jx\n",
@@ -263,23 +263,29 @@ DB_SHOW_COMMAND(cheristack, ddb_dump_cheristack)
 		    '*' : ' ');
 		CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &csfp->csf_idc, 0);
 		CHERI_CGETTAG(ctag, CHERI_CR_CTEMP0);
+		CHERI_CGETUNSEALED(c_unsealed, CHERI_CR_CTEMP0);
+		CHERI_CGETPERM(c_perms, CHERI_CR_CTEMP0);
+		CHERI_CGETTYPE(c_otype, CHERI_CR_CTEMP0);
+		CHERI_CGETBASE(c_base, CHERI_CR_CTEMP0);
+		CHERI_CGETLEN(c_length, CHERI_CR_CTEMP0);
 
-		c = csfp->csf_idc;
 		db_printf("\tIDC: t: %u u: %u perms 0x%04jx otype 0x%016jx\n",
-		    ctag, c.c_unsealed, (uintmax_t)c.c_perms,
-		    (uintmax_t)c.c_otype);
-		db_printf("\t\tbase 0x%016jx length 0x%016jx\n",
-		    (uintmax_t)c.c_base, (uintmax_t)c.c_length);
+		    ctag, c_unsealed, c_perms, c_otype);
+		db_printf("\t\tbase 0x%016jx length 0x%016jx\n", c_base,
+		    c_length);
 
 		CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &csfp->csf_pcc, 0);
 		CHERI_CGETTAG(ctag, CHERI_CR_CTEMP0);
+		CHERI_CGETUNSEALED(c_unsealed, CHERI_CR_CTEMP0);
+		CHERI_CGETPERM(c_perms, CHERI_CR_CTEMP0);
+		CHERI_CGETTYPE(c_otype, CHERI_CR_CTEMP0);
+		CHERI_CGETBASE(c_base, CHERI_CR_CTEMP0);
+		CHERI_CGETLEN(c_length, CHERI_CR_CTEMP0);
 
-		c = csfp->csf_pcc;
 		db_printf("\tPCC: t: %u u: %u perms 0x%04jx otype 0x%016jx\n",
-		    ctag, c.c_unsealed, (uintmax_t)c.c_perms,
-		    (uintmax_t)c.c_otype);
-		db_printf("\t\tbase 0x%016jx length 0x%016jx\n",
-		    (uintmax_t)c.c_base, (uintmax_t)c.c_length);
+		    ctag, c_unsealed, c_perms, c_otype);
+		db_printf("\t\tbase 0x%016jx length 0x%016jx\n", c_base,
+		    c_length);
 
 		db_printf("\tPC: %p\n", (void *)csfp->csf_pc);
 	}

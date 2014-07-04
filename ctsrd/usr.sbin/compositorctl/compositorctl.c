@@ -41,6 +41,11 @@
 #include <sys/types.h>
 #include <unistd.h>
 
+/*
+ * XXXRW: Direct access to capability internals via memory is discouraged;
+ * this code should be updated to use CHERI builtins.
+ */
+#define	CHERICAP_INTERNAL
 #include <machine/cheri.h>
 
 #include <compositor.h>
