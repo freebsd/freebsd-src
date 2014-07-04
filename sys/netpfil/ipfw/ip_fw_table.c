@@ -115,7 +115,6 @@ static int ipfw_modify_table_v1(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
     struct sockopt_data *sd);
 
 static int destroy_table(struct ip_fw_chain *ch, struct tid_info *ti);
-static int flush_table(struct ip_fw_chain *ch, struct tid_info *ti);
 
 static struct table_algo *find_table_algo(struct tables_config *tableconf,
     struct tid_info *ti, char *name);
@@ -127,7 +126,7 @@ static struct table_algo *find_table_algo(struct tables_config *tableconf,
 
 
 int
-ipfw_add_table_entry(struct ip_fw_chain *ch, struct tid_info *ti,
+add_table_entry(struct ip_fw_chain *ch, struct tid_info *ti,
     struct tentry_info *tei)
 {
 	struct table_config *tc, *tc_new;
@@ -250,7 +249,7 @@ done:
 }
 
 int
-ipfw_del_table_entry(struct ip_fw_chain *ch, struct tid_info *ti,
+del_table_entry(struct ip_fw_chain *ch, struct tid_info *ti,
     struct tentry_info *tei)
 {
 	struct table_config *tc;
@@ -362,8 +361,8 @@ ipfw_modify_table_v0(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
 	ti.type = xent->type;
 
 	error = (op3->opcode == IP_FW_TABLE_XADD) ?
-	    ipfw_add_table_entry(ch, &ti, &tei) :
-	    ipfw_del_table_entry(ch, &ti, &tei);
+	    add_table_entry(ch, &ti, &tei) :
+	    del_table_entry(ch, &ti, &tei);
 
 	return (error);
 }
@@ -422,8 +421,8 @@ ipfw_modify_table_v1(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
 	ti.tlen = oh->ntlv.head.length;
 
 	error = (oh->opheader.opcode == IP_FW_TABLE_XADD) ?
-	    ipfw_add_table_entry(ch, &ti, &tei) :
-	    ipfw_del_table_entry(ch, &ti, &tei);
+	    add_table_entry(ch, &ti, &tei) :
+	    del_table_entry(ch, &ti, &tei);
 
 	return (error);
 }
@@ -442,9 +441,9 @@ ipfw_flush_table(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
 	oh = (struct _ipfw_obj_header *)op3;
 	objheader_to_ti(oh, &ti);
 
-	if (opt == IP_FW_TABLE_XDESTROY)
+	if (op3->opcode == IP_FW_TABLE_XDESTROY)
 		error = destroy_table(ch, &ti);
-	else if (opt == IP_FW_TABLE_XFLUSH)
+	else if (op3->opcode == IP_FW_TABLE_XFLUSH)
 		error = flush_table(ch, &ti);
 	else
 		return (ENOTSUP);
@@ -459,7 +458,7 @@ ipfw_flush_table(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
  *
  * Returns 0 on success
  */
-static int
+int
 flush_table(struct ip_fw_chain *ch, struct tid_info *ti)
 {
 	struct namedobj_instance *ni;
@@ -1000,8 +999,6 @@ ipfw_create_table(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
 	}
 
 	objheader_to_ti(oh, &ti);
-	/* Create table in set 0 by default */
-	ti->set = TABLE_SET(ti->set);
 	ti.type = i->type;
 
 	ni = CHAIN_TO_NI(ch);
@@ -1739,18 +1736,16 @@ bind_table_rule(struct ip_fw_chain *ch, struct ip_fw *rule,
 int
 ipfw_rewrite_table_kidx(struct ip_fw_chain *chain, struct ip_fw *rule)
 {
-	int cmdlen, l;
+	int cmdlen, error, l;
 	ipfw_insn *cmd;
-	uint32_t set;
-	uint16_t kidx;
+	uint16_t kidx, uidx;
 	uint8_t type;
 	struct named_object *no;
 	struct namedobj_instance *ni;
 
 	ni = CHAIN_TO_NI(chain);
+	error = 0;
 
-	set = TABLE_SET(rule->set);
-	
 	l = rule->cmd_len;
 	cmd = rule->cmd;
 	cmdlen = 0;
@@ -1763,13 +1758,22 @@ ipfw_rewrite_table_kidx(struct ip_fw_chain *chain, struct ip_fw *rule)
 		if ((no = ipfw_objhash_lookup_kidx(ni, kidx)) == NULL)
 			return (1);
 
-		if (no->compat == 0)
-			return (2);
+		uidx = no->uidx;
+		if (no->compat == 0) {
 
-		update_table_opcode(cmd, no->uidx);
+			/*
+			 * We are called via legacy opcode.
+			 * Save error and show table as fake number
+			 * not to make ipfw(8) hang.
+			 */
+			uidx = 65535;
+			error = 2;
+		}
+
+		update_table_opcode(cmd, uidx);
 	}
 
-	return (0);
+	return (error);
 }
 
 /*
@@ -1853,7 +1857,12 @@ ipfw_rewrite_table_uidx(struct ip_fw_chain *chain,
 	ftype = 0;
 
 	memset(&ti, 0, sizeof(ti));
-	ti.set = TABLE_SET(ci->krule->set);
+
+	/*
+	 * Use default set for looking up tables (old way) or
+	 * use set rule is assigned to (new way).
+	 */
+	ti.set = (V_fw_tables_sets != 0) ? ci->krule->set : 0;
 	if (ci->ctlv != NULL) {
 		ti.tlvs = (void *)(ci->ctlv + 1);
 		ti.tlen = ci->ctlv->head.length - sizeof(ipfw_obj_ctlv);
@@ -2039,13 +2048,10 @@ ipfw_unbind_table_rule(struct ip_fw_chain *chain, struct ip_fw *rule)
 	ipfw_insn *cmd;
 	struct namedobj_instance *ni;
 	struct named_object *no;
-	uint32_t set;
 	uint16_t kidx;
 	uint8_t type;
 
 	ni = CHAIN_TO_NI(chain);
-
-	set = TABLE_SET(rule->set);
 
 	l = rule->cmd_len;
 	cmd = rule->cmd;

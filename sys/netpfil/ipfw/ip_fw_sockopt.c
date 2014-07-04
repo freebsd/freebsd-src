@@ -974,8 +974,10 @@ ipfw_getrules(struct ip_fw_chain *chain, void *buf, size_t space)
 	char *bp = buf;
 	char *ep = bp + space;
 	struct ip_fw *rule, *dst;
-	int error, i, l;
+	int error, i, l, warnflag;
 	time_t	boot_seconds;
+
+	warnflag = 0;
 
         boot_seconds = boottime.tv_sec;
 	for (i = 0; i < chain->n_rules; i++) {
@@ -1032,11 +1034,19 @@ ipfw_getrules(struct ip_fw_chain *chain, void *buf, size_t space)
 		bp += l;
 
 		if (error != 0) {
+			if (error == 2) {
+				/* Non-fatal table rewrite error. */
+				warnflag = 1;
+				continue;
+			}
 			printf("Stop on rule %d. Fail to convert table\n",
 			    rule->rulenum);
 			break;
 		}
 	}
+	if (warnflag != 0)
+		printf("ipfw: process %s is using legacy interfaces,"
+		    " consider rebuilding\n", "");
 	ipfw_get_dynamic(chain, &bp, ep); /* protected by the dynamic lock */
 	return (bp - (char *)buf);
 }
@@ -1740,8 +1750,8 @@ ipfw_ctl(struct sockopt *sopt)
 			ti.type = IPFW_TABLE_CIDR;
 
 			error = (opt == IP_FW_TABLE_ADD) ?
-			    ipfw_add_table_entry(chain, &ti, &tei) :
-			    ipfw_del_table_entry(chain, &ti, &tei);
+			    add_table_entry(chain, &ti, &tei) :
+			    del_table_entry(chain, &ti, &tei);
 		}
 		break;
 
@@ -1757,7 +1767,7 @@ ipfw_ctl(struct sockopt *sopt)
 				break;
 			memset(&ti, 0, sizeof(ti));
 			ti.uidx = tbl;
-			error = ipfw_flush_table(chain, &ti);
+			error = flush_table(chain, &ti);
 		}
 		break;
 
