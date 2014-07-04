@@ -79,7 +79,6 @@ typedef enum {
 	CTL_POOL_INTERNAL,
 	CTL_POOL_FETD,
 	CTL_POOL_EMERGENCY,
-	CTL_POOL_IOCTL,
 	CTL_POOL_4OTHERSC
 } ctl_pool_type;
 
@@ -110,7 +109,7 @@ typedef enum {
 struct ctl_ioctl_info {
 	ctl_ioctl_flags		flags;
 	uint32_t		cur_tag_num;
-	struct ctl_frontend	fe;
+	struct ctl_port		port;
 	char			port_name[24];
 };
 
@@ -456,7 +455,9 @@ struct ctl_softc {
 	STAILQ_HEAD(, ctl_be_lun) pending_lun_queue;
 	uint32_t num_frontends;
 	STAILQ_HEAD(, ctl_frontend) fe_list;
-	struct ctl_frontend *ctl_ports[CTL_MAX_PORTS];
+	uint32_t num_ports;
+	STAILQ_HEAD(, ctl_port) port_list;
+	struct ctl_port *ctl_ports[CTL_MAX_PORTS];
 	uint32_t num_backends;
 	STAILQ_HEAD(, ctl_backend_driver) be_list;
 	struct mtx pool_lock;
