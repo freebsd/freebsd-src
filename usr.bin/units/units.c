@@ -695,7 +695,7 @@ showanswer(struct unittype * have, struct unittype * want)
 }
 
 
-void 
+static void 
 usage(void)
 {
 	fprintf(stderr,
@@ -704,6 +704,7 @@ usage(void)
 }
 
 static struct option longopts[] = {
+	{"help", no_argument, NULL, 'h'},
 	{"file", required_argument, NULL, 'f'},
 	{"quiet", no_argument, NULL, 'q'},
 	{"verbose", no_argument, NULL, 'v'},
@@ -728,7 +729,7 @@ main(int argc, char **argv)
 
 	quiet = false;
 	readfile = false;
-	while ((optchar = getopt_long(argc, argv, "+f:qvUV", longopts, NULL)) != -1) {
+	while ((optchar = getopt_long(argc, argv, "+hf:qvUV", longopts, NULL)) != -1) {
 		switch (optchar) {
 		case 'f':
 			readfile = true;
@@ -753,6 +754,9 @@ main(int argc, char **argv)
 				printf("Units data file not found");
 			exit(0);
 			break;
+		case 'h':
+			/* FALLTHROUGH */
+
 		default:
 			usage();
 		}
