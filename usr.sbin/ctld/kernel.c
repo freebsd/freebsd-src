@@ -413,13 +413,13 @@ kernel_lun_add(struct lun *lun)
 	req.reqdata.create.device_type = T_DIRECT;
 
 	if (lun->l_serial != NULL) {
-		strlcpy(req.reqdata.create.serial_num, lun->l_serial,
+		strncpy(req.reqdata.create.serial_num, lun->l_serial,
 			sizeof(req.reqdata.create.serial_num));
 		req.reqdata.create.flags |= CTL_LUN_FLAG_SERIAL_NUM;
 	}
 
 	if (lun->l_device_id != NULL) {
-		strlcpy(req.reqdata.create.device_id, lun->l_device_id,
+		strncpy(req.reqdata.create.device_id, lun->l_device_id,
 			sizeof(req.reqdata.create.device_id));
 		req.reqdata.create.flags |= CTL_LUN_FLAG_DEVID;
 	}
