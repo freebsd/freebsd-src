@@ -24,6 +24,7 @@ static const char rcsid[] =
 #include <err.h>
 #include <errno.h>
 #include <histedit.h>
+#include <getopt.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -702,6 +703,15 @@ usage(void)
 	exit(3);
 }
 
+static struct option longopts[] = {
+	{"file", required_argument, NULL, 'f'},
+	{"quiet", no_argument, NULL, 'q'},
+	{"verbose", no_argument, NULL, 'v'},
+	{"unitsfile", no_argument, NULL, 'U'},
+	{"version", no_argument, NULL, 'V'},
+	{ 0, 0, 0, 0 }
+};
+
 
 int
 main(int argc, char **argv)
@@ -718,7 +728,7 @@ main(int argc, char **argv)
 
 	quiet = false;
 	readfile = false;
-	while ((optchar = getopt(argc, argv, "f:qvUV")) != -1) {
+	while ((optchar = getopt_long(argc, argv, "+f:qvUV", longopts, NULL)) != -1) {
 		switch (optchar) {
 		case 'f':
 			readfile = true;
