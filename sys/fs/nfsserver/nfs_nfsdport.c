@@ -2264,9 +2264,11 @@ again:
 	if (dirlen > cnt || nd->nd_repstat) {
 		if (!nd->nd_repstat && entrycnt == 0)
 			nd->nd_repstat = NFSERR_TOOSMALL;
-		if (nd->nd_repstat)
+		if (nd->nd_repstat) {
 			newnfs_trimtrailing(nd, mb0, bpos0);
-		else
+			if (nd->nd_flag & ND_NFSV3)
+				nfsrv_postopattr(nd, getret, &at);
+		} else
 			newnfs_trimtrailing(nd, mb1, bpos1);
 		eofflag = 0;
 	} else if (cpos < cend)
