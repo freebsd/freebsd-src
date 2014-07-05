@@ -126,24 +126,25 @@ cheri_invoke:
 	# handled by CCall for us).
 	#
 	daddiu	$sp, -256
-	csc	$c17, $sp, 0($c0)
-	csc	$c18, $sp, 32($c0)
-	csc	$c19, $sp, 64($c0)
-	csc	$c20, $sp, 96($c0)
-	csc	$c21, $sp, 128($c0)
-	csc	$c22, $sp, 160($c0)
-	csc	$c23, $sp, 192($c0)
-	csc	$c24, $sp, 224($c0)
+	csc	$c17, $sp, 0($c11)
+	csc	$c18, $sp, 32($c11)
+	csc	$c19, $sp, 64($c11)
+	csc	$c20, $sp, 96($c11)
+	csc	$c21, $sp, 128($c11)
+	csc	$c22, $sp, 160($c11)
+	csc	$c23, $sp, 192($c11)
+	csc	$c24, $sp, 224($c11)
 
 	#
 	# Prepare $idc to be saved (and restored) by CCall; don't need to seal
-	# as CCall will protect its integrity.
+	# as CCall will protect its integrity.  No more stack use after this
+	# point until $c11 and $sp are restored.
 	#
 	daddiu		$sp, -128
-	csd		$sp, $sp, 96($c0)	# Save MIPS stack pointer
-	csc		$c0, $sp, 64($c0)	# Save CHERI legacy capability
-	csc		$c11, $sp, 32($c0)	# Save CHERI stack capability
-	csc		$c26, $sp, 0($c0)	# Save original $idc
+	csd		$sp, $sp, 96($c11)	# Save MIPS stack pointer
+	csc		$c0, $sp, 64($c11)	# Save CHERI legacy capability
+	csc		$c11, $sp, 32($c11)	# Save CHERI stack capability
+	csc		$c26, $sp, 0($c11)	# Save original $idc
 	cfromptr	$c26, $c0, $sp
 	dli		$t0, 128
 	csetlen		$c26, $c26, $t0
@@ -215,7 +216,8 @@ cheri_invoke:
 	ccall	$c1, $c2
 
 	#
-	# Restore $idc-saved recovery state; $idc must be restored last.
+	# Restore $idc-saved recovery state; $idc must be restored last.  The
+	# stack is usable again after this.
 	#
 	cld		$sp, $zero, 96($c26)	# Restore MIPS stack pointer
 	clc		$c0, $zero, 64($c26)	# Restore CHERI $c0
@@ -226,14 +228,14 @@ cheri_invoke:
 	#
 	# Restore capability registers from stack.
 	#
-	clc	$c17, $sp, 0($c0)
-	clc	$c18, $sp, 32($c0)
-	clc	$c19, $sp, 64($c0)
-	clc	$c20, $sp, 96($c0)
-	clc	$c21, $sp, 128($c0)
-	clc	$c22, $sp, 160($c0)
-	clc	$c23, $sp, 192($c0)
-	clc	$c24, $sp, 224($c0)
+	clc	$c17, $sp, 0($c11)
+	clc	$c18, $sp, 32($c11)
+	clc	$c19, $sp, 64($c11)
+	clc	$c20, $sp, 96($c11)
+	clc	$c21, $sp, 128($c11)
+	clc	$c22, $sp, 160($c11)
+	clc	$c23, $sp, 192($c11)
+	clc	$c24, $sp, 224($c11)
 	daddiu	$sp, 256
 
 	#
