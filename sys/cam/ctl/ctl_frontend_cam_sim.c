@@ -193,8 +193,7 @@ cfcs_init(void)
 			/* Company ID */ 0x5000000000000000ULL |
 			/* NL-Port */    0x0300;
 		softc->wwpn = softc->wwnn + port->targ_port + 1;
-		port->wwnn = softc->wwnn;
-		port->wwpn = softc->wwpn;
+		ctl_port_set_wwns(port, true, softc->wwnn, true, softc->wwpn);
 	} else {
 		softc->wwnn = port->wwnn;
 		softc->wwpn = port->wwpn;

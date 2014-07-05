@@ -1732,10 +1732,9 @@ ctlfe_onoffline(void *arg, int online)
 			 * using with the frontend code so it's reported
 			 * accurately.
 			 */
-			bus_softc->port.wwnn = 
-				ccb->knob.xport_specific.fc.wwnn;
-			bus_softc->port.wwpn = 
-				ccb->knob.xport_specific.fc.wwpn;
+			ctl_port_set_wwns(&bus_softc->port,
+			    true, ccb->knob.xport_specific.fc.wwnn,
+			    true, ccb->knob.xport_specific.fc.wwpn);
 			set_wwnn = 1;
 #else /* RANDOM_WWNN */
 			/*
@@ -1751,10 +1750,9 @@ ctlfe_onoffline(void *arg, int online)
 					bus_softc->port.wwpn;
 				set_wwnn = 1;
 			} else {
-				bus_softc->port.wwnn =
-					ccb->knob.xport_specific.fc.wwnn;
-				bus_softc->port.wwpn =
-					ccb->knob.xport_specific.fc.wwpn;
+				ctl_port_set_wwns(&bus_softc->port,
+				    true, ccb->knob.xport_specific.fc.wwnn,
+				    true, ccb->knob.xport_specific.fc.wwpn);
 			}
 #endif /* RANDOM_WWNN */
 

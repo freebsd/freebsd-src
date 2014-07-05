@@ -219,6 +219,11 @@ ctl_port_deregister(struct ctl_port *port)
 	ctl_pool_free(pool);
 	ctl_free_opts(&port->options);
 
+	free(port->port_devid, M_CTL);
+	port->port_devid = NULL;
+	free(port->target_devid, M_CTL);
+	port->target_devid = NULL;
+
 bailout:
 	return (retval);
 }
@@ -227,11 +232,49 @@ void
 ctl_port_set_wwns(struct ctl_port *port, int wwnn_valid, uint64_t wwnn,
 		      int wwpn_valid, uint64_t wwpn)
 {
-	if (wwnn_valid)
+	struct scsi_vpd_id_descriptor *desc;
+	int len, proto;
+
+	if (port->port_type == CTL_PORT_FC)
+		proto = SCSI_PROTO_FC << 4;
+	else if (port->port_type == CTL_PORT_ISCSI)
+		proto = SCSI_PROTO_ISCSI << 4;
+	else
+		proto = SCSI_PROTO_SPI << 4;
+
+	if (wwnn_valid) {
 		port->wwnn = wwnn;
 
-	if (wwpn_valid)
+		free(port->target_devid, M_CTL);
+
+		len = sizeof(struct scsi_vpd_device_id) + CTL_WWPN_LEN;
+		port->target_devid = malloc(sizeof(struct ctl_devid) + len,
+		    M_CTL, M_WAITOK | M_ZERO);
+		port->target_devid->len = len;
+		desc = (struct scsi_vpd_id_descriptor *)port->target_devid->data;
+		desc->proto_codeset = proto | SVPD_ID_CODESET_BINARY;
+		desc->id_type = SVPD_ID_PIV | SVPD_ID_ASSOC_TARGET |
+		    SVPD_ID_TYPE_NAA;
+		desc->length = CTL_WWPN_LEN;
+		scsi_u64to8b(port->wwnn, desc->identifier);
+	}
+
+	if (wwpn_valid) {
 		port->wwpn = wwpn;
+
+		free(port->port_devid, M_CTL);
+
+		len = sizeof(struct scsi_vpd_device_id) + CTL_WWPN_LEN;
+		port->port_devid = malloc(sizeof(struct ctl_devid) + len,
+		    M_CTL, M_WAITOK | M_ZERO);
+		port->port_devid->len = len;
+		desc = (struct scsi_vpd_id_descriptor *)port->port_devid->data;
+		desc->proto_codeset = proto | SVPD_ID_CODESET_BINARY;
+		desc->id_type = SVPD_ID_PIV | SVPD_ID_ASSOC_PORT |
+		    SVPD_ID_TYPE_NAA;
+		desc->length = CTL_WWPN_LEN;
+		scsi_u64to8b(port->wwpn, desc->identifier);
+	}
 }
 
 void
