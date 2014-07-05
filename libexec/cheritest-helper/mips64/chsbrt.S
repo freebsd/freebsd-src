@@ -28,6 +28,8 @@
 # SUCH DAMAGE.
 #
 
+#include <machine/cherireg.h>
+
 #.set mips64
 .set noreorder
 #.set nobopt
@@ -80,10 +82,8 @@ __ccall_enter:
 	# is to ensure software is ready for proper stack handling.  We can
 	# remove these candperms once that is present.
 	#
-	#dli	$t0, (~CHERI_PERM_NON_EPHEMERAL)
-	dli	$t0, 0xfffffffe
+	dli	$t0, (~CHERI_PERM_NON_EPHEMERAL)
 	candperm	$c11, $c26, $t0
-	#cmove	$c11, $c26
 	cgetlen	$sp, $c26
 	move	$fp, $sp
 
@@ -92,10 +92,8 @@ __ccall_enter:
 	# stores to memory inside the sandbox, and $c0-relative capability
 	# fetches and stores.
 	#
-	#dli	$t0, (~CHERI_PERM_STORE_EPHEM_CAP)
-	dli	$t0, 0xffffffbf
+	dli	$t0, (~CHERI_PERM_STORE_EPHEM_CAP)
 	candperm	$c0, $c26, $t0
-	#cmove	$c0, $c26
 
 	#
 	# XXXRW: Defensively clear all general-purpose and capability
