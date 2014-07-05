@@ -28,9 +28,9 @@
 # SUCH DAMAGE.
 #
 
-.set mips64
+#.set mips64
 .set noreorder
-.set nobopt
+#.set nobopt
 .set noat
 
 #

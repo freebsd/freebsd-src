@@ -26,9 +26,6 @@ FILESDIR=       ${LIBEXECDIR}
 FILES=		cheritest-helper.bin cheritest-helper.dump chsbrt.o
 CLEANFILES=	cheritest-helper.bin cheritest-helper.dump chsbrt.o
 
-chsbrt.o:
-	${AS} -G0 -o ${.TARGET} ${.ALLSRC}
-
 cheritest-helper.bin: cheritest-helper
 	objcopy -S -O binary ${.ALLSRC} ${.TARGET}
 
