@@ -167,13 +167,14 @@ sysctl_load_tunable_by_oid_locked(struct sysctl_oid *oidp)
 {
 	struct sysctl_req req;
 	struct sysctl_oid *curr;
-	char *penv;
+	char *penv = NULL;
 	char path[64];
 	ssize_t rem = sizeof(path);
 	ssize_t len;
 	int val_int;
 	long val_long;
 	int64_t val_64;
+	quad_t val_quad;
 	int error;
 
 	path[--rem] = 0;
@@ -192,10 +193,6 @@ sysctl_load_tunable_by_oid_locked(struct sysctl_oid *oidp)
 			path[rem + len] = '.';
 	}
 
-	penv = getenv(path + rem);
-	if (penv == NULL)
-		return;
-
 	memset(&req, 0, sizeof(req));
 
 	req.td = curthread;
@@ -205,41 +202,52 @@ sysctl_load_tunable_by_oid_locked(struct sysctl_oid *oidp)
 
 	switch (oidp->oid_kind & CTLTYPE) {
 	case CTLTYPE_INT:
-		val_int = strtoq(penv, NULL, 0);
+		if (getenv_int(path + rem, &val_int) == 0)
+			return;
 		req.newlen = sizeof(val_int);
 		req.newptr = &val_int;
 		break;
 	case CTLTYPE_UINT:
-		val_int = strtouq(penv, NULL, 0);
+		if (getenv_uint(path + rem, (unsigned int *)&val_int) == 0)
+			return;
 		req.newlen = sizeof(val_int);
 		req.newptr = &val_int;
 		break;
 	case CTLTYPE_LONG:
-		val_long = strtoq(penv, NULL, 0);
+		if (getenv_long(path + rem, &val_long) == 0)
+			return;
 		req.newlen = sizeof(val_long);
 		req.newptr = &val_long;
 		break;
 	case CTLTYPE_ULONG:
-		val_long = strtouq(penv, NULL, 0);
+		if (getenv_ulong(path + rem, (unsigned long *)&val_long) == 0)
+			return;
 		req.newlen = sizeof(val_long);
 		req.newptr = &val_long;
 		break;
 	case CTLTYPE_S64:
-		val_64 = strtoq(penv, NULL, 0);
+		if (getenv_quad(path + rem, &val_quad) == 0)
+			return;
+		val_64 = val_quad;
 		req.newlen = sizeof(val_64);
 		req.newptr = &val_64;
 		break;
 	case CTLTYPE_U64:
-		val_64 = strtouq(penv, NULL, 0);
+		/* XXX there is no getenv_uquad() */
+		if (getenv_quad(path + rem, &val_quad) == 0)
+			return;
+		val_64 = val_quad;
 		req.newlen = sizeof(val_64);
 		req.newptr = &val_64;
 		break;
 	case CTLTYPE_STRING:
+		penv = getenv(path + rem);
+		if (penv == NULL)
+			return;
 		req.newlen = strlen(penv);
 		req.newptr = penv;
 		break;
 	default:
-		freeenv(penv);
 		return;
 	}
 	error = sysctl_root_handler_locked(oidp, oidp->oid_arg1,
