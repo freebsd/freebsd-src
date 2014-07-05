@@ -39,8 +39,6 @@
 #ifndef	_CTL_FRONTEND_H_
 #define	_CTL_FRONTEND_H_
 
-#define	CTL_FE_NAME_LEN		32
-
 typedef enum {
 	CTL_PORT_STATUS_NONE		= 0x00,
 	CTL_PORT_STATUS_ONLINE		= 0x01,
@@ -232,12 +230,13 @@ struct ctl_port {
 	uint64_t	wwnn;			/* set by CTL before online */
 	uint64_t	wwpn;			/* set by CTL before online */
 	ctl_port_status	status;			/* used by CTL */
+	ctl_options_t	options;		/* passed to CTL */
 	STAILQ_ENTRY(ctl_port) fe_links;	/* used by CTL */
 	STAILQ_ENTRY(ctl_port) links;		/* used by CTL */
 };
 
 struct ctl_frontend {
-	char		name[CTL_FE_NAME_LEN];	/* passed to CTL */
+	char		name[CTL_DRIVER_NAME_LEN];	/* passed to CTL */
 	fe_init_t	init;			/* passed to CTL */
 	fe_ioctl_t	ioctl;			/* passed to CTL */
 	void		(*fe_dump)(void);	/* passed to CTL */
