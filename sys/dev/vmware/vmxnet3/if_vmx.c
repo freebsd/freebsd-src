@@ -692,6 +692,8 @@ vmxnet3_setup_msix_interrupts(struct vmxnet3_softc *sc)
 		     vmxnet3_txq_intr, txq, &intr->vmxi_handler);
 		if (error)
 			return (error);
+		bus_describe_intr(dev, intr->vmxi_irq, intr->vmxi_handler,
+		    "tq%d", i);
 		txq->vxtxq_intr_idx = intr->vmxi_rid - 1;
 	}
 
@@ -701,6 +703,8 @@ vmxnet3_setup_msix_interrupts(struct vmxnet3_softc *sc)
 		    vmxnet3_rxq_intr, rxq, &intr->vmxi_handler);
 		if (error)
 			return (error);
+		bus_describe_intr(dev, intr->vmxi_irq, intr->vmxi_handler,
+		    "rq%d", i);
 		rxq->vxrxq_intr_idx = intr->vmxi_rid - 1;
 	}
 
@@ -708,6 +712,7 @@ vmxnet3_setup_msix_interrupts(struct vmxnet3_softc *sc)
 	    vmxnet3_event_intr, sc, &intr->vmxi_handler);
 	if (error)
 		return (error);
+	bus_describe_intr(dev, intr->vmxi_irq, intr->vmxi_handler, "event");
 	sc->vmx_event_intr_idx = intr->vmxi_rid - 1;
 
 	return (0);
@@ -2219,12 +2224,10 @@ vmxnet3_legacy_intr(void *xsc)
 	struct vmxnet3_softc *sc;
 	struct vmxnet3_rxqueue *rxq;
 	struct vmxnet3_txqueue *txq;
-	struct ifnet *ifp;
 
 	sc = xsc;
 	rxq = &sc->vmx_rxq[0];
 	txq = &sc->vmx_txq[0];
-	ifp = sc->vmx_ifp;
 
 	if (sc->vmx_intr_type == VMXNET3_IT_LEGACY) {
 		if (vmxnet3_read_bar1(sc, VMXNET3_BAR1_INTR) == 0)
@@ -2253,11 +2256,9 @@ vmxnet3_txq_intr(void *xtxq)
 {
 	struct vmxnet3_softc *sc;
 	struct vmxnet3_txqueue *txq;
-	struct ifnet *ifp;
 
 	txq = xtxq;
 	sc = txq->vxtxq_sc;
-	ifp = sc->vmx_ifp;
 
 	if (sc->vmx_intr_mask_mode == VMXNET3_IMM_ACTIVE)
 		vmxnet3_disable_intr(sc, txq->vxtxq_intr_idx);
@@ -2765,7 +2766,6 @@ static int
 vmxnet3_txq_encap(struct vmxnet3_txqueue *txq, struct mbuf **m0)
 {
 	struct vmxnet3_softc *sc;
-	struct ifnet *ifp;
 	struct vmxnet3_txring *txr;
 	struct vmxnet3_txdesc *txd, *sop;
 	struct mbuf *m;
@@ -2774,7 +2774,6 @@ vmxnet3_txq_encap(struct vmxnet3_txqueue *txq, struct mbuf **m0)
 	int i, gen, nsegs, etype, proto, start, error;
 
 	sc = txq->vxtxq_sc;
-	ifp = sc->vmx_ifp;
 	start = 0;
 	txd = NULL;
 	txr = &txq->vxtxq_cmd_ring;
