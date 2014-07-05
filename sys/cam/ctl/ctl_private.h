@@ -367,6 +367,11 @@ struct ctl_per_res_info {
 #define CTL_PR_ALL_REGISTRANTS  0xFFFF
 #define CTL_PR_NO_RESERVATION   0xFFF0
 
+struct ctl_devid {
+	int		len;
+	uint8_t		data[];
+};
+
 /*
  * For report target port groups.
  */
@@ -402,6 +407,7 @@ struct ctl_lun {
 	uint16_t        		pr_res_idx;
 	uint8_t				res_type;
 	uint8_t				write_buffer[524288];
+	struct ctl_devid		*lun_devid;
 };
 
 typedef enum {

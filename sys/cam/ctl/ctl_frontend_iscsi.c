@@ -151,7 +151,6 @@ static int	cfiscsi_lun_disable(void *arg,
 		    struct ctl_id target_id, int lun_id);
 static int	cfiscsi_ioctl(struct cdev *dev,
 		    u_long cmd, caddr_t addr, int flag, struct thread *td);
-static int	cfiscsi_devid(struct ctl_scsiio *ctsio, int alloc_len);
 static void	cfiscsi_datamove(union ctl_io *io);
 static void	cfiscsi_done(union ctl_io *io);
 static uint32_t	cfiscsi_map_lun(void *arg, uint32_t lun);
@@ -1948,8 +1947,9 @@ cfiscsi_ioctl_port_create(struct ctl_req *req)
 	struct cfiscsi_target *ct;
 	struct ctl_port *port;
 	const char *target, *alias, *tag;
+	struct scsi_vpd_id_descriptor *desc;
 	ctl_options_t opts;
-	int retval;
+	int retval, len, idlen;
 
 	ctl_init_opts(&opts, req->num_args, req->kern_args);
 	target = ctl_get_opt(&opts, "cfiscsi_target");
@@ -1994,7 +1994,6 @@ cfiscsi_ioctl_port_create(struct ctl_req *req)
 	port->lun_enable = cfiscsi_lun_enable;
 	port->lun_disable = cfiscsi_lun_disable;
 	port->targ_lun_arg = ct;
-	port->devid = cfiscsi_devid;
 	port->fe_datamove = cfiscsi_datamove;
 	port->fe_done = cfiscsi_done;
 
@@ -2006,10 +2005,41 @@ cfiscsi_ioctl_port_create(struct ctl_req *req)
 	port->options = opts;
 	STAILQ_INIT(&opts);
 
+	/* Generate Port ID. */
+	idlen = strlen(target) + strlen(",t,0x0001") + 1;
+	idlen = roundup2(idlen, 4);
+	len = sizeof(struct scsi_vpd_device_id) + idlen;
+	port->port_devid = malloc(sizeof(struct ctl_devid) + len,
+	    M_CTL, M_WAITOK | M_ZERO);
+	port->port_devid->len = len;
+	desc = (struct scsi_vpd_id_descriptor *)port->port_devid->data;
+	desc->proto_codeset = (SCSI_PROTO_ISCSI << 4) | SVPD_ID_CODESET_UTF8;
+	desc->id_type = SVPD_ID_PIV | SVPD_ID_ASSOC_PORT |
+	    SVPD_ID_TYPE_SCSI_NAME;
+	desc->length = idlen;
+	snprintf(desc->identifier, idlen, "%s,t,0x%4.4x",
+	    target, port->virtual_port);
+
+	/* Generate Target ID. */
+	idlen = strlen(target) + 1;
+	idlen = roundup2(idlen, 4);
+	len = sizeof(struct scsi_vpd_device_id) + idlen;
+	port->target_devid = malloc(sizeof(struct ctl_devid) + len,
+	    M_CTL, M_WAITOK | M_ZERO);
+	port->target_devid->len = len;
+	desc = (struct scsi_vpd_id_descriptor *)port->target_devid->data;
+	desc->proto_codeset = (SCSI_PROTO_ISCSI << 4) | SVPD_ID_CODESET_UTF8;
+	desc->id_type = SVPD_ID_PIV | SVPD_ID_ASSOC_TARGET |
+	    SVPD_ID_TYPE_SCSI_NAME;
+	desc->length = idlen;
+	strlcpy(desc->identifier, target, idlen);
+
 	retval = ctl_port_register(port, /*master_SC*/ 1);
 	if (retval != 0) {
 		ctl_free_opts(&port->options);
 		cfiscsi_target_release(ct);
+		free(port->port_devid, M_CFISCSI);
+		free(port->target_devid, M_CFISCSI);
 		req->status = CTL_LUN_ERROR;
 		snprintf(req->error_str, sizeof(req->error_str),
 		    "ctl_frontend_register() failed with error %d", retval);
@@ -2134,206 +2164,6 @@ cfiscsi_ioctl(struct cdev *dev,
 	}
 
 	return (0);
-}
-
-static int
-cfiscsi_devid(struct ctl_scsiio *ctsio, int alloc_len)
-{
-	struct cfiscsi_session *cs;
-	struct scsi_vpd_device_id *devid_ptr;
-	struct scsi_vpd_id_descriptor *desc, *desc1, *desc2, *desc3, *desc4;
-	struct scsi_vpd_id_descriptor *desc5;
-	struct scsi_vpd_id_t10 *t10id;
-	struct ctl_lun *lun;
-	const struct icl_pdu *request;
-	int i, ret;
-	char *val;
-	size_t data_len, devid_len, wwnn_len, wwpn_len, lun_name_len;
-
-	lun = (struct ctl_lun *)ctsio->io_hdr.ctl_private[CTL_PRIV_LUN].ptr;
-	request = ctsio->io_hdr.ctl_private[CTL_PRIV_FRONTEND].ptr;
-	cs = PDU_SESSION(request);
-
-	wwpn_len = strlen(cs->cs_target->ct_name);
-	wwpn_len += strlen(",t,0x0001");
-	wwpn_len += 1; /* '\0' */
-	if ((wwpn_len % 4) != 0)
-		wwpn_len += (4 - (wwpn_len % 4));
-
-	wwnn_len = strlen(cs->cs_target->ct_name);
-	wwnn_len += 1; /* '\0' */
-	if ((wwnn_len % 4) != 0)
-		wwnn_len += (4 - (wwnn_len % 4));
-
-	if (lun == NULL) {
-		devid_len = CTL_DEVID_MIN_LEN;
-		lun_name_len = 0;
-	} else {
-		devid_len = max(CTL_DEVID_MIN_LEN,
-		    strnlen(lun->be_lun->device_id, CTL_DEVID_LEN));
-		lun_name_len = strlen(cs->cs_target->ct_name);
-		lun_name_len += strlen(",lun,XXXXXXXX");
-		lun_name_len += 1; /* '\0' */
-		if ((lun_name_len % 4) != 0)
-			lun_name_len += (4 - (lun_name_len % 4));
-	}
-
-	data_len = sizeof(struct scsi_vpd_device_id) +
-		sizeof(struct scsi_vpd_id_descriptor) +
-		sizeof(struct scsi_vpd_id_t10) + devid_len +
-		sizeof(struct scsi_vpd_id_descriptor) + lun_name_len +
-		sizeof(struct scsi_vpd_id_descriptor) + wwnn_len +
-		sizeof(struct scsi_vpd_id_descriptor) + wwpn_len +
-		sizeof(struct scsi_vpd_id_descriptor) +
-		sizeof(struct scsi_vpd_id_rel_trgt_port_id) +
-		sizeof(struct scsi_vpd_id_descriptor) +
-		sizeof(struct scsi_vpd_id_trgt_port_grp_id);
-
-	ctsio->kern_data_ptr = malloc(data_len, M_CTL, M_WAITOK | M_ZERO);
-	devid_ptr = (struct scsi_vpd_device_id *)ctsio->kern_data_ptr;
-	ctsio->kern_sg_entries = 0;
-
-	if (data_len < alloc_len) {
-		ctsio->residual = alloc_len - data_len;
-		ctsio->kern_data_len = data_len;
-		ctsio->kern_total_len = data_len;
-	} else {
-		ctsio->residual = 0;
-		ctsio->kern_data_len = alloc_len;
-		ctsio->kern_total_len = alloc_len;
-	}
-	ctsio->kern_data_resid = 0;
-	ctsio->kern_rel_offset = 0;
-	ctsio->kern_sg_entries = 0;
-
-	desc = (struct scsi_vpd_id_descriptor *)devid_ptr->desc_list;
-	t10id = (struct scsi_vpd_id_t10 *)&desc->identifier[0];
-	desc1 = (struct scsi_vpd_id_descriptor *)(&desc->identifier[0] +
-	    sizeof(struct scsi_vpd_id_t10) + devid_len);
-	desc2 = (struct scsi_vpd_id_descriptor *)(&desc1->identifier[0] +
-	    lun_name_len);
-	desc3 = (struct scsi_vpd_id_descriptor *)(&desc2->identifier[0] +
-	    wwnn_len);
-	desc4 = (struct scsi_vpd_id_descriptor *)(&desc3->identifier[0] +
-	    wwpn_len);
-	desc5 = (struct scsi_vpd_id_descriptor *)(&desc4->identifier[0] +
-	    sizeof(struct scsi_vpd_id_rel_trgt_port_id));
-
-	if (lun != NULL)
-		devid_ptr->device = (SID_QUAL_LU_CONNECTED << 5) |
-		    lun->be_lun->lun_type;
-	else
-		devid_ptr->device = (SID_QUAL_LU_OFFLINE << 5) | T_DIRECT;
-
-	devid_ptr->page_code = SVPD_DEVICE_ID;
-
-	scsi_ulto2b(data_len - 4, devid_ptr->length);
-
-	/*
-	 * We're using a LUN association here.  i.e., this device ID is a
-	 * per-LUN identifier.
-	 */
-	desc->proto_codeset = (SCSI_PROTO_ISCSI << 4) | SVPD_ID_CODESET_ASCII;
-	desc->id_type = SVPD_ID_PIV | SVPD_ID_ASSOC_LUN | SVPD_ID_TYPE_T10;
-	desc->length = sizeof(*t10id) + devid_len;
-	if (lun == NULL || (val = ctl_get_opt(&lun->be_lun->options,
-	    "vendor")) == NULL) {
-		strncpy((char *)t10id->vendor, CTL_VENDOR, sizeof(t10id->vendor));
-	} else {
-		memset(t10id->vendor, ' ', sizeof(t10id->vendor));
-		strncpy(t10id->vendor, val,
-		    min(sizeof(t10id->vendor), strlen(val)));
-	}
-
-	/*
-	 * If we've actually got a backend, copy the device id from the
-	 * per-LUN data.  Otherwise, set it to all spaces.
-	 */
-	if (lun != NULL) {
-		/*
-		 * Copy the backend's LUN ID.
-		 */
-		strncpy((char *)t10id->vendor_spec_id,
-		    (char *)lun->be_lun->device_id, devid_len);
-	} else {
-		/*
-		 * No backend, set this to spaces.
-		 */
-		memset(t10id->vendor_spec_id, 0x20, devid_len);
-	}
-
-	/*
-	 * desc1 is for the unique LUN name.
-	 *
-	 * XXX: According to SPC-3, LUN must report the same ID through
-	 *      all the ports.  The code below, however, reports the
-	 *      ID only via iSCSI.
-	 */
-	desc1->proto_codeset = (SCSI_PROTO_ISCSI << 4) | SVPD_ID_CODESET_UTF8;
-	desc1->id_type = SVPD_ID_PIV | SVPD_ID_ASSOC_LUN |
-		SVPD_ID_TYPE_SCSI_NAME;
-	desc1->length = lun_name_len;
-	if (lun != NULL) {
-		/*
-		 * Find the per-target LUN number.
-		 */
-		for (i = 0; i < CTL_MAX_LUNS; i++) {
-			if (cs->cs_target->ct_luns[i] == lun->lun)
-				break;
-		}
-		KASSERT(i < CTL_MAX_LUNS,
-		    ("lun %jd not found", (uintmax_t)lun->lun));
-		ret = snprintf(desc1->identifier, lun_name_len, "%s,lun,%d",
-		    cs->cs_target->ct_name, i);
-		KASSERT(ret > 0 && ret <= lun_name_len, ("bad snprintf"));
-	} else {
-		KASSERT(lun_name_len == 0, ("no lun, but lun_name_len != 0"));
-	}
-
-	/*
-	 * desc2 is for the Target Name.
-	 */
-	desc2->proto_codeset = (SCSI_PROTO_ISCSI << 4) | SVPD_ID_CODESET_UTF8;
-	desc2->id_type = SVPD_ID_PIV | SVPD_ID_ASSOC_TARGET |
-	    SVPD_ID_TYPE_SCSI_NAME;
-	desc2->length = wwnn_len;
-	snprintf(desc2->identifier, wwnn_len, "%s", cs->cs_target->ct_name);
-
-	/*
-	 * desc3 is for the WWPN which is a port asscociation.
-	 */
-	desc3->proto_codeset = (SCSI_PROTO_ISCSI << 4) | SVPD_ID_CODESET_UTF8;
-	desc3->id_type = SVPD_ID_PIV | SVPD_ID_ASSOC_PORT |
-	    SVPD_ID_TYPE_SCSI_NAME;
-	desc3->length = wwpn_len;
-	snprintf(desc3->identifier, wwpn_len, "%s,t,0x%4.4x",
-	    cs->cs_target->ct_name, cs->cs_portal_group_tag);
-
-	/*
-	 * desc3 is for the Relative Target Port(type 4h) identifier
-	 */
-	desc4->proto_codeset = (SCSI_PROTO_ISCSI << 4) | SVPD_ID_CODESET_BINARY;
-	desc4->id_type = SVPD_ID_PIV | SVPD_ID_ASSOC_PORT |
-	    SVPD_ID_TYPE_RELTARG;
-	desc4->length = 4;
-	desc4->identifier[3] = 1;
-
-	/*
-	 * desc4 is for the Target Port Group(type 5h) identifier
-	 */
-	desc5->proto_codeset = (SCSI_PROTO_ISCSI << 4) | SVPD_ID_CODESET_BINARY;
-	desc5->id_type = SVPD_ID_PIV | SVPD_ID_ASSOC_PORT |
-	    SVPD_ID_TYPE_TPORTGRP;
-	desc5->length = 4;
-	desc5->identifier[3] = 1;
-
-	ctsio->scsi_status = SCSI_STATUS_OK;
-
-	ctsio->io_hdr.flags |= CTL_FLAG_ALLOCATED;
-	ctsio->be_move_done = ctl_config_move_done;
-	ctl_datamove((union ctl_io *)ctsio);
-
-	return (CTL_RETVAL_COMPLETE);
 }
 
 static void
