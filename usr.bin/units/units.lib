@@ -1,6 +1,6 @@
-/ $FreeBSD$
+# $FreeBSD$
 
-/ primitive units
+# primitive units
 
 m			!a!
 kg			!b!
@@ -13,7 +13,7 @@ bit			!h!
 erlang			!i!
 K			!j!
 
-/ prefixes
+# prefixes
 
 yotta-			1e24
 zetta-			1e21
@@ -68,7 +68,7 @@ a-			atto
 z-			zopto
 y-			yocto
 
-/ binary prefixes introduced in 1999
+# binary prefixes introduced in 1999
 exbi-			1152921504606846976
 pebi-			1125899906842624
 tebi-			1099511627776
@@ -83,7 +83,7 @@ Gi-			gibi
 Mi-			mebi
 Ki-			kibi
 
-/ constants
+# constants
 
 fuzz			1
 pi			3.14159265358979323846
@@ -109,7 +109,7 @@ electronmass		9.1093821545-31 kg
 protonmass		1.6726217129-27 kg
 neutronmass		1.6749272928-27 kg
 
-/ dimensionless
+# dimensionless
 
 radian			.5 / pi
 degree			1|180 pi-radian
@@ -127,7 +127,7 @@ steradian		radian2
 sphere			4 pi-steradian
 sr			steradian
 
-/ Time
+# Time
 
 second			sec
 s			sec
@@ -143,13 +143,13 @@ yr			year
 month			1|12 year
 us			microsec
 
-/ Mass
+# Mass
 
 gram			millikg
 gm			gram
 metricton		kilokg
 
-/ Avoirdupois
+# Avoirdupois
 
 lb			.45359237 kg
 pound			lb
@@ -164,7 +164,7 @@ shortton		2000 lb
 ton			shortton
 longton			2240 lb
 
-/ Apothecary
+# Apothecary
 
 scruple			20 grain
 apdram			60 grain
@@ -172,7 +172,7 @@ apounce			480 grain
 appound			5760 grain
 troypound		appound
 
-/ Mining
+# Mining
 
 troyounce		apounce
 troz			apounce
@@ -180,7 +180,7 @@ pennyweight		1|20 troz
 pwt			pennyweight
 dwt			pennyweight
 
-/ Length
+# Length
 
 meter			m
 micron			micrometer
@@ -208,7 +208,7 @@ cc			cm3
 liter			kilocc
 ml			milliliter
 
-/ US Liquid
+# US Liquid
 
 gallon			231 in3
 imperial		1.20095
@@ -222,7 +222,7 @@ floz			1|16 pt
 fldr			1|8 floz
 shot			3|2 floz
 
-/ US Dry
+# US Dry
 
 dry			268.8025 in3/gallon fuzz
 peck			8 dry-quart
@@ -231,7 +231,7 @@ bushel			4 peck
 bu			bushel
 chaldron		36 bushel
 
-/ British
+# British
 
 brgallon		277.420 in3 fuzz
 brquart			1|4 brgallon
@@ -241,10 +241,10 @@ brpeck			554.84 in3 fuzz
 brbushel		4 brpeck
 brhundredweight		112 lb
 
-/ Bottles
+# Bottles
 
 bottle			750 milliliter
-/bottle			fifth
+#bottle			fifth
 
 miniature		100 milliliter
 split			1|4 bottle
@@ -258,7 +258,7 @@ balthazar		16 bottle
 nebuchadnezzar		20 bottle
 sovereign		34 bottle
 
-/ Bottles - alternate names and spellings
+# Bottles - alternate names and spellings
 
 pony			split
 fillette		half
@@ -266,7 +266,7 @@ tappit-hen		3 imperial
 rheoboam		rehoboam
 shalmaneser		salmanazar
 
-/ Russian
+# Russian
 berkovets		10 pood
 pood			40 funt
 funt			0.40951 kg
@@ -279,7 +279,7 @@ verst			1066.8 m
 sazhen			1|500 verst
 kosayasazhen		1|430.2 verst
 arshin			1|1500 verst
-/ is not exactly defined
+# is not exactly defined
 ruell			16.54 in
 liniya			1|10 in
 vershok			1.75 in
@@ -296,7 +296,7 @@ sqverst			104.2 desyatina_state
 sqarshin		1|21600 desyatina_state
 sqfoot			1|117600 desyatina_state
 
-/ Energy Work
+# Energy Work
 
 newton			kg-m/sec2
 nt			newton
@@ -306,7 +306,7 @@ J			joule
 cal			4.1868 joule
 ergon			erg
 
-/ Electrical
+# Electrical
 
 coulomb			coul
 C			coul
@@ -325,14 +325,14 @@ H			henry
 weber			volt-sec
 Wb			weber
 
-/ Light
+# Light
 
 cd			candela
 lumen			cd sr
 lux			cd sr/m2
 
-/ EMU currencies have constant exchange rate against Euro since 1.1.1999.
-/ See http://en.wikipedia.org/wiki/Euro for details.
+# EMU currencies have constant exchange rate against Euro since 1.1.1999.
+# See http://en.wikipedia.org/wiki/Euro for details.
 austriaschilling	1|13.7603 euro
 belgiumfranc		1|40.3399 euro
 finlandmarkka		1|5.94573 euro
@@ -350,8 +350,8 @@ cypriotpound		1|0.585274 euro
 malteselira		1|0.429300 euro
 slovakkoruna		1|30.1260 euro
 
-/ These ones are pegged to the Euro
-/ See http://en.wikipedia.org/wiki/Euro for details.
+# These ones are pegged to the Euro
+# See http://en.wikipedia.org/wiki/Euro for details.
 bosniaherzegovinamark	1|1.95583 euro
 bulgarianlev		1|1.95583 euro
 capeverdeanescudo	1|110.265 euro
@@ -363,8 +363,8 @@ lithuanianlitas		1|3.45280 euro
 pacificfrancexchange	1|0.00838 euro
 westafricancfafranc	1|655.957 euro
 
-/ These ones are pegged on the US Dollar
-/ See http://en.wikipedia.org/wiki/USD for details.
+# These ones are pegged on the US Dollar
+# See http://en.wikipedia.org/wiki/USD for details.
 dollar			usdollar
 arubanflorin		1|1.75 usdollar
 bahamiandollar		1|1 usdollar
@@ -404,7 +404,7 @@ markka			finlandmarkka
 peseta			spainpeseta
 rand			southafricarand
 
-/ computer
+# computer
 
 baud			bit/sec
 nibble			4 bit
@@ -424,7 +424,7 @@ kilobyte		kbyte
 meg			megabyte
 
 
-/ Trivia
+# Trivia
 
 %			1|100
 abampere		10 ampere
