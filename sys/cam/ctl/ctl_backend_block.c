@@ -1857,7 +1857,8 @@ ctl_be_block_create(struct ctl_be_block_softc *softc, struct ctl_lun_req *req)
 	sprintf(be_lun->lunname, "cblk%d", softc->num_luns);
 	mtx_init(&be_lun->io_lock, "cblk io lock", NULL, MTX_DEF);
 	mtx_init(&be_lun->queue_lock, "cblk queue lock", NULL, MTX_DEF);
-	ctl_init_opts(&be_lun->ctl_be_lun, req);
+	ctl_init_opts(&be_lun->ctl_be_lun.options,
+	    req->num_be_args, req->kern_be_args);
 
 	be_lun->lun_zone = uma_zcreate(be_lun->lunname, CTLBLK_MAX_SEG,
 	    NULL, NULL, NULL, NULL, /*align*/ 0, /*flags*/0);
@@ -1874,7 +1875,7 @@ ctl_be_block_create(struct ctl_be_block_softc *softc, struct ctl_lun_req *req)
 		be_lun->ctl_be_lun.lun_type = T_DIRECT;
 
 	if (be_lun->ctl_be_lun.lun_type == T_DIRECT) {
-		value = ctl_get_opt(&be_lun->ctl_be_lun, "file");
+		value = ctl_get_opt(&be_lun->ctl_be_lun.options, "file");
 		if (value == NULL) {
 			snprintf(req->error_str, sizeof(req->error_str),
 				 "%s: no file argument specified", __func__);
@@ -1919,7 +1920,7 @@ ctl_be_block_create(struct ctl_be_block_softc *softc, struct ctl_lun_req *req)
 	 * XXX This searching loop might be refactored to be combined with
 	 * the loop above,
 	 */
-	value = ctl_get_opt(&be_lun->ctl_be_lun, "num_threads");
+	value = ctl_get_opt(&be_lun->ctl_be_lun.options, "num_threads");
 	if (value != NULL) {
 		tmp_num_threads = strtol(value, NULL, 0);
 
@@ -1937,7 +1938,7 @@ ctl_be_block_create(struct ctl_be_block_softc *softc, struct ctl_lun_req *req)
 		num_threads = tmp_num_threads;
 	}
 	unmap = 0;
-	value = ctl_get_opt(&be_lun->ctl_be_lun, "unmap");
+	value = ctl_get_opt(&be_lun->ctl_be_lun.options, "unmap");
 	if (value != NULL && strcmp(value, "on") == 0)
 		unmap = 1;
 
@@ -2102,7 +2103,7 @@ bailout_error:
 		free(be_lun->dev_path, M_CTLBLK);
 	if (be_lun->lun_zone != NULL)
 		uma_zdestroy(be_lun->lun_zone);
-	ctl_free_opts(&be_lun->ctl_be_lun);
+	ctl_free_opts(&be_lun->ctl_be_lun.options);
 	mtx_destroy(&be_lun->queue_lock);
 	mtx_destroy(&be_lun->io_lock);
 	free(be_lun, M_CTLBLK);
@@ -2190,7 +2191,7 @@ ctl_be_block_rm(struct ctl_be_block_softc *softc, struct ctl_lun_req *req)
 
 	uma_zdestroy(be_lun->lun_zone);
 
-	ctl_free_opts(&be_lun->ctl_be_lun);
+	ctl_free_opts(&be_lun->ctl_be_lun.options);
 	free(be_lun->dev_path, M_CTLBLK);
 	mtx_destroy(&be_lun->queue_lock);
 	mtx_destroy(&be_lun->io_lock);

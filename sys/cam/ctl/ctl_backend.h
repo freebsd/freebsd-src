@@ -180,12 +180,6 @@ typedef void (*be_lun_config_t)(void *be_lun,
  * The links field is for CTL internal use only, and should not be used by
  * the backend.
  */
-struct ctl_be_lun_option {
-	STAILQ_ENTRY(ctl_be_lun_option)	links;
-	char			*name;
-	char			*value;
-};
-
 struct ctl_be_lun {
 	uint8_t			lun_type;	/* passed to CTL */
 	ctl_backend_lun_flags	flags;		/* passed to CTL */
@@ -202,7 +196,7 @@ struct ctl_be_lun {
 	be_lun_config_t		lun_config_status; /* passed to CTL */
 	struct ctl_backend_driver *be;		/* passed to CTL */
 	void			*ctl_lun;	/* used by CTL */
-	STAILQ_HEAD(, ctl_be_lun_option) options; /* passed to CTL */
+	ctl_options_t		options;	/* passed to CTL */
 	STAILQ_ENTRY(ctl_be_lun) links;		/* used by CTL */
 };
 
@@ -300,14 +294,6 @@ int ctl_lun_online(struct ctl_be_lun *be_lun);
  * Let the backend notify the initiator about changed capacity.
  */
 void ctl_lun_capacity_changed(struct ctl_be_lun *be_lun);
-
-/*
- * KPI to manipulate LUN options
- */
-struct ctl_lun_req;
-void ctl_init_opts(struct ctl_be_lun *be_lun, struct ctl_lun_req *req);
-void ctl_free_opts(struct ctl_be_lun *be_lun);
-char * ctl_get_opt(struct ctl_be_lun *be_lun, const char *name);
 
 #endif /* _KERNEL */
 #endif /* _CTL_BACKEND_H_ */
