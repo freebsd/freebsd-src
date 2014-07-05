@@ -259,6 +259,11 @@ int ctl_frontend_register(struct ctl_frontend *fe);
 int ctl_frontend_deregister(struct ctl_frontend *fe);
 
 /*
+ * Find the frontend by its name. Returns NULL if not found.
+ */
+struct ctl_frontend * ctl_frontend_find(char *frontend_name);
+
+/*
  * This may block until resources are allocated.  Called at FETD module load
  * time. Returns 0 for success, non-zero for failure.
  */
