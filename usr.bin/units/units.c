@@ -166,7 +166,7 @@ readunits(const char *userfile)
 			break;
 		linenum++;
 		lineptr = line;
-		if (*lineptr == '/')
+		if (*lineptr == '/' || *lineptr == '#')
 			continue;
 		lineptr += strspn(lineptr, " \n\t");
 		len = strcspn(lineptr, " \n\t");
