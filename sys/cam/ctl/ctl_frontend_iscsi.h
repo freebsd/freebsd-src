@@ -86,6 +86,8 @@ struct cfiscsi_session {
 	char				cs_initiator_name[CTL_ISCSI_NAME_LEN];
 	char				cs_initiator_addr[CTL_ISCSI_ADDR_LEN];
 	char				cs_initiator_alias[CTL_ISCSI_ALIAS_LEN];
+	char				cs_initiator_isid[6];
+	char				cs_initiator_id[CTL_ISCSI_NAME_LEN + 5 + 6 + 1];
 	unsigned int			cs_id;
 	int				cs_ctl_initid;
 #ifdef ICL_KERNEL_PROXY
