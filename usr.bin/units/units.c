@@ -69,11 +69,7 @@ static struct {
 
 static char NULLUNIT[] = "";
 
-#ifdef MSDOS
-#define SEPARATOR      ";"
-#else
 #define SEPARATOR      ":"
-#endif
 
 static int unitcount;
 static int prefixcount;
@@ -107,7 +103,7 @@ static const char * prompt(EditLine *e __unused) {
 	return promptstr;
 }
 
-char *
+static char *
 dupstr(const char *str)
 {
 	char *ret;
@@ -119,7 +115,7 @@ dupstr(const char *str)
 }
 
 
-void 
+static void 
 readunits(const char *userfile)
 {
 	FILE *unitfile;
@@ -224,7 +220,7 @@ readunits(const char *userfile)
 	fclose(unitfile);
 }
 
-void 
+static void 
 initializeunit(struct unittype * theunit)
 {
 	theunit->numerator[0] = theunit->denominator[0] = NULL;
@@ -234,7 +230,7 @@ initializeunit(struct unittype * theunit)
 }
 
 
-int 
+static int 
 addsubunit(char *product[], char *toadd)
 {
 	char **ptr;
@@ -251,7 +247,7 @@ addsubunit(char *product[], char *toadd)
 }
 
 
-void 
+static void 
 showunit(struct unittype * theunit)
 {
 	char **ptr;
@@ -313,7 +309,7 @@ zeroerror(void)
    Returns 0 for successful addition, nonzero on error.
 */
 
-int 
+static int 
 addunit(struct unittype * theunit, const char *toadd, int flip, int quantity)
 {
 	char *scratch, *savescr;
@@ -421,14 +417,14 @@ addunit(struct unittype * theunit, const char *toadd, int flip, int quantity)
 }
 
 
-int 
+static int 
 compare(const void *item1, const void *item2)
 {
 	return strcmp(*(const char * const *)item1, *(const char * const *)item2);
 }
 
 
-void 
+static void 
 sortunit(struct unittype * theunit)
 {
 	char **ptr;
@@ -549,7 +545,7 @@ lookupunit(const char *unit)
 
 #define ERROR 4
 
-int 
+static int 
 reduceproduct(struct unittype * theunit, int flip)
 {
 
@@ -592,7 +588,7 @@ reduceproduct(struct unittype * theunit, int flip)
    Returns 0 on success, or 1 on unknown unit error.
 */
 
-int 
+static int 
 reduceunit(struct unittype * theunit)
 {
 	int ret;
@@ -607,7 +603,7 @@ reduceunit(struct unittype * theunit)
 }
 
 
-int 
+static int 
 compareproducts(char **one, char **two)
 {
 	while (*one || *two) {
@@ -630,7 +626,7 @@ compareproducts(char **one, char **two)
 
 /* Return zero if units are compatible, nonzero otherwise */
 
-int 
+static int 
 compareunits(struct unittype * first, struct unittype * second)
 {
 	return
@@ -639,7 +635,7 @@ compareunits(struct unittype * first, struct unittype * second)
 }
 
 
-int 
+static int 
 completereduce(struct unittype * unit)
 {
 	if (reduceunit(unit))
@@ -649,7 +645,7 @@ completereduce(struct unittype * unit)
 	return 0;
 }
 
-void 
+static void 
 showanswer(struct unittype * have, struct unittype * want)
 {
 	double ans;
