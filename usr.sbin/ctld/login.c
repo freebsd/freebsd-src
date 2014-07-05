@@ -850,6 +850,9 @@ login(struct connection *conn)
 		log_errx(1, "received Login PDU with non-zero TSIH");
 	}
 
+	memcpy(conn->conn_initiator_isid, bhslr->bhslr_isid,
+	    sizeof(conn->conn_initiator_isid));
+
 	/*
 	 * XXX: Implement the C flag some day.
 	 */

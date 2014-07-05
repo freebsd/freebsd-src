@@ -787,6 +787,8 @@ kernel_handoff(struct connection *conn)
 		strlcpy(req.data.handoff.initiator_alias,
 		    conn->conn_initiator_alias, sizeof(req.data.handoff.initiator_alias));
 	}
+	memcpy(req.data.handoff.initiator_isid, conn->conn_initiator_isid,
+	    sizeof(req.data.handoff.initiator_isid));
 	strlcpy(req.data.handoff.target_name,
 	    conn->conn_target->t_name, sizeof(req.data.handoff.target_name));
 #ifdef ICL_KERNEL_PROXY
