@@ -3007,7 +3007,7 @@ ctl_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
 			if (retval != 0)
 				break;
 
-			retval = sbuf_printf(sb, "<backend_type>%s"
+			retval = sbuf_printf(sb, "\t<backend_type>%s"
 					     "</backend_type>\n",
 					     (lun->backend == NULL) ?  "none" :
 					     lun->backend->name);
@@ -3015,7 +3015,7 @@ ctl_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
 			if (retval != 0)
 				break;
 
-			retval = sbuf_printf(sb, "<lun_type>%d</lun_type>\n",
+			retval = sbuf_printf(sb, "\t<lun_type>%d</lun_type>\n",
 					     lun->be_lun->lun_type);
 
 			if (retval != 0)
@@ -3028,20 +3028,20 @@ ctl_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
 				continue;
 			}
 
-			retval = sbuf_printf(sb, "<size>%ju</size>\n",
+			retval = sbuf_printf(sb, "\t<size>%ju</size>\n",
 					     (lun->be_lun->maxlba > 0) ?
 					     lun->be_lun->maxlba + 1 : 0);
 
 			if (retval != 0)
 				break;
 
-			retval = sbuf_printf(sb, "<blocksize>%u</blocksize>\n",
+			retval = sbuf_printf(sb, "\t<blocksize>%u</blocksize>\n",
 					     lun->be_lun->blocksize);
 
 			if (retval != 0)
 				break;
 
-			retval = sbuf_printf(sb, "<serial_number>");
+			retval = sbuf_printf(sb, "\t<serial_number>");
 
 			if (retval != 0)
 				break;
@@ -3057,7 +3057,7 @@ ctl_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
 			if (retval != 0)
 				break;
 
-			retval = sbuf_printf(sb, "<device_id>");
+			retval = sbuf_printf(sb, "\t<device_id>");
 
 			if (retval != 0)
 				break;
@@ -3078,7 +3078,8 @@ ctl_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
 					break;
 			}
 			STAILQ_FOREACH(opt, &lun->be_lun->options, links) {
-				retval = sbuf_printf(sb, "<%s>%s</%s>", opt->name, opt->value, opt->name);
+				retval = sbuf_printf(sb, "\t<%s>%s</%s>\n",
+				    opt->name, opt->value, opt->name);
 				if (retval != 0)
 					break;
 			}
