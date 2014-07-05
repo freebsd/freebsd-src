@@ -71,9 +71,10 @@ __cheri_ ## class ## _entry:						\
 	 * Normally in a CHERI sandbox, we would install $c26 ($idc)	\
 	 * into $c0 for MIPS load/store instructions.  For the system	\
 	 * class, we instead use $pcc so that we can have an executable	\
-	 * version of $c0.						\
+	 * version of $c0.  Also install as the stack capability.	\
 	 */								\
 	cgetpcc $zero($c0);						\
+	cmove	$c11, $c0;						\
 									\
 	/*								\
 	 * Install global invocation stack.  NB: this means we can't	\
@@ -108,6 +109,7 @@ __cheri_ ## class ## _entry:						\
 	 * too, especially as the compiler starts using them.		\
 	 */								\
 	ccleartag	$c0, $c0;					\
+	ccleartag	$c11, $c11;					\
 									\
 	/*								\
 	 * Return to caller.						\
