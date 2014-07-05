@@ -176,6 +176,9 @@ ctl_port_register(struct ctl_port *port, int master_shelf)
 	}
 	port->ctl_pool_ref = pool;
 
+	if (port->options.stqh_first == NULL)
+		STAILQ_INIT(&port->options);
+
 	mtx_lock(&control_softc->ctl_lock);
 	port->targ_port = port_num + (master_shelf != 0 ? 0 : CTL_MAX_PORTS);
 	port->max_initiators = CTL_MAX_INIT_PER_PORT;
@@ -214,6 +217,7 @@ ctl_port_deregister(struct ctl_port *port)
 	mtx_unlock(&control_softc->ctl_lock);
 
 	ctl_pool_free(pool);
+	ctl_free_opts(&port->options);
 
 bailout:
 	return (retval);

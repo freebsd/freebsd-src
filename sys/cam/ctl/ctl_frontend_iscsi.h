@@ -32,6 +32,10 @@
 #ifndef CTL_FRONTEND_ISCSI_H
 #define	CTL_FRONTEND_ISCSI_H
 
+#define CFISCSI_TARGET_STATE_INVALID	0
+#define CFISCSI_TARGET_STATE_ACTIVE	1
+#define CFISCSI_TARGET_STATE_DYING	2
+
 struct cfiscsi_target {
 	TAILQ_ENTRY(cfiscsi_target)	ct_next;
 	int				ct_luns[CTL_MAX_LUNS];
@@ -39,6 +43,9 @@ struct cfiscsi_target {
 	volatile u_int			ct_refcount;
 	char				ct_name[CTL_ISCSI_NAME_LEN];
 	char				ct_alias[CTL_ISCSI_ALIAS_LEN];
+	int				ct_state;
+	int				ct_online;
+	struct ctl_port			ct_port;
 };
 
 struct cfiscsi_data_wait {
@@ -96,7 +103,6 @@ struct icl_listen;
 #endif
 
 struct cfiscsi_softc {
-	struct ctl_port			port;
 	struct mtx			lock;
 	char				port_name[32];
 	int				online;

@@ -3146,11 +3146,41 @@ ctl_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
 		retval = fe->ioctl(dev, cmd, addr, flag, td);
 		break;
 	}
+	case CTL_PORT_REQ: {
+		struct ctl_req *req;
+		struct ctl_frontend *fe;
+
+		req = (struct ctl_req *)addr;
+
+		fe = ctl_frontend_find(req->driver);
+		if (fe == NULL) {
+			req->status = CTL_LUN_ERROR;
+			snprintf(req->error_str, sizeof(req->error_str),
+			    "Frontend \"%s\" not found.", req->driver);
+			break;
+		}
+		if (req->num_args > 0) {
+			req->kern_args = ctl_copyin_args(req->num_args,
+			    req->args, req->error_str, sizeof(req->error_str));
+			if (req->kern_args == NULL) {
+				req->status = CTL_LUN_ERROR;
+				break;
+			}
+		}
+
+		retval = fe->ioctl(dev, cmd, addr, flag, td);
+
+		if (req->num_args > 0) {
+			ctl_copyout_args(req->num_args, req->kern_args);
+			ctl_free_args(req->num_args, req->kern_args);
+		}
+		break;
+	}
 	case CTL_PORT_LIST: {
 		struct sbuf *sb;
 		struct ctl_port *port;
 		struct ctl_lun_list *list;
-//		struct ctl_option *opt;
+		struct ctl_option *opt;
 
 		list = (struct ctl_lun_list *)addr;
 
@@ -3216,6 +3246,13 @@ ctl_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
 			    (uintmax_t)port->wwpn);
 			if (retval != 0)
 				break;
+
+			STAILQ_FOREACH(opt, &port->options, links) {
+				retval = sbuf_printf(sb, "\t<%s>%s</%s>\n",
+				    opt->name, opt->value, opt->name);
+				if (retval != 0)
+					break;
+			}
 
 			retval = sbuf_printf(sb, "</targ_port>\n");
 			if (retval != 0)

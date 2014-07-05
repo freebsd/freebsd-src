@@ -103,6 +103,8 @@ union ctl_modepage_info {
  */
 #define CTL_WWPN_LEN   8
 
+#define	CTL_DRIVER_NAME_LEN	32
+
 /*
  * Unit attention types. ASC/ASCQ values for these should be placed in
  * ctl_build_ua.  These are also listed in order of reporting priority.
