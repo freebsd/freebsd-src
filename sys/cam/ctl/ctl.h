@@ -186,6 +186,22 @@ void ctl_config_write_done(union ctl_io *io);
 void ctl_portDB_changed(int portnum);
 void ctl_init_isc_msg(void);
 
+/*
+ * KPI to manipulate LUN/port options
+ */
+
+struct ctl_option {
+	STAILQ_ENTRY(ctl_option)	links;
+	char			*name;
+	char			*value;
+};
+typedef STAILQ_HEAD(ctl_options, ctl_option) ctl_options_t;
+
+struct ctl_be_arg;
+void ctl_init_opts(ctl_options_t *opts, int num_args, struct ctl_be_arg *args);
+void ctl_free_opts(ctl_options_t *opts);
+char * ctl_get_opt(ctl_options_t *opts, const char *name);
+
 #endif	/* _KERNEL */
 
 #endif	/* _CTL_H_ */

@@ -2954,7 +2954,7 @@ ctl_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
 		struct sbuf *sb;
 		struct ctl_lun *lun;
 		struct ctl_lun_list *list;
-		struct ctl_be_lun_option *opt;
+		struct ctl_option *opt;
 
 		list = (struct ctl_lun_list *)addr;
 
@@ -9579,7 +9579,8 @@ ctl_inquiry_evpd_devid(struct ctl_scsiio *ctsio, int alloc_len)
 	 */
 	desc->id_type = SVPD_ID_PIV | SVPD_ID_ASSOC_LUN | SVPD_ID_TYPE_T10;
 	desc->length = sizeof(*t10id) + devid_len;
-	if (lun == NULL || (val = ctl_get_opt(lun->be_lun, "vendor")) == NULL) {
+	if (lun == NULL || (val = ctl_get_opt(&lun->be_lun->options,
+	    "vendor")) == NULL) {
 		strncpy((char *)t10id->vendor, CTL_VENDOR, sizeof(t10id->vendor));
 	} else {
 		memset(t10id->vendor, ' ', sizeof(t10id->vendor));
@@ -9963,7 +9964,8 @@ ctl_inquiry_std(struct ctl_scsiio *ctsio)
 	 * We have 8 bytes for the vendor name, and 16 bytes for the device
 	 * name and 4 bytes for the revision.
 	 */
-	if (lun == NULL || (val = ctl_get_opt(lun->be_lun, "vendor")) == NULL) {
+	if (lun == NULL || (val = ctl_get_opt(&lun->be_lun->options,
+	    "vendor")) == NULL) {
 		strcpy(inq_ptr->vendor, CTL_VENDOR);
 	} else {
 		memset(inq_ptr->vendor, ' ', sizeof(inq_ptr->vendor));
@@ -9972,7 +9974,7 @@ ctl_inquiry_std(struct ctl_scsiio *ctsio)
 	}
 	if (lun == NULL) {
 		strcpy(inq_ptr->product, CTL_DIRECT_PRODUCT);
-	} else if ((val = ctl_get_opt(lun->be_lun, "product")) == NULL) {
+	} else if ((val = ctl_get_opt(&lun->be_lun->options, "product")) == NULL) {
 		switch (lun->be_lun->lun_type) {
 		case T_DIRECT:
 			strcpy(inq_ptr->product, CTL_DIRECT_PRODUCT);
@@ -9994,7 +9996,8 @@ ctl_inquiry_std(struct ctl_scsiio *ctsio)
 	 * XXX make this a macro somewhere so it automatically gets
 	 * incremented when we make changes.
 	 */
-	if (lun == NULL || (val = ctl_get_opt(lun->be_lun, "revision")) == NULL) {
+	if (lun == NULL || (val = ctl_get_opt(&lun->be_lun->options,
+	    "revision")) == NULL) {
 		strncpy(inq_ptr->revision, "0001", sizeof(inq_ptr->revision));
 	} else {
 		memset(inq_ptr->revision, ' ', sizeof(inq_ptr->revision));
