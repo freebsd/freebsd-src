@@ -162,7 +162,7 @@ ctl_port_register(struct ctl_port *port, int master_shelf)
 	mtx_lock(&control_softc->ctl_lock);
 	port->targ_port = port_num + (master_shelf != 0 ? 0 : CTL_MAX_PORTS);
 	port->max_initiators = CTL_MAX_INIT_PER_PORT;
-	STAILQ_INSERT_TAIL(&port->frontend->port_list, port, links);
+	STAILQ_INSERT_TAIL(&port->frontend->port_list, port, fe_links);
 	STAILQ_INSERT_TAIL(&control_softc->port_list, port, links);
 	control_softc->ctl_ports[port_num] = port;
 	mtx_unlock(&control_softc->ctl_lock);
