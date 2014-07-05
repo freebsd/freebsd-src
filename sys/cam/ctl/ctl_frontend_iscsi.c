@@ -2106,7 +2106,8 @@ cfiscsi_devid(struct ctl_scsiio *ctsio, int alloc_len)
 	desc->proto_codeset = (SCSI_PROTO_ISCSI << 4) | SVPD_ID_CODESET_ASCII;
 	desc->id_type = SVPD_ID_PIV | SVPD_ID_ASSOC_LUN | SVPD_ID_TYPE_T10;
 	desc->length = sizeof(*t10id) + devid_len;
-	if (lun == NULL || (val = ctl_get_opt(lun->be_lun, "vendor")) == NULL) {
+	if (lun == NULL || (val = ctl_get_opt(&lun->be_lun->options,
+	    "vendor")) == NULL) {
 		strncpy((char *)t10id->vendor, CTL_VENDOR, sizeof(t10id->vendor));
 	} else {
 		memset(t10id->vendor, ' ', sizeof(t10id->vendor));
@@ -2366,11 +2367,11 @@ cfiscsi_lun_enable(void *arg, struct ctl_id target_id, int lun_id)
 
 	softc = (struct cfiscsi_softc *)arg;
 
-	target = ctl_get_opt(control_softc->ctl_luns[lun_id]->be_lun,
+	target = ctl_get_opt(&control_softc->ctl_luns[lun_id]->be_lun->options,
 	    "cfiscsi_target");
-	target_alias = ctl_get_opt(control_softc->ctl_luns[lun_id]->be_lun,
+	target_alias = ctl_get_opt(&control_softc->ctl_luns[lun_id]->be_lun->options,
 	    "cfiscsi_target_alias");
-	lun = ctl_get_opt(control_softc->ctl_luns[lun_id]->be_lun,
+	lun = ctl_get_opt(&control_softc->ctl_luns[lun_id]->be_lun->options,
 	    "cfiscsi_lun");
 
 	if (target == NULL && lun == NULL)
