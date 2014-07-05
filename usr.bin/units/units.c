@@ -78,6 +78,7 @@ static char NULLUNIT[] = "";
 static int unitcount;
 static int prefixcount;
 static bool verbose = false;
+static bool terse = false;
 static const char * havestr;
 static const char * wantstr;
 
@@ -657,14 +658,16 @@ showanswer(struct unittype * have, struct unittype * want)
 		printf("conformability error\n");
 		if (verbose)
 			printf("\t%s = ", havestr);
-		else
+		else if (!terse)
 			printf("\t");
 		showunit(have);
-		if (verbose)
-			printf("\t%s = ", wantstr);
-		else
-			printf("\t");
-		showunit(want);
+		if (!terse) {
+			if (verbose)
+				printf("\t%s = ", wantstr);
+			else
+				printf("\t");
+			showunit(want);
+		}
 	}
 	else if (have->offset != want->offset) {
 		if (want->quantity)
@@ -684,12 +687,14 @@ showanswer(struct unittype * have, struct unittype * want)
 		ans = have->factor / want->factor;
 		if (verbose)
 			printf("\t%s = %.8g * %s\n", havestr, ans, wantstr);
-		else
+		else if (terse) 
+			printf("%.8g\n", ans);
+		else 
 			printf("\t* %.8g\n", ans);
 
 		if (verbose)
 			printf("\t%s = (1 / %.8g) * %s\n", havestr, 1/ans,  wantstr);
-		else
+		else if (!terse)
 			printf("\t/ %.8g\n", 1/ans);
 	}
 }
@@ -707,8 +712,9 @@ static struct option longopts[] = {
 	{"help", no_argument, NULL, 'h'},
 	{"file", required_argument, NULL, 'f'},
 	{"quiet", no_argument, NULL, 'q'},
-	{"verbose", no_argument, NULL, 'v'},
+	{"terse", no_argument, NULL, 't'},
 	{"unitsfile", no_argument, NULL, 'U'},
+	{"verbose", no_argument, NULL, 'v'},
 	{"version", no_argument, NULL, 'V'},
 	{ 0, 0, 0, 0 }
 };
@@ -729,7 +735,7 @@ main(int argc, char **argv)
 
 	quiet = false;
 	readfile = false;
-	while ((optchar = getopt_long(argc, argv, "+hf:qvUV", longopts, NULL)) != -1) {
+	while ((optchar = getopt_long(argc, argv, "+hf:qtvUV", longopts, NULL)) != -1) {
 		switch (optchar) {
 		case 'f':
 			readfile = true;
@@ -740,6 +746,9 @@ main(int argc, char **argv)
 			break;
 		case 'q':
 			quiet = true;
+			break;
+		case 't':
+			terse = true;
 			break;
 		case 'v':
 			verbose = true;
@@ -825,5 +834,5 @@ main(int argc, char **argv)
 
 	history_end(inhistory);
 	el_end(el);
-	return(0);
+	return (0);
 }
