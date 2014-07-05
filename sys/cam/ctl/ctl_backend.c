@@ -181,6 +181,10 @@ ctl_init_opts(ctl_options_t *opts, int num_args, struct ctl_be_arg *args)
 
 	STAILQ_INIT(opts);
 	for (i = 0; i < num_args; i++) {
+		if ((args[i].flags & CTL_BEARG_RD) == 0)
+			continue;
+		if ((args[i].flags & CTL_BEARG_ASCII) == 0)
+			continue;
 		opt = malloc(sizeof(*opt), M_CTL, M_WAITOK);
 		opt->name = malloc(strlen(args[i].kname) + 1, M_CTL, M_WAITOK);
 		strcpy(opt->name, args[i].kname);
