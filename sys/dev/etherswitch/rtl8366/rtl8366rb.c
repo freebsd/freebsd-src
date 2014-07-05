@@ -579,13 +579,19 @@ rtl_getport(device_t dev, etherswitch_port_t *p)
 	} else {
 		/* fill in fixed values for CPU port */
 		p->es_flags |= ETHERSWITCH_PORT_CPU;
-		ifmr->ifm_count = 0;
 		smi_read(dev, RTL8366RB_PLSR_BASE + (RTL8366RB_NUM_PHYS)/2, &v, RTL_WAITOK);
 		v = v >> (8 * ((RTL8366RB_NUM_PHYS) % 2));
 		rtl8366rb_update_ifmedia(v, &ifmr->ifm_status, &ifmr->ifm_active);
 		ifmr->ifm_current = ifmr->ifm_active;
 		ifmr->ifm_mask = 0;
 		ifmr->ifm_status = IFM_ACTIVE | IFM_AVALID;
+		/* Return our static media list. */
+		if (ifmr->ifm_count > 0) {
+			ifmr->ifm_count = 1;
+			ifmr->ifm_ulist[0] = IFM_MAKEWORD(IFM_ETHER, IFM_1000_T,
+			    IFM_FDX, 0);
+		} else
+			ifmr->ifm_count = 0;
 	}
 	return (0);
 }
@@ -598,7 +604,7 @@ rtl_setport(device_t dev, etherswitch_port_t *p)
 	struct ifmedia *ifm;
 	struct mii_data *mii;
 
-	if (p->es_port < 0 || p->es_port >= RTL8366RB_NUM_PHYS)
+	if (p->es_port < 0 || p->es_port >= RTL8366RB_NUM_PORTS)
 		return (ENXIO);
 	sc = device_get_softc(dev);
 	vlangroup = -1;
