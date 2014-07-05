@@ -219,15 +219,16 @@ sandbox_object_load(struct sandbox_class *sbcp, struct sandbox_object *sbop)
 	    SANDBOX_ENTRY);
 
 	/* Construct sealed code capability. */
+	/* XXXRW: Do we actually require CHERI_PERM_LOAD? */
 	sbcap = cheri_andperm(basecap, CHERI_PERM_EXECUTE | CHERI_PERM_LOAD |
 	    CHERI_PERM_SEAL);
 	sbop->sbo_cheri_object.co_codecap =
 	    cheri_sealcode(sbcap);
 
 	/* Construct sealed data capability. */
-	sbcap = cheri_andperm(basecap, CHERI_PERM_LOAD | CHERI_PERM_STORE |
-	    CHERI_PERM_LOAD_CAP | CHERI_PERM_STORE_CAP |
-	    CHERI_PERM_STORE_EPHEM_CAP);
+	sbcap = cheri_andperm(basecap, CHERI_PERM_NON_EPHEMERAL |
+	    CHERI_PERM_LOAD | CHERI_PERM_STORE | CHERI_PERM_LOAD_CAP |
+	    CHERI_PERM_STORE_CAP | CHERI_PERM_STORE_EPHEM_CAP);
 	sbop->sbo_cheri_object.co_datacap = cheri_sealdata(sbcap, basecap);
 
 	/*
@@ -245,7 +246,7 @@ sandbox_object_load(struct sandbox_class *sbcp, struct sandbox_object *sbop)
 	sbop->sbo_cheri_system_object.co_codecap = cheri_sealcode(basecap);
 
 	sbcap = cheri_ptr(sbop, sizeof(*sbop));
-	sbcap = cheri_andperm(sbcap,
+	sbcap = cheri_andperm(sbcap, CHERI_PERM_NON_EPHEMERAL |
 	    CHERI_PERM_LOAD | CHERI_PERM_STORE | CHERI_PERM_LOAD_CAP |
 	    CHERI_PERM_STORE_CAP | CHERI_PERM_STORE_EPHEM_CAP);
 	sbop->sbo_cheri_system_object.co_datacap = cheri_sealdata(sbcap,
