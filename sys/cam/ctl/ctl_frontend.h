@@ -53,7 +53,6 @@ typedef int (*targ_func_t)(void *arg, struct ctl_id targ_id);
 typedef	int (*lun_func_t)(void *arg, struct ctl_id targ_id, int lun_id);
 typedef int (*fe_ioctl_t)(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
 			  struct thread *td);
-typedef int (*fe_devid_t)(struct ctl_scsiio *ctsio, int alloc_len);
 
 #define CTL_FRONTEND_DECLARE(name, driver) \
 	static int name ## _modevent(module_t mod, int type, void *data) \
@@ -218,7 +217,6 @@ struct ctl_port {
 	void		*onoff_arg;		/* passed to CTL */
 	lun_func_t	lun_enable;		/* passed to CTL */
 	lun_func_t	lun_disable;		/* passed to CTL */
-	fe_devid_t	devid;			/* passed to CTL */
 	void		*targ_lun_arg;		/* passed to CTL */
 	void		(*fe_datamove)(union ctl_io *io); /* passed to CTL */
 	void		(*fe_done)(union ctl_io *io); /* passed to CTL */
@@ -231,6 +229,8 @@ struct ctl_port {
 	uint64_t	wwpn;			/* set by CTL before online */
 	ctl_port_status	status;			/* used by CTL */
 	ctl_options_t	options;		/* passed to CTL */
+	struct ctl_devid *port_devid;		/* passed to CTL */
+	struct ctl_devid *target_devid;		/* passed to CTL */
 	STAILQ_ENTRY(ctl_port) fe_links;	/* used by CTL */
 	STAILQ_ENTRY(ctl_port) links;		/* used by CTL */
 };

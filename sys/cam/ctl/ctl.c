@@ -4293,7 +4293,11 @@ ctl_alloc_lun(struct ctl_softc *ctl_softc, struct ctl_lun *ctl_lun,
 {
 	struct ctl_lun *nlun, *lun;
 	struct ctl_port *port;
+	struct scsi_vpd_id_descriptor *desc;
+	struct scsi_vpd_id_t10 *t10id;
+	const char *scsiname, *vendor;
 	int lun_number, i, lun_malloced;
+	int devidlen, idlen1, idlen2, len;
 
 	if (be_lun == NULL)
 		return (EINVAL);
@@ -4324,6 +4328,43 @@ ctl_alloc_lun(struct ctl_softc *ctl_softc, struct ctl_lun *ctl_lun,
 	memset(lun, 0, sizeof(*lun));
 	if (lun_malloced)
 		lun->flags = CTL_LUN_MALLOCED;
+
+	/* Generate LUN ID. */
+	devidlen = max(CTL_DEVID_MIN_LEN,
+	    strnlen(be_lun->device_id, CTL_DEVID_LEN));
+	idlen1 = sizeof(*t10id) + devidlen;
+	len = sizeof(struct scsi_vpd_id_descriptor) + idlen1;
+	scsiname = ctl_get_opt(&be_lun->options, "scsiname");
+	if (scsiname != NULL) {
+		idlen2 = roundup2(strlen(scsiname) + 1, 4);
+		len += sizeof(struct scsi_vpd_id_descriptor) + idlen2;
+	}
+	lun->lun_devid = malloc(sizeof(struct ctl_devid) + len,
+	    M_CTL, M_WAITOK | M_ZERO);
+	lun->lun_devid->len = len;
+	desc = (struct scsi_vpd_id_descriptor *)lun->lun_devid->data;
+	desc->proto_codeset = SVPD_ID_CODESET_ASCII;
+	desc->id_type = SVPD_ID_PIV | SVPD_ID_ASSOC_LUN | SVPD_ID_TYPE_T10;
+	desc->length = idlen1;
+	t10id = (struct scsi_vpd_id_t10 *)&desc->identifier[0];
+	memset(t10id->vendor, ' ', sizeof(t10id->vendor));
+	if ((vendor = ctl_get_opt(&be_lun->options, "vendor")) == NULL) {
+		strncpy((char *)t10id->vendor, CTL_VENDOR, sizeof(t10id->vendor));
+	} else {
+		strncpy(t10id->vendor, vendor,
+		    min(sizeof(t10id->vendor), strlen(vendor)));
+	}
+	strncpy((char *)t10id->vendor_spec_id,
+	    (char *)be_lun->device_id, devidlen);
+	if (scsiname != NULL) {
+		desc = (struct scsi_vpd_id_descriptor *)(&desc->identifier[0] +
+		    desc->length);
+		desc->proto_codeset = SVPD_ID_CODESET_UTF8;
+		desc->id_type = SVPD_ID_PIV | SVPD_ID_ASSOC_LUN |
+		    SVPD_ID_TYPE_SCSI_NAME;
+		desc->length = idlen2;
+		strlcpy(desc->identifier, scsiname, idlen2);
+	}
 
 	mtx_lock(&ctl_softc->ctl_lock);
 	/*
@@ -4546,6 +4587,7 @@ ctl_free_lun(struct ctl_lun *lun)
 	lun->be_lun->lun_shutdown(lun->be_lun->be_lun);
 
 	mtx_destroy(&lun->lun_lock);
+	free(lun->lun_devid, M_CTL);
 	if (lun->flags & CTL_LUN_MALLOCED)
 		free(lun, M_CTL);
 
@@ -9624,39 +9666,29 @@ static int
 ctl_inquiry_evpd_devid(struct ctl_scsiio *ctsio, int alloc_len)
 {
 	struct scsi_vpd_device_id *devid_ptr;
-	struct scsi_vpd_id_descriptor *desc, *desc1;
-	struct scsi_vpd_id_descriptor *desc2, *desc3; /* for types 4h and 5h */
-	struct scsi_vpd_id_t10 *t10id;
+	struct scsi_vpd_id_descriptor *desc;
 	struct ctl_softc *ctl_softc;
 	struct ctl_lun *lun;
 	struct ctl_port *port;
-	char *val;
-	int data_len, devid_len;
+	int data_len;
+	uint8_t proto;
 
 	ctl_softc = control_softc;
 
 	port = ctl_softc->ctl_ports[ctl_port_idx(ctsio->io_hdr.nexus.targ_port)];
-
-	if (port->devid != NULL)
-		return ((port->devid)(ctsio, alloc_len));
-
 	lun = (struct ctl_lun *)ctsio->io_hdr.ctl_private[CTL_PRIV_LUN].ptr;
 
-	if (lun == NULL) {
-		devid_len = CTL_DEVID_MIN_LEN;
-	} else {
-		devid_len = max(CTL_DEVID_MIN_LEN,
-		    strnlen(lun->be_lun->device_id, CTL_DEVID_LEN));
-	}
-
 	data_len = sizeof(struct scsi_vpd_device_id) +
-		sizeof(struct scsi_vpd_id_descriptor) +
-		sizeof(struct scsi_vpd_id_t10) + devid_len +
-		sizeof(struct scsi_vpd_id_descriptor) + CTL_WWPN_LEN +
-		sizeof(struct scsi_vpd_id_descriptor) +
+	    sizeof(struct scsi_vpd_id_descriptor) +
 		sizeof(struct scsi_vpd_id_rel_trgt_port_id) +
-		sizeof(struct scsi_vpd_id_descriptor) +
+	    sizeof(struct scsi_vpd_id_descriptor) +
 		sizeof(struct scsi_vpd_id_trgt_port_grp_id);
+	if (lun && lun->lun_devid)
+		data_len += lun->lun_devid->len;
+	if (port->port_devid)
+		data_len += port->port_devid->len;
+	if (port->target_devid)
+		data_len += port->target_devid->len;
 
 	ctsio->kern_data_ptr = malloc(data_len, M_CTL, M_WAITOK | M_ZERO);
 	devid_ptr = (struct scsi_vpd_device_id *)ctsio->kern_data_ptr;
@@ -9675,15 +9707,6 @@ ctl_inquiry_evpd_devid(struct ctl_scsiio *ctsio, int alloc_len)
 	ctsio->kern_rel_offset = 0;
 	ctsio->kern_sg_entries = 0;
 
-	desc = (struct scsi_vpd_id_descriptor *)devid_ptr->desc_list;
-	t10id = (struct scsi_vpd_id_t10 *)&desc->identifier[0];
-	desc1 = (struct scsi_vpd_id_descriptor *)(&desc->identifier[0] +
-		sizeof(struct scsi_vpd_id_t10) + devid_len);
-	desc2 = (struct scsi_vpd_id_descriptor *)(&desc1->identifier[0] +
-	          CTL_WWPN_LEN);
-	desc3 = (struct scsi_vpd_id_descriptor *)(&desc2->identifier[0] +
-	         sizeof(struct scsi_vpd_id_rel_trgt_port_id));
-
 	/*
 	 * The control device is always connected.  The disk device, on the
 	 * other hand, may not be online all the time.
@@ -9693,112 +9716,69 @@ ctl_inquiry_evpd_devid(struct ctl_scsiio *ctsio, int alloc_len)
 				     lun->be_lun->lun_type;
 	else
 		devid_ptr->device = (SID_QUAL_LU_OFFLINE << 5) | T_DIRECT;
-
 	devid_ptr->page_code = SVPD_DEVICE_ID;
-
 	scsi_ulto2b(data_len - 4, devid_ptr->length);
 
-	/*
-	 * For Fibre channel,
-	 */
 	if (port->port_type == CTL_PORT_FC)
-	{
-		desc->proto_codeset = (SCSI_PROTO_FC << 4) |
-				      SVPD_ID_CODESET_ASCII;
-        	desc1->proto_codeset = (SCSI_PROTO_FC << 4) |
-		              SVPD_ID_CODESET_BINARY;
-	}
+		proto = SCSI_PROTO_FC << 4;
+	else if (port->port_type == CTL_PORT_ISCSI)
+		proto = SCSI_PROTO_ISCSI << 4;
 	else
-	{
-		desc->proto_codeset = (SCSI_PROTO_SPI << 4) |
-				      SVPD_ID_CODESET_ASCII;
-        	desc1->proto_codeset = (SCSI_PROTO_SPI << 4) |
-		              SVPD_ID_CODESET_BINARY;
-	}
-	desc2->proto_codeset = desc3->proto_codeset = desc1->proto_codeset;
+		proto = SCSI_PROTO_SPI << 4;
+	desc = (struct scsi_vpd_id_descriptor *)devid_ptr->desc_list;
 
 	/*
 	 * We're using a LUN association here.  i.e., this device ID is a
 	 * per-LUN identifier.
 	 */
-	desc->id_type = SVPD_ID_PIV | SVPD_ID_ASSOC_LUN | SVPD_ID_TYPE_T10;
-	desc->length = sizeof(*t10id) + devid_len;
-	if (lun == NULL || (val = ctl_get_opt(&lun->be_lun->options,
-	    "vendor")) == NULL) {
-		strncpy((char *)t10id->vendor, CTL_VENDOR, sizeof(t10id->vendor));
-	} else {
-		memset(t10id->vendor, ' ', sizeof(t10id->vendor));
-		strncpy(t10id->vendor, val,
-		    min(sizeof(t10id->vendor), strlen(val)));
+	if (lun && lun->lun_devid) {
+		memcpy(desc, lun->lun_devid->data, lun->lun_devid->len);
+		desc = (struct scsi_vpd_id_descriptor *)((uint8_t *)desc +
+		    lun->lun_devid->len);
 	}
 
 	/*
-	 * desc1 is for the WWPN which is a port asscociation.
+	 * This is for the WWPN which is a port association.
 	 */
-	desc1->id_type = SVPD_ID_PIV | SVPD_ID_ASSOC_PORT | SVPD_ID_TYPE_NAA;
-	desc1->length = CTL_WWPN_LEN;
-	/* XXX Call Reggie's get_WWNN func here then add port # to the end */
-	/* For testing just create the WWPN */
-#if 0
-	ddb_GetWWNN((char *)desc1->identifier);
-
-	/* NOTE: if the port is 0 or 8 we don't want to subtract 1 */
-	/* This is so Copancontrol will return something sane */
-	if (ctsio->io_hdr.nexus.targ_port!=0 &&
-	    ctsio->io_hdr.nexus.targ_port!=8)
-		desc1->identifier[7] += ctsio->io_hdr.nexus.targ_port-1;
-	else
-		desc1->identifier[7] += ctsio->io_hdr.nexus.targ_port;
-#endif
-
-	be64enc(desc1->identifier, port->wwpn);
+	if (port->port_devid) {
+		memcpy(desc, port->port_devid->data, port->port_devid->len);
+		desc = (struct scsi_vpd_id_descriptor *)((uint8_t *)desc +
+		    port->port_devid->len);
+	}
 
 	/*
-	 * desc2 is for the Relative Target Port(type 4h) identifier
+	 * This is for the Relative Target Port(type 4h) identifier
 	 */
-	desc2->id_type = SVPD_ID_PIV | SVPD_ID_ASSOC_PORT
-	                 | SVPD_ID_TYPE_RELTARG;
-	desc2->length = 4;
-//#if 0
-	/* NOTE: if the port is 0 or 8 we don't want to subtract 1 */
-	/* This is so Copancontrol will return something sane */
-	if (ctsio->io_hdr.nexus.targ_port!=0 &&
-	    ctsio->io_hdr.nexus.targ_port!=8)
-		desc2->identifier[3] = ctsio->io_hdr.nexus.targ_port - 1;
-	else
-	        desc2->identifier[3] = ctsio->io_hdr.nexus.targ_port;
-//#endif
+	desc->proto_codeset = proto | SVPD_ID_CODESET_BINARY;
+	desc->id_type = SVPD_ID_PIV | SVPD_ID_ASSOC_PORT |
+	    SVPD_ID_TYPE_RELTARG;
+	desc->length = 4;
+	scsi_ulto2b(ctsio->io_hdr.nexus.targ_port, &desc->identifier[2]);
+	desc = (struct scsi_vpd_id_descriptor *)(&desc->identifier[0] +
+	    sizeof(struct scsi_vpd_id_rel_trgt_port_id));
 
 	/*
-	 * desc3 is for the Target Port Group(type 5h) identifier
+	 * This is for the Target Port Group(type 5h) identifier
 	 */
-	desc3->id_type = SVPD_ID_PIV | SVPD_ID_ASSOC_PORT
-	                 | SVPD_ID_TYPE_TPORTGRP;
-	desc3->length = 4;
+	desc->proto_codeset = proto | SVPD_ID_CODESET_BINARY;
+	desc->id_type = SVPD_ID_PIV | SVPD_ID_ASSOC_PORT |
+	    SVPD_ID_TYPE_TPORTGRP;
+	desc->length = 4;
 	if (ctsio->io_hdr.nexus.targ_port < CTL_MAX_PORTS || ctl_is_single)
-		desc3->identifier[3] = 1;
+		scsi_ulto2b(1, &desc->identifier[2]);
 	else
-		desc3->identifier[3] = 2;
+		scsi_ulto2b(2, &desc->identifier[2]);
+	desc = (struct scsi_vpd_id_descriptor *)(&desc->identifier[0] +
+	    sizeof(struct scsi_vpd_id_trgt_port_grp_id));
 
 	/*
-	 * If we've actually got a backend, copy the device id from the
-	 * per-LUN data.  Otherwise, set it to all spaces.
+	 * This is for the Target identifier
 	 */
-	if (lun != NULL) {
-		/*
-		 * Copy the backend's LUN ID.
-		 */
-		strncpy((char *)t10id->vendor_spec_id,
-			(char *)lun->be_lun->device_id, devid_len);
-	} else {
-		/*
-		 * No backend, set this to spaces.
-		 */
-		memset(t10id->vendor_spec_id, 0x20, devid_len);
+	if (port->target_devid) {
+		memcpy(desc, port->target_devid->data, port->target_devid->len);
 	}
 
 	ctsio->scsi_status = SCSI_STATUS_OK;
-
 	ctsio->io_hdr.flags |= CTL_FLAG_ALLOCATED;
 	ctsio->be_move_done = ctl_config_move_done;
 	ctl_datamove((union ctl_io *)ctsio);
