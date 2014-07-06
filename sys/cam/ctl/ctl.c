@@ -347,6 +347,7 @@ static int ctl_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
 uint32_t ctl_get_resindex(struct ctl_nexus *nexus);
 uint32_t ctl_port_idx(int port_num);
 static uint32_t ctl_map_lun(int port_num, uint32_t lun);
+static uint32_t ctl_map_lun_back(int port_num, uint32_t lun);
 #ifdef unused
 static union ctl_io *ctl_malloc_io(ctl_io_type io_type, uint32_t targ_port,
 				   uint32_t targ_target, uint32_t targ_lun,
@@ -3357,6 +3358,22 @@ ctl_map_lun(int port_num, uint32_t lun_id)
 	if (port->lun_map == NULL)
 		return (lun_id);
 	return (port->lun_map(port->targ_lun_arg, lun_id));
+}
+
+static uint32_t
+ctl_map_lun_back(int port_num, uint32_t lun_id)
+{
+	struct ctl_port *port;
+	uint32_t i;
+
+	port = control_softc->ctl_ports[ctl_port_idx(port_num)];
+	if (port->lun_map == NULL)
+		return (lun_id);
+	for (i = 0; i < CTL_MAX_LUNS; i++) {
+		if (port->lun_map(port->targ_lun_arg, i) == lun_id)
+			return (i);
+	}
+	return (UINT32_MAX);
 }
 
 /*
@@ -7118,14 +7135,14 @@ ctl_report_tagret_port_groups(struct ctl_scsiio *ctsio)
 {
 	struct scsi_maintenance_in *cdb;
 	int retval;
-	int alloc_len, total_len = 0;
-	int num_target_port_groups, single;
+	int alloc_len, ext, total_len = 0, g, p, pc, pg;
+	int num_target_port_groups, num_target_ports, single;
 	struct ctl_lun *lun;
 	struct ctl_softc *softc;
+	struct ctl_port *port;
 	struct scsi_target_group_data *rtg_ptr;
-	struct scsi_target_port_group_descriptor *tpg_desc_ptr1, *tpg_desc_ptr2;
-	struct scsi_target_port_descriptor  *tp_desc_ptr1_1, *tp_desc_ptr1_2,
-	                                    *tp_desc_ptr2_1, *tp_desc_ptr2_2;
+	struct scsi_target_group_data_extended *rtg_ext_ptr;
+	struct scsi_target_port_group_descriptor *tpg_desc;
 
 	CTL_DEBUG_PRINT(("ctl_report_tagret_port_groups\n"));
 
@@ -7135,17 +7152,48 @@ ctl_report_tagret_port_groups(struct ctl_scsiio *ctsio)
 
 	retval = CTL_RETVAL_COMPLETE;
 
+	switch (cdb->byte2 & STG_PDF_MASK) {
+	case STG_PDF_LENGTH:
+		ext = 0;
+		break;
+	case STG_PDF_EXTENDED:
+		ext = 1;
+		break;
+	default:
+		ctl_set_invalid_field(/*ctsio*/ ctsio,
+				      /*sks_valid*/ 1,
+				      /*command*/ 1,
+				      /*field*/ 2,
+				      /*bit_valid*/ 1,
+				      /*bit*/ 5);
+		ctl_done((union ctl_io *)ctsio);
+		return(retval);
+	}
+
 	single = ctl_is_single;
 	if (single)
-        	num_target_port_groups = NUM_TARGET_PORT_GROUPS - 1;
+		num_target_port_groups = 1;
 	else
-        	num_target_port_groups = NUM_TARGET_PORT_GROUPS;
+		num_target_port_groups = NUM_TARGET_PORT_GROUPS;
+	num_target_ports = 0;
+	mtx_lock(&softc->ctl_lock);
+	STAILQ_FOREACH(port, &softc->port_list, links) {
+		if ((port->status & CTL_PORT_STATUS_ONLINE) == 0)
+			continue;
+		if (ctl_map_lun_back(port->targ_port, lun->lun) >= CTL_MAX_LUNS)
+			continue;
+		num_target_ports++;
+	}
+	mtx_unlock(&softc->ctl_lock);
 
-	total_len = sizeof(struct scsi_target_group_data) +
-		sizeof(struct scsi_target_port_group_descriptor) *
+	if (ext)
+		total_len = sizeof(struct scsi_target_group_data_extended);
+	else
+		total_len = sizeof(struct scsi_target_group_data);
+	total_len += sizeof(struct scsi_target_port_group_descriptor) *
 		num_target_port_groups +
-		sizeof(struct scsi_target_port_descriptor) *
-		NUM_PORTS_PER_GRP * num_target_port_groups;
+	    sizeof(struct scsi_target_port_descriptor) *
+		num_target_ports * num_target_port_groups;
 
 	alloc_len = scsi_4btoul(cdb->length);
 
@@ -7165,76 +7213,51 @@ ctl_report_tagret_port_groups(struct ctl_scsiio *ctsio)
 	ctsio->kern_data_resid = 0;
 	ctsio->kern_rel_offset = 0;
 
-	rtg_ptr = (struct scsi_target_group_data *)ctsio->kern_data_ptr;
-
-	tpg_desc_ptr1 = &rtg_ptr->groups[0];
-	tp_desc_ptr1_1 = &tpg_desc_ptr1->descriptors[0];
-	tp_desc_ptr1_2 = (struct scsi_target_port_descriptor *)
-	        &tp_desc_ptr1_1->desc_list[0];
-
-	if (single == 0) {
-		tpg_desc_ptr2 = (struct scsi_target_port_group_descriptor *)
-	                &tp_desc_ptr1_2->desc_list[0];
-		tp_desc_ptr2_1 = &tpg_desc_ptr2->descriptors[0];
-		tp_desc_ptr2_2 = (struct scsi_target_port_descriptor *)
-	        	&tp_desc_ptr2_1->desc_list[0];
-        } else {
-		tpg_desc_ptr2 = NULL;
-		tp_desc_ptr2_1 = NULL;
-		tp_desc_ptr2_2 = NULL;
-	}
-
-	scsi_ulto4b(total_len - 4, rtg_ptr->length);
-	if (single == 0) {
-        	if (ctsio->io_hdr.nexus.targ_port < CTL_MAX_PORTS) {
-			if (lun->flags & CTL_LUN_PRIMARY_SC) {
-				tpg_desc_ptr1->pref_state = TPG_PRIMARY;
-				tpg_desc_ptr2->pref_state =
-					TPG_ASYMMETRIC_ACCESS_NONOPTIMIZED;
-			} else {
-				tpg_desc_ptr1->pref_state =
-					TPG_ASYMMETRIC_ACCESS_NONOPTIMIZED;
-				tpg_desc_ptr2->pref_state = TPG_PRIMARY;
-			}
-		} else {
-			if (lun->flags & CTL_LUN_PRIMARY_SC) {
-				tpg_desc_ptr1->pref_state =
-					TPG_ASYMMETRIC_ACCESS_NONOPTIMIZED;
-				tpg_desc_ptr2->pref_state = TPG_PRIMARY;
-			} else {
-				tpg_desc_ptr1->pref_state = TPG_PRIMARY;
-				tpg_desc_ptr2->pref_state =
-					TPG_ASYMMETRIC_ACCESS_NONOPTIMIZED;
-			}
-		}
+	if (ext) {
+		rtg_ext_ptr = (struct scsi_target_group_data_extended *)
+		    ctsio->kern_data_ptr;
+		scsi_ulto4b(total_len - 4, rtg_ext_ptr->length);
+		rtg_ext_ptr->format_type = 0x10;
+		rtg_ext_ptr->implicit_transition_time = 0;
+		tpg_desc = &rtg_ext_ptr->groups[0];
 	} else {
-		tpg_desc_ptr1->pref_state = TPG_PRIMARY;
+		rtg_ptr = (struct scsi_target_group_data *)
+		    ctsio->kern_data_ptr;
+		scsi_ulto4b(total_len - 4, rtg_ptr->length);
+		tpg_desc = &rtg_ptr->groups[0];
 	}
-	tpg_desc_ptr1->support = 0;
-	tpg_desc_ptr1->target_port_group[1] = 1;
-	tpg_desc_ptr1->status = TPG_IMPLICIT;
-	tpg_desc_ptr1->target_port_count= NUM_PORTS_PER_GRP;
 
-	if (single == 0) {
-		tpg_desc_ptr2->support = 0;
-		tpg_desc_ptr2->target_port_group[1] = 2;
-		tpg_desc_ptr2->status = TPG_IMPLICIT;
-		tpg_desc_ptr2->target_port_count = NUM_PORTS_PER_GRP;
-
-		tp_desc_ptr1_1->relative_target_port_identifier[1] = 1;
-		tp_desc_ptr1_2->relative_target_port_identifier[1] = 2;
-
-		tp_desc_ptr2_1->relative_target_port_identifier[1] = 9;
-		tp_desc_ptr2_2->relative_target_port_identifier[1] = 10;
-	} else {
-        	if (ctsio->io_hdr.nexus.targ_port < CTL_MAX_PORTS) {
-			tp_desc_ptr1_1->relative_target_port_identifier[1] = 1;
-			tp_desc_ptr1_2->relative_target_port_identifier[1] = 2;
-		} else {
-			tp_desc_ptr1_1->relative_target_port_identifier[1] = 9;
-			tp_desc_ptr1_2->relative_target_port_identifier[1] = 10;
+	pg = ctsio->io_hdr.nexus.targ_port / CTL_MAX_PORTS;
+	mtx_lock(&softc->ctl_lock);
+	for (g = 0; g < num_target_port_groups; g++) {
+		if (g == pg)
+			tpg_desc->pref_state = TPG_PRIMARY |
+			    TPG_ASYMMETRIC_ACCESS_OPTIMIZED;
+		else
+			tpg_desc->pref_state =
+			    TPG_ASYMMETRIC_ACCESS_NONOPTIMIZED;
+		tpg_desc->support = TPG_AO_SUP;
+		if (!single)
+			tpg_desc->support = TPG_AN_SUP;
+		scsi_ulto2b(g + 1, tpg_desc->target_port_group);
+		tpg_desc->status = TPG_IMPLICIT;
+		pc = 0;
+		STAILQ_FOREACH(port, &softc->port_list, links) {
+			if ((port->status & CTL_PORT_STATUS_ONLINE) == 0)
+				continue;
+			if (ctl_map_lun_back(port->targ_port, lun->lun) >=
+			    CTL_MAX_LUNS)
+				continue;
+			p = port->targ_port % CTL_MAX_PORTS + g * CTL_MAX_PORTS;
+			scsi_ulto2b(p, tpg_desc->descriptors[pc].
+			    relative_target_port_identifier);
+			pc++;
 		}
+		tpg_desc->target_port_count = pc;
+		tpg_desc = (struct scsi_target_port_group_descriptor *)
+		    &tpg_desc->descriptors[pc];
 	}
+	mtx_unlock(&softc->ctl_lock);
 
 	ctsio->io_hdr.flags |= CTL_FLAG_ALLOCATED;
 	ctsio->be_move_done = ctl_config_move_done;
@@ -9776,10 +9799,8 @@ ctl_inquiry_evpd_devid(struct ctl_scsiio *ctsio, int alloc_len)
 	desc->id_type = SVPD_ID_PIV | SVPD_ID_ASSOC_PORT |
 	    SVPD_ID_TYPE_TPORTGRP;
 	desc->length = 4;
-	if (ctsio->io_hdr.nexus.targ_port < CTL_MAX_PORTS || ctl_is_single)
-		scsi_ulto2b(1, &desc->identifier[2]);
-	else
-		scsi_ulto2b(2, &desc->identifier[2]);
+	scsi_ulto2b(ctsio->io_hdr.nexus.targ_port / CTL_MAX_PORTS + 1,
+	    &desc->identifier[2]);
 	desc = (struct scsi_vpd_id_descriptor *)(&desc->identifier[0] +
 	    sizeof(struct scsi_vpd_id_trgt_port_grp_id));
 
