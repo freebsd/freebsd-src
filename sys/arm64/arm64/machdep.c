@@ -30,21 +30,30 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/buf.h>
 #include <sys/bus.h>
 #include <sys/cpu.h>
 #include <sys/efi.h>
 #include <sys/imgact.h>
 #include <sys/kdb.h> 
+#include <sys/kernel.h>
 #include <sys/linker.h>
 #include <sys/pcpu.h>
 #include <sys/proc.h>
 #include <sys/ptrace.h>
 #include <sys/reboot.h>
+#include <sys/rwlock.h>
 #include <sys/signalvar.h>
 #include <sys/sysproto.h>
 #include <sys/ucontext.h>
 
+#include <vm/vm.h>
+#include <vm/vm_kern.h>
+#include <vm/vm_object.h>
+#include <vm/vm_page.h>
 #include <vm/pmap.h>
+#include <vm/vm_map.h>
+#include <vm/vm_pager.h>
 
 #include <machine/cpu.h>
 #include <machine/machdep.h>
@@ -66,6 +75,18 @@ long realmem = 0;
 #define	PHYSMAP_SIZE	(2 * (VM_PHYSSEG_MAX - 1))
 vm_paddr_t physmap[PHYSMAP_SIZE];
 u_int physmap_idx;
+
+struct kva_md_info kmi;
+
+static void
+cpu_startup(void *dummy)
+{
+	vm_ksubmap_init(&kmi);
+	bufinit();
+	vm_pager_bufferinit();
+}
+
+SYSINIT(cpu, SI_SUB_CPU, SI_ORDER_FIRST, cpu_startup, NULL);
 
 void
 bzero(void *buf, size_t len)
