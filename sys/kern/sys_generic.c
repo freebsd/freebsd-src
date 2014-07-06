@@ -1458,7 +1458,7 @@ pollscan(td, fds, nfd)
 
 	FILEDESC_SLOCK(fdp);
 	for (i = 0; i < nfd; i++, fds++) {
-		if (fds->fd >= fdp->fd_nfiles) {
+		if (fds->fd > fdp->fd_lastfile) {
 			fds->revents = POLLNVAL;
 			n++;
 		} else if (fds->fd < 0) {
