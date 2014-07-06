@@ -376,7 +376,6 @@ struct ctl_devid {
  * For report target port groups.
  */
 #define NUM_TARGET_PORT_GROUPS	2
-#define NUM_PORTS_PER_GRP	2
 
 struct ctl_lun {
 	struct mtx			lun_lock;
