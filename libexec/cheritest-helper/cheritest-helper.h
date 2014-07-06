@@ -57,6 +57,7 @@
 #define	CHERITEST_HELPER_OP_CS_CLOCK_GETTIME	23
 #define	CHERITEST_HELPER_LIBCHERI_USERFN	24
 #define	CHERITEST_HELPER_LIBCHERI_USERFN_SETSTACK	25
+#define	CHERITEST_HELPER_SAVE_CAPABILITY_IN_HEAP	26
 
 /*
  * We use system-class extensions to allow cheritest-helper code to call back

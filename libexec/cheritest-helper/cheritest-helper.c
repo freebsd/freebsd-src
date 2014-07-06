@@ -265,6 +265,15 @@ invoke_libcheri_userfn_setstack(register_t arg,
 	return (v);
 }
 
+static __capability void *saved_capability;
+static int
+invoke_libcheri_save_capability_in_heap(__capability void *data_input)
+{
+
+	saved_capability = data_input;
+	return (0);
+}
+
 /*
  * Demux of various cheritest test cases to run within a sandbox.
  */
@@ -344,6 +353,9 @@ invoke(register_t op, register_t arg, size_t len,
 
 	case CHERITEST_HELPER_LIBCHERI_USERFN_SETSTACK:
 		return (invoke_libcheri_userfn_setstack(arg, system_object));
+
+	case CHERITEST_HELPER_SAVE_CAPABILITY_IN_HEAP:
+		return (invoke_libcheri_save_capability_in_heap(data_input));
 	}
 	return (-1);
 }
