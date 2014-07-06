@@ -35,7 +35,6 @@ static __inline void
 breakpoint(void)
 {
 
-	/* XXX: Not sure if this will work... */
 	__asm("brk #0");
 }
 
