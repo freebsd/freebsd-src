@@ -221,8 +221,6 @@ struct ctl_nexus {
 	struct ctl_id targ_target;	/* Destination target */
 	uint32_t targ_lun;		/* Destination lun */
 	uint32_t targ_mapped_lun;	/* Destination lun CTL-wide */
-	uint32_t (*lun_map_fn)(void *arg, uint32_t lun);
-	void *lun_map_arg;
 };
 
 typedef enum {
