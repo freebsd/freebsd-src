@@ -25,17 +25,15 @@
  *
  */
 
-#include <sys/cdefs.h>
+#include <machine/asm.h>
+
 __FBSDID("$FreeBSD$");
 
-#include <sys/param.h>
-#include <sys/systm.h>
-#include <sys/user.h>
-
-int
-savectx(struct pcb *pcb)
-{
-
-	panic("savectx");
-}
+ENTRY(savectx)
+	adr	x0, .Lsavectx_panic_str
+	bl	panic
+	ret
+.Lsavectx_panic_str:
+	.asciz "savectx"
+END(savectx)
 

@@ -16,7 +16,7 @@ arm64/arm64/mem.c		standard
 arm64/arm64/pmap.c		standard
 arm64/arm64/stack_machdep.c	standard
 arm64/arm64/support.c		standard
-arm64/arm64/swtch.c		standard
+arm64/arm64/swtch.S		standard
 arm64/arm64/sys_machdep.c	standard
 arm64/arm64/trap.c		standard
 arm64/arm64/uio_machdep.c	standard
