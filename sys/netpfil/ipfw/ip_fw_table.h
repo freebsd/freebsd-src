@@ -77,10 +77,10 @@ typedef void (ta_print_config)(void *ta_state, struct table_info *ti, char *buf,
 typedef int ta_foreach_f(void *node, void *arg);
 typedef void ta_foreach(void *ta_state, struct table_info *ti, ta_foreach_f *f,
   void *arg);
-typedef int ta_dump_entry(void *ta_state, struct table_info *ti, void *e,
-    ipfw_table_entry *ent);
-typedef int ta_dump_xentry(void *ta_state, struct table_info *ti, void *e,
-    ipfw_table_xentry *xent);
+typedef int ta_dump_tentry(void *ta_state, struct table_info *ti, void *e,
+    ipfw_obj_tentry *tent);
+typedef int ta_find_tentry(void *ta_state, struct table_info *ti, void *key,
+    uint32_t keylen, ipfw_obj_tentry *tent);
 
 struct table_algo {
 	char		name[16];
@@ -94,9 +94,9 @@ struct table_algo {
 	ta_del		*del;
 	ta_flush_entry	*flush_entry;
 	ta_foreach	*foreach;
-	ta_dump_entry	*dump_entry;
-	ta_dump_xentry	*dump_xentry;
+	ta_dump_tentry	*dump_tentry;
 	ta_print_config	*print_config;
+	ta_find_tentry	*find_tentry;
 };
 void ipfw_add_table_algo(struct ip_fw_chain *ch, struct table_algo *ta);
 extern struct table_algo radix_cidr, radix_iface;
@@ -112,6 +112,8 @@ int ipfw_dump_table(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
     struct sockopt_data *sd);
 int ipfw_describe_table(struct ip_fw_chain *ch, struct sockopt_data *sd);
 
+int ipfw_find_table_entry(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
+    struct sockopt_data *sd);
 int ipfw_create_table(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
     struct sockopt_data *sd);
 int ipfw_modify_table(struct ip_fw_chain *ch, ip_fw3_opheader *op3,

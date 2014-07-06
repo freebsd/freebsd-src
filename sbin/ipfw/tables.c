@@ -55,6 +55,7 @@ static int table_flush(ipfw_obj_header *oh);
 static int table_destroy(ipfw_obj_header *oh);
 static int table_do_create(ipfw_obj_header *oh, ipfw_xtable_info *i);
 static void table_create(ipfw_obj_header *oh, int ac, char *av[]);
+static void table_lookup(ipfw_obj_header *oh, int ac, char *av[]);
 static int table_get_info(ipfw_obj_header *oh, ipfw_xtable_info *i);
 static int table_show_info(ipfw_xtable_info *i, void *arg);
 static void table_fill_ntlv(ipfw_obj_ntlv *ntlv, char *name, uint32_t set,
@@ -64,9 +65,10 @@ static int table_flush_one(ipfw_xtable_info *i, void *arg);
 static int table_show_one(ipfw_xtable_info *i, void *arg);
 static int table_get_list(ipfw_xtable_info *i, ipfw_obj_header *oh);
 static void table_show_list(ipfw_obj_header *oh, int need_header);
+static void table_show_entry(ipfw_xtable_info *i, ipfw_obj_tentry *tent);
 
 static void tentry_fill_key(ipfw_obj_header *oh, ipfw_obj_tentry *tent,
-    char *key, uint8_t *ptype, uint8_t *pvtype);
+    char *key, uint8_t *ptype, uint8_t *pvtype, ipfw_xtable_info *xi);
 static void tentry_fill_value(ipfw_obj_header *oh, ipfw_obj_tentry *tent,
     char *arg, uint8_t type, uint8_t vtype);
 
@@ -99,6 +101,7 @@ static struct _s_x tablecmds[] = {
       { "flush",	TOK_FLUSH },
       { "info",		TOK_INFO },
       { "list",		TOK_LIST },
+      { "lookup",	TOK_LOOKUP },
       { NULL, 0 }
 };
 
@@ -147,7 +150,6 @@ ipfw_table_handler(int ac, char *av[])
 
 	if (table_check_name(tablename) == 0) {
 		table_fill_ntlv(&oh.ntlv, *av, set, 1);
-		//oh->set = set;
 		oh.idx = 1;
 	} else {
 		if (strcmp(tablename, "all") == 0)
@@ -220,6 +222,10 @@ ipfw_table_handler(int ac, char *av[])
 				err(EX_OSERR, "failed to request tables list");
 		}
 		break;
+	case TOK_LOOKUP:
+		ac--; av++;
+		table_lookup(&oh, ac, av);
+		break;
 	}
 }
 
@@ -238,9 +244,8 @@ static void
 table_fill_objheader(ipfw_obj_header *oh, ipfw_xtable_info *i)
 {
 
-	oh->set = i->set;
 	oh->idx = 1;
-	table_fill_ntlv(&oh->ntlv, i->tablename, oh->set, 1);
+	table_fill_ntlv(&oh->ntlv, i->tablename, i->set, 1);
 }
 
 static struct _s_x tablenewcmds[] = {
@@ -284,7 +289,6 @@ table_create(ipfw_obj_header *oh, int ac, char *av[])
 			NEED1("table type required");
 			val = match_token(tabletypes, *av);
 			if (val != -1) {
-				printf("av %s type %d\n", *av, xi.type);
 				xi.type = val;
 				ac--; av++;
 				break;
@@ -429,12 +433,17 @@ static int
 table_show_one(ipfw_xtable_info *i, void *arg)
 {
 	ipfw_obj_header *oh;
+	int error;
 
 	if ((oh = calloc(1, i->size)) == NULL)
 		return (ENOMEM);
 
-	if (table_get_list(i, oh) == 0)
-		table_show_list(oh, 1);
+	if ((error = table_get_list(i, oh)) != 0) {
+		err(EX_OSERR, "Error requesting table %s list", i->tablename);
+		return (error);
+	}
+
+	table_show_list(oh, 1);
 
 	free(oh);
 	return (0);	
@@ -467,7 +476,7 @@ table_do_modify_record(int cmd, ipfw_obj_header *oh,
 	memcpy(oh + 1, tent, sizeof(*tent));
 	tent = (ipfw_obj_tentry *)(oh + 1);
 	if (update != 0)
-		tent->flags |= IPFW_TF_UPDATE;
+		tent->head.flags |= IPFW_TF_UPDATE;
 	tent->head.length = sizeof(ipfw_obj_tentry);
 
 	error = do_set3(cmd, &oh->opheader, sizeof(xbuf));
@@ -479,6 +488,7 @@ static void
 table_modify_record(ipfw_obj_header *oh, int ac, char *av[], int add, int update)
 {
 	ipfw_obj_tentry tent;
+	ipfw_xtable_info xi;
 	uint8_t type, vtype;
 	int cmd;
 	char *texterr;
@@ -490,7 +500,7 @@ table_modify_record(ipfw_obj_header *oh, int ac, char *av[], int add, int update
 	tent.head.length = sizeof(tent);
 	tent.idx = 1;
 
-	tentry_fill_key(oh, &tent, *av, &type, &vtype);
+	tentry_fill_key(oh, &tent, *av, &type, &vtype, &xi);
 	oh->ntlv.type = type;
 	ac--; av++;
 
@@ -508,6 +518,67 @@ table_modify_record(ipfw_obj_header *oh, int ac, char *av[], int add, int update
 		err(EX_OSERR, "%s", texterr);
 }
 
+static int
+table_do_lookup(ipfw_obj_header *oh, char *key, ipfw_xtable_info *xi,
+    ipfw_obj_tentry *xtent)
+{
+	char xbuf[sizeof(ipfw_obj_header) + sizeof(ipfw_obj_tentry)];
+	ipfw_obj_tentry *tent;
+	uint8_t type, vtype;
+	int error;
+	size_t sz;
+
+	memcpy(xbuf, oh, sizeof(*oh));
+	oh = (ipfw_obj_header *)xbuf;
+	tent = (ipfw_obj_tentry *)(oh + 1);
+
+	memset(tent, 0, sizeof(*tent));
+	tent->head.length = sizeof(*tent);
+	tent->idx = 1;
+
+	tentry_fill_key(oh, tent, key, &type, &vtype, xi);
+	oh->ntlv.type = type;
+
+	sz = sizeof(xbuf);
+	if ((error = do_get3(IP_FW_TABLE_XFIND, &oh->opheader, &sz)) != 0)
+		return (error);
+
+	if (sz < sizeof(xbuf))
+		return (EINVAL);
+
+	*xtent = *tent;
+
+	return (0);
+}
+
+static void
+table_lookup(ipfw_obj_header *oh, int ac, char *av[])
+{
+	ipfw_obj_tentry xtent;
+	ipfw_xtable_info xi;
+	int error;
+
+	if (ac == 0)
+		errx(EX_USAGE, "address required");
+
+	error = table_do_lookup(oh, *av, &xi, &xtent);
+
+	switch (error) {
+	case 0:
+		break;
+	case ESRCH:
+		errx(EX_UNAVAILABLE, "Table %s not found", oh->ntlv.name);
+	case ENOENT:
+		errx(EX_UNAVAILABLE, "Entry %s not found", *av);
+	case ENOTSUP:
+		errx(EX_UNAVAILABLE, "Table %s algo does not support "
+		    "\"lookup\" method", oh->ntlv.name);
+	default:
+		err(EX_OSERR, "getsockopt(IP_FW_TABLE_XFIND)");
+	}
+
+	table_show_entry(&xi, &xtent);
+}
 
 static void
 tentry_fill_key_type(char *arg, ipfw_obj_tentry *tentry, uint8_t type)
@@ -584,39 +655,43 @@ tentry_fill_key_type(char *arg, ipfw_obj_tentry *tentry, uint8_t type)
 
 static void
 tentry_fill_key(ipfw_obj_header *oh, ipfw_obj_tentry *tent, char *key,
-    uint8_t *ptype, uint8_t *pvtype)
+    uint8_t *ptype, uint8_t *pvtype, ipfw_xtable_info *xi)
 {
-	ipfw_xtable_info xi;
 	uint8_t type, vtype;
 	int error;
 
 	type = 0;
 	vtype = 0;
 
-	/*
-	 * Compability layer. Try to interpret data as CIDR first.
-	 */
-	if (inet_pton(AF_INET, key, &tent->k.addr6) == 1 ||
-	    inet_pton(AF_INET6, key, &tent->k.addr6) == 1) {
-		/* OK Prepare and send */
-		type = IPFW_TABLE_CIDR;
-	} else {
+	error = table_get_info(oh, xi);
 
-		/*
-		 * Non-CIDR of FQDN hostname. Ask kernel
-		 * about given table.
-		 */
-		error = table_get_info(oh, &xi);
-		if (error == ESRCH)
-			errx(EX_USAGE, "Table %s does not exist, cannot intuit "
-			    "key type", oh->ntlv.name);
-		else if (error != 0)
+	if (error == 0) {
+		/* Table found. */
+		type = xi->type;
+		vtype = xi->vtype;
+	} else {
+		if (error != ESRCH)
 			errx(EX_OSERR, "Error requesting table %s info",
 			    oh->ntlv.name);
-
-		/* Table found. */
-		type = xi.type;
-		vtype = xi.vtype;
+		/*
+		 * Table does not exist.
+		 * Compability layer: try to interpret data as CIDR
+		 * before failing.
+		 */
+		if (inet_pton(AF_INET, key, &tent->k.addr6) == 1 ||
+		    inet_pton(AF_INET6, key, &tent->k.addr6) == 1) {
+			/* OK Prepare and send */
+			type = IPFW_TABLE_CIDR;
+			/*
+			 * XXX: Value type is forced to be u32.
+			 * This should be changed for MFC.
+			 */
+			vtype = IPFW_VTYPE_U32;
+		} else {
+			/* Inknown key */
+			errx(EX_USAGE, "Table %s does not exist, cannot guess "
+			    "key type", oh->ntlv.name);
+		}
 	}
 
 	tentry_fill_key_type(key, tent, type);
@@ -629,28 +704,8 @@ static void
 tentry_fill_value(ipfw_obj_header *oh, ipfw_obj_tentry *tent, char *arg,
     uint8_t type, uint8_t vtype)
 {
-	ipfw_xtable_info xi;
-	int error;
 	int code;
 	char *p;
-
-	if (vtype == 0) {
-		/* Format type is unknown, ask kernel */
-		error = table_get_info(oh, &xi);
-		if (error == ESRCH) {
-
-			/*
-			 * XXX: This one may break some scripts.
-			 * Change this behavior for MFC.
-			 */
-			errx(EX_USAGE, "Table %s does not exist. Unable to "
-			    "guess value format.",  oh->ntlv.name);
-		} else if (error != 0)
-			errx(EX_OSERR, "Error requesting table %s info",
-			    oh->ntlv.name);
-
-		vtype = xi.vtype;
-	}
 
 	switch (vtype) {
 	case IPFW_VTYPE_U32:
@@ -758,17 +813,22 @@ static int
 table_get_list(ipfw_xtable_info *i, ipfw_obj_header *oh)
 {
 	size_t sz;
-	int error;
+	int error, c;
 
-	table_fill_objheader(oh, i);
-	sz = i->size;
+	sz = 0;
+	for (c = 0; c < 3; c++) {
+		table_fill_objheader(oh, i);
+		if (sz < i->size)
+			sz = i->size;
 
-	oh->opheader.version = 1; /* Current version */
+		oh->opheader.version = 1; /* Current version */
+		error = do_get3(IP_FW_TABLE_XLIST, &oh->opheader, &sz);
 
-	if ((error = do_get3(IP_FW_TABLE_XLIST, &oh->opheader, &sz)) != 0)
-		return (errno);
+		if (error != ENOMEM)
+			return (errno);
+	}
 
-	return (0);
+	return (ENOMEM);
 }
 
 /*
@@ -777,56 +837,52 @@ table_get_list(ipfw_xtable_info *i, ipfw_obj_header *oh)
 static void
 table_show_list(ipfw_obj_header *oh, int need_header)
 {
-	ipfw_table_xentry *xent;
-	uint32_t count, tval;
-	char tbuf[128];
-	struct in6_addr *addr6;
+	ipfw_obj_tentry *tent;
+	uint32_t count;
 	ipfw_xtable_info *i;
 
 	i = (ipfw_xtable_info *)(oh + 1);
-	xent = (ipfw_table_xentry *)(i + 1);
+	tent = (ipfw_obj_tentry *)(i + 1);
 
 	if (need_header)
 		printf("--- table(%s), set(%u) ---\n", i->tablename, i->set);
 
 	count = i->count;
 	while (count > 0) {
-		switch (i->type) {
-		case IPFW_TABLE_CIDR:
-			/* IPv4 or IPv6 prefixes */
-			tval = xent->value;
-			addr6 = &xent->k.addr6;
-
-
-			if ((xent->flags & IPFW_TCF_INET) != 0) {
-				/* IPv4 address */
-				inet_ntop(AF_INET, &addr6->s6_addr32[3], tbuf,
-				    sizeof(tbuf));
-			} else {
-				/* IPv6 address */
-				inet_ntop(AF_INET6, addr6, tbuf, sizeof(tbuf));
-			}
-
-			if (co.do_value_as_ip) {
-				tval = htonl(tval);
-				printf("%s/%u %s\n", tbuf, xent->masklen,
-				    inet_ntoa(*(struct in_addr *)&tval));
-			} else
-				printf("%s/%u %u\n", tbuf, xent->masklen, tval);
-			break;
-		case IPFW_TABLE_INTERFACE:
-			/* Interface names */
-			tval = xent->value;
-			if (co.do_value_as_ip) {
-				tval = htonl(tval);
-				printf("%s %s\n", xent->k.iface,
-				    inet_ntoa(*(struct in_addr *)&tval));
-			} else
-				printf("%s %u\n", xent->k.iface, tval);
-		}
-
-		xent = (ipfw_table_xentry *)((caddr_t)xent + xent->len);
+		table_show_entry(i, tent);
+		tent = (ipfw_obj_tentry *)((caddr_t)tent + tent->head.length);
 		count--;
+	}
+}
+
+static void
+table_show_entry(ipfw_xtable_info *i, ipfw_obj_tentry *tent)
+{
+	char tbuf[128];
+	uint32_t tval;
+
+	tval = tent->value;
+
+	switch (i->type) {
+	case IPFW_TABLE_CIDR:
+		/* IPv4 or IPv6 prefixes */
+		inet_ntop(tent->subtype, &tent->k, tbuf, sizeof(tbuf));
+
+		if (co.do_value_as_ip) {
+			tval = htonl(tval);
+			printf("%s/%u %s\n", tbuf, tent->masklen,
+			    inet_ntoa(*(struct in_addr *)&tval));
+		} else
+			printf("%s/%u %u\n", tbuf, tent->masklen, tval);
+		break;
+	case IPFW_TABLE_INTERFACE:
+		/* Interface names */
+		if (co.do_value_as_ip) {
+			tval = htonl(tval);
+			printf("%s %s\n", tent->k.iface,
+			    inet_ntoa(*(struct in_addr *)&tval));
+		} else
+			printf("%s %u\n", tent->k.iface, tval);
 	}
 }
 
