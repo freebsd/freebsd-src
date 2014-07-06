@@ -2036,6 +2036,11 @@ fdescfree(struct thread *td)
 		if (fdtol != NULL)
 			free(fdtol, M_FILEDESC_TO_LEADER);
 	}
+
+	mtx_lock(&fdesc_mtx);
+	td->td_proc->p_fd = NULL;
+	mtx_unlock(&fdesc_mtx);
+
 	FILEDESC_XLOCK(fdp);
 	i = --fdp->fd_refcnt;
 	FILEDESC_XUNLOCK(fdp);
@@ -2052,11 +2057,6 @@ fdescfree(struct thread *td)
 		}
 	}
 	FILEDESC_XLOCK(fdp);
-
-	/* XXX This should happen earlier. */
-	mtx_lock(&fdesc_mtx);
-	td->td_proc->p_fd = NULL;
-	mtx_unlock(&fdesc_mtx);
 
 	if (fdp->fd_nfiles > NDFILE)
 		free(fdp->fd_ofiles, M_FILEDESC);
