@@ -3252,6 +3252,11 @@ ctl_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
 			if (retval != 0)
 				break;
 
+			if (port->port_info != NULL) {
+				retval = port->port_info(port->onoff_arg, sb);
+				if (retval != 0)
+					break;
+			}
 			STAILQ_FOREACH(opt, &port->options, links) {
 				retval = sbuf_printf(sb, "\t<%s>%s</%s>\n",
 				    opt->name, opt->value, opt->name);
