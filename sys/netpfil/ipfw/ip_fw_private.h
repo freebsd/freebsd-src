@@ -194,6 +194,7 @@ int ipfw_dump_states(struct ip_fw_chain *chain, struct sockopt_data *sd);
 void ipfw_dyn_init(struct ip_fw_chain *);	/* per-vnet initialization */
 void ipfw_dyn_uninit(int);	/* per-vnet deinitialization */
 int ipfw_dyn_len(void);
+int ipfw_dyn_get_count(void);
 
 /* common variables */
 VNET_DECLARE(int, fw_one_pass);

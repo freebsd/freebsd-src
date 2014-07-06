@@ -1444,7 +1444,7 @@ sysctl_ipfw_dyn_count(SYSCTL_HANDLER_ARGS)
 #endif
 
 /*
- * Returns number of dynamic rules.
+ * Returns size of dynamic states in legacy format
  */
 int
 ipfw_dyn_len(void)
@@ -1452,6 +1452,17 @@ ipfw_dyn_len(void)
 
 	return (V_ipfw_dyn_v == NULL) ? 0 :
 		(DYN_COUNT * sizeof(ipfw_dyn_rule));
+}
+
+/*
+ * Returns number of dynamic states.
+ * Used by dump format v1 (current).
+ */
+int
+ipfw_dyn_get_count(void)
+{
+
+	return (V_ipfw_dyn_v == NULL) ? 0 : DYN_COUNT;
 }
 
 static void
@@ -1479,15 +1490,18 @@ export_dyn_rule(ipfw_dyn_rule *src, ipfw_dyn_rule *dst)
 
 /*
  * Fills int buffer given by @sd with dynamic states.
+ * Used by dump format v1 (current).
  *
  * Returns 0 on success.
  */
 int
 ipfw_dump_states(struct ip_fw_chain *chain, struct sockopt_data *sd)
 {
-	ipfw_dyn_rule *p, *dst, *last = NULL;
+	ipfw_dyn_rule *p;
+	ipfw_obj_dyntlv *dst, *last;
 	ipfw_obj_ctlv *ctlv;
 	int i;
+	size_t sz;
 
 	if (V_ipfw_dyn_v == NULL)
 		return (0);
@@ -1497,33 +1511,36 @@ ipfw_dump_states(struct ip_fw_chain *chain, struct sockopt_data *sd)
 	ctlv = (ipfw_obj_ctlv *)ipfw_get_sopt_space(sd, sizeof(*ctlv));
 	if (ctlv == NULL)
 		return (ENOMEM);
-	ctlv->head.type = IPFW_TLV_TBLNAME_LIST;
-	ctlv->objsize = sizeof(ipfw_dyn_rule);
+	sz = sizeof(ipfw_obj_dyntlv);
+	ctlv->head.type = IPFW_TLV_DYNSTATE_LIST;
+	ctlv->objsize = sz;
+	last = NULL;
 
 	for (i = 0 ; i < V_curr_dyn_buckets; i++) {
 		IPFW_BUCK_LOCK(i);
 		for (p = V_ipfw_dyn_v[i].head ; p != NULL; p = p->next) {
-			dst = (ipfw_dyn_rule *)ipfw_get_sopt_space(sd,
-			    sizeof(*dst));
+			dst = (ipfw_obj_dyntlv *)ipfw_get_sopt_space(sd, sz);
 			if (dst == NULL) {
 				IPFW_BUCK_UNLOCK(i);
 				return (ENOMEM);
 			}
 
-			export_dyn_rule(p, dst);
+			export_dyn_rule(p, &dst->state);
+			dst->head.length = sz;
+			dst->head.type = IPFW_TLV_DYN_ENT;
 			last = dst;
 		}
 		IPFW_BUCK_UNLOCK(i);
 	}
 
 	if (last != NULL) /* mark last dynamic rule */
-		bzero(&last->next, sizeof(last));
+		last->head.flags = IPFW_DF_LAST;
 
 	return (0);
 }
 
 /*
- * Fill given buffer with dynamic states.
+ * Fill given buffer with dynamic states (legacy format).
  * IPFW_UH_RLOCK has to be held while calling.
  */
 void
