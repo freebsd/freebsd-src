@@ -4336,7 +4336,7 @@ ctl_alloc_lun(struct ctl_softc *ctl_softc, struct ctl_lun *ctl_lun,
 	struct scsi_vpd_id_t10 *t10id;
 	const char *scsiname, *vendor;
 	int lun_number, i, lun_malloced;
-	int devidlen, idlen1, idlen2, len;
+	int devidlen, idlen1, idlen2 = 0, len;
 
 	if (be_lun == NULL)
 		return (EINVAL);
