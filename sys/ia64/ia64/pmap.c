@@ -1974,6 +1974,38 @@ pmap_change_wiring(pmap_t pmap, vm_offset_t va, boolean_t wired)
 }
 
 /*
+ *	Clear the wired attribute from the mappings for the specified range of
+ *	addresses in the given pmap.  Every valid mapping within that range
+ *	must have the wired attribute set.  In contrast, invalid mappings
+ *	cannot have the wired attribute set, so they are ignored.
+ *
+ *	The wired attribute of the page table entry is not a hardware feature,
+ *	so there is no need to invalidate any TLB entries.
+ */
+void
+pmap_unwire(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
+{
+	pmap_t oldpmap;
+	struct ia64_lpte *pte;
+
+	CTR4(KTR_PMAP, "%s(%p, %#x, %#x)", __func__, pmap, sva, eva);
+
+	PMAP_LOCK(pmap);
+	oldpmap = pmap_switch(pmap);
+	for (; sva < eva; sva += PAGE_SIZE) {
+		pte = pmap_find_vhpt(sva);
+		if (pte == NULL)
+			continue;
+		if (!pmap_wired(pte))
+			panic("pmap_unwire: pte %p isn't wired", pte);
+		pmap->pm_stats.wired_count--;
+		pmap_clear_wired(pte);
+	}
+	pmap_switch(oldpmap);
+	PMAP_UNLOCK(pmap);
+}
+
+/*
  *	Copy the range specified by src_addr/len
  *	from the source map to the range dst_addr/len
  *	in the destination map.

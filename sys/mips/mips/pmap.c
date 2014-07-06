@@ -2456,6 +2456,55 @@ pmap_change_wiring(pmap_t pmap, vm_offset_t va, boolean_t wired)
 }
 
 /*
+ *	Clear the wired attribute from the mappings for the specified range of
+ *	addresses in the given pmap.  Every valid mapping within that range
+ *	must have the wired attribute set.  In contrast, invalid mappings
+ *	cannot have the wired attribute set, so they are ignored.
+ *
+ *	The wired attribute of the page table entry is not a hardware feature,
+ *	so there is no need to invalidate any TLB entries.
+ */
+void
+pmap_unwire(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
+{
+	pd_entry_t *pde, *pdpe;
+	pt_entry_t *pte;
+	vm_offset_t va_next;
+
+	PMAP_LOCK(pmap);
+	for (; sva < eva; sva = va_next) {
+		pdpe = pmap_segmap(pmap, sva);
+#ifdef __mips_n64
+		if (*pdpe == NULL) {
+			va_next = (sva + NBSEG) & ~SEGMASK;
+			if (va_next < sva)
+				va_next = eva;
+			continue;
+		}
+#endif
+		va_next = (sva + NBPDR) & ~PDRMASK;
+		if (va_next < sva)
+			va_next = eva;
+		pde = pmap_pdpe_to_pde(pdpe, sva);
+		if (*pde == NULL)
+			continue;
+		if (va_next > eva)
+			va_next = eva;
+		for (pte = pmap_pde_to_pte(pde, sva); sva != va_next; pte++,
+		    sva += PAGE_SIZE) {
+			if (!pte_test(pte, PTE_V))
+				continue;
+			if (!pte_test(pte, PTE_W))
+				panic("pmap_unwire: pte %#jx is missing PG_W",
+				    (uintmax_t)*pte);
+			pte_clear(pte, PTE_W);
+			pmap->pm_stats.wired_count--;
+		}
+	}
+	PMAP_UNLOCK(pmap);
+}
+
+/*
  *	Copy the range specified by src_addr/len
  *	from the source map to the range dst_addr/len
  *	in the destination map.
