@@ -260,6 +260,7 @@ login_receive(struct connection *conn)
 		    "is %d, should be %d", ntohl(bhslr->bhslr_statsn),
 		    conn->conn_statsn + 1);
 	}
+	conn->conn_tsih = ntohs(bhslr->bhslr_tsih);
 	conn->conn_statsn = ntohl(bhslr->bhslr_statsn);
 
 	initial = false;
@@ -295,6 +296,7 @@ login_new_request(struct connection *conn, int csg)
 	login_set_nsg(request, nsg);
 
 	memcpy(bhslr->bhslr_isid, &conn->conn_isid, sizeof(bhslr->bhslr_isid));
+	bhslr->bhslr_tsih = htons(conn->conn_tsih);
 	bhslr->bhslr_initiator_task_tag = 0;
 	bhslr->bhslr_cmdsn = 0;
 	bhslr->bhslr_expstatsn = htonl(conn->conn_statsn + 1);
@@ -824,24 +826,6 @@ login_chap(struct connection *conn)
 	log_debugx("CHAP authentication done");
 }
 
-static void
-login_create_isid(struct connection *conn)
-{
-	int rv;
-
-	/*
-	 * RFC 3720, 10.12.5: 10b, "Random" ISID.
-	 *
-	 */
-	conn->conn_isid[0] = 0x80; 
-
-	rv = RAND_bytes(&conn->conn_isid[1], 3);
-	if (rv != 1) {
-		log_errx(1, "RAND_bytes failed: %s",
-		    ERR_error_string(ERR_get_error(), NULL));
-	}
-}
-
 void
 login(struct connection *conn)
 {
@@ -850,8 +834,6 @@ login(struct connection *conn)
 	struct iscsi_bhs_login_response *bhslr2;
 	const char *auth_method;
 	int i;
-
-	login_create_isid(conn);
 
 	log_debugx("beginning Login phase; sending Login PDU");
 	request = login_new_request(conn, BHSLR_STAGE_SECURITY_NEGOTIATION);
