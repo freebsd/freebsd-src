@@ -1885,17 +1885,14 @@ fdshare(struct filedesc *fdp)
 void
 fdunshare(struct proc *p, struct thread *td)
 {
+	struct filedesc *tmp;
 
-	FILEDESC_XLOCK(p->p_fd);
-	if (p->p_fd->fd_refcnt > 1) {
-		struct filedesc *tmp;
+	if (p->p_fd->fd_refcnt == 1)
+		return;
 
-		FILEDESC_XUNLOCK(p->p_fd);
-		tmp = fdcopy(p->p_fd);
-		fdescfree(td);
-		p->p_fd = tmp;
-	} else
-		FILEDESC_XUNLOCK(p->p_fd);
+	tmp = fdcopy(p->p_fd);
+	fdescfree(td);
+	p->p_fd = tmp;
 }
 
 /*
