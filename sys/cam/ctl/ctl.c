@@ -346,6 +346,7 @@ static int ctl_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
 		     struct thread *td);
 uint32_t ctl_get_resindex(struct ctl_nexus *nexus);
 uint32_t ctl_port_idx(int port_num);
+static uint32_t ctl_map_lun(int port_num, uint32_t lun);
 #ifdef unused
 static union ctl_io *ctl_malloc_io(ctl_io_type io_type, uint32_t targ_port,
 				   uint32_t targ_target, uint32_t targ_lun,
@@ -3343,6 +3344,19 @@ ctl_port_idx(int port_num)
 		return(port_num);
 	else
 		return(port_num - CTL_MAX_PORTS);
+}
+
+static uint32_t
+ctl_map_lun(int port_num, uint32_t lun_id)
+{
+	struct ctl_port *port;
+
+	port = control_softc->ctl_ports[ctl_port_idx(port_num)];
+	if (port == NULL)
+		return (UINT32_MAX);
+	if (port->lun_map == NULL)
+		return (lun_id);
+	return (port->lun_map(port->targ_lun_arg, lun_id));
 }
 
 /*
@@ -9256,9 +9270,7 @@ ctl_report_luns(struct ctl_scsiio *ctsio)
 
 	mtx_lock(&control_softc->ctl_lock);
 	for (targ_lun_id = 0, num_filled = 0; targ_lun_id < CTL_MAX_LUNS && num_filled < num_luns; targ_lun_id++) {
-		lun_id = targ_lun_id;
-		if (ctsio->io_hdr.nexus.lun_map_fn != NULL)
-			lun_id = ctsio->io_hdr.nexus.lun_map_fn(ctsio->io_hdr.nexus.lun_map_arg, lun_id);
+		lun_id = ctl_map_lun(ctsio->io_hdr.nexus.targ_port, targ_lun_id);
 		if (lun_id >= CTL_MAX_LUNS)
 			continue;
 		lun = control_softc->ctl_luns[lun_id];
@@ -13240,8 +13252,7 @@ ctl_queue_sense(union ctl_io *io)
 	 * information.
 	 */
 	targ_lun = io->io_hdr.nexus.targ_lun;
-	if (io->io_hdr.nexus.lun_map_fn != NULL)
-		targ_lun = io->io_hdr.nexus.lun_map_fn(io->io_hdr.nexus.lun_map_arg, targ_lun);
+	targ_lun = ctl_map_lun(io->io_hdr.nexus.targ_port, targ_lun);
 	if ((targ_lun < CTL_MAX_LUNS)
 	 && (ctl_softc->ctl_luns[targ_lun] != NULL))
 		lun = ctl_softc->ctl_luns[targ_lun];
@@ -13292,11 +13303,8 @@ ctl_queue(union ctl_io *io)
 #endif /* CTL_TIME_IO */
 
 	/* Map FE-specific LUN ID into global one. */
-	if (io->io_hdr.nexus.lun_map_fn != NULL)
-		io->io_hdr.nexus.targ_mapped_lun = io->io_hdr.nexus.lun_map_fn(
-		    io->io_hdr.nexus.lun_map_arg, io->io_hdr.nexus.targ_lun);
-	else
-		io->io_hdr.nexus.targ_mapped_lun = io->io_hdr.nexus.targ_lun;
+	io->io_hdr.nexus.targ_mapped_lun =
+	    ctl_map_lun(io->io_hdr.nexus.targ_port, io->io_hdr.nexus.targ_lun);
 
 	switch (io->io_hdr.io_type) {
 	case CTL_IO_SCSI:
