@@ -28,6 +28,19 @@
 #ifndef _MACHINE_ASM_H_
 #define	_MACHINE_ASM_H_
 
+#undef __FBSDID
+#if !defined(lint) && !defined(STRIP_FBSDID)
+#define __FBSDID(s)     .ident s
+#else
+#define __FBSDID(s)     /* nothing */
+#endif
+
+#define	_C_LABEL(x)	x
+
+#define	ENTRY(sym)						\
+	.text; .globl sym; sym:
+#define END(sym)
+
 #define	UINT64_C(x)	(x)
 
 #endif /* _MACHINE_ASM_H_ */
