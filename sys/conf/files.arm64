@@ -6,7 +6,7 @@ arm64/arm64/copyinout.c		standard
 arm64/arm64/copystr.c		standard
 arm64/arm64/dump_machdep.c	standard
 arm64/arm64/elf_machdep.c	standard
-arm64/arm64/exception.c		standard
+arm64/arm64/exception.S		standard
 arm64/arm64/identcpu.c		standard
 arm64/arm64/in_cksum.c		optional	inet | inet6
 arm64/arm64/locore.S		standard	no-obj

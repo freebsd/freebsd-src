@@ -25,15 +25,69 @@
  *
  */
 
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+/*
+ * Interrupt counters for vmstat.
+ * TODO: These could live in a .c file.
+ */
+	.data
+	.globl intrcnt
+	.globl sintrcnt
+	.globl intrnames
+	.globl sintrnames
 
-#include <sys/param.h>
-#include <sys/systm.h>
+intrnames:
+	.space	8
+sintrnames:
+	.quad	8
+intrcnt:
+	.space	8 * 8 /* u_long[8] */
+sintrcnt:
+	.quad	8
 
-size_t	sintrcnt;
-char 	intrnames[8];
-size_t	sintrnames = 8;
-u_long 	intrcnt[8];
-size_t	sintrcnt = 8;
+	.text
+#define	EMIT(x)			\
+	mov	x0, x;		\
+	mov	x1, 0x1c090000; \
+	str	x0, [x1];
+
+.macro	vempty
+	.align 7
+	EMIT('Z');
+	1: b	1b
+.endm
+
+.macro	el1h_sync
+	.align 7
+	EMIT('B');
+	1: b	1b
+.endm
+
+.macro	el1h_error
+	.align 7
+	EMIT('C');
+	1: b	1b
+.endm
+
+	.align 11
+	.globl exception_vectors
+exception_vectors:
+	vempty		/* Synchronous EL1t */
+	vempty		/* IRQ EL1t */
+	vempty		/* FIQ EL1t */
+	vempty		/* Error EL1t */
+
+	el1h_sync	/* Synchronous EL1h */
+	vempty		/* IRQ EL1h */
+	vempty		/* FIQ EL1h */
+	el1h_error	/* Error EL1h */
+
+	vempty		/* Synchronous 64-bit EL0 */
+	vempty		/* IRQ 64-bit EL0 */
+	vempty		/* FIQ 64-bit EL0 */
+	vempty		/* Error 64-bit EL0 */
+
+	vempty		/* Synchronous 32-bit EL0 */
+	vempty		/* IRQ 32-bit EL0 */
+	vempty		/* FIQ 32-bit EL0 */
+	vempty		/* Error 32-bit EL0 */
 
