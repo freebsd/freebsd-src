@@ -410,7 +410,7 @@ const struct ctl_cmd_entry ctl_cmd_table[256] =
 			      CTL_CMD_FLAG_OK_ON_SECONDARY |
 			      CTL_FLAG_DATA_IN |
 			      CTL_CMD_FLAG_ALLOW_ON_PR_RESV,
- CTL_LUN_PAT_NONE, 6, {0x01, 0xff, 0xff, 0xff, 0x07}},
+ CTL_LUN_PAT_NONE, 6, {0xe1, 0xff, 0xff, 0xff, 0x07}},
 
 /* 13 */
 {NULL, CTL_SERIDX_INVLD, CTL_CMD_FLAG_NONE, CTL_LUN_PAT_NONE},
