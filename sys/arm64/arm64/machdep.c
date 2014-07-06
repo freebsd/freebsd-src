@@ -209,19 +209,6 @@ cpu_pcpu_init(struct pcpu *pcpu, int cpuid, size_t size)
 {
 }
 
-/* TODO: Move to swtch.S and implemenet */
-void cpu_throw(struct thread *old, struct thread *new)
-{
-
-	panic("cpu_throw");
-}
-
-void cpu_switch(struct thread *old, struct thread *new, struct mtx *mtx)
-{
-
-	panic("cpu_switch");
-}
-
 void
 spinlock_enter(void)
 {

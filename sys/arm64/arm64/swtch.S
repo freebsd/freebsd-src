@@ -25,9 +25,33 @@
  *
  */
 
+#include "assym.s"
+
 #include <machine/asm.h>
 
 __FBSDID("$FreeBSD$");
+
+/*
+ * void cpu_throw(struct thread *old, struct thread *new)
+ */
+ENTRY(cpu_throw)
+	adr	x0, .Lcpu_throw_panic_str
+	bl	_C_LABEL(panic)
+	ret
+.Lcpu_throw_panic_str:
+	.asciz "cpu_throw\0\0"
+END(cpu_throw)
+
+/*
+ * void cpu_switch(struct thread *old, struct thread *new, struct mtx *mtx)
+ */
+ENTRY(cpu_switch)
+	adr	x0, .Lcpu_switch_panic_str
+	bl	_C_LABEL(panic)
+	ret
+.Lcpu_switch_panic_str:
+	.asciz "cpu_switch\0"
+END(cpu_throw)
 
 ENTRY(savectx)
 	adr	x0, .Lsavectx_panic_str
