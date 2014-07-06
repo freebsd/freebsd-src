@@ -30,7 +30,21 @@
 __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/assym.h>
+#include <sys/pcpu.h>
+#include <sys/proc.h>
 
+#include <machine/pcb.h>
 #include <machine/vmparam.h>
 
 ASSYM(KERNBASE, KERNBASE);
+
+ASSYM(PCPU_SIZE, sizeof(struct pcpu));
+ASSYM(PC_CURPCB, offsetof(struct pcpu, pc_curpcb));
+ASSYM(PC_CURTHREAD, offsetof(struct pcpu, pc_curthread));
+
+ASSYM(PCB_REGS, offsetof(struct pcb, pcb_x));
+ASSYM(PCB_SP, offsetof(struct pcb, pcb_sp));
+
+ASSYM(TD_PCB, offsetof(struct thread, td_pcb));
+ASSYM(TD_LOCK, offsetof(struct thread, td_lock));
+
