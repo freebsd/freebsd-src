@@ -115,8 +115,8 @@ virtdone:
 	bl	initarm
 	bl	mi_startup
 
-3:	wfi
-	b	3b
+	/* We should not get here */
+	brk	0
 
 	.align 3
 .Lvirtdone:
@@ -177,8 +177,8 @@ drop_to_el1:
 	.quad SCTLR_RES1
 
 #define	VECT_EMPTY	\
-    .align 7;		\
-    1:	b	1b
+	.align 7;	\
+	1:	b	1b
 
 	.align 11
 hyp_vectors:
@@ -406,6 +406,15 @@ build_block_pagetable:
 start_mmu:
 	dsb	sy
 
+	/* Load the exception vectors */
+	/*
+	 * TODO: We should use ldr x2, =exception_vectors here
+	 * when clang supports it.
+	 */
+	adr	x2, _exception_vectors
+	ldr	x2, [x2]
+	msr	vbar_el1, x2
+
 	/* Load ttbr0 and ttbr1 */
 	msr	ttbr0_el1, x27
 	msr	ttbr1_el1, x26
@@ -436,6 +445,8 @@ start_mmu:
 	ret
 
 	.align 3
+_exception_vectors:
+	.quad	exception_vectors
 mair:
 	.quad	MAIR(0x00, 0) |	MAIR(0x44, 1) |	MAIR(0xff, 2)
 tcr:
