@@ -695,8 +695,9 @@ typedef struct  _ipfw_obj_tlv {
 #define	IPFW_TLV_TBL_NAME	1
 #define	IPFW_TLV_TBLNAME_LIST	2
 #define	IPFW_TLV_RULE_LIST	3
-#define	IPFW_TLV_STATE_LIST	4
+#define	IPFW_TLV_DYNSTATE_LIST	4
 #define	IPFW_TLV_TBL_ENT	5
+#define	IPFW_TLV_DYN_ENT	6
 
 /* Object name TLV */
 typedef struct _ipfw_obj_ntlv {
@@ -725,6 +726,12 @@ typedef struct	_ipfw_obj_tentry {
 	} k;
 } ipfw_obj_tentry;
 #define	IPFW_TF_UPDATE	0x01		/* Update record if exists	*/
+
+typedef struct _ipfw_obj_dyntlv {
+	ipfw_obj_tlv	head;
+	ipfw_dyn_rule	state;
+} ipfw_obj_dyntlv;
+#define	IPFW_DF_LAST	0x01		/* Last state in chain		*/
 
 /* Containter TLVs */
 typedef struct _ipfw_obj_ctlv {

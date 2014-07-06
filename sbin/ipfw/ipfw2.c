@@ -64,6 +64,7 @@ struct format_opts {
 	uint32_t flags;		/* request flags */
 	uint32_t first;		/* first rule to request */
 	uint32_t last;		/* last rule to request */
+	uint32_t dcnt;		/* number of dynamic states */
 	ipfw_obj_ctlv *tstate;	/* table state data */
 };
 
@@ -2161,13 +2162,85 @@ ipfw_sysctl_handler(char *av[], int which)
 	}
 }
 
+typedef void state_cb(struct cmdline_opts *co, struct format_opts *fo,
+    void *arg, void *state);
+
+static void
+prepare_format_dyn(struct cmdline_opts *co, struct format_opts *fo,
+    void *arg, void *_state)
+{
+	ipfw_dyn_rule *d;
+	int width;
+	uint8_t set;
+
+	d = (ipfw_dyn_rule *)_state;
+	/* Count _ALL_ states */
+	fo->dcnt++;
+
+	if (co->use_set) {
+		/* skip states from another set */
+		bcopy((char *)&d->rule + sizeof(uint16_t), &set,
+		    sizeof(uint8_t));
+		if (set != co->use_set - 1)
+			return;
+	}
+
+	width = pr_u64(NULL, &d->pcnt, 0);
+	if (width > fo->pcwidth)
+		fo->pcwidth = width;
+
+	width = pr_u64(NULL, &d->bcnt, 0);
+	if (width > fo->bcwidth)
+		fo->bcwidth = width;
+}
+
+static int
+foreach_state(struct cmdline_opts *co, struct format_opts *fo,
+    caddr_t base, size_t sz, state_cb dyn_bc, void *dyn_arg)
+{
+	int ttype;
+	state_cb *fptr;
+	void *farg;
+	ipfw_obj_tlv *tlv;
+	ipfw_obj_ctlv *ctlv;
+
+	fptr = NULL;
+	ttype = 0;
+
+	while (sz > 0) {
+		ctlv = (ipfw_obj_ctlv *)base;
+		switch (ctlv->head.type) {
+		case IPFW_TLV_DYNSTATE_LIST:
+			base += sizeof(*ctlv);
+			sz -= sizeof(*ctlv);
+			ttype = IPFW_TLV_DYN_ENT;
+			fptr = dyn_bc;
+			farg = dyn_arg;
+			break;
+		default:
+			return (sz);
+		}
+
+		while (sz > 0) {
+			tlv = (ipfw_obj_tlv *)base;
+			if (tlv->type != ttype)
+				break;
+
+			fptr(co, fo, farg, tlv + 1);
+			sz -= tlv->length;
+			base += tlv->length;
+		}
+	}
+
+	return (sz);
+}
+
 static void
 prepare_format_opts(struct cmdline_opts *co, struct format_opts *fo,
-    struct ip_fw *r, ipfw_dyn_rule *d, int rcnt, int dcnt)
+    struct ip_fw *r, int rcnt, caddr_t base, size_t sz)
 {
 	int bcwidth, pcwidth, width;
 	int n;
-	uint32_t set;
 #define NEXT(r)	((struct ip_fw *)((char *)r + RULESIZE(r)))
 
 	bcwidth = 0;
@@ -2189,31 +2262,16 @@ prepare_format_opts(struct cmdline_opts *co, struct format_opts *fo,
 				bcwidth = width;
 		}
 	}
-	if (co->do_dynamic && dcnt > 0) {
-		for (n = 0; n < dcnt; n++, d++) {
-			if (co->use_set) {
-				/* skip rules from another set */
-				bcopy((char *)&d->rule + sizeof(uint16_t),
-				      &set, sizeof(uint8_t));
-				if (set != co->use_set - 1)
-					continue;
-			}
-			width = pr_u64(NULL, &d->pcnt, 0);
-			if (width > pcwidth)
-				pcwidth = width;
-
-			width = pr_u64(NULL, &d->bcnt, 0);
-			if (width > bcwidth)
-				bcwidth = width;
-		}
-	}
-
 	fo->bcwidth = bcwidth;
 	fo->pcwidth = pcwidth;
+
+	fo->dcnt = 0;
+	if (co->do_dynamic && sz > 0)
+		sz = foreach_state(co, fo, base, sz, prepare_format_dyn, NULL);
 }
 
 static int
-ipfw_list_static_range(struct cmdline_opts *co, struct format_opts *fo,
+list_static_range(struct cmdline_opts *co, struct format_opts *fo,
     struct buf_pr *bp, struct ip_fw *r, int rcnt)
 {
 	int n, seen;
@@ -2234,33 +2292,40 @@ ipfw_list_static_range(struct cmdline_opts *co, struct format_opts *fo,
 }
 
 static void
-ipfw_list_dyn_range(struct cmdline_opts *co, struct format_opts *fo,
-    struct buf_pr *bp, ipfw_dyn_rule *d, int dcnt, int objsize)
+list_dyn_state(struct cmdline_opts *co, struct format_opts *fo,
+    void *_arg, void *_state)
 {
-	int n;
-	uint8_t set;
 	uint16_t rulenum;
+	uint8_t set;
+	ipfw_dyn_rule *d;
+	struct buf_pr *bp;
 
-	for (n = 0; n < dcnt; n++) {
-		bcopy(&d->rule, &rulenum, sizeof(rulenum));
-		if (rulenum > fo->last)
-			break;
-		if (co->use_set) {
-			bcopy((char *)&d->rule + sizeof(uint16_t),
-			      &set, sizeof(uint8_t));
-			if (set != co->use_set - 1) {
-				d = (ipfw_dyn_rule *)((caddr_t)d + objsize);
-				continue;
-			}
-		}
-		if (rulenum >= fo->first) {
-			show_dyn_state(co, fo, bp, d);
-			printf("%s\n", bp->buf);
-			bp_flush(bp);
-		}
+	d = (ipfw_dyn_rule *)_state;
+	bp = (struct buf_pr *)_arg;
 
-		d = (ipfw_dyn_rule *)((caddr_t)d + objsize);
+	bcopy(&d->rule, &rulenum, sizeof(rulenum));
+	if (rulenum > fo->last)
+		return;
+	if (co->use_set) {
+		bcopy((char *)&d->rule + sizeof(uint16_t),
+		      &set, sizeof(uint8_t));
+		if (set != co->use_set - 1)
+			return;
 	}
+	if (rulenum >= fo->first) {
+		show_dyn_state(co, fo, bp, d);
+		printf("%s\n", bp->buf);
+		bp_flush(bp);
+	}
+}
+
+static int
+list_dyn_range(struct cmdline_opts *co, struct format_opts *fo,
+    struct buf_pr *bp, caddr_t base, size_t sz)
+{
+
+	sz = foreach_state(co, fo, base, sz, list_dyn_state, bp);
+	return (sz);
 }
 
 void
@@ -2325,13 +2390,14 @@ ipfw_show_config(struct cmdline_opts *co, struct format_opts *fo,
     ipfw_cfg_lheader *cfg, size_t sz, int ac, char *av[])
 {
 	struct ip_fw *rbase;
-	ipfw_dyn_rule *dynbase;
-	int rcnt, dcnt;
+	caddr_t dynbase;
+	size_t dynsz;
+	int rcnt;
 	int exitval = EX_OK;
 	int lac;
 	char **lav;
 	char *endptr;
-	size_t dobjsz, read;
+	size_t read;
 	struct buf_pr bp;
 	ipfw_obj_ctlv *ctlv, *tstate;
 
@@ -2341,7 +2407,7 @@ ipfw_show_config(struct cmdline_opts *co, struct format_opts *fo,
 	tstate = NULL;
 	rbase = NULL;
 	dynbase = NULL;
-	dobjsz = 0;
+	dynsz = 0;
 	read = 0;
 
 	ctlv = (ipfw_obj_ctlv *)(cfg + 1);
@@ -2365,26 +2431,23 @@ ipfw_show_config(struct cmdline_opts *co, struct format_opts *fo,
 	}
 
 	if ((cfg->flags & IPFW_CFG_GET_STATES) && (read != sz))  {
-		/* We may have some dynamic rules */
-		read += sizeof(ipfw_obj_ctlv);
-		dobjsz = ctlv->objsize;
-		dcnt = (sz - read) / dobjsz;
-		if (dcnt != 0)
-			dynbase = (ipfw_dyn_rule *)(ctlv + 1);
+		/* We may have some dynamic states */
+		dynbase = (caddr_t)ctlv;
+		dynsz = sz - read;
 	}
 
-	prepare_format_opts(co, fo, rbase, dynbase, rcnt, dcnt);
+	prepare_format_opts(co, fo, rbase, rcnt, dynbase, dynsz);
 	bp_alloc(&bp, 4096);
 
 	/* if no rule numbers were specified, list all rules */
 	if (ac == 0) {
 		fo->first = 0;
 		fo->last = IPFW_DEFAULT_RULE;
-		ipfw_list_static_range(co, fo, &bp, rbase, rcnt);
+		list_static_range(co, fo, &bp, rbase, rcnt);
 
-		if (co->do_dynamic && dcnt) {
-			printf("## Dynamic rules (%d):\n", dcnt);
-			ipfw_list_dyn_range(co, fo, &bp, dynbase, dcnt, dobjsz);
+		if (co->do_dynamic && dynsz > 0) {
+			printf("## Dynamic rules (%d):\n", fo->dcnt);
+			list_dyn_range(co, fo, &bp, dynbase, dynsz);
 		}
 
 		bp_free(&bp);
@@ -2403,7 +2466,7 @@ ipfw_show_config(struct cmdline_opts *co, struct format_opts *fo,
 			continue;
 		}
 
-		if (ipfw_list_static_range(co, fo, &bp, rbase, rcnt) == 0) {
+		if (list_static_range(co, fo, &bp, rbase, rcnt) == 0) {
 			/* give precedence to other error(s) */
 			if (exitval == EX_OK)
 				exitval = EX_UNAVAILABLE;
@@ -2415,7 +2478,7 @@ ipfw_show_config(struct cmdline_opts *co, struct format_opts *fo,
 		}
 	}
 
-	if (co->do_dynamic && dcnt > 0) {
+	if (co->do_dynamic && dynsz > 0) {
 		printf("## Dynamic rules:\n");
 		for (lac = ac, lav = av; lac != 0; lac--) {
 			fo->last = fo->first = strtoul(*lav++, &endptr, 10);
@@ -2424,7 +2487,7 @@ ipfw_show_config(struct cmdline_opts *co, struct format_opts *fo,
 			if (*endptr)
 				/* already warned */
 				continue;
-			ipfw_list_dyn_range(co, fo, &bp, dynbase, dcnt, dobjsz);
+			list_dyn_range(co, fo, &bp, dynbase, dynsz);
 		}
 	}
 

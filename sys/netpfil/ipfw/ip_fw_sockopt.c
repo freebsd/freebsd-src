@@ -1201,9 +1201,8 @@ dump_config(struct ip_fw_chain *chain, struct sockopt_data *sd)
 		sz += da.rsize + sizeof(ipfw_obj_ctlv);
 	}
 
-	if (hdr->flags & IPFW_CFG_GET_STATES) {
-		sz += ipfw_dyn_len();
-	}
+	if (hdr->flags & IPFW_CFG_GET_STATES)
+		sz += ipfw_dyn_get_count() * sizeof(ipfw_obj_dyntlv);
 
 	/* Fill header anyway */
 	hdr->size = sz;
@@ -1916,8 +1915,11 @@ ipfw_flush_sopt_data(struct sockopt_data *sd)
 	if (sd->koff == 0)
 		return (0);
 
-	if ((error = sooptcopyout(sd->sopt, sd->kbuf, sd->koff)) != 0)
-		return (error);
+	if (sd->sopt->sopt_dir == SOPT_GET) {
+		error = sooptcopyout(sd->sopt, sd->kbuf, sd->koff);
+		if (error != 0)
+			return (error);
+	}
 
 	memset(sd->kbuf, 0, sd->ksize);
 	sd->ktotal += sd->koff;
