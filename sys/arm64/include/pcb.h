@@ -33,10 +33,10 @@
 
 struct trapframe;
 
+#define	PCB_LR		30
 struct pcb {
 	uint64_t	pcb_x[31];
 	uint64_t	pcb_sp;
-	uint64_t	pcb_pc;
 } __aligned(64);
 
 #ifdef _KERNEL
