@@ -38,8 +38,8 @@
 #define	_C_LABEL(x)	x
 
 #define	ENTRY(sym)						\
-	.text; .globl sym; sym:
-#define END(sym)
+	.text; .globl sym; .align 2; sym:
+#define END(sym) .size sym, . - sym
 
 #define	UINT64_C(x)	(x)
 
