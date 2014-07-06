@@ -1733,6 +1733,31 @@ struct scsi_diag_page {
 	uint8_t params[0];
 };
 
+struct scsi_vpd_port_designation
+{
+	uint8_t reserved[2];
+	uint8_t relative_port_id[2];
+	uint8_t reserved2[2];
+	uint8_t initiator_transportid_length[2];
+	uint8_t initiator_transportid[0];
+};
+
+struct scsi_vpd_port_designation_cont
+{
+	uint8_t reserved[2];
+	uint8_t target_port_descriptors_length[2];
+	struct scsi_vpd_id_descriptor target_port_descriptors[0];
+};
+
+struct scsi_vpd_scsi_ports
+{
+	u_int8_t device;
+	u_int8_t page_code;
+#define	SVPD_SCSI_PORTS		0x88
+	u_int8_t page_length[2];
+	struct scsi_vpd_port_designation design[];
+};
+
 /*
  * ATA Information VPD Page based on
  * T10/2126-D Revision 04
@@ -1923,8 +1948,9 @@ struct scsi_target_group
 {
 	uint8_t opcode;
 	uint8_t service_action;
+#define	STG_PDF_MASK		0xe0
 #define	STG_PDF_LENGTH		0x00
-#define	RPL_PDF_EXTENDED	0x20
+#define	STG_PDF_EXTENDED	0x20
 	uint8_t reserved1[4];
 	uint8_t length[4];
 	uint8_t reserved2;
@@ -1974,7 +2000,7 @@ struct scsi_target_group_data {
 
 struct scsi_target_group_data_extended {
 	uint8_t length[4];	/* length of returned data, in bytes */
-	uint8_t format_type;	/* STG_PDF_LENGTH or RPL_PDF_EXTENDED */
+	uint8_t format_type;	/* STG_PDF_LENGTH or STG_PDF_EXTENDED */
 	uint8_t	implicit_transition_time;
 	uint8_t reserved[2];
 	struct scsi_target_port_group_descriptor groups[];
