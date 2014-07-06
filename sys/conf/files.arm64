@@ -1,4 +1,5 @@
 
+arm64/arm64/autoconf.c		standard
 arm64/arm64/bcopy.c		standard
 arm64/arm64/busdma_machdep.c	standard
 arm64/arm64/clock.c		standard
