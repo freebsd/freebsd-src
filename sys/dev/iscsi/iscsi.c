@@ -1221,6 +1221,9 @@ iscsi_ioctl_daemon_wait(struct iscsi_softc *sc,
 		ISCSI_SESSION_UNLOCK(is);
 
 		request->idr_session_id = is->is_id;
+		memcpy(&request->idr_isid, &is->is_isid,
+		    sizeof(request->idr_isid));
+		request->idr_tsih = 0;	/* New or reinstated session. */
 		memcpy(&request->idr_conf, &is->is_conf,
 		    sizeof(request->idr_conf));
 
@@ -1270,7 +1273,7 @@ iscsi_ioctl_daemon_handoff(struct iscsi_softc *sc,
 
 	strlcpy(is->is_target_alias, handoff->idh_target_alias,
 	    sizeof(is->is_target_alias));
-	memcpy(is->is_isid, handoff->idh_isid, sizeof(is->is_isid));
+	is->is_tsih = handoff->idh_tsih;
 	is->is_statsn = handoff->idh_statsn;
 	is->is_initial_r2t = handoff->idh_initial_r2t;
 	is->is_immediate_data = handoff->idh_immediate_data;
@@ -1663,6 +1666,9 @@ iscsi_ioctl_session_add(struct iscsi_softc *sc, struct iscsi_session_add *isa)
 	is->is_softc = sc;
 	sc->sc_last_session_id++;
 	is->is_id = sc->sc_last_session_id;
+	is->is_isid[0] = 0x80; /* RFC 3720, 10.12.5: 10b, "Random" ISID. */
+	arc4rand(&is->is_isid[1], 5, 0);
+	is->is_tsih = 0;
 	callout_init(&is->is_callout, 1);
 	callout_reset(&is->is_callout, 1 * hz, iscsi_callout, is);
 	TAILQ_INSERT_TAIL(&sc->sc_sessions, is, is_next);
