@@ -204,8 +204,8 @@ static void
 usage(void)
 {
 	(void)fprintf(stderr,
-	    "usage: %s script [-Ealnru] [-i[<extension>]] [file ...]\n"
-	    "\t%s [-Ealnu] [-i[<extension>]] [-e script] ... [-f script_file]"
+	    "usage: %s script [-Ealnru] [-i extension] [file ...]\n"
+	    "\t%s [-Ealnu] [-i extension] [-e script] ... [-f script_file]"
 	    " ... [file ...]\n", getprogname(), getprogname());
 	exit(1);
 }
