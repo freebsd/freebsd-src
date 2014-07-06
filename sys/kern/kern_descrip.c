@@ -1883,9 +1883,10 @@ fdshare(struct filedesc *fdp)
  * Unshare a filedesc structure, if necessary by making a copy
  */
 void
-fdunshare(struct proc *p, struct thread *td)
+fdunshare(struct thread *td)
 {
 	struct filedesc *tmp;
+	struct proc *p = td->td_proc;
 
 	if (p->p_fd->fd_refcnt == 1)
 		return;
