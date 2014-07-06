@@ -37,7 +37,7 @@
  * which requires a complete function with safe internal register use.
  */
 	.global cheritest_ccall
-	.ent cheritest_ccrall
+	.ent cheritest_ccall
 cheritest_ccall:
         /* Move $c0 to $idc so that it will be saved by CCall. */
         cmove $c26, $c0
