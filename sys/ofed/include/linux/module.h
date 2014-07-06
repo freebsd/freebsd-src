@@ -44,6 +44,11 @@
 #define	EXPORT_SYMBOL(name)
 #define	EXPORT_SYMBOL_GPL(name)
 
+/* OFED pre-module initialization */
+#define	SI_SUB_OFED_PREINIT	(SI_SUB_KTHREAD_INIT - 2)
+/* OFED default module initialization */
+#define	SI_SUB_OFED_MODINIT	(SI_SUB_KTHREAD_INIT - 1)
+
 #include <sys/linker.h>
 
 static inline void
@@ -68,17 +73,17 @@ _module_run(void *arg)
 }
 
 #define	module_init(fn)							\
-	SYSINIT(fn, SI_SUB_LAST, SI_ORDER_FIRST, _module_run, (fn))
+	SYSINIT(fn, SI_SUB_OFED_MODINIT, SI_ORDER_FIRST, _module_run, (fn))
 
 /*
  * XXX This is a freebsdism designed to work around not having a module
  * load order resolver built in.
  */
 #define	module_init_order(fn, order)					\
-	SYSINIT(fn, SI_SUB_LAST, (order), _module_run, (fn))
+	SYSINIT(fn, SI_SUB_OFED_MODINIT, (order), _module_run, (fn))
 
 #define	module_exit(fn)						\
-	SYSUNINIT(fn, SI_SUB_LAST, SI_ORDER_FIRST, _module_run, (fn))
+	SYSUNINIT(fn, SI_SUB_OFED_MODINIT, SI_ORDER_FIRST, _module_run, (fn))
 
 #define	module_get(module)
 #define	module_put(module)
