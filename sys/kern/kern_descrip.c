@@ -886,8 +886,6 @@ do_dup(struct thread *td, int flags, int old, int new,
 		newfde->fde_flags = oldfde->fde_flags | UF_EXCLOSE;
 	else
 		newfde->fde_flags = oldfde->fde_flags & ~UF_EXCLOSE;
-	if (new > fdp->fd_lastfile)
-		fdp->fd_lastfile = new;
 	*retval = new;
 
 	if (delfp != NULL) {
