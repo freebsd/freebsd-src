@@ -105,6 +105,7 @@ static int export_tables(struct ip_fw_chain *ch, ipfw_obj_lheader *olh,
     struct sockopt_data *sd);
 static void export_table_info(struct ip_fw_chain *ch, struct table_config *tc,
     ipfw_xtable_info *i);
+static int dump_table_tentry(void *e, void *arg);
 static int dump_table_xentry(void *e, void *arg);
 
 static int ipfw_dump_table_v0(struct ip_fw_chain *ch, struct sockopt_data *sd);
@@ -406,23 +407,117 @@ ipfw_modify_table_v1(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
 	    tent->head.length + read > sd->valsize)
 		return (EINVAL);
 
+	/* Convert data into kernel request objects */
 	memset(&tei, 0, sizeof(tei));
 	tei.paddr = &tent->k;
 	tei.subtype = tent->subtype;
 	tei.masklen = tent->masklen;
-	if (tent->flags & IPFW_TF_UPDATE)
+	if (tent->head.flags & IPFW_TF_UPDATE)
 		tei.flags |= TEI_FLAGS_UPDATE;
 	tei.value = tent->value;
 
-	memset(&ti, 0, sizeof(ti));
-	ti.uidx = tent->idx;
+	objheader_to_ti(oh, &ti);
 	ti.type = oh->ntlv.type;
-	ti.tlvs = &oh->ntlv;
-	ti.tlen = oh->ntlv.head.length;
+	ti.uidx = tent->idx;
 
 	error = (oh->opheader.opcode == IP_FW_TABLE_XADD) ?
 	    add_table_entry(ch, &ti, &tei) :
 	    del_table_entry(ch, &ti, &tei);
+
+	return (error);
+}
+
+/*
+ * Looks up an entry in given table.
+ * Data layout (v0)(current):
+ * Request: [ ipfw_obj_header ipfw_obj_tentry ]
+ * Reply: [ ipfw_obj_header ipfw_obj_tentry ]
+ *
+ * Returns 0 on success
+ */
+int
+ipfw_find_table_entry(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
+    struct sockopt_data *sd)
+{
+	ipfw_obj_tentry *tent;
+	ipfw_obj_header *oh;
+	struct tid_info ti;
+	struct table_config *tc;
+	struct table_algo *ta;
+	struct table_info *kti;
+	struct namedobj_instance *ni;
+	int error, plen;
+	void *paddr;
+	size_t sz;
+
+	/* Check minimum header size */
+	sz = sizeof(*oh) + sizeof(*tent);
+	if (sd->valsize != sz)
+		return (EINVAL);
+
+	oh = (struct _ipfw_obj_header *)ipfw_get_sopt_header(sd, sz);
+	tent = (ipfw_obj_tentry *)(oh + 1);
+
+	/* Basic length checks for TLVs */
+	if (oh->ntlv.head.length != sizeof(oh->ntlv))
+		return (EINVAL);
+
+	objheader_to_ti(oh, &ti);
+	ti.type = oh->ntlv.type;
+	ti.uidx = tent->idx;
+
+	IPFW_UH_RLOCK(ch);
+	ni = CHAIN_TO_NI(ch);
+
+	/*
+	 * Find existing table and check its type .
+	 */
+	ta = NULL;
+	if ((tc = find_table(ni, &ti)) == NULL) {
+		IPFW_UH_RUNLOCK(ch);
+		return (ESRCH);
+	}
+
+	/* check table type */
+	if (tc->no.type != ti.type) {
+		IPFW_UH_RUNLOCK(ch);
+		return (EINVAL);
+	}
+
+	/* Check lookup key for validness */
+	plen = 0;
+	paddr = &tent->k;
+	switch (ti.type)
+	{
+	case IPFW_TABLE_CIDR:
+		if (tent->subtype == AF_INET)
+			plen = sizeof(struct in_addr);
+		else if (tent->subtype == AF_INET6)
+			plen = sizeof(struct in6_addr);
+		else {
+			IPFW_UH_RUNLOCK(ch);
+			return (EINVAL);
+		}
+		break;
+	case IPFW_TABLE_INTERFACE:
+		/* Check key first */
+		plen = sizeof(tent->k.iface);
+		if (strnlen(tent->k.iface, plen) == plen) {
+			IPFW_UH_RUNLOCK(ch);
+			return (EINVAL);
+		}
+
+		break;
+	default:
+		IPFW_UH_RUNLOCK(ch);
+		return (ENOTSUP);
+	}
+	kti = KIDX_TO_TI(ch, tc->no.kidx);
+	ta = tc->ta;
+
+	error = ta->find_tentry(tc->astate, kti, paddr, plen, tent);
+
+	IPFW_UH_RUNLOCK(ch);
 
 	return (error);
 }
@@ -807,8 +902,10 @@ struct dump_args {
 	struct sockopt_data *sd;
 	uint32_t cnt;
 	uint16_t uidx;
+	int error;
 	ipfw_table_entry *ent;
 	uint32_t size;
+	ipfw_obj_tentry tent;
 };
 
 int
@@ -835,7 +932,7 @@ ipfw_dump_table(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
  * Dumps all table data
  * Data layout (v1)(current):
  * Request: [ ipfw_obj_header ], size = ipfw_xtable_info.size
- * Reply: [ ipfw_obj_header ipfw_xtable_info ipfw_table_xentry x N ]
+ * Reply: [ ipfw_obj_header ipfw_xtable_info ipfw_obj_tentry x N ]
  *
  * Returns 0 on success
  */
@@ -866,7 +963,7 @@ ipfw_dump_table_v1(struct ip_fw_chain *ch, struct sockopt_data *sd)
 	export_table_info(ch, tc, i);
 	sz = tc->count;
 
-	if (sd->valsize < sz + tc->count * sizeof(ipfw_table_xentry)) {
+	if (sd->valsize < sz + tc->count * sizeof(ipfw_obj_tentry)) {
 
 		/*
 		 * Submitted buffer size is not enough.
@@ -888,10 +985,10 @@ ipfw_dump_table_v1(struct ip_fw_chain *ch, struct sockopt_data *sd)
 
 	ta = tc->ta;
 
-	ta->foreach(tc->astate, da.ti, dump_table_xentry, &da);
+	ta->foreach(tc->astate, da.ti, dump_table_tentry, &da);
 	IPFW_UH_RUNLOCK(ch);
 
-	return (0);
+	return (da.error);
 }
 
 /*
@@ -1045,7 +1142,7 @@ objheader_to_ti(struct _ipfw_obj_header *oh, struct tid_info *ti)
 {
 
 	memset(ti, 0, sizeof(struct tid_info));
-	ti->set = oh->set;
+	ti->set = oh->ntlv.set;
 	ti->uidx = oh->idx;
 	ti->tlvs = &oh->ntlv;
 	ti->tlen = oh->ntlv.head.length;
@@ -1088,7 +1185,7 @@ export_table_info(struct ip_fw_chain *ch, struct table_config *tc,
 	i->kidx = tc->no.kidx;
 	i->refcnt = tc->no.refcnt;
 	i->count = tc->count;
-	i->size = tc->count * sizeof(ipfw_table_xentry);
+	i->size = tc->count * sizeof(ipfw_obj_tentry);
 	i->size += sizeof(ipfw_obj_header) + sizeof(ipfw_xtable_info);
 	strlcpy(i->tablename, tc->tablename, sizeof(i->tablename));
 	if (tc->ta->print_config != NULL) {
@@ -1155,6 +1252,9 @@ export_tables(struct ip_fw_chain *ch, ipfw_obj_lheader *olh,
 	return (0);
 }
 
+/*
+ * Legacy IP_FW_TABLE_GETSIZE handler
+ */
 int
 ipfw_count_table(struct ip_fw_chain *ch, struct tid_info *ti, uint32_t *cnt)
 {
@@ -1167,6 +1267,9 @@ ipfw_count_table(struct ip_fw_chain *ch, struct tid_info *ti, uint32_t *cnt)
 }
 
 
+/*
+ * Legacy IP_FW_TABLE_XGETSIZE handler
+ */
 int
 ipfw_count_xtable(struct ip_fw_chain *ch, struct tid_info *ti, uint32_t *cnt)
 {
@@ -1189,6 +1292,7 @@ dump_table_entry(void *e, void *arg)
 	struct table_config *tc;
 	struct table_algo *ta;
 	ipfw_table_entry *ent;
+	int error;
 
 	da = (struct dump_args *)arg;
 
@@ -1202,7 +1306,15 @@ dump_table_entry(void *e, void *arg)
 	ent->tbl = da->uidx;
 	da->cnt++;
 
-	return (ta->dump_entry(tc->astate, da->ti, e, ent));
+	error = ta->dump_tentry(tc->astate, da->ti, e, &da->tent);
+	if (error != 0)
+		return (error);
+
+	ent->addr = da->tent.k.addr.s_addr;
+	ent->masklen = da->tent.masklen;
+	ent->value = da->tent.value;
+
+	return (0);
 }
 
 /*
@@ -1223,8 +1335,9 @@ ipfw_dump_table_legacy(struct ip_fw_chain *ch, struct tid_info *ti,
 
 	ta = tc->ta;
 
-	if (ta->dump_entry == NULL)
-		return (0);	/* Legacy dump support is not necessary */
+	/* This dump format supports IPv4 only */
+	if (tc->no.type != IPFW_TABLE_CIDR)
+		return (0);
 
 	memset(&da, 0, sizeof(da));
 	da.ti = KIDX_TO_TI(ch, tc->no.kidx);
@@ -1240,7 +1353,35 @@ ipfw_dump_table_legacy(struct ip_fw_chain *ch, struct tid_info *ti,
 }
 
 /*
- * Dumps table entry in eXtended format (current).
+ * Dumps table entry in eXtended format (v1)(current).
+ */
+static int
+dump_table_tentry(void *e, void *arg)
+{
+	struct dump_args *da;
+	struct table_config *tc;
+	struct table_algo *ta;
+	ipfw_obj_tentry *tent;
+
+	da = (struct dump_args *)arg;
+
+	tc = da->tc;
+	ta = tc->ta;
+
+	tent = (ipfw_obj_tentry *)ipfw_get_sopt_space(da->sd, sizeof(*tent));
+	/* Out of memory, returning */
+	if (tent == NULL) {
+		da->error = ENOMEM;
+		return (1);
+	}
+	tent->head.length = sizeof(ipfw_obj_tentry);
+	tent->idx = da->uidx;
+
+	return (ta->dump_tentry(tc->astate, da->ti, e, tent));
+}
+
+/*
+ * Dumps table entry in eXtended format (v0).
  */
 static int
 dump_table_xentry(void *e, void *arg)
@@ -1249,6 +1390,8 @@ dump_table_xentry(void *e, void *arg)
 	struct table_config *tc;
 	struct table_algo *ta;
 	ipfw_table_xentry *xent;
+	ipfw_obj_tentry *tent;
+	int error;
 
 	da = (struct dump_args *)arg;
 
@@ -1262,7 +1405,23 @@ dump_table_xentry(void *e, void *arg)
 	xent->len = sizeof(ipfw_table_xentry);
 	xent->tbl = da->uidx;
 
-	return (ta->dump_xentry(tc->astate, da->ti, e, xent));
+	memset(&da->tent, 0, sizeof(da->tent));
+	tent = &da->tent;
+	error = ta->dump_tentry(tc->astate, da->ti, e, tent);
+	if (error != 0)
+		return (error);
+
+	/* Convert current format to previous one */
+	xent->masklen = tent->masklen;
+	xent->value = tent->value;
+	/* Apply some hacks */
+	if (tc->no.type == IPFW_TABLE_CIDR && tent->subtype == AF_INET) {
+		xent->k.addr6.s6_addr32[3] = tent->k.addr.s_addr;
+		xent->flags = IPFW_TCF_INET;
+	} else
+		memcpy(&xent->k, &tent->k, sizeof(xent->k));
+
+	return (0);
 }
 
 /*

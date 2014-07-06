@@ -208,30 +208,8 @@ ta_destroy_radix(void *ta_state, struct table_info *ti)
 }
 
 static int
-ta_dump_radix_entry(void *ta_state, struct table_info *ti, void *e,
-    ipfw_table_entry *ent)
-{
-	struct table_entry *n;
-
-	n = (struct table_entry *)e;
-
-	/* Guess IPv4/IPv6 radix by sockaddr family */
-	if (n->addr.sin_family != AF_INET)
-		return (0);
-
-	if (in_nullhost(n->mask.sin_addr))
-		ent->masklen = 0;
-	else
-		ent->masklen = 33 - ffs(ntohl(n->mask.sin_addr.s_addr));
-	ent->addr = n->addr.sin_addr.s_addr;
-	ent->value = n->value;
-
-	return (0);
-}
-
-static int
-ta_dump_radix_xentry(void *ta_state, struct table_info *ti, void *e,
-    ipfw_table_xentry *xent)
+ta_dump_radix_tentry(void *ta_state, struct table_info *ti, void *e,
+    ipfw_obj_tentry *tent)
 {
 	struct table_entry *n;
 	struct table_xentry *xn;
@@ -245,26 +223,57 @@ ta_dump_radix_xentry(void *ta_state, struct table_info *ti, void *e,
 	/* Guess IPv4/IPv6 radix by sockaddr family */
 	if (n->addr.sin_family == AF_INET) {
 		if (in_nullhost(n->mask.sin_addr))
-			xent->masklen = 0;
+			tent->masklen = 0;
 		else
-			xent->masklen = 33-ffs(ntohl(n->mask.sin_addr.s_addr));
+			tent->masklen = 33-ffs(ntohl(n->mask.sin_addr.s_addr));
 		/* Save IPv4 address as deprecated IPv6 compatible */
-		xent->k.addr6.s6_addr32[3] = n->addr.sin_addr.s_addr;
-		xent->flags = IPFW_TCF_INET;
-		xent->value = n->value;
+		tent->k.addr.s_addr = n->addr.sin_addr.s_addr;
+		tent->subtype = AF_INET;
+		tent->value = n->value;
 #ifdef INET6
 	} else {
 		xn = (struct table_xentry *)e;
 		/* Count IPv6 mask */
 		v = (uint32_t *)&xn->m.mask6.sin6_addr;
 		for (i = 0; i < sizeof(struct in6_addr) / 4; i++, v++)
-			xent->masklen += bitcount32(*v);
-		memcpy(&xent->k, &xn->a.addr6.sin6_addr, sizeof(struct in6_addr));
-		xent->value = xn->value;
+			tent->masklen += bitcount32(*v);
+		memcpy(&tent->k, &xn->a.addr6.sin6_addr, sizeof(struct in6_addr));
+		tent->subtype = AF_INET6;
+		tent->value = xn->value;
 #endif
 	}
 
 	return (0);
+}
+
+static int
+ta_find_radix_tentry(void *ta_state, struct table_info *ti, void *key,
+    uint32_t keylen, ipfw_obj_tentry *tent)
+{
+	struct radix_node_head *rnh;
+	void *e;
+
+	e = NULL;
+	if (keylen == sizeof(in_addr_t)) {
+		struct sockaddr_in sa;
+		KEY_LEN(sa) = KEY_LEN_INET;
+		sa.sin_addr.s_addr = *((in_addr_t *)key);
+		rnh = (struct radix_node_head *)ti->state;
+		e = rnh->rnh_matchaddr(&sa, rnh);
+	} else {
+		struct sockaddr_in6 sa6;
+		KEY_LEN(sa6) = KEY_LEN_INET6;
+		memcpy(&sa6.sin6_addr, key, sizeof(struct in6_addr));
+		rnh = (struct radix_node_head *)ti->xstate;
+		e = rnh->rnh_matchaddr(&sa6, rnh);
+	}
+
+	if (e != NULL) {
+		ta_dump_radix_tentry(ta_state, ti, e, tent);
+		return (0);
+	}
+
+	return (ENOENT);
 }
 
 static void
@@ -495,7 +504,7 @@ ta_del_cidr(void *ta_state, struct table_info *ti,
 	tb->ent_ptr = rn;
 	
 	if (rn == NULL)
-		return (ESRCH);
+		return (ENOENT);
 
 	return (0);
 }
@@ -522,8 +531,8 @@ struct table_algo radix_cidr = {
 	.del		= ta_del_cidr,
 	.flush_entry	= ta_flush_cidr_entry,
 	.foreach	= ta_foreach_radix,
-	.dump_entry	= ta_dump_radix_entry,
-	.dump_xentry	= ta_dump_radix_xentry,
+	.dump_tentry	= ta_dump_radix_tentry,
+	.find_tentry	= ta_find_radix_tentry,
 };
 
 
@@ -724,7 +733,7 @@ ta_del_iface(void *ta_state, struct table_info *ti,
 	tb->ent_ptr = rn;
 	
 	if (rn == NULL)
-		return (ESRCH);
+		return (ENOENT);
 
 	return (0);
 }
@@ -741,17 +750,40 @@ ta_flush_iface_entry(struct tentry_info *tei, void *ta_buf)
 }
 
 static int
-ta_dump_iface_xentry(void *ta_state, struct table_info *ti, void *e,
-    ipfw_table_xentry *xent)
+ta_dump_iface_tentry(void *ta_state, struct table_info *ti, void *e,
+    ipfw_obj_tentry *tent)
 {
 	struct table_xentry *xn;
 
 	xn = (struct table_xentry *)e;
-	xent->masklen = 8 * IF_NAMESIZE;
-	memcpy(&xent->k, &xn->a.iface.ifname, IF_NAMESIZE);
-	xent->value = xn->value;
+	tent->masklen = 8 * IF_NAMESIZE;
+	memcpy(&tent->k, &xn->a.iface.ifname, IF_NAMESIZE);
+	tent->value = xn->value;
 
 	return (0);
+}
+
+static int
+ta_find_iface_tentry(void *ta_state, struct table_info *ti, void *key,
+    uint32_t keylen, ipfw_obj_tentry *tent)
+{
+	struct radix_node_head *rnh;
+	struct xaddr_iface iface;
+	void *e;
+	e = NULL;
+
+	KEY_LEN(iface) = KEY_LEN_IFACE +
+	    strlcpy(iface.ifname, (char *)key, IF_NAMESIZE) + 1;
+
+	rnh = (struct radix_node_head *)ti->xstate;
+	e = rnh->rnh_matchaddr(&iface, rnh);
+
+	if (e != NULL) {
+		ta_dump_iface_tentry(ta_state, ti, e, tent);
+		return (0);
+	}
+
+	return (ENOENT);
 }
 
 static void
@@ -775,7 +807,8 @@ struct table_algo radix_iface = {
 	.del		= ta_del_iface,
 	.flush_entry	= ta_flush_iface_entry,
 	.foreach		= ta_foreach_iface,
-	.dump_xentry	= ta_dump_iface_xentry,
+	.dump_tentry	= ta_dump_iface_tentry,
+	.find_tentry	= ta_find_iface_tentry,
 };
 
 void

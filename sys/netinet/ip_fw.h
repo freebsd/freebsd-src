@@ -89,6 +89,7 @@ typedef struct _ip_fw3_opheader {
 //#define	IP_FW_TABLE_XMODIFY	96	/* modify existing table */
 #define	IP_FW_XGET		97	/* Retrieve configuration */
 #define	IP_FW_XADD		98	/* add entry */
+#define	IP_FW_TABLE_XFIND	99	/* finds an entry */
 
 /*
  * Usage guidelines:
@@ -713,10 +714,8 @@ typedef struct	_ipfw_obj_tentry {
 	uint8_t		subtype;	/* subtype (IPv4,IPv6)		*/
 	uint8_t		masklen;	/* mask length			*/
 	uint16_t	idx;		/* Table name index		*/
-	uint16_t	flags;		/* Entry flags			*/
-	uint16_t	spare0;
-	uint32_t	spare1;
 	uint32_t	value;		/* value			*/
+	uint64_t	spare;
 	union {
 		/* Longest field needs to be aligned by 8-byte boundary	*/
 		struct in_addr addr;	/* IPv4 address			*/
@@ -751,7 +750,7 @@ typedef struct _ipfw_xtable_info {
 #define	IPFW_OBJTYPE_TABLE	1
 typedef struct _ipfw_obj_header {
 	ip_fw3_opheader	opheader;	/* IP_FW3 opcode		*/
-	uint32_t	set;		/* Set we're operating		*/
+	uint32_t	spare;
 	uint16_t	idx;		/* object name index		*/
 	uint8_t		objtype;	/* object type			*/
 	uint8_t		objsubtype;	/* object subtype		*/
