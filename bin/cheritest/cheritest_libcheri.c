@@ -239,6 +239,42 @@ cheritest_libcheri_userfn(void)
 	cheritest_success();
 }
 
+void
+cheritest_save_global(void)
+{
+	__capability void *carg, *cclear;
+	register_t v;
+
+	carg = (__capability void *)&v;
+	cclear = cheri_zerocap();
+	v = sandbox_object_cinvoke(cheritest_objectp,
+	    CHERITEST_HELPER_SAVE_CAPABILITY_IN_HEAP, 0, 0, 0, 0, 0, 0, 0,
+	    sandbox_object_getsystemobject(cheritest_objectp).co_codecap,
+	    sandbox_object_getsystemobject(cheritest_objectp).co_datacap,
+	    carg, cclear, cclear, cclear, cclear, cclear);
+	if (v != 0)
+		cheritest_failure_errx("Incorrect return value 0x%lx "
+		    "(expected 0)\n", v);
+	cheritest_success();
+}
+
+void
+cheritest_save_ephemeral(void)
+{
+	__capability void *carg, *cclear;
+	register_t v;
+
+	carg = (__capability void *)&v;
+	carg = cheri_ephemeral(carg);
+	cclear = cheri_zerocap();
+	(void)sandbox_object_cinvoke(cheritest_objectp,
+	    CHERITEST_HELPER_SAVE_CAPABILITY_IN_HEAP, 0, 0, 0, 0, 0, 0, 0,
+	    sandbox_object_getsystemobject(cheritest_objectp).co_codecap,
+	    sandbox_object_getsystemobject(cheritest_objectp).co_datacap,
+	    carg, cclear, cclear, cclear, cclear, cclear);
+	cheritest_failure_errx("Method failed to properly fail\n");
+}
+
 int
 cheritest_libcheri_setup(void)
 {

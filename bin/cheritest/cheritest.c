@@ -373,6 +373,19 @@ static const struct cheri_test {
 	{ .ct_name = "setstack",
 	  .ct_desc = "Exercise CHERI_SET_STACK sysarch() to change stack",
 	  .ct_func = cheritest_setstack },
+
+	{ .ct_name = "save_global",
+	  .ct_desc = "Try to save global argument to sandbox heap",
+	  .ct_func = cheritest_save_global },
+
+	{ .ct_name = "save_ephemeral",
+	  .ct_desc = "Try to save ephemeral argument to sandbox heap",
+	  .ct_func = cheritest_save_ephemeral,
+	  .ct_flags = CT_FLAG_SIGNAL | CT_FLAG_MIPS_EXCCODE |
+		    CT_FLAG_CP2_EXCCODE,
+	  .ct_signum = SIGPROT,
+	  .ct_mips_exccode = T_C2E,
+	  .ct_cp2_exccode = CHERI_EXCCODE_STORE_EPHEM },
 };
 static const u_int cheri_tests_len = sizeof(cheri_tests) /
 	    sizeof(cheri_tests[0]);
