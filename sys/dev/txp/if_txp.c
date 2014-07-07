@@ -112,7 +112,7 @@ MODULE_DEPEND(txp, ether, 1, 1, 1);
  *    restriction by copying received frame to align the frame on
  *    32bit boundary on strict-alignment architectures. This adds a
  *    lot of CPU burden and it effectively reduce Rx performance on
- *    strict-alignment architectures(e.g. sparc64, arm, mips and ia64).
+ *    strict-alignment architectures(e.g. sparc64, arm and mips).
  *
  * Unfortunately it seems that 3Com have no longer interests in
  * releasing fixed firmware so we may have to live with these bugs.

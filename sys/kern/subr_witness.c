@@ -660,9 +660,6 @@ static struct witness_order_list_entry order_lists[] = {
 	{ "mprof lock", &lock_class_mtx_spin },
 	{ "zombie lock", &lock_class_mtx_spin },
 	{ "ALD Queue", &lock_class_mtx_spin },
-#ifdef __ia64__
-	{ "MCA spin lock", &lock_class_mtx_spin },
-#endif
 #if defined(__i386__) || defined(__amd64__)
 	{ "pcicfg", &lock_class_mtx_spin },
 	{ "NDIS thread lock", &lock_class_mtx_spin },

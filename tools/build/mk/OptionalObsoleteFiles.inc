@@ -1283,8 +1283,6 @@ OLD_FILES+=usr/include/gcc/4.2/pmmintrin.h
 OLD_FILES+=usr/include/gcc/4.2/tmmintrin.h
 OLD_FILES+=usr/include/gcc/4.2/wmmintrin.h
 OLD_FILES+=usr/include/gcc/4.2/xmmintrin.h
-.elif ${TARGET_ARCH} == "ia64"
-OLD_FILES+=usr/include/gcc/4.2/ia64intrin.h
 .elif ${TARGET_ARCH} == "arm"
 OLD_FILES+=usr/include/gcc/4.2/mmintrin.h
 .elif ${TARGET_ARCH} == "powerpc" || ${TARGET_ARCH} == "powerpc64"

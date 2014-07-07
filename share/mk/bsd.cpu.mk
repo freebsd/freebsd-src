@@ -10,8 +10,6 @@ _CPUCFLAGS =
 MACHINE_CPU = i486
 . elif ${MACHINE_CPUARCH} == "amd64"
 MACHINE_CPU = amd64 sse2 sse mmx
-. elif ${MACHINE_CPUARCH} == "ia64"
-MACHINE_CPU = itanium
 . elif ${MACHINE_CPUARCH} == "powerpc"
 MACHINE_CPU = aim
 . elif ${MACHINE_CPUARCH} == "sparc64"
@@ -234,10 +232,6 @@ MACHINE_CPU = ssse3 sse3
 MACHINE_CPU = sse3
 .  endif
 MACHINE_CPU += amd64 sse2 sse mmx
-. elif ${MACHINE_CPUARCH} == "ia64"
-.  if ${CPUTYPE} == "itanium"
-MACHINE_CPU = itanium
-.  endif
 . elif ${MACHINE_ARCH} == "powerpc"
 .  if ${CPUTYPE} == "e500"
 MACHINE_CPU = booke

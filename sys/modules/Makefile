@@ -782,46 +782,6 @@ _cpsw=		cpsw
 _sound=		sound
 .endif
 
-.if ${MACHINE_CPUARCH} == "ia64"
-_aac=		aac
-_aacraid=	aacraid
-_aic=		aic
-_an=		an
-_arcnet=	arcnet
-_asr=		asr
-_bktr=		bktr
-_cardbus=	cardbus
-_cbb=		cbb
-_ciss=		ciss
-_cm=		cm
-_cmx=		cmx
-_coff=		coff
-_cpufreq=	cpufreq
-_dpt=		dpt
-_em=		em
-_ep=		ep
-_et=		et
-_exca=		exca
-_fe=		fe
-_hptiop=	hptiop
-_ida=		ida
-_igb=		igb
-_iir=		iir
-_ips=		ips
-_mly=		mly
-_pccard=	pccard
-_scsi_low=	scsi_low
-_smbfs=		smbfs
-_sound=		sound
-_splash=	splash
-_sppp=		sppp
-_streams=	streams
-_tpm=		tpm
-_twa=		twa
-_wi=		wi
-_xe=		xe
-.endif
-
 .if ${MACHINE_CPUARCH} == "powerpc"
 _agp=		agp
 _an=		an

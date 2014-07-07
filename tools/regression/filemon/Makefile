@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.if ${MACHINE_ARCH} == "amd64" || ${MACHINE_ARCH} == "ia64"
+.if ${MACHINE_ARCH} == "amd64"
 BI_BITS=
 .endif
 

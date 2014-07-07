@@ -137,17 +137,6 @@ LIB2FUNCS_EXTRA+= fixdfdi.c fixunssfsi.c
 .endif
 .endif
 
-.if ${TARGET_CPUARCH} == "ia64"
-#	from config/ia64/t-ia64
-LIB1ASMSRC   = lib1funcs.asm
-LIB1ASMFUNCS = __divxf3 __divdf3 __divsf3 \
-	__divdi3 __moddi3 __udivdi3 __umoddi3 \
-	__divsi3 __modsi3 __udivsi3 __umodsi3 __save_stack_nonlocal \
-	__nonlocal_goto __restore_stack_nonlocal __trampoline \
-	_fixtfdi _fixunstfdi _floatditf
-LIB2ADDEH = unwind-ia64.c unwind-sjlj.c unwind-c.c
-.endif
-
 .if ${TARGET_ARCH} == "powerpc"
 #	from config/rs6000/t-ppccomm
 LIB2FUNCS_EXTRA = tramp.asm
