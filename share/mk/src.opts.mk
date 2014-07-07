@@ -374,7 +374,7 @@ CHERI_CC?=	/usr/local/bin/cheri-unknown-freebsd-clang
 .if ! exists(${CHERI_CC})
 .error USE_CHERI is defined and CHERI_CC is ${CHERI_CC}, but it doesn't exist.
 .endif
-CC:=    ${CHERI_CC} -integrated-as
+CC:=    ${CHERI_CC} -integrated-as --target=cheri-unknown-freebsd
 .if defined(SYSROOT)
 CC+=    --sysroot=${SYSROOT}
 .endif
