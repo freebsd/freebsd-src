@@ -216,11 +216,12 @@ usage(void)
 static int
 is_vt4(void)
 {
+	char vty_name[4] = "";
+	size_t len = sizeof(vty_name);
 
-	if (sysctlbyname("kern.vt.deadtimer", NULL, NULL, NULL, 0) == 0)
-		return (1);
-
-	return (0);
+	if (sysctlbyname("kern.vty", vty_name, &len, NULL, 0) != 0)
+		return (0);
+	return (strcmp(vty_name, "vt") == 0);
 }
 
 /*

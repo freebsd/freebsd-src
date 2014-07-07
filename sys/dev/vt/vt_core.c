@@ -215,6 +215,8 @@ static void
 vt_update_static(void *dummy)
 {
 
+	if (!vty_enabled(VTY_VT))
+		return;
 	if (main_vd->vd_driver != NULL)
 		printf("VT: running with driver \"%s\".\n",
 		    main_vd->vd_driver->vd_name);
@@ -958,6 +960,9 @@ vtterm_cnprobe(struct terminal *tm, struct consdev *cp)
 	struct winsize wsz;
 	term_attr_t attr;
 	term_char_t c;
+
+	if (!vty_enabled(VTY_VT))
+		return;
 
 	if (vd->vd_flags & VDF_INITIALIZED)
 		/* Initialization already done. */
@@ -1998,6 +2003,9 @@ vt_upgrade(struct vt_device *vd)
 	struct vt_window *vw;
 	unsigned int i;
 
+	if (!vty_enabled(VTY_VT))
+		return;
+
 	for (i = 0; i < VT_MAXWINDOWS; i++) {
 		vw = vd->vd_windows[i];
 		if (vw == NULL) {
@@ -2062,6 +2070,9 @@ vt_allocate(struct vt_driver *drv, void *softc)
 {
 	struct vt_device *vd;
 	struct winsize wsz;
+
+	if (!vty_enabled(VTY_VT))
+		return;
 
 	if (main_vd->vd_driver == NULL) {
 		main_vd->vd_driver = drv;
