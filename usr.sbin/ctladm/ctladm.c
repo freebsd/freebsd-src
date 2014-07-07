@@ -500,6 +500,9 @@ retry:
 		case CTL_PORT_ISCSI:
 			type = "ISCSI";
 			break;
+		case CTL_PORT_SAS:
+			type = "SAS";
+			break;
 		default:
 			type = "UNKNOWN";
 			break;
@@ -590,6 +593,7 @@ static struct ctladm_opts cctl_fe_table[] = {
 	{"scsi", CTL_PORT_SCSI, CTLADM_ARG_NONE, NULL},
 	{"internal", CTL_PORT_INTERNAL, CTLADM_ARG_NONE, NULL},
 	{"iscsi", CTL_PORT_ISCSI, CTLADM_ARG_NONE, NULL},
+	{"sas", CTL_PORT_SAS, CTLADM_ARG_NONE, NULL},
 	{"all", CTL_PORT_ALL, CTLADM_ARG_NONE, NULL},
 	{NULL, 0, 0, NULL}
 };
