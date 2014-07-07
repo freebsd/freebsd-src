@@ -157,6 +157,9 @@ xhci_pci_port_route(device_t self, uint32_t set, uint32_t clear)
 	temp |= set;
 	temp &= ~clear;
 
+	/* Don't set bits which the hardware doesn't support */
+	temp &= pci_read_config(self, PCI_XHCI_INTEL_USB3PRM, 4);
+
 	pci_write_config(self, PCI_XHCI_INTEL_USB3_PSSEN, temp, 4);
 	pci_write_config(self, PCI_XHCI_INTEL_XUSB2PR, temp, 4);
 
