@@ -656,11 +656,6 @@ vga_init(struct vt_device *vd)
 	sc->vga_fb_handle = KERNBASE + VGA_MEM_BASE;
 	sc->vga_reg_tag = X86_BUS_SPACE_IO;
 	sc->vga_reg_handle = VGA_REG_BASE;
-#elif defined(__ia64__)
-	sc->vga_fb_tag = IA64_BUS_SPACE_MEM;
-	sc->vga_fb_handle = IA64_PHYS_TO_RR6(VGA_MEM_BASE);
-	sc->vga_reg_tag = IA64_BUS_SPACE_IO;
-	sc->vga_reg_handle = VGA_REG_BASE;
 #else
 # error "Architecture not yet supported!"
 #endif

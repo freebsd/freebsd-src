@@ -130,7 +130,7 @@ SYSCTL_INT(__CONCAT(_kern_elf, __ELF_WORD_SIZE), OID_AUTO,
     __XSTRING(__CONCAT(ELF, __ELF_WORD_SIZE)) ": enable non-executable stack");
 
 #if __ELF_WORD_SIZE == 32
-#if defined(__amd64__) || defined(__ia64__)
+#if defined(__amd64__)
 int i386_read_exec = 0;
 SYSCTL_INT(_kern_elf32, OID_AUTO, read_exec, CTLFLAG_RW, &i386_read_exec, 0,
     "enable execution from readable segments");
@@ -2112,7 +2112,7 @@ __elfN(trans_prot)(Elf_Word flags)
 	if (flags & PF_R)
 		prot |= VM_PROT_READ;
 #if __ELF_WORD_SIZE == 32
-#if defined(__amd64__) || defined(__ia64__)
+#if defined(__amd64__)
 	if (i386_read_exec && (flags & PF_R))
 		prot |= VM_PROT_EXECUTE;
 #endif

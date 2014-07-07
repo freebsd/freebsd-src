@@ -1091,15 +1091,6 @@ exec_new_vmspace(imgp, sv)
 	if (error)
 		return (error);
 
-#ifdef __ia64__
-	/* Allocate a new register stack */
-	stack_addr = IA64_BACKINGSTORE;
-	error = vm_map_stack(map, stack_addr, (vm_size_t)ssiz,
-	    sv->sv_stackprot, VM_PROT_ALL, MAP_STACK_GROWS_UP);
-	if (error)
-		return (error);
-#endif
-
 	/*
 	 * vm_ssize and vm_maxsaddr are somewhat antiquated concepts, but they
 	 * are still used to enforce the stack rlimit on the process stack.
