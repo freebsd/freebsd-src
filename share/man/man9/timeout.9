@@ -372,6 +372,11 @@ divided by acceptable time deviation: 1 -- 1/2, 2 -- 1/4, etc.
 Smaller value allows to aggregate more events in one timer interrupt to
 reduce processing overhead and power consumption.
 .El
+.It Dv C_HARDCLOCK
+Align the timeouts, if possible, to 
+.Fn hardclock  
+calls.
+.El
 .Pp
 The functions
 .Fn callout_reset_curcpu
