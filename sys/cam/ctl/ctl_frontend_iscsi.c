@@ -1507,6 +1507,8 @@ restart:
 		mtx_lock(&softc->lock);
 		TAILQ_FOREACH(cs2, &softc->sessions, cs_next) {
 			if (cs2 != cs && cs2->cs_tasks_aborted == false &&
+			    cs->cs_target == cs2->cs_target &&
+			    cs->cs_portal_group_tag == cs2->cs_portal_group_tag &&
 			    strcmp(cs->cs_initiator_id, cs2->cs_initiator_id) == 0) {
 				cfiscsi_session_terminate(cs2);
 				mtx_unlock(&softc->lock);
