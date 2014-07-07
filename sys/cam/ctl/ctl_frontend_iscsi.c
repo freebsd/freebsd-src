@@ -1146,41 +1146,25 @@ cfiscsi_session_terminate(struct cfiscsi_session *cs)
 static int
 cfiscsi_session_register_initiator(struct cfiscsi_session *cs)
 {
-	int error, i;
-	struct cfiscsi_softc *softc;
+	struct cfiscsi_target *ct;
+	char *name;
+	int i;
 
 	KASSERT(cs->cs_ctl_initid == -1, ("already registered"));
 
-	softc = &cfiscsi_softc;
-
-	mtx_lock(&softc->lock);
-	for (i = 0; i < softc->max_initiators; i++) {
-		if (softc->ctl_initids[i] == 0)
-			break;
-	}
-	if (i == softc->max_initiators) {
-		CFISCSI_SESSION_WARN(cs, "too many concurrent sessions (%d)",
-		    softc->max_initiators);
-		mtx_unlock(&softc->lock);
-		return (1);
-	}
-	softc->ctl_initids[i] = 1;
-	mtx_unlock(&softc->lock);
-
-#if 0
-	CFISCSI_SESSION_DEBUG(cs, "adding initiator id %d, max %d",
-	    i, softc->max_initiators);
-#endif
-	cs->cs_ctl_initid = i;
-	error = ctl_add_initiator(0x0, cs->cs_target->ct_port.targ_port, cs->cs_ctl_initid);
-	if (error != 0) {
-		CFISCSI_SESSION_WARN(cs, "ctl_add_initiator failed with error %d", error);
-		mtx_lock(&softc->lock);
-		softc->ctl_initids[cs->cs_ctl_initid] = 0;
-		mtx_unlock(&softc->lock);
+	ct = cs->cs_target;
+	name = strdup(cs->cs_initiator_id, M_CTL);
+	i = ctl_add_initiator(&ct->ct_port, -1, 0, name);
+	if (i < 0) {
+		CFISCSI_SESSION_WARN(cs, "ctl_add_initiator failed with error %d",
+		    i);
 		cs->cs_ctl_initid = -1;
 		return (1);
 	}
+	cs->cs_ctl_initid = i;
+#if 0
+	CFISCSI_SESSION_DEBUG(cs, "added initiator id %d", i);
+#endif
 
 	return (0);
 }
@@ -1189,21 +1173,15 @@ static void
 cfiscsi_session_unregister_initiator(struct cfiscsi_session *cs)
 {
 	int error;
-	struct cfiscsi_softc *softc;
 
 	if (cs->cs_ctl_initid == -1)
 		return;
 
-	softc = &cfiscsi_softc;
-
-	error = ctl_remove_initiator(cs->cs_target->ct_port.targ_port, cs->cs_ctl_initid);
+	error = ctl_remove_initiator(&cs->cs_target->ct_port, cs->cs_ctl_initid);
 	if (error != 0) {
 		CFISCSI_SESSION_WARN(cs, "ctl_remove_initiator failed with error %d",
 		    error);
 	}
-	mtx_lock(&softc->lock);
-	softc->ctl_initids[cs->cs_ctl_initid] = 0;
-	mtx_unlock(&softc->lock);
 	cs->cs_ctl_initid = -1;
 }
 
@@ -1299,8 +1277,6 @@ cfiscsi_init(void)
 #endif
 	TAILQ_INIT(&softc->sessions);
 	TAILQ_INIT(&softc->targets);
-
-	softc->max_initiators = CTL_MAX_INIT_PER_PORT;
 
 	cfiscsi_data_wait_zone = uma_zcreate("cfiscsi_data_wait",
 	    sizeof(struct cfiscsi_data_wait), NULL, NULL, NULL, NULL,

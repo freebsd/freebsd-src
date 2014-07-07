@@ -484,14 +484,14 @@ ctlfeasync(void *callback_arg, uint32_t code, struct cam_path *path, void *arg)
 				break;
 			}
 			if (dev_chg->arrived != 0) {
-				retval = ctl_add_initiator(dev_chg->wwpn,
-					softc->port.targ_port, dev_chg->target);
+				retval = ctl_add_initiator(&softc->port,
+				    dev_chg->target, dev_chg->wwpn, NULL);
 			} else {
-				retval = ctl_remove_initiator(
-					softc->port.targ_port, dev_chg->target);
+				retval = ctl_remove_initiator(&softc->port,
+				    dev_chg->target);
 			}
 
-			if (retval != 0) {
+			if (retval < 0) {
 				printf("%s: could not %s port %d iid %u "
 				       "WWPN %#jx!\n", __func__,
 				       (dev_chg->arrived != 0) ? "add" :

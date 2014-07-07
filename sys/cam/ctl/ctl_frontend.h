@@ -80,6 +80,13 @@ typedef int (*fe_ioctl_t)(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
 	MODULE_DEPEND(name, ctl, 1, 1, 1); \
 	MODULE_DEPEND(name, cam, 1, 1, 1)
 
+struct ctl_wwpn_iid {
+	int in_use;
+	time_t last_use;
+	uint64_t wwpn;
+	char *name;
+};
+
 /*
  * The ctl_frontend structure is the registration mechanism between a FETD
  * (Front End Target Driver) and the CTL layer.  Here is a description of
@@ -228,6 +235,7 @@ struct ctl_port {
 	int32_t		targ_port;		/* passed back to FETD */
 	void		*ctl_pool_ref;		/* passed back to FETD */
 	uint32_t	max_initiators;		/* passed back to FETD */
+	struct ctl_wwpn_iid *wwpn_iid;		/* used by CTL */
 	uint64_t	wwnn;			/* set by CTL before online */
 	uint64_t	wwpn;			/* set by CTL before online */
 	ctl_port_status	status;			/* used by CTL */
@@ -269,13 +277,13 @@ struct ctl_frontend * ctl_frontend_find(char *frontend_name);
  * This may block until resources are allocated.  Called at FETD module load
  * time. Returns 0 for success, non-zero for failure.
  */
-int ctl_port_register(struct ctl_port *fe, int master_SC);
+int ctl_port_register(struct ctl_port *port, int master_SC);
 
 /*
  * Called at FETD module unload time.
  * Returns 0 for success, non-zero for failure.
  */
-int ctl_port_deregister(struct ctl_port *fe);
+int ctl_port_deregister(struct ctl_port *port);
 
 /*
  * Called to set the WWNN and WWPN for a particular frontend.
@@ -312,21 +320,18 @@ int ctl_queue(union ctl_io *io);
 int ctl_queue_sense(union ctl_io *io);
 
 /*
- * This routine adds an initiator to CTL's port database.  The WWPN should
- * be the FC WWPN, if available.  The targ_port field should be the same as
- * the targ_port passed back from CTL in the ctl_frontend structure above.
+ * This routine adds an initiator to CTL's port database.
+ * The iid field should be the same as the iid passed in the nexus of each
+ * ctl_io from this initiator.
+ * The WWPN should be the FC WWPN, if available.
+ */
+int ctl_add_initiator(struct ctl_port *port, int iid, uint64_t wwpn, char *name);
+
+/*
+ * This routine will remove an initiator from CTL's port database.
  * The iid field should be the same as the iid passed in the nexus of each
  * ctl_io from this initiator.
  */
-int ctl_add_initiator(uint64_t wwpn, int32_t targ_port, uint32_t iid);
-
-/*
- * This routine will remove an initiator from CTL's port database.  The
- * targ_port field should be the same as the targ_port passed back in the
- * ctl_frontend structure above.  The iid field should be the same as the
- * iid passed in the nexus of each ctl_io from this initiator.
- */
-int
-ctl_remove_initiator(int32_t targ_port, uint32_t iid);
+int ctl_remove_initiator(struct ctl_port *port, int iid);
 
 #endif	/* _CTL_FRONTEND_H_ */

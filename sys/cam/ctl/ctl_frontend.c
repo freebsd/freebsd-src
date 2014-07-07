@@ -158,6 +158,17 @@ ctl_port_register(struct ctl_port *port, int master_shelf)
 	mtx_unlock(&control_softc->ctl_lock);
 
 	/*
+	 * Initialize the initiator and portname mappings
+	 */
+	port->max_initiators = CTL_MAX_INIT_PER_PORT;
+	port->wwpn_iid = malloc(sizeof(*port->wwpn_iid) * port->max_initiators,
+	    M_CTL, M_NOWAIT | M_ZERO);
+	if (port->wwpn_iid == NULL) {
+		retval = ENOMEM;
+		goto error;
+	}
+
+	/*
 	 * We add 20 to whatever the caller requests, so he doesn't get
 	 * burned by queueing things back to the pending sense queue.  In
 	 * theory, there should probably only be one outstanding item, at
@@ -168,6 +179,8 @@ ctl_port_register(struct ctl_port *port, int master_shelf)
 	retval = ctl_pool_create(control_softc, CTL_POOL_FETD,
 				 port->num_requested_ctl_io + 20, &pool);
 	if (retval != 0) {
+		free(port->wwpn_iid, M_CTL);
+error:
 		port->targ_port = -1;
 		mtx_lock(&control_softc->ctl_lock);
 		ctl_clear_mask(&control_softc->ctl_port_mask, port_num);
@@ -181,7 +194,6 @@ ctl_port_register(struct ctl_port *port, int master_shelf)
 
 	mtx_lock(&control_softc->ctl_lock);
 	port->targ_port = port_num + (master_shelf != 0 ? 0 : CTL_MAX_PORTS);
-	port->max_initiators = CTL_MAX_INIT_PER_PORT;
 	STAILQ_INSERT_TAIL(&port->frontend->port_list, port, fe_links);
 	STAILQ_INSERT_TAIL(&control_softc->port_list, port, links);
 	control_softc->ctl_ports[port_num] = port;
@@ -194,8 +206,7 @@ int
 ctl_port_deregister(struct ctl_port *port)
 {
 	struct ctl_io_pool *pool;
-	int port_num;
-	int retval;
+	int port_num, retval, i;
 
 	retval = 0;
 
@@ -223,6 +234,9 @@ ctl_port_deregister(struct ctl_port *port)
 	port->port_devid = NULL;
 	free(port->target_devid, M_CTL);
 	port->target_devid = NULL;
+	for (i = 0; i < port->max_initiators; i++)
+		free(port->wwpn_iid[i].name, M_CTL);
+	free(port->wwpn_iid, M_CTL);
 
 bailout:
 	return (retval);

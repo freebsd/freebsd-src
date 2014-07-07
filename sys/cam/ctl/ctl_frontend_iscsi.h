@@ -112,8 +112,6 @@ struct cfiscsi_softc {
 	unsigned int			last_session_id;
 	TAILQ_HEAD(, cfiscsi_target)	targets;
 	TAILQ_HEAD(, cfiscsi_session)	sessions;
-	char				ctl_initids[CTL_MAX_INIT_PER_PORT];
-	int				max_initiators;
 #ifdef ICL_KERNEL_PROXY
 	struct icl_listen		*listener;
 	struct cv			accept_cv;
