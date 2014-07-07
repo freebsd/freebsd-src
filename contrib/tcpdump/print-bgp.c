@@ -507,7 +507,7 @@ decode_prefix4(packetbody_t pptr, u_int itemlen, char *buf, u_int buflen)
 		((u_char *)(&addr))[plenbytes - 1] &=
 			((0xff00 >> (plen % 8)) & 0xff);
 	}
-	snprintf(buf, buflen, "%s/%d", getname(cheri_ptr(&addr, sizeof(addr))), plen);
+	snprintf(buf, buflen, "%s/%d", getname((packetbody_t)&addr), plen);
 	return 1 + plenbytes;
 
 trunc:
@@ -555,8 +555,8 @@ decode_labeled_prefix4(packetbody_t pptr, u_int itemlen, char *buf, u_int buflen
 			((0xff00 >> (plen % 8)) & 0xff);
 	}
         /* the label may get offsetted by 4 bits so lets shift it right */
-	snprintf(buf, buflen, "%s/%d, label:%u %s",
-                 getname((__capability const u_char *)&addr),
+	snprintf(buf, buflen, "%s/%d-, label:%u %s",
+                 getname((packetbody_t)&addr),
                  plen,
                  EXTRACT_24BITS(pptr+1)>>4,
                  ((pptr[3]&1)==0) ? "(BOGUS: Bottom of Stack NOT set!)" : "(bottom)" );
@@ -735,7 +735,7 @@ decode_rt_routing_info(packetbody_t pptr, char *buf, u_int buflen)
 	}
 	snprintf(buf, buflen, "origin AS: %s, route target %s",
 	    as_printf(astostr, sizeof(astostr), EXTRACT_32BITS(pptr+1)),
-	    bgp_vpn_rd_print((__capability u_char *)&route_target));
+	    bgp_vpn_rd_print((packetbody_t)&route_target));
 
 	return 5 + (plen + 7) / 8;
 
@@ -770,7 +770,7 @@ decode_labeled_vpn_prefix4(packetbody_t pptr, char *buf, u_int buflen)
         /* the label may get offsetted by 4 bits so lets shift it right */
 	snprintf(buf, buflen, "RD: %s, %s/%d, label:%u %s",
                  bgp_vpn_rd_print(pptr+4),
-                 getname((__capability const u_char *)&addr),
+                 getname((packetbody_t)&addr),
                  plen,
                  EXTRACT_24BITS(pptr+1)>>4,
                  ((pptr[3]&1)==0) ? "(BOGUS: Bottom of Stack NOT set!)" : "(bottom)" );
@@ -797,8 +797,8 @@ static int
 decode_mdt_vpn_nlri(packetbody_t pptr, char *buf, u_int buflen)
 {
 
-    __capability const u_char *rd;
-    __capability const u_char *vpn_ip;
+    packetbody_t rd;
+    packetbody_t vpn_ip;
     
     TCHECK(pptr[0]);
 
@@ -1069,7 +1069,7 @@ decode_prefix6(packetbody_t pd, u_int itemlen, char *buf, u_int buflen)
 		addr.s6_addr[plenbytes - 1] &=
 			((0xff00 >> (plen % 8)) & 0xff);
 	}
-	snprintf(buf, buflen, "%s/%d", getname6((__capability const u_char *)&addr), plen);
+	snprintf(buf, buflen, "%s/%d", getname6((packetbody_t)&addr), plen);
 	return 1 + plenbytes;
 
 trunc:
@@ -1109,7 +1109,7 @@ decode_labeled_prefix6(packetbody_t pptr, u_int itemlen, char *buf, u_int buflen
 	}
         /* the label may get offsetted by 4 bits so lets shift it right */
 	snprintf(buf, buflen, "%s/%d, label:%u %s",
-                 getname6((__capability const u_char *)&addr),
+                 getname6((packetbody_t)&addr),
                  plen,
                  EXTRACT_24BITS(pptr+1)>>4,
                  ((pptr[3]&1)==0) ? "(BOGUS: Bottom of Stack NOT set!)" : "(bottom)" );
@@ -1150,7 +1150,7 @@ decode_labeled_vpn_prefix6(packetbody_t pptr, char *buf, u_int buflen)
         /* the label may get offsetted by 4 bits so lets shift it right */
 	snprintf(buf, buflen, "RD: %s, %s/%d, label:%u %s",
                  bgp_vpn_rd_print(pptr+4),
-                 getname6((__capability const u_char *)&addr),
+                 getname6((packetbody_t)&addr),
                  plen,
                  EXTRACT_24BITS(pptr+1)>>4,
                  ((pptr[3]&1)==0) ? "(BOGUS: Bottom of Stack NOT set!)" : "(bottom)" );
@@ -1182,7 +1182,7 @@ decode_clnp_prefix(packetbody_t pptr, char *buf, u_int buflen)
 			((0xff00 >> (plen % 8)) & 0xff);
 	}
 	snprintf(buf, buflen, "%s/%d",
-                 isonsap_string((__capability const u_char *)addr,(plen + 7) / 8),
+                 isonsap_string((packetbody_t)addr,(plen + 7) / 8),
                  plen);
 
 	return 1 + (plen + 7) / 8;
@@ -1218,7 +1218,7 @@ decode_labeled_vpn_clnp_prefix(packetbody_t pptr, char *buf, u_int buflen)
         /* the label may get offsetted by 4 bits so lets shift it right */
 	snprintf(buf, buflen, "RD: %s, %s/%d, label:%u %s",
                  bgp_vpn_rd_print(pptr+4),
-                 isonsap_string((__capability const u_char *)addr,(plen + 7) / 8),
+                 isonsap_string((packetbody_t)addr,(plen + 7) / 8),
                  plen,
                  EXTRACT_24BITS(pptr+1)>>4,
                  ((pptr[3]&1)==0) ? "(BOGUS: Bottom of Stack NOT set!)" : "(bottom)" );
@@ -2311,7 +2311,7 @@ bgp_open_print(packetbody_t dat, int length)
 	printf("my AS %s, ",
 	    as_printf(astostr, sizeof(astostr), ntohs(bgpo.bgpo_myas)));
 	printf("Holdtime %us, ", ntohs(bgpo.bgpo_holdtime));
-	printf("ID %s", getname((__capability const u_char *)&bgpo.bgpo_id));
+	printf("ID %s", getname((packetbody_t)&bgpo.bgpo_id));
 	printf("\n\t  Optional parameters, length: %u", bgpo.bgpo_optlen);
 
         /* some little sanity checking */
@@ -2718,7 +2718,7 @@ bgp_print(packetbody_t dat, int length)
 
 		if (!TTEST2(p[0], sizeof(marker)))
 			break;
-		if (p_memcmp(p, cheri_ptr((void *)marker, sizeof(marker)), sizeof(marker)) != 0) {
+		if (p_memcmp(p, (packetbody_t)marker, sizeof(marker)) != 0) {
 			p++;
 			continue;
 		}

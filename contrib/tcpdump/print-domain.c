@@ -150,7 +150,7 @@ packetbody_t
 ns_nprint(packetbody_t cp, packetbody_t bp)
 {
 	register u_int i, l;
-	__capability const u_char *rp = NULL;
+	packetbody_t *rp = NULL;
 	register int compress = 0;
 	int chars_processed;
 	int elt;
@@ -360,7 +360,7 @@ ns_rprint(packetbody_t cp, packetbody_t bp, int is_mdns)
 {
 	register u_int i, class, opt_flags = 0;
 	register u_short typ, len;
-	__capability const u_char *rp;
+	packetbody_t rp;
 
 	if (vflag) {
 		putchar(' ');
@@ -607,7 +607,7 @@ ns_print(packetbody_t bp, u_int length, int is_mdns)
 		if (qdcount != 1)
 			printf(" [%dq]", qdcount);
 		/* Print QUESTION section on -vv */
-		cp = (__capability const u_char *)(np + 1);
+		cp = (packetbody_t)(np + 1);
 		while (qdcount--) {
 			if (qdcount < EXTRACT_16BITS(&np->qdcount) - 1)
 				putchar(',');

@@ -376,7 +376,7 @@ cfm_print(packetbody_t pptr, register u_int length) {
             switch (msg_ptr.cfm_ccm->md_nameformat) {
             case CFM_CCM_MD_FORMAT_DNS:
             case CFM_CCM_MD_FORMAT_CHAR:
-                safeputs((__capability const char *)msg_ptr.cfm_ccm->md_name, msg_ptr.cfm_ccm->md_namelength);
+                safeputs((packetbody_t)msg_ptr.cfm_ccm->md_name, msg_ptr.cfm_ccm->md_namelength);
                 break;
 
             case CFM_CCM_MD_FORMAT_MAC:

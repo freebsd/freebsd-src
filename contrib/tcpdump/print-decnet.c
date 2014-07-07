@@ -49,10 +49,10 @@ struct rtentry;
 /* Forwards */
 static int print_decnet_ctlmsg(__capability const union routehdr *, u_int, u_int);
 static void print_t_info(int);
-static int print_l1_routes(__capability const char *, u_int);
-static int print_l2_routes(__capability const char *, u_int);
+static int print_l1_routes(packetbody_t, u_int);
+static int print_l2_routes(packetbody_t, u_int);
 static void print_i_info(int);
-static int print_elist(__capability const char *, u_int);
+static int print_elist(packetbody_t, u_int);
 static int print_nsp(packetbody_t, u_int);
 static void print_reason(int);
 #ifdef	PRINT_NSPDATA
@@ -71,7 +71,7 @@ decnet_print(packetbody_t ap, register u_int length,
 	register int mflags;
 	int dst, src, hops;
 	u_int nsplen, pktlen;
-	__capability const u_char *nspp;
+	packetbody_t nspp;
 
 	if (length < sizeof(struct shorthdr)) {
 		(void)printf("[|decnet]");
@@ -183,7 +183,7 @@ print_decnet_ctlmsg(__capability const union routehdr *rhp, u_int length,
 	int src, dst, info, blksize, eco, ueco, hello, other, vers;
 	etheraddr srcea, rtea;
 	int priority;
-	__capability char *rhpx = (__capability char *)rhp;
+	packetbody_t rhpx = (packetbody_t)rhp;
 	int ret;
 
 	switch (mflags & RMF_CTLMASK) {
@@ -325,7 +325,7 @@ print_t_info(int info)
 }
 
 static int
-print_l1_routes(__capability const char *rp, u_int len)
+print_l1_routes(packetbody_t rp, u_int len)
 {
 	int count;
 	int id;
@@ -355,7 +355,7 @@ trunc:
 }
 
 static int
-print_l2_routes(__capability const char *rp, u_int len)
+print_l2_routes(packetbody_t rp, u_int len)
 {
 	int count;
 	int area;
@@ -403,7 +403,7 @@ print_i_info(int info)
 }
 
 static int
-print_elist(__capability const char *elp _U_, u_int len _U_)
+print_elist(packetbody_t elp _U_, u_int len _U_)
 {
 	/* Not enough examples available for me to debug this */
 	return (1);

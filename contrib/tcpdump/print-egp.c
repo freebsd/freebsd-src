@@ -137,7 +137,7 @@ const char *egp_reasons[] = {
 static void
 egpnrprint(__capability const struct egp_packet *egp)
 {
-	__capability const u_int8_t *cp;
+	packetbody_t cp;
 	u_int32_t addr;
 	register u_int32_t net;
 	register u_int netlen;
@@ -159,7 +159,7 @@ egpnrprint(__capability const struct egp_packet *egp)
 		net = 0;
 		netlen = 0;
 	}
-	cp = (__capability u_int8_t *)(egp + 1);
+	cp = (packetbody_t)(egp + 1);
 
 	t_gateways = egp->egp_intgw + egp->egp_extgw;
 	for (gateways = 0; gateways < t_gateways; ++gateways) {

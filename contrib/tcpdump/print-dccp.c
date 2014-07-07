@@ -74,7 +74,7 @@ static inline u_int dccp_csum_coverage(__capability const struct dccp_hdr* dh,
 static int dccp_cksum(__capability const struct ip *ip,
     __capability const struct dccp_hdr *dh, u_int len)
 {
-	return nextproto4_cksum(ip, (__capability const u_int8_t *)(void *)dh,
+	return nextproto4_cksum(ip, (packetbody_t)(void *)dh,
 	    dccp_csum_coverage(dh, len), IPPROTO_DCCP);
 }
 
@@ -82,7 +82,7 @@ static int dccp_cksum(__capability const struct ip *ip,
 static int dccp6_cksum(__capability const struct ip6_hdr *ip6,
     __capability const struct dccp_hdr *dh, u_int len)
 {
-	return nextproto6_cksum(ip6, (__capability const u_int8_t *)(void *)dh,
+	return nextproto6_cksum(ip6, (packetbody_t)(void *)dh,
 	    dccp_csum_coverage(dh, len), IPPROTO_DCCP);
 }
 #endif
