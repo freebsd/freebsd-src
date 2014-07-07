@@ -718,11 +718,11 @@ interpret:
 		VOP_UNLOCK(imgp->vp, 0);
 		setugidsafety(td);
 		error = fdcheckstd(td);
-		vn_lock(imgp->vp, LK_SHARED | LK_RETRY);
 		if (error != 0)
 			goto done1;
 		newcred = crdup(oldcred);
 		euip = uifind(attr.va_uid);
+		vn_lock(imgp->vp, LK_SHARED | LK_RETRY);
 		PROC_LOCK(p);
 		/*
 		 * Set the new credentials.
@@ -766,7 +766,9 @@ interpret:
 		if (oldcred->cr_svuid != oldcred->cr_uid ||
 		    oldcred->cr_svgid != oldcred->cr_gid) {
 			PROC_UNLOCK(p);
+			VOP_UNLOCK(imgp->vp, 0);
 			newcred = crdup(oldcred);
+			vn_lock(imgp->vp, LK_SHARED | LK_RETRY);
 			PROC_LOCK(p);
 			change_svuid(newcred, newcred->cr_uid);
 			change_svgid(newcred, newcred->cr_gid);
@@ -843,6 +845,7 @@ interpret:
 
 	SDT_PROBE(proc, kernel, , exec__success, args->fname, 0, 0, 0, 0);
 
+	VOP_UNLOCK(imgp->vp, 0);
 done1:
 	/*
 	 * Free any resources malloc'd earlier that we didn't use.
@@ -851,7 +854,6 @@ done1:
 		uifree(euip);
 	if (newcred != NULL)
 		crfree(oldcred);
-	VOP_UNLOCK(imgp->vp, 0);
 
 	/*
 	 * Handle deferred decrement of ref counts.
