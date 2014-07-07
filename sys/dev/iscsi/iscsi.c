@@ -1341,7 +1341,7 @@ iscsi_ioctl_daemon_handoff(struct iscsi_softc *sc,
 
 		is->is_sim = cam_sim_alloc(iscsi_action, iscsi_poll, "iscsi",
 		    is, is->is_id /* unit */, &is->is_lock,
-		    maxtags, maxtags, is->is_devq);
+		    1, maxtags, is->is_devq);
 		if (is->is_sim == NULL) {
 			ISCSI_SESSION_UNLOCK(is);
 			ISCSI_SESSION_WARN(is, "failed to allocate SIM");
@@ -1960,23 +1960,24 @@ iscsi_action_scsiio(struct iscsi_session *is, union ccb *ccb)
 		break;
 	}
 
-        switch (csio->tag_action) {
-        case MSG_HEAD_OF_Q_TAG:
-		bhssc->bhssc_flags |= BHSSC_FLAGS_ATTR_HOQ;
-		break;
-                break;
-        case MSG_ORDERED_Q_TAG:
-		bhssc->bhssc_flags |= BHSSC_FLAGS_ATTR_ORDERED;
-                break;
-        case MSG_ACA_TASK:
-		bhssc->bhssc_flags |= BHSSC_FLAGS_ATTR_ACA;
-                break;
-        case CAM_TAG_ACTION_NONE:
-        case MSG_SIMPLE_Q_TAG:
-        default:
-		bhssc->bhssc_flags |= BHSSC_FLAGS_ATTR_SIMPLE;
-                break;
-        }
+	if ((ccb->ccb_h.flags & CAM_TAG_ACTION_VALID) != 0) {
+		switch (csio->tag_action) {
+		case MSG_HEAD_OF_Q_TAG:
+			bhssc->bhssc_flags |= BHSSC_FLAGS_ATTR_HOQ;
+			break;
+		case MSG_ORDERED_Q_TAG:
+			bhssc->bhssc_flags |= BHSSC_FLAGS_ATTR_ORDERED;
+			break;
+		case MSG_ACA_TASK:
+			bhssc->bhssc_flags |= BHSSC_FLAGS_ATTR_ACA;
+			break;
+		case MSG_SIMPLE_Q_TAG:
+		default:
+			bhssc->bhssc_flags |= BHSSC_FLAGS_ATTR_SIMPLE;
+			break;
+		}
+	} else
+		bhssc->bhssc_flags |= BHSSC_FLAGS_ATTR_UNTAGGED;
 
 	bhssc->bhssc_lun = htobe64(CAM_EXTLUN_BYTE_SWIZZLE(ccb->ccb_h.target_lun));
 	bhssc->bhssc_initiator_task_tag = is->is_initiator_task_tag;
@@ -2067,6 +2068,23 @@ iscsi_action(struct cam_sim *sim, union ccb *ccb)
 		cpi->protocol_version = SCSI_REV_SPC3;
 		cpi->maxio = MAXPHYS;
 		cpi->ccb_h.status = CAM_REQ_CMP;
+		break;
+	}
+	case XPT_GET_TRAN_SETTINGS:
+	{
+		struct ccb_trans_settings	*cts;
+		struct ccb_trans_settings_scsi	*scsi;
+
+		cts = &ccb->cts;
+		scsi = &cts->proto_specific.scsi;
+
+		cts->protocol = PROTO_SCSI;
+		cts->protocol_version = SCSI_REV_SPC3;
+		cts->transport = XPORT_ISCSI;
+		cts->transport_version = 0;
+		scsi->valid = CTS_SCSI_VALID_TQ;
+		scsi->flags = CTS_SCSI_FLAGS_TAG_ENB;
+		cts->ccb_h.status = CAM_REQ_CMP;
 		break;
 	}
 	case XPT_CALC_GEOMETRY:
