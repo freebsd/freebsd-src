@@ -448,7 +448,7 @@ beripic_fdt_attach(device_t dev)
 	if (bp_devices == NULL)
 		bp_devices = malloc(sizeof(device_t) * beri_get_ncores(),
 		    M_BERIPIC, M_WAITOK|M_ZERO);
-	bp_devices[beri_get_core()] = dev;
+	bp_devices[device_get_unit(dev)] = dev;
 #endif
 
 	fic = malloc(sizeof(*fic), M_BERIPIC, M_WAITOK|M_ZERO);
