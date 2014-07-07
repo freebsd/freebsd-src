@@ -35,7 +35,25 @@ int
 copystr(const void * __restrict kfaddr, void * __restrict kdaddr, size_t len,
     size_t * __restrict lencopied)
 {
+	const char *src;
+	size_t pos;
+	char *dst;
+	int error;
 
-	panic("copystr");
+	error = ENAMETOOLONG;
+	src = kfaddr;
+	dst = kdaddr;
+	for (pos = 0; pos < len; pos++) {
+		dst[pos] = src[pos];
+		if (src[pos] == '\0') {
+			error = 0;
+			break;
+		}
+	}
+
+	if (lencopied != NULL)
+		*lencopied = pos;
+
+	return (0);
 }
 
