@@ -627,6 +627,12 @@ cfiscsi_pdu_handle_task_request(struct icl_pdu *request)
 		io->taskio.task_action = CTL_TASK_ABORT_TASK;
 		io->taskio.tag_num = bhstmr->bhstmr_referenced_task_tag;
 		break;
+	case BHSTMR_FUNCTION_ABORT_TASK_SET:
+#if 0
+		CFISCSI_SESSION_DEBUG(cs, "BHSTMR_FUNCTION_ABORT_TASK_SET");
+#endif
+		io->taskio.task_action = CTL_TASK_ABORT_TASK_SET;
+		break;
 	case BHSTMR_FUNCTION_LOGICAL_UNIT_RESET:
 #if 0
 		CFISCSI_SESSION_DEBUG(cs, "BHSTMR_FUNCTION_LOGICAL_UNIT_RESET");
@@ -1029,64 +1035,36 @@ cfiscsi_callout(void *context)
 static void
 cfiscsi_session_terminate_tasks(struct cfiscsi_session *cs)
 {
-	struct cfiscsi_data_wait *cdw, *tmpcdw;
+	struct cfiscsi_data_wait *cdw;
 	union ctl_io *io;
 	int error, last;
 
-#ifdef notyet
 	io = ctl_alloc_io(cs->cs_target->ct_port.ctl_pool_ref);
 	if (io == NULL) {
 		CFISCSI_SESSION_WARN(cs, "can't allocate ctl_io");
 		return;
 	}
 	ctl_zero_io(io);
-	io->io_hdr.ctl_private[CTL_PRIV_FRONTEND].ptr = NULL;
+	io->io_hdr.ctl_private[CTL_PRIV_FRONTEND].ptr = cs;
 	io->io_hdr.io_type = CTL_IO_TASK;
 	io->io_hdr.nexus.initid.id = cs->cs_ctl_initid;
 	io->io_hdr.nexus.targ_port = cs->cs_target->ct_port.targ_port;
 	io->io_hdr.nexus.targ_target.id = 0;
-	io->io_hdr.nexus.targ_lun = lun;
+	io->io_hdr.nexus.targ_lun = 0;
 	io->taskio.tag_type = CTL_TAG_SIMPLE; /* XXX */
-	io->taskio.task_action = CTL_TASK_ABORT_TASK_SET;
+	io->taskio.task_action = CTL_TASK_I_T_NEXUS_RESET;
+	refcount_acquire(&cs->cs_outstanding_ctl_pdus);
 	error = ctl_queue(io);
 	if (error != CTL_RETVAL_COMPLETE) {
 		CFISCSI_SESSION_WARN(cs, "ctl_queue() failed; error %d", error);
+		refcount_release(&cs->cs_outstanding_ctl_pdus);
 		ctl_free_io(io);
 	}
-#else
-	/*
-	 * CTL doesn't currently support CTL_TASK_ABORT_TASK_SET, so instead
-	 * just iterate over tasks that are waiting for something - data - and
-	 * terminate those.
-	 */
+
 	CFISCSI_SESSION_LOCK(cs);
-	TAILQ_FOREACH_SAFE(cdw,
-	    &cs->cs_waiting_for_data_out, cdw_next, tmpcdw) {
-		io = ctl_alloc_io(cs->cs_target->ct_port.ctl_pool_ref);
-		if (io == NULL) {
-			CFISCSI_SESSION_WARN(cs, "can't allocate ctl_io");
-			return;
-		}
-		ctl_zero_io(io);
-		io->io_hdr.ctl_private[CTL_PRIV_FRONTEND].ptr = NULL;
-		io->io_hdr.io_type = CTL_IO_TASK;
-		io->io_hdr.nexus.initid.id = cs->cs_ctl_initid;
-		io->io_hdr.nexus.targ_port = cs->cs_target->ct_port.targ_port;
-		io->io_hdr.nexus.targ_target.id = 0;
-		//io->io_hdr.nexus.targ_lun = lun; /* Not needed? */
-		io->taskio.tag_type = CTL_TAG_SIMPLE; /* XXX */
-		io->taskio.task_action = CTL_TASK_ABORT_TASK;
-		io->taskio.tag_num = cdw->cdw_initiator_task_tag;
-		error = ctl_queue(io);
-		if (error != CTL_RETVAL_COMPLETE) {
-			CFISCSI_SESSION_WARN(cs, "ctl_queue() failed; error %d", error);
-			ctl_free_io(io);
-			return;
-		}
-#if 0
-		CFISCSI_SESSION_DEBUG(cs, "removing csw for initiator task tag "
-		    "0x%x", cdw->cdw_initiator_task_tag);
-#endif
+	while ((cdw = TAILQ_FIRST(&cs->cs_waiting_for_data_out)) != NULL) {
+		TAILQ_REMOVE(&cs->cs_waiting_for_data_out, cdw, cdw_next);
+		CFISCSI_SESSION_UNLOCK(cs);
 		/*
 		 * Set nonzero port status; this prevents backends from
 		 * assuming that the data transfer actually succeeded
@@ -1094,11 +1072,10 @@ cfiscsi_session_terminate_tasks(struct cfiscsi_session *cs)
 		 */
 		cdw->cdw_ctl_io->scsiio.io_hdr.port_status = 42;
 		cdw->cdw_ctl_io->scsiio.be_move_done(cdw->cdw_ctl_io);
-		TAILQ_REMOVE(&cs->cs_waiting_for_data_out, cdw, cdw_next);
 		uma_zfree(cfiscsi_data_wait_zone, cdw);
+		CFISCSI_SESSION_LOCK(cs);
 	}
 	CFISCSI_SESSION_UNLOCK(cs);
-#endif
 
 	/*
 	 * Wait for CTL to terminate all the tasks.
@@ -1110,7 +1087,7 @@ cfiscsi_session_terminate_tasks(struct cfiscsi_session *cs)
 			break;
 		CFISCSI_SESSION_WARN(cs, "waiting for CTL to terminate tasks, "
 		    "%d remaining", cs->cs_outstanding_ctl_pdus);
-		pause("cfiscsi_terminate", 1);
+		pause("cfiscsi_terminate", hz / 100);
 	}
 }
 
@@ -2850,14 +2827,18 @@ cfiscsi_done(union ctl_io *io)
 	KASSERT(((io->io_hdr.status & CTL_STATUS_MASK) != CTL_STATUS_NONE),
 		("invalid CTL status %#x", io->io_hdr.status));
 
-	request = io->io_hdr.ctl_private[CTL_PRIV_FRONTEND].ptr;
-	if (request == NULL) {
+	if (io->io_hdr.io_type == CTL_IO_TASK &&
+	    io->taskio.task_action == CTL_TASK_I_T_NEXUS_RESET) {
 		/*
 		 * Implicit task termination has just completed; nothing to do.
 		 */
+		cs = io->io_hdr.ctl_private[CTL_PRIV_FRONTEND].ptr;
+		refcount_release(&cs->cs_outstanding_ctl_pdus);
+		ctl_free_io(io);
 		return;
 	}
 
+	request = io->io_hdr.ctl_private[CTL_PRIV_FRONTEND].ptr;
 	cs = PDU_SESSION(request);
 	refcount_release(&cs->cs_outstanding_ctl_pdus);
 
