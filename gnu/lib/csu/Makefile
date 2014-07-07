@@ -28,13 +28,6 @@ MKDEP=		-DCRT_BEGIN
 CFLAGS+=	-DTARGET_ARM_EABI
 .endif
 
-.if ${MACHINE_CPUARCH} == "ia64"
-BEGINSRC=	crtbegin.asm
-ENDSRC=		crtend.asm
-CFLAGS+=	-x assembler-with-cpp	# Ugly hack
-CFLAGS+=	-include osreldate.h
-.undef SRCS				# hack for 'make depend'
-.endif
 .if ${MACHINE_CPUARCH} == "powerpc"
 TGTOBJS=	crtsavres.o
 SRCS+=		crtsavres.asm

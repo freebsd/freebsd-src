@@ -3084,9 +3084,7 @@ do_dlsym(void *handle, const char *name, void *retaddr, const Ver_Entry *ve,
     const Elf_Sym *def;
     SymLook req;
     RtldLockState lockstate;
-#ifndef __ia64__
     tls_index ti;
-#endif
     int res;
 
     def = NULL;
@@ -3191,24 +3189,17 @@ do_dlsym(void *handle, const char *name, void *retaddr, const Ver_Entry *ve,
 
 	/*
 	 * The value required by the caller is derived from the value
-	 * of the symbol. For the ia64 architecture, we need to
-	 * construct a function descriptor which the caller can use to
-	 * call the function with the right 'gp' value. For other
-	 * architectures and for non-functions, the value is simply
-	 * the relocated value of the symbol.
+	 * of the symbol. this is simply the relocated value of the
+	 * symbol.
 	 */
 	if (ELF_ST_TYPE(def->st_info) == STT_FUNC)
 	    return (make_function_pointer(def, defobj));
 	else if (ELF_ST_TYPE(def->st_info) == STT_GNU_IFUNC)
 	    return (rtld_resolve_ifunc(defobj, def));
 	else if (ELF_ST_TYPE(def->st_info) == STT_TLS) {
-#ifdef __ia64__
-	    return (__tls_get_addr(defobj->tlsindex, def->st_value));
-#else
 	    ti.ti_module = defobj->tlsindex;
 	    ti.ti_offset = def->st_value;
 	    return (__tls_get_addr(&ti));
-#endif
 	} else
 	    return (defobj->relocbase + def->st_value);
     }
@@ -4341,7 +4332,7 @@ tls_get_addr_common(Elf_Addr **dtvp, int index, size_t offset)
 	return (tls_get_addr_slow(dtvp, index, offset));
 }
 
-#if defined(__arm__) || defined(__ia64__) || defined(__mips__) || defined(__powerpc__)
+#if defined(__arm__) || defined(__mips__) || defined(__powerpc__)
 
 /*
  * Allocate Static TLS using the Variant I method.

@@ -136,10 +136,6 @@ CRUNCH_PROGS_sbin+= bsdlabel
 CRUNCH_SRCDIR_fdisk= $(.CURDIR)/../../sbin/fdisk_pc98
 .endif
 
-.if ${MACHINE_CPUARCH} == "ia64"
-CRUNCH_PROGS_sbin+= mca
-.endif
-
 .if ${MACHINE_CPUARCH} == "sparc64"
 CRUNCH_PROGS_sbin+= bsdlabel sunlabel
 .endif

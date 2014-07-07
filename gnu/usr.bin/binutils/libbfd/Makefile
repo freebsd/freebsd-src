@@ -42,7 +42,7 @@ SRCS+=	archive.c \
 	targets.c \
 	targmatch.h \
 	tekhex.c
-.if (${TARGET_ARCH} == "ia64" || ${TARGET_ARCH} == "sparc64")
+.if ${TARGET_ARCH} == "sparc64"
 WARNS?=	2
 .endif
 CFLAGS+= -D_GNU_SOURCE
