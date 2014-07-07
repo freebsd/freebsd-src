@@ -372,6 +372,8 @@ ctlfeasync(void *callback_arg, uint32_t code, struct cam_path *path, void *arg)
 		 */
 		if (cpi->transport == XPORT_FC)
 			port->port_type = CTL_PORT_FC;
+		else if (cpi->transport == XPORT_SAS)
+			port->port_type = CTL_PORT_SAS;
 		else
 			port->port_type = CTL_PORT_SCSI;
 

@@ -1499,6 +1499,61 @@ take:
 }
 
 static int
+ctl_create_iid(struct ctl_port *port, int iid, uint8_t *buf)
+{
+	int len;
+
+	switch (port->port_type) {
+	case CTL_PORT_FC:
+	{
+		struct scsi_transportid_fcp *id =
+		    (struct scsi_transportid_fcp *)buf;
+		if (port->wwpn_iid[iid].wwpn == 0)
+			return (0);
+		memset(id, 0, sizeof(*id));
+		id->format_protocol = SCSI_PROTO_FC;
+		scsi_u64to8b(port->wwpn_iid[iid].wwpn, id->n_port_name);
+		return (sizeof(*id));
+	}
+	case CTL_PORT_ISCSI:
+	{
+		struct scsi_transportid_iscsi_port *id =
+		    (struct scsi_transportid_iscsi_port *)buf;
+		if (port->wwpn_iid[iid].name == NULL)
+			return (0);
+		memset(id, 0, 256);
+		id->format_protocol = SCSI_TRN_ISCSI_FORMAT_PORT |
+		    SCSI_PROTO_ISCSI;
+		len = strlcpy(id->iscsi_name, port->wwpn_iid[iid].name, 252) + 1;
+		len = roundup2(min(len, 252), 4);
+		scsi_ulto2b(len, id->additional_length);
+		return (sizeof(*id) + len);
+	}
+	case CTL_PORT_SAS:
+	{
+		struct scsi_transportid_sas *id =
+		    (struct scsi_transportid_sas *)buf;
+		if (port->wwpn_iid[iid].wwpn == 0)
+			return (0);
+		memset(id, 0, sizeof(*id));
+		id->format_protocol = SCSI_PROTO_SAS;
+		scsi_u64to8b(port->wwpn_iid[iid].wwpn, id->sas_address);
+		return (sizeof(*id));
+	}
+	default:
+	{
+		struct scsi_transportid_spi *id =
+		    (struct scsi_transportid_spi *)buf;
+		memset(id, 0, sizeof(*id));
+		id->format_protocol = SCSI_PROTO_SPI;
+		scsi_ulto2b(iid, id->scsi_addr);
+		scsi_ulto2b(port->targ_port, id->rel_trgt_port_id);
+		return (sizeof(*id));
+	}
+	}
+}
+
+static int
 ctl_ioctl_lun_enable(void *arg, struct ctl_id targ_id, int lun_id)
 {
 	return (0);
@@ -7619,6 +7674,11 @@ retry:
 	case SPRI_RC: /* report capabilities */
 		total_len = sizeof(struct scsi_per_res_cap);
 		break;
+	case SPRI_RS: /* read full status */
+		total_len = sizeof(struct scsi_per_res_in_header) +
+		    (sizeof(struct scsi_per_res_in_full_desc) + 256) *
+		    lun->pr_key_count;
+		break;
 	default:
 		panic("Invalid PR type %x", cdb->action);
 	}
@@ -7775,7 +7835,62 @@ retry:
 		scsi_ulto2b(type_mask, res_cap->type_mask);
 		break;
 	}
-	case SPRI_RS: //read full status
+	case SPRI_RS: { // read full status
+		struct scsi_per_res_in_full *res_status;
+		struct scsi_per_res_in_full_desc *res_desc;
+		struct ctl_port *port;
+		int i, len;
+
+		res_status = (struct scsi_per_res_in_full*)ctsio->kern_data_ptr;
+
+		/*
+		 * We had to drop the lock to allocate our buffer, which
+		 * leaves time for someone to come in with another
+		 * persistent reservation.  (That is unlikely, though,
+		 * since this should be the only persistent reservation
+		 * command active right now.)
+		 */
+		if (total_len < (sizeof(struct scsi_per_res_in_header) +
+		    (sizeof(struct scsi_per_res_in_full_desc) + 256) *
+		     lun->pr_key_count)){
+			mtx_unlock(&lun->lun_lock);
+			free(ctsio->kern_data_ptr, M_CTL);
+			printf("%s: reservation length changed, retrying\n",
+			       __func__);
+			goto retry;
+		}
+
+		scsi_ulto4b(lun->PRGeneration, res_status->header.generation);
+
+		res_desc = &res_status->desc[0];
+		for (i = 0; i < 2*CTL_MAX_INITIATORS; i++) {
+			if (!lun->per_res[i].registered)
+				continue;
+
+			memcpy(&res_desc->res_key, &lun->per_res[i].res_key.key,
+			    sizeof(res_desc->res_key));
+			if ((lun->flags & CTL_LUN_PR_RESERVED) &&
+			    (lun->pr_res_idx == i ||
+			     lun->pr_res_idx == CTL_PR_ALL_REGISTRANTS)) {
+				res_desc->flags = SPRI_FULL_R_HOLDER;
+				res_desc->scopetype = lun->res_type;
+			}
+			scsi_ulto2b(i / CTL_MAX_INIT_PER_PORT,
+			    res_desc->rel_trgt_port_id);
+			len = 0;
+			port = softc->ctl_ports[i / CTL_MAX_INIT_PER_PORT];
+			if (port != NULL)
+				len = ctl_create_iid(port,
+				    i % CTL_MAX_INIT_PER_PORT,
+				    res_desc->transport_id);
+			scsi_ulto4b(len, res_desc->additional_length);
+			res_desc = (struct scsi_per_res_in_full_desc *)
+			    &res_desc->transport_id[len];
+		}
+		scsi_ulto4b((uint8_t *)res_desc - (uint8_t *)&res_status->desc[0],
+		    res_status->header.length);
+		break;
+	}
 	default:
 		/*
 		 * This is a bug, because we just checked for this above,
