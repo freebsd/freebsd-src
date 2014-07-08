@@ -172,6 +172,13 @@
 	    <entry>24&nbsp;June&nbsp;2014</entry>
 	    <entry><para>Multiple vulnerabilities</para></entry>
 	  </row>
+
+	  <row>
+	    <entry><link xlink:href="http://www.freebsd.org/security/advisories/FreeBSD-SA-14:17.kmem.asc">SA-14:17.kmem</link></entry>
+	    <entry>8&nbsp;July&nbsp;2014</entry>
+	    <entry><para>Kernel memory disclosure in control messages
+		and SCTP notifications</para></entry>
+	  </row>
 	</tbody>
       </tgroup>
     </informaltable>
