@@ -36,10 +36,8 @@
  */
 #define	IPFW_DEFAULT_RULE	65535
 
-/*
- * Number of sets supported by ipfw
- */
-#define	IPFW_MAX_SETS		32
+#define	RESVD_SET		31	/*set for default and persistent rules*/
+#define	IPFW_MAX_SETS		32	/* Number of sets supported by ipfw*/
 
 /*
  * Default number of ipfw tables.
@@ -513,15 +511,17 @@ typedef struct _ipfw_insn_icmp6 {
 /*
  * Here we have the structure representing an ipfw rule.
  *
- * It starts with a general area (with link fields and counters)
+ * Layout:
+ * struct ip_fw_rule
+ * [ counter block, size = rule->cntr_len ]
+ * [ one or more instructions, size = rule->cmd_len * 4 ]
+ *
+ * It starts with a general area (with link fields).
+ * Counter block may be next (if rule->cntr_len > 0),
  * followed by an array of one or more instructions, which the code
- * accesses as an array of 32-bit values.
- *
- * Given a rule pointer  r:
- *
- *  r->cmd		is the start of the first instruction.
- *  ACTION_PTR(r)	is the start of the first action (things to do
- *			once a rule matched).
+ * accesses as an array of 32-bit values. rule->cmd_len represents
+ * the total instructions legth in u32 worrd, while act_ofs represents
+ * rule action offset in u32 words.
  *
  * When assembling instruction, remember the following:
  *
@@ -532,11 +532,41 @@ typedef struct _ipfw_insn_icmp6 {
  *  + if a rule has an "altq" option, it comes after "log"
  *  + if a rule has an O_TAG option, it comes after "log" and "altq"
  *
- * NOTE: we use a simple linked list of rules because we never need
- * 	to delete a rule without scanning the list. We do not use
- *	queue(3) macros for portability and readability.
+ *
+ * All structures (excluding instructions) are u64-aligned.
+ * Please keep this.
  */
 
+struct ip_fw_rule {
+	uint16_t	act_ofs;	/* offset of action in 32-bit units */
+	uint16_t	cmd_len;	/* # of 32-bit words in cmd	*/
+	uint16_t	spare;
+	uint8_t		set;		/* rule set (0..31)		*/
+	uint8_t		flags;		/* rule flags			*/
+	uint32_t	rulenum;	/* rule number			*/
+	uint32_t	id;		/* rule id			*/
+
+	ipfw_insn	cmd[1];		/* storage for commands		*/
+};
+#define	IPFW_RULE_NOOPT		0x01	/* Has no options in body	*/
+
+/* Unaligned version */
+
+/* Base ipfw rule counter block. */
+struct ip_fw_bcounter {
+	uint16_t	size;		/* Size of counter block, bytes	*/
+	uint8_t		flags;		/* flags for given block	*/
+	uint8_t		spare;
+	uint32_t	timestamp;	/* tv_sec of last match		*/
+	uint64_t	pcnt;		/* Packet counter		*/
+	uint64_t	bcnt;		/* Byte counter			*/
+};
+
+
+#ifndef	_KERNEL
+/*
+ * Legacy rule format
+ */
 struct ip_fw {
 	struct ip_fw	*x_next;	/* linked list of rules		*/
 	struct ip_fw	*next_rule;	/* ptr to next [skipto] rule	*/
@@ -546,7 +576,6 @@ struct ip_fw {
 	uint16_t	cmd_len;	/* # of 32-bit words in cmd	*/
 	uint16_t	rulenum;	/* rule number			*/
 	uint8_t	set;		/* rule set (0..31)		*/
-#define	RESVD_SET	31	/* set for default and persistent rules */
 	uint8_t		_pad;		/* padding			*/
 	uint32_t	id;		/* rule id */
 
@@ -557,12 +586,13 @@ struct ip_fw {
 
 	ipfw_insn	cmd[1];		/* storage for commands		*/
 };
+#endif
 
 #define ACTION_PTR(rule)				\
 	(ipfw_insn *)( (u_int32_t *)((rule)->cmd) + ((rule)->act_ofs) )
 
-#define RULESIZE(rule)  (sizeof(struct ip_fw) + \
-	((struct ip_fw *)(rule))->cmd_len * 4 - 4)
+#define RULESIZE(rule)  (sizeof(*(rule)) + (rule)->cmd_len * 4 - 4)
+
 
 #if 1 // should be moved to in.h
 /*
@@ -698,6 +728,7 @@ typedef struct  _ipfw_obj_tlv {
 #define	IPFW_TLV_DYNSTATE_LIST	4
 #define	IPFW_TLV_TBL_ENT	5
 #define	IPFW_TLV_DYN_ENT	6
+#define	IPFW_TLV_RULE_ENT	7
 
 /* Object name TLV */
 typedef struct _ipfw_obj_ntlv {
@@ -737,7 +768,9 @@ typedef struct _ipfw_obj_dyntlv {
 typedef struct _ipfw_obj_ctlv {
 	ipfw_obj_tlv	head;		/* TLV header			*/
 	uint32_t	count;		/* Number of sub-TLVs		*/
-	uint32_t	objsize;	/* Single object size		*/
+	uint16_t	objsize;	/* Single object size		*/
+	uint8_t		version;	/* TLV version			*/
+	uint8_t		spare;
 } ipfw_obj_ctlv;
 
 typedef struct _ipfw_xtable_info {
@@ -772,11 +805,13 @@ typedef struct _ipfw_obj_lheader {
 	uint32_t	objsize;	/* Size of one object		*/
 } ipfw_obj_lheader;
 
-#define	IPFW_CFG_GET_STATIC	1
-#define	IPFW_CFG_GET_STATES	2
+#define	IPFW_CFG_GET_STATIC	0x01
+#define	IPFW_CFG_GET_STATES	0x02
+#define	IPFW_CFG_GET_COUNTERS	0x04
 typedef struct _ipfw_cfg_lheader {
 	ip_fw3_opheader	opheader;	/* IP_FW3 opcode		*/
 	uint32_t	set_mask;	/* enabled set mask		*/
+	uint32_t	spare;
 	uint32_t	flags;		/* Request flags		*/
 	uint32_t	size;		/* neded buffer size		*/
 	uint32_t	start_rule;

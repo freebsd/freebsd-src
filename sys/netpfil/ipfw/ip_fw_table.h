@@ -118,6 +118,8 @@ int ipfw_create_table(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
     struct sockopt_data *sd);
 int ipfw_modify_table(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
     struct sockopt_data *sd);
+int ipfw_flush_table(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
+    struct sockopt_data *sd);
 /* Exported to support legacy opcodes */
 int add_table_entry(struct ip_fw_chain *ch, struct tid_info *ti,
     struct tentry_info *tei);
@@ -125,11 +127,10 @@ int del_table_entry(struct ip_fw_chain *ch, struct tid_info *ti,
     struct tentry_info *tei);
 int flush_table(struct ip_fw_chain *ch, struct tid_info *ti);
 
-int ipfw_flush_table(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
-    struct sockopt_data *sd);
 int ipfw_rewrite_table_uidx(struct ip_fw_chain *chain,
     struct rule_check_info *ci);
-int ipfw_rewrite_table_kidx(struct ip_fw_chain *chain, struct ip_fw *rule);
+int ipfw_rewrite_table_kidx(struct ip_fw_chain *chain,
+    struct ip_fw_rule0 *rule);
 int ipfw_mark_table_kidx(struct ip_fw_chain *chain, struct ip_fw *rule,
     uint32_t *bmask);
 int ipfw_export_table_ntlv(struct ip_fw_chain *ch, uint16_t kidx,
