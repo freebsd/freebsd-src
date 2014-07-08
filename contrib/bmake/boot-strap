@@ -111,7 +111,7 @@
 #	Simon J. Gerraty <sjg@crufty.net>
 
 # RCSid:
-#	$Id: boot-strap,v 1.44 2014/01/08 14:49:10 sjg Exp $
+#	$Id: boot-strap,v 1.45 2014/04/05 22:56:54 sjg Exp $
 #
 #	@(#) Copyright (c) 2001 Simon J. Gerraty
 #
@@ -197,7 +197,7 @@ get_optarg() {
 
 here=`'pwd'`
 if [ $here = $Mydir ]; then
-   # avoid polution
+   # avoid pollution
    OBJROOT=../
 fi
 
@@ -453,7 +453,7 @@ op_all() {
 		echo "Use --install-destdir=/somewhere to set DESTDIR during install"
 		echo "Use --install-host-target to use INSTALL_BIN=$HOST_TARGET/bin"
 		echo "Use -DWITH_PROG_VERSION to install as bmake-$MAKE_VERSION"
-		echo "Use -DWITHOUT_PROG_LINK to supress bmake -> bmake-$MAKE_VERSION symlink"
+		echo "Use -DWITHOUT_PROG_LINK to suppress bmake -> bmake-$MAKE_VERSION symlink"
 		echo "Use -DWITHOUT_INSTALL_MK to skip installing files to $prefix/share/mk"
 	fi
 }
