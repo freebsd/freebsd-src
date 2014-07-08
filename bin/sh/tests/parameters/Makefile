@@ -13,6 +13,7 @@ FILES+=		optind1.0
 FILES+=		optind2.0
 FILES+=		positional1.0
 FILES+=		positional2.0
+FILES+=		positional3.0
 FILES+=		pwd1.0
 FILES+=		pwd2.0
 
