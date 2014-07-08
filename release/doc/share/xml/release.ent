@@ -27,10 +27,10 @@
 
 <!-- WARNING: Do not forget to also change the release type in
      doc.relnotes.mk when updating this -->
-<!ENTITY release.type "snapshot">
+<!ENTITY release.type "release">
 <!ENTITY % release.type.current  "IGNORE">
-<!ENTITY % release.type.snapshot "INCLUDE">
-<!ENTITY % release.type.release "IGNORE">
+<!ENTITY % release.type.snapshot "IGNORE">
+<!ENTITY % release.type.release "INCLUDE">
 
 <![%release.type.current;[
 <!ENTITY release '&release.current;'>
@@ -48,7 +48,7 @@
 <!ENTITY release.manpath.xorg          "7.5.2">
 <!ENTITY release.manpath.netbsd        "6.0">
 <!ENTITY release.manpath.freebsd-ports "Ports">
-<!ENTITY release.manpath.freebsd       "9.2-RELEASE">
+<!ENTITY release.manpath.freebsd       "9.3-RELEASE">
 
 <!-- Text constants which probably don't need to be changed.-->
 
