@@ -630,15 +630,24 @@ struct scsi_control_page {
 #define	SCP_QUEUE_ALG_MASK		0xF0
 #define	SCP_QUEUE_ALG_RESTRICTED	0x00
 #define	SCP_QUEUE_ALG_UNRESTRICTED	0x10
+#define	SCP_NUAR			0x08	/*No UA on release*/
 #define	SCP_QUEUE_ERR			0x02	/*Queued I/O aborted for CACs*/
 #define	SCP_QUEUE_DQUE			0x01	/*Queued I/O disabled*/
 	u_int8_t eca_and_aen;
 #define	SCP_EECA			0x80	/*Enable Extended CA*/
+#define	SCP_RAC				0x40	/*Report a check*/
+#define	SCP_SWP				0x08	/*Software Write Protect*/
 #define	SCP_RAENP			0x04	/*Ready AEN Permission*/
 #define	SCP_UAAENP			0x02	/*UA AEN Permission*/
 #define	SCP_EAENP			0x01	/*Error AEN Permission*/
-	u_int8_t reserved;
+	u_int8_t flags4;
+#define	SCP_ATO				0x80	/*Application tag owner*/
+#define	SCP_TAS				0x40	/*Task aborted status*/
+#define	SCP_ATMPE			0x20	/*Application tag mode page*/
+#define	SCP_RWWP			0x10	/*Reject write without prot*/
 	u_int8_t aen_holdoff_period[2];
+	u_int8_t busy_timeout_period[2];
+	u_int8_t extended_selftest_completion_time[2];
 };
 
 struct scsi_cache_page {
