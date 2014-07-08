@@ -152,6 +152,7 @@ static void	iscsi_pdu_queue(struct icl_pdu *request);
 static void	iscsi_pdu_update_statsn(const struct icl_pdu *response);
 static void	iscsi_pdu_handle_nop_in(struct icl_pdu *response);
 static void	iscsi_pdu_handle_scsi_response(struct icl_pdu *response);
+static void	iscsi_pdu_handle_task_response(struct icl_pdu *response);
 static void	iscsi_pdu_handle_data_in(struct icl_pdu *response);
 static void	iscsi_pdu_handle_logout_response(struct icl_pdu *response);
 static void	iscsi_pdu_handle_r2t(struct icl_pdu *response);
@@ -163,7 +164,7 @@ static void	iscsi_action(struct cam_sim *sim, union ccb *ccb);
 static void	iscsi_poll(struct cam_sim *sim);
 static struct iscsi_outstanding	*iscsi_outstanding_find(struct iscsi_session *is,
 		    uint32_t initiator_task_tag);
-static int	iscsi_outstanding_add(struct iscsi_session *is,
+static struct iscsi_outstanding	*iscsi_outstanding_add(struct iscsi_session *is,
 		    uint32_t initiator_task_tag, union ccb *ccb);
 static void	iscsi_outstanding_remove(struct iscsi_session *is,
 		    struct iscsi_outstanding *io);
@@ -274,27 +275,35 @@ iscsi_session_logout(struct iscsi_session *is)
 }
 
 static void
+iscsi_session_terminate_task(struct iscsi_session *is,
+    struct iscsi_outstanding *io, bool requeue)
+{
+
+	if (io->io_ccb != NULL) {
+		io->io_ccb->ccb_h.status &= ~(CAM_SIM_QUEUED | CAM_STATUS_MASK);
+		if (requeue)
+			io->io_ccb->ccb_h.status |= CAM_REQUEUE_REQ;
+		else
+			io->io_ccb->ccb_h.status |= CAM_REQ_ABORTED;
+		if ((io->io_ccb->ccb_h.status & CAM_DEV_QFRZN) == 0) {
+			io->io_ccb->ccb_h.status |= CAM_DEV_QFRZN;
+			xpt_freeze_devq(io->io_ccb->ccb_h.path, 1);
+			ISCSI_SESSION_DEBUG(is, "freezing devq");
+		}
+		xpt_done(io->io_ccb);
+	}
+	iscsi_outstanding_remove(is, io);
+}
+
+static void
 iscsi_session_terminate_tasks(struct iscsi_session *is, bool requeue)
 {
 	struct iscsi_outstanding *io, *tmp;
 
 	ISCSI_SESSION_LOCK_ASSERT(is);
-	
-	TAILQ_FOREACH_SAFE(io, &is->is_outstanding, io_next, tmp) {
-		if (requeue) {
-			io->io_ccb->ccb_h.status &= ~CAM_SIM_QUEUED;
-			io->io_ccb->ccb_h.status |= CAM_REQUEUE_REQ;
-		} else {
-			io->io_ccb->ccb_h.status = CAM_REQ_ABORTED;
-		}
 
-		if ((io->io_ccb->ccb_h.status & CAM_DEV_QFRZN) == 0) {
-			xpt_freeze_devq(io->io_ccb->ccb_h.path, 1);
-			ISCSI_SESSION_DEBUG(is, "freezing devq");
-		}
-		io->io_ccb->ccb_h.status |= CAM_DEV_QFRZN;
-		xpt_done(io->io_ccb);
-		iscsi_outstanding_remove(is, io);
+	TAILQ_FOREACH_SAFE(io, &is->is_outstanding, io_next, tmp) {
+		iscsi_session_terminate_task(is, io, requeue);
 	}
 }
 
@@ -693,6 +702,9 @@ iscsi_receive_callback(struct icl_pdu *response)
 	case ISCSI_BHS_OPCODE_SCSI_RESPONSE:
 		iscsi_pdu_handle_scsi_response(response);
 		break;
+	case ISCSI_BHS_OPCODE_TASK_RESPONSE:
+		iscsi_pdu_handle_task_response(response);
+		break;
 	case ISCSI_BHS_OPCODE_SCSI_DATA_IN:
 		iscsi_pdu_handle_data_in(response);
 		break;
@@ -813,7 +825,7 @@ iscsi_pdu_handle_scsi_response(struct icl_pdu *response)
 
 	bhssr = (struct iscsi_bhs_scsi_response *)response->ip_bhs;
 	io = iscsi_outstanding_find(is, bhssr->bhssr_initiator_task_tag);
-	if (io == NULL) {
+	if (io == NULL || io->io_ccb == NULL) {
 		ISCSI_SESSION_WARN(is, "bad itt 0x%x", bhssr->bhssr_initiator_task_tag);
 		icl_pdu_free(response);
 		iscsi_session_reconnect(is);
@@ -913,6 +925,38 @@ out:
 }
 
 static void
+iscsi_pdu_handle_task_response(struct icl_pdu *response)
+{
+	struct iscsi_bhs_task_management_response *bhstmr;
+	struct iscsi_outstanding *io, *aio;
+	struct iscsi_session *is;
+
+	is = PDU_SESSION(response);
+
+	bhstmr = (struct iscsi_bhs_task_management_response *)response->ip_bhs;
+	io = iscsi_outstanding_find(is, bhstmr->bhstmr_initiator_task_tag);
+	if (io == NULL || io->io_ccb != NULL) {
+		ISCSI_SESSION_WARN(is, "bad itt 0x%x",
+		    bhstmr->bhstmr_initiator_task_tag);
+		icl_pdu_free(response);
+		iscsi_session_reconnect(is);
+		return;
+	}
+
+	if (bhstmr->bhstmr_response != BHSTMR_RESPONSE_FUNCTION_COMPLETE) {
+		ISCSI_SESSION_WARN(is, "task response 0x%x",
+		    bhstmr->bhstmr_response);
+	} else {
+		aio = iscsi_outstanding_find(is, io->io_datasn);
+		if (aio != NULL && aio->io_ccb != NULL)
+			iscsi_session_terminate_task(is, aio, false);
+	}
+
+	iscsi_outstanding_remove(is, io);
+	icl_pdu_free(response);
+}
+
+static void
 iscsi_pdu_handle_data_in(struct icl_pdu *response)
 {
 	struct iscsi_bhs_data_in *bhsdi;
@@ -924,7 +968,7 @@ iscsi_pdu_handle_data_in(struct icl_pdu *response)
 	is = PDU_SESSION(response);
 	bhsdi = (struct iscsi_bhs_data_in *)response->ip_bhs;
 	io = iscsi_outstanding_find(is, bhsdi->bhsdi_initiator_task_tag);
-	if (io == NULL) {
+	if (io == NULL || io->io_ccb == NULL) {
 		ISCSI_SESSION_WARN(is, "bad itt 0x%x", bhsdi->bhsdi_initiator_task_tag);
 		icl_pdu_free(response);
 		iscsi_session_reconnect(is);
@@ -1037,7 +1081,7 @@ iscsi_pdu_handle_r2t(struct icl_pdu *response)
 
 	bhsr2t = (struct iscsi_bhs_r2t *)response->ip_bhs;
 	io = iscsi_outstanding_find(is, bhsr2t->bhsr2t_initiator_task_tag);
-	if (io == NULL) {
+	if (io == NULL || io->io_ccb == NULL) {
 		ISCSI_SESSION_WARN(is, "bad itt 0x%x; reconnecting",
 		    bhsr2t->bhsr2t_initiator_task_tag);
 		icl_pdu_free(response);
@@ -1878,7 +1922,21 @@ iscsi_outstanding_find(struct iscsi_session *is, uint32_t initiator_task_tag)
 	return (NULL);
 }
 
-static int
+static struct iscsi_outstanding *
+iscsi_outstanding_find_ccb(struct iscsi_session *is, union ccb *ccb)
+{
+	struct iscsi_outstanding *io;
+
+	ISCSI_SESSION_LOCK_ASSERT(is);
+
+	TAILQ_FOREACH(io, &is->is_outstanding, io_next) {
+		if (io->io_ccb == ccb)
+			return (io);
+	}
+	return (NULL);
+}
+
+static struct iscsi_outstanding *
 iscsi_outstanding_add(struct iscsi_session *is,
     uint32_t initiator_task_tag, union ccb *ccb)
 {
@@ -1892,12 +1950,12 @@ iscsi_outstanding_add(struct iscsi_session *is,
 	io = uma_zalloc(iscsi_outstanding_zone, M_NOWAIT | M_ZERO);
 	if (io == NULL) {
 		ISCSI_SESSION_WARN(is, "failed to allocate %zd bytes", sizeof(*io));
-		return (ENOMEM);
+		return (NULL);
 	}
 	io->io_initiator_task_tag = initiator_task_tag;
 	io->io_ccb = ccb;
 	TAILQ_INSERT_TAIL(&is->is_outstanding, io, io_next);
-	return (0);
+	return (io);
 }
 
 static void
@@ -1911,11 +1969,66 @@ iscsi_outstanding_remove(struct iscsi_session *is, struct iscsi_outstanding *io)
 }
 
 static void
+iscsi_action_abort(struct iscsi_session *is, union ccb *ccb)
+{
+	struct icl_pdu *request;
+	struct iscsi_bhs_task_management_request *bhstmr;
+	struct ccb_abort *cab = &ccb->cab;
+	struct iscsi_outstanding *io, *aio;
+
+	ISCSI_SESSION_LOCK_ASSERT(is);
+
+#if 0
+	KASSERT(is->is_login_phase == false, ("%s called during Login Phase", __func__));
+#else
+	if (is->is_login_phase) {
+		ccb->ccb_h.status = CAM_REQ_ABORTED;
+		xpt_done(ccb);
+		return;
+	}
+#endif
+
+	aio = iscsi_outstanding_find_ccb(is, cab->abort_ccb);
+	if (aio == NULL) {
+		ccb->ccb_h.status = CAM_REQ_CMP;
+		xpt_done(ccb);
+		return;
+	}
+
+	request = icl_pdu_new_bhs(is->is_conn, M_NOWAIT);
+	if (request == NULL) {
+		ccb->ccb_h.status = CAM_RESRC_UNAVAIL;
+		xpt_done(ccb);
+		return;
+	}
+
+	bhstmr = (struct iscsi_bhs_task_management_request *)request->ip_bhs;
+	bhstmr->bhstmr_opcode = ISCSI_BHS_OPCODE_TASK_REQUEST;
+	bhstmr->bhstmr_function = 0x80 | BHSTMR_FUNCTION_ABORT_TASK;
+
+	bhstmr->bhstmr_lun = htobe64(CAM_EXTLUN_BYTE_SWIZZLE(ccb->ccb_h.target_lun));
+	bhstmr->bhstmr_initiator_task_tag = is->is_initiator_task_tag;
+	is->is_initiator_task_tag++;
+	bhstmr->bhstmr_referenced_task_tag = aio->io_initiator_task_tag;
+
+	io = iscsi_outstanding_add(is, bhstmr->bhstmr_initiator_task_tag, NULL);
+	if (io == NULL) {
+		icl_pdu_free(request);
+		ccb->ccb_h.status = CAM_RESRC_UNAVAIL;
+		xpt_done(ccb);
+		return;
+	}
+	io->io_datasn = aio->io_initiator_task_tag;
+	iscsi_pdu_queue_locked(request);
+}
+
+static void
 iscsi_action_scsiio(struct iscsi_session *is, union ccb *ccb)
 {
 	struct icl_pdu *request;
 	struct iscsi_bhs_scsi_command *bhssc;
 	struct ccb_scsiio *csio;
+	struct iscsi_outstanding *io;
 	size_t len;
 	int error;
 
@@ -1991,8 +2104,8 @@ iscsi_action_scsiio(struct iscsi_session *is, union ccb *ccb)
 	else
 		memcpy(&bhssc->bhssc_cdb, csio->cdb_io.cdb_bytes, csio->cdb_len);
 
-	error = iscsi_outstanding_add(is, bhssc->bhssc_initiator_task_tag, ccb);
-	if (error != 0) {
+	io = iscsi_outstanding_add(is, bhssc->bhssc_initiator_task_tag, ccb);
+	if (io == NULL) {
 		icl_pdu_free(request);
 		if ((ccb->ccb_h.status & CAM_DEV_QFRZN) == 0) {
 			xpt_freeze_devq(ccb->ccb_h.path, 1);
@@ -2096,12 +2209,14 @@ iscsi_action(struct cam_sim *sim, union ccb *ccb)
 	 * XXX: What's the point?
 	 */
 	case XPT_RESET_BUS:
-	case XPT_ABORT:
 	case XPT_TERM_IO:
 		ISCSI_SESSION_DEBUG(is, "faking success for reset, abort, or term_io");
 		ccb->ccb_h.status = CAM_REQ_CMP;
 		break;
 #endif
+	case XPT_ABORT:
+		iscsi_action_abort(is, ccb);
+		return;
 	case XPT_SCSI_IO:
 		iscsi_action_scsiio(is, ccb);
 		return;
