@@ -1893,7 +1893,7 @@ bind_table_rule(struct ip_fw_chain *ch, struct ip_fw *rule,
  * Raises error on any other tables.
  */
 int
-ipfw_rewrite_table_kidx(struct ip_fw_chain *chain, struct ip_fw *rule)
+ipfw_rewrite_table_kidx(struct ip_fw_chain *chain, struct ip_fw_rule0 *rule)
 {
 	int cmdlen, error, l;
 	ipfw_insn *cmd;

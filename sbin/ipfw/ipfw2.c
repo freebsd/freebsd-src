@@ -61,6 +61,7 @@ struct format_opts {
 	int bcwidth;
 	int pcwidth;
 	int show_counters;
+	uint32_t set_mask;	/* enabled sets mask */
 	uint32_t flags;		/* request flags */
 	uint32_t first;		/* first rule to request */
 	uint32_t last;		/* last rule to request */
@@ -1298,7 +1299,7 @@ show_prerequisites(int *flags, int want, int cmd)
 
 static void
 show_static_rule(struct cmdline_opts *co, struct format_opts *fo,
-    struct buf_pr *bp, struct ip_fw *rule)
+    struct buf_pr *bp, struct ip_fw_rule *rule, struct ip_fw_bcounter *cntr)
 {
 	static int twidth = 0;
 	int l;
@@ -1309,11 +1310,9 @@ show_static_rule(struct cmdline_opts *co, struct format_opts *fo,
 	ipfw_insn_log *logptr = NULL; /* set if we find an O_LOG */
 	ipfw_insn_altq *altqptr = NULL; /* set if we find an O_ALTQ */
 	int or_block = 0;	/* we are in an or block */
-	uint32_t set_disable;
 
-	bcopy(&rule->next_rule, &set_disable, sizeof(set_disable));
-
-	if (set_disable & (1 << rule->set)) { /* disabled */
+	if ((fo->set_mask & (1 << rule->set)) == 0) {
+		/* disabled mask */
 		if (!co->show_sets)
 			return;
 		else
@@ -1321,13 +1320,14 @@ show_static_rule(struct cmdline_opts *co, struct format_opts *fo,
 	}
 	bprintf(bp, "%05u ", rule->rulenum);
 
+	/* Print counters if enabled */
 	if (fo->pcwidth > 0 || fo->bcwidth > 0) {
-		pr_u64(bp, &rule->pcnt, fo->pcwidth);
-		pr_u64(bp, &rule->bcnt, fo->bcwidth);
+		pr_u64(bp, &cntr->pcnt, fo->pcwidth);
+		pr_u64(bp, &cntr->bcnt, fo->bcwidth);
 	}
 
 	if (co->do_time == 2)
-		bprintf(bp, "%10u ", rule->timestamp);
+		bprintf(bp, "%10u ", cntr->timestamp);
 	else if (co->do_time == 1) {
 		char timestr[30];
 		time_t t = (time_t)0;
@@ -1337,8 +1337,8 @@ show_static_rule(struct cmdline_opts *co, struct format_opts *fo,
 			*strchr(timestr, '\n') = '\0';
 			twidth = strlen(timestr);
 		}
-		if (rule->timestamp) {
-			t = _long_to_time(rule->timestamp);
+		if (cntr->timestamp > 0) {
+			t = _long_to_time(cntr->timestamp);
 
 			strcpy(timestr, ctime(&t));
 			*strchr(timestr, '\n') = '\0';
@@ -1537,7 +1537,7 @@ show_static_rule(struct cmdline_opts *co, struct format_opts *fo,
 	/*
 	 * then print the body.
 	 */
-	for (l = rule->act_ofs, cmd = rule->cmd ;
+	for (l = rule->act_ofs, cmd = rule->cmd;
 			l > 0 ; l -= F_LEN(cmd) , cmd += F_LEN(cmd)) {
 		if ((cmd->len & F_OR) || (cmd->len & F_NOT))
 			continue;
@@ -1549,7 +1549,7 @@ show_static_rule(struct cmdline_opts *co, struct format_opts *fo,
 			break;
 		}
 	}
-	if (rule->_pad & 1) {	/* empty rules before options */
+	if (rule->flags & IPFW_RULE_NOOPT) {	/* empty rules before options */
 		if (!co->do_compact) {
 			show_prerequisites(&flags, HAVE_PROTO, 0);
 			printf(" from any to any");
@@ -1561,7 +1561,7 @@ show_static_rule(struct cmdline_opts *co, struct format_opts *fo,
 	if (co->comment_only)
 		comment = "...";
 
-	for (l = rule->act_ofs, cmd = rule->cmd ;
+	for (l = rule->act_ofs, cmd = rule->cmd;
 			l > 0 ; l -= F_LEN(cmd) , cmd += F_LEN(cmd)) {
 		/* useful alias */
 		ipfw_insn_u32 *cmd32 = (ipfw_insn_u32 *)cmd;
@@ -2177,6 +2177,9 @@ prepare_format_dyn(struct cmdline_opts *co, struct format_opts *fo,
 	/* Count _ALL_ states */
 	fo->dcnt++;
 
+	if (fo->show_counters == 0)
+		return;
+
 	if (co->use_set) {
 		/* skip states from another set */
 		bcopy((char *)&d->rule + sizeof(uint16_t), &set,
@@ -2237,27 +2240,31 @@ foreach_state(struct cmdline_opts *co, struct format_opts *fo,
 
 static void
 prepare_format_opts(struct cmdline_opts *co, struct format_opts *fo,
-    struct ip_fw *r, int rcnt, caddr_t base, size_t sz)
+    ipfw_obj_tlv *rtlv, int rcnt, caddr_t dynbase, size_t dynsz)
 {
 	int bcwidth, pcwidth, width;
 	int n;
-#define NEXT(r)	((struct ip_fw *)((char *)r + RULESIZE(r)))
+	struct ip_fw_bcounter *cntr;
+	struct ip_fw_rule *r;
 
 	bcwidth = 0;
 	pcwidth = 0;
 	if (fo->show_counters != 0) {
-		for (n = 0; n < rcnt; n++, r = NEXT(r)) {
+		for (n = 0; n < rcnt; n++,
+		    rtlv = (ipfw_obj_tlv *)((caddr_t)rtlv + rtlv->length)) {
+			cntr = (struct ip_fw_bcounter *)(rtlv + 1);
+			r = (struct ip_fw_rule *)((caddr_t)cntr + cntr->size);
 			/* skip rules from another set */
 			if (co->use_set && r->set != co->use_set - 1)
 				continue;
 
 			/* packet counter */
-			width = pr_u64(NULL, &r->pcnt, 0);
+			width = pr_u64(NULL, &cntr->pcnt, 0);
 			if (width > pcwidth)
 				pcwidth = width;
 
 			/* byte counter */
-			width = pr_u64(NULL, &r->bcnt, 0);
+			width = pr_u64(NULL, &cntr->bcnt, 0);
 			if (width > bcwidth)
 				bcwidth = width;
 		}
@@ -2266,23 +2273,36 @@ prepare_format_opts(struct cmdline_opts *co, struct format_opts *fo,
 	fo->pcwidth = pcwidth;
 
 	fo->dcnt = 0;
-	if (co->do_dynamic && sz > 0)
-		sz = foreach_state(co, fo, base, sz, prepare_format_dyn, NULL);
+	if (co->do_dynamic && dynsz > 0)
+		foreach_state(co, fo, dynbase, dynsz, prepare_format_dyn, NULL);
 }
 
 static int
 list_static_range(struct cmdline_opts *co, struct format_opts *fo,
-    struct buf_pr *bp, struct ip_fw *r, int rcnt)
+    struct buf_pr *bp, ipfw_obj_tlv *rtlv, int rcnt)
 {
 	int n, seen;
+	struct ip_fw_rule *r;
+	struct ip_fw_bcounter *cntr;
+	int c = 0;
 
-	for (n = seen = 0; n < rcnt; n++, r = NEXT(r) ) {
+	for (n = seen = 0; n < rcnt; n++,
+	    rtlv = (ipfw_obj_tlv *)((caddr_t)rtlv + rtlv->length)) {
+
+		if (fo->show_counters != 0) {
+			cntr = (struct ip_fw_bcounter *)(rtlv + 1);
+			r = (struct ip_fw_rule *)((caddr_t)cntr + cntr->size);
+		} else {
+			cntr = NULL;
+			r = (struct ip_fw_rule *)(rtlv + 1);
+		}
 		if (r->rulenum > fo->last)
 			break;
 		if (co->use_set && r->set != co->use_set - 1)
 			continue;
 		if (r->rulenum >= fo->first && r->rulenum <= fo->last) {
-			show_static_rule(co, fo, bp, r);
+			show_static_rule(co, fo, bp, r, cntr);
+			c += rtlv->length;
 			bp_flush(bp);
 			seen++;
 		}
@@ -2369,27 +2389,27 @@ ipfw_list(int ac, char *av[], int show_counters)
 
 	/* get configuraion from kernel */
 	cfg = NULL;
+	sfo.show_counters = show_counters;
 	sfo.flags = IPFW_CFG_GET_STATIC;
 	if (co.do_dynamic != 0)
 		sfo.flags |= IPFW_CFG_GET_STATES;
+	if (sfo.show_counters != 0)
+		sfo.flags |= IPFW_CFG_GET_COUNTERS;
 	if ((error = ipfw_get_config(&co, &sfo, &cfg, &sz)) != 0)
 		err(EX_OSERR, "retrieving config failed");
 
-	sfo.show_counters = show_counters;
 	error = ipfw_show_config(&co, &sfo, cfg, sz, ac, av);
 
 	free(cfg);
 
 	if (error != EX_OK)
 		exit(error);
-#undef NEXT
 }
 
 static int
 ipfw_show_config(struct cmdline_opts *co, struct format_opts *fo,
     ipfw_cfg_lheader *cfg, size_t sz, int ac, char *av[])
 {
-	struct ip_fw *rbase;
 	caddr_t dynbase;
 	size_t dynsz;
 	int rcnt;
@@ -2400,6 +2420,7 @@ ipfw_show_config(struct cmdline_opts *co, struct format_opts *fo,
 	size_t read;
 	struct buf_pr bp;
 	ipfw_obj_ctlv *ctlv, *tstate;
+	ipfw_obj_tlv *rbase;
 
 	/*
 	 * Handle tablenames TLV first, if any
@@ -2408,7 +2429,9 @@ ipfw_show_config(struct cmdline_opts *co, struct format_opts *fo,
 	rbase = NULL;
 	dynbase = NULL;
 	dynsz = 0;
-	read = 0;
+	read = sizeof(*cfg);
+
+	fo->set_mask = cfg->set_mask;
 
 	ctlv = (ipfw_obj_ctlv *)(cfg + 1);
 
@@ -2422,7 +2445,7 @@ ipfw_show_config(struct cmdline_opts *co, struct format_opts *fo,
 		}
 
 		if (ctlv->head.type == IPFW_TLV_RULE_LIST) {
-			rbase = (struct ip_fw *)(ctlv + 1);
+			rbase = (ipfw_obj_tlv *)(ctlv + 1);
 			rcnt = ctlv->count;
 			read += ctlv->head.length;
 			ctlv = (ipfw_obj_ctlv *)((caddr_t)ctlv +
@@ -2432,8 +2455,12 @@ ipfw_show_config(struct cmdline_opts *co, struct format_opts *fo,
 
 	if ((cfg->flags & IPFW_CFG_GET_STATES) && (read != sz))  {
 		/* We may have some dynamic states */
-		dynbase = (caddr_t)ctlv;
 		dynsz = sz - read;
+		/* Skip empty header */
+		if (dynsz != sizeof(ipfw_obj_ctlv))
+			dynbase = (caddr_t)ctlv;
+		else
+			dynsz = 0;
 	}
 
 	prepare_format_opts(co, fo, rbase, rcnt, dynbase, dynsz);
@@ -2446,7 +2473,7 @@ ipfw_show_config(struct cmdline_opts *co, struct format_opts *fo,
 		list_static_range(co, fo, &bp, rbase, rcnt);
 
 		if (co->do_dynamic && dynsz > 0) {
-			printf("## Dynamic rules (%d):\n", fo->dcnt);
+			printf("## Dynamic rules (%d %lu):\n", fo->dcnt, dynsz);
 			list_dyn_range(co, fo, &bp, dynbase, dynsz);
 		}
 
@@ -3304,7 +3331,7 @@ compile_rule(char *av[], uint32_t *rbuf, int *rbufsize, struct tidx *tstate)
 	ipfw_insn *src, *dst, *cmd, *action, *prev=NULL;
 	ipfw_insn *first_cmd;	/* first match pattern */
 
-	struct ip_fw *rule;
+	struct ip_fw_rule *rule;
 
 	/*
 	 * various flags used to record that we entered some fields.
@@ -3326,12 +3353,12 @@ compile_rule(char *av[], uint32_t *rbuf, int *rbufsize, struct tidx *tstate)
 	bzero(cmdbuf, sizeof(cmdbuf));
 	bzero(rbuf, *rbufsize);
 
-	rule = (struct ip_fw *)rbuf;
+	rule = (struct ip_fw_rule *)rbuf;
 	cmd = (ipfw_insn *)cmdbuf;
 	action = (ipfw_insn *)actbuf;
 
 	rblen = *rbufsize / sizeof(uint32_t);
-	rblen -= offsetof(struct ip_fw, cmd) / sizeof(uint32_t);
+	rblen -= sizeof(struct ip_fw_rule) / sizeof(uint32_t);
 	ablen = sizeof(actbuf) / sizeof(actbuf[0]);
 	cblen = sizeof(cmdbuf) / sizeof(cmdbuf[0]);
 	cblen -= F_INSN_SIZE(ipfw_insn_u32) + 1;
@@ -3884,7 +3911,7 @@ read_options:
 		 * nothing specified so far, store in the rule to ease
 		 * printout later.
 		 */
-		 rule->_pad = 1;
+		 rule->flags |= IPFW_RULE_NOOPT;
 	}
 	prev = NULL;
 	while ( av[0] != NULL ) {
@@ -4467,13 +4494,13 @@ done:
  * [
  *   ip_fw3_opheader
  *   [ ipfw_obj_ctlv(IPFW_TLV_TBL_LIST) ipfw_obj_ntlv x N ] (optional *1)
- *   [ ipfw_obj_ctlv(IPFW_TLV_RULE_LIST) ip_fw x N ] (*2) (*3)
+ *   [ ipfw_obj_ctlv(IPFW_TLV_RULE_LIST) [ ip_fw_rule ip_fw_insn ] x N ] (*2) (*3)
  * ]
  * Reply:
  * [
  *   ip_fw3_opheader
  *   [ ipfw_obj_ctlv(IPFW_TLV_TBL_LIST) ipfw_obj_ntlv x N ] (optional)
- *   [ ipfw_obj_ctlv(IPFW_TLV_RULE_LIST) ip_fw x N ]
+ *   [ ipfw_obj_ctlv(IPFW_TLV_RULE_LIST) [ ip_fw_rule ip_fw_insn ] x N ]
  * ]
  *
  * Rules in reply are modified to store their actual ruleset number.
@@ -4490,7 +4517,7 @@ ipfw_add(char *av[])
 	int rbufsize, default_off, tlen, rlen;
 	size_t sz;
 	struct tidx ts;
-	struct ip_fw *rule;
+	struct ip_fw_rule *rule;
 	caddr_t tbuf;
 	ip_fw3_opheader *op3;
 	ipfw_obj_ctlv *ctlv, *tstate;
@@ -4502,7 +4529,7 @@ ipfw_add(char *av[])
 	default_off = sizeof(ipfw_obj_ctlv) + sizeof(ip_fw3_opheader);
 	op3 = (ip_fw3_opheader *)rulebuf;
 	ctlv = (ipfw_obj_ctlv *)(op3 + 1);
-	rule = (struct ip_fw *)(ctlv + 1);
+	rule = (struct ip_fw_rule *)(ctlv + 1);
 	rbufsize -= default_off;
 
 	compile_rule(av, (uint32_t *)rule, &rbufsize, &ts);
@@ -4552,8 +4579,9 @@ ipfw_add(char *av[])
 		struct buf_pr bp;
 		memset(&sfo, 0, sizeof(sfo));
 		sfo.tstate = tstate;
+		sfo.set_mask = (uint32_t)(-1);
 		bp_alloc(&bp, 4096);
-		show_static_rule(&co, &sfo, &bp, rule);
+		show_static_rule(&co, &sfo, &bp, rule, NULL);
 		bp_free(&bp);
 	}
 

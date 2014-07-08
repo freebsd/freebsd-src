@@ -220,6 +220,44 @@ VNET_DECLARE(unsigned int, fw_tables_sets);
 
 struct tables_config;
 
+#ifdef _KERNEL
+typedef struct ip_fw_cntr {
+	uint64_t	pcnt;	   /* Packet counter		*/
+	uint64_t	bcnt;	   /* Byte counter		 */
+	uint64_t	timestamp;      /* tv_sec of last match	 */
+} ip_fw_cntr;
+
+/*
+ * Here we have the structure representing an ipfw rule.
+ *
+ * It starts with a general area 
+ * followed by an array of one or more instructions, which the code
+ * accesses as an array of 32-bit values.
+ *
+ * Given a rule pointer  r:
+ *
+ *  r->cmd		is the start of the first instruction.
+ *  ACTION_PTR(r)	is the start of the first action (things to do
+ *			once a rule matched).
+ */
+
+struct ip_fw {
+	uint16_t	act_ofs;	/* offset of action in 32-bit units */
+	uint16_t	cmd_len;	/* # of 32-bit words in cmd	*/
+	uint16_t	rulenum;	/* rule number			*/
+	uint8_t		set;		/* rule set (0..31)		*/
+	uint8_t		flags;		/* currently unused		*/
+	counter_u64_t	cntr;		/* Pointer to rule counters	*/
+	uint32_t	timestamp;	/* tv_sec of last match		*/
+	uint32_t	id;		/* rule id			*/
+	struct ip_fw    *x_next;	/* linked list of rules		*/
+	struct ip_fw    *next_rule;	/* ptr to next [skipto] rule	*/
+
+	ipfw_insn	cmd[1];		/* storage for commands		*/
+};
+
+#endif
+
 struct ip_fw_chain {
 	struct ip_fw	**map;		/* array of rule ptrs to ease lookup */
 	uint32_t	id;		/* ruleset id */
@@ -231,7 +269,7 @@ struct ip_fw_chain {
 #else
 	struct rwlock	rwmtx;
 #endif
-	int		static_len;	/* total len of static rules */
+	int		static_len;	/* total len of static rules (v0) */
 	uint32_t	gencnt;		/* NAT generation count */
 	struct ip_fw	*reap;		/* list of rules to reap */
 	struct ip_fw	*default_rule;
@@ -255,6 +293,7 @@ struct sockopt_data {
 };
 
 /* Macro for working with various counters */
+#ifdef USERSPACE
 #define	IPFW_INC_RULE_COUNTER(_cntr, _bytes)	do {	\
 	(_cntr)->pcnt++;				\
 	(_cntr)->bcnt += _bytes;			\
@@ -276,6 +315,31 @@ struct sockopt_data {
 	(_cntr)->pcnt = 0;				\
 	(_cntr)->bcnt = 0;				\
 	} while (0)
+#else
+#define	IPFW_INC_RULE_COUNTER(_cntr, _bytes)	do {	\
+	counter_u64_add((_cntr)->cntr, 1);		\
+	counter_u64_add((_cntr)->cntr + 1, _bytes);	\
+	if ((_cntr)->timestamp != time_uptime)		\
+		(_cntr)->timestamp = time_uptime;	\
+	} while (0)
+
+#define	IPFW_INC_DYN_COUNTER(_cntr, _bytes)	do {		\
+	(_cntr)->pcnt++;				\
+	(_cntr)->bcnt += _bytes;			\
+	} while (0)
+
+#define	IPFW_ZERO_RULE_COUNTER(_cntr) do {		\
+	counter_u64_zero((_cntr)->cntr);		\
+	counter_u64_zero((_cntr)->cntr + 1);		\
+	(_cntr)->timestamp = 0;				\
+	} while (0)
+
+#define	IPFW_ZERO_DYN_COUNTER(_cntr) do {		\
+	(_cntr)->pcnt = 0;				\
+	(_cntr)->bcnt = 0;				\
+	} while (0)
+#endif
+
 
 #define	IP_FW_ARG_TABLEARG(a)	(((a) == IP_FW_TABLEARG) ? tablearg : (a))
 /*
@@ -322,17 +386,70 @@ struct obj_idx {
 struct rule_check_info {
 	uint16_t	table_opcodes;	/* count of opcodes referencing table */
 	uint16_t	new_tables;	/* count of opcodes referencing table */
+	uint16_t	urule_numoff;	/* offset of rulenum in bytes */
+	uint8_t		version;	/* rule version */
 	ipfw_obj_ctlv	*ctlv;		/* name TLV containter */
 	struct ip_fw	*krule;		/* resulting rule pointer */
-	struct ip_fw	*urule;		/* original rule pointer */
+	caddr_t		urule;		/* original rule pointer */
 	struct obj_idx	obuf[8];	/* table references storage */
 };
+
+/* Legacy interface support */
+/*
+ * FreeBSD 8 export rule format
+ */
+struct ip_fw_rule0 {
+	struct ip_fw	*x_next;	/* linked list of rules		*/
+	struct ip_fw	*next_rule;	/* ptr to next [skipto] rule	*/
+	/* 'next_rule' is used to pass up 'set_disable' status		*/
+
+	uint16_t	act_ofs;	/* offset of action in 32-bit units */
+	uint16_t	cmd_len;	/* # of 32-bit words in cmd	*/
+	uint16_t	rulenum;	/* rule number			*/
+	uint8_t		set;		/* rule set (0..31)		*/
+	uint8_t		_pad;		/* padding			*/
+	uint32_t	id;		/* rule id */
+
+	/* These fields are present in all rules.			*/
+	uint64_t	pcnt;		/* Packet counter		*/
+	uint64_t	bcnt;		/* Byte counter			*/
+	uint32_t	timestamp;	/* tv_sec of last match		*/
+
+	ipfw_insn	cmd[1];		/* storage for commands		*/
+};
+
+struct ip_fw_bcounter0 {
+	uint64_t	pcnt;		/* Packet counter		*/
+	uint64_t	bcnt;		/* Byte counter			*/
+	uint32_t	timestamp;	/* tv_sec of last match		*/
+};
+
+/* Kernel rule length */
+/*
+ * RULE _K_ SIZE _V_ ->
+ * get kernel size from userland rool version _V_.
+ * RULE _U_ SIZE _V_ ->
+ * get user size version _V_ from kernel rule
+ * RULESIZE _V_ ->
+ * get user size rule length 
+ */
+/* FreeBSD8 <> current kernel format */
+#define	RULEUSIZE0(r)	(sizeof(struct ip_fw_rule0) + (r)->cmd_len * 4 - 4)
+#define	RULEKSIZE0(r)	roundup2((sizeof(struct ip_fw) + (r)->cmd_len*4 - 4), 8)
+/* FreeBSD11 <> current kernel format */
+#define	RULEUSIZE1(r)	(roundup2(sizeof(struct ip_fw_rule) + \
+    (r)->cmd_len * 4 - 4, 8))
+#define	RULEKSIZE1(r)	roundup2((sizeof(struct ip_fw) + (r)->cmd_len*4 - 4), 8)
+
 
 /* In ip_fw_sockopt.c */
 int ipfw_find_rule(struct ip_fw_chain *chain, uint32_t key, uint32_t id);
 int ipfw_ctl(struct sockopt *sopt);
 int ipfw_chk(struct ip_fw_args *args);
 void ipfw_reap_rules(struct ip_fw *head);
+void ipfw_init_counters(void);
+void ipfw_destroy_counters(void);
+struct ip_fw *ipfw_alloc_rule(struct ip_fw_chain *chain, size_t rulesize);
 
 caddr_t ipfw_get_sopt_space(struct sockopt_data *sd, size_t needed);
 caddr_t ipfw_get_sopt_header(struct sockopt_data *sd, size_t needed);

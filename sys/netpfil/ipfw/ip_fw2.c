@@ -42,6 +42,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/condvar.h>
+#include <sys/counter.h>
 #include <sys/eventhandler.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
@@ -2647,12 +2648,11 @@ vnet_ipfw_init(const void *unused)
 	LIST_INIT(&chain->nat);
 #endif
 
+	ipfw_init_counters();
 	/* insert the default rule and create the initial map */
 	chain->n_rules = 1;
-	chain->static_len = sizeof(struct ip_fw);
 	chain->map = malloc(sizeof(struct ip_fw *), M_IPFW, M_WAITOK | M_ZERO);
-	if (chain->map)
-		rule = malloc(chain->static_len, M_IPFW, M_WAITOK | M_ZERO);
+	rule = ipfw_alloc_rule(chain, sizeof(struct ip_fw));
 
 	/* Set initial number of tables */
 	V_fw_tables_max = default_fw_tables;
@@ -2673,6 +2673,8 @@ vnet_ipfw_init(const void *unused)
 	rule->cmd[0].opcode = default_to_accept ? O_ACCEPT : O_DENY;
 	chain->default_rule = chain->map[0] = rule;
 	chain->id = rule->id = 1;
+	/* Pre-calculate rules length for legacy dump format */
+	chain->static_len = sizeof(struct ip_fw_rule0);
 
 	IPFW_LOCK_INIT(chain);
 	ipfw_dyn_init(chain);
@@ -2740,7 +2742,8 @@ vnet_ipfw_uninit(const void *unused)
 		ipfw_reap_rules(reap);
 	IPFW_LOCK_DESTROY(chain);
 	ipfw_dyn_uninit(1);	/* free the remaining parts */
-	return 0;
+	ipfw_destroy_counters();
+	return (0);
 }
 
 /*
