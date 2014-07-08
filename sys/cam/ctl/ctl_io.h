@@ -96,6 +96,7 @@ typedef enum {
 	CTL_FLAG_CONTROL_DEV	= 0x00000080,	/* processor device */
 	CTL_FLAG_ALLOCATED	= 0x00000100,	/* data space allocated */
 	CTL_FLAG_BLOCKED	= 0x00000200,	/* on the blocked queue */
+	CTL_FLAG_ABORT_STATUS	= 0x00000400,	/* return TASK ABORTED status */
 	CTL_FLAG_ABORT		= 0x00000800,	/* this I/O should be aborted */
 	CTL_FLAG_DMA_INPROG	= 0x00001000,	/* DMA in progress */
 	CTL_FLAG_NO_DATASYNC	= 0x00002000,	/* don't cache flush data */
