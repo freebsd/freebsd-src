@@ -1687,11 +1687,19 @@ vmx_cpl(void)
 static enum vm_cpu_mode
 vmx_cpu_mode(void)
 {
+	uint32_t csar;
 
-	if (vmcs_read(VMCS_GUEST_IA32_EFER) & EFER_LMA)
-		return (CPU_MODE_64BIT);
-	else
-		return (CPU_MODE_COMPATIBILITY);
+	if (vmcs_read(VMCS_GUEST_IA32_EFER) & EFER_LMA) {
+		csar = vmcs_read(VMCS_GUEST_CS_ACCESS_RIGHTS);
+		if (csar & 0x2000)
+			return (CPU_MODE_64BIT);	/* CS.L = 1 */
+		else
+			return (CPU_MODE_COMPATIBILITY);
+	} else if (vmcs_read(VMCS_GUEST_CR0) & CR0_PE) {
+		return (CPU_MODE_PROTECTED);
+	} else {
+		return (CPU_MODE_REAL);
+	}
 }
 
 static enum vm_paging_mode
