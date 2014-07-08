@@ -1497,7 +1497,6 @@ _prebuild_libs=	${_kerberos5_lib_libasn1} \
 .if ${MK_GNUCXX} != "no" && ${MK_CXX} != "no"
 _prebuild_libs+= gnu/lib/libstdc++ gnu/lib/libsupc++
 gnu/lib/libstdc++__L: lib/msun__L
-gnu/lib/libsubc++__L: gnu/lib/libstdc++__L
 .endif
 
 .if defined(WITH_ATF) || ${MK_TESTS} != "no"
