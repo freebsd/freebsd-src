@@ -164,6 +164,10 @@
       <literal>kern.vty=vt</literal> to &man.loader.conf.5; and
       reboot the system.</para>
 
+    <para revision="266757" contrib="sponsor"
+	sponsor="&chelsio;">Support for the &man.cxgbe.4; Terminator 5
+	(T5) 10G/40G cards has been added to &man.netmap.4;.</para>
+
     <sect3 xml:id="kernel-virtualization">
       <title>Virtualization support</title>
 
