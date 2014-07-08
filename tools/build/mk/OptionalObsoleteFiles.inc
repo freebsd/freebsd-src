@@ -3382,9 +3382,10 @@ OLD_FILES+=var/yp/Makefile
 OLD_FILES+=var/yp/Makefile.dist
 .endif
 
-#.if ${MK_NLS} == no
+.if ${MK_NLS} == no
+OLD_FILES+=usr/tests/bin/sh/builtins/locale1.0
 # to be filled in
-#.endif
+.endif
 
 .if ${MK_NTP} == no
 OLD_FILES+=etc/ntp.conf
