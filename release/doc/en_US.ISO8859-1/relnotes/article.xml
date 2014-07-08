@@ -217,8 +217,9 @@
     <sect3 xml:id="disks">
       <title>Disks and Storage</title>
 
-      <para>&nbsp;</para>
-
+      <para revision="268091">Support for the
+	<literal>disklabel64</literal> partitioning scheme has been
+	added to &man.gpart.8;.</para>
     </sect3>
 
     <sect3 xml:id="fs">
