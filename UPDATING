@@ -16,6 +16,10 @@ from older versions of FreeBSD, try WITHOUT_CLANG to bootstrap to the tip of
 stable/10, and then rebuild without this option. The bootstrap process from
 older version of current is a bit fragile.
 
+20140708:	p7	FreeBSD-SA-14:17.kmem
+	Fix kernel memory disclosure in control messages and SCTP
+	notifications. [SA-14:17]
+
 20140624:	p6	FreeBSD-SA-14:15.iconv
 			FreeBSD-SA-14:16.file
 			FreeBSD-EN-14:07.pmap
