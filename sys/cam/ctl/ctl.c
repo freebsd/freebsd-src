@@ -12066,10 +12066,6 @@ ctl_abort_task(union ctl_io *io)
 	return (0);
 }
 
-/*
- * This routine cannot block!  It must be callable from an interrupt
- * handler as well as from the work thread.
- */
 static void
 ctl_run_task(union ctl_io *io)
 {
@@ -13690,10 +13686,8 @@ ctl_queue(union ctl_io *io)
 
 	switch (io->io_hdr.io_type) {
 	case CTL_IO_SCSI:
-		ctl_enqueue_incoming(io);
-		break;
 	case CTL_IO_TASK:
-		ctl_run_task(io);
+		ctl_enqueue_incoming(io);
 		break;
 	default:
 		printf("ctl_queue: unknown I/O type %d\n", io->io_hdr.io_type);
@@ -13862,6 +13856,16 @@ ctl_work_thread(void *arg)
 			retval = ctl_process_done(io);
 			continue;
 		}
+		io = (union ctl_io *)STAILQ_FIRST(&thr->incoming_queue);
+		if (io != NULL) {
+			STAILQ_REMOVE_HEAD(&thr->incoming_queue, links);
+			mtx_unlock(&thr->queue_lock);
+			if (io->io_hdr.io_type == CTL_IO_TASK)
+				ctl_run_task(io);
+			else
+				ctl_scsiio_precheck(softc, &io->scsiio);
+			continue;
+		}
 		if (!ctl_pause_rtr) {
 			io = (union ctl_io *)STAILQ_FIRST(&thr->rtr_queue);
 			if (io != NULL) {
@@ -13872,13 +13876,6 @@ ctl_work_thread(void *arg)
 					CTL_DEBUG_PRINT(("ctl_scsiio failed\n"));
 				continue;
 			}
-		}
-		io = (union ctl_io *)STAILQ_FIRST(&thr->incoming_queue);
-		if (io != NULL) {
-			STAILQ_REMOVE_HEAD(&thr->incoming_queue, links);
-			mtx_unlock(&thr->queue_lock);
-			ctl_scsiio_precheck(softc, &io->scsiio);
-			continue;
 		}
 
 		/* Sleep until we have something to do. */
@@ -13917,8 +13914,11 @@ ctl_enqueue_incoming(union ctl_io *io)
 {
 	struct ctl_softc *softc = control_softc;
 	struct ctl_thread *thr;
+	u_int idx;
 
-	thr = &softc->threads[io->io_hdr.nexus.targ_mapped_lun % worker_threads];
+	idx = (io->io_hdr.nexus.targ_port * 127 +
+	       io->io_hdr.nexus.initid.id) % worker_threads;
+	thr = &softc->threads[idx];
 	mtx_lock(&thr->queue_lock);
 	STAILQ_INSERT_TAIL(&thr->incoming_queue, &io->io_hdr, links);
 	mtx_unlock(&thr->queue_lock);
