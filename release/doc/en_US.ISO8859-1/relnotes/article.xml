@@ -758,6 +758,14 @@
 	  </listitem>
 
 	  <listitem>
+	    <para>Packages for <application>KDE4</application> are not
+	      available in the default (<literal>latest</literal>)
+	      &man.pkg.8; repository, however are available in the
+	      <literal>new_xorg</literal> repository.  See the <link
+		xlink:href="https://lists.freebsd.org/pipermail/freebsd-announce/2014-July/001570.html">announcement
+		email</link> for details on how to use the
+	      <literal>new_xorg</literal> repository.</para>
+
 	    <para>The older <application>Xorg</application> that does
 	      not support <acronym>KMS</acronym> can still be
 	      installed from the <literal>latest</literal> upstream
@@ -777,14 +785,6 @@
 	      &os;&nbsp;Ports Collection, set
 	      <literal>WITHOUT_NEW_XORG=yes</literal> in
 	      &man.make.conf.5;.</para>
-
-	    <para>Packages for <application>KDE4</application> are not
-	      available in the default (<literal>latest</literal>)
-	      &man.pkg.8; repository, however are available in the
-	      <literal>new_xorg</literal> repository.  See the <link
-		xlink:href="https://lists.freebsd.org/pipermail/freebsd-announce/2014-July/001570.html">announcement
-		email</link> for details on how to use the
-	      <literal>new_xorg</literal> repository.</para>
 	  </listitem>
 	</itemizedlist>
       </para>
