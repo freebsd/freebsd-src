@@ -218,7 +218,7 @@
     <sect3 xml:id="proc">
       <title>Hardware Support</title>
 
-      <para revision="r268351">Support for &os;/ia64 has been dropped
+      <para revision="268351">Support for &os;/ia64 has been dropped
 	as of &os;&nbsp;11.</para>
 
       <sect4 xml:id="mm">
