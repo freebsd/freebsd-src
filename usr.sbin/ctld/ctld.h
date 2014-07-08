@@ -178,6 +178,7 @@ struct connection {
 	char			*conn_initiator_name;
 	char			*conn_initiator_addr;
 	char			*conn_initiator_alias;
+	uint8_t			conn_initiator_isid[6];
 	uint32_t		conn_cmdsn;
 	uint32_t		conn_statsn;
 	size_t			conn_max_data_segment_length;
@@ -272,8 +273,8 @@ int			kernel_lun_add(struct lun *lun);
 int			kernel_lun_resize(struct lun *lun);
 int			kernel_lun_remove(struct lun *lun);
 void			kernel_handoff(struct connection *conn);
-int			kernel_port_on(void);
-int			kernel_port_off(void);
+int			kernel_port_add(struct target *targ);
+int			kernel_port_remove(struct target *targ);
 void			kernel_capsicate(void);
 
 #ifdef ICL_KERNEL_PROXY

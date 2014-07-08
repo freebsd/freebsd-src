@@ -565,13 +565,15 @@ ece_free_desc_dma_tx(struct ece_softc *sc)
 		}
 	}
 
-	if (sc->dmamap_ring_tx) {
+	if (sc->ring_paddr_tx) {
 		bus_dmamap_unload(sc->dmatag_data_tx, sc->dmamap_ring_tx);
-		if (sc->desc_tx) {
-			bus_dmamem_free(sc->dmatag_data_tx,
-			    sc->desc_tx, sc->dmamap_ring_tx);
-		}
-		sc->dmamap_ring_tx = 0;
+		sc->ring_paddr_tx = 0;
+	}
+
+	if (sc->desc_tx) {
+		bus_dmamem_free(sc->dmatag_data_tx,
+		    sc->desc_tx, sc->dmamap_ring_tx);
+		sc->desc_tx = NULL;
 	}
 
 	if (sc->dmatag_data_tx) {
@@ -679,18 +681,24 @@ ece_free_desc_dma_rx(struct ece_softc *sc)
 	for (i = 0; i < ECE_MAX_RX_BUFFERS; i++) {
 		if (sc->rx_desc[i].buff) {
 			m_freem(sc->rx_desc[i].buff);
-			sc->rx_desc[i].buff= 0;
+			sc->rx_desc[i].buff = NULL;
 		}
 	}
 
-	if (sc->dmatag_data_rx) {
+	if (sc->ring_paddr_rx) {
 		bus_dmamap_unload(sc->dmatag_data_rx, sc->dmamap_ring_rx);
+		sc->ring_paddr_rx = 0;
+	}
+
+	if (sc->desc_rx) {
 		bus_dmamem_free(sc->dmatag_data_rx, sc->desc_rx,
 		    sc->dmamap_ring_rx);
+		sc->desc_rx = NULL;
+	}
+
+	if (sc->dmatag_data_rx) {
 		bus_dma_tag_destroy(sc->dmatag_data_rx);
-		sc->dmatag_data_rx = 0;
-		sc->dmamap_ring_rx = 0;
-		sc->desc_rx = 0;
+		sc->dmatag_data_rx = NULL;
 	}
 
 	if (sc->dmatag_ring_rx) {
@@ -699,7 +707,7 @@ ece_free_desc_dma_rx(struct ece_softc *sc)
 			    sc->rx_desc[i].dmamap);
 		bus_dmamap_destroy(sc->dmatag_ring_rx, sc->rx_sparemap);
 		bus_dma_tag_destroy(sc->dmatag_ring_rx);
-		sc->dmatag_ring_rx = 0;
+		sc->dmatag_ring_rx = NULL;
 	}
 }
 

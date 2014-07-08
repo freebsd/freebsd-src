@@ -104,6 +104,12 @@ static const struct vie_op one_byte_opcodes[256] = {
 		.op_byte = 0x8B,
 		.op_type = VIE_OP_TYPE_MOV,
 	},
+	[0xC6] = {
+		/* XXX Group 11 extended opcode - not just MOV */
+		.op_byte = 0xC6,
+		.op_type = VIE_OP_TYPE_MOV,
+		.op_flags = VIE_OP_F_IMM8,
+	},
 	[0xC7] = {
 		.op_byte = 0xC7,
 		.op_type = VIE_OP_TYPE_MOV,
@@ -309,6 +315,15 @@ emulate_mov(void *vm, int vcpuid, uint64_t gpa, struct vie *vie,
 			reg = gpr_map[vie->reg];
 			error = vie_update_register(vm, vcpuid, reg, val, size);
 		}
+		break;
+	case 0xC6:
+		/*
+		 * MOV from imm8 to mem (ModRM:r/m)
+		 * C6/0		mov r/m8, imm8
+		 * REX + C6/0	mov r/m8, imm8
+		 */
+		size = 1;
+		error = memwrite(vm, vcpuid, gpa, vie->immediate, size, arg);
 		break;
 	case 0xC7:
 		/*

@@ -82,7 +82,7 @@
 #
 # See src/UPDATING `COMMON ITEMS' for more complete information.
 #
-# If TARGET=machine (e.g. ia64, sparc64, ...) is specified you can
+# If TARGET=machine (e.g. powerpc, sparc64, ...) is specified you can
 # cross build world for other machine types using the buildworld target,
 # and once the world is built you can cross build a kernel using the
 # buildkernel target.
@@ -361,7 +361,7 @@ kernel-toolchains:
 # existing system is.
 #
 .if make(universe) || make(universe_kernels) || make(tinderbox) || make(targets)
-TARGETS?=amd64 arm i386 ia64 mips pc98 powerpc sparc64
+TARGETS?=amd64 arm i386 mips pc98 powerpc sparc64
 TARGET_ARCHES_arm?=	arm armeb armv6 armv6hf
 TARGET_ARCHES_mips?=	mipsel mips mips64el mips64 mipsn32
 TARGET_ARCHES_powerpc?=	powerpc powerpc64

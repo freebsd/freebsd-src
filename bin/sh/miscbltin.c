@@ -414,7 +414,6 @@ static const struct limits limits[] = {
 int
 ulimitcmd(int argc __unused, char **argv __unused)
 {
-	int	c;
 	rlim_t val = 0;
 	enum { SOFT = 0x1, HARD = 0x2 }
 			how = SOFT | HARD;
@@ -453,17 +452,22 @@ ulimitcmd(int argc __unused, char **argv __unused)
 		if (strcmp(p, "unlimited") == 0)
 			val = RLIM_INFINITY;
 		else {
-			val = 0;
+			char *end;
+			uintmax_t uval;
 
-			while ((c = *p++) >= '0' && c <= '9')
-			{
-				val = (val * 10) + (long)(c - '0');
-				if (val < 0)
-					break;
-			}
-			if (c)
+			if (*p < '0' || *p > '9')
 				error("bad number");
-			val *= l->factor;
+			errno = 0;
+			uval = strtoumax(p, &end, 10);
+			if (errno != 0 || *end != '\0')
+				error("bad number");
+			if (uval > UINTMAX_MAX / l->factor)
+				error("bad number");
+			uval *= l->factor;
+			val = (rlim_t)uval;
+			if (val < 0 || (uintmax_t)val != uval ||
+			    val == RLIM_INFINITY)
+				error("bad number");
 		}
 	}
 	if (all) {

@@ -906,6 +906,46 @@ vlapic_calcdest(struct vm *vm, cpuset_t *dmask, uint32_t dest, bool phys,
 
 static VMM_STAT_ARRAY(IPIS_SENT, VM_MAXCPU, "ipis sent to vcpu");
 
+static void
+vlapic_set_tpr(struct vlapic *vlapic, uint8_t val)
+{
+	struct LAPIC *lapic = vlapic->apic_page;
+
+	lapic->tpr = val;
+	vlapic_update_ppr(vlapic);
+}
+
+static uint8_t
+vlapic_get_tpr(struct vlapic *vlapic)
+{
+	struct LAPIC *lapic = vlapic->apic_page;
+
+	return (lapic->tpr);
+}
+
+void
+vlapic_set_cr8(struct vlapic *vlapic, uint64_t val)
+{
+	uint8_t tpr;
+
+	if (val & ~0xf) {
+		vm_inject_gp(vlapic->vm, vlapic->vcpuid);
+		return;
+	}
+
+	tpr = val << 4;
+	vlapic_set_tpr(vlapic, tpr);
+}
+
+uint64_t
+vlapic_get_cr8(struct vlapic *vlapic)
+{
+	uint8_t tpr;
+
+	tpr = vlapic_get_tpr(vlapic);
+	return (tpr >> 4);
+}
+
 int
 vlapic_icrlo_write_handler(struct vlapic *vlapic, bool *retu)
 {
@@ -1609,21 +1649,4 @@ vlapic_set_tmr_level(struct vlapic *vlapic, uint32_t dest, bool phys,
 
 	VLAPIC_CTR1(vlapic, "vector %d set to level-triggered", vector);
 	vlapic_set_tmr(vlapic, vector, true);
-}
-
-void
-vlapic_set_tpr(struct vlapic *vlapic, uint8_t val)
-{
-	struct LAPIC	*lapic = vlapic->apic_page;
-
-	lapic->tpr = val;
-	vlapic_update_ppr(vlapic);
-}
-
-uint8_t
-vlapic_get_tpr(struct vlapic *vlapic)
-{
-	struct LAPIC	*lapic = vlapic->apic_page;
-
-	return (lapic->tpr);
 }

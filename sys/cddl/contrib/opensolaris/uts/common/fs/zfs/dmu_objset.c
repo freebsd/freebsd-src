@@ -286,7 +286,7 @@ dmu_objset_open_impl(spa_t *spa, dsl_dataset_t *ds, blkptr_t *bp,
 	os->os_rootbp = bp;
 	if (!BP_IS_HOLE(os->os_rootbp)) {
 		uint32_t aflags = ARC_WAIT;
-		zbookmark_t zb;
+		zbookmark_phys_t zb;
 		SET_BOOKMARK(&zb, ds ? ds->ds_object : DMU_META_OBJSET,
 		    ZB_ROOT_OBJECT, ZB_ROOT_LEVEL, ZB_ROOT_BLKID);
 
@@ -338,7 +338,7 @@ dmu_objset_open_impl(spa_t *spa, dsl_dataset_t *ds, blkptr_t *bp,
 	 * default (fletcher2/off).  Snapshots don't need to know about
 	 * checksum/compression/copies.
 	 */
-	if (ds) {
+	if (ds != NULL) {
 		err = dsl_prop_register(ds,
 		    zfs_prop_to_name(ZFS_PROP_PRIMARYCACHE),
 		    primary_cache_changed_cb, os);
@@ -391,7 +391,7 @@ dmu_objset_open_impl(spa_t *spa, dsl_dataset_t *ds, blkptr_t *bp,
 			kmem_free(os, sizeof (objset_t));
 			return (err);
 		}
-	} else if (ds == NULL) {
+	} else {
 		/* It's the meta-objset. */
 		os->os_checksum = ZIO_CHECKSUM_FLETCHER_4;
 		os->os_compress = ZIO_COMPRESS_LZJB;
@@ -435,17 +435,6 @@ dmu_objset_open_impl(spa_t *spa, dsl_dataset_t *ds, blkptr_t *bp,
 		    &os->os_groupused_dnode);
 	}
 
-	/*
-	 * We should be the only thread trying to do this because we
-	 * have ds_opening_lock
-	 */
-	if (ds) {
-		mutex_enter(&ds->ds_lock);
-		ASSERT(ds->ds_objset == NULL);
-		ds->ds_objset = os;
-		mutex_exit(&ds->ds_lock);
-	}
-
 	*osp = os;
 	return (0);
 }
@@ -456,11 +445,19 @@ dmu_objset_from_ds(dsl_dataset_t *ds, objset_t **osp)
 	int err = 0;
 
 	mutex_enter(&ds->ds_opening_lock);
-	*osp = ds->ds_objset;
-	if (*osp == NULL) {
+	if (ds->ds_objset == NULL) {
+		objset_t *os;
 		err = dmu_objset_open_impl(dsl_dataset_get_spa(ds),
-		    ds, dsl_dataset_get_blkptr(ds), osp);
+		    ds, dsl_dataset_get_blkptr(ds), &os);
+
+		if (err == 0) {
+			mutex_enter(&ds->ds_lock);
+			ASSERT(ds->ds_objset == NULL);
+			ds->ds_objset = os;
+			mutex_exit(&ds->ds_lock);
+		}
 	}
+	*osp = ds->ds_objset;
 	mutex_exit(&ds->ds_opening_lock);
 	return (err);
 }
@@ -986,6 +983,7 @@ dmu_objset_write_ready(zio_t *zio, arc_buf_t *abuf, void *arg)
 	objset_t *os = arg;
 	dnode_phys_t *dnp = &os->os_phys->os_meta_dnode;
 
+	ASSERT(!BP_IS_EMBEDDED(bp));
 	ASSERT3P(bp, ==, os->os_rootbp);
 	ASSERT3U(BP_GET_TYPE(bp), ==, DMU_OT_OBJSET);
 	ASSERT0(BP_GET_LEVEL(bp));
@@ -998,7 +996,7 @@ dmu_objset_write_ready(zio_t *zio, arc_buf_t *abuf, void *arg)
 	 */
 	bp->blk_fill = 0;
 	for (int i = 0; i < dnp->dn_nblkptr; i++)
-		bp->blk_fill += dnp->dn_blkptr[i].blk_fill;
+		bp->blk_fill += BP_GET_FILL(&dnp->dn_blkptr[i]);
 }
 
 /* ARGSUSED */
@@ -1025,7 +1023,7 @@ void
 dmu_objset_sync(objset_t *os, zio_t *pio, dmu_tx_t *tx)
 {
 	int txgoff;
-	zbookmark_t zb;
+	zbookmark_phys_t zb;
 	zio_prop_t zp;
 	zio_t *zio;
 	list_t *list;

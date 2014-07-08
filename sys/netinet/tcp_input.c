@@ -3472,8 +3472,8 @@ tcp_mss_update(struct tcpcb *tp, int offer, int mtuoffer,
 		bcopy(&metrics, metricptr, sizeof(struct hc_metrics_lite));
 
 	/*
-	 * If there's a discovered mtu int tcp hostcache, use it
-	 * else, use the link mtu.
+	 * If there's a discovered mtu in tcp hostcache, use it.
+	 * Else, use the link mtu.
 	 */
 	if (metrics.rmx_mtu)
 		mss = min(metrics.rmx_mtu, maxmtu) - min_protoh;

@@ -10,7 +10,6 @@ LDIRS=	BSD_daemon \
 	bhyve \
 	bootforth \
 	csh \
-	cvsup \
 	diskless \
 	drivers \
 	etc \
@@ -52,10 +51,6 @@ XFILES=	BSD_daemon/FreeBSD.pfa \
 	bootforth/menuconf.4th \
 	bootforth/screen.4th \
 	csh/dot.cshrc \
-	cvsup/README \
-	cvsup/cvs-supfile \
-	cvsup/stable-supfile \
-	cvsup/standard-supfile \
 	diskless/ME \
 	diskless/README.BOOTP \
 	diskless/README.TEMPLATING \

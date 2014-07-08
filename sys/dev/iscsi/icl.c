@@ -61,24 +61,19 @@
 
 SYSCTL_NODE(_kern, OID_AUTO, icl, CTLFLAG_RD, 0, "iSCSI Common Layer");
 static int debug = 1;
-TUNABLE_INT("kern.icl.debug", &debug);
 SYSCTL_INT(_kern_icl, OID_AUTO, debug, CTLFLAG_RWTUN,
     &debug, 0, "Enable debug messages");
 static int coalesce = 1;
-TUNABLE_INT("kern.icl.coalesce", &coalesce);
 SYSCTL_INT(_kern_icl, OID_AUTO, coalesce, CTLFLAG_RWTUN,
     &coalesce, 0, "Try to coalesce PDUs before sending");
 static int partial_receive_len = 128 * 1024;
-TUNABLE_INT("kern.icl.partial_receive_len", &partial_receive_len);
 SYSCTL_INT(_kern_icl, OID_AUTO, partial_receive_len, CTLFLAG_RWTUN,
     &partial_receive_len, 0, "Minimum read size for partially received "
     "data segment");
 static int sendspace = 1048576;
-TUNABLE_INT("kern.icl.sendspace", &sendspace);
 SYSCTL_INT(_kern_icl, OID_AUTO, sendspace, CTLFLAG_RWTUN,
     &sendspace, 0, "Default send socket buffer size");
 static int recvspace = 1048576;
-TUNABLE_INT("kern.icl.recvspace", &recvspace);
 SYSCTL_INT(_kern_icl, OID_AUTO, recvspace, CTLFLAG_RWTUN,
     &recvspace, 0, "Default receive socket buffer size");
 

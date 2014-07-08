@@ -94,21 +94,42 @@ image_copyin(lba_t blk, int fd, uint64_t *sizep)
 int
 image_copyout(int fd)
 {
+	off_t ofs;
+	int error;
+
+	error = image_copyout_region(fd, 0, image_size);
+	if (error)
+		return (error);
+
+	ofs = lseek(fd, 0L, SEEK_CUR);
+	if (ofs == -1)
+		return (0);
+	error = (ftruncate(fd, ofs) == -1) ? errno : 0;
+	return (error);
+}
+
+int
+image_copyout_region(int fd, lba_t blk, lba_t size)
+{
 	char *buffer;
 	off_t ofs;
+	size_t sz;
 	ssize_t rdsz, wrsz;
 	int error;
 
 	ofs = lseek(fd, 0L, SEEK_CUR);
 
-	if (lseek(image_fd, 0, SEEK_SET) != 0)
+	blk *= secsz;
+	if (lseek(image_fd, blk, SEEK_SET) != blk)
 		return (errno);
 	buffer = malloc(BUFFER_SIZE);
 	if (buffer == NULL)
 		return (errno);
 	error = 0;
-	while (1) {
-		rdsz = read(image_fd, buffer, BUFFER_SIZE);
+	size *= secsz;
+	while (size > 0) {
+		sz = (BUFFER_SIZE < size) ? BUFFER_SIZE : size;
+		rdsz = read(image_fd, buffer, sz);
 		if (rdsz <= 0) {
 			error = (rdsz < 0) ? errno : 0;
 			break;
@@ -120,14 +141,10 @@ image_copyout(int fd)
 			error = errno;
 			break;
 		}
+		assert(wrsz == rdsz);
+		size -= rdsz;
 	}
 	free(buffer);
-	if (error)
-		return (error);
-	ofs = lseek(fd, 0L, SEEK_CUR);
-	if (ofs == -1)
-		return (errno);
-	error = (ftruncate(fd, ofs) == -1) ? errno : 0;
 	return (error);
 }
 

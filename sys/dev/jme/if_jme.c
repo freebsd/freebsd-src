@@ -1408,31 +1408,29 @@ jme_dma_free(struct jme_softc *sc)
 
 	/* Tx ring */
 	if (sc->jme_cdata.jme_tx_ring_tag != NULL) {
-		if (sc->jme_cdata.jme_tx_ring_map)
+		if (sc->jme_rdata.jme_tx_ring_paddr)
 			bus_dmamap_unload(sc->jme_cdata.jme_tx_ring_tag,
 			    sc->jme_cdata.jme_tx_ring_map);
-		if (sc->jme_cdata.jme_tx_ring_map &&
-		    sc->jme_rdata.jme_tx_ring)
+		if (sc->jme_rdata.jme_tx_ring)
 			bus_dmamem_free(sc->jme_cdata.jme_tx_ring_tag,
 			    sc->jme_rdata.jme_tx_ring,
 			    sc->jme_cdata.jme_tx_ring_map);
 		sc->jme_rdata.jme_tx_ring = NULL;
-		sc->jme_cdata.jme_tx_ring_map = NULL;
+		sc->jme_rdata.jme_tx_ring_paddr = 0;
 		bus_dma_tag_destroy(sc->jme_cdata.jme_tx_ring_tag);
 		sc->jme_cdata.jme_tx_ring_tag = NULL;
 	}
 	/* Rx ring */
 	if (sc->jme_cdata.jme_rx_ring_tag != NULL) {
-		if (sc->jme_cdata.jme_rx_ring_map)
+		if (sc->jme_rdata.jme_rx_ring_paddr)
 			bus_dmamap_unload(sc->jme_cdata.jme_rx_ring_tag,
 			    sc->jme_cdata.jme_rx_ring_map);
-		if (sc->jme_cdata.jme_rx_ring_map &&
-		    sc->jme_rdata.jme_rx_ring)
+		if (sc->jme_rdata.jme_rx_ring)
 			bus_dmamem_free(sc->jme_cdata.jme_rx_ring_tag,
 			    sc->jme_rdata.jme_rx_ring,
 			    sc->jme_cdata.jme_rx_ring_map);
 		sc->jme_rdata.jme_rx_ring = NULL;
-		sc->jme_cdata.jme_rx_ring_map = NULL;
+		sc->jme_rdata.jme_rx_ring_paddr = 0;
 		bus_dma_tag_destroy(sc->jme_cdata.jme_rx_ring_tag);
 		sc->jme_cdata.jme_rx_ring_tag = NULL;
 	}
@@ -1470,15 +1468,15 @@ jme_dma_free(struct jme_softc *sc)
 
 	/* Shared status block. */
 	if (sc->jme_cdata.jme_ssb_tag != NULL) {
-		if (sc->jme_cdata.jme_ssb_map)
+		if (sc->jme_rdata.jme_ssb_block_paddr)
 			bus_dmamap_unload(sc->jme_cdata.jme_ssb_tag,
 			    sc->jme_cdata.jme_ssb_map);
-		if (sc->jme_cdata.jme_ssb_map && sc->jme_rdata.jme_ssb_block)
+		if (sc->jme_rdata.jme_ssb_block)
 			bus_dmamem_free(sc->jme_cdata.jme_ssb_tag,
 			    sc->jme_rdata.jme_ssb_block,
 			    sc->jme_cdata.jme_ssb_map);
 		sc->jme_rdata.jme_ssb_block = NULL;
-		sc->jme_cdata.jme_ssb_map = NULL;
+		sc->jme_rdata.jme_ssb_block_paddr = 0;
 		bus_dma_tag_destroy(sc->jme_cdata.jme_ssb_tag);
 		sc->jme_cdata.jme_ssb_tag = NULL;
 	}

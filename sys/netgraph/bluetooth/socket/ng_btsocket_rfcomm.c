@@ -328,6 +328,11 @@ ng_btsocket_rfcomm_check_fcs(u_int8_t *data, int type, u_int8_t fcs)
 void
 ng_btsocket_rfcomm_init(void)
 {
+
+	/* Skip initialization of globals for non-default instances. */
+	if (!IS_DEFAULT_VNET(curvnet))
+		return;
+
 	ng_btsocket_rfcomm_debug_level = NG_BTSOCKET_WARN_LEVEL;
 	ng_btsocket_rfcomm_timo = 60;
 

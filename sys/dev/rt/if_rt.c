@@ -140,9 +140,8 @@ static void	rt_ifmedia_sts(struct ifnet *, struct ifmediareq *);
 static SYSCTL_NODE(_hw, OID_AUTO, rt, CTLFLAG_RD, 0, "RT driver parameters");
 #ifdef IF_RT_DEBUG
 static int rt_debug = 0;
-SYSCTL_INT(_hw_rt, OID_AUTO, debug, CTLFLAG_RW, &rt_debug, 0,
+SYSCTL_INT(_hw_rt, OID_AUTO, debug, CTLFLAG_RWTUN, &rt_debug, 0,
     "RT debug level");
-TUNABLE_INT("hw.rt.debug", &rt_debug);
 #endif
 
 static int

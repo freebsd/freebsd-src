@@ -1120,7 +1120,6 @@ conf_verify(struct conf *conf)
 		if (!found_lun) {
 			log_warnx("no LUNs defined for target \"%s\"",
 			    targ->t_name);
-			return (1);
 		}
 	}
 	TAILQ_FOREACH(pg, &conf->conf_portal_groups, pg_next) {
@@ -1209,19 +1208,6 @@ conf_apply(struct conf *oldconf, struct conf *newconf)
 		}
 	}
 
-	if (oldconf->conf_kernel_port_on != newconf->conf_kernel_port_on) {
-		if (newconf->conf_kernel_port_on == true) {
-			log_debugx("enabling CTL iSCSI port");
-			error = kernel_port_on();
-			if (error != 0)
-				log_errx(1, "failed to enable CTL iSCSI port; exiting");
-		} else {
-			error = kernel_port_off();
-			if (error != 0)
-				log_warnx("failed to disable CTL iSCSI port");
-		}
-	}
-
 	/*
 	 * XXX: If target or lun removal fails, we should somehow "move"
 	 * 	the old lun or target into newconf, so that subsequent
@@ -1253,6 +1239,7 @@ conf_apply(struct conf *oldconf, struct conf *newconf)
 				}
 				lun_delete(oldlun);
 			}
+			kernel_port_remove(oldtarg);
 			target_delete(oldtarg);
 			continue;
 		}
@@ -1387,6 +1374,8 @@ conf_apply(struct conf *oldconf, struct conf *newconf)
 				cumulated_error++;
 			}
 		}
+		if (oldtarg == NULL)
+			kernel_port_add(newtarg);
 	}
 
 	/*

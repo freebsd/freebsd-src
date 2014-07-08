@@ -1283,8 +1283,6 @@ OLD_FILES+=usr/include/gcc/4.2/pmmintrin.h
 OLD_FILES+=usr/include/gcc/4.2/tmmintrin.h
 OLD_FILES+=usr/include/gcc/4.2/wmmintrin.h
 OLD_FILES+=usr/include/gcc/4.2/xmmintrin.h
-.elif ${TARGET_ARCH} == "ia64"
-OLD_FILES+=usr/include/gcc/4.2/ia64intrin.h
 .elif ${TARGET_ARCH} == "arm"
 OLD_FILES+=usr/include/gcc/4.2/mmintrin.h
 .elif ${TARGET_ARCH} == "powerpc" || ${TARGET_ARCH} == "powerpc64"
@@ -1833,6 +1831,9 @@ OLD_DIRS+=usr/share/tmac
 .endif
 
 .if ${MK_GSSAPI} == no
+OLD_FILES+=usr/include/gssapi/gssapi.h
+OLD_DIRS+=usr/include/gssapi
+OLD_FILES+=usr/include/gssapi.h
 OLD_FILES+=usr/lib/libgssapi.a
 OLD_FILES+=usr/lib/libgssapi.so
 OLD_LIBS+=usr/lib/libgssapi.so.10
@@ -1976,9 +1977,33 @@ OLD_FILES+=usr/share/man/man8/traceroute6.8.gz
 OLD_FILES+=rescue/ping6
 .endif
 
-#.if ${MK_INFO} == no
-# to be filled in
-#.endif
+.if ${MK_INFO} == no
+OLD_FILES+=usr/bin/info
+OLD_FILES+=usr/bin/infokey
+OLD_FILES+=usr/bin/install-info
+OLD_FILES+=usr/bin/makeinfo
+OLD_FILES+=usr/bin/texindex
+OLD_FILES+=usr/share/info/am-utils.info.gz
+OLD_FILES+=usr/share/info/as-utils.info.gz
+OLD_FILES+=usr/share/info/binutils.info.gz
+OLD_FILES+=usr/share/info/com_err.info.gz
+OLD_FILES+=usr/share/info/diff.info.gz
+OLD_FILES+=usr/share/info/gdb.info.gz
+OLD_FILES+=usr/share/info/gdbint.info.gz
+OLD_FILES+=usr/share/info/gperf.info.gz
+OLD_FILES+=usr/share/info/grep.info.gz
+OLD_FILES+=usr/share/info/groff.info.gz
+OLD_FILES+=usr/share/info/heimdal.info.gz
+OLD_FILES+=usr/share/info/history.info.gz
+OLD_FILES+=usr/share/info/info-stnd.info.gz
+OLD_FILES+=usr/share/info/info.info.gz
+OLD_FILES+=usr/share/info/ld.info.gz
+OLD_FILES+=usr/share/info/readline.info.gz
+OLD_FILES+=usr/share/info/regex.info.gz
+OLD_FILES+=usr/share/info/rluserman.info.gz
+OLD_FILES+=usr/share/info/stabs.info.gz
+OLD_FILES+=usr/share/info/texinfo.info.gz
+.endif
 
 .if ${MK_IPFILTER} == no
 OLD_FILES+=etc/periodic/security/510.ipfdenied
@@ -4689,6 +4714,7 @@ OLD_FILES+=usr/bin/svnliterdump
 OLD_FILES+=usr/bin/svnliteserve
 OLD_FILES+=usr/bin/svnlitesync
 OLD_FILES+=usr/bin/svnliteversion
+OLD_FILES+=usr/share/man/man1/svnlite.1.gz
 .endif
 
 .if ${MK_SVN} == no

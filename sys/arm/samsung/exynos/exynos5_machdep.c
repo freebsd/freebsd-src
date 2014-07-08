@@ -74,6 +74,9 @@ int
 platform_devmap_init(void)
 {
 
+	/* CHIP ID */
+	arm_devmap_add_entry(0x10000000, 0x100000);
+
 	/* UART */
 	arm_devmap_add_entry(0x12C00000, 0x100000);
 

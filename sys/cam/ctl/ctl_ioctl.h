@@ -595,6 +595,45 @@ struct ctl_lun_list {
 };
 
 /*
+ * Port request interface:
+ *
+ * driver:		This is required, and is NUL-terminated a string
+ *			that is the name of the frontend, like "iscsi" .
+ *
+ * reqtype:		The type of request, CTL_REQ_CREATE to create a
+ *			port, CTL_REQ_REMOVE to delete a port.
+ *
+ * num_be_args:		This is the number of frontend-specific arguments
+ *			in the be_args array.
+ *
+ * be_args:		This is an array of frontend-specific arguments.
+ *			See above for a description of the fields in this
+ *			structure.
+ *
+ * status:		Status of the request.
+ *
+ * error_str:		If the status is CTL_LUN_ERROR, this will
+ *			contain a string describing the error.
+ *
+ * kern_be_args:	For kernel use only.
+ */
+typedef enum {
+	CTL_REQ_CREATE,
+	CTL_REQ_REMOVE,
+	CTL_REQ_MODIFY,
+} ctl_req_type;
+
+struct ctl_req {
+	char			driver[CTL_DRIVER_NAME_LEN];
+	ctl_req_type		reqtype;
+	int			num_args;
+	struct ctl_be_arg	*args;
+	ctl_lun_status		status;
+	char			error_str[CTL_ERROR_STR_LEN];
+	struct ctl_be_arg	*kern_args;
+};
+
+/*
  * iSCSI status
  *
  * OK:			Request completed successfully.
@@ -642,6 +681,7 @@ struct ctl_iscsi_handoff_params {
 	char			initiator_name[CTL_ISCSI_NAME_LEN];
 	char			initiator_addr[CTL_ISCSI_ADDR_LEN];
 	char			initiator_alias[CTL_ISCSI_ALIAS_LEN];
+	uint8_t			initiator_isid[6];
 	char			target_name[CTL_ISCSI_NAME_LEN];
 	int			socket;
 	int			portal_group_tag;
@@ -789,6 +829,8 @@ struct ctl_iscsi {
 #define	CTL_ERROR_INJECT_DELETE	_IOW(CTL_MINOR, 0x23, struct ctl_error_desc)
 #define	CTL_SET_PORT_WWNS	_IOW(CTL_MINOR, 0x24, struct ctl_port_entry)
 #define	CTL_ISCSI		_IOWR(CTL_MINOR, 0x25, struct ctl_iscsi)
+#define	CTL_PORT_REQ		_IOWR(CTL_MINOR, 0x26, struct ctl_req)
+#define	CTL_PORT_LIST		_IOWR(CTL_MINOR, 0x27, struct ctl_lun_list)
 
 #endif /* _CTL_IOCTL_H_ */
 

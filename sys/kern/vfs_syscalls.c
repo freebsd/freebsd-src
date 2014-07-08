@@ -828,7 +828,7 @@ chroot_refuse_vdir_fds(fdp)
 
 	FILEDESC_LOCK_ASSERT(fdp);
 
-	for (fd = 0; fd < fdp->fd_nfiles ; fd++) {
+	for (fd = 0; fd <= fdp->fd_lastfile; fd++) {
 		fp = fget_locked(fdp, fd);
 		if (fp == NULL)
 			continue;

@@ -760,7 +760,7 @@ CONFIRMED_UMASK=${NEW_UMASK:-0022}
 # Warn users who still have old rc files
 #
 for file in atm devfs diskless1 diskless2 network network6 pccard \
-  serial syscons sysctl alpha amd64 i386 ia64 sparc64; do
+  serial syscons sysctl alpha amd64 i386 sparc64; do
   if [ -f "${DESTDIR}/etc/rc.${file}" ]; then
     OLD_RC_PRESENT=1
     break
@@ -786,7 +786,7 @@ case "${OLD_RC_PRESENT}" in
     *)
       mkdir -p /var/tmp/mergemaster/old_rc
         for file in atm devfs diskless1 diskless2 network network6 pccard \
-          serial syscons sysctl alpha amd64 i386 ia64 sparc64; do
+          serial syscons sysctl alpha amd64 i386 sparc64; do
           if [ -f "${DESTDIR}/etc/rc.${file}" ]; then
             mv ${DESTDIR}/etc/rc.${file} /var/tmp/mergemaster/old_rc/
           fi

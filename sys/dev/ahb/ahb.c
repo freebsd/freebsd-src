@@ -421,7 +421,6 @@ ahbfree(struct ahb_softc *ahb)
 	case 3:
 		bus_dmamem_free(ahb->ecb_dmat, ahb->ecb_array,
 				ahb->ecb_dmamap);
-		bus_dmamap_destroy(ahb->ecb_dmat, ahb->ecb_dmamap);
 	case 2:
 		bus_dma_tag_destroy(ahb->ecb_dmat);
 	case 1:

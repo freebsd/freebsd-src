@@ -425,7 +425,7 @@ cuse_dev_destroy(struct cuse_dev *cdev)
 	TAILQ_REMOVE(&h_cuse, cdev, entry);
 	cuse_unlock();
 
-	error = ioctl(f_cuse, CUSE_IOCTL_DESTROY_DEV, cdev);
+	error = ioctl(f_cuse, CUSE_IOCTL_DESTROY_DEV, &cdev);
 	if (error)
 		return;
 

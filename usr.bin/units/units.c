@@ -24,6 +24,7 @@ static const char rcsid[] =
 #include <err.h>
 #include <errno.h>
 #include <histedit.h>
+#include <getopt.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -68,15 +69,12 @@ static struct {
 
 static char NULLUNIT[] = "";
 
-#ifdef MSDOS
-#define SEPARATOR      ";"
-#else
 #define SEPARATOR      ":"
-#endif
 
 static int unitcount;
 static int prefixcount;
 static bool verbose = false;
+static bool terse = false;
 static const char * havestr;
 static const char * wantstr;
 
@@ -105,7 +103,7 @@ static const char * prompt(EditLine *e __unused) {
 	return promptstr;
 }
 
-char *
+static char *
 dupstr(const char *str)
 {
 	char *ret;
@@ -117,7 +115,7 @@ dupstr(const char *str)
 }
 
 
-void 
+static void 
 readunits(const char *userfile)
 {
 	FILE *unitfile;
@@ -164,7 +162,7 @@ readunits(const char *userfile)
 			break;
 		linenum++;
 		lineptr = line;
-		if (*lineptr == '/')
+		if (*lineptr == '/' || *lineptr == '#')
 			continue;
 		lineptr += strspn(lineptr, " \n\t");
 		len = strcspn(lineptr, " \n\t");
@@ -222,7 +220,7 @@ readunits(const char *userfile)
 	fclose(unitfile);
 }
 
-void 
+static void 
 initializeunit(struct unittype * theunit)
 {
 	theunit->numerator[0] = theunit->denominator[0] = NULL;
@@ -232,7 +230,7 @@ initializeunit(struct unittype * theunit)
 }
 
 
-int 
+static int 
 addsubunit(char *product[], char *toadd)
 {
 	char **ptr;
@@ -249,7 +247,7 @@ addsubunit(char *product[], char *toadd)
 }
 
 
-void 
+static void 
 showunit(struct unittype * theunit)
 {
 	char **ptr;
@@ -311,7 +309,7 @@ zeroerror(void)
    Returns 0 for successful addition, nonzero on error.
 */
 
-int 
+static int 
 addunit(struct unittype * theunit, const char *toadd, int flip, int quantity)
 {
 	char *scratch, *savescr;
@@ -419,14 +417,14 @@ addunit(struct unittype * theunit, const char *toadd, int flip, int quantity)
 }
 
 
-int 
+static int 
 compare(const void *item1, const void *item2)
 {
 	return strcmp(*(const char * const *)item1, *(const char * const *)item2);
 }
 
 
-void 
+static void 
 sortunit(struct unittype * theunit)
 {
 	char **ptr;
@@ -547,7 +545,7 @@ lookupunit(const char *unit)
 
 #define ERROR 4
 
-int 
+static int 
 reduceproduct(struct unittype * theunit, int flip)
 {
 
@@ -590,7 +588,7 @@ reduceproduct(struct unittype * theunit, int flip)
    Returns 0 on success, or 1 on unknown unit error.
 */
 
-int 
+static int 
 reduceunit(struct unittype * theunit)
 {
 	int ret;
@@ -605,7 +603,7 @@ reduceunit(struct unittype * theunit)
 }
 
 
-int 
+static int 
 compareproducts(char **one, char **two)
 {
 	while (*one || *two) {
@@ -628,7 +626,7 @@ compareproducts(char **one, char **two)
 
 /* Return zero if units are compatible, nonzero otherwise */
 
-int 
+static int 
 compareunits(struct unittype * first, struct unittype * second)
 {
 	return
@@ -637,7 +635,7 @@ compareunits(struct unittype * first, struct unittype * second)
 }
 
 
-int 
+static int 
 completereduce(struct unittype * unit)
 {
 	if (reduceunit(unit))
@@ -647,7 +645,7 @@ completereduce(struct unittype * unit)
 	return 0;
 }
 
-void 
+static void 
 showanswer(struct unittype * have, struct unittype * want)
 {
 	double ans;
@@ -656,14 +654,16 @@ showanswer(struct unittype * have, struct unittype * want)
 		printf("conformability error\n");
 		if (verbose)
 			printf("\t%s = ", havestr);
-		else
+		else if (!terse)
 			printf("\t");
 		showunit(have);
-		if (verbose)
-			printf("\t%s = ", wantstr);
-		else
-			printf("\t");
-		showunit(want);
+		if (!terse) {
+			if (verbose)
+				printf("\t%s = ", wantstr);
+			else
+				printf("\t");
+			showunit(want);
+		}
 	}
 	else if (have->offset != want->offset) {
 		if (want->quantity)
@@ -683,24 +683,37 @@ showanswer(struct unittype * have, struct unittype * want)
 		ans = have->factor / want->factor;
 		if (verbose)
 			printf("\t%s = %.8g * %s\n", havestr, ans, wantstr);
-		else
+		else if (terse) 
+			printf("%.8g\n", ans);
+		else 
 			printf("\t* %.8g\n", ans);
 
 		if (verbose)
 			printf("\t%s = (1 / %.8g) * %s\n", havestr, 1/ans,  wantstr);
-		else
+		else if (!terse)
 			printf("\t/ %.8g\n", 1/ans);
 	}
 }
 
 
-void 
+static void 
 usage(void)
 {
 	fprintf(stderr,
 		"usage: units [-f unitsfile] [-UVq] [from-unit to-unit]\n");
 	exit(3);
 }
+
+static struct option longopts[] = {
+	{"help", no_argument, NULL, 'h'},
+	{"file", required_argument, NULL, 'f'},
+	{"quiet", no_argument, NULL, 'q'},
+	{"terse", no_argument, NULL, 't'},
+	{"unitsfile", no_argument, NULL, 'U'},
+	{"verbose", no_argument, NULL, 'v'},
+	{"version", no_argument, NULL, 'V'},
+	{ 0, 0, 0, 0 }
+};
 
 
 int
@@ -718,7 +731,7 @@ main(int argc, char **argv)
 
 	quiet = false;
 	readfile = false;
-	while ((optchar = getopt(argc, argv, "f:qvUV")) != -1) {
+	while ((optchar = getopt_long(argc, argv, "+hf:qtvUV", longopts, NULL)) != -1) {
 		switch (optchar) {
 		case 'f':
 			readfile = true;
@@ -729,6 +742,9 @@ main(int argc, char **argv)
 			break;
 		case 'q':
 			quiet = true;
+			break;
+		case 't':
+			terse = true;
 			break;
 		case 'v':
 			verbose = true;
@@ -743,6 +759,9 @@ main(int argc, char **argv)
 				printf("Units data file not found");
 			exit(0);
 			break;
+		case 'h':
+			/* FALLTHROUGH */
+
 		default:
 			usage();
 		}
@@ -811,5 +830,5 @@ main(int argc, char **argv)
 
 	history_end(inhistory);
 	el_end(el);
-	return(0);
+	return (0);
 }

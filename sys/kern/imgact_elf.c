@@ -112,10 +112,8 @@ static int compress_core(gzFile, char *, char *, unsigned int,
 
 int __elfN(fallback_brand) = -1;
 SYSCTL_INT(__CONCAT(_kern_elf, __ELF_WORD_SIZE), OID_AUTO,
-    fallback_brand, CTLFLAG_RW, &__elfN(fallback_brand), 0,
+    fallback_brand, CTLFLAG_RWTUN, &__elfN(fallback_brand), 0,
     __XSTRING(__CONCAT(ELF, __ELF_WORD_SIZE)) " brand of last resort");
-TUNABLE_INT("kern.elf" __XSTRING(__ELF_WORD_SIZE) ".fallback_brand",
-    &__elfN(fallback_brand));
 
 static int elf_legacy_coredump = 0;
 SYSCTL_INT(_debug, OID_AUTO, __elfN(legacy_coredump), CTLFLAG_RW, 
@@ -132,7 +130,7 @@ SYSCTL_INT(__CONCAT(_kern_elf, __ELF_WORD_SIZE), OID_AUTO,
     __XSTRING(__CONCAT(ELF, __ELF_WORD_SIZE)) ": enable non-executable stack");
 
 #if __ELF_WORD_SIZE == 32
-#if defined(__amd64__) || defined(__ia64__)
+#if defined(__amd64__)
 int i386_read_exec = 0;
 SYSCTL_INT(_kern_elf32, OID_AUTO, read_exec, CTLFLAG_RW, &i386_read_exec, 0,
     "enable execution from readable segments");
@@ -261,8 +259,6 @@ __elfN(get_brandinfo)(struct image_params *imgp, const char *interp,
 {
 	const Elf_Ehdr *hdr = (const Elf_Ehdr *)imgp->image_header;
 	Elf_Brandinfo *bi;
-	const char *fname_name, *interp_brand_name;
-	int fname_len, interp_len;
 	boolean_t ret;
 	int i;
 
@@ -311,33 +307,6 @@ __elfN(get_brandinfo)(struct image_params *imgp, const char *interp,
 			    == 0)
 				return (bi);
 		}
-	}
-
-	/* Some ABI allows to run the interpreter itself. */
-	for (i = 0; i < MAX_BRANDS; i++) {
-		bi = elf_brand_list[i];
-		if (bi == NULL || bi->flags & BI_BRAND_NOTE_MANDATORY)
-			continue;
-		if (hdr->e_machine != bi->machine ||
-		    (bi->flags & BI_CAN_EXEC_INTERP) == 0)
-			continue;
-		/*
-		 * Compare the interpreter name not the path to allow run it
-		 * from everywhere.
-		 */
-		interp_brand_name = strrchr(bi->interp_path, '/');
-		if (interp_brand_name == NULL)
-			interp_brand_name = bi->interp_path;
-		interp_len = strlen(interp_brand_name);
-		fname_name = strrchr(imgp->args->fname, '/');
-		if (fname_name == NULL)
-			fname_name = imgp->args->fname;
-		fname_len = strlen(fname_name);
-		if (fname_len < interp_len)
-			continue;
-		ret = strncmp(fname_name, interp_brand_name, interp_len);
-		if (ret == 0)
-			return (bi);
 	}
 
 	/* Lacking a recognized interpreter, try the default brand */
@@ -2143,7 +2112,7 @@ __elfN(trans_prot)(Elf_Word flags)
 	if (flags & PF_R)
 		prot |= VM_PROT_READ;
 #if __ELF_WORD_SIZE == 32
-#if defined(__amd64__) || defined(__ia64__)
+#if defined(__amd64__)
 	if (i386_read_exec && (flags & PF_R))
 		prot |= VM_PROT_EXECUTE;
 #endif

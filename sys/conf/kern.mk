@@ -72,15 +72,6 @@ INLINE_LIMIT?=	8000
 .endif
 
 #
-# For IA-64, we use r13 for the kernel globals pointer and we only use
-# a very small subset of float registers for integer divides.
-#
-.if ${MACHINE_CPUARCH} == "ia64"
-CFLAGS+=	-ffixed-r13 -mfixed-range=f32-f127 -fpic #-mno-sdata
-INLINE_LIMIT?=	15000
-.endif
-
-#
 # For sparc64 we want the medany code model so modules may be located
 # anywhere in the 64-bit address space.  We also tell GCC to use floating
 # point emulation.  This avoids using floating point registers for integer
@@ -147,7 +138,7 @@ CFLAGS+=	-ffreestanding
 #
 # GCC SSP support
 #
-.if ${MK_SSP} != "no" && ${MACHINE_CPUARCH} != "ia64" && \
+.if ${MK_SSP} != "no" && \
     ${MACHINE_CPUARCH} != "arm" && ${MACHINE_CPUARCH} != "mips"
 CFLAGS+=	-fstack-protector
 .endif

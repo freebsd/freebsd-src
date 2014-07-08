@@ -68,6 +68,7 @@ __DEFAULT_YES_OPTIONS = \
     CROSS_COMPILER \
     CRYPT \
     CTM \
+    CUSE \
     CXX \
     DICT \
     DMAGENT \
@@ -148,7 +149,7 @@ __DEFAULT_YES_OPTIONS = \
     USB \
     UTMPX \
     VI \
-    VT_SUPPORT \
+    VT \
     WIRELESS \
     WPA_SUPPLICANT_EAPOL \
     ZFS \

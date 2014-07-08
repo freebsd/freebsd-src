@@ -1314,10 +1314,14 @@ cgem_detach(device_t dev)
 	}
 
 	/* Release DMA resources. */
-	if (sc->rxring_dma_map != NULL) {
+	if (sc->rxring != NULL) {
+		if (sc->rxring_physaddr != 0) {
+			bus_dmamap_unload(sc->desc_dma_tag, sc->rxring_dma_map);
+			sc->rxring_physaddr = 0;
+		}
 		bus_dmamem_free(sc->desc_dma_tag, sc->rxring,
 				sc->rxring_dma_map);
-		sc->rxring_dma_map = NULL;
+		sc->rxring = NULL;
 		for (i = 0; i < CGEM_NUM_RX_DESCS; i++)
 			if (sc->rxring_m_dmamap[i] != NULL) {
 				bus_dmamap_destroy(sc->mbuf_dma_tag,
@@ -1325,10 +1329,14 @@ cgem_detach(device_t dev)
 				sc->rxring_m_dmamap[i] = NULL;
 			}
 	}
-	if (sc->txring_dma_map != NULL) {
+	if (sc->txring != NULL) {
+		if (sc->txring_physaddr != 0) {
+			bus_dmamap_unload(sc->desc_dma_tag, sc->txring_dma_map);
+			sc->txring_physaddr = 0;
+		}
 		bus_dmamem_free(sc->desc_dma_tag, sc->txring,
 				sc->txring_dma_map);
-		sc->txring_dma_map = NULL;
+		sc->txring = NULL;
 		for (i = 0; i < CGEM_NUM_TX_DESCS; i++)
 			if (sc->txring_m_dmamap[i] != NULL) {
 				bus_dmamap_destroy(sc->mbuf_dma_tag,

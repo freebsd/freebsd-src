@@ -1210,15 +1210,17 @@ svc_run_internal(SVCGROUP *grp, bool_t ismaster)
 				 */
 				if (pool->sp_assign) {
 					stpref = pool->sp_assign(st, rqstp);
+					rqstp->rq_thread = stpref;
 					STAILQ_INSERT_TAIL(&stpref->st_reqs,
 					    rqstp, rq_link);
 					mtx_unlock(&stpref->st_lock);
-					rqstp->rq_thread = stpref;
 					if (stpref != st)
 						rqstp = NULL;
-				} else
+				} else {
+					rqstp->rq_thread = st;
 					STAILQ_INSERT_TAIL(&st->st_reqs,
 					    rqstp, rq_link);
+				}
 			}
 		} while (rqstp == NULL && stat == XPRT_MOREREQS
 		    && grp->sg_state != SVCPOOL_CLOSING);

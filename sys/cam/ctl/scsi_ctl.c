@@ -77,7 +77,7 @@ typedef enum {
 } ctlfe_ccb_types;
 
 struct ctlfe_softc {
-	struct ctl_frontend fe;
+	struct ctl_port port;
 	path_id_t path_id;
 	u_int	maxio;
 	struct cam_sim *sim;
@@ -198,7 +198,7 @@ MALLOC_DEFINE(M_CTLFE, "CAM CTL FE", "CAM CTL FE interface");
 
 int			ctlfeinitialize(void);
 void			ctlfeshutdown(void);
-static periph_init_t	ctlfeinit;
+static periph_init_t	ctlfeperiphinit;
 static void		ctlfeasync(void *callback_arg, uint32_t code,
 				   struct cam_path *path, void *arg);
 static periph_ctor_t	ctlferegister;
@@ -211,8 +211,6 @@ static void		ctlfedone(struct cam_periph *periph,
 static void 		ctlfe_onoffline(void *arg, int online);
 static void 		ctlfe_online(void *arg);
 static void 		ctlfe_offline(void *arg);
-static int 		ctlfe_targ_enable(void *arg, struct ctl_id targ_id);
-static int 		ctlfe_targ_disable(void *arg, struct ctl_id targ_id);
 static int 		ctlfe_lun_enable(void *arg, struct ctl_id targ_id,
 					 int lun_id);
 static int 		ctlfe_lun_disable(void *arg, struct ctl_id targ_id,
@@ -225,26 +223,18 @@ static void 		ctlfe_dump(void);
 
 static struct periph_driver ctlfe_driver =
 {
-	ctlfeinit, "ctl",
+	ctlfeperiphinit, "ctl",
 	TAILQ_HEAD_INITIALIZER(ctlfe_driver.units), /*generation*/ 0
 };
 
-static int ctlfe_module_event_handler(module_t, int /*modeventtype_t*/, void *);
-
-/*
- * We're not using PERIPHDRIVER_DECLARE(), because it runs at SI_SUB_DRIVERS,
- * and that happens before CTL gets initialised.
- */
-static moduledata_t ctlfe_moduledata = {
-	"ctlfe",
-	ctlfe_module_event_handler,
-	NULL
+static struct ctl_frontend ctlfe_frontend =
+{
+	.name = "camtarget",
+	.init = ctlfeinitialize,
+	.fe_dump = ctlfe_dump,
+	.shutdown = ctlfeshutdown,
 };
-
-DECLARE_MODULE(ctlfe, ctlfe_moduledata, SI_SUB_CONFIGURE, SI_ORDER_FOURTH);
-MODULE_VERSION(ctlfe, 1);
-MODULE_DEPEND(ctlfe, ctl, 1, 1, 1);
-MODULE_DEPEND(ctlfe, cam, 1, 1, 1);
+CTL_FRONTEND_DECLARE(ctlfe, ctlfe_frontend);
 
 extern struct ctl_softc *control_softc;
 
@@ -254,38 +244,26 @@ ctlfeshutdown(void)
 	return;
 }
 
+int
+ctlfeinitialize(void)
+{
+
+	STAILQ_INIT(&ctlfe_softc_list);
+	mtx_init(&ctlfe_list_mtx, ctlfe_mtx_desc, NULL, MTX_DEF);
+	periphdriver_register(&ctlfe_driver);
+	return (0);
+}
+
 void
-ctlfeinit(void)
+ctlfeperiphinit(void)
 {
 	cam_status status;
 
-	STAILQ_INIT(&ctlfe_softc_list);
-
-	mtx_init(&ctlfe_list_mtx, ctlfe_mtx_desc, NULL, MTX_DEF);
-
-	KASSERT(control_softc != NULL, ("CTL is not initialized!"));
-
 	status = xpt_register_async(AC_PATH_REGISTERED | AC_PATH_DEREGISTERED |
 				    AC_CONTRACT, ctlfeasync, NULL, NULL);
-
 	if (status != CAM_REQ_CMP) {
 		printf("ctl: Failed to attach async callback due to CAM "
 		       "status 0x%x!\n", status);
-	}
-}
-
-static int
-ctlfe_module_event_handler(module_t mod, int what, void *arg)
-{
-
-	switch (what) {
-	case MOD_LOAD:
-		periphdriver_register(&ctlfe_driver);
-		return (0);
-	case MOD_UNLOAD:
-		return (EBUSY);
-	default:
-		return (EOPNOTSUPP);
 	}
 }
 
@@ -304,7 +282,7 @@ ctlfeasync(void *callback_arg, uint32_t code, struct cam_path *path, void *arg)
  	 */
 	switch (code) {
 	case AC_PATH_REGISTERED: {
-		struct ctl_frontend *fe;
+		struct ctl_port *port;
 		struct ctlfe_softc *bus_softc;
 		struct ccb_pathinq *cpi;
 		int retval;
@@ -386,56 +364,56 @@ ctlfeasync(void *callback_arg, uint32_t code, struct cam_path *path, void *arg)
 		    MTX_DEF);
 		STAILQ_INIT(&bus_softc->lun_softc_list);
 
-		fe = &bus_softc->fe;
+		port = &bus_softc->port;
+		port->frontend = &ctlfe_frontend;
 
 		/*
 		 * XXX KDM should we be more accurate here ?
 		 */
 		if (cpi->transport == XPORT_FC)
-			fe->port_type = CTL_PORT_FC;
+			port->port_type = CTL_PORT_FC;
+		else if (cpi->transport == XPORT_SAS)
+			port->port_type = CTL_PORT_SAS;
 		else
-			fe->port_type = CTL_PORT_SCSI;
+			port->port_type = CTL_PORT_SCSI;
 
 		/* XXX KDM what should the real number be here? */
-		fe->num_requested_ctl_io = 4096;
+		port->num_requested_ctl_io = 4096;
 		snprintf(bus_softc->port_name, sizeof(bus_softc->port_name),
 			 "%s%d", cpi->dev_name, cpi->unit_number);
 		/*
 		 * XXX KDM it would be nice to allocate storage in the
 		 * frontend structure itself.
 	 	 */
-		fe->port_name = bus_softc->port_name;
-		fe->physical_port = cpi->unit_number;
-		fe->virtual_port = cpi->bus_id;
-		fe->port_online = ctlfe_online;
-		fe->port_offline = ctlfe_offline;
-		fe->onoff_arg = bus_softc;
-		fe->targ_enable = ctlfe_targ_enable;
-		fe->targ_disable = ctlfe_targ_disable;
-		fe->lun_enable = ctlfe_lun_enable;
-		fe->lun_disable = ctlfe_lun_disable;
-		fe->targ_lun_arg = bus_softc;
-		fe->fe_datamove = ctlfe_datamove_done;
-		fe->fe_done = ctlfe_datamove_done;
-		fe->fe_dump = ctlfe_dump;
+		port->port_name = bus_softc->port_name;
+		port->physical_port = cpi->unit_number;
+		port->virtual_port = cpi->bus_id;
+		port->port_online = ctlfe_online;
+		port->port_offline = ctlfe_offline;
+		port->onoff_arg = bus_softc;
+		port->lun_enable = ctlfe_lun_enable;
+		port->lun_disable = ctlfe_lun_disable;
+		port->targ_lun_arg = bus_softc;
+		port->fe_datamove = ctlfe_datamove_done;
+		port->fe_done = ctlfe_datamove_done;
 		/*
 		 * XXX KDM the path inquiry doesn't give us the maximum
 		 * number of targets supported.
 		 */
-		fe->max_targets = cpi->max_target;
-		fe->max_target_id = cpi->max_target;
+		port->max_targets = cpi->max_target;
+		port->max_target_id = cpi->max_target;
 		
 		/*
 		 * XXX KDM need to figure out whether we're the master or
 		 * slave.
 		 */
 #ifdef CTLFEDEBUG
-		printf("%s: calling ctl_frontend_register() for %s%d\n",
+		printf("%s: calling ctl_port_register() for %s%d\n",
 		       __func__, cpi->dev_name, cpi->unit_number);
 #endif
-		retval = ctl_frontend_register(fe, /*master_SC*/ 1);
+		retval = ctl_port_register(port, /*master_SC*/ 1);
 		if (retval != 0) {
-			printf("%s: ctl_frontend_register() failed with "
+			printf("%s: ctl_port_register() failed with "
 			       "error %d!\n", __func__, retval);
 			mtx_destroy(&bus_softc->lun_softc_mtx);
 			free(bus_softc, M_CTLFE);
@@ -466,7 +444,7 @@ ctlfeasync(void *callback_arg, uint32_t code, struct cam_path *path, void *arg)
 			 * XXX KDM are we certain at this point that there
 			 * are no outstanding commands for this frontend?
 			 */
-			ctl_frontend_deregister(&softc->fe);
+			ctl_port_deregister(&softc->port);
 			mtx_destroy(&softc->lun_softc_mtx);
 			free(softc, M_CTLFE);
 		}
@@ -508,18 +486,18 @@ ctlfeasync(void *callback_arg, uint32_t code, struct cam_path *path, void *arg)
 				break;
 			}
 			if (dev_chg->arrived != 0) {
-				retval = ctl_add_initiator(dev_chg->wwpn,
-					softc->fe.targ_port, dev_chg->target);
+				retval = ctl_add_initiator(&softc->port,
+				    dev_chg->target, dev_chg->wwpn, NULL);
 			} else {
-				retval = ctl_remove_initiator(
-					softc->fe.targ_port, dev_chg->target);
+				retval = ctl_remove_initiator(&softc->port,
+				    dev_chg->target);
 			}
 
-			if (retval != 0) {
+			if (retval < 0) {
 				printf("%s: could not %s port %d iid %u "
 				       "WWPN %#jx!\n", __func__,
 				       (dev_chg->arrived != 0) ? "add" :
-				       "remove", softc->fe.targ_port,
+				       "remove", softc->port.targ_port,
 				       dev_chg->target,
 				       (uintmax_t)dev_chg->wwpn);
 			}
@@ -1206,7 +1184,7 @@ ctlfedone(struct cam_periph *periph, union ccb *done_ccb)
 		 * Allocate a ctl_io, pass it to CTL, and wait for the
 		 * datamove or done.
 		 */
-		io = ctl_alloc_io(bus_softc->fe.ctl_pool_ref);
+		io = ctl_alloc_io(bus_softc->port.ctl_pool_ref);
 		if (io == NULL) {
 			atio->ccb_h.flags &= ~CAM_DIR_MASK;
 			atio->ccb_h.flags |= CAM_DIR_NONE;
@@ -1239,7 +1217,7 @@ ctlfedone(struct cam_periph *periph, union ccb *done_ccb)
 		 */
 		io->io_hdr.io_type = CTL_IO_SCSI;
 		io->io_hdr.nexus.initid.id = atio->init_id;
-		io->io_hdr.nexus.targ_port = bus_softc->fe.targ_port;
+		io->io_hdr.nexus.targ_port = bus_softc->port.targ_port;
 		io->io_hdr.nexus.targ_target.id = atio->ccb_h.target_id;
 		io->io_hdr.nexus.targ_lun = atio->ccb_h.target_lun;
 		io->scsiio.tag_num = atio->tag_id;
@@ -1511,7 +1489,7 @@ ctlfedone(struct cam_periph *periph, union ccb *done_ccb)
 		       "seq %#x\n", __func__, inot->ccb_h.status,
 		       inot->tag_id, inot->seq_id);
 
-		io = ctl_alloc_io(bus_softc->fe.ctl_pool_ref);
+		io = ctl_alloc_io(bus_softc->port.ctl_pool_ref);
 		if (io != NULL) {
 			int send_ctl_io;
 
@@ -1522,7 +1500,7 @@ ctlfedone(struct cam_periph *periph, union ccb *done_ccb)
 			io->io_hdr.ctl_private[CTL_PRIV_FRONTEND].ptr =done_ccb;
 			inot->ccb_h.io_ptr = io;
 			io->io_hdr.nexus.initid.id = inot->initiator_id;
-			io->io_hdr.nexus.targ_port = bus_softc->fe.targ_port;
+			io->io_hdr.nexus.targ_port = bus_softc->port.targ_port;
 			io->io_hdr.nexus.targ_target.id = inot->ccb_h.target_id;
 			io->io_hdr.nexus.targ_lun = inot->ccb_h.target_lun;
 			/* XXX KDM should this be the tag_id? */
@@ -1734,7 +1712,7 @@ ctlfe_onoffline(void *arg, int online)
 			 * This should be replaced later with ddb_GetWWNN,
 			 * or possibly a more centralized scheme.  (It
 			 * would be nice to have the WWNN/WWPN for each
-			 * port stored in the ctl_frontend structure.)
+			 * port stored in the ctl_port structure.)
 			 */
 #ifdef RANDOM_WWNN
 			ccb->knob.xport_specific.fc.wwnn = 
@@ -1747,7 +1725,7 @@ ctlfe_onoffline(void *arg, int online)
 				0x0000000fffffff00ULL) |
 				/* Company ID */ 0x5000ED5000000000ULL |
 				/* NL-Port */    0x3000 |
-				/* Port Num */ (bus_softc->fe.targ_port & 0xff);
+				/* Port Num */ (bus_softc->port.targ_port & 0xff);
 
 			/*
 			 * This is a bit of an API break/reversal, but if
@@ -1756,10 +1734,9 @@ ctlfe_onoffline(void *arg, int online)
 			 * using with the frontend code so it's reported
 			 * accurately.
 			 */
-			bus_softc->fe.wwnn = 
-				ccb->knob.xport_specific.fc.wwnn;
-			bus_softc->fe.wwpn = 
-				ccb->knob.xport_specific.fc.wwpn;
+			ctl_port_set_wwns(&bus_softc->port,
+			    true, ccb->knob.xport_specific.fc.wwnn,
+			    true, ccb->knob.xport_specific.fc.wwpn);
 			set_wwnn = 1;
 #else /* RANDOM_WWNN */
 			/*
@@ -1767,18 +1744,17 @@ ctlfe_onoffline(void *arg, int online)
 			 * down to the SIM.  Otherwise, record what the SIM
 			 * has reported.
 			 */
-			if ((bus_softc->fe.wwnn != 0)
-			 && (bus_softc->fe.wwpn != 0)) {
+			if ((bus_softc->port.wwnn != 0)
+			 && (bus_softc->port.wwpn != 0)) {
 				ccb->knob.xport_specific.fc.wwnn =
-					bus_softc->fe.wwnn;
+					bus_softc->port.wwnn;
 				ccb->knob.xport_specific.fc.wwpn =
-					bus_softc->fe.wwpn;
+					bus_softc->port.wwpn;
 				set_wwnn = 1;
 			} else {
-				bus_softc->fe.wwnn =
-					ccb->knob.xport_specific.fc.wwnn;
-				bus_softc->fe.wwpn =
-					ccb->knob.xport_specific.fc.wwpn;
+				ctl_port_set_wwns(&bus_softc->port,
+				    true, ccb->knob.xport_specific.fc.wwnn,
+				    true, ccb->knob.xport_specific.fc.wwpn);
 			}
 #endif /* RANDOM_WWNN */
 
@@ -1925,18 +1901,6 @@ ctlfe_offline(void *arg)
 
 	xpt_path_unlock(path);
 	xpt_free_path(path);
-}
-
-static int
-ctlfe_targ_enable(void *arg, struct ctl_id targ_id)
-{
-	return (0);
-}
-
-static int
-ctlfe_targ_disable(void *arg, struct ctl_id targ_id)
-{
-	return (0);
 }
 
 /*

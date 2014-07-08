@@ -675,8 +675,7 @@ cpu_halt(void)
 void (*cpu_idle_hook)(sbintime_t) = NULL;	/* ACPI idle hook. */
 static int	cpu_ident_amdc1e = 0;	/* AMD C1E supported. */
 static int	idle_mwait = 1;		/* Use MONITOR/MWAIT for short idle. */
-TUNABLE_INT("machdep.idle_mwait", &idle_mwait);
-SYSCTL_INT(_machdep, OID_AUTO, idle_mwait, CTLFLAG_RW, &idle_mwait,
+SYSCTL_INT(_machdep, OID_AUTO, idle_mwait, CTLFLAG_RWTUN, &idle_mwait,
     0, "Use MONITOR/MWAIT for short idle");
 
 #define	STATE_RUNNING	0x0
@@ -1954,6 +1953,14 @@ hammer_time(u_int64_t modulep, u_int64_t physfree)
 	 * initialization can use DELAY().
 	 */
 	clock_init();
+
+	/*
+	 * Use vt(4) by default for UEFI boot (during the sc(4)/vt(4)
+	 * transition).
+	 */
+	if (preload_search_info(kmdp, MODINFO_METADATA | MODINFOMD_EFI_MAP) !=
+	    NULL)
+		vty_set_preferred(VTY_VT);
 
 	/*
 	 * Initialize the console before we print anything out.

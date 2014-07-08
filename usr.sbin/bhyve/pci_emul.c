@@ -376,7 +376,7 @@ pci_emul_mem_handler(struct vmctx *ctx, int vcpu, int dir, uint64_t addr,
 	offset = addr - pdi->pi_bar[bidx].addr;
 
 	if (dir == MEM_F_WRITE) {
-		if (pdi->pi_bar[bidx].type == PCIBAR_MEM32 && size == 8) {
+		if (size == 8) {
 			(*pe->pe_barwrite)(ctx, vcpu, pdi, bidx, offset,
 					   4, *val & 0xffffffff);
 			(*pe->pe_barwrite)(ctx, vcpu, pdi, bidx, offset + 4,
@@ -386,7 +386,7 @@ pci_emul_mem_handler(struct vmctx *ctx, int vcpu, int dir, uint64_t addr,
 					   size, *val);
 		}
 	} else {
-		if (pdi->pi_bar[bidx].type == PCIBAR_MEM32 && size == 8) {
+		if (size == 8) {
 			*val = (*pe->pe_barread)(ctx, vcpu, pdi, bidx,
 						 offset, 4);
 			*val |= (*pe->pe_barread)(ctx, vcpu, pdi, bidx,
@@ -1118,8 +1118,7 @@ init_pci(struct vmctx *ctx)
 	 * Accesses to memory addresses that are not allocated to system
 	 * memory or PCI devices return 0xff's.
 	 */
-	error = vm_get_memory_seg(ctx, 0, &lowmem, NULL);
-	assert(error == 0);
+	lowmem = vm_get_lowmem_size(ctx);
 
 	memset(&pci_mem_hole, 0, sizeof(struct mem_range));
 	pci_mem_hole.name = "PCI hole";

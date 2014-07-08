@@ -158,21 +158,18 @@ static SYSCTL_NODE(_net_inet6_ip6, OID_AUTO, mcast, CTLFLAG_RW, 0,
 
 static u_long in6_mcast_maxgrpsrc = IPV6_MAX_GROUP_SRC_FILTER;
 SYSCTL_ULONG(_net_inet6_ip6_mcast, OID_AUTO, maxgrpsrc,
-    CTLFLAG_RW | CTLFLAG_TUN, &in6_mcast_maxgrpsrc, 0,
+    CTLFLAG_RWTUN, &in6_mcast_maxgrpsrc, 0,
     "Max source filters per group");
-TUNABLE_ULONG("net.inet6.ip6.mcast.maxgrpsrc", &in6_mcast_maxgrpsrc);
 
 static u_long in6_mcast_maxsocksrc = IPV6_MAX_SOCK_SRC_FILTER;
 SYSCTL_ULONG(_net_inet6_ip6_mcast, OID_AUTO, maxsocksrc,
-    CTLFLAG_RW | CTLFLAG_TUN, &in6_mcast_maxsocksrc, 0,
+    CTLFLAG_RWTUN, &in6_mcast_maxsocksrc, 0,
     "Max source filters per socket");
-TUNABLE_ULONG("net.inet6.ip6.mcast.maxsocksrc", &in6_mcast_maxsocksrc);
 
 /* TODO Virtualize this switch. */
 int in6_mcast_loop = IPV6_DEFAULT_MULTICAST_LOOP;
-SYSCTL_INT(_net_inet6_ip6_mcast, OID_AUTO, loop, CTLFLAG_RW | CTLFLAG_TUN,
+SYSCTL_INT(_net_inet6_ip6_mcast, OID_AUTO, loop, CTLFLAG_RWTUN,
     &in6_mcast_loop, 0, "Loopback multicast datagrams by default");
-TUNABLE_INT("net.inet6.ip6.mcast.loop", &in6_mcast_loop);
 
 static SYSCTL_NODE(_net_inet6_ip6_mcast, OID_AUTO, filters,
     CTLFLAG_RD | CTLFLAG_MPSAFE, sysctl_ip6_mcast_filters,

@@ -160,6 +160,7 @@ boolean_t dsl_dir_is_zapified(dsl_dir_t *dd);
 #define	ORIGIN_DIR_NAME "$ORIGIN"
 #define	XLATION_DIR_NAME "$XLATION"
 #define	FREE_DIR_NAME "$FREE"
+#define	LEAK_DIR_NAME "$LEAK"
 
 #ifdef ZFS_DEBUG
 #define	dprintf_dd(dd, fmt, ...) do { \

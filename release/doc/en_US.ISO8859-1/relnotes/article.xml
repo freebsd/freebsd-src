@@ -108,10 +108,6 @@
   <sect2 xml:id="kernel">
     <title>Kernel Changes</title>
 
-    <para revision="260888">The <filename>VT</filename> kernel
-      configuration file has been added, which enables the new
-      <literal>vt</literal> console driver.</para>
-
     <para revision="260903">Support for GPS ports has been added to
       &man.uhso.4;.</para>
 
@@ -160,6 +156,14 @@
       &man.sysctl.8; on &intel; processors with Turbo
       Boost&nbsp;&trade; enabled has been fixed.</para>
 
+    <para revision="268045">The <literal>VT</literal> kernel
+      configuration file has been removed, and the &man.vt.4;
+      driver is included in the <literal>GENERIC</literal> kernel.
+      To enable &man.vt.4;, enter <literal>set kern.vty=vt</literal>
+      at the &man.loader.8; prompt during boot, or add
+      <literal>kern.vty=vt</literal> to &man.loader.conf.5; and
+      reboot the system.</para>
+
     <sect3 xml:id="kernel-virtualization">
       <title>Virtualization support</title>
 
@@ -187,6 +191,15 @@
 
       <para revision="260847">The &man.virtio_random.4; driver has
 	been added to harvest entropy from the host system.</para>
+
+      <para revision="267536" contrib="sponsor"
+	sponsor="&citrix.rd;">Support for running a &os;/&arch.amd64;
+	<application>Xen</application> guest instance as
+	<acronym>PVH</acronym> guest has been added.
+	<acronym>PVH</acronym> mode, short for <quote>Para-Virtualized
+	  Hardware</quote>, uses para-virtualized drivers for boot
+	and I/O, and uses hardware virtualization extensions for all
+	other tasks, without the need for emulation.</para>
     </sect3>
 
     <sect3 xml:id="kernel-arm">
@@ -317,7 +330,7 @@
 
     <para revision="266209">The &man.pmcstat.8; utility has been
       updated to include a new flag, <literal>-l</literal>, which
-      adds event collection after the specified number of
+      ends event collection after the specified number of
       seconds.</para>
 
     <para revision="266463">The default &man.newsyslog.conf.5; now
@@ -352,9 +365,6 @@
     <para revision="261071">&man.jemalloc.3; has been updated to
       version 3.5.0.</para>
 
-    <para revision="266527" role="merged"><application>Sendmail</application>
-      has been updated from 8.14.7 to 8.14.9.</para>
-
     <para revision="261212"><application>bmake</application> has been
       updated to version 20140101.</para>
 
@@ -370,6 +380,12 @@
     <para revision="261991"><application>LLVM</application> and
       <application>Clang</application> have been updated to
       version 3.4.</para>
+
+    <para revision="266527" role="merged"><application>Sendmail</application>
+      has been updated from 8.14.7 to 8.14.9.</para>
+
+    <para revision="267256"><application>OpenSSL</application> has
+      been updated to version 1.0.1h.</para>
   </sect2>
 
   <sect2 xml:id="ports">

@@ -438,14 +438,13 @@ pw_user(struct userconf * cnf, int mode, struct cargs * args)
 				delgrent(GETGRNAM(a_name->val));
 			SETGRENT();
 			while ((grp = GETGRENT()) != NULL) {
-				int i;
+				int i, j;
 				char group[MAXLOGNAME];
 				if (grp->gr_mem != NULL) {
 					for (i = 0; grp->gr_mem[i] != NULL; i++) {
 						if (!strcmp(grp->gr_mem[i], a_name->val)) {
-							while (grp->gr_mem[i] != NULL) {
-								grp->gr_mem[i] = grp->gr_mem[i+1];
-							}	
+							for (j = i; grp->gr_mem[j] != NULL; j++)
+								grp->gr_mem[j] = grp->gr_mem[j+1];
 							strlcpy(group, grp->gr_name, MAXLOGNAME);
 							chggrent(group, grp);
 						}

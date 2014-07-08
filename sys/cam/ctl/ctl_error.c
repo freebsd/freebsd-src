@@ -401,6 +401,11 @@ ctl_build_ua(ctl_ua_type ua_type, struct scsi_sense_data *sense,
 		asc = 0x29;
 		ascq = 0x03;
 		break;
+	case CTL_UA_I_T_NEXUS_LOSS:
+		/* 29h/07h  I_T NEXUS LOSS OCCURRED */
+		asc = 0x29;
+		ascq = 0x07;
+		break;
 	case CTL_UA_LUN_RESET:
 		/* 29h/00h  POWER ON, RESET, OR BUS DEVICE RESET OCCURRED */
 		/*

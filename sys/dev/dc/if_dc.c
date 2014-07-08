@@ -1982,9 +1982,9 @@ dc_dma_free(struct dc_softc *sc)
 
 	/* RX descriptor list. */
 	if (sc->dc_rx_ltag) {
-		if (sc->dc_rx_lmap != NULL)
+		if (sc->dc_ldata.dc_rx_list_paddr != 0)
 			bus_dmamap_unload(sc->dc_rx_ltag, sc->dc_rx_lmap);
-		if (sc->dc_rx_lmap != NULL && sc->dc_ldata.dc_rx_list != NULL)
+		if (sc->dc_ldata.dc_rx_list != NULL)
 			bus_dmamem_free(sc->dc_rx_ltag, sc->dc_ldata.dc_rx_list,
 			    sc->dc_rx_lmap);
 		bus_dma_tag_destroy(sc->dc_rx_ltag);
@@ -1992,9 +1992,9 @@ dc_dma_free(struct dc_softc *sc)
 
 	/* TX descriptor list. */
 	if (sc->dc_tx_ltag) {
-		if (sc->dc_tx_lmap != NULL)
+		if (sc->dc_ldata.dc_tx_list_paddr != 0)
 			bus_dmamap_unload(sc->dc_tx_ltag, sc->dc_tx_lmap);
-		if (sc->dc_tx_lmap != NULL && sc->dc_ldata.dc_tx_list != NULL)
+		if (sc->dc_ldata.dc_tx_list != NULL)
 			bus_dmamem_free(sc->dc_tx_ltag, sc->dc_ldata.dc_tx_list,
 			    sc->dc_tx_lmap);
 		bus_dma_tag_destroy(sc->dc_tx_ltag);
@@ -2002,9 +2002,9 @@ dc_dma_free(struct dc_softc *sc)
 
 	/* multicast setup frame. */
 	if (sc->dc_stag) {
-		if (sc->dc_smap != NULL)
+		if (sc->dc_saddr != 0)
 			bus_dmamap_unload(sc->dc_stag, sc->dc_smap);
-		if (sc->dc_smap != NULL && sc->dc_cdata.dc_sbuf != NULL)
+		if (sc->dc_cdata.dc_sbuf != NULL)
 			bus_dmamem_free(sc->dc_stag, sc->dc_cdata.dc_sbuf,
 			    sc->dc_smap);
 		bus_dma_tag_destroy(sc->dc_stag);

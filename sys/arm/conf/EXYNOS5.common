@@ -51,6 +51,8 @@ options 	PREEMPTION
 options 	FREEBSD_BOOT_LOADER
 options 	VFP			# vfp/neon
 
+options 	SMP
+
 # Debugging
 makeoptions	DEBUG=-g		# Build kernel with gdb(1) debug symbols
 options 	BREAK_TO_DEBUGGER

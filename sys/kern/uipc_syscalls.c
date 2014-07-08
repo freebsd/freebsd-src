@@ -1997,7 +1997,7 @@ sf_mext_free(struct mbuf *mb, void *addr, void *args)
 	m = sf_buf_page(args);
 	sf_buf_free(args);
 	vm_page_lock(m);
-	vm_page_unwire(m, 0);
+	vm_page_unwire(m, PQ_INACTIVE);
 	/*
 	 * Check for the object going away on us. This can
 	 * happen since we don't hold a reference to it.
@@ -3107,7 +3107,7 @@ retry_space:
 				SFSTAT_INC(sf_allocfail);
 				for (int j = i; j < npages; j++) {
 					vm_page_lock(pa[j]);
-					vm_page_unwire(pa[j], 0);
+					vm_page_unwire(pa[j], PQ_INACTIVE);
 					vm_page_unlock(pa[j]);
 				}
 				if (m == NULL)

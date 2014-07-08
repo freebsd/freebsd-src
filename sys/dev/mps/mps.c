@@ -75,7 +75,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/mps/mps_ioctl.h>
 #include <dev/mps/mpsvar.h>
 #include <dev/mps/mps_table.h>
-#include <dev/mps/mps_sas.h>
 
 static int mps_diag_reset(struct mps_softc *sc, int sleep_flag);
 static int mps_init_queues(struct mps_softc *sc);
@@ -328,11 +327,9 @@ mps_transition_operational(struct mps_softc *sc)
 static int
 mps_iocfacts_allocate(struct mps_softc *sc, uint8_t attaching)
 {
-	int error, i;
+	int error;
 	Mpi2IOCFactsReply_t saved_facts;
 	uint8_t saved_mode, reallocating;
-	struct mpssas_lun *lun, *lun_tmp;
-	struct mpssas_target *targ;
 
 	mps_dprint(sc, MPS_TRACE, "%s\n", __func__);
 
@@ -489,27 +486,7 @@ mps_iocfacts_allocate(struct mps_softc *sc, uint8_t attaching)
 	 */
 	if (reallocating) {
 		mps_iocfacts_free(sc);
-
-		/*
-		 * The number of targets is based on IOC Facts, so free all of
-		 * the allocated LUNs for each target and then the target buffer
-		 * itself.
-		 */
-		for (i=0; i< saved_facts.MaxTargets; i++) {
-			targ = &sc->sassc->targets[i];
-			SLIST_FOREACH_SAFE(lun, &targ->luns, lun_link,
-			    lun_tmp) {
-				free(lun, M_MPT2);
-			}
-		}
-		free(sc->sassc->targets, M_MPT2);
-
-		sc->sassc->targets = malloc(sizeof(struct mpssas_target) *
-		    sc->facts->MaxTargets, M_MPT2, M_WAITOK|M_ZERO);
-		if (!sc->sassc->targets) {
-			panic("%s failed to alloc targets with error %d\n",
-			    __func__, ENOMEM);
-		}
+		mpssas_realloc_targets(sc, saved_facts.MaxTargets);
 	}
 
 	/*
