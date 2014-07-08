@@ -12506,7 +12506,6 @@ ctl_datamove(union ctl_io *io)
 		       io->io_hdr.nexus.targ_port,
 		       (uintmax_t)io->io_hdr.nexus.targ_target.id,
 		       io->io_hdr.nexus.targ_lun);
-		io->io_hdr.status = CTL_CMD_ABORTED;
 		io->io_hdr.port_status = 31337;
 		/*
 		 * Note that the backend, in this case, will get the
@@ -13262,24 +13261,18 @@ ctl_datamove_remote(union ctl_io *io)
 
 	/*
 	 * Note that we look for an aborted I/O here, but don't do some of
-	 * the other checks that ctl_datamove() normally does.  We don't
-	 * need to run the task queue, because this I/O is on the ISC
-	 * queue, which is executed by the work thread after the task queue.
+	 * the other checks that ctl_datamove() normally does.
 	 * We don't need to run the datamove delay code, since that should
 	 * have been done if need be on the other controller.
 	 */
 	if (io->io_hdr.flags & CTL_FLAG_ABORT) {
-
 		printf("%s: tag 0x%04x on (%d:%d:%d:%d) aborted\n", __func__,
 		       io->scsiio.tag_num, io->io_hdr.nexus.initid.id,
 		       io->io_hdr.nexus.targ_port,
 		       io->io_hdr.nexus.targ_target.id,
 		       io->io_hdr.nexus.targ_lun);
-		io->io_hdr.status = CTL_CMD_ABORTED;
 		io->io_hdr.port_status = 31338;
-
 		ctl_send_datamove_done(io, /*have_lock*/ 0);
-
 		return;
 	}
 
