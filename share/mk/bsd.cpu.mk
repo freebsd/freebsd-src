@@ -260,3 +260,4 @@ CFLAGS += ${_CPUCFLAGS}
 # Add in any architecture-specific CFLAGS.  
 # These come from make.conf or the command line or the environment.
 CFLAGS += ${CFLAGS.${MACHINE_ARCH}}
+CXXFLAGS += ${CXXFLAGS.${MACHINE_ARCH}}
