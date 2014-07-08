@@ -9,6 +9,10 @@ handbook.
 Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running portupgrade.
 
+20140708:	p17	FreeBSD-SA-14:17.kmem
+	Fix kernel memory disclosure in control messages and SCTP
+	notifications. [SA-14:17]
+
 20140624:	p16	FreeBSD-SA-14:16.file
 			FreeBSD-EN-14:08.heimdal
 
