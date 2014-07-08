@@ -253,6 +253,10 @@
 	<para revision="265348" contrib="sponsor"
 	  sponsor="&netgate;">The &man.ath.hal.4; driver has been
 	  updated to support the Atheros AR1111 chipset.</para>
+
+	<para revision="266770">Support for the &intel;
+	  Centrino&trade; Wireless-N 105 chipset has been
+	  added.</para>
       </sect4>
     </sect3>
 
