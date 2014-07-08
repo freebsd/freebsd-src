@@ -714,6 +714,82 @@
 	been updated to version 0.9.8za.</para>
     </sect2>
 
+    <sect2 xml:id="ports">
+      <title>Ports and Packages</title>
+
+      <important>
+	<para>Note to &os; desktop users: please read this section
+	  carefully, especially before upgrading ports that
+	  depend on <application>Xorg</application>.</para>
+      </important>
+
+      <para>In April 2014, the &os; Ports collection switched to a
+	newer version of <application>Xorg</application> that supports
+	<acronym>KMS</acronym> (Kernel Mode Setting).</para>
+
+      <para>Users upgrading from earlier versions of &os;&nbsp;9.x or
+	&os;&nbsp;8.x should be aware of several things regarding
+	<application>Xorg</application>:</para>
+
+      <para>
+	<itemizedlist>
+	  <listitem>
+	    <para>When applications are built from the &os; Ports
+	      Collection or installed from the <literal><link
+		  xlink:href="https://lists.freebsd.org/pipermail/freebsd-announce/2014-July/001570.html">new_xorg</link></literal>
+	      &man.pkg.8; repository, the newer, KMS-aware version of
+	      <application>Xorg</application> is used.</para>
+	  </listitem>
+
+	  <listitem>
+	    <para>The <acronym>KMS</acronym> version of
+	      <application>Xorg</application> does not switch back to
+	      text mode after leaving the X desktop environment, and
+	      the system console will not be visible.  The new
+	      &man.vt.4; console driver supports graphic consoles and
+	      keeps the console visible after X has exited.  The
+	      &man.vt.4; driver must be compiled into the kernel.
+	      A <filename>VT</filename> kernel configuration example
+	      file is included in &release.current;, but is not
+	      compiled or enabled by default.  See &man.vt.4; and the
+	      <link
+		xlink:href="https://wiki.freebsd.org/VT">vt(4) wiki
+		page</link> for additional information.</para>
+	  </listitem>
+
+	  <listitem>
+	    <para>The older <application>Xorg</application> that does
+	      not support <acronym>KMS</acronym> can still be
+	      installed from the <literal>latest</literal> upstream
+	      &man.pkg.8; repository and the packages included on the
+	      &release.current; DVD.</para>
+
+	    <para>However, it is important to note that some newer
+	      applications require the newer
+	      <application>Xorg</application>, and will not work with
+	      the old version.  The newer
+	      <application>Xorg</application> is recommended, and
+	      should be used unless not compatible with legacy
+	      graphics cards.</para>
+
+	    <para>To continue using the old version of
+	      <application>Xorg</application> when building from the
+	      &os;&nbsp;Ports Collection, set
+	      <literal>WITHOUT_NEW_XORG=yes</literal> in
+	      &man.make.conf.5;.</para>
+
+	    <para>Packages for <application>KDE4</application> are not
+	      available in the default (<literal>latest</literal>)
+	      &man.pkg.8; repository, however are available in the
+	      <literal>new_xorg</literal> repository.  See the <link
+		xlink:href="https://lists.freebsd.org/pipermail/freebsd-announce/2014-July/001570.html">announcement
+		email</link> for details on how to use the
+	      <literal>new_xorg</literal> repository.</para>
+	  </listitem>
+	</itemizedlist>
+      </para>
+    </sect2>
+
     <sect2 xml:id="releng">
       <title>Release Engineering and Integration</title>
 
