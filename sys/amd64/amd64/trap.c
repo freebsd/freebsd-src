@@ -313,6 +313,10 @@ trap(struct trapframe *frame)
 			i = SIGBUS;
 			ucode = BUS_OBJERR;
 			break;
+		case T_ALIGNFLT:
+			i = SIGBUS;
+			ucode = BUS_ADRALN;
+			break;
 		case T_DOUBLEFLT:	/* double fault */
 		default:
 			i = SIGBUS;
