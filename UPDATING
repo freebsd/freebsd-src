@@ -15,6 +15,14 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 8.x IS SLOW ON IA64 OR SUN4V:
 	debugging tools present in HEAD were left in place because
 	sun4v support still needs work to become production ready.
 
+20140708:	p14	FreeBSD-SA-14:17.kmem
+			FreeBSD-EN-14:09.jail
+	Fix kernel memory disclosure in control messages and SCTP
+	notifications. [SA-14:17]
+
+	Fix jail fails to start if WITHOUT_INET/WITHOUT_INET6 is use.
+	[EN-14:09]
+
 20140624:	p13	FreeBSD-SA-14:16.file
 			FreeBSD-EN-14:08.heimdal
 
