@@ -974,7 +974,7 @@ vmx_vminit(struct vm *vm, pmap_t pmap)
 		vmx->cap[i].proc_ctls = procbased_ctls;
 		vmx->cap[i].proc_ctls2 = procbased_ctls2;
 
-		vmx->state[i].lastcpu = -1;
+		vmx->state[i].lastcpu = NOCPU;
 		vmx->state[i].vpid = vpid[i];
 
 		msr_save_area_init(vmx->guest_msrs[i], &guest_msr_count);
@@ -1047,27 +1047,37 @@ vmx_astpending_trace(struct vmx *vmx, int vcpu, uint64_t rip)
 }
 
 static VMM_STAT_INTEL(VCPU_INVVPID_SAVED, "Number of vpid invalidations saved");
+static VMM_STAT_INTEL(VCPU_INVVPID_DONE, "Number of vpid invalidations done");
 
-static void
-vmx_set_pcpu_defaults(struct vmx *vmx, int vcpu, pmap_t pmap)
+/*
+ * Invalidate guest mappings identified by its vpid from the TLB.
+ */
+static __inline void
+vmx_invvpid(struct vmx *vmx, int vcpu, pmap_t pmap, int running)
 {
 	struct vmxstate *vmxstate;
 	struct invvpid_desc invvpid_desc;
 
 	vmxstate = &vmx->state[vcpu];
-	if (vmxstate->lastcpu == curcpu)
+	if (vmxstate->vpid == 0)
 		return;
 
-	vmxstate->lastcpu = curcpu;
+	if (!running) {
+		/*
+		 * Set the 'lastcpu' to an invalid host cpu.
+		 *
+		 * This will invalidate TLB entries tagged with the vcpu's
+		 * vpid the next time it runs via vmx_set_pcpu_defaults().
+		 */
+		vmxstate->lastcpu = NOCPU;
+		return;
+	}
 
-	vmm_stat_incr(vmx->vm, vcpu, VCPU_MIGRATIONS, 1);
-
-	vmcs_write(VMCS_HOST_TR_BASE, vmm_get_host_trbase());
-	vmcs_write(VMCS_HOST_GDTR_BASE, vmm_get_host_gdtrbase());
-	vmcs_write(VMCS_HOST_GS_BASE, vmm_get_host_gsbase());
+	KASSERT(curthread->td_critnest > 0, ("%s: vcpu %d running outside "
+	    "critical section", __func__, vcpu));
 
 	/*
-	 * If we are using VPIDs then invalidate all mappings tagged with 'vpid'
+	 * Invalidate all mappings tagged with 'vpid'
 	 *
 	 * We do this because this vcpu was executing on a different host
 	 * cpu when it last ran. We do not track whether it invalidated
@@ -1081,23 +1091,41 @@ vmx_set_pcpu_defaults(struct vmx *vmx, int vcpu, pmap_t pmap)
 	 * Note also that this will invalidate mappings tagged with 'vpid'
 	 * for "all" EP4TAs.
 	 */
-	if (vmxstate->vpid != 0) {
-		if (pmap->pm_eptgen == vmx->eptgen[curcpu]) {
-			invvpid_desc._res1 = 0;
-			invvpid_desc._res2 = 0;
-			invvpid_desc.vpid = vmxstate->vpid;
-			invvpid_desc.linear_addr = 0;
-			invvpid(INVVPID_TYPE_SINGLE_CONTEXT, invvpid_desc);
-		} else {
-			/*
-			 * The invvpid can be skipped if an invept is going to
-			 * be performed before entering the guest. The invept
-			 * will invalidate combined mappings tagged with
-			 * 'vmx->eptp' for all vpids.
-			 */
-			vmm_stat_incr(vmx->vm, vcpu, VCPU_INVVPID_SAVED, 1);
-		}
+	if (pmap->pm_eptgen == vmx->eptgen[curcpu]) {
+		invvpid_desc._res1 = 0;
+		invvpid_desc._res2 = 0;
+		invvpid_desc.vpid = vmxstate->vpid;
+		invvpid_desc.linear_addr = 0;
+		invvpid(INVVPID_TYPE_SINGLE_CONTEXT, invvpid_desc);
+		vmm_stat_incr(vmx->vm, vcpu, VCPU_INVVPID_DONE, 1);
+	} else {
+		/*
+		 * The invvpid can be skipped if an invept is going to
+		 * be performed before entering the guest. The invept
+		 * will invalidate combined mappings tagged with
+		 * 'vmx->eptp' for all vpids.
+		 */
+		vmm_stat_incr(vmx->vm, vcpu, VCPU_INVVPID_SAVED, 1);
 	}
+}
+
+static void
+vmx_set_pcpu_defaults(struct vmx *vmx, int vcpu, pmap_t pmap)
+{
+	struct vmxstate *vmxstate;
+
+	vmxstate = &vmx->state[vcpu];
+	if (vmxstate->lastcpu == curcpu)
+		return;
+
+	vmxstate->lastcpu = curcpu;
+
+	vmm_stat_incr(vmx->vm, vcpu, VCPU_MIGRATIONS, 1);
+
+	vmcs_write(VMCS_HOST_TR_BASE, vmm_get_host_trbase());
+	vmcs_write(VMCS_HOST_GDTR_BASE, vmm_get_host_gdtrbase());
+	vmcs_write(VMCS_HOST_GS_BASE, vmm_get_host_gsbase());
+	vmx_invvpid(vmx, vcpu, pmap, 1);
 }
 
 /*
@@ -2584,6 +2612,7 @@ vmx_setreg(void *arg, int vcpu, int reg, uint64_t val)
 {
 	int error, hostcpu, running, shadow;
 	uint64_t ctls;
+	pmap_t pmap;
 	struct vmx *vmx = arg;
 
 	running = vcpu_is_running(vmx->vm, vcpu, &hostcpu);
@@ -2620,6 +2649,18 @@ vmx_setreg(void *arg, int vcpu, int reg, uint64_t val)
 			 */			
 			error = vmcs_setreg(&vmx->vmcs[vcpu], running,
 				    VMCS_IDENT(shadow), val);
+		}
+
+		if (reg == VM_REG_GUEST_CR3) {
+			/*
+			 * Invalidate the guest vcpu's TLB mappings to emulate
+			 * the behavior of updating %cr3.
+			 *
+			 * XXX the processor retains global mappings when %cr3
+			 * is updated but vmx_invvpid() does not.
+			 */
+			pmap = vmx->ctx[vcpu].pmap;
+			vmx_invvpid(vmx, vcpu, pmap, running);
 		}
 	}
 
