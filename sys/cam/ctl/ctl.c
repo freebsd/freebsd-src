@@ -11822,7 +11822,7 @@ ctl_lun_reset(struct ctl_lun *lun, union ctl_io *io, ctl_ua_type ua_type)
 		ctl_clear_mask(lun->have_ca, i);
 		lun->pending_sense[i].ua_pending |= ua_type;
 	}
-	mtx_lock(&lun->lun_lock);
+	mtx_unlock(&lun->lun_lock);
 
 	return (0);
 }
