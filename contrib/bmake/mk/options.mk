@@ -1,4 +1,4 @@
-# $Id: options.mk,v 1.7 2013/04/17 20:32:38 sjg Exp $
+# $Id: options.mk,v 1.10 2014/02/11 18:34:48 sjg Exp $
 #
 #	@(#) Copyright (c) 2012, Simon J. Gerraty
 #
@@ -30,15 +30,27 @@ OPTIONS_DEFAULT_VALUES += \
 	${OPTIONS_DEFAULT_YES:O:u:S,$,/yes,}
 
 OPTION_PREFIX ?= MK_
+
+# NO_* takes precedence
+# If both WITH_* and WITHOUT_* are defined, WITHOUT_ wins unless
+# DOMINANT_* is set to "yes"
+# Otherwise WITH_* and WITHOUT_* override the default.
 .for o in ${OPTIONS_DEFAULT_VALUES:M*/*}
-.if ${o:T:tl} == "no"
-.if defined(WITH_${o:H}) && !defined(NO_${o:H}) && !defined(NO${o:H})
+.if defined(NO_${o:H}) || defined(NO${o:H})
+# we cannot do it
+${OPTION_PREFIX}${o:H} ?= no
+.elif defined(WITH_${o:H}) && defined(WITHOUT_${o:H})
+# normally WITHOUT_ wins
+DOMINANT_${o:H} ?= no
+${OPTION_PREFIX}${o:H} ?= ${DOMINANT_${o:H}}
+.elif ${o:T:tl} == "no"
+.if defined(WITH_${o:H})
 ${OPTION_PREFIX}${o:H} ?= yes
 .else
 ${OPTION_PREFIX}${o:H} ?= no
 .endif
 .else
-.if defined(WITHOUT_${o:H}) || defined(NO_${o:H}) || defined(NO${o:H})
+.if defined(WITHOUT_${o:H})
 ${OPTION_PREFIX}${o:H} ?= no
 .else
 ${OPTION_PREFIX}${o:H} ?= yes
@@ -47,11 +59,19 @@ ${OPTION_PREFIX}${o:H} ?= yes
 .endfor
 
 # OPTIONS_DEFAULT_DEPENDENT += FOO_UTILS/FOO
-# if neither WITH[OUT]_FOO_UTILS is set, use value of ${OPTION_PREFIX}FOO
+# If neither WITH[OUT]_FOO_UTILS is set, (see rules above)
+# use the value of ${OPTION_PREFIX}FOO
 .for o in ${OPTIONS_DEFAULT_DEPENDENT:M*/*:O:u}
-.if defined(WITH_${o:H}) && !defined(NO_${o:H}) && !defined(NO${o:H})
+.if defined(NO_${o:H}) || defined(NO${o:H})
+# we cannot do it
+${OPTION_PREFIX}${o:H} ?= no
+.elif defined(WITH_${o:H}) && defined(WITHOUT_${o:H})
+# normally WITHOUT_ wins
+DOMINANT_${o:H} ?= no
+${OPTION_PREFIX}${o:H} ?= ${DOMINANT_${o:H}}
+.elif defined(WITH_${o:H})
 ${OPTION_PREFIX}${o:H} ?= yes
-.elif defined(WITHOUT_${o:H}) || defined(NO_${o:H}) || defined(NO${o:H})
+.elif defined(WITHOUT_${o:H})
 ${OPTION_PREFIX}${o:H} ?= no
 .else
 ${OPTION_PREFIX}${o:H} ?= ${${OPTION_PREFIX}${o:T}}
