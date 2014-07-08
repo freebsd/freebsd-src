@@ -44,7 +44,6 @@
 #include <sys/queue.h>
 #include <sys/ioccom.h>
 #include <sys/conf.h>
-#include <sys/sbuf.h>
 #include <sys/module.h>
 
 struct g_class;
