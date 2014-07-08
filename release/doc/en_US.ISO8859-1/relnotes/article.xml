@@ -662,6 +662,13 @@
 	ends event collection after the specified number of
 	seconds.</para>
 
+      <para revision="267911">The &os;&nbsp;Project has migrated
+	from the <application>GNATS</application> bug tracking system
+	to <application>Bugzilla</application>.  The &man.send-pr.1;
+	utility used for submitting problem reports has been replaced
+	with a stub shell script that instructs to use the Bugzilla
+	web interface.</para>
+
       <sect3 xml:id="periodic-scripts">
 	<title>&man.periodic.8; Scripts</title>
 
