@@ -56,8 +56,8 @@
 
       <para>The procedure for doing a source code based update is
 	described in
-	<uri xlink:href="&url.books.handbook;/synching.html">&url.books.handbook;/synching.html</uri> and
-	<uri xlink:href="&url.books.handbook;/makeworld.html">&url.books.handbook;/makeworld.html</uri>.</para>
+	<uri xlink:href="&url.books.handbook;/synching.html">Synchronizing Source</uri> and
+	<uri xlink:href="&url.books.handbook;/makeworld.html">Rebuilding World</uri>.</para>
 
       <para>For SVN use the <filename>releng/9.3</filename> branch
 	which will be where any upcoming Security Advisories or Errata
@@ -93,7 +93,7 @@
 
       <para>Due to changes in the way that &os; is packaged on the
 	release media, two complications may arise in this process if
-	upgrading from FreeBSD 7.x or 8.x:</para>
+	upgrading from FreeBSD 8.x:</para>
 
       <orderedlist>
 	<listitem>
@@ -134,7 +134,7 @@
       <screen>&prompt.root; freebsd-update install</screen>
 
       <para>At this point, users of systems being upgraded from &os;
-	8.2-RELEASE or earlier will be prompted by
+	8.4-RELEASE or earlier will be prompted by
 	&man.freebsd-update.8; to rebuild all third-party applications
 	(e.g., ports installed from the ports tree) due to updates in
 	system libraries.</para>

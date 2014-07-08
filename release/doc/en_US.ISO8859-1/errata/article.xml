@@ -49,7 +49,7 @@
         &os;.</para>
 
       <para>This errata document for &os; &release.current;
-        will be maintained until the release of &os; &release.next;.</para>
+        will be maintained until the EoL of &os; &release.branch;.</para>
     </abstract>
   </info>
 
