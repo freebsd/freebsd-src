@@ -34,7 +34,7 @@
 .\" $Id: //depot/users/kenm/FreeBSD-test2/usr.sbin/ctladm/ctladm.8#3 $
 .\" $FreeBSD$
 .\"
-.Dd June 15, 2014
+.Dd July 9, 2014
 .Dt CTLADM 8
 .Os
 .Sh NAME
@@ -947,6 +947,10 @@ Specifies LUN product string up to 16 chars.
 Specifies LUN revision string up to 4 chars.
 .It Va scsiname
 Specifies LUN SCSI name string.
+.It Va eui
+Specifies LUN EUI-64 identified.
+.It Va naa
+Specifies LUN NAA identifier.
 .It Va unmap
 Set to "on", enables UNMAP support for the LUN.
 .El

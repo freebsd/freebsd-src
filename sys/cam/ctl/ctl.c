@@ -4432,7 +4432,7 @@ ctl_alloc_lun(struct ctl_softc *ctl_softc, struct ctl_lun *ctl_lun,
 	struct ctl_port *port;
 	struct scsi_vpd_id_descriptor *desc;
 	struct scsi_vpd_id_t10 *t10id;
-	const char *scsiname, *vendor;
+	const char *eui, *naa, *scsiname, *vendor;
 	int lun_number, i, lun_malloced;
 	int devidlen, idlen1, idlen2 = 0, len;
 
@@ -4476,6 +4476,14 @@ ctl_alloc_lun(struct ctl_softc *ctl_softc, struct ctl_lun *ctl_lun,
 		idlen2 = roundup2(strlen(scsiname) + 1, 4);
 		len += sizeof(struct scsi_vpd_id_descriptor) + idlen2;
 	}
+	eui = ctl_get_opt(&be_lun->options, "eui");
+	if (eui != NULL) {
+		len += sizeof(struct scsi_vpd_id_descriptor) + 8;
+	}
+	naa = ctl_get_opt(&be_lun->options, "naa");
+	if (naa != NULL) {
+		len += sizeof(struct scsi_vpd_id_descriptor) + 8;
+	}
 	lun->lun_devid = malloc(sizeof(struct ctl_devid) + len,
 	    M_CTL, M_WAITOK | M_ZERO);
 	lun->lun_devid->len = len;
@@ -4501,6 +4509,24 @@ ctl_alloc_lun(struct ctl_softc *ctl_softc, struct ctl_lun *ctl_lun,
 		    SVPD_ID_TYPE_SCSI_NAME;
 		desc->length = idlen2;
 		strlcpy(desc->identifier, scsiname, idlen2);
+	}
+	if (eui != NULL) {
+		desc = (struct scsi_vpd_id_descriptor *)(&desc->identifier[0] +
+		    desc->length);
+		desc->proto_codeset = SVPD_ID_CODESET_BINARY;
+		desc->id_type = SVPD_ID_PIV | SVPD_ID_ASSOC_LUN |
+		    SVPD_ID_TYPE_EUI64;
+		desc->length = 8;
+		scsi_u64to8b(strtouq(eui, NULL, 0), desc->identifier);
+	}
+	if (naa != NULL) {
+		desc = (struct scsi_vpd_id_descriptor *)(&desc->identifier[0] +
+		    desc->length);
+		desc->proto_codeset = SVPD_ID_CODESET_BINARY;
+		desc->id_type = SVPD_ID_PIV | SVPD_ID_ASSOC_LUN |
+		    SVPD_ID_TYPE_NAA;
+		desc->length = 8;
+		scsi_u64to8b(strtouq(naa, NULL, 0), desc->identifier);
 	}
 
 	mtx_lock(&ctl_softc->ctl_lock);
