@@ -360,6 +360,11 @@
       <filename>/usr/local/etc/newsyslog.conf.d/</filename>
       directories by default for &man.newsyslog.8;.</para>
 
+    <para revision="268461">The &man.readline.3; library is now
+      statically linked in software within the base system, and the
+      shared library is no longer installed, allowing the Ports
+      Collection to use a modern version of the library.</para>
+
     <sect3 xml:id="rc-scripts">
       <title><filename>/etc/rc.d</filename> Scripts</title>
 
