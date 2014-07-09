@@ -618,7 +618,7 @@ vt_kbdevent(keyboard_t *kbd, int event, void *arg)
 	case KBDIO_UNLOADING:
 		mtx_lock(&Giant);
 		vd->vd_keyboard = -1;
-		kbd_release(kbd, (void *)&vd->vd_keyboard);
+		kbd_release(kbd, (void *)vd);
 		mtx_unlock(&Giant);
 		return (0);
 	default:
@@ -1785,11 +1785,10 @@ skip_thunk:
 				return (EINVAL);
 			}
 			i = kbd_allocate(kbd->kb_name, kbd->kb_unit,
-			    (void *)&vd->vd_keyboard, vt_kbdevent, vd);
+			    (void *)vd, vt_kbdevent, vd);
 			if (i >= 0) {
 				if (vd->vd_keyboard != -1) {
-					kbd_release(kbd,
-					    (void *)&vd->vd_keyboard);
+					kbd_release(kbd, (void *)vd);
 				}
 				kbd = kbd_get_keyboard(i);
 				vd->vd_keyboard = i;
@@ -1811,7 +1810,7 @@ skip_thunk:
 				mtx_unlock(&Giant);
 				return (EINVAL);
 			}
-			error = kbd_release(kbd, (void *)&vd->vd_keyboard);
+			error = kbd_release(kbd, (void *)vd);
 			if (error == 0) {
 				vd->vd_keyboard = -1;
 			}
