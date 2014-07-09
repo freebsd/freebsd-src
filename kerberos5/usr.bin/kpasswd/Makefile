@@ -7,6 +7,8 @@ DPADD=	${LIBKRB5} ${LIBHX509} ${LIBROKEN} ${LIBVERS} \
 LDADD=	-lkrb5 -lhx509 -lroken ${LIBVERS} \
 	-lasn1 -lcrypto -lcrypt -lcom_err
 
+NO_PIE=	yes
+
 .include <bsd.prog.mk>
 
 .PATH: ${KRB5DIR}/kpasswd

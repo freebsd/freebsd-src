@@ -4826,7 +4826,7 @@ int t4_cfg_pfvf(struct adapter *adap, unsigned int mbox, unsigned int pf,
  */
 int t4_alloc_vi_func(struct adapter *adap, unsigned int mbox,
 		     unsigned int port, unsigned int pf, unsigned int vf,
-		     unsigned int nmac, u8 *mac, unsigned int *rss_size,
+		     unsigned int nmac, u8 *mac, u16 *rss_size,
 		     unsigned int portfunc, unsigned int idstype)
 {
 	int ret;
@@ -4881,7 +4881,7 @@ int t4_alloc_vi_func(struct adapter *adap, unsigned int mbox,
  */
 int t4_alloc_vi(struct adapter *adap, unsigned int mbox, unsigned int port,
 		unsigned int pf, unsigned int vf, unsigned int nmac, u8 *mac,
-		unsigned int *rss_size)
+		u16 *rss_size)
 {
 	return t4_alloc_vi_func(adap, mbox, port, pf, vf, nmac, mac, rss_size,
 				FW_VI_FUNC_ETH, 0);
@@ -5153,6 +5153,19 @@ int t4_enable_vi(struct adapter *adap, unsigned int mbox, unsigned int viid,
 	c.ien_to_len16 = htonl(V_FW_VI_ENABLE_CMD_IEN(rx_en) |
 			       V_FW_VI_ENABLE_CMD_EEN(tx_en) | FW_LEN16(c));
 	return t4_wr_mbox(adap, mbox, &c, sizeof(c), NULL);
+}
+
+int t4_enable_vi_ns(struct adapter *adap, unsigned int mbox, unsigned int viid,
+		 bool rx_en, bool tx_en)
+{
+	struct fw_vi_enable_cmd c;
+
+	memset(&c, 0, sizeof(c));
+	c.op_to_viid = htonl(V_FW_CMD_OP(FW_VI_ENABLE_CMD) | F_FW_CMD_REQUEST |
+			     F_FW_CMD_EXEC | V_FW_VI_ENABLE_CMD_VIID(viid));
+	c.ien_to_len16 = htonl(V_FW_VI_ENABLE_CMD_IEN(rx_en) |
+			       V_FW_VI_ENABLE_CMD_EEN(tx_en) | FW_LEN16(c));
+	return t4_wr_mbox_ns(adap, mbox, &c, sizeof(c), NULL);
 }
 
 /**
@@ -5623,7 +5636,7 @@ int __devinit t4_port_init(struct port_info *p, int mbox, int pf, int vf)
 	u8 addr[6];
 	int ret, i, j;
 	struct fw_port_cmd c;
-	unsigned int rss_size;
+	u16 rss_size;
 	adapter_t *adap = p->adapter;
 
 	memset(&c, 0, sizeof(c));

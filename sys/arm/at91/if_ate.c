@@ -671,7 +671,6 @@ ate_deactivate(struct ate_softc *sc)
 			bus_dmamem_free(sc->rx_tag, sc->rx_buf[i],
 			    sc->rx_map[i]);
 			sc->rx_buf[i] = NULL;
-			sc->rx_map[i] = NULL;
 		}
 		bus_dma_tag_destroy(sc->rx_tag);
 	}

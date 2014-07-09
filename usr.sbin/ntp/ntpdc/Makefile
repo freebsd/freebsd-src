@@ -22,6 +22,8 @@ CFLAGS+=	-DHAVE_LIBEDIT -DHAVE_READLINE_READLINE_H \
 
 CLEANFILES+= .version version.c
 
+NO_PIE=	yes
+
 version.c:
 	sh -e ${.CURDIR}/../scripts/mkver ntpdc
 

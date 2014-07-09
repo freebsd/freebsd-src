@@ -3,7 +3,7 @@ Pull in r199775 from upstream llvm trunk (by Venkatraman Govindaraju):
   [Sparc] Do not add PC to _GLOBAL_OFFSET_TABLE_ address to access GOT in absolute code.
   Fixes PR#18521
 
-Introduced here: http://svn.freebsd.org/changeset/base/262261
+Introduced here: http://svnweb.freebsd.org/changeset/base/262261
 
 Index: lib/Target/Sparc/SparcAsmPrinter.cpp
 ===================================================================

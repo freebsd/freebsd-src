@@ -173,6 +173,49 @@ ctl_backend_find(char *backend_name)
 	return (NULL);
 }
 
-/*
- * vim: ts=8
- */
+void
+ctl_init_opts(ctl_options_t *opts, int num_args, struct ctl_be_arg *args)
+{
+	struct ctl_option *opt;
+	int i;
+
+	STAILQ_INIT(opts);
+	for (i = 0; i < num_args; i++) {
+		if ((args[i].flags & CTL_BEARG_RD) == 0)
+			continue;
+		if ((args[i].flags & CTL_BEARG_ASCII) == 0)
+			continue;
+		opt = malloc(sizeof(*opt), M_CTL, M_WAITOK);
+		opt->name = malloc(strlen(args[i].kname) + 1, M_CTL, M_WAITOK);
+		strcpy(opt->name, args[i].kname);
+		opt->value = malloc(strlen(args[i].kvalue) + 1, M_CTL, M_WAITOK);
+		strcpy(opt->value, args[i].kvalue);
+		STAILQ_INSERT_TAIL(opts, opt, links);
+	}
+}
+
+void
+ctl_free_opts(ctl_options_t *opts)
+{
+	struct ctl_option *opt;
+
+	while ((opt = STAILQ_FIRST(opts)) != NULL) {
+		STAILQ_REMOVE_HEAD(opts, links);
+		free(opt->name, M_CTL);
+		free(opt->value, M_CTL);
+		free(opt, M_CTL);
+	}
+}
+
+char *
+ctl_get_opt(ctl_options_t *opts, const char *name)
+{
+	struct ctl_option *opt;
+
+	STAILQ_FOREACH(opt, opts, links) {
+		if (strcmp(opt->name, name) == 0) {
+			return (opt->value);
+		}
+	}
+	return (NULL);
+}

@@ -41,6 +41,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/alq.h>
 #include <sys/cons.h>
 #include <sys/cpuset.h>
+#include <sys/kdb.h>
 #include <sys/kernel.h>
 #include <sys/ktr.h>
 #include <sys/libkern.h>
@@ -102,11 +103,6 @@ int	ktr_version = KTR_VERSION;
 struct	ktr_entry ktr_buf_init[KTR_BOOT_ENTRIES];
 struct	ktr_entry *ktr_buf = ktr_buf_init;
 cpuset_t ktr_cpumask = CPUSET_T_INITIALIZER(KTR_CPUMASK);
-static char ktr_cpumask_str[CPUSETBUFSIZ];
-
-TUNABLE_INT("debug.ktr.mask", &ktr_mask);
-
-TUNABLE_STR("debug.ktr.cpumask", ktr_cpumask_str, sizeof(ktr_cpumask_str));
 
 static SYSCTL_NODE(_debug, OID_AUTO, ktr, CTLFLAG_RD, 0, "KTR options");
 
@@ -115,21 +111,6 @@ SYSCTL_INT(_debug_ktr, OID_AUTO, version, CTLFLAG_RD,
 
 SYSCTL_UINT(_debug_ktr, OID_AUTO, compile, CTLFLAG_RD,
     &ktr_compile, 0, "Bitmask of KTR event classes compiled into the kernel");
-
-static void
-ktr_cpumask_initializer(void *dummy __unused)
-{
-
-	/*
-	 * TUNABLE_STR() runs with SI_ORDER_MIDDLE priority, thus it must be
-	 * already set, if necessary.
-	 */
-	if (ktr_cpumask_str[0] != '\0' &&
-	    cpusetobj_strscan(&ktr_cpumask, ktr_cpumask_str) == -1)
-		CPU_FILL(&ktr_cpumask);
-}
-SYSINIT(ktr_cpumask_initializer, SI_SUB_TUNABLES, SI_ORDER_ANY,
-    ktr_cpumask_initializer, NULL);
 
 static int
 sysctl_debug_ktr_cpumask(SYSCTL_HANDLER_ARGS)
@@ -150,7 +131,7 @@ sysctl_debug_ktr_cpumask(SYSCTL_HANDLER_ARGS)
 	return (error);
 }
 SYSCTL_PROC(_debug_ktr, OID_AUTO, cpumask,
-    CTLFLAG_RW | CTLFLAG_MPSAFE | CTLTYPE_STRING, NULL, 0,
+    CTLFLAG_RWTUN | CTLFLAG_MPSAFE | CTLTYPE_STRING, NULL, 0,
     sysctl_debug_ktr_cpumask, "S",
     "Bitmask of CPUs on which KTR logging is enabled");
 
@@ -191,7 +172,7 @@ sysctl_debug_ktr_mask(SYSCTL_HANDLER_ARGS)
 	return (error);
 }
 
-SYSCTL_PROC(_debug_ktr, OID_AUTO, mask, CTLTYPE_UINT|CTLFLAG_RW, 0, 0,
+SYSCTL_PROC(_debug_ktr, OID_AUTO, mask, CTLTYPE_UINT|CTLFLAG_RWTUN, 0, 0,
     sysctl_debug_ktr_mask, "IU",
     "Bitmask of KTR event classes for which logging is enabled");
 
@@ -343,7 +324,7 @@ ktr_tracepoint(u_int mask, const char *file, int line, const char *format,
 #endif
 	int cpu;
 
-	if (panicstr)
+	if (panicstr || kdb_active)
 		return;
 	if ((ktr_mask & mask) == 0 || ktr_buf == NULL)
 		return;

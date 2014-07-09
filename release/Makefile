@@ -100,6 +100,9 @@ CLEANFILES=	packagesystem *.txz MANIFEST system ${IMAGES}
 CLEANFILES+=	${I}.xz
 . endfor
 .endif
+.if defined(WITH_DVD) && !empty(WITH_DVD)
+CLEANFILES+=	pkg-stage
+.endif
 CLEANDIRS=	dist ftp release bootonly dvd
 beforeclean:
 	chflags -R noschg .
@@ -151,11 +154,14 @@ system: packagesystem
 # Install system
 	mkdir -p release
 	cd ${WORLDDIR} && ${IMAKE} installkernel installworld distribution \
-		DESTDIR=${.OBJDIR}/release WITHOUT_RESCUE=1 WITHOUT_KERNEL_SYMBOLS=1 \
-		WITHOUT_PROFILE=1 WITHOUT_SENDMAIL=1 WITHOUT_ATF=1 WITHOUT_LIB32=1
+		DESTDIR=${.OBJDIR}/release MK_RESCUE=no MK_KERNEL_SYMBOLS=no \
+		MK_PROFILE=no MK_SENDMAIL=no MK_TESTS=no MK_LIB32=no \
+		MK_DEBUG_FILES=no
 # Copy distfiles
 	mkdir -p release/usr/freebsd-dist
-	cp *.txz MANIFEST release/usr/freebsd-dist
+	for dist in MANIFEST $$(ls *.txz | grep -v -- '-dbg'); \
+	    do cp $${dist} release/usr/freebsd-dist; \
+	done
 # Copy documentation, if generated
 .if !defined(NODOC)
 	cp reldoc/* release
@@ -172,12 +178,12 @@ bootonly: packagesystem
 # Install system
 	mkdir -p bootonly
 	cd ${WORLDDIR} && ${IMAKE} installkernel installworld distribution \
-	    DESTDIR=${.OBJDIR}/bootonly WITHOUT_AMD=1 WITHOUT_AT=1 \
-	    WITHOUT_GAMES=1 WITHOUT_GROFF=1 \
-	    WITHOUT_INSTALLLIB=1 WITHOUT_LIB32=1 WITHOUT_MAIL=1 \
-	    WITHOUT_NCP=1 WITHOUT_TOOLCHAIN=1 WITHOUT_PROFILE=1 \
-	    WITHOUT_INSTALLIB=1 WITHOUT_RESCUE=1 WITHOUT_DICT=1 \
-	    WITHOUT_KERNEL_SYMBOLS=1
+	    DESTDIR=${.OBJDIR}/bootonly MK_AMD=no MK_AT=no \
+	    MK_GAMES=no MK_GROFF=no \
+	    MK_INSTALLLIB=no MK_LIB32=no MK_MAIL=no \
+	    MK_NCP=no MK_TOOLCHAIN=no MK_PROFILE=no \
+	    MK_INSTALLIB=no MK_RESCUE=no MK_DICT=no \
+	    MK_KERNEL_SYMBOLS=no MK_TESTS=no MK_DEBUG_FILES=no
 # Copy manifest only (no distfiles) to get checksums
 	mkdir -p bootonly/usr/freebsd-dist
 	cp MANIFEST bootonly/usr/freebsd-dist
@@ -196,10 +202,13 @@ dvd:
 # Install system
 	mkdir -p ${.TARGET}
 	cd ${WORLDDIR} && ${IMAKE} installkernel installworld distribution \
-		DESTDIR=${.OBJDIR}/${.TARGET} WITHOUT_RESCUE=1 WITHOUT_KERNEL_SYMBOLS=1
+		DESTDIR=${.OBJDIR}/${.TARGET} MK_RESCUE=no MK_KERNEL_SYMBOLS=no \
+		MK_TESTS=no MK_DEBUG_FILES=no
 # Copy distfiles
 	mkdir -p ${.TARGET}/usr/freebsd-dist
-	cp *.txz MANIFEST ${.TARGET}/usr/freebsd-dist
+	for dist in MANIFEST $$(ls *.txz | grep -v -- '-dbg'); \
+	    do cp $${dist} ${.TARGET}/usr/freebsd-dist; \
+	done
 # Copy documentation, if generated
 .if !defined(NODOC)
 	cp reldoc/* ${.TARGET}

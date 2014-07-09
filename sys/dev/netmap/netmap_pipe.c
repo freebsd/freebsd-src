@@ -391,7 +391,7 @@ err:
 /* netmap_pipe_reg.
  *
  * There are two cases on registration (onoff==1)
- * 
+ *
  * 1.a) state is
  *
  *        usr1 --> e1 --> e2
@@ -403,7 +403,7 @@ err:
  *        usr1 --> e1 --> e2 <-- usr2
  *
  *      and we are e2. Drop the ref e1 is holding.
- *  
+ *
  *  There are two additional cases on unregister (onoff==0)
  *
  *  2.a) state is
@@ -462,14 +462,14 @@ netmap_pipe_reg(struct netmap_adapter *na, int onoff)
  *
  * 1) state is
  *
- *                usr1 --> e1 --> e2 	   
+ *                usr1 --> e1 --> e2
  *
- *    and we are e1 (e2 is not registered, so krings_delete cannot be 
+ *    and we are e1 (e2 is not registered, so krings_delete cannot be
  *    called on it);
  *
  * 2) state is
  *
- *                usr1 --> e1     e2 <-- usr2 
+ *                usr1 --> e1     e2 <-- usr2
  *
  *    and we are either e1 or e2.
  *
@@ -519,7 +519,7 @@ netmap_pipe_dtor(struct netmap_adapter *na)
 		pna->peer_ref = 0;
 		netmap_adapter_put(&pna->peer->up);
 	}
-	if (pna->role == NR_REG_PIPE_MASTER) 
+	if (pna->role == NR_REG_PIPE_MASTER)
 		netmap_pipe_remove(pna->parent, pna);
 	netmap_adapter_put(pna->parent);
 	free(na->ifp, M_DEVBUF);
@@ -587,7 +587,7 @@ netmap_get_pipe_na(struct nmreq *nmr, struct netmap_adapter **na, int create)
 		error = ENODEV;
 		goto put_out;
 	}
-	/* we create both master and slave. 
+	/* we create both master and slave.
          * The endpoint we were asked for holds a reference to
          * the other one.
          */

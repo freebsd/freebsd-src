@@ -912,31 +912,29 @@ vge_dma_free(struct vge_softc *sc)
 
 	/* Tx ring. */
 	if (sc->vge_cdata.vge_tx_ring_tag != NULL) {
-		if (sc->vge_cdata.vge_tx_ring_map)
+		if (sc->vge_rdata.vge_tx_ring_paddr)
 			bus_dmamap_unload(sc->vge_cdata.vge_tx_ring_tag,
 			    sc->vge_cdata.vge_tx_ring_map);
-		if (sc->vge_cdata.vge_tx_ring_map &&
-		    sc->vge_rdata.vge_tx_ring)
+		if (sc->vge_rdata.vge_tx_ring)
 			bus_dmamem_free(sc->vge_cdata.vge_tx_ring_tag,
 			    sc->vge_rdata.vge_tx_ring,
 			    sc->vge_cdata.vge_tx_ring_map);
 		sc->vge_rdata.vge_tx_ring = NULL;
-		sc->vge_cdata.vge_tx_ring_map = NULL;
+		sc->vge_rdata.vge_tx_ring_paddr = 0;
 		bus_dma_tag_destroy(sc->vge_cdata.vge_tx_ring_tag);
 		sc->vge_cdata.vge_tx_ring_tag = NULL;
 	}
 	/* Rx ring. */
 	if (sc->vge_cdata.vge_rx_ring_tag != NULL) {
-		if (sc->vge_cdata.vge_rx_ring_map)
+		if (sc->vge_rdata.vge_rx_ring_paddr)
 			bus_dmamap_unload(sc->vge_cdata.vge_rx_ring_tag,
 			    sc->vge_cdata.vge_rx_ring_map);
-		if (sc->vge_cdata.vge_rx_ring_map &&
-		    sc->vge_rdata.vge_rx_ring)
+		if (sc->vge_rdata.vge_rx_ring)
 			bus_dmamem_free(sc->vge_cdata.vge_rx_ring_tag,
 			    sc->vge_rdata.vge_rx_ring,
 			    sc->vge_cdata.vge_rx_ring_map);
 		sc->vge_rdata.vge_rx_ring = NULL;
-		sc->vge_cdata.vge_rx_ring_map = NULL;
+		sc->vge_rdata.vge_rx_ring_paddr = 0;
 		bus_dma_tag_destroy(sc->vge_cdata.vge_rx_ring_tag);
 		sc->vge_cdata.vge_rx_ring_tag = NULL;
 	}

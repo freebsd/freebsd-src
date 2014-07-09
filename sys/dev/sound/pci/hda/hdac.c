@@ -611,19 +611,19 @@ hdac_dma_alloc_fail:
 static void
 hdac_dma_free(struct hdac_softc *sc, struct hdac_dma *dma)
 {
-	if (dma->dma_map != NULL) {
+	if (dma->dma_paddr != 0) {
 #if 0
 		/* Flush caches */
 		bus_dmamap_sync(dma->dma_tag, dma->dma_map,
 		    BUS_DMASYNC_POSTREAD | BUS_DMASYNC_POSTWRITE);
 #endif
 		bus_dmamap_unload(dma->dma_tag, dma->dma_map);
+		dma->dma_paddr = 0;
 	}
 	if (dma->dma_vaddr != NULL) {
 		bus_dmamem_free(dma->dma_tag, dma->dma_vaddr, dma->dma_map);
 		dma->dma_vaddr = NULL;
 	}
-	dma->dma_map = NULL;
 	if (dma->dma_tag != NULL) {
 		bus_dma_tag_destroy(dma->dma_tag);
 		dma->dma_tag = NULL;

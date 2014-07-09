@@ -137,17 +137,6 @@ LIB2FUNCS_EXTRA+= fixdfdi.c fixunssfsi.c
 .endif
 .endif
 
-.if ${TARGET_CPUARCH} == "ia64"
-#	from config/ia64/t-ia64
-LIB1ASMSRC   = lib1funcs.asm
-LIB1ASMFUNCS = __divxf3 __divdf3 __divsf3 \
-	__divdi3 __moddi3 __udivdi3 __umoddi3 \
-	__divsi3 __modsi3 __udivsi3 __umodsi3 __save_stack_nonlocal \
-	__nonlocal_goto __restore_stack_nonlocal __trampoline \
-	_fixtfdi _fixunstfdi _floatditf
-LIB2ADDEH = unwind-ia64.c unwind-sjlj.c unwind-c.c
-.endif
-
 .if ${TARGET_ARCH} == "powerpc"
 #	from config/rs6000/t-ppccomm
 LIB2FUNCS_EXTRA = tramp.asm
@@ -317,7 +306,7 @@ ${_src:R:S/$/.So/}: ${_src} ${COMMONHDRS}
 # Generated headers
 #
 ${COMMONHDRS}: ${.CURDIR}/../../usr.bin/cc/cc_tools/Makefile
-	${MAKE} -f ${.ALLSRC} MFILE=${.ALLSRC} GCCDIR=${GCCDIR} ${.TARGET}
+	(cd ${.CURDIR}; ${MAKE} -f ${.ALLSRC} MFILE=${.ALLSRC} GCCDIR=${GCCDIR} ${.TARGET})
 
 CLEANFILES += ${COMMONHDRS}
 CLEANFILES += cs-*.h option*

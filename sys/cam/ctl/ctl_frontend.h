@@ -46,12 +46,46 @@ typedef enum {
 	CTL_PORT_STATUS_LUN_ONLINE	= 0x04
 } ctl_port_status;
 
+typedef int (*fe_init_t)(void);
+typedef void (*fe_shutdown_t)(void);
 typedef void (*port_func_t)(void *onoff_arg);
-typedef int (*targ_func_t)(void *arg, struct ctl_id targ_id);
+typedef int (*port_info_func_t)(void *onoff_arg, struct sbuf *sb);
 typedef	int (*lun_func_t)(void *arg, struct ctl_id targ_id, int lun_id);
+typedef	uint32_t (*lun_map_func_t)(void *arg, uint32_t lun_id);
 typedef int (*fe_ioctl_t)(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
 			  struct thread *td);
-typedef int (*fe_devid_t)(struct ctl_scsiio *ctsio, int alloc_len);
+
+#define CTL_FRONTEND_DECLARE(name, driver) \
+	static int name ## _modevent(module_t mod, int type, void *data) \
+	{ \
+		switch (type) { \
+		case MOD_LOAD: \
+			ctl_frontend_register( \
+				(struct ctl_frontend *)data); \
+			break; \
+		case MOD_UNLOAD: \
+			printf(#name " module unload - not possible for this module type\n"); \
+			return EINVAL; \
+		default: \
+			return EOPNOTSUPP; \
+		} \
+		return 0; \
+	} \
+	static moduledata_t name ## _mod = { \
+		#name, \
+		name ## _modevent, \
+		(void *)&driver \
+	}; \
+	DECLARE_MODULE(name, name ## _mod, SI_SUB_CONFIGURE, SI_ORDER_FOURTH); \
+	MODULE_DEPEND(name, ctl, 1, 1, 1); \
+	MODULE_DEPEND(name, cam, 1, 1, 1)
+
+struct ctl_wwpn_iid {
+	int in_use;
+	time_t last_use;
+	uint64_t wwpn;
+	char *name;
+};
 
 /*
  * The ctl_frontend structure is the registration mechanism between a FETD
@@ -104,30 +138,6 @@ typedef int (*fe_devid_t)(struct ctl_scsiio *ctsio, int alloc_len);
  * onoff_arg:		  This is supplied as an argument to port_online()
  *			  and port_offline().  This is specified by the
  *			  FETD.
- *
- * targ_enable():	  This function is called, with targ_lun_arg and a
- * 			  target ID as its arguments, by CTL when it wants
- *			  the FETD to enable a particular target.  targ_enable()
- *			  will always be called for a particular target ID
- * 			  before any LUN is enabled for that target.  If the
- *			  FETD does not support enabling targets, but rather
- *			  LUNs, it should ignore this call and return 0.  If
- *			  the FETD does support enabling targets, it should
- *			  return 0 for success and non-zero if it cannot
- *			  enable the given target.
- *
- *			  TODO:  Add the ability to specify a WWID here.
- *
- * targ_disable():	  This function is called, with targ_lun_arg and a
- *			  target ID as its arguments, by CTL when it wants
- *			  the FETD to disable a particular target.
- *			  targ_disable() will always be called for a
- *			  particular target ID after all LUNs are disabled
- *			  on that particular target.  If the FETD does not
- *			  support enabling targets, it should ignore this
- *			  call and return 0.  If the FETD does support
- *			  enabling targets, it should return 0 for success,
- *			  and non-zero if it cannot disable the given target.
  *
  * lun_enable():	  This function is called, with targ_lun_arg, a target
  *			  ID and a LUN ID as its arguments, by CTL when it
@@ -203,7 +213,8 @@ typedef int (*fe_devid_t)(struct ctl_scsiio *ctsio, int alloc_len);
  * links:		  Linked list pointers, used by CTL.  The FETD
  *			  shouldn't touch this field.
  */
-struct ctl_frontend {
+struct ctl_port {
+	struct ctl_frontend *frontend;
 	ctl_port_type	port_type;		/* passed to CTL */
 	int		num_requested_ctl_io;	/* passed to CTL */
 	char		*port_name;		/* passed to CTL */
@@ -211,25 +222,37 @@ struct ctl_frontend {
 	int		virtual_port;		/* passed to CTL */
 	port_func_t	port_online;		/* passed to CTL */
 	port_func_t	port_offline;		/* passed to CTL */
+	port_info_func_t port_info;		/* passed to CTL */
 	void		*onoff_arg;		/* passed to CTL */
-	targ_func_t	targ_enable;		/* passed to CTL */
-	targ_func_t	targ_disable;		/* passed to CTL */
 	lun_func_t	lun_enable;		/* passed to CTL */
 	lun_func_t	lun_disable;		/* passed to CTL */
-	fe_ioctl_t	ioctl;			/* passed to CTL */
-	fe_devid_t	devid;			/* passed to CTL */
+	lun_map_func_t	lun_map;		/* passed to CTL */
 	void		*targ_lun_arg;		/* passed to CTL */
 	void		(*fe_datamove)(union ctl_io *io); /* passed to CTL */
 	void		(*fe_done)(union ctl_io *io); /* passed to CTL */
-	void		(*fe_dump)(void);	/* passed to CTL */
 	int		max_targets;		/* passed to CTL */
 	int		max_target_id;		/* passed to CTL */
 	int32_t		targ_port;		/* passed back to FETD */
 	void		*ctl_pool_ref;		/* passed back to FETD */
 	uint32_t	max_initiators;		/* passed back to FETD */
+	struct ctl_wwpn_iid *wwpn_iid;		/* used by CTL */
 	uint64_t	wwnn;			/* set by CTL before online */
 	uint64_t	wwpn;			/* set by CTL before online */
 	ctl_port_status	status;			/* used by CTL */
+	ctl_options_t	options;		/* passed to CTL */
+	struct ctl_devid *port_devid;		/* passed to CTL */
+	struct ctl_devid *target_devid;		/* passed to CTL */
+	STAILQ_ENTRY(ctl_port) fe_links;	/* used by CTL */
+	STAILQ_ENTRY(ctl_port) links;		/* used by CTL */
+};
+
+struct ctl_frontend {
+	char		name[CTL_DRIVER_NAME_LEN];	/* passed to CTL */
+	fe_init_t	init;			/* passed to CTL */
+	fe_ioctl_t	ioctl;			/* passed to CTL */
+	void		(*fe_dump)(void);	/* passed to CTL */
+	fe_shutdown_t	shutdown;		/* passed to CTL */
+	STAILQ_HEAD(, ctl_port) port_list;	/* used by CTL */
 	STAILQ_ENTRY(ctl_frontend) links;	/* used by CTL */
 };
 
@@ -237,7 +260,7 @@ struct ctl_frontend {
  * This may block until resources are allocated.  Called at FETD module load
  * time. Returns 0 for success, non-zero for failure.
  */
-int ctl_frontend_register(struct ctl_frontend *fe, int master_SC);
+int ctl_frontend_register(struct ctl_frontend *fe);
 
 /*
  * Called at FETD module unload time.
@@ -246,20 +269,37 @@ int ctl_frontend_register(struct ctl_frontend *fe, int master_SC);
 int ctl_frontend_deregister(struct ctl_frontend *fe);
 
 /*
+ * Find the frontend by its name. Returns NULL if not found.
+ */
+struct ctl_frontend * ctl_frontend_find(char *frontend_name);
+
+/*
+ * This may block until resources are allocated.  Called at FETD module load
+ * time. Returns 0 for success, non-zero for failure.
+ */
+int ctl_port_register(struct ctl_port *port, int master_SC);
+
+/*
+ * Called at FETD module unload time.
+ * Returns 0 for success, non-zero for failure.
+ */
+int ctl_port_deregister(struct ctl_port *port);
+
+/*
  * Called to set the WWNN and WWPN for a particular frontend.
  */
-void ctl_frontend_set_wwns(struct ctl_frontend *fe, int wwnn_valid,
+void ctl_port_set_wwns(struct ctl_port *port, int wwnn_valid,
 			   uint64_t wwnn, int wwpn_valid, uint64_t wwpn);
 
 /*
  * Called to bring a particular frontend online.
  */
-void ctl_frontend_online(struct ctl_frontend *fe);
+void ctl_port_online(struct ctl_port *fe);
 
 /*
  * Called to take a particular frontend offline.
  */
-void ctl_frontend_offline(struct ctl_frontend *fe);
+void ctl_port_offline(struct ctl_port *fe);
 
 /*
  * This routine queues I/O and task management requests from the FETD to the
@@ -280,21 +320,18 @@ int ctl_queue(union ctl_io *io);
 int ctl_queue_sense(union ctl_io *io);
 
 /*
- * This routine adds an initiator to CTL's port database.  The WWPN should
- * be the FC WWPN, if available.  The targ_port field should be the same as
- * the targ_port passed back from CTL in the ctl_frontend structure above.
+ * This routine adds an initiator to CTL's port database.
+ * The iid field should be the same as the iid passed in the nexus of each
+ * ctl_io from this initiator.
+ * The WWPN should be the FC WWPN, if available.
+ */
+int ctl_add_initiator(struct ctl_port *port, int iid, uint64_t wwpn, char *name);
+
+/*
+ * This routine will remove an initiator from CTL's port database.
  * The iid field should be the same as the iid passed in the nexus of each
  * ctl_io from this initiator.
  */
-int ctl_add_initiator(uint64_t wwpn, int32_t targ_port, uint32_t iid);
-
-/*
- * This routine will remove an initiator from CTL's port database.  The
- * targ_port field should be the same as the targ_port passed back in the
- * ctl_frontend structure above.  The iid field should be the same as the
- * iid passed in the nexus of each ctl_io from this initiator.
- */
-int
-ctl_remove_initiator(int32_t targ_port, uint32_t iid);
+int ctl_remove_initiator(struct ctl_port *port, int iid);
 
 #endif	/* _CTL_FRONTEND_H_ */

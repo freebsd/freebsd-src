@@ -1,4 +1,4 @@
-/* $Id: main.c,v 1.49 2014/04/09 21:25:20 Rick.Spates Exp $ */
+/* $Id: main.c,v 1.50 2014/04/22 23:34:47 tom Exp $ */
 
 #include <signal.h>
 #ifndef _WIN32
@@ -166,6 +166,7 @@ done(int k)
     lr0_leaks();
     lalr_leaks();
     mkpar_leaks();
+    mstring_leaks();
     output_leaks();
     reader_leaks();
 #endif

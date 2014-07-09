@@ -464,8 +464,8 @@ static const uint32_t pc_freemask[_NPCM] = {
 static SYSCTL_NODE(_vm, OID_AUTO, pmap, CTLFLAG_RD, 0, "VM/pmap parameters");
 
 /* Superpages utilization enabled = 1 / disabled = 0 */
-static int sp_enabled = 0;
-SYSCTL_INT(_vm_pmap, OID_AUTO, sp_enabled, CTLFLAG_RDTUN, &sp_enabled, 0,
+static int sp_enabled = 1;
+SYSCTL_INT(_vm_pmap, OID_AUTO, sp_enabled, CTLFLAG_RDTUN | CTLFLAG_NOFETCH, &sp_enabled, 0,
     "Are large page mappings enabled?");
 
 SYSCTL_INT(_vm_pmap, OID_AUTO, pv_entry_count, CTLFLAG_RD, &pv_entry_count, 0,
@@ -2405,9 +2405,9 @@ pmap_kenter_internal(vm_offset_t va, vm_offset_t pa, int flags)
 	if (flags & KENTER_CACHE)
 		*ptep = L2_S_PROTO | l2s_mem_types[PTE_CACHE] | pa | L2_S_REF;
 	else if (flags & KENTER_DEVICE)
-		*ptep = L2_S_PROTO |l2s_mem_types[PTE_DEVICE] | pa | L2_S_REF;
+		*ptep = L2_S_PROTO | l2s_mem_types[PTE_DEVICE] | pa | L2_S_REF;
 	else
-		*ptep =L2_S_PROTO | l2s_mem_types[PTE_NOCACHE] | pa | L2_S_REF;
+		*ptep = L2_S_PROTO | l2s_mem_types[PTE_NOCACHE] | pa | L2_S_REF;
 
 	if (flags & KENTER_CACHE) {
 		pmap_set_prot(ptep, VM_PROT_READ | VM_PROT_WRITE,
@@ -3228,8 +3228,7 @@ pmap_enter_object(pmap_t pmap, vm_offset_t start, vm_offset_t end,
 	while (m != NULL && (diff = m->pindex - m_start->pindex) < psize) {
 		va = start + ptoa(diff);
 		if ((va & L1_S_OFFSET) == 0 && L2_NEXT_BUCKET(va) <= end &&
-		    (VM_PAGE_TO_PHYS(m) & L1_S_OFFSET) == 0 &&
-		    sp_enabled && vm_reserv_level_iffullpop(m) == 0 &&
+		    m->psind == 1 && sp_enabled &&
 		    pmap_enter_section(pmap, va, m, prot))
 			m = &m[L1_S_SIZE / PAGE_SIZE - 1];
 		else
@@ -4223,7 +4222,7 @@ pmap_free_pv_chunk(struct pv_chunk *pc)
 	/* entire chunk is free, return it */
 	m = PHYS_TO_VM_PAGE(pmap_kextract((vm_offset_t)pc));
 	pmap_qremove((vm_offset_t)pc, 1);
-	vm_page_unwire(m, 0);
+	vm_page_unwire(m, PQ_INACTIVE);
 	vm_page_free(m);
 	pmap_ptelist_free(&pv_vafree, (vm_offset_t)pc);
 

@@ -31,11 +31,14 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/linker_set.h>
+#include <sys/_iovec.h>
+#include <sys/mman.h>
 
 #include <x86/psl.h>
 #include <x86/segments.h>
 
 #include <machine/vmm.h>
+#include <machine/vmm_instruction_emul.h>
 #include <vmmapi.h>
 
 #include <stdio.h>
@@ -100,16 +103,15 @@ register_default_iohandler(int start, int size)
 int
 emulate_inout(struct vmctx *ctx, int vcpu, struct vm_exit *vmexit, int strict)
 {
-	int addrsize, bytes, flags, in, port, rep;
-	uint64_t gpa, gpaend;
+	int addrsize, bytes, flags, in, port, prot, rep;
 	uint32_t val;
 	inout_func_t handler;
 	void *arg;
-	char *gva;
 	int error, retval;
 	enum vm_reg_name idxreg;
-	uint64_t index, count;
+	uint64_t gla, index, iterations, count;
 	struct vm_inout_str *vis;
+	struct iovec iov[2];
 
 	bytes = vmexit->u.inout.bytes;
 	in = vmexit->u.inout.in;
@@ -139,6 +141,7 @@ emulate_inout(struct vmctx *ctx, int vcpu, struct vm_exit *vmexit, int strict)
 		vis = &vmexit->u.inout_str;
 		rep = vis->inout.rep;
 		addrsize = vis->addrsize;
+		prot = in ? PROT_WRITE : PROT_READ;
 		assert(addrsize == 2 || addrsize == 4 || addrsize == 8);
 
 		/* Index register */
@@ -148,37 +151,46 @@ emulate_inout(struct vmctx *ctx, int vcpu, struct vm_exit *vmexit, int strict)
 		/* Count register */
 		count = vis->count & vie_size2mask(addrsize);
 
-		gpa = vis->gpa;
-		gpaend = rounddown(gpa + PAGE_SIZE, PAGE_SIZE);
-		gva = paddr_guest2host(ctx, gpa, gpaend - gpa);
+		/* Limit number of back-to-back in/out emulations to 16 */
+		iterations = MIN(count, 16);
+		while (iterations > 0) {
+			if (vie_calculate_gla(vis->paging.cpu_mode,
+			    vis->seg_name, &vis->seg_desc, index, bytes,
+			    addrsize, prot, &gla)) {
+				error = vm_inject_exception2(ctx, vcpu,
+				    IDT_GP, 0);
+				assert(error == 0);
+				retval = INOUT_RESTART;
+				break;
+			}
 
-		if (vie_alignment_check(vis->cpl, bytes, vis->cr0,
-		    vis->rflags, vis->gla)) {
-			error = vm_inject_exception2(ctx, vcpu, IDT_AC, 0);
-			assert(error == 0);
-			return (INOUT_RESTART);
-		}
+			error = vm_gla2gpa(ctx, vcpu, &vis->paging, gla, bytes,
+			    prot, iov, nitems(iov));
+			assert(error == 0 || error == 1 || error == -1);
+			if (error) {
+				retval = (error == 1) ? INOUT_RESTART :
+				    INOUT_ERROR;
+				break;
+			}
 
-		while (count != 0 && gpa < gpaend) {
-			/*
-			 * XXX this may not work for unaligned accesses because
-			 * the last access on the page may spill over into the
-			 * adjacent page in the linear address space. This is a
-			 * problem because we don't have a gla2gpa() mapping of
-			 * this adjacent page.
-			 */
-			assert(gpaend - gpa >= bytes);
+			if (vie_alignment_check(vis->paging.cpl, bytes,
+			    vis->cr0, vis->rflags, gla)) {
+				error = vm_inject_exception2(ctx, vcpu,
+				    IDT_AC, 0);
+				assert(error == 0);
+				return (INOUT_RESTART);
+			}
 
 			val = 0;
 			if (!in)
-				bcopy(gva, &val, bytes);
+				vm_copyin(ctx, vcpu, iov, &val, bytes);
 
 			retval = handler(ctx, vcpu, in, port, bytes, &val, arg);
 			if (retval != 0)
 				break;
 
 			if (in)
-				bcopy(&val, gva, bytes);
+				vm_copyout(ctx, vcpu, &val, iov, bytes);
 
 			/* Update index */
 			if (vis->rflags & PSL_D)
@@ -187,8 +199,7 @@ emulate_inout(struct vmctx *ctx, int vcpu, struct vm_exit *vmexit, int strict)
 				index += bytes;
 
 			count--;
-			gva += bytes;
-			gpa += bytes;
+			iterations--;
 		}
 
 		/* Update index register */

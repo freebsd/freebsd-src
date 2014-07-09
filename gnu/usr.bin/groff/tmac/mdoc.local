@@ -35,6 +35,7 @@
 .ds doc-str-Lb-libarchive  Streaming Archive Library (libarchive, \-larchive)
 .ds doc-str-Lb-libbluetooth Bluetooth User Library (libbluetooth, \-lbluetooth)
 .ds doc-str-Lb-libcapsicum Capsicum Library (libcapsicum, \-lcapsicum)
+.ds doc-str-Lb-libcuse     Userland Character Device Library (libcuse, \-lcuse)
 .ds doc-str-Lb-libedit     Line Editor and History Library (libedit, \-ledit)
 .ds doc-str-Lb-libefi      EFI Runtime Services Library (libefi, \-lefi)
 .ds doc-str-Lb-libelf      ELF Parsing Library (libelf, \-lelf)

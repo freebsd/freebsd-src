@@ -41,14 +41,12 @@
 typedef struct zcomp_stats {
 	kstat_named_t zcompstat_attempts;
 	kstat_named_t zcompstat_empty;
-	kstat_named_t zcompstat_skipped_minblocksize;
 	kstat_named_t zcompstat_skipped_insufficient_gain;
 } zcomp_stats_t;
 
 static zcomp_stats_t zcomp_stats = {
 	{ "attempts",			KSTAT_DATA_UINT64 },
 	{ "empty",			KSTAT_DATA_UINT64 },
-	{ "skipped_minblocksize",	KSTAT_DATA_UINT64 },
 	{ "skipped_insufficient_gain",	KSTAT_DATA_UINT64 }
 };
 
@@ -103,7 +101,7 @@ zio_compress_data(enum zio_compress c, void *src, void *dst, size_t s_len,
     size_t minblocksize)
 {
 	uint64_t *word, *word_end;
-	size_t c_len, d_len, r_len;
+	size_t c_len, d_len;
 	zio_compress_info_t *ci = &zio_compress_table[c];
 
 	ASSERT((uint_t)c < ZIO_COMPRESS_FUNCTIONS);
@@ -129,12 +127,7 @@ zio_compress_data(enum zio_compress c, void *src, void *dst, size_t s_len,
 		return (s_len);
 
 	/* Compress at least 12.5% */
-	d_len = P2ALIGN(s_len - (s_len >> 3), minblocksize);
-	if (d_len == 0) {
-		ZCOMPSTAT_BUMP(zcompstat_skipped_minblocksize);
-		return (s_len);
-	}
-
+	d_len = s_len - (s_len >> 3);
 	c_len = ci->ci_compress(src, dst, s_len, d_len, ci->ci_level);
 
 	if (c_len > d_len) {
@@ -142,19 +135,7 @@ zio_compress_data(enum zio_compress c, void *src, void *dst, size_t s_len,
 		return (s_len);
 	}
 
-	/*
-	 * Cool.  We compressed at least as much as we were hoping to.
-	 * For both security and repeatability, pad out the last sector.
-	 */
-	r_len = P2ROUNDUP(c_len, minblocksize);
-	if (r_len > c_len) {
-		bzero((char *)dst + c_len, r_len - c_len);
-		c_len = r_len;
-	}
-
 	ASSERT3U(c_len, <=, d_len);
-	ASSERT(P2PHASE(c_len, minblocksize) == 0);
-
 	return (c_len);
 }
 

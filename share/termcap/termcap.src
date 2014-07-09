@@ -36,7 +36,7 @@
 #	John Kunze, Berkeley
 #	Craig Leres, Berkeley
 #
-# Please submit changes with send-pr(1).
+# Please submit changes via https://bugs.freebsd.org/submit/
 #
 # << EOH - after reordering, above header lines survive and this line dies >>
 #

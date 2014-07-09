@@ -241,6 +241,7 @@ philip [label="Philip Paeps\nphilip@FreeBSD.org\n2004/01/21"]
 phk [label="Poul-Henning Kamp\nphk@FreeBSD.org\n1994/02/21"]
 pho [label="Peter Holm\npho@FreeBSD.org\n2008/11/16"]
 pjd [label="Pawel Jakub Dawidek\npjd@FreeBSD.org\n2004/02/02"]
+pkelsey [label="Patrick Kelsey\pkelsey@FreeBSD.org\n2014/05/29"]
 pluknet [label="Sergey Kandaurov\npluknet@FreeBSD.org\n2010/10/05"]
 ps [label="Paul Saab\nps@FreeBSD.org\n2000/02/23"]
 qingli [label="Qing Li\nqingli@FreeBSD.org\n2005/04/13"]
@@ -508,6 +509,8 @@ jkoshy -> rstone
 
 jlemon -> bmilekic
 jlemon -> brooks
+
+jmallett -> pkelsey
 
 joerg -> brian
 joerg -> eik

@@ -15,6 +15,8 @@ LDADD=	-lkadm5srv -lgssapi -lhdb -lkrb5 -lroken \
 	-lasn1 ${LIBVERS} -lcrypto -lcrypt ${LDAPLDADD}
 LDFLAGS=${LDAPLDFLAGS}
 
+NO_PIE=	yes
+
 .include <bsd.prog.mk>
 
 .PATH: ${KRB5DIR}/kadmin

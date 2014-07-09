@@ -52,6 +52,7 @@ __FBSDID("$FreeBSD$");
 #define	KASSERT(exp,msg)	assert((exp))
 #endif	/* _KERNEL */
 
+#include <machine/vmm_instruction_emul.h>
 #include <x86/psl.h>
 #include <x86/specialreg.h>
 
@@ -102,6 +103,12 @@ static const struct vie_op one_byte_opcodes[256] = {
 	[0x8B] = {
 		.op_byte = 0x8B,
 		.op_type = VIE_OP_TYPE_MOV,
+	},
+	[0xC6] = {
+		/* XXX Group 11 extended opcode - not just MOV */
+		.op_byte = 0xC6,
+		.op_type = VIE_OP_TYPE_MOV,
+		.op_flags = VIE_OP_F_IMM8,
 	},
 	[0xC7] = {
 		.op_byte = 0xC7,
@@ -308,6 +315,15 @@ emulate_mov(void *vm, int vcpuid, uint64_t gpa, struct vie *vie,
 			reg = gpr_map[vie->reg];
 			error = vie_update_register(vm, vcpuid, reg, val, size);
 		}
+		break;
+	case 0xC6:
+		/*
+		 * MOV from imm8 to mem (ModRM:r/m)
+		 * C6/0		mov r/m8, imm8
+		 * REX + C6/0	mov r/m8, imm8
+		 */
+		size = 1;
+		error = memwrite(vm, vcpuid, gpa, vie->immediate, size, arg);
 		break;
 	case 0xC7:
 		/*
@@ -579,12 +595,139 @@ vie_alignment_check(int cpl, int size, uint64_t cr0, uint64_t rf, uint64_t gla)
 	return ((gla & (size - 1)) ? 1 : 0);
 }
 
+int
+vie_canonical_check(enum vm_cpu_mode cpu_mode, uint64_t gla)
+{
+	uint64_t mask;
+
+	if (cpu_mode != CPU_MODE_64BIT)
+		return (0);
+
+	/*
+	 * The value of the bit 47 in the 'gla' should be replicated in the
+	 * most significant 16 bits.
+	 */
+	mask = ~((1UL << 48) - 1);
+	if (gla & (1UL << 47))
+		return ((gla & mask) != mask);
+	else
+		return ((gla & mask) != 0);
+}
+
 uint64_t
 vie_size2mask(int size)
 {
 	KASSERT(size == 1 || size == 2 || size == 4 || size == 8,
 	    ("vie_size2mask: invalid size %d", size));
 	return (size2mask[size]);
+}
+
+int
+vie_calculate_gla(enum vm_cpu_mode cpu_mode, enum vm_reg_name seg,
+    struct seg_desc *desc, uint64_t offset, int length, int addrsize,
+    int prot, uint64_t *gla)
+{
+	uint64_t low_limit, high_limit, segbase;
+	int glasize, type;
+
+	KASSERT(seg >= VM_REG_GUEST_ES && seg <= VM_REG_GUEST_GS,
+	    ("%s: invalid segment %d", __func__, seg));
+	KASSERT(length == 1 || length == 2 || length == 4 || length == 8,
+	    ("%s: invalid operand size %d", __func__, length));
+	KASSERT((prot & ~(PROT_READ | PROT_WRITE)) == 0,
+	    ("%s: invalid prot %#x", __func__, prot));
+
+	if (cpu_mode == CPU_MODE_64BIT) {
+		KASSERT(addrsize == 4 || addrsize == 8, ("%s: invalid address "
+		    "size %d for cpu_mode %d", __func__, addrsize, cpu_mode));
+		glasize = 8;
+	} else {
+		KASSERT(addrsize == 2 || addrsize == 4, ("%s: invalid address "
+		    "size %d for cpu mode %d", __func__, addrsize, cpu_mode));
+		glasize = 4;
+		/*
+		 * If the segment selector is loaded with a NULL selector
+		 * then the descriptor is unusable and attempting to use
+		 * it results in a #GP(0).
+		 */
+		if (SEG_DESC_UNUSABLE(desc))
+			return (-1);
+
+		/* 
+		 * The processor generates a #NP exception when a segment
+		 * register is loaded with a selector that points to a
+		 * descriptor that is not present. If this was the case then
+		 * it would have been checked before the VM-exit.
+		 */
+		KASSERT(SEG_DESC_PRESENT(desc), ("segment %d not present: %#x",
+		    seg, desc->access));
+
+		/*
+		 * The descriptor type must indicate a code/data segment.
+		 */
+		type = SEG_DESC_TYPE(desc);
+		KASSERT(type >= 16 && type <= 31, ("segment %d has invalid "
+		    "descriptor type %#x", seg, type));
+
+		if (prot & PROT_READ) {
+			/* #GP on a read access to a exec-only code segment */
+			if ((type & 0xA) == 0x8)
+				return (-1);
+		}
+
+		if (prot & PROT_WRITE) {
+			/*
+			 * #GP on a write access to a code segment or a
+			 * read-only data segment.
+			 */
+			if (type & 0x8)			/* code segment */
+				return (-1);
+
+			if ((type & 0xA) == 0)		/* read-only data seg */
+				return (-1);
+		}
+
+		/*
+		 * 'desc->limit' is fully expanded taking granularity into
+		 * account.
+		 */
+		if ((type & 0xC) == 0x4) {
+			/* expand-down data segment */
+			low_limit = desc->limit + 1;
+			high_limit = SEG_DESC_DEF32(desc) ? 0xffffffff : 0xffff;
+		} else {
+			/* code segment or expand-up data segment */
+			low_limit = 0;
+			high_limit = desc->limit;
+		}
+
+		while (length > 0) {
+			offset &= vie_size2mask(addrsize);
+			if (offset < low_limit || offset > high_limit)
+				return (-1);
+			offset++;
+			length--;
+		}
+	}
+
+	/*
+	 * In 64-bit mode all segments except %fs and %gs have a segment
+	 * base address of 0.
+	 */
+	if (cpu_mode == CPU_MODE_64BIT && seg != VM_REG_GUEST_FS &&
+	    seg != VM_REG_GUEST_GS) {
+		segbase = 0;
+	} else {
+		segbase = desc->base;
+	}
+
+	/*
+	 * Truncate 'offset' to the effective address size before adding
+	 * it to the segment base.
+	 */
+	offset &= vie_size2mask(addrsize);
+	*gla = (segbase + offset) & vie_size2mask(glasize);
+	return (0);
 }
 
 #ifdef _KERNEL
@@ -599,7 +742,7 @@ vie_init(struct vie *vie)
 }
 
 static int
-pf_error_code(int usermode, int prot, uint64_t pte)
+pf_error_code(int usermode, int prot, int rsvd, uint64_t pte)
 {
 	int error_code = 0;
 
@@ -609,6 +752,8 @@ pf_error_code(int usermode, int prot, uint64_t pte)
 		error_code |= PGEX_W;
 	if (usermode)
 		error_code |= PGEX_U;
+	if (rsvd)
+		error_code |= PGEX_RSV;
 	if (prot & VM_PROT_EXECUTE)
 		error_code |= PGEX_I;
 
@@ -635,31 +780,41 @@ ptp_hold(struct vm *vm, vm_paddr_t ptpphys, size_t len, void **cookie)
 }
 
 int
-vmm_gla2gpa(struct vm *vm, int vcpuid, uint64_t gla, uint64_t ptpphys,
-    uint64_t *gpa, enum vie_paging_mode paging_mode, int cpl, int prot)
+vmm_gla2gpa(struct vm *vm, int vcpuid, struct vm_guest_paging *paging,
+    uint64_t gla, int prot, uint64_t *gpa)
 {
 	int nlevels, pfcode, ptpshift, ptpindex, retval, usermode, writable;
 	u_int retries;
-	uint64_t *ptpbase, pte, pgsize;
+	uint64_t *ptpbase, ptpphys, pte, pgsize;
 	uint32_t *ptpbase32, pte32;
 	void *cookie;
 
-	usermode = (cpl == 3 ? 1 : 0);
+	usermode = (paging->cpl == 3 ? 1 : 0);
 	writable = prot & VM_PROT_WRITE;
 	cookie = NULL;
 	retval = 0;
 	retries = 0;
 restart:
+	ptpphys = paging->cr3;		/* root of the page tables */
 	ptp_release(&cookie);
 	if (retries++ > 0)
 		maybe_yield();
 
-	if (paging_mode == PAGING_MODE_FLAT) {
+	if (vie_canonical_check(paging->cpu_mode, gla)) {
+		/*
+		 * XXX assuming a non-stack reference otherwise a stack fault
+		 * should be generated.
+		 */
+		vm_inject_gp(vm, vcpuid);
+		goto fault;
+	}
+
+	if (paging->paging_mode == PAGING_MODE_FLAT) {
 		*gpa = gla;
 		goto done;
 	}
 
-	if (paging_mode == PAGING_MODE_32) {
+	if (paging->paging_mode == PAGING_MODE_32) {
 		nlevels = 2;
 		while (--nlevels >= 0) {
 			/* Zero out the lower 12 bits. */
@@ -679,13 +834,11 @@ restart:
 			if ((pte32 & PG_V) == 0 ||
 			    (usermode && (pte32 & PG_U) == 0) ||
 			    (writable && (pte32 & PG_RW) == 0)) {
-				pfcode = pf_error_code(usermode, prot, pte32);
-				vm_inject_pf(vm, vcpuid, pfcode);
-				goto pagefault;
+				pfcode = pf_error_code(usermode, prot, 0,
+				    pte32);
+				vm_inject_pf(vm, vcpuid, pfcode, gla);
+				goto fault;
 			}
-
-			if (writable && (pte32 & PG_RW) == 0)
-				goto error;
 
 			/*
 			 * Emulate the x86 MMU's management of the accessed
@@ -722,7 +875,7 @@ restart:
 		goto done;
 	}
 
-	if (paging_mode == PAGING_MODE_PAE) {
+	if (paging->paging_mode == PAGING_MODE_PAE) {
 		/* Zero out the lower 5 bits and the upper 32 bits */
 		ptpphys &= 0xffffffe0UL;
 
@@ -735,9 +888,9 @@ restart:
 		pte = ptpbase[ptpindex];
 
 		if ((pte & PG_V) == 0) {
-			pfcode = pf_error_code(usermode, prot, pte);
-			vm_inject_pf(vm, vcpuid, pfcode);
-			goto pagefault;
+			pfcode = pf_error_code(usermode, prot, 0, pte);
+			vm_inject_pf(vm, vcpuid, pfcode, gla);
+			goto fault;
 		}
 
 		ptpphys = pte;
@@ -762,13 +915,10 @@ restart:
 		if ((pte & PG_V) == 0 ||
 		    (usermode && (pte & PG_U) == 0) ||
 		    (writable && (pte & PG_RW) == 0)) {
-			pfcode = pf_error_code(usermode, prot, pte);
-			vm_inject_pf(vm, vcpuid, pfcode);
-			goto pagefault;
+			pfcode = pf_error_code(usermode, prot, 0, pte);
+			vm_inject_pf(vm, vcpuid, pfcode, gla);
+			goto fault;
 		}
-
-		if (writable && (pte & PG_RW) == 0)
-			goto error;
 
 		/* Set the accessed bit in the page table entry */
 		if ((pte & PG_A) == 0) {
@@ -779,10 +929,12 @@ restart:
 		}
 
 		if (nlevels > 0 && (pte & PG_PS) != 0) {
-			if (pgsize > 1 * GB)
-				goto error;
-			else
-				break;
+			if (pgsize > 1 * GB) {
+				pfcode = pf_error_code(usermode, prot, 1, pte);
+				vm_inject_pf(vm, vcpuid, pfcode, gla);
+				goto fault;
+			}
+			break;
 		}
 
 		ptpphys = pte;
@@ -803,15 +955,14 @@ done:
 error:
 	retval = -1;
 	goto done;
-pagefault:
+fault:
 	retval = 1;
 	goto done;
 }
 
 int
-vmm_fetch_instruction(struct vm *vm, int cpuid, uint64_t rip, int inst_length,
-		      uint64_t cr3, enum vie_paging_mode paging_mode, int cpl,
-		      struct vie *vie)
+vmm_fetch_instruction(struct vm *vm, int cpuid, struct vm_guest_paging *paging,
+    uint64_t rip, int inst_length, struct vie *vie)
 {
 	int n, error, prot;
 	uint64_t gpa, off;
@@ -827,8 +978,7 @@ vmm_fetch_instruction(struct vm *vm, int cpuid, uint64_t rip, int inst_length,
 
 	/* Copy the instruction into 'vie' */
 	while (vie->num_valid < inst_length) {
-		error = vmm_gla2gpa(vm, cpuid, rip, cr3, &gpa, paging_mode,
-		    cpl, prot);
+		error = vmm_gla2gpa(vm, cpuid, paging, rip, prot, &gpa);
 		if (error)
 			return (error);
 
@@ -931,7 +1081,7 @@ decode_opcode(struct vie *vie)
 }
 
 static int
-decode_modrm(struct vie *vie, enum vie_cpu_mode cpu_mode)
+decode_modrm(struct vie *vie, enum vm_cpu_mode cpu_mode)
 {
 	uint8_t x;
 
@@ -1211,7 +1361,7 @@ verify_gla(struct vm *vm, int cpuid, uint64_t gla, struct vie *vie)
 
 int
 vmm_decode_instruction(struct vm *vm, int cpuid, uint64_t gla,
-		       enum vie_cpu_mode cpu_mode, struct vie *vie)
+		       enum vm_cpu_mode cpu_mode, struct vie *vie)
 {
 
 	if (cpu_mode == CPU_MODE_64BIT) {
@@ -1243,43 +1393,5 @@ vmm_decode_instruction(struct vm *vm, int cpuid, uint64_t gla,
 	vie->decoded = 1;	/* success */
 
 	return (0);
-}
-
-uint64_t
-vie_segbase(enum vm_reg_name seg, enum vie_cpu_mode cpu_mode,
-    const struct seg_desc *desc)
-{
-	int basesize;
-
-	basesize = 4;	/* default segment width in bytes */
-
-	switch (seg) {
-	case VM_REG_GUEST_ES:
-	case VM_REG_GUEST_CS:
-	case VM_REG_GUEST_SS:
-	case VM_REG_GUEST_DS:
-		if (cpu_mode == CPU_MODE_64BIT) {
-			/*
-			 * Segments having an implicit base address of 0
-			 * in 64-bit mode.
-			 */
-			return (0);
-		}
-		break;
-	case VM_REG_GUEST_FS:
-	case VM_REG_GUEST_GS:
-		if (cpu_mode == CPU_MODE_64BIT) {
-			/*
-			 * In 64-bit mode the FS and GS base address is 8 bytes
-			 * wide.
-			 */
-			basesize = 8;
-		}
-		break;
-	default:
-		panic("%s: invalid segment register %d", __func__, seg);
-	}
-
-	return (desc->base & size2mask[basesize]);
 }
 #endif	/* _KERNEL */

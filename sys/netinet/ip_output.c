@@ -136,6 +136,7 @@ ip_output(struct mbuf *m, struct mbuf *opt, struct route *ro, int flags,
 	struct rtentry *rte;	/* cache for ro->ro_rt */
 	struct in_addr odst;
 	struct m_tag *fwd_tag = NULL;
+	int have_ia_ref;
 #ifdef IPSEC
 	int no_route_but_check_spd = 0;
 #endif
@@ -202,6 +203,7 @@ ip_output(struct mbuf *m, struct mbuf *opt, struct route *ro, int flags,
 	gw = dst = (struct sockaddr_in *)&ro->ro_dst;
 again:
 	ia = NULL;
+	have_ia_ref = 0;
 	/*
 	 * If there is a cached route, check that it is to the same
 	 * destination and is still up.  If not, free it and try again.
@@ -233,26 +235,25 @@ again:
 	 */
 	if (flags & IP_SENDONES) {
 		if ((ia = ifatoia(ifa_ifwithbroadaddr(sintosa(dst)))) == NULL &&
-		    (ia = ifatoia(ifa_ifwithdstaddr(sintosa(dst),
-						    RT_DEFAULT_FIB))) == NULL) {
+		    (ia = ifatoia(ifa_ifwithdstaddr(sintosa(dst)))) == NULL) {
 			IPSTAT_INC(ips_noroute);
 			error = ENETUNREACH;
 			goto bad;
 		}
+		have_ia_ref = 1;
 		ip->ip_dst.s_addr = INADDR_BROADCAST;
 		dst->sin_addr = ip->ip_dst;
 		ifp = ia->ia_ifp;
 		ip->ip_ttl = 1;
 		isbroadcast = 1;
 	} else if (flags & IP_ROUTETOIF) {
-		if ((ia = ifatoia(ifa_ifwithdstaddr(sintosa(dst),
-		    				    RT_DEFAULT_FIB))) == NULL &&
-		    (ia = ifatoia(ifa_ifwithnet(sintosa(dst), 0,
-		    				RT_DEFAULT_FIB))) == NULL) {
+		if ((ia = ifatoia(ifa_ifwithdstaddr(sintosa(dst)))) == NULL &&
+		    (ia = ifatoia(ifa_ifwithnet(sintosa(dst), 0))) == NULL) {
 			IPSTAT_INC(ips_noroute);
 			error = ENETUNREACH;
 			goto bad;
 		}
+		have_ia_ref = 1;
 		ifp = ia->ia_ifp;
 		ip->ip_ttl = 1;
 		isbroadcast = in_broadcast(dst->sin_addr, ifp);
@@ -264,6 +265,8 @@ again:
 		 */
 		ifp = imo->imo_multicast_ifp;
 		IFP_TO_IA(ifp, ia);
+		if (ia)
+			have_ia_ref = 1;
 		isbroadcast = 0;	/* fool gcc */
 	} else {
 		/*
@@ -555,8 +558,11 @@ sendit:
 #endif
 			error = netisr_queue(NETISR_IP, m);
 			goto done;
-		} else
+		} else {
+			if (have_ia_ref)
+				ifa_free(&ia->ia_ifa);
 			goto again;	/* Redo the routing table lookup. */
+		}
 	}
 
 	/* See if local, if yes, send it to netisr with IP_FASTFWD_OURS. */
@@ -585,6 +591,8 @@ sendit:
 		m->m_flags |= M_SKIP_FIREWALL;
 		m->m_flags &= ~M_IP_NEXTHOP;
 		m_tag_delete(m, fwd_tag);
+		if (have_ia_ref)
+			ifa_free(&ia->ia_ifa);
 		goto again;
 	}
 
@@ -697,6 +705,8 @@ passout:
 done:
 	if (ro == &iproute)
 		RO_RTFREE(ro);
+	if (have_ia_ref)
+		ifa_free(&ia->ia_ifa);
 	return (error);
 bad:
 	m_freem(m);
@@ -908,6 +918,10 @@ ip_ctloutput(struct socket *so, struct sockopt *sopt)
 {
 	struct	inpcb *inp = sotoinpcb(so);
 	int	error, optval;
+#ifdef	RSS
+	uint32_t rss_bucket;
+	int retval;
+#endif
 
 	error = optval = 0;
 	if (sopt->sopt_level != IPPROTO_IP) {
@@ -1176,9 +1190,6 @@ ip_ctloutput(struct socket *so, struct sockopt *sopt)
 		case IP_RECVTOS:
 		case IP_FLOWID:
 		case IP_FLOWTYPE:
-#ifdef	RSS
-		case IP_RSSCPUID:
-#endif
 			switch (sopt->sopt_name) {
 
 			case IP_TOS:
@@ -1247,9 +1258,14 @@ ip_ctloutput(struct socket *so, struct sockopt *sopt)
 				optval = inp->inp_flowtype;
 				break;
 #ifdef	RSS
-			case IP_RSSCPUID:
-				optval = rss_hash2cpuid(inp->inp_flowid,
-				    inp->inp_flowtype);
+			case IP_RSSBUCKETID:
+				retval = rss_hash2bucket(inp->inp_flowid,
+				    inp->inp_flowtype,
+				    &rss_bucket);
+				if (retval == 0)
+					optval = rss_bucket;
+				else
+					error = EINVAL;
 				break;
 #endif
 			}

@@ -18,5 +18,4 @@ arm/rockchip/rk30xx_pmu.c		standard
 arm/rockchip/rk30xx_grf.c		standard
 arm/rockchip/rk30xx_wdog.c		standard
 arm/rockchip/rk30xx_gpio.c		optional	gpio
-dev/usb/controller/dwc_otg_fdt.c	optional	dwcotg
 arm/rockchip/rk30xx_mp.c		optional	smp

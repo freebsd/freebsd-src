@@ -122,7 +122,7 @@
 .if !target(__<bsd.own.mk>__)
 __<bsd.own.mk>__:
 
-.include <bsd.opts.mk>
+.include <bsd.opts.mk>		# options now here or src.opts.mk
 
 .if !defined(_WITHOUT_SRCCONF)
 

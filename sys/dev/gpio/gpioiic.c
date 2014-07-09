@@ -46,6 +46,8 @@ __FBSDID("$FreeBSD$");
 #include <dev/fdt/fdt_common.h>
 #endif
 
+#include <dev/gpio/gpiobusvar.h>
+
 #include <dev/iicbus/iiconf.h>
 #include <dev/iicbus/iicbus.h>
 
@@ -74,7 +76,6 @@ static int gpioiic_getsda(device_t);
 static int gpioiic_getscl(device_t);
 static int gpioiic_reset(device_t, u_char, u_char, u_char *);
 
-
 static int
 gpioiic_probe(device_t dev)
 {
@@ -91,13 +92,15 @@ gpioiic_probe(device_t dev)
 static int
 gpioiic_attach(device_t dev)
 {
-	struct gpioiic_softc	*sc = device_get_softc(dev);
 	device_t		bitbang;
 #ifdef FDT
 	phandle_t		node;
 	pcell_t			pin;
 #endif
+	struct gpiobus_ivar	*devi;
+	struct gpioiic_softc	*sc;
 
+	sc = device_get_softc(dev);
 	sc->sc_dev = dev;
 	sc->sc_busdev = device_get_parent(dev);
 	if (resource_int_value(device_get_name(dev),
@@ -115,6 +118,15 @@ gpioiic_attach(device_t dev)
 	if (OF_getencprop(node, "sda", &pin, sizeof(pin)) > 0)
 		sc->sda_pin = (int)pin;
 #endif
+
+	if (sc->scl_pin < 0 || sc->scl_pin > 1)
+		sc->scl_pin = SCL_PIN_DEFAULT;
+	if (sc->sda_pin < 0 || sc->sda_pin > 1)
+		sc->sda_pin = SDA_PIN_DEFAULT;
+
+	devi = GPIOBUS_IVAR(dev);
+	device_printf(dev, "SCL pin: %d, SDA pin: %d\n",
+	    devi->pins[sc->scl_pin], devi->pins[sc->sda_pin]);
 
 	/* add generic bit-banging code */
 	bitbang = device_add_child(dev, "iicbb", -1);
@@ -221,15 +233,10 @@ gpioiic_getsda(device_t dev)
 static int
 gpioiic_reset(device_t dev, u_char speed, u_char addr, u_char *oldaddr)
 {
-	struct gpioiic_softc		*sc = device_get_softc(dev);
+	struct gpioiic_softc		*sc;
 
-	GPIOBUS_LOCK_BUS(sc->sc_busdev);
-	GPIOBUS_ACQUIRE_BUS(sc->sc_busdev, sc->sc_dev);
-
+	sc = device_get_softc(dev);
 	gpioiic_reset_bus(sc->sc_dev);
-
-	GPIOBUS_RELEASE_BUS(sc->sc_busdev, sc->sc_dev);
-	GPIOBUS_UNLOCK_BUS(sc->sc_busdev);
 
 	return (IIC_ENOADDR);
 }

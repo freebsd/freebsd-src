@@ -1,4 +1,4 @@
-/*	$NetBSD: getopt.c,v 1.26 2003/08/07 16:43:40 agc Exp $	*/
+/*	$NetBSD: getopt.c,v 1.29 2014/06/05 22:00:22 christos Exp $	*/
 
 /*
  * Copyright (c) 1987, 1993, 1994
@@ -59,10 +59,7 @@ char	*optarg;		/* argument associated with option */
  *	Parse argc/argv argument vector.
  */
 int
-getopt(nargc, nargv, ostr)
-	int nargc;
-	char * const nargv[];
-	const char *ostr;
+getopt(int nargc, char * const nargv[], const char *ostr)
 {
 	static char *place = EMSG;		/* option letter processing */
 	char *oli;				/* option letter list index */
@@ -115,6 +112,12 @@ getopt(nargc, nargv, ostr)
 		   entire next argument. */
 		if (*place)
 			optarg = place;
+		else if (oli[2] == ':')
+			/*
+			 * GNU Extension, for optional arguments if the rest of
+			 * the argument is empty, we return NULL
+			 */
+			optarg = NULL;
 		else if (nargc > ++optind)
 			optarg = nargv[optind];
 		else {

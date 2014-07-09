@@ -629,7 +629,7 @@ bad:
 		if (k >= i)
 			vm_page_xunbusy(m);
 		vm_page_lock(m);
-		vm_page_unwire(m, 0);
+		vm_page_unwire(m, PQ_INACTIVE);
 		vm_page_unlock(m);
 	}
 	VM_OBJECT_WUNLOCK(mem->am_obj);
@@ -663,7 +663,7 @@ agp_generic_unbind_memory(device_t dev, struct agp_memory *mem)
 	for (i = 0; i < mem->am_size; i += PAGE_SIZE) {
 		m = vm_page_lookup(mem->am_obj, atop(i));
 		vm_page_lock(m);
-		vm_page_unwire(m, 0);
+		vm_page_unwire(m, PQ_INACTIVE);
 		vm_page_unlock(m);
 	}
 	VM_OBJECT_WUNLOCK(mem->am_obj);

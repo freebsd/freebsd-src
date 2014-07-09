@@ -2,6 +2,8 @@
 */*/Makefile*
 */Atffile
 */Makefile*
+*/*.m4
+*/*.pc.in
 Atffile
 INSTALL
 Makefile*

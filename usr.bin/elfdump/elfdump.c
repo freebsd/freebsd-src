@@ -495,11 +495,19 @@ main(int ac, char **av)
 	phnum = elf_get_quarter(e, e, E_PHNUM);
 	shentsize = elf_get_quarter(e, e, E_SHENTSIZE);
 	p = (char *)e + phoff;
-	sh = (char *)e + shoff;
-	shnum = elf_get_shnum(e, sh);
-	shstrndx = elf_get_shstrndx(e, sh);
-	offset = elf_get_off(e, (char *)sh + shstrndx * shentsize, SH_OFFSET);
-	shstrtab = (char *)e + offset;
+	if (shoff > 0) {
+		sh = (char *)e + shoff;
+		shnum = elf_get_shnum(e, sh);
+		shstrndx = elf_get_shstrndx(e, sh);
+		offset = elf_get_off(e, (char *)sh + shstrndx * shentsize,
+		    SH_OFFSET);
+		shstrtab = (char *)e + offset;
+	} else {
+		sh = NULL;
+		shnum = 0;
+		shstrndx = 0;
+		shstrtab = NULL;
+	}
 	for (i = 0; (u_int64_t)i < shnum; i++) {
 		name = elf_get_word(e, (char *)sh + i * shentsize, SH_NAME);
 		offset = elf_get_off(e, (char *)sh + i * shentsize, SH_OFFSET);
@@ -616,8 +624,6 @@ elf_print_ehdr(Elf32_Ehdr *e, void *sh)
 	phentsize = elf_get_quarter(e, e, E_PHENTSIZE);
 	phnum = elf_get_quarter(e, e, E_PHNUM);
 	shentsize = elf_get_quarter(e, e, E_SHENTSIZE);
-	shnum = elf_get_shnum(e, sh);
-	shstrndx = elf_get_shstrndx(e, sh);
 	fprintf(out, "\nelf header:\n");
 	fprintf(out, "\n");
 	fprintf(out, "\te_ident: %s %s %s\n", ei_classes[class], ei_data[data],
@@ -633,8 +639,12 @@ elf_print_ehdr(Elf32_Ehdr *e, void *sh)
 	fprintf(out, "\te_phentsize: %jd\n", (intmax_t)phentsize);
 	fprintf(out, "\te_phnum: %jd\n", (intmax_t)phnum);
 	fprintf(out, "\te_shentsize: %jd\n", (intmax_t)shentsize);
-	fprintf(out, "\te_shnum: %jd\n", (intmax_t)shnum);
-	fprintf(out, "\te_shstrndx: %jd\n", (intmax_t)shstrndx);
+	if (sh != NULL) {
+		shnum = elf_get_shnum(e, sh);
+		shstrndx = elf_get_shstrndx(e, sh);
+		fprintf(out, "\te_shnum: %jd\n", (intmax_t)shnum);
+		fprintf(out, "\te_shstrndx: %jd\n", (intmax_t)shstrndx);
+	}
 }
 
 static void
@@ -696,6 +706,11 @@ elf_print_shdr(Elf32_Ehdr *e, void *sh)
 	u_int64_t entsize;
 	void *v;
 	int i;
+
+	if (sh == NULL) {
+		fprintf(out, "\nNo section headers\n");
+		return;
+	}
 
 	shentsize = elf_get_quarter(e, e, E_SHENTSIZE);
 	shnum = elf_get_shnum(e, sh);

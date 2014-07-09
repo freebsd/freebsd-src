@@ -203,9 +203,10 @@ memcache_get(void **value_p,
         }
       else
         {
-          svn_string_t *value = apr_pcalloc(result_pool, sizeof(*value));
+          svn_stringbuf_t *value = svn_stringbuf_create_empty(result_pool);
           value->data = data;
-          value->len = data_len;
+          value->blocksize = data_len;
+          value->len = data_len - 1; /* account for trailing NUL */
           *value_p = value;
         }
     }
@@ -263,7 +264,7 @@ memcache_set(void *cache_void,
     {
       svn_stringbuf_t *value_str = value;
       data = value_str->data;
-      data_len = value_str->len;
+      data_len = value_str->len + 1; /* copy trailing NUL */
     }
 
   err = memcache_internal_set(cache_void, key, data, data_len, subpool);

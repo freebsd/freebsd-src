@@ -152,7 +152,7 @@ int	fdcheckstd(struct thread *td);
 void	fdclose(struct filedesc *fdp, struct file *fp, int idx, struct thread *td);
 void	fdcloseexec(struct thread *td);
 struct	filedesc *fdcopy(struct filedesc *fdp);
-void	fdunshare(struct proc *p, struct thread *td);
+void	fdunshare(struct thread *td);
 void	fdescfree(struct thread *td);
 struct	filedesc *fdinit(struct filedesc *fdp);
 struct	filedesc *fdshare(struct filedesc *fdp);
@@ -175,7 +175,7 @@ fget_locked(struct filedesc *fdp, int fd)
 
 	FILEDESC_LOCK_ASSERT(fdp);
 
-	if (fd < 0 || fd >= fdp->fd_nfiles)
+	if (fd < 0 || fd > fdp->fd_lastfile)
 		return (NULL);
 
 	return (fdp->fd_ofiles[fd].fde_file);

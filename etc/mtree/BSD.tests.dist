@@ -12,8 +12,6 @@
         ..
     ..
     share
-        aclocal
-        ..
         atf
         ..
         doc
@@ -23,6 +21,8 @@
     ..
     tests
         bin
+            chown
+            ..
             date
             ..
             mv
@@ -90,6 +90,10 @@
             atf
                 atf-check
                 ..
+                atf-sh
+                ..
+            ..
+            rtld-elf
             ..
         ..
         sbin
@@ -128,10 +132,6 @@
         ..
         usr.bin
             apply
-            ..
-            atf
-                atf-sh
-                ..
             ..
             bmake
                 archives
@@ -254,6 +254,8 @@
                 ..
             ..
             tr
+            ..
+            truncate
             ..
             uudecode
             ..

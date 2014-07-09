@@ -166,9 +166,32 @@ Lunmapped:
 	ldr	r1, [r0, #4]
 	sub	r0, r1, r2
 
+#ifndef _ARM_ARCH_6
+	/*
+	 * Some of the older ports (the various XScale, mostly) assume
+	 * that the memory before the kernel is mapped, and use it for
+	 * the various stacks, page tables, etc. For those CPUs, map the 
+	 * 64 first MB of RAM, as it used to be. 
+	 */
 	/*
 	 * Map PA == VA
-	 */
+	 */    
+	ldr     r5, =PHYSADDR
+	mov     r1, r5
+	mov     r2, r5
+	/* Map 64MiB, preserved over calls to build_pagetables */
+	mov     r3, #64
+	bl      build_pagetables
+	
+	/* Create the kernel map to jump to */
+	mov     r1, r5
+	ldr     r2, =(KERNBASE)
+	bl      build_pagetables
+	ldr	r5, =(KERNPHYSADDR)
+#else
+	/*
+	 * Map PA == VA
+	 */    
 	/* Find the start kernels load address */
 	adr	r5, _start
 	ldr	r2, =(L1_S_OFFSET)
@@ -183,6 +206,7 @@ Lunmapped:
 	mov	r1, r5
 	ldr	r2, =(KERNVIRTADDR)
 	bl	build_pagetables
+#endif
 	
 #if defined(SOCDEV_PA) && defined(SOCDEV_VA)
 	/* Create the custom map */

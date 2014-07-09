@@ -78,6 +78,7 @@ ${_S:R}.o: ${_S}
 .endfor
 .endif
 
+# Lexical analyzers
 .for _LSRC in ${SRCS:M*.l:N*/*}
 .for _LC in ${_LSRC:R}.c
 ${_LC}: ${_LSRC}
@@ -90,6 +91,7 @@ CLEANFILES+= ${_LC}
 .endfor
 .endfor
 
+# Yacc grammars
 .for _YSRC in ${SRCS:M*.y:N*/*}
 .for _YC in ${_YSRC:R}.c
 SRCS:=	${SRCS:S/${_YSRC}/${_YC}/}
@@ -115,6 +117,16 @@ ${_YC}: ${_YSRC}
 .if !exists(${.OBJDIR}/${DEPENDFILE})
 ${_YC:R}.o: ${_YC}
 .endif
+.endfor
+.endfor
+
+# DTrace probe definitions
+.for _DSRC in ${SRCS:M*.d:N*/*}
+.for _DH in ${_DSRC:R}.h
+${_DH}: ${_DSRC}
+	${DTRACE} -xnolibs -h -s ${.ALLSRC} 
+SRCS:=	${SRCS:S/${_DSRC}/${_DH}/}
+CLEANFILES+= ${_DH}
 .endfor
 .endfor
 .endif

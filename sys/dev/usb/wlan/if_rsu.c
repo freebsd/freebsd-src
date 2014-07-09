@@ -128,10 +128,8 @@ static const STRUCT_USB_HOST_ID rsu_devs[] = {
 static device_probe_t   rsu_match;
 static device_attach_t  rsu_attach;
 static device_detach_t  rsu_detach;
-static usb_callback_t   rsu_bulk_tx_callback_0;
-static usb_callback_t   rsu_bulk_tx_callback_1;
-static usb_callback_t   rsu_bulk_tx_callback_2;
-static usb_callback_t   rsu_bulk_tx_callback_3;
+static usb_callback_t   rsu_bulk_tx_callback_be_bk;
+static usb_callback_t   rsu_bulk_tx_callback_vi_vo;
 static usb_callback_t   rsu_bulk_rx_callback;
 static usb_error_t	rsu_do_request(struct rsu_softc *,
 			    struct usb_device_request *, void *);
@@ -221,6 +219,13 @@ MODULE_DEPEND(rsu, usb, 1, 1, 1);
 MODULE_DEPEND(rsu, firmware, 1, 1, 1);
 MODULE_VERSION(rsu, 1);
 
+static uint8_t rsu_wme_ac_xfer_map[4] = {
+	[WME_AC_BE] = RSU_BULK_TX_BE_BK,
+	[WME_AC_BK] = RSU_BULK_TX_BE_BK,
+	[WME_AC_VI] = RSU_BULK_TX_VI_VO,
+	[WME_AC_VO] = RSU_BULK_TX_VI_VO,
+};
+
 static const struct usb_config rsu_config[RSU_N_TRANSFER] = {
 	[RSU_BULK_RX] = {
 		.type = UE_BULK,
@@ -233,7 +238,7 @@ static const struct usb_config rsu_config[RSU_N_TRANSFER] = {
 		},
 		.callback = rsu_bulk_rx_callback
 	},
-	[RSU_BULK_TX_BE] = {
+	[RSU_BULK_TX_BE_BK] = {
 		.type = UE_BULK,
 		.endpoint = 0x06,
 		.direction = UE_DIR_OUT,
@@ -243,23 +248,10 @@ static const struct usb_config rsu_config[RSU_N_TRANSFER] = {
 			.pipe_bof = 1,
 			.force_short_xfer = 1
 		},
-		.callback = rsu_bulk_tx_callback_0,
+		.callback = rsu_bulk_tx_callback_be_bk,
 		.timeout = RSU_TX_TIMEOUT
 	},
-	[RSU_BULK_TX_BK] = {
-		.type = UE_BULK,
-		.endpoint = 0x06,
-		.direction = UE_DIR_OUT,
-		.bufsize = RSU_TXBUFSZ,
-		.flags = {
-			.ext_buffer = 1,
-			.pipe_bof = 1,
-			.force_short_xfer = 1
-		},
-		.callback = rsu_bulk_tx_callback_1,
-		.timeout = RSU_TX_TIMEOUT
-	},
-	[RSU_BULK_TX_VI] = {
+	[RSU_BULK_TX_VI_VO] = {
 		.type = UE_BULK,
 		.endpoint = 0x04,
 		.direction = UE_DIR_OUT,
@@ -269,20 +261,7 @@ static const struct usb_config rsu_config[RSU_N_TRANSFER] = {
 			.pipe_bof = 1,
 			.force_short_xfer = 1
 		},
-		.callback = rsu_bulk_tx_callback_2,
-		.timeout = RSU_TX_TIMEOUT
-	},
-	[RSU_BULK_TX_VO] = {
-		.type = UE_BULK,
-		.endpoint = 0x04,
-		.direction = UE_DIR_OUT,
-		.bufsize = RSU_TXBUFSZ,
-		.flags = {
-			.ext_buffer = 1,
-			.pipe_bof = 1,
-			.force_short_xfer = 1
-		},
-		.callback = rsu_bulk_tx_callback_3,
+		.callback = rsu_bulk_tx_callback_vi_vo,
 		.timeout = RSU_TX_TIMEOUT
 	},
 };
@@ -614,7 +593,7 @@ rsu_alloc_tx_list(struct rsu_softc *sc)
 
 	STAILQ_INIT(&sc->sc_tx_inactive);
 
-	for (i = 0; i != RSU_MAX_TX_EP; i++) {
+	for (i = 0; i != RSU_N_TRANSFER; i++) {
 		STAILQ_INIT(&sc->sc_tx_active[i]);
 		STAILQ_INIT(&sc->sc_tx_pending[i]);
 	}
@@ -634,7 +613,7 @@ rsu_free_tx_list(struct rsu_softc *sc)
 	/* prevent further allocations from TX list(s) */
 	STAILQ_INIT(&sc->sc_tx_inactive);
 
-	for (i = 0; i != RSU_MAX_TX_EP; i++) {
+	for (i = 0; i != RSU_N_TRANSFER; i++) {
 		STAILQ_INIT(&sc->sc_tx_active[i]);
 		STAILQ_INIT(&sc->sc_tx_pending[i]);
 	}
@@ -874,7 +853,7 @@ rsu_read_rom(struct rsu_softc *sc)
 static int
 rsu_fw_cmd(struct rsu_softc *sc, uint8_t code, void *buf, int len)
 {
-	const uint8_t which = RSU_BULK_TX_VO - RSU_BULK_TX_BE;
+	const uint8_t which = rsu_wme_ac_xfer_map[WME_AC_VO];
 	struct rsu_data *data;
 	struct r92s_tx_desc *txd;
 	struct r92s_fw_cmd_hdr *cmd;
@@ -913,7 +892,7 @@ rsu_fw_cmd(struct rsu_softc *sc, uint8_t code, void *buf, int len)
 	DPRINTFN(2, "Tx cmd code=0x%x len=0x%x\n", code, cmdsz);
 	data->buflen = xferlen;
 	STAILQ_INSERT_TAIL(&sc->sc_tx_pending[which], data, next);
-	usbd_transfer_start(sc->sc_xfer[which + RSU_BULK_TX_BE]);
+	usbd_transfer_start(sc->sc_xfer[which]);
 
 	return (0);
 }
@@ -926,6 +905,7 @@ rsu_calib_task(void *arg, int pending __unused)
 	uint32_t reg;
 
 	DPRINTFN(6, "running calibration task\n");
+
 	RSU_LOCK(sc);
 #ifdef notyet
 	/* Read WPS PBC status. */
@@ -942,12 +922,9 @@ rsu_calib_task(void *arg, int pending __unused)
 		reg = rsu_read_4(sc, R92S_IOCMD_DATA);
 		DPRINTFN(8, "RSSI=%d%%\n", reg >> 4);
 	}
-	if (sc->sc_calibrating) {
-		RSU_UNLOCK(sc);
-		taskqueue_enqueue_timeout(taskqueue_thread, &sc->calib_task, 
-		    hz * 2);
-	} else
-		RSU_UNLOCK(sc);
+	if (sc->sc_calibrating)
+		taskqueue_enqueue_timeout(taskqueue_thread, &sc->calib_task, hz);
+	RSU_UNLOCK(sc);
 }
 
 static int
@@ -1001,11 +978,10 @@ rsu_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 		break;
 	}
 	sc->sc_calibrating = 1;
+	/* Start periodic calibration. */
+	taskqueue_enqueue_timeout(taskqueue_thread, &sc->calib_task, hz);
 	RSU_UNLOCK(sc);
 	IEEE80211_LOCK(ic);
-	/* Start periodic calibration. */
-	taskqueue_enqueue_timeout(taskqueue_thread, &sc->calib_task, hz * 2);
-
 	return (uvp->newstate(vap, nstate, arg));
 }
 
@@ -1081,7 +1057,8 @@ rsu_join_bss(struct rsu_softc *sc, struct ieee80211_node *ni)
 	struct ndis_wlan_bssid_ex *bss;
 	struct ndis_802_11_fixed_ies *fixed;
 	struct r92s_fw_cmd_auth auth;
-	uint8_t buf[sizeof(*bss) + 128], *frm;
+	uint8_t buf[sizeof(*bss) + 128] __aligned(4);
+	uint8_t *frm;
 	uint8_t opmode;
 	int error;
 
@@ -1095,7 +1072,7 @@ rsu_join_bss(struct rsu_softc *sc, struct ieee80211_node *ni)
 	memset(&auth, 0, sizeof(auth));
 	if (vap->iv_flags & IEEE80211_F_WPA) {
 		auth.mode = R92S_AUTHMODE_WPA;
-		auth.dot1x = ni->ni_authmode == IEEE80211_AUTH_8021X;
+		auth.dot1x = (ni->ni_authmode == IEEE80211_AUTH_8021X);
 	} else
 		auth.mode = R92S_AUTHMODE_OPEN;
 	DPRINTF("setting auth mode to %d\n", auth.mode);
@@ -1216,6 +1193,7 @@ rsu_event_join_bss(struct rsu_softc *sc, uint8_t *buf, int len)
 	struct ieee80211vap *vap = TAILQ_FIRST(&ic->ic_vaps);
 	struct ieee80211_node *ni = vap->iv_bss;
 	struct r92s_event_join_bss *rsp;
+	uint32_t tmp;
 	int res;
 
 	if (__predict_false(len < sizeof(*rsp)))
@@ -1230,9 +1208,14 @@ rsu_event_join_bss(struct rsu_softc *sc, uint8_t *buf, int len)
 		RSU_LOCK(sc);
 		return;
 	}
+	tmp = le32toh(rsp->associd);
+	if (tmp >= vap->iv_max_aid) {
+		DPRINTF("Assoc ID overflow\n");
+		tmp = 1;
+	}
 	DPRINTF("associated with %s associd=%d\n",
-	    ether_sprintf(rsp->bss.macaddr), le32toh(rsp->associd));
-	ni->ni_associd = le32toh(rsp->associd) | 0xc000;
+	    ether_sprintf(rsp->bss.macaddr), tmp);
+	ni->ni_associd = tmp | 0xc000;
 	RSU_UNLOCK(sc);
 	ieee80211_new_state(vap, IEEE80211_S_RUN,
 	    IEEE80211_FC0_SUBTYPE_ASSOC_RESP);
@@ -1271,6 +1254,9 @@ rsu_rx_event(struct rsu_softc *sc, uint8_t code, uint8_t *buf, int len)
 		if (vap->iv_state == IEEE80211_S_AUTH)
 			rsu_event_join_bss(sc, buf, len);
 		break;
+#if 0
+XXX This event is occurring regularly, possibly due to some power saving event
+XXX and disrupts the WLAN traffic. Disable for now.
 	case R92S_EVT_DEL_STA:
 		DPRINTF("disassociated from %s\n", ether_sprintf(buf));
 		if (vap->iv_state == IEEE80211_S_RUN &&
@@ -1280,6 +1266,7 @@ rsu_rx_event(struct rsu_softc *sc, uint8_t code, uint8_t *buf, int len)
 			RSU_LOCK(sc);
 		}
 		break;
+#endif
 	case R92S_EVT_WPS_PBC:
 		DPRINTF("WPS PBC pushed.\n");
 		break;
@@ -1288,6 +1275,8 @@ rsu_rx_event(struct rsu_softc *sc, uint8_t code, uint8_t *buf, int len)
 			buf[60] = '\0';
 			printf("FWDBG: %s\n", (char *)buf);
 		}
+		break;
+	default:
 		break;
 	}
 }
@@ -1662,27 +1651,15 @@ tr_setup:
 }
 
 static void
-rsu_bulk_tx_callback_0(struct usb_xfer *xfer, usb_error_t error)
+rsu_bulk_tx_callback_be_bk(struct usb_xfer *xfer, usb_error_t error)
 {
-	rsu_bulk_tx_callback_sub(xfer, error, 0);
+	rsu_bulk_tx_callback_sub(xfer, error, RSU_BULK_TX_BE_BK);
 }
 
 static void
-rsu_bulk_tx_callback_1(struct usb_xfer *xfer, usb_error_t error)
+rsu_bulk_tx_callback_vi_vo(struct usb_xfer *xfer, usb_error_t error)
 {
-	rsu_bulk_tx_callback_sub(xfer, error, 1);
-}
-
-static void
-rsu_bulk_tx_callback_2(struct usb_xfer *xfer, usb_error_t error)
-{
-	rsu_bulk_tx_callback_sub(xfer, error, 2);
-}
-
-static void
-rsu_bulk_tx_callback_3(struct usb_xfer *xfer, usb_error_t error)
-{
-	rsu_bulk_tx_callback_sub(xfer, error, 3);
+	rsu_bulk_tx_callback_sub(xfer, error, RSU_BULK_TX_VI_VO);
 }
 
 static int
@@ -1720,12 +1697,10 @@ rsu_tx_start(struct rsu_softc *sc, struct ieee80211_node *ni,
 	switch (type) {
 	case IEEE80211_FC0_TYPE_CTL:
 	case IEEE80211_FC0_TYPE_MGT:
-		which = RSU_BULK_TX_VO - RSU_BULK_TX_BE;
+		which = rsu_wme_ac_xfer_map[WME_AC_VO];
 		break;
 	default:
-		which = M_WME_GETAC(m0);
-		KASSERT(which < RSU_MAX_TX_EP,
-		    ("unsupported WME pipe %d", which));
+		which = rsu_wme_ac_xfer_map[M_WME_GETAC(m0)];
 		break;
 	}
 	hasqos = 0;
@@ -1790,7 +1765,7 @@ rsu_tx_start(struct rsu_softc *sc, struct ieee80211_node *ni,
 	STAILQ_INSERT_TAIL(&sc->sc_tx_pending[which], data, next);
 
 	/* start transfer, if any */
-	usbd_transfer_start(sc->sc_xfer[which + RSU_BULK_TX_BE]);
+	usbd_transfer_start(sc->sc_xfer[which]);
 	return (0);
 }
 
@@ -2105,7 +2080,7 @@ rsu_power_off(struct rsu_softc *sc)
 static int
 rsu_fw_loadsection(struct rsu_softc *sc, const uint8_t *buf, int len)
 {
-	const uint8_t which = RSU_BULK_TX_VO - RSU_BULK_TX_BE;
+	const uint8_t which = rsu_wme_ac_xfer_map[WME_AC_VO];
 	struct rsu_data *data;
 	struct r92s_tx_desc *txd;
 	int mlen;
@@ -2130,7 +2105,7 @@ rsu_fw_loadsection(struct rsu_softc *sc, const uint8_t *buf, int len)
 		buf += mlen;
 		len -= mlen;
 	}
-	usbd_transfer_start(sc->sc_xfer[RSU_BULK_TX_BE + which]);
+	usbd_transfer_start(sc->sc_xfer[which]);
 	return (0);
 }
 
@@ -2145,6 +2120,11 @@ rsu_load_firmware(struct rsu_softc *sc)
 	size_t size;
 	uint32_t reg;
 	int ntries, error;
+
+	if (rsu_read_1(sc, R92S_TCR) & R92S_TCR_FWRDY) {
+		DPRINTF("Firmware already loaded\n");
+		return (0);
+	}
 
 	RSU_UNLOCK(sc);
 	/* Read firmware image from the filesystem. */
@@ -2202,7 +2182,7 @@ rsu_load_firmware(struct rsu_softc *sc)
 	/* Wait for load to complete. */
 	for (ntries = 0; ntries != 50; ntries++) {
 		usb_pause_mtx(&sc->sc_mtx, hz / 100);
-		reg = rsu_read_2(sc, R92S_TCR);
+		reg = rsu_read_1(sc, R92S_TCR);
 		if (reg & R92S_TCR_IMEM_CODE_DONE)
 			break;
 	}
@@ -2211,7 +2191,6 @@ rsu_load_firmware(struct rsu_softc *sc)
 		error = ETIMEDOUT;
 		goto fail;
 	}
-
 	/* Load EMEM section. */
 	error = rsu_fw_loadsection(sc, emem, ememsz);
 	if (error != 0) {
@@ -2231,7 +2210,6 @@ rsu_load_firmware(struct rsu_softc *sc)
 		error = ETIMEDOUT;
 		goto fail;
 	}
-
 	/* Enable CPU. */
 	rsu_write_1(sc, R92S_SYS_CLKR,
 	    rsu_read_1(sc, R92S_SYS_CLKR) | R92S_SYS_CPU_CLKSEL);
@@ -2250,7 +2228,7 @@ rsu_load_firmware(struct rsu_softc *sc)
 	}
 	/* Wait for CPU to initialize. */
 	for (ntries = 0; ntries < 100; ntries++) {
-		if (rsu_read_2(sc, R92S_TCR) & R92S_TCR_IMEM_RDY)
+		if (rsu_read_1(sc, R92S_TCR) & R92S_TCR_IMEM_RDY)
 			break;
 		rsu_ms_delay(sc);
 	}
@@ -2282,7 +2260,7 @@ rsu_load_firmware(struct rsu_softc *sc)
 	}
 	/* Wait for load to complete. */
 	for (ntries = 0; ntries < 100; ntries++) {
-		if (rsu_read_2(sc, R92S_TCR) & R92S_TCR_DMEM_CODE_DONE)
+		if (rsu_read_1(sc, R92S_TCR) & R92S_TCR_DMEM_CODE_DONE)
 			break;
 		rsu_ms_delay(sc);
 	}
@@ -2294,7 +2272,7 @@ rsu_load_firmware(struct rsu_softc *sc)
 	}
 	/* Wait for firmware readiness. */
 	for (ntries = 0; ntries < 60; ntries++) {
-		if (!(rsu_read_2(sc, R92S_TCR) & R92S_TCR_FWRDY))
+		if (!(rsu_read_1(sc, R92S_TCR) & R92S_TCR_FWRDY))
 			break;
 		rsu_ms_delay(sc);
 	}
@@ -2372,6 +2350,7 @@ rsu_init_locked(struct rsu_softc *sc)
 		rsu_power_on_acut(sc);
 	else
 		rsu_power_on_bcut(sc);
+
 	/* Load firmware. */
 	error = rsu_load_firmware(sc);
 	if (error != 0)

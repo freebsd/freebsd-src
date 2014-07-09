@@ -226,9 +226,8 @@ static char *safte_2little = "Too Little Data Returned (%d) at line %d\n";
 
 int emulate_array_devices = 1;
 SYSCTL_DECL(_kern_cam_enc);
-SYSCTL_INT(_kern_cam_enc, OID_AUTO, emulate_array_devices, CTLFLAG_RW,
+SYSCTL_INT(_kern_cam_enc, OID_AUTO, emulate_array_devices, CTLFLAG_RWTUN,
            &emulate_array_devices, 0, "Emulate Array Devices for SAF-TE");
-TUNABLE_INT("kern.cam.enc.emulate_array_devices", &emulate_array_devices);
 
 static int
 safte_fill_read_buf_io(enc_softc_t *enc, struct enc_fsm_state *state,

@@ -20,6 +20,8 @@ WFORMAT?=	0
 CFLAGS+=	-DLINEMODE -DUSE_TERMIO -DDIAGNOSTICS -DOLD_ENVIRON \
 		-DENV_HACK -DSTREAMSPTY
 
+NO_PIE=	yes
+
 .if ${MK_INET6_SUPPORT} != "no"
 CFLAGS+=	-DINET6
 .endif
@@ -31,8 +33,6 @@ LIBTELNET=	${.OBJDIR}/../../lib/libtelnet/libtelnet.a
 DPADD=		${LIBUTIL} ${LIBTERMCAP} ${LIBTELNET}
 LDADD=		-lutil -ltermcap ${LIBTELNET}
 
-# XXX for src/release/picobsd
-.if !defined(RELEASE_CRUNCH)
 .if ${MK_OPENSSL} != "no"
 SRCS+=		authenc.c
 CFLAGS+=	-DAUTHENTICATION -DENCRYPTION
@@ -44,7 +44,6 @@ LDADD+=		-lmp -lcrypto -lcrypt ${MINUSLPAM}
 CFLAGS+=	-DKRB5 -DFORWARD -Dnet_write=telnet_net_write
 DPADD+=		${LIBKRB5} ${LIBHX509} ${LIBASN1} ${LIBROKEN} ${LIBCOM_ERR}
 LDADD+=		-lkrb5 -lhx509 -lasn1 -lroken -lcom_err
-.endif
 .endif
 
 .include <bsd.prog.mk>

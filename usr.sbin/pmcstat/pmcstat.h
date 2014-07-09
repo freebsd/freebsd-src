@@ -61,7 +61,7 @@
 #define	DEFAULT_DISPLAY_HEIGHT		256		/* file virtual height */
 #define	DEFAULT_DISPLAY_WIDTH		1024		/* file virtual width */
 #define	DEFAULT_BUFFER_SIZE		4096
-#define	DEFAULT_CALLGRAPH_DEPTH		4
+#define	DEFAULT_CALLGRAPH_DEPTH		16
 
 #define	PRINT_HEADER_PREFIX		"# "
 #define	READPIPEFD			0

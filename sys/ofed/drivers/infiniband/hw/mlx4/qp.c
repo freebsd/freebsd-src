@@ -264,7 +264,7 @@ static void post_nop_wqe(struct mlx4_ib_qp *qp, int n, int size)
 	/* Pad the remainder of the WQE with an inline data segment. */
 	if (size > s) {
 		inl = wqe + s;
-		inl->byte_count = cpu_to_be32(1 << 31 | (size - s - sizeof *inl));
+		inl->byte_count = cpu_to_be32(1U << 31 | (size - s - sizeof *inl));
 	}
 	ctrl->srcrb_flags = 0;
 	ctrl->fence_size = size / 16;
@@ -1146,7 +1146,7 @@ static void mlx4_ib_lock_cqs(struct mlx4_ib_cq *send_cq, struct mlx4_ib_cq *recv
 {
 	if (send_cq == recv_cq) {
 		spin_lock_irq(&send_cq->lock);
-		__acquire(&recv_cq->lock);
+		(void) __acquire(&recv_cq->lock);
 	} else if (send_cq->mcq.cqn < recv_cq->mcq.cqn) {
 		spin_lock_irq(&send_cq->lock);
 		spin_lock_nested(&recv_cq->lock, SINGLE_DEPTH_NESTING);
@@ -1160,7 +1160,7 @@ static void mlx4_ib_unlock_cqs(struct mlx4_ib_cq *send_cq, struct mlx4_ib_cq *re
 	__releases(&send_cq->lock) __releases(&recv_cq->lock)
 {
 	if (send_cq == recv_cq) {
-		__release(&recv_cq->lock);
+		(void) __release(&recv_cq->lock);
 		spin_unlock_irq(&send_cq->lock);
 	} else if (send_cq->mcq.cqn < recv_cq->mcq.cqn) {
 		spin_unlock(&recv_cq->lock);
@@ -2422,11 +2422,11 @@ static int build_sriov_qp0_header(struct mlx4_ib_sqp *sqp,
 	spc = MLX4_INLINE_ALIGN -
 	      ((unsigned long) (inl + 1) & (MLX4_INLINE_ALIGN - 1));
 	if (header_size <= spc) {
-		inl->byte_count = cpu_to_be32(1 << 31 | header_size);
+		inl->byte_count = cpu_to_be32(1U << 31 | header_size);
 		memcpy(inl + 1, sqp->header_buf, header_size);
 		i = 1;
 	} else {
-		inl->byte_count = cpu_to_be32(1 << 31 | spc);
+		inl->byte_count = cpu_to_be32(1U << 31 | spc);
 		memcpy(inl + 1, sqp->header_buf, spc);
 
 		inl = (void *) (inl + 1) + spc;
@@ -2445,7 +2445,7 @@ static int build_sriov_qp0_header(struct mlx4_ib_sqp *sqp,
 		 * of 16 mod 64.
 		 */
 		wmb();
-		inl->byte_count = cpu_to_be32(1 << 31 | (header_size - spc));
+		inl->byte_count = cpu_to_be32(1U << 31 | (header_size - spc));
 		i = 2;
 	}
 
@@ -2629,11 +2629,11 @@ static int build_mlx_header(struct mlx4_ib_sqp *sqp, struct ib_send_wr *wr,
 	spc = MLX4_INLINE_ALIGN -
 		((unsigned long) (inl + 1) & (MLX4_INLINE_ALIGN - 1));
 	if (header_size <= spc) {
-		inl->byte_count = cpu_to_be32(1 << 31 | header_size);
+		inl->byte_count = cpu_to_be32(1U << 31 | header_size);
 		memcpy(inl + 1, sqp->header_buf, header_size);
 		i = 1;
 	} else {
-		inl->byte_count = cpu_to_be32(1 << 31 | spc);
+		inl->byte_count = cpu_to_be32(1U << 31 | spc);
 		memcpy(inl + 1, sqp->header_buf, spc);
 
 		inl = (void *) (inl + 1) + spc;
@@ -2652,7 +2652,7 @@ static int build_mlx_header(struct mlx4_ib_sqp *sqp, struct ib_send_wr *wr,
 		 * of 16 mod 64.
 		 */
 		wmb();
-		inl->byte_count = cpu_to_be32(1 << 31 | (header_size - spc));
+		inl->byte_count = cpu_to_be32(1U << 31 | (header_size - spc));
 		i = 2;
 	}
 
@@ -2797,17 +2797,17 @@ static void build_tunnel_header(struct ib_send_wr *wr, void *wqe, unsigned *mlx_
 	if (sizeof (hdr) <= spc) {
 		memcpy(inl + 1, &hdr, sizeof (hdr));
 		wmb();
-		inl->byte_count = cpu_to_be32(1 << 31 | sizeof (hdr));
+		inl->byte_count = cpu_to_be32(1U << 31 | sizeof (hdr));
 		i = 1;
 	} else {
 		memcpy(inl + 1, &hdr, spc);
 		wmb();
-		inl->byte_count = cpu_to_be32(1 << 31 | spc);
+		inl->byte_count = cpu_to_be32(1U << 31 | spc);
 
 		inl = (void *) (inl + 1) + spc;
 		memcpy(inl + 1, (void *) &hdr + spc, sizeof (hdr) - spc);
 		wmb();
-		inl->byte_count = cpu_to_be32(1 << 31 | (sizeof (hdr) - spc));
+		inl->byte_count = cpu_to_be32(1U << 31 | (sizeof (hdr) - spc));
 		i = 2;
 	}
 

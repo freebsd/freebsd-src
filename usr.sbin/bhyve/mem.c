@@ -39,6 +39,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/tree.h>
 #include <sys/errno.h>
 #include <machine/vmm.h>
+#include <machine/vmm_instruction_emul.h>
 
 #include <stdio.h>
 #include <stdlib.h>

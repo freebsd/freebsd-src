@@ -138,7 +138,7 @@ struct ip6protosw {
 			(void);
 	void	(*pr_drain)		/* flush any excess space possible */
 			(void);
-	struct	pr_usrreqs *pr_usrreqs;	/* supersedes pr_usrreq() */
+	struct	pr_usrreqs *pr_usrreqs;	/* user-protocol hook */
 };
 
 #ifdef _KERNEL

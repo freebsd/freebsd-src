@@ -5413,8 +5413,6 @@ ahd_free(struct ahd_softc *ahd)
 	case 3:
 		aic_dmamem_free(ahd, ahd->shared_data_dmat, ahd->qoutfifo,
 				ahd->shared_data_map.dmamap);
-		aic_dmamap_destroy(ahd, ahd->shared_data_dmat,
-				   ahd->shared_data_map.dmamap);
 		/* FALLTHROUGH */
 	case 2:
 		aic_dma_tag_destroy(ahd, ahd->shared_data_dmat);

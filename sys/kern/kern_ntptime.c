@@ -1025,18 +1025,20 @@ sysctl_resettodr_period(SYSCTL_HANDLER_ARGS)
 	error = sysctl_handle_int(oidp, oidp->oid_arg1, oidp->oid_arg2, req);
 	if (error || !req->newptr)
 		return (error);
+	if (cold)
+		goto done;
 	if (resettodr_period == 0)
 		callout_stop(&resettodr_callout);
 	else
 		callout_reset(&resettodr_callout, resettodr_period * hz,
 		    periodic_resettodr, NULL);
+done:
 	return (0);
 }
 
-SYSCTL_PROC(_machdep, OID_AUTO, rtc_save_period, CTLTYPE_INT|CTLFLAG_RW,
+SYSCTL_PROC(_machdep, OID_AUTO, rtc_save_period, CTLTYPE_INT|CTLFLAG_RWTUN,
 	&resettodr_period, 1800, sysctl_resettodr_period, "I",
 	"Save system time to RTC with this period (in seconds)");
-TUNABLE_INT("machdep.rtc_save_period", &resettodr_period);
 
 static void
 start_periodic_resettodr(void *arg __unused)

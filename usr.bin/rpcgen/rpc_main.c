@@ -878,8 +878,8 @@ $(TARGETS_SVC.c) \n\n");
 	f_print(fout, "\t$(CC) -o $(CLIENT) $(OBJECTS_CLNT) \
 $(LDLIBS) \n\n");
 	f_print(fout, "$(SERVER) : $(OBJECTS_SVC) \n");
-	f_print(fout, "\t$(CC) -o $(SERVER) $(OBJECTS_SVC) $(LDLIBS)\n\n ");
-	f_print(fout, "clean:\n\t $(RM) -f core $(TARGETS) $(OBJECTS_CLNT) \
+	f_print(fout, "\t$(CC) -o $(SERVER) $(OBJECTS_SVC) $(LDLIBS)\n\n");
+	f_print(fout, "clean:\n\t rm -f core $(TARGETS) $(OBJECTS_CLNT) \
 $(OBJECTS_SVC) $(CLIENT) $(SERVER)\n\n");
 }
 

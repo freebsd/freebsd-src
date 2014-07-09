@@ -46,8 +46,8 @@ CFLAGS+=-DCONFIG_DRIVER_BSD \
 CFLAGS+= -DCONFIG_IPV6
 .endif
 #CFLAGS+= -g
-DPADD+=	${LIBPCAP}
-LDADD+=	-lpcap
+DPADD+=	${LIBPCAP} ${LIBUTIL}
+LDADD+=	-lpcap -lutil
 
 # User customizations for wpa_supplicant/hostapd build environment
 CFLAGS+=${HOSTAPD_CFLAGS}

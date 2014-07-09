@@ -1,3 +1,9 @@
+byacc (20140422) unstable; urgency=low
+
+  * maintenance updates
+
+ -- Thomas E. Dickey <dickey@invisible-island.net>  Tue, 22 Apr 2014 04:13:20 -0400
+
 byacc (20140409) unstable; urgency=low
 
   * integrate Tom Shield's btyacc-related changes

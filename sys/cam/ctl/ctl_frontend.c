@@ -66,7 +66,77 @@ __FBSDID("$FreeBSD$");
 extern struct ctl_softc *control_softc;
 
 int
-ctl_frontend_register(struct ctl_frontend *fe, int master_shelf)
+ctl_frontend_register(struct ctl_frontend *fe)
+{
+	struct ctl_frontend *fe_tmp;
+
+	KASSERT(control_softc != NULL, ("CTL is not initialized"));
+
+	/*
+	 * Sanity check, make sure this isn't a duplicate registration.
+	 */
+	mtx_lock(&control_softc->ctl_lock);
+	STAILQ_FOREACH(fe_tmp, &control_softc->fe_list, links) {
+		if (strcmp(fe_tmp->name, fe->name) == 0) {
+			mtx_unlock(&control_softc->ctl_lock);
+			return (-1);
+		}
+	}
+	mtx_unlock(&control_softc->ctl_lock);
+	STAILQ_INIT(&fe->port_list);
+
+	/*
+	 * Call the frontend's initialization routine.
+	 */
+	if (fe->init != NULL)
+		fe->init();
+
+	mtx_lock(&control_softc->ctl_lock);
+	control_softc->num_frontends++;
+	STAILQ_INSERT_TAIL(&control_softc->fe_list, fe, links);
+	mtx_unlock(&control_softc->ctl_lock);
+	return (0);
+}
+
+int
+ctl_frontend_deregister(struct ctl_frontend *fe)
+{
+
+	if (!STAILQ_EMPTY(&fe->port_list))
+		return (-1);
+
+	mtx_lock(&control_softc->ctl_lock);
+	STAILQ_REMOVE(&control_softc->fe_list, fe, ctl_frontend, links);
+	control_softc->num_frontends--;
+	mtx_unlock(&control_softc->ctl_lock);
+
+	/*
+	 * Call the frontend's shutdown routine.
+	 */
+	if (fe->shutdown != NULL)
+		fe->shutdown();
+	return (0);
+}
+
+struct ctl_frontend *
+ctl_frontend_find(char *frontend_name)
+{
+	struct ctl_softc *ctl_softc = control_softc;
+	struct ctl_frontend *fe;
+
+	mtx_lock(&ctl_softc->ctl_lock);
+	STAILQ_FOREACH(fe, &ctl_softc->fe_list, links) {
+		if (strcmp(fe->name, frontend_name) == 0) {
+			mtx_unlock(&ctl_softc->ctl_lock);
+			return (fe);
+		}
+	}
+	mtx_unlock(&ctl_softc->ctl_lock);
+	return (NULL);
+}
+
+int
+ctl_port_register(struct ctl_port *port, int master_shelf)
 {
 	struct ctl_io_pool *pool;
 	int port_num;
@@ -80,13 +150,24 @@ ctl_frontend_register(struct ctl_frontend *fe, int master_shelf)
 	port_num = ctl_ffz(&control_softc->ctl_port_mask, CTL_MAX_PORTS);
 	if ((port_num == -1)
 	 || (ctl_set_mask(&control_softc->ctl_port_mask, port_num) == -1)) {
-		fe->targ_port = -1;
+		port->targ_port = -1;
 		mtx_unlock(&control_softc->ctl_lock);
 		return (1);
 	}
-	control_softc->num_frontends++;
-
+	control_softc->num_ports++;
 	mtx_unlock(&control_softc->ctl_lock);
+
+	/*
+	 * Initialize the initiator and portname mappings
+	 */
+	port->max_initiators = CTL_MAX_INIT_PER_PORT;
+	port->wwpn_iid = malloc(sizeof(*port->wwpn_iid) * port->max_initiators,
+	    M_CTL, M_NOWAIT | M_ZERO);
+	if (port->wwpn_iid == NULL) {
+		retval = ENOMEM;
+		goto error;
+	}
+
 	/*
 	 * We add 20 to whatever the caller requests, so he doesn't get
 	 * burned by queueing things back to the pending sense queue.  In
@@ -95,90 +176,135 @@ ctl_frontend_register(struct ctl_frontend *fe, int master_shelf)
 	 * pending sense queue on the next command, whether or not it is
 	 * a REQUEST SENSE.
 	 */
-	retval = ctl_pool_create(control_softc,
-				 (fe->port_type != CTL_PORT_IOCTL) ?
-				 CTL_POOL_FETD : CTL_POOL_IOCTL,
-				 fe->num_requested_ctl_io + 20, &pool);
+	retval = ctl_pool_create(control_softc, CTL_POOL_FETD,
+				 port->num_requested_ctl_io + 20, &pool);
 	if (retval != 0) {
-		fe->targ_port = -1;
+		free(port->wwpn_iid, M_CTL);
+error:
+		port->targ_port = -1;
 		mtx_lock(&control_softc->ctl_lock);
 		ctl_clear_mask(&control_softc->ctl_port_mask, port_num);
 		mtx_unlock(&control_softc->ctl_lock);
 		return (retval);
 	}
+	port->ctl_pool_ref = pool;
+
+	if (port->options.stqh_first == NULL)
+		STAILQ_INIT(&port->options);
 
 	mtx_lock(&control_softc->ctl_lock);
-
-	/* For now assume master shelf */
-	//fe->targ_port = port_num;
-	fe->targ_port = port_num + (master_shelf!=0 ? 0 : CTL_MAX_PORTS);
-	fe->max_initiators = CTL_MAX_INIT_PER_PORT;
-	STAILQ_INSERT_TAIL(&control_softc->fe_list, fe, links);
-	control_softc->ctl_ports[port_num] = fe;
-
+	port->targ_port = port_num + (master_shelf != 0 ? 0 : CTL_MAX_PORTS);
+	STAILQ_INSERT_TAIL(&port->frontend->port_list, port, fe_links);
+	STAILQ_INSERT_TAIL(&control_softc->port_list, port, links);
+	control_softc->ctl_ports[port_num] = port;
 	mtx_unlock(&control_softc->ctl_lock);
-
-	fe->ctl_pool_ref = pool;
 
 	return (retval);
 }
 
 int
-ctl_frontend_deregister(struct ctl_frontend *fe)
+ctl_port_deregister(struct ctl_port *port)
 {
 	struct ctl_io_pool *pool;
-	int port_num;
-	int retval;
+	int port_num, retval, i;
 
 	retval = 0;
 
-	pool = (struct ctl_io_pool *)fe->ctl_pool_ref;
+	pool = (struct ctl_io_pool *)port->ctl_pool_ref;
 
-	if (fe->targ_port == -1) {
+	if (port->targ_port == -1) {
 		retval = 1;
 		goto bailout;
 	}
 
 	mtx_lock(&control_softc->ctl_lock);
-	STAILQ_REMOVE(&control_softc->fe_list, fe, ctl_frontend, links);
-	control_softc->num_frontends--;
-	port_num = (fe->targ_port < CTL_MAX_PORTS) ? fe->targ_port :
-	                                             fe->targ_port - CTL_MAX_PORTS;
+	STAILQ_REMOVE(&control_softc->port_list, port, ctl_port, links);
+	STAILQ_REMOVE(&port->frontend->port_list, port, ctl_port, fe_links);
+	control_softc->num_ports--;
+	port_num = (port->targ_port < CTL_MAX_PORTS) ? port->targ_port :
+	    port->targ_port - CTL_MAX_PORTS;
 	ctl_clear_mask(&control_softc->ctl_port_mask, port_num);
 	control_softc->ctl_ports[port_num] = NULL;
 	mtx_unlock(&control_softc->ctl_lock);
 
 	ctl_pool_free(pool);
+	ctl_free_opts(&port->options);
+
+	free(port->port_devid, M_CTL);
+	port->port_devid = NULL;
+	free(port->target_devid, M_CTL);
+	port->target_devid = NULL;
+	for (i = 0; i < port->max_initiators; i++)
+		free(port->wwpn_iid[i].name, M_CTL);
+	free(port->wwpn_iid, M_CTL);
 
 bailout:
 	return (retval);
 }
 
 void
-ctl_frontend_set_wwns(struct ctl_frontend *fe, int wwnn_valid, uint64_t wwnn,
+ctl_port_set_wwns(struct ctl_port *port, int wwnn_valid, uint64_t wwnn,
 		      int wwpn_valid, uint64_t wwpn)
 {
-	if (wwnn_valid)
-		fe->wwnn = wwnn;
+	struct scsi_vpd_id_descriptor *desc;
+	int len, proto;
 
-	if (wwpn_valid)
-		fe->wwpn = wwpn;
+	if (port->port_type == CTL_PORT_FC)
+		proto = SCSI_PROTO_FC << 4;
+	else if (port->port_type == CTL_PORT_ISCSI)
+		proto = SCSI_PROTO_ISCSI << 4;
+	else
+		proto = SCSI_PROTO_SPI << 4;
+
+	if (wwnn_valid) {
+		port->wwnn = wwnn;
+
+		free(port->target_devid, M_CTL);
+
+		len = sizeof(struct scsi_vpd_device_id) + CTL_WWPN_LEN;
+		port->target_devid = malloc(sizeof(struct ctl_devid) + len,
+		    M_CTL, M_WAITOK | M_ZERO);
+		port->target_devid->len = len;
+		desc = (struct scsi_vpd_id_descriptor *)port->target_devid->data;
+		desc->proto_codeset = proto | SVPD_ID_CODESET_BINARY;
+		desc->id_type = SVPD_ID_PIV | SVPD_ID_ASSOC_TARGET |
+		    SVPD_ID_TYPE_NAA;
+		desc->length = CTL_WWPN_LEN;
+		scsi_u64to8b(port->wwnn, desc->identifier);
+	}
+
+	if (wwpn_valid) {
+		port->wwpn = wwpn;
+
+		free(port->port_devid, M_CTL);
+
+		len = sizeof(struct scsi_vpd_device_id) + CTL_WWPN_LEN;
+		port->port_devid = malloc(sizeof(struct ctl_devid) + len,
+		    M_CTL, M_WAITOK | M_ZERO);
+		port->port_devid->len = len;
+		desc = (struct scsi_vpd_id_descriptor *)port->port_devid->data;
+		desc->proto_codeset = proto | SVPD_ID_CODESET_BINARY;
+		desc->id_type = SVPD_ID_PIV | SVPD_ID_ASSOC_PORT |
+		    SVPD_ID_TYPE_NAA;
+		desc->length = CTL_WWPN_LEN;
+		scsi_u64to8b(port->wwpn, desc->identifier);
+	}
 }
 
 void
-ctl_frontend_online(struct ctl_frontend *fe)
+ctl_port_online(struct ctl_port *port)
 {
-	fe->port_online(fe->onoff_arg);
+	port->port_online(port->onoff_arg);
 	/* XXX KDM need a lock here? */
-	fe->status |= CTL_PORT_STATUS_ONLINE;
+	port->status |= CTL_PORT_STATUS_ONLINE;
 }
 
 void
-ctl_frontend_offline(struct ctl_frontend *fe)
+ctl_port_offline(struct ctl_port *port)
 {
-	fe->port_offline(fe->onoff_arg);
+	port->port_offline(port->onoff_arg);
 	/* XXX KDM need a lock here? */
-	fe->status &= ~CTL_PORT_STATUS_ONLINE;
+	port->status &= ~CTL_PORT_STATUS_ONLINE;
 }
 
 /*

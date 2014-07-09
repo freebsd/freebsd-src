@@ -36,6 +36,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm.h>
 
 #include <machine/vmm.h>
+#include <machine/vmm_instruction_emul.h>
 #include <x86/psl.h>
 
 #include "vatpic.h"
@@ -142,71 +143,8 @@ done:
 static int
 emulate_inout_str(struct vm *vm, int vcpuid, struct vm_exit *vmexit, bool *retu)
 {
-	struct vm_inout_str *vis;
-	uint64_t gla, index, segbase;
-	int error, in;
-
-	vis = &vmexit->u.inout_str;
-	in = vis->inout.in;
-
-	/*
-	 * ins/outs VM exit takes precedence over the following error
-	 * conditions that would ordinarily be checked by the processor:
-	 *
-	 * - #GP(0) due to segment being unusable.
-	 * - #GP(0) due to memory operand effective address outside the limit
-	 *   of the segment.
-	 * - #AC(0) if alignment checking is enabled and an unaligned memory
-	 *   reference is made at CPL=3
-	 */
-
-	/*
-	 * XXX
-	 * inout string emulation only supported in 64-bit mode.
-	 *
-	 * The #GP(0) fault conditions described above don't apply in
-	 * 64-bit mode.
-	 */
-	if (vis->cpu_mode != CPU_MODE_64BIT) { 
-		VCPU_CTR1(vm, vcpuid, "ins/outs not emulated in cpu mode %d",
-		    vis->cpu_mode);
-		return (EINVAL);
-	}
-
-	/*
-	 * XXX insb/insw/insd instructions not emulated at this time.
-	 */
-	if (in) {
-		VCPU_CTR0(vm, vcpuid, "ins emulation not implemented");
-		return (EINVAL);
-	}
-
-	segbase = vie_segbase(vis->seg_name, vis->cpu_mode, &vis->seg_desc);
-	index = vis->index & vie_size2mask(vis->addrsize);
-	gla = segbase + index;
-
-	/*
-	 * Verify that the computed linear address matches with the one
-	 * provided by hardware.
-	 */
-	if (vis->gla != VIE_INVALID_GLA) {
-		KASSERT(gla == vis->gla, ("%s: gla mismatch "
-		    "%#lx/%#lx", __func__, gla, vis->gla));
-	}
-	vis->gla = gla;
-
-	error = vmm_gla2gpa(vm, vcpuid, gla, vis->cr3, &vis->gpa,
-	    vis->paging_mode, vis->cpl, in ? VM_PROT_WRITE : VM_PROT_READ);
-	KASSERT(error == 0 || error == 1 || error == -1,
-	    ("%s: vmm_gla2gpa unexpected error %d", __func__, error));
-	if (error == -1) {
-		return (EFAULT);
-	} else if (error == 1) {
-		return (0);	/* Resume guest to handle page fault */
-	} else {
-		*retu = true;
-		return (0);	/* Return to userspace to finish emulation */
-	}
+	*retu = true;
+	return (0);	/* Return to userspace to finish emulation */
 }
 
 int

@@ -22,7 +22,7 @@
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2011, 2014 by Delphix. All rights reserved.
- * Copyright 2013 Nexenta Systems, Inc.  All rights reserved.
+ * Copyright (c) 2013, 2014, Nexenta Systems, Inc.  All rights reserved.
  * Copyright (c) 2013 Martin Matuska <mm@FreeBSD.org>. All rights reserved.
  */
 
@@ -84,8 +84,7 @@
 static int check_hostid = 1;
 
 SYSCTL_DECL(_vfs_zfs);
-TUNABLE_INT("vfs.zfs.check_hostid", &check_hostid);
-SYSCTL_INT(_vfs_zfs, OID_AUTO, check_hostid, CTLFLAG_RW, &check_hostid, 0,
+SYSCTL_INT(_vfs_zfs, OID_AUTO, check_hostid, CTLFLAG_RWTUN, &check_hostid, 0,
     "Check hostid on import?");
 
 /*
@@ -258,17 +257,23 @@ spa_prop_get_config(spa_t *spa, nvlist_t **nvp)
 	}
 
 	if (pool != NULL) {
-		dsl_dir_t *freedir = pool->dp_free_dir;
-
 		/*
 		 * The $FREE directory was introduced in SPA_VERSION_DEADLISTS,
 		 * when opening pools before this version freedir will be NULL.
 		 */
-		if (freedir != NULL) {
+		if (pool->dp_free_dir != NULL) {
 			spa_prop_add_list(*nvp, ZPOOL_PROP_FREEING, NULL,
-			    freedir->dd_phys->dd_used_bytes, src);
+			    pool->dp_free_dir->dd_phys->dd_used_bytes, src);
 		} else {
 			spa_prop_add_list(*nvp, ZPOOL_PROP_FREEING,
+			    NULL, 0, src);
+		}
+
+		if (pool->dp_leak_dir != NULL) {
+			spa_prop_add_list(*nvp, ZPOOL_PROP_LEAKED, NULL,
+			    pool->dp_leak_dir->dd_phys->dd_used_bytes, src);
+		} else {
+			spa_prop_add_list(*nvp, ZPOOL_PROP_LEAKED,
 			    NULL, 0, src);
 		}
 	}
@@ -804,7 +809,7 @@ spa_error_entry_compare(const void *a, const void *b)
 	int ret;
 
 	ret = bcmp(&sa->se_bookmark, &sb->se_bookmark,
-	    sizeof (zbookmark_t));
+	    sizeof (zbookmark_phys_t));
 
 	if (ret < 0)
 		return (-1);
@@ -953,7 +958,11 @@ spa_taskq_dispatch_ent(spa_t *spa, zio_type_t t, zio_taskq_type_t q,
 	if (tqs->stqs_count == 1) {
 		tq = tqs->stqs_taskq[0];
 	} else {
+#ifdef _KERNEL
+		tq = tqs->stqs_taskq[cpu_ticks() % tqs->stqs_count];
+#else
 		tq = tqs->stqs_taskq[gethrtime() % tqs->stqs_count];
+#endif
 	}
 
 	taskq_dispatch_ent(tq, func, arg, flags, ent);
@@ -1877,9 +1886,9 @@ spa_load_verify_done(zio_t *zio)
 /*ARGSUSED*/
 static int
 spa_load_verify_cb(spa_t *spa, zilog_t *zilog, const blkptr_t *bp,
-    const zbookmark_t *zb, const dnode_phys_t *dnp, void *arg)
+    const zbookmark_phys_t *zb, const dnode_phys_t *dnp, void *arg)
 {
-	if (!BP_IS_HOLE(bp)) {
+	if (!BP_IS_HOLE(bp) && !BP_IS_EMBEDDED(bp)) {
 		zio_t *rio = arg;
 		size_t size = BP_GET_PSIZE(bp);
 		void *data = zio_data_buf_alloc(size);
@@ -2427,9 +2436,8 @@ spa_load_impl(spa_t *spa, uint64_t pool_guid, nvlist_t *config,
 
 	if (spa_feature_is_active(spa, SPA_FEATURE_ENABLED_TXG)) {
 		if (spa_dir_prop(spa, DMU_POOL_FEATURE_ENABLED_TXG,
-		    &spa->spa_feat_enabled_txg_obj) != 0) {
+		    &spa->spa_feat_enabled_txg_obj) != 0)
 			return (spa_vdev_err(rvd, VDEV_AUX_CORRUPT_DATA, EIO));
-		}
 	}
 
 	spa->spa_is_initializing = B_TRUE;
@@ -3919,9 +3927,6 @@ spa_generate_rootconf(const char *name)
 		}
 	}
 
-	/*
-	 * Multi-vdev root pool configuration discovery is not supported yet.
-	 */
 	nchildren = 1;
 	nvlist_lookup_uint64(best_cfg, ZPOOL_CONFIG_VDEV_CHILDREN, &nchildren);
 	holes = NULL;
@@ -5535,11 +5540,6 @@ spa_vdev_remove(spa_t *spa, uint64_t guid, boolean_t unspare)
 		ASSERT(!locked);
 		ASSERT(vd == vd->vdev_top);
 
-		/*
-		 * XXX - Once we have bp-rewrite this should
-		 * become the common case.
-		 */
-
 		mg = vd->vdev_mg;
 
 		/*
@@ -6425,6 +6425,22 @@ spa_sync_upgrades(spa_t *spa, dmu_tx_t *tx)
 	    spa->spa_uberblock.ub_version >= SPA_VERSION_FEATURES) {
 		spa_feature_create_zap_objects(spa, tx);
 	}
+
+	/*
+	 * LZ4_COMPRESS feature's behaviour was changed to activate_on_enable
+	 * when possibility to use lz4 compression for metadata was added
+	 * Old pools that have this feature enabled must be upgraded to have
+	 * this feature active
+	 */
+	if (spa->spa_uberblock.ub_version >= SPA_VERSION_FEATURES) {
+		boolean_t lz4_en = spa_feature_is_enabled(spa,
+		    SPA_FEATURE_LZ4_COMPRESS);
+		boolean_t lz4_ac = spa_feature_is_active(spa,
+		    SPA_FEATURE_LZ4_COMPRESS);
+
+		if (lz4_en && !lz4_ac)
+			spa_feature_incr(spa, SPA_FEATURE_LZ4_COMPRESS, tx);
+	}
 	rrw_exit(&dp->dp_config_rwlock, FTAG);
 }
 
@@ -6771,7 +6787,7 @@ spa_upgrade(spa_t *spa, uint64_t version)
 	 * possible.
 	 */
 	ASSERT(SPA_VERSION_IS_SUPPORTED(spa->spa_uberblock.ub_version));
-	ASSERT(version >= spa->spa_uberblock.ub_version);
+	ASSERT3U(version, >=, spa->spa_uberblock.ub_version);
 
 	spa->spa_uberblock.ub_version = version;
 	vdev_config_dirty(spa->spa_root_vdev);

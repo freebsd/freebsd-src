@@ -55,7 +55,7 @@ __FBSDID("$FreeBSD$");
 static u_int random_ivy_read(void *, u_int);
 
 static struct live_entropy_source random_ivy = {
-	.les_ident = "Intel IvyBridge+ RNG",
+	.les_ident = "Intel Secure Key RNG",
 	.les_source = RANDOM_PURE_RDRAND,
 	.les_read = random_ivy_read
 };
