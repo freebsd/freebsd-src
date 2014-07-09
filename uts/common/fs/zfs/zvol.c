@@ -717,6 +717,7 @@ zvol_update_volsize(objset_t *os, uint64_t volsize)
 
 	tx = dmu_tx_create(os);
 	dmu_tx_hold_zap(tx, ZVOL_ZAP_OBJ, TRUE, NULL);
+	dmu_tx_mark_netfree(tx);
 	error = dmu_tx_assign(tx, TXG_WAIT);
 	if (error) {
 		dmu_tx_abort(tx);
@@ -1786,6 +1787,7 @@ zvol_ioctl(dev_t dev, int cmd, intptr_t arg, int flag, cred_t *cr, int *rvalp)
 		rl = zfs_range_lock(&zv->zv_znode, df.df_start, df.df_length,
 		    RL_WRITER);
 		tx = dmu_tx_create(zv->zv_objset);
+		dmu_tx_mark_netfree(tx);
 		error = dmu_tx_assign(tx, TXG_WAIT);
 		if (error != 0) {
 			dmu_tx_abort(tx);
