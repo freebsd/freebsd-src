@@ -1096,28 +1096,21 @@ vxlan_socket_mc_join_group(struct vxlan_socket *vso,
 		if (error)
 			return (error);
 
-#ifdef notyet
-		struct ip_mreqn mreqn;
-		bzero(&mreqn, sizeof(mreqn));
-
-		bzero(&sopt, sizeof(sopt));
-		sopt.sopt_dir = SOPT_GET;
-		sopt.sopt_level = IPPROTO_IP;
-		sopt.sopt_name = IP_MULTICAST_IF;
-		sopt.sopt_val = &mreqn;
-		sopt.sopt_valsize = sizeof(mreqn);
-		error = sogetopt(vso->vxlso_sock, &sopt);
-		if (error)
-			return (error);
-
-		MPASS(source->in4.sin_addr.s_addr == INADDR_ANY ||
-		      source->in4.sin_addr.s_addr == mreqn.imr_address.s_addr);
-		source->in4.sin_addr = mreqn.imr_address;
-		*ifidx = mreqn.imr_ifindex;
-#else
+		/*
+		 * BMV: Ideally, there would be a formal way for us to get
+		 * the local interface that was selected based on the
+		 * imr_interface address. We could then update *ifidx so
+		 * vxlan_sockaddr_mc_info_match() would return a match for
+		 * later creates that explicitly set the multicast interface.
+		 *
+		 * If we really need to, we can of course look in the INP's
+		 * membership list:
+		 *     sotoinpcb(vso->vxlso_sock)->inp_moptions->
+		 *         imo_membership[]->inm_ifp
+		 * similarly to imo_match_group().
+		 */
 		source->in4.sin_addr = local->in4.sin_addr;
-		*ifidx = 0;
-#endif
+
 	} else if (VXLAN_SOCKADDR_IS_IPV6(group)) {
 		struct ipv6_mreq mreq;
 
@@ -1134,23 +1127,10 @@ vxlan_socket_mc_join_group(struct vxlan_socket *vso,
 		if (error)
 			return (error);
 
-#ifdef notyet
-		int idx;
-		bzero(&sopt, sizeof(sopt));
-		sopt.sopt_dir = SOPT_GET;
-		sopt.sopt_level = IPPROTO_IPV6;
-		sopt.sopt_name = IPV6_MULTICAST_IF;
-		sopt.sopt_val = &idx;
-		sopt.sopt_valsize = sizeof(int);
-		error = sogetopt(vso->vxlso_sock, &sopt);
-		if (error)
-			return (error);
-
-		MPASS(*ifidx == 0 || *ifidx == idx);
-		*ifidx = idx;
-#else
-		*ifidx = 0;
-#endif
+		/*
+		 * BMV: As with IPv4, we would really like to know what
+		 * interface in6p_lookup_mcast_ifp() selected.
+		 */
 	} else
 		error = EAFNOSUPPORT;
 
@@ -1710,6 +1690,7 @@ vxlan_teardown_locked(struct vxlan_softc *sc)
 	VXLAN_LOCK_WASSERT(sc);
 	MPASS(sc->vxl_flags & VXLAN_FLAG_TEARDOWN);
 
+	ifp->if_flags &= ~IFF_UP;
 	ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 	callout_stop(&sc->vxl_callout);
 	vso = sc->vxl_sock;
@@ -2516,7 +2497,7 @@ vxlan_input(struct vxlan_socket *vso, uint32_t vni, struct mbuf **m0,
 	m->m_pkthdr.rcvif = ifp;
 	M_SETFIB(m, ifp->if_fib);
 
-	error = netisr_queue_src(NETISR_ETHER, 0 ,m);
+	error = netisr_queue_src(NETISR_ETHER, 0, m);
 	*m0 = NULL;
 
 out:
