@@ -33,6 +33,8 @@
 #include <sys/types.h>
 #endif
 
+#define	LIBUSB_CALL
+
 #ifdef __cplusplus
 extern	"C" {
 #endif

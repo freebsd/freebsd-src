@@ -5,7 +5,7 @@ Pull in r203624 from upstream clang trunk (by Hans Wennborg):
   This narrows the impact of r188833 after Dimitry pointed out that it's good to be
   able to tell the difference between 'cc' and 'CC'.
 
-Introduced here: http://svn.freebsd.org/changeset/base/263048
+Introduced here: http://svnweb.freebsd.org/changeset/base/263048
 
 Index: tools/clang/tools/driver/driver.cpp
 ===================================================================

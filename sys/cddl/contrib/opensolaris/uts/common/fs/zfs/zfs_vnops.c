@@ -6875,7 +6875,7 @@ vop_setextattr {
 	va.va_size = 0;
 	error = VOP_SETATTR(vp, &va, ap->a_cred);
 	if (error == 0)
-		VOP_WRITE(vp, ap->a_uio, IO_UNIT | IO_SYNC, ap->a_cred);
+		VOP_WRITE(vp, ap->a_uio, IO_UNIT, ap->a_cred);
 
 	VOP_UNLOCK(vp, 0);
 	vn_close(vp, flags, ap->a_cred, td);

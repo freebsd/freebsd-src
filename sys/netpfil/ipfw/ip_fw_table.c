@@ -697,6 +697,7 @@ dump_table_xentry_base(struct radix_node *rn, void *arg)
 		xent->masklen = 33 - ffs(ntohl(n->mask.sin_addr.s_addr));
 	/* Save IPv4 address as deprecated IPv6 compatible */
 	xent->k.addr6.s6_addr32[3] = n->addr.sin_addr.s_addr;
+	xent->flags = IPFW_TCF_INET;
 	xent->value = n->value;
 	tbl->cnt++;
 	return (0);

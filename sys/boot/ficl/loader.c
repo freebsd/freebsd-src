@@ -800,15 +800,9 @@ void ficlCompilePlatform(FICL_SYSTEM *pSys)
     ficlSetEnv(pSys, "arch-pc98",         FICL_TRUE);
 #elif defined(__i386__)
     ficlSetEnv(pSys, "arch-i386",         FICL_TRUE);
-    ficlSetEnv(pSys, "arch-ia64",         FICL_FALSE);
-    ficlSetEnv(pSys, "arch-powerpc",      FICL_FALSE);
-#elif defined(__ia64__)
-    ficlSetEnv(pSys, "arch-i386",         FICL_FALSE);
-    ficlSetEnv(pSys, "arch-ia64",         FICL_TRUE);
     ficlSetEnv(pSys, "arch-powerpc",      FICL_FALSE);
 #elif defined(__powerpc__)
     ficlSetEnv(pSys, "arch-i386",         FICL_FALSE);
-    ficlSetEnv(pSys, "arch-ia64",         FICL_FALSE);
     ficlSetEnv(pSys, "arch-powerpc",      FICL_TRUE);
 #endif
 

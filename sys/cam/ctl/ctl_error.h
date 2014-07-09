@@ -80,6 +80,7 @@ void ctl_set_data_phase_error(struct ctl_scsiio *ctsio);
 void ctl_set_reservation_conflict(struct ctl_scsiio *ctsio);
 void ctl_set_queue_full(struct ctl_scsiio *ctsio);
 void ctl_set_busy(struct ctl_scsiio *ctsio);
+void ctl_set_task_aborted(struct ctl_scsiio *ctsio);
 void ctl_set_success(struct ctl_scsiio *ctsio);
 
 #endif	/* _CTL_ERROR_H_ */

@@ -32,12 +32,6 @@
 struct virtqueue;
 struct sglist;
 
-/* Support for indirect buffer descriptors. */
-#define VIRTIO_RING_F_INDIRECT_DESC	(1 << 28)
-
-/* Support to suppress interrupt until specific index is reached. */
-#define VIRTIO_RING_F_EVENT_IDX		(1 << 29)
-
 /* Device callback for a virtqueue interrupt. */
 typedef void virtqueue_intr_t(void *);
 

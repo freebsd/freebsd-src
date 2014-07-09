@@ -875,14 +875,6 @@ vm_pageout_map_deactivate_pages(map, desired)
 		tmpe = tmpe->next;
 	}
 
-#ifdef __ia64__
-	/*
-	 * Remove all non-wired, managed mappings if a process is swapped out.
-	 * This will free page table pages.
-	 */
-	if (desired == 0)
-		pmap_remove_pages(map->pmap);
-#else
 	/*
 	 * Remove all mappings if a process is swapped out, this will free page
 	 * table pages.
@@ -891,7 +883,6 @@ vm_pageout_map_deactivate_pages(map, desired)
 		pmap_remove(vm_map_pmap(map), vm_map_min(map),
 		    vm_map_max(map));
 	}
-#endif
 
 	vm_map_unlock(map);
 }
@@ -942,13 +933,15 @@ vm_pageout_scan(struct vm_domain *vmd, int pass)
 	 */
 	addl_page_shortage = 0;
 
-	deficit = atomic_readandclear_int(&vm_pageout_deficit);
-
 	/*
 	 * Calculate the number of pages we want to either free or move
 	 * to the cache.
 	 */
-	page_shortage = vm_paging_target() + deficit;
+	if (pass > 0) {
+		deficit = atomic_readandclear_int(&vm_pageout_deficit);
+		page_shortage = vm_paging_target() + deficit;
+	} else
+		page_shortage = deficit = 0;
 
 	/*
 	 * maxlaunder limits the number of dirty pages we flush per scan.

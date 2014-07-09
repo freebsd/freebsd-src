@@ -401,6 +401,11 @@ ctl_build_ua(ctl_ua_type ua_type, struct scsi_sense_data *sense,
 		asc = 0x29;
 		ascq = 0x03;
 		break;
+	case CTL_UA_I_T_NEXUS_LOSS:
+		/* 29h/07h  I_T NEXUS LOSS OCCURRED */
+		asc = 0x29;
+		ascq = 0x07;
+		break;
 	case CTL_UA_LUN_RESET:
 		/* 29h/00h  POWER ON, RESET, OR BUS DEVICE RESET OCCURRED */
 		/*
@@ -787,6 +792,18 @@ ctl_set_busy(struct ctl_scsiio *ctsio)
 	ctsio->scsi_status = SCSI_STATUS_BUSY;
 	ctsio->sense_len = 0;
 	ctsio->io_hdr.status = CTL_SCSI_ERROR;
+}
+
+void
+ctl_set_task_aborted(struct ctl_scsiio *ctsio)
+{
+	struct scsi_sense_data *sense;
+
+	sense = &ctsio->sense_data;
+	memset(sense, 0, sizeof(*sense));
+	ctsio->scsi_status = SCSI_STATUS_TASK_ABORTED;
+	ctsio->sense_len = 0;
+	ctsio->io_hdr.status = CTL_CMD_ABORTED;
 }
 
 void

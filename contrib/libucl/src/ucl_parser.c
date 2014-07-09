@@ -236,6 +236,9 @@ ucl_check_variable_safe (struct ucl_parser *parser, const char *ptr, size_t rema
 		size_t *out_len, bool strict, bool *found)
 {
 	struct ucl_variable *var;
+	unsigned char *dst;
+	size_t dstlen;
+	bool need_free = false;
 
 	LL_FOREACH (parser->variables, var) {
 		if (strict) {
@@ -258,6 +261,19 @@ ucl_check_variable_safe (struct ucl_parser *parser, const char *ptr, size_t rema
 		}
 	}
 
+	/* XXX: can only handle ${VAR} */
+	if (!(*found) && parser->var_handler != NULL && strict) {
+		/* Call generic handler */
+		if (parser->var_handler (ptr, remain, &dst, &dstlen, &need_free,
+				parser->var_data)) {
+			*found = true;
+			if (need_free) {
+				free (dst);
+			}
+			return (ptr + remain);
+		}
+	}
+
 	return ptr;
 }
 
@@ -271,7 +287,8 @@ ucl_check_variable_safe (struct ucl_parser *parser, const char *ptr, size_t rema
  * @return
  */
 static const char *
-ucl_check_variable (struct ucl_parser *parser, const char *ptr, size_t remain, size_t *out_len, bool *vars_found)
+ucl_check_variable (struct ucl_parser *parser, const char *ptr,
+		size_t remain, size_t *out_len, bool *vars_found)
 {
 	const char *p, *end, *ret = ptr;
 	bool found = false;
@@ -282,7 +299,8 @@ ucl_check_variable (struct ucl_parser *parser, const char *ptr, size_t remain, s
 		end = ptr + remain;
 		while (p < end) {
 			if (*p == '}') {
-				ret = ucl_check_variable_safe (parser, ptr + 1, p - ptr - 1, out_len, true, &found);
+				ret = ucl_check_variable_safe (parser, ptr + 1, p - ptr - 1,
+						out_len, true, &found);
 				if (found) {
 					/* {} must be excluded actually */
 					ret ++;
@@ -328,10 +346,13 @@ static const char *
 ucl_expand_single_variable (struct ucl_parser *parser, const char *ptr,
 		size_t remain, unsigned char **dest)
 {
-	unsigned char *d = *dest;
+	unsigned char *d = *dest, *dst;
 	const char *p = ptr + 1, *ret;
 	struct ucl_variable *var;
+	size_t dstlen;
+	bool need_free = false;
 	bool found = false;
+	bool strict = false;
 
 	ret = ptr + 1;
 	remain --;
@@ -343,6 +364,7 @@ ucl_expand_single_variable (struct ucl_parser *parser, const char *ptr,
 	}
 	else if (*p == '{') {
 		p ++;
+		strict = true;
 		ret += 2;
 		remain -= 2;
 	}
@@ -359,9 +381,22 @@ ucl_expand_single_variable (struct ucl_parser *parser, const char *ptr,
 		}
 	}
 	if (!found) {
-		memcpy (d, ptr, 2);
-		d += 2;
-		ret --;
+		if (strict && parser->var_handler != NULL) {
+			if (parser->var_handler (ptr, remain, &dst, &dstlen, &need_free,
+							parser->var_data)) {
+				memcpy (d, dst, dstlen);
+				ret += dstlen;
+				d += remain;
+				found = true;
+			}
+		}
+
+		/* Leave variable as is */
+		if (!found) {
+			memcpy (d, ptr, 2);
+			d += 2;
+			ret --;
+		}
 	}
 
 	*dest = d;
@@ -1871,6 +1906,14 @@ ucl_parser_register_variable (struct ucl_parser *parser, const char *var,
 			new->value_len = strlen (value);
 		}
 	}
+}
+
+void
+ucl_parser_set_variables_handler (struct ucl_parser *parser,
+		ucl_variable_handler handler, void *ud)
+{
+	parser->var_handler = handler;
+	parser->var_data = ud;
 }
 
 bool

@@ -28,3 +28,5 @@
 CFLAGS+=	-DHAVE_CONFIG_H
 
 WARNS?=		3
+
+.include "../Makefile.inc"

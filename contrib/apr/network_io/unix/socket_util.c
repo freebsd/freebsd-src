@@ -46,7 +46,8 @@ APR_DECLARE(apr_status_t) apr_socket_atreadeof(apr_socket_t *sock, int *atreadeo
         /* Some other error -> unexpected error. */
         return rv;
     }
-    else if (nfds == 1 && pfds[0].rtnevents == APR_POLLIN) {
+    /* Many platforms return only APR_POLLIN; OS X returns APR_POLLHUP|APR_POLLIN */
+    else if (nfds == 1 && (pfds[0].rtnevents & APR_POLLIN)  == APR_POLLIN) {
         apr_sockaddr_t unused;
         apr_size_t len = 1;
         char buf;

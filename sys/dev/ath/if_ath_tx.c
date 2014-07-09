@@ -761,37 +761,21 @@ ath_tx_handoff_hw(struct ath_softc *sc, struct ath_txq *txq,
 	     ("ath_tx_handoff_hw called for mcast queue"));
 
 	/*
-	 * XXX racy, should hold the PCU lock when checking this,
-	 * and also should ensure that the TX counter is >0!
+	 * XXX We should instead just verify that sc_txstart_cnt
+	 * or ath_txproc_cnt > 0.  That would mean that
+	 * the reset is going to be waiting for us to complete.
 	 */
-	KASSERT((sc->sc_inreset_cnt == 0),
-	    ("%s: TX during reset?\n", __func__));
-
-#if 0
-	/*
-	 * This causes a LOR. Find out where the PCU lock is being
-	 * held whilst the TXQ lock is grabbed - that shouldn't
-	 * be occuring.
-	 */
-	ATH_PCU_LOCK(sc);
-	if (sc->sc_inreset_cnt) {
-		ATH_PCU_UNLOCK(sc);
-		DPRINTF(sc, ATH_DEBUG_RESET,
-		    "%s: called with sc_in_reset != 0\n",
+	if (sc->sc_txproc_cnt == 0 && sc->sc_txstart_cnt == 0) {
+		device_printf(sc->sc_dev,
+		    "%s: TX dispatch without holding txcount/txstart refcnt!\n",
 		    __func__);
-		DPRINTF(sc, ATH_DEBUG_XMIT,
-		    "%s: queued: TXDP[%u] = %p (%p) depth %d\n",
-		    __func__, txq->axq_qnum,
-		    (caddr_t)bf->bf_daddr, bf->bf_desc,
-		    txq->axq_depth);
-		/* XXX axq_link needs to be set and updated! */
-		ATH_TXQ_INSERT_TAIL(txq, bf, bf_list);
-		if (bf->bf_state.bfs_aggr)
-			txq->axq_aggr_depth++;
-		return;
-		}
-	ATH_PCU_UNLOCK(sc);
-#endif
+	}
+
+	/*
+	 * XXX .. this is going to cause the hardware to get upset;
+	 * so we really should find some way to drop or queue
+	 * things.
+	 */
 
 	ATH_TXQ_LOCK(txq);
 
@@ -1615,6 +1599,7 @@ ath_tx_normal_setup(struct ath_softc *sc, struct ieee80211_node *ni,
 	error = ath_tx_dmasetup(sc, bf, m0);
 	if (error != 0)
 		return error;
+	KASSERT((ni != NULL), ("%s: ni=NULL!", __func__));
 	bf->bf_node = ni;			/* NB: held reference */
 	m0 = bf->bf_m;				/* NB: may have changed */
 	wh = mtod(m0, struct ieee80211_frame *);
@@ -2106,6 +2091,7 @@ ath_tx_raw_start(struct ath_softc *sc, struct ieee80211_node *ni,
 	int do_override;
 	uint8_t type, subtype;
 	int queue_to_head;
+	struct ath_node *an = ATH_NODE(ni);
 
 	ATH_TX_LOCK_ASSERT(sc);
 
@@ -2165,6 +2151,7 @@ ath_tx_raw_start(struct ath_softc *sc, struct ieee80211_node *ni,
 		return error;
 	m0 = bf->bf_m;				/* NB: may have changed */
 	wh = mtod(m0, struct ieee80211_frame *);
+	KASSERT((ni != NULL), ("%s: ni=NULL!", __func__));
 	bf->bf_node = ni;			/* NB: held reference */
 
 	/* Always enable CLRDMASK for raw frames for now.. */
@@ -2183,12 +2170,24 @@ ath_tx_raw_start(struct ath_softc *sc, struct ieee80211_node *ni,
 
 	rt = sc->sc_currates;
 	KASSERT(rt != NULL, ("no rate table, mode %u", sc->sc_curmode));
+
+	/* Fetch first rate information */
 	rix = ath_tx_findrix(sc, params->ibp_rate0);
+	try0 = params->ibp_try0;
+
+	/*
+	 * Override EAPOL rate as appropriate.
+	 */
+	if (m0->m_flags & M_EAPOL) {
+		/* XXX? maybe always use long preamble? */
+		rix = an->an_mgmtrix;
+		try0 = ATH_TXMAXTRY;	/* XXX?too many? */
+	}
+
 	txrate = rt->info[rix].rateCode;
 	if (params->ibp_flags & IEEE80211_BPF_SHORTPRE)
 		txrate |= rt->info[rix].shortPreamble;
 	sc->sc_txrix = rix;
-	try0 = params->ibp_try0;
 	ismrr = (params->ibp_try1 != 0);
 	txantenna = params->ibp_pri >> 2;
 	if (txantenna == 0)			/* XXX? */
@@ -2261,8 +2260,7 @@ ath_tx_raw_start(struct ath_softc *sc, struct ieee80211_node *ni,
 	/* Blank the legacy rate array */
 	bzero(&bf->bf_state.bfs_rc, sizeof(bf->bf_state.bfs_rc));
 
-	bf->bf_state.bfs_rc[0].rix =
-	    ath_tx_findrix(sc, params->ibp_rate0);
+	bf->bf_state.bfs_rc[0].rix = rix;
 	bf->bf_state.bfs_rc[0].tries = try0;
 	bf->bf_state.bfs_rc[0].ratecode = txrate;
 
@@ -2354,10 +2352,15 @@ ath_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
 		    "%s: sc_inreset_cnt > 0; bailing\n", __func__);
 		error = EIO;
 		ATH_PCU_UNLOCK(sc);
-		goto bad0;
+		goto badbad;
 	}
 	sc->sc_txstart_cnt++;
 	ATH_PCU_UNLOCK(sc);
+
+	/* Wake the hardware up already */
+	ATH_LOCK(sc);
+	ath_power_set_power_state(sc, HAL_PM_AWAKE);
+	ATH_UNLOCK(sc);
 
 	ATH_TX_LOCK(sc);
 
@@ -2437,7 +2440,14 @@ ath_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
 	sc->sc_txstart_cnt--;
 	ATH_PCU_UNLOCK(sc);
 
+
+	/* Put the hardware back to sleep if required */
+	ATH_LOCK(sc);
+	ath_power_restore_power_state(sc);
+	ATH_UNLOCK(sc);
+
 	return 0;
+
 bad2:
 	ATH_KTR(sc, ATH_KTR_TX, 3, "ath_raw_xmit: bad2: m=%p, params=%p, "
 	    "bf=%p",
@@ -2447,14 +2457,20 @@ bad2:
 	ATH_TXBUF_LOCK(sc);
 	ath_returnbuf_head(sc, bf);
 	ATH_TXBUF_UNLOCK(sc);
-bad:
 
+bad:
 	ATH_TX_UNLOCK(sc);
 
 	ATH_PCU_LOCK(sc);
 	sc->sc_txstart_cnt--;
 	ATH_PCU_UNLOCK(sc);
-bad0:
+
+	/* Put the hardware back to sleep if required */
+	ATH_LOCK(sc);
+	ath_power_restore_power_state(sc);
+	ATH_UNLOCK(sc);
+
+badbad:
 	ATH_KTR(sc, ATH_KTR_TX, 2, "ath_raw_xmit: bad0: m=%p, params=%p",
 	    m, params);
 	ifp->if_oerrors++;

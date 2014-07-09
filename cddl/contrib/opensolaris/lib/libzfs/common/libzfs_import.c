@@ -94,6 +94,7 @@ typedef struct pool_list {
 static char *
 get_devid(const char *path)
 {
+#ifdef have_devid
 	int fd;
 	ddi_devid_t devid;
 	char *minor, *ret;
@@ -113,6 +114,9 @@ get_devid(const char *path)
 	(void) close(fd);
 
 	return (ret);
+#else
+	return (NULL);
+#endif
 }
 
 

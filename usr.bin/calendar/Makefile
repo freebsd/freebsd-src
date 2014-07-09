@@ -1,7 +1,7 @@
 #	@(#)Makefile	8.1 (Berkeley) 6/6/93
 # $FreeBSD$
 
-.include <bsd.own.mk>
+.include <src.opts.mk>
 
 PROG=	calendar
 SRCS=	calendar.c locale.c events.c dates.c parsedata.c io.c day.c \
@@ -19,7 +19,6 @@ beforeinstall:
 	${INSTALL} -o ${BINOWN} -g ${BINGRP} -m ${TEXTMODE} \
 	    ${.CURDIR}/calendars/calendar.* ${DESTDIR}${SHAREDIR}/calendar
 .for lang in ${INTER}
-	mkdir -p ${DESTDIR}${SHAREDIR}/calendar/${lang}
 	${INSTALL} -o ${BINOWN} -g ${BINGRP} -m ${TEXTMODE} \
 		${.CURDIR}/calendars/${lang}/calendar.* \
 		${DESTDIR}${SHAREDIR}/calendar/${lang} 

@@ -1,7 +1,7 @@
 #	From: @(#)Makefile	8.3 (Berkeley) 1/7/94
 # $FreeBSD$
 
-.include <bsd.own.mk>
+.include <src.opts.mk>
 
 # XXX MISSING:		deroff diction graph learn plot
 #			spell spline struct xsend
@@ -12,7 +12,6 @@
 SUBDIR=	alias \
 	apply \
 	asa \
-	${_atf} \
 	awk \
 	banner \
 	basename \
@@ -144,6 +143,7 @@ SUBDIR=	alias \
 	rwall \
 	script \
 	sed \
+	send-pr \
 	seq \
 	shar \
 	showmount \
@@ -230,6 +230,10 @@ SUBDIR+=	calendar
 _clang=		clang
 .endif
 
+.if ${MK_FMAKE} != "no"
+SUBDIR+=	make
+.endif
+
 .if ${MK_GPL_DTC} != "yes"
 SUBDIR+=	dtc
 .endif
@@ -262,10 +266,6 @@ SUBDIR+=	drill
 SUBDIR+=	host
 .endif
 
-.if ${MK_LIBTHR} != "no"
-SUBDIR+=	csup
-.endif
-
 .if ${MK_LOCATE} != "no"
 SUBDIR+=	locate
 .endif
@@ -279,11 +279,7 @@ SUBDIR+=	msgs
 .endif
 
 .if ${MK_MAKE} != "no"
-.if ${MK_BMAKE} != "no"
 SUBDIR+=	bmake
-.else
-SUBDIR+=	make
-.endif
 .endif
 
 .if ${MK_MAN_UTILS} != "no"
@@ -333,7 +329,6 @@ SUBDIR+=	telnet
 .endif
 
 .if ${MK_TESTS} != "no"
-_atf=		atf
 _tests=		tests
 .endif
 
@@ -362,6 +357,10 @@ SUBDIR+=	yacc
 
 .if ${MK_VI} != "no"
 SUBDIR+=	vi
+.endif
+
+.if ${MK_VT} != "no"
+SUBDIR+=	vtfontcvt
 .endif
 
 .if ${MK_USB} != "no"

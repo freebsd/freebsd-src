@@ -2,7 +2,7 @@ Pull in r198910 from upstream llvm trunk (by Venkatraman Govindaraju):
 
   [Sparc] Emit retl/ret instead of jmp instruction. It improves the readability of the assembly generated.
 
-Introduced here: http://svn.freebsd.org/changeset/base/262261
+Introduced here: http://svnweb.freebsd.org/changeset/base/262261
 
 Index: test/CodeGen/SPARC/ctpop.ll
 ===================================================================

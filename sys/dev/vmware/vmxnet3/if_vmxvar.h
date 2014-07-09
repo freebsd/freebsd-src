@@ -168,6 +168,8 @@ struct vmxnet3_rxqueue {
 	struct vmxnet3_softc		*vxrxq_sc;
 	int				 vxrxq_id;
 	int				 vxrxq_intr_idx;
+	struct mbuf			*vxrxq_mhead;
+	struct mbuf			*vxrxq_mtail;
 	struct vmxnet3_rxring		 vxrxq_cmd_ring[VMXNET3_RXRINGS_PERQ];
 	struct vmxnet3_comp_ring	 vxrxq_comp_ring;
 	struct vmxnet3_rxq_stats	 vxrxq_stats;

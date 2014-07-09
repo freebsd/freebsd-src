@@ -166,24 +166,20 @@ SDT_PROBE_DECLARE(sched, , , sleep);
 SDT_PROBE_DECLARE(sched, , , wakeup);
 
 /*
- * Early initialization of sleep queues that is called from the sleepinit()
- * SYSINIT.
+ * Initialize SLEEPQUEUE_PROFILING specific sysctl nodes.
+ * Note that it must happen after sleepinit() has been fully executed, so
+ * it must happen after SI_SUB_KMEM SYSINIT() subsystem setup.
  */
-void
-init_sleepqueues(void)
-{
 #ifdef SLEEPQUEUE_PROFILING
-	struct sysctl_oid *chain_oid;
+static void
+init_sleepqueue_profiling(void)
+{
 	char chain_name[10];
-#endif
-	int i;
+	struct sysctl_oid *chain_oid;
+	u_int i;
 
 	for (i = 0; i < SC_TABLESIZE; i++) {
-		LIST_INIT(&sleepq_chains[i].sc_queues);
-		mtx_init(&sleepq_chains[i].sc_lock, "sleepq chain", NULL,
-		    MTX_SPIN | MTX_RECURSE);
-#ifdef SLEEPQUEUE_PROFILING
-		snprintf(chain_name, sizeof(chain_name), "%d", i);
+		snprintf(chain_name, sizeof(chain_name), "%u", i);
 		chain_oid = SYSCTL_ADD_NODE(NULL, 
 		    SYSCTL_STATIC_CHILDREN(_debug_sleepq_chains), OID_AUTO,
 		    chain_name, CTLFLAG_RD, NULL, "sleepq chain stats");
@@ -192,7 +188,26 @@ init_sleepqueues(void)
 		SYSCTL_ADD_UINT(NULL, SYSCTL_CHILDREN(chain_oid), OID_AUTO,
 		    "max_depth", CTLFLAG_RD, &sleepq_chains[i].sc_max_depth, 0,
 		    NULL);
+	}
+}
+
+SYSINIT(sleepqueue_profiling, SI_SUB_LOCK, SI_ORDER_ANY,
+    init_sleepqueue_profiling, NULL);
 #endif
+
+/*
+ * Early initialization of sleep queues that is called from the sleepinit()
+ * SYSINIT.
+ */
+void
+init_sleepqueues(void)
+{
+	int i;
+
+	for (i = 0; i < SC_TABLESIZE; i++) {
+		LIST_INIT(&sleepq_chains[i].sc_queues);
+		mtx_init(&sleepq_chains[i].sc_lock, "sleepq chain", NULL,
+		    MTX_SPIN | MTX_RECURSE);
 	}
 	sleepq_zone = uma_zcreate("SLEEPQUEUE", sizeof(struct sleepqueue),
 #ifdef INVARIANTS

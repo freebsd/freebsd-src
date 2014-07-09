@@ -2,7 +2,7 @@ Pull in r198911 from upstream clang trunk (by Jakob Stoklund Olesen):
 
   Pass -32/-64 to the assembler when building for sparc/sparc64.
 
-Introduced here: http://svn.freebsd.org/changeset/base/262262
+Introduced here: http://svnweb.freebsd.org/changeset/base/262262
 
 Index: tools/clang/test/Driver/linux-as.c
 ===================================================================

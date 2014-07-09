@@ -863,7 +863,7 @@ in6_ifdetach(struct ifnet *ifp)
 		    RT_DEFAULT_FIB);
 		if (rt) {
 			if (rt->rt_ifp == ifp)
-				rtexpunge(rt);
+				rt_expunge(rnh, rt);
 			RTFREE_LOCKED(rt);
 		}
 		RADIX_NODE_HEAD_UNLOCK(rnh);

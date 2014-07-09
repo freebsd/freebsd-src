@@ -42,7 +42,7 @@ SRCS+=	archive.c \
 	targets.c \
 	targmatch.h \
 	tekhex.c
-.if (${TARGET_ARCH} == "ia64" || ${TARGET_ARCH} == "sparc64")
+.if ${TARGET_ARCH} == "sparc64"
 WARNS?=	2
 .endif
 CFLAGS+= -D_GNU_SOURCE
@@ -84,7 +84,7 @@ bfdver.h: Makefile
 	echo '#define BFD_VERSION	217500000'	> ${.TARGET}
 	echo '#define BFD_VERSION_DATE	20070703'	>> ${.TARGET}
 	echo '#define BFD_VERSION_STRING ${VERSION}'	>> ${.TARGET}
-	echo '#define REPORT_BUGS_TO "<http://www.freebsd.org/send-pr.html>"' >> ${.TARGET}
+	echo '#define REPORT_BUGS_TO "<http://www.freebsd.org/support.html>"' >> ${.TARGET}
 
 targmatch.h: targmatch.sed config.bfd
 	sed -f ${.ALLSRC:M*.sed} ${.ALLSRC:M*.bfd} > ${.TARGET}

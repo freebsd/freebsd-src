@@ -20,6 +20,8 @@ top \- display and update information about the top cpu processes
 ] [
 .BI \-s time
 ] [
+.BI \-J jail
+] [
 .BI \-U username
 ] [
 .I number
@@ -171,6 +173,21 @@ values are \*(lqcpu\*(rq, \*(lqsize\*(rq, \*(lqres\*(rq, and \*(lqtime\*(rq,
 but may vary on different operating systems.  Note that
 not all operating systems support this option.
 .TP
+.BI \-J jail
+Show only those processes owned by
+.IR jail .
+This may be either the
+.B jid
+or
+.B name
+of the jail.
+Use
+.B 0
+to limit to host processes.
+Using this option implies the
+.B \-j
+flag.
+.PP
 .BI \-U username
 Show only those processes owned by
 .IR username .
@@ -314,6 +331,12 @@ Toggle the display of idle processes.
 Toggle the display of
 .IR jail (8)
 ID.
+.TP
+.B J
+Display only processes owned by a specific jail (prompt for jail).
+If the jail specified is simply \*(lq+\*(rq, then processes belonging
+to all jails and the host will be displayed.
+This will also enable the display of JID.
 .TP
 .B P
 Toggle the display of per-CPU statistics.

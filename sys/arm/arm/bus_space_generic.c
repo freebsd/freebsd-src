@@ -50,6 +50,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_extern.h>
 
 #include <machine/bus.h>
+#include <machine/cpufunc.h>
 #include <machine/devmap.h>
 
 /* Prototypes for all the bus_space structure functions */
@@ -110,5 +111,16 @@ generic_bs_barrier(void *t, bus_space_handle_t bsh, bus_size_t offset,
     bus_size_t len, int flags)
 {
 
-	/* Nothing to do. */
+	/*
+	 * dsb() will drain the L1 write buffer and establish a memory access
+	 * barrier point on platforms where that has meaning.  On a write we
+	 * also need to drain the L2 write buffer, because most on-chip memory
+	 * mapped devices are downstream of the L2 cache.  Note that this needs
+	 * to be done even for memory mapped as Device type, because while
+	 * Device memory is not cached, writes to it are still buffered.
+	 */
+	dsb();
+	if (flags & BUS_SPACE_BARRIER_WRITE) {
+		cpu_l2cache_drain_writebuf();
+	}
 }

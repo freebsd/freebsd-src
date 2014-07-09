@@ -81,6 +81,7 @@ ldns_rr_list2buffer_wire(ldns_buffer *buffer,const ldns_rr_list *rr_list)
 	return ldns_buffer_status(buffer);
 }
 
+
 ldns_status
 ldns_rr2buffer_wire_canonical(ldns_buffer *buffer,
 						const ldns_rr *rr,
@@ -136,17 +137,15 @@ ldns_rr2buffer_wire_canonical(ldns_buffer *buffer,
 			rdl_pos = ldns_buffer_position(buffer);
 			ldns_buffer_write_u16(buffer, 0);
 		}	
-
 		for (i = 0; i < ldns_rr_rd_count(rr); i++) {
 			if (pre_rfc3597) {
 				(void) ldns_rdf2buffer_wire_canonical(
-						buffer, ldns_rr_rdf(rr, i));
+					buffer, ldns_rr_rdf(rr, i));
 			} else {
 				(void) ldns_rdf2buffer_wire(
-						buffer, ldns_rr_rdf(rr, i));
+					buffer, ldns_rr_rdf(rr, i));
 			}
 		}
-		
 		if (rdl_pos != 0) {
 			ldns_buffer_write_u16_at(buffer, rdl_pos,
 			                         ldns_buffer_position(buffer)
@@ -177,13 +176,11 @@ ldns_rr2buffer_wire(ldns_buffer *buffer, const ldns_rr *rr, int section)
 			/* remember pos for later */
 			rdl_pos = ldns_buffer_position(buffer);
 			ldns_buffer_write_u16(buffer, 0);
-		}	
-
+		}
 		for (i = 0; i < ldns_rr_rd_count(rr); i++) {
 			(void) ldns_rdf2buffer_wire(
 					buffer, ldns_rr_rdf(rr, i));
 		}
-		
 		if (rdl_pos != 0) {
 			ldns_buffer_write_u16_at(buffer, rdl_pos,
 			                         ldns_buffer_position(buffer)
@@ -206,7 +203,8 @@ ldns_rrsig2buffer_wire(ldns_buffer *buffer, const ldns_rr *rr)
 	/* Convert all the rdfs, except the actual signature data
 	 * rdf number 8  - the last, hence: -1 */
 	for (i = 0; i < ldns_rr_rd_count(rr) - 1; i++) {
-		(void) ldns_rdf2buffer_wire_canonical(buffer, ldns_rr_rdf(rr, i));
+		(void) ldns_rdf2buffer_wire_canonical(buffer, 
+				ldns_rr_rdf(rr, i));
 	}
 
 	return ldns_buffer_status(buffer);
@@ -218,9 +216,8 @@ ldns_rr_rdata2buffer_wire(ldns_buffer *buffer, const ldns_rr *rr)
 	uint16_t i;
 	/* convert all the rdf's */
 	for (i = 0; i < ldns_rr_rd_count(rr); i++) {
-		(void) ldns_rdf2buffer_wire(buffer, ldns_rr_rdf(rr, i));
+		(void) ldns_rdf2buffer_wire(buffer, ldns_rr_rdf(rr,i));
 	}
-
 	return ldns_buffer_status(buffer);
 }
 
@@ -245,7 +242,8 @@ ldns_hdr2buffer_wire(ldns_buffer *buffer, const ldns_pkt *packet)
 		flags = ldns_pkt_ra(packet) << 7
 		        /*| ldns_pkt_z(packet) << 6*/
 		        | ldns_pkt_ad(packet) << 5
-		        | ldns_pkt_cd(packet) << 4 | ldns_pkt_get_rcode(packet);
+		        | ldns_pkt_cd(packet) << 4
+			| ldns_pkt_get_rcode(packet);
 		ldns_buffer_write_u8(buffer, flags);
 		
 		ldns_buffer_write_u16(buffer, ldns_pkt_qdcount(packet));

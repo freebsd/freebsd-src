@@ -34,13 +34,13 @@
         ..
         dma
         ..
-        gnats
-        ..
         gss
         ..
         mail
         ..
         mtree
+        ..
+        newsyslog.conf.d
         ..
         ntp             mode=0700
         ..

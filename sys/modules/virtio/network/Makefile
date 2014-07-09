@@ -23,7 +23,7 @@
 # SUCH DAMAGE.
 #
 
-.include <bsd.own.mk>
+.include <src.opts.mk>
 
 .PATH: ${.CURDIR}/../../../dev/virtio/network
 

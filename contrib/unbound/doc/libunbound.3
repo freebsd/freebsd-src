@@ -1,4 +1,4 @@
-.TH "libunbound" "3" "Mar 21, 2013" "NLnet Labs" "unbound 1.4.20"
+.TH "libunbound" "3" "Mar 12, 2014" "NLnet Labs" "unbound 1.4.22"
 .\"
 .\" libunbound.3 -- unbound library functions manual
 .\"
@@ -42,7 +42,7 @@
 .B ub_ctx_zone_remove,
 .B ub_ctx_data_add,
 .B ub_ctx_data_remove
-\- Unbound DNS validating resolver 1.4.20 functions.
+\- Unbound DNS validating resolver 1.4.22 functions.
 .SH "SYNOPSIS"
 .LP
 .B #include <unbound.h>
@@ -171,6 +171,9 @@ by default. Use
 and
 .B ub_ctx_hosts
 to read them.
+Before you call this, use the openssl functions CRYPTO_set_id_callback and
+CRYPTO_set_locking_callback to set up asyncronous operation if you use
+lib openssl (the application calls these functions once for initialisation).
 .TP
 .B ub_ctx_delete
 Delete validation context and free associated resources.
@@ -364,7 +367,7 @@ The result of the DNS resolution and validation is returned as
 .fi
 .P
 If both secure and bogus are false, security was not enabled for the 
-domain of the query.
+domain of the query.  Else, they are not both true, one of them is true.
 .SH "RETURN VALUES"
 Many routines return an error code. The value 0 (zero) denotes no error
 happened. Other values can be passed to

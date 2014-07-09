@@ -17,6 +17,8 @@
 #
 # $FreeBSD$
 
+#NO_UNIVERSE
+
 include  	"IMX6"
 ident		WANDBOARD-SOLO
 

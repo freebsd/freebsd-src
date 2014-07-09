@@ -153,16 +153,40 @@ static int os_daemon(int nochdir, int noclose)
 #endif /* __APPLE__ */
 
 
+#ifdef __FreeBSD__
+#include <err.h>
+#include <libutil.h>
+#include <stdint.h>
+#endif /* __FreeBSD__ */
+
 int os_daemonize(const char *pid_file)
 {
 #if defined(__uClinux__) || defined(__sun__)
 	return -1;
 #else /* defined(__uClinux__) || defined(__sun__) */
+#ifdef __FreeBSD__
+	pid_t otherpid;
+	struct pidfh *pfh;
+
+	pfh = pidfile_open(pid_file, 0600, &otherpid);
+	if (pfh == NULL) {
+		if (errno == EEXIST) {
+			errx(1, "Daemon already running, pid: %jd.",
+			    (intmax_t)otherpid);
+		}
+		warn("Cannot open or create pidfile.");
+	}
+#endif /* __FreeBSD__ */
+
 	if (os_daemon(0, 0)) {
 		perror("daemon");
+#ifdef __FreeBSD__
+		pidfile_remove(pfh);
+#endif /* __FreeBSD__ */
 		return -1;
 	}
 
+#ifndef __FreeBSD__
 	if (pid_file) {
 		FILE *f = fopen(pid_file, "w");
 		if (f) {
@@ -170,6 +194,9 @@ int os_daemonize(const char *pid_file)
 			fclose(f);
 		}
 	}
+#else /* __FreeBSD__ */
+	pidfile_write(pfh);
+#endif /* __FreeBSD__ */
 
 	return -0;
 #endif /* defined(__uClinux__) || defined(__sun__) */

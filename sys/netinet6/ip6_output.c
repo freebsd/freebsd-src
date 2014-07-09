@@ -185,7 +185,7 @@ static int copypktopts(struct ip6_pktopts *, struct ip6_pktopts *, int);
 	}\
     } while (/*CONSTCOND*/ 0)
 
-static void
+void
 in6_delayed_cksum(struct mbuf *m, uint32_t plen, u_short offset)
 {
 	u_short csum;
@@ -249,15 +249,7 @@ ip6_output(struct mbuf *m0, struct ip6_pktopts *opt,
 	u_int32_t zone;
 	struct route_in6 *ro_pmtu = NULL;
 	int hdrsplit = 0;
-	int needipsec = 0;
 	int sw_csum, tso;
-#ifdef IPSEC
-	struct ipsec_output_state state;
-	struct ip6_rthdr *rh = NULL;
-	int needipsectun = 0;
-	int segleft_org = 0;
-	struct secpolicy *sp = NULL;
-#endif /* IPSEC */
 	struct m_tag *fwd_tag = NULL;
 
 	ip6 = mtod(m, struct ip6_hdr *);
@@ -299,26 +291,12 @@ ip6_output(struct mbuf *m0, struct ip6_pktopts *opt,
 	 * IPSec checking which handles several cases.
 	 * FAST IPSEC: We re-injected the packet.
 	 */
-	switch(ip6_ipsec_output(&m, inp, &flags, &error, &ifp, &sp))
+	switch(ip6_ipsec_output(&m, inp, &flags, &error, &ifp))
 	{
 	case 1:                 /* Bad packet */
 		goto freehdrs;
-	case -1:                /* Do IPSec */
-		needipsec = 1;
-		/*
-		 * Do delayed checksums now, as we may send before returning.
-		 */
-		if (m->m_pkthdr.csum_flags & CSUM_DELAY_DATA_IPV6) {
-			plen = m->m_pkthdr.len - sizeof(*ip6);
-			in6_delayed_cksum(m, plen, sizeof(struct ip6_hdr));
-			m->m_pkthdr.csum_flags &= ~CSUM_DELAY_DATA_IPV6;
-		}
-#ifdef SCTP
-		if (m->m_pkthdr.csum_flags & CSUM_SCTP_IPV6) {
-			sctp_delayed_cksum(m, sizeof(struct ip6_hdr));
-			m->m_pkthdr.csum_flags &= ~CSUM_SCTP_IPV6;
-		}
-#endif
+	case -1:                /* IPSec done */
+		goto done;
 	case 0:                 /* No IPSec */
 	default:
 		break;
@@ -338,15 +316,15 @@ ip6_output(struct mbuf *m0, struct ip6_pktopts *opt,
 		optlen += exthdrs.ip6e_rthdr->m_len;
 	unfragpartlen = optlen + sizeof(struct ip6_hdr);
 
-	/* NOTE: we don't add AH/ESP length here. do that later. */
+	/* NOTE: we don't add AH/ESP length here (done in ip6_ipsec_output) */
 	if (exthdrs.ip6e_dest2)
 		optlen += exthdrs.ip6e_dest2->m_len;
 
 	/*
-	 * If we need IPsec, or there is at least one extension header,
+	 * If there is at least one extension header,
 	 * separate IP6 header from the payload.
 	 */
-	if ((needipsec || optlen) && !hdrsplit) {
+	if (optlen && !hdrsplit) {
 		if ((error = ip6_splithdr(m, &exthdrs)) != 0) {
 			m = NULL;
 			goto freehdrs;
@@ -421,72 +399,6 @@ ip6_output(struct mbuf *m0, struct ip6_pktopts *opt,
 	MAKE_CHAIN(exthdrs.ip6e_rthdr, mprev, nexthdrp,
 		   IPPROTO_ROUTING);
 
-#ifdef IPSEC
-	if (!needipsec)
-		goto skip_ipsec2;
-
-	/*
-	 * pointers after IPsec headers are not valid any more.
-	 * other pointers need a great care too.
-	 * (IPsec routines should not mangle mbufs prior to AH/ESP)
-	 */
-	exthdrs.ip6e_dest2 = NULL;
-
-	if (exthdrs.ip6e_rthdr) {
-		rh = mtod(exthdrs.ip6e_rthdr, struct ip6_rthdr *);
-		segleft_org = rh->ip6r_segleft;
-		rh->ip6r_segleft = 0;
-	}
-
-	bzero(&state, sizeof(state));
-	state.m = m;
-	error = ipsec6_output_trans(&state, nexthdrp, mprev, sp, flags,
-				    &needipsectun);
-	m = state.m;
-	if (error == EJUSTRETURN) {
-		/*
-		 * We had a SP with a level of 'use' and no SA. We
-		 * will just continue to process the packet without
-		 * IPsec processing.
-		 */
-		;
-	} else if (error) {
-		/* mbuf is already reclaimed in ipsec6_output_trans. */
-		m = NULL;
-		switch (error) {
-		case EHOSTUNREACH:
-		case ENETUNREACH:
-		case EMSGSIZE:
-		case ENOBUFS:
-		case ENOMEM:
-			break;
-		default:
-			printf("[%s:%d] (ipsec): error code %d\n",
-			    __func__, __LINE__, error);
-			/* FALLTHROUGH */
-		case ENOENT:
-			/* don't show these error codes to the user */
-			error = 0;
-			break;
-		}
-		goto bad;
-	} else if (!needipsectun) {
-		/*
-		 * In the FAST IPSec case we have already
-		 * re-injected the packet and it has been freed
-		 * by the ipsec_done() function.  So, just clean
-		 * up after ourselves.
-		 */
-		m = NULL;
-		goto done;
-	}
-	if (exthdrs.ip6e_rthdr) {
-		/* ah6_output doesn't modify mbuf chain */
-		rh->ip6r_segleft = segleft_org;
-	}
-skip_ipsec2:;
-#endif /* IPSEC */
-
 	/*
 	 * If there is a routing header, discard the packet.
 	 */
@@ -551,77 +463,6 @@ again:
 		else
 			ip6->ip6_hlim = V_ip6_defmcasthlim;
 	}
-
-#ifdef IPSEC
-	/*
-	 * We may re-inject packets into the stack here.
-	 */
-	if (needipsec && needipsectun) {
-		struct ipsec_output_state state;
-
-		/*
-		 * All the extension headers will become inaccessible
-		 * (since they can be encrypted).
-		 * Don't panic, we need no more updates to extension headers
-		 * on inner IPv6 packet (since they are now encapsulated).
-		 *
-		 * IPv6 [ESP|AH] IPv6 [extension headers] payload
-		 */
-		bzero(&exthdrs, sizeof(exthdrs));
-		exthdrs.ip6e_ip6 = m;
-
-		bzero(&state, sizeof(state));
-		state.m = m;
-		state.ro = (struct route *)ro;
-		state.dst = (struct sockaddr *)dst;
-
-		error = ipsec6_output_tunnel(&state, sp, flags);
-
-		m = state.m;
-		ro = (struct route_in6 *)state.ro;
-		dst = (struct sockaddr_in6 *)state.dst;
-		if (error == EJUSTRETURN) {
-			/*
-			 * We had a SP with a level of 'use' and no SA. We
-			 * will just continue to process the packet without
-			 * IPsec processing.
-			 */
-			;
-		} else if (error) {
-			/* mbuf is already reclaimed in ipsec6_output_tunnel. */
-			m0 = m = NULL;
-			m = NULL;
-			switch (error) {
-			case EHOSTUNREACH:
-			case ENETUNREACH:
-			case EMSGSIZE:
-			case ENOBUFS:
-			case ENOMEM:
-				break;
-			default:
-				printf("[%s:%d] (ipsec): error code %d\n",
-				    __func__, __LINE__, error);
-				/* FALLTHROUGH */
-			case ENOENT:
-				/* don't show these error codes to the user */
-				error = 0;
-				break;
-			}
-			goto bad;
-		} else {
-			/*
-			 * In the FAST IPSec case we have already
-			 * re-injected the packet and it has been freed
-			 * by the ipsec_done() function.  So, just clean
-			 * up after ourselves.
-			 */
-			m = NULL;
-			goto done;
-		}
-
-		exthdrs.ip6e_ip6 = m;
-	}
-#endif /* IPSEC */
 
 	/* adjust pointer */
 	ip6 = mtod(m, struct ip6_hdr *);
@@ -1185,11 +1026,6 @@ done:
 		RO_RTFREE(ro);
 	if (ro_pmtu == &ip6route)
 		RO_RTFREE(ro_pmtu);
-#ifdef IPSEC
-	if (sp != NULL)
-		KEY_FREESP(&sp);
-#endif
-
 	return (error);
 
 freehdrs:

@@ -1524,3 +1524,4 @@ pclmulhqhqdq, 2, 0x660f3a44, 0x11, CpuPCLMUL, Modrm|IgnoreSize|No_bSuf|No_wSuf|N
 
 // Intel Random Number Generator extensions
 rdrand, 1, 0x0fc7, 0x6, CpuRdRnd, Modrm|No_bSuf|No_wSuf|No_lSuf|No_sSuf|No_qSuf|No_xSuf, { Reg16|Reg32|Reg64 }
+rdseed, 1, 0x0fc7, 0x7, CpuRdRnd, Modrm|No_bSuf|No_wSuf|No_lSuf|No_sSuf|No_qSuf|No_xSuf, { Reg16|Reg32|Reg64 }

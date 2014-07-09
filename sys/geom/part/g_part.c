@@ -108,15 +108,24 @@ struct g_part_alias_list {
 	{ "vmware-vmkdiag", G_PART_ALIAS_VMKDIAG },
 	{ "vmware-reserved", G_PART_ALIAS_VMRESERVED },
 	{ "vmware-vsanhdr", G_PART_ALIAS_VMVSANHDR },
+	{ "dragonfly-label32", G_PART_ALIAS_DFBSD },
+	{ "dragonfly-label64", G_PART_ALIAS_DFBSD64 },
+	{ "dragonfly-swap", G_PART_ALIAS_DFBSD_SWAP },
+	{ "dragonfly-ufs", G_PART_ALIAS_DFBSD_UFS },
+	{ "dragonfly-vinum", G_PART_ALIAS_DFBSD_VINUM },
+	{ "dragonfly-ccd", G_PART_ALIAS_DFBSD_CCD },
+	{ "dragonfly-legacy", G_PART_ALIAS_DFBSD_LEGACY },
+	{ "dragonfly-hammer", G_PART_ALIAS_DFBSD_HAMMER },
+	{ "dragonfly-hammer2", G_PART_ALIAS_DFBSD_HAMMER2 },
+	{ "prep-boot", G_PART_ALIAS_PREP_BOOT },
 };
 
 SYSCTL_DECL(_kern_geom);
 SYSCTL_NODE(_kern_geom, OID_AUTO, part, CTLFLAG_RW, 0,
     "GEOM_PART stuff");
 static u_int check_integrity = 1;
-TUNABLE_INT("kern.geom.part.check_integrity", &check_integrity);
 SYSCTL_UINT(_kern_geom_part, OID_AUTO, check_integrity,
-    CTLFLAG_RW | CTLFLAG_TUN, &check_integrity, 1,
+    CTLFLAG_RWTUN, &check_integrity, 1,
     "Enable integrity checking");
 
 /*
@@ -1316,7 +1325,9 @@ g_part_ctl_resize(struct gctl_req *req, struct g_part_parms *gpp)
 
 	error = G_PART_RESIZE(table, entry, gpp);
 	if (error) {
-		gctl_error(req, "%d", error);
+		gctl_error(req, "%d%s", error, error != EBUSY ? "":
+		    " resizing will lead to unexpected shrinking"
+		    " due to alignment");
 		return (error);
 	}
 
@@ -2063,8 +2074,10 @@ g_part_resize(struct g_consumer *cp)
 		table->gpt_opened = 1;
 	}
 	if (G_PART_RESIZE(table, NULL, NULL) == 0)
-		printf("GEOM_PART: %s was automatically resized\n",
-		    cp->geom->name);
+		printf("GEOM_PART: %s was automatically resized.\n"
+		    "  Use `gpart commit %s` to save changes or "
+		    "`gpart undo %s` to revert them.\n", cp->geom->name,
+		    cp->geom->name, cp->geom->name);
 	if (g_part_check_integrity(table, cp) != 0) {
 		g_access(cp, -1, -1, -1);
 		table->gpt_opened = 0;

@@ -114,7 +114,7 @@ addr_to_string(struct sockaddr_storage *ss, char *buffer, int buflen)
 			snprintf(buffer, buflen, "%s.%d", buffer2,
 			    ntohs(sin6->sin6_port));
 		else
-			strlcpy(buffer, "-", sizeof(buffer));
+			strlcpy(buffer, "-", buflen);
 		break;
 
 	default:

@@ -51,35 +51,57 @@ __FBSDID("$FreeBSD$");
 #include <dev/vt/hw/fb/vt_fb.h>
 #include <dev/vt/colors/vt_termcolors.h>
 
-static vd_init_t vt_efb_init;
+static vd_init_t vt_efifb_init;
+static vd_probe_t vt_efifb_probe;
 
-static struct vt_driver vt_efb_driver = {
-	.vd_init = vt_efb_init,
+static struct vt_driver vt_efifb_driver = {
+	.vd_name = "efifb",
+	.vd_probe = vt_efifb_probe,
+	.vd_init = vt_efifb_init,
 	.vd_blank = vt_fb_blank,
 	.vd_bitbltchr = vt_fb_bitbltchr,
+	.vd_maskbitbltchr = vt_fb_maskbitbltchr,
 	/* Better than VGA, but still generic driver. */
 	.vd_priority = VD_PRIORITY_GENERIC + 1,
 };
 
-static struct fb_info info;
-VT_CONSDEV_DECLARE(vt_efb_driver,
-    MAX(80, PIXEL_WIDTH(VT_FB_DEFAULT_WIDTH)),
-    MAX(25, PIXEL_HEIGHT(VT_FB_DEFAULT_HEIGHT)), &info);
+static struct fb_info local_info;
+VT_DRIVER_DECLARE(vt_efifb, vt_efifb_driver);
 
 static int
-vt_efb_init(struct vt_device *vd)
+vt_efifb_probe(struct vt_device *vd)
 {
-	int		depth, d, disable, i, len;
+	int		disabled;
+	struct efi_fb	*efifb;
+	caddr_t		kmdp;
+
+	disabled = 0;
+	TUNABLE_INT_FETCH("hw.syscons.disable", &disabled);
+	if (disabled != 0)
+		return (CN_DEAD);
+
+	kmdp = preload_search_by_type("elf kernel");
+	if (kmdp == NULL)
+		kmdp = preload_search_by_type("elf64 kernel");
+	efifb = (struct efi_fb *)preload_search_info(kmdp,
+	    MODINFO_METADATA | MODINFOMD_EFI_FB);
+	if (efifb == NULL)
+		return (CN_DEAD);
+
+	return (CN_INTERNAL);
+}
+
+static int
+vt_efifb_init(struct vt_device *vd)
+{
+	int		depth, d, i, len;
 	struct fb_info	*info;
 	struct efi_fb	*efifb;
 	caddr_t		kmdp;
 
 	info = vd->vd_softc;
-
-	disable = 0;
-	TUNABLE_INT_FETCH("hw.syscons.disable", &disable);
-	if (disable != 0)
-		return (CN_DEAD);
+	if (info == NULL)
+		info = vd->vd_softc = (void *)&local_info;
 
 	kmdp = preload_search_by_type("elf kernel");
 	if (kmdp == NULL)
@@ -136,7 +158,8 @@ vt_efb_init(struct vt_device *vd)
 	fb_probe(info);
 	vt_fb_init(vd);
 
+	/* Clear the screen. */
+	vt_fb_blank(vd, TC_BLACK);
 
 	return (CN_INTERNAL);
 }
-

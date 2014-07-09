@@ -1,7 +1,7 @@
 # $FreeBSD$
 .PATH:  ${.CURDIR}/../../ofed/drivers/net/mlx4
 
-.include <bsd.own.mk>
+.include <src.opts.mk>
 
 KMOD    = mlxen
 SRCS    = device_if.h bus_if.h pci_if.h vnode_if.h

@@ -8,7 +8,7 @@
  */
 
 #include <sm/gen.h>
-SM_RCSID("@(#)$Id: syslogio.c,v 1.30 2013/11/22 20:51:43 ca Exp $")
+SM_RCSID("@(#)$Id: syslogio.c,v 1.30 2013-11-22 20:51:43 ca Exp $")
 #include <stdlib.h>
 #include <unistd.h>
 #include <fcntl.h>

@@ -1,4 +1,4 @@
-/* $Id: mstring.c,v 1.3 2014/04/08 20:37:26 tom Exp $ */
+/* $Id: mstring.c,v 1.6 2014/04/22 23:36:31 tom Exp $ */
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -13,39 +13,82 @@
 #define TAIL	8
 
 #if defined(YYBTYACC)
+
+static char *buf_ptr;
+static size_t buf_len;
+
 void
 msprintf(struct mstring *s, const char *fmt,...)
 {
-    static char buf[4096];	/* a big static buffer */
     va_list args;
     size_t len;
+#ifdef HAVE_VSNPRINTF
+    int changed;
+#endif
 
     if (!s || !s->base)
 	return;
-    va_start(args, fmt);
-    vsprintf(buf, fmt, args);
-    va_end(args);
 
-    len = strlen(buf);
+    if (buf_len == 0)
+    {
+	buf_ptr = malloc(buf_len = 4096);
+    }
+    if (buf_ptr == 0)
+    {
+	return;
+    }
+
+#ifdef HAVE_VSNPRINTF
+    do
+    {
+	va_start(args, fmt);
+	len = (size_t) vsnprintf(buf_ptr, buf_len, fmt, args);
+	va_end(args);
+	if ((changed = (len > buf_len)) != 0)
+	{
+	    char *new_ptr = realloc(buf_ptr, (buf_len * 3) / 2);
+	    if (new_ptr == 0)
+	    {
+		free(buf_ptr);
+		buf_ptr = 0;
+		return;
+	    }
+	    buf_ptr = new_ptr;
+	}
+    }
+    while (changed);
+#else
+    va_start(args, fmt);
+    len = (size_t) vsprintf(buf_ptr, fmt, args);
+    va_end(args);
+    if (len >= buf_len)
+	return;
+#endif
+
     if (len > (size_t) (s->end - s->ptr))
     {
+	char *new_base;
 	size_t cp = (size_t) (s->ptr - s->base);
 	size_t cl = (size_t) (s->end - s->base);
 	size_t nl = cl;
 	while (len > (nl - cp))
 	    nl = nl + nl + TAIL;
-	if ((s->base = realloc(s->base, nl)))
+	if ((new_base = realloc(s->base, nl)))
 	{
+	    s->base = new_base;
 	    s->ptr = s->base + cp;
 	    s->end = s->base + nl;
 	}
 	else
 	{
-	    s->ptr = s->end = 0;
+	    free(s->base);
+	    s->base = 0;
+	    s->ptr = 0;
+	    s->end = 0;
 	    return;
 	}
     }
-    memcpy(s->ptr, buf, len);
+    memcpy(s->ptr, buf_ptr, len);
     s->ptr += len;
 }
 #endif
@@ -76,11 +119,11 @@ mputchar(struct mstring *s, int ch)
 struct mstring *
 msnew(void)
 {
-    struct mstring *n = malloc(sizeof(struct mstring));
+    struct mstring *n = TMALLOC(struct mstring, 1);
 
     if (n)
     {
-	if ((n->base = n->ptr = malloc(HEAD)) != 0)
+	if ((n->base = n->ptr = MALLOC(HEAD)) != 0)
 	{
 	    n->end = n->base + HEAD;
 	}
@@ -148,5 +191,17 @@ strnshash(const char *s)
 	s++;
     }
     return h;
+}
+#endif
+
+#ifdef NO_LEAKS
+void
+mstring_leaks(void)
+{
+#if defined(YYBTYACC)
+    free(buf_ptr);
+    buf_ptr = 0;
+    buf_len = 0;
+#endif
 }
 #endif

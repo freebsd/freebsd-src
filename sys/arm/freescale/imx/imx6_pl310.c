@@ -44,6 +44,19 @@ __FBSDID("$FreeBSD$");
 void
 platform_pl310_init(struct pl310_softc *sc)
 {
+	uint32_t reg;
+
+	/*
+	 * Enable power saving modes:
+	 *  - Dynamic Gating stops the clock when the controller is idle.
+	 *  - Standby stops the clock when the cores are in WFI mode.
+	 */
+	reg = pl310_read4(sc, PL310_POWER_CTRL);
+	reg |= POWER_CTRL_ENABLE_GATING | POWER_CTRL_ENABLE_STANDBY;
+	pl310_write4(sc, PL310_POWER_CTRL, reg);
+
+	pl310_set_ram_latency(sc, PL310_TAG_RAM_CTRL,  4, 2, 3);
+	pl310_set_ram_latency(sc, PL310_DATA_RAM_CTRL, 4, 2, 3);
 }
 
 void

@@ -1,6 +1,6 @@
 # $FreeBSD$
 #
-# The include file <bsd.own.mk> set common variables for owner,
+# The include file <src.opts.mk> set common variables for owner,
 # group, mode, and directories. Defaults are in brackets.
 #
 #
@@ -122,7 +122,7 @@
 .if !target(__<bsd.own.mk>__)
 __<bsd.own.mk>__:
 
-.include <bsd.opts.mk>
+.include <bsd.opts.mk>		# options now here or src.opts.mk
 
 .if !defined(_WITHOUT_SRCCONF)
 
@@ -233,5 +233,8 @@ COMPRESS_EXT?=	.gz
 # Pointer to the top directory into which tests are installed.  Should not be
 # overriden by Makefiles, but the user may choose to set this in src.conf(5).
 TESTSBASE?= /usr/tests
+
+# Compat for the moment
+.include <bsd.compiler.mk>
 
 .endif	# !target(__<bsd.own.mk>__)

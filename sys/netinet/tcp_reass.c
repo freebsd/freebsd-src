@@ -71,98 +71,33 @@ __FBSDID("$FreeBSD$");
 #include <netinet/tcp_var.h>
 #include <netinet6/tcp6_var.h>
 #include <netinet/tcpip.h>
-#ifdef TCPDEBUG
-#include <netinet/tcp_debug.h>
-#endif /* TCPDEBUG */
-
-static SYSCTL_NODE(_net_inet_tcp, OID_AUTO, reass, CTLFLAG_RW, 0,
-    "TCP Segment Reassembly Queue");
-
-static VNET_DEFINE(int, tcp_reass_maxseg) = 0;
-#define	V_tcp_reass_maxseg		VNET(tcp_reass_maxseg)
-SYSCTL_VNET_INT(_net_inet_tcp_reass, OID_AUTO, maxsegments, CTLFLAG_RDTUN,
-    &VNET_NAME(tcp_reass_maxseg), 0,
-    "Global maximum number of TCP Segments in Reassembly Queue");
-
-static VNET_DEFINE(int, tcp_reass_overflows) = 0;
-#define	V_tcp_reass_overflows		VNET(tcp_reass_overflows)
-SYSCTL_VNET_INT(_net_inet_tcp_reass, OID_AUTO, overflows,
-    CTLTYPE_INT | CTLFLAG_RD,
-    &VNET_NAME(tcp_reass_overflows), 0,
-    "Global number of TCP Segment Reassembly Queue Overflows");
-
-static VNET_DEFINE(uma_zone_t, tcp_reass_zone);
-#define	V_tcp_reass_zone		VNET(tcp_reass_zone)
-SYSCTL_UMA_CUR(_net_inet_tcp_reass, OID_AUTO, cursegments, CTLFLAG_VNET,
-    &VNET_NAME(tcp_reass_zone),
-    "Global number of TCP Segments currently in Reassembly Queue");
-
-/* Initialize TCP reassembly queue */
-static void
-tcp_reass_zone_change(void *tag)
-{
-
-	/* Set the zone limit and read back the effective value. */
-	V_tcp_reass_maxseg = nmbclusters / 16;
-	V_tcp_reass_maxseg = uma_zone_set_max(V_tcp_reass_zone,
-	    V_tcp_reass_maxseg);
-}
-
-void
-tcp_reass_init(void)
-{
-
-	V_tcp_reass_maxseg = nmbclusters / 16;
-	TUNABLE_INT_FETCH("net.inet.tcp.reass.maxsegments",
-	    &V_tcp_reass_maxseg);
-	V_tcp_reass_zone = uma_zcreate("tcpreass", sizeof (struct tseg_qent),
-	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_NOFREE);
-	/* Set the zone limit and read back the effective value. */
-	V_tcp_reass_maxseg = uma_zone_set_max(V_tcp_reass_zone,
-	    V_tcp_reass_maxseg);
-	EVENTHANDLER_REGISTER(nmbclusters_change,
-	    tcp_reass_zone_change, NULL, EVENTHANDLER_PRI_ANY);
-}
-
-#ifdef VIMAGE
-void
-tcp_reass_destroy(void)
-{
-
-	uma_zdestroy(V_tcp_reass_zone);
-}
-#endif
 
 void
 tcp_reass_flush(struct tcpcb *tp)
 {
-	struct tseg_qent *qe;
+	struct mbuf *m;
 
 	INP_WLOCK_ASSERT(tp->t_inpcb);
 
-	while ((qe = LIST_FIRST(&tp->t_segq)) != NULL) {
-		LIST_REMOVE(qe, tqe_q);
-		m_freem(qe->tqe_m);
-		uma_zfree(V_tcp_reass_zone, qe);
-		tp->t_segqlen--;
+	while ((m = tp->t_segq) != NULL) {
+		tp->t_segq = m->m_nextpkt;
+		tp->t_segqlen -= m->m_pkthdr.len;
+		m_freem(m);
 	}
 
 	KASSERT((tp->t_segqlen == 0),
-	    ("TCP reass queue %p segment count is %d instead of 0 after flush.",
+	    ("TCP reass queue %p length is %d instead of 0 after flush.",
 	    tp, tp->t_segqlen));
 }
+
+#define	M_TCPHDR(m)	((struct tcphdr *)((m)->m_pkthdr.pkt_tcphdr))
 
 int
 tcp_reass(struct tcpcb *tp, struct tcphdr *th, int *tlenp, struct mbuf *m)
 {
-	struct tseg_qent *q;
-	struct tseg_qent *p = NULL;
-	struct tseg_qent *nq;
-	struct tseg_qent *te = NULL;
 	struct socket *so = tp->t_inpcb->inp_socket;
-	char *s = NULL;
-	int flags;
-	struct tseg_qent tqs;
+	struct mbuf *mq, *mp;
+	int flags, wakeup;
 
 	INP_WLOCK_ASSERT(tp->t_inpcb);
 
@@ -178,6 +113,10 @@ tcp_reass(struct tcpcb *tp, struct tcphdr *th, int *tlenp, struct mbuf *m)
 	if (th == NULL)
 		goto present;
 
+	M_ASSERTPKTHDR(m);
+	KASSERT(*tlenp == m->m_pkthdr.len, ("%s: tlenp %u len %u", __func__,
+	    *tlenp, m->m_pkthdr.len));
+
 	/*
 	 * Limit the number of segments that can be queued to reduce the
 	 * potential for mbuf exhaustion. For best performance, we want to be
@@ -188,67 +127,31 @@ tcp_reass(struct tcpcb *tp, struct tcphdr *th, int *tlenp, struct mbuf *m)
 	 * Always let the missing segment through which caused this queue.
 	 * NB: Access to the socket buffer is left intentionally unlocked as we
 	 * can tolerate stale information here.
-	 *
-	 * XXXLAS: Using sbspace(so->so_rcv) instead of so->so_rcv.sb_hiwat
-	 * should work but causes packets to be dropped when they shouldn't.
-	 * Investigate why and re-evaluate the below limit after the behaviour
-	 * is understood.
 	 */
-	if (th->th_seq != tp->rcv_nxt &&
-	    tp->t_segqlen >= (so->so_rcv.sb_hiwat / tp->t_maxseg) + 1) {
-		V_tcp_reass_overflows++;
-		TCPSTAT_INC(tcps_rcvmemdrop);
-		m_freem(m);
+	if ((th->th_seq != tp->rcv_nxt || !TCPS_HAVEESTABLISHED(tp->t_state)) &&
+	    tp->t_segqlen + m->m_pkthdr.len >= sbspace(&so->so_rcv)) {
+		char *s;
+
+		TCPSTAT_INC(tcps_rcvreassfull);
 		*tlenp = 0;
-		if ((s = tcp_log_addrs(&tp->t_inpcb->inp_inc, th, NULL, NULL))) {
+		if ((s = tcp_log_addrs(&tp->t_inpcb->inp_inc, th, NULL,
+		    NULL))) {
 			log(LOG_DEBUG, "%s; %s: queue limit reached, "
 			    "segment dropped\n", s, __func__);
 			free(s, M_TCPLOG);
 		}
+		m_freem(m);
 		return (0);
 	}
 
 	/*
-	 * Allocate a new queue entry. If we can't, or hit the zone limit
-	 * just drop the pkt.
-	 *
-	 * Use a temporary structure on the stack for the missing segment
-	 * when the zone is exhausted. Otherwise we may get stuck.
-	 */
-	te = uma_zalloc(V_tcp_reass_zone, M_NOWAIT);
-	if (te == NULL) {
-		if (th->th_seq != tp->rcv_nxt) {
-			TCPSTAT_INC(tcps_rcvmemdrop);
-			m_freem(m);
-			*tlenp = 0;
-			if ((s = tcp_log_addrs(&tp->t_inpcb->inp_inc, th, NULL,
-			    NULL))) {
-				log(LOG_DEBUG, "%s; %s: global zone limit "
-				    "reached, segment dropped\n", s, __func__);
-				free(s, M_TCPLOG);
-			}
-			return (0);
-		} else {
-			bzero(&tqs, sizeof(struct tseg_qent));
-			te = &tqs;
-			if ((s = tcp_log_addrs(&tp->t_inpcb->inp_inc, th, NULL,
-			    NULL))) {
-				log(LOG_DEBUG,
-				    "%s; %s: global zone limit reached, using "
-				    "stack for missing segment\n", s, __func__);
-				free(s, M_TCPLOG);
-			}
-		}
-	}
-	tp->t_segqlen++;
-
-	/*
 	 * Find a segment which begins after this one does.
 	 */
-	LIST_FOREACH(q, &tp->t_segq, tqe_q) {
-		if (SEQ_GT(q->tqe_th->th_seq, th->th_seq))
+	mp = NULL;
+	for (mq = tp->t_segq; mq != NULL; mq = mq->m_nextpkt) {
+		if (SEQ_GT(M_TCPHDR(mq)->th_seq, th->th_seq))
 			break;
-		p = q;
+		mp = mq;
 	}
 
 	/*
@@ -256,17 +159,16 @@ tcp_reass(struct tcpcb *tp, struct tcphdr *th, int *tlenp, struct mbuf *m)
 	 * our data already.  If so, drop the data from the incoming
 	 * segment.  If it provides all of our data, drop us.
 	 */
-	if (p != NULL) {
+	if (mp != NULL) {
 		int i;
+
 		/* conversion to int (in i) handles seq wraparound */
-		i = p->tqe_th->th_seq + p->tqe_len - th->th_seq;
+		i = M_TCPHDR(mp)->th_seq + mp->m_pkthdr.len - th->th_seq;
 		if (i > 0) {
 			if (i >= *tlenp) {
 				TCPSTAT_INC(tcps_rcvduppack);
 				TCPSTAT_ADD(tcps_rcvdupbyte, *tlenp);
 				m_freem(m);
-				uma_zfree(V_tcp_reass_zone, te);
-				tp->t_segqlen--;
 				/*
 				 * Try to present any queued data
 				 * at the left window edge to the user.
@@ -288,37 +190,40 @@ tcp_reass(struct tcpcb *tp, struct tcphdr *th, int *tlenp, struct mbuf *m)
 	 * While we overlap succeeding segments trim them or,
 	 * if they are completely covered, dequeue them.
 	 */
-	while (q) {
-		int i = (th->th_seq + *tlenp) - q->tqe_th->th_seq;
+	while (mq) {
+		struct mbuf *nq;
+		int i;
+
+		i = (th->th_seq + *tlenp) - M_TCPHDR(mq)->th_seq;
 		if (i <= 0)
 			break;
-		if (i < q->tqe_len) {
-			q->tqe_th->th_seq += i;
-			q->tqe_len -= i;
-			m_adj(q->tqe_m, i);
+		if (i < mq->m_pkthdr.len) {
+			M_TCPHDR(mq)->th_seq += i;
+			m_adj(mq, i);
+			tp->t_segqlen -= i;
 			break;
 		}
 
-		nq = LIST_NEXT(q, tqe_q);
-		LIST_REMOVE(q, tqe_q);
-		m_freem(q->tqe_m);
-		uma_zfree(V_tcp_reass_zone, q);
-		tp->t_segqlen--;
-		q = nq;
+		nq = mq->m_nextpkt;
+		tp->t_segqlen -= mq->m_pkthdr.len;
+		m_freem(mq);
+		if (mp)
+			mp->m_nextpkt = nq;
+		else
+			tp->t_segq = nq;
+		mq = nq;
 	}
 
 	/* Insert the new segment queue entry into place. */
-	te->tqe_m = m;
-	te->tqe_th = th;
-	te->tqe_len = *tlenp;
-
-	if (p == NULL) {
-		LIST_INSERT_HEAD(&tp->t_segq, te, tqe_q);
+	if (mp) {
+		m->m_nextpkt = mp->m_nextpkt;
+		mp->m_nextpkt = m;
 	} else {
-		KASSERT(te != &tqs, ("%s: temporary stack based entry not "
-		    "first element in queue", __func__));
-		LIST_INSERT_AFTER(p, te, tqe_q);
+		m->m_nextpkt = tp->t_segq;
+		tp->t_segq = m ;
 	}
+	m->m_pkthdr.pkt_tcphdr = th;
+	tp->t_segqlen += m->m_pkthdr.len;
 
 present:
 	/*
@@ -327,25 +232,30 @@ present:
 	 */
 	if (!TCPS_HAVEESTABLISHED(tp->t_state))
 		return (0);
-	q = LIST_FIRST(&tp->t_segq);
-	if (!q || q->tqe_th->th_seq != tp->rcv_nxt)
-		return (0);
+
+	flags = 0;
+	wakeup = 0;
 	SOCKBUF_LOCK(&so->so_rcv);
-	do {
-		tp->rcv_nxt += q->tqe_len;
-		flags = q->tqe_th->th_flags & TH_FIN;
-		nq = LIST_NEXT(q, tqe_q);
-		LIST_REMOVE(q, tqe_q);
+	while ((mq = tp->t_segq) != NULL &&
+	    M_TCPHDR(mq)->th_seq == tp->rcv_nxt) {
+		tp->t_segq = mq->m_nextpkt;
+
+		tp->rcv_nxt += mq->m_pkthdr.len;
+		tp->t_segqlen -= mq->m_pkthdr.len;
+		flags = M_TCPHDR(mq)->th_flags & TH_FIN;
+
 		if (so->so_rcv.sb_state & SBS_CANTRCVMORE)
-			m_freem(q->tqe_m);
-		else
-			sbappendstream_locked(&so->so_rcv, q->tqe_m);
-		if (q != &tqs)
-			uma_zfree(V_tcp_reass_zone, q);
-		tp->t_segqlen--;
-		q = nq;
-	} while (q && q->tqe_th->th_seq == tp->rcv_nxt);
+			m_freem(mq);
+		else {
+			mq->m_nextpkt = NULL;
+			sbappendstream_locked(&so->so_rcv, mq);
+			wakeup = 1;
+		}
+	}
 	ND6_HINT(tp);
-	sorwakeup_locked(so);
+	if (wakeup)
+		sorwakeup_locked(so);
+	else
+		SOCKBUF_UNLOCK(&so->so_rcv);
 	return (flags);
 }

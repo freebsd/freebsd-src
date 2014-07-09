@@ -1,7 +1,7 @@
 #	@(#)Makefile	5.3 (Berkeley) 5/12/90
 # $FreeBSD$
 
-.include <bsd.own.mk>
+.include <src.opts.mk>
 
 BYACC_SRC=	${.CURDIR}/../../contrib/byacc
 .PATH: ${BYACC_SRC}

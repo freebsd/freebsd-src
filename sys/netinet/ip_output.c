@@ -39,6 +39,7 @@ __FBSDID("$FreeBSD$");
 #include "opt_mpath.h"
 #include "opt_route.h"
 #include "opt_sctp.h"
+#include "opt_rss.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -71,6 +72,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
 #include <netinet/in_pcb.h>
+#include <netinet/in_rss.h>
 #include <netinet/in_var.h>
 #include <netinet/ip_var.h>
 #include <netinet/ip_options.h>
@@ -144,6 +146,7 @@ ip_output(struct mbuf *m, struct mbuf *opt, struct route *ro, int flags,
 		M_SETFIB(m, inp->inp_inc.inc_fibnum);
 		if (inp->inp_flags & (INP_HW_FLOWID|INP_SW_FLOWID)) {
 			m->m_pkthdr.flowid = inp->inp_flowid;
+			M_HASHTYPE_SET(m, inp->inp_flowtype);
 			m->m_flags |= M_FLOWID;
 		}
 	}
@@ -230,8 +233,7 @@ again:
 	 */
 	if (flags & IP_SENDONES) {
 		if ((ia = ifatoia(ifa_ifwithbroadaddr(sintosa(dst)))) == NULL &&
-		    (ia = ifatoia(ifa_ifwithdstaddr(sintosa(dst),
-						    RT_DEFAULT_FIB))) == NULL) {
+		    (ia = ifatoia(ifa_ifwithdstaddr(sintosa(dst)))) == NULL) {
 			IPSTAT_INC(ips_noroute);
 			error = ENETUNREACH;
 			goto bad;
@@ -242,10 +244,8 @@ again:
 		ip->ip_ttl = 1;
 		isbroadcast = 1;
 	} else if (flags & IP_ROUTETOIF) {
-		if ((ia = ifatoia(ifa_ifwithdstaddr(sintosa(dst),
-		    				    RT_DEFAULT_FIB))) == NULL &&
-		    (ia = ifatoia(ifa_ifwithnet(sintosa(dst), 0,
-		    				RT_DEFAULT_FIB))) == NULL) {
+		if ((ia = ifatoia(ifa_ifwithdstaddr(sintosa(dst)))) == NULL &&
+		    (ia = ifatoia(ifa_ifwithnet(sintosa(dst), 0))) == NULL) {
 			IPSTAT_INC(ips_noroute);
 			error = ENETUNREACH;
 			goto bad;
@@ -887,17 +887,13 @@ in_delayed_cksum(struct mbuf *m)
 		csum = 0xffff;
 	offset += m->m_pkthdr.csum_data;	/* checksum offset */
 
-	if (offset + sizeof(u_short) > m->m_len) {
-		printf("delayed m_pullup, m->len: %d  off: %d  p: %d\n",
-		    m->m_len, offset, ip->ip_p);
-		/*
-		 * XXX
-		 * this shouldn't happen, but if it does, the
-		 * correct behavior may be to insert the checksum
-		 * in the appropriate next mbuf in the chain.
-		 */
-		return;
+	/* find the mbuf in the chain where the checksum starts*/
+	while ((m != NULL) && (offset >= m->m_len)) {
+		offset -= m->m_len;
+		m = m->m_next;
 	}
+	KASSERT(m != NULL, ("in_delayed_cksum: checksum outside mbuf chain."));
+	KASSERT(offset + sizeof(u_short) <= m->m_len, ("in_delayed_cksum: checksum split between mbufs."));
 	*(u_short *)(m->m_data + offset) = csum;
 }
 
@@ -909,6 +905,10 @@ ip_ctloutput(struct socket *so, struct sockopt *sopt)
 {
 	struct	inpcb *inp = sotoinpcb(so);
 	int	error, optval;
+#ifdef	RSS
+	uint32_t rss_bucket;
+	int retval;
+#endif
 
 	error = optval = 0;
 	if (sopt->sopt_level != IPPROTO_IP) {
@@ -1175,6 +1175,8 @@ ip_ctloutput(struct socket *so, struct sockopt *sopt)
 		case IP_DONTFRAG:
 		case IP_BINDANY:
 		case IP_RECVTOS:
+		case IP_FLOWID:
+		case IP_FLOWTYPE:
 			switch (sopt->sopt_name) {
 
 			case IP_TOS:
@@ -1236,6 +1238,23 @@ ip_ctloutput(struct socket *so, struct sockopt *sopt)
 			case IP_RECVTOS:
 				optval = OPTBIT(INP_RECVTOS);
 				break;
+			case IP_FLOWID:
+				optval = inp->inp_flowid;
+				break;
+			case IP_FLOWTYPE:
+				optval = inp->inp_flowtype;
+				break;
+#ifdef	RSS
+			case IP_RSSBUCKETID:
+				retval = rss_hash2bucket(inp->inp_flowid,
+				    inp->inp_flowtype,
+				    &rss_bucket);
+				if (retval == 0)
+					optval = rss_bucket;
+				else
+					error = EINVAL;
+				break;
+#endif
 			}
 			error = sooptcopyout(sopt, &optval, sizeof optval);
 			break;

@@ -4113,6 +4113,8 @@ ar9300_probe(uint16_t vendorid, uint16_t devid)
         return "Qualcomm Atheros QCA955x";
     case AR9300_DEVID_QCA9565: /* Aphrodite */
          return "Qualcomm Atheros AR9565";
+    case AR9300_DEVID_AR1111_PCIE:
+         return "Atheros AR1111";
     default:
         return AH_NULL;
     }

@@ -66,6 +66,7 @@ struct process_select
     int thread;		/* show threads */
     int uid;		/* only this uid (unless uid == -1) */
     int wcpu;		/* show weighted cpu */
+    int jid;		/* only this jid (unless jid == -1) */
     int jail;		/* show jail ID */
     int kidle;		/* show per-CPU idle threads */
     char *command;	/* only this command (unless == NULL) */

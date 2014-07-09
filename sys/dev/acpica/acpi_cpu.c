@@ -129,7 +129,6 @@ struct acpi_cpu_device {
 
 /* Allow users to ignore processor orders in MADT. */
 static int cpu_unordered;
-TUNABLE_INT("debug.acpi.cpu_unordered", &cpu_unordered);
 SYSCTL_INT(_debug_acpi, OID_AUTO, cpu_unordered, CTLFLAG_RDTUN,
     &cpu_unordered, 0,
     "Do not use the MADT to match ACPI Processor objects to CPUs.");

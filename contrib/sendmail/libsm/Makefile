@@ -1,4 +1,4 @@
-#       $Id: Makefile,v 1.2 2006/08/16 21:06:30 ca Exp $
+#       $Id: Makefile,v 1.2 2006-08-16 21:06:30 ca Exp $
 
 SHELL= /bin/sh
 BUILD=   ./Build

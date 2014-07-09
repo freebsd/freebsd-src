@@ -56,6 +56,8 @@ variable brandY
 \ 	NAME        DESCRIPTION
 \ 	fbsd        FreeBSD logo
 \ 
+\ NOTE: Setting `loader_brand' to the value of an existing function
+\       (such as "mycustom-brand") will cause that symbol to be executed.
 \ NOTE: Setting `loader_brand' to an undefined value (such as "none") will
 \       prevent any brand from being drawn.
 \ 
@@ -86,6 +88,15 @@ variable brandY
 		brandX @ brandY @ fbsd-logo
 		2drop exit
 	then
+
+        \ if it refers to a raw symbol then run that function
+        sfind if
+            brandX @ brandY @
+            2 roll
+            execute
+        else            
+            drop
+        then
 
 	2drop
 ;

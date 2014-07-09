@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.include <bsd.own.mk>
+.include <src.opts.mk>
 
 SUBDIR= ${_binutils} \
 	${_cc} \
@@ -14,7 +14,6 @@ SUBDIR= ${_binutils} \
 	${_groff} \
 	${_rcs} \
 	sdiff \
-	send-pr \
 	${_tests} \
 	${_texinfo}
 

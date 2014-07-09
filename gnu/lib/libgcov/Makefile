@@ -3,7 +3,7 @@
 MK_PROFILE=	no
 MK_SSP=		no
 
-.include <bsd.own.mk>
+.include <src.opts.mk>
 .include "${.CURDIR}/../../usr.bin/cc/Makefile.tgt"
 
 GCCDIR=	${.CURDIR}/../../../contrib/gcc
@@ -46,7 +46,7 @@ COMMONHDRS=	tm.h tconfig.h gcov-iov.h options.h
 CLEANFILES+=	${COMMONHDRS} cs-tm.h cs-tconfig.h options.h optionlist
 
 ${COMMONHDRS}: ${.CURDIR}/../../usr.bin/cc/cc_tools/Makefile
-	${MAKE} -f ${.ALLSRC} MFILE=${.ALLSRC} GCCDIR=${GCCDIR} ${.TARGET}
+	(cd ${.CURDIR}; ${MAKE} -f ${.ALLSRC} MFILE=${.ALLSRC} GCCDIR=${GCCDIR} ${.TARGET})
 
 ${OBJS} beforedepend: ${COMMONHDRS}
 

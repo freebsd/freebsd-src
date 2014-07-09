@@ -35,15 +35,20 @@
 
 struct nf10bmac_softc {
 	struct ifnet		*nf10bmac_ifp;
+	struct resource		*nf10bmac_ctrl_res;
 	struct resource		*nf10bmac_tx_mem_res;
 	struct resource		*nf10bmac_rx_mem_res;
-	struct resource		*nf10bmac_mem_res;
+	struct resource		*nf10bmac_intr_res;
+	struct resource		*nf10bmac_rx_irq_res;
+	void			*nf10bmac_rx_intrhand;
 	uint8_t			*nf10bmac_tx_buf;
 	device_t		nf10bmac_dev;
 	int			nf10bmac_unit;
+	int			nf10bmac_ctrl_rid;
 	int			nf10bmac_tx_mem_rid;
 	int			nf10bmac_rx_mem_rid;
-	int			nf10bmac_mem_rid;
+	int			nf10bmac_intr_rid;
+	int			nf10bmac_rx_irq_rid;
 	int			nf10bmac_if_flags;
 	uint32_t		nf10bmac_flags;
 #define	NF10BMAC_FLAGS_LINK		0x00000001

@@ -67,7 +67,7 @@ struct mkimg_scheme {
 #define	SCHEME_META_IMG_END	2
 #define	SCHEME_META_PART_BEFORE	3
 #define	SCHEME_META_PART_AFTER	4
-	int		(*write)(int, lba_t, void *);
+	int		(*write)(lba_t, void *);
 	u_int		nparts;
 	u_int		labellen;
 	u_int		bootcode;
@@ -85,6 +85,6 @@ int scheme_check_part(struct part *);
 u_int scheme_max_parts(void);
 u_int scheme_max_secsz(void);
 lba_t scheme_metadata(u_int, lba_t);
-int scheme_write(int, lba_t);
+int scheme_write(lba_t);
 
 #endif /* _MKIMG_SCHEME_H_ */

@@ -62,6 +62,14 @@
 #define 	AUX_CTRL_DATA_PREFETCH		(1 << 28)
 #define 	AUX_CTRL_INSTR_PREFETCH		(1 << 29)
 #define 	AUX_CTRL_EARLY_BRESP		(1 << 30)
+#define PL310_TAG_RAM_CTRL			0x108
+#define PL310_DATA_RAM_CTRL			0x10C
+#define		RAM_CTRL_WRITE_SHIFT		8
+#define		RAM_CTRL_WRITE_MASK		(0x7 << 8)
+#define		RAM_CTRL_READ_SHIFT		4
+#define		RAM_CTRL_READ_MASK		(0x7 << 4)
+#define		RAM_CTRL_SETUP_SHIFT		0
+#define		RAM_CTRL_SETUP_MASK		(0x7 << 0)
 #define PL310_EVENT_COUNTER_CTRL	0x200
 #define		EVENT_COUNTER_CTRL_ENABLED	(1 << 0)
 #define		EVENT_COUNTER_CTRL_C0_RESET	(1 << 1)
@@ -113,6 +121,9 @@
 #define PL310_ADDR_FILTER_STAR		0xC00
 #define PL310_ADDR_FILTER_END		0xC04
 #define PL310_DEBUG_CTRL		0xF40
+#define		DEBUG_CTRL_DISABLE_LINEFILL	(1 << 0)
+#define		DEBUG_CTRL_DISABLE_WRITEBACK	(1 << 1)
+#define		DEBUG_CTRL_SPNIDEN		(1 << 2)
 #define PL310_PREFETCH_CTRL		0xF60
 #define		PREFETCH_CTRL_OFFSET_MASK	(0x1f)
 #define		PREFETCH_CTRL_NOTSAMEID		(1 << 21)
@@ -123,6 +134,8 @@
 #define		PREFETCH_CTRL_INSTR_PREFETCH	(1 << 29)
 #define		PREFETCH_CTRL_DL		(1 << 30)
 #define PL310_POWER_CTRL		0xF60
+#define		POWER_CTRL_ENABLE_GATING	(1 << 0)
+#define		POWER_CTRL_ENABLE_STANDBY	(1 << 1)
 
 struct pl310_softc {
 	device_t	sc_dev;
@@ -162,6 +175,8 @@ pl310_write4(struct pl310_softc *sc, bus_size_t off, uint32_t val)
 }
 
 void pl310_print_config(struct pl310_softc *sc);
+void pl310_set_ram_latency(struct pl310_softc *sc, uint32_t which_reg,
+    uint32_t read, uint32_t write, uint32_t setup);
 
 void platform_pl310_init(struct pl310_softc *);
 void platform_pl310_write_ctrl(struct pl310_softc *, uint32_t);

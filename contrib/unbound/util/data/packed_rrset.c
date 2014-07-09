@@ -21,16 +21,16 @@
  * specific prior written permission.
  * 
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
- * TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE
- * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
- * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
- * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
- * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
+ * TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+ * PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+ * LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+ * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+ * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
 /**
@@ -40,7 +40,6 @@
  */
 
 #include "config.h"
-#include <ldns/wire2host.h>
 #include "util/data/packed_rrset.h"
 #include "util/data/dname.h"
 #include "util/storage/lookup3.h"
@@ -48,6 +47,9 @@
 #include "util/alloc.h"
 #include "util/regional.h"
 #include "util/net_help.h"
+#include "ldns/rrdef.h"
+#include "ldns/sbuffer.h"
+#include "ldns/wire2str.h"
 
 void
 ub_packed_rrset_parsedelete(struct ub_packed_rrset_key* pkey,
@@ -183,7 +185,7 @@ packed_rrset_ptr_fixup(struct packed_rrset_data* data)
 	data->rr_len = (size_t*)((uint8_t*)data +
 		sizeof(struct packed_rrset_data));
 	data->rr_data = (uint8_t**)&(data->rr_len[total]);
-	data->rr_ttl = (uint32_t*)&(data->rr_data[total]);
+	data->rr_ttl = (time_t*)&(data->rr_data[total]);
 	nextrdata = (uint8_t*)&(data->rr_ttl[total]);
 	for(i=0; i<total; i++) {
 		data->rr_data[i] = nextrdata;
@@ -205,7 +207,7 @@ get_cname_target(struct ub_packed_rrset_key* rrset, uint8_t** dname,
 		return;
 	if(d->rr_len[0] < 3) /* at least rdatalen + 0byte root label */
 		return;
-	len = ldns_read_uint16(d->rr_data[0]);
+	len = sldns_read_uint16(d->rr_data[0]);
 	if(len != d->rr_len[0] - sizeof(uint16_t))
 		return;
 	if(dname_valid(d->rr_data[0]+sizeof(uint16_t), len) != len)
@@ -215,7 +217,7 @@ get_cname_target(struct ub_packed_rrset_key* rrset, uint8_t** dname,
 }
 
 void 
-packed_rrset_ttl_add(struct packed_rrset_data* data, uint32_t add)
+packed_rrset_ttl_add(struct packed_rrset_data* data, time_t add)
 {
 	size_t i;
 	size_t total = data->count + data->rrsig_count;
@@ -266,7 +268,53 @@ void log_rrset_key(enum verbosity_value v, const char* str,
 			ntohs(rrset->rk.type), ntohs(rrset->rk.rrset_class));
 }
 
-uint32_t 
+int packed_rr_to_string(struct ub_packed_rrset_key* rrset, size_t i,
+	time_t now, char* dest, size_t dest_len)
+{
+	struct packed_rrset_data* d = (struct packed_rrset_data*)rrset->
+		entry.data;
+	uint8_t rr[65535];
+	size_t rlen = rrset->rk.dname_len + 2 + 2 + 4 + d->rr_len[i];
+	log_assert(dest_len > 0 && dest);
+	if(rlen > dest_len) {
+		dest[0] = 0;
+		return 0;
+	}
+	memmove(rr, rrset->rk.dname, rrset->rk.dname_len);
+	if(i < d->count)
+		memmove(rr+rrset->rk.dname_len, &rrset->rk.type, 2);
+	else	sldns_write_uint16(rr+rrset->rk.dname_len, LDNS_RR_TYPE_RRSIG);
+	memmove(rr+rrset->rk.dname_len+2, &rrset->rk.rrset_class, 2);
+	sldns_write_uint32(rr+rrset->rk.dname_len+4,
+		(uint32_t)(d->rr_ttl[i]-now));
+	memmove(rr+rrset->rk.dname_len+8, d->rr_data[i], d->rr_len[i]);
+	if(sldns_wire2str_rr_buf(rr, rlen, dest, dest_len) == -1) {
+		log_info("rrbuf failure %d %s", (int)d->rr_len[i], dest);
+		dest[0] = 0;
+		return 0;
+	} 
+	return 1;
+}
+
+void log_packed_rrset(enum verbosity_value v, const char* str,
+	struct ub_packed_rrset_key* rrset)
+{
+	struct packed_rrset_data* d = (struct packed_rrset_data*)rrset->
+		entry.data;
+	char buf[65535];
+	size_t i;
+	if(verbosity < v)
+		return;
+	for(i=0; i<d->count+d->rrsig_count; i++) {
+		if(!packed_rr_to_string(rrset, i, 0, buf, sizeof(buf))) {
+			log_info("%s: rr %d wire2str-error", str, (int)i);
+		} else {
+			log_info("%s: %s", str, buf);
+		}
+	}
+}
+
+time_t 
 ub_packed_rrset_ttl(struct ub_packed_rrset_key* key)
 {
 	struct packed_rrset_data* d = (struct packed_rrset_data*)key->
@@ -276,7 +324,7 @@ ub_packed_rrset_ttl(struct ub_packed_rrset_key* key)
 
 struct ub_packed_rrset_key*
 packed_rrset_copy_region(struct ub_packed_rrset_key* key, 
-	struct regional* region, uint32_t now)
+	struct regional* region, time_t now)
 {
 	struct ub_packed_rrset_key* ck = regional_alloc(region, 
 		sizeof(struct ub_packed_rrset_key));
@@ -315,7 +363,7 @@ packed_rrset_copy_region(struct ub_packed_rrset_key* key,
 
 struct ub_packed_rrset_key* 
 packed_rrset_copy_alloc(struct ub_packed_rrset_key* key, 
-	struct alloc_cache* alloc, uint32_t now)
+	struct alloc_cache* alloc, time_t now)
 {
 	struct packed_rrset_data* fd, *dd;
 	struct ub_packed_rrset_key* dk = alloc_special_obtain(alloc);
@@ -338,151 +386,4 @@ packed_rrset_copy_alloc(struct ub_packed_rrset_key* key,
 	dk->entry.data = (void*)dd;
 	packed_rrset_ttl_add(dd, now);
 	return dk;
-}
-
-struct ub_packed_rrset_key* 
-ub_packed_rrset_heap_key(ldns_rr_list* rrset)
-{
-	struct ub_packed_rrset_key* k;
-	ldns_rr* rr;
-	if(!rrset)
-		return NULL;
-	rr = ldns_rr_list_rr(rrset, 0);
-	if(!rr)
-		return NULL;
-	k = (struct ub_packed_rrset_key*)calloc(1, sizeof(*k));
-	if(!k)
-		return NULL;
-	k->rk.type = htons(ldns_rr_get_type(rr));
-	k->rk.rrset_class = htons(ldns_rr_get_class(rr));
-	k->rk.dname_len = ldns_rdf_size(ldns_rr_owner(rr));
-	k->rk.dname = memdup(ldns_rdf_data(ldns_rr_owner(rr)),
-		ldns_rdf_size(ldns_rr_owner(rr)));
-	if(!k->rk.dname) {
-		free(k);
-		return NULL;
-	}
-	return k;
-}
-
-struct packed_rrset_data* 
-packed_rrset_heap_data(ldns_rr_list* rrset)
-{
-	struct packed_rrset_data* data;
-	size_t count=0, rrsig_count=0, len=0, i, j, total;
-	uint8_t* nextrdata;
-	if(!rrset || ldns_rr_list_rr_count(rrset)==0)
-		return NULL;
-	/* count sizes */
-	for(i=0; i<ldns_rr_list_rr_count(rrset); i++) {
-		ldns_rr* rr = ldns_rr_list_rr(rrset, i);
-		if(ldns_rr_get_type(rr) == LDNS_RR_TYPE_RRSIG)
-			rrsig_count++;
-		else 	count++;
-		for(j=0; j<ldns_rr_rd_count(rr); j++)
-			len += ldns_rdf_size(ldns_rr_rdf(rr, j));
-		len += 2; /* sizeof the rdlength */
-	}
-
-	/* allocate */
-	total = count + rrsig_count;
-	len += sizeof(*data) + total*(sizeof(size_t) + sizeof(uint32_t) + 
-		sizeof(uint8_t*));
-	data = (struct packed_rrset_data*)calloc(1, len);
-	if(!data)
-		return NULL;
-	
-	/* fill it */
-	data->ttl = ldns_rr_ttl(ldns_rr_list_rr(rrset, 0));
-	data->count = count;
-	data->rrsig_count = rrsig_count;
-	data->rr_len = (size_t*)((uint8_t*)data +
-		sizeof(struct packed_rrset_data));
-	data->rr_data = (uint8_t**)&(data->rr_len[total]);
-	data->rr_ttl = (uint32_t*)&(data->rr_data[total]);
-	nextrdata = (uint8_t*)&(data->rr_ttl[total]);
-
-	/* fill out len, ttl, fields */
-	for(i=0; i<total; i++) {
-		ldns_rr* rr = ldns_rr_list_rr(rrset, i);
-		data->rr_ttl[i] = ldns_rr_ttl(rr);
-		if(data->rr_ttl[i] < data->ttl)
-			data->ttl = data->rr_ttl[i];
-		data->rr_len[i] = 2; /* the rdlength */
-		for(j=0; j<ldns_rr_rd_count(rr); j++)
-			data->rr_len[i] += ldns_rdf_size(ldns_rr_rdf(rr, j));
-	}
-
-	/* fixup rest of ptrs */
-	for(i=0; i<total; i++) {
-		data->rr_data[i] = nextrdata;
-		nextrdata += data->rr_len[i];
-	}
-
-	/* copy data in there */
-	for(i=0; i<total; i++) {
-		ldns_rr* rr = ldns_rr_list_rr(rrset, i);
-		uint16_t rdlen = htons(data->rr_len[i]-2);
-		size_t p = sizeof(rdlen);
-		memmove(data->rr_data[i], &rdlen, p);
-		for(j=0; j<ldns_rr_rd_count(rr); j++) {
-			ldns_rdf* rd = ldns_rr_rdf(rr, j);
-			memmove(data->rr_data[i]+p, ldns_rdf_data(rd),
-				ldns_rdf_size(rd));
-			p += ldns_rdf_size(rd);
-		}
-	}
-
-	if(data->rrsig_count && data->count == 0) {
-		data->count = data->rrsig_count; /* rrset type is RRSIG */
-		data->rrsig_count = 0;
-	}
-	return data;
-}
-
-/** convert i'th rr to ldns_rr */
-static ldns_rr*
-torr(struct ub_packed_rrset_key* k, ldns_buffer* buf, size_t i)
-{
-	struct packed_rrset_data* d = (struct packed_rrset_data*)k->entry.data;
-	ldns_rr* rr = NULL;
-	size_t pos = 0;
-	ldns_status s;
-	ldns_buffer_clear(buf);
-	ldns_buffer_write(buf, k->rk.dname, k->rk.dname_len);
-	if(i < d->count)
-		ldns_buffer_write(buf, &k->rk.type, sizeof(uint16_t));
-	else 	ldns_buffer_write_u16(buf, LDNS_RR_TYPE_RRSIG);
-	ldns_buffer_write(buf, &k->rk.rrset_class, sizeof(uint16_t));
-	ldns_buffer_write_u32(buf, d->rr_ttl[i]);
-	ldns_buffer_write(buf, d->rr_data[i], d->rr_len[i]);
-	ldns_buffer_flip(buf);
-	s = ldns_wire2rr(&rr, ldns_buffer_begin(buf), ldns_buffer_limit(buf),
-		&pos, LDNS_SECTION_ANSWER);
-	if(s == LDNS_STATUS_OK)
-		return rr;
-	return NULL;
-}
-
-ldns_rr_list* 
-packed_rrset_to_rr_list(struct ub_packed_rrset_key* k, ldns_buffer* buf)
-{
-	struct packed_rrset_data* d = (struct packed_rrset_data*)k->entry.data;
-	ldns_rr_list* r = ldns_rr_list_new();
-	size_t i;
-	if(!r)
-		return NULL;
-	for(i=0; i<d->count+d->rrsig_count; i++) {
-		ldns_rr* rr = torr(k, buf, i);
-		if(!rr) {
-			ldns_rr_list_deep_free(r);
-			return NULL;
-		}
-		if(!ldns_rr_list_push_rr(r, rr)) {
-			ldns_rr_free(rr);
-			ldns_rr_list_deep_free(r);
-			return NULL;
-		}
-	}
-	return r;
 }

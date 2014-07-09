@@ -24,12 +24,12 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 27, 2014
+.Dd July 4, 2014
 .Dt MKIMG 1
 .Os
 .Sh NAME
 .Nm mkimg
-.Nd "utility to make a disk image"
+.Nd "utility to make disk images"
 .Sh SYNOPSIS
 .Nm
 .Op Fl H Ar heads
@@ -37,8 +37,10 @@
 .Op Fl S Ar secsz
 .Op Fl T Ar tracksz
 .Op Fl b Ar bootcode
+.Op Fl f Ar format
 .Op Fl o Ar outfile
 .Op Fl v
+.Op Fl y
 .Fl s Ar scheme
 .Fl p Ar partition
 .Op Fl p Ar partition ...
@@ -55,6 +57,10 @@ The disk image is written to
 .Ar stdout
 by default or the file specified with the
 .Ar outfile
+argument.
+The image file is a raw disk image by default, but the format of the
+image file can be specified with the
+.Ar format
 argument.
 .Pp
 The disk image can be made bootable by specifying the scheme-specific boot
@@ -106,10 +112,26 @@ option increases the level of output that the
 .Nm
 utility prints.
 .Pp
-For a complete list of supported partitioning schemes or for a detailed
-description of how to specify partitions, run the
+The
+.Op Fl y
+option is used for testing purposes only and is not to be used in production.
+When present, the
+.Nm
+utility will generate predictable values for Universally Unique Identifiers
+(UUIDs) and time stamps so that consecutive runs of the
+.Nm
+utility will create images that are identical.
+.Pp
+For a complete list of supported partitioning schemes or supported output
+format, or for a detailed description of how to specify partitions, run the
 .Nm
 utility without any arguments.
+.Sh ENVIRONMENT
+.Bl -tag -width "TMPDIR" -compact
+.It Ev TMPDIR
+Directory to put temporary files in; default is
+.Pa /tmp .
+.El
 .Sh EXAMPLES
 To create a bootable disk image that is partitioned using the GPT scheme and
 containing a root file system that was previously created using
@@ -120,6 +142,14 @@ utility as follows:
 .Dl % mkimg -s gpt -b /boot/pmbr -p freebsd-boot:=/boot/gptboot \
 -p freebsd-ufs:=root-file-system.ufs -p freebsd-swap::1G \
 -o gpt.img
+.Pp
+The command line given above results in a raw image file.
+This is because no output format was given.
+To create a VMDK image for example, add the
+.Fl f Ar vmdk
+argument to the
+.Nm
+utility and name the output file accordingly.
 .Pp
 A nested partitioning scheme is created by running the
 .Nm
@@ -154,8 +184,8 @@ In the following example the file system partition is labeled as 'backup':
 .Sh HISTORY
 The
 .Nm
-utility appeared in
-.Fx 11.0
+utility first appeared in
+.Fx 10.1 .
 .Sh AUTHORS
 The
 .Nm

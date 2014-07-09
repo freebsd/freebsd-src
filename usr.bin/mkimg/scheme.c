@@ -38,6 +38,7 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 #include <unistd.h>
 
+#include "image.h"
 #include "mkimg.h"
 #include "scheme.h"
 
@@ -102,16 +103,12 @@ int
 scheme_bootcode(int fd)
 {
 	struct stat sb;
-	int error;
 
-	if (fd == -1)
-		return (0);
 	if (scheme->bootcode == 0)
 		return (ENXIO);
 
-	error = fstat(fd, &sb);
-	if (error)
-		return (error);
+	if (fstat(fd, &sb) == -1)
+		return (errno);
 	if (sb.st_size > scheme->bootcode)
 		return (EFBIG);
 
@@ -181,17 +178,11 @@ scheme_metadata(u_int where, lba_t start)
 }
 
 int
-scheme_write(int fd, lba_t end)
+scheme_write(lba_t end)
 {
-	u_int cylsz;
 	int error;
 
-	cylsz = nsecs * nheads;
-	ncyls = (end + cylsz - 1) / cylsz;
-
-	if (ftruncate(fd, end * secsz) == -1)
-		return (errno);
-
-	error = scheme->write(fd, end, bootcode);
+	end = image_get_size();
+	error = scheme->write(end, bootcode);
 	return (error);
 }

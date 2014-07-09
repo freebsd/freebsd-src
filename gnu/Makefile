@@ -1,7 +1,7 @@
 #	@(#)Makefile	5.33.1.1 (Berkeley) 5/6/91
 # $FreeBSD$
 
-.include <bsd.own.mk>
+.include <src.opts.mk>
 
 SUBDIR= lib ${_tests} usr.bin
 

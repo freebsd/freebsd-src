@@ -501,12 +501,9 @@ msdosfs_setattr(ap)
 	if (vap->va_atime.tv_sec != VNOVAL || vap->va_mtime.tv_sec != VNOVAL) {
 		if (vp->v_mount->mnt_flag & MNT_RDONLY)
 			return (EROFS);
-		if (vap->va_vaflags & VA_UTIMES_NULL) {
-			error = VOP_ACCESS(vp, VADMIN, cred, td); 
-			if (error)
-				error = VOP_ACCESS(vp, VWRITE, cred, td);
-		} else
-			error = VOP_ACCESS(vp, VADMIN, cred, td);
+		error = vn_utimes_perm(vp, vap, cred, td);
+		if (error != 0)
+			return (error);
 		if ((pmp->pm_flags & MSDOSFSMNT_NOWIN95) == 0 &&
 		    vap->va_atime.tv_sec != VNOVAL) {
 			dep->de_flag &= ~DE_ACCESS;
@@ -1240,6 +1237,17 @@ abortit:
 			VOP_UNLOCK(fvp, 0);
 			goto bad;
 		}
+		/*
+		 * If ip is for a directory, then its name should always
+		 * be "." since it is for the directory entry in the
+		 * directory itself (msdosfs_lookup() always translates
+		 * to the "." entry so as to get a unique denode, except
+		 * for the root directory there are different
+		 * complications).  However, we just corrupted its name
+		 * to pass the correct name to createde().  Undo this.
+		 */
+		if ((ip->de_Attributes & ATTR_DIRECTORY) != 0)
+			bcopy(oldname, ip->de_Name, 11);
 		ip->de_refcnt++;
 		zp->de_fndoffset = from_diroffset;
 		error = removede(zp, ip);

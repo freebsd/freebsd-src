@@ -4389,7 +4389,7 @@ table_list(uint16_t num, int need_header)
 			addr6 = &xent->k.addr6;
 
 
-			if (IN6_IS_ADDR_V4COMPAT(addr6)) {
+			if ((xent->flags & IPFW_TCF_INET) != 0) {
 				/* IPv4 address */
 				inet_ntop(AF_INET, &addr6->s6_addr32[3], tbuf, sizeof(tbuf));
 			} else {

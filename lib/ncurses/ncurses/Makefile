@@ -7,7 +7,7 @@ SHLIBDIR?=	/lib
 MK_MAN=no
 .endif
 
-.include <bsd.own.mk>
+.include <src.opts.mk>
 
 .include "${.CURDIR}/../config.mk"
 
@@ -55,7 +55,7 @@ HAVE_TERMIOS_H=		1
 HAVE_TERMIO_H=		0
 HAVE_VSSCANF=		1
 HEADER_STDBOOL=		1
-# XXX amd64, ia64 1L and int
+# XXX amd64 1L and int
 ONEUL=			1UL
 TYPEOF_CHTYPE=		long
 TYPEOF_MMASK_T=		long
