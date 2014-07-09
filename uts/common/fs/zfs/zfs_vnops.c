@@ -20,7 +20,7 @@
  */
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2013 by Delphix. All rights reserved.
+ * Copyright (c) 2013, 2014 by Delphix. All rights reserved.
  * Copyright 2014 Nexenta Systems, Inc.  All rights reserved.
  */
 
@@ -1301,7 +1301,7 @@ zfs_lookup(vnode_t *dvp, char *nm, vnode_t **vpp, struct pathname *pnp,
  *		cr	- credentials of caller.
  *		flag	- large file flag [UNUSED].
  *		ct	- caller context
- *		vsecp 	- ACL to be set
+ *		vsecp	- ACL to be set
  *
  *	OUT:	vpp	- vnode of created or trunc'd entry.
  *
@@ -1577,7 +1577,7 @@ zfs_remove(vnode_t *dvp, char *name, cred_t *cr, caller_context_t *ct,
 	zfsvfs_t	*zfsvfs = dzp->z_zfsvfs;
 	zilog_t		*zilog;
 	uint64_t	acl_obj, xattr_obj;
-	uint64_t 	xattr_obj_unlinked = 0;
+	uint64_t	xattr_obj_unlinked = 0;
 	uint64_t	obj = 0;
 	zfs_dirlock_t	*dl;
 	dmu_tx_t	*tx;
@@ -1677,6 +1677,14 @@ top:
 	/* charge as an update -- would be nice not to charge at all */
 	dmu_tx_hold_zap(tx, zfsvfs->z_unlinkedobj, FALSE, NULL);
 
+	/*
+	 * Mark this transaction as typically resulting in a net free of
+	 * space, unless object removal will be delayed indefinitely
+	 * (due to active holds on the vnode due to the file being open).
+	 */
+	if (may_delete_now)
+		dmu_tx_mark_netfree(tx);
+
 	error = dmu_tx_assign(tx, waited ? TXG_WAITED : TXG_NOWAIT);
 	if (error) {
 		zfs_dirent_unlock(dl);
@@ -1707,7 +1715,6 @@ top:
 	}
 
 	if (unlinked) {
-
 		/*
 		 * Hold z_lock so that we can make sure that the ACL obj
 		 * hasn't changed.  Could have been deleted due to
@@ -4692,13 +4699,13 @@ zfs_addmap(vnode_t *vp, offset_t off, struct as *as, caddr_t addr,
  * last page is pushed.  The problem occurs when the msync() call is omitted,
  * which by far the most common case:
  *
- * 	open()
- * 	mmap()
- * 	<modify memory>
- * 	munmap()
- * 	close()
- * 	<time lapse>
- * 	putpage() via fsflush
+ *	open()
+ *	mmap()
+ *	<modify memory>
+ *	munmap()
+ *	close()
+ *	<time lapse>
+ *	putpage() via fsflush
  *
  * If we wait until fsflush to come along, we can have a modification time that
  * is some arbitrary point in the future.  In order to prevent this in the
@@ -5172,7 +5179,7 @@ const fs_operation_def_t zfs_dvnodeops_template[] = {
 	VOPNAME_PATHCONF,	{ .vop_pathconf = zfs_pathconf },
 	VOPNAME_GETSECATTR,	{ .vop_getsecattr = zfs_getsecattr },
 	VOPNAME_SETSECATTR,	{ .vop_setsecattr = zfs_setsecattr },
-	VOPNAME_VNEVENT, 	{ .vop_vnevent = fs_vnevent_support },
+	VOPNAME_VNEVENT,	{ .vop_vnevent = fs_vnevent_support },
 	NULL,			NULL
 };
 
@@ -5206,8 +5213,8 @@ const fs_operation_def_t zfs_fvnodeops_template[] = {
 	VOPNAME_GETSECATTR,	{ .vop_getsecattr = zfs_getsecattr },
 	VOPNAME_SETSECATTR,	{ .vop_setsecattr = zfs_setsecattr },
 	VOPNAME_VNEVENT,	{ .vop_vnevent = fs_vnevent_support },
-	VOPNAME_REQZCBUF, 	{ .vop_reqzcbuf = zfs_reqzcbuf },
-	VOPNAME_RETZCBUF, 	{ .vop_retzcbuf = zfs_retzcbuf },
+	VOPNAME_REQZCBUF,	{ .vop_reqzcbuf = zfs_reqzcbuf },
+	VOPNAME_RETZCBUF,	{ .vop_retzcbuf = zfs_retzcbuf },
 	NULL,			NULL
 };
 
