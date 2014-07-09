@@ -246,7 +246,7 @@ fb_probe(struct fb_info *info)
 		return (ENXIO);
 
 	if (info->fb_write != NULL) {
-		if (info->fb_write == NULL) {
+		if (info->fb_read == NULL) {
 			return (EINVAL);
 		}
 		info->fb_flags |= FB_FLAG_NOMMAP;
