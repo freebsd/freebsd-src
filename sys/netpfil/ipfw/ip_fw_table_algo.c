@@ -78,49 +78,49 @@ static MALLOC_DEFINE(M_IPFW_TBL, "ipfw_tbl", "IpFw tables");
  * But for portability, let's avoid assumption and make the code explicit
  */
 #define KEY_LEN(v)	*((uint8_t *)&(v))
-#define KEY_OFS		(8*offsetof(struct sockaddr_in, sin_addr))
 /*
  * Do not require radix to compare more than actual IPv4/IPv6 address
  */
 #define KEY_LEN_INET	(offsetof(struct sockaddr_in, sin_addr) + sizeof(in_addr_t))
-#define KEY_LEN_INET6	(offsetof(struct sockaddr_in6, sin6_addr) + sizeof(struct in6_addr))
+#define KEY_LEN_INET6	(offsetof(struct sa_in6, sin6_addr) + sizeof(struct in6_addr))
 #define KEY_LEN_IFACE	(offsetof(struct xaddr_iface, ifname))
 
 #define OFF_LEN_INET	(8 * offsetof(struct sockaddr_in, sin_addr))
-#define OFF_LEN_INET6	(8 * offsetof(struct sockaddr_in6, sin6_addr))
+#define OFF_LEN_INET6	(8 * offsetof(struct sa_in6, sin6_addr))
 #define OFF_LEN_IFACE	(8 * offsetof(struct xaddr_iface, ifname))
 
-struct table_entry {
+struct radix_cidr_entry {
 	struct radix_node	rn[2];
-	struct sockaddr_in	addr, mask;
-	u_int32_t		value;
+	struct sockaddr_in	addr;
+	uint32_t		value;
+	uint8_t			masklen;
+};
+
+struct sa_in6 {
+	uint8_t			sin6_len;
+	uint8_t			sin6_family;
+	uint8_t			pad[2];
+	struct in6_addr		sin6_addr;
+};
+
+struct radix_cidr_xentry {
+	struct radix_node	rn[2];
+	struct sa_in6		addr6;
+	uint32_t		value;
+	uint8_t			masklen;
 };
 
 struct xaddr_iface {
-	uint8_t		if_len;		/* length of this struct */
-	uint8_t		pad[7];		/* Align name */
-	char 		ifname[IF_NAMESIZE];	/* Interface name */
+	uint8_t			if_len;		/* length of this struct */
+	uint8_t			pad[7];		/* Align name */
+	char 			ifname[IF_NAMESIZE];	/* Interface name */
 };
 
-struct table_xentry {
+struct radix_iface {
 	struct radix_node	rn[2];
-	union {
-#ifdef INET6
-		struct sockaddr_in6	addr6;
-#endif
-		struct xaddr_iface	iface;
-	} a;
-	union {
-#ifdef INET6
-		struct sockaddr_in6	mask6;
-#endif
-		struct xaddr_iface	ifmask;
-	} m;
-	u_int32_t		value;
+	struct xaddr_iface	iface;
+	uint32_t		value;
 };
-
-
-
 
 /*
  * CIDR implementation using radix
@@ -134,23 +134,23 @@ ta_lookup_radix(struct table_info *ti, void *key, uint32_t keylen,
 	struct radix_node_head *rnh;
 
 	if (keylen == sizeof(in_addr_t)) {
-		struct table_entry *ent;
+		struct radix_cidr_entry *ent;
 		struct sockaddr_in sa;
 		KEY_LEN(sa) = KEY_LEN_INET;
 		sa.sin_addr.s_addr = *((in_addr_t *)key);
 		rnh = (struct radix_node_head *)ti->state;
-		ent = (struct table_entry *)(rnh->rnh_matchaddr(&sa, rnh));
+		ent = (struct radix_cidr_entry *)(rnh->rnh_matchaddr(&sa, rnh));
 		if (ent != NULL) {
 			*val = ent->value;
 			return (1);
 		}
 	} else {
-		struct table_xentry *xent;
-		struct sockaddr_in6 sa6;
+		struct radix_cidr_xentry *xent;
+		struct sa_in6 sa6;
 		KEY_LEN(sa6) = KEY_LEN_INET6;
 		memcpy(&sa6.sin6_addr, key, sizeof(struct in6_addr));
 		rnh = (struct radix_node_head *)ti->xstate;
-		xent = (struct table_xentry *)(rnh->rnh_matchaddr(&sa6, rnh));
+		xent = (struct radix_cidr_xentry *)(rnh->rnh_matchaddr(&sa6, rnh));
 		if (xent != NULL) {
 			*val = xent->value;
 			return (1);
@@ -184,9 +184,9 @@ static int
 flush_table_entry(struct radix_node *rn, void *arg)
 {
 	struct radix_node_head * const rnh = arg;
-	struct table_entry *ent;
+	struct radix_cidr_entry *ent;
 
-	ent = (struct table_entry *)
+	ent = (struct radix_cidr_entry *)
 	    rnh->rnh_deladdr(rn->rn_key, rn->rn_mask, rnh);
 	if (ent != NULL)
 		free(ent, M_IPFW_TBL);
@@ -211,33 +211,22 @@ static int
 ta_dump_radix_tentry(void *ta_state, struct table_info *ti, void *e,
     ipfw_obj_tentry *tent)
 {
-	struct table_entry *n;
-	struct table_xentry *xn;
-#ifdef INET6
-	int i;
-	uint32_t *v;
-#endif
+	struct radix_cidr_entry *n;
+	struct radix_cidr_xentry *xn;
 
-	n = (struct table_entry *)e;
+	n = (struct radix_cidr_entry *)e;
 
 	/* Guess IPv4/IPv6 radix by sockaddr family */
 	if (n->addr.sin_family == AF_INET) {
-		if (in_nullhost(n->mask.sin_addr))
-			tent->masklen = 0;
-		else
-			tent->masklen = 33-ffs(ntohl(n->mask.sin_addr.s_addr));
-		/* Save IPv4 address as deprecated IPv6 compatible */
 		tent->k.addr.s_addr = n->addr.sin_addr.s_addr;
+		tent->masklen = n->masklen;
 		tent->subtype = AF_INET;
 		tent->value = n->value;
 #ifdef INET6
 	} else {
-		xn = (struct table_xentry *)e;
-		/* Count IPv6 mask */
-		v = (uint32_t *)&xn->m.mask6.sin6_addr;
-		for (i = 0; i < sizeof(struct in6_addr) / 4; i++, v++)
-			tent->masklen += bitcount32(*v);
-		memcpy(&tent->k, &xn->a.addr6.sin6_addr, sizeof(struct in6_addr));
+		xn = (struct radix_cidr_xentry *)e;
+		memcpy(&tent->k, &xn->addr6.sin6_addr, sizeof(struct in6_addr));
+		tent->masklen = xn->masklen;
 		tent->subtype = AF_INET6;
 		tent->value = xn->value;
 #endif
@@ -261,7 +250,7 @@ ta_find_radix_tentry(void *ta_state, struct table_info *ti, void *key,
 		rnh = (struct radix_node_head *)ti->state;
 		e = rnh->rnh_matchaddr(&sa, rnh);
 	} else {
-		struct sockaddr_in6 sa6;
+		struct sa_in6 sa6;
 		KEY_LEN(sa6) = KEY_LEN_INET6;
 		memcpy(&sa6.sin6_addr, key, sizeof(struct in6_addr));
 		rnh = (struct radix_node_head *)ti->xstate;
@@ -301,8 +290,8 @@ struct ta_buf_cidr
 			struct sockaddr_in ma;
 		} a4;
 		struct {
-			struct sockaddr_in6 sa;
-			struct sockaddr_in6 ma;
+			struct sa_in6 sa;
+			struct sa_in6 ma;
 		} a6;
 	} addr;
 };
@@ -324,9 +313,11 @@ static int
 ta_prepare_add_cidr(struct tentry_info *tei, void *ta_buf)
 {
 	struct ta_buf_cidr *tb;
-	struct table_entry *ent;
-	struct table_xentry *xent;
+	struct radix_cidr_entry *ent;
+	struct radix_cidr_xentry *xent;
 	in_addr_t addr;
+	struct sockaddr_in *mask;
+	struct sa_in6 *mask6;
 	int mlen;
 
 	tb = (struct ta_buf_cidr *)ta_buf;
@@ -336,24 +327,25 @@ ta_prepare_add_cidr(struct tentry_info *tei, void *ta_buf)
 	
 	if (tei->subtype == AF_INET) {
 #ifdef INET
-		/* IPv4 case */
 		if (mlen > 32)
 			return (EINVAL);
-
 		ent = malloc(sizeof(*ent), M_IPFW_TBL, M_WAITOK | M_ZERO);
 		ent->value = tei->value;
+		mask = &tb->addr.a4.ma;
 		/* Set 'total' structure length */
 		KEY_LEN(ent->addr) = KEY_LEN_INET;
-		KEY_LEN(ent->mask) = KEY_LEN_INET;
+		KEY_LEN(*mask) = KEY_LEN_INET;
 		ent->addr.sin_family = AF_INET;
-		ent->mask.sin_addr.s_addr =
+		mask->sin_addr.s_addr =
 		    htonl(mlen ? ~((1 << (32 - mlen)) - 1) : 0);
 		addr = *((in_addr_t *)tei->paddr);
-		ent->addr.sin_addr.s_addr = addr & ent->mask.sin_addr.s_addr;
+		ent->addr.sin_addr.s_addr = addr & mask->sin_addr.s_addr;
+		ent->masklen = mlen;
 		/* Set pointers */
 		tb->ent_ptr = ent;
 		tb->addr_ptr = (struct sockaddr *)&ent->addr;
-		tb->mask_ptr = (struct sockaddr *)&ent->mask;
+		if (mlen != 32)
+			tb->mask_ptr = (struct sockaddr *)mask;
 #endif
 #ifdef INET6
 	} else if (tei->subtype == AF_INET6) {
@@ -362,18 +354,21 @@ ta_prepare_add_cidr(struct tentry_info *tei, void *ta_buf)
 			return (EINVAL);
 		xent = malloc(sizeof(*xent), M_IPFW_TBL, M_WAITOK | M_ZERO);
 		xent->value = tei->value;
+		mask6 = &tb->addr.a6.ma;
 		/* Set 'total' structure length */
-		KEY_LEN(xent->a.addr6) = KEY_LEN_INET6;
-		KEY_LEN(xent->m.mask6) = KEY_LEN_INET6;
-		xent->a.addr6.sin6_family = AF_INET6;
-		ipv6_writemask(&xent->m.mask6.sin6_addr, mlen);
-		memcpy(&xent->a.addr6.sin6_addr, tei->paddr,
+		KEY_LEN(xent->addr6) = KEY_LEN_INET6;
+		KEY_LEN(*mask6) = KEY_LEN_INET6;
+		xent->addr6.sin6_family = AF_INET6;
+		ipv6_writemask(&mask6->sin6_addr, mlen);
+		memcpy(&xent->addr6.sin6_addr, tei->paddr,
 		    sizeof(struct in6_addr));
-		APPLY_MASK(&xent->a.addr6.sin6_addr, &xent->m.mask6.sin6_addr);
+		APPLY_MASK(&xent->addr6.sin6_addr, &mask6->sin6_addr);
+		xent->masklen = mlen;
 		/* Set pointers */
 		tb->ent_ptr = xent;
-		tb->addr_ptr = (struct sockaddr *)&xent->a.addr6;
-		tb->mask_ptr = (struct sockaddr *)&xent->m.mask6;
+		tb->addr_ptr = (struct sockaddr *)&xent->addr6;
+		if (mlen != 128)
+			tb->mask_ptr = (struct sockaddr *)mask6;
 #endif
 	} else {
 		/* Unknown CIDR type */
@@ -417,16 +412,18 @@ ta_add_cidr(void *ta_state, struct table_info *ti,
 		
 		if (tei->subtype == AF_INET) {
 			/* IPv4. */
-			value = ((struct table_entry *)tb->ent_ptr)->value;
-			((struct table_entry *)rn)->value = value;
+			value = ((struct radix_cidr_entry *)tb->ent_ptr)->value;
+			((struct radix_cidr_entry *)rn)->value = value;
 		} else {
 			/* IPv6 */
-			value = ((struct table_xentry *)tb->ent_ptr)->value;
-			((struct table_xentry *)rn)->value = value;
+			value = ((struct radix_cidr_xentry *)tb->ent_ptr)->value;
+			((struct radix_cidr_xentry *)rn)->value = value;
 		}
 
 		/* Indicate that update has happened instead of addition */
 		tei->flags |= TEI_FLAGS_UPDATED;
+
+		return (0);
 	}
 
 	tb->ent_ptr = NULL;
@@ -438,6 +435,8 @@ static int
 ta_prepare_del_cidr(struct tentry_info *tei, void *ta_buf)
 {
 	struct ta_buf_cidr *tb;
+	struct sockaddr_in sa, mask;
+	struct sa_in6 sa6, mask6;
 	in_addr_t addr;
 	int mlen;
 
@@ -447,8 +446,11 @@ ta_prepare_del_cidr(struct tentry_info *tei, void *ta_buf)
 	mlen = tei->masklen;
 
 	if (tei->subtype == AF_INET) {
+		if (mlen > 32)
+			return (EINVAL);
+		memset(&sa, 0, sizeof(struct sockaddr_in));
+		memset(&mask, 0, sizeof(struct sockaddr_in));
 		/* Set 'total' structure length */
-		struct sockaddr_in sa, mask;
 		KEY_LEN(sa) = KEY_LEN_INET;
 		KEY_LEN(mask) = KEY_LEN_INET;
 		mask.sin_addr.s_addr = htonl(mlen ? ~((1 << (32 - mlen)) - 1) : 0);
@@ -457,15 +459,14 @@ ta_prepare_del_cidr(struct tentry_info *tei, void *ta_buf)
 		tb->addr.a4.sa = sa;
 		tb->addr.a4.ma = mask;
 		tb->addr_ptr = (struct sockaddr *)&tb->addr.a4.sa;
-		tb->mask_ptr = (struct sockaddr *)&tb->addr.a4.ma;
+		if (mlen != 32)
+			tb->mask_ptr = (struct sockaddr *)&tb->addr.a4.ma;
 #ifdef INET6
 	} else if (tei->subtype == AF_INET6) {
-		/* IPv6 case */
 		if (mlen > 128)
 			return (EINVAL);
-		struct sockaddr_in6 sa6, mask6;
-		memset(&sa6, 0, sizeof(struct sockaddr_in6));
-		memset(&mask6, 0, sizeof(struct sockaddr_in6));
+		memset(&sa6, 0, sizeof(struct sa_in6));
+		memset(&mask6, 0, sizeof(struct sa_in6));
 		/* Set 'total' structure length */
 		KEY_LEN(sa6) = KEY_LEN_INET6;
 		KEY_LEN(mask6) = KEY_LEN_INET6;
@@ -476,7 +477,8 @@ ta_prepare_del_cidr(struct tentry_info *tei, void *ta_buf)
 		tb->addr.a6.sa = sa6;
 		tb->addr.a6.ma = mask6;
 		tb->addr_ptr = (struct sockaddr *)&tb->addr.a6.sa;
-		tb->mask_ptr = (struct sockaddr *)&tb->addr.a6.ma;
+		if (mlen != 128)
+			tb->mask_ptr = (struct sockaddr *)&tb->addr.a6.ma;
 #endif
 	} else
 		return (EINVAL);
@@ -547,13 +549,13 @@ ta_lookup_iface(struct table_info *ti, void *key, uint32_t keylen,
 {
 	struct radix_node_head *rnh;
 	struct xaddr_iface iface;
-	struct table_xentry *xent;
+	struct radix_iface *xent;
 
 	KEY_LEN(iface) = KEY_LEN_IFACE +
 	    strlcpy(iface.ifname, (char *)key, IF_NAMESIZE) + 1;
 
 	rnh = (struct radix_node_head *)ti->xstate;
-	xent = (struct table_xentry *)(rnh->rnh_matchaddr(&iface, rnh));
+	xent = (struct radix_iface *)(rnh->rnh_matchaddr(&iface, rnh));
 	if (xent != NULL) {
 		*val = xent->value;
 		return (1);
@@ -566,12 +568,12 @@ static int
 flush_iface_entry(struct radix_node *rn, void *arg)
 {
 	struct radix_node_head * const rnh = arg;
-	struct table_entry *ent;
+	struct radix_iface *xent;
 
-	ent = (struct table_entry *)
+	xent = (struct radix_iface *)
 	    rnh->rnh_deladdr(rn->rn_key, rn->rn_mask, rnh);
-	if (ent != NULL)
-		free(ent, M_IPFW_TBL);
+	if (xent != NULL)
+		free(xent, M_IPFW_TBL);
 	return (0);
 }
 
@@ -611,34 +613,29 @@ static int
 ta_prepare_add_iface(struct tentry_info *tei, void *ta_buf)
 {
 	struct ta_buf_iface *tb;
-	struct table_xentry *xent;
+	struct radix_iface *xent;
 	int mlen;
-	char c;
+	char *ifname;
 
 	tb = (struct ta_buf_iface *)ta_buf;
 	memset(tb, 0, sizeof(struct ta_buf_cidr));
 
-	mlen = tei->masklen;
-
 	/* Check if string is terminated */
-	c = ((char *)tei->paddr)[IF_NAMESIZE - 1];
-	((char *)tei->paddr)[IF_NAMESIZE - 1] = '\0';
-	mlen = strlen((char *)tei->paddr);
-	if ((mlen == IF_NAMESIZE - 1) && (c != '\0'))
+	ifname = (char *)tei->paddr;
+	if (strnlen(ifname, IF_NAMESIZE) == IF_NAMESIZE)
 		return (EINVAL);
 
 	/* Include last \0 into comparison */
-	mlen++;
+	mlen = strlen(ifname) + 1;
 
 	xent = malloc(sizeof(*xent), M_IPFW_TBL, M_WAITOK | M_ZERO);
 	xent->value = tei->value;
 	/* Set 'total' structure length */
-	KEY_LEN(xent->a.iface) = KEY_LEN_IFACE + mlen;
-	KEY_LEN(xent->m.ifmask) = KEY_LEN_IFACE + mlen;
-	memcpy(xent->a.iface.ifname, tei->paddr, mlen);
+	KEY_LEN(xent->iface) = KEY_LEN_IFACE + mlen;
+	memcpy(xent->iface.ifname, tei->paddr, mlen);
 	/* Set pointers */
 	tb->ent_ptr = xent;
-	tb->addr_ptr = (struct sockaddr *)&xent->a.iface;
+	tb->addr_ptr = (struct sockaddr *)&xent->iface;
 	/* Assume direct match */
 	tb->mask_ptr = NULL;
 
@@ -669,11 +666,13 @@ ta_add_iface(void *ta_state, struct table_info *ti,
 			return (EINVAL);
 		}
 		
-		value = ((struct table_xentry *)tb->ent_ptr)->value;
-		((struct table_xentry *)rn)->value = value;
+		value = ((struct radix_iface *)tb->ent_ptr)->value;
+		((struct radix_iface *)rn)->value = value;
 
 		/* Indicate that update has happened instead of addition */
 		tei->flags |= TEI_FLAGS_UPDATED;
+
+		return (0);
 	}
 
 	tb->ent_ptr = NULL;
@@ -753,11 +752,11 @@ static int
 ta_dump_iface_tentry(void *ta_state, struct table_info *ti, void *e,
     ipfw_obj_tentry *tent)
 {
-	struct table_xentry *xn;
+	struct radix_iface *xn;
 
-	xn = (struct table_xentry *)e;
+	xn = (struct radix_iface *)e;
 	tent->masklen = 8 * IF_NAMESIZE;
-	memcpy(&tent->k, &xn->a.iface.ifname, IF_NAMESIZE);
+	memcpy(&tent->k, &xn->iface.ifname, IF_NAMESIZE);
 	tent->value = xn->value;
 
 	return (0);
