@@ -1910,7 +1910,8 @@ zvol_dump_init(zvol_state_t *zv, boolean_t resize)
 			return (SET_ERROR(ENOTSUP));
 		(void) dsl_sync_task(spa_name(spa),
 		    zfs_mvdev_dump_feature_check,
-		    zfs_mvdev_dump_activate_feature_sync, NULL, 2);
+		    zfs_mvdev_dump_activate_feature_sync, NULL,
+		    2, ZFS_SPACE_CHECK_RESERVED);
 	}
 
 	tx = dmu_tx_create(os);

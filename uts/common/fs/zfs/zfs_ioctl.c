@@ -24,7 +24,7 @@
  * Portions Copyright 2011 Martin Matuska
  * Copyright 2011 Nexenta Systems, Inc.  All rights reserved.
  * Copyright (c) 2014, Joyent, Inc. All rights reserved.
- * Copyright (c) 2013 by Delphix. All rights reserved.
+ * Copyright (c) 2011, 2014 by Delphix. All rights reserved.
  * Copyright (c) 2013 by Saso Kiselkov. All rights reserved.
  * Copyright (c) 2013 Steven Hartland. All rights reserved.
  * Copyright (c) 2014, Nexenta Systems, Inc. All rights reserved.
@@ -3885,7 +3885,7 @@ zfs_prop_activate_feature(spa_t *spa, spa_feature_t feature)
 	/* EBUSY here indicates that the feature is already active */
 	err = dsl_sync_task(spa_name(spa),
 	    zfs_prop_activate_feature_check, zfs_prop_activate_feature_sync,
-	    &feature, 2);
+	    &feature, 2, ZFS_SPACE_CHECK_RESERVED);
 
 	if (err != 0 && err != EBUSY)
 		return (err);
