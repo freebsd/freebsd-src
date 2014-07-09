@@ -12,7 +12,7 @@ GDBLIBS= ${OBJ_GDB}/libgdb/libgdb.a
 LDFLAGS+= -Wl,-E
 
 DPADD=	${GDBLIBS} ${BULIBS} ${LIBM} ${LIBREADLINE} ${LIBTERMCAP} ${LIBGNUREGEX}
-LDADD=	${GDBLIBS} ${BULIBS} -lm -lreadline -ltermcap -lgnuregex
+LDADD=	${GDBLIBS} ${BULIBS} -lm ${LIBREADLINE} -ltermcap -lgnuregex
 
 NO_PIE=	yes
 

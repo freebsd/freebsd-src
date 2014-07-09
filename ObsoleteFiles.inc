@@ -38,6 +38,25 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20140705: turn libreadline into an internal lib
+OLD_LIBS+=lib/libreadline.so.8
+OLD_FILES+=usr/lib/libreadline.a
+OLD_FILES+=usr/lib/libreadline_p.a
+OLD_FILES+=usr/lib/libreadline.so
+OLD_FILES+=usr/lib/libhistory.a
+OLD_FILES+=usr/lib/libhistory_p.a
+OLD_FILES+=usr/lib/libhistory.so
+OLD_LIBS+=usr/lib/libhistory.so.8
+OLD_FILES+=usr/include/readline/chardefs.h
+OLD_FILES+=usr/include/readline/history.h
+OLD_FILES+=usr/include/readline/keymaps.h
+OLD_FILES+=usr/include/readline/readline.h
+OLD_FILES+=usr/include/readline/rlconf.h
+OLD_FILES+=usr/include/readline/rlstdc.h
+OLD_FILES+=usr/include/readline/rltypedefs.h
+OLD_FILES+=usr/include/readline/rltypedefs.h
+OLD_FILES+=usr/share/info/readline.info.gz
+OLD_FILES+=usr/share/man/man3/readline.3.gz
 # 20140625: csup removal
 OLD_FILES+=usr/bin/csup
 OLD_FILES+=usr/bin/cpasswd
