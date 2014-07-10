@@ -65,5 +65,5 @@ static const struct {
     sizeof(int32_t),
     ABI_NOTETYPE,
     ABI_VENDOR,
-    __FreeBSD_version
+    903000
 };
