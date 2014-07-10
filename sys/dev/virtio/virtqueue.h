@@ -86,6 +86,7 @@ vm_paddr_t virtqueue_paddr(struct virtqueue *vq);
 int	 virtqueue_full(struct virtqueue *vq);
 int	 virtqueue_empty(struct virtqueue *vq);
 int	 virtqueue_size(struct virtqueue *vq);
+int	 virtqueue_nfree(struct virtqueue *vq);
 int	 virtqueue_nused(struct virtqueue *vq);
 void	 virtqueue_notify(struct virtqueue *vq);
 void	 virtqueue_dump(struct virtqueue *vq);
