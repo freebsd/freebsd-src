@@ -1216,26 +1216,33 @@ int
 sysctl_handle_string(SYSCTL_HANDLER_ARGS)
 {
 	size_t outlen;
-	int error = 0;
+	int error = 0, ro_string = 0;
 
 	/*
 	 * A zero-length buffer indicates a fixed size read-only
 	 * string:
 	 */
-	if (arg2 == 0)
+	if (arg2 == 0) {
 		arg2 = strlen((char *)arg1) + 1;
+		ro_string = 1;
+	}
 
 	if (req->oldptr != NULL) {
 		char *tmparg;
 
-		/* try to make a coherent snapshot of the string */
-		tmparg = malloc(arg2, M_SYSCTLTMP, M_WAITOK);
-		memcpy(tmparg, arg1, arg2);
+		if (ro_string) {
+			tmparg = arg1;
+		} else {
+			/* try to make a coherent snapshot of the string */
+			tmparg = malloc(arg2, M_SYSCTLTMP, M_WAITOK);
+			memcpy(tmparg, arg1, arg2);
+		}
 
 		outlen = strnlen(tmparg, arg2 - 1) + 1;
 		error = SYSCTL_OUT(req, tmparg, outlen);
 
-		free(tmparg, M_SYSCTLTMP);
+		if (!ro_string)
+			free(tmparg, M_SYSCTLTMP);
 	} else {
 		outlen = strnlen((char *)arg1, arg2 - 1) + 1;
 		error = SYSCTL_OUT(req, NULL, outlen);
