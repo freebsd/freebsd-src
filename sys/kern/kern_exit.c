@@ -129,9 +129,7 @@ void
 exit1(struct thread *td, int rv)
 {
 	struct proc *p, *nq, *q;
-	struct vnode *vtmp;
 	struct vnode *ttyvp = NULL;
-	struct plimit *plim;
 
 	mtx_assert(&Giant, MA_NOTOWNED);
 
@@ -377,17 +375,16 @@ exit1(struct thread *td, int rv)
 	/*
 	 * Release reference to text vnode
 	 */
-	if ((vtmp = p->p_textvp) != NULL) {
+	if (p->p_textvp != NULL) {
+		vrele(p->p_textvp);
 		p->p_textvp = NULL;
-		vrele(vtmp);
 	}
 
 	/*
 	 * Release our limits structure.
 	 */
-	plim = p->p_limit;
+	lim_free(p->p_limit);
 	p->p_limit = NULL;
-	lim_free(plim);
 
 	tidhash_remove(td);
 
