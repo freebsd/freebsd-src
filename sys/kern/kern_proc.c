@@ -2173,6 +2173,7 @@ kern_proc_vmmap_out(struct proc *p, struct sbuf *sb)
 		if (entry->eflags & MAP_ENTRY_IS_SUB_MAP)
 			continue;
 
+		addr = entry->end;
 		bzero(kve, sizeof(*kve));
 		obj = entry->object.vm_object;
 		if (obj != NULL) {
