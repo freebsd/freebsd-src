@@ -3,8 +3,8 @@
 .include <bsd.own.mk>
 
 # XXX: clang can compile the boot code just fine, but boot2 gets too big
-CC:=		gcc
-COMPILER_TYPE:=	gcc
+#CC:=		gcc
+#COMPILER_TYPE:=	gcc
 
 NO_PIE=	yes
 
