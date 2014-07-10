@@ -67,7 +67,7 @@ live_entropy_source_register(struct live_entropy_source *rsource)
 
 	KASSERT(rsource != NULL, ("invalid input to %s", __func__));
 
-	lles = malloc(sizeof(struct live_entropy_sources), M_ENTROPY, M_WAITOK);
+	lles = malloc(sizeof(*lles), M_ENTROPY, M_WAITOK);
 	lles->lles_rsource = rsource;
 
 	sx_xlock(&les_lock);

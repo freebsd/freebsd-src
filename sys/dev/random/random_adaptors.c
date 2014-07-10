@@ -98,6 +98,14 @@ random_adaptor_choose(void)
 	if (TUNABLE_STR_FETCH("kern.random.active_adaptor", rngs, sizeof(rngs))) {
 		cp = rngs;
 
+		/* XXX: FIX!! (DES):
+		 * - fetch tunable once, at boot
+		 * - make sysctl r/w
+		 * - when fetching tunable or processing a sysctl
+		 *   write, parse into list of strings so we don't
+		 *   have to do it here again and again
+		 * - sysctl read should return a reconstructed string
+		 */
 		while ((token = strsep(&cp, ",")) != NULL) {
 			LIST_FOREACH(rra, &random_adaptors_list, rra_entries)
 				if (strcmp(rra->rra_name, token) == 0) {
@@ -156,7 +164,7 @@ random_adaptor_register(const char *name, struct random_adaptor *ra)
 
 	KASSERT(name != NULL && ra != NULL, ("invalid input to %s", __func__));
 
-	rra = malloc(sizeof(struct random_adaptors), M_ENTROPY, M_WAITOK);
+	rra = malloc(sizeof(*rra), M_ENTROPY, M_WAITOK);
 	rra->rra_name = name;
 	rra->rra_ra = ra;
 
@@ -237,7 +245,7 @@ random_adaptor_read(struct cdev *dev __unused, struct uio *uio, int flags)
 
 		/* The actual read */
 
-		random_buf = (void *)malloc(PAGE_SIZE, M_ENTROPY, M_WAITOK);
+		random_buf = malloc(PAGE_SIZE, M_ENTROPY, M_WAITOK);
 
 		while (uio->uio_resid && !error) {
 			c = MIN(uio->uio_resid, PAGE_SIZE);
@@ -288,7 +296,7 @@ random_adaptor_write(struct cdev *dev __unused, struct uio *uio, int flags __unu
 
 	sx_slock(&random_adaptors_lock);
 
-	random_buf = (void *)malloc(PAGE_SIZE, M_ENTROPY, M_WAITOK);
+	random_buf = malloc(PAGE_SIZE, M_ENTROPY, M_WAITOK);
 
 	while (uio->uio_resid > 0) {
 		c = MIN(uio->uio_resid, PAGE_SIZE);

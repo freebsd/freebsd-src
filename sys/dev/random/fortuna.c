@@ -143,7 +143,7 @@ random_fortuna_init_alg(void)
 	struct sysctl_oid *random_fortuna_o;
 #endif
 
-	memset((void *)(fortuna_start_cache.junk), 0, sizeof(fortuna_start_cache.junk));
+	memset(fortuna_start_cache.junk, 0, sizeof(fortuna_start_cache.junk));
 	fortuna_start_cache.length = 0U;
 	randomdev_hash_init(&fortuna_start_cache.hash);
 
@@ -192,7 +192,7 @@ random_fortuna_init_alg(void)
 	uint128_clear(&fortuna_state.counter.whole);
 
 	/* F&S - K = 0 */
-	memset((void *)(&fortuna_state.key), 0, sizeof(struct randomdev_key));
+	memset(&fortuna_state.key, 0, sizeof(fortuna_state.key));
 }
 
 void
@@ -200,7 +200,7 @@ random_fortuna_deinit_alg(void)
 {
 
 	mtx_destroy(&random_reseed_mtx);
-	memset((void *)(&fortuna_state), 0, sizeof(struct fortuna_state));
+	memset(&fortuna_state, 0, sizeof(fortuna_state));
 }
 
 /* F&S - AddRandomEvent() */
@@ -243,7 +243,7 @@ reseed(uint8_t *junk, u_int length)
 
 	/* F&S - temp = H(K|s) */
 	randomdev_hash_init(&context);
-	randomdev_hash_iterate(&context, &fortuna_state.key, sizeof(struct randomdev_key));
+	randomdev_hash_iterate(&context, &fortuna_state.key, sizeof(fortuna_state.key));
 	randomdev_hash_iterate(&context, junk, length);
 	randomdev_hash_finish(&context, temp);
 
@@ -254,8 +254,8 @@ reseed(uint8_t *junk, u_int length)
 
 	/* F&S - K = hash */
 	randomdev_encrypt_init(&fortuna_state.key, temp);
-	memset((void *)temp, 0, sizeof(temp));
-	memset((void *)hash, 0, sizeof(hash));
+	memset(temp, 0, sizeof(temp));
+	memset(hash, 0, sizeof(hash));
 
 	/* Unblock the device if it was blocked due to being unseeded */
 	if (uint128_is_zero(fortuna_state.counter.whole))
@@ -299,7 +299,7 @@ random_fortuna_genrandom(uint8_t *buf, u_int bytecount)
 	/* F&S - K = GenerateBlocks(2) */
 	random_fortuna_genblocks(temp, KEYSIZE/BLOCKSIZE);
 	randomdev_encrypt_init(&fortuna_state.key, temp);
-	memset((void *)temp, 0, sizeof(temp));
+	memset(temp, 0, sizeof(temp));
 }
 
 /* F&S - RandomData() */
@@ -364,10 +364,10 @@ random_fortuna_read(uint8_t *buf, u_int bytecount)
 				reseed(s, seedlength);
 
 				/* Clean up */
-				memset((void *)s, 0, seedlength);
+				memset(s, 0, seedlength);
 				seedlength = 0U;
-				memset((void *)temp, 0, sizeof(temp));
-				memset((void *)&context, 0, sizeof(context));
+				memset(temp, 0, sizeof(temp));
+				memset(&context, 0, sizeof(context));
 			}
 		}
 	}
@@ -406,11 +406,11 @@ random_fortuna_write(uint8_t *buf, u_int count)
 	printf("\n");
 #endif
 
-	memset((void *)(temp), 0, KEYSIZE);
+	memset(temp, 0, KEYSIZE);
 	randomdev_hash_init(&fortuna_start_cache.hash);
 
 	reseed(fortuna_start_cache.junk, MIN(PAGE_SIZE, fortuna_start_cache.length));
-	memset((void *)(fortuna_start_cache.junk), 0, sizeof(fortuna_start_cache.junk));
+	memset(fortuna_start_cache.junk, 0, sizeof(fortuna_start_cache.junk));
 
 	mtx_unlock(&random_reseed_mtx);
 }

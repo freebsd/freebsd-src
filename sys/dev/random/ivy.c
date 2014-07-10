@@ -92,9 +92,9 @@ random_ivy_read(void *buf, u_int c)
 	long *b;
 	u_int count;
 
-	KASSERT(c % sizeof(long) == 0, ("partial read %d", c));
+	KASSERT(c % sizeof(*b) == 0, ("partial read %d", c));
 	b = buf;
-	for (count = c; count > 0; count -= sizeof(long)) {
+	for (count = c; count > 0; count -= sizeof(*b)) {
 		if (ivy_rng_store(b++) == 0)
 			break;
 	}

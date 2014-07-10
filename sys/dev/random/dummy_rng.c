@@ -98,9 +98,9 @@ dummy_random_read_phony(uint8_t *buf, u_int count)
 	/* srandom() is called in kern/init_main.c:proc0_post() */
 
 	/* Fill buf[] with random(9) output */
-	for (i = 0; i < count; i += sizeof(u_long)) {
+	for (i = 0; i < count; i += sizeof(randval)) {
 		randval = random();
-		size = MIN(count - i, sizeof(u_long));
+		size = MIN(count - i, sizeof(randval));
 		memcpy(buf + i, &randval, (size_t)size);
 	}
 

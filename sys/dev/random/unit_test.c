@@ -228,7 +228,7 @@ main(int argc, char *argv[])
 
 	for (t = 0; t < NUM_THREADS; t++) {
 		printf("In main: creating thread %ld\n", t);
-		rc = thrd_create(&threads[t], (t == 0 ? RunHarvester : (t == 1 ? WriteCSPRNG : ReadCSPRNG)), (void *)t);
+		rc = thrd_create(&threads[t], (t == 0 ? RunHarvester : (t == 1 ? WriteCSPRNG : ReadCSPRNG)), t);
 		if (rc != thrd_success) {
 			printf("ERROR; return code from thrd_create() is %d\n", rc);
 			exit(-1);

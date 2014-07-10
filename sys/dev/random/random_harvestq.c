@@ -324,7 +324,7 @@ random_harvestq_deinit(void)
 	 * Command the hash/reseed thread to end and wait for it to finish
 	 */
 	random_kthread_control = -1;
-	tsleep((void *)&random_kthread_control, 0, "term", 0);
+	tsleep(&random_kthread_control, 0, "term", 0);
 
 	mtx_destroy(&harvest_mtx);
 

@@ -142,7 +142,7 @@ random_yarrow_init_alg(void)
 	struct sysctl_oid *random_yarrow_o;
 #endif /* _KERNEL */
 
-	memset((void *)(yarrow_state.start_cache.junk), 0, KEYSIZE);
+	memset(yarrow_state.start_cache.junk, 0, KEYSIZE);
 	randomdev_hash_init(&yarrow_state.start_cache.hash);
 
 	/* Set up the lock for the reseed/gate state */
@@ -225,7 +225,7 @@ random_yarrow_deinit_alg(void)
 {
 
 	mtx_destroy(&random_reseed_mtx);
-	memset((void *)(&yarrow_state), 0, sizeof(struct yarrow_state));
+	memset(&yarrow_state, 0, sizeof(yarrow_state));
 
 #ifdef _KERNEL
 	sysctl_ctx_free(&random_clist);
@@ -376,7 +376,7 @@ reseed(u_int fastslow)
 		/* v[i] #= h(v[0]) */
 		randomdev_hash_iterate(&context, v[0], KEYSIZE);
 		/* v[i] #= h(i) */
-		randomdev_hash_iterate(&context, &i, sizeof(u_int));
+		randomdev_hash_iterate(&context, &i, sizeof(i));
 		/* Return the hashval */
 		randomdev_hash_finish(&context, v[i]);
 	}
@@ -406,10 +406,10 @@ reseed(u_int fastslow)
 
 	/* 6. Wipe memory of intermediate values */
 
-	memset((void *)v, 0, sizeof(v));
-	memset((void *)temp, 0, sizeof(temp));
-	memset((void *)hash, 0, sizeof(hash));
-	memset((void *)&context, 0, sizeof(context));
+	memset(v, 0, sizeof(v));
+	memset(temp, 0, sizeof(temp));
+	memset(hash, 0, sizeof(hash));
+	memset(&context, 0, sizeof(context));
 
 #ifdef RANDOM_RWFILE_WRITE_IS_OK /* Not defined so writes ain't gonna happen */
 	/* 7. Dump to seed file */
@@ -484,7 +484,7 @@ random_yarrow_write(uint8_t *buf, u_int count)
 #endif
 
 	random_yarrow_process_buffer(yarrow_state.start_cache.junk, KEYSIZE);
-	memset((void *)(yarrow_state.start_cache.junk), 0, KEYSIZE);
+	memset(yarrow_state.start_cache.junk, 0, KEYSIZE);
 
 	mtx_unlock(&random_reseed_mtx);
 }
@@ -501,7 +501,7 @@ generator_gate(void)
 	}
 
 	randomdev_encrypt_init(&yarrow_state.key, temp);
-	memset((void *)temp, 0, KEYSIZE);
+	memset(temp, 0, KEYSIZE);
 }
 
 void
