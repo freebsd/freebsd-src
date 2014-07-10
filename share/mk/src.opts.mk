@@ -205,11 +205,11 @@ __DEFAULT_NO_OPTIONS+=CLANG CLANG_FULL CLANG_BOOTSTRAP
 .if ${__T} == "amd64" || ${__T} == "arm" || ${__T} == "armv6" || \
     ${__T} == "armv6hf" || ${__T} == "i386"
 __DEFAULT_YES_OPTIONS+=CLANG_IS_CC
-__DEFAULT_NO_OPTIONS+=GNUCXX GCC GCC_BOOTSTRAP
+__DEFAULT_NO_OPTIONS+=GCC GCC_BOOTSTRAP GNUCXX
 .else
 # If clang is not cc, then build gcc by default
 __DEFAULT_NO_OPTIONS+=CLANG_IS_CC CLANG CLANG_BOOTSTRAP
-__DEFAULT_YES_OPTIONS+=GCC GNUCXX GCC_BOOTSTRAP
+__DEFAULT_YES_OPTIONS+=GCC GCC_BOOTSTRAP GNUCXX
 .endif
 
 .include <bsd.mkopt.mk>
@@ -269,6 +269,7 @@ MK_KERBEROS:=	no
 .if ${MK_CXX} == "no"
 MK_CLANG:=	no
 MK_GROFF:=	no
+MK_GNUCXX:=	no
 .endif
 
 .if ${MK_MAIL} == "no"
