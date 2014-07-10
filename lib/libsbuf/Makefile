@@ -4,7 +4,7 @@ LIB=		sbuf
 SHLIBDIR?= 	/lib
 SRCS=		subr_sbuf.c 
 
-SHLIB_MAJOR	= 6
+SHLIB_MAJOR	= 7
 
 SYMBOL_MAPS=    ${.CURDIR}/Symbol.map
 VERSION_DEF=	${.CURDIR}/Version.def
