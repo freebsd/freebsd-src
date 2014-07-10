@@ -233,7 +233,12 @@ static inline pt_entry_t pte_load_store(pt_entry_t *ptep, pt_entry_t npte)
 	pte = *ptep;
 	
 	pte_store(ptep, npte);
-	/* XXX: SMP race! */
+
+	/* 
+	 * The hypervisor pte write implementation is atomic (see
+	 * xen/include/asm-x86/x86_64/page.h) so our saved value is
+	 * consistent.
+	 */
 
 	return pte;
 }

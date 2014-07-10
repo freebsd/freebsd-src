@@ -1058,26 +1058,6 @@ pmap_xen_bootpages(vm_paddr_t *firstaddr)
 }
 
 
-/* alloc from linear mapped boot time virtual address space */
-static uintptr_t
-mmu_alloc(void)
-{
-	uintptr_t va;
-
-	KASSERT(physfree != 0,
-		("physfree must have been set before using mmu_alloc"));
-				
-	va = PTOV(allocpages(&physfree, atop(PAGE_SIZE)));
-
-	/* 
-	 * Xen requires the page table hierarchy to be R/O.
-	 */
-
-	pmap_xen_setpages_ro(va, atop(PAGE_SIZE));
-
-	return va;
-}
-
 void
 pmap_bootstrap(vm_paddr_t *firstaddr)
 {
@@ -2596,7 +2576,16 @@ void pmap_xen_userload(pmap_t pmap)
 	xen_pt_user_switch(pmap->pm_cr3);
 }
 
-
+/* Clear kernel alias to user VA mappings */
+static void pmap_xen_userclear(void)
+{
+	int i;
+	for (i = 0; i < NUPML4E; i++) {
+		PT_CLEAR_VA((pml4_entry_t *)PTOV(KPML4phys) + i, false);
+	}
+	PT_UPDATES_FLUSH();
+	invltlb();
+}
 /*
  * First find and then destroy the pv entry for the specified pmap and virtual
  * address.  This operation can be performed on pv lists for either 4KB or 2MB
@@ -2892,7 +2881,6 @@ retry:
 		 * deallocated.
 		 */
 		mpte = _pmap_allocpte(pmap, pmap_pde_pindex(va), &lock);
-		//panic(__func__);
 		goto retry;
 	} else
 		panic("pmap_enter: invalid page directory va=%#lx", va);
@@ -3982,6 +3970,9 @@ pmap_remove_pages(pmap_t pmap)
 	SLIST_INIT(&free);
 	rw_rlock(&pvh_global_lock);
 	PMAP_LOCK(pmap);
+	/* Kill the Xen user alias mappings, if any */
+	/* XXX: If pmap is current pmap ? */
+	pmap_xen_userclear();
 	TAILQ_FOREACH_SAFE(pc, &pmap->pm_pvchunk, pc_list, npc) {
 		allfree = 1;
 		freed = 0;
@@ -4001,7 +3992,7 @@ pmap_remove_pages(pmap_t pmap)
 				if ((tpte & (PG_PS | PG_V)) == PG_V) {
 					superpage = FALSE;
 					ptepde = tpte;
-					pte = (pt_entry_t *)PHYS_TO_DMAP(tpte &
+					pte = (pt_entry_t *)MACH_TO_DMAP(tpte &
 					    PG_FRAME);
 					pte = &pte[pmap_pte_index(pv->pv_va)];
 					tpte = *pte;
