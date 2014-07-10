@@ -36,14 +36,14 @@ __FBSDID("$FreeBSD$");
 #include <iostream>
 #include <iterator>
 #include <string>
-#include <vector>
+#include <set>
 using namespace std;
 
 int
 main(int argc, char **)
 {
 	struct utmpx *ut;
-	vector<string> names;
+	set<string> names;
 
 	if (argc > 1) {
 		cerr << "usage: users" << endl;
@@ -51,19 +51,16 @@ main(int argc, char **)
 	}
 
 	setutxent();
-	while ((ut = getutxent()) != NULL) {
-		if (ut->ut_type != USER_PROCESS)
-			continue;
-		names.push_back(ut->ut_user);
-	}
+	while ((ut = getutxent()) != NULL)
+		if (ut->ut_type == USER_PROCESS)
+			names.insert(ut->ut_user);
 	endutxent();
 
-	if (names.size() == 0) {
-		return (0);
+	if (!names.empty()) {
+		auto last = names.end();
+		--last;
+		copy(names.begin(), last, ostream_iterator<string>(cout, " "));
+		cout << *last << endl;
 	}
-
-	sort(begin(names), end(names));
-	vector<string>::iterator last(unique(begin(names), end(names)));
-	copy(begin(names), last-1, ostream_iterator<string>(cout, " "));
-	cout << *(last-1) << endl;
+	return (0);
 }
