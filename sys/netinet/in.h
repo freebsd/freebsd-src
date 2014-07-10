@@ -432,6 +432,8 @@ __END_DECLS
 
 #define	IP_ONESBCAST		23   /* bool: send all-ones broadcast */
 #define	IP_BINDANY		24   /* bool: allow bind to any address */
+#define	IP_BINDMULTI		25   /* bool: allow multiple listeners on a tuple */
+#define	IP_RSS_LISTEN_BUCKET	26   /* int; set RSS listen bucket */
 
 /*
  * Options for controlling the firewall and dummynet.
