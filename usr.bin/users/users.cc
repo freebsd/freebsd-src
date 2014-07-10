@@ -57,7 +57,7 @@ main(int argc, char **)
 	endutxent();
 
 	if (!names.empty()) {
-		auto last = names.end();
+		std::set<string>::iterator last = names.end();
 		--last;
 		copy(names.begin(), last, ostream_iterator<string>(cout, " "));
 		cout << *last << endl;
