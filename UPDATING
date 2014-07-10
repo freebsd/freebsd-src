@@ -11,6 +11,9 @@ handbook:
 Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running portupgrade.
 
+20140716:
+	9.3-RELEASE.
+
 20140608:
 	On i386 and amd64 systems, the onifconsole flag is now set by default
 	in /etc/ttys for ttyu0. This causes ttyu0 to be automatically enabled
