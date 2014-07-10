@@ -2012,7 +2012,7 @@ retry:
 
 	if (m_head->m_flags & M_VLANTAG) {
 		/* Set the vlan id. */
-		txd_upper |= htole16((if_getvtag(m_head)) << 16);
+		txd_upper |= htole16(if_getvtag(m_head)) << 16;
                 /* Tell hardware to add tag */
                 txd_lower |= htole32(E1000_TXD_CMD_VLE);
         }
