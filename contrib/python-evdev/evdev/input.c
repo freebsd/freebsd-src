@@ -18,7 +18,11 @@
 #include <fcntl.h>
 #include <unistd.h>
 
+#ifdef __FreeBSD__
+#include <dev/evdev/input.h>
+#else
 #include <linux/input.h>
+#endif
 
 #define MAX_NAME_SIZE 256
 

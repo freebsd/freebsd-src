@@ -8,9 +8,13 @@
 #include <fcntl.h>
 #include <unistd.h>
 
+#ifdef __FreeBSD__
+#include <dev/evdev/input.h>
+#include <dev/evdev/uinput.h>
+#else
 #include <linux/input.h>
 #include <linux/uinput.h>
-
+#endif
 
 int _uinput_close(int fd)
 {
