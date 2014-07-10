@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 2014 Pietro Cerutti <gahr@FreeBSD.org>
  * All rights reserved.
  *
@@ -35,8 +35,8 @@ __FBSDID("$FreeBSD$");
 #include <algorithm>
 #include <iostream>
 #include <iterator>
-#include <string>
 #include <set>
+#include <string>
 using namespace std;
 
 int
@@ -57,10 +57,9 @@ main(int argc, char **)
 	endutxent();
 
 	if (!names.empty()) {
-		std::set<string>::iterator last = names.end();
+		set<string>::iterator last = names.end();
 		--last;
 		copy(names.begin(), last, ostream_iterator<string>(cout, " "));
 		cout << *last << endl;
 	}
-	return (0);
 }
