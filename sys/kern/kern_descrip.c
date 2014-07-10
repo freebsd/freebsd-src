@@ -2034,8 +2034,6 @@ fdescfree(struct thread *td)
 		return;
 	}
 
-	fdp->fd_nfiles = 0;
-
 	cdir = fdp->fd_cdir;
 	fdp->fd_cdir = NULL;
 	rdir = fdp->fd_rdir;
