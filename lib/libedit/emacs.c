@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$NetBSD: emacs.c,v 1.21 2006/03/06 21:11:56 christos Exp $
+ *	$NetBSD: emacs.c,v 1.22 2009/02/15 21:55:23 christos Exp $
  */
 
 #if !defined(lint) && !defined(SCCSID)
@@ -101,7 +101,7 @@ em_delete_next_word(EditLine *el, int c __unused)
 		*kp++ = *p;
 	el->el_chared.c_kill.last = kp;
 
-	c_delafter(el, cp - el->el_line.cursor);	/* delete after dot */
+	c_delafter(el, (int)(cp - el->el_line.cursor));	/* delete after dot */
 	if (el->el_line.cursor > el->el_line.lastchar)
 		el->el_line.cursor = el->el_line.lastchar;
 				/* bounds check */
@@ -131,7 +131,8 @@ em_yank(EditLine *el, int c __unused)
 	cp = el->el_line.cursor;
 
 	/* open the space, */
-	c_insert(el, el->el_chared.c_kill.last - el->el_chared.c_kill.buf);
+	c_insert(el,
+	    (int)(el->el_chared.c_kill.last - el->el_chared.c_kill.buf));
 	/* copy the chars */
 	for (kp = el->el_chared.c_kill.buf; kp < el->el_chared.c_kill.last; kp++)
 		*cp++ = *kp;
@@ -185,14 +186,14 @@ em_kill_region(EditLine *el, int c __unused)
 		while (cp < el->el_chared.c_kill.mark)
 			*kp++ = *cp++;	/* copy it */
 		el->el_chared.c_kill.last = kp;
-		c_delafter(el, cp - el->el_line.cursor);
+		c_delafter(el, (int)(cp - el->el_line.cursor));
 	} else {		/* mark is before cursor */
 		cp = el->el_chared.c_kill.mark;
 		kp = el->el_chared.c_kill.buf;
 		while (cp < el->el_line.cursor)
 			*kp++ = *cp++;	/* copy it */
 		el->el_chared.c_kill.last = kp;
-		c_delbefore(el, cp - el->el_chared.c_kill.mark);
+		c_delbefore(el, (int)(cp - el->el_chared.c_kill.mark));
 		el->el_line.cursor = el->el_chared.c_kill.mark;
 	}
 	return (CC_REFRESH);
@@ -446,7 +447,7 @@ em_copy_prev_word(EditLine *el, int c __unused)
 	cp = c__prev_word(el->el_line.cursor, el->el_line.buffer,
 	    el->el_state.argument, ce__isword);
 
-	c_insert(el, oldc - cp);
+	c_insert(el, (int)(oldc - cp));
 	for (dp = oldc; cp < oldc && dp < el->el_line.lastchar; cp++)
 		*dp++ = *cp;
 

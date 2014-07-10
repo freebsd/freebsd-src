@@ -39,7 +39,7 @@ __COPYRIGHT("@(#) Copyright (c) 1992, 1993\n\
 #if !defined(lint) && !defined(SCCSID)
 static char sccsid[] = "@(#)test.c	8.1 (Berkeley) 6/4/93";
 #endif /* not lint && not SCCSID */
-__RCSID("$NetBSD: test.c,v 1.18 2005/06/01 11:37:52 lukem Exp $");
+__RCSID("$NetBSD: test.c,v 1.3 2009/07/17 12:25:52 christos Exp $");
 __FBSDID("$FreeBSD$");
 
 /*
@@ -68,7 +68,7 @@ static	void	sig(int);
 static char *
 prompt(EditLine *el)
 {
-	static char a[] = "Edit$ ";
+	static char a[] = "\1\e[7m\1Edit$\1\e[0m\1 ";
 	static char b[] = "Edit> ";
 
 	return (continuation ? b : a);
@@ -143,7 +143,7 @@ main(int argc, char *argv[])
 
 	el_set(el, EL_EDITOR, "vi");	/* Default editor is vi		*/
 	el_set(el, EL_SIGNAL, 1);	/* Handle signals gracefully	*/
-	el_set(el, EL_PROMPT, prompt);	/* Set the prompt function	*/
+	el_set(el, EL_PROMPT_ESC, prompt, '\1');/* Set the prompt function */
 
 			/* Tell editline to use this history interface	*/
 	el_set(el, EL_HIST, history, hist);
@@ -183,7 +183,7 @@ main(int argc, char *argv[])
 
 #endif
 		if (gotsig) {
-			(void) fprintf(stderr, "Got signal %d.\n", gotsig);
+			(void) fprintf(stderr, "Got signal %d.\n", (int)gotsig);
 			gotsig = 0;
 			el_reset(el);
 		}
