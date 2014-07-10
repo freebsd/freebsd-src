@@ -1992,7 +1992,7 @@ moea_pvo_enter(pmap_t pm, uma_zone_t zone, struct pvo_head *pvo_head,
 		first = 1;
 	LIST_INSERT_HEAD(pvo_head, pvo, pvo_vlink);
 
-	if (pvo->pvo_pte.pte.pte_lo & PVO_WIRED)
+	if (pvo->pvo_vaddr & PVO_WIRED)
 		pm->pm_stats.wired_count++;
 	pm->pm_stats.resident_count++;
 
@@ -2031,7 +2031,7 @@ moea_pvo_remove(struct pvo_entry *pvo, int pteidx)
 	 * Update our statistics.
 	 */
 	pvo->pvo_pmap->pm_stats.resident_count--;
-	if (pvo->pvo_pte.pte.pte_lo & PVO_WIRED)
+	if (pvo->pvo_vaddr & PVO_WIRED)
 		pvo->pvo_pmap->pm_stats.wired_count--;
 
 	/*
