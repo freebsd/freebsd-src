@@ -2144,7 +2144,9 @@ makectx(struct trapframe *tf, struct pcb *pcb)
 int
 ptrace_set_pc(struct thread *td, unsigned long addr)
 {
+
 	td->td_frame->tf_rip = addr;
+	set_pcb_flags(td->td_pcb, PCB_FULL_IRET);
 	return (0);
 }
 
@@ -2244,8 +2246,8 @@ set_regs(struct thread *td, struct reg *regs)
 		tp->tf_fs = regs->r_fs;
 		tp->tf_gs = regs->r_gs;
 		tp->tf_flags = TF_HASSEGS;
-		set_pcb_flags(td->td_pcb, PCB_FULL_IRET);
 	}
+	set_pcb_flags(td->td_pcb, PCB_FULL_IRET);
 	return (0);
 }
 
