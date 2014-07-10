@@ -375,6 +375,13 @@ virtqueue_size(struct virtqueue *vq)
 }
 
 int
+virtqueue_nfree(struct virtqueue *vq)
+{
+
+	return (vq->vq_free_cnt);
+}
+
+int
 virtqueue_empty(struct virtqueue *vq)
 {
 
