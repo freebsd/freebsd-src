@@ -355,7 +355,7 @@ imx51_gpio_intr(void *arg)
 	sc = arg;
 	input = READ4(sc, IMX_GPIO_ISR_REG);
 	value = input & READ4(sc, IMX_GPIO_IMR_REG);
-	WRITE4(sc, IMX_GPIO_DR_REG, input);
+	WRITE4(sc, IMX_GPIO_ISR_REG, input);
 
 	if (!value)
 		goto intr_done;
