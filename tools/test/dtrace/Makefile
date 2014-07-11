@@ -337,7 +337,7 @@ listprgs	:
 
 .for _f in ${ALL_TESTCFILES}
 ${_f:T:S/c$/exe/} : ${_f}
-	gcc -o ${.TARGET} ${_f} -lrt
+	${CC} -o ${.TARGET} ${_f} -lrt
 .endfor
 
 .for _f in ${ALL_TESTEXEFILES}
