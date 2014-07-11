@@ -61,6 +61,6 @@ extern counter_u64_t sfstat[sizeof(struct sfstat) / sizeof(uint64_t)];
 #define	SFSTAT_INC(name)	SFSTAT_ADD(name, 1)
 #endif /* _KERNEL */
 
-int	sf_buf_mext(struct mbuf *mb, void *addr, void *args);
+void	sf_buf_mext(struct mbuf *mb, void *addr, void *args);
 
 #endif /* !_SYS_SF_BUF_H_ */

@@ -1987,7 +1987,7 @@ filt_sfsync(struct knote *kn, long hint)
 /*
  * Detach mapped page and release resources back to the system.
  */
-int
+void
 sf_buf_mext(struct mbuf *mb, void *addr, void *args)
 {
 	vm_page_t m;
@@ -2009,10 +2009,6 @@ sf_buf_mext(struct mbuf *mb, void *addr, void *args)
 		sfs = addr;
 		sf_sync_deref(sfs);
 	}
-	/*
-	 * sfs may be invalid at this point, don't use it!
-	 */
-	return (EXT_FREE_OK);
 }
 
 /*
@@ -3066,14 +3062,14 @@ retry_space:
 			m0 = m_get((mnw ? M_NOWAIT : M_WAITOK), MT_DATA);
 			if (m0 == NULL) {
 				error = (mnw ? EAGAIN : ENOBUFS);
-				(void)sf_buf_mext(NULL, NULL, sf);
+				sf_buf_mext(NULL, NULL, sf);
 				break;
 			}
 			if (m_extadd(m0, (caddr_t )sf_buf_kva(sf), PAGE_SIZE,
 			    sf_buf_mext, sfs, sf, M_RDONLY, EXT_SFBUF,
 			    (mnw ? M_NOWAIT : M_WAITOK)) != 0) {
 				error = (mnw ? EAGAIN : ENOBUFS);
-				(void)sf_buf_mext(NULL, NULL, sf);
+				sf_buf_mext(NULL, NULL, sf);
 				m_freem(m0);
 				break;
 			}
