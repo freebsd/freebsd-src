@@ -2147,7 +2147,7 @@ nd6_output_lle(struct ifnet *ifp, struct ifnet *origifp, struct mbuf *m,
 	IP_PROBE(send, NULL, NULL, mtod(m, struct ip6_hdr *), ifp, NULL,
 	    mtod(m, struct ip6_hdr *));
 
-	if ((ifp->if_flags & IFF_LOOPBACK) != 0)
+	if ((ifp->if_flags & IFF_LOOPBACK) == 0)
 		origifp = ifp;
 
 	error = (*ifp->if_output)(origifp, m, (struct sockaddr *)dst, NULL);
