@@ -46,7 +46,9 @@ __FBSDID("$FreeBSD$");
 #include <netinet/sctp_timer.h>
 #include <netinet/sctp_bsd_addr.h>
 #include <netinet/sctp_dtrace_define.h>
+#if defined(INET) || defined(INET6)
 #include <netinet/udp.h>
+#endif
 #ifdef INET6
 #include <netinet6/ip6_var.h>
 #endif
@@ -4007,9 +4009,11 @@ sctp_add_remote_addr(struct sctp_tcb *stcb, struct sockaddr *newaddr,
 			break;
 		}
 	}
+#if defined(INET) || defined(INET6)
 	if (net->port) {
 		net->mtu -= (uint32_t) sizeof(struct udphdr);
 	}
+#endif
 	if (from == SCTP_ALLOC_ASOC) {
 		stcb->asoc.smallest_mtu = net->mtu;
 	}
