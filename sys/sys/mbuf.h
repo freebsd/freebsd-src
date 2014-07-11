@@ -374,6 +374,12 @@ struct mbuf {
     "\30EXT_FLAG_EXP4"
 
 /*
+ * External reference/free functions.
+ */
+void sf_ext_ref(void *, void *);
+void sf_ext_free(void *, void *);
+
+/*
  * Flags indicating checksum, segmentation and other offload work to be
  * done, or already done, by hardware or lower layers.  It is split into
  * separate inbound and outbound flags.
