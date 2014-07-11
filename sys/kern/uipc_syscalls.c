@@ -1983,32 +1983,56 @@ filt_sfsync(struct knote *kn, long hint)
 	return (ret);
 }
 
+/*
+ * Add more references to a vm_page + sf_buf + sendfile_sync.
+ */
+void
+sf_ext_ref(void *arg1, void *arg2)
+{
+	struct sf_buf *sf = arg1;
+	struct sendfile_sync *sfs = arg2;
+	vm_page_t pg = sf_buf_page(sf);
+
+	/* XXXGL: there should be sf_buf_ref() */
+	sf_buf_alloc(sf_buf_page(sf), SFB_NOWAIT);
+
+	vm_page_lock(pg);
+	vm_page_wire(pg);
+	vm_page_unlock(pg);
+
+	if (sfs != NULL) {
+		mtx_lock(&sfs->mtx);
+		KASSERT(sfs->count > 0, ("Sendfile sync botchup count == 0"));
+		sfs->count++;
+		mtx_unlock(&sfs->mtx);
+	}
+}
 
 /*
  * Detach mapped page and release resources back to the system.
  */
 void
-sf_buf_mext(struct mbuf *mb, void *addr, void *args)
+sf_ext_free(void *arg1, void *arg2)
 {
-	vm_page_t m;
-	struct sendfile_sync *sfs;
+	struct sf_buf *sf = arg1;
+	struct sendfile_sync *sfs = arg2;
+	vm_page_t pg = sf_buf_page(sf);
 
-	m = sf_buf_page(args);
-	sf_buf_free(args);
-	vm_page_lock(m);
-	vm_page_unwire(m, PQ_INACTIVE);
+	sf_buf_free(sf);
+
+	vm_page_lock(pg);
+	vm_page_unwire(pg, PQ_INACTIVE);
 	/*
 	 * Check for the object going away on us. This can
 	 * happen since we don't hold a reference to it.
 	 * If so, we're responsible for freeing the page.
 	 */
-	if (m->wire_count == 0 && m->object == NULL)
-		vm_page_free(m);
-	vm_page_unlock(m);
-	if (addr != NULL) {
-		sfs = addr;
+	if (pg->wire_count == 0 && pg->object == NULL)
+		vm_page_free(pg);
+	vm_page_unlock(pg);
+
+	if (sfs != NULL)
 		sf_sync_deref(sfs);
-	}
 }
 
 /*
@@ -2124,7 +2148,7 @@ sf_sync_alloc(uint32_t flags)
 /*
  * Take a reference to a sfsync instance.
  *
- * This has to map 1:1 to free calls coming in via sf_buf_mext(),
+ * This has to map 1:1 to free calls coming in via sf_ext_free(),
  * so typically this will be referenced once for each mbuf allocated.
  */
 void
@@ -3062,17 +3086,19 @@ retry_space:
 			m0 = m_get((mnw ? M_NOWAIT : M_WAITOK), MT_DATA);
 			if (m0 == NULL) {
 				error = (mnw ? EAGAIN : ENOBUFS);
-				sf_buf_mext(NULL, NULL, sf);
+				sf_ext_free(sf, NULL);
 				break;
 			}
-			if (m_extadd(m0, (caddr_t )sf_buf_kva(sf), PAGE_SIZE,
-			    sf_buf_mext, sfs, sf, M_RDONLY, EXT_SFBUF,
-			    (mnw ? M_NOWAIT : M_WAITOK)) != 0) {
-				error = (mnw ? EAGAIN : ENOBUFS);
-				sf_buf_mext(NULL, NULL, sf);
-				m_freem(m0);
-				break;
-			}
+			/*
+			 * Attach EXT_SFBUF external storage.
+			 */
+			m0->m_ext.ext_buf = (caddr_t )sf_buf_kva(sf);
+			m0->m_ext.ext_size = PAGE_SIZE;
+			m0->m_ext.ext_arg1 = sf;
+			m0->m_ext.ext_arg2 = sfs;
+			m0->m_ext.ext_type = EXT_SFBUF;
+			m0->m_ext.ext_flags = 0;
+			m0->m_flags |= (M_EXT|M_RDONLY);
 			m0->m_data = (char *)sf_buf_kva(sf) + pgoff;
 			m0->m_len = xfsize;
 
