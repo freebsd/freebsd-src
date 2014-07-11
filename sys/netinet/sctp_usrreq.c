@@ -214,8 +214,6 @@ sctp_notify_mbuf(struct sctp_inpcb *inp,
 	SCTP_TCB_UNLOCK(stcb);
 }
 
-#endif
-
 void
 sctp_notify(struct sctp_inpcb *inp,
     struct ip *ip,
@@ -301,6 +299,8 @@ sctp_notify(struct sctp_inpcb *inp,
 		SCTP_TCB_UNLOCK(stcb);
 	}
 }
+
+#endif
 
 #ifdef INET
 void
