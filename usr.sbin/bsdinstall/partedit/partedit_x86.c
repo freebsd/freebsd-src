@@ -69,7 +69,7 @@ bootpart_size(const char *scheme) {
 		return (0);
 
 	if (strcmp(platform, "BIOS") == 0)
-		return (64*1024);
+		return (512*1024);
 	else 
 		return (800*1024);
 
