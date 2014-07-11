@@ -164,7 +164,7 @@ ioctl_capabilities(PyObject *self, PyObject *args)
 
     memset(&ev_bits, 0, sizeof(ev_bits));
 
-    if (ioctl(_fd, EVIOCGBIT(0, EV_MAX), ev_bits) < 0)
+    if (ioctl(_fd, EVIOCGBIT(0, sizeof(ev_bits)), ev_bits) < 0)
         goto on_err;
 
     // Build a dictionary of the device's capabilities
@@ -175,7 +175,7 @@ ioctl_capabilities(PyObject *self, PyObject *args)
             eventcodes = PyList_New(0);
 
             memset(&code_bits, 0, sizeof(code_bits));
-            ioctl(_fd, EVIOCGBIT(ev_type, KEY_MAX), code_bits);
+            ioctl(_fd, EVIOCGBIT(ev_type, sizeof(code_bits)), code_bits);
 
             for (ev_code = 0; ev_code < KEY_MAX; ev_code++) {
                 if (test_bit(code_bits, ev_code)) {
