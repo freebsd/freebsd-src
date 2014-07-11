@@ -700,14 +700,17 @@ beripic_clear_ipi(device_t ic, u_int tid)
 {
 	struct beripic_softc *sc;
 	uint64_t bit;
+	u_int target_thread;
 
-	sc = device_get_softc(ic);
+	sc = device_get_softc(bp_tid2ic(tid));
 
-	KASSERT(tid < sc->bp_nsoft, ("tid (%d) to large\n", tid));
+	target_thread = bp_tid2thread(tid);
+	KASSERT(target_thread < sc->bp_nsoft, ("tid (%d) to large\n",
+	    target_thread));
 
-	bit = 1ULL << (tid % 64);
+	bit = 1ULL << (target_thread % 64);
 	bus_space_write_8(sc->bp_clear_bst, sc->bp_clear_bsh, 
-	    (BP_FIRST_SOFT / 8) + (tid / 64), bit);
+	    (BP_FIRST_SOFT / 8) + (target_thread / 64), bit);
 }
 #endif
 
