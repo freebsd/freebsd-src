@@ -3968,9 +3968,14 @@ sctp_add_remote_addr(struct sctp_tcb *stcb, struct sockaddr *newaddr,
 		    net,
 		    0,
 		    stcb->asoc.vrf_id);
-		/* Now get the interface MTU */
-		if (net->ro._s_addr && net->ro._s_addr->ifn_p) {
-			net->mtu = SCTP_GATHER_MTU_FROM_INTFC(net->ro._s_addr->ifn_p);
+		if (net->ro._s_addr != NULL) {
+			net->src_addr_selected = 1;
+			/* Now get the interface MTU */
+			if (net->ro._s_addr->ifn_p != NULL) {
+				net->mtu = SCTP_GATHER_MTU_FROM_INTFC(net->ro._s_addr->ifn_p);
+			}
+		} else {
+			net->src_addr_selected = 0;
 		}
 		if (net->mtu > 0) {
 			uint32_t rmtu;
@@ -3992,6 +3997,8 @@ sctp_add_remote_addr(struct sctp_tcb *stcb, struct sockaddr *newaddr,
 				net->mtu = rmtu;
 			}
 		}
+	} else {
+		net->src_addr_selected = 0;
 	}
 	if (net->mtu == 0) {
 		switch (newaddr->sa_family) {
@@ -4039,7 +4046,6 @@ sctp_add_remote_addr(struct sctp_tcb *stcb, struct sockaddr *newaddr,
 	 */
 	net->find_pseudo_cumack = 1;
 	net->find_rtx_pseudo_cumack = 1;
-	net->src_addr_selected = 0;
 	/* Choose an initial flowid. */
 	net->flowid = stcb->asoc.my_vtag ^
 	    ntohs(stcb->rport) ^
