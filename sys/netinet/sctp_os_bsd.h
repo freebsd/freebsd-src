@@ -346,7 +346,7 @@ typedef struct callout sctp_os_timer_t;
 /* return the base ext data pointer */
 #define SCTP_BUF_EXTEND_BASE(m) (m->m_ext.ext_buf)
  /* return the refcnt of the data pointer */
-#define SCTP_BUF_EXTEND_REFCNT(m) (*m->m_ext.ref_cnt)
+#define SCTP_BUF_EXTEND_REFCNT(m) (*m->m_ext.ext_cnt)
 /* return any buffer related flags, this is
  * used beyond logging for apple only.
  */

@@ -168,7 +168,7 @@ struct pkthdr {
  *	 LP64: 48
  */
 struct m_ext {
-	volatile u_int	*ref_cnt;	/* pointer to ref count info */
+	volatile u_int	*ext_cnt;	/* pointer to ref count info */
 	caddr_t		 ext_buf;	/* start of buffer */
 	uint32_t	 ext_size;	/* size of buffer, for ext_free */
 	uint32_t	 ext_type:8,	/* type of external storage */
@@ -344,14 +344,14 @@ struct mbuf {
 #define	EXT_NET_DRV	252	/* custom ext_buf provided by net driver(s) */
 #define	EXT_MOD_TYPE	253	/* custom module's ext_buf type */
 #define	EXT_DISPOSABLE	254	/* can throw this buffer away w/page flipping */
-#define	EXT_EXTREF	255	/* has externally maintained ref_cnt ptr */
+#define	EXT_EXTREF	255	/* has externally maintained ext_cnt ptr */
 
 /*
  * Flags for external mbuf buffer types.
  * NB: limited to the lower 24 bits.
  */
-#define	EXT_FLAG_EMBREF		0x000001	/* embedded ref_cnt, notyet */
-#define	EXT_FLAG_EXTREF		0x000002	/* external ref_cnt, notyet */
+#define	EXT_FLAG_EMBREF		0x000001	/* embedded ext_cnt, notyet */
+#define	EXT_FLAG_EXTREF		0x000002	/* external ext_cnt, notyet */
 #define	EXT_FLAG_NOFREE		0x000010	/* don't free mbuf to pool, notyet */
 
 #define	EXT_FLAG_VENDOR1	0x010000	/* for vendor-internal use */
@@ -546,7 +546,7 @@ m_extaddref(struct mbuf *m, caddr_t buf, u_int size, u_int *ref_cnt,
 	atomic_add_int(ref_cnt, 1);
 	m->m_flags |= M_EXT;
 	m->m_ext.ext_buf = buf;
-	m->m_ext.ref_cnt = ref_cnt;
+	m->m_ext.ext_cnt = ref_cnt;
 	m->m_data = m->m_ext.ext_buf;
 	m->m_ext.ext_size = size;
 	m->m_ext.ext_free = freef;
@@ -730,7 +730,7 @@ m_cljset(struct mbuf *m, void *cl, int type)
 	m->m_ext.ext_size = size;
 	m->m_ext.ext_type = type;
 	m->m_ext.ext_flags = 0;
-	m->m_ext.ref_cnt = uma_find_refcnt(zone, cl);
+	m->m_ext.ext_cnt = uma_find_refcnt(zone, cl);
 	m->m_flags |= M_EXT;
 
 }
@@ -779,7 +779,7 @@ m_last(struct mbuf *m)
  */
 #define	M_WRITABLE(m)	(!((m)->m_flags & M_RDONLY) &&			\
 			 (!(((m)->m_flags & M_EXT)) ||			\
-			 (*((m)->m_ext.ref_cnt) == 1)) )		\
+			 (*((m)->m_ext.ext_cnt) == 1)) )		\
 
 /* Check if the supplied mbuf has a packet header, or else panic. */
 #define	M_ASSERTPKTHDR(m)						\

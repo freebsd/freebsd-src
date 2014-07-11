@@ -261,12 +261,12 @@ m_extadd(struct mbuf *mb, caddr_t buf, u_int size,
 	KASSERT(type != EXT_CLUSTER, ("%s: EXT_CLUSTER not allowed", __func__));
 
 	if (type != EXT_EXTREF)
-		mb->m_ext.ref_cnt = uma_zalloc(zone_ext_refcnt, wait);
+		mb->m_ext.ext_cnt = uma_zalloc(zone_ext_refcnt, wait);
 
-	if (mb->m_ext.ref_cnt == NULL)
+	if (mb->m_ext.ext_cnt == NULL)
 		return (ENOMEM);
 
-	*(mb->m_ext.ref_cnt) = 1;
+	*(mb->m_ext.ext_cnt) = 1;
 	mb->m_flags |= (M_EXT | flags);
 	mb->m_ext.ext_buf = buf;
 	mb->m_data = mb->m_ext.ext_buf;
@@ -290,7 +290,7 @@ mb_free_ext(struct mbuf *m)
 	int skipmbuf;
 
 	KASSERT((m->m_flags & M_EXT) == M_EXT, ("%s: M_EXT not set", __func__));
-	KASSERT(m->m_ext.ref_cnt != NULL, ("%s: ref_cnt not set", __func__));
+	KASSERT(m->m_ext.ext_cnt != NULL, ("%s: ext_cnt not set", __func__));
 
 	/*
 	 * check if the header is embedded in the cluster
@@ -298,12 +298,12 @@ mb_free_ext(struct mbuf *m)
 	skipmbuf = (m->m_flags & M_NOFREE);
 
 	/* Free attached storage if this mbuf is the only reference to it. */
-	if (*(m->m_ext.ref_cnt) == 1 ||
-	    atomic_fetchadd_int(m->m_ext.ref_cnt, -1) == 1) {
+	if (*(m->m_ext.ext_cnt) == 1 ||
+	    atomic_fetchadd_int(m->m_ext.ext_cnt, -1) == 1) {
 		switch (m->m_ext.ext_type) {
 		case EXT_PACKET:	/* The packet zone is special. */
-			if (*(m->m_ext.ref_cnt) == 0)
-				*(m->m_ext.ref_cnt) = 1;
+			if (*(m->m_ext.ext_cnt) == 0)
+				*(m->m_ext.ext_cnt) = 1;
 			uma_zfree(zone_pack, m);
 			return;		/* Job done. */
 		case EXT_CLUSTER:
@@ -322,9 +322,9 @@ mb_free_ext(struct mbuf *m)
 		case EXT_NET_DRV:
 		case EXT_MOD_TYPE:
 		case EXT_DISPOSABLE:
-			*(m->m_ext.ref_cnt) = 0;
+			*(m->m_ext.ext_cnt) = 0;
 			uma_zfree(zone_ext_refcnt, __DEVOLATILE(u_int *,
-				m->m_ext.ref_cnt));
+				m->m_ext.ext_cnt));
 			/* FALLTHROUGH */
 		case EXT_EXTREF:
 			KASSERT(m->m_ext.ext_free != NULL,
@@ -348,7 +348,7 @@ mb_free_ext(struct mbuf *m)
 	m->m_ext.ext_free = NULL;
 	m->m_ext.ext_arg1 = NULL;
 	m->m_ext.ext_arg2 = NULL;
-	m->m_ext.ref_cnt = NULL;
+	m->m_ext.ext_cnt = NULL;
 	m->m_ext.ext_size = 0;
 	m->m_ext.ext_type = 0;
 	m->m_ext.ext_flags = 0;
@@ -364,19 +364,19 @@ static void
 mb_dupcl(struct mbuf *n, struct mbuf *m)
 {
 	KASSERT((m->m_flags & M_EXT) == M_EXT, ("%s: M_EXT not set", __func__));
-	KASSERT(m->m_ext.ref_cnt != NULL, ("%s: ref_cnt not set", __func__));
+	KASSERT(m->m_ext.ext_cnt != NULL, ("%s: ext_cnt not set", __func__));
 	KASSERT((n->m_flags & M_EXT) == 0, ("%s: M_EXT set", __func__));
 
-	if (*(m->m_ext.ref_cnt) == 1)
-		*(m->m_ext.ref_cnt) += 1;
+	if (*(m->m_ext.ext_cnt) == 1)
+		*(m->m_ext.ext_cnt) += 1;
 	else
-		atomic_add_int(m->m_ext.ref_cnt, 1);
+		atomic_add_int(m->m_ext.ext_cnt, 1);
 	n->m_ext.ext_buf = m->m_ext.ext_buf;
 	n->m_ext.ext_free = m->m_ext.ext_free;
 	n->m_ext.ext_arg1 = m->m_ext.ext_arg1;
 	n->m_ext.ext_arg2 = m->m_ext.ext_arg2;
 	n->m_ext.ext_size = m->m_ext.ext_size;
-	n->m_ext.ref_cnt = m->m_ext.ref_cnt;
+	n->m_ext.ext_cnt = m->m_ext.ext_cnt;
 	n->m_ext.ext_type = m->m_ext.ext_type;
 	n->m_ext.ext_flags = m->m_ext.ext_flags;
 	n->m_flags |= M_EXT;
