@@ -68,7 +68,7 @@ static int ou_refcnt = 0;
 /*
  | function for freeing external storage for mbuf
  */
-static int
+static void
 ext_free(struct mbuf *m, void *a, void *b)
 {
      pduq_t *pq = b;
@@ -78,7 +78,6 @@ ext_free(struct mbuf *m, void *a, void *b)
 	  free(pq->buf, M_ISCSIBUF);
 	  pq->buf = NULL;
      }
-     return (EXT_FREE_OK);
 }
 
 int
