@@ -627,7 +627,7 @@ vie_calculate_gla(enum vm_cpu_mode cpu_mode, enum vm_reg_name seg,
     struct seg_desc *desc, uint64_t offset, int length, int addrsize,
     int prot, uint64_t *gla)
 {
-	uint64_t low_limit, high_limit, segbase;
+	uint64_t firstoff, low_limit, high_limit, segbase;
 	int glasize, type;
 
 	KASSERT(seg >= VM_REG_GUEST_ES && seg <= VM_REG_GUEST_GS,
@@ -637,6 +637,7 @@ vie_calculate_gla(enum vm_cpu_mode cpu_mode, enum vm_reg_name seg,
 	KASSERT((prot & ~(PROT_READ | PROT_WRITE)) == 0,
 	    ("%s: invalid prot %#x", __func__, prot));
 
+	firstoff = offset;
 	if (cpu_mode == CPU_MODE_64BIT) {
 		KASSERT(addrsize == 4 || addrsize == 8, ("%s: invalid address "
 		    "size %d for cpu_mode %d", __func__, addrsize, cpu_mode));
@@ -722,11 +723,11 @@ vie_calculate_gla(enum vm_cpu_mode cpu_mode, enum vm_reg_name seg,
 	}
 
 	/*
-	 * Truncate 'offset' to the effective address size before adding
+	 * Truncate 'firstoff' to the effective address size before adding
 	 * it to the segment base.
 	 */
-	offset &= vie_size2mask(addrsize);
-	*gla = (segbase + offset) & vie_size2mask(glasize);
+	firstoff &= vie_size2mask(addrsize);
+	*gla = (segbase + firstoff) & vie_size2mask(glasize);
 	return (0);
 }
 
