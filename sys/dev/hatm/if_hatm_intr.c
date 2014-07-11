@@ -261,7 +261,7 @@ hatm_mbuf_page_alloc(struct hatm_softc *sc, u_int group)
 /*
  * Free an mbuf and put it onto the free list.
  */
-static int
+static void
 hatm_mbuf0_free(struct mbuf *m, void *buf, void *args)
 {
 	struct hatm_softc *sc = args;
@@ -271,9 +271,8 @@ hatm_mbuf0_free(struct mbuf *m, void *buf, void *args)
 	    ("freeing unused mbuf %x", c->hdr.flags));
 	c->hdr.flags &= ~MBUF_USED;
 	hatm_ext_free(&sc->mbuf_list[0], (struct mbufx_free *)c);
-	return (EXT_FREE_OK);
 }
-static int
+static void
 hatm_mbuf1_free(struct mbuf *m, void *buf, void *args)
 {
 	struct hatm_softc *sc = args;
@@ -283,7 +282,6 @@ hatm_mbuf1_free(struct mbuf *m, void *buf, void *args)
 	    ("freeing unused mbuf %x", c->hdr.flags));
 	c->hdr.flags &= ~MBUF_USED;
 	hatm_ext_free(&sc->mbuf_list[1], (struct mbufx_free *)c);
-	return (EXT_FREE_OK);
 }
 
 static void

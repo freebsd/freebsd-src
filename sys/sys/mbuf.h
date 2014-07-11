@@ -173,7 +173,7 @@ struct m_ext {
 	uint32_t	 ext_size;	/* size of buffer, for ext_free */
 	uint32_t	 ext_type:8,	/* type of external storage */
 			 ext_flags:24;	/* external storage mbuf flags */
-	int		(*ext_free)	/* free routine if not the usual */
+	void		(*ext_free)	/* free routine if not the usual */
 			    (struct mbuf *, void *, void *);
 	void		*ext_arg1;	/* optional argument pointer */
 	void		*ext_arg2;	/* optional argument pointer */
@@ -374,11 +374,6 @@ struct mbuf {
     "\30EXT_FLAG_EXP4"
 
 /*
- * Return values for (*ext_free).
- */
-#define	EXT_FREE_OK	0	/* Normal return */
-
-/*
  * Flags indicating checksum, segmentation and other offload work to be
  * done, or already done, by hardware or lower layers.  It is split into
  * separate inbound and outbound flags.
@@ -543,7 +538,7 @@ m_gettype(int size)
  */
 static __inline void
 m_extaddref(struct mbuf *m, caddr_t buf, u_int size, u_int *ref_cnt,
-    int (*freef)(struct mbuf *, void *, void *), void *arg1, void *arg2)
+    void (*freef)(struct mbuf *, void *, void *), void *arg1, void *arg2)
 {
 
 	KASSERT(ref_cnt != NULL, ("%s: ref_cnt not provided", __func__));
@@ -910,7 +905,7 @@ int		 m_apply(struct mbuf *, int, int,
 int		 m_append(struct mbuf *, int, c_caddr_t);
 void		 m_cat(struct mbuf *, struct mbuf *);
 int		 m_extadd(struct mbuf *, caddr_t, u_int,
-		    int (*)(struct mbuf *, void *, void *), void *, void *,
+		    void (*)(struct mbuf *, void *, void *), void *, void *,
 		    int, int, int);
 struct mbuf	*m_collapse(struct mbuf *, int, int);
 void		 m_copyback(struct mbuf *, int, int, c_caddr_t);

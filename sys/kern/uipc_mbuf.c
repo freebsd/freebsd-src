@@ -255,7 +255,7 @@ m_freem(struct mbuf *mb)
  */
 int
 m_extadd(struct mbuf *mb, caddr_t buf, u_int size,
-    int (*freef)(struct mbuf *, void *, void *), void *arg1, void *arg2,
+    void (*freef)(struct mbuf *, void *, void *), void *arg1, void *arg2,
     int flags, int type, int wait)
 {
 	KASSERT(type != EXT_CLUSTER, ("%s: EXT_CLUSTER not allowed", __func__));
@@ -329,7 +329,7 @@ mb_free_ext(struct mbuf *m)
 		case EXT_EXTREF:
 			KASSERT(m->m_ext.ext_free != NULL,
 				("%s: ext_free not set", __func__));
-			(void)(*(m->m_ext.ext_free))(m, m->m_ext.ext_arg1,
+			(*(m->m_ext.ext_free))(m, m->m_ext.ext_arg1,
 			    m->m_ext.ext_arg2);
 			break;
 		default:
