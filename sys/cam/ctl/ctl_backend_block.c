@@ -2511,7 +2511,7 @@ ctl_be_block_lun_info(void *be_lun, struct sbuf *sb)
 	lun = (struct ctl_be_block_lun *)be_lun;
 	retval = 0;
 
-	retval = sbuf_printf(sb, "<num_threads>");
+	retval = sbuf_printf(sb, "\t<num_threads>");
 
 	if (retval != 0)
 		goto bailout;
@@ -2521,7 +2521,7 @@ ctl_be_block_lun_info(void *be_lun, struct sbuf *sb)
 	if (retval != 0)
 		goto bailout;
 
-	retval = sbuf_printf(sb, "</num_threads>");
+	retval = sbuf_printf(sb, "</num_threads>\n");
 
 bailout:
 
