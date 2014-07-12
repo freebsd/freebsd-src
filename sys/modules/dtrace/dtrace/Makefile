@@ -40,6 +40,7 @@ CFLAGS+=	-I${.CURDIR}/../../../cddl/compat/opensolaris \
 		-I${.CURDIR}/../../../cddl/dev/dtrace \
 		-I${.CURDIR}/../../../cddl/dev/dtrace/${ARCHDIR} \
 		-I${.CURDIR}/../../../cddl/contrib/opensolaris/uts/common \
+		-I${.CURDIR}/../../../../cddl/contrib/opensolaris/common/util \
 		-I${.CURDIR}/../../.. -DDIS_MEM
 
 CFLAGS+=	-DSMP
