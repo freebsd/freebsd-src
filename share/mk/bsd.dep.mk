@@ -137,9 +137,9 @@ ${_D}.o: ${_D}.h ${_DSRC} ${OBJS} ${SOBJS}
 		${OBJS:S/${_D}.o//} ${SOBJS:S/${_D}.o//}
 CLEANFILES+= ${_D}.h ${_D}.o
 .if defined(PROG)
-OBJS+=	${_D:R}.o
+OBJS+=	${_D}.o
 .else
-SOBJS+=	${_D:R}.o
+SOBJS+=	${_D}.o
 .endif
 .endfor
 .endfor
