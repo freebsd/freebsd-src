@@ -437,6 +437,8 @@ rss_hash2cpuid(uint32_t hash_val, uint32_t hash_type)
 	switch (hash_type) {
 	case M_HASHTYPE_RSS_IPV4:
 	case M_HASHTYPE_RSS_TCP_IPV4:
+	case M_HASHTYPE_RSS_IPV6:
+	case M_HASHTYPE_RSS_TCP_IPV6:
 		return (rss_getcpu(rss_getbucket(hash_val)));
 	default:
 		return (NETISR_CPUID_NONE);
@@ -454,6 +456,8 @@ rss_hash2bucket(uint32_t hash_val, uint32_t hash_type, uint32_t *bucket_id)
 	switch (hash_type) {
 	case M_HASHTYPE_RSS_IPV4:
 	case M_HASHTYPE_RSS_TCP_IPV4:
+	case M_HASHTYPE_RSS_IPV6:
+	case M_HASHTYPE_RSS_TCP_IPV6:
 		*bucket_id = rss_getbucket(hash_val);
 		return (0);
 	default:
