@@ -30,7 +30,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/drm2/drmP.h>
 #include <dev/drm2/drm_edid.h>
 #include <dev/drm2/radeon/radeon_drm.h>
-#include <sys/iic.h>
+#include <dev/iicbus/iic.h>
 #include <dev/iicbus/iiconf.h>
 #include <dev/iicbus/iicbus.h>
 #include "radeon.h"
