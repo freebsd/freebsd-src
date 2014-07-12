@@ -27,7 +27,7 @@
 #
 
 #include <sys/bus.h>
-#include <dev/iicbus/iic.h>
+#include <sys/iic.h>
 
 INTERFACE iicbus;
 
