@@ -469,6 +469,7 @@ int ctl_scsi_reserve(struct ctl_scsiio *ctsio);
 int ctl_start_stop(struct ctl_scsiio *ctsio);
 int ctl_sync_cache(struct ctl_scsiio *ctsio);
 int ctl_format(struct ctl_scsiio *ctsio);
+int ctl_read_buffer(struct ctl_scsiio *ctsio);
 int ctl_write_buffer(struct ctl_scsiio *ctsio);
 int ctl_write_same(struct ctl_scsiio *ctsio);
 int ctl_unmap(struct ctl_scsiio *ctsio);

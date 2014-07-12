@@ -4954,7 +4954,8 @@ ctl_config_move_done(union ctl_io *io)
 					 /*sks_valid*/ 1,
 					 /*retry_count*/
 					 io->io_hdr.port_status);
-		free(io->scsiio.kern_data_ptr, M_CTL);
+		if (io->io_hdr.flags & CTL_FLAG_ALLOCATED)
+			free(io->scsiio.kern_data_ptr, M_CTL);
 		ctl_done(io);
 		goto bailout;
 	}
@@ -4967,7 +4968,8 @@ ctl_config_move_done(union ctl_io *io)
 		 * S/G list.  If we start using S/G lists for config data,
 		 * we'll need to know how to clean them up here as well.
 		 */
-		free(io->scsiio.kern_data_ptr, M_CTL);
+		if (io->io_hdr.flags & CTL_FLAG_ALLOCATED)
+			free(io->scsiio.kern_data_ptr, M_CTL);
 		/* Hopefully the user has already set the status... */
 		ctl_done(io);
 	} else {
@@ -5712,23 +5714,105 @@ bailout:
 }
 
 int
+ctl_read_buffer(struct ctl_scsiio *ctsio)
+{
+	struct scsi_read_buffer *cdb;
+	struct ctl_lun *lun;
+	int buffer_offset, len;
+	static uint8_t descr[4];
+	static uint8_t echo_descr[4] = { 0 };
+
+	CTL_DEBUG_PRINT(("ctl_read_buffer\n"));
+
+	lun = (struct ctl_lun *)ctsio->io_hdr.ctl_private[CTL_PRIV_LUN].ptr;
+	cdb = (struct scsi_read_buffer *)ctsio->cdb;
+
+	if (lun->flags & CTL_LUN_PR_RESERVED) {
+		uint32_t residx;
+
+		/*
+		 * XXX KDM need a lock here.
+		 */
+		residx = ctl_get_resindex(&ctsio->io_hdr.nexus);
+		if ((lun->res_type == SPR_TYPE_EX_AC
+		  && residx != lun->pr_res_idx)
+		 || ((lun->res_type == SPR_TYPE_EX_AC_RO
+		   || lun->res_type == SPR_TYPE_EX_AC_AR)
+		  && !lun->per_res[residx].registered)) {
+			ctl_set_reservation_conflict(ctsio);
+			ctl_done((union ctl_io *)ctsio);
+			return (CTL_RETVAL_COMPLETE);
+	        }
+	}
+
+	if ((cdb->byte2 & RWB_MODE) != RWB_MODE_DATA &&
+	    (cdb->byte2 & RWB_MODE) != RWB_MODE_ECHO_DESCR &&
+	    (cdb->byte2 & RWB_MODE) != RWB_MODE_DESCR) {
+		ctl_set_invalid_field(ctsio,
+				      /*sks_valid*/ 1,
+				      /*command*/ 1,
+				      /*field*/ 1,
+				      /*bit_valid*/ 1,
+				      /*bit*/ 4);
+		ctl_done((union ctl_io *)ctsio);
+		return (CTL_RETVAL_COMPLETE);
+	}
+	if (cdb->buffer_id != 0) {
+		ctl_set_invalid_field(ctsio,
+				      /*sks_valid*/ 1,
+				      /*command*/ 1,
+				      /*field*/ 2,
+				      /*bit_valid*/ 0,
+				      /*bit*/ 0);
+		ctl_done((union ctl_io *)ctsio);
+		return (CTL_RETVAL_COMPLETE);
+	}
+
+	len = scsi_3btoul(cdb->length);
+	buffer_offset = scsi_3btoul(cdb->offset);
+
+	if (buffer_offset + len > sizeof(lun->write_buffer)) {
+		ctl_set_invalid_field(ctsio,
+				      /*sks_valid*/ 1,
+				      /*command*/ 1,
+				      /*field*/ 6,
+				      /*bit_valid*/ 0,
+				      /*bit*/ 0);
+		ctl_done((union ctl_io *)ctsio);
+		return (CTL_RETVAL_COMPLETE);
+	}
+
+	if ((cdb->byte2 & RWB_MODE) == RWB_MODE_DESCR) {
+		descr[0] = 0;
+		scsi_ulto3b(sizeof(lun->write_buffer), &descr[1]);
+		ctsio->kern_data_ptr = descr;
+		len = min(len, sizeof(descr));
+	} else if ((cdb->byte2 & RWB_MODE) == RWB_MODE_ECHO_DESCR) {
+		ctsio->kern_data_ptr = echo_descr;
+		len = min(len, sizeof(echo_descr));
+	} else
+		ctsio->kern_data_ptr = lun->write_buffer + buffer_offset;
+	ctsio->kern_data_len = len;
+	ctsio->kern_total_len = len;
+	ctsio->kern_data_resid = 0;
+	ctsio->kern_rel_offset = 0;
+	ctsio->kern_sg_entries = 0;
+	ctsio->be_move_done = ctl_config_move_done;
+	ctl_datamove((union ctl_io *)ctsio);
+
+	return (CTL_RETVAL_COMPLETE);
+}
+
+int
 ctl_write_buffer(struct ctl_scsiio *ctsio)
 {
 	struct scsi_write_buffer *cdb;
-	struct copan_page_header *header;
 	struct ctl_lun *lun;
-	struct ctl_softc *ctl_softc;
 	int buffer_offset, len;
-	int retval;
-
-	header = NULL;
-
-	retval = CTL_RETVAL_COMPLETE;
 
 	CTL_DEBUG_PRINT(("ctl_write_buffer\n"));
 
 	lun = (struct ctl_lun *)ctsio->io_hdr.ctl_private[CTL_PRIV_LUN].ptr;
-	ctl_softc = control_softc;
 	cdb = (struct scsi_write_buffer *)ctsio->cdb;
 
 	if ((cdb->byte2 & RWB_MODE) != RWB_MODE_DATA) {
@@ -5755,22 +5839,11 @@ ctl_write_buffer(struct ctl_scsiio *ctsio)
 	len = scsi_3btoul(cdb->length);
 	buffer_offset = scsi_3btoul(cdb->offset);
 
-	if (len > sizeof(lun->write_buffer)) {
+	if (buffer_offset + len > sizeof(lun->write_buffer)) {
 		ctl_set_invalid_field(ctsio,
 				      /*sks_valid*/ 1,
 				      /*command*/ 1,
 				      /*field*/ 6,
-				      /*bit_valid*/ 0,
-				      /*bit*/ 0);
-		ctl_done((union ctl_io *)ctsio);
-		return (CTL_RETVAL_COMPLETE);
-	}
-
-	if (buffer_offset != 0) {
-		ctl_set_invalid_field(ctsio,
-				      /*sks_valid*/ 1,
-				      /*command*/ 1,
-				      /*field*/ 3,
 				      /*bit_valid*/ 0,
 				      /*bit*/ 0);
 		ctl_done((union ctl_io *)ctsio);
@@ -5782,7 +5855,7 @@ ctl_write_buffer(struct ctl_scsiio *ctsio)
 	 * malloc it and tell the caller the data buffer is here.
 	 */
 	if ((ctsio->io_hdr.flags & CTL_FLAG_ALLOCATED) == 0) {
-		ctsio->kern_data_ptr = lun->write_buffer;
+		ctsio->kern_data_ptr = lun->write_buffer + buffer_offset;
 		ctsio->kern_data_len = len;
 		ctsio->kern_total_len = len;
 		ctsio->kern_data_resid = 0;
@@ -6993,6 +7066,7 @@ ctl_mode_sense(struct ctl_scsiio *ctsio)
 
 	ctsio->scsi_status = SCSI_STATUS_OK;
 
+	ctsio->io_hdr.flags |= CTL_FLAG_ALLOCATED;
 	ctsio->be_move_done = ctl_config_move_done;
 	ctl_datamove((union ctl_io *)ctsio);
 
@@ -7052,6 +7126,7 @@ ctl_read_capacity(struct ctl_scsiio *ctsio)
 
 	ctsio->scsi_status = SCSI_STATUS_OK;
 
+	ctsio->io_hdr.flags |= CTL_FLAG_ALLOCATED;
 	ctsio->be_move_done = ctl_config_move_done;
 	ctl_datamove((union ctl_io *)ctsio);
 
@@ -7114,6 +7189,7 @@ ctl_read_capacity_16(struct ctl_scsiio *ctsio)
 
 	ctsio->scsi_status = SCSI_STATUS_OK;
 
+	ctsio->io_hdr.flags |= CTL_FLAG_ALLOCATED;
 	ctsio->be_move_done = ctl_config_move_done;
 	ctl_datamove((union ctl_io *)ctsio);
 
@@ -7287,6 +7363,7 @@ ctl_maintenance_in(struct ctl_scsiio *ctsio)
 		}
 	}
 
+	ctsio->io_hdr.flags |= CTL_FLAG_ALLOCATED;
 	ctsio->be_move_done = ctl_config_move_done;
 
 	CTL_DEBUG_PRINT(("buf = %x %x %x %x %x %x %x %x\n",
@@ -7512,6 +7589,7 @@ retry:
 	}
 	mtx_unlock(&softc->ctl_lock);
 
+	ctsio->io_hdr.flags |= CTL_FLAG_ALLOCATED;
 	ctsio->be_move_done = ctl_config_move_done;
 
 	CTL_DEBUG_PRINT(("buf = %x %x %x %x %x %x %x %x\n",
@@ -9225,6 +9303,7 @@ ctl_report_luns(struct ctl_scsiio *ctsio)
 	 */
 	ctsio->scsi_status = SCSI_STATUS_OK;
 
+	ctsio->io_hdr.flags |= CTL_FLAG_ALLOCATED;
 	ctsio->be_move_done = ctl_config_move_done;
 	ctl_datamove((union ctl_io *)ctsio);
 
@@ -9351,7 +9430,7 @@ ctl_request_sense(struct ctl_scsiio *ctsio)
 		 * parameter data.
 		 */
 		ctsio->sense_len = 0;
-
+		ctsio->io_hdr.flags |= CTL_FLAG_ALLOCATED;
 		ctsio->be_move_done = ctl_config_move_done;
 		ctl_datamove((union ctl_io *)ctsio);
 
@@ -9380,6 +9459,7 @@ no_sense:
 	 * autosense in this case.  We're reporting sense as parameter data.
 	 */
 	ctsio->sense_len = 0;
+	ctsio->io_hdr.flags |= CTL_FLAG_ALLOCATED;
 	ctsio->be_move_done = ctl_config_move_done;
 	ctl_datamove((union ctl_io *)ctsio);
 
@@ -9467,6 +9547,7 @@ ctl_inquiry_evpd_supported(struct ctl_scsiio *ctsio, int alloc_len)
 
 	ctsio->scsi_status = SCSI_STATUS_OK;
 
+	ctsio->io_hdr.flags |= CTL_FLAG_ALLOCATED;
 	ctsio->be_move_done = ctl_config_move_done;
 	ctl_datamove((union ctl_io *)ctsio);
 
@@ -9535,6 +9616,7 @@ ctl_inquiry_evpd_serial(struct ctl_scsiio *ctsio, int alloc_len)
 #endif
 	ctsio->scsi_status = SCSI_STATUS_OK;
 
+	ctsio->io_hdr.flags |= CTL_FLAG_ALLOCATED;
 	ctsio->be_move_done = ctl_config_move_done;
 	ctl_datamove((union ctl_io *)ctsio);
 
@@ -9728,6 +9810,7 @@ ctl_inquiry_evpd_devid(struct ctl_scsiio *ctsio, int alloc_len)
 
 	ctsio->scsi_status = SCSI_STATUS_OK;
 
+	ctsio->io_hdr.flags |= CTL_FLAG_ALLOCATED;
 	ctsio->be_move_done = ctl_config_move_done;
 	ctl_datamove((union ctl_io *)ctsio);
 
@@ -9784,6 +9867,7 @@ ctl_inquiry_evpd_block_limits(struct ctl_scsiio *ctsio, int alloc_len)
 	scsi_u64to8b(UINT64_MAX, bl_ptr->max_write_same_length);
 
 	ctsio->scsi_status = SCSI_STATUS_OK;
+	ctsio->io_hdr.flags |= CTL_FLAG_ALLOCATED;
 	ctsio->be_move_done = ctl_config_move_done;
 	ctl_datamove((union ctl_io *)ctsio);
 
@@ -9833,6 +9917,7 @@ ctl_inquiry_evpd_lbp(struct ctl_scsiio *ctsio, int alloc_len)
 		lbp_ptr->flags = SVPD_LBP_UNMAP | SVPD_LBP_WS16 | SVPD_LBP_WS10;
 
 	ctsio->scsi_status = SCSI_STATUS_OK;
+	ctsio->io_hdr.flags |= CTL_FLAG_ALLOCATED;
 	ctsio->be_move_done = ctl_config_move_done;
 	ctl_datamove((union ctl_io *)ctsio);
 
@@ -10117,6 +10202,7 @@ ctl_inquiry_std(struct ctl_scsiio *ctsio)
 
 	ctsio->scsi_status = SCSI_STATUS_OK;
 	if (ctsio->kern_data_len > 0) {
+		ctsio->io_hdr.flags |= CTL_FLAG_ALLOCATED;
 		ctsio->be_move_done = ctl_config_move_done;
 		ctl_datamove((union ctl_io *)ctsio);
 	} else {
