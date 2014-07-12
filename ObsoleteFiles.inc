@@ -38,6 +38,8 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20140712: Removal of bsd.dtrace.mk
+OLD_FILES+=usr/share/mk/bsd.dtrace.mk
 # 20140705: turn libreadline into an internal lib
 OLD_LIBS+=lib/libreadline.so.8
 OLD_FILES+=usr/lib/libreadline.a
