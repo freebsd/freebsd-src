@@ -6772,6 +6772,24 @@ ctl_mode_sense(struct ctl_scsiio *ctsio)
 	else
 		control_dev = 0;
 
+	if (lun->flags & CTL_LUN_PR_RESERVED) {
+		uint32_t residx;
+
+		/*
+		 * XXX KDM need a lock here.
+		 */
+		residx = ctl_get_resindex(&ctsio->io_hdr.nexus);
+		if ((lun->res_type == SPR_TYPE_EX_AC
+		  && residx != lun->pr_res_idx)
+		 || ((lun->res_type == SPR_TYPE_EX_AC_RO
+		   || lun->res_type == SPR_TYPE_EX_AC_AR)
+		  && !lun->per_res[residx].registered)) {
+			ctl_set_reservation_conflict(ctsio);
+			ctl_done((union ctl_io *)ctsio);
+			return (CTL_RETVAL_COMPLETE);
+		}
+	}
+
 	switch (ctsio->cdb[0]) {
 	case MODE_SENSE_6: {
 		struct scsi_mode_sense_6 *cdb;
@@ -7568,7 +7586,7 @@ retry:
 
 		res_cap = (struct scsi_per_res_cap *)ctsio->kern_data_ptr;
 		scsi_ulto2b(sizeof(*res_cap), res_cap->length);
-		res_cap->flags2 |= SPRI_TMV;
+		res_cap->flags2 |= SPRI_TMV | SPRI_ALLOW_3;
 		type_mask = SPRI_TM_WR_EX_AR |
 			    SPRI_TM_EX_AC_RO |
 			    SPRI_TM_WR_EX_RO |

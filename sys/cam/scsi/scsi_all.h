@@ -308,6 +308,11 @@ struct scsi_per_res_cap
 #define	SPRI_PTPL_C	0x01
 	uint8_t flags2;
 #define	SPRI_TMV	0x80
+#define	SPRI_ALLOW_MASK	0x70
+#define	SPRI_ALLOW_0	0x00
+#define	SPRI_ALLOW_1	0x10
+#define	SPRI_ALLOW_2	0x20
+#define	SPRI_ALLOW_3	0x30
 #define	SPRI_PTPL_A	0x01
 	uint8_t type_mask[2];
 #define	SPRI_TM_WR_EX_AR	0x8000
@@ -746,12 +751,16 @@ struct scsi_read_buffer
 {
 	u_int8_t opcode;
 	u_int8_t byte2;
-#define	RWB_MODE		0x07
+#define	RWB_MODE		0x1F
 #define	RWB_MODE_HDR_DATA	0x00
 #define	RWB_MODE_VENDOR		0x01
 #define	RWB_MODE_DATA		0x02
+#define	RWB_MODE_DESCR		0x03
 #define	RWB_MODE_DOWNLOAD	0x04
 #define	RWB_MODE_DOWNLOAD_SAVE	0x05
+#define	RWB_MODE_ECHO		0x0A
+#define	RWB_MODE_ECHO_DESCR	0x0B
+#define	RWB_MODE_ERROR_HISTORY	0x1C
         u_int8_t buffer_id;
         u_int8_t offset[3];
         u_int8_t length[3];
