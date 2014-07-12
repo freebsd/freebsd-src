@@ -438,8 +438,6 @@ devopen(struct cdev *dev, int oflags, int devtype, struct thread *td)
 	}
 	/* move to init */
 	devsoftc.inuse = 1;
-	devsoftc.nonblock = 0;
-	devsoftc.async = 0;
 	mtx_unlock(&devsoftc.mtx);
 	return (0);
 }
@@ -450,6 +448,8 @@ devclose(struct cdev *dev, int fflag, int devtype, struct thread *td)
 
 	mtx_lock(&devsoftc.mtx);
 	devsoftc.inuse = 0;
+	devsoftc.nonblock = 0;
+	devsoftc.async = 0;
 	cv_broadcast(&devsoftc.cv);
 	funsetown(&devsoftc.sigio);
 	mtx_unlock(&devsoftc.mtx);
