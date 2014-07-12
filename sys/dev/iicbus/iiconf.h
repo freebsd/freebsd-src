@@ -29,7 +29,7 @@
 #define __IICONF_H
 
 #include <sys/queue.h>
-#include <sys/iic.h>
+#include <dev/iicbus/iic.h>
 
 
 #define IICPRI (PZERO+8)		/* XXX sleep/wakeup queue priority */
