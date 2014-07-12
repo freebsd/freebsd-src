@@ -13127,132 +13127,34 @@ ctl_process_done(union ctl_io *io, int have_lock)
 	 *
 	 * XXX KDM should we also track I/O latency?
 	 */
-	if ((io->io_hdr.status & CTL_STATUS_MASK) == CTL_SUCCESS) {
-		uint32_t blocksize;
+	if ((io->io_hdr.status & CTL_STATUS_MASK) == CTL_SUCCESS &&
+	    io->io_hdr.io_type == CTL_IO_SCSI) {
 #ifdef CTL_TIME_IO
 		struct bintime cur_bt;
 #endif
+		int type;
 
-		if ((lun->be_lun != NULL)
-		 && (lun->be_lun->blocksize != 0))
-			blocksize = lun->be_lun->blocksize;
+		if ((io->io_hdr.flags & CTL_FLAG_DATA_MASK) ==
+		    CTL_FLAG_DATA_IN)
+			type = CTL_STATS_READ;
+		else if ((io->io_hdr.flags & CTL_FLAG_DATA_MASK) ==
+		    CTL_FLAG_DATA_OUT)
+			type = CTL_STATS_WRITE;
 		else
-			blocksize = 512;
+			type = CTL_STATS_NO_IO;
 
-		switch (io->io_hdr.io_type) {
-		case CTL_IO_SCSI: {
-			int isread;
-			struct ctl_lba_len_flags *lbalen;
-
-			isread = 0;
-			switch (io->scsiio.cdb[0]) {
-			case READ_6:
-			case READ_10:
-			case READ_12:
-			case READ_16:
-				isread = 1;
-				/* FALLTHROUGH */
-			case WRITE_6:
-			case WRITE_10:
-			case WRITE_12:
-			case WRITE_16:
-			case WRITE_VERIFY_10:
-			case WRITE_VERIFY_12:
-			case WRITE_VERIFY_16:
-				lbalen = (struct ctl_lba_len_flags *)
-				    &io->io_hdr.ctl_private[CTL_PRIV_LBA_LEN];
-
-				if (isread) {
-					lun->stats.ports[targ_port].bytes[CTL_STATS_READ] +=
-					    lbalen->len * blocksize;
-					lun->stats.ports[targ_port].operations[CTL_STATS_READ]++;
-
+		lun->stats.ports[targ_port].bytes[type] +=
+		    io->scsiio.kern_total_len;
+		lun->stats.ports[targ_port].operations[type]++;
 #ifdef CTL_TIME_IO
-					bintime_add(
-					   &lun->stats.ports[targ_port].dma_time[CTL_STATS_READ],
-					   &io->io_hdr.dma_bt);
-					lun->stats.ports[targ_port].num_dmas[CTL_STATS_READ] +=
-						io->io_hdr.num_dmas;
-					getbintime(&cur_bt);
-					bintime_sub(&cur_bt,
-						    &io->io_hdr.start_bt);
-
-					bintime_add(
-					    &lun->stats.ports[targ_port].time[CTL_STATS_READ],
-					    &cur_bt);
-
-#if 0
-					cs_prof_gettime(&cur_ticks);
-					lun->stats.time[CTL_STATS_READ] +=
-						cur_ticks -
-						io->io_hdr.start_ticks;
+		bintime_add(&lun->stats.ports[targ_port].dma_time[type],
+		   &io->io_hdr.dma_bt);
+		lun->stats.ports[targ_port].num_dmas[type] +=
+		    io->io_hdr.num_dmas;
+		getbintime(&cur_bt);
+		bintime_sub(&cur_bt, &io->io_hdr.start_bt);
+		bintime_add(&lun->stats.ports[targ_port].time[type], &cur_bt);
 #endif
-#if 0
-					lun->stats.time[CTL_STATS_READ] +=
-						jiffies - io->io_hdr.start_time;
-#endif
-#endif /* CTL_TIME_IO */
-				} else {
-					lun->stats.ports[targ_port].bytes[CTL_STATS_WRITE] +=
-					    lbalen->len * blocksize;
-					lun->stats.ports[targ_port].operations[
-						CTL_STATS_WRITE]++;
-
-#ifdef CTL_TIME_IO
-					bintime_add(
-					  &lun->stats.ports[targ_port].dma_time[CTL_STATS_WRITE],
-					  &io->io_hdr.dma_bt);
-					lun->stats.ports[targ_port].num_dmas[CTL_STATS_WRITE] +=
-						io->io_hdr.num_dmas;
-					getbintime(&cur_bt);
-					bintime_sub(&cur_bt,
-						    &io->io_hdr.start_bt);
-
-					bintime_add(
-					    &lun->stats.ports[targ_port].time[CTL_STATS_WRITE],
-					    &cur_bt);
-#if 0
-					cs_prof_gettime(&cur_ticks);
-					lun->stats.ports[targ_port].time[CTL_STATS_WRITE] +=
-						cur_ticks -
-						io->io_hdr.start_ticks;
-					lun->stats.ports[targ_port].time[CTL_STATS_WRITE] +=
-						jiffies - io->io_hdr.start_time;
-#endif
-#endif /* CTL_TIME_IO */
-				}
-				break;
-			default:
-				lun->stats.ports[targ_port].operations[CTL_STATS_NO_IO]++;
-
-#ifdef CTL_TIME_IO
-				bintime_add(
-				  &lun->stats.ports[targ_port].dma_time[CTL_STATS_NO_IO],
-				  &io->io_hdr.dma_bt);
-				lun->stats.ports[targ_port].num_dmas[CTL_STATS_NO_IO] +=
-					io->io_hdr.num_dmas;
-				getbintime(&cur_bt);
-				bintime_sub(&cur_bt, &io->io_hdr.start_bt);
-
-				bintime_add(&lun->stats.ports[targ_port].time[CTL_STATS_NO_IO],
-					    &cur_bt);
-
-#if 0
-				cs_prof_gettime(&cur_ticks);
-				lun->stats.ports[targ_port].time[CTL_STATS_NO_IO] +=
-					cur_ticks -
-					io->io_hdr.start_ticks;
-				lun->stats.ports[targ_port].time[CTL_STATS_NO_IO] +=
-					jiffies - io->io_hdr.start_time;
-#endif
-#endif /* CTL_TIME_IO */
-				break;
-			}
-			break;
-		}
-		default:
-			break;
-		}
 	}
 
 	TAILQ_REMOVE(&lun->ooa_queue, &io->io_hdr, ooa_links);
