@@ -26,7 +26,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/types.h>
 #include <sys/kobj.h>
 #include <sys/bus.h>
-#include <dev/iicbus/iic.h>
+#include <sys/iic.h>
 #include "iicbus_if.h"
 #include <dev/iicbus/iiconf.h>
 #include <dev/drm2/drmP.h>
