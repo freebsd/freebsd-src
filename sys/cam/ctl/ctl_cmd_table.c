@@ -192,7 +192,8 @@ struct ctl_cmd_entry ctl_cmd_table[] =
 				    CTL_CMD_FLAG_OK_ON_STOPPED |
 				    CTL_CMD_FLAG_OK_ON_INOPERABLE |
 				    CTL_CMD_FLAG_OK_ON_SECONDARY |
-				    CTL_FLAG_DATA_IN,
+				    CTL_FLAG_DATA_IN |
+				    CTL_CMD_FLAG_ALLOW_ON_PR_RESV,
  CTL_LUN_PAT_NONE},
 
 /* 1B START STOP UNIT */
@@ -436,7 +437,8 @@ struct ctl_cmd_entry ctl_cmd_table[] =
 				    CTL_CMD_FLAG_OK_ON_STOPPED |
 				    CTL_CMD_FLAG_OK_ON_INOPERABLE |
 				    CTL_CMD_FLAG_OK_ON_SECONDARY |
-				    CTL_FLAG_DATA_IN,
+				    CTL_FLAG_DATA_IN |
+				    CTL_CMD_FLAG_ALLOW_ON_PR_RESV,
  CTL_LUN_PAT_NONE},
 
 /* 5B CLOSE TRACK/SESSION */
