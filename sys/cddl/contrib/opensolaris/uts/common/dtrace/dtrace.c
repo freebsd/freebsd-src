@@ -27,8 +27,6 @@
  * Copyright (c) 2012 by Delphix. All rights reserved.
  */
 
-#pragma ident	"%Z%%M%	%I%	%E% SMI"
-
 /*
  * DTrace - Dynamic Tracing for Solaris
  *
@@ -233,6 +231,7 @@ static dtrace_ecb_t	*dtrace_ecb_create_cache; /* cached created ECB */
 static dtrace_genid_t	dtrace_probegen;	/* current probe generation */
 static dtrace_helpers_t *dtrace_deferred_pid;	/* deferred helper list */
 static dtrace_enabling_t *dtrace_retained;	/* list of retained enablings */
+static dtrace_genid_t	dtrace_retained_gen;	/* current retained enab gen */
 static dtrace_dynvar_t	dtrace_dynhash_sink;	/* end of dynamic hash chains */
 #if !defined(sun)
 static struct mtx	dtrace_unr_mtx;
@@ -8854,7 +8853,7 @@ dtrace_difo_validate(dtrace_difo_t *dp, dtrace_vstate_t *vstate, uint_t nregs,
 			break;
 
 		default:
-			err += efunc(dp->dtdo_len - 1, "bad return size");
+			err += efunc(dp->dtdo_len - 1, "bad return size\n");
 		}
 	}
 
@@ -11467,6 +11466,7 @@ dtrace_enabling_destroy(dtrace_enabling_t *enab)
 		ASSERT(enab->dten_vstate->dtvs_state != NULL);
 		ASSERT(enab->dten_vstate->dtvs_state->dts_nretained > 0);
 		enab->dten_vstate->dtvs_state->dts_nretained--;
+		dtrace_retained_gen++;
 	}
 
 	if (enab->dten_prev == NULL) {
@@ -11509,6 +11509,7 @@ dtrace_enabling_retain(dtrace_enabling_t *enab)
 		return (ENOSPC);
 
 	state->dts_nretained++;
+	dtrace_retained_gen++;
 
 	if (dtrace_retained == NULL) {
 		dtrace_retained = enab;
@@ -11751,6 +11752,7 @@ dtrace_enabling_provide(dtrace_provider_t *prv)
 {
 	int i, all = 0;
 	dtrace_probedesc_t desc;
+	dtrace_genid_t gen;
 
 	ASSERT(MUTEX_HELD(&dtrace_lock));
 	ASSERT(MUTEX_HELD(&dtrace_provider_lock));
@@ -11761,15 +11763,25 @@ dtrace_enabling_provide(dtrace_provider_t *prv)
 	}
 
 	do {
-		dtrace_enabling_t *enab = dtrace_retained;
+		dtrace_enabling_t *enab;
 		void *parg = prv->dtpv_arg;
 
-		for (; enab != NULL; enab = enab->dten_next) {
+retry:
+		gen = dtrace_retained_gen;
+		for (enab = dtrace_retained; enab != NULL;
+		    enab = enab->dten_next) {
 			for (i = 0; i < enab->dten_ndesc; i++) {
 				desc = enab->dten_desc[i]->dted_probe;
 				mutex_exit(&dtrace_lock);
 				prv->dtpv_pops.dtps_provide(parg, &desc);
 				mutex_enter(&dtrace_lock);
+				/*
+				 * Process the retained enablings again if
+				 * they have changed while we weren't holding
+				 * dtrace_lock.
+				 */
+				if (gen != dtrace_retained_gen)
+					goto retry;
 			}
 		}
 	} while (all && (prv = prv->dtpv_next) != NULL);
@@ -11970,7 +11982,8 @@ dtrace_dof_copyin(uintptr_t uarg, int *errp)
 
 	dof = kmem_alloc(hdr.dofh_loadsz, KM_SLEEP);
 
-	if (copyin((void *)uarg, dof, hdr.dofh_loadsz) != 0) {
+	if (copyin((void *)uarg, dof, hdr.dofh_loadsz) != 0 ||
+	    dof->dofh_loadsz != hdr.dofh_loadsz) {
 		kmem_free(dof, hdr.dofh_loadsz);
 		*errp = EFAULT;
 		return (NULL);
@@ -12778,6 +12791,13 @@ dtrace_dof_slurp(dof_hdr_t *dof, dtrace_vstate_t *vstate, cred_t *cr,
 				    "for enabling");
 				return (-1);
 			}
+		}
+
+		if (DOF_SEC_ISLOADABLE(sec->dofs_type) &&
+		    !(sec->dofs_flags & DOF_SECF_LOAD)) {
+			dtrace_dof_error(dof, "loadable section with load "
+			    "flag unset");
+			return (-1);
 		}
 
 		if (!(sec->dofs_flags & DOF_SECF_LOAD))
@@ -15778,7 +15798,7 @@ dtrace_open(struct cdev *dev, int oflags, int devtype, struct thread *td)
 
 	if (state == NULL) {
 #if defined(sun)
-		if (--dtrace_opens == 0)
+		if (--dtrace_opens == 0 && dtrace_anon.dta_enabling == NULL)
 			(void) kdi_dtrace_set(KDI_DTSET_DTRACE_DEACTIVATE);
 #else
 		--dtrace_opens;
@@ -15855,7 +15875,11 @@ dtrace_dtr(void *data)
 
 	ASSERT(dtrace_opens > 0);
 #if defined(sun)
-	if (--dtrace_opens == 0)
+	/*
+	 * Only relinquish control of the kernel debugger interface when there
+	 * are no consumers and no anonymous enablings.
+	 */
+	if (--dtrace_opens == 0 && dtrace_anon.dta_enabling == NULL)
 		(void) kdi_dtrace_set(KDI_DTSET_DTRACE_DEACTIVATE);
 #else
 	--dtrace_opens;
