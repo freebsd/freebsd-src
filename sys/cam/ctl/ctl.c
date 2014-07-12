@@ -2191,14 +2191,14 @@ ctl_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
 		 * to this FETD.
 		 */
 		if ((softc->ioctl_info.flags & CTL_IOCTL_FLAG_ENABLED) == 0) {
-			retval = -EPERM;
+			retval = EPERM;
 			break;
 		}
 
 		io = ctl_alloc_io(softc->ioctl_info.fe.ctl_pool_ref);
 		if (io == NULL) {
 			printf("ctl_ioctl: can't allocate ctl_io!\n");
-			retval = -ENOSPC;
+			retval = ENOSPC;
 			break;
 		}
 
@@ -2728,7 +2728,7 @@ ctl_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
 			softc->flags |= CTL_FLAG_REAL_SYNC;
 			break;
 		default:
-			retval = -EINVAL;
+			retval = EINVAL;
 			break;
 		}
 		mtx_unlock(&softc->ctl_lock);
@@ -3199,7 +3199,7 @@ ctl_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
 		if (found == 0) {
 			printf("ctl: unknown ioctl command %#lx or backend "
 			       "%d\n", cmd, type);
-			retval = -EINVAL;
+			retval = EINVAL;
 			break;
 		}
 		retval = backend->ioctl(dev, cmd, addr, flag, td);
@@ -3364,7 +3364,7 @@ ctl_pool_create(struct ctl_softc *ctl_softc, ctl_pool_type pool_type,
 	pool = (struct ctl_io_pool *)malloc(sizeof(*pool), M_CTL,
 					    M_NOWAIT | M_ZERO);
 	if (pool == NULL) {
-		retval = -ENOMEM;
+		retval = ENOMEM;
 		goto bailout;
 	}
 
@@ -3447,7 +3447,7 @@ ctl_pool_acquire(struct ctl_io_pool *pool)
 	mtx_assert(&pool->ctl_softc->pool_lock, MA_OWNED);
 
 	if (pool->flags & CTL_POOL_FLAG_INVALID)
-		return (-EINVAL);
+		return (EINVAL);
 
 	pool->refcount++;
 
@@ -9396,7 +9396,7 @@ ctl_tur(struct ctl_scsiio *ctsio)
 	CTL_DEBUG_PRINT(("ctl_tur\n"));
 
 	if (lun == NULL)
-		return (-EINVAL);
+		return (EINVAL);
 
 	ctsio->scsi_status = SCSI_STATUS_OK;
 	ctsio->io_hdr.status = CTL_SUCCESS;
@@ -13417,7 +13417,7 @@ ctl_queue(union ctl_io *io)
 	default:
 		mtx_unlock(&ctl_softc->ctl_lock);
 		printf("ctl_queue: unknown I/O type %d\n", io->io_hdr.io_type);
-		return (-EINVAL);
+		return (EINVAL);
 		break; /* NOTREACHED */
 	}
 	mtx_unlock(&ctl_softc->ctl_lock);
