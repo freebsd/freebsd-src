@@ -3,5 +3,6 @@
 
 WARNS=		3
 PROG_CXX=	users
+CXXFLAGS+=	-fno-rtti -fno-exceptions
 
 .include <bsd.prog.mk>
