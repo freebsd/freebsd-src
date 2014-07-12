@@ -928,17 +928,16 @@ numvar:
 				STPUTC(sep, expdest);
 		}
 		break;
-	case '0':
-		p = arg0;
-		strtodest(p, flag, subtype, quoted);
-		break;
 	default:
 		if (is_digit(*name)) {
 			num = atoi(name);
-			if (num > 0 && num <= shellparam.nparam) {
+			if (num == 0)
+				p = arg0;
+			else if (num > 0 && num <= shellparam.nparam)
 				p = shellparam.p[num - 1];
-				strtodest(p, flag, subtype, quoted);
-			}
+			else
+				break;
+			strtodest(p, flag, subtype, quoted);
 		}
 		break;
 	}
