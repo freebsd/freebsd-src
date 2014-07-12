@@ -401,7 +401,6 @@ struct ctl_lun {
 };
 
 typedef enum {
-	CTL_FLAG_TASK_PENDING	= 0x01,
 	CTL_FLAG_REAL_SYNC	= 0x02,
 	CTL_FLAG_MASTER_SHELF	= 0x04
 } ctl_gen_flags;
@@ -411,6 +410,18 @@ struct ctl_wwpn_iid {
 	uint64_t wwpn;
 	uint32_t iid;
 	int32_t port;
+};
+
+#define CTL_MAX_THREADS		16
+
+struct ctl_thread {
+	struct mtx_padalign queue_lock;
+	struct ctl_softc	*ctl_softc;
+	struct thread		*thread;
+	STAILQ_HEAD(, ctl_io_hdr) incoming_queue;
+	STAILQ_HEAD(, ctl_io_hdr) rtr_queue;
+	STAILQ_HEAD(, ctl_io_hdr) done_queue;
+	STAILQ_HEAD(, ctl_io_hdr) isc_queue;
 };
 
 struct ctl_softc {
@@ -429,7 +440,7 @@ struct ctl_softc {
 	struct ctl_io_pool *internal_pool;
 	struct ctl_io_pool *emergency_pool;
 	struct ctl_io_pool *othersc_pool;
-	struct proc *work_thread;
+	struct proc *ctl_proc;
 	int targ_online;
 	uint32_t ctl_lun_mask[CTL_MAX_LUNS >> 5];
 	struct ctl_lun *ctl_luns[CTL_MAX_LUNS];
@@ -438,11 +449,6 @@ struct ctl_softc {
 	uint64_t aps_locked_lun;
 	STAILQ_HEAD(, ctl_lun) lun_list;
 	STAILQ_HEAD(, ctl_be_lun) pending_lun_queue;
-	STAILQ_HEAD(, ctl_io_hdr) task_queue;
-	STAILQ_HEAD(, ctl_io_hdr) incoming_queue;
-	STAILQ_HEAD(, ctl_io_hdr) rtr_queue;
-	STAILQ_HEAD(, ctl_io_hdr) done_queue;
-	STAILQ_HEAD(, ctl_io_hdr) isc_queue;
 	uint32_t num_frontends;
 	STAILQ_HEAD(, ctl_frontend) fe_list;
 	struct ctl_frontend *ctl_ports[CTL_MAX_PORTS];
@@ -454,6 +460,7 @@ struct ctl_softc {
 	STAILQ_HEAD(, ctl_io_pool) io_pools;
 	time_t last_print_jiffies;
 	uint32_t skipped_prints;
+	struct ctl_thread threads[CTL_MAX_THREADS];
 };
 
 #ifdef _KERNEL
@@ -487,7 +494,6 @@ int ctl_inquiry(struct ctl_scsiio *ctsio);
 int ctl_persistent_reserve_in(struct ctl_scsiio *ctsio);
 int ctl_persistent_reserve_out(struct ctl_scsiio *ctsio);
 int ctl_maintenance_in(struct ctl_scsiio *ctsio);
-void ctl_done_lock(union ctl_io *io, int have_lock);
 int ctl_isc(struct ctl_scsiio *ctsio);
 
 #endif	/* _KERNEL */
