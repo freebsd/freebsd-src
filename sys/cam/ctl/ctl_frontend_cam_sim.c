@@ -512,6 +512,10 @@ cfcs_done(union ctl_io *io)
 	struct cam_sim *sim;
 
 	ccb = io->io_hdr.ctl_private[CTL_PRIV_FRONTEND].ptr;
+	if (ccb == NULL) {
+		ctl_free_io(io);
+		return;
+	}
 
 	sim = xpt_path_sim(ccb->ccb_h.path);
 	softc = (struct cfcs_softc *)cam_sim_softc(sim);
@@ -799,7 +803,8 @@ cfcs_action(struct cam_sim *sim, union ccb *ccb)
 
 		ctl_zero_io(io);
 		/* Save pointers on both sides */
-		io->io_hdr.ctl_private[CTL_PRIV_FRONTEND].ptr = ccb;
+		if (ccb->ccb_h.func_code == XPT_RESET_DEV)
+			io->io_hdr.ctl_private[CTL_PRIV_FRONTEND].ptr = ccb;
 		ccb->ccb_h.io_ptr = io;
 
 		io->io_hdr.io_type = CTL_IO_TASK;
