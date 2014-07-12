@@ -2807,6 +2807,16 @@ cfiscsi_scsi_command_done(union ctl_io *io)
 	CFISCSI_SESSION_UNLOCK(cs);
 #endif
 
+	/*
+	 * Do not return status for aborted commands.
+	 * There are exceptions, but none supported by CTL yet.
+	 */
+	if (io->io_hdr.status == CTL_CMD_ABORTED) {
+		ctl_free_io(io);
+		icl_pdu_free(request);
+		return;
+	}
+
 	response = cfiscsi_pdu_new_response(request, M_WAITOK);
 	bhssr = (struct iscsi_bhs_scsi_response *)response->ip_bhs;
 	bhssr->bhssr_opcode = ISCSI_BHS_OPCODE_SCSI_RESPONSE;
