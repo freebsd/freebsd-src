@@ -486,7 +486,6 @@ inp_so_options(const struct inpcb *inp)
 }
 #endif /* INET || INET6 */
 
-#ifdef INET
 /*
  * Check if a new BINDMULTI socket is allowed to be created.
  *
@@ -496,7 +495,7 @@ inp_so_options(const struct inpcb *inp)
  * This checks whether the existing inp also has BINDMULTI and
  * whether the credentials match.
  */
-static int
+int
 in_pcbbind_check_bindmulti(const struct inpcb *ni, const struct inpcb *oi)
 {
 	/* Check permissions match */
@@ -517,6 +516,7 @@ in_pcbbind_check_bindmulti(const struct inpcb *ni, const struct inpcb *oi)
 	return (1);
 }
 
+#ifdef INET
 /*
  * Set up a bind operation on a PCB, performing port allocation
  * as required, but do not actually modify the PCB. Callers can
