@@ -43,7 +43,7 @@
 #include <net/if_media.h>
 
 #include <machine/bus.h>
-#include <sys/iic.h>
+#include <dev/iicbus/iic.h>
 #include <dev/iicbus/iiconf.h>
 #include <dev/iicbus/iicbus.h>
 #include <dev/mii/mii.h>

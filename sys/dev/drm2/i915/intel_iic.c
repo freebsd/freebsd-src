@@ -61,7 +61,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/drm2/i915/i915_drm.h>
 #include <dev/drm2/i915/i915_drv.h>
 #include <dev/drm2/i915/intel_drv.h>
-#include <sys/iic.h>
+#include <dev/iicbus/iic.h>
 #include <dev/iicbus/iiconf.h>
 #include <dev/iicbus/iicbus.h>
 #include "iicbus_if.h"
