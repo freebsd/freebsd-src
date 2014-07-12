@@ -846,9 +846,11 @@ varisset(const char *name, int nulok)
 		}
 	} else if (is_digit(*name)) {
 		char *ap;
-		int num = atoi(name);
+		long num;
 
-		if (num > shellparam.nparam)
+		errno = 0;
+		num = strtol(name, NULL, 10);
+		if (errno != 0 || num > shellparam.nparam)
 			return 0;
 
 		if (num == 0)
