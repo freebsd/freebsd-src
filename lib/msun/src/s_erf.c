@@ -111,13 +111,20 @@ __FBSDID("$FreeBSD$");
 #include "math.h"
 #include "math_private.h"
 
+/* XXX Prevent compilers from erroneously constant folding: */
+static const volatile double tiny= 1e-300;
+
 static const double
-tiny	    = 1e-300,
-half=  5.00000000000000000000e-01, /* 0x3FE00000, 0x00000000 */
-one =  1.00000000000000000000e+00, /* 0x3FF00000, 0x00000000 */
-two =  2.00000000000000000000e+00, /* 0x40000000, 0x00000000 */
+half= 0.5,
+one = 1,
+two = 2,
 /* c = (float)0.84506291151 */
 erx =  8.45062911510467529297e-01, /* 0x3FEB0AC1, 0x60000000 */
+/*
+ * In the domain [0, 2**-28], only the first term in the power series
+ * expansion of erf(x) is used.  The magnitude of the first neglected
+ * terms is less than 2**-84.
+ */
 efx =  1.28379167095512586316e-01, /* 0x3FC06EBA, 0x8214DB69 */
 efx8=  1.02703333676410069053e+00, /* 0x3FF06EBA, 0x8214DB69 */
 /*
