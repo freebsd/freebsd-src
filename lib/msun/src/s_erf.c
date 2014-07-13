@@ -242,6 +242,10 @@ erf(double x)
 	if(hx>=0) return one-r/x; else return  r/x-one;
 }
 
+#if (LDBL_MANT_DIG == 53)
+__weak_reference(erf, erfl);
+#endif
+
 double
 erfc(double x)
 {
@@ -299,3 +303,7 @@ erfc(double x)
 	    if(hx>0) return tiny*tiny; else return two-tiny;
 	}
 }
+
+#if (LDBL_MANT_DIG == 53)
+__weak_reference(erfc, erfcl);
+#endif
