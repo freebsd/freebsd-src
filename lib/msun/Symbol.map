@@ -265,6 +265,8 @@ FBSD_1.3 {
 	ctanf;
 	ctanh;
 	ctanhf;
+	erfcl;
+	erfl;
 	expl;
 	expm1l;
 	log10l;
@@ -274,8 +276,6 @@ FBSD_1.3 {
 	sinhl;
 	tanhl;
 	/* Implemented as weak aliases for imprecise versions */
-	erfcl;
-	erfl;
 	lgammal;
 	powl;
 	tgammal;
