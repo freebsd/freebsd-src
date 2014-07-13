@@ -19,13 +19,18 @@ __FBSDID("$FreeBSD$");
 #include "math.h"
 #include "math_private.h"
 
+/* XXX Prevent compilers from erroneously constant folding: */
+static const volatile float tiny = 1e-30;
+
 static const float
-tiny	    = 1e-30,
-half=  5.0000000000e-01, /* 0x3F000000 */
-one =  1.0000000000e+00, /* 0x3F800000 */
-two =  2.0000000000e+00, /* 0x40000000 */
+half= 0.5,
+one = 1,
+two = 2,
+erx = 8.42697144e-01,			/* 0x3f57bb00 */
 /*
- * Coefficients for approximation to erf on [0,0.84375]
+ * In the domain [0, 2**-14], only the first term in the power series
+ * expansion of erf(x) is used.  The magnitude of the first neglected
+ * terms is less than 2**-42.
  */
 efx =  1.2837916613e-01, /* 0x3e0375d4 */
 efx8=  1.0270333290e+00, /* 0x3f8375d4 */
@@ -43,7 +48,6 @@ qq3  = -1.98859419e-03F, /* -0x1.04a626p-9 */
  * Domain [0.84375, 1.25], range ~[-1.953e-11,1.940e-11]:
  * |(erf(x) - erx) - p(x)/q(x)| < 2**-36.
  */
-erx  =  8.42697144e-01F, /*  0x1.af7600p-1.  erf(1) rounded to 16 bits. */
 pa0  =  3.64939137e-06F, /*  0x1.e9d022p-19 */
 pa1  =  4.15109694e-01F, /*  0x1.a91284p-2 */
 pa2  = -1.65179938e-01F, /* -0x1.5249dcp-3 */
