@@ -1141,7 +1141,7 @@ moea_enter(mmu_t mmu, pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
  * target pmap with the protection requested.  If specified the page
  * will be wired down.
  *
- * The page queues and pmap must be locked.
+ * The global pvh and pmap must be locked.
  */
 static void
 moea_enter_locked(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
@@ -1149,7 +1149,6 @@ moea_enter_locked(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 {
 	struct		pvo_head *pvo_head;
 	uma_zone_t	zone;
-	vm_page_t	pg;
 	u_int		pte_lo, pvo_flags;
 	int		error;
 
@@ -1157,10 +1156,8 @@ moea_enter_locked(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 		pvo_head = &moea_pvo_kunmanaged;
 		zone = moea_upvo_zone;
 		pvo_flags = 0;
-		pg = NULL;
 	} else {
 		pvo_head = vm_page_to_pvoh(m);
-		pg = m;
 		zone = moea_mpvo_zone;
 		pvo_flags = PVO_MANAGED;
 	}
@@ -1170,7 +1167,7 @@ moea_enter_locked(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 	if ((m->oflags & VPO_UNMANAGED) == 0 && !vm_page_xbusied(m))
 		VM_OBJECT_ASSERT_LOCKED(m->object);
 
-	/* XXX change the pvo head for fake pages */
+	/* XXX change the pvo head for unmanaged pages */
 	if ((m->oflags & VPO_UNMANAGED) != 0) {
 		pvo_flags &= ~PVO_MANAGED;
 		pvo_head = &moea_pvo_kunmanaged;
