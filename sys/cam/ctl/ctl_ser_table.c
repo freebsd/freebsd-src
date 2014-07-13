@@ -60,23 +60,19 @@
 
 static ctl_serialize_action
 ctl_serialize_table[CTL_SERIDX_COUNT][CTL_SERIDX_COUNT] = {
-/**>IDX_ :: 2nd:TUR RD  WRT UNM MDSN MDSL RQSN INQ RDCP RES REL LSNS FMT STR PRIN PROT MAININ*/
-/*TUR     */{   pS, pS, pS, pS, bK,  bK,  bK,  pS, pS,  bK, bK, pS,  bK, bK, bK,  bK,  bK},
-/*READ    */{   pS, pS, xT, bK, bK,  bK,  bK,  pS, pS,  bK, bK, pS,  bK, bK, bK,  bK,  bK},
-/*WRITE   */{   pS, xT, xT, bK, bK,  bK,  bK,  pS, pS,  bK, bK, pS,  bK, bK, bK,  bK,  bK},
-/*UNMAP   */{   pS, bK, bK, pS, bK,  bK,  bK,  pS, pS,  bK, bK, pS,  bK, bK, bK,  bK,  bK},
-/*MD_SNS  */{   bK, bK, bK, bK, pS,  bK,  bK,  pS, pS,  bK, bK, pS,  bK, bK, bK,  bK,  bK},
-/*MD_SEL  */{   bK, bK, bK, bK, bK,  bK,  bK,  pS, pS,  bK, bK, pS,  bK, bK, bK,  bK,  bK},
-/*RQ_SNS  */{   pS, pS, pS, pS, pS,  pS,  bK,  pS, pS,  bK, bK, pS,  bK, bK, bK,  bK,  bK},
-/*INQ     */{   pS, pS, pS, pS, pS,  pS,  bK,  pS, pS,  bK, bK, pS,  bK, bK, bK,  bK,  bK},
-/*RD_CAP  */{   pS, pS, pS, pS, pS,  pS,  bK,  pS, pS,  bK, bK, pS,  bK, bK, bK,  bK,  bK},
-/*RESV    */{   bK, bK, bK, bK, bK,  bK,  bK,  bK, bK,  bK, bK, bK,  bK, bK, bK,  bK,  bK},
-/*REL     */{   bK, bK, bK, bK, bK,  bK,  bK,  bK, bK,  bK, bK, bK,  bK, bK, bK,  bK,  bK},
-/*LOG_SNS */{   pS, pS, pS, pS, pS,  bK,  bK,  pS, pS,  bK, bK, pS,  bK, bK, bK,  bK,  bK},
-/*FORMAT  */{   pS, bK, bK, bK, bK,  bK,  pS,  pS, bK,  bK, bK, bK,  bK, bK, bK,  bK,  bK},
-/*START   */{   bK, bK, bK, bK, bK,  bK,  bK,  pS, bK,  bK, bK, bK,  bK, bK, bK,  bK,  bK},
-/*PRES_IN */{   bK, bK, bK, bK, bK,  bK,  bK,  bK, bK,  bK, bK, bK,  bK, bK, bK,  bK,  bK},
-/*PRES_OUT*/{   bK, bK, bK, bK, bK,  bK,  bK,  bK, bK,  bK, bK, bK,  bK, bK, bK,  bK,  bK},
-/*MAIN_IN */{   bK, bK, bK, bK, bK,  bK,  bK,  pS, bK,  bK, bK, bK,  bK, bK, bK,  bK,  pS}
+/**>IDX_ :: 2nd:TUR RD  WRT UNM MDSN MDSL RQSN INQ RDCP RES LSNS FMT STR*/
+/*TUR     */{   pS, pS, pS, pS, bK,  bK,  bK,  pS, pS,  bK, pS,  bK, bK},
+/*READ    */{   pS, pS, xT, bK, bK,  bK,  bK,  pS, pS,  bK, pS,  bK, bK},
+/*WRITE   */{   pS, xT, xT, bK, bK,  bK,  bK,  pS, pS,  bK, pS,  bK, bK},
+/*UNMAP   */{   pS, bK, bK, pS, bK,  bK,  bK,  pS, pS,  bK, pS,  bK, bK},
+/*MD_SNS  */{   bK, bK, bK, bK, pS,  bK,  bK,  pS, pS,  bK, pS,  bK, bK},
+/*MD_SEL  */{   bK, bK, bK, bK, bK,  bK,  bK,  pS, pS,  bK, pS,  bK, bK},
+/*RQ_SNS  */{   pS, pS, pS, pS, pS,  pS,  bK,  pS, pS,  bK, pS,  bK, bK},
+/*INQ     */{   pS, pS, pS, pS, pS,  pS,  bK,  pS, pS,  pS, pS,  bK, bK},
+/*RD_CAP  */{   pS, pS, pS, pS, pS,  pS,  bK,  pS, pS,  bK, pS,  bK, bK},
+/*RES     */{   bK, bK, bK, bK, bK,  bK,  bK,  pS, bK,  bK, bK,  bK, bK},
+/*LOG_SNS */{   pS, pS, pS, pS, pS,  bK,  bK,  pS, pS,  bK, pS,  bK, bK},
+/*FORMAT  */{   pS, bK, bK, bK, bK,  bK,  pS,  pS, bK,  bK, bK,  bK, bK},
+/*START   */{   bK, bK, bK, bK, bK,  bK,  bK,  pS, bK,  bK, bK,  bK, bK},
 };
 
