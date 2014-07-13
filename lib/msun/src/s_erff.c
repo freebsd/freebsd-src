@@ -89,9 +89,9 @@ erff(float x)
 	float R,S,P,Q,s,y,z,r;
 	GET_FLOAT_WORD(hx,x);
 	ix = hx&0x7fffffff;
-	if(ix>=0x7f800000) {		/* erf(nan)=nan */
+	if(ix>=0x7f800000) {		/* erff(nan)=nan */
 	    i = ((u_int32_t)hx>>31)<<1;
-	    return (float)(1-i)+one/x;	/* erf(+-inf)=+-1 */
+	    return (float)(1-i)+one/x;	/* erff(+-inf)=+-1 */
 	}
 
 	if(ix < 0x3f580000) {		/* |x|<0.84375 */
@@ -136,8 +136,8 @@ erfcf(float x)
 	float R,S,P,Q,s,y,z,r;
 	GET_FLOAT_WORD(hx,x);
 	ix = hx&0x7fffffff;
-	if(ix>=0x7f800000) {			/* erfc(nan)=nan */
-						/* erfc(+-inf)=0,2 */
+	if(ix>=0x7f800000) {			/* erfcf(nan)=nan */
+						/* erfcf(+-inf)=0,2 */
 	    return (float)(((u_int32_t)hx>>31)<<1)+one/x;
 	}
 
