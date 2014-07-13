@@ -22,7 +22,7 @@
  */
 
 /*
- * Copyright 2008 Sun Microsystems, Inc. All rights reserved.
+ * Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2013, Joyent, Inc. All rights reserved.
  * Copyright (c) 2012 by Delphix. All rights reserved.
  */
@@ -235,6 +235,7 @@ static dtrace_helpers_t *dtrace_deferred_pid;	/* deferred helper list */
 static dtrace_enabling_t *dtrace_retained;	/* list of retained enablings */
 static dtrace_genid_t	dtrace_retained_gen;	/* current retained enab gen */
 static dtrace_dynvar_t	dtrace_dynhash_sink;	/* end of dynamic hash chains */
+static int		dtrace_dynvar_failclean; /* dynvars failed to clean */
 #if !defined(sun)
 static struct mtx	dtrace_unr_mtx;
 MTX_SYSINIT(dtrace_unr_mtx, &dtrace_unr_mtx, "Unique resource identifier", MTX_DEF);
@@ -1555,12 +1556,12 @@ dtrace_dynvar_clean(dtrace_dstate_t *dstate)
 {
 	dtrace_dynvar_t *dirty;
 	dtrace_dstate_percpu_t *dcpu;
-	int i, work = 0;
+	dtrace_dynvar_t **rinsep;
+	int i, j, work = 0;
 
 	for (i = 0; i < NCPU; i++) {
 		dcpu = &dstate->dtds_percpu[i];
-
-		ASSERT(dcpu->dtdsc_rinsing == NULL);
+		rinsep = &dcpu->dtdsc_rinsing;
 
 		/*
 		 * If the dirty list is NULL, there is no dirty work to do.
@@ -1568,14 +1569,62 @@ dtrace_dynvar_clean(dtrace_dstate_t *dstate)
 		if (dcpu->dtdsc_dirty == NULL)
 			continue;
 
-		/*
-		 * If the clean list is non-NULL, then we're not going to do
-		 * any work for this CPU -- it means that there has not been
-		 * a dtrace_dynvar() allocation on this CPU (or from this CPU)
-		 * since the last time we cleaned house.
-		 */
-		if (dcpu->dtdsc_clean != NULL)
+		if (dcpu->dtdsc_rinsing != NULL) {
+			/*
+			 * If the rinsing list is non-NULL, then it is because
+			 * this CPU was selected to accept another CPU's
+			 * dirty list -- and since that time, dirty buffers
+			 * have accumulated.  This is a highly unlikely
+			 * condition, but we choose to ignore the dirty
+			 * buffers -- they'll be picked up a future cleanse.
+			 */
 			continue;
+		}
+
+		if (dcpu->dtdsc_clean != NULL) {
+			/*
+			 * If the clean list is non-NULL, then we're in a
+			 * situation where a CPU has done deallocations (we
+			 * have a non-NULL dirty list) but no allocations (we
+			 * also have a non-NULL clean list).  We can't simply
+			 * move the dirty list into the clean list on this
+			 * CPU, yet we also don't want to allow this condition
+			 * to persist, lest a short clean list prevent a
+			 * massive dirty list from being cleaned (which in
+			 * turn could lead to otherwise avoidable dynamic
+			 * drops).  To deal with this, we look for some CPU
+			 * with a NULL clean list, NULL dirty list, and NULL
+			 * rinsing list -- and then we borrow this CPU to
+			 * rinse our dirty list.
+			 */
+			for (j = 0; j < NCPU; j++) {
+				dtrace_dstate_percpu_t *rinser;
+
+				rinser = &dstate->dtds_percpu[j];
+
+				if (rinser->dtdsc_rinsing != NULL)
+					continue;
+
+				if (rinser->dtdsc_dirty != NULL)
+					continue;
+
+				if (rinser->dtdsc_clean != NULL)
+					continue;
+
+				rinsep = &rinser->dtdsc_rinsing;
+				break;
+			}
+
+			if (j == NCPU) {
+				/*
+				 * We were unable to find another CPU that
+				 * could accept this dirty list -- we are
+				 * therefore unable to clean it now.
+				 */
+				dtrace_dynvar_failclean++;
+				continue;
+			}
+		}
 
 		work = 1;
 
@@ -1592,7 +1641,7 @@ dtrace_dynvar_clean(dtrace_dstate_t *dstate)
 			 * on a hash chain, either the dirty list or the
 			 * rinsing list for some CPU must be non-NULL.)
 			 */
-			dcpu->dtdsc_rinsing = dirty;
+			*rinsep = dirty;
 			dtrace_membar_producer();
 		} while (dtrace_casptr(&dcpu->dtdsc_dirty,
 		    dirty, NULL) != dirty);
@@ -2023,7 +2072,7 @@ retry:
 			ASSERT(clean->dtdv_hashval == DTRACE_DYNHASH_FREE);
 
 			/*
-			 * Now we'll move the clean list to the free list.
+			 * Now we'll move the clean list to our free list.
 			 * It's impossible for this to fail:  the only way
 			 * the free list can be updated is through this
 			 * code path, and only one CPU can own the clean list.
@@ -2036,6 +2085,7 @@ retry:
 			 * owners of the clean lists out before resetting
 			 * the clean lists.
 			 */
+			dcpu = &dstate->dtds_percpu[me];
 			rval = dtrace_casptr(&dcpu->dtdsc_free, NULL, clean);
 			ASSERT(rval == NULL);
 			goto retry;
@@ -4726,7 +4776,7 @@ dtrace_dif_subr(uint_t subr, uint_t rd, uint64_t *regs,
 		int64_t index = (int64_t)tupregs[1].dttk_value;
 		int64_t remaining = (int64_t)tupregs[2].dttk_value;
 		size_t len = dtrace_strlen((char *)s, size);
-		int64_t i = 0;
+		int64_t i;
 
 		if (!dtrace_canload(s, len + 1, mstate, vstate)) {
 			regs[rd] = 0;
