@@ -138,7 +138,7 @@ echo "Launching virtual machine \"$vmname\" ..."
 while [ 1 ]; do
 	${BHYVECTL} --vm=${vmname} --destroy > /dev/null 2>&1
 
-	file ${virtio_diskdev} | grep ": x86 boot sector" > /dev/null
+	file ${virtio_diskdev} | grep "boot sector" > /dev/null
 	rc=$?
 	if [ $rc -ne 0 ]; then
 		file ${virtio_diskdev} | grep ": Unix Fast File sys" > /dev/null
