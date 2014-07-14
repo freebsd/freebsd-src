@@ -136,8 +136,6 @@ tmpfs_pages_check_avail(struct tmpfs_mount *tmp, size_t req_pages)
 	return (1);
 }
 
-/* --------------------------------------------------------------------- */
-
 /*
  * Allocates a new node of type 'type' inside the 'tmp' mount point, with
  * its owner set to 'uid', its group to 'gid' and its mode set to 'mode',
@@ -251,8 +249,6 @@ tmpfs_alloc_node(struct tmpfs_mount *tmp, enum vtype type,
 	return 0;
 }
 
-/* --------------------------------------------------------------------- */
-
 /*
  * Destroys the node pointed to by node from the file system 'tmp'.
  * If the node does not belong to the given mount point, the results are
@@ -327,8 +323,6 @@ tmpfs_free_node(struct tmpfs_mount *tmp, struct tmpfs_node *node)
 	free_unr(tmp->tm_ino_unr, node->tn_id);
 	uma_zfree(tmp->tm_node_pool, node);
 }
-
-/* --------------------------------------------------------------------- */
 
 static __inline uint32_t
 tmpfs_dirent_hash(const char *name, u_int len)
@@ -406,8 +400,6 @@ tmpfs_alloc_dirent(struct tmpfs_mount *tmp, struct tmpfs_node *node,
 	return 0;
 }
 
-/* --------------------------------------------------------------------- */
-
 /*
  * Frees a directory entry.  It is the caller's responsibility to destroy
  * the node referenced by it if needed.
@@ -431,8 +423,6 @@ tmpfs_free_dirent(struct tmpfs_mount *tmp, struct tmpfs_dirent *de)
 		free(de->ud.td_name, M_TMPFSNAME);
 	uma_zfree(tmp->tm_dirent_pool, de);
 }
-
-/* --------------------------------------------------------------------- */
 
 void
 tmpfs_destroy_vobject(struct vnode *vp, vm_object_t obj)
@@ -631,8 +621,6 @@ out:
 	return error;
 }
 
-/* --------------------------------------------------------------------- */
-
 /*
  * Destroys the association between the vnode vp and the node it
  * references.
@@ -651,8 +639,6 @@ tmpfs_free_vp(struct vnode *vp)
 	node->tn_vpstate &= ~TMPFS_VNODE_WRECLAIM;
 	vp->v_data = NULL;
 }
-
-/* --------------------------------------------------------------------- */
 
 /*
  * Allocates a new file of type 'type' and adds it to the parent directory
@@ -732,8 +718,6 @@ out:
 
 	return error;
 }
-
-/* --------------------------------------------------------------------- */
 
 static struct tmpfs_dirent *
 tmpfs_dir_first(struct tmpfs_node *dnode, struct tmpfs_dir_cursor *dc)
@@ -990,8 +974,6 @@ tmpfs_dir_attach(struct vnode *vp, struct tmpfs_dirent *de)
 	    TMPFS_NODE_MODIFIED;
 }
 
-/* --------------------------------------------------------------------- */
-
 /*
  * Detaches the directory entry de from the directory represented by vp.
  * Note that this does not change the link count of the node pointed by
@@ -1057,8 +1039,6 @@ tmpfs_dir_destroy(struct tmpfs_mount *tmp, struct tmpfs_node *dnode)
 	}
 }
 
-/* --------------------------------------------------------------------- */
-
 /*
  * Helper function for tmpfs_readdir.  Creates a '.' entry for the given
  * directory and returns it in the uio space.  The function returns 0
@@ -1091,8 +1071,6 @@ tmpfs_dir_getdotdent(struct tmpfs_node *node, struct uio *uio)
 
 	return error;
 }
-
-/* --------------------------------------------------------------------- */
 
 /*
  * Helper function for tmpfs_readdir.  Creates a '..' entry for the given
@@ -1138,8 +1116,6 @@ tmpfs_dir_getdotdotdent(struct tmpfs_node *node, struct uio *uio)
 
 	return error;
 }
-
-/* --------------------------------------------------------------------- */
 
 /*
  * Helper function for tmpfs_readdir.  Returns as much directory entries
@@ -1310,8 +1286,6 @@ tmpfs_dir_whiteout_remove(struct vnode *dvp, struct componentname *cnp)
 	tmpfs_free_dirent(VFS_TO_TMPFS(dvp->v_mount), de);
 }
 
-/* --------------------------------------------------------------------- */
-
 /*
  * Resizes the aobj associated with the regular file pointed to by 'vp' to the
  * size 'newsize'.  'vp' must point to a vnode that represents a regular file.
@@ -1422,8 +1396,6 @@ retry:
 	return (0);
 }
 
-/* --------------------------------------------------------------------- */
-
 /*
  * Change flags of the given vnode.
  * Caller should execute tmpfs_update on vp after a successful execution.
@@ -1481,8 +1453,6 @@ tmpfs_chflags(struct vnode *vp, u_long flags, struct ucred *cred,
 	return 0;
 }
 
-/* --------------------------------------------------------------------- */
-
 /*
  * Change access mode on the given vnode.
  * Caller should execute tmpfs_update on vp after a successful execution.
@@ -1538,8 +1508,6 @@ tmpfs_chmod(struct vnode *vp, mode_t mode, struct ucred *cred, struct thread *p)
 
 	return 0;
 }
-
-/* --------------------------------------------------------------------- */
 
 /*
  * Change ownership of the given vnode.  At least one of uid or gid must
@@ -1612,8 +1580,6 @@ tmpfs_chown(struct vnode *vp, uid_t uid, gid_t gid, struct ucred *cred,
 	return 0;
 }
 
-/* --------------------------------------------------------------------- */
-
 /*
  * Change size of the given vnode.
  * Caller should execute tmpfs_update on vp after a successful execution.
@@ -1669,8 +1635,6 @@ tmpfs_chsize(struct vnode *vp, u_quad_t size, struct ucred *cred,
 	return error;
 }
 
-/* --------------------------------------------------------------------- */
-
 /*
  * Change access and modification times of the given vnode.
  * Caller should execute tmpfs_update on vp after a successful execution.
@@ -1719,7 +1683,6 @@ tmpfs_chtimes(struct vnode *vp, struct vattr *vap,
 	return 0;
 }
 
-/* --------------------------------------------------------------------- */
 /* Sync timestamps */
 void
 tmpfs_itimes(struct vnode *vp, const struct timespec *acc,
@@ -1752,16 +1715,12 @@ tmpfs_itimes(struct vnode *vp, const struct timespec *acc,
 	    ~(TMPFS_NODE_ACCESSED | TMPFS_NODE_MODIFIED | TMPFS_NODE_CHANGED);
 }
 
-/* --------------------------------------------------------------------- */
-
 void
 tmpfs_update(struct vnode *vp)
 {
 
 	tmpfs_itimes(vp, NULL, NULL);
 }
-
-/* --------------------------------------------------------------------- */
 
 int
 tmpfs_truncate(struct vnode *vp, off_t length)
