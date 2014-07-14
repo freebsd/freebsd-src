@@ -68,8 +68,6 @@ SYSCTL_INT(_vfs_tmpfs, OID_AUTO, rename_restarts, CTLFLAG_RD,
     __DEVOLATILE(int *, &tmpfs_rename_restarts), 0,
     "Times rename had to restart due to lock contention");
 
-/* --------------------------------------------------------------------- */
-
 static int
 tmpfs_lookup(struct vop_cachedlookup_args *v)
 {
@@ -207,8 +205,6 @@ out:
 	return error;
 }
 
-/* --------------------------------------------------------------------- */
-
 static int
 tmpfs_create(struct vop_create_args *v)
 {
@@ -221,7 +217,6 @@ tmpfs_create(struct vop_create_args *v)
 
 	return tmpfs_alloc_file(dvp, vpp, vap, cnp, NULL);
 }
-/* --------------------------------------------------------------------- */
 
 static int
 tmpfs_mknod(struct vop_mknod_args *v)
@@ -237,8 +232,6 @@ tmpfs_mknod(struct vop_mknod_args *v)
 
 	return tmpfs_alloc_file(dvp, vpp, vap, cnp, NULL);
 }
-
-/* --------------------------------------------------------------------- */
 
 static int
 tmpfs_open(struct vop_open_args *v)
@@ -272,8 +265,6 @@ tmpfs_open(struct vop_open_args *v)
 	return error;
 }
 
-/* --------------------------------------------------------------------- */
-
 static int
 tmpfs_close(struct vop_close_args *v)
 {
@@ -284,8 +275,6 @@ tmpfs_close(struct vop_close_args *v)
 
 	return (0);
 }
-
-/* --------------------------------------------------------------------- */
 
 int
 tmpfs_access(struct vop_access_args *v)
@@ -340,8 +329,6 @@ out:
 
 	return error;
 }
-
-/* --------------------------------------------------------------------- */
 
 int
 tmpfs_getattr(struct vop_getattr_args *v)
@@ -504,8 +491,6 @@ out:
 	return (error);
 }
 
-/* --------------------------------------------------------------------- */
-
 static int
 tmpfs_fsync(struct vop_fsync_args *v)
 {
@@ -517,8 +502,6 @@ tmpfs_fsync(struct vop_fsync_args *v)
 
 	return 0;
 }
-
-/* --------------------------------------------------------------------- */
 
 static int
 tmpfs_remove(struct vop_remove_args *v)
@@ -571,8 +554,6 @@ out:
 
 	return error;
 }
-
-/* --------------------------------------------------------------------- */
 
 static int
 tmpfs_link(struct vop_link_args *v)
@@ -639,8 +620,6 @@ tmpfs_link(struct vop_link_args *v)
 out:
 	return error;
 }
-
-/* --------------------------------------------------------------------- */
 
 /*
  * We acquire all but fdvp locks using non-blocking acquisitions.  If we
@@ -1051,8 +1030,6 @@ out:
 	return error;
 }
 
-/* --------------------------------------------------------------------- */
-
 static int
 tmpfs_mkdir(struct vop_mkdir_args *v)
 {
@@ -1065,8 +1042,6 @@ tmpfs_mkdir(struct vop_mkdir_args *v)
 
 	return tmpfs_alloc_file(dvp, vpp, vap, cnp, NULL);
 }
-
-/* --------------------------------------------------------------------- */
 
 static int
 tmpfs_rmdir(struct vop_rmdir_args *v)
@@ -1161,8 +1136,6 @@ out:
 	return error;
 }
 
-/* --------------------------------------------------------------------- */
-
 static int
 tmpfs_symlink(struct vop_symlink_args *v)
 {
@@ -1180,8 +1153,6 @@ tmpfs_symlink(struct vop_symlink_args *v)
 
 	return tmpfs_alloc_file(dvp, vpp, vap, cnp, target);
 }
-
-/* --------------------------------------------------------------------- */
 
 static int
 tmpfs_readdir(struct vop_readdir_args *v)
@@ -1235,8 +1206,6 @@ tmpfs_readdir(struct vop_readdir_args *v)
 	return error;
 }
 
-/* --------------------------------------------------------------------- */
-
 static int
 tmpfs_readlink(struct vop_readlink_args *v)
 {
@@ -1258,8 +1227,6 @@ tmpfs_readlink(struct vop_readlink_args *v)
 	return error;
 }
 
-/* --------------------------------------------------------------------- */
-
 static int
 tmpfs_inactive(struct vop_inactive_args *v)
 {
@@ -1274,8 +1241,6 @@ tmpfs_inactive(struct vop_inactive_args *v)
 
 	return 0;
 }
-
-/* --------------------------------------------------------------------- */
 
 int
 tmpfs_reclaim(struct vop_reclaim_args *v)
@@ -1314,8 +1279,6 @@ tmpfs_reclaim(struct vop_reclaim_args *v)
 	return 0;
 }
 
-/* --------------------------------------------------------------------- */
-
 static int
 tmpfs_print(struct vop_print_args *v)
 {
@@ -1338,8 +1301,6 @@ tmpfs_print(struct vop_print_args *v)
 
 	return 0;
 }
-
-/* --------------------------------------------------------------------- */
 
 static int
 tmpfs_pathconf(struct vop_pathconf_args *v)
@@ -1429,8 +1390,6 @@ tmpfs_whiteout(struct vop_whiteout_args *ap)
 		panic("tmpfs_whiteout: unknown op");
 	}
 }
-
-/* --------------------------------------------------------------------- */
 
 /*
  * vnode operations vector used for files stored in a tmpfs file system.
