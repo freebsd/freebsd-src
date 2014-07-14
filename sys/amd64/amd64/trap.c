@@ -218,18 +218,6 @@ trap(struct trapframe *frame)
 		goto out;
 	}
 
-#ifdef KDTRACE_HOOKS
-	/*
-	 * A trap can occur while DTrace executes a probe. Before
-	 * executing the probe, DTrace blocks re-scheduling and sets
-	 * a flag in its per-cpu flags to indicate that it doesn't
-	 * want to fault. On returning from the probe, the no-fault
-	 * flag is cleared and finally re-scheduling is enabled.
-	 */
-	if (dtrace_trap_func != NULL && (*dtrace_trap_func)(frame, type))
-		goto out;
-#endif
-
 	if ((frame->tf_rflags & PSL_I) == 0) {
 		/*
 		 * Buggy application or kernel code has disabled

@@ -462,29 +462,27 @@ dtrace_gethrestime(void)
 	return (current_time.tv_sec * 1000000000ULL + current_time.tv_nsec);
 }
 
-/* Function to handle DTrace traps during probes. See amd64/amd64/trap.c */
+/*
+ * Function to handle DTrace traps during probes. See amd64/amd64/exception.S.
+ */
 int
-dtrace_trap(struct trapframe *frame, u_int type)
+dtrace_trap(struct trapframe *frame)
 {
 	/*
 	 * A trap can occur while DTrace executes a probe. Before
 	 * executing the probe, DTrace blocks re-scheduling and sets
-	 * a flag in it's per-cpu flags to indicate that it doesn't
+	 * a flag in its per-cpu flags to indicate that it doesn't
 	 * want to fault. On returning from the probe, the no-fault
 	 * flag is cleared and finally re-scheduling is enabled.
 	 *
 	 * Check if DTrace has enabled 'no-fault' mode:
-	 *
 	 */
 	if ((cpu_core[curcpu].cpuc_dtrace_flags & CPU_DTRACE_NOFAULT) != 0) {
 		/*
 		 * There are only a couple of trap types that are expected.
 		 * All the rest will be handled in the usual way.
 		 */
-		switch (type) {
-		/* Privilieged instruction fault. */
-		case T_PRIVINFLT:
-			break;
+		switch (frame->tf_trapno) {
 		/* General protection fault. */
 		case T_PROTFLT:
 			/* Flag an illegal operation. */
