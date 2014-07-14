@@ -43,8 +43,6 @@ extern int preen;	/* we are preening */
 extern int rdonly;	/* device is opened read only (supersedes above) */
 extern int skipclean;	/* skip clean file systems if preening */
 
-extern struct dosDirEntry *rootDir;
-
 /*
  * function declarations
  */
