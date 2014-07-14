@@ -553,13 +553,13 @@ vm_object_deallocate(vm_object_t object)
 			    object->handle == NULL &&
 			    (object->type == OBJT_DEFAULT ||
 			    (object->type == OBJT_SWAP &&
-			    (object->flags & OBJ_TMPFS) == 0))) {
+			    (object->flags & OBJ_TMPFS_NODE) == 0))) {
 				vm_object_set_flag(object, OBJ_ONEMAPPING);
 			} else if ((object->shadow_count == 1) &&
 			    (object->handle == NULL) &&
 			    (object->type == OBJT_DEFAULT ||
 			     object->type == OBJT_SWAP)) {
-				KASSERT((object->flags & OBJ_TMPFS) == 0,
+				KASSERT((object->flags & OBJ_TMPFS_NODE) == 0,
 				    ("shadowed tmpfs v_object %p", object));
 				vm_object_t robject;
 
@@ -2103,7 +2103,7 @@ vm_object_coalesce(vm_object_t prev_object, vm_ooffset_t prev_offset,
 	VM_OBJECT_WLOCK(prev_object);
 	if ((prev_object->type != OBJT_DEFAULT &&
 	    prev_object->type != OBJT_SWAP) ||
-	    (prev_object->flags & OBJ_TMPFS) != 0) {
+	    (prev_object->flags & OBJ_TMPFS_NODE) != 0) {
 		VM_OBJECT_WUNLOCK(prev_object);
 		return (FALSE);
 	}
