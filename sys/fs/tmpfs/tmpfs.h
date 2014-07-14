@@ -384,7 +384,7 @@ struct tmpfs_fid {
  * Prototypes for tmpfs_subr.c.
  */
 
-int	tmpfs_alloc_node(struct tmpfs_mount *, enum vtype,
+int	tmpfs_alloc_node(struct mount *mp, struct tmpfs_mount *, enum vtype,
 	    uid_t uid, gid_t gid, mode_t mode, struct tmpfs_node *,
 	    char *, dev_t, struct tmpfs_node **);
 void	tmpfs_free_node(struct tmpfs_mount *, struct tmpfs_node *);
