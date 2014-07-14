@@ -570,8 +570,6 @@ tmpfs_link(struct vop_link_args *v)
 	MPASS(cnp->cn_flags & HASBUF);
 	MPASS(dvp != vp); /* XXX When can this be false? */
 
-	node = VP_TO_TMPFS_NODE(vp);
-
 	/* XXX: Why aren't the following two tests done by the caller? */
 
 	/* Hard links of directories are forbidden. */
@@ -585,6 +583,8 @@ tmpfs_link(struct vop_link_args *v)
 		error = EXDEV;
 		goto out;
 	}
+
+	node = VP_TO_TMPFS_NODE(vp);
 
 	/* Ensure that we do not overflow the maximum number of links imposed
 	 * by the system. */
