@@ -677,8 +677,7 @@ tmpfs_alloc_file(struct vnode *dvp, struct vnode **vpp, struct vattr *vap,
 		 * imposed by the system. */
 		MPASS(dnode->tn_links <= LINK_MAX);
 		if (dnode->tn_links == LINK_MAX) {
-			error = EMLINK;
-			goto out;
+			return (EMLINK);
 		}
 
 		parent = dnode;
@@ -690,14 +689,14 @@ tmpfs_alloc_file(struct vnode *dvp, struct vnode **vpp, struct vattr *vap,
 	error = tmpfs_alloc_node(tmp, vap->va_type, cnp->cn_cred->cr_uid,
 	    dnode->tn_gid, vap->va_mode, parent, target, vap->va_rdev, &node);
 	if (error != 0)
-		goto out;
+		return (error);
 
 	/* Allocate a directory entry that points to the new file. */
 	error = tmpfs_alloc_dirent(tmp, node, cnp->cn_nameptr, cnp->cn_namelen,
 	    &de);
 	if (error != 0) {
 		tmpfs_free_node(tmp, node);
-		goto out;
+		return (error);
 	}
 
 	/* Allocate a vnode for the new file. */
@@ -705,7 +704,7 @@ tmpfs_alloc_file(struct vnode *dvp, struct vnode **vpp, struct vattr *vap,
 	if (error != 0) {
 		tmpfs_free_dirent(tmp, de);
 		tmpfs_free_node(tmp, node);
-		goto out;
+		return (error);
 	}
 
 	/* Now that all required items are allocated, we can proceed to
@@ -714,10 +713,7 @@ tmpfs_alloc_file(struct vnode *dvp, struct vnode **vpp, struct vattr *vap,
 	if (cnp->cn_flags & ISWHITEOUT)
 		tmpfs_dir_whiteout_remove(dvp, cnp);
 	tmpfs_dir_attach(dvp, de);
-
-out:
-
-	return error;
+	return (0);
 }
 
 static struct tmpfs_dirent *
