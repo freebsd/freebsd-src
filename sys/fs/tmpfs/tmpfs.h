@@ -35,9 +35,6 @@
 #ifndef _FS_TMPFS_TMPFS_H_
 #define _FS_TMPFS_TMPFS_H_
 
-/* ---------------------------------------------------------------------
- * KERNEL-SPECIFIC DEFINITIONS
- * --------------------------------------------------------------------- */
 #include <sys/dirent.h>
 #include <sys/mount.h>
 #include <sys/queue.h>
@@ -46,7 +43,6 @@
 #include <sys/lock.h>
 #include <sys/mutex.h>
 
-/* --------------------------------------------------------------------- */
 #include <sys/malloc.h>
 #include <sys/systm.h>
 #include <sys/tree.h>
@@ -55,8 +51,6 @@
 
 MALLOC_DECLARE(M_TMPFSMNT);
 MALLOC_DECLARE(M_TMPFSNAME);
-
-/* --------------------------------------------------------------------- */
 
 /*
  * Internal representation of a tmpfs directory entry.
@@ -136,8 +130,6 @@ RB_HEAD(tmpfs_dir, tmpfs_dirent);
 #define	TMPFS_DIRCOOKIE_DUP_MIN		TMPFS_DIRCOOKIE_DUP
 #define	TMPFS_DIRCOOKIE_DUP_MAX		\
 	(TMPFS_DIRCOOKIE_DUP | TMPFS_DIRCOOKIE_MASK)
-
-/* --------------------------------------------------------------------- */
 
 /*
  * Internal representation of a tmpfs file system node.
@@ -308,7 +300,6 @@ LIST_HEAD(tmpfs_node_list, tmpfs_node);
 #define TMPFS_VNODE_WANT	2
 #define TMPFS_VNODE_DOOMED	4
 #define	TMPFS_VNODE_WRECLAIM	8
-/* --------------------------------------------------------------------- */
 
 /*
  * Internal representation of a tmpfs mount point.
@@ -375,8 +366,6 @@ struct tmpfs_mount {
 #define TMPFS_LOCK(tm) mtx_lock(&(tm)->allnode_lock)
 #define TMPFS_UNLOCK(tm) mtx_unlock(&(tm)->allnode_lock)
 
-/* --------------------------------------------------------------------- */
-
 /*
  * This structure maps a file identifier to a tmpfs node.  Used by the
  * NFS code.
@@ -387,8 +376,6 @@ struct tmpfs_fid {
 	ino_t			tf_id;
 	unsigned long		tf_gen;
 };
-
-/* --------------------------------------------------------------------- */
 
 #ifdef _KERNEL
 /*
@@ -433,15 +420,11 @@ void	tmpfs_itimes(struct vnode *, const struct timespec *,
 void	tmpfs_update(struct vnode *);
 int	tmpfs_truncate(struct vnode *, off_t);
 
-/* --------------------------------------------------------------------- */
-
 /*
  * Convenience macros to simplify some logical expressions.
  */
 #define IMPLIES(a, b) (!(a) || (b))
 #define IFF(a, b) (IMPLIES(a, b) && IMPLIES(b, a))
-
-/* --------------------------------------------------------------------- */
 
 /*
  * Checks that the directory entry pointed by 'de' matches the name 'name'
@@ -451,8 +434,6 @@ int	tmpfs_truncate(struct vnode *, off_t);
     (de->td_namelen == len && \
     bcmp((de)->ud.td_name, (name), (de)->td_namelen) == 0)
 
-/* --------------------------------------------------------------------- */
-
 /*
  * Ensures that the node pointed by 'node' is a directory and that its
  * contents are consistent with respect to directories.
@@ -461,8 +442,6 @@ int	tmpfs_truncate(struct vnode *, off_t);
 	MPASS((node)->tn_type == VDIR); \
 	MPASS((node)->tn_size % sizeof(struct tmpfs_dirent) == 0); \
 } while (0)
-
-/* --------------------------------------------------------------------- */
 
 /*
  * Memory management stuff.
@@ -479,8 +458,6 @@ size_t tmpfs_mem_avail(void);
 size_t tmpfs_pages_used(struct tmpfs_mount *tmp);
 
 #endif
-
-/* --------------------------------------------------------------------- */
 
 /*
  * Macros/functions to convert from generic data structures to tmpfs

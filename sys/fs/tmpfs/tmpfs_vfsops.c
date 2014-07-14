@@ -68,16 +68,12 @@ __FBSDID("$FreeBSD$");
 MALLOC_DEFINE(M_TMPFSMNT, "tmpfs mount", "tmpfs mount structures");
 MALLOC_DEFINE(M_TMPFSNAME, "tmpfs name", "tmpfs file names");
 
-/* --------------------------------------------------------------------- */
-
 static int	tmpfs_mount(struct mount *);
 static int	tmpfs_unmount(struct mount *, int);
 static int	tmpfs_root(struct mount *, int flags, struct vnode **);
 static int	tmpfs_fhtovp(struct mount *, struct fid *, int,
 		    struct vnode **);
 static int	tmpfs_statfs(struct mount *, struct statfs *);
-
-/* --------------------------------------------------------------------- */
 
 static const char *tmpfs_opts[] = {
 	"from", "size", "maxfilesize", "inodes", "uid", "gid", "mode", "export",
@@ -87,8 +83,6 @@ static const char *tmpfs_opts[] = {
 static const char *tmpfs_updateopts[] = {
 	"from", "export", NULL
 };
-
-/* --------------------------------------------------------------------- */
 
 static int
 tmpfs_node_ctor(void *mem, int size, void *arg, int flags)
@@ -271,8 +265,6 @@ tmpfs_mount(struct mount *mp)
 	return 0;
 }
 
-/* --------------------------------------------------------------------- */
-
 /* ARGSUSED2 */
 static int
 tmpfs_unmount(struct mount *mp, int mntflags)
@@ -328,8 +320,6 @@ tmpfs_unmount(struct mount *mp, int mntflags)
 	return 0;
 }
 
-/* --------------------------------------------------------------------- */
-
 static int
 tmpfs_root(struct mount *mp, int flags, struct vnode **vpp)
 {
@@ -341,8 +331,6 @@ tmpfs_root(struct mount *mp, int flags, struct vnode **vpp)
 
 	return error;
 }
-
-/* --------------------------------------------------------------------- */
 
 static int
 tmpfs_fhtovp(struct mount *mp, struct fid *fhp, int flags,
@@ -380,8 +368,6 @@ tmpfs_fhtovp(struct mount *mp, struct fid *fhp, int flags,
 	return (EINVAL);
 }
 
-/* --------------------------------------------------------------------- */
-
 /* ARGSUSED2 */
 static int
 tmpfs_statfs(struct mount *mp, struct statfs *sbp)
@@ -414,8 +400,6 @@ tmpfs_statfs(struct mount *mp, struct statfs *sbp)
 
 	return 0;
 }
-
-/* --------------------------------------------------------------------- */
 
 /*
  * tmpfs vfs operations.
