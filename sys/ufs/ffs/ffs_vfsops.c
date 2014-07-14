@@ -255,31 +255,9 @@ ffs_mount(struct mount *mp)
 			 */
 			if ((error = vn_start_write(NULL, &mp, V_WAIT)) != 0)
 				return (error);
-			for (;;) {
-				vn_finished_write(mp);
-				if ((error = vfs_write_suspend(mp, 0)) != 0)
-					return (error);
-				MNT_ILOCK(mp);
-				if (mp->mnt_kern_flag & MNTK_SUSPENDED) {
-					/*
-					 * Allow the secondary writes
-					 * to proceed.
-					 */
-					mp->mnt_kern_flag &= ~(MNTK_SUSPENDED |
-					    MNTK_SUSPEND2);
-					wakeup(&mp->mnt_flag);
-					MNT_IUNLOCK(mp);
-					/*
-					 * Allow the curthread to
-					 * ignore the suspension to
-					 * synchronize on-disk state.
-					 */
-					td->td_pflags |= TDP_IGNSUSP;
-					break;
-				}
-				MNT_IUNLOCK(mp);
-				vn_start_write(NULL, &mp, V_WAIT);
-			}
+			error = vfs_write_suspend_umnt(mp);
+			if (error != 0)
+				return (error);
 			/*
 			 * Check for and optionally get rid of files open
 			 * for writing.
@@ -1250,25 +1228,9 @@ ffs_unmount(mp, mntflags)
 	}
 #endif
 	if (susp) {
-		/*
-		 * dounmount already called vn_start_write().
-		 */
-		for (;;) {
-			vn_finished_write(mp);
-			if ((error = vfs_write_suspend(mp, 0)) != 0)
-				return (error);
-			MNT_ILOCK(mp);
-			if (mp->mnt_kern_flag & MNTK_SUSPENDED) {
-				mp->mnt_kern_flag &= ~(MNTK_SUSPENDED |
-				    MNTK_SUSPEND2);
-				wakeup(&mp->mnt_flag);
-				MNT_IUNLOCK(mp);
-				td->td_pflags |= TDP_IGNSUSP;
-				break;
-			}
-			MNT_IUNLOCK(mp);
-			vn_start_write(NULL, &mp, V_WAIT);
-		}
+		error = vfs_write_suspend_umnt(mp);
+		if (error != 0)
+			goto fail1;
 	}
 	if (MOUNTEDSOFTDEP(mp))
 		error = softdep_flushfiles(mp, flags, td);
@@ -1331,6 +1293,7 @@ ffs_unmount(mp, mntflags)
 fail:
 	if (susp)
 		vfs_write_resume(mp, VR_START_WRITE);
+fail1:
 #ifdef UFS_EXTATTR
 	if (e_restart) {
 		ufs_extattr_uepm_init(&ump->um_extattr);
