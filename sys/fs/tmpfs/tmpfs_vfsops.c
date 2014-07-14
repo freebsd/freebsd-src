@@ -238,7 +238,7 @@ tmpfs_mount(struct mount *mp)
 	tmp->tm_ronly = (mp->mnt_flag & MNT_RDONLY) != 0;
 
 	/* Allocate the root node. */
-	error = tmpfs_alloc_node(tmp, VDIR, root_uid,
+	error = tmpfs_alloc_node(mp, tmp, VDIR, root_uid,
 	    root_gid, root_mode & ALLPERMS, NULL, NULL,
 	    VNOVAL, &root);
 
@@ -269,38 +269,49 @@ tmpfs_mount(struct mount *mp)
 static int
 tmpfs_unmount(struct mount *mp, int mntflags)
 {
-	int error;
-	int flags = 0;
 	struct tmpfs_mount *tmp;
 	struct tmpfs_node *node;
+	int error, flags;
 
-	/* Handle forced unmounts. */
-	if (mntflags & MNT_FORCE)
-		flags |= FORCECLOSE;
-
-	/* Finalize all pending I/O. */
-	error = vflush(mp, 0, flags, curthread);
-	if (error != 0)
-		return error;
-
+	flags = (mntflags & MNT_FORCE) != 0 ? FORCECLOSE : 0;
 	tmp = VFS_TO_TMPFS(mp);
 
-	/* Free all associated data.  The loop iterates over the linked list
-	 * we have containing all used nodes.  For each of them that is
-	 * a directory, we free all its directory entries.  Note that after
-	 * freeing a node, it will automatically go to the available list,
-	 * so we will later have to iterate over it to release its items. */
-	node = LIST_FIRST(&tmp->tm_nodes_used);
-	while (node != NULL) {
-		struct tmpfs_node *next;
+	/* Stop writers */
+	error = vfs_write_suspend_umnt(mp);
+	if (error != 0)
+		return (error);
+	/*
+	 * At this point, nodes cannot be destroyed by any other
+	 * thread because write suspension is started.
+	 */
 
+	for (;;) {
+		error = vflush(mp, 0, flags, curthread);
+		if (error != 0) {
+			vfs_write_resume(mp, VR_START_WRITE);
+			return (error);
+		}
+		MNT_ILOCK(mp);
+		if (mp->mnt_nvnodelistsize == 0) {
+			MNT_IUNLOCK(mp);
+			break;
+		}
+		MNT_IUNLOCK(mp);
+		if ((mntflags & MNT_FORCE) == 0) {
+			vfs_write_resume(mp, VR_START_WRITE);
+			return (EBUSY);
+		}
+	}
+
+	TMPFS_LOCK(tmp);
+	while ((node = LIST_FIRST(&tmp->tm_nodes_used)) != NULL) {
+		TMPFS_UNLOCK(tmp);
 		if (node->tn_type == VDIR)
 			tmpfs_dir_destroy(tmp, node);
-
-		next = LIST_NEXT(node, tn_entries);
 		tmpfs_free_node(tmp, node);
-		node = next;
+		TMPFS_LOCK(tmp);
 	}
+	TMPFS_UNLOCK(tmp);
 
 	uma_zdestroy(tmp->tm_dirent_pool);
 	uma_zdestroy(tmp->tm_node_pool);
@@ -313,11 +324,13 @@ tmpfs_unmount(struct mount *mp, int mntflags)
 	/* Throw away the tmpfs_mount structure. */
 	free(mp->mnt_data, M_TMPFSMNT);
 	mp->mnt_data = NULL;
+	vfs_write_resume(mp, VR_START_WRITE);
 
 	MNT_ILOCK(mp);
 	mp->mnt_flag &= ~MNT_LOCAL;
 	MNT_IUNLOCK(mp);
-	return 0;
+
+	return (0);
 }
 
 static int
@@ -401,6 +414,18 @@ tmpfs_statfs(struct mount *mp, struct statfs *sbp)
 	return 0;
 }
 
+static int
+tmpfs_sync(struct mount *mp, int waitfor)
+{
+
+	if (waitfor == MNT_SUSPEND) {
+		MNT_ILOCK(mp);
+		mp->mnt_kern_flag |= MNTK_SUSPEND2 | MNTK_SUSPENDED;
+		MNT_IUNLOCK(mp);
+	}
+	return (0);
+}
+
 /*
  * tmpfs vfs operations.
  */
@@ -411,5 +436,6 @@ struct vfsops tmpfs_vfsops = {
 	.vfs_root =			tmpfs_root,
 	.vfs_statfs =			tmpfs_statfs,
 	.vfs_fhtovp =			tmpfs_fhtovp,
+	.vfs_sync =			tmpfs_sync,
 };
 VFS_SET(tmpfs_vfsops, tmpfs, VFCF_JAIL);
