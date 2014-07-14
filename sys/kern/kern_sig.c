@@ -103,7 +103,6 @@ static int	coredump(struct thread *);
 static int	killpg1(struct thread *td, int sig, int pgid, int all,
 		    ksiginfo_t *ksi);
 static int	issignal(struct thread *td);
-static int	sigprop(int sig);
 static void	tdsigwakeup(struct thread *, int, sig_t, int);
 static void	sig_suspend_threads(struct thread *, struct proc *, int);
 static int	filt_sigattach(struct knote *kn);
@@ -180,18 +179,8 @@ SYSCTL_INT(_kern, OID_AUTO, nodump_coredump, CTLFLAG_RW, &set_core_nodump_flag,
 
 /*
  * Signal properties and actions.
- * The array below categorizes the signals and their default actions
- * according to the following properties:
+ * The array below categorizes the signals and their default actions.
  */
-#define	SIGPROP_KILL		0x01	/* terminates process by default */
-#define	SIGPROP_CORE		0x02	/* ditto and coredumps */
-#define	SIGPROP_STOP		0x04	/* suspend process */
-#define	SIGPROP_TTYSTOP		0x08	/* ditto, from tty */
-#define	SIGPROP_IGNORE		0x10	/* ignore by default */
-#define	SIGPROP_CONT		0x20	/* continue if suspended */
-#define	SIGPROP_CANTMASK	0x40	/* non-maskable, catchable */
-#define	SIGPROP_SBUNWIND	0x80	/* sandbox unwind if not caught */
-
 static int sigproptbl[NSIG] = {
 	SIGPROP_KILL,					/* SIGHUP */
 	SIGPROP_KILL,					/* SIGINT */
@@ -605,7 +594,7 @@ sigonstack(size_t sp)
 	    : 0);
 }
 
-static __inline int
+int
 sigprop(int sig)
 {
 

@@ -323,6 +323,16 @@ extern struct mtx	sigio_lock;
 #define	SIGPROCMASK_PROC_LOCKED	0x0002
 #define	SIGPROCMASK_PS_LOCKED	0x0004
 
+/* Signal properties returned by sigprop(). */
+#define	SIGPROP_KILL		0x01	/* terminates process by default */
+#define	SIGPROP_CORE		0x02	/* ditto and coredumps */
+#define	SIGPROP_STOP		0x04	/* suspend process */
+#define	SIGPROP_TTYSTOP		0x08	/* ditto, from tty */
+#define	SIGPROP_IGNORE		0x10	/* ignore by default */
+#define	SIGPROP_CONT		0x20	/* continue if suspended */
+#define	SIGPROP_CANTMASK	0x40	/* non-maskable, catchable */
+#define	SIGPROP_SBUNWIND	0x80	/* sandbox unwind if not caught */
+
 int	cursig(struct thread *td);
 int	sigdeferstop(void);
 void	sigallowstop(void);
@@ -348,6 +358,7 @@ int	sigev_findtd(struct proc *p, struct sigevent *sigev, struct thread **);
 int	sig_ffs(sigset_t *set);
 void	siginit(struct proc *p);
 void	signotify(struct thread *td);
+int	sigprop(int sig);
 void	sigqueue_delete(struct sigqueue *queue, int sig);
 void	sigqueue_delete_proc(struct proc *p, int sig);
 void	sigqueue_flush(struct sigqueue *queue);
