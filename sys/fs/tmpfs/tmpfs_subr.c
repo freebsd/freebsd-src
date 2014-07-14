@@ -633,7 +633,7 @@ tmpfs_free_vp(struct vnode *vp)
 
 	node = VP_TO_TMPFS_NODE(vp);
 
-	mtx_assert(TMPFS_NODE_MTX(node), MA_OWNED);
+	TMPFS_NODE_ASSERT_LOCKED(node);
 	node->tn_vnode = NULL;
 	if ((node->tn_vpstate & TMPFS_VNODE_WRECLAIM) != 0)
 		wakeup(&node->tn_vnode);
