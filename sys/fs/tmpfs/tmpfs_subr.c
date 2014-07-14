@@ -428,6 +428,7 @@ void
 tmpfs_destroy_vobject(struct vnode *vp, vm_object_t obj)
 {
 
+	ASSERT_VOP_ELOCKED(vp, "tmpfs_destroy_vobject");
 	if (vp->v_type != VREG || obj == NULL)
 		return;
 
