@@ -26,7 +26,7 @@
  */
 
 #ifndef EXT_H
-#define EXT_H
+#define	EXT_H
 
 #include <sys/types.h>
 
@@ -69,8 +69,8 @@ int checkfilesys(const char *);
 #define	FSFATMOD	4		/* The FAT was modified */
 #define	FSERROR		8		/* Some unrecovered error remains */
 #define	FSFATAL		16		/* Some unrecoverable error occurred */
-#define FSDIRTY		32		/* File system is dirty */
-#define FSFIXFAT	64		/* Fix file system FAT */
+#define	FSDIRTY		32		/* File system is dirty */
+#define	FSFIXFAT	64		/* Fix file system FAT */
 
 /*
  * read a boot block in a machine independent fashion and translate
