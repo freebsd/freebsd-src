@@ -2752,16 +2752,6 @@ pmap_change_attr(vm_offset_t sva, vm_size_t len, int mode)
 	offset = sva & PAGE_MASK;
 	size = roundup(offset + len, PAGE_SIZE);
 
-#ifdef checkit
-	/*
-	 * Only supported on kernel virtual addresses, including the direct
-	 * map but excluding the recursive map.
-	 */
-	if (base < DMAP_MIN_ADDRESS) {
-		PMAP_UNLOCK(kernel_pmap);
-		return (EINVAL);
-	}
-#endif
 	for (tmpva = base; tmpva < base + size; ) {
 		next_bucket = L2_NEXT_BUCKET(tmpva);
 		if (next_bucket > base + size)
