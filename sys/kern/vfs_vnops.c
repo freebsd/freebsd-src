@@ -1953,12 +1953,30 @@ vn_extattr_rm(struct vnode *vp, int ioflg, int attrnamespace,
 	return (error);
 }
 
+static int
+vn_get_ino_alloc_vget(struct mount *mp, void *arg, int lkflags,
+    struct vnode **rvp)
+{
+
+	return (VFS_VGET(mp, *(ino_t *)arg, lkflags, rvp));
+}
+
 int
 vn_vget_ino(struct vnode *vp, ino_t ino, int lkflags, struct vnode **rvp)
+{
+
+	return (vn_vget_ino_gen(vp, vn_get_ino_alloc_vget, &ino,
+	    lkflags, rvp));
+}
+
+int
+vn_vget_ino_gen(struct vnode *vp, vn_get_ino_t alloc, void *alloc_arg,
+    int lkflags, struct vnode **rvp)
 {
 	struct mount *mp;
 	int ltype, error;
 
+	ASSERT_VOP_LOCKED(vp, "vn_vget_ino_get");
 	mp = vp->v_mount;
 	ltype = VOP_ISLOCKED(vp);
 	KASSERT(ltype == LK_EXCLUSIVE || ltype == LK_SHARED,
@@ -1978,12 +1996,17 @@ vn_vget_ino(struct vnode *vp, ino_t ino, int lkflags, struct vnode **rvp)
 		}
 	}
 	VOP_UNLOCK(vp, 0);
-	error = VFS_VGET(mp, ino, lkflags, rvp);
+	error = alloc(mp, alloc_arg, lkflags, rvp);
 	vfs_unbusy(mp);
-	vn_lock(vp, ltype | LK_RETRY);
+	if (*rvp != vp)
+		vn_lock(vp, ltype | LK_RETRY);
 	if (vp->v_iflag & VI_DOOMED) {
-		if (error == 0)
-			vput(*rvp);
+		if (error == 0) {
+			if (*rvp == vp)
+				vunref(vp);
+			else
+				vput(*rvp);
+		}
 		error = ENOENT;
 	}
 	return (error);
