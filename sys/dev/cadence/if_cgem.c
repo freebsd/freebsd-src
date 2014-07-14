@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2012-2013 Thomas Skibo
+ * Copyright (c) 2012-2014 Thomas Skibo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -108,6 +108,7 @@ struct cgem_softc {
 	void			*intrhand;
 	struct callout		tick_ch;
 	uint32_t		net_ctl_shadow;
+	int			ref_clk_num;
 	u_char			eaddr[6];
 
 	bus_dma_tag_t		desc_dma_tag;
@@ -148,6 +149,9 @@ struct cgem_softc {
 		 MTX_NETWORK_LOCK, MTX_DEF)
 #define CGEM_LOCK_DESTROY(sc)	mtx_destroy(&(sc)->sc_mtx)
 #define CGEM_ASSERT_LOCKED(sc)	mtx_assert(&(sc)->sc_mtx, MA_OWNED)
+
+/* Allow platforms to optionally provide a way to set the reference clock. */
+int cgem_set_ref_clk(int unit, int frequency);
 
 static devclass_t cgem_devclass;
 
@@ -707,47 +711,18 @@ cgem_start(struct ifnet *ifp)
 	CGEM_UNLOCK(sc);
 }
 
-/* Respond to changes in media. */
-static void
-cgem_media_update(struct cgem_softc *sc, int active)
-{
-	uint32_t net_cfg;
-
-	CGEM_ASSERT_LOCKED(sc);
-
-	/* Update hardware to reflect phy status. */
-	net_cfg = RD4(sc, CGEM_NET_CFG);
-	net_cfg &= ~(CGEM_NET_CFG_SPEED100 | CGEM_NET_CFG_GIGE_EN |
-		     CGEM_NET_CFG_FULL_DUPLEX);
-
-	if (IFM_SUBTYPE(active) == IFM_1000_T)
-		net_cfg |= (CGEM_NET_CFG_SPEED100 | CGEM_NET_CFG_GIGE_EN);
-	else if (IFM_SUBTYPE(active) == IFM_100_TX)
-		net_cfg |= CGEM_NET_CFG_SPEED100;
-
-	if ((active & IFM_FDX) != 0)
-		net_cfg |= CGEM_NET_CFG_FULL_DUPLEX;
-	WR4(sc, CGEM_NET_CFG, net_cfg);
-}
-
 static void
 cgem_tick(void *arg)
 {
 	struct cgem_softc *sc = (struct cgem_softc *)arg;
 	struct mii_data *mii;
-	int active;
 
 	CGEM_ASSERT_LOCKED(sc);
 
 	/* Poll the phy. */
 	if (sc->miibus != NULL) {
 		mii = device_get_softc(sc->miibus);
-		active = mii->mii_media_active;
 		mii_tick(mii);
-		if ((mii->mii_media_status & (IFM_ACTIVE | IFM_AVALID)) ==
-		    (IFM_ACTIVE | IFM_AVALID) &&
-		    active != mii->mii_media_active)
-			cgem_media_update(sc, mii->mii_media_active);
 	}
 
 	/* Next callout in one second. */
@@ -894,7 +869,6 @@ cgem_init_locked(struct cgem_softc *sc)
 
 	mii = device_get_softc(sc->miibus);
 	mii_pollstat(mii);
-	cgem_media_update(sc, mii->mii_media_active);
 	cgem_start_locked(sc->ifp);
 
 	callout_reset(&sc->tick_ch, hz, cgem_tick, sc);
@@ -1073,12 +1047,13 @@ cgem_ifmedia_upd(struct ifnet *ifp)
 {
 	struct cgem_softc *sc = (struct cgem_softc *) ifp->if_softc;
 	struct mii_data *mii;
+	int error;
 
 	mii = device_get_softc(sc->miibus);
 	CGEM_LOCK(sc);
-	mii_mediachg(mii);
+	error = mii_mediachg(mii);
 	CGEM_UNLOCK(sc);
-	return (0);
+	return (error);
 }
 
 static void
@@ -1148,6 +1123,60 @@ cgem_miibus_writereg(device_t dev, int phy, int reg, int data)
 	return (0);
 }
 
+/*
+ * Overridable weak symbol cgem_set_ref_clk().  This allows platforms to
+ * provide a function to set the cgem's reference clock.
+ */
+static int __used
+cgem_default_set_ref_clk(int unit, int frequency)
+{
+
+	return 0;
+}
+__weak_reference(cgem_default_set_ref_clk, cgem_set_ref_clk);
+
+static void
+cgem_miibus_statchg(device_t dev)
+{
+	struct cgem_softc *sc;
+	struct mii_data *mii;
+	uint32_t net_cfg;
+	int ref_clk_freq;
+
+	sc  = device_get_softc(dev);
+
+	mii = device_get_softc(sc->miibus);
+
+	if ((mii->mii_media_status & IFM_AVALID) != 0) {
+		/* Update hardware to reflect phy status. */
+		net_cfg = RD4(sc, CGEM_NET_CFG);
+		net_cfg &= ~(CGEM_NET_CFG_SPEED100 | CGEM_NET_CFG_GIGE_EN |
+			     CGEM_NET_CFG_FULL_DUPLEX);
+
+		switch (IFM_SUBTYPE(mii->mii_media_active)) {
+		case IFM_1000_T:
+			net_cfg |= (CGEM_NET_CFG_SPEED100 |
+				    CGEM_NET_CFG_GIGE_EN);
+			ref_clk_freq = 125000000;
+			break;
+		case IFM_100_TX:
+			net_cfg |= CGEM_NET_CFG_SPEED100;
+			ref_clk_freq = 25000000;
+			break;
+		default:
+			ref_clk_freq = 2500000;
+		}
+
+		if ((mii->mii_media_active & IFM_FDX) != 0)
+			net_cfg |= CGEM_NET_CFG_FULL_DUPLEX;
+		WR4(sc, CGEM_NET_CFG, net_cfg);
+
+		/* Set the reference clock if necessary. */
+		if (cgem_set_ref_clk(sc->ref_clk_num, ref_clk_freq))
+			device_printf(dev, "could not set ref clk%d to %d.\n",
+				      sc->ref_clk_num, ref_clk_freq);
+	}
+}
 
 static int
 cgem_probe(device_t dev)
@@ -1165,11 +1194,19 @@ cgem_attach(device_t dev)
 {
 	struct cgem_softc *sc = device_get_softc(dev);
 	struct ifnet *ifp = NULL;
+	phandle_t node;
+	pcell_t cell;
 	int rid, err;
 	u_char eaddr[ETHER_ADDR_LEN];
 
 	sc->dev = dev;
 	CGEM_LOCK_INIT(sc);
+
+	/* Get reference clock number and base divider from fdt. */
+	node = ofw_bus_get_node(dev);
+	sc->ref_clk_num = 0;
+	if (OF_getprop(node, "ref-clock-num", &cell, sizeof(cell)) > 0)
+		sc->ref_clk_num = fdt32_to_cpu(cell);
 
 	/* Get memory resource. */
 	rid = 0;
@@ -1372,6 +1409,7 @@ static device_method_t cgem_methods[] = {
 	/* MII interface */
 	DEVMETHOD(miibus_readreg,	cgem_miibus_readreg),
 	DEVMETHOD(miibus_writereg,	cgem_miibus_writereg),
+	DEVMETHOD(miibus_statchg,	cgem_miibus_statchg),
 
 	DEVMETHOD_END
 };
