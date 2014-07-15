@@ -409,6 +409,8 @@ static int ctl_target_reset(struct ctl_softc *ctl_softc, union ctl_io *io,
 static int ctl_lun_reset(struct ctl_lun *lun, union ctl_io *io,
 			 ctl_ua_type ua_type);
 static int ctl_abort_task(union ctl_io *io);
+static int ctl_abort_task_set(union ctl_io *io);
+static int ctl_i_t_nexus_reset(union ctl_io *io);
 static void ctl_run_task(union ctl_io *io);
 #ifdef CTL_IO_DELAY
 static void ctl_datamove_timer_wakeup(void *arg);
@@ -7484,7 +7486,8 @@ ctl_report_supported_tmf(struct ctl_scsiio *ctsio)
 	ctsio->kern_rel_offset = 0;
 
 	data = (struct scsi_report_supported_tmf_data *)ctsio->kern_data_ptr;
-	data->byte1 |= RST_ATS | RST_LURS | RST_TRS;
+	data->byte1 |= RST_ATS | RST_ATSS | RST_LURS | RST_TRS;
+	data->byte2 |= RST_ITNRS;
 
 	ctsio->io_hdr.flags |= CTL_FLAG_ALLOCATED;
 	ctsio->be_move_done = ctl_config_move_done;
@@ -11675,6 +11678,97 @@ ctl_lun_reset(struct ctl_lun *lun, union ctl_io *io, ctl_ua_type ua_type)
 }
 
 static int
+ctl_abort_tasks_lun(struct ctl_lun *lun, uint32_t targ_port, uint32_t init_id,
+    int other_sc)
+{
+	union ctl_io *xio;
+	int found;
+
+	mtx_assert(&lun->lun_lock, MA_OWNED);
+
+	/*
+	 * Run through the OOA queue and attempt to find the given I/O.
+	 * The target port, initiator ID, tag type and tag number have to
+	 * match the values that we got from the initiator.  If we have an
+	 * untagged command to abort, simply abort the first untagged command
+	 * we come to.  We only allow one untagged command at a time of course.
+	 */
+	for (xio = (union ctl_io *)TAILQ_FIRST(&lun->ooa_queue); xio != NULL;
+	     xio = (union ctl_io *)TAILQ_NEXT(&xio->io_hdr, ooa_links)) {
+
+		if ((targ_port == xio->io_hdr.nexus.targ_port) &&
+		    (init_id == xio->io_hdr.nexus.initid.id)) {
+			xio->io_hdr.flags |= CTL_FLAG_ABORT;
+			found = 1;
+			if (!other_sc && !(lun->flags & CTL_LUN_PRIMARY_SC)) {
+				union ctl_ha_msg msg_info;
+
+				msg_info.hdr.nexus = xio->io_hdr.nexus;
+				msg_info.task.task_action = CTL_TASK_ABORT_TASK;
+				msg_info.task.tag_num = xio->scsiio.tag_num;
+				msg_info.task.tag_type = xio->scsiio.tag_type;
+				msg_info.hdr.msg_type = CTL_MSG_MANAGE_TASKS;
+				msg_info.hdr.original_sc = NULL;
+				msg_info.hdr.serializing_sc = NULL;
+				ctl_ha_msg_send(CTL_HA_CHAN_CTL,
+				    (void *)&msg_info, sizeof(msg_info), 0);
+			}
+		}
+	}
+	return (found);
+}
+
+static int
+ctl_abort_task_set(union ctl_io *io)
+{
+	struct ctl_softc *softc = control_softc;
+	struct ctl_lun *lun;
+	uint32_t targ_lun;
+
+	/*
+	 * Look up the LUN.
+	 */
+	targ_lun = io->io_hdr.nexus.targ_mapped_lun;
+	mtx_lock(&softc->ctl_lock);
+	if ((targ_lun < CTL_MAX_LUNS) && (softc->ctl_luns[targ_lun] != NULL))
+		lun = softc->ctl_luns[targ_lun];
+	else {
+		mtx_unlock(&softc->ctl_lock);
+		return (1);
+	}
+
+	mtx_lock(&lun->lun_lock);
+	mtx_unlock(&softc->ctl_lock);
+	ctl_abort_tasks_lun(lun, io->io_hdr.nexus.targ_port,
+	    io->io_hdr.nexus.initid.id,
+	    (io->io_hdr.flags & CTL_FLAG_FROM_OTHER_SC) != 0);
+	mtx_unlock(&lun->lun_lock);
+	return (0);
+}
+
+static int
+ctl_i_t_nexus_reset(union ctl_io *io)
+{
+	struct ctl_softc *softc = control_softc;
+	struct ctl_lun *lun;
+	uint32_t initindex;
+
+	initindex = ctl_get_initindex(&io->io_hdr.nexus);
+	mtx_lock(&softc->ctl_lock);
+	STAILQ_FOREACH(lun, &softc->lun_list, links) {
+		mtx_lock(&lun->lun_lock);
+		ctl_abort_tasks_lun(lun, io->io_hdr.nexus.targ_port,
+		    io->io_hdr.nexus.initid.id,
+		    (io->io_hdr.flags & CTL_FLAG_FROM_OTHER_SC) != 0);
+		ctl_clear_mask(lun->have_ca, initindex);
+		lun->pending_sense[initindex].ua_pending |= CTL_UA_I_T_NEXUS_LOSS;
+		mtx_unlock(&lun->lun_lock);
+	}
+	mtx_unlock(&softc->ctl_lock);
+	return (0);
+}
+
+static int
 ctl_abort_task(union ctl_io *io)
 {
 	union ctl_io *xio;
@@ -11873,10 +11967,14 @@ ctl_run_task(union ctl_io *io)
 		retval = ctl_abort_task(io);
 		break;
 	case CTL_TASK_ABORT_TASK_SET:
+		retval = ctl_abort_task_set(io);
 		break;
 	case CTL_TASK_CLEAR_ACA:
 		break;
 	case CTL_TASK_CLEAR_TASK_SET:
+		break;
+	case CTL_TASK_I_T_NEXUS_RESET:
+		retval = ctl_i_t_nexus_reset(io);
 		break;
 	case CTL_TASK_LUN_RESET: {
 		struct ctl_lun *lun;
