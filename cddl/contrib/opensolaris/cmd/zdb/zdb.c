@@ -75,9 +75,9 @@
 	DMU_OT_ZAP_OTHER : DMU_OT_NUMTYPES))
 
 #ifndef lint
-extern int zfs_recover;
+extern boolean_t zfs_recover;
 #else
-int zfs_recover;
+boolean_t zfs_recover;
 #endif
 
 const char cmdname[] = "zdb";
