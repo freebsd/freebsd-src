@@ -2133,6 +2133,66 @@ sysctl_kern_proc_ovmmap(SYSCTL_HANDLER_ARGS)
 CTASSERT(sizeof(struct kinfo_vmentry) == KINFO_VMENTRY_SIZE);
 #endif
 
+static void
+kern_proc_vmmap_resident(vm_map_t map, vm_map_entry_t entry,
+    struct kinfo_vmentry *kve)
+{
+	vm_object_t obj, tobj;
+	vm_page_t m, m_adv;
+	vm_offset_t addr;
+	vm_paddr_t locked_pa;
+	vm_pindex_t pi, pi_adv, pindex;
+
+	locked_pa = 0;
+	obj = entry->object.vm_object;
+	addr = entry->start;
+	m_adv = NULL;
+	pi = OFF_TO_IDX(entry->offset + addr - entry->start);
+	for (; addr < entry->end; addr += IDX_TO_OFF(pi_adv), pi += pi_adv) {
+		if (m_adv != NULL) {
+			m = m_adv;
+		} else {
+			pi_adv = OFF_TO_IDX(entry->end - addr);
+			pindex = pi;
+			for (tobj = obj;; tobj = tobj->backing_object) {
+				m = vm_page_find_least(tobj, pindex);
+				if (m != NULL) {
+					if (m->pindex == pindex)
+						break;
+					if (pi_adv > m->pindex - pindex) {
+						pi_adv = m->pindex - pindex;
+						m_adv = m;
+					}
+				}
+				if (tobj->backing_object == NULL)
+					goto next;
+				pindex += OFF_TO_IDX(tobj->
+				    backing_object_offset);
+			}
+		}
+		m_adv = NULL;
+		if (m->psind != 0 && addr + pagesizes[1] <= entry->end &&
+		    (addr & (pagesizes[1] - 1)) == 0 &&
+		    (pmap_mincore(map->pmap, addr, &locked_pa) &
+		    MINCORE_SUPER) != 0) {
+			kve->kve_flags |= KVME_FLAG_SUPER;
+			pi_adv = OFF_TO_IDX(pagesizes[1]);
+		} else {
+			/*
+			 * We do not test the found page on validity.
+			 * Either the page is busy and being paged in,
+			 * or it was invalidated.  The first case
+			 * should be counted as resident, the second
+			 * is not so clear; we do account both.
+			 */
+			pi_adv = 1;
+		}
+		kve->kve_resident += pi_adv;
+next:;
+	}
+	PA_UNLOCK_COND(locked_pa);
+}
+
 /*
  * Must be called with the process locked and will return unlocked.
  */
@@ -2142,14 +2202,12 @@ kern_proc_vmmap_out(struct proc *p, struct sbuf *sb)
 	vm_map_entry_t entry, tmp_entry;
 	struct vattr va;
 	vm_map_t map;
-	vm_page_t m;
 	vm_object_t obj, tobj, lobj;
 	char *fullpath, *freepath;
 	struct kinfo_vmentry *kve;
 	struct ucred *cred;
 	struct vnode *vp;
 	struct vmspace *vm;
-	vm_pindex_t pindex;
 	vm_offset_t addr;
 	unsigned int last_timestamp;
 	int error;
@@ -2185,32 +2243,8 @@ kern_proc_vmmap_out(struct proc *p, struct sbuf *sb)
 			if (obj->backing_object == NULL)
 				kve->kve_private_resident =
 				    obj->resident_page_count;
-			if (vmmap_skip_res_cnt)
-				goto skip_resident_count;
-			for (addr = entry->start; addr < entry->end;
-			    addr += PAGE_SIZE) {
-				pindex = OFF_TO_IDX(entry->offset + addr -
-				    entry->start);
-				for (tobj = obj;;) {
-					m = vm_page_lookup(tobj, pindex);
-					if (m != NULL)
-						break;
-					if (tobj->backing_object == NULL)
-						break;
-					pindex += OFF_TO_IDX(
-					    tobj->backing_object_offset);
-					tobj = tobj->backing_object;
-				}
-				if (m != NULL) {
-					if (m->psind != 0 && addr +
-					    pagesizes[1] <= entry->end) {
-						kve->kve_flags |=
-						    KVME_FLAG_SUPER;
-					}
-					kve->kve_resident += 1;
-				}
-			}
-skip_resident_count:
+			if (!vmmap_skip_res_cnt)
+				kern_proc_vmmap_resident(map, entry, kve);
 			for (tobj = obj; tobj != NULL;
 			    tobj = tobj->backing_object) {
 				if (tobj != obj && tobj != lobj)
