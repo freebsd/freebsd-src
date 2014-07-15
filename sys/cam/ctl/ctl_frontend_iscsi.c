@@ -1091,7 +1091,8 @@ cfiscsi_session_terminate_tasks(struct cfiscsi_session *cs)
 			break;
 		CFISCSI_SESSION_WARN(cs, "waiting for CTL to terminate tasks, "
 		    "%d remaining", cs->cs_outstanding_ctl_pdus);
-		pause("cfiscsi_terminate", hz / 100);
+		tsleep(__DEVOLATILE(void *, &cs->cs_outstanding_ctl_pdus),
+		    0, "cfiscsi_terminate", hz / 100);
 	}
 }
 
@@ -1408,7 +1409,7 @@ static void
 cfiscsi_ioctl_handoff(struct ctl_iscsi *ci)
 {
 	struct cfiscsi_softc *softc;
-	struct cfiscsi_session *cs;
+	struct cfiscsi_session *cs, *cs2;
 	struct cfiscsi_target *ct;
 	struct ctl_iscsi_handoff_params *cihp;
 	int error;
@@ -1504,12 +1505,36 @@ cfiscsi_ioctl_handoff(struct ctl_iscsi *ci)
 	    cihp->initiator_isid[2], cihp->initiator_isid[3],
 	    cihp->initiator_isid[4], cihp->initiator_isid[5]);
 
+	refcount_acquire(&cs->cs_outstanding_ctl_pdus);
+restart:
+	if (!cs->cs_terminating) {
+		mtx_lock(&softc->lock);
+		TAILQ_FOREACH(cs2, &softc->sessions, cs_next) {
+			if (cs2 != cs && cs2->cs_tasks_aborted == false &&
+			    cs->cs_target == cs2->cs_target &&
+			    cs->cs_portal_group_tag == cs2->cs_portal_group_tag &&
+			    strcmp(cs->cs_initiator_id, cs2->cs_initiator_id) == 0) {
+				cfiscsi_session_terminate(cs2);
+				mtx_unlock(&softc->lock);
+				pause("cfiscsi_reinstate", 1);
+				goto restart;
+			}
+		}
+		mtx_unlock(&softc->lock);
+	}
+
+	/*
+	 * Register initiator with CTL.
+	 */
+	cfiscsi_session_register_initiator(cs);
+
 #ifdef ICL_KERNEL_PROXY
 	if (cihp->socket > 0) {
 #endif
 		error = icl_conn_handoff(cs->cs_conn, cihp->socket);
 		if (error != 0) {
-			cfiscsi_session_delete(cs);
+			cfiscsi_session_terminate(cs);
+			refcount_release(&cs->cs_outstanding_ctl_pdus);
 			ci->status = CTL_ISCSI_ERROR;
 			snprintf(ci->error_str, sizeof(ci->error_str),
 			    "%s: icl_conn_handoff failed with error %d",
@@ -1519,11 +1544,6 @@ cfiscsi_ioctl_handoff(struct ctl_iscsi *ci)
 #ifdef ICL_KERNEL_PROXY
 	}
 #endif
-
-	/*
-	 * Register initiator with CTL.
-	 */
-	cfiscsi_session_register_initiator(cs);
 
 #ifdef ICL_KERNEL_PROXY
 	cs->cs_login_phase = false;
@@ -1539,6 +1559,7 @@ cfiscsi_ioctl_handoff(struct ctl_iscsi *ci)
 	}
 #endif
 
+	refcount_release(&cs->cs_outstanding_ctl_pdus);
 	ci->status = CTL_ISCSI_OK;
 }
 
@@ -2847,7 +2868,9 @@ cfiscsi_done(union ctl_io *io)
 		 * Implicit task termination has just completed; nothing to do.
 		 */
 		cs = io->io_hdr.ctl_private[CTL_PRIV_FRONTEND].ptr;
+		cs->cs_tasks_aborted = true;
 		refcount_release(&cs->cs_outstanding_ctl_pdus);
+		wakeup(__DEVOLATILE(void *, &cs->cs_outstanding_ctl_pdus));
 		ctl_free_io(io);
 		return;
 	}
