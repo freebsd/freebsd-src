@@ -51,6 +51,8 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_pager.h>
 #include <vm/vm_param.h>
 
+#include <machine/intr_machdep.h>
+#include <x86/apicvar.h>
 #include <x86/init.h>
 #include <machine/pc/bios.h>
 #include <machine/smp.h>
