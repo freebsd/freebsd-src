@@ -10,7 +10,7 @@ divert(-1)
 #
 
 divert(0)
-VERSIONID(`$Id: preserve_luser_host.m4,v 1.4 2013/11/22 20:51:11 ca Exp $')
+VERSIONID(`$Id: preserve_luser_host.m4,v 1.4 2013-11-22 20:51:11 ca Exp $')
 divert(-1)
 
 ifdef(`LUSER_RELAY', `',

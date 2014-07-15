@@ -96,9 +96,7 @@ extern void sctp_addr_change(struct ifaddr *ifa, int cmd);
 
 /* This is read-only.. */
 u_int rt_numfibs = RT_NUMFIBS;
-SYSCTL_UINT(_net, OID_AUTO, fibs, CTLFLAG_RD, &rt_numfibs, 0, "");
-/* and this can be set too big but will be fixed before it is used */
-TUNABLE_INT("net.fibs", &rt_numfibs);
+SYSCTL_UINT(_net, OID_AUTO, fibs, CTLFLAG_RDTUN, &rt_numfibs, 0, "");
 
 /*
  * By default add routes to all fibs for new interfaces.
@@ -111,9 +109,8 @@ TUNABLE_INT("net.fibs", &rt_numfibs);
  * from the network stack context.
  */
 u_int rt_add_addr_allfibs = 1;
-SYSCTL_UINT(_net, OID_AUTO, add_addr_allfibs, CTLFLAG_RW,
+SYSCTL_UINT(_net, OID_AUTO, add_addr_allfibs, CTLFLAG_RWTUN,
     &rt_add_addr_allfibs, 0, "");
-TUNABLE_INT("net.add_addr_allfibs", &rt_add_addr_allfibs);
 
 VNET_DEFINE(struct rtstat, rtstat);
 #define	V_rtstat	VNET(rtstat)
@@ -573,7 +570,7 @@ rtredirect_fib(struct sockaddr *dst,
 	}
 
 	/* verify the gateway is directly reachable */
-	if ((ifa = ifa_ifwithnet(gateway, 0, fibnum)) == NULL) {
+	if ((ifa = ifa_ifwithnet_fib(gateway, 0, fibnum)) == NULL) {
 		error = ENETUNREACH;
 		goto out;
 	}
@@ -730,7 +727,7 @@ ifa_ifwithroute_fib(int flags, struct sockaddr *dst, struct sockaddr *gateway,
 		 */
 		ifa = NULL;
 		if (flags & RTF_HOST)
-			ifa = ifa_ifwithdstaddr(dst, fibnum);
+			ifa = ifa_ifwithdstaddr_fib(dst, fibnum);
 		if (ifa == NULL)
 			ifa = ifa_ifwithaddr(gateway);
 	} else {
@@ -739,10 +736,10 @@ ifa_ifwithroute_fib(int flags, struct sockaddr *dst, struct sockaddr *gateway,
 		 * or host, the gateway may still be on the
 		 * other end of a pt to pt link.
 		 */
-		ifa = ifa_ifwithdstaddr(gateway, fibnum);
+		ifa = ifa_ifwithdstaddr_fib(gateway, fibnum);
 	}
 	if (ifa == NULL)
-		ifa = ifa_ifwithnet(gateway, 0, fibnum);
+		ifa = ifa_ifwithnet_fib(gateway, 0, fibnum);
 	if (ifa == NULL) {
 		struct rtentry *rt = rtalloc1_fib(gateway, 0, RTF_RNH_LOCKED, fibnum);
 		if (rt == NULL)
@@ -856,7 +853,7 @@ rt_getifa_fib(struct rt_addrinfo *info, u_int fibnum)
 	 */
 	if (info->rti_ifp == NULL && ifpaddr != NULL &&
 	    ifpaddr->sa_family == AF_LINK &&
-	    (ifa = ifa_ifwithnet(ifpaddr, 0, fibnum)) != NULL) {
+	    (ifa = ifa_ifwithnet_fib(ifpaddr, 0, fibnum)) != NULL) {
 		info->rti_ifp = ifa->ifa_ifp;
 		ifa_free(ifa);
 	}

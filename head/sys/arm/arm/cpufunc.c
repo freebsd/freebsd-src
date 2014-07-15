@@ -150,6 +150,7 @@ struct cpu_functions arm9_cpufuncs = {
 	(void *)cpufunc_nullop,		/* l2cache_wbinv_range	*/
 	(void *)cpufunc_nullop,		/* l2cache_inv_range	*/
 	(void *)cpufunc_nullop,		/* l2cache_wb_range	*/
+	(void *)cpufunc_nullop,         /* l2cache_drain_writebuf */
 
 	/* Other functions */
 
@@ -214,6 +215,7 @@ struct cpu_functions armv5_ec_cpufuncs = {
 	(void *)cpufunc_nullop,         /* l2cache_wbinv_range  */
       	(void *)cpufunc_nullop,         /* l2cache_inv_range    */
 	(void *)cpufunc_nullop,         /* l2cache_wb_range     */
+	(void *)cpufunc_nullop,         /* l2cache_drain_writebuf */
 
 	/* Other functions */
 
@@ -276,6 +278,7 @@ struct cpu_functions sheeva_cpufuncs = {
 	sheeva_l2cache_wbinv_range,	/* l2cache_wbinv_range  */
 	sheeva_l2cache_inv_range,	/* l2cache_inv_range    */
 	sheeva_l2cache_wb_range,	/* l2cache_wb_range     */
+	(void *)cpufunc_nullop,         /* l2cache_drain_writebuf */
 
 	/* Other functions */
 
@@ -338,6 +341,7 @@ struct cpu_functions arm10_cpufuncs = {
 	(void *)cpufunc_nullop,		/* l2cache_wbinv_range	*/
 	(void *)cpufunc_nullop,		/* l2cache_inv_range	*/
 	(void *)cpufunc_nullop,		/* l2cache_wb_range	*/
+	(void *)cpufunc_nullop,         /* l2cache_drain_writebuf */
 
 	/* Other functions */
 
@@ -365,13 +369,13 @@ struct cpu_functions pj4bv7_cpufuncs = {
 	/* CPU functions */
 
 	cpufunc_id,			/* id			*/
-	arm11_drain_writebuf,		/* cpwait		*/
+	armv7_drain_writebuf,		/* cpwait		*/
 
 	/* MMU functions */
 
 	cpufunc_control,		/* control		*/
 	cpufunc_domains,		/* Domain		*/
-	pj4b_setttb,			/* Setttb		*/
+	armv7_setttb,			/* Setttb		*/
 	cpufunc_faultstatus,		/* Faultstatus		*/
 	cpufunc_faultaddress,		/* Faultaddress		*/
 
@@ -401,13 +405,14 @@ struct cpu_functions pj4bv7_cpufuncs = {
 	(void *)cpufunc_nullop,		/* l2cache_wbinv_range	*/
 	(void *)cpufunc_nullop,		/* l2cache_inv_range	*/
 	(void *)cpufunc_nullop,		/* l2cache_wb_range	*/
+	(void *)cpufunc_nullop,         /* l2cache_drain_writebuf */
 
 	/* Other functions */
 
-	pj4b_drain_readbuf,		/* flush_prefetchbuf	*/
-	arm11_drain_writebuf,		/* drain_writebuf	*/
-	pj4b_flush_brnchtgt_all,	/* flush_brnchtgt_C	*/
-	pj4b_flush_brnchtgt_va,		/* flush_brnchtgt_E	*/
+	cpufunc_nullop,			/* flush_prefetchbuf	*/
+	armv7_drain_writebuf,		/* drain_writebuf	*/
+	cpufunc_nullop,			/* flush_brnchtgt_C	*/
+	(void *)cpufunc_nullop,		/* flush_brnchtgt_E	*/
 
 	(void *)cpufunc_nullop,		/* sleep		*/
 
@@ -416,7 +421,7 @@ struct cpu_functions pj4bv7_cpufuncs = {
 	cpufunc_null_fixup,		/* dataabt_fixup	*/
 	cpufunc_null_fixup,		/* prefetchabt_fixup	*/
 
-	arm11_context_switch,		/* context_switch	*/
+	armv7_context_switch,		/* context_switch	*/
 
 	pj4bv7_setup			/* cpu setup		*/
 };
@@ -466,6 +471,7 @@ struct cpu_functions xscale_cpufuncs = {
 	(void *)cpufunc_nullop,		/* l2cache_wbinv_range	*/
 	(void *)cpufunc_nullop,		/* l2cache_inv_range	*/
 	(void *)cpufunc_nullop,		/* l2cache_wb_range	*/
+	(void *)cpufunc_nullop,         /* l2cache_drain_writebuf */
 
 	/* Other functions */
 
@@ -530,6 +536,7 @@ struct cpu_functions xscalec3_cpufuncs = {
 	xscalec3_l2cache_purge_rng,	/* l2cache_wbinv_range	*/
 	xscalec3_l2cache_flush_rng,	/* l2cache_inv_range	*/
 	xscalec3_l2cache_clean_rng,	/* l2cache_wb_range	*/
+	(void *)cpufunc_nullop,         /* l2cache_drain_writebuf */
 
 	/* Other functions */
 
@@ -593,6 +600,7 @@ struct cpu_functions fa526_cpufuncs = {
 	(void *)cpufunc_nullop,		/* l2cache_wbinv_range	*/
 	(void *)cpufunc_nullop,		/* l2cache_inv_range	*/
 	(void *)cpufunc_nullop,		/* l2cache_wb_range	*/
+	(void *)cpufunc_nullop,         /* l2cache_drain_writebuf */
 
 	/* Other functions */
 
@@ -656,6 +664,7 @@ struct cpu_functions arm1136_cpufuncs = {
 	(void *)cpufunc_nullop,         /* l2cache_wbinv_range  */
 	(void *)cpufunc_nullop,         /* l2cache_inv_range    */
 	(void *)cpufunc_nullop,         /* l2cache_wb_range     */
+	(void *)cpufunc_nullop,         /* l2cache_drain_writebuf */
 	
 	/* Other functions */
 	
@@ -718,6 +727,7 @@ struct cpu_functions arm1176_cpufuncs = {
 	(void *)cpufunc_nullop,         /* l2cache_wbinv_range  */
 	(void *)cpufunc_nullop,         /* l2cache_inv_range    */
 	(void *)cpufunc_nullop,         /* l2cache_wb_range     */
+	(void *)cpufunc_nullop,         /* l2cache_drain_writebuf */
 	
 	/* Other functions */
 	
@@ -789,6 +799,7 @@ struct cpu_functions cortexa_cpufuncs = {
 	(void *)cpufunc_nullop,         /* l2cache_wbinv_range  */
 	(void *)cpufunc_nullop,         /* l2cache_inv_range    */
 	(void *)cpufunc_nullop,         /* l2cache_wb_range     */
+	(void *)cpufunc_nullop,         /* l2cache_drain_writebuf */
 	
 	/* Other functions */
 	
@@ -1387,6 +1398,53 @@ arm10_setup(args)
 }
 #endif	/* CPU_ARM9E || CPU_ARM10 */
 
+#if defined(CPU_ARM1136) || defined(CPU_ARM1176) \
+ || defined(CPU_MV_PJ4B) \
+ || defined(CPU_CORTEXA) || defined(CPU_KRAIT)
+static __inline void
+cpu_scc_setup_ccnt(void)
+{
+/* This is how you give userland access to the CCNT and PMCn
+ * registers.
+ * BEWARE! This gives write access also, which may not be what
+ * you want!
+ */
+#ifdef _PMC_USER_READ_WRITE_
+#if defined(CPU_ARM1136) || defined(CPU_ARM1176)
+	/* Use the Secure User and Non-secure Access Validation Control Register
+	 * to allow userland access
+	 */
+	__asm volatile ("mcr	p15, 0, %0, c15, c9, 0\n\t"
+			:
+			: "r"(0x00000001));
+#else
+	/* Set PMUSERENR[0] to allow userland access */
+	__asm volatile ("mcr	p15, 0, %0, c9, c14, 0\n\t"
+			:
+			: "r"(0x00000001));
+#endif
+#endif
+#if defined(CPU_ARM1136) || defined(CPU_ARM1176)
+	/* Set PMCR[2,0] to enable counters and reset CCNT */
+	__asm volatile ("mcr	p15, 0, %0, c15, c12, 0\n\t"
+			:
+			: "r"(0x00000005));
+#else
+	/* Set up the PMCCNTR register as a cyclecounter:
+	 * Set PMINTENCLR to 0xFFFFFFFF to block interrupts
+	 * Set PMCR[2,0] to enable counters and reset CCNT
+	 * Set PMCNTENSET to 0x80000000 to enable CCNT */
+	__asm volatile ("mcr	p15, 0, %0, c9, c14, 2\n\t"
+			"mcr	p15, 0, %1, c9, c12, 0\n\t"
+			"mcr	p15, 0, %2, c9, c12, 1\n\t"
+			:
+			: "r"(0xFFFFFFFF),
+			  "r"(0x00000005),
+			  "r"(0x80000000));
+#endif
+}
+#endif
+
 #if defined(CPU_ARM1136) || defined(CPU_ARM1176)
 struct cpu_option arm11_options[] = {
 	{ "cpu.cache",		BIC, OR,  (CPU_CONTROL_IC_ENABLE | CPU_CONTROL_DC_ENABLE) },
@@ -1490,6 +1548,8 @@ arm11x6_setup(char *args)
 
 	/* And again. */
 	cpu_idcache_wbinv_all();
+
+	cpu_scc_setup_ccnt();
 }
 #endif  /* CPU_ARM1136 || CPU_ARM1176 */
 
@@ -1524,6 +1584,8 @@ pj4bv7_setup(args)
 
 	/* And again. */
 	cpu_idcache_wbinv_all();
+
+	cpu_scc_setup_ccnt();
 }
 #endif /* CPU_MV_PJ4B */
 
@@ -1571,6 +1633,8 @@ cortexa_setup(char *args)
 #ifdef SMP
 	armv7_auxctrl((1 << 6) | (1 << 0), (1 << 6) | (1 << 0)); /* Enable SMP + TLB broadcasting  */
 #endif
+
+	cpu_scc_setup_ccnt();
 }
 #endif  /* CPU_CORTEXA */
 

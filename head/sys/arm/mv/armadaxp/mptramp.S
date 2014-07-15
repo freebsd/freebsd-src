@@ -29,6 +29,8 @@
 
 __FBSDID("$FreeBSD$");
 
+.global _C_LABEL(mptramp_pmu_boot)
+
 ASENTRY_NP(mptramp)
 	mov	r0, #0
 	mcr	p15, 0, r0, c7, c7, 0
@@ -44,13 +46,16 @@ ASENTRY_NP(mptramp)
 	/* Read boot address for CPU */
 	mov	r1, #0x100
 	mul	r2, r0, r1
-	ldr	r1, Lpmureg
+	ldr	r1, mptramp_pmu_boot
 	add	r0, r2, r1
 	ldr	r1, [r0], #0x00
 
 	mov pc, r1
 
-Lpmureg:
-        .word   0xd0022124
+_C_LABEL(mptramp_pmu_boot):
+	.word 0x0
+
 END(mptramp)
 
+	.global _C_LABEL(mptramp_end)
+_C_LABEL(mptramp_end):

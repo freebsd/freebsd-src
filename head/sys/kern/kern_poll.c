@@ -451,6 +451,19 @@ netisr_poll(void)
 	mtx_unlock(&poll_mtx);
 }
 
+/* The following should be temporary, till all drivers use the driver API */
+int
+ether_poll_register_drv(poll_handler_drv_t *h, if_t ifh)
+{
+	return (ether_poll_register((poll_handler_t *)h, (struct ifnet *)ifh));
+}
+
+int
+ether_poll_deregister_drv(if_t ifh)
+{
+	return (ether_poll_deregister((struct ifnet *)ifh));
+}
+
 /*
  * Try to register routine for polling. Returns 0 if successful
  * (and polling should be enabled), error code otherwise.

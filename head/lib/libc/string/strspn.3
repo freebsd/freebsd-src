@@ -32,11 +32,12 @@
 .\"     @(#)strspn.3	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd June 4, 1993
+.Dd May 24, 2014
 .Dt STRSPN 3
 .Os
 .Sh NAME
-.Nm strspn
+.Nm strspn ,
+.Nm strcspn
 .Nd span a string
 .Sh LIBRARY
 .Lb libc
@@ -44,6 +45,8 @@
 .In string.h
 .Ft size_t
 .Fn strspn "const char *s" "const char *charset"
+.Ft size_t
+.Fn strcspn "const char *s" "const char *charset"
 .Sh DESCRIPTION
 The
 .Fn strspn
@@ -54,22 +57,44 @@ as long as the characters from
 .Fa s
 occur in the null-terminated string
 .Fa charset .
-In other words, it computes the string array index in
-.Fa s
+In other words, it computes the string array index
 of the first character of
 .Fa s
 which is not in
 .Fa charset ,
 else the index of the first null character.
+.Pp
+The
+.Fn strcspn
+function
+spans the initial part of the null-terminated string
+.Fa s
+as long as the characters from
+.Fa s
+.Sy do not 
+occur in the null-terminated string
+.Fa charset
+.Po it spans the
+.Sy complement
+of
+.Fa charset
+.Pc .
+In other words, it computes the string array index
+of the first character of
+.Fa s
+which is also in
+.Fa charset ,
+else the index of the first null character.
 .Sh RETURN VALUES
 The
 .Fn strspn
-function
-returns the number of characters spanned.
+and
+.Fn strcspn
+functions
+return the number of characters spanned.
 .Sh SEE ALSO
 .Xr memchr 3 ,
 .Xr strchr 3 ,
-.Xr strcspn 3 ,
 .Xr strpbrk 3 ,
 .Xr strrchr 3 ,
 .Xr strsep 3 ,
@@ -79,6 +104,8 @@ returns the number of characters spanned.
 .Sh STANDARDS
 The
 .Fn strspn
-function
-conforms to
+and
+.Fn strcspn
+functions
+conform to
 .St -isoC .

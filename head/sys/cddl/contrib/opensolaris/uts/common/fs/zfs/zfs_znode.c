@@ -20,7 +20,7 @@
  */
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2013 by Delphix. All rights reserved.
+ * Copyright (c) 2012, 2014 by Delphix. All rights reserved.
  */
 
 /* Portions Copyright 2007 Jeremy Teo */
@@ -1510,7 +1510,7 @@ zfs_no_putpage(vnode_t *vp, page_t *pp, u_offset_t *offp, size_t *lenp,
  *	IN:	zp	- znode of file to free data in.
  *		end	- new end-of-file
  *
- * 	RETURN:	0 on success, error code on failure
+ *	RETURN:	0 on success, error code on failure
  */
 static int
 zfs_extend(znode_t *zp, uint64_t end)
@@ -1583,7 +1583,7 @@ zfs_extend(znode_t *zp, uint64_t end)
  *		off	- start of section to free.
  *		len	- length of section to free.
  *
- * 	RETURN:	0 on success, error code on failure
+ *	RETURN:	0 on success, error code on failure
  */
 static int
 zfs_free_range(znode_t *zp, uint64_t off, uint64_t len)
@@ -1630,7 +1630,7 @@ zfs_free_range(znode_t *zp, uint64_t off, uint64_t len)
  *	IN:	zp	- znode of file to free data in.
  *		end	- new end-of-file.
  *
- * 	RETURN:	0 on success, error code on failure
+ *	RETURN:	0 on success, error code on failure
  */
 static int
 zfs_trunc(znode_t *zp, uint64_t end)
@@ -1664,6 +1664,7 @@ zfs_trunc(znode_t *zp, uint64_t end)
 	tx = dmu_tx_create(zfsvfs->z_os);
 	dmu_tx_hold_sa(tx, zp->z_sa_hdl, B_FALSE);
 	zfs_sa_upgrade_txholds(tx, zp);
+	dmu_tx_mark_netfree(tx);
 	error = dmu_tx_assign(tx, TXG_WAIT);
 	if (error) {
 		dmu_tx_abort(tx);
@@ -1706,7 +1707,7 @@ zfs_trunc(znode_t *zp, uint64_t end)
  *		flag	- current file open mode flags.
  *		log	- TRUE if this action should be logged
  *
- * 	RETURN:	0 on success, error code on failure
+ *	RETURN:	0 on success, error code on failure
  */
 int
 zfs_freesp(znode_t *zp, uint64_t off, uint64_t len, int flag, boolean_t log)

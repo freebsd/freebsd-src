@@ -1516,7 +1516,9 @@ let Predicates = [isEGorCayman] in {
                                                i32:$src2))],
     VecALU
   >;
-  def : BFEPattern <BFE_UINT_eg>;
+// XXX: This pattern is broken, disabling for now.  See comment in
+// AMDGPUInstructions.td for more info.
+//  def : BFEPattern <BFE_UINT_eg>;
 
   def BFI_INT_eg : R600_3OP <0x06, "BFI_INT", [], VecALU>;
   defm : BFIPatterns <BFI_INT_eg>;
@@ -1636,7 +1638,6 @@ class R600_LDS_1A <bits<6> lds_op, string name, list<dag> pattern> : R600_LDS <
   let src2 = 0;
   let src2_rel = 0;
 
-  let Defs = [OQAP];
   let usesCustomInserter = 1;
   let LDS_1A = 1;
   let DisableEncoding = "$dst";
@@ -1672,7 +1673,6 @@ class R600_LDS_1A1D_RET <bits<6> lds_op, string name, list<dag> pattern> :
   let BaseOp = name;
   let usesCustomInserter = 1;
   let DisableEncoding = "$dst";
-  let Defs = [OQAP];
 }
 
 class R600_LDS_1A2D <bits<6> lds_op, string name, list<dag> pattern> :

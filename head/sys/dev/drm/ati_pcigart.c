@@ -116,6 +116,7 @@ drm_ati_free_pcigart_table(struct drm_device *dev,
 {
 	struct drm_dma_handle *dmah = gart_info->dmah;
 
+	bus_dmamap_unload(dmah->tag, dmah->map);
 	bus_dmamem_free(dmah->tag, dmah->vaddr, dmah->map);
 	bus_dma_tag_destroy(dmah->tag);
 	free(dmah, DRM_MEM_DMA);

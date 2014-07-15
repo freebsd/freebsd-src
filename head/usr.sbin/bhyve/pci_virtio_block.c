@@ -52,10 +52,6 @@ __FBSDID("$FreeBSD$");
 #include "pci_emul.h"
 #include "virtio.h"
 
-#ifndef min
-#define	min(a, b)	((a) < (b) ? (a) : (b))
-#endif
-
 #define VTBLK_RINGSZ	64
 
 #define VTBLK_MAXSEGS	32
@@ -217,7 +213,7 @@ pci_vtblk_proc(struct pci_vtblk_softc *sc, struct vqueue_info *vq)
 	case VBH_OP_IDENT:
 		/* Assume a single buffer */
 		strlcpy(iov[1].iov_base, sc->vbsc_ident,
-		    min(iov[1].iov_len, sizeof(sc->vbsc_ident)));
+		    MIN(iov[1].iov_len, sizeof(sc->vbsc_ident)));
 		err = 0;
 		break;
 	default:

@@ -273,14 +273,17 @@ struct emu_memblk {
 	char		owner[16];
 	bus_addr_t	buf_addr;
 	uint32_t	pte_start, pte_size;
+	bus_dmamap_t	buf_map;
 };
 
 struct emu_mem {
 	uint8_t		bmap[EMU_MAXPAGES / 8];
 	uint32_t	*ptb_pages;
 	void		*silent_page;
-	bus_addr_t	silent_page_addr;
 	bus_addr_t	ptb_pages_addr;
+	bus_addr_t	silent_page_addr;
+	bus_dmamap_t	ptb_map;
+	bus_dmamap_t	silent_map;
 	bus_dma_tag_t	dmat;
 	struct emu_sc_info *card;
 	SLIST_HEAD(, emu_memblk) blocks;
@@ -377,8 +380,8 @@ struct emu_sc_info {
 };
 
 static void	emu_setmap(void *arg, bus_dma_segment_t * segs, int nseg, int error);
-static void*	emu_malloc(struct emu_mem *mem, uint32_t sz, bus_addr_t * addr);
-static void	emu_free(struct emu_mem *mem, void *dmabuf);
+static void*	emu_malloc(struct emu_mem *mem, uint32_t sz, bus_addr_t * addr, bus_dmamap_t *map);
+static void	emu_free(struct emu_mem *mem, void *dmabuf, bus_dmamap_t map);
 static void*	emu_memalloc(struct emu_mem *mem, uint32_t sz, bus_addr_t * addr, const char * owner);
 static int	emu_memfree(struct emu_mem *mem, void *membuf);
 static int	emu_memstart(struct emu_mem *mem, void *membuf);
@@ -1057,30 +1060,32 @@ emu_setmap(void *arg, bus_dma_segment_t * segs, int nseg, int error)
 }
 
 static void *
-emu_malloc(struct emu_mem *mem, uint32_t sz, bus_addr_t * addr)
+emu_malloc(struct emu_mem *mem, uint32_t sz, bus_addr_t * addr,
+    bus_dmamap_t *map)
 {
 	void *dmabuf;
-	bus_dmamap_t map;
 	int error;
 
 	*addr = 0;
-	if ((error = bus_dmamem_alloc(mem->dmat, &dmabuf, BUS_DMA_NOWAIT, &map))) {
+	if ((error = bus_dmamem_alloc(mem->dmat, &dmabuf, BUS_DMA_NOWAIT, map))) {
 		if (mem->card->dbg_level > 2)
 			device_printf(mem->card->dev, "emu_malloc: failed to alloc DMA map: %d\n", error);
 		return (NULL);
 		}
-	if ((error = bus_dmamap_load(mem->dmat, map, dmabuf, sz, emu_setmap, addr, 0)) || !*addr) {
+	if ((error = bus_dmamap_load(mem->dmat, *map, dmabuf, sz, emu_setmap, addr, 0)) || !*addr) {
 		if (mem->card->dbg_level > 2)
 			device_printf(mem->card->dev, "emu_malloc: failed to load DMA memory: %d\n", error);
+		bus_dmamem_free(mem->dmat, dmabuf, *map);
 		return (NULL);
 		}
 	return (dmabuf);
 }
 
 static void
-emu_free(struct emu_mem *mem, void *dmabuf)
+emu_free(struct emu_mem *mem, void *dmabuf, bus_dmamap_t map)
 {
-	bus_dmamem_free(mem->dmat, dmabuf, NULL);
+	bus_dmamap_unload(mem->dmat, map);
+	bus_dmamem_free(mem->dmat, dmabuf, map);
 }
 
 static void *
@@ -1121,7 +1126,7 @@ emu_memalloc(struct emu_mem *mem, uint32_t sz, bus_addr_t * addr, const char *ow
 		return (NULL);
 		}
 	bzero(blk, sizeof(*blk));
-	membuf = emu_malloc(mem, sz, &blk->buf_addr);
+	membuf = emu_malloc(mem, sz, &blk->buf_addr, &blk->buf_map);
 	*addr = blk->buf_addr;
 	if (membuf == NULL) {
 		if (mem->card->dbg_level > 2)
@@ -1159,7 +1164,7 @@ emu_memfree(struct emu_mem *mem, void *membuf)
 	if (blk == NULL)
 		return (EINVAL);
 	SLIST_REMOVE(&mem->blocks, blk, emu_memblk, link);
-	emu_free(mem, membuf);
+	emu_free(mem, membuf, blk->buf_map);
 	tmp = (uint32_t) (mem->silent_page_addr) << 1;
 	for (idx = blk->pte_start; idx < blk->pte_start + blk->pte_size; idx++) {
 		mem->bmap[idx >> 3] &= ~(1 << (idx & 7));
@@ -2724,13 +2729,13 @@ emu_init(struct emu_sc_info *sc)
 
 	sc->mem.card = sc;
 	SLIST_INIT(&sc->mem.blocks);
-	sc->mem.ptb_pages = emu_malloc(&sc->mem, EMU_MAXPAGES * sizeof(uint32_t), &sc->mem.ptb_pages_addr);
+	sc->mem.ptb_pages = emu_malloc(&sc->mem, EMU_MAXPAGES * sizeof(uint32_t), &sc->mem.ptb_pages_addr, &sc->mem.ptb_map);
 	if (sc->mem.ptb_pages == NULL)
 		return (ENOMEM);
 
-	sc->mem.silent_page = emu_malloc(&sc->mem, EMUPAGESIZE, &sc->mem.silent_page_addr);
+	sc->mem.silent_page = emu_malloc(&sc->mem, EMUPAGESIZE, &sc->mem.silent_page_addr, &sc->mem.silent_map);
 	if (sc->mem.silent_page == NULL) {
-		emu_free(&sc->mem, sc->mem.ptb_pages);
+		emu_free(&sc->mem, sc->mem.ptb_pages, sc->mem.ptb_map);
 		return (ENOMEM);
 	}
 	/* Clear page with silence & setup all pointers to this page */
@@ -2946,8 +2951,8 @@ emu_uninit(struct emu_sc_info *sc)
 		if (blk != NULL)
 		device_printf(sc->dev, "lost %d for %s\n", blk->pte_size, blk->owner);
 
-	emu_free(&sc->mem, sc->mem.ptb_pages);
-	emu_free(&sc->mem, sc->mem.silent_page);
+	emu_free(&sc->mem, sc->mem.ptb_pages, sc->mem.ptb_map);
+	emu_free(&sc->mem, sc->mem.silent_page, sc->mem.silent_map);
 
 	return (0);
 }

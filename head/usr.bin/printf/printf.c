@@ -101,6 +101,8 @@ static void	 usage(void);
 
 static const char digits[] = "0123456789";
 
+static char end_fmt[1];
+
 static int  myargc;
 static char **myargv;
 static char **gargv;
@@ -171,11 +173,11 @@ main(int argc, char *argv[])
 					fmt += 2;
 				} else {
 					fmt = printf_doformat(fmt, &rval);
-					if (fmt == NULL) {
+					if (fmt == NULL || fmt == end_fmt) {
 #ifdef SHELL
 						INTON;
 #endif
-						return (1);
+						return (fmt == NULL ? 1 : rval);
 					}
 					end = 0;
 				}
@@ -215,12 +217,10 @@ printf_doformat(char *fmt, int *rval)
 	static const char skip1[] = "#'-+ 0";
 	int fieldwidth, haveprec, havewidth, mod_ldbl, precision;
 	char convch, nextch;
-	char *start;
+	char start[strlen(fmt) + 1];
 	char **fargv;
 	char *dptr;
 	int l;
-
-	start = alloca(strlen(fmt) + 1);
 
 	dptr = start;
 	*dptr++ = '%';
@@ -244,11 +244,11 @@ printf_doformat(char *fmt, int *rval)
 		/* save format argument */
 		fargv = gargv;
 	} else {
-	fargv = NULL;
+		fargv = NULL;
 	}
 
 	/* skip to field width */
-	while (strchr(skip1, *fmt) != NULL) {
+	while (*fmt && strchr(skip1, *fmt) != NULL) {
 		*dptr++ = *fmt++;
 		*dptr = 0;
 	}
@@ -259,12 +259,19 @@ printf_doformat(char *fmt, int *rval)
 		l = strspn(fmt, digits);
 		if ((l > 0) && (fmt[l] == '$')) {
 			int idx = atoi(fmt);
+			if (fargv == NULL) {
+				warnx("incomplete use of n$");
+				return (NULL);
+			}
 			if (idx <= myargc) {
 				gargv = &myargv[idx - 1];
 			} else {
 				gargv = &myargv[myargc];
 			}
 			fmt += l + 1;
+		} else if (fargv != NULL) {
+			warnx("incomplete use of n$");
+			return (NULL);
 		}
 
 		if (getint(&fieldwidth))
@@ -296,12 +303,19 @@ printf_doformat(char *fmt, int *rval)
 			l = strspn(fmt, digits);
 			if ((l > 0) && (fmt[l] == '$')) {
 				int idx = atoi(fmt);
+				if (fargv == NULL) {
+					warnx("incomplete use of n$");
+					return (NULL);
+				}
 				if (idx <= myargc) {
 					gargv = &myargv[idx - 1];
 				} else {
 					gargv = &myargv[myargc];
 				}
 				fmt += l + 1;
+			} else if (fargv != NULL) {
+				warnx("incomplete use of n$");
+				return (NULL);
 			}
 
 			if (getint(&precision))
@@ -374,7 +388,7 @@ printf_doformat(char *fmt, int *rval)
 		fputs(p, stdout);
 		free(p);
 		if (getout)
-			exit(*rval);
+			return (end_fmt);
 		break;
 	}
 	case 'c': {
@@ -442,8 +456,7 @@ mknum(char *str, char ch)
 	len = strlen(str) + 2;
 	if (len > copy_size) {
 		newlen = ((len + 1023) >> 10) << 10;
-		if ((newcopy = realloc(copy, newlen)) == NULL)
-		{
+		if ((newcopy = realloc(copy, newlen)) == NULL) {
 			warnx("%s", strerror(ENOMEM));
 			return (NULL);
 		}
@@ -575,7 +588,7 @@ getnum(intmax_t *ip, uintmax_t *uip, int signedconv)
 	int rval;
 
 	if (!*gargv) {
-		*ip = 0;
+		*ip = *uip = 0;
 		return (0);
 	}
 	if (**gargv == '"' || **gargv == '\'') {

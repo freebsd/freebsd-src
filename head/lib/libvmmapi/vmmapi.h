@@ -29,6 +29,10 @@
 #ifndef _VMMAPI_H_
 #define	_VMMAPI_H_
 
+#include <sys/param.h>
+#include <sys/cpuset.h>
+
+struct iovec;
 struct vmctx;
 enum x2apic_state;
 
@@ -42,6 +46,8 @@ enum vm_mmap_style {
 	VM_MMAP_SPARSE,		/* mappings created on-demand */
 };
 
+#define	VM_MEM_F_INCORE	0x01	/* include guest memory in core file */
+
 int	vm_create(const char *name);
 struct vmctx *vm_open(const char *name);
 void	vm_destroy(struct vmctx *ctx);
@@ -53,6 +59,9 @@ void	*vm_map_gpa(struct vmctx *ctx, vm_paddr_t gaddr, size_t len);
 int	vm_get_gpa_pmap(struct vmctx *, uint64_t gpa, uint64_t *pte, int *num);
 uint32_t vm_get_lowmem_limit(struct vmctx *ctx);
 void	vm_set_lowmem_limit(struct vmctx *ctx, uint32_t limit);
+void	vm_set_memflags(struct vmctx *ctx, int flags);
+size_t	vm_get_lowmem_size(struct vmctx *ctx);
+size_t	vm_get_highmem_size(struct vmctx *ctx);
 int	vm_set_desc(struct vmctx *ctx, int vcpu, int reg,
 		    uint64_t base, uint32_t limit, uint32_t access);
 int	vm_get_desc(struct vmctx *ctx, int vcpu, int reg,
@@ -62,6 +71,7 @@ int	vm_get_register(struct vmctx *ctx, int vcpu, int reg, uint64_t *retval);
 int	vm_run(struct vmctx *ctx, int vcpu, uint64_t rip,
 	       struct vm_exit *ret_vmexit);
 int	vm_suspend(struct vmctx *ctx, enum vm_suspend_how how);
+int	vm_reinit(struct vmctx *ctx);
 int	vm_apicid2vcpu(struct vmctx *ctx, int apicid);
 int	vm_inject_exception(struct vmctx *ctx, int vcpu, int vec);
 int	vm_inject_exception2(struct vmctx *ctx, int vcpu, int vec, int errcode);
@@ -75,6 +85,8 @@ int	vm_ioapic_pincount(struct vmctx *ctx, int *pincount);
 int	vm_isa_assert_irq(struct vmctx *ctx, int atpic_irq, int ioapic_irq);
 int	vm_isa_deassert_irq(struct vmctx *ctx, int atpic_irq, int ioapic_irq);
 int	vm_isa_pulse_irq(struct vmctx *ctx, int atpic_irq, int ioapic_irq);
+int	vm_isa_set_irq_trigger(struct vmctx *ctx, int atpic_irq,
+	    enum vm_intr_trigger trigger);
 int	vm_inject_nmi(struct vmctx *ctx, int vcpu);
 int	vm_capability_name2type(const char *capname);
 const char *vm_capability_type2name(int type);
@@ -104,8 +116,24 @@ int	vm_set_x2apic_state(struct vmctx *ctx, int vcpu, enum x2apic_state s);
 
 int	vm_get_hpet_capabilities(struct vmctx *ctx, uint32_t *capabilities);
 
+/*
+ * Translate the GLA range [gla,gla+len) into GPA segments in 'iov'.
+ * The 'iovcnt' should be big enough to accomodate all GPA segments.
+ * Returns 0 on success, 1 on a guest fault condition and -1 otherwise.
+ */
+int	vm_gla2gpa(struct vmctx *ctx, int vcpu, struct vm_guest_paging *paging,
+	    uint64_t gla, size_t len, int prot, struct iovec *iov, int iovcnt);
+void	vm_copyin(struct vmctx *ctx, int vcpu, struct iovec *guest_iov,
+	    void *host_dst, size_t len);
+void	vm_copyout(struct vmctx *ctx, int vcpu, const void *host_src,
+	    struct iovec *guest_iov, size_t len);
+
 /* Reset vcpu register state */
 int	vcpu_reset(struct vmctx *ctx, int vcpu);
+
+int	vm_active_cpus(struct vmctx *ctx, cpuset_t *cpus);
+int	vm_suspended_cpus(struct vmctx *ctx, cpuset_t *cpus);
+int	vm_activate_cpu(struct vmctx *ctx, int vcpu);
 
 /*
  * FreeBSD specific APIs

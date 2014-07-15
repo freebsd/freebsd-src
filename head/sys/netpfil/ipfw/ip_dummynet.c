@@ -1071,7 +1071,10 @@ config_red(struct dn_fsk *fs)
 	fs->min_th = SCALE(fs->fs.min_th);
 	fs->max_th = SCALE(fs->fs.max_th);
 
-	fs->c_1 = fs->max_p / (fs->fs.max_th - fs->fs.min_th);
+	if (fs->fs.max_th == fs->fs.min_th)
+		fs->c_1 = fs->max_p;
+	else
+		fs->c_1 = SCALE((int64_t)(fs->max_p)) / (fs->fs.max_th - fs->fs.min_th);
 	fs->c_2 = SCALE_MUL(fs->c_1, SCALE(fs->fs.min_th));
 
 	if (fs->fs.flags & DN_IS_GENTLE_RED) {

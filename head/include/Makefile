@@ -6,11 +6,11 @@
 .include <src.opts.mk>
 
 CLEANFILES= osreldate.h version vers.c
-SUBDIR= arpa gssapi protocols rpcsvc rpc xlocale
+SUBDIR= arpa protocols rpcsvc rpc xlocale
 INCS=	a.out.h ar.h assert.h bitstring.h complex.h cpio.h _ctype.h ctype.h \
 	db.h \
 	dirent.h dlfcn.h elf.h elf-hints.h err.h fmtmsg.h fnmatch.h fstab.h \
-	fts.h ftw.h getopt.h glob.h grp.h gssapi.h \
+	fts.h ftw.h getopt.h glob.h grp.h \
 	ieeefp.h ifaddrs.h \
 	inttypes.h iso646.h kenv.h langinfo.h libgen.h limits.h link.h \
 	locale.h malloc.h malloc_np.h memory.h monetary.h mpool.h mqueue.h \
@@ -45,6 +45,7 @@ LSUBDIRS=	cam/ata cam/scsi \
 	dev/ic dev/iicbus ${_dev_ieee488} dev/io dev/lmc dev/mfi dev/nvme \
 	dev/ofw dev/pbio dev/pci ${_dev_powermac_nvram} dev/ppbus dev/smbus \
 	dev/speaker dev/usb dev/utopia dev/vkbd dev/wi \
+	fs/cuse \
 	fs/devfs fs/fdescfs fs/msdosfs fs/nandfs fs/nfs fs/nullfs \
 	fs/procfs fs/smbfs fs/udf fs/unionfs \
 	geom/cache geom/concat geom/eli geom/gate geom/journal geom/label \
@@ -64,6 +65,11 @@ _dev_powermac_nvram=	dev/powermac_nvram
 
 .if ${MK_GPIB} != "no"
 _dev_ieee488=	dev/ieee488
+.endif
+
+.if ${MK_GSSAPI} != "no"
+SUBDIR+=	gssapi
+INCS+=		gssapi.h
 .endif
 
 .if ${MK_HESIOD} != "no"

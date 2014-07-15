@@ -2,7 +2,7 @@ Pull in r198280 from upstream llvm trunk (by Venkatraman Govindaraju):
 
   [SparcV9]: Use SRL instead of SLL to clear top 32-bits in ctpop:i32. SLL does not clear top 32 bit, only SRL does.
 
-Introduced here: http://svn.freebsd.org/changeset/base/262261
+Introduced here: http://svnweb.freebsd.org/changeset/base/262261
 
 Index: lib/Target/Sparc/SparcInstrInfo.td
 ===================================================================

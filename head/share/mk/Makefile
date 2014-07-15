@@ -11,7 +11,6 @@ FILES=	\
 	bsd.crunchgen.mk \
 	bsd.dep.mk \
 	bsd.doc.mk \
-	bsd.dtrace.mk \
 	bsd.endian.mk \
 	bsd.files.mk \
 	bsd.incs.mk \
@@ -41,9 +40,6 @@ FILES=	\
 	bsd.test.mk \
 	sys.mk \
 	version_gen.awk
-
-# Installed for the moment, but not may not be in the future.
-FILES+=	src.opts.mk
 
 NO_OBJ=
 FILESDIR=	${BINDIR}/mk

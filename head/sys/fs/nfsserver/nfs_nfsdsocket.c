@@ -48,6 +48,7 @@ extern struct nfsv4lock nfsv4rootfs_lock;
 extern struct nfsrv_stablefirst nfsrv_stablefirst;
 extern struct nfsclienthashhead nfsclienthash[NFSCLIENTHASHSIZE];
 extern int nfsrc_floodlevel, nfsrc_tcpsavedreplies;
+extern int nfsd_debuglevel;
 NFSV4ROOTLOCKMUTEX;
 NFSSTATESPINLOCK;
 
@@ -131,7 +132,7 @@ int (*nfsrv3_procs2[NFS_V3NPROCS])(struct nfsrv_descript *,
 	(int (*)(struct nfsrv_descript *, int, vnode_t , vnode_t , NFSPROC_T *, struct nfsexstuff *, struct nfsexstuff *))0,
 };
 
-int (*nfsrv4_ops0[NFSV4OP_NOPS])(struct nfsrv_descript *,
+int (*nfsrv4_ops0[NFSV41_NOPS])(struct nfsrv_descript *,
     int, vnode_t , NFSPROC_T *, struct nfsexstuff *) = {
 	(int (*)(struct nfsrv_descript *, int, vnode_t , NFSPROC_T *, struct nfsexstuff *))0,
 	(int (*)(struct nfsrv_descript *, int, vnode_t , NFSPROC_T *, struct nfsexstuff *))0,
@@ -173,9 +174,28 @@ int (*nfsrv4_ops0[NFSV4OP_NOPS])(struct nfsrv_descript *,
 	nfsrvd_verify,
 	nfsrvd_write,
 	nfsrvd_releaselckown,
+	nfsrvd_notsupp,
+	nfsrvd_notsupp,
+	nfsrvd_exchangeid,
+	nfsrvd_createsession,
+	nfsrvd_destroysession,
+	nfsrvd_freestateid,
+	nfsrvd_notsupp,
+	nfsrvd_notsupp,
+	nfsrvd_notsupp,
+	nfsrvd_notsupp,
+	nfsrvd_notsupp,
+	nfsrvd_notsupp,
+	nfsrvd_notsupp,
+	nfsrvd_sequence,
+	nfsrvd_notsupp,
+	nfsrvd_notsupp,
+	nfsrvd_notsupp,
+	nfsrvd_destroyclientid,
+	nfsrvd_reclaimcomplete,
 };
 
-int (*nfsrv4_ops1[NFSV4OP_NOPS])(struct nfsrv_descript *,
+int (*nfsrv4_ops1[NFSV41_NOPS])(struct nfsrv_descript *,
     int, vnode_t , vnode_t *, fhandle_t *,
     NFSPROC_T *, struct nfsexstuff *) = {
 	(int (*)(struct nfsrv_descript *, int, vnode_t , vnode_t *, fhandle_t *, NFSPROC_T *, struct nfsexstuff *))0,
@@ -218,9 +238,28 @@ int (*nfsrv4_ops1[NFSV4OP_NOPS])(struct nfsrv_descript *,
 	(int (*)(struct nfsrv_descript *, int, vnode_t , vnode_t *, fhandle_t *, NFSPROC_T *, struct nfsexstuff *))0,
 	(int (*)(struct nfsrv_descript *, int, vnode_t , vnode_t *, fhandle_t *, NFSPROC_T *, struct nfsexstuff *))0,
 	(int (*)(struct nfsrv_descript *, int, vnode_t , vnode_t *, fhandle_t *, NFSPROC_T *, struct nfsexstuff *))0,
+	(int (*)(struct nfsrv_descript *, int, vnode_t , vnode_t *, fhandle_t *, NFSPROC_T *, struct nfsexstuff *))0,
+	(int (*)(struct nfsrv_descript *, int, vnode_t , vnode_t *, fhandle_t *, NFSPROC_T *, struct nfsexstuff *))0,
+	(int (*)(struct nfsrv_descript *, int, vnode_t , vnode_t *, fhandle_t *, NFSPROC_T *, struct nfsexstuff *))0,
+	(int (*)(struct nfsrv_descript *, int, vnode_t , vnode_t *, fhandle_t *, NFSPROC_T *, struct nfsexstuff *))0,
+	(int (*)(struct nfsrv_descript *, int, vnode_t , vnode_t *, fhandle_t *, NFSPROC_T *, struct nfsexstuff *))0,
+	(int (*)(struct nfsrv_descript *, int, vnode_t , vnode_t *, fhandle_t *, NFSPROC_T *, struct nfsexstuff *))0,
+	(int (*)(struct nfsrv_descript *, int, vnode_t , vnode_t *, fhandle_t *, NFSPROC_T *, struct nfsexstuff *))0,
+	(int (*)(struct nfsrv_descript *, int, vnode_t , vnode_t *, fhandle_t *, NFSPROC_T *, struct nfsexstuff *))0,
+	(int (*)(struct nfsrv_descript *, int, vnode_t , vnode_t *, fhandle_t *, NFSPROC_T *, struct nfsexstuff *))0,
+	(int (*)(struct nfsrv_descript *, int, vnode_t , vnode_t *, fhandle_t *, NFSPROC_T *, struct nfsexstuff *))0,
+	(int (*)(struct nfsrv_descript *, int, vnode_t , vnode_t *, fhandle_t *, NFSPROC_T *, struct nfsexstuff *))0,
+	(int (*)(struct nfsrv_descript *, int, vnode_t , vnode_t *, fhandle_t *, NFSPROC_T *, struct nfsexstuff *))0,
+	(int (*)(struct nfsrv_descript *, int, vnode_t , vnode_t *, fhandle_t *, NFSPROC_T *, struct nfsexstuff *))0,
+	(int (*)(struct nfsrv_descript *, int, vnode_t , vnode_t *, fhandle_t *, NFSPROC_T *, struct nfsexstuff *))0,
+	(int (*)(struct nfsrv_descript *, int, vnode_t , vnode_t *, fhandle_t *, NFSPROC_T *, struct nfsexstuff *))0,
+	(int (*)(struct nfsrv_descript *, int, vnode_t , vnode_t *, fhandle_t *, NFSPROC_T *, struct nfsexstuff *))0,
+	(int (*)(struct nfsrv_descript *, int, vnode_t , vnode_t *, fhandle_t *, NFSPROC_T *, struct nfsexstuff *))0,
+	(int (*)(struct nfsrv_descript *, int, vnode_t , vnode_t *, fhandle_t *, NFSPROC_T *, struct nfsexstuff *))0,
+	(int (*)(struct nfsrv_descript *, int, vnode_t , vnode_t *, fhandle_t *, NFSPROC_T *, struct nfsexstuff *))0,
 };
 
-int (*nfsrv4_ops2[NFSV4OP_NOPS])(struct nfsrv_descript *,
+int (*nfsrv4_ops2[NFSV41_NOPS])(struct nfsrv_descript *,
     int, vnode_t , vnode_t , NFSPROC_T *,
     struct nfsexstuff *, struct nfsexstuff *) = {
 	(int (*)(struct nfsrv_descript *, int, vnode_t , vnode_t , NFSPROC_T *, struct nfsexstuff *, struct nfsexstuff *))0,
@@ -253,6 +292,25 @@ int (*nfsrv4_ops2[NFSV4OP_NOPS])(struct nfsrv_descript *,
 	(int (*)(struct nfsrv_descript *, int, vnode_t , vnode_t , NFSPROC_T *, struct nfsexstuff *, struct nfsexstuff *))0,
 	(int (*)(struct nfsrv_descript *, int, vnode_t , vnode_t , NFSPROC_T *, struct nfsexstuff *, struct nfsexstuff *))0,
 	nfsrvd_rename,
+	(int (*)(struct nfsrv_descript *, int, vnode_t , vnode_t , NFSPROC_T *, struct nfsexstuff *, struct nfsexstuff *))0,
+	(int (*)(struct nfsrv_descript *, int, vnode_t , vnode_t , NFSPROC_T *, struct nfsexstuff *, struct nfsexstuff *))0,
+	(int (*)(struct nfsrv_descript *, int, vnode_t , vnode_t , NFSPROC_T *, struct nfsexstuff *, struct nfsexstuff *))0,
+	(int (*)(struct nfsrv_descript *, int, vnode_t , vnode_t , NFSPROC_T *, struct nfsexstuff *, struct nfsexstuff *))0,
+	(int (*)(struct nfsrv_descript *, int, vnode_t , vnode_t , NFSPROC_T *, struct nfsexstuff *, struct nfsexstuff *))0,
+	(int (*)(struct nfsrv_descript *, int, vnode_t , vnode_t , NFSPROC_T *, struct nfsexstuff *, struct nfsexstuff *))0,
+	(int (*)(struct nfsrv_descript *, int, vnode_t , vnode_t , NFSPROC_T *, struct nfsexstuff *, struct nfsexstuff *))0,
+	(int (*)(struct nfsrv_descript *, int, vnode_t , vnode_t , NFSPROC_T *, struct nfsexstuff *, struct nfsexstuff *))0,
+	(int (*)(struct nfsrv_descript *, int, vnode_t , vnode_t , NFSPROC_T *, struct nfsexstuff *, struct nfsexstuff *))0,
+	(int (*)(struct nfsrv_descript *, int, vnode_t , vnode_t , NFSPROC_T *, struct nfsexstuff *, struct nfsexstuff *))0,
+	(int (*)(struct nfsrv_descript *, int, vnode_t , vnode_t , NFSPROC_T *, struct nfsexstuff *, struct nfsexstuff *))0,
+	(int (*)(struct nfsrv_descript *, int, vnode_t , vnode_t , NFSPROC_T *, struct nfsexstuff *, struct nfsexstuff *))0,
+	(int (*)(struct nfsrv_descript *, int, vnode_t , vnode_t , NFSPROC_T *, struct nfsexstuff *, struct nfsexstuff *))0,
+	(int (*)(struct nfsrv_descript *, int, vnode_t , vnode_t , NFSPROC_T *, struct nfsexstuff *, struct nfsexstuff *))0,
+	(int (*)(struct nfsrv_descript *, int, vnode_t , vnode_t , NFSPROC_T *, struct nfsexstuff *, struct nfsexstuff *))0,
+	(int (*)(struct nfsrv_descript *, int, vnode_t , vnode_t , NFSPROC_T *, struct nfsexstuff *, struct nfsexstuff *))0,
+	(int (*)(struct nfsrv_descript *, int, vnode_t , vnode_t , NFSPROC_T *, struct nfsexstuff *, struct nfsexstuff *))0,
+	(int (*)(struct nfsrv_descript *, int, vnode_t , vnode_t , NFSPROC_T *, struct nfsexstuff *, struct nfsexstuff *))0,
+	(int (*)(struct nfsrv_descript *, int, vnode_t , vnode_t , NFSPROC_T *, struct nfsexstuff *, struct nfsexstuff *))0,
 	(int (*)(struct nfsrv_descript *, int, vnode_t , vnode_t , NFSPROC_T *, struct nfsexstuff *, struct nfsexstuff *))0,
 	(int (*)(struct nfsrv_descript *, int, vnode_t , vnode_t , NFSPROC_T *, struct nfsexstuff *, struct nfsexstuff *))0,
 	(int (*)(struct nfsrv_descript *, int, vnode_t , vnode_t , NFSPROC_T *, struct nfsexstuff *, struct nfsexstuff *))0,
@@ -304,7 +362,7 @@ static int nfs_writerpc[NFS_NPROCS] = { 0, 0, 1, 0, 0, 0, 0,
 
 /* local functions */
 static void nfsrvd_compound(struct nfsrv_descript *nd, int isdgram,
-    NFSPROC_T *p);
+    u_char *tag, int taglen, u_int32_t minorvers, NFSPROC_T *p);
 
 
 /*
@@ -314,7 +372,7 @@ static void nfsrvd_compound(struct nfsrv_descript *nd, int isdgram,
 static int nfs_retfh[NFS_V3NPROCS] = { 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 1,
 	1, 0, 0, 2, 2, 0, 0, 0, 0, 0, 0 };
 
-extern struct nfsv4_opflag nfsv4_opflag[NFSV4OP_NOPS];
+extern struct nfsv4_opflag nfsv4_opflag[NFSV41_NOPS];
 
 static int nfsv3to4op[NFS_V3NPROCS] = {
 	NFSPROC_NULL,
@@ -349,8 +407,8 @@ static int nfsv3to4op[NFS_V3NPROCS] = {
  * The NFS V4 Compound RPC is performed separately by nfsrvd_compound().
  */
 APPLESTATIC void
-nfsrvd_dorpc(struct nfsrv_descript *nd, int isdgram,
-    NFSPROC_T *p)
+nfsrvd_dorpc(struct nfsrv_descript *nd, int isdgram, u_char *tag, int taglen,
+    u_int32_t minorvers, NFSPROC_T *p)
 {
 	int error = 0, lktype;
 	vnode_t vp;
@@ -427,7 +485,7 @@ nfsrvd_dorpc(struct nfsrv_descript *nd, int isdgram,
 	 * The group is indicated by the value in nfs_retfh[].
 	 */
 	if (nd->nd_flag & ND_NFSV4) {
-		nfsrvd_compound(nd, isdgram, p);
+		nfsrvd_compound(nd, isdgram, tag, taglen, minorvers, p);
 	} else {
 		if (nfs_retfh[nd->nd_procnum] == 1) {
 			if (vp)
@@ -482,15 +540,14 @@ out:
  * vnode pointer handling.
  */
 static void
-nfsrvd_compound(struct nfsrv_descript *nd, int isdgram,
-    NFSPROC_T *p)
+nfsrvd_compound(struct nfsrv_descript *nd, int isdgram, u_char *tag,
+    int taglen, u_int32_t minorvers, NFSPROC_T *p)
 {
-	int i, op;
+	int i, op, op0 = 0;
 	u_int32_t *tl;
 	struct nfsclient *clp, *nclp;
-	int numops, taglen = -1, error = 0, igotlock;
-	u_int32_t minorvers, retops = 0, *retopsp = NULL, *repp;
-	u_char tag[NFSV4_SMALLSTR + 1], *tagstr;
+	int numops, error = 0, igotlock;
+	u_int32_t retops = 0, *retopsp = NULL, *repp;
 	vnode_t vp, nvp, savevp;
 	struct nfsrvfh fh;
 	mount_t new_mp, temp_mp = NULL;
@@ -595,31 +652,17 @@ nfsrvd_compound(struct nfsrv_descript *nd, int isdgram,
 	savevp = vp = NULL;
 	save_fsid.val[0] = save_fsid.val[1] = 0;
 	cur_fsid.val[0] = cur_fsid.val[1] = 0;
-	NFSM_DISSECT(tl, u_int32_t *, NFSX_UNSIGNED);
-	taglen = fxdr_unsigned(int, *tl);
+
+	/* If taglen < 0, there was a parsing error in nfsd_getminorvers(). */
 	if (taglen < 0) {
 		error = EBADRPC;
 		goto nfsmout;
 	}
-	if (taglen <= NFSV4_SMALLSTR)
-		tagstr = tag;
-	else
-		tagstr = malloc(taglen + 1, M_TEMP, M_WAITOK);
-	error = nfsrv_mtostr(nd, tagstr, taglen);
-	if (error) {
-		if (taglen > NFSV4_SMALLSTR)
-			free(tagstr, M_TEMP);
-		taglen = -1;
-		goto nfsmout;
-	}
+
 	(void) nfsm_strtom(nd, tag, taglen);
-	if (taglen > NFSV4_SMALLSTR) {
-		free(tagstr, M_TEMP);
-	}
 	NFSM_BUILD(retopsp, u_int32_t *, NFSX_UNSIGNED);
-	NFSM_DISSECT(tl, u_int32_t *, 2 * NFSX_UNSIGNED);
-	minorvers = fxdr_unsigned(u_int32_t, *tl++);
-	if (minorvers != NFSV4_MINORVERSION)
+	NFSM_DISSECT(tl, u_int32_t *, NFSX_UNSIGNED);
+	if (minorvers != NFSV4_MINORVERSION && minorvers != NFSV41_MINORVERSION)
 		nd->nd_repstat = NFSERR_MINORVERMISMATCH;
 	if (nd->nd_repstat)
 		numops = 0;
@@ -638,7 +681,10 @@ nfsrvd_compound(struct nfsrv_descript *nd, int isdgram,
 		NFSM_BUILD(repp, u_int32_t *, 2 * NFSX_UNSIGNED);
 		*repp = *tl;
 		op = fxdr_unsigned(int, *tl);
-		if (op < NFSV4OP_ACCESS || op >= NFSV4OP_NOPS) {
+		NFSD_DEBUG(4, "op=%d\n", op);
+		if (op < NFSV4OP_ACCESS ||
+		    (op >= NFSV4OP_NOPS && (nd->nd_flag & ND_NFSV41) == 0) ||
+		    (op >= NFSV41_NOPS && (nd->nd_flag & ND_NFSV41) != 0)) {
 			nd->nd_repstat = NFSERR_OPILLEGAL;
 			*repp++ = txdr_unsigned(NFSV4OP_OPILLEGAL);
 			*repp = nfsd_errmap(nd);
@@ -647,6 +693,10 @@ nfsrvd_compound(struct nfsrv_descript *nd, int isdgram,
 		} else {
 			repp++;
 		}
+		if (i == 0)
+			op0 = op;
+		if (i == numops - 1)
+			nd->nd_flag |= ND_LASTOP;
 
 		/*
 		 * Check for a referral on the current FH and, if so, return
@@ -661,6 +711,29 @@ nfsrvd_compound(struct nfsrv_descript *nd, int isdgram,
 			break;
 		}
 
+		/*
+		 * For NFSv4.1, check for a Sequence Operation being first
+		 * or one of the other allowed operations by itself.
+		 */
+		if ((nd->nd_flag & ND_NFSV41) != 0) {
+			if (i != 0 && op == NFSV4OP_SEQUENCE)
+				nd->nd_repstat = NFSERR_SEQUENCEPOS;
+			else if (i == 0 && op != NFSV4OP_SEQUENCE &&
+			    op != NFSV4OP_EXCHANGEID &&
+			    op != NFSV4OP_CREATESESSION &&
+			    op != NFSV4OP_BINDCONNTOSESS &&
+			    op != NFSV4OP_DESTROYCLIENTID &&
+			    op != NFSV4OP_DESTROYSESSION)
+				nd->nd_repstat = NFSERR_OPNOTINSESS;
+			else if (i != 0 && op0 != NFSV4OP_SEQUENCE)
+				nd->nd_repstat = NFSERR_NOTONLYOP;
+			if (nd->nd_repstat != 0) {
+				*repp = nfsd_errmap(nd);
+				retops++;
+				break;
+			}
+		}
+
 		nd->nd_procnum = op;
 		/*
 		 * If over flood level, reply NFSERR_RESOURCE, if at the first
@@ -672,7 +745,8 @@ nfsrvd_compound(struct nfsrv_descript *nd, int isdgram,
 		 * If nfsrv_mallocmget_limit() returns True, the system is near
 		 * to its limit for memory that malloc()/mget() can allocate.
 		 */
-		if (i == 0 && nd->nd_rp->rc_refcnt == 0 &&
+		if (i == 0 && (nd->nd_rp == NULL ||
+		    nd->nd_rp->rc_refcnt == 0) &&
 		    (nfsrv_mallocmget_limit() ||
 		     nfsrc_tcpsavedreplies > nfsrc_floodlevel)) {
 			if (nfsrc_tcpsavedreplies > nfsrc_floodlevel) {

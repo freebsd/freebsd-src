@@ -34,6 +34,7 @@ user=""
 unbound_conf=""
 forward_conf=""
 workdir=""
+confdir=""
 chrootdir=""
 anchor=""
 pidfile=""
@@ -55,6 +56,7 @@ bkext=$(date "+%Y%m%d.%H%M%S")
 set_defaults() {
 	: ${user:=unbound}
 	: ${workdir:=/var/unbound}
+	: ${confdir:=${workdir}/conf.d}
 	: ${unbound_conf:=${workdir}/unbound.conf}
 	: ${forward_conf:=${workdir}/forward.conf}
 	: ${anchor:=${workdir}/root.key}
@@ -195,6 +197,9 @@ gen_unbound_conf() {
 	if [ -f "${forward_conf}" ] ; then
 		echo "include: ${forward_conf}"
 	fi
+	if [ -d "${confdir}" ] ; then
+		echo "include: ${confdir}/*.conf"
+	fi
 }
 
 #
@@ -227,7 +232,8 @@ usage() {
 	echo "options:"
 	echo "    -n          do not start unbound"
 	echo "    -a path     full path to trust anchor file"
-	echo "    -c path     full path to unbound configuration"
+	echo "    -C path     full path to additional configuration directory"
+	echo "    -c path     full path to unbound configuration file"
 	echo "    -f path     full path to forwarding configuration"
 	echo "    -p path     full path to pid file"
 	echo "    -R path     full path to resolvconf.conf"
@@ -247,10 +253,13 @@ main() {
 	#
 	# Parse and validate command-line options
 	#
-	while getopts "a:c:f:np:R:r:s:u:w:" option ; do
+	while getopts "a:C:c:f:np:R:r:s:u:w:" option ; do
 		case $option in
 		a)
 			anchor="$OPTARG"
+			;;
+		C)
+			confdir="$OPTARG"
 			;;
 		c)
 			unbound_conf="$OPTARG"

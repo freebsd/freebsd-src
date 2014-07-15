@@ -350,7 +350,8 @@ hdac_pin_patch(struct hdaa_widget *w)
 	    (subid == LENOVO_X1_SUBVENDOR ||
 	    subid == LENOVO_X220_SUBVENDOR ||
 	    subid == LENOVO_T420_SUBVENDOR ||
-	    subid == LENOVO_T520_SUBVENDOR)) {
+	    subid == LENOVO_T520_SUBVENDOR ||
+	    subid == LENOVO_G580_SUBVENDOR)) {
 		switch (nid) {
 		case 25:
 			patch = "as=1 seq=15";

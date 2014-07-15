@@ -30,7 +30,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)histedit.h	8.2 (Berkeley) 1/3/94
- *	$NetBSD: histedit.h,v 1.32 2007/06/10 20:20:28 christos Exp $
+ *	$NetBSD: histedit.h,v 1.41 2009/09/07 21:24:33 christos Exp $
  * $FreeBSD$
  */
 
@@ -208,6 +208,7 @@ int		history(History *, HistEvent *, int, ...);
 #define	H_NEXT_EVDATA	23	/* , const int, histdata_t *);	*/
 #define	H_DELDATA	24	/* , int, histdata_t *);*/
 #define	H_REPLACE	25	/* , const char *, histdata_t);	*/
+#define	H_SAVE_FP	26	/* , FILE*);	*/
 
 
 /*

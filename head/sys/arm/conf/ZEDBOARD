@@ -59,7 +59,7 @@ options 	VFP			# vfp/neon
 options 	SMP			# Symmetric MultiProcessor Kernel
 
 # Debugging
-makeoptions	DEBUG=-g
+makeoptions	DEBUG=-g		# Build kernel with gdb(1) debug symbols
 options 	DDB
 options 	KDB
 # options 	BREAK_TO_DEBUGGER

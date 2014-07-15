@@ -4,7 +4,7 @@
 
 INTERNALLIB=	yes
 LIB=		apr
-SRCS=		apr_cpystrn.c apr_fnmatch.c apr_getpass.c apr_hash.c \
+SRCS=		apr_cpystrn.c apr_fnmatch.c apr_getpass.c apr_hash.c apr_skiplist.c \
 		apr_pools.c apr_random.c apr_snprintf.c apr_strings.c \
 		apr_strnatcmp.c apr_strtok.c apr_tables.c buffer.c \
 		builtins.c charset.c common.c copy.c dir.c dso.c env.c \
@@ -18,7 +18,7 @@ SRCS=		apr_cpystrn.c apr_fnmatch.c apr_getpass.c apr_hash.c \
 		shm.c signals.c sockaddr.c socket_util.c sockets.c \
 		sockopt.c solaris.c start.c tempdir.c thread.c thread_cond.c \
 		thread_mutex.c thread_rwlock.c threadpriv.c time.c \
-		timestr.c userinfo.c version.c waitio.c
+		timestr.c userinfo.c version.c waitio.c z_asio.c
 
 .PATH:		${APR}/atomic/unix ${APR}/dso/unix ${APR}/file_io/unix \
 		${APR}/locks/unix ${APR}/memory/unix ${APR}/misc/unix \

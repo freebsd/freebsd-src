@@ -756,6 +756,9 @@ void mpssas_prepare_remove(struct mpssas_softc *sassc, uint16_t handle);
 void mpssas_prepare_volume_remove(struct mpssas_softc *sassc, uint16_t handle);
 int mpssas_startup(struct mps_softc *sc);
 struct mpssas_target * mpssas_find_target_by_handle(struct mpssas_softc *, int, uint16_t);
+void mpssas_realloc_targets(struct mps_softc *sc, int maxtargets);
+struct mps_command * mpssas_alloc_tm(struct mps_softc *sc);
+void mpssas_free_tm(struct mps_softc *sc, struct mps_command *tm);
 
 SYSCTL_DECL(_hw_mps);
 

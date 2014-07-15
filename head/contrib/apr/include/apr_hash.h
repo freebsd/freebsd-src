@@ -167,6 +167,27 @@ APR_DECLARE(void) apr_hash_this(apr_hash_index_t *hi, const void **key,
                                 apr_ssize_t *klen, void **val);
 
 /**
+ * Get the current entry's key from the iteration state.
+ * @param hi The iteration state
+ * @return The pointer to the key
+ */
+APR_DECLARE(const void*) apr_hash_this_key(apr_hash_index_t *hi);
+
+/**
+ * Get the current entry's key length from the iteration state.
+ * @param hi The iteration state
+ * @return The key length
+ */
+APR_DECLARE(apr_ssize_t) apr_hash_this_key_len(apr_hash_index_t *hi);
+
+/**
+ * Get the current entry's value from the iteration state.
+ * @param hi The iteration state
+ * @return The pointer to the value
+ */
+APR_DECLARE(void*) apr_hash_this_val(apr_hash_index_t *hi);
+
+/**
  * Get the number of key/value pairs in the hash table.
  * @param ht The hash table
  * @return The number of key/value pairs in the hash table.

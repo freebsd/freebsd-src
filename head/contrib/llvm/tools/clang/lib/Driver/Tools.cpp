@@ -2003,13 +2003,6 @@ static void SplitDebugInfo(const ToolChain &TC, Compilation &C,
   C.addCommand(new Command(JA, T, Exec, StripArgs));
 }
 
-static bool isOptimizationLevelFast(const ArgList &Args) {
-  if (Arg *A = Args.getLastArg(options::OPT_O_Group))
-    if (A->getOption().matches(options::OPT_Ofast))
-      return true;
-  return false;
-}
-
 /// \brief Vectorize at all optimization levels greater than 1 except for -Oz.
 static bool shouldEnableVectorizerAtOLevel(const ArgList &Args) {
   if (Arg *A = Args.getLastArg(options::OPT_O_Group)) {
@@ -4621,8 +4614,14 @@ void darwin::Assemble::ConstructJob(Compilation &C, const JobAction &JA,
 
   // If -no_integrated_as is used add -Q to the darwin assember driver to make
   // sure it runs its system assembler not clang's integrated assembler.
-  if (Args.hasArg(options::OPT_no_integrated_as))
-    CmdArgs.push_back("-Q");
+  // Applicable to darwin11+ and Xcode 4+.  darwin<10 lacked integrated-as.
+  // FIXME: at run-time detect assembler capabilities or rely on version
+  // information forwarded by -target-assembler-version (future)
+  if (Args.hasArg(options::OPT_no_integrated_as)) {
+    const llvm::Triple& t(getToolChain().getTriple());
+    if (!(t.isMacOSX() && t.isMacOSXVersionLT(10, 7)))
+      CmdArgs.push_back("-Q");
+  }
 
   // Forward -g, assuming we are dealing with an actual assembly file.
   if (SourceAction->getType() == types::TY_Asm ||

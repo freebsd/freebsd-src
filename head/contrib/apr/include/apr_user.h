@@ -81,7 +81,7 @@ APR_DECLARE(apr_status_t) apr_uid_name_get(char **username, apr_uid_t userid,
  * Get the userid (and groupid) for the specified username
  * @param userid   Returns the user id
  * @param groupid  Returns the user's group id
- * @param username The username to lookup
+ * @param username The username to look up
  * @param p The pool from which to allocate working space
  * @remark This function is available only if APR_HAS_USER is defined.
  */
@@ -103,7 +103,7 @@ APR_DECLARE(apr_status_t) apr_uid_homepath_get(char **dirname,
  * Compare two user identifiers for equality.
  * @param left One uid to test
  * @param right Another uid to test
- * @return APR_SUCCESS if the apr_uid_t strutures identify the same user,
+ * @return APR_SUCCESS if the apr_uid_t structures identify the same user,
  * APR_EMISMATCH if not, APR_BADARG if an apr_uid_t is invalid.
  * @remark This function is available only if APR_HAS_USER is defined.
  */
@@ -137,7 +137,7 @@ APR_DECLARE(apr_status_t) apr_gid_get(apr_gid_t *groupid,
  * Compare two group identifiers for equality.
  * @param left One gid to test
  * @param right Another gid to test
- * @return APR_SUCCESS if the apr_gid_t strutures identify the same group,
+ * @return APR_SUCCESS if the apr_gid_t structures identify the same group,
  * APR_EMISMATCH if not, APR_BADARG if an apr_gid_t is invalid.
  * @remark This function is available only if APR_HAS_USER is defined.
  */

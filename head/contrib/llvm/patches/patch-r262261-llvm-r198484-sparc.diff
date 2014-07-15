@@ -2,7 +2,7 @@ Pull in r198484 from upstream llvm trunk (by Venkatraman Govindaraju):
 
   [Sparc] Add the initial implementation of an asm parser for sparc/sparcv9.
 
-Introduced here: http://svn.freebsd.org/changeset/base/262261
+Introduced here: http://svnweb.freebsd.org/changeset/base/262261
 
 Index: lib/Target/Sparc/MCTargetDesc/SparcMCTargetDesc.cpp
 ===================================================================

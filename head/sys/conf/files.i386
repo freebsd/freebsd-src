@@ -279,7 +279,6 @@ dev/viawd/viawd.c		optional viawd
 dev/vmware/vmxnet3/if_vmx.c	optional vmx
 dev/acpica/acpi_if.m		standard
 dev/acpi_support/acpi_wmi_if.m	standard
-dev/vt/hw/xboxfb/xboxfb.c	optional vt_xboxfb
 dev/wbwd/wbwd.c			optional wbwd
 dev/wpi/if_wpi.c		optional wpi
 dev/isci/isci.c							optional isci
@@ -520,7 +519,6 @@ isa/syscons_isa.c		optional sc
 isa/vga_isa.c			optional vga
 kern/kern_clocksource.c		standard
 kern/imgact_aout.c		optional compat_aout
-kern/imgact_binmisc.c		optional imagact_binmisc
 kern/imgact_gzip.c		optional gzip
 libkern/divdi3.c		standard
 libkern/flsll.c			standard
@@ -595,3 +593,6 @@ x86/x86/tsc.c			standard
 x86/x86/delay.c			standard
 x86/xen/hvm.c			optional xenhvm
 x86/xen/xen_intr.c		optional xen | xenhvm
+x86/xen/xen_apic.c		optional xenhvm
+x86/xen/xenpv.c			optional xen | xenhvm
+x86/xen/xen_nexus.c		optional xen | xenhvm

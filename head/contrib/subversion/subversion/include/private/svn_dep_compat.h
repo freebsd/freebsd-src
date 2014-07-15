@@ -78,6 +78,7 @@ void svn_hash__clear(struct apr_hash_t *ht);
 #if !APR_VERSION_AT_LEAST(1,0,0)
 #define APR_UINT64_C(val) UINT64_C(val)
 #define APR_FPROT_OS_DEFAULT APR_OS_DEFAULT
+#define apr_hash_make_custom(pool,hash_func) apr_hash_make(pool)
 #endif
 
 #if !APR_VERSION_AT_LEAST(1,3,0)
@@ -112,6 +113,12 @@ typedef apr_uint32_t apr_uintptr_t;
     (APR_STATUS_IS_EBUSY(x) || (x) == APR_FROM_OS_ERROR(WAIT_TIMEOUT))
 #else
 #define SVN_LOCK_IS_BUSY(x) APR_STATUS_IS_EBUSY(x)
+#endif
+
+#if !APR_VERSION_AT_LEAST(1,4,0)
+#ifndef apr_time_from_msec
+#define apr_time_from_msec(msec) ((apr_time_t)(msec) * 1000)
+#endif
 #endif
 
 /**

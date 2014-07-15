@@ -96,6 +96,7 @@ struct handle {
 #define RUTOT(pp) \
 	(RU(pp)->ru_inblock + RU(pp)->ru_oublock + RU(pp)->ru_majflt)
 
+#define	PCTCPU(pp) (pcpu[pp - pbase])
 
 /* definitions for indices in the nlist array */
 
@@ -203,7 +204,14 @@ static struct kinfo_proc *previous_procs;
 static struct kinfo_proc **previous_pref;
 static int previous_proc_count = 0;
 static int previous_proc_count_max = 0;
-static int arc_enabled;
+static int previous_thread;
+
+/* data used for recalculating pctcpu */
+static double *pcpu;
+static struct timespec proc_uptime;
+static struct timeval proc_wall_time;
+static struct timeval previous_wall_time;
+static uint64_t previous_interval = 0;
 
 /* total number of io operations */
 static long total_inblock;
@@ -212,6 +220,7 @@ static long total_majflt;
 
 /* these are for getting the memory statistics */
 
+static int arc_enabled;
 static int pageshift;		/* log base 2 of the pagesize */
 
 /* define pagetok in terms of pageshift */
@@ -329,6 +338,7 @@ machine_init(struct statics *statics, char do_unames)
 
 	pbase = NULL;
 	pref = NULL;
+	pcpu = NULL;
 	nproc = 0;
 	onproc = -1;
 
@@ -650,6 +660,52 @@ get_io_stats(struct kinfo_proc *pp, long *inp, long *oup, long *flp,
 }
 
 /*
+ * If there was a previous update, use the delta in ki_runtime over
+ * the previous interval to calculate pctcpu.  Otherwise, fall back
+ * to using the kernel's ki_pctcpu.
+ */
+static double
+proc_calc_pctcpu(struct kinfo_proc *pp)
+{
+	const struct kinfo_proc *oldp;
+
+	if (previous_interval != 0) {
+		oldp = get_old_proc(pp);
+		if (oldp != NULL)
+			return ((double)(pp->ki_runtime - oldp->ki_runtime)
+			    / previous_interval);
+
+		/*
+		 * If this process/thread was created during the previous
+		 * interval, charge it's total runtime to the previous
+		 * interval.
+		 */
+		else if (pp->ki_start.tv_sec > previous_wall_time.tv_sec ||
+		    (pp->ki_start.tv_sec == previous_wall_time.tv_sec &&
+		    pp->ki_start.tv_usec >= previous_wall_time.tv_usec))
+			return ((double)pp->ki_runtime / previous_interval);
+	}
+	return (pctdouble(pp->ki_pctcpu));
+}
+
+/*
+ * Return true if this process has used any CPU time since the
+ * previous update.
+ */
+static int
+proc_used_cpu(struct kinfo_proc *pp)
+{
+	const struct kinfo_proc *oldp;
+
+	oldp = get_old_proc(pp);
+	if (oldp == NULL)
+		return (PCTCPU(pp) != 0);
+	return (pp->ki_runtime != oldp->ki_runtime ||
+	    RU(pp)->ru_nvcsw != RU(oldp)->ru_nvcsw ||
+	    RU(pp)->ru_nivcsw != RU(oldp)->ru_nivcsw);
+}
+
+/*
  * Return the total number of block in/out and faults by a process.
  */
 long
@@ -670,9 +726,11 @@ get_process_info(struct system_info *si, struct process_select *sel,
 	int total_procs;
 	long p_io;
 	long p_inblock, p_oublock, p_majflt, p_vcsw, p_ivcsw;
+	long nsec;
 	int active_procs;
 	struct kinfo_proc **prefp;
 	struct kinfo_proc *pp;
+	struct timespec previous_proc_uptime;
 
 	/* these are copied out of sel for speed */
 	int show_idle;
@@ -682,6 +740,13 @@ get_process_info(struct system_info *si, struct process_select *sel,
 	int show_uid;
 	int show_command;
 	int show_kidle;
+
+	/*
+	 * If thread state was toggled, don't cache the previous processes.
+	 */
+	if (previous_thread != sel->thread)
+		nproc = 0;
+	previous_thread = sel->thread;
 
 	/*
 	 * Save the previous process info.
@@ -705,12 +770,32 @@ get_process_info(struct system_info *si, struct process_select *sel,
 		    ps.thread ? compare_tid : compare_pid);
 	}
 	previous_proc_count = nproc;
+	previous_proc_uptime = proc_uptime;
+	previous_wall_time = proc_wall_time;
+	previous_interval = 0;
 
 	pbase = kvm_getprocs(kd, sel->thread ? KERN_PROC_ALL : KERN_PROC_PROC,
 	    0, &nproc);
-	if (nproc > onproc)
-		pref = realloc(pref, sizeof(*pref) * (onproc = nproc));
-	if (pref == NULL || pbase == NULL) {
+	(void)gettimeofday(&proc_wall_time, NULL);
+	if (clock_gettime(CLOCK_UPTIME, &proc_uptime) != 0)
+		memset(&proc_uptime, 0, sizeof(proc_uptime));
+	else if (previous_proc_uptime.tv_sec != 0 &&
+	    previous_proc_uptime.tv_nsec != 0) {
+		previous_interval = (proc_uptime.tv_sec -
+		    previous_proc_uptime.tv_sec) * 1000000;
+		nsec = proc_uptime.tv_nsec - previous_proc_uptime.tv_nsec;
+		if (nsec < 0) {
+			previous_interval -= 1000000;
+			nsec += 1000000000;
+		}
+		previous_interval += nsec / 1000;
+	}
+	if (nproc > onproc) {
+		pref = realloc(pref, sizeof(*pref) * nproc);
+		pcpu = realloc(pcpu, sizeof(*pcpu) * nproc);
+		onproc = nproc;
+	}
+	if (pref == NULL || pbase == NULL || pcpu == NULL) {
 		(void) fprintf(stderr, "top: Out of memory.\n");
 		quit(23);
 	}
@@ -763,9 +848,12 @@ get_process_info(struct system_info *si, struct process_select *sel,
 		if (!show_kidle && pp->ki_tdflags & TDF_IDLETD)
 			/* skip kernel idle process */
 			continue;
-		    
+
+		PCTCPU(pp) = proc_calc_pctcpu(pp);
+		if (sel->thread && PCTCPU(pp) > 1.0)
+			PCTCPU(pp) = 1.0;
 		if (displaymode == DISP_CPU && !show_idle &&
-		    (pp->ki_pctcpu == 0 ||
+		    (!proc_used_cpu(pp) ||
 		     pp->ki_stat == SSTOP || pp->ki_stat == SIDL))
 			/* skip idle or non-running processes */
 			continue;
@@ -848,7 +936,7 @@ format_next_process(caddr_t handle, char *(*get_userid)(int), int flags)
 	cputime = (pp->ki_runtime + 500000) / 1000000;
 
 	/* calculate the base for cpu percentages */
-	pct = pctdouble(pp->ki_pctcpu);
+	pct = PCTCPU(pp);
 
 	/* generate "STATE" field */
 	switch (state = pp->ki_stat) {
@@ -916,7 +1004,7 @@ format_next_process(caddr_t handle, char *(*get_userid)(int), int flags)
 			argbuflen = cmdlen * 4;
 			argbuf = (char *)malloc(argbuflen + 1);
 			if (argbuf == NULL) {
-				warn("malloc(%d)", argbuflen + 1);
+				warn("malloc(%zd)", argbuflen + 1);
 				free(cmdbuf);
 				return NULL;
 			}
@@ -1023,7 +1111,7 @@ format_next_process(caddr_t handle, char *(*get_userid)(int), int flags)
 		thr_buf[0] = '\0';
 	else
 		snprintf(thr_buf, sizeof(thr_buf), "%*d ",
-		    sizeof(thr_buf) - 2, pp->ki_numthreads);
+		    (int)(sizeof(thr_buf) - 2), pp->ki_numthreads);
 
 	snprintf(fmt, sizeof(fmt), proc_fmt,
 	    pp->ki_pid,
@@ -1169,14 +1257,12 @@ static int sorted_state[] = {
 
 
 #define ORDERKEY_PCTCPU(a, b) do { \
-	long diff; \
+	double diff; \
 	if (ps.wcpu) \
-		diff = floor(1.0E6 * weighted_cpu(pctdouble((b)->ki_pctcpu), \
-		    (b))) - \
-		    floor(1.0E6 * weighted_cpu(pctdouble((a)->ki_pctcpu), \
-		    (a))); \
+		diff = weighted_cpu(PCTCPU((b)), (b)) - \
+		    weighted_cpu(PCTCPU((a)), (a)); \
 	else \
-		diff = (long)(b)->ki_pctcpu - (long)(a)->ki_pctcpu; \
+		diff = PCTCPU((b)) - PCTCPU((a)); \
 	if (diff != 0) \
 		return (diff > 0 ? 1 : -1); \
 } while (0)

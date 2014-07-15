@@ -46,31 +46,32 @@ __FBSDID("$FreeBSD$");
 #include <machine/bus.h>
 #include <machine/devmap.h>
 #include <machine/machdep.h>
+#include <machine/platform.h> 
 
 #include <dev/fdt/fdt_common.h>
 
 #include <arm/rockchip/rk30xx_wdog.h>
 
 vm_offset_t
-initarm_lastaddr(void)
+platform_lastaddr(void)
 {
 
 	return (arm_devmap_lastaddr());
 }
 
 void
-initarm_early_init(void)
+platform_probe_and_attach(void)
 {
 
 }
 
 void
-initarm_gpio_init(void)
+platform_gpio_init(void)
 {
 }
 
 void
-initarm_late_init(void)
+platform_late_init(void)
 {
 
 	/* Enable cache */
@@ -82,7 +83,7 @@ initarm_late_init(void)
  * Set up static device mappings.
  */
 int
-initarm_devmap_init(void)
+platform_devmap_init(void)
 {
 
 	arm_devmap_add_entry(0x10000000, 0x00200000);

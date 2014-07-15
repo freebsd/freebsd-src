@@ -35,6 +35,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include <netinet/in.h>
+#include <netdb.h>
+#include <sys/socket.h>
 
 #include "ctld.h"
 #include "iscsi_proto.h"
@@ -155,6 +157,48 @@ logout_new_response(struct pdu *request)
 	return (response);
 }
 
+static void
+discovery_add_target(struct keys *response_keys, struct target *targ)
+{
+	struct portal *portal;
+	char *buf;
+	char hbuf[NI_MAXHOST], sbuf[NI_MAXSERV];
+	struct addrinfo *ai;
+	int ret;
+
+	keys_add(response_keys, "TargetName", targ->t_name);
+	TAILQ_FOREACH(portal, &targ->t_portal_group->pg_portals, p_next) {
+		ai = portal->p_ai;
+		ret = getnameinfo(ai->ai_addr, ai->ai_addrlen,
+		    hbuf, sizeof(hbuf), sbuf, sizeof(sbuf),
+		    NI_NUMERICHOST | NI_NUMERICSERV);
+		if (ret != 0) {
+			log_warnx("getnameinfo: %s", gai_strerror(ret));
+			continue;
+		}
+		switch (ai->ai_addr->sa_family) {
+		case AF_INET:
+			if (strcmp(hbuf, "0.0.0.0") == 0)
+				continue;
+			ret = asprintf(&buf, "%s:%s,%d", hbuf, sbuf,
+			    targ->t_portal_group->pg_tag);
+			break;
+		case AF_INET6:
+			if (strcmp(hbuf, "::") == 0)
+				continue;
+			ret = asprintf(&buf, "[%s]:%s,%d", hbuf, sbuf,
+			    targ->t_portal_group->pg_tag);
+			break;
+		default:
+			continue;
+		}
+		if (ret <= 0)
+		    log_err(1, "asprintf");
+		keys_add(response_keys, "TargetAddress", buf);
+		free(buf);
+	}
+}
+
 void
 discovery(struct connection *conn)
 {
@@ -186,7 +230,7 @@ discovery(struct connection *conn)
 				    targ->t_name);
 				continue;
 			}
-			keys_add(response_keys, "TargetName", targ->t_name);
+			discovery_add_target(response_keys, targ);
 		}
 	} else {
 		targ = target_find(conn->conn_portal->p_portal_group->pg_conf,
@@ -194,9 +238,8 @@ discovery(struct connection *conn)
 		if (targ == NULL) {
 			log_debugx("initiator requested information on unknown "
 			    "target \"%s\"; returning nothing", send_targets);
-		} else {
-			keys_add(response_keys, "TargetName", targ->t_name);
-		}
+		} else
+			discovery_add_target(response_keys, targ);
 	}
 	keys_save(response_keys, response);
 

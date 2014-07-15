@@ -109,7 +109,7 @@ fi
 if [ -n "$LIST" ]; then
 	for dir in /etc/rc.d $local_startup; do
 		[ -n "$VERBOSE" ] && echo "From ${dir}:"
-		cd $dir && for file in *; do echo $file; done
+		[ -d ${dir} ] && /bin/ls -1 ${dir}
 	done
 	exit 0
 fi
@@ -139,7 +139,7 @@ cd /
 for dir in /etc/rc.d $local_startup; do
 	if [ -x "$dir/$script" ]; then
 		[ -n "$VERBOSE" ] && echo "$script is located in $dir"
-		exec env -i HOME=/ PATH=/sbin:/bin:/usr/sbin:/usr/bin $dir/$script $*
+		exec env -i HOME=/ PATH=/sbin:/bin:/usr/sbin:/usr/bin TERM="$TERM" $dir/$script $*
 	fi
 done
 

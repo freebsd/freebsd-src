@@ -1,9 +1,9 @@
 #$FreeBSD$
 #	@(#)Makefile	8.1 (Berkeley) 6/2/93
 
-MAN=
-
 .include <src.opts.mk>
+
+MAN=
 MK_SSP=	no
 
 PROG=	rescue
@@ -134,10 +134,6 @@ CRUNCH_ALIAS_bsdlabel= disklabel
 .if ${MACHINE} == "pc98"
 CRUNCH_PROGS_sbin+= bsdlabel
 CRUNCH_SRCDIR_fdisk= $(.CURDIR)/../../sbin/fdisk_pc98
-.endif
-
-.if ${MACHINE_CPUARCH} == "ia64"
-CRUNCH_PROGS_sbin+= mca
 .endif
 
 .if ${MACHINE_CPUARCH} == "sparc64"

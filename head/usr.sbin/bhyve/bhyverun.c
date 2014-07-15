@@ -60,6 +60,7 @@ __FBSDID("$FreeBSD$");
 #include "mevent.h"
 #include "mptbl.h"
 #include "pci_emul.h"
+#include "pci_irq.h"
 #include "pci_lpc.h"
 #include "smbiostbl.h"
 #include "xmsr.h"
@@ -68,7 +69,6 @@ __FBSDID("$FreeBSD$");
 
 #define GUEST_NIO_PORT		0x488	/* guest upcalls via i/o port */
 
-#define	VMEXIT_SWITCH		0	/* force vcpu switch in mux mode */
 #define	VMEXIT_CONTINUE		1	/* continue from next instruction */
 #define	VMEXIT_RESTART		2	/* restart current instruction */
 #define	VMEXIT_ABORT		3	/* abort the vm run loop */
@@ -129,25 +129,26 @@ usage(int code)
 {
 
         fprintf(stderr,
-                "Usage: %s [-aehwAHIPW] [-g <gdb port>] [-s <pci>] [-c vcpus]\n"
-		"       %*s [-p vcpu:hostcpu] [-m mem] [-l <lpc>] <vm>\n"
+                "Usage: %s [-abehwxACHPWY] [-c vcpus] [-g <gdb port>] [-l <lpc>]\n"
+		"       %*s [-m mem] [-p vcpu:hostcpu] [-s <pci>] [-U uuid] <vm>\n"
 		"       -a: local apic is in xAPIC mode (deprecated)\n"
-		"       -A: create an ACPI table\n"
-		"       -g: gdb port\n"
+		"       -A: create ACPI tables\n"
 		"       -c: # cpus (default 1)\n"
-		"       -p: pin 'vcpu' to 'hostcpu'\n"
-		"       -H: vmexit from the guest on hlt\n"
-		"       -P: vmexit from the guest on pause\n"
-		"       -W: force virtio to use single-vector MSI\n"
+		"       -C: include guest memory in core file\n"
 		"       -e: exit on unhandled I/O access\n"
+		"       -g: gdb port\n"
 		"       -h: help\n"
-		"       -s: <slot,driver,configinfo> PCI slot config\n"
+		"       -H: vmexit from the guest on hlt\n"
 		"       -l: LPC device configuration\n"
 		"       -m: memory size in MB\n"
+		"       -p: pin 'vcpu' to 'hostcpu'\n"
+		"       -P: vmexit from the guest on pause\n"
+		"       -s: <slot,driver,configinfo> PCI slot config\n"
+		"       -U: uuid\n"
 		"       -w: ignore unimplemented MSRs\n"
+		"       -W: force virtio to use single-vector MSI\n"
 		"       -x: local apic is in x2APIC mode\n"
-		"       -Y: disable MPtable generation\n"
-		"       -U: uuid\n",
+		"       -Y: disable MPtable generation\n",
 		progname, (int)strlen(progname), "");
 
 	exit(code);
@@ -241,6 +242,15 @@ fbsdrun_addcpu(struct vmctx *ctx, int fromcpu, int newcpu, uint64_t rip)
 
 	assert(fromcpu == BSP);
 
+	/*
+	 * The 'newcpu' must be activated in the context of 'fromcpu'. If
+	 * vm_activate_cpu() is delayed until newcpu's pthread starts running
+	 * then vmm.ko is out-of-sync with bhyve and this can create a race
+	 * with vm_suspend().
+	 */
+	error = vm_activate_cpu(ctx, newcpu);
+	assert(error == 0);
+
 	CPU_SET_ATOMIC(newcpu, &cpumask);
 
 	/*
@@ -272,12 +282,6 @@ fbsdrun_deletecpu(struct vmctx *ctx, int vcpu)
 }
 
 static int
-vmexit_catch_inout(void)
-{
-	return (VMEXIT_ABORT);
-}
-
-static int
 vmexit_handle_notify(struct vmctx *ctx, struct vm_exit *vme, int *pvcpu,
 		     uint32_t eax)
 {
@@ -293,33 +297,34 @@ static int
 vmexit_inout(struct vmctx *ctx, struct vm_exit *vme, int *pvcpu)
 {
 	int error;
-	int bytes, port, in, out;
-	uint32_t eax;
+	int bytes, port, in, out, string;
 	int vcpu;
 
 	vcpu = *pvcpu;
 
 	port = vme->u.inout.port;
 	bytes = vme->u.inout.bytes;
-	eax = vme->u.inout.eax;
+	string = vme->u.inout.string;
 	in = vme->u.inout.in;
 	out = !in;
 
-	/* We don't deal with these */
-	if (vme->u.inout.string || vme->u.inout.rep)
-		return (VMEXIT_ABORT);
-
         /* Extra-special case of host notifications */
-        if (out && port == GUEST_NIO_PORT)
-                return (vmexit_handle_notify(ctx, vme, pvcpu, eax));
+        if (out && port == GUEST_NIO_PORT) {
+                error = vmexit_handle_notify(ctx, vme, pvcpu, vme->u.inout.eax);
+		return (error);
+	}
 
-	error = emulate_inout(ctx, vcpu, in, port, bytes, &eax, strictio);
-	if (error == INOUT_OK && in)
-		error = vm_set_register(ctx, vcpu, VM_REG_GUEST_RAX, eax);
+	error = emulate_inout(ctx, vcpu, vme, strictio);
+	if (error == INOUT_OK && in && !string) {
+		error = vm_set_register(ctx, vcpu, VM_REG_GUEST_RAX,
+		    vme->u.inout.eax);
+	}
 
 	switch (error) {
 	case INOUT_OK:
 		return (VMEXIT_CONTINUE);
+	case INOUT_RESTART:
+		return (VMEXIT_RESTART);
 	case INOUT_RESET:
 		stats.io_reset++;
 		return (VMEXIT_RESET);
@@ -330,7 +335,7 @@ vmexit_inout(struct vmctx *ctx, struct vm_exit *vme, int *pvcpu)
 		fprintf(stderr, "Unhandled %s%c 0x%04x\n",
 			in ? "in" : "out",
 			bytes == 1 ? 'b' : (bytes == 2 ? 'w' : 'l'), port);
-		return (vmexit_catch_inout());
+		return (VMEXIT_ABORT);
 	}
 }
 
@@ -394,6 +399,16 @@ vmexit_spinup_ap(struct vmctx *ctx, struct vm_exit *vme, int *pvcpu)
 	return (retval);
 }
 
+#define	DEBUG_EPT_MISCONFIG
+#ifdef DEBUG_EPT_MISCONFIG
+#define	EXIT_REASON_EPT_MISCONFIG	49
+#define	VMCS_GUEST_PHYSICAL_ADDRESS	0x00002400
+#define	VMCS_IDENT(x)			((x) | 0x80000000)
+
+static uint64_t ept_misconfig_gpa, ept_misconfig_pte[4];
+static int ept_misconfig_ptenum;
+#endif
+
 static int
 vmexit_vmx(struct vmctx *ctx, struct vm_exit *vmexit, int *pvcpu)
 {
@@ -408,7 +423,21 @@ vmexit_vmx(struct vmctx *ctx, struct vm_exit *vmexit, int *pvcpu)
 	    vmexit->u.vmx.exit_qualification);
 	fprintf(stderr, "\tinst_type\t\t%d\n", vmexit->u.vmx.inst_type);
 	fprintf(stderr, "\tinst_error\t\t%d\n", vmexit->u.vmx.inst_error);
-
+#ifdef DEBUG_EPT_MISCONFIG
+	if (vmexit->u.vmx.exit_reason == EXIT_REASON_EPT_MISCONFIG) {
+		vm_get_register(ctx, *pvcpu,
+		    VMCS_IDENT(VMCS_GUEST_PHYSICAL_ADDRESS),
+		    &ept_misconfig_gpa);
+		vm_get_gpa_pmap(ctx, ept_misconfig_gpa, ept_misconfig_pte,
+		    &ept_misconfig_ptenum);
+		fprintf(stderr, "\tEPT misconfiguration:\n");
+		fprintf(stderr, "\t\tGPA: %#lx\n", ept_misconfig_gpa);
+		fprintf(stderr, "\t\tPTE(%d): %#lx %#lx %#lx %#lx\n",
+		    ept_misconfig_ptenum, ept_misconfig_pte[0],
+		    ept_misconfig_pte[1], ept_misconfig_pte[2],
+		    ept_misconfig_pte[3]);
+	}
+#endif	/* DEBUG_EPT_MISCONFIG */
 	return (VMEXIT_ABORT);
 }
 
@@ -519,6 +548,7 @@ vmexit_suspend(struct vmctx *ctx, struct vm_exit *vmexit, int *pvcpu)
 
 static vmexit_handler_t handler[VM_EXITCODE_MAX] = {
 	[VM_EXITCODE_INOUT]  = vmexit_inout,
+	[VM_EXITCODE_INOUT_STR]  = vmexit_inout,
 	[VM_EXITCODE_VMX]    = vmexit_vmx,
 	[VM_EXITCODE_BOGUS]  = vmexit_bogus,
 	[VM_EXITCODE_RDMSR]  = vmexit_rdmsr,
@@ -535,12 +565,16 @@ vm_loop(struct vmctx *ctx, int vcpu, uint64_t rip)
 	int error, rc, prevcpu;
 	enum vm_exitcode exitcode;
 	enum vm_suspend_how how;
+	cpuset_t active_cpus;
 
 	if (vcpumap[vcpu] != NULL) {
 		error = pthread_setaffinity_np(pthread_self(),
 		    sizeof(cpuset_t), vcpumap[vcpu]);
 		assert(error == 0);
 	}
+
+	error = vm_active_cpus(ctx, &active_cpus);
+	assert(CPU_ISSET(vcpu, &active_cpus));
 
 	while (1) {
 		error = vm_run(ctx, vcpu, rip, &vmexit[vcpu]);
@@ -575,6 +609,8 @@ vm_loop(struct vmctx *ctx, int vcpu, uint64_t rip)
 			assert(error == 0 || errno == EALREADY);
                         rip = vmexit[vcpu].rip + vmexit[vcpu].inst_length;
 			break;
+		case VMEXIT_ABORT:
+			abort();
 		default:
 			exit(1);
 		}
@@ -647,19 +683,20 @@ int
 main(int argc, char *argv[])
 {
 	int c, error, gdb_port, err, bvmcons;
-	int max_vcpus, mptgen;
+	int dump_guest_memory, max_vcpus, mptgen;
 	struct vmctx *ctx;
 	uint64_t rip;
 	size_t memsize;
 
 	bvmcons = 0;
+	dump_guest_memory = 0;
 	progname = basename(argv[0]);
 	gdb_port = 0;
 	guest_ncpus = 1;
 	memsize = 256 * MB;
 	mptgen = 1;
 
-	while ((c = getopt(argc, argv, "abehwxAHIPWYp:g:c:s:m:l:U:")) != -1) {
+	while ((c = getopt(argc, argv, "abehwxACHIPWYp:g:c:s:m:l:U:")) != -1) {
 		switch (c) {
 		case 'a':
 			x2apic_mode = 0;
@@ -678,6 +715,9 @@ main(int argc, char *argv[])
 			break;
                 case 'c':
 			guest_ncpus = atoi(optarg);
+			break;
+		case 'C':
+			dump_guest_memory = 1;
 			break;
 		case 'g':
 			gdb_port = atoi(optarg);
@@ -760,6 +800,8 @@ main(int argc, char *argv[])
 
 	fbsdrun_set_capabilities(ctx, BSP);
 
+	if (dump_guest_memory)
+		vm_set_memflags(ctx, VM_MEM_F_INCORE);
 	err = vm_setup_memory(ctx, memsize, VM_MMAP_ALL);
 	if (err) {
 		fprintf(stderr, "Unable to setup memory (%d)\n", err);
@@ -768,9 +810,11 @@ main(int argc, char *argv[])
 
 	init_mem();
 	init_inout();
+	pci_irq_init(ctx);
 	ioapic_init(ctx);
 
 	rtc_init(ctx);
+	sci_init(ctx);
 
 	/*
 	 * Exit if a device emulation finds an error in it's initilization

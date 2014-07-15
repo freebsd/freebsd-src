@@ -300,7 +300,9 @@ g_part_pc98_dumpconf(struct g_part_table *table,
 		sbuf_printf(sb, " xs PC98 xt %u sn %s", type, name);
 	} else {
 		/* confxml: partition entry information */
-		sbuf_printf(sb, "%s<label>%s</label>\n", indent, name);
+		sbuf_printf(sb, "%s<label>", indent);
+		g_conf_printf_escaped(sb, "%s", name);
+		sbuf_printf(sb, "</label>\n");
 		if (entry->ent.dp_mid & PC98_MID_BOOTABLE)
 			sbuf_printf(sb, "%s<attrib>bootable</attrib>\n",
 			    indent);

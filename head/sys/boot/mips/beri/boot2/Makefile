@@ -32,6 +32,8 @@
 BINDIR?=	/boot
 INSTALLFLAGS=	-b
 
+NO_PIE=	yes
+
 LOADERS=	flashboot jtagboot
 FILES=		${LOADERS} ${LOADERS:S/$/.md5/}
 

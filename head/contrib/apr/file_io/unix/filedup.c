@@ -141,8 +141,7 @@ APR_DECLARE(apr_status_t) apr_file_setaside(apr_file_t **new_file,
                                             apr_file_t *old_file,
                                             apr_pool_t *p)
 {
-    *new_file = (apr_file_t *)apr_palloc(p, sizeof(apr_file_t));
-    memcpy(*new_file, old_file, sizeof(apr_file_t));
+    *new_file = (apr_file_t *)apr_pmemdup(p, old_file, sizeof(apr_file_t));
     (*new_file)->pool = p;
     if (old_file->buffered) {
         (*new_file)->buffer = apr_palloc(p, old_file->bufsize);

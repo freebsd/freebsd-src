@@ -42,6 +42,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/module.h>
 #include <sys/socket.h>
+#include <sys/taskqueue.h>
 #include <sys/bus.h>
 
 #include <net/if.h>
@@ -118,7 +119,7 @@ rgephy_attach(device_t dev)
 	sc = device_get_softc(dev);
 	ma = device_get_ivars(dev);
 	flags = 0;
-	if (strcmp(ma->mii_data->mii_ifp->if_dname, "re") == 0)
+	if (strcmp(if_getdname(ma->mii_data->mii_ifp), "re") == 0)
 		flags |= MIIF_PHYPRIV0;
 	mii_phy_dev_attach(dev, flags, &rgephy_funcs, 0);
 

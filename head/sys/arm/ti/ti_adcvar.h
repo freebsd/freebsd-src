@@ -29,7 +29,7 @@
 #ifndef _TI_ADCVAR_H_
 #define _TI_ADCVAR_H_
 
-#define	TI_ADC_NPINS	7
+#define	TI_ADC_NPINS	8
 
 #define	ADC_READ4(_sc, reg)	bus_read_4((_sc)->sc_mem_res, reg)
 #define	ADC_WRITE4(_sc, reg, value)	\

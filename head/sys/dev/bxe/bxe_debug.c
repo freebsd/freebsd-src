@@ -299,7 +299,7 @@ static void bxe_ddb(db_expr_t blah1,
                     char      *blah4)
 {
     char if_xname[IFNAMSIZ];
-    struct ifnet *ifp = NULL;
+    if_t ifp = NULL;
     struct bxe_softc *sc;
     db_expr_t next_arg;
     int index;
@@ -335,13 +335,13 @@ static void bxe_ddb(db_expr_t blah1,
     }
 
     snprintf(if_xname, sizeof(if_xname), "bxe%d", index);
-    if ((ifp = ifunit_ref(if_xname)) == NULL)
+    if ((ifp = ifunit_ref(if_xname)) == NULL) /* XXX */
     {
         db_printf("ERROR: Invalid interface %s\n", if_xname);
         goto bxe_ddb_done;
     }
 
-    sc = (struct bxe_softc *)ifp->if_softc;
+    sc = (struct bxe_softc *)if_getsoftc(ifp);
     db_printf("ifnet=%p (%s)\n", ifp, if_xname);
     db_printf("softc=%p\n", sc);
     db_printf("  dev=%p\n", sc->dev);

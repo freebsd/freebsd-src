@@ -49,7 +49,9 @@ __FBSDID("$FreeBSD$");
 #include <netinet/sctp_input.h>
 #include <netinet/sctp.h>
 #include <netinet/sctp_uio.h>
+#if defined(INET) || defined(INET6)
 #include <netinet/udp.h>
+#endif
 
 
 void
@@ -1480,9 +1482,11 @@ sctp_pathmtu_timer(struct sctp_inpcb *inp,
 		}
 		if (net->ro._s_addr) {
 			mtu = SCTP_GATHER_MTU_FROM_ROUTE(net->ro._s_addr, &net->ro._s_addr.sa, net->ro.ro_rt);
+#if defined(INET) || defined(INET6)
 			if (net->port) {
 				mtu -= sizeof(struct udphdr);
 			}
+#endif
 			if (mtu > next_mtu) {
 				net->mtu = next_mtu;
 			}

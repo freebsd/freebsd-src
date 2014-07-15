@@ -1292,61 +1292,57 @@ sf_dma_free(struct sf_softc *sc)
 
 	/* Tx ring. */
 	if (sc->sf_cdata.sf_tx_ring_tag) {
-		if (sc->sf_cdata.sf_tx_ring_map)
+		if (sc->sf_rdata.sf_tx_ring_paddr)
 			bus_dmamap_unload(sc->sf_cdata.sf_tx_ring_tag,
 			    sc->sf_cdata.sf_tx_ring_map);
-		if (sc->sf_cdata.sf_tx_ring_map &&
-		    sc->sf_rdata.sf_tx_ring)
+		if (sc->sf_rdata.sf_tx_ring)
 			bus_dmamem_free(sc->sf_cdata.sf_tx_ring_tag,
 			    sc->sf_rdata.sf_tx_ring,
 			    sc->sf_cdata.sf_tx_ring_map);
 		sc->sf_rdata.sf_tx_ring = NULL;
-		sc->sf_cdata.sf_tx_ring_map = NULL;
+		sc->sf_rdata.sf_tx_ring_paddr = 0;
 		bus_dma_tag_destroy(sc->sf_cdata.sf_tx_ring_tag);
 		sc->sf_cdata.sf_tx_ring_tag = NULL;
 	}
 	/* Tx completion ring. */
 	if (sc->sf_cdata.sf_tx_cring_tag) {
-		if (sc->sf_cdata.sf_tx_cring_map)
+		if (sc->sf_rdata.sf_tx_cring_paddr)
 			bus_dmamap_unload(sc->sf_cdata.sf_tx_cring_tag,
 			    sc->sf_cdata.sf_tx_cring_map);
-		if (sc->sf_cdata.sf_tx_cring_map &&
-		    sc->sf_rdata.sf_tx_cring)
+		if (sc->sf_rdata.sf_tx_cring)
 			bus_dmamem_free(sc->sf_cdata.sf_tx_cring_tag,
 			    sc->sf_rdata.sf_tx_cring,
 			    sc->sf_cdata.sf_tx_cring_map);
 		sc->sf_rdata.sf_tx_cring = NULL;
-		sc->sf_cdata.sf_tx_cring_map = NULL;
+		sc->sf_rdata.sf_tx_cring_paddr = 0;
 		bus_dma_tag_destroy(sc->sf_cdata.sf_tx_cring_tag);
 		sc->sf_cdata.sf_tx_cring_tag = NULL;
 	}
 	/* Rx ring. */
 	if (sc->sf_cdata.sf_rx_ring_tag) {
-		if (sc->sf_cdata.sf_rx_ring_map)
+		if (sc->sf_rdata.sf_rx_ring_paddr)
 			bus_dmamap_unload(sc->sf_cdata.sf_rx_ring_tag,
 			    sc->sf_cdata.sf_rx_ring_map);
-		if (sc->sf_cdata.sf_rx_ring_map &&
-		    sc->sf_rdata.sf_rx_ring)
+		if (sc->sf_rdata.sf_rx_ring)
 			bus_dmamem_free(sc->sf_cdata.sf_rx_ring_tag,
 			    sc->sf_rdata.sf_rx_ring,
 			    sc->sf_cdata.sf_rx_ring_map);
 		sc->sf_rdata.sf_rx_ring = NULL;
-		sc->sf_cdata.sf_rx_ring_map = NULL;
+		sc->sf_rdata.sf_rx_ring_paddr = 0;
 		bus_dma_tag_destroy(sc->sf_cdata.sf_rx_ring_tag);
 		sc->sf_cdata.sf_rx_ring_tag = NULL;
 	}
 	/* Rx completion ring. */
 	if (sc->sf_cdata.sf_rx_cring_tag) {
-		if (sc->sf_cdata.sf_rx_cring_map)
+		if (sc->sf_rdata.sf_rx_cring_paddr)
 			bus_dmamap_unload(sc->sf_cdata.sf_rx_cring_tag,
 			    sc->sf_cdata.sf_rx_cring_map);
-		if (sc->sf_cdata.sf_rx_cring_map &&
-		    sc->sf_rdata.sf_rx_cring)
+		if (sc->sf_rdata.sf_rx_cring)
 			bus_dmamem_free(sc->sf_cdata.sf_rx_cring_tag,
 			    sc->sf_rdata.sf_rx_cring,
 			    sc->sf_cdata.sf_rx_cring_map);
 		sc->sf_rdata.sf_rx_cring = NULL;
-		sc->sf_cdata.sf_rx_cring_map = NULL;
+		sc->sf_rdata.sf_rx_cring_paddr = 0;
 		bus_dma_tag_destroy(sc->sf_cdata.sf_rx_cring_tag);
 		sc->sf_cdata.sf_rx_cring_tag = NULL;
 	}

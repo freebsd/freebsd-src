@@ -1,3 +1,42 @@
+2014-04-22  Thomas E. Dickey  <tom@invisible-island.net>
+
+	* mstring.c:
+	use vsnprintf() to ensure that msprintf's buffer is large enough.
+
+	* main.c, defs.h: add mstring_leaks()
+
+	* configure: regen
+
+	* output.c: fix a complementary warning
+
+	* mstring.c: introduce vsnprintf
+
+	* configure.in, config_h.in: add check for vsnprintf
+
+	* output.c: quiet a type-conversion warning
+
+	* mstring.c: fix a potential memory leak on ENOMEM
+	quiet a couple of type-conversion warnings
+
+	* defs.h: add/use GCC_PRINTFLIKE for msprintf()
+
+2014-04-22  Tom.Shields
+
+	* README.BTYACC:
+	drop "NOTES-btyacc-Changes" and "NOTES-btyacc-Disposition", merging relevant
+	content into README.BTYACC
+
+2014-04-22  Thomas E. Dickey  <tom@invisible-island.net>
+
+	* package/pkgsrc/Makefile, VERSION, package/byacc.spec, package/debian/changelog, package/mingw-byacc.spec:
+	bump
+
+2014-04-19  Thomas E. Dickey  <tom@invisible-island.net>
+
+	* config.sub: 2014-04-03
+
+	* config.guess: 2014-03-23
+
 2014-04-09  Rick.Spates
 
 	* main.c, defs.h: patch to allow DEBUG build with WIN32 system

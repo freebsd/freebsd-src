@@ -170,11 +170,9 @@ SYSCTL_INT(_net_link_tap, OID_AUTO, user_open, CTLFLAG_RW, &tapuopen, 0,
 	"Allow user to open /dev/tap (based on node permissions)");
 SYSCTL_INT(_net_link_tap, OID_AUTO, up_on_open, CTLFLAG_RW, &tapuponopen, 0,
 	"Bring interface up when /dev/tap is opened");
-SYSCTL_INT(_net_link_tap, OID_AUTO, devfs_cloning, CTLFLAG_RW, &tapdclone, 0,
+SYSCTL_INT(_net_link_tap, OID_AUTO, devfs_cloning, CTLFLAG_RWTUN, &tapdclone, 0,
 	"Enably legacy devfs interface creation");
 SYSCTL_INT(_net_link_tap, OID_AUTO, debug, CTLFLAG_RW, &tapdebug, 0, "");
-
-TUNABLE_INT("net.link.tap.devfs_cloning", &tapdclone);
 
 DEV_MODULE(if_tap, tapmodevent, NULL);
 

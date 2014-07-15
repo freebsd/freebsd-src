@@ -35,6 +35,7 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 #include <unistd.h>
 
+#include "image.h"
 #include "mkimg.h"
 #include "scheme.h"
 
@@ -77,7 +78,7 @@ pc98_chs(u_short *cyl, u_char *hd, u_char *sec, uint32_t lba __unused)
 }
 
 static int
-pc98_write(int fd, lba_t imgsz __unused, void *bootcode)
+pc98_write(lba_t imgsz __unused, void *bootcode)
 {
 	struct part *part;
 	struct pc98_partition *dpbase, *dp;
@@ -106,7 +107,7 @@ pc98_write(int fd, lba_t imgsz __unused, void *bootcode)
 		if (part->label != NULL)
 			memcpy(dp->dp_name, part->label, strlen(part->label));
 	}
-	error = mkimg_write(fd, 0, buf, PC98_BOOTCODESZ / secsz);
+	error = image_write(0, buf, PC98_BOOTCODESZ / secsz);
 	free(buf);
 	return (error);
 }

@@ -162,7 +162,7 @@ sys_obreak(td, uap)
 #endif
 		prot = VM_PROT_RW;
 #ifdef COMPAT_FREEBSD32
-#if defined(__amd64__) || defined(__ia64__)
+#if defined(__amd64__)
 		if (i386_read_exec && SV_PROC_FLAG(td->td_proc, SV_ILP32))
 			prot |= VM_PROT_EXECUTE;
 #endif

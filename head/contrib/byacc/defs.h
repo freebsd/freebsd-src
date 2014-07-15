@@ -1,4 +1,4 @@
-/* $Id: defs.h,v 1.47 2014/04/09 21:23:45 Rick.Spates Exp $ */
+/* $Id: defs.h,v 1.49 2014/04/22 23:34:34 tom Exp $ */
 
 #ifdef HAVE_CONFIG_H
 #include <config.h>
@@ -409,6 +409,10 @@ extern param *parse_param;
 #endif
 #endif
 
+#ifndef GCC_PRINTFLIKE
+#define GCC_PRINTFLIKE(fmt,var) /*nothing*/
+#endif
+
 /* closure.c */
 extern void closure(Value_t * nucleus, int n);
 extern void finalize_closure(void);
@@ -488,7 +492,7 @@ struct mstring
     char *base, *ptr, *end;
 };
 
-extern void msprintf(struct mstring *, const char *, ...);
+extern void msprintf(struct mstring *, const char *, ...) GCC_PRINTFLIKE(2,3);
 extern int mputchar(struct mstring *, int);
 extern struct mstring *msnew(void);
 extern char *msdone(struct mstring *);
@@ -535,5 +539,6 @@ extern void lr0_leaks(void);
 extern void lalr_leaks(void);
 extern void mkpar_leaks(void);
 extern void output_leaks(void);
+extern void mstring_leaks(void);
 extern void reader_leaks(void);
 #endif

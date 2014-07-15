@@ -1,4 +1,11 @@
-Serf 1.3.4 [2014-02-08, from /tags/1.3.4, rxxxx]
+Serf 1.3.5 [2014-04-27, from /tags/1.3.5, rxxxx]
+  Fix issue #125: no reverse lookup during Negotiate authentication for proxies.
+  Fix a crash caused by incorrect reuse of the ssltunnel CONNECT request (r2316)
+  Cancel request if response parsing failed + authn callback set (r2319)
+  Update the expired certificates in the test suite.
+
+
+Serf 1.3.4 [2014-02-08, from /tags/1.3.4, r2310]
   Fix issue #119: Endless loop during ssl tunnel setup with Negotiate authn
   Fix issue #123: Can't setup ssl tunnel which sends Connection close header
   Fix a race condition when initializing OpenSSL from multiple threads (r2263)

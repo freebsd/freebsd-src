@@ -108,6 +108,46 @@ typedef	u_long		popmap_t;
 #define	NPOPMAP		howmany(VM_LEVEL_0_NPAGES, NBPOPMAP)
 
 /*
+ * Clear a bit in the population map.
+ */
+static __inline void
+popmap_clear(popmap_t popmap[], int i)
+{
+
+	popmap[i / NBPOPMAP] &= ~(1UL << (i % NBPOPMAP));
+}
+
+/*
+ * Set a bit in the population map.
+ */
+static __inline void
+popmap_set(popmap_t popmap[], int i)
+{
+
+	popmap[i / NBPOPMAP] |= 1UL << (i % NBPOPMAP);
+}
+
+/*
+ * Is a bit in the population map clear?
+ */
+static __inline boolean_t
+popmap_is_clear(popmap_t popmap[], int i)
+{
+
+	return ((popmap[i / NBPOPMAP] & (1UL << (i % NBPOPMAP))) == 0);
+}
+
+/*
+ * Is a bit in the population map set?
+ */
+static __inline boolean_t
+popmap_is_set(popmap_t popmap[], int i)
+{
+
+	return ((popmap[i / NBPOPMAP] & (1UL << (i % NBPOPMAP))) != 0);
+}
+
+/*
  * The reservation structure
  *
  * A reservation structure is constructed whenever a large physical page is
@@ -241,7 +281,7 @@ vm_reserv_depopulate(vm_reserv_t rv, int index)
 	mtx_assert(&vm_page_queue_free_mtx, MA_OWNED);
 	KASSERT(rv->object != NULL,
 	    ("vm_reserv_depopulate: reserv %p is free", rv));
-	KASSERT(isset(rv->popmap, index),
+	KASSERT(popmap_is_set(rv->popmap, index),
 	    ("vm_reserv_depopulate: reserv %p's popmap[%d] is clear", rv,
 	    index));
 	KASSERT(rv->popcnt > 0,
@@ -249,8 +289,13 @@ vm_reserv_depopulate(vm_reserv_t rv, int index)
 	if (rv->inpartpopq) {
 		TAILQ_REMOVE(&vm_rvq_partpop, rv, partpopq);
 		rv->inpartpopq = FALSE;
+	} else {
+		KASSERT(rv->pages->psind == 1,
+		    ("vm_reserv_depopulate: reserv %p is already demoted",
+		    rv));
+		rv->pages->psind = 0;
 	}
-	clrbit(rv->popmap, index);
+	popmap_clear(rv->popmap, index);
 	rv->popcnt--;
 	if (rv->popcnt == 0) {
 		LIST_REMOVE(rv, objq);
@@ -297,21 +342,24 @@ vm_reserv_populate(vm_reserv_t rv, int index)
 	mtx_assert(&vm_page_queue_free_mtx, MA_OWNED);
 	KASSERT(rv->object != NULL,
 	    ("vm_reserv_populate: reserv %p is free", rv));
-	KASSERT(isclr(rv->popmap, index),
+	KASSERT(popmap_is_clear(rv->popmap, index),
 	    ("vm_reserv_populate: reserv %p's popmap[%d] is set", rv,
 	    index));
 	KASSERT(rv->popcnt < VM_LEVEL_0_NPAGES,
 	    ("vm_reserv_populate: reserv %p is already full", rv));
+	KASSERT(rv->pages->psind == 0,
+	    ("vm_reserv_populate: reserv %p is already promoted", rv));
 	if (rv->inpartpopq) {
 		TAILQ_REMOVE(&vm_rvq_partpop, rv, partpopq);
 		rv->inpartpopq = FALSE;
 	}
-	setbit(rv->popmap, index);
+	popmap_set(rv->popmap, index);
 	rv->popcnt++;
 	if (rv->popcnt < VM_LEVEL_0_NPAGES) {
 		rv->inpartpopq = TRUE;
 		TAILQ_INSERT_TAIL(&vm_rvq_partpop, rv, partpopq);
-	}
+	} else
+		rv->pages->psind = 1;
 }
 
 /*
@@ -495,7 +543,7 @@ found:
 		return (NULL);
 	/* Handle vm_page_rename(m, new_object, ...). */
 	for (i = 0; i < npages; i++)
-		if (isset(rv->popmap, index + i))
+		if (popmap_is_set(rv->popmap, index + i))
 			return (NULL);
 	for (i = 0; i < npages; i++)
 		vm_reserv_populate(rv, index + i);
@@ -620,7 +668,7 @@ found:
 	index = VM_RESERV_INDEX(object, pindex);
 	m = &rv->pages[index];
 	/* Handle vm_page_rename(m, new_object, ...). */
-	if (isset(rv->popmap, index))
+	if (popmap_is_set(rv->popmap, index))
 		return (NULL);
 	vm_reserv_populate(rv, index);
 	return (m);
@@ -654,9 +702,9 @@ vm_reserv_break(vm_reserv_t rv, vm_page_t m)
 		 * to the physical memory allocator.
 		 */
 		i = m - rv->pages;
-		KASSERT(isclr(rv->popmap, i),
+		KASSERT(popmap_is_clear(rv->popmap, i),
 		    ("vm_reserv_break: reserv %p's popmap is corrupted", rv));
-		setbit(rv->popmap, i);
+		popmap_set(rv->popmap, i);
 		rv->popcnt++;
 	}
 	i = hi = 0;

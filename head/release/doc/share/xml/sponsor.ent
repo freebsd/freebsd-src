@@ -10,13 +10,18 @@
 
 <!ENTITY afrl		"AFRL">
 
+<!ENTITY chelsio	"Chelsio Communications">
+
+<!ENTITY citrix		"Citrix Systems">
+<!ENTITY citrix.rd	"Citrix Systems R&amp;D">
+
 <!ENTITY darpa		"DARPA">
 <!ENTITY darpa_afrl	"DARPA, AFRL">
 
 <!ENTITY ff		"The&nbsp;&os;&nbsp;Foundation">
 <!ENTITY ff.url		"https://www.FreeBSDFoundation.org/">
 
-<!ENTITY google		"Google, Inc.">
+<!ENTITY google		"Google">
 
 <!ENTITY lsi		"LSI">
 

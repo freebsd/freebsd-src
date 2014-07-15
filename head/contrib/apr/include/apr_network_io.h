@@ -99,6 +99,8 @@ extern "C" {
                                     * until data is available.
                                     * @see apr_socket_accept_filter
                                     */
+#define APR_SO_BROADCAST     65536 /**< Allow broadcast
+                                    */
 
 /** @} */
 
@@ -278,6 +280,9 @@ struct apr_hdtr_t {
  * @param type The type of the socket (e.g., SOCK_STREAM).
  * @param protocol The protocol of the socket (e.g., APR_PROTO_TCP).
  * @param cont The pool for the apr_socket_t and associated storage.
+ * @note The pool will be used by various functions that operate on the
+ *       socket. The caller must ensure that it is not used by other threads
+ *       at the same time.
  */
 APR_DECLARE(apr_status_t) apr_socket_create(apr_socket_t **new_sock, 
                                             int family, int type,
@@ -333,6 +338,9 @@ APR_DECLARE(apr_status_t) apr_socket_listen(apr_socket_t *sock,
  *                 be used for all future communication.
  * @param sock The socket we are listening on.
  * @param connection_pool The pool for the new socket.
+ * @note The pool will be used by various functions that operate on the
+ *       socket. The caller must ensure that it is not used by other threads
+ *       at the same time.
  */
 APR_DECLARE(apr_status_t) apr_socket_accept(apr_socket_t **new_sock, 
                                             apr_socket_t *sock,
@@ -397,6 +405,8 @@ APR_DECLARE(apr_status_t) apr_sockaddr_info_get(apr_sockaddr_t **sa,
  * @param hostname The hostname.
  * @param sa The apr_sockaddr_t.
  * @param flags Special processing flags.
+ * @remark Results can vary significantly between platforms
+ * when processing wildcard socket addresses.
  */
 APR_DECLARE(apr_status_t) apr_getnameinfo(char **hostname,
                                           apr_sockaddr_t *sa,
@@ -489,7 +499,7 @@ APR_DECLARE(apr_status_t) apr_socket_send(apr_socket_t *sock, const char *buf,
                                           apr_size_t *len);
 
 /**
- * Send multiple packets of data over a network.
+ * Send multiple buffers over a network.
  * @param sock The socket to send the data over.
  * @param vec The array of iovec structs containing the data to send 
  * @param nvec The number of iovec structs in the array
@@ -499,7 +509,7 @@ APR_DECLARE(apr_status_t) apr_socket_send(apr_socket_t *sock, const char *buf,
  * This functions acts like a blocking write by default.  To change 
  * this behavior, use apr_socket_timeout_set() or the APR_SO_NONBLOCK
  * socket option.
- * The number of bytes actually sent is stored in argument 3.
+ * The number of bytes actually sent is stored in argument 4.
  *
  * It is possible for both bytes to be sent and an error to be returned.
  *
@@ -671,7 +681,7 @@ APR_DECLARE(apr_status_t) apr_socket_atmark(apr_socket_t *sock,
 
 /**
  * Return an address associated with a socket; either the address to
- * which the socket is bound locally or the the address of the peer
+ * which the socket is bound locally or the address of the peer
  * to which the socket is connected.
  * @param sa The returned apr_sockaddr_t.
  * @param which Whether to retrieve the local or remote address
@@ -711,6 +721,16 @@ APR_DECLARE(apr_status_t) apr_sockaddr_ip_getbuf(char *buf, apr_size_t buflen,
  */
 APR_DECLARE(int) apr_sockaddr_equal(const apr_sockaddr_t *addr1,
                                     const apr_sockaddr_t *addr2);
+
+/**
+ * See if the IP address in an APR socket address refers to the wildcard
+ * address for the protocol family (e.g., INADDR_ANY for IPv4).
+ *
+ * @param addr The APR socket address to examine.
+ * @remark The return value will be non-zero if the address is
+ * initialized and is the wildcard address.
+ */
+APR_DECLARE(int) apr_sockaddr_is_wildcard(const apr_sockaddr_t *addr);
 
 /**
 * Return the type of the socket.

@@ -39,18 +39,19 @@ __FBSDID("$FreeBSD$");
 #include <machine/bus.h>
 #include <machine/devmap.h>
 #include <machine/machdep.h>
+#include <machine/platform.h> 
 
 #include <arm/freescale/imx/imx_machdep.h>
 
 vm_offset_t
-initarm_lastaddr(void)
+platform_lastaddr(void)
 {
 
 	return (arm_devmap_lastaddr());
 }
 
 void
-initarm_early_init(void)
+platform_probe_and_attach(void)
 {
 
 	/* XXX - Get rid of this stuff soon. */
@@ -59,13 +60,13 @@ initarm_early_init(void)
 }
 
 void
-initarm_gpio_init(void)
+platform_gpio_init(void)
 {
 
 }
 
 void
-initarm_late_init(void)
+platform_late_init(void)
 {
 
 }
@@ -78,7 +79,7 @@ initarm_late_init(void)
  * Notably missing are entries for GPU, IPU, in general anything video related.
  */
 int
-initarm_devmap_init(void)
+platform_devmap_init(void)
 {
 
 	arm_devmap_add_entry(0x70000000, 0x00100000);

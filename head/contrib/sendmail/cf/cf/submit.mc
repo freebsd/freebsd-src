@@ -15,7 +15,7 @@ divert(-1)
 #
 
 divert(0)dnl
-VERSIONID(`$Id: submit.mc,v 8.15 2013/11/22 20:51:08 ca Exp $')
+VERSIONID(`$Id: submit.mc,v 8.15 2013-11-22 20:51:08 ca Exp $')
 define(`confCF_VERSION', `Submit')dnl
 define(`__OSTYPE__',`')dnl dirty hack to keep proto.m4 from complaining
 define(`_USE_DECNET_SYNTAX_', `1')dnl support DECnet

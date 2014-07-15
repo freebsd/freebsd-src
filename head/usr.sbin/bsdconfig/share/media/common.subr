@@ -44,7 +44,8 @@ MOUNTPOINT=/dist
 
 #
 # Media probe values to use for `f_media_get_TYPE media $file $PROBE' or
-# `f_device_get media $file $PROBE' (where $PROBE is one of the below values).
+# `f_device_get device_media $file $PROBE' (where $PROBE is one of the below
+# values).
 #
 PROBE_EXIST=1
 PROBE_SIZE=2

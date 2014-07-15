@@ -82,7 +82,7 @@ ASENTRY_NP(_start)
 	mov	r9, r0		/* 0 or boot mode from boot2 */
 	mov	r8, r1		/* Save Machine type */
 	mov	ip, r2		/* Save meta data */
-	mov	fp, r3		/* Future expantion */
+	mov	fp, r3		/* Future expansion */
 
 	/* Make sure interrupts are disabled. */
 	mrs	r7, cpsr
@@ -166,9 +166,32 @@ Lunmapped:
 	ldr	r1, [r0, #4]
 	sub	r0, r1, r2
 
+#ifndef _ARM_ARCH_6
+	/*
+	 * Some of the older ports (the various XScale, mostly) assume
+	 * that the memory before the kernel is mapped, and use it for
+	 * the various stacks, page tables, etc. For those CPUs, map the 
+	 * 64 first MB of RAM, as it used to be. 
+	 */
 	/*
 	 * Map PA == VA
-	 */
+	 */    
+	ldr     r5, =PHYSADDR
+	mov     r1, r5
+	mov     r2, r5
+	/* Map 64MiB, preserved over calls to build_pagetables */
+	mov     r3, #64
+	bl      build_pagetables
+	
+	/* Create the kernel map to jump to */
+	mov     r1, r5
+	ldr     r2, =(KERNBASE)
+	bl      build_pagetables
+	ldr	r5, =(KERNPHYSADDR)
+#else
+	/*
+	 * Map PA == VA
+	 */    
 	/* Find the start kernels load address */
 	adr	r5, _start
 	ldr	r2, =(L1_S_OFFSET)
@@ -183,6 +206,7 @@ Lunmapped:
 	mov	r1, r5
 	ldr	r2, =(KERNVIRTADDR)
 	bl	build_pagetables
+#endif
 	
 #if defined(SOCDEV_PA) && defined(SOCDEV_VA)
 	/* Create the custom map */
@@ -353,24 +377,24 @@ ASENTRY_NP(mpentry)
 	orr	r7, r7, #(I32_bit|F32_bit)
 	msr	cpsr_c, r7
 
-
-	adr     r7, Ltag
-	bic     r7, r7, #0xf0000000
-	orr     r7, r7, #PHYSADDR
-			
-	/* Disable MMU for a while */
+	/* Disable MMU.  It should be disabled already, but make sure. */
 	mrc	p15, 0, r2, c1, c0, 0
 	bic	r2, r2, #(CPU_CONTROL_MMU_ENABLE | CPU_CONTROL_DC_ENABLE |\
 	    CPU_CONTROL_WBUF_ENABLE)
 	bic	r2, r2, #(CPU_CONTROL_IC_ENABLE)
 	bic	r2, r2, #(CPU_CONTROL_BPRD_ENABLE)
 	mcr	p15, 0, r2, c1, c0, 0
+	nop
+	nop
+	nop
+	CPWAIT(r0)
 
-	nop
-	nop
-	nop
+#if defined(ARM_MMU_V6)
+	bl	armv6_idcache_inv_all	/* Modifies r0 only */
+#elif defined(ARM_MMU_V7)
+	bl	armv7_idcache_inv_all	/* Modifies r0-r3, ip */
+#endif
 
-Ltag:
 	ldr	r0, Lstartup_pagetable_secondary
 	bic	r0, r0, #0xf0000000
 	orr	r0, r0, #PHYSADDR
@@ -389,7 +413,10 @@ Ltag:
 	mrc	p15, 0, r0, c1, c0, 0
 	orr	r0, r0, #CPU_CONTROL_V6_EXTPAGE
 	orr	r0, r0, #CPU_CONTROL_AF_ENABLE
-	orr	r0, r0, #(CPU_CONTROL_MMU_ENABLE | CPU_CONTROL_DC_ENABLE)
+	orr	r0, r0, #(CPU_CONTROL_MMU_ENABLE | CPU_CONTROL_DC_ENABLE |\
+	    CPU_CONTROL_WBUF_ENABLE)
+	orr	r0, r0, #(CPU_CONTROL_IC_ENABLE)
+	orr	r0, r0, #(CPU_CONTROL_BPRD_ENABLE)
 	mcr	p15, 0, r0, c1, c0, 0
 	nop
 	nop

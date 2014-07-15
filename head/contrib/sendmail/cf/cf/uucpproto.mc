@@ -26,7 +26,7 @@ divert(-1)
 #
 
 divert(0)dnl
-VERSIONID(`$Id: uucpproto.mc,v 8.16 2013/11/22 20:51:08 ca Exp $')
+VERSIONID(`$Id: uucpproto.mc,v 8.16 2013-11-22 20:51:08 ca Exp $')
 OSTYPE(unknown)
 FEATURE(promiscuous_relay)dnl
 FEATURE(accept_unresolvable_domains)dnl

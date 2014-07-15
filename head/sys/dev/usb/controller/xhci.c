@@ -90,24 +90,20 @@
 static SYSCTL_NODE(_hw_usb, OID_AUTO, xhci, CTLFLAG_RW, 0, "USB XHCI");
 
 static int xhcistreams;
-SYSCTL_INT(_hw_usb_xhci, OID_AUTO, streams, CTLFLAG_RW | CTLFLAG_TUN,
+SYSCTL_INT(_hw_usb_xhci, OID_AUTO, streams, CTLFLAG_RWTUN,
     &xhcistreams, 0, "Set to enable streams mode support");
-TUNABLE_INT("hw.usb.xhci.streams", &xhcistreams);
 
 #ifdef USB_DEBUG
 static int xhcidebug;
 static int xhciroute;
 static int xhcipolling;
 
-SYSCTL_INT(_hw_usb_xhci, OID_AUTO, debug, CTLFLAG_RW | CTLFLAG_TUN,
+SYSCTL_INT(_hw_usb_xhci, OID_AUTO, debug, CTLFLAG_RWTUN,
     &xhcidebug, 0, "Debug level");
-TUNABLE_INT("hw.usb.xhci.debug", &xhcidebug);
-SYSCTL_INT(_hw_usb_xhci, OID_AUTO, xhci_port_route, CTLFLAG_RW | CTLFLAG_TUN,
+SYSCTL_INT(_hw_usb_xhci, OID_AUTO, xhci_port_route, CTLFLAG_RWTUN,
     &xhciroute, 0, "Routing bitmap for switching EHCI ports to XHCI controller");
-TUNABLE_INT("hw.usb.xhci.xhci_port_route", &xhciroute);
-SYSCTL_INT(_hw_usb_xhci, OID_AUTO, use_polling, CTLFLAG_RW | CTLFLAG_TUN,
+SYSCTL_INT(_hw_usb_xhci, OID_AUTO, use_polling, CTLFLAG_RWTUN,
     &xhcipolling, 0, "Set to enable software interrupt polling for XHCI controller");
-TUNABLE_INT("hw.usb.xhci.use_polling", &xhcipolling);
 #else
 #define	xhciroute 0
 #endif
@@ -1849,31 +1845,25 @@ restart:
 					    XHCI_TRB_3_ISO_SIA_BIT;
 				}
 				if (temp->direction == UE_DIR_IN)
-					dword |= XHCI_TRB_3_DIR_IN | XHCI_TRB_3_ISP_BIT;
+					dword |= XHCI_TRB_3_ISP_BIT;
 				break;
 			case XHCI_TRB_TYPE_DATA_STAGE:
 				dword = XHCI_TRB_3_CHAIN_BIT | XHCI_TRB_3_CYCLE_BIT |
-				    XHCI_TRB_3_TYPE_SET(XHCI_TRB_TYPE_DATA_STAGE) |
-				    XHCI_TRB_3_TBC_SET(temp->tbc) |
-				    XHCI_TRB_3_TLBPC_SET(temp->tlbpc);
+				    XHCI_TRB_3_TYPE_SET(XHCI_TRB_TYPE_DATA_STAGE);
 				if (temp->direction == UE_DIR_IN)
 					dword |= XHCI_TRB_3_DIR_IN | XHCI_TRB_3_ISP_BIT;
 				break;
 			case XHCI_TRB_TYPE_STATUS_STAGE:
 				dword = XHCI_TRB_3_CHAIN_BIT | XHCI_TRB_3_CYCLE_BIT |
-				    XHCI_TRB_3_TYPE_SET(XHCI_TRB_TYPE_STATUS_STAGE) |
-				    XHCI_TRB_3_TBC_SET(temp->tbc) |
-				    XHCI_TRB_3_TLBPC_SET(temp->tlbpc);
+				    XHCI_TRB_3_TYPE_SET(XHCI_TRB_TYPE_STATUS_STAGE);
 				if (temp->direction == UE_DIR_IN)
 					dword |= XHCI_TRB_3_DIR_IN;
 				break;
 			default:	/* XHCI_TRB_TYPE_NORMAL */
 				dword = XHCI_TRB_3_CHAIN_BIT | XHCI_TRB_3_CYCLE_BIT |
-				    XHCI_TRB_3_TYPE_SET(XHCI_TRB_TYPE_NORMAL) |
-				    XHCI_TRB_3_TBC_SET(temp->tbc) |
-				    XHCI_TRB_3_TLBPC_SET(temp->tlbpc);
+				    XHCI_TRB_3_TYPE_SET(XHCI_TRB_TYPE_NORMAL);
 				if (temp->direction == UE_DIR_IN)
-					dword |= XHCI_TRB_3_DIR_IN | XHCI_TRB_3_ISP_BIT;
+					dword |= XHCI_TRB_3_ISP_BIT;
 				break;
 			}
 			td->td_trb[x].dwTrb3 = htole32(dword);

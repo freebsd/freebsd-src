@@ -670,6 +670,7 @@ qls_alloc_dmabuf_exit:
 void
 qls_free_dmabuf(qla_host_t *ha, qla_dma_t *dma_buf)
 {
+        bus_dmamap_unload(dma_buf->dma_tag, dma_buf->dma_map);
         bus_dmamem_free(dma_buf->dma_tag, dma_buf->dma_b, dma_buf->dma_map);
         bus_dma_tag_destroy(dma_buf->dma_tag);
 }

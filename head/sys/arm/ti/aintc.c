@@ -180,5 +180,7 @@ arm_mask_irq(uintptr_t nb)
 void
 arm_unmask_irq(uintptr_t nb)
 {
+
+	arm_irq_memory_barrier(nb);
 	aintc_write_4(INTC_MIR_CLEAR(nb >> 5), (1UL << (nb & 0x1F)));
 }

@@ -21,16 +21,16 @@
  * specific prior written permission.
  * 
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
- * TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE
- * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
- * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
- * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
- * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
+ * TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+ * PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+ * LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+ * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+ * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
 /**
@@ -131,7 +131,7 @@ void rrset_cache_touch(struct rrset_cache* r, struct ub_packed_rrset_key* key,
  *	   also the rdata is equal (but other parameters in cache are superior).
  */
 int rrset_cache_update(struct rrset_cache* r, struct rrset_ref* ref, 
-	struct alloc_cache* alloc, uint32_t timenow);
+	struct alloc_cache* alloc, time_t timenow);
 
 /**
  * Lookup rrset. You obtain read/write lock. You must unlock before lookup
@@ -149,7 +149,7 @@ int rrset_cache_update(struct rrset_cache* r, struct rrset_ref* ref,
  */
 struct ub_packed_rrset_key* rrset_cache_lookup(struct rrset_cache* r,
 	uint8_t* qname, size_t qnamelen, uint16_t qtype, uint16_t qclass,
-	uint32_t flags, uint32_t timenow, int wr);
+	uint32_t flags, time_t timenow, int wr);
 
 /**
  * Obtain readlock on a (sorted) list of rrset references.
@@ -163,7 +163,7 @@ struct ub_packed_rrset_key* rrset_cache_lookup(struct rrset_cache* r,
  *	RRsets have been purged from the cache.
  *	If true, you hold readlocks on all the ref items. 
  */
-int rrset_array_lock(struct rrset_ref* ref, size_t count, uint32_t timenow);
+int rrset_array_lock(struct rrset_ref* ref, size_t count, time_t timenow);
 
 /**
  * Unlock array (sorted) of rrset references.
@@ -199,7 +199,7 @@ void rrset_array_unlock_touch(struct rrset_cache* r, struct regional* scratch,
  * @param now: current time.
  */
 void rrset_update_sec_status(struct rrset_cache* r, 
-	struct ub_packed_rrset_key* rrset, uint32_t now);
+	struct ub_packed_rrset_key* rrset, time_t now);
 
 /**
  * Looks up security status of an rrset. Looks up the rrset.
@@ -211,7 +211,7 @@ void rrset_update_sec_status(struct rrset_cache* r,
  * @param now: current time.
  */
 void rrset_check_sec_status(struct rrset_cache* r, 
-	struct ub_packed_rrset_key* rrset, uint32_t now);
+	struct ub_packed_rrset_key* rrset, time_t now);
 
 /**
  * Remove an rrset from the cache, by name and type and flags

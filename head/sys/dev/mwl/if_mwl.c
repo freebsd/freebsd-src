@@ -188,31 +188,25 @@ static	int mwl_rxdesc = MWL_RXDESC;		/* # rx desc's to allocate */
 SYSCTL_INT(_hw_mwl, OID_AUTO, rxdesc, CTLFLAG_RW, &mwl_rxdesc,
 	    0, "rx descriptors allocated");
 static	int mwl_rxbuf = MWL_RXBUF;		/* # rx buffers to allocate */
-SYSCTL_INT(_hw_mwl, OID_AUTO, rxbuf, CTLFLAG_RW, &mwl_rxbuf,
+SYSCTL_INT(_hw_mwl, OID_AUTO, rxbuf, CTLFLAG_RWTUN, &mwl_rxbuf,
 	    0, "rx buffers allocated");
-TUNABLE_INT("hw.mwl.rxbuf", &mwl_rxbuf);
 static	int mwl_txbuf = MWL_TXBUF;		/* # tx buffers to allocate */
-SYSCTL_INT(_hw_mwl, OID_AUTO, txbuf, CTLFLAG_RW, &mwl_txbuf,
+SYSCTL_INT(_hw_mwl, OID_AUTO, txbuf, CTLFLAG_RWTUN, &mwl_txbuf,
 	    0, "tx buffers allocated");
-TUNABLE_INT("hw.mwl.txbuf", &mwl_txbuf);
 static	int mwl_txcoalesce = 8;		/* # tx packets to q before poking f/w*/
-SYSCTL_INT(_hw_mwl, OID_AUTO, txcoalesce, CTLFLAG_RW, &mwl_txcoalesce,
+SYSCTL_INT(_hw_mwl, OID_AUTO, txcoalesce, CTLFLAG_RWTUN, &mwl_txcoalesce,
 	    0, "tx buffers to send at once");
-TUNABLE_INT("hw.mwl.txcoalesce", &mwl_txcoalesce);
 static	int mwl_rxquota = MWL_RXBUF;		/* # max buffers to process */
-SYSCTL_INT(_hw_mwl, OID_AUTO, rxquota, CTLFLAG_RW, &mwl_rxquota,
+SYSCTL_INT(_hw_mwl, OID_AUTO, rxquota, CTLFLAG_RWTUN, &mwl_rxquota,
 	    0, "max rx buffers to process per interrupt");
-TUNABLE_INT("hw.mwl.rxquota", &mwl_rxquota);
 static	int mwl_rxdmalow = 3;			/* # min buffers for wakeup */
-SYSCTL_INT(_hw_mwl, OID_AUTO, rxdmalow, CTLFLAG_RW, &mwl_rxdmalow,
+SYSCTL_INT(_hw_mwl, OID_AUTO, rxdmalow, CTLFLAG_RWTUN, &mwl_rxdmalow,
 	    0, "min free rx buffers before restarting traffic");
-TUNABLE_INT("hw.mwl.rxdmalow", &mwl_rxdmalow);
 
 #ifdef MWL_DEBUG
 static	int mwl_debug = 0;
-SYSCTL_INT(_hw_mwl, OID_AUTO, debug, CTLFLAG_RW, &mwl_debug,
+SYSCTL_INT(_hw_mwl, OID_AUTO, debug, CTLFLAG_RWTUN, &mwl_debug,
 	    0, "control debugging printfs");
-TUNABLE_INT("hw.mwl.debug", &mwl_debug);
 enum {
 	MWL_DEBUG_XMIT		= 0x00000001,	/* basic xmit operation */
 	MWL_DEBUG_XMIT_DESC	= 0x00000002,	/* xmit descriptors */
@@ -2041,13 +2035,6 @@ mwl_desc_setup(struct mwl_softc *sc, const char *name,
 	}
 
 	/* allocate descriptors */
-	error = bus_dmamap_create(dd->dd_dmat, BUS_DMA_NOWAIT, &dd->dd_dmamap);
-	if (error != 0) {
-		if_printf(ifp, "unable to create dmamap for %s descriptors, "
-			"error %u\n", dd->dd_name, error);
-		goto fail0;
-	}
-
 	error = bus_dmamem_alloc(dd->dd_dmat, (void**) &dd->dd_desc,
 				 BUS_DMA_NOWAIT | BUS_DMA_COHERENT, 
 				 &dd->dd_dmamap);
@@ -2077,8 +2064,6 @@ mwl_desc_setup(struct mwl_softc *sc, const char *name,
 fail2:
 	bus_dmamem_free(dd->dd_dmat, dd->dd_desc, dd->dd_dmamap);
 fail1:
-	bus_dmamap_destroy(dd->dd_dmat, dd->dd_dmamap);
-fail0:
 	bus_dma_tag_destroy(dd->dd_dmat);
 	memset(dd, 0, sizeof(*dd));
 	return error;
@@ -2090,7 +2075,6 @@ mwl_desc_cleanup(struct mwl_softc *sc, struct mwl_descdma *dd)
 {
 	bus_dmamap_unload(dd->dd_dmat, dd->dd_dmamap);
 	bus_dmamem_free(dd->dd_dmat, dd->dd_desc, dd->dd_dmamap);
-	bus_dmamap_destroy(dd->dd_dmat, dd->dd_dmamap);
 	bus_dma_tag_destroy(dd->dd_dmat);
 
 	memset(dd, 0, sizeof(*dd));
@@ -2229,9 +2213,8 @@ mwl_rxdma_setup(struct mwl_softc *sc)
 		       NULL,			/* lockfunc */
 		       NULL,			/* lockarg */
 		       &sc->sc_rxdmat);
-	error = bus_dmamap_create(sc->sc_rxdmat, BUS_DMA_NOWAIT, &sc->sc_rxmap);
 	if (error != 0) {
-		if_printf(ifp, "could not create rx DMA map\n");
+		if_printf(ifp, "could not create rx DMA tag\n");
 		return error;
 	}
 
@@ -2292,15 +2275,13 @@ mwl_rxdma_setup(struct mwl_softc *sc)
 static void
 mwl_rxdma_cleanup(struct mwl_softc *sc)
 {
-	if (sc->sc_rxmap != NULL)
+	if (sc->sc_rxmem_paddr != 0) {
 		bus_dmamap_unload(sc->sc_rxdmat, sc->sc_rxmap);
+		sc->sc_rxmem_paddr = 0;
+	}
 	if (sc->sc_rxmem != NULL) {
 		bus_dmamem_free(sc->sc_rxdmat, sc->sc_rxmem, sc->sc_rxmap);
 		sc->sc_rxmem = NULL;
-	}
-	if (sc->sc_rxmap != NULL) {
-		bus_dmamap_destroy(sc->sc_rxdmat, sc->sc_rxmap);
-		sc->sc_rxmap = NULL;
 	}
 	if (sc->sc_rxdma.dd_bufptr != NULL) {
 		free(sc->sc_rxdma.dd_bufptr, M_MWLDEV);
@@ -2624,7 +2605,7 @@ mwl_rxbuf_init(struct mwl_softc *sc, struct mwl_rxbuf *bf)
 	return 0;
 }
 
-static int
+static void
 mwl_ext_free(struct mbuf *m, void *data, void *arg)
 {
 	struct mwl_softc *sc = arg;
@@ -2640,7 +2621,6 @@ mwl_ext_free(struct mbuf *m, void *data, void *arg)
 		sc->sc_rxblocked = 0;
 		mwl_hal_intrset(sc->sc_mh, sc->sc_imask);
 	}
-	return (EXT_FREE_OK);
 }
 
 struct mwl_frame_bar {

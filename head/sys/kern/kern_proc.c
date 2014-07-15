@@ -141,6 +141,10 @@ uma_zone_t proc_zone;
 int kstack_pages = KSTACK_PAGES;
 SYSCTL_INT(_kern, OID_AUTO, kstack_pages, CTLFLAG_RD, &kstack_pages, 0,
     "Kernel stack size in pages");
+static int vmmap_skip_res_cnt = 0;
+SYSCTL_INT(_kern, OID_AUTO, proc_vmmap_skip_resident_count, CTLFLAG_RW,
+    &vmmap_skip_res_cnt, 0,
+    "Skip calculation of the pages resident count in kern.proc.vmmap");
 
 CTASSERT(sizeof(struct kinfo_proc) == KINFO_PROC_SIZE);
 #ifdef COMPAT_FREEBSD32
@@ -2136,15 +2140,19 @@ int
 kern_proc_vmmap_out(struct proc *p, struct sbuf *sb)
 {
 	vm_map_entry_t entry, tmp_entry;
-	unsigned int last_timestamp;
+	struct vattr va;
+	vm_map_t map;
+	vm_page_t m;
+	vm_object_t obj, tobj, lobj;
 	char *fullpath, *freepath;
 	struct kinfo_vmentry *kve;
-	struct vattr va;
 	struct ucred *cred;
-	int error;
 	struct vnode *vp;
 	struct vmspace *vm;
-	vm_map_t map;
+	vm_pindex_t pindex;
+	vm_offset_t addr;
+	unsigned int last_timestamp;
+	int error;
 
 	PROC_LOCK_ASSERT(p, MA_OWNED);
 
@@ -2162,44 +2170,54 @@ kern_proc_vmmap_out(struct proc *p, struct sbuf *sb)
 	vm_map_lock_read(map);
 	for (entry = map->header.next; entry != &map->header;
 	    entry = entry->next) {
-		vm_object_t obj, tobj, lobj;
-		vm_offset_t addr;
-		vm_paddr_t locked_pa;
-		int mincoreinfo;
-
 		if (entry->eflags & MAP_ENTRY_IS_SUB_MAP)
 			continue;
 
+		addr = entry->end;
 		bzero(kve, sizeof(*kve));
-
-		kve->kve_private_resident = 0;
 		obj = entry->object.vm_object;
 		if (obj != NULL) {
-			VM_OBJECT_RLOCK(obj);
+			for (tobj = obj; tobj != NULL;
+			    tobj = tobj->backing_object) {
+				VM_OBJECT_RLOCK(tobj);
+				lobj = tobj;
+			}
 			if (obj->shadow_count == 1)
 				kve->kve_private_resident =
 				    obj->resident_page_count;
-		}
-		kve->kve_resident = 0;
-		addr = entry->start;
-		while (addr < entry->end) {
-			locked_pa = 0;
-			mincoreinfo = pmap_mincore(map->pmap, addr, &locked_pa);
-			if (locked_pa != 0)
-				vm_page_unlock(PHYS_TO_VM_PAGE(locked_pa));
-			if (mincoreinfo & MINCORE_INCORE)
-				kve->kve_resident++;
-			if (mincoreinfo & MINCORE_SUPER)
-				kve->kve_flags |= KVME_FLAG_SUPER;
-			addr += PAGE_SIZE;
-		}
-
-		for (lobj = tobj = obj; tobj; tobj = tobj->backing_object) {
-			if (tobj != obj)
-				VM_OBJECT_RLOCK(tobj);
-			if (lobj != obj)
-				VM_OBJECT_RUNLOCK(lobj);
-			lobj = tobj;
+			if (vmmap_skip_res_cnt)
+				goto skip_resident_count;
+			for (addr = entry->start; addr < entry->end;
+			    addr += PAGE_SIZE) {
+				pindex = OFF_TO_IDX(entry->offset + addr -
+				    entry->start);
+				for (tobj = obj;;) {
+					m = vm_page_lookup(tobj, pindex);
+					if (m != NULL)
+						break;
+					if (tobj->backing_object == NULL)
+						break;
+					pindex += OFF_TO_IDX(
+					    tobj->backing_object_offset);
+					tobj = tobj->backing_object;
+				}
+				if (m != NULL) {
+					if (m->psind != 0 && addr +
+					    pagesizes[1] <= entry->end) {
+						kve->kve_flags |=
+						    KVME_FLAG_SUPER;
+					}
+					kve->kve_resident += 1;
+				}
+			}
+skip_resident_count:
+			for (tobj = obj; tobj != NULL;
+			    tobj = tobj->backing_object) {
+				if (tobj != obj && tobj != lobj)
+					VM_OBJECT_RUNLOCK(tobj);
+			}
+		} else {
+			lobj = NULL;
 		}
 
 		kve->kve_start = entry->start;
@@ -2229,7 +2247,7 @@ kern_proc_vmmap_out(struct proc *p, struct sbuf *sb)
 
 		freepath = NULL;
 		fullpath = "";
-		if (lobj) {
+		if (lobj != NULL) {
 			vp = NULL;
 			switch (lobj->type) {
 			case OBJT_DEFAULT:

@@ -58,9 +58,9 @@
 #define dsb()  __asm __volatile("mcr p15, 0, %0, c7, c10, 4" : : "r" (0) : "memory")
 #define dmb()  __asm __volatile("mcr p15, 0, %0, c7, c10, 5" : : "r" (0) : "memory")
 #else
-#define isb()
-#define dsb()
-#define dmb()
+#define isb()  __asm __volatile("mcr p15, 0, %0, c7, c5, 4" : : "r" (0) : "memory")
+#define dsb()  __asm __volatile("mcr p15, 0, %0, c7, c10, 4" : : "r" (0) : "memory")
+#define dmb()  dsb()
 #endif
 
 #define mb()   dmb()

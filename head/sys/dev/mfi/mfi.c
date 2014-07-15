@@ -132,33 +132,27 @@ static int mfi_check_for_sscd(struct mfi_softc *sc, struct mfi_command *cm);
 
 SYSCTL_NODE(_hw, OID_AUTO, mfi, CTLFLAG_RD, 0, "MFI driver parameters");
 static int	mfi_event_locale = MFI_EVT_LOCALE_ALL;
-TUNABLE_INT("hw.mfi.event_locale", &mfi_event_locale);
 SYSCTL_INT(_hw_mfi, OID_AUTO, event_locale, CTLFLAG_RWTUN, &mfi_event_locale,
            0, "event message locale");
 
 static int	mfi_event_class = MFI_EVT_CLASS_INFO;
-TUNABLE_INT("hw.mfi.event_class", &mfi_event_class);
 SYSCTL_INT(_hw_mfi, OID_AUTO, event_class, CTLFLAG_RWTUN, &mfi_event_class,
            0, "event message class");
 
 static int	mfi_max_cmds = 128;
-TUNABLE_INT("hw.mfi.max_cmds", &mfi_max_cmds);
 SYSCTL_INT(_hw_mfi, OID_AUTO, max_cmds, CTLFLAG_RDTUN, &mfi_max_cmds,
 	   0, "Max commands limit (-1 = controller limit)");
 
 static int	mfi_detect_jbod_change = 1;
-TUNABLE_INT("hw.mfi.detect_jbod_change", &mfi_detect_jbod_change);
 SYSCTL_INT(_hw_mfi, OID_AUTO, detect_jbod_change, CTLFLAG_RWTUN,
 	   &mfi_detect_jbod_change, 0, "Detect a change to a JBOD");
 
 int		mfi_polled_cmd_timeout = MFI_POLL_TIMEOUT_SECS;
-TUNABLE_INT("hw.mfi.polled_cmd_timeout", &mfi_polled_cmd_timeout);
 SYSCTL_INT(_hw_mfi, OID_AUTO, polled_cmd_timeout, CTLFLAG_RWTUN,
 	   &mfi_polled_cmd_timeout, 0,
 	   "Polled command timeout - used for firmware flash etc (in seconds)");
 
 static int	mfi_cmd_timeout = MFI_CMD_TIMEOUT;
-TUNABLE_INT("hw.mfi.cmd_timeout", &mfi_cmd_timeout);
 SYSCTL_INT(_hw_mfi, OID_AUTO, cmd_timeout, CTLFLAG_RWTUN, &mfi_cmd_timeout,
 	   0, "Command timeout (in seconds)");
 
@@ -2122,6 +2116,8 @@ mfi_build_cdb(int readop, uint8_t byte2, u_int64_t lba, u_int32_t block_count, u
 	return cdb_len;
 }
 
+extern char *unmapped_buf;
+
 static struct mfi_command *
 mfi_build_syspdio(struct mfi_softc *sc, struct bio *bio)
 {
@@ -2145,11 +2141,11 @@ mfi_build_syspdio(struct mfi_softc *sc, struct bio *bio)
 	pass->header.cmd = MFI_CMD_PD_SCSI_IO;
 	switch (bio->bio_cmd & 0x03) {
 	case BIO_READ:
-		flags = MFI_CMD_DATAIN;
+		flags = MFI_CMD_DATAIN | MFI_CMD_BIO;
 		readop = 1;
 		break;
 	case BIO_WRITE:
-		flags = MFI_CMD_DATAOUT;
+		flags = MFI_CMD_DATAOUT | MFI_CMD_BIO;
 		readop = 0;
 		break;
 	default:
@@ -2174,7 +2170,7 @@ mfi_build_syspdio(struct mfi_softc *sc, struct bio *bio)
 	pass->sense_addr_hi = (uint32_t)((uint64_t)cm->cm_sense_busaddr >> 32);
 	cm->cm_complete = mfi_bio_complete;
 	cm->cm_private = bio;
-	cm->cm_data = bio->bio_data;
+	cm->cm_data = unmapped_buf;
 	cm->cm_len = bio->bio_bcount;
 	cm->cm_sg = &pass->sgl;
 	cm->cm_total_frame_size = MFI_PASS_FRAME_SIZE;
@@ -2205,11 +2201,11 @@ mfi_build_ldio(struct mfi_softc *sc, struct bio *bio)
 	switch (bio->bio_cmd & 0x03) {
 	case BIO_READ:
 		io->header.cmd = MFI_CMD_LD_READ;
-		flags = MFI_CMD_DATAIN;
+		flags = MFI_CMD_DATAIN | MFI_CMD_BIO;
 		break;
 	case BIO_WRITE:
 		io->header.cmd = MFI_CMD_LD_WRITE;
-		flags = MFI_CMD_DATAOUT;
+		flags = MFI_CMD_DATAOUT | MFI_CMD_BIO;
 		break;
 	default:
 		/* TODO: what about BIO_DELETE??? */
@@ -2230,7 +2226,7 @@ mfi_build_ldio(struct mfi_softc *sc, struct bio *bio)
 	io->lba_lo = bio->bio_pblkno & 0xffffffff;
 	cm->cm_complete = mfi_bio_complete;
 	cm->cm_private = bio;
-	cm->cm_data = bio->bio_data;
+	cm->cm_data = unmapped_buf;
 	cm->cm_len = bio->bio_bcount;
 	cm->cm_sg = &io->sgl;
 	cm->cm_total_frame_size = MFI_IO_FRAME_SIZE;
@@ -2315,6 +2311,10 @@ mfi_mapcmd(struct mfi_softc *sc, struct mfi_command *cm)
 		if (cm->cm_flags & MFI_CMD_CCB)
 			error = bus_dmamap_load_ccb(sc->mfi_buffer_dmat,
 			    cm->cm_dmamap, cm->cm_data, mfi_data_cb, cm,
+			    polled);
+		else if (cm->cm_flags & MFI_CMD_BIO)
+			error = bus_dmamap_load_bio(sc->mfi_buffer_dmat,
+			    cm->cm_dmamap, cm->cm_private, mfi_data_cb, cm,
 			    polled);
 		else
 			error = bus_dmamap_load(sc->mfi_buffer_dmat,

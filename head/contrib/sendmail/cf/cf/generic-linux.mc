@@ -20,7 +20,7 @@ divert(-1)
 #
 
 divert(0)dnl
-VERSIONID(`$Id: generic-linux.mc,v 8.2 2013/11/22 20:51:08 ca Exp $')
+VERSIONID(`$Id: generic-linux.mc,v 8.2 2013-11-22 20:51:08 ca Exp $')
 OSTYPE(linux)dnl
 DOMAIN(generic)dnl
 MAILER(local)dnl

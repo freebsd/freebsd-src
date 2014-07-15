@@ -52,7 +52,6 @@ struct ip17x_softc {
 	int		phyport[MII_NPHY];
 	int		numports;	/* number of ports */
 	int		*portphy;
-	char		**ifname;
 	device_t	**miibus;
 	etherswitch_info_t	info;
 	ip17x_switch_type	sc_switchtype;

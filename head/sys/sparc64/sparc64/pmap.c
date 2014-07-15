@@ -141,6 +141,8 @@ static void pmap_bootstrap_set_tte(struct tte *tp, u_long vpn, u_long data);
 static void pmap_cache_remove(vm_page_t m, vm_offset_t va);
 static int pmap_protect_tte(struct pmap *pm1, struct pmap *pm2,
     struct tte *tp, vm_offset_t va);
+static int pmap_unwire_tte(pmap_t pm, pmap_t pm2, struct tte *tp,
+    vm_offset_t va);
 
 /*
  * Map the given physical page at the specified virtual address in the
@@ -1685,6 +1687,44 @@ pmap_change_wiring(pmap_t pm, vm_offset_t va, boolean_t wired)
 			if ((data & TD_WIRED) != 0)
 				pm->pm_stats.wired_count--;
 		}
+	}
+	PMAP_UNLOCK(pm);
+}
+
+static int
+pmap_unwire_tte(pmap_t pm, pmap_t pm2, struct tte *tp, vm_offset_t va)
+{
+
+	PMAP_LOCK_ASSERT(pm, MA_OWNED);
+	if ((tp->tte_data & TD_WIRED) == 0)
+		panic("pmap_unwire_tte: tp %p is missing TD_WIRED", tp);
+	atomic_clear_long(&tp->tte_data, TD_WIRED);
+	pm->pm_stats.wired_count--;
+	return (1);
+}
+
+/*
+ * Clear the wired attribute from the mappings for the specified range of
+ * addresses in the given pmap.  Every valid mapping within that range must
+ * have the wired attribute set.  In contrast, invalid mappings cannot have
+ * the wired attribute set, so they are ignored.
+ *
+ * The wired attribute of the translation table entry is not a hardware
+ * feature, so there is no need to invalidate any TLB entries.
+ */
+void
+pmap_unwire(pmap_t pm, vm_offset_t sva, vm_offset_t eva)
+{
+	vm_offset_t va;
+	struct tte *tp;
+
+	PMAP_LOCK(pm);
+	if (eva - sva > PMAP_TSB_THRESH)
+		tsb_foreach(pm, NULL, sva, eva, pmap_unwire_tte);
+	else {
+		for (va = sva; va < eva; va += PAGE_SIZE)
+			if ((tp = tsb_tte_lookup(pm, va)) != NULL)
+				pmap_unwire_tte(pm, NULL, tp, va);
 	}
 	PMAP_UNLOCK(pm);
 }

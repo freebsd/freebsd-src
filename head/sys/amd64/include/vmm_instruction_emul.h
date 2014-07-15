@@ -29,63 +29,7 @@
 #ifndef	_VMM_INSTRUCTION_EMUL_H_
 #define	_VMM_INSTRUCTION_EMUL_H_
 
-enum vie_cpu_mode {
-	CPU_MODE_COMPATIBILITY,		/* IA-32E mode (CS.L = 0) */
-	CPU_MODE_64BIT,			/* IA-32E mode (CS.L = 1) */
-};
-
-enum vie_paging_mode {
-	PAGING_MODE_FLAT,
-	PAGING_MODE_32,
-	PAGING_MODE_PAE,
-	PAGING_MODE_64,
-};
-
-/*
- * The data structures 'vie' and 'vie_op' are meant to be opaque to the
- * consumers of instruction decoding. The only reason why their contents
- * need to be exposed is because they are part of the 'vm_exit' structure.
- */
-struct vie_op {
-	uint8_t		op_byte;	/* actual opcode byte */
-	uint8_t		op_type;	/* type of operation (e.g. MOV) */
-	uint16_t	op_flags;
-};
-
-#define	VIE_INST_SIZE	15
-struct vie {
-	uint8_t		inst[VIE_INST_SIZE];	/* instruction bytes */
-	uint8_t		num_valid;		/* size of the instruction */
-	uint8_t		num_processed;
-
-	uint8_t		rex_w:1,		/* REX prefix */
-			rex_r:1,
-			rex_x:1,
-			rex_b:1,
-			rex_present:1;
-
-	uint8_t		mod:2,			/* ModRM byte */
-			reg:4,
-			rm:4;
-
-	uint8_t		ss:2,			/* SIB byte */
-			index:4,
-			base:4;
-
-	uint8_t		disp_bytes;
-	uint8_t		imm_bytes;
-
-	uint8_t		scale;
-	int		base_register;		/* VM_REG_GUEST_xyz */
-	int		index_register;		/* VM_REG_GUEST_xyz */
-
-	int64_t		displacement;		/* optional addr displacement */
-	int64_t		immediate;		/* optional immediate operand */
-
-	uint8_t		decoded;	/* set to 1 if successfully decoded */
-
-	struct vie_op	op;			/* opcode description */
-};
+#include <sys/mman.h>
 
 /*
  * Callback functions to read and write memory regions.
@@ -111,6 +55,24 @@ int vmm_emulate_instruction(void *vm, int cpuid, uint64_t gpa, struct vie *vie,
 			    mem_region_read_t mrr, mem_region_write_t mrw,
 			    void *mrarg);
 
+int vie_update_register(void *vm, int vcpuid, enum vm_reg_name reg,
+    uint64_t val, int size);
+
+/*
+ * Returns 1 if an alignment check exception should be injected and 0 otherwise.
+ */
+int vie_alignment_check(int cpl, int operand_size, uint64_t cr0,
+    uint64_t rflags, uint64_t gla);
+
+/* Returns 1 if the 'gla' is not canonical and 0 otherwise. */
+int vie_canonical_check(enum vm_cpu_mode cpu_mode, uint64_t gla);
+
+uint64_t vie_size2mask(int size);
+
+int vie_calculate_gla(enum vm_cpu_mode cpu_mode, enum vm_reg_name seg,
+    struct seg_desc *desc, uint64_t off, int length, int addrsize, int prot,
+    uint64_t *gla);
+
 #ifdef _KERNEL
 /*
  * APIs to fetch and decode the instruction from nested page fault handler.
@@ -118,8 +80,18 @@ int vmm_emulate_instruction(void *vm, int cpuid, uint64_t gpa, struct vie *vie,
  * 'vie' must be initialized before calling 'vmm_fetch_instruction()'
  */
 int vmm_fetch_instruction(struct vm *vm, int cpuid,
-			  uint64_t rip, int inst_length, uint64_t cr3,
-			  enum vie_paging_mode paging_mode, struct vie *vie);
+			  struct vm_guest_paging *guest_paging,
+			  uint64_t rip, int inst_length, struct vie *vie);
+
+/*
+ * Translate the guest linear address 'gla' to a guest physical address.
+ *
+ * Returns 0 on success and '*gpa' contains the result of the translation.
+ * Returns 1 if an exception was injected into the guest.
+ * Returns -1 otherwise.
+ */
+int vmm_gla2gpa(struct vm *vm, int vcpuid, struct vm_guest_paging *paging,
+    uint64_t gla, int prot, uint64_t *gpa);
 
 void vie_init(struct vie *vie);
 
@@ -136,7 +108,7 @@ void vie_init(struct vie *vie);
  */
 #define	VIE_INVALID_GLA		(1UL << 63)	/* a non-canonical address */
 int vmm_decode_instruction(struct vm *vm, int cpuid, uint64_t gla,
-			   enum vie_cpu_mode cpu_mode, struct vie *vie);
+			   enum vm_cpu_mode cpu_mode, struct vie *vie);
 #endif	/* _KERNEL */
 
 #endif	/* _VMM_INSTRUCTION_EMUL_H_ */

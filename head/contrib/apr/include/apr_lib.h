@@ -111,19 +111,19 @@ APR_DECLARE(const char *) apr_filepath_name_get(const char *pathname);
  * <PRE>
  * The extensions are:
  *
- * %%pA	takes a struct in_addr *, and prints it as a.b.c.d
- * %%pI	takes an apr_sockaddr_t * and prints it as a.b.c.d:port or
- *      [ipv6-address]:port
- * %%pT takes an apr_os_thread_t * and prints it in decimal
- *      ('0' is printed if !APR_HAS_THREADS)
- * %%pt takes an apr_os_thread_t * and prints it in hexadecimal
- *      ('0' is printed if !APR_HAS_THREADS)
- * %%pm takes an apr_status_t * and prints the appropriate error
- *      string (from apr_strerror) corresponding to that error code.
- * %%pp takes a void * and outputs it in hex
- * %%pB takes a apr_uint32_t * as bytes and outputs it's apr_strfsize
- * %%pF same as above, but takes a apr_off_t *
- * %%pS same as above, but takes a apr_size_t *
+ * - %%pA takes a struct in_addr *, and prints it as a.b.c.d
+ * - %%pI takes an apr_sockaddr_t * and prints it as a.b.c.d:port or
+ * \[ipv6-address\]:port
+ * - %%pT takes an apr_os_thread_t * and prints it in decimal
+ * ('0' is printed if !APR_HAS_THREADS)
+ * - %%pt takes an apr_os_thread_t * and prints it in hexadecimal
+ * ('0' is printed if !APR_HAS_THREADS)
+ * - %%pm takes an apr_status_t * and prints the appropriate error
+ * string (from apr_strerror) corresponding to that error code.
+ * - %%pp takes a void * and outputs it in hex
+ * - %%pB takes a apr_uint32_t * as bytes and outputs it's apr_strfsize
+ * - %%pF same as above, but takes a apr_off_t *
+ * - %%pS same as above, but takes a apr_size_t *
  *
  * %%pA, %%pI, %%pT, %%pp are available from APR 1.0.0 onwards (and in 0.9.x).
  * %%pt is only available from APR 1.2.0 onwards.

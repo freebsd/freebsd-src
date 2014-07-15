@@ -167,7 +167,7 @@ DPADD+=	${LIBCAPSICUM} ${LIBNV}
 LDADD+=	-lcapsicum -lnv
 CFLAGS+=-DHAVE_LIBCAPSICUM
 .endif
-.if ${MK_OPENSSL} != "no" && !defined(RELEASE_CRUNCH)
+.if ${MK_OPENSSL} != "no"
 DPADD+= ${LIBCRYPTO}
 LDADD+= -lcrypto
 CFLAGS+= -I${DESTDIR}/usr/include/openssl

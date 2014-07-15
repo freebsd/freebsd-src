@@ -30,8 +30,10 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/kernel.h>
 #include <sys/systm.h>
+#include <sys/fbio.h>
 
 #include <dev/vt/vt.h>
+#include <dev/vt/hw/fb/vt_fb.h>
 #include <dev/vt/colors/vt_termcolors.h>
 
 #include <vm/vm.h>
@@ -47,57 +49,57 @@ __FBSDID("$FreeBSD$");
 #include <dev/ofw/ofw_pci.h>
 
 struct ofwfb_softc {
+	struct fb_info	fb;
+
 	phandle_t	sc_node;
-
-	intptr_t	sc_addr;
-	int		sc_depth;
-	int		sc_stride;
-
 	bus_space_tag_t	sc_memt; 
 
-	uint32_t	sc_colormap[16];
+	struct ofw_pci_register sc_pciaddrs[8];
+	int		sc_num_pciaddrs;
 };
 
+static vd_probe_t	ofwfb_probe;
 static vd_init_t	ofwfb_init;
-static vd_blank_t	ofwfb_blank;
 static vd_bitbltchr_t	ofwfb_bitbltchr;
+static vd_fb_mmap_t	ofwfb_mmap;
 
 static const struct vt_driver vt_ofwfb_driver = {
 	.vd_name	= "ofwfb",
+	.vd_probe	= ofwfb_probe,
 	.vd_init	= ofwfb_init,
-	.vd_blank	= ofwfb_blank,
+	.vd_blank	= vt_fb_blank,
 	.vd_bitbltchr	= ofwfb_bitbltchr,
+	.vd_maskbitbltchr = ofwfb_bitbltchr,
+	.vd_fb_mmap	= ofwfb_mmap,
 	.vd_priority	= VD_PRIORITY_GENERIC+1,
 };
 
 static struct ofwfb_softc ofwfb_conssoftc;
-VT_CONSDEV_DECLARE(vt_ofwfb_driver, PIXEL_WIDTH(1920), PIXEL_HEIGHT(1200),
-    &ofwfb_conssoftc);
-/* XXX: hardcoded max size */
+VT_DRIVER_DECLARE(vt_ofwfb, vt_ofwfb_driver);
 
-static void
-ofwfb_blank(struct vt_device *vd, term_color_t color)
+static int
+ofwfb_probe(struct vt_device *vd)
 {
-	struct ofwfb_softc *sc = vd->vd_softc;
-	u_int ofs, size;
-	uint32_t c;
+	phandle_t chosen, node;
+	ihandle_t stdout;
+	char type[64];
 
-	size = sc->sc_stride * vd->vd_height;
-	switch (sc->sc_depth) {
-	case 8:
-		c = (color << 24) | (color << 16) | (color << 8) | color;
-		for (ofs = 0; ofs < size/4; ofs++)
-			*(uint32_t *)(sc->sc_addr + 4*ofs) = c;
-		break;
-	case 32:
-		c = sc->sc_colormap[color];
-		for (ofs = 0; ofs < size; ofs++)
-			*(uint32_t *)(sc->sc_addr + 4*ofs) = c;
-		break;
-	default:
-		/* panic? */
-		break;
+	chosen = OF_finddevice("/chosen");
+	OF_getprop(chosen, "stdout", &stdout, sizeof(stdout));
+	node = OF_instance_to_package(stdout);
+	if (node == -1) {
+		/*
+		 * The "/chosen/stdout" does not exist try
+		 * using "screen" directly.
+		 */
+		node = OF_finddevice("screen");
 	}
+	OF_getprop(node, "device_type", type, sizeof(type));
+	if (strcmp(type, "display") != 0)
+		return (CN_DEAD);
+
+	/* Looks OK... */
+	return (CN_INTERNAL);
 }
 
 static void
@@ -105,14 +107,18 @@ ofwfb_bitbltchr(struct vt_device *vd, const uint8_t *src, const uint8_t *mask,
     int bpl, vt_axis_t top, vt_axis_t left, unsigned int width,
     unsigned int height, term_color_t fg, term_color_t bg)
 {
-	struct ofwfb_softc *sc = vd->vd_softc;
+	struct fb_info *sc = vd->vd_softc;
 	u_long line;
 	uint32_t fgc, bgc;
 	int c;
 	uint8_t b, m;
+	union {
+		uint32_t l;
+		uint8_t	 c[4];
+	} ch1, ch2;
 
-	fgc = sc->sc_colormap[fg];
-	bgc = sc->sc_colormap[bg];
+	fgc = sc->fb_cmap[fg];
+	bgc = sc->fb_cmap[bg];
 	b = m = 0;
 
 	/* Don't try to put off screen pixels */
@@ -120,37 +126,71 @@ ofwfb_bitbltchr(struct vt_device *vd, const uint8_t *src, const uint8_t *mask,
 	    vd->vd_height))
 		return;
 
-	line = (sc->sc_stride * top) + left * sc->sc_depth/8;
-	for (; height > 0; height--) {
-		for (c = 0; c < width; c++) {
-			if (c % 8 == 0)
+	line = (sc->fb_stride * top) + left * sc->fb_bpp/8;
+	if (mask == NULL && sc->fb_bpp == 8 && (width % 8 == 0)) {
+		for (; height > 0; height--) {
+			for (c = 0; c < width; c += 8) {
 				b = *src++;
-			else
-				b <<= 1;
-			if (mask != NULL) {
-				if (c % 8 == 0)
-					m = *mask++;
-				else
-					m <<= 1;
-				/* Skip pixel write, if mask has no bit set. */
-				if ((m & 0x80) == 0)
-					continue;
+
+				/*
+				 * Assume that there is more background than
+				 * foreground in characters and init accordingly
+				 */
+				ch1.l = ch2.l = (bg << 24) | (bg << 16) |
+				    (bg << 8) | bg;
+
+				/*
+				 * Calculate 2 x 4-chars at a time, and then
+				 * write these out.
+				 */
+				if (b & 0x80) ch1.c[0] = fg;
+				if (b & 0x40) ch1.c[1] = fg;
+				if (b & 0x20) ch1.c[2] = fg;
+				if (b & 0x10) ch1.c[3] = fg;
+
+				if (b & 0x08) ch2.c[0] = fg;
+				if (b & 0x04) ch2.c[1] = fg;
+				if (b & 0x02) ch2.c[2] = fg;
+				if (b & 0x01) ch2.c[3] = fg;
+
+				*(uint32_t *)(sc->fb_vbase + line + c) = ch1.l;
+				*(uint32_t *)(sc->fb_vbase + line + c + 4) =
+				    ch2.l;
 			}
-			switch(sc->sc_depth) {
-			case 8:
-				*(uint8_t *)(sc->sc_addr + line + c) =
-				    b & 0x80 ? fg : bg;
-				break;
-			case 32:
-				*(uint32_t *)(sc->sc_addr + line + 4*c) = 
-				    (b & 0x80) ? fgc : bgc;
-				break;
-			default:
-				/* panic? */
-				break;
-			}
+			line += sc->fb_stride;
 		}
-		line += sc->sc_stride;
+	} else {
+		for (; height > 0; height--) {
+			for (c = 0; c < width; c++) {
+				if (c % 8 == 0)
+					b = *src++;
+				else
+					b <<= 1;
+				if (mask != NULL) {
+					if (c % 8 == 0)
+						m = *mask++;
+					else
+						m <<= 1;
+					/* Skip pixel write, if mask not set. */
+					if ((m & 0x80) == 0)
+						continue;
+				}
+				switch(sc->fb_bpp) {
+				case 8:
+					*(uint8_t *)(sc->fb_vbase + line + c) =
+					    b & 0x80 ? fg : bg;
+					break;
+				case 32:
+					*(uint32_t *)(sc->fb_vbase + line + 4*c)
+					    = (b & 0x80) ? fgc : bgc;
+					break;
+				default:
+					/* panic? */
+					break;
+				}
+			}
+			line += sc->fb_stride;
+		}
 	}
 }
 
@@ -173,16 +213,16 @@ ofwfb_initialize(struct vt_device *vd)
 	 * Set up the color map
 	 */
 
-	switch (sc->sc_depth) {
+	switch (sc->fb.fb_bpp) {
 	case 8:
-		vt_generate_vga_palette(sc->sc_colormap, COLOR_FORMAT_RGB, 255,
+		vt_generate_vga_palette(sc->fb.fb_cmap, COLOR_FORMAT_RGB, 255,
 		    0, 255, 8, 255, 16);
 
 		for (i = 0; i < 16; i++) {
 			OF_call_method("color!", ih, 4, 1,
-			    (cell_t)((sc->sc_colormap[i] >> 16) & 0xff),
-			    (cell_t)((sc->sc_colormap[i] >> 8) & 0xff),
-			    (cell_t)((sc->sc_colormap[i] >> 0) & 0xff),
+			    (cell_t)((sc->fb.fb_cmap[i] >> 16) & 0xff),
+			    (cell_t)((sc->fb.fb_cmap[i] >> 8) & 0xff),
+			    (cell_t)((sc->fb.fb_cmap[i] >> 0) & 0xff),
 			    (cell_t)i, &retval);
 		}
 		break;
@@ -195,37 +235,34 @@ ofwfb_initialize(struct vt_device *vd)
 		 * endianness slightly different. Figure out the host-view
 		 * endianness of the frame buffer.
 		 */
-		oldpix = bus_space_read_4(sc->sc_memt, sc->sc_addr, 0);
-		bus_space_write_4(sc->sc_memt, sc->sc_addr, 0, 0xff000000);
-		if (*(uint8_t *)(sc->sc_addr) == 0xff)
-			vt_generate_vga_palette(sc->sc_colormap,
+		oldpix = bus_space_read_4(sc->sc_memt, sc->fb.fb_vbase, 0);
+		bus_space_write_4(sc->sc_memt, sc->fb.fb_vbase, 0, 0xff000000);
+		if (*(uint8_t *)(sc->fb.fb_vbase) == 0xff)
+			vt_generate_vga_palette(sc->fb.fb_cmap,
 			    COLOR_FORMAT_RGB, 255, 16, 255, 8, 255, 0);
 		else
-			vt_generate_vga_palette(sc->sc_colormap,
+			vt_generate_vga_palette(sc->fb.fb_cmap,
 			    COLOR_FORMAT_RGB, 255, 0, 255, 8, 255, 16);
-		bus_space_write_4(sc->sc_memt, sc->sc_addr, 0, oldpix);
+		bus_space_write_4(sc->sc_memt, sc->fb.fb_vbase, 0, oldpix);
 		break;
 
 	default:
-		panic("Unknown color space depth %d", sc->sc_depth);
+		panic("Unknown color space depth %d", sc->fb.fb_bpp);
 		break;
         }
 
-	/* Clear the screen. */
-	ofwfb_blank(vd, TC_BLACK);
+	sc->fb.fb_cmsize = 16;
 }
 
 static int
 ofwfb_init(struct vt_device *vd)
 {
-	struct ofwfb_softc *sc = vd->vd_softc;
+	struct ofwfb_softc *sc;
 	char type[64];
 	phandle_t chosen;
 	ihandle_t stdout;
 	phandle_t node;
-	uint32_t depth, height, width;
-	struct ofw_pci_register pciaddrs[8];
-	int n_pciaddrs;
+	uint32_t depth, height, width, stride;
 	uint32_t fb_phys;
 	int i, len;
 #ifdef __sparc64__
@@ -233,6 +270,9 @@ ofwfb_init(struct vt_device *vd)
 	bus_addr_t phys;
 	int space;
 #endif
+
+	/* Initialize softc */
+	vd->vd_softc = sc = &ofwfb_conssoftc;
 
 	chosen = OF_finddevice("/chosen");
 	OF_getprop(chosen, "stdout", &stdout, sizeof(stdout));
@@ -255,36 +295,38 @@ ofwfb_init(struct vt_device *vd)
 	if (OF_getproplen(node, "height") != sizeof(height) ||
 	    OF_getproplen(node, "width") != sizeof(width) ||
 	    OF_getproplen(node, "depth") != sizeof(depth) ||
-	    OF_getproplen(node, "linebytes") != sizeof(sc->sc_stride))
+	    OF_getproplen(node, "linebytes") != sizeof(sc->fb.fb_stride))
 		return (CN_DEAD);
 
 	/* Only support 8 and 32-bit framebuffers */
 	OF_getprop(node, "depth", &depth, sizeof(depth));
 	if (depth != 8 && depth != 32)
 		return (CN_DEAD);
-	sc->sc_depth = depth;
+	sc->fb.fb_bpp = depth;
 
 	OF_getprop(node, "height", &height, sizeof(height));
 	OF_getprop(node, "width", &width, sizeof(width));
-	OF_getprop(node, "linebytes", &sc->sc_stride, sizeof(sc->sc_stride));
+	OF_getprop(node, "linebytes", &stride, sizeof(stride));
 
-	vd->vd_height = height;
-	vd->vd_width = width;
+	sc->fb.fb_height = height;
+	sc->fb.fb_width = width;
+	sc->fb.fb_stride = stride;
+	sc->fb.fb_size = sc->fb.fb_height * sc->fb.fb_stride;
 
 	/*
 	 * Get the PCI addresses of the adapter, if present. The node may be the
 	 * child of the PCI device: in that case, try the parent for
 	 * the assigned-addresses property.
 	 */
-	len = OF_getprop(node, "assigned-addresses", pciaddrs,
-	    sizeof(pciaddrs));
+	len = OF_getprop(node, "assigned-addresses", sc->sc_pciaddrs,
+	    sizeof(sc->sc_pciaddrs));
 	if (len == -1) {
 		len = OF_getprop(OF_parent(node), "assigned-addresses",
-		    pciaddrs, sizeof(pciaddrs));
+		    sc->sc_pciaddrs, sizeof(sc->sc_pciaddrs));
         }
         if (len == -1)
                 len = 0;
-	n_pciaddrs = len / sizeof(struct ofw_pci_register);
+	sc->sc_num_pciaddrs = len / sizeof(struct ofw_pci_register);
 
 	/*
 	 * Grab the physical address of the framebuffer, and then map it
@@ -297,12 +339,13 @@ ofwfb_init(struct vt_device *vd)
 
 	#if defined(__powerpc__)
 		sc->sc_memt = &bs_be_tag;
-		bus_space_map(sc->sc_memt, fb_phys, height * sc->sc_stride,
-		    BUS_SPACE_MAP_PREFETCHABLE, &sc->sc_addr);
+		bus_space_map(sc->sc_memt, fb_phys, height * sc->fb.fb_stride,
+		    BUS_SPACE_MAP_PREFETCHABLE, &sc->fb.fb_vbase);
 	#elif defined(__sparc64__)
 		OF_decode_addr(node, 0, &space, &phys);
 		sc->sc_memt = &ofwfb_memt[0];
-		sc->sc_addr = sparc64_fake_bustag(space, fb_phys, sc->sc_memt);
+		sc->fb.fb_vbase =
+		    sparc64_fake_bustag(space, fb_phys, sc->sc_memt);
 	#else
 		#error Unsupported platform!
 	#endif
@@ -314,13 +357,14 @@ ofwfb_init(struct vt_device *vd)
 		 * Linux does the same thing.
 		 */
 
-		fb_phys = n_pciaddrs;
-		for (i = 0; i < n_pciaddrs; i++) {
+		fb_phys = sc->sc_num_pciaddrs;
+		for (i = 0; i < sc->sc_num_pciaddrs; i++) {
 			/* If it is too small, not the framebuffer */
-			if (pciaddrs[i].size_lo < sc->sc_stride*height)
+			if (sc->sc_pciaddrs[i].size_lo <
+			    sc->fb.fb_stride * height)
 				continue;
 			/* If it is not memory, it isn't either */
-			if (!(pciaddrs[i].phys_hi &
+			if (!(sc->sc_pciaddrs[i].phys_hi &
 			    OFW_PCI_PHYS_HI_SPACE_MEM32))
 				continue;
 
@@ -328,15 +372,16 @@ ofwfb_init(struct vt_device *vd)
 			fb_phys = i;
 
 			/* If it is prefetchable, it certainly is */
-			if (pciaddrs[i].phys_hi & OFW_PCI_PHYS_HI_PREFETCHABLE)
+			if (sc->sc_pciaddrs[i].phys_hi &
+			    OFW_PCI_PHYS_HI_PREFETCHABLE)
 				break;
 		}
 
-		if (fb_phys == n_pciaddrs) /* No candidates found */
+		if (fb_phys == sc->sc_num_pciaddrs) /* No candidates found */
 			return (CN_DEAD);
 
 	#if defined(__powerpc__)
-		OF_decode_addr(node, fb_phys, &sc->sc_memt, &sc->sc_addr);
+		OF_decode_addr(node, fb_phys, &sc->sc_memt, &sc->fb.fb_vbase);
 	#elif defined(__sparc64__)
 		OF_decode_addr(node, fb_phys, &space, &phys);
 		sc->sc_memt = &ofwfb_memt[0];
@@ -344,8 +389,48 @@ ofwfb_init(struct vt_device *vd)
 	#endif
         }
 
+	sc->fb.fb_pbase = fb_phys;
+
 	ofwfb_initialize(vd);
+	fb_probe(&sc->fb);
+	vt_fb_init(vd);
 
 	return (CN_INTERNAL);
+}
+
+static int
+ofwfb_mmap(struct vt_device *vd, vm_ooffset_t offset, vm_paddr_t *paddr,
+    int prot, vm_memattr_t *memattr)
+{
+	struct ofwfb_softc *sc = vd->vd_softc;
+        int i;
+
+	/*
+	 * Make sure the requested address lies within the PCI device's
+	 * assigned addrs
+	 */
+	for (i = 0; i < sc->sc_num_pciaddrs; i++)
+	  if (offset >= sc->sc_pciaddrs[i].phys_lo &&
+	    offset < (sc->sc_pciaddrs[i].phys_lo + sc->sc_pciaddrs[i].size_lo))
+		{
+#ifdef VM_MEMATTR_WRITE_COMBINING
+			/*
+			 * If this is a prefetchable BAR, we can (and should)
+			 * enable write-combining.
+			 */
+			if (sc->sc_pciaddrs[i].phys_hi &
+			    OFW_PCI_PHYS_HI_PREFETCHABLE)
+				*memattr = VM_MEMATTR_WRITE_COMBINING;
+#endif
+
+			*paddr = offset;
+			return (0);
+		}
+
+        /*
+         * Hack for Radeon...
+         */
+	*paddr = offset;
+	return (0);
 }
 
