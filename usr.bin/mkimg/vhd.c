@@ -282,6 +282,7 @@ vhd_write(int fd)
 
 	blk = 0;
 	blkcnt = VHD_BLOCK_SIZE / secsz;
+	error = 0;
 	nblks = image_get_size();
 	while (blk < nblks) {
 		if (!image_data(blk, blkcnt)) {
