@@ -487,9 +487,17 @@ evdev_client_push(struct evdev_client *client, uint16_t type, uint16_t code,
 		debugf("client %p for device %s: buffer overflow", client,
 		    client->ec_evdev->ev_shortname);
 
-		microtime(&client->ec_buffer[tail].time);
-		client->ec_buffer[tail].type = EV_SYN;
-		client->ec_buffer[tail].code = SYN_DROPPED;
+		/* Check whether we placed SYN_DROPPED packet already */
+		if (client->ec_buffer[tail - 2 % count].type == EV_SYN &&
+		    client->ec_buffer[tail - 2 % count].code == SYN_DROPPED) {
+			wakeup(client);
+			EVDEV_CLIENT_UNLOCKQ(client);
+			return;
+		}
+
+		microtime(&client->ec_buffer[tail - 1].time);
+		client->ec_buffer[tail - 1].type = EV_SYN;
+		client->ec_buffer[tail - 1].code = SYN_DROPPED;
 
 		wakeup(client);
 		EVDEV_CLIENT_UNLOCKQ(client);
