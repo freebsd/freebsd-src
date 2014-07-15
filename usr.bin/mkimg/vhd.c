@@ -214,7 +214,7 @@ vhd_write(int fd)
 	struct vhd_dyn_header header;
 	uuid_t id;
 	uint64_t imgsz;
-	lba_t blk, nblks;
+	lba_t blk, blkcnt, nblks;
 	uint32_t *bat;
 	void *bitmap;
 	size_t batsz;
@@ -260,10 +260,14 @@ vhd_write(int fd)
 	if (bat == NULL)
 		return (errno);
 	memset(bat, 0xff, batsz);
+	blkcnt = VHD_BLOCK_SIZE / secsz;
 	sector = (sizeof(footer) + sizeof(header) + batsz) / VHD_SECTOR_SIZE;
 	for (entry = 0; entry < bat_entries; entry++) {
-		be32enc(&bat[entry], sector);
-		sector += (VHD_BLOCK_SIZE / VHD_SECTOR_SIZE) + 1;
+		blk = entry * blkcnt;
+		if (image_data(blk, blkcnt)) {
+			be32enc(&bat[entry], sector);
+			sector += (VHD_BLOCK_SIZE / VHD_SECTOR_SIZE) + 1;
+		}
 	}
 	if (sparse_write(fd, bat, batsz) < 0) {
 		free(bat);
@@ -277,16 +281,21 @@ vhd_write(int fd)
 	memset(bitmap, 0xff, VHD_SECTOR_SIZE);
 
 	blk = 0;
+	blkcnt = VHD_BLOCK_SIZE / secsz;
 	nblks = image_get_size();
 	while (blk < nblks) {
+		if (!image_data(blk, blkcnt)) {
+			blk += blkcnt;
+			continue;
+		}
 		if (sparse_write(fd, bitmap, VHD_SECTOR_SIZE) < 0) {
 			error = errno;
 			break;
 		}
-		error = image_copyout_region(fd, blk, VHD_BLOCK_SIZE / secsz);
+		error = image_copyout_region(fd, blk, blkcnt);
 		if (error)
 			break;
-		blk += VHD_BLOCK_SIZE / secsz;
+		blk += blkcnt;
 	}
 	free(bitmap);
 	if (blk != nblks)
