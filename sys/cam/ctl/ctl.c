@@ -83,12 +83,6 @@ __FBSDID("$FreeBSD$");
 struct ctl_softc *control_softc = NULL;
 
 /*
- * Use the serial number and device ID provided by the backend, rather than
- * making up our own.
- */
-#define CTL_USE_BACKEND_SN
-
-/*
  * Size and alignment macros needed for Copan-specific HA hardware.  These
  * can go away when the HA code is re-written, and uses busdma for any
  * hardware.
@@ -9480,9 +9474,6 @@ ctl_inquiry_evpd_serial(struct ctl_scsiio *ctsio, int alloc_len)
 {
 	struct scsi_vpd_unit_serial_number *sn_ptr;
 	struct ctl_lun *lun;
-#ifndef CTL_USE_BACKEND_SN
-	char tmpstr[32];
-#endif
 
 	lun = (struct ctl_lun *)ctsio->io_hdr.ctl_private[CTL_PRIV_LUN].ptr;
 
@@ -9516,7 +9507,6 @@ ctl_inquiry_evpd_serial(struct ctl_scsiio *ctsio, int alloc_len)
 
 	sn_ptr->page_code = SVPD_UNIT_SERIAL_NUMBER;
 	sn_ptr->length = ctl_min(sizeof(*sn_ptr) - 4, CTL_SN_LEN);
-#ifdef CTL_USE_BACKEND_SN
 	/*
 	 * If we don't have a LUN, we just leave the serial number as
 	 * all spaces.
@@ -9526,15 +9516,6 @@ ctl_inquiry_evpd_serial(struct ctl_scsiio *ctsio, int alloc_len)
 		strncpy((char *)sn_ptr->serial_num,
 			(char *)lun->be_lun->serial_num, CTL_SN_LEN);
 	}
-#else
-	/*
-	 * Note that we're using a non-unique serial number here,
-	 */
-	snprintf(tmpstr, sizeof(tmpstr), "MYSERIALNUMIS000");
-	memset(sn_ptr->serial_num, 0x20, sizeof(sn_ptr->serial_num));
-	strncpy(sn_ptr->serial_num, tmpstr, ctl_min(CTL_SN_LEN,
-		ctl_min(sizeof(tmpstr), sizeof(*sn_ptr) - 4)));
-#endif
 	ctsio->scsi_status = SCSI_STATUS_OK;
 
 	ctsio->io_hdr.flags |= CTL_FLAG_ALLOCATED;
@@ -9556,10 +9537,7 @@ ctl_inquiry_evpd_devid(struct ctl_scsiio *ctsio, int alloc_len)
 	struct ctl_lun *lun;
 	struct ctl_frontend *fe;
 	char *val;
-#ifndef CTL_USE_BACKEND_SN
-	char tmpstr[32];
-#endif /* CTL_USE_BACKEND_SN */
-	int devid_len;
+	int data_len, devid_len;
 
 	ctl_softc = control_softc;
 
@@ -9570,23 +9548,30 @@ ctl_inquiry_evpd_devid(struct ctl_scsiio *ctsio, int alloc_len)
 
 	lun = (struct ctl_lun *)ctsio->io_hdr.ctl_private[CTL_PRIV_LUN].ptr;
 
-	devid_len = sizeof(struct scsi_vpd_device_id) +
+	if (lun == NULL) {
+		devid_len = CTL_DEVID_MIN_LEN;
+	} else {
+		devid_len = max(CTL_DEVID_MIN_LEN,
+		    strnlen(lun->be_lun->device_id, CTL_DEVID_LEN));
+	}
+
+	data_len = sizeof(struct scsi_vpd_device_id) +
 		sizeof(struct scsi_vpd_id_descriptor) +
-		sizeof(struct scsi_vpd_id_t10) + CTL_DEVID_LEN +
+		sizeof(struct scsi_vpd_id_t10) + devid_len +
 		sizeof(struct scsi_vpd_id_descriptor) + CTL_WWPN_LEN +
 		sizeof(struct scsi_vpd_id_descriptor) +
 		sizeof(struct scsi_vpd_id_rel_trgt_port_id) +
 		sizeof(struct scsi_vpd_id_descriptor) +
 		sizeof(struct scsi_vpd_id_trgt_port_grp_id);
 
-	ctsio->kern_data_ptr = malloc(devid_len, M_CTL, M_WAITOK | M_ZERO);
+	ctsio->kern_data_ptr = malloc(data_len, M_CTL, M_WAITOK | M_ZERO);
 	devid_ptr = (struct scsi_vpd_device_id *)ctsio->kern_data_ptr;
 	ctsio->kern_sg_entries = 0;
 
-	if (devid_len < alloc_len) {
-		ctsio->residual = alloc_len - devid_len;
-		ctsio->kern_data_len = devid_len;
-		ctsio->kern_total_len = devid_len;
+	if (data_len < alloc_len) {
+		ctsio->residual = alloc_len - data_len;
+		ctsio->kern_data_len = data_len;
+		ctsio->kern_total_len = data_len;
 	} else {
 		ctsio->residual = 0;
 		ctsio->kern_data_len = alloc_len;
@@ -9599,7 +9584,7 @@ ctl_inquiry_evpd_devid(struct ctl_scsiio *ctsio, int alloc_len)
 	desc = (struct scsi_vpd_id_descriptor *)devid_ptr->desc_list;
 	t10id = (struct scsi_vpd_id_t10 *)&desc->identifier[0];
 	desc1 = (struct scsi_vpd_id_descriptor *)(&desc->identifier[0] +
-		sizeof(struct scsi_vpd_id_t10) + CTL_DEVID_LEN);
+		sizeof(struct scsi_vpd_id_t10) + devid_len);
 	desc2 = (struct scsi_vpd_id_descriptor *)(&desc1->identifier[0] +
 	          CTL_WWPN_LEN);
 	desc3 = (struct scsi_vpd_id_descriptor *)(&desc2->identifier[0] +
@@ -9617,7 +9602,7 @@ ctl_inquiry_evpd_devid(struct ctl_scsiio *ctsio, int alloc_len)
 
 	devid_ptr->page_code = SVPD_DEVICE_ID;
 
-	scsi_ulto2b(devid_len - 4, devid_ptr->length);
+	scsi_ulto2b(data_len - 4, devid_ptr->length);
 
 	/*
 	 * For Fibre channel,
@@ -9643,7 +9628,7 @@ ctl_inquiry_evpd_devid(struct ctl_scsiio *ctsio, int alloc_len)
 	 * per-LUN identifier.
 	 */
 	desc->id_type = SVPD_ID_PIV | SVPD_ID_ASSOC_LUN | SVPD_ID_TYPE_T10;
-	desc->length = sizeof(*t10id) + CTL_DEVID_LEN;
+	desc->length = sizeof(*t10id) + devid_len;
 	if (lun == NULL || (val = ctl_get_opt(lun->be_lun, "vendor")) == NULL) {
 		strncpy((char *)t10id->vendor, CTL_VENDOR, sizeof(t10id->vendor));
 	} else {
@@ -9700,7 +9685,6 @@ ctl_inquiry_evpd_devid(struct ctl_scsiio *ctsio, int alloc_len)
 	else
 		desc3->identifier[3] = 2;
 
-#ifdef CTL_USE_BACKEND_SN
 	/*
 	 * If we've actually got a backend, copy the device id from the
 	 * per-LUN data.  Otherwise, set it to all spaces.
@@ -9710,19 +9694,13 @@ ctl_inquiry_evpd_devid(struct ctl_scsiio *ctsio, int alloc_len)
 		 * Copy the backend's LUN ID.
 		 */
 		strncpy((char *)t10id->vendor_spec_id,
-			(char *)lun->be_lun->device_id, CTL_DEVID_LEN);
+			(char *)lun->be_lun->device_id, devid_len);
 	} else {
 		/*
 		 * No backend, set this to spaces.
 		 */
-		memset(t10id->vendor_spec_id, 0x20, CTL_DEVID_LEN);
+		memset(t10id->vendor_spec_id, 0x20, devid_len);
 	}
-#else
-	snprintf(tmpstr, sizeof(tmpstr), "MYDEVICEIDIS%4d",
-		 (lun != NULL) ?  (int)lun->lun : 0);
-	strncpy(t10id->vendor_spec_id, tmpstr, ctl_min(CTL_DEVID_LEN,
-		sizeof(tmpstr)));
-#endif
 
 	ctsio->scsi_status = SCSI_STATUS_OK;
 
