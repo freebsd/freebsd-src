@@ -1,0 +1,13 @@
+#
+# BERI_SIM_MDROOT -- Kernel for the SRI/Cambridge "BERI" (Bluespec Extensible
+# RISC Implementation) FPGA soft core, as configured for simulation.
+#
+# $FreeBSD$
+#
+
+include "BERI_SIM_MDROOT"
+
+ident		BERI_SIM_2THREAD_MDROOT
+
+nomakeoption	FDT_DTS_FILE
+makeoption	FDT_DTS_FILE=beri-sim-2thread.dts
