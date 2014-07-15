@@ -33,6 +33,7 @@
 
 #include "opt_compat.h"
 #include "opt_kbd.h"
+#include "opt_evdev.h"
 
 #include <sys/param.h>
 #include <sys/bus.h>
@@ -55,6 +56,11 @@
 #include <sys/uio.h>
 #include <dev/kbd/kbdreg.h>
 #include <dev/kbd/kbdtables.h>
+
+#ifdef EVDEV
+#include <dev/evdev/evdev.h>
+#include <dev/evdev/input.h>
+#endif
 
 #define KEYBOARD_NAME	"kbdmux"
 
@@ -150,6 +156,12 @@ struct kbdmux_state
 	int			 ks_accents;	/* accent key index (> 0) */
 	u_int			 ks_composed_char; /* composed char code */
 	u_char			 ks_prefix;	/* AT scan code prefix */
+
+#ifdef EVDEV
+	struct evdev_dev *	 ks_evdev;
+	bool			 ks_evdev_opened;
+	int			 ks_evdev_state;
+#endif
 
 	SLIST_HEAD(, kbdmux_kbd) ks_kbds;	/* keyboards */
 
@@ -363,6 +375,33 @@ static keyboard_switch_t kbdmuxsw = {
 	.diag =		genkbd_diag,
 };
 
+#ifdef EVDEV
+static int kbdmux_ev_open(struct evdev_dev *, void *);
+static void kbdmux_ev_close(struct evdev_dev *, void *);
+
+struct evdev_methods kbdmux_evdev_methods = {
+	.ev_open = kbdmux_ev_open,
+	.ev_close = kbdmux_ev_close,
+};
+
+static int
+kbdmux_ev_open(struct evdev_dev *evdev, void *softc)
+{
+ 	struct kbdmux_state *state = (struct kbdmux_state *)softc;
+
+	state->ks_evdev_opened = true;
+	return (0);
+}
+
+static void
+kbdmux_ev_close(struct evdev_dev *evdev, void *softc)
+{
+	struct kbdmux_state *state = (struct kbdmux_state *)softc;
+
+	state->ks_evdev_opened = false;
+}
+#endif
+
 /*
  * Return the number of found keyboards
  */
@@ -396,6 +435,10 @@ kbdmux_init(int unit, keyboard_t **kbdp, void *arg, int flags)
         accentmap_t	*accmap = NULL;
         fkeytab_t	*fkeymap = NULL;
 	int		 error, needfree, fkeymap_size, delay[2];
+#ifdef EVDEV
+	struct evdev_dev *evdev;
+	int i;
+#endif
 
 	if (*kbdp == NULL) {
 		*kbdp = kbd = malloc(sizeof(*kbd), M_KBDMUX, M_NOWAIT | M_ZERO);
@@ -455,6 +498,25 @@ kbdmux_init(int unit, keyboard_t **kbdp, void *arg, int flags)
 		delay[0] = kbd->kb_delay1;
 		delay[1] = kbd->kb_delay2;
 		kbdmux_ioctl(kbd, KDSETREPEAT, (caddr_t)delay);
+
+#ifdef EVDEV
+		/* register as evdev provider */
+		evdev = evdev_alloc();
+		evdev_set_name(evdev, "System keyboard multiplexer");
+		evdev_set_phys(evdev, KEYBOARD_NAME);
+		evdev_set_serial(evdev, "0");
+		evdev_set_methods(evdev, &kbdmux_evdev_methods);
+		evdev_set_softc(evdev, state);
+		evdev_support_event(evdev, EV_SYN);
+		evdev_support_event(evdev, EV_KEY);
+
+		for (i = KEY_RESERVED; i <= KEY_KPDOT; i++)
+			evdev_support_key(evdev, i);
+
+		evdev_register(NULL, evdev);
+		state->ks_evdev = evdev;
+		state->ks_evdev_state = 0;
+#endif
 
 		KBD_INIT_DONE(kbd);
 	}
@@ -685,6 +747,20 @@ next_code:
 	/* XXX FIXME: check for -1 if wait == 1! */
 
 	kbd->kb_count ++;
+
+#ifdef EVDEV
+	/* push evdev event */
+	if (state->ks_evdev != NULL && state->ks_evdev_opened) {
+		uint16_t key = evdev_scancode2key(&state->ks_evdev_state,
+		    scancode);
+
+		if (key != KEY_RESERVED) {
+			evdev_push_event(state->ks_evdev, EV_KEY,
+			    key, scancode & 0x80 ? 0 : 1);
+			evdev_sync(state->ks_evdev);
+		}
+	}
+#endif
 
 	/* return the byte as is for the K_RAW mode */
 	if (state->ks_mode == K_RAW) {
