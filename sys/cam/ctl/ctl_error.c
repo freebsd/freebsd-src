@@ -795,6 +795,18 @@ ctl_set_busy(struct ctl_scsiio *ctsio)
 }
 
 void
+ctl_set_task_aborted(struct ctl_scsiio *ctsio)
+{
+	struct scsi_sense_data *sense;
+
+	sense = &ctsio->sense_data;
+	memset(sense, 0, sizeof(*sense));
+	ctsio->scsi_status = SCSI_STATUS_TASK_ABORTED;
+	ctsio->sense_len = 0;
+	ctsio->io_hdr.status = CTL_CMD_ABORTED;
+}
+
+void
 ctl_set_success(struct ctl_scsiio *ctsio)
 {
 	struct scsi_sense_data *sense;
