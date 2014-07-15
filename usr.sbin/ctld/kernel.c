@@ -113,7 +113,6 @@ struct cctl_lun {
 	char *serial_number;
 	char *device_id;
 	char *cfiscsi_target;
-	char *cfiscsi_target_alias;
 	int cfiscsi_lun;
 	STAILQ_HEAD(,cctl_lun_nv) attr_list;
 	STAILQ_ENTRY(cctl_lun) links;
@@ -229,9 +228,6 @@ cctl_end_element(void *user_data, const char *name)
 		str = NULL;
 	} else if (strcmp(name, "cfiscsi_target") == 0) {
 		cur_lun->cfiscsi_target = str;
-		str = NULL;
-	} else if (strcmp(name, "cfiscsi_target_alias") == 0) {
-		cur_lun->cfiscsi_target_alias = str;
 		str = NULL;
 	} else if (strcmp(name, "cfiscsi_lun") == 0) {
 		cur_lun->cfiscsi_lun = strtoul(str, NULL, 0);
@@ -640,17 +636,6 @@ kernel_lun_add(struct lun *lun)
 		assert(lo != NULL);
 	}
 
-	if (lun->l_target->t_alias != NULL) {
-		lo = lun_option_find(lun, "cfiscsi_target_alias");
-		if (lo != NULL) {
-			lun_option_set(lo, lun->l_target->t_alias);
-		} else {
-			lo = lun_option_new(lun, "cfiscsi_target_alias",
-			    lun->l_target->t_alias);
-			assert(lo != NULL);
-		}
-	}
-
 	asprintf(&tmp, "%d", lun->l_lun);
 	if (tmp == NULL)
 		log_errx(1, "asprintf");
@@ -660,6 +645,19 @@ kernel_lun_add(struct lun *lun)
 		free(tmp);
 	} else {
 		lo = lun_option_new(lun, "cfiscsi_lun", tmp);
+		free(tmp);
+		assert(lo != NULL);
+	}
+
+	asprintf(&tmp, "%s,lun,%d", lun->l_target->t_name, lun->l_lun);
+	if (tmp == NULL)
+		log_errx(1, "asprintf");
+	lo = lun_option_find(lun, "scsiname");
+	if (lo != NULL) {
+		lun_option_set(lo, tmp);
+		free(tmp);
+	} else {
+		lo = lun_option_new(lun, "scsiname", tmp);
 		free(tmp);
 		assert(lo != NULL);
 	}
