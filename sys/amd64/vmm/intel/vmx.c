@@ -1793,10 +1793,25 @@ vmx_paging_info(struct vm_guest_paging *paging)
 static void
 vmexit_inst_emul(struct vm_exit *vmexit, uint64_t gpa, uint64_t gla)
 {
+	struct vm_guest_paging *paging;
+	uint32_t csar;
+	
+	paging = &vmexit->u.inst_emul.paging;
+
 	vmexit->exitcode = VM_EXITCODE_INST_EMUL;
 	vmexit->u.inst_emul.gpa = gpa;
 	vmexit->u.inst_emul.gla = gla;
-	vmx_paging_info(&vmexit->u.inst_emul.paging);
+	vmx_paging_info(paging);
+	switch (paging->cpu_mode) {
+	case CPU_MODE_PROTECTED:
+	case CPU_MODE_COMPATIBILITY:
+		csar = vmcs_read(VMCS_GUEST_CS_ACCESS_RIGHTS);
+		vmexit->u.inst_emul.cs_d = SEG_DESC_DEF32(csar);
+		break;
+	default:
+		vmexit->u.inst_emul.cs_d = 0;
+		break;
+	}
 }
 
 static int

@@ -1190,15 +1190,18 @@ vm_handle_inst_emul(struct vm *vm, int vcpuid, bool *retu)
 	struct vm_guest_paging *paging;
 	mem_region_read_t mread;
 	mem_region_write_t mwrite;
-	int error;
+	enum vm_cpu_mode cpu_mode;
+	int cs_d, error;
 
 	vcpu = &vm->vcpu[vcpuid];
 	vme = &vcpu->exitinfo;
 
 	gla = vme->u.inst_emul.gla;
 	gpa = vme->u.inst_emul.gpa;
+	cs_d = vme->u.inst_emul.cs_d;
 	vie = &vme->u.inst_emul.vie;
 	paging = &vme->u.inst_emul.paging;
+	cpu_mode = paging->cpu_mode;
 
 	vie_init(vie);
 
@@ -1212,7 +1215,7 @@ vm_handle_inst_emul(struct vm *vm, int vcpuid, bool *retu)
 	else if (error != 0)
 		panic("%s: vmm_fetch_instruction error %d", __func__, error);
 
-	if (vmm_decode_instruction(vm, vcpuid, gla, paging->cpu_mode, vie) != 0)
+	if (vmm_decode_instruction(vm, vcpuid, gla, cpu_mode, cs_d, vie) != 0)
 		return (EFAULT);
 
 	/* return to userland unless this is an in-kernel emulated device */
