@@ -3140,6 +3140,104 @@ ctl_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
 		retval = fe->ioctl(dev, cmd, addr, flag, td);
 		break;
 	}
+	case CTL_PORT_LIST: {
+		struct sbuf *sb;
+		struct ctl_port *port;
+		struct ctl_lun_list *list;
+//		struct ctl_option *opt;
+
+		list = (struct ctl_lun_list *)addr;
+
+		sb = sbuf_new(NULL, NULL, list->alloc_len, SBUF_FIXEDLEN);
+		if (sb == NULL) {
+			list->status = CTL_LUN_LIST_ERROR;
+			snprintf(list->error_str, sizeof(list->error_str),
+				 "Unable to allocate %d bytes for LUN list",
+				 list->alloc_len);
+			break;
+		}
+
+		sbuf_printf(sb, "<ctlportlist>\n");
+
+		mtx_lock(&softc->ctl_lock);
+		STAILQ_FOREACH(port, &softc->port_list, links) {
+			retval = sbuf_printf(sb, "<targ_port id=\"%ju\">\n",
+					     (uintmax_t)port->targ_port);
+
+			/*
+			 * Bail out as soon as we see that we've overfilled
+			 * the buffer.
+			 */
+			if (retval != 0)
+				break;
+
+			retval = sbuf_printf(sb, "\t<frontend_type>%s"
+			    "</frontend_type>\n", port->frontend->name);
+			if (retval != 0)
+				break;
+
+			retval = sbuf_printf(sb, "\t<port_type>%d</port_type>\n",
+					     port->port_type);
+			if (retval != 0)
+				break;
+
+			retval = sbuf_printf(sb, "\t<online>%s</online>\n",
+			    (port->status & CTL_PORT_STATUS_ONLINE) ? "YES" : "NO");
+			if (retval != 0)
+				break;
+
+			retval = sbuf_printf(sb, "\t<port_name>%s</port_name>\n",
+			    port->port_name);
+			if (retval != 0)
+				break;
+
+			retval = sbuf_printf(sb, "\t<physical_port>%d</physical_port>\n",
+			    port->physical_port);
+			if (retval != 0)
+				break;
+
+			retval = sbuf_printf(sb, "\t<virtual_port>%d</virtual_port>\n",
+			    port->virtual_port);
+			if (retval != 0)
+				break;
+
+			retval = sbuf_printf(sb, "\t<wwnn>%#jx</wwnn>\n",
+			    (uintmax_t)port->wwnn);
+			if (retval != 0)
+				break;
+
+			retval = sbuf_printf(sb, "\t<wwpn>%#jx</wwpn>\n",
+			    (uintmax_t)port->wwpn);
+			if (retval != 0)
+				break;
+
+			retval = sbuf_printf(sb, "</targ_port>\n");
+			if (retval != 0)
+				break;
+		}
+		mtx_unlock(&softc->ctl_lock);
+
+		if ((retval != 0)
+		 || ((retval = sbuf_printf(sb, "</ctlportlist>\n")) != 0)) {
+			retval = 0;
+			sbuf_delete(sb);
+			list->status = CTL_LUN_LIST_NEED_MORE_SPACE;
+			snprintf(list->error_str, sizeof(list->error_str),
+				 "Out of space, %d bytes is too small",
+				 list->alloc_len);
+			break;
+		}
+
+		sbuf_finish(sb);
+
+		retval = copyout(sbuf_data(sb), list->lun_xml,
+				 sbuf_len(sb) + 1);
+
+		list->fill_len = sbuf_len(sb) + 1;
+		list->status = CTL_LUN_LIST_OK;
+		sbuf_delete(sb);
+		break;
+	}
 	default: {
 		/* XXX KDM should we fix this? */
 #if 0

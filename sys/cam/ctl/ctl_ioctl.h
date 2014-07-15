@@ -789,6 +789,7 @@ struct ctl_iscsi {
 #define	CTL_ERROR_INJECT_DELETE	_IOW(CTL_MINOR, 0x23, struct ctl_error_desc)
 #define	CTL_SET_PORT_WWNS	_IOW(CTL_MINOR, 0x24, struct ctl_port_entry)
 #define	CTL_ISCSI		_IOWR(CTL_MINOR, 0x25, struct ctl_iscsi)
+#define	CTL_PORT_LIST		_IOWR(CTL_MINOR, 0x26, struct ctl_lun_list)
 
 #endif /* _CTL_IOCTL_H_ */
 
