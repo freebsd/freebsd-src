@@ -322,11 +322,11 @@ struct seg_desc {
 	uint32_t	limit;
 	uint32_t	access;
 };
-#define	SEG_DESC_TYPE(desc)		((desc)->access & 0x001f)
-#define	SEG_DESC_PRESENT(desc)		((desc)->access & 0x0080)
-#define	SEG_DESC_DEF32(desc)		((desc)->access & 0x4000)
-#define	SEG_DESC_GRANULARITY(desc)	((desc)->access & 0x8000)
-#define	SEG_DESC_UNUSABLE(desc)		((desc)->access & 0x10000)
+#define	SEG_DESC_TYPE(access)		((access) & 0x001f)
+#define	SEG_DESC_PRESENT(access)	(((access) & 0x0080) ? 1 : 0)
+#define	SEG_DESC_DEF32(access)		(((access) & 0x4000) ? 1 : 0)
+#define	SEG_DESC_GRANULARITY(access)	(((access) & 0x8000) ? 1 : 0)
+#define	SEG_DESC_UNUSABLE(access)	(((access) & 0x10000) ? 1 : 0)
 
 enum vm_cpu_mode {
 	CPU_MODE_REAL,
@@ -366,11 +366,14 @@ struct vie {
 	uint8_t		num_valid;		/* size of the instruction */
 	uint8_t		num_processed;
 
+	uint8_t		addrsize:4, opsize:4;	/* address and operand sizes */
 	uint8_t		rex_w:1,		/* REX prefix */
 			rex_r:1,
 			rex_x:1,
 			rex_b:1,
-			rex_present:1;
+			rex_present:1,
+			opsize_override:1,	/* Operand size override */
+			addrsize_override:1;	/* Address size override */
 
 	uint8_t		mod:2,			/* ModRM byte */
 			reg:4,
@@ -450,6 +453,7 @@ struct vm_exit {
 		struct {
 			uint64_t	gpa;
 			uint64_t	gla;
+			int		cs_d;		/* CS.D */
 			struct vm_guest_paging paging;
 			struct vie	vie;
 		} inst_emul;

@@ -69,8 +69,9 @@ enum {
 };
 
 /* struct vie_op.op_flags */
-#define	VIE_OP_F_IMM		(1 << 0)	/* immediate operand present */
-#define	VIE_OP_F_IMM8		(1 << 1)	/* 8-bit immediate operand */
+#define	VIE_OP_F_IMM		(1 << 0)  /* 16/32-bit immediate operand */
+#define	VIE_OP_F_IMM8		(1 << 1)  /* 8-bit immediate operand */
+#define	VIE_OP_F_MOFFSET	(1 << 2)  /* 16/32/64-bit immediate moffset */
 
 static const struct vie_op two_byte_opcodes[256] = {
 	[0xB6] = {
@@ -181,18 +182,15 @@ vie_read_register(void *vm, int vcpuid, enum vm_reg_name reg, uint64_t *rval)
 	return (error);
 }
 
-static int
-vie_read_bytereg(void *vm, int vcpuid, struct vie *vie, uint8_t *rval)
+static void
+vie_calc_bytereg(struct vie *vie, enum vm_reg_name *reg, int *lhbr)
 {
-	uint64_t val;
-	int error, rshift;
-	enum vm_reg_name reg;
-
-	rshift = 0;
-	reg = gpr_map[vie->reg];
+	*lhbr = 0;
+	*reg = gpr_map[vie->reg];
 
 	/*
-	 * 64-bit mode imposes limitations on accessing legacy byte registers.
+	 * 64-bit mode imposes limitations on accessing legacy high byte
+	 * registers (lhbr).
 	 *
 	 * The legacy high-byte registers cannot be addressed if the REX
 	 * prefix is present. In this case the values 4, 5, 6 and 7 of the
@@ -204,17 +202,56 @@ vie_read_bytereg(void *vm, int vcpuid, struct vie *vie, uint8_t *rval)
 	 */
 	if (!vie->rex_present) {
 		if (vie->reg & 0x4) {
-			/*
-			 * Obtain the value of %ah by reading %rax and shifting
-			 * right by 8 bits (same for %bh, %ch and %dh).
-			 */
-			rshift = 8;
-			reg = gpr_map[vie->reg & 0x3];
+			*lhbr = 1;
+			*reg = gpr_map[vie->reg & 0x3];
 		}
 	}
+}
 
+static int
+vie_read_bytereg(void *vm, int vcpuid, struct vie *vie, uint8_t *rval)
+{
+	uint64_t val;
+	int error, lhbr;
+	enum vm_reg_name reg;
+
+	vie_calc_bytereg(vie, &reg, &lhbr);
 	error = vm_get_register(vm, vcpuid, reg, &val);
-	*rval = val >> rshift;
+
+	/*
+	 * To obtain the value of a legacy high byte register shift the
+	 * base register right by 8 bits (%ah = %rax >> 8).
+	 */
+	if (lhbr)
+		*rval = val >> 8;
+	else
+		*rval = val;
+	return (error);
+}
+
+static int
+vie_write_bytereg(void *vm, int vcpuid, struct vie *vie, uint8_t byte)
+{
+	uint64_t origval, val, mask;
+	int error, lhbr;
+	enum vm_reg_name reg;
+
+	vie_calc_bytereg(vie, &reg, &lhbr);
+	error = vm_get_register(vm, vcpuid, reg, &origval);
+	if (error == 0) {
+		val = byte;
+		mask = 0xff;
+		if (lhbr) {
+			/*
+			 * Shift left by 8 to store 'byte' in a legacy high
+			 * byte register.
+			 */
+			val <<= 8;
+			mask <<= 8;
+		}
+		val |= origval & ~mask;
+		error = vm_set_register(vm, vcpuid, reg, val);
+	}
 	return (error);
 }
 
@@ -247,17 +284,6 @@ vie_update_register(void *vm, int vcpuid, enum vm_reg_name reg,
 	return (error);
 }
 
-/*
- * The following simplifying assumptions are made during emulation:
- *
- * - guest is in 64-bit mode
- *   - default address size is 64-bits
- *   - default operand size is 32-bits
- *
- * - operand size override is not supported
- *
- * - address size override is not supported
- */
 static int
 emulate_mov(void *vm, int vcpuid, uint64_t gpa, struct vie *vie,
 	    mem_region_read_t memread, mem_region_write_t memwrite, void *arg)
@@ -267,7 +293,7 @@ emulate_mov(void *vm, int vcpuid, uint64_t gpa, struct vie *vie,
 	uint8_t byte;
 	uint64_t val;
 
-	size = 4;
+	size = vie->opsize;
 	error = EINVAL;
 
 	switch (vie->op.op_byte) {
@@ -277,7 +303,7 @@ emulate_mov(void *vm, int vcpuid, uint64_t gpa, struct vie *vie,
 		 * 88/r:	mov r/m8, r8
 		 * REX + 88/r:	mov r/m8, r8 (%ah, %ch, %dh, %bh not available)
 		 */
-		size = 1;
+		size = 1;	/* override for byte operation */
 		error = vie_read_bytereg(vm, vcpuid, vie, &byte);
 		if (error == 0)
 			error = memwrite(vm, vcpuid, gpa, byte, size, arg);
@@ -285,11 +311,10 @@ emulate_mov(void *vm, int vcpuid, uint64_t gpa, struct vie *vie,
 	case 0x89:
 		/*
 		 * MOV from reg (ModRM:reg) to mem (ModRM:r/m)
+		 * 89/r:	mov r/m16, r16
 		 * 89/r:	mov r/m32, r32
 		 * REX.W + 89/r	mov r/m64, r64
 		 */
-		if (vie->rex_w)
-			size = 8;
 		reg = gpr_map[vie->reg];
 		error = vie_read_register(vm, vcpuid, reg, &val);
 		if (error == 0) {
@@ -298,18 +323,23 @@ emulate_mov(void *vm, int vcpuid, uint64_t gpa, struct vie *vie,
 		}
 		break;
 	case 0x8A:
+		/*
+		 * MOV byte from mem (ModRM:r/m) to reg (ModRM:reg)
+		 * 8A/r:	mov r8, r/m8
+		 * REX + 8A/r:	mov r8, r/m8
+		 */
+		size = 1;	/* override for byte operation */
+		error = memread(vm, vcpuid, gpa, &val, size, arg);
+		if (error == 0)
+			error = vie_write_bytereg(vm, vcpuid, vie, val);
+		break;
 	case 0x8B:
 		/*
 		 * MOV from mem (ModRM:r/m) to reg (ModRM:reg)
-		 * 8A/r:	mov r/m8, r8
-		 * REX + 8A/r:	mov r/m8, r8
+		 * 8B/r:	mov r16, r/m16
 		 * 8B/r:	mov r32, r/m32
 		 * REX.W 8B/r:	mov r64, r/m64
 		 */
-		if (vie->op.op_byte == 0x8A)
-			size = 1;
-		else if (vie->rex_w)
-			size = 8;
 		error = memread(vm, vcpuid, gpa, &val, size, arg);
 		if (error == 0) {
 			reg = gpr_map[vie->reg];
@@ -322,23 +352,17 @@ emulate_mov(void *vm, int vcpuid, uint64_t gpa, struct vie *vie,
 		 * C6/0		mov r/m8, imm8
 		 * REX + C6/0	mov r/m8, imm8
 		 */
-		size = 1;
+		size = 1;	/* override for byte operation */
 		error = memwrite(vm, vcpuid, gpa, vie->immediate, size, arg);
 		break;
 	case 0xC7:
 		/*
-		 * MOV from imm32 to mem (ModRM:r/m)
+		 * MOV from imm16/imm32 to mem (ModRM:r/m)
+		 * C7/0		mov r/m16, imm16
 		 * C7/0		mov r/m32, imm32
 		 * REX.W + C7/0	mov r/m64, imm32 (sign-extended to 64-bits)
 		 */
-		val = vie->immediate;		/* already sign-extended */
-
-		if (vie->rex_w)
-			size = 8;
-
-		if (size != 8)
-			val &= size2mask[size];
-
+		val = vie->immediate & size2mask[size];
 		error = memwrite(vm, vcpuid, gpa, val, size, arg);
 		break;
 	default:
@@ -348,17 +372,6 @@ emulate_mov(void *vm, int vcpuid, uint64_t gpa, struct vie *vie,
 	return (error);
 }
 
-/*
- * The following simplifying assumptions are made during emulation:
- *
- * - guest is in 64-bit mode
- *   - default address size is 64-bits
- *   - default operand size is 32-bits
- *
- * - operand size override is not supported
- *
- * - address size override is not supported
- */
 static int
 emulate_movx(void *vm, int vcpuid, uint64_t gpa, struct vie *vie,
 	     mem_region_read_t memread, mem_region_write_t memwrite,
@@ -368,7 +381,7 @@ emulate_movx(void *vm, int vcpuid, uint64_t gpa, struct vie *vie,
 	enum vm_reg_name reg;
 	uint64_t val;
 
-	size = 4;
+	size = vie->opsize;
 	error = EINVAL;
 
 	switch (vie->op.op_byte) {
@@ -377,8 +390,9 @@ emulate_movx(void *vm, int vcpuid, uint64_t gpa, struct vie *vie,
 		 * MOV and zero extend byte from mem (ModRM:r/m) to
 		 * reg (ModRM:reg).
 		 *
-		 * 0F B6/r		movzx r/m8, r32
-		 * REX.W + 0F B6/r	movzx r/m8, r64
+		 * 0F B6/r		movzx r16, r/m8
+		 * 0F B6/r		movzx r32, r/m8
+		 * REX.W + 0F B6/r	movzx r64, r/m8
 		 */
 
 		/* get the first operand */
@@ -389,8 +403,8 @@ emulate_movx(void *vm, int vcpuid, uint64_t gpa, struct vie *vie,
 		/* get the second operand */
 		reg = gpr_map[vie->reg];
 
-		if (vie->rex_w)
-			size = 8;
+		/* zero-extend byte */
+		val = (uint8_t)val;
 
 		/* write the result */
 		error = vie_update_register(vm, vcpuid, reg, val, size);
@@ -400,8 +414,9 @@ emulate_movx(void *vm, int vcpuid, uint64_t gpa, struct vie *vie,
 		 * MOV and sign extend byte from mem (ModRM:r/m) to
 		 * reg (ModRM:reg).
 		 *
-		 * 0F BE/r		movsx r/m8, r32
-		 * REX.W + 0F BE/r	movsx r/m8, r64
+		 * 0F BE/r		movsx r16, r/m8
+		 * 0F BE/r		movsx r32, r/m8
+		 * REX.W + 0F BE/r	movsx r64, r/m8
 		 */
 
 		/* get the first operand */
@@ -411,9 +426,6 @@ emulate_movx(void *vm, int vcpuid, uint64_t gpa, struct vie *vie,
 
 		/* get the second operand */
 		reg = gpr_map[vie->reg];
-
-		if (vie->rex_w)
-			size = 8;
 
 		/* sign extend byte */
 		val = (int8_t)val;
@@ -435,7 +447,7 @@ emulate_and(void *vm, int vcpuid, uint64_t gpa, struct vie *vie,
 	enum vm_reg_name reg;
 	uint64_t val1, val2;
 
-	size = 4;
+	size = vie->opsize;
 	error = EINVAL;
 
 	switch (vie->op.op_byte) {
@@ -444,11 +456,10 @@ emulate_and(void *vm, int vcpuid, uint64_t gpa, struct vie *vie,
 		 * AND reg (ModRM:reg) and mem (ModRM:r/m) and store the
 		 * result in reg.
 		 *
+		 * 23/r		and r16, r/m16
 		 * 23/r		and r32, r/m32
 		 * REX.W + 23/r	and r64, r/m64
 		 */
-		if (vie->rex_w)
-			size = 8;
 
 		/* get the first operand */
 		reg = gpr_map[vie->reg];
@@ -470,8 +481,9 @@ emulate_and(void *vm, int vcpuid, uint64_t gpa, struct vie *vie,
 		 * AND mem (ModRM:r/m) with immediate and store the
 		 * result in mem.
 		 *
-		 * 81/          and r/m32, imm32
-		 * REX.W + 81/  and r/m64, imm32 sign-extended to 64
+		 * 81 /4		and r/m16, imm16
+		 * 81 /4		and r/m32, imm32
+		 * REX.W + 81 /4	and r/m64, imm32 sign-extended to 64
 		 *
 		 * Currently, only the AND operation of the 0x81 opcode
 		 * is implemented (ModRM:reg = b100).
@@ -479,9 +491,6 @@ emulate_and(void *vm, int vcpuid, uint64_t gpa, struct vie *vie,
 		if ((vie->reg & 7) != 4)
 			break;
 
-		if (vie->rex_w)
-			size = 8;
-		
 		/* get the first operand */
                 error = memread(vm, vcpuid, gpa, &val1, size, arg);
                 if (error)
@@ -507,7 +516,7 @@ emulate_or(void *vm, int vcpuid, uint64_t gpa, struct vie *vie,
 	int error, size;
 	uint64_t val1;
 
-	size = 4;
+	size = vie->opsize;
 	error = EINVAL;
 
 	switch (vie->op.op_byte) {
@@ -516,8 +525,9 @@ emulate_or(void *vm, int vcpuid, uint64_t gpa, struct vie *vie,
 		 * OR mem (ModRM:r/m) with immediate and store the
 		 * result in mem.
 		 *
-		 * 83/          OR r/m32, imm8 sign-extended to 32
-		 * REX.W + 83/  OR r/m64, imm8 sign-extended to 64
+		 * 83 /1		OR r/m16, imm8 sign-extended to 16
+		 * 83 /1		OR r/m32, imm8 sign-extended to 32
+		 * REX.W + 83/1		OR r/m64, imm8 sign-extended to 64
 		 *
 		 * Currently, only the OR operation of the 0x83 opcode
 		 * is implemented (ModRM:reg = b001).
@@ -525,9 +535,6 @@ emulate_or(void *vm, int vcpuid, uint64_t gpa, struct vie *vie,
 		if ((vie->reg & 7) != 1)
 			break;
 
-		if (vie->rex_w)
-			size = 8;
-		
 		/* get the first operand */
                 error = memread(vm, vcpuid, gpa, &val1, size, arg);
                 if (error)
@@ -651,7 +658,7 @@ vie_calculate_gla(enum vm_cpu_mode cpu_mode, enum vm_reg_name seg,
 		 * then the descriptor is unusable and attempting to use
 		 * it results in a #GP(0).
 		 */
-		if (SEG_DESC_UNUSABLE(desc))
+		if (SEG_DESC_UNUSABLE(desc->access))
 			return (-1);
 
 		/* 
@@ -660,13 +667,13 @@ vie_calculate_gla(enum vm_cpu_mode cpu_mode, enum vm_reg_name seg,
 		 * descriptor that is not present. If this was the case then
 		 * it would have been checked before the VM-exit.
 		 */
-		KASSERT(SEG_DESC_PRESENT(desc), ("segment %d not present: %#x",
-		    seg, desc->access));
+		KASSERT(SEG_DESC_PRESENT(desc->access),
+		    ("segment %d not present: %#x", seg, desc->access));
 
 		/*
 		 * The descriptor type must indicate a code/data segment.
 		 */
-		type = SEG_DESC_TYPE(desc);
+		type = SEG_DESC_TYPE(desc->access);
 		KASSERT(type >= 16 && type <= 31, ("segment %d has invalid "
 		    "descriptor type %#x", seg, type));
 
@@ -695,7 +702,8 @@ vie_calculate_gla(enum vm_cpu_mode cpu_mode, enum vm_reg_name seg,
 		if ((type & 0xC) == 0x4) {
 			/* expand-down data segment */
 			low_limit = desc->limit + 1;
-			high_limit = SEG_DESC_DEF32(desc) ? 0xffffffff : 0xffff;
+			high_limit = SEG_DESC_DEF32(desc->access) ?
+			    0xffffffff : 0xffff;
 		} else {
 			/* code segment or expand-up data segment */
 			low_limit = 0;
@@ -1022,24 +1030,65 @@ vie_advance(struct vie *vie)
 }
 
 static int
-decode_rex(struct vie *vie)
+decode_prefixes(struct vie *vie, enum vm_cpu_mode cpu_mode, int cs_d)
 {
 	uint8_t x;
 
-	if (vie_peek(vie, &x))
-		return (-1);
+	while (1) {
+		if (vie_peek(vie, &x))
+			return (-1);
 
-	if (x >= 0x40 && x <= 0x4F) {
-		vie->rex_present = 1;
-
-		vie->rex_w = x & 0x8 ? 1 : 0;
-		vie->rex_r = x & 0x4 ? 1 : 0;
-		vie->rex_x = x & 0x2 ? 1 : 0;
-		vie->rex_b = x & 0x1 ? 1 : 0;
+		if (x == 0x66)
+			vie->opsize_override = 1;
+		else if (x == 0x67)
+			vie->addrsize_override = 1;
+		else
+			break;
 
 		vie_advance(vie);
 	}
 
+	/*
+	 * From section 2.2.1, "REX Prefixes", Intel SDM Vol 2:
+	 * - Only one REX prefix is allowed per instruction.
+	 * - The REX prefix must immediately precede the opcode byte or the
+	 *   escape opcode byte.
+	 * - If an instruction has a mandatory prefix (0x66, 0xF2 or 0xF3)
+	 *   the mandatory prefix must come before the REX prefix.
+	 */
+	if (cpu_mode == CPU_MODE_64BIT && x >= 0x40 && x <= 0x4F) {
+		vie->rex_present = 1;
+		vie->rex_w = x & 0x8 ? 1 : 0;
+		vie->rex_r = x & 0x4 ? 1 : 0;
+		vie->rex_x = x & 0x2 ? 1 : 0;
+		vie->rex_b = x & 0x1 ? 1 : 0;
+		vie_advance(vie);
+	}
+
+	/*
+	 * Section "Operand-Size And Address-Size Attributes", Intel SDM, Vol 1
+	 */
+	if (cpu_mode == CPU_MODE_64BIT) {
+		/*
+		 * Default address size is 64-bits and default operand size
+		 * is 32-bits.
+		 */
+		vie->addrsize = vie->addrsize_override ? 4 : 8;
+		if (vie->rex_w)
+			vie->opsize = 8;
+		else if (vie->opsize_override)
+			vie->opsize = 2;
+		else
+			vie->opsize = 4;
+	} else if (cs_d) {
+		/* Default address and operand sizes are 32-bits */
+		vie->addrsize = vie->addrsize_override ? 2 : 4;
+		vie->opsize = vie->opsize_override ? 2 : 4;
+	} else {
+		/* Default address and operand sizes are 16-bits */
+		vie->addrsize = vie->addrsize_override ? 4 : 2;
+		vie->opsize = vie->opsize_override ? 4 : 2;
+	}
 	return (0);
 }
 
@@ -1085,6 +1134,9 @@ static int
 decode_modrm(struct vie *vie, enum vm_cpu_mode cpu_mode)
 {
 	uint8_t x;
+
+	if (cpu_mode == CPU_MODE_REAL)
+		return (-1);
 
 	if (vie_peek(vie, &x))
 		return (-1);
@@ -1262,22 +1314,44 @@ decode_immediate(struct vie *vie)
 	int i, n;
 	uint8_t x;
 	union {
-		char	buf[4];
+		char	buf[8];
 		int8_t	signed8;
+		int16_t	signed16;
 		int32_t	signed32;
+		int64_t	signed64;
 	} u;
 
 	/* Figure out immediate operand size (if any) */
-	if (vie->op.op_flags & VIE_OP_F_IMM)
-		vie->imm_bytes = 4;
-	else if (vie->op.op_flags & VIE_OP_F_IMM8)
+	if (vie->op.op_flags & VIE_OP_F_MOFFSET) {
+		/*
+		 * Section 2.2.1.4, "Direct Memory-Offset MOVs", Intel SDM:
+		 * The memory offset size follows the address-size of the
+		 * instruction. Although this is treated as an immediate
+		 * value during instruction decoding it is interpreted as
+		 * a segment offset by the instruction emulation.
+		 */
+		vie->imm_bytes = vie->addrsize;
+	} else if (vie->op.op_flags & VIE_OP_F_IMM) {
+		/*
+		 * Section 2.2.1.5 "Immediates", Intel SDM:
+		 * In 64-bit mode the typical size of immediate operands
+		 * remains 32-bits. When the operand size if 64-bits, the
+		 * processor sign-extends all immediates to 64-bits prior
+		 * to their use.
+		 */
+		if (vie->opsize == 4 || vie->opsize == 8)
+			vie->imm_bytes = 4;
+		else
+			vie->imm_bytes = 2;
+	} else if (vie->op.op_flags & VIE_OP_F_IMM8) {
 		vie->imm_bytes = 1;
+	}
 
 	if ((n = vie->imm_bytes) == 0)
 		return (0);
 
-	if (n != 1 && n != 4)
-		panic("decode_immediate: invalid imm_bytes %d", n);
+	KASSERT(n == 1 || n == 2 || n == 4 || n == 8,
+	    ("%s: invalid number of immediate bytes: %d", __func__, n));
 
 	for (i = 0; i < n; i++) {
 		if (vie_peek(vie, &x))
@@ -1286,11 +1360,25 @@ decode_immediate(struct vie *vie)
 		u.buf[i] = x;
 		vie_advance(vie);
 	}
-	
+
+	/* sign-extend the immediate value before use */
 	if (n == 1)
-		vie->immediate = u.signed8;		/* sign-extended */
+		vie->immediate = u.signed8;
+	else if (n == 2)
+		vie->immediate = u.signed16;
+	else if (n == 4)
+		vie->immediate = u.signed32;
 	else
-		vie->immediate = u.signed32;		/* sign-extended */
+		vie->immediate = u.signed64;
+
+
+	if (vie->op.op_flags & VIE_OP_F_MOFFSET) {
+		/*
+		 * If the immediate value is going to be interpreted as a
+		 * segment offset then undo the sign-extension above.
+		 */
+		vie->immediate &= size2mask[n];
+	}
 
 	return (0);
 }
@@ -1316,7 +1404,7 @@ static int
 verify_gla(struct vm *vm, int cpuid, uint64_t gla, struct vie *vie)
 {
 	int error;
-	uint64_t base, idx;
+	uint64_t base, idx, gla2;
 
 	/* Skip 'gla' verification */
 	if (gla == VIE_INVALID_GLA)
@@ -1349,11 +1437,14 @@ verify_gla(struct vm *vm, int cpuid, uint64_t gla, struct vie *vie)
 		}
 	}
 
-	if (base + vie->scale * idx + vie->displacement != gla) {
+	/* XXX assuming that the base address of the segment is 0 */
+	gla2 = base + vie->scale * idx + vie->displacement;
+	gla2 &= size2mask[vie->addrsize];
+	if (gla != gla2) {
 		printf("verify_gla mismatch: "
 		       "base(0x%0lx), scale(%d), index(0x%0lx), "
-		       "disp(0x%0lx), gla(0x%0lx)\n",
-		       base, vie->scale, idx, vie->displacement, gla);
+		       "disp(0x%0lx), gla(0x%0lx), gla2(0x%0lx)\n",
+		       base, vie->scale, idx, vie->displacement, gla, gla2);
 		return (-1);
 	}
 
@@ -1362,13 +1453,11 @@ verify_gla(struct vm *vm, int cpuid, uint64_t gla, struct vie *vie)
 
 int
 vmm_decode_instruction(struct vm *vm, int cpuid, uint64_t gla,
-		       enum vm_cpu_mode cpu_mode, struct vie *vie)
+		       enum vm_cpu_mode cpu_mode, int cs_d, struct vie *vie)
 {
 
-	if (cpu_mode == CPU_MODE_64BIT) {
-		if (decode_rex(vie))
-			return (-1);
-	}
+	if (decode_prefixes(vie, cpu_mode, cs_d))
+		return (-1);
 
 	if (decode_opcode(vie))
 		return (-1);
