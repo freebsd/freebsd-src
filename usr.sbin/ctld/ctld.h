@@ -178,6 +178,7 @@ struct connection {
 	char			*conn_initiator_name;
 	char			*conn_initiator_addr;
 	char			*conn_initiator_alias;
+	uint8_t			conn_initiator_isid[6];
 	uint32_t		conn_cmdsn;
 	uint32_t		conn_statsn;
 	size_t			conn_max_data_segment_length;

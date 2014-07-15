@@ -1511,6 +1511,13 @@ cfiscsi_ioctl_handoff(struct ctl_iscsi *ci)
 	    cihp->initiator_addr, sizeof(cs->cs_initiator_addr));
 	strlcpy(cs->cs_initiator_alias,
 	    cihp->initiator_alias, sizeof(cs->cs_initiator_alias));
+	memcpy(cs->cs_initiator_isid,
+	    cihp->initiator_isid, sizeof(cs->cs_initiator_isid));
+	snprintf(cs->cs_initiator_id, sizeof(cs->cs_initiator_id),
+	    "%s,i,0x%02x%02x%02x%02x%02x%02x", cs->cs_initiator_name,
+	    cihp->initiator_isid[0], cihp->initiator_isid[1],
+	    cihp->initiator_isid[2], cihp->initiator_isid[3],
+	    cihp->initiator_isid[4], cihp->initiator_isid[5]);
 
 #ifdef ICL_KERNEL_PROXY
 	if (cihp->socket > 0) {
