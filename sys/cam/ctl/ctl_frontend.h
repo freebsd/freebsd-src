@@ -39,6 +39,8 @@
 #ifndef	_CTL_FRONTEND_H_
 #define	_CTL_FRONTEND_H_
 
+#define	CTL_FE_NAME_LEN		32
+
 typedef enum {
 	CTL_PORT_STATUS_NONE		= 0x00,
 	CTL_PORT_STATUS_ONLINE		= 0x01,
@@ -46,12 +48,39 @@ typedef enum {
 	CTL_PORT_STATUS_LUN_ONLINE	= 0x04
 } ctl_port_status;
 
+typedef int (*fe_init_t)(void);
+typedef void (*fe_shutdown_t)(void);
 typedef void (*port_func_t)(void *onoff_arg);
 typedef int (*targ_func_t)(void *arg, struct ctl_id targ_id);
 typedef	int (*lun_func_t)(void *arg, struct ctl_id targ_id, int lun_id);
 typedef int (*fe_ioctl_t)(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
 			  struct thread *td);
 typedef int (*fe_devid_t)(struct ctl_scsiio *ctsio, int alloc_len);
+
+#define CTL_FRONTEND_DECLARE(name, driver) \
+	static int name ## _modevent(module_t mod, int type, void *data) \
+	{ \
+		switch (type) { \
+		case MOD_LOAD: \
+			ctl_frontend_register( \
+				(struct ctl_frontend *)data); \
+			break; \
+		case MOD_UNLOAD: \
+			printf(#name " module unload - not possible for this module type\n"); \
+			return EINVAL; \
+		default: \
+			return EOPNOTSUPP; \
+		} \
+		return 0; \
+	} \
+	static moduledata_t name ## _mod = { \
+		#name, \
+		name ## _modevent, \
+		(void *)&driver \
+	}; \
+	DECLARE_MODULE(name, name ## _mod, SI_SUB_CONFIGURE, SI_ORDER_FOURTH); \
+	MODULE_DEPEND(name, ctl, 1, 1, 1); \
+	MODULE_DEPEND(name, cam, 1, 1, 1)
 
 /*
  * The ctl_frontend structure is the registration mechanism between a FETD
@@ -179,7 +208,8 @@ typedef int (*fe_devid_t)(struct ctl_scsiio *ctsio, int alloc_len);
  * links:		  Linked list pointers, used by CTL.  The FETD
  *			  shouldn't touch this field.
  */
-struct ctl_frontend {
+struct ctl_port {
+	struct ctl_frontend *frontend;
 	ctl_port_type	port_type;		/* passed to CTL */
 	int		num_requested_ctl_io;	/* passed to CTL */
 	char		*port_name;		/* passed to CTL */
@@ -190,12 +220,10 @@ struct ctl_frontend {
 	void		*onoff_arg;		/* passed to CTL */
 	lun_func_t	lun_enable;		/* passed to CTL */
 	lun_func_t	lun_disable;		/* passed to CTL */
-	fe_ioctl_t	ioctl;			/* passed to CTL */
 	fe_devid_t	devid;			/* passed to CTL */
 	void		*targ_lun_arg;		/* passed to CTL */
 	void		(*fe_datamove)(union ctl_io *io); /* passed to CTL */
 	void		(*fe_done)(union ctl_io *io); /* passed to CTL */
-	void		(*fe_dump)(void);	/* passed to CTL */
 	int		max_targets;		/* passed to CTL */
 	int		max_target_id;		/* passed to CTL */
 	int32_t		targ_port;		/* passed back to FETD */
@@ -204,6 +232,17 @@ struct ctl_frontend {
 	uint64_t	wwnn;			/* set by CTL before online */
 	uint64_t	wwpn;			/* set by CTL before online */
 	ctl_port_status	status;			/* used by CTL */
+	STAILQ_ENTRY(ctl_port) fe_links;	/* used by CTL */
+	STAILQ_ENTRY(ctl_port) links;		/* used by CTL */
+};
+
+struct ctl_frontend {
+	char		name[CTL_FE_NAME_LEN];	/* passed to CTL */
+	fe_init_t	init;			/* passed to CTL */
+	fe_ioctl_t	ioctl;			/* passed to CTL */
+	void		(*fe_dump)(void);	/* passed to CTL */
+	fe_shutdown_t	shutdown;		/* passed to CTL */
+	STAILQ_HEAD(, ctl_port) port_list;	/* used by CTL */
 	STAILQ_ENTRY(ctl_frontend) links;	/* used by CTL */
 };
 
@@ -211,7 +250,7 @@ struct ctl_frontend {
  * This may block until resources are allocated.  Called at FETD module load
  * time. Returns 0 for success, non-zero for failure.
  */
-int ctl_frontend_register(struct ctl_frontend *fe, int master_SC);
+int ctl_frontend_register(struct ctl_frontend *fe);
 
 /*
  * Called at FETD module unload time.
@@ -220,20 +259,32 @@ int ctl_frontend_register(struct ctl_frontend *fe, int master_SC);
 int ctl_frontend_deregister(struct ctl_frontend *fe);
 
 /*
+ * This may block until resources are allocated.  Called at FETD module load
+ * time. Returns 0 for success, non-zero for failure.
+ */
+int ctl_port_register(struct ctl_port *fe, int master_SC);
+
+/*
+ * Called at FETD module unload time.
+ * Returns 0 for success, non-zero for failure.
+ */
+int ctl_port_deregister(struct ctl_port *fe);
+
+/*
  * Called to set the WWNN and WWPN for a particular frontend.
  */
-void ctl_frontend_set_wwns(struct ctl_frontend *fe, int wwnn_valid,
+void ctl_port_set_wwns(struct ctl_port *port, int wwnn_valid,
 			   uint64_t wwnn, int wwpn_valid, uint64_t wwpn);
 
 /*
  * Called to bring a particular frontend online.
  */
-void ctl_frontend_online(struct ctl_frontend *fe);
+void ctl_port_online(struct ctl_port *fe);
 
 /*
  * Called to take a particular frontend offline.
  */
-void ctl_frontend_offline(struct ctl_frontend *fe);
+void ctl_port_offline(struct ctl_port *fe);
 
 /*
  * This routine queues I/O and task management requests from the FETD to the
