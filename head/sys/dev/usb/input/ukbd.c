@@ -172,7 +172,7 @@ struct ukbd_softc {
 	struct usb_xfer *sc_xfer[UKBD_N_TRANSFER];
 #ifdef EVDEV
 	struct evdev_dev *sc_evdev;
-#endif /* EVDEV */
+#endif
 
 	uint32_t sc_ntime[UKBD_NKEYCODE];
 	uint32_t sc_otime[UKBD_NKEYCODE];
@@ -382,9 +382,10 @@ static device_probe_t ukbd_probe;
 static device_attach_t ukbd_attach;
 static device_detach_t ukbd_detach;
 static device_resume_t ukbd_resume;
-static evdev_event_t ukbd_ev_event;
 
 #ifdef EVDEV
+static evdev_event_t ukbd_ev_event;
+
 static struct evdev_methods ukbd_evdev_methods = {
 	.ev_open = NULL,
 	.ev_close = NULL,
@@ -1425,6 +1426,7 @@ ukbd_resume(device_t dev)
 	return (0);
 }
 
+#ifdef EVDEV
 static void
 ukbd_ev_event(struct evdev_dev *evdev, void *softc, uint16_t type,
     uint16_t code, int32_t value)
@@ -1437,6 +1439,7 @@ ukbd_ev_event(struct evdev_dev *evdev, void *softc, uint16_t type,
 	if (type == EV_REP && code == REP_PERIOD)
 		sc->sc_kbd.kb_delay2 = value;
 }
+#endif
 
 /* early keyboard probe, not supported */
 static int
@@ -1937,10 +1940,12 @@ ukbd_ioctl_locked(keyboard_t *kbd, u_long cmd, caddr_t arg)
 		else
 			kbd->kb_delay1 = ((int *)arg)[0];
 		kbd->kb_delay2 = ((int *)arg)[1];
+#ifdef EVDEV
 		evdev_set_repeat_params(sc->sc_evdev, REP_DELAY,
 		    kbd->kb_delay1);
 		evdev_set_repeat_params(sc->sc_evdev, REP_PERIOD,
 		    kbd->kb_delay2);
+#endif
 		return (0);
 
 #if defined(COMPAT_FREEBSD6) || defined(COMPAT_FREEBSD5) || \
@@ -2080,7 +2085,9 @@ ukbd_set_leds(struct ukbd_softc *sc, uint8_t leds)
 static int
 ukbd_set_typematic(keyboard_t *kbd, int code)
 {
+#ifdef EVDEV
 	struct ukbd_softc *sc = kbd->kb_data;
+#endif
 	static const int delays[] = {250, 500, 750, 1000};
 	static const int rates[] = {34, 38, 42, 46, 50, 55, 59, 63,
 		68, 76, 84, 92, 100, 110, 118, 126,
@@ -2092,8 +2099,10 @@ ukbd_set_typematic(keyboard_t *kbd, int code)
 	}
 	kbd->kb_delay1 = delays[(code >> 5) & 3];
 	kbd->kb_delay2 = rates[code & 0x1f];
+#ifdef EVDEV
 	evdev_set_repeat_params(sc->sc_evdev, REP_DELAY, kbd->kb_delay1);
 	evdev_set_repeat_params(sc->sc_evdev, REP_PERIOD, kbd->kb_delay2);
+#endif
 	return (0);
 }
 
