@@ -1113,7 +1113,7 @@ reinitialize(struct psm_softc *sc, int doinit)
 	splx(s);
 
 	/* restore the driver state */
-	if ((sc->state & PSM_OPEN) && (err == 0)) {
+	if ((sc->state & (PSM_OPEN | PSM_EV_OPEN)) && (err == 0)) {
 		/* enable the aux device and the port again */
 		err = doopen(sc, c);
 		if (err != 0)
@@ -1602,15 +1602,16 @@ static int
 psm_ev_open(struct evdev_dev *evdev, void *ev_softc)
 {
 	struct psm_softc *sc = (struct psm_softc *)ev_softc;
-
-	printf("psm_ev_open()\n");
-
-	sc->state |= PSM_EV_OPEN;
+	int err;
 
 	if (sc->state & PSM_OPEN)
 		return (0);
 
-	return (psmopen(sc));
+	err = psmopen(sc);
+	if (err == 0)
+		sc->state |= PSM_EV_OPEN;
+
+	return (err);
 }
 
 static void
@@ -3664,7 +3665,7 @@ psmsoftintr(void *arg)
 	}
 
 #ifdef EVDEV
-	if (sc->flags & PSM_EV_OPEN) {
+	if (sc->state & PSM_EV_OPEN) {
 		if (x != 0 || y != 0) {
 			evdev_push_event(sc->evdev, EV_REL, REL_X, x);
 			evdev_push_event(sc->evdev, EV_REL, REL_Y, y);
