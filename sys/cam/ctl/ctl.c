@@ -2015,40 +2015,40 @@ ctl_copyin_alloc(void *user_addr, int len, char *error_str,
 }
 
 static void
-ctl_free_args(int num_be_args, struct ctl_be_arg *be_args)
+ctl_free_args(int num_args, struct ctl_be_arg *args)
 {
 	int i;
 
-	if (be_args == NULL)
+	if (args == NULL)
 		return;
 
-	for (i = 0; i < num_be_args; i++) {
-		free(be_args[i].kname, M_CTL);
-		free(be_args[i].kvalue, M_CTL);
+	for (i = 0; i < num_args; i++) {
+		free(args[i].kname, M_CTL);
+		free(args[i].kvalue, M_CTL);
 	}
 
-	free(be_args, M_CTL);
+	free(args, M_CTL);
 }
 
 static struct ctl_be_arg *
-ctl_copyin_args(int num_be_args, struct ctl_be_arg *be_args,
+ctl_copyin_args(int num_args, struct ctl_be_arg *uargs,
 		char *error_str, size_t error_str_len)
 {
 	struct ctl_be_arg *args;
 	int i;
 
-	args = ctl_copyin_alloc(be_args, num_be_args * sizeof(*be_args),
+	args = ctl_copyin_alloc(uargs, num_args * sizeof(*args),
 				error_str, error_str_len);
 
 	if (args == NULL)
 		goto bailout;
 
-	for (i = 0; i < num_be_args; i++) {
+	for (i = 0; i < num_args; i++) {
 		args[i].kname = NULL;
 		args[i].kvalue = NULL;
 	}
 
-	for (i = 0; i < num_be_args; i++) {
+	for (i = 0; i < num_args; i++) {
 		uint8_t *tmpptr;
 
 		args[i].kname = ctl_copyin_alloc(args[i].name,
@@ -2062,29 +2062,41 @@ ctl_copyin_args(int num_be_args, struct ctl_be_arg *be_args,
 			goto bailout;
 		}
 
-		args[i].kvalue = NULL;
-
-		tmpptr = ctl_copyin_alloc(args[i].value,
-			args[i].vallen, error_str, error_str_len);
-		if (tmpptr == NULL)
-			goto bailout;
-
-		args[i].kvalue = tmpptr;
-
-		if ((args[i].flags & CTL_BEARG_ASCII)
-		 && (tmpptr[args[i].vallen - 1] != '\0')) {
-			snprintf(error_str, error_str_len, "Argument %d "
-				 "value is not NUL-terminated", i);
-			goto bailout;
+		if (args[i].flags & CTL_BEARG_RD) {
+			tmpptr = ctl_copyin_alloc(args[i].value,
+				args[i].vallen, error_str, error_str_len);
+			if (tmpptr == NULL)
+				goto bailout;
+			if ((args[i].flags & CTL_BEARG_ASCII)
+			 && (tmpptr[args[i].vallen - 1] != '\0')) {
+				snprintf(error_str, error_str_len, "Argument "
+				    "%d value is not NUL-terminated", i);
+				goto bailout;
+			}
+			args[i].kvalue = tmpptr;
+		} else {
+			args[i].kvalue = malloc(args[i].vallen,
+			    M_CTL, M_WAITOK | M_ZERO);
 		}
 	}
 
 	return (args);
 bailout:
 
-	ctl_free_args(num_be_args, args);
+	ctl_free_args(num_args, args);
 
 	return (NULL);
+}
+
+static void
+ctl_copyout_args(int num_args, struct ctl_be_arg *args)
+{
+	int i;
+
+	for (i = 0; i < num_args; i++) {
+		if (args[i].flags & CTL_BEARG_WR)
+			copyout(args[i].kvalue, args[i].value, args[i].vallen);
+	}
 }
 
 /*
@@ -2947,6 +2959,8 @@ ctl_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
 		retval = backend->ioctl(dev, cmd, addr, flag, td);
 
 		if (lun_req->num_be_args > 0) {
+			ctl_copyout_args(lun_req->num_be_args,
+				      lun_req->kern_be_args);
 			ctl_free_args(lun_req->num_be_args,
 				      lun_req->kern_be_args);
 		}
