@@ -149,8 +149,8 @@ resolve_addr(const struct connection *conn, const char *address,
 }
 
 static struct connection *
-connection_new(unsigned int session_id, const struct iscsi_session_conf *conf,
-    int iscsi_fd)
+connection_new(unsigned int session_id, const uint8_t isid[8], uint16_t tsih,
+    const struct iscsi_session_conf *conf, int iscsi_fd)
 {
 	struct connection *conn;
 	struct addrinfo *from_ai, *to_ai;
@@ -176,6 +176,8 @@ connection_new(unsigned int session_id, const struct iscsi_session_conf *conf,
 	conn->conn_first_burst_length = 65536;
 
 	conn->conn_session_id = session_id;
+	memcpy(&conn->conn_isid, isid, sizeof(conn->conn_isid));
+	conn->conn_tsih = tsih;
 	conn->conn_iscsi_fd = iscsi_fd;
 
 	/*
@@ -264,7 +266,7 @@ handoff(struct connection *conn)
 	idh.idh_socket = conn->conn_socket;
 	strlcpy(idh.idh_target_alias, conn->conn_target_alias,
 	    sizeof(idh.idh_target_alias));
-	memcpy(idh.idh_isid, conn->conn_isid, sizeof(idh.idh_isid));
+	idh.idh_tsih = conn->conn_tsih;
 	idh.idh_statsn = conn->conn_statsn;
 	idh.idh_header_digest = conn->conn_header_digest;
 	idh.idh_data_digest = conn->conn_data_digest;
@@ -430,7 +432,8 @@ handle_request(int iscsi_fd, const struct iscsi_daemon_request *request, int tim
 		setproctitle("%s", request->idr_conf.isc_target_addr);
 	}
 
-	conn = connection_new(request->idr_session_id, &request->idr_conf, iscsi_fd);
+	conn = connection_new(request->idr_session_id, request->idr_isid,
+	    request->idr_tsih, &request->idr_conf, iscsi_fd);
 	set_timeout(timeout);
 	capsicate(conn);
 	login(conn);
