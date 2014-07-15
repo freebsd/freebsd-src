@@ -278,6 +278,7 @@ struct scsi_per_res_in
 #define	SPRI_RS	0x03
 	u_int8_t reserved[5];
 	u_int8_t length[2];
+#define	SPRI_MAX_LEN		0xffff
 	u_int8_t control;
 };
 
@@ -302,18 +303,21 @@ struct scsi_per_res_cap
 {
 	uint8_t length[2];
 	uint8_t flags1;
-#define	SPRI_CRH	0x10
-#define	SPRI_SIP_C	0x08
-#define	SPRI_ATP_C	0x04
-#define	SPRI_PTPL_C	0x01
+#define	SPRI_RLR_C		0x80
+#define	SPRI_CRH		0x10
+#define	SPRI_SIP_C		0x08
+#define	SPRI_ATP_C		0x04
+#define	SPRI_PTPL_C		0x01
 	uint8_t flags2;
-#define	SPRI_TMV	0x80
-#define	SPRI_ALLOW_MASK	0x70
-#define	SPRI_ALLOW_0	0x00
-#define	SPRI_ALLOW_1	0x10
-#define	SPRI_ALLOW_2	0x20
-#define	SPRI_ALLOW_3	0x30
-#define	SPRI_PTPL_A	0x01
+#define	SPRI_TMV		0x80
+#define	SPRI_ALLOW_CMD_MASK	0x70
+#define	SPRI_ALLOW_CMD_SHIFT	4
+#define	SPRI_ALLOW_NA		0x00
+#define	SPRI_ALLOW_1		0x10
+#define	SPRI_ALLOW_2		0x20
+#define	SPRI_ALLOW_3		0x30
+#define	SPRI_ALLOW_4		0x40
+#define	SPRI_PTPL_A		0x01
 	uint8_t type_mask[2];
 #define	SPRI_TM_WR_EX_AR	0x8000
 #define	SPRI_TM_EX_AC_RO	0x4000
@@ -327,7 +331,7 @@ struct scsi_per_res_cap
 struct scsi_per_res_in_rsrv_data
 {
 	uint8_t reservation[8];
-	uint8_t obsolete1[4];
+	uint8_t scope_addr[4];
 	uint8_t reserved;
 	uint8_t scopetype;
 #define	SPRT_WE    0x01
@@ -336,13 +340,33 @@ struct scsi_per_res_in_rsrv_data
 #define	SPRT_EARO  0x06
 #define	SPRT_WEAR  0x07
 #define	SPRT_EAAR  0x08
-	uint8_t obsolete2[2];
+	uint8_t extent_length[2];
 };
 
 struct scsi_per_res_in_rsrv
 {
 	struct scsi_per_res_in_header header;
 	struct scsi_per_res_in_rsrv_data data;
+};
+
+struct scsi_per_res_in_full_desc
+{
+	struct scsi_per_res_key res_key;
+	uint8_t reserved1[4];
+	uint8_t flags;
+#define	SPRI_FULL_ALL_TG_PT	0x02
+#define	SPRI_FULL_R_HOLDER	0x01
+	uint8_t scopetype;
+	uint8_t reserved2[4];
+	uint8_t rel_trgt_port_id[2];
+	uint8_t additional_length[4];
+	uint8_t transport_id[];
+};
+
+struct scsi_per_res_in_full
+{
+	struct scsi_per_res_in_header header;
+	struct scsi_per_res_in_full_desc desc[];
 };
 
 struct scsi_per_res_out
@@ -357,13 +381,20 @@ struct scsi_per_res_out
 #define	SPRO_PRE_ABO		0x05
 #define	SPRO_REG_IGNO		0x06
 #define	SPRO_REG_MOVE		0x07
+#define	SPRO_REPL_LOST_RES	0x08
 #define	SPRO_ACTION_MASK	0x1f
 	u_int8_t scope_type;
 #define	SPR_SCOPE_MASK		0xf0
+#define	SPR_SCOPE_SHIFT		4
 #define	SPR_LU_SCOPE		0x00
+#define	SPR_EXTENT_SCOPE	0x10
+#define	SPR_ELEMENT_SCOPE	0x20
 #define	SPR_TYPE_MASK		0x0f
+#define	SPR_TYPE_RD_SHARED	0x00
 #define	SPR_TYPE_WR_EX		0x01
+#define	SPR_TYPE_RD_EX		0x02
 #define	SPR_TYPE_EX_AC		0x03
+#define	SPR_TYPE_SHARED		0x04
 #define	SPR_TYPE_WR_EX_RO	0x05
 #define	SPR_TYPE_EX_AC_RO	0x06
 #define	SPR_TYPE_WR_EX_AR	0x07
@@ -377,15 +408,139 @@ struct scsi_per_res_out_parms
 {
 	struct scsi_per_res_key res_key;
 	u_int8_t serv_act_res_key[8];
-	u_int8_t obsolete1[4];
+	u_int8_t scope_spec_address[4];
 	u_int8_t flags;
 #define	SPR_SPEC_I_PT		0x08
 #define	SPR_ALL_TG_PT		0x04
 #define	SPR_APTPL		0x01
 	u_int8_t reserved1;
-	u_int8_t obsolete2[2];
+	u_int8_t extent_length[2];
+	u_int8_t transport_id_list[];
 };
 
+struct scsi_per_res_out_trans_ids {
+	u_int8_t additional_length[4];
+	u_int8_t transport_ids[];
+};
+
+/*
+ * Used with REGISTER AND MOVE serivce action of the PERSISTENT RESERVE OUT
+ * command.
+ */
+struct scsi_per_res_reg_move
+{
+	struct scsi_per_res_key res_key;
+	u_int8_t serv_act_res_key[8];
+	u_int8_t reserved;
+	u_int8_t flags;
+#define	SPR_REG_MOVE_UNREG	0x02
+#define	SPR_REG_MOVE_APTPL	0x01
+	u_int8_t rel_trgt_port_id[2];
+	u_int8_t transport_id_length[4];
+	u_int8_t transport_id[];
+};
+
+struct scsi_transportid_header
+{
+	uint8_t format_protocol;
+#define	SCSI_TRN_FORMAT_MASK		0xc0
+#define	SCSI_TRN_FORMAT_SHIFT		6
+#define	SCSI_TRN_PROTO_MASK		0x0f
+};
+
+struct scsi_transportid_fcp
+{
+	uint8_t format_protocol;
+#define	SCSI_TRN_FCP_FORMAT_DEFAULT	0x00
+	uint8_t reserved1[7];
+	uint8_t n_port_name[8];
+	uint8_t reserved2[8];
+};
+
+struct scsi_transportid_spi
+{
+	uint8_t format_protocol;
+#define	SCSI_TRN_SPI_FORMAT_DEFAULT	0x00
+	uint8_t reserved1;
+	uint8_t scsi_addr[2];
+	uint8_t obsolete[2];
+	uint8_t rel_trgt_port_id[2];
+	uint8_t reserved2[16];
+};
+
+struct scsi_transportid_1394
+{
+	uint8_t format_protocol;
+#define	SCSI_TRN_1394_FORMAT_DEFAULT	0x00
+	uint8_t reserved1[7];
+	uint8_t eui64[8];
+	uint8_t reserved2[8];
+};
+
+struct scsi_transportid_rdma
+{
+	uint8_t format_protocol;
+#define	SCSI_TRN_RDMA_FORMAT_DEFAULT	0x00
+	uint8_t reserved[7];
+#define	SCSI_TRN_RDMA_PORT_LEN		16
+	uint8_t initiator_port_id[SCSI_TRN_RDMA_PORT_LEN];
+};
+
+struct scsi_transportid_iscsi_device
+{
+	uint8_t format_protocol;
+#define	SCSI_TRN_ISCSI_FORMAT_DEVICE	0x00
+	uint8_t reserved;
+	uint8_t additional_length[2];
+	uint8_t iscsi_name[];
+};
+
+struct scsi_transportid_iscsi_port
+{
+	uint8_t format_protocol;
+#define	SCSI_TRN_ISCSI_FORMAT_PORT	0x40
+	uint8_t reserved;
+	uint8_t additional_length[2];
+	uint8_t iscsi_name[];
+	/*
+	 * Followed by a separator and iSCSI initiator session ID
+	 */
+};
+
+struct scsi_transportid_sas
+{
+	uint8_t format_protocol;
+#define	SCSI_TRN_SAS_FORMAT_DEFAULT	0x00
+	uint8_t reserved1[3];
+	uint8_t sas_address[8];
+	uint8_t reserved2[12];
+};
+
+struct scsi_sop_routing_id_norm {
+	uint8_t bus;
+	uint8_t devfunc;
+#define	SCSI_TRN_SOP_BUS_MAX		0xff
+#define	SCSI_TRN_SOP_DEV_MAX		0x1f
+#define	SCSI_TRN_SOP_DEV_MASK		0xf8
+#define	SCSI_TRN_SOP_DEV_SHIFT		3
+#define	SCSI_TRN_SOP_FUNC_NORM_MASK	0x07
+#define	SCSI_TRN_SOP_FUNC_NORM_MAX	0x07
+};
+
+struct scsi_sop_routing_id_alt {
+	uint8_t bus;
+	uint8_t function;
+#define	SCSI_TRN_SOP_FUNC_ALT_MAX	0xff
+};
+
+struct scsi_transportid_sop
+{
+	uint8_t format_protocol;
+#define	SCSI_TRN_SOP_FORMAT_DEFAULT	0x00
+	uint8_t reserved1;
+	uint8_t routing_id[2];
+	uint8_t reserved2[20];
+};
 
 struct scsi_log_sense
 {
@@ -611,21 +766,41 @@ struct scsi_info_exceptions_page {
 	u_int8_t report_count[4];
 };
 
+/*
+ * SCSI protocol identifier values, current as of SPC4r36l.
+ */
+#define	SCSI_PROTO_FC		0x00	/* Fibre Channel */
+#define	SCSI_PROTO_SPI		0x01	/* Parallel SCSI */
+#define	SCSI_PROTO_SSA		0x02	/* Serial Storage Arch. */
+#define	SCSI_PROTO_1394		0x03	/* IEEE 1394 (Firewire) */
+#define	SCSI_PROTO_RDMA		0x04	/* SCSI RDMA Protocol */
+#define	SCSI_PROTO_ISCSI	0x05	/* Internet SCSI */
+#define	SCSI_PROTO_iSCSI	0x05	/* Internet SCSI */
+#define	SCSI_PROTO_SAS		0x06	/* SAS Serial SCSI Protocol */
+#define	SCSI_PROTO_ADT		0x07	/* Automation/Drive Int. Trans. Prot.*/
+#define	SCSI_PROTO_ADITP	0x07	/* Automation/Drive Int. Trans. Prot.*/
+#define	SCSI_PROTO_ATA		0x08	/* AT Attachment Interface */
+#define	SCSI_PROTO_UAS		0x09	/* USB Atached SCSI */
+#define	SCSI_PROTO_SOP		0x0a	/* SCSI over PCI Express */
+#define	SCSI_PROTO_NONE		0x0f	/* No specific protocol */
+
 struct scsi_proto_specific_page {
 	u_int8_t page_code;
 #define	SPSP_PAGE_SAVABLE		0x80	/* Page is savable */
 	u_int8_t page_length;
 	u_int8_t protocol;
-#define	SPSP_PROTO_FC			0x00
-#define	SPSP_PROTO_SPI			0x01
-#define	SPSP_PROTO_SSA			0x02
-#define	SPSP_PROTO_1394			0x03
-#define	SPSP_PROTO_RDMA			0x04
-#define	SPSP_PROTO_ISCSI		0x05
-#define	SPSP_PROTO_SAS			0x06
-#define	SPSP_PROTO_ADT			0x07
-#define	SPSP_PROTO_ATA			0x08
-#define	SPSP_PROTO_NONE			0x0f
+#define	SPSP_PROTO_FC			SCSI_PROTO_FC
+#define	SPSP_PROTO_SPI			SCSI_PROTO_SPI
+#define	SPSP_PROTO_SSA			SCSI_PROTO_SSA
+#define	SPSP_PROTO_1394			SCSI_PROTO_1394
+#define	SPSP_PROTO_RDMA			SCSI_PROTO_RDMA
+#define	SPSP_PROTO_ISCSI		SCSI_PROTO_ISCSI
+#define	SPSP_PROTO_SAS			SCSI_PROTO_SAS
+#define	SPSP_PROTO_ADT			SCSI_PROTO_ADITP
+#define	SPSP_PROTO_ATA			SCSI_PROTO_ATA
+#define	SPSP_PROTO_UAS			SCSI_PROTO_UAS
+#define	SPSP_PROTO_SOP			SCSI_PROTO_SOP
+#define	SPSP_PROTO_NONE			SCSI_PROTO_NONE
 };
 
 struct scsi_reserve
@@ -1423,15 +1598,9 @@ struct scsi_vpd_device_id
 struct scsi_vpd_id_descriptor
 {
 	u_int8_t	proto_codeset;
-#define	SCSI_PROTO_FC		0x00
-#define	SCSI_PROTO_SPI		0x01
-#define	SCSI_PROTO_SSA		0x02
-#define	SCSI_PROTO_1394		0x03
-#define	SCSI_PROTO_RDMA		0x04
-#define	SCSI_PROTO_ISCSI	0x05
-#define	SCSI_PROTO_SAS		0x06
-#define	SCSI_PROTO_ADT		0x07
-#define	SCSI_PROTO_ATA		0x08
+	/*
+	 * See the SCSI_PROTO definitions above for the protocols.
+	 */
 #define	SVPD_ID_PROTO_SHIFT	4
 #define	SVPD_ID_CODESET_BINARY	0x01
 #define	SVPD_ID_CODESET_ASCII	0x02
@@ -2354,6 +2523,22 @@ typedef enum {
 	SSS_FLAG_PRINT_COMMAND	= 0x01
 } scsi_sense_string_flags;
 
+struct scsi_nv {
+	const char *name;
+	uint64_t value;
+};
+
+typedef enum {
+	SCSI_NV_FOUND,
+	SCSI_NV_AMBIGUOUS,
+	SCSI_NV_NOT_FOUND
+} scsi_nv_status;
+
+typedef enum {
+	SCSI_NV_FLAG_NONE	= 0x00,
+	SCSI_NV_FLAG_IG_CASE	= 0x01	/* Case insensitive comparison */
+} scsi_nv_flags;
+
 struct ccb_scsiio;
 struct cam_periph;
 union  ccb;
@@ -2494,6 +2679,64 @@ int		scsi_devid_is_lun_t10(uint8_t *bufp);
 struct scsi_vpd_id_descriptor *
 		scsi_get_devid(struct scsi_vpd_device_id *id, uint32_t len,
 			       scsi_devid_checkfn_t ck_fn);
+
+int		scsi_transportid_sbuf(struct sbuf *sb,
+				      struct scsi_transportid_header *hdr,
+				      uint32_t valid_len);
+
+const char *	scsi_nv_to_str(struct scsi_nv *table, int num_table_entries,
+			       uint64_t value);
+
+scsi_nv_status	scsi_get_nv(struct scsi_nv *table, int num_table_entries,
+			    char *name, int *table_entry, scsi_nv_flags flags);
+
+int	scsi_parse_transportid_64bit(int proto_id, char *id_str,
+				     struct scsi_transportid_header **hdr,
+				     unsigned int *alloc_len,
+#ifdef _KERNEL
+				     struct malloc_type *type, int flags,
+#endif
+				     char *error_str, int error_str_len);
+
+int	scsi_parse_transportid_spi(char *id_str,
+				   struct scsi_transportid_header **hdr,
+				   unsigned int *alloc_len,
+#ifdef _KERNEL
+				   struct malloc_type *type, int flags,
+#endif
+				   char *error_str, int error_str_len);
+
+int	scsi_parse_transportid_rdma(char *id_str,
+				    struct scsi_transportid_header **hdr,
+				    unsigned int *alloc_len,
+#ifdef _KERNEL
+				    struct malloc_type *type, int flags,
+#endif
+				    char *error_str, int error_str_len);
+
+int	scsi_parse_transportid_iscsi(char *id_str,
+				     struct scsi_transportid_header **hdr,
+				     unsigned int *alloc_len,
+#ifdef _KERNEL
+				     struct malloc_type *type, int flags,
+#endif
+				     char *error_str,int error_str_len);
+
+int	scsi_parse_transportid_sop(char *id_str,
+				   struct scsi_transportid_header **hdr,
+				   unsigned int *alloc_len,
+#ifdef _KERNEL
+				   struct malloc_type *type, int flags,
+#endif
+				   char *error_str,int error_str_len);
+
+int	scsi_parse_transportid(char *transportid_str,
+			       struct scsi_transportid_header **hdr,
+			       unsigned int *alloc_len,
+#ifdef _KERNEL
+			       struct malloc_type *type, int flags,
+#endif
+			       char *error_str, int error_str_len);
 
 void		scsi_test_unit_ready(struct ccb_scsiio *csio, u_int32_t retries,
 				     void (*cbfcnp)(struct cam_periph *, 
@@ -2689,6 +2932,20 @@ void scsi_start_stop(struct ccb_scsiio *csio, u_int32_t retries,
 		     void (*cbfcnp)(struct cam_periph *, union ccb *),
 		     u_int8_t tag_action, int start, int load_eject,
 		     int immediate, u_int8_t sense_len, u_int32_t timeout);
+
+void scsi_persistent_reserve_in(struct ccb_scsiio *csio, uint32_t retries, 
+				void (*cbfcnp)(struct cam_periph *,union ccb *),
+				uint8_t tag_action, int service_action,
+				uint8_t *data_ptr, uint32_t dxfer_len,
+				int sense_len, int timeout);
+
+void scsi_persistent_reserve_out(struct ccb_scsiio *csio, uint32_t retries, 
+				 void (*cbfcnp)(struct cam_periph *,
+				       union ccb *),
+				 uint8_t tag_action, int service_action,
+				 int scope, int res_type, uint8_t *data_ptr,
+				 uint32_t dxfer_len, int sense_len,
+				 int timeout);
 
 int		scsi_inquiry_match(caddr_t inqbuffer, caddr_t table_entry);
 int		scsi_static_inquiry_match(caddr_t inqbuffer,

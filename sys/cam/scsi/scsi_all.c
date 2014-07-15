@@ -44,11 +44,13 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/mutex.h>
 #include <sys/sysctl.h>
+#include <sys/ctype.h>
 #else
 #include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <ctype.h>
 #endif
 
 #include <cam/cam.h>
@@ -5459,6 +5461,989 @@ scsi_get_devid(struct scsi_vpd_device_id *id, uint32_t page_len,
 	return (NULL);
 }
 
+int
+scsi_transportid_sbuf(struct sbuf *sb, struct scsi_transportid_header *hdr,
+		      uint32_t valid_len)
+{
+	switch (hdr->format_protocol & SCSI_TRN_PROTO_MASK) {
+	case SCSI_PROTO_FC: {
+		struct scsi_transportid_fcp *fcp;
+		uint64_t n_port_name;
+
+		fcp = (struct scsi_transportid_fcp *)hdr;
+
+		n_port_name = scsi_8btou64(fcp->n_port_name);
+
+		sbuf_printf(sb, "FCP address: 0x%.16jx",(uintmax_t)n_port_name);
+		break;
+	}
+	case SCSI_PROTO_SPI: {
+		struct scsi_transportid_spi *spi;
+
+		spi = (struct scsi_transportid_spi *)hdr;
+
+		sbuf_printf(sb, "SPI address: %u,%u",
+			    scsi_2btoul(spi->scsi_addr),
+			    scsi_2btoul(spi->rel_trgt_port_id));
+		break;
+	}
+	case SCSI_PROTO_SSA:
+		/*
+		 * XXX KDM there is no transport ID defined in SPC-4 for
+		 * SSA.
+		 */
+		break;
+	case SCSI_PROTO_1394: {
+		struct scsi_transportid_1394 *sbp;
+		uint64_t eui64;
+
+		sbp = (struct scsi_transportid_1394 *)hdr;
+
+		eui64 = scsi_8btou64(sbp->eui64);
+		sbuf_printf(sb, "SBP address: 0x%.16jx", (uintmax_t)eui64);
+		break;
+	}
+	case SCSI_PROTO_RDMA: {
+		struct scsi_transportid_rdma *rdma;
+		unsigned int i;
+
+		rdma = (struct scsi_transportid_rdma *)hdr;
+
+		sbuf_printf(sb, "RDMA address: 0x");
+		for (i = 0; i < sizeof(rdma->initiator_port_id); i++)
+			sbuf_printf(sb, "%02x", rdma->initiator_port_id[i]);
+		break;
+	}
+	case SCSI_PROTO_ISCSI: {
+		uint32_t add_len, i;
+		uint8_t *iscsi_name = NULL;
+		int nul_found = 0;
+
+		sbuf_printf(sb, "iSCSI address: ");
+		if ((hdr->format_protocol & SCSI_TRN_FORMAT_MASK) == 
+		    SCSI_TRN_ISCSI_FORMAT_DEVICE) {
+			struct scsi_transportid_iscsi_device *dev;
+
+			dev = (struct scsi_transportid_iscsi_device *)hdr;
+
+			/*
+			 * Verify how much additional data we really have.
+			 */
+			add_len = scsi_2btoul(dev->additional_length);
+			add_len = MIN(add_len, valid_len -
+				__offsetof(struct scsi_transportid_iscsi_device,
+					   iscsi_name));
+			iscsi_name = &dev->iscsi_name[0];
+
+		} else if ((hdr->format_protocol & SCSI_TRN_FORMAT_MASK) ==
+			    SCSI_TRN_ISCSI_FORMAT_PORT) {
+			struct scsi_transportid_iscsi_port *port;
+
+			port = (struct scsi_transportid_iscsi_port *)hdr;
+			
+			add_len = scsi_2btoul(port->additional_length);
+			add_len = MIN(add_len, valid_len -
+				__offsetof(struct scsi_transportid_iscsi_port,
+					   iscsi_name));
+			iscsi_name = &port->iscsi_name[0];
+		} else {
+			sbuf_printf(sb, "unknown format %x",
+				    (hdr->format_protocol &
+				     SCSI_TRN_FORMAT_MASK) >>
+				     SCSI_TRN_FORMAT_SHIFT);
+			break;
+		}
+		if (add_len == 0) {
+			sbuf_printf(sb, "not enough data");
+			break;
+		}
+		/*
+		 * This is supposed to be a NUL-terminated ASCII 
+		 * string, but you never know.  So we're going to
+		 * check.  We need to do this because there is no
+		 * sbuf equivalent of strncat().
+		 */
+		for (i = 0; i < add_len; i++) {
+			if (iscsi_name[i] == '\0') {
+				nul_found = 1;
+				break;
+			}
+		}
+		/*
+		 * If there is a NUL in the name, we can just use
+		 * sbuf_cat().  Otherwise we need to use sbuf_bcat().
+		 */
+		if (nul_found != 0)
+			sbuf_cat(sb, iscsi_name);
+		else
+			sbuf_bcat(sb, iscsi_name, add_len);
+		break;
+	}
+	case SCSI_PROTO_SAS: {
+		struct scsi_transportid_sas *sas;
+		uint64_t sas_addr;
+
+		sas = (struct scsi_transportid_sas *)hdr;
+
+		sas_addr = scsi_8btou64(sas->sas_address);
+		sbuf_printf(sb, "SAS address: 0x%.16jx", (uintmax_t)sas_addr);
+		break;
+	}
+	case SCSI_PROTO_ADITP:
+	case SCSI_PROTO_ATA:
+	case SCSI_PROTO_UAS:
+		/*
+		 * No Transport ID format for ADI, ATA or USB is defined in
+		 * SPC-4.
+		 */
+		sbuf_printf(sb, "No known Transport ID format for protocol "
+			    "%#x", hdr->format_protocol & SCSI_TRN_PROTO_MASK);
+		break;
+	case SCSI_PROTO_SOP: {
+		struct scsi_transportid_sop *sop;
+		struct scsi_sop_routing_id_norm *rid;
+
+		sop = (struct scsi_transportid_sop *)hdr;
+		rid = (struct scsi_sop_routing_id_norm *)sop->routing_id;
+
+		/*
+		 * Note that there is no alternate format specified in SPC-4
+		 * for the PCIe routing ID, so we don't really have a way
+		 * to know whether the second byte of the routing ID is
+		 * a device and function or just a function.  So we just
+		 * assume bus,device,function.
+		 */
+		sbuf_printf(sb, "SOP Routing ID: %u,%u,%u",
+			    rid->bus, rid->devfunc >> SCSI_TRN_SOP_DEV_SHIFT,
+			    rid->devfunc & SCSI_TRN_SOP_FUNC_NORM_MAX);
+		break;
+	}
+	case SCSI_PROTO_NONE:
+	default:
+		sbuf_printf(sb, "Unknown protocol %#x",
+			    hdr->format_protocol & SCSI_TRN_PROTO_MASK);
+		break;
+	}
+
+	return (0);
+}
+
+struct scsi_nv scsi_proto_map[] = {
+	{ "fcp", SCSI_PROTO_FC },
+	{ "spi", SCSI_PROTO_SPI },
+	{ "ssa", SCSI_PROTO_SSA },
+	{ "sbp", SCSI_PROTO_1394 },
+	{ "1394", SCSI_PROTO_1394 },
+	{ "srp", SCSI_PROTO_RDMA },
+	{ "rdma", SCSI_PROTO_RDMA },
+	{ "iscsi", SCSI_PROTO_ISCSI },
+	{ "iqn", SCSI_PROTO_ISCSI },
+	{ "sas", SCSI_PROTO_SAS },
+	{ "aditp", SCSI_PROTO_ADITP },
+	{ "ata", SCSI_PROTO_ATA },
+	{ "uas", SCSI_PROTO_UAS },
+	{ "usb", SCSI_PROTO_UAS },
+	{ "sop", SCSI_PROTO_SOP }
+};
+
+const char *
+scsi_nv_to_str(struct scsi_nv *table, int num_table_entries, uint64_t value)
+{
+	int i;
+
+	for (i = 0; i < num_table_entries; i++) {
+		if (table[i].value == value)
+			return (table[i].name);
+	}
+
+	return (NULL);
+}
+
+/*
+ * Given a name/value table, find a value matching the given name.
+ * Return values:
+ *	SCSI_NV_FOUND - match found
+ *	SCSI_NV_AMBIGUOUS - more than one match, none of them exact
+ *	SCSI_NV_NOT_FOUND - no match found
+ */
+scsi_nv_status
+scsi_get_nv(struct scsi_nv *table, int num_table_entries,
+	    char *name, int *table_entry, scsi_nv_flags flags)
+{
+	int i, num_matches = 0;
+
+	for (i = 0; i < num_table_entries; i++) {
+		size_t table_len, name_len;
+
+		table_len = strlen(table[i].name);
+		name_len = strlen(name);
+
+		if ((((flags & SCSI_NV_FLAG_IG_CASE) != 0)
+		  && (strncasecmp(table[i].name, name, name_len) == 0))
+		|| (((flags & SCSI_NV_FLAG_IG_CASE) == 0)
+		 && (strncmp(table[i].name, name, name_len) == 0))) {
+			*table_entry = i;
+
+			/*
+			 * Check for an exact match.  If we have the same
+			 * number of characters in the table as the argument,
+			 * and we already know they're the same, we have
+			 * an exact match.
+		 	 */
+			if (table_len == name_len)
+				return (SCSI_NV_FOUND);
+
+			/*
+			 * Otherwise, bump up the number of matches.  We'll
+			 * see later how many we have.
+			 */
+			num_matches++;
+		}
+	}
+
+	if (num_matches > 1)
+		return (SCSI_NV_AMBIGUOUS);
+	else if (num_matches == 1)
+		return (SCSI_NV_FOUND);
+	else
+		return (SCSI_NV_NOT_FOUND);
+}
+
+/*
+ * Parse transport IDs for Fibre Channel, 1394 and SAS.  Since these are
+ * all 64-bit numbers, the code is similar.
+ */
+int
+scsi_parse_transportid_64bit(int proto_id, char *id_str,
+			     struct scsi_transportid_header **hdr,
+			     unsigned int *alloc_len,
+#ifdef _KERNEL
+			     struct malloc_type *type, int flags,
+#endif
+			     char *error_str, int error_str_len)
+{
+	uint64_t value;
+	char *endptr;
+	int retval;
+	size_t alloc_size;
+
+	retval = 0;
+
+	value = strtouq(id_str, &endptr, 0); 
+	if (*endptr != '\0') {
+		if (error_str != NULL) {
+			snprintf(error_str, error_str_len, "%s: error "
+				 "parsing ID %s, 64-bit number required",
+				 __func__, id_str);
+		}
+		retval = 1;
+		goto bailout;
+	}
+
+	switch (proto_id) {
+	case SCSI_PROTO_FC:
+		alloc_size = sizeof(struct scsi_transportid_fcp);
+		break;
+	case SCSI_PROTO_1394:
+		alloc_size = sizeof(struct scsi_transportid_1394);
+		break;
+	case SCSI_PROTO_SAS:
+		alloc_size = sizeof(struct scsi_transportid_sas);
+		break;
+	default:
+		if (error_str != NULL) {
+			snprintf(error_str, error_str_len, "%s: unsupoprted "
+				 "protocol %d", __func__, proto_id);
+		}
+		retval = 1;
+		goto bailout;
+		break; /* NOTREACHED */
+	}
+#ifdef _KERNEL
+	*hdr = malloc(alloc_size, type, flags);
+#else /* _KERNEL */
+	*hdr = malloc(alloc_size);
+#endif /*_KERNEL */
+	if (*hdr == NULL) {
+		if (error_str != NULL) {
+			snprintf(error_str, error_str_len, "%s: unable to "
+				 "allocate %zu bytes", __func__, alloc_size);
+		}
+		retval = 1;
+		goto bailout;
+	}
+
+	*alloc_len = alloc_size;
+
+	bzero(*hdr, alloc_size);
+
+	switch (proto_id) {
+	case SCSI_PROTO_FC: {
+		struct scsi_transportid_fcp *fcp;
+
+		fcp = (struct scsi_transportid_fcp *)(*hdr);
+		fcp->format_protocol = SCSI_PROTO_FC |
+				       SCSI_TRN_FCP_FORMAT_DEFAULT;
+		scsi_u64to8b(value, fcp->n_port_name);
+		break;
+	}
+	case SCSI_PROTO_1394: {
+		struct scsi_transportid_1394 *sbp;
+
+		sbp = (struct scsi_transportid_1394 *)(*hdr);
+		sbp->format_protocol = SCSI_PROTO_1394 |
+				       SCSI_TRN_1394_FORMAT_DEFAULT;
+		scsi_u64to8b(value, sbp->eui64);
+		break;
+	}
+	case SCSI_PROTO_SAS: {
+		struct scsi_transportid_sas *sas;
+
+		sas = (struct scsi_transportid_sas *)(*hdr);
+		sas->format_protocol = SCSI_PROTO_SAS |
+				       SCSI_TRN_SAS_FORMAT_DEFAULT;
+		scsi_u64to8b(value, sas->sas_address);
+		break;
+	}
+	default:
+		break;
+	}
+bailout:
+	return (retval);
+}
+
+/*
+ * Parse a SPI (Parallel SCSI) address of the form: id,rel_tgt_port
+ */
+int
+scsi_parse_transportid_spi(char *id_str, struct scsi_transportid_header **hdr,
+			   unsigned int *alloc_len,
+#ifdef _KERNEL
+			   struct malloc_type *type, int flags,
+#endif
+			   char *error_str, int error_str_len)
+{
+	unsigned long scsi_addr, target_port;
+	struct scsi_transportid_spi *spi;
+	char *tmpstr, *endptr;
+	int retval;
+
+	retval = 0;
+
+	tmpstr = strsep(&id_str, ",");
+	if (tmpstr == NULL) {
+		if (error_str != NULL) {
+			snprintf(error_str, error_str_len,
+				 "%s: no ID found", __func__);
+		}
+		retval = 1;
+		goto bailout;
+	}
+	scsi_addr = strtoul(tmpstr, &endptr, 0);
+	if (*endptr != '\0') {
+		if (error_str != NULL) {
+			snprintf(error_str, error_str_len, "%s: error "
+				 "parsing SCSI ID %s, number required",
+				 __func__, tmpstr);
+		}
+		retval = 1;
+		goto bailout;
+	}
+
+	if (id_str == NULL) {
+		if (error_str != NULL) {
+			snprintf(error_str, error_str_len, "%s: no relative "
+				 "target port found", __func__);
+		}
+		retval = 1;
+		goto bailout;
+	}
+
+	target_port = strtoul(id_str, &endptr, 0);
+	if (*endptr != '\0') {
+		if (error_str != NULL) {
+			snprintf(error_str, error_str_len, "%s: error "
+				 "parsing relative target port %s, number "
+				 "required", __func__, id_str);
+		}
+		retval = 1;
+		goto bailout;
+	}
+#ifdef _KERNEL
+	spi = malloc(sizeof(*spi), type, flags);
+#else
+	spi = malloc(sizeof(*spi));
+#endif
+	if (spi == NULL) {
+		if (error_str != NULL) {
+			snprintf(error_str, error_str_len, "%s: unable to "
+				 "allocate %zu bytes", __func__,
+				 sizeof(*spi));
+		}
+		retval = 1;
+		goto bailout;
+	}
+	*alloc_len = sizeof(*spi);
+	bzero(spi, sizeof(*spi));
+
+	spi->format_protocol = SCSI_PROTO_SPI | SCSI_TRN_SPI_FORMAT_DEFAULT;
+	scsi_ulto2b(scsi_addr, spi->scsi_addr);
+	scsi_ulto2b(target_port, spi->rel_trgt_port_id);
+
+	*hdr = (struct scsi_transportid_header *)spi;
+bailout:
+	return (retval);
+}
+
+/*
+ * Parse an RDMA/SRP Initiator Port ID string.  This is 32 hexadecimal digits,
+ * optionally prefixed by "0x" or "0X".
+ */
+int
+scsi_parse_transportid_rdma(char *id_str, struct scsi_transportid_header **hdr,
+			    unsigned int *alloc_len,
+#ifdef _KERNEL
+			    struct malloc_type *type, int flags,
+#endif
+			    char *error_str, int error_str_len)
+{
+	struct scsi_transportid_rdma *rdma;
+	int retval;
+	size_t id_len, rdma_id_size;
+	uint8_t rdma_id[SCSI_TRN_RDMA_PORT_LEN];
+	char *tmpstr;
+	unsigned int i, j;
+
+	retval = 0;
+	id_len = strlen(id_str);
+	rdma_id_size = SCSI_TRN_RDMA_PORT_LEN;
+
+	/*
+	 * Check the size.  It needs to be either 32 or 34 characters long.
+	 */
+	if ((id_len != (rdma_id_size * 2))
+	 && (id_len != ((rdma_id_size * 2) + 2))) {
+		if (error_str != NULL) {
+			snprintf(error_str, error_str_len, "%s: RDMA ID "
+				 "must be 32 hex digits (0x prefix "
+				 "optional), only %zu seen", __func__, id_len);
+		}
+		retval = 1;
+		goto bailout;
+	}
+
+	tmpstr = id_str;
+	/*
+	 * If the user gave us 34 characters, the string needs to start
+	 * with '0x'.
+	 */
+	if (id_len == ((rdma_id_size * 2) + 2)) {
+	 	if ((tmpstr[0] == '0')
+		 && ((tmpstr[1] == 'x') || (tmpstr[1] == 'X'))) {
+			tmpstr += 2;
+		} else {
+			if (error_str != NULL) {
+				snprintf(error_str, error_str_len, "%s: RDMA "
+					 "ID prefix, if used, must be \"0x\", "
+					 "got %s", __func__, tmpstr);
+			}
+			retval = 1;
+			goto bailout;
+		}
+	}
+	bzero(rdma_id, sizeof(rdma_id));
+
+	/*
+	 * Convert ASCII hex into binary bytes.  There is no standard
+	 * 128-bit integer type, and so no strtou128t() routine to convert
+	 * from hex into a large integer.  In the end, we're not going to
+	 * an integer, but rather to a byte array, so that and the fact
+	 * that we require the user to give us 32 hex digits simplifies the
+	 * logic.
+	 */
+	for (i = 0; i < (rdma_id_size * 2); i++) {
+		int cur_shift;
+		unsigned char c;
+
+		/* Increment the byte array one for every 2 hex digits */
+		j = i >> 1;
+
+		/*
+		 * The first digit in every pair is the most significant
+		 * 4 bits.  The second is the least significant 4 bits.
+		 */
+		if ((i % 2) == 0)
+			cur_shift = 4;
+		else 
+			cur_shift = 0;
+
+		c = tmpstr[i];
+		/* Convert the ASCII hex character into a number */
+		if (isdigit(c))
+			c -= '0';
+		else if (isalpha(c))
+			c -= isupper(c) ? 'A' - 10 : 'a' - 10;
+		else {
+			if (error_str != NULL) {
+				snprintf(error_str, error_str_len, "%s: "
+					 "RDMA ID must be hex digits, got "
+					 "invalid character %c", __func__,
+					 tmpstr[i]);
+			}
+			retval = 1;
+			goto bailout;
+		}
+		/*
+		 * The converted number can't be less than 0; the type is
+		 * unsigned, and the subtraction logic will not give us 
+		 * a negative number.  So we only need to make sure that
+		 * the value is not greater than 0xf.  (i.e. make sure the
+		 * user didn't give us a value like "0x12jklmno").
+		 */
+		if (c > 0xf) {
+			if (error_str != NULL) {
+				snprintf(error_str, error_str_len, "%s: "
+					 "RDMA ID must be hex digits, got "
+					 "invalid character %c", __func__,
+					 tmpstr[i]);
+			}
+			retval = 1;
+			goto bailout;
+		}
+		
+		rdma_id[j] |= c << cur_shift;
+	}
+
+#ifdef _KERNEL
+	rdma = malloc(sizeof(*rdma), type, flags);
+#else
+	rdma = malloc(sizeof(*rdma));
+#endif
+	if (rdma == NULL) {
+		if (error_str != NULL) {
+			snprintf(error_str, error_str_len, "%s: unable to "
+				 "allocate %zu bytes", __func__,
+				 sizeof(*rdma));
+		}
+		retval = 1;
+		goto bailout;
+	}
+	*alloc_len = sizeof(*rdma);
+	bzero(rdma, sizeof(rdma));
+
+	rdma->format_protocol = SCSI_PROTO_RDMA | SCSI_TRN_RDMA_FORMAT_DEFAULT;
+	bcopy(rdma_id, rdma->initiator_port_id, SCSI_TRN_RDMA_PORT_LEN);
+
+	*hdr = (struct scsi_transportid_header *)rdma;
+
+bailout:
+	return (retval);
+}
+
+/*
+ * Parse an iSCSI name.  The format is either just the name:
+ *
+ *	iqn.2012-06.com.example:target0
+ * or the name, separator and initiator session ID:
+ *
+ *	iqn.2012-06.com.example:target0,i,0x123
+ *
+ * The separator format is exact.
+ */
+int
+scsi_parse_transportid_iscsi(char *id_str, struct scsi_transportid_header **hdr,
+			     unsigned int *alloc_len,
+#ifdef _KERNEL
+			     struct malloc_type *type, int flags,
+#endif
+			     char *error_str, int error_str_len)
+{
+	size_t id_len, sep_len, id_size, name_len;
+	int is_full_id, retval;
+	unsigned int i, sep_pos, sep_found;
+	const char *sep_template = ",i,0x";
+	const char *iqn_prefix = "iqn.";
+	struct scsi_transportid_iscsi_device *iscsi;
+
+	is_full_id = 0;
+	retval = 0;
+	sep_found = 0;
+
+	id_len = strlen(id_str);
+	sep_len = strlen(sep_template);
+
+	/*
+	 * The separator is defined as exactly ',i,0x'.  Any other commas,
+	 * or any other form, is an error.  So look for a comma, and once
+	 * we find that, the next few characters must match the separator
+	 * exactly.  Once we get through the separator, there should be at
+	 * least one character.
+	 */
+	for (i = 0, sep_pos = 0; i < id_len; i++) {
+		if (sep_pos == 0) {
+		 	if (id_str[i] == sep_template[sep_pos])
+				sep_pos++;
+
+			continue;
+		}
+		if (sep_pos < sep_len) {
+			if (id_str[i] == sep_template[sep_pos]) {
+				sep_pos++;
+				continue;
+			} 
+			if (error_str != NULL) {
+				snprintf(error_str, error_str_len, "%s: "
+					 "invalid separator in iSCSI name "
+					 "\"%s\"",
+					 __func__, id_str);
+			}
+			retval = 1;
+			goto bailout;
+		} else {
+			sep_found = 1;
+			break;
+		}
+	}
+
+	/*
+	 * Check to see whether we have a separator but no digits after it.
+	 */
+	if ((sep_pos != 0)
+	 && (sep_found == 0)) {
+		if (error_str != NULL) {
+			snprintf(error_str, error_str_len, "%s: no digits "
+				 "found after separator in iSCSI name \"%s\"",
+				 __func__, id_str);
+		}
+		retval = 1;
+		goto bailout;
+	}
+
+	/*
+	 * The incoming ID string has the "iqn." prefix stripped off.  We
+	 * need enough space for the base structure (the structures are the
+	 * same for the two iSCSI forms), the prefix, the ID string and a
+	 * terminating NUL.
+	 */
+	id_size = sizeof(*iscsi) + strlen(iqn_prefix) + id_len + 1;
+
+#ifdef _KERNEL
+	iscsi = malloc(id_size, type, flags);
+#else
+	iscsi = malloc(id_size);
+#endif
+	if (iscsi == NULL) {
+		if (error_str != NULL) {
+			snprintf(error_str, error_str_len, "%s: unable to "
+				 "allocate %zu bytes", __func__, id_size);
+		}
+		retval = 1;
+		goto bailout;
+	}
+	*alloc_len = id_size;
+	bzero(iscsi, id_size);
+
+	iscsi->format_protocol = SCSI_PROTO_ISCSI;
+	if (sep_found == 0)
+		iscsi->format_protocol |= SCSI_TRN_ISCSI_FORMAT_DEVICE;
+	else
+		iscsi->format_protocol |= SCSI_TRN_ISCSI_FORMAT_PORT;
+	name_len = id_size - sizeof(*iscsi);
+	scsi_ulto2b(name_len, iscsi->additional_length);
+	snprintf(iscsi->iscsi_name, name_len, "%s%s", iqn_prefix, id_str);
+
+	*hdr = (struct scsi_transportid_header *)iscsi;
+
+bailout:
+	return (retval);
+}
+
+/*
+ * Parse a SCSI over PCIe (SOP) identifier.  The Routing ID can either be
+ * of the form 'bus,device,function' or 'bus,function'.
+ */
+int
+scsi_parse_transportid_sop(char *id_str, struct scsi_transportid_header **hdr,
+			   unsigned int *alloc_len,
+#ifdef _KERNEL
+			   struct malloc_type *type, int flags,
+#endif
+			   char *error_str, int error_str_len)
+{
+	struct scsi_transportid_sop *sop;
+	unsigned long bus, device, function;
+	char *tmpstr, *endptr;
+	int retval, device_spec;
+
+	retval = 0;
+	device_spec = 0;
+	device = 0;
+
+	tmpstr = strsep(&id_str, ",");
+	if ((tmpstr == NULL)
+	 || (*tmpstr == '\0')) {
+		if (error_str != NULL) {
+			snprintf(error_str, error_str_len, "%s: no ID found",
+				 __func__);
+		}
+		retval = 1;
+		goto bailout;
+	}
+	bus = strtoul(tmpstr, &endptr, 0);
+	if (*endptr != '\0') {
+		if (error_str != NULL) {
+			snprintf(error_str, error_str_len, "%s: error "
+				 "parsing PCIe bus %s, number required",
+				 __func__, tmpstr);
+		}
+		retval = 1;
+		goto bailout;
+	}
+	if ((id_str == NULL) 
+	 || (*id_str == '\0')) {
+		if (error_str != NULL) {
+			snprintf(error_str, error_str_len, "%s: no PCIe "
+				 "device or function found", __func__);
+		}
+		retval = 1;
+		goto bailout;
+	}
+	tmpstr = strsep(&id_str, ",");
+	function = strtoul(tmpstr, &endptr, 0);
+	if (*endptr != '\0') {
+		if (error_str != NULL) {
+			snprintf(error_str, error_str_len, "%s: error "
+				 "parsing PCIe device/function %s, number "
+				 "required", __func__, tmpstr);
+		}
+		retval = 1;
+		goto bailout;
+	}
+	/*
+	 * Check to see whether the user specified a third value.  If so,
+	 * the second is the device.
+	 */
+	if (id_str != NULL) {
+		if (*id_str == '\0') {
+			if (error_str != NULL) {
+				snprintf(error_str, error_str_len, "%s: "
+					 "no PCIe function found", __func__);
+			}
+			retval = 1;
+			goto bailout;
+		}
+		device = function;
+		device_spec = 1;
+		function = strtoul(id_str, &endptr, 0);
+		if (*endptr != '\0') {
+			if (error_str != NULL) {
+				snprintf(error_str, error_str_len, "%s: "
+					 "error parsing PCIe function %s, "
+					 "number required", __func__, id_str);
+			}
+			retval = 1;
+			goto bailout;
+		}
+	}
+	if (bus > SCSI_TRN_SOP_BUS_MAX) {
+		if (error_str != NULL) {
+			snprintf(error_str, error_str_len, "%s: bus value "
+				 "%lu greater than maximum %u", __func__,
+				 bus, SCSI_TRN_SOP_BUS_MAX);
+		}
+		retval = 1;
+		goto bailout;
+	}
+
+	if ((device_spec != 0)
+	 && (device > SCSI_TRN_SOP_DEV_MASK)) {
+		if (error_str != NULL) {
+			snprintf(error_str, error_str_len, "%s: device value "
+				 "%lu greater than maximum %u", __func__,
+				 device, SCSI_TRN_SOP_DEV_MAX);
+		}
+		retval = 1;
+		goto bailout;
+	}
+
+	if (((device_spec != 0)
+	  && (function > SCSI_TRN_SOP_FUNC_NORM_MAX))
+	 || ((device_spec == 0)
+	  && (function > SCSI_TRN_SOP_FUNC_ALT_MAX))) {
+		if (error_str != NULL) {
+			snprintf(error_str, error_str_len, "%s: function value "
+				 "%lu greater than maximum %u", __func__,
+				 function, (device_spec == 0) ?
+				 SCSI_TRN_SOP_FUNC_ALT_MAX : 
+				 SCSI_TRN_SOP_FUNC_NORM_MAX);
+		}
+		retval = 1;
+		goto bailout;
+	}
+
+#ifdef _KERNEL
+	sop = malloc(sizeof(*sop), type, flags);
+#else
+	sop = malloc(sizeof(*sop));
+#endif
+	if (sop == NULL) {
+		if (error_str != NULL) {
+			snprintf(error_str, error_str_len, "%s: unable to "
+				 "allocate %zu bytes", __func__, sizeof(*sop));
+		}
+		retval = 1;
+		goto bailout;
+	}
+	*alloc_len = sizeof(*sop);
+	bzero(sop, sizeof(*sop));
+	sop->format_protocol = SCSI_PROTO_SOP | SCSI_TRN_SOP_FORMAT_DEFAULT;
+	if (device_spec != 0) {
+		struct scsi_sop_routing_id_norm rid;
+
+		rid.bus = bus;
+		rid.devfunc = (device << SCSI_TRN_SOP_DEV_SHIFT) | function;
+		bcopy(&rid, sop->routing_id, MIN(sizeof(rid),
+		      sizeof(sop->routing_id)));
+	} else {
+		struct scsi_sop_routing_id_alt rid;
+
+		rid.bus = bus;
+		rid.function = function;
+		bcopy(&rid, sop->routing_id, MIN(sizeof(rid),
+		      sizeof(sop->routing_id)));
+	}
+
+	*hdr = (struct scsi_transportid_header *)sop;
+bailout:
+	return (retval);
+}
+
+/*
+ * transportid_str: NUL-terminated string with format: protcol,id
+ *		    The ID is protocol specific.
+ * hdr:		    Storage will be allocated for the transport ID.
+ * alloc_len:	    The amount of memory allocated is returned here.
+ * type:	    Malloc bucket (kernel only).
+ * flags:	    Malloc flags (kernel only).
+ * error_str:	    If non-NULL, it will contain error information (without
+ * 		    a terminating newline) if an error is returned.
+ * error_str_len:   Allocated length of the error string.
+ *
+ * Returns 0 for success, non-zero for failure.
+ */
+int
+scsi_parse_transportid(char *transportid_str,
+		       struct scsi_transportid_header **hdr,
+		       unsigned int *alloc_len,
+#ifdef _KERNEL
+		       struct malloc_type *type, int flags,
+#endif
+		       char *error_str, int error_str_len)
+{
+	char *tmpstr;
+	scsi_nv_status status;
+	int retval, num_proto_entries, table_entry;
+
+	retval = 0;
+	table_entry = 0;
+
+	/*
+	 * We do allow a period as well as a comma to separate the protocol
+	 * from the ID string.  This is to accommodate iSCSI names, which
+	 * start with "iqn.".
+	 */
+	tmpstr = strsep(&transportid_str, ",.");
+	if (tmpstr == NULL) {
+		if (error_str != NULL) {
+			snprintf(error_str, error_str_len,
+				 "%s: transportid_str is NULL", __func__);
+		}
+		retval = 1;
+		goto bailout;
+	}
+
+	num_proto_entries = sizeof(scsi_proto_map) /
+			    sizeof(scsi_proto_map[0]);
+	status = scsi_get_nv(scsi_proto_map, num_proto_entries, tmpstr,
+			     &table_entry, SCSI_NV_FLAG_IG_CASE);
+	if (status != SCSI_NV_FOUND) {
+		if (error_str != NULL) {
+			snprintf(error_str, error_str_len, "%s: %s protocol "
+				 "name %s", __func__,
+				 (status == SCSI_NV_AMBIGUOUS) ? "ambiguous" :
+				 "invalid", tmpstr);
+		}
+		retval = 1;
+		goto bailout;
+	}
+	switch (scsi_proto_map[table_entry].value) {
+	case SCSI_PROTO_FC:
+	case SCSI_PROTO_1394:
+	case SCSI_PROTO_SAS:
+		retval = scsi_parse_transportid_64bit(
+		    scsi_proto_map[table_entry].value, transportid_str, hdr,
+		    alloc_len,
+#ifdef _KERNEL
+		    type, flags,
+#endif
+		    error_str, error_str_len);
+		break;
+	case SCSI_PROTO_SPI:
+		retval = scsi_parse_transportid_spi(transportid_str, hdr,
+		    alloc_len,
+#ifdef _KERNEL
+		    type, flags,
+#endif
+		    error_str, error_str_len);
+		break;
+	case SCSI_PROTO_RDMA:
+		retval = scsi_parse_transportid_rdma(transportid_str, hdr,
+		    alloc_len,
+#ifdef _KERNEL
+		    type, flags,
+#endif
+		    error_str, error_str_len);
+		break;
+	case SCSI_PROTO_ISCSI:
+		retval = scsi_parse_transportid_iscsi(transportid_str, hdr,
+		    alloc_len,
+#ifdef _KERNEL
+		    type, flags,
+#endif
+		    error_str, error_str_len);
+		break;
+	case SCSI_PROTO_SOP:
+		retval = scsi_parse_transportid_sop(transportid_str, hdr,
+		    alloc_len,
+#ifdef _KERNEL
+		    type, flags,
+#endif
+		    error_str, error_str_len);
+		break;
+	case SCSI_PROTO_SSA:
+	case SCSI_PROTO_ADITP:
+	case SCSI_PROTO_ATA:
+	case SCSI_PROTO_UAS:
+	case SCSI_PROTO_NONE:
+	default:
+		/*
+		 * There is no format defined for a Transport ID for these
+		 * protocols.  So even if the user gives us something, we
+		 * have no way to turn it into a standard SCSI Transport ID.
+		 */
+		retval = 1;
+		if (error_str != NULL) {
+			snprintf(error_str, error_str_len, "%s: no Transport "
+				 "ID format exists for protocol %s",
+				 __func__, tmpstr);
+		}
+		goto bailout;
+		break;	/* NOTREACHED */
+	}
+bailout:
+	return (retval);
+}
+
 void
 scsi_test_unit_ready(struct ccb_scsiio *csio, u_int32_t retries,
 		     void (*cbfcnp)(struct cam_periph *, union ccb *),
@@ -6409,6 +7394,63 @@ scsi_start_stop(struct ccb_scsiio *csio, u_int32_t retries,
 		      timeout);
 }
 
+
+void
+scsi_persistent_reserve_in(struct ccb_scsiio *csio, uint32_t retries, 
+			   void (*cbfcnp)(struct cam_periph *, union ccb *),
+			   uint8_t tag_action, int service_action,
+			   uint8_t *data_ptr, uint32_t dxfer_len, int sense_len,
+			   int timeout)
+{
+	struct scsi_per_res_in *scsi_cmd;
+
+	scsi_cmd = (struct scsi_per_res_in *)&csio->cdb_io.cdb_bytes;
+	bzero(scsi_cmd, sizeof(*scsi_cmd));
+
+	scsi_cmd->opcode = PERSISTENT_RES_IN;
+	scsi_cmd->action = service_action;
+	scsi_ulto2b(dxfer_len, scsi_cmd->length);
+
+	cam_fill_csio(csio,
+		      retries,
+		      cbfcnp,
+		      /*flags*/CAM_DIR_IN,
+		      tag_action,
+		      data_ptr,
+		      dxfer_len,
+		      sense_len,
+		      sizeof(*scsi_cmd),
+		      timeout);
+}
+
+void
+scsi_persistent_reserve_out(struct ccb_scsiio *csio, uint32_t retries, 
+			    void (*cbfcnp)(struct cam_periph *, union ccb *),
+			    uint8_t tag_action, int service_action,
+			    int scope, int res_type, uint8_t *data_ptr,
+			    uint32_t dxfer_len, int sense_len, int timeout)
+{
+	struct scsi_per_res_out *scsi_cmd;
+
+	scsi_cmd = (struct scsi_per_res_out *)&csio->cdb_io.cdb_bytes;
+	bzero(scsi_cmd, sizeof(*scsi_cmd));
+
+	scsi_cmd->opcode = PERSISTENT_RES_OUT;
+	scsi_cmd->action = service_action;
+	scsi_cmd->scope_type = scope | res_type;
+	scsi_ulto4b(dxfer_len, scsi_cmd->length);
+
+	cam_fill_csio(csio,
+		      retries,
+		      cbfcnp,
+		      /*flags*/CAM_DIR_OUT,
+		      tag_action,
+		      data_ptr,
+		      dxfer_len,
+		      sense_len,
+		      sizeof(*scsi_cmd),
+		      timeout);
+}
 
 /*      
  * Try make as good a match as possible with
