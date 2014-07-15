@@ -7292,6 +7292,58 @@ ctl_report_supported_tmf(struct ctl_scsiio *ctsio)
 }
 
 int
+ctl_report_timestamp(struct ctl_scsiio *ctsio)
+{
+	struct ctl_lun *lun;
+	struct scsi_report_timestamp *cdb;
+	struct scsi_report_timestamp_data *data;
+	struct timeval tv;
+	int64_t timestamp;
+	int retval;
+	int alloc_len, total_len;
+
+	CTL_DEBUG_PRINT(("ctl_report_timestamp\n"));
+
+	cdb = (struct scsi_report_timestamp *)ctsio->cdb;
+	lun = (struct ctl_lun *)ctsio->io_hdr.ctl_private[CTL_PRIV_LUN].ptr;
+
+	retval = CTL_RETVAL_COMPLETE;
+
+	total_len = sizeof(struct scsi_report_timestamp_data);
+	alloc_len = scsi_4btoul(cdb->length);
+
+	ctsio->kern_data_ptr = malloc(total_len, M_CTL, M_WAITOK | M_ZERO);
+
+	ctsio->kern_sg_entries = 0;
+
+	if (total_len < alloc_len) {
+		ctsio->residual = alloc_len - total_len;
+		ctsio->kern_data_len = total_len;
+		ctsio->kern_total_len = total_len;
+	} else {
+		ctsio->residual = 0;
+		ctsio->kern_data_len = alloc_len;
+		ctsio->kern_total_len = alloc_len;
+	}
+	ctsio->kern_data_resid = 0;
+	ctsio->kern_rel_offset = 0;
+
+	data = (struct scsi_report_timestamp_data *)ctsio->kern_data_ptr;
+	scsi_ulto2b(sizeof(*data) - 2, data->length);
+	data->origin = RTS_ORIG_OUTSIDE;
+	getmicrotime(&tv);
+	timestamp = (int64_t)tv.tv_sec * 1000 + tv.tv_usec / 1000;
+	scsi_ulto4b(timestamp >> 16, data->timestamp);
+	scsi_ulto2b(timestamp & 0xffff, &data->timestamp[4]);
+
+	ctsio->io_hdr.flags |= CTL_FLAG_ALLOCATED;
+	ctsio->be_move_done = ctl_config_move_done;
+
+	ctl_datamove((union ctl_io *)ctsio);
+	return (retval);
+}
+
+int
 ctl_persistent_reserve_in(struct ctl_scsiio *ctsio)
 {
 	struct scsi_per_res_in *cdb;
