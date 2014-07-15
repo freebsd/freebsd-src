@@ -2182,7 +2182,7 @@ kern_proc_vmmap_out(struct proc *p, struct sbuf *sb)
 				VM_OBJECT_RLOCK(tobj);
 				lobj = tobj;
 			}
-			if (obj->shadow_count == 1)
+			if (obj->backing_object == NULL)
 				kve->kve_private_resident =
 				    obj->resident_page_count;
 			if (vmmap_skip_res_cnt)
