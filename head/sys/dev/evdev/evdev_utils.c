@@ -110,10 +110,36 @@ static uint16_t evdev_usb_scancodes[256] = {
 
 };
 
-static uint16_t evdev_at_set1_scancodes[256] = {
-	NONE,
+static uint16_t evdev_at_set1_scancodes[] = {
+	/* 0x00 - 0x1f */
+	NONE,		KEY_ESC,	KEY_1,		KEY_2,
+	KEY_3,		KEY_4,		KEY_5,		KEY_6,
+	KEY_7,		KEY_8,		KEY_9,		KEY_0,
+	KEY_MINUS,	KEY_EQUAL,	KEY_BACKSPACE,	KEY_TAB,
+	KEY_Q,		KEY_W,		KEY_E,		KEY_R,
+	KEY_T,		KEY_Y,		KEY_U,		KEY_I,
+	KEY_O,		KEY_P,		KEY_LEFTBRACE,	KEY_RIGHTBRACE,
+	KEY_ENTER,	KEY_LEFTCTRL,	KEY_A,		KEY_S,
+	/* 0x20 - 0x3f */
+	KEY_D,		KEY_F,		KEY_G,		KEY_H,
+	KEY_J,		KEY_K,		KEY_L,		KEY_SEMICOLON,
+	KEY_APOSTROPHE,	KEY_GRAVE,	KEY_LEFTSHIFT,	KEY_BACKSLASH,
+	KEY_Z,		KEY_X,		KEY_C,		KEY_V,
+	KEY_B,		KEY_N,		KEY_M,		KEY_COMMA,
+	KEY_DOT,	KEY_SLASH,	KEY_RIGHTSHIFT,	NONE,
+	KEY_LEFTALT,	KEY_SPACE,	KEY_CAPSLOCK,	KEY_F1,
+	KEY_F2,		KEY_F3,		KEY_F4,		KEY_F5,
+	/* 0x40 - 0x5f */
+	KEY_F6,		KEY_F7,		KEY_F8,		KEY_F9,
+	KEY_F10,	KEY_NUMLOCK,	KEY_SCROLLLOCK,	KEY_KP7,
+	KEY_KP8,	KEY_KP9,	KEY_KPMINUS,	KEY_KP4,
+	KEY_KP5,	KEY_KP6,	KEY_KPPLUS,	KEY_KP1,
+	KEY_KP2,	KEY_KP3,	KEY_KP0,	KEY_KPDOT,
+	NONE,		NONE,		NONE,		KEY_F11,
+	KEY_F12,	NONE,		NONE,		NONE,
+	NONE, 		NONE,		NONE,		NONE,
 };
-	
+
 
 inline uint16_t
 evdev_hid2key(int scancode)
@@ -122,7 +148,114 @@ evdev_hid2key(int scancode)
 }
 
 inline uint16_t
-evdev_at2key(int scancode)
+evdev_scancode2key(int *state, int scancode)
 {
-	return evdev_at_set1_scancodes[scancode];
+	uint16_t keycode;
+
+	/* translate the scan code into a keycode */
+	keycode = evdev_at_set1_scancodes[scancode & 0x7f];
+	switch (*state) {
+	case 0x00:	/* normal scancode */
+		switch(scancode) {
+		case 0xE0:
+		case 0xE1:
+			*state = scancode;
+			return (NONE);
+		}
+		break;
+	case 0xE0:		/* 0xE0 prefix */
+		*state = 0;
+		switch (scancode & 0x7f) {
+		case 0x1C:	/* right enter key */
+			keycode = KEY_KPENTER;
+			break;
+		case 0x1D:	/* right ctrl key */
+			keycode = KEY_RIGHTCTRL;
+			break;
+		case 0x35:	/* keypad divide key */
+			keycode = KEY_KPASTERISK;
+			break;
+		case 0x37:	/* print scrn key */
+			keycode = KEY_SYSRQ;
+			break;
+		case 0x38:	/* right alt key (alt gr) */
+			keycode = KEY_RIGHTALT;
+			break;
+		case 0x46:	/* ctrl-pause/break on AT 101 (see below) */
+			keycode = KEY_PAUSE;
+			break;
+		case 0x47:	/* grey home key */
+			keycode = KEY_HOME;
+			break;
+		case 0x48:	/* grey up arrow key */
+			keycode = KEY_UP;
+			break;
+		case 0x49:	/* grey page up key */
+			keycode = KEY_PAGEUP;
+			break;
+		case 0x4B:	/* grey left arrow key */
+			keycode = KEY_LEFT;
+			break;
+		case 0x4D:	/* grey right arrow key */
+			keycode = KEY_RIGHT;
+			break;
+		case 0x4F:	/* grey end key */
+			keycode = KEY_END;
+			break;
+		case 0x50:	/* grey down arrow key */
+			keycode = KEY_DOWN;
+			break;
+		case 0x51:	/* grey page down key */
+			keycode = KEY_PAGEDOWN;
+			break;
+		case 0x52:	/* grey insert key */
+			keycode = KEY_INSERT;
+			break;
+		case 0x53:	/* grey delete key */
+			keycode = KEY_DELETE;
+			break;
+			/* the following 3 are only used on the MS "Natural" keyboard */
+		case 0x5b:	/* left Window key */
+			keycode = KEY_LEFTMETA;
+			break;
+		case 0x5c:	/* right Window key */
+			keycode = KEY_RIGHTMETA;
+			break;
+		case 0x5d:	/* menu key */
+			keycode = KEY_MENU;
+			break;
+		case 0x5e:	/* power key */
+			keycode = KEY_POWER;
+			break;
+		case 0x5f:	/* sleep key */
+			keycode = KEY_SLEEP;
+			break;
+		case 0x63:	/* wake key */
+			keycode = KEY_WAKEUP;
+			break;
+		default:	/* ignore everything else */
+			return (NONE);
+		}
+		break;
+   	case 0xE1:	/* 0xE1 prefix */
+		/* 
+		 * The pause/break key on the 101 keyboard produces:
+		 * E1-1D-45 E1-9D-C5
+		 * Ctrl-pause/break produces:
+		 * E0-46 E0-C6 (See above.)
+		 */
+		*state = 0;
+		if ((scancode & 0x7f) == 0x1D)
+			*state = 0x1D;
+		return (NONE);
+		/* NOT REACHED */
+   	case 0x1D:	/* pause / break */
+		*state = 0;
+		if (scancode != 0x45)
+			return (NONE);
+		keycode = KEY_PAUSE;
+		break;
+	}
+
+	return (keycode);
 }
