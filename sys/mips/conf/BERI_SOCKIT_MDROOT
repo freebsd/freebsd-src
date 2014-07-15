@@ -1,0 +1,29 @@
+#
+# BERI_SOCKIT_BASE -- Kernel for the SRI/Cambridge "BERI" (Bluespec Extensible
+# RISC Implementation) FPGA soft core, as configured in its Terasic SoCkit
+# reference configuration.  This kernel configration must be further
+# specialized to to include a root filesystem specification.
+#
+# $FreeBSD$
+#
+
+include "BERI_TEMPLATE"
+
+ident		BERI_SOCKIT_MDROOT
+
+#
+# This kernel configuration uses an embedded 25.5MB memory root file system.
+# Adjust the following path based on local requirements.
+#
+options         MD_ROOT                 # MD is a potential root device
+options         MD_ROOT_SIZE=26112      # 25.5MB
+options         ROOTDEVNAME=\"ufs:md0\"
+#makeoptions    MFS_IMAGE=/foo/baz/baz/mdroot.img
+
+options         FDT
+options         FDT_DTB_STATIC
+makeoptions     FDT_DTS_FILE=beripad-sockit.dts
+
+device		altera_avgen
+device		altera_jtag_uart
+#device		terasic_de4led
