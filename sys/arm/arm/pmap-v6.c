@@ -2842,8 +2842,8 @@ pmap_protect(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
 			 * Are we protecting the entire large page? If not,
 			 * demote the mapping and fall through.
 			 */
-			if (sva + L1_S_SIZE == L2_NEXT_BUCKET(sva) &&
-			    eva >= L2_NEXT_BUCKET(sva)) {
+			if (sva + L1_S_SIZE == next_bucket &&
+			    eva >= next_bucket) {
 				l1pd &= ~(L1_S_PROT_MASK | L1_S_XN);
 				if (!(prot & VM_PROT_EXECUTE))
 					*pl1pd |= L1_S_XN;
@@ -4305,7 +4305,7 @@ pmap_remove(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 {
 	struct l2_bucket *l2b;
 	vm_offset_t next_bucket;
-	pd_entry_t *pl1pd, l1pd;
+	pd_entry_t l1pd;
 	pt_entry_t *ptep;
 	u_int total;
 	u_int mappings, is_exec, is_refd;
@@ -4320,11 +4320,12 @@ pmap_remove(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 	PMAP_LOCK(pmap);
 	total = 0;
 	while (sva < eva) {
+		next_bucket = L2_NEXT_BUCKET(sva);
+
 		/*
 		 * Check for large page.
 		 */
-		pl1pd = &pmap->pm_l1->l1_kva[L1_IDX(sva)];
-		l1pd = *pl1pd;
+		l1pd = pmap->pm_l1->l1_kva[L1_IDX(sva)];
 		if ((l1pd & L1_TYPE_MASK) == L1_S_PROTO) {
 			KASSERT((l1pd & L1_S_DOM_MASK) !=
 			    L1_S_DOM(PMAP_DOMAIN_KERNEL), ("pmap_remove: "
@@ -4333,21 +4334,20 @@ pmap_remove(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 			 * Are we removing the entire large page?  If not,
 			 * demote the mapping and fall through.
 			 */
-			if (sva + L1_S_SIZE == L2_NEXT_BUCKET(sva) &&
-			    eva >= L2_NEXT_BUCKET(sva)) {
+			if (sva + L1_S_SIZE == next_bucket &&
+			    eva >= next_bucket) {
 				pmap_remove_section(pmap, sva);
-				sva = L2_NEXT_BUCKET(sva);
+				sva = next_bucket;
 				continue;
 			} else if (!pmap_demote_section(pmap, sva)) {
 				/* The large page mapping was destroyed. */
-				sva = L2_NEXT_BUCKET(sva);
+				sva = next_bucket;
 				continue;
 			}
 		}
 		/*
 		 * Do one L2 bucket's worth at a time.
 		 */
-		next_bucket = L2_NEXT_BUCKET(sva);
 		if (next_bucket > eva)
 			next_bucket = eva;
 
@@ -4846,7 +4846,7 @@ pmap_advise(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, int advice)
 {
 	struct l2_bucket *l2b;
 	struct pv_entry *pve;
-	pd_entry_t *pl1pd, l1pd;
+	pd_entry_t l1pd;
 	pt_entry_t *ptep, opte, pte;
 	vm_offset_t next_bucket;
 	vm_page_t m;
@@ -4859,8 +4859,7 @@ pmap_advise(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, int advice)
 		next_bucket = L2_NEXT_BUCKET(sva);
 		if (next_bucket < sva)
 			next_bucket = eva;
-		pl1pd = &pmap->pm_l1->l1_kva[L1_IDX(sva)];
-		l1pd = *pl1pd;
+		l1pd = pmap->pm_l1->l1_kva[L1_IDX(sva)];
 		if ((l1pd & L1_TYPE_MASK) == L1_S_PROTO) {
 			if (pmap == pmap_kernel())
 				continue;
