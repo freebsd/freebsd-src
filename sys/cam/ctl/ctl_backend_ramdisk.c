@@ -505,7 +505,7 @@ ctl_backend_ramdisk_rm(struct ctl_be_ramdisk_softc *softc,
 	if (retval == 0) {
 		taskqueue_drain(be_lun->io_taskqueue, &be_lun->io_task);
 		taskqueue_free(be_lun->io_taskqueue);
-		ctl_free_opts(&be_lun->ctl_be_lun);
+		ctl_free_opts(&be_lun->ctl_be_lun.options);
 		mtx_destroy(&be_lun->queue_lock);
 		free(be_lun, M_RAMDISK);
 	}
@@ -548,7 +548,8 @@ ctl_backend_ramdisk_create(struct ctl_be_ramdisk_softc *softc,
 		goto bailout_error;
 	}
 	sprintf(be_lun->lunname, "cram%d", softc->num_luns);
-	ctl_init_opts(&be_lun->ctl_be_lun, req);
+	ctl_init_opts(&be_lun->ctl_be_lun.options,
+	    req->num_be_args, req->kern_be_args);
 
 	if (params->flags & CTL_LUN_FLAG_DEV_TYPE)
 		be_lun->ctl_be_lun.lun_type = params->device_type;
@@ -586,7 +587,7 @@ ctl_backend_ramdisk_create(struct ctl_be_ramdisk_softc *softc,
 	be_lun->softc = softc;
 
 	unmap = 0;
-	value = ctl_get_opt(&be_lun->ctl_be_lun, "unmap");
+	value = ctl_get_opt(&be_lun->ctl_be_lun.options, "unmap");
 	if (value != NULL && strcmp(value, "on") == 0)
 		unmap = 1;
 
@@ -721,7 +722,7 @@ bailout_error:
 		if (be_lun->io_taskqueue != NULL) {
 			taskqueue_free(be_lun->io_taskqueue);
 		}
-		ctl_free_opts(&be_lun->ctl_be_lun);
+		ctl_free_opts(&be_lun->ctl_be_lun.options);
 		mtx_destroy(&be_lun->queue_lock);
 		free(be_lun, M_RAMDISK);
 	}

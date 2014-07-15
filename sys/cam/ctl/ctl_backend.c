@@ -174,29 +174,29 @@ ctl_backend_find(char *backend_name)
 }
 
 void
-ctl_init_opts(struct ctl_be_lun *be_lun, struct ctl_lun_req *req)
+ctl_init_opts(ctl_options_t *opts, int num_args, struct ctl_be_arg *args)
 {
-	struct ctl_be_lun_option *opt;
+	struct ctl_option *opt;
 	int i;
 
-	STAILQ_INIT(&be_lun->options);
-	for (i = 0; i < req->num_be_args; i++) {
+	STAILQ_INIT(opts);
+	for (i = 0; i < num_args; i++) {
 		opt = malloc(sizeof(*opt), M_CTL, M_WAITOK);
-		opt->name = malloc(strlen(req->kern_be_args[i].kname) + 1, M_CTL, M_WAITOK);
-		strcpy(opt->name, req->kern_be_args[i].kname);
-		opt->value = malloc(strlen(req->kern_be_args[i].kvalue) + 1, M_CTL, M_WAITOK);
-		strcpy(opt->value, req->kern_be_args[i].kvalue);
-		STAILQ_INSERT_TAIL(&be_lun->options, opt, links);
+		opt->name = malloc(strlen(args[i].kname) + 1, M_CTL, M_WAITOK);
+		strcpy(opt->name, args[i].kname);
+		opt->value = malloc(strlen(args[i].kvalue) + 1, M_CTL, M_WAITOK);
+		strcpy(opt->value, args[i].kvalue);
+		STAILQ_INSERT_TAIL(opts, opt, links);
 	}
 }
 
 void
-ctl_free_opts(struct ctl_be_lun *be_lun)
+ctl_free_opts(ctl_options_t *opts)
 {
-	struct ctl_be_lun_option *opt;
+	struct ctl_option *opt;
 
-	while ((opt = STAILQ_FIRST(&be_lun->options)) != NULL) {
-		STAILQ_REMOVE_HEAD(&be_lun->options, links);
+	while ((opt = STAILQ_FIRST(opts)) != NULL) {
+		STAILQ_REMOVE_HEAD(opts, links);
 		free(opt->name, M_CTL);
 		free(opt->value, M_CTL);
 		free(opt, M_CTL);
@@ -204,11 +204,11 @@ ctl_free_opts(struct ctl_be_lun *be_lun)
 }
 
 char *
-ctl_get_opt(struct ctl_be_lun *be_lun, const char *name)
+ctl_get_opt(ctl_options_t *opts, const char *name)
 {
-	struct ctl_be_lun_option *opt;
+	struct ctl_option *opt;
 
-	STAILQ_FOREACH(opt, &be_lun->options, links) {
+	STAILQ_FOREACH(opt, opts, links) {
 		if (strcmp(opt->name, name) == 0) {
 			return (opt->value);
 		}
