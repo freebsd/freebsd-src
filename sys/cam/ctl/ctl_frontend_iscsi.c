@@ -149,8 +149,6 @@ SYSCTL_INT(_kern_cam_ctl_iscsi, OID_AUTO, maxcmdsn_delta, CTLFLAG_RWTUN,
 int		cfiscsi_init(void);
 static void	cfiscsi_online(void *arg);
 static void	cfiscsi_offline(void *arg);
-static int	cfiscsi_targ_enable(void *arg, struct ctl_id targ_id);
-static int	cfiscsi_targ_disable(void *arg, struct ctl_id targ_id);
 static int	cfiscsi_lun_enable(void *arg,
 		    struct ctl_id target_id, int lun_id);
 static int	cfiscsi_lun_disable(void *arg,
@@ -1346,8 +1344,6 @@ cfiscsi_init(void)
 	fe->port_online = cfiscsi_online;
 	fe->port_offline = cfiscsi_offline;
 	fe->onoff_arg = softc;
-	fe->targ_enable = cfiscsi_targ_enable;
-	fe->targ_disable = cfiscsi_targ_disable;
 	fe->lun_enable = cfiscsi_lun_enable;
 	fe->lun_disable = cfiscsi_lun_disable;
 	fe->targ_lun_arg = softc;
@@ -1449,20 +1445,6 @@ cfiscsi_offline(void *arg)
 	icl_listen_free(softc->listener);
 	softc->listener = NULL;
 #endif
-}
-
-static int
-cfiscsi_targ_enable(void *arg, struct ctl_id targ_id)
-{
-
-	return (0);
-}
-
-static int
-cfiscsi_targ_disable(void *arg, struct ctl_id targ_id)
-{
-
-	return (0);
 }
 
 static void

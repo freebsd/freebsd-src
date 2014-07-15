@@ -105,30 +105,6 @@ typedef int (*fe_devid_t)(struct ctl_scsiio *ctsio, int alloc_len);
  *			  and port_offline().  This is specified by the
  *			  FETD.
  *
- * targ_enable():	  This function is called, with targ_lun_arg and a
- * 			  target ID as its arguments, by CTL when it wants
- *			  the FETD to enable a particular target.  targ_enable()
- *			  will always be called for a particular target ID
- * 			  before any LUN is enabled for that target.  If the
- *			  FETD does not support enabling targets, but rather
- *			  LUNs, it should ignore this call and return 0.  If
- *			  the FETD does support enabling targets, it should
- *			  return 0 for success and non-zero if it cannot
- *			  enable the given target.
- *
- *			  TODO:  Add the ability to specify a WWID here.
- *
- * targ_disable():	  This function is called, with targ_lun_arg and a
- *			  target ID as its arguments, by CTL when it wants
- *			  the FETD to disable a particular target.
- *			  targ_disable() will always be called for a
- *			  particular target ID after all LUNs are disabled
- *			  on that particular target.  If the FETD does not
- *			  support enabling targets, it should ignore this
- *			  call and return 0.  If the FETD does support
- *			  enabling targets, it should return 0 for success,
- *			  and non-zero if it cannot disable the given target.
- *
  * lun_enable():	  This function is called, with targ_lun_arg, a target
  *			  ID and a LUN ID as its arguments, by CTL when it
  *			  wants the FETD to enable a particular LUN.  If the
@@ -212,8 +188,6 @@ struct ctl_frontend {
 	port_func_t	port_online;		/* passed to CTL */
 	port_func_t	port_offline;		/* passed to CTL */
 	void		*onoff_arg;		/* passed to CTL */
-	targ_func_t	targ_enable;		/* passed to CTL */
-	targ_func_t	targ_disable;		/* passed to CTL */
 	lun_func_t	lun_enable;		/* passed to CTL */
 	lun_func_t	lun_disable;		/* passed to CTL */
 	fe_ioctl_t	ioctl;			/* passed to CTL */

@@ -211,8 +211,6 @@ static void		ctlfedone(struct cam_periph *periph,
 static void 		ctlfe_onoffline(void *arg, int online);
 static void 		ctlfe_online(void *arg);
 static void 		ctlfe_offline(void *arg);
-static int 		ctlfe_targ_enable(void *arg, struct ctl_id targ_id);
-static int 		ctlfe_targ_disable(void *arg, struct ctl_id targ_id);
 static int 		ctlfe_lun_enable(void *arg, struct ctl_id targ_id,
 					 int lun_id);
 static int 		ctlfe_lun_disable(void *arg, struct ctl_id targ_id,
@@ -410,8 +408,6 @@ ctlfeasync(void *callback_arg, uint32_t code, struct cam_path *path, void *arg)
 		fe->port_online = ctlfe_online;
 		fe->port_offline = ctlfe_offline;
 		fe->onoff_arg = bus_softc;
-		fe->targ_enable = ctlfe_targ_enable;
-		fe->targ_disable = ctlfe_targ_disable;
 		fe->lun_enable = ctlfe_lun_enable;
 		fe->lun_disable = ctlfe_lun_disable;
 		fe->targ_lun_arg = bus_softc;
@@ -1925,18 +1921,6 @@ ctlfe_offline(void *arg)
 
 	xpt_path_unlock(path);
 	xpt_free_path(path);
-}
-
-static int
-ctlfe_targ_enable(void *arg, struct ctl_id targ_id)
-{
-	return (0);
-}
-
-static int
-ctlfe_targ_disable(void *arg, struct ctl_id targ_id)
-{
-	return (0);
 }
 
 /*

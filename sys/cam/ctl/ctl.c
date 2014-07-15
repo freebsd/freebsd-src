@@ -331,8 +331,6 @@ static int ctl_open(struct cdev *dev, int flags, int fmt, struct thread *td);
 static int ctl_close(struct cdev *dev, int flags, int fmt, struct thread *td);
 static void ctl_ioctl_online(void *arg);
 static void ctl_ioctl_offline(void *arg);
-static int ctl_ioctl_targ_enable(void *arg, struct ctl_id targ_id);
-static int ctl_ioctl_targ_disable(void *arg, struct ctl_id targ_id);
 static int ctl_ioctl_lun_enable(void *arg, struct ctl_id targ_id, int lun_id);
 static int ctl_ioctl_lun_disable(void *arg, struct ctl_id targ_id, int lun_id);
 static int ctl_ioctl_do_datamove(struct ctl_scsiio *ctsio);
@@ -1095,8 +1093,6 @@ ctl_init(void)
 	fe->port_online = ctl_ioctl_online;
 	fe->port_offline = ctl_ioctl_offline;
 	fe->onoff_arg = &softc->ioctl_info;
-	fe->targ_enable = ctl_ioctl_targ_enable;
-	fe->targ_disable = ctl_ioctl_targ_disable;
 	fe->lun_enable = ctl_ioctl_lun_enable;
 	fe->lun_disable = ctl_ioctl_lun_disable;
 	fe->targ_lun_arg = &softc->ioctl_info;
@@ -1449,22 +1445,6 @@ bailout:
 	mtx_unlock(&softc->ctl_lock);
 
 	return (retval);
-}
-
-/*
- * XXX KDM should we pretend to do something in the target/lun
- * enable/disable functions?
- */
-static int
-ctl_ioctl_targ_enable(void *arg, struct ctl_id targ_id)
-{
-	return (0);
-}
-
-static int
-ctl_ioctl_targ_disable(void *arg, struct ctl_id targ_id)
-{
-	return (0);
 }
 
 static int
@@ -4312,24 +4292,6 @@ ctl_alloc_lun(struct ctl_softc *ctl_softc, struct ctl_lun *ctl_lun,
 	 */
 	STAILQ_FOREACH(fe, &ctl_softc->fe_list, links) {
 		int retval;
-
-		/*
-		 * XXX KDM this only works for ONE TARGET ID.  We'll need
-		 * to do things differently if we go to a multiple target
-		 * ID scheme.
-		 */
-		if ((fe->status & CTL_PORT_STATUS_TARG_ONLINE) == 0) {
-
-			retval = fe->targ_enable(fe->targ_lun_arg, target_id);
-			if (retval != 0) {
-				printf("ctl_alloc_lun: FETD %s port %d "
-				       "returned error %d for targ_enable on "
-				       "target %ju\n", fe->port_name,
-				       fe->targ_port, retval,
-				       (uintmax_t)target_id.id);
-			} else
-				fe->status |= CTL_PORT_STATUS_TARG_ONLINE;
-		}
 
 		retval = fe->lun_enable(fe->targ_lun_arg, target_id,lun_number);
 		if (retval != 0) {
