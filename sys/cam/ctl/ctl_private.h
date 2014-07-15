@@ -414,13 +414,6 @@ typedef enum {
 	CTL_FLAG_MASTER_SHELF	= 0x04
 } ctl_gen_flags;
 
-struct ctl_wwpn_iid {
-	int in_use;
-	uint64_t wwpn;
-	uint32_t iid;
-	int32_t port;
-};
-
 #define CTL_MAX_THREADS		16
 
 struct ctl_thread {
@@ -453,7 +446,6 @@ struct ctl_softc {
 	int targ_online;
 	uint32_t ctl_lun_mask[CTL_MAX_LUNS >> 5];
 	struct ctl_lun *ctl_luns[CTL_MAX_LUNS];
-	struct ctl_wwpn_iid wwpn_iid[CTL_MAX_PORTS][CTL_MAX_INIT_PER_PORT];
 	uint32_t ctl_port_mask;
 	uint64_t aps_locked_lun;
 	STAILQ_HEAD(, ctl_lun) lun_list;

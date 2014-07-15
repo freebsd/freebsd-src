@@ -1091,11 +1091,6 @@ ctl_init(void)
 		printf("ctl: CAM Target Layer loaded\n");
 
 	/*
-	 * Initialize the initiator and portname mappings
-	 */
-	memset(softc->wwpn_iid, 0, sizeof(softc->wwpn_iid));
-
-	/*
 	 * Initialize the ioctl front end.
 	 */
 	ctl_frontend_register(&ioctl_frontend);
@@ -1367,32 +1362,24 @@ ctl_ioctl_offline(void *arg)
 
 /*
  * Remove an initiator by port number and initiator ID.
- * Returns 0 for success, 1 for failure.
+ * Returns 0 for success, -1 for failure.
  */
 int
-ctl_remove_initiator(int32_t targ_port, uint32_t iid)
+ctl_remove_initiator(struct ctl_port *port, int iid)
 {
-	struct ctl_softc *softc;
-
-	softc = control_softc;
+	struct ctl_softc *softc = control_softc;
 
 	mtx_assert(&softc->ctl_lock, MA_NOTOWNED);
 
-	if ((targ_port < 0)
-	 || (targ_port > CTL_MAX_PORTS)) {
-		printf("%s: invalid port number %d\n", __func__, targ_port);
-		return (1);
-	}
 	if (iid > CTL_MAX_INIT_PER_PORT) {
 		printf("%s: initiator ID %u > maximun %u!\n",
 		       __func__, iid, CTL_MAX_INIT_PER_PORT);
-		return (1);
+		return (-1);
 	}
 
 	mtx_lock(&softc->ctl_lock);
-
-	softc->wwpn_iid[targ_port][iid].in_use = 0;
-
+	port->wwpn_iid[iid].in_use--;
+	port->wwpn_iid[iid].last_use = time_uptime;
 	mtx_unlock(&softc->ctl_lock);
 
 	return (0);
@@ -1400,41 +1387,91 @@ ctl_remove_initiator(int32_t targ_port, uint32_t iid)
 
 /*
  * Add an initiator to the initiator map.
- * Returns 0 for success, 1 for failure.
+ * Returns iid for success, < 0 for failure.
  */
 int
-ctl_add_initiator(uint64_t wwpn, int32_t targ_port, uint32_t iid)
+ctl_add_initiator(struct ctl_port *port, int iid, uint64_t wwpn, char *name)
 {
-	struct ctl_softc *softc;
-	int retval;
-
-	softc = control_softc;
+	struct ctl_softc *softc = control_softc;
+	time_t best_time;
+	int i, best;
 
 	mtx_assert(&softc->ctl_lock, MA_NOTOWNED);
 
-	retval = 0;
-
-	if ((targ_port < 0)
-	 || (targ_port > CTL_MAX_PORTS)) {
-		printf("%s: invalid port number %d\n", __func__, targ_port);
-		return (1);
-	}
-	if (iid > CTL_MAX_INIT_PER_PORT) {
-		printf("%s: WWPN %#jx initiator ID %u > maximun %u!\n",
+	if (iid >= CTL_MAX_INIT_PER_PORT) {
+		printf("%s: WWPN %#jx initiator ID %u > maximum %u!\n",
 		       __func__, wwpn, iid, CTL_MAX_INIT_PER_PORT);
-		return (1);
+		free(name, M_CTL);
+		return (-1);
 	}
 
 	mtx_lock(&softc->ctl_lock);
 
-	if (softc->wwpn_iid[targ_port][iid].in_use != 0) {
+	if (iid < 0 && (wwpn != 0 || name != NULL)) {
+		for (i = 0; i < CTL_MAX_INIT_PER_PORT; i++) {
+			if (wwpn != 0 && wwpn == port->wwpn_iid[i].wwpn) {
+				iid = i;
+				break;
+			}
+			if (name != NULL && port->wwpn_iid[i].name != NULL &&
+			    strcmp(name, port->wwpn_iid[i].name) == 0) {
+				iid = i;
+				break;
+			}
+		}
+	}
+
+	if (iid < 0) {
+		for (i = 0; i < CTL_MAX_INIT_PER_PORT; i++) {
+			if (port->wwpn_iid[i].in_use == 0 &&
+			    port->wwpn_iid[i].wwpn == 0 &&
+			    port->wwpn_iid[i].name == NULL) {
+				iid = i;
+				break;
+			}
+		}
+	}
+
+	if (iid < 0) {
+		best = -1;
+		best_time = INT32_MAX;
+		for (i = 0; i < CTL_MAX_INIT_PER_PORT; i++) {
+			if (port->wwpn_iid[i].in_use == 0) {
+				if (port->wwpn_iid[i].last_use < best_time) {
+					best = i;
+					best_time = port->wwpn_iid[i].last_use;
+				}
+			}
+		}
+		iid = best;
+	}
+
+	if (iid < 0) {
+		mtx_unlock(&softc->ctl_lock);
+		free(name, M_CTL);
+		return (-2);
+	}
+
+	if (port->wwpn_iid[iid].in_use > 0 && (wwpn != 0 || name != NULL)) {
 		/*
-		 * We don't treat this as an error.
+		 * This is not an error yet.
 		 */
-		if (softc->wwpn_iid[targ_port][iid].wwpn == wwpn) {
-			printf("%s: port %d iid %u WWPN %#jx arrived again?\n",
-			       __func__, targ_port, iid, (uintmax_t)wwpn);
-			goto bailout;
+		if (wwpn != 0 && wwpn == port->wwpn_iid[iid].wwpn) {
+#if 0
+			printf("%s: port %d iid %u WWPN %#jx arrived"
+			    " again\n", __func__, port->targ_port,
+			    iid, (uintmax_t)wwpn);
+#endif
+			goto take;
+		}
+		if (name != NULL && port->wwpn_iid[iid].name != NULL &&
+		    strcmp(name, port->wwpn_iid[iid].name) == 0) {
+#if 0
+			printf("%s: port %d iid %u name '%s' arrived"
+			    " again\n", __func__, port->targ_port,
+			    iid, name);
+#endif
+			goto take;
 		}
 
 		/*
@@ -1442,26 +1479,25 @@ ctl_add_initiator(uint64_t wwpn, int32_t targ_port, uint32_t iid)
 		 * driver is telling us we have a new WWPN for this
 		 * initiator ID, so we pretty much need to use it.
 		 */
-		printf("%s: port %d iid %u WWPN %#jx arrived, WWPN %#jx is "
-		       "still at that address\n", __func__, targ_port, iid,
-		       (uintmax_t)wwpn,
-		       (uintmax_t)softc->wwpn_iid[targ_port][iid].wwpn);
+		printf("%s: port %d iid %u WWPN %#jx '%s' arrived,"
+		    " but WWPN %#jx '%s' is still at that address\n",
+		    __func__, port->targ_port, iid, wwpn, name,
+		    (uintmax_t)port->wwpn_iid[iid].wwpn,
+		    port->wwpn_iid[iid].name);
 
 		/*
 		 * XXX KDM clear have_ca and ua_pending on each LUN for
 		 * this initiator.
 		 */
 	}
-	softc->wwpn_iid[targ_port][iid].in_use = 1;
-	softc->wwpn_iid[targ_port][iid].iid = iid;
-	softc->wwpn_iid[targ_port][iid].wwpn = wwpn;
-	softc->wwpn_iid[targ_port][iid].port = targ_port;
-
-bailout:
-
+take:
+	free(port->wwpn_iid[iid].name, M_CTL);
+	port->wwpn_iid[iid].name = name;
+	port->wwpn_iid[iid].wwpn = wwpn;
+	port->wwpn_iid[iid].in_use++;
 	mtx_unlock(&softc->ctl_lock);
 
-	return (retval);
+	return (iid);
 }
 
 static int
@@ -2874,23 +2910,11 @@ ctl_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
 		break;
 	}
 	case CTL_DUMP_STRUCTS: {
-		int i, j, k;
+		int i, j, k, idx;
 		struct ctl_port *port;
 		struct ctl_frontend *fe;
 
-		printf("CTL IID to WWPN map start:\n");
-		for (i = 0; i < CTL_MAX_PORTS; i++) {
-			for (j = 0; j < CTL_MAX_INIT_PER_PORT; j++) {
-				if (softc->wwpn_iid[i][j].in_use == 0)
-					continue;
-
-				printf("port %d iid %u WWPN %#jx\n",
-				       softc->wwpn_iid[i][j].port,
-				       softc->wwpn_iid[i][j].iid, 
-				       (uintmax_t)softc->wwpn_iid[i][j].wwpn);
-			}
-		}
-		printf("CTL IID to WWPN map end\n");
+		mtx_lock(&softc->ctl_lock);
 		printf("CTL Persistent Reservation information start:\n");
 		for (i = 0; i < CTL_MAX_LUNS; i++) {
 			struct ctl_lun *lun;
@@ -2903,33 +2927,46 @@ ctl_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
 
 			for (j = 0; j < (CTL_MAX_PORTS * 2); j++) {
 				for (k = 0; k < CTL_MAX_INIT_PER_PORT; k++){
-					if (lun->per_res[j+k].registered == 0)
+					idx = j * CTL_MAX_INIT_PER_PORT + k;
+					if (lun->per_res[idx].registered == 0)
 						continue;
-					printf("LUN %d port %d iid %d key "
+					printf("  LUN %d port %d iid %d key "
 					       "%#jx\n", i, j, k,
 					       (uintmax_t)scsi_8btou64(
-					       lun->per_res[j+k].res_key.key));
+					       lun->per_res[idx].res_key.key));
 				}
 			}
 		}
 		printf("CTL Persistent Reservation information end\n");
 		printf("CTL Ports:\n");
+		STAILQ_FOREACH(port, &softc->port_list, links) {
+			printf("  Port %d '%s' Frontend '%s' Type %u pp %d vp %d WWNN "
+			       "%#jx WWPN %#jx\n", port->targ_port, port->port_name,
+			       port->frontend->name, port->port_type,
+			       port->physical_port, port->virtual_port,
+			       (uintmax_t)port->wwnn, (uintmax_t)port->wwpn);
+			for (j = 0; j < CTL_MAX_INIT_PER_PORT; j++) {
+				if (port->wwpn_iid[j].in_use == 0 &&
+				    port->wwpn_iid[j].wwpn == 0 &&
+				    port->wwpn_iid[j].name == NULL)
+					continue;
+
+				printf("    iid %u use %d WWPN %#jx '%s'\n",
+				    j, port->wwpn_iid[j].in_use,
+				    (uintmax_t)port->wwpn_iid[j].wwpn,
+				    port->wwpn_iid[j].name);
+			}
+		}
+		printf("CTL Port information end\n");
+		mtx_unlock(&softc->ctl_lock);
 		/*
 		 * XXX KDM calling this without a lock.  We'd likely want
 		 * to drop the lock before calling the frontend's dump
 		 * routine anyway.
 		 */
-		STAILQ_FOREACH(port, &softc->port_list, links) {
-			printf("Port %s Frontend %s Type %u pport %d vport %d WWNN "
-			       "%#jx WWPN %#jx\n", port->port_name,
-			       port->frontend->name, port->port_type,
-			       port->physical_port, port->virtual_port,
-			       (uintmax_t)port->wwnn, (uintmax_t)port->wwpn);
-		}
-		printf("CTL Port information end\n");
 		printf("CTL Frontends:\n");
 		STAILQ_FOREACH(fe, &softc->fe_list, links) {
-			printf("Frontend %s\n", fe->name);
+			printf("  Frontend '%s'\n", fe->name);
 			if (fe->fe_dump != NULL)
 				fe->fe_dump();
 		}
