@@ -2846,7 +2846,7 @@ pmap_protect(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
 			    eva >= next_bucket) {
 				l1pd &= ~(L1_S_PROT_MASK | L1_S_XN);
 				if (!(prot & VM_PROT_EXECUTE))
-					*pl1pd |= L1_S_XN;
+					l1pd |= L1_S_XN;
 				/*
 				 * At this point we are always setting
 				 * write-protect bit.
