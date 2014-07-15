@@ -482,7 +482,13 @@ evdev_ioctl_eviocgbit(struct evdev_dev *evdev, int type, int len, caddr_t data)
 		bitmap = evdev->ev_sw_flags;
 		limit = SW_CNT;
 		break;
-
+	case EV_FF:
+		/*
+		 * We don't support EV_FF now, so let's
+		 * just fake it returning only zeros.
+		 */
+		bzero(data, len);
+		return (0);
 	default:
 		return (ENOTTY);
 	}
