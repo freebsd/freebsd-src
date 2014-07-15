@@ -149,6 +149,7 @@ SYSCTL_INT(_kern_cam_ctl_iscsi, OID_AUTO, maxcmdsn_delta, CTLFLAG_RWTUN,
 int		cfiscsi_init(void);
 static void	cfiscsi_online(void *arg);
 static void	cfiscsi_offline(void *arg);
+static int	cfiscsi_info(void *arg, struct sbuf *sb);
 static int	cfiscsi_lun_enable(void *arg,
 		    struct ctl_id target_id, int lun_id);
 static int	cfiscsi_lun_disable(void *arg,
@@ -1415,6 +1416,17 @@ cfiscsi_offline(void *arg)
 #endif
 }
 
+static int
+cfiscsi_info(void *arg, struct sbuf *sb)
+{
+	struct cfiscsi_target *ct = (struct cfiscsi_target *)arg;
+	int retval;
+
+	retval = sbuf_printf(sb, "\t<cfiscsi_state>%d</cfiscsi_state>\n",
+	    ct->ct_state);
+	return (retval);
+}
+
 static void
 cfiscsi_ioctl_handoff(struct ctl_iscsi *ci)
 {
@@ -1997,6 +2009,7 @@ cfiscsi_ioctl_port_create(struct ctl_req *req)
 	port->virtual_port = strtoul(tag, NULL, 0);
 	port->port_online = cfiscsi_online;
 	port->port_offline = cfiscsi_offline;
+	port->port_info = cfiscsi_info;
 	port->onoff_arg = ct;
 	port->lun_enable = cfiscsi_lun_enable;
 	port->lun_disable = cfiscsi_lun_disable;
