@@ -1949,26 +1949,26 @@ cfiscsi_ioctl_port_create(struct ctl_req *req)
 	alias = ctl_get_opt(&opts, "cfiscsi_target_alias");
 	tag = ctl_get_opt(&opts, "cfiscsi_portal_group_tag");
 	if (target == NULL || tag == NULL) {
-		ctl_free_opts(&opts);
 		req->status = CTL_LUN_ERROR;
 		snprintf(req->error_str, sizeof(req->error_str),
 		    "Missing required argument");
+		ctl_free_opts(&opts);
 		return;
 	}
 	ct = cfiscsi_target_find_or_create(&cfiscsi_softc, target, alias);
 	if (ct == NULL) {
-		ctl_free_opts(&opts);
 		req->status = CTL_LUN_ERROR;
 		snprintf(req->error_str, sizeof(req->error_str),
 		    "failed to create target \"%s\"", target);
+		ctl_free_opts(&opts);
 		return;
 	}
 	if (ct->ct_state == CFISCSI_TARGET_STATE_ACTIVE) {
-		cfiscsi_target_release(ct);
-		ctl_free_opts(&opts);
 		req->status = CTL_LUN_ERROR;
 		snprintf(req->error_str, sizeof(req->error_str),
 		    "target \"%s\" already exist", target);
+		cfiscsi_target_release(ct);
+		ctl_free_opts(&opts);
 		return;
 	}
 	port = &ct->ct_port;
