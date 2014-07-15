@@ -3123,13 +3123,7 @@ ctl_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
 
 		ci = (struct ctl_iscsi *)addr;
 
-		mtx_lock(&softc->ctl_lock);
-		STAILQ_FOREACH(fe, &softc->fe_list, links) {
-			if (strcmp(fe->name, "iscsi") == 0)
-				break;
-		}
-		mtx_unlock(&softc->ctl_lock);
-
+		fe = ctl_frontend_find("iscsi");
 		if (fe == NULL) {
 			ci->status = CTL_ISCSI_ERROR;
 			snprintf(ci->error_str, sizeof(ci->error_str),

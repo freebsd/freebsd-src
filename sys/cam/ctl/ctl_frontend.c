@@ -118,6 +118,23 @@ ctl_frontend_deregister(struct ctl_frontend *fe)
 	return (0);
 }
 
+struct ctl_frontend *
+ctl_frontend_find(char *frontend_name)
+{
+	struct ctl_softc *ctl_softc = control_softc;
+	struct ctl_frontend *fe;
+
+	mtx_lock(&ctl_softc->ctl_lock);
+	STAILQ_FOREACH(fe, &ctl_softc->fe_list, links) {
+		if (strcmp(fe->name, frontend_name) == 0) {
+			mtx_unlock(&ctl_softc->ctl_lock);
+			return (fe);
+		}
+	}
+	mtx_unlock(&ctl_softc->ctl_lock);
+	return (NULL);
+}
+
 int
 ctl_port_register(struct ctl_port *port, int master_shelf)
 {
