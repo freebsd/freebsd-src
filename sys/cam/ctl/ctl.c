@@ -11946,7 +11946,7 @@ ctl_abort_task(union ctl_io *io)
 		lun = ctl_softc->ctl_luns[targ_lun];
 	else {
 		mtx_unlock(&ctl_softc->ctl_lock);
-		goto bailout;
+		return (1);
 	}
 
 #if 0
@@ -12049,8 +12049,6 @@ ctl_abort_task(union ctl_io *io)
 	}
 	mtx_unlock(&lun->lun_lock);
 
-bailout:
-
 	if (found == 0) {
 		/*
 		 * This isn't really an error.  It's entirely possible for
@@ -12066,22 +12064,18 @@ bailout:
 		       io->io_hdr.nexus.targ_lun, io->taskio.tag_num,
 		       io->taskio.tag_type);
 #endif
-		return (1);
-	} else
-		return (0);
+	}
+	return (0);
 }
 
 static void
 ctl_run_task(union ctl_io *io)
 {
-	struct ctl_softc *ctl_softc;
-	int retval;
+	struct ctl_softc *ctl_softc = control_softc;
+	int retval = 1;
 	const char *task_desc;
 
 	CTL_DEBUG_PRINT(("ctl_run_task\n"));
-
-	ctl_softc = control_softc;
-	retval = 0;
 
 	KASSERT(io->io_hdr.io_type == CTL_IO_TASK,
 	    ("ctl_run_task: Unextected io_type %d\n",
@@ -12131,7 +12125,6 @@ ctl_run_task(union ctl_io *io)
 	case CTL_TASK_LUN_RESET: {
 		struct ctl_lun *lun;
 		uint32_t targ_lun;
-		int retval;
 
 		targ_lun = io->io_hdr.nexus.targ_mapped_lun;
 		mtx_lock(&ctl_softc->ctl_lock);
@@ -12188,12 +12181,6 @@ ctl_run_task(union ctl_io *io)
 		io->io_hdr.status = CTL_SUCCESS;
 	else
 		io->io_hdr.status = CTL_ERROR;
-
-	/*
-	 * This will queue this I/O to the done queue, but the
-	 * work thread won't be able to process it until we
-	 * return and the lock is released.
-	 */
 	ctl_done(io);
 }
 
