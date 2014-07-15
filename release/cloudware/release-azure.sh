@@ -50,8 +50,8 @@ main() {
 	mddev=$(mdconfig -a -t vnode -f ${2}.raw)
 
 	gpart create -s gpt /dev/${mddev}
-	gpart add -t freebsd-boot -s 512k -l bootfs /dev/${mddev}
-	gpart add -t freebsd-ufs -l rootfs /dev/${mddev}
+	gpart add -t freebsd-boot -a 1m -s 512k -l bootfs /dev/${mddev}
+	gpart add -t freebsd-ufs -a 1m -l rootfs /dev/${mddev}
 	newfs -L rootfs /dev/${mddev}p2
 	mount /dev/${mddev}p2 ${1}
 	mkdir -p ${1}/dev
