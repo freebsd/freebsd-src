@@ -96,7 +96,7 @@ struct icl_listen;
 #endif
 
 struct cfiscsi_softc {
-	struct ctl_frontend		fe;
+	struct ctl_port			port;
 	struct mtx			lock;
 	char				port_name[32];
 	int				online;

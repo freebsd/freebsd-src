@@ -174,18 +174,13 @@ static void	cfiscsi_session_delete(struct cfiscsi_session *cs);
 static struct cfiscsi_softc cfiscsi_softc;
 extern struct ctl_softc *control_softc;
 
-static int cfiscsi_module_event_handler(module_t, int /*modeventtype_t*/, void *);
-
-static moduledata_t cfiscsi_moduledata = {
-	"ctlcfiscsi",
-	cfiscsi_module_event_handler,
-	NULL
+static struct ctl_frontend cfiscsi_frontend =
+{
+	.name = "iscsi",
+	.init = cfiscsi_init,
+	.ioctl = cfiscsi_ioctl,
 };
-
-DECLARE_MODULE(ctlcfiscsi, cfiscsi_moduledata, SI_SUB_CONFIGURE, SI_ORDER_FOURTH);
-MODULE_VERSION(ctlcfiscsi, 1);
-MODULE_DEPEND(ctlcfiscsi, ctl, 1, 1, 1);
-MODULE_DEPEND(ctlcfiscsi, icl, 1, 1, 1);
+CTL_FRONTEND_DECLARE(ctlcfiscsi, cfiscsi_frontend);
 
 static struct icl_pdu *
 cfiscsi_pdu_new_response(struct icl_pdu *request, int flags)
@@ -545,7 +540,7 @@ cfiscsi_pdu_handle_scsi_command(struct icl_pdu *request)
 		cfiscsi_session_terminate(cs);
 		return;
 	}
-	io = ctl_alloc_io(cs->cs_target->ct_softc->fe.ctl_pool_ref);
+	io = ctl_alloc_io(cs->cs_target->ct_softc->port.ctl_pool_ref);
 	if (io == NULL) {
 		CFISCSI_SESSION_WARN(cs, "can't allocate ctl_io; "
 		    "dropping connection");
@@ -557,7 +552,7 @@ cfiscsi_pdu_handle_scsi_command(struct icl_pdu *request)
 	io->io_hdr.ctl_private[CTL_PRIV_FRONTEND].ptr = request;
 	io->io_hdr.io_type = CTL_IO_SCSI;
 	io->io_hdr.nexus.initid.id = cs->cs_ctl_initid;
-	io->io_hdr.nexus.targ_port = cs->cs_target->ct_softc->fe.targ_port;
+	io->io_hdr.nexus.targ_port = cs->cs_target->ct_softc->port.targ_port;
 	io->io_hdr.nexus.targ_target.id = 0;
 	io->io_hdr.nexus.targ_lun = cfiscsi_decode_lun(bhssc->bhssc_lun);
 	io->io_hdr.nexus.lun_map_fn = cfiscsi_map_lun;
@@ -611,7 +606,7 @@ cfiscsi_pdu_handle_task_request(struct icl_pdu *request)
 
 	cs = PDU_SESSION(request);
 	bhstmr = (struct iscsi_bhs_task_management_request *)request->ip_bhs;
-	io = ctl_alloc_io(cs->cs_target->ct_softc->fe.ctl_pool_ref);
+	io = ctl_alloc_io(cs->cs_target->ct_softc->port.ctl_pool_ref);
 	if (io == NULL) {
 		CFISCSI_SESSION_WARN(cs, "can't allocate ctl_io;"
 		    "dropping connection");
@@ -623,7 +618,7 @@ cfiscsi_pdu_handle_task_request(struct icl_pdu *request)
 	io->io_hdr.ctl_private[CTL_PRIV_FRONTEND].ptr = request;
 	io->io_hdr.io_type = CTL_IO_TASK;
 	io->io_hdr.nexus.initid.id = cs->cs_ctl_initid;
-	io->io_hdr.nexus.targ_port = cs->cs_target->ct_softc->fe.targ_port;
+	io->io_hdr.nexus.targ_port = cs->cs_target->ct_softc->port.targ_port;
 	io->io_hdr.nexus.targ_target.id = 0;
 	io->io_hdr.nexus.targ_lun = cfiscsi_decode_lun(bhstmr->bhstmr_lun);
 	io->io_hdr.nexus.lun_map_fn = cfiscsi_map_lun;
@@ -1045,7 +1040,7 @@ cfiscsi_session_terminate_tasks(struct cfiscsi_session *cs)
 	int error, last;
 
 #ifdef notyet
-	io = ctl_alloc_io(cs->cs_target->ct_softc->fe.ctl_pool_ref);
+	io = ctl_alloc_io(cs->cs_target->ct_softc->port.ctl_pool_ref);
 	if (io == NULL) {
 		CFISCSI_SESSION_WARN(cs, "can't allocate ctl_io");
 		return;
@@ -1054,7 +1049,7 @@ cfiscsi_session_terminate_tasks(struct cfiscsi_session *cs)
 	io->io_hdr.ctl_private[CTL_PRIV_FRONTEND].ptr = NULL;
 	io->io_hdr.io_type = CTL_IO_TASK;
 	io->io_hdr.nexus.initid.id = cs->cs_ctl_initid;
-	io->io_hdr.nexus.targ_port = cs->cs_target->ct_softc->fe.targ_port;
+	io->io_hdr.nexus.targ_port = cs->cs_target->ct_softc->port.targ_port;
 	io->io_hdr.nexus.targ_target.id = 0;
 	io->io_hdr.nexus.targ_lun = lun;
 	io->taskio.tag_type = CTL_TAG_SIMPLE; /* XXX */
@@ -1073,7 +1068,7 @@ cfiscsi_session_terminate_tasks(struct cfiscsi_session *cs)
 	CFISCSI_SESSION_LOCK(cs);
 	TAILQ_FOREACH_SAFE(cdw,
 	    &cs->cs_waiting_for_data_out, cdw_next, tmpcdw) {
-		io = ctl_alloc_io(cs->cs_target->ct_softc->fe.ctl_pool_ref);
+		io = ctl_alloc_io(cs->cs_target->ct_softc->port.ctl_pool_ref);
 		if (io == NULL) {
 			CFISCSI_SESSION_WARN(cs, "can't allocate ctl_io");
 			return;
@@ -1083,7 +1078,7 @@ cfiscsi_session_terminate_tasks(struct cfiscsi_session *cs)
 		io->io_hdr.io_type = CTL_IO_TASK;
 		io->io_hdr.nexus.initid.id = cs->cs_ctl_initid;
 		io->io_hdr.nexus.targ_port =
-		    cs->cs_target->ct_softc->fe.targ_port;
+		    cs->cs_target->ct_softc->port.targ_port;
 		io->io_hdr.nexus.targ_target.id = 0;
 		//io->io_hdr.nexus.targ_lun = lun; /* Not needed? */
 		io->taskio.tag_type = CTL_TAG_SIMPLE; /* XXX */
@@ -1206,7 +1201,7 @@ cfiscsi_session_register_initiator(struct cfiscsi_session *cs)
 	    i, softc->max_initiators);
 #endif
 	cs->cs_ctl_initid = i;
-	error = ctl_add_initiator(0x0, softc->fe.targ_port, cs->cs_ctl_initid);
+	error = ctl_add_initiator(0x0, softc->port.targ_port, cs->cs_ctl_initid);
 	if (error != 0) {
 		CFISCSI_SESSION_WARN(cs, "ctl_add_initiator failed with error %d", error);
 		mtx_lock(&softc->lock);
@@ -1230,7 +1225,7 @@ cfiscsi_session_unregister_initiator(struct cfiscsi_session *cs)
 
 	softc = &cfiscsi_softc;
 
-	error = ctl_remove_initiator(softc->fe.targ_port, cs->cs_ctl_initid);
+	error = ctl_remove_initiator(softc->port.targ_port, cs->cs_ctl_initid);
 	if (error != 0) {
 		CFISCSI_SESSION_WARN(cs, "ctl_remove_initiator failed with error %d",
 		    error);
@@ -1321,7 +1316,7 @@ int
 cfiscsi_init(void)
 {
 	struct cfiscsi_softc *softc;
-	struct ctl_frontend *fe;
+	struct ctl_port *port;
 	int retval;
 
 	softc = &cfiscsi_softc;
@@ -1335,29 +1330,29 @@ cfiscsi_init(void)
 	TAILQ_INIT(&softc->sessions);
 	TAILQ_INIT(&softc->targets);
 
-	fe = &softc->fe;
-	fe->port_type = CTL_PORT_ISCSI;
+	port = &softc->port;
+	port->frontend = &cfiscsi_frontend;
+	port->port_type = CTL_PORT_ISCSI;
 	/* XXX KDM what should the real number be here? */
-	fe->num_requested_ctl_io = 4096;
+	port->num_requested_ctl_io = 4096;
 	snprintf(softc->port_name, sizeof(softc->port_name), "iscsi");
-	fe->port_name = softc->port_name;
-	fe->port_online = cfiscsi_online;
-	fe->port_offline = cfiscsi_offline;
-	fe->onoff_arg = softc;
-	fe->lun_enable = cfiscsi_lun_enable;
-	fe->lun_disable = cfiscsi_lun_disable;
-	fe->targ_lun_arg = softc;
-	fe->ioctl = cfiscsi_ioctl;
-	fe->devid = cfiscsi_devid;
-	fe->fe_datamove = cfiscsi_datamove;
-	fe->fe_done = cfiscsi_done;
+	port->port_name = softc->port_name;
+	port->port_online = cfiscsi_online;
+	port->port_offline = cfiscsi_offline;
+	port->onoff_arg = softc;
+	port->lun_enable = cfiscsi_lun_enable;
+	port->lun_disable = cfiscsi_lun_disable;
+	port->targ_lun_arg = softc;
+	port->devid = cfiscsi_devid;
+	port->fe_datamove = cfiscsi_datamove;
+	port->fe_done = cfiscsi_done;
 
 	/* XXX KDM what should we report here? */
 	/* XXX These should probably be fetched from CTL. */
-	fe->max_targets = 1;
-	fe->max_target_id = 15;
+	port->max_targets = 1;
+	port->max_target_id = 15;
 
-	retval = ctl_frontend_register(fe, /*master_SC*/ 1);
+	retval = ctl_port_register(port, /*master_SC*/ 1);
 	if (retval != 0) {
 		CFISCSI_WARN("ctl_frontend_register() failed with error %d",
 		    retval);
@@ -1365,7 +1360,7 @@ cfiscsi_init(void)
 		goto bailout;
 	}
 
-	softc->max_initiators = fe->max_initiators;
+	softc->max_initiators = port->max_initiators;
 
 	cfiscsi_data_wait_zone = uma_zcreate("cfiscsi_data_wait",
 	    sizeof(struct cfiscsi_data_wait), NULL, NULL, NULL, NULL,
@@ -1375,20 +1370,6 @@ cfiscsi_init(void)
 
 bailout:
 	return (retval);
-}
-
-static int
-cfiscsi_module_event_handler(module_t mod, int what, void *arg)
-{
-
-	switch (what) {
-	case MOD_LOAD:
-		return (cfiscsi_init());
-	case MOD_UNLOAD:
-		return (EBUSY);
-	default:
-		return (EOPNOTSUPP);
-	}
 }
 
 #ifdef ICL_KERNEL_PROXY
