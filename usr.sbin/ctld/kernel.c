@@ -120,6 +120,7 @@ struct cctl_lun {
 
 struct cctl_port {
 	uint32_t port_id;
+	int cfiscsi_status;
 	char *cfiscsi_target;
 	uint16_t cfiscsi_portal_group_tag;
 	STAILQ_HEAD(,cctl_lun_nv) attr_list;
@@ -332,6 +333,8 @@ cctl_end_pelement(void *user_data, const char *name)
 	if (strcmp(name, "cfiscsi_target") == 0) {
 		cur_port->cfiscsi_target = str;
 		str = NULL;
+	} else if (strcmp(name, "cfiscsi_status") == 0) {
+		cur_port->cfiscsi_status = strtoul(str, NULL, 0);
 	} else if (strcmp(name, "cfiscsi_portal_group_tag") == 0) {
 		cur_port->cfiscsi_portal_group_tag = strtoul(str, NULL, 0);
 	} else if (strcmp(name, "targ_port") == 0) {
@@ -492,6 +495,11 @@ retry_port:
 		if (port->cfiscsi_target == NULL) {
 			log_debugx("CTL port %ju wasn't managed by ctld; "
 			    "ignoring", (uintmax_t)port->port_id);
+			continue;
+		}
+		if (port->cfiscsi_status != 1) {
+			log_debugx("CTL port %ju is not active (%d); ignoring",
+			    (uintmax_t)port->port_id, port->cfiscsi_status);
 			continue;
 		}
 
