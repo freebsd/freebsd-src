@@ -42,7 +42,7 @@
 #include <dev/evdev/input.h>
 #include <dev/evdev/evdev.h>
 
-//#define	DEBUG
+#define	DEBUG
 #ifdef DEBUG
 #define	debugf(fmt, args...)	printf("evdev: " fmt "\n", ##args)
 #else
@@ -99,9 +99,7 @@ evdev_register(device_t dev, struct evdev_dev *evdev)
 
 	if (dev != NULL)
 		strlcpy(evdev->ev_shortname, device_get_nameunit(dev), NAMELEN);
-	else
-		strlcpy(evdev->ev_shortname, "uinput", NAMELEN);
-
+	
 	if (evdev->ev_repeat_mode == EVDEV_REPEAT) {
 		/* Initialize callout */
 		callout_init(&evdev->ev_rep_callout, 1);
@@ -141,24 +139,35 @@ evdev_unregister(device_t dev, struct evdev_dev *evdev)
 inline void
 evdev_set_name(struct evdev_dev *evdev, const char *name)
 {
+
 	snprintf(evdev->ev_name, NAMELEN, "%s", name);
+}
+
+inline void
+evdev_set_phys(struct evdev_dev *evdev, const char *name)
+{
+
+	snprintf(evdev->ev_shortname, NAMELEN, "%s", name);
 }
 
 inline void
 evdev_set_serial(struct evdev_dev *evdev, const char *serial)
 {
+
 	snprintf(evdev->ev_serial, NAMELEN, "%s", serial);
 }
 
 inline void
 evdev_set_methods(struct evdev_dev *evdev, struct evdev_methods *methods)
 {
+
 	evdev->ev_methods = methods;
 }
 
 inline void
 evdev_set_softc(struct evdev_dev *evdev, void *softc)
 {
+
 	evdev->ev_softc = softc;
 }
 
@@ -255,7 +264,7 @@ evdev_push_event(struct evdev_dev *evdev, uint16_t type, uint16_t code,
 	struct evdev_client *client;
 
 	debugf("%s pushed event %d/%d/%d",
-	    device_get_nameunit(evdev->ev_dev), type, code, value);
+	    evdev->ev_shortname, type, code, value);
 
 	/* For certain event types, update device state bits */
 	if (type == EV_KEY)
@@ -325,7 +334,7 @@ evdev_register_client(struct evdev_dev *evdev, struct evdev_client **clientp)
 
 	debugf("adding new client for device %s", evdev->ev_shortname);
 
-	if (evdev->ev_clients_count == 0 &&
+	if (evdev->ev_clients_count == 0 && evdev->ev_methods != NULL &&
 	    evdev->ev_methods->ev_open != NULL) {
 		debugf("calling ev_open() on device %s", evdev->ev_shortname);
 		evdev->ev_methods->ev_open(evdev, evdev->ev_softc);
@@ -346,7 +355,7 @@ evdev_dispose_client(struct evdev_client *client)
 
 	evdev->ev_clients_count--;
 
-	if (evdev->ev_clients_count == 0 &&
+	if (evdev->ev_clients_count == 0 && evdev->ev_methods != NULL &&
 	    evdev->ev_methods->ev_close != NULL)
 		evdev->ev_methods->ev_close(evdev, evdev->ev_softc);
 

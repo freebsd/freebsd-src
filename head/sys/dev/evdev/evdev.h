@@ -137,6 +137,7 @@ struct evdev_client
 struct evdev_dev *evdev_alloc(void);
 void evdev_free(struct evdev_dev *);
 void evdev_set_name(struct evdev_dev *, const char *);
+void evdev_set_phys(struct evdev_dev *, const char *);
 void evdev_set_serial(struct evdev_dev *, const char *);
 void evdev_set_methods(struct evdev_dev *, struct evdev_methods *);
 void evdev_set_softc(struct evdev_dev *, void *);
@@ -168,7 +169,7 @@ void evdev_client_filter_queue(struct evdev_client *, uint16_t);
 
 /* Utility functions: */
 uint16_t evdev_hid2key(int);
-uint16_t evdev_at2key(int);
+uint16_t evdev_scancode2key(int *, int);
 void evdev_client_dumpqueue(struct evdev_client *);
 
 #endif	/* _DEV_EVDEV_EVDEV_H */
