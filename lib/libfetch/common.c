@@ -1110,6 +1110,7 @@ fetch_writev(conn_t *conn, struct iovec *iov, int iovcnt)
 			errno = 0;
 			pfd.revents = 0;
 			if (poll(&pfd, 1, deltams) < 0) {
+				/* POSIX compliance */
 				if (errno == EAGAIN)
 					continue;
 				if (errno == EINTR && fetchRestartCalls)
