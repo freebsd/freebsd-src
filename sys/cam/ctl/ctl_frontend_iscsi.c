@@ -153,11 +153,11 @@ static int	cfiscsi_lun_enable(void *arg,
 		    struct ctl_id target_id, int lun_id);
 static int	cfiscsi_lun_disable(void *arg,
 		    struct ctl_id target_id, int lun_id);
+static uint32_t	cfiscsi_lun_map(void *arg, uint32_t lun);
 static int	cfiscsi_ioctl(struct cdev *dev,
 		    u_long cmd, caddr_t addr, int flag, struct thread *td);
 static void	cfiscsi_datamove(union ctl_io *io);
 static void	cfiscsi_done(union ctl_io *io);
-static uint32_t	cfiscsi_map_lun(void *arg, uint32_t lun);
 static bool	cfiscsi_pdu_update_cmdsn(const struct icl_pdu *request);
 static void	cfiscsi_pdu_handle_nop_out(struct icl_pdu *request);
 static void	cfiscsi_pdu_handle_scsi_command(struct icl_pdu *request);
@@ -556,8 +556,6 @@ cfiscsi_pdu_handle_scsi_command(struct icl_pdu *request)
 	io->io_hdr.nexus.targ_port = cs->cs_target->ct_port.targ_port;
 	io->io_hdr.nexus.targ_target.id = 0;
 	io->io_hdr.nexus.targ_lun = cfiscsi_decode_lun(bhssc->bhssc_lun);
-	io->io_hdr.nexus.lun_map_fn = cfiscsi_map_lun;
-	io->io_hdr.nexus.lun_map_arg = cs;
 	io->scsiio.tag_num = bhssc->bhssc_initiator_task_tag;
 	switch ((bhssc->bhssc_flags & BHSSC_FLAGS_ATTR)) {
 	case BHSSC_FLAGS_ATTR_UNTAGGED:
@@ -622,8 +620,6 @@ cfiscsi_pdu_handle_task_request(struct icl_pdu *request)
 	io->io_hdr.nexus.targ_port = cs->cs_target->ct_port.targ_port;
 	io->io_hdr.nexus.targ_target.id = 0;
 	io->io_hdr.nexus.targ_lun = cfiscsi_decode_lun(bhstmr->bhstmr_lun);
-	io->io_hdr.nexus.lun_map_fn = cfiscsi_map_lun;
-	io->io_hdr.nexus.lun_map_arg = cs;
 	io->taskio.tag_type = CTL_TAG_SIMPLE; /* XXX */
 
 	switch (bhstmr->bhstmr_function & ~0x80) {
@@ -2004,6 +2000,7 @@ cfiscsi_ioctl_port_create(struct ctl_req *req)
 	port->onoff_arg = ct;
 	port->lun_enable = cfiscsi_lun_enable;
 	port->lun_disable = cfiscsi_lun_disable;
+	port->lun_map = cfiscsi_lun_map;
 	port->targ_lun_arg = ct;
 	port->fe_datamove = cfiscsi_datamove;
 	port->fe_done = cfiscsi_done;
@@ -2250,7 +2247,7 @@ cfiscsi_target_find_or_create(struct cfiscsi_softc *softc, const char *name,
 	}
 
 	for (i = 0; i < CTL_MAX_LUNS; i++)
-		newct->ct_luns[i] = -1;
+		newct->ct_luns[i] = UINT32_MAX;
 
 	strlcpy(newct->ct_name, name, sizeof(newct->ct_name));
 	if (alias != NULL)
@@ -2267,22 +2264,16 @@ cfiscsi_target_find_or_create(struct cfiscsi_softc *softc, const char *name,
  * Takes LUN from the target space and returns LUN from the CTL space.
  */
 static uint32_t
-cfiscsi_map_lun(void *arg, uint32_t lun)
+cfiscsi_lun_map(void *arg, uint32_t lun)
 {
-	struct cfiscsi_session *cs;
-
-	cs = arg;
+	struct cfiscsi_target *ct = arg;
 
 	if (lun >= CTL_MAX_LUNS) {
 		CFISCSI_DEBUG("requested lun number %d is higher "
 		    "than maximum %d", lun, CTL_MAX_LUNS - 1);
-		return (0xffffffff);
+		return (UINT32_MAX);
 	}
-
-	if (cs->cs_target->ct_luns[lun] < 0)
-		return (0xffffffff);
-
-	return (cs->cs_target->ct_luns[lun]);
+	return (ct->ct_luns[lun]);
 }
 
 static int
@@ -2296,7 +2287,7 @@ cfiscsi_target_set_lun(struct cfiscsi_target *ct,
 		return (-1);
 	}
 
-	if (ct->ct_luns[lun_id] >= 0) {
+	if (ct->ct_luns[lun_id] < CTL_MAX_LUNS) {
 		/*
 		 * CTL calls cfiscsi_lun_enable() twice for each LUN - once
 		 * when the LUN is created, and a second time just before
@@ -2365,11 +2356,9 @@ cfiscsi_lun_disable(void *arg, struct ctl_id target_id, int lun_id)
 
 	mtx_lock(&softc->lock);
 	for (i = 0; i < CTL_MAX_LUNS; i++) {
-		if (ct->ct_luns[i] < 0)
-			continue;
 		if (ct->ct_luns[i] != lun_id)
 			continue;
-		ct->ct_luns[lun_id] = -1;
+		ct->ct_luns[i] = UINT32_MAX;
 		break;
 	}
 	mtx_unlock(&softc->lock);
