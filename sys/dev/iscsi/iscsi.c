@@ -1994,7 +1994,7 @@ iscsi_action_abort(struct iscsi_session *is, union ccb *ccb)
 	bhstmr->bhstmr_opcode = ISCSI_BHS_OPCODE_TASK_REQUEST;
 	bhstmr->bhstmr_function = 0x80 | BHSTMR_FUNCTION_ABORT_TASK;
 
-	bhstmr->bhstmr_lun = htobe64(CAM_EXTLUN_BYTE_SWIZZLE(ccb->ccb_h.target_lun));
+	bhstmr->bhstmr_lun = iscsi_encode_lun(ccb->ccb_h.target_lun);
 	bhstmr->bhstmr_initiator_task_tag = is->is_initiator_task_tag;
 	is->is_initiator_task_tag++;
 	bhstmr->bhstmr_referenced_task_tag = aio->io_initiator_task_tag;
