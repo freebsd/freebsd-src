@@ -390,6 +390,11 @@ SYSCTL_PROC(_vm_pmap, OID_AUTO, pcid_save_cnt, CTLTYPE_U64 | CTLFLAG_RW |
     CTLFLAG_MPSAFE, NULL, 0, pmap_pcid_save_cnt_proc, "QU",
     "Count of saved TLB context on switch");
 
+/* pmap_copy_pages() over non-DMAP */
+static struct mtx cpage_lock;
+static vm_offset_t cpage_a;
+static vm_offset_t cpage_b;
+
 /*
  * Crashdump maps.
  */
@@ -1055,6 +1060,10 @@ pmap_init(void)
 	    M_WAITOK | M_ZERO);
 	for (i = 0; i < pv_npg; i++)
 		TAILQ_INIT(&pv_table[i].pv_list);
+
+	mtx_init(&cpage_lock, "cpage", NULL, MTX_DEF);
+	cpage_a = kva_alloc(PAGE_SIZE);
+	cpage_b = kva_alloc(PAGE_SIZE);
 }
 
 static SYSCTL_NODE(_vm_pmap, OID_AUTO, pde, CTLFLAG_RD, 0,
@@ -5064,19 +5073,58 @@ pmap_copy_pages(vm_page_t ma[], vm_offset_t a_offset, vm_page_t mb[],
     vm_offset_t b_offset, int xfersize)
 {
 	void *a_cp, *b_cp;
+	vm_page_t m_a, m_b;
+	vm_paddr_t p_a, p_b;
+	pt_entry_t *pte;
 	vm_offset_t a_pg_offset, b_pg_offset;
 	int cnt;
+	boolean_t pinned;
 
+	pinned = FALSE;
 	while (xfersize > 0) {
 		a_pg_offset = a_offset & PAGE_MASK;
-		cnt = min(xfersize, PAGE_SIZE - a_pg_offset);
-		a_cp = (char *)PHYS_TO_DMAP(ma[a_offset >> PAGE_SHIFT]->
-		    phys_addr) + a_pg_offset;
+		m_a = ma[a_offset >> PAGE_SHIFT];
+		p_a = m_a->phys_addr;
 		b_pg_offset = b_offset & PAGE_MASK;
+		m_b = mb[b_offset >> PAGE_SHIFT];
+		p_b = m_b->phys_addr;
+		cnt = min(xfersize, PAGE_SIZE - a_pg_offset);
 		cnt = min(cnt, PAGE_SIZE - b_pg_offset);
-		b_cp = (char *)PHYS_TO_DMAP(mb[b_offset >> PAGE_SHIFT]->
-		    phys_addr) + b_pg_offset;
+		if (__predict_false(p_a < DMAP_MIN_ADDRESS ||
+		    p_a > DMAP_MIN_ADDRESS + dmaplimit)) {
+			mtx_lock(&cpage_lock);
+			sched_pin();
+			pinned = TRUE;
+			pte = vtopte(cpage_a);
+			*pte = p_a | X86_PG_A | X86_PG_V |
+			    pmap_cache_bits(kernel_pmap, m_a->md.pat_mode, 0);
+			invlpg(cpage_a);
+			a_cp = (char *)cpage_a + a_pg_offset;
+		} else {
+			a_cp = (char *)PHYS_TO_DMAP(p_a) + a_pg_offset;
+		}
+		if (__predict_false(p_b < DMAP_MIN_ADDRESS ||
+		    p_b > DMAP_MIN_ADDRESS + dmaplimit)) {
+			if (!pinned) {
+				mtx_lock(&cpage_lock);
+				sched_pin();
+				pinned = TRUE;
+			}
+			pte = vtopte(cpage_b);
+			*pte = p_b | X86_PG_A | X86_PG_M | X86_PG_RW |
+			    X86_PG_V | pmap_cache_bits(kernel_pmap,
+			    m_b->md.pat_mode, 0);
+			invlpg(cpage_b);
+			b_cp = (char *)cpage_b + b_pg_offset;
+		} else {
+			b_cp = (char *)PHYS_TO_DMAP(p_b) + b_pg_offset;
+		}
 		bcopy(a_cp, b_cp, cnt);
+		if (__predict_false(pinned)) {
+			sched_unpin();
+			mtx_unlock(&cpage_lock);
+			pinned = FALSE;
+		}
 		a_offset += cnt;
 		b_offset += cnt;
 		xfersize -= cnt;
