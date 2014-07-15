@@ -317,10 +317,11 @@ SYSCTL_INT(_kern_cam_ctl, OID_AUTO, verbose, CTLFLAG_RWTUN,
     &verbose, 0, "Show SCSI errors returned to initiator");
 
 /*
- * Serial number (0x80), device id (0x83), supported pages (0x00),
- * Block limits (0xB0) and Logical Block Provisioning (0xB2)
+ * Supported pages (0x00), Serial number (0x80), Device ID (0x83),
+ * SCSI Ports (0x88), Block limits (0xB0) and
+ * Logical Block Provisioning (0xB2)
  */
-#define SCSI_EVPD_NUM_SUPPORTED_PAGES	5
+#define SCSI_EVPD_NUM_SUPPORTED_PAGES	6
 
 static void ctl_isc_event_handler(ctl_ha_channel chanel, ctl_ha_event event,
 				  int param);
@@ -378,6 +379,8 @@ static void ctl_hndl_per_res_out_on_other_sc(union ctl_ha_msg *msg);
 static int ctl_inquiry_evpd_supported(struct ctl_scsiio *ctsio, int alloc_len);
 static int ctl_inquiry_evpd_serial(struct ctl_scsiio *ctsio, int alloc_len);
 static int ctl_inquiry_evpd_devid(struct ctl_scsiio *ctsio, int alloc_len);
+static int ctl_inquiry_evpd_scsi_ports(struct ctl_scsiio *ctsio,
+					 int alloc_len);
 static int ctl_inquiry_evpd_block_limits(struct ctl_scsiio *ctsio,
 					 int alloc_len);
 static int ctl_inquiry_evpd_lbp(struct ctl_scsiio *ctsio, int alloc_len);
@@ -7240,7 +7243,7 @@ ctl_report_tagret_port_groups(struct ctl_scsiio *ctsio)
 			    TPG_ASYMMETRIC_ACCESS_NONOPTIMIZED;
 		tpg_desc->support = TPG_AO_SUP;
 		if (!single)
-			tpg_desc->support = TPG_AN_SUP;
+			tpg_desc->support |= TPG_AN_SUP;
 		scsi_ulto2b(g + 1, tpg_desc->target_port_group);
 		tpg_desc->status = TPG_IMPLICIT;
 		pc = 0;
@@ -9628,10 +9631,12 @@ ctl_inquiry_evpd_supported(struct ctl_scsiio *ctsio, int alloc_len)
 	pages->page_list[1] = SVPD_UNIT_SERIAL_NUMBER;
 	/* Device Identification */
 	pages->page_list[2] = SVPD_DEVICE_ID;
+	/* SCSI Ports */
+	pages->page_list[3] = SVPD_SCSI_PORTS;
 	/* Block limits */
-	pages->page_list[3] = SVPD_BLOCK_LIMITS;
+	pages->page_list[4] = SVPD_BLOCK_LIMITS;
 	/* Logical Block Provisioning */
-	pages->page_list[4] = SVPD_LBP;
+	pages->page_list[5] = SVPD_LBP;
 
 	ctsio->scsi_status = SCSI_STATUS_OK;
 
@@ -9822,6 +9827,117 @@ ctl_inquiry_evpd_devid(struct ctl_scsiio *ctsio, int alloc_len)
 }
 
 static int
+ctl_inquiry_evpd_scsi_ports(struct ctl_scsiio *ctsio, int alloc_len)
+{
+	struct ctl_softc *softc = control_softc;
+	struct scsi_vpd_scsi_ports *sp;
+	struct scsi_vpd_port_designation *pd;
+	struct scsi_vpd_port_designation_cont *pdc;
+	struct ctl_lun *lun;
+	struct ctl_port *port;
+	int data_len, num_target_ports, id_len, g, pg, p;
+	int num_target_port_groups, single;
+
+	lun = (struct ctl_lun *)ctsio->io_hdr.ctl_private[CTL_PRIV_LUN].ptr;
+
+	single = ctl_is_single;
+	if (single)
+		num_target_port_groups = 1;
+	else
+		num_target_port_groups = NUM_TARGET_PORT_GROUPS;
+	num_target_ports = 0;
+	id_len = 0;
+	mtx_lock(&softc->ctl_lock);
+	STAILQ_FOREACH(port, &softc->port_list, links) {
+		if ((port->status & CTL_PORT_STATUS_ONLINE) == 0)
+			continue;
+		if (ctl_map_lun_back(port->targ_port, lun->lun) >=
+		    CTL_MAX_LUNS)
+			continue;
+		num_target_ports++;
+		if (port->port_devid)
+			id_len += port->port_devid->len;
+	}
+	mtx_unlock(&softc->ctl_lock);
+
+	data_len = sizeof(struct scsi_vpd_scsi_ports) + num_target_port_groups *
+	    num_target_ports * (sizeof(struct scsi_vpd_port_designation) +
+	     sizeof(struct scsi_vpd_port_designation_cont)) + id_len;
+	ctsio->kern_data_ptr = malloc(data_len, M_CTL, M_WAITOK | M_ZERO);
+	sp = (struct scsi_vpd_scsi_ports *)ctsio->kern_data_ptr;
+	ctsio->kern_sg_entries = 0;
+
+	if (data_len < alloc_len) {
+		ctsio->residual = alloc_len - data_len;
+		ctsio->kern_data_len = data_len;
+		ctsio->kern_total_len = data_len;
+	} else {
+		ctsio->residual = 0;
+		ctsio->kern_data_len = alloc_len;
+		ctsio->kern_total_len = alloc_len;
+	}
+	ctsio->kern_data_resid = 0;
+	ctsio->kern_rel_offset = 0;
+	ctsio->kern_sg_entries = 0;
+
+	/*
+	 * The control device is always connected.  The disk device, on the
+	 * other hand, may not be online all the time.  Need to change this
+	 * to figure out whether the disk device is actually online or not.
+	 */
+	if (lun != NULL)
+		sp->device = (SID_QUAL_LU_CONNECTED << 5) |
+				  lun->be_lun->lun_type;
+	else
+		sp->device = (SID_QUAL_LU_OFFLINE << 5) | T_DIRECT;
+
+	sp->page_code = SVPD_SCSI_PORTS;
+	scsi_ulto2b(data_len - sizeof(struct scsi_vpd_scsi_ports),
+	    sp->page_length);
+	pd = &sp->design[0];
+
+	mtx_lock(&softc->ctl_lock);
+	if (softc->flags & CTL_FLAG_MASTER_SHELF)
+		pg = 0;
+	else
+		pg = 1;
+	for (g = 0; g < num_target_port_groups; g++) {
+		STAILQ_FOREACH(port, &softc->port_list, links) {
+			if ((port->status & CTL_PORT_STATUS_ONLINE) == 0)
+				continue;
+			if (ctl_map_lun_back(port->targ_port, lun->lun) >=
+			    CTL_MAX_LUNS)
+				continue;
+			p = port->targ_port % CTL_MAX_PORTS + g * CTL_MAX_PORTS;
+			scsi_ulto2b(p, pd->relative_port_id);
+			scsi_ulto2b(0, pd->initiator_transportid_length);
+			pdc = (struct scsi_vpd_port_designation_cont *)
+			    &pd->initiator_transportid[0];
+			if (port->port_devid && g == pg) {
+				id_len = port->port_devid->len;
+				scsi_ulto2b(port->port_devid->len,
+				    pdc->target_port_descriptors_length);
+				memcpy(pdc->target_port_descriptors,
+				    port->port_devid->data, port->port_devid->len);
+			} else {
+				id_len = 0;
+				scsi_ulto2b(0, pdc->target_port_descriptors_length);
+			}
+			pd = (struct scsi_vpd_port_designation *)
+			    ((uint8_t *)pdc->target_port_descriptors + id_len);
+		}
+	}
+	mtx_unlock(&softc->ctl_lock);
+
+	ctsio->scsi_status = SCSI_STATUS_OK;
+	ctsio->io_hdr.flags |= CTL_FLAG_ALLOCATED;
+	ctsio->be_move_done = ctl_config_move_done;
+	ctl_datamove((union ctl_io *)ctsio);
+
+	return (CTL_RETVAL_COMPLETE);
+}
+
+static int
 ctl_inquiry_evpd_block_limits(struct ctl_scsiio *ctsio, int alloc_len)
 {
 	struct scsi_vpd_block_limits *bl_ptr;
@@ -9951,6 +10067,9 @@ ctl_inquiry_evpd(struct ctl_scsiio *ctsio)
 		break;
 	case SVPD_DEVICE_ID:
 		retval = ctl_inquiry_evpd_devid(ctsio, alloc_len);
+		break;
+	case SVPD_SCSI_PORTS:
+		retval = ctl_inquiry_evpd_scsi_ports(ctsio, alloc_len);
 		break;
 	case SVPD_BLOCK_LIMITS:
 		retval = ctl_inquiry_evpd_block_limits(ctsio, alloc_len);
