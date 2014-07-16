@@ -442,6 +442,7 @@ OLD_FILES+=usr/share/man/man9/vfs_mount.9.gz
 OLD_FILES+=usr/bin/cvs
 OLD_FILES+=usr/bin/cvsbug
 OLD_FILES+=usr/share/doc/psd/28.cvs/paper.ascii.gz
+OLD_FILES+=usr/share/doc/psd/28.cvs/paper.ps.gz
 OLD_DIRS+=usr/share/doc/psd/28.cvs
 OLD_FILES+=usr/share/examples/cvs/contrib/README
 OLD_FILES+=usr/share/examples/cvs/contrib/clmerge
