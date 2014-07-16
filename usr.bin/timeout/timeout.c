@@ -330,7 +330,7 @@ main(int argc, char **argv)
 		pstat = 128 + WTERMSIG(pstat);
 
 	if (timedout && !preserve)
-			pstat = EXIT_TIMEOUT;
+		pstat = EXIT_TIMEOUT;
 
 	return (pstat);
 }
