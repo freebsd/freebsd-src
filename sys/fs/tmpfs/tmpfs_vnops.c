@@ -185,7 +185,9 @@ tmpfs_lookup(struct vop_cachedlookup_args *v)
 				cnp->cn_flags |= SAVENAME;
 			} else {
 				error = tmpfs_alloc_vp(dvp->v_mount, tnode,
-						cnp->cn_lkflags, vpp);
+				    cnp->cn_lkflags, vpp);
+				if (error != 0)
+					goto out;
 			}
 		}
 	}
