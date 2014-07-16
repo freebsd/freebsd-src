@@ -33,6 +33,16 @@
 #ifndef _DEV_TERASIC_MTL_H_
 #define	_DEV_TERASIC_MTL_H_
 
+struct terasic_mtl_touch_state
+{
+	int x1;
+	int y1;
+	int x2;
+	int y2;
+	uint16_t gesture;
+	uint32_t touchpoints;
+};
+
 struct terasic_mtl_softc {
 	/*
 	 * syscons requires that its video_adapter_t be at the front of the
@@ -76,6 +86,14 @@ struct terasic_mtl_softc {
 	struct resource	*mtl_text_res;
 	int		 mtl_text_rid;
 	uint16_t	*mtl_text_soft;
+
+	/*
+	 * evdev device
+	 */
+	struct evdev_dev *mtl_evdev;
+	struct terasic_mtl_touch_state mtl_evdev_state;
+	struct callout	mtl_evdev_callout;
+	bool		mtl_evdev_opened;
 };
 
 #define	TERASIC_MTL_LOCK(sc)		mtx_lock(&(sc)->mtl_lock)
@@ -154,6 +172,35 @@ struct terasic_mtl_softc {
 #define	TERASIC_MTL_ALPHA_OPAQUE	255
 
 /*
+ * Driver-recognized gestures.
+ */
+
+#define	TSG_NONE	0x00
+#define	TSG_NORTH	0x10
+#define	TSG_NORTHEAST	0x12
+#define	TSG_EAST	0x14
+#define	TSG_SOUTHEAST	0x16
+#define	TSG_SOUTH	0x18
+#define	TSG_SOUTHWEST	0x1A
+#define	TSG_WEST	0x1C
+#define	TSG_NORTHWEST	0x1E
+#define	TSG_ROTATE_CW	0x28	/* Clockwise */
+#define	TSG_ROTATE_CCW	0x29	/* Counter Clockwise */
+#define	TSG_CLICK	0x20
+#define	TSG_DCLICK	0x22	/* Double Click */
+#define	TSG2_NORTH	0x30
+#define	TSG2_NORTHEAST	0x32
+#define	TSG2_EAST	0x34
+#define	TSG2_SOUTHEAST	0x36
+#define	TSG2_SOUTH	0x38
+#define	TSG2_SOUTHWEST	0x3A
+#define	TSG2_WEST	0x3C
+#define	TSG2_NORTHWEST	0x3E
+#define	TSG2_CLICK	0x40
+#define	TSG2_ZOOM_IN	0x48
+#define	TSG2_ZOOM_OUT	0x49
+
+/*
  * Driver setup routines from the bus attachment/teardown.
  */
 int	terasic_mtl_attach(struct terasic_mtl_softc *sc);
@@ -172,6 +219,8 @@ int	terasic_mtl_syscons_attach(struct terasic_mtl_softc *sc);
 void	terasic_mtl_syscons_detach(struct terasic_mtl_softc *sc);
 int	terasic_mtl_text_attach(struct terasic_mtl_softc *sc);
 void	terasic_mtl_text_detach(struct terasic_mtl_softc *sc);
+int	terasic_mtl_touch_attach(struct terasic_mtl_softc *sc);
+void	terasic_mtl_touch_detach(struct terasic_mtl_softc *sc);
 
 /*
  * Control register I/O routines.

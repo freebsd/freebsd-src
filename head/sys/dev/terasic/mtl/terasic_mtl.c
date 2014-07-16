@@ -80,6 +80,9 @@ terasic_mtl_attach(struct terasic_mtl_softc *sc)
 	error = terasic_mtl_text_attach(sc);
 	if (error)
 		goto error;
+	error = terasic_mtl_touch_attach(sc);
+	if (error)
+		goto error;
 	/*
 	 * XXXRW: Once we've attached syscons, we can't detach it, so do it
 	 * last.
