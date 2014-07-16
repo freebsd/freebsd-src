@@ -3302,6 +3302,79 @@ out:
 	PMAP_UNLOCK(pmap);
 }
 
+/*
+ *	Clear the wired attribute from the mappings for the specified range of
+ *	addresses in the given pmap.  Every valid mapping within that range
+ *	must have the wired attribute set.  In contrast, invalid mappings
+ *	cannot have the wired attribute set, so they are ignored.
+ *
+ *	XXX Wired mappings of unmanaged pages cannot be counted by this pmap
+ *	implementation.
+ */
+void
+pmap_unwire(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
+{
+	struct l2_bucket *l2b;
+	struct md_page *pvh;
+	pd_entry_t l1pd;
+	pt_entry_t *ptep, pte;
+	pv_entry_t pv;
+	vm_offset_t next_bucket;
+	vm_paddr_t pa;
+	vm_page_t m;
+ 
+	rw_wlock(&pvh_global_lock);
+	PMAP_LOCK(pmap);
+	while (sva < eva) {
+		next_bucket = L2_NEXT_BUCKET(sva);
+		l1pd = pmap->pm_l1->l1_kva[L1_IDX(sva)];
+		if ((l1pd & L1_TYPE_MASK) == L1_S_PROTO) {
+			pa = l1pd & L1_S_FRAME;
+			m = PHYS_TO_VM_PAGE(pa);
+			KASSERT(m != NULL && (m->oflags & VPO_UNMANAGED) == 0,
+			    ("pmap_unwire: unmanaged 1mpage %p", m));
+			pvh = pa_to_pvh(pa);
+			pv = pmap_find_pv(pvh, pmap, trunc_1mpage(sva));
+			if ((pv->pv_flags & PVF_WIRED) == 0)
+				panic("pmap_unwire: pv %p isn't wired", pv);
+
+			/*
+			 * Are we unwiring the entire large page? If not,
+			 * demote the mapping and fall through.
+			 */
+			if (sva + L1_S_SIZE == next_bucket &&
+			    eva >= next_bucket) {
+				pv->pv_flags &= ~PVF_WIRED;
+				pmap->pm_stats.wired_count -= L2_PTE_NUM_TOTAL;
+				sva = next_bucket;
+				continue;
+			} else if (!pmap_demote_section(pmap, sva))
+				panic("pmap_unwire: demotion failed");
+		}
+		if (next_bucket > eva)
+			next_bucket = eva;
+		l2b = pmap_get_l2_bucket(pmap, sva);
+		if (l2b == NULL) {
+			sva = next_bucket;
+			continue;
+		}
+		for (ptep = &l2b->l2b_kva[l2pte_index(sva)]; sva < next_bucket;
+		    sva += PAGE_SIZE, ptep++) {
+			if ((pte = *ptep) == 0 ||
+			    (m = PHYS_TO_VM_PAGE(l2pte_pa(pte))) == NULL ||
+			    (m->oflags & VPO_UNMANAGED) != 0)
+				continue;
+			pv = pmap_find_pv(&m->md, pmap, sva);
+			if ((pv->pv_flags & PVF_WIRED) == 0)
+				panic("pmap_unwire: pv %p isn't wired", pv);
+			pv->pv_flags &= ~PVF_WIRED;
+			pmap->pm_stats.wired_count--;
+		}
+	}
+	rw_wunlock(&pvh_global_lock);
+ 	PMAP_UNLOCK(pmap);
+}
+
 
 /*
  *	Copy the range specified by src_addr/len
