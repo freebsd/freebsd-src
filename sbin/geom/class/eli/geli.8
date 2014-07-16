@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 1, 2013
+.Dd June 18, 2014
 .Dt GELI 8
 .Os
 .Sh NAME
@@ -560,9 +560,9 @@ devices.
 .El
 .It Cm resume
 Resume previously suspended device.
-The caller must ensure that executing this subcommand won't try to access
-suspended device, which will lead to a deadlock.
-For example suspending device, which contains file system where the
+The caller must ensure that executing this subcommand does not access the
+suspended device, leading to a deadlock.
+For example suspending a device which contains the file system where the
 .Nm
 utility is stored is bad idea.
 .Pp
