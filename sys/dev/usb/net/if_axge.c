@@ -77,7 +77,7 @@ static const struct {
 	uint8_t	timer_h;
 	uint8_t	size;
 	uint8_t	ifg;
-} axge_bulk_size[] = {
+} __packed axge_bulk_size[] = {
 	{ 7, 0x4f, 0x00, 0x12, 0xff },
 	{ 7, 0x20, 0x03, 0x16, 0xff },
 	{ 7, 0xae, 0x07, 0x18, 0xff },
@@ -153,7 +153,7 @@ static const struct usb_config axge_config[AXGE_N_TRANSFER] = {
 		.type = UE_BULK,
 		.endpoint = UE_ADDR_ANY,
 		.direction = UE_DIR_IN,
-		.bufsize = 20480,
+		.bufsize = 65536,
 		.flags = {.pipe_bof = 1,.short_xfer_ok = 1,},
 		.callback = axge_bulk_read_callback,
 		.timeout = 0,		/* no timeout */
@@ -613,15 +613,14 @@ tr_setup:
 		usbd_xfer_set_frame_len(xfer, 0, usbd_xfer_max_len(xfer));
 		usbd_transfer_submit(xfer);
 		uether_rxflush(ue);
-		return;
+		break;
 
 	default:
 		if (error != USB_ERR_CANCELLED) {
 			usbd_xfer_set_stall(xfer);
 			goto tr_setup;
 		}
-		return;
-
+		break;
 	}
 }
 
@@ -965,8 +964,8 @@ axge_rx_frame(struct usb_ether *ue, struct usb_page_cache *pc, int actlen)
 			DPRINTF("Dropped a packet\n");
 			ue->ue_ifp->if_ierrors++;
 		}
-		if (pktlen >= 2 && (int)(pos + pktlen) <= actlen) {
-			axge_rxeof(ue, pc, pos + 2, pktlen - 2, pkt_hdr);
+		if (pktlen >= 6 && (int)(pos + pktlen) <= actlen) {
+			axge_rxeof(ue, pc, pos + 2, pktlen - 6, pkt_hdr);
 		} else {
 			DPRINTF("Invalid packet pos=%d len=%d\n",
 			    (int)pos, (int)pktlen);
@@ -1001,7 +1000,7 @@ axge_rxeof(struct usb_ether *ue, struct usb_page_cache *pc,
 	usbd_copy_out(pc, offset, mtod(m, uint8_t *), len);
 
 	ifp->if_ipackets++;
-#if 0
+
 	if ((pkt_hdr & (AXGE_RXHDR_L4CSUM_ERR | AXGE_RXHDR_L3CSUM_ERR)) == 0) {
 		if ((pkt_hdr & AXGE_RXHDR_L4_TYPE_MASK) ==
 		    AXGE_RXHDR_L4_TYPE_TCP ||
@@ -1012,7 +1011,7 @@ axge_rxeof(struct usb_ether *ue, struct usb_page_cache *pc,
 			m->m_pkthdr.csum_data = 0xffff;
 		}
 	}
-#endif
+
 	_IF_ENQUEUE(&ue->ue_rxq, m);
 }
 
