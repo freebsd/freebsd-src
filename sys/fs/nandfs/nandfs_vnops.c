@@ -1355,9 +1355,6 @@ nandfs_link(struct vop_link_args *ap)
 	struct nandfs_inode *inode = &node->nn_inode;
 	int error;
 
-	if (tdvp->v_mount != vp->v_mount)
-		return (EXDEV);
-
 	if (inode->i_links_count >= LINK_MAX)
 		return (EMLINK);
 
