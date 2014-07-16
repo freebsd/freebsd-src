@@ -28,6 +28,9 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <sys/time.h>
+#include <sys/wait.h>
+
 #include <err.h>
 #include <errno.h>
 #include <getopt.h>
@@ -36,8 +39,6 @@ __FBSDID("$FreeBSD$");
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/time.h>
-#include <sys/wait.h>
 #include <sysexits.h>
 #include <unistd.h>
 
@@ -90,7 +91,7 @@ parse_duration(const char *duration)
 	default:
 		errx(EX_USAGE, "invalid duration");
 	}
-	
+
 	if (ret < 0 || ret >= 100000000UL)
 		errx(EX_USAGE, "invalid duration");
 
@@ -114,7 +115,7 @@ parse_signal(const char *str)
 		if (strcasecmp(str, sys_signame[i]) == 0)
 			return (i);
 	}
-	
+
 	errx(EX_USAGE, "invalid signal");
 }
 
