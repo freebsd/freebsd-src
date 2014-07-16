@@ -62,6 +62,8 @@ static struct vt_driver vt_efifb_driver = {
 	.vd_blank = vt_fb_blank,
 	.vd_bitbltchr = vt_fb_bitbltchr,
 	.vd_maskbitbltchr = vt_fb_maskbitbltchr,
+	.vd_fb_ioctl = vt_fb_ioctl,
+	.vd_fb_mmap = vt_fb_mmap,
 	/* Better than VGA, but still generic driver. */
 	.vd_priority = VD_PRIORITY_GENERIC + 1,
 };
@@ -97,7 +99,7 @@ vt_efifb_probe(struct vt_device *vd)
 static int
 vt_efifb_init(struct vt_device *vd)
 {
-	int		depth, d, i, len;
+	int		depth, d;
 	struct fb_info	*info;
 	struct efi_fb	*efifb;
 	caddr_t		kmdp;
@@ -141,12 +143,6 @@ vt_efifb_init(struct vt_device *vd)
 	 * using pmap_mapdev_attr().
 	 */
 	info->fb_vbase = PHYS_TO_DMAP(efifb->fb_addr);
-
-	/* blank full size */
-	len = info->fb_size / 4;
-	for (i = 0; i < len; i++) {
-		((uint32_t *)info->fb_vbase)[i] = 0;
-	}
 
 	/* Get pixel storage size. */
 	info->fb_bpp = info->fb_stride / info->fb_width * 8;
