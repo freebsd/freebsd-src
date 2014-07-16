@@ -69,16 +69,11 @@ __FBSDID("$FreeBSD$");
 
 #define GUEST_NIO_PORT		0x488	/* guest upcalls via i/o port */
 
-#define	VMEXIT_CONTINUE		1	/* continue from next instruction */
-#define	VMEXIT_RESTART		2	/* restart current instruction */
-#define	VMEXIT_ABORT		3	/* abort the vm run loop */
-#define	VMEXIT_RESET		4	/* guest machine has reset */
-#define	VMEXIT_POWEROFF		5	/* guest machine has powered off */
-
 #define MB		(1024UL * 1024)
 #define GB		(1024UL * MB)
 
 typedef int (*vmexit_handler_t)(struct vmctx *, struct vm_exit *, int *vcpu);
+extern int vmexit_task_switch(struct vmctx *, struct vm_exit *, int *vcpu);
 
 char *vmname;
 
@@ -556,7 +551,8 @@ static vmexit_handler_t handler[VM_EXITCODE_MAX] = {
 	[VM_EXITCODE_MTRAP]  = vmexit_mtrap,
 	[VM_EXITCODE_INST_EMUL] = vmexit_inst_emul,
 	[VM_EXITCODE_SPINUP_AP] = vmexit_spinup_ap,
-	[VM_EXITCODE_SUSPENDED] = vmexit_suspend
+	[VM_EXITCODE_SUSPENDED] = vmexit_suspend,
+	[VM_EXITCODE_TASK_SWITCH] = vmexit_task_switch,
 };
 
 static void

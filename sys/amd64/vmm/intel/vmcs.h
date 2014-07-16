@@ -346,6 +346,9 @@ vmcs_write(uint32_t encoding, uint64_t val)
 #define	VMCS_INTR_T_HWINTR	(0 << 8)
 #define	VMCS_INTR_T_NMI		(2 << 8)
 #define	VMCS_INTR_T_HWEXCEPTION	(3 << 8)
+#define	VMCS_INTR_T_SWINTR	(4 << 8)
+#define	VMCS_INTR_T_PRIV_SWEXCEPTION (5 << 8)
+#define	VMCS_INTR_T_SWEXCEPTION	(6 << 8)
 #define	VMCS_INTR_DEL_ERRCODE	(1 << 11)
 
 /*
