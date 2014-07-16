@@ -18,6 +18,7 @@ dev/terasic/mtl/terasic_mtl_pixel.c	optional terasic_mtl
 dev/terasic/mtl/terasic_mtl_reg.c	optional terasic_mtl
 dev/terasic/mtl/terasic_mtl_syscons.c	optional terasic_mtl
 dev/terasic/mtl/terasic_mtl_text.c	optional terasic_mtl
+dev/terasic/mtl/terasic_mtl_touch.c	optional terasic_mtl
 mips/beri/beri_machdep.c		standard
 mips/beri/beri_pic.c			optional fdt
 mips/beri/beri_simplebus.c		optional fdt
