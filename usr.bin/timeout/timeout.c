@@ -102,11 +102,11 @@ static int
 parse_signal(const char *str)
 {
 	int sig, i;
-	const char *err;
+	const char *errstr;
 
-	sig = strtonum(str, 0, sys_nsig, &err);
+	sig = strtonum(str, 0, sys_nsig, &errstr);
 
-	if (err == NULL)
+	if (errstr == NULL)
 		return (sig);
 	if (strncasecmp(str, "SIG", 3) == 0)
 		str += 3;
@@ -166,7 +166,6 @@ main(int argc, char **argv)
 	int foreground, preserve;
 	int error, pstat, status;
 	int killsig = SIGTERM;
-	int killedwith;
 	pid_t pgid, pid, cpid;
 	double first_kill;
 	double second_kill;
@@ -186,6 +185,7 @@ main(int argc, char **argv)
 	foreground = preserve = 0;
 	second_kill = 0;
 	cpid = -1;
+	pgid = -1;
 
 	struct option longopts[] = {
 		{ "preserve-status", no_argument,       &preserve,    1 },
@@ -273,7 +273,6 @@ main(int argc, char **argv)
 	sigemptyset(&signals.sa_mask);
 
 	for (;;) {
-		killedwith = killsig;
 		sigemptyset(&signals.sa_mask);
 		sigsuspend(&signals.sa_mask);
 
