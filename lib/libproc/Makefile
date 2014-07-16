@@ -18,9 +18,11 @@ CFLAGS+=	-I${.CURDIR}
 .if ${MK_LIBCPLUSPLUS} != "no"
 LDADD+=		-lcxxrt
 DPADD+=		${LIBCXXRT}
-.else
+.elif ${MK_GNUCXX} != "no"
 LDADD+=		-lsupc++
 DPADD+=		${LIBSTDCPLUSPLUS}
+.else
+CFLAGS+=	-DNO_CXA_DEMANGLE
 .endif
 
 SHLIB_MAJOR=	2
