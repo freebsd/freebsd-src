@@ -28,20 +28,18 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <sys/types.h>
-#include <sys/time.h>
-#include <sys/wait.h>
+#include <err.h>
+#include <errno.h>
+#include <getopt.h>
 #include <signal.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/time.h>
+#include <sys/wait.h>
 #include <sysexits.h>
 #include <unistd.h>
-#include <getopt.h>
-#include <err.h>
-#include <spawn.h>
-#include <errno.h>
-#include <stdbool.h>
 
 #define EXIT_TIMEOUT 124
 
@@ -188,7 +186,7 @@ main(int argc, char **argv)
 	cpid = -1;
 	pgid = -1;
 
-	struct option longopts[] = {
+	const struct option longopts[] = {
 		{ "preserve-status", no_argument,       &preserve,    1 },
 		{ "foreground",      no_argument,       &foreground,  1 },
 		{ "kill-after",      required_argument, NULL,        'k'},
@@ -271,15 +269,13 @@ main(int argc, char **argv)
 	/* parent continues here */
 	set_interval(first_kill);
 
-	sigemptyset(&signals.sa_mask);
-
 	for (;;) {
 		sigemptyset(&signals.sa_mask);
 		sigsuspend(&signals.sa_mask);
 
 		if (sig_chld) {
 			sig_chld = 0;
-			while (((cpid = wait(&status)) < 0) && errno != EINTR)
+			while (((cpid = wait(&status)) < 0) && errno == EINTR)
 				continue;
 
 			if (cpid == pid) {
