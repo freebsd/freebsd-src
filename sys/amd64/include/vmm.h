@@ -75,6 +75,10 @@ enum vm_reg_name {
 	VM_REG_GUEST_GDTR,
 	VM_REG_GUEST_EFER,
 	VM_REG_GUEST_CR2,
+	VM_REG_GUEST_PDPTE0,
+	VM_REG_GUEST_PDPTE1,
+	VM_REG_GUEST_PDPTE2,
+	VM_REG_GUEST_PDPTE3,
 	VM_REG_LAST
 };
 
@@ -323,6 +327,7 @@ struct seg_desc {
 	uint32_t	access;
 };
 #define	SEG_DESC_TYPE(access)		((access) & 0x001f)
+#define	SEG_DESC_DPL(access)		(((access) >> 5) & 0x3)
 #define	SEG_DESC_PRESENT(access)	(((access) & 0x0080) ? 1 : 0)
 #define	SEG_DESC_DEF32(access)		(((access) & 0x4000) ? 1 : 0)
 #define	SEG_DESC_GRANULARITY(access)	(((access) & 0x8000) ? 1 : 0)
@@ -415,6 +420,7 @@ enum vm_exitcode {
 	VM_EXITCODE_IOAPIC_EOI,
 	VM_EXITCODE_SUSPENDED,
 	VM_EXITCODE_INOUT_STR,
+	VM_EXITCODE_TASK_SWITCH,
 	VM_EXITCODE_MAX
 };
 
@@ -437,6 +443,22 @@ struct vm_inout_str {
 	int		addrsize;
 	enum vm_reg_name seg_name;
 	struct seg_desc seg_desc;
+};
+
+enum task_switch_reason {
+	TSR_CALL,
+	TSR_IRET,
+	TSR_JMP,
+	TSR_IDT_GATE,	/* task gate in IDT */
+};
+
+struct vm_task_switch {
+	uint16_t	tsssel;		/* new TSS selector */
+	int		ext;		/* task switch due to external event */
+	uint32_t	errcode;
+	int		errcode_valid;	/* push 'errcode' on the new stack */
+	enum task_switch_reason reason;
+	struct vm_guest_paging paging;
 };
 
 struct vm_exit {
@@ -493,6 +515,7 @@ struct vm_exit {
 		struct {
 			enum vm_suspend_how how;
 		} suspended;
+		struct vm_task_switch task_switch;
 	} u;
 };
 
