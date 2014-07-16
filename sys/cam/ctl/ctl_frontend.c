@@ -234,6 +234,8 @@ ctl_port_deregister(struct ctl_port *port)
 	port->port_devid = NULL;
 	free(port->target_devid, M_CTL);
 	port->target_devid = NULL;
+	free(port->init_devid, M_CTL);
+	port->init_devid = NULL;
 	for (i = 0; i < port->max_initiators; i++)
 		free(port->wwpn_iid[i].name, M_CTL);
 	free(port->wwpn_iid, M_CTL);

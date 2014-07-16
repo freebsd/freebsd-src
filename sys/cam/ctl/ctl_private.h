@@ -373,6 +373,7 @@ struct ctl_devid {
  */
 #define NUM_TARGET_PORT_GROUPS	2
 
+struct tpc_list;
 struct ctl_lun {
 	struct mtx			lun_lock;
 	struct ctl_id			target;
@@ -403,6 +404,7 @@ struct ctl_lun {
 	uint8_t				res_type;
 	uint8_t				write_buffer[524288];
 	struct ctl_devid		*lun_devid;
+	TAILQ_HEAD(tpc_lists, tpc_list) tpc_lists;
 };
 
 typedef enum {
@@ -467,6 +469,8 @@ struct ctl_softc {
 extern const struct ctl_cmd_entry ctl_cmd_table[256];
 
 uint32_t ctl_get_initindex(struct ctl_nexus *nexus);
+uint32_t ctl_get_resindex(struct ctl_nexus *nexus);
+uint32_t ctl_port_idx(int port_num);
 int ctl_pool_create(struct ctl_softc *ctl_softc, ctl_pool_type pool_type,
 		    uint32_t total_ctl_io, struct ctl_io_pool **npool);
 void ctl_pool_free(struct ctl_io_pool *pool);
@@ -497,6 +501,17 @@ int ctl_report_supported_opcodes(struct ctl_scsiio *ctsio);
 int ctl_report_supported_tmf(struct ctl_scsiio *ctsio);
 int ctl_report_timestamp(struct ctl_scsiio *ctsio);
 int ctl_isc(struct ctl_scsiio *ctsio);
+
+void ctl_tpc_init(struct ctl_lun *lun);
+void ctl_tpc_shutdown(struct ctl_lun *lun);
+int ctl_inquiry_evpd_tpc(struct ctl_scsiio *ctsio, int alloc_len);
+int ctl_receive_copy_status_lid1(struct ctl_scsiio *ctsio);
+int ctl_receive_copy_failure_details(struct ctl_scsiio *ctsio);
+int ctl_receive_copy_status_lid4(struct ctl_scsiio *ctsio);
+int ctl_receive_copy_operating_parameters(struct ctl_scsiio *ctsio);
+int ctl_extended_copy_lid1(struct ctl_scsiio *ctsio);
+int ctl_extended_copy_lid4(struct ctl_scsiio *ctsio);
+int ctl_copy_operation_abort(struct ctl_scsiio *ctsio);
 
 #endif	/* _KERNEL */
 

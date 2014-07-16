@@ -2702,7 +2702,7 @@ cfiscsi_scsi_command_done(union ctl_io *io)
 	 * Do not return status for aborted commands.
 	 * There are exceptions, but none supported by CTL yet.
 	 */
-	if (io->io_hdr.status == CTL_CMD_ABORTED &&
+	if ((io->io_hdr.flags & CTL_FLAG_ABORT) &&
 	    (io->io_hdr.flags & CTL_FLAG_ABORT_STATUS) == 0) {
 		ctl_free_io(io);
 		icl_pdu_free(request);
