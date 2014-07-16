@@ -2020,6 +2020,26 @@ vmx_handle_apic_access(struct vmx *vmx, int vcpuid, struct vm_exit *vmexit)
 	return (UNHANDLED);
 }
 
+static enum task_switch_reason
+vmx_task_switch_reason(uint64_t qual)
+{
+	int reason;
+
+	reason = (qual >> 30) & 0x3;
+	switch (reason) {
+	case 0:
+		return (TSR_CALL);
+	case 1:
+		return (TSR_IRET);
+	case 2:
+		return (TSR_JMP);
+	case 3:
+		return (TSR_IDT_GATE);
+	default:
+		panic("%s: invalid reason %d", __func__, reason);
+	}
+}
+
 static int
 vmx_exit_process(struct vmx *vmx, int vcpu, struct vm_exit *vmexit)
 {
@@ -2027,8 +2047,9 @@ vmx_exit_process(struct vmx *vmx, int vcpu, struct vm_exit *vmexit)
 	struct vmxctx *vmxctx;
 	struct vlapic *vlapic;
 	struct vm_inout_str *vis;
+	struct vm_task_switch *ts;
 	uint32_t eax, ecx, edx, idtvec_info, idtvec_err, intr_info, inst_info;
-	uint32_t reason;
+	uint32_t intr_type, reason;
 	uint64_t qual, gpa;
 	bool retu;
 
@@ -2045,9 +2066,13 @@ vmx_exit_process(struct vmx *vmx, int vcpu, struct vm_exit *vmexit)
 	vmm_stat_incr(vmx->vm, vcpu, VMEXIT_COUNT, 1);
 
 	/*
-	 * VM exits that could be triggered during event injection on the
-	 * previous VM entry need to be handled specially by re-injecting
-	 * the event.
+	 * VM exits that can be triggered during event delivery need to
+	 * be handled specially by re-injecting the event if the IDT
+	 * vectoring information field's valid bit is set.
+	 *
+	 * If the VM-exit is due to a task gate in the IDT then we don't
+	 * reinject the event because emulating the task switch also
+	 * completes the event delivery.
 	 *
 	 * See "Information for VM Exits During Event Delivery" in Intel SDM
 	 * for details.
@@ -2059,7 +2084,10 @@ vmx_exit_process(struct vmx *vmx, int vcpu, struct vm_exit *vmexit)
 	case EXIT_REASON_TASK_SWITCH:
 	case EXIT_REASON_EXCEPTION:
 		idtvec_info = vmcs_idt_vectoring_info();
-		if (idtvec_info & VMCS_IDT_VEC_VALID) {
+		VCPU_CTR2(vmx->vm, vcpu, "vm exit %s: idtvec_info 0x%08x",
+		    exit_reason_to_str(reason), idtvec_info);	
+		if ((idtvec_info & VMCS_IDT_VEC_VALID) &&
+		    (reason != EXIT_REASON_TASK_SWITCH)) {
 			idtvec_info &= ~(1 << 12); /* clear undefined bit */
 			vmcs_write(VMCS_ENTRY_INTR_INFO, idtvec_info);
 			if (idtvec_info & VMCS_IDT_VEC_ERRCODE_VALID) {
@@ -2079,12 +2107,56 @@ vmx_exit_process(struct vmx *vmx, int vcpu, struct vm_exit *vmexit)
 			}
 			vmcs_write(VMCS_ENTRY_INST_LENGTH, vmexit->inst_length);
 		}
+		break;
 	default:
 		idtvec_info = 0;
 		break;
 	}
 
 	switch (reason) {
+	case EXIT_REASON_TASK_SWITCH:
+		ts = &vmexit->u.task_switch;
+		ts->tsssel = qual & 0xffff;
+		ts->reason = vmx_task_switch_reason(qual);
+		ts->ext = 0;
+		ts->errcode_valid = 0;
+		vmx_paging_info(&ts->paging);
+		/*
+		 * If the task switch was due to a CALL, JMP, IRET, software
+		 * interrupt (INT n) or software exception (INT3, INTO),
+		 * then the saved %rip references the instruction that caused
+		 * the task switch. The instruction length field in the VMCS
+		 * is valid in this case.
+		 *
+		 * In all other cases (e.g., NMI, hardware exception) the
+		 * saved %rip is one that would have been saved in the old TSS
+		 * had the task switch completed normally so the instruction
+		 * length field is not needed in this case and is explicitly
+		 * set to 0.
+		 */
+		if (ts->reason == TSR_IDT_GATE) {
+			KASSERT(idtvec_info & VMCS_IDT_VEC_VALID,
+			    ("invalid idtvec_info %x for IDT task switch",
+			    idtvec_info));
+			intr_type = idtvec_info & VMCS_INTR_T_MASK;
+			if (intr_type != VMCS_INTR_T_SWINTR &&
+			    intr_type != VMCS_INTR_T_SWEXCEPTION &&
+			    intr_type != VMCS_INTR_T_PRIV_SWEXCEPTION) {
+				/* Task switch triggered by external event */
+				ts->ext = 1;
+				vmexit->inst_length = 0;
+				if (idtvec_info & VMCS_IDT_VEC_ERRCODE_VALID) {
+					ts->errcode_valid = 1;
+					ts->errcode = vmcs_idt_vectoring_err();
+				}
+			}
+		}
+		vmexit->exitcode = VM_EXITCODE_TASK_SWITCH;
+		VCPU_CTR4(vmx->vm, vcpu, "task switch reason %d, tss 0x%04x, "
+		    "%s errcode 0x%016lx", ts->reason, ts->tsssel,
+		    ts->ext ? "external" : "internal",
+		    ((uint64_t)ts->errcode << 32) | ts->errcode_valid);
+		break;
 	case EXIT_REASON_CR_ACCESS:
 		vmm_stat_incr(vmx->vm, vcpu, VMEXIT_CR_ACCESS, 1);
 		switch (qual & 0xf) {
