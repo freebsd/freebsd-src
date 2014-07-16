@@ -109,6 +109,20 @@
 			soft-interrupt-sources = <64>;
 		};
 
+		beripic1: beripic@7f808000 {
+			compatible = "sri-cambridge,beri-pic";
+			interrupt-controller;
+			#address-cells = <0>;
+			#interrupt-cells = <1>;
+			reg = <0x7f808000 0x400
+			       0x7f80b000 0x10
+			       0x7f80b080 0x10
+			       0x7f80b100 0x10>;
+			interrupts = <0 1 2 3 4>;
+			hard-interrupt-sources = <64>;
+			soft-interrupt-sources = <64>;
+		};
+
 		serial@7f002100 {
 			compatible = "ns16550";
 			reg = <0x7f002100 0x20>;
