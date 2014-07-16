@@ -53,6 +53,7 @@ static sig_atomic_t sig_ign = 0;
 static void
 usage(void)
 {
+
 	fprintf(stderr, "Usage: %s [--signal sig | -s sig] [--preserve-status]"
 	    " [--kill-after time | -k time] [--foreground] <duration> <command>"
 	    " <arg ...>\n", getprogname());
