@@ -38,6 +38,8 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20140716: Remove an incorrectly named man page
+OLD_FILES+=usr/share/man/man9/pmap_ts_modified.9.gz
 # 20140712: Removal of bsd.dtrace.mk
 OLD_FILES+=usr/share/mk/bsd.dtrace.mk
 # 20140705: turn libreadline into an internal lib
