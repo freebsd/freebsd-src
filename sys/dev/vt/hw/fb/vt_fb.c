@@ -185,17 +185,17 @@ vt_fb_blank(struct vt_device *vd, term_color_t color)
 
 	switch (FBTYPE_GET_BYTESPP(info)) {
 	case 1:
-		for (h = 0; h < info->fb_stride; h++)
+		for (h = 0; h < info->fb_height; h++)
 			for (o = 0; o < info->fb_stride; o++)
 				info->wr1(info, h*info->fb_stride + o, c);
 		break;
 	case 2:
-		for (h = 0; h < info->fb_stride; h++)
+		for (h = 0; h < info->fb_height; h++)
 			for (o = 0; o < info->fb_stride; o += 2)
 				info->wr2(info, h*info->fb_stride + o, c);
 		break;
 	case 3:
-		for (h = 0; h < info->fb_stride; h++)
+		for (h = 0; h < info->fb_height; h++)
 			for (o = 0; o < info->fb_stride; o += 3) {
 				info->wr1(info, h*info->fb_stride + o,
 				    (c >> 16) & 0xff);
@@ -206,9 +206,9 @@ vt_fb_blank(struct vt_device *vd, term_color_t color)
 			}
 		break;
 	case 4:
-		for (h = 0; h < info->fb_stride; h++)
+		for (h = 0; h < info->fb_height; h++)
 			for (o = 0; o < info->fb_stride; o += 4)
-				info->wr4(info, o, c);
+				info->wr4(info, h*info->fb_stride + o, c);
 		break;
 	default:
 		/* panic? */
