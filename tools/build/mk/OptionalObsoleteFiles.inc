@@ -1983,13 +1983,6 @@ OLD_FILES+=usr/bin/infokey
 OLD_FILES+=usr/bin/install-info
 OLD_FILES+=usr/bin/makeinfo
 OLD_FILES+=usr/bin/texindex
-OLD_FILES+=share/man/info.1.gz
-OLD_FILES+=share/man/infokey.1.gz
-OLD_FILES+=share/man/install-info.1.gz
-OLD_FILES+=share/man/makeinfo.1.gz
-OLD_FILES+=share/man/texindex.1.gz
-OLD_FILES+=share/man/texinfo.5.gz
-OLD_FILES+=share/man/info.5.gz
 OLD_FILES+=usr/share/info/am-utils.info.gz
 OLD_FILES+=usr/share/info/as-utils.info.gz
 OLD_FILES+=usr/share/info/binutils.info.gz
@@ -2009,6 +2002,13 @@ OLD_FILES+=usr/share/info/regex.info.gz
 OLD_FILES+=usr/share/info/rluserman.info.gz
 OLD_FILES+=usr/share/info/stabs.info.gz
 OLD_FILES+=usr/share/info/texinfo.info.gz
+OLD_FILES+=usr/share/man/man1/info.1.gz
+OLD_FILES+=usr/share/man/man1/infokey.1.gz
+OLD_FILES+=usr/share/man/man1/install-info.1.gz
+OLD_FILES+=usr/share/man/man1/makeinfo.1.gz
+OLD_FILES+=usr/share/man/man1/texindex.1.gz
+OLD_FILES+=usr/share/man/man5/info.5.gz
+OLD_FILES+=usr/share/man/man5/texinfo.5.gz
 .endif
 
 .if ${MK_IPFILTER} == no
