@@ -70,7 +70,7 @@
 /*
  * Maximum number of ports registered at one time.
  */
-#define	CTL_MAX_PORTS		32
+#define	CTL_MAX_PORTS		128
 
 /*
  * Maximum number of initiators we support.
