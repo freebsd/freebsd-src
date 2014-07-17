@@ -2348,7 +2348,7 @@ unp_scan(struct mbuf *m0, void (*op)(struct filedescent **, int))
 				}
 			}
 		}
-		m0 = m0->m_act;
+		m0 = m0->m_nextpkt;
 	}
 }
 
