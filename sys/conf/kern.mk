@@ -159,3 +159,10 @@ CFLAGS+=	-ffreestanding
     ${MACHINE_CPUARCH} != "arm" && ${MACHINE_CPUARCH} != "mips"
 CFLAGS+=	-fstack-protector
 .endif
+
+#
+# Add -gdwarf-2 when compiling -g
+#
+.if ${COMPILER_TYPE} == "clang" && ${CFLAGS:M-g} != "" && ${CFLAGS:M-gdwarf} == ""
+CFLAGS+=	-gdwarf-2
+.endif
