@@ -407,7 +407,7 @@ struct ctl_pr_info {
 	ctl_pr_action        action;
 	uint8_t              sa_res_key[8];
 	uint8_t              res_type;
-	uint16_t             residx;
+	uint32_t             residx;
 };
 
 struct ctl_ha_msg_hdr {

@@ -89,7 +89,7 @@ struct tpc_io {
 struct tpc_list {
 	uint8_t			 service_action;
 	int			 init_port;
-	uint16_t		 init_idx;
+	uint32_t		 init_idx;
 	uint32_t		 list_id;
 	uint8_t			 flags;
 	uint8_t			*params;
