@@ -13,8 +13,8 @@ CFLAGS+= -I${.CURDIR}/../common_source
 
 WARNS?=	0
 
-DPADD=	${LIBLPR} ${LIBEDIT} ${LIBTERMCAP}
-LDADD=	${LIBLPR} -ledit -ltermcap
+DPADD=	${LIBLPR} ${LIBEDIT} ${LIBTERMCAPW}
+LDADD=	${LIBLPR} -ledit -ltermcapw
 
 NO_PIE=	yes
 
