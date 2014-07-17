@@ -16,6 +16,13 @@ from older versions of FreeBSD, try WITHOUT_CLANG to bootstrap to the tip of
 stable/10, and then rebuild without this option. The bootstrap process from
 older version of current is a bit fragile.
 
+20140717:
+	It is no longer necessary to include the dwarf version in your DEBUG
+	options in your kernel config file. The bug that required it to be
+	placed in the config file has bene fixed. DEBUG should now just
+	contain -g. The build system will automatically update things
+	to do the right thing.
+
 20140715:
 	Several ABI breaking changes were merged to CTL and new iSCSI code.
 	All CTL and iSCSI-related tools, such as ctladm, ctld, iscsid and
