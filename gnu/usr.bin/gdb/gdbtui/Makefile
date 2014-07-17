@@ -12,8 +12,8 @@ GDBLIBS= ${OBJ_GDB}/libgdb/libgdb.a
 # global symbols visible.
 LDFLAGS+= -Wl,-E
 
-DPADD=	${GDBLIBS} ${BULIBS} ${LIBM} ${LIBREADLINE} ${LIBTERMCAP} ${LIBGNUREGEX}
-LDADD=	${GDBLIBS} ${BULIBS} -lm ${LIBREADLINE} -ltermcap -lgnuregex
+DPADD=	${GDBLIBS} ${BULIBS} ${LIBM} ${LIBREADLINE} ${LIBTERMCAPW} ${LIBGNUREGEX}
+LDADD=	${GDBLIBS} ${BULIBS} -lm ${LIBREADLINE} -ltermcapw -lgnuregex
 
 NO_PIE=	yes
 

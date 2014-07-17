@@ -23,8 +23,8 @@ WARNS?=		2
 
 LIBTELNET=	${.OBJDIR}/../../lib/libtelnet/libtelnet.a
 
-DPADD=		${LIBTERMCAP} ${LIBTELNET}
-LDADD=		-ltermcap ${LIBTELNET}
+DPADD=		${LIBTERMCAPW} ${LIBTELNET}
+LDADD=		-ltermcapw ${LIBTELNET}
 
 .if !defined(RELEASE_CRUNCH)
 CFLAGS+=	-DIPSEC

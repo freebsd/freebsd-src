@@ -15,7 +15,7 @@ CFLAGS+= -DCONFIG_CTRL_IFACE_UNIX
 CFLAGS+= -D_DIRENT_HAVE_D_TYPE
 
 CFLAGS+= -DCONFIG_READLINE -I${DESTDIR}/${INCLUDEDIR}/edit
-LDADD+= -ledit -ltermcap -lutil
-DPADD+= ${LIBEDIT} ${LIBTERMCAP} ${LIBUTIL}
+LDADD+= -ledit -ltermcapw -lutil
+DPADD+= ${LIBEDIT} ${LIBTERMCAPW} ${LIBUTIL}
 
 .include <bsd.prog.mk>

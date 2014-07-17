@@ -36,14 +36,9 @@ CFLAGS+=-I${.CURDIR} -I${SRCDIR} -I${SRCDIR}/regex
 DPADD=		${LIBUTIL}
 LDADD=		-lutil
 
-.if defined(RESCUE) || defined(RELEASE_CRUNCH)
-DPADD+=		${LIBNCURSES}
-LDADD+=		-lncurses
-.else
 CFLAGS+=	-DUSE_WIDECHAR
 DPADD+=		${LIBNCURSESW}
 LDADD+=		-lncursesw
-.endif
 
 .if ${MK_ICONV} == "yes" && !defined(RESCUE) && !defined(RELEASE_CRUNCH)
 CFLAGS+=	-DUSE_ICONV
