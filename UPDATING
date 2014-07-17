@@ -11,6 +11,13 @@ handbook:
 Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running portupgrade.
 
+20140717:
+	It is no longer necessary to include the dwarf version in your DEBUG
+	options in your kernel config file. The bug that required it to be
+	placed in the config file has bene fixed. DEBUG should now just
+	contain -g. The build system will automatically update things
+	to do the right thing.
+
 20140716:
 	9.3-RELEASE.
 
