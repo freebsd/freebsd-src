@@ -142,7 +142,7 @@ checkfilesys(const char *fname)
 		goto out;
 
 	/* now write the FATs */
-	if (mod & FSFATMOD) {
+	if (mod & (FSFATMOD|FSFIXFAT)) {
 		if (ask(1, "Update FATs")) {
 			mod |= writefat(dosfs, &boot, fat, mod & FSFIXFAT);
 			if (mod & FSFATAL)
