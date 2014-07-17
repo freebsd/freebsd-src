@@ -38,6 +38,8 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20140717: Remove an obsolete man page
+OLD_FILES+=usr/share/man/man9/pmap_clear_reference.9.gz
 # 20140716: Remove an incorrectly named man page
 OLD_FILES+=usr/share/man/man9/pmap_ts_modified.9.gz
 # 20140712: Removal of bsd.dtrace.mk
