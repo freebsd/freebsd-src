@@ -29,7 +29,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 23, 2013
+.Dd July 17, 2014
 .Dt TIMEOUT 9
 .Os
 .Sh NAME
@@ -371,7 +371,6 @@ Specifies relative event time precision as binary logarithm of time interval
 divided by acceptable time deviation: 1 -- 1/2, 2 -- 1/4, etc.
 Smaller value allows to aggregate more events in one timer interrupt to
 reduce processing overhead and power consumption.
-.El
 .It Dv C_HARDCLOCK
 Align the timeouts, if possible, to 
 .Fn hardclock  
