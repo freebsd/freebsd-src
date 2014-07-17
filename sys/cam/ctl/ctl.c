@@ -8208,8 +8208,7 @@ ctl_pro_preempt(struct ctl_softc *softc, struct ctl_lun *lun, uint64_t res_key,
 			 && lun->res_type != SPR_TYPE_EX_AC_AR)
 				lun->pr_res_idx = residx;
 			else
-				lun->pr_res_idx =
-					CTL_PR_ALL_REGISTRANTS;
+				lun->pr_res_idx = CTL_PR_ALL_REGISTRANTS;
 
 			persis_io.hdr.nexus = ctsio->io_hdr.nexus;
 			persis_io.hdr.msg_type = CTL_MSG_PERS_ACTION;
