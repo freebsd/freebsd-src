@@ -256,8 +256,8 @@
             tr
             ..
             truncate
-	    ..
-	    units
+            ..
+            units
             ..
             uudecode
             ..
