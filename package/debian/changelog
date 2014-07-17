@@ -1,3 +1,15 @@
+byacc (20140715) unstable; urgency=low
+
+  * maintenance updates
+
+ -- Thomas E. Dickey <dickey@invisible-island.net>  Tue, 15 Jul 2014 15:36:54 -0400
+
+byacc (20140527) unstable; urgency=low
+
+  * remove obsolete option from usage message
+
+ -- Thomas E. Dickey <dickey@invisible-island.net>  Tue, 27 May 2014 22:01:55 -0400
+
 byacc (20140422) unstable; urgency=low
 
   * maintenance updates

@@ -4,7 +4,6 @@ Options:
   -b file_prefix        set filename prefix (default "y.")
   -B                    create a backtracking parser
   -d                    write definitions (.tab.h)
-  -D                    enable value stack memory reclamation
   -i                    write interface (y.tab.i)
   -g                    write a graphical description
   -l                    suppress #line directives
