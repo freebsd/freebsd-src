@@ -87,16 +87,14 @@ SYSCTL_PROC(_kern_smp, OID_AUTO, active, CTLFLAG_RD | CTLTYPE_INT, NULL, 0,
 int smp_disabled = 0;	/* has smp been disabled? */
 SYSCTL_INT(_kern_smp, OID_AUTO, disabled, CTLFLAG_RDTUN|CTLFLAG_CAPRD,
     &smp_disabled, 0, "SMP has been disabled from the loader");
-TUNABLE_INT("kern.smp.disabled", &smp_disabled);
 
 int smp_cpus = 1;	/* how many cpu's running */
 SYSCTL_INT(_kern_smp, OID_AUTO, cpus, CTLFLAG_RD|CTLFLAG_CAPRD, &smp_cpus, 0,
     "Number of CPUs online");
 
 int smp_topology = 0;	/* Which topology we're using. */
-SYSCTL_INT(_kern_smp, OID_AUTO, topology, CTLFLAG_RD, &smp_topology, 0,
+SYSCTL_INT(_kern_smp, OID_AUTO, topology, CTLFLAG_RDTUN, &smp_topology, 0,
     "Topology override setting; 0 is default provided by hardware.");
-TUNABLE_INT("kern.smp.topology", &smp_topology);
 
 #ifdef SMP
 /* Enable forwarding of a signal to a process running on a different CPU */

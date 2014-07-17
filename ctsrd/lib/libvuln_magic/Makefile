@@ -2,7 +2,7 @@
 # Copyright (c) David E. O'Brien, 2000-2004
 
 CONTRDIR=	${.CURDIR}/../../../contrib/file
-.PATH: ${CONTRDIR}
+.PATH: ${CONTRDIR}/src
 
 LIB=	vuln_magic
 SHLIB_MAJOR=	4
@@ -16,7 +16,7 @@ SRCS=	apprentice.c apptype.c ascmagic.c cdf.c cdf_time.c compress.c \
 MAGICPATH?=	/usr/share/misc
 
 CFLAGS+= -DMAGIC='"${MAGICPATH}/magic"' -DHAVE_CONFIG_H
-CFLAGS+= -I${.CURDIR} -I${CONTRDIR} -DBADMAGIC
+CFLAGS+= -I${.CURDIR} -I${CONTRDIR}/src -DBADMAGIC
 
 WARNS?=		3
 

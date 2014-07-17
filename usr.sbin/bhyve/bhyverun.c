@@ -69,16 +69,11 @@ __FBSDID("$FreeBSD$");
 
 #define GUEST_NIO_PORT		0x488	/* guest upcalls via i/o port */
 
-#define	VMEXIT_CONTINUE		1	/* continue from next instruction */
-#define	VMEXIT_RESTART		2	/* restart current instruction */
-#define	VMEXIT_ABORT		3	/* abort the vm run loop */
-#define	VMEXIT_RESET		4	/* guest machine has reset */
-#define	VMEXIT_POWEROFF		5	/* guest machine has powered off */
-
 #define MB		(1024UL * 1024)
 #define GB		(1024UL * MB)
 
 typedef int (*vmexit_handler_t)(struct vmctx *, struct vm_exit *, int *vcpu);
+extern int vmexit_task_switch(struct vmctx *, struct vm_exit *, int *vcpu);
 
 char *vmname;
 
@@ -129,26 +124,26 @@ usage(int code)
 {
 
         fprintf(stderr,
-                "Usage: %s [-aehwAHIPW] [-g <gdb port>] [-s <pci>] [-c vcpus]\n"
-		"       %*s [-p vcpu:hostcpu] [-m mem] [-l <lpc>] <vm>\n"
+                "Usage: %s [-abehwxACHPWY] [-c vcpus] [-g <gdb port>] [-l <lpc>]\n"
+		"       %*s [-m mem] [-p vcpu:hostcpu] [-s <pci>] [-U uuid] <vm>\n"
 		"       -a: local apic is in xAPIC mode (deprecated)\n"
-		"       -A: create an ACPI table\n"
-		"       -g: gdb port\n"
+		"       -A: create ACPI tables\n"
 		"       -c: # cpus (default 1)\n"
 		"       -C: include guest memory in core file\n"
-		"       -p: pin 'vcpu' to 'hostcpu'\n"
-		"       -H: vmexit from the guest on hlt\n"
-		"       -P: vmexit from the guest on pause\n"
-		"       -W: force virtio to use single-vector MSI\n"
 		"       -e: exit on unhandled I/O access\n"
+		"       -g: gdb port\n"
 		"       -h: help\n"
-		"       -s: <slot,driver,configinfo> PCI slot config\n"
+		"       -H: vmexit from the guest on hlt\n"
 		"       -l: LPC device configuration\n"
 		"       -m: memory size in MB\n"
+		"       -p: pin 'vcpu' to 'hostcpu'\n"
+		"       -P: vmexit from the guest on pause\n"
+		"       -s: <slot,driver,configinfo> PCI slot config\n"
+		"       -U: uuid\n"
 		"       -w: ignore unimplemented MSRs\n"
+		"       -W: force virtio to use single-vector MSI\n"
 		"       -x: local apic is in x2APIC mode\n"
-		"       -Y: disable MPtable generation\n"
-		"       -U: uuid\n",
+		"       -Y: disable MPtable generation\n",
 		progname, (int)strlen(progname), "");
 
 	exit(code);
@@ -399,6 +394,16 @@ vmexit_spinup_ap(struct vmctx *ctx, struct vm_exit *vme, int *pvcpu)
 	return (retval);
 }
 
+#define	DEBUG_EPT_MISCONFIG
+#ifdef DEBUG_EPT_MISCONFIG
+#define	EXIT_REASON_EPT_MISCONFIG	49
+#define	VMCS_GUEST_PHYSICAL_ADDRESS	0x00002400
+#define	VMCS_IDENT(x)			((x) | 0x80000000)
+
+static uint64_t ept_misconfig_gpa, ept_misconfig_pte[4];
+static int ept_misconfig_ptenum;
+#endif
+
 static int
 vmexit_vmx(struct vmctx *ctx, struct vm_exit *vmexit, int *pvcpu)
 {
@@ -413,7 +418,21 @@ vmexit_vmx(struct vmctx *ctx, struct vm_exit *vmexit, int *pvcpu)
 	    vmexit->u.vmx.exit_qualification);
 	fprintf(stderr, "\tinst_type\t\t%d\n", vmexit->u.vmx.inst_type);
 	fprintf(stderr, "\tinst_error\t\t%d\n", vmexit->u.vmx.inst_error);
-
+#ifdef DEBUG_EPT_MISCONFIG
+	if (vmexit->u.vmx.exit_reason == EXIT_REASON_EPT_MISCONFIG) {
+		vm_get_register(ctx, *pvcpu,
+		    VMCS_IDENT(VMCS_GUEST_PHYSICAL_ADDRESS),
+		    &ept_misconfig_gpa);
+		vm_get_gpa_pmap(ctx, ept_misconfig_gpa, ept_misconfig_pte,
+		    &ept_misconfig_ptenum);
+		fprintf(stderr, "\tEPT misconfiguration:\n");
+		fprintf(stderr, "\t\tGPA: %#lx\n", ept_misconfig_gpa);
+		fprintf(stderr, "\t\tPTE(%d): %#lx %#lx %#lx %#lx\n",
+		    ept_misconfig_ptenum, ept_misconfig_pte[0],
+		    ept_misconfig_pte[1], ept_misconfig_pte[2],
+		    ept_misconfig_pte[3]);
+	}
+#endif	/* DEBUG_EPT_MISCONFIG */
 	return (VMEXIT_ABORT);
 }
 
@@ -532,7 +551,8 @@ static vmexit_handler_t handler[VM_EXITCODE_MAX] = {
 	[VM_EXITCODE_MTRAP]  = vmexit_mtrap,
 	[VM_EXITCODE_INST_EMUL] = vmexit_inst_emul,
 	[VM_EXITCODE_SPINUP_AP] = vmexit_spinup_ap,
-	[VM_EXITCODE_SUSPENDED] = vmexit_suspend
+	[VM_EXITCODE_SUSPENDED] = vmexit_suspend,
+	[VM_EXITCODE_TASK_SWITCH] = vmexit_task_switch,
 };
 
 static void

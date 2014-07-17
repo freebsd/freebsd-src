@@ -105,7 +105,8 @@ ATF_TESTS_SH_SED_${_T}?= # empty
 ATF_TESTS_SH_SRC_${_T}?= ${_T}.sh
 ${_T}: ${ATF_TESTS_SH_SRC_${_T}}
 	echo '#! /usr/libexec/atf-sh' > ${.TARGET}.tmp
-	cat ${.ALLSRC} | sed ${ATF_TESTS_SH_SED_${_T}} >>${.TARGET}.tmp
+	cat ${.ALLSRC:N*Makefile*} \
+	    | sed ${ATF_TESTS_SH_SED_${_T}} >>${.TARGET}.tmp
 	chmod +x ${.TARGET}.tmp
 	mv ${.TARGET}.tmp ${.TARGET}
 .endfor

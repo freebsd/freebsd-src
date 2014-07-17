@@ -112,6 +112,7 @@ MAN=	accept_filter.9 \
 	fail.9 \
 	fetch.9 \
 	firmware.9 \
+	fpu_kern.9 \
 	g_access.9 \
 	g_attach.9 \
 	g_bio.9 \
@@ -670,6 +671,12 @@ MLINKS+=fetch.9 fubyte.9 \
 	fetch.9 fuword16.9 \
 	fetch.9 fuword32.9 \
 	fetch.9 fuword64.9
+MLINKS+=fpu_kern.9 fpu_kern_alloc_ctx.9 \
+	fpu_kern.9 fpu_kern_free_ctx.9 \
+	fpu_kern.9 fpu_kern_enter.9 \
+	fpu_kern.9 fpu_kern_leave.9 \
+	fpu_kern.9 fpu_kern_thread.9 \
+	fpu_kern.9 is_fpu_kern_thread.9
 MLINKS+=g_attach.9 g_detach.9
 MLINKS+=g_bio.9 g_clone_bio.9 \
 	g_bio.9 g_destroy_bio.9 \
@@ -918,10 +925,12 @@ MLINKS+=\
 	mbuf.9 m_move_pkthdr.9 \
 	mbuf.9 M_PREPEND.9 \
 	mbuf.9 m_prepend.9 \
+	mbuf.9 m_pulldown.9 \
 	mbuf.9 m_pullup.9 \
 	mbuf.9 m_split.9 \
 	mbuf.9 mtod.9 \
 	mbuf.9 M_TRAILINGSPACE.9 \
+	mbuf.9 m_unshare.9 \
 	mbuf.9 M_WRITABLE.9
 MLINKS+=\
 	mbuf_tags.9 m_tag_alloc.9 \
@@ -1039,7 +1048,7 @@ MLINKS+=pmap_clear_modify.9 pmap_clear_reference.9
 MLINKS+=pmap_copy.9 pmap_copy_page.9
 MLINKS+=pmap_extract.9 pmap_extract_and_hold.9
 MLINKS+=pmap_init.9 pmap_init2.9
-MLINKS+=pmap_is_modified.9 pmap_ts_modified.9
+MLINKS+=pmap_is_modified.9 pmap_ts_referenced.9
 MLINKS+=pmap_page_protect.9 pmap_protect.9
 MLINKS+=pmap_pinit.9 pmap_pinit0.9 \
 	pmap_pinit.9 pmap_pinit2.9

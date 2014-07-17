@@ -96,23 +96,21 @@ static sbintime_t	statperiod;	/* statclock() events period. */
 static sbintime_t	profperiod;	/* profclock() events period. */
 static sbintime_t	nexttick;	/* Next global timer tick time. */
 static u_int		busy = 1;	/* Reconfiguration is in progress. */
-static int		profiling = 0;	/* Profiling events enabled. */
+static int		profiling;	/* Profiling events enabled. */
 
 static char		timername[32];	/* Wanted timer. */
 TUNABLE_STR("kern.eventtimer.timer", timername, sizeof(timername));
 
-static int		singlemul = 0;	/* Multiplier for periodic mode. */
-TUNABLE_INT("kern.eventtimer.singlemul", &singlemul);
-SYSCTL_INT(_kern_eventtimer, OID_AUTO, singlemul, CTLFLAG_RW, &singlemul,
+static int		singlemul;	/* Multiplier for periodic mode. */
+SYSCTL_INT(_kern_eventtimer, OID_AUTO, singlemul, CTLFLAG_RWTUN, &singlemul,
     0, "Multiplier for periodic mode");
 
-static u_int		idletick = 0;	/* Run periodic events when idle. */
-TUNABLE_INT("kern.eventtimer.idletick", &idletick);
-SYSCTL_UINT(_kern_eventtimer, OID_AUTO, idletick, CTLFLAG_RW, &idletick,
+static u_int		idletick;	/* Run periodic events when idle. */
+SYSCTL_UINT(_kern_eventtimer, OID_AUTO, idletick, CTLFLAG_RWTUN, &idletick,
     0, "Run periodic events when idle");
 
-static int		periodic = 0;	/* Periodic or one-shot mode. */
-static int		want_periodic = 0; /* What mode to prefer. */
+static int		periodic;	/* Periodic or one-shot mode. */
+static int		want_periodic;	/* What mode to prefer. */
 TUNABLE_INT("kern.eventtimer.periodic", &want_periodic);
 
 struct pcpu_state {

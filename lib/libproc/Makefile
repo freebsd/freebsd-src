@@ -15,7 +15,9 @@ INCS=	libproc.h
 
 CFLAGS+=	-I${.CURDIR}
 
-.if ${MK_LIBCPLUSPLUS} != "no"
+.if ${MK_CXX} == "no"
+CFLAGS+=	-DNO_CXA_DEMANGLE
+.elif ${MK_LIBCPLUSPLUS} != "no"
 LDADD+=		-lcxxrt
 DPADD+=		${LIBCXXRT}
 .else

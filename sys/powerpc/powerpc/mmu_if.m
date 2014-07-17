@@ -628,6 +628,22 @@ METHOD void remove_pages {
 
 
 /**
+ * @brief Clear the wired attribute from the mappings for the specified range
+ * of addresses in the given pmap.
+ *
+ * @param _pmap		physical map
+ * @param _start	virtual range start
+ * @param _end		virtual range end
+ */
+METHOD void unwire {
+	mmu_t		_mmu;
+	pmap_t		_pmap;
+	vm_offset_t	_start;
+	vm_offset_t	_end;
+};
+
+
+/**
  * @brief Zero a physical page. It is not assumed that the page is mapped,
  * so a temporary (or direct) mapping may need to be used.
  *

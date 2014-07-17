@@ -199,7 +199,6 @@ SYSCTL_NODE(_hw, OID_AUTO, vmm, CTLFLAG_RW, NULL, NULL);
  * interrupts disabled.
  */
 static int halt_detection_enabled = 1;
-TUNABLE_INT("hw.vmm.halt_detection", &halt_detection_enabled);
 SYSCTL_INT(_hw_vmm, OID_AUTO, halt_detection, CTLFLAG_RDTUN,
     &halt_detection_enabled, 0,
     "Halt VM if all vcpus execute HLT with interrupts disabled");
@@ -1191,15 +1190,18 @@ vm_handle_inst_emul(struct vm *vm, int vcpuid, bool *retu)
 	struct vm_guest_paging *paging;
 	mem_region_read_t mread;
 	mem_region_write_t mwrite;
-	int error;
+	enum vm_cpu_mode cpu_mode;
+	int cs_d, error;
 
 	vcpu = &vm->vcpu[vcpuid];
 	vme = &vcpu->exitinfo;
 
 	gla = vme->u.inst_emul.gla;
 	gpa = vme->u.inst_emul.gpa;
+	cs_d = vme->u.inst_emul.cs_d;
 	vie = &vme->u.inst_emul.vie;
 	paging = &vme->u.inst_emul.paging;
+	cpu_mode = paging->cpu_mode;
 
 	vie_init(vie);
 
@@ -1213,7 +1215,7 @@ vm_handle_inst_emul(struct vm *vm, int vcpuid, bool *retu)
 	else if (error != 0)
 		panic("%s: vmm_fetch_instruction error %d", __func__, error);
 
-	if (vmm_decode_instruction(vm, vcpuid, gla, paging->cpu_mode, vie) != 0)
+	if (vmm_decode_instruction(vm, vcpuid, gla, cpu_mode, cs_d, vie) != 0)
 		return (EFAULT);
 
 	/* return to userland unless this is an in-kernel emulated device */
@@ -1329,6 +1331,32 @@ vm_exit_suspended(struct vm *vm, int vcpuid, uint64_t rip)
 	vmexit->inst_length = 0;
 	vmexit->exitcode = VM_EXITCODE_SUSPENDED;
 	vmexit->u.suspended.how = vm->suspend;
+}
+
+void
+vm_exit_rendezvous(struct vm *vm, int vcpuid, uint64_t rip)
+{
+	struct vm_exit *vmexit;
+
+	KASSERT(vm->rendezvous_func != NULL, ("rendezvous not in progress"));
+
+	vmexit = vm_exitinfo(vm, vcpuid);
+	vmexit->rip = rip;
+	vmexit->inst_length = 0;
+	vmexit->exitcode = VM_EXITCODE_RENDEZVOUS;
+	vmm_stat_incr(vm, vcpuid, VMEXIT_RENDEZVOUS, 1);
+}
+
+void
+vm_exit_astpending(struct vm *vm, int vcpuid, uint64_t rip)
+{
+	struct vm_exit *vmexit;
+
+	vmexit = vm_exitinfo(vm, vcpuid);
+	vmexit->rip = rip;
+	vmexit->inst_length = 0;
+	vmexit->exitcode = VM_EXITCODE_BOGUS;
+	vmm_stat_incr(vm, vcpuid, VMEXIT_ASTPENDING, 1);
 }
 
 int
@@ -1966,3 +1994,34 @@ vm_segment_name(int seg)
 	    ("%s: invalid segment encoding %d", __func__, seg));
 	return (seg_names[seg]);
 }
+
+
+/*
+ * Return the amount of in-use and wired memory for the VM. Since
+ * these are global stats, only return the values with for vCPU 0
+ */
+VMM_STAT_DECLARE(VMM_MEM_RESIDENT);
+VMM_STAT_DECLARE(VMM_MEM_WIRED);
+
+static void
+vm_get_rescnt(struct vm *vm, int vcpu, struct vmm_stat_type *stat)
+{
+
+	if (vcpu == 0) {
+		vmm_stat_set(vm, vcpu, VMM_MEM_RESIDENT,
+	       	    PAGE_SIZE * vmspace_resident_count(vm->vmspace));
+	}	
+}
+
+static void
+vm_get_wiredcnt(struct vm *vm, int vcpu, struct vmm_stat_type *stat)
+{
+
+	if (vcpu == 0) {
+		vmm_stat_set(vm, vcpu, VMM_MEM_WIRED,
+	      	    PAGE_SIZE * pmap_wired_count(vmspace_pmap(vm->vmspace)));
+	}	
+}
+
+VMM_STAT_FUNC(VMM_MEM_RESIDENT, "Resident memory", vm_get_rescnt);
+VMM_STAT_FUNC(VMM_MEM_WIRED, "Wired memory", vm_get_wiredcnt);

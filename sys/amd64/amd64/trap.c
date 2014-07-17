@@ -143,20 +143,18 @@ static char *trap_msg[] = {
 
 #ifdef KDB
 static int kdb_on_nmi = 1;
-SYSCTL_INT(_machdep, OID_AUTO, kdb_on_nmi, CTLFLAG_RW,
+SYSCTL_INT(_machdep, OID_AUTO, kdb_on_nmi, CTLFLAG_RWTUN,
 	&kdb_on_nmi, 0, "Go to KDB on NMI");
-TUNABLE_INT("machdep.kdb_on_nmi", &kdb_on_nmi);
 #endif
 static int panic_on_nmi = 1;
-SYSCTL_INT(_machdep, OID_AUTO, panic_on_nmi, CTLFLAG_RW,
+SYSCTL_INT(_machdep, OID_AUTO, panic_on_nmi, CTLFLAG_RWTUN,
 	&panic_on_nmi, 0, "Panic on NMI");
-TUNABLE_INT("machdep.panic_on_nmi", &panic_on_nmi);
 static int prot_fault_translation;
-SYSCTL_INT(_machdep, OID_AUTO, prot_fault_translation, CTLFLAG_RW,
+SYSCTL_INT(_machdep, OID_AUTO, prot_fault_translation, CTLFLAG_RWTUN,
     &prot_fault_translation, 0,
     "Select signal to deliver on protection fault");
 static int uprintf_signal;
-SYSCTL_INT(_machdep, OID_AUTO, uprintf_signal, CTLFLAG_RW,
+SYSCTL_INT(_machdep, OID_AUTO, uprintf_signal, CTLFLAG_RWTUN,
     &uprintf_signal, 0,
     "Print debugging information on trap signal to ctty");
 
@@ -219,18 +217,6 @@ trap(struct trapframe *frame)
 		mca_intr();
 		goto out;
 	}
-
-#ifdef KDTRACE_HOOKS
-	/*
-	 * A trap can occur while DTrace executes a probe. Before
-	 * executing the probe, DTrace blocks re-scheduling and sets
-	 * a flag in its per-cpu flags to indicate that it doesn't
-	 * want to fault. On returning from the probe, the no-fault
-	 * flag is cleared and finally re-scheduling is enabled.
-	 */
-	if (dtrace_trap_func != NULL && (*dtrace_trap_func)(frame, type))
-		goto out;
-#endif
 
 	if ((frame->tf_rflags & PSL_I) == 0) {
 		/*
@@ -314,6 +300,10 @@ trap(struct trapframe *frame)
 		case T_TSSFLT:		/* invalid TSS fault */
 			i = SIGBUS;
 			ucode = BUS_OBJERR;
+			break;
+		case T_ALIGNFLT:
+			i = SIGBUS;
+			ucode = BUS_ADRALN;
 			break;
 		case T_DOUBLEFLT:	/* double fault */
 		default:

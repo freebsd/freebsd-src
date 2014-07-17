@@ -21,6 +21,8 @@
     ..
     tests
         bin
+            chown
+            ..
             date
             ..
             mv
@@ -90,6 +92,8 @@
                 ..
                 atf-sh
                 ..
+            ..
+            rtld-elf
             ..
         ..
         sbin
@@ -252,6 +256,8 @@
             tr
             ..
             truncate
+	    ..
+	    units
             ..
             uudecode
             ..

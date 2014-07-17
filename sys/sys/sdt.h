@@ -33,8 +33,6 @@
 
 #ifndef _KERNEL
 
-#define	_DTRACE_VERSION	1
-
 #define	DTRACE_PROBE(prov, name) {				\
 	extern void __dtrace_##prov##___##name(void);		\
 	__dtrace_##prov##___##name();				\

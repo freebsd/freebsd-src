@@ -215,6 +215,8 @@ static void
 vt_update_static(void *dummy)
 {
 
+	if (!vty_enabled(VTY_VT))
+		return;
 	if (main_vd->vd_driver != NULL)
 		printf("VT: running with driver \"%s\".\n",
 		    main_vd->vd_driver->vd_name);
@@ -616,7 +618,7 @@ vt_kbdevent(keyboard_t *kbd, int event, void *arg)
 	case KBDIO_UNLOADING:
 		mtx_lock(&Giant);
 		vd->vd_keyboard = -1;
-		kbd_release(kbd, (void *)&vd->vd_keyboard);
+		kbd_release(kbd, (void *)vd);
 		mtx_unlock(&Giant);
 		return (0);
 	default:
@@ -956,6 +958,11 @@ vtterm_cnprobe(struct terminal *tm, struct consdev *cp)
 	struct vt_window *vw = tm->tm_softc;
 	struct vt_device *vd = vw->vw_device;
 	struct winsize wsz;
+	term_attr_t attr;
+	term_char_t c;
+
+	if (!vty_enabled(VTY_VT))
+		return;
 
 	if (vd->vd_flags & VDF_INITIALIZED)
 		/* Initialization already done. */
@@ -997,7 +1004,12 @@ vtterm_cnprobe(struct terminal *tm, struct consdev *cp)
 
 	vtbuf_init_early(&vw->vw_buf);
 	vt_winsize(vd, vw->vw_font, &wsz);
-	terminal_set_winsize(tm, &wsz);
+	c = (boothowto & RB_MUTE) == 0 ? TERMINAL_KERN_ATTR :
+	    TERMINAL_NORM_ATTR;
+	attr.ta_format = TCHAR_FORMAT(c);
+	attr.ta_fgcolor = TCHAR_FGCOLOR(c);
+	attr.ta_bgcolor = TCHAR_BGCOLOR(c);
+	terminal_set_winsize_blank(tm, &wsz, 1, &attr);
 
 	if (vtdbest != NULL) {
 #ifdef DEV_SPLASH
@@ -1155,7 +1167,7 @@ vt_change_font(struct vt_window *vw, struct vt_font *vf)
 	/* Grow the screen buffer and terminal. */
 	terminal_mute(tm, 1);
 	vtbuf_grow(&vw->vw_buf, &size, vw->vw_buf.vb_history_size);
-	terminal_set_winsize_blank(tm, &wsz, 0);
+	terminal_set_winsize_blank(tm, &wsz, 0, NULL);
 	terminal_mute(tm, 0);
 
 	/* Actually apply the font to the current window. */
@@ -1773,11 +1785,10 @@ skip_thunk:
 				return (EINVAL);
 			}
 			i = kbd_allocate(kbd->kb_name, kbd->kb_unit,
-			    (void *)&vd->vd_keyboard, vt_kbdevent, vd);
+			    (void *)vd, vt_kbdevent, vd);
 			if (i >= 0) {
 				if (vd->vd_keyboard != -1) {
-					kbd_release(kbd,
-					    (void *)&vd->vd_keyboard);
+					kbd_release(kbd, (void *)vd);
 				}
 				kbd = kbd_get_keyboard(i);
 				vd->vd_keyboard = i;
@@ -1799,7 +1810,7 @@ skip_thunk:
 				mtx_unlock(&Giant);
 				return (EINVAL);
 			}
-			error = kbd_release(kbd, (void *)&vd->vd_keyboard);
+			error = kbd_release(kbd, (void *)vd);
 			if (error == 0) {
 				vd->vd_keyboard = -1;
 			}
@@ -1991,6 +2002,9 @@ vt_upgrade(struct vt_device *vd)
 	struct vt_window *vw;
 	unsigned int i;
 
+	if (!vty_enabled(VTY_VT))
+		return;
+
 	for (i = 0; i < VT_MAXWINDOWS; i++) {
 		vw = vd->vd_windows[i];
 		if (vw == NULL) {
@@ -2056,6 +2070,9 @@ vt_allocate(struct vt_driver *drv, void *softc)
 	struct vt_device *vd;
 	struct winsize wsz;
 
+	if (!vty_enabled(VTY_VT))
+		return;
+
 	if (main_vd->vd_driver == NULL) {
 		main_vd->vd_driver = drv;
 		printf("VT: initialize with new VT driver \"%s\".\n",
@@ -2116,7 +2133,7 @@ vt_allocate(struct vt_driver *drv, void *softc)
 	/* Update console window sizes to actual. */
 	vt_winsize(vd, vd->vd_windows[VT_CONSWINDOW]->vw_font, &wsz);
 	terminal_set_winsize_blank(vd->vd_windows[VT_CONSWINDOW]->vw_terminal,
-	    &wsz, 0);
+	    &wsz, 0, NULL);
 }
 
 void

@@ -30,7 +30,7 @@ To use it:
 It's early days yet, folks -- You'll probably have trouble getting 100%
 functionality out of most things (specifically, poll() on a socket doesn't
 look like it works at the moment, so Netscape doesn't work (among other
-things)).  Patches will be appreciated (use send-pr).
+things)).  Patches will be appreciated.
 
    - Mark Newton
      newton@atdot.dotat.org

@@ -101,7 +101,7 @@ COMMON_SRCS+=	e_acoshl.c e_acosl.c e_asinl.c e_atan2l.c e_atanhl.c \
 	e_remainderl.c e_sinhl.c e_sqrtl.c \
 	invtrig.c k_cosl.c k_sinl.c k_tanl.c \
 	s_asinhl.c s_atanl.c s_cbrtl.c s_ceill.c s_cosl.c s_cprojl.c \
-	s_csqrtl.c s_exp2l.c s_expl.c s_floorl.c s_fmal.c \
+	s_csqrtl.c s_erfl.c s_exp2l.c s_expl.c s_floorl.c s_fmal.c \
 	s_frexpl.c s_logbl.c s_logl.c s_nanl.c s_nextafterl.c \
 	s_nexttoward.c s_remquol.c s_rintl.c s_roundl.c s_scalbnl.c \
 	s_sinl.c s_tanhl.c s_tanl.c s_truncl.c w_cabsl.c
@@ -164,7 +164,7 @@ MLINKS+=copysign.3 copysignf.3 copysign.3 copysignl.3
 MLINKS+=cos.3 cosf.3 cos.3 cosl.3
 MLINKS+=cosh.3 coshf.3 cosh.3 coshl.3
 MLINKS+=csqrt.3 csqrtf.3 csqrt.3 csqrtl.3
-MLINKS+=erf.3 erfc.3 erf.3 erff.3 erf.3 erfcf.3
+MLINKS+=erf.3 erfc.3 erf.3 erff.3 erf.3 erfcf.3 erf.3 erfl.3 erf.3 erfcl.3
 MLINKS+=exp.3 expm1.3 exp.3 expm1f.3 exp.3 expm1l.3 exp.3 pow.3 exp.3 powf.3 \
 	exp.3 exp2.3 exp.3 exp2f.3 exp.3 exp2l.3 exp.3 expf.3 exp.3 expl.3
 MLINKS+=fabs.3 fabsf.3 fabs.3 fabsl.3

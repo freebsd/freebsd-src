@@ -2414,6 +2414,6 @@ static moduledata_t mlx4ib_mod = {
         .evhand = mlx4ib_evhand,
 };
 
-DECLARE_MODULE(mlx4ib, mlx4ib_mod, SI_SUB_SMP, SI_ORDER_ANY);
+DECLARE_MODULE(mlx4ib, mlx4ib_mod, SI_SUB_OFED_PREINIT, SI_ORDER_ANY);
 MODULE_DEPEND(mlx4ib, mlx4, 1, 1, 1);
 MODULE_DEPEND(mlx4ib, ibcore, 1, 1, 1);

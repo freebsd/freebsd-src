@@ -290,7 +290,8 @@ struct cluster_metadata {
 
 struct fl_sdesc {
 	caddr_t cl;
-	uint8_t nmbuf;
+	uint8_t nimbuf;		/* # of inline mbufs with ref on the cluster */
+	uint8_t nembuf;		/* # of allocated mbufs with ref */
 	struct cluster_layout cll;
 };
 
@@ -734,6 +735,7 @@ struct adapter {
 	void *tom_softc;	/* (struct tom_data *) */
 	struct tom_tunables tt;
 	void *iwarp_softc;	/* (struct c4iw_dev *) */
+	void *iscsi_softc;
 #endif
 	struct l2t_data *l2t;	/* L2 table */
 	struct tid_info tids;

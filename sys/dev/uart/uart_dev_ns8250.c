@@ -55,9 +55,8 @@ __FBSDID("$FreeBSD$");
 #define	DEFAULT_RCLK	1843200
 
 static int broken_txfifo = 0;
-SYSCTL_INT(_hw, OID_AUTO, broken_txfifo, CTLFLAG_RW | CTLFLAG_TUN,
+SYSCTL_INT(_hw, OID_AUTO, broken_txfifo, CTLFLAG_RWTUN,
 	&broken_txfifo, 0, "UART FIFO has QEMU emulation bug");
-TUNABLE_INT("hw.broken_txfifo", &broken_txfifo);
 
 /*
  * Clear pending interrupts. THRE is cleared by reading IIR. Data

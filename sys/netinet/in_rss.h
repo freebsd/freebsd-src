@@ -69,6 +69,7 @@
  */
 u_int	rss_getbits(void);
 u_int	rss_getbucket(u_int hash);
+u_int	rss_get_indirection_to_bucket(u_int index);
 u_int	rss_getcpu(u_int bucket);
 void	rss_getkey(uint8_t *key);
 u_int	rss_gethashalgo(void);

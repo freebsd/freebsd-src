@@ -488,7 +488,6 @@ sender_process(void)
 		for (we = mywd.wd_we; we < wend; we++) {
 			if (stat(we->we_utmp.out_line, &stb) >= 0)
 				we->we_idle = htonl(now - stb.st_atime);
-			we++;
 		}
 		(void) getloadavg(avenrun,
 		    sizeof(avenrun) / sizeof(avenrun[0]));

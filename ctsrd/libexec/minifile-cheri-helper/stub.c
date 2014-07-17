@@ -107,15 +107,38 @@ closedir(DIR *dirp __unused)
 }
 
 int
+dup(int fildes __unused)
+{
+
+	errno = ECAPMODE;
+	return (-1);
+}
+
+int
 dup2(int oldd __unused, int newd __unused)
 {
-	
+
+	errno = ECAPMODE;
+	return (-1);
+}
+
+int
+execvp(const char *file __unused, char *const argv[] __unused)
+{
+
 	errno = ECAPMODE;
 	return (-1);
 }
 
 void
 exit(int status __unused)
+{
+
+	abort();
+}
+
+void
+_exit(int status __unused)
 {
 
 	abort();
@@ -166,6 +189,14 @@ fopen(const char *path __unused, const char *mode __unused)
 
 	errno = ECAPMODE;
 	return (NULL);
+}
+
+pid_t
+fork(void)
+{
+
+	errno = ECAPMODE;
+	return (-1);
 }
 
 int
@@ -316,6 +347,23 @@ opendir(const char *filename __unused)
 }
 
 int
+pipe(int fildes[2] __unused)
+{
+
+	errno = ECAPMODE;
+	return (-1);
+}
+
+ssize_t
+pread(int fd __unused, void *buf __unused, size_t nbytes __unused,
+    off_t offset __unused)
+{
+
+	errno = ECAPMODE;
+	return (-1);
+}
+
+int
 printf(const char *format __unused, ...)
 {
 
@@ -445,6 +493,14 @@ _write(int d __unused, const void *buf __unused, size_t nbytes __unused)
 
 ssize_t
 write(int d __unused, const void *buf __unused, size_t nbytes __unused)
+{
+
+	errno = ECAPMODE;
+	return (-1);
+}
+
+pid_t
+waitpid(pid_t pid __unused, int *stat_loc __unused, int options __unused)
 {
 
 	errno = ECAPMODE;

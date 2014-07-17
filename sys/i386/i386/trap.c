@@ -158,14 +158,12 @@ extern int has_f00f_bug;
 
 #ifdef KDB
 static int kdb_on_nmi = 1;
-SYSCTL_INT(_machdep, OID_AUTO, kdb_on_nmi, CTLFLAG_RW,
+SYSCTL_INT(_machdep, OID_AUTO, kdb_on_nmi, CTLFLAG_RWTUN,
 	&kdb_on_nmi, 0, "Go to KDB on NMI");
-TUNABLE_INT("machdep.kdb_on_nmi", &kdb_on_nmi);
 #endif
 static int panic_on_nmi = 1;
-SYSCTL_INT(_machdep, OID_AUTO, panic_on_nmi, CTLFLAG_RW,
+SYSCTL_INT(_machdep, OID_AUTO, panic_on_nmi, CTLFLAG_RWTUN,
 	&panic_on_nmi, 0, "Panic on NMI");
-TUNABLE_INT("machdep.panic_on_nmi", &panic_on_nmi);
 static int prot_fault_translation = 0;
 SYSCTL_INT(_machdep, OID_AUTO, prot_fault_translation, CTLFLAG_RW,
 	&prot_fault_translation, 0, "Select signal to deliver on protection fault");
@@ -248,7 +246,7 @@ trap(struct trapframe *frame)
 	 * flag is cleared and finally re-scheduling is enabled.
 	 */
 	if ((type == T_PROTFLT || type == T_PAGEFLT) &&
-	    dtrace_trap_func != NULL && (*dtrace_trap_func)(frame, type))
+	    dtrace_trap_func != NULL && (*dtrace_trap_func)(frame))
 		goto out;
 #endif
 
@@ -367,6 +365,10 @@ trap(struct trapframe *frame)
 		case T_TSSFLT:		/* invalid TSS fault */
 			i = SIGBUS;
 			ucode = BUS_OBJERR;
+			break;
+		case T_ALIGNFLT:
+			i = SIGBUS;
+			ucode = BUS_ADRALN;
 			break;
 		case T_DOUBLEFLT:	/* double fault */
 		default:

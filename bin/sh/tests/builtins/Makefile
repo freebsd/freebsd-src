@@ -99,7 +99,9 @@ FILES+=		local1.0
 FILES+=		local2.0
 FILES+=		local3.0
 FILES+=		local4.0
+.if ${MK_NLS} != "no"
 FILES+=		locale1.0
+.endif
 FILES+=		printf1.0
 FILES+=		printf2.0
 FILES+=		printf3.0

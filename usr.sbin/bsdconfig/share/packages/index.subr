@@ -258,7 +258,7 @@ f_index_initialize()
 
 		# Finally, move the temporary file into place
 		case "$PACKAGES_INDEX_CACHEFILE" in
-		*/*) f_eval_catch -d $funcname mkdir \
+		*/*) f_eval_catch -d $__funcname mkdir \
 			'mkdir -p "%s"' "${PACKAGES_INDEX_CACHEFILE%/*}"
 		esac
 		f_eval_catch -d $__funcname mv 'mv -f "%s" "%s"' \

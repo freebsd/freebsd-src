@@ -145,6 +145,19 @@ mpssas_set_lun(uint8_t *lun, u_int ccblun)
 	return (0);
 }
 
+static __inline void
+mpssas_set_ccbstatus(union ccb *ccb, int status)
+{
+	ccb->ccb_h.status &= ~CAM_STATUS_MASK;
+	ccb->ccb_h.status |= status;
+}
+
+static __inline int
+mpssas_get_ccbstatus(union ccb *ccb)
+{
+	return (ccb->ccb_h.status & CAM_STATUS_MASK);
+}
+
 #define MPS_SET_SINGLE_LUN(req, lun)	\
 do {					\
 	bzero((req)->LUN, 8);		\
@@ -156,7 +169,5 @@ void mpssas_discovery_end(struct mpssas_softc *sassc);
 void mpssas_startup_increment(struct mpssas_softc *sassc);
 void mpssas_startup_decrement(struct mpssas_softc *sassc);
 
-struct mps_command * mpssas_alloc_tm(struct mps_softc *sc);
-void mpssas_free_tm(struct mps_softc *sc, struct mps_command *tm);
 void mpssas_firmware_event_work(void *arg, int pending);
 int mpssas_check_id(struct mpssas_softc *sassc, int id);

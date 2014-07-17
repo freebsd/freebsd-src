@@ -1733,16 +1733,12 @@ fail:	iwn_dma_contig_free(dma);
 static void
 iwn_dma_contig_free(struct iwn_dma_info *dma)
 {
-	if (dma->map != NULL) {
-		if (dma->vaddr != NULL) {
-			bus_dmamap_sync(dma->tag, dma->map,
-			    BUS_DMASYNC_POSTREAD | BUS_DMASYNC_POSTWRITE);
-			bus_dmamap_unload(dma->tag, dma->map);
-			bus_dmamem_free(dma->tag, dma->vaddr, dma->map);
-			dma->vaddr = NULL;
-		}
-		bus_dmamap_destroy(dma->tag, dma->map);
-		dma->map = NULL;
+	if (dma->vaddr != NULL) {
+		bus_dmamap_sync(dma->tag, dma->map,
+		    BUS_DMASYNC_POSTREAD | BUS_DMASYNC_POSTWRITE);
+		bus_dmamap_unload(dma->tag, dma->map);
+		bus_dmamem_free(dma->tag, dma->vaddr, dma->map);
+		dma->vaddr = NULL;
 	}
 	if (dma->tag != NULL) {
 		bus_dma_tag_destroy(dma->tag);

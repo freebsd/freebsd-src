@@ -93,9 +93,6 @@ static struct ex_types {
 	{ "FreeBSD ELF32", i386_syscall_entry, i386_syscall_exit },
 	{ "Linux ELF", i386_linux_syscall_entry, i386_linux_syscall_exit },
 #endif
-#ifdef __ia64__
-	{ "FreeBSD ELF64", ia64_syscall_entry, ia64_syscall_exit },
-#endif
 #ifdef __powerpc__
 	{ "FreeBSD ELF", powerpc_syscall_entry, powerpc_syscall_exit },
 	{ "FreeBSD ELF32", powerpc_syscall_entry, powerpc_syscall_exit },

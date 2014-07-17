@@ -1,0 +1,70 @@
+.\" Copyright (c) 2014 Baptiste Daroussin <bapt@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd July 16, 2014
+.Dt TIMEOUT 1
+.Os
+.Sh NAME
+.Nm timeout
+.Nd run a command with a time limit
+.Sh SYNOPSIS
+.Nm
+.Op Fl -signal Ar sig | Fl s Ar sig
+.Op Fl -preserve-status
+.Op Fl -kill-after Ar time | Fl k Ar time
+.Op Fl -foreground
+.Ao Ar duration Ac
+.Ao Ar command Ac
+.Ao Ar args ... Ac
+.Sh DESCRIPTION
+.Nm
+starts the
+.Ar command
+with its
+.Ar args
+and kills if it is still runs after
+.Ar duration .
+.Bl -tag -width "-k time, --kill-after time"
+.It Fl -preserve-status
+Always exits with the same status as
+.Ar command
+even if it times out.
+.It Fl -foreground
+Do not propagate timeout to the
+.Ar command
+children.
+.It Fl s Ar sig , Fl -signal Ar sig
+Speficy the signal to send on timeout by default
+.Ar SIGTERM .
+.It Fl k Ar time , Fl -kill-after Ar time
+Send a second kill if the
+.Ar command
+is still running after
+.Ar time
+seconds after the first signal was sent
+.Sh SEE ALSO
+.Xr signal 3 ,
+.Xr kill 1

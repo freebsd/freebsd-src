@@ -27,7 +27,7 @@
 #include "file.h"
 
 #ifndef	lint
-FILE_RCSID("@(#)$File: funcs.c,v 1.60 2011/12/08 12:38:24 rrt Exp $")
+FILE_RCSID("@(#)$File: funcs.c,v 1.72 2014/05/14 23:15:42 christos Exp $")
 #endif	/* lint */
 
 #ifdef BADMAGIC
@@ -35,6 +35,7 @@ FILE_RCSID("@(#)$File: funcs.c,v 1.60 2011/12/08 12:38:24 rrt Exp $")
 #endif
 
 #include "magic.h"
+#include <assert.h>
 #include <stdarg.h>
 #include <stdlib.h>
 #include <string.h>
@@ -47,6 +48,9 @@ FILE_RCSID("@(#)$File: funcs.c,v 1.60 2011/12/08 12:38:24 rrt Exp $")
 #endif
 #if defined(HAVE_LIMITS_H)
 #include <limits.h>
+#endif
+#if defined(HAVE_LOCALE_H)
+#include <locale.h>
 #endif
 
 #ifndef SIZE_MAX
@@ -62,6 +66,8 @@ file_vprintf(struct magic_set *ms, const char *fmt, va_list ap)
 	int len;
 	char *buf, *newstr;
 
+	if (ms->event_flags & EVENT_HAD_ERR)
+		return 0;
 	len = vasprintf(&buf, fmt, ap);
 	if (len < 0)
 		goto out;
@@ -97,6 +103,7 @@ file_printf(struct magic_set *ms, const char *fmt, ...)
  * error - print best error message possible
  */
 /*VARARGS*/
+__attribute__((__format__(__printf__, 3, 0)))
 private void
 file_error_core(struct magic_set *ms, int error, const char *f, va_list va,
     size_t lineno)
@@ -170,22 +177,17 @@ file_buffer(struct magic_set *ms, int fd, const char *inname __attribute__ ((unu
 	size_t ulen;
 	const char *code = NULL;
 	const char *code_mime = "binary";
-	const char *type = NULL;
-
-
+	const char *type = "application/octet-stream";
+	const char *def = "data";
+	const char *ftype = NULL;
 
 	if (nb == 0) {
-		if ((!mime || (mime & MAGIC_MIME_TYPE)) &&
-		    file_printf(ms, mime ? "application/x-empty" :
-		    "empty") == -1)
-			return -1;
-		return 1;
+		def = "empty";
+		type = "application/x-empty";
+		goto simple;
 	} else if (nb == 1) {
-		if ((!mime || (mime & MAGIC_MIME_TYPE)) &&
-		    file_printf(ms, mime ? "application/octet-stream" :
-		    "very short file (no magic)") == -1)
-			return -1;
-		return 1;
+		def = "very short file (no magic)";
+		goto simple;
 	}
 
 #ifdef BADMAGIC
@@ -209,7 +211,7 @@ file_buffer(struct magic_set *ms, int fd, const char *inname __attribute__ ((unu
 
 	if ((ms->flags & MAGIC_NO_CHECK_ENCODING) == 0) {
 		looks_text = file_encoding(ms, ubuf, nb, &u8buf, &ulen,
-		    &code, &code_mime, &type);
+		    &code, &code_mime, &ftype);
 	}
 
 #ifdef __EMX__
@@ -230,7 +232,7 @@ file_buffer(struct magic_set *ms, int fd, const char *inname __attribute__ ((unu
 		if ((m = file_zmagic(ms, fd, inname, ubuf, nb)) != 0) {
 			if ((ms->flags & MAGIC_DEBUG) != 0)
 				(void)fprintf(stderr, "zmagic %d\n", m);
-			goto done;
+			goto done_encoding;
 		}
 #endif
 	/* Check if we have a tar file */
@@ -251,7 +253,7 @@ file_buffer(struct magic_set *ms, int fd, const char *inname __attribute__ ((unu
 
 	/* try soft magic tests */
 	if ((ms->flags & MAGIC_NO_CHECK_SOFT) == 0)
-		if ((m = file_softmagic(ms, ubuf, nb, BINTEST,
+		if ((m = file_softmagic(ms, ubuf, nb, 0, BINTEST,
 		    looks_text)) != 0) {
 			if ((ms->flags & MAGIC_DEBUG) != 0)
 				(void)fprintf(stderr, "softmagic %d\n", m);
@@ -284,25 +286,13 @@ file_buffer(struct magic_set *ms, int fd, const char *inname __attribute__ ((unu
 				(void)fprintf(stderr, "ascmagic %d\n", m);
 			goto done;
 		}
-
-		/* try to discover text encoding */
-		if ((ms->flags & MAGIC_NO_CHECK_ENCODING) == 0) {
-			if (looks_text == 0)
-				if ((m = file_ascmagic_with_encoding( ms, ubuf,
-				    nb, u8buf, ulen, code, type, looks_text))
-				    != 0) {
-					if ((ms->flags & MAGIC_DEBUG) != 0)
-						(void)fprintf(stderr,
-						    "ascmagic/enc %d\n", m);
-					goto done;
-				}
-		}
 	}
 
+simple:
 	/* give up */
 	m = 1;
 	if ((!mime || (mime & MAGIC_MIME_TYPE)) &&
-	    file_printf(ms, mime ? "application/octet-stream" : "data") == -1) {
+	    file_printf(ms, "%s", mime ? type : def) == -1) {
 	    rv = -1;
 	}
  done:
@@ -313,6 +303,9 @@ file_buffer(struct magic_set *ms, int fd, const char *inname __attribute__ ((unu
 		if (file_printf(ms, "%s", code_mime) == -1)
 			rv = -1;
 	}
+#if HAVE_FORK
+ done_encoding:
+#endif
 	free(u8buf);
 	if (rv)
 		return rv;
@@ -324,7 +317,7 @@ file_buffer(struct magic_set *ms, int fd, const char *inname __attribute__ ((unu
 protected int
 file_reset(struct magic_set *ms)
 {
-	if (ms->mlist == NULL) {
+	if (ms->mlist[0] == NULL) {
 		file_error(ms, 0, "no magic files loaded");
 		return -1;
 	}
@@ -459,26 +452,65 @@ file_printedlen(const struct magic_set *ms)
 protected int
 file_replace(struct magic_set *ms, const char *pat, const char *rep)
 {
-	regex_t rx;
-	int rc;
+	file_regex_t rx;
+	int rc, rv = -1;
 
-	rc = regcomp(&rx, pat, REG_EXTENDED);
+	rc = file_regcomp(&rx, pat, REG_EXTENDED);
 	if (rc) {
-		char errmsg[512];
-		(void)regerror(rc, &rx, errmsg, sizeof(errmsg));
-		file_magerror(ms, "regex error %d, (%s)", rc, errmsg);
-		return -1;
+		file_regerror(&rx, rc, ms);
 	} else {
 		regmatch_t rm;
 		int nm = 0;
-		while (regexec(&rx, ms->o.buf, 1, &rm, 0) == 0) {
+		while (file_regexec(&rx, ms->o.buf, 1, &rm, 0) == 0) {
 			ms->o.buf[rm.rm_so] = '\0';
 			if (file_printf(ms, "%s%s", rep,
 			    rm.rm_eo != 0 ? ms->o.buf + rm.rm_eo : "") == -1)
-				return -1;
+				goto out;
 			nm++;
 		}
-		regfree(&rx);
-		return nm;
+		rv = nm;
 	}
+out:
+	file_regfree(&rx);
+	return rv;
+}
+
+protected int
+file_regcomp(file_regex_t *rx, const char *pat, int flags)
+{
+	rx->old_lc_ctype = setlocale(LC_CTYPE, NULL);
+	assert(rx->old_lc_ctype != NULL);
+	rx->old_lc_ctype = strdup(rx->old_lc_ctype);
+	assert(rx->old_lc_ctype != NULL);
+	rx->pat = pat;
+
+	(void)setlocale(LC_CTYPE, "C");
+	return rx->rc = regcomp(&rx->rx, pat, flags);
+}
+
+protected int
+file_regexec(file_regex_t *rx, const char *str, size_t nmatch,
+    regmatch_t* pmatch, int eflags)
+{
+	assert(rx->rc == 0);
+	return regexec(&rx->rx, str, nmatch, pmatch, eflags);
+}
+
+protected void
+file_regfree(file_regex_t *rx)
+{
+	if (rx->rc == 0)
+		regfree(&rx->rx);
+	(void)setlocale(LC_CTYPE, rx->old_lc_ctype);
+	free(rx->old_lc_ctype);
+}
+
+protected void
+file_regerror(file_regex_t *rx, int rc, struct magic_set *ms)
+{
+	char errmsg[512];
+
+	(void)regerror(rc, &rx->rx, errmsg, sizeof(errmsg));
+	file_magerror(ms, "regex error %d for `%s', (%s)", rc, rx->pat,
+	    errmsg);
 }

@@ -143,6 +143,7 @@ SUBDIR=	alias \
 	rwall \
 	script \
 	sed \
+	send-pr \
 	seq \
 	shar \
 	showmount \
@@ -162,6 +163,7 @@ SUBDIR=	alias \
 	${_tests} \
 	tftp \
 	time \
+	timeout \
 	tip \
 	top \
 	touch \
@@ -265,10 +267,6 @@ SUBDIR+=	drill
 SUBDIR+=	host
 .endif
 
-.if ${MK_LIBTHR} != "no"
-SUBDIR+=	csup
-.endif
-
 .if ${MK_LOCATE} != "no"
 SUBDIR+=	locate
 .endif
@@ -360,6 +358,10 @@ SUBDIR+=	yacc
 
 .if ${MK_VI} != "no"
 SUBDIR+=	vi
+.endif
+
+.if ${MK_VT} != "no"
+SUBDIR+=	vtfontcvt
 .endif
 
 .if ${MK_USB} != "no"

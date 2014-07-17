@@ -743,10 +743,8 @@ pf_initialize()
 	struct pf_srchash	*sh;
 	u_int i;
 
-	TUNABLE_ULONG_FETCH("net.pf.states_hashsize", &pf_hashsize);
 	if (pf_hashsize == 0 || !powerof2(pf_hashsize))
 		pf_hashsize = PF_HASHSIZ;
-	TUNABLE_ULONG_FETCH("net.pf.source_nodes_hashsize", &pf_srchashsize);
 	if (pf_srchashsize == 0 || !powerof2(pf_srchashsize))
 		pf_srchashsize = PF_HASHSIZ / 4;
 

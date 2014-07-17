@@ -1,6 +1,6 @@
 # Chelsio T4 Factory Default configuration file.
 #
-# Copyright (C) 2010-2013 Chelsio Communications.  All rights reserved.
+# Copyright (C) 2010-2014 Chelsio Communications.  All rights reserved.
 #
 #   DO NOT MODIFY THIS FILE UNDER ANY CIRCUMSTANCES.  MODIFICATION OF
 #   THIS FILE WILL RESULT IN A NON-FUNCTIONAL T4 ADAPTER AND MAY RESULT
@@ -496,6 +496,8 @@
 # dwm:		minimum delta between high and low watermark (in units of 100
 #		Bytes)
 #
+#
+
 [port "0"]
 	dcb = ppp, dcbx		# configure for DCB PPP and enable DCBX offload
 	bg_mem = 25
@@ -503,6 +505,9 @@
 	hwm = 30
 	lwm = 15
 	dwm = 30
+	dcb_app_tlv[0] = 0x8906, ethertype, 3
+	dcb_app_tlv[1] = 0x8914, ethertype, 3
+	dcb_app_tlv[2] = 3260, socketnum, 5
 
 [port "1"]
 	dcb = ppp, dcbx
@@ -511,6 +516,9 @@
 	hwm = 30
 	lwm = 15
 	dwm = 30
+	dcb_app_tlv[0] = 0x8906, ethertype, 3
+	dcb_app_tlv[1] = 0x8914, ethertype, 3
+	dcb_app_tlv[2] = 3260, socketnum, 5
 
 [port "2"]
 	dcb = ppp, dcbx
@@ -519,6 +527,9 @@
 	hwm = 30
 	lwm = 15
 	dwm = 30
+	dcb_app_tlv[0] = 0x8906, ethertype, 3
+	dcb_app_tlv[1] = 0x8914, ethertype, 3
+	dcb_app_tlv[2] = 3260, socketnum, 5
 
 [port "3"]
 	dcb = ppp, dcbx
@@ -527,10 +538,13 @@
 	hwm = 30
 	lwm = 15
 	dwm = 30
+	dcb_app_tlv[0] = 0x8906, ethertype, 3
+	dcb_app_tlv[1] = 0x8914, ethertype, 3
+	dcb_app_tlv[2] = 3260, socketnum, 5
 
 [fini]
-	version = 0x14250010
-	checksum = 0x5a5526c3
+	version = 0x14250012
+	checksum = 0xd9ae0325
 
 # Total resources used by above allocations:
 #   Virtual Interfaces: 104

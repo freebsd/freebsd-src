@@ -54,7 +54,7 @@ struct freebsd32_ps_strings {
 	u_int32_t ps_sbobjectslen;	/* length of sandbox method data */
 };
 
-#if defined(__amd64__) || defined(__ia64__)
+#if defined(__amd64__)
 #include <compat/ia32/ia32_util.h>
 #endif
 

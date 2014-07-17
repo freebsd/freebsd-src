@@ -37,6 +37,57 @@ enum vm_suspend_how {
 	VM_SUSPEND_LAST
 };
 
+/*
+ * Identifiers for architecturally defined registers.
+ */
+enum vm_reg_name {
+	VM_REG_GUEST_RAX,
+	VM_REG_GUEST_RBX,
+	VM_REG_GUEST_RCX,
+	VM_REG_GUEST_RDX,
+	VM_REG_GUEST_RSI,
+	VM_REG_GUEST_RDI,
+	VM_REG_GUEST_RBP,
+	VM_REG_GUEST_R8,
+	VM_REG_GUEST_R9,
+	VM_REG_GUEST_R10,
+	VM_REG_GUEST_R11,
+	VM_REG_GUEST_R12,
+	VM_REG_GUEST_R13,
+	VM_REG_GUEST_R14,
+	VM_REG_GUEST_R15,
+	VM_REG_GUEST_CR0,
+	VM_REG_GUEST_CR3,
+	VM_REG_GUEST_CR4,
+	VM_REG_GUEST_DR7,
+	VM_REG_GUEST_RSP,
+	VM_REG_GUEST_RIP,
+	VM_REG_GUEST_RFLAGS,
+	VM_REG_GUEST_ES,
+	VM_REG_GUEST_CS,
+	VM_REG_GUEST_SS,
+	VM_REG_GUEST_DS,
+	VM_REG_GUEST_FS,
+	VM_REG_GUEST_GS,
+	VM_REG_GUEST_LDTR,
+	VM_REG_GUEST_TR,
+	VM_REG_GUEST_IDTR,
+	VM_REG_GUEST_GDTR,
+	VM_REG_GUEST_EFER,
+	VM_REG_GUEST_CR2,
+	VM_REG_GUEST_PDPTE0,
+	VM_REG_GUEST_PDPTE1,
+	VM_REG_GUEST_PDPTE2,
+	VM_REG_GUEST_PDPTE3,
+	VM_REG_LAST
+};
+
+enum x2apic_state {
+	X2APIC_DISABLED,
+	X2APIC_ENABLED,
+	X2APIC_STATE_LAST
+};
+
 #ifdef _KERNEL
 
 #define	VM_MAX_NAMELEN	32
@@ -53,9 +104,6 @@ struct vlapic;
 struct vmspace;
 struct vm_object;
 struct pmap;
-
-enum vm_reg_name;
-enum x2apic_state;
 
 typedef int	(*vmm_init_func_t)(int ipinum);
 typedef int	(*vmm_cleanup_func_t)(void);
@@ -146,6 +194,8 @@ cpuset_t vm_active_cpus(struct vm *vm);
 cpuset_t vm_suspended_cpus(struct vm *vm);
 struct vm_exit *vm_exitinfo(struct vm *vm, int vcpuid);
 void vm_exit_suspended(struct vm *vm, int vcpuid, uint64_t rip);
+void vm_exit_rendezvous(struct vm *vm, int vcpuid, uint64_t rip);
+void vm_exit_astpending(struct vm *vm, int vcpuid, uint64_t rip);
 
 /*
  * Rendezvous all vcpus specified in 'dest' and execute 'func(arg)'.
@@ -248,47 +298,6 @@ enum vm_reg_name vm_segment_name(int seg_encoding);
 #define	VM_MAXCPU	16			/* maximum virtual cpus */
 
 /*
- * Identifiers for architecturally defined registers.
- */
-enum vm_reg_name {
-	VM_REG_GUEST_RAX,
-	VM_REG_GUEST_RBX,
-	VM_REG_GUEST_RCX,
-	VM_REG_GUEST_RDX,
-	VM_REG_GUEST_RSI,
-	VM_REG_GUEST_RDI,
-	VM_REG_GUEST_RBP,
-	VM_REG_GUEST_R8,
-	VM_REG_GUEST_R9,
-	VM_REG_GUEST_R10,
-	VM_REG_GUEST_R11,
-	VM_REG_GUEST_R12,
-	VM_REG_GUEST_R13,
-	VM_REG_GUEST_R14,
-	VM_REG_GUEST_R15,
-	VM_REG_GUEST_CR0,
-	VM_REG_GUEST_CR3,
-	VM_REG_GUEST_CR4,
-	VM_REG_GUEST_DR7,
-	VM_REG_GUEST_RSP,
-	VM_REG_GUEST_RIP,
-	VM_REG_GUEST_RFLAGS,
-	VM_REG_GUEST_ES,
-	VM_REG_GUEST_CS,
-	VM_REG_GUEST_SS,
-	VM_REG_GUEST_DS,
-	VM_REG_GUEST_FS,
-	VM_REG_GUEST_GS,
-	VM_REG_GUEST_LDTR,
-	VM_REG_GUEST_TR,
-	VM_REG_GUEST_IDTR,
-	VM_REG_GUEST_GDTR,
-	VM_REG_GUEST_EFER,
-	VM_REG_GUEST_CR2,
-	VM_REG_LAST
-};
-
-/*
  * Identifiers for optional vmm capabilities
  */
 enum vm_cap_type {
@@ -298,12 +307,6 @@ enum vm_cap_type {
 	VM_CAP_UNRESTRICTED_GUEST,
 	VM_CAP_ENABLE_INVPCID,
 	VM_CAP_MAX
-};
-
-enum x2apic_state {
-	X2APIC_DISABLED,
-	X2APIC_ENABLED,
-	X2APIC_STATE_LAST
 };
 
 enum vm_intr_trigger {
@@ -323,13 +326,16 @@ struct seg_desc {
 	uint32_t	limit;
 	uint32_t	access;
 };
-#define	SEG_DESC_TYPE(desc)		((desc)->access & 0x001f)
-#define	SEG_DESC_PRESENT(desc)		((desc)->access & 0x0080)
-#define	SEG_DESC_DEF32(desc)		((desc)->access & 0x4000)
-#define	SEG_DESC_GRANULARITY(desc)	((desc)->access & 0x8000)
-#define	SEG_DESC_UNUSABLE(desc)		((desc)->access & 0x10000)
+#define	SEG_DESC_TYPE(access)		((access) & 0x001f)
+#define	SEG_DESC_DPL(access)		(((access) >> 5) & 0x3)
+#define	SEG_DESC_PRESENT(access)	(((access) & 0x0080) ? 1 : 0)
+#define	SEG_DESC_DEF32(access)		(((access) & 0x4000) ? 1 : 0)
+#define	SEG_DESC_GRANULARITY(access)	(((access) & 0x8000) ? 1 : 0)
+#define	SEG_DESC_UNUSABLE(access)	(((access) & 0x10000) ? 1 : 0)
 
 enum vm_cpu_mode {
+	CPU_MODE_REAL,
+	CPU_MODE_PROTECTED,
 	CPU_MODE_COMPATIBILITY,		/* IA-32E mode (CS.L = 0) */
 	CPU_MODE_64BIT,			/* IA-32E mode (CS.L = 1) */
 };
@@ -365,11 +371,14 @@ struct vie {
 	uint8_t		num_valid;		/* size of the instruction */
 	uint8_t		num_processed;
 
+	uint8_t		addrsize:4, opsize:4;	/* address and operand sizes */
 	uint8_t		rex_w:1,		/* REX prefix */
 			rex_r:1,
 			rex_x:1,
 			rex_b:1,
-			rex_present:1;
+			rex_present:1,
+			opsize_override:1,	/* Operand size override */
+			addrsize_override:1;	/* Address size override */
 
 	uint8_t		mod:2,			/* ModRM byte */
 			reg:4,
@@ -411,6 +420,7 @@ enum vm_exitcode {
 	VM_EXITCODE_IOAPIC_EOI,
 	VM_EXITCODE_SUSPENDED,
 	VM_EXITCODE_INOUT_STR,
+	VM_EXITCODE_TASK_SWITCH,
 	VM_EXITCODE_MAX
 };
 
@@ -435,6 +445,22 @@ struct vm_inout_str {
 	struct seg_desc seg_desc;
 };
 
+enum task_switch_reason {
+	TSR_CALL,
+	TSR_IRET,
+	TSR_JMP,
+	TSR_IDT_GATE,	/* task gate in IDT */
+};
+
+struct vm_task_switch {
+	uint16_t	tsssel;		/* new TSS selector */
+	int		ext;		/* task switch due to external event */
+	uint32_t	errcode;
+	int		errcode_valid;	/* push 'errcode' on the new stack */
+	enum task_switch_reason reason;
+	struct vm_guest_paging paging;
+};
+
 struct vm_exit {
 	enum vm_exitcode	exitcode;
 	int			inst_length;	/* 0 means unknown */
@@ -449,6 +475,7 @@ struct vm_exit {
 		struct {
 			uint64_t	gpa;
 			uint64_t	gla;
+			int		cs_d;		/* CS.D */
 			struct vm_guest_paging paging;
 			struct vie	vie;
 		} inst_emul;
@@ -488,6 +515,7 @@ struct vm_exit {
 		struct {
 			enum vm_suspend_how how;
 		} suspended;
+		struct vm_task_switch task_switch;
 	} u;
 };
 

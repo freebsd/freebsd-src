@@ -2627,7 +2627,7 @@ nfsrv_readdir(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 	int v3 = (nfsd->nd_flag & ND_NFSV3);
 	u_quad_t off, toff, verf;
 	u_long *cookies = NULL, *cookiep; /* needs to be int64_t or off_t */
-	int not_zfs;
+	int is_ufs;
 
 	nfsdbprintf(("%s %d\n", __FILE__, __LINE__));
 	fhp = &nfh.fh_generic;
@@ -2690,7 +2690,7 @@ nfsrv_readdir(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 		error = 0;
 		goto nfsmout;
 	}
-	not_zfs = strcmp(vp->v_mount->mnt_vfc->vfc_name, "zfs") != 0;
+	is_ufs = strcmp(vp->v_mount->mnt_vfc->vfc_name, "ufs") == 0;
 	VOP_UNLOCK(vp, 0);
 
 	/*
@@ -2777,12 +2777,10 @@ again:
 	 * skip over the records that precede the requested offset. This
 	 * requires the assumption that file offset cookies monotonically
 	 * increase.
-	 * Since the offset cookies don't monotonically increase for ZFS,
-	 * this is not done when ZFS is the file system.
 	 */
 	while (cpos < cend && ncookies > 0 &&
 		(dp->d_fileno == 0 || dp->d_type == DT_WHT ||
-		 (not_zfs != 0 && ((u_quad_t)(*cookiep)) <= toff))) {
+		 (is_ufs == 1 && ((u_quad_t)(*cookiep)) <= toff))) {
 		cpos += dp->d_reclen;
 		dp = (struct dirent *)cpos;
 		cookiep++;
@@ -2928,7 +2926,7 @@ nfsrv_readdirplus(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 	int usevget = 1;
 	struct componentname cn;
 	struct mount *mntp = NULL;
-	int not_zfs;
+	int is_ufs;
 
 	nfsdbprintf(("%s %d\n", __FILE__, __LINE__));
 	vp_locked = 0;
@@ -2988,7 +2986,7 @@ nfsrv_readdirplus(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 		error = 0;
 		goto nfsmout;
 	}
-	not_zfs = strcmp(vp->v_mount->mnt_vfc->vfc_name, "zfs") != 0;
+	is_ufs = strcmp(vp->v_mount->mnt_vfc->vfc_name, "ufs") == 0;
 	VOP_UNLOCK(vp, 0);
 	vp_locked = 0;
 	rbuf = malloc(siz, M_TEMP, M_WAITOK);
@@ -3068,12 +3066,10 @@ again:
 	 * skip over the records that precede the requested offset. This
 	 * requires the assumption that file offset cookies monotonically
 	 * increase.
-	 * Since the offset cookies don't monotonically increase for ZFS,
-	 * this is not done when ZFS is the file system.
 	 */
 	while (cpos < cend && ncookies > 0 &&
 		(dp->d_fileno == 0 || dp->d_type == DT_WHT ||
-		 (not_zfs != 0 && ((u_quad_t)(*cookiep)) <= toff))) {
+		 (is_ufs == 1 && ((u_quad_t)(*cookiep)) <= toff))) {
 		cpos += dp->d_reclen;
 		dp = (struct dirent *)cpos;
 		cookiep++;

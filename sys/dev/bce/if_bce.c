@@ -535,44 +535,37 @@ static SYSCTL_NODE(_hw, OID_AUTO, bce, CTLFLAG_RD, 0, "bce driver parameters");
 
 /* Allowable values are TRUE or FALSE */
 static int bce_verbose = TRUE;
-TUNABLE_INT("hw.bce.verbose", &bce_verbose);
 SYSCTL_INT(_hw_bce, OID_AUTO, verbose, CTLFLAG_RDTUN, &bce_verbose, 0,
     "Verbose output enable/disable");
 
 /* Allowable values are TRUE or FALSE */
 static int bce_tso_enable = TRUE;
-TUNABLE_INT("hw.bce.tso_enable", &bce_tso_enable);
 SYSCTL_INT(_hw_bce, OID_AUTO, tso_enable, CTLFLAG_RDTUN, &bce_tso_enable, 0,
     "TSO Enable/Disable");
 
 /* Allowable values are 0 (IRQ), 1 (MSI/IRQ), and 2 (MSI-X/MSI/IRQ) */
 /* ToDo: Add MSI-X support. */
 static int bce_msi_enable = 1;
-TUNABLE_INT("hw.bce.msi_enable", &bce_msi_enable);
 SYSCTL_INT(_hw_bce, OID_AUTO, msi_enable, CTLFLAG_RDTUN, &bce_msi_enable, 0,
     "MSI-X|MSI|INTx selector");
 
 /* Allowable values are 1, 2, 4, 8. */
 static int bce_rx_pages = DEFAULT_RX_PAGES;
-TUNABLE_INT("hw.bce.rx_pages", &bce_rx_pages);
 SYSCTL_UINT(_hw_bce, OID_AUTO, rx_pages, CTLFLAG_RDTUN, &bce_rx_pages, 0,
     "Receive buffer descriptor pages (1 page = 255 buffer descriptors)");
 
 /* Allowable values are 1, 2, 4, 8. */
 static int bce_tx_pages = DEFAULT_TX_PAGES;
-TUNABLE_INT("hw.bce.tx_pages", &bce_tx_pages);
 SYSCTL_UINT(_hw_bce, OID_AUTO, tx_pages, CTLFLAG_RDTUN, &bce_tx_pages, 0,
     "Transmit buffer descriptor pages (1 page = 255 buffer descriptors)");
 
 /* Allowable values are TRUE or FALSE. */
 static int bce_hdr_split = TRUE;
-TUNABLE_INT("hw.bce.hdr_split", &bce_hdr_split);
 SYSCTL_UINT(_hw_bce, OID_AUTO, hdr_split, CTLFLAG_RDTUN, &bce_hdr_split, 0,
     "Frame header/payload splitting Enable/Disable");
 
 /* Allowable values are TRUE or FALSE. */
 static int bce_strict_rx_mtu = FALSE;
-TUNABLE_INT("hw.bce.strict_rx_mtu", &bce_strict_rx_mtu);
 SYSCTL_UINT(_hw_bce, OID_AUTO, strict_rx_mtu, CTLFLAG_RDTUN,
     &bce_strict_rx_mtu, 0,
     "Enable/Disable strict RX frame size checking");
@@ -585,7 +578,6 @@ static int bce_tx_quick_cons_trip_int = 1;
 /* Generate 1 interrupt for every 20 transmit completions. */
 static int bce_tx_quick_cons_trip_int = DEFAULT_TX_QUICK_CONS_TRIP_INT;
 #endif
-TUNABLE_INT("hw.bce.tx_quick_cons_trip_int", &bce_tx_quick_cons_trip_int);
 SYSCTL_UINT(_hw_bce, OID_AUTO, tx_quick_cons_trip_int, CTLFLAG_RDTUN,
     &bce_tx_quick_cons_trip_int, 0,
     "Transmit BD trip point during interrupts");
@@ -598,7 +590,6 @@ static int bce_tx_quick_cons_trip = 1;
 /* Generate 1 interrupt for every 20 transmit completions. */
 static int bce_tx_quick_cons_trip = DEFAULT_TX_QUICK_CONS_TRIP;
 #endif
-TUNABLE_INT("hw.bce.tx_quick_cons_trip", &bce_tx_quick_cons_trip);
 SYSCTL_UINT(_hw_bce, OID_AUTO, tx_quick_cons_trip, CTLFLAG_RDTUN,
     &bce_tx_quick_cons_trip, 0,
     "Transmit BD trip point");
@@ -611,7 +602,6 @@ static int bce_tx_ticks_int = 0;
 /* Generate an interrupt if 80us have elapsed since the last TX completion. */
 static int bce_tx_ticks_int = DEFAULT_TX_TICKS_INT;
 #endif
-TUNABLE_INT("hw.bce.tx_ticks_int", &bce_tx_ticks_int);
 SYSCTL_UINT(_hw_bce, OID_AUTO, tx_ticks_int, CTLFLAG_RDTUN,
     &bce_tx_ticks_int, 0, "Transmit ticks count during interrupt");
 
@@ -623,7 +613,6 @@ static int bce_tx_ticks = 0;
 /* Generate an interrupt if 80us have elapsed since the last TX completion. */
 static int bce_tx_ticks = DEFAULT_TX_TICKS;
 #endif
-TUNABLE_INT("hw.bce.tx_ticks", &bce_tx_ticks);
 SYSCTL_UINT(_hw_bce, OID_AUTO, tx_ticks, CTLFLAG_RDTUN,
     &bce_tx_ticks, 0, "Transmit ticks count");
 
@@ -635,7 +624,6 @@ static int bce_rx_quick_cons_trip_int = 1;
 /* Generate 1 interrupt for every 6 received frames. */
 static int bce_rx_quick_cons_trip_int = DEFAULT_RX_QUICK_CONS_TRIP_INT;
 #endif
-TUNABLE_INT("hw.bce.rx_quick_cons_trip_int", &bce_rx_quick_cons_trip_int);
 SYSCTL_UINT(_hw_bce, OID_AUTO, rx_quick_cons_trip_int, CTLFLAG_RDTUN,
     &bce_rx_quick_cons_trip_int, 0,
     "Receive BD trip point duirng interrupts");
@@ -648,7 +636,6 @@ static int bce_rx_quick_cons_trip = 1;
 /* Generate 1 interrupt for every 6 received frames. */
 static int bce_rx_quick_cons_trip = DEFAULT_RX_QUICK_CONS_TRIP;
 #endif
-TUNABLE_INT("hw.bce.rx_quick_cons_trip", &bce_rx_quick_cons_trip);
 SYSCTL_UINT(_hw_bce, OID_AUTO, rx_quick_cons_trip, CTLFLAG_RDTUN,
     &bce_rx_quick_cons_trip, 0,
     "Receive BD trip point");
@@ -661,7 +648,6 @@ static int bce_rx_ticks_int = 0;
 /* Generate an int. if 18us have elapsed since the last received frame. */
 static int bce_rx_ticks_int = DEFAULT_RX_TICKS_INT;
 #endif
-TUNABLE_INT("hw.bce.rx_ticks_int", &bce_rx_ticks_int);
 SYSCTL_UINT(_hw_bce, OID_AUTO, rx_ticks_int, CTLFLAG_RDTUN,
     &bce_rx_ticks_int, 0, "Receive ticks count during interrupt");
 
@@ -673,7 +659,6 @@ static int bce_rx_ticks = 0;
 /* Generate an int. if 18us have elapsed since the last received frame. */
 static int bce_rx_ticks = DEFAULT_RX_TICKS;
 #endif
-TUNABLE_INT("hw.bce.rx_ticks", &bce_rx_ticks);
 SYSCTL_UINT(_hw_bce, OID_AUTO, rx_ticks, CTLFLAG_RDTUN,
     &bce_rx_ticks, 0, "Receive ticks count");
 
@@ -3251,21 +3236,19 @@ bce_dma_free(struct bce_softc *sc)
 	DBENTER(BCE_VERBOSE_RESET | BCE_VERBOSE_UNLOAD | BCE_VERBOSE_CTX);
 
 	/* Free, unmap, and destroy the status block. */
+	if (sc->status_block_paddr != 0) {
+		bus_dmamap_unload(
+		    sc->status_tag,
+		    sc->status_map);
+		sc->status_block_paddr = 0;
+	}
+
 	if (sc->status_block != NULL) {
 		bus_dmamem_free(
 		   sc->status_tag,
 		    sc->status_block,
 		    sc->status_map);
 		sc->status_block = NULL;
-	}
-
-	if (sc->status_map != NULL) {
-		bus_dmamap_unload(
-		    sc->status_tag,
-		    sc->status_map);
-		bus_dmamap_destroy(sc->status_tag,
-		    sc->status_map);
-		sc->status_map = NULL;
 	}
 
 	if (sc->status_tag != NULL) {
@@ -3275,21 +3258,19 @@ bce_dma_free(struct bce_softc *sc)
 
 
 	/* Free, unmap, and destroy the statistics block. */
+	if (sc->stats_block_paddr != 0) {
+		bus_dmamap_unload(
+		    sc->stats_tag,
+		    sc->stats_map);
+		sc->stats_block_paddr = 0;
+	}
+
 	if (sc->stats_block != NULL) {
 		bus_dmamem_free(
 		    sc->stats_tag,
 		    sc->stats_block,
 		    sc->stats_map);
 		sc->stats_block = NULL;
-	}
-
-	if (sc->stats_map != NULL) {
-		bus_dmamap_unload(
-		    sc->stats_tag,
-		    sc->stats_map);
-		bus_dmamap_destroy(sc->stats_tag,
-		    sc->stats_map);
-		sc->stats_map = NULL;
 	}
 
 	if (sc->stats_tag != NULL) {
@@ -3301,22 +3282,19 @@ bce_dma_free(struct bce_softc *sc)
 	/* Free, unmap and destroy all context memory pages. */
 	if (BCE_CHIP_NUM(sc) == BCE_CHIP_NUM_5709) {
 		for (i = 0; i < sc->ctx_pages; i++ ) {
+			if (sc->ctx_paddr[i] != 0) {
+				bus_dmamap_unload(
+				    sc->ctx_tag,
+				    sc->ctx_map[i]);
+				sc->ctx_paddr[i] = 0;
+			}
+
 			if (sc->ctx_block[i] != NULL) {
 				bus_dmamem_free(
 				    sc->ctx_tag,
 				    sc->ctx_block[i],
 				    sc->ctx_map[i]);
 				sc->ctx_block[i] = NULL;
-			}
-
-			if (sc->ctx_map[i] != NULL) {
-				bus_dmamap_unload(
-				    sc->ctx_tag,
-				    sc->ctx_map[i]);
-				bus_dmamap_destroy(
-				    sc->ctx_tag,
-				    sc->ctx_map[i]);
-				sc->ctx_map[i] = NULL;
 			}
 		}
 
@@ -3330,22 +3308,19 @@ bce_dma_free(struct bce_softc *sc)
 
 	/* Free, unmap and destroy all TX buffer descriptor chain pages. */
 	for (i = 0; i < sc->tx_pages; i++ ) {
+		if (sc->tx_bd_chain_paddr[i] != 0) {
+			bus_dmamap_unload(
+			    sc->tx_bd_chain_tag,
+			    sc->tx_bd_chain_map[i]);
+			sc->tx_bd_chain_paddr[i] = 0;
+		}
+
 		if (sc->tx_bd_chain[i] != NULL) {
 			bus_dmamem_free(
 			    sc->tx_bd_chain_tag,
 			    sc->tx_bd_chain[i],
 			    sc->tx_bd_chain_map[i]);
 			sc->tx_bd_chain[i] = NULL;
-		}
-
-		if (sc->tx_bd_chain_map[i] != NULL) {
-			bus_dmamap_unload(
-			    sc->tx_bd_chain_tag,
-			    sc->tx_bd_chain_map[i]);
-			bus_dmamap_destroy(
-			    sc->tx_bd_chain_tag,
-			    sc->tx_bd_chain_map[i]);
-			sc->tx_bd_chain_map[i] = NULL;
 		}
 	}
 
@@ -3358,22 +3333,19 @@ bce_dma_free(struct bce_softc *sc)
 
 	/* Free, unmap and destroy all RX buffer descriptor chain pages. */
 	for (i = 0; i < sc->rx_pages; i++ ) {
+		if (sc->rx_bd_chain_paddr[i] != 0) {
+			bus_dmamap_unload(
+			    sc->rx_bd_chain_tag,
+			    sc->rx_bd_chain_map[i]);
+			sc->rx_bd_chain_paddr[i] = 0;
+		}
+
 		if (sc->rx_bd_chain[i] != NULL) {
 			bus_dmamem_free(
 			    sc->rx_bd_chain_tag,
 			    sc->rx_bd_chain[i],
 			    sc->rx_bd_chain_map[i]);
 			sc->rx_bd_chain[i] = NULL;
-		}
-
-		if (sc->rx_bd_chain_map[i] != NULL) {
-			bus_dmamap_unload(
-			    sc->rx_bd_chain_tag,
-			    sc->rx_bd_chain_map[i]);
-			bus_dmamap_destroy(
-			    sc->rx_bd_chain_tag,
-			    sc->rx_bd_chain_map[i]);
-			sc->rx_bd_chain_map[i] = NULL;
 		}
 	}
 
@@ -3387,22 +3359,19 @@ bce_dma_free(struct bce_softc *sc)
 	/* Free, unmap and destroy all page buffer descriptor chain pages. */
 	if (bce_hdr_split == TRUE) {
 		for (i = 0; i < sc->pg_pages; i++ ) {
+			if (sc->pg_bd_chain_paddr[i] != 0) {
+				bus_dmamap_unload(
+				    sc->pg_bd_chain_tag,
+				    sc->pg_bd_chain_map[i]);
+				sc->pg_bd_chain_paddr[i] = 0;
+			}
+
 			if (sc->pg_bd_chain[i] != NULL) {
 				bus_dmamem_free(
 				    sc->pg_bd_chain_tag,
 				    sc->pg_bd_chain[i],
 				    sc->pg_bd_chain_map[i]);
 				sc->pg_bd_chain[i] = NULL;
-			}
-
-			if (sc->pg_bd_chain_map[i] != NULL) {
-				bus_dmamap_unload(
-				    sc->pg_bd_chain_tag,
-				    sc->pg_bd_chain_map[i]);
-				bus_dmamap_destroy(
-				    sc->pg_bd_chain_tag,
-				    sc->pg_bd_chain_map[i]);
-				sc->pg_bd_chain_map[i] = NULL;
 			}
 		}
 

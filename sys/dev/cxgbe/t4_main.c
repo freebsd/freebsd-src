@@ -5546,6 +5546,7 @@ const char *devlog_level_strings[] = {
 
 const char *devlog_facility_strings[] = {
 	[FW_DEVLOG_FACILITY_CORE]	= "CORE",
+	[FW_DEVLOG_FACILITY_CF]		= "CF",
 	[FW_DEVLOG_FACILITY_SCHED]	= "SCHED",
 	[FW_DEVLOG_FACILITY_TIMER]	= "TIMER",
 	[FW_DEVLOG_FACILITY_RES]	= "RES",
@@ -7535,16 +7536,14 @@ read_i2c(struct adapter *sc, struct t4_i2c_data *i2cd)
 	if (i2cd->len == 0 || i2cd->port_id >= sc->params.nports)
 		return (EINVAL);
 
-	if (i2cd->len > 1) {
-		/* XXX: need fw support for longer reads in one go */
-		return (ENOTSUP);
-	}
+	if (i2cd->len > sizeof(i2cd->data))
+		return (EFBIG);
 
 	rc = begin_synchronized_op(sc, NULL, SLEEP_OK | INTR_OK, "t4i2crd");
 	if (rc)
 		return (rc);
 	rc = -t4_i2c_rd(sc, sc->mbox, i2cd->port_id, i2cd->dev_addr,
-	    i2cd->offset, &i2cd->data[0]);
+	    i2cd->offset, i2cd->len, &i2cd->data[0]);
 	end_synchronized_op(sc, 0);
 
 	return (rc);

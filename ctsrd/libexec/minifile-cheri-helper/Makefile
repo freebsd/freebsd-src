@@ -29,6 +29,7 @@ SRCS+=	_flock_stub.c				\
 	cerror.S				\
 	ffs.S					\
 	fileno.c				\
+	fmtcheck.c				\
 	getprogname.c				\
 	memchr.c				\
 	memcmp.c				\
@@ -37,6 +38,8 @@ SRCS+=	_flock_stub.c				\
 	memset.c				\
 	qsort.c					\
 	setprogname.c				\
+	strcasecmp.c				\
+	strcasestr.c				\
 	strcat.c				\
 	strchr.S				\
 	strcmp.S				\

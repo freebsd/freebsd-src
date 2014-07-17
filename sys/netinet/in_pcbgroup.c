@@ -297,6 +297,18 @@ in_pcbgroup_bytuple(struct inpcbinfo *pcbinfo, struct in_addr laddr,
 struct inpcbgroup *
 in_pcbgroup_byinpcb(struct inpcb *inp)
 {
+#ifdef	RSS
+	/*
+	 * Listen sockets with INP_RSS_BUCKET_SET set have a pre-determined
+	 * RSS bucket and thus we should use this pcbgroup, rather than
+	 * using a tuple or hash.
+	 *
+	 * XXX should verify that there's actually pcbgroups and inp_rss_listen_bucket
+	 * fits in that!
+	 */
+	if (inp->inp_flags2 & INP_RSS_BUCKET_SET)
+		return (&inp->inp_pcbinfo->ipi_pcbgroups[inp->inp_rss_listen_bucket]);
+#endif
 
 	return (in_pcbgroup_bytuple(inp->inp_pcbinfo, inp->inp_laddr,
 	    inp->inp_lport, inp->inp_faddr, inp->inp_fport));
@@ -346,6 +358,15 @@ in_pcbwild_remove(struct inpcb *inp)
 static __inline int
 in_pcbwild_needed(struct inpcb *inp)
 {
+#ifdef	RSS
+	/*
+	 * If it's a listen socket and INP_RSS_BUCKET_SET is set,
+	 * it's a wildcard socket _but_ it's in a specific pcbgroup.
+	 * Thus we don't treat it as a pcbwild inp.
+	 */
+	if (inp->inp_flags2 & INP_RSS_BUCKET_SET)
+		return (0);
+#endif
 
 #ifdef INET6
 	if (inp->inp_vflag & INP_IPV6)
@@ -398,9 +419,24 @@ in_pcbgroup_update_internal(struct inpcbinfo *pcbinfo,
 #endif
 			hashkey_faddr = inp->inp_faddr.s_addr;
 		INP_GROUP_LOCK(newpcbgroup);
-		pcbhash = &newpcbgroup->ipg_hashbase[
-		    INP_PCBHASH(hashkey_faddr, inp->inp_lport, inp->inp_fport,
-		    newpcbgroup->ipg_hashmask)];
+		/*
+		 * If the inp is an RSS bucket wildcard entry, ensure
+		 * that the PCB hash is calculated correctly.
+		 *
+		 * The wildcard hash calculation differs from the
+		 * non-wildcard definition.  The source address is
+		 * INADDR_ANY and the far port is 0.
+		 */
+		if (inp->inp_flags2 & INP_RSS_BUCKET_SET) {
+			pcbhash = &newpcbgroup->ipg_hashbase[
+			    INP_PCBHASH(INADDR_ANY, inp->inp_lport, 0,
+			    newpcbgroup->ipg_hashmask)];
+		} else {
+			pcbhash = &newpcbgroup->ipg_hashbase[
+			    INP_PCBHASH(hashkey_faddr, inp->inp_lport,
+			    inp->inp_fport,
+			    newpcbgroup->ipg_hashmask)];
+		}
 		LIST_INSERT_HEAD(pcbhash, inp, inp_pcbgrouphash);
 		inp->inp_pcbgroup = newpcbgroup;
 		INP_GROUP_UNLOCK(newpcbgroup);

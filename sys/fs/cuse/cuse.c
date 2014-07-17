@@ -813,15 +813,9 @@ cuse_proc2proc_copy(struct proc *proc_s, vm_offset_t data_s,
 			.uio_td = td,
 		};
 
-		PROC_LOCK(proc_s);
-		_PHOLD(proc_s);
-		PROC_UNLOCK(proc_s);
-
+		PHOLD(proc_s);
 		error = proc_rwmem(proc_s, &uio);
-
-		PROC_LOCK(proc_s);
-		_PRELE(proc_s);
-		PROC_UNLOCK(proc_s);
+		PRELE(proc_s);
 
 	} else if (proc_cur == proc_s) {
 		struct iovec iov = {
@@ -838,15 +832,9 @@ cuse_proc2proc_copy(struct proc *proc_s, vm_offset_t data_s,
 			.uio_td = td,
 		};
 
-		PROC_LOCK(proc_d);
-		_PHOLD(proc_d);
-		PROC_UNLOCK(proc_d);
-
+		PHOLD(proc_d);
 		error = proc_rwmem(proc_d, &uio);
-
-		PROC_LOCK(proc_d);
-		_PRELE(proc_d);
-		PROC_UNLOCK(proc_d);
+		PRELE(proc_d);
 	} else {
 		error = EINVAL;
 	}
