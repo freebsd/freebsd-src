@@ -732,10 +732,7 @@ adastrategy(struct bio *bp)
 			((softc->flags & ADA_FLAG_CAN_CFA) &&
 			 !(softc->flags & ADA_FLAG_CAN_48BIT)),
 			("BIO_DELETE but no supported TRIM method."));
-		if (ADA_SIO)
-		    bioq_disksort(&softc->trim_queue, bp);
-		else
-		    bioq_insert_tail(&softc->trim_queue, bp);
+		bioq_disksort(&softc->trim_queue, bp);
 	} else {
 		if (ADA_SIO)
 		    bioq_disksort(&softc->bio_queue, bp);
