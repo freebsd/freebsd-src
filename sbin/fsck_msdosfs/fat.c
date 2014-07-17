@@ -240,7 +240,7 @@ readfat(int fs, struct bootblock *boot, u_int no, struct fatEntry **fp)
 			ret |= FSDIRTY;
 		else {
 			/* just some odd byte sequence in FAT */
-				
+
 			switch (boot->ClustMask) {
 			case CLUST32_MASK:
 				pwarn("%s (%02x%02x%02x%02x%02x%02x%02x%02x)\n",
@@ -260,7 +260,7 @@ readfat(int fs, struct bootblock *boot, u_int no, struct fatEntry **fp)
 				break;
 			}
 
-	
+
 			if (ask(1, "Correct"))
 				ret |= FSFIXFAT;
 		}
@@ -651,7 +651,7 @@ checklost(int dosfs, struct bootblock *boot, struct fatEntry *fat)
 	cl_t head;
 	int mod = FSOK;
 	int ret;
-	
+
 	for (head = CLUST_FIRST; head < boot->NumClusters; head++) {
 		/* find next untravelled chain */
 		if (fat[head].head != head
@@ -675,8 +675,9 @@ checklost(int dosfs, struct bootblock *boot, struct fatEntry *fat)
 
 	if (boot->bpbFSInfo) {
 		ret = 0;
-		if (boot->FSFree != boot->NumFree) {
-			pwarn("Free space in FSInfo block (%d) not correct (%d)\n",
+		if (boot->FSFree != 0xffffffffU &&
+		    boot->FSFree != boot->NumFree) {
+			pwarn("Free space in FSInfo block (%u) not correct (%u)\n",
 			      boot->FSFree, boot->NumFree);
 			if (ask(1, "Fix")) {
 				boot->FSFree = boot->NumFree;
