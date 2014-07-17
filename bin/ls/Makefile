@@ -11,8 +11,8 @@ LDADD=	-lutil
 .if !defined(RELEASE_CRUNCH) && \
 	${MK_LS_COLORS} != no
 CFLAGS+= -DCOLORLS
-DPADD+=	${LIBTERMCAP}
-LDADD+=	-ltermcap
+DPADD+=	${LIBTERMCAPW}
+LDADD+=	-ltermcapw
 .endif
 
 .include <bsd.prog.mk>

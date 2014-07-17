@@ -6,8 +6,8 @@ PROG=	units
 FILES=	units.lib
 FILESDIR=	${SHAREDIR}/misc
 
-LDADD+=-ledit -ltermcap
-DPADD+=${LIBEDIT} ${LIBTERMCAP}
+LDADD+=-ledit -ltermcapw
+DPADD+=${LIBEDIT} ${LIBTERMCAPW}
 
 .if ${MK_TESTS} != "no"
 SUBDIR+= tests
