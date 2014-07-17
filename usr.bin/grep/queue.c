@@ -96,6 +96,7 @@ printqueue(void)
 
 	while ((item = dequeue()) != NULL) {
 		printline(&item->data, '-', NULL, 0);
+		free(item->data.dat);
 		free(item);
 	}
 }
