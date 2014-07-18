@@ -95,7 +95,6 @@ boolean_t arc_buf_remove_ref(arc_buf_t *buf, void *tag);
 int arc_buf_size(arc_buf_t *buf);
 void arc_release(arc_buf_t *buf, void *tag);
 int arc_released(arc_buf_t *buf);
-int arc_has_callback(arc_buf_t *buf);
 void arc_buf_freeze(arc_buf_t *buf);
 void arc_buf_thaw(arc_buf_t *buf);
 boolean_t arc_buf_eviction_needed(arc_buf_t *buf);
@@ -114,7 +113,7 @@ zio_t *arc_write(zio_t *pio, spa_t *spa, uint64_t txg,
 void arc_freed(spa_t *spa, const blkptr_t *bp);
 
 void arc_set_callback(arc_buf_t *buf, arc_evict_func_t *func, void *private);
-int arc_buf_evict(arc_buf_t *buf);
+boolean_t arc_clear_callback(arc_buf_t *buf);
 
 void arc_flush(spa_t *spa);
 void arc_tempreserve_clear(uint64_t reserve);
