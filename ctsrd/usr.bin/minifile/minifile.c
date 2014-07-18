@@ -34,11 +34,13 @@
 #include <sys/stat.h>
 #include <sys/wait.h>
 
+#ifdef CHERI
 #include <machine/cheri.h>
 #include <machine/cpuregs.h>
 #include <machine/sysarch.h>
 
 #include <cheri/sandbox.h>
+#endif
 
 #include <err.h>
 #include <errno.h>
@@ -132,13 +134,17 @@ capsicum_magic_descriptor(int mfd, int fd)
 	int curfds[3], targetfds[3];
 	uint32_t start, preinvoke, *invoke, postinvoke, end;
 
+#ifdef CHERI
 	if (dotimings)
 		start = sysarch(MIPS_GET_COUNT, NULL);
+#endif
 
 	if (pipe(pfd) == -1)
 		err(1, "pipe()");
+#ifdef CHERI
 	if (dotimings)
 		preinvoke = sysarch(MIPS_GET_COUNT, NULL);
+#endif
 	pid = fork();
 	if (pid < 0)
 		err(1, "fork()");
@@ -175,8 +181,10 @@ capsicum_magic_descriptor(int mfd, int fd)
 		} else {
 			rlen = read(pfd[0], buf, 128 + sizeof(uint32_t) * 4);
 			close(pfd[0]);
+#ifdef CHERI
 			if (dotimings)
 				postinvoke = sysarch(MIPS_GET_COUNT, NULL);
+#endif
 			if (rlen == -1)
 				type = "read error";
 			else if (rlen <= sizeof(uint32_t) * 4 + 1)
@@ -192,16 +200,19 @@ capsicum_magic_descriptor(int mfd, int fd)
 		}
 	}
 
+#ifdef CHERI
 	if (dotimings) {
 		end = sysarch(MIPS_GET_COUNT, NULL);
 
 		printf("counts: %u %u %u %u %u %u %u %u\n", start, preinvoke,
 		    invoke[0], invoke[1], invoke[2], invoke[3], postinvoke, end);
 	}
+#endif
 
 	return type;
 }
 
+#ifdef CHERI
 static struct sandbox *sandbox;
 static struct chericap file_cap, magic_cap, out_cap, timing_cap;
 
@@ -282,6 +293,7 @@ error:
 
 	return type;
 }
+#endif
 
 int
 main(int argc, char **argv)
@@ -353,10 +365,12 @@ main(int argc, char **argv)
 		}
 	}
 
+#ifdef CHERI
 	if (sbtype == SB_CHERI)
 		if (sandbox_setup("/usr/libexec/minifile-cheri-helper.bin", 8*1024*1024,
 		    &sandbox) < 0)
 			err(1, "can't create cheri sandbox");
+#endif
 
 	for (; argc >= 1; argc--, argv++) {
 		fname = argv[0];
@@ -375,10 +389,14 @@ main(int argc, char **argv)
 				errx(1, "capsicum_magic_descriptor()");
 			break;
 		case SB_CHERI:
+#ifdef CHERI
 			type = cheri_magic_descriptor(magicbuf, magicsize, fd);
 			if (type == NULL)
 				errx(1, "cheri_magic_descriptor()");
 			break;
+#else
+			errx(1, "CHERI sandbox not supported on this platform\n");
+#endif
 		default:
 			errx(1, "invalid sandbox type");
 		}
@@ -386,6 +404,8 @@ main(int argc, char **argv)
 		printf("%s: %s\n", fname, type);
 	}
 
+#ifdef CHERI
 	if (sbtype == SB_CHERI)
 		sandbox_destroy(sandbox);
+#endif
 }	

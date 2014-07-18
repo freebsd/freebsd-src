@@ -4,12 +4,12 @@
 
 SUBDIR=	browser \
 	${_compositor_demos} \
+	minifile \
 	writefile
 
-# XXX: The latter three should be buildable without cheri but aren't yet.
+# XXX: The latter two should be buildable without cheri but aren't yet.
 .if ${MK_CHERI} != "no"
 SUBDIR+=	cheripoint \
-		minifile \
 		pictview \
 		pngsb
 .endif
