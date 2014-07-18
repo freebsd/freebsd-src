@@ -85,91 +85,92 @@ SRCS+=	usb_busdma_loader.c
 # USB controller drivers
 #
 
-SRCS+=	usb_controller.c
+KSRCS+=	usb_controller.c
 
 .if defined(HAVE_AT91DCI)
 CFLAGS += -DUSB_PCI_PROBE_LIST="\"at91dci\""
-SRCS+=	at91dci.c
+KSRCS+=	at91dci.c
 .endif
 
 .if defined(HAVE_ATMEGADCI)
 CFLAGS += -DUSB_PCI_PROBE_LIST="\"atmegadci\""
-SRCS+=	atmegadci.c
+KSRCS+=	atmegadci.c
 .endif
 
 .if defined(HAVE_AVR32DCI)
 CFLAGS += -DUSB_PCI_PROBE_LIST="\"avr32dci\""
-SRCS+=	avr32dci.c
+KSRCS+=	avr32dci.c
 .endif
 
 .if defined(HAVE_DWCOTG)
 CFLAGS += -DUSB_PCI_PROBE_LIST="\"dwcotg\""
-SRCS+=	dwcotg.c
+KSRCS+=	dwcotg.c
 .endif
 
 .if defined(HAVE_MUSBOTG)
 CFLAGS += -DUSB_PCI_PROBE_LIST="\"musbotg\""
-SRCS+=	musbotg.c
+KSRCS+=	musbotg.c
 .endif
 
 .if defined(HAVE_EHCI)
 CFLAGS += -DUSB_PCI_PROBE_LIST="\"ehci\""
-SRCS+=	ehci.c
+KSRCS+=	ehci.c
 .endif
 
 .if defined(HAVE_OHCI)
 CFLAGS += -DUSB_PCI_PROBE_LIST="\"ohci\""
-SRCS+=	ohci.c
+KSRCS+=	ohci.c
 .endif
 
 .if defined(HAVE_UHCI)
 CFLAGS += -DUSB_PCI_PROBE_LIST="\"uhci\""
-SRCS+=	uhci.c
+KSRCS+=	uhci.c
 .endif
 
 .if defined(HAVE_XHCI)
 CFLAGS += -DUSB_PCI_PROBE_LIST="\"xhci\""
-SRCS+=	xhci.c
+KSRCS+=	xhci.c
 .endif
 
 .if defined(HAVE_USS820DCI)
 CFLAGS += -DUSB_PCI_PROBE_LIST="\"uss820dci\""
-SRCS+=	uss820dci.c
+KSRCS+=	uss820dci.c
 .endif
 
 .if defined(HAVE_SAF1761OTG)
 CFLAGS += -DUSB_PCI_PROBE_LIST="\"saf1761otg\""
 CFLAGS += -DUSB_PCI_MEMORY_ADDRESS=0x900000007f100000ULL
 CFLAGS += -DUSB_PCI_MEMORY_SIZE=0x40000U
-SRCS+=	saf1761_otg.c
-SRCS+=	saf1761_otg_boot.c
+KSRCS+=	saf1761_otg.c
+KSRCS+=	saf1761_otg_boot.c
 .endif
 
 #
 # USB core and templates
 #
-SRCS+=	usb_core.c
-SRCS+=	usb_debug.c
-SRCS+=	usb_device.c
-SRCS+=	usb_dynamic.c
-SRCS+=	usb_error.c
-SRCS+=	usb_handle_request.c
-SRCS+=	usb_hid.c
-SRCS+=	usb_hub.c
-SRCS+=	usb_lookup.c
-SRCS+=	usb_msctest.c
-SRCS+=	usb_parse.c
-SRCS+=	usb_request.c
-SRCS+=	usb_transfer.c
-SRCS+=	usb_util.c
-SRCS+=	usb_template.c
-SRCS+=	usb_template_cdce.c
-SRCS+=	usb_template_msc.c
-SRCS+=	usb_template_mtp.c
-SRCS+=	usb_template_modem.c
-SRCS+=	usb_template_mouse.c
-SRCS+=	usb_template_kbd.c
-SRCS+=	usb_template_audio.c
+KSRCS+=	usb_core.c
+KSRCS+=	usb_debug.c
+KSRCS+=	usb_device.c
+KSRCS+=	usb_dynamic.c
+KSRCS+=	usb_error.c
+KSRCS+=	usb_handle_request.c
+KSRCS+=	usb_hid.c
+KSRCS+=	usb_hub.c
+KSRCS+=	usb_lookup.c
+KSRCS+=	usb_msctest.c
+KSRCS+=	usb_parse.c
+KSRCS+=	usb_request.c
+KSRCS+=	usb_transfer.c
+KSRCS+=	usb_util.c
+KSRCS+=	usb_template.c
+KSRCS+=	usb_template_cdce.c
+KSRCS+=	usb_template_msc.c
+KSRCS+=	usb_template_mtp.c
+KSRCS+=	usb_template_modem.c
+KSRCS+=	usb_template_mouse.c
+KSRCS+=	usb_template_kbd.c
+KSRCS+=	usb_template_audio.c
+
 SRCS+=	sysinit_data.c
 SRCS+=	sysuninit_data.c
 
@@ -186,7 +187,9 @@ CLEANFILES+= sysinit.bin
 CLEANFILES+= sysinit_data.c
 CLEANFILES+= sysuninit_data.c
 
-CLEANFILES+= ${SRCS:C/\.c/.osys/g}
+SRCS+=	${KSRCS}
+SYSINIT_OBJS=	${KSRCS:C/\.c/.osys/}
+CLEANFILES+=	${SYSINIT_OBJS}
 
 .include <bsd.lib.mk>
 
@@ -200,11 +203,9 @@ sysinit_data.c: sysinit.bin
 sysuninit_data.c: sysinit.bin
 	sysinit -i sysinit.bin -o ${.TARGET} -R -k sysuninit -s sysuninit_data
 
-.for F in ${OBJS}
-${F}sys: ${F}
-	${OBJCOPY} -j ".debug.sysinit" -O binary ${F} ${.TARGET}
-	[ -f ${.TARGET} ] || touch ${.TARGET}
-.endfor
+.SUFFIXES:	.osys
+.o.osys:
+	${OBJCOPY} -j ".debug.sysinit" -O binary ${.IMPSRC} ${.TARGET}
 
-sysinit.bin: ${OBJS:C/\.o/.osys/g:C/sysinit_data.osys//g:C/sysuninit_data.osys//g}
+sysinit.bin: ${SYSINIT_OBJS}
 	cat ${.ALLSRC} > sysinit.bin
