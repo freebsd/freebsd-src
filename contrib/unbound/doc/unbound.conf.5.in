@@ -778,6 +778,17 @@ Number of bytes size of the aggressive negative cache. Default is 1 megabyte.
 A plain number is in bytes, append 'k', 'm' or 'g' for kilobytes, megabytes
 or gigabytes (1024*1024 bytes in a megabyte).
 .TP
+.B unblock\-lan\-zones: \fI<yesno>
+Default is disabled.  If enabled, then for private address space,
+the reverse lookups are no longer filtered.  This allows unbound when
+running as dns service on a host where it provides service for that host,
+to put out all of the queries for the 'lan' upstream.  When enabled,
+only localhost, 127.0.0.1 reverse and ::1 reverse zones are configured
+with default local zones.  Disable the option when unbound is running
+as a (DHCP-) DNS network resolver for a group of machines, where such
+lookups should be filtered (RFC compliance), this also stops potential
+data leakage about the local network to the upstream DNS servers.
+.TP
 .B local\-zone: \fI<zone> <type>
 Configure a local zone. The type determines the answer to give if
 there is no match from local\-data. The types are deny, refuse, static,

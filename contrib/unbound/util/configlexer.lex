@@ -308,6 +308,7 @@ log-queries{COLON}		{ YDVAR(1, VAR_LOG_QUERIES) }
 local-zone{COLON}		{ YDVAR(2, VAR_LOCAL_ZONE) }
 local-data{COLON}		{ YDVAR(1, VAR_LOCAL_DATA) }
 local-data-ptr{COLON}		{ YDVAR(1, VAR_LOCAL_DATA_PTR) }
+unblock-lan-zones{COLON}	{ YDVAR(1, VAR_UNBLOCK_LAN_ZONES) }
 statistics-interval{COLON}	{ YDVAR(1, VAR_STATISTICS_INTERVAL) }
 statistics-cumulative{COLON}	{ YDVAR(1, VAR_STATISTICS_CUMULATIVE) }
 extended-statistics{COLON}	{ YDVAR(1, VAR_EXTENDED_STATISTICS) }
