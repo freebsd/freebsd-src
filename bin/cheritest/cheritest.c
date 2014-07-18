@@ -245,30 +245,109 @@ static const struct cheri_test {
 	  .ct_func_arg = cheritest_invoke_simple_op,
 	  .ct_arg = CHERITEST_HELPER_OP_CS_CLOCK_GETTIME },
 
-	{ .ct_name = "invoke_cp2_bound",
-	  .ct_desc = "Exercise capability bounds check failure in a libcheri sandbox",
-	  .ct_func_arg = cheritest_invoke_simple_op,
-	  .ct_arg = CHERITEST_HELPER_OP_CP2_BOUND },
+	{ .ct_name = "test_sandbox_cp2_bound_catch",
+	  .ct_desc = "Exercise sandboxed CP2 bounds-check failure; caught",
+	  .ct_func = test_sandbox_cp2_bound_catch,
+	  .ct_flags = CT_FLAG_SIGNAL | CT_FLAG_MIPS_EXCCODE |
+		    CT_FLAG_CP2_EXCCODE,
+	  .ct_signum = SIGPROT,
+	  .ct_mips_exccode = T_C2E,
+	  .ct_cp2_exccode = CHERI_EXCCODE_LENGTH },
 
-	{ .ct_name = "invoke_cp2_perm",
-	  .ct_desc = "Exercise capability permissions failure in a libcheri sandbox",
-	  .ct_func_arg = cheritest_invoke_simple_op,
-	  .ct_arg = CHERITEST_HELPER_OP_CP2_PERM },
+	{ .ct_name = "test_sandbox_cp2_bound_nocatch",
+	  .ct_desc = "Exercise sandboxed CP2 bounds-check failure; uncaught",
+	  .ct_func = test_sandbox_cp2_bound_nocatch },
 
-	{ .ct_name = "invoke_cp2_tag",
-	  .ct_desc = "Exercise capability tag failure in a libcheri sandbox",
-	  .ct_func_arg = cheritest_invoke_simple_op,
-	  .ct_arg = CHERITEST_HELPER_OP_CP2_TAG },
+	{ .ct_name = "test_sandbox_cp2_perm_catch",
+	  .ct_desc = "Exercise sandboxed CP2 perm-check failure; caught",
+	  .ct_func = test_sandbox_cp2_perm_catch,
+	  .ct_flags = CT_FLAG_SIGNAL | CT_FLAG_MIPS_EXCCODE |
+		    CT_FLAG_CP2_EXCCODE,
+	  .ct_signum = SIGPROT,
+	  .ct_mips_exccode = T_C2E,
+	  .ct_cp2_exccode = CHERI_EXCCODE_PERM_STORE },
 
-	{ .ct_name = "invoke_cp2_seal",
-	  .ct_desc = "Exercise capability seal failure in a libcheri sandbox",
-	  .ct_func_arg = cheritest_invoke_simple_op,
-	  .ct_arg = CHERITEST_HELPER_OP_CP2_SEAL },
+	{ .ct_name = "test_sandbox_cp2_perm_nocatch",
+	  .ct_desc = "Exercise sandboxed CP2 perm-check failure; uncaught",
+	  .ct_func = test_sandbox_cp2_perm_nocatch, },
 
-	{ .ct_name = "invoke_divzero",
-	  .ct_desc = "Exercise divide-by-zero in a libcheri sandbox",
-	  .ct_func_arg = cheritest_invoke_simple_op,
-	  .ct_arg = CHERITEST_HELPER_OP_DIVZERO },
+	{ .ct_name = "test_sandbox_cp2_tag_catch",
+	  .ct_desc = "Exercise sandboxed CP2 tag-check failure; caught",
+	  .ct_func = test_sandbox_cp2_tag_catch,
+	  .ct_flags = CT_FLAG_SIGNAL | CT_FLAG_MIPS_EXCCODE |
+		    CT_FLAG_CP2_EXCCODE,
+	  .ct_signum = SIGPROT,
+	  .ct_mips_exccode = T_C2E,
+	  .ct_cp2_exccode = CHERI_EXCCODE_TAG },
+
+	{ .ct_name = "test_sandbox_cp2_tag_nocatch",
+	  .ct_desc = "Exercise sandboxed CP2 tag-check failure; uncaught",
+	  .ct_func = test_sandbox_cp2_tag_nocatch, },
+
+	{ .ct_name = "test_sandbox_cp2_seal_catch",
+	  .ct_desc = "Exercise sandboxed CP2 seal failure; caught",
+	  .ct_func = test_sandbox_cp2_seal_catch,
+	  .ct_flags = CT_FLAG_SIGNAL | CT_FLAG_MIPS_EXCCODE |
+		    CT_FLAG_CP2_EXCCODE,
+	  .ct_signum = SIGPROT,
+	  .ct_mips_exccode = T_C2E,
+	  .ct_cp2_exccode = CHERI_EXCCODE_SEAL },
+
+	{ .ct_name = "test_sandbox_cp2_seal_nocatch",
+	  .ct_desc = "Exercise sandboxed CP2 seal failure; uncaught",
+	  .ct_func = test_sandbox_cp2_seal_nocatch, },
+
+	{ .ct_name = "test_sandbox_divzero_catch",
+	  .ct_desc = "Exercise sandboxed divide-by-zero exception; caught",
+	  .ct_func = test_sandbox_divzero_catch,
+	  .ct_flags = CT_FLAG_SIGNAL | CT_FLAG_MIPS_EXCCODE |
+		    CT_FLAG_CP2_EXCCODE,
+	  .ct_signum = SIGPROT,
+	  .ct_mips_exccode = T_C2E,
+	  .ct_cp2_exccode = CHERI_EXCCODE_TAG },
+
+	{ .ct_name = "test_sandbox_divzero_nocatch",
+	  .ct_desc = "Exercise sandboxed divide-by-zero exception; uncaught",
+	  .ct_func = test_sandbox_divzero_nocatch, },
+
+	{ .ct_name = "test_sandbox_vm_rfault_catch",
+	  .ct_desc = "Exercise sandboxed VM read fault; caught",
+	  .ct_func = test_sandbox_vm_rfault_catch,
+	  .ct_flags = CT_FLAG_SIGNAL | CT_FLAG_MIPS_EXCCODE |
+		    CT_FLAG_CP2_EXCCODE,
+	  .ct_signum = SIGPROT,
+	  .ct_mips_exccode = T_C2E,
+	  .ct_cp2_exccode = CHERI_EXCCODE_TAG },
+
+	{ .ct_name = "test_sandbox_vm_rfault_nocatch",
+	  .ct_desc = "Exercise sandboxed VM read fault; uncaught",
+	  .ct_func = test_sandbox_vm_rfault_nocatch, },
+
+	{ .ct_name = "test_sandbox_vm_wfault_catch",
+	  .ct_desc = "Exercise sandboxed VM write fault; caught",
+	  .ct_func = test_sandbox_vm_wfault_catch,
+	  .ct_flags = CT_FLAG_SIGNAL | CT_FLAG_MIPS_EXCCODE |
+		    CT_FLAG_CP2_EXCCODE,
+	  .ct_signum = SIGPROT,
+	  .ct_mips_exccode = T_C2E,
+	  .ct_cp2_exccode = CHERI_EXCCODE_TAG },
+
+	{ .ct_name = "test_sandbox_vm_wfault_nocatch",
+	  .ct_desc = "Exercise sandboxed VM write fault; uncaught",
+	  .ct_func = test_sandbox_vm_wfault_nocatch, },
+
+	{ .ct_name = "test_sandbox_vm_xfault_catch",
+	  .ct_desc = "Exercise sandboxed VM exec fault; caught",
+	  .ct_func = test_sandbox_vm_xfault_catch,
+	  .ct_flags = CT_FLAG_SIGNAL | CT_FLAG_MIPS_EXCCODE |
+		    CT_FLAG_CP2_EXCCODE,
+	  .ct_signum = SIGPROT,
+	  .ct_mips_exccode = T_C2E,
+	  .ct_cp2_exccode = CHERI_EXCCODE_TAG },
+
+	{ .ct_name = "test_sandbox_vm_xfault_nocatch",
+	  .ct_desc = "Exercise sandboxed VM exec fault; caught",
+	  .ct_func = test_sandbox_vm_xfault_nocatch },
 
 	{ .ct_name = "invoke_helloworld",
 	  .ct_desc = "Print 'hello world' in a libcheri sandbox",
@@ -315,21 +394,6 @@ static const struct cheri_test {
 	  .ct_desc = "Invoke the system capability in a libcheri sandbox",
 	  .ct_func_arg = cheritest_invoke_simple_op,
 	  .ct_arg = CHERITEST_HELPER_OP_SYSCAP },
-
-	{ .ct_name = "invoke_vm_rfault",
-	  .ct_desc = "Load from an unreadable page in a libcheri sandbox",
-	  .ct_func_arg = cheritest_invoke_simple_op,
-	  .ct_arg = CHERITEST_HELPER_OP_VM_RFAULT },
-
-	{ .ct_name = "invoke_vm_wfault",
-	  .ct_desc = "Store to an unwritable page in a libcheri sandbox",
-	  .ct_func_arg = cheritest_invoke_simple_op,
-	  .ct_arg = CHERITEST_HELPER_OP_VM_WFAULT },
-
-	{ .ct_name = "invoke_vm_xfault",
-	  .ct_desc = "Execute from an unreadable page in a libcheri sandbox",
-	  .ct_func_arg = cheritest_invoke_simple_op,
-	  .ct_arg = CHERITEST_HELPER_OP_VM_XFAULT },
 
 	/*
 	 * libcheri + cheri_fd tests.

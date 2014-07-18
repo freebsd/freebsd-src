@@ -135,6 +135,22 @@ void	cheritest_save_global(void);
 void	cheritest_save_ephemeral(void);
 int	cheritest_libcheri_setup(void);
 void	cheritest_libcheri_destroy(void);
+void	test_sandbox_cp2_bound_catch(void);
+void	test_sandbox_cp2_bound_nocatch(void);
+void	test_sandbox_cp2_perm_catch(void);
+void	test_sandbox_cp2_perm_nocatch(void);
+void	test_sandbox_cp2_tag_catch(void);
+void	test_sandbox_cp2_tag_nocatch(void);
+void	test_sandbox_cp2_seal_catch(void);
+void	test_sandbox_cp2_seal_nocatch(void);
+void	test_sandbox_divzero_catch(void);
+void	test_sandbox_divzero_nocatch(void);
+void	test_sandbox_vm_rfault_catch(void);
+void	test_sandbox_vm_rfault_nocatch(void);
+void	test_sandbox_vm_wfault_catch(void);
+void	test_sandbox_vm_wfault_nocatch(void);
+void	test_sandbox_vm_xfault_catch(void);
+void	test_sandbox_vm_xfault_nocatch(void);
 
 /* cheritest_stack.c */
 register_t	cheritest_libcheri_userfn_getstack(void);

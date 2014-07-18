@@ -36,6 +36,7 @@
 #endif
 
 #include <sys/types.h>
+#include <sys/signal.h>
 #include <sys/sysctl.h>
 #include <sys/time.h>
 
@@ -123,6 +124,200 @@ cheritest_invoke_simple_op(int op)
 	 * test-specific functions that have more rich definitions of
 	 * 'success'.
 	 */
+	cheritest_success();
+}
+
+static register_t
+test_sandbox_op(int op)
+{
+
+	alarm(10);
+	return (sandbox_object_cinvoke(cheritest_objectp, op, 0, 0, 0, 0, 0, 0, 0,
+	    sandbox_object_getsystemobject(cheritest_objectp).co_codecap,
+	    sandbox_object_getsystemobject(cheritest_objectp).co_datacap,
+	    cheri_zerocap(), cheri_zerocap(), cheri_zerocap(),
+	    cheri_zerocap(), cheri_zerocap(), cheri_zerocap()));
+}
+
+static void
+signal_handler_clear(int sig)
+{
+	struct sigaction sa;
+
+	/* XXXRW: Possibly should just not be registering it? */
+	bzero(&sa, sizeof(sa));
+	sa.sa_flags = SA_SIGINFO | SA_ONSTACK;
+	sa.sa_handler = SIG_DFL;
+	sigemptyset(&sa.sa_mask);
+	if (sigaction(sig, &sa, NULL) < 0)
+		cheritest_failure_err("clearing handler for sig %d", sig);
+}
+
+void
+test_sandbox_cp2_bound_catch(void)
+{
+
+	test_sandbox_op(CHERITEST_HELPER_OP_CP2_BOUND);
+	cheritest_failure_errx("invoke returned");
+}
+
+void
+test_sandbox_cp2_bound_nocatch(void)
+{
+	register_t v;
+
+	signal_handler_clear(SIGPROT);
+	v = test_sandbox_op(CHERITEST_HELPER_OP_CP2_BOUND);
+	if (v != -1)
+		cheritest_failure_errx("invoke returned %d (expected %d)", v,
+		    -1);
+	cheritest_success();
+}
+
+void
+test_sandbox_cp2_perm_catch(void)
+{
+
+	test_sandbox_op(CHERITEST_HELPER_OP_CP2_PERM);
+	cheritest_failure_errx("invoke returned");
+}
+
+void
+test_sandbox_cp2_perm_nocatch(void)
+{
+	register_t v;
+
+	signal_handler_clear(SIGPROT);
+	v = test_sandbox_op(CHERITEST_HELPER_OP_CP2_PERM);
+	if (v != -1)
+		cheritest_failure_errx("invoke returned %d (expected %d)", v,
+		    -1);
+	cheritest_success();
+}
+
+void
+test_sandbox_cp2_tag_catch(void)
+{
+
+	test_sandbox_op(CHERITEST_HELPER_OP_CP2_TAG);
+	cheritest_failure_errx("invoke returned");
+}
+
+void
+test_sandbox_cp2_tag_nocatch(void)
+{
+	register_t v;
+
+	signal_handler_clear(SIGPROT);
+	v = test_sandbox_op(CHERITEST_HELPER_OP_CP2_TAG);
+	if (v != -1)
+		cheritest_failure_errx("invoke returned %d (expected %d)", v,
+		    -1);
+	cheritest_success();
+}
+
+void
+test_sandbox_cp2_seal_catch(void)
+{
+
+	test_sandbox_op(CHERITEST_HELPER_OP_CP2_SEAL);
+	cheritest_failure_errx("invoke returned");
+}
+
+void
+test_sandbox_cp2_seal_nocatch(void)
+{
+	register_t v;
+
+	signal_handler_clear(SIGPROT);
+	v = test_sandbox_op(CHERITEST_HELPER_OP_CP2_SEAL);
+	if (v != -1)
+		cheritest_failure_errx("invoke returned %d (expected %d)", v,
+		    -1);
+	cheritest_success();
+}
+
+void
+test_sandbox_divzero_catch(void)
+{
+
+	test_sandbox_op(CHERITEST_HELPER_OP_DIVZERO);
+	cheritest_failure_errx("invoke returned");
+}
+
+void
+test_sandbox_divzero_nocatch(void)
+{
+	register_t v;
+
+	signal_handler_clear(SIGEMT);
+	v = test_sandbox_op(CHERITEST_HELPER_OP_DIVZERO);
+	if (v != -1)
+		cheritest_failure_errx("invoke returned %d (expected %d)", v,
+		    -1);
+	cheritest_success();
+}
+
+void
+test_sandbox_vm_rfault_catch(void)
+{
+
+	test_sandbox_op(CHERITEST_HELPER_OP_VM_RFAULT);
+	cheritest_failure_errx("invoke returned");
+}
+
+void
+test_sandbox_vm_rfault_nocatch(void)
+{
+	register_t v;
+
+	signal_handler_clear(SIGSEGV);
+	v = test_sandbox_op(CHERITEST_HELPER_OP_VM_RFAULT);
+	if (v != -1)
+		cheritest_failure_errx("invoke returned %d (expected %d)", v,
+		    -1);
+	cheritest_success();
+}
+
+void
+test_sandbox_vm_wfault_catch(void)
+{
+
+	test_sandbox_op(CHERITEST_HELPER_OP_VM_WFAULT);
+	cheritest_failure_errx("invoke returned");
+}
+
+void
+test_sandbox_vm_wfault_nocatch(void)
+{
+	register_t v;
+
+	signal_handler_clear(SIGSEGV);
+	v = test_sandbox_op(CHERITEST_HELPER_OP_VM_WFAULT);
+	if (v != -1)
+		cheritest_failure_errx("invoke returned %d (expected %d)", v,
+		    -1);
+	cheritest_success();
+}
+
+void
+test_sandbox_vm_xfault_catch(void)
+{
+
+	test_sandbox_op(CHERITEST_HELPER_OP_VM_XFAULT);
+	cheritest_failure_errx("invoke returned");
+}
+
+void
+test_sandbox_vm_xfault_nocatch(void)
+{
+	register_t v;
+
+	signal_handler_clear(SIGBUS);
+	v = test_sandbox_op(CHERITEST_HELPER_OP_VM_XFAULT);
+	if (v != -1)
+		cheritest_failure_errx("invoke returned %d (expected %d)", v,
+		    -1);
 	cheritest_success();
 }
 
