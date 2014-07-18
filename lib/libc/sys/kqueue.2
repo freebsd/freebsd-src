@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 7, 2014
+.Dd July 18, 2014
 .Dt KQUEUE 2
 .Os
 .Sh NAME
@@ -454,7 +454,7 @@ Establishes an arbitrary timer identified by
 .Va ident .
 When adding a timer,
 .Va data
-specifies the timeout period in milliseconds.
+specifies the timeout period.
 The timer will be periodic unless EV_ONESHOT is specified.
 On return,
 .Va data
@@ -465,8 +465,25 @@ There is a system wide limit on the number of timers
 which is controlled by the
 .Va kern.kq_calloutmax
 sysctl.
+.Bl -tag -width XXNOTE_USECONDS
+.It Dv NOTE_SECONDS
+.Va data
+is in seconds.
+.It Dv NOTE_MSECONDS
+.Va data
+is in milliseconds.
+.It Dv NOTE_USECONDS
+.Va data
+is in microseconds.
+.It Dv NOTE_NSECONDS
+.Va data
+is in nanoseconds.
+.It
+.El
 .Pp
-On return,
+If
+.Va fflags
+is not set, the default is milliseconds. On return,
 .Va fflags
 contains the events which triggered the filter.
 .It Dv EVFILT_USER
