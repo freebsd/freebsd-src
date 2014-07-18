@@ -102,6 +102,13 @@ struct imx51_gpio_softc {
 	struct gpio_pin		gpio_pins[NGPIO];
 };
 
+static struct ofw_compat_data compat_data[] = {
+	{"fsl,imx6q-gpio",  1},
+	{"fsl,imx53-gpio",  1},
+	{"fsl,imx51-gpio",  1},
+	{NULL,	            0}
+};
+
 static struct resource_spec imx_gpio_spec[] = {
 	{ SYS_RES_MEMORY,	0,	RF_ACTIVE },
 	{ SYS_RES_IRQ,		0,	RF_ACTIVE },
@@ -373,9 +380,8 @@ imx51_gpio_probe(device_t dev)
 	if (!ofw_bus_status_okay(dev))
 		return (ENXIO);
 
-	if (ofw_bus_is_compatible(dev, "fsl,imx51-gpio") ||
-	    ofw_bus_is_compatible(dev, "fsl,imx53-gpio")) {
-		device_set_desc(dev, "i.MX515 GPIO Controller");
+	if (ofw_bus_search_compatible(dev, compat_data)->ocd_data != 0) {
+		device_set_desc(dev, "Freescale i.MX GPIO Controller");
 		return (BUS_PROBE_DEFAULT);
 	}
 
