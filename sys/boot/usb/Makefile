@@ -39,7 +39,6 @@ S=${.CURDIR}/../..
 
 LIB=		usbboot
 INTERNALLIB=
-OBJCOPY?=	objcopy
 
 CFLAGS+=	-DBOOTPROG=\"usbloader\"
 CFLAGS+=	-DUSB_GLOBAL_INCLUDE_FILE=\"bsd_global.h\"
