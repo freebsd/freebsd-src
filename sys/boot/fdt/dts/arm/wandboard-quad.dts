@@ -49,7 +49,7 @@
 			gpio@020a0000		{ status = "okay"; };
 			gpio@020a4000		{ status = "okay"; };
 			gpio@020a8000		{ status = "okay"; };
-			gpio@020aC000		{ status = "okay"; };
+			gpio@020ac000		{ status = "okay"; };
 			gpio@020b0000		{ status = "okay"; };
 			gpio@020b4000		{ status = "okay"; };
 			console:serial@02020000 { status = "okay"; };
