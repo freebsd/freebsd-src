@@ -26,7 +26,7 @@ arm/freescale/imx/imx6_mp.c		optional smp
 arm/freescale/imx/imx6_pl310.c		standard
 arm/freescale/imx/imx_machdep.c		standard
 arm/freescale/imx/imx_gpt.c		standard
-arm/freescale/imx/imx51_gpio.c		optional gpio
+arm/freescale/imx/imx_gpio.c		optional gpio
 
 #
 # Optional devices.
