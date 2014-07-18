@@ -149,16 +149,16 @@ SYSCTL_INT(_net_inet_rss, OID_AUTO, basecpu, CTLFLAG_RD,
  *
  * XXXRW: And that we don't randomize it yet!
  *
- * XXXRW: This default is actually the default key from Chelsio T3 cards, as
+ * XXXRW: This default is actually the default key from Chelsio T5 cards, as
  * it offers reasonable distribution, unlike all-0 keys which always
  * generate a hash of 0 (upsettingly).
  */
-static uint8_t	rss_key[RSS_KEYSIZE] = {
+static uint8_t rss_key[RSS_KEYSIZE] = {
+	0xbe, 0xac, 0x01, 0xfa, 0x6a, 0x42, 0xb7, 0x3b,
+	0x80, 0x30, 0xf2, 0x0c, 0x77, 0xcb, 0x2d, 0xa3,
+	0xae, 0x7b, 0x30, 0xb4, 0xd0, 0xca, 0x2b, 0xcb,
 	0x43, 0xa3, 0x8f, 0xb0, 0x41, 0x67, 0x25, 0x3d,
 	0x25, 0x5b, 0x0e, 0xc2, 0x6d, 0x5a, 0x56, 0xda,
-	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 };
 
 /*
@@ -437,6 +437,8 @@ rss_hash2cpuid(uint32_t hash_val, uint32_t hash_type)
 	switch (hash_type) {
 	case M_HASHTYPE_RSS_IPV4:
 	case M_HASHTYPE_RSS_TCP_IPV4:
+	case M_HASHTYPE_RSS_IPV6:
+	case M_HASHTYPE_RSS_TCP_IPV6:
 		return (rss_getcpu(rss_getbucket(hash_val)));
 	default:
 		return (NETISR_CPUID_NONE);
@@ -454,6 +456,8 @@ rss_hash2bucket(uint32_t hash_val, uint32_t hash_type, uint32_t *bucket_id)
 	switch (hash_type) {
 	case M_HASHTYPE_RSS_IPV4:
 	case M_HASHTYPE_RSS_TCP_IPV4:
+	case M_HASHTYPE_RSS_IPV6:
+	case M_HASHTYPE_RSS_TCP_IPV6:
 		*bucket_id = rss_getbucket(hash_val);
 		return (0);
 	default:

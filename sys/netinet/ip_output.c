@@ -136,6 +136,7 @@ ip_output(struct mbuf *m, struct mbuf *opt, struct route *ro, int flags,
 	struct rtentry *rte;	/* cache for ro->ro_rt */
 	struct in_addr odst;
 	struct m_tag *fwd_tag = NULL;
+	int have_ia_ref;
 #ifdef IPSEC
 	int no_route_but_check_spd = 0;
 #endif
@@ -202,6 +203,7 @@ ip_output(struct mbuf *m, struct mbuf *opt, struct route *ro, int flags,
 	gw = dst = (struct sockaddr_in *)&ro->ro_dst;
 again:
 	ia = NULL;
+	have_ia_ref = 0;
 	/*
 	 * If there is a cached route, check that it is to the same
 	 * destination and is still up.  If not, free it and try again.
@@ -238,6 +240,7 @@ again:
 			error = ENETUNREACH;
 			goto bad;
 		}
+		have_ia_ref = 1;
 		ip->ip_dst.s_addr = INADDR_BROADCAST;
 		dst->sin_addr = ip->ip_dst;
 		ifp = ia->ia_ifp;
@@ -250,6 +253,7 @@ again:
 			error = ENETUNREACH;
 			goto bad;
 		}
+		have_ia_ref = 1;
 		ifp = ia->ia_ifp;
 		ip->ip_ttl = 1;
 		isbroadcast = in_broadcast(dst->sin_addr, ifp);
@@ -261,6 +265,8 @@ again:
 		 */
 		ifp = imo->imo_multicast_ifp;
 		IFP_TO_IA(ifp, ia);
+		if (ia)
+			have_ia_ref = 1;
 		isbroadcast = 0;	/* fool gcc */
 	} else {
 		/*
@@ -552,8 +558,11 @@ sendit:
 #endif
 			error = netisr_queue(NETISR_IP, m);
 			goto done;
-		} else
+		} else {
+			if (have_ia_ref)
+				ifa_free(&ia->ia_ifa);
 			goto again;	/* Redo the routing table lookup. */
+		}
 	}
 
 	/* See if local, if yes, send it to netisr with IP_FASTFWD_OURS. */
@@ -582,6 +591,8 @@ sendit:
 		m->m_flags |= M_SKIP_FIREWALL;
 		m->m_flags &= ~M_IP_NEXTHOP;
 		m_tag_delete(m, fwd_tag);
+		if (have_ia_ref)
+			ifa_free(&ia->ia_ifa);
 		goto again;
 	}
 
@@ -694,6 +705,8 @@ passout:
 done:
 	if (ro == &iproute)
 		RO_RTFREE(ro);
+	if (have_ia_ref)
+		ifa_free(&ia->ia_ifa);
 	return (error);
 bad:
 	m_freem(m);
@@ -987,6 +1000,10 @@ ip_ctloutput(struct socket *so, struct sockopt *sopt)
 					break;
 			}
 			/* FALLTHROUGH */
+		case IP_BINDMULTI:
+#ifdef	RSS
+		case IP_RSS_LISTEN_BUCKET:
+#endif
 		case IP_TOS:
 		case IP_TTL:
 		case IP_MINTTL:
@@ -1029,6 +1046,15 @@ ip_ctloutput(struct socket *so, struct sockopt *sopt)
 	INP_WUNLOCK(inp);						\
 } while (0)
 
+#define	OPTSET2(bit, val) do {						\
+	INP_WLOCK(inp);							\
+	if (val)							\
+		inp->inp_flags2 |= bit;					\
+	else								\
+		inp->inp_flags2 &= ~bit;				\
+	INP_WUNLOCK(inp);						\
+} while (0)
+
 			case IP_RECVOPTS:
 				OPTSET(INP_RECVOPTS);
 				break;
@@ -1065,9 +1091,24 @@ ip_ctloutput(struct socket *so, struct sockopt *sopt)
 			case IP_RECVTOS:
 				OPTSET(INP_RECVTOS);
 				break;
+			case IP_BINDMULTI:
+				OPTSET2(INP_BINDMULTI, optval);
+				break;
+#ifdef	RSS
+			case IP_RSS_LISTEN_BUCKET:
+				if ((optval >= 0) &&
+				    (optval < rss_getnumbuckets())) {
+					inp->inp_rss_listen_bucket = optval;
+					OPTSET2(INP_RSS_BUCKET_SET, 1);
+				} else {
+					error = EINVAL;
+				}
+				break;
+#endif
 			}
 			break;
 #undef OPTSET
+#undef OPTSET2
 
 		/*
 		 * Multicast socket options are processed by the in_mcast
@@ -1175,8 +1216,12 @@ ip_ctloutput(struct socket *so, struct sockopt *sopt)
 		case IP_DONTFRAG:
 		case IP_BINDANY:
 		case IP_RECVTOS:
+		case IP_BINDMULTI:
 		case IP_FLOWID:
 		case IP_FLOWTYPE:
+#ifdef	RSS
+		case IP_RSSBUCKETID:
+#endif
 			switch (sopt->sopt_name) {
 
 			case IP_TOS:
@@ -1192,6 +1237,7 @@ ip_ctloutput(struct socket *so, struct sockopt *sopt)
 				break;
 
 #define	OPTBIT(bit)	(inp->inp_flags & bit ? 1 : 0)
+#define	OPTBIT2(bit)	(inp->inp_flags2 & bit ? 1 : 0)
 
 			case IP_RECVOPTS:
 				optval = OPTBIT(INP_RECVOPTS);
@@ -1255,6 +1301,9 @@ ip_ctloutput(struct socket *so, struct sockopt *sopt)
 					error = EINVAL;
 				break;
 #endif
+			case IP_BINDMULTI:
+				optval = OPTBIT2(INP_BINDMULTI);
+				break;
 			}
 			error = sooptcopyout(sopt, &optval, sizeof optval);
 			break;

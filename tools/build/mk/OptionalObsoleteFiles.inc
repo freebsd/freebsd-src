@@ -1998,11 +1998,17 @@ OLD_FILES+=usr/share/info/history.info.gz
 OLD_FILES+=usr/share/info/info-stnd.info.gz
 OLD_FILES+=usr/share/info/info.info.gz
 OLD_FILES+=usr/share/info/ld.info.gz
-OLD_FILES+=usr/share/info/readline.info.gz
 OLD_FILES+=usr/share/info/regex.info.gz
 OLD_FILES+=usr/share/info/rluserman.info.gz
 OLD_FILES+=usr/share/info/stabs.info.gz
 OLD_FILES+=usr/share/info/texinfo.info.gz
+OLD_FILES+=usr/share/man/man1/info.1.gz
+OLD_FILES+=usr/share/man/man1/infokey.1.gz
+OLD_FILES+=usr/share/man/man1/install-info.1.gz
+OLD_FILES+=usr/share/man/man1/makeinfo.1.gz
+OLD_FILES+=usr/share/man/man1/texindex.1.gz
+OLD_FILES+=usr/share/man/man5/info.5.gz
+OLD_FILES+=usr/share/man/man5/texinfo.5.gz
 .endif
 
 .if ${MK_IPFILTER} == no
@@ -3382,9 +3388,10 @@ OLD_FILES+=var/yp/Makefile
 OLD_FILES+=var/yp/Makefile.dist
 .endif
 
-#.if ${MK_NLS} == no
+.if ${MK_NLS} == no
+OLD_FILES+=usr/tests/bin/sh/builtins/locale1.0
 # to be filled in
-#.endif
+.endif
 
 .if ${MK_NTP} == no
 OLD_FILES+=etc/ntp.conf
@@ -3724,7 +3731,6 @@ OLD_FILES+=usr/lib/libpcap_p.a
 OLD_FILES+=usr/lib/libpmc_p.a
 OLD_FILES+=usr/lib/libpthread_p.a
 OLD_FILES+=usr/lib/libradius_p.a
-OLD_FILES+=usr/lib/libreadline_p.a
 OLD_FILES+=usr/lib/libroken_p.a
 OLD_FILES+=usr/lib/librpcsvc_p.a
 OLD_FILES+=usr/lib/librt_p.a

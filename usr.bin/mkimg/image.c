@@ -94,12 +94,19 @@ image_copyin(lba_t blk, int fd, uint64_t *sizep)
 int
 image_copyout(int fd)
 {
-	off_t ofs;
 	int error;
 
 	error = image_copyout_region(fd, 0, image_size);
-	if (error)
-		return (error);
+	if (!error)
+		error = image_copyout_done(fd);
+	return (error);
+}
+
+int
+image_copyout_done(int fd)
+{
+	off_t ofs;
+	int error;
 
 	ofs = lseek(fd, 0L, SEEK_CUR);
 	if (ofs == -1)
@@ -146,6 +153,33 @@ image_copyout_region(int fd, lba_t blk, lba_t size)
 	}
 	free(buffer);
 	return (error);
+}
+
+int
+image_data(lba_t blk, lba_t size)
+{
+	char *buffer, *p;
+
+	blk *= secsz;
+	if (lseek(image_fd, blk, SEEK_SET) != blk)
+		return (1);
+
+	size *= secsz;
+	buffer = malloc(size);
+	if (buffer == NULL)
+		return (1);
+
+	if (read(image_fd, buffer, size) != (ssize_t)size) {
+		free(buffer);
+		return (1);
+	}
+
+	p = buffer;
+	while (size > 0 && *p == '\0')
+		size--, p++;
+
+	free(buffer);
+	return ((size == 0) ? 0 : 1);
 }
 
 lba_t

@@ -974,7 +974,7 @@ vmx_vminit(struct vm *vm, pmap_t pmap)
 		vmx->cap[i].proc_ctls = procbased_ctls;
 		vmx->cap[i].proc_ctls2 = procbased_ctls2;
 
-		vmx->state[i].lastcpu = -1;
+		vmx->state[i].lastcpu = NOCPU;
 		vmx->state[i].vpid = vpid[i];
 
 		msr_save_area_init(vmx->guest_msrs[i], &guest_msr_count);
@@ -1047,27 +1047,37 @@ vmx_astpending_trace(struct vmx *vmx, int vcpu, uint64_t rip)
 }
 
 static VMM_STAT_INTEL(VCPU_INVVPID_SAVED, "Number of vpid invalidations saved");
+static VMM_STAT_INTEL(VCPU_INVVPID_DONE, "Number of vpid invalidations done");
 
-static void
-vmx_set_pcpu_defaults(struct vmx *vmx, int vcpu, pmap_t pmap)
+/*
+ * Invalidate guest mappings identified by its vpid from the TLB.
+ */
+static __inline void
+vmx_invvpid(struct vmx *vmx, int vcpu, pmap_t pmap, int running)
 {
 	struct vmxstate *vmxstate;
 	struct invvpid_desc invvpid_desc;
 
 	vmxstate = &vmx->state[vcpu];
-	if (vmxstate->lastcpu == curcpu)
+	if (vmxstate->vpid == 0)
 		return;
 
-	vmxstate->lastcpu = curcpu;
+	if (!running) {
+		/*
+		 * Set the 'lastcpu' to an invalid host cpu.
+		 *
+		 * This will invalidate TLB entries tagged with the vcpu's
+		 * vpid the next time it runs via vmx_set_pcpu_defaults().
+		 */
+		vmxstate->lastcpu = NOCPU;
+		return;
+	}
 
-	vmm_stat_incr(vmx->vm, vcpu, VCPU_MIGRATIONS, 1);
-
-	vmcs_write(VMCS_HOST_TR_BASE, vmm_get_host_trbase());
-	vmcs_write(VMCS_HOST_GDTR_BASE, vmm_get_host_gdtrbase());
-	vmcs_write(VMCS_HOST_GS_BASE, vmm_get_host_gsbase());
+	KASSERT(curthread->td_critnest > 0, ("%s: vcpu %d running outside "
+	    "critical section", __func__, vcpu));
 
 	/*
-	 * If we are using VPIDs then invalidate all mappings tagged with 'vpid'
+	 * Invalidate all mappings tagged with 'vpid'
 	 *
 	 * We do this because this vcpu was executing on a different host
 	 * cpu when it last ran. We do not track whether it invalidated
@@ -1081,23 +1091,41 @@ vmx_set_pcpu_defaults(struct vmx *vmx, int vcpu, pmap_t pmap)
 	 * Note also that this will invalidate mappings tagged with 'vpid'
 	 * for "all" EP4TAs.
 	 */
-	if (vmxstate->vpid != 0) {
-		if (pmap->pm_eptgen == vmx->eptgen[curcpu]) {
-			invvpid_desc._res1 = 0;
-			invvpid_desc._res2 = 0;
-			invvpid_desc.vpid = vmxstate->vpid;
-			invvpid_desc.linear_addr = 0;
-			invvpid(INVVPID_TYPE_SINGLE_CONTEXT, invvpid_desc);
-		} else {
-			/*
-			 * The invvpid can be skipped if an invept is going to
-			 * be performed before entering the guest. The invept
-			 * will invalidate combined mappings tagged with
-			 * 'vmx->eptp' for all vpids.
-			 */
-			vmm_stat_incr(vmx->vm, vcpu, VCPU_INVVPID_SAVED, 1);
-		}
+	if (pmap->pm_eptgen == vmx->eptgen[curcpu]) {
+		invvpid_desc._res1 = 0;
+		invvpid_desc._res2 = 0;
+		invvpid_desc.vpid = vmxstate->vpid;
+		invvpid_desc.linear_addr = 0;
+		invvpid(INVVPID_TYPE_SINGLE_CONTEXT, invvpid_desc);
+		vmm_stat_incr(vmx->vm, vcpu, VCPU_INVVPID_DONE, 1);
+	} else {
+		/*
+		 * The invvpid can be skipped if an invept is going to
+		 * be performed before entering the guest. The invept
+		 * will invalidate combined mappings tagged with
+		 * 'vmx->eptp' for all vpids.
+		 */
+		vmm_stat_incr(vmx->vm, vcpu, VCPU_INVVPID_SAVED, 1);
 	}
+}
+
+static void
+vmx_set_pcpu_defaults(struct vmx *vmx, int vcpu, pmap_t pmap)
+{
+	struct vmxstate *vmxstate;
+
+	vmxstate = &vmx->state[vcpu];
+	if (vmxstate->lastcpu == curcpu)
+		return;
+
+	vmxstate->lastcpu = curcpu;
+
+	vmm_stat_incr(vmx->vm, vcpu, VCPU_MIGRATIONS, 1);
+
+	vmcs_write(VMCS_HOST_TR_BASE, vmm_get_host_trbase());
+	vmcs_write(VMCS_HOST_GDTR_BASE, vmm_get_host_gdtrbase());
+	vmcs_write(VMCS_HOST_GS_BASE, vmm_get_host_gsbase());
+	vmx_invvpid(vmx, vcpu, pmap, 1);
 }
 
 /*
@@ -1659,11 +1687,19 @@ vmx_cpl(void)
 static enum vm_cpu_mode
 vmx_cpu_mode(void)
 {
+	uint32_t csar;
 
-	if (vmcs_read(VMCS_GUEST_IA32_EFER) & EFER_LMA)
-		return (CPU_MODE_64BIT);
-	else
-		return (CPU_MODE_COMPATIBILITY);
+	if (vmcs_read(VMCS_GUEST_IA32_EFER) & EFER_LMA) {
+		csar = vmcs_read(VMCS_GUEST_CS_ACCESS_RIGHTS);
+		if (csar & 0x2000)
+			return (CPU_MODE_64BIT);	/* CS.L = 1 */
+		else
+			return (CPU_MODE_COMPATIBILITY);
+	} else if (vmcs_read(VMCS_GUEST_CR0) & CR0_PE) {
+		return (CPU_MODE_PROTECTED);
+	} else {
+		return (CPU_MODE_REAL);
+	}
 }
 
 static enum vm_paging_mode
@@ -1757,10 +1793,25 @@ vmx_paging_info(struct vm_guest_paging *paging)
 static void
 vmexit_inst_emul(struct vm_exit *vmexit, uint64_t gpa, uint64_t gla)
 {
+	struct vm_guest_paging *paging;
+	uint32_t csar;
+	
+	paging = &vmexit->u.inst_emul.paging;
+
 	vmexit->exitcode = VM_EXITCODE_INST_EMUL;
 	vmexit->u.inst_emul.gpa = gpa;
 	vmexit->u.inst_emul.gla = gla;
-	vmx_paging_info(&vmexit->u.inst_emul.paging);
+	vmx_paging_info(paging);
+	switch (paging->cpu_mode) {
+	case CPU_MODE_PROTECTED:
+	case CPU_MODE_COMPATIBILITY:
+		csar = vmcs_read(VMCS_GUEST_CS_ACCESS_RIGHTS);
+		vmexit->u.inst_emul.cs_d = SEG_DESC_DEF32(csar);
+		break;
+	default:
+		vmexit->u.inst_emul.cs_d = 0;
+		break;
+	}
 }
 
 static int
@@ -1969,6 +2020,26 @@ vmx_handle_apic_access(struct vmx *vmx, int vcpuid, struct vm_exit *vmexit)
 	return (UNHANDLED);
 }
 
+static enum task_switch_reason
+vmx_task_switch_reason(uint64_t qual)
+{
+	int reason;
+
+	reason = (qual >> 30) & 0x3;
+	switch (reason) {
+	case 0:
+		return (TSR_CALL);
+	case 1:
+		return (TSR_IRET);
+	case 2:
+		return (TSR_JMP);
+	case 3:
+		return (TSR_IDT_GATE);
+	default:
+		panic("%s: invalid reason %d", __func__, reason);
+	}
+}
+
 static int
 vmx_exit_process(struct vmx *vmx, int vcpu, struct vm_exit *vmexit)
 {
@@ -1976,8 +2047,9 @@ vmx_exit_process(struct vmx *vmx, int vcpu, struct vm_exit *vmexit)
 	struct vmxctx *vmxctx;
 	struct vlapic *vlapic;
 	struct vm_inout_str *vis;
+	struct vm_task_switch *ts;
 	uint32_t eax, ecx, edx, idtvec_info, idtvec_err, intr_info, inst_info;
-	uint32_t reason;
+	uint32_t intr_type, reason;
 	uint64_t qual, gpa;
 	bool retu;
 
@@ -1994,9 +2066,13 @@ vmx_exit_process(struct vmx *vmx, int vcpu, struct vm_exit *vmexit)
 	vmm_stat_incr(vmx->vm, vcpu, VMEXIT_COUNT, 1);
 
 	/*
-	 * VM exits that could be triggered during event injection on the
-	 * previous VM entry need to be handled specially by re-injecting
-	 * the event.
+	 * VM exits that can be triggered during event delivery need to
+	 * be handled specially by re-injecting the event if the IDT
+	 * vectoring information field's valid bit is set.
+	 *
+	 * If the VM-exit is due to a task gate in the IDT then we don't
+	 * reinject the event because emulating the task switch also
+	 * completes the event delivery.
 	 *
 	 * See "Information for VM Exits During Event Delivery" in Intel SDM
 	 * for details.
@@ -2008,7 +2084,10 @@ vmx_exit_process(struct vmx *vmx, int vcpu, struct vm_exit *vmexit)
 	case EXIT_REASON_TASK_SWITCH:
 	case EXIT_REASON_EXCEPTION:
 		idtvec_info = vmcs_idt_vectoring_info();
-		if (idtvec_info & VMCS_IDT_VEC_VALID) {
+		VCPU_CTR2(vmx->vm, vcpu, "vm exit %s: idtvec_info 0x%08x",
+		    exit_reason_to_str(reason), idtvec_info);	
+		if ((idtvec_info & VMCS_IDT_VEC_VALID) &&
+		    (reason != EXIT_REASON_TASK_SWITCH)) {
 			idtvec_info &= ~(1 << 12); /* clear undefined bit */
 			vmcs_write(VMCS_ENTRY_INTR_INFO, idtvec_info);
 			if (idtvec_info & VMCS_IDT_VEC_ERRCODE_VALID) {
@@ -2028,12 +2107,56 @@ vmx_exit_process(struct vmx *vmx, int vcpu, struct vm_exit *vmexit)
 			}
 			vmcs_write(VMCS_ENTRY_INST_LENGTH, vmexit->inst_length);
 		}
+		break;
 	default:
 		idtvec_info = 0;
 		break;
 	}
 
 	switch (reason) {
+	case EXIT_REASON_TASK_SWITCH:
+		ts = &vmexit->u.task_switch;
+		ts->tsssel = qual & 0xffff;
+		ts->reason = vmx_task_switch_reason(qual);
+		ts->ext = 0;
+		ts->errcode_valid = 0;
+		vmx_paging_info(&ts->paging);
+		/*
+		 * If the task switch was due to a CALL, JMP, IRET, software
+		 * interrupt (INT n) or software exception (INT3, INTO),
+		 * then the saved %rip references the instruction that caused
+		 * the task switch. The instruction length field in the VMCS
+		 * is valid in this case.
+		 *
+		 * In all other cases (e.g., NMI, hardware exception) the
+		 * saved %rip is one that would have been saved in the old TSS
+		 * had the task switch completed normally so the instruction
+		 * length field is not needed in this case and is explicitly
+		 * set to 0.
+		 */
+		if (ts->reason == TSR_IDT_GATE) {
+			KASSERT(idtvec_info & VMCS_IDT_VEC_VALID,
+			    ("invalid idtvec_info %x for IDT task switch",
+			    idtvec_info));
+			intr_type = idtvec_info & VMCS_INTR_T_MASK;
+			if (intr_type != VMCS_INTR_T_SWINTR &&
+			    intr_type != VMCS_INTR_T_SWEXCEPTION &&
+			    intr_type != VMCS_INTR_T_PRIV_SWEXCEPTION) {
+				/* Task switch triggered by external event */
+				ts->ext = 1;
+				vmexit->inst_length = 0;
+				if (idtvec_info & VMCS_IDT_VEC_ERRCODE_VALID) {
+					ts->errcode_valid = 1;
+					ts->errcode = vmcs_idt_vectoring_err();
+				}
+			}
+		}
+		vmexit->exitcode = VM_EXITCODE_TASK_SWITCH;
+		VCPU_CTR4(vmx->vm, vcpu, "task switch reason %d, tss 0x%04x, "
+		    "%s errcode 0x%016lx", ts->reason, ts->tsssel,
+		    ts->ext ? "external" : "internal",
+		    ((uint64_t)ts->errcode << 32) | ts->errcode_valid);
+		break;
 	case EXIT_REASON_CR_ACCESS:
 		vmm_stat_incr(vmx->vm, vcpu, VMEXIT_CR_ACCESS, 1);
 		switch (qual & 0xf) {
@@ -2584,6 +2707,7 @@ vmx_setreg(void *arg, int vcpu, int reg, uint64_t val)
 {
 	int error, hostcpu, running, shadow;
 	uint64_t ctls;
+	pmap_t pmap;
 	struct vmx *vmx = arg;
 
 	running = vcpu_is_running(vmx->vm, vcpu, &hostcpu);
@@ -2620,6 +2744,18 @@ vmx_setreg(void *arg, int vcpu, int reg, uint64_t val)
 			 */			
 			error = vmcs_setreg(&vmx->vmcs[vcpu], running,
 				    VMCS_IDENT(shadow), val);
+		}
+
+		if (reg == VM_REG_GUEST_CR3) {
+			/*
+			 * Invalidate the guest vcpu's TLB mappings to emulate
+			 * the behavior of updating %cr3.
+			 *
+			 * XXX the processor retains global mappings when %cr3
+			 * is updated but vmx_invvpid() does not.
+			 */
+			pmap = vmx->ctx[vcpu].pmap;
+			vmx_invvpid(vmx, vcpu, pmap, running);
 		}
 	}
 

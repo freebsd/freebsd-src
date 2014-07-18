@@ -450,6 +450,13 @@ VVAARRIIAABBLLEE AASSSSIIGGNNMMEENNTTSS
      _._C_U_R_D_I_R         A path to the directory where bbmmaakkee was executed.  Refer
                      to the description of `PWD' for more details.
 
+     _._I_N_C_L_U_D_E_D_F_R_O_M_D_I_R
+                     The directory of the file this Makefile was included
+                     from.
+
+     _._I_N_C_L_U_D_E_D_F_R_O_M_F_I_L_E
+                     The filename of the file this Makefile was included from.
+
      MAKE            The name that bbmmaakkee was executed with (_a_r_g_v_[_0_]).  For
                      compatibility bbmmaakkee also sets _._M_A_K_E with the same value.
                      The preferred variable to use is the environment variable
@@ -795,6 +802,9 @@ VVAARRIIAABBLLEE AASSSSIIGGNNMMEENNTTSS
           Note that `1' and `g' are orthogonal; the former specifies whether
           multiple words are potentially affected, the latter whether multiple
           substitutions can potentially occur within each affected word.
+
+          As for the ::SS modifier, the _p_a_t_t_e_r_n and _r_e_p_l_a_c_e_m_e_n_t are subjected to
+          variable expansion before being parsed as regular expressions.
 
      ::TT   Replaces each word in the variable with its last component.
 
@@ -1384,4 +1394,4 @@ BBUUGGSS
 
      There is no way of escaping a space character in a filename.
 
-NetBSD 5.1                     October 25, 2013                     NetBSD 5.1
+NetBSD 5.1                     February 14, 2014                    NetBSD 5.1

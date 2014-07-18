@@ -585,12 +585,18 @@ int t4_enable_vi_ns(struct adapter *adap, unsigned int mbox, unsigned int viid,
 		 bool rx_en, bool tx_en);
 int t4_identify_port(struct adapter *adap, unsigned int mbox, unsigned int viid,
 		     unsigned int nblinks);
-int t4_i2c_rd(struct adapter *adap, unsigned int mbox, unsigned int port_id,
-	      u8 dev_addr, u8 offset, u8 *valp);
 int t4_mdio_rd(struct adapter *adap, unsigned int mbox, unsigned int phy_addr,
 	       unsigned int mmd, unsigned int reg, unsigned int *valp);
 int t4_mdio_wr(struct adapter *adap, unsigned int mbox, unsigned int phy_addr,
 	       unsigned int mmd, unsigned int reg, unsigned int val);
+int t4_i2c_rd(struct adapter *adap, unsigned int mbox,
+	      int port, unsigned int devid,
+	      unsigned int offset, unsigned int len,
+	      u8 *buf);
+int t4_i2c_wr(struct adapter *adap, unsigned int mbox,
+	      int port, unsigned int devid,
+	      unsigned int offset, unsigned int len,
+	      u8 *buf);
 int t4_iq_start_stop(struct adapter *adap, unsigned int mbox, bool start,
 		     unsigned int pf, unsigned int vf, unsigned int iqid,
 		     unsigned int fl0id, unsigned int fl1id);

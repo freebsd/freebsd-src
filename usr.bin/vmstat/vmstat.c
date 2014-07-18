@@ -80,7 +80,7 @@ static char da[] = "da";
 
 static struct nlist namelist[] = {
 #define X_SUM		0
-	{ "_cnt" },
+	{ "_vm_cnt" },
 #define X_HZ		1
 	{ "_hz" },
 #define X_STATHZ	2
@@ -259,8 +259,18 @@ main(int argc, char *argv[])
 			errx(1, "kvm_openfiles: %s", errbuf);
 	}
 
+retry_nlist:
 	if (kd != NULL && (c = kvm_nlist(kd, namelist)) != 0) {
 		if (c > 0) {
+			/*
+			 * 'cnt' was renamed to 'vm_cnt'. If 'vm_cnt' is not
+			 * found try looking up older 'cnt' symbol.
+			 * */
+			if (namelist[X_SUM].n_type == 0 &&
+			    strcmp(namelist[X_SUM].n_name, "_vm_cnt") == 0) {
+				namelist[X_SUM].n_name = "_cnt";
+				goto retry_nlist;
+			}
 			warnx("undefined symbols:");
 			for (c = 0;
 			     c < (int)(sizeof(namelist)/sizeof(namelist[0]));

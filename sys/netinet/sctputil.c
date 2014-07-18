@@ -2622,6 +2622,7 @@ sctp_notify_assoc_change(uint16_t state, struct sctp_tcb *stcb,
 		}
 		SCTP_BUF_NEXT(m_notify) = NULL;
 		sac = mtod(m_notify, struct sctp_assoc_change *);
+		memset(sac, 0, notif_len);
 		sac->sac_type = SCTP_ASSOC_CHANGE;
 		sac->sac_flags = 0;
 		sac->sac_length = sizeof(struct sctp_assoc_change);
@@ -2835,21 +2836,21 @@ sctp_notify_send_failed(struct sctp_tcb *stcb, uint8_t sent, uint32_t error,
 	if (m_notify == NULL)
 		/* no space left */
 		return;
-	length += chk->send_size;
-	length -= sizeof(struct sctp_data_chunk);
 	SCTP_BUF_LEN(m_notify) = 0;
 	if (sctp_stcb_is_feature_on(stcb->sctp_ep, stcb, SCTP_PCB_FLAGS_RECVNSENDFAILEVNT)) {
 		ssfe = mtod(m_notify, struct sctp_send_failed_event *);
+		memset(ssfe, 0, length);
 		ssfe->ssfe_type = SCTP_SEND_FAILED_EVENT;
 		if (sent) {
 			ssfe->ssfe_flags = SCTP_DATA_SENT;
 		} else {
 			ssfe->ssfe_flags = SCTP_DATA_UNSENT;
 		}
+		length += chk->send_size;
+		length -= sizeof(struct sctp_data_chunk);
 		ssfe->ssfe_length = length;
 		ssfe->ssfe_error = error;
 		/* not exactly what the user sent in, but should be close :) */
-		bzero(&ssfe->ssfe_info, sizeof(ssfe->ssfe_info));
 		ssfe->ssfe_info.snd_sid = chk->rec.data.stream_number;
 		ssfe->ssfe_info.snd_flags = chk->rec.data.rcv_flags;
 		ssfe->ssfe_info.snd_ppid = chk->rec.data.payloadtype;
@@ -2859,12 +2860,15 @@ sctp_notify_send_failed(struct sctp_tcb *stcb, uint8_t sent, uint32_t error,
 		SCTP_BUF_LEN(m_notify) = sizeof(struct sctp_send_failed_event);
 	} else {
 		ssf = mtod(m_notify, struct sctp_send_failed *);
+		memset(ssf, 0, length);
 		ssf->ssf_type = SCTP_SEND_FAILED;
 		if (sent) {
 			ssf->ssf_flags = SCTP_DATA_SENT;
 		} else {
 			ssf->ssf_flags = SCTP_DATA_UNSENT;
 		}
+		length += chk->send_size;
+		length -= sizeof(struct sctp_data_chunk);
 		ssf->ssf_length = length;
 		ssf->ssf_error = error;
 		/* not exactly what the user sent in, but should be close :) */
@@ -2948,16 +2952,16 @@ sctp_notify_send_failed2(struct sctp_tcb *stcb, uint32_t error,
 		/* no space left */
 		return;
 	}
-	length += sp->length;
 	SCTP_BUF_LEN(m_notify) = 0;
 	if (sctp_stcb_is_feature_on(stcb->sctp_ep, stcb, SCTP_PCB_FLAGS_RECVNSENDFAILEVNT)) {
 		ssfe = mtod(m_notify, struct sctp_send_failed_event *);
+		memset(ssfe, 0, length);
 		ssfe->ssfe_type = SCTP_SEND_FAILED_EVENT;
 		ssfe->ssfe_flags = SCTP_DATA_UNSENT;
+		length += sp->length;
 		ssfe->ssfe_length = length;
 		ssfe->ssfe_error = error;
 		/* not exactly what the user sent in, but should be close :) */
-		bzero(&ssfe->ssfe_info, sizeof(ssfe->ssfe_info));
 		ssfe->ssfe_info.snd_sid = sp->stream;
 		if (sp->some_taken) {
 			ssfe->ssfe_info.snd_flags = SCTP_DATA_LAST_FRAG;
@@ -2971,12 +2975,13 @@ sctp_notify_send_failed2(struct sctp_tcb *stcb, uint32_t error,
 		SCTP_BUF_LEN(m_notify) = sizeof(struct sctp_send_failed_event);
 	} else {
 		ssf = mtod(m_notify, struct sctp_send_failed *);
+		memset(ssf, 0, length);
 		ssf->ssf_type = SCTP_SEND_FAILED;
 		ssf->ssf_flags = SCTP_DATA_UNSENT;
+		length += sp->length;
 		ssf->ssf_length = length;
 		ssf->ssf_error = error;
 		/* not exactly what the user sent in, but should be close :) */
-		bzero(&ssf->ssf_info, sizeof(ssf->ssf_info));
 		ssf->ssf_info.sinfo_stream = sp->stream;
 		ssf->ssf_info.sinfo_ssn = 0;
 		if (sp->some_taken) {
@@ -3038,6 +3043,7 @@ sctp_notify_adaptation_layer(struct sctp_tcb *stcb)
 		return;
 	SCTP_BUF_LEN(m_notify) = 0;
 	sai = mtod(m_notify, struct sctp_adaptation_event *);
+	memset(sai, 0, sizeof(struct sctp_adaptation_event));
 	sai->sai_type = SCTP_ADAPTATION_INDICATION;
 	sai->sai_flags = 0;
 	sai->sai_length = sizeof(struct sctp_adaptation_event);
@@ -3093,6 +3099,7 @@ sctp_notify_partial_delivery_indication(struct sctp_tcb *stcb, uint32_t error,
 		return;
 	SCTP_BUF_LEN(m_notify) = 0;
 	pdapi = mtod(m_notify, struct sctp_pdapi_event *);
+	memset(pdapi, 0, sizeof(struct sctp_pdapi_event));
 	pdapi->pdapi_type = SCTP_PARTIAL_DELIVERY_EVENT;
 	pdapi->pdapi_flags = 0;
 	pdapi->pdapi_length = sizeof(struct sctp_pdapi_event);
@@ -3202,6 +3209,7 @@ sctp_notify_shutdown_event(struct sctp_tcb *stcb)
 		/* no space left */
 		return;
 	sse = mtod(m_notify, struct sctp_shutdown_event *);
+	memset(sse, 0, sizeof(struct sctp_shutdown_event));
 	sse->sse_type = SCTP_SHUTDOWN_EVENT;
 	sse->sse_flags = 0;
 	sse->sse_length = sizeof(struct sctp_shutdown_event);
@@ -3252,6 +3260,7 @@ sctp_notify_sender_dry_event(struct sctp_tcb *stcb,
 	}
 	SCTP_BUF_LEN(m_notify) = 0;
 	event = mtod(m_notify, struct sctp_sender_dry_event *);
+	memset(event, 0, sizeof(struct sctp_sender_dry_event));
 	event->sender_dry_type = SCTP_SENDER_DRY_EVENT;
 	event->sender_dry_flags = 0;
 	event->sender_dry_length = sizeof(struct sctp_sender_dry_event);
@@ -3284,7 +3293,6 @@ sctp_notify_stream_reset_add(struct sctp_tcb *stcb, uint16_t numberin, uint16_t 
 	struct mbuf *m_notify;
 	struct sctp_queued_to_read *control;
 	struct sctp_stream_change_event *stradd;
-	int len;
 
 	if ((stcb == NULL) ||
 	    (sctp_stcb_is_feature_off(stcb->sctp_ep, stcb, SCTP_PCB_FLAGS_STREAM_CHANGEEVNT))) {
@@ -3297,25 +3305,20 @@ sctp_notify_stream_reset_add(struct sctp_tcb *stcb, uint16_t numberin, uint16_t 
 		return;
 	}
 	stcb->asoc.peer_req_out = 0;
-	m_notify = sctp_get_mbuf_for_msg(MCLBYTES, 0, M_NOWAIT, 1, MT_DATA);
+	m_notify = sctp_get_mbuf_for_msg(sizeof(struct sctp_stream_change_event), 0, M_NOWAIT, 1, MT_DATA);
 	if (m_notify == NULL)
 		/* no space left */
 		return;
 	SCTP_BUF_LEN(m_notify) = 0;
-	len = sizeof(struct sctp_stream_change_event);
-	if (len > M_TRAILINGSPACE(m_notify)) {
-		/* never enough room */
-		sctp_m_freem(m_notify);
-		return;
-	}
 	stradd = mtod(m_notify, struct sctp_stream_change_event *);
+	memset(stradd, 0, sizeof(struct sctp_stream_change_event));
 	stradd->strchange_type = SCTP_STREAM_CHANGE_EVENT;
 	stradd->strchange_flags = flag;
-	stradd->strchange_length = len;
+	stradd->strchange_length = sizeof(struct sctp_stream_change_event);
 	stradd->strchange_assoc_id = sctp_get_associd(stcb);
 	stradd->strchange_instrms = numberin;
 	stradd->strchange_outstrms = numberout;
-	SCTP_BUF_LEN(m_notify) = len;
+	SCTP_BUF_LEN(m_notify) = sizeof(struct sctp_stream_change_event);
 	SCTP_BUF_NEXT(m_notify) = NULL;
 	if (sctp_sbspace(&stcb->asoc, &stcb->sctp_socket->so_rcv) < SCTP_BUF_LEN(m_notify)) {
 		/* no space */
@@ -3346,32 +3349,26 @@ sctp_notify_stream_reset_tsn(struct sctp_tcb *stcb, uint32_t sending_tsn, uint32
 	struct mbuf *m_notify;
 	struct sctp_queued_to_read *control;
 	struct sctp_assoc_reset_event *strasoc;
-	int len;
 
 	if ((stcb == NULL) ||
 	    (sctp_stcb_is_feature_off(stcb->sctp_ep, stcb, SCTP_PCB_FLAGS_ASSOC_RESETEVNT))) {
 		/* event not enabled */
 		return;
 	}
-	m_notify = sctp_get_mbuf_for_msg(MCLBYTES, 0, M_NOWAIT, 1, MT_DATA);
+	m_notify = sctp_get_mbuf_for_msg(sizeof(struct sctp_assoc_reset_event), 0, M_NOWAIT, 1, MT_DATA);
 	if (m_notify == NULL)
 		/* no space left */
 		return;
 	SCTP_BUF_LEN(m_notify) = 0;
-	len = sizeof(struct sctp_assoc_reset_event);
-	if (len > M_TRAILINGSPACE(m_notify)) {
-		/* never enough room */
-		sctp_m_freem(m_notify);
-		return;
-	}
 	strasoc = mtod(m_notify, struct sctp_assoc_reset_event *);
+	memset(strasoc, 0, sizeof(struct sctp_assoc_reset_event));
 	strasoc->assocreset_type = SCTP_ASSOC_RESET_EVENT;
 	strasoc->assocreset_flags = flag;
-	strasoc->assocreset_length = len;
+	strasoc->assocreset_length = sizeof(struct sctp_assoc_reset_event);
 	strasoc->assocreset_assoc_id = sctp_get_associd(stcb);
 	strasoc->assocreset_local_tsn = sending_tsn;
 	strasoc->assocreset_remote_tsn = recv_tsn;
-	SCTP_BUF_LEN(m_notify) = len;
+	SCTP_BUF_LEN(m_notify) = sizeof(struct sctp_assoc_reset_event);
 	SCTP_BUF_NEXT(m_notify) = NULL;
 	if (sctp_sbspace(&stcb->asoc, &stcb->sctp_socket->so_rcv) < SCTP_BUF_LEN(m_notify)) {
 		/* no space */
@@ -3424,6 +3421,7 @@ sctp_notify_stream_reset(struct sctp_tcb *stcb,
 		return;
 	}
 	strreset = mtod(m_notify, struct sctp_stream_reset_event *);
+	memset(strreset, 0, len);
 	strreset->strreset_type = SCTP_STREAM_RESET_EVENT;
 	strreset->strreset_flags = flag;
 	strreset->strreset_length = len;
@@ -6236,9 +6234,12 @@ sctp_soreceive(struct socket *so,
 		fromlen = 0;
 	}
 
+	if (filling_sinfo) {
+		memset(&sinfo, 0, sizeof(struct sctp_extrcvinfo));
+	}
 	error = sctp_sorecvmsg(so, uio, mp0, from, fromlen, flagsp,
 	    (struct sctp_sndrcvinfo *)&sinfo, filling_sinfo);
-	if ((controlp) && (filling_sinfo)) {
+	if (controlp != NULL) {
 		/* copy back the sinfo in a CMSG format */
 		if (filling_sinfo)
 			*controlp = sctp_build_ctl_nchunk(inp,

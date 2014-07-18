@@ -133,7 +133,7 @@ static void	cas_detach(struct cas_softc *sc);
 static int	cas_disable_rx(struct cas_softc *sc);
 static int	cas_disable_tx(struct cas_softc *sc);
 static void	cas_eint(struct cas_softc *sc, u_int status);
-static int	cas_free(struct mbuf *m, void *arg1, void* arg2);
+static void	cas_free(struct mbuf *m, void *arg1, void* arg2);
 static void	cas_init(void *xsc);
 static void	cas_init_locked(struct cas_softc *sc);
 static void	cas_init_regs(struct cas_softc *sc);
@@ -1888,7 +1888,7 @@ cas_rint(struct cas_softc *sc)
 #endif
 }
 
-static int
+static void
 cas_free(struct mbuf *m, void *arg1, void *arg2)
 {
 	struct cas_rxdsoft *rxds;
@@ -1905,7 +1905,7 @@ cas_free(struct mbuf *m, void *arg1, void *arg2)
 	rxds = &sc->sc_rxdsoft[idx];
 #endif
 	if (refcount_release(&rxds->rxds_refcount) == 0)
-		return (EXT_FREE_OK);
+		return;
 
 	/*
 	 * NB: this function can be called via m_freem(9) within
@@ -1916,7 +1916,6 @@ cas_free(struct mbuf *m, void *arg1, void *arg2)
 	cas_add_rxdesc(sc, idx);
 	if (locked == 0)
 		CAS_UNLOCK(sc);
-	return (EXT_FREE_OK);
 }
 
 static inline void

@@ -31,6 +31,18 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 11.x IS SLOW:
 	disable the most expensive debugging functionality run
 	"ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20140709:
+	The GNU texinfo and GNU info pages are not built and installed
+	anymore, WITH_INFO knob has been added to allow to built and install
+	them again.
+
+20140708:
+	The GNU readline library is now an INTERNALLIB - that is, it is
+	statically linked into consumers (GDB and variants) in the base
+	system, and the shared library is no longer installed.  The
+	devel/readline port is available for third party software that
+	requires readline.
+
 20140702:
 	The Itanium architecture (ia64) has been removed from the list of
 	known architectures. This is the first step in the removal of the

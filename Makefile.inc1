@@ -1494,7 +1494,7 @@ _prebuild_libs=	${_kerberos5_lib_libasn1} \
 		lib/libutil lib/libpjdlog ${_lib_libypclnt} lib/libz lib/msun \
 		${_secure_lib_libcrypto} ${_lib_libldns} \
 		${_secure_lib_libssh} ${_secure_lib_libssl}
-.if ${MK_GNUCXX} != "no" && ${MK_CXX} != "no"
+.if ${MK_GNUCXX} != "no"
 _prebuild_libs+= gnu/lib/libstdc++ gnu/lib/libsupc++
 gnu/lib/libstdc++__L: lib/msun__L
 .endif
@@ -1893,7 +1893,7 @@ XDDESTDIR=${DESTDIR}/${XDTP}
 OSREL!= uname -r | sed -e 's/[-(].*//'
 .endif
 
-.ORDER: xdev-build xdev-install
+.ORDER: xdev-build xdev-install xdev-links
 xdev: xdev-build xdev-install
 
 .ORDER: _xb-worldtmp _xb-bootstrap-tools _xb-build-tools _xb-cross-tools
@@ -1943,8 +1943,8 @@ _xi-mtree:
 	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.include.dist \
 	    -p ${XDDESTDIR}/usr/include >/dev/null
 
-.ORDER: xdev-build _xi-mtree _xi-cross-tools _xi-includes _xi-libraries _xi-links
-xdev-install: xdev-build _xi-mtree _xi-cross-tools _xi-includes _xi-libraries _xi-links
+.ORDER: xdev-build _xi-mtree _xi-cross-tools _xi-includes _xi-libraries
+xdev-install: xdev-build _xi-mtree _xi-cross-tools _xi-includes _xi-libraries
 
 _xi-cross-tools:
 	@echo "_xi-cross-tools"
@@ -1967,9 +1967,9 @@ _xi-libraries:
 	${_+_}cd ${.CURDIR}; ${CD2MAKE} -f Makefile.inc1 libraries \
 		DESTDIR=${XDDESTDIR}
 
-_xi-links:
+xdev-links:
 	${_+_}cd ${XDDESTDIR}/usr/bin; \
-       mkdir -p ../../../../usr/bin; \
+	mkdir -p ../../../../usr/bin; \
 		for i in *; do \
 			ln -sf ../../${XDTP}/usr/bin/$$i \
 			    ../../../../usr/bin/${XDDIR}-$$i; \
@@ -1977,6 +1977,6 @@ _xi-links:
 			    ../../../../usr/bin/${XDDIR}${OSREL}-$$i; \
 		done
 .else
-xdev xdev-build xdev-install:
+xdev xdev-build xdev-install xdev-links:
 	@echo "*** Error: Both XDEV and XDEV_ARCH must be defined for \"${.TARGET}\" target"
 .endif

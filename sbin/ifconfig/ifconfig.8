@@ -679,9 +679,11 @@ Set a flag to enable Neighbor Unreachability Detection.
 Clear a flag
 .Cm nud .
 .It Cm no_prefer_iface
-Set a flag to not prefer address on the interface as candidates of the
-source address for outgoing packets, even when the interface is
-outgoing interface.
+Set a flag to not honor rule 5 of source address selection in RFC 3484.         
+In practice this means the address on the outgoing interface will not be
+preferred, effectively yielding the decision to the address selection
+policy table, configurable with
+.Xr ip6addrctl 8 .
 .It Cm -no_prefer_iface
 Clear a flag
 .Cm no_prefer_iface .

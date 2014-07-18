@@ -246,7 +246,7 @@ trap(struct trapframe *frame)
 	 * flag is cleared and finally re-scheduling is enabled.
 	 */
 	if ((type == T_PROTFLT || type == T_PAGEFLT) &&
-	    dtrace_trap_func != NULL && (*dtrace_trap_func)(frame, type))
+	    dtrace_trap_func != NULL && (*dtrace_trap_func)(frame))
 		goto out;
 #endif
 

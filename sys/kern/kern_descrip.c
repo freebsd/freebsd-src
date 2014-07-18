@@ -294,16 +294,34 @@ fdunused(struct filedesc *fdp, int fd)
 
 /*
  * Free a file descriptor.
+ *
+ * Avoid some work if fdp is about to be destroyed.
  */
 static inline void
-fdfree(struct filedesc *fdp, int fd)
+_fdfree(struct filedesc *fdp, int fd, int last)
 {
 	struct filedescent *fde;
 
 	fde = &fdp->fd_ofiles[fd];
 	filecaps_free(&fde->fde_caps);
+	if (last)
+		return;
 	bzero(fde, sizeof(*fde));
 	fdunused(fdp, fd);
+}
+
+static inline void
+fdfree(struct filedesc *fdp, int fd)
+{
+
+	_fdfree(fdp, fd, 0);
+}
+
+static inline void
+fdfree_last(struct filedesc *fdp, int fd)
+{
+
+	_fdfree(fdp, fd, 1);
 }
 
 /*
@@ -2011,27 +2029,10 @@ fdescfree(struct thread *td)
 
 	FILEDESC_XLOCK(fdp);
 	i = --fdp->fd_refcnt;
-	FILEDESC_XUNLOCK(fdp);
-	if (i > 0)
+	if (i > 0) {
+		FILEDESC_XUNLOCK(fdp);
 		return;
-
-	for (i = 0; i <= fdp->fd_lastfile; i++) {
-		fp = fdp->fd_ofiles[i].fde_file;
-		if (fp != NULL) {
-			FILEDESC_XLOCK(fdp);
-			fdfree(fdp, i);
-			FILEDESC_XUNLOCK(fdp);
-			(void) closef(fp, td);
-		}
 	}
-	FILEDESC_XLOCK(fdp);
-
-	if (fdp->fd_nfiles > NDFILE)
-		free(fdp->fd_ofiles, M_FILEDESC);
-	if (NDSLOTS(fdp->fd_nfiles) > NDSLOTS(NDFILE))
-		free(fdp->fd_map, M_FILEDESC);
-
-	fdp->fd_nfiles = 0;
 
 	cdir = fdp->fd_cdir;
 	fdp->fd_cdir = NULL;
@@ -2040,6 +2041,19 @@ fdescfree(struct thread *td)
 	jdir = fdp->fd_jdir;
 	fdp->fd_jdir = NULL;
 	FILEDESC_XUNLOCK(fdp);
+
+	for (i = 0; i <= fdp->fd_lastfile; i++) {
+		fp = fdp->fd_ofiles[i].fde_file;
+		if (fp != NULL) {
+			fdfree_last(fdp, i);
+			(void) closef(fp, td);
+		}
+	}
+
+	if (fdp->fd_nfiles > NDFILE)
+		free(fdp->fd_ofiles, M_FILEDESC);
+	if (NDSLOTS(fdp->fd_nfiles) > NDSLOTS(NDFILE))
+		free(fdp->fd_map, M_FILEDESC);
 
 	if (cdir != NULL)
 		vrele(cdir);

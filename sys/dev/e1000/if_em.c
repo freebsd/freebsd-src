@@ -1818,7 +1818,6 @@ em_xmit(struct tx_ring *txr, struct mbuf **m_headp)
 	int			nsegs, i, j, first, last = 0;
 	int			error, do_tso, tso_desc = 0, remap = 1;
 
-retry:
 	m_head = *m_headp;
 	txd_upper = txd_lower = txd_used = txd_saved = 0;
 	do_tso = ((m_head->m_pkthdr.csum_flags & CSUM_TSO) != 0);
@@ -1944,6 +1943,7 @@ retry:
 	tx_buffer_mapped = tx_buffer;
 	map = tx_buffer->map;
 
+retry:
 	error = bus_dmamap_load_mbuf_sg(txr->txtag, map,
 	    *m_headp, segs, &nsegs, BUS_DMA_NOWAIT);
 
@@ -2012,7 +2012,7 @@ retry:
 
 	if (m_head->m_flags & M_VLANTAG) {
 		/* Set the vlan id. */
-		txd_upper |= htole16((if_getvtag(m_head)) << 16);
+		txd_upper |= htole16(if_getvtag(m_head)) << 16;
                 /* Tell hardware to add tag */
                 txd_lower |= htole32(E1000_TXD_CMD_VLE);
         }

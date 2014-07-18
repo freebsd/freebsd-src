@@ -242,6 +242,7 @@ struct ctl_port {
 	ctl_options_t	options;		/* passed to CTL */
 	struct ctl_devid *port_devid;		/* passed to CTL */
 	struct ctl_devid *target_devid;		/* passed to CTL */
+	struct ctl_devid *init_devid;		/* passed to CTL */
 	STAILQ_ENTRY(ctl_port) fe_links;	/* used by CTL */
 	STAILQ_ENTRY(ctl_port) links;		/* used by CTL */
 };

@@ -858,15 +858,6 @@ null_vptocnp(struct vop_vptocnp_args *ap)
 	return (error);
 }
 
-static int
-null_link(struct vop_link_args *ap)
-{
-
-	if (ap->a_tdvp->v_mount != ap->a_vp->v_mount)
-		return (EXDEV);
-	return (null_bypass((struct vop_generic_args *)ap));
-}
-
 /*
  * Global vfs data structures
  */
@@ -880,7 +871,6 @@ struct vop_vector null_vnodeops = {
 	.vop_getwritemount =	null_getwritemount,
 	.vop_inactive =		null_inactive,
 	.vop_islocked =		vop_stdislocked,
-	.vop_link =		null_link,
 	.vop_lock1 =		null_lock,
 	.vop_lookup =		null_lookup,
 	.vop_open =		null_open,

@@ -121,12 +121,26 @@ ${_YC:R}.o: ${_YC}
 .endfor
 
 # DTrace probe definitions
+# libelf is currently needed for drti.o
+.if ${SRCS:M*.d}
+LDFLAGS+=	-lelf
+LDADD+=		${LIBELF}
+CFLAGS+=	-D_DTRACE_VERSION=1
+.endif
 .for _DSRC in ${SRCS:M*.d:N*/*}
-.for _DH in ${_DSRC:R}.h
-${_DH}: ${_DSRC}
-	${DTRACE} -xnolibs -h -s ${.ALLSRC} 
-SRCS:=	${SRCS:S/${_DSRC}/${_DH}/}
-CLEANFILES+= ${_DH}
+.for _D in ${_DSRC:R}
+${_D}.h: ${_DSRC}
+	${DTRACE} -xnolibs -h -s ${.ALLSRC}
+SRCS:=	${SRCS:S/${_DSRC}/${_D}.h/}
+${_D}.o: ${_D}.h ${_DSRC} ${OBJS} ${SOBJS}
+	${DTRACE} -xnolibs -G -o ${.TARGET} -s ${_DSRC} \
+		${OBJS:S/${_D}.o//} ${SOBJS:S/${_D}.o//}
+CLEANFILES+= ${_D}.h ${_D}.o
+.if defined(PROG)
+OBJS+=	${_D}.o
+.else
+SOBJS+=	${_D}.o
+.endif
 .endfor
 .endfor
 .endif

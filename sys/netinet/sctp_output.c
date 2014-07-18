@@ -50,7 +50,9 @@ __FBSDID("$FreeBSD$");
 #include <netinet/sctp_bsd_addr.h>
 #include <netinet/sctp_input.h>
 #include <netinet/sctp_crc32.h>
+#if defined(INET) || defined(INET6)
 #include <netinet/udp.h>
+#endif
 #include <netinet/udp_var.h>
 #include <machine/in_cksum.h>
 
@@ -10964,13 +10966,14 @@ sctp_send_resp_msg(struct sockaddr *src, struct sockaddr *dst,
 	struct mbuf *mout;
 	struct sctphdr *shout;
 	struct sctp_chunkhdr *ch;
-	struct udphdr *udp;
-	int len, cause_len, padding_len;
 
 #if defined(INET) || defined(INET6)
+	struct udphdr *udp;
 	int ret;
 
 #endif
+	int len, cause_len, padding_len;
+
 #ifdef INET
 	struct sockaddr_in *src_sin, *dst_sin;
 	struct ip *ip;
@@ -11021,9 +11024,11 @@ sctp_send_resp_msg(struct sockaddr *src, struct sockaddr *dst,
 	default:
 		break;
 	}
+#if defined(INET) || defined(INET6)
 	if (port) {
 		len += sizeof(struct udphdr);
 	}
+#endif
 	mout = sctp_get_mbuf_for_msg(len + max_linkhdr, 1, M_NOWAIT, 1, MT_DATA);
 	if (mout == NULL) {
 		if (cause) {
@@ -11094,6 +11099,7 @@ sctp_send_resp_msg(struct sockaddr *src, struct sockaddr *dst,
 		shout = mtod(mout, struct sctphdr *);
 		break;
 	}
+#if defined(INET) || defined(INET6)
 	if (port) {
 		if (htons(SCTP_BASE_SYSCTL(sctp_udp_tunneling_port)) == 0) {
 			sctp_m_freem(mout);
@@ -11112,6 +11118,7 @@ sctp_send_resp_msg(struct sockaddr *src, struct sockaddr *dst,
 	} else {
 		udp = NULL;
 	}
+#endif
 	shout->src_port = sh->dest_port;
 	shout->dest_port = sh->src_port;
 	shout->checksum = 0;

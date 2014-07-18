@@ -128,6 +128,19 @@ struct inpcbgroup *
 in6_pcbgroup_byinpcb(struct inpcb *inp)
 {
 
+#ifdef	RSS
+	/*
+	 * Listen sockets with INP_RSS_BUCKET_SET set have a pre-determined
+	 * RSS bucket and thus we should use this pcbgroup, rather than
+	 * using a tuple or hash.
+	 *
+	 * XXX should verify that there's actually pcbgroups and inp_rss_listen_bucket
+	 * fits in that!
+	 */
+	if (inp->inp_flags2 & INP_RSS_BUCKET_SET)
+		return (&inp->inp_pcbinfo->ipi_pcbgroups[inp->inp_rss_listen_bucket]);
+#endif
+
 	return (in6_pcbgroup_bytuple(inp->inp_pcbinfo, &inp->in6p_laddr,
 	    inp->inp_lport, &inp->in6p_faddr, inp->inp_fport));
 }

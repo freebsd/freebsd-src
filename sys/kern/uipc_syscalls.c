@@ -1984,65 +1984,87 @@ filt_sfsync(struct knote *kn, long hint)
 	return (ret);
 }
 
+/*
+ * Add more references to a vm_page + sf_buf + sendfile_sync.
+ */
+void
+sf_ext_ref(void *arg1, void *arg2)
+{
+	struct sf_buf *sf = arg1;
+	struct sendfile_sync *sfs = arg2;
+	vm_page_t pg = sf_buf_page(sf);
+
+	/* XXXGL: there should be sf_buf_ref() */
+	sf_buf_alloc(sf_buf_page(sf), SFB_NOWAIT);
+
+	vm_page_lock(pg);
+	vm_page_wire(pg);
+	vm_page_unlock(pg);
+
+	if (sfs != NULL) {
+		mtx_lock(&sfs->mtx);
+		KASSERT(sfs->count > 0, ("Sendfile sync botchup count == 0"));
+		sfs->count++;
+		mtx_unlock(&sfs->mtx);
+	}
+}
 
 /*
  * Detach mapped page and release resources back to the system.
  */
-int
-sf_mext_free(struct mbuf *mb, void *addr, void *args)
+void
+sf_ext_free(void *arg1, void *arg2)
 {
-	vm_page_t m;
-	struct sendfile_sync *sfs;
+	struct sf_buf *sf = arg1;
+	struct sendfile_sync *sfs = arg2;
+	vm_page_t pg = sf_buf_page(sf);
 
-	m = sf_buf_page(args);
-	sf_buf_free(args);
-	vm_page_lock(m);
-	vm_page_unwire(m, PQ_INACTIVE);
+	sf_buf_free(sf);
+
+	vm_page_lock(pg);
+	vm_page_unwire(pg, PQ_INACTIVE);
 	/*
 	 * Check for the object going away on us. This can
 	 * happen since we don't hold a reference to it.
 	 * If so, we're responsible for freeing the page.
 	 */
-	if (m->wire_count == 0 && m->object == NULL)
-		vm_page_free(m);
-	vm_page_unlock(m);
-	if (addr != NULL) {
-		sfs = addr;
+	if (pg->wire_count == 0 && pg->object == NULL)
+		vm_page_free(pg);
+	vm_page_unlock(pg);
+
+	if (sfs != NULL)
 		sf_sync_deref(sfs);
-	}
-	return (EXT_FREE_OK);
 }
 
 /*
  * Same as above, but forces the page to be detached from the object
  * and go into free pool.
  */
-static int
-sf_mext_free_nocache(struct mbuf *mb, void *addr, void *args)
+void
+sf_ext_free_nocache(void *arg1, void *arg2)
 {
-	vm_page_t m;
-	struct sendfile_sync *sfs;
+	struct sf_buf *sf = arg1;
+	struct sendfile_sync *sfs = arg2;
+	vm_page_t pg = sf_buf_page(sf);
 
-	m = sf_buf_page(args);
-	sf_buf_free(args);
-	vm_page_lock(m);
-	vm_page_unwire(m, 0);
-	if (m->wire_count == 0) {
+	sf_buf_free(sf);
+
+	vm_page_lock(pg);
+	vm_page_unwire(pg, 0);
+	if (pg->wire_count == 0) {
 		vm_object_t obj;
 
-		if ((obj = m->object) == NULL)
-			vm_page_free(m);
-		else if (!vm_page_xbusied(m) && VM_OBJECT_TRYWLOCK(obj)) {
-			vm_page_free(m);
+		if ((obj = pg->object) == NULL)
+			vm_page_free(pg);
+		else if (!vm_page_xbusied(pg) && VM_OBJECT_TRYWLOCK(obj)) {
+			vm_page_free(pg);
 			VM_OBJECT_WUNLOCK(obj);
 		}
 	}
-	vm_page_unlock(m);
-	if (addr != NULL) {
-		sfs = addr;
+	vm_page_unlock(pg);
+
+	if (sfs != NULL)
 		sf_sync_deref(sfs);
-	}
-	return (EXT_FREE_OK);
 }
 
 /*
@@ -2158,7 +2180,7 @@ sf_sync_alloc(uint32_t flags)
 /*
  * Take a reference to a sfsync instance.
  *
- * This has to map 1:1 to free calls coming in via sf_buf_mext(),
+ * This has to map 1:1 to free calls coming in via sf_ext_free(),
  * so typically this will be referenced once for each mbuf allocated.
  */
 void
@@ -3118,18 +3140,22 @@ retry_space:
 
 			/*
 			 * Get an mbuf and set it up as having
-			 * external storage.
+			 * EXT_SFBUF/EXT_SFBUF_NOCACHE external storage.
 			 */
 			m0 = m_get(M_WAITOK, MT_DATA);
-			(void )m_extadd(m0, (caddr_t )sf_buf_kva(sf), PAGE_SIZE,
-			    (flags & SF_NOCACHE) ? sf_mext_free_nocache :
-			    sf_mext_free, sfs, sf, M_RDONLY, EXT_SFBUF,
-			    M_WAITOK);
+			m0->m_ext.ext_buf = (char *)sf_buf_kva(sf);
+			m0->m_ext.ext_size = PAGE_SIZE;
+			m0->m_ext.ext_arg1 = sf;
+			m0->m_ext.ext_arg2 = sfs;
+			m0->m_ext.ext_type = (flags & SF_NOCACHE) ?
+			    SF_SFBUF_NOCACHE : EXT_SFBUF;
+			m0->m_ext.ext_flags = 0;
+			m0->m_flags |= (M_EXT | M_RDONLY);
+			if (nios)
+				m0->m_flags |= M_NOTREADY;
 			m0->m_data = (char *)sf_buf_kva(sf) +
 			    (vmoff(i, off) & PAGE_MASK);
 			m0->m_len = xfsize(i, npages, off, space);
-			if (nios)
-				m0->m_flags |= M_NOTREADY;
 
 			if (i == 0)
 				sfio->m = m0;

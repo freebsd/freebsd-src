@@ -968,10 +968,6 @@ ufs_link(ap)
 	if ((cnp->cn_flags & HASBUF) == 0)
 		panic("ufs_link: no name");
 #endif
-	if (tdvp->v_mount != vp->v_mount) {
-		error = EXDEV;
-		goto out;
-	}
 	if (VTOI(tdvp)->i_effnlink < 2)
 		panic("ufs_link: Bad link count %d on parent",
 		    VTOI(tdvp)->i_effnlink);

@@ -15,6 +15,8 @@ CNTRB_RL= ${CNTRB_ROOT}/libreadline
 OBJ_ROOT= ${.OBJDIR}/../..
 OBJ_BU= ${OBJ_ROOT}/binutils
 OBJ_GDB= ${OBJ_ROOT}/gdb
+OBJ_RL= ${OBJ_ROOT}/../lib/libreadline/readline
+LIBREADLINE=	${OBJ_ROOT}/../lib/libreadline/readline/libreadline.a
 
 # These assignments duplicate much of the functionality of
 # MACHINE_CPUARCH, but there's no easy way to export make functions...
@@ -46,6 +48,7 @@ CFLAGS+= -I${CNTRB_GDB}/gdb/config
 CFLAGS+= -I${CNTRB_BU}/include
 CFLAGS+= -I${CNTRB_GDB}/include
 CFLAGS+= -I${CNTRB_BU}/bfd
+CFLAGS+= -I${OBJ_RL}/..
 
 GENSRCS+= nm.h tm.h
 

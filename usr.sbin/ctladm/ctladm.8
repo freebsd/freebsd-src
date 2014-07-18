@@ -34,7 +34,7 @@
 .\" $Id: //depot/users/kenm/FreeBSD-test2/usr.sbin/ctladm/ctladm.8#3 $
 .\" $FreeBSD$
 .\"
-.Dd June 15, 2014
+.Dd July 9, 2014
 .Dt CTLADM 8
 .Os
 .Sh NAME
@@ -499,7 +499,7 @@ Specify relative addressing for the starting LBA.  CTL does not support
 relative addressing, since it only works for linked commands, and CTL
 does not support linked commands.
 .It Fl i
-Tell the target to return status immediately after issuing the SYHCHRONIZE CACHE
+Tell the target to return status immediately after issuing the SYNCHRONIZE CACHE
 command rather than waiting for the cache to finish syncing.  CTL does not
 support this bit.
 .It Fl c Ar cdbsize
@@ -947,6 +947,18 @@ Specifies LUN product string up to 16 chars.
 Specifies LUN revision string up to 4 chars.
 .It Va scsiname
 Specifies LUN SCSI name string.
+.It Va eui
+Specifies LUN EUI-64 identifier.
+.It Va naa
+Specifies LUN NAA identifier.
+Either EUI or NAA identifier should be set to UNIQUE value to allow
+EXTENDED COPY command access the LUN.
+Non-unique LUN identifiers may lead to data corruption.
+.It Va insecure_tpc
+Setting to "on" allows EXTENDED COPY command sent to this LUN access
+other LUNs on this host, not accessible otherwise.
+This allows to offload copying between different iSCSI targets residing
+on the same host in trusted environments.
 .It Va unmap
 Set to "on", enables UNMAP support for the LUN.
 .El
