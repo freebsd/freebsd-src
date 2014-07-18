@@ -1646,8 +1646,8 @@ bge_setmulti(struct bge_softc *sc)
 
 	if_multiaddr_array(ifp, mta, &mcnt, mc_count);
 	for(i = 0; i < mcnt; i++) {
-		h = ether_crc32_le(LLADDR((struct sockaddr_dl *)
-		    (mta + (i * ETHER_ADDR_LEN))), ETHER_ADDR_LEN) & 0x7F;
+		h = ether_crc32_le(mta + (i * ETHER_ADDR_LEN),
+		    ETHER_ADDR_LEN) & 0x7F;
 		hashes[(h & 0x60) >> 5] |= 1 << (h & 0x1F);
 	}
 
