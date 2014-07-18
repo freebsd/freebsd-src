@@ -1,8 +1,8 @@
 /*-
- * Written by J.T. Conklin <jtc@netbsd.org>
+ * Written by J.T. Conklin <jtc@NetBSD.org>
  * Public domain.
  *
- *	$NetBSD: search.h,v 1.12 1999/02/22 10:34:28 christos Exp $
+ *	$NetBSD: search.h,v 1.18 2005/07/06 15:47:15 drochner Exp $
  * $FreeBSD$
  */
 
@@ -49,12 +49,14 @@ __BEGIN_DECLS
 int	 hcreate(size_t);
 void	 hdestroy(void);
 ENTRY	*hsearch(ENTRY, ACTION);
-void	 insque(void *, void *);
+
 void	*lfind(const void *, const void *, size_t *, size_t,
 	    int (*)(const void *, const void *));
 void	*lsearch(const void *, void *, size_t *, size_t,
 	    int (*)(const void *, const void *));
+void	 insque(void *, void *);
 void	 remque(void *);
+
 void	*tdelete(const void * __restrict, void ** __restrict,
 	    int (*)(const void *, const void *));
 void	*tfind(const void *, void * const *,
