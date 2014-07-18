@@ -40,7 +40,6 @@ S=${.CURDIR}/../..
 LIB=		usbboot
 INTERNALLIB=
 OBJCOPY?=	objcopy
-SYSCC?=		/usr/bin/cc
 
 CFLAGS+=	-DBOOTPROG=\"usbloader\"
 CFLAGS+=	-DUSB_GLOBAL_INCLUDE_FILE=\"bsd_global.h\"
@@ -184,7 +183,6 @@ SRCS+=	umass_common.c
 SRCS+=	umass_loader.c
 .endif
 
-CLEANFILES+= sysinit
 CLEANFILES+= sysinit.bin
 CLEANFILES+= sysinit_data.c
 CLEANFILES+= sysuninit_data.c
@@ -196,14 +194,12 @@ CLEANFILES+= ${SRCS:C/\.c/.osys/g}
 #
 # SYSINIT() and SYSUNINIT() handling
 #
-sysinit: ${T}/sysinit.c
-	${SYSCC} -Wall -o ${.TARGET} ${.ALLSRC}
 
-sysinit_data.c: sysinit.bin sysinit
-	${.OBJDIR}/sysinit -i sysinit.bin -o ${.TARGET} -k sysinit -s sysinit_data
+sysinit_data.c: sysinit.bin
+	sysinit -i sysinit.bin -o ${.TARGET} -k sysinit -s sysinit_data
 
-sysuninit_data.c: sysinit.bin sysinit
-	${.OBJDIR}/sysinit -i sysinit.bin -o ${.TARGET} -R -k sysuninit -s sysuninit_data
+sysuninit_data.c: sysinit.bin
+	sysinit -i sysinit.bin -o ${.TARGET} -R -k sysuninit -s sysuninit_data
 
 .for F in ${OBJS}
 ${F}sys: ${F}
