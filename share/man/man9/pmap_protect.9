@@ -25,11 +25,10 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 21, 2003
+.Dd July 18, 2014
 .Dt PMAP_PROTECT 9
 .Os
 .Sh NAME
-.Nm pmap_page_protect ,
 .Nm pmap_protect
 .Nd set physical page protection
 .Sh SYNOPSIS
@@ -37,19 +36,10 @@
 .In vm/vm.h
 .In vm/pmap.h
 .Ft void
-.Fn pmap_page_protect "vm_page_t m" "vm_prot_t prot"
-.Ft void
 .Fo pmap_protect
-.Fa "pmap_t pmap" "vm_offset_t sva" "vm_offset_t eva" "vm_prot_t pr"
+.Fa "pmap_t pmap" "vm_offset_t sva" "vm_offset_t eva" "vm_prot_t prot"
 .Fc
 .Sh DESCRIPTION
-The
-.Fn pmap_page_protect
-function lowers the physical page permissions to
-.Fa prot
-for all mappings of a given page
-.Fa m .
-.Pp
 The
 .Fn pmap_protect
 function sets the physical page permissions to

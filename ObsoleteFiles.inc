@@ -38,6 +38,8 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20140718: Remove an obsolete man page
+OLD_FILES+=usr/share/man/man9/pmap_page_protect.9.gz
 # 20140717: Remove an obsolete man page
 OLD_FILES+=usr/share/man/man9/pmap_clear_reference.9.gz
 # 20140716: Remove an incorrectly named man page
