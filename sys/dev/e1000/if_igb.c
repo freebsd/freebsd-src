@@ -5853,7 +5853,7 @@ igb_add_hw_stats(struct adapter *adapter)
  				"Transmit Descriptor Tail");
 		SYSCTL_ADD_QUAD(ctx, queue_list, OID_AUTO, "no_desc_avail", 
 				CTLFLAG_RD, &txr->no_desc_avail,
-				"Queue No Descriptor Available");
+				"Queue Descriptors Unavailable");
 		SYSCTL_ADD_UQUAD(ctx, queue_list, OID_AUTO, "tx_packets",
 				CTLFLAG_RD, &txr->total_packets,
 				"Queue Packets Transmitted");
