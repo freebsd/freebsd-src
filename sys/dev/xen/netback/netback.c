@@ -42,6 +42,7 @@ __FBSDID("$FreeBSD$");
  * 	  from this FreeBSD domain to other domains.
  */
 #include "opt_inet.h"
+#include "opt_inet6.h"
 #include "opt_global.h"
 
 #include "opt_sctp.h"
@@ -182,7 +183,6 @@ static int	xnb_rxpkt2gnttab(const struct xnb_pkt *pkt,
 static int	xnb_rxpkt2rsp(const struct xnb_pkt *pkt,
 			      const gnttab_copy_table gnttab, int n_entries,
 			      netif_rx_back_ring_t *ring);
-static void	xnb_add_mbuf_cksum(struct mbuf *mbufc);
 static void	xnb_stop(struct xnb_softc*);
 static int	xnb_ioctl(struct ifnet*, u_long, caddr_t);
 static void	xnb_start_locked(struct ifnet*);
@@ -192,6 +192,9 @@ static void	xnb_ifinit(void*);
 #ifdef XNB_DEBUG
 static int	xnb_unit_test_main(SYSCTL_HANDLER_ARGS);
 static int	xnb_dump_rings(SYSCTL_HANDLER_ARGS);
+#endif
+#if defined(INET) || defined(INET6)
+static void	xnb_add_mbuf_cksum(struct mbuf *mbufc);
 #endif
 /*------------------------------ Data Structures -----------------------------*/
 
@@ -1780,7 +1783,9 @@ xnb_update_mbufc(struct mbuf *mbufc, const gnttab_copy_table gnttab,
 	}
 	mbufc->m_pkthdr.len = total_size;
 
+#if defined(INET) || defined(INET6)
 	xnb_add_mbuf_cksum(mbufc);
+#endif
 }
 
 /**
@@ -2123,6 +2128,7 @@ xnb_rxpkt2rsp(const struct xnb_pkt *pkt, const gnttab_copy_table gnttab,
 	return n_responses;
 }
 
+#if defined(INET) || defined(INET6)
 /**
  * Add IP, TCP, and/or UDP checksums to every mbuf in a chain.  The first mbuf
  * in the chain must start with a struct ether_header.
@@ -2177,6 +2183,7 @@ xnb_add_mbuf_cksum(struct mbuf *mbufc)
 		break;
 	}
 }
+#endif /* INET || INET6 */
 
 static void
 xnb_stop(struct xnb_softc *xnb)
@@ -2193,8 +2200,8 @@ static int
 xnb_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 {
 	struct xnb_softc *xnb = ifp->if_softc;
-#ifdef INET
 	struct ifreq *ifr = (struct ifreq*) data;
+#ifdef INET
 	struct ifaddr *ifa = (struct ifaddr*)data;
 #endif
 	int error = 0;
