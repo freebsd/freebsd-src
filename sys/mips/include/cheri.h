@@ -555,7 +555,7 @@ void	cheri_context_copy(struct pcb *dst, struct pcb *src);
 void	cheri_signal_copy(struct pcb *dst, struct pcb *src);
 void	cheri_stack_copy(struct pcb *dst, struct pcb *src);
 void	cheri_stack_init(struct pcb *pcb);
-int	cheri_stack_sandboxexception(struct thread *td, struct trapframe *tf,
+int	cheri_stack_unwind(struct thread *td, struct trapframe *tf,
 	    int signum);
 int	cheri_sysarch_getstack(struct thread *td, struct sysarch_args *uap);
 int	cheri_sysarch_setstack(struct thread *td, struct sysarch_args *uap);

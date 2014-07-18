@@ -85,6 +85,14 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/jail.h>
 
+#ifdef CPU_CHERI
+/*
+ * XXXRW: We're not quite doing this in the right place, hence the header;
+ * need to work on that.
+ */
+#include <machine/cheri.h>
+#endif
+
 #include <machine/cpu.h>
 
 #include <security/audit/audit.h>
@@ -1866,6 +1874,24 @@ trapsignal(struct thread *td, ksiginfo_t *ksi)
 	PROC_LOCK(p);
 	ps = p->p_sigacts;
 	mtx_lock(&ps->ps_mtx);
+
+#ifdef CPU_CHERI
+	/*
+	 * If a signal triggered by a trap will not be caught by the process,
+	 * there's a sandbox frame to unwind, and the signal has the SBUNWIND
+	 * property, then the kernel will autounwind the trusted stack.
+	 *
+	 * XXXRW: It would be nice if this were in machine-dependent code ..
+	 * maybe?
+	 */
+	if ((p->p_flag & P_TRACED) == 0 && !SIGISMEMBER(ps->ps_sigcatch, sig)
+	    && (sigprop(sig) & SIGPROP_SBUNWIND) &&
+	    cheri_stack_unwind(td, td->td_frame, sig)) {
+		printf("Sandbox unwind on uncaught signal %d, pid %d, tid "
+		    "%d\n", sig, p->p_pid, td->td_tid);
+		mtx_unlock(&ps->ps_mtx);
+	} else
+#endif
 	if ((p->p_flag & P_TRACED) == 0 && SIGISMEMBER(ps->ps_sigcatch, sig) &&
 	    !SIGISMEMBER(td->td_sigmask, sig)) {
 		td->td_ru.ru_nsignals++;

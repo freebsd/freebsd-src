@@ -1192,24 +1192,7 @@ err:
 	ksi.ksi_code = ucode;
 	ksi.ksi_addr = (void *)addr;
 	ksi.ksi_trapno = type;
-#ifdef CPU_CHERI
-	/*
-	 * CHERI sandboxing may update register state and eat the signal, in
-	 * which case we fall out with a revised register file.
-	 *
-	 * NB: The definition of 'in a sandbox' used here is that the trusted
-	 * stack has a non-zero number of return frames.
-	 *
-	 * XXXRW: In the future, we'd like to instead remap the signal to
-	 * SIGSANDBOX delivered a userspace exception-handling capability
-	 * context.  Quite a bit of care will be required -- and some new
-	 * machinery to allow suitable contexts to be registered, rewrite the
-	 * trusted stack from userspace, etc.
-	 */
-	if (!cheri_stack_sandboxexception(td, trapframe, ksi.ksi_signo))
-
-#endif
-		trapsignal(td, &ksi);
+	trapsignal(td, &ksi);
 out:
 
 	/*

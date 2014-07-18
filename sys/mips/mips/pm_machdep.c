@@ -95,7 +95,7 @@ sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	vm_offset_t sp;
 #ifdef CPU_CHERI
 	size_t cp2_len;
-	int cheri_signal_handling;
+	int cheri_is_sandboxed;
 #endif
 	int sig;
 	int oonstack;
@@ -112,19 +112,38 @@ sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 
 #ifdef CPU_CHERI
 	/*
-	 * Normally, the kernel must detect and handle the case where signal
-	 * execution is already taking place on the alternative signal stack,
-	 * and if so, rather than reinstalling that stack pointer, simply
-	 * continue on the same stack.  Sandboxed code may use $sp relative to
-	 * other base addresses, and could even manipulate it maliciously:
-	 * instead, assume that if we're not in a state with ambient
-	 * authority, as defined by CHERI_PERM_SYSCALL, we are by definition
-	 * not already processing a signal, and hence will now want to
-	 * relocate to the signal stack.  We'll also need to install suitable
-	 * CHERI-related register state.
+	 * CHERI affects signal delivery in the following ways:
+	 *
+	 * (1) Additional capability-coprocessor state is exposed via
+	 *     extensions to the context frame placed on the stack.
+	 *
+	 * (2) If the user $pcc doesn't include CHERI_PERM_SYSCALL, then we
+	 *     consider user state to be 'sandboxed' and therefore to require
+	 *     special delivery handling which includes a domain-switch to the
+	 *     thread's context-switch domain.  (This is done by
+	 *     cheri_sendsig()).
+	 *
+	 * (3) If an alternative signal stack is not defined, and we are in a
+	 *     'sandboxed' state, then we have two choices: (a) if the signal
+	 *     is of type SA_SANDBOX_UNWIND, we will automatically unwind the
+	 *     trusted stack by one frame; (b) otherwise, we will terminate
+	 *     the process unconditionally.
 	 */
-	cheri_signal_handling = cheri_signal_sandboxed(td);
-	if (cheri_signal_handling != 0)
+	cheri_is_sandboxed = cheri_signal_sandboxed(td);
+
+	/*
+	 * If a thread is running sandboxed, we can't rely on $sp which may
+	 * not point at a valid stack in the ambient context, or even be
+	 * maliciously manipulated.  We must therefore always use the
+	 * alternative stack.  We are also therefore unable to tell whether we
+	 * are on the alternative stack, so must clear 'oonstack' here.
+	 *
+	 * XXXRW: This requires significant further thinking; however, the net
+	 * upshot is that it is not a good idea to do an object-capability
+	 * invoke() from a signal handler, as with so many other things in
+	 * life.
+	 */
+	if (cheri_is_sandboxed != 0)
 		oonstack = 0;
 #endif
 
@@ -166,7 +185,7 @@ sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 		 * risk leaking capabilities (and control) to the sandbox (or
 		 * just crashing the sandbox).
 		 */
-		if (cheri_signal_handling) {
+		if (cheri_is_sandboxed) {
 			mtx_unlock(&psp->ps_mtx);
 			printf("pid %d, tid %d: signal in sandbox without "
 			    "alternative stack defined\n", td->td_proc->p_pid,

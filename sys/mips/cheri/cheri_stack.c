@@ -32,6 +32,8 @@
 
 #include <sys/param.h>
 #include <sys/kernel.h>
+#include <sys/lock.h>
+#include <sys/mutex.h>
 #include <sys/proc.h>
 #include <sys/syscall.h>
 #include <sys/sysctl.h>
@@ -107,33 +109,40 @@ cheri_stack_copy(struct pcb *pcb2, struct pcb *pcb1)
 }
 
 /*
- * If a signal is delivered while in a sandbox, forceably unwind the trusted
- * stack simulating a CReturn.  Clear the regular and capability register
- * files.
+ * Normally, we expect that sandbox libraries will register signal handlers
+ * for any traps that might arise within a sandbox, and handle them
+ * explicitly.  However, in prototyping, it proves useful if the kernel can
+ * 'assist' with unwinding when the signal is not caught: effectively, a
+ * forced CReturn.  Unlike normal CReturn, because the caller has not
+ * performed a controlled, compiler-directed return, we scrub the user
+ * register files to avoid information and rights leakage.  The semantics are
+ * a bit poor since we have no way to usefully report it other than frobbing
+ * return-register state.  It's not clear that this is really avoidable.
  *
- * Note that the callee has not had a chance to clean up the mess -- and
- * particular, can't clear the register file before returning.  We therefore
- * have to do that for the callee or information/rights may leak!.
+ * XXXRW: Forced return may leave callee invariants violated -- the price for
+ * throwing an uncaught signal.  However, it's possible to imagine fail-open
+ * scenarios in which a callee with privilege is somehow tricked into
+ * throwing an uncaught exception during a window where its invariants are
+ * violated, leading to a security vulnerability.  Userspace signal handlers
+ * may have more information about how to avoid this and so are preferred; in
+ * particular, a userspace runtime might provide a mechanism to allow catching
+ * exceptions explicitly rather than always unconditionally unwinding.
  *
- * XXXRW: Really we want to delegate this to userspace via SIGSANDBOX or
- * similar, but in the mean time.
- *
- * XXXRW: We don't yet handle floating point.
+ * XXXRW: There's a possible argument for unwinding multiple frames up to the
+ * last frame with ambient authority.
  */
 int
-cheri_stack_sandboxexception(struct thread *td, struct trapframe *tf,
-    int signum)
+cheri_stack_unwind(struct thread *td, struct trapframe *tf, int signum)
 {
 	struct cheri_stack_frame *csfp;
 	struct pcb *pcb = td->td_pcb;
 	register_t sr, badvaddr, cause;
 	f_register_t fsr;
 
+	PROC_LOCK_ASSERT(td->td_proc, MA_OWNED);
+
 	if (pcb->pcb_cheristack.cs_tsp == CHERI_STACK_SIZE)
 		return (0);
-
-	printf("%s: processing sandbox exception signal %d, pid %d\n",
-	    __func__, signum, td->td_proc->p_pid);
 
 #if DDB
 	if (security_cheri_debugger_on_sandbox_exception)
@@ -154,8 +163,6 @@ cheri_stack_sandboxexception(struct thread *td, struct trapframe *tf,
 	 * (information, rights) is returned to the caller that shouldn't be
 	 * when the callee exits unexpectedly.  Save and restore kernel-side
 	 * registers, however.
-	 *
-	 * XXXRW: What about floating-point registers?
 	 */
 	sr = pcb->pcb_regs.sr;
 	badvaddr = pcb->pcb_regs.badvaddr;
