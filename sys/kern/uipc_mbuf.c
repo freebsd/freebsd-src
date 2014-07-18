@@ -377,7 +377,7 @@ mb_dupcl(struct mbuf *n, struct mbuf *m)
 			atomic_add_int(m->m_ext.ext_cnt, 1);
 	}
 
-	bcopy(&m->m_ext, &n->m_ext, sizeof(m->m_ext));
+	n->m_ext = m->m_ext;
 	n->m_flags |= M_EXT;
 	n->m_flags |= m->m_flags & M_RDONLY;
 }
