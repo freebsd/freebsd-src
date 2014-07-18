@@ -273,6 +273,8 @@ struct config_file {
 	struct config_strlist* local_zones_nodefault;
 	/** local data RRs configged */
 	struct config_strlist* local_data;
+	/** unblock lan zones (reverse lookups for 10/8 and so on) */
+	int unblock_lan_zones;
 
 	/** remote control section. enable toggle. */
 	int remote_control_enable;
