@@ -38,6 +38,9 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20140718: Remove obsolete man pages
+OLD_FILES+=usr/share/man/man9/zero_copy.9.gz
+OLD_FILES+=usr/share/man/man9/zero_copy_sockets.9.gz
 # 20140718: Remove an obsolete man page
 OLD_FILES+=usr/share/man/man9/pmap_page_protect.9.gz
 # 20140717: Remove an obsolete man page

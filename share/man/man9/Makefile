@@ -384,7 +384,6 @@ MAN=	accept_filter.9 \
 	vrele.9 \
 	vslock.9 \
 	watchdog.9 \
-	zero_copy.9 \
 	zone.9
 
 MLINKS=	unr.9 alloc_unr.9 \
@@ -1574,7 +1573,6 @@ MLINKS+=vref.9 VREF.9
 MLINKS+=vrele.9 vput.9 \
 	vrele.9 vunref.9
 MLINKS+=vslock.9 vsunlock.9
-MLINKS+=zero_copy.9 zero_copy_sockets.9
 MLINKS+=zone.9 uma.9 \
 	zone.9 uma_zalloc.9 \
 	zone.9 uma_zalloc_arg.9 \
