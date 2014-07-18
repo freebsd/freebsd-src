@@ -202,7 +202,6 @@ struct mbuf {
 #define	m_type		m_hdr.mh_type
 #define	m_flags		m_hdr.mh_flags
 #define	m_nextpkt	m_hdr.mh_nextpkt
-#define	m_act		m_nextpkt
 #define	m_pkthdr	M_dat.MH.MH_pkthdr
 #define	m_ext		M_dat.MH.MH_dat.MH_ext
 #define	m_pktdat	M_dat.MH.MH_dat.MH_databuf
