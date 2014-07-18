@@ -1,4 +1,4 @@
-.TH LIBUCL 5 "March 20, 2014" "Libucl manual"
+.TH "LIBUCL" "3" "July 26, 2014" "Libucl manual" ""
 .SH NAME
 .PP
 \f[B]ucl_parser_new\f[], \f[B]ucl_parser_register_macro\f[],
@@ -32,10 +32,10 @@ In future, this limitation can be removed.
 Convert \f[C]ucl\f[] objects to some textual or binary representation.
 Currently, libucl supports the following exports:
 .IP \[bu] 2
-\f[C]JSON\f[] \- valid json format (can possibly loose some original
+\f[C]JSON\f[] \- valid json format (can possibly lose some original
 data, such as implicit arrays)
 .IP \[bu] 2
-\f[C]Config\f[] \- human\-readable configuration format (losseless)
+\f[C]Config\f[] \- human\-readable configuration format (lossless)
 .IP \[bu] 2
 \f[C]YAML\f[] \- embedded yaml format (has the same limitations as
 \f[C]json\f[] output)
@@ -46,7 +46,7 @@ These functions are used to convert \f[C]ucl_object_t\f[] to C primitive
 types, such as numbers, strings or boolean values.
 .SS Generation functions
 .PP
-Allow creating of \f[C]ucl\f[] objects from C types and creating of
+Allow creation of \f[C]ucl\f[] objects from C types and creating of
 complex \f[C]ucl\f[] objects, such as hashes or arrays from primitive
 \f[C]ucl\f[] objects, such as numbers or strings.
 .SS Iteration functions
@@ -175,7 +175,7 @@ bool\ ucl_parser_add_file\ (struct\ ucl_parser\ *parser,\
 Load file \f[C]filename\f[] and parse it with the specified
 \f[C]parser\f[].
 This function uses \f[C]mmap\f[] call to load file, therefore, it should
-not be \f[C]shrinked\f[] during parsing.
+not be \f[C]shrunk\f[] during parsing.
 Otherwise, \f[C]libucl\f[] can cause memory corruption and terminate the
 calling application.
 This function is also used by the internal handler of \f[C]include\f[]
@@ -290,7 +290,7 @@ ucl_parser_add_chunk\ (parser,\ inbuf,\ r);
 fclose\ (in);
 
 if\ (ucl_parser_get_error\ (parser))\ {
-\ \ \ \ printf\ ("Error\ occured:\ %s\\n",\ ucl_parser_get_error\ (parser));
+\ \ \ \ printf\ ("Error\ occurred:\ %s\\n",\ ucl_parser_get_error\ (parser));
 \ \ \ \ ret\ =\ 1;
 }
 else\ {
@@ -323,7 +323,7 @@ newlines and spaces
 compact yaml: \f[C]UCL_EMIT_YAML\f[] \- compact YAML output
 .PP
 Moreover, libucl API allows to select a custom set of emitting functions
-allowing efficent and zero\-copy output of libucl objects.
+allowing efficient and zero\-copy output of libucl objects.
 Libucl uses the following structure to support this feature:
 .IP
 .nf
@@ -390,7 +390,7 @@ emitters (including C++ ones, for example).
 .SH CONVERSION FUNCTIONS
 .PP
 Conversion functions are used to convert UCL objects to primitive types,
-such as strings, numbers or boolean values.
+such as strings, numbers, or boolean values.
 There are two types of conversion functions:
 .IP \[bu] 2
 safe: try to convert an ucl object to a primitive type and fail if such
@@ -403,8 +403,8 @@ strings and 0 for numbers)
 Also there is a single \f[C]ucl_object_tostring_forced\f[] function that
 converts any UCL object (including compound types \- arrays and objects)
 to a string representation.
-For compound and numeric types this function performs emitting to a
-compact json format actually.
+For objects, arrays, booleans and numeric types this function performs
+emitting to a compact json format actually.
 .PP
 Here is a list of all conversion functions:
 .IP \[bu] 2
@@ -418,7 +418,8 @@ Here is a list of all conversion functions:
 object (this string is NULL terminated)
 .IP \[bu] 2
 \f[C]ucl_object_tolstring\f[] \- returns \f[C]const\ char\ *\f[] and
-\f[C]size_t\f[] len of UCL object (string can be not NULL terminated)
+\f[C]size_t\f[] len of UCL object (string does not need to be NULL
+terminated)
 .IP \[bu] 2
 \f[C]ucl_object_tostring_forced\f[] \- returns string representation of
 any UCL object
@@ -429,7 +430,7 @@ A caller should not free this memory.
 .SH GENERATION FUNCTIONS
 .PP
 It is possible to generate UCL objects from C primitive types.
-Moreover, libucl permits to create and modify complex UCL objects, such
+Moreover, libucl allows creation and modifying complex UCL objects, such
 as arrays or associative objects.
 .SS ucl_object_new
 .IP
@@ -467,10 +468,10 @@ converts \f[C]int64_t\f[] to UCL object \-
 \f[C]ucl_object_fromdouble\f[] \- converts \f[C]double\f[] to UCL object
 \- \f[C]ucl_object_fromboolean\f[] \- converts \f[C]bool\f[] to UCL
 object \- \f[C]ucl_object_fromstring\f[] \- converts
-\f[C]const\ char\ *\f[] to UCL object (this string is NULL terminated)
-\- \f[C]ucl_object_fromlstring\f[] \- converts \f[C]const\ char\ *\f[]
-and \f[C]size_t\f[] len to UCL object (string can be not NULL
-terminated)
+\f[C]const\ char\ *\f[] to UCL object (this string should be NULL
+terminated) \- \f[C]ucl_object_fromlstring\f[] \- converts
+\f[C]const\ char\ *\f[] and \f[C]size_t\f[] len to UCL object (string
+does not need to be NULL terminated)
 .PP
 Also there is a function to generate UCL object from a string performing
 various parsing or conversion operations called
@@ -485,7 +486,7 @@ ucl_object_t\ *\ ucl_object_fromstring_common\ (const\ char\ *str,\
 .fi
 .PP
 This function is used to convert a string \f[C]str\f[] of size
-\f[C]len\f[] to an UCL objects applying \f[C]flags\f[] conversions.
+\f[C]len\f[] to a UCL object applying \f[C]flags\f[] conversions.
 If \f[C]len\f[] is equal to zero then a \f[C]str\f[] is assumed as
 NULL\-terminated.
 This function supports the following flags (a set of flags can be
@@ -538,7 +539,7 @@ const\ ucl_object_t*\ ucl_iterate_object\ (const\ ucl_object_t\ *obj,\
 \f[]
 .fi
 .PP
-This function accept opaque iterator pointer \f[C]iter\f[].
+This function accepts opaque iterator pointer \f[C]iter\f[].
 In the first call this iterator \f[I]must\f[] be initialized to
 \f[C]NULL\f[].
 Iterator is changed by this function call.
@@ -551,12 +552,12 @@ The object \f[C]obj\f[] should not be changed during the iteration
 process as well.
 \f[C]expand_values\f[] flag speicifies whether
 \f[C]ucl_iterate_object\f[] should expand keys with multiple values.
-The general rule is that if you need to iterate throught the
+The general rule is that if you need to iterate through the
 \f[I]object\f[] or \f[I]explicit array\f[], then you always need to set
 this flag to \f[C]true\f[].
 However, if you get some key in the object and want to extract all its
 values then you should set \f[C]expand_values\f[] to \f[C]false\f[].
-Mixing of iteration types are not permitted since the iterator is set
+Mixing of iteration types is not permitted since the iterator is set
 according to the iteration type and cannot be reused.
 Here is an example of iteration over the objects using libucl API
 (assuming that \f[C]top\f[] is \f[C]UCL_OBJECT\f[] in this example):
@@ -599,8 +600,8 @@ If this function returns \f[C]true\f[] then validation procedure has
 been succeed.
 Otherwise, \f[C]false\f[] is returned and \f[C]err\f[] is set to a
 specific value.
-If caller set \f[C]err\f[] to NULL then this function does not set any
-error just returning \f[C]false\f[].
+If a caller sets \f[C]err\f[] to NULL then this function does not set
+any error just returning \f[C]false\f[].
 Error is the structure defined as following:
 .IP
 .nf
@@ -608,7 +609,7 @@ Error is the structure defined as following:
 struct\ ucl_schema_error\ {
 \ \ \ \ enum\ ucl_schema_error_code\ code;\ \ \ \ /*\ error\ code\ */
 \ \ \ \ char\ msg[128];\ \ \ \ \ \ \ \ \ \ \ \ \ \ /*\ error\ message\ */
-\ \ \ \ ucl_object_t\ *obj;\ \ \ \ \ \ \ \ \ \ /*\ object\ where\ error\ occured\ */
+\ \ \ \ ucl_object_t\ *obj;\ \ \ \ \ \ \ \ \ \ /*\ object\ where\ error\ occurred\ */
 };
 \f[]
 .fi
@@ -629,8 +630,8 @@ enum\ ucl_schema_error_code\ {
 \f[]
 .fi
 .PP
-\f[C]msg\f[] is a stiring description of an error and \f[C]obj\f[] is an
-object where error has been occurred.
+\f[C]msg\f[] is a string description of an error and \f[C]obj\f[] is an
+object where error has occurred.
 Error object is not allocated by libucl, so there is no need to free it
 after validation (a static object should thus be used).
 .SH AUTHORS
