@@ -3,7 +3,8 @@ EXTRA_DIST = $(TESTS) basic schema generate.res rcl_test.json.xz
 TESTS = basic.test \
 		generate.test \
 		schema.test \
-		speed.test
+		speed.test \
+		streamline.test
 TESTS_ENVIRONMENT = $(SH) \
 			TEST_DIR=$(top_srcdir)/tests \
 			TEST_OUT_DIR=$(top_builddir)/tests \
@@ -30,4 +31,8 @@ test_schema_SOURCES = test_schema.c
 test_schema_LDADD = $(common_test_ldadd)
 test_schema_CFLAGS = $(common_test_cflags)
 
-check_PROGRAMS = test_basic test_speed test_generate test_schema
+test_streamline_SOURCES = test_streamline.c
+test_streamline_LDADD = $(common_test_ldadd)
+test_streamline_CFLAGS = $(common_test_cflags)
+
+check_PROGRAMS = test_basic test_speed test_generate test_schema test_streamline
