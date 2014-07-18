@@ -11471,6 +11471,10 @@ bxe_process_kill(struct bxe_softc *sc,
     bxe_process_kill_chip_reset(sc, global);
     mb();
 
+    /* clear errors in PGB */
+    if (!CHIP_IS_E1(sc))
+        REG_WR(sc, PGLUE_B_REG_LATCHED_ERRORS_CLR, 0x7f);
+
     /* Recover after reset: */
     /* MCP */
     if (global && bxe_reset_mcp_comp(sc, val)) {

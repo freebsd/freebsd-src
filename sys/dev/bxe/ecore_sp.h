@@ -223,6 +223,8 @@ ECORE_CRC32_LE(uint32_t seed, uint8_t *mac, uint32_t len)
 #define ecore_sp_post(_sc, _a, _b, _c, _d) \
     bxe_sp_post(_sc, _a, _b, U64_HI(_c), U64_LO(_c), _d)
 
+#ifdef ECORE_STOP_ON_ERROR
+
 #define ECORE_DBG_BREAK_IF(exp)     \
     do {                            \
         if (__predict_false(exp)) { \
@@ -241,6 +243,20 @@ ECORE_CRC32_LE(uint32_t seed, uint8_t *mac, uint32_t len)
             panic("BUG_ON (%s:%d)", __FILE__, __LINE__); \
         }                                                \
     } while (0)
+
+#else
+
+#define ECORE_DBG_BREAK_IF(exp)     \
+    printf("%s (%s,%d)\n", __FUNCTION__, __FILE__, __LINE__);
+
+#define ECORE_BUG(exp)     \
+    printf("%s (%s,%d)\n", __FUNCTION__, __FILE__, __LINE__);
+
+#define ECORE_BUG_ON(exp)     \
+    printf("%s (%s,%d)\n", __FUNCTION__, __FILE__, __LINE__);
+
+
+#endif /* #ifdef ECORE_STOP_ON_ERROR */
 
 #define ECORE_ERR(str, ...) \
     BLOGE(sc, "ECORE: " str, ##__VA_ARGS__)
