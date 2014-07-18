@@ -399,14 +399,44 @@ xb_dump(void *arg, void *virtual, vm_offset_t physical, off_t offset,
 static int
 blkfront_probe(device_t dev)
 {
+#ifdef XENHVM
+	int error;
+	char *type;
+#endif
 
-	if (!strcmp(xenbus_get_type(dev), "vbd")) {
-		device_set_desc(dev, "Virtual Block Device");
-		device_quiet(dev);
-		return (0);
+	if (strcmp(xenbus_get_type(dev), "vbd") != 0)
+		return (ENXIO);
+
+#ifdef XENHVM
+	/*
+	 * When running in an HVM domain, IDE disk emulation is
+	 * disabled early in boot so that native drivers will
+	 * not see emulated hardware.  However, CDROM device
+	 * emulation cannot be disabled.
+	 *
+	 * Through use of FreeBSD's vm_guest and xen_hvm_domain()
+	 * APIs, we could modify the native CDROM driver to fail its
+	 * probe when running under Xen.  Unfortunatlely, the PV
+	 * CDROM support in XenServer (up through at least version
+	 * 6.2) isn't functional, so we instead rely on the emulated
+	 * CDROM instance, and fail to attach the PV one here in
+	 * the blkfront driver.
+	 */
+	error = xs_read(XST_NIL, xenbus_get_node(dev),
+	    "device-type", NULL, (void **) &type);
+	if (error)
+		return (ENXIO);
+
+	if (strncmp(type, "cdrom", 5) == 0) {
+		free(type, M_XENSTORE);
+		return (ENXIO);
 	}
+	free(type, M_XENSTORE);
+#endif
 
-	return (ENXIO);
+	device_set_desc(dev, "Virtual Block Device");
+	device_quiet(dev);
+	return (0);
 }
 
 static void
