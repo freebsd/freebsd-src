@@ -314,10 +314,10 @@ boolstr_to_bool(const char *str)
 }
 
 static void
-config_parse(ucl_object_t *obj, pkg_conf_file_t conftype)
+config_parse(const ucl_object_t *obj, pkg_conf_file_t conftype)
 {
 	struct sbuf *buf = sbuf_new_auto();
-	ucl_object_t *cur, *seq;
+	const ucl_object_t *cur, *seq;
 	ucl_object_iter_t it = NULL, itseq = NULL;
 	struct config_entry *temp_config;
 	struct config_value *cv;
@@ -435,7 +435,7 @@ static void
 parse_repo_file(ucl_object_t *obj)
 {
 	ucl_object_iter_t it = NULL;
-	ucl_object_t *cur;
+	const ucl_object_t *cur;
 	const char *key;
 
 	while ((cur = ucl_iterate_object(obj, &it, true))) {
@@ -480,7 +480,7 @@ read_conf_file(const char *confpath, pkg_conf_file_t conftype)
 			parse_repo_file(obj);
 	}
 
-	ucl_object_free(obj);
+	ucl_object_unref(obj);
 	ucl_parser_free(p);
 
 	return (0);

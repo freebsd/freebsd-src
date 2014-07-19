@@ -1,5 +1,4 @@
 .include "$CURDIR/9.inc"
-.include "$CURDIR/9-empty.inc"
 .include "$CURDIR/9-comment.inc"
 #.include "$CURDIR/9.inc"
 .include "$CURDIR/9.inc"
