@@ -1213,22 +1213,31 @@ vmx_inject_interrupts(struct vmx *vmx, int vcpu, struct vlapic *vlapic)
 {
 	struct vm_exception exc;
 	int vector, need_nmi_exiting, extint_pending;
-	uint64_t rflags;
+	uint64_t rflags, entryinfo;
 	uint32_t gi, info;
 
-	if (vm_exception_pending(vmx->vm, vcpu, &exc)) {
-		KASSERT(exc.vector >= 0 && exc.vector < 32,
-		    ("%s: invalid exception vector %d", __func__, exc.vector));
+	if (vm_entry_intinfo(vmx->vm, vcpu, &entryinfo)) {
+		KASSERT((entryinfo & VMCS_INTR_VALID) != 0, ("%s: entry "
+		    "intinfo is not valid: %#lx", __func__, entryinfo));
 
 		info = vmcs_read(VMCS_ENTRY_INTR_INFO);
 		KASSERT((info & VMCS_INTR_VALID) == 0, ("%s: cannot inject "
 		     "pending exception %d: %#x", __func__, exc.vector, info));
 
-		info = exc.vector | VMCS_INTR_T_HWEXCEPTION | VMCS_INTR_VALID;
-		if (exc.error_code_valid) {
-			info |= VMCS_INTR_DEL_ERRCODE;
-			vmcs_write(VMCS_ENTRY_EXCEPTION_ERROR, exc.error_code);
+		info = entryinfo;
+		vector = info & 0xff;
+		if (vector == IDT_BP || vector == IDT_OF) {
+			/*
+			 * VT-x requires #BP and #OF to be injected as software
+			 * exceptions.
+			 */
+			info &= ~VMCS_INTR_T_MASK;
+			info |= VMCS_INTR_T_SWEXCEPTION;
 		}
+
+		if (info & VMCS_INTR_DEL_ERRCODE)
+			vmcs_write(VMCS_ENTRY_EXCEPTION_ERROR, entryinfo >> 32);
+
 		vmcs_write(VMCS_ENTRY_INTR_INFO, info);
 	}
 
@@ -1405,6 +1414,16 @@ vmx_clear_nmi_blocking(struct vmx *vmx, int vcpuid)
 	gi = vmcs_read(VMCS_GUEST_INTERRUPTIBILITY);
 	gi &= ~VMCS_INTERRUPTIBILITY_NMI_BLOCKING;
 	vmcs_write(VMCS_GUEST_INTERRUPTIBILITY, gi);
+}
+
+static void
+vmx_assert_nmi_blocking(struct vmx *vmx, int vcpuid)
+{
+	uint32_t gi;
+
+	gi = vmcs_read(VMCS_GUEST_INTERRUPTIBILITY);
+	KASSERT(gi & VMCS_INTERRUPTIBILITY_NMI_BLOCKING,
+	    ("NMI blocking is not in effect %#x", gi));
 }
 
 static int
@@ -2050,7 +2069,7 @@ vmx_exit_process(struct vmx *vmx, int vcpu, struct vm_exit *vmexit)
 	struct vm_task_switch *ts;
 	uint32_t eax, ecx, edx, idtvec_info, idtvec_err, intr_info, inst_info;
 	uint32_t intr_type, reason;
-	uint64_t qual, gpa;
+	uint64_t exitintinfo, qual, gpa;
 	bool retu;
 
 	CTASSERT((PINBASED_CTLS_ONE_SETTING & PINBASED_VIRTUAL_NMI) != 0);
@@ -2070,47 +2089,49 @@ vmx_exit_process(struct vmx *vmx, int vcpu, struct vm_exit *vmexit)
 	 * be handled specially by re-injecting the event if the IDT
 	 * vectoring information field's valid bit is set.
 	 *
-	 * If the VM-exit is due to a task gate in the IDT then we don't
-	 * reinject the event because emulating the task switch also
-	 * completes the event delivery.
-	 *
 	 * See "Information for VM Exits During Event Delivery" in Intel SDM
 	 * for details.
 	 */
-	switch (reason) {
-	case EXIT_REASON_EPT_FAULT:
-	case EXIT_REASON_EPT_MISCONFIG:
-	case EXIT_REASON_APIC_ACCESS:
-	case EXIT_REASON_TASK_SWITCH:
-	case EXIT_REASON_EXCEPTION:
-		idtvec_info = vmcs_idt_vectoring_info();
-		VCPU_CTR2(vmx->vm, vcpu, "vm exit %s: idtvec_info 0x%08x",
-		    exit_reason_to_str(reason), idtvec_info);	
-		if ((idtvec_info & VMCS_IDT_VEC_VALID) &&
-		    (reason != EXIT_REASON_TASK_SWITCH)) {
-			idtvec_info &= ~(1 << 12); /* clear undefined bit */
-			vmcs_write(VMCS_ENTRY_INTR_INFO, idtvec_info);
-			if (idtvec_info & VMCS_IDT_VEC_ERRCODE_VALID) {
-				idtvec_err = vmcs_idt_vectoring_err();
-				vmcs_write(VMCS_ENTRY_EXCEPTION_ERROR,
-				    idtvec_err);
-			}
-			/*
-			 * If 'virtual NMIs' are being used and the VM-exit
-			 * happened while injecting an NMI during the previous
-			 * VM-entry, then clear "blocking by NMI" in the Guest
-			 * Interruptibility-state.
-			 */
-			if ((idtvec_info & VMCS_INTR_T_MASK) ==
-			    VMCS_INTR_T_NMI) {
-				 vmx_clear_nmi_blocking(vmx, vcpu);
-			}
+	idtvec_info = vmcs_idt_vectoring_info();
+	if (idtvec_info & VMCS_IDT_VEC_VALID) {
+		idtvec_info &= ~(1 << 12); /* clear undefined bit */
+		exitintinfo = idtvec_info;
+		if (idtvec_info & VMCS_IDT_VEC_ERRCODE_VALID) {
+			idtvec_err = vmcs_idt_vectoring_err();
+			exitintinfo |= (uint64_t)idtvec_err << 32;
+		}
+		error = vm_exit_intinfo(vmx->vm, vcpu, exitintinfo);
+		KASSERT(error == 0, ("%s: vm_set_intinfo error %d",
+		    __func__, error));
+
+		/*
+		 * If 'virtual NMIs' are being used and the VM-exit
+		 * happened while injecting an NMI during the previous
+		 * VM-entry, then clear "blocking by NMI" in the
+		 * Guest Interruptibility-State so the NMI can be
+		 * reinjected on the subsequent VM-entry.
+		 *
+		 * However, if the NMI was being delivered through a task
+		 * gate, then the new task must start execution with NMIs
+		 * blocked so don't clear NMI blocking in this case.
+		 */
+		intr_type = idtvec_info & VMCS_INTR_T_MASK;
+		if (intr_type == VMCS_INTR_T_NMI) {
+			if (reason != EXIT_REASON_TASK_SWITCH)
+				vmx_clear_nmi_blocking(vmx, vcpu);
+			else
+				vmx_assert_nmi_blocking(vmx, vcpu);
+		}
+
+		/*
+		 * Update VM-entry instruction length if the event being
+		 * delivered was a software interrupt or software exception.
+		 */
+		if (intr_type == VMCS_INTR_T_SWINTR ||
+		    intr_type == VMCS_INTR_T_PRIV_SWEXCEPTION ||
+		    intr_type == VMCS_INTR_T_SWEXCEPTION) {
 			vmcs_write(VMCS_ENTRY_INST_LENGTH, vmexit->inst_length);
 		}
-		break;
-	default:
-		idtvec_info = 0;
-		break;
 	}
 
 	switch (reason) {
@@ -2136,7 +2157,7 @@ vmx_exit_process(struct vmx *vmx, int vcpu, struct vm_exit *vmexit)
 		 */
 		if (ts->reason == TSR_IDT_GATE) {
 			KASSERT(idtvec_info & VMCS_IDT_VEC_VALID,
-			    ("invalid idtvec_info %x for IDT task switch",
+			    ("invalid idtvec_info %#x for IDT task switch",
 			    idtvec_info));
 			intr_type = idtvec_info & VMCS_INTR_T_MASK;
 			if (intr_type != VMCS_INTR_T_SWINTR &&
@@ -2302,6 +2323,7 @@ vmx_exit_process(struct vmx *vmx, int vcpu, struct vm_exit *vmexit)
 		 * the guest.
 		 *
 		 * See "Resuming Guest Software after Handling an Exception".
+		 * See "Information for VM Exits Due to Vectored Events".
 		 */
 		if ((idtvec_info & VMCS_IDT_VEC_VALID) == 0 &&
 		    (intr_info & 0xff) != IDT_DF &&
@@ -2519,6 +2541,13 @@ vmx_run(void *arg, int vcpu, register_t startrip, pmap_t pmap,
 		 * pmap_invalidate_ept().
 		 */
 		disable_intr();
+		vmx_inject_interrupts(vmx, vcpu, vlapic);
+
+		/*
+		 * Check for vcpu suspension after injecting events because
+		 * vmx_inject_interrupts() can suspend the vcpu due to a
+		 * triple fault.
+		 */
 		if (vcpu_suspended(suspend_cookie)) {
 			enable_intr();
 			vm_exit_suspended(vmx->vm, vcpu, vmcs_guest_rip());
@@ -2539,7 +2568,6 @@ vmx_run(void *arg, int vcpu, register_t startrip, pmap_t pmap,
 			break;
 		}
 
-		vmx_inject_interrupts(vmx, vcpu, vlapic);
 		vmx_run_trace(vmx, vcpu);
 		rc = vmx_enter_guest(vmxctx, vmx, launched);
 

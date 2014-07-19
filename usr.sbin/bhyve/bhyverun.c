@@ -534,6 +534,8 @@ vmexit_suspend(struct vmctx *ctx, struct vm_exit *vmexit, int *pvcpu)
 		exit(1);
 	case VM_SUSPEND_HALT:
 		exit(2);
+	case VM_SUSPEND_TRIPLEFAULT:
+		exit(3);
 	default:
 		fprintf(stderr, "vmexit_suspend: invalid reason %d\n", how);
 		exit(100);

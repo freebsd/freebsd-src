@@ -904,10 +904,14 @@ vmexit_task_switch(struct vmctx *ctx, struct vm_exit *vmexit, int *pvcpu)
 	 */
 
 	/*
-	 * XXX is the original task switch was triggered by a hardware
-	 * exception then do we generate a double-fault if we encounter
-	 * an exception during the task switch?
+	 * If the task switch was triggered by an event delivered through
+	 * the IDT then extinguish the pending event from the vcpu's
+	 * exitintinfo.
 	 */
+	if (task_switch->reason == TSR_IDT_GATE) {
+		error = vm_set_intinfo(ctx, vcpu, 0);
+		assert(error == 0);
+	}
 
 	/*
 	 * XXX should inject debug exception if 'T' bit is 1

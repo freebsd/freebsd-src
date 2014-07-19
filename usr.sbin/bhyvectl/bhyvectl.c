@@ -195,7 +195,8 @@ usage(void)
 	"       [--force-reset]\n"
 	"       [--force-poweroff]\n"
 	"       [--get-active-cpus]\n"
-	"       [--get-suspended-cpus]\n",
+	"       [--get-suspended-cpus]\n"
+	"       [--get-intinfo]\n",
 	progname);
 	exit(1);
 }
@@ -205,6 +206,7 @@ static int inject_nmi, assert_lapic_lvt;
 static int force_reset, force_poweroff;
 static const char *capname;
 static int create, destroy, get_lowmem, get_highmem;
+static int get_intinfo;
 static int get_active_cpus, get_suspended_cpus;
 static uint64_t memsize;
 static int set_cr0, get_cr0, set_cr3, get_cr3, set_cr4, get_cr4;
@@ -412,6 +414,37 @@ print_cpus(const char *banner, const cpuset_t *cpus)
 	printf("\n");
 }
 
+static void
+print_intinfo(const char *banner, uint64_t info)
+{
+	int type;
+
+	printf("%s:\t", banner);
+	if (info & VM_INTINFO_VALID) {
+		type = info & VM_INTINFO_TYPE;
+		switch (type) {
+		case VM_INTINFO_HWINTR:
+			printf("extint");
+			break;
+		case VM_INTINFO_NMI:
+			printf("nmi");
+			break;
+		case VM_INTINFO_SWINTR:
+			printf("swint");
+			break;
+		default:
+			printf("exception");
+			break;
+		}
+		printf(" vector %d", (int)VM_INTINFO_VECTOR(info));
+		if (info & VM_INTINFO_DEL_ERRCODE)
+			printf(" errcode %#x", (u_int)(info >> 32));
+	} else {
+		printf("n/a");
+	}
+	printf("\n");
+}
+
 int
 main(int argc, char *argv[])
 {
@@ -420,7 +453,7 @@ main(int argc, char *argv[])
 	vm_paddr_t gpa, gpa_pmap;
 	size_t len;
 	struct vm_exit vmexit;
-	uint64_t ctl, eptp, bm, addr, u64, pteval[4], *pte;
+	uint64_t ctl, eptp, bm, addr, u64, pteval[4], *pte, info[2];
 	struct vmctx *ctx;
 	int wired;
 	cpuset_t cpus;
@@ -595,6 +628,7 @@ main(int argc, char *argv[])
 		{ "force-poweroff", NO_ARG,	&force_poweroff, 1 },
 		{ "get-active-cpus", NO_ARG,	&get_active_cpus, 1 },
 		{ "get-suspended-cpus", NO_ARG,	&get_suspended_cpus, 1 },
+		{ "get-intinfo", NO_ARG,	&get_intinfo,	1 },
 		{ NULL,		0,		NULL,		0 }
 	};
 
@@ -1564,6 +1598,14 @@ main(int argc, char *argv[])
 		error = vm_suspended_cpus(ctx, &cpus);
 		if (!error)
 			print_cpus("suspended cpus", &cpus);
+	}
+
+	if (!error && (get_intinfo || get_all)) {
+		error = vm_get_intinfo(ctx, vcpu, &info[0], &info[1]);
+		if (!error) {
+			print_intinfo("pending", info[0]);
+			print_intinfo("current", info[1]);
+		}
 	}
 
 	if (!error && run) {
