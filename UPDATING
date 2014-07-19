@@ -31,6 +31,14 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 11.x IS SLOW:
 	disable the most expensive debugging functionality run
 	"ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20140719:
+	The default unbound configuration has been modified to address
+	issues with reverse lookups on networks that use private
+	address ranges.  If you use the local_unbound service, run
+	"service local_unbound setup" as root to regenerate your
+	configuration, then "service local_unbound reload" to load the
+	new configuration.
+
 20140709:
 	The GNU texinfo and GNU info pages are not built and installed
 	anymore, WITH_INFO knob has been added to allow to built and install
