@@ -85,7 +85,6 @@ char *vmname;
 int guest_ncpus;
 char *guest_uuid_str;
 
-static int pincpu = -1;
 static int guest_vmexit_on_hlt, guest_vmexit_on_pause;
 static int virtio_msix = 1;
 static int x2apic_mode = 0;	/* default is xAPIC */
@@ -98,7 +97,7 @@ static int acpi;
 static char *progname;
 static const int BSP = 0;
 
-static int cpumask;
+static cpuset_t cpumask;
 
 static void vm_loop(struct vmctx *ctx, int vcpu, uint64_t rip);
 
@@ -122,18 +121,20 @@ struct mt_vmm_info {
 	int		mt_vcpu;	
 } mt_vmm_info[VM_MAXCPU];
 
+static cpuset_t *vcpumap[VM_MAXCPU] = { NULL };
+
 static void
 usage(int code)
 {
 
         fprintf(stderr,
-                "Usage: %s [-aehwAHIPW] [-g <gdb port>] [-s <pci>]\n"
-		"       %*s [-c vcpus] [-p pincpu] [-m mem] [-l <lpc>] <vm>\n"
+                "Usage: %s [-aehwAHIPW] [-g <gdb port>] [-s <pci>] [-c vcpus]\n"
+		"       %*s [-p vcpu:hostcpu] [-m mem] [-l <lpc>] <vm>\n"
 		"       -a: local apic is in xAPIC mode (deprecated)\n"
 		"       -A: create an ACPI table\n"
 		"       -g: gdb port\n"
 		"       -c: # cpus (default 1)\n"
-		"       -p: pin vcpu 'n' to host cpu 'pincpu + n'\n"
+		"       -p: pin 'vcpu' to 'hostcpu'\n"
 		"       -H: vmexit from the guest on hlt\n"
 		"       -P: vmexit from the guest on pause\n"
 		"       -W: force virtio to use single-vector MSI\n"
@@ -149,6 +150,39 @@ usage(int code)
 		progname, (int)strlen(progname), "");
 
 	exit(code);
+}
+
+static int
+pincpu_parse(const char *opt)
+{
+	int vcpu, pcpu;
+
+	if (sscanf(opt, "%d:%d", &vcpu, &pcpu) != 2) {
+		fprintf(stderr, "invalid format: %s\n", opt);
+		return (-1);
+	}
+
+	if (vcpu < 0 || vcpu >= VM_MAXCPU) {
+		fprintf(stderr, "vcpu '%d' outside valid range from 0 to %d\n",
+		    vcpu, VM_MAXCPU - 1);
+		return (-1);
+	}
+
+	if (pcpu < 0 || pcpu >= CPU_SETSIZE) {
+		fprintf(stderr, "hostcpu '%d' outside valid range from "
+		    "0 to %d\n", pcpu, CPU_SETSIZE - 1);
+		return (-1);
+	}
+
+	if (vcpumap[vcpu] == NULL) {
+		if ((vcpumap[vcpu] = malloc(sizeof(cpuset_t))) == NULL) {
+			perror("malloc");
+			return (-1);
+		}
+		CPU_ZERO(vcpumap[vcpu]);
+	}
+	CPU_SET(pcpu, vcpumap[vcpu]);
+	return (0);
 }
 
 void *
@@ -200,30 +234,26 @@ fbsdrun_start_thread(void *param)
 }
 
 void
-fbsdrun_addcpu(struct vmctx *ctx, int vcpu, uint64_t rip)
+fbsdrun_addcpu(struct vmctx *ctx, int fromcpu, int newcpu, uint64_t rip)
 {
 	int error;
 
-	if (cpumask & (1 << vcpu)) {
-		fprintf(stderr, "addcpu: attempting to add existing cpu %d\n",
-		    vcpu);
-		exit(1);
-	}
+	assert(fromcpu == BSP);
 
-	atomic_set_int(&cpumask, 1 << vcpu);
+	CPU_SET_ATOMIC(newcpu, &cpumask);
 
 	/*
 	 * Set up the vmexit struct to allow execution to start
 	 * at the given RIP
 	 */
-	vmexit[vcpu].rip = rip;
-	vmexit[vcpu].inst_length = 0;
+	vmexit[newcpu].rip = rip;
+	vmexit[newcpu].inst_length = 0;
 
-	mt_vmm_info[vcpu].mt_ctx = ctx;
-	mt_vmm_info[vcpu].mt_vcpu = vcpu;
+	mt_vmm_info[newcpu].mt_ctx = ctx;
+	mt_vmm_info[newcpu].mt_vcpu = newcpu;
 
-	error = pthread_create(&mt_vmm_info[vcpu].mt_thr, NULL,
-	    fbsdrun_start_thread, &mt_vmm_info[vcpu]);
+	error = pthread_create(&mt_vmm_info[newcpu].mt_thr, NULL,
+	    fbsdrun_start_thread, &mt_vmm_info[newcpu]);
 	assert(error == 0);
 }
 
@@ -231,14 +261,13 @@ static int
 fbsdrun_deletecpu(struct vmctx *ctx, int vcpu)
 {
 
-	if ((cpumask & (1 << vcpu)) == 0) {
-		fprintf(stderr, "addcpu: attempting to delete unknown cpu %d\n",
-		    vcpu);
+	if (!CPU_ISSET(vcpu, &cpumask)) {
+		fprintf(stderr, "Attempting to delete unknown cpu %d\n", vcpu);
 		exit(1);
 	}
 
-	atomic_clear_int(&cpumask, 1 << vcpu);
-	return (cpumask == 0);
+	CPU_CLR_ATOMIC(vcpu, &cpumask);
+	return (CPU_EMPTY(&cpumask));
 }
 
 static int
@@ -483,15 +512,12 @@ static vmexit_handler_t handler[VM_EXITCODE_MAX] = {
 static void
 vm_loop(struct vmctx *ctx, int vcpu, uint64_t rip)
 {
-	cpuset_t mask;
 	int error, rc, prevcpu;
 	enum vm_exitcode exitcode;
 
-	if (pincpu >= 0) {
-		CPU_ZERO(&mask);
-		CPU_SET(pincpu + vcpu, &mask);
+	if (vcpumap[vcpu] != NULL) {
 		error = pthread_setaffinity_np(pthread_self(),
-					       sizeof(mask), &mask);
+		    sizeof(cpuset_t), vcpumap[vcpu]);
 		assert(error == 0);
 	}
 
@@ -616,7 +642,10 @@ main(int argc, char *argv[])
 			bvmcons = 1;
 			break;
 		case 'p':
-			pincpu = atoi(optarg);
+                        if (pincpu_parse(optarg) != 0) {
+                            errx(EX_USAGE, "invalid vcpu pinning "
+                                 "configuration '%s'", optarg);
+                        }
 			break;
                 case 'c':
 			guest_ncpus = atoi(optarg);
@@ -754,7 +783,7 @@ main(int argc, char *argv[])
 	/*
 	 * Add CPU 0
 	 */
-	fbsdrun_addcpu(ctx, BSP, rip);
+	fbsdrun_addcpu(ctx, BSP, BSP, rip);
 
 	/*
 	 * Head off to the main event dispatch loop
