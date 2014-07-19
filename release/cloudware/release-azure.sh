@@ -94,7 +94,7 @@ main() {
 		sleep 1
 	done
 
-	/usr/bin/mkimg -f vhd \
+	/usr/bin/mkimg -f vhdf \
 		-s gpt -b /boot/pmbr \
 		-p freebsd-boot:=/dev/${mddev}p1 \
 		-p freebsd-ufs/rootfs:=/dev/${mddev}p2 \
