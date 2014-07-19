@@ -44,7 +44,6 @@
 #include <stdlib.h>
 #include <assert.h>
 
-#include "util/configyyrename.h"
 #include "util/config_file.h"
 #include "util/net_help.h"
 
