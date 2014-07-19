@@ -1,30 +1,75 @@
-Synopsis
-========
+# API documentation
+
+**Table of Contents**  *generated with [DocToc](http://doctoc.herokuapp.com/)*
+
+- [Synopsis](#synopsis)
+- [Description](#description)
+	- [Parser functions](#parser-functions)
+	- [Emitting functions](#emitting-functions)
+	- [Conversion functions](#conversion-functions)
+	- [Generation functions](#generation-functions)
+	- [Iteration functions](#iteration-functions)
+	- [Validation functions](#validation-functions)
+	- [Utility functions](#utility-functions)
+- [Parser functions](#parser-functions-1)
+	- [ucl_parser_new](#ucl_parser_new)
+	- [ucl_parser_register_macro](#ucl_parser_register_macro)
+	- [ucl_parser_register_variable](#ucl_parser_register_variable)
+	- [ucl_parser_add_chunk](#ucl_parser_add_chunk)
+	- [ucl_parser_add_string](#ucl_parser_add_string)
+	- [ucl_parser_add_file](#ucl_parser_add_file)
+	- [ucl_parser_get_object](#ucl_parser_get_object)
+	- [ucl_parser_get_error](#ucl_parser_get_error)
+	- [ucl_parser_free](#ucl_parser_free)
+	- [ucl_pubkey_add](#ucl_pubkey_add)
+	- [ucl_parser_set_filevars](#ucl_parser_set_filevars)
+	- [Parser usage example](#parser-usage-example)
+- [Emitting functions](#emitting-functions-1)
+	- [ucl_object_emit](#ucl_object_emit)
+	- [ucl_object_emit_full](#ucl_object_emit_full)
+- [Conversion functions](#conversion-functions-1)
+- [Generation functions](#generation-functions-1)
+	- [ucl_object_new](#ucl_object_new)
+	- [ucl_object_typed_new](#ucl_object_typed_new)
+	- [Primitive objects generation](#primitive-objects-generation)
+	- [ucl_object_fromstring_common](#ucl_object_fromstring_common)
+- [Iteration functions](#iteration-functions-1)
+	- [ucl_iterate_object](#ucl_iterate_object)
+- [Validation functions](#validation-functions-1)
+	- [ucl_object_validate](#ucl_object_validate)
+
+# Synopsis
 
 `#include <ucl.h>`
 
-Description
-===========
+# Description
 
 Libucl is a parser and `C` API to parse and generate `ucl` objects. Libucl consist of several groups of functions:
 
 ### Parser functions
-Used to parse `ucl` files and provide interface to extract `ucl` object
+Used to parse `ucl` files and provide interface to extract `ucl` object. Currently, `libucl` can parse only full `ucl` documents, for instance, it is impossible to parse a part of document and therefore it is impossible to use `libucl` as a streaming parser. In future, this limitation can be removed.
 
 ### Emitting functions
-Convert `ucl` objects to some textual or binary representation.
+Convert `ucl` objects to some textual or binary representation. Currently, libucl supports the following exports:
+
+- `JSON` - valid json format (can possibly loose some original data, such as implicit arrays)
+- `Config` - human-readable configuration format (losseless)
+- `YAML` - embedded yaml format (has the same limitations as `json` output)
 
 ### Conversion functions
-Help to convert `ucl` objects to C types
+Help to convert `ucl` objects to C types. These functions are used to convert `ucl_object_t` to C primitive types, such as numbers, strings or boolean values.
 
 ### Generation functions
-Allow creating of `ucl` objects from C types
+Allow creating of `ucl` objects from C types and creating of complex `ucl` objects, such as hashes or arrays from primitive `ucl` objects, such as numbers or strings.
 
 ### Iteration functions
-Iterate over `ucl` objects
+Iterate over `ucl` complex objects or over a chain of values, for example when a key in an object has multiple values (that can be treated as implicit array or implicit consolidation).
+
+### Validation functions
+Validation functions are used to validate some object `obj` using json-schema compatible object `schema`. Both input and schema must be UCL objects to perform validation.
 
 ### Utility functions
-Provide basic utilities to manage `ucl` objects
+Provide basic utilities to manage `ucl` objects: creating, removing, retaining and releasing reference count and so on.
 
 # Parser functions
 
@@ -40,6 +85,7 @@ Creates new parser with the specified flags:
 
 - `UCL_PARSER_KEY_LOWERCASE` - lowercase keys parsed
 - `UCL_PARSER_ZEROCOPY` - try to use zero-copy mode when reading files (in zero-copy mode text chunk being parsed without copying strings so it should exist till any object parsed is used)
+- `UCL_PARSER_NO_TIME` - treat time values as strings without parsing them as floats
 
 ### ucl_parser_register_macro
 
@@ -86,6 +132,14 @@ while this one won't be parsed correctly:
 ~~~
 
 This limitation may possible be removed in future.
+
+### ucl_parser_add_string
+~~~C
+bool ucl_parser_add_string (struct ucl_parser *parser, 
+    const char *data, size_t len);
+~~~
+
+This function acts exactly like `ucl_parser_add_chunk` does but if `len` argument is zero, then the string `data` must be zero-terminated and the actual length is calculated up to `\0` character. 
 
 ### ucl_parser_add_file
 
@@ -228,7 +282,7 @@ Libucl provides the following functions for emitting UCL objects:
 ### ucl_object_emit
 
 ~~~C
-unsigned char *ucl_object_emit (ucl_object_t *obj, enum ucl_emitter emit_type);
+unsigned char *ucl_object_emit (const ucl_object_t *obj, enum ucl_emitter emit_type);
 ~~~
 
 Allocate a string that is suitable to fit the underlying UCL object `obj` and fill it with the textual representation of the object `obj` according to style `emit_type`. The caller should free the returned string after using.
@@ -236,7 +290,7 @@ Allocate a string that is suitable to fit the underlying UCL object `obj` and fi
 ### ucl_object_emit_full
 
 ~~~C
-bool ucl_object_emit_full (ucl_object_t *obj, enum ucl_emitter emit_type,
+bool ucl_object_emit_full (const ucl_object_t *obj, enum ucl_emitter emit_type,
 		struct ucl_emitter_functions *emitter);
 ~~~
 
@@ -314,19 +368,20 @@ This function is used to convert a string `str` of size `len` to an UCL objects 
 - `UCL_STRING_PARSE_BOOLEAN` - parse passed string and detect boolean
 - `UCL_STRING_PARSE_INT` - parse passed string and detect integer number
 - `UCL_STRING_PARSE_DOUBLE` - parse passed string and detect integer or float number
-- `UCL_STRING_PARSE_NUMBER` - parse passed string and detect number (both float or integer types)
-- `UCL_STRING_PARSE` - parse passed string (and detect booleans and numbers)
+- `UCL_STRING_PARSE_TIME` - parse time values as floating point numbers
+- `UCL_STRING_PARSE_NUMBER` - parse passed string and detect number (both float, integer and time types)
+- `UCL_STRING_PARSE` - parse passed string (and detect booleans, numbers and time values)
 - `UCL_STRING_PARSE_BYTES` - assume that numeric multipliers are in bytes notation, for example `10k` means `10*1024` and not `10*1000` as assumed without this flag
 
 If parsing operations fail then the resulting UCL object will be a `UCL_STRING`. A caller should always check the type of the returned object and release it after using.
 
-# Iteration function
+# Iteration functions
 
 Iteration are used to iterate over UCL compound types: arrays and objects. Moreover, iterations could be performed over the keys with multiple values (implicit arrays). To iterate over an object, an array or a key with multiple values there is a function `ucl_iterate_object`.
 
 ## ucl_iterate_object
 ~~~C
-ucl_object_t* ucl_iterate_object (ucl_object_t *obj, 
+const ucl_object_t* ucl_iterate_object (const ucl_object_t *obj, 
 	ucl_object_iter_t *iter, bool expand_values);
 ~~~
 
@@ -334,7 +389,7 @@ This function accept opaque iterator pointer `iter`. In the first call this iter
 
 ~~~C
 ucl_object_iter_t it = NULL, it_obj = NULL;
-ucl_object_t *cur, *tmp;
+const ucl_object_t *cur, *tmp;
 
 /* Iterate over the object */
 while ((obj = ucl_iterate_object (top, &it, true))) {
@@ -346,3 +401,39 @@ while ((obj = ucl_iterate_object (top, &it, true))) {
 	}
 }
 ~~~
+
+# Validation functions
+
+Currently, there is only one validation function called `ucl_object_validate`. It performs validation of object using the specified schema. This function is defined as following:
+
+## ucl_object_validate
+~~~C
+bool ucl_object_validate (const ucl_object_t *schema,
+	const ucl_object_t *obj, struct ucl_schema_error *err);
+~~~
+
+This function uses ucl object `schema`, that must be valid in terms of `json-schema` draft v4, to validate input object `obj`. If this function returns `true` then validation procedure has been succeed. Otherwise, `false` is returned and `err` is set to a specific value. If caller set `err` to NULL then this function does not set any error just returning `false`. Error is the structure defined as following:
+
+~~~C
+struct ucl_schema_error {
+	enum ucl_schema_error_code code;	/* error code */
+	char msg[128];				/* error message */
+	ucl_object_t *obj;			/* object where error occured */
+};
+~~~
+
+Caller may use `code` field to get a numeric error code:
+
+~~~C
+enum ucl_schema_error_code {
+	UCL_SCHEMA_OK = 0,          /* no error */
+	UCL_SCHEMA_TYPE_MISMATCH,   /* type of object is incorrect */
+	UCL_SCHEMA_INVALID_SCHEMA,  /* schema is invalid */
+	UCL_SCHEMA_MISSING_PROPERTY,/* missing properties */
+	UCL_SCHEMA_CONSTRAINT,      /* constraint found */
+	UCL_SCHEMA_MISSING_DEPENDENCY, /* missing dependency */
+	UCL_SCHEMA_UNKNOWN          /* generic error */
+};
+~~~
+
+`msg` is a stiring description of an error and `obj` is an object where error has been occurred. Error object is not allocated by libucl, so there is no need to free it after validation (a static object should thus be used).

@@ -21,10 +21,8 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <stdio.h>
-#include <errno.h>
-#include <unistd.h>
 #include "ucl.h"
+#include "ucl_internal.h"
 
 int
 main (int argc, char **argv)
@@ -80,7 +78,9 @@ main (int argc, char **argv)
 
 	while (!feof (in)) {
 		memset (inbuf, 0, sizeof (inbuf));
-		(void)fread (inbuf, sizeof (inbuf) - 1, 1, in);
+		if (fread (inbuf, 1, sizeof (inbuf) - 1, in) == 0) {
+			break;
+		}
 		inlen = strlen (inbuf);
 		test_in = malloc (inlen);
 		memcpy (test_in, inbuf, inlen);
@@ -97,7 +97,7 @@ main (int argc, char **argv)
 	else {
 		out = stdout;
 	}
-	if (ucl_parser_get_error(parser) != NULL) {
+	if (ucl_parser_get_error (parser) != NULL) {
 		fprintf (out, "Error occurred: %s\n", ucl_parser_get_error(parser));
 		ret = 1;
 		goto end;
@@ -112,7 +112,7 @@ main (int argc, char **argv)
 	ucl_parser_free (parser);
 	ucl_object_unref (obj);
 	parser2 = ucl_parser_new (UCL_PARSER_KEY_LOWERCASE);
-	ucl_parser_add_chunk (parser2, emitted, strlen (emitted));
+	ucl_parser_add_string (parser2, emitted, 0);
 
 	if (ucl_parser_get_error(parser2) != NULL) {
 		fprintf (out, "Error occurred: %s\n", ucl_parser_get_error(parser2));
