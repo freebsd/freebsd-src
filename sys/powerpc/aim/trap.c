@@ -264,6 +264,15 @@ trap(struct trapframe *frame)
 			}
 			break;
 
+		case EXC_MCHK:
+			/*
+			 * Note that this may not be recoverable for the user
+			 * process, depending on the type of machine check,
+			 * but it at least prevents the kernel from dying.
+			 */
+			sig = SIGBUS;
+			break;
+
 		default:
 			trap_fatal(frame);
 		}
