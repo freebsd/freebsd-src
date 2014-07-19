@@ -8,6 +8,8 @@
  *
  */
 
+#include "config.h"
+
 #include <ctype.h>
 #include <string.h>
 #include <strings.h>
@@ -16,7 +18,7 @@
 #endif
 
 #include "util/config_file.h"
-#include "util/configparser.h"
+#include "configparser.h"
 void ub_c_error(const char *message);
 
 #if 0
@@ -26,13 +28,13 @@ void ub_c_error(const char *message);
 #endif
 
 /** avoid warning in about fwrite return value */
-#define ECHO ub_c_error_msg("syntax error at text: %s", yytext)
+#define ECHO ub_c_error_msg("syntax error at text: %s", ub_c_text)
 
 /** A parser variable, this is a statement in the config file which is
  * of the form variable: value1 value2 ...  nargs is the number of values. */
 #define YDVAR(nargs, var) \
 	num_args=(nargs); \
-	LEXOUT(("v(%s%d) ", yytext, num_args)); \
+	LEXOUT(("v(%s%d) ", ub_c_text, num_args)); \
 	if(num_args > 0) { BEGIN(val); } \
 	return (var);
 
@@ -166,7 +168,7 @@ static void config_end_include(void)
 #define yy_set_bol(at_bol) \
         { \
 	        if ( ! yy_current_buffer ) \
-	                yy_current_buffer = yy_create_buffer( yyin, YY_BUF_SIZE ); \
+	                yy_current_buffer = yy_create_buffer( ub_c_in, YY_BUF_SIZE ); \
 	        yy_current_buffer->yy_ch_buf[0] = ((at_bol)?'\n':' '); \
         }
 #endif
@@ -200,7 +202,7 @@ SQANY     [^\'\n\r\\]|\\.
 	LEXOUT(("SP ")); /* ignore */ }
 <INITIAL,val>{SPACE}*{COMMENT}.*	{ 
 	/* note that flex makes the longest match and '.' is any but not nl */
-	LEXOUT(("comment(%s) ", yytext)); /* ignore */ }
+	LEXOUT(("comment(%s) ", ub_c_text)); /* ignore */ }
 server{COLON}			{ YDVAR(0, VAR_SERVER) }
 num-threads{COLON}		{ YDVAR(1, VAR_NUM_THREADS) }
 verbosity{COLON}		{ YDVAR(1, VAR_VERBOSITY) }
@@ -331,71 +333,71 @@ max-udp-size{COLON}		{ YDVAR(1, VAR_MAX_UDP_SIZE) }
 	/* Quoted strings. Strip leading and ending quotes */
 <val>\"			{ BEGIN(quotedstring); LEXOUT(("QS ")); }
 <quotedstring><<EOF>>   {
-        yyerror("EOF inside quoted string");
+        ub_c_error("EOF inside quoted string");
 	if(--num_args == 0) { BEGIN(INITIAL); }
 	else		    { BEGIN(val); }
 }
-<quotedstring>{DQANY}*  { LEXOUT(("STR(%s) ", yytext)); yymore(); }
-<quotedstring>{NEWLINE} { yyerror("newline inside quoted string, no end \""); 
+<quotedstring>{DQANY}*  { LEXOUT(("STR(%s) ", ub_c_text)); yymore(); }
+<quotedstring>{NEWLINE} { ub_c_error("newline inside quoted string, no end \""); 
 			  cfg_parser->line++; BEGIN(INITIAL); }
 <quotedstring>\" {
         LEXOUT(("QE "));
 	if(--num_args == 0) { BEGIN(INITIAL); }
 	else		    { BEGIN(val); }
-        yytext[yyleng - 1] = '\0';
-	yylval.str = strdup(yytext);
-	if(!yylval.str)
-		yyerror("out of memory");
+        ub_c_text[ub_c_leng - 1] = '\0';
+	ub_c_lval.str = strdup(ub_c_text);
+	if(!ub_c_lval.str)
+		ub_c_error("out of memory");
         return STRING_ARG;
 }
 
 	/* Single Quoted strings. Strip leading and ending quotes */
 <val>\'			{ BEGIN(singlequotedstr); LEXOUT(("SQS ")); }
 <singlequotedstr><<EOF>>   {
-        yyerror("EOF inside quoted string");
+        ub_c_error("EOF inside quoted string");
 	if(--num_args == 0) { BEGIN(INITIAL); }
 	else		    { BEGIN(val); }
 }
-<singlequotedstr>{SQANY}*  { LEXOUT(("STR(%s) ", yytext)); yymore(); }
-<singlequotedstr>{NEWLINE} { yyerror("newline inside quoted string, no end '"); 
+<singlequotedstr>{SQANY}*  { LEXOUT(("STR(%s) ", ub_c_text)); yymore(); }
+<singlequotedstr>{NEWLINE} { ub_c_error("newline inside quoted string, no end '"); 
 			     cfg_parser->line++; BEGIN(INITIAL); }
 <singlequotedstr>\' {
         LEXOUT(("SQE "));
 	if(--num_args == 0) { BEGIN(INITIAL); }
 	else		    { BEGIN(val); }
-        yytext[yyleng - 1] = '\0';
-	yylval.str = strdup(yytext);
-	if(!yylval.str)
-		yyerror("out of memory");
+        ub_c_text[ub_c_leng - 1] = '\0';
+	ub_c_lval.str = strdup(ub_c_text);
+	if(!ub_c_lval.str)
+		ub_c_error("out of memory");
         return STRING_ARG;
 }
 
 	/* include: directive */
 <INITIAL,val>include{COLON}	{ 
-	LEXOUT(("v(%s) ", yytext)); inc_prev = YYSTATE; BEGIN(include); }
+	LEXOUT(("v(%s) ", ub_c_text)); inc_prev = YYSTATE; BEGIN(include); }
 <include><<EOF>>	{
-        yyerror("EOF inside include directive");
+        ub_c_error("EOF inside include directive");
         BEGIN(inc_prev);
 }
 <include>{SPACE}*	{ LEXOUT(("ISP ")); /* ignore */ }
 <include>{NEWLINE}	{ LEXOUT(("NL\n")); cfg_parser->line++;}
 <include>\"		{ LEXOUT(("IQS ")); BEGIN(include_quoted); }
 <include>{UNQUOTEDLETTER}*	{
-	LEXOUT(("Iunquotedstr(%s) ", yytext));
-	config_start_include_glob(yytext);
+	LEXOUT(("Iunquotedstr(%s) ", ub_c_text));
+	config_start_include_glob(ub_c_text);
 	BEGIN(inc_prev);
 }
 <include_quoted><<EOF>>	{
-        yyerror("EOF inside quoted string");
+        ub_c_error("EOF inside quoted string");
         BEGIN(inc_prev);
 }
-<include_quoted>{DQANY}*	{ LEXOUT(("ISTR(%s) ", yytext)); yymore(); }
-<include_quoted>{NEWLINE}	{ yyerror("newline before \" in include name"); 
+<include_quoted>{DQANY}*	{ LEXOUT(("ISTR(%s) ", ub_c_text)); yymore(); }
+<include_quoted>{NEWLINE}	{ ub_c_error("newline before \" in include name"); 
 				  cfg_parser->line++; BEGIN(inc_prev); }
 <include_quoted>\"	{
 	LEXOUT(("IQE "));
-	yytext[yyleng - 1] = '\0';
-	config_start_include_glob(yytext);
+	ub_c_text[ub_c_leng - 1] = '\0';
+	config_start_include_glob(ub_c_text);
 	BEGIN(inc_prev);
 }
 <INITIAL,val><<EOF>>	{
@@ -404,21 +406,21 @@ max-udp-size{COLON}		{ YDVAR(1, VAR_MAX_UDP_SIZE) }
 	if (!config_include_stack) {
 		yyterminate();
 	} else {
-		fclose(yyin);
+		fclose(ub_c_in);
 		config_end_include();
 	}
 }
 
-<val>{UNQUOTEDLETTER}*	{ LEXOUT(("unquotedstr(%s) ", yytext)); 
+<val>{UNQUOTEDLETTER}*	{ LEXOUT(("unquotedstr(%s) ", ub_c_text)); 
 			if(--num_args == 0) { BEGIN(INITIAL); }
-			yylval.str = strdup(yytext); return STRING_ARG; }
+			ub_c_lval.str = strdup(ub_c_text); return STRING_ARG; }
 
 {UNQUOTEDLETTER_NOCOLON}*	{
-	ub_c_error_msg("unknown keyword '%s'", yytext);
+	ub_c_error_msg("unknown keyword '%s'", ub_c_text);
 	}
 
 <*>.	{
-	ub_c_error_msg("stray '%s'", yytext);
+	ub_c_error_msg("stray '%s'", ub_c_text);
 	}
 
 %%

@@ -48,7 +48,7 @@
 #include "util/log.h"
 #include "util/configyyrename.h"
 #include "util/config_file.h"
-#include "util/configparser.h"
+#include "configparser.h"
 #include "util/net_help.h"
 #include "util/data/msgparse.h"
 #include "util/module.h"
