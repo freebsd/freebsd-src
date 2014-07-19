@@ -317,12 +317,12 @@ procstat_files(struct procstat *procstat, struct kinfo_proc *kipp)
 
 	if (!hflag) {
 		if (Cflag)
-			printf("%5s %-16s %4s %1s %-9s %-*s "
+			printf("%5s %-16s %5s %1s %-8s %-*s "
 			    "%-3s %-12s\n", "PID", "COMM", "FD", "T",
 			    "FLAGS", capwidth, "CAPABILITIES", "PRO",
 			    "NAME");
 		else
-			printf("%5s %-16s %4s %1s %1s %-9s "
+			printf("%5s %-16s %5s %1s %1s %-8s "
 			    "%3s %7s %-3s %-12s\n", "PID", "COMM", "FD", "T",
 			    "V", "FLAGS", "REF", "OFFSET", "PRO", "NAME");
 	}
@@ -450,6 +450,7 @@ procstat_files(struct procstat *procstat, struct kinfo_proc *kipp)
 		printf("%s", fst->fs_fflags & PS_FST_FFLAG_NONBLOCK ? "n" : "-");
 		printf("%s", fst->fs_fflags & PS_FST_FFLAG_DIRECT ? "d" : "-");
 		printf("%s", fst->fs_fflags & PS_FST_FFLAG_HASLOCK ? "l" : "-");
+		printf(" ");
 		if (!Cflag) {
 			if (fst->fs_ref_count > -1)
 				printf("%3d ", fst->fs_ref_count);
