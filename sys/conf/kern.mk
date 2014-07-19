@@ -29,7 +29,7 @@ NO_WSOMETIMES_UNINITIALIZED=	-Wno-error-sometimes-uninitialized
 # enough to error out the whole kernel build.  Display them anyway, so there is
 # some incentive to fix them eventually.
 CWARNEXTRA?=	-Wno-error-tautological-compare -Wno-error-empty-body \
-		-Wno-error-parentheses-equality -Wno-unused-function \
+		-Wno-error-parentheses-equality -Wno-error-unused-function \
 		${NO_WFORMAT}
 .endif
 
