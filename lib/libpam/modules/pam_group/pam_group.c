@@ -96,14 +96,12 @@ pam_sm_authenticate(pam_handle_t *pamh, int flags __unused,
 	if ((grp = getgrnam(group)) == NULL || grp->gr_mem == NULL)
 		goto failed;
 
-	/* check if the group is empty */
-	if (*grp->gr_mem == NULL)
-		goto failed;
-
-	/* check membership */
+	/* check if user's own primary group */
 	if (pwd->pw_gid == grp->gr_gid)
 		goto found;
-	for (list = grp->gr_mem; *list != NULL; ++list)
+
+	/* iterate over members */
+	for (list = grp->gr_mem; list != NULL && *list != NULL; ++list)
 		if (strcmp(*list, pwd->pw_name) == 0)
 			goto found;
 
