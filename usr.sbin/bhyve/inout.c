@@ -95,9 +95,10 @@ emulate_inout(struct vmctx *ctx, int vcpu, int in, int port, int bytes,
 	      uint32_t *eax, int strict)
 {
 	int flags;
-	uint32_t mask;
+	uint32_t mask, val;
 	inout_func_t handler;
 	void *arg;
+	int error;
 
 	assert(port < MAX_IOPORTS);
 
@@ -118,16 +119,34 @@ emulate_inout(struct vmctx *ctx, int vcpu, int in, int port, int bytes,
 			mask = 0xffffffff;
 			break;
 		}
-		*eax = *eax & mask;
+		val = *eax & mask;
 	}
 
 	flags = inout_handlers[port].flags;
 	arg = inout_handlers[port].arg;
 
 	if ((in && (flags & IOPORT_F_IN)) || (!in && (flags & IOPORT_F_OUT)))
-		return ((*handler)(ctx, vcpu, in, port, bytes, eax, arg));
+		error = (*handler)(ctx, vcpu, in, port, bytes, &val, arg);
 	else
-		return (-1);
+		error = -1;
+
+	if (!error && in) {
+		switch (bytes) {
+		case 1:
+			mask = 0xff;
+			break;
+		case 2:
+			mask = 0xffff;
+			break;
+		default:
+			mask = 0xffffffff;
+			break;
+		}
+		*eax &= ~mask;
+		*eax |= val & mask;
+	}
+
+	return (error);
 }
 
 void

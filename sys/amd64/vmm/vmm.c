@@ -67,6 +67,8 @@ __FBSDID("$FreeBSD$");
 #include "vmm_host.h"
 #include "vmm_mem.h"
 #include "vmm_util.h"
+#include "vatpic.h"
+#include "vatpit.h"
 #include "vhpet.h"
 #include "vioapic.h"
 #include "vlapic.h"
@@ -94,6 +96,7 @@ struct vcpu {
 	struct vm_exit	exitinfo;
 	enum x2apic_state x2apic_state;
 	int		nmi_pending;
+	int		extint_pending;
 	struct vm_exception exception;
 	int		exception_pending;
 };
@@ -116,6 +119,8 @@ struct vm {
 	void		*iommu;		/* iommu-specific data */
 	struct vhpet	*vhpet;		/* virtual HPET */
 	struct vioapic	*vioapic;	/* virtual ioapic */
+	struct vatpic	*vatpic;	/* virtual atpic */
+	struct vatpit	*vatpit;	/* virtual atpit */
 	struct vmspace	*vmspace;	/* guest's address space */
 	struct vcpu	vcpu[VM_MAXCPU];
 	int		num_mem_segs;
@@ -345,6 +350,8 @@ vm_create(const char *name, struct vm **retvm)
 	vm->cookie = VMINIT(vm, vmspace_pmap(vmspace));
 	vm->vioapic = vioapic_init(vm);
 	vm->vhpet = vhpet_init(vm);
+	vm->vatpic = vatpic_init(vm);
+	vm->vatpit = vatpit_init(vm);
 
 	for (i = 0; i < VM_MAXCPU; i++) {
 		vcpu_init(vm, i);
@@ -377,7 +384,9 @@ vm_destroy(struct vm *vm)
 	if (vm->iommu != NULL)
 		iommu_destroy_domain(vm->iommu);
 
+	vatpit_cleanup(vm->vatpit);
 	vhpet_cleanup(vm->vhpet);
+	vatpic_cleanup(vm->vatpic);
 	vioapic_cleanup(vm->vioapic);
 
 	for (i = 0; i < vm->num_mem_segs; i++)
@@ -1360,6 +1369,53 @@ vm_nmi_clear(struct vm *vm, int vcpuid)
 	vmm_stat_incr(vm, vcpuid, VCPU_NMI_COUNT, 1);
 }
 
+static VMM_STAT(VCPU_EXTINT_COUNT, "number of ExtINTs delivered to vcpu");
+
+int
+vm_inject_extint(struct vm *vm, int vcpuid)
+{
+	struct vcpu *vcpu;
+
+	if (vcpuid < 0 || vcpuid >= VM_MAXCPU)
+		return (EINVAL);
+
+	vcpu = &vm->vcpu[vcpuid];
+
+	vcpu->extint_pending = 1;
+	vcpu_notify_event(vm, vcpuid, false);
+	return (0);
+}
+
+int
+vm_extint_pending(struct vm *vm, int vcpuid)
+{
+	struct vcpu *vcpu;
+
+	if (vcpuid < 0 || vcpuid >= VM_MAXCPU)
+		panic("vm_extint_pending: invalid vcpuid %d", vcpuid);
+
+	vcpu = &vm->vcpu[vcpuid];
+
+	return (vcpu->extint_pending);
+}
+
+void
+vm_extint_clear(struct vm *vm, int vcpuid)
+{
+	struct vcpu *vcpu;
+
+	if (vcpuid < 0 || vcpuid >= VM_MAXCPU)
+		panic("vm_extint_pending: invalid vcpuid %d", vcpuid);
+
+	vcpu = &vm->vcpu[vcpuid];
+
+	if (vcpu->extint_pending == 0)
+		panic("vm_extint_clear: inconsistent extint_pending state");
+
+	vcpu->extint_pending = 0;
+	vmm_stat_incr(vm, vcpuid, VCPU_EXTINT_COUNT, 1);
+}
+
 int
 vm_get_capability(struct vm *vm, int vcpu, int type, int *retval)
 {
@@ -1681,4 +1737,16 @@ restart:
 	}
 
 	vm_handle_rendezvous(vm, vcpuid);
+}
+
+struct vatpic *
+vm_atpic(struct vm *vm)
+{
+	return (vm->vatpic);
+}
+
+struct vatpit *
+vm_atpit(struct vm *vm)
+{
+	return (vm->vatpit);
 }

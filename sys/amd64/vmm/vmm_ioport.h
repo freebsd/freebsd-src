@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2011 NetApp, Inc.
+ * Copyright (c) 2014 Tycho Nightingale <tycho.nightingale@pluribusnetworks.com>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -11,10 +11,10 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY NETAPP, INC ``AS IS'' AND
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED.  IN NO EVENT SHALL NETAPP, INC OR CONTRIBUTORS BE LIABLE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
  * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
  * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
  * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
@@ -26,42 +26,12 @@
  * $FreeBSD$
  */
 
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+#ifndef	_VMM_IOPORT_H_
+#define	_VMM_IOPORT_H_
 
-#include <sys/types.h>
+typedef int (*ioport_handler_func_t)(void *vm, int vcpuid,
+    bool in, int port, int bytes, uint32_t *val);
 
-#include "inout.h"
-#include "pci_lpc.h"
+int emulate_ioport(struct vm *vm, int vcpuid, struct vm_exit *vmexit);
 
-/*
- * EISA interrupt Level Control Register.
- *
- * This is a 16-bit register with one bit for each of the IRQ0 through IRQ15.
- * A level triggered irq is indicated by setting the corresponding bit to '1'.
- */
-#define	ELCR_PORT	0x4d0
-
-static uint8_t elcr[2] = { 0x00, 0x00 };
-
-static int
-elcr_handler(struct vmctx *ctx, int vcpu, int in, int port, int bytes,
-	     uint32_t *eax, void *arg)
-{
-	int idx;
-
-	if (bytes != 1)
-		return (-1);
-
-	idx = port - ELCR_PORT;
-
-	if (in)
-		*eax = elcr[idx];
-	else
-		elcr[idx] = *eax;
-
-	return (0);
-}
-INOUT_PORT(elcr, ELCR_PORT + 0, IOPORT_F_INOUT, elcr_handler);
-INOUT_PORT(elcr, ELCR_PORT + 1, IOPORT_F_INOUT, elcr_handler);
-SYSRES_IO(ELCR_PORT, 2);
+#endif	/* _VMM_IOPORT_H_ */
