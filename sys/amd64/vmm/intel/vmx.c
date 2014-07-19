@@ -52,10 +52,12 @@ __FBSDID("$FreeBSD$");
 #include <machine/vmm.h>
 #include <machine/vmm_dev.h>
 #include "vmm_host.h"
+#include "vmm_ioport.h"
 #include "vmm_ipi.h"
 #include "vmm_msr.h"
 #include "vmm_ktr.h"
 #include "vmm_stat.h"
+#include "vatpic.h"
 #include "vlapic.h"
 #include "vlapic_priv.h"
 
@@ -1046,6 +1048,7 @@ vmx_set_pcpu_defaults(struct vmx *vmx, int vcpu, pmap_t pmap)
 			invvpid_desc._res1 = 0;
 			invvpid_desc._res2 = 0;
 			invvpid_desc.vpid = vmxstate->vpid;
+			invvpid_desc.linear_addr = 0;
 			invvpid(INVVPID_TYPE_SINGLE_CONTEXT, invvpid_desc);
 		} else {
 			/*
@@ -1143,7 +1146,7 @@ static void
 vmx_inject_interrupts(struct vmx *vmx, int vcpu, struct vlapic *vlapic)
 {
 	struct vm_exception exc;
-	int vector, need_nmi_exiting;
+	int vector, need_nmi_exiting, extint_pending;
 	uint64_t rflags;
 	uint32_t gi, info;
 
@@ -1195,7 +1198,9 @@ vmx_inject_interrupts(struct vmx *vmx, int vcpu, struct vlapic *vlapic)
 			vmx_set_nmi_window_exiting(vmx, vcpu);
 	}
 
-	if (virtual_interrupt_delivery) {
+	extint_pending = vm_extint_pending(vmx->vm, vcpu);
+
+	if (!extint_pending && virtual_interrupt_delivery) {
 		vmx_inject_pir(vlapic);
 		return;
 	}
@@ -1211,11 +1216,32 @@ vmx_inject_interrupts(struct vmx *vmx, int vcpu, struct vlapic *vlapic)
 		return;
 	}
 
-	/* Ask the local apic for a vector to inject */
-	if (!vlapic_pending_intr(vlapic, &vector))
-		return;
+	if (!extint_pending) {
+		/* Ask the local apic for a vector to inject */
+		if (!vlapic_pending_intr(vlapic, &vector))
+			return;
 
-	KASSERT(vector >= 32 && vector <= 255, ("invalid vector %d", vector));
+		/*
+		 * From the Intel SDM, Volume 3, Section "Maskable
+		 * Hardware Interrupts":
+		 * - maskable interrupt vectors [16,255] can be delivered
+		 *   through the local APIC.
+		*/
+		KASSERT(vector >= 16 && vector <= 255,
+		    ("invalid vector %d from local APIC", vector));
+	} else {
+		/* Ask the legacy pic for a vector to inject */
+		vatpic_pending_intr(vmx->vm, &vector);
+
+		/*
+		 * From the Intel SDM, Volume 3, Section "Maskable
+		 * Hardware Interrupts":
+		 * - maskable interrupt vectors [0,255] can be delivered
+		 *   through the INTR pin.
+		 */
+		KASSERT(vector >= 0 && vector <= 255,
+		    ("invalid vector %d from INTR", vector));
+	}
 
 	/* Check RFLAGS.IF and the interruptibility state of the guest */
 	rflags = vmcs_read(VMCS_GUEST_RFLAGS);
@@ -1251,8 +1277,22 @@ vmx_inject_interrupts(struct vmx *vmx, int vcpu, struct vlapic *vlapic)
 	info |= vector;
 	vmcs_write(VMCS_ENTRY_INTR_INFO, info);
 
-	/* Update the Local APIC ISR */
-	vlapic_intr_accepted(vlapic, vector);
+	if (!extint_pending) {
+		/* Update the Local APIC ISR */
+		vlapic_intr_accepted(vlapic, vector);
+	} else {
+		vm_extint_clear(vmx->vm, vcpu);
+		vatpic_intr_accepted(vmx->vm, vector);
+
+		/*
+		 * After we accepted the current ExtINT the PIC may
+		 * have posted another one.  If that is the case, set
+		 * the Interrupt Window Exiting execution control so
+		 * we can inject that one too.
+		 */
+		if (vm_extint_pending(vmx->vm, vcpu))
+			vmx_set_int_window_exiting(vmx, vcpu);
+	}
 
 	VCPU_CTR1(vmx->vm, vcpu, "Injecting hwintr at vector %d", vector);
 
@@ -1388,6 +1428,7 @@ vmx_emulate_cr_access(struct vmx *vmx, int vcpu, uint64_t exitqual)
 	if (cr != 0 && cr != 4)
 		return (UNHANDLED);
 
+	regval = 0; /* silence gcc */
 	vmxctx = &vmx->ctx[vcpu];
 
 	/*
@@ -1882,6 +1923,11 @@ vmx_exit_process(struct vmx *vmx, int vcpu, struct vm_exit *vmexit)
 		vmexit->u.inout.rep = (qual & 0x20) ? 1 : 0;
 		vmexit->u.inout.port = (uint16_t)(qual >> 16);
 		vmexit->u.inout.eax = (uint32_t)(vmxctx->guest_rax);
+		error = emulate_ioport(vmx->vm, vcpu, vmexit);
+		if (error == 0)  {
+			handled = 1;
+			vmxctx->guest_rax = vmexit->u.inout.eax;
+		}
 		break;
 	case EXIT_REASON_CPUID:
 		vmm_stat_incr(vmx->vm, vcpu, VMEXIT_CPUID, 1);
@@ -2719,7 +2765,7 @@ vmx_inject_pir(struct vlapic *vlapic)
 	struct pir_desc *pir_desc;
 	struct LAPIC *lapic;
 	uint64_t val, pirval;
-	int rvi, pirbase;
+	int rvi, pirbase = -1;
 	uint16_t intr_status_old, intr_status_new;
 
 	vlapic_vtx = (struct vlapic_vtx *)vlapic;
@@ -2731,6 +2777,7 @@ vmx_inject_pir(struct vlapic *vlapic)
 	}
 
 	pirval = 0;
+	pirbase = -1;
 	lapic = vlapic->apic_page;
 
 	val = atomic_readandclear_long(&pir_desc->pir[0]);
@@ -2764,11 +2811,29 @@ vmx_inject_pir(struct vlapic *vlapic)
 		pirbase = 192;
 		pirval = val;
 	}
+
 	VLAPIC_CTR_IRR(vlapic, "vmx_inject_pir");
 
 	/*
 	 * Update RVI so the processor can evaluate pending virtual
 	 * interrupts on VM-entry.
+	 *
+	 * It is possible for pirval to be 0 here, even though the
+	 * pending bit has been set. The scenario is:
+	 * CPU-Y is sending a posted interrupt to CPU-X, which
+	 * is running a guest and processing posted interrupts in h/w.
+	 * CPU-X will eventually exit and the state seen in s/w is
+	 * the pending bit set, but no PIR bits set.
+	 *
+	 *      CPU-X                      CPU-Y
+	 *   (vm running)                (host running)
+	 *   rx posted interrupt
+	 *   CLEAR pending bit
+	 *				 SET PIR bit
+	 *   READ/CLEAR PIR bits
+	 *				 SET pending bit
+	 *   (vm exit)
+	 *   pending bit set, PIR 0
 	 */
 	if (pirval != 0) {
 		rvi = pirbase + flsl(pirval) - 1;

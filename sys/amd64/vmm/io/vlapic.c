@@ -448,6 +448,9 @@ vlapic_fire_lvt(struct vlapic *vlapic, uint32_t lvt)
 	case APIC_LVT_DM_NMI:
 		vm_inject_nmi(vlapic->vm, vlapic->vcpuid);
 		break;
+	case APIC_LVT_DM_EXTINT:
+		vm_inject_extint(vlapic->vm, vlapic->vcpuid);
+		break;
 	default:
 		// Other modes ignored
 		return (0);
@@ -650,6 +653,25 @@ int
 vlapic_trigger_lvt(struct vlapic *vlapic, int vector)
 {
 	uint32_t lvt;
+
+	if (vlapic_enabled(vlapic) == false) {
+		/*
+		 * When the local APIC is global/hardware disabled,
+		 * LINT[1:0] pins are configured as INTR and NMI pins,
+		 * respectively.
+		*/
+		switch (vector) {
+			case APIC_LVT_LINT0:
+				vm_inject_extint(vlapic->vm, vlapic->vcpuid);
+				break;
+			case APIC_LVT_LINT1:
+				vm_inject_nmi(vlapic->vm, vlapic->vcpuid);
+				break;
+			default:
+				break;
+		}
+		return (0);
+	}
 
 	switch (vector) {
 	case APIC_LVT_LINT0:
@@ -1474,11 +1496,13 @@ vlapic_deliver_intr(struct vm *vm, bool level, uint32_t dest, bool phys,
 	int vcpuid;
 	cpuset_t dmask;
 
-	if (delmode != APIC_DELMODE_FIXED && delmode != APIC_DELMODE_LOWPRIO) {
+	if (delmode != IOART_DELFIXED &&
+	    delmode != IOART_DELLOPRI &&
+	    delmode != IOART_DELEXINT) {
 		VM_CTR1(vm, "vlapic intr invalid delmode %#x", delmode);
 		return;
 	}
-	lowprio = (delmode == APIC_DELMODE_LOWPRIO);
+	lowprio = (delmode == IOART_DELLOPRI);
 
 	/*
 	 * We don't provide any virtual interrupt redirection hardware so
@@ -1490,7 +1514,11 @@ vlapic_deliver_intr(struct vm *vm, bool level, uint32_t dest, bool phys,
 	while ((vcpuid = CPU_FFS(&dmask)) != 0) {
 		vcpuid--;
 		CPU_CLR(vcpuid, &dmask);
-		lapic_set_intr(vm, vcpuid, vec, level);
+		if (delmode == IOART_DELEXINT) {
+			vm_inject_extint(vm, vcpuid);
+		} else {
+			lapic_set_intr(vm, vcpuid, vec, level);
+		}
 	}
 }
 

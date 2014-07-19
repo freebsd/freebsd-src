@@ -117,6 +117,9 @@ int vm_run(struct vm *vm, struct vm_run *vmrun);
 int vm_inject_nmi(struct vm *vm, int vcpu);
 int vm_nmi_pending(struct vm *vm, int vcpuid);
 void vm_nmi_clear(struct vm *vm, int vcpuid);
+int vm_inject_extint(struct vm *vm, int vcpu);
+int vm_extint_pending(struct vm *vm, int vcpuid);
+void vm_extint_clear(struct vm *vm, int vcpuid);
 uint64_t *vm_guest_msrs(struct vm *vm, int cpu);
 struct vlapic *vm_lapic(struct vm *vm, int cpu);
 struct vioapic *vm_ioapic(struct vm *vm);
@@ -187,6 +190,8 @@ void vcpu_notify_event(struct vm *vm, int vcpuid, bool lapic_intr);
 struct vmspace *vm_get_vmspace(struct vm *vm);
 int vm_assign_pptdev(struct vm *vm, int bus, int slot, int func);
 int vm_unassign_pptdev(struct vm *vm, int bus, int slot, int func);
+struct vatpic *vm_atpic(struct vm *vm);
+struct vatpit *vm_atpit(struct vm *vm);
 
 /*
  * Inject exception 'vme' into the guest vcpu. This function returns 0 on

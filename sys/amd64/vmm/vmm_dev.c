@@ -54,6 +54,7 @@ __FBSDID("$FreeBSD$");
 #include "vmm_stat.h"
 #include "vmm_mem.h"
 #include "io/ppt.h"
+#include "io/vatpic.h"
 #include "io/vioapic.h"
 #include "io/vhpet.h"
 
@@ -154,6 +155,7 @@ vmmdev_ioctl(struct cdev *cdev, u_long cmd, caddr_t data, int fflag,
 	struct vm_lapic_irq *vmirq;
 	struct vm_lapic_msi *vmmsi;
 	struct vm_ioapic_irq *ioapic_irq;
+	struct vm_isa_irq *isa_irq;
 	struct vm_capability *vmcap;
 	struct vm_pptdev *pptdev;
 	struct vm_pptdev_mmio *pptmmio;
@@ -169,6 +171,7 @@ vmmdev_ioctl(struct cdev *cdev, u_long cmd, caddr_t data, int fflag,
 	if (sc == NULL)
 		return (ENXIO);
 
+	error = 0;
 	vcpu = -1;
 	state_changed = 0;
 
@@ -317,6 +320,26 @@ vmmdev_ioctl(struct cdev *cdev, u_long cmd, caddr_t data, int fflag,
 		break;
 	case VM_IOAPIC_PINCOUNT:
 		*(int *)data = vioapic_pincount(sc->vm);
+		break;
+	case VM_ISA_ASSERT_IRQ:
+		isa_irq = (struct vm_isa_irq *)data;
+		error = vatpic_assert_irq(sc->vm, isa_irq->atpic_irq);
+		if (error == 0 && isa_irq->ioapic_irq != -1)
+			error = vioapic_assert_irq(sc->vm,
+			    isa_irq->ioapic_irq);
+		break;
+	case VM_ISA_DEASSERT_IRQ:
+		isa_irq = (struct vm_isa_irq *)data;
+		error = vatpic_deassert_irq(sc->vm, isa_irq->atpic_irq);
+		if (error == 0 && isa_irq->ioapic_irq != -1)
+			error = vioapic_deassert_irq(sc->vm,
+			    isa_irq->ioapic_irq);
+		break;
+	case VM_ISA_PULSE_IRQ:
+		isa_irq = (struct vm_isa_irq *)data;
+		error = vatpic_pulse_irq(sc->vm, isa_irq->atpic_irq);
+		if (error == 0 && isa_irq->ioapic_irq != -1)
+			error = vioapic_pulse_irq(sc->vm, isa_irq->ioapic_irq);
 		break;
 	case VM_MAP_MEMORY:
 		seg = (struct vm_memory_segment *)data;
