@@ -713,7 +713,7 @@ basl_fwrite_dsdt(FILE *fp)
 	pci_write_dsdt();
 
 	dsdt_line("");
-	dsdt_line("  Scope (_SB.PCI0)");
+	dsdt_line("  Scope (_SB.PC00)");
 	dsdt_line("  {");
 	dsdt_line("    Device (HPET)");
 	dsdt_line("    {");
