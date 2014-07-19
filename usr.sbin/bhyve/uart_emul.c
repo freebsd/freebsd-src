@@ -110,6 +110,7 @@ struct uart_softc {
 	uint8_t dlh;		/* Baudrate divisor latch MSB */
 
 	struct fifo rxfifo;
+	struct mevent *mev;
 
 	struct ttyfd tty;
 	bool	thre_int_pending;	/* THRE interrupt pending */
@@ -145,34 +146,15 @@ ttyopen(struct ttyfd *tf)
 	}
 }
 
-static bool
-tty_char_available(struct ttyfd *tf)
-{
-	fd_set rfds;
-	struct timeval tv;
-
-	FD_ZERO(&rfds);
-	FD_SET(tf->fd, &rfds);
-	tv.tv_sec = 0;
-	tv.tv_usec = 0;
-	if (select(tf->fd + 1, &rfds, NULL, NULL, &tv) > 0 ) {
-		return (true);
-	} else {
-		return (false);
-	}
-}
-
 static int
 ttyread(struct ttyfd *tf)
 {
-	char rb;
+	unsigned char rb;
 
-	if (tty_char_available(tf)) {
-		read(tf->fd, &rb, 1);
-		return (rb & 0xff);
-	} else {
+	if (read(tf->fd, &rb, 1) == 1)
+		return (rb);
+	else
 		return (-1);
-	}
 }
 
 static void
@@ -183,62 +165,111 @@ ttywrite(struct ttyfd *tf, unsigned char wb)
 }
 
 static void
-fifo_reset(struct fifo *fifo, int size)
+rxfifo_reset(struct uart_softc *sc, int size)
 {
+	char flushbuf[32];
+	struct fifo *fifo;
+	ssize_t nread;
+	int error;
 
+	fifo = &sc->rxfifo;
 	bzero(fifo, sizeof(struct fifo));
 	fifo->size = size;
+
+	if (sc->tty.opened) {
+		/*
+		 * Flush any unread input from the tty buffer.
+		 */
+		while (1) {
+			nread = read(sc->tty.fd, flushbuf, sizeof(flushbuf));
+			if (nread != sizeof(flushbuf))
+				break;
+		}
+
+		/*
+		 * Enable mevent to trigger when new characters are available
+		 * on the tty fd.
+		 */
+		error = mevent_enable(sc->mev);
+		assert(error == 0);
+	}
 }
 
 static int
-fifo_putchar(struct fifo *fifo, uint8_t ch)
+rxfifo_available(struct uart_softc *sc)
 {
+	struct fifo *fifo;
+
+	fifo = &sc->rxfifo;
+	return (fifo->num < fifo->size);
+}
+
+static int
+rxfifo_putchar(struct uart_softc *sc, uint8_t ch)
+{
+	struct fifo *fifo;
+	int error;
+
+	fifo = &sc->rxfifo;
 
 	if (fifo->num < fifo->size) {
 		fifo->buf[fifo->windex] = ch;
 		fifo->windex = (fifo->windex + 1) % fifo->size;
 		fifo->num++;
+		if (!rxfifo_available(sc)) {
+			if (sc->tty.opened) {
+				/*
+				 * Disable mevent callback if the FIFO is full.
+				 */
+				error = mevent_disable(sc->mev);
+				assert(error == 0);
+			}
+		}
 		return (0);
 	} else
 		return (-1);
 }
 
 static int
-fifo_getchar(struct fifo *fifo)
+rxfifo_getchar(struct uart_softc *sc)
 {
-	int c;
+	struct fifo *fifo;
+	int c, error, wasfull;
 
+	wasfull = 0;
+	fifo = &sc->rxfifo;
 	if (fifo->num > 0) {
+		if (!rxfifo_available(sc))
+			wasfull = 1;
 		c = fifo->buf[fifo->rindex];
 		fifo->rindex = (fifo->rindex + 1) % fifo->size;
 		fifo->num--;
+		if (wasfull) {
+			if (sc->tty.opened) {
+				error = mevent_enable(sc->mev);
+				assert(error == 0);
+			}
+		}
 		return (c);
 	} else
 		return (-1);
 }
 
 static int
-fifo_numchars(struct fifo *fifo)
+rxfifo_numchars(struct uart_softc *sc)
 {
+	struct fifo *fifo = &sc->rxfifo;
 
 	return (fifo->num);
-}
-
-static int
-fifo_available(struct fifo *fifo)
-{
-
-	return (fifo->num < fifo->size);
 }
 
 static void
 uart_opentty(struct uart_softc *sc)
 {
-	struct mevent *mev;
 
 	ttyopen(&sc->tty);
-	mev = mevent_add(sc->tty.fd, EVF_READ, uart_drain, sc);
-	assert(mev);
+	sc->mev = mevent_add(sc->tty.fd, EVF_READ, uart_drain, sc);
+	assert(sc->mev != NULL);
 }
 
 /*
@@ -255,7 +286,7 @@ uart_intr_reason(struct uart_softc *sc)
 
 	if ((sc->lsr & LSR_OE) != 0 && (sc->ier & IER_ERLS) != 0)
 		return (IIR_RLS);
-	else if (fifo_numchars(&sc->rxfifo) > 0 && (sc->ier & IER_ERXRDY) != 0)
+	else if (rxfifo_numchars(sc) > 0 && (sc->ier & IER_ERXRDY) != 0)
 		return (IIR_RXTOUT);
 	else if (sc->thre_int_pending && (sc->ier & IER_ETXRDY) != 0)
 		return (IIR_TXRDY);
@@ -274,7 +305,7 @@ uart_reset(struct uart_softc *sc)
 	sc->dll = divisor;
 	sc->dlh = divisor >> 16;
 
-	fifo_reset(&sc->rxfifo, 1);	/* no fifo until enabled by software */
+	rxfifo_reset(sc, 1);	/* no fifo until enabled by software */
 }
 
 /*
@@ -315,9 +346,9 @@ uart_drain(int fd, enum ev_type ev, void *arg)
 	if ((sc->mcr & MCR_LOOPBACK) != 0) {
 		(void) ttyread(&sc->tty);
 	} else {
-		while (fifo_available(&sc->rxfifo) &&
+		while (rxfifo_available(sc) &&
 		       ((ch = ttyread(&sc->tty)) != -1)) {
-			fifo_putchar(&sc->rxfifo, ch);
+			rxfifo_putchar(sc, ch);
 		}
 		uart_toggle_intr(sc);
 	}
@@ -351,7 +382,7 @@ uart_write(struct uart_softc *sc, int offset, uint8_t value)
         switch (offset) {
 	case REG_DATA:
 		if (sc->mcr & MCR_LOOPBACK) {
-			if (fifo_putchar(&sc->rxfifo, value) != 0)
+			if (rxfifo_putchar(sc, value) != 0)
 				sc->lsr |= LSR_OE;
 		} else if (sc->tty.opened) {
 			ttywrite(&sc->tty, value);
@@ -372,7 +403,7 @@ uart_write(struct uart_softc *sc, int offset, uint8_t value)
 			 */
 			if ((sc->fcr & FCR_ENABLE) ^ (value & FCR_ENABLE)) {
 				fifosz = (value & FCR_ENABLE) ? FIFOSZ : 1;
-				fifo_reset(&sc->rxfifo, fifosz);
+				rxfifo_reset(sc, fifosz);
 			}
 
 			/*
@@ -383,7 +414,7 @@ uart_write(struct uart_softc *sc, int offset, uint8_t value)
 				sc->fcr = 0;
 			} else {
 				if ((value & FCR_RCV_RST) != 0)
-					fifo_reset(&sc->rxfifo, FIFOSZ);
+					rxfifo_reset(sc, FIFOSZ);
 
 				sc->fcr = value &
 					 (FCR_ENABLE | FCR_DMA | FCR_RX_MASK);
@@ -480,7 +511,7 @@ uart_read(struct uart_softc *sc, int offset)
 
 	switch (offset) {
 	case REG_DATA:
-		reg = fifo_getchar(&sc->rxfifo);
+		reg = rxfifo_getchar(sc);
 		break;
 	case REG_IER:
 		reg = sc->ier;
@@ -511,7 +542,7 @@ uart_read(struct uart_softc *sc, int offset)
 		sc->lsr |= LSR_TEMT | LSR_THRE;
 
 		/* Check for new receive data */
-		if (fifo_numchars(&sc->rxfifo) > 0)
+		if (rxfifo_numchars(sc) > 0)
 			sc->lsr |= LSR_RXRDY;
 		else
 			sc->lsr &= ~LSR_RXRDY;
@@ -585,7 +616,7 @@ uart_tty_backend(struct uart_softc *sc, const char *opts)
 
 	retval = -1;
 
-	fd = open(opts, O_RDWR);
+	fd = open(opts, O_RDWR | O_NONBLOCK);
 	if (fd > 0 && isatty(fd)) {
 		sc->tty.fd = fd;
 		sc->tty.opened = true;
@@ -615,6 +646,10 @@ uart_set_backend(struct uart_softc *sc, const char *opts)
 	} else if (uart_tty_backend(sc, opts) == 0) {
 		retval = 0;
 	}
+
+	/* Make the backend file descriptor non-blocking */
+	if (retval == 0)
+		retval = fcntl(sc->tty.fd, F_SETFL, O_NONBLOCK);
 
 	if (retval == 0)
 		uart_opentty(sc);
