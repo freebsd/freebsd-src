@@ -81,6 +81,14 @@ extern "C" {
 #define UCL_WARN_UNUSED_RESULT
 #endif
 
+#ifdef __GNUC__
+#define UCL_DEPRECATED(func) func __attribute__ ((deprecated))
+#elif defined(_MSC_VER)
+#define UCL_DEPRECATED(func) __declspec(deprecated) func
+#else
+#define UCL_DEPRECATED(func) func
+#endif
+
 /**
  * @defgroup structures Structures and types
  * UCL defines several enumeration types used for error reporting or specifying flags and attributes.
@@ -138,7 +146,8 @@ typedef enum ucl_emitter {
  */
 typedef enum ucl_parser_flags {
 	UCL_PARSER_KEY_LOWERCASE = 0x1, /**< Convert all keys to lower case */
-	UCL_PARSER_ZEROCOPY = 0x2 /**< Parse input in zero-copy mode if possible */
+	UCL_PARSER_ZEROCOPY = 0x2, /**< Parse input in zero-copy mode if possible */
+	UCL_PARSER_NO_TIME = 0x4 /**< Do not parse time and treat time values as strings */
 } ucl_parser_flags_t;
 
 /**
@@ -150,11 +159,12 @@ typedef enum ucl_string_flags {
 	UCL_STRING_PARSE_BOOLEAN = 0x4,    /**< Parse passed string and detect boolean */
 	UCL_STRING_PARSE_INT = 0x8,    /**< Parse passed string and detect integer number */
 	UCL_STRING_PARSE_DOUBLE = 0x10,    /**< Parse passed string and detect integer or float number */
-	UCL_STRING_PARSE_NUMBER =  UCL_STRING_PARSE_INT|UCL_STRING_PARSE_DOUBLE ,  /**<
+	UCL_STRING_PARSE_TIME = 0x20, /**< Parse time strings */
+	UCL_STRING_PARSE_NUMBER =  UCL_STRING_PARSE_INT|UCL_STRING_PARSE_DOUBLE|UCL_STRING_PARSE_TIME,  /**<
 									Parse passed string and detect number */
 	UCL_STRING_PARSE =  UCL_STRING_PARSE_BOOLEAN|UCL_STRING_PARSE_NUMBER,   /**<
 									Parse passed string (and detect booleans and numbers) */
-	UCL_STRING_PARSE_BYTES = 0x20  /**< Treat numbers as bytes */
+	UCL_STRING_PARSE_BYTES = 0x40  /**< Treat numbers as bytes */
 } ucl_string_flags_t;
 
 /**
@@ -206,51 +216,33 @@ typedef struct ucl_object_s {
  * @param obj CL object
  * @return zero terminated key
  */
-UCL_EXTERN char* ucl_copy_key_trash (ucl_object_t *obj);
+UCL_EXTERN char* ucl_copy_key_trash (const ucl_object_t *obj);
 
 /**
  * Copy and return a string value of an object, returned key is zero-terminated
  * @param obj CL object
  * @return zero terminated string representation of object value
  */
-UCL_EXTERN char* ucl_copy_value_trash (ucl_object_t *obj);
+UCL_EXTERN char* ucl_copy_value_trash (const ucl_object_t *obj);
 
 /**
  * Creates a new object
  * @return new object
  */
-static inline ucl_object_t* ucl_object_new (void) UCL_WARN_UNUSED_RESULT;
-static inline ucl_object_t *
-ucl_object_new (void)
-{
-	ucl_object_t *new;
-	new = malloc (sizeof (ucl_object_t));
-	if (new != NULL) {
-		memset (new, 0, sizeof (ucl_object_t));
-		new->ref = 1;
-		new->type = UCL_NULL;
-	}
-	return new;
-}
+UCL_EXTERN ucl_object_t* ucl_object_new (void) UCL_WARN_UNUSED_RESULT;
 
 /**
  * Create new object with type specified
  * @param type type of a new object
  * @return new object
  */
-static inline ucl_object_t* ucl_object_typed_new (unsigned int type) UCL_WARN_UNUSED_RESULT;
-static inline ucl_object_t *
-ucl_object_typed_new (unsigned int type)
-{
-	ucl_object_t *new;
-	new = malloc (sizeof (ucl_object_t));
-	if (new != NULL) {
-		memset (new, 0, sizeof (ucl_object_t));
-		new->ref = 1;
-		new->type = (type <= UCL_NULL ? type : UCL_NULL);
-	}
-	return new;
-}
+UCL_EXTERN ucl_object_t* ucl_object_typed_new (ucl_type_t type) UCL_WARN_UNUSED_RESULT;
+
+/**
+ * Return the type of an object
+ * @return the object type
+ */
+UCL_EXTERN ucl_type_t ucl_object_type (const ucl_object_t *obj);
 
 /**
  * Convert any string to an ucl object making the specified transformations
@@ -267,11 +259,7 @@ UCL_EXTERN ucl_object_t * ucl_object_fromstring_common (const char *str, size_t 
  * @param str NULL terminated string, will be json escaped
  * @return new object
  */
-static inline ucl_object_t *
-ucl_object_fromstring (const char *str)
-{
-	return ucl_object_fromstring_common (str, 0, UCL_STRING_ESCAPE);
-}
+UCL_EXTERN ucl_object_t *ucl_object_fromstring (const char *str) UCL_WARN_UNUSED_RESULT;
 
 /**
  * Create a UCL object from the specified string
@@ -279,68 +267,29 @@ ucl_object_fromstring (const char *str)
  * @param len length of a string
  * @return new object
  */
-static inline ucl_object_t *
-ucl_object_fromlstring (const char *str, size_t len)
-{
-	return ucl_object_fromstring_common (str, len, UCL_STRING_ESCAPE);
-}
+UCL_EXTERN ucl_object_t *ucl_object_fromlstring (const char *str,
+		size_t len) UCL_WARN_UNUSED_RESULT;
 
 /**
  * Create an object from an integer number
  * @param iv number
  * @return new object
  */
-static inline ucl_object_t *
-ucl_object_fromint (int64_t iv)
-{
-	ucl_object_t *obj;
-
-	obj = ucl_object_new ();
-	if (obj != NULL) {
-		obj->type = UCL_INT;
-		obj->value.iv = iv;
-	}
-
-	return obj;
-}
+UCL_EXTERN ucl_object_t* ucl_object_fromint (int64_t iv) UCL_WARN_UNUSED_RESULT;
 
 /**
  * Create an object from a float number
  * @param dv number
  * @return new object
  */
-static inline ucl_object_t *
-ucl_object_fromdouble (double dv)
-{
-	ucl_object_t *obj;
-
-	obj = ucl_object_new ();
-	if (obj != NULL) {
-		obj->type = UCL_FLOAT;
-		obj->value.dv = dv;
-	}
-
-	return obj;
-}
+UCL_EXTERN ucl_object_t* ucl_object_fromdouble (double dv) UCL_WARN_UNUSED_RESULT;
 
 /**
  * Create an object from a boolean
  * @param bv bool value
  * @return new object
  */
-static inline ucl_object_t *
-ucl_object_frombool (bool bv)
-{
-	ucl_object_t *obj;
-
-	obj = ucl_object_new ();
-	if (obj != NULL) {
-		obj->type = UCL_BOOLEAN;
-		obj->value.iv = bv;
-	}
-
-	return obj;
-}
+UCL_EXTERN ucl_object_t* ucl_object_frombool (bool bv) UCL_WARN_UNUSED_RESULT;
 
 /**
  * Insert a object 'elt' to the hash 'top' and associate it with key 'key'
@@ -349,10 +298,10 @@ ucl_object_frombool (bool bv)
  * @param key key to associate with this object (either const or preallocated)
  * @param keylen length of the key (or 0 for NULL terminated keys)
  * @param copy_key make an internal copy of key
- * @return new value of top object
+ * @return true if key has been inserted
  */
-UCL_EXTERN ucl_object_t* ucl_object_insert_key (ucl_object_t *top, ucl_object_t *elt,
-		const char *key, size_t keylen, bool copy_key) UCL_WARN_UNUSED_RESULT;
+UCL_EXTERN bool ucl_object_insert_key (ucl_object_t *top, ucl_object_t *elt,
+		const char *key, size_t keylen, bool copy_key);
 
 /**
  * Replace a object 'elt' to the hash 'top' and associate it with key 'key', old object will be unrefed,
@@ -362,10 +311,10 @@ UCL_EXTERN ucl_object_t* ucl_object_insert_key (ucl_object_t *top, ucl_object_t 
  * @param key key to associate with this object (either const or preallocated)
  * @param keylen length of the key (or 0 for NULL terminated keys)
  * @param copy_key make an internal copy of key
- * @return new value of top object
+ * @return true if key has been inserted
  */
-UCL_EXTERN ucl_object_t* ucl_object_replace_key (ucl_object_t *top, ucl_object_t *elt,
-		const char *key, size_t keylen, bool copy_key) UCL_WARN_UNUSED_RESULT;
+UCL_EXTERN bool ucl_object_replace_key (ucl_object_t *top, ucl_object_t *elt,
+		const char *key, size_t keylen, bool copy_key);
 
 /**
  * Delete a object associated with key 'key', old object will be unrefered,
@@ -373,14 +322,38 @@ UCL_EXTERN ucl_object_t* ucl_object_replace_key (ucl_object_t *top, ucl_object_t
  * @param key key associated to the object to remove
  * @param keylen length of the key (or 0 for NULL terminated keys)
  */
-UCL_EXTERN bool ucl_object_delete_keyl (ucl_object_t *top, const char *key, size_t keylen);
+UCL_EXTERN bool ucl_object_delete_keyl (ucl_object_t *top,
+		const char *key, size_t keylen);
 
 /**
  * Delete a object associated with key 'key', old object will be unrefered,
  * @param top object
  * @param key key associated to the object to remove
  */
-UCL_EXTERN bool ucl_object_delete_key (ucl_object_t *top, const char *key);
+UCL_EXTERN bool ucl_object_delete_key (ucl_object_t *top,
+		const char *key);
+
+
+/**
+ * Delete key from `top` object returning the object deleted. This object is not
+ * released
+ * @param top object
+ * @param key key to remove
+ * @param keylen length of the key (or 0 for NULL terminated keys)
+ * @return removed object or NULL if object has not been found
+ */
+UCL_EXTERN ucl_object_t* ucl_object_pop_keyl (ucl_object_t *top, const char *key,
+		size_t keylen) UCL_WARN_UNUSED_RESULT;
+
+/**
+ * Delete key from `top` object returning the object deleted. This object is not
+ * released
+ * @param top object
+ * @param key key to remove
+ * @return removed object or NULL if object has not been found
+ */
+UCL_EXTERN ucl_object_t* ucl_object_pop_key (ucl_object_t *top, const char *key)
+	UCL_WARN_UNUSED_RESULT;
 
 /**
  * Insert a object 'elt' to the hash 'top' and associate it with key 'key', if the specified key exist,
@@ -390,94 +363,28 @@ UCL_EXTERN bool ucl_object_delete_key (ucl_object_t *top, const char *key);
  * @param key key to associate with this object (either const or preallocated)
  * @param keylen length of the key (or 0 for NULL terminated keys)
  * @param copy_key make an internal copy of key
- * @return new value of top object
+ * @return true if key has been inserted
  */
-UCL_EXTERN ucl_object_t* ucl_object_insert_key_merged (ucl_object_t *top, ucl_object_t *elt,
-		const char *key, size_t keylen, bool copy_key) UCL_WARN_UNUSED_RESULT;
+UCL_EXTERN bool ucl_object_insert_key_merged (ucl_object_t *top, ucl_object_t *elt,
+		const char *key, size_t keylen, bool copy_key);
 
 /**
  * Append an element to the front of array object
  * @param top destination object (will be created automatically if top is NULL)
  * @param elt element to append (must NOT be NULL)
- * @return new value of top object
+ * @return true if value has been inserted
  */
-static inline ucl_object_t * ucl_array_append (ucl_object_t *top,
-		ucl_object_t *elt) UCL_WARN_UNUSED_RESULT;
-static inline ucl_object_t *
-ucl_array_append (ucl_object_t *top, ucl_object_t *elt)
-{
-	ucl_object_t *head;
-
-	if (elt == NULL) {
-		return NULL;
-	}
-
-	if (top == NULL) {
-		top = ucl_object_typed_new (UCL_ARRAY);
-		top->value.av = elt;
-		elt->next = NULL;
-		elt->prev = elt;
-		top->len = 1;
-	}
-	else {
-		head = top->value.av;
-		if (head == NULL) {
-			top->value.av = elt;
-			elt->prev = elt;
-		}
-		else {
-			elt->prev = head->prev;
-			head->prev->next = elt;
-			head->prev = elt;
-		}
-		elt->next = NULL;
-		top->len ++;
-	}
-
-	return top;
-}
+UCL_EXTERN bool ucl_array_append (ucl_object_t *top,
+		ucl_object_t *elt);
 
 /**
  * Append an element to the start of array object
  * @param top destination object (will be created automatically if top is NULL)
  * @param elt element to append (must NOT be NULL)
- * @return new value of top object
+ * @return true if value has been inserted
  */
-static inline ucl_object_t * ucl_array_prepend (ucl_object_t *top,
-		ucl_object_t *elt) UCL_WARN_UNUSED_RESULT;
-static inline ucl_object_t *
-ucl_array_prepend (ucl_object_t *top, ucl_object_t *elt)
-{
-	ucl_object_t *head;
-
-	if (elt == NULL) {
-		return NULL;
-	}
-
-	if (top == NULL) {
-		top = ucl_object_typed_new (UCL_ARRAY);
-		top->value.av = elt;
-		elt->next = NULL;
-		elt->prev = elt;
-		top->len = 1;
-	}
-	else {
-		head = top->value.av;
-		if (head == NULL) {
-			top->value.av = elt;
-			elt->prev = elt;
-		}
-		else {
-			elt->prev = head->prev;
-			head->prev = elt;
-		}
-		elt->next = head;
-		top->value.av = elt;
-		top->len ++;
-	}
-
-	return top;
-}
+UCL_EXTERN bool ucl_array_prepend (ucl_object_t *top,
+		ucl_object_t *elt);
 
 /**
  * Removes an element `elt` from the array `top`. Caller must unref the returned object when it is not
@@ -486,66 +393,22 @@ ucl_array_prepend (ucl_object_t *top, ucl_object_t *elt)
  * @param elt element to remove
  * @return removed element or NULL if `top` is NULL or not an array
  */
-static inline ucl_object_t *
-ucl_array_delete (ucl_object_t *top, ucl_object_t *elt)
-{
-	ucl_object_t *head;
-
-	if (top == NULL || top->type != UCL_ARRAY || top->value.av == NULL) {
-		return NULL;
-	}
-	head = top->value.av;
-
-	if (elt->prev == elt) {
-		top->value.av = NULL;
-	}
-	else if (elt == head) {
-		elt->next->prev = elt->prev;
-		top->value.av = elt->next;
-	}
-	else {
-		elt->prev->next = elt->next;
-		if (elt->next) {
-			elt->next->prev = elt->prev;
-		}
-		else {
-			head->prev = elt->prev;
-		}
-	}
-	elt->next = NULL;
-	elt->prev = elt;
-	top->len --;
-
-	return elt;
-}
+UCL_EXTERN ucl_object_t* ucl_array_delete (ucl_object_t *top,
+		ucl_object_t *elt);
 
 /**
  * Returns the first element of the array `top`
  * @param top array ucl object
  * @return element or NULL if `top` is NULL or not an array
  */
-static inline ucl_object_t *
-ucl_array_head (ucl_object_t *top)
-{
-	if (top == NULL || top->type != UCL_ARRAY || top->value.av == NULL) {
-		return NULL;
-	}
-	return top->value.av;
-}
+UCL_EXTERN const ucl_object_t* ucl_array_head (const ucl_object_t *top);
 
 /**
  * Returns the last element of the array `top`
  * @param top array ucl object
  * @return element or NULL if `top` is NULL or not an array
  */
-static inline ucl_object_t *
-ucl_array_tail (ucl_object_t *top)
-{
-	if (top == NULL || top->type != UCL_ARRAY || top->value.av == NULL) {
-		return NULL;
-	}
-	return top->value.av->prev;
-}
+UCL_EXTERN const ucl_object_t* ucl_array_tail (const ucl_object_t *top);
 
 /**
  * Removes the last element from the array `top`. Caller must unref the returned object when it is not
@@ -553,11 +416,16 @@ ucl_array_tail (ucl_object_t *top)
  * @param top array ucl object
  * @return removed element or NULL if `top` is NULL or not an array
  */
-static inline ucl_object_t *
-ucl_array_pop_last (ucl_object_t *top)
-{
-	return ucl_array_delete (top, ucl_array_tail (top));
-}
+UCL_EXTERN ucl_object_t* ucl_array_pop_last (ucl_object_t *top);
+
+/**
+ * Return object identified by an index of the array `top`
+ * @param obj object to get a key from (must be of type UCL_ARRAY)
+ * @param index index to return
+ * @return object at the specified index or NULL if index is not found
+ */
+UCL_EXTERN const ucl_object_t* ucl_array_find_index (const ucl_object_t *top,
+		unsigned int index);
 
 /**
  * Removes the first element from the array `top`. Caller must unref the returned object when it is not
@@ -565,38 +433,16 @@ ucl_array_pop_last (ucl_object_t *top)
  * @param top array ucl object
  * @return removed element or NULL if `top` is NULL or not an array
  */
-static inline ucl_object_t *
-ucl_array_pop_first (ucl_object_t *top)
-{
-	return ucl_array_delete (top, ucl_array_head (top));
-}
+UCL_EXTERN ucl_object_t* ucl_array_pop_first (ucl_object_t *top);
 
 /**
  * Append a element to another element forming an implicit array
  * @param head head to append (may be NULL)
  * @param elt new element
- * @return new head if applicable
+ * @return true if element has been inserted
  */
-static inline ucl_object_t * ucl_elt_append (ucl_object_t *head,
-		ucl_object_t *elt) UCL_WARN_UNUSED_RESULT;
-static inline ucl_object_t *
-ucl_elt_append (ucl_object_t *head, ucl_object_t *elt)
-{
-
-	if (head == NULL) {
-		elt->next = NULL;
-		elt->prev = elt;
-		head = elt;
-	}
-	else {
-		elt->prev = head->prev;
-		head->prev->next = elt;
-		head->prev = elt;
-		elt->next = NULL;
-	}
-
-	return head;
-}
+UCL_EXTERN ucl_object_t * ucl_elt_append (ucl_object_t *head,
+		ucl_object_t *elt);
 
 /**
  * Converts an object to double value
@@ -604,40 +450,14 @@ ucl_elt_append (ucl_object_t *head, ucl_object_t *elt)
  * @param target target double variable
  * @return true if conversion was successful
  */
-static inline bool
-ucl_object_todouble_safe (ucl_object_t *obj, double *target)
-{
-	if (obj == NULL) {
-		return false;
-	}
-	switch (obj->type) {
-	case UCL_INT:
-		*target = obj->value.iv; /* Probaly could cause overflow */
-		break;
-	case UCL_FLOAT:
-	case UCL_TIME:
-		*target = obj->value.dv;
-		break;
-	default:
-		return false;
-	}
-
-	return true;
-}
+UCL_EXTERN bool ucl_object_todouble_safe (const ucl_object_t *obj, double *target);
 
 /**
  * Unsafe version of \ref ucl_obj_todouble_safe
  * @param obj CL object
  * @return double value
  */
-static inline double
-ucl_object_todouble (ucl_object_t *obj)
-{
-	double result = 0.;
-
-	ucl_object_todouble_safe (obj, &result);
-	return result;
-}
+UCL_EXTERN double ucl_object_todouble (const ucl_object_t *obj);
 
 /**
  * Converts an object to integer value
@@ -645,40 +465,14 @@ ucl_object_todouble (ucl_object_t *obj)
  * @param target target integer variable
  * @return true if conversion was successful
  */
-static inline bool
-ucl_object_toint_safe (ucl_object_t *obj, int64_t *target)
-{
-	if (obj == NULL) {
-		return false;
-	}
-	switch (obj->type) {
-	case UCL_INT:
-		*target = obj->value.iv;
-		break;
-	case UCL_FLOAT:
-	case UCL_TIME:
-		*target = obj->value.dv; /* Loosing of decimal points */
-		break;
-	default:
-		return false;
-	}
-
-	return true;
-}
+UCL_EXTERN bool ucl_object_toint_safe (const ucl_object_t *obj, int64_t *target);
 
 /**
  * Unsafe version of \ref ucl_obj_toint_safe
  * @param obj CL object
  * @return int value
  */
-static inline int64_t
-ucl_object_toint (ucl_object_t *obj)
-{
-	int64_t result = 0;
-
-	ucl_object_toint_safe (obj, &result);
-	return result;
-}
+UCL_EXTERN int64_t ucl_object_toint (const ucl_object_t *obj);
 
 /**
  * Converts an object to boolean value
@@ -686,36 +480,14 @@ ucl_object_toint (ucl_object_t *obj)
  * @param target target boolean variable
  * @return true if conversion was successful
  */
-static inline bool
-ucl_object_toboolean_safe (ucl_object_t *obj, bool *target)
-{
-	if (obj == NULL) {
-		return false;
-	}
-	switch (obj->type) {
-	case UCL_BOOLEAN:
-		*target = (obj->value.iv == true);
-		break;
-	default:
-		return false;
-	}
-
-	return true;
-}
+UCL_EXTERN bool ucl_object_toboolean_safe (const ucl_object_t *obj, bool *target);
 
 /**
  * Unsafe version of \ref ucl_obj_toboolean_safe
  * @param obj CL object
  * @return boolean value
  */
-static inline bool
-ucl_object_toboolean (ucl_object_t *obj)
-{
-	bool result = false;
-
-	ucl_object_toboolean_safe (obj, &result);
-	return result;
-}
+UCL_EXTERN bool ucl_object_toboolean (const ucl_object_t *obj);
 
 /**
  * Converts an object to string value
@@ -723,48 +495,21 @@ ucl_object_toboolean (ucl_object_t *obj)
  * @param target target string variable, no need to free value
  * @return true if conversion was successful
  */
-static inline bool
-ucl_object_tostring_safe (ucl_object_t *obj, const char **target)
-{
-	if (obj == NULL) {
-		return false;
-	}
-
-	switch (obj->type) {
-	case UCL_STRING:
-		*target = ucl_copy_value_trash (obj);
-		break;
-	default:
-		return false;
-	}
-
-	return true;
-}
+UCL_EXTERN bool ucl_object_tostring_safe (const ucl_object_t *obj, const char **target);
 
 /**
  * Unsafe version of \ref ucl_obj_tostring_safe
  * @param obj CL object
  * @return string value
  */
-static inline const char *
-ucl_object_tostring (ucl_object_t *obj)
-{
-	const char *result = NULL;
-
-	ucl_object_tostring_safe (obj, &result);
-	return result;
-}
+UCL_EXTERN const char* ucl_object_tostring (const ucl_object_t *obj);
 
 /**
  * Convert any object to a string in JSON notation if needed
  * @param obj CL object
  * @return string value
  */
-static inline const char *
-ucl_object_tostring_forced (ucl_object_t *obj)
-{
-	return ucl_copy_value_trash (obj);
-}
+UCL_EXTERN const char* ucl_object_tostring_forced (const ucl_object_t *obj);
 
 /**
  * Return string as char * and len, string may be not zero terminated, more efficient that \ref ucl_obj_tostring as it
@@ -774,37 +519,15 @@ ucl_object_tostring_forced (ucl_object_t *obj)
  * @param tlen target length
  * @return true if conversion was successful
  */
-static inline bool
-ucl_object_tolstring_safe (ucl_object_t *obj, const char **target, size_t *tlen)
-{
-	if (obj == NULL) {
-		return false;
-	}
-	switch (obj->type) {
-	case UCL_STRING:
-		*target = obj->value.sv;
-		*tlen = obj->len;
-		break;
-	default:
-		return false;
-	}
-
-	return true;
-}
+UCL_EXTERN bool ucl_object_tolstring_safe (const ucl_object_t *obj,
+		const char **target, size_t *tlen);
 
 /**
  * Unsafe version of \ref ucl_obj_tolstring_safe
  * @param obj CL object
  * @return string value
  */
-static inline const char *
-ucl_object_tolstring (ucl_object_t *obj, size_t *tlen)
-{
-	const char *result = NULL;
-
-	ucl_object_tolstring_safe (obj, &result, tlen);
-	return result;
-}
+UCL_EXTERN const char* ucl_object_tolstring (const ucl_object_t *obj, size_t *tlen);
 
 /**
  * Return object identified by a key in the specified object
@@ -812,7 +535,8 @@ ucl_object_tolstring (ucl_object_t *obj, size_t *tlen)
  * @param key key to search
  * @return object matched the specified key or NULL if key is not found
  */
-UCL_EXTERN ucl_object_t * ucl_object_find_key (ucl_object_t *obj, const char *key);
+UCL_EXTERN const ucl_object_t* ucl_object_find_key (const ucl_object_t *obj,
+		const char *key);
 
 /**
  * Return object identified by a fixed size key in the specified object
@@ -821,18 +545,24 @@ UCL_EXTERN ucl_object_t * ucl_object_find_key (ucl_object_t *obj, const char *ke
  * @param klen length of a key
  * @return object matched the specified key or NULL if key is not found
  */
-UCL_EXTERN ucl_object_t *ucl_object_find_keyl (ucl_object_t *obj, const char *key, size_t klen);
+UCL_EXTERN const ucl_object_t* ucl_object_find_keyl (const ucl_object_t *obj,
+		const char *key, size_t klen);
+
+/**
+ * Return object identified by dot notation string
+ * @param obj object to search in
+ * @param path dot.notation.path to the path to lookup. May use numeric .index on arrays
+ * @return object matched the specified path or NULL if path is not found
+ */
+UCL_EXTERN const ucl_object_t *ucl_lookup_path (const ucl_object_t *obj,
+		const char *path);
 
 /**
  * Returns a key of an object as a NULL terminated string
  * @param obj CL object
  * @return key or NULL if there is no key
  */
-static inline const char *
-ucl_object_key (ucl_object_t *obj)
-{
-	return ucl_copy_key_trash (obj);
-}
+UCL_EXTERN const char* ucl_object_key (const ucl_object_t *obj);
 
 /**
  * Returns a key of an object as a fixed size string (may be more efficient)
@@ -840,39 +570,47 @@ ucl_object_key (ucl_object_t *obj)
  * @param len target key length
  * @return key pointer
  */
-static inline const char *
-ucl_object_keyl (ucl_object_t *obj, size_t *len)
-{
-	*len = obj->keylen;
-	return obj->key;
-}
-
-/**
- * Free ucl object
- * @param obj ucl object to free
- */
-UCL_EXTERN void ucl_object_free (ucl_object_t *obj);
+UCL_EXTERN const char* ucl_object_keyl (const ucl_object_t *obj, size_t *len);
 
 /**
  * Increase reference count for an object
  * @param obj object to ref
  */
-static inline ucl_object_t *
-ucl_object_ref (ucl_object_t *obj) {
-	obj->ref ++;
-	return obj;
-}
+UCL_EXTERN ucl_object_t* ucl_object_ref (const ucl_object_t *obj);
+
+/**
+ * Free ucl object
+ * @param obj ucl object to free
+ */
+UCL_DEPRECATED(UCL_EXTERN void ucl_object_free (ucl_object_t *obj));
 
 /**
  * Decrease reference count for an object
  * @param obj object to unref
  */
-static inline void
-ucl_object_unref (ucl_object_t *obj) {
-	if (obj != NULL && --obj->ref <= 0) {
-		ucl_object_free (obj);
-	}
-}
+UCL_EXTERN void ucl_object_unref (ucl_object_t *obj);
+
+/**
+ * Compare objects `o1` and `o2`
+ * @param o1 the first object
+ * @param o2 the second object
+ * @return values >0, 0 and <0 if `o1` is more than, equal and less than `o2`.
+ * The order of comparison:
+ * 1) Type of objects
+ * 2) Size of objects
+ * 3) Content of objects
+ */
+UCL_EXTERN int ucl_object_compare (const ucl_object_t *o1,
+		const ucl_object_t *o2);
+
+/**
+ * Sort UCL array using `cmp` compare function
+ * @param ar
+ * @param cmp
+ */
+UCL_EXTERN void ucl_object_array_sort (ucl_object_t *ar,
+		int (*cmp)(const ucl_object_t *o1, const ucl_object_t *o2));
+
 /**
  * Opaque iterator object
  */
@@ -886,7 +624,8 @@ typedef void* ucl_object_iter_t;
  * while ((cur = ucl_iterate_object (obj, &it)) != NULL) ...
  * @return the next object or NULL
  */
-UCL_EXTERN ucl_object_t* ucl_iterate_object (ucl_object_t *obj, ucl_object_iter_t *iter, bool expand_values);
+UCL_EXTERN const ucl_object_t* ucl_iterate_object (const ucl_object_t *obj,
+		ucl_object_iter_t *iter, bool expand_values);
 /** @} */
 
 
@@ -928,6 +667,19 @@ UCL_EXTERN void ucl_parser_register_macro (struct ucl_parser *parser, const char
 		ucl_macro_handler handler, void* ud);
 
 /**
+ * Handler to detect unregistered variables
+ * @param data variable data
+ * @param len length of variable
+ * @param replace (out) replace value for variable
+ * @param replace_len (out) replace length for variable
+ * @param need_free (out) UCL will free `dest` after usage
+ * @param ud opaque userdata
+ * @return true if variable
+ */
+typedef bool (*ucl_variable_handler) (const unsigned char *data, size_t len,
+		unsigned char **replace, size_t *replace_len, bool *need_free, void* ud);
+
+/**
  * Register new parser variable
  * @param parser parser object
  * @param var variable name
@@ -937,6 +689,15 @@ UCL_EXTERN void ucl_parser_register_variable (struct ucl_parser *parser, const c
 		const char *value);
 
 /**
+ * Set handler for unknown variables
+ * @param parser parser structure
+ * @param handler desired handler
+ * @param ud opaque data for the handler
+ */
+UCL_EXTERN void ucl_parser_set_variables_handler (struct ucl_parser *parser,
+		ucl_variable_handler handler, void *ud);
+
+/**
  * Load new chunk to a parser
  * @param parser parser structure
  * @param data the pointer to the beginning of a chunk
@@ -944,7 +705,18 @@ UCL_EXTERN void ucl_parser_register_variable (struct ucl_parser *parser, const c
  * @param err if *err is NULL it is set to parser error
  * @return true if chunk has been added and false in case of error
  */
-UCL_EXTERN bool ucl_parser_add_chunk (struct ucl_parser *parser, const unsigned char *data, size_t len);
+UCL_EXTERN bool ucl_parser_add_chunk (struct ucl_parser *parser,
+		const unsigned char *data, size_t len);
+
+/**
+ * Load ucl object from a string
+ * @param parser parser structure
+ * @param data the pointer to the string
+ * @param len the length of the string, if `len` is 0 then `data` must be zero-terminated string
+ * @return true if string has been added and false in case of error
+ */
+UCL_EXTERN bool ucl_parser_add_string (struct ucl_parser *parser,
+		const char *data,size_t len);
 
 /**
  * Load and add data from a file
@@ -953,10 +725,21 @@ UCL_EXTERN bool ucl_parser_add_chunk (struct ucl_parser *parser, const unsigned 
  * @param err if *err is NULL it is set to parser error
  * @return true if chunk has been added and false in case of error
  */
-UCL_EXTERN bool ucl_parser_add_file (struct ucl_parser *parser, const char *filename);
+UCL_EXTERN bool ucl_parser_add_file (struct ucl_parser *parser,
+		const char *filename);
 
 /**
- * Get a top object for a parser
+ * Load and add data from a file descriptor
+ * @param parser parser structure
+ * @param filename the name of file
+ * @param err if *err is NULL it is set to parser error
+ * @return true if chunk has been added and false in case of error
+ */
+UCL_EXTERN bool ucl_parser_add_fd (struct ucl_parser *parser,
+		int fd);
+
+/**
+ * Get a top object for a parser (refcount is increased)
  * @param parser parser structure
  * @param err if *err is NULL it is set to parser error
  * @return top parser object or NULL
@@ -1026,7 +809,8 @@ struct ucl_emitter_functions {
  * #UCL_EMIT_CONFIG then emit config like object
  * @return dump of an object (must be freed after using) or NULL in case of error
  */
-UCL_EXTERN unsigned char *ucl_object_emit (ucl_object_t *obj, enum ucl_emitter emit_type);
+UCL_EXTERN unsigned char *ucl_object_emit (const ucl_object_t *obj,
+		enum ucl_emitter emit_type);
 
 /**
  * Emit object to a string
@@ -1035,8 +819,51 @@ UCL_EXTERN unsigned char *ucl_object_emit (ucl_object_t *obj, enum ucl_emitter e
  * #UCL_EMIT_CONFIG then emit config like object
  * @return dump of an object (must be freed after using) or NULL in case of error
  */
-UCL_EXTERN bool ucl_object_emit_full (ucl_object_t *obj, enum ucl_emitter emit_type,
+UCL_EXTERN bool ucl_object_emit_full (const ucl_object_t *obj,
+		enum ucl_emitter emit_type,
 		struct ucl_emitter_functions *emitter);
+/** @} */
+
+/**
+ * @defgroup schema Schema functions
+ * These functions are used to validate UCL objects using json schema format
+ *
+ * @{
+ */
+
+/**
+ * Used to define UCL schema error
+ */
+enum ucl_schema_error_code {
+	UCL_SCHEMA_OK = 0,          /**< no error */
+	UCL_SCHEMA_TYPE_MISMATCH,   /**< type of object is incorrect */
+	UCL_SCHEMA_INVALID_SCHEMA,  /**< schema is invalid */
+	UCL_SCHEMA_MISSING_PROPERTY,/**< one or more missing properties */
+	UCL_SCHEMA_CONSTRAINT,      /**< constraint found */
+	UCL_SCHEMA_MISSING_DEPENDENCY, /**< missing dependency */
+	UCL_SCHEMA_UNKNOWN          /**< generic error */
+};
+
+/**
+ * Generic ucl schema error
+ */
+struct ucl_schema_error {
+	enum ucl_schema_error_code code;	/**< error code */
+	char msg[128];						/**< error message */
+	const ucl_object_t *obj;			/**< object where error occured */
+};
+
+/**
+ * Validate object `obj` using schema object `schema`.
+ * @param schema schema object
+ * @param obj object to validate
+ * @param err error pointer, if this parameter is not NULL and error has been
+ * occured, then `err` is filled with the exact error definition.
+ * @return true if `obj` is valid using `schema`
+ */
+UCL_EXTERN bool ucl_object_validate (const ucl_object_t *schema,
+		const ucl_object_t *obj, struct ucl_schema_error *err);
+
 /** @} */
 
 #ifdef  __cplusplus

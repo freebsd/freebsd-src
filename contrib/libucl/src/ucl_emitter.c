@@ -21,11 +21,19 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <float.h>
-#include <math.h>
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
+
 #include "ucl.h"
 #include "ucl_internal.h"
 #include "ucl_chartable.h"
+#ifdef HAVE_FLOAT_H
+#include <float.h>
+#endif
+#ifdef HAVE_MATH_H
+#include <math.h>
+#endif
 
 /**
  * @file rcl_emitter.c
@@ -33,29 +41,29 @@
  */
 
 
-static void ucl_obj_write_json (ucl_object_t *obj,
+static void ucl_obj_write_json (const ucl_object_t *obj,
 		struct ucl_emitter_functions *func,
 		unsigned int tabs,
 		bool start_tabs,
 		bool compact);
-static void ucl_elt_write_json (ucl_object_t *obj,
+static void ucl_elt_write_json (const ucl_object_t *obj,
 		struct ucl_emitter_functions *func,
 		unsigned int tabs,
 		bool start_tabs,
 		bool compact);
-static void ucl_elt_write_config (ucl_object_t *obj,
+static void ucl_elt_write_config (const ucl_object_t *obj,
 		struct ucl_emitter_functions *func,
 		unsigned int tabs,
 		bool start_tabs,
 		bool is_top,
 		bool expand_array);
-static void ucl_elt_write_yaml (ucl_object_t *obj,
+static void ucl_elt_write_yaml (const ucl_object_t *obj,
 		struct ucl_emitter_functions *func,
 		unsigned int tabs,
 		bool start_tabs,
 		bool compact,
 		bool expand_array);
-static void ucl_elt_array_write_yaml (ucl_object_t *obj,
+static void ucl_elt_array_write_yaml (const ucl_object_t *obj,
 		struct ucl_emitter_functions *func,
 		unsigned int tabs,
 		bool start_tabs,
@@ -136,10 +144,10 @@ ucl_elt_string_write_json (const char *str, size_t size,
  * @param buf target buffer
  */
 static void
-ucl_elt_obj_write_json (ucl_object_t *obj, struct ucl_emitter_functions *func,
+ucl_elt_obj_write_json (const ucl_object_t *obj, struct ucl_emitter_functions *func,
 		unsigned int tabs, bool start_tabs, bool compact)
 {
-	ucl_object_t *cur;
+	const ucl_object_t *cur;
 	ucl_hash_iter_t it = NULL;
 
 	if (start_tabs) {
@@ -188,10 +196,10 @@ ucl_elt_obj_write_json (ucl_object_t *obj, struct ucl_emitter_functions *func,
  * @param buf target buffer
  */
 static void
-ucl_elt_array_write_json (ucl_object_t *obj, struct ucl_emitter_functions *func,
+ucl_elt_array_write_json (const ucl_object_t *obj, struct ucl_emitter_functions *func,
 		unsigned int tabs, bool start_tabs, bool compact)
 {
-	ucl_object_t *cur = obj;
+	const ucl_object_t *cur = obj;
 
 	if (start_tabs) {
 		ucl_add_tabs (func, tabs, compact);
@@ -227,7 +235,7 @@ ucl_elt_array_write_json (ucl_object_t *obj, struct ucl_emitter_functions *func,
  * @param buf buffer
  */
 static void
-ucl_elt_write_json (ucl_object_t *obj, struct ucl_emitter_functions *func,
+ucl_elt_write_json (const ucl_object_t *obj, struct ucl_emitter_functions *func,
 		unsigned int tabs, bool start_tabs, bool compact)
 {
 	bool flag;
@@ -287,10 +295,10 @@ ucl_elt_write_json (ucl_object_t *obj, struct ucl_emitter_functions *func,
  * @param buf target buffer
  */
 static void
-ucl_obj_write_json (ucl_object_t *obj, struct ucl_emitter_functions *func,
+ucl_obj_write_json (const ucl_object_t *obj, struct ucl_emitter_functions *func,
 		unsigned int tabs, bool start_tabs, bool compact)
 {
-	ucl_object_t *cur;
+	const ucl_object_t *cur;
 	bool is_array = (obj->next != NULL);
 
 	if (is_array) {
@@ -331,7 +339,8 @@ ucl_obj_write_json (ucl_object_t *obj, struct ucl_emitter_functions *func,
  * @return json output (should be freed after using)
  */
 static void
-ucl_object_emit_json (ucl_object_t *obj, bool compact, struct ucl_emitter_functions *func)
+ucl_object_emit_json (const ucl_object_t *obj, bool compact,
+		struct ucl_emitter_functions *func)
 {
 	ucl_obj_write_json (obj, func, 0, false, compact);
 }
@@ -342,10 +351,10 @@ ucl_object_emit_json (ucl_object_t *obj, bool compact, struct ucl_emitter_functi
  * @param buf target buffer
  */
 static void
-ucl_elt_obj_write_config (ucl_object_t *obj, struct ucl_emitter_functions *func,
+ucl_elt_obj_write_config (const ucl_object_t *obj, struct ucl_emitter_functions *func,
 		unsigned int tabs, bool start_tabs, bool is_top)
 {
-	ucl_object_t *cur, *cur_obj;
+	const ucl_object_t *cur, *cur_obj;
 	ucl_hash_iter_t it = NULL;
 
 	if (start_tabs) {
@@ -394,10 +403,10 @@ ucl_elt_obj_write_config (ucl_object_t *obj, struct ucl_emitter_functions *func,
  * @param buf target buffer
  */
 static void
-ucl_elt_array_write_config (ucl_object_t *obj, struct ucl_emitter_functions *func,
+ucl_elt_array_write_config (const ucl_object_t *obj, struct ucl_emitter_functions *func,
 		unsigned int tabs, bool start_tabs, bool is_top)
 {
-	ucl_object_t *cur = obj;
+	const ucl_object_t *cur = obj;
 
 	if (start_tabs) {
 		ucl_add_tabs (func, tabs, false);
@@ -419,7 +428,7 @@ ucl_elt_array_write_config (ucl_object_t *obj, struct ucl_emitter_functions *fun
  * @param buf buffer
  */
 static void
-ucl_elt_write_config (ucl_object_t *obj, struct ucl_emitter_functions *func,
+ucl_elt_write_config (const ucl_object_t *obj, struct ucl_emitter_functions *func,
 		unsigned int tabs, bool start_tabs, bool is_top, bool expand_array)
 {
 	bool flag;
@@ -484,14 +493,14 @@ ucl_elt_write_config (ucl_object_t *obj, struct ucl_emitter_functions *func,
  * @return rcl output (should be freed after using)
  */
 static void
-ucl_object_emit_config (ucl_object_t *obj, struct ucl_emitter_functions *func)
+ucl_object_emit_config (const ucl_object_t *obj, struct ucl_emitter_functions *func)
 {
 	ucl_elt_write_config (obj, func, 0, false, true, true);
 }
 
 
 static void
-ucl_obj_write_yaml (ucl_object_t *obj, struct ucl_emitter_functions *func,
+ucl_obj_write_yaml (const ucl_object_t *obj, struct ucl_emitter_functions *func,
 		unsigned int tabs, bool start_tabs)
 {
 	bool is_array = (obj->next != NULL);
@@ -510,10 +519,10 @@ ucl_obj_write_yaml (ucl_object_t *obj, struct ucl_emitter_functions *func,
  * @param buf target buffer
  */
 static void
-ucl_elt_obj_write_yaml (ucl_object_t *obj, struct ucl_emitter_functions *func,
+ucl_elt_obj_write_yaml (const ucl_object_t *obj, struct ucl_emitter_functions *func,
 		unsigned int tabs, bool start_tabs, bool is_top)
 {
-	ucl_object_t *cur;
+	const ucl_object_t *cur;
 	ucl_hash_iter_t it = NULL;
 
 	if (start_tabs) {
@@ -558,10 +567,10 @@ ucl_elt_obj_write_yaml (ucl_object_t *obj, struct ucl_emitter_functions *func,
  * @param buf target buffer
  */
 static void
-ucl_elt_array_write_yaml (ucl_object_t *obj, struct ucl_emitter_functions *func,
+ucl_elt_array_write_yaml (const ucl_object_t *obj, struct ucl_emitter_functions *func,
 		unsigned int tabs, bool start_tabs, bool is_top)
 {
-	ucl_object_t *cur = obj;
+	const ucl_object_t *cur = obj;
 
 	if (start_tabs) {
 		ucl_add_tabs (func, tabs, false);
@@ -583,7 +592,7 @@ ucl_elt_array_write_yaml (ucl_object_t *obj, struct ucl_emitter_functions *func,
  * @param buf buffer
  */
 static void
-ucl_elt_write_yaml (ucl_object_t *obj, struct ucl_emitter_functions *func,
+ucl_elt_write_yaml (const ucl_object_t *obj, struct ucl_emitter_functions *func,
 		unsigned int tabs, bool start_tabs, bool is_top, bool expand_array)
 {
 	bool flag;
@@ -648,7 +657,7 @@ ucl_elt_write_yaml (ucl_object_t *obj, struct ucl_emitter_functions *func,
  * @return rcl output (should be freed after using)
  */
 static void
-ucl_object_emit_yaml (ucl_object_t *obj, struct ucl_emitter_functions *func)
+ucl_object_emit_yaml (const ucl_object_t *obj, struct ucl_emitter_functions *func)
 {
 	ucl_elt_write_yaml (obj, func, 0, false, true, true);
 }
@@ -715,7 +724,7 @@ ucl_utstring_append_double (double val, void *ud)
 
 
 unsigned char *
-ucl_object_emit (ucl_object_t *obj, enum ucl_emitter emit_type)
+ucl_object_emit (const ucl_object_t *obj, enum ucl_emitter emit_type)
 {
 	UT_string *buf = NULL;
 	unsigned char *res = NULL;
@@ -755,7 +764,7 @@ ucl_object_emit (ucl_object_t *obj, enum ucl_emitter emit_type)
 }
 
 bool
-ucl_object_emit_full (ucl_object_t *obj, enum ucl_emitter emit_type,
+ucl_object_emit_full (const ucl_object_t *obj, enum ucl_emitter emit_type,
 		struct ucl_emitter_functions *emitter)
 {
 	if (emit_type == UCL_EMIT_JSON) {
@@ -777,7 +786,7 @@ ucl_object_emit_full (ucl_object_t *obj, enum ucl_emitter emit_type,
 
 
 unsigned char *
-ucl_object_emit_single_json (ucl_object_t *obj)
+ucl_object_emit_single_json (const ucl_object_t *obj)
 {
 	UT_string *buf = NULL;
 	unsigned char *res = NULL;
