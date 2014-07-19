@@ -276,7 +276,7 @@ zfs_znode_move(void *buf, void *newbuf, size_t size, void *arg)
 	 * can safely ensure that the filesystem is not and will not be
 	 * unmounted. The next statement is equivalent to ZFS_ENTER().
 	 */
-	rrw_enter(&zfsvfs->z_teardown_lock, RW_READER, FTAG);
+	rrm_enter(&zfsvfs->z_teardown_lock, RW_READER, FTAG);
 	if (zfsvfs->z_unmounted) {
 		ZFS_EXIT(zfsvfs);
 		rw_exit(&zfsvfs_lock);
