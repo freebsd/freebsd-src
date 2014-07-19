@@ -1661,6 +1661,11 @@ ucl_state_machine (struct ucl_parser *parser)
 				return false;
 			}
 			else {
+				/* Skip any spaces */
+				while (p < chunk->end && ucl_test_character (*p,
+						UCL_CHARACTER_WHITESPACE_UNSAFE)) {
+					ucl_chunk_skipc (chunk, p);
+				}
 				p = chunk->pos;
 				if (*p == '[') {
 					parser->state = UCL_STATE_VALUE;
