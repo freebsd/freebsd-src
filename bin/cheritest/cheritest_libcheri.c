@@ -175,20 +175,41 @@ test_sandbox_cp2_bound_nocatch(void)
 }
 
 void
-test_sandbox_cp2_perm_catch(void)
+test_sandbox_cp2_perm_load_catch(void)
 {
 
-	test_sandbox_op(CHERITEST_HELPER_OP_CP2_PERM);
+	test_sandbox_op(CHERITEST_HELPER_OP_CP2_PERM_LOAD);
 	cheritest_failure_errx("invoke returned");
 }
 
 void
-test_sandbox_cp2_perm_nocatch(void)
+test_sandbox_cp2_perm_load_nocatch(void)
 {
 	register_t v;
 
 	signal_handler_clear(SIGPROT);
-	v = test_sandbox_op(CHERITEST_HELPER_OP_CP2_PERM);
+	v = test_sandbox_op(CHERITEST_HELPER_OP_CP2_PERM_LOAD);
+	if (v != -1)
+		cheritest_failure_errx("invoke returned %d (expected %d)", v,
+		    -1);
+	cheritest_success();
+}
+
+void
+test_sandbox_cp2_perm_store_catch(void)
+{
+
+	test_sandbox_op(CHERITEST_HELPER_OP_CP2_PERM_STORE);
+	cheritest_failure_errx("invoke returned");
+}
+
+void
+test_sandbox_cp2_perm_store_nocatch(void)
+{
+	register_t v;
+
+	signal_handler_clear(SIGPROT);
+	v = test_sandbox_op(CHERITEST_HELPER_OP_CP2_PERM_STORE);
 	if (v != -1)
 		cheritest_failure_errx("invoke returned %d (expected %d)", v,
 		    -1);
@@ -271,7 +292,7 @@ test_sandbox_vm_rfault_nocatch(void)
 {
 	register_t v;
 
-	signal_handler_clear(SIGSEGV);
+	signal_handler_clear(SIGBUS);
 	v = test_sandbox_op(CHERITEST_HELPER_OP_VM_RFAULT);
 	if (v != -1)
 		cheritest_failure_errx("invoke returned %d (expected %d)", v,
@@ -292,7 +313,7 @@ test_sandbox_vm_wfault_nocatch(void)
 {
 	register_t v;
 
-	signal_handler_clear(SIGSEGV);
+	signal_handler_clear(SIGBUS);
 	v = test_sandbox_op(CHERITEST_HELPER_OP_VM_WFAULT);
 	if (v != -1)
 		cheritest_failure_errx("invoke returned %d (expected %d)", v,
@@ -497,7 +518,9 @@ cheritest_libcheri_setup(void)
 	(void)sandbox_class_method_declare(cheritest_classp,
 	    CHERITEST_HELPER_OP_CP2_BOUND, "cp2_bound");
 	(void)sandbox_class_method_declare(cheritest_classp,
-	    CHERITEST_HELPER_OP_CP2_PERM, "cp2_perm");
+	    CHERITEST_HELPER_OP_CP2_PERM_LOAD, "cp2_perm_load");
+	(void)sandbox_class_method_declare(cheritest_classp,
+	    CHERITEST_HELPER_OP_CP2_PERM_STORE, "cp2_perm_store");
 	(void)sandbox_class_method_declare(cheritest_classp,
 	    CHERITEST_HELPER_OP_CP2_TAG, "cp2_tag");
 	(void)sandbox_class_method_declare(cheritest_classp,
@@ -524,6 +547,14 @@ cheritest_libcheri_setup(void)
 	    CHERITEST_HELPER_OP_MALLOC, "malloc");
 	(void)sandbox_class_method_declare(cheritest_classp,
 	    CHERITEST_HELPER_OP_CS_CLOCK_GETTIME, "clock_gettime");
+	(void)sandbox_class_method_declare(cheritest_classp,
+	    CHERITEST_HELPER_LIBCHERI_USERFN, "libcheri_fn");
+	(void)sandbox_class_method_declare(cheritest_classp,
+	    CHERITEST_HELPER_LIBCHERI_USERFN_SETSTACK,
+	    "libcheri_userfn_setstack");
+	(void)sandbox_class_method_declare(cheritest_classp,
+	    CHERITEST_HELPER_SAVE_CAPABILITY_IN_HEAP,
+	    "save_capability_in_heap");
 
 	cheri_system_user_register_fn(&cheritest_libcheri_userfn_handler);
 

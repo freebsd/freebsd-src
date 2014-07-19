@@ -81,22 +81,30 @@ invoke_cap_fault(register_t op)
 	char buffer[N], ch;
 	__capability char *cap;
 
-	cap = cheri_ptrperm(buffer, sizeof(buffer), CHERI_PERM_LOAD);
 	switch (op) {
 	case CHERITEST_HELPER_OP_CP2_BOUND:
+		cap = cheri_ptrperm(buffer, sizeof(buffer), CHERI_PERM_LOAD);
 		ch = cap[N];
 		return (ch);
 
-	case CHERITEST_HELPER_OP_CP2_PERM:
+	case CHERITEST_HELPER_OP_CP2_PERM_LOAD:
+		cap = cheri_ptrperm(buffer, sizeof(buffer), CHERI_PERM_STORE);
+		ch = cap[0];
+		return (ch);
+
+	case CHERITEST_HELPER_OP_CP2_PERM_STORE:
+		cap = cheri_ptrperm(buffer, sizeof(buffer), CHERI_PERM_LOAD);
 		cap[0] = 0;
-		break;
+		return (0);
 
 	case CHERITEST_HELPER_OP_CP2_TAG:
+		cap = cheri_ptrperm(buffer, sizeof(buffer), CHERI_PERM_LOAD);
 		cap = cheri_ccleartag(cap);
 		ch = cap[0];
 		return (ch);
 
 	case CHERITEST_HELPER_OP_CP2_SEAL:
+		cap = cheri_ptrperm(buffer, sizeof(buffer), CHERI_PERM_LOAD);
 		cap = cheri_sealcode(cap);
 		ch = cap[0];
 		return (ch);
@@ -298,7 +306,8 @@ invoke(register_t op, register_t arg, size_t len,
 		while (1);
 
 	case CHERITEST_HELPER_OP_CP2_BOUND:
-	case CHERITEST_HELPER_OP_CP2_PERM:
+	case CHERITEST_HELPER_OP_CP2_PERM_LOAD:
+	case CHERITEST_HELPER_OP_CP2_PERM_STORE:
 	case CHERITEST_HELPER_OP_CP2_TAG:
 	case CHERITEST_HELPER_OP_CP2_SEAL:
 		return (invoke_cap_fault(op));

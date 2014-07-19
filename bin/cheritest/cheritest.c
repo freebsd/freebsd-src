@@ -258,18 +258,31 @@ static const struct cheri_test {
 	  .ct_desc = "Exercise sandboxed CP2 bounds-check failure; uncaught",
 	  .ct_func = test_sandbox_cp2_bound_nocatch },
 
-	{ .ct_name = "test_sandbox_cp2_perm_catch",
-	  .ct_desc = "Exercise sandboxed CP2 perm-check failure; caught",
-	  .ct_func = test_sandbox_cp2_perm_catch,
+	{ .ct_name = "test_sandbox_cp2_perm_load_catch",
+	  .ct_desc = "Exercise sandboxed CP2 load-perm-check failure; caught",
+	  .ct_func = test_sandbox_cp2_perm_load_catch,
+	  .ct_flags = CT_FLAG_SIGNAL | CT_FLAG_MIPS_EXCCODE |
+		    CT_FLAG_CP2_EXCCODE,
+	  .ct_signum = SIGPROT,
+	  .ct_mips_exccode = T_C2E,
+	  .ct_cp2_exccode = CHERI_EXCCODE_PERM_LOAD },
+
+	{ .ct_name = "test_sandbox_cp2_perm_load_nocatch",
+	  .ct_desc = "Exercise sandboxed CP2 load-perm-check failure; uncaught",
+	  .ct_func = test_sandbox_cp2_perm_load_nocatch, },
+
+	{ .ct_name = "test_sandbox_cp2_perm_store_catch",
+	  .ct_desc = "Exercise sandboxed CP2 store-perm-check failure; caught",
+	  .ct_func = test_sandbox_cp2_perm_store_catch,
 	  .ct_flags = CT_FLAG_SIGNAL | CT_FLAG_MIPS_EXCCODE |
 		    CT_FLAG_CP2_EXCCODE,
 	  .ct_signum = SIGPROT,
 	  .ct_mips_exccode = T_C2E,
 	  .ct_cp2_exccode = CHERI_EXCCODE_PERM_STORE },
 
-	{ .ct_name = "test_sandbox_cp2_perm_nocatch",
-	  .ct_desc = "Exercise sandboxed CP2 perm-check failure; uncaught",
-	  .ct_func = test_sandbox_cp2_perm_nocatch, },
+	{ .ct_name = "test_sandbox_cp2_perm_store_nocatch",
+	  .ct_desc = "Exercise sandboxed CP2 store-perm-check failure; uncaught",
+	  .ct_func = test_sandbox_cp2_perm_store_nocatch, },
 
 	{ .ct_name = "test_sandbox_cp2_tag_catch",
 	  .ct_desc = "Exercise sandboxed CP2 tag-check failure; caught",
@@ -291,7 +304,7 @@ static const struct cheri_test {
 		    CT_FLAG_CP2_EXCCODE,
 	  .ct_signum = SIGPROT,
 	  .ct_mips_exccode = T_C2E,
-	  .ct_cp2_exccode = CHERI_EXCCODE_SEAL },
+	  .ct_cp2_exccode = CHERI_EXCCODE_PERM_SEAL },
 
 	{ .ct_name = "test_sandbox_cp2_seal_nocatch",
 	  .ct_desc = "Exercise sandboxed CP2 seal failure; uncaught",
@@ -300,11 +313,9 @@ static const struct cheri_test {
 	{ .ct_name = "test_sandbox_divzero_catch",
 	  .ct_desc = "Exercise sandboxed divide-by-zero exception; caught",
 	  .ct_func = test_sandbox_divzero_catch,
-	  .ct_flags = CT_FLAG_SIGNAL | CT_FLAG_MIPS_EXCCODE |
-		    CT_FLAG_CP2_EXCCODE,
-	  .ct_signum = SIGPROT,
-	  .ct_mips_exccode = T_C2E,
-	  .ct_cp2_exccode = CHERI_EXCCODE_TAG },
+	  .ct_flags = CT_FLAG_SIGNAL | CT_FLAG_MIPS_EXCCODE,
+	  .ct_signum = SIGEMT,
+	  .ct_mips_exccode = T_TRAP },
 
 	{ .ct_name = "test_sandbox_divzero_nocatch",
 	  .ct_desc = "Exercise sandboxed divide-by-zero exception; uncaught",
@@ -313,11 +324,9 @@ static const struct cheri_test {
 	{ .ct_name = "test_sandbox_vm_rfault_catch",
 	  .ct_desc = "Exercise sandboxed VM read fault; caught",
 	  .ct_func = test_sandbox_vm_rfault_catch,
-	  .ct_flags = CT_FLAG_SIGNAL | CT_FLAG_MIPS_EXCCODE |
-		    CT_FLAG_CP2_EXCCODE,
-	  .ct_signum = SIGPROT,
-	  .ct_mips_exccode = T_C2E,
-	  .ct_cp2_exccode = CHERI_EXCCODE_TAG },
+	  .ct_flags = CT_FLAG_SIGNAL | CT_FLAG_MIPS_EXCCODE,
+	  .ct_signum = SIGBUS,
+	  .ct_mips_exccode = T_TLB_LD_MISS },
 
 	{ .ct_name = "test_sandbox_vm_rfault_nocatch",
 	  .ct_desc = "Exercise sandboxed VM read fault; uncaught",
@@ -326,11 +335,9 @@ static const struct cheri_test {
 	{ .ct_name = "test_sandbox_vm_wfault_catch",
 	  .ct_desc = "Exercise sandboxed VM write fault; caught",
 	  .ct_func = test_sandbox_vm_wfault_catch,
-	  .ct_flags = CT_FLAG_SIGNAL | CT_FLAG_MIPS_EXCCODE |
-		    CT_FLAG_CP2_EXCCODE,
-	  .ct_signum = SIGPROT,
-	  .ct_mips_exccode = T_C2E,
-	  .ct_cp2_exccode = CHERI_EXCCODE_TAG },
+	  .ct_flags = CT_FLAG_SIGNAL | CT_FLAG_MIPS_EXCCODE,
+	  .ct_signum = SIGBUS,
+	  .ct_mips_exccode = T_TLB_ST_MISS },
 
 	{ .ct_name = "test_sandbox_vm_wfault_nocatch",
 	  .ct_desc = "Exercise sandboxed VM write fault; uncaught",
@@ -339,14 +346,12 @@ static const struct cheri_test {
 	{ .ct_name = "test_sandbox_vm_xfault_catch",
 	  .ct_desc = "Exercise sandboxed VM exec fault; caught",
 	  .ct_func = test_sandbox_vm_xfault_catch,
-	  .ct_flags = CT_FLAG_SIGNAL | CT_FLAG_MIPS_EXCCODE |
-		    CT_FLAG_CP2_EXCCODE,
-	  .ct_signum = SIGPROT,
-	  .ct_mips_exccode = T_C2E,
-	  .ct_cp2_exccode = CHERI_EXCCODE_TAG },
+	  .ct_flags = CT_FLAG_SIGNAL | CT_FLAG_MIPS_EXCCODE,
+	  .ct_signum = SIGBUS,
+	  .ct_mips_exccode = T_TLB_LD_MISS },
 
 	{ .ct_name = "test_sandbox_vm_xfault_nocatch",
-	  .ct_desc = "Exercise sandboxed VM exec fault; caught",
+	  .ct_desc = "Exercise sandboxed VM exec fault; uncaught",
 	  .ct_func = test_sandbox_vm_xfault_nocatch },
 
 	{ .ct_name = "invoke_helloworld",
@@ -512,6 +517,10 @@ cheritest_run_test(const struct cheri_test *ctp)
 			err(EX_OSERR, "sigaction(SIGSEGV)");
 		if (sigaction(SIGBUS, &sa, NULL) < 0)
 			err(EX_OSERR, "sigaction(SIGBUS");
+		if (sigaction(SIGEMT, &sa, NULL) < 0)
+			err(EX_OSERR, "sigaction(SIGEMT)");
+		if (sigaction(SIGTRAP, &sa, NULL) < 0)
+			err(EX_OSERR, "sigaction(SIGEMT)");
 
 		/* Run the actual test. */
 		if (ctp->ct_arg != 0)
