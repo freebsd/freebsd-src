@@ -97,6 +97,7 @@ struct vcpu {
 	int		hostcpu;	/* (o) vcpu's host cpu */
 	struct vlapic	*vlapic;	/* (i) APIC device model */
 	enum x2apic_state x2apic_state;	/* (i) APIC mode */
+	uint64_t	exitintinfo;	/* (i) events pending at VM exit */
 	int		nmi_pending;	/* (i) NMI pending */
 	int		extint_pending;	/* (i) INTR pending */
 	struct vm_exception exception;	/* (x) exception collateral */
@@ -241,6 +242,7 @@ vcpu_init(struct vm *vm, int vcpu_id, bool create)
 
 	vcpu->vlapic = VLAPIC_INIT(vm->cookie, vcpu_id);
 	vm_set_x2apic_state(vm, vcpu_id, X2APIC_DISABLED);
+	vcpu->exitintinfo = 0;
 	vcpu->nmi_pending = 0;
 	vcpu->extint_pending = 0;
 	vcpu->exception_pending = 0;
@@ -1458,6 +1460,202 @@ restart:
 }
 
 int
+vm_exit_intinfo(struct vm *vm, int vcpuid, uint64_t info)
+{
+	struct vcpu *vcpu;
+	int type, vector;
+
+	if (vcpuid < 0 || vcpuid >= VM_MAXCPU)
+		return (EINVAL);
+
+	vcpu = &vm->vcpu[vcpuid];
+
+	if (info & VM_INTINFO_VALID) {
+		type = info & VM_INTINFO_TYPE;
+		vector = info & 0xff;
+		if (type == VM_INTINFO_NMI && vector != IDT_NMI)
+			return (EINVAL);
+		if (type == VM_INTINFO_HWEXCEPTION && vector >= 32)
+			return (EINVAL);
+		if (info & VM_INTINFO_RSVD)
+			return (EINVAL);
+	} else {
+		info = 0;
+	}
+	VCPU_CTR2(vm, vcpuid, "%s: info1(%#lx)", __func__, info);
+	vcpu->exitintinfo = info;
+	return (0);
+}
+
+enum exc_class {
+	EXC_BENIGN,
+	EXC_CONTRIBUTORY,
+	EXC_PAGEFAULT
+};
+
+#define	IDT_VE	20	/* Virtualization Exception (Intel specific) */
+
+static enum exc_class
+exception_class(uint64_t info)
+{
+	int type, vector;
+
+	KASSERT(info & VM_INTINFO_VALID, ("intinfo must be valid: %#lx", info));
+	type = info & VM_INTINFO_TYPE;
+	vector = info & 0xff;
+
+	/* Table 6-4, "Interrupt and Exception Classes", Intel SDM, Vol 3 */
+	switch (type) {
+	case VM_INTINFO_HWINTR:
+	case VM_INTINFO_SWINTR:
+	case VM_INTINFO_NMI:
+		return (EXC_BENIGN);
+	default:
+		/*
+		 * Hardware exception.
+		 *
+		 * SVM and VT-x use identical type values to represent NMI,
+		 * hardware interrupt and software interrupt.
+		 *
+		 * SVM uses type '3' for all exceptions. VT-x uses type '3'
+		 * for exceptions except #BP and #OF. #BP and #OF use a type
+		 * value of '5' or '6'. Therefore we don't check for explicit
+		 * values of 'type' to classify 'intinfo' into a hardware
+		 * exception.
+		 */
+		break;
+	}
+
+	switch (vector) {
+	case IDT_PF:
+	case IDT_VE:
+		return (EXC_PAGEFAULT);
+	case IDT_DE:
+	case IDT_TS:
+	case IDT_NP:
+	case IDT_SS:
+	case IDT_GP:
+		return (EXC_CONTRIBUTORY);
+	default:
+		return (EXC_BENIGN);
+	}
+}
+
+static int
+nested_fault(struct vm *vm, int vcpuid, uint64_t info1, uint64_t info2,
+    uint64_t *retinfo)
+{
+	enum exc_class exc1, exc2;
+	int type1, vector1;
+
+	KASSERT(info1 & VM_INTINFO_VALID, ("info1 %#lx is not valid", info1));
+	KASSERT(info2 & VM_INTINFO_VALID, ("info2 %#lx is not valid", info2));
+
+	/*
+	 * If an exception occurs while attempting to call the double-fault
+	 * handler the processor enters shutdown mode (aka triple fault).
+	 */
+	type1 = info1 & VM_INTINFO_TYPE;
+	vector1 = info1 & 0xff;
+	if (type1 == VM_INTINFO_HWEXCEPTION && vector1 == IDT_DF) {
+		VCPU_CTR2(vm, vcpuid, "triple fault: info1(%#lx), info2(%#lx)",
+		    info1, info2);
+		vm_suspend(vm, VM_SUSPEND_TRIPLEFAULT);
+		*retinfo = 0;
+		return (0);
+	}
+
+	/*
+	 * Table 6-5 "Conditions for Generating a Double Fault", Intel SDM, Vol3
+	 */
+	exc1 = exception_class(info1);
+	exc2 = exception_class(info2);
+	if ((exc1 == EXC_CONTRIBUTORY && exc2 == EXC_CONTRIBUTORY) ||
+	    (exc1 == EXC_PAGEFAULT && exc2 != EXC_BENIGN)) {
+		/* Convert nested fault into a double fault. */
+		*retinfo = IDT_DF;
+		*retinfo |= VM_INTINFO_VALID | VM_INTINFO_HWEXCEPTION;
+		*retinfo |= VM_INTINFO_DEL_ERRCODE;
+	} else {
+		/* Handle exceptions serially */
+		*retinfo = info2;
+	}
+	return (1);
+}
+
+static uint64_t
+vcpu_exception_intinfo(struct vcpu *vcpu)
+{
+	uint64_t info = 0;
+
+	if (vcpu->exception_pending) {
+		info = vcpu->exception.vector & 0xff;
+		info |= VM_INTINFO_VALID | VM_INTINFO_HWEXCEPTION;
+		if (vcpu->exception.error_code_valid) {
+			info |= VM_INTINFO_DEL_ERRCODE;
+			info |= (uint64_t)vcpu->exception.error_code << 32;
+		}
+	}
+	return (info);
+}
+
+int
+vm_entry_intinfo(struct vm *vm, int vcpuid, uint64_t *retinfo)
+{
+	struct vcpu *vcpu;
+	uint64_t info1, info2;
+	int valid;
+
+	KASSERT(vcpuid >= 0 && vcpuid < VM_MAXCPU, ("invalid vcpu %d", vcpuid));
+
+	vcpu = &vm->vcpu[vcpuid];
+
+	info1 = vcpu->exitintinfo;
+	vcpu->exitintinfo = 0;
+
+	info2 = 0;
+	if (vcpu->exception_pending) {
+		info2 = vcpu_exception_intinfo(vcpu);
+		vcpu->exception_pending = 0;
+		VCPU_CTR2(vm, vcpuid, "Exception %d delivered: %#lx",
+		    vcpu->exception.vector, info2);
+	}
+
+	if ((info1 & VM_INTINFO_VALID) && (info2 & VM_INTINFO_VALID)) {
+		valid = nested_fault(vm, vcpuid, info1, info2, retinfo);
+	} else if (info1 & VM_INTINFO_VALID) {
+		*retinfo = info1;
+		valid = 1;
+	} else if (info2 & VM_INTINFO_VALID) {
+		*retinfo = info2;
+		valid = 1;
+	} else {
+		valid = 0;
+	}
+
+	if (valid) {
+		VCPU_CTR4(vm, vcpuid, "%s: info1(%#lx), info2(%#lx), "
+		    "retinfo(%#lx)", __func__, info1, info2, *retinfo);
+	}
+
+	return (valid);
+}
+
+int
+vm_get_intinfo(struct vm *vm, int vcpuid, uint64_t *info1, uint64_t *info2)
+{
+	struct vcpu *vcpu;
+
+	if (vcpuid < 0 || vcpuid >= VM_MAXCPU)
+		return (EINVAL);
+
+	vcpu = &vm->vcpu[vcpuid];
+	*info1 = vcpu->exitintinfo;
+	*info2 = vcpu_exception_intinfo(vcpu);
+	return (0);
+}
+
+int
 vm_inject_exception(struct vm *vm, int vcpuid, struct vm_exception *exception)
 {
 	struct vcpu *vcpu;
@@ -1466,6 +1664,14 @@ vm_inject_exception(struct vm *vm, int vcpuid, struct vm_exception *exception)
 		return (EINVAL);
 
 	if (exception->vector < 0 || exception->vector >= 32)
+		return (EINVAL);
+
+	/*
+	 * A double fault exception should never be injected directly into
+	 * the guest. It is a derived exception that results from specific
+	 * combinations of nested faults.
+	 */
+	if (exception->vector == IDT_DF)
 		return (EINVAL);
 
 	vcpu = &vm->vcpu[vcpuid];
@@ -1481,25 +1687,6 @@ vm_inject_exception(struct vm *vm, int vcpuid, struct vm_exception *exception)
 	vcpu->exception = *exception;
 	VCPU_CTR1(vm, vcpuid, "Exception %d pending", exception->vector);
 	return (0);
-}
-
-int
-vm_exception_pending(struct vm *vm, int vcpuid, struct vm_exception *exception)
-{
-	struct vcpu *vcpu;
-	int pending;
-
-	KASSERT(vcpuid >= 0 && vcpuid < VM_MAXCPU, ("invalid vcpu %d", vcpuid));
-
-	vcpu = &vm->vcpu[vcpuid];
-	pending = vcpu->exception_pending;
-	if (pending) {
-		vcpu->exception_pending = 0;
-		*exception = vcpu->exception;
-		VCPU_CTR1(vm, vcpuid, "Exception %d delivered",
-		    exception->vector);
-	}
-	return (pending);
 }
 
 static void
