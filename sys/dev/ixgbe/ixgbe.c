@@ -4247,16 +4247,26 @@ ixgbe_initialise_rss_mapping(struct adapter *adapter)
 		IXGBE_WRITE_REG(hw, IXGBE_RSSRK(i), rss_key[i]);
 
 	/* Perform hash on these packet types */
+	/*
+	 * Disable UDP - IP fragments aren't currently being handled
+	 * and so we end up with a mix of 2-tuple and 4-tuple
+	 * traffic.
+	 */
 	mrqc = IXGBE_MRQC_RSSEN
 	     | IXGBE_MRQC_RSS_FIELD_IPV4
 	     | IXGBE_MRQC_RSS_FIELD_IPV4_TCP
+#if 0
 	     | IXGBE_MRQC_RSS_FIELD_IPV4_UDP
+#endif
 	     | IXGBE_MRQC_RSS_FIELD_IPV6_EX_TCP
 	     | IXGBE_MRQC_RSS_FIELD_IPV6_EX
 	     | IXGBE_MRQC_RSS_FIELD_IPV6
 	     | IXGBE_MRQC_RSS_FIELD_IPV6_TCP
+#if 0
 	     | IXGBE_MRQC_RSS_FIELD_IPV6_UDP
-	     | IXGBE_MRQC_RSS_FIELD_IPV6_EX_UDP;
+	     | IXGBE_MRQC_RSS_FIELD_IPV6_EX_UDP
+#endif
+	;
 	IXGBE_WRITE_REG(hw, IXGBE_MRQC, mrqc);
 }
 
