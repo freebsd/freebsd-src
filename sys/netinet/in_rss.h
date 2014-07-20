@@ -52,6 +52,25 @@
 #define	RSS_HASHFIELDS_2TUPLE		2
 
 /*
+ * Define RSS representations of the M_HASHTYPE_* values, representing
+ * which particular bits are supported.  The NICs can then use this to
+ * calculate which hash types to enable and which not to enable.
+ *
+ * The fact that these line up with M_HASHTYPE_* is not to be relied
+ * upon.
+ */
+#define	RSS_HASHTYPE_RSS_IPV4		(1 << 1)	/* IPv4 2-tuple */
+#define	RSS_HASHTYPE_RSS_TCP_IPV4	(1 << 2)	/* TCPv4 4-tuple */
+#define	RSS_HASHTYPE_RSS_IPV6		(1 << 3)	/* IPv6 2-tuple */
+#define	RSS_HASHTYPE_RSS_TCP_IPV6	(1 << 4)	/* TCPv6 4-tuple */
+#define	RSS_HASHTYPE_RSS_IPV6_EX	(1 << 5)	/* IPv6 2-tuple + ext hdrs */
+#define	RSS_HASHTYPE_RSS_TCP_IPV6_EX	(1 << 6)	/* TCPv6 4-tiple + ext hdrs */
+#define	RSS_HASHTYPE_RSS_UDP_IPV4	(1 << 7)	/* IPv4 UDP 4-tuple */
+#define	RSS_HASHTYPE_RSS_UDP_IPV4_EX	(1 << 8)	/* IPv4 UDP 4-tuple + ext hdrs */
+#define	RSS_HASHTYPE_RSS_UDP_IPV6	(1 << 9)	/* IPv6 UDP 4-tuple */
+#define	RSS_HASHTYPE_RSS_UDP_IPV6_EX	(1 << 10)	/* IPv6 UDP 4-tuple + ext hdrs */
+
+/*
  * Compile-time limits on the size of the indirection table.
  */
 #define	RSS_MAXBITS	7
@@ -75,6 +94,7 @@ void	rss_getkey(uint8_t *key);
 u_int	rss_gethashalgo(void);
 u_int	rss_getnumbuckets(void);
 u_int	rss_getnumcpus(void);
+u_int	rss_gethashconfig(void);
 
 /*
  * Network stack interface to generate a hash for a protocol tuple.
