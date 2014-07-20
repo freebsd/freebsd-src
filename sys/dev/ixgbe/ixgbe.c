@@ -4204,6 +4204,9 @@ ixgbe_initialise_rss_mapping(struct adapter *adapter)
 	int i, j, queue_id;
 	uint32_t rss_key[10];
 	uint32_t mrqc;
+#ifdef	RSS
+	uint32_t rss_hash_config;
+#endif
 
 	/* Setup RSS */
 	reta = 0;
@@ -4247,6 +4250,32 @@ ixgbe_initialise_rss_mapping(struct adapter *adapter)
 		IXGBE_WRITE_REG(hw, IXGBE_RSSRK(i), rss_key[i]);
 
 	/* Perform hash on these packet types */
+#ifdef	RSS
+	mrqc = IXGBE_MRQC_RSSEN;
+	rss_hash_config = rss_gethashconfig();
+	if (rss_hash_config & RSS_HASHTYPE_RSS_IPV4)
+		mrqc |= IXGBE_MRQC_RSS_FIELD_IPV4;
+	if (rss_hash_config & RSS_HASHTYPE_RSS_TCP_IPV4)
+		mrqc |= IXGBE_MRQC_RSS_FIELD_IPV4_TCP;
+	if (rss_hash_config & RSS_HASHTYPE_RSS_IPV6)
+		mrqc |= IXGBE_MRQC_RSS_FIELD_IPV6;
+	if (rss_hash_config & RSS_HASHTYPE_RSS_TCP_IPV6)
+		mrqc |= IXGBE_MRQC_RSS_FIELD_IPV6_TCP;
+	if (rss_hash_config & RSS_HASHTYPE_RSS_IPV6_EX)
+		mrqc |= IXGBE_MRQC_RSS_FIELD_IPV6_EX;
+	if (rss_hash_config & RSS_HASHTYPE_RSS_TCP_IPV6_EX)
+		mrqc |= IXGBE_MRQC_RSS_FIELD_IPV6_EX_TCP;
+	if (rss_hash_config & RSS_HASHTYPE_RSS_UDP_IPV4)
+		mrqc |= IXGBE_MRQC_RSS_FIELD_IPV4_UDP;
+	if (rss_hash_config & RSS_HASHTYPE_RSS_UDP_IPV4_EX)
+		device_printf(adapter->dev,
+		    "%s: RSS_HASHTYPE_RSS_UDP_IPV4_EX defined, "
+		    "but not supported\n", __func__);
+	if (rss_hash_config & RSS_HASHTYPE_RSS_UDP_IPV6)
+		mrqc |= IXGBE_MRQC_RSS_FIELD_IPV6_UDP;
+	if (rss_hash_config & RSS_HASHTYPE_RSS_UDP_IPV6_EX)
+		mrqc |= IXGBE_MRQC_RSS_FIELD_IPV6_EX_UDP;
+#else
 	/*
 	 * Disable UDP - IP fragments aren't currently being handled
 	 * and so we end up with a mix of 2-tuple and 4-tuple
@@ -4267,6 +4296,7 @@ ixgbe_initialise_rss_mapping(struct adapter *adapter)
 	     | IXGBE_MRQC_RSS_FIELD_IPV6_EX_UDP
 #endif
 	;
+#endif /* RSS */
 	IXGBE_WRITE_REG(hw, IXGBE_MRQC, mrqc);
 }
 
