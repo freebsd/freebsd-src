@@ -36,7 +36,16 @@ __FBSDID("$FreeBSD$");
 #include "disk.h"
 #include "libuserboot.h"
 
+#if defined(USERBOOT_ZFS_SUPPORT)
+#include "../zfs/libzfs.h"
+
+static void userboot_zfs_probe(void);
+static int userboot_zfs_found;
+#endif
+
 #define	USERBOOT_VERSION	USERBOOT_VERSION_3
+
+#define	MALLOCSZ		(10*1024*1024)
 
 struct loader_callbacks *callbacks;
 void *callbacks_arg;
@@ -69,7 +78,7 @@ exit(int v)
 void
 loader_main(struct loader_callbacks *cb, void *arg, int version, int ndisks)
 {
-	static char malloc[1024*1024];
+	static char mallocbuf[MALLOCSZ];
 	const char *var;
 	int i;
 
@@ -82,22 +91,14 @@ loader_main(struct loader_callbacks *cb, void *arg, int version, int ndisks)
 
 	/*
 	 * initialise the heap as early as possible.  Once this is done,
-	 * alloc() is usable. The stack is buried inside us, so this is
-	 * safe.
+	 * alloc() is usable.
 	 */
-	setheap((void *)malloc, (void *)(malloc + 1024*1024));
+	setheap((void *)mallocbuf, (void *)(mallocbuf + sizeof(mallocbuf)));
 
         /*
          * Hook up the console
          */
 	cons_probe();
-
-	/*
-	 * March through the device switch probing for things.
-	 */
-	for (i = 0; devsw[i] != NULL; i++)
-		if (devsw[i]->dv_init != NULL)
-			(devsw[i]->dv_init)();
 
 	printf("\n");
 	printf("%s, Revision %s\n", bootprog_name, bootprog_rev);
@@ -124,6 +125,16 @@ loader_main(struct loader_callbacks *cb, void *arg, int version, int ndisks)
 	archsw.arch_copyin = userboot_copyin;
 	archsw.arch_copyout = userboot_copyout;
 	archsw.arch_readin = userboot_readin;
+#if defined(USERBOOT_ZFS_SUPPORT)
+	archsw.arch_zfs_probe = userboot_zfs_probe;
+#endif
+
+	/*
+	 * March through the device switch probing for things.
+	 */
+	for (i = 0; devsw[i] != NULL; i++)
+		if (devsw[i]->dv_init != NULL)
+			(devsw[i]->dv_init)();
 
 	extract_currdev();
 
@@ -145,6 +156,19 @@ extract_currdev(void)
 	struct disk_devdesc dev;
 
 	//bzero(&dev, sizeof(dev));
+
+#if defined(USERBOOT_ZFS_SUPPORT)
+	if (userboot_zfs_found) {
+		struct zfs_devdesc zdev;
+	
+		/* Leave the pool/root guid's unassigned */
+		bzero(&zdev, sizeof(zdev));
+		zdev.d_dev = &zfs_dev;
+		zdev.d_type = zdev.d_dev->dv_type;
+		
+		dev = *(struct disk_devdesc *)&zdev;
+	} else
+#endif
 
 	if (userboot_disk_maxunit > 0) {
 		dev.d_dev = &userboot_disk;
@@ -171,6 +195,49 @@ extract_currdev(void)
 	env_setenv("loaddev", EV_VOLATILE, userboot_fmtdev(&dev),
             env_noset, env_nounset);
 }
+
+#if defined(USERBOOT_ZFS_SUPPORT)
+static void
+userboot_zfs_probe(void)
+{
+	char devname[32];
+	uint64_t pool_guid;
+	int unit;
+
+	/*
+	 * Open all the disks we can find and see if we can reconstruct
+	 * ZFS pools from them. Record if any were found.
+	 */
+	for (unit = 0; unit < userboot_disk_maxunit; unit++) {
+		sprintf(devname, "disk%d:", unit);
+		pool_guid = 0;
+		zfs_probe_dev(devname, &pool_guid);
+		if (pool_guid != 0)
+			userboot_zfs_found = 1;
+	}
+}
+
+COMMAND_SET(lszfs, "lszfs", "list child datasets of a zfs dataset",
+	    command_lszfs);
+
+static int
+command_lszfs(int argc, char *argv[])
+{
+	int err;
+
+	if (argc != 2) {
+		command_errmsg = "a single dataset must be supplied";
+		return (CMD_ERROR);
+	}
+
+	err = zfs_list(argv[1]);
+	if (err != 0) {
+		command_errmsg = strerror(err);
+		return (CMD_ERROR);
+	}
+	return (CMD_OK);
+}
+#endif /* USERBOOT_ZFS_SUPPORT */
 
 COMMAND_SET(quit, "quit", "exit the loader", command_quit);
 
