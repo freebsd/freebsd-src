@@ -1211,7 +1211,6 @@ vmx_inject_nmi(struct vmx *vmx, int vcpu)
 static void
 vmx_inject_interrupts(struct vmx *vmx, int vcpu, struct vlapic *vlapic)
 {
-	struct vm_exception exc;
 	int vector, need_nmi_exiting, extint_pending;
 	uint64_t rflags, entryinfo;
 	uint32_t gi, info;
@@ -1222,7 +1221,7 @@ vmx_inject_interrupts(struct vmx *vmx, int vcpu, struct vlapic *vlapic)
 
 		info = vmcs_read(VMCS_ENTRY_INTR_INFO);
 		KASSERT((info & VMCS_INTR_VALID) == 0, ("%s: cannot inject "
-		     "pending exception %d: %#x", __func__, exc.vector, info));
+		     "pending exception: %#lx/%#x", __func__, entryinfo, info));
 
 		info = entryinfo;
 		vector = info & 0xff;
