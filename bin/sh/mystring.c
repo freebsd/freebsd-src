@@ -61,21 +61,6 @@ char nullstr[1];		/* zero length string */
 
 
 /*
- * prefix -- see if pfx is a prefix of string.
- */
-
-int
-prefix(const char *pfx, const char *string)
-{
-	while (*pfx) {
-		if (*pfx++ != *string++)
-			return 0;
-	}
-	return 1;
-}
-
-
-/*
  * Convert a string of digits to an integer, printing an error message on
  * failure.
  */
