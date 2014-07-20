@@ -4745,12 +4745,15 @@ ixgbe_rxeof(struct ix_queue *que)
 			case IXGBE_RXDADV_RSSTYPE_IPV6_TCP_EX:
 				M_HASHTYPE_SET(sendmp, M_HASHTYPE_RSS_TCP_IPV6_EX);
 				break;
-			/* XXX no UDP support in RSS just yet */
-#ifdef	notyet
-			case IGXBE_RXDADV_RSSTYPE_IPV4_UDP:
-			case IGXBE_RXDADV_RSSTYPE_IPV6_UDP:
-			case IGXBE_RXDADV_RSSTYPE_IPV6_UDP_EX:
-#endif /* notyet */
+			case IXGBE_RXDADV_RSSTYPE_IPV4_UDP:
+				M_HASHTYPE_SET(sendmp, M_HASHTYPE_RSS_UDP_IPV4);
+				break;
+			case IXGBE_RXDADV_RSSTYPE_IPV6_UDP:
+				M_HASHTYPE_SET(sendmp, M_HASHTYPE_RSS_UDP_IPV6);
+				break;
+			case IXGBE_RXDADV_RSSTYPE_IPV6_UDP_EX:
+				M_HASHTYPE_SET(sendmp, M_HASHTYPE_RSS_UDP_IPV6_EX);
+				break;
 			default:
 				/* XXX fallthrough */
 				M_HASHTYPE_SET(sendmp, M_HASHTYPE_NONE);
