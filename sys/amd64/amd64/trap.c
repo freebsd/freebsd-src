@@ -613,8 +613,10 @@ void
 trap_check(struct trapframe *frame)
 {
 
+#ifdef KDTRACE_HOOKS
 	if (dtrace_trap_func != NULL && (*dtrace_trap_func)(frame))
 		return;
+#endif
 	trap(frame);
 }
 
