@@ -149,9 +149,8 @@ SYSCTL_INT(_net_inet_rss, OID_AUTO, basecpu, CTLFLAG_RD,
  *
  * XXXRW: And that we don't randomize it yet!
  *
- * XXXRW: This default is actually the default key from Chelsio T5 cards, as
- * it offers reasonable distribution, unlike all-0 keys which always
- * generate a hash of 0 (upsettingly).
+ * This is the default Microsoft RSS specification key which is also
+ * the Chelsio T5 firmware default key.
  */
 static uint8_t rss_key[RSS_KEYSIZE] = {
 	0xbe, 0xac, 0x01, 0xfa, 0x6a, 0x42, 0xb7, 0x3b,
