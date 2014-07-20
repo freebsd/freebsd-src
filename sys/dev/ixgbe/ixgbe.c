@@ -4230,10 +4230,16 @@ ixgbe_initialise_rss_mapping(struct adapter *adapter)
 #else
 		queue_id = (j * 0x11);
 #endif
-		/* XXX endian? */
-		reta = (reta << 8) | queue_id;
-		if ((i & 3) == 3)
+		/*
+		 * The low 8 bits are for hash value (n+0);
+		 * The next 8 bits are for hash value (n+1), etc.
+		 */
+		reta = reta >> 8;
+		reta = reta | ( ((uint32_t) queue_id) << 24);
+		if ((i & 3) == 3) {
 			IXGBE_WRITE_REG(hw, IXGBE_RETA(i >> 2), reta);
+			reta = 0;
+		}
 	}
 
 	/* Now fill our hash function seeds */
