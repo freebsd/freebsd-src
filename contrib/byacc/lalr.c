@@ -1,4 +1,4 @@
-/* $Id: lalr.c,v 1.9 2009/10/27 09:49:27 tom Exp $ */
+/* $Id: lalr.c,v 1.10 2014/02/19 00:35:17 Tom.Shields Exp $ */
 
 #include "defs.h"
 
@@ -196,7 +196,7 @@ set_goto_map(void)
 	    if (ISTOKEN(symbol))
 		break;
 
-	    if (ngotos == MAXSHORT)
+	    if (ngotos == MAXYYINT)
 		fatal("too many gotos");
 
 	    ngotos++;

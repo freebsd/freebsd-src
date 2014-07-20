@@ -1,4 +1,4 @@
-$! $Id: vmsbuild.com,v 1.1 2000/11/21 00:38:46 tom Exp $
+$! $Id: vmsbuild.com,v 1.2 2014/04/06 19:08:57 tom Exp $
 $! VMS build-script for BYACC.  Requires installed C compiler
 $!
 $! Screen Configurations
@@ -70,7 +70,7 @@ $ write optf "lr0.obj"
 $ write optf "mkpar.obj"
 $ write optf "output.obj"
 $ write optf "reader.obj"
-$ write optf "skeleton.obj"
+$ write optf "yaccpar.obj"
 $ write optf "symtab.obj"
 $ write optf "verbose.obj"
 $ write optf "warshall.obj"
@@ -138,7 +138,7 @@ $	call make main
 $	call make mkpar
 $	call make output
 $	call make reader
-$	call make skeleton
+$	call make yaccpar
 $	call make symtab
 $	call make verbose
 $	call make warshall
