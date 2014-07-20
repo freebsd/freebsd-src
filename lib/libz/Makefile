@@ -68,6 +68,10 @@ test: example minigzip
 	(export LD_LIBRARY_PATH=. ; \
 		echo hello world | ./minigzip | ./minigzip -d )
 
+beforeinstall:
+	${INSTALL} -C -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE} \
+		${.CURDIR}/zlib.pc ${DESTDIR}${LIBDATADIR}/pkgconfig
+
 .include <bsd.lib.mk>
 
 ## XXX: clang integrated-as doesn't grok .intel_syntax directives yet
