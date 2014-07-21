@@ -34,23 +34,29 @@
 .Nd Distributed Protocol Control Block Groups
 .Sh SYNOPSIS
 .Ft void
-.Fn in_pcbgroup_init(struct inpcbinfo *pcbinfo, u_int hashfields, int hash_nelements);
+.Fo in_pcbgroup_init
+.Fa "struct inpcbinfo *pcbinfo" "u_int hashfields" "int hash_nelements"
+.Fc
 .Ft void
-.Fn in_pcbgroup_destroy(struct inpcbinfo *pcbinfo);
+.Fn in_pcbgroup_destroy "struct inpcbinfo *pcbinfo"
 .Ft struct inpcbgroup *
-.Fn in_pcbgroup_byhash(struct inpcbinfo *pcbinfo, u_int hashtype, uint32_t hash);
+.Fo in_pcbgroup_byhash
+.Fa "struct inpcbinfo *pcbinfo" "u_int hashtype" "uint32_t hash"
+.Fc
 .Ft struct inpcbgroup *
-.Fn in_pcbgroup_byinpcb(struct inpcb *inp);
+.Fn in_pcbgroup_byinpcb "struct inpcb *inp"
 .Ft void
-.Fn in_pcbgroup_update(struct inpcb *inp);
+.Fn in_pcbgroup_update "struct inpcb *inp"
 .Ft void
-.Fn in_pcbgroup_update_mbuf(struct inpcb *inp, struct mbuf *m);
+.Fn in_pcbgroup_update_mbuf "struct inpcb *inp" "struct mbuf *m"
 .Ft void
-.Fn in_pcbgroup_remove(struct inpcb *inp);
+.Fn in_pcbgroup_remove "struct inpcb *inp"
 .Ft int
-.Fn in_pcbgroup_enabled(struct inpcbinfo *pcbinfo);
+.Fn in_pcbgroup_enabled "struct inpcbinfo *pcbinfo"
 .Ft struct inpcbgroup *
-.Fn in6_pcbgroup_byhash(struct inpcbinfo *pcbinfo, u_int hashtype, uint32_t hash);
+.Fo in6_pcbgroup_byhash
+.Fa "struct inpcbinfo *pcbinfo" "u_int hashtype" "uint32_t hash"
+.Fc
 .Pp
 .Cd "options PCBGROUPS"
 .Sh DESCRIPTION
@@ -111,7 +117,7 @@ By default, a PCBGROUP table is created for each available CPU.
 The PCBGROUP code attempts to calculate a hash value from the given
 PCB or mbuf when looking up a PCBGROUP.
 While processing a received frame,
-.Fn in_pcbgroup_byhash()
+.Fn in_pcbgroup_byhash
 can be used in conjunction with either a hardware-provided hash
 value
 .Po
@@ -192,10 +198,11 @@ receive path in
 .El
 .Sh SEE ALSO
 .Xr mbuf 9 ,
-.Xr RSS 9 ,
-.Xr netisr 9
+.Xr netisr 9 ,
+.Xr RSS 9
 .Sh HISTORY
-PCBGROUPS first appeared in FreeBSD 9.0.
+PCBGROUPS first appeared in
+.Fx 9.0.
 .Pp
 The PCBGROUPS implementation is inspired by Willman, Rixner, and Cox's
 2006 USENIX paper,
