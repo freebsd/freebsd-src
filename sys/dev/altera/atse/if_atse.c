@@ -1169,10 +1169,6 @@ atse_rx_locked(struct atse_softc *sc)
 	meta = 0;
 	do {
 outer:
-		if (sc->atse_rx_cycles <= 0)
-			return (rx_npkts);
-		sc->atse_rx_cycles--;
-
 		if (sc->atse_rx_m == NULL) {
 			m = m_getcl(M_NOWAIT, MT_DATA, M_PKTHDR);
 			if (m == NULL)
@@ -1275,15 +1271,19 @@ outer:
 				if (sc->atse_flags & ATSE_FLAGS_ERROR) {
 					sc->atse_flags &= ~ATSE_FLAGS_ERROR;
 					m_freem(m);
-					/* Need to start with a new packet. */
-					goto outer;
+				} else {
+					m->m_pkthdr.rcvif = ifp;
+					ATSE_UNLOCK(sc);
+					(*ifp->if_input)(ifp, m);
+					ATSE_LOCK(sc);
 				}
-
-				m->m_pkthdr.rcvif = ifp;
-
-				ATSE_UNLOCK(sc);
-				(*ifp->if_input)(ifp, m);
-				ATSE_LOCK(sc);
+#ifdef DEVICE_POLLING
+				if (ifp->if_capenable & IFCAP_POLLING) {
+					if (sc->atse_rx_cycles <= 0)
+						return (rx_npkts);
+					sc->atse_rx_cycles--;
+				}
+#endif
 				goto outer;	/* Need a new mbuf. */
 			} else {
 				sc->atse_rx_buf_len += sizeof(data);
@@ -1291,7 +1291,7 @@ outer:
 		} /* for */
 
 	/* XXX-BZ could optimize in case of another packet waiting. */
-	} while ((meta & A_ONCHIP_FIFO_MEM_CORE_EOP) == 0 || fill > 0);
+	} while (fill > 0);
 
 	return (rx_npkts);
 }
@@ -1349,7 +1349,9 @@ atse_intr(void *arg)
 			ifp->if_ierrors++;
 		}
 		if ((rx & A_ONCHIP_FIFO_MEM_CORE_EVENT_EMPTY) != 0) {
+#if 0
 			sc->atse_rx_cycles = RX_CYCLES_IN_INTR;
+#endif
 			atse_rx_locked(sc);
 		}
 	}
@@ -1369,6 +1371,11 @@ atse_intr(void *arg)
 #endif
 	}
 
+	/*
+	 * XXXRW: What is the correct race-free way to interact with the
+	 * event / interrupt masks in atse here?  It seems likely that at
+	 * least atse_start_locked() should be pre-clear/enable?
+	 */
 	/* Clear events before re-enabling intrs. */
 	ATSE_TX_EVENT_CLEAR(sc);
 	ATSE_RX_EVENT_CLEAR(sc);
