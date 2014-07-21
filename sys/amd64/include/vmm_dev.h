@@ -159,12 +159,17 @@ struct vm_hpet_cap {
 	uint32_t	capabilities;	/* lower 32 bits of HPET capabilities */
 };
 
+struct vm_suspend {
+	enum vm_suspend_how how;
+};
+
 enum {
 	/* general routines */
 	IOCNUM_ABIVERS = 0,
 	IOCNUM_RUN = 1,
 	IOCNUM_SET_CAPABILITY = 2,
 	IOCNUM_GET_CAPABILITY = 3,
+	IOCNUM_SUSPEND = 4,
 
 	/* memory apis */
 	IOCNUM_MAP_MEMORY = 10,
@@ -212,6 +217,8 @@ enum {
 
 #define	VM_RUN		\
 	_IOWR('v', IOCNUM_RUN, struct vm_run)
+#define	VM_SUSPEND	\
+	_IOW('v', IOCNUM_SUSPEND, struct vm_suspend)
 #define	VM_MAP_MEMORY	\
 	_IOWR('v', IOCNUM_MAP_MEMORY, struct vm_memory_segment)
 #define	VM_GET_MEMORY_SEG \

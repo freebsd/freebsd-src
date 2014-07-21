@@ -2136,7 +2136,7 @@ vmx_exit_handle_nmi(struct vmx *vmx, int vcpuid, struct vm_exit *vmexit)
 
 static int
 vmx_run(void *arg, int vcpu, register_t startrip, pmap_t pmap,
-    void *rendezvous_cookie)
+    void *rendezvous_cookie, void *suspend_cookie)
 {
 	int rc, handled, launched;
 	struct vmx *vmx;
@@ -2193,15 +2193,22 @@ vmx_run(void *arg, int vcpu, register_t startrip, pmap_t pmap,
 		 * pmap_invalidate_ept().
 		 */
 		disable_intr();
-		if (curthread->td_flags & (TDF_ASTPENDING | TDF_NEEDRESCHED)) {
+		if (vcpu_suspended(suspend_cookie)) {
 			enable_intr();
-			handled = vmx_exit_astpending(vmx, vcpu, vmexit);
+			vm_exit_suspended(vmx->vm, vcpu, vmcs_guest_rip());
+			handled = UNHANDLED;
 			break;
 		}
 
 		if (vcpu_rendezvous_pending(rendezvous_cookie)) {
 			enable_intr();
 			handled = vmx_exit_rendezvous(vmx, vcpu, vmexit);
+			break;
+		}
+
+		if (curthread->td_flags & (TDF_ASTPENDING | TDF_NEEDRESCHED)) {
+			enable_intr();
+			handled = vmx_exit_astpending(vmx, vcpu, vmexit);
 			break;
 		}
 

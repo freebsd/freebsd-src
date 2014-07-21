@@ -113,6 +113,7 @@ struct bhyvestats {
         uint64_t        cpu_switch_rotate;
         uint64_t        cpu_switch_direct;
         int             io_reset;
+	int		io_poweroff;
 } stats;
 
 struct mt_vmm_info {
@@ -271,13 +272,6 @@ fbsdrun_deletecpu(struct vmctx *ctx, int vcpu)
 }
 
 static int
-vmexit_catch_reset(void)
-{
-        stats.io_reset++;
-        return (VMEXIT_RESET);
-}
-
-static int
 vmexit_catch_inout(void)
 {
 	return (VMEXIT_ABORT);
@@ -327,8 +321,10 @@ vmexit_inout(struct vmctx *ctx, struct vm_exit *vme, int *pvcpu)
 	case INOUT_OK:
 		return (VMEXIT_CONTINUE);
 	case INOUT_RESET:
+		stats.io_reset++;
 		return (VMEXIT_RESET);
 	case INOUT_POWEROFF:
+		stats.io_poweroff++;
 		return (VMEXIT_POWEROFF);
 	default:
 		fprintf(stderr, "Unhandled %s%c 0x%04x\n",
@@ -396,17 +392,6 @@ vmexit_spinup_ap(struct vmctx *ctx, struct vm_exit *vme, int *pvcpu)
 			   vme->u.spinup_ap.vcpu, vme->u.spinup_ap.rip);
 
 	return (retval);
-}
-
-static int
-vmexit_spindown_cpu(struct vmctx *ctx, struct vm_exit *vme, int *pvcpu)
-{
-	int lastcpu;
-
-	lastcpu = fbsdrun_deletecpu(ctx, *pvcpu);
-	if (!lastcpu)
-		pthread_exit(NULL);
-	return (vmexit_catch_reset());
 }
 
 static int
@@ -493,6 +478,45 @@ vmexit_inst_emul(struct vmctx *ctx, struct vm_exit *vmexit, int *pvcpu)
 	return (VMEXIT_CONTINUE);
 }
 
+static pthread_mutex_t resetcpu_mtx = PTHREAD_MUTEX_INITIALIZER;
+static pthread_cond_t resetcpu_cond = PTHREAD_COND_INITIALIZER;
+
+static int
+vmexit_suspend(struct vmctx *ctx, struct vm_exit *vmexit, int *pvcpu)
+{
+	enum vm_suspend_how how;
+
+	how = vmexit->u.suspended.how;
+
+	fbsdrun_deletecpu(ctx, *pvcpu);
+
+	if (*pvcpu != BSP) {
+		pthread_mutex_lock(&resetcpu_mtx);
+		pthread_cond_signal(&resetcpu_cond);
+		pthread_mutex_unlock(&resetcpu_mtx);
+		pthread_exit(NULL);
+	}
+
+	pthread_mutex_lock(&resetcpu_mtx);
+	while (!CPU_EMPTY(&cpumask)) {
+		pthread_cond_wait(&resetcpu_cond, &resetcpu_mtx);
+	}
+	pthread_mutex_unlock(&resetcpu_mtx);
+
+	switch (how) {
+	case VM_SUSPEND_RESET:
+		exit(0);
+	case VM_SUSPEND_POWEROFF:
+		exit(1);
+	case VM_SUSPEND_HALT:
+		exit(2);
+	default:
+		fprintf(stderr, "vmexit_suspend: invalid reason %d\n", how);
+		exit(100);
+	}
+	return (0);	/* NOTREACHED */
+}
+
 static vmexit_handler_t handler[VM_EXITCODE_MAX] = {
 	[VM_EXITCODE_INOUT]  = vmexit_inout,
 	[VM_EXITCODE_VMX]    = vmexit_vmx,
@@ -502,7 +526,7 @@ static vmexit_handler_t handler[VM_EXITCODE_MAX] = {
 	[VM_EXITCODE_MTRAP]  = vmexit_mtrap,
 	[VM_EXITCODE_INST_EMUL] = vmexit_inst_emul,
 	[VM_EXITCODE_SPINUP_AP] = vmexit_spinup_ap,
-	[VM_EXITCODE_SPINDOWN_CPU] = vmexit_spindown_cpu,
+	[VM_EXITCODE_SUSPENDED] = vmexit_suspend
 };
 
 static void
@@ -510,6 +534,7 @@ vm_loop(struct vmctx *ctx, int vcpu, uint64_t rip)
 {
 	int error, rc, prevcpu;
 	enum vm_exitcode exitcode;
+	enum vm_suspend_how how;
 
 	if (vcpumap[vcpu] != NULL) {
 		error = pthread_setaffinity_np(pthread_self(),
@@ -541,7 +566,15 @@ vm_loop(struct vmctx *ctx, int vcpu, uint64_t rip)
                         rip = vmexit[vcpu].rip;
 			break;
 		case VMEXIT_RESET:
-			exit(0);
+		case VMEXIT_POWEROFF:
+			if (rc == VMEXIT_RESET)
+				how = VM_SUSPEND_RESET;
+			else
+				how = VM_SUSPEND_POWEROFF;
+			error = vm_suspend(ctx, how);
+			assert(error == 0 || errno == EALREADY);
+                        rip = vmexit[vcpu].rip + vmexit[vcpu].inst_length;
+			break;
 		default:
 			exit(1);
 		}
