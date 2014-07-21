@@ -315,10 +315,6 @@ vmexit_inout(struct vmctx *ctx, struct vm_exit *vme, int *pvcpu)
 	if (vme->u.inout.string || vme->u.inout.rep)
 		return (VMEXIT_ABORT);
 
-	/* Special case of guest reset */
-	if (out && port == 0x64 && (uint8_t)eax == 0xFE)
-		return (vmexit_catch_reset());
-
         /* Extra-special case of host notifications */
         if (out && port == GUEST_NIO_PORT)
                 return (vmexit_handle_notify(ctx, vme, pvcpu, eax));
