@@ -574,6 +574,7 @@ main(int argc, char *argv[])
 	};
 
 	vcpu = 0;
+	vmname = NULL;
 	assert_lapic_lvt = -1;
 	progname = basename(argv[0]);
 
