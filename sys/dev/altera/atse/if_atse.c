@@ -1234,7 +1234,8 @@ outer:
 			data = ATSE_RX_DATA_READ(sc);
 #endif
 			/* Make sure to not overflow the mbuf data size. */
-			if (sc->atse_rx_buf_len >= sc->atse_rx_m->m_len - 4) {
+			if (sc->atse_rx_buf_len >= sc->atse_rx_m->m_len -
+			    sizeof(data)) {
 				/*
 				 * XXX-BZ Error.  We need more mbufs and are
 				 * not setup for this yet.
