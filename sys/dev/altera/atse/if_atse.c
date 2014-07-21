@@ -1318,11 +1318,11 @@ atse_ifmedia_sts(struct ifnet *ifp, struct ifmediareq *ifmr)
 }
 
 static void
-atse_intr(void *arg)
+atse_rx_intr(void *arg)
 {
 	struct atse_softc *sc;
 	struct ifnet *ifp;
-	uint32_t rx, tx;
+	uint32_t rx;
 
 	sc = (struct atse_softc *)arg;
 	ifp = sc->atse_ifp;
@@ -1336,10 +1336,8 @@ atse_intr(void *arg)
 #endif
 
 	ATSE_RX_INTR_DISABLE(sc);
-	ATSE_TX_INTR_DISABLE(sc);
 
 	rx = ATSE_RX_EVENT_READ(sc);
-	tx = ATSE_TX_EVENT_READ(sc);
 	if (rx != 0) {
 		if (rx & (A_ONCHIP_FIFO_MEM_CORE_EVENT_OVERFLOW|
 		    A_ONCHIP_FIFO_MEM_CORE_EVENT_UNDERFLOW)) {
@@ -1356,6 +1354,42 @@ atse_intr(void *arg)
 			atse_rx_locked(sc);
 		}
 	}
+
+	/*
+	 * XXXRW: What is the correct race-free way to interact with the
+	 * event / interrupt masks in atse here?  It seems likely that at
+	 * least atse_start_locked() should be pre-clear/enable?
+	 */
+	/* Clear events before re-enabling intrs. */
+	ATSE_RX_EVENT_CLEAR(sc);
+
+	/* Re-enable interrupts. */
+	if (ifp->if_drv_flags & IFF_DRV_RUNNING)
+		ATSE_RX_INTR_ENABLE(sc);
+	ATSE_UNLOCK(sc);
+}
+
+static void
+atse_tx_intr(void *arg)
+{
+	struct atse_softc *sc;
+	struct ifnet *ifp;
+	uint32_t tx;
+
+	sc = (struct atse_softc *)arg;
+	ifp = sc->atse_ifp;
+
+	ATSE_LOCK(sc);
+#ifdef DEVICE_POLLING
+	if (ifp->if_capenable & IFCAP_POLLING) {
+		ATSE_UNLOCK(sc);
+		return;
+	}  
+#endif
+
+	ATSE_TX_INTR_DISABLE(sc);
+
+	tx = ATSE_TX_EVENT_READ(sc);
 	if (tx != 0) {
 		/* XXX-BZ build histogram. */
 		if (tx & (A_ONCHIP_FIFO_MEM_CORE_EVENT_OVERFLOW|
@@ -1379,17 +1413,12 @@ atse_intr(void *arg)
 	 */
 	/* Clear events before re-enabling intrs. */
 	ATSE_TX_EVENT_CLEAR(sc);
-	ATSE_RX_EVENT_CLEAR(sc);
 
+	/* Re-enable interrupts. */
 	if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
-		/* Re-enable interrupts. */
-		ATSE_RX_INTR_ENABLE(sc);
+		atse_start_locked(ifp);
 		ATSE_TX_INTR_ENABLE(sc);
-
-		if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
-			atse_start_locked(ifp);
 	}
-
 	ATSE_UNLOCK(sc);
 }
 
@@ -1727,7 +1756,7 @@ atse_attach(device_t dev)
 	/* Hook up interrupts. */
 	if (sc->atse_rx_irq_res != NULL) {
 		error = bus_setup_intr(dev, sc->atse_rx_irq_res, INTR_TYPE_NET |
-		    INTR_MPSAFE, NULL, atse_intr, sc, &sc->atse_rx_intrhand);
+		    INTR_MPSAFE, NULL, atse_rx_intr, sc, &sc->atse_rx_intrhand);
 		if (error != 0) {
 			device_printf(dev, "enabling RX IRQ failed\n");
 			ether_ifdetach(ifp);
@@ -1737,7 +1766,7 @@ atse_attach(device_t dev)
 
 	if (sc->atse_tx_irq_res != NULL) {
 		error = bus_setup_intr(dev, sc->atse_tx_irq_res, INTR_TYPE_NET |
-		    INTR_MPSAFE, NULL, atse_intr, sc, &sc->atse_tx_intrhand);
+		    INTR_MPSAFE, NULL, atse_tx_intr, sc, &sc->atse_tx_intrhand);
 		if (error != 0) {
 			bus_teardown_intr(dev, sc->atse_rx_irq_res,
 			    sc->atse_rx_intrhand);
