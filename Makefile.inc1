@@ -1942,6 +1942,10 @@ _xi-mtree:
 	    -p ${XDDESTDIR}/usr >/dev/null
 	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.include.dist \
 	    -p ${XDDESTDIR}/usr/include >/dev/null
+.if ${MK_TESTS} != "no"
+	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.tests.dist \
+	    -p ${XDDESTDIR}/usr >/dev/null
+.endif
 
 .ORDER: xdev-build _xi-mtree _xi-cross-tools _xi-includes _xi-libraries
 xdev-install: xdev-build _xi-mtree _xi-cross-tools _xi-includes _xi-libraries
