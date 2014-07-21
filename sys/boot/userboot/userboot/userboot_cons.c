@@ -33,8 +33,12 @@ __FBSDID("$FreeBSD$");
 
 int console;
 
+static struct console *userboot_comconsp;
+
 static void userboot_cons_probe(struct console *cp);
 static int userboot_cons_init(int);
+static void userboot_comcons_probe(struct console *cp);
+static int userboot_comcons_init(int);
 static void userboot_cons_putchar(int);
 static int userboot_cons_getchar(void);
 static int userboot_cons_poll(void);
@@ -45,6 +49,21 @@ struct console userboot_console = {
 	0,
 	userboot_cons_probe,
 	userboot_cons_init,
+	userboot_cons_putchar,
+	userboot_cons_getchar,
+	userboot_cons_poll,
+};
+
+/*
+ * Provide a simple alias to allow loader scripts to set the
+ * console to comconsole without resulting in an error
+ */
+struct console userboot_comconsole = {
+	"comconsole",
+	"comconsole",
+	0,
+	userboot_comcons_probe,
+	userboot_comcons_init,
 	userboot_cons_putchar,
 	userboot_cons_getchar,
 	userboot_cons_poll,
@@ -61,6 +80,31 @@ static int
 userboot_cons_init(int arg)
 {
 
+	return (0);
+}
+
+static void
+userboot_comcons_probe(struct console *cp)
+{
+
+	/*
+	 * Save the console pointer so the comcons_init routine
+	 * can set the C_PRESENT* flags. They are not set
+	 * here to allow the existing userboot console to
+	 * be elected the default.
+	 */
+	userboot_comconsp = cp;
+}
+
+static int
+userboot_comcons_init(int arg)
+{
+
+	/*
+	 * Set the C_PRESENT* flags to allow the comconsole
+	 * to be selected as the active console
+	 */
+	userboot_comconsp->c_flags |= (C_PRESENTIN | C_PRESENTOUT);
 	return (0);
 }
 

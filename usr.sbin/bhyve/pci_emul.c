@@ -705,8 +705,7 @@ pci_emul_init(struct vmctx *ctx, struct pci_devemu *pde, int bus, int slot,
 	struct pci_devinst *pdi;
 	int err;
 
-	pdi = malloc(sizeof(struct pci_devinst));
-	bzero(pdi, sizeof(*pdi));
+	pdi = calloc(1, sizeof(struct pci_devinst));
 
 	pdi->pi_vmctx = ctx;
 	pdi->pi_bus = bus;
@@ -798,8 +797,7 @@ pci_msix_table_init(struct pci_devinst *pi, int table_entries)
 	assert(table_entries <= MAX_MSIX_TABLE_ENTRIES);
 
 	table_size = table_entries * MSIX_TABLE_ENTRY_SIZE;
-	pi->pi_msix.table = malloc(table_size);
-	bzero(pi->pi_msix.table, table_size);
+	pi->pi_msix.table = calloc(1, table_size);
 
 	/* set mask bit of vector control register */
 	for (i = 0; i < table_entries; i++)
@@ -1809,8 +1807,7 @@ pci_emul_dinit(struct vmctx *ctx, struct pci_devinst *pi, char *opts)
 	int error;
 	struct pci_emul_dsoftc *sc;
 
-	sc = malloc(sizeof(struct pci_emul_dsoftc));
-	memset(sc, 0, sizeof(struct pci_emul_dsoftc));
+	sc = calloc(1, sizeof(struct pci_emul_dsoftc));
 
 	pi->pi_arg = sc;
 

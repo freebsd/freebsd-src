@@ -155,8 +155,7 @@ pci_vtrnd_init(struct vmctx *ctx, struct pci_devinst *pi, char *opts)
 		return (1);
 	}
 
-	sc = malloc(sizeof(struct pci_vtrnd_softc));
-	memset(sc, 0, sizeof(struct pci_vtrnd_softc));
+	sc = calloc(1, sizeof(struct pci_vtrnd_softc));
 
 	vi_softc_linkup(&sc->vrsc_vs, &vtrnd_vi_consts, sc, pi, &sc->vrsc_vq);
 	sc->vrsc_vs.vs_mtx = &sc->vrsc_mtx;

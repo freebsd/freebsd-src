@@ -232,8 +232,7 @@ cfginitmsi(struct passthru_softc *sc)
 
 		/* Allocate the emulated MSI-X table array */
 		table_size = pi->pi_msix.table_count * MSIX_TABLE_ENTRY_SIZE;
-		pi->pi_msix.table = malloc(table_size);
-		bzero(pi->pi_msix.table, table_size);
+		pi->pi_msix.table = calloc(1, table_size);
 
 		/* Mask all table entries */
 		for (i = 0; i < pi->pi_msix.table_count; i++) {
@@ -574,8 +573,7 @@ passthru_init(struct vmctx *ctx, struct pci_devinst *pi, char *opts)
 	if (vm_assign_pptdev(ctx, bus, slot, func) != 0)
 		goto done;
 
-	sc = malloc(sizeof(struct passthru_softc));
-	memset(sc, 0, sizeof(struct passthru_softc));
+	sc = calloc(1, sizeof(struct passthru_softc));
 
 	pi->pi_arg = sc;
 	sc->psc_pi = pi;

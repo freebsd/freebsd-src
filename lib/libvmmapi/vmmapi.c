@@ -57,6 +57,7 @@ struct vmctx {
 	int	fd;
 	uint32_t lowmem_limit;
 	enum vm_mmap_style vms;
+	int	memflags;
 	size_t	lowmem;
 	char	*lowmem_addr;
 	size_t	highmem;
@@ -101,6 +102,7 @@ vm_open(const char *name)
 	assert(vm != NULL);
 
 	vm->fd = -1;
+	vm->memflags = 0;
 	vm->lowmem_limit = 3 * GB;
 	vm->name = (char *)(vm + 1);
 	strcpy(vm->name, name);
@@ -180,10 +182,17 @@ vm_set_lowmem_limit(struct vmctx *ctx, uint32_t limit)
 	ctx->lowmem_limit = limit;
 }
 
+void
+vm_set_memflags(struct vmctx *ctx, int flags)
+{
+
+	ctx->memflags = flags;
+}
+
 static int
 setup_memory_segment(struct vmctx *ctx, vm_paddr_t gpa, size_t len, char **addr)
 {
-	int error;
+	int error, mmap_flags;
 	struct vm_memory_segment seg;
 
 	/*
@@ -195,8 +204,11 @@ setup_memory_segment(struct vmctx *ctx, vm_paddr_t gpa, size_t len, char **addr)
 	seg.len = len;
 	error = ioctl(ctx->fd, VM_MAP_MEMORY, &seg);
 	if (error == 0 && addr != NULL) {
-		*addr = mmap(NULL, len, PROT_READ | PROT_WRITE, MAP_SHARED,
-				ctx->fd, gpa);
+		mmap_flags = MAP_SHARED;
+		if ((ctx->memflags & VM_MEM_F_INCORE) == 0)
+			mmap_flags |= MAP_NOCORE;
+		*addr = mmap(NULL, len, PROT_READ | PROT_WRITE, mmap_flags,
+		    ctx->fd, gpa);
 	}
 	return (error);
 }

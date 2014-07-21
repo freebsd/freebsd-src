@@ -1786,8 +1786,7 @@ pci_ahci_init(struct vmctx *ctx, struct pci_devinst *pi, char *opts, int atapi)
 	dbg = fopen("/tmp/log", "w+");
 #endif
 
-       	sc = malloc(sizeof(struct pci_ahci_softc));
-	memset(sc, 0, sizeof(struct pci_ahci_softc));
+	sc = calloc(1, sizeof(struct pci_ahci_softc));
 	pi->pi_arg = sc;
 	sc->asc_pi = pi;
 	sc->ports = MAX_PORTS;
