@@ -159,7 +159,6 @@ hdestroy_r(struct hsearch_data *head)
 		while (!SLIST_EMPTY(&table[idx])) {
 			ie = SLIST_FIRST(&table[idx]);
 			SLIST_REMOVE_HEAD(&table[idx], link);
-			free(ie->ent.key);
 			free(ie);
 		}
 	}
