@@ -408,7 +408,6 @@ apr_status_t serf__handle_auth_response(int *consumed_response,
                consider the reponse body as invalid and discard it. */
             status = discard_body(response);
             *consumed_response = 1;
-
             if (!APR_STATUS_IS_EOF(status)) {
                 return status;
             }
