@@ -191,13 +191,16 @@ usage(void)
 	"       [--get-highmem]\n"
 	"       [--get-gpa-pmap]\n"
 	"       [--assert-lapic-lvt=<pin>]\n"
-	"       [--inject-nmi]\n",
+	"       [--inject-nmi]\n"
+	"       [--force-reset]\n"
+	"       [--force-poweroff]\n",
 	progname);
 	exit(1);
 }
 
 static int get_stats, getcap, setcap, capval, get_gpa_pmap;
 static int inject_nmi, assert_lapic_lvt;
+static int force_reset, force_poweroff;
 static const char *capname;
 static int create, destroy, get_lowmem, get_highmem;
 static uint64_t memsize;
@@ -565,6 +568,8 @@ main(int argc, char *argv[])
 		{ "create",	NO_ARG,		&create,	1 },
 		{ "destroy",	NO_ARG,		&destroy,	1 },
 		{ "inject-nmi",	NO_ARG,		&inject_nmi,	1 },
+		{ "force-reset",	NO_ARG,	&force_reset,	1 },
+		{ "force-poweroff", NO_ARG,	&force_poweroff, 1 },
 		{ NULL,		0,		NULL,		0 }
 	};
 
@@ -1533,6 +1538,12 @@ main(int argc, char *argv[])
 		else
 			printf("vm_run error %d\n", error);
 	}
+
+	if (!error && force_reset)
+		error = vm_suspend(ctx, VM_SUSPEND_RESET);
+
+	if (!error && force_poweroff)
+		error = vm_suspend(ctx, VM_SUSPEND_POWEROFF);
 
 	if (error)
 		printf("errno = %d\n", errno);
