@@ -91,7 +91,7 @@ static void
 usage(void)
 {
 
-	errx(1,
+	(void)fprintf(stderr,
 "usage: vtfontcvt [-w width] [-h height] [-v] normal.bdf [bold.bdf] out.fnt\n");
 	exit(1);
 }
