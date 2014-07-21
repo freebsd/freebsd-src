@@ -107,18 +107,19 @@ emulate_inout(struct vmctx *ctx, int vcpu, int in, int port, int bytes,
 	if (strict && handler == default_inout)
 		return (-1);
 
+	switch (bytes) {
+	case 1:
+		mask = 0xff;
+		break;
+	case 2:
+		mask = 0xffff;
+		break;
+	default:
+		mask = 0xffffffff;
+		break;
+	}
+
 	if (!in) {
-		switch (bytes) {
-		case 1:
-			mask = 0xff;
-			break;
-		case 2:
-			mask = 0xffff;
-			break;
-		default:
-			mask = 0xffffffff;
-			break;
-		}
 		val = *eax & mask;
 	}
 
@@ -131,17 +132,6 @@ emulate_inout(struct vmctx *ctx, int vcpu, int in, int port, int bytes,
 		error = -1;
 
 	if (!error && in) {
-		switch (bytes) {
-		case 1:
-			mask = 0xff;
-			break;
-		case 2:
-			mask = 0xffff;
-			break;
-		default:
-			mask = 0xffffffff;
-			break;
-		}
 		*eax &= ~mask;
 		*eax |= val & mask;
 	}

@@ -32,7 +32,7 @@
 .Nd "run a guest operating system inside a virtual machine"
 .Sh SYNOPSIS
 .Nm
-.Op Fl aehwxAHPW
+.Op Fl aehwxACHPW
 .Op Fl c Ar numcpus
 .Op Fl g Ar gdbport
 .Op Fl p Ar vcpu:hostcpu
@@ -69,6 +69,8 @@ guests.
 .It Fl c Ar numcpus
 Number of guest virtual CPUs.
 The default is 1 and the maximum is 16.
+.It Fl C
+Include guest memory in core file.
 .It Fl H
 Yield the virtual CPU thread when a HLT instruction is detected.
 If this option is not specified, virtual CPUs will use 100% of a host CPU.

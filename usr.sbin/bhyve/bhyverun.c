@@ -68,7 +68,6 @@ __FBSDID("$FreeBSD$");
 
 #define GUEST_NIO_PORT		0x488	/* guest upcalls via i/o port */
 
-#define	VMEXIT_SWITCH		0	/* force vcpu switch in mux mode */
 #define	VMEXIT_CONTINUE		1	/* continue from next instruction */
 #define	VMEXIT_RESTART		2	/* restart current instruction */
 #define	VMEXIT_ABORT		3	/* abort the vm run loop */
@@ -135,6 +134,7 @@ usage(int code)
 		"       -A: create an ACPI table\n"
 		"       -g: gdb port\n"
 		"       -c: # cpus (default 1)\n"
+		"       -C: include guest memory in core file\n"
 		"       -p: pin 'vcpu' to 'hostcpu'\n"
 		"       -H: vmexit from the guest on hlt\n"
 		"       -P: vmexit from the guest on pause\n"
@@ -272,12 +272,6 @@ fbsdrun_deletecpu(struct vmctx *ctx, int vcpu)
 }
 
 static int
-vmexit_catch_inout(void)
-{
-	return (VMEXIT_ABORT);
-}
-
-static int
 vmexit_handle_notify(struct vmctx *ctx, struct vm_exit *vme, int *pvcpu,
 		     uint32_t eax)
 {
@@ -330,7 +324,7 @@ vmexit_inout(struct vmctx *ctx, struct vm_exit *vme, int *pvcpu)
 		fprintf(stderr, "Unhandled %s%c 0x%04x\n",
 			in ? "in" : "out",
 			bytes == 1 ? 'b' : (bytes == 2 ? 'w' : 'l'), port);
-		return (vmexit_catch_inout());
+		return (VMEXIT_ABORT);
 	}
 }
 
@@ -575,6 +569,8 @@ vm_loop(struct vmctx *ctx, int vcpu, uint64_t rip)
 			assert(error == 0 || errno == EALREADY);
                         rip = vmexit[vcpu].rip + vmexit[vcpu].inst_length;
 			break;
+		case VMEXIT_ABORT:
+			abort();
 		default:
 			exit(1);
 		}
@@ -647,19 +643,20 @@ int
 main(int argc, char *argv[])
 {
 	int c, error, gdb_port, err, bvmcons;
-	int max_vcpus, mptgen;
+	int dump_guest_memory, max_vcpus, mptgen;
 	struct vmctx *ctx;
 	uint64_t rip;
 	size_t memsize;
 
 	bvmcons = 0;
+	dump_guest_memory = 0;
 	progname = basename(argv[0]);
 	gdb_port = 0;
 	guest_ncpus = 1;
 	memsize = 256 * MB;
 	mptgen = 1;
 
-	while ((c = getopt(argc, argv, "abehwxAHIPWYp:g:c:s:m:l:U:")) != -1) {
+	while ((c = getopt(argc, argv, "abehwxACHIPWYp:g:c:s:m:l:U:")) != -1) {
 		switch (c) {
 		case 'a':
 			x2apic_mode = 0;
@@ -678,6 +675,9 @@ main(int argc, char *argv[])
 			break;
                 case 'c':
 			guest_ncpus = atoi(optarg);
+			break;
+		case 'C':
+			dump_guest_memory = 1;
 			break;
 		case 'g':
 			gdb_port = atoi(optarg);
@@ -760,6 +760,8 @@ main(int argc, char *argv[])
 
 	fbsdrun_set_capabilities(ctx, BSP);
 
+	if (dump_guest_memory)
+		vm_set_memflags(ctx, VM_MEM_F_INCORE);
 	err = vm_setup_memory(ctx, memsize, VM_MMAP_ALL);
 	if (err) {
 		fprintf(stderr, "Unable to setup memory (%d)\n", err);

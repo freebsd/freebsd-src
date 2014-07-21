@@ -509,6 +509,15 @@ static void
 vmx_enable(void *arg __unused)
 {
 	int error;
+	uint64_t feature_control;
+
+	feature_control = rdmsr(MSR_IA32_FEATURE_CONTROL);
+	if ((feature_control & IA32_FEATURE_CONTROL_LOCK) == 0 ||
+	    (feature_control & IA32_FEATURE_CONTROL_VMX_EN) == 0) {
+		wrmsr(MSR_IA32_FEATURE_CONTROL,
+		    feature_control | IA32_FEATURE_CONTROL_VMX_EN |
+		    IA32_FEATURE_CONTROL_LOCK);
+	}
 
 	load_cr4(rcr4() | CR4_VMXE);
 
@@ -544,7 +553,7 @@ vmx_init(int ipinum)
 	 * are set (bits 0 and 2 respectively).
 	 */
 	feature_control = rdmsr(MSR_IA32_FEATURE_CONTROL);
-	if ((feature_control & IA32_FEATURE_CONTROL_LOCK) == 0 ||
+	if ((feature_control & IA32_FEATURE_CONTROL_LOCK) == 1 &&
 	    (feature_control & IA32_FEATURE_CONTROL_VMX_EN) == 0) {
 		printf("vmx_init: VMX operation disabled by BIOS\n");
 		return (ENXIO);
@@ -863,6 +872,11 @@ vmx_vminit(struct vm *vm, pmap_t pmap)
 	 * MSR_EFER is saved and restored in the guest VMCS area on a
 	 * VM exit and entry respectively. It is also restored from the
 	 * host VMCS area on a VM exit.
+	 *
+	 * The TSC MSR is exposed read-only. Writes are disallowed as that
+	 * will impact the host TSC.
+	 * XXX Writes would be implemented with a wrmsr trap, and
+	 * then modifying the TSC offset in the VMCS.
 	 */
 	if (guest_msr_rw(vmx, MSR_GSBASE) ||
 	    guest_msr_rw(vmx, MSR_FSBASE) ||
@@ -870,7 +884,8 @@ vmx_vminit(struct vm *vm, pmap_t pmap)
 	    guest_msr_rw(vmx, MSR_SYSENTER_ESP_MSR) ||
 	    guest_msr_rw(vmx, MSR_SYSENTER_EIP_MSR) ||
 	    guest_msr_rw(vmx, MSR_KGSBASE) ||
-	    guest_msr_rw(vmx, MSR_EFER))
+	    guest_msr_rw(vmx, MSR_EFER) ||
+	    guest_msr_ro(vmx, MSR_TSC))
 		panic("vmx_vminit: error setting guest msr access");
 
 	/*
@@ -1829,6 +1844,7 @@ vmx_exit_process(struct vmx *vmx, int vcpu, struct vm_exit *vmexit)
 		vmm_stat_incr(vmx->vm, vcpu, VMEXIT_RDMSR, 1);
 		retu = false;
 		ecx = vmxctx->guest_rcx;
+		VCPU_CTR1(vmx->vm, vcpu, "rdmsr 0x%08x", ecx);
 		error = emulate_rdmsr(vmx->vm, vcpu, ecx, &retu);
 		if (error) {
 			vmexit->exitcode = VM_EXITCODE_RDMSR;
@@ -1847,6 +1863,8 @@ vmx_exit_process(struct vmx *vmx, int vcpu, struct vm_exit *vmexit)
 		eax = vmxctx->guest_rax;
 		ecx = vmxctx->guest_rcx;
 		edx = vmxctx->guest_rdx;
+		VCPU_CTR2(vmx->vm, vcpu, "wrmsr 0x%08x value 0x%016lx",
+		    ecx, (uint64_t)edx << 32 | eax);
 		error = emulate_wrmsr(vmx->vm, vcpu, ecx,
 		    (uint64_t)edx << 32 | eax, &retu);
 		if (error) {
@@ -2257,7 +2275,7 @@ vmx_run(void *arg, int vcpu, register_t startrip, pmap_t pmap,
 static void
 vmx_vmcleanup(void *arg)
 {
-	int i, error;
+	int i;
 	struct vmx *vmx = arg;
 
 	if (apic_access_virtualization(vmx, 0))
@@ -2265,13 +2283,6 @@ vmx_vmcleanup(void *arg)
 
 	for (i = 0; i < VM_MAXCPU; i++)
 		vpid_free(vmx->state[i].vpid);
-
-	/*
-	 * XXXSMP we also need to clear the VMCS active on the other vcpus.
-	 */
-	error = vmclear(&vmx->vmcs[0]);
-	if (error != 0)
-		panic("vmx_vmcleanup: vmclear error %d on vcpu 0", error);
 
 	free(vmx, M_VMX);
 
@@ -2430,17 +2441,27 @@ vmx_setreg(void *arg, int vcpu, int reg, uint64_t val)
 static int
 vmx_getdesc(void *arg, int vcpu, int reg, struct seg_desc *desc)
 {
+	int hostcpu, running;
 	struct vmx *vmx = arg;
 
-	return (vmcs_getdesc(&vmx->vmcs[vcpu], reg, desc));
+	running = vcpu_is_running(vmx->vm, vcpu, &hostcpu);
+	if (running && hostcpu != curcpu)
+		panic("vmx_getdesc: %s%d is running", vm_name(vmx->vm), vcpu);
+
+	return (vmcs_getdesc(&vmx->vmcs[vcpu], running, reg, desc));
 }
 
 static int
 vmx_setdesc(void *arg, int vcpu, int reg, struct seg_desc *desc)
 {
+	int hostcpu, running;
 	struct vmx *vmx = arg;
 
-	return (vmcs_setdesc(&vmx->vmcs[vcpu], reg, desc));
+	running = vcpu_is_running(vmx->vm, vcpu, &hostcpu);
+	if (running && hostcpu != curcpu)
+		panic("vmx_setdesc: %s%d is running", vm_name(vmx->vm), vcpu);
+
+	return (vmcs_setdesc(&vmx->vmcs[vcpu], running, reg, desc));
 }
 
 static int
