@@ -175,5 +175,5 @@ SRCS+=	umass_common.c
 SRCS+=	umass_loader.c
 .endif
 
-.include "kshim.mk"
+.include "../kshim/kshim.mk"
 .include <bsd.lib.mk>
