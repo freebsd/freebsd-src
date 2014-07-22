@@ -39,6 +39,7 @@ __FBSDID("$FreeBSD$");
 #include "namespace.h"
 #include <sys/types.h>
 #include <errno.h>
+#include <fcntl.h>
 #include <limits.h>
 #include <stdio.h>
 #include "un-namespace.h"
@@ -118,7 +119,7 @@ _ftello(FILE *fp, fpos_t *offset)
 		if (HASUB(fp))
 			pos -= fp->_r;  /* Can be negative at this point. */
 	} else if ((fp->_flags & __SWR) && fp->_p != NULL) {
-		if (fp->_flags & __SAPP) {
+		if (fp->_flags & (__SAPP|O_APPEND)) {
 			pos = _sseek(fp, (fpos_t)0, SEEK_END);
 			if (pos == -1)
 				return (1);
