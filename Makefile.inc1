@@ -1425,7 +1425,7 @@ cross-tools: .MAKE
     ${_btxld} \
     ${_crunchide} \
     ${_kgzip} \
-    sys/boot/usb/tools
+    usr.bin/sysinit
 	${_+_}@${ECHODIR} "===> ${_tool} (obj,depend,all,install)"; \
 		cd ${.CURDIR}/${_tool} && \
 		${MAKE} DIRPRFX=${_tool}/ obj && \

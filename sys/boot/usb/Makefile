@@ -31,7 +31,6 @@
 # SUCH DAMAGE.
 #
 
-T=${.CURDIR}/tools
 S=${.CURDIR}/../..
 
 .PATH: \
@@ -51,7 +50,6 @@ CFLAGS+=	-ffunction-sections -fdata-sections
 CFLAGS+=	-ffreestanding
 CFLAGS+=	-Wformat -Wall
 CFLAGS+=	-I${S}
-CFLAGS+=	-I${T}
 CFLAGS+=	-I${.CURDIR}
 CFLAGS+=	-I${.CURDIR}/../common
 CFLAGS+=	-g

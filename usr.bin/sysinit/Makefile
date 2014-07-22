@@ -1,8 +1,8 @@
-#	@(#)Makefile	8.1 (Berkeley) 6/2/93
 # $FreeBSD$
 
 PROG=	sysinit
 NO_MAN=
-BINDIR=	/usr/bin
+
+CFLAGS+=	-I${.CURDIR}/../../sys/boot/kshim
 
 .include <bsd.prog.mk>

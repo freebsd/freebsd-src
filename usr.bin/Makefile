@@ -350,6 +350,7 @@ SUBDIR+=	indent
 SUBDIR+=	lex
 SUBDIR+=	mkstr
 SUBDIR+=	rpcgen
+SUBDIR+=	sysinit
 SUBDIR+=	unifdef
 SUBDIR+=	xlint
 SUBDIR+=	xstr

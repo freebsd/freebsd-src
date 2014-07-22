@@ -37,7 +37,7 @@
 #include <fcntl.h>
 #include <string.h>
 #include <sysexits.h>
-#include "sysinit.h"
+#include <sysinit.h>
 
 static int opt_R;
 static const char *input_f;
