@@ -188,7 +188,7 @@ MAN=	accept_filter.9 \
 	osd.9 \
 	panic.9 \
 	pbuf.9 \
-	PCBGROUPS.9 \
+	PCBGROUP.9 \
 	p_candebug.9 \
 	p_cansee.9 \
 	pci.9 \

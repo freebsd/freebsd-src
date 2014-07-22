@@ -27,10 +27,10 @@
 .\" $FreeBSD$
 .\"
 .Dd July 18, 2014
-.Dt PCBGROUPS 9
+.Dt PCBGROUP 9
 .Os
 .Sh NAME
-.Nm PCBGROUPS
+.Nm PCBGROUP
 .Nd Distributed Protocol Control Block Groups
 .Sh SYNOPSIS
 .Ft void
@@ -58,16 +58,16 @@
 .Fa "struct inpcbinfo *pcbinfo" "u_int hashtype" "uint32_t hash"
 .Fc
 .Pp
-.Cd "options PCBGROUPS"
+.Cd "options PCBGROUP"
 .Sh DESCRIPTION
-PCBGROUPS, or "connection groups", are based on Willman, Rixner, and Cox's
+PCBGROUP, or "connection groups", are based on Willman, Rixner, and Cox's
 2006 USENIX paper,
 .Qo
 An Evaluation of Network Stack Parallelization Strategies in Modern
 Operating Systems
 .Qc .
 .Pp
-The PCBGROUPS paper describes two main kind of connection groups.
+The PCBGROUP paper describes two main kind of connection groups.
 The first, called ConnP-T, uses a pool of worker threads which
 implement the network stack.
 Serialization occurs when queuing work into and completing work from
@@ -102,7 +102,7 @@ Connection establishment and teardown can be signficantly more
 expensive than without connection groups, but that steady-state
 processing can be significantly faster.
 .Pp
-Enabling PCBGROUPS in the kernel only provides the infrastructure
+Enabling PCBGROUP in the kernel only provides the infrastructure
 required to create and manage multiple PCB groups.
 An implementation needs to fill in a few functions to provide PCB
 group hash information in order for PCBs to be placed in a PCB group.
@@ -133,9 +133,9 @@ wildcard table.
 The PCBGROUP tables operate in conjunction with the normal single PCB list
 in a PCB info block.
 Thus, inserting and removing a PCB will still incur the same costs
-as without PCBGROUPS.
-A protocol which uses PCBGROUPS should fall back to the normal PCB list
-lookup if a call to the PCBGROUPS layer does not yield a lookup hit.
+as without PCBGROUP.
+A protocol which uses PCBGROUP should fall back to the normal PCB list
+lookup if a call to the PCBGROUP layer does not yield a lookup hit.
 .Ss Usage
 Initialize a PCBGROUP in a PCB info block
 .Pq Vt "struct pcbinfo"
@@ -165,7 +165,7 @@ The PCB code in
 .Pa sys/netinet
 and
 .Pa sys/netinet6
-is aware of PCBGROUPS and will call into the PCBGROUPS code to do
+is aware of PCBGROUP and will call into the PCBGROUP code to do
 PCBGROUP assignment and lookup, preferring a PCBGROUP lookup to the
 default global PCB info table.
 .Pp
@@ -201,10 +201,10 @@ receive path in
 .Xr netisr 9 ,
 .Xr RSS 9
 .Sh HISTORY
-PCBGROUPS first appeared in
+PCBGROUP first appeared in
 .Fx 9.0 .
 .Pp
-The PCBGROUPS implementation is inspired by Willman, Rixner, and Cox's
+The PCBGROUP implementation is inspired by Willman, Rixner, and Cox's
 2006 USENIX paper,
 .Qo
 An Evaluation of Network Stack Parallelization Strategies in Modern
@@ -213,7 +213,7 @@ Operating Systems
 .Li http://www.ece.rice.edu/~willmann/pubs/paranet_usenix.pdf
 .Sh AUTHORS
 .An -nosplit
-The PCBGROUPS implementation was written by
+The PCBGROUP implementation was written by
 .An Robert N. M. Watson Aq Mt rwatson@FreeBSD.org
 under contract to Juniper Networks, Inc.
 .Pp
@@ -224,12 +224,12 @@ The
 .Xr RSS 9
 implementation currently uses
 .Ic #ifdef
-blocks to tie into PCBGROUPS.
+blocks to tie into PCBGROUP.
 This is a sign that a more abstract programming API is needed.
 .Pp
-There is currently no support for re-balancing the PCBGROUPS assignment,
+There is currently no support for re-balancing the PCBGROUP assignment,
 nor is there any support for overriding which PCBGROUP a socket/PCB
 should be in.
 .Pp
-No statistics are kept to indicate how often PCBGROUPS lookups
+No statistics are kept to indicate how often PCBGROUP lookups
 succeed or fail.
