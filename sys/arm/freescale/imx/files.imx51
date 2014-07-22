@@ -44,7 +44,7 @@ dev/usb/controller/ehci_imx.c		optional ehci
 arm/freescale/imx/imx_wdog.c		optional imxwdt
 
 # i2c
-arm/freescale/imx/i2c.c			optional fsliic
+arm/freescale/imx/imx_i2c.c		optional fsliic
 
 # IPU - Image Processing Unit (frame buffer also)
 arm/freescale/imx/imx51_ipuv3.c		optional sc
