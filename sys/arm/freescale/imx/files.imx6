@@ -52,5 +52,5 @@ arm/freescale/imx/imx6_usbphy.c		optional ehci
 #
 #arm/freescale/imx/imx51_iomux.c  	optional iomux
 #dev/ata/chipsets/ata-fsl.c  		optional imxata
-#arm/freescale/imx/i2c.c  		optional fsliic
+#arm/freescale/imx/imx_i2c.c  		optional fsliic
 #arm/freescale/imx/imx51_ipuv3.c  	optional sc
