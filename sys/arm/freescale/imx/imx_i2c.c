@@ -86,6 +86,12 @@ __FBSDID("$FreeBSD$");
 #define debugf(fmt, args...)
 #endif
 
+static struct ofw_compat_data compat_data[] = {
+	{"fsl,imx6q-i2c",  1},
+	{"fsl,imx-i2c",	   1},
+	{NULL,             0}
+};
+
 struct i2c_softc {
 	device_t		dev;
 	device_t		iicbus;
@@ -227,7 +233,7 @@ i2c_probe(device_t dev)
 	if (!ofw_bus_status_okay(dev))
 		return (ENXIO);
 
-	if (!ofw_bus_is_compatible(dev, "fsl,imx-i2c"))
+	if (ofw_bus_search_compatible(dev, compat_data)->ocd_data == 0)
 		return (ENXIO);
 
 	sc = device_get_softc(dev);
@@ -246,7 +252,7 @@ i2c_probe(device_t dev)
 	/* Enable I2C */
 	i2c_write_reg(sc, I2C_CONTROL_REG, I2CCR_MEN);
 	bus_release_resource(dev, SYS_RES_MEMORY, sc->rid, sc->res);
-	device_set_desc(dev, "I2C bus controller");
+	device_set_desc(dev, "Freescale i.MX I2C bus controller");
 
 	return (BUS_PROBE_DEFAULT);
 }
