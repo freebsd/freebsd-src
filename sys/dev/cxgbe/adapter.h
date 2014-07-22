@@ -290,8 +290,7 @@ struct cluster_metadata {
 
 struct fl_sdesc {
 	caddr_t cl;
-	uint8_t nimbuf;		/* # of inline mbufs with ref on the cluster */
-	uint8_t nembuf;		/* # of allocated mbufs with ref */
+	uint16_t nmbuf;	/* # of driver originated mbufs with ref on cluster */
 	struct cluster_layout cll;
 };
 
