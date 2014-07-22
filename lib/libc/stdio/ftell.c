@@ -97,8 +97,6 @@ _ftello(FILE *fp, fpos_t *offset)
 	 * Find offset of underlying I/O object, then
 	 * adjust for buffered bytes.
 	 */
-	if (__sflush(fp))	/* may adjust seek offset on append stream */
-		return (1);
 	if (fp->_flags & __SOFF)
 		pos = fp->_offset;
 	else {
@@ -120,6 +118,11 @@ _ftello(FILE *fp, fpos_t *offset)
 		if (HASUB(fp))
 			pos -= fp->_r;  /* Can be negative at this point. */
 	} else if ((fp->_flags & __SWR) && fp->_p != NULL) {
+		if (fp->_flags & __SAPP) {
+			pos = _sseek(fp, (fpos_t)0, SEEK_END);
+			if (pos == -1)
+				return (1);
+		}
 		/*
 		 * Writing.  Any buffered characters cause the
 		 * position to be greater than that in the
