@@ -34,6 +34,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/pcpu.h>
 #include <sys/systm.h>
+#include <sys/proc.h>
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
@@ -46,8 +47,14 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/vmm.h>
 
+#include <assert.h>
 #include <vmmapi.h>
+#define	KASSERT(exp,msg)	assert((exp))
 #endif	/* _KERNEL */
+
+#include <machine/vmm_instruction_emul.h>
+#include <x86/psl.h>
+#include <x86/specialreg.h>
 
 /* struct vie_op.op_type */
 enum {
@@ -205,7 +212,7 @@ vie_read_bytereg(void *vm, int vcpuid, struct vie *vie, uint8_t *rval)
 	return (error);
 }
 
-static int
+int
 vie_update_register(void *vm, int vcpuid, enum vm_reg_name reg,
 		    uint64_t val, int size)
 {
@@ -560,6 +567,155 @@ vmm_emulate_instruction(void *vm, int vcpuid, uint64_t gpa, struct vie *vie,
 	return (error);
 }
 
+int
+vie_alignment_check(int cpl, int size, uint64_t cr0, uint64_t rf, uint64_t gla)
+{
+	KASSERT(size == 1 || size == 2 || size == 4 || size == 8,
+	    ("%s: invalid size %d", __func__, size));
+	KASSERT(cpl >= 0 && cpl <= 3, ("%s: invalid cpl %d", __func__, cpl));
+
+	if (cpl != 3 || (cr0 & CR0_AM) == 0 || (rf & PSL_AC) == 0)
+		return (0);
+
+	return ((gla & (size - 1)) ? 1 : 0);
+}
+
+int
+vie_canonical_check(enum vm_cpu_mode cpu_mode, uint64_t gla)
+{
+	uint64_t mask;
+
+	if (cpu_mode != CPU_MODE_64BIT)
+		return (0);
+
+	/*
+	 * The value of the bit 47 in the 'gla' should be replicated in the
+	 * most significant 16 bits.
+	 */
+	mask = ~((1UL << 48) - 1);
+	if (gla & (1UL << 47))
+		return ((gla & mask) != mask);
+	else
+		return ((gla & mask) != 0);
+}
+
+uint64_t
+vie_size2mask(int size)
+{
+	KASSERT(size == 1 || size == 2 || size == 4 || size == 8,
+	    ("vie_size2mask: invalid size %d", size));
+	return (size2mask[size]);
+}
+
+int
+vie_calculate_gla(enum vm_cpu_mode cpu_mode, enum vm_reg_name seg,
+    struct seg_desc *desc, uint64_t offset, int length, int addrsize,
+    int prot, uint64_t *gla)
+{
+	uint64_t firstoff, low_limit, high_limit, segbase;
+	int glasize, type;
+
+	KASSERT(seg >= VM_REG_GUEST_ES && seg <= VM_REG_GUEST_GS,
+	    ("%s: invalid segment %d", __func__, seg));
+	KASSERT(length == 1 || length == 2 || length == 4 || length == 8,
+	    ("%s: invalid operand size %d", __func__, length));
+	KASSERT((prot & ~(PROT_READ | PROT_WRITE)) == 0,
+	    ("%s: invalid prot %#x", __func__, prot));
+
+	firstoff = offset;
+	if (cpu_mode == CPU_MODE_64BIT) {
+		KASSERT(addrsize == 4 || addrsize == 8, ("%s: invalid address "
+		    "size %d for cpu_mode %d", __func__, addrsize, cpu_mode));
+		glasize = 8;
+	} else {
+		KASSERT(addrsize == 2 || addrsize == 4, ("%s: invalid address "
+		    "size %d for cpu mode %d", __func__, addrsize, cpu_mode));
+		glasize = 4;
+		/*
+		 * If the segment selector is loaded with a NULL selector
+		 * then the descriptor is unusable and attempting to use
+		 * it results in a #GP(0).
+		 */
+		if (SEG_DESC_UNUSABLE(desc))
+			return (-1);
+
+		/* 
+		 * The processor generates a #NP exception when a segment
+		 * register is loaded with a selector that points to a
+		 * descriptor that is not present. If this was the case then
+		 * it would have been checked before the VM-exit.
+		 */
+		KASSERT(SEG_DESC_PRESENT(desc), ("segment %d not present: %#x",
+		    seg, desc->access));
+
+		/*
+		 * The descriptor type must indicate a code/data segment.
+		 */
+		type = SEG_DESC_TYPE(desc);
+		KASSERT(type >= 16 && type <= 31, ("segment %d has invalid "
+		    "descriptor type %#x", seg, type));
+
+		if (prot & PROT_READ) {
+			/* #GP on a read access to a exec-only code segment */
+			if ((type & 0xA) == 0x8)
+				return (-1);
+		}
+
+		if (prot & PROT_WRITE) {
+			/*
+			 * #GP on a write access to a code segment or a
+			 * read-only data segment.
+			 */
+			if (type & 0x8)			/* code segment */
+				return (-1);
+
+			if ((type & 0xA) == 0)		/* read-only data seg */
+				return (-1);
+		}
+
+		/*
+		 * 'desc->limit' is fully expanded taking granularity into
+		 * account.
+		 */
+		if ((type & 0xC) == 0x4) {
+			/* expand-down data segment */
+			low_limit = desc->limit + 1;
+			high_limit = SEG_DESC_DEF32(desc) ? 0xffffffff : 0xffff;
+		} else {
+			/* code segment or expand-up data segment */
+			low_limit = 0;
+			high_limit = desc->limit;
+		}
+
+		while (length > 0) {
+			offset &= vie_size2mask(addrsize);
+			if (offset < low_limit || offset > high_limit)
+				return (-1);
+			offset++;
+			length--;
+		}
+	}
+
+	/*
+	 * In 64-bit mode all segments except %fs and %gs have a segment
+	 * base address of 0.
+	 */
+	if (cpu_mode == CPU_MODE_64BIT && seg != VM_REG_GUEST_FS &&
+	    seg != VM_REG_GUEST_GS) {
+		segbase = 0;
+	} else {
+		segbase = desc->base;
+	}
+
+	/*
+	 * Truncate 'firstoff' to the effective address size before adding
+	 * it to the segment base.
+	 */
+	firstoff &= vie_size2mask(addrsize);
+	*gla = (segbase + firstoff) & vie_size2mask(glasize);
+	return (0);
+}
+
 #ifdef _KERNEL
 void
 vie_init(struct vie *vie)
@@ -572,28 +728,86 @@ vie_init(struct vie *vie)
 }
 
 static int
-gla2gpa(struct vm *vm, uint64_t gla, uint64_t ptpphys,
-	uint64_t *gpa, enum vie_paging_mode paging_mode)
+pf_error_code(int usermode, int prot, int rsvd, uint64_t pte)
 {
-	int nlevels, ptpshift, ptpindex;
-	uint64_t *ptpbase, pte, pgsize;
+	int error_code = 0;
+
+	if (pte & PG_V)
+		error_code |= PGEX_P;
+	if (prot & VM_PROT_WRITE)
+		error_code |= PGEX_W;
+	if (usermode)
+		error_code |= PGEX_U;
+	if (rsvd)
+		error_code |= PGEX_RSV;
+	if (prot & VM_PROT_EXECUTE)
+		error_code |= PGEX_I;
+
+	return (error_code);
+}
+
+static void
+ptp_release(void **cookie)
+{
+	if (*cookie != NULL) {
+		vm_gpa_release(*cookie);
+		*cookie = NULL;
+	}
+}
+
+static void *
+ptp_hold(struct vm *vm, vm_paddr_t ptpphys, size_t len, void **cookie)
+{
+	void *ptr;
+
+	ptp_release(cookie);
+	ptr = vm_gpa_hold(vm, ptpphys, len, VM_PROT_RW, cookie);
+	return (ptr);
+}
+
+int
+vmm_gla2gpa(struct vm *vm, int vcpuid, struct vm_guest_paging *paging,
+    uint64_t gla, int prot, uint64_t *gpa)
+{
+	int nlevels, pfcode, ptpshift, ptpindex, retval, usermode, writable;
+	u_int retries;
+	uint64_t *ptpbase, ptpphys, pte, pgsize;
 	uint32_t *ptpbase32, pte32;
 	void *cookie;
 
-	if (paging_mode == PAGING_MODE_FLAT) {
-		*gpa = gla;
-		return (0);
+	usermode = (paging->cpl == 3 ? 1 : 0);
+	writable = prot & VM_PROT_WRITE;
+	cookie = NULL;
+	retval = 0;
+	retries = 0;
+restart:
+	ptpphys = paging->cr3;		/* root of the page tables */
+	ptp_release(&cookie);
+	if (retries++ > 0)
+		maybe_yield();
+
+	if (vie_canonical_check(paging->cpu_mode, gla)) {
+		/*
+		 * XXX assuming a non-stack reference otherwise a stack fault
+		 * should be generated.
+		 */
+		vm_inject_gp(vm, vcpuid);
+		goto fault;
 	}
 
-	if (paging_mode == PAGING_MODE_32) {
+	if (paging->paging_mode == PAGING_MODE_FLAT) {
+		*gpa = gla;
+		goto done;
+	}
+
+	if (paging->paging_mode == PAGING_MODE_32) {
 		nlevels = 2;
 		while (--nlevels >= 0) {
 			/* Zero out the lower 12 bits. */
 			ptpphys &= ~0xfff;
 
-			ptpbase32 = vm_gpa_hold(vm, ptpphys, PAGE_SIZE,
-						VM_PROT_READ, &cookie);
-			
+			ptpbase32 = ptp_hold(vm, ptpphys, PAGE_SIZE, &cookie);
+
 			if (ptpbase32 == NULL)
 				goto error;
 
@@ -603,29 +817,55 @@ gla2gpa(struct vm *vm, uint64_t gla, uint64_t ptpphys,
 
 			pte32 = ptpbase32[ptpindex];
 
-			vm_gpa_release(cookie);
+			if ((pte32 & PG_V) == 0 ||
+			    (usermode && (pte32 & PG_U) == 0) ||
+			    (writable && (pte32 & PG_RW) == 0)) {
+				pfcode = pf_error_code(usermode, prot, 0,
+				    pte32);
+				vm_inject_pf(vm, vcpuid, pfcode, gla);
+				goto fault;
+			}
 
-			if ((pte32 & PG_V) == 0)
-				goto error;
+			/*
+			 * Emulate the x86 MMU's management of the accessed
+			 * and dirty flags. While the accessed flag is set
+			 * at every level of the page table, the dirty flag
+			 * is only set at the last level providing the guest
+			 * physical address.
+			 */
+			if ((pte32 & PG_A) == 0) {
+				if (atomic_cmpset_32(&ptpbase32[ptpindex],
+				    pte32, pte32 | PG_A) == 0) {
+					goto restart;
+				}
+			}
 
-			if (pte32 & PG_PS)
+			/* XXX must be ignored if CR4.PSE=0 */
+			if (nlevels > 0 && (pte32 & PG_PS) != 0)
 				break;
 
 			ptpphys = pte32;
 		}
 
+		/* Set the dirty bit in the page table entry if necessary */
+		if (writable && (pte32 & PG_M) == 0) {
+			if (atomic_cmpset_32(&ptpbase32[ptpindex],
+			    pte32, pte32 | PG_M) == 0) {
+				goto restart;
+			}
+		}
+
 		/* Zero out the lower 'ptpshift' bits */
 		pte32 >>= ptpshift; pte32 <<= ptpshift;
 		*gpa = pte32 | (gla & (pgsize - 1));
-		return (0);
+		goto done;
 	}
 
-	if (paging_mode == PAGING_MODE_PAE) {
-		/* Zero out the lower 5 bits and the upper 12 bits */
-		ptpphys >>= 5; ptpphys <<= 17; ptpphys >>= 12;
+	if (paging->paging_mode == PAGING_MODE_PAE) {
+		/* Zero out the lower 5 bits and the upper 32 bits */
+		ptpphys &= 0xffffffe0UL;
 
-		ptpbase = vm_gpa_hold(vm, ptpphys, sizeof(*ptpbase) * 4,
-				      VM_PROT_READ, &cookie);
+		ptpbase = ptp_hold(vm, ptpphys, sizeof(*ptpbase) * 4, &cookie);
 		if (ptpbase == NULL)
 			goto error;
 
@@ -633,10 +873,11 @@ gla2gpa(struct vm *vm, uint64_t gla, uint64_t ptpphys,
 
 		pte = ptpbase[ptpindex];
 
-		vm_gpa_release(cookie);
-
-		if ((pte & PG_V) == 0)
-			goto error;
+		if ((pte & PG_V) == 0) {
+			pfcode = pf_error_code(usermode, prot, 0, pte);
+			vm_inject_pf(vm, vcpuid, pfcode, gla);
+			goto fault;
+		}
 
 		ptpphys = pte;
 
@@ -647,8 +888,7 @@ gla2gpa(struct vm *vm, uint64_t gla, uint64_t ptpphys,
 		/* Zero out the lower 12 bits and the upper 12 bits */
 		ptpphys >>= 12; ptpphys <<= 24; ptpphys >>= 12;
 
-		ptpbase = vm_gpa_hold(vm, ptpphys, PAGE_SIZE, VM_PROT_READ,
-				      &cookie);
+		ptpbase = ptp_hold(vm, ptpphys, PAGE_SIZE, &cookie);
 		if (ptpbase == NULL)
 			goto error;
 
@@ -658,36 +898,59 @@ gla2gpa(struct vm *vm, uint64_t gla, uint64_t ptpphys,
 
 		pte = ptpbase[ptpindex];
 
-		vm_gpa_release(cookie);
+		if ((pte & PG_V) == 0 ||
+		    (usermode && (pte & PG_U) == 0) ||
+		    (writable && (pte & PG_RW) == 0)) {
+			pfcode = pf_error_code(usermode, prot, 0, pte);
+			vm_inject_pf(vm, vcpuid, pfcode, gla);
+			goto fault;
+		}
 
-		if ((pte & PG_V) == 0)
-			goto error;
+		/* Set the accessed bit in the page table entry */
+		if ((pte & PG_A) == 0) {
+			if (atomic_cmpset_64(&ptpbase[ptpindex],
+			    pte, pte | PG_A) == 0) {
+				goto restart;
+			}
+		}
 
-		if (pte & PG_PS) {
-			if (pgsize > 1 * GB)
-				goto error;
-			else
-				break;
+		if (nlevels > 0 && (pte & PG_PS) != 0) {
+			if (pgsize > 1 * GB) {
+				pfcode = pf_error_code(usermode, prot, 1, pte);
+				vm_inject_pf(vm, vcpuid, pfcode, gla);
+				goto fault;
+			}
+			break;
 		}
 
 		ptpphys = pte;
 	}
 
+	/* Set the dirty bit in the page table entry if necessary */
+	if (writable && (pte & PG_M) == 0) {
+		if (atomic_cmpset_64(&ptpbase[ptpindex], pte, pte | PG_M) == 0)
+			goto restart;
+	}
+
 	/* Zero out the lower 'ptpshift' bits and the upper 12 bits */
 	pte >>= ptpshift; pte <<= (ptpshift + 12); pte >>= 12;
 	*gpa = pte | (gla & (pgsize - 1));
-	return (0);
-
+done:
+	ptp_release(&cookie);
+	return (retval);
 error:
-	return (-1);
+	retval = -1;
+	goto done;
+fault:
+	retval = 1;
+	goto done;
 }
 
 int
-vmm_fetch_instruction(struct vm *vm, int cpuid, uint64_t rip, int inst_length,
-		      uint64_t cr3, enum vie_paging_mode paging_mode,
-		      struct vie *vie)
+vmm_fetch_instruction(struct vm *vm, int cpuid, struct vm_guest_paging *paging,
+    uint64_t rip, int inst_length, struct vie *vie)
 {
-	int n, err, prot;
+	int n, error, prot;
 	uint64_t gpa, off;
 	void *hpa, *cookie;
 
@@ -701,9 +964,9 @@ vmm_fetch_instruction(struct vm *vm, int cpuid, uint64_t rip, int inst_length,
 
 	/* Copy the instruction into 'vie' */
 	while (vie->num_valid < inst_length) {
-		err = gla2gpa(vm, rip, cr3, &gpa, paging_mode);
-		if (err)
-			break;
+		error = vmm_gla2gpa(vm, cpuid, paging, rip, prot, &gpa);
+		if (error)
+			return (error);
 
 		off = gpa & PAGE_MASK;
 		n = min(inst_length - vie->num_valid, PAGE_SIZE - off);
@@ -804,7 +1067,7 @@ decode_opcode(struct vie *vie)
 }
 
 static int
-decode_modrm(struct vie *vie, enum vie_cpu_mode cpu_mode)
+decode_modrm(struct vie *vie, enum vm_cpu_mode cpu_mode)
 {
 	uint8_t x;
 
@@ -1084,7 +1347,7 @@ verify_gla(struct vm *vm, int cpuid, uint64_t gla, struct vie *vie)
 
 int
 vmm_decode_instruction(struct vm *vm, int cpuid, uint64_t gla,
-		       enum vie_cpu_mode cpu_mode, struct vie *vie)
+		       enum vm_cpu_mode cpu_mode, struct vie *vie)
 {
 
 	if (cpu_mode == CPU_MODE_64BIT) {

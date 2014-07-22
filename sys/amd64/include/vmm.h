@@ -54,6 +54,7 @@ struct vmspace;
 struct vm_object;
 struct pmap;
 
+enum vm_reg_name;
 enum x2apic_state;
 
 typedef int	(*vmm_init_func_t)(int ipinum);
@@ -236,10 +237,11 @@ int vm_exception_pending(struct vm *vm, int vcpuid, struct vm_exception *vme);
 
 void vm_inject_gp(struct vm *vm, int vcpuid); /* general protection fault */
 void vm_inject_ud(struct vm *vm, int vcpuid); /* undefined instruction fault */
+void vm_inject_pf(struct vm *vm, int vcpuid, int error_code, uint64_t cr2);
+
+enum vm_reg_name vm_segment_name(int seg_encoding);
 
 #endif	/* KERNEL */
-
-#include <machine/vmm_instruction_emul.h>
 
 #define	VM_MAXCPU	16			/* maximum virtual cpus */
 
@@ -280,6 +282,7 @@ enum vm_reg_name {
 	VM_REG_GUEST_IDTR,
 	VM_REG_GUEST_GDTR,
 	VM_REG_GUEST_EFER,
+	VM_REG_GUEST_CR2,
 	VM_REG_LAST
 };
 
@@ -318,6 +321,76 @@ struct seg_desc {
 	uint32_t	limit;
 	uint32_t	access;
 };
+#define	SEG_DESC_TYPE(desc)		((desc)->access & 0x001f)
+#define	SEG_DESC_PRESENT(desc)		((desc)->access & 0x0080)
+#define	SEG_DESC_DEF32(desc)		((desc)->access & 0x4000)
+#define	SEG_DESC_GRANULARITY(desc)	((desc)->access & 0x8000)
+#define	SEG_DESC_UNUSABLE(desc)		((desc)->access & 0x10000)
+
+enum vm_cpu_mode {
+	CPU_MODE_COMPATIBILITY,		/* IA-32E mode (CS.L = 0) */
+	CPU_MODE_64BIT,			/* IA-32E mode (CS.L = 1) */
+};
+
+enum vm_paging_mode {
+	PAGING_MODE_FLAT,
+	PAGING_MODE_32,
+	PAGING_MODE_PAE,
+	PAGING_MODE_64,
+};
+
+struct vm_guest_paging {
+	uint64_t	cr3;
+	int		cpl;
+	enum vm_cpu_mode cpu_mode;
+	enum vm_paging_mode paging_mode;
+};
+
+/*
+ * The data structures 'vie' and 'vie_op' are meant to be opaque to the
+ * consumers of instruction decoding. The only reason why their contents
+ * need to be exposed is because they are part of the 'vm_exit' structure.
+ */
+struct vie_op {
+	uint8_t		op_byte;	/* actual opcode byte */
+	uint8_t		op_type;	/* type of operation (e.g. MOV) */
+	uint16_t	op_flags;
+};
+
+#define	VIE_INST_SIZE	15
+struct vie {
+	uint8_t		inst[VIE_INST_SIZE];	/* instruction bytes */
+	uint8_t		num_valid;		/* size of the instruction */
+	uint8_t		num_processed;
+
+	uint8_t		rex_w:1,		/* REX prefix */
+			rex_r:1,
+			rex_x:1,
+			rex_b:1,
+			rex_present:1;
+
+	uint8_t		mod:2,			/* ModRM byte */
+			reg:4,
+			rm:4;
+
+	uint8_t		ss:2,			/* SIB byte */
+			index:4,
+			base:4;
+
+	uint8_t		disp_bytes;
+	uint8_t		imm_bytes;
+
+	uint8_t		scale;
+	int		base_register;		/* VM_REG_GUEST_xyz */
+	int		index_register;		/* VM_REG_GUEST_xyz */
+
+	int64_t		displacement;		/* optional addr displacement */
+	int64_t		immediate;		/* optional immediate operand */
+
+	uint8_t		decoded;	/* set to 1 if successfully decoded */
+
+	struct vie_op	op;			/* opcode description */
+};
 
 enum vm_exitcode {
 	VM_EXITCODE_INOUT,
@@ -335,7 +408,29 @@ enum vm_exitcode {
 	VM_EXITCODE_RENDEZVOUS,
 	VM_EXITCODE_IOAPIC_EOI,
 	VM_EXITCODE_SUSPENDED,
+	VM_EXITCODE_INOUT_STR,
 	VM_EXITCODE_MAX
+};
+
+struct vm_inout {
+	uint16_t	bytes:3;	/* 1 or 2 or 4 */
+	uint16_t	in:1;
+	uint16_t	string:1;
+	uint16_t	rep:1;
+	uint16_t	port;
+	uint32_t	eax;		/* valid for out */
+};
+
+struct vm_inout_str {
+	struct vm_inout	inout;		/* must be the first element */
+	struct vm_guest_paging paging;
+	uint64_t	rflags;
+	uint64_t	cr0;
+	uint64_t	index;
+	uint64_t	count;		/* rep=1 (%rcx), rep=0 (1) */
+	int		addrsize;
+	enum vm_reg_name seg_name;
+	struct seg_desc seg_desc;
 };
 
 struct vm_exit {
@@ -343,14 +438,8 @@ struct vm_exit {
 	int			inst_length;	/* 0 means unknown */
 	uint64_t		rip;
 	union {
-		struct {
-			uint16_t	bytes:3;	/* 1 or 2 or 4 */
-			uint16_t	in:1;		/* out is 0, in is 1 */
-			uint16_t	string:1;
-			uint16_t	rep:1;
-			uint16_t	port;
-			uint32_t	eax;		/* valid for out */
-		} inout;
+		struct vm_inout	inout;
+		struct vm_inout_str inout_str;
 		struct {
 			uint64_t	gpa;
 			int		fault_type;
@@ -358,9 +447,7 @@ struct vm_exit {
 		struct {
 			uint64_t	gpa;
 			uint64_t	gla;
-			uint64_t	cr3;
-			enum vie_cpu_mode cpu_mode;
-			enum vie_paging_mode paging_mode;
+			struct vm_guest_paging paging;
 			struct vie	vie;
 		} inst_emul;
 		/*

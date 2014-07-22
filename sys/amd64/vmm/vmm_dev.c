@@ -48,6 +48,7 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/vmparam.h>
 #include <machine/vmm.h>
+#include <machine/vmm_instruction_emul.h>
 #include <machine/vmm_dev.h>
 
 #include "vmm_lapic.h"
@@ -168,6 +169,7 @@ vmmdev_ioctl(struct cdev *cdev, u_long cmd, caddr_t data, int fflag,
 	struct vm_x2apic *x2apic;
 	struct vm_gpa_pte *gpapte;
 	struct vm_suspend *vmsuspend;
+	struct vm_gla2gpa *gg;
 
 	sc = vmmdev_lookup2(cdev);
 	if (sc == NULL)
@@ -192,6 +194,7 @@ vmmdev_ioctl(struct cdev *cdev, u_long cmd, caddr_t data, int fflag,
 	case VM_PPTDEV_MSI:
 	case VM_PPTDEV_MSIX:
 	case VM_SET_X2APIC_STATE:
+	case VM_GLA2GPA:
 		/*
 		 * XXX fragile, handle with care
 		 * Assumes that the first field of the ioctl data is the vcpu.
@@ -415,6 +418,27 @@ vmmdev_ioctl(struct cdev *cdev, u_long cmd, caddr_t data, int fflag,
 	case VM_GET_HPET_CAPABILITIES:
 		error = vhpet_getcap((struct vm_hpet_cap *)data);
 		break;
+	case VM_GLA2GPA: {
+		CTASSERT(PROT_READ == VM_PROT_READ);
+		CTASSERT(PROT_WRITE == VM_PROT_WRITE);
+		CTASSERT(PROT_EXEC == VM_PROT_EXECUTE);
+		gg = (struct vm_gla2gpa *)data;
+		error = vmm_gla2gpa(sc->vm, gg->vcpuid, &gg->paging, gg->gla,
+		    gg->prot, &gg->gpa);
+		KASSERT(error == 0 || error == 1 || error == -1,
+		    ("%s: vmm_gla2gpa unknown error %d", __func__, error));
+		if (error >= 0) {
+			/*
+			 * error = 0: the translation was successful
+			 * error = 1: a fault was injected into the guest
+			 */
+			gg->fault = error;
+			error = 0;
+		} else {
+			error = EFAULT;
+		}
+		break;
+	}
 	default:
 		error = ENOTTY;
 		break;
