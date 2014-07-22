@@ -211,7 +211,8 @@ a_onchip_fifo_mem_core_read(struct resource *res, uint32_t off,
 #define	ATSE_RX_INTR_ENABLE(sc)						\
 	a_onchip_fifo_mem_core_write((sc)->atse_rxc_mem_res,		\
 	    A_ONCHIP_FIFO_MEM_CORE_STATUS_REG_INT_ENABLE,		\
-	    A_ONCHIP_FIFO_MEM_CORE_INTR_ALL,				\
+	    A_ONCHIP_FIFO_MEM_CORE_INTR_ALMOSTEMPTY |			\
+	    A_ONCHIP_FIFO_MEM_CORE_INTR_OVERFLOW,			\
 	    "RX_INTR", __func__, __LINE__)	/* XXX-BZ review later. */
 #define	ATSE_RX_INTR_DISABLE(sc)					\
 	a_onchip_fifo_mem_core_write((sc)->atse_rxc_mem_res,		\
@@ -220,7 +221,8 @@ a_onchip_fifo_mem_core_read(struct resource *res, uint32_t off,
 #define	ATSE_TX_INTR_ENABLE(sc)						\
 	a_onchip_fifo_mem_core_write((sc)->atse_txc_mem_res,		\
 	    A_ONCHIP_FIFO_MEM_CORE_STATUS_REG_INT_ENABLE,		\
-	    A_ONCHIP_FIFO_MEM_CORE_INTR_ALL,				\
+	    A_ONCHIP_FIFO_MEM_CORE_INTR_ALMOSTFULL |			\
+	    A_ONCHIP_FIFO_MEM_CORE_INTR_UNDERFLOW,			\
 	    "TX_INTR", __func__, __LINE__)	/* XXX-BZ review later. */
 #define	ATSE_TX_INTR_DISABLE(sc)					\
 	a_onchip_fifo_mem_core_write((sc)->atse_txc_mem_res,		\
@@ -1338,28 +1340,21 @@ atse_rx_intr(void *arg)
 	ATSE_RX_INTR_DISABLE(sc);
 
 	rx = ATSE_RX_EVENT_READ(sc);
-	if (rx != 0) {
-		if (rx & (A_ONCHIP_FIFO_MEM_CORE_EVENT_OVERFLOW|
-		    A_ONCHIP_FIFO_MEM_CORE_EVENT_UNDERFLOW)) {
-			/* XXX-BZ ERROR HANDLING. */
-			atse_update_rx_err(sc, ((rx &
-			    A_ONCHIP_FIFO_MEM_CORE_ERROR_MASK) >>
-			    A_ONCHIP_FIFO_MEM_CORE_ERROR_SHIFT) & 0xff);
-			ifp->if_ierrors++;
-		}
-		if ((rx & A_ONCHIP_FIFO_MEM_CORE_EVENT_EMPTY) != 0) {
+	if (rx & (A_ONCHIP_FIFO_MEM_CORE_EVENT_OVERFLOW|
+	    A_ONCHIP_FIFO_MEM_CORE_EVENT_UNDERFLOW)) {
+		/* XXX-BZ ERROR HANDLING. */
+		atse_update_rx_err(sc, ((rx &
+		    A_ONCHIP_FIFO_MEM_CORE_ERROR_MASK) >>
+		    A_ONCHIP_FIFO_MEM_CORE_ERROR_SHIFT) & 0xff);
+		ifp->if_ierrors++;
+	}
+	if ((rx & A_ONCHIP_FIFO_MEM_CORE_EVENT_EMPTY) != 0) {
 #if 0
-			sc->atse_rx_cycles = RX_CYCLES_IN_INTR;
+		sc->atse_rx_cycles = RX_CYCLES_IN_INTR;
 #endif
-			atse_rx_locked(sc);
-		}
+		atse_rx_locked(sc);
 	}
 
-	/*
-	 * XXXRW: What is the correct race-free way to interact with the
-	 * event / interrupt masks in atse here?  It seems likely that at
-	 * least atse_start_locked() should be pre-clear/enable?
-	 */
 	/* Clear events before re-enabling intrs. */
 	ATSE_RX_EVENT_CLEAR(sc);
 
@@ -1390,35 +1385,29 @@ atse_tx_intr(void *arg)
 	ATSE_TX_INTR_DISABLE(sc);
 
 	tx = ATSE_TX_EVENT_READ(sc);
-	if (tx != 0) {
-		/* XXX-BZ build histogram. */
-		if (tx & (A_ONCHIP_FIFO_MEM_CORE_EVENT_OVERFLOW|
-		    A_ONCHIP_FIFO_MEM_CORE_EVENT_UNDERFLOW)) {
-			/* XXX-BZ ERROR HANDLING. */
-			ifp->if_oerrors++;
-		}
-		if (tx & A_ONCHIP_FIFO_MEM_CORE_EVENT_EMPTY)
-			sc->atse_watchdog_timer = 0;
-#if 0
-		if (tx & (A_ONCHIP_FIFO_MEM_CORE_EVENT_EMPTY|
-		    A_ONCHIP_FIFO_MEM_CORE_EVENT_ALMOSTEMPTY))
-			atse_start_locked(ifp);
-#endif
-	}
 
-	/*
-	 * XXXRW: What is the correct race-free way to interact with the
-	 * event / interrupt masks in atse here?  It seems likely that at
-	 * least atse_start_locked() should be pre-clear/enable?
-	 */
+	/* XXX-BZ build histogram. */
+	if (tx & (A_ONCHIP_FIFO_MEM_CORE_EVENT_OVERFLOW|
+	    A_ONCHIP_FIFO_MEM_CORE_EVENT_UNDERFLOW)) {
+		/* XXX-BZ ERROR HANDLING. */
+		ifp->if_oerrors++;
+	}
+	if (!(tx & A_ONCHIP_FIFO_MEM_CORE_EVENT_FULL)) {
+		sc->atse_watchdog_timer = 0;
+		atse_start_locked(ifp);
+	}
+#if 0
+	if (tx & (A_ONCHIP_FIFO_MEM_CORE_EVENT_EMPTY|
+	    A_ONCHIP_FIFO_MEM_CORE_EVENT_ALMOSTEMPTY))
+		atse_start_locked(ifp);
+#endif
+
 	/* Clear events before re-enabling intrs. */
 	ATSE_TX_EVENT_CLEAR(sc);
 
 	/* Re-enable interrupts. */
-	if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
-		atse_start_locked(ifp);
+	if (ifp->if_drv_flags & IFF_DRV_RUNNING)
 		ATSE_TX_INTR_ENABLE(sc);
-	}
 	ATSE_UNLOCK(sc);
 }
 
@@ -1459,7 +1448,7 @@ atse_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
 			/* XXX-BZ ERROR HANDLING. */
 			ifp->if_oerrors++;
 		}
-		if (tx & A_ONCHIP_FIFO_MEM_CORE_EVENT_EMPTY)
+		if (ATSE_TX_READ_FILL_LEVEL(sc) == 0)
 			sc->atse_watchdog_timer = 0;
 
 #if 0
