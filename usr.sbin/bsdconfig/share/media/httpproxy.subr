@@ -452,7 +452,7 @@ f_media_get_http_proxy()
 	 44) f_show_msg "$msg_url_was_not_found" "$url" ;;
 	  4) f_show_msg "$msg_client_error" ;;
 	  *) f_show_msg "$msg_error_when_requesting_url" "$url" ;;
-	esac
+	esac 2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
 	return $FAILURE
 }
 
