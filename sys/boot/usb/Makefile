@@ -47,7 +47,6 @@ LIB=		usbboot
 INTERNALLIB=
 
 CFLAGS+=	-DBOOTPROG=\"usbloader\"
-CFLAGS+=	-DUSB_GLOBAL_INCLUDE_FILE=\"bsd_global.h\"
 CFLAGS+=	-ffunction-sections -fdata-sections
 CFLAGS+=	-ffreestanding
 CFLAGS+=	-Wformat -Wall
@@ -71,16 +70,6 @@ CFLAGS+=	-m32
 .if ${MACHINE_CPUARCH} == "mips"
 CFLAGS+=	-mno-abicalls
 .endif
-
-#
-# Single threaded BSD kernel
-#
-SRCS+=	bsd_kernel.c
-
-#
-# BUSSPACE implementation
-#
-SRCS+=	bsd_busspace.c
 
 #
 # BUSDMA implementation
@@ -177,9 +166,6 @@ KSRCS+=	usb_template_mouse.c
 KSRCS+=	usb_template_kbd.c
 KSRCS+=	usb_template_audio.c
 
-SRCS+=	sysinit_data.c
-SRCS+=	sysuninit_data.c
-
 #
 # USB mass storage support
 #
@@ -189,29 +175,5 @@ SRCS+=	umass_common.c
 SRCS+=	umass_loader.c
 .endif
 
-CLEANFILES+= sysinit.bin
-CLEANFILES+= sysinit_data.c
-CLEANFILES+= sysuninit_data.c
-
-SRCS+=	${KSRCS}
-SYSINIT_OBJS=	${KSRCS:C/\.c/.osys/}
-CLEANFILES+=	${SYSINIT_OBJS}
-
+.include "kshim.mk"
 .include <bsd.lib.mk>
-
-#
-# SYSINIT() and SYSUNINIT() handling
-#
-
-sysinit_data.c: sysinit.bin
-	sysinit -i sysinit.bin -o ${.TARGET} -k sysinit -s sysinit_data
-
-sysuninit_data.c: sysinit.bin
-	sysinit -i sysinit.bin -o ${.TARGET} -R -k sysuninit -s sysuninit_data
-
-.SUFFIXES:	.osys
-.o.osys:
-	${OBJCOPY} -j ".debug.sysinit" -O binary ${.IMPSRC} ${.TARGET}
-
-sysinit.bin: ${SYSINIT_OBJS}
-	cat ${.ALLSRC} > sysinit.bin
