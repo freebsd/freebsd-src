@@ -1,5 +1,6 @@
 /*-
- * Copyright (c) 2013 Neel Natu <neel@freebsd.org>
+ * Copyright (c) 2014 Advanced Computing Technologies LLC
+ * Written by: John H. Baldwin <jhb@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -11,10 +12,10 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY NETAPP, INC ``AS IS'' AND
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED.  IN NO EVENT SHALL NETAPP, INC OR CONTRIBUTORS BE LIABLE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
  * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
  * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
  * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
@@ -26,47 +27,19 @@
  * $FreeBSD$
  */
 
-#ifndef _LPC_H_
-#define	_LPC_H_
+#ifndef __PCI_IRQ_H__
+#define	__PCI_IRQ_H__
 
-#include <sys/linker_set.h>
+struct pci_devinst;
 
-typedef void (*lpc_write_dsdt_t)(void);
-
-struct lpc_dsdt {
-	lpc_write_dsdt_t handler;
-};
-
-#define	LPC_DSDT(handler)						\
-	static struct lpc_dsdt __CONCAT(__lpc_dsdt, __LINE__) = {	\
-		(handler),						\
-	};								\
-	DATA_SET(lpc_dsdt_set, __CONCAT(__lpc_dsdt, __LINE__))
-
-enum lpc_sysres_type {
-	LPC_SYSRES_IO,
-	LPC_SYSRES_MEM
-};
-
-struct lpc_sysres {
-	enum lpc_sysres_type type;
-	uint32_t base;
-	uint32_t length;
-};
-
-#define	LPC_SYSRES(type, base, length)					\
-	static struct lpc_sysres __CONCAT(__lpc_sysres, __LINE__) = {	\
-		(type),							\
-		(base),							\
-		(length)						\
-	};								\
-	DATA_SET(lpc_sysres_set, __CONCAT(__lpc_sysres, __LINE__))
-
-#define	SYSRES_IO(base, length)		LPC_SYSRES(LPC_SYSRES_IO, base, length)
-#define	SYSRES_MEM(base, length)	LPC_SYSRES(LPC_SYSRES_MEM, base, length)
-
-int	lpc_device_parse(const char *opt);
-char	*lpc_pirq_name(int pin);
-void	lpc_pirq_routed(void);
+void	pci_irq_assert(struct pci_devinst *pi);
+void	pci_irq_deassert(struct pci_devinst *pi);
+void	pci_irq_init(struct vmctx *ctx);
+void	pci_irq_reserve(int irq);
+void	pci_irq_use(int irq);
+int	pirq_alloc_pin(struct vmctx *ctx);
+int	pirq_irq(int pin);
+uint8_t	pirq_read(int pin);
+void	pirq_write(struct vmctx *ctx, int pin, uint8_t val);
 
 #endif

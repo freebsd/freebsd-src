@@ -78,6 +78,8 @@ int	vm_ioapic_pincount(struct vmctx *ctx, int *pincount);
 int	vm_isa_assert_irq(struct vmctx *ctx, int atpic_irq, int ioapic_irq);
 int	vm_isa_deassert_irq(struct vmctx *ctx, int atpic_irq, int ioapic_irq);
 int	vm_isa_pulse_irq(struct vmctx *ctx, int atpic_irq, int ioapic_irq);
+int	vm_isa_set_irq_trigger(struct vmctx *ctx, int atpic_irq,
+	    enum vm_intr_trigger trigger);
 int	vm_inject_nmi(struct vmctx *ctx, int vcpu);
 int	vm_capability_name2type(const char *capname);
 const char *vm_capability_type2name(int type);

@@ -23,6 +23,7 @@ SRCS=	\
 	pci_ahci.c		\
 	pci_emul.c		\
 	pci_hostbridge.c	\
+	pci_irq.c		\
 	pci_lpc.c		\
 	pci_passthru.c		\
 	pci_virtio_block.c	\
