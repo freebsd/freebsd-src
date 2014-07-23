@@ -36,6 +36,7 @@ KSHIM_DIR:=	${.PARSEDIR}
 
 CFLAGS+=	-I${KSHIM_DIR}
 CFLAGS+=	-DUSB_GLOBAL_INCLUDE_FILE=\"bsd_global.h\"
+CFLAGS+=	-DHAVE_ENDIAN_DEFS
 
 #
 # Single threaded BSD kernel
