@@ -44,6 +44,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/time.h>
 #include <sys/sysctl.h>
 #include <sys/smp.h>
+#include <sys/counter.h>
 #include <net/bpf.h>
 #include <net/ethernet.h>
 #include <net/if.h>
@@ -258,6 +259,9 @@ static int handle_fw_msg(struct sge_iq *, const struct rss_header *,
 static int sysctl_uint16(SYSCTL_HANDLER_ARGS);
 static int sysctl_bufsizes(SYSCTL_HANDLER_ARGS);
 
+static counter_u64_t extfree_refs;
+static counter_u64_t extfree_rels;
+
 /*
  * Called on MOD_LOAD.  Validates and calculates the SGE tunables.
  */
@@ -329,6 +333,30 @@ t4_sge_modload(void)
 		    " using 0 instead.\n", cong_drop);
 		cong_drop = 0;
 	}
+
+	extfree_refs = counter_u64_alloc(M_WAITOK);
+	extfree_rels = counter_u64_alloc(M_WAITOK);
+	counter_u64_zero(extfree_refs);
+	counter_u64_zero(extfree_rels);
+}
+
+void
+t4_sge_modunload(void)
+{
+
+	counter_u64_free(extfree_refs);
+	counter_u64_free(extfree_rels);
+}
+
+uint64_t
+t4_sge_extfree_refs(void)
+{
+	uint64_t refs, rels;
+
+	rels = counter_u64_fetch(extfree_rels);
+	refs = counter_u64_fetch(extfree_refs);
+
+	return (refs - rels);
 }
 
 void
@@ -1513,6 +1541,7 @@ rxb_free(struct mbuf *m, void *arg1, void *arg2)
 	caddr_t cl = arg2;
 
 	uma_zfree(zone, cl);
+	counter_u64_add(extfree_rels, 1);
 }
 
 /*
@@ -1574,7 +1603,8 @@ get_scatter_segment(struct adapter *sc, struct sge_fl *fl, int total, int flags)
 		fl->mbuf_inlined++;
 		m_extaddref(m, payload, padded_len, &clm->refcount, rxb_free,
 		    swz->zone, sd->cl);
-		sd->nmbuf++;
+		if (sd->nmbuf++ == 0)
+			counter_u64_add(extfree_refs, 1);
 
 	} else {
 
@@ -1591,7 +1621,8 @@ get_scatter_segment(struct adapter *sc, struct sge_fl *fl, int total, int flags)
 		if (clm != NULL) {
 			m_extaddref(m, payload, padded_len, &clm->refcount,
 			    rxb_free, swz->zone, sd->cl);
-			sd->nmbuf++;
+			if (sd->nmbuf++ == 0)
+				counter_u64_add(extfree_refs, 1);
 		} else {
 			m_cljset(m, sd->cl, swz->type);
 			sd->cl = NULL;	/* consumed, not a recycle candidate */
@@ -3280,6 +3311,7 @@ refill_fl(struct adapter *sc, struct sge_fl *fl, int nbufs)
 
 			if (atomic_fetchadd_int(&clm->refcount, -1) == 1) {
 				fl->cl_recycled++;
+				counter_u64_add(extfree_rels, 1);
 				goto recycled;
 			}
 			sd->cl = NULL;	/* gave up my reference */
@@ -3381,9 +3413,11 @@ free_fl_sdesc(struct adapter *sc, struct sge_fl *fl)
 
 		cll = &sd->cll;
 		clm = cl_metadata(sc, fl, cll, sd->cl);
-		if (sd->nmbuf == 0 ||
-		    (clm && atomic_fetchadd_int(&clm->refcount, -1) == 1)) {
+		if (sd->nmbuf == 0)
 			uma_zfree(sc->sge.sw_zone_info[cll->zidx].zone, sd->cl);
+		else if (clm && atomic_fetchadd_int(&clm->refcount, -1) == 1) {
+			uma_zfree(sc->sge.sw_zone_info[cll->zidx].zone, sd->cl);
+			counter_u64_add(extfree_rels, 1);
 		}
 		sd->cl = NULL;
 	}
