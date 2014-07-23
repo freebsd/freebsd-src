@@ -1235,8 +1235,8 @@ vm_handle_inst_emul(struct vm *vm, int vcpuid, bool *retu)
 		return (0);
 	}
 
-	error = vmm_emulate_instruction(vm, vcpuid, gpa, vie, mread, mwrite,
-	    retu);
+	error = vmm_emulate_instruction(vm, vcpuid, gpa, vie, paging,
+	    mread, mwrite, retu);
 
 	return (error);
 }
@@ -1751,6 +1751,30 @@ vm_inject_ud(struct vm *vm, int vcpuid)
 	vm_inject_fault(vm, vcpuid, &udf);
 }
 
+void
+vm_inject_ac(struct vm *vm, int vcpuid, int error_code)
+{
+	struct vm_exception acf = {
+		.vector = IDT_AC,
+		.error_code_valid = 1,
+		.error_code = error_code
+	};
+
+	vm_inject_fault(vm, vcpuid, &acf);
+}
+
+void
+vm_inject_ss(struct vm *vm, int vcpuid, int error_code)
+{
+	struct vm_exception ssf = {
+		.vector = IDT_SS,
+		.error_code_valid = 1,
+		.error_code = error_code
+	};
+
+	vm_inject_fault(vm, vcpuid, &ssf);
+}
+
 static VMM_STAT(VCPU_NMI_COUNT, "number of NMIs delivered to vcpu");
 
 int
@@ -2182,6 +2206,97 @@ vm_segment_name(int seg)
 	return (seg_names[seg]);
 }
 
+void
+vm_copy_teardown(struct vm *vm, int vcpuid, struct vm_copyinfo *copyinfo,
+    int num_copyinfo)
+{
+	int idx;
+
+	for (idx = 0; idx < num_copyinfo; idx++) {
+		if (copyinfo[idx].cookie != NULL)
+			vm_gpa_release(copyinfo[idx].cookie);
+	}
+	bzero(copyinfo, num_copyinfo * sizeof(struct vm_copyinfo));
+}
+
+int
+vm_copy_setup(struct vm *vm, int vcpuid, struct vm_guest_paging *paging,
+    uint64_t gla, size_t len, int prot, struct vm_copyinfo *copyinfo,
+    int num_copyinfo)
+{
+	int error, idx, nused;
+	size_t n, off, remaining;
+	void *hva, *cookie;
+	uint64_t gpa;
+
+	bzero(copyinfo, sizeof(struct vm_copyinfo) * num_copyinfo);
+
+	nused = 0;
+	remaining = len;
+	while (remaining > 0) {
+		KASSERT(nused < num_copyinfo, ("insufficient vm_copyinfo"));
+		error = vmm_gla2gpa(vm, vcpuid, paging, gla, prot, &gpa);
+		if (error)
+			return (error);
+		off = gpa & PAGE_MASK;
+		n = min(remaining, PAGE_SIZE - off);
+		copyinfo[nused].gpa = gpa;
+		copyinfo[nused].len = n;
+		remaining -= n;
+		gla += n;
+		nused++;
+	}
+
+	for (idx = 0; idx < nused; idx++) {
+		hva = vm_gpa_hold(vm, copyinfo[idx].gpa, copyinfo[idx].len,
+		    prot, &cookie);
+		if (hva == NULL)
+			break;
+		copyinfo[idx].hva = hva;
+		copyinfo[idx].cookie = cookie;
+	}
+
+	if (idx != nused) {
+		vm_copy_teardown(vm, vcpuid, copyinfo, num_copyinfo);
+		return (-1);
+	} else {
+		return (0);
+	}
+}
+
+void
+vm_copyin(struct vm *vm, int vcpuid, struct vm_copyinfo *copyinfo, void *kaddr,
+    size_t len)
+{
+	char *dst;
+	int idx;
+	
+	dst = kaddr;
+	idx = 0;
+	while (len > 0) {
+		bcopy(copyinfo[idx].hva, dst, copyinfo[idx].len);
+		len -= copyinfo[idx].len;
+		dst += copyinfo[idx].len;
+		idx++;
+	}
+}
+
+void
+vm_copyout(struct vm *vm, int vcpuid, const void *kaddr,
+    struct vm_copyinfo *copyinfo, size_t len)
+{
+	const char *src;
+	int idx;
+
+	src = kaddr;
+	idx = 0;
+	while (len > 0) {
+		bcopy(src, copyinfo[idx].hva, copyinfo[idx].len);
+		len -= copyinfo[idx].len;
+		src += copyinfo[idx].len;
+		idx++;
+	}
+}
 
 /*
  * Return the amount of in-use and wired memory for the VM. Since

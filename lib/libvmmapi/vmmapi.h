@@ -66,6 +66,8 @@ int	vm_set_desc(struct vmctx *ctx, int vcpu, int reg,
 		    uint64_t base, uint32_t limit, uint32_t access);
 int	vm_get_desc(struct vmctx *ctx, int vcpu, int reg,
 		    uint64_t *base, uint32_t *limit, uint32_t *access);
+int	vm_get_seg_desc(struct vmctx *ctx, int vcpu, int reg,
+			struct seg_desc *seg_desc);
 int	vm_set_register(struct vmctx *ctx, int vcpu, int reg, uint64_t val);
 int	vm_get_register(struct vmctx *ctx, int vcpu, int reg, uint64_t *retval);
 int	vm_run(struct vmctx *ctx, int vcpu, uint64_t rip,
@@ -124,12 +126,17 @@ int	vm_get_hpet_capabilities(struct vmctx *ctx, uint32_t *capabilities);
  * The 'iovcnt' should be big enough to accomodate all GPA segments.
  * Returns 0 on success, 1 on a guest fault condition and -1 otherwise.
  */
-int	vm_gla2gpa(struct vmctx *ctx, int vcpu, struct vm_guest_paging *paging,
+int	vm_copy_setup(struct vmctx *ctx, int vcpu, struct vm_guest_paging *pg,
 	    uint64_t gla, size_t len, int prot, struct iovec *iov, int iovcnt);
 void	vm_copyin(struct vmctx *ctx, int vcpu, struct iovec *guest_iov,
 	    void *host_dst, size_t len);
 void	vm_copyout(struct vmctx *ctx, int vcpu, const void *host_src,
 	    struct iovec *guest_iov, size_t len);
+
+/* Helper functions to inject exceptions */
+void	vm_inject_ss(struct vmctx *ctx, int vcpu, int errcode);
+void	vm_inject_ac(struct vmctx *ctx, int vcpu, int errcode);
+void	vm_inject_gp(struct vmctx *ctx, int vcpu, int errcode);
 
 /* Reset vcpu register state */
 int	vcpu_reset(struct vmctx *ctx, int vcpu);
