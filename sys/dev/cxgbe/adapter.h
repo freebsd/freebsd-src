@@ -985,6 +985,8 @@ void t4_nm_intr(void *);
 
 /* t4_sge.c */
 void t4_sge_modload(void);
+void t4_sge_modunload(void);
+uint64_t t4_sge_extfree_refs(void);
 void t4_init_sge_cpl_handlers(struct adapter *);
 void t4_tweak_chip_settings(struct adapter *);
 int t4_read_chip_settings(struct adapter *);
