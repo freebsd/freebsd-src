@@ -142,8 +142,9 @@ FILES+= menu.rc
 # Do garbage collection
 CFLAGS+= -ffunction-sections -fdata-sections
 CFLAGS+= -Wl,--gc-sections
-# Link USB BOOT library
-LDADD+= ${.OBJDIR}/../../../usb/libusbboot.a
+HAVE_UMASS_LOADER=	1
+HAVE_SAF1761OTG=	1
+.include "../../../usb/usbcore.mk"
 CFLAGS+= -I${.CURDIR}/../../../usb
 # Define USB SUPPORT
 CFLAGS+= -DLOADER_USB_SUPPORT
@@ -151,4 +152,7 @@ CFLAGS+= -DLOADER_USB_SUPPORT
 
 all: loader
 
+.if defined(LOADER_USB_SUPPORT)
+.include "../../../kshim/kshim.mk"
+.endif
 .include <bsd.prog.mk>
