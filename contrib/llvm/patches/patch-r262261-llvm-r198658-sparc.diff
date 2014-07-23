@@ -2,7 +2,7 @@ Pull in r198658 from upstream llvm trunk:
 
   [Sparc] Add support for parsing memory operands in sparc AsmParser.
 
-Introduced here: http://svn.freebsd.org/changeset/base/262261
+Introduced here: http://svnweb.freebsd.org/changeset/base/262261
 
 Index: test/MC/Sparc/sparc-ctrl-instructions.s
 ===================================================================
