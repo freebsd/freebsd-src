@@ -44,6 +44,7 @@ __FBSDID("$FreeBSD$");
 #else	/* !_KERNEL */
 #include <sys/types.h>
 #include <sys/errno.h>
+#include <sys/_iovec.h>
 
 #include <machine/vmm.h>
 
@@ -65,6 +66,8 @@ enum {
 	VIE_OP_TYPE_AND,
 	VIE_OP_TYPE_OR,
 	VIE_OP_TYPE_TWO_BYTE,
+	VIE_OP_TYPE_PUSH,
+	VIE_OP_TYPE_CMP,
 	VIE_OP_TYPE_LAST
 };
 
@@ -72,6 +75,7 @@ enum {
 #define	VIE_OP_F_IMM		(1 << 0)  /* 16/32-bit immediate operand */
 #define	VIE_OP_F_IMM8		(1 << 1)  /* 8-bit immediate operand */
 #define	VIE_OP_F_MOFFSET	(1 << 2)  /* 16/32/64-bit immediate moffset */
+#define	VIE_OP_F_NO_MODRM	(1 << 3)
 
 static const struct vie_op two_byte_opcodes[256] = {
 	[0xB6] = {
@@ -89,6 +93,10 @@ static const struct vie_op one_byte_opcodes[256] = {
 		.op_byte = 0x0F,
 		.op_type = VIE_OP_TYPE_TWO_BYTE
 	},
+	[0x3B] = {
+		.op_byte = 0x3B,
+		.op_type = VIE_OP_TYPE_CMP,
+	},
 	[0x88] = {
 		.op_byte = 0x88,
 		.op_type = VIE_OP_TYPE_MOV,
@@ -104,6 +112,16 @@ static const struct vie_op one_byte_opcodes[256] = {
 	[0x8B] = {
 		.op_byte = 0x8B,
 		.op_type = VIE_OP_TYPE_MOV,
+	},
+	[0xA1] = {
+		.op_byte = 0xA1,
+		.op_type = VIE_OP_TYPE_MOV,
+		.op_flags = VIE_OP_F_MOFFSET | VIE_OP_F_NO_MODRM,
+	},
+	[0xA3] = {
+		.op_byte = 0xA3,
+		.op_type = VIE_OP_TYPE_MOV,
+		.op_flags = VIE_OP_F_MOFFSET | VIE_OP_F_NO_MODRM,
 	},
 	[0xC6] = {
 		/* XXX Group 11 extended opcode - not just MOV */
@@ -132,6 +150,11 @@ static const struct vie_op one_byte_opcodes[256] = {
 		.op_type = VIE_OP_TYPE_OR,
 		.op_flags = VIE_OP_F_IMM8,
 	},
+	[0xFF] = {
+		/* XXX Group 5 extended opcode - not just PUSH */
+		.op_byte = 0xFF,
+		.op_type = VIE_OP_TYPE_PUSH,
+	}
 };
 
 /* struct vie.mod */
@@ -284,6 +307,53 @@ vie_update_register(void *vm, int vcpuid, enum vm_reg_name reg,
 	return (error);
 }
 
+/*
+ * Return the status flags that would result from doing (x - y).
+ */
+static u_long
+getcc16(uint16_t x, uint16_t y)
+{
+	u_long rflags;
+
+	__asm __volatile("sub %1,%2; pushfq; popq %0" :
+	    "=r" (rflags) : "m" (y), "r" (x));
+	return (rflags);
+}
+
+static u_long
+getcc32(uint32_t x, uint32_t y)
+{
+	u_long rflags;
+
+	__asm __volatile("sub %1,%2; pushfq; popq %0" :
+	    "=r" (rflags) : "m" (y), "r" (x));
+	return (rflags);
+}
+
+static u_long
+getcc64(uint64_t x, uint64_t y)
+{
+	u_long rflags;
+
+	__asm __volatile("sub %1,%2; pushfq; popq %0" :
+	    "=r" (rflags) : "m" (y), "r" (x));
+	return (rflags);
+}
+
+static u_long
+getcc(int opsize, uint64_t x, uint64_t y)
+{
+	KASSERT(opsize == 2 || opsize == 4 || opsize == 8,
+	    ("getcc: invalid operand size %d", opsize));
+
+	if (opsize == 2)
+		return (getcc16(x, y));
+	else if (opsize == 4)
+		return (getcc32(x, y));
+	else
+		return (getcc64(x, y));
+}
+
 static int
 emulate_mov(void *vm, int vcpuid, uint64_t gpa, struct vie *vie,
 	    mem_region_read_t memread, mem_region_write_t memwrite, void *arg)
@@ -344,6 +414,32 @@ emulate_mov(void *vm, int vcpuid, uint64_t gpa, struct vie *vie,
 		if (error == 0) {
 			reg = gpr_map[vie->reg];
 			error = vie_update_register(vm, vcpuid, reg, val, size);
+		}
+		break;
+	case 0xA1:
+		/*
+		 * MOV from seg:moffset to AX/EAX/RAX
+		 * A1:		mov AX, moffs16
+		 * A1:		mov EAX, moffs32
+		 * REX.W + A1:	mov RAX, moffs64
+		 */
+		error = memread(vm, vcpuid, gpa, &val, size, arg);
+		if (error == 0) {
+			reg = VM_REG_GUEST_RAX;
+			error = vie_update_register(vm, vcpuid, reg, val, size);
+		}
+		break;
+	case 0xA3:
+		/*
+		 * MOV from AX/EAX/RAX to seg:moffset
+		 * A3:		mov moffs16, AX
+		 * A3:		mov moffs32, EAX 
+		 * REX.W + A3:	mov moffs64, RAX
+		 */
+		error = vie_read_register(vm, vcpuid, VM_REG_GUEST_RAX, &val);
+		if (error == 0) {
+			val &= size2mask[size];
+			error = memwrite(vm, vcpuid, gpa, val, size, arg);
 		}
 		break;
 	case 0xC6:
@@ -553,10 +649,150 @@ emulate_or(void *vm, int vcpuid, uint64_t gpa, struct vie *vie,
 	return (error);
 }
 
+#define	RFLAGS_STATUS_BITS    (PSL_C | PSL_PF | PSL_AF | PSL_Z | PSL_N | PSL_V)
+
+static int
+emulate_cmp(void *vm, int vcpuid, uint64_t gpa, struct vie *vie,
+	    mem_region_read_t memread, mem_region_write_t memwrite, void *arg)
+{
+	int error, size;
+	uint64_t op1, op2, rflags, rflags2;
+	enum vm_reg_name reg;
+
+	size = vie->opsize;
+	switch (vie->op.op_byte) {
+	case 0x3B:
+		/*
+		 * 3B/r		CMP r16, r/m16
+		 * 3B/r		CMP r32, r/m32
+		 * REX.W + 3B/r	CMP r64, r/m64
+		 *
+		 * Compare first operand (reg) with second operand (r/m) and
+		 * set status flags in EFLAGS register. The comparison is
+		 * performed by subtracting the second operand from the first
+		 * operand and then setting the status flags.
+		 */
+
+		/* Get the first operand */
+		reg = gpr_map[vie->reg];
+		error = vie_read_register(vm, vcpuid, reg, &op1);
+		if (error)
+			return (error);
+
+		/* Get the second operand */
+		error = memread(vm, vcpuid, gpa, &op2, size, arg);
+		if (error)
+			return (error);
+
+		break;
+	default:
+		return (EINVAL);
+	}
+	rflags2 = getcc(size, op1, op2);
+	error = vie_read_register(vm, vcpuid, VM_REG_GUEST_RFLAGS, &rflags);
+	if (error)
+		return (error);
+	rflags &= ~RFLAGS_STATUS_BITS;
+	rflags |= rflags2 & RFLAGS_STATUS_BITS;
+
+	error = vie_update_register(vm, vcpuid, VM_REG_GUEST_RFLAGS, rflags, 8);
+	return (error);
+}
+
+static int
+emulate_push(void *vm, int vcpuid, uint64_t mmio_gpa, struct vie *vie,
+    struct vm_guest_paging *paging, mem_region_read_t memread,
+    mem_region_write_t memwrite, void *arg)
+{
+#ifdef _KERNEL
+	struct vm_copyinfo copyinfo[2];
+#else
+	struct iovec copyinfo[2];
+#endif
+	struct seg_desc ss_desc;
+	uint64_t cr0, rflags, rsp, stack_gla, val;
+	int error, size, stackaddrsize;
+
+	/*
+	 * Table A-6, "Opcode Extensions", Intel SDM, Vol 2.
+	 *
+	 * PUSH is part of the group 5 extended opcodes and is identified
+	 * by ModRM:reg = b110.
+	 */
+	if ((vie->reg & 7) != 6)
+		return (EINVAL);
+
+	size = vie->opsize;
+	/*
+	 * From "Address-Size Attributes for Stack Accesses", Intel SDL, Vol 1
+	 */
+	if (paging->cpu_mode == CPU_MODE_REAL)
+		stackaddrsize = 2;
+	else if (paging->cpu_mode == CPU_MODE_64BIT)
+		stackaddrsize = 8;
+	else {
+		/*
+		 * In protected or compability mode the 'B' flag in the
+		 * stack-segment descriptor determines the size of the
+		 * stack pointer.
+		 */
+		error = vm_get_seg_desc(vm, vcpuid, VM_REG_GUEST_SS, &ss_desc);
+		KASSERT(error == 0, ("%s: error %d getting SS descriptor",
+		    __func__, error));
+		if (SEG_DESC_DEF32(ss_desc.access))
+			stackaddrsize = 4;
+		else
+			stackaddrsize = 2;
+	}
+
+	error = vie_read_register(vm, vcpuid, VM_REG_GUEST_CR0, &cr0);
+	KASSERT(error == 0, ("%s: error %d getting cr0", __func__, error));
+
+	error = vie_read_register(vm, vcpuid, VM_REG_GUEST_RFLAGS, &rflags);
+	KASSERT(error == 0, ("%s: error %d getting rflags", __func__, error));
+
+	error = vie_read_register(vm, vcpuid, VM_REG_GUEST_RSP, &rsp);
+	KASSERT(error == 0, ("%s: error %d getting rsp", __func__, error));
+
+	rsp -= size;
+	if (vie_calculate_gla(paging->cpu_mode, VM_REG_GUEST_SS, &ss_desc,
+	    rsp, size, stackaddrsize, PROT_WRITE, &stack_gla)) {
+		vm_inject_ss(vm, vcpuid, 0);
+		return (0);
+	}
+
+	if (vie_canonical_check(paging->cpu_mode, stack_gla)) {
+		vm_inject_ss(vm, vcpuid, 0);
+		return (0);
+	}
+
+	if (vie_alignment_check(paging->cpl, size, cr0, rflags, stack_gla)) {
+		vm_inject_ac(vm, vcpuid, 0);
+		return (0);
+	}
+
+	error = vm_copy_setup(vm, vcpuid, paging, stack_gla, size, PROT_WRITE,
+	    copyinfo, nitems(copyinfo));
+	if (error)
+		return (error);
+
+	error = memread(vm, vcpuid, mmio_gpa, &val, size, arg);
+	if (error == 0) {
+		vm_copyout(vm, vcpuid, &val, copyinfo, size);
+		error = vie_update_register(vm, vcpuid, VM_REG_GUEST_RSP, rsp,
+		    stackaddrsize);
+		KASSERT(error == 0, ("error %d updating rsp", error));
+	}
+#ifdef _KERNEL
+	vm_copy_teardown(vm, vcpuid, copyinfo, nitems(copyinfo));
+#endif
+	return (error);
+}
+
 int
 vmm_emulate_instruction(void *vm, int vcpuid, uint64_t gpa, struct vie *vie,
-			mem_region_read_t memread, mem_region_write_t memwrite,
-			void *memarg)
+    struct vm_guest_paging *paging, mem_region_read_t memread,
+    mem_region_write_t memwrite, void *memarg)
 {
 	int error;
 
@@ -564,6 +800,14 @@ vmm_emulate_instruction(void *vm, int vcpuid, uint64_t gpa, struct vie *vie,
 		return (EINVAL);
 
 	switch (vie->op.op_type) {
+	case VIE_OP_TYPE_PUSH:
+		error = emulate_push(vm, vcpuid, gpa, vie, paging, memread,
+		    memwrite, memarg);
+		break;
+	case VIE_OP_TYPE_CMP:
+		error = emulate_cmp(vm, vcpuid, gpa, vie,
+				    memread, memwrite, memarg);
+		break;
 	case VIE_OP_TYPE_MOV:
 		error = emulate_mov(vm, vcpuid, gpa, vie,
 				    memread, memwrite, memarg);
@@ -970,45 +1214,24 @@ fault:
 }
 
 int
-vmm_fetch_instruction(struct vm *vm, int cpuid, struct vm_guest_paging *paging,
+vmm_fetch_instruction(struct vm *vm, int vcpuid, struct vm_guest_paging *paging,
     uint64_t rip, int inst_length, struct vie *vie)
 {
-	int n, error, prot;
-	uint64_t gpa, off;
-	void *hpa, *cookie;
+	struct vm_copyinfo copyinfo[2];
+	int error, prot;
 
-	/*
-	 * XXX cache previously fetched instructions using 'rip' as the tag
-	 */
-
-	prot = VM_PROT_READ | VM_PROT_EXECUTE;
 	if (inst_length > VIE_INST_SIZE)
 		panic("vmm_fetch_instruction: invalid length %d", inst_length);
 
-	/* Copy the instruction into 'vie' */
-	while (vie->num_valid < inst_length) {
-		error = vmm_gla2gpa(vm, cpuid, paging, rip, prot, &gpa);
-		if (error)
-			return (error);
-
-		off = gpa & PAGE_MASK;
-		n = min(inst_length - vie->num_valid, PAGE_SIZE - off);
-
-		if ((hpa = vm_gpa_hold(vm, gpa, n, prot, &cookie)) == NULL)
-			break;
-
-		bcopy(hpa, &vie->inst[vie->num_valid], n);
-
-		vm_gpa_release(cookie);
-
-		rip += n;
-		vie->num_valid += n;
+	prot = PROT_READ | PROT_EXEC;
+	error = vm_copy_setup(vm, vcpuid, paging, rip, inst_length, prot,
+	    copyinfo, nitems(copyinfo));
+	if (error == 0) {
+		vm_copyin(vm, vcpuid, copyinfo, vie->inst, inst_length);
+		vm_copy_teardown(vm, vcpuid, copyinfo, nitems(copyinfo));
+		vie->num_valid = inst_length;
 	}
-
-	if (vie->num_valid == inst_length)
-		return (0);
-	else
-		return (-1);
+	return (error);
 }
 
 static int
@@ -1137,6 +1360,9 @@ decode_modrm(struct vie *vie, enum vm_cpu_mode cpu_mode)
 
 	if (cpu_mode == CPU_MODE_REAL)
 		return (-1);
+
+	if (vie->op.op_flags & VIE_OP_F_NO_MODRM)
+		return (0);
 
 	if (vie_peek(vie, &x))
 		return (-1);
@@ -1314,24 +1540,14 @@ decode_immediate(struct vie *vie)
 	int i, n;
 	uint8_t x;
 	union {
-		char	buf[8];
+		char	buf[4];
 		int8_t	signed8;
 		int16_t	signed16;
 		int32_t	signed32;
-		int64_t	signed64;
 	} u;
 
 	/* Figure out immediate operand size (if any) */
-	if (vie->op.op_flags & VIE_OP_F_MOFFSET) {
-		/*
-		 * Section 2.2.1.4, "Direct Memory-Offset MOVs", Intel SDM:
-		 * The memory offset size follows the address-size of the
-		 * instruction. Although this is treated as an immediate
-		 * value during instruction decoding it is interpreted as
-		 * a segment offset by the instruction emulation.
-		 */
-		vie->imm_bytes = vie->addrsize;
-	} else if (vie->op.op_flags & VIE_OP_F_IMM) {
+	if (vie->op.op_flags & VIE_OP_F_IMM) {
 		/*
 		 * Section 2.2.1.5 "Immediates", Intel SDM:
 		 * In 64-bit mode the typical size of immediate operands
@@ -1350,7 +1566,7 @@ decode_immediate(struct vie *vie)
 	if ((n = vie->imm_bytes) == 0)
 		return (0);
 
-	KASSERT(n == 1 || n == 2 || n == 4 || n == 8,
+	KASSERT(n == 1 || n == 2 || n == 4,
 	    ("%s: invalid number of immediate bytes: %d", __func__, n));
 
 	for (i = 0; i < n; i++) {
@@ -1366,20 +1582,41 @@ decode_immediate(struct vie *vie)
 		vie->immediate = u.signed8;
 	else if (n == 2)
 		vie->immediate = u.signed16;
-	else if (n == 4)
-		vie->immediate = u.signed32;
 	else
-		vie->immediate = u.signed64;
+		vie->immediate = u.signed32;
 
+	return (0);
+}
 
-	if (vie->op.op_flags & VIE_OP_F_MOFFSET) {
-		/*
-		 * If the immediate value is going to be interpreted as a
-		 * segment offset then undo the sign-extension above.
-		 */
-		vie->immediate &= size2mask[n];
+static int
+decode_moffset(struct vie *vie)
+{
+	int i, n;
+	uint8_t x;
+	union {
+		char	buf[8];
+		uint64_t u64;
+	} u;
+
+	if ((vie->op.op_flags & VIE_OP_F_MOFFSET) == 0)
+		return (0);
+
+	/*
+	 * Section 2.2.1.4, "Direct Memory-Offset MOVs", Intel SDM:
+	 * The memory offset size follows the address-size of the instruction.
+	 */
+	n = vie->addrsize;
+	KASSERT(n == 2 || n == 4 || n == 8, ("invalid moffset bytes: %d", n));
+
+	u.u64 = 0;
+	for (i = 0; i < n; i++) {
+		if (vie_peek(vie, &x))
+			return (-1);
+
+		u.buf[i] = x;
+		vie_advance(vie);
 	}
-
+	vie->displacement = u.u64;
 	return (0);
 }
 
@@ -1470,8 +1707,11 @@ vmm_decode_instruction(struct vm *vm, int cpuid, uint64_t gla,
 
 	if (decode_displacement(vie))
 		return (-1);
-	
+
 	if (decode_immediate(vie))
+		return (-1);
+
+	if (decode_moffset(vie))
 		return (-1);
 
 	if (verify_inst_length(vie))
