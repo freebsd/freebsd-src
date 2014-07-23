@@ -2,7 +2,7 @@ Pull in r202059 from upstream clang trunk (by Roman Divacky):
 
   Implement getDwarfEHStackPointer() and initDwarfEHRegSizeTable() for sparcv9.
 
-Introduced here: http://svn.freebsd.org/changeset/base/262460
+Introduced here: http://svnweb.freebsd.org/changeset/base/262460
 
 Index: tools/clang/lib/CodeGen/TargetInfo.cpp
 ===================================================================
