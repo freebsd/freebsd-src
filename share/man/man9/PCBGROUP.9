@@ -64,28 +64,9 @@
 .Fa "struct inpcbinfo *pcbinfo" "u_int hashtype" "uint32_t hash"
 .Fc
 .Sh DESCRIPTION
-PCBGROUP, or "connection groups", are based on Willman, Rixner, and Cox's
-2006 USENIX paper,
-.Qo
-An Evaluation of Network Stack Parallelization Strategies in Modern
-Operating Systems
-.Qc .
-.Pp
-The PCBGROUP paper describes two main kind of connection groups.
-The first, called ConnP-T, uses a pool of worker threads which
-implement the network stack.
-Serialization occurs when queuing work into and completing work from
-the network stack.
-No locking is required inside each worker thread.
-.Pp
-The second type of connection group, called ConnP-L, uses an array
-of PCB groups rather than a single list.
-Each PCB group is protected by its own lock.
-.Pp
-This implementation differs significantly from that described in the
-paper, in that it attempts to introduce not just notions of affinity
+This implementation introduces notions of affinity
 for connections and distribute work so as to reduce lock contention,
-but also align those notions with hardware work distribution strategies
+with hardware work distribution strategies
 such as RSS.
 In this construction, connection groups supplement, rather than replace,
 existing reservation tables for protocol 4-tuples, offering CPU-affine
@@ -99,7 +80,7 @@ This indicates to the connection group code whether a 2-tuple or
 a particular group.
 This must be aligned with any hardware-offloaded distribution model,
 such as RSS or similar approaches taken in embedded network boards.
-Wildcard sockets require special handling, as in Willman 2006, and
+Wildcard sockets require special handling, as in Willmann 2006, and
 are shared between connection groups while being protected by
 group-local locks.
 Connection establishment and teardown can be signficantly more
@@ -204,17 +185,18 @@ receive path in
 .Xr mbuf 9 ,
 .Xr netisr 9 ,
 .Xr RSS 9
+.Rs
+.%A Paul Willmann
+.%A Scott Rixner
+.%A Alan L. Cox
+.%T "An Evaluation of Network Stack Parallelization Strategies in Modern Operating Systems"
+.%J "2006 USENIX Annual Technical Conference"
+.%D 2006
+.%U http://www.ece.rice.edu/~willmann/pubs/paranet_usenix.pdf
+.Re
 .Sh HISTORY
 PCBGROUP first appeared in
 .Fx 9.0 .
-.Pp
-The PCBGROUP implementation is inspired by Willman, Rixner, and Cox's
-2006 USENIX paper,
-.Qo
-An Evaluation of Network Stack Parallelization Strategies in Modern
-Operating Systems
-.Qc :
-.Li http://www.ece.rice.edu/~willmann/pubs/paranet_usenix.pdf
 .Sh AUTHORS
 .An -nosplit
 The PCBGROUP implementation was written by
