@@ -405,8 +405,7 @@ nandfs_lookup(struct vop_cachedlookup_args *ap)
 			error = ENOENT;
 			if ((nameiop == CREATE || nameiop == RENAME) &&
 			    islastcn) {
-				error = VOP_ACCESS(dvp, VWRITE, cred,
-				    td);
+				error = VOP_ACCESS(dvp, VWRITE, cred, td);
 				if (!error) {
 					/* keep the component name */
 					cnp->cn_flags |= SAVENAME;
@@ -787,9 +786,8 @@ nandfs_chown(struct vnode *vp, uid_t uid, gid_t gid, struct ucred *cred,
 	node->nn_flags |= IN_CHANGE;
 	if ((inode->i_mode & (ISUID | ISGID)) &&
 	    (ouid != uid || ogid != gid)) {
-		if (priv_check_cred(cred, PRIV_VFS_RETAINSUGID, 0)) {
+		if (priv_check_cred(cred, PRIV_VFS_RETAINSUGID, 0))
 			inode->i_mode &= ~(ISUID | ISGID);
-		}
 	}
 	DPRINTF(VNCALL, ("%s: vp %p, cred %p, td %p - ret OK\n", __func__, vp,
 	    cred, td));
@@ -1006,7 +1004,7 @@ nandfs_check_possible(struct vnode *vp, struct vattr *vap, mode_t mode)
 		return (EINVAL);
 	}
 
-	/* Noone may write immutable files */
+	/* No one may write immutable files */
 	if ((mode & VWRITE) && (VTON(vp)->nn_inode.i_flags & IMMUTABLE))
 		return (EPERM);
 
@@ -1049,9 +1047,8 @@ nandfs_access(struct vop_access_args *ap)
 		return (error);
 
 	error = nandfs_check_possible(vp, &vap, accmode);
-	if (error) {
+	if (error)
 		return (error);
-	}
 
 	error = nandfs_check_permitted(vp, &vap, accmode, cred);
 
