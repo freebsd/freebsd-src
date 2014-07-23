@@ -831,7 +831,7 @@ pmap_bootstrap(vm_paddr_t *firstaddr)
 
 
 	/* XXX do %cr0 as well */
-	load_cr4(rcr4() | CR4_PGE | CR4_PSE);
+	load_cr4(rcr4() | CR4_PGE);
 	load_cr3(KPML4phys);
 	if (cpu_stdext_feature & CPUID_STDEXT_SMEP)
 		load_cr4(rcr4() | CR4_SMEP);

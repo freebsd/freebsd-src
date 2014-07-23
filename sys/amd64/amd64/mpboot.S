@@ -90,9 +90,9 @@ protmode:
 	mov	$bootdata-gdt, %eax
 	mov	%ax, %ds
 
-	/* Turn on the PAE, PSE and PGE bits for when paging is enabled */
+	/* Turn on the PAE bit for when paging is enabled */
 	mov	%cr4, %eax
-	orl	$(CR4_PAE | CR4_PSE), %eax
+	orl	$CR4_PAE, %eax
 	mov	%eax, %cr4
 
 	/*
