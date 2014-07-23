@@ -21,7 +21,6 @@
 #include "lldb/Core/Broadcaster.h"
 #include "lldb/Core/ConstString.h"
 #include "lldb/Core/Error.h"
-#include "lldb/Core/InputReader.h"
 #include "lldb/Core/StreamString.h"
 #include "lldb/Core/StringList.h"
 #include "lldb/Core/ThreadSafeValue.h"
@@ -86,7 +85,7 @@ public:
 
     virtual lldb_private::Error
     DoLaunch (lldb_private::Module *exe_module, 
-              const lldb_private::ProcessLaunchInfo &launch_info);
+              lldb_private::ProcessLaunchInfo &launch_info);
 
     virtual void
     DidLaunch ();
@@ -111,7 +110,6 @@ public:
     
     virtual lldb_private::Error
     DoAttachToProcessWithName (const char *process_name,
-                               bool wait_for_launch,
                                const lldb_private::ProcessAttachInfo &attach_info);
 
     virtual void
@@ -284,10 +282,7 @@ protected:
                       lldb_private::ThreadList &new_thread_list);
 
     lldb_private::Error
-    StartDebugserverProcess (const char *debugserver_url);
-    
-    lldb_private::Error
-    StartDebugserverProcess (const char *debugserver_url, const lldb_private::ProcessInfo &process_info);
+    LaunchAndConnectToDebugserver (const lldb_private::ProcessInfo &process_info);
 
     void
     KillDebugserverProcess ();
@@ -381,13 +376,6 @@ protected:
     const char *
     GetDispatchQueueNameForThread (lldb::addr_t thread_dispatch_qaddr,
                                    std::string &dispatch_queue_name);
-
-    static size_t
-    AttachInputReaderCallback (void *baton, 
-                               lldb_private::InputReader *reader, 
-                               lldb::InputReaderAction notification,
-                               const char *bytes, 
-                               size_t bytes_len);
 
     lldb_private::DynamicLoader *
     GetDynamicLoader ();

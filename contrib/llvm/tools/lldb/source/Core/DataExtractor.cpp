@@ -37,6 +37,7 @@
 #include "lldb/Symbol/ClangASTContext.h"
 #include "lldb/Target/ExecutionContext.h"
 #include "lldb/Target/ExecutionContextScope.h"
+#include "lldb/Target/SectionLoadList.h"
 #include "lldb/Target/Target.h"
 
 using namespace lldb;
@@ -45,69 +46,97 @@ using namespace lldb_private;
 static inline uint16_t 
 ReadInt16(const unsigned char* ptr, offset_t offset)
 {
-    return *(uint16_t *)(ptr + offset);
+    uint16_t value;
+    memcpy (&value, ptr + offset, 2);
+    return value;
 }
+
 static inline uint32_t
 ReadInt32 (const unsigned char* ptr, offset_t offset)
 {
-    return *(uint32_t *)(ptr + offset);
+    uint32_t value;
+    memcpy (&value, ptr + offset, 4);
+    return value;
 }
 
 static inline uint64_t 
 ReadInt64(const unsigned char* ptr, offset_t offset)
 {
-    return *(uint64_t *)(ptr + offset);
+    uint64_t value;
+    memcpy (&value, ptr + offset, 8);
+    return value;
 }
 
 static inline uint16_t
 ReadInt16(const void* ptr)
 {
-    return *(uint16_t *)(ptr);
+    uint16_t value;
+    memcpy (&value, ptr, 2);
+    return value;
 }
+
 static inline uint32_t
 ReadInt32 (const void* ptr)
 {
-    return *(uint32_t *)(ptr);
+    uint32_t value;
+    memcpy (&value, ptr, 4);
+    return value;
 }
 
 static inline uint64_t
 ReadInt64(const void* ptr)
 {
-    return *(uint64_t *)(ptr);
+    uint64_t value;
+    memcpy (&value, ptr, 8);
+    return value;
 }
 
 static inline uint16_t
 ReadSwapInt16(const unsigned char* ptr, offset_t offset)
 {
-    return llvm::ByteSwap_16(*(uint16_t *)(ptr + offset));
+    uint16_t value;
+    memcpy (&value, ptr + offset, 2);
+    return llvm::ByteSwap_16(value);
 }
 
 static inline uint32_t
 ReadSwapInt32 (const unsigned char* ptr, offset_t offset)
 {
-    return llvm::ByteSwap_32(*(uint32_t *)(ptr + offset));
+    uint32_t value;
+    memcpy (&value, ptr + offset, 4);
+    return llvm::ByteSwap_32(value);
 }
+
 static inline uint64_t 
 ReadSwapInt64(const unsigned char* ptr, offset_t offset) 
 {
-  return llvm::ByteSwap_64(*(uint64_t *)(ptr + offset));
+    uint64_t value;
+    memcpy (&value, ptr + offset, 8);
+    return llvm::ByteSwap_64(value);
 }
 
 static inline uint16_t
 ReadSwapInt16(const void* ptr)
 {
-    return llvm::ByteSwap_16(*(uint16_t *)(ptr));
+    uint16_t value;
+    memcpy (&value, ptr, 2);
+    return llvm::ByteSwap_16(value);
 }
 
 static inline uint32_t
 ReadSwapInt32 (const void* ptr)
 {
-    return llvm::ByteSwap_32(*(uint32_t *)(ptr));
+    uint32_t value;
+    memcpy (&value, ptr, 4);
+    return llvm::ByteSwap_32(value);
 }
+
 static inline uint64_t
 ReadSwapInt64(const void* ptr)
 {
-    return llvm::ByteSwap_64(*(uint64_t *)(ptr));
+    uint64_t value;
+    memcpy (&value, ptr, 8);
+    return llvm::ByteSwap_64(value);
 }
 
 #define NON_PRINTABLE_CHAR '.'
@@ -502,13 +531,17 @@ uint32_t
 DataExtractor::GetU32 (offset_t *offset_ptr) const
 {
     uint32_t val = 0;
-    const uint32_t *data = (const uint32_t *)GetData (offset_ptr, sizeof(val));
+    const uint8_t *data = (const uint8_t *)GetData (offset_ptr, sizeof(val));
     if (data)
     {
         if (m_byte_order != lldb::endian::InlHostByteOrder())
+        {
             val = ReadSwapInt32 (data);
+        }
         else
-            val = *data;
+        {
+            memcpy (&val, data, 4);
+        }
     }
     return val;
 }
@@ -561,13 +594,17 @@ uint64_t
 DataExtractor::GetU64 (offset_t *offset_ptr) const
 {
     uint64_t val = 0;
-    const uint64_t *data = (const uint64_t *)GetData (offset_ptr, sizeof(val));
+    const uint8_t *data = (const uint8_t *)GetData (offset_ptr, sizeof(val));
     if (data)
     {
         if (m_byte_order != lldb::endian::InlHostByteOrder())
+        {
             val = ReadSwapInt64 (data);
+        }
         else
-            val = *data;
+        {
+            memcpy (&val, data, 8);
+        }
     }
     return val;
 }
@@ -1808,6 +1845,7 @@ DataExtractor::Dump (Stream *s,
                                     case ArchSpec::eCore_x86_32_i486:
                                     case ArchSpec::eCore_x86_32_i486sx:
                                     case ArchSpec::eCore_x86_64_x86_64:
+                                    case ArchSpec::eCore_x86_64_x86_64h:
                                         // clang will assert when contructing the apfloat if we use a 16 byte integer value
                                         if (GetAPInt (*this, &offset, 10, apint))
                                         {

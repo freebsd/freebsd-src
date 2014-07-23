@@ -314,9 +314,9 @@ namespace lldb_private {
         ///     An error object.
         //------------------------------------------------------------------
         virtual Error
-        GetFile (const FileSpec &platform_file, 
-                 const UUID *uuid_ptr,
-                 FileSpec &local_file);
+        GetFileWithUUID (const FileSpec &platform_file, 
+                         const UUID *uuid_ptr,
+                         FileSpec &local_file);
 
         //----------------------------------------------------------------------
         // Locate the scripting resource given a module specification.
@@ -835,6 +835,29 @@ namespace lldb_private {
             return LLDB_INVALID_QUEUE_ID;
         }
 
+        //------------------------------------------------------------------
+        /// Provide a list of trap handler function names for this platform
+        ///
+        /// The unwinder needs to treat trap handlers specially -- the stack
+        /// frame may not be aligned correctly for a trap handler (the kernel
+        /// often won't perturb the stack pointer, or won't re-align it properly,
+        /// in the process of calling the handler) and the frame above the handler
+        /// needs to be treated by the unwinder's "frame 0" rules instead of its
+        /// "middle of the stack frame" rules.
+        /// 
+        /// In a user process debugging scenario, the list of trap handlers is
+        /// typically just "_sigtramp".
+        ///
+        /// The Platform base class provides the m_trap_handlers ivar but it does
+        /// not populate it.  Subclasses should add the names of the asynchronous
+        /// signal handler routines as needed.  For most Unix platforms, add _sigtramp.
+        ///
+        /// @return
+        ///     A list of symbol names.  The list may be empty.
+        //------------------------------------------------------------------
+        virtual const std::vector<ConstString> &
+        GetTrapHandlerSymbolNames ();
+
     protected:
         bool m_is_host;
         // Set to true when we are able to actually set the OS version while 
@@ -867,6 +890,24 @@ namespace lldb_private {
         std::string m_ssh_opts;
         bool m_ignores_remote_hostname;
         std::string m_local_cache_directory;
+        std::vector<ConstString> m_trap_handlers;
+        bool m_calculated_trap_handlers;
+
+        //------------------------------------------------------------------
+        /// Ask the Platform subclass to fill in the list of trap handler names
+        ///
+        /// For most Unix user process environments, this will be a single
+        /// function name, _sigtramp.  More specialized environments may have
+        /// additional handler names.  The unwinder code needs to know when a
+        /// trap handler is on the stack because the unwind rules for the frame
+        /// that caused the trap are different.
+        ///
+        /// The base class Platform ivar m_trap_handlers should be updated by
+        /// the Platform subclass when this method is called.  If there are no
+        /// predefined trap handlers, this method may be a no-op.
+        //------------------------------------------------------------------
+        virtual void
+        CalculateTrapHandlerSymbolNames () = 0;
 
         const char *
         GetCachedUserName (uint32_t uid)
@@ -1115,7 +1156,9 @@ namespace lldb_private {
         
         bool m_ssh;
         std::string m_ssh_opts;
+
     private:
+
         DISALLOW_COPY_AND_ASSIGN(OptionGroupPlatformSSH);
     };
     

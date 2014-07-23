@@ -17,7 +17,6 @@
 // Project includes
 #include "lldb/Interpreter/Args.h"
 #include "lldb/Core/Value.h"
-#include "lldb/Core/InputReader.h"
 #include "lldb/Core/ValueObjectVariable.h"
 #include "lldb/DataFormatters/ValueObjectPrinter.h"
 #include "lldb/Expression/ClangExpressionVariable.h"
@@ -197,6 +196,7 @@ CommandObjectExpression::CommandObjectExpression (CommandInterpreter &interprete
                       "Evaluate a C/ObjC/C++ expression in the current program context, using user defined variables and variables currently in scope.",
                       NULL,
                       eFlagProcessMustBePaused | eFlagTryTargetAPILock),
+    IOHandlerDelegate (IOHandlerDelegate::Completion::Expression),
     m_option_group (interpreter),
     m_format_options (eFormatDefault),
     m_command_options (),
@@ -254,87 +254,6 @@ CommandObjectExpression::GetOptions ()
     return &m_option_group;
 }
 
-size_t
-CommandObjectExpression::MultiLineExpressionCallback
-(
-    void *baton, 
-    InputReader &reader, 
-    lldb::InputReaderAction notification,
-    const char *bytes, 
-    size_t bytes_len
-)
-{
-    CommandObjectExpression *cmd_object_expr = (CommandObjectExpression *) baton;
-    bool batch_mode = reader.GetDebugger().GetCommandInterpreter().GetBatchCommandMode();
-    
-    switch (notification)
-    {
-    case eInputReaderActivate:
-        if (!batch_mode)
-        {
-            StreamSP async_strm_sp(reader.GetDebugger().GetAsyncOutputStream());
-            if (async_strm_sp)
-            {
-                async_strm_sp->PutCString("Enter expressions, then terminate with an empty line to evaluate:\n");
-                async_strm_sp->Flush();
-            }
-        }
-        // Fall through
-    case eInputReaderReactivate:
-        break;
-
-    case eInputReaderDeactivate:
-        break;
-
-    case eInputReaderAsynchronousOutputWritten:
-        break;
-        
-    case eInputReaderGotToken:
-        ++cmd_object_expr->m_expr_line_count;
-        if (bytes && bytes_len)
-        {
-            cmd_object_expr->m_expr_lines.append (bytes, bytes_len + 1);
-        }
-
-        if (bytes_len == 0)
-            reader.SetIsDone(true);
-        break;
-        
-    case eInputReaderInterrupt:
-        cmd_object_expr->m_expr_lines.clear();
-        reader.SetIsDone (true);
-        if (!batch_mode)
-        {
-            StreamSP async_strm_sp (reader.GetDebugger().GetAsyncOutputStream());
-            if (async_strm_sp)
-            {
-                async_strm_sp->PutCString("Expression evaluation cancelled.\n");
-                async_strm_sp->Flush();
-            }
-        }
-        break;
-        
-    case eInputReaderEndOfFile:
-        reader.SetIsDone (true);
-        break;
-        
-    case eInputReaderDone:
-		if (cmd_object_expr->m_expr_lines.size() > 0)
-        {
-            StreamSP output_stream = reader.GetDebugger().GetAsyncOutputStream();
-            StreamSP error_stream = reader.GetDebugger().GetAsyncErrorStream();
-            cmd_object_expr->EvaluateExpression (cmd_object_expr->m_expr_lines.c_str(), 
-                                                 output_stream.get(), 
-                                                 error_stream.get());
-            output_stream->Flush();
-            error_stream->Flush();
-        }
-        break;
-    }
-
-    return bytes_len;
-}
-
 bool
 CommandObjectExpression::EvaluateExpression 
 (
@@ -373,6 +292,8 @@ CommandObjectExpression::EvaluateExpression
         
         if (m_command_options.timeout > 0)
             options.SetTimeoutUsec(m_command_options.timeout);
+        else
+            options.SetTimeoutUsec(0);
         
         exe_results = target->EvaluateExpression (expr, 
                                                   exe_ctx.GetFramePtr(),
@@ -443,6 +364,48 @@ CommandObjectExpression::EvaluateExpression
     return true;
 }
 
+void
+CommandObjectExpression::IOHandlerInputComplete (IOHandler &io_handler, std::string &line)
+{
+    io_handler.SetIsDone(true);
+//    StreamSP output_stream = io_handler.GetDebugger().GetAsyncOutputStream();
+//    StreamSP error_stream = io_handler.GetDebugger().GetAsyncErrorStream();
+    StreamFileSP output_sp(io_handler.GetOutputStreamFile());
+    StreamFileSP error_sp(io_handler.GetErrorStreamFile());
+
+    EvaluateExpression (line.c_str(),
+                        output_sp.get(),
+                        error_sp.get());
+    if (output_sp)
+        output_sp->Flush();
+    if (error_sp)
+        error_sp->Flush();
+}
+
+LineStatus
+CommandObjectExpression::IOHandlerLinesUpdated (IOHandler &io_handler,
+                                                StringList &lines,
+                                                uint32_t line_idx,
+                                                Error &error)
+{
+    if (line_idx == UINT32_MAX)
+    {
+        // Remove the last line from "lines" so it doesn't appear
+        // in our final expression
+        lines.PopBack();
+        error.Clear();
+        return LineStatus::Done;
+    }
+    else if (line_idx + 1 == lines.GetSize())
+    {
+        // The last line was edited, if this line is empty, then we are done
+        // getting our multiple lines.
+        if (lines[line_idx].empty())
+            return LineStatus::Done;
+    }
+    return LineStatus::Success;
+}
+
 bool
 CommandObjectExpression::DoExecute
 (
@@ -459,31 +422,21 @@ CommandObjectExpression::DoExecute
         m_expr_lines.clear();
         m_expr_line_count = 0;
         
-        InputReaderSP reader_sp (new InputReader(m_interpreter.GetDebugger()));
-        if (reader_sp)
+        Debugger &debugger = GetCommandInterpreter().GetDebugger();
+        const bool multiple_lines = true; // Get multiple lines
+        IOHandlerSP io_handler_sp (new IOHandlerEditline (debugger,
+                                                          "lldb-expr",      // Name of input reader for history
+                                                          NULL,             // No prompt
+                                                          multiple_lines,
+                                                          *this));
+        
+        StreamFileSP output_sp(io_handler_sp->GetOutputStreamFile());
+        if (output_sp)
         {
-            Error err (reader_sp->Initialize (CommandObjectExpression::MultiLineExpressionCallback,
-                                              this,                         // baton
-                                              eInputReaderGranularityLine,  // token size, to pass to callback function
-                                              NULL,                         // end token
-                                              NULL,                         // prompt
-                                              true));                       // echo input
-            if (err.Success())
-            {
-                m_interpreter.GetDebugger().PushInputReader (reader_sp);
-                result.SetStatus (eReturnStatusSuccessFinishNoResult);
-            }
-            else
-            {
-                result.AppendError (err.AsCString());
-                result.SetStatus (eReturnStatusFailed);
-            }
+            output_sp->PutCString("Enter expressions, then terminate with an empty line to evaluate:\n");
+            output_sp->Flush();
         }
-        else
-        {
-            result.AppendError("out of memory");
-            result.SetStatus (eReturnStatusFailed);
-        }
+        debugger.PushIOHandler(io_handler_sp);
         return result.Succeeded();
     }
 

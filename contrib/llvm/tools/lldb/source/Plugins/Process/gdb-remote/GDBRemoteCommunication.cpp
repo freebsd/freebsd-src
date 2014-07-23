@@ -13,9 +13,11 @@
 // C Includes
 #include <limits.h>
 #include <string.h>
+#include <sys/stat.h>
 
 // C++ Includes
 // Other libraries and framework includes
+#include "lldb/Core/ConnectionFileDescriptor.h"
 #include "lldb/Core/Log.h"
 #include "lldb/Core/StreamFile.h"
 #include "lldb/Core/StreamString.h"
@@ -143,7 +145,9 @@ GDBRemoteCommunication::GDBRemoteCommunication(const char *comm_name,
     m_private_is_running (false),
     m_history (512),
     m_send_acks (true),
-    m_is_platform (is_platform)
+    m_is_platform (is_platform),
+    m_listen_thread (LLDB_INVALID_HOST_THREAD),
+    m_listen_url ()
 {
 }
 
@@ -195,14 +199,14 @@ GDBRemoteCommunication::SendNack ()
     return bytes_written;
 }
 
-size_t
+GDBRemoteCommunication::PacketResult
 GDBRemoteCommunication::SendPacket (const char *payload, size_t payload_length)
 {
     Mutex::Locker locker(m_sequence_mutex);
     return SendPacketNoLock (payload, payload_length);
 }
 
-size_t
+GDBRemoteCommunication::PacketResult
 GDBRemoteCommunication::SendPacketNoLock (const char *payload, size_t payload_length)
 {
     if (IsConnected())
@@ -235,32 +239,32 @@ GDBRemoteCommunication::SendPacketNoLock (const char *payload, size_t payload_le
         if (bytes_written == packet.GetSize())
         {
             if (GetSendAcks ())
-            {
-                if (GetAck () != '+')
-                {
-                    if (log)
-                        log->Printf("get ack failed...");
-                    return 0;
-                }
-            }
+                return GetAck ();
+            else
+                return PacketResult::Success;
         }
         else
         {
             if (log)
                 log->Printf ("error: failed to send packet: %.*s", (int)packet.GetSize(), packet.GetData());
         }
-        return bytes_written;
     }
-    return 0;
+    return PacketResult::ErrorSendFailed;
 }
 
-char
+GDBRemoteCommunication::PacketResult
 GDBRemoteCommunication::GetAck ()
 {
     StringExtractorGDBRemote packet;
-    if (WaitForPacketWithTimeoutMicroSecondsNoLock (packet, GetPacketTimeoutInMicroSeconds ()) == 1)
-        return packet.GetChar();
-    return 0;
+    PacketResult result = WaitForPacketWithTimeoutMicroSecondsNoLock (packet, GetPacketTimeoutInMicroSeconds ());
+    if (result == PacketResult::Success)
+    {
+        if (packet.GetResponseType() == StringExtractorGDBRemote::ResponseType::eAck)
+            return PacketResult::Success;
+        else
+            return PacketResult::ErrorSendAck;
+    }
+    return result;
 }
 
 bool
@@ -280,7 +284,7 @@ GDBRemoteCommunication::WaitForNotRunningPrivate (const TimeValue *timeout_ptr)
     return m_private_is_running.WaitForValueEqualTo (false, timeout_ptr, NULL);
 }
 
-size_t
+GDBRemoteCommunication::PacketResult
 GDBRemoteCommunication::WaitForPacketWithTimeoutMicroSecondsNoLock (StringExtractorGDBRemote &packet, uint32_t timeout_usec)
 {
     uint8_t buffer[8192];
@@ -290,9 +294,10 @@ GDBRemoteCommunication::WaitForPacketWithTimeoutMicroSecondsNoLock (StringExtrac
 
     // Check for a packet from our cache first without trying any reading...
     if (CheckForPacket (NULL, 0, packet))
-        return packet.GetStringRef().size();
+        return PacketResult::Success;
 
     bool timed_out = false;
+    bool disconnected = false;
     while (IsConnected() && !timed_out)
     {
         lldb::ConnectionStatus status = eConnectionStatusNoConnection;
@@ -309,7 +314,7 @@ GDBRemoteCommunication::WaitForPacketWithTimeoutMicroSecondsNoLock (StringExtrac
         if (bytes_read > 0)
         {
             if (CheckForPacket (buffer, bytes_read, packet))
-                return packet.GetStringRef().size();
+                return PacketResult::Success;
         }
         else
         {
@@ -326,13 +331,19 @@ GDBRemoteCommunication::WaitForPacketWithTimeoutMicroSecondsNoLock (StringExtrac
             case eConnectionStatusNoConnection:
             case eConnectionStatusLostConnection:
             case eConnectionStatusError:
+                disconnected = true;
                 Disconnect();
                 break;
             }
         }
     }
-    packet.Clear ();    
-    return 0;
+    packet.Clear ();
+    if (disconnected)
+        return PacketResult::ErrorDisconnected;
+    if (timed_out)
+        return PacketResult::ErrorReplyTimeout;
+    else
+        return PacketResult::ErrorReplyFailed;
 }
 
 bool
@@ -486,6 +497,13 @@ GDBRemoteCommunication::CheckForPacket (const uint8_t *src, size_t src_len, Stri
                     for (int i = 0; i < repeat_count; ++i)
                         packet_str.push_back(char_to_repeat);
                 }
+                else if (*c == 0x7d)
+                {
+                    // 0x7d is the escape character.  The next character is to
+                    // be XOR'd with 0x20.
+                    char escapee = *++c ^ 0x20;
+                    packet_str.push_back(escapee);
+                }
                 else
                 {
                     packet_str.push_back(*c);
@@ -538,17 +556,64 @@ GDBRemoteCommunication::CheckForPacket (const uint8_t *src, size_t src_len, Stri
 }
 
 Error
-GDBRemoteCommunication::StartDebugserverProcess (const char *debugserver_url,
-                                                 const char *unix_socket_name,  // For handshaking
-                                                 lldb_private::ProcessLaunchInfo &launch_info)
+GDBRemoteCommunication::StartListenThread (const char *hostname, uint16_t port)
 {
+    Error error;
+    if (IS_VALID_LLDB_HOST_THREAD(m_listen_thread))
+    {
+        error.SetErrorString("listen thread already running");
+    }
+    else
+    {
+        char listen_url[512];
+        if (hostname && hostname[0])
+            snprintf(listen_url, sizeof(listen_url), "listen://%s:%i", hostname, port);
+        else
+            snprintf(listen_url, sizeof(listen_url), "listen://%i", port);
+        m_listen_url = listen_url;
+        SetConnection(new ConnectionFileDescriptor());
+        m_listen_thread = Host::ThreadCreate (listen_url, GDBRemoteCommunication::ListenThread, this, &error);
+    }
+    return error;
+}
+
+bool
+GDBRemoteCommunication::JoinListenThread ()
+{
+    if (IS_VALID_LLDB_HOST_THREAD(m_listen_thread))
+    {
+        Host::ThreadJoin(m_listen_thread, NULL, NULL);
+        m_listen_thread = LLDB_INVALID_HOST_THREAD;
+    }
+    return true;
+}
+
+lldb::thread_result_t
+GDBRemoteCommunication::ListenThread (lldb::thread_arg_t arg)
+{
+    GDBRemoteCommunication *comm = (GDBRemoteCommunication *)arg;
+    Error error;
+    ConnectionFileDescriptor *connection = (ConnectionFileDescriptor *)comm->GetConnection ();
+    
+    if (connection)
+    {
+        // Do the listen on another thread so we can continue on...
+        if (connection->Connect(comm->m_listen_url.c_str(), &error) != eConnectionStatusSuccess)
+            comm->SetConnection(NULL);
+    }
+    return NULL;
+}
+
+Error
+GDBRemoteCommunication::StartDebugserverProcess (const char *hostname,
+                                                 uint16_t in_port,
+                                                 lldb_private::ProcessLaunchInfo &launch_info,
+                                                 uint16_t &out_port)
+{
+    out_port = in_port;
     Error error;
     // If we locate debugserver, keep that located version around
     static FileSpec g_debugserver_file_spec;
-    
-    // This function will fill in the launch information for the debugserver
-    // instance that gets launched.
-    launch_info.Clear();
     
     char debugserver_path[PATH_MAX];
     FileSpec &debugserver_file_spec = launch_info.GetExecutableFile();
@@ -591,19 +656,88 @@ GDBRemoteCommunication::StartDebugserverProcess (const char *debugserver_url,
         
         // Start args with "debugserver /file/path -r --"
         debugserver_args.AppendArgument(debugserver_path);
-        debugserver_args.AppendArgument(debugserver_url);
+
+        // If a host and port is supplied then use it
+        char host_and_port[128];
+        if (hostname)
+        {
+            snprintf (host_and_port, sizeof(host_and_port), "%s:%u", hostname, in_port);
+            debugserver_args.AppendArgument(host_and_port);
+        }
+        else
+        {
+            host_and_port[0] = '\0';
+        }
+
         // use native registers, not the GDB registers
         debugserver_args.AppendArgument("--native-regs");   
         // make debugserver run in its own session so signals generated by 
         // special terminal key sequences (^C) don't affect debugserver
         debugserver_args.AppendArgument("--setsid");
-        
-        if (unix_socket_name && unix_socket_name[0])
+
+        char named_pipe_path[PATH_MAX];
+        named_pipe_path[0] = '\0';
+
+        bool listen = false;
+        if (host_and_port[0])
         {
-            debugserver_args.AppendArgument("--unix-socket");
-            debugserver_args.AppendArgument(unix_socket_name);
+            // Create a temporary file to get the stdout/stderr and redirect the
+            // output of the command into this file. We will later read this file
+            // if all goes well and fill the data into "command_output_ptr"
+
+            if (in_port == 0)
+            {
+                // Binding to port zero, we need to figure out what port it ends up
+                // using using a named pipe...
+                FileSpec tmpdir_file_spec;
+                if (Host::GetLLDBPath (ePathTypeLLDBTempSystemDir, tmpdir_file_spec))
+                {
+                    tmpdir_file_spec.GetFilename().SetCString("debugserver-named-pipe.XXXXXX");
+                    strncpy(named_pipe_path, tmpdir_file_spec.GetPath().c_str(), sizeof(named_pipe_path));
+                }
+                else
+                {
+                    strncpy(named_pipe_path, "/tmp/debugserver-named-pipe.XXXXXX", sizeof(named_pipe_path));
+                }
+
+                if (::mktemp (named_pipe_path))
+                {
+#if defined(_MSC_VER)
+                    if ( false )
+#else
+                    if (::mkfifo(named_pipe_path, 0600) == 0)
+#endif
+                    {
+                        debugserver_args.AppendArgument("--named-pipe");
+                        debugserver_args.AppendArgument(named_pipe_path);
+                    }
+                }
+            }
+            else
+            {
+                listen = true;
+            }
+        }
+        else
+        {
+            // No host and port given, so lets listen on our end and make the debugserver
+            // connect to us..
+            error = StartListenThread ("localhost", 0);
+            if (error.Fail())
+                return error;
+
+            ConnectionFileDescriptor *connection = (ConnectionFileDescriptor *)GetConnection ();
+            out_port = connection->GetBoundPort(3);
+            assert (out_port != 0);
+            char port_cstr[32];
+            snprintf(port_cstr, sizeof(port_cstr), "localhost:%i", out_port);
+            // Send the host and port down that debugserver and specify an option
+            // so that it connects back to the port we are listening to in this process
+            debugserver_args.AppendArgument("--reverse-connect");
+            debugserver_args.AppendArgument(port_cstr);
         }
 
+        
         const char *env_debugserver_log_file = getenv("LLDB_DEBUGSERVER_LOG_FILE");
         if (env_debugserver_log_file)
         {
@@ -617,46 +751,41 @@ GDBRemoteCommunication::StartDebugserverProcess (const char *debugserver_url,
             ::snprintf (arg_cstr, sizeof(arg_cstr), "--log-flags=%s", env_debugserver_log_flags);
             debugserver_args.AppendArgument(arg_cstr);
         }
-        //            debugserver_args.AppendArgument("--log-file=/tmp/debugserver.txt");
-        //            debugserver_args.AppendArgument("--log-flags=0x802e0e");
-        
-        // We currently send down all arguments, attach pids, or attach 
-        // process names in dedicated GDB server packets, so we don't need
-        // to pass them as arguments. This is currently because of all the
-        // things we need to setup prior to launching: the environment,
-        // current working dir, file actions, etc.
-#if 0
-        // Now append the program arguments
-        if (inferior_argv)
-        {
-            // Terminate the debugserver args so we can now append the inferior args
-            debugserver_args.AppendArgument("--");
-            
-            for (int i = 0; inferior_argv[i] != NULL; ++i)
-                debugserver_args.AppendArgument (inferior_argv[i]);
-        }
-        else if (attach_pid != LLDB_INVALID_PROCESS_ID)
-        {
-            ::snprintf (arg_cstr, sizeof(arg_cstr), "--attach=%u", attach_pid);
-            debugserver_args.AppendArgument (arg_cstr);
-        }
-        else if (attach_name && attach_name[0])
-        {
-            if (wait_for_launch)
-                debugserver_args.AppendArgument ("--waitfor");
-            else
-                debugserver_args.AppendArgument ("--attach");
-            debugserver_args.AppendArgument (attach_name);
-        }
-#endif
         
         // Close STDIN, STDOUT and STDERR. We might need to redirect them
         // to "/dev/null" if we run into any problems.
-//        launch_info.AppendCloseFileAction (STDIN_FILENO);
-//        launch_info.AppendCloseFileAction (STDOUT_FILENO);
-//        launch_info.AppendCloseFileAction (STDERR_FILENO);
+        launch_info.AppendCloseFileAction (STDIN_FILENO);
+        launch_info.AppendCloseFileAction (STDOUT_FILENO);
+        launch_info.AppendCloseFileAction (STDERR_FILENO);
         
         error = Host::LaunchProcess(launch_info);
+        
+        if (named_pipe_path[0])
+        {
+            File name_pipe_file;
+            error = name_pipe_file.Open(named_pipe_path, File::eOpenOptionRead);
+            if (error.Success())
+            {
+                char port_cstr[256];
+                port_cstr[0] = '\0';
+                size_t num_bytes = sizeof(port_cstr);
+                error = name_pipe_file.Read(port_cstr, num_bytes);
+                assert (error.Success());
+                assert (num_bytes > 0 && port_cstr[num_bytes-1] == '\0');
+                out_port = Args::StringToUInt32(port_cstr, 0);
+                name_pipe_file.Close();
+            }
+            Host::Unlink(named_pipe_path);
+        }
+        else if (listen)
+        {
+            
+        }
+        else
+        {
+            // Make sure we actually connect with the debugserver...
+            JoinListenThread();
+        }
     }
     else
     {

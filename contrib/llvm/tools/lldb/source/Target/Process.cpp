@@ -18,14 +18,16 @@
 #include "lldb/Core/Event.h"
 #include "lldb/Core/ConnectionFileDescriptor.h"
 #include "lldb/Core/Debugger.h"
-#include "lldb/Core/InputReader.h"
 #include "lldb/Core/Log.h"
 #include "lldb/Core/Module.h"
+#include "lldb/Symbol/Symbol.h"
 #include "lldb/Core/PluginManager.h"
 #include "lldb/Core/State.h"
+#include "lldb/Core/StreamFile.h"
 #include "lldb/Expression/ClangUserExpression.h"
 #include "lldb/Interpreter/CommandInterpreter.h"
 #include "lldb/Host/Host.h"
+#include "lldb/Host/Terminal.h"
 #include "lldb/Target/ABI.h"
 #include "lldb/Target/DynamicLoader.h"
 #include "lldb/Target/OperatingSystem.h"
@@ -41,6 +43,7 @@
 #include "lldb/Target/Thread.h"
 #include "lldb/Target/ThreadPlan.h"
 #include "lldb/Target/ThreadPlanBase.h"
+#include "Plugins/Process/Utility/InferiorCallPOSIX.h"
 
 #ifndef LLDB_DISABLE_POSIX
 #include <spawn.h>
@@ -1025,6 +1028,8 @@ Process::Process(Target &target, Listener &listener) :
     m_thread_list (this),
     m_extended_thread_list (this),
     m_extended_thread_stop_id (0),
+    m_queue_list (this),
+    m_queue_list_stop_id (0),
     m_notifications (),
     m_image_tokens (),
     m_listener (listener),
@@ -1048,6 +1053,7 @@ Process::Process(Target &target, Listener &listener) :
     m_currently_handling_event(false),
     m_finalize_called(false),
     m_clear_thread_plans_on_stop (false),
+    m_force_next_event_delivery(false),
     m_last_broadcast_state (eStateInvalid),
     m_destroy_in_process (false),
     m_can_jit(eCanJITDontKnow)
@@ -1151,6 +1157,8 @@ Process::Finalize()
     m_thread_list_real.Destroy();
     m_thread_list.Destroy();
     m_extended_thread_list.Destroy();
+    m_queue_list.Clear();
+    m_queue_list_stop_id = 0;
     std::vector<Notifications> empty_notifications;
     m_notifications.swap(empty_notifications);
     m_image_tokens.clear();
@@ -1235,7 +1243,7 @@ Process::GetNextEvent (EventSP &event_sp)
 
 
 StateType
-Process::WaitForProcessToStop (const TimeValue *timeout, lldb::EventSP *event_sp_ptr, bool wait_always)
+Process::WaitForProcessToStop (const TimeValue *timeout, lldb::EventSP *event_sp_ptr, bool wait_always, Listener *hijack_listener)
 {
     // We can't just wait for a "stopped" event, because the stopped event may have restarted the target.
     // We have to actually check each event, and in the case of a stopped event check the restarted flag
@@ -1264,7 +1272,7 @@ Process::WaitForProcessToStop (const TimeValue *timeout, lldb::EventSP *event_sp
     while (state != eStateInvalid)
     {
         EventSP event_sp;
-        state = WaitForStateChangedEvents (timeout, event_sp);
+        state = WaitForStateChangedEvents (timeout, event_sp, hijack_listener);
         if (event_sp_ptr && event_sp)
             *event_sp_ptr = event_sp;
 
@@ -1274,12 +1282,22 @@ Process::WaitForProcessToStop (const TimeValue *timeout, lldb::EventSP *event_sp
         case eStateDetached:
         case eStateExited:
         case eStateUnloaded:
+            // We need to toggle the run lock as this won't get done in
+            // SetPublicState() if the process is hijacked.
+            if (hijack_listener)
+                m_public_run_lock.SetStopped();
             return state;
         case eStateStopped:
             if (Process::ProcessEventData::GetRestartedFromEvent(event_sp.get()))
                 continue;
             else
+            {
+                // We need to toggle the run lock as this won't get done in
+                // SetPublicState() if the process is hijacked.
+                if (hijack_listener)
+                    m_public_run_lock.SetStopped();
                 return state;
+            }
         default:
             continue;
         }
@@ -1292,7 +1310,8 @@ StateType
 Process::WaitForState
 (
     const TimeValue *timeout,
-    const StateType *match_states, const uint32_t num_match_states
+    const StateType *match_states,
+    const uint32_t num_match_states
 )
 {
     EventSP event_sp;
@@ -1305,7 +1324,7 @@ Process::WaitForState
         if (state == eStateDetached || state == eStateExited)
             return state;
 
-        state = WaitForStateChangedEvents (timeout, event_sp);
+        state = WaitForStateChangedEvents (timeout, event_sp, NULL);
 
         for (i=0; i<num_match_states; ++i)
         {
@@ -1351,18 +1370,22 @@ Process::RestorePrivateProcessEvents ()
 }
 
 StateType
-Process::WaitForStateChangedEvents (const TimeValue *timeout, EventSP &event_sp)
+Process::WaitForStateChangedEvents (const TimeValue *timeout, EventSP &event_sp, Listener *hijack_listener)
 {
     Log *log(lldb_private::GetLogIfAllCategoriesSet (LIBLLDB_LOG_PROCESS));
 
     if (log)
         log->Printf ("Process::%s (timeout = %p, event_sp)...", __FUNCTION__, timeout);
 
+    Listener *listener = hijack_listener;
+    if (listener == NULL)
+        listener = &m_listener;
+    
     StateType state = eStateInvalid;
-    if (m_listener.WaitForEventForBroadcasterWithType (timeout,
-                                                       this,
-                                                       eBroadcastBitStateChanged | eBroadcastBitInterrupt,
-                                                       event_sp))
+    if (listener->WaitForEventForBroadcasterWithType (timeout,
+                                                      this,
+                                                      eBroadcastBitStateChanged | eBroadcastBitInterrupt,
+                                                      event_sp))
     {
         if (event_sp && event_sp->GetType() == eBroadcastBitStateChanged)
             state = Process::ProcessEventData::GetStateFromEvent(event_sp.get());
@@ -1500,6 +1523,7 @@ Process::SetExitStatus (int status, const char *cstr)
     DidExit ();
 
     SetPrivateState (eStateExited);
+    CancelWatchForSTDIN (true);
     return true;
 }
 
@@ -1600,7 +1624,27 @@ Process::UpdateThreadListIfNeeded ()
                     // Clear any extended threads that we may have accumulated previously
                     m_extended_thread_list.Clear();
                     m_extended_thread_stop_id = GetLastNaturalStopID ();
+
+                    m_queue_list.Clear();
+                    m_queue_list_stop_id = GetLastNaturalStopID ();
                 }
+            }
+        }
+    }
+}
+
+void
+Process::UpdateQueueListIfNeeded ()
+{
+    if (m_system_runtime_ap.get())
+    {
+        if (m_queue_list.GetSize() == 0 || m_queue_list_stop_id != GetLastNaturalStopID())
+        {
+            const StateType state = GetPrivateState();
+            if (StateIsStoppedState (state, true))
+            {
+                m_system_runtime_ap->PopulateQueueList (m_queue_list);
+                m_queue_list_stop_id = GetLastNaturalStopID();
             }
         }
     }
@@ -2084,7 +2128,60 @@ Process::EnableBreakpointSiteByID (lldb::user_id_t break_id)
 lldb::break_id_t
 Process::CreateBreakpointSite (const BreakpointLocationSP &owner, bool use_hardware)
 {
-    const addr_t load_addr = owner->GetAddress().GetOpcodeLoadAddress (&m_target);
+    addr_t load_addr = LLDB_INVALID_ADDRESS;
+    
+    bool show_error = true;
+    switch (GetState())
+    {
+        case eStateInvalid:
+        case eStateUnloaded:
+        case eStateConnected:
+        case eStateAttaching:
+        case eStateLaunching:
+        case eStateDetached:
+        case eStateExited:
+            show_error = false;
+            break;
+            
+        case eStateStopped:
+        case eStateRunning:
+        case eStateStepping:
+        case eStateCrashed:
+        case eStateSuspended:
+            show_error = IsAlive();
+            break;
+    }
+
+    // Reset the IsIndirect flag here, in case the location changes from
+    // pointing to a indirect symbol to a regular symbol.
+    owner->SetIsIndirect (false);
+    
+    if (owner->ShouldResolveIndirectFunctions())
+    {
+        Symbol *symbol = owner->GetAddress().CalculateSymbolContextSymbol();
+        if (symbol && symbol->IsIndirect())
+        {
+            Error error;
+            load_addr = ResolveIndirectFunction (&symbol->GetAddress(), error);
+            if (!error.Success() && show_error)
+            {
+                m_target.GetDebugger().GetErrorFile()->Printf ("warning: failed to resolve indirect function at 0x%" PRIx64 " for breakpoint %i.%i: %s\n",
+                                                               symbol->GetAddress().GetLoadAddress(&m_target),
+                                                               owner->GetBreakpoint().GetID(),
+                                                               owner->GetID(),
+                                                               error.AsCString() ? error.AsCString() : "unkown error");
+                return LLDB_INVALID_BREAK_ID;
+            }
+            Address resolved_address(load_addr);
+            load_addr = resolved_address.GetOpcodeLoadAddress (&m_target);
+            owner->SetIsIndirect(true);
+        }
+        else
+            load_addr = owner->GetAddress().GetOpcodeLoadAddress (&m_target);
+    }
+    else
+        load_addr = owner->GetAddress().GetOpcodeLoadAddress (&m_target);
+    
     if (load_addr != LLDB_INVALID_ADDRESS)
     {
         BreakpointSiteSP bp_site_sp;
@@ -2113,36 +2210,14 @@ Process::CreateBreakpointSite (const BreakpointLocationSP &owner, bool use_hardw
                 }
                 else
                 {
-                    bool show_error = true;
-                    switch (GetState())
-                    {
-                        case eStateInvalid:
-                        case eStateUnloaded:
-                        case eStateConnected:
-                        case eStateAttaching:
-                        case eStateLaunching:
-                        case eStateDetached:
-                        case eStateExited:
-                            show_error = false;
-                            break;
-                            
-                        case eStateStopped:
-                        case eStateRunning:
-                        case eStateStepping:
-                        case eStateCrashed:
-                        case eStateSuspended:
-                            show_error = IsAlive();
-                            break;
-                    }
-                    
                     if (show_error)
                     {
                         // Report error for setting breakpoint...
-                        m_target.GetDebugger().GetErrorFile().Printf ("warning: failed to set breakpoint site at 0x%" PRIx64 " for breakpoint %i.%i: %s\n",
-                                                                      load_addr,
-                                                                      owner->GetBreakpoint().GetID(),
-                                                                      owner->GetID(),
-                                                                      error.AsCString() ? error.AsCString() : "unkown error");
+                        m_target.GetDebugger().GetErrorFile()->Printf ("warning: failed to set breakpoint site at 0x%" PRIx64 " for breakpoint %i.%i: %s\n",
+                                                                       load_addr,
+                                                                       owner->GetBreakpoint().GetID(),
+                                                                       owner->GetID(),
+                                                                       error.AsCString() ? error.AsCString() : "unkown error");
                     }
                 }
             }
@@ -3153,7 +3228,7 @@ Process::Attach (ProcessAttachInfo &attach_info)
                         const bool restarted = false;
                         SetPublicState (eStateAttaching, restarted);
                         // Now attach using these arguments.
-                        error = DoAttachToProcessWithName (process_name, wait_for_launch, attach_info);
+                        error = DoAttachToProcessWithName (process_name, attach_info);
                     }
                     else
                     {
@@ -3663,8 +3738,6 @@ Process::Destroy ()
         }
         m_stdio_communication.StopReadThread();
         m_stdio_communication.Disconnect();
-        if (m_process_input_reader && m_process_input_reader->IsActive())
-            m_target.GetDebugger().PopInputReader (m_process_input_reader);
         if (m_process_input_reader)
             m_process_input_reader.reset();
         
@@ -3745,33 +3818,38 @@ Process::ShouldBroadcastEvent (Event *event_ptr)
             // stopped -> running: Report except when there is one or more no votes
             //     and no yes votes.
             SynchronouslyNotifyStateChanged (state);
-            switch (m_last_broadcast_state)
+            if (m_force_next_event_delivery)
+                return_value = true;
+            else
             {
-                case eStateRunning:
-                case eStateStepping:
-                    // We always suppress multiple runnings with no PUBLIC stop in between.
-                    return_value = false;
-                    break;
-                default:
-                    // TODO: make this work correctly. For now always report
-                    // run if we aren't running so we don't miss any runnning
-                    // events. If I run the lldb/test/thread/a.out file and
-                    // break at main.cpp:58, run and hit the breakpoints on
-                    // multiple threads, then somehow during the stepping over
-                    // of all breakpoints no run gets reported.
+                switch (m_last_broadcast_state)
+                {
+                    case eStateRunning:
+                    case eStateStepping:
+                        // We always suppress multiple runnings with no PUBLIC stop in between.
+                        return_value = false;
+                        break;
+                    default:
+                        // TODO: make this work correctly. For now always report
+                        // run if we aren't running so we don't miss any runnning
+                        // events. If I run the lldb/test/thread/a.out file and
+                        // break at main.cpp:58, run and hit the breakpoints on
+                        // multiple threads, then somehow during the stepping over
+                        // of all breakpoints no run gets reported.
 
-                    // This is a transition from stop to run.
-                    switch (m_thread_list.ShouldReportRun (event_ptr))
-                    {
-                        case eVoteYes:
-                        case eVoteNoOpinion:
-                            return_value = true;
-                            break;
-                        case eVoteNo:
-                            return_value = false;
-                            break;
-                    }
-                    break;
+                        // This is a transition from stop to run.
+                        switch (m_thread_list.ShouldReportRun (event_ptr))
+                        {
+                            case eVoteYes:
+                            case eVoteNoOpinion:
+                                return_value = true;
+                                break;
+                            case eVoteNo:
+                                return_value = false;
+                                break;
+                        }
+                        break;
+                }
             }
             break;
         case eStateStopped:
@@ -3844,6 +3922,9 @@ Process::ShouldBroadcastEvent (Event *event_ptr)
         break;
     }
     
+    // Forcing the next event delivery is a one shot deal.  So reset it here.
+    m_force_next_event_delivery = false;
+
     // We do some coalescing of events (for instance two consecutive running events get coalesced.)
     // But we only coalesce against events we actually broadcast.  So we use m_last_broadcast_state
     // to track that.  NB - you can't use "m_public_state.GetValue()" for that purpose, as was originally done,
@@ -4046,9 +4127,14 @@ Process::HandlePrivateEvent (EventSP &event_sp)
         }
         Process::ProcessEventData::SetUpdateStateOnRemoval(event_sp.get());
         if (StateIsRunningState (new_state))
-            PushProcessInputReader ();
+        {
+            // Only push the input handler if we aren't fowarding events,
+            // as this means the curses GUI is in use...
+            if (!GetTarget().GetDebugger().IsForwardingEvents())
+                PushProcessIOHandler ();
+        }
         else if (!Process::ProcessEventData::GetRestartedFromEvent(event_sp.get()))
-            PopProcessInputReader ();
+            PopProcessIOHandler ();
 
         BroadcastEvent (event_sp);
     }
@@ -4594,64 +4680,203 @@ Process::STDIOReadThreadBytesReceived (void *baton, const void *src, size_t src_
     process->AppendSTDOUT (static_cast<const char *>(src), src_len);
 }
 
-size_t
-Process::ProcessInputReaderCallback (void *baton,
-                                     InputReader &reader,
-                                     lldb::InputReaderAction notification,
-                                     const char *bytes,
-                                     size_t bytes_len)
-{
-    Process *process = (Process *) baton;
-    
-    switch (notification)
-    {
-    case eInputReaderActivate:
-        break;
-        
-    case eInputReaderDeactivate:
-        break;
-        
-    case eInputReaderReactivate:
-        break;
-        
-    case eInputReaderAsynchronousOutputWritten:
-        break;
-        
-    case eInputReaderGotToken:
-        {
-            Error error;
-            process->PutSTDIN (bytes, bytes_len, error);
-        }
-        break;
-        
-    case eInputReaderInterrupt:
-        process->SendAsyncInterrupt();
-        break;
-            
-    case eInputReaderEndOfFile:
-        process->AppendSTDOUT ("^D", 2);
-        break;
-        
-    case eInputReaderDone:
-        break;
-        
-    }
-    
-    return bytes_len;
-}
-
 void
-Process::ResetProcessInputReader ()
+Process::ResetProcessIOHandler ()
 {   
     m_process_input_reader.reset();
 }
 
+
+class IOHandlerProcessSTDIO :
+    public IOHandler
+{
+public:
+    IOHandlerProcessSTDIO (Process *process,
+                           int write_fd) :
+        IOHandler(process->GetTarget().GetDebugger()),
+        m_process (process),
+        m_read_file (),
+        m_write_file (write_fd, false),
+        m_pipe_read(),
+        m_pipe_write()
+    {
+        m_read_file.SetDescriptor(GetInputFD(), false);
+    }
+
+    virtual
+    ~IOHandlerProcessSTDIO ()
+    {
+        
+    }
+    
+    bool
+    OpenPipes ()
+    {
+        if (m_pipe_read.IsValid() && m_pipe_write.IsValid())
+            return true;
+
+        int fds[2];
+#ifdef _MSC_VER
+        // pipe is not supported on windows so default to a fail condition
+        int err = 1;
+#else
+        int err = pipe(fds);
+#endif
+        if (err == 0)
+        {
+            m_pipe_read.SetDescriptor(fds[0], true);
+            m_pipe_write.SetDescriptor(fds[1], true);
+            return true;
+        }
+        return false;
+    }
+
+    void
+    ClosePipes()
+    {
+        m_pipe_read.Close();
+        m_pipe_write.Close();
+    }
+    
+    // Each IOHandler gets to run until it is done. It should read data
+    // from the "in" and place output into "out" and "err and return
+    // when done.
+    virtual void
+    Run ()
+    {
+        if (m_read_file.IsValid() && m_write_file.IsValid())
+        {
+            SetIsDone(false);
+            if (OpenPipes())
+            {
+                const int read_fd = m_read_file.GetDescriptor();
+                const int pipe_read_fd = m_pipe_read.GetDescriptor();
+                TerminalState terminal_state;
+                terminal_state.Save (read_fd, false);
+                Terminal terminal(read_fd);
+                terminal.SetCanonical(false);
+                terminal.SetEcho(false);
+// FD_ZERO, FD_SET are not supported on windows
+#ifndef _MSC_VER
+                while (!GetIsDone())
+                {
+                    fd_set read_fdset;
+                    FD_ZERO (&read_fdset);
+                    FD_SET (read_fd, &read_fdset);
+                    FD_SET (pipe_read_fd, &read_fdset);
+                    const int nfds = std::max<int>(read_fd, pipe_read_fd) + 1;
+                    int num_set_fds = select (nfds, &read_fdset, NULL, NULL, NULL);
+                    if (num_set_fds < 0)
+                    {
+                        const int select_errno = errno;
+                        
+                        if (select_errno != EINTR)
+                            SetIsDone(true);
+                    }
+                    else if (num_set_fds > 0)
+                    {
+                        char ch = 0;
+                        size_t n;
+                        if (FD_ISSET (read_fd, &read_fdset))
+                        {
+                            n = 1;
+                            if (m_read_file.Read(&ch, n).Success() && n == 1)
+                            {
+                                if (m_write_file.Write(&ch, n).Fail() || n != 1)
+                                    SetIsDone(true);
+                            }
+                            else
+                                SetIsDone(true);
+                        }
+                        if (FD_ISSET (pipe_read_fd, &read_fdset))
+                        {
+                            // Consume the interrupt byte
+                            n = 1;
+                            m_pipe_read.Read (&ch, n);
+                            SetIsDone(true);
+                        }
+                    }
+                }
+#endif
+                terminal_state.Restore();
+
+            }
+            else
+                SetIsDone(true);
+        }
+        else
+            SetIsDone(true);
+    }
+    
+    // Hide any characters that have been displayed so far so async
+    // output can be displayed. Refresh() will be called after the
+    // output has been displayed.
+    virtual void
+    Hide ()
+    {
+        
+    }
+    // Called when the async output has been received in order to update
+    // the input reader (refresh the prompt and redisplay any current
+    // line(s) that are being edited
+    virtual void
+    Refresh ()
+    {
+        
+    }
+    
+    virtual void
+    Cancel ()
+    {
+        size_t n = 1;
+        char ch = 'q';
+        m_pipe_write.Write (&ch, n);
+    }
+
+    virtual void
+    Interrupt ()
+    {
+        if (StateIsRunningState(m_process->GetState()))
+            m_process->SendAsyncInterrupt();
+    }
+    
+    virtual void
+    GotEOF()
+    {
+        
+    }
+    
+protected:
+    Process *m_process;
+    File m_read_file;   // Read from this file (usually actual STDIN for LLDB
+    File m_write_file;  // Write to this file (usually the master pty for getting io to debuggee)
+    File m_pipe_read;
+    File m_pipe_write;
+
+};
+
 void
-Process::SetSTDIOFileDescriptor (int file_descriptor)
+Process::WatchForSTDIN (IOHandler &io_handler)
+{
+}
+
+void
+Process::CancelWatchForSTDIN (bool exited)
+{
+    if (m_process_input_reader)
+    {
+        if (exited)
+            m_process_input_reader->SetIsDone(true);
+        m_process_input_reader->Cancel();
+    }
+}
+
+void
+Process::SetSTDIOFileDescriptor (int fd)
 {
     // First set up the Read Thread for reading/handling process I/O
     
-    std::unique_ptr<ConnectionFileDescriptor> conn_ap (new ConnectionFileDescriptor (file_descriptor, true));
+    std::unique_ptr<ConnectionFileDescriptor> conn_ap (new ConnectionFileDescriptor (fd, true));
     
     if (conn_ap.get())
     {
@@ -4664,70 +4889,37 @@ Process::SetSTDIOFileDescriptor (int file_descriptor)
             // Now read thread is set up, set up input reader.
             
             if (!m_process_input_reader.get())
-            {
-                m_process_input_reader.reset (new InputReader(m_target.GetDebugger()));
-                Error err (m_process_input_reader->Initialize (Process::ProcessInputReaderCallback,
-                                                               this,
-                                                               eInputReaderGranularityByte,
-                                                               NULL,
-                                                               NULL,
-                                                               false));
-                
-                if  (err.Fail())
-                    m_process_input_reader.reset();
-            }
+                m_process_input_reader.reset (new IOHandlerProcessSTDIO (this, fd));
         }
     }
 }
 
 void
-Process::PushProcessInputReader ()
+Process::PushProcessIOHandler ()
 {
-    if (m_process_input_reader && !m_process_input_reader->IsActive())
-        m_target.GetDebugger().PushInputReader (m_process_input_reader);
+    IOHandlerSP io_handler_sp (m_process_input_reader);
+    if (io_handler_sp)
+    {
+        io_handler_sp->SetIsDone(false);
+        m_target.GetDebugger().PushIOHandler (io_handler_sp);
+    }
 }
 
 void
-Process::PopProcessInputReader ()
+Process::PopProcessIOHandler ()
 {
-    if (m_process_input_reader && m_process_input_reader->IsActive())
-        m_target.GetDebugger().PopInputReader (m_process_input_reader);
+    IOHandlerSP io_handler_sp (m_process_input_reader);
+    if (io_handler_sp)
+    {
+        io_handler_sp->Cancel();
+        m_target.GetDebugger().PopIOHandler (io_handler_sp);
+    }
 }
 
 // The process needs to know about installed plug-ins
 void
 Process::SettingsInitialize ()
 {
-//    static std::vector<OptionEnumValueElement> g_plugins;
-//    
-//    int i=0; 
-//    const char *name;
-//    OptionEnumValueElement option_enum;
-//    while ((name = PluginManager::GetProcessPluginNameAtIndex (i)) != NULL)
-//    {
-//        if (name)
-//        {
-//            option_enum.value = i;
-//            option_enum.string_value = name;
-//            option_enum.usage = PluginManager::GetProcessPluginDescriptionAtIndex (i);
-//            g_plugins.push_back (option_enum);
-//        }
-//        ++i;
-//    }
-//    option_enum.value = 0;
-//    option_enum.string_value = NULL;
-//    option_enum.usage = NULL;
-//    g_plugins.push_back (option_enum);
-//    
-//    for (i=0; (name = SettingsController::instance_settings_table[i].var_name); ++i)
-//    {
-//        if (::strcmp (name, "plugin") == 0)
-//        {
-//            SettingsController::instance_settings_table[i].enum_values = &g_plugins[0];
-//            break;
-//        }
-//    }
-//                                                          
     Thread::SettingsInitialize ();
 }
 
@@ -4925,6 +5117,22 @@ Process::RunThreadPlan (ExecutionContext &exe_ctx,
                 final_timeout.OffsetWithMicroSeconds(timeout_usec);
         }
 
+        // This isn't going to work if there are unfetched events on the queue.
+        // Are there cases where we might want to run the remaining events here, and then try to
+        // call the function?  That's probably being too tricky for our own good.
+        
+        Event *other_events = listener.PeekAtNextEvent();
+        if (other_events != NULL)
+        {
+            errors.Printf("Calling RunThreadPlan with pending events on the queue.");
+            return eExecutionSetupError;
+        }
+        
+        // We also need to make sure that the next event is delivered.  We might be calling a function as part of
+        // a thread plan, in which case the last delivered event could be the running event, and we don't want
+        // event coalescing to cause us to lose OUR running event...
+        ForceNextEventDelivery();
+        
         // This while loop must exit out the bottom, there's cleanup that we need to do when we are done.
         // So don't call return anywhere within it.
         
@@ -5680,6 +5888,10 @@ void
 Process::Flush ()
 {
     m_thread_list.Flush();
+    m_extended_thread_list.Flush();
+    m_extended_thread_stop_id =  0;
+    m_queue_list.Clear();
+    m_queue_list_stop_id = 0;
 }
 
 void
@@ -5707,5 +5919,39 @@ Process::DidExec ()
     // After we figure out what was loaded/unloaded in CompleteAttach,
     // we need to let the target know so it can do any cleanup it needs to.
     target.DidExec();
+}
+
+addr_t
+Process::ResolveIndirectFunction(const Address *address, Error &error)
+{
+    if (address == nullptr)
+    {
+        error.SetErrorString("Invalid address argument");
+        return LLDB_INVALID_ADDRESS;
+    }
+    
+    addr_t function_addr = LLDB_INVALID_ADDRESS;
+    
+    addr_t addr = address->GetLoadAddress(&GetTarget());
+    std::map<addr_t,addr_t>::const_iterator iter = m_resolved_indirect_addresses.find(addr);
+    if (iter != m_resolved_indirect_addresses.end())
+    {
+        function_addr = (*iter).second;
+    }
+    else
+    {
+        if (!InferiorCall(this, address, function_addr))
+        {
+            Symbol *symbol = address->CalculateSymbolContextSymbol();
+            error.SetErrorStringWithFormat ("Unable to call resolver for indirect function %s",
+                                          symbol ? symbol->GetName().AsCString() : "<UNKNOWN>");
+            function_addr = LLDB_INVALID_ADDRESS;
+        }
+        else
+        {
+            m_resolved_indirect_addresses.insert(std::pair<addr_t, addr_t>(addr, function_addr));
+        }
+    }
+    return function_addr;
 }
 

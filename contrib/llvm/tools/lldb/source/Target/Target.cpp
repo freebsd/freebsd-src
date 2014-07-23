@@ -28,6 +28,8 @@
 #include "lldb/Core/ModuleSpec.h"
 #include "lldb/Core/Section.h"
 #include "lldb/Core/SourceManager.h"
+#include "lldb/Core/State.h"
+#include "lldb/Core/StreamFile.h"
 #include "lldb/Core/StreamString.h"
 #include "lldb/Core/Timer.h"
 #include "lldb/Core/ValueObject.h"
@@ -42,6 +44,7 @@
 #include "lldb/lldb-private-log.h"
 #include "lldb/Symbol/ObjectFile.h"
 #include "lldb/Target/Process.h"
+#include "lldb/Target/SectionLoadList.h"
 #include "lldb/Target/StackFrame.h"
 #include "lldb/Target/SystemRuntime.h"
 #include "lldb/Target/Thread.h"
@@ -69,12 +72,11 @@ Target::Target(Debugger &debugger, const ArchSpec &target_arch, const lldb::Plat
     m_mutex (Mutex::eMutexTypeRecursive), 
     m_arch (target_arch),
     m_images (this),
-    m_section_load_list (),
+    m_section_load_history (),
     m_breakpoint_list (false),
     m_internal_breakpoint_list (true),
     m_watchpoint_list (),
     m_process_sp (),
-    m_valid (true),
     m_search_filter_sp (),
     m_image_search_paths (ImageSearchPathsChanged, this),
     m_scratch_ast_context_ap (),
@@ -84,6 +86,7 @@ Target::Target(Debugger &debugger, const ArchSpec &target_arch, const lldb::Plat
     m_source_manager_ap(),
     m_stop_hooks (),
     m_stop_hook_next_id (0),
+    m_valid (true),
     m_suppress_stop_hooks (false)
 {
     SetEventName (eBroadcastBitBreakpointChanged, "breakpoint-changed");
@@ -158,7 +161,7 @@ Target::DeleteCurrentProcess ()
 {
     if (m_process_sp.get())
     {
-        m_section_load_list.Clear();
+        m_section_load_history.Clear();
         if (m_process_sp->IsAlive())
             m_process_sp->Destroy();
         
@@ -193,7 +196,7 @@ Target::Destroy()
     m_platform_sp.reset();
     m_arch.Clear();
     ClearModules(true);
-    m_section_load_list.Clear();
+    m_section_load_history.Clear();
     const bool notify = false;
     m_breakpoint_list.RemoveAll(notify);
     m_internal_breakpoint_list.RemoveAll(notify);
@@ -248,7 +251,7 @@ Target::CreateSourceRegexBreakpoint (const FileSpecList *containingModules,
 {
     SearchFilterSP filter_sp(GetSearchFilterForModuleAndCUList (containingModules, source_file_spec_list));
     BreakpointResolverSP resolver_sp(new BreakpointResolverFileRegex (NULL, source_regex));
-    return CreateBreakpoint (filter_sp, resolver_sp, internal, hardware);
+    return CreateBreakpoint (filter_sp, resolver_sp, internal, hardware, true);
 }
 
 
@@ -302,7 +305,7 @@ Target::CreateBreakpoint (const FileSpecList *containingModules,
                                                                      line_no,
                                                                      check_inlines,
                                                                      skip_prologue));
-    return CreateBreakpoint (filter_sp, resolver_sp, internal, hardware);
+    return CreateBreakpoint (filter_sp, resolver_sp, internal, hardware, true);
 }
 
 
@@ -314,7 +317,7 @@ Target::CreateBreakpoint (lldb::addr_t addr, bool internal, bool hardware)
     // it doesn't resolve to section/offset.
 
     // Try and resolve as a load address if possible
-    m_section_load_list.ResolveLoadAddress(addr, so_addr);
+    GetSectionLoadList().ResolveLoadAddress(addr, so_addr);
     if (!so_addr.IsValid())
     {
         // The address didn't resolve, so just set this as an absolute address
@@ -329,7 +332,7 @@ Target::CreateBreakpoint (Address &addr, bool internal, bool hardware)
 {
     SearchFilterSP filter_sp(new SearchFilterForNonModuleSpecificSearches (shared_from_this()));
     BreakpointResolverSP resolver_sp (new BreakpointResolverAddress (NULL, addr));
-    return CreateBreakpoint (filter_sp, resolver_sp, internal, hardware);
+    return CreateBreakpoint (filter_sp, resolver_sp, internal, hardware, false);
 }
 
 BreakpointSP
@@ -354,7 +357,7 @@ Target::CreateBreakpoint (const FileSpecList *containingModules,
                                                                       func_name_type_mask, 
                                                                       Breakpoint::Exact, 
                                                                       skip_prologue));
-        bp_sp = CreateBreakpoint (filter_sp, resolver_sp, internal, hardware);
+        bp_sp = CreateBreakpoint (filter_sp, resolver_sp, internal, hardware, true);
     }
     return bp_sp;
 }
@@ -381,7 +384,7 @@ Target::CreateBreakpoint (const FileSpecList *containingModules,
                                                                       func_names,
                                                                       func_name_type_mask,
                                                                       skip_prologue));
-        bp_sp = CreateBreakpoint (filter_sp, resolver_sp, internal, hardware);
+        bp_sp = CreateBreakpoint (filter_sp, resolver_sp, internal, hardware, true);
     }
     return bp_sp;
 }
@@ -409,7 +412,7 @@ Target::CreateBreakpoint (const FileSpecList *containingModules,
                                                                       num_names, 
                                                                       func_name_type_mask,
                                                                       skip_prologue));
-        bp_sp = CreateBreakpoint (filter_sp, resolver_sp, internal, hardware);
+        bp_sp = CreateBreakpoint (filter_sp, resolver_sp, internal, hardware, true);
     }
     return bp_sp;
 }
@@ -487,7 +490,7 @@ Target::CreateFuncRegexBreakpoint (const FileSpecList *containingModules,
                                                                  func_regex, 
                                                                  skip_prologue == eLazyBoolCalculate ? GetSkipPrologue() : skip_prologue));
 
-    return CreateBreakpoint (filter_sp, resolver_sp, internal, hardware);
+    return CreateBreakpoint (filter_sp, resolver_sp, internal, hardware, true);
 }
 
 lldb::BreakpointSP
@@ -497,12 +500,12 @@ Target::CreateExceptionBreakpoint (enum lldb::LanguageType language, bool catch_
 }
     
 BreakpointSP
-Target::CreateBreakpoint (SearchFilterSP &filter_sp, BreakpointResolverSP &resolver_sp, bool internal, bool request_hardware)
+Target::CreateBreakpoint (SearchFilterSP &filter_sp, BreakpointResolverSP &resolver_sp, bool internal, bool request_hardware, bool resolve_indirect_symbols)
 {
     BreakpointSP bp_sp;
     if (filter_sp && resolver_sp)
     {
-        bp_sp.reset(new Breakpoint (*this, filter_sp, resolver_sp, request_hardware));
+        bp_sp.reset(new Breakpoint (*this, filter_sp, resolver_sp, request_hardware, resolve_indirect_symbols));
         resolver_sp->SetBreakpoint (bp_sp.get());
 
         if (internal)
@@ -1004,11 +1007,11 @@ LoadScriptingResourceForModule (const ModuleSP &module_sp, Target *target)
     if (module_sp && !module_sp->LoadScriptingResourceInTarget(target, error, &feedback_stream))
     {
         if (error.AsCString())
-            target->GetDebugger().GetErrorStream().Printf("unable to load scripting data for module %s - error reported was %s\n",
+            target->GetDebugger().GetErrorFile()->Printf("unable to load scripting data for module %s - error reported was %s\n",
                                                            module_sp->GetFileSpec().GetFileNameStrippingExtension().GetCString(),
                                                            error.AsCString());
         if (feedback_stream.GetSize())
-            target->GetDebugger().GetOutputStream().Printf("%s\n",
+            target->GetDebugger().GetErrorFile()->Printf("%s\n",
                                                            feedback_stream.GetData());
     }
 }
@@ -1017,7 +1020,7 @@ void
 Target::ClearModules(bool delete_locations)
 {
     ModulesDidUnload (m_images, delete_locations);
-    GetSectionLoadList().Clear();
+    m_section_load_history.Clear();
     m_images.Clear();
     m_scratch_ast_context_ap.reset();
     m_scratch_ast_source_ap.reset();
@@ -1065,7 +1068,7 @@ Target::SetExecutableModule (ModuleSP& executable_sp, bool get_dependent_files)
                 FileSpec dependent_file_spec (dependent_files.GetFileSpecPointerAtIndex(i));
                 FileSpec platform_dependent_file_spec;
                 if (m_platform_sp)
-                    m_platform_sp->GetFile (dependent_file_spec, NULL, platform_dependent_file_spec);
+                    m_platform_sp->GetFileWithUUID (dependent_file_spec, NULL, platform_dependent_file_spec);
                 else
                     platform_dependent_file_spec = dependent_file_spec;
 
@@ -1307,7 +1310,8 @@ Target::ReadMemory (const Address& addr,
     Address resolved_addr;
     if (!addr.IsSectionOffset())
     {
-        if (m_section_load_list.IsEmpty())
+        SectionLoadList &section_load_list = GetSectionLoadList();
+        if (section_load_list.IsEmpty())
         {
             // No sections are loaded, so we must assume we are not running
             // yet and anything we are given is a file address.
@@ -1321,7 +1325,7 @@ Target::ReadMemory (const Address& addr,
             // or because we have have a live process that has sections loaded
             // through the dynamic loader
             load_addr = addr.GetOffset(); // "addr" doesn't have a section, so its offset is the load address
-            m_section_load_list.ResolveLoadAddress (load_addr, resolved_addr);
+            section_load_list.ResolveLoadAddress (load_addr, resolved_addr);
         }
     }
     if (!resolved_addr.IsValid())
@@ -1534,7 +1538,8 @@ Target::ReadPointerFromMemory (const Address& addr,
         addr_t pointer_vm_addr = scalar.ULongLong(LLDB_INVALID_ADDRESS);
         if (pointer_vm_addr != LLDB_INVALID_ADDRESS)
         {
-            if (m_section_load_list.IsEmpty())
+            SectionLoadList &section_load_list = GetSectionLoadList();
+            if (section_load_list.IsEmpty())
             {
                 // No sections are loaded, so we must assume we are not running
                 // yet and anything we are given is a file address.
@@ -1546,7 +1551,7 @@ Target::ReadPointerFromMemory (const Address& addr,
                 // we have manually loaded some sections with "target modules load ..."
                 // or because we have have a live process that has sections loaded
                 // through the dynamic loader
-                m_section_load_list.ResolveLoadAddress (pointer_vm_addr, pointer_addr);
+                section_load_list.ResolveLoadAddress (pointer_vm_addr, pointer_addr);
             }
             // We weren't able to resolve the pointer value, so just return
             // an address with no section
@@ -1994,13 +1999,13 @@ Target::GetSourceManager ()
 }
 
 
-lldb::user_id_t
-Target::AddStopHook (Target::StopHookSP &new_hook_sp)
+Target::StopHookSP
+Target::CreateStopHook ()
 {
     lldb::user_id_t new_uid = ++m_stop_hook_next_id;
-    new_hook_sp.reset (new StopHook(shared_from_this(), new_uid));
-    m_stop_hooks[new_uid] = new_hook_sp;
-    return new_uid;
+    Target::StopHookSP stop_hook_sp (new StopHook(shared_from_this(), new_uid));
+    m_stop_hooks[new_uid] = stop_hook_sp;
+    return stop_hook_sp;
 }
 
 bool
@@ -2259,6 +2264,186 @@ Target::Install (ProcessLaunchInfo *launch_info)
     return error;
 }
 
+bool
+Target::ResolveLoadAddress (addr_t load_addr, Address &so_addr, uint32_t stop_id)
+{
+    return m_section_load_history.ResolveLoadAddress(stop_id, load_addr, so_addr);
+}
+
+bool
+Target::SetSectionLoadAddress (const SectionSP &section_sp, addr_t new_section_load_addr, bool warn_multiple)
+{
+    const addr_t old_section_load_addr = m_section_load_history.GetSectionLoadAddress (SectionLoadHistory::eStopIDNow, section_sp);
+    if (old_section_load_addr != new_section_load_addr)
+    {
+        uint32_t stop_id = 0;
+        ProcessSP process_sp(GetProcessSP());
+        if (process_sp)
+            stop_id = process_sp->GetStopID();
+        else
+            stop_id = m_section_load_history.GetLastStopID();
+        if (m_section_load_history.SetSectionLoadAddress (stop_id, section_sp, new_section_load_addr, warn_multiple))
+            return true; // Return true if the section load address was changed...
+    }
+    return false; // Return false to indicate nothing changed
+
+}
+
+bool
+Target::SetSectionUnloaded (const lldb::SectionSP &section_sp)
+{
+    uint32_t stop_id = 0;
+    ProcessSP process_sp(GetProcessSP());
+    if (process_sp)
+        stop_id = process_sp->GetStopID();
+    else
+        stop_id = m_section_load_history.GetLastStopID();
+    return m_section_load_history.SetSectionUnloaded (stop_id, section_sp);
+}
+
+bool
+Target::SetSectionUnloaded (const lldb::SectionSP &section_sp, addr_t load_addr)
+{
+    uint32_t stop_id = 0;
+    ProcessSP process_sp(GetProcessSP());
+    if (process_sp)
+        stop_id = process_sp->GetStopID();
+    else
+        stop_id = m_section_load_history.GetLastStopID();
+    return m_section_load_history.SetSectionUnloaded (stop_id, section_sp, load_addr);
+}
+
+void
+Target::ClearAllLoadedSections ()
+{
+    m_section_load_history.Clear();
+}
+
+
+Error
+Target::Launch (Listener &listener, ProcessLaunchInfo &launch_info)
+{
+    Error error;
+    
+    StateType state = eStateInvalid;
+    
+    // Scope to temporarily get the process state in case someone has manually
+    // remotely connected already to a process and we can skip the platform
+    // launching.
+    {
+        ProcessSP process_sp (GetProcessSP());
+    
+        if (process_sp)
+            state = process_sp->GetState();
+    }
+
+    launch_info.GetFlags().Set (eLaunchFlagDebug);
+    
+    // Get the value of synchronous execution here.  If you wait till after you have started to
+    // run, then you could have hit a breakpoint, whose command might switch the value, and
+    // then you'll pick up that incorrect value.
+    Debugger &debugger = GetDebugger();
+    const bool synchronous_execution = debugger.GetCommandInterpreter().GetSynchronous ();
+    
+    PlatformSP platform_sp (GetPlatform());
+    
+    // Finalize the file actions, and if none were given, default to opening
+    // up a pseudo terminal
+    const bool default_to_use_pty = platform_sp ? platform_sp->IsHost() : false;
+    launch_info.FinalizeFileActions (this, default_to_use_pty);
+    
+    if (state == eStateConnected)
+    {
+        if (launch_info.GetFlags().Test (eLaunchFlagLaunchInTTY))
+        {
+            error.SetErrorString("can't launch in tty when launching through a remote connection");
+            return error;
+        }
+    }
+    
+    if (!launch_info.GetArchitecture().IsValid())
+        launch_info.GetArchitecture() = GetArchitecture();
+    
+    if (state != eStateConnected && platform_sp && platform_sp->CanDebugProcess ())
+    {
+        m_process_sp = GetPlatform()->DebugProcess (launch_info,
+                                                    debugger,
+                                                    this,
+                                                    listener,
+                                                    error);
+    }
+    else
+    {
+        if (state == eStateConnected)
+        {
+            assert(m_process_sp);
+        }
+        else
+        {
+            const char *plugin_name = launch_info.GetProcessPluginName();
+            CreateProcess (listener, plugin_name, NULL);
+        }
+        
+        if (m_process_sp)
+            error = m_process_sp->Launch (launch_info);
+    }
+    
+    if (!m_process_sp)
+    {
+        if (error.Success())
+            error.SetErrorString("failed to launch or debug process");
+        return error;
+    }
+
+    if (error.Success())
+    {
+        if (launch_info.GetFlags().Test(eLaunchFlagStopAtEntry) == false)
+        {
+            ListenerSP hijack_listener_sp (launch_info.GetHijackListener());
+            
+            StateType state = m_process_sp->WaitForProcessToStop (NULL, NULL, false, hijack_listener_sp.get());
+            
+            if (state == eStateStopped)
+            {
+                if (!synchronous_execution)
+                    m_process_sp->RestoreProcessEvents ();
+
+                error = m_process_sp->PrivateResume();
+    
+                if (error.Success())
+                {
+                    if (synchronous_execution)
+                    {
+                        state = m_process_sp->WaitForProcessToStop (NULL, NULL, true, hijack_listener_sp.get());
+                        const bool must_be_alive = false; // eStateExited is ok, so this must be false
+                        if (!StateIsStoppedState(state, must_be_alive))
+                        {
+                            error.SetErrorStringWithFormat("process isn't stopped: %s", StateAsCString(state));
+                        }
+                    }
+                }
+                else
+                {
+                    Error error2;
+                    error2.SetErrorStringWithFormat("process resume at entry point failed: %s", error.AsCString());
+                    error = error2;
+                }
+            }
+            else
+            {
+                error.SetErrorStringWithFormat ("initial process state wasn't stopped: %s", StateAsCString(state));
+            }
+        }
+        m_process_sp->RestoreProcessEvents ();
+    }
+    else
+    {
+        Error error2;
+        error2.SetErrorStringWithFormat ("process launch failed: %s", error.AsCString());
+        error = error2;
+    }
+    return error;
+}
 //--------------------------------------------------------------
 // Target::StopHook
 //--------------------------------------------------------------
@@ -2452,6 +2637,8 @@ g_properties[] =
         "'complete' is the default value for this setting which will load all sections and symbols by reading them from memory (slowest, most accurate). "
         "'partial' will load sections and attempt to find function bounds without downloading the symbol table (faster, still accurate, missing symbol names). "
         "'minimal' is the fastest setting and will load section data with no symbols, but should rarely be used as stack frames in these memory regions will be inaccurate and not provide any context (fastest). " },
+    { "display-expression-in-crashlogs"    , OptionValue::eTypeBoolean   , false, false,                      NULL, NULL, "Expressions that crash will show up in crash logs if the host system supports executable specific crash log strings and this setting is set to true." },
+    { "trap-handler-names"                 , OptionValue::eTypeArray     , true,  OptionValue::eTypeString,   NULL, NULL, "A list of trap handler function names, e.g. a common Unix user process one is _sigtramp." },
     { NULL                                 , OptionValue::eTypeInvalid   , false, 0                         , NULL, NULL, NULL }
 };
 enum
@@ -2483,7 +2670,9 @@ enum
     ePropertyHexImmediateStyle,
     ePropertyUseFastStepping,
     ePropertyLoadScriptFromSymbolFile,
-    ePropertyMemoryModuleLoadLevel
+    ePropertyMemoryModuleLoadLevel,
+    ePropertyDisplayExpressionsInCrashlogs,
+    ePropertyTrapHandlerNames
 };
 
 
@@ -2862,6 +3051,13 @@ TargetProperties::GetUseFastStepping () const
     return m_collection_sp->GetPropertyAtIndexAsBoolean (NULL, idx, g_properties[idx].default_uint_value != 0);
 }
 
+bool
+TargetProperties::GetDisplayExpressionsInCrashlogs () const
+{
+    const uint32_t idx = ePropertyDisplayExpressionsInCrashlogs;
+    return m_collection_sp->GetPropertyAtIndexAsBoolean (NULL, idx, g_properties[idx].default_uint_value != 0);
+}
+
 LoadScriptFromSymFile
 TargetProperties::GetLoadScriptFromSymbolFile () const
 {
@@ -2883,7 +3079,19 @@ TargetProperties::GetMemoryModuleLoadLevel() const
     return (MemoryModuleLoadLevel)m_collection_sp->GetPropertyAtIndexAsEnumeration(NULL, idx, g_properties[idx].default_uint_value);
 }
 
+bool
+TargetProperties::GetUserSpecifiedTrapHandlerNames (Args &args) const
+{
+    const uint32_t idx = ePropertyTrapHandlerNames;
+    return m_collection_sp->GetPropertyAtIndexAsArgs (NULL, idx, args);
+}
 
+void
+TargetProperties::SetUserSpecifiedTrapHandlerNames (const Args &args)
+{
+    const uint32_t idx = ePropertyTrapHandlerNames;
+    m_collection_sp->SetPropertyAtIndexFromArgs (NULL, idx, args);
+}
 
 //----------------------------------------------------------------------
 // Target::TargetEventData
