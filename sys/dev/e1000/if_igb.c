@@ -4569,12 +4569,8 @@ igb_initialise_rss_mapping(struct adapter *adapter)
 	struct e1000_hw *hw = &adapter->hw;
 	int i;
 	int queue_id;
-
+	u32 reta;
 	u32 rss_key[10], mrqc, shift = 0;
-	union igb_reta {
-		u32 dword;
-		u8  bytes[4];
-	} reta;
 
 	/* XXX? */
 	if (adapter->hw.mac.type == e1000_82575)
@@ -4594,6 +4590,7 @@ igb_initialise_rss_mapping(struct adapter *adapter)
 	 */
 
 	/* Warning FM follows */
+	reta = 0;
 	for (i = 0; i < 128; i++) {
 #ifdef	RSS
 		queue_id = rss_get_indirection_to_bucket(i);
@@ -4614,13 +4611,20 @@ igb_initialise_rss_mapping(struct adapter *adapter)
 #else
 		queue_id = (i % adapter->num_queues);
 #endif
-		reta.bytes[i & 3] = queue_id << shift;
+		/* Adjust if required */
+		queue_id = queue_id << shift;
 
-		if ((i & 3) == 3)
-			E1000_WRITE_REG(hw,
-			    E1000_RETA(i >> 2), reta.dword);
+		/*
+		 * The low 8 bits are for hash value (n+0);
+		 * The next 8 bits are for hash value (n+1), etc.
+		 */
+		reta = reta >> 8;
+		reta = reta | ( ((uint32_t) queue_id) << 24);
+		if ((i & 3) == 3) {
+			E1000_WRITE_REG(hw, E1000_RETA(i >> 2), reta);
+			reta = 0;
+		}
 	}
-
 
 	/* Now fill in hash table */
 
