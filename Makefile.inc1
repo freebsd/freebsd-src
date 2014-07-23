@@ -1366,9 +1366,6 @@ kernel-tools: .MAKE
 #
 # cross-tools: Build cross-building tools
 #
-.if !defined(TARGET_ARCH) && defined(XDEV_ARCH)
-TARGET_ARCH=	${XDEV_ARCH}
-.endif
 .if ${TARGET_ARCH} != ${MACHINE_ARCH}
 .if ${TARGET_ARCH} == "amd64" || ${TARGET_ARCH} == "i386"
 _btxld=		usr.sbin/btxld
@@ -1497,6 +1494,7 @@ _prebuild_libs=	${_kerberos5_lib_libasn1} \
 .if ${MK_GNUCXX} != "no"
 _prebuild_libs+= gnu/lib/libstdc++ gnu/lib/libsupc++
 gnu/lib/libstdc++__L: lib/msun__L
+gnu/lib/libsupc++__L: gnu/lib/libstdc++__L
 .endif
 
 .if defined(WITH_ATF) || ${MK_TESTS} != "no"
@@ -1853,9 +1851,9 @@ builddtb:
 
 ###############
 
-.if defined(XDEV) && defined(XDEV_ARCH)
+.if defined(TARGET) && defined(TARGET_ARCH)
 
-.if ${XDEV} == ${MACHINE} && ${XDEV_ARCH} == ${MACHINE_ARCH}
+.if ${TARGET} == ${MACHINE} && ${TARGET_ARCH} == ${MACHINE_ARCH}
 XDEV_CPUTYPE?=${CPUTYPE}
 .else
 XDEV_CPUTYPE?=${TARGET_CPUTYPE}
@@ -1864,10 +1862,10 @@ XDEV_CPUTYPE?=${TARGET_CPUTYPE}
 NOFUN=-DNO_FSCHG MK_HTML=no MK_INFO=no -DNO_LINT \
 	MK_MAN=no MK_NLS=no MK_PROFILE=no \
 	MK_KERBEROS=no MK_RESCUE=no MK_TESTS=no MK_WARNS=no \
-	TARGET=${XDEV} TARGET_ARCH=${XDEV_ARCH} \
+	TARGET=${TARGET} TARGET_ARCH=${TARGET_ARCH} \
 	CPUTYPE=${XDEV_CPUTYPE}
 
-XDDIR=${XDEV_ARCH}-freebsd
+XDDIR=${TARGET_ARCH}-freebsd
 XDTP?=/usr/${XDDIR}
 .if ${XDTP:N/*}
 .error XDTP variable should be an absolute path
@@ -1883,7 +1881,7 @@ CD2CFLAGS=-isystem ${XDDESTDIR}/usr/include -L${XDDESTDIR}/usr/lib \
 	-B${XDDESTDIR}/usr/bin -B${XDDESTDIR}/usr/lib
 CD2ENV=${CDENV} CC="${CC} ${CD2CFLAGS}" CXX="${CXX} ${CD2CFLAGS}" \
 	CPP="${CPP} ${CD2CFLAGS}" \
-	MACHINE=${XDEV} MACHINE_ARCH=${XDEV_ARCH}
+	MACHINE=${TARGET} MACHINE_ARCH=${TARGET_ARCH}
 
 CDTMP=	${MAKEOBJDIRPREFIX}/${XDDIR}/${.CURDIR}/tmp
 CDMAKE=${CDENV} PATH=${CDTMP}/usr/bin:${PATH} ${MAKE} ${NOFUN}
@@ -1982,5 +1980,5 @@ xdev-links:
 		done
 .else
 xdev xdev-build xdev-install xdev-links:
-	@echo "*** Error: Both XDEV and XDEV_ARCH must be defined for \"${.TARGET}\" target"
+	@echo "*** Error: Both TARGET and TARGET_ARCH must be defined for \"${.TARGET}\" target"
 .endif
