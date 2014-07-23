@@ -94,7 +94,7 @@ install_uboot() {
 main() {
 	# Build the 'xdev' target for crochet.
 	eval chroot ${CHROOTDIR} make -C /usr/src \
-		${XDEV_FLAGS} XDEV=${XDEV} XDEV_ARCH=${XDEV_ARCH} \
+		${XDEV_FLAGS} TARGET=${XDEV} TARGET_ARCH=${XDEV_ARCH} \
 		${WORLD_FLAGS} xdev
 
 	# Run the ldconfig(8) startup script so /var/run/ld-elf*.so.hints
