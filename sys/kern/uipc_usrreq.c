@@ -1853,7 +1853,7 @@ unp_internalize(struct mbuf **controlp, struct thread *td)
 	struct filedescent *fde, **fdep, *fdev;
 	struct file *fp;
 	struct timeval *tv;
-	int i, fd, *fdp;
+	int i, *fdp;
 	void *data;
 	socklen_t clen = control->m_len, datalen;
 	int error, oldfds;
@@ -1906,14 +1906,13 @@ unp_internalize(struct mbuf **controlp, struct thread *td)
 			 */
 			fdp = data;
 			FILEDESC_SLOCK(fdesc);
-			for (i = 0; i < oldfds; i++) {
-				fd = *fdp++;
-				if (fget_locked(fdesc, fd) == NULL) {
+			for (i = 0; i < oldfds; i++, fdp++) {
+				fp = fget_locked(fdesc, *fdp);
+				if (fp == NULL) {
 					FILEDESC_SUNLOCK(fdesc);
 					error = EBADF;
 					goto out;
 				}
-				fp = fdesc->fd_ofiles[fd].fde_file;
 				if (!(fp->f_ops->fo_flags & DFLAG_PASSABLE)) {
 					FILEDESC_SUNLOCK(fdesc);
 					error = EOPNOTSUPP;
