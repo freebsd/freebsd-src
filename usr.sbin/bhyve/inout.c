@@ -157,15 +157,13 @@ emulate_inout(struct vmctx *ctx, int vcpu, struct vm_exit *vmexit, int strict)
 			if (vie_calculate_gla(vis->paging.cpu_mode,
 			    vis->seg_name, &vis->seg_desc, index, bytes,
 			    addrsize, prot, &gla)) {
-				error = vm_inject_exception2(ctx, vcpu,
-				    IDT_GP, 0);
-				assert(error == 0);
+				vm_inject_gp(ctx, vcpu, 0);
 				retval = INOUT_RESTART;
 				break;
 			}
 
-			error = vm_gla2gpa(ctx, vcpu, &vis->paging, gla, bytes,
-			    prot, iov, nitems(iov));
+			error = vm_copy_setup(ctx, vcpu, &vis->paging, gla,
+			    bytes, prot, iov, nitems(iov));
 			assert(error == 0 || error == 1 || error == -1);
 			if (error) {
 				retval = (error == 1) ? INOUT_RESTART :
@@ -175,9 +173,7 @@ emulate_inout(struct vmctx *ctx, int vcpu, struct vm_exit *vmexit, int strict)
 
 			if (vie_alignment_check(vis->paging.cpl, bytes,
 			    vis->cr0, vis->rflags, gla)) {
-				error = vm_inject_exception2(ctx, vcpu,
-				    IDT_AC, 0);
-				assert(error == 0);
+				vm_inject_ac(ctx, vcpu, 0);
 				return (INOUT_RESTART);
 			}
 

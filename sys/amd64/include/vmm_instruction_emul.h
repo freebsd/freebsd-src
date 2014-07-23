@@ -52,8 +52,8 @@ typedef int (*mem_region_write_t)(void *vm, int cpuid, uint64_t gpa,
  * s
  */
 int vmm_emulate_instruction(void *vm, int cpuid, uint64_t gpa, struct vie *vie,
-			    mem_region_read_t mrr, mem_region_write_t mrw,
-			    void *mrarg);
+    struct vm_guest_paging *paging, mem_region_read_t mrr,
+    mem_region_write_t mrw, void *mrarg);
 
 int vie_update_register(void *vm, int vcpuid, enum vm_reg_name reg,
     uint64_t val, int size);

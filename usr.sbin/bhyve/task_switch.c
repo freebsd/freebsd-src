@@ -214,7 +214,7 @@ desc_table_rw(struct vmctx *ctx, int vcpu, struct vm_guest_paging *paging,
 	assert(error == 0);
 	assert(limit >= SEL_LIMIT(sel));
 
-	error = vm_gla2gpa(ctx, vcpu, paging, base + SEL_START(sel),
+	error = vm_copy_setup(ctx, vcpu, paging, base + SEL_START(sel),
 	    sizeof(*desc), doread ? PROT_READ : PROT_WRITE, iov, nitems(iov));
 	if (error == 0) {
 		if (doread)
@@ -508,9 +508,7 @@ tss32_restore(struct vmctx *ctx, int vcpu, struct vm_task_switch *ts,
 				 */
 				reserved = ~maxphyaddr | 0x1E6;
 				if (pdpte[i] & reserved) {
-					error = vm_inject_exception2(ctx, vcpu,
-					    IDT_GP, 0);
-					assert(error == 0);
+					vm_inject_gp(ctx, vcpu, 0);
 					return (VMEXIT_RESTART);
 				}
 			}
@@ -649,12 +647,11 @@ push_errcode(struct vmctx *ctx, int vcpu, struct vm_guest_paging *paging,
 	}
 
 	if (vie_alignment_check(paging->cpl, bytes, cr0, rflags, gla)) {
-		error = vm_inject_exception2(ctx, vcpu, IDT_AC, 1);
-		assert(error == 0);
+		vm_inject_ac(ctx, vcpu, 1);
 		return (VMEXIT_RESTART);
 	}
 
-	error = vm_gla2gpa(ctx, vcpu, paging, gla, bytes, PROT_WRITE,
+	error = vm_copy_setup(ctx, vcpu, paging, gla, bytes, PROT_WRITE,
 	    iov, nitems(iov));
 	assert(error == 0 || error == 1 || error == -1);
 	if (error) {
@@ -753,7 +750,7 @@ vmexit_task_switch(struct vmctx *ctx, struct vm_exit *vmexit, int *pvcpu)
 	}
 
 	/* Fetch the new TSS */
-	error = vm_gla2gpa(ctx, vcpu, &sup_paging, nt.base, minlimit + 1,
+	error = vm_copy_setup(ctx, vcpu, &sup_paging, nt.base, minlimit + 1,
 	    PROT_READ | PROT_WRITE, nt_iov, nitems(nt_iov));
 	if (error == 1) {
 		/* Restart vcpu execution to handle the page fault */
@@ -793,7 +790,7 @@ vmexit_task_switch(struct vmctx *ctx, struct vm_exit *vmexit, int *pvcpu)
 		return (error);
 
 	/* Get the old TSS */
-	error = vm_gla2gpa(ctx, vcpu, &sup_paging, ot_base, minlimit + 1,
+	error = vm_copy_setup(ctx, vcpu, &sup_paging, ot_base, minlimit + 1,
 	    PROT_READ | PROT_WRITE, ot_iov, nitems(ot_iov));
 	if (error == 1) {
 		/* Restart vcpu execution to handle the page fault */
