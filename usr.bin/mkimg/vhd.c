@@ -40,6 +40,10 @@ __FBSDID("$FreeBSD$");
 #include "format.h"
 #include "mkimg.h"
 
+#ifndef __has_extension
+#define	__has_extension(x)	0
+#endif
+
 /*
  * General notes:
  * o   File is in network byte order.
@@ -88,8 +92,10 @@ struct vhd_footer {
 	uint8_t		saved_state;
 	uint8_t		_reserved[427];
 };
+#if __has_extension(c_static_assert)
 _Static_assert(sizeof(struct vhd_footer) == VHD_SECTOR_SIZE,
     "Wrong size for footer");
+#endif
 
 static uint32_t
 vhd_checksum(void *buf, size_t sz)
@@ -250,8 +256,10 @@ struct vhd_dyn_header {
 	} parent_locator[8];
 	char		_reserved2[256];
 };
+#if __has_extension(c_static_assert)
 _Static_assert(sizeof(struct vhd_dyn_header) == VHD_SECTOR_SIZE * 2,
     "Wrong size for header");
+#endif
 
 static int
 vhd_dyn_write(int fd)
