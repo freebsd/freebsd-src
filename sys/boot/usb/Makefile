@@ -31,17 +31,6 @@
 # SUCH DAMAGE.
 #
 
-S=${.CURDIR}/../..
-
-.PATH: \
-	${.CURDIR} \
-	${.CURDIR}/storage \
-	${S}/dev/usb \
-	${S}/dev/usb/controller \
-	${S}/dev/usb/serial \
-	${S}/dev/usb/storage \
-	${S}/dev/usb/template
-
 LIB=		usbboot
 INTERNALLIB=
 
@@ -49,12 +38,7 @@ CFLAGS+=	-DBOOTPROG=\"usbloader\"
 CFLAGS+=	-ffunction-sections -fdata-sections
 CFLAGS+=	-ffreestanding
 CFLAGS+=	-Wformat -Wall
-CFLAGS+=	-I${S}
-CFLAGS+=	-I${.CURDIR}
-CFLAGS+=	-I${.CURDIR}/../common
 CFLAGS+=	-g
-CFLAGS+=	-DUSB_MSCTEST_BULK_SIZE=65536
-CFLAGS+=	-DUSB_POOL_SIZE=131072
 CFLAGS+=	-fno-pic
 
 .if ${MACHINE_CPUARCH} == "i386" || ${MACHINE_CPUARCH} == "amd64"
@@ -68,109 +52,7 @@ CFLAGS+=	-m32
 CFLAGS+=	-mno-abicalls
 .endif
 
-#
-# BUSDMA implementation
-#
-SRCS+=	usb_busdma_loader.c
 
-#
-# USB controller drivers
-#
-
-KSRCS+=	usb_controller.c
-
-.if defined(HAVE_AT91DCI)
-CFLAGS += -DUSB_PCI_PROBE_LIST="\"at91dci\""
-KSRCS+=	at91dci.c
-.endif
-
-.if defined(HAVE_ATMEGADCI)
-CFLAGS += -DUSB_PCI_PROBE_LIST="\"atmegadci\""
-KSRCS+=	atmegadci.c
-.endif
-
-.if defined(HAVE_AVR32DCI)
-CFLAGS += -DUSB_PCI_PROBE_LIST="\"avr32dci\""
-KSRCS+=	avr32dci.c
-.endif
-
-.if defined(HAVE_DWCOTG)
-CFLAGS += -DUSB_PCI_PROBE_LIST="\"dwcotg\""
-KSRCS+=	dwcotg.c
-.endif
-
-.if defined(HAVE_MUSBOTG)
-CFLAGS += -DUSB_PCI_PROBE_LIST="\"musbotg\""
-KSRCS+=	musbotg.c
-.endif
-
-.if defined(HAVE_EHCI)
-CFLAGS += -DUSB_PCI_PROBE_LIST="\"ehci\""
-KSRCS+=	ehci.c
-.endif
-
-.if defined(HAVE_OHCI)
-CFLAGS += -DUSB_PCI_PROBE_LIST="\"ohci\""
-KSRCS+=	ohci.c
-.endif
-
-.if defined(HAVE_UHCI)
-CFLAGS += -DUSB_PCI_PROBE_LIST="\"uhci\""
-KSRCS+=	uhci.c
-.endif
-
-.if defined(HAVE_XHCI)
-CFLAGS += -DUSB_PCI_PROBE_LIST="\"xhci\""
-KSRCS+=	xhci.c
-.endif
-
-.if defined(HAVE_USS820DCI)
-CFLAGS += -DUSB_PCI_PROBE_LIST="\"uss820dci\""
-KSRCS+=	uss820dci.c
-.endif
-
-.if defined(HAVE_SAF1761OTG)
-CFLAGS += -DUSB_PCI_PROBE_LIST="\"saf1761otg\""
-CFLAGS += -DUSB_PCI_MEMORY_ADDRESS=0x900000007f100000ULL
-CFLAGS += -DUSB_PCI_MEMORY_SIZE=0x40000U
-KSRCS+=	saf1761_otg.c
-KSRCS+=	saf1761_otg_boot.c
-.endif
-
-#
-# USB core and templates
-#
-KSRCS+=	usb_core.c
-KSRCS+=	usb_debug.c
-KSRCS+=	usb_device.c
-KSRCS+=	usb_dynamic.c
-KSRCS+=	usb_error.c
-KSRCS+=	usb_handle_request.c
-KSRCS+=	usb_hid.c
-KSRCS+=	usb_hub.c
-KSRCS+=	usb_lookup.c
-KSRCS+=	usb_msctest.c
-KSRCS+=	usb_parse.c
-KSRCS+=	usb_request.c
-KSRCS+=	usb_transfer.c
-KSRCS+=	usb_util.c
-KSRCS+=	usb_template.c
-KSRCS+=	usb_template_cdce.c
-KSRCS+=	usb_template_msc.c
-KSRCS+=	usb_template_mtp.c
-KSRCS+=	usb_template_modem.c
-KSRCS+=	usb_template_mouse.c
-KSRCS+=	usb_template_kbd.c
-KSRCS+=	usb_template_audio.c
-
-#
-# USB mass storage support
-#
-SRCS+=	umass_common.c
-
-.if defined(HAVE_UMASS_LOADER)
-SRCS+=	umass_loader.c
-.endif
-
+.include "usbcore.mk"
 .include "../kshim/kshim.mk"
 .include <bsd.lib.mk>
