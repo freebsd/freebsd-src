@@ -2301,6 +2301,9 @@ int
 fget_unlocked(struct filedesc *fdp, int fd, cap_rights_t *needrightsp,
     int needfcntl, struct file **fpp, cap_rights_t *haverightsp)
 {
+#ifdef CAPABILITIES
+	struct filedescent fde;
+#endif
 	struct file *fp;
 	u_int count;
 #ifdef CAPABILITIES
@@ -2323,17 +2326,22 @@ fget_unlocked(struct filedesc *fdp, int fd, cap_rights_t *needrightsp,
 	 * due to preemption.
 	 */
 	for (;;) {
+#ifdef CAPABILITIES
+		fde = fdp->fd_ofiles[fd];
+		fp = fde.fde_file;
+#else
 		fp = fdp->fd_ofiles[fd].fde_file;
+#endif
 		if (fp == NULL)
 			return (EBADF);
 #ifdef CAPABILITIES
-		haverights = *cap_rights(fdp, fd);
+		haverights = *cap_rights_fde(&fde);
 		if (needrightsp != NULL) {
 			error = cap_check(&haverights, needrightsp);
 			if (error != 0)
 				return (error);
 			if (cap_rights_is_set(needrightsp, CAP_FCNTL)) {
-				error = cap_fcntl_check(fdp, fd, needfcntl);
+				error = cap_fcntl_check_fde(&fde, needfcntl);
 				if (error != 0)
 					return (error);
 			}
