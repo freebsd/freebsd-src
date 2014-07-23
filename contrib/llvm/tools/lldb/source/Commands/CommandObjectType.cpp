@@ -19,7 +19,7 @@
 
 #include "lldb/Core/ConstString.h"
 #include "lldb/Core/Debugger.h"
-#include "lldb/Core/InputReaderEZ.h"
+#include "lldb/Core/IOHandler.h"
 #include "lldb/Core/RegularExpression.h"
 #include "lldb/Core/State.h"
 #include "lldb/Core/StringList.h"
@@ -42,7 +42,6 @@ public:
     TypeSummaryImpl::Flags m_flags;
     
     StringList m_target_types;
-    StringList m_user_source;
     
     bool m_regex;
         
@@ -74,7 +73,6 @@ public:
     bool m_skip_references;
     bool m_cascade;
     bool m_regex;
-    StringList m_user_source;
     StringList m_target_types;
     
     std::string m_category;
@@ -88,7 +86,6 @@ public:
     m_skip_references(sref),
     m_cascade(casc),
     m_regex(regx),
-    m_user_source(),
     m_target_types(),
     m_category(catg)
     {
@@ -98,9 +95,36 @@ public:
     
 };
 
+static bool
+WarnOnPotentialUnquotedUnsignedType (Args& command, CommandReturnObject &result)
+{
+    for (int idx = 0; idx < command.GetArgumentCount(); idx++)
+    {
+        const char* arg = command.GetArgumentAtIndex(idx);
+        if (idx+1 < command.GetArgumentCount())
+        {
+            if (arg && 0 == strcmp(arg,"unsigned"))
+            {
+                const char* next = command.GetArgumentAtIndex(idx+1);
+                if (next &&
+                    (0 == strcmp(next, "int") ||
+                     0 == strcmp(next, "short") ||
+                     0 == strcmp(next, "char") ||
+                     0 == strcmp(next, "long")))
+                {
+                    result.AppendWarningWithFormat("%s %s being treated as two types. if you meant the combined type name use quotes, as in \"%s %s\"\n",
+                                                   arg,next,arg,next);
+                    return true;
+                }
+            }
+        }
+    }
+    return false;
+}
 
-
-class CommandObjectTypeSummaryAdd : public CommandObjectParsed
+class CommandObjectTypeSummaryAdd :
+    public CommandObjectParsed,
+    public IOHandlerDelegateMultiline
 {
     
 private:
@@ -153,10 +177,6 @@ private:
         return &m_options;
     }
     
-    void
-    CollectPythonScript(ScriptAddOptions *options,
-                        CommandReturnObject &result);
-    
     bool
     Execute_ScriptSummary (Args& command, CommandReturnObject &result);
     
@@ -178,6 +198,147 @@ public:
     {
     }
     
+    virtual void
+    IOHandlerActivated (IOHandler &io_handler)
+    {
+        static const char *g_summary_addreader_instructions = "Enter your Python command(s). Type 'DONE' to end.\n"
+        "def function (valobj,internal_dict):\n"
+        "     \"\"\"valobj: an SBValue which you want to provide a summary for\n"
+        "        internal_dict: an LLDB support object not to be used\"\"\"";
+
+        StreamFileSP output_sp(io_handler.GetOutputStreamFile());
+        if (output_sp)
+        {
+            output_sp->PutCString(g_summary_addreader_instructions);
+            output_sp->Flush();
+        }
+    }
+    
+    
+    virtual void
+    IOHandlerInputComplete (IOHandler &io_handler, std::string &data)
+    {
+        StreamFileSP error_sp = io_handler.GetErrorStreamFile();
+        
+#ifndef LLDB_DISABLE_PYTHON
+        ScriptInterpreter *interpreter = m_interpreter.GetScriptInterpreter();
+        if (interpreter)
+        {
+            StringList lines;
+            lines.SplitIntoLines(data);
+            if (lines.GetSize() > 0)
+            {
+                ScriptAddOptions *options_ptr = ((ScriptAddOptions*)io_handler.GetUserData());
+                if (options_ptr)
+                {
+                    ScriptAddOptions::SharedPointer options(options_ptr); // this will ensure that we get rid of the pointer when going out of scope
+                    
+                    ScriptInterpreter *interpreter = m_interpreter.GetScriptInterpreter();
+                    if (interpreter)
+                    {
+                        std::string funct_name_str;
+                        if (interpreter->GenerateTypeScriptFunction (lines, funct_name_str))
+                        {
+                            if (funct_name_str.empty())
+                            {
+                                error_sp->Printf ("unable to obtain a valid function name from the script interpreter.\n");
+                                error_sp->Flush();
+                            }
+                            else
+                            {
+                                // now I have a valid function name, let's add this as script for every type in the list
+                                
+                                TypeSummaryImplSP script_format;
+                                script_format.reset(new ScriptSummaryFormat(options->m_flags,
+                                                                            funct_name_str.c_str(),
+                                                                            lines.CopyList("    ").c_str()));
+                                
+                                Error error;
+                                
+                                for (size_t i = 0; i < options->m_target_types.GetSize(); i++)
+                                {
+                                    const char *type_name = options->m_target_types.GetStringAtIndex(i);
+                                    CommandObjectTypeSummaryAdd::AddSummary(ConstString(type_name),
+                                                                            script_format,
+                                                                            (options->m_regex ? CommandObjectTypeSummaryAdd::eRegexSummary : CommandObjectTypeSummaryAdd::eRegularSummary),
+                                                                            options->m_category,
+                                                                            &error);
+                                    if (error.Fail())
+                                    {
+                                        error_sp->Printf ("error: %s", error.AsCString());
+                                        error_sp->Flush();
+                                    }
+                                }
+                                
+                                if (options->m_name)
+                                {
+                                    CommandObjectTypeSummaryAdd::AddSummary (options->m_name,
+                                                                             script_format,
+                                                                             CommandObjectTypeSummaryAdd::eNamedSummary,
+                                                                             options->m_category,
+                                                                             &error);
+                                    if (error.Fail())
+                                    {
+                                        CommandObjectTypeSummaryAdd::AddSummary (options->m_name,
+                                                                                 script_format,
+                                                                                 CommandObjectTypeSummaryAdd::eNamedSummary,
+                                                                                 options->m_category,
+                                                                                 &error);
+                                        if (error.Fail())
+                                        {
+                                            error_sp->Printf ("error: %s", error.AsCString());
+                                            error_sp->Flush();
+                                        }
+                                    }
+                                    else
+                                    {
+                                        error_sp->Printf ("error: %s", error.AsCString());
+                                        error_sp->Flush();
+                                    }
+                                }
+                                else
+                                {
+                                    if (error.AsCString())
+                                    {
+                                        error_sp->Printf ("error: %s", error.AsCString());
+                                        error_sp->Flush();
+                                    }
+                                }
+                            }
+                        }
+                        else
+                        {
+                            error_sp->Printf ("error: unable to generate a function.\n");
+                            error_sp->Flush();
+                        }
+                    }
+                    else
+                    {
+                        error_sp->Printf ("error: no script interpreter.\n");
+                        error_sp->Flush();
+                    }
+                }
+                else
+                {
+                    error_sp->Printf ("error: internal synchronization information missing or invalid.\n");
+                    error_sp->Flush();
+                }
+            }
+            else
+            {
+                error_sp->Printf ("error: empty function, didn't add python command.\n");
+                error_sp->Flush();
+            }
+        }
+        else
+        {
+            error_sp->Printf ("error: script interpreter missing, didn't add python command.\n");
+            error_sp->Flush();
+        }
+#endif // #ifndef LLDB_DISABLE_PYTHON
+        io_handler.SetIsDone(true);
+    }
+    
     static bool
     AddSummary(ConstString type_name,
                lldb::TypeSummaryImplSP entry,
@@ -190,7 +351,19 @@ protected:
     
 };
 
-class CommandObjectTypeSynthAdd : public CommandObjectParsed
+static const char *g_synth_addreader_instructions =   "Enter your Python command(s). Type 'DONE' to end.\n"
+"You must define a Python class with these methods:\n"
+"    def __init__(self, valobj, dict):\n"
+"    def num_children(self):\n"
+"    def get_child_at_index(self, index):\n"
+"    def get_child_index(self, name):\n"
+"    def update(self):\n"
+"        '''Optional'''\n"
+"class synthProvider:\n";
+
+class CommandObjectTypeSynthAdd :
+    public CommandObjectParsed,
+    public IOHandlerDelegateMultiline
 {
     
 private:
@@ -200,7 +373,7 @@ private:
     public:
         
         CommandOptions (CommandInterpreter &interpreter) :
-        Options (interpreter)
+            Options (interpreter)
         {
         }
         
@@ -296,9 +469,6 @@ private:
         return &m_options;
     }
     
-    void
-    CollectPythonScript (SynthAddOptions *options,
-                         CommandReturnObject &result);    
     bool
     Execute_HandwritePython (Args& command, CommandReturnObject &result);
     
@@ -307,8 +477,139 @@ private:
     
 protected:
     bool
-    DoExecute (Args& command, CommandReturnObject &result);
+    DoExecute (Args& command, CommandReturnObject &result)
+    {
+        WarnOnPotentialUnquotedUnsignedType(command, result);
+        
+        if (m_options.handwrite_python)
+            return Execute_HandwritePython(command, result);
+        else if (m_options.is_class_based)
+            return Execute_PythonClass(command, result);
+        else
+        {
+            result.AppendError("must either provide a children list, a Python class name, or use -P and type a Python class line-by-line");
+            result.SetStatus(eReturnStatusFailed);
+            return false;
+        }
+    }
     
+    virtual void
+    IOHandlerActivated (IOHandler &io_handler)
+    {
+        StreamFileSP output_sp(io_handler.GetOutputStreamFile());
+        if (output_sp)
+        {
+            output_sp->PutCString(g_synth_addreader_instructions);
+            output_sp->Flush();
+        }
+    }
+    
+    
+    virtual void
+    IOHandlerInputComplete (IOHandler &io_handler, std::string &data)
+    {
+        StreamFileSP error_sp = io_handler.GetErrorStreamFile();
+        
+#ifndef LLDB_DISABLE_PYTHON
+        ScriptInterpreter *interpreter = m_interpreter.GetScriptInterpreter();
+        if (interpreter)
+        {
+            StringList lines;
+            lines.SplitIntoLines(data);
+            if (lines.GetSize() > 0)
+            {
+                SynthAddOptions *options_ptr = ((SynthAddOptions*)io_handler.GetUserData());
+                if (options_ptr)
+                {
+                    SynthAddOptions::SharedPointer options(options_ptr); // this will ensure that we get rid of the pointer when going out of scope
+                    
+                    ScriptInterpreter *interpreter = m_interpreter.GetScriptInterpreter();
+                    if (interpreter)
+                    {
+                        std::string class_name_str;
+                        if (interpreter->GenerateTypeSynthClass (lines, class_name_str))
+                        {
+                            if (class_name_str.empty())
+                            {
+                                error_sp->Printf ("error: unable to obtain a proper name for the class.\n");
+                                error_sp->Flush();
+                            }
+                            else
+                            {
+                                // everything should be fine now, let's add the synth provider class
+                                
+                                SyntheticChildrenSP synth_provider;
+                                synth_provider.reset(new ScriptedSyntheticChildren(SyntheticChildren::Flags().SetCascades(options->m_cascade).
+                                                                                   SetSkipPointers(options->m_skip_pointers).
+                                                                                   SetSkipReferences(options->m_skip_references),
+                                                                                   class_name_str.c_str()));
+                                
+                                
+                                lldb::TypeCategoryImplSP category;
+                                DataVisualization::Categories::GetCategory(ConstString(options->m_category.c_str()), category);
+                                
+                                Error error;
+                                
+                                for (size_t i = 0; i < options->m_target_types.GetSize(); i++)
+                                {
+                                    const char *type_name = options->m_target_types.GetStringAtIndex(i);
+                                    ConstString const_type_name(type_name);
+                                    if (const_type_name)
+                                    {
+                                        if (!CommandObjectTypeSynthAdd::AddSynth(const_type_name,
+                                                                                 synth_provider,
+                                                                                 options->m_regex ? CommandObjectTypeSynthAdd::eRegexSynth : CommandObjectTypeSynthAdd::eRegularSynth,
+                                                                                 options->m_category,
+                                                                                 &error))
+                                        {
+                                            error_sp->Printf("error: %s\n", error.AsCString());
+                                            error_sp->Flush();
+                                            break;
+                                        }
+                                    }
+                                    else
+                                    {
+                                        error_sp->Printf ("error: invalid type name.\n");
+                                        error_sp->Flush();
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+                        else
+                        {
+                            error_sp->Printf ("error: unable to generate a class.\n");
+                            error_sp->Flush();
+                        }
+                    }
+                    else
+                    {
+                        error_sp->Printf ("error: no script interpreter.\n");
+                        error_sp->Flush();
+                    }
+                }
+                else
+                {
+                    error_sp->Printf ("error: internal synchronization data missing.\n");
+                    error_sp->Flush();
+                }
+            }
+            else
+            {
+                error_sp->Printf ("error: empty function, didn't add python command.\n");
+                error_sp->Flush();
+            }
+        }
+        else
+        {
+            error_sp->Printf ("error: script interpreter missing, didn't add python command.\n");
+            error_sp->Flush();
+        }
+        
+#endif // #ifndef LLDB_DISABLE_PYTHON
+        io_handler.SetIsDone(true);
+    }
+
 public:
     
     enum SynthFormatType
@@ -371,6 +672,7 @@ private:
             m_skip_references = false;
             m_regex = false;
             m_category.assign("default");
+            m_custom_type_name.clear();
         }
         virtual Error
         SetOptionValue (CommandInterpreter &interpreter,
@@ -400,6 +702,9 @@ private:
                 case 'x':
                     m_regex = true;
                     break;
+                case 't':
+                    m_custom_type_name.assign(option_value);
+                    break;
                 default:
                     error.SetErrorStringWithFormat ("unrecognized option '%c'", short_option);
                     break;
@@ -419,6 +724,7 @@ private:
         bool m_skip_pointers;
         bool m_regex;
         std::string m_category;
+        std::string m_custom_type_name;
     };
     
     OptionGroupOptions m_option_group;
@@ -480,7 +786,7 @@ public:
                     );
     
         // Add the "--format" to all options groups
-        m_option_group.Append (&m_format_options, OptionGroupFormat::OPTION_GROUP_FORMAT, LLDB_OPT_SET_ALL);
+        m_option_group.Append (&m_format_options, OptionGroupFormat::OPTION_GROUP_FORMAT, LLDB_OPT_SET_1);
         m_option_group.Append (&m_command_options);
         m_option_group.Finalize();
 
@@ -504,7 +810,7 @@ protected:
         }
         
         const Format format = m_format_options.GetFormat();
-        if (format == eFormatInvalid)
+        if (format == eFormatInvalid && m_command_options.m_custom_type_name.empty())
         {
             result.AppendErrorWithFormat ("%s needs a valid format.\n", m_cmd_name.c_str());
             result.SetStatus(eReturnStatusFailed);
@@ -513,10 +819,16 @@ protected:
         
         TypeFormatImplSP entry;
         
-        entry.reset(new TypeFormatImpl(format,
-                                    TypeFormatImpl::Flags().SetCascades(m_command_options.m_cascade).
-                                    SetSkipPointers(m_command_options.m_skip_pointers).
-                                    SetSkipReferences(m_command_options.m_skip_references)));
+        if (m_command_options.m_custom_type_name.empty())
+            entry.reset(new TypeFormatImpl_Format(format,
+                                                  TypeFormatImpl::Flags().SetCascades(m_command_options.m_cascade).
+                                                  SetSkipPointers(m_command_options.m_skip_pointers).
+                                                  SetSkipReferences(m_command_options.m_skip_references)));
+        else
+            entry.reset(new TypeFormatImpl_EnumType(ConstString(m_command_options.m_custom_type_name.c_str()),
+                                                    TypeFormatImpl::Flags().SetCascades(m_command_options.m_cascade).
+                                                    SetSkipPointers(m_command_options.m_skip_pointers).
+                                                    SetSkipReferences(m_command_options.m_skip_references)));
 
         // now I have a valid format, let's add it to every type
         
@@ -524,6 +836,8 @@ protected:
         DataVisualization::Categories::GetCategory(ConstString(m_command_options.m_category), category_sp);
         if (!category_sp)
             return false;
+        
+        WarnOnPotentialUnquotedUnsignedType(command, result);
         
         for (size_t i = 0; i < argc; i++)
         {
@@ -540,11 +854,11 @@ protected:
                         result.SetStatus(eReturnStatusFailed);
                         return false;
                     }
-                    category_sp->GetRegexSummaryNavigator()->Delete(typeCS);
-                    category_sp->GetRegexValueNavigator()->Add(typeRX, entry);
+                    category_sp->GetRegexTypeSummariesContainer()->Delete(typeCS);
+                    category_sp->GetRegexTypeFormatsContainer()->Add(typeRX, entry);
                 }
                 else
-                    category_sp->GetValueNavigator()->Add(typeCS, entry);
+                    category_sp->GetTypeFormatsContainer()->Add(typeCS, entry);
             }
             else
             {
@@ -562,11 +876,12 @@ protected:
 OptionDefinition
 CommandObjectTypeFormatAdd::CommandOptions::g_option_table[] =
 {
-    { LLDB_OPT_SET_ALL, false, "category", 'w', OptionParser::eRequiredArgument, NULL, 0, eArgTypeName,    "Add this to the given category instead of the default one."},
-    { LLDB_OPT_SET_ALL, false, "cascade", 'C', OptionParser::eRequiredArgument, NULL, 0, eArgTypeBoolean,    "If true, cascade through typedef chains."},
-    { LLDB_OPT_SET_ALL, false, "skip-pointers", 'p', OptionParser::eNoArgument, NULL, 0, eArgTypeNone,         "Don't use this format for pointers-to-type objects."},
-    { LLDB_OPT_SET_ALL, false, "skip-references", 'r', OptionParser::eNoArgument, NULL, 0, eArgTypeNone,         "Don't use this format for references-to-type objects."},
+    { LLDB_OPT_SET_ALL, false,  "category", 'w', OptionParser::eRequiredArgument, NULL, 0, eArgTypeName,    "Add this to the given category instead of the default one."},
+    { LLDB_OPT_SET_ALL, false,  "cascade", 'C', OptionParser::eRequiredArgument, NULL, 0, eArgTypeBoolean,    "If true, cascade through typedef chains."},
+    { LLDB_OPT_SET_ALL, false,  "skip-pointers", 'p', OptionParser::eNoArgument, NULL, 0, eArgTypeNone,         "Don't use this format for pointers-to-type objects."},
+    { LLDB_OPT_SET_ALL, false,  "skip-references", 'r', OptionParser::eNoArgument, NULL, 0, eArgTypeNone,         "Don't use this format for references-to-type objects."},
     { LLDB_OPT_SET_ALL, false,  "regex", 'x', OptionParser::eNoArgument, NULL, 0, eArgTypeNone,    "Type names are actually regular expressions."},
+    { LLDB_OPT_SET_2,   false,  "type", 't', OptionParser::eRequiredArgument, NULL, 0, eArgTypeName,    "Format variables as if they were of this type."},
     { 0, false, NULL, 0, 0, NULL, 0, eArgTypeNone, NULL }
 };
 
@@ -817,8 +1132,8 @@ private:
     PerCategoryCallback(void* param,
                         const lldb::TypeCategoryImplSP& cate)
     {
-        cate->GetValueNavigator()->Clear();
-        cate->GetRegexValueNavigator()->Clear();
+        cate->GetTypeFormatsContainer()->Clear();
+        cate->GetRegexTypeFormatsContainer()->Clear();
         return true;
         
     }
@@ -996,6 +1311,7 @@ protected:
             param = new CommandObjectTypeFormatList_LoopCallbackParam(this,&result,NULL,cate_regex);
         
         DataVisualization::Categories::LoopThrough(PerCategoryCallback,param);
+        delete param;
 
         if (cate_regex)
             delete cate_regex;
@@ -1029,12 +1345,12 @@ private:
                                          cate_name,
                                          (cate->IsEnabled() ? "enabled" : "disabled"));
         
-        cate->GetValueNavigator()->LoopThrough(CommandObjectTypeFormatList_LoopCallback, param_vp);
+        cate->GetTypeFormatsContainer()->LoopThrough(CommandObjectTypeFormatList_LoopCallback, param_vp);
         
-        if (cate->GetRegexSummaryNavigator()->GetCount() > 0)
+        if (cate->GetRegexTypeSummariesContainer()->GetCount() > 0)
         {
             result->GetOutputStream().Printf("Regex-based summaries (slower):\n");
-            cate->GetRegexValueNavigator()->LoopThrough(CommandObjectTypeRXFormatList_LoopCallback, param_vp);
+            cate->GetRegexTypeFormatsContainer()->LoopThrough(CommandObjectTypeRXFormatList_LoopCallback, param_vp);
         }
         return true;
     }
@@ -1088,176 +1404,6 @@ CommandObjectTypeFormatList::CommandOptions::g_option_table[] =
 //-------------------------------------------------------------------------
 // CommandObjectTypeSummaryAdd
 //-------------------------------------------------------------------------
-
-static const char *g_summary_addreader_instructions = "Enter your Python command(s). Type 'DONE' to end.\n"
-                                                       "def function (valobj,internal_dict):\n"
-                                                       "     \"\"\"valobj: an SBValue which you want to provide a summary for\n"
-                                                       "        internal_dict: an LLDB support object not to be used\"\"\"";
-
-class TypeScriptAddInputReader : public InputReaderEZ
-{
-private:
-    DISALLOW_COPY_AND_ASSIGN (TypeScriptAddInputReader);
-public:
-    TypeScriptAddInputReader(Debugger& debugger) : 
-    InputReaderEZ(debugger)
-    {}
-    
-    virtual
-    ~TypeScriptAddInputReader()
-    {
-    }
-    
-    virtual void ActivateHandler(HandlerData& data)
-    {
-        StreamSP out_stream = data.reader.GetDebugger().GetAsyncOutputStream();
-        bool batch_mode = data.reader.GetDebugger().GetCommandInterpreter().GetBatchCommandMode();
-        if (!batch_mode)
-        {
-            out_stream->Printf ("%s\n", g_summary_addreader_instructions);
-            if (data.reader.GetPrompt())
-                out_stream->Printf ("%s", data.reader.GetPrompt());
-            out_stream->Flush();
-        }
-    }
-    
-    virtual void ReactivateHandler(HandlerData& data)
-    {
-        StreamSP out_stream = data.reader.GetDebugger().GetAsyncOutputStream();
-        bool batch_mode = data.reader.GetDebugger().GetCommandInterpreter().GetBatchCommandMode();
-        if (data.reader.GetPrompt() && !batch_mode)
-        {
-            out_stream->Printf ("%s", data.reader.GetPrompt());
-            out_stream->Flush();
-        }
-    }
-    virtual void GotTokenHandler(HandlerData& data)
-    {
-        StreamSP out_stream = data.reader.GetDebugger().GetAsyncOutputStream();
-        bool batch_mode = data.reader.GetDebugger().GetCommandInterpreter().GetBatchCommandMode();
-        if (data.bytes && data.bytes_len && data.baton)
-        {
-            ((ScriptAddOptions*)data.baton)->m_user_source.AppendString(data.bytes, data.bytes_len);
-        }
-        if (!data.reader.IsDone() && data.reader.GetPrompt() && !batch_mode)
-        {
-            out_stream->Printf ("%s", data.reader.GetPrompt());
-            out_stream->Flush();
-        }
-    }
-    virtual void InterruptHandler(HandlerData& data)
-    {
-        StreamSP out_stream = data.reader.GetDebugger().GetAsyncOutputStream();
-        bool batch_mode = data.reader.GetDebugger().GetCommandInterpreter().GetBatchCommandMode();
-        data.reader.SetIsDone (true);
-        if (!batch_mode)
-        {
-            out_stream->Printf ("Warning: No command attached to breakpoint.\n");
-            out_stream->Flush();
-        }
-    }
-    virtual void EOFHandler(HandlerData& data)
-    {
-        data.reader.SetIsDone (true);
-    }
-    virtual void DoneHandler(HandlerData& data)
-    {
-        StreamSP out_stream = data.reader.GetDebugger().GetAsyncOutputStream();
-        ScriptAddOptions *options_ptr = ((ScriptAddOptions*)data.baton);
-        if (!options_ptr)
-        {
-            out_stream->Printf ("internal synchronization information missing or invalid.\n");
-            out_stream->Flush();
-            return;
-        }
-        
-        ScriptAddOptions::SharedPointer options(options_ptr); // this will ensure that we get rid of the pointer when going out of scope
-        
-        ScriptInterpreter *interpreter = data.reader.GetDebugger().GetCommandInterpreter().GetScriptInterpreter();
-        if (!interpreter)
-        {
-            out_stream->Printf ("no script interpreter.\n");
-            out_stream->Flush();
-            return;
-        }
-        std::string funct_name_str;
-        if (!interpreter->GenerateTypeScriptFunction (options->m_user_source, 
-                                                      funct_name_str))
-        {
-            out_stream->Printf ("unable to generate a function.\n");
-            out_stream->Flush();
-            return;
-        }
-        if (funct_name_str.empty())
-        {
-            out_stream->Printf ("unable to obtain a valid function name from the script interpreter.\n");
-            out_stream->Flush();
-            return;
-        }
-        // now I have a valid function name, let's add this as script for every type in the list
-        
-        TypeSummaryImplSP script_format;
-        script_format.reset(new ScriptSummaryFormat(options->m_flags,
-                                                    funct_name_str.c_str(),
-                                                    options->m_user_source.CopyList("     ").c_str()));
-        
-        Error error;
-        
-        for (size_t i = 0; i < options->m_target_types.GetSize(); i++)
-        {
-            const char *type_name = options->m_target_types.GetStringAtIndex(i);
-            CommandObjectTypeSummaryAdd::AddSummary(ConstString(type_name),
-                                                    script_format,
-                                                    (options->m_regex ? CommandObjectTypeSummaryAdd::eRegexSummary : CommandObjectTypeSummaryAdd::eRegularSummary),
-                                                    options->m_category,
-                                                    &error);
-            if (error.Fail())
-            {
-                out_stream->Printf ("%s", error.AsCString());
-                out_stream->Flush();
-                return;
-            }
-        }
-        
-        if (options->m_name)
-        {
-            CommandObjectTypeSummaryAdd::AddSummary (options->m_name,
-                                                     script_format,
-                                                     CommandObjectTypeSummaryAdd::eNamedSummary,
-                                                     options->m_category,
-                                                     &error);
-            if (error.Fail())
-            {
-                CommandObjectTypeSummaryAdd::AddSummary (options->m_name,
-                                                         script_format,
-                                                         CommandObjectTypeSummaryAdd::eNamedSummary,
-                                                         options->m_category,
-                                                         &error);
-                if (error.Fail())
-                {
-                    out_stream->Printf ("%s", error.AsCString());
-                    out_stream->Flush();
-                    return;
-                }
-            }
-            else
-            {
-                out_stream->Printf ("%s", error.AsCString());
-                out_stream->Flush();
-                return;
-            }
-        }
-        else
-        {
-            if (error.AsCString())
-            {
-                out_stream->PutCString (error.AsCString());
-                out_stream->Flush();
-            }
-            return;
-        }
-    }
-};
 
 #endif // #ifndef LLDB_DISABLE_PYTHON
 
@@ -1339,35 +1485,9 @@ CommandObjectTypeSummaryAdd::CommandOptions::OptionParsingStarting ()
     m_category = "default";
 }
 
+
+
 #ifndef LLDB_DISABLE_PYTHON
-void
-CommandObjectTypeSummaryAdd::CollectPythonScript (ScriptAddOptions *options,
-                                                  CommandReturnObject &result)
-{
-    InputReaderSP reader_sp (new TypeScriptAddInputReader(m_interpreter.GetDebugger()));
-    if (reader_sp && options)
-    {
-        
-        InputReaderEZ::InitializationParameters ipr;
-        
-        Error err (reader_sp->Initialize (ipr.SetBaton(options).SetPrompt("     ")));
-        if (err.Success())
-        {
-            m_interpreter.GetDebugger().PushInputReader (reader_sp);
-            result.SetStatus (eReturnStatusSuccessFinishNoResult);
-        }
-        else
-        {
-            result.AppendError (err.AsCString());
-            result.SetStatus (eReturnStatusFailed);
-        }
-    }
-    else
-    {
-        result.AppendError("out of memory");
-        result.SetStatus (eReturnStatusFailed);
-    }
-}
 
 bool
 CommandObjectTypeSummaryAdd::Execute_ScriptSummary (Args& command, CommandReturnObject &result)
@@ -1393,7 +1513,7 @@ CommandObjectTypeSummaryAdd::Execute_ScriptSummary (Args& command, CommandReturn
             return false;
         }
         
-        std::string code = ("     " + m_options.m_python_function + "(valobj,internal_dict)");
+        std::string code = ("    " + m_options.m_python_function + "(valobj,internal_dict)");
         
         script_format.reset(new ScriptSummaryFormat(m_options.m_flags,
                                                     funct_name,
@@ -1432,14 +1552,15 @@ CommandObjectTypeSummaryAdd::Execute_ScriptSummary (Args& command, CommandReturn
             return false;
         }
         
-        std::string code = "     " + m_options.m_python_script;
+        std::string code = "    " + m_options.m_python_script;
         
         script_format.reset(new ScriptSummaryFormat(m_options.m_flags,
                                                     funct_name_str.c_str(),
                                                     code.c_str()));
     }
-    else // use an InputReader to grab Python code from the user
-    {        
+    else
+    {
+        // Use an IOHandler to grab Python code from the user
         ScriptAddOptions *options = new ScriptAddOptions(m_options.m_flags,
                                                          m_options.m_regex,
                                                          m_options.m_name,
@@ -1458,7 +1579,12 @@ CommandObjectTypeSummaryAdd::Execute_ScriptSummary (Args& command, CommandReturn
             }
         }
         
-        CollectPythonScript(options,result);
+        m_interpreter.GetPythonCommandsFromIOHandler ("    ",   // Prompt
+                                                      *this,    // IOHandlerDelegate
+                                                      true,     // Run IOHandler in async mode
+                                                      options); // Baton for the "io_handler" that will be passed back into our IOHandlerDelegate functions
+        result.SetStatus(eReturnStatusSuccessFinishNoResult);
+
         return result.Succeeded();
     }
     
@@ -1590,6 +1716,7 @@ CommandObjectTypeSummaryAdd::CommandObjectTypeSummaryAdd (CommandInterpreter &in
                          "type summary add",
                          "Add a new summary style for a type.",
                          NULL),
+    IOHandlerDelegateMultiline ("DONE"),
     m_options (interpreter)
 {
     CommandArgumentEntry type_arg;
@@ -1671,6 +1798,8 @@ CommandObjectTypeSummaryAdd::CommandObjectTypeSummaryAdd (CommandInterpreter &in
 bool
 CommandObjectTypeSummaryAdd::DoExecute (Args& command, CommandReturnObject &result)
 {
+    WarnOnPotentialUnquotedUnsignedType(command, result);
+
     if (m_options.m_is_add_script)
     {
 #ifndef LLDB_DISABLE_PYTHON
@@ -1720,8 +1849,8 @@ CommandObjectTypeSummaryAdd::AddSummary(ConstString type_name,
             return false;
         }
         
-        category->GetRegexSummaryNavigator()->Delete(type_name);
-        category->GetRegexSummaryNavigator()->Add(typeRX, entry);
+        category->GetRegexTypeSummariesContainer()->Delete(type_name);
+        category->GetRegexTypeSummariesContainer()->Add(typeRX, entry);
         
         return true;
     }
@@ -1733,7 +1862,7 @@ CommandObjectTypeSummaryAdd::AddSummary(ConstString type_name,
     }
     else
     {
-        category->GetSummaryNavigator()->Add(type_name, entry);
+        category->GetTypeSummariesContainer()->Add(type_name, entry);
         return true;
     }
 }    
@@ -1994,8 +2123,8 @@ private:
     PerCategoryCallback(void* param,
                         const lldb::TypeCategoryImplSP& cate)
     {
-        cate->GetSummaryNavigator()->Clear();
-        cate->GetRegexSummaryNavigator()->Clear();
+        cate->GetTypeSummariesContainer()->Clear();
+        cate->GetRegexTypeSummariesContainer()->Clear();
         return true;
         
     }
@@ -2178,7 +2307,8 @@ protected:
             param = new CommandObjectTypeSummaryList_LoopCallbackParam(this,&result,NULL,cate_regex);
         
         DataVisualization::Categories::LoopThrough(PerCategoryCallback,param);
-                
+        delete param;
+
         if (DataVisualization::NamedSummaryFormats::GetCount() > 0)
         {
             result.GetOutputStream().Printf("Named summaries:\n");
@@ -2226,12 +2356,12 @@ private:
                                          cate_name,
                                          (cate->IsEnabled() ? "enabled" : "disabled"));
                 
-        cate->GetSummaryNavigator()->LoopThrough(CommandObjectTypeSummaryList_LoopCallback, param_vp);
+        cate->GetTypeSummariesContainer()->LoopThrough(CommandObjectTypeSummaryList_LoopCallback, param_vp);
         
-        if (cate->GetRegexSummaryNavigator()->GetCount() > 0)
+        if (cate->GetRegexTypeSummariesContainer()->GetCount() > 0)
         {
             result->GetOutputStream().Printf("Regex-based summaries (slower):\n");
-            cate->GetRegexSummaryNavigator()->LoopThrough(CommandObjectTypeRXSummaryList_LoopCallback, param_vp);
+            cate->GetRegexTypeSummariesContainer()->LoopThrough(CommandObjectTypeRXSummaryList_LoopCallback, param_vp);
         }
         return true;
     }
@@ -2741,6 +2871,7 @@ protected:
             param = new CommandObjectTypeFilterList_LoopCallbackParam(this,&result,NULL,cate_regex);
         
         DataVisualization::Categories::LoopThrough(PerCategoryCallback,param);
+        delete param;
         
         if (cate_regex)
             delete cate_regex;
@@ -2774,12 +2905,12 @@ private:
                                          cate_name,
                                          (cate->IsEnabled() ? "enabled" : "disabled"));
         
-        cate->GetFilterNavigator()->LoopThrough(CommandObjectTypeFilterList_LoopCallback, param_vp);
+        cate->GetTypeFiltersContainer()->LoopThrough(CommandObjectTypeFilterList_LoopCallback, param_vp);
         
-        if (cate->GetRegexFilterNavigator()->GetCount() > 0)
+        if (cate->GetRegexTypeFiltersContainer()->GetCount() > 0)
         {
             result->GetOutputStream().Printf("Regex-based filters (slower):\n");
-            cate->GetRegexFilterNavigator()->LoopThrough(CommandObjectTypeFilterRXList_LoopCallback, param_vp);
+            cate->GetRegexTypeFiltersContainer()->LoopThrough(CommandObjectTypeFilterRXList_LoopCallback, param_vp);
         }
         
         return true;
@@ -2955,7 +3086,8 @@ protected:
             param = new CommandObjectTypeSynthList_LoopCallbackParam(this,&result,NULL,cate_regex);
         
         DataVisualization::Categories::LoopThrough(PerCategoryCallback,param);
-                
+        delete param;
+
         if (cate_regex)
             delete cate_regex;
         
@@ -2988,12 +3120,12 @@ private:
                                          cate_name,
                                          (cate->IsEnabled() ? "enabled" : "disabled"));
         
-        cate->GetSyntheticNavigator()->LoopThrough(CommandObjectTypeSynthList_LoopCallback, param_vp);
+        cate->GetTypeSyntheticsContainer()->LoopThrough(CommandObjectTypeSynthList_LoopCallback, param_vp);
         
-        if (cate->GetRegexSyntheticNavigator()->GetCount() > 0)
+        if (cate->GetRegexTypeSyntheticsContainer()->GetCount() > 0)
         {
             result->GetOutputStream().Printf("Regex-based synthetic providers (slower):\n");
-            cate->GetRegexSyntheticNavigator()->LoopThrough(CommandObjectTypeSynthRXList_LoopCallback, param_vp);
+            cate->GetRegexTypeSyntheticsContainer()->LoopThrough(CommandObjectTypeSynthRXList_LoopCallback, param_vp);
         }
         
         return true;
@@ -3179,8 +3311,8 @@ protected:
         lldb::TypeCategoryImplSP category;
         DataVisualization::Categories::GetCategory(ConstString(m_options.m_category.c_str()), category);
         
-        bool delete_category = category->GetFilterNavigator()->Delete(typeCS);
-        delete_category = category->GetRegexFilterNavigator()->Delete(typeCS) || delete_category;
+        bool delete_category = category->GetTypeFiltersContainer()->Delete(typeCS);
+        delete_category = category->GetRegexTypeFiltersContainer()->Delete(typeCS) || delete_category;
         
         if (delete_category)
         {
@@ -3345,8 +3477,8 @@ protected:
         lldb::TypeCategoryImplSP category;
         DataVisualization::Categories::GetCategory(ConstString(m_options.m_category.c_str()), category);
         
-        bool delete_category = category->GetSyntheticNavigator()->Delete(typeCS);
-        delete_category = category->GetRegexSyntheticNavigator()->Delete(typeCS) || delete_category;
+        bool delete_category = category->GetTypeSyntheticsContainer()->Delete(typeCS);
+        delete_category = category->GetRegexTypeSyntheticsContainer()->Delete(typeCS) || delete_category;
         
         if (delete_category)
         {
@@ -3484,8 +3616,8 @@ protected:
             }
             else
                 DataVisualization::Categories::GetCategory(ConstString(NULL), category);
-            category->GetFilterNavigator()->Clear();
-            category->GetRegexFilterNavigator()->Clear();
+            category->GetTypeFiltersContainer()->Clear();
+            category->GetRegexTypeFiltersContainer()->Clear();
         }
         
         result.SetStatus(eReturnStatusSuccessFinishResult);
@@ -3613,8 +3745,8 @@ protected:
             }
             else
                 DataVisualization::Categories::GetCategory(ConstString(NULL), category);
-            category->GetSyntheticNavigator()->Clear();
-            category->GetRegexSyntheticNavigator()->Clear();
+            category->GetTypeSyntheticsContainer()->Clear();
+            category->GetRegexTypeSyntheticsContainer()->Clear();
         }
         
         result.SetStatus(eReturnStatusSuccessFinishResult);
@@ -3631,193 +3763,6 @@ CommandObjectTypeSynthClear::CommandOptions::g_option_table[] =
 };
 
 
-//-------------------------------------------------------------------------
-// TypeSynthAddInputReader
-//-------------------------------------------------------------------------
-
-static const char *g_synth_addreader_instructions =   "Enter your Python command(s). Type 'DONE' to end.\n"
-                                                      "You must define a Python class with these methods:\n"
-                                                      "     def __init__(self, valobj, dict):\n"
-                                                      "     def num_children(self):\n"
-                                                      "     def get_child_at_index(self, index):\n"
-                                                      "     def get_child_index(self, name):\n"
-                                                      "Optionally, you can also define a method:\n"
-                                                      "     def update(self):\n"
-                                                      "if your synthetic provider is holding on to any per-object state variables (currently, this is not implemented because of the way LLDB handles instances of SBValue and you should not rely on object persistence and per-object state)\n"
-                                                      "class synthProvider:";
-
-class TypeSynthAddInputReader : public InputReaderEZ
-{
-public:
-    TypeSynthAddInputReader(Debugger& debugger) : 
-        InputReaderEZ(debugger)
-    {}
-    
-    virtual
-    ~TypeSynthAddInputReader()
-    {
-    }
-    
-    virtual void ActivateHandler(HandlerData& data)
-    {
-        StreamSP out_stream = data.GetOutStream();
-        bool batch_mode = data.GetBatchMode();
-        if (!batch_mode)
-        {
-            out_stream->Printf ("%s\n", g_synth_addreader_instructions);
-            if (data.reader.GetPrompt())
-                out_stream->Printf ("%s", data.reader.GetPrompt());
-            out_stream->Flush();
-        }
-    }
-    
-    virtual void ReactivateHandler(HandlerData& data)
-    {
-        StreamSP out_stream = data.GetOutStream();
-        bool batch_mode = data.GetBatchMode();
-        if (data.reader.GetPrompt() && !batch_mode)
-        {
-            out_stream->Printf ("%s", data.reader.GetPrompt());
-            out_stream->Flush();
-        }
-    }
-    virtual void GotTokenHandler(HandlerData& data)
-    {
-        StreamSP out_stream = data.GetOutStream();
-        bool batch_mode = data.GetBatchMode();
-        if (data.bytes && data.bytes_len && data.baton)
-        {
-            ((SynthAddOptions*)data.baton)->m_user_source.AppendString(data.bytes, data.bytes_len);
-        }
-        if (!data.reader.IsDone() && data.reader.GetPrompt() && !batch_mode)
-        {
-            out_stream->Printf ("%s", data.reader.GetPrompt());
-            out_stream->Flush();
-        }
-    }
-    virtual void InterruptHandler(HandlerData& data)
-    {
-        StreamSP out_stream = data.GetOutStream();
-        bool batch_mode = data.GetBatchMode();
-        data.reader.SetIsDone (true);
-        if (!batch_mode)
-        {
-            out_stream->Printf ("Warning: No command attached to breakpoint.\n");
-            out_stream->Flush();
-        }
-    }
-    virtual void EOFHandler(HandlerData& data)
-    {
-        data.reader.SetIsDone (true);
-    }
-    virtual void DoneHandler(HandlerData& data)
-    {
-        StreamSP out_stream = data.GetOutStream();
-        SynthAddOptions *options_ptr = ((SynthAddOptions*)data.baton);
-        if (!options_ptr)
-        {
-            out_stream->Printf ("internal synchronization data missing.\n");
-            out_stream->Flush();
-            return;
-        }
-        
-        SynthAddOptions::SharedPointer options(options_ptr); // this will ensure that we get rid of the pointer when going out of scope
-        
-        ScriptInterpreter *interpreter = data.reader.GetDebugger().GetCommandInterpreter().GetScriptInterpreter();
-        if (!interpreter)
-        {
-            out_stream->Printf ("no script interpreter.\n");
-            out_stream->Flush();
-            return;
-        }
-        std::string class_name_str;
-        if (!interpreter->GenerateTypeSynthClass (options->m_user_source, 
-                                                  class_name_str))
-        {
-            out_stream->Printf ("unable to generate a class.\n");
-            out_stream->Flush();
-            return;
-        }
-        if (class_name_str.empty())
-        {
-            out_stream->Printf ("unable to obtain a proper name for the class.\n");
-            out_stream->Flush();
-            return;
-        }
-
-        // everything should be fine now, let's add the synth provider class
-        
-        SyntheticChildrenSP synth_provider;
-        synth_provider.reset(new ScriptedSyntheticChildren(SyntheticChildren::Flags().SetCascades(options->m_cascade).
-                                                           SetSkipPointers(options->m_skip_pointers).
-                                                           SetSkipReferences(options->m_skip_references),
-                                                           class_name_str.c_str()));
-        
-        
-        lldb::TypeCategoryImplSP category;
-        DataVisualization::Categories::GetCategory(ConstString(options->m_category.c_str()), category);
-        
-        Error error;
-        
-        for (size_t i = 0; i < options->m_target_types.GetSize(); i++)
-        {
-            const char *type_name = options->m_target_types.GetStringAtIndex(i);
-            ConstString typeCS(type_name);
-            if (typeCS)
-            {
-                if (!CommandObjectTypeSynthAdd::AddSynth(typeCS,
-                                                        synth_provider,
-                                                        options->m_regex ? CommandObjectTypeSynthAdd::eRegexSynth : CommandObjectTypeSynthAdd::eRegularSynth,
-                                                        options->m_category,
-                                                        &error))
-                {
-                    out_stream->Printf("%s\n", error.AsCString());
-                    out_stream->Flush();
-                    return;
-                }
-            }
-            else
-            {
-                out_stream->Printf ("invalid type name.\n");
-                out_stream->Flush();
-                return;
-            }
-        }
-    }
-
-private:
-    DISALLOW_COPY_AND_ASSIGN (TypeSynthAddInputReader);
-};
-
-void
-CommandObjectTypeSynthAdd::CollectPythonScript (SynthAddOptions *options,
-                                                CommandReturnObject &result)
-{
-    InputReaderSP reader_sp (new TypeSynthAddInputReader(m_interpreter.GetDebugger()));
-    if (reader_sp && options)
-    {
-        
-        InputReaderEZ::InitializationParameters ipr;
-        
-        Error err (reader_sp->Initialize (ipr.SetBaton(options).SetPrompt("     ")));
-        if (err.Success())
-        {
-            m_interpreter.GetDebugger().PushInputReader (reader_sp);
-            result.SetStatus (eReturnStatusSuccessFinishNoResult);
-        }
-        else
-        {
-            result.AppendError (err.AsCString());
-            result.SetStatus (eReturnStatusFailed);
-        }
-    }
-    else
-    {
-        result.AppendError("out of memory");
-        result.SetStatus (eReturnStatusFailed);
-    }
-}
-    
 bool
 CommandObjectTypeSynthAdd::Execute_HandwritePython (Args& command, CommandReturnObject &result)
 {
@@ -3842,7 +3787,11 @@ CommandObjectTypeSynthAdd::Execute_HandwritePython (Args& command, CommandReturn
         }
     }
     
-    CollectPythonScript(options,result);
+    m_interpreter.GetPythonCommandsFromIOHandler ("    ",   // Prompt
+                                                  *this,    // IOHandlerDelegate
+                                                  true,     // Run IOHandler in async mode
+                                                  options); // Baton for the "io_handler" that will be passed back into our IOHandlerDelegate functions
+    result.SetStatus(eReturnStatusSuccessFinishNoResult);
     return result.Succeeded();
 }
 
@@ -3921,6 +3870,7 @@ CommandObjectTypeSynthAdd::CommandObjectTypeSynthAdd (CommandInterpreter &interp
                          "type synthetic add",
                          "Add a new synthetic provider for a type.",
                          NULL),
+    IOHandlerDelegateMultiline ("DONE"),
     m_options (interpreter)
 {
     CommandArgumentEntry type_arg;
@@ -3979,30 +3929,15 @@ CommandObjectTypeSynthAdd::AddSynth(ConstString type_name,
             return false;
         }
         
-        category->GetRegexSyntheticNavigator()->Delete(type_name);
-        category->GetRegexSyntheticNavigator()->Add(typeRX, entry);
+        category->GetRegexTypeSyntheticsContainer()->Delete(type_name);
+        category->GetRegexTypeSyntheticsContainer()->Add(typeRX, entry);
         
         return true;
     }
     else
     {
-        category->GetSyntheticNavigator()->Add(type_name, entry);
+        category->GetTypeSyntheticsContainer()->Add(type_name, entry);
         return true;
-    }
-}
-    
-bool
-CommandObjectTypeSynthAdd::DoExecute (Args& command, CommandReturnObject &result)
-{
-    if (m_options.handwrite_python)
-        return Execute_HandwritePython(command, result);
-    else if (m_options.is_class_based)
-        return Execute_PythonClass(command, result);
-    else
-    {
-        result.AppendError("must either provide a children list, a Python class name, or use -P and type a Python class line-by-line");
-        result.SetStatus(eReturnStatusFailed);
-        return false;
     }
 }
 
@@ -4173,14 +4108,14 @@ private:
                 return false;
             }
             
-            category->GetRegexFilterNavigator()->Delete(type_name);
-            category->GetRegexFilterNavigator()->Add(typeRX, entry);
+            category->GetRegexTypeFiltersContainer()->Delete(type_name);
+            category->GetRegexTypeFiltersContainer()->Add(typeRX, entry);
             
             return true;
         }
         else
         {
-            category->GetFilterNavigator()->Add(type_name, entry);
+            category->GetTypeFiltersContainer()->Add(type_name, entry);
             return true;
         }
     }
@@ -4278,6 +4213,8 @@ protected:
         DataVisualization::Categories::GetCategory(ConstString(m_options.m_category.c_str()), category);
         
         Error error;
+        
+        WarnOnPotentialUnquotedUnsignedType(command, result);
         
         for (size_t i = 0; i < argc; i++)
         {

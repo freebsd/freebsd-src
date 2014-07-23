@@ -16,6 +16,7 @@
 #include "lldb/Core/Debugger.h"
 #include "lldb/Core/Disassembler.h"
 #include "lldb/Core/Stream.h"
+#include "lldb/Core/StreamFile.h"
 #include "lldb/Core/StreamString.h"
 #include "lldb/Expression/ClangASTSource.h"
 #include "lldb/Expression/ClangExpression.h"
@@ -35,7 +36,6 @@
 #include "clang/Basic/Version.h"
 #include "clang/CodeGen/CodeGenAction.h"
 #include "clang/CodeGen/ModuleBuilder.h"
-#include "clang/Driver/CC1Options.h"
 #include "clang/Frontend/CompilerInstance.h"
 #include "clang/Frontend/CompilerInvocation.h"
 #include "clang/Frontend/FrontendActions.h"
@@ -506,7 +506,7 @@ ClangExpressionParser::PrepareForExecution (lldb::addr_t &func_addr,
         Stream *error_stream = NULL;
         Target *target = exe_ctx.GetTargetPtr();
         if (target)
-            error_stream = &target->GetDebugger().GetErrorStream();
+            error_stream = target->GetDebugger().GetErrorFile().get();
     
         IRForTarget ir_for_target(decl_map,
                                   m_expr.NeedsVariableResolution(),

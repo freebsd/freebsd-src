@@ -24,6 +24,7 @@
 #include "lldb/Core/Stream.h"
 #include "lldb/Symbol/DWARFCallFrameInfo.h"
 #include "lldb/Symbol/SymbolContext.h"
+#include "lldb/Target/SectionLoadList.h"
 #include "lldb/Target/Target.h"
 #include "lldb/Host/Host.h"
 
@@ -460,6 +461,47 @@ bool
 ObjectFileELF::IsExecutable() const
 {
     return m_header.e_entry != 0;
+}
+
+bool
+ObjectFileELF::SetLoadAddress (Target &target,
+                               lldb::addr_t value,
+                               bool value_is_offset)
+{
+    ModuleSP module_sp = GetModule();
+    if (module_sp)
+    {
+        size_t num_loaded_sections = 0;
+        SectionList *section_list = GetSectionList ();
+        if (section_list)
+        {
+            if (value_is_offset)
+            {
+                const size_t num_sections = section_list->GetSize();
+                size_t sect_idx = 0;
+
+                for (sect_idx = 0; sect_idx < num_sections; ++sect_idx)
+                {
+                    // Iterate through the object file sections to find all
+                    // of the sections that have SHF_ALLOC in their flag bits.
+                    SectionSP section_sp (section_list->GetSectionAtIndex (sect_idx));
+                    // if (section_sp && !section_sp->IsThreadSpecific())
+                    if (section_sp && section_sp->Test(SHF_ALLOC))
+                    {
+                        if (target.GetSectionLoadList().SetSectionLoadAddress (section_sp, section_sp->GetFileAddress() + value))
+                            ++num_loaded_sections;
+                    }
+                }
+                return num_loaded_sections > 0;
+            }
+            else
+            {
+                // Not sure how to slide an ELF file given the base address
+                // of the ELF file in memory
+            }
+        }
+    }
+    return false; // If it changed
 }
 
 ByteOrder

@@ -44,6 +44,9 @@ public:
     const RegularExpression *
     GetSymbolsToAvoidRegexp();
     
+    FileSpecList &
+    GetLibrariesToAvoid() const;
+    
     bool
     GetTraceEnabledState() const;
 };
@@ -409,6 +412,55 @@ public:
     void
     DumpUsingSettingsFormat (Stream &strm, uint32_t frame_idx);
 
+    //------------------------------------------------------------------
+    /// Default implementation for stepping into.
+    ///
+    /// This function is designed to be used by commands where the
+    /// process is publicly stopped.
+    ///
+    /// @param[in] source_step
+    ///     If true and the frame has debug info, then do a source level
+    ///     step in, else do a single instruction step in.
+    ///
+    /// @param[in] avoid_code_without_debug_info
+    ///     If \a true, then avoid stepping into code that doesn't have
+    ///     debug info, else step into any code regardless of wether it
+    ///     has debug info.
+    ///
+    /// @return
+    ///     An error that describes anything that went wrong
+    //------------------------------------------------------------------
+    virtual Error
+    StepIn (bool source_step,
+            bool avoid_code_without_debug_info);
+
+    //------------------------------------------------------------------
+    /// Default implementation for stepping over.
+    ///
+    /// This function is designed to be used by commands where the
+    /// process is publicly stopped.
+    ///
+    /// @param[in] source_step
+    ///     If true and the frame has debug info, then do a source level
+    ///     step over, else do a single instruction step over.
+    ///
+    /// @return
+    ///     An error that describes anything that went wrong
+    //------------------------------------------------------------------
+    virtual Error
+    StepOver (bool source_step);
+
+    //------------------------------------------------------------------
+    /// Default implementation for stepping out.
+    ///
+    /// This function is designed to be used by commands where the
+    /// process is publicly stopped.
+    ///
+    /// @return
+    ///     An error that describes anything that went wrong
+    //------------------------------------------------------------------
+    virtual Error
+    StepOut ();
     //------------------------------------------------------------------
     /// Retrieves the per-thread data area.
     /// Most OSs maintain a per-thread pointer (e.g. the FS register on

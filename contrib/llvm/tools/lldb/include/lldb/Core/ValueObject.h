@@ -499,6 +499,10 @@ public:
     GetValueAsCString ();
     
     virtual bool
+    GetValueAsCString (const lldb_private::TypeFormatImpl& format,
+                       std::string& destination);
+
+    bool
     GetValueAsCString (lldb::Format format,
                        std::string& destination);
     
@@ -615,7 +619,8 @@ public:
     DumpPrintableRepresentation (Stream& s,
                                  ValueObjectRepresentationStyle val_obj_display = eValueObjectRepresentationStyleSummary,
                                  lldb::Format custom_format = lldb::eFormatInvalid,
-                                 PrintableRepresentationSpecialCases special = ePrintableRepresentationSpecialCasesAllow);
+                                 PrintableRepresentationSpecialCases special = ePrintableRepresentationSpecialCasesAllow,
+                                 bool do_dump_error = true);
     bool
     GetValueIsValid () const;
 

@@ -73,6 +73,9 @@ public:
     IsValid () const;
 
     bool
+    IsTrapHandlerFrame () const;
+
+    bool
     GetCFA (lldb::addr_t& cfa);
 
     bool
@@ -86,7 +89,7 @@ private:
     enum FrameType
     {
         eNormalFrame,
-        eSigtrampFrame,
+        eTrapHandlerFrame,
         eDebuggerFrame,  // a debugger inferior function call frame; we get caller's registers from debugger
         eSkipFrame,      // The unwind resulted in a bogus frame but may get back on track so we don't want to give up yet
         eNotAValidFrame  // this frame is invalid for some reason - most likely it is past the top (end) of the stack
@@ -120,6 +123,19 @@ private:
     bool
     IsSkipFrame () const;
 
+
+    //------------------------------------------------------------------
+    /// Determines if a SymbolContext is a trap handler or not
+    ///
+    /// Given a SymbolContext, determines if this is a trap handler function
+    /// aka asynchronous signal handler.
+    ///
+    /// @return
+    ///     Returns true if the SymbolContext is a trap handler.
+    //------------------------------------------------------------------
+    bool
+    IsTrapHandlerSymbol (lldb_private::Process *process, const lldb_private::SymbolContext &m_sym_ctx) const;
+
     // Provide a location for where THIS function saved the CALLER's register value
     // Or a frame "below" this one saved it, i.e. a function called by this one, preserved a register that this
     // function didn't modify/use.
@@ -144,8 +160,20 @@ private:
                                           const lldb_private::RegisterInfo *reg_info,
                                           const lldb_private::RegisterValue &value);
 
-    void
-    InvalidateFullUnwindPlan ();
+    //------------------------------------------------------------------
+    /// If the unwind has to the caller frame has failed, try something else
+    ///
+    /// If lldb is using an assembly language based UnwindPlan for a frame and
+    /// the unwind to the caller frame fails, try falling back to a generic
+    /// UnwindPlan (architecture default unwindplan) to see if that might work
+    /// better.  This is mostly helping to work around problems where the 
+    /// assembly language inspection fails on hand-written assembly code.
+    ///
+    /// @return
+    ///     Returns true if a fallback unwindplan was found & was installed.
+    //------------------------------------------------------------------
+    bool
+    TryFallbackUnwindPlan ();
 
     // Get the contents of a general purpose (address-size) register for this frame
     // (usually retrieved from the next frame)
@@ -164,6 +192,10 @@ private:
     void
     UnwindLogMsgVerbose (const char *fmt, ...) __attribute__ ((format (printf, 2, 3)));
 
+    bool
+    IsUnwindPlanValidForCurrentPC(lldb::UnwindPlanSP unwind_plan_sp, int &valid_pc_offset);
+
+
     lldb_private::Thread& m_thread;
 
     ///
@@ -171,8 +203,10 @@ private:
     // i.e. where THIS frame saved them
     ///
 
-    lldb::UnwindPlanSP m_fast_unwind_plan_sp;  // may be NULL
+    lldb::UnwindPlanSP m_fast_unwind_plan_sp;     // may be NULL
     lldb::UnwindPlanSP m_full_unwind_plan_sp;
+    lldb::UnwindPlanSP m_fallback_unwind_plan_sp; // may be NULL
+
     bool m_all_registers_available;               // Can we retrieve all regs or just nonvolatile regs?
     int m_frame_type;                             // enum FrameType
 

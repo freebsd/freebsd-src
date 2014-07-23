@@ -318,6 +318,10 @@ ClangASTSource::CompleteType (clang::ObjCInterfaceDecl *interface_decl)
     
     m_ast_importer->CompleteObjCInterfaceDecl (interface_decl);
     
+    if (interface_decl->getSuperClass() &&
+        interface_decl->getSuperClass() != interface_decl)
+        CompleteType(interface_decl->getSuperClass());
+    
     if (log)
     {
         log->Printf("      [COID] After:");
@@ -969,6 +973,9 @@ ClangASTSource::FindObjCMethodDecls (NameSearchContext &context)
         }
     }     
     ss.Flush();
+    
+    if (strstr(ss.GetData(), "$__lldb"))
+        return; // we don't need any results
     
     ConstString selector_name(ss.GetData());
     

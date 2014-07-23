@@ -18,6 +18,7 @@
 #include <winsock2.h>
 #include <WS2tcpip.h>
 #else
+#include <unistd.h>
 #include <dlfcn.h>
 #include <grp.h>
 #include <netdb.h>
@@ -37,7 +38,7 @@
 #include <AvailabilityMacros.h>
 #endif
 
-#if defined (__linux__) || defined (__FreeBSD__) || defined (__FreeBSD_kernel__)
+#if defined (__linux__) || defined (__FreeBSD__) || defined (__FreeBSD_kernel__) || defined (__APPLE__)
 #include <spawn.h>
 #include <sys/wait.h>
 #include <sys/syscall.h>
@@ -68,6 +69,18 @@
 #include "llvm/Support/Host.h"
 #include "llvm/Support/raw_ostream.h"
 
+#if defined (__APPLE__)
+#ifndef _POSIX_SPAWN_DISABLE_ASLR
+#define _POSIX_SPAWN_DISABLE_ASLR       0x0100
+#endif
+
+extern "C"
+{
+    int __pthread_chdir(const char *path);
+    int __pthread_fchdir (int fildes);
+}
+
+#endif
 
 using namespace lldb;
 using namespace lldb_private;
@@ -367,25 +380,31 @@ Host::GetArchitecture (SystemDefaultArchitecture arch_kind)
         // If the OS is Linux, "unknown" in the vendor slot isn't what we want
         // for the default triple.  It's probably an artifact of config.guess.
         if (triple.getOS() == llvm::Triple::Linux && triple.getVendor() == llvm::Triple::UnknownVendor)
-            triple.setVendorName("");
+            triple.setVendorName ("");
+
+        const char* distribution_id = GetDistributionId ().AsCString();
 
         switch (triple.getArch())
         {
         default:
             g_host_arch_32.SetTriple(triple);
+            g_host_arch_32.SetDistributionId (distribution_id);
             g_supports_32 = true;
             break;
 
         case llvm::Triple::x86_64:
             g_host_arch_64.SetTriple(triple);
+            g_host_arch_64.SetDistributionId (distribution_id);
             g_supports_64 = true;
             g_host_arch_32.SetTriple(triple.get32BitArchVariant());
+            g_host_arch_32.SetDistributionId (distribution_id);
             g_supports_32 = true;
             break;
 
         case llvm::Triple::sparcv9:
         case llvm::Triple::ppc64:
             g_host_arch_64.SetTriple(triple);
+            g_host_arch_64.SetDistributionId (distribution_id);
             g_supports_64 = true;
             break;
         }
@@ -445,6 +464,19 @@ Host::GetTargetTriple()
     return g_host_triple;
 }
 
+// See linux/Host.cpp for Linux-based implementations of this.
+// Add your platform-specific implementation to the appropriate host file.
+#if !defined(__linux__)
+
+const ConstString &
+    Host::GetDistributionId ()
+{
+    static ConstString s_distribution_id;
+    return s_distribution_id;
+}
+
+#endif // #if !defined(__linux__)
+
 lldb::pid_t
 Host::GetCurrentProcessID()
 {
@@ -457,7 +489,7 @@ lldb::tid_t
 Host::GetCurrentThreadID()
 {
 #if defined (__APPLE__)
-    // Calling "mach_port_deallocate()" bumps the reference count on the thread
+    // Calling "mach_thread_self()" bumps the reference count on the thread
     // port, so we need to deallocate it. mach_task_self() doesn't bump the ref
     // count.
     thread_port_t thread_self = mach_thread_self();
@@ -489,10 +521,14 @@ Host::GetSignalAsCString (int signo)
     case SIGILL:    return "SIGILL";    // 4    illegal instruction (not reset when caught)
     case SIGTRAP:   return "SIGTRAP";   // 5    trace trap (not reset when caught)
     case SIGABRT:   return "SIGABRT";   // 6    abort()
-#if  (defined(_POSIX_C_SOURCE) && !defined(_DARWIN_C_SOURCE))
+#if  defined(SIGPOLL)
+#if !defined(SIGIO) || (SIGPOLL != SIGIO)
+// Under some GNU/Linux, SIGPOLL and SIGIO are the same. Causing the build to
+// fail with 'multiple define cases with same value'
     case SIGPOLL:   return "SIGPOLL";   // 7    pollable event ([XSR] generated, not supported)
 #endif
-#if  !defined(_POSIX_C_SOURCE)
+#endif
+#if  defined(SIGEMT)
     case SIGEMT:    return "SIGEMT";    // 7    EMT instruction
 #endif
     case SIGFPE:    return "SIGFPE";    // 8    floating point exception
@@ -510,15 +546,17 @@ Host::GetSignalAsCString (int signo)
     case SIGCHLD:   return "SIGCHLD";   // 20    to parent on child stop or exit
     case SIGTTIN:   return "SIGTTIN";   // 21    to readers pgrp upon background tty read
     case SIGTTOU:   return "SIGTTOU";   // 22    like TTIN for output if (tp->t_local&LTOSTOP)
-#if  !defined(_POSIX_C_SOURCE)
+#if  defined(SIGIO)
     case SIGIO:     return "SIGIO";     // 23    input/output possible signal
 #endif
     case SIGXCPU:   return "SIGXCPU";   // 24    exceeded CPU time limit
     case SIGXFSZ:   return "SIGXFSZ";   // 25    exceeded file size limit
     case SIGVTALRM: return "SIGVTALRM"; // 26    virtual time alarm
     case SIGPROF:   return "SIGPROF";   // 27    profiling time alarm
-#if  !defined(_POSIX_C_SOURCE)
+#if  defined(SIGWINCH)
     case SIGWINCH:  return "SIGWINCH";  // 28    window size changes
+#endif
+#if  defined(SIGINFO)
     case SIGINFO:   return "SIGINFO";   // 29    information request
 #endif
     case SIGUSR1:   return "SIGUSR1";   // 30    user defined signal 1
@@ -739,8 +777,8 @@ bool
 Host::SetShortThreadName (lldb::pid_t pid, lldb::tid_t tid,
                           const char *thread_name, size_t len)
 {
-    char *namebuf = (char *)::malloc (len + 1);
-
+    std::unique_ptr<char[]> namebuf(new char[len+1]);
+    
     // Thread names are coming in like '<lldb.comm.debugger.edit>' and
     // '<lldb.comm.debugger.editline>'.  So just chopping the end of the string
     // off leads to a lot of similar named threads.  Go through the thread name
@@ -749,10 +787,10 @@ Host::SetShortThreadName (lldb::pid_t pid, lldb::tid_t tid,
 
     if (lastdot && lastdot != thread_name)
         thread_name = lastdot + 1;
-    ::strncpy (namebuf, thread_name, len);
+    ::strncpy (namebuf.get(), thread_name, len);
     namebuf[len] = 0;
 
-    int namebuflen = strlen(namebuf);
+    int namebuflen = strlen(namebuf.get());
     if (namebuflen > 0)
     {
         if (namebuf[namebuflen - 1] == '(' || namebuf[namebuflen - 1] == '>')
@@ -761,10 +799,8 @@ Host::SetShortThreadName (lldb::pid_t pid, lldb::tid_t tid,
             namebuflen--;
             namebuf[namebuflen] = 0;
         }
-        return Host::SetThreadName (pid, tid, namebuf);
+        return Host::SetThreadName (pid, tid, namebuf.get());
     }
-
-    ::free(namebuf);
     return false;
 }
 
@@ -1092,19 +1128,23 @@ Host::GetLLDBPath (PathType path_type, FileSpec &file_spec)
                     {
                         framework_pos += strlen("LLDB.framework");
                         ::strncpy (framework_pos, "/Resources/Python", PATH_MAX - (framework_pos - raw_path));
+                    } 
+                    else 
+                    {
+#endif
+                        llvm::SmallString<256> python_version_dir;
+                        llvm::raw_svector_ostream os(python_version_dir);
+                        os << "/python" << PY_MAJOR_VERSION << '.' << PY_MINOR_VERSION << "/site-packages";
+                        os.flush();
+
+                        // We may get our string truncated. Should we protect
+                        // this with an assert?
+
+                        ::strncat(raw_path, python_version_dir.c_str(),
+                                  sizeof(raw_path) - strlen(raw_path) - 1);
+
+#if defined (__APPLE__)
                     }
-#else
-                    llvm::SmallString<256> python_version_dir;
-                    llvm::raw_svector_ostream os(python_version_dir);
-                    os << "/python" << PY_MAJOR_VERSION << '.' << PY_MINOR_VERSION << "/site-packages";
-                    os.flush();
-
-                    // We may get our string truncated. Should we protect
-                    // this with an assert?
-
-                    ::strncat(raw_path, python_version_dir.c_str(),
-                              sizeof(raw_path) - strlen(raw_path) - 1);
-
 #endif
                     FileSpec::Resolve (raw_path, resolved_path, sizeof(resolved_path));
                     g_lldb_python_dir.SetCString(resolved_path);
@@ -1223,6 +1263,29 @@ Host::GetLLDBPath (PathType path_type, FileSpec &file_spec)
 #endif
             // TODO: where would user LLDB plug-ins be located on other systems?
             return false;
+        }
+            
+    case ePathTypeLLDBTempSystemDir:
+        {
+            static ConstString g_lldb_tmp_dir;
+            if (!g_lldb_tmp_dir)
+            {
+                const char *tmpdir_cstr = getenv("TMPDIR");
+                if (tmpdir_cstr == NULL)
+                {
+                    tmpdir_cstr = getenv("TMP");
+                    if (tmpdir_cstr == NULL)
+                        tmpdir_cstr = getenv("TEMP");
+                }
+                if (tmpdir_cstr)
+                {
+                    g_lldb_tmp_dir.SetCString(tmpdir_cstr);
+                    if (log)
+                        log->Printf("Host::GetLLDBPath(ePathTypeLLDBTempSystemDir) => '%s'", g_lldb_tmp_dir.GetCString());
+                }
+            }
+            file_spec.GetDirectory() = g_lldb_tmp_dir;
+            return (bool)file_spec.GetDirectory();
         }
     }
 
@@ -1473,21 +1536,36 @@ Host::RunShellCommand (const char *command,
     
     if (working_dir)
         launch_info.SetWorkingDirectory(working_dir);
-    char output_file_path_buffer[L_tmpnam];
+    char output_file_path_buffer[PATH_MAX];
     const char *output_file_path = NULL;
+    
     if (command_output_ptr)
     {
         // Create a temporary file to get the stdout/stderr and redirect the
         // output of the command into this file. We will later read this file
         // if all goes well and fill the data into "command_output_ptr"
-        output_file_path = ::tmpnam(output_file_path_buffer);
-        launch_info.AppendSuppressFileAction (STDIN_FILENO, true, false);
+        FileSpec tmpdir_file_spec;
+        if (Host::GetLLDBPath (ePathTypeLLDBTempSystemDir, tmpdir_file_spec))
+        {
+            tmpdir_file_spec.GetFilename().SetCString("lldb-shell-output.XXXXXX");
+            strncpy(output_file_path_buffer, tmpdir_file_spec.GetPath().c_str(), sizeof(output_file_path_buffer));
+        }
+        else
+        {
+            strncpy(output_file_path_buffer, "/tmp/lldb-shell-output.XXXXXX", sizeof(output_file_path_buffer));
+        }
+        
+        output_file_path = ::mktemp(output_file_path_buffer);
+    }
+    
+    launch_info.AppendSuppressFileAction (STDIN_FILENO, true, false);
+    if (output_file_path)
+    {
         launch_info.AppendOpenFileAction(STDOUT_FILENO, output_file_path, false, true);
         launch_info.AppendDuplicateFileAction(STDOUT_FILENO, STDERR_FILENO);
     }
     else
     {
-        launch_info.AppendSuppressFileAction (STDIN_FILENO, true, false);
         launch_info.AppendSuppressFileAction (STDOUT_FILENO, false, true);
         launch_info.AppendSuppressFileAction (STDERR_FILENO, false, true);
     }
@@ -1569,24 +1647,73 @@ Host::RunShellCommand (const char *command,
     return error;
 }
 
-#if defined(__linux__) || defined(__FreeBSD__)
-// The functions below implement process launching via posix_spawn() for Linux
-// and FreeBSD.
 
-// The posix_spawn() and posix_spawnp() functions first appeared in FreeBSD 8.0,
-static Error
-LaunchProcessPosixSpawn (const char *exe_path, ProcessLaunchInfo &launch_info, ::pid_t &pid)
+// LaunchProcessPosixSpawn for Apple, Linux, FreeBSD and other GLIBC
+// systems
+
+#if defined (__APPLE__) || defined (__linux__) || defined (__FreeBSD__) || defined (__GLIBC__)
+
+// this method needs to be visible to macosx/Host.cpp and
+// common/Host.cpp.
+
+short
+Host::GetPosixspawnFlags (ProcessLaunchInfo &launch_info)
+{
+    short flags = POSIX_SPAWN_SETSIGDEF | POSIX_SPAWN_SETSIGMASK;
+
+#if defined (__APPLE__)
+    if (launch_info.GetFlags().Test (eLaunchFlagExec))
+        flags |= POSIX_SPAWN_SETEXEC;           // Darwin specific posix_spawn flag
+    
+    if (launch_info.GetFlags().Test (eLaunchFlagDebug))
+        flags |= POSIX_SPAWN_START_SUSPENDED;   // Darwin specific posix_spawn flag
+    
+    if (launch_info.GetFlags().Test (eLaunchFlagDisableASLR))
+        flags |= _POSIX_SPAWN_DISABLE_ASLR;     // Darwin specific posix_spawn flag
+        
+    if (launch_info.GetLaunchInSeparateProcessGroup())
+        flags |= POSIX_SPAWN_SETPGROUP;
+    
+#ifdef POSIX_SPAWN_CLOEXEC_DEFAULT
+#if defined (__APPLE__) && (defined (__x86_64__) || defined (__i386__))
+    static LazyBool g_use_close_on_exec_flag = eLazyBoolCalculate;
+    if (g_use_close_on_exec_flag == eLazyBoolCalculate)
+    {
+        g_use_close_on_exec_flag = eLazyBoolNo;
+        
+        uint32_t major, minor, update;
+        if (Host::GetOSVersion(major, minor, update))
+        {
+            // Kernel panic if we use the POSIX_SPAWN_CLOEXEC_DEFAULT on 10.7 or earlier
+            if (major > 10 || (major == 10 && minor > 7))
+            {
+                // Only enable for 10.8 and later OS versions
+                g_use_close_on_exec_flag = eLazyBoolYes;
+            }
+        }
+    }
+#else
+    static LazyBool g_use_close_on_exec_flag = eLazyBoolYes;
+#endif
+    // Close all files exception those with file actions if this is supported.
+    if (g_use_close_on_exec_flag == eLazyBoolYes)
+        flags |= POSIX_SPAWN_CLOEXEC_DEFAULT;
+#endif
+#endif // #if defined (__APPLE__)
+    return flags;
+}
+
+Error
+Host::LaunchProcessPosixSpawn (const char *exe_path, ProcessLaunchInfo &launch_info, ::pid_t &pid)
 {
     Error error;
     Log *log(lldb_private::GetLogIfAllCategoriesSet (LIBLLDB_LOG_HOST | LIBLLDB_LOG_PROCESS));
 
-    assert(exe_path);
-    assert(!launch_info.GetFlags().Test (eLaunchFlagDebug));
-
     posix_spawnattr_t attr;
-
     error.SetError( ::posix_spawnattr_init (&attr), eErrorTypePOSIX);
-    error.LogIfError(log, "::posix_spawnattr_init ( &attr )");
+
+    if (error.Fail() || log)
+        error.PutToLog(log, "::posix_spawnattr_init ( &attr )");
     if (error.Fail())
         return error;
 
@@ -1598,52 +1725,89 @@ LaunchProcessPosixSpawn (const char *exe_path, ProcessLaunchInfo &launch_info, :
     sigset_t all_signals;
     sigemptyset (&no_signals);
     sigfillset (&all_signals);
-    ::posix_spawnattr_setsigmask(&attr, &all_signals);
+    ::posix_spawnattr_setsigmask(&attr, &no_signals);
+#if defined (__linux__)  || defined (__FreeBSD__)
     ::posix_spawnattr_setsigdefault(&attr, &no_signals);
+#else
+    ::posix_spawnattr_setsigdefault(&attr, &all_signals);
+#endif
 
-    short flags = POSIX_SPAWN_SETSIGDEF | POSIX_SPAWN_SETSIGMASK;
+    short flags = GetPosixspawnFlags(launch_info);
 
     error.SetError( ::posix_spawnattr_setflags (&attr, flags), eErrorTypePOSIX);
-    error.LogIfError(log, "::posix_spawnattr_setflags ( &attr, flags=0x%8.8x )", flags);
+    if (error.Fail() || log)
+        error.PutToLog(log, "::posix_spawnattr_setflags ( &attr, flags=0x%8.8x )", flags);
     if (error.Fail())
         return error;
 
-    const size_t num_file_actions = launch_info.GetNumFileActions ();
-    posix_spawn_file_actions_t file_actions, *file_action_ptr = NULL;
-    // Make a quick class that will cleanup the posix spawn attributes in case
-    // we return in the middle of this function.
-    lldb_utility::CleanUp <posix_spawn_file_actions_t *, int>
-        posix_spawn_file_actions_cleanup (file_action_ptr, NULL, posix_spawn_file_actions_destroy);
-
-    if (num_file_actions > 0)
+    // posix_spawnattr_setbinpref_np appears to be an Apple extension per:
+    // http://www.unix.com/man-page/OSX/3/posix_spawnattr_setbinpref_np/
+#if defined (__APPLE__) && !defined (__arm__)
+    
+    // Don't set the binpref if a shell was provided.  After all, that's only going to affect what version of the shell
+    // is launched, not what fork of the binary is launched.  We insert "arch --arch <ARCH> as part of the shell invocation
+    // to do that job on OSX.
+    
+    if (launch_info.GetShell() == nullptr)
     {
-        error.SetError( ::posix_spawn_file_actions_init (&file_actions), eErrorTypePOSIX);
-        error.LogIfError(log, "::posix_spawn_file_actions_init ( &file_actions )");
-        if (error.Fail())
-            return error;
-
-        file_action_ptr = &file_actions;
-        posix_spawn_file_actions_cleanup.set(file_action_ptr);
-
-        for (size_t i = 0; i < num_file_actions; ++i)
+        // We don't need to do this for ARM, and we really shouldn't now that we
+        // have multiple CPU subtypes and no posix_spawnattr call that allows us
+        // to set which CPU subtype to launch...
+        const ArchSpec &arch_spec = launch_info.GetArchitecture();
+        cpu_type_t cpu = arch_spec.GetMachOCPUType();
+        cpu_type_t sub = arch_spec.GetMachOCPUSubType();
+        if (cpu != 0 &&
+            cpu != UINT32_MAX &&
+            cpu != LLDB_INVALID_CPUTYPE &&
+            !(cpu == 0x01000007 && sub == 8)) // If haswell is specified, don't try to set the CPU type or we will fail 
         {
-            const ProcessLaunchInfo::FileAction *launch_file_action = launch_info.GetFileActionAtIndex(i);
-            if (launch_file_action &&
-                !ProcessLaunchInfo::FileAction::AddPosixSpawnFileAction (&file_actions,
-                                                                         launch_file_action,
-                                                                         log,
-                                                                         error))
+            size_t ocount = 0;
+            error.SetError( ::posix_spawnattr_setbinpref_np (&attr, 1, &cpu, &ocount), eErrorTypePOSIX);
+            if (error.Fail() || log)
+                error.PutToLog(log, "::posix_spawnattr_setbinpref_np ( &attr, 1, cpu_type = 0x%8.8x, count => %llu )", cpu, (uint64_t)ocount);
+
+            if (error.Fail() || ocount != 1)
                 return error;
         }
     }
 
-    // Change working directory if neccessary.
+#endif
+
+    const char *tmp_argv[2];
+    char * const *argv = (char * const*)launch_info.GetArguments().GetConstArgumentVector();
+    char * const *envp = (char * const*)launch_info.GetEnvironmentEntries().GetConstArgumentVector();
+    if (argv == NULL)
+    {
+        // posix_spawn gets very unhappy if it doesn't have at least the program
+        // name in argv[0]. One of the side affects I have noticed is the environment
+        // variables don't make it into the child process if "argv == NULL"!!!
+        tmp_argv[0] = exe_path;
+        tmp_argv[1] = NULL;
+        argv = (char * const*)tmp_argv;
+    }
+
+#if !defined (__APPLE__)
+    // manage the working directory
     char current_dir[PATH_MAX];
     current_dir[0] = '\0';
+#endif
 
     const char *working_dir = launch_info.GetWorkingDirectory();
-    if (working_dir != NULL)
+    if (working_dir)
     {
+#if defined (__APPLE__)
+        // Set the working directory on this thread only
+        if (__pthread_chdir (working_dir) < 0) {
+            if (errno == ENOENT) {
+                error.SetErrorStringWithFormat("No such file or directory: %s", working_dir);
+            } else if (errno == ENOTDIR) {
+                error.SetErrorStringWithFormat("Path doesn't name a directory: %s", working_dir);
+            } else {
+                error.SetErrorStringWithFormat("An unknown error occurred when changing directory for process execution.");
+            }
+            return error;
+        }
+#else
         if (::getcwd(current_dir, sizeof(current_dir)) == NULL)
         {
             error.SetError(errno, eErrorTypePOSIX);
@@ -1657,45 +1821,111 @@ LaunchProcessPosixSpawn (const char *exe_path, ProcessLaunchInfo &launch_info, :
             error.LogIfError(log, "unable to change working directory to %s", working_dir);
             return error;
         }
+#endif
     }
 
-    const char *tmp_argv[2];
-    char * const *argv = (char * const*)launch_info.GetArguments().GetConstArgumentVector();
-    char * const *envp = (char * const*)launch_info.GetEnvironmentEntries().GetConstArgumentVector();
-
-    // Prepare minimal argument list if we didn't get it from the launch_info structure.
-    // We must pass argv into posix_spawnp and it must contain at least two items -
-    // pointer to an executable and NULL.
-    if (argv == NULL)
+    const size_t num_file_actions = launch_info.GetNumFileActions ();
+    if (num_file_actions > 0)
     {
-        tmp_argv[0] = exe_path;
-        tmp_argv[1] = NULL;
-        argv = (char * const*)tmp_argv;
+        posix_spawn_file_actions_t file_actions;
+        error.SetError( ::posix_spawn_file_actions_init (&file_actions), eErrorTypePOSIX);
+        if (error.Fail() || log)
+            error.PutToLog(log, "::posix_spawn_file_actions_init ( &file_actions )");
+        if (error.Fail())
+            return error;
+
+        // Make a quick class that will cleanup the posix spawn attributes in case
+        // we return in the middle of this function.
+        lldb_utility::CleanUp <posix_spawn_file_actions_t *, int> posix_spawn_file_actions_cleanup (&file_actions, posix_spawn_file_actions_destroy);
+
+        for (size_t i=0; i<num_file_actions; ++i)
+        {
+            const ProcessLaunchInfo::FileAction *launch_file_action = launch_info.GetFileActionAtIndex(i);
+            if (launch_file_action)
+            {
+                if (!ProcessLaunchInfo::FileAction::AddPosixSpawnFileAction (&file_actions,
+                                                                             launch_file_action,
+                                                                             log,
+                                                                             error))
+                    return error;
+            }
+        }
+
+        error.SetError (::posix_spawnp (&pid,
+                                        exe_path,
+                                        &file_actions,
+                                        &attr,
+                                        argv,
+                                        envp),
+                        eErrorTypePOSIX);
+
+        if (error.Fail() || log)
+        {
+            error.PutToLog(log, "::posix_spawnp ( pid => %i, path = '%s', file_actions = %p, attr = %p, argv = %p, envp = %p )",
+                           pid,
+                           exe_path,
+                           &file_actions,
+                           &attr,
+                           argv,
+                           envp);
+            if (log)
+            {
+                for (int ii=0; argv[ii]; ++ii)
+                    log->Printf("argv[%i] = '%s'", ii, argv[ii]);
+            }
+        }
+
+    }
+    else
+    {
+        error.SetError (::posix_spawnp (&pid,
+                                        exe_path,
+                                        NULL,
+                                        &attr,
+                                        argv,
+                                        envp),
+                        eErrorTypePOSIX);
+
+        if (error.Fail() || log)
+        {
+            error.PutToLog(log, "::posix_spawnp ( pid => %i, path = '%s', file_actions = NULL, attr = %p, argv = %p, envp = %p )",
+                           pid,
+                           exe_path,
+                           &attr,
+                           argv,
+                           envp);
+            if (log)
+            {
+                for (int ii=0; argv[ii]; ++ii)
+                    log->Printf("argv[%i] = '%s'", ii, argv[ii]);
+            }
+        }
     }
 
-    error.SetError (::posix_spawnp (&pid,
-                                    exe_path,
-                                    (num_file_actions > 0) ? &file_actions : NULL,
-                                    &attr,
-                                    argv,
-                                    envp),
-                    eErrorTypePOSIX);
-
-    error.LogIfError(log, "::posix_spawnp ( pid => %i, path = '%s', file_actions = %p, attr = %p, argv = %p, envp = %p )",
-                     pid, exe_path, file_action_ptr, &attr, argv, envp);
-
-    // Change back the current directory.
-    // NOTE: do not override previously established error from posix_spawnp.
-    if (working_dir != NULL && ::chdir(current_dir) == -1 && error.Success())
+    if (working_dir)
     {
-        error.SetError(errno, eErrorTypePOSIX);
-        error.LogIfError(log, "unable to change current directory back to %s",
-                         current_dir);
+#if defined (__APPLE__)
+        // No more thread specific current working directory
+        __pthread_fchdir (-1);
+#else
+        if (::chdir(current_dir) == -1 && error.Success())
+        {
+            error.SetError(errno, eErrorTypePOSIX);
+            error.LogIfError(log, "unable to change current directory back to %s",
+                    current_dir);
+        }
+#endif
     }
 
     return error;
 }
 
+#endif // LaunchProcedssPosixSpawn: Apple, Linux, FreeBSD and other GLIBC systems
+
+
+#if defined(__linux__) || defined(__FreeBSD__) || defined(__GLIBC__)
+// The functions below implement process launching via posix_spawn() for Linux
+// and FreeBSD.
 
 Error
 Host::LaunchProcess (ProcessLaunchInfo &launch_info)
@@ -1747,6 +1977,8 @@ Host::LaunchProcess (ProcessLaunchInfo &launch_info)
         // If all went well, then set the process ID into the launch info
         launch_info.SetProcessID(pid);
 
+        Log *log(lldb_private::GetLogIfAllCategoriesSet (LIBLLDB_LOG_PROCESS));
+
         // Make sure we reap any processes we spawn or we will have zombies.
         if (!launch_info.MonitorProcess())
         {
@@ -1755,6 +1987,13 @@ Host::LaunchProcess (ProcessLaunchInfo &launch_info)
                                          NULL,
                                          pid,
                                          monitor_signals);
+            if (log)
+                log->PutCString ("monitored child process with default Process::SetProcessExitStatus.");
+        }
+        else
+        {
+            if (log)
+                log->PutCString ("monitored child process with user-specified process monitor.");
         }
     }
     else

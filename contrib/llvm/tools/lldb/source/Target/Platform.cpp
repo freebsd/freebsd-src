@@ -81,9 +81,9 @@ Platform::SetDefaultPlatform (const lldb::PlatformSP &platform_sp)
 }
 
 Error
-Platform::GetFile (const FileSpec &platform_file, 
-                   const UUID *uuid_ptr,
-                   FileSpec &local_file)
+Platform::GetFileWithUUID (const FileSpec &platform_file, 
+                           const UUID *uuid_ptr,
+                           FileSpec &local_file)
 {
     // Default to the local case
     local_file = platform_file;
@@ -255,7 +255,9 @@ Platform::Platform (bool is_host) :
     m_rsync_prefix (),
     m_supports_ssh (false),
     m_ssh_opts (),
-    m_ignores_remote_hostname (false)
+    m_ignores_remote_hostname (false),
+    m_trap_handlers(),
+    m_calculated_trap_handlers (false)
 {
     Log *log(lldb_private::GetLogIfAllCategoriesSet (LIBLLDB_LOG_OBJECT));
     if (log)
@@ -1039,6 +1041,8 @@ Platform::DebugProcess (ProcessLaunchInfo &launch_info,
             process_sp = Attach (attach_info, debugger, target, listener, error);
             if (process_sp)
             {
+                launch_info.SetHijackListener(attach_info.GetHijackListener());
+                
                 // Since we attached to the process, it will think it needs to detach
                 // if the process object just goes away without an explicit call to
                 // Process::Kill() or Process::Detach(), so let it know to kill the 
@@ -1388,3 +1392,15 @@ Platform::GetEnvironment (StringList &environment)
     environment.Clear();
     return false;
 }
+
+const std::vector<ConstString> &
+Platform::GetTrapHandlerSymbolNames ()
+{
+    if (!m_calculated_trap_handlers)
+    {
+        CalculateTrapHandlerSymbolNames();
+        m_calculated_trap_handlers = true;
+    }
+    return m_trap_handlers;
+}
+
