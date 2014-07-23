@@ -214,6 +214,8 @@ _kvm_minidump_vatop_v1(kvm_t *kd, u_long va, off_t *pa)
 
 	if (va >= vm->hdr.kernbase) {
 		pteindex = (va - vm->hdr.kernbase) >> PAGE_SHIFT;
+		if (pteindex >= vm->hdr.pmapsize / sizeof(*vm->page_map))
+			goto invalid;
 		pte = vm->page_map[pteindex];
 		if (((u_long)pte & PG_V) == 0) {
 			_kvm_err(kd, kd->program, "_kvm_vatop: pte not valid");
@@ -264,6 +266,8 @@ _kvm_minidump_vatop(kvm_t *kd, u_long va, off_t *pa)
 
 	if (va >= vm->hdr.kernbase) {
 		pdeindex = (va - vm->hdr.kernbase) >> PDRSHIFT;
+		if (pdeindex >= vm->hdr.pmapsize / sizeof(*vm->page_map))
+			goto invalid;
 		pde = vm->page_map[pdeindex];
 		if (((u_long)pde & PG_V) == 0) {
 			_kvm_err(kd, kd->program, "_kvm_vatop: pde not valid");
