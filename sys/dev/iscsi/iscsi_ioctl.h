@@ -202,8 +202,15 @@ struct iscsi_session_list {
 	int				isl_spare[4];
 };
 
+struct iscsi_session_modify {
+	unsigned int			ism_session_id;
+	struct iscsi_session_conf	ism_conf;
+	int				ism_spare[4];
+};
+
 #define	ISCSISADD	_IOW('I', 0x11, struct iscsi_session_add)
 #define	ISCSISREMOVE	_IOW('I', 0x12, struct iscsi_session_remove)
 #define	ISCSISLIST	_IOWR('I', 0x13, struct iscsi_session_list)
+#define	ISCSISMODIFY	_IOWR('I', 0x14, struct iscsi_session_modify)
 
 #endif /* !ISCSI_IOCTL_H */
