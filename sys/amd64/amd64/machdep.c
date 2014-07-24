@@ -1344,7 +1344,7 @@ add_smap_entry(struct bios_smap *smap, vm_paddr_t *physmap, int *physmap_idxp)
 		return (1);
 
 	if (smap->length == 0)
-		return (0);
+		return (1);
 
 	/*
 	 * Find insertion point while checking for overlap.  Start off by
