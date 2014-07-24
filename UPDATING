@@ -31,6 +31,10 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 11.x IS SLOW:
 	disable the most expensive debugging functionality run
 	"ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20140723:
+	The xdev targets have been converted to using TARGET and
+	TARGET_ARCH instead of XDEV and XDEV_ARCH.
+
 20140719:
 	The default unbound configuration has been modified to address
 	issues with reverse lookups on networks that use private
