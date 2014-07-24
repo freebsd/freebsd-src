@@ -726,11 +726,19 @@ emulate_push(void *vm, int vcpuid, uint64_t mmio_gpa, struct vie *vie,
 	/*
 	 * From "Address-Size Attributes for Stack Accesses", Intel SDL, Vol 1
 	 */
-	if (paging->cpu_mode == CPU_MODE_REAL)
+	if (paging->cpu_mode == CPU_MODE_REAL) {
 		stackaddrsize = 2;
-	else if (paging->cpu_mode == CPU_MODE_64BIT)
+	} else if (paging->cpu_mode == CPU_MODE_64BIT) {
+		/*
+		 * "Stack Manipulation Instructions in 64-bit Mode", SDM, Vol 3
+		 * - Stack pointer size is always 64-bits.
+		 * - PUSH/POP of 32-bit values is not possible in 64-bit mode.
+		 * - 16-bit PUSH/POP is supported by using the operand size
+		 *   override prefix (66H).
+		 */
 		stackaddrsize = 8;
-	else {
+		size = vie->opsize_override ? 2 : 8;
+	} else {
 		/*
 		 * In protected or compability mode the 'B' flag in the
 		 * stack-segment descriptor determines the size of the
@@ -773,8 +781,10 @@ emulate_push(void *vm, int vcpuid, uint64_t mmio_gpa, struct vie *vie,
 
 	error = vm_copy_setup(vm, vcpuid, paging, stack_gla, size, PROT_WRITE,
 	    copyinfo, nitems(copyinfo));
-	if (error)
-		return (error);
+	if (error == -1)
+		return (-1);	/* Unrecoverable error */
+	else if (error == 1)
+		return (0);	/* Return to guest to handle page fault */
 
 	error = memread(vm, vcpuid, mmio_gpa, &val, size, arg);
 	if (error == 0) {
