@@ -1802,20 +1802,22 @@ vm_map_submap(
 }
 
 /*
- * The maximum number of pages to map
+ * The maximum number of pages to map if MAP_PREFAULT_PARTIAL is specified
  */
 #define	MAX_INIT_PT	96
 
 /*
  *	vm_map_pmap_enter:
  *
- *	Preload read-only mappings for the specified object's resident pages
- *	into the target map.  If "flags" is MAP_PREFAULT_PARTIAL, then only
- *	the resident pages within the address range [addr, addr + ulmin(size,
- *	ptoa(MAX_INIT_PT))) are mapped.  Otherwise, all resident pages within
- *	the specified address range are mapped.  This eliminates many soft
- *	faults on process startup and immediately after an mmap(2).  Because
- *	these are speculative mappings, cached pages are not reactivated and
+ *	Preload the specified map's pmap with mappings to the specified
+ *	object's memory-resident pages.  No further physical pages are
+ *	allocated, and no further virtual pages are retrieved from secondary
+ *	storage.  If the specified flags include MAP_PREFAULT_PARTIAL, then a
+ *	limited number of page mappings are created at the low-end of the
+ *	specified address range.  (For this purpose, a superpage mapping
+ *	counts as one page mapping.)  Otherwise, all resident pages within
+ *	the specified address range are mapped.  Because these mappings are
+ *	being created speculatively, cached pages are not reactivated and
  *	mapped.
  */
 void
@@ -1824,7 +1826,7 @@ vm_map_pmap_enter(vm_map_t map, vm_offset_t addr, vm_prot_t prot,
 {
 	vm_offset_t start;
 	vm_page_t p, p_start;
-	vm_pindex_t psize, tmpidx;
+	vm_pindex_t mask, psize, threshold, tmpidx;
 
 	if ((prot & (VM_PROT_READ | VM_PROT_EXECUTE)) == 0 || object == NULL)
 		return;
@@ -1842,8 +1844,6 @@ vm_map_pmap_enter(vm_map_t map, vm_offset_t addr, vm_prot_t prot,
 	}
 
 	psize = atop(size);
-	if (psize > MAX_INIT_PT && (flags & MAP_PREFAULT_PARTIAL) != 0)
-		psize = MAX_INIT_PT;
 	if (psize + pindex > object->size) {
 		if (object->size < pindex) {
 			VM_OBJECT_RUNLOCK(object);
@@ -1854,6 +1854,7 @@ vm_map_pmap_enter(vm_map_t map, vm_offset_t addr, vm_prot_t prot,
 
 	start = 0;
 	p_start = NULL;
+	threshold = MAX_INIT_PT;
 
 	p = vm_page_find_least(object, pindex);
 	/*
@@ -1868,8 +1869,10 @@ vm_map_pmap_enter(vm_map_t map, vm_offset_t addr, vm_prot_t prot,
 		 * don't allow an madvise to blow away our really
 		 * free pages allocating pv entries.
 		 */
-		if ((flags & MAP_PREFAULT_MADVISE) &&
-		    cnt.v_free_count < cnt.v_free_reserved) {
+		if (((flags & MAP_PREFAULT_MADVISE) != 0 &&
+		    cnt.v_free_count < cnt.v_free_reserved) ||
+		    ((flags & MAP_PREFAULT_PARTIAL) != 0 &&
+		    tmpidx >= threshold)) {
 			psize = tmpidx;
 			break;
 		}
@@ -1877,6 +1880,16 @@ vm_map_pmap_enter(vm_map_t map, vm_offset_t addr, vm_prot_t prot,
 			if (p_start == NULL) {
 				start = addr + ptoa(tmpidx);
 				p_start = p;
+			}
+			/* Jump ahead if a superpage mapping is possible. */
+			if (p->psind > 0 && ((addr + ptoa(tmpidx)) &
+			    (pagesizes[p->psind] - 1)) == 0) {
+				mask = atop(pagesizes[p->psind]) - 1;
+				if (tmpidx + mask < psize &&
+				    vm_page_ps_is_valid(p)) {
+					p += mask;
+					threshold += mask;
+				}
 			}
 		} else if (p_start != NULL) {
 			pmap_enter_object(map->pmap, start, addr +

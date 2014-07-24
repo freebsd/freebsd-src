@@ -229,6 +229,11 @@ vm_reserv_depopulate(vm_reserv_t rv)
 	if (rv->inpartpopq) {
 		TAILQ_REMOVE(&vm_rvq_partpop, rv, partpopq);
 		rv->inpartpopq = FALSE;
+	} else {
+		KASSERT(rv->pages->psind == 1,
+		    ("vm_reserv_depopulate: reserv %p is already demoted",
+		    rv));
+		rv->pages->psind = 0;
 	}
 	rv->popcnt--;
 	if (rv->popcnt == 0) {
@@ -278,6 +283,8 @@ vm_reserv_populate(vm_reserv_t rv)
 	    ("vm_reserv_populate: reserv %p is free", rv));
 	KASSERT(rv->popcnt < VM_LEVEL_0_NPAGES,
 	    ("vm_reserv_populate: reserv %p is already full", rv));
+	KASSERT(rv->pages->psind == 0,
+	    ("vm_reserv_populate: reserv %p is already promoted", rv));
 	if (rv->inpartpopq) {
 		TAILQ_REMOVE(&vm_rvq_partpop, rv, partpopq);
 		rv->inpartpopq = FALSE;
@@ -286,7 +293,8 @@ vm_reserv_populate(vm_reserv_t rv)
 	if (rv->popcnt < VM_LEVEL_0_NPAGES) {
 		rv->inpartpopq = TRUE;
 		TAILQ_INSERT_TAIL(&vm_rvq_partpop, rv, partpopq);
-	}
+	} else
+		rv->pages->psind = 1;
 }
 
 /*
