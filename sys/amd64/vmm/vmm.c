@@ -1689,13 +1689,21 @@ vm_inject_exception(struct vm *vm, int vcpuid, struct vm_exception *exception)
 	return (0);
 }
 
-static void
-vm_inject_fault(struct vm *vm, int vcpuid, struct vm_exception *exception)
+void
+vm_inject_fault(void *vmarg, int vcpuid, int vector, int errcode_valid,
+    int errcode)
 {
+	struct vm_exception exception;
 	struct vm_exit *vmexit;
+	struct vm *vm;
 	int error;
 
-	error = vm_inject_exception(vm, vcpuid, exception);
+	vm = vmarg;
+
+	exception.vector = vector;
+	exception.error_code = errcode;
+	exception.error_code_valid = errcode_valid;
+	error = vm_inject_exception(vm, vcpuid, &exception);
 	KASSERT(error == 0, ("vm_inject_exception error %d", error));
 
 	/*
@@ -1710,69 +1718,19 @@ vm_inject_fault(struct vm *vm, int vcpuid, struct vm_exception *exception)
 }
 
 void
-vm_inject_pf(struct vm *vm, int vcpuid, int error_code, uint64_t cr2)
+vm_inject_pf(void *vmarg, int vcpuid, int error_code, uint64_t cr2)
 {
-	struct vm_exception pf = {
-		.vector = IDT_PF,
-		.error_code_valid = 1,
-		.error_code = error_code
-	};
+	struct vm *vm;
 	int error;
 
+	vm = vmarg;
 	VCPU_CTR2(vm, vcpuid, "Injecting page fault: error_code %#x, cr2 %#lx",
 	    error_code, cr2);
 
 	error = vm_set_register(vm, vcpuid, VM_REG_GUEST_CR2, cr2);
 	KASSERT(error == 0, ("vm_set_register(cr2) error %d", error));
 
-	vm_inject_fault(vm, vcpuid, &pf);
-}
-
-void
-vm_inject_gp(struct vm *vm, int vcpuid)
-{
-	struct vm_exception gpf = {
-		.vector = IDT_GP,
-		.error_code_valid = 1,
-		.error_code = 0
-	};
-
-	vm_inject_fault(vm, vcpuid, &gpf);
-}
-
-void
-vm_inject_ud(struct vm *vm, int vcpuid)
-{
-	struct vm_exception udf = {
-		.vector = IDT_UD,
-		.error_code_valid = 0
-	};
-
-	vm_inject_fault(vm, vcpuid, &udf);
-}
-
-void
-vm_inject_ac(struct vm *vm, int vcpuid, int error_code)
-{
-	struct vm_exception acf = {
-		.vector = IDT_AC,
-		.error_code_valid = 1,
-		.error_code = error_code
-	};
-
-	vm_inject_fault(vm, vcpuid, &acf);
-}
-
-void
-vm_inject_ss(struct vm *vm, int vcpuid, int error_code)
-{
-	struct vm_exception ssf = {
-		.vector = IDT_SS,
-		.error_code_valid = 1,
-		.error_code = error_code
-	};
-
-	vm_inject_fault(vm, vcpuid, &ssf);
+	vm_inject_fault(vm, vcpuid, IDT_PF, 1, error_code);
 }
 
 static VMM_STAT(VCPU_NMI_COUNT, "number of NMIs delivered to vcpu");

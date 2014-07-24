@@ -157,7 +157,7 @@ emulate_inout(struct vmctx *ctx, int vcpu, struct vm_exit *vmexit, int strict)
 			if (vie_calculate_gla(vis->paging.cpu_mode,
 			    vis->seg_name, &vis->seg_desc, index, bytes,
 			    addrsize, prot, &gla)) {
-				vm_inject_gp(ctx, vcpu, 0);
+				vm_inject_gp(ctx, vcpu);
 				retval = INOUT_RESTART;
 				break;
 			}
