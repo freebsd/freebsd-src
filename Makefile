@@ -174,6 +174,13 @@ _TARGET=${TARGET}
 .if defined(TARGET_ARCH) && !defined(_TARGET_ARCH)
 _TARGET_ARCH=${TARGET_ARCH}
 .endif
+# for historical compatibility for xdev targets
+.if defined(XDEV)
+_TARGET=	${XDEV}
+.endif
+.if defined(XDEV_ARCH)
+_TARGET_ARCH=	${XDEV_ARCH}
+.endif
 # Otherwise, default to current machine type and architecture.
 _TARGET?=	${MACHINE}
 _TARGET_ARCH?=	${MACHINE_ARCH}
