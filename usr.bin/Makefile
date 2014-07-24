@@ -362,6 +362,10 @@ SUBDIR+=	xstr
 SUBDIR+=	yacc
 .endif
 
+.if ${MK_VT} != "no"
+SUBDIR+=	vtfontcvt
+.endif
+
 .if ${MK_USB} != "no"
 SUBDIR+=	usbhidaction
 SUBDIR+=	usbhidctl
