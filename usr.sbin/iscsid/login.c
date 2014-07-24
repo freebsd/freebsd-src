@@ -816,16 +816,12 @@ login(struct connection *conn)
 {
 	struct pdu *request, *response;
 	struct keys *request_keys, *response_keys;
-	struct iscsi_bhs_login_request *bhslr;
 	struct iscsi_bhs_login_response *bhslr2;
 	const char *auth_method;
 	int i;
 
 	log_debugx("beginning Login phase; sending Login PDU");
 	request = login_new_request(conn);
-
-	bhslr = (struct iscsi_bhs_login_request *)request->pdu_bhs;
-
 	request_keys = keys_new();
 	if (conn->conn_conf.isc_mutual_user[0] != '\0') {
 		keys_add(request_keys, "AuthMethod", "CHAP");
