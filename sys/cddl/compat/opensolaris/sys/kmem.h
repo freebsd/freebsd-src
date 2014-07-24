@@ -46,8 +46,9 @@ MALLOC_DECLARE(M_SOLARIS);
 #define	KM_PUSHPAGE		M_WAITOK
 #define	KM_NOSLEEP		M_NOWAIT
 #define	KM_NODEBUG		M_NODUMP
-#define	KMC_NOTOUCH		0
+#define	KM_NORMALPRI		0
 #define	KMC_NODEBUG		UMA_ZONE_NODUMP
+#define	KMC_NOTOUCH		0
 
 typedef struct kmem_cache {
 	char		kc_name[32];
