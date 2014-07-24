@@ -557,7 +557,7 @@ login_negotiate(struct connection *conn)
 	struct iscsi_bhs_login_response *bhslr;
 	int i;
 
-	log_debugx("beginning parameter negotiation");
+	log_debugx("beginning operational parameter negotiation");
 	request = login_new_request(conn);
 	login_set_csg(request, BHSLR_STAGE_OPERATIONAL_NEGOTIATION);
 	login_set_nsg(request, BHSLR_STAGE_FULL_FEATURE_PHASE);
@@ -619,7 +619,7 @@ login_negotiate(struct connection *conn)
 		log_warnx("received final login response with wrong NSG 0x%x",
 		    login_nsg(response));
 
-	log_debugx("parameter negotiation done; "
+	log_debugx("operational parameter negotiation done; "
 	    "transitioning to Full Feature phase");
 
 	keys_delete(response_keys);
@@ -890,12 +890,12 @@ login(struct connection *conn)
 	    login_nsg(response) == BHSLR_STAGE_OPERATIONAL_NEGOTIATION) {
 		if (conn->conn_conf.isc_mutual_user[0] != '\0') {
 			log_errx(1, "target requested transition "
-			    "to operational negotiation, but we require "
-			    "mutual CHAP");
+			    "to operational parameter negotiation, "
+			    "but we require mutual CHAP");
 		}
 
 		log_debugx("target requested transition "
-		    "to operational negotiation");
+		    "to operational parameter negotiation");
 		keys_delete(response_keys);
 		pdu_delete(response);
 		login_negotiate(conn);
