@@ -2009,7 +2009,7 @@ if_qflush(struct ifnet *ifp)
 #endif
 	n = ifq->ifq_head;
 	while ((m = n) != 0) {
-		n = m->m_act;
+		n = m->m_nextpkt;
 		m_freem(m);
 	}
 	ifq->ifq_head = 0;
