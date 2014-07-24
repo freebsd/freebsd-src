@@ -499,7 +499,7 @@ Specify relative addressing for the starting LBA.  CTL does not support
 relative addressing, since it only works for linked commands, and CTL
 does not support linked commands.
 .It Fl i
-Tell the target to return status immediately after issuing the SYHCHRONIZE CACHE
+Tell the target to return status immediately after issuing the SYNCHRONIZE CACHE
 command rather than waiting for the cache to finish syncing.  CTL does not
 support this bit.
 .It Fl c Ar cdbsize
@@ -948,7 +948,7 @@ Specifies LUN revision string up to 4 chars.
 .It Va scsiname
 Specifies LUN SCSI name string.
 .It Va eui
-Specifies LUN EUI-64 identified.
+Specifies LUN EUI-64 identifier.
 .It Va naa
 Specifies LUN NAA identifier.
 .It Va unmap
