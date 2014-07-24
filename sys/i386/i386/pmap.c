@@ -1286,6 +1286,13 @@ pmap_pte_release(pt_entry_t *pte)
 		mtx_unlock(&PMAP2mutex);
 }
 
+/*
+ * NB:  The sequence of updating a page table followed by accesses to the
+ * corresponding pages is subject to the situation described in the "AMD64
+ * Architecture Programmer's Manual Volume 2: System Programming" rev. 3.23,
+ * "7.3.1 Special Coherency Considerations".  Therefore, issuing the INVLPG
+ * right after modifying the PTE bits is crucial.
+ */
 static __inline void
 invlcaddr(void *caddr)
 {
@@ -4333,12 +4340,12 @@ pmap_copy_page(vm_page_t src, vm_page_t dst)
 	if (*sysmaps->CMAP2)
 		panic("pmap_copy_page: CMAP2 busy");
 	sched_pin();
-	invlpg((u_int)sysmaps->CADDR1);
-	invlpg((u_int)sysmaps->CADDR2);
 	*sysmaps->CMAP1 = PG_V | VM_PAGE_TO_PHYS(src) | PG_A |
 	    pmap_cache_bits(src->md.pat_mode, 0);
+	invlcaddr(sysmaps->CADDR1);
 	*sysmaps->CMAP2 = PG_V | PG_RW | VM_PAGE_TO_PHYS(dst) | PG_A | PG_M |
 	    pmap_cache_bits(dst->md.pat_mode, 0);
+	invlcaddr(sysmaps->CADDR2);
 	bcopy(sysmaps->CADDR1, sysmaps->CADDR2, PAGE_SIZE);
 	*sysmaps->CMAP1 = 0;
 	*sysmaps->CMAP2 = 0;
@@ -4366,8 +4373,6 @@ pmap_copy_pages(vm_page_t ma[], vm_offset_t a_offset, vm_page_t mb[],
 		panic("pmap_copy_pages: CMAP2 busy");
 	sched_pin();
 	while (xfersize > 0) {
-		invlpg((u_int)sysmaps->CADDR1);
-		invlpg((u_int)sysmaps->CADDR2);
 		a_pg = ma[a_offset >> PAGE_SHIFT];
 		a_pg_offset = a_offset & PAGE_MASK;
 		cnt = min(xfersize, PAGE_SIZE - a_pg_offset);
@@ -4375,9 +4380,11 @@ pmap_copy_pages(vm_page_t ma[], vm_offset_t a_offset, vm_page_t mb[],
 		b_pg_offset = b_offset & PAGE_MASK;
 		cnt = min(cnt, PAGE_SIZE - b_pg_offset);
 		*sysmaps->CMAP1 = PG_V | VM_PAGE_TO_PHYS(a_pg) | PG_A |
-		    pmap_cache_bits(b_pg->md.pat_mode, 0);
+		    pmap_cache_bits(a_pg->md.pat_mode, 0);
+		invlcaddr(sysmaps->CADDR1);
 		*sysmaps->CMAP2 = PG_V | PG_RW | VM_PAGE_TO_PHYS(b_pg) | PG_A |
 		    PG_M | pmap_cache_bits(b_pg->md.pat_mode, 0);
+		invlcaddr(sysmaps->CADDR2);
 		a_cp = sysmaps->CADDR1 + a_pg_offset;
 		b_cp = sysmaps->CADDR2 + b_pg_offset;
 		bcopy(a_cp, b_cp, cnt);
