@@ -157,6 +157,7 @@ struct vm_page {
 	/* so, on normal X86 kernels, they must be at least 8 bits wide */
 	vm_page_bits_t valid;		/* map of valid DEV_BSIZE chunks (O) */
 	vm_page_bits_t dirty;		/* map of dirty DEV_BSIZE chunks (M) */
+	int8_t psind;			/* pagesizes[] index (O) */
 };
 
 /*
@@ -450,6 +451,7 @@ vm_page_t vm_page_next(vm_page_t m);
 int vm_page_pa_tryrelock(pmap_t, vm_paddr_t, vm_paddr_t *);
 struct vm_pagequeue *vm_page_pagequeue(vm_page_t m);
 vm_page_t vm_page_prev(vm_page_t m);
+boolean_t vm_page_ps_is_valid(vm_page_t m);
 void vm_page_putfake(vm_page_t m);
 void vm_page_readahead_finish(vm_page_t m);
 void vm_page_reference(vm_page_t m);
