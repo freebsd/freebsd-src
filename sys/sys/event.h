@@ -133,7 +133,7 @@ struct kevent {
 #define	NOTE_TRACKERR	0x00000002		/* could not track child */
 #define	NOTE_CHILD	0x00000004		/* am a child process */
 
-/* additional flags for EVFILE_TIMER */
+/* additional flags for EVFILT_TIMER */
 #define NOTE_SECONDS		0x00000001	/* data is seconds */
 #define NOTE_MSECONDS		0x00000002	/* data is milliseconds */
 #define NOTE_USECONDS		0x00000004	/* data is microseconds */
