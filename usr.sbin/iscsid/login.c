@@ -266,18 +266,32 @@ login_receive(struct connection *conn, bool initial)
 }
 
 static struct pdu *
-login_new_request(struct connection *conn)
+login_new_request(struct connection *conn, int csg)
 {
 	struct pdu *request;
 	struct iscsi_bhs_login_request *bhslr;
+	int nsg;
 
 	request = pdu_new(conn);
 	bhslr = (struct iscsi_bhs_login_request *)request->pdu_bhs;
 	bhslr->bhslr_opcode = ISCSI_BHS_OPCODE_LOGIN_REQUEST |
 	    ISCSI_BHS_OPCODE_IMMEDIATE;
+
 	bhslr->bhslr_flags = BHSLR_FLAGS_TRANSIT;
-	login_set_csg(request, BHSLR_STAGE_SECURITY_NEGOTIATION);
-	login_set_nsg(request, BHSLR_STAGE_OPERATIONAL_NEGOTIATION);
+	switch (csg) {
+	case BHSLR_STAGE_SECURITY_NEGOTIATION:
+		nsg = BHSLR_STAGE_OPERATIONAL_NEGOTIATION;
+		break;
+	case BHSLR_STAGE_OPERATIONAL_NEGOTIATION:
+		nsg = BHSLR_STAGE_FULL_FEATURE_PHASE;
+		break;
+	default:
+		assert(!"invalid csg");
+		log_errx(1, "invalid csg %d", csg);
+	}
+	login_set_csg(request, csg);
+	login_set_nsg(request, nsg);
+
 	memcpy(bhslr->bhslr_isid, &conn->conn_isid, sizeof(bhslr->bhslr_isid));
 	bhslr->bhslr_tsih = htons(conn->conn_tsih);
 	bhslr->bhslr_initiator_task_tag = 0;
@@ -558,9 +572,7 @@ login_negotiate(struct connection *conn)
 	int i;
 
 	log_debugx("beginning operational parameter negotiation");
-	request = login_new_request(conn);
-	login_set_csg(request, BHSLR_STAGE_OPERATIONAL_NEGOTIATION);
-	login_set_nsg(request, BHSLR_STAGE_FULL_FEATURE_PHASE);
+	request = login_new_request(conn, BHSLR_STAGE_OPERATIONAL_NEGOTIATION);
 	request_keys = keys_new();
 
 	/*
@@ -632,7 +644,7 @@ login_send_chap_a(struct connection *conn)
 	struct pdu *request;
 	struct keys *request_keys;
 
-	request = login_new_request(conn);
+	request = login_new_request(conn, BHSLR_STAGE_SECURITY_NEGOTIATION);
 	request_keys = keys_new();
 	keys_add(request_keys, "CHAP_A", "5");
 	keys_save(request_keys, request);
@@ -694,7 +706,7 @@ login_send_chap_r(struct pdu *response)
 
 	keys_delete(response_keys);
 
-	request = login_new_request(conn);
+	request = login_new_request(conn, BHSLR_STAGE_SECURITY_NEGOTIATION);
 	request_keys = keys_new();
 	keys_add(request_keys, "CHAP_N", conn->conn_conf.isc_user);
 	keys_add(request_keys, "CHAP_R", chap_r);
@@ -821,7 +833,7 @@ login(struct connection *conn)
 	int i;
 
 	log_debugx("beginning Login phase; sending Login PDU");
-	request = login_new_request(conn);
+	request = login_new_request(conn, BHSLR_STAGE_SECURITY_NEGOTIATION);
 	request_keys = keys_new();
 	if (conn->conn_conf.isc_mutual_user[0] != '\0') {
 		keys_add(request_keys, "AuthMethod", "CHAP");
