@@ -176,6 +176,7 @@ in6_gif_output(struct ifnet *ifp,
 			return ENOBUFS;
 		bcopy(&eiphdr, mtod(m, struct etherip_header *),
 		    sizeof(struct etherip_header));
+		itos = 0;
 		break;
 
 	default:
@@ -266,6 +267,7 @@ in6_gif_output(struct ifnet *ifp,
 #endif
 	}
 
+	m->m_flags &= ~(M_BCAST|M_MCAST);
 #ifdef IPV6_MINMTU
 	/*
 	 * force fragmentation to minimum MTU, to avoid path MTU discovery.
