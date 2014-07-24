@@ -467,6 +467,9 @@ uipc_bindat(int fd, struct socket *so, struct sockaddr *nam, struct thread *td)
 	cap_rights_t rights;
 	char *buf;
 
+	if (nam->sa_family != AF_UNIX)
+		return (EAFNOSUPPORT);
+
 	unp = sotounpcb(so);
 	KASSERT(unp != NULL, ("uipc_bind: unp == NULL"));
 
@@ -1277,6 +1280,9 @@ unp_connectat(int fd, struct socket *so, struct sockaddr *nam,
 	struct sockaddr *sa;
 	cap_rights_t rights;
 	int error, len;
+
+	if (nam->sa_family != AF_UNIX)
+		return (EAFNOSUPPORT);
 
 	UNP_LINK_WLOCK_ASSERT();
 
