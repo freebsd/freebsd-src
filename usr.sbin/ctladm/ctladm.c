@@ -4192,7 +4192,7 @@ cctl_end_pelement(void *user_data, const char *name)
 	} else if (strcmp(name, "physical_port") == 0) {
 		cur_port->pp = strtoull(str, NULL, 0);
 	} else if (strcmp(name, "virtual_port") == 0) {
-		cur_port->pp = strtoull(str, NULL, 0);
+		cur_port->vp = strtoull(str, NULL, 0);
 	} else if (strcmp(name, "wwnn") == 0) {
 		cur_port->wwnn = str;
 		str = NULL;
