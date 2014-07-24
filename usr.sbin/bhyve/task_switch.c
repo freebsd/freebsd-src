@@ -48,15 +48,6 @@ __FBSDID("$FreeBSD$");
 #include "bhyverun.h"
 
 /*
- * Various functions in this file use 0 to denote success and VMEXIT_ABORT
- * or VMEXIT_RESTART to denote failure. This assumes that the VMEXIT_xyz
- * macros expand to non-zero values. Enforce this with a compile-time
- * assertion.
- */
-CTASSERT(VMEXIT_ABORT != 0);
-CTASSERT(VMEXIT_RESTART != 0);
-
-/*
  * Using 'struct i386tss' is tempting but causes myriad sign extension
  * issues because all of its fields are defined as signed integers.
  */
@@ -175,6 +166,10 @@ sel_exception(struct vmctx *ctx, int vcpu, int vector, uint16_t sel, int ext)
 	vm_inject_fault(ctx, vcpu, vector, 1, sel);
 }
 
+/*
+ * Return 0 if the selector 'sel' in within the limits of the GDT/LDT
+ * and non-zero otherwise.
+ */
 static int
 desc_table_limit_check(struct vmctx *ctx, int vcpu, uint16_t sel)
 {
@@ -197,6 +192,14 @@ desc_table_limit_check(struct vmctx *ctx, int vcpu, uint16_t sel)
 		return (0);
 }
 
+/*
+ * Read/write the segment descriptor 'desc' into the GDT/LDT slot referenced
+ * by the selector 'sel'.
+ *
+ * Returns 0 on success.
+ * Returns 1 if an exception was injected into the guest.
+ * Returns -1 otherwise.
+ */
 static int
 desc_table_rw(struct vmctx *ctx, int vcpu, struct vm_guest_paging *paging,
     uint16_t sel, struct user_segment_descriptor *desc, bool doread)
@@ -236,6 +239,13 @@ desc_table_write(struct vmctx *ctx, int vcpu, struct vm_guest_paging *paging,
 	return (desc_table_rw(ctx, vcpu, paging, sel, desc, false));
 }
 
+/*
+ * Read the TSS descriptor referenced by 'sel' into 'desc'.
+ *
+ * Returns 0 on success.
+ * Returns 1 if an exception was injected into the guest.
+ * Returns -1 otherwise.
+ */
 static int
 read_tss_descriptor(struct vmctx *ctx, int vcpu, struct vm_task_switch *ts,
     uint16_t sel, struct user_segment_descriptor *desc)
@@ -252,18 +262,13 @@ read_tss_descriptor(struct vmctx *ctx, int vcpu, struct vm_task_switch *ts,
 			sel_exception(ctx, vcpu, IDT_TS, sel, ts->ext);
 		else
 			sel_exception(ctx, vcpu, IDT_GP, sel, ts->ext);
-		return (VMEXIT_RESTART);
+		return (1);
 	}
 
 	sup_paging = ts->paging;
 	sup_paging.cpl = 0;		/* implicit supervisor mode */
 	error = desc_table_read(ctx, vcpu, &sup_paging, sel, desc);
-	if (error < 0)
-		return (VMEXIT_ABORT);
-	else if (error > 0)
-		return (VMEXIT_RESTART);
-	else
-		return (0);
+	return (error);
 }
 
 static bool
@@ -294,6 +299,13 @@ ldt_desc(int sd_type)
 	return (sd_type == SDT_SYSLDT);
 }
 
+/*
+ * Validate the descriptor 'seg_desc' associated with 'segment'.
+ *
+ * Returns 0 on success.
+ * Returns 1 if an exception was injected into the guest.
+ * Returns -1 otherwise.
+ */
 static int
 validate_seg_desc(struct vmctx *ctx, int vcpu, struct vm_task_switch *ts,
     int segment, struct seg_desc *seg_desc)
@@ -332,13 +344,13 @@ validate_seg_desc(struct vmctx *ctx, int vcpu, struct vm_task_switch *ts,
 	/* LDT selector must point into the GDT */
 	if (ldtseg && ISLDT(sel)) {
 		sel_exception(ctx, vcpu, IDT_TS, sel, ts->ext);
-		return (VMEXIT_RESTART);
+		return (1);
 	}
 
 	/* Descriptor table limit check */
 	if (desc_table_limit_check(ctx, vcpu, sel)) {
 		sel_exception(ctx, vcpu, IDT_TS, sel, ts->ext);
-		return (VMEXIT_RESTART);
+		return (1);
 	}
 
 	/* NULL selector */
@@ -346,7 +358,7 @@ validate_seg_desc(struct vmctx *ctx, int vcpu, struct vm_task_switch *ts,
 		/* Code and stack segment selectors cannot be NULL */
 		if (codeseg || stackseg) {
 			sel_exception(ctx, vcpu, IDT_TS, sel, ts->ext);
-			return (VMEXIT_RESTART);
+			return (1);
 		}
 		seg_desc->base = 0;
 		seg_desc->limit = 0;
@@ -358,10 +370,8 @@ validate_seg_desc(struct vmctx *ctx, int vcpu, struct vm_task_switch *ts,
 	sup_paging = ts->paging;
 	sup_paging.cpl = 0;	/* implicit supervisor mode */
 	error = desc_table_read(ctx, vcpu, &sup_paging, sel, &usd);
-	if (error < 0)
-		return (VMEXIT_ABORT);
-	else if (error > 0)
-		return (VMEXIT_RESTART);
+	if (error)
+		return (error);
 
 	/* Verify that the descriptor type is compatible with the segment */
 	if ((ldtseg && !ldt_desc(usd.sd_type)) ||
@@ -369,7 +379,7 @@ validate_seg_desc(struct vmctx *ctx, int vcpu, struct vm_task_switch *ts,
 	    (dataseg && !data_desc(usd.sd_type)) ||
 	    (stackseg && !stack_desc(usd.sd_type))) {
 		sel_exception(ctx, vcpu, IDT_TS, sel, ts->ext);
-		return (VMEXIT_RESTART);
+		return (1);
 	}
 
 	/* Segment must be marked present */
@@ -381,7 +391,7 @@ validate_seg_desc(struct vmctx *ctx, int vcpu, struct vm_task_switch *ts,
 		else
 			idtvec = IDT_NP;
 		sel_exception(ctx, vcpu, idtvec, sel, ts->ext);
-		return (VMEXIT_RESTART);
+		return (1);
 	}
 
 	cs = GETREG(ctx, vcpu, VM_REG_GUEST_CS);
@@ -391,7 +401,7 @@ validate_seg_desc(struct vmctx *ctx, int vcpu, struct vm_task_switch *ts,
 
 	if (stackseg && (rpl != cpl || dpl != cpl)) {
 		sel_exception(ctx, vcpu, IDT_TS, sel, ts->ext);
-		return (VMEXIT_RESTART);
+		return (1);
 	}
 
 	if (codeseg) {
@@ -399,7 +409,7 @@ validate_seg_desc(struct vmctx *ctx, int vcpu, struct vm_task_switch *ts,
 		if ((conforming && (cpl < dpl)) ||
 		    (!conforming && (cpl != dpl))) {
 			sel_exception(ctx, vcpu, IDT_TS, sel, ts->ext);
-			return (VMEXIT_RESTART);
+			return (1);
 		}
 	}
 
@@ -415,7 +425,7 @@ validate_seg_desc(struct vmctx *ctx, int vcpu, struct vm_task_switch *ts,
 
 		if (!conforming && (rpl > dpl || cpl > dpl)) {
 			sel_exception(ctx, vcpu, IDT_TS, sel, ts->ext);
-			return (VMEXIT_RESTART);
+			return (1);
 		}
 	}
 	*seg_desc = usd_to_seg_desc(&usd);
@@ -464,6 +474,13 @@ update_seg_desc(struct vmctx *ctx, int vcpu, int reg, struct seg_desc *sd)
 	assert(error == 0);
 }
 
+/*
+ * Update the vcpu registers to reflect the state of the new task.
+ *
+ * Returns 0 on success.
+ * Returns 1 if an exception was injected into the guest.
+ * Returns -1 otherwise.
+ */
 static int
 tss32_restore(struct vmctx *ctx, int vcpu, struct vm_task_switch *ts,
     uint16_t ot_sel, struct tss32 *tss, struct iovec *iov)
@@ -506,7 +523,7 @@ tss32_restore(struct vmctx *ctx, int vcpu, struct vm_task_switch *ts,
 				reserved = ~maxphyaddr | 0x1E6;
 				if (pdpte[i] & reserved) {
 					vm_inject_gp(ctx, vcpu);
-					return (VMEXIT_RESTART);
+					return (1);
 				}
 			}
 			SETREG(ctx, vcpu, VM_REG_GUEST_PDPTE0, pdpte[0]);
@@ -595,6 +612,15 @@ tss32_restore(struct vmctx *ctx, int vcpu, struct vm_task_switch *ts,
 	return (0);
 }
 
+/*
+ * Push an error code on the stack of the new task. This is needed if the
+ * task switch was triggered by a hardware exception that causes an error
+ * code to be saved (e.g. #PF).
+ *
+ * Returns 0 on success.
+ * Returns 1 if an exception was injected into the guest.
+ * Returns -1 otherwise.
+ */
 static int
 push_errcode(struct vmctx *ctx, int vcpu, struct vm_guest_paging *paging,
     int task_type, uint32_t errcode)
@@ -640,25 +666,39 @@ push_errcode(struct vmctx *ctx, int vcpu, struct vm_guest_paging *paging,
 	if (vie_calculate_gla(paging->cpu_mode, VM_REG_GUEST_SS,
 	    &seg_desc, esp, bytes, stacksize, PROT_WRITE, &gla)) {
 		sel_exception(ctx, vcpu, IDT_SS, stacksel, 1);
-		return (VMEXIT_RESTART);
+		return (1);
 	}
 
 	if (vie_alignment_check(paging->cpl, bytes, cr0, rflags, gla)) {
 		vm_inject_ac(ctx, vcpu, 1);
-		return (VMEXIT_RESTART);
+		return (1);
 	}
 
 	error = vm_copy_setup(ctx, vcpu, paging, gla, bytes, PROT_WRITE,
 	    iov, nitems(iov));
-	assert(error == 0 || error == 1 || error == -1);
-	if (error) {
-		return ((error == 1) ? VMEXIT_RESTART : VMEXIT_ABORT);
-	}
+	if (error)
+		return (error);
 
 	vm_copyout(ctx, vcpu, &errcode, iov, bytes);
 	SETREG(ctx, vcpu, VM_REG_GUEST_RSP, esp);
 	return (0);
 }
+
+/*
+ * Evaluate return value from helper functions and potentially return to
+ * the VM run loop.
+ *  0: success
+ * +1: an exception was injected into the guest vcpu
+ * -1: unrecoverable/programming error
+ */
+#define	CHKERR(x)							\
+	do {								\
+		assert(((x) == 0) || ((x) == 1) || ((x) == -1));	\
+		if ((x) == -1)						\
+			return (VMEXIT_ABORT);				\
+		else if ((x) == 1)					\
+			return (VMEXIT_CONTINUE);			\
+	} while (0)
 
 int
 vmexit_task_switch(struct vmctx *ctx, struct vm_exit *vmexit, int *pvcpu)
@@ -695,8 +735,7 @@ vmexit_task_switch(struct vmctx *ctx, struct vm_exit *vmexit, int *pvcpu)
 
 	/* Fetch the new TSS descriptor */
 	error = read_tss_descriptor(ctx, vcpu, task_switch, nt_sel, &nt_desc);
-	if (error)
-		return (error);
+	CHKERR(error);
 
 	nt = usd_to_seg_desc(&nt_desc);
 
@@ -705,13 +744,13 @@ vmexit_task_switch(struct vmctx *ctx, struct vm_exit *vmexit, int *pvcpu)
 	if (nt_type != SDT_SYS386BSY && nt_type != SDT_SYS386TSS &&
 	    nt_type != SDT_SYS286BSY && nt_type != SDT_SYS286TSS) {
 		sel_exception(ctx, vcpu, IDT_TS, nt_sel, ext);
-		return (VMEXIT_RESTART);
+		goto done;
 	}
 
 	/* TSS descriptor must have present bit set */
 	if (!SEG_DESC_PRESENT(nt.access)) {
 		sel_exception(ctx, vcpu, IDT_NP, nt_sel, ext);
-		return (VMEXIT_RESTART);
+		goto done;
 	}
 
 	/*
@@ -728,13 +767,13 @@ vmexit_task_switch(struct vmctx *ctx, struct vm_exit *vmexit, int *pvcpu)
 	assert(minlimit > 0);
 	if (nt.limit < minlimit) {
 		sel_exception(ctx, vcpu, IDT_TS, nt_sel, ext);
-		return (VMEXIT_RESTART);
+		goto done;
 	}
 
 	/* TSS must be busy if task switch is due to IRET */
 	if (reason == TSR_IRET && !TSS_BUSY(nt_type)) {
 		sel_exception(ctx, vcpu, IDT_TS, nt_sel, ext);
-		return (VMEXIT_RESTART);
+		goto done;
 	}
 
 	/*
@@ -743,21 +782,14 @@ vmexit_task_switch(struct vmctx *ctx, struct vm_exit *vmexit, int *pvcpu)
 	 */
 	if (reason != TSR_IRET && TSS_BUSY(nt_type)) {
 		sel_exception(ctx, vcpu, IDT_GP, nt_sel, ext);
-		return (VMEXIT_RESTART);
+		goto done;
 	}
 
 	/* Fetch the new TSS */
 	error = vm_copy_setup(ctx, vcpu, &sup_paging, nt.base, minlimit + 1,
 	    PROT_READ | PROT_WRITE, nt_iov, nitems(nt_iov));
-	if (error == 1) {
-		/* Restart vcpu execution to handle the page fault */
-		return (VMEXIT_RESTART);
-	} else if (error == -1) {
-		return (VMEXIT_ABORT);
-	} else {
-		assert(error == 0);
-		vm_copyin(ctx, vcpu, nt_iov, &newtss, minlimit + 1);
-	}
+	CHKERR(error);
+	vm_copyin(ctx, vcpu, nt_iov, &newtss, minlimit + 1);
 
 	/* Get the old TSS selector from the guest's task register */
 	ot_sel = GETREG(ctx, vcpu, VM_REG_GUEST_TR);
@@ -769,7 +801,7 @@ vmexit_task_switch(struct vmctx *ctx, struct vm_exit *vmexit, int *pvcpu)
 		 * (sel = 0, base = 0, limit = 0xffff).
 		 */
 		sel_exception(ctx, vcpu, IDT_TS, ot_sel, task_switch->ext);
-		return (VMEXIT_RESTART);
+		goto done;
 	}
 
 	/* Get the old TSS base and limit from the guest's task register */
@@ -781,24 +813,14 @@ vmexit_task_switch(struct vmctx *ctx, struct vm_exit *vmexit, int *pvcpu)
 	assert(ot_type == SDT_SYS386BSY || ot_type == SDT_SYS286BSY);
 
 	/* Fetch the old TSS descriptor */
-	error = read_tss_descriptor(ctx, vcpu, task_switch, ot_sel,
-	    &ot_desc);
-	if (error)
-		return (error);
+	error = read_tss_descriptor(ctx, vcpu, task_switch, ot_sel, &ot_desc);
+	CHKERR(error);
 
 	/* Get the old TSS */
 	error = vm_copy_setup(ctx, vcpu, &sup_paging, ot_base, minlimit + 1,
 	    PROT_READ | PROT_WRITE, ot_iov, nitems(ot_iov));
-	if (error == 1) {
-		/* Restart vcpu execution to handle the page fault */
-		return (VMEXIT_RESTART);
-	} else if (error == -1) {
-		fprintf(stderr, "Error copying in old TSS: %d\n", errno);
-		return (VMEXIT_ABORT);
-	} else {
-		assert(error == 0);
-		vm_copyin(ctx, vcpu, ot_iov, &oldtss, minlimit + 1);
-	}
+	CHKERR(error);
+	vm_copyin(ctx, vcpu, ot_iov, &oldtss, minlimit + 1);
 
 	/*
 	 * Clear the busy bit in the old TSS descriptor if the task switch
@@ -808,8 +830,7 @@ vmexit_task_switch(struct vmctx *ctx, struct vm_exit *vmexit, int *pvcpu)
 		ot_desc.sd_type &= ~0x2;
 		error = desc_table_write(ctx, vcpu, &sup_paging, ot_sel,
 		    &ot_desc);
-		if (error)
-			return (error);
+		CHKERR(error);
 	}
 
 	if (nt_type == SDT_SYS286BSY || nt_type == SDT_SYS286TSS) {
@@ -829,8 +850,7 @@ vmexit_task_switch(struct vmctx *ctx, struct vm_exit *vmexit, int *pvcpu)
 		nt_desc.sd_type |= 0x2;
 		error = desc_table_write(ctx, vcpu, &sup_paging, nt_sel,
 		    &nt_desc);
-		if (error)
-			return (error);
+		CHKERR(error);
 	}
 
 	/* Update task register to point at the new TSS */
@@ -854,8 +874,7 @@ vmexit_task_switch(struct vmctx *ctx, struct vm_exit *vmexit, int *pvcpu)
 
 	/* Load processor state from new TSS */
 	error = tss32_restore(ctx, vcpu, task_switch, ot_sel, &newtss, nt_iov);
-	if (error)
-		return (error);
+	CHKERR(error);
 
 	/*
 	 * Section "Interrupt Tasks" in Intel SDM, Vol 3: if an exception
@@ -867,9 +886,7 @@ vmexit_task_switch(struct vmctx *ctx, struct vm_exit *vmexit, int *pvcpu)
 		assert(task_switch->reason == TSR_IDT_GATE);
 		error = push_errcode(ctx, vcpu, &task_switch->paging, nt_type,
 		    task_switch->errcode);
-		if (error) {
-			return (error);
-		}
+		CHKERR(error);
 	}
 
 	/*
@@ -910,5 +927,6 @@ vmexit_task_switch(struct vmctx *ctx, struct vm_exit *vmexit, int *pvcpu)
 	/*
 	 * XXX should inject debug exception if 'T' bit is 1
 	 */
-	return (VMEXIT_RESTART);
+done:
+	return (VMEXIT_CONTINUE);
 }
