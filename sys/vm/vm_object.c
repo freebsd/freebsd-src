@@ -559,8 +559,6 @@ vm_object_deallocate(vm_object_t object)
 			    (object->handle == NULL) &&
 			    (object->type == OBJT_DEFAULT ||
 			     object->type == OBJT_SWAP)) {
-				KASSERT((object->flags & OBJ_TMPFS_NODE) == 0,
-				    ("shadowed tmpfs v_object %p", object));
 				vm_object_t robject;
 
 				robject = LIST_FIRST(&object->shadow_head);
@@ -568,6 +566,8 @@ vm_object_deallocate(vm_object_t object)
 				    ("vm_object_deallocate: ref_count: %d, shadow_count: %d",
 					 object->ref_count,
 					 object->shadow_count));
+				KASSERT((robject->flags & OBJ_TMPFS_NODE) == 0,
+				    ("shadowed tmpfs v_object %p", object));
 				if (!VM_OBJECT_TRYWLOCK(robject)) {
 					/*
 					 * Avoid a potential deadlock.
@@ -637,6 +637,8 @@ retry:
 doterm:
 		temp = object->backing_object;
 		if (temp != NULL) {
+			KASSERT((object->flags & OBJ_TMPFS_NODE) == 0,
+			    ("shadowed tmpfs v_object 2 %p", object));
 			VM_OBJECT_WLOCK(temp);
 			LIST_REMOVE(object, shadow_list);
 			temp->shadow_count--;
