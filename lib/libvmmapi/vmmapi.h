@@ -133,11 +133,6 @@ void	vm_copyin(struct vmctx *ctx, int vcpu, struct iovec *guest_iov,
 void	vm_copyout(struct vmctx *ctx, int vcpu, const void *host_src,
 	    struct iovec *guest_iov, size_t len);
 
-/* Helper functions to inject exceptions */
-void	vm_inject_ss(struct vmctx *ctx, int vcpu, int errcode);
-void	vm_inject_ac(struct vmctx *ctx, int vcpu, int errcode);
-void	vm_inject_gp(struct vmctx *ctx, int vcpu, int errcode);
-
 /* Reset vcpu register state */
 int	vcpu_reset(struct vmctx *ctx, int vcpu);
 

@@ -1146,30 +1146,3 @@ vm_set_intinfo(struct vmctx *ctx, int vcpu, uint64_t info1)
 	error = ioctl(ctx->fd, VM_SET_INTINFO, &vmii);
 	return (error);
 }
-
-void
-vm_inject_ss(struct vmctx *ctx, int vcpu, int errcode)
-{
-	int error;
-
-	error = vm_inject_exception2(ctx, vcpu, IDT_SS, errcode);
-	assert(error == 0);
-}
-
-void
-vm_inject_ac(struct vmctx *ctx, int vcpu, int errcode)
-{
-	int error;
-
-	error = vm_inject_exception2(ctx, vcpu, IDT_AC, errcode);
-	assert(error == 0);
-}
-
-void
-vm_inject_gp(struct vmctx *ctx, int vcpu, int errcode)
-{
-	int error;
-
-	error = vm_inject_exception2(ctx, vcpu, IDT_GP, errcode);
-	assert(error == 0);
-}

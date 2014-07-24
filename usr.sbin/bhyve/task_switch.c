@@ -160,8 +160,6 @@ usd_to_seg_desc(struct user_segment_descriptor *usd)
 static void
 sel_exception(struct vmctx *ctx, int vcpu, int vector, uint16_t sel, int ext)
 {
-	int error;
-
 	/*
 	 * Bit 2 from the selector is retained as-is in the error code.
 	 *
@@ -174,8 +172,7 @@ sel_exception(struct vmctx *ctx, int vcpu, int vector, uint16_t sel, int ext)
 	sel &= ~0x3;
 	if (ext)
 		sel |= 0x1;
-	error = vm_inject_exception2(ctx, vcpu, vector, sel);
-	assert(error == 0);
+	vm_inject_fault(ctx, vcpu, vector, 1, sel);
 }
 
 static int
@@ -508,7 +505,7 @@ tss32_restore(struct vmctx *ctx, int vcpu, struct vm_task_switch *ts,
 				 */
 				reserved = ~maxphyaddr | 0x1E6;
 				if (pdpte[i] & reserved) {
-					vm_inject_gp(ctx, vcpu, 0);
+					vm_inject_gp(ctx, vcpu);
 					return (VMEXIT_RESTART);
 				}
 			}
