@@ -738,7 +738,7 @@ null_reclaim(struct vop_reclaim_args *ap)
 	lowervp = xp->null_lowervp;
 
 	KASSERT(lowervp != NULL && vp->v_vnlock != &vp->v_lock,
-	    ("Reclaiming inclomplete null vnode %p", vp));
+	    ("Reclaiming incomplete null vnode %p", vp));
 
 	null_hashrem(xp);
 	/*
