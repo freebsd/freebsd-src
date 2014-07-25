@@ -141,6 +141,10 @@ uma_zone_t proc_zone;
 int kstack_pages = KSTACK_PAGES;
 SYSCTL_INT(_kern, OID_AUTO, kstack_pages, CTLFLAG_RD, &kstack_pages, 0,
     "Kernel stack size in pages");
+static int vmmap_skip_res_cnt = 0;
+SYSCTL_INT(_kern, OID_AUTO, proc_vmmap_skip_resident_count, CTLFLAG_RW,
+    &vmmap_skip_res_cnt, 0,
+    "Skip calculation of the pages resident count in kern.proc.vmmap");
 
 CTASSERT(sizeof(struct kinfo_proc) == KINFO_PROC_SIZE);
 #ifdef COMPAT_FREEBSD32
@@ -2189,6 +2193,8 @@ kern_proc_vmmap_out(struct proc *p, struct sbuf *sb)
 		}
 		kve->kve_resident = 0;
 		addr = entry->start;
+		if (vmmap_skip_res_cnt)
+			goto skip_resident_count;
 		while (addr < entry->end) {
 			locked_pa = 0;
 			mincoreinfo = pmap_mincore(map->pmap, addr, &locked_pa);
@@ -2201,6 +2207,7 @@ kern_proc_vmmap_out(struct proc *p, struct sbuf *sb)
 			addr += PAGE_SIZE;
 		}
 
+skip_resident_count:
 		for (lobj = tobj = obj; tobj; tobj = tobj->backing_object) {
 			if (tobj != obj)
 				VM_OBJECT_LOCK(tobj);
