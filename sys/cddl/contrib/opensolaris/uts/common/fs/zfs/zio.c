@@ -2622,7 +2622,8 @@ zio_vdev_io_start(zio_t **ziop)
 
 	align = 1ULL << vd->vdev_top->vdev_ashift;
 
-	if (!(zio->io_flags & ZIO_FLAG_PHYSICAL) &&
+	if ((!(zio->io_flags & ZIO_FLAG_PHYSICAL) ||
+	    (vd->vdev_top->vdev_physical_ashift > SPA_MINBLOCKSHIFT)) &&
 	    P2PHASE(zio->io_size, align) != 0) {
 		/* Transform logical writes to be a full physical block size. */
 		uint64_t asize = P2ROUNDUP(zio->io_size, align);
