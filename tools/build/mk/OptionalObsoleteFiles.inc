@@ -4167,6 +4167,7 @@ OLD_FILES+=usr/share/aclocal/atf-c.m4
 OLD_FILES+=usr/share/aclocal/atf-common.m4
 OLD_FILES+=usr/share/aclocal/atf-sh.m4
 OLD_DIRS+=usr/share/aclocal
+OLD_FILES+=usr/tests/bin/chown/units_basics
 OLD_FILES+=usr/tests/usr.bin/atf/Kyuafile
 OLD_FILES+=usr/tests/usr.bin/atf/atf-sh/Kyuafile
 OLD_FILES+=usr/tests/usr.bin/atf/atf-sh/atf_check_test
