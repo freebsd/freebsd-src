@@ -220,7 +220,7 @@ STAGE_SYMLINKS_DIR= ${STAGE_OBJTOP}
 .ifdef WITH_SYSROOT
 SYSROOT?= ${STAGE_OBJTOP}/
 .endif
-LDFLAGS_LAST+= -Wl,-rpath-link,${STAGE_LIBDIR}
+LDFLAGS_LAST+= -Wl,-rpath-link -Wl,${STAGE_LIBDIR}
 STAGED_INCLUDE_DIR= ${STAGE_OBJTOP}/usr/include
 .endif
 .endif				# EARLY_BUILD for host
@@ -307,6 +307,18 @@ PATH:= ${PATH:S,:, ,g:@d@${exists(${TOOLSDIR}$d):?${TOOLSDIR}$d:}@:ts:}:${PATH}
 HOST_CC?= ${TOOLSDIR}/usr/bin/cc
 .export HOST_CC
 .endif
+.endif
+
+.if ${MACHINE:Nhost:Ncommon} != "" && ${MACHINE} != ${HOST_MACHINE}
+# cross-building
+.if !defined(FREEBSD_REVISION)
+FREEBSD_REVISION!= sed -n '/^REVISION=/{s,.*=,,;s,",,g;p; }' ${SRCTOP}/sys/conf/newvers.sh
+.export FREEBSD_REVISION
+.endif
+CROSS_TARGET_FLAGS= -target ${MACHINE_ARCH}-unknown-freebsd${FREEBSD_REVISION}
+CFLAGS+= ${CROSS_TARGET_FLAGS}
+ACFLAGS+= ${CROSS_TARGET_FLAGS}
+LDFLAGS+= -Wl,-m -Wl,elf_${MACHINE_ARCH}_fbsd
 .endif
 
 .endif				# bmake
