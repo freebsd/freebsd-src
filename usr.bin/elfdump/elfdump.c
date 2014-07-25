@@ -303,40 +303,76 @@ static const char *p_flags[] = {
 
 /* http://www.sco.com/developers/gabi/latest/ch4.sheader.html#sh_type */
 static const char *
-sh_types(u_int64_t sht) {
-	switch (sht) {
-	case 0:	return "SHT_NULL";
-	case 1: return "SHT_PROGBITS";
-	case 2: return "SHT_SYMTAB";
-	case 3: return "SHT_STRTAB";
-	case 4: return "SHT_RELA";
-	case 5: return "SHT_HASH";
-	case 6: return "SHT_DYNAMIC";
-	case 7: return "SHT_NOTE";
-	case 8: return "SHT_NOBITS";
-	case 9: return "SHT_REL";
-	case 10: return "SHT_SHLIB";
-	case 11: return "SHT_DYNSYM";
-	case 14: return "SHT_INIT_ARRAY";
-	case 15: return "SHT_FINI_ARRAY";
-	case 16: return "SHT_PREINIT_ARRAY";
-	case 17: return "SHT_GROUP";
-	case 18: return "SHT_SYMTAB_SHNDX";
-	/* 0x60000000 - 0x6fffffff operating system-specific semantics */
-	case 0x6ffffff0: return "XXX:VERSYM";
-	case 0x6ffffff4: return "SHT_SUNW_dof";
-	case 0x6ffffff7: return "SHT_GNU_LIBLIST";
-	case 0x6ffffffc: return "XXX:VERDEF";
-	case 0x6ffffffd: return "SHT_SUNW(GNU)_verdef";
-	case 0x6ffffffe: return "SHT_SUNW(GNU)_verneed";
-	case 0x6fffffff: return "SHT_SUNW(GNU)_versym";
-	/* 0x70000000 - 0x7fffffff processor-specific semantics */
-	case 0x70000000: return "SHT_IA_64_EXT";
-	case 0x70000001: return "SHT_IA_64_UNWIND";
-	case 0x7ffffffd: return "XXX:AUXILIARY";
-	case 0x7fffffff: return "XXX:FILTER";
-	/* 0x80000000 - 0xffffffff application programs */
-	default: return "ERROR: SHT NOT DEFINED";
+sh_types(uint64_t machine, uint64_t sht) {
+	static char unknown_buf[64]; 
+
+	if (sht < 0x60000000) {
+		switch (sht) {
+		case 0:	return "SHT_NULL";
+		case 1: return "SHT_PROGBITS";
+		case 2: return "SHT_SYMTAB";
+		case 3: return "SHT_STRTAB";
+		case 4: return "SHT_RELA";
+		case 5: return "SHT_HASH";
+		case 6: return "SHT_DYNAMIC";
+		case 7: return "SHT_NOTE";
+		case 8: return "SHT_NOBITS";
+		case 9: return "SHT_REL";
+		case 10: return "SHT_SHLIB";
+		case 11: return "SHT_DYNSYM";
+		case 14: return "SHT_INIT_ARRAY";
+		case 15: return "SHT_FINI_ARRAY";
+		case 16: return "SHT_PREINIT_ARRAY";
+		case 17: return "SHT_GROUP";
+		case 18: return "SHT_SYMTAB_SHNDX";
+		}
+		snprintf(unknown_buf, sizeof(unknown_buf),
+		    "ERROR: SHT %ju NOT DEFINED", (uintmax_t)sht);
+		return (unknown_buf);
+	} else if (sht < 0x70000000) {
+		/* 0x60000000-0x6fffffff operating system-specific semantics */
+		switch (sht) {
+		case 0x6ffffff0: return "XXX:VERSYM";
+		case 0x6ffffff4: return "SHT_SUNW_dof";
+		case 0x6ffffff7: return "SHT_GNU_LIBLIST";
+		case 0x6ffffffc: return "XXX:VERDEF";
+		case 0x6ffffffd: return "SHT_SUNW(GNU)_verdef";
+		case 0x6ffffffe: return "SHT_SUNW(GNU)_verneed";
+		case 0x6fffffff: return "SHT_SUNW(GNU)_versym";
+		}
+		snprintf(unknown_buf, sizeof(unknown_buf),
+		    "ERROR: OS-SPECIFIC SHT 0x%jx NOT DEFINED",
+		     (uintmax_t)sht);
+		return (unknown_buf);
+	} else if (sht < 0x80000000) {
+		/* 0x70000000-0x7fffffff processor-specific semantics */
+		switch (machine) {
+		case EM_MIPS:
+			switch (sht) {
+			case 0x7000000d: return "SHT_MIPS_OPTIONS";
+			}
+			break;
+		case EM_IA_64:
+			switch (sht) {
+			case 0x70000000: return "SHT_IA_64_EXT";
+			case 0x70000001: return "SHT_IA_64_UNWIND";
+			}
+			break;
+		}
+		switch (sht) {
+		case 0x7ffffffd: return "XXX:AUXILIARY";
+		case 0x7fffffff: return "XXX:FILTER";
+		}
+		snprintf(unknown_buf, sizeof(unknown_buf),
+		    "ERROR: PROCESSOR-SPECIFIC SHT 0x%jx NOT DEFINED",
+		     (uintmax_t)sht);
+		return (unknown_buf);
+	} else {
+		/* 0x80000000-0xffffffff application programs */
+		snprintf(unknown_buf, sizeof(unknown_buf),
+		    "ERROR: SHT 0x%jx NOT DEFINED",
+		     (uintmax_t)sht);
+		return (unknown_buf);
 	}
 }
 
@@ -704,6 +740,7 @@ elf_print_shdr(Elf32_Ehdr *e, void *sh)
 	u_int64_t info;
 	u_int64_t addralign;
 	u_int64_t entsize;
+	u_int64_t machine;
 	void *v;
 	int i;
 
@@ -712,6 +749,7 @@ elf_print_shdr(Elf32_Ehdr *e, void *sh)
 		return;
 	}
 
+	machine = elf_get_quarter(e, e, E_MACHINE);
 	shentsize = elf_get_quarter(e, e, E_SHENTSIZE);
 	shnum = elf_get_shnum(e, sh);
 	fprintf(out, "\nsection header:\n");
@@ -730,7 +768,7 @@ elf_print_shdr(Elf32_Ehdr *e, void *sh)
 		fprintf(out, "\n");
 		fprintf(out, "entry: %d\n", i);
 		fprintf(out, "\tsh_name: %s\n", shstrtab + name);
-		fprintf(out, "\tsh_type: %s\n", sh_types(type));
+		fprintf(out, "\tsh_type: %s\n", sh_types(machine, type));
 		fprintf(out, "\tsh_flags: %s\n", sh_flags[flags & 0x7]);
 		fprintf(out, "\tsh_addr: %#jx\n", addr);
 		fprintf(out, "\tsh_offset: %jd\n", (intmax_t)offset);
