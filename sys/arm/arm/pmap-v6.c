@@ -381,7 +381,8 @@ struct l2_dtable {
 
 /* pmap_kenter_internal flags */
 #define KENTER_CACHE	0x1
-#define KENTER_USER	0x2
+#define KENTER_DEVICE	0x2
+#define KENTER_USER	0x4
 
 /*
  * Given an L1 table index, calculate the corresponding l2_dtable index
@@ -2401,12 +2402,17 @@ pmap_kenter_internal(vm_offset_t va, vm_offset_t pa, int flags)
 	ptep = &l2b->l2b_kva[l2pte_index(va)];
 	opte = *ptep;
 
+	if (flags & KENTER_CACHE)
+		*ptep = L2_S_PROTO | l2s_mem_types[PTE_CACHE] | pa | L2_S_REF;
+	else if (flags & KENTER_DEVICE)
+		*ptep = L2_S_PROTO | l2s_mem_types[PTE_DEVICE] | pa | L2_S_REF;
+	else
+		*ptep = L2_S_PROTO | l2s_mem_types[PTE_NOCACHE] | pa | L2_S_REF;
+
 	if (flags & KENTER_CACHE) {
-		*ptep = L2_S_PROTO | pa | pte_l2_s_cache_mode | L2_S_REF;
 		pmap_set_prot(ptep, VM_PROT_READ | VM_PROT_WRITE,
 		    flags & KENTER_USER);
 	} else {
-		*ptep = L2_S_PROTO | pa | L2_S_REF;
 		pmap_set_prot(ptep, VM_PROT_READ|VM_PROT_WRITE|VM_PROT_EXECUTE,
 		    0);
 	}
@@ -2444,11 +2450,7 @@ void
 pmap_kenter_device(vm_offset_t va, vm_paddr_t pa)
 {
 
-	/*
-	 * XXX - Need a way for kenter_internal to handle PTE_DEVICE mapping as
-	 * a potentially different thing than PTE_NOCACHE.
-	 */
-	pmap_kenter_internal(va, pa, 0);
+	pmap_kenter_internal(va, pa, KENTER_DEVICE);
 }
 
 void
