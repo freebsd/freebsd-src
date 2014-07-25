@@ -262,3 +262,8 @@ CFLAGS += -G0
 .if !defined(NO_CPU_CFLAGS)
 CFLAGS += ${_CPUCFLAGS}
 .endif
+
+# Add in any architecture-specific CFLAGS.  
+# These come from make.conf or the command line or the environment.
+CFLAGS += ${CFLAGS.${MACHINE_ARCH}}
+CXXFLAGS += ${CXXFLAGS.${MACHINE_ARCH}}
