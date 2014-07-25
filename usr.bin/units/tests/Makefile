@@ -2,8 +2,8 @@
 
 .include <bsd.own.mk>
 
-TESTSDIR=      ${TESTSBASE}/bin/chown
+TESTSDIR=      ${TESTSBASE}/usr.bin/units
 
-TAP_TESTS_SH=	units_basics
+TAP_TESTS_SH=	basics_test
 
 .include <bsd.test.mk>
