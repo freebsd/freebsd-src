@@ -242,7 +242,7 @@ runtest(struct ieee80211com *ic, struct ciphertest *t)
 	} else if (memcmp(mtod(m, const void *), t->plaintext, t->plaintext_len)) {
 		printf("FAIL: decap botch; data does not compare\n");
 		cmpfail(mtod(m, const void *), m->m_pkthdr.len,
-			t->plaintext, sizeof(t->plaintext));
+			t->plaintext, t->plaintext_len);
 		goto bad;
 	}
 
