@@ -231,10 +231,10 @@ is running FreeBSD at the time) to quickly find files based on name only.
 To erase a line you've written at the command prompt, use "Ctrl-U".
 		-- Dru <genesis@istar.ca>
 %
-To find out the hostname associated with an IP address, use
+To find the hostname associated with an IP address, use
 
-	dig -x IP_address
-		-- Dru <genesis@istar.ca>
+	drill -x IP_address
+		-- Allan Jude <allanjude@freebsd.org>
 %
 To obtain a neat PostScript rendering of a manual page, use ``-t'' switch
 of the man(1) utility: ``man -t <topic>''.  For example:
