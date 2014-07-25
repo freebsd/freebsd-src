@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 14, 2014
+.Dd July 25, 2014
 .Dt ZPOOL 8
 .Os
 .Sh NAME
@@ -556,7 +556,12 @@ will decrease while
 .Sy free
 increases.
 .It Sy expandsize
-This property has currently no value on FreeBSD.
+Amount of uninitialized space within the pool or device that can be used to
+increase the total capacity of the pool.
+Uninitialized space consists of
+any space on an EFI labeled vdev which has not been brought online
+.Pq i.e. zpool online -e .
+This space occurs when a LUN is dynamically expanded.
 .It Sy guid
 A unique identifier for the pool.
 .It Sy health
@@ -1391,7 +1396,10 @@ instead of arbitrary space.
 .It Fl p
 Display numbers in parsable (exact) values.
 .It Fl v
-Show more detailed information.
+Verbose statistics. Reports usage statistics for individual
+.Em vdevs
+within
+the pool, in addition to the pool-wide statistics.
 .It Fl o Ar property Ns Op , Ns Ar ...
 Comma-separated list of properties to display. See the
 .Qq Sx Properties
@@ -1400,6 +1408,7 @@ section for a list of valid properties. The default list is
 .Sy size ,
 .Sy used ,
 .Sy available ,
+.Sy expandsize ,
 .Sy capacity  ,
 .Sy health ,
 .Sy altroot .
@@ -1785,9 +1794,9 @@ is immediately available to any datasets within the pool.
 The following command lists all available pools on the system.
 .Bd -literal -offset 2n
 .Li # Ic zpool list
-NAME   SIZE  ALLOC   FREE    CAP  DEDUP  HEALTH  ALTROOT
-pool  2.70T   473G  2.24T    17%  1.00x  ONLINE  -
-test  1.98G  89.5K  1.98G     0%  1.00x  ONLINE  -
+NAME   SIZE  ALLOC   FREE  EXPANDSZ    CAP  DEDUP  HEALTH  ALTROOT
+pool  2.70T   473G  2.24T         -    17%  1.00x  ONLINE  -
+test  1.98G  89.5K  1.98G         -     0%  1.00x  ONLINE  -
 .Ed
 .It Sy Example 7 No Listing All Properties for a Pool
 .Pp
