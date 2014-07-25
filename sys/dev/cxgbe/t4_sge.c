@@ -2741,7 +2741,7 @@ alloc_eq(struct adapter *sc, struct port_info *pi, struct sge_eq *eq)
 	}
 	if (rc != 0) {
 		device_printf(sc->dev,
-		    "failed to allocate egress queue(%d): %d",
+		    "failed to allocate egress queue(%d): %d\n",
 		    eq->flags & EQ_TYPEMASK, rc);
 	}
 
