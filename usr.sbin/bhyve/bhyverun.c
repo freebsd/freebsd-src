@@ -107,8 +107,6 @@ struct bhyvestats {
         uint64_t        vmexit_inst_emul;
         uint64_t        cpu_switch_rotate;
         uint64_t        cpu_switch_direct;
-        int             io_reset;
-	int		io_poweroff;
 } stats;
 
 struct mt_vmm_info {
@@ -331,27 +329,18 @@ vmexit_inout(struct vmctx *ctx, struct vm_exit *vme, int *pvcpu)
 	}
 
 	error = emulate_inout(ctx, vcpu, vme, strictio);
-	if (error == INOUT_OK && in && !string) {
+	if (!error && in && !string) {
 		error = vm_set_register(ctx, vcpu, VM_REG_GUEST_RAX,
 		    vme->u.inout.eax);
+		assert(error == 0);
 	}
 
-	switch (error) {
-	case INOUT_OK:
-		return (VMEXIT_CONTINUE);
-	case INOUT_RESTART:
-		return (VMEXIT_RESTART);
-	case INOUT_RESET:
-		stats.io_reset++;
-		return (VMEXIT_RESET);
-	case INOUT_POWEROFF:
-		stats.io_poweroff++;
-		return (VMEXIT_POWEROFF);
-	default:
-		fprintf(stderr, "Unhandled %s%c 0x%04x\n",
-			in ? "in" : "out",
-			bytes == 1 ? 'b' : (bytes == 2 ? 'w' : 'l'), port);
+	if (error) {
+		fprintf(stderr, "Unhandled %s%c 0x%04x\n", in ? "in" : "out",
+		    bytes == 1 ? 'b' : (bytes == 2 ? 'w' : 'l'), port);
 		return (VMEXIT_ABORT);
+	} else {
+		return (VMEXIT_CONTINUE);
 	}
 }
 
@@ -581,7 +570,6 @@ vm_loop(struct vmctx *ctx, int vcpu, uint64_t rip)
 {
 	int error, rc, prevcpu;
 	enum vm_exitcode exitcode;
-	enum vm_suspend_how how;
 	cpuset_t active_cpus;
 
 	if (vcpumap[vcpu] != NULL) {
@@ -615,16 +603,6 @@ vm_loop(struct vmctx *ctx, int vcpu, uint64_t rip)
 			break;
 		case VMEXIT_RESTART:
                         rip = vmexit[vcpu].rip;
-			break;
-		case VMEXIT_RESET:
-		case VMEXIT_POWEROFF:
-			if (rc == VMEXIT_RESET)
-				how = VM_SUSPEND_RESET;
-			else
-				how = VM_SUSPEND_POWEROFF;
-			error = vm_suspend(ctx, how);
-			assert(error == 0 || errno == EALREADY);
-                        rip = vmexit[vcpu].rip + vmexit[vcpu].inst_length;
 			break;
 		case VMEXIT_ABORT:
 			abort();
