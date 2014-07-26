@@ -167,7 +167,10 @@ static int elf64_offsets[] = {
 
 /* http://www.sco.com/developers/gabi/latest/ch5.dynamic.html#tag_encodings */
 static const char *
-d_tags(u_int64_t tag) {
+d_tags(u_int64_t tag)
+{
+	static char unknown_tag[48];
+
 	switch (tag) {
 	case 0: return "DT_NULL";
 	case 1: return "DT_NEEDED";
@@ -215,6 +218,7 @@ d_tags(u_int64_t tag) {
 	case 0x6ffffdfe: return "DT_SYMINSZ";
 	case 0x6ffffdff: return "DT_SYMINENT (DT_VALRNGHI)";
 	case 0x6ffffe00: return "DT_ADDRRNGLO";
+	case 0x6ffffef5: return "DT_GNU_HASH";
 	case 0x6ffffef8: return "DT_GNU_CONFLICT";
 	case 0x6ffffef9: return "DT_GNU_LIBLIST";
 	case 0x6ffffefa: return "DT_SUNW_CONFIG";
@@ -236,8 +240,10 @@ d_tags(u_int64_t tag) {
 	case 0x7ffffffd: return "DT_SUNW_AUXILIARY";
 	case 0x7ffffffe: return "DT_SUNW_USED";
 	case 0x7fffffff: return "DT_SUNW_FILTER";
-	default: return "ERROR: TAG NOT DEFINED";
 	}
+	snprintf(unknown_tag, sizeof(unknown_tag),
+		"ERROR: TAG NOT DEFINED -- tag 0x%jx", (uintmax_t)tag);
+	return (unknown_tag);
 }
 
 static const char *
@@ -334,6 +340,7 @@ sh_types(uint64_t machine, uint64_t sht) {
 		switch (sht) {
 		case 0x6ffffff0: return "XXX:VERSYM";
 		case 0x6ffffff4: return "SHT_SUNW_dof";
+		case 0x6ffffff6: return "SHT_GNU_HASH";
 		case 0x6ffffff7: return "SHT_GNU_LIBLIST";
 		case 0x6ffffffc: return "XXX:VERDEF";
 		case 0x6ffffffd: return "SHT_SUNW(GNU)_verdef";
@@ -347,6 +354,15 @@ sh_types(uint64_t machine, uint64_t sht) {
 	} else if (sht < 0x80000000) {
 		/* 0x70000000-0x7fffffff processor-specific semantics */
 		switch (machine) {
+		case EM_ARM:
+			switch (sht) {
+			case 0x70000001: return "SHT_ARM_EXIDX";
+			case 0x70000002: return "SHT_ARM_PREEMPTMAP";
+			case 0x70000003: return "SHT_ARM_ATTRIBUTES";
+			case 0x70000004: return "SHT_ARM_DEBUGOVERLAY";
+			case 0x70000005: return "SHT_ARM_OVERLAYSECTION";
+			}
+			break;
 		case EM_MIPS:
 			switch (sht) {
 			case 0x7000000d: return "SHT_MIPS_OPTIONS";
