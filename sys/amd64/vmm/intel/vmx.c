@@ -2559,7 +2559,7 @@ vmx_run(void *arg, int vcpu, register_t startrip, pmap_t pmap,
 			break;
 		}
 
-		if (curthread->td_flags & (TDF_ASTPENDING | TDF_NEEDRESCHED)) {
+		if (vcpu_should_yield(vm, vcpu)) {
 			enable_intr();
 			vm_exit_astpending(vmx->vm, vcpu, vmcs_guest_rip());
 			vmx_astpending_trace(vmx, vcpu, vmexit->rip);
