@@ -106,6 +106,7 @@ __FBSDID("$FreeBSD$");
 #define PFFOR 4
 
 static int vm_fault_additional_pages(vm_page_t, int, int, vm_page_t *, int *);
+static void vm_fault_unwire(vm_map_t, vm_offset_t, vm_offset_t, boolean_t);
 
 #define	VM_FAULT_READ_BEHIND	8
 #define	VM_FAULT_READ_MAX	(1 + VM_FAULT_READ_AHEAD_MAX)
@@ -1186,7 +1187,7 @@ vm_fault_wire(vm_map_t map, vm_offset_t start, vm_offset_t end,
  *
  *	Unwire a range of virtual addresses in a map.
  */
-void
+static void
 vm_fault_unwire(vm_map_t map, vm_offset_t start, vm_offset_t end,
     boolean_t fictitious)
 {
