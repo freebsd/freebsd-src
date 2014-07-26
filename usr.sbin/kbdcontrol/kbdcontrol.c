@@ -800,11 +800,11 @@ load_keymap(char *opt, int dumponly)
 	char	*name, *cp;
 	char	blank[] = "", keymap_path[] = KEYMAP_PATH;
 	char	vt_keymap_path[] = VT_KEYMAP_PATH, dotkbd[] = ".kbd";
-	char	*prefix[]  = {blank, blank, keymap_path, NULL};
+	char	*prefix[]  = {blank, blank, blank, keymap_path, NULL};
 	char	*postfix[] = {blank, dotkbd, NULL};
 
 	if (is_vt4())
-		prefix[1] = vt_keymap_path;
+		prefix[2] = vt_keymap_path;
 	cp = getenv("KEYMAP_PATH");
 	if (cp != NULL)
 		asprintf(&(prefix[0]), "%s/", cp);
