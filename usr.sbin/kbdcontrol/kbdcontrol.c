@@ -804,7 +804,7 @@ load_keymap(char *opt, int dumponly)
 	char	*postfix[] = {blank, dotkbd, NULL};
 
 	if (is_vt4())
-		prefix[2] = vt_keymap_path;
+		prefix[1] = vt_keymap_path;
 	cp = getenv("KEYMAP_PATH");
 	if (cp != NULL)
 		asprintf(&(prefix[0]), "%s/", cp);
