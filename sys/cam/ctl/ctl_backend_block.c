@@ -722,10 +722,11 @@ ctl_be_block_dispatch_file(struct ctl_be_block_lun *be_lun,
 	}
 
 	/*
-	 * If this is a write, we're all done.
+	 * If this is a write or a verify, we're all done.
 	 * If this is a read, we can now send the data to the user.
 	 */
-	if (ARGS(io)->flags & (CTL_LLF_WRITE | CTL_LLF_VERIFY)) {
+	if ((beio->bio_cmd == BIO_WRITE) ||
+	    (ARGS(io)->flags & CTL_LLF_VERIFY)) {
 		ctl_set_success(&io->scsiio);
 		ctl_complete_beio(beio);
 	} else {
