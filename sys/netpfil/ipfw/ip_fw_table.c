@@ -77,14 +77,14 @@ struct table_config {
 	struct named_object	no;
 	uint8_t		vtype;		/* format table type */
 	uint8_t		linked;		/* 1 if already linked */
-	uint16_t	spare0;
+	uint16_t	spare;
 	uint32_t	count;		/* Number of records */
+	uint64_t	flags;		/* state flags */
 	char		tablename[64];	/* table name */
 	struct table_algo	*ta;	/* Callbacks for given algo */
 	void		*astate;	/* algorithm state */
 	struct table_info	ti;	/* data to put to table_info */
 };
-#define	TABLE_SET(set)	((V_fw_tables_sets != 0) ? set : 0)
 
 struct tables_config {
 	struct namedobj_instance	*namehash;
@@ -95,9 +95,11 @@ struct tables_config {
 static struct table_config *find_table(struct namedobj_instance *ni,
     struct tid_info *ti);
 static struct table_config *alloc_table_config(struct namedobj_instance *ni,
-    struct tid_info *ti, struct table_algo *ta, char *adata);
+    struct tid_info *ti, struct table_algo *ta, char *adata, uint8_t vtype);
 static void free_table_config(struct namedobj_instance *ni,
     struct table_config *tc);
+static int create_table_internal(struct ip_fw_chain *ch, struct tid_info *ti,
+    char *aname, uint8_t vtype);
 static void link_table(struct ip_fw_chain *chain, struct table_config *tc);
 static void unlink_table(struct ip_fw_chain *chain, struct table_config *tc);
 static void free_table_state(void **state, void **xstate, uint8_t type);
@@ -110,11 +112,13 @@ static int dump_table_xentry(void *e, void *arg);
 
 static int ipfw_dump_table_v0(struct ip_fw_chain *ch, struct sockopt_data *sd);
 static int ipfw_dump_table_v1(struct ip_fw_chain *ch, struct sockopt_data *sd);
-static int ipfw_modify_table_v0(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
+static int ipfw_manage_table_ent_v0(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
     struct sockopt_data *sd);
-static int ipfw_modify_table_v1(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
+static int ipfw_manage_table_ent_v1(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
     struct sockopt_data *sd);
 
+static int modify_table(struct ip_fw_chain *ch, struct table_config *tc,
+    struct table_algo *ta, void *ta_buf, uint64_t pflags);
 static int destroy_table(struct ip_fw_chain *ch, struct tid_info *ti);
 
 static struct table_algo *find_table_algo(struct tables_config *tableconf,
@@ -130,11 +134,12 @@ int
 add_table_entry(struct ip_fw_chain *ch, struct tid_info *ti,
     struct tentry_info *tei)
 {
-	struct table_config *tc, *tc_new;
+	struct table_config *tc;
 	struct table_algo *ta;
 	struct namedobj_instance *ni;
 	uint16_t kidx;
 	int error;
+	uint64_t aflags;
 	char ta_buf[128];
 
 	IPFW_UH_WLOCK(ch);
@@ -154,72 +159,65 @@ add_table_entry(struct ip_fw_chain *ch, struct tid_info *ti,
 		/* Reference and unlock */
 		tc->no.refcnt++;
 		ta = tc->ta;
+		aflags = tc->flags;
 	}
 	IPFW_UH_WUNLOCK(ch);
 
-	tc_new = NULL;
 	if (tc == NULL) {
-		/* Table not found. We have to create new one */
-		if ((ta = find_table_algo(CHAIN_TO_TCFG(ch), ti, NULL)) == NULL)
-			return (ENOTSUP);
+		/* Compability mode: create new table for old clients */
+		if ((tei->flags & TEI_FLAGS_COMPAT) == 0)
+			return (ESRCH);
 
-		tc_new = alloc_table_config(ni, ti, ta, NULL);
-		if (tc_new == NULL)
-			return (ENOMEM);
+		error = create_table_internal(ch, ti, NULL, IPFW_VTYPE_U32);
+
+		if (error != 0)
+			return (error);
+
+		/* Let's try to find & reference another time */
+		IPFW_UH_WLOCK(ch);
+		if ((tc = find_table(ni, ti)) == NULL) {
+			IPFW_UH_WUNLOCK(ch);
+			return (EINVAL);
+		}
+
+		if (tc->no.type != ti->type) {
+			IPFW_UH_WUNLOCK(ch);
+			return (EINVAL);
+		}
+
+		/* Reference and unlock */
+		tc->no.refcnt++;
+		ta = tc->ta;
+		aflags = tc->flags;
+
+		IPFW_UH_WUNLOCK(ch);
+	}
+
+	if (aflags != 0) {
+
+		/*
+		 * Previous add/delete call returned non-zero state.
+		 * Run appropriate handler.
+		 */
+		error = modify_table(ch, tc, ta, &ta_buf, aflags);
+		if (error != 0)
+			return (error);
 	}
 
 	/* Prepare record (allocate memory) */
 	memset(&ta_buf, 0, sizeof(ta_buf));
 	error = ta->prepare_add(tei, &ta_buf);
-	if (error != 0) {
-		if (tc_new != NULL)
-			free_table_config(ni, tc_new);
+	if (error != 0)
 		return (error);
-	}
 
 	IPFW_UH_WLOCK(ch);
 
 	ni = CHAIN_TO_NI(ch);
 
-	if (tc == NULL) {
-		/* Check if another table has been allocated by other thread */
-		if ((tc = find_table(ni, ti)) != NULL) {
-
-			/*
-			 * Check if algoritm is the same since we've
-			 * already allocated state using @ta algoritm
-			 * callbacks.
-			 */
-			if (tc->ta != ta) {
-				IPFW_UH_WUNLOCK(ch);
-				error = EINVAL;
-				goto done;
-			}
-		} else {
-			/* Table still does not exists */
-
-			/* Allocate table index. */
-			if (ipfw_objhash_alloc_idx(ni, &kidx) != 0) {
-				/* Index full. */
-				IPFW_UH_WUNLOCK(ch);
-				printf("Unable to allocate index for table %s"
-				    "in set %u. Consider increasing "
-				    "net.inet.ip.fw.tables_max",
-				    tc_new->no.name, ti->set);
-				error = EBUSY;
-				goto done;
-			}
-
-			/* Set tc_new to zero not to free it afterwards. */
-			tc = tc_new;
-			tc_new = NULL;
-			/* Save kidx */
-			tc->no.kidx = kidx;
-		}
-	} else {
-		/* Drop reference we've used in first search */
-		tc->no.refcnt--;
-	}
+	/* Drop reference we've used in first search */
+	tc->no.refcnt--;
+	/* Update aflags since it can be changed after previous read */
+	aflags = tc->flags;
 	
 	/* We've got valid table in @tc. Let's add data */
 	kidx = tc->no.kidx;
@@ -227,10 +225,7 @@ add_table_entry(struct ip_fw_chain *ch, struct tid_info *ti,
 
 	IPFW_WLOCK(ch);
 
-	if (tc->linked == 0)
-		link_table(ch, tc);
-
-	error = ta->add(tc->astate, KIDX_TO_TI(ch, kidx), tei, &ta_buf);
+	error = ta->add(tc->astate, KIDX_TO_TI(ch, kidx), tei, &ta_buf, &aflags);
 
 	IPFW_WUNLOCK(ch);
 
@@ -238,11 +233,10 @@ add_table_entry(struct ip_fw_chain *ch, struct tid_info *ti,
 	if (error == 0 && (tei->flags & TEI_FLAGS_UPDATED) == 0)
 		tc->count++;
 
+	tc->flags = aflags;
+
 	IPFW_UH_WUNLOCK(ch);
 
-done:
-	if (tc_new != NULL)
-		free_table_config(ni, tc_new);
 	/* Run cleaning callback anyway */
 	ta->flush_entry(tei, &ta_buf);
 
@@ -258,6 +252,7 @@ del_table_entry(struct ip_fw_chain *ch, struct tid_info *ti,
 	struct namedobj_instance *ni;
 	uint16_t kidx;
 	int error;
+	uint64_t aflags;
 	char ta_buf[128];
 
 	IPFW_UH_WLOCK(ch);
@@ -272,8 +267,34 @@ del_table_entry(struct ip_fw_chain *ch, struct tid_info *ti,
 		return (EINVAL);
 	}
 
+	aflags = tc->flags;
 	ta = tc->ta;
 
+	if (aflags != 0) {
+
+		/*
+		 * Give the chance to algo to shrink its state.
+		 */
+		tc->no.refcnt++;
+		IPFW_UH_WUNLOCK(ch);
+		memset(&ta_buf, 0, sizeof(ta_buf));
+
+		error = modify_table(ch, tc, ta, &ta_buf, aflags);
+
+		IPFW_UH_WLOCK(ch);
+		tc->no.refcnt--;
+		aflags = tc->flags;
+
+		if (error != 0) {
+			IPFW_UH_WUNLOCK(ch);
+			return (error);
+		}
+	}
+
+	/*
+	 * We assume ta_buf size is enough for storing
+	 * prepare_del() key, so we're running under UH_LOCK here.
+	 */
 	memset(&ta_buf, 0, sizeof(ta_buf));
 	if ((error = ta->prepare_del(tei, &ta_buf)) != 0) {
 		IPFW_UH_WUNLOCK(ch);
@@ -283,11 +304,12 @@ del_table_entry(struct ip_fw_chain *ch, struct tid_info *ti,
 	kidx = tc->no.kidx;
 
 	IPFW_WLOCK(ch);
-	error = ta->del(tc->astate, KIDX_TO_TI(ch, kidx), tei, &ta_buf);
+	error = ta->del(tc->astate, KIDX_TO_TI(ch, kidx), tei, &ta_buf,&aflags);
 	IPFW_WUNLOCK(ch);
 
 	if (error == 0)
 		tc->count--;
+	tc->flags = aflags;
 
 	IPFW_UH_WUNLOCK(ch);
 
@@ -296,18 +318,62 @@ del_table_entry(struct ip_fw_chain *ch, struct tid_info *ti,
 	return (error);
 }
 
+/*
+ * Runs callbacks to modify algo state (typically, table resize).
+ *
+ * Callbacks order:
+ * 1) alloc_modify (no locks, M_WAITOK) - alloc new state based on @pflags.
+ * 2) prepare_modifyt (UH_WLOCK) - copy old data into new storage
+ * 3) modify (UH_WLOCK + WLOCK) - switch pointers
+ * 4) flush_modify (no locks) - free state, if needed
+ */
+static int
+modify_table(struct ip_fw_chain *ch, struct table_config *tc,
+    struct table_algo *ta, void *ta_buf, uint64_t pflags)
+{
+	struct table_info *ti;
+	int error;
+
+	error = ta->prepare_mod(ta_buf, &pflags);
+	if (error != 0)
+		return (error);
+
+	IPFW_UH_WLOCK(ch);
+	ti = KIDX_TO_TI(ch, tc->no.kidx);
+
+	error = ta->fill_mod(tc->astate, ti, &ta_buf, &pflags);
+
+	/*
+	 * prepare_mofify may return zero in @pflags to
+	 * indicate that modifications are not unnesessary.
+	 */
+
+	if (error == 0 && pflags != 0) {
+		/* Do actual modification */
+		IPFW_WLOCK(ch);
+		ta->modify(tc->astate, ti, &ta_buf, pflags);
+		IPFW_WUNLOCK(ch);
+	}
+
+	IPFW_UH_WUNLOCK(ch);
+
+	ta->flush_mod(ta_buf);
+
+	return (error);
+}
+
 int
-ipfw_modify_table(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
+ipfw_manage_table_ent(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
     struct sockopt_data *sd)
 {
 	int error;
 
 	switch (op3->version) {
 	case 0:
-		error = ipfw_modify_table_v0(ch, op3, sd);
+		error = ipfw_manage_table_ent_v0(ch, op3, sd);
 		break;
 	case 1:
-		error = ipfw_modify_table_v1(ch, op3, sd);
+		error = ipfw_manage_table_ent_v1(ch, op3, sd);
 		break;
 	default:
 		error = ENOTSUP;
@@ -324,7 +390,7 @@ ipfw_modify_table(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
  * Returns 0 on success
  */
 static int
-ipfw_modify_table_v0(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
+ipfw_manage_table_ent_v0(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
     struct sockopt_data *sd)
 {
 	ipfw_table_xentry *xent;
@@ -350,6 +416,7 @@ ipfw_modify_table_v0(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
 	tei.masklen = xent->masklen;
 	tei.value = xent->value;
 	/* Old requests compability */
+	tei.flags = TEI_FLAGS_COMPAT;
 	if (xent->type == IPFW_TABLE_CIDR) {
 		if (xent->len - hdrlen == sizeof(in_addr_t))
 			tei.subtype = AF_INET;
@@ -371,22 +438,25 @@ ipfw_modify_table_v0(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
 /*
  * Adds or deletes record in table.
  * Data layout (v1)(current):
- * Request: [ ipfw_obj_header ipfw_obj_tentry ]
+ * Request: [ ipfw_obj_header
+ *   ipfw_obj_ctlv(IPFW_TLV_TBLENT_LIST) [ ipfw_obj_tentry x N ]
+ * ]
  *
  * Returns 0 on success
  */
 static int
-ipfw_modify_table_v1(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
+ipfw_manage_table_ent_v1(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
     struct sockopt_data *sd)
 {
 	ipfw_obj_tentry *tent;
+	ipfw_obj_ctlv *ctlv;
 	ipfw_obj_header *oh;
 	struct tentry_info tei;
 	struct tid_info ti;
 	int error, read;
 
 	/* Check minimum header size */
-	if (sd->valsize < (sizeof(*oh) + sizeof(*tent)))
+	if (sd->valsize < (sizeof(*oh) + sizeof(*ctlv)))
 		return (EINVAL);
 
 	/* Check if passed data is too long */
@@ -401,8 +471,21 @@ ipfw_modify_table_v1(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
 
 	read = sizeof(*oh);
 
+	ctlv = (ipfw_obj_ctlv *)(oh + 1);
+	if (ctlv->head.length + read != sd->valsize)
+		return (EINVAL);
+
+	/*
+	 * TODO: permit adding multiple entries for given table
+	 * at once
+	 */
+	if (ctlv->count != 1)
+		return (EOPNOTSUPP);
+
+	read += sizeof(*ctlv);
+
 	/* Assume tentry may grow to support larger keys */
-	tent = (ipfw_obj_tentry *)(oh + 1);
+	tent = (ipfw_obj_tentry *)(ctlv + 1);
 	if (tent->head.length < sizeof(*tent) ||
 	    tent->head.length + read > sd->valsize)
 		return (EINVAL);
@@ -1071,8 +1154,6 @@ ipfw_create_table(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
 	struct tid_info ti;
 	struct namedobj_instance *ni;
 	struct table_config *tc;
-	struct table_algo *ta;
-	uint16_t kidx;
 
 	if (sd->valsize != sizeof(*oh) + sizeof(ipfw_xtable_info))
 		return (EINVAL);
@@ -1105,23 +1186,50 @@ ipfw_create_table(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
 		IPFW_UH_RUNLOCK(ch);
 		return (EEXIST);
 	}
-	ta = find_table_algo(CHAIN_TO_TCFG(ch), &ti, aname);
 	IPFW_UH_RUNLOCK(ch);
 
+	return (create_table_internal(ch, &ti, aname, i->vtype));
+}
+
+/*
+ * Creates new table based on @ti and @aname.
+ *
+ * Relies on table name checking inside find_name_tlv()
+ * Assume @aname to be checked and valid.
+ *
+ * Returns 0 on success.
+ */
+static int
+create_table_internal(struct ip_fw_chain *ch, struct tid_info *ti,
+    char *aname, uint8_t vtype)
+{
+	struct namedobj_instance *ni;
+	struct table_config *tc;
+	struct table_algo *ta;
+	uint16_t kidx;
+
+	ni = CHAIN_TO_NI(ch);
+
+	ta = find_table_algo(CHAIN_TO_TCFG(ch), ti, aname);
 	if (ta == NULL)
 		return (ENOTSUP);
 	
-	if ((tc = alloc_table_config(ni, &ti, ta, aname)) == NULL)
+	if ((tc = alloc_table_config(ni, ti, ta, aname, vtype)) == NULL)
 		return (ENOMEM);
-	/* TODO: move inside alloc_table_config() */
-	tc->vtype = i->vtype;
 
 	IPFW_UH_WLOCK(ch);
+
+	/* Check if table has been already created */
+	if (find_table(ni, ti) != NULL) {
+		IPFW_UH_WUNLOCK(ch);
+		free_table_config(ni, tc);
+		return (EEXIST);
+	}
+
 	if (ipfw_objhash_alloc_idx(ni, &kidx) != 0) {
 		IPFW_UH_WUNLOCK(ch);
-		printf("Unable to allocate table index for table %s in set %u."
-		    " Consider increasing net.inet.ip.fw.tables_max",
-		    tname, ti.set);
+		printf("Unable to allocate table index."
+		    " Consider increasing net.inet.ip.fw.tables_max");
 		free_table_config(ni, tc);
 		return (EBUSY);
 	}
@@ -1692,7 +1800,7 @@ find_table(struct namedobj_instance *ni, struct tid_info *ti)
 
 static struct table_config *
 alloc_table_config(struct namedobj_instance *ni, struct tid_info *ti,
-    struct table_algo *ta, char *aname)
+    struct table_algo *ta, char *aname, uint8_t vtype)
 {
 	char *name, bname[16];
 	struct table_config *tc;
@@ -1719,7 +1827,10 @@ alloc_table_config(struct namedobj_instance *ni, struct tid_info *ti,
 	tc->ta = ta;
 	strlcpy(tc->tablename, name, sizeof(tc->tablename));
 	/* Set default value type to u32 for compability reasons */
-	tc->vtype = IPFW_VTYPE_U32;
+	if (vtype == 0)
+		tc->vtype = IPFW_VTYPE_U32;
+	else
+		tc->vtype = vtype;
 
 	if (ti->tlvs == NULL) {
 		tc->no.compat = 1;
@@ -2058,7 +2169,7 @@ ipfw_rewrite_table_uidx(struct ip_fw_chain *chain,
 				error = ENOTSUP;
 				goto free;
 			}
-			tc = alloc_table_config(ni, &ti, ta, NULL);
+			tc = alloc_table_config(ni, &ti, ta, NULL, IPFW_VTYPE_U32);
 
 			if (tc == NULL) {
 				error = ENOMEM;

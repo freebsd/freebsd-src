@@ -380,7 +380,7 @@ ta_prepare_add_cidr(struct tentry_info *tei, void *ta_buf)
 
 static int
 ta_add_cidr(void *ta_state, struct table_info *ti,
-    struct tentry_info *tei, void *ta_buf)
+    struct tentry_info *tei, void *ta_buf, uint64_t *pflags)
 {
 	struct radix_node_head *rnh;
 	struct radix_node *rn;
@@ -488,7 +488,7 @@ ta_prepare_del_cidr(struct tentry_info *tei, void *ta_buf)
 
 static int
 ta_del_cidr(void *ta_state, struct table_info *ti,
-    struct tentry_info *tei, void *ta_buf)
+    struct tentry_info *tei, void *ta_buf, uint64_t *pflags)
 {
 	struct radix_node_head *rnh;
 	struct radix_node *rn;
@@ -644,7 +644,7 @@ ta_prepare_add_iface(struct tentry_info *tei, void *ta_buf)
 
 static int
 ta_add_iface(void *ta_state, struct table_info *ti,
-    struct tentry_info *tei, void *ta_buf)
+    struct tentry_info *tei, void *ta_buf, uint64_t *pflags)
 {
 	struct radix_node_head *rnh;
 	struct radix_node *rn;
@@ -718,7 +718,7 @@ ta_prepare_del_iface(struct tentry_info *tei, void *ta_buf)
 
 static int
 ta_del_iface(void *ta_state, struct table_info *ti,
-    struct tentry_info *tei, void *ta_buf)
+    struct tentry_info *tei, void *ta_buf, uint64_t *pflags)
 {
 	struct radix_node_head *rnh;
 	struct radix_node *rn;
