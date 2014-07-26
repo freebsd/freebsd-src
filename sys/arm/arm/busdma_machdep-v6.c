@@ -229,10 +229,26 @@ busdma_init(void *dummy)
  */
 SYSINIT(busdma, SI_SUB_KMEM, SI_ORDER_FOURTH, busdma_init, NULL);
 
+/*
+ * This routine checks the exclusion zone constraints from a tag against the
+ * physical RAM available on the machine.  If a tag specifies an exclusion zone
+ * but there's no RAM in that zone, then we avoid allocating resources to bounce
+ * a request, and we can use any memory allocator (as opposed to needing
+ * kmem_alloc_contig() just because it can allocate pages in an address range).
+ *
+ * Most tags have BUS_SPACE_MAXADDR or BUS_SPACE_MAXADDR_32BIT (they are the
+ * same value on 32-bit architectures) as their lowaddr constraint, and we can't
+ * possibly have RAM at an address higher than the highest address we can
+ * express, so we take a fast out.
+ */
 static __inline int
 _bus_dma_can_bounce(vm_offset_t lowaddr, vm_offset_t highaddr)
 {
 	int i;
+
+	if (lowaddr >= BUS_SPACE_MAXADDR)
+		return (0);
+
 	for (i = 0; phys_avail[i] && phys_avail[i + 1]; i += 2) {
 		if ((lowaddr >= phys_avail[i] && lowaddr <= phys_avail[i + 1])
 		    || (lowaddr < phys_avail[i] &&
