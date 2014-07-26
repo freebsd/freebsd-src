@@ -77,8 +77,6 @@
 # --- Process Arguments ---
 #
 
-set -x
-set -v
 ### default variables
 opt_name=0; opt_pid=0; opt_jailid=0; opt_time=0; opt_timestr=0
 opt_bytes=1; filter=0; pname=.; pid=0; opt_ppid=0;
