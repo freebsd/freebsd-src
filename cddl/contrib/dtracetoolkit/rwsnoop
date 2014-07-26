@@ -151,7 +151,7 @@ fi
 	OPT_timestr ? printf("%-20s ", "TIMESTR") : 1;
 	OPT_jailid    ? printf("%5s ", "JAILID") : 1;
 	OPT_ppid    ? printf("%6s ", "PPID") : 1;
-	printf("%5s %6s %-12s %1s %7s %s\n",
+	printf("%5s %6s %-12s %4s %1s %7s\n",
 	    "UID", "PID", "CMD", "FD", "D", "BYTES");
  }
 
