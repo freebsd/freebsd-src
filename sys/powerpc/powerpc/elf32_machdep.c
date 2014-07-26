@@ -190,8 +190,7 @@ elf_reloc_internal(linker_file_t lf, Elf_Addr relocbase, const void *data,
        		addr = lookup(lf, symidx, 1);
 	       	if (addr == 0)
 	       		return -1;
-		addr += addend;
-	       	*where = addr;
+		*where = elf_relocaddr(lf, addr + addend);
 	       	break;
 
        	case R_PPC_ADDR16_LO: /* #lo(S) */
@@ -204,9 +203,8 @@ elf_reloc_internal(linker_file_t lf, Elf_Addr relocbase, const void *data,
 		 * are relative to relocbase. Detect this condition.
 		 */
 		if (addr > relocbase && addr <= (relocbase + addend))
-			addr = relocbase + addend;
-		else
-			addr += addend;
+			addr = relocbase;
+		addr = elf_relocaddr(lf, addr + addend);
 		*hwhere = addr & 0xffff;
 		break;
 
@@ -220,9 +218,8 @@ elf_reloc_internal(linker_file_t lf, Elf_Addr relocbase, const void *data,
 		 * are relative to relocbase. Detect this condition.
 		 */
 		if (addr > relocbase && addr <= (relocbase + addend))
-			addr = relocbase + addend;
-		else
-			addr += addend;
+			addr = relocbase;
+		addr = elf_relocaddr(lf, addr + addend);
 	       	*hwhere = ((addr >> 16) + ((addr & 0x8000) ? 1 : 0))
 		    & 0xffff;
 		break;
