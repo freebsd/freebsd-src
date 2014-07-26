@@ -1105,6 +1105,10 @@ vm_handle_hlt(struct vm *vm, int vcpuid, bool intr_disabled, bool *retu)
 			}
 		}
 
+		/* Don't go to sleep if the vcpu thread needs to yield */
+		if (vcpu_should_yield(vm, vcpuid))
+			break;
+
 		/*
 		 * Some Linux guests implement "halt" by having all vcpus
 		 * execute HLT with interrupts disabled. 'halted_cpus' keeps
@@ -1128,7 +1132,11 @@ vm_handle_hlt(struct vm *vm, int vcpuid, bool intr_disabled, bool *retu)
 
 		t = ticks;
 		vcpu_require_state_locked(vcpu, VCPU_SLEEPING);
-		msleep_spin(vcpu, &vcpu->mtx, wmesg, 0);
+		/*
+		 * XXX msleep_spin() cannot be interrupted by signals so
+		 * wake up periodically to check pending signals.
+		 */
+		msleep_spin(vcpu, &vcpu->mtx, wmesg, hz);
 		vcpu_require_state_locked(vcpu, VCPU_FROZEN);
 		vmm_stat_incr(vm, vcpuid, VCPU_IDLE_TICKS, ticks - t);
 	}

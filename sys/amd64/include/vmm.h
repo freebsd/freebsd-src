@@ -270,6 +270,14 @@ vcpu_is_running(struct vm *vm, int vcpu, int *hostcpu)
 	return (vcpu_get_state(vm, vcpu, hostcpu) == VCPU_RUNNING);
 }
 
+#ifdef _SYS_PROC_H_
+static int __inline
+vcpu_should_yield(struct vm *vm, int vcpu)
+{
+	return (curthread->td_flags & (TDF_ASTPENDING | TDF_NEEDRESCHED));
+}
+#endif
+
 void *vcpu_stats(struct vm *vm, int vcpu);
 void vcpu_notify_event(struct vm *vm, int vcpuid, bool lapic_intr);
 struct vmspace *vm_get_vmspace(struct vm *vm);
