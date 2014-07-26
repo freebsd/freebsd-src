@@ -57,11 +57,11 @@ SYSCTL_INT(_vfs_zfs, OID_AUTO, prefetch_disable, CTLFLAG_RW,
 SYSCTL_NODE(_vfs_zfs, OID_AUTO, zfetch, CTLFLAG_RW, 0, "ZFS ZFETCH");
 SYSCTL_UINT(_vfs_zfs_zfetch, OID_AUTO, max_streams, CTLFLAG_RWTUN,
     &zfetch_max_streams, 0, "Max # of streams per zfetch");
-SYSCTL_UINT(_vfs_zfs_zfetch, OID_AUTO, min_sec_reap, CTLFLAG_RDTUN,
+SYSCTL_UINT(_vfs_zfs_zfetch, OID_AUTO, min_sec_reap, CTLFLAG_RWTUN,
     &zfetch_min_sec_reap, 0, "Min time before stream reclaim");
-SYSCTL_UINT(_vfs_zfs_zfetch, OID_AUTO, block_cap, CTLFLAG_RDTUN,
+SYSCTL_UINT(_vfs_zfs_zfetch, OID_AUTO, block_cap, CTLFLAG_RWTUN,
     &zfetch_block_cap, 0, "Max number of blocks to fetch at a time");
-SYSCTL_UQUAD(_vfs_zfs_zfetch, OID_AUTO, array_rd_sz, CTLFLAG_RDTUN,
+SYSCTL_UQUAD(_vfs_zfs_zfetch, OID_AUTO, array_rd_sz, CTLFLAG_RWTUN,
     &zfetch_array_rd_sz, 0,
     "Number of bytes in a array_read at which we stop prefetching");
 
