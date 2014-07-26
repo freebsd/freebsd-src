@@ -1992,7 +1992,7 @@ ipfw_ctl(struct sockopt *sopt)
 
 	case IP_FW_TABLE_XADD: /* IP_FW3 */
 	case IP_FW_TABLE_XDEL: /* IP_FW3 */
-		error = ipfw_modify_table(chain, op3, &sdata);
+		error = ipfw_manage_table_ent(chain, op3, &sdata);
 		break;
 	case IP_FW_TABLE_XFIND: /* IP_FW3 */
 		error = ipfw_find_table_entry(chain, op3, &sdata);

@@ -465,7 +465,8 @@ static int
 table_do_modify_record(int cmd, ipfw_obj_header *oh,
     ipfw_obj_tentry *tent, int update)
 {
-	char xbuf[sizeof(ipfw_obj_header) + sizeof(ipfw_obj_tentry)];
+	ipfw_obj_ctlv *ctlv;
+	char xbuf[sizeof(*oh) + sizeof(ipfw_obj_ctlv) + sizeof(*tent)];
 	int error;
 
 	memset(xbuf, 0, sizeof(xbuf));
@@ -473,8 +474,12 @@ table_do_modify_record(int cmd, ipfw_obj_header *oh,
 	oh = (ipfw_obj_header *)xbuf;
 	oh->opheader.version = 1;
 
-	memcpy(oh + 1, tent, sizeof(*tent));
-	tent = (ipfw_obj_tentry *)(oh + 1);
+	ctlv = (ipfw_obj_ctlv *)(oh + 1);
+	ctlv->count = 1;
+	ctlv->head.length = sizeof(*ctlv) + sizeof(*tent);
+
+	memcpy(ctlv + 1, tent, sizeof(*tent));
+	tent = (ipfw_obj_tentry *)(ctlv + 1);
 	if (update != 0)
 		tent->head.flags |= IPFW_TF_UPDATE;
 	tent->head.length = sizeof(ipfw_obj_tentry);
@@ -501,6 +506,19 @@ table_modify_record(ipfw_obj_header *oh, int ac, char *av[], int add, int update
 	tent.idx = 1;
 
 	tentry_fill_key(oh, &tent, *av, &type, &vtype, &xi);
+
+	/*
+	 * compability layer: auto-create table if not exists
+	 */
+	if (xi.tablename[0] == '\0') {
+		xi.type = type;
+		xi.vtype = vtype;
+		strlcpy(xi.tablename, oh->ntlv.name, sizeof(xi.tablename));
+		fprintf(stderr, "DEPRECATED: inserting data info non-existent "
+		    "table %s. (auto-created)\n", xi.tablename);
+		table_do_create(oh, &xi);
+	}
+
 	oh->ntlv.type = type;
 	ac--; av++;
 
@@ -659,6 +677,7 @@ tentry_fill_key(ipfw_obj_header *oh, ipfw_obj_tentry *tent, char *key,
 {
 	uint8_t type, vtype;
 	int error;
+	char *del;
 
 	type = 0;
 	vtype = 0;
@@ -678,6 +697,8 @@ tentry_fill_key(ipfw_obj_header *oh, ipfw_obj_tentry *tent, char *key,
 		 * Compability layer: try to interpret data as CIDR
 		 * before failing.
 		 */
+		if ((del = strchr(key, '/')) != NULL)
+			*del = '\0';
 		if (inet_pton(AF_INET, key, &tent->k.addr6) == 1 ||
 		    inet_pton(AF_INET6, key, &tent->k.addr6) == 1) {
 			/* OK Prepare and send */
@@ -690,8 +711,10 @@ tentry_fill_key(ipfw_obj_header *oh, ipfw_obj_tentry *tent, char *key,
 		} else {
 			/* Inknown key */
 			errx(EX_USAGE, "Table %s does not exist, cannot guess "
-			    "key type", oh->ntlv.name);
+			    "key '%s' type", oh->ntlv.name, key);
 		}
+		if (del != NULL)
+			*del = '/';
 	}
 
 	tentry_fill_key_type(key, tent, type);

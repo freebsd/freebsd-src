@@ -41,7 +41,6 @@ struct table_info {
 	u_long		data;		/* Hints for given func */
 };
 
-
 /* Internal structures for handling sockopt data */
 struct tid_info {
 	uint32_t	set;	/* table set */
@@ -61,16 +60,25 @@ struct tentry_info {
 };
 #define	TEI_FLAGS_UPDATE	0x01	/* Update record if exists	*/
 #define	TEI_FLAGS_UPDATED	0x02	/* Entry has been updated	*/
+#define	TEI_FLAGS_COMPAT	0x04	/* Called from old ABI		*/
 
 typedef int (ta_init)(void **ta_state, struct table_info *ti, char *data);
 typedef void (ta_destroy)(void *ta_state, struct table_info *ti);
 typedef int (ta_prepare_add)(struct tentry_info *tei, void *ta_buf);
 typedef int (ta_prepare_del)(struct tentry_info *tei, void *ta_buf);
 typedef int (ta_add)(void *ta_state, struct table_info *ti,
-    struct tentry_info *tei, void *ta_buf);
+    struct tentry_info *tei, void *ta_buf, uint64_t *pflags);
 typedef int (ta_del)(void *ta_state, struct table_info *ti,
-    struct tentry_info *tei, void *ta_buf);
+    struct tentry_info *tei, void *ta_buf, uint64_t *pflags);
 typedef void (ta_flush_entry)(struct tentry_info *tei, void *ta_buf);
+
+typedef int (ta_prepare_mod)(void *ta_buf, uint64_t *pflags);
+typedef int (ta_fill_mod)(void *ta_state, struct table_info *ti,
+    void *ta_buf, uint64_t *pflags);
+typedef int (ta_modify)(void *ta_state, struct table_info *ti,
+    void *ta_buf, uint64_t pflags);
+typedef void (ta_flush_mod)(void *ta_buf);
+
 typedef void (ta_print_config)(void *ta_state, struct table_info *ti, char *buf,
     size_t bufsize);
 
@@ -93,6 +101,10 @@ struct table_algo {
 	ta_add		*add;
 	ta_del		*del;
 	ta_flush_entry	*flush_entry;
+	ta_prepare_mod	*prepare_mod;
+	ta_fill_mod	*fill_mod;
+	ta_modify	*modify;
+	ta_flush_mod	*flush_mod;
 	ta_foreach	*foreach;
 	ta_dump_tentry	*dump_tentry;
 	ta_print_config	*print_config;
@@ -116,7 +128,7 @@ int ipfw_find_table_entry(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
     struct sockopt_data *sd);
 int ipfw_create_table(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
     struct sockopt_data *sd);
-int ipfw_modify_table(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
+int ipfw_manage_table_ent(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
     struct sockopt_data *sd);
 int ipfw_flush_table(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
     struct sockopt_data *sd);
