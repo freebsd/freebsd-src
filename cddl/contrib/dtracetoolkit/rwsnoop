@@ -152,7 +152,7 @@ fi
 	OPT_jailid    ? printf("%5s ", "JAILID") : 1;
 	OPT_ppid    ? printf("%6s ", "PPID") : 1;
 	printf("%5s %6s %-12s %1s %7s %s\n",
-	    "UID", "PID", "CMD", "D", "BYTES", "FILE");
+	    "UID", "PID", "CMD", "FD", "D", "BYTES");
  }
 
  /*
@@ -221,8 +221,8 @@ fi
 	OPT_timestr ? printf("%-20Y ", walltimestamp) : 1;
 	OPT_jailid    ? printf("%5d ", curpsinfo->pr_jailid) : 1;
 	OPT_ppid    ? printf("%6d ", ppid) : 1;
-	printf("%5d %6d %-12.12s %1s %7d \n",
-	    uid, pid, execname, self->rw, (int)self->size);
+	printf("%5d %6d %-12.12s %4d %1s %7d\n",
+	    uid, pid, execname, self->fd, self->rw, (int)self->size);
 	
 	self->ok = 0;
 	self->fd = 0;
