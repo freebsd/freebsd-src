@@ -151,6 +151,14 @@ freopen(const char * __restrict file, const char * __restrict mode,
 
 	/* Get a new descriptor to refer to the new file. */
 	f = _open(file, oflags, DEFFILEMODE);
+	/* If out of fd's close the old one and try again. */
+	if (f < 0 && isopen && wantfd > STDERR_FILENO &&
+	    (errno == ENFILE || errno == EMFILE)) {
+		(void) (*fp->_close)(fp->_cookie);
+		isopen = 0;
+		wantfd = -1;
+		f = _open(file, oflags, DEFFILEMODE);
+	}
 	sverrno = errno;
 
 finish:
