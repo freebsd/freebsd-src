@@ -781,10 +781,17 @@ emulate_push(void *vm, int vcpuid, uint64_t mmio_gpa, struct vie *vie,
 
 	error = vm_copy_setup(vm, vcpuid, paging, stack_gla, size, PROT_WRITE,
 	    copyinfo, nitems(copyinfo));
-	if (error == -1)
-		return (-1);	/* Unrecoverable error */
-	else if (error == 1)
-		return (0);	/* Return to guest to handle page fault */
+	if (error == -1) {
+		/*
+		 * XXX cannot return a negative error value here because it
+		 * ends up being the return value of the VM_RUN() ioctl and
+		 * is interpreted as a pseudo-error (for e.g. ERESTART).
+		 */
+		return (EFAULT);
+	} else if (error == 1) {
+		/* Resume guest execution to handle page fault */
+		return (0);
+	}
 
 	error = memread(vm, vcpuid, mmio_gpa, &val, size, arg);
 	if (error == 0) {
