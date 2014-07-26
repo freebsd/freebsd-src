@@ -93,6 +93,7 @@ static char kname[1024];
 static uint32_t opts;
 static uint8_t dsk_meta;
 
+int main(void);
 static void load(void);
 static int parse(void);
 static int dskread(void *, unsigned, unsigned);
@@ -190,6 +191,7 @@ main(void)
 		else
 			load();
 	}
+	return (1);
 }
 
 static void
