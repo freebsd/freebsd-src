@@ -694,3 +694,26 @@ readudp(struct iodesc *h, void *pkt, size_t len, time_t timeout)
 	uh->uh_sport = udpread_p->s_port;
 	return udpread_p->buffer_size;
 }
+
+char *
+pxe_default_rc(void)
+{
+	char *rc;
+	size_t count, rcsz;
+
+	/* XXX It may not be a good idea to modify the PXE boot file. */
+	rc = (char *)bootplayer.bootfile;
+	rcsz = sizeof(bootplayer.bootfile);
+
+	/* Ignore how we define rc and rcsz above -- it can change. */
+	if (rcsz < 6)
+		return (NULL);
+	if (*rc == '\0') {
+		strncpy(rc, "pxeboot", rcsz);
+		rc[rcsz - 1] = '\0';
+	}
+	count = strlen(rc);
+	strncat(rc, ".4th", rcsz - count - 1);
+	printf("PXE: loading Forth from %s\n", rc);
+	return (rc);
+}
