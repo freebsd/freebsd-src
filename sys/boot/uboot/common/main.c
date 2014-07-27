@@ -492,7 +492,7 @@ main(void)
 	archsw.arch_readin = uboot_readin;
 	archsw.arch_autoload = uboot_autoload;
 
-	interact();				/* doesn't return */
+	interact(NULL);				/* doesn't return */
 
 	return (0);
 }
