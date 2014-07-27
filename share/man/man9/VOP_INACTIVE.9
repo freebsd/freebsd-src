@@ -69,7 +69,8 @@ and
 .Fn VOP_RECLAIM ,
 the
 .Fa vp
-will be locked on entry, and must be left locked on return.
+will be exclusively locked on entry, and must be left exclusively
+locked on return.
 .Sh SEE ALSO
 .Xr vnode 9
 .Sh AUTHORS
