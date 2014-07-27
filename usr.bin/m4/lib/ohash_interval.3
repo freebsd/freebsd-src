@@ -1,4 +1,4 @@
-.\"	$OpenBSD: ohash_interval.3,v 1.11 2007/05/31 19:19:30 jmc Exp $
+.\"	$OpenBSD: ohash_interval.3,v 1.1 2014/05/12 19:09:00 espie Exp $
 .\" Copyright (c) 2001 Marc Espie <espie@openbsd.org>
 .\"
 .\" Permission to use, copy, modify, and distribute this software for any
@@ -15,8 +15,8 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd $Mdocdate: May 31 2007 $
-.Dt OPEN_HASH_HELPER 3
+.Dd June 5 2013
+.Dt OHASH_INTERVAL 3
 .Os
 .Sh NAME
 .Nm ohash_interval ,
@@ -68,7 +68,10 @@ the alloc field of
 .Fa info
 should point to a
 .Xr malloc 3 Ns -like
-function to allocate the storage.
+function to allocate the storage:
+.Bd -literal -offset indent
+p = (*info->alloc)(sz, info->data);
+.Ed
 .Pp
 .Fn ohash_qlookupi
 is a wrapper function that simply calls

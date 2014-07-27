@@ -1,4 +1,4 @@
-.\"	$OpenBSD: ohash_init.3,v 1.14 2007/05/31 19:19:30 jmc Exp $
+.\"	$OpenBSD: ohash_init.3,v 1.2 2014/05/13 14:01:41 jmc Exp $
 .\" Copyright (c) 1999 Marc Espie <espie@openbsd.org>
 .\"
 .\" Permission to use, copy, modify, and distribute this software for any
@@ -15,8 +15,8 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd $Mdocdate: May 31 2007 $
-.Dt OPEN_HASH 3
+.Dd May 12 2014
+.Dt OHASH_INIT 3
 .Os
 .Sh NAME
 .Nm ohash_init ,
@@ -71,11 +71,46 @@ initializes the table to store roughly 2 to the power
 .Fa size
 elements.
 .Fa info
-holds the position of the key in each record, and two pointers to
+is a pointer to a
+.Fa struct ohash_info .
+.Bd -literal -offset indent
+struct ohash_info {
+	ptrdiff_t key_offset;
+	void *data;	/* user data */
+	void *(*calloc)(size_t, size_t, void *);
+	void (*free)(void *, void *);
+	void *(*alloc)(size_t, void *);
+};
+.Ed
+.Pp
+The
+.Va offset
+field holds the position of the key in each record;
+the
+.Va calloc
+and
+.Va free
+fields are pointers to
 .Xr calloc 3
 and
 .Xr free 3 Ns -like
-functions, to use for managing the table internal storage.
+functions, used for managing the table internal storage;
+the
+.Va alloc
+field is only used by the utility function
+.Xr ohash_create_entry 3 .
+.Pp
+Each of these functions are called similarly to their standard counterpart,
+but with an extra
+.Ft void *
+parameter corresponding to the content of the field
+.Fa data ,
+which can be used to communicate specific information to the functions.
+.Pp
+.Fn ohash_init
+stores a copy of those fields internally, so
+.Fa info
+can be reclaimed after initialization.
 .Pp
 .Fn ohash_delete
 frees storage internal to
@@ -166,7 +201,7 @@ for (n = ohash_first(h, &i); n != NULL; n = ohash_next(h, &i))
 points to an auxiliary unsigned integer used to record the current position
 in the ohash table.
 Those functions are safe to use even while entries are added to/removed
-from the table, but in such a case they do not guarantee that new entries
+from the table, but in such a case they don't guarantee that new entries
 will be returned.
 As a special case, they can safely be used to free elements in the table.
 .Pp
@@ -179,7 +214,13 @@ Only
 .Fn ohash_remove
 and
 .Fn ohash_delete
-may call the user-supplied memory functions.
+may call the user-supplied memory functions:
+.Bd -literal -offset indent
+p = (*info->calloc)(n, sizeof_record, info->data);
+/* copy data from old to p */
+(*info->free)(old, info->data);
+.Ed
+.Pp
 It is the responsibility of the user memory allocation code to verify
 that those calls did not fail.
 .Pp
@@ -213,6 +254,7 @@ call.
 .Pp
 Multi-threaded applications should explicitly protect ohash table access.
 .Sh SEE ALSO
+.Xr hcreate 3 ,
 .Xr ohash_interval 3
 .Rs
 .%A Donald E. Knuth
