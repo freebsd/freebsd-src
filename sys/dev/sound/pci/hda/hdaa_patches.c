@@ -352,14 +352,8 @@ hdac_pin_patch(struct hdaa_widget *w)
 		case 22:
 			patch = "as=1 seq=15";
 			break;
-		case 24:
-			patch = "as=2 seq=14";
-			break;
 		case 26:
 			patch = "as=1 seq=0";
-			break;
-		case 29:
-			patch = "as=2 seq=0";
 			break;
 		}
 	} else if (id == HDA_CODEC_CX20590 &&
