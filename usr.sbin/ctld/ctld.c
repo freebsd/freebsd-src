@@ -393,18 +393,23 @@ const struct auth_portal *
 auth_portal_find(const struct auth_group *ag, const struct sockaddr_storage *ss)
 {
 	const struct auth_portal *ap;
-	uint8_t *a, *b, bmask;
+	const uint8_t *a, *b;
 	int i;
+	uint8_t bmask;
 
 	TAILQ_FOREACH(ap, &ag->ag_portals, ap_next) {
 		if (ap->ap_sa.ss_family != ss->ss_family)
 			continue;
 		if (ss->ss_family == AF_INET) {
-			a = (uint8_t *)&((struct sockaddr_in *)ss)->sin_addr;
-			b = (uint8_t *)&((struct sockaddr_in *)&ap->ap_sa)->sin_addr;
+			a = (const uint8_t *)
+			    &((const struct sockaddr_in *)ss)->sin_addr;
+			b = (const uint8_t *)
+			    &((const struct sockaddr_in *)&ap->ap_sa)->sin_addr;
 		} else {
-			a = (uint8_t *)&((struct sockaddr_in6 *)ss)->sin6_addr;
-			b = (uint8_t *)&((struct sockaddr_in6 *)&ap->ap_sa)->sin6_addr;
+			a = (const uint8_t *)
+			    &((const struct sockaddr_in6 *)ss)->sin6_addr;
+			b = (const uint8_t *)
+			    &((const struct sockaddr_in6 *)&ap->ap_sa)->sin6_addr;
 		}
 		for (i = 0; i < ap->ap_mask / 8; i++) {
 			if (a[i] != b[i])
