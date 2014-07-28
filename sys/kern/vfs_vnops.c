@@ -1830,6 +1830,37 @@ vfs_write_resume(struct mount *mp, int flags)
 }
 
 /*
+ * Helper loop around vfs_write_suspend() for filesystem unmount VFS
+ * methods.
+ */
+int
+vfs_write_suspend_umnt(struct mount *mp)
+{
+	int error;
+
+	KASSERT((curthread->td_pflags & TDP_IGNSUSP) == 0,
+	    ("vfs_write_suspend_umnt: recursed"));
+
+	/* dounmount() already called vn_start_write(). */
+	for (;;) {
+		vn_finished_write(mp);
+		error = vfs_write_suspend(mp, 0);
+		if (error != 0)
+			return (error);
+		MNT_ILOCK(mp);
+		if ((mp->mnt_kern_flag & MNTK_SUSPENDED) != 0)
+			break;
+		MNT_IUNLOCK(mp);
+		vn_start_write(NULL, &mp, V_WAIT);
+	}
+	mp->mnt_kern_flag &= ~(MNTK_SUSPENDED | MNTK_SUSPEND2);
+	wakeup(&mp->mnt_flag);
+	MNT_IUNLOCK(mp);
+	curthread->td_pflags |= TDP_IGNSUSP;
+	return (0);
+}
+
+/*
  * Implement kqueues for files by translating it to vnode operation.
  */
 static int
