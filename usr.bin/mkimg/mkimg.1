@@ -24,12 +24,12 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 2, 2014
+.Dd July 4, 2014
 .Dt MKIMG 1
 .Os
 .Sh NAME
 .Nm mkimg
-.Nd "utility to make a disk image"
+.Nd "utility to make disk images"
 .Sh SYNOPSIS
 .Nm
 .Op Fl H Ar heads
@@ -40,6 +40,7 @@
 .Op Fl f Ar format
 .Op Fl o Ar outfile
 .Op Fl v
+.Op Fl y
 .Fl s Ar scheme
 .Fl p Ar partition
 .Op Fl p Ar partition ...
@@ -110,6 +111,16 @@ The
 option increases the level of output that the
 .Nm
 utility prints.
+.Pp
+The
+.Op Fl y
+option is used for testing purposes only and is not to be used in production.
+When present, the
+.Nm
+utility will generate predictable values for Universally Unique Identifiers
+(UUIDs) and time stamps so that consecutive runs of the
+.Nm
+utility will create images that are identical.
 .Pp
 For a complete list of supported partitioning schemes or supported output
 format, or for a detailed description of how to specify partitions, run the
