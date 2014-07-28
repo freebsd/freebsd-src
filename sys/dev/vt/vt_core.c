@@ -2064,7 +2064,6 @@ void
 vt_allocate(struct vt_driver *drv, void *softc)
 {
 	struct vt_device *vd;
-	struct winsize wsz;
 
 	if (!vty_enabled(VTY_VT))
 		return;
@@ -2125,11 +2124,6 @@ vt_allocate(struct vt_driver *drv, void *softc)
 	}
 
 	termcn_cnregister(vd->vd_windows[VT_CONSWINDOW]->vw_terminal);
-
-	/* Update console window sizes to actual. */
-	vt_winsize(vd, vd->vd_windows[VT_CONSWINDOW]->vw_font, &wsz);
-	terminal_set_winsize_blank(vd->vd_windows[VT_CONSWINDOW]->vw_terminal,
-	    &wsz, 0, NULL);
 }
 
 void
