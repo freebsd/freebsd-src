@@ -92,13 +92,23 @@
 #include "i40e_prototype.h"
 
 #ifdef I40E_DEBUG
+#include <sys/sbuf.h>
+
 #define MAC_FORMAT "%02x:%02x:%02x:%02x:%02x:%02x"
 #define MAC_FORMAT_ARGS(mac_addr) \
 	(mac_addr)[0], (mac_addr)[1], (mac_addr)[2], (mac_addr)[3], \
 	(mac_addr)[4], (mac_addr)[5]
 #define ON_OFF_STR(is_set) ((is_set) ? "On" : "Off")
 
+#define DPRINTF(...)		printf(__VA_ARGS__)
+#define DDPRINTF(dev, ...)	device_printf(dev, __VA_ARGS__)
+#define IDPRINTF(ifp, ...)	if_printf(ifp, __VA_ARGS__)
+
 // static void	i40e_dump_desc(void *, u8, u16);
+#else
+#define DPRINTF(...)
+#define DDPRINTF(...)
+#define IDPRINTF(...)
 #endif
 
 /* Tunables */
@@ -173,9 +183,20 @@
 #define I40E_ITR_NONE		3
 #define I40E_QUEUE_EOL		0x7FF
 #define I40E_MAX_FRAME		0x2600
-#define I40E_MAX_SEGS		32
-#define I40E_MAX_FILTERS	256 /* This is artificial */
+#define I40E_MAX_TX_SEGS	8 
+#define I40E_MAX_TSO_SEGS	66 
+#define I40E_SPARSE_CHAIN	6
+#define I40E_QUEUE_HUNG		0x80000000
+
+/* ERJ: hardware can support ~1.5k filters between all functions */
+#define I40E_MAX_FILTERS	256
 #define I40E_MAX_TX_BUSY	10
+
+#define I40E_NVM_VERSION_LO_SHIFT	0
+#define I40E_NVM_VERSION_LO_MASK	(0xff << I40E_NVM_VERSION_LO_SHIFT)
+#define I40E_NVM_VERSION_HI_SHIFT	12
+#define I40E_NVM_VERSION_HI_MASK	(0xf << I40E_NVM_VERSION_HI_SHIFT)
+
 
 /*
  * Interrupt Moderation parameters 
@@ -200,7 +221,9 @@
 /* used in the vlan field of the filter when not a vlan */
 #define I40E_VLAN_ANY		-1
 
-#define CSUM_OFFLOAD		(CSUM_IP|CSUM_TCP|CSUM_UDP|CSUM_SCTP)
+#define CSUM_OFFLOAD_IPV4	(CSUM_IP|CSUM_TCP|CSUM_UDP|CSUM_SCTP)
+#define CSUM_OFFLOAD_IPV6	(CSUM_TCP_IPV6|CSUM_UDP_IPV6|CSUM_SCTP_IPV6)
+#define CSUM_OFFLOAD		(CSUM_OFFLOAD_IPV4|CSUM_OFFLOAD_IPV6|CSUM_TSO)
 
 /* Misc flags for i40e_vsi.flags */
 #define I40E_FLAGS_KEEP_TSO4	(1 << 0)
@@ -238,6 +261,7 @@ struct i40e_tx_buf {
 	u32		eop_index;
 	struct mbuf	*m_head;
 	bus_dmamap_t	map;
+	bus_dma_tag_t	tag;
 };
 
 struct i40e_rx_buf {
@@ -246,15 +270,6 @@ struct i40e_rx_buf {
 	struct mbuf	*fmp;
 	bus_dmamap_t	hmap;
 	bus_dmamap_t	pmap;
-};
-
-struct i40e_pkt_info {
-	u16		etype;
-	u32		elen;
-	u32		iplen;
-	struct ip	*ip;
-	struct ip6_hdr	*ip6;
-	struct tcphdr	*th;
 };
 
 /*
@@ -275,7 +290,7 @@ struct i40e_mac_filter {
 struct tx_ring {
         struct i40e_queue	*que;
 	struct mtx		mtx;
-	int			watchdog;
+	u32			tail;
 	struct i40e_tx_desc	*base;
 	struct i40e_dma_mem	dma;
 	u16			next_avail;
@@ -287,7 +302,8 @@ struct tx_ring {
 	struct i40e_tx_buf	*buffers;
 	volatile u16		avail;
 	u32			cmd;
-	bus_dma_tag_t		tag;
+	bus_dma_tag_t		tx_tag;
+	bus_dma_tag_t		tso_tag;
 	char			mtx_name[16];
 	struct buf_ring		*br;
 
@@ -318,6 +334,7 @@ struct rx_ring {
 	char			mtx_name[16];
 	struct i40e_rx_buf	*buffers;
 	u32			mbuf_sz;
+	u32			tail;
 	bus_dma_tag_t		htag;
 	bus_dma_tag_t		ptag;
 
@@ -407,6 +424,7 @@ struct i40e_vsi {
 	u64			hw_filters_add;
 
 	/* Misc. */
+	u64 			active_queues;
 	u64 			flags;
 };
 
@@ -433,8 +451,9 @@ i40e_get_filter(struct i40e_vsi *vsi)
 {
 	struct i40e_mac_filter  *f;
 
-	// create a new empty filter
-	f = malloc(sizeof(struct i40e_mac_filter) , M_DEVBUF, M_NOWAIT | M_ZERO);
+	/* create a new empty filter */
+	f = malloc(sizeof(struct i40e_mac_filter),
+	    M_DEVBUF, M_NOWAIT | M_ZERO);
 	SLIST_INSERT_HEAD(&vsi->ftl, f, next);
 
 	return (f);
@@ -467,6 +486,25 @@ struct i40e_sysctl_info {
 
 extern int i40e_atr_rate;
 
+/*
+** i40e_fw_version_str - format the FW and NVM version strings
+*/
+static inline char *
+i40e_fw_version_str(struct i40e_hw *hw)
+{
+	static char buf[32];
+
+	snprintf(buf, sizeof(buf),
+	    "f%d.%d a%d.%d n%02x.%02x e%08x",
+	    hw->aq.fw_maj_ver, hw->aq.fw_min_ver,
+	    hw->aq.api_maj_ver, hw->aq.api_min_ver,
+	    (hw->nvm.version & I40E_NVM_VERSION_HI_MASK) >>
+	    I40E_NVM_VERSION_HI_SHIFT,
+	    (hw->nvm.version & I40E_NVM_VERSION_LO_MASK) >>
+	    I40E_NVM_VERSION_LO_SHIFT,
+	    hw->nvm.eetrack);
+	return buf;
+}
 
 /*********************************************************************
  *  TXRX Function prototypes

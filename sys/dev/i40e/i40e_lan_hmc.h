@@ -37,20 +37,25 @@
 
 /* forward-declare the HW struct for the compiler */
 struct i40e_hw;
-enum i40e_status_code;
 
 /* HMC element context information */
 
-/* Rx queue context data */
+/* Rx queue context data
+ *
+ * The sizes of the variables may be larger than needed due to crossing byte
+ * boundaries. If we do not have the width of the variable set to the correct
+ * size then we could end up shifting bits off the top of the variable when the
+ * variable is at the top of a byte and crosses over into the next byte.
+ */
 struct i40e_hmc_obj_rxq {
 	u16 head;
-	u8  cpuid;
+	u16 cpuid; /* bigger than needed, see above for reason */
 	u64 base;
 	u16 qlen;
 #define I40E_RXQ_CTX_DBUFF_SHIFT 7
-	u8  dbuff;
+	u16 dbuff; /* bigger than needed, see above for reason */
 #define I40E_RXQ_CTX_HBUFF_SHIFT 6
-	u8  hbuff;
+	u16 hbuff; /* bigger than needed, see above for reason */
 	u8  dtype;
 	u8  dsize;
 	u8  crcstrip;
@@ -59,16 +64,22 @@ struct i40e_hmc_obj_rxq {
 	u8  hsplit_0;
 	u8  hsplit_1;
 	u8  showiv;
-	u16 rxmax;
+	u32 rxmax; /* bigger than needed, see above for reason */
 	u8  tphrdesc_ena;
 	u8  tphwdesc_ena;
 	u8  tphdata_ena;
 	u8  tphhead_ena;
-	u8  lrxqthresh;
+	u16 lrxqthresh; /* bigger than needed, see above for reason */
 	u8  prefena;	/* NOTE: normally must be set to 1 at init */
 };
 
-/* Tx queue context data */
+/* Tx queue context data
+*
+* The sizes of the variables may be larger than needed due to crossing byte
+* boundaries. If we do not have the width of the variable set to the correct
+* size then we could end up shifting bits off the top of the variable when the
+* variable is at the top of a byte and crosses over into the next byte.
+*/
 struct i40e_hmc_obj_txq {
 	u16 head;
 	u8  new_context;
@@ -78,7 +89,7 @@ struct i40e_hmc_obj_txq {
 	u8  fd_ena;
 	u8  alt_vlan_ena;
 	u16 thead_wb;
-	u16 cpuid;
+	u8  cpuid;
 	u8  head_wb_ena;
 	u16 qlen;
 	u8  tphrdesc_ena;
@@ -122,11 +133,7 @@ enum i40e_hmc_lan_object_size {
 #define I40E_HMC_L2OBJ_BASE_ALIGNMENT 512
 #define I40E_HMC_OBJ_SIZE_TXQ         128
 #define I40E_HMC_OBJ_SIZE_RXQ         32
-#ifdef FORTVILLE_A0_SUPPORT
-#define I40E_HMC_OBJ_SIZE_FCOE_CNTX   128
-#else
 #define I40E_HMC_OBJ_SIZE_FCOE_CNTX   64
-#endif
 #define I40E_HMC_OBJ_SIZE_FCOE_FILT   64
 
 enum i40e_hmc_lan_rsrc_type {
