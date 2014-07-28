@@ -231,7 +231,7 @@ tmpfs_alloc_node(struct tmpfs_mount *tmp, enum vtype type,
 			NULL /* XXXKIB - tmpfs needs swap reservation */);
 		VM_OBJECT_WLOCK(obj);
 		/* OBJ_TMPFS is set together with the setting of vp->v_object */
-		vm_object_set_flag(obj, OBJ_NOSPLIT);
+		vm_object_set_flag(obj, OBJ_NOSPLIT | OBJ_TMPFS_NODE);
 		vm_object_clear_flag(obj, OBJ_ONEMAPPING);
 		VM_OBJECT_WUNLOCK(obj);
 		break;
