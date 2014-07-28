@@ -143,8 +143,6 @@ utouch_probe(device_t dev)
 	uint16_t d_len;
 	int err;
 
-	device_printf(dev, "utouch_probe()\n");
-
 	if (uaa->usb_mode != USB_MODE_HOST)
 		return (ENXIO);
 
@@ -162,8 +160,6 @@ utouch_probe(device_t dev)
 	else
 		err = ENXIO;
 
-	device_printf(dev, "probe: err = %d\n", err);
-
 	free(d_ptr, M_TEMP);
 	return (err);
 }
@@ -177,8 +173,6 @@ utouch_attach(device_t dev)
 	void *d_ptr = NULL;
 	uint16_t d_len;
 	int isize, i, err;
-
-	device_printf(dev, "utouch_attach()\n");
 
 	device_set_usb_desc(dev);
 	sc->sc_dev = dev;
@@ -224,7 +218,6 @@ utouch_attach(device_t dev)
 
 	for (i = 0; i < sc->sc_nbuttons; i++)
 		evdev_support_key(sc->sc_evdev, BTN_MOUSE + i);
-
 
 	/* Report absolute axes information */
 	absinfo.minimum = 0;
