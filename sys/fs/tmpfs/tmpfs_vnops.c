@@ -69,15 +69,22 @@ SYSCTL_INT(_vfs_tmpfs, OID_AUTO, rename_restarts, CTLFLAG_RD,
     "Times rename had to restart due to lock contention");
 
 static int
+tmpfs_vn_get_ino_alloc(struct mount *mp, void *arg, int lkflags,
+    struct vnode **rvp)
+{
+
+	return (tmpfs_alloc_vp(mp, arg, lkflags, rvp));
+}
+
+static int
 tmpfs_lookup(struct vop_cachedlookup_args *v)
 {
 	struct vnode *dvp = v->a_dvp;
 	struct vnode **vpp = v->a_vpp;
 	struct componentname *cnp = v->a_cnp;
-
-	int error;
 	struct tmpfs_dirent *de;
 	struct tmpfs_node *dnode;
+	int error;
 
 	dnode = VP_TO_TMPFS_DIR(dvp);
 	*vpp = NULLVP;
@@ -98,17 +105,10 @@ tmpfs_lookup(struct vop_cachedlookup_args *v)
 		goto out;
 	}
 	if (cnp->cn_flags & ISDOTDOT) {
-		int ltype = 0;
-
-		ltype = VOP_ISLOCKED(dvp);
-		vhold(dvp);
-		VOP_UNLOCK(dvp, 0);
-		/* Allocate a new vnode on the matching entry. */
-		error = tmpfs_alloc_vp(dvp->v_mount, dnode->tn_dir.tn_parent,
-		    cnp->cn_lkflags, vpp);
-
-		vn_lock(dvp, ltype | LK_RETRY);
-		vdrop(dvp);
+		error = vn_vget_ino_gen(dvp, tmpfs_vn_get_ino_alloc,
+		    dnode->tn_dir.tn_parent, cnp->cn_lkflags, vpp);
+		if (error != 0)
+			goto out;
 	} else if (cnp->cn_namelen == 1 && cnp->cn_nameptr[0] == '.') {
 		VREF(dvp);
 		*vpp = dvp;
