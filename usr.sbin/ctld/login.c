@@ -954,7 +954,7 @@ login(struct connection *conn)
 	}
 
 	if (auth_portal_defined(ag)) {
-		if (auth_portal_find(ag, conn->conn_initiator_addr) == NULL) {
+		if (auth_portal_find(ag, &conn->conn_initiator_sa) == NULL) {
 			login_send_error(request, 0x02, 0x02);
 			log_errx(1, "initiator does not match allowed "
 			    "initiator portals");
