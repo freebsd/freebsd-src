@@ -152,16 +152,11 @@ static int
 sbuf_extend(struct sbuf *s, int addlen)
 {
 	char *newbuf;
-	size_t newsize;
+	int newsize;
 
 	if (!SBUF_CANEXTEND(s))
 		return (-1);
 	newsize = sbuf_extendsize(s->s_size + addlen);
-	if (s->s_buf == s->s_static_buf && newsize <= sizeof(s->s_static_buf)) {
-		s->s_size = sizeof(s->s_static_buf);
-		return (0);
-	}
-
 	newbuf = SBMALLOC(newsize);
 	if (newbuf == NULL)
 		return (-1);
@@ -181,7 +176,7 @@ sbuf_extend(struct sbuf *s, int addlen)
  * big enough to hold at least length characters.
  */
 static struct sbuf *
-sbuf_newbuf(struct sbuf *s, char *buf, size_t length, int flags)
+sbuf_newbuf(struct sbuf *s, char *buf, int length, int flags)
 {
 
 	memset(s, 0, sizeof(*s));
@@ -199,11 +194,6 @@ sbuf_newbuf(struct sbuf *s, char *buf, size_t length, int flags)
 
 	if ((flags & SBUF_AUTOEXTEND) != 0)
 		s->s_size = sbuf_extendsize(s->s_size);
-
-	if (s->s_size <= sizeof(s->s_static_buf)) {
-		s->s_buf = s->s_static_buf;
-		return (s);
-	}
 
 	s->s_buf = SBMALLOC(s->s_size);
 	if (s->s_buf == NULL)
@@ -293,19 +283,21 @@ sbuf_clear(struct sbuf *s)
  * Effectively truncates the sbuf at the new position.
  */
 int
-sbuf_setpos(struct sbuf *s, size_t pos)
+sbuf_setpos(struct sbuf *s, ssize_t pos)
 {
 
 	assert_sbuf_integrity(s);
 	assert_sbuf_state(s, 0);
 
+	KASSERT(pos >= 0,
+	    ("attempt to seek to a negative position (%jd)", (intmax_t)pos));
 	KASSERT(pos < s->s_size,
 	    ("attempt to seek past end of sbuf (%jd >= %jd)",
 	    (intmax_t)pos, (intmax_t)s->s_size));
 	KASSERT(!SBUF_ISSECTION(s),
 	    ("attempt to seek when in a section"));
 
-	if (pos > s->s_len)
+	if (pos < 0 || pos > s->s_len)
 		return (-1);
 	s->s_len = pos;
 	return (0);
@@ -569,8 +561,7 @@ int
 sbuf_vprintf(struct sbuf *s, const char *fmt, va_list ap)
 {
 	va_list ap_copy;
-	size_t len;
-	int error;
+	int error, len;
 
 	assert_sbuf_integrity(s);
 	assert_sbuf_state(s, 0);
