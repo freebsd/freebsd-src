@@ -2111,6 +2111,7 @@ vt_allocate(struct vt_driver *drv, void *softc)
 	vd->vd_driver->vd_init(vd);
 	VT_UNLOCK(vd);
 
+	/* Update windows sizes and initialize last items. */
 	vt_upgrade(vd);
 
 #ifdef DEV_SPLASH
@@ -2119,10 +2120,16 @@ vt_allocate(struct vt_driver *drv, void *softc)
 #endif
 
 	if (vd->vd_flags & VDF_ASYNC) {
+		/* Allow to put chars now. */
 		terminal_mute(vd->vd_curwindow->vw_terminal, 0);
+		/* Rerun timer for screen updates. */
 		callout_schedule(&vd->vd_timer, hz / VT_TIMERFREQ);
 	}
 
+	/*
+	 * Register as console. If it already registered, cnadd() will ignore
+	 * it.
+	 */
 	termcn_cnregister(vd->vd_windows[VT_CONSWINDOW]->vw_terminal);
 }
 
