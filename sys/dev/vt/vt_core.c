@@ -996,7 +996,7 @@ vtterm_cnprobe(struct terminal *tm, struct consdev *cp)
 	sprintf(cp->cn_name, "ttyv%r", VT_UNIT(vw));
 
 	/* Attach default font if not in TEXTMODE. */
-	if (!(vd->vd_flags & VDF_TEXTMODE))
+	if ((vd->vd_flags & VDF_TEXTMODE) == 0)
 		vw->vw_font = vtfont_ref(&vt_font_default);
 
 	vtbuf_init_early(&vw->vw_buf);
@@ -1147,7 +1147,7 @@ vt_change_font(struct vt_window *vw, struct vt_font *vf)
 		VT_UNLOCK(vd);
 		return (EBUSY);
 	}
-	if (vw->vw_font == NULL) {
+	if (vd->vd_flags & VDF_TEXTMODE) {
 		/* Our device doesn't need fonts. */
 		VT_UNLOCK(vd);
 		return (ENOTTY);
@@ -1169,8 +1169,14 @@ vt_change_font(struct vt_window *vw, struct vt_font *vf)
 
 	/* Actually apply the font to the current window. */
 	VT_LOCK(vd);
-	vtfont_unref(vw->vw_font);
-	vw->vw_font = vtfont_ref(vf);
+	if (vw->vw_font != vf) {
+		/*
+		 * In case vt_change_font called to update size we don't need
+		 * to update font link.
+		 */
+		vtfont_unref(vw->vw_font);
+		vw->vw_font = vtfont_ref(vf);
+	}
 
 	/* Force a full redraw the next timer tick. */
 	if (vd->vd_curwindow == vw)
@@ -1978,7 +1984,7 @@ vt_allocate_window(struct vt_device *vd, unsigned int window)
 	vw->vw_number = window;
 	vw->vw_kbdmode = K_XLATE;
 
-	if (!(vd->vd_flags & VDF_TEXTMODE))
+	if ((vd->vd_flags & VDF_TEXTMODE) == 0)
 		vw->vw_font = vtfont_ref(&vt_font_default);
 
 	vt_termsize(vd, vw->vw_font, &size);
@@ -2056,7 +2062,10 @@ vt_resize(struct vt_device *vd)
 			vw->vw_font = vtfont_ref(&vt_font_default);
 		VT_UNLOCK(vd);
 		/* Resize terminal windows */
-		vt_change_font(vw, vw->vw_font);
+		while (vt_change_font(vw, vw->vw_font) == EBUSY) {
+			DPRINTF(100, "%s: vt_change_font() is busy, "
+			    "window %d\n", __func__, i);
+		}
 	}
 }
 
