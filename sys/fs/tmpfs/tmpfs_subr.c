@@ -548,6 +548,7 @@ loop1:
 		goto unlock;
 	MPASS(vp != NULL);
 
+	/* lkflag is ignored, the lock is exclusive */
 	(void) vn_lock(vp, lkflag | LK_RETRY);
 
 	vp->v_data = node;
