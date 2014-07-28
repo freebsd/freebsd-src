@@ -40,8 +40,6 @@
 
 # 20140723: renamed to PCBGROUP.9
 OLD_FILES+=usr/share/man/man9/PCBGROUPS.9.gz
-# 20140719: libsbuf version bump
-OLD_LIBS+=lib/libsbuf.so.6
 # 20140718: Remove obsolete man pages
 OLD_FILES+=usr/share/man/man9/zero_copy.9.gz
 OLD_FILES+=usr/share/man/man9/zero_copy_sockets.9.gz
