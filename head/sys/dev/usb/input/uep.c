@@ -30,6 +30,8 @@
  *  http://home.eeti.com.tw/web20/drivers/Software%20Programming%20Guide_v2.0.pdf
  */
 
+#include "opt_evdev.h"
+
 #include <sys/param.h>
 #include <sys/bus.h>
 #include <sys/callout.h>
@@ -50,6 +52,11 @@
 #include <sys/ioccom.h>
 #include <sys/fcntl.h>
 #include <sys/tty.h>
+
+#ifdef EVDEV
+#include <dev/evdev/input.h>
+#include <dev/evdev/evdev.h>
+#endif
 
 #define USB_DEBUG_VAR uep_debug
 #include <dev/usb/usb_debug.h>
@@ -93,6 +100,11 @@ struct uep_softc {
 	u_int		pollrate;
 	u_int		state;
 #define UEP_ENABLED	0x01
+#define	UEP_EV_OPENED	0x02
+
+#ifdef EVDEV
+	struct evdev_dev *evdev;
+#endif
 
 	/* Reassembling buffer. */
 	u_char		buf[UEP_PACKET_LEN_MAX];
@@ -110,6 +122,9 @@ static usb_fifo_cmd_t	uep_stop_read;
 static usb_fifo_open_t	uep_open;
 static usb_fifo_close_t	uep_close;
 
+static evdev_open_t uep_ev_open;
+static evdev_close_t uep_ev_close;
+
 static void uep_put_queue(struct uep_softc *, u_char *);
 
 static struct usb_fifo_methods uep_fifo_methods = {
@@ -118,6 +133,11 @@ static struct usb_fifo_methods uep_fifo_methods = {
 	.f_start_read = &uep_start_read,
 	.f_stop_read = &uep_stop_read,
 	.basename[0] = "uep",
+};
+
+static struct evdev_methods uep_evdev_methods = {
+	.ev_open = &uep_ev_open,
+	.ev_close = &uep_ev_close,
 };
 
 static int
@@ -152,6 +172,7 @@ static void
 uep_process_pkt(struct uep_softc *sc, u_char *buf)
 {
 	int32_t x, y;
+	int touch;
 
 	if ((buf[0] & 0xFE) != 0x80) {
 		DPRINTF("bad input packet format 0x%.2x\n", buf[0]);
@@ -179,10 +200,18 @@ uep_process_pkt(struct uep_softc *sc, u_char *buf)
 	 *
 	 */
 
+	touch = buf[0] & (1 << 0);
 	x = (buf[1] << 7) | buf[2];
 	y = (buf[3] << 7) | buf[4];
 
 	DPRINTFN(2, "x %u y %u\n", x, y);
+
+#ifdef EVDEV
+	evdev_push_event(sc->evdev, EV_ABS, ABS_X, x);
+	evdev_push_event(sc->evdev, EV_ABS, ABS_Y, y);
+	evdev_push_event(sc->evdev, EV_KEY, BTN_TOUCH, !!touch);
+	evdev_sync(sc->evdev);
+#endif
 
 	uep_put_queue(sc, buf);
 }
@@ -260,11 +289,17 @@ uep_intr_callback(struct usb_xfer *xfer, usb_error_t error)
 	case USB_ST_SETUP:
 	tr_setup:
 		/* check if we can put more data into the FIFO */
-		if (usb_fifo_put_bytes_max(sc->fifo.fp[USB_FIFO_RX]) != 0) {
-			usbd_xfer_set_frame_len(xfer, 0,
-			    usbd_xfer_max_len(xfer));
-			usbd_transfer_submit(xfer);
-                }
+		if (usb_fifo_put_bytes_max(sc->fifo.fp[USB_FIFO_RX]) == 0) {
+#ifdef EVDEV
+			if ((sc->state & UEP_EV_OPENED) == 0)
+				break;
+#else
+			break;
+#endif
+		}
+
+		usbd_xfer_set_frame_len(xfer, 0, usbd_xfer_max_len(xfer));
+		usbd_transfer_submit(xfer);
 		break;
 
 	default:
@@ -315,6 +350,9 @@ uep_attach(device_t dev)
 	struct usb_attach_arg *uaa = device_get_ivars(dev);
 	struct uep_softc *sc = device_get_softc(dev);
 	int error;
+#ifdef EVDEV
+	struct input_absinfo absinfo = { 0 };
+#endif
 
 	device_set_usb_desc(dev);
 
@@ -336,6 +374,29 @@ uep_attach(device_t dev)
 		DPRINTF("usb_fifo_attach error=%s\n", usbd_errstr(error));
                 goto detach;
         }
+
+#ifdef EVDEV
+	sc->evdev = evdev_alloc();
+	evdev_set_name(sc->evdev, device_get_desc(dev));
+	evdev_set_serial(sc->evdev, "0");
+	evdev_set_softc(sc->evdev, sc);
+	evdev_set_methods(sc->evdev, &uep_evdev_methods);
+	evdev_support_event(sc->evdev, EV_SYN);
+	evdev_support_event(sc->evdev, EV_ABS);
+	evdev_support_event(sc->evdev, EV_KEY);
+	evdev_support_abs(sc->evdev, ABS_X);
+	evdev_support_abs(sc->evdev, ABS_Y);
+
+	absinfo.minimum = 0;
+	absinfo.maximum = UEP_MAX_X;
+	evdev_set_absinfo(sc->evdev, ABS_X, &absinfo);
+
+	absinfo.minimum = 0;
+	absinfo.maximum = UEP_MAX_Y;
+	evdev_set_absinfo(sc->evdev, ABS_Y, &absinfo);
+
+	evdev_register(dev, sc->evdev);
+#endif
 
 	sc->buf_len = 0;
 
@@ -421,6 +482,36 @@ uep_close(struct usb_fifo *fifo, int fflags)
 		sc->state &= ~(UEP_ENABLED);
 		usb_fifo_free_buffer(fifo);
 	}
+}
+
+static void
+uep_ev_close(struct evdev_dev *evdev, void *ev_softc)
+{
+	struct uep_softc *sc = (struct uep_softc *)ev_softc;
+
+	mtx_lock(&sc->mtx);
+	usbd_transfer_stop(sc->xfer[UEP_INTR_DT]);
+	mtx_unlock(&sc->mtx);
+
+	sc->state &= ~(UEP_EV_OPENED);
+}
+
+static int
+uep_ev_open(struct evdev_dev *evdev, void *ev_softc)
+{
+	struct uep_softc *sc = (struct uep_softc *)ev_softc;
+
+	mtx_lock(&sc->mtx);
+
+	usbd_transfer_stop(sc->xfer[UEP_INTR_DT]);
+	usbd_xfer_set_interval(sc->xfer[UEP_INTR_DT], 100);
+	usbd_transfer_start(sc->xfer[UEP_INTR_DT]);
+
+	mtx_unlock(&sc->mtx);
+
+	sc->state |= UEP_EV_OPENED;
+
+	return (0);
 }
 
 static devclass_t uep_devclass;
