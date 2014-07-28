@@ -159,7 +159,7 @@ tmpfs_pages_check_avail(struct tmpfs_mount *tmp, size_t req_pages)
  * Returns zero on success or an appropriate error code on failure.
  */
 int
-tmpfs_alloc_node(struct tmpfs_mount *tmp, enum vtype type,
+tmpfs_alloc_node(struct mount *mp, struct tmpfs_mount *tmp, enum vtype type,
     uid_t uid, gid_t gid, mode_t mode, struct tmpfs_node *parent,
     char *target, dev_t rdev, struct tmpfs_node **node)
 {
@@ -169,6 +169,8 @@ tmpfs_alloc_node(struct tmpfs_mount *tmp, enum vtype type,
 	/* If the root directory of the 'tmp' file system is not yet
 	 * allocated, this must be the request to do it. */
 	MPASS(IMPLIES(tmp->tm_root == NULL, parent == NULL && type == VDIR));
+	KASSERT(tmp->tm_root == NULL || mp->mnt_writeopcount > 0,
+	    ("creating node not under vn_start_write"));
 
 	MPASS(IFF(type == VLNK, target != NULL));
 	MPASS(IFF(type == VBLK || type == VCHR, rdev != VNOVAL));
@@ -177,6 +179,24 @@ tmpfs_alloc_node(struct tmpfs_mount *tmp, enum vtype type,
 		return (ENOSPC);
 	if (tmpfs_pages_check_avail(tmp, 1) == 0)
 		return (ENOSPC);
+
+	if ((mp->mnt_kern_flag & MNTK_UNMOUNT) != 0) {
+		/*
+		 * When a new tmpfs node is created for fully
+		 * constructed mount point, there must be a parent
+		 * node, which vnode is locked exclusively.  As
+		 * consequence, if the unmount is executing in
+		 * parallel, vflush() cannot reclaim the parent vnode.
+		 * Due to this, the check for MNTK_UNMOUNT flag is not
+		 * racy: if we did not see MNTK_UNMOUNT flag, then tmp
+		 * cannot be destroyed until node construction is
+		 * finished and the parent vnode unlocked.
+		 *
+		 * Tmpfs does not need to instantiate new nodes during
+		 * unmount.
+		 */
+		return (EBUSY);
+	}
 
 	nnode = (struct tmpfs_node *)uma_zalloc_arg(
 				tmp->tm_node_pool, tmp, M_WAITOK);
@@ -687,7 +707,8 @@ tmpfs_alloc_file(struct vnode *dvp, struct vnode **vpp, struct vattr *vap,
 		parent = NULL;
 
 	/* Allocate a node that represents the new file. */
-	error = tmpfs_alloc_node(tmp, vap->va_type, cnp->cn_cred->cr_uid,
+	error = tmpfs_alloc_node(dvp->v_mount, tmp, vap->va_type,
+	    cnp->cn_cred->cr_uid,
 	    dnode->tn_gid, vap->va_mode, parent, target, vap->va_rdev, &node);
 	if (error != 0)
 		return (error);
