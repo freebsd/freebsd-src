@@ -88,6 +88,7 @@ typedef struct _ip_fw3_opheader {
 #define	IP_FW_XGET		97	/* Retrieve configuration */
 #define	IP_FW_XADD		98	/* add entry */
 #define	IP_FW_TABLE_XFIND	99	/* finds an entry */
+#define	IP_FW_XIFLIST		100	/* list tracked interfaces */
 
 /*
  * Usage guidelines:
@@ -729,6 +730,7 @@ typedef struct  _ipfw_obj_tlv {
 #define	IPFW_TLV_TBL_ENT	5
 #define	IPFW_TLV_DYN_ENT	6
 #define	IPFW_TLV_RULE_ENT	7
+#define	IPFW_TLV_TBLENT_LIST	8
 
 /* Object name TLV */
 typedef struct _ipfw_obj_ntlv {
@@ -787,6 +789,16 @@ typedef struct _ipfw_xtable_info {
 	char		algoname[32];	/* algorithm name		*/
 } ipfw_xtable_info;
 
+typedef struct _ipfw_iface_info {
+	char		ifname[64];	/* interface name		*/
+	uint32_t	ifindex;	/* interface index		*/
+	uint32_t	flags;		/* flags			*/
+	uint32_t	refcnt;		/* number of references		*/
+	uint32_t	gencnt;		/* number of changes		*/
+	uint64_t	spare;
+} ipfw_iface_info;
+#define	IPFW_IFFLAG_RESOLVED	0x01	/* Interface exists		*/
+
 #define	IPFW_OBJTYPE_TABLE	1
 typedef struct _ipfw_obj_header {
 	ip_fw3_opheader	opheader;	/* IP_FW3 opcode		*/
@@ -801,7 +813,7 @@ typedef struct _ipfw_obj_lheader {
 	ip_fw3_opheader	opheader;	/* IP_FW3 opcode		*/
 	uint32_t	set_mask;	/* disabled set mask		*/
 	uint32_t	count;		/* Total objects count		*/
-	uint32_t	size;		/* Total objects size		*/
+	uint32_t	size;		/* Total size (incl. header)	*/
 	uint32_t	objsize;	/* Size of one object		*/
 } ipfw_obj_lheader;
 

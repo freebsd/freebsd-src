@@ -29,14 +29,6 @@ __FBSDID("$FreeBSD: projects/ipfw/sys/netpfil/ipfw/ip_fw_table.c 267384 2014-06-
 /*
  * Lookup table algorithms.
  *
- * Lookup tables are implemented (at the moment) using the radix
- * tree used for routing tables. Tables store key-value entries, where
- * keys are network prefixes (addr/masklen), and values are integers.
- * As a degenerate case we can interpret keys as 32-bit integers
- * (with a /32 mask).
- *
- * The table is protected by the IPFW lock even for manipulation coming
- * from userland, because operations are typically fast.
  */
 
 #include "opt_ipfw.h"
@@ -68,6 +60,17 @@ __FBSDID("$FreeBSD: projects/ipfw/sys/netpfil/ipfw/ip_fw_table.c 267384 2014-06-
 
 static MALLOC_DEFINE(M_IPFW_TBL, "ipfw_tbl", "IpFw tables");
 
+static int badd(const void *key, void *item, void *base, size_t nmemb,
+    size_t size, int (*compar) (const void *, const void *));
+static int bdel(const void *key, void *base, size_t nmemb, size_t size,
+    int (*compar) (const void *, const void *));
+
+
+/*
+ * CIDR implementation using radix
+ *
+ */
+
 /*
  * The radix code expects addr and mask to be array of bytes,
  * with the first byte being the length of the array. rn_inithead
@@ -83,11 +86,9 @@ static MALLOC_DEFINE(M_IPFW_TBL, "ipfw_tbl", "IpFw tables");
  */
 #define KEY_LEN_INET	(offsetof(struct sockaddr_in, sin_addr) + sizeof(in_addr_t))
 #define KEY_LEN_INET6	(offsetof(struct sa_in6, sin6_addr) + sizeof(struct in6_addr))
-#define KEY_LEN_IFACE	(offsetof(struct xaddr_iface, ifname))
 
 #define OFF_LEN_INET	(8 * offsetof(struct sockaddr_in, sin_addr))
 #define OFF_LEN_INET6	(8 * offsetof(struct sa_in6, sin6_addr))
-#define OFF_LEN_IFACE	(8 * offsetof(struct xaddr_iface, ifname))
 
 struct radix_cidr_entry {
 	struct radix_node	rn[2];
@@ -109,23 +110,6 @@ struct radix_cidr_xentry {
 	uint32_t		value;
 	uint8_t			masklen;
 };
-
-struct xaddr_iface {
-	uint8_t			if_len;		/* length of this struct */
-	uint8_t			pad[7];		/* Align name */
-	char 			ifname[IF_NAMESIZE];	/* Interface name */
-};
-
-struct radix_iface {
-	struct radix_node	rn[2];
-	struct xaddr_iface	iface;
-	uint32_t		value;
-};
-
-/*
- * CIDR implementation using radix
- *
- */
 
 static int
 ta_lookup_radix(struct table_info *ti, void *key, uint32_t keylen,
@@ -164,7 +148,8 @@ ta_lookup_radix(struct table_info *ti, void *key, uint32_t keylen,
  * New table
  */
 static int
-ta_init_radix(void **ta_state, struct table_info *ti, char *data)
+ta_init_radix(struct ip_fw_chain *ch, void **ta_state, struct table_info *ti,
+    char *data)
 {
 
 	if (!rn_inithead(&ti->state, OFF_LEN_INET))
@@ -310,7 +295,8 @@ ipv6_writemask(struct in6_addr *addr6, uint8_t mask)
 
 
 static int
-ta_prepare_add_cidr(struct tentry_info *tei, void *ta_buf)
+ta_prepare_add_cidr(struct ip_fw_chain *ch, struct tentry_info *tei,
+    void *ta_buf)
 {
 	struct ta_buf_cidr *tb;
 	struct radix_cidr_entry *ent;
@@ -432,7 +418,8 @@ ta_add_cidr(void *ta_state, struct table_info *ti,
 }
 
 static int
-ta_prepare_del_cidr(struct tentry_info *tei, void *ta_buf)
+ta_prepare_del_cidr(struct ip_fw_chain *ch, struct tentry_info *tei,
+    void *ta_buf)
 {
 	struct ta_buf_cidr *tb;
 	struct sockaddr_in sa, mask;
@@ -512,7 +499,8 @@ ta_del_cidr(void *ta_state, struct table_info *ti,
 }
 
 static void
-ta_flush_cidr_entry(struct tentry_info *tei, void *ta_buf)
+ta_flush_cidr_entry(struct ip_fw_chain *ch, struct tentry_info *tei,
+    void *ta_buf)
 {
 	struct ta_buf_cidr *tb;
 
@@ -539,25 +527,168 @@ struct table_algo radix_cidr = {
 
 
 /*
- * Iface table cmds
+ * Iface table cmds.
+ *
+ * Implementation:
+ *
+ * Runtime part:
+ * - sorted array of "struct ifidx" pointed by ti->state.
+ *   Array is allocated with routing up to IFIDX_CHUNK. Only existing
+ *   interfaces are stored in array, however its allocated size is
+ *   sufficient to hold all table records if needed.
+ * - current array size is stored in ti->data
+ *
+ * Table data:
+ * - "struct iftable_cfg" is allocated to store table state (ta_state).
+ * - All table records are stored inside namedobj instance.
  *
  */
 
+struct ifidx {
+	uint16_t	kidx;
+	uint16_t	spare;
+	uint32_t	value;
+};
+
+struct iftable_cfg;
+
+struct ifentry {
+	struct named_object	no;
+	struct ipfw_ifc		ic;
+	struct iftable_cfg	*icfg;
+	TAILQ_ENTRY(ifentry)	next;
+	uint32_t		value;
+	int			linked;
+};
+
+struct iftable_cfg {
+	struct namedobj_instance	*ii;
+	struct ip_fw_chain	*ch;
+	struct table_info	*ti;
+	void	*main_ptr;
+	size_t	size;	/* Number of items allocated in array */
+	size_t	count;	/* Number of all items */
+	size_t	used;	/* Number of items _active_ now */
+};
+
+#define	IFIDX_CHUNK	16
+
+int compare_ifidx(const void *k, const void *v);
+static void if_notifier(struct ip_fw_chain *ch, void *cbdata, uint16_t ifindex);
+
+int
+compare_ifidx(const void *k, const void *v)
+{
+	struct ifidx *ifidx;
+	uint16_t key;
+
+	key = *((uint16_t *)k);
+	ifidx = (struct ifidx *)v;
+
+	if (key < ifidx->kidx)
+		return (-1);
+	else if (key > ifidx->kidx)
+		return (1);
+	
+	return (0);
+}
+
+/*
+ * Adds item @item with key @key into ascending-sorted array @base.
+ * Assumes @base has enough additional storage.
+ *
+ * Returns 1 on success, 0 on duplicate key.
+ */
 static int
-ta_lookup_iface(struct table_info *ti, void *key, uint32_t keylen,
+badd(const void *key, void *item, void *base, size_t nmemb,
+    size_t size, int (*compar) (const void *, const void *))
+{
+	int min, max, mid, shift, res;
+	caddr_t paddr;
+
+	if (nmemb == 0) {
+		memcpy(base, item, size);
+		return (1);
+	}
+
+	/* Binary search */
+	min = 0;
+	max = nmemb - 1;
+	mid = 0;
+	while (min <= max) {
+		mid = (min + max) / 2;
+		res = compar(key, (const void *)((caddr_t)base + mid * size));
+		if (res == 0)
+			return (0);
+
+		if (res > 0)
+			 min = mid + 1;
+		else
+			 max = mid - 1;
+	}
+
+	/* Item not found. */
+	res = compar(key, (const void *)((caddr_t)base + mid * size));
+	if (res > 0)
+		shift = mid + 1;
+	else
+		shift = mid;
+
+	paddr = (caddr_t)base + shift * size;
+	if (nmemb > shift)
+		memmove(paddr + size, paddr, (nmemb - shift) * size);
+
+	memcpy(paddr, item, size);
+
+	return (1);
+}
+
+/*
+ * Deletes item with key @key from ascending-sorted array @base.
+ *
+ * Returns 1 on success, 0 for non-existent key.
+ */
+static int
+bdel(const void *key, void *base, size_t nmemb, size_t size,
+    int (*compar) (const void *, const void *))
+{
+	caddr_t item;
+	size_t sz;
+
+	item = (caddr_t)bsearch(key, base, nmemb, size, compar);
+
+	if (item == NULL)
+		return (0);
+
+	sz = (caddr_t)base + nmemb * size - item;
+
+	if (sz > 0)
+		memmove(item, item + size, sz);
+
+	return (1);
+}
+
+static struct ifidx *
+ifidx_find(struct table_info *ti, void *key)
+{
+	struct ifidx *ifi;
+
+	ifi = bsearch(key, ti->state, ti->data, sizeof(struct ifidx),
+	    compare_ifidx);
+
+	return (ifi);
+}
+
+static int
+ta_lookup_ifidx(struct table_info *ti, void *key, uint32_t keylen,
     uint32_t *val)
 {
-	struct radix_node_head *rnh;
-	struct xaddr_iface iface;
-	struct radix_iface *xent;
+	struct ifidx *ifi;
 
-	KEY_LEN(iface) = KEY_LEN_IFACE +
-	    strlcpy(iface.ifname, (char *)key, IF_NAMESIZE) + 1;
+	ifi = ifidx_find(ti, key);
 
-	rnh = (struct radix_node_head *)ti->xstate;
-	xent = (struct radix_iface *)(rnh->rnh_matchaddr(&iface, rnh));
-	if (xent != NULL) {
-		*val = xent->value;
+	if (ifi != NULL) {
+		*val = ifi->value;
 		return (1);
 	}
 
@@ -565,56 +696,182 @@ ta_lookup_iface(struct table_info *ti, void *key, uint32_t keylen,
 }
 
 static int
-flush_iface_entry(struct radix_node *rn, void *arg)
+ta_init_ifidx(struct ip_fw_chain *ch, void **ta_state, struct table_info *ti,
+    char *data)
 {
-	struct radix_node_head * const rnh = arg;
-	struct radix_iface *xent;
+	struct iftable_cfg *icfg;
 
-	xent = (struct radix_iface *)
-	    rnh->rnh_deladdr(rn->rn_key, rn->rn_mask, rnh);
-	if (xent != NULL)
-		free(xent, M_IPFW_TBL);
-	return (0);
-}
+	icfg = malloc(sizeof(struct iftable_cfg), M_IPFW, M_WAITOK | M_ZERO);
 
-static int
-ta_init_iface(void **ta_state, struct table_info *ti, char *data)
-{
+	icfg->ii = ipfw_objhash_create(16);
+	icfg->main_ptr = malloc(sizeof(struct ifidx) * IFIDX_CHUNK,  M_IPFW,
+	    M_WAITOK | M_ZERO);
+	icfg->size = IFIDX_CHUNK;
+	icfg->ch = ch;
 
-	if (!rn_inithead(&ti->xstate, OFF_LEN_IFACE))
-		return (ENOMEM);
-
-	*ta_state = NULL;
-	ti->lookup = ta_lookup_iface;
+	*ta_state = icfg;
+	ti->state = icfg->main_ptr;
+	ti->lookup = ta_lookup_ifidx;
 
 	return (0);
 }
 
+/*
+ * Handle tableinfo @ti pointer change (on table array resize).
+ */
+static void
+ta_change_ti_ifidx(void *ta_state, struct table_info *ti)
+{
+	struct iftable_cfg *icfg;
+
+	icfg = (struct iftable_cfg *)ta_state;
+	icfg->ti = ti;
+}
 
 static void
-ta_destroy_iface(void *ta_state, struct table_info *ti)
+destroy_ifidx_locked(struct namedobj_instance *ii, struct named_object *no,
+    void *arg)
 {
-	struct radix_node_head *rnh;
+	struct ifentry *ife;
+	struct ip_fw_chain *ch;
 
-	rnh = (struct radix_node_head *)(ti->xstate);
-	rnh->rnh_walktree(rnh, flush_iface_entry, rnh);
-	rn_detachhead(&ti->xstate);
+	ch = (struct ip_fw_chain *)arg;
+	ife = (struct ifentry *)no;
+
+	ipfw_iface_del_notify(ch, &ife->ic);
+	free(ife, M_IPFW_TBL);
 }
 
-struct ta_buf_iface
+
+/*
+ * Destroys table @ti
+ */
+static void
+ta_destroy_ifidx(void *ta_state, struct table_info *ti)
 {
-	void	*addr_ptr;
-	void	*mask_ptr;
-	void	*ent_ptr;
-	struct xaddr_iface	iface;
+	struct iftable_cfg *icfg;
+	struct ip_fw_chain *ch;
+
+	icfg = (struct iftable_cfg *)ta_state;
+	ch = icfg->ch;
+
+	if (icfg->main_ptr != NULL)
+		free(icfg->main_ptr, M_IPFW);
+
+	ipfw_objhash_foreach(icfg->ii, destroy_ifidx_locked, ch);
+
+	ipfw_objhash_destroy(icfg->ii);
+
+	free(icfg, M_IPFW);
+}
+
+struct ta_buf_ifidx
+{
+	struct ifentry *ife;
+	uint32_t value;
 };
 
+/*
+ * Prepare state to add to the table:
+ * allocate ifentry and reference needed interface.
+ */
 static int
-ta_prepare_add_iface(struct tentry_info *tei, void *ta_buf)
+ta_prepare_add_ifidx(struct ip_fw_chain *ch, struct tentry_info *tei,
+    void *ta_buf)
+{
+	struct ta_buf_ifidx *tb;
+	char *ifname;
+	struct ifentry *ife;
+
+	tb = (struct ta_buf_ifidx *)ta_buf;
+	memset(tb, 0, sizeof(struct ta_buf_cidr));
+
+	/* Check if string is terminated */
+	ifname = (char *)tei->paddr;
+	if (strnlen(ifname, IF_NAMESIZE) == IF_NAMESIZE)
+		return (EINVAL);
+
+	ife = malloc(sizeof(struct ifentry), M_IPFW_TBL, M_WAITOK | M_ZERO);
+	ife->value = tei->value;
+	ife->ic.cb = if_notifier;
+	ife->ic.cbdata = ife;
+
+	if (ipfw_iface_ref(ch, ifname, &ife->ic) != 0)
+		return (EINVAL);
+
+	/* Use ipfw_iface 'ifname' field as stable storage */
+	ife->no.name = ife->ic.iface->ifname;
+
+	tb->ife = ife;
+
+	return (0);
+}
+
+static int
+ta_add_ifidx(void *ta_state, struct table_info *ti,
+    struct tentry_info *tei, void *ta_buf, uint64_t *pflags)
+{
+	struct iftable_cfg *icfg;
+	struct ifentry *ife, *tmp;
+	struct ta_buf_ifidx *tb;
+	struct ipfw_iface *iif;
+	struct ifidx *ifi;
+	char *ifname;
+
+	tb = (struct ta_buf_ifidx *)ta_buf;
+	ifname = (char *)tei->paddr;
+	icfg = (struct iftable_cfg *)ta_state;
+	ife = tb->ife;
+
+	ife->icfg = icfg;
+
+	tmp = (struct ifentry *)ipfw_objhash_lookup_name(icfg->ii, 0, ifname);
+
+	if (tmp != NULL) {
+		if ((tei->flags & TEI_FLAGS_UPDATE) == 0)
+			return (EEXIST);
+
+		/* We need to update value */
+		iif = tmp->ic.iface;
+		tmp->value = ife->value;
+
+		if (iif->resolved != 0) {
+			/* We need to update runtime value, too */
+			ifi = ifidx_find(ti, &iif->ifindex);
+			ifi->value = ife->value;
+		}
+
+		/* Indicate that update has happened instead of addition */
+		tei->flags |= TEI_FLAGS_UPDATED;
+		return (0);
+	}
+
+	/* Link to internal list */
+	ipfw_objhash_add(icfg->ii, &ife->no);
+
+	/* Link notifier (possible running its callback) */
+	ipfw_iface_add_notify(icfg->ch, &ife->ic);
+	icfg->count++;
+
+	if (icfg->count + 1 == icfg->size) {
+		/* Notify core we need to grow */
+		*pflags = icfg->size + IFIDX_CHUNK;
+	}
+
+	tb->ife = NULL;
+
+	return (0);
+}
+
+/*
+ * Prepare to delete key from table.
+ * Do basic interface name checks.
+ */
+static int
+ta_prepare_del_ifidx(struct ip_fw_chain *ch, struct tentry_info *tei,
+    void *ta_buf)
 {
 	struct ta_buf_iface *tb;
-	struct radix_iface *xent;
-	int mlen;
 	char *ifname;
 
 	tb = (struct ta_buf_iface *)ta_buf;
@@ -625,189 +882,302 @@ ta_prepare_add_iface(struct tentry_info *tei, void *ta_buf)
 	if (strnlen(ifname, IF_NAMESIZE) == IF_NAMESIZE)
 		return (EINVAL);
 
-	/* Include last \0 into comparison */
-	mlen = strlen(ifname) + 1;
+	return (0);
+}
 
-	xent = malloc(sizeof(*xent), M_IPFW_TBL, M_WAITOK | M_ZERO);
-	xent->value = tei->value;
-	/* Set 'total' structure length */
-	KEY_LEN(xent->iface) = KEY_LEN_IFACE + mlen;
-	memcpy(xent->iface.ifname, tei->paddr, mlen);
-	/* Set pointers */
-	tb->ent_ptr = xent;
-	tb->addr_ptr = (struct sockaddr *)&xent->iface;
-	/* Assume direct match */
-	tb->mask_ptr = NULL;
+/*
+ * Remove key from both configuration list and
+ * runtime array. Removed interface notification.
+ */
+static int
+ta_del_ifidx(void *ta_state, struct table_info *ti,
+    struct tentry_info *tei, void *ta_buf, uint64_t *pflags)
+{
+	struct iftable_cfg *icfg;
+	struct ifentry *ife;
+	struct ta_buf_ifidx *tb;
+	char *ifname;
+	uint16_t ifindex;
+	int res;
+
+	tb = (struct ta_buf_ifidx *)ta_buf;
+	ifname = (char *)tei->paddr;
+	icfg = (struct iftable_cfg *)ta_state;
+	ife = tb->ife;
+
+	ife = (struct ifentry *)ipfw_objhash_lookup_name(icfg->ii, 0, ifname);
+
+	if (ife == NULL)
+		return (ENOENT);
+
+	if (ife->linked != 0) {
+		/* We have to remove item from runtime */
+		ifindex = ife->ic.iface->ifindex;
+
+		res = bdel(&ifindex, icfg->main_ptr, icfg->used,
+		    sizeof(struct ifidx), compare_ifidx);
+
+		KASSERT(res == 1, ("index %d does not exist", ifindex));
+		icfg->used--;
+		ti->data = icfg->used;
+		ife->linked = 0;
+	}
+
+	/* Unlink from local list */
+	ipfw_objhash_del(icfg->ii, &ife->no);
+	/* Unlink notifier */
+	ipfw_iface_del_notify(icfg->ch, &ife->ic);
+
+	icfg->count--;
+
+	tb->ife = ife;
 
 	return (0);
 }
 
-static int
-ta_add_iface(void *ta_state, struct table_info *ti,
-    struct tentry_info *tei, void *ta_buf, uint64_t *pflags)
+/*
+ * Flush deleted entry.
+ * Drops interface reference and frees entry.
+ */
+static void
+ta_flush_ifidx_entry(struct ip_fw_chain *ch, struct tentry_info *tei,
+    void *ta_buf)
 {
-	struct radix_node_head *rnh;
-	struct radix_node *rn;
-	struct ta_buf_iface *tb;
-	uint32_t value;
+	struct ta_buf_ifidx *tb;
 
-	tb = (struct ta_buf_iface *)ta_buf;
+	tb = (struct ta_buf_ifidx *)ta_buf;
 
-	rnh = ti->xstate;
-	rn = rnh->rnh_addaddr(tb->addr_ptr, tb->mask_ptr, rnh, tb->ent_ptr);
-	
-	if (rn == NULL) {
-		if ((tei->flags & TEI_FLAGS_UPDATE) == 0)
-			return (EEXIST);
-		/* Record already exists. Update value if we're asked to */
-		rn = rnh->rnh_lookup(tb->addr_ptr, tb->mask_ptr, rnh);
-		if (rn == NULL) {
-			/* Radix may have failed addition for other reasons */
-			return (EINVAL);
-		}
-		
-		value = ((struct radix_iface *)tb->ent_ptr)->value;
-		((struct radix_iface *)rn)->value = value;
+	if (tb->ife != NULL) {
+		/* Unlink first */
+		ipfw_iface_unref(ch, &tb->ife->ic);
+		free(tb->ife, M_IPFW_TBL);
+	}
+}
 
-		/* Indicate that update has happened instead of addition */
-		tei->flags |= TEI_FLAGS_UPDATED;
 
+/*
+ * Handle interface announce/withdrawal for particular table.
+ * Every real runtime array modification happens here.
+ */
+static void
+if_notifier(struct ip_fw_chain *ch, void *cbdata, uint16_t ifindex)
+{
+	struct ifentry *ife;
+	struct ifidx ifi;
+	struct iftable_cfg *icfg;
+	struct table_info *ti;
+	int res;
+
+	ife = (struct ifentry *)cbdata;
+	icfg = ife->icfg;
+	ti = icfg->ti;
+
+	KASSERT(ti != NULL, ("ti=NULL, check change_ti handler"));
+
+	if (ife->linked == 0 && ifindex != 0) {
+		/* Interface announce */
+		ifi.kidx = ifindex;
+		ifi.spare = 0;
+		ifi.value = ife->value;
+		res = badd(&ifindex, &ifi, icfg->main_ptr, icfg->used,
+		    sizeof(struct ifidx), compare_ifidx);
+		KASSERT(res == 1, ("index %d already exists", ifindex));
+		icfg->used++;
+		ti->data = icfg->used;
+		ife->linked = 1;
+	} else if (ife->linked != 0 && ifindex == 0) {
+		/* Interface withdrawal */
+		ifindex = ife->ic.iface->ifindex;
+
+		res = bdel(&ifindex, icfg->main_ptr, icfg->used,
+		    sizeof(struct ifidx), compare_ifidx);
+
+		KASSERT(res == 1, ("index %d does not exist", ifindex));
+		icfg->used--;
+		ti->data = icfg->used;
+		ife->linked = 0;
+	}
+}
+
+
+/*
+ * Table growing callbacks.
+ */
+
+struct mod_ifidx {
+	void	*main_ptr;
+	size_t	size;
+};
+
+/*
+ * Allocate ned, larger runtime ifidx array.
+ */
+static int
+ta_prepare_mod_ifidx(void *ta_buf, uint64_t *pflags)
+{
+	struct mod_ifidx *mi;
+
+	mi = (struct mod_ifidx *)ta_buf;
+
+	memset(mi, 0, sizeof(struct mod_ifidx));
+	mi->size = *pflags;
+	mi->main_ptr = malloc(sizeof(struct ifidx) * mi->size, M_IPFW,
+	    M_WAITOK | M_ZERO);
+
+	return (0);
+}
+
+/*
+ * Copy data from old runtime array to new one.
+ */
+static int
+ta_fill_mod_ifidx(void *ta_state, struct table_info *ti, void *ta_buf,
+    uint64_t *pflags)
+{
+	struct mod_ifidx *mi;
+	struct iftable_cfg *icfg;
+
+	mi = (struct mod_ifidx *)ta_buf;
+	icfg = (struct iftable_cfg *)ta_state;
+
+	/* Check if we still need to grow array */
+	if (icfg->size >= mi->size) {
+		*pflags = 0;
 		return (0);
 	}
 
-	tb->ent_ptr = NULL;
+	memcpy(mi->main_ptr, icfg->main_ptr, icfg->used * sizeof(struct ifidx));
 
 	return (0);
 }
 
+/*
+ * Switch old & new arrays.
+ */
 static int
-ta_prepare_del_iface(struct tentry_info *tei, void *ta_buf)
+ta_modify_ifidx(void *ta_state, struct table_info *ti, void *ta_buf,
+    uint64_t pflags)
 {
-	struct ta_buf_iface *tb;
-	int mlen;
-	char c;
+	struct mod_ifidx *mi;
+	struct iftable_cfg *icfg;
+	void *old_ptr;
 
-	tb = (struct ta_buf_iface *)ta_buf;
-	memset(tb, 0, sizeof(struct ta_buf_cidr));
+	mi = (struct mod_ifidx *)ta_buf;
+	icfg = (struct iftable_cfg *)ta_state;
 
-	/* Check if string is terminated */
-	c = ((char *)tei->paddr)[IF_NAMESIZE - 1];
-	((char *)tei->paddr)[IF_NAMESIZE - 1] = '\0';
-	mlen = strlen((char *)tei->paddr);
-	if ((mlen == IF_NAMESIZE - 1) && (c != '\0'))
-		return (EINVAL);
+	old_ptr = icfg->main_ptr;
+	icfg->main_ptr = mi->main_ptr;
+	icfg->size = mi->size;
+	ti->state = icfg->main_ptr;
 
-	struct xaddr_iface ifname, ifmask;
-	memset(&ifname, 0, sizeof(ifname));
-
-	/* Include last \0 into comparison */
-	mlen++;
-
-	/* Set 'total' structure length */
-	KEY_LEN(ifname) = KEY_LEN_IFACE + mlen;
-	KEY_LEN(ifmask) = KEY_LEN_IFACE + mlen;
-	/* Assume direct match */
-	memcpy(ifname.ifname, tei->paddr, mlen);
-	/* Set pointers */
-	tb->iface = ifname;
-	tb->addr_ptr = &tb->iface;
-	tb->mask_ptr = NULL;
+	mi->main_ptr = old_ptr;
 
 	return (0);
 }
 
-static int
-ta_del_iface(void *ta_state, struct table_info *ti,
-    struct tentry_info *tei, void *ta_buf, uint64_t *pflags)
-{
-	struct radix_node_head *rnh;
-	struct radix_node *rn;
-	struct ta_buf_iface *tb;
-
-	tb = (struct ta_buf_iface *)ta_buf;
-
-	rnh = ti->xstate;
-	rn = rnh->rnh_deladdr(tb->addr_ptr, tb->mask_ptr, rnh);
-
-	tb->ent_ptr = rn;
-	
-	if (rn == NULL)
-		return (ENOENT);
-
-	return (0);
-}
-
+/*
+ * Free unneded array.
+ */
 static void
-ta_flush_iface_entry(struct tentry_info *tei, void *ta_buf)
+ta_flush_mod_ifidx(void *ta_buf)
 {
-	struct ta_buf_iface *tb;
+	struct mod_ifidx *mi;
 
-	tb = (struct ta_buf_iface *)ta_buf;
-
-	if (tb->ent_ptr != NULL)
-		free(tb->ent_ptr, M_IPFW_TBL);
+	mi = (struct mod_ifidx *)ta_buf;
+	if (mi->main_ptr != NULL)
+		free(mi->main_ptr, M_IPFW);
 }
 
 static int
-ta_dump_iface_tentry(void *ta_state, struct table_info *ti, void *e,
+ta_dump_ifidx_tentry(void *ta_state, struct table_info *ti, void *e,
     ipfw_obj_tentry *tent)
 {
-	struct radix_iface *xn;
+	struct ifentry *ife;
 
-	xn = (struct radix_iface *)e;
+	ife = (struct ifentry *)e;
+
 	tent->masklen = 8 * IF_NAMESIZE;
-	memcpy(&tent->k, &xn->iface.ifname, IF_NAMESIZE);
-	tent->value = xn->value;
+	memcpy(&tent->k, ife->no.name, IF_NAMESIZE);
+	tent->value = ife->value;
 
 	return (0);
 }
 
 static int
-ta_find_iface_tentry(void *ta_state, struct table_info *ti, void *key,
+ta_find_ifidx_tentry(void *ta_state, struct table_info *ti, void *key,
     uint32_t keylen, ipfw_obj_tentry *tent)
 {
-	struct radix_node_head *rnh;
-	struct xaddr_iface iface;
-	void *e;
-	e = NULL;
+	struct iftable_cfg *icfg;
+	struct ifentry *ife;
+	char *ifname;
 
-	KEY_LEN(iface) = KEY_LEN_IFACE +
-	    strlcpy(iface.ifname, (char *)key, IF_NAMESIZE) + 1;
+	icfg = (struct iftable_cfg *)ta_state;
+	ifname = (char *)key;
 
-	rnh = (struct radix_node_head *)ti->xstate;
-	e = rnh->rnh_matchaddr(&iface, rnh);
+	if (strnlen(ifname, IF_NAMESIZE) == IF_NAMESIZE)
+		return (EINVAL);
 
-	if (e != NULL) {
-		ta_dump_iface_tentry(ta_state, ti, e, tent);
+	ife = (struct ifentry *)ipfw_objhash_lookup_name(icfg->ii, 0, ifname);
+
+	if (ife != NULL) {
+		ta_dump_ifidx_tentry(ta_state, ti, ife, tent);
 		return (0);
 	}
 
 	return (ENOENT);
 }
 
+struct wa_ifidx {
+	ta_foreach_f	*f;
+	void		*arg;
+};
+
 static void
-ta_foreach_iface(void *ta_state, struct table_info *ti, ta_foreach_f *f,
+foreach_ifidx(struct namedobj_instance *ii, struct named_object *no,
     void *arg)
 {
-	struct radix_node_head *rnh;
+	struct ifentry *ife;
+	struct wa_ifidx *wa;
 
-	rnh = (struct radix_node_head *)(ti->xstate);
-	rnh->rnh_walktree(rnh, (walktree_f_t *)f, arg);
+	ife = (struct ifentry *)no;
+	wa = (struct wa_ifidx *)arg;
+
+	wa->f(ife, wa->arg);
 }
 
-struct table_algo radix_iface = {
-	.name		= "radix_iface",
-	.lookup		= ta_lookup_iface,
-	.init		= ta_init_iface,
-	.destroy	= ta_destroy_iface,
-	.prepare_add	= ta_prepare_add_iface,
-	.prepare_del	= ta_prepare_del_iface,
-	.add		= ta_add_iface,
-	.del		= ta_del_iface,
-	.flush_entry	= ta_flush_iface_entry,
-	.foreach	= ta_foreach_iface,
-	.dump_tentry	= ta_dump_iface_tentry,
-	.find_tentry	= ta_find_iface_tentry,
+static void
+ta_foreach_ifidx(void *ta_state, struct table_info *ti, ta_foreach_f *f,
+    void *arg)
+{
+	struct iftable_cfg *icfg;
+	struct wa_ifidx wa;
+
+	icfg = (struct iftable_cfg *)ta_state;
+
+	wa.f = f;
+	wa.arg = arg;
+
+	ipfw_objhash_foreach(icfg->ii, foreach_ifidx, &wa);
+}
+
+struct table_algo idx_iface = {
+	.name		= "idx_iface",
+	.lookup		= ta_lookup_ifidx,
+	.init		= ta_init_ifidx,
+	.destroy	= ta_destroy_ifidx,
+	.prepare_add	= ta_prepare_add_ifidx,
+	.prepare_del	= ta_prepare_del_ifidx,
+	.add		= ta_add_ifidx,
+	.del		= ta_del_ifidx,
+	.flush_entry	= ta_flush_ifidx_entry,
+	.foreach	= ta_foreach_ifidx,
+	.dump_tentry	= ta_dump_ifidx_tentry,
+	.find_tentry	= ta_find_ifidx_tentry,
+	.prepare_mod	= ta_prepare_mod_ifidx,
+	.fill_mod	= ta_fill_mod_ifidx,
+	.modify		= ta_modify_ifidx,
+	.flush_mod	= ta_flush_mod_ifidx,
+	.change_ti	= ta_change_ti_ifidx,
 };
 
 void
@@ -817,7 +1187,7 @@ ipfw_table_algo_init(struct ip_fw_chain *chain)
 	 * Register all algorithms presented here.
 	 */
 	ipfw_add_table_algo(chain, &radix_cidr);
-	ipfw_add_table_algo(chain, &radix_iface);
+	ipfw_add_table_algo(chain, &idx_iface);
 }
 
 void

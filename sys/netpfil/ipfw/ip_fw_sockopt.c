@@ -1859,6 +1859,10 @@ ipfw_ctl(struct sockopt *sopt)
 		error = dump_config(chain, &sdata);
 		break;
 
+	case IP_FW_XIFLIST: /* IP_FW3 */
+		error = ipfw_list_ifaces(chain, &sdata);
+		break;
+
 	case IP_FW_XADD: /* IP_FW3 */
 		error = add_entry(chain, &sdata);
 		break;

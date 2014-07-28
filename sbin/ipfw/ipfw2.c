@@ -520,6 +520,26 @@ safe_realloc(void *ptr, size_t size)
 }
 
 /*
+ * Compare things like interface or table names.
+ */
+int
+stringnum_cmp(const char *a, const char *b)
+{
+	int la, lb;
+
+	la = strlen(a);
+	lb = strlen(b);
+
+	if (la > lb)
+		return (1);
+	else if (la < lb)
+		return (-01);
+
+	return (strcmp(a, b));
+}
+
+
+/*
  * conditionally runs the command.
  * Selected options or negative -> getsockopt
  */
@@ -4681,4 +4701,79 @@ ipfw_flush(int force)
 	if (!co.do_quiet)
 		printf("Flushed all %s.\n", co.do_pipe ? "pipes" : "rules");
 }
+
+int
+ipfw_get_tracked_ifaces(ipfw_obj_lheader **polh)
+{
+	ipfw_obj_lheader req, *olh;
+	size_t sz;
+	int error;
+
+	memset(&req, 0, sizeof(req));
+	sz = sizeof(req);
+
+	error = do_get3(IP_FW_XIFLIST, &req.opheader, &sz);
+	if (error != 0 && error != ENOMEM)
+		return (error);
+
+	sz = req.size;
+	if ((olh = calloc(1, sz)) == NULL)
+		return (ENOMEM);
+
+	olh->size = sz;
+	if ((error = do_get3(IP_FW_XIFLIST, &olh->opheader, &sz)) != 0) {
+		free(olh);
+		return (error);
+	}
+
+	*polh = olh;
+	return (0);
+}
+
+static int
+ifinfo_cmp(const void *a, const void *b)
+{
+	ipfw_iface_info *ia, *ib;
+
+	ia = (ipfw_iface_info *)a;
+	ib = (ipfw_iface_info *)b;
+
+	return (stringnum_cmp(ia->ifname, ib->ifname));
+}
+
+/*
+ * Retrieves table list from kernel,
+ * optionally sorts it and calls requested function for each table.
+ * Returns 0 on success.
+ */
+void
+ipfw_list_tifaces()
+{
+	ipfw_obj_lheader *olh;
+	ipfw_iface_info *info;
+	int i, error;
+
+	if ((error = ipfw_get_tracked_ifaces(&olh)) != 0)
+		err(EX_OSERR, "Unable to request ipfw tracked interface list");
+
+
+	qsort(olh + 1, olh->count, olh->objsize, ifinfo_cmp);
+
+	info = (ipfw_iface_info *)(olh + 1);
+	for (i = 0; i < olh->count; i++) {
+		if (info->flags & IPFW_IFFLAG_RESOLVED)
+			printf("%s ifindex: %d refcount: %u changes: %u\n",
+			    info->ifname, info->ifindex, info->refcnt,
+			    info->gencnt);
+		else
+			printf("%s ifindex: unresolved refcount: %u changes: %u\n",
+			    info->ifname, info->refcnt, info->gencnt);
+		info = (ipfw_iface_info *)((caddr_t)info + olh->objsize);
+	}
+
+	free(olh);
+}
+
+
+
 

@@ -246,6 +246,7 @@ void *safe_realloc(void *ptr, size_t size);
 /* string comparison functions used for historical compatibility */
 int _substrcmp(const char *str1, const char* str2);
 int _substrcmp2(const char *str1, const char* str2, const char* str3);
+int stringnum_cmp(const char *a, const char *b);
 
 /* utility functions */
 int match_token(struct _s_x *table, char *string);
@@ -295,6 +296,7 @@ void ipfw_delete(char *av[]);
 void ipfw_flush(int force);
 void ipfw_zero(int ac, char *av[], int optname);
 void ipfw_list(int ac, char *av[], int show_counters);
+void ipfw_list_tifaces(void);
 
 #ifdef PF
 /* altq.c */

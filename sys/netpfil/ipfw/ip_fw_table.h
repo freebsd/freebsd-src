@@ -62,15 +62,19 @@ struct tentry_info {
 #define	TEI_FLAGS_UPDATED	0x02	/* Entry has been updated	*/
 #define	TEI_FLAGS_COMPAT	0x04	/* Called from old ABI		*/
 
-typedef int (ta_init)(void **ta_state, struct table_info *ti, char *data);
+typedef int (ta_init)(struct ip_fw_chain *ch, void **ta_state,
+    struct table_info *ti, char *data);
 typedef void (ta_destroy)(void *ta_state, struct table_info *ti);
-typedef int (ta_prepare_add)(struct tentry_info *tei, void *ta_buf);
-typedef int (ta_prepare_del)(struct tentry_info *tei, void *ta_buf);
+typedef int (ta_prepare_add)(struct ip_fw_chain *ch, struct tentry_info *tei,
+    void *ta_buf);
+typedef int (ta_prepare_del)(struct ip_fw_chain *ch, struct tentry_info *tei,
+    void *ta_buf);
 typedef int (ta_add)(void *ta_state, struct table_info *ti,
     struct tentry_info *tei, void *ta_buf, uint64_t *pflags);
 typedef int (ta_del)(void *ta_state, struct table_info *ti,
     struct tentry_info *tei, void *ta_buf, uint64_t *pflags);
-typedef void (ta_flush_entry)(struct tentry_info *tei, void *ta_buf);
+typedef void (ta_flush_entry)(struct ip_fw_chain *ch, struct tentry_info *tei,
+    void *ta_buf);
 
 typedef int (ta_prepare_mod)(void *ta_buf, uint64_t *pflags);
 typedef int (ta_fill_mod)(void *ta_state, struct table_info *ti,
@@ -79,6 +83,7 @@ typedef int (ta_modify)(void *ta_state, struct table_info *ti,
     void *ta_buf, uint64_t pflags);
 typedef void (ta_flush_mod)(void *ta_buf);
 
+typedef void (ta_change_ti)(void *ta_state, struct table_info *ti);
 typedef void (ta_print_config)(void *ta_state, struct table_info *ti, char *buf,
     size_t bufsize);
 
@@ -109,9 +114,11 @@ struct table_algo {
 	ta_dump_tentry	*dump_tentry;
 	ta_print_config	*print_config;
 	ta_find_tentry	*find_tentry;
+	ta_change_ti	*change_ti;
 };
+
 void ipfw_add_table_algo(struct ip_fw_chain *ch, struct table_algo *ta);
-extern struct table_algo radix_cidr, radix_iface;
+extern struct table_algo radix_cidr, idx_iface;
 
 void ipfw_table_algo_init(struct ip_fw_chain *chain);
 void ipfw_table_algo_destroy(struct ip_fw_chain *chain);

@@ -438,6 +438,8 @@ ipfw_main(int oldac, char **oldav)
 			ipfw_list(ac, av, 1 /* show counters */);
 		else if (_substrcmp(*av, "table") == 0)
 			ipfw_table_handler(ac, av);
+		else if (_substrcmp(*av, "iflist") == 0)
+			ipfw_list_tifaces();
 		else
 			errx(EX_USAGE, "bad command `%s'", *av);
 	}

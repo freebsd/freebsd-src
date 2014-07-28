@@ -357,15 +357,18 @@ tcpopts_match(struct tcphdr *tcp, ipfw_insn *cmd)
 }
 
 static int
-iface_match(struct ifnet *ifp, ipfw_insn_if *cmd, struct ip_fw_chain *chain, uint32_t *tablearg)
+iface_match(struct ifnet *ifp, ipfw_insn_if *cmd, struct ip_fw_chain *chain,
+    uint32_t *tablearg)
 {
+
 	if (ifp == NULL)	/* no iface with this packet, match fails */
-		return 0;
+		return (0);
+
 	/* Check by name or by IP address */
 	if (cmd->name[0] != '\0') { /* match by name */
 		if (cmd->name[0] == '\1') /* use tablearg to match */
 			return ipfw_lookup_table_extended(chain, cmd->p.glob, 0,
-				ifp->if_xname, tablearg);
+				&ifp->if_index, tablearg);
 		/* Check name */
 		if (cmd->p.glob) {
 			if (fnmatch(cmd->name, ifp->if_xname, 0) == 0)
@@ -2608,6 +2611,7 @@ ipfw_init(void)
 	  default_fw_tables = IPFW_TABLES_MAX;
 
 	ipfw_log_bpf(1); /* init */
+	ipfw_iface_init();
 	return (error);
 }
 
@@ -2618,6 +2622,7 @@ static void
 ipfw_destroy(void)
 {
 
+	ipfw_iface_destroy();
 	ipfw_log_bpf(0); /* uninit */
 	printf("IP firewall unloaded\n");
 }
@@ -2740,6 +2745,7 @@ vnet_ipfw_uninit(const void *unused)
 	ipfw_destroy_tables(chain);
 	if (reap != NULL)
 		ipfw_reap_rules(reap);
+	vnet_ipfw_iface_destroy(chain);
 	IPFW_LOCK_DESTROY(chain);
 	ipfw_dyn_uninit(1);	/* free the remaining parts */
 	ipfw_destroy_counters();
