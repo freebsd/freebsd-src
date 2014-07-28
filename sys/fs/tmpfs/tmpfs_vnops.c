@@ -258,6 +258,8 @@ tmpfs_open(struct vop_open_args *v)
 	else {
 		error = 0;
 		/* For regular files, the call below is nop. */
+		KASSERT(vp->v_type != VREG || (node->tn_reg.tn_aobj->flags &
+		    OBJ_DEAD) == 0, ("dead object"));
 		vnode_create_vobject(vp, node->tn_size, v->a_td);
 	}
 
