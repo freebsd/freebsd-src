@@ -274,12 +274,28 @@ struct ip_fw_chain {
 	struct ip_fw	*reap;		/* list of rules to reap */
 	struct ip_fw	*default_rule;
 	struct tables_config *tblcfg;	/* tables module data */
+	void		*ifcfg;		/* interface module data */
 #if defined( __linux__ ) || defined( _WIN32 )
 	spinlock_t uh_lock;
 #else
 	struct rwlock	uh_lock;	/* lock for upper half */
 #endif
 };
+
+struct namedobj_instance;
+
+struct named_object {
+	TAILQ_ENTRY(named_object)	nn_next;	/* namehash */
+	TAILQ_ENTRY(named_object)	nv_next;	/* valuehash */
+	char			*name;	/* object name */
+	uint8_t			type;	/* object type */
+	uint8_t			compat;	/* Object name is number */
+	uint16_t		kidx;	/* object kernel index */
+	uint16_t		uidx;	/* userland idx for compat records */
+	uint32_t		set;	/* set object belongs to */
+	uint32_t		refcnt;	/* number of references */
+};
+TAILQ_HEAD(namedobjects_head, named_object);
 
 struct sockopt;	/* used by tcp_var.h */
 struct sockopt_data {
@@ -290,6 +306,30 @@ struct sockopt_data {
 	size_t		ktotal;		/* total bytes pushed */
 	struct sockopt	*sopt;		/* socket data */
 	size_t		valsize;	/* original data size */
+};
+
+struct ipfw_ifc;
+
+typedef void (ipfw_ifc_cb)(struct ip_fw_chain *ch, void *cbdata,
+    uint16_t ifindex);
+
+struct ipfw_iface {
+	struct named_object	no;
+	char ifname[64];
+	int resolved;
+	uint16_t ifindex;
+	uint16_t spare;
+	uint64_t gencnt;
+	TAILQ_HEAD(, ipfw_ifc)	consumers;
+};
+
+struct ipfw_ifc {
+	TAILQ_ENTRY(ipfw_ifc)	next;
+	struct ipfw_iface	*iface;
+	ipfw_ifc_cb		*cb;
+	void			*cbdata;
+	int			linked;
+	int			spare;
 };
 
 /* Macro for working with various counters */
@@ -442,6 +482,17 @@ struct ip_fw_bcounter0 {
 #define	RULEKSIZE1(r)	roundup2((sizeof(struct ip_fw) + (r)->cmd_len*4 - 4), 8)
 
 
+/* In ip_fw_iface.c */
+int ipfw_iface_init(void);
+void ipfw_iface_destroy(void);
+void vnet_ipfw_iface_destroy(struct ip_fw_chain *ch);
+int ipfw_iface_ref(struct ip_fw_chain *ch, char *name,
+    struct ipfw_ifc *ic);
+void ipfw_iface_unref(struct ip_fw_chain *ch, struct ipfw_ifc *ic);
+void ipfw_iface_add_notify(struct ip_fw_chain *ch, struct ipfw_ifc *ic);
+void ipfw_iface_del_notify(struct ip_fw_chain *ch, struct ipfw_ifc *ic);
+int ipfw_list_ifaces(struct ip_fw_chain *ch, struct sockopt_data *sd);
+
 /* In ip_fw_sockopt.c */
 int ipfw_find_rule(struct ip_fw_chain *chain, uint32_t key, uint32_t id);
 int ipfw_ctl(struct sockopt *sopt);
@@ -453,21 +504,6 @@ struct ip_fw *ipfw_alloc_rule(struct ip_fw_chain *chain, size_t rulesize);
 
 caddr_t ipfw_get_sopt_space(struct sockopt_data *sd, size_t needed);
 caddr_t ipfw_get_sopt_header(struct sockopt_data *sd, size_t needed);
-
-struct namedobj_instance;
-
-struct named_object {
-	TAILQ_ENTRY(named_object)	nn_next;	/* namehash */
-	TAILQ_ENTRY(named_object)	nv_next;	/* valuehash */
-	char			*name;	/* object name */
-	uint8_t			type;	/* object type */
-	uint8_t			compat;	/* Object name is number */
-	uint16_t		kidx;	/* object kernel index */
-	uint16_t		uidx;	/* userland idx for compat records */
-	uint32_t		set;	/* set object belongs to */
-	uint32_t		refcnt;	/* number of references */
-};
-TAILQ_HEAD(namedobjects_head, named_object);
 
 typedef void (objhash_cb_t)(struct namedobj_instance *ni, struct named_object *,
     void *arg);

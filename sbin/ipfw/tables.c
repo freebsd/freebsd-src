@@ -767,19 +767,11 @@ static int
 tablename_cmp(const void *a, const void *b)
 {
 	ipfw_xtable_info *ia, *ib;
-	int la, lb;
 
 	ia = (ipfw_xtable_info *)a;
 	ib = (ipfw_xtable_info *)b;
-	la = strlen(ia->tablename);
-	lb = strlen(ib->tablename);
 
-	if (la > lb)
-		return (1);
-	else if (la < lb)
-		return (-01);
-
-	return (strcmp(ia->tablename, ib->tablename));
+	return (stringnum_cmp(ia->tablename, ib->tablename));
 }
 
 /*
