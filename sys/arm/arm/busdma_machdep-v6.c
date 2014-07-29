@@ -179,7 +179,6 @@ static bus_addr_t add_bounce_page(bus_dma_tag_t dmat, bus_dmamap_t map,
 				  vm_offset_t vaddr, bus_addr_t addr,
 				  bus_size_t size);
 static void free_bounce_page(bus_dma_tag_t dmat, struct bounce_page *bpage);
-int run_filter(bus_dma_tag_t dmat, bus_addr_t paddr, bus_size_t size, int coherent);
 static void _bus_dmamap_count_pages(bus_dma_tag_t dmat, bus_dmamap_t map,
     void *buf, bus_size_t buflen, int flags);
 static void _bus_dmamap_count_phys(bus_dma_tag_t dmat, bus_dmamap_t map,
@@ -289,6 +288,69 @@ cacheline_bounce(bus_addr_t addr, bus_size_t size)
 	return ((addr | size) & arm_dcache_align_mask);
 }
 
+/*
+ * Return true if we might need to bounce the DMA described by addr and size.
+ *
+ * This is used to quick-check whether we need to do the more expensive work of
+ * checking the DMA page-by-page looking for alignment and exclusion bounces.
+ *
+ * Note that the addr argument might be either virtual or physical.  It doesn't
+ * matter because we only look at the low-order bits, which are the same in both
+ * address spaces.
+ */
+static __inline int
+might_bounce(bus_dma_tag_t dmat, bus_dmamap_t map, bus_addr_t addr, 
+    bus_size_t size)
+{
+	return ((dmat->flags & BUS_DMA_COULD_BOUNCE) ||
+	    !((map->flags & DMAMAP_COHERENT) && cacheline_bounce(addr, size)));
+}
+
+/*
+ * Return true if we must bounce the DMA described by paddr and size.
+ *
+ * Bouncing can be triggered by DMA that doesn't begin and end on cacheline
+ * boundaries, or doesn't begin on an alignment boundary, or falls within the
+ * exclusion zone of any tag in the ancestry chain.
+ *
+ * For exclusions, walk the chain of tags comparing paddr to the exclusion zone
+ * within each tag.  If the tag has a filter function, use it to decide whether
+ * the DMA needs to bounce, otherwise any DMA within the zone bounces.
+ */
+static int
+must_bounce(bus_dma_tag_t dmat, bus_dmamap_t map, bus_addr_t paddr, 
+    bus_size_t size)
+{
+
+	/* Coherent memory doesn't need to bounce due to cache alignment. */
+	if (!(map->flags & DMAMAP_COHERENT) && cacheline_bounce(paddr, size))
+		return (1);
+
+	/*
+	 *  The tag already contains ancestors' alignment restrictions so this
+	 *  check doesn't need to be inside the loop.
+	 */
+	if (alignment_bounce(dmat, paddr))
+		return (1);
+
+	/*
+	 * Even though each tag has an exclusion zone that is a superset of its
+	 * own and all its ancestors' exclusions, the exclusion zone of each tag
+	 * up the chain must be checked within the loop, because the busdma
+	 * rules say the filter function is called only when the address lies
+	 * within the low-highaddr range of the tag that filterfunc belongs to.
+	 */
+	while (dmat != NULL && exclusion_bounce(dmat)) {
+		if ((paddr >= dmat->lowaddr && paddr <= dmat->highaddr) &&
+		    (dmat->filter == NULL || 
+		    dmat->filter(dmat->filterarg, paddr) != 0))
+			return (1);
+		dmat = dmat->parent;
+	} 
+
+	return (0);
+}
+
 static __inline struct arm32_dma_range *
 _bus_dma_inrange(struct arm32_dma_range *ranges, int nranges,
     bus_addr_t curaddr)
@@ -303,33 +365,6 @@ _bus_dma_inrange(struct arm32_dma_range *ranges, int nranges,
 	}
 
 	return (NULL);
-}
-
-/*
- * Return true if a match is made.
- *
- * To find a match walk the chain of bus_dma_tag_t's looking for 'paddr'.
- *
- * If paddr is within the bounds of the dma tag then call the filter callback
- * to check for a match, if there is no filter callback then assume a match.
- */
-int
-run_filter(bus_dma_tag_t dmat, bus_addr_t paddr, bus_size_t size, int coherent)
-{
-	int retval;
-
-	retval = 0;
-
-	do {
-		if (((paddr > dmat->lowaddr && paddr <= dmat->highaddr) ||
-		    alignment_bounce(dmat, paddr) ||
-		    (!coherent && cacheline_bounce(paddr, size))) &&
-		    (dmat->filter == NULL || 
-		     dmat->filter(dmat->filterarg, paddr) != 0))
-			retval = 1;
-		dmat = dmat->parent;
-	} while (retval == 0 && dmat != NULL);
-	return (retval);
 }
 
 /*
@@ -823,8 +858,7 @@ _bus_dmamap_count_phys(bus_dma_tag_t dmat, bus_dmamap_t map, vm_paddr_t buf,
 		curaddr = buf;
 		while (buflen != 0) {
 			sgsize = MIN(buflen, dmat->maxsegsz);
-			if (run_filter(dmat, curaddr, sgsize, 
-			    map->flags & DMAMAP_COHERENT) != 0) {
+			if (must_bounce(dmat, map, curaddr, sgsize) != 0) {
 				sgsize = MIN(sgsize, PAGE_SIZE);
 				map->pagesneeded++;
 			}
@@ -860,10 +894,9 @@ _bus_dmamap_count_pages(bus_dma_tag_t dmat, bus_dmamap_t map,
 				paddr = pmap_kextract(vaddr);
 			else
 				paddr = pmap_extract(map->pmap, vaddr);
-			if (run_filter(dmat, paddr,
-			    min(vendaddr - vaddr, 
-			    (PAGE_SIZE - ((vm_offset_t)vaddr & PAGE_MASK))),
-			    map->flags & DMAMAP_COHERENT) != 0) {
+			if (must_bounce(dmat, map, paddr,
+			    min(vendaddr - vaddr, (PAGE_SIZE - ((vm_offset_t)vaddr & 
+			    PAGE_MASK)))) != 0) {
 				map->pagesneeded++;
 			}
 			vaddr += (PAGE_SIZE - ((vm_offset_t)vaddr & PAGE_MASK));
@@ -979,8 +1012,7 @@ _bus_dmamap_load_phys(bus_dma_tag_t dmat,
 	if (segs == NULL)
 		segs = dmat->segments;
 
-	if (((map->flags & DMAMAP_COHERENT) == 0) ||
-	    (dmat->flags & BUS_DMA_COULD_BOUNCE) != 0) {
+	if (might_bounce(dmat, map, buflen, buflen)) {
 		_bus_dmamap_count_phys(dmat, map, buf, buflen, flags);
 		if (map->pagesneeded != 0) {
 			error = _bus_dmamap_reserve_pages(dmat, map, flags);
@@ -992,10 +1024,8 @@ _bus_dmamap_load_phys(bus_dma_tag_t dmat,
 	while (buflen > 0) {
 		curaddr = buf;
 		sgsize = MIN(buflen, dmat->maxsegsz);
-		if ((((map->flags & DMAMAP_COHERENT) == 0) ||
-		    ((dmat->flags & BUS_DMA_COULD_BOUNCE) != 0)) &&
-		    map->pagesneeded != 0 && run_filter(dmat, curaddr,
-		    sgsize, map->flags & DMAMAP_COHERENT)) {
+		if (map->pagesneeded != 0 && must_bounce(dmat, map, curaddr,
+		    sgsize)) {
 			sgsize = MIN(sgsize, PAGE_SIZE);
 			curaddr = add_bounce_page(dmat, map, 0, curaddr,
 						  sgsize);
@@ -1052,8 +1082,7 @@ _bus_dmamap_load_buffer(bus_dma_tag_t dmat,
 
 	map->pmap = pmap;
 
-	if (!(map->flags & DMAMAP_COHERENT) ||
-	    (dmat->flags & BUS_DMA_COULD_BOUNCE) != 0) {
+	if (might_bounce(dmat, map, (bus_addr_t)buf, buflen)) {
 		_bus_dmamap_count_pages(dmat, map, buf, buflen, flags);
 		if (map->pagesneeded != 0) {
 			error = _bus_dmamap_reserve_pages(dmat, map, flags);
@@ -1083,10 +1112,8 @@ _bus_dmamap_load_buffer(bus_dma_tag_t dmat,
 		if (buflen < sgsize)
 			sgsize = buflen;
 
-		if ((((map->flags & DMAMAP_COHERENT) == 0) ||
-		    ((dmat->flags & BUS_DMA_COULD_BOUNCE) != 0)) &&
-		    map->pagesneeded != 0 && run_filter(dmat, curaddr,
-		    sgsize, map->flags & DMAMAP_COHERENT)) {
+		if (map->pagesneeded != 0 && must_bounce(dmat, map, curaddr,
+		    sgsize)) {
 			curaddr = add_bounce_page(dmat, map, vaddr, curaddr,
 						  sgsize);
 		} else {
