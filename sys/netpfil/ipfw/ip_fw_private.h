@@ -496,6 +496,7 @@ int ipfw_list_ifaces(struct ip_fw_chain *ch, struct sockopt_data *sd);
 /* In ip_fw_sockopt.c */
 int ipfw_find_rule(struct ip_fw_chain *chain, uint32_t key, uint32_t id);
 int ipfw_ctl(struct sockopt *sopt);
+int ipfw_ctl3(struct sockopt *sopt);
 int ipfw_chk(struct ip_fw_args *args);
 void ipfw_reap_rules(struct ip_fw *head);
 void ipfw_init_counters(void);

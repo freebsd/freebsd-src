@@ -1719,6 +1719,188 @@ add_entry(struct ip_fw_chain *chain, struct sockopt_data *sd)
 	return (error);
 }
 
+int
+ipfw_ctl3(struct sockopt *sopt)
+{
+	int error;
+	size_t bsize_max, size, valsize;
+	struct ip_fw_chain *chain;
+	uint32_t opt;
+	char xbuf[128];
+	struct sockopt_data sdata;
+	ip_fw3_opheader *op3 = NULL;
+
+	/* Do not check privs twice untile we're called from ipfw_ctl() */
+#if 0
+	error = priv_check(sopt->sopt_td, PRIV_NETINET_IPFW);
+	if (error != 0)
+		return (error);
+#endif
+
+	if (sopt->sopt_name != IP_FW3)
+		return (ENOTSUP);
+
+	chain = &V_layer3_chain;
+	error = 0;
+
+	/* Save original valsize before it is altered via sooptcopyin() */
+	valsize = sopt->sopt_valsize;
+	memset(&sdata, 0, sizeof(sdata));
+	/* Read op3 header first to determine actual operation */
+	op3 = (ip_fw3_opheader *)xbuf;
+	error = sooptcopyin(sopt, op3, sizeof(*op3), sizeof(*op3));
+	if (error != 0)
+		return (error);
+	opt = op3->opcode;
+	sopt->sopt_valsize = valsize;
+
+	/*
+	 * Disallow modifications in really-really secure mode, but still allow
+	 * the logging counters to be reset.
+	 */
+	if (opt == IP_FW_ADD ||
+	    (sopt->sopt_dir == SOPT_SET && opt != IP_FW_RESETLOG)) {
+		error = securelevel_ge(sopt->sopt_td->td_ucred, 3);
+		if (error != 0)
+			return (error);
+	}
+
+	/*
+	 * Determine buffer size:
+	 * use on-stack xbuf for short request,
+	 * allocate sliding-window buf for data export or
+	 * contigious buffer for special ops.
+	 */
+	bsize_max = IP_FW3_WRITEBUF;
+	if (opt == IP_FW_ADD)
+		bsize_max = IP_FW3_READBUF;
+
+	/*
+	 * Fill in sockopt_data structure that may be useful for
+	 * IP_FW3 get requests.
+	 */
+
+	if (valsize <= sizeof(xbuf)) {
+		sdata.kbuf = xbuf;
+		sdata.ksize = sizeof(xbuf);
+		sdata.kavail = valsize;
+	} else {
+		if (valsize < bsize_max)
+			size = valsize;
+		else
+			size = bsize_max;
+
+		sdata.kbuf = malloc(size, M_TEMP, M_WAITOK | M_ZERO);
+		sdata.ksize = size;
+		sdata.kavail = size;
+	}
+
+	sdata.sopt = sopt;
+	sdata.valsize = valsize;
+
+	/*
+	 * Copy either all request (if valsize < bsize_max)
+	 * or first bsize_max bytes to guarantee most consumers
+	 * that all necessary data has been copied).
+	 * Anyway, copy not less than sizeof(ip_fw3_opheader).
+	 */
+	if ((error = sooptcopyin(sopt, sdata.kbuf, sdata.ksize,
+	    sizeof(ip_fw3_opheader))) != 0)
+		return (error);
+	op3 = (ip_fw3_opheader *)sdata.kbuf;
+	opt = op3->opcode;
+
+	switch (opt) {
+	case IP_FW_XGET:
+		error = dump_config(chain, &sdata);
+		break;
+
+	case IP_FW_XIFLIST:
+		error = ipfw_list_ifaces(chain, &sdata);
+		break;
+
+	case IP_FW_XADD:
+		error = add_entry(chain, &sdata);
+		break;
+	/*--- TABLE opcodes ---*/
+	case IP_FW_TABLE_XCREATE:
+		error = ipfw_create_table(chain, op3, &sdata);
+		break;
+
+	case IP_FW_TABLE_XDESTROY:
+	case IP_FW_TABLE_XFLUSH:
+		error = ipfw_flush_table(chain, op3, &sdata);
+		break;
+
+	case IP_FW_TABLE_XINFO:
+		error = ipfw_describe_table(chain, &sdata);
+		break;
+
+	case IP_FW_TABLES_XGETSIZE:
+		error = ipfw_listsize_tables(chain, &sdata);
+		break;
+
+	case IP_FW_TABLES_XLIST:
+		error = ipfw_list_tables(chain, &sdata);
+		break;
+
+	case IP_FW_TABLE_XLIST:
+		error = ipfw_dump_table(chain, op3, &sdata);
+		break;
+
+	case IP_FW_TABLE_XADD:
+	case IP_FW_TABLE_XDEL:
+		error = ipfw_manage_table_ent(chain, op3, &sdata);
+		break;
+
+	case IP_FW_TABLE_XFIND:
+		error = ipfw_find_table_entry(chain, op3, &sdata);
+		break;
+
+	case IP_FW_TABLES_ALIST:
+		error = ipfw_list_table_algo(chain, &sdata);
+		break;
+
+	case IP_FW_TABLE_XGETSIZE:
+		{
+			uint32_t *tbl;
+			struct tid_info ti;
+
+			if (IP_FW3_OPLENGTH(sopt) < sizeof(uint32_t)) {
+				error = EINVAL;
+				break;
+			}
+
+			tbl = (uint32_t *)(op3 + 1);
+
+			memset(&ti, 0, sizeof(ti));
+			ti.uidx = *tbl;
+			IPFW_UH_RLOCK(chain);
+			error = ipfw_count_xtable(chain, &ti, tbl);
+			IPFW_UH_RUNLOCK(chain);
+			if (error)
+				break;
+			error = sooptcopyout(sopt, op3, sopt->sopt_valsize);
+		}
+		break;
+
+	default:
+		printf("ipfw: ipfw_ctl3 invalid option %d\n", opt);
+		error = EINVAL;
+	}
+
+	/* Flush state and free buffers */
+	if (error == 0)
+		error = ipfw_flush_sopt_data(&sdata);
+	else
+		ipfw_flush_sopt_data(&sdata);
+
+	if (sdata.kbuf != xbuf)
+		free(sdata.kbuf, M_TEMP);
+
+	return (error);
+}
+
 /**
  * {set|get}sockopt parser.
  */
@@ -1727,15 +1909,12 @@ ipfw_ctl(struct sockopt *sopt)
 {
 #define	RULE_MAXSIZE	(256*sizeof(u_int32_t))
 	int error;
-	size_t bsize_max, size, valsize;
+	size_t size, valsize;
 	struct ip_fw *buf;
 	struct ip_fw_rule0 *rule;
 	struct ip_fw_chain *chain;
 	u_int32_t rulenum[2];
 	uint32_t opt;
-	char xbuf[128];
-	struct sockopt_data sdata;
-	ip_fw3_opheader *op3 = NULL;
 	struct rule_check_info ci;
 
 	error = priv_check(sopt->sopt_td, PRIV_NETINET_IPFW);
@@ -1747,16 +1926,11 @@ ipfw_ctl(struct sockopt *sopt)
 
 	/* Save original valsize before it is altered via sooptcopyin() */
 	valsize = sopt->sopt_valsize;
-	memset(&sdata, 0, sizeof(sdata));
-	/* Read op3 header first to determine actual operation */
-	if ((opt = sopt->sopt_name) == IP_FW3) {
-		op3 = (ip_fw3_opheader *)xbuf;
-		error = sooptcopyin(sopt, op3, sizeof(*op3), sizeof(*op3));
-		if (error != 0)
-			return (error);
-		opt = op3->opcode;
-		sopt->sopt_valsize = valsize;
-	}
+	opt = sopt->sopt_name;
+
+	/* Pass IP_FW3 to a new handler */
+	if (opt == IP_FW3)
+		return (ipfw_ctl3(sopt));
 
 	/*
 	 * Disallow modifications in really-really secure mode, but still allow
@@ -1765,59 +1939,8 @@ ipfw_ctl(struct sockopt *sopt)
 	if (opt == IP_FW_ADD ||
 	    (sopt->sopt_dir == SOPT_SET && opt != IP_FW_RESETLOG)) {
 		error = securelevel_ge(sopt->sopt_td->td_ucred, 3);
-		if (error != 0) {
-			if (sdata.kbuf != xbuf)
-				free(sdata.kbuf, M_TEMP);
+		if (error != 0)
 			return (error);
-		}
-	}
-
-	if (op3 != NULL) {
-
-		/*
-		 * Determine buffer size:
-		 * use on-stack xbuf for short request,
-		 * allocate sliding-window buf for data export or
-		 * contigious buffer for special ops.
-		 */
-		bsize_max = IP_FW3_WRITEBUF;
-		if (opt == IP_FW_ADD)
-			bsize_max = IP_FW3_READBUF;
-
-		/*
-		 * Fill in sockopt_data structure that may be useful for
-		 * IP_FW3 get requests.
-		 */
-
-		if (valsize <= sizeof(xbuf)) {
-			sdata.kbuf = xbuf;
-			sdata.ksize = sizeof(xbuf);
-			sdata.kavail = valsize;
-		} else {
-			if (valsize < bsize_max)
-				size = valsize;
-			else
-				size = bsize_max;
-
-			sdata.kbuf = malloc(size, M_TEMP, M_WAITOK | M_ZERO);
-			sdata.ksize = size;
-			sdata.kavail = size;
-		}
-
-		sdata.sopt = sopt;
-		sdata.valsize = valsize;
-
-		/*
-		 * Copy either all request (if valsize < bsize_max)
-		 * or first bsize_max bytes to guarantee most consumers
-		 * that all necessary data has been copied).
-		 * Anyway, copy not less than sizeof(ip_fw3_opheader).
-		 */
-		if ((error = sooptcopyin(sopt, sdata.kbuf, sdata.ksize,
-		    sizeof(ip_fw3_opheader))) != 0)
-			return (error);
-		op3 = (ip_fw3_opheader *)sdata.kbuf;
-		opt = op3->opcode;
 	}
 
 	switch (opt) {
@@ -1853,18 +1976,6 @@ ipfw_ctl(struct sockopt *sopt)
 			if (size >= want)
 				break;
 		}
-		break;
-
-	case IP_FW_XGET: /* IP_FW3 */
-		error = dump_config(chain, &sdata);
-		break;
-
-	case IP_FW_XIFLIST: /* IP_FW3 */
-		error = ipfw_list_ifaces(chain, &sdata);
-		break;
-
-	case IP_FW_XADD: /* IP_FW3 */
-		error = add_entry(chain, &sdata);
 		break;
 
 	case IP_FW_FLUSH:
@@ -1969,43 +2080,6 @@ ipfw_ctl(struct sockopt *sopt)
 		break;
 
 	/*--- TABLE opcodes ---*/
-	case IP_FW_TABLE_XCREATE: /* IP_FW3 */
-		error = ipfw_create_table(chain, op3, &sdata);
-		break;
-
-	case IP_FW_TABLE_XDESTROY: /* IP_FW3 */
-	case IP_FW_TABLE_XFLUSH: /* IP_FW3 */
-		error = ipfw_flush_table(chain, op3, &sdata);
-		break;
-
-	case IP_FW_TABLE_XINFO: /* IP_FW3 */
-		error = ipfw_describe_table(chain, &sdata);
-		break;
-
-	case IP_FW_TABLES_XGETSIZE: /* IP_FW3 */
-		error = ipfw_listsize_tables(chain, &sdata);
-		break;
-
-	case IP_FW_TABLES_XLIST: /* IP_FW3 */
-		error = ipfw_list_tables(chain, &sdata);
-		break;
-
-	case IP_FW_TABLE_XLIST: /* IP_FW3 */
-		error = ipfw_dump_table(chain, op3, &sdata);
-		break;
-
-	case IP_FW_TABLE_XADD: /* IP_FW3 */
-	case IP_FW_TABLE_XDEL: /* IP_FW3 */
-		error = ipfw_manage_table_ent(chain, op3, &sdata);
-		break;
-	case IP_FW_TABLE_XFIND: /* IP_FW3 */
-		error = ipfw_find_table_entry(chain, op3, &sdata);
-		break;
-	case IP_FW_TABLES_ALIST: /* IP_FW3 */
-		error = ipfw_list_table_algo(chain, &sdata);
-		break;
-
-	/*--- LEGACY API ---*/
 	case IP_FW_TABLE_ADD:
 	case IP_FW_TABLE_DEL:
 		{
@@ -2100,28 +2174,6 @@ ipfw_ctl(struct sockopt *sopt)
 		}
 		break;
 
-	case IP_FW_TABLE_XGETSIZE: /* IP_FW3 */
-		{
-			uint32_t *tbl;
-			struct tid_info ti;
-
-			if (IP_FW3_OPLENGTH(sopt) < sizeof(uint32_t)) {
-				error = EINVAL;
-				break;
-			}
-
-			tbl = (uint32_t *)(op3 + 1);
-
-			memset(&ti, 0, sizeof(ti));
-			ti.uidx = *tbl;
-			IPFW_UH_RLOCK(chain);
-			error = ipfw_count_xtable(chain, &ti, tbl);
-			IPFW_UH_RUNLOCK(chain);
-			if (error)
-				break;
-			error = sooptcopyout(sopt, op3, sopt->sopt_valsize);
-		}
-		break;
 	/*--- NAT operations are protected by the IPFW_LOCK ---*/
 	case IP_FW_NAT_CFG:
 		if (IPFW_NAT_LOADED)
@@ -2166,17 +2218,6 @@ ipfw_ctl(struct sockopt *sopt)
 	default:
 		printf("ipfw: ipfw_ctl invalid option %d\n", sopt->sopt_name);
 		error = EINVAL;
-	}
-
-	if (op3 != NULL) {
-		/* Flush state and free buffers */
-		if (error == 0)
-			error = ipfw_flush_sopt_data(&sdata);
-		else
-			ipfw_flush_sopt_data(&sdata);
-
-		if (sdata.kbuf != xbuf)
-			free(sdata.kbuf, M_TEMP);
 	}
 
 	return (error);
