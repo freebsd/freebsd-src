@@ -364,12 +364,30 @@ ldns_rdf *ldns_nsec3_bitmap(const ldns_rr *nsec3_rr);
 ldns_rdf *ldns_nsec3_hash_name_frm_nsec3(const ldns_rr *nsec, ldns_rdf *name);
 
 /**
- * Checks coverage of NSEC RR type bitmap
- * \param[in] nsec_bitmap The NSEC bitmap rdata field to check
- * \param[in] type The type to check
- * \return true if the NSEC RR covers the type
+ * Check if RR type t is enumerated and set in the RR type bitmap rdf.
+ * \param[in] bitmap the RR type bitmap rdf to look in
+ * \param[in] type the type to check for
+ * \return true when t is found and set, otherwise return false
  */
-bool ldns_nsec_bitmap_covers_type(const ldns_rdf *nsec_bitmap, ldns_rr_type type);
+bool ldns_nsec_bitmap_covers_type(const ldns_rdf* bitmap, ldns_rr_type type);
+
+/**
+ * Checks if RR type t is enumerated in the type bitmap rdf and sets the bit.
+ * \param[in] bitmap the RR type bitmap rdf to look in
+ * \param[in] type the type to for which the bit to set
+ * \return LDNS_STATUS_OK on success. LDNS_STATUS_TYPE_NOT_IN_BITMAP is 
+ *         returned when the bitmap does not contain the bit to set.
+ */
+ldns_status ldns_nsec_bitmap_set_type(ldns_rdf* bitmap, ldns_rr_type type);
+
+/**
+ * Checks if RR type t is enumerated in the type bitmap rdf and clears the bit.
+ * \param[in] bitmap the RR type bitmap rdf to look in
+ * \param[in] type the type to for which the bit to clear
+ * \return LDNS_STATUS_OK on success. LDNS_STATUS_TYPE_NOT_IN_BITMAP is 
+ *         returned when the bitmap does not contain the bit to clear.
+ */
+ldns_status ldns_nsec_bitmap_clear_type(ldns_rdf* bitmap, ldns_rr_type type);
 
 /**
  * Checks coverage of NSEC(3) RR name span
