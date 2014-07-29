@@ -650,16 +650,17 @@ static int allocate_bz_and_pages(bus_dma_tag_t dmat, bus_dmamap_t mapp)
 int
 bus_dmamap_create(bus_dma_tag_t dmat, int flags, bus_dmamap_t *mapp)
 {
+	bus_dmamap_t map;
 	int mapsize;
 	int error = 0;
 
-	mapsize = sizeof(**mapp) + (sizeof(struct sync_list) * dmat->nsegments);
-	*mapp = (bus_dmamap_t)malloc(mapsize, M_DEVBUF, M_NOWAIT | M_ZERO);
-	if (*mapp == NULL) {
+	mapsize = sizeof(*map) + (sizeof(struct sync_list) * dmat->nsegments);
+	*mapp = map = malloc(mapsize, M_DEVBUF, M_NOWAIT | M_ZERO);
+	if (map == NULL) {
 		CTR3(KTR_BUSDMA, "%s: tag %p error %d", __func__, dmat, ENOMEM);
 		return (ENOMEM);
 	}
-	(*mapp)->sync_count = 0;
+	map->sync_count = 0;
 
 	if (dmat->segments == NULL) {
 		dmat->segments = (bus_dma_segment_t *)malloc(
@@ -668,7 +669,7 @@ bus_dmamap_create(bus_dma_tag_t dmat, int flags, bus_dmamap_t *mapp)
 		if (dmat->segments == NULL) {
 			CTR3(KTR_BUSDMA, "%s: tag %p error %d",
 			    __func__, dmat, ENOMEM);
-			free(*mapp, M_DEVBUF);
+			free(map, M_DEVBUF);
 			*mapp = NULL;
 			return (ENOMEM);
 		}
@@ -678,9 +679,9 @@ bus_dmamap_create(bus_dma_tag_t dmat, int flags, bus_dmamap_t *mapp)
 	 * exclusion region, a data alignment that is stricter than 1, and/or
 	 * an active address boundary.
 	 */
-	error = allocate_bz_and_pages(dmat, *mapp);
+	error = allocate_bz_and_pages(dmat, map);
 	if (error != 0) {
-		free(*mapp, M_DEVBUF);
+		free(map, M_DEVBUF);
 		*mapp = NULL;
 		return (error);
 	}
@@ -719,6 +720,7 @@ bus_dmamem_alloc(bus_dma_tag_t dmat, void** vaddr, int flags,
 {
 	busdma_bufalloc_t ba;
 	struct busdma_bufzone *bufzone;
+	bus_dmamap_t map;
 	vm_memattr_t memattr;
 	int mflags;
 	int mapsize;
@@ -731,21 +733,20 @@ bus_dmamem_alloc(bus_dma_tag_t dmat, void** vaddr, int flags,
 
 	/* ARM non-snooping caches need a map for the VA cache sync structure */
 
-	mapsize = sizeof(**mapp) + (sizeof(struct sync_list) * dmat->nsegments);
-	*mapp = (bus_dmamap_t)malloc(mapsize, M_DEVBUF, M_NOWAIT | M_ZERO);
-	if (*mapp == NULL) {
+	mapsize = sizeof(*map) + (sizeof(struct sync_list) * dmat->nsegments);
+	*mapp = map = malloc(mapsize, M_DEVBUF, M_NOWAIT | M_ZERO);
+	if (map == NULL) {
 		CTR4(KTR_BUSDMA, "%s: tag %p tag flags 0x%x error %d",
 		    __func__, dmat, dmat->flags, ENOMEM);
 		return (ENOMEM);
 	}
-
-	(*mapp)->flags = DMAMAP_DMAMEM_ALLOC;
-	(*mapp)->sync_count = 0;
+	map->flags = DMAMAP_DMAMEM_ALLOC;
+	map->sync_count = 0;
 
 	/* We may need bounce pages, even for allocated memory */
-	error = allocate_bz_and_pages(dmat, *mapp);
+	error = allocate_bz_and_pages(dmat, map);
 	if (error != 0) {
-		free(*mapp, M_DEVBUF);
+		free(map, M_DEVBUF);
 		*mapp = NULL;
 		return (error);
 	}
@@ -757,7 +758,7 @@ bus_dmamem_alloc(bus_dma_tag_t dmat, void** vaddr, int flags,
 		if (dmat->segments == NULL) {
 			CTR4(KTR_BUSDMA, "%s: tag %p tag flags 0x%x error %d",
 			    __func__, dmat, dmat->flags, ENOMEM);
-			free(*mapp, M_DEVBUF);
+			free(map, M_DEVBUF);
 			*mapp = NULL;
 			return (ENOMEM);
 		}
@@ -768,7 +769,7 @@ bus_dmamem_alloc(bus_dma_tag_t dmat, void** vaddr, int flags,
 	if (flags & BUS_DMA_COHERENT) {
 		memattr = VM_MEMATTR_UNCACHEABLE;
 		ba = coherent_allocator;
-		(*mapp)->flags |= DMAMAP_COHERENT;
+		map->flags |= DMAMAP_COHERENT;
 	} else {
 		memattr = VM_MEMATTR_DEFAULT;
 		ba = standard_allocator;
@@ -811,7 +812,7 @@ bus_dmamem_alloc(bus_dma_tag_t dmat, void** vaddr, int flags,
 	if (*vaddr == NULL) {
 		CTR4(KTR_BUSDMA, "%s: tag %p tag flags 0x%x error %d",
 		    __func__, dmat, dmat->flags, ENOMEM);
-		free(*mapp, M_DEVBUF);
+		free(map, M_DEVBUF);
 		*mapp = NULL;
 		return (ENOMEM);
 	}
