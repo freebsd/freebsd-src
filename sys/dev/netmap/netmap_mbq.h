@@ -62,7 +62,17 @@ void mbq_enqueue(struct mbq *q, struct mbuf *m);
 struct mbuf *mbq_dequeue(struct mbq *q);
 void mbq_purge(struct mbq *q);
 
-/* XXX missing mbq_lock() and mbq_unlock */
+static inline void
+mbq_lock(struct mbq *q)
+{
+	mtx_lock_spin(&q->lock);
+}
+
+static inline void
+mbq_unlock(struct mbq *q)
+{
+	mtx_unlock_spin(&q->lock);
+}
 
 void mbq_safe_init(struct mbq *q);
 void mbq_safe_destroy(struct mbq *q);

@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.include <bsd.own.mk>
+.include <src.opts.mk>
 
 FILES=	100.clean-disks \
 	110.clean-tmps \

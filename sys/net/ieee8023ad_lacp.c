@@ -192,9 +192,8 @@ static void	lacp_dprintf(const struct lacp_port *, const char *, ...)
 
 static int lacp_debug = 0;
 SYSCTL_NODE(_net_link_lagg, OID_AUTO, lacp, CTLFLAG_RD, 0, "ieee802.3ad");
-SYSCTL_INT(_net_link_lagg_lacp, OID_AUTO, debug, CTLFLAG_RW | CTLFLAG_TUN,
+SYSCTL_INT(_net_link_lagg_lacp, OID_AUTO, debug, CTLFLAG_RWTUN,
     &lacp_debug, 0, "Enable LACP debug logging (1=debug, 2=trace)");
-TUNABLE_INT("net.link.lagg.lacp.debug", &lacp_debug);
 
 #define LACP_DPRINTF(a) if (lacp_debug & 0x01) { lacp_dprintf a ; }
 #define LACP_TRACE(a) if (lacp_debug & 0x02) { lacp_dprintf(a,"%s\n",__func__); }
@@ -590,10 +589,20 @@ lacp_req(struct lagg_softc *sc, caddr_t data)
 {
 	struct lacp_opreq *req = (struct lacp_opreq *)data;
 	struct lacp_softc *lsc = LACP_SOFTC(sc);
-	struct lacp_aggregator *la = lsc->lsc_active_aggregator;
+	struct lacp_aggregator *la;
 
-	LACP_LOCK(lsc);
 	bzero(req, sizeof(struct lacp_opreq));
+	
+	/* 
+	 * If the LACP softc is NULL, return with the opreq structure full of
+	 * zeros.  It is normal for the softc to be NULL while the lagg is
+	 * being destroyed.
+	 */
+	if (NULL == lsc)
+		return;
+
+	la = lsc->lsc_active_aggregator;
+	LACP_LOCK(lsc);
 	if (la != NULL) {
 		req->actor_prio = ntohs(la->la_actor.lip_systemid.lsi_prio);
 		memcpy(&req->actor_mac, &la->la_actor.lip_systemid.lsi_mac,

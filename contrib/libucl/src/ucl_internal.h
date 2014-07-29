@@ -45,7 +45,9 @@
 #define HAVE_STDBOOL_H
 #define HAVE_STDINT_H
 #define HAVE_STDARG_H
-#define HAVE_REGEX_H
+#ifndef _WIN32
+# define HAVE_REGEX_H
+#endif
 #endif
 
 #ifdef HAVE_SYS_TYPES_H
@@ -95,6 +97,10 @@
 
 #ifdef HAVE_OPENSSL
 #include <openssl/evp.h>
+#endif
+
+#ifndef __DECONST
+#define __DECONST(type, var)    ((type)(uintptr_t)(const void *)(var))
 #endif
 
 /**
@@ -191,6 +197,8 @@ struct ucl_parser {
 	struct ucl_chunk *chunks;
 	struct ucl_pubkey *keys;
 	struct ucl_variable *variables;
+	ucl_variable_handler var_handler;
+	void *var_data;
 	UT_string *err;
 };
 
@@ -314,17 +322,17 @@ int ucl_maybe_parse_number (ucl_object_t *obj,
 		bool allow_double, bool number_bytes, bool allow_time);
 
 
-static inline ucl_object_t *
+static inline const ucl_object_t *
 ucl_hash_search_obj (ucl_hash_t* hashlin, ucl_object_t *obj)
 {
-	return (ucl_object_t *)ucl_hash_search (hashlin, obj->key, obj->keylen);
+	return (const ucl_object_t *)ucl_hash_search (hashlin, obj->key, obj->keylen);
 }
 
 static inline ucl_hash_t *
-ucl_hash_insert_object (ucl_hash_t *hashlin, ucl_object_t *obj) UCL_WARN_UNUSED_RESULT;
+ucl_hash_insert_object (ucl_hash_t *hashlin, const ucl_object_t *obj) UCL_WARN_UNUSED_RESULT;
 
 static inline ucl_hash_t *
-ucl_hash_insert_object (ucl_hash_t *hashlin, ucl_object_t *obj)
+ucl_hash_insert_object (ucl_hash_t *hashlin, const ucl_object_t *obj)
 {
 	if (hashlin == NULL) {
 		hashlin = ucl_hash_create ();
@@ -335,10 +343,26 @@ ucl_hash_insert_object (ucl_hash_t *hashlin, ucl_object_t *obj)
 }
 
 /**
+ * Get standard emitter context for a specified emit_type
+ * @param emit_type type of emitter
+ * @return context or NULL if input is invalid
+ */
+const struct ucl_emitter_context *
+ucl_emit_get_standard_context (enum ucl_emitter emit_type);
+
+/**
+ * Serialise string
+ * @param str string to emit
+ * @param buf target buffer
+ */
+void ucl_elt_string_write_json (const char *str, size_t size,
+		struct ucl_emitter_context *ctx);
+
+/**
  * Emit a single object to string
  * @param obj
  * @return
  */
-unsigned char * ucl_object_emit_single_json (ucl_object_t *obj);
+unsigned char * ucl_object_emit_single_json (const ucl_object_t *obj);
 
 #endif /* UCL_INTERNAL_H_ */

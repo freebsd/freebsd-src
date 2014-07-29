@@ -335,8 +335,7 @@ do_auth(peer_t peer,
                                          &tmp, &tmp_len,
                                          gss_info);
     } else {
-        char *proxy_host;
-        apr_getnameinfo(&proxy_host, conn->ctx->proxy_address, 0);
+        char *proxy_host = conn->ctx->proxy_address->hostname;
         status = gss_api_get_credentials(conn,
                                          token, token_len, proxy_host,
                                          &tmp, &tmp_len,

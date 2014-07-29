@@ -13,7 +13,7 @@
 
 #include <sendmail.h>
 
-SM_RCSID("@(#)$Id: collect.c,v 8.287 2013/11/22 20:51:55 ca Exp $")
+SM_RCSID("@(#)$Id: collect.c,v 8.287 2013-11-22 20:51:55 ca Exp $")
 
 static void	eatfrom __P((char *volatile, ENVELOPE *));
 static void	collect_doheader __P((ENVELOPE *));

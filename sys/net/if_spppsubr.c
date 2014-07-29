@@ -4746,7 +4746,7 @@ sppp_qflush(struct ifqueue *ifq)
 
 	n = ifq->ifq_head;
 	while ((m = n)) {
-		n = m->m_act;
+		n = m->m_nextpkt;
 		m_freem (m);
 	}
 	ifq->ifq_head = 0;

@@ -134,13 +134,13 @@ static struct {
 	"\014ALTSIG"		\
 	"\015NOMSI"
 } ahci_ids[] = {
-	{0x43801002, 0x00, "ATI IXP600",	AHCI_Q_NOMSI},
-	{0x43901002, 0x00, "ATI IXP700",	0},
-	{0x43911002, 0x00, "ATI IXP700",	0},
-	{0x43921002, 0x00, "ATI IXP700",	0},
-	{0x43931002, 0x00, "ATI IXP700",	0},
-	{0x43941002, 0x00, "ATI IXP800",	0},
-	{0x43951002, 0x00, "ATI IXP800",	0},
+	{0x43801002, 0x00, "AMD SB600",	AHCI_Q_NOMSI},
+	{0x43901002, 0x00, "AMD SB7x0/SB8x0/SB9x0",	0},
+	{0x43911002, 0x00, "AMD SB7x0/SB8x0/SB9x0",	0},
+	{0x43921002, 0x00, "AMD SB7x0/SB8x0/SB9x0",	0},
+	{0x43931002, 0x00, "AMD SB7x0/SB8x0/SB9x0",	0},
+	{0x43941002, 0x00, "AMD SB7x0/SB8x0/SB9x0",	0},
+	{0x43951002, 0x00, "AMD SB8x0/SB9x0",	0},
 	{0x78001022, 0x00, "AMD Hudson-2",	0},
 	{0x78011022, 0x00, "AMD Hudson-2",	0},
 	{0x78021022, 0x00, "AMD Hudson-2",	0},
@@ -1394,14 +1394,12 @@ ahci_dmafini(device_t dev)
 		bus_dmamap_unload(ch->dma.rfis_tag, ch->dma.rfis_map);
 		bus_dmamem_free(ch->dma.rfis_tag, ch->dma.rfis, ch->dma.rfis_map);
 		ch->dma.rfis_bus = 0;
-		ch->dma.rfis_map = NULL;
 		ch->dma.rfis = NULL;
 	}
 	if (ch->dma.work_bus) {
 		bus_dmamap_unload(ch->dma.work_tag, ch->dma.work_map);
 		bus_dmamem_free(ch->dma.work_tag, ch->dma.work, ch->dma.work_map);
 		ch->dma.work_bus = 0;
-		ch->dma.work_map = NULL;
 		ch->dma.work = NULL;
 	}
 	if (ch->dma.work_tag) {

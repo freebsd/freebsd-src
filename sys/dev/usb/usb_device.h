@@ -228,6 +228,7 @@ struct usb_device {
 	uint8_t	address;		/* device addess */
 	uint8_t	device_index;		/* device index in "bus->devices" */
 	uint8_t	controller_slot_id;	/* controller specific value */
+	uint8_t next_config_index;	/* used by USB_RE_ENUM_SET_CONFIG */
 	uint8_t	curr_config_index;	/* current configuration index */
 	uint8_t	curr_config_no;		/* current configuration number */
 	uint8_t	depth;			/* distance from root HUB */
@@ -241,6 +242,7 @@ struct usb_device {
 #define	USB_RE_ENUM_DONE	0
 #define	USB_RE_ENUM_START	1
 #define	USB_RE_ENUM_PWR_OFF	2
+#define	USB_RE_ENUM_SET_CONFIG	3
 	uint8_t ifaces_max;		/* number of interfaces present */
 	uint8_t endpoints_max;		/* number of endpoints present */
 

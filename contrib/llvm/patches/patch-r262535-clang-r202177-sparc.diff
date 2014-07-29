@@ -4,7 +4,7 @@ Pull in r202177 from upstream clang trunk (by Roman Divacky):
   -march which doesnt exist on sparc gcc to -mcpu. While here adjust a
   few tests to not write an unused temporary file.
 
-Introduced here: http://svn.freebsd.org/changeset/base/262535
+Introduced here: http://svnweb.freebsd.org/changeset/base/262535
 
 Index: tools/clang/lib/Basic/Targets.cpp
 ===================================================================

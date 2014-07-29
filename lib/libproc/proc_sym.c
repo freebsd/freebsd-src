@@ -46,27 +46,34 @@
 
 #include "_libproc.h"
 
+#ifndef NO_CXA_DEMANGLE
 extern char *__cxa_demangle(const char *, char *, size_t *, int *);
+#endif /* NO_CXA_DEMANGLE */
 
 static void	proc_rdl2prmap(rd_loadobj_t *, prmap_t *);
 
 static void
 demangle(const char *symbol, char *buf, size_t len)
 {
+#ifndef NO_CXA_DEMANGLE
 	char *dembuf;
-	size_t demlen = len;
+	size_t demlen;
 
-	dembuf = malloc(len);
-	if (!dembuf)
-		goto fail;
-	dembuf = __cxa_demangle(symbol, dembuf, &demlen, NULL);
-	if (!dembuf)
-		goto fail;
-	strlcpy(buf, dembuf, len);
-	free(dembuf);
+	if (symbol[0] == '_' && symbol[1] == 'Z' && symbol[2]) {
+		dembuf = malloc(len);
+		if (!dembuf)
+			goto fail;
+		demlen = len;
+		dembuf = __cxa_demangle(symbol, dembuf, &demlen, NULL);
+		if (!dembuf)
+			goto fail;
+		strlcpy(buf, dembuf, len);
+		free(dembuf);
+	}
 
 	return;
 fail:
+#endif /* NO_CXA_DEMANGLE */
 	strlcpy(buf, symbol, len);
 }
 
@@ -96,7 +103,7 @@ proc_objname(struct proc_handle *p, uintptr_t addr, char *objname,
 
 	for (i = 0; i < p->nobjs; i++) {
 		rdl = &p->rdobjs[i];
-		if (addr >= rdl->rdl_saddr && addr <= rdl->rdl_eaddr) {
+		if (addr >= rdl->rdl_saddr && addr < rdl->rdl_eaddr) {
 			strlcpy(objname, rdl->rdl_path, objnamesz);
 			return (objname);
 		}
@@ -112,17 +119,23 @@ proc_obj2map(struct proc_handle *p, const char *objname)
 	rd_loadobj_t *rdl;
 	char path[MAXPATHLEN];
 
+	rdl = NULL;
 	for (i = 0; i < p->nobjs; i++) {
-		rdl = &p->rdobjs[i];
-		basename_r(rdl->rdl_path, path);
+		basename_r(p->rdobjs[i].rdl_path, path);
 		if (strcmp(path, objname) == 0) {
-			if ((map = malloc(sizeof(*map))) == NULL)
-				return (NULL);
-			proc_rdl2prmap(rdl, map);
-			return (map);
+			rdl = &p->rdobjs[i];
+			break;
 		}
 	}
-	return (NULL);
+	if (rdl == NULL && strcmp(objname, "a.out") == 0 && p->rdexec != NULL)
+		rdl = p->rdexec;
+	else
+		return (NULL);
+
+	if ((map = malloc(sizeof(*map))) == NULL)
+		return (NULL);
+	proc_rdl2prmap(rdl, map);
+	return (map);
 }
 
 int
@@ -176,7 +189,7 @@ proc_addr2map(struct proc_handle *p, uintptr_t addr)
 			kve = kves + i;
 			if (kve->kve_type == KVME_TYPE_VNODE)
 				lastvn = i;
-			if (addr >= kve->kve_start && addr <= kve->kve_end) {
+			if (addr >= kve->kve_start && addr < kve->kve_end) {
 				if ((map = malloc(sizeof(*map))) == NULL) {
 					free(kves);
 					return (NULL);
@@ -209,7 +222,7 @@ proc_addr2map(struct proc_handle *p, uintptr_t addr)
 
 	for (i = 0; i < p->nobjs; i++) {
 		rdl = &p->rdobjs[i];
-		if (addr >= rdl->rdl_saddr && addr <= rdl->rdl_eaddr) {
+		if (addr >= rdl->rdl_saddr && addr < rdl->rdl_eaddr) {
 			if ((map = malloc(sizeof(*map))) == NULL)
 				return (NULL);
 			proc_rdl2prmap(rdl, map);
@@ -291,10 +304,7 @@ proc_addr2sym(struct proc_handle *p, uintptr_t addr, char *name,
 		if (addr >= rsym && addr < rsym + sym.st_size) {
 			s = elf_strptr(e, dynsymstridx, sym.st_name);
 			if (s) {
-				if (s[0] == '_' && s[1] == 'Z' && s[2])
-					demangle(s, name, namesz);
-				else
-					strlcpy(name, s, namesz);
+				demangle(s, name, namesz);
 				memcpy(symcopy, &sym, sizeof(sym));
 				/*
 				 * DTrace expects the st_value to contain
@@ -329,10 +339,7 @@ symtab:
 		if (addr >= rsym && addr < rsym + sym.st_size) {
 			s = elf_strptr(e, symtabstridx, sym.st_name);
 			if (s) {
-				if (s[0] == '_' && s[1] == 'Z' && s[2])
-					demangle(s, name, namesz);
-				else
-					strlcpy(name, s, namesz);
+				demangle(s, name, namesz);
 				memcpy(symcopy, &sym, sizeof(sym));
 				/*
 				 * DTrace expects the st_value to contain
@@ -386,8 +393,9 @@ proc_name2map(struct proc_handle *p, const char *name)
 		free(kves);
 		return (NULL);
 	}
-	if (name == NULL || strcmp(name, "a.out") == 0) {
-		map = proc_addr2map(p, p->rdobjs[0].rdl_saddr);
+	if ((name == NULL || strcmp(name, "a.out") == 0) &&
+	    p->rdexec != NULL) {
+		map = proc_addr2map(p, p->rdexec->rdl_saddr);
 		return (map);
 	}
 	for (i = 0; i < p->nobjs; i++) {

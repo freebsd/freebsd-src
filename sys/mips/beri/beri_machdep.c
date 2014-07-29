@@ -1,6 +1,6 @@
 /*-
  * Copyright (c) 2006 Wojciech A. Koszek <wkoszek@FreeBSD.org>
- * Copyright (c) 2012 Robert N. M. Watson
+ * Copyright (c) 2012-2014 Robert N. M. Watson
  * All rights reserved.
  *
  * This software was developed by SRI International and the University of
@@ -65,6 +65,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_object.h>
 #include <vm/vm_page.h>
 
+#include <machine/bootinfo.h>
 #include <machine/clock.h>
 #include <machine/cpu.h>
 #include <machine/cpuregs.h>
@@ -131,18 +132,61 @@ platform_reset(void)
 		__asm__ __volatile("wait");
 }
 
+#ifdef FDT
+/* Parse cmd line args as env - copied from xlp_machdep. */
+/* XXX-BZ this should really be centrally provided for all (boot) code. */
+static void
+_parse_bootargs(char *cmdline)
+{
+	char *n, *v;
+
+	while ((v = strsep(&cmdline, " \n")) != NULL) {
+		if (*v == '\0')
+			continue;
+		if (*v == '-') {
+			while (*v != '\0') {
+				v++;
+				switch (*v) {
+				case 'a': boothowto |= RB_ASKNAME; break;
+				/* Someone should simulate that ;-) */
+				case 'C': boothowto |= RB_CDROM; break;
+				case 'd': boothowto |= RB_KDB; break;
+				case 'D': boothowto |= RB_MULTIPLE; break;
+				case 'm': boothowto |= RB_MUTE; break;
+				case 'g': boothowto |= RB_GDB; break;
+				case 'h': boothowto |= RB_SERIAL; break;
+				case 'p': boothowto |= RB_PAUSE; break;
+				case 'r': boothowto |= RB_DFLTROOT; break;
+				case 's': boothowto |= RB_SINGLE; break;
+				case 'v': boothowto |= RB_VERBOSE; break;
+				}
+			}
+		} else {
+			n = strsep(&v, "=");
+			if (v == NULL)
+				setenv(n, "1");
+			else
+				setenv(n, v);
+		}
+	}
+}
+#endif
+
 void
 platform_start(__register_t a0, __register_t a1,  __register_t a2, 
     __register_t a3)
 {
+	struct bootinfo *bootinfop;
 	vm_offset_t kernend;
 	uint64_t platform_counter_freq;
 	int argc = a0;
 	char **argv = (char **)a1;
 	char **envp = (char **)a2;
-	unsigned int memsize = a3;
+	long memsize;
 #ifdef FDT
+	char buf[2048];		/* early stack supposedly big enough */
 	vm_offset_t dtbp;
+	phandle_t chosen;
 	void *kmdp;
 #endif
 	int i;
@@ -154,6 +198,25 @@ platform_start(__register_t a0, __register_t a1,  __register_t a2,
 	mips_postboot_fixup();
 
 	mips_pcpu0_init();
+
+	/*
+	 * Over time, we've changed out boot-time binary interface for the
+	 * kernel.  Miniboot simply provides a 'memsize' in a3, whereas the
+	 * FreeBSD boot loader provides a 'bootinfo *' in a3.  While slightly
+	 * grody, we support both here by detecting 'pointer-like' values in
+	 * a3 and assuming physical memory can never be that back.
+	 *
+	 * XXXRW: Pull more values than memsize out of bootinfop -- e.g.,
+	 * module information.
+	 */
+	if (a3 >= 0x9800000000000000ULL) {
+		bootinfop = (void *)a3;
+		memsize = bootinfop->bi_memsize;
+		preload_metadata = (caddr_t)bootinfop->bi_modulep;
+	} else {
+		bootinfop = NULL;
+		memsize = a3;
+	}
 
 #ifdef FDT
 	/*
@@ -180,6 +243,19 @@ platform_start(__register_t a0, __register_t a1,  __register_t a2,
 		while (1);
 	if (OF_init((void *)dtbp) != 0)
 		while (1);
+
+	/*
+	 * Configure more boot-time parameters passed in by loader.
+	 */
+	boothowto = MD_FETCH(kmdp, MODINFOMD_HOWTO, int);
+	kern_envp = MD_FETCH(kmdp, MODINFOMD_ENVP, char *);
+
+	/*
+	 * Get bootargs from FDT if specified.
+	 */
+	chosen = OF_finddevice("/chosen");
+	if (OF_getprop(chosen, "bootargs", buf, sizeof(buf)) != -1)
+		_parse_bootargs(buf);
 #endif
 
 	/*
@@ -203,7 +279,10 @@ platform_start(__register_t a0, __register_t a1,  __register_t a2,
 		for (i = 0; envp[i]; i += 2)
 			printf("\t%s = %s\n", envp[i], envp[i+1]);
 
-		printf("memsize = %08x\n", memsize);
+		if (bootinfop != NULL)
+			printf("bootinfo found at %p\n", bootinfop);
+
+		printf("memsize = %p\n", (void *)memsize);
 	}
 
 	realmem = btoc(memsize);

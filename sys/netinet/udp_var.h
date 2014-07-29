@@ -126,6 +126,7 @@ void	kmod_udpstat_inc(int statnum);
 #define	UDPCTL_PCBLIST		5	/* list of PCBs for UDP sockets */
 
 #ifdef _KERNEL
+#include <netinet/in_pcb.h>
 SYSCTL_DECL(_net_inet_udp);
 
 extern struct pr_usrreqs	udp_usrreqs;

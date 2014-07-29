@@ -106,7 +106,7 @@ driver_t miibus_driver = {
 };
 
 struct miibus_ivars {
-	struct ifnet	*ifp;
+	if_t		ifp;
 	ifm_change_cb_t	ifmedia_upd;
 	ifm_stat_cb_t	ifmedia_sts;
 	u_int		mii_flags;
@@ -147,8 +147,8 @@ miibus_attach(device_t dev)
 	ifmedia_init(&mii->mii_media, IFM_IMASK, ivars->ifmedia_upd,
 	    ivars->ifmedia_sts);
 	mii->mii_ifp = ivars->ifp;
-	mii->mii_ifp->if_capabilities |= IFCAP_LINKSTATE;
-	mii->mii_ifp->if_capenable |= IFCAP_LINKSTATE;
+	if_setcapabilitiesbit(mii->mii_ifp, IFCAP_LINKSTATE, 0);
+	if_setcapenablebit(mii->mii_ifp, IFCAP_LINKSTATE, 0);
 	LIST_INIT(&mii->mii_phys);
 
 	return (bus_generic_attach(dev));
@@ -308,7 +308,7 @@ miibus_statchg(device_t dev)
 	MIIBUS_STATCHG(parent);
 
 	mii = device_get_softc(dev);
-	mii->mii_ifp->if_baudrate = ifmedia_baudrate(mii->mii_media_active);
+	if_setbaudrate(mii->mii_ifp, ifmedia_baudrate(mii->mii_media_active));
 }
 
 static void
@@ -330,7 +330,7 @@ miibus_linkchg(device_t dev)
 			link_state = LINK_STATE_DOWN;
 	} else
 		link_state = LINK_STATE_UNKNOWN;
-	if_link_state_change(mii->mii_ifp, link_state);
+	if_linkstate_change_drv(mii->mii_ifp, link_state);
 }
 
 static void
@@ -358,7 +358,7 @@ miibus_mediainit(device_t dev)
  * the PHYs to the network interface driver parent.
  */
 int
-mii_attach(device_t dev, device_t *miibus, struct ifnet *ifp,
+mii_attach(device_t dev, device_t *miibus, void *ifp,
     ifm_change_cb_t ifmedia_upd, ifm_stat_cb_t ifmedia_sts, int capmask,
     int phyloc, int offloc, int flags)
 {

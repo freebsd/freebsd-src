@@ -141,8 +141,6 @@ struct fb_info {
 	/* Methods. */
 	fb_write_t	*fb_write;	/* if NULL, direct mem write. */
 	fb_read_t	*fb_read;	/* if NULL, direct mem read. */
-	fb_ioctl_t	*fb_ioctl;	/* Can be NULL. */
-	fb_mmap_t	*fb_mmap;	/* Can be NULL. */
 
 	struct cdev 	*fb_cdev;
 

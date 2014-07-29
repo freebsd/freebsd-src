@@ -29,7 +29,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd Jan 10, 2013
+.Dd May 9, 2014
 .Dt NDP 8
 .Os
 .\"
@@ -136,9 +136,26 @@ seconds.
 Erase all the NDP entries.
 .It Fl d
 Delete specified NDP entry.
-.It Fl f
-Parse the file specified by
-.Ar filename .
+.It Fl f Ar filename
+Cause the file
+.Ar filename
+to be read and multiple entries to be set in the
+.Tn NDP
+table.
+Entries
+in the file should be of the form
+.Pp
+.Bd -ragged -offset indent -compact
+.Ar hostname ether_addr
+.Op Cm temp
+.Op Cm proxy
+.Ed
+.Pp
+with argument meanings as given above.
+Leading whitespace and empty lines are ignored.
+A
+.Ql #
+character will mark the rest of the line as a comment.
 .It Fl H
 Harmonize consistency between the routing table and the default router
 list; install the top entry of the list into the kernel routing table.

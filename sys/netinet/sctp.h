@@ -408,6 +408,11 @@ struct sctp_error_unrecognized_chunk {
 	struct sctp_chunkhdr ch;/* header from chunk in error */
 }                             SCTP_PACKED;
 
+struct sctp_error_no_user_data {
+	struct sctp_error_cause cause;	/* code=SCTP_CAUSE_NO_USER_DATA */
+	uint32_t tsn;		/* TSN of the empty data chunk */
+}                       SCTP_PACKED;
+
 /*
  * Main SCTP chunk types we place these here so natd and f/w's in user land
  * can find them.

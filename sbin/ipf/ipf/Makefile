@@ -39,4 +39,6 @@ DPADD+=	${LIBPCAP}
 LDADD+=	-lpcap
 .endif
 
+NO_PIE=	yes
+
 .include <bsd.prog.mk>

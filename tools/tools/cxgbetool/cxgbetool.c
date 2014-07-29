@@ -95,7 +95,7 @@ usage(FILE *fp)
 	    "\ti2c <port> <devaddr> <addr> [<len>] read from i2c device\n"
 	    "\tloadfw <fw-image.bin>               install firmware\n"
 	    "\tmemdump <addr> <len>                dump a memory range\n"
-	    "\tmodinfo <port>                      optics/cable information\n"
+	    "\tmodinfo <port> [raw]                optics/cable information\n"
 	    "\treg <address>[=<val>]               read/write register\n"
 	    "\treg64 <address>[=<val>]             read/write 64 bit register\n"
 	    "\tregdump [<module>] ...              dump registers\n"
@@ -1873,6 +1873,41 @@ tracer_cmd(int argc, const char *argv[])
 }
 
 static int
+modinfo_raw(int port_id)
+{
+	uint8_t offset;
+	struct t4_i2c_data i2cd;
+	int rc;
+
+	for (offset = 0; offset < 96; offset += sizeof(i2cd.data)) {
+		bzero(&i2cd, sizeof(i2cd));
+		i2cd.port_id = port_id;
+		i2cd.dev_addr = 0xa0;
+		i2cd.offset = offset;
+		i2cd.len = sizeof(i2cd.data);
+		rc = doit(CHELSIO_T4_GET_I2C, &i2cd);
+		if (rc != 0)
+			return (rc);
+		printf("%02x:  %02x %02x %02x %02x  %02x %02x %02x %02x",
+		    offset, i2cd.data[0], i2cd.data[1], i2cd.data[2],
+		    i2cd.data[3], i2cd.data[4], i2cd.data[5], i2cd.data[6],
+		    i2cd.data[7]);
+
+		printf("  %c%c%c%c %c%c%c%c\n",
+		    isprint(i2cd.data[0]) ? i2cd.data[0] : '.',
+		    isprint(i2cd.data[1]) ? i2cd.data[1] : '.',
+		    isprint(i2cd.data[2]) ? i2cd.data[2] : '.',
+		    isprint(i2cd.data[3]) ? i2cd.data[3] : '.',
+		    isprint(i2cd.data[4]) ? i2cd.data[4] : '.',
+		    isprint(i2cd.data[5]) ? i2cd.data[5] : '.',
+		    isprint(i2cd.data[6]) ? i2cd.data[6] : '.',
+		    isprint(i2cd.data[7]) ? i2cd.data[7] : '.');
+	}
+
+	return (0);
+}
+
+static int
 modinfo(int argc, const char *argv[])
 {
 	long port;
@@ -1881,8 +1916,13 @@ modinfo(int argc, const char *argv[])
 	int rc, i;
 	uint16_t temp, vcc, tx_bias, tx_power, rx_power;
 
-	if (argc != 1) {
+	if (argc < 1) {
 		warnx("must supply a port");
+		return (EINVAL);
+	}
+
+	if (argc > 2) {
+		warnx("too many arguments");
 		return (EINVAL);
 	}
 
@@ -1890,6 +1930,15 @@ modinfo(int argc, const char *argv[])
 	if (*p || port > UCHAR_MAX) {
 		warnx("invalid port id \"%s\"", argv[0]);
 		return (EINVAL);
+	}
+
+	if (argc == 2) {
+		if (!strcmp(argv[1], "raw"))
+			return (modinfo_raw(port));
+		else {
+			warnx("second argument can only be \"raw\"");
+			return (EINVAL);
+		}
 	}
 
 	bzero(&i2cd, sizeof(i2cd));

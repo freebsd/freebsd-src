@@ -39,6 +39,7 @@ __FBSDID("$FreeBSD$");
 #include <unistd.h>
 #include <uuid.h>
 
+#include "image.h"
 #include "mkimg.h"
 #include "scheme.h"
 
@@ -166,20 +167,7 @@ gpt_metadata(u_int where)
 }
 
 static int
-gpt_filewrite(int fd, lba_t blk, void *buf, ssize_t bufsz)
-{
-	int error;
-
-	error = mkimg_seek(fd, blk);
-	if (error == 0) {
-		if (write(fd, buf, bufsz) != bufsz)
-			error = errno;
-	}
-	return (error);
-}
-
-static int
-gpt_write_pmbr(int fd, lba_t blks, void *bootcode)
+gpt_write_pmbr(lba_t blks, void *bootcode)
 {
 	u_char *pmbr;
 	uint32_t secs;
@@ -203,7 +191,7 @@ gpt_write_pmbr(int fd, lba_t blks, void *bootcode)
 	le32enc(pmbr + DOSPARTOFF + 8, 1);
 	le32enc(pmbr + DOSPARTOFF + 12, secs);
 	le16enc(pmbr + DOSMAGICOFFSET, DOSMAGIC);
-	error = gpt_filewrite(fd, 0, pmbr, secsz);
+	error = image_write(0, pmbr, 1);
 	free(pmbr);
 	return (error);
 }
@@ -223,7 +211,7 @@ gpt_mktbl(u_int tblsz)
 	STAILQ_FOREACH(part, &partlist, link) {
 		ent = tbl + part->index;
 		gpt_uuid_enc(&ent->ent_type, ALIAS_TYPE2PTR(part->type));
-		uuidgen(&uuid, 1);
+		mkimg_uuid(&uuid);
 		gpt_uuid_enc(&ent->ent_uuid, &uuid);
 		le64enc(&ent->ent_lba_start, part->block);
 		le64enc(&ent->ent_lba_end, part->block + part->size - 1);
@@ -239,8 +227,7 @@ gpt_mktbl(u_int tblsz)
 }
 
 static int
-gpt_write_hdr(int fd, struct gpt_hdr *hdr, uint64_t self, uint64_t alt,
-    uint64_t tbl)
+gpt_write_hdr(struct gpt_hdr *hdr, uint64_t self, uint64_t alt, uint64_t tbl)
 {
 	uint32_t crc;
 
@@ -250,11 +237,11 @@ gpt_write_hdr(int fd, struct gpt_hdr *hdr, uint64_t self, uint64_t alt,
 	hdr->hdr_crc_self = 0;
 	crc = crc32(hdr, offsetof(struct gpt_hdr, padding));
 	le64enc(&hdr->hdr_crc_self, crc);
-	return (gpt_filewrite(fd, self, hdr, secsz));
+	return (image_write(self, hdr, 1));
 }
 
 static int
-gpt_write(int fd, lba_t imgsz, void *bootcode)
+gpt_write(lba_t imgsz, void *bootcode)
 {
 	uuid_t uuid;
 	struct gpt_ent *tbl;
@@ -264,7 +251,7 @@ gpt_write(int fd, lba_t imgsz, void *bootcode)
 	int error;
 
 	/* PMBR */
-	error = gpt_write_pmbr(fd, imgsz, bootcode);
+	error = gpt_write_pmbr(imgsz, bootcode);
 	if (error)
 		return (error);
 
@@ -273,10 +260,10 @@ gpt_write(int fd, lba_t imgsz, void *bootcode)
 	tbl = gpt_mktbl(tblsz);
 	if (tbl == NULL)
 		return (errno);
-	error = gpt_filewrite(fd, 2, tbl, tblsz * secsz);
+	error = image_write(2, tbl, tblsz);
 	if (error)
 		goto out;
-	error = gpt_filewrite(fd, imgsz - (tblsz + 1), tbl, tblsz * secsz);
+	error = image_write(imgsz - (tblsz + 1), tbl, tblsz);
 	if (error)
 		goto out;
 
@@ -292,15 +279,15 @@ gpt_write(int fd, lba_t imgsz, void *bootcode)
 	le32enc(&hdr->hdr_size, offsetof(struct gpt_hdr, padding));
 	le64enc(&hdr->hdr_lba_start, 2 + tblsz);
 	le64enc(&hdr->hdr_lba_end, imgsz - tblsz - 2);
-	uuidgen(&uuid, 1);
+	mkimg_uuid(&uuid);
 	gpt_uuid_enc(&hdr->hdr_uuid, &uuid);
 	le32enc(&hdr->hdr_entries, nparts);
 	le32enc(&hdr->hdr_entsz, sizeof(struct gpt_ent));
 	crc = crc32(tbl, nparts * sizeof(struct gpt_ent));
 	le32enc(&hdr->hdr_crc_table, crc);
-	error = gpt_write_hdr(fd, hdr, 1, imgsz - 1, 2);
+	error = gpt_write_hdr(hdr, 1, imgsz - 1, 2);
 	if (!error)
-		error = gpt_write_hdr(fd, hdr, imgsz - 1, 1, imgsz - tblsz - 1);
+		error = gpt_write_hdr(hdr, imgsz - 1, 1, imgsz - tblsz - 1);
 	free(hdr);
 
  out:

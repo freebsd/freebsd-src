@@ -51,7 +51,9 @@ typedef enum {
 
 typedef struct rd_agent {
 	struct proc_handle *rda_php;
-	uintptr_t rda_addr;		/* address of r_debug_state */
+	uintptr_t rda_dlactivity_addr;
+	uintptr_t rda_preinit_addr;
+	uintptr_t rda_postinit_addr;
 } rd_agent_t;
 
 typedef struct rd_loadobj {

@@ -44,6 +44,8 @@
 #include <sys/ioctl.h>
 #endif
 
+extern bool proxy_mode;
+
 static int
 pdu_ahs_length(const struct pdu *pdu)
 {
@@ -101,10 +103,12 @@ pdu_new_response(struct pdu *request)
 
 #ifdef ICL_KERNEL_PROXY
 
-void
-pdu_receive(struct pdu *pdu)
+static void
+pdu_receive_proxy(struct pdu *pdu)
 {
 	size_t len;
+
+	assert(proxy_mode);
 
 	kernel_receive(pdu);
 
@@ -117,15 +121,17 @@ pdu_receive(struct pdu *pdu)
 	pdu->pdu_data_len = len;
 }
 
-void
-pdu_send(struct pdu *pdu)
+static void
+pdu_send_proxy(struct pdu *pdu)
 {
+
+	assert(proxy_mode);
 
 	pdu_set_data_segment_length(pdu, pdu->pdu_data_len);
 	kernel_send(pdu);
 }
 
-#else /* !ICL_KERNEL_PROXY */
+#endif /* ICL_KERNEL_PROXY */
 
 static size_t
 pdu_padding(const struct pdu *pdu)
@@ -160,6 +166,13 @@ pdu_receive(struct pdu *pdu)
 {
 	size_t len, padding;
 	char dummy[4];
+
+#ifdef ICL_KERNEL_PROXY
+	if (proxy_mode)
+		return (pdu_receive_proxy(pdu));
+#endif
+
+	assert(proxy_mode == false);
 
 	pdu_read(pdu->pdu_connection->conn_socket,
 	    (char *)pdu->pdu_bhs, sizeof(*pdu->pdu_bhs));
@@ -202,6 +215,13 @@ pdu_send(struct pdu *pdu)
 	struct iovec iov[3];
 	int iovcnt;
 
+#ifdef ICL_KERNEL_PROXY
+	if (proxy_mode)
+		return (pdu_send_proxy(pdu));
+#endif
+
+	assert(proxy_mode == false);
+
 	pdu_set_data_segment_length(pdu, pdu->pdu_data_len);
 	iov[0].iov_base = pdu->pdu_bhs;
 	iov[0].iov_len = sizeof(*pdu->pdu_bhs);
@@ -233,8 +253,6 @@ pdu_send(struct pdu *pdu)
 	if (ret != total_len)
 		log_errx(1, "short write");
 }
-
-#endif /* !ICL_KERNEL_PROXY */
 
 void
 pdu_delete(struct pdu *pdu)

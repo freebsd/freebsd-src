@@ -119,6 +119,7 @@ dialog_menu_main()
 	selected=$( eval $DIALOG \
 		--title \"\$title\"             \
 		--backtitle \"\$btitle\"        \
+		--separate-output               \
 		--hline \"\$hline\"             \
 		--ok-label \"\$msg_ok\"         \
 		--cancel-label \"\$msg_cancel\" \

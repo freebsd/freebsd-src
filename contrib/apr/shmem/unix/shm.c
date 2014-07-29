@@ -20,6 +20,62 @@
 #include "apr_errno.h"
 #include "apr_user.h"
 #include "apr_strings.h"
+#include "apr_hash.h"
+
+#if APR_USE_SHMEM_MMAP_SHM
+/* 
+ *   For portable use, a shared memory object should be identified by a name of
+ *   the form /somename; that is, a null-terminated string of up to NAME_MAX
+ *   (i.e., 255) characters consisting of an initial slash, followed by one or
+ *   more characters, none of which are slashes.
+ */
+#ifndef NAME_MAX
+#define NAME_MAX 255
+#endif
+
+/* See proc_mutex.c and sem_open for the reason for all this! */
+static unsigned int rshash (const char *p) {
+    /* hash function from Robert Sedgwicks 'Algorithms in C' book */
+    unsigned int b    = 378551;
+    unsigned int a    = 63689;
+    unsigned int retval = 0;
+
+    for( ; *p; p++) {
+        retval = retval * a + (*p);
+        a *= b;
+    }
+
+    return retval;
+}
+
+static const char *make_shm_open_safe_name(const char *filename,
+                                           apr_pool_t *pool)
+{
+    apr_ssize_t flen;
+    unsigned int h1, h2;
+
+    if (filename == NULL) {
+        return NULL;
+    }
+
+    flen = strlen(filename);
+    h1 = (apr_hashfunc_default(filename, &flen) & 0xffffffff);
+    h2 = (rshash(filename) & 0xffffffff);
+    return apr_psprintf(pool, "/ShM.%xH%x", h1, h2);
+
+}
+#endif
+
+#if APR_USE_SHMEM_SHMGET
+static key_t our_ftok(const char *filename)
+{
+    /* to help avoid collisions while still using
+     * an easily recreated proj_id */
+    apr_ssize_t slen = strlen(filename);
+    return ftok(filename,
+                (int)apr_hashfunc_default(filename, &slen));
+}
+#endif
 
 static apr_status_t shm_cleanup_owner(void *m_)
 {
@@ -58,7 +114,7 @@ static apr_status_t shm_cleanup_owner(void *m_)
         if (munmap(m->base, m->realsize) == -1) {
             return errno;
         }
-        if (shm_unlink(m->filename) == -1) {
+        if (shm_unlink(make_shm_open_safe_name(m->filename, m->pool)) == -1 && errno != ENOENT) {
             return errno;
         }
         return APR_SUCCESS;
@@ -220,7 +276,9 @@ APR_DECLARE(apr_status_t) apr_shm_create(apr_shm_t **m,
         new_m->pool = pool;
         new_m->reqsize = reqsize;
         new_m->filename = apr_pstrdup(pool, filename);
-
+#if APR_USE_SHMEM_MMAP_SHM
+        const char *shm_name = make_shm_open_safe_name(filename, pool);
+#endif
 #if APR_USE_SHMEM_MMAP_TMP || APR_USE_SHMEM_MMAP_SHM
         new_m->realsize = reqsize + 
             APR_ALIGN_DEFAULT(sizeof(apr_size_t)); /* room for metadata */
@@ -245,7 +303,7 @@ APR_DECLARE(apr_status_t) apr_shm_create(apr_shm_t **m,
         }
 
         status = apr_file_trunc(file, new_m->realsize);
-        if (status != APR_SUCCESS) {
+        if (status != APR_SUCCESS && status != APR_ESPIPE) {
             apr_file_close(file); /* ignore errors, we're failing */
             apr_file_remove(new_m->filename, new_m->pool);
             return status;
@@ -261,7 +319,8 @@ APR_DECLARE(apr_status_t) apr_shm_create(apr_shm_t **m,
         }
 #endif /* APR_USE_SHMEM_MMAP_TMP */
 #if APR_USE_SHMEM_MMAP_SHM
-        tmpfd = shm_open(filename, O_RDWR | O_CREAT | O_EXCL, 0644);
+        /* FIXME: SysV uses 0600... should we? */
+        tmpfd = shm_open(shm_name, O_RDWR | O_CREAT | O_EXCL, 0644);
         if (tmpfd == -1) {
             return errno;
         }
@@ -274,11 +333,11 @@ APR_DECLARE(apr_status_t) apr_shm_create(apr_shm_t **m,
         }
 
         status = apr_file_trunc(file, new_m->realsize);
-        if (status != APR_SUCCESS) {
-            shm_unlink(filename); /* we're failing, remove the object */
+        if (status != APR_SUCCESS && status != APR_ESPIPE) {
+            shm_unlink(shm_name); /* we're failing, remove the object */
             return status;
         }
-        new_m->base = mmap(NULL, reqsize, PROT_READ | PROT_WRITE,
+        new_m->base = mmap(NULL, new_m->realsize, PROT_READ | PROT_WRITE,
                            MAP_SHARED, tmpfd, 0);
 
         /* FIXME: check for errors */
@@ -312,28 +371,33 @@ APR_DECLARE(apr_status_t) apr_shm_create(apr_shm_t **m,
 
         /* ftok() (on solaris at least) requires that the file actually
          * exist before calling ftok(). */
-        shmkey = ftok(filename, 1);
+        shmkey = our_ftok(filename);
         if (shmkey == (key_t)-1) {
+            apr_file_close(file);
             return errno;
         }
 
         if ((new_m->shmid = shmget(shmkey, new_m->realsize,
                                    SHM_R | SHM_W | IPC_CREAT | IPC_EXCL)) < 0) {
+            apr_file_close(file);
             return errno;
         }
 
         if ((new_m->base = shmat(new_m->shmid, NULL, 0)) == (void *)-1) {
+            apr_file_close(file);
             return errno;
         }
         new_m->usable = new_m->base;
 
         if (shmctl(new_m->shmid, IPC_STAT, &shmbuf) == -1) {
+            apr_file_close(file);
             return errno;
         }
         apr_uid_current(&uid, &gid, pool);
         shmbuf.shm_perm.uid = uid;
         shmbuf.shm_perm.gid = gid;
         if (shmctl(new_m->shmid, IPC_SET, &shmbuf) == -1) {
+            apr_file_close(file);
             return errno;
         }
 
@@ -341,6 +405,7 @@ APR_DECLARE(apr_status_t) apr_shm_create(apr_shm_t **m,
         status = apr_file_write(file, (const void *)&reqsize,
                                 &nbytes);
         if (status != APR_SUCCESS) {
+            apr_file_close(file);
             return status;
         }
         status = apr_file_close(file);
@@ -359,6 +424,15 @@ APR_DECLARE(apr_status_t) apr_shm_create(apr_shm_t **m,
     }
 }
 
+APR_DECLARE(apr_status_t) apr_shm_create_ex(apr_shm_t **m, 
+                                            apr_size_t reqsize, 
+                                            const char *filename, 
+                                            apr_pool_t *p,
+                                            apr_int32_t flags)
+{
+    return apr_shm_create(m, reqsize, filename, p);
+}
+
 APR_DECLARE(apr_status_t) apr_shm_remove(const char *filename,
                                          apr_pool_t *pool)
 {
@@ -372,7 +446,8 @@ APR_DECLARE(apr_status_t) apr_shm_remove(const char *filename,
 #if APR_USE_SHMEM_MMAP_TMP
     return apr_file_remove(filename, pool);
 #elif APR_USE_SHMEM_MMAP_SHM
-    if (shm_unlink(filename) == -1) {
+    const char *shm_name = make_shm_open_safe_name(filename, pool);
+    if (shm_unlink(shm_name) == -1) {
         return errno;
     }
     return APR_SUCCESS;
@@ -386,7 +461,7 @@ APR_DECLARE(apr_status_t) apr_shm_remove(const char *filename,
 
     /* ftok() (on solaris at least) requires that the file actually
      * exist before calling ftok(). */
-    shmkey = ftok(filename, 1);
+    shmkey = our_ftok(filename);
     if (shmkey == (key_t)-1) {
         goto shm_remove_failed;
     }
@@ -467,7 +542,23 @@ APR_DECLARE(apr_status_t) apr_shm_attach(apr_shm_t **m,
         new_m = apr_palloc(pool, sizeof(apr_shm_t));
         new_m->pool = pool;
         new_m->filename = apr_pstrdup(pool, filename);
+#if APR_USE_SHMEM_MMAP_SHM
+        const char *shm_name = make_shm_open_safe_name(filename, pool);
 
+        /* FIXME: SysV uses 0600... should we? */
+        tmpfd = shm_open(shm_name, O_RDWR, 0644);
+        if (tmpfd == -1) {
+            return errno;
+        }
+
+        status = apr_os_file_put(&file, &tmpfd,
+                                 APR_READ | APR_WRITE,
+                                 pool); 
+        if (status != APR_SUCCESS) {
+            return status;
+        }
+
+#elif APR_USE_SHMEM_MMAP_TMP
         status = apr_file_open(&file, filename, 
                                APR_READ | APR_WRITE,
                                APR_OS_DEFAULT, pool);
@@ -478,6 +569,9 @@ APR_DECLARE(apr_status_t) apr_shm_attach(apr_shm_t **m,
         if (status != APR_SUCCESS) {
             return status;
         }
+#else
+        return APR_ENOTIMPL;
+#endif
 
         nbytes = sizeof(new_m->realsize);
         status = apr_file_read(file, (void *)&(new_m->realsize),
@@ -540,7 +634,7 @@ APR_DECLARE(apr_status_t) apr_shm_attach(apr_shm_t **m,
 
         new_m->filename = apr_pstrdup(pool, filename);
         new_m->pool = pool;
-        shmkey = ftok(filename, 1);
+        shmkey = our_ftok(filename);
         if (shmkey == (key_t)-1) {
             return errno;
         }
@@ -562,6 +656,14 @@ APR_DECLARE(apr_status_t) apr_shm_attach(apr_shm_t **m,
         return APR_ENOTIMPL;
 #endif
     }
+}
+
+APR_DECLARE(apr_status_t) apr_shm_attach_ex(apr_shm_t **m,
+                                            const char *filename,
+                                            apr_pool_t *pool,
+                                            apr_int32_t flags)
+{
+    return apr_shm_attach(m, filename, pool);
 }
 
 APR_DECLARE(apr_status_t) apr_shm_detach(apr_shm_t *m)

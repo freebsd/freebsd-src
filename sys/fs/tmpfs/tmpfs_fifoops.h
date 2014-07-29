@@ -41,13 +41,10 @@
 
 #include <fs/tmpfs/tmpfs_vnops.h>
 
-/* --------------------------------------------------------------------- */
-
 /*
  * Declarations for tmpfs_fifoops.c.
  */
 
 extern struct vop_vector tmpfs_fifoop_entries;
 
-/* --------------------------------------------------------------------- */
 #endif /* _FS_TMPFS_TMPFS_FIFOOPS_H_ */

@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.include <bsd.own.mk>
+.include <src.opts.mk>
 
 .if ${MK_INET6_SUPPORT} != "no"
 CFLAGS+= -DINET6

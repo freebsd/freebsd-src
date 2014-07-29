@@ -2,7 +2,7 @@ Pull in r199034 from upstream clang trunk (by Jakob Stoklund Olesen):
 
   MIPS and SPARC assemblers both take the -KPIC flag.
 
-Introduced here: http://svn.freebsd.org/changeset/base/262262
+Introduced here: http://svnweb.freebsd.org/changeset/base/262262
 
 Index: tools/clang/lib/Driver/Tools.cpp
 ===================================================================

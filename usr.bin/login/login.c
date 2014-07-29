@@ -489,14 +489,6 @@ main(int argc, char *argv[])
 		if (errno != EROFS)
 			syslog(LOG_ERR, "chown(%s): %m", ttyn);
 
-	/*
-	 * Exclude cons/vt/ptys only, assume dialup otherwise
-	 * TODO: Make dialup tty determination a library call
-	 * for consistency (finger etc.)
-	 */
-	if (hflag && isdialuptty(tty))
-		syslog(LOG_INFO, "DIALUP %s, %s", tty, pwd->pw_name);
-
 #ifdef LOGALL
 	/*
 	 * Syslog each successful login, so we don't have to watch

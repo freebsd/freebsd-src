@@ -3,10 +3,11 @@
 SHLIBDIR?=	/lib
 
 .if !defined(ENABLE_WIDEC)
-NO_MAN=
+# Override any MAN= setting below..
+MK_MAN=no
 .endif
 
-.include <bsd.own.mk>
+.include <src.opts.mk>
 
 .include "${.CURDIR}/../config.mk"
 
@@ -54,7 +55,7 @@ HAVE_TERMIOS_H=		1
 HAVE_TERMIO_H=		0
 HAVE_VSSCANF=		1
 HEADER_STDBOOL=		1
-# XXX amd64, ia64 1L and int
+# XXX amd64 1L and int
 ONEUL=			1UL
 TYPEOF_CHTYPE=		long
 TYPEOF_MMASK_T=		long
@@ -549,12 +550,12 @@ MAN+=	\
 	curs_ins_wstr.3 \
 	curs_printw.3 \
 	curs_scanw.3
-.endif
-
-CLEANFILES+=	${MAN:M*.3}
 
 MAN+=	term.5 terminfo.5
 MAN+=	term.7
+.endif
+
+CLEANFILES+=	${MAN:M*.3}
 
 MLINKS=	ncurses.3 curses.3 \
 	curs_addch.3 addch.3 \

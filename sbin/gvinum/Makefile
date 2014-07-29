@@ -7,8 +7,8 @@ MAN=	gvinum.8
 WARNS?=	2
 CFLAGS+=	-I${.CURDIR}/../../sys -I${DESTDIR}/${INCLUDEDIR}/edit
 
-DPADD=	${LIBEDIT} ${LIBTERMCAP} ${LIBDEVSTAT} ${LIBKVM} ${LIBGEOM}
-LDADD=	-ledit -ltermcap -ldevstat -lkvm -lgeom
+DPADD=	${LIBEDIT} ${LIBTERMCAPW} ${LIBDEVSTAT} ${LIBKVM} ${LIBGEOM}
+LDADD=	-ledit -ltermcapw -ldevstat -lkvm -lgeom
 
 .PATH: ${.CURDIR}/../../sys/geom/vinum
 

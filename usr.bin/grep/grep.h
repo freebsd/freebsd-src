@@ -39,48 +39,48 @@
 #include "fastmatch.h"
 
 #ifdef WITHOUT_NLS
-#define getstr(n)	 errstr[n]
+#define	getstr(n)	 errstr[n]
 #else
 #include <nl_types.h>
 
 extern nl_catd		 catalog;
-#define getstr(n)	 catgets(catalog, 1, n, errstr[n])
+#define	getstr(n)	 catgets(catalog, 1, n, errstr[n])
 #endif
 
 extern const char		*errstr[];
 
-#define VERSION		"2.5.1-FreeBSD"
+#define	VERSION		"2.5.1-FreeBSD"
 
-#define GREP_FIXED	0
-#define GREP_BASIC	1
-#define GREP_EXTENDED	2
+#define	GREP_FIXED	0
+#define	GREP_BASIC	1
+#define	GREP_EXTENDED	2
 
-#define BINFILE_BIN	0
-#define BINFILE_SKIP	1
-#define BINFILE_TEXT	2
+#define	BINFILE_BIN	0
+#define	BINFILE_SKIP	1
+#define	BINFILE_TEXT	2
 
-#define FILE_STDIO	0
-#define FILE_MMAP	1
-#define FILE_GZIP	2
-#define FILE_BZIP	3
-#define FILE_XZ		4
-#define FILE_LZMA	5
+#define	FILE_STDIO	0
+#define	FILE_MMAP	1
+#define	FILE_GZIP	2
+#define	FILE_BZIP	3
+#define	FILE_XZ		4
+#define	FILE_LZMA	5
 
-#define DIR_READ	0
-#define DIR_SKIP	1
-#define DIR_RECURSE	2
+#define	DIR_READ	0
+#define	DIR_SKIP	1
+#define	DIR_RECURSE	2
 
-#define DEV_READ	0
-#define DEV_SKIP	1
+#define	DEV_READ	0
+#define	DEV_SKIP	1
 
-#define LINK_READ	0
-#define LINK_EXPLICIT	1
-#define LINK_SKIP	2
+#define	LINK_READ	0
+#define	LINK_EXPLICIT	1
+#define	LINK_SKIP	2
 
-#define EXCL_PAT	0
-#define INCL_PAT	1
+#define	EXCL_PAT	0
+#define	INCL_PAT	1
 
-#define MAX_LINE_MATCHES	32
+#define	MAX_LINE_MATCHES	32
 
 struct file {
 	int		 fd;
@@ -129,7 +129,7 @@ extern regex_t	*er_pattern, *r_pattern;
 extern fastmatch_t *fg_pattern;
 
 /* For regex errors  */
-#define RE_ERROR_BUF	512
+#define	RE_ERROR_BUF	512
 extern char	 re_error[RE_ERROR_BUF + 1];	/* Seems big enough */
 
 /* util.c */

@@ -949,7 +949,7 @@ print_header32_tok(FILE *fp, tokenstr_t *tok, char *del, int oflags)
 {
 
 	print_tok_type(fp, tok->id, "header", oflags);
-	if (oflags & AU_OFLAG_RAW) {
+	if (oflags & AU_OFLAG_XML) {
 		open_attr(fp, "version");
 		print_1_byte(fp, tok->tt.hdr32.version, "%u");
 		close_attr(fp);

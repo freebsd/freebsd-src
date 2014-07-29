@@ -8,6 +8,8 @@
  *
  */
 
+#include "config.h"
+
 #include <ctype.h>
 #include <string.h>
 #include <strings.h>
@@ -16,7 +18,7 @@
 #endif
 
 #include "util/config_file.h"
-#include "util/configparser.h"
+#include "configparser.h"
 void ub_c_error(const char *message);
 
 #if 0
@@ -26,56 +28,80 @@ void ub_c_error(const char *message);
 #endif
 
 /** avoid warning in about fwrite return value */
-#define ECHO ub_c_error_msg("syntax error at text: %s", yytext)
+#define ECHO ub_c_error_msg("syntax error at text: %s", ub_c_text)
 
 /** A parser variable, this is a statement in the config file which is
  * of the form variable: value1 value2 ...  nargs is the number of values. */
 #define YDVAR(nargs, var) \
 	num_args=(nargs); \
-	LEXOUT(("v(%s%d) ", yytext, num_args)); \
+	LEXOUT(("v(%s%d) ", ub_c_text, num_args)); \
 	if(num_args > 0) { BEGIN(val); } \
 	return (var);
 
 struct inc_state {
 	char* filename;
 	int line;
+	YY_BUFFER_STATE buffer;
+	struct inc_state* next;
 };
-static struct inc_state parse_stack[MAXINCLUDES];
-static YY_BUFFER_STATE include_stack[MAXINCLUDES];
-static int config_include_stack_ptr = 0;
+static struct inc_state* config_include_stack = NULL;
+static int inc_depth = 0;
 static int inc_prev = 0;
 static int num_args = 0;
 
+void init_cfg_parse(void)
+{
+	config_include_stack = NULL;
+	inc_depth = 0;
+	inc_prev = 0;
+	num_args = 0;
+}
 
 static void config_start_include(const char* filename)
 {
 	FILE *input;
+	struct inc_state* s;
+	char* nm;
+	if(inc_depth++ > 100000) {
+		ub_c_error_msg("too many include files");
+		return;
+	}
 	if(strlen(filename) == 0) {
 		ub_c_error_msg("empty include file name");
 		return;
 	}
-	if(config_include_stack_ptr >= MAXINCLUDES) {
-		ub_c_error_msg("includes nested too deeply, skipped (>%d)", MAXINCLUDES);
+	s = (struct inc_state*)malloc(sizeof(*s));
+	if(!s) {
+		ub_c_error_msg("include %s: malloc failure", filename);
 		return;
 	}
 	if(cfg_parser->chroot && strncmp(filename, cfg_parser->chroot,
 		strlen(cfg_parser->chroot)) == 0) {
 		filename += strlen(cfg_parser->chroot);
 	}
+	nm = strdup(filename);
+	if(!nm) {
+		ub_c_error_msg("include %s: strdup failure", filename);
+		free(s);
+		return;
+	}
 	input = fopen(filename, "r");
 	if(!input) {
 		ub_c_error_msg("cannot open include file '%s': %s",
 			filename, strerror(errno));
+		free(s);
+		free(nm);
 		return;
 	}
-	LEXOUT(("switch_to_include_file(%s) ", filename));
-	parse_stack[config_include_stack_ptr].filename = cfg_parser->filename;
-	parse_stack[config_include_stack_ptr].line = cfg_parser->line;
-	include_stack[config_include_stack_ptr] = YY_CURRENT_BUFFER;
-	cfg_parser->filename = strdup(filename);
+	LEXOUT(("switch_to_include_file(%s)\n", filename));
+	s->filename = cfg_parser->filename;
+	s->line = cfg_parser->line;
+	s->buffer = YY_CURRENT_BUFFER;
+	s->next = config_include_stack;
+	config_include_stack = s;
+	cfg_parser->filename = nm;
 	cfg_parser->line = 1;
 	yy_switch_to_buffer(yy_create_buffer(input, YY_BUF_SIZE));
-	++config_include_stack_ptr;
 }
 
 static void config_start_include_glob(const char* filename)
@@ -107,6 +133,8 @@ static void config_start_include_glob(const char* filename)
 		if(r) {
 			/* some error */
 			globfree(&g);
+			if(r == GLOB_NOMATCH)
+				return; /* no matches for pattern */
 			config_start_include(filename); /* let original deal with it */
 			return;
 		}
@@ -124,19 +152,23 @@ static void config_start_include_glob(const char* filename)
 
 static void config_end_include(void)
 {
-	--config_include_stack_ptr;
+	struct inc_state* s = config_include_stack;
+	--inc_depth;
+	if(!s) return;
 	free(cfg_parser->filename);
-	cfg_parser->filename = parse_stack[config_include_stack_ptr].filename;
-	cfg_parser->line = parse_stack[config_include_stack_ptr].line;
+	cfg_parser->filename = s->filename;
+	cfg_parser->line = s->line;
 	yy_delete_buffer(YY_CURRENT_BUFFER);
-	yy_switch_to_buffer(include_stack[config_include_stack_ptr]);
+	yy_switch_to_buffer(s->buffer);
+	config_include_stack = s->next;
+	free(s);
 }
 
 #ifndef yy_set_bol /* compat definition, for flex 2.4.6 */
 #define yy_set_bol(at_bol) \
         { \
 	        if ( ! yy_current_buffer ) \
-	                yy_current_buffer = yy_create_buffer( yyin, YY_BUF_SIZE ); \
+	                yy_current_buffer = yy_create_buffer( ub_c_in, YY_BUF_SIZE ); \
 	        yy_current_buffer->yy_ch_buf[0] = ((at_bol)?'\n':' '); \
         }
 #endif
@@ -170,7 +202,7 @@ SQANY     [^\'\n\r\\]|\\.
 	LEXOUT(("SP ")); /* ignore */ }
 <INITIAL,val>{SPACE}*{COMMENT}.*	{ 
 	/* note that flex makes the longest match and '.' is any but not nl */
-	LEXOUT(("comment(%s) ", yytext)); /* ignore */ }
+	LEXOUT(("comment(%s) ", ub_c_text)); /* ignore */ }
 server{COLON}			{ YDVAR(0, VAR_SERVER) }
 num-threads{COLON}		{ YDVAR(1, VAR_NUM_THREADS) }
 verbosity{COLON}		{ YDVAR(1, VAR_VERBOSITY) }
@@ -191,10 +223,12 @@ ssl-service-pem{COLON}		{ YDVAR(1, VAR_SSL_SERVICE_PEM) }
 ssl-port{COLON}			{ YDVAR(1, VAR_SSL_PORT) }
 do-daemonize{COLON}		{ YDVAR(1, VAR_DO_DAEMONIZE) }
 interface{COLON}		{ YDVAR(1, VAR_INTERFACE) }
+ip-address{COLON}		{ YDVAR(1, VAR_INTERFACE) }
 outgoing-interface{COLON}	{ YDVAR(1, VAR_OUTGOING_INTERFACE) }
 interface-automatic{COLON}	{ YDVAR(1, VAR_INTERFACE_AUTOMATIC) }
 so-rcvbuf{COLON}		{ YDVAR(1, VAR_SO_RCVBUF) }
 so-sndbuf{COLON}		{ YDVAR(1, VAR_SO_SNDBUF) }
+so-reuseport{COLON}		{ YDVAR(1, VAR_SO_REUSEPORT) }
 chroot{COLON}			{ YDVAR(1, VAR_CHROOT) }
 username{COLON}			{ YDVAR(1, VAR_USERNAME) }
 directory{COLON}		{ YDVAR(1, VAR_DIRECTORY) }
@@ -216,6 +250,7 @@ infra-cache-numhosts{COLON}	{ YDVAR(1, VAR_INFRA_CACHE_NUMHOSTS) }
 infra-cache-lame-size{COLON}	{ YDVAR(1, VAR_INFRA_CACHE_LAME_SIZE) }
 num-queries-per-thread{COLON}	{ YDVAR(1, VAR_NUM_QUERIES_PER_THREAD) }
 jostle-timeout{COLON}		{ YDVAR(1, VAR_JOSTLE_TIMEOUT) }
+delay-close{COLON}		{ YDVAR(1, VAR_DELAY_CLOSE) }
 target-fetch-policy{COLON}	{ YDVAR(1, VAR_TARGET_FETCH_POLICY) }
 harden-short-bufsize{COLON}	{ YDVAR(1, VAR_HARDEN_SHORT_BUFSIZE) }
 harden-large-queries{COLON}	{ YDVAR(1, VAR_HARDEN_LARGE_QUERIES) }
@@ -275,6 +310,7 @@ log-queries{COLON}		{ YDVAR(1, VAR_LOG_QUERIES) }
 local-zone{COLON}		{ YDVAR(2, VAR_LOCAL_ZONE) }
 local-data{COLON}		{ YDVAR(1, VAR_LOCAL_DATA) }
 local-data-ptr{COLON}		{ YDVAR(1, VAR_LOCAL_DATA_PTR) }
+unblock-lan-zones{COLON}	{ YDVAR(1, VAR_UNBLOCK_LAN_ZONES) }
 statistics-interval{COLON}	{ YDVAR(1, VAR_STATISTICS_INTERVAL) }
 statistics-cumulative{COLON}	{ YDVAR(1, VAR_STATISTICS_CUMULATIVE) }
 extended-statistics{COLON}	{ YDVAR(1, VAR_EXTENDED_STATISTICS) }
@@ -291,98 +327,100 @@ python{COLON}			{ YDVAR(0, VAR_PYTHON) }
 domain-insecure{COLON}		{ YDVAR(1, VAR_DOMAIN_INSECURE) }
 minimal-responses{COLON}	{ YDVAR(1, VAR_MINIMAL_RESPONSES) }
 rrset-roundrobin{COLON}		{ YDVAR(1, VAR_RRSET_ROUNDROBIN) }
+max-udp-size{COLON}		{ YDVAR(1, VAR_MAX_UDP_SIZE) }
 <INITIAL,val>{NEWLINE}		{ LEXOUT(("NL\n")); cfg_parser->line++; }
 
 	/* Quoted strings. Strip leading and ending quotes */
 <val>\"			{ BEGIN(quotedstring); LEXOUT(("QS ")); }
 <quotedstring><<EOF>>   {
-        yyerror("EOF inside quoted string");
+        ub_c_error("EOF inside quoted string");
 	if(--num_args == 0) { BEGIN(INITIAL); }
 	else		    { BEGIN(val); }
 }
-<quotedstring>{DQANY}*  { LEXOUT(("STR(%s) ", yytext)); yymore(); }
-<quotedstring>{NEWLINE} { yyerror("newline inside quoted string, no end \""); 
+<quotedstring>{DQANY}*  { LEXOUT(("STR(%s) ", ub_c_text)); yymore(); }
+<quotedstring>{NEWLINE} { ub_c_error("newline inside quoted string, no end \""); 
 			  cfg_parser->line++; BEGIN(INITIAL); }
 <quotedstring>\" {
         LEXOUT(("QE "));
 	if(--num_args == 0) { BEGIN(INITIAL); }
 	else		    { BEGIN(val); }
-        yytext[yyleng - 1] = '\0';
-	yylval.str = strdup(yytext);
-	if(!yylval.str)
-		yyerror("out of memory");
+        ub_c_text[ub_c_leng - 1] = '\0';
+	ub_c_lval.str = strdup(ub_c_text);
+	if(!ub_c_lval.str)
+		ub_c_error("out of memory");
         return STRING_ARG;
 }
 
 	/* Single Quoted strings. Strip leading and ending quotes */
 <val>\'			{ BEGIN(singlequotedstr); LEXOUT(("SQS ")); }
 <singlequotedstr><<EOF>>   {
-        yyerror("EOF inside quoted string");
+        ub_c_error("EOF inside quoted string");
 	if(--num_args == 0) { BEGIN(INITIAL); }
 	else		    { BEGIN(val); }
 }
-<singlequotedstr>{SQANY}*  { LEXOUT(("STR(%s) ", yytext)); yymore(); }
-<singlequotedstr>{NEWLINE} { yyerror("newline inside quoted string, no end '"); 
+<singlequotedstr>{SQANY}*  { LEXOUT(("STR(%s) ", ub_c_text)); yymore(); }
+<singlequotedstr>{NEWLINE} { ub_c_error("newline inside quoted string, no end '"); 
 			     cfg_parser->line++; BEGIN(INITIAL); }
 <singlequotedstr>\' {
         LEXOUT(("SQE "));
 	if(--num_args == 0) { BEGIN(INITIAL); }
 	else		    { BEGIN(val); }
-        yytext[yyleng - 1] = '\0';
-	yylval.str = strdup(yytext);
-	if(!yylval.str)
-		yyerror("out of memory");
+        ub_c_text[ub_c_leng - 1] = '\0';
+	ub_c_lval.str = strdup(ub_c_text);
+	if(!ub_c_lval.str)
+		ub_c_error("out of memory");
         return STRING_ARG;
 }
 
 	/* include: directive */
 <INITIAL,val>include{COLON}	{ 
-	LEXOUT(("v(%s) ", yytext)); inc_prev = YYSTATE; BEGIN(include); }
+	LEXOUT(("v(%s) ", ub_c_text)); inc_prev = YYSTATE; BEGIN(include); }
 <include><<EOF>>	{
-        yyerror("EOF inside include directive");
+        ub_c_error("EOF inside include directive");
         BEGIN(inc_prev);
 }
 <include>{SPACE}*	{ LEXOUT(("ISP ")); /* ignore */ }
 <include>{NEWLINE}	{ LEXOUT(("NL\n")); cfg_parser->line++;}
 <include>\"		{ LEXOUT(("IQS ")); BEGIN(include_quoted); }
 <include>{UNQUOTEDLETTER}*	{
-	LEXOUT(("Iunquotedstr(%s) ", yytext));
-	config_start_include_glob(yytext);
+	LEXOUT(("Iunquotedstr(%s) ", ub_c_text));
+	config_start_include_glob(ub_c_text);
 	BEGIN(inc_prev);
 }
 <include_quoted><<EOF>>	{
-        yyerror("EOF inside quoted string");
+        ub_c_error("EOF inside quoted string");
         BEGIN(inc_prev);
 }
-<include_quoted>{DQANY}*	{ LEXOUT(("ISTR(%s) ", yytext)); yymore(); }
-<include_quoted>{NEWLINE}	{ yyerror("newline before \" in include name"); 
+<include_quoted>{DQANY}*	{ LEXOUT(("ISTR(%s) ", ub_c_text)); yymore(); }
+<include_quoted>{NEWLINE}	{ ub_c_error("newline before \" in include name"); 
 				  cfg_parser->line++; BEGIN(inc_prev); }
 <include_quoted>\"	{
 	LEXOUT(("IQE "));
-	yytext[yyleng - 1] = '\0';
-	config_start_include_glob(yytext);
+	ub_c_text[ub_c_leng - 1] = '\0';
+	config_start_include_glob(ub_c_text);
 	BEGIN(inc_prev);
 }
 <INITIAL,val><<EOF>>	{
+	LEXOUT(("LEXEOF "));
 	yy_set_bol(1); /* Set beginning of line, so "^" rules match.  */
-	if (config_include_stack_ptr == 0) {
+	if (!config_include_stack) {
 		yyterminate();
 	} else {
-		fclose(yyin);
+		fclose(ub_c_in);
 		config_end_include();
 	}
 }
 
-<val>{UNQUOTEDLETTER}*	{ LEXOUT(("unquotedstr(%s) ", yytext)); 
+<val>{UNQUOTEDLETTER}*	{ LEXOUT(("unquotedstr(%s) ", ub_c_text)); 
 			if(--num_args == 0) { BEGIN(INITIAL); }
-			yylval.str = strdup(yytext); return STRING_ARG; }
+			ub_c_lval.str = strdup(ub_c_text); return STRING_ARG; }
 
 {UNQUOTEDLETTER_NOCOLON}*	{
-	ub_c_error_msg("unknown keyword '%s'", yytext);
+	ub_c_error_msg("unknown keyword '%s'", ub_c_text);
 	}
 
 <*>.	{
-	ub_c_error_msg("stray '%s'", yytext);
+	ub_c_error_msg("stray '%s'", ub_c_text);
 	}
 
 %%

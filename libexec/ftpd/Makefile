@@ -1,7 +1,7 @@
 #	@(#)Makefile	8.2 (Berkeley) 4/4/94
 # $FreeBSD$
 
-.include <bsd.own.mk>
+.include <src.opts.mk>
 
 PROG=	ftpd
 MAN=	ftpd.8 ftpchroot.5

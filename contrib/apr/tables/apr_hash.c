@@ -162,6 +162,29 @@ APR_DECLARE(void) apr_hash_this(apr_hash_index_t *hi,
     if (val)  *val  = (void *)hi->this->val;
 }
 
+APR_DECLARE(const void *) apr_hash_this_key(apr_hash_index_t *hi)
+{
+    const void *key;
+
+    apr_hash_this(hi, &key, NULL, NULL);
+    return key;
+}
+
+APR_DECLARE(apr_ssize_t) apr_hash_this_key_len(apr_hash_index_t *hi)
+{
+    apr_ssize_t klen;
+
+    apr_hash_this(hi, NULL, &klen, NULL);
+    return klen;
+}
+
+APR_DECLARE(void *) apr_hash_this_val(apr_hash_index_t *hi)
+{
+    void *val;
+
+    apr_hash_this(hi, NULL, NULL, &val);
+    return val;
+}
 
 /*
  * Expanding a hash table

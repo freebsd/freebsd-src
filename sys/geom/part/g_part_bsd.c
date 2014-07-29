@@ -112,12 +112,26 @@ static struct g_part_scheme g_part_bsd_scheme = {
 };
 G_PART_SCHEME_DECLARE(g_part_bsd);
 
+static struct g_part_bsd_alias {
+	uint8_t		type;
+	int		alias;
+} bsd_alias_match[] = {
+	{ FS_BSDFFS,	G_PART_ALIAS_FREEBSD_UFS },
+	{ FS_SWAP,	G_PART_ALIAS_FREEBSD_SWAP },
+	{ FS_ZFS,	G_PART_ALIAS_FREEBSD_ZFS },
+	{ FS_VINUM,	G_PART_ALIAS_FREEBSD_VINUM },
+	{ FS_NANDFS,	G_PART_ALIAS_FREEBSD_NANDFS },
+	{ FS_HAMMER,	G_PART_ALIAS_DFBSD_HAMMER },
+	{ FS_HAMMER2,	G_PART_ALIAS_DFBSD_HAMMER2 },
+};
+
 static int
 bsd_parse_type(const char *type, uint8_t *fstype)
 {
 	const char *alias;
 	char *endp;
 	long lt;
+	int i;
 
 	if (type[0] == '!') {
 		lt = strtol(type + 1, &endp, 0);
@@ -126,30 +140,13 @@ bsd_parse_type(const char *type, uint8_t *fstype)
 		*fstype = (u_int)lt;
 		return (0);
 	}
-	alias = g_part_alias_name(G_PART_ALIAS_FREEBSD_NANDFS);
-	if (!strcasecmp(type, alias)) {
-		*fstype = FS_NANDFS;
-		return (0);
-	}
-	alias = g_part_alias_name(G_PART_ALIAS_FREEBSD_SWAP);
-	if (!strcasecmp(type, alias)) {
-		*fstype = FS_SWAP;
-		return (0);
-	}
-	alias = g_part_alias_name(G_PART_ALIAS_FREEBSD_UFS);
-	if (!strcasecmp(type, alias)) {
-		*fstype = FS_BSDFFS;
-		return (0);
-	}
-	alias = g_part_alias_name(G_PART_ALIAS_FREEBSD_VINUM);
-	if (!strcasecmp(type, alias)) {
-		*fstype = FS_VINUM;
-		return (0);
-	}
-	alias = g_part_alias_name(G_PART_ALIAS_FREEBSD_ZFS);
-	if (!strcasecmp(type, alias)) {
-		*fstype = FS_ZFS;
-		return (0);
+	for (i = 0;
+	    i < sizeof(bsd_alias_match) / sizeof(bsd_alias_match[0]); i++) {
+		alias = g_part_alias_name(bsd_alias_match[i].alias);
+		if (strcasecmp(type, alias) == 0) {
+			*fstype = bsd_alias_match[i].type;
+			return (0);
+		}
 	}
 	return (EINVAL);
 }

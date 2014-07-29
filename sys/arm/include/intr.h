@@ -79,6 +79,8 @@ extern void (*arm_post_filter)(void *);
 extern int (*arm_config_irq)(int irq, enum intr_trigger trig,
     enum intr_polarity pol);
 
+void arm_irq_memory_barrier(uintptr_t);
+
 void gic_init_secondary(void);
 
 #endif	/* _MACHINE_INTR_H */

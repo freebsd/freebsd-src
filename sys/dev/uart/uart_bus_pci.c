@@ -118,6 +118,7 @@ static const struct pci_id pci_ns8250_ids[] = {
 	8 * DEFAULT_RCLK },
 { 0x8086, 0x1c3d, 0xffff, 0, "Intel AMT - KT Controller", 0x10 },
 { 0x8086, 0x1d3d, 0xffff, 0, "Intel C600/X79 Series Chipset KT Controller", 0x10 },
+{ 0x8086, 0x2a07, 0xffff, 0, "Intel AMT - PM965/GM965 KT Controller", 0x10 },
 { 0x8086, 0x2e17, 0xffff, 0, "4 Series Chipset Serial KT Controller", 0x10 },
 { 0x8086, 0x3b67, 0xffff, 0, "5 Series/3400 Series Chipset KT Controller",
 	0x10 },
@@ -135,6 +136,8 @@ static const struct pci_id pci_ns8250_ids[] = {
 	"MosChip MCS9901 PCIe to Peripheral Controller", 0x10 },
 { 0x9710, 0x9904, 0xa000, 0x1000,
 	"MosChip MCS9904 PCIe to Peripheral Controller", 0x10 },
+{ 0x9710, 0x9922, 0xffff, 0,
+	"MosChip MCS9922 Multi I/O Controller", 0x10 },
 { 0xdeaf, 0x9051, 0xffff, 0, "Middle Digital PC Weasel Serial Port", 0x10 },
 { 0xffff, 0, 0xffff, 0, NULL, 0, 0}
 };

@@ -93,7 +93,7 @@ __FBSDID("$FreeBSD$");
 #include <security/mac/mac_framework.h>
 
 static VNET_DEFINE(uma_zone_t, tcptw_zone);
-#define	V_tcptw_zone			VNET(tcptw_zone)
+#define	V_tcptw_zone		VNET(tcptw_zone)
 static int	maxtcptw;
 
 /*
@@ -103,22 +103,26 @@ static int	maxtcptw;
  * timewait lock, which must be held over queue iteration and modification.
  */
 static VNET_DEFINE(TAILQ_HEAD(, tcptw), twq_2msl);
-#define	V_twq_2msl			VNET(twq_2msl)
+#define	V_twq_2msl		VNET(twq_2msl)
 
 /* Global timewait lock */
 static VNET_DEFINE(struct rwlock, tw_lock);
-#define	V_tw_lock			VNET(tw_lock)
+#define	V_tw_lock		VNET(tw_lock)
 
-#define TW_LOCK_INIT(tw, d)	rw_init_flags(&(tw), (d), 0)
-#define TW_LOCK_DESTROY(tw)	rw_destroy(&(tw))
-#define TW_RLOCK(tw)		rw_rlock(&(tw))
-#define TW_WLOCK(tw)		rw_wlock(&(tw))
-#define TW_RUNLOCK(tw)		rw_runlock(&(tw))
-#define TW_WUNLOCK(tw)		rw_wunlock(&(tw))
-#define TW_LOCK_ASSERT(tw)	rw_assert(&(tw), RA_LOCKED)
-#define TW_RLOCK_ASSERT(tw)	rw_assert(&(tw), RA_RLOCKED)
-#define TW_WLOCK_ASSERT(tw)	rw_assert(&(tw), RA_WLOCKED)
-#define TW_UNLOCK_ASSERT(tw)	rw_assert(&(tw), RA_UNLOCKED)
+#define	TW_LOCK_INIT(tw, d)	rw_init_flags(&(tw), (d), 0)
+#define	TW_LOCK_DESTROY(tw)	rw_destroy(&(tw))
+#define	TW_RLOCK(tw)		rw_rlock(&(tw))
+#define	TW_WLOCK(tw)		rw_wlock(&(tw))
+#define	TW_RUNLOCK(tw)		rw_runlock(&(tw))
+#define	TW_WUNLOCK(tw)		rw_wunlock(&(tw))
+#define	TW_LOCK_ASSERT(tw)	rw_assert(&(tw), RA_LOCKED)
+#define	TW_RLOCK_ASSERT(tw)	rw_assert(&(tw), RA_RLOCKED)
+#define	TW_WLOCK_ASSERT(tw)	rw_assert(&(tw), RA_WLOCKED)
+#define	TW_UNLOCK_ASSERT(tw)	rw_assert(&(tw), RA_UNLOCKED)
+
+static void	tcp_tw_2msl_reset(struct tcptw *, int);
+static void	tcp_tw_2msl_stop(struct tcptw *, int);
+static int	tcp_twrespond(struct tcptw *, int);
 
 /*
  * tw_pcbref() bumps the reference count on an tw in order to maintain
@@ -133,28 +137,18 @@ tw_pcbref(struct tcptw *tw)
 }
 
 /*
- * Drop a refcount on an tw elevated using tw_pcbref().  Return
- * the tw lock released.
+ * Drop a refcount on an tw elevated using tw_pcbref().
  */
 static int
 tw_pcbrele(struct tcptw *tw)
 {
 
-	TW_WLOCK_ASSERT(V_tw_lock);
 	KASSERT(tw->tw_refcount > 0, ("%s: refcount 0", __func__));
-
-	if (!refcount_release(&tw->tw_refcount)) {
-		TW_WUNLOCK(V_tw_lock);
+	if (!refcount_release(&tw->tw_refcount))
 		return (0);
-	}
-
 	uma_zfree(V_tcptw_zone, tw);
-	TW_WUNLOCK(V_tw_lock);
 	return (1);
 }
-
-static void	tcp_tw_2msl_reset(struct tcptw *, int ream);
-static void	tcp_tw_2msl_stop(struct tcptw *, int reuse);
 
 static int
 tcptw_auto_size(void)
@@ -364,45 +358,12 @@ tcp_twstart(struct tcpcb *tp)
 		INP_WUNLOCK(inp);
 }
 
-#if 0
-/*
- * The appromixate rate of ISN increase of Microsoft TCP stacks;
- * the actual rate is slightly higher due to the addition of
- * random positive increments.
- *
- * Most other new OSes use semi-randomized ISN values, so we
- * do not need to worry about them.
- */
-#define MS_ISN_BYTES_PER_SECOND		250000
-
-/*
- * Determine if the ISN we will generate has advanced beyond the last
- * sequence number used by the previous connection.  If so, indicate
- * that it is safe to recycle this tw socket by returning 1.
- */
-int
-tcp_twrecycleable(struct tcptw *tw)
-{
-	tcp_seq new_iss = tw->iss;
-	tcp_seq new_irs = tw->irs;
-
-	INP_INFO_WLOCK_ASSERT(&V_tcbinfo);
-	new_iss += (ticks - tw->t_starttime) * (ISN_BYTES_PER_SECOND / hz);
-	new_irs += (ticks - tw->t_starttime) * (MS_ISN_BYTES_PER_SECOND / hz);
-
-	if (SEQ_GT(new_iss, tw->snd_nxt) && SEQ_GT(new_irs, tw->rcv_nxt))
-		return (1);
-	else
-		return (0);
-}
-#endif
-
 /*
  * Returns 1 if the TIME_WAIT state was killed and we should start over,
  * looking for a pcb in the listen state.  Returns 0 otherwise.
  */
 int
-tcp_twcheck(struct inpcb *inp, struct tcpopt *to, struct tcphdr *th,
+tcp_twcheck(struct inpcb *inp, struct tcpopt *to __unused, struct tcphdr *th,
     struct mbuf *m, int tlen)
 {
 	struct tcptw *tw;
@@ -548,7 +509,7 @@ tcp_twclose(struct tcptw *tw, int reuse)
 	TCPSTAT_INC(tcps_closed);
 }
 
-int
+static int
 tcp_twrespond(struct tcptw *tw, int flags)
 {
 	struct inpcb *inp = tw->tw_inpcb;
@@ -682,22 +643,18 @@ tcp_tw_2msl_stop(struct tcptw *tw, int reuse)
 	TAILQ_REMOVE(&V_twq_2msl, tw, tw_2msl);
 	crfree(tw->tw_cred);
 	tw->tw_cred = NULL;
-
-	if (!reuse) {
-		tw_pcbrele(tw);
-		return;
-	}
-
 	TW_WUNLOCK(V_tw_lock);
+
+	if (!reuse)
+		tw_pcbrele(tw);
 }
 
 struct tcptw *
 tcp_tw_2msl_reuse(void)
 {
+	struct tcptw *tw;
 
 	INP_INFO_WLOCK_ASSERT(&V_tcbinfo);
-
-	struct tcptw *tw;
 
 	TW_WLOCK(V_tw_lock);
 	tw = TAILQ_FIRST(&V_twq_2msl);
@@ -716,12 +673,12 @@ tcp_tw_2msl_reuse(void)
 void
 tcp_tw_2msl_scan(void)
 {
-
 	struct tcptw *tw;
+
 	for (;;) {
 		TW_RLOCK(V_tw_lock);
 		tw = TAILQ_FIRST(&V_twq_2msl);
-		if (tw == NULL || ((tw->tw_time - ticks) > 0)) {
+		if (tw == NULL || tw->tw_time - ticks > 0) {
 			TW_RUNLOCK(V_tw_lock);
 			break;
 		}
@@ -730,7 +687,6 @@ tcp_tw_2msl_scan(void)
 
 		/* Close timewait state */
 		if (INP_INFO_TRY_WLOCK(&V_tcbinfo)) {
-			TW_WLOCK(V_tw_lock);
 			if (tw_pcbrele(tw)) {
 				INP_INFO_WUNLOCK(&V_tcbinfo);
 				continue;
@@ -738,13 +694,11 @@ tcp_tw_2msl_scan(void)
 
 			KASSERT(tw->tw_inpcb != NULL,
 			    ("%s: tw->tw_inpcb == NULL", __func__));
-
 			INP_WLOCK(tw->tw_inpcb);
 			tcp_twclose(tw, 0);
 			INP_INFO_WUNLOCK(&V_tcbinfo);
 		} else {
-			/* INP_INFO lock is busy, continue later */
-			TW_WLOCK(V_tw_lock);
+			/* INP_INFO lock is busy; continue later. */
 			tw_pcbrele(tw);
 			break;
 		}

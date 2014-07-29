@@ -1015,7 +1015,7 @@ const struct puc_cfg puc_pci_devices[] = {
 	},
 
 	{   0x1fd4, 0x1999, 0x1fd4, 0x0102,
-	    "Sunix MIOxxxx 2-port serial and 1284 Printer port",
+	    "Sunix MIO5xxxx 2-port serial and 1284 Printer port",
 	    DEFAULT_RCLK * 8,
 	    PUC_PORT_2S1P, -1, -1, -1,
 	    .config_function = puc_config_sunix

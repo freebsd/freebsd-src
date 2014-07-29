@@ -912,8 +912,9 @@ g_access(struct g_consumer *cp, int dcr, int dcw, int dce)
 
 	error = pp->geom->access(pp, dcr, dcw, dce);
 	KASSERT(dcr > 0 || dcw > 0 || dce > 0 || error == 0,
-	    ("Geom provider %s::%s failed closing ->access()",
-	    pp->geom->class->name, pp->name));
+	    ("Geom provider %s::%s dcr=%d dcw=%d dce=%d error=%d failed "
+	    "closing ->access()", pp->geom->class->name, pp->name, dcr, dcw,
+	    dce, error));
 	if (!error) {
 		/*
 		 * If we open first write, spoil any partner consumers.
@@ -1070,6 +1071,8 @@ g_spoil_event(void *arg, int flag)
 		return;
 	pp = arg;
 	G_VALID_PROVIDER(pp);
+	g_trace(G_T_TOPOLOGY, "%s %p(%s:%s:%s)", __func__, pp,
+	    pp->geom->class->name, pp->geom->name, pp->name);
 	for (cp = LIST_FIRST(&pp->consumers); cp != NULL; cp = cp2) {
 		cp2 = LIST_NEXT(cp, consumers);
 		if ((cp->flags & G_CF_SPOILED) == 0)

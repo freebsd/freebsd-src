@@ -2,7 +2,7 @@
 #.PATH:  ${.CURDIR}/../../ofed/drivers/net/mlx4:${.CURDIR}/../../ofed/include/linux
 .PATH:  ${.CURDIR}/../../../../../include/linux
 
-.include <bsd.own.mk>
+.include <src.opts.mk>
 
 
 KMOD    = mlx4

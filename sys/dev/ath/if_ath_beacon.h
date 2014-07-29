@@ -48,5 +48,7 @@ extern	int ath_beacon_alloc(struct ath_softc *sc, struct ieee80211_node *ni);
 extern	void ath_beacon_return(struct ath_softc *sc, struct ath_buf *bf);
 extern	void ath_beacon_free(struct ath_softc *sc);
 extern	void ath_beacon_proc(void *arg, int pending);
+extern	void ath_beacon_miss(struct ath_softc *sc);
 
 #endif
+

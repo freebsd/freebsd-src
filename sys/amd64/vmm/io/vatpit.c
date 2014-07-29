@@ -56,6 +56,17 @@ static MALLOC_DEFINE(M_VATPIT, "atpit", "bhyve virtual atpit (8254)");
 #define	TIMER_MODE_MASK		0x0f
 #define	TIMER_SEL_READBACK	0xc0
 
+#define	TIMER_STS_OUT		0x80
+#define	TIMER_STS_NULLCNT	0x40
+
+#define	TIMER_RB_LCTR		0x20
+#define	TIMER_RB_LSTATUS	0x10
+#define	TIMER_RB_CTR_2		0x08
+#define	TIMER_RB_CTR_1		0x04
+#define	TIMER_RB_CTR_0		0x02
+
+#define	TMR2_OUT_STS		0x20
+
 #define	PIT_8254_FREQ		1193182
 #define	TIMER_DIV(freq, hz)	(((freq) + (hz) / 2) / (hz))
 
@@ -71,6 +82,8 @@ struct channel {
 	sbintime_t	now_sbt;	/* uptime when counter was loaded */
 	uint8_t		cr[2];
 	uint8_t		ol[2];
+	bool		slatched;	/* status latched */
+	uint8_t		status;
 	int		crbyte;
 	int		olbyte;
 	int		frbyte;
@@ -88,22 +101,29 @@ struct vatpit {
 	struct channel	channel[3];
 };
 
-#define	VATPIT_CTR0(vatpit, fmt)					\
-	VM_CTR0((vatpit)->vm, fmt)
-
-#define	VATPIT_CTR1(vatpit, fmt, a1)					\
-	VM_CTR1((vatpit)->vm, fmt, a1)
-
-#define	VATPIT_CTR2(vatpit, fmt, a1, a2)				\
-	VM_CTR2((vatpit)->vm, fmt, a1, a2)
-
-#define	VATPIT_CTR3(vatpit, fmt, a1, a2, a3)				\
-	VM_CTR3((vatpit)->vm, fmt, a1, a2, a3)
-
-#define	VATPIT_CTR4(vatpit, fmt, a1, a2, a3, a4)			\
-	VM_CTR4((vatpit)->vm, fmt, a1, a2, a3, a4)
-
 static void pit_timer_start_cntr0(struct vatpit *vatpit);
+
+static int
+vatpit_get_out(struct vatpit *vatpit, int channel)
+{
+	struct channel *c;
+	sbintime_t delta_ticks;
+	int out;
+
+	c = &vatpit->channel[channel];
+
+	switch (c->mode) {
+	case TIMER_INTTC:
+		delta_ticks = (sbinuptime() - c->now_sbt) / vatpit->freq_sbt;
+		out = ((c->initial - delta_ticks) <= 0);
+		break;
+	default:
+		out = 0;
+		break;
+	}
+
+	return (out);
+}
 
 static void
 vatpit_callout_handler(void *a)
@@ -117,7 +137,7 @@ vatpit_callout_handler(void *a)
 	c = &vatpit->channel[arg->channel_num];
 	callout = &c->callout;
 
-	VATPIT_CTR1(vatpit, "atpit t%d fired", arg->channel_num);
+	VM_CTR1(vatpit->vm, "atpit t%d fired", arg->channel_num);
 
 	VATPIT_LOCK(vatpit);
 
@@ -145,13 +165,22 @@ static void
 pit_timer_start_cntr0(struct vatpit *vatpit)
 {
 	struct channel *c;
-	sbintime_t delta, precision;
+	sbintime_t now, delta, precision;
 
 	c = &vatpit->channel[0];
 	if (c->initial != 0) {
 		delta = c->initial * vatpit->freq_sbt;
 		precision = delta >> tc_precexp;
 		c->callout_sbt = c->callout_sbt + delta;
+
+		/*
+		 * Reset 'callout_sbt' if the time that the callout
+		 * was supposed to fire is more than 'c->initial'
+		 * ticks in the past.
+		 */
+		now = sbinuptime();
+		if (c->callout_sbt < now)
+			c->callout_sbt = now + delta;
 
 		callout_reset_sbt(&c->callout, c->callout_sbt,
 		    precision, vatpit_callout_handler, &c->callout_arg,
@@ -180,6 +209,7 @@ pit_update_counter(struct vatpit *vatpit, struct channel *c, bool latch)
 		 */
 		c->initial = TIMER_DIV(PIT_8254_FREQ, 100);
 		c->now_sbt = sbinuptime();
+		c->status &= ~TIMER_STS_NULLCNT;
 	}
 
 	delta_ticks = (sbinuptime() - c->now_sbt) / vatpit->freq_sbt;
@@ -196,6 +226,57 @@ pit_update_counter(struct vatpit *vatpit, struct channel *c, bool latch)
 }
 
 static int
+pit_readback1(struct vatpit *vatpit, int channel, uint8_t cmd)
+{
+	struct channel *c;
+
+	c = &vatpit->channel[channel];
+
+	/*
+	 * Latch the count/status of the timer if not already latched.
+	 * N.B. that the count/status latch-select bits are active-low.
+	 */
+	if (!(cmd & TIMER_RB_LCTR) && !c->olbyte) {
+		(void) pit_update_counter(vatpit, c, true);
+	}
+
+	if (!(cmd & TIMER_RB_LSTATUS) && !c->slatched) {
+		c->slatched = true;
+		/*
+		 * For mode 0, see if the elapsed time is greater
+		 * than the initial value - this results in the
+		 * output pin being set to 1 in the status byte.
+		 */
+		if (c->mode == TIMER_INTTC && vatpit_get_out(vatpit, channel))
+			c->status |= TIMER_STS_OUT;
+		else
+			c->status &= ~TIMER_STS_OUT;
+	}
+
+	return (0);
+}
+
+static int
+pit_readback(struct vatpit *vatpit, uint8_t cmd)
+{
+	int error;
+
+	/*
+	 * The readback command can apply to all timers.
+	 */
+	error = 0;
+	if (cmd & TIMER_RB_CTR_0)
+		error = pit_readback1(vatpit, 0, cmd);
+	if (!error && cmd & TIMER_RB_CTR_1)
+		error = pit_readback1(vatpit, 1, cmd);
+	if (!error && cmd & TIMER_RB_CTR_2)
+		error = pit_readback1(vatpit, 2, cmd);
+
+	return (error);
+}
+
+
+static int
 vatpit_update_mode(struct vatpit *vatpit, uint8_t val)
 {
 	struct channel *c;
@@ -206,7 +287,7 @@ vatpit_update_mode(struct vatpit *vatpit, uint8_t val)
 	mode = val & TIMER_MODE_MASK;
 
 	if (sel == TIMER_SEL_READBACK)
-		return (-1);
+		return (pit_readback(vatpit, val));
 
 	if (rw != TIMER_LATCH && rw != TIMER_16BIT)
 		return (-1);
@@ -229,31 +310,31 @@ vatpit_update_mode(struct vatpit *vatpit, uint8_t val)
 	else {
 		c->mode = mode;
 		c->olbyte = 0;	/* reset latch after reprogramming */
+		c->status |= TIMER_STS_NULLCNT;
 	}
 
 	return (0);
 }
 
 int
-vatpit_handler(void *vm, int vcpuid, struct vm_exit *vmexit)
+vatpit_handler(void *vm, int vcpuid, bool in, int port, int bytes,
+    uint32_t *eax)
 {
 	struct vatpit *vatpit;
 	struct channel *c;
-	int port;
 	uint8_t val;
 	int error;
 
 	vatpit = vm_atpit(vm);
 
-	if (vmexit->u.inout.bytes != 1)
+	if (bytes != 1)
 		return (-1);
 
-	val = vmexit->u.inout.eax;
-	port = vmexit->u.inout.port;
+	val = *eax;
 
 	if (port == TIMER_MODE) {
-		if (vmexit->u.inout.in != 0) {
-			VATPIT_CTR0(vatpit, "vatpit attempt to read mode");
+		if (in) {
+			VM_CTR0(vatpit->vm, "vatpit attempt to read mode");
 			return (-1);
 		}
 
@@ -265,12 +346,19 @@ vatpit_handler(void *vm, int vcpuid, struct vm_exit *vmexit)
 	}
 
 	/* counter ports */
-	KASSERT(port >= TIMER_CNTR0 && vmexit->u.inout.port <= TIMER_CNTR2,
+	KASSERT(port >= TIMER_CNTR0 && port <= TIMER_CNTR2,
 	    ("invalid port 0x%x", port));
 	c = &vatpit->channel[port - TIMER_CNTR0];
 
 	VATPIT_LOCK(vatpit);
-	if (vmexit->u.inout.in) {
+	if (in && c->slatched) {
+		/*
+		 * Return the status byte if latched
+		 */
+		*eax = c->status;
+		c->slatched = false;
+		c->status = 0;
+	} else if (in) {
 		/*
 		 * The spec says that once the output latch is completely
 		 * read it should revert to "following" the counter. Use
@@ -285,13 +373,14 @@ vatpit_handler(void *vm, int vcpuid, struct vm_exit *vmexit)
 			if (c->frbyte)
 				tmp >>= 8;
 			tmp &= 0xff;
-			vmexit->u.inout.eax = tmp;
+			*eax = tmp;
 			c->frbyte ^= 1;
 		}  else
-			vmexit->u.inout.eax = c->ol[--c->olbyte];
+			*eax = c->ol[--c->olbyte];
 	} else {
-		c->cr[c->crbyte++] = vmexit->u.inout.eax;
+		c->cr[c->crbyte++] = *eax;
 		if (c->crbyte == 2) {
+			c->status &= ~TIMER_STS_NULLCNT;
 			c->frbyte = 0;
 			c->crbyte = 0;
 			c->initial = c->cr[0] | (uint16_t)c->cr[1] << 8;
@@ -306,6 +395,27 @@ vatpit_handler(void *vm, int vcpuid, struct vm_exit *vmexit)
 		}
 	}
 	VATPIT_UNLOCK(vatpit);
+
+	return (0);
+}
+
+int
+vatpit_nmisc_handler(void *vm, int vcpuid, bool in, int port, int bytes,
+    uint32_t *eax)
+{
+	struct vatpit *vatpit;
+
+	vatpit = vm_atpit(vm);
+
+	if (in) {
+			VATPIT_LOCK(vatpit);
+			if (vatpit_get_out(vatpit, 2))
+				*eax = TMR2_OUT_STS;
+			else
+				*eax = 0;
+
+			VATPIT_UNLOCK(vatpit);
+	}
 
 	return (0);
 }

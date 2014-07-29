@@ -363,8 +363,6 @@ versatile_clcdc_attach(device_t dev)
 fail:
 	if (sc->fb_base)
 		bus_dmamem_free(sc->dma_tag, sc->fb_base, sc->dma_map);
-	if (sc->dma_map)
-		bus_dmamap_destroy(sc->dma_tag, sc->dma_map);
 	if (sc->dma_tag)
 		bus_dma_tag_destroy(sc->dma_tag);
 	return (err);

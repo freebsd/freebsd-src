@@ -483,10 +483,6 @@ an_dma_malloc(struct an_softc *sc, bus_size_t size, struct an_dma_alloc *dma,
 {
 	int r;
 
-	r = bus_dmamap_create(sc->an_dtag, BUS_DMA_NOWAIT, &dma->an_dma_map);
-	if (r != 0)
-		goto fail_0;
-
 	r = bus_dmamem_alloc(sc->an_dtag, (void**) &dma->an_dma_vaddr,
 			     BUS_DMA_NOWAIT, &dma->an_dma_map);
 	if (r != 0)
@@ -507,9 +503,6 @@ fail_2:
 	bus_dmamap_unload(sc->an_dtag, dma->an_dma_map);
 fail_1:
 	bus_dmamem_free(sc->an_dtag, dma->an_dma_vaddr, dma->an_dma_map);
-fail_0:
-	bus_dmamap_destroy(sc->an_dtag, dma->an_dma_map);
-	dma->an_dma_map = NULL;
 	return (r);
 }
 
@@ -519,7 +512,6 @@ an_dma_free(struct an_softc *sc, struct an_dma_alloc *dma)
 	bus_dmamap_unload(sc->an_dtag, dma->an_dma_map);
 	bus_dmamem_free(sc->an_dtag, dma->an_dma_vaddr, dma->an_dma_map);
 	dma->an_dma_vaddr = 0;
-	bus_dmamap_destroy(sc->an_dtag, dma->an_dma_map);
 }
 
 /*

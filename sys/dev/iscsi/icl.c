@@ -61,26 +61,21 @@
 
 SYSCTL_NODE(_kern, OID_AUTO, icl, CTLFLAG_RD, 0, "iSCSI Common Layer");
 static int debug = 1;
-TUNABLE_INT("kern.icl.debug", &debug);
 SYSCTL_INT(_kern_icl, OID_AUTO, debug, CTLFLAG_RWTUN,
-    &debug, 1, "Enable debug messages");
+    &debug, 0, "Enable debug messages");
 static int coalesce = 1;
-TUNABLE_INT("kern.icl.coalesce", &coalesce);
 SYSCTL_INT(_kern_icl, OID_AUTO, coalesce, CTLFLAG_RWTUN,
-    &coalesce, 1, "Try to coalesce PDUs before sending");
+    &coalesce, 0, "Try to coalesce PDUs before sending");
 static int partial_receive_len = 128 * 1024;
-TUNABLE_INT("kern.icl.partial_receive_len", &partial_receive_len);
 SYSCTL_INT(_kern_icl, OID_AUTO, partial_receive_len, CTLFLAG_RWTUN,
-    &partial_receive_len, 1 * 1024, "Minimum read size for partially received "
+    &partial_receive_len, 0, "Minimum read size for partially received "
     "data segment");
 static int sendspace = 1048576;
-TUNABLE_INT("kern.icl.sendspace", &sendspace);
 SYSCTL_INT(_kern_icl, OID_AUTO, sendspace, CTLFLAG_RWTUN,
-    &sendspace, 1048576, "Default send socket buffer size");
+    &sendspace, 0, "Default send socket buffer size");
 static int recvspace = 1048576;
-TUNABLE_INT("kern.icl.recvspace", &recvspace);
 SYSCTL_INT(_kern_icl, OID_AUTO, recvspace, CTLFLAG_RWTUN,
-    &recvspace, 1048576, "Default receive socket buffer size");
+    &recvspace, 0, "Default receive socket buffer size");
 
 static uma_zone_t icl_conn_zone;
 static uma_zone_t icl_pdu_zone;
@@ -669,7 +664,10 @@ icl_conn_receive_pdu(struct icl_conn *ic, size_t *availablep)
 	}
 
 	if (error != 0) {
-		icl_pdu_free(request);
+		/*
+		 * Don't free the PDU; it's pointed to by ic->ic_receive_pdu
+		 * and will get freed in icl_conn_close().
+		 */
 		icl_conn_fail(ic);
 	}
 
@@ -877,22 +875,26 @@ icl_conn_send_pdus(struct icl_conn *ic, struct icl_pdu_stailq *queue)
 		request = STAILQ_FIRST(queue);
 		size = icl_pdu_size(request);
 		if (available < size) {
-#if 1
-			ICL_DEBUG("no space to send; "
-			    "have %zd, need %zd",
-			    available, size);
-#endif
 
 			/*
 			 * Set the low watermark, to be checked by
-			 * sowritable() in icl_soupcall_send()
+			 * sowriteable() in icl_soupcall_send()
 			 * to avoid unneccessary wakeups until there
 			 * is enough space for the PDU to fit.
 			 */
 			SOCKBUF_LOCK(&so->so_snd);
-			so->so_snd.sb_lowat = size;
+			available = sbspace(&so->so_snd);
+			if (available < size) {
+#if 1
+				ICL_DEBUG("no space to send; "
+				    "have %zd, need %zd",
+				    available, size);
+#endif
+				so->so_snd.sb_lowat = size;
+				SOCKBUF_UNLOCK(&so->so_snd);
+				return;
+			}
 			SOCKBUF_UNLOCK(&so->so_snd);
-			return;
 		}
 		STAILQ_REMOVE_HEAD(queue, ip_next);
 		error = icl_pdu_finalize(request);

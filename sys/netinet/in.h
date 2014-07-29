@@ -100,7 +100,7 @@ struct sockaddr_in {
 	char	sin_zero[8];
 };
 
-#if !defined(_KERNEL) && __BSD_VISIBLE
+#if !defined(_KERNEL) && __POSIX_VISIBLE >= 200112
 
 #ifndef _BYTEORDER_PROTOTYPED
 #define	_BYTEORDER_PROTOTYPED
@@ -120,7 +120,7 @@ __END_DECLS
 #define	ntohs(x)	__ntohs(x)
 #endif
 
-#endif /* !_KERNEL && __BSD_VISIBLE */
+#endif /* !_KERNEL && __POSIX_VISIBLE >= 200112 */
 
 #if __POSIX_VISIBLE >= 200112
 #define	IPPROTO_IPV6		41		/* IP6 header */
@@ -432,6 +432,8 @@ __END_DECLS
 
 #define	IP_ONESBCAST		23   /* bool: send all-ones broadcast */
 #define	IP_BINDANY		24   /* bool: allow bind to any address */
+#define	IP_BINDMULTI		25   /* bool: allow multiple listeners on a tuple */
+#define	IP_RSS_LISTEN_BUCKET	26   /* int; set RSS listen bucket */
 
 /*
  * Options for controlling the firewall and dummynet.
@@ -485,6 +487,11 @@ __END_DECLS
 #define	MCAST_LEAVE_SOURCE_GROUP	83   /* leave a single source */
 #define	MCAST_BLOCK_SOURCE		84   /* block a source */
 #define	MCAST_UNBLOCK_SOURCE		85   /* unblock a source */
+
+/* Flow and RSS definitions */
+#define	IP_FLOWID		90   /* get flow id for the given socket/inp */
+#define	IP_FLOWTYPE		91   /* get flow type (M_HASHTYPE) */
+#define	IP_RSSBUCKETID		92   /* get RSS flowid -> bucket mapping */
 
 /*
  * Defaults and limits for options

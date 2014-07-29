@@ -130,6 +130,7 @@ struct ata_params {
 #define ATA_SATA_CURR_GEN_MASK          0x0006
 #define ATA_SUPPORT_NCQ_STREAM          0x0010
 #define ATA_SUPPORT_NCQ_QMANAGEMENT     0x0020
+#define ATA_SUPPORT_RCVSND_FPDMA_QUEUED 0x0040
 /*78*/  u_int16_t       satasupport;
 #define ATA_SUPPORT_NONZERO             0x0002
 #define ATA_SUPPORT_AUTOACTIVATE        0x0004
@@ -351,6 +352,7 @@ struct ata_params {
 #define ATA_READ_NATIVE_MAX_ADDRESS48   0x27    /* read native max addr 48bit */
 #define ATA_READ_MUL48                  0x29    /* read multi 48bit LBA */
 #define ATA_READ_STREAM_DMA48           0x2a    /* read DMA stream 48bit LBA */
+#define ATA_READ_LOG_EXT                0x2f    /* read log ext - PIO Data-In */
 #define ATA_READ_STREAM48               0x2b    /* read stream 48bit LBA */
 #define ATA_WRITE                       0x30    /* write */
 #define ATA_WRITE48                     0x34    /* write 48bit LBA */
@@ -365,8 +367,11 @@ struct ata_params {
 #define ATA_WRITE_LOG_EXT               0x3f
 #define ATA_READ_VERIFY                 0x40
 #define ATA_READ_VERIFY48               0x42
+#define ATA_READ_LOG_DMA_EXT            0x47    /* read log DMA ext - PIO Data-In */
 #define ATA_READ_FPDMA_QUEUED           0x60    /* read DMA NCQ */
 #define ATA_WRITE_FPDMA_QUEUED          0x61    /* write DMA NCQ */
+#define ATA_SEND_FPDMA_QUEUED           0x64    /* send DMA NCQ */
+#define ATA_RECV_FPDMA_QUEUED           0x65    /* recieve DMA NCQ */
 #define ATA_SEP_ATTN                    0x67    /* SEP request */
 #define ATA_SEEK                        0x70    /* seek */
 #define ATA_PACKET_CMD                  0xa0    /* packet command */

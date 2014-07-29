@@ -19,7 +19,7 @@ arm/samsung/exynos/exynos5_common.c		standard
 arm/samsung/exynos/exynos5_machdep.c		standard
 arm/samsung/exynos/exynos5_combiner.c		standard
 arm/samsung/exynos/exynos5_pad.c		optional	gpio
-arm/samsung/exynos/uart.c			optional	uart
+arm/samsung/exynos/exynos_uart.c		optional	uart
 arm/samsung/exynos/exynos5_ehci.c		optional	ehci
 arm/samsung/exynos/exynos5_fimd.c		optional	vt
 arm/samsung/exynos/exynos5_i2c.c		optional	iicbus

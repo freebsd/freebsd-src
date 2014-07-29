@@ -615,7 +615,6 @@ vxge_dma_free(pci_dev_h pdev, const void *vaddr, u_long size,
 	bus_dmamem_free(p_dmah->dma_tag, p_dmah->dma_vaddr, p_dmah->dma_map);
 	bus_dma_tag_destroy(p_dmah->dma_tag);
 
-	p_dmah->dma_map = NULL;
 	p_dmah->dma_tag = NULL;
 	p_dmah->dma_vaddr = NULL;
 }

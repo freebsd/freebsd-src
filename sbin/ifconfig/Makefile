@@ -1,7 +1,7 @@
 #	From: @(#)Makefile	8.1 (Berkeley) 6/5/93
 # $FreeBSD$
 
-.include <bsd.own.mk>
+.include <src.opts.mk>
 
 PROG=	ifconfig
 
@@ -62,9 +62,5 @@ MAN=	ifconfig.8
 
 CFLAGS+= -Wall -Wmissing-prototypes -Wcast-qual -Wwrite-strings -Wnested-externs
 WARNS?=	2
-
-.if ${MK_TESTS} != "no"
-SUBDIR+=    tests
-.endif
 
 .include <bsd.prog.mk>

@@ -1,5 +1,5 @@
 %{
-/*      $OpenBSD: scan.l,v 1.23 2009/10/27 23:59:36 deraadt Exp $	*/
+/*      $OpenBSD: scan.l,v 1.28 2013/09/19 16:12:01 otto Exp $	*/
 
 /*
  * Copyright (c) 2003, Otto Moerbeek <otto@drijf.net>
@@ -24,6 +24,7 @@ __FBSDID("$FreeBSD$");
 #include <errno.h>
 #include <histedit.h>
 #include <stdbool.h>
+#include <signal.h>
 #include <string.h>
 #include <unistd.h>
 
@@ -31,19 +32,22 @@ __FBSDID("$FreeBSD$");
 #include "bc.h"
 #include "pathnames.h"
 
-int		 lineno;
+int		lineno;
+bool		interactive;
 
-bool		 interactive;
 HistEvent	 he;
 EditLine	*el;
 History		*hist;
 
 static char	*strbuf = NULL;
-static size_t	 strbuf_sz = 1;
-static bool	 dot_seen;
+static size_t	strbuf_sz = 1;
+static bool	dot_seen;
+static int	use_el;
+static volatile sig_atomic_t skipchars;
 
-static void	 init_strbuf(void);
-static void	 add_str(const char *);
+static void	init_strbuf(void);
+static void	add_str(const char *);
+
 static int	 bc_yyinput(char *, int);
 
 #define YY_DECL	int yylex(void)
@@ -51,6 +55,7 @@ static int	 bc_yyinput(char *, int);
 #undef YY_INPUT
 #define YY_INPUT(buf,retval,max) \
 	(retval = bc_yyinput(buf, max))
+
 %}
 
 %option always-interactive
@@ -102,7 +107,7 @@ ALPHANUM	[a-z_0-9]
 				BEGIN(INITIAL);
 				yylval.str = strbuf;
 				unput('.');
-				return (NUMBER);
+				return NUMBER;
 			} else {
 				dot_seen = true;
 				add_str(".");
@@ -113,73 +118,73 @@ ALPHANUM	[a-z_0-9]
 			BEGIN(INITIAL);
 			unput(yytext[0]);
 			if (strcmp(strbuf, ".") == 0)
-				return (DOT);
+				return DOT;
 			else {
 				yylval.str = strbuf;
-				return (NUMBER);
+				return NUMBER;
 			}
 		}
 }
 
-"auto"		return (AUTO);
-"break"		return (BREAK);
-"continue"	return (CONTINUE);
-"define"	return (DEFINE);
-"else"		return (ELSE);
-"ibase"		return (IBASE);
-"if"		return (IF);
-"last"		return (DOT);
-"for"		return (FOR);
-"length"	return (LENGTH);
-"obase"		return (OBASE);
-"print"		return (PRINT);
-"quit"		return (QUIT);
-"return"	return (RETURN);
-"scale"		return (SCALE);
-"sqrt"		return (SQRT);
-"while"		return (WHILE);
+"auto"		return AUTO;
+"break"		return BREAK;
+"continue"	return CONTINUE;
+"define"	return DEFINE;
+"else"		return ELSE;
+"ibase"		return IBASE;
+"if"		return IF;
+"last"		return DOT;
+"for"		return FOR;
+"length"	return LENGTH;
+"obase"		return OBASE;
+"print"		return PRINT;
+"quit"		return QUIT;
+"return"	return RETURN;
+"scale"		return SCALE;
+"sqrt"		return SQRT;
+"while"		return WHILE;
 
-"^"		return (EXPONENT);
-"*"		return (MULTIPLY);
-"/"		return (DIVIDE);
-"%"		return (REMAINDER);
+"^"		return EXPONENT;
+"*"		return MULTIPLY;
+"/"		return DIVIDE;
+"%"		return REMAINDER;
 
-"!"		return (BOOL_NOT);
-"&&"		return (BOOL_AND);
-"||"		return (BOOL_OR);
+"!"		return BOOL_NOT;
+"&&"		return BOOL_AND;
+"||"		return BOOL_OR;
 
-"+"		return (PLUS);
-"-"		return (MINUS);
+"+"		return PLUS;
+"-"		return MINUS;
 
-"++"		return (INCR);
-"--"		return (DECR);
+"++"		return INCR;
+"--"		return DECR;
 
-"="		yylval.str = ""; return (ASSIGN_OP);
-"+="		yylval.str = "+"; return (ASSIGN_OP);
-"-="		yylval.str = "-"; return (ASSIGN_OP);
-"*="		yylval.str = "*"; return (ASSIGN_OP);
-"/="		yylval.str = "/"; return (ASSIGN_OP);
-"%="		yylval.str = "%"; return (ASSIGN_OP);
-"^="		yylval.str = "^"; return (ASSIGN_OP);
+"="		yylval.str = ""; return ASSIGN_OP;
+"+="		yylval.str = "+"; return ASSIGN_OP;
+"-="		yylval.str = "-"; return ASSIGN_OP;
+"*="		yylval.str = "*"; return ASSIGN_OP;
+"/="		yylval.str = "/"; return ASSIGN_OP;
+"%="		yylval.str = "%"; return ASSIGN_OP;
+"^="		yylval.str = "^"; return ASSIGN_OP;
 
-"=="		return (EQUALS);
-"<="		return (LESS_EQ);
-">="		return (GREATER_EQ);
-"!="		return (UNEQUALS);
-"<"		return (LESS);
-">"		return (GREATER);
+"=="		return EQUALS;
+"<="		return LESS_EQ;
+">="		return GREATER_EQ;
+"!="		return UNEQUALS;
+"<"		return LESS;
+">"		return GREATER;
 
-","		return (COMMA);
-";"		return (SEMICOLON);
+","		return COMMA;
+";"		return SEMICOLON;
 
-"("		return (LPAR);
-")"		return (RPAR);
+"("		return LPAR;
+")"		return RPAR;
 
-"["		return (LBRACKET);
-"]"		return (RBRACKET);
+"["		return LBRACKET;
+"]"		return RBRACKET;
 
-"{"		return (LBRACE);
-"}"		return (RBRACE);
+"{"		return LBRACE;
+"}"		return RBRACE;
 
 {ALPHA}{ALPHANUM}* {
 			/* alloc an extra byte for the type marker */
@@ -188,15 +193,15 @@ ALPHANUM	[a-z_0-9]
 				err(1, NULL);
 			strlcpy(p, yytext, yyleng + 1);
 			yylval.astr = p;
-			return (LETTER);
+			return LETTER;
 		}
 
 \\\n		lineno++;
-\n		lineno++; return (NEWLINE);
+\n		lineno++; return NEWLINE;
 
 #[^\n]*		;
 [ \t]		;
-<<EOF>>		return (QUIT);
+<<EOF>>		return QUIT;
 .		yyerror("illegal character");
 
 %%
@@ -204,7 +209,6 @@ ALPHANUM	[a-z_0-9]
 static void
 init_strbuf(void)
 {
-
 	if (strbuf == NULL) {
 		strbuf = malloc(strbuf_sz);
 		if (strbuf == NULL)
@@ -221,8 +225,8 @@ add_str(const char *str)
 	arglen = strlen(str);
 
 	if (strlen(strbuf) + arglen + 1 > strbuf_sz) {
-		size_t	 newsize;
-		char	*p;
+		size_t newsize;
+		char *p;
 
 		newsize = strbuf_sz + arglen + 1;
 		p = realloc(strbuf, newsize);
@@ -236,11 +240,47 @@ add_str(const char *str)
 	strlcat(strbuf, str, strbuf_sz);
 }
 
+/* ARGSUSED */
+void
+abort_line(int sig __unused)
+{
+	static const char str1[] = "[\n]P\n";
+	static const char str2[] = "[^C\n]P\n";
+	int save_errno;
+	const LineInfo *info;
+
+	save_errno = errno;
+	if (use_el) {
+		write(STDOUT_FILENO, str2, sizeof(str2) - 1);
+		info = el_line(el);
+		skipchars = info->lastchar - info->buffer;
+	} else
+		write(STDOUT_FILENO, str1, sizeof(str1) - 1);
+	errno = save_errno;
+}
+
+/*
+ * Avoid the echo of ^D by the default code of editline and take
+ * into account skipchars to make ^D work when the cursor is at start of
+ * line after a ^C.
+ */
+unsigned char
+bc_eof(EditLine *e, int ch __unused)
+{
+	const struct lineinfo *info = el_line(e);
+
+	if (info->buffer + skipchars == info->cursor &&
+	    info->cursor == info->lastchar)
+		return (CC_EOF);
+	else
+		return (CC_ERROR);
+}
+
 int
 yywrap(void)
 {
-	static YY_BUFFER_STATE buf;
 	static int state;
+	static YY_BUFFER_STATE buf;
 
 	if (fileindex == 0 && sargc > 0 && strcmp(sargv[0], _PATH_LIBB) == 0) {
 		filename = sargv[fileindex++];
@@ -273,6 +313,10 @@ yywrap(void)
 	} else if (fileindex == sargc) {
 		fileindex++;
 		yyin = stdin;
+		if (interactive) {
+			signal(SIGINT, abort_line);
+			signal(SIGTSTP, tstpcont);
+		}
 		lineno = 1;
 		filename = "stdin";
 		return (0);
@@ -284,17 +328,32 @@ static int
 bc_yyinput(char *buf, int maxlen)
 {
 	int num;
-	if (yyin == stdin && interactive) {
+
+	if (el != NULL)
+		el_get(el, EL_EDITMODE, &use_el);
+		
+	if (yyin == stdin && interactive && use_el) {
 		const char *bp;
+		sigset_t oset, nset;
 
 		if ((bp = el_gets(el, &num)) == NULL || num == 0)
 			return (0);
+		sigemptyset(&nset);
+		sigaddset(&nset, SIGINT);
+		sigprocmask(SIG_BLOCK, &nset, &oset);
+		if (skipchars < num) {
+			bp += skipchars;
+			num -= skipchars;
+		}
+		skipchars = 0;
+		sigprocmask(SIG_SETMASK, &oset, NULL);
 		if (num > maxlen) {
-			el_push(el, (char *)(uintptr_t)(bp) + maxlen);
+			el_push(el, bp + maxlen);
 			num = maxlen;
 		}
 		memcpy(buf, bp, num);
 		history(hist, &he, H_ENTER, bp);
+		el_get(el, EL_EDITMODE, &use_el);
 	} else {
 		int c = '*';
 		for (num = 0; num < maxlen &&
@@ -307,4 +366,5 @@ bc_yyinput(char *buf, int maxlen)
 	}
 	return (num);
 }
+
 

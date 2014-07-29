@@ -37,6 +37,8 @@
 #include <vm/vm_kern.h>
 #include <vm/vm_extern.h>
 
+#include <dev/fdt/fdt_common.h>
+
 #include <machine/smp.h>
 #include <machine/fdt.h>
 #include <machine/armreg.h>
@@ -97,14 +99,14 @@ platform_mp_init_secondary(void)
 }
 
 void mptramp(void);
-
-
+void mptramp_end(void);
+extern vm_offset_t mptramp_pmu_boot;
 
 void
 platform_mp_start_ap(void)
 {
 	uint32_t reg, *src, *dst, cpu_num, div_val, cputype;
-	vm_offset_t smp_boot;
+	vm_offset_t smp_boot, pmu_boot_off;
 	/*
 	 * Initialization procedure depends on core revision,
 	 * in this step CHIP ID is checked to choose proper procedure
@@ -115,8 +117,14 @@ platform_mp_start_ap(void)
 	smp_boot = kva_alloc(PAGE_SIZE);
 	pmap_kenter_nocache(smp_boot, 0xffff0000);
 	dst = (uint32_t *) smp_boot;
+	/*
+	 * Set the PA of CPU0 Boot Address Redirect register used in
+	 * mptramp according to the actual SoC registers' base address.
+	 */
+	pmu_boot_off = (CPU_PMU(0) - MV_BASE) + CPU_PMU_BOOT;
+	mptramp_pmu_boot = fdt_immr_pa + pmu_boot_off;
 
-	for (src = (uint32_t *)mptramp; src < (uint32_t *)mpentry;
+	for (src = (uint32_t *)mptramp; src < (uint32_t *)mptramp_end;
 	    src++, dst++) {
 		*dst = *src;
 	}

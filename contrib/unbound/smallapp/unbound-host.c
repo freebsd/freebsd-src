@@ -21,16 +21,16 @@
  * specific prior written permission.
  * 
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
- * TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE
- * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
- * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
- * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
- * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
+ * TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+ * PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+ * LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+ * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+ * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
 /**
@@ -60,7 +60,8 @@
 #define unbound_lite_wrapstr(s) s
 #endif
 #include "libunbound/unbound.h"
-#include <ldns/ldns.h>
+#include "ldns/rrdef.h"
+#include "ldns/wire2str.h"
 #ifdef HAVE_NSS
 /* nss3 */
 #include "nss.h"
@@ -172,7 +173,7 @@ static int
 massage_type(const char* t, int reverse, int* multi)
 {
 	if(t) {
-		int r = ldns_get_rr_type_by_name(t);
+		int r = sldns_get_rr_type_by_name(t);
 		if(r == 0 && strcasecmp(t, "TYPE0") != 0 && 
 			strcmp(t, "") != 0) {
 			fprintf(stderr, "error unknown type %s\n", t);
@@ -191,7 +192,7 @@ static int
 massage_class(const char* c)
 {
 	if(c) {
-		int r = ldns_get_rr_class_by_name(c);
+		int r = sldns_get_rr_class_by_name(c);
 		if(r == 0 && strcasecmp(c, "CLASS0") != 0 && 
 			strcmp(c, "") != 0) {
 			fprintf(stderr, "error unknown class %s\n", c);
@@ -215,61 +216,36 @@ secure_str(struct ub_result* result)
 static void
 pretty_type(char* s, size_t len, int t)
 {
-	char* d = ldns_rr_type2str(t);
+	char d[16];
+	sldns_wire2str_type_buf((uint16_t)t, d, sizeof(d));
 	snprintf(s, len, "%s", d);
-	free(d);
 }
 
 /** nice string for class */
 static void
 pretty_class(char* s, size_t len, int c)
 {
-	char* d = ldns_rr_class2str(c);
+	char d[16];
+	sldns_wire2str_class_buf((uint16_t)c, d, sizeof(d));
 	snprintf(s, len, "%s", d);
-	free(d);
 }
 
 /** nice string for rcode */
 static void
 pretty_rcode(char* s, size_t len, int r)
 {
-	ldns_lookup_table *rcode = ldns_lookup_by_id(ldns_rcodes, r);
-	if(rcode) {
-		snprintf(s, len, "%s", rcode->name);
-	} else {
-		snprintf(s, len, "RCODE%d", r);
-	}
+	char d[16];
+	sldns_wire2str_rcode_buf(r, d, sizeof(d));
+	snprintf(s, len, "%s", d);
 }
 
 /** convert and print rdata */
 static void
 print_rd(int t, char* data, size_t len)
 {
-	size_t i, pos = 0;
-	uint8_t* rd = (uint8_t*)malloc(len+2);
-	ldns_rr* rr = ldns_rr_new();
-	ldns_status status;
-	if(!rd || !rr) {
-		fprintf(stderr, "out of memory");
-		exit(1);
-	}
-	ldns_rr_set_type(rr, t);
-	ldns_write_uint16(rd, len);
-	memmove(rd+2, data, len);
-	ldns_rr_set_owner(rr, NULL);
-	status = ldns_wire2rdf(rr, rd, len+2, &pos);
-	if(status != LDNS_STATUS_OK) {
-		free(rd);
-		ldns_rr_free(rr);
-		printf("error_printing_data");
-		return;
-	}
-	for(i=0; i<ldns_rr_rd_count(rr); i++) {
-		printf(" ");
-		ldns_rdf_print(stdout, ldns_rr_rdf(rr, i));
-	}
-	ldns_rr_free(rr);
-	free(rd);
+	char s[65535];
+	sldns_wire2str_rdata_buf((uint8_t*)data, len, s, sizeof(s), (uint16_t)t);
+	printf(" %s", s);
 }
 
 /** pretty line of RR data for results */
@@ -344,24 +320,14 @@ pretty_output(char* q, int t, int c, struct ub_result* result, int docname)
 			else if(t == LDNS_RR_TYPE_MX)
 				printf(" has no mail handler record");
 			else if(t == LDNS_RR_TYPE_ANY) {
-				ldns_pkt* p = NULL;
-				if(ldns_wire2pkt(&p, result->answer_packet,
-				  (size_t)result->answer_len)==LDNS_STATUS_OK){
-					if(ldns_rr_list_rr_count(
-						ldns_pkt_answer(p)) == 0)
-						printf(" has no records\n");
-					else {
-						printf(" ANY:\n");
-						ldns_rr_list_print(stdout,
-							ldns_pkt_answer(p));
-					}
-				} else {
-					fprintf(stderr, "could not parse "
-						"reply packet to ANY query\n");
+				char* s = sldns_wire2str_pkt(
+					result->answer_packet,
+					(size_t)result->answer_len);
+				if(!s) {
+					fprintf(stderr, "alloc failure\n");
 					exit(1);
 				}
-				ldns_pkt_free(p);
-
+				printf("%s\n", s);
 			} else	printf(" has no %s record", tstr);
 			printf(" %s\n", secstatus);
 		}

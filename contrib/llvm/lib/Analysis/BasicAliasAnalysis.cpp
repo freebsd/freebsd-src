@@ -18,7 +18,10 @@
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/Analysis/AliasAnalysis.h"
 #include "llvm/Analysis/CaptureTracking.h"
+#include "llvm/Analysis/CFG.h"
+#include "llvm/Analysis/Dominators.h"
 #include "llvm/Analysis/InstructionSimplify.h"
+#include "llvm/Analysis/LoopInfo.h"
 #include "llvm/Analysis/MemoryBuiltins.h"
 #include "llvm/Analysis/ValueTracking.h"
 #include "llvm/IR/Constants.h"
@@ -37,6 +40,12 @@
 #include "llvm/Target/TargetLibraryInfo.h"
 #include <algorithm>
 using namespace llvm;
+
+/// Cutoff after which to stop analysing a set of phi nodes potentially involved
+/// in a cycle. Because we are analysing 'through' phi nodes we need to be
+/// careful with value equivalence. We use reachability to make sure a value
+/// cannot be involved in a cycle.
+const unsigned MaxNumPhiBBsValueReachabilityCheck = 20;
 
 //===----------------------------------------------------------------------===//
 // Useful predicates
@@ -403,42 +412,6 @@ DecomposeGEPExpression(const Value *V, int64_t &BaseOffs,
   return V;
 }
 
-/// GetIndexDifference - Dest and Src are the variable indices from two
-/// decomposed GetElementPtr instructions GEP1 and GEP2 which have common base
-/// pointers.  Subtract the GEP2 indices from GEP1 to find the symbolic
-/// difference between the two pointers.
-static void GetIndexDifference(SmallVectorImpl<VariableGEPIndex> &Dest,
-                               const SmallVectorImpl<VariableGEPIndex> &Src) {
-  if (Src.empty()) return;
-
-  for (unsigned i = 0, e = Src.size(); i != e; ++i) {
-    const Value *V = Src[i].V;
-    ExtensionKind Extension = Src[i].Extension;
-    int64_t Scale = Src[i].Scale;
-
-    // Find V in Dest.  This is N^2, but pointer indices almost never have more
-    // than a few variable indexes.
-    for (unsigned j = 0, e = Dest.size(); j != e; ++j) {
-      if (Dest[j].V != V || Dest[j].Extension != Extension) continue;
-
-      // If we found it, subtract off Scale V's from the entry in Dest.  If it
-      // goes to zero, remove the entry.
-      if (Dest[j].Scale != Scale)
-        Dest[j].Scale -= Scale;
-      else
-        Dest.erase(Dest.begin()+j);
-      Scale = 0;
-      break;
-    }
-
-    // If we didn't consume this entry, add it to the end of the Dest list.
-    if (Scale) {
-      VariableGEPIndex Entry = { V, Extension, -Scale };
-      Dest.push_back(Entry);
-    }
-  }
-}
-
 //===----------------------------------------------------------------------===//
 // BasicAliasAnalysis Pass
 //===----------------------------------------------------------------------===//
@@ -492,6 +465,7 @@ namespace {
       // SmallDenseMap if it ever grows larger.
       // FIXME: This should really be shrink_to_inline_capacity_and_clear().
       AliasCache.shrink_and_clear();
+      VisitedPhiBBs.clear();
       return Alias;
     }
 
@@ -532,8 +506,38 @@ namespace {
     typedef SmallDenseMap<LocPair, AliasResult, 8> AliasCacheTy;
     AliasCacheTy AliasCache;
 
+    /// \brief Track phi nodes we have visited. When interpret "Value" pointer
+    /// equality as value equality we need to make sure that the "Value" is not
+    /// part of a cycle. Otherwise, two uses could come from different
+    /// "iterations" of a cycle and see different values for the same "Value"
+    /// pointer.
+    /// The following example shows the problem:
+    ///   %p = phi(%alloca1, %addr2)
+    ///   %l = load %ptr
+    ///   %addr1 = gep, %alloca2, 0, %l
+    ///   %addr2 = gep  %alloca2, 0, (%l + 1)
+    ///      alias(%p, %addr1) -> MayAlias !
+    ///   store %l, ...
+    SmallPtrSet<const BasicBlock*, 8> VisitedPhiBBs;
+
     // Visited - Track instructions visited by pointsToConstantMemory.
     SmallPtrSet<const Value*, 16> Visited;
+
+    /// \brief Check whether two Values can be considered equivalent.
+    ///
+    /// In addition to pointer equivalence of \p V1 and \p V2 this checks
+    /// whether they can not be part of a cycle in the value graph by looking at
+    /// all visited phi nodes an making sure that the phis cannot reach the
+    /// value. We have to do this because we are looking through phi nodes (That
+    /// is we say noalias(V, phi(VA, VB)) if noalias(V, VA) and noalias(V, VB).
+    bool isValueEqualInPotentialCycles(const Value *V1, const Value *V2);
+
+    /// \brief Dest and Src are the variable indices from two decomposed
+    /// GetElementPtr instructions GEP1 and GEP2 which have common base
+    /// pointers.  Subtract the GEP2 indices from GEP1 to find the symbolic
+    /// difference between the two pointers.
+    void GetIndexDifference(SmallVectorImpl<VariableGEPIndex> &Dest,
+                            const SmallVectorImpl<VariableGEPIndex> &Src);
 
     // aliasGEP - Provide a bunch of ad-hoc rules to disambiguate a GEP
     // instruction against another.
@@ -1005,7 +1009,15 @@ BasicAliasAnalysis::aliasGEP(const GEPOperator *GEP1, uint64_t V1Size,
         return NoAlias;
       }
     } else {
-      if (V1Size != UnknownSize) {
+      // We have the situation where:
+      // +                +
+      // | BaseOffset     |
+      // ---------------->|
+      // |-->V1Size       |-------> V2Size
+      // GEP1             V2
+      // We need to know that V2Size is not unknown, otherwise we might have
+      // stripped a gep with negative index ('gep <ptr>, -1, ...).
+      if (V1Size != UnknownSize && V2Size != UnknownSize) {
         if (-(uint64_t)GEP1BaseOffset < V1Size)
           return PartialAlias;
         return NoAlias;
@@ -1094,6 +1106,10 @@ BasicAliasAnalysis::aliasPHI(const PHINode *PN, uint64_t PNSize,
                              const MDNode *PNTBAAInfo,
                              const Value *V2, uint64_t V2Size,
                              const MDNode *V2TBAAInfo) {
+  // Track phi nodes we have visited. We use this information when we determine
+  // value equivalence.
+  VisitedPhiBBs.insert(PN->getParent());
+
   // If the values are PHIs in the same block, we can do a more precise
   // as well as efficient check: just check for aliases between the values
   // on corresponding edges.
@@ -1187,7 +1203,13 @@ BasicAliasAnalysis::aliasCheck(const Value *V1, uint64_t V1Size,
   V2 = V2->stripPointerCasts();
 
   // Are we checking for alias of the same value?
-  if (V1 == V2) return MustAlias;
+  // Because we look 'through' phi nodes we could look at "Value" pointers from
+  // different iterations. We must therefore make sure that this is not the
+  // case. The function isValueEqualInPotentialCycles ensures that this cannot
+  // happen by looking at the visited phi nodes and making sure they cannot
+  // reach the value.
+  if (isValueEqualInPotentialCycles(V1, V2))
+    return MustAlias;
 
   if (!V1->getType()->isPointerTy() || !V2->getType()->isPointerTy())
     return NoAlias;  // Scalars cannot alias each other
@@ -1306,4 +1328,72 @@ BasicAliasAnalysis::aliasCheck(const Value *V1, uint64_t V1Size,
     AliasAnalysis::alias(Location(V1, V1Size, V1TBAAInfo),
                          Location(V2, V2Size, V2TBAAInfo));
   return AliasCache[Locs] = Result;
+}
+
+bool BasicAliasAnalysis::isValueEqualInPotentialCycles(const Value *V,
+                                                       const Value *V2) {
+  if (V != V2)
+    return false;
+
+  const Instruction *Inst = dyn_cast<Instruction>(V);
+  if (!Inst)
+    return true;
+
+  if (VisitedPhiBBs.size() > MaxNumPhiBBsValueReachabilityCheck)
+    return false;
+
+  // Use dominance or loop info if available.
+  DominatorTree *DT = getAnalysisIfAvailable<DominatorTree>();
+  LoopInfo *LI = getAnalysisIfAvailable<LoopInfo>();
+
+  // Make sure that the visited phis cannot reach the Value. This ensures that
+  // the Values cannot come from different iterations of a potential cycle the
+  // phi nodes could be involved in.
+  for (SmallPtrSet<const BasicBlock *, 8>::iterator PI = VisitedPhiBBs.begin(),
+                                                    PE = VisitedPhiBBs.end();
+       PI != PE; ++PI)
+    if (isPotentiallyReachable((*PI)->begin(), Inst, DT, LI))
+      return false;
+
+  return true;
+}
+
+/// GetIndexDifference - Dest and Src are the variable indices from two
+/// decomposed GetElementPtr instructions GEP1 and GEP2 which have common base
+/// pointers.  Subtract the GEP2 indices from GEP1 to find the symbolic
+/// difference between the two pointers.
+void BasicAliasAnalysis::GetIndexDifference(
+    SmallVectorImpl<VariableGEPIndex> &Dest,
+    const SmallVectorImpl<VariableGEPIndex> &Src) {
+  if (Src.empty())
+    return;
+
+  for (unsigned i = 0, e = Src.size(); i != e; ++i) {
+    const Value *V = Src[i].V;
+    ExtensionKind Extension = Src[i].Extension;
+    int64_t Scale = Src[i].Scale;
+
+    // Find V in Dest.  This is N^2, but pointer indices almost never have more
+    // than a few variable indexes.
+    for (unsigned j = 0, e = Dest.size(); j != e; ++j) {
+      if (!isValueEqualInPotentialCycles(Dest[j].V, V) ||
+          Dest[j].Extension != Extension)
+        continue;
+
+      // If we found it, subtract off Scale V's from the entry in Dest.  If it
+      // goes to zero, remove the entry.
+      if (Dest[j].Scale != Scale)
+        Dest[j].Scale -= Scale;
+      else
+        Dest.erase(Dest.begin() + j);
+      Scale = 0;
+      break;
+    }
+
+    // If we didn't consume this entry, add it to the end of the Dest list.
+    if (Scale) {
+      VariableGEPIndex Entry = { V, Extension, -Scale };
+      Dest.push_back(Entry);
+    }
+  }
 }

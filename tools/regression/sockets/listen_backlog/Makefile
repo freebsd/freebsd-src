@@ -2,6 +2,6 @@
 
 PROG=	listen_backlog
 WARNS?=	3
-NO_MAN=
+MAN=
 
 .include <bsd.prog.mk>

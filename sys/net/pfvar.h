@@ -1529,6 +1529,8 @@ VNET_DECLARE(struct pf_rulequeue, pf_unlinked_rules);
 #define	V_pf_unlinked_rules	VNET(pf_unlinked_rules)
 
 void				 pf_initialize(void);
+void				 pf_mtag_initialize(void);
+void				 pf_mtag_cleanup(void);
 void				 pf_cleanup(void);
 
 struct pf_mtag			*pf_get_mtag(struct mbuf *);

@@ -54,11 +54,11 @@ __FBSDID("$FreeBSD$");
 
 #if defined(INET) || defined(INET6)
 #include <netinet/in.h>
+#include <netinet/ip.h>
 #endif
 #ifdef INET
 #include <netinet/in_systm.h>
 #include <netinet/if_ether.h>
-#include <netinet/ip.h>
 #endif
 
 #ifdef INET6
@@ -180,13 +180,11 @@ SYSCTL_INT(_net_link_lagg, OID_AUTO, failover_rx_all, CTLFLAG_RW,
     &lagg_failover_rx_all, 0,
     "Accept input from any interface in a failover lagg");
 static int def_use_flowid = 1; /* Default value for using M_FLOWID */
-TUNABLE_INT("net.link.lagg.default_use_flowid", &def_use_flowid);
-SYSCTL_INT(_net_link_lagg, OID_AUTO, default_use_flowid, CTLFLAG_RW,
+SYSCTL_INT(_net_link_lagg, OID_AUTO, default_use_flowid, CTLFLAG_RWTUN,
     &def_use_flowid, 0,
     "Default setting for using flow id for load sharing");
 static int def_flowid_shift = 16; /* Default value for using M_FLOWID */
-TUNABLE_INT("net.link.lagg.default_flowid_shift", &def_flowid_shift);
-SYSCTL_INT(_net_link_lagg, OID_AUTO, default_flowid_shift, CTLFLAG_RW,
+SYSCTL_INT(_net_link_lagg, OID_AUTO, default_flowid_shift, CTLFLAG_RWTUN,
     &def_flowid_shift, 0,
     "Default setting for flowid shift for load sharing");
 
@@ -448,6 +446,11 @@ lagg_capabilities(struct lagg_softc *sc)
 	struct lagg_port *lp;
 	int cap = ~0, ena = ~0;
 	u_long hwa = ~0UL;
+#if defined(INET) || defined(INET6)
+	u_int hw_tsomax = IP_MAXPACKET;	/* Initialize to the maximum value. */
+#else
+	u_int hw_tsomax = ~0;	/* if_hw_tsomax is only for INET/INET6, but.. */
+#endif
 
 	LAGG_WLOCK_ASSERT(sc);
 
@@ -456,6 +459,10 @@ lagg_capabilities(struct lagg_softc *sc)
 		cap &= lp->lp_ifp->if_capabilities;
 		ena &= lp->lp_ifp->if_capenable;
 		hwa &= lp->lp_ifp->if_hwassist;
+		/* Set to the minimum value of the lagg ports. */
+		if (lp->lp_ifp->if_hw_tsomax < hw_tsomax &&
+		    lp->lp_ifp->if_hw_tsomax > 0)
+			hw_tsomax = lp->lp_ifp->if_hw_tsomax;
 	}
 	cap = (cap == ~0 ? 0 : cap);
 	ena = (ena == ~0 ? 0 : ena);
@@ -463,10 +470,12 @@ lagg_capabilities(struct lagg_softc *sc)
 
 	if (sc->sc_ifp->if_capabilities != cap ||
 	    sc->sc_ifp->if_capenable != ena ||
-	    sc->sc_ifp->if_hwassist != hwa) {
+	    sc->sc_ifp->if_hwassist != hwa ||
+	    sc->sc_ifp->if_hw_tsomax != hw_tsomax) {
 		sc->sc_ifp->if_capabilities = cap;
 		sc->sc_ifp->if_capenable = ena;
 		sc->sc_ifp->if_hwassist = hwa;
+		sc->sc_ifp->if_hw_tsomax = hw_tsomax;
 		getmicrotime(&sc->sc_ifp->if_lastchange);
 
 		if (sc->sc_ifflags & IFF_DEBUG)

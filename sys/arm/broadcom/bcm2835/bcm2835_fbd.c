@@ -99,7 +99,6 @@ struct bcmsc_softc {
 	struct bcm_fb_config*	fb_config;
 	bus_addr_t		fb_config_phys;
 	struct intr_config_hook	init_hook;
-
 };
 
 static int bcm_fb_probe(device_t);
@@ -167,13 +166,9 @@ bcm_fb_init(void *arg)
 			fb_config->xoffset, fb_config->yoffset,
 			fb_config->bpp);
 
-
 		device_printf(sc->dev, "pitch %d, base 0x%08x, screen_size %d\n",
 			fb_config->pitch, fb_config->base,
 			fb_config->screen_size);
-
-
-
 
 		info = malloc(sizeof(struct fb_info), M_DEVBUF,
 		    M_WAITOK | M_ZERO);
@@ -199,8 +194,6 @@ bcm_fb_init(void *arg)
 			device_printf(sc->dev, "Failed to attach fbd device\n");
 			return;
 		}
-
-
 	} else {
 		device_printf(sc->dev, "Failed to set framebuffer info\n");
 		return;
@@ -272,7 +265,6 @@ bcm_fb_attach(device_t dev)
 fail:
 	return (ENXIO);
 }
-
 
 static void
 bcm_fb_dmamap_cb(void *arg, bus_dma_segment_t *segs, int nseg, int err)

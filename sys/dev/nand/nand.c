@@ -65,17 +65,8 @@ __FBSDID("$FreeBSD$");
 #define	SOFTECC_BYTES		3
 
 int nand_debug_flag = 0;
-SYSCTL_INT(_debug, OID_AUTO, nand_debug, CTLFLAG_RW, &nand_debug_flag, 0,
+SYSCTL_INT(_debug, OID_AUTO, nand_debug, CTLFLAG_RWTUN, &nand_debug_flag, 0,
     "NAND subsystem debug flag");
-
-static void
-nand_tunable_init(void *arg)
-{
-
-	TUNABLE_INT_FETCH("debug.nand", &nand_debug_flag);
-}
-
-SYSINIT(nand_tunables, SI_SUB_VFS, SI_ORDER_ANY, nand_tunable_init, NULL);
 
 MALLOC_DEFINE(M_NAND, "NAND", "NAND dynamic data");
 

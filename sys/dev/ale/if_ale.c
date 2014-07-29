@@ -1330,34 +1330,32 @@ ale_dma_free(struct ale_softc *sc)
 	}
 	/* Tx descriptor ring. */
 	if (sc->ale_cdata.ale_tx_ring_tag != NULL) {
-		if (sc->ale_cdata.ale_tx_ring_map != NULL)
+		if (sc->ale_cdata.ale_tx_ring_paddr != 0)
 			bus_dmamap_unload(sc->ale_cdata.ale_tx_ring_tag,
 			    sc->ale_cdata.ale_tx_ring_map);
-		if (sc->ale_cdata.ale_tx_ring_map != NULL &&
-		    sc->ale_cdata.ale_tx_ring != NULL)
+		if (sc->ale_cdata.ale_tx_ring != NULL)
 			bus_dmamem_free(sc->ale_cdata.ale_tx_ring_tag,
 			    sc->ale_cdata.ale_tx_ring,
 			    sc->ale_cdata.ale_tx_ring_map);
+		sc->ale_cdata.ale_tx_ring_paddr = 0;
 		sc->ale_cdata.ale_tx_ring = NULL;
-		sc->ale_cdata.ale_tx_ring_map = NULL;
 		bus_dma_tag_destroy(sc->ale_cdata.ale_tx_ring_tag);
 		sc->ale_cdata.ale_tx_ring_tag = NULL;
 	}
 	/* Rx page block. */
 	for (i = 0; i < ALE_RX_PAGES; i++) {
 		if (sc->ale_cdata.ale_rx_page[i].page_tag != NULL) {
-			if (sc->ale_cdata.ale_rx_page[i].page_map != NULL)
+			if (sc->ale_cdata.ale_rx_page[i].page_paddr != 0)
 				bus_dmamap_unload(
 				    sc->ale_cdata.ale_rx_page[i].page_tag,
 				    sc->ale_cdata.ale_rx_page[i].page_map);
-			if (sc->ale_cdata.ale_rx_page[i].page_map != NULL &&
-			    sc->ale_cdata.ale_rx_page[i].page_addr != NULL)
+			if (sc->ale_cdata.ale_rx_page[i].page_addr != NULL)
 				bus_dmamem_free(
 				    sc->ale_cdata.ale_rx_page[i].page_tag,
 				    sc->ale_cdata.ale_rx_page[i].page_addr,
 				    sc->ale_cdata.ale_rx_page[i].page_map);
+			sc->ale_cdata.ale_rx_page[i].page_paddr = 0;
 			sc->ale_cdata.ale_rx_page[i].page_addr = NULL;
-			sc->ale_cdata.ale_rx_page[i].page_map = NULL;
 			bus_dma_tag_destroy(
 			    sc->ale_cdata.ale_rx_page[i].page_tag);
 			sc->ale_cdata.ale_rx_page[i].page_tag = NULL;
@@ -1366,18 +1364,17 @@ ale_dma_free(struct ale_softc *sc)
 	/* Rx CMB. */
 	for (i = 0; i < ALE_RX_PAGES; i++) {
 		if (sc->ale_cdata.ale_rx_page[i].cmb_tag != NULL) {
-			if (sc->ale_cdata.ale_rx_page[i].cmb_map != NULL)
+			if (sc->ale_cdata.ale_rx_page[i].cmb_paddr != 0)
 				bus_dmamap_unload(
 				    sc->ale_cdata.ale_rx_page[i].cmb_tag,
 				    sc->ale_cdata.ale_rx_page[i].cmb_map);
-			if (sc->ale_cdata.ale_rx_page[i].cmb_map != NULL &&
-			    sc->ale_cdata.ale_rx_page[i].cmb_addr != NULL)
+			if (sc->ale_cdata.ale_rx_page[i].cmb_addr != NULL)
 				bus_dmamem_free(
 				    sc->ale_cdata.ale_rx_page[i].cmb_tag,
 				    sc->ale_cdata.ale_rx_page[i].cmb_addr,
 				    sc->ale_cdata.ale_rx_page[i].cmb_map);
+			sc->ale_cdata.ale_rx_page[i].cmb_paddr = 0;
 			sc->ale_cdata.ale_rx_page[i].cmb_addr = NULL;
-			sc->ale_cdata.ale_rx_page[i].cmb_map = NULL;
 			bus_dma_tag_destroy(
 			    sc->ale_cdata.ale_rx_page[i].cmb_tag);
 			sc->ale_cdata.ale_rx_page[i].cmb_tag = NULL;
@@ -1385,16 +1382,15 @@ ale_dma_free(struct ale_softc *sc)
 	}
 	/* Tx CMB. */
 	if (sc->ale_cdata.ale_tx_cmb_tag != NULL) {
-		if (sc->ale_cdata.ale_tx_cmb_map != NULL)
+		if (sc->ale_cdata.ale_tx_cmb_paddr != 0)
 			bus_dmamap_unload(sc->ale_cdata.ale_tx_cmb_tag,
 			    sc->ale_cdata.ale_tx_cmb_map);
-		if (sc->ale_cdata.ale_tx_cmb_map != NULL &&
-		    sc->ale_cdata.ale_tx_cmb != NULL)
+		if (sc->ale_cdata.ale_tx_cmb != NULL)
 			bus_dmamem_free(sc->ale_cdata.ale_tx_cmb_tag,
 			    sc->ale_cdata.ale_tx_cmb,
 			    sc->ale_cdata.ale_tx_cmb_map);
+		sc->ale_cdata.ale_tx_cmb_paddr = 0;
 		sc->ale_cdata.ale_tx_cmb = NULL;
-		sc->ale_cdata.ale_tx_cmb_map = NULL;
 		bus_dma_tag_destroy(sc->ale_cdata.ale_tx_cmb_tag);
 		sc->ale_cdata.ale_tx_cmb_tag = NULL;
 	}

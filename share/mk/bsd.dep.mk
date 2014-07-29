@@ -78,10 +78,11 @@ ${_S:R}.o: ${_S}
 .endfor
 .endif
 
+# Lexical analyzers
 .for _LSRC in ${SRCS:M*.l:N*/*}
 .for _LC in ${_LSRC:R}.c
 ${_LC}: ${_LSRC}
-	${LEX} -t ${LFLAGS} ${.ALLSRC} > ${.TARGET}
+	${LEX} ${LFLAGS} -o${.TARGET} ${.ALLSRC}
 .if !exists(${.OBJDIR}/${DEPENDFILE})
 ${_LC:R}.o: ${_LC}
 .endif
@@ -90,6 +91,7 @@ CLEANFILES+= ${_LC}
 .endfor
 .endfor
 
+# Yacc grammars
 .for _YSRC in ${SRCS:M*.y:N*/*}
 .for _YC in ${_YSRC:R}.c
 SRCS:=	${SRCS:S/${_YSRC}/${_YC}/}
@@ -114,6 +116,30 @@ ${_YC}: ${_YSRC}
 .endif
 .if !exists(${.OBJDIR}/${DEPENDFILE})
 ${_YC:R}.o: ${_YC}
+.endif
+.endfor
+.endfor
+
+# DTrace probe definitions
+# libelf is currently needed for drti.o
+.if ${SRCS:M*.d}
+LDFLAGS+=	-lelf
+LDADD+=		${LIBELF}
+CFLAGS+=	-D_DTRACE_VERSION=1
+.endif
+.for _DSRC in ${SRCS:M*.d:N*/*}
+.for _D in ${_DSRC:R}
+${_D}.h: ${_DSRC}
+	${DTRACE} -xnolibs -h -s ${.ALLSRC}
+SRCS:=	${SRCS:S/${_DSRC}/${_D}.h/}
+${_D}.o: ${_D}.h ${_DSRC} ${OBJS} ${SOBJS}
+	${DTRACE} -xnolibs -G -o ${.TARGET} -s ${_DSRC} \
+		${OBJS:S/${_D}.o//} ${SOBJS:S/${_D}.o//}
+CLEANFILES+= ${_D}.h ${_D}.o
+.if defined(PROG)
+OBJS+=	${_D}.o
+.else
+SOBJS+=	${_D}.o
 .endif
 .endfor
 .endfor

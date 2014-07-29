@@ -3,7 +3,7 @@
 .PATH:  ${.CURDIR}
 
 KMOD=	kthrdlk
-NO_MAN=
+MAN=
 SRCS=	kthrdlk.c
 WARNS?=	2
 

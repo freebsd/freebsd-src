@@ -51,50 +51,50 @@ static const char rcsid[] =
 #include <time.h>
 #include <unistd.h>
 
-#define MAXU16	  0xffff	/* maximum unsigned 16-bit quantity */
-#define BPN	  4		/* bits per nibble */
-#define NPB	  2		/* nibbles per byte */
+#define	MAXU16	  0xffff	/* maximum unsigned 16-bit quantity */
+#define	BPN	  4		/* bits per nibble */
+#define	NPB	  2		/* nibbles per byte */
 
-#define DOSMAGIC  0xaa55	/* DOS magic number */
-#define MINBPS	  512		/* minimum bytes per sector */
-#define MAXSPC	  128		/* maximum sectors per cluster */
-#define MAXNFT	  16		/* maximum number of FATs */
-#define DEFBLK	  4096		/* default block size */
-#define DEFBLK16  2048		/* default block size FAT16 */
-#define DEFRDE	  512		/* default root directory entries */
-#define RESFTE	  2		/* reserved FAT entries */
-#define MINCLS12  1U		/* minimum FAT12 clusters */
-#define MINCLS16  0x1000U	/* minimum FAT16 clusters */
-#define MINCLS32  2U		/* minimum FAT32 clusters */
-#define MAXCLS12  0xfedU	/* maximum FAT12 clusters */
-#define MAXCLS16  0xfff5U	/* maximum FAT16 clusters */
-#define MAXCLS32  0xffffff5U	/* maximum FAT32 clusters */
+#define	DOSMAGIC  0xaa55	/* DOS magic number */
+#define	MINBPS	  512		/* minimum bytes per sector */
+#define	MAXSPC	  128		/* maximum sectors per cluster */
+#define	MAXNFT	  16		/* maximum number of FATs */
+#define	DEFBLK	  4096		/* default block size */
+#define	DEFBLK16  2048		/* default block size FAT16 */
+#define	DEFRDE	  512		/* default root directory entries */
+#define	RESFTE	  2		/* reserved FAT entries */
+#define	MINCLS12  1U		/* minimum FAT12 clusters */
+#define	MINCLS16  0xff5U	/* minimum FAT16 clusters */
+#define	MINCLS32  0xfff5U	/* minimum FAT32 clusters */
+#define	MAXCLS12  0xff4U	/* maximum FAT12 clusters */
+#define	MAXCLS16  0xfff4U	/* maximum FAT16 clusters */
+#define	MAXCLS32  0xffffff4U	/* maximum FAT32 clusters */
 
-#define mincls(fat)  ((fat) == 12 ? MINCLS12 :	\
+#define	mincls(fat)  ((fat) == 12 ? MINCLS12 :	\
 		      (fat) == 16 ? MINCLS16 :	\
 				    MINCLS32)
 
-#define maxcls(fat)  ((fat) == 12 ? MAXCLS12 :	\
+#define	maxcls(fat)  ((fat) == 12 ? MAXCLS12 :	\
 		      (fat) == 16 ? MAXCLS16 :	\
 				    MAXCLS32)
 
-#define mk1(p, x)				\
+#define	mk1(p, x)				\
     (p) = (u_int8_t)(x)
 
-#define mk2(p, x)				\
+#define	mk2(p, x)				\
     (p)[0] = (u_int8_t)(x),			\
     (p)[1] = (u_int8_t)((x) >> 010)
 
-#define mk4(p, x)				\
+#define	mk4(p, x)				\
     (p)[0] = (u_int8_t)(x),			\
     (p)[1] = (u_int8_t)((x) >> 010),		\
     (p)[2] = (u_int8_t)((x) >> 020),		\
     (p)[3] = (u_int8_t)((x) >> 030)
 
-#define argto1(arg, lo, msg)  argtou(arg, lo, 0xff, msg)
-#define argto2(arg, lo, msg)  argtou(arg, lo, 0xffff, msg)
-#define argto4(arg, lo, msg)  argtou(arg, lo, 0xffffffff, msg)
-#define argtox(arg, lo, msg)  argtou(arg, lo, UINT_MAX, msg)
+#define	argto1(arg, lo, msg)  argtou(arg, lo, 0xff, msg)
+#define	argto2(arg, lo, msg)  argtou(arg, lo, 0xffff, msg)
+#define	argto4(arg, lo, msg)  argtou(arg, lo, 0xffffffff, msg)
+#define	argtox(arg, lo, msg)  argtou(arg, lo, UINT_MAX, msg)
 
 struct bs {
     u_int8_t bsJump[3];			/* bootstrap entry point */
@@ -131,7 +131,7 @@ struct bsx {
     u_int8_t exReserved1;		/* reserved */
     u_int8_t exBootSignature;		/* extended boot signature */
     u_int8_t exVolumeID[4];		/* volume ID number */
-    u_int8_t exVolumeLabel[11]; 	/* volume label */
+    u_int8_t exVolumeLabel[11];		/* volume label */
     u_int8_t exFileSysType[8];		/* file system type */
 } __packed;
 
@@ -164,7 +164,7 @@ struct bpb {
     u_int bpbBackup; 			/* backup boot sector */
 };
 
-#define BPBGAP 0, 0, 0, 0, 0, 0
+#define	BPBGAP 0, 0, 0, 0, 0, 0
 
 static struct {
     const char *name;
@@ -174,10 +174,10 @@ static struct {
     {"180",  {512, 1, 1, 2,  64,  360, 0xfc, 2,  9, 1, BPBGAP}},
     {"320",  {512, 2, 1, 2, 112,  640, 0xff, 1,  8, 2, BPBGAP}},
     {"360",  {512, 2, 1, 2, 112,  720, 0xfd, 2,  9, 2, BPBGAP}},
-    {"640",  {512, 2, 1, 2, 112, 1280, 0xfb, 2,  8, 2, BPBGAP}},    
+    {"640",  {512, 2, 1, 2, 112, 1280, 0xfb, 2,  8, 2, BPBGAP}},
     {"720",  {512, 2, 1, 2, 112, 1440, 0xf9, 3,  9, 2, BPBGAP}},
     {"1200", {512, 1, 1, 2, 224, 2400, 0xf9, 7, 15, 2, BPBGAP}},
-    {"1232", {1024,1, 1, 2, 192, 1232, 0xfe, 2,  8, 2, BPBGAP}},    
+    {"1232", {1024,1, 1, 2, 192, 1232, 0xfe, 2,  8, 2, BPBGAP}},
     {"1440", {512, 1, 1, 2, 224, 2880, 0xf0, 9, 18, 2, BPBGAP}},
     {"2880", {512, 2, 1, 2, 240, 5760, 0xf0, 9, 36, 2, BPBGAP}}
 };
@@ -1029,7 +1029,7 @@ usage(void)
 	fprintf(stderr,
 	    "usage: newfs_msdos [ -options ] special [disktype]\n"
 	    "where the options are:\n"
-	    "\t-@ create file system at specified offset\n"                         
+	    "\t-@ create file system at specified offset\n"
 	    "\t-B get bootstrap from file\n"
 	    "\t-C create image file with specified size\n"
 	    "\t-F FAT type (12, 16, or 32)\n"

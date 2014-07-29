@@ -336,7 +336,7 @@ struct dumperinfo {
 
 int set_dumper(struct dumperinfo *, const char *_devname);
 int dump_write(struct dumperinfo *, void *, vm_offset_t, off_t, size_t);
-void dumpsys(struct dumperinfo *);
+int dumpsys(struct dumperinfo *);
 int doadump(boolean_t);
 extern int dumping;		/* system is dumping */
 

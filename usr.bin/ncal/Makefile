@@ -1,11 +1,11 @@
 # $FreeBSD$
 
-.include <bsd.own.mk>
+.include <src.opts.mk>
 
 PROG=	ncal
 
-DPADD=	${LIBCALENDAR} ${LIBTERMCAP}
-LDADD=	-lcalendar -ltermcap
+DPADD=	${LIBCALENDAR} ${LIBTERMCAPW}
+LDADD=	-lcalendar -ltermcapw
 
 LINKS=	${BINDIR}/ncal ${BINDIR}/cal
 MLINKS=	ncal.1 cal.1

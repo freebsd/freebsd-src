@@ -135,7 +135,7 @@ ldns_fget_token_l(FILE *f, char *token, const char *delim, size_t limit, int *li
 		if (c != '\0' && c != '\n') {
 			i++;
 		}
-		if (limit > 0 && i >= limit) {
+		if (limit > 0 && (i >= limit || (size_t)(t-token) >= limit)) {
 			*t = '\0';
 			return -1;
 		}
@@ -308,7 +308,7 @@ ldns_bget_token(ldns_buffer *b, char *token, const char *delim, size_t limit)
 		}
 
 		i++;
-		if (limit > 0 && i >= limit) {
+		if (limit > 0 && (i >= limit || (size_t)(t-token) >= limit)) {
 			*t = '\0';
 			return -1;
 		}

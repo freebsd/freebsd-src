@@ -584,7 +584,7 @@ set_default_part_metadata(const char *name, const char *scheme,
 
 	if (strcmp(type, "freebsd-swap") == 0)
 		mountpoint = "none";
-	if (strcmp(type, "freebsd-boot") == 0)
+	if (strcmp(type, bootpart_type(scheme)) == 0)
 		md->bootcode = 1;
 
 	/* VTOC8 needs partcode in UFS partitions */
@@ -949,7 +949,8 @@ addpartform:
 		LIST_FOREACH(gc, &pp->lg_config, lg_config)
 			if (strcmp(gc->lg_name, "type") == 0)
 				break;
-		if (gc != NULL && strcmp(gc->lg_val, "freebsd-boot") == 0)
+		if (gc != NULL && strcmp(gc->lg_val,
+		    bootpart_type(scheme)) == 0)
 			break;
 	}
 
@@ -971,7 +972,7 @@ addpartform:
 			gctl_ro_param(r, "arg0", -1, geom->lg_name);
 			gctl_ro_param(r, "flags", -1, GPART_FLAGS);
 			gctl_ro_param(r, "verb", -1, "add");
-			gctl_ro_param(r, "type", -1, "freebsd-boot");
+			gctl_ro_param(r, "type", -1, bootpart_type(scheme));
 			snprintf(sizestr, sizeof(sizestr), "%jd",
 			    bootpart_size(scheme) / sector);
 			gctl_ro_param(r, "size", -1, sizestr);
@@ -1031,7 +1032,7 @@ addpartform:
 	gctl_issue(r); /* Error usually expected and non-fatal */
 	gctl_free(r);
 
-	if (strcmp(items[0].text, "freebsd-boot") == 0)
+	if (strcmp(items[0].text, bootpart_type(scheme)) == 0)
 		get_part_metadata(newpartname, 1)->bootcode = 1;
 	else if (strcmp(items[0].text, "freebsd") == 0)
 		gpart_partition(newpartname, "BSD");

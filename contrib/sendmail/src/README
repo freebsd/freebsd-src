@@ -9,7 +9,7 @@
 # the sendmail distribution.
 #
 #
-#	$Id: README,v 8.393 2013/11/22 20:51:54 ca Exp $
+#	$Id: README,v 8.393 2013-11-22 20:51:54 ca Exp $
 #
 
 This directory contains the source files for sendmail(TM).
@@ -1848,4 +1848,4 @@ util.c		Some general purpose routines used by sendmail.
 version.c	The version number and information about this
 		version of sendmail.
 
-(Version $Revision: 8.393 $, last update $Date: 2013/11/22 20:51:54 $ )
+(Version $Revision: 8.393 $, last update $Date: 2013-11-22 20:51:54 $ )

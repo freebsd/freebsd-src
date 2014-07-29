@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 11, 2014
+.Dd July 28, 2014
 .Dt CTL.CONF 5
 .Os
 .Sh NAME
@@ -41,7 +41,7 @@ configuration file is used by the
 daemon.
 Lines starting with
 .Ql #
-and empty lines are interpreted as comments.
+are interpreted as comments.
 The general syntax of the
 .Nm
 file is:
@@ -104,14 +104,14 @@ The following statements are available at the auth-group level:
 .It Ic auth-type Ao Ar type Ac
 Specifies authentication type.
 Type can be either "none", "deny", "chap", or "chap-mutual".
-In most cases it is not neccessary to set the type using this clause;
+In most cases it is not necessary to set the type using this clause;
 it is usually used to disable authentication for a given auth-group.
 .It Ic chap Ao Ar user Ac Aq Ar secret
 Specifies CHAP authentication credentials.
 .It Ic chap-mutual Ao Ar user Ac Ao Ar secret Ac Ao Ar mutualuser Ac Aq Ar mutualsecret
 Specifies mutual CHAP authentication credentials.
 Note that for any auth-group, configuration may contain either chap,
-or chap-mutual entries; it's an error to mix them.
+or chap-mutual entries; it is an error to mix them.
 .It Ic initiator-name Ao Ar initiator-name Ac
 Specifies iSCSI initiator name.
 If not defined, there will be no restrictions based on initiator
@@ -119,7 +119,7 @@ name.
 Otherwise, only initiators with names matching one of defined
 ones will be allowed to connect.
 .It Ic initiator-portal Ao Ar address Ac
-Specifies iSCSI initiator portal - IPv4 or IPv6 address.
+Specifies iSCSI initiator portal - IPv4 or IPv6 address or network.
 If not defined, there will be no restrictions based on initiator
 address.
 Otherwise, only initiators with addresses matching one of defined
@@ -129,7 +129,7 @@ ones will be allowed to connect.
 The following statements are available at the portal-group level:
 .Bl -tag -width indent
 .It Ic discovery-auth-group Aq Ar name
-Assigns previously defined authentication group to that portal group,
+Assigns previously defined authentication group to the portal group,
 to be used for target discovery.
 By default, portal groups that do not specify their own auth settings,
 using clauses such as "chap" or "initiator-name", are assigned
@@ -146,10 +146,10 @@ using iSER (iSCSI over RDMA) protocol.
 The following statements are available at the target level:
 .Bl -tag -width indent
 .It Ic alias Aq Ar text
-Assigns human-readable description to that target.
+Assigns human-readable description to the target.
 There is no default.
 .It Ic auth-group Aq Ar name
-Assigns previously defined authentication group to that target.
+Assigns previously defined authentication group to the target.
 By default, targets that do not specify their own auth settings,
 using clauses such as "chap" or "initiator-name", are assigned
 predefined auth-group "default", which denies all access.
@@ -158,18 +158,18 @@ without authentication.
 .It Ic auth-type Ao Ar type Ac
 Specifies authentication type.
 Type can be either "none", "deny", "chap", or "chap-mutual".
-In most cases it is not neccessary to set the type using this clause;
+In most cases it is not necessary to set the type using this clause;
 it is usually used to disable authentication for a given target.
 This clause is mutually exclusive with auth-group; one cannot use
 both in a single target.
 .It Ic chap Ao Ar user Ac Aq Ar secret
 Specifies CHAP authentication credentials.
 Note that targets must use either auth-group, or chap,
-or chap-mutual clauses; it's a configuration error to mix them in one target.
+or chap-mutual clauses; it is a configuration error to mix them in one target.
 .It Ic chap-mutual Ao Ar user Ac Ao Ar secret Ac Ao Ar mutualuser Ac Aq Ar mutualsecret
 Specifies mutual CHAP authentication credentials.
 Note that targets must use either auth-group, chap, or
-chap-mutual clauses; it's a configuration error to mix them in one target.
+chap-mutual clauses; it is a configuration error to mix them in one target.
 .It Ic initiator-name Ao Ar initiator-name Ac
 Specifies iSCSI initiator name.
 If not defined, there will be no restrictions based on initiator
@@ -187,7 +187,7 @@ ones will be allowed to connect.
 This clause is mutually exclusive with auth-group; one cannot use
 both in a single target.
 .It Ic portal-group Aq Ar name
-Assigns previously defined portal group to that target.
+Assigns previously defined portal group to the target.
 Default portal group is "default", which makes the target available
 on TCP port 3260 on all configured IPv4 and IPv6 addresses.
 .It Ic lun Aq Ar number
@@ -203,7 +203,7 @@ Valid choices are
 and
 .Dq ramdisk ;
 block is used for LUNs backed
-by files in the filesystem; ramdisk is a bitsink device, used mostly for
+by files or disk device nodes; ramdisk is a bitsink device, used mostly for
 testing.
 The default backend is block.
 .It Ic blocksize Aq Ar size
@@ -214,7 +214,7 @@ Specifies SCSI Device Identification string presented to the initiator.
 .It Ic option Ao Ar name Ac Aq Ar value
 Specifies CTL-specific options passed to the kernel.
 .It Ic path Aq Ar path
-Specifies path to file used to back the LUN.
+Specifies path to file or device node used to back the LUN.
 .It Ic serial Aq Ar string
 Specifies SCSI serial number presented to the initiator.
 .It Ic size Aq Ar size
@@ -245,7 +245,7 @@ portal-group example2 {
 }
 
 target iqn.2012-06.com.example:target0 {
-	alias "Testing target"
+	alias "Example target"
 	auth-group no-authentication
 	lun 0 {
 		path /dev/zvol/example_0
@@ -283,5 +283,5 @@ The
 configuration file functionality for
 .Xr ctld 8
 was developed by
-.An Edward Tomasz Napierala Aq trasz@FreeBSD.org
+.An Edward Tomasz Napierala Aq Mt trasz@FreeBSD.org
 under sponsorship from the FreeBSD Foundation.

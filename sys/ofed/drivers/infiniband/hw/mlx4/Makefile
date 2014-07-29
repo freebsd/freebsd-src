@@ -2,7 +2,7 @@
 #.PATH:  ${.CURDIR}/../../ofed/drivers/infiniband/hw/mlx4
 #.PATH:  ${.CURDIR}/../../../../include/linux
 
-.include <bsd.own.mk>
+.include <src.opts.mk>
 
 KMOD    = mlx4ib
 SRCS    = device_if.h bus_if.h pci_if.h vnode_if.h

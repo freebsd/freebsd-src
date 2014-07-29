@@ -50,7 +50,7 @@ typedef struct udpinfo {
 	struct udphdr *udp_hdr;		/* raw UDP header */
 } udpinfo_t;
 
-#pragma D binding "1.0" translator
+#pragma D binding "1.6.3" translator
 translator udpsinfo_t < struct inpcb *p > {
 	udps_addr =	(uintptr_t)p;
 	udps_lport =	p == NULL ? 0 : ntohs(p->inp_inc.inc_ie.ie_lport);
@@ -65,7 +65,7 @@ translator udpsinfo_t < struct inpcb *p > {
 	    inet_ntoa6(&p->inp_inc.inc_ie.ie_dependfaddr.ie6_foreign);
 };
 
-#pragma D binding "1.0" translator
+#pragma D binding "1.6.3" translator
 translator udpinfo_t < struct udphdr *p > {
 	udp_sport =	p == NULL ? 0 : ntohs(p->uh_sport);
 	udp_dport =	p == NULL ? 0 : ntohs(p->uh_dport);

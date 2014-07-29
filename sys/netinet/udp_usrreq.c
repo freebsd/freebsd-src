@@ -1340,7 +1340,7 @@ udp_output(struct inpcb *inp, struct mbuf *m, struct sockaddr *addr,
 		 * For UDP-Lite, checksum coverage length of zero means
 		 * the entire UDPLite packet is covered by the checksum.
 		 */
-		 cscov_partial = (cscov == 0) ? 0 : 1;
+		cscov_partial = (cscov == 0) ? 0 : 1;
 	} else
 		ui->ui_v = IPVERSION << 4;
 
@@ -1370,12 +1370,17 @@ udp_output(struct inpcb *inp, struct mbuf *m, struct sockaddr *addr,
 	 * Set up checksum and output datagram.
 	 */
 	ui->ui_sum = 0;
-	if (cscov_partial) {
+	if (pr == IPPROTO_UDPLITE) {
 		if (inp->inp_flags & INP_ONESBCAST)
 			faddr.s_addr = INADDR_BROADCAST;
-		if ((ui->ui_sum = in_cksum(m, sizeof(struct ip) + cscov)) == 0)
-			ui->ui_sum = 0xffff;
-	} else if (V_udp_cksum || !cscov_partial) {
+		if (cscov_partial) {
+			if ((ui->ui_sum = in_cksum(m, sizeof(struct ip) + cscov)) == 0)
+				ui->ui_sum = 0xffff;
+		} else {
+			if ((ui->ui_sum = in_cksum(m, sizeof(struct udpiphdr) + len)) == 0)
+				ui->ui_sum = 0xffff;
+		}
+	} else if (V_udp_cksum) {
 		if (inp->inp_flags & INP_ONESBCAST)
 			faddr.s_addr = INADDR_BROADCAST;
 		ui->ui_sum = in_pseudo(ui->ui_src.s_addr, faddr.s_addr,

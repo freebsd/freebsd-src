@@ -68,7 +68,7 @@ static int ou_refcnt = 0;
 /*
  | function for freeing external storage for mbuf
  */
-static int
+static void
 ext_free(struct mbuf *m, void *a, void *b)
 {
      pduq_t *pq = b;
@@ -78,7 +78,6 @@ ext_free(struct mbuf *m, void *a, void *b)
 	  free(pq->buf, M_ISCSIBUF);
 	  pq->buf = NULL;
      }
-     return (EXT_FREE_OK);
 }
 
 int
@@ -134,7 +133,7 @@ isc_sendPDU(isc_session_t *sp, pduq_t *pq)
 	       int l;
 
 	       MGET(md, M_WAITOK, MT_DATA);
-	       md->m_ext.ref_cnt = &ou_refcnt;
+	       md->m_ext.ext_cnt = &ou_refcnt;
 	       l = min(MCLBYTES, len);
 	       debug(4, "setting ext_free(arg=%p len/l=%d/%d)", pq->buf, len, l);
 	       MEXTADD(md, pp->ds_addr + off, l, ext_free, 

@@ -12,7 +12,7 @@ IBMANDIR=	${IBVERBSDIR}/man
 
 LIB=		ibverbs
 SHLIB_MAJOR=	1
-NO_PROFILE=
+MK_PROFILE=	no
 
 SRCS=	device.c init.c marshall.c verbs.c cmd.c enum_strs.c kern_abi.h \
 	memory.c compat-1_0.c sysfs.c

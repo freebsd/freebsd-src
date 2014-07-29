@@ -55,34 +55,6 @@ struct ucl_parser_saved_state {
     (chunk)->remain --;										\
     } while (0)
 
-/**
- * Save parser state
- * @param chunk
- * @param s
- */
-static inline void
-ucl_chunk_save_state (struct ucl_chunk *chunk, struct ucl_parser_saved_state *s)
-{
-	s->column = chunk->column;
-	s->pos = chunk->pos;
-	s->line = chunk->line;
-	s->remain = chunk->remain;
-}
-
-/**
- * Restore parser state
- * @param chunk
- * @param s
- */
-static inline void
-ucl_chunk_restore_state (struct ucl_chunk *chunk, struct ucl_parser_saved_state *s)
-{
-	chunk->column = s->column;
-	chunk->pos = s->pos;
-	chunk->line = s->line;
-	chunk->remain = s->remain;
-}
-
 static inline void
 ucl_set_err (struct ucl_chunk *chunk, int code, const char *str, UT_string **err)
 {
@@ -264,6 +236,9 @@ ucl_check_variable_safe (struct ucl_parser *parser, const char *ptr, size_t rema
 		size_t *out_len, bool strict, bool *found)
 {
 	struct ucl_variable *var;
+	unsigned char *dst;
+	size_t dstlen;
+	bool need_free = false;
 
 	LL_FOREACH (parser->variables, var) {
 		if (strict) {
@@ -286,6 +261,19 @@ ucl_check_variable_safe (struct ucl_parser *parser, const char *ptr, size_t rema
 		}
 	}
 
+	/* XXX: can only handle ${VAR} */
+	if (!(*found) && parser->var_handler != NULL && strict) {
+		/* Call generic handler */
+		if (parser->var_handler (ptr, remain, &dst, &dstlen, &need_free,
+				parser->var_data)) {
+			*found = true;
+			if (need_free) {
+				free (dst);
+			}
+			return (ptr + remain);
+		}
+	}
+
 	return ptr;
 }
 
@@ -299,7 +287,8 @@ ucl_check_variable_safe (struct ucl_parser *parser, const char *ptr, size_t rema
  * @return
  */
 static const char *
-ucl_check_variable (struct ucl_parser *parser, const char *ptr, size_t remain, size_t *out_len, bool *vars_found)
+ucl_check_variable (struct ucl_parser *parser, const char *ptr,
+		size_t remain, size_t *out_len, bool *vars_found)
 {
 	const char *p, *end, *ret = ptr;
 	bool found = false;
@@ -310,7 +299,8 @@ ucl_check_variable (struct ucl_parser *parser, const char *ptr, size_t remain, s
 		end = ptr + remain;
 		while (p < end) {
 			if (*p == '}') {
-				ret = ucl_check_variable_safe (parser, ptr + 1, p - ptr - 1, out_len, true, &found);
+				ret = ucl_check_variable_safe (parser, ptr + 1, p - ptr - 1,
+						out_len, true, &found);
 				if (found) {
 					/* {} must be excluded actually */
 					ret ++;
@@ -356,10 +346,13 @@ static const char *
 ucl_expand_single_variable (struct ucl_parser *parser, const char *ptr,
 		size_t remain, unsigned char **dest)
 {
-	unsigned char *d = *dest;
+	unsigned char *d = *dest, *dst;
 	const char *p = ptr + 1, *ret;
 	struct ucl_variable *var;
+	size_t dstlen;
+	bool need_free = false;
 	bool found = false;
+	bool strict = false;
 
 	ret = ptr + 1;
 	remain --;
@@ -371,6 +364,7 @@ ucl_expand_single_variable (struct ucl_parser *parser, const char *ptr,
 	}
 	else if (*p == '{') {
 		p ++;
+		strict = true;
 		ret += 2;
 		remain -= 2;
 	}
@@ -387,9 +381,29 @@ ucl_expand_single_variable (struct ucl_parser *parser, const char *ptr,
 		}
 	}
 	if (!found) {
-		memcpy (d, ptr, 2);
-		d += 2;
-		ret --;
+		if (strict && parser->var_handler != NULL) {
+			if (parser->var_handler (ptr, remain, &dst, &dstlen, &need_free,
+							parser->var_data)) {
+				memcpy (d, dst, dstlen);
+				ret += dstlen;
+				d += remain;
+				found = true;
+			}
+		}
+
+		/* Leave variable as is */
+		if (!found) {
+			if (strict) {
+				/* Copy '${' */
+				memcpy (d, ptr, 2);
+				d += 2;
+				ret --;
+			}
+			else {
+				memcpy (d, ptr, 1);
+				d ++;
+			}
+		}
 	}
 
 	*dest = d;
@@ -1086,19 +1100,19 @@ ucl_parse_key (struct ucl_parser *parser, struct ucl_chunk *chunk, bool *next_ke
 	keylen = ucl_copy_or_store_ptr (parser, c, &nobj->trash_stack[UCL_TRASH_KEY],
 			&key, end - c, need_unescape, parser->flags & UCL_PARSER_KEY_LOWERCASE, false);
 	if (keylen == -1) {
-		ucl_object_free(nobj);
+		ucl_object_unref (nobj);
 		return false;
 	}
 	else if (keylen == 0) {
 		ucl_set_err (chunk, UCL_ESYNTAX, "empty keys are not allowed", &parser->err);
-		ucl_object_free(nobj);
+		ucl_object_unref (nobj);
 		return false;
 	}
 
 	container = parser->stack->obj->value.ov;
 	nobj->key = key;
 	nobj->keylen = keylen;
-	tobj = ucl_hash_search_obj (container, nobj);
+	tobj = __DECONST (ucl_object_t *, ucl_hash_search_obj (container, nobj));
 	if (tobj == NULL) {
 		container = ucl_hash_insert_object (container, nobj);
 		nobj->prev = nobj;
@@ -1647,6 +1661,11 @@ ucl_state_machine (struct ucl_parser *parser)
 				return false;
 			}
 			else {
+				/* Skip any spaces */
+				while (p < chunk->end && ucl_test_character (*p,
+						UCL_CHARACTER_WHITESPACE_UNSAFE)) {
+					ucl_chunk_skipc (chunk, p);
+				}
 				p = chunk->pos;
 				if (*p == '[') {
 					parser->state = UCL_STATE_VALUE;
@@ -1899,6 +1918,14 @@ ucl_parser_register_variable (struct ucl_parser *parser, const char *var,
 			new->value_len = strlen (value);
 		}
 	}
+}
+
+void
+ucl_parser_set_variables_handler (struct ucl_parser *parser,
+		ucl_variable_handler handler, void *ud)
+{
+	parser->var_handler = handler;
+	parser->var_data = ud;
 }
 
 bool

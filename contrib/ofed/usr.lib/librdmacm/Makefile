@@ -12,7 +12,7 @@ RDMAMANDIR=	${RDMACMDIR}/man
 
 LIB=		rdmacm
 SHLIB_MAJOR=	1
-NO_PROFILE=
+MK_PROFILE=	no
 
 SRCS=	cma.c
 

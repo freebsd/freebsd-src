@@ -17,6 +17,8 @@
 #
 # $FreeBSD$
 
+#NO_UNIVERSE
+
 ident		BWCT
 
 options 	VERBOSE_INIT_ARM

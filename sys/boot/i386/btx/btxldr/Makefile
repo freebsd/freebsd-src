@@ -2,8 +2,10 @@
 
 PROG=	btxldr
 INTERNALPROG=
-NO_MAN=
+MAN=
 SRCS=	btxldr.S
+
+NO_PIE=	yes
 
 CFLAGS+=-DLOADER_ADDRESS=${LOADER_ADDRESS}
 CFLAGS+=-I${.CURDIR}/../../common

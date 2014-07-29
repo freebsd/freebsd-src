@@ -181,7 +181,6 @@ SYSCTL_VNET_PROC(_net_inet_ip_fw, OID_AUTO, tables_max,
 SYSCTL_INT(_net_inet_ip_fw, OID_AUTO, default_to_accept, CTLFLAG_RDTUN,
     &default_to_accept, 0,
     "Make the default rule accept all packets.");
-TUNABLE_INT("net.inet.ip.fw.default_to_accept", &default_to_accept);
 TUNABLE_INT("net.inet.ip.fw.tables_max", (int *)&default_fw_tables);
 SYSCTL_VNET_INT(_net_inet_ip_fw, OID_AUTO, static_count,
     CTLFLAG_RD, &VNET_NAME(layer3_chain.n_rules), 0,

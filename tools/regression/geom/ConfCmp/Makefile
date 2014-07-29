@@ -15,7 +15,7 @@ CFLAGS+=	 -g -W -Wall -Wstrict-prototypes -Wmissing-prototypes -Wpointer-arith -
 DPADD += ${LIBBSDXML}
 LDADD += -lbsdxml
 
-NO_MAN=
+MAN=
 CLEANFILES	+= _*
 
 .include <bsd.prog.mk>

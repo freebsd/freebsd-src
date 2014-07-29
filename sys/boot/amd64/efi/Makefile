@@ -1,8 +1,8 @@
 # $FreeBSD$
 
-NO_MAN=
+MAN=
 
-.include <bsd.own.mk>
+.include <src.opts.mk>
 
 # In-tree GCC does not support __attribute__((ms_abi)).
 .if ${COMPILER_TYPE} != "gcc"

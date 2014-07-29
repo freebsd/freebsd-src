@@ -85,6 +85,6 @@ rm -rf ${wrk}
 # assist the developer in generating a diff
 echo "Directories you may want to 'svn diff':"
 echo "    sys/contrib/dev/acpica sys/dev/acpica \\"
-echo "    sys/amd64/acpica sys/i386/acpica sys/ia64/acpica sys/x86/acpica \\"
-echo "    sys/amd64/include sys/i386/include sys/ia64/include \\"
+echo "    sys/amd64/acpica sys/i386/acpica sys/x86/acpica \\"
+echo "    sys/amd64/include sys/i386/include include \\"
 echo "    sys/boot sys/conf sys/modules/acpi usr.sbin/acpi"

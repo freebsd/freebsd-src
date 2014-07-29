@@ -1,7 +1,7 @@
 #	@(#)Makefile	8.1 (Berkeley) 6/6/93
 # $FreeBSD$
 
-.include <bsd.own.mk>
+.include <src.opts.mk>
 
 PROG=	systat
 SRCS=	cmds.c cmdtab.c devs.c fetch.c iostat.c keyboard.c main.c \
@@ -16,16 +16,7 @@ CFLAGS+= -DINET6
 
 WARNS?=	0
 
-DPADD=	${LIBM} ${LIBDEVSTAT} ${LIBKVM}
-LDADD=	-lm -ldevstat -lkvm
-
-.if ${MK_NCURSESW} == "no"
-DPADD+=		${LIBNCURSES}
-LDADD+=		-lncurses
-.else
-CFLAGS+=	-DUSE_WIDECHAR
-DPADD+=		${LIBNCURSESW}
-LDADD+=		-lncursesw
-.endif
+DPADD=	${LIBNCURSESW} ${LIBM} ${LIBDEVSTAT} ${LIBKVM}
+LDADD=	-lncursesw -lm -ldevstat -lkvm
 
 .include <bsd.prog.mk>

@@ -120,6 +120,12 @@
 #define	MAXPAGESIZES	3	/* maximum number of supported page sizes */
 
 #define IOPAGES	2		/* pages of i/o permission bitmap */
+/*
+ * I/O permission bitmap has a bit for each I/O port plus an additional
+ * byte at the end with all bits set. See section "I/O Permission Bit Map"
+ * in the Intel SDM for more details.
+ */
+#define	IOPERM_BITMAP_SIZE	(IOPAGES * PAGE_SIZE + 1)
 
 #ifndef	KSTACK_PAGES
 #define	KSTACK_PAGES	4	/* pages of kstack (with pcb) */

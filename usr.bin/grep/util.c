@@ -302,7 +302,7 @@ procline(struct str *l, int nottext)
 					r = REG_NOMATCH;
 			/* Check for whole word match */
 			if (r == 0 && (wflag || fg_pattern[i].word)) {
-				wint_t wbegin, wend;
+				wchar_t wbegin, wend;
 
 				wbegin = wend = L' ';
 				if (pmatch.rm_so != 0 &&
@@ -336,7 +336,7 @@ procline(struct str *l, int nottext)
 		}
 
 		/* One pass if we are not recording matches */
-		if ((color == NULL && !oflag) || qflag || lflag)
+		if (!wflag && ((color == NULL && !oflag) || qflag || lflag))
 			break;
 
 		if (st == (size_t)pmatch.rm_so)

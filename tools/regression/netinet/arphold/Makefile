@@ -1,7 +1,7 @@
 # $FreeBSD$
 
 PROG=	arphold
-NO_MAN=
+MAN=
 CFLAGS+=	-Wall
 
 .include <bsd.prog.mk>

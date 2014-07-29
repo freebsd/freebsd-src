@@ -2209,14 +2209,14 @@ msk_status_dma_free(struct msk_softc *sc)
 
 	/* Destroy status block. */
 	if (sc->msk_stat_tag) {
-		if (sc->msk_stat_map) {
+		if (sc->msk_stat_ring_paddr) {
 			bus_dmamap_unload(sc->msk_stat_tag, sc->msk_stat_map);
-			if (sc->msk_stat_ring) {
-				bus_dmamem_free(sc->msk_stat_tag,
-				    sc->msk_stat_ring, sc->msk_stat_map);
-				sc->msk_stat_ring = NULL;
-			}
-			sc->msk_stat_map = NULL;
+			sc->msk_stat_ring_paddr = 0;
+		}
+		if (sc->msk_stat_ring) {
+			bus_dmamem_free(sc->msk_stat_tag,
+			    sc->msk_stat_ring, sc->msk_stat_map);
+			sc->msk_stat_ring = NULL;
 		}
 		bus_dma_tag_destroy(sc->msk_stat_tag);
 		sc->msk_stat_tag = NULL;
@@ -2527,31 +2527,29 @@ msk_txrx_dma_free(struct msk_if_softc *sc_if)
 
 	/* Tx ring. */
 	if (sc_if->msk_cdata.msk_tx_ring_tag) {
-		if (sc_if->msk_cdata.msk_tx_ring_map)
+		if (sc_if->msk_rdata.msk_tx_ring_paddr)
 			bus_dmamap_unload(sc_if->msk_cdata.msk_tx_ring_tag,
 			    sc_if->msk_cdata.msk_tx_ring_map);
-		if (sc_if->msk_cdata.msk_tx_ring_map &&
-		    sc_if->msk_rdata.msk_tx_ring)
+		if (sc_if->msk_rdata.msk_tx_ring)
 			bus_dmamem_free(sc_if->msk_cdata.msk_tx_ring_tag,
 			    sc_if->msk_rdata.msk_tx_ring,
 			    sc_if->msk_cdata.msk_tx_ring_map);
 		sc_if->msk_rdata.msk_tx_ring = NULL;
-		sc_if->msk_cdata.msk_tx_ring_map = NULL;
+		sc_if->msk_rdata.msk_tx_ring_paddr = 0;
 		bus_dma_tag_destroy(sc_if->msk_cdata.msk_tx_ring_tag);
 		sc_if->msk_cdata.msk_tx_ring_tag = NULL;
 	}
 	/* Rx ring. */
 	if (sc_if->msk_cdata.msk_rx_ring_tag) {
-		if (sc_if->msk_cdata.msk_rx_ring_map)
+		if (sc_if->msk_rdata.msk_rx_ring_paddr)
 			bus_dmamap_unload(sc_if->msk_cdata.msk_rx_ring_tag,
 			    sc_if->msk_cdata.msk_rx_ring_map);
-		if (sc_if->msk_cdata.msk_rx_ring_map &&
-		    sc_if->msk_rdata.msk_rx_ring)
+		if (sc_if->msk_rdata.msk_rx_ring)
 			bus_dmamem_free(sc_if->msk_cdata.msk_rx_ring_tag,
 			    sc_if->msk_rdata.msk_rx_ring,
 			    sc_if->msk_cdata.msk_rx_ring_map);
 		sc_if->msk_rdata.msk_rx_ring = NULL;
-		sc_if->msk_cdata.msk_rx_ring_map = NULL;
+		sc_if->msk_rdata.msk_rx_ring_paddr = 0;
 		bus_dma_tag_destroy(sc_if->msk_cdata.msk_rx_ring_tag);
 		sc_if->msk_cdata.msk_rx_ring_tag = NULL;
 	}
@@ -2600,16 +2598,15 @@ msk_rx_dma_jfree(struct msk_if_softc *sc_if)
 
 	/* Jumbo Rx ring. */
 	if (sc_if->msk_cdata.msk_jumbo_rx_ring_tag) {
-		if (sc_if->msk_cdata.msk_jumbo_rx_ring_map)
+		if (sc_if->msk_rdata.msk_jumbo_rx_ring_paddr)
 			bus_dmamap_unload(sc_if->msk_cdata.msk_jumbo_rx_ring_tag,
 			    sc_if->msk_cdata.msk_jumbo_rx_ring_map);
-		if (sc_if->msk_cdata.msk_jumbo_rx_ring_map &&
-		    sc_if->msk_rdata.msk_jumbo_rx_ring)
+		if (sc_if->msk_rdata.msk_jumbo_rx_ring)
 			bus_dmamem_free(sc_if->msk_cdata.msk_jumbo_rx_ring_tag,
 			    sc_if->msk_rdata.msk_jumbo_rx_ring,
 			    sc_if->msk_cdata.msk_jumbo_rx_ring_map);
 		sc_if->msk_rdata.msk_jumbo_rx_ring = NULL;
-		sc_if->msk_cdata.msk_jumbo_rx_ring_map = NULL;
+		sc_if->msk_rdata.msk_jumbo_rx_ring_paddr = 0;
 		bus_dma_tag_destroy(sc_if->msk_cdata.msk_jumbo_rx_ring_tag);
 		sc_if->msk_cdata.msk_jumbo_rx_ring_tag = NULL;
 	}

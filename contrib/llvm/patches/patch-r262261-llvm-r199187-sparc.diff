@@ -19,7 +19,7 @@ Pull in r199187 from upstream llvm trunk (by Jakob Stoklund Olesen):
   This fixes a problem where InstrEmitter was picking 32-bit register
   classes for 64-bit values on SPARC.
 
-Introduced here: http://svn.freebsd.org/changeset/base/262261
+Introduced here: http://svnweb.freebsd.org/changeset/base/262261
 
 Index: test/CodeGen/SPARC/spillsize.ll
 ===================================================================

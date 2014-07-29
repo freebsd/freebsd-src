@@ -1243,32 +1243,44 @@ svn_io_sleep_for_timestamps(const char *path, apr_pool_t *pool)
         {
           /* Very simplistic but safe approach:
               If the filesystem has < sec mtime we can be reasonably sure
-              that the filesystem has <= millisecond precision.
+              that the filesystem has some sub-second resolution.  On Windows
+              it is likely to be sub-millisecond; on Linux systems it depends
+              on the filesystem, ext4 is typically 1ms, 4ms or 10ms resolution.
 
              ## Perhaps find a better algorithm here. This will fail once
-                in every 1000 cases on a millisecond precision filesystem.
+                in every 1000 cases on a millisecond precision filesystem
+                if the mtime happens to be an exact second.
 
                 But better to fail once in every thousand cases than every
                 time, like we did before.
-                (All tested filesystems I know have at least microsecond precision.)
 
              Note for further research on algorithm:
-               FAT32 has < 1 sec precision on ctime, but 2 sec on mtime */
+               FAT32 has < 1 sec precision on ctime, but 2 sec on mtime.
 
-          /* Sleep for at least 1 millisecond.
-             (t < 1000 will be round to 0 in apr) */
-          apr_sleep(1000);
+               Linux/ext4 with CONFIG_HZ=250 has high resolution
+               apr_time_now and although the filesystem timestamps
+               have similar high precision they are only updated with
+               a coarser 4ms resolution. */
 
-          return;
+          /* 10 milliseconds after now. */
+#ifndef SVN_HI_RES_SLEEP_MS
+#define SVN_HI_RES_SLEEP_MS 10
+#endif
+          then = now + apr_time_from_msec(SVN_HI_RES_SLEEP_MS);
         }
 
-      now = apr_time_now(); /* Extract the time used for the path stat */
-
-      if (now >= then)
-        return; /* Passing negative values may suspend indefinitely (Windows) */
+      /* Remove time taken to do stat() from sleep. */
+      now = apr_time_now();
     }
 
-  apr_sleep(then - now);
+  if (now >= then)
+    return; /* Passing negative values may suspend indefinitely (Windows) */
+
+  /* (t < 1000 will be round to 0 in apr) */
+  if (then - now < 1000)
+    apr_sleep(1000);
+  else
+    apr_sleep(then - now);
 }
 
 

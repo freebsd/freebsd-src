@@ -13,7 +13,7 @@
 
 #include <sendmail.h>
 
-SM_RCSID("@(#)$Id: conf.c,v 8.1191 2014/01/08 17:03:14 ca Exp $")
+SM_RCSID("@(#)$Id: conf.c,v 8.1191 2014-01-08 17:03:14 ca Exp $")
 
 #include <sm/sendmail.h>
 #include <sendmail/pathnames.h>
@@ -5309,8 +5309,8 @@ closefd_walk(lowest, fd)
 */
 
 void
-sm_close_on_exec(highest, lowest)
-	int highest, lowest;
+sm_close_on_exec(lowest, highest)
+	int lowest, highest;
 {
 #if HASFDWALK
 	(void) fdwalk(closefd_walk, &lowest);
@@ -6540,8 +6540,8 @@ char	*FFRCompileOptions[] =
 	/*
 	**  See libsm/mbdb.c: only enable this on OSs
 	**  that implement the correct (POSIX) semantics.
-	**  This will need to become an OS-specific #if
-	**  enabled in include/sm/os/*.h.
+	**  This will need to become an OS-specific #if enabled
+	**  in one of the headers files under include/sm/os/ .
 	*/
 
 	"_FFR_USE_GETPWNAM_ERRNO",

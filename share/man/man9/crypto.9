@@ -17,7 +17,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 19, 2007
+.Dd April 18, 2014
 .Dt CRYPTO 9
 .Os
 .Sh NAME
@@ -640,6 +640,7 @@ field.
 most of the framework code
 .El
 .Sh SEE ALSO
+.Xr crypto 4 ,
 .Xr ipsec 4 ,
 .Xr malloc 9 ,
 .Xr sleep 9
@@ -647,7 +648,7 @@ most of the framework code
 The cryptographic framework first appeared in
 .Ox 2.7
 and was written by
-.An "Angelos D. Keromytis" Aq angelos@openbsd.org .
+.An Angelos D. Keromytis Aq Mt angelos@openbsd.org .
 .Sh BUGS
 The framework currently assumes that all the algorithms in a
 .Fn crypto_newsession

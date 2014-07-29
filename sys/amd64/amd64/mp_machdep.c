@@ -125,9 +125,7 @@ static u_long *ipi_hardclock_counts[MAXCPU];
 #endif
 
 /* Default cpu_ops implementation. */
-struct cpu_ops cpu_ops = {
-	.ipi_vectored = lapic_ipi_vectored
-};
+struct cpu_ops cpu_ops;
 
 extern inthand_t IDTVEC(fast_syscall), IDTVEC(fast_syscall32);
 
@@ -637,7 +635,7 @@ init_secondary(void)
 	common_tss[cpu] = common_tss[0];
 	common_tss[cpu].tss_rsp0 = 0;   /* not used until after switch */
 	common_tss[cpu].tss_iobase = sizeof(struct amd64tss) +
-	    IOPAGES * PAGE_SIZE;
+	    IOPERM_BITMAP_SIZE;
 	common_tss[cpu].tss_ist1 = (long)&doublefault_stack[PAGE_SIZE];
 
 	/* The NMI stack runs on IST2. */
@@ -771,7 +769,6 @@ init_secondary(void)
 	if (smp_cpus == mp_ncpus) {
 		/* enable IPI's, tlb shootdown, freezes etc */
 		atomic_store_rel_int(&smp_started, 1);
-		smp_active = 1;	 /* historic */
 	}
 
 	/*
@@ -1126,7 +1123,7 @@ ipi_send_cpu(int cpu, u_int ipi)
 		if (old_pending)
 			return;
 	}
-	cpu_ops.ipi_vectored(ipi, cpu_apic_ids[cpu]);
+	lapic_ipi_vectored(ipi, cpu_apic_ids[cpu]);
 }
 
 /*
@@ -1396,7 +1393,7 @@ ipi_all_but_self(u_int ipi)
 		CPU_OR_ATOMIC(&ipi_nmi_pending, &other_cpus);
 
 	CTR2(KTR_SMP, "%s: ipi: %x", __func__, ipi);
-	cpu_ops.ipi_vectored(ipi, APIC_IPI_DEST_OTHERS);
+	lapic_ipi_vectored(ipi, APIC_IPI_DEST_OTHERS);
 }
 
 int
@@ -1567,6 +1564,7 @@ invlpg_handler(void)
 void
 invlpg_pcid_handler(void)
 {
+	uint64_t cr3;
 #ifdef COUNT_XINVLTLB_HITS
 	xhits_pg[PCPU_GET(cpuid)]++;
 #endif /* COUNT_XINVLTLB_HITS */
@@ -1574,15 +1572,13 @@ invlpg_pcid_handler(void)
 	(*ipi_invlpg_counts[PCPU_GET(cpuid)])++;
 #endif /* COUNT_IPIS */
 
-	if (invpcid_works) {
-		invpcid(&smp_tlb_invpcid, INVPCID_ADDR);
+	if (smp_tlb_invpcid.pcid == (uint64_t)-1) {
+		invltlb_globpcid();
 	} else if (smp_tlb_invpcid.pcid == 0) {
 		invlpg(smp_tlb_invpcid.addr);
-	} else if (smp_tlb_invpcid.pcid == (uint64_t)-1) {
-		invltlb_globpcid();
+	} else if (invpcid_works) {
+		invpcid(&smp_tlb_invpcid, INVPCID_ADDR);
 	} else {
-		uint64_t cr3;
-
 		/*
 		 * PCID supported, but INVPCID is not.
 		 * Temporarily switch to the target address

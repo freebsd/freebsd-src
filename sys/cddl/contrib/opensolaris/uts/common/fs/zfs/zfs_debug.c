@@ -20,7 +20,7 @@
  */
 /*
  * Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2013 by Delphix. All rights reserved.
+ * Copyright (c) 2012, 2014 by Delphix. All rights reserved.
  */
 
 #include <sys/zfs_context.h>
@@ -28,7 +28,7 @@
 list_t zfs_dbgmsgs;
 int zfs_dbgmsg_size;
 kmutex_t zfs_dbgmsgs_lock;
-int zfs_dbgmsg_maxsize = 1<<20; /* 1MB */
+int zfs_dbgmsg_maxsize = 4<<20; /* 4MB */
 
 void
 zfs_dbgmsg_init(void)
@@ -57,7 +57,10 @@ zfs_dbgmsg_fini(void)
  * echo ::zfs_dbgmsg | mdb -k
  *
  * Monitor these messages by running:
- * 	dtrace -q -n 'zfs-dbgmsg{printf("%s\n", stringof(arg0))}'
+ * dtrace -qn 'zfs-dbgmsg{printf("%s\n", stringof(arg0))}'
+ *
+ * When used with libzpool, monitor with:
+ * dtrace -qn 'zfs$pid::zfs_dbgmsg:probe1{printf("%s\n", copyinstr(arg1))}'
  */
 void
 zfs_dbgmsg(const char *fmt, ...)

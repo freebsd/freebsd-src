@@ -1,7 +1,7 @@
 # $FreeBSD$
 
 PROG=	posix
-NO_MAN=	yes
+MAN=
 
 WARNS?=	6
 

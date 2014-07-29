@@ -101,12 +101,6 @@
     #include <pthread.h>
     #include <sys/time.h>
 
-    #if defined(__FreeBSD__)
-        #include <readline/readline.h>
-    #else
-        #include <editline/readline.h>
-    #endif
-
 #endif
 
 #endif // lldb_Platform_h_

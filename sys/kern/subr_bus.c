@@ -63,7 +63,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/uma.h>
 
 SYSCTL_NODE(_hw, OID_AUTO, bus, CTLFLAG_RW, NULL, NULL);
-SYSCTL_NODE(, OID_AUTO, dev, CTLFLAG_RW, NULL, NULL);
+SYSCTL_ROOT_NODE(OID_AUTO, dev, CTLFLAG_RW, NULL, NULL);
 
 /*
  * Used to attach drivers to devclasses.
@@ -149,9 +149,8 @@ static MALLOC_DEFINE(M_BUS_SC, "bus-sc", "Bus data structures, softc");
 #ifdef BUS_DEBUG
 
 static int bus_debug = 1;
-TUNABLE_INT("bus.debug", &bus_debug);
-SYSCTL_INT(_debug, OID_AUTO, bus_debug, CTLFLAG_RW, &bus_debug, 0,
-    "Debug bus code");
+SYSCTL_INT(_debug, OID_AUTO, bus_debug, CTLFLAG_RWTUN, &bus_debug, 0,
+    "Bus debug level");
 
 #define PDEBUG(a)	if (bus_debug) {printf("%s:%d: ", __func__, __LINE__), printf a; printf("\n");}
 #define DEVICENAME(d)	((d)? device_get_name(d): "no device")
@@ -355,11 +354,16 @@ device_sysctl_fini(device_t dev)
  * tested since 3.4 or 2.2.8!
  */
 
+/* Deprecated way to adjust queue length */
+static int sysctl_devctl_disable(SYSCTL_HANDLER_ARGS);
+SYSCTL_PROC(_hw_bus, OID_AUTO, devctl_disable, CTLTYPE_INT | CTLFLAG_RWTUN |
+    CTLFLAG_MPSAFE, NULL, 0, sysctl_devctl_disable, "I",
+    "devctl disable -- deprecated");
+
 #define DEVCTL_DEFAULT_QUEUE_LEN 1000
 static int sysctl_devctl_queue(SYSCTL_HANDLER_ARGS);
 static int devctl_queue_length = DEVCTL_DEFAULT_QUEUE_LEN;
-TUNABLE_INT("hw.bus.devctl_queue", &devctl_queue_length);
-SYSCTL_PROC(_hw_bus, OID_AUTO, devctl_queue, CTLTYPE_INT | CTLFLAG_RW |
+SYSCTL_PROC(_hw_bus, OID_AUTO, devctl_queue, CTLTYPE_INT | CTLFLAG_RWTUN |
     CTLFLAG_MPSAFE, NULL, 0, sysctl_devctl_queue, "I", "devctl queue length");
 
 static d_open_t		devopen;
@@ -434,8 +438,6 @@ devopen(struct cdev *dev, int oflags, int devtype, struct thread *td)
 	}
 	/* move to init */
 	devsoftc.inuse = 1;
-	devsoftc.nonblock = 0;
-	devsoftc.async = 0;
 	mtx_unlock(&devsoftc.mtx);
 	return (0);
 }
@@ -446,6 +448,8 @@ devclose(struct cdev *dev, int fflag, int devtype, struct thread *td)
 
 	mtx_lock(&devsoftc.mtx);
 	devsoftc.inuse = 0;
+	devsoftc.nonblock = 0;
+	devsoftc.async = 0;
 	cv_broadcast(&devsoftc.cv);
 	funsetown(&devsoftc.sigio);
 	mtx_unlock(&devsoftc.mtx);
@@ -685,9 +689,9 @@ devctl_notify(const char *system, const char *subsystem, const char *type,
  * Common routine that tries to make sending messages as easy as possible.
  * We allocate memory for the data, copy strings into that, but do not
  * free it unless there's an error.  The dequeue part of the driver should
- * free the data.  We don't send data when queue length is 0.  We do send
- * data, even when we have no listeners, because we wish to avoid races
- * relating to startup and restart of listening applications.
+ * free the data.  We don't send data when the device is disabled.  We do
+ * send data, even when we have no listeners, because we wish to avoid
+ * races relating to startup and restart of listening applications.
  *
  * devaddq is designed to string together the type of event, with the
  * object of that event, plus the plug and play info and location info
@@ -779,6 +783,35 @@ devnomatch(device_t dev)
 }
 
 static int
+sysctl_devctl_disable(SYSCTL_HANDLER_ARGS)
+{
+	struct dev_event_info *n1;
+	int dis, error;
+
+	dis = (devctl_queue_length == 0);
+	error = sysctl_handle_int(oidp, &dis, 0, req);
+	if (error || !req->newptr)
+		return (error);
+	if (mtx_initialized(&devsoftc.mtx))
+		mtx_lock(&devsoftc.mtx);
+	if (dis) {
+		while (!TAILQ_EMPTY(&devsoftc.devq)) {
+			n1 = TAILQ_FIRST(&devsoftc.devq);
+			TAILQ_REMOVE(&devsoftc.devq, n1, dei_link);
+			free(n1->dei_data, M_BUS);
+			free(n1, M_BUS);
+		}
+		devsoftc.queued = 0;
+		devctl_queue_length = 0;
+	} else {
+		devctl_queue_length = DEVCTL_DEFAULT_QUEUE_LEN;
+	}
+	if (mtx_initialized(&devsoftc.mtx))
+		mtx_unlock(&devsoftc.mtx);
+	return (0);
+}
+
+static int
 sysctl_devctl_queue(SYSCTL_HANDLER_ARGS)
 {
 	struct dev_event_info *n1;
@@ -790,7 +823,8 @@ sysctl_devctl_queue(SYSCTL_HANDLER_ARGS)
 		return (error);
 	if (q < 0)
 		return (EINVAL);
-	mtx_lock(&devsoftc.mtx);
+	if (mtx_initialized(&devsoftc.mtx))
+		mtx_lock(&devsoftc.mtx);
 	devctl_queue_length = q;
 	while (devsoftc.queued > devctl_queue_length) {
 		n1 = TAILQ_FIRST(&devsoftc.devq);
@@ -799,7 +833,8 @@ sysctl_devctl_queue(SYSCTL_HANDLER_ARGS)
 		free(n1, M_BUS);
 		devsoftc.queued--;
 	}
-	mtx_unlock(&devsoftc.mtx);
+	if (mtx_initialized(&devsoftc.mtx))
+		mtx_unlock(&devsoftc.mtx);
 	return (0);
 }
 

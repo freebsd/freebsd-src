@@ -44,11 +44,14 @@
 
 	SOC: soc@00000000 {
 		aips@02000000 { /* AIPS1 */
-//			iomux@73fa8000		{ status = "disabled"; };
-//			gpio@0209C000		{ status = "disabled"; };
-//			gpio@020A0000		{ status = "disabled"; };
-//			gpio@020A4000		{ status = "disabled"; };
-//			gpio@020A8000		{ status = "disabled"; };
+			iomux@020e0000		{ status = "disabled"; };
+			gpio@0209c000		{ status = "okay"; };
+			gpio@020a0000		{ status = "okay"; };
+			gpio@020a4000		{ status = "okay"; };
+			gpio@020a8000		{ status = "okay"; };
+			gpio@020ac000		{ status = "okay"; };
+			gpio@020b0000		{ status = "okay"; };
+			gpio@020b4000		{ status = "okay"; };
 			console:serial@02020000 { status = "okay"; };
 			serial@021e8000		{ status = "disabled"; };
 			serial@021ec000		{ status = "disabled"; };
@@ -58,7 +61,7 @@
 			usbphy@020ca000		{ status = "okay"; };
 		};
 		aips@02100000 { /* AIPS2 */
-			ethernet@02188000	{ 
+			ethernet@02188000	{
 				status = "okay";
 				phy-mode = "rgmii";
 				phy-disable-preamble;

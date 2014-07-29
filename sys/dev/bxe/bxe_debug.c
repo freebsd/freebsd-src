@@ -1,9 +1,5 @@
 /*-
- * Copyright (c) 2007-2013 Broadcom Corporation. All rights reserved.
- *
- * Eric Davis        <edavis@broadcom.com>
- * David Christensen <davidch@broadcom.com>
- * Gary Zambrano     <zambrano@broadcom.com>
+ * Copyright (c) 2007-2014 QLogic Corporation. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -14,9 +10,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. Neither the name of Broadcom Corporation nor the name of its contributors
- *    may be used to endorse or promote products derived from this software
- *    without specific prior written consent.
  *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS'
  * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
@@ -306,7 +299,7 @@ static void bxe_ddb(db_expr_t blah1,
                     char      *blah4)
 {
     char if_xname[IFNAMSIZ];
-    struct ifnet *ifp = NULL;
+    if_t ifp = NULL;
     struct bxe_softc *sc;
     db_expr_t next_arg;
     int index;
@@ -342,13 +335,13 @@ static void bxe_ddb(db_expr_t blah1,
     }
 
     snprintf(if_xname, sizeof(if_xname), "bxe%d", index);
-    if ((ifp = ifunit_ref(if_xname)) == NULL)
+    if ((ifp = ifunit_ref(if_xname)) == NULL) /* XXX */
     {
         db_printf("ERROR: Invalid interface %s\n", if_xname);
         goto bxe_ddb_done;
     }
 
-    sc = (struct bxe_softc *)ifp->if_softc;
+    sc = (struct bxe_softc *)if_getsoftc(ifp);
     db_printf("ifnet=%p (%s)\n", ifp, if_xname);
     db_printf("softc=%p\n", sc);
     db_printf("  dev=%p\n", sc->dev);

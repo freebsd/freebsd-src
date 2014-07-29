@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"/
-.Dd August 28, 2011
+.Dd April 14, 2014
 .Dt ATH 4
 .Os
 .Sh NAME
@@ -58,7 +58,7 @@ if_ath_pci_load="YES"
 The
 .Nm
 driver provides support for wireless network adapters based on
-the Atheros AR5210, AR5211, AR5212, and AR5416 programming APIs.
+the Atheros AR5210, AR5211, AR5212, AR5416 and AR9300 programming APIs.
 These APIs are used by a wide variety of chips; most all chips with
 a PCI and/or CardBus interface are supported.
 .Pp
@@ -92,20 +92,19 @@ speeds as above for 802.11a operation and
 1Mbps, 2Mbps, 5.5 Mbps and 11Mbps for 802.11b operation.
 AR5212-based devices support 802.11a, 802.11b, and 802.11g operation
 with transmit speeds appropriate to each.
-AR5416-class devices are capable of 802.11n operation
-but are supported only in legacy modes (802.11a, 11b, 11g).
+AR5416 and later class devices are capable of 802.11n operation.
 Most chips also support an Atheros Turbo Mode (TM) that operates in
 the 5GHz frequency range with 2x the transmit speeds.
 Some chips also support Turbo mode in the 2.4GHz range with 802.11g
 though this support is not presently available due to regulatory requirements.
 (Note that Turbo modes are, however,
 only interoperable with other Atheros-based devices.)
-AR5212-based devices also support half- (10MHz) and quarter-width (5MHz) channels.
+AR5212-based and AR5416-based devices also support half- (10MHz) and quarter-width (5MHz) channels.
 The actual transmit speed used is dependent on signal quality and the
 .Dq "rate control"
 algorithm employed by the driver.
 All chips support WEP encryption.
-AR5212 and AR5416 parts have hardware support for the
+AR5212, AR5416 and later parts have hardware support for the
 AES-CCM, TKIP, and Michael cryptographic
 operations required for WPA.
 To enable encryption, use
@@ -125,7 +124,7 @@ mode operation.
 Multiple
 .Cm hostap
 virtual interfaces may be configured for simultaneous
-use on cards that use a 5212 part.
+use on cards that use a 5212 or later part.
 When multiple interfaces are configured each may have a separate
 mac address that is formed by setting the U/L bits in the mac
 address assigned to the underlying device.
@@ -294,9 +293,10 @@ device driver first appeared in
 Revision A1 of the D-LINK DWL-G520 and DWL-G650 are based on an
 Intersil PrismGT chip and are not supported by this driver.
 .Sh BUGS
-There is no software retransmit; only hardware retransmit is used.
-.Pp
 The driver does not fully enable power-save operation of the chip
 in station mode; consequently power use is suboptimal (e.g. on a laptop).
 .Pp
-WPA is not supported for 5210 parts.
+The AR5210 can only do WEP in hardware; consequently hardware assisted WEP
+is disabled in order to allow software implementations of TKIP and CCMP to
+function.
+Hardware WEP can be re-enabled by modifying the driver.
