@@ -349,6 +349,9 @@ in_pcbbind(struct inpcb *inp, struct sockaddr *nam, struct ucred *cred)
 }
 #endif
 
+/*
+ * Select a local port (number) to use.
+ */
 #if defined(INET) || defined(INET6)
 int
 in_pcb_lport(struct inpcb *inp, struct in_addr *laddrp, u_short *lportp,
@@ -462,7 +465,7 @@ in_pcb_lport(struct inpcb *inp, struct in_addr *laddrp, u_short *lportp,
 #ifdef INET
 	if ((inp->inp_vflag & (INP_IPV4|INP_IPV6)) == INP_IPV4)
 		laddrp->s_addr = laddr.s_addr;
-#endif                 
+#endif
 	*lportp = lport;
 
 	return (0);
