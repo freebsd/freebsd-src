@@ -366,9 +366,6 @@ struct ifaddr {
 		(int, struct rtentry *, struct rt_addrinfo *);
 	u_short	ifa_flags;		/* mostly rt_flags for cloning */
 	u_int	ifa_refcnt;		/* references to this structure */
-	int	ifa_metric;		/* cost of going out this interface */
-	int (*ifa_claim_addr)		/* check if an addr goes to this if */
-		(struct ifaddr *, struct sockaddr *);
 
 	counter_u64_t	ifa_ipackets;
 	counter_u64_t	ifa_opackets;	 

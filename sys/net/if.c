@@ -1747,19 +1747,6 @@ next:				continue;
 				}
 			} else {
 				/*
-				 * if we have a special address handler,
-				 * then use it instead of the generic one.
-				 */
-				if (ifa->ifa_claim_addr) {
-					if ((*ifa->ifa_claim_addr)(ifa, addr)) {
-						ifa_ref(ifa);
-						IF_ADDR_RUNLOCK(ifp);
-						goto done;
-					}
-					continue;
-				}
-
-				/*
 				 * Scan all the bits in the ifa's address.
 				 * If a bit dissagrees with what we are
 				 * looking for, mask it with the netmask
