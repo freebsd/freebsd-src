@@ -146,6 +146,7 @@ ipfw_table_handler(int ac, char *av[])
 		set = 0;
 
 	ac--; av++;
+	NEED1("table needs name");
 	tablename = *av;
 
 	if (table_check_name(tablename) == 0) {
@@ -158,11 +159,11 @@ ipfw_table_handler(int ac, char *av[])
 			errx(EX_USAGE, "table name %s is invalid", tablename);
 	}
 	ac--; av++;
+	NEED1("table needs command");
 
 	if ((tcmd = match_token(tablecmds, *av)) == -1)
 		errx(EX_USAGE, "invalid table command %s", *av);
 
-	NEED1("table needs command");
 	switch (tcmd) {
 	case TOK_LIST:
 	case TOK_INFO:
@@ -416,8 +417,8 @@ table_show_info(ipfw_xtable_info *i, void *arg)
 		vtype = "unknown";
 
 	printf(" type: %s, kindex: %d\n", ttype, i->kidx);
-	printf(" valtype: %s, algorithm: %s\n", vtype, i->algoname);
-	printf(" references: %u\n", i->refcnt);
+	printf(" valtype: %s, references: %u\n", vtype, i->refcnt);
+	printf(" algorithm: %s\n", i->algoname);
 	printf(" items: %u, size: %u\n", i->count, i->size);
 
 	return (0);
@@ -899,6 +900,59 @@ table_show_entry(ipfw_xtable_info *i, ipfw_obj_tentry *tent)
 		} else
 			printf("%s %u\n", tent->k.iface, tval);
 	}
+}
+
+static int
+table_do_get_algolist(ipfw_obj_lheader **polh)
+{
+	ipfw_obj_lheader req, *olh;
+	size_t sz;
+	int error;
+
+	memset(&req, 0, sizeof(req));
+	sz = sizeof(req);
+
+	error = do_get3(IP_FW_TABLES_ALIST, &req.opheader, &sz);
+	if (error != 0 && error != ENOMEM)
+		return (error);
+
+	sz = req.size;
+	if ((olh = calloc(1, sz)) == NULL)
+		return (ENOMEM);
+
+	olh->size = sz;
+	if ((error = do_get3(IP_FW_TABLES_ALIST, &olh->opheader, &sz)) != 0) {
+		free(olh);
+		return (error);
+	}
+
+	*polh = olh;
+	return (0);
+}
+
+void
+ipfw_list_ta(int ac, char *av[])
+{
+	ipfw_obj_lheader *olh;
+	ipfw_ta_info *info;
+	int error, i;
+	const char *atype;
+
+	error = table_do_get_algolist(&olh);
+	if (error != 0)
+		err(EX_OSERR, "Unable to request algorithm list");
+
+	info = (ipfw_ta_info *)(olh + 1);
+	for (i = 0; i < olh->count; i++) {
+		if ((atype = match_value(tabletypes, info->type)) == NULL)
+			atype = "unknown";
+
+		printf("%s type: %s references: %u\n", info->algoname,
+		    atype, info->refcnt);
+		info = (ipfw_ta_info *)((caddr_t)info + olh->objsize);
+	}
+
+	free(olh);
 }
 
 int

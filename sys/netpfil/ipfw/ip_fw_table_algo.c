@@ -516,6 +516,7 @@ ta_flush_cidr_entry(struct ip_fw_chain *ch, struct tentry_info *tei,
 
 struct table_algo cidr_radix = {
 	.name		= "cidr:radix",
+	.type		= IPFW_TABLE_CIDR,
 	.init		= ta_init_radix,
 	.destroy	= ta_destroy_radix,
 	.prepare_add	= ta_prepare_add_cidr,
@@ -1194,6 +1195,7 @@ ta_flush_chash_entry(struct ip_fw_chain *ch, struct tentry_info *tei,
 
 struct table_algo cidr_hash = {
 	.name		= "cidr:hash",
+	.type		= IPFW_TABLE_CIDR,
 	.init		= ta_init_chash,
 	.destroy	= ta_destroy_chash,
 	.prepare_add	= ta_prepare_add_chash,
@@ -1846,6 +1848,7 @@ ta_foreach_ifidx(void *ta_state, struct table_info *ti, ta_foreach_f *f,
 
 struct table_algo iface_idx = {
 	.name		= "iface:array",
+	.type		= IPFW_TABLE_INTERFACE,
 	.init		= ta_init_ifidx,
 	.destroy	= ta_destroy_ifidx,
 	.prepare_add	= ta_prepare_add_ifidx,

@@ -1641,6 +1641,59 @@ ipfw_del_table_algo(struct ip_fw_chain *ch, int idx)
 	free(ta, M_IPFW);
 }
 
+/*
+ * Lists all table algorithms currently available.
+ * Data layout (v0)(current):
+ * Request: [ ipfw_obj_lheader ], size = ipfw_obj_lheader.size
+ * Reply: [ ipfw_obj_lheader ipfw_ta_info x N ]
+ *
+ * Returns 0 on success
+ */
+int
+ipfw_list_table_algo(struct ip_fw_chain *ch, struct sockopt_data *sd)
+{
+	struct _ipfw_obj_lheader *olh;
+	struct tables_config *tcfg;
+	ipfw_ta_info *i;
+	struct table_algo *ta;
+	uint32_t count, n, size;
+
+	olh = (struct _ipfw_obj_lheader *)ipfw_get_sopt_header(sd,sizeof(*olh));
+	if (olh == NULL)
+		return (EINVAL);
+	if (sd->valsize < olh->size)
+		return (EINVAL);
+
+	IPFW_UH_RLOCK(ch);
+	tcfg = CHAIN_TO_TCFG(ch);
+	count = tcfg->algo_count;
+	size = count * sizeof(ipfw_ta_info) + sizeof(ipfw_obj_lheader);
+
+	/* Fill in header regadless of buffer size */
+	olh->count = count;
+	olh->objsize = sizeof(ipfw_ta_info);
+
+	if (size > olh->size) {
+		olh->size = size;
+		IPFW_UH_RUNLOCK(ch);
+		return (ENOMEM);
+	}
+	olh->size = size;
+
+	for (n = 1; n <= count; n++) {
+		i = (ipfw_ta_info *)ipfw_get_sopt_space(sd, sizeof(*i));
+		KASSERT(i != 0, ("previously checked buffer is not enough"));
+		ta = tcfg->algo[n];
+		strlcpy(i->algoname, ta->name, sizeof(i->algoname));
+		i->type = ta->type;
+		i->refcnt = ta->refcnt;
+	}
+
+	IPFW_UH_RUNLOCK(ch);
+
+	return (0);
+}
+
 
 /*
  * Tables rewriting code 
@@ -1925,6 +1978,7 @@ link_table(struct ip_fw_chain *ch, struct table_config *tc)
 		tc->ta->change_ti(tc->astate, ti);
 
 	tc->linked = 1;
+	tc->ta->refcnt++;
 }
 
 /*
@@ -1949,6 +2003,7 @@ unlink_table(struct ip_fw_chain *ch, struct table_config *tc)
 	ti = KIDX_TO_TI(ch, kidx);
 	memset(ti, 0, sizeof(struct table_info));
 	tc->linked = 0;
+	tc->ta->refcnt--;
 
 	/* Notify algo on real @ti address */
 	if (tc->ta->change_ti != NULL)

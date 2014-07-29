@@ -98,6 +98,9 @@ typedef int ta_find_tentry(void *ta_state, struct table_info *ti, void *key,
 struct table_algo {
 	char		name[16];
 	int		idx;
+	int		type;
+	int		refcnt;
+	int		spare;
 	ta_init		*init;
 	ta_destroy	*destroy;
 	ta_prepare_add	*prepare_add;
@@ -140,6 +143,7 @@ int ipfw_manage_table_ent(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
     struct sockopt_data *sd);
 int ipfw_flush_table(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
     struct sockopt_data *sd);
+int ipfw_list_table_algo(struct ip_fw_chain *ch, struct sockopt_data *sd);
 /* Exported to support legacy opcodes */
 int add_table_entry(struct ip_fw_chain *ch, struct tid_info *ti,
     struct tentry_info *tei);
