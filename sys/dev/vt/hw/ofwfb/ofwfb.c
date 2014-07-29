@@ -52,16 +52,13 @@ struct ofwfb_softc {
 	struct fb_info	fb;
 
 	phandle_t	sc_node;
+	ihandle_t	sc_handle;
 	bus_space_tag_t	sc_memt; 
-
-	struct ofw_pci_register sc_pciaddrs[8];
-	int		sc_num_pciaddrs;
 };
 
 static vd_probe_t	ofwfb_probe;
 static vd_init_t	ofwfb_init;
 static vd_bitbltchr_t	ofwfb_bitbltchr;
-static vd_fb_mmap_t	ofwfb_mmap;
 
 static const struct vt_driver vt_ofwfb_driver = {
 	.vd_name	= "ofwfb",
@@ -70,7 +67,8 @@ static const struct vt_driver vt_ofwfb_driver = {
 	.vd_blank	= vt_fb_blank,
 	.vd_bitbltchr	= ofwfb_bitbltchr,
 	.vd_maskbitbltchr = ofwfb_bitbltchr,
-	.vd_fb_mmap	= ofwfb_mmap,
+	.vd_fb_ioctl	= vt_fb_ioctl,
+	.vd_fb_mmap	= vt_fb_mmap,
 	.vd_priority	= VD_PRIORITY_GENERIC+1,
 };
 
@@ -198,16 +196,9 @@ static void
 ofwfb_initialize(struct vt_device *vd)
 {
 	struct ofwfb_softc *sc = vd->vd_softc;
-	char name[64];
-	ihandle_t ih;
 	int i;
 	cell_t retval;
 	uint32_t oldpix;
-
-	/* Open display device, thereby initializing it */
-	memset(name, 0, sizeof(name));
-	OF_package_to_path(sc->sc_node, name, sizeof(name));
-	ih = OF_open(name);
 
 	/*
 	 * Set up the color map
@@ -219,7 +210,7 @@ ofwfb_initialize(struct vt_device *vd)
 		    0, 255, 8, 255, 16);
 
 		for (i = 0; i < 16; i++) {
-			OF_call_method("color!", ih, 4, 1,
+			OF_call_method("color!", sc->sc_handle, 4, 1,
 			    (cell_t)((sc->fb.fb_cmap[i] >> 16) & 0xff),
 			    (cell_t)((sc->fb.fb_cmap[i] >> 8) & 0xff),
 			    (cell_t)((sc->fb.fb_cmap[i] >> 0) & 0xff),
@@ -260,7 +251,6 @@ ofwfb_init(struct vt_device *vd)
 	struct ofwfb_softc *sc;
 	char type[64];
 	phandle_t chosen;
-	ihandle_t stdout;
 	phandle_t node;
 	uint32_t depth, height, width, stride;
 	uint32_t fb_phys;
@@ -275,14 +265,15 @@ ofwfb_init(struct vt_device *vd)
 	vd->vd_softc = sc = &ofwfb_conssoftc;
 
 	chosen = OF_finddevice("/chosen");
-	OF_getprop(chosen, "stdout", &stdout, sizeof(stdout));
-	node = OF_instance_to_package(stdout);
+	OF_getprop(chosen, "stdout", &sc->sc_handle, sizeof(ihandle_t));
+	node = OF_instance_to_package(sc->sc_handle);
 	if (node == -1) {
 		/*
 		 * The "/chosen/stdout" does not exist try
 		 * using "screen" directly.
 		 */
 		node = OF_finddevice("screen");
+		sc->sc_handle = OF_open("screen");
 	}
 	OF_getprop(node, "device_type", type, sizeof(type));
 	if (strcmp(type, "display") != 0)
@@ -290,6 +281,13 @@ ofwfb_init(struct vt_device *vd)
 
 	/* Keep track of the OF node */
 	sc->sc_node = node;
+
+	/*
+	 * Try to use a 32-bit framebuffer if possible. This may be
+	 * unimplemented and fail. That's fine -- it just means we are
+	 * stuck with the defaults.
+	 */
+	OF_call_method("set-depth", sc->sc_handle, 1, 1, (cell_t)32, &i);
 
 	/* Make sure we have needed properties */
 	if (OF_getproplen(node, "height") != sizeof(height) ||
@@ -302,7 +300,7 @@ ofwfb_init(struct vt_device *vd)
 	OF_getprop(node, "depth", &depth, sizeof(depth));
 	if (depth != 8 && depth != 32)
 		return (CN_DEAD);
-	sc->fb.fb_bpp = depth;
+	sc->fb.fb_bpp = sc->fb.fb_depth = depth;
 
 	OF_getprop(node, "height", &height, sizeof(height));
 	OF_getprop(node, "width", &width, sizeof(width));
@@ -312,21 +310,6 @@ ofwfb_init(struct vt_device *vd)
 	sc->fb.fb_width = width;
 	sc->fb.fb_stride = stride;
 	sc->fb.fb_size = sc->fb.fb_height * sc->fb.fb_stride;
-
-	/*
-	 * Get the PCI addresses of the adapter, if present. The node may be the
-	 * child of the PCI device: in that case, try the parent for
-	 * the assigned-addresses property.
-	 */
-	len = OF_getprop(node, "assigned-addresses", sc->sc_pciaddrs,
-	    sizeof(sc->sc_pciaddrs));
-	if (len == -1) {
-		len = OF_getprop(OF_parent(node), "assigned-addresses",
-		    sc->sc_pciaddrs, sizeof(sc->sc_pciaddrs));
-        }
-        if (len == -1)
-                len = 0;
-	sc->sc_num_pciaddrs = len / sizeof(struct ofw_pci_register);
 
 	/*
 	 * Grab the physical address of the framebuffer, and then map it
@@ -339,13 +322,18 @@ ofwfb_init(struct vt_device *vd)
 
 	#if defined(__powerpc__)
 		sc->sc_memt = &bs_be_tag;
-		bus_space_map(sc->sc_memt, fb_phys, height * sc->fb.fb_stride,
+		bus_space_map(sc->sc_memt, fb_phys, sc->fb.fb_size,
 		    BUS_SPACE_MAP_PREFETCHABLE, &sc->fb.fb_vbase);
 	#elif defined(__sparc64__)
 		OF_decode_addr(node, 0, &space, &phys);
 		sc->sc_memt = &ofwfb_memt[0];
 		sc->fb.fb_vbase =
 		    sparc64_fake_bustag(space, fb_phys, sc->sc_memt);
+	#elif defined(__arm__)
+		sc->sc_memt = fdtbus_bs_tag;
+		bus_space_map(sc->sc_memt, sc->fb.fb_pbase, sc->fb.fb_size,
+		    BUS_SPACE_MAP_PREFETCHABLE,
+		    (bus_space_handle_t *)&sc->fb.fb_vbase);
 	#else
 		#error Unsupported platform!
 	#endif
@@ -357,14 +345,31 @@ ofwfb_init(struct vt_device *vd)
 		 * Linux does the same thing.
 		 */
 
-		fb_phys = sc->sc_num_pciaddrs;
-		for (i = 0; i < sc->sc_num_pciaddrs; i++) {
+		struct ofw_pci_register pciaddrs[8];
+		int num_pciaddrs = 0;
+
+		/*
+		 * Get the PCI addresses of the adapter, if present. The node
+		 * may be the child of the PCI device: in that case, try the
+		 * parent for the assigned-addresses property.
+		 */
+		len = OF_getprop(node, "assigned-addresses", pciaddrs,
+		    sizeof(pciaddrs));
+		if (len == -1) {
+			len = OF_getprop(OF_parent(node), "assigned-addresses",
+			    pciaddrs, sizeof(pciaddrs));
+		}
+		if (len == -1)
+			len = 0;
+		num_pciaddrs = len / sizeof(struct ofw_pci_register);
+
+		fb_phys = num_pciaddrs;
+		for (i = 0; i < num_pciaddrs; i++) {
 			/* If it is too small, not the framebuffer */
-			if (sc->sc_pciaddrs[i].size_lo <
-			    sc->fb.fb_stride * height)
+			if (pciaddrs[i].size_lo < sc->fb.fb_stride * height)
 				continue;
 			/* If it is not memory, it isn't either */
-			if (!(sc->sc_pciaddrs[i].phys_hi &
+			if (!(pciaddrs[i].phys_hi &
 			    OFW_PCI_PHYS_HI_SPACE_MEM32))
 				continue;
 
@@ -372,12 +377,11 @@ ofwfb_init(struct vt_device *vd)
 			fb_phys = i;
 
 			/* If it is prefetchable, it certainly is */
-			if (sc->sc_pciaddrs[i].phys_hi &
-			    OFW_PCI_PHYS_HI_PREFETCHABLE)
+			if (pciaddrs[i].phys_hi & OFW_PCI_PHYS_HI_PREFETCHABLE)
 				break;
 		}
 
-		if (fb_phys == sc->sc_num_pciaddrs) /* No candidates found */
+		if (fb_phys == num_pciaddrs) /* No candidates found */
 			return (CN_DEAD);
 
 	#if defined(__powerpc__)
@@ -385,7 +389,10 @@ ofwfb_init(struct vt_device *vd)
 	#elif defined(__sparc64__)
 		OF_decode_addr(node, fb_phys, &space, &phys);
 		sc->sc_memt = &ofwfb_memt[0];
-		sc->sc_addr = sparc64_fake_bustag(space, phys, sc->sc_memt);
+		sc->fb.fb_vbase = sparc64_fake_bustag(space, phys, sc->sc_memt);
+	#else
+		/* No ability to interpret assigned-addresses otherwise */
+		return (CN_DEAD);
 	#endif
         }
 
@@ -396,41 +403,5 @@ ofwfb_init(struct vt_device *vd)
 	vt_fb_init(vd);
 
 	return (CN_INTERNAL);
-}
-
-static int
-ofwfb_mmap(struct vt_device *vd, vm_ooffset_t offset, vm_paddr_t *paddr,
-    int prot, vm_memattr_t *memattr)
-{
-	struct ofwfb_softc *sc = vd->vd_softc;
-        int i;
-
-	/*
-	 * Make sure the requested address lies within the PCI device's
-	 * assigned addrs
-	 */
-	for (i = 0; i < sc->sc_num_pciaddrs; i++)
-	  if (offset >= sc->sc_pciaddrs[i].phys_lo &&
-	    offset < (sc->sc_pciaddrs[i].phys_lo + sc->sc_pciaddrs[i].size_lo))
-		{
-#ifdef VM_MEMATTR_WRITE_COMBINING
-			/*
-			 * If this is a prefetchable BAR, we can (and should)
-			 * enable write-combining.
-			 */
-			if (sc->sc_pciaddrs[i].phys_hi &
-			    OFW_PCI_PHYS_HI_PREFETCHABLE)
-				*memattr = VM_MEMATTR_WRITE_COMBINING;
-#endif
-
-			*paddr = offset;
-			return (0);
-		}
-
-        /*
-         * Hack for Radeon...
-         */
-	*paddr = offset;
-	return (0);
 }
 
