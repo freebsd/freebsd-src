@@ -570,6 +570,12 @@ spa_deadman(void *arg)
 	    ++spa->spa_deadman_calls);
 	if (zfs_deadman_enabled)
 		vdev_deadman(spa->spa_root_vdev);
+#ifdef __FreeBSD__
+#ifdef _KERNEL
+	callout_schedule(&spa->spa_deadman_cycid,
+	    hz * zfs_deadman_checktime_ms / MILLISEC);
+#endif
+#endif
 }
 
 /*
