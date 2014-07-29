@@ -33,13 +33,17 @@
 #ifndef _DEV_TERASIC_MTL_H_
 #define	_DEV_TERASIC_MTL_H_
 
+#include "opt_syscons.h"
+
 struct terasic_mtl_softc {
+#if defined(DEV_SC)
 	/*
 	 * syscons requires that its video_adapter_t be at the front of the
 	 * softc, so place syscons fields first, which we otherwise would
 	 * probably not do.
 	 */
 	video_adapter_t	 mtl_va;
+#endif
 
 	/*
 	 * Bus-related fields.
@@ -62,7 +66,8 @@ struct terasic_mtl_softc {
 	int		 mtl_reg_rid;
 
 	/*
-	 * Graphics frame buffer device -- mappable from userspace.
+	 * Graphics frame buffer device -- mappable from userspace, and used
+	 * by the vt framebuffer interface.
 	 */
 	struct cdev	*mtl_pixel_cdev;
 	struct resource	*mtl_pixel_res;
@@ -76,6 +81,11 @@ struct terasic_mtl_softc {
 	struct resource	*mtl_text_res;
 	int		 mtl_text_rid;
 	uint16_t	*mtl_text_soft;
+
+	/*
+	 * Framebuffer hookup for vt(4).
+	 */
+	struct fb_info	 mtl_fb_info;
 };
 
 #define	TERASIC_MTL_LOCK(sc)		mtx_lock(&(sc)->mtl_lock)
@@ -164,6 +174,8 @@ extern devclass_t	terasic_mtl_devclass;
 /*
  * Sub-driver setup routines.
  */
+int	terasic_mtl_fbd_attach(struct terasic_mtl_softc *sc);
+void	terasic_mtl_fbd_detach(struct terasic_mtl_softc *sc);
 int	terasic_mtl_pixel_attach(struct terasic_mtl_softc *sc);
 void	terasic_mtl_pixel_detach(struct terasic_mtl_softc *sc);
 int	terasic_mtl_reg_attach(struct terasic_mtl_softc *sc);

@@ -50,6 +50,8 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/terasic/mtl/terasic_mtl.h>
 
+#include "fb_if.h"
+
 static int
 terasic_mtl_nexus_probe(device_t dev)
 {
@@ -177,10 +179,20 @@ terasic_mtl_nexus_detach(device_t dev)
 	return (0);
 }
 
+static struct fb_info *
+terasic_mtl_fb_getinfo(device_t dev)
+{
+	struct terasic_mtl_softc *sc;
+
+	sc = device_get_softc(dev);
+	return (&sc->mtl_fb_info);
+}
+
 static device_method_t terasic_mtl_nexus_methods[] = {
 	DEVMETHOD(device_probe,		terasic_mtl_nexus_probe),
 	DEVMETHOD(device_attach,	terasic_mtl_nexus_attach),
 	DEVMETHOD(device_detach,	terasic_mtl_nexus_detach),
+	DEVMETHOD(fb_getinfo,		terasic_mtl_fb_getinfo),
 	{ 0, 0 }
 };
 

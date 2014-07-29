@@ -216,6 +216,7 @@
 
 		touchscreen@70400000 {
 			compatible = "sri-cambridge,mtl";
+			panel-size = < 800 480 >;
 			reg = <0x70400000 0x1000
 			       0x70000000 0x177000
 			       0x70177000 0x2000>;
