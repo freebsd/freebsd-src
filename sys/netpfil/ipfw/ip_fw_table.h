@@ -118,7 +118,7 @@ struct table_algo {
 };
 
 void ipfw_add_table_algo(struct ip_fw_chain *ch, struct table_algo *ta);
-extern struct table_algo radix_cidr, idx_iface;
+extern struct table_algo cidr_radix, iface_idx;
 
 void ipfw_table_algo_init(struct ip_fw_chain *chain);
 void ipfw_table_algo_destroy(struct ip_fw_chain *chain);
