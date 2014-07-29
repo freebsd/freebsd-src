@@ -743,14 +743,6 @@ bus_dmamem_alloc(bus_dma_tag_t dmat, void** vaddr, int flags,
 	map->flags = DMAMAP_DMAMEM_ALLOC;
 	map->sync_count = 0;
 
-	/* We may need bounce pages, even for allocated memory */
-	error = allocate_bz_and_pages(dmat, map);
-	if (error != 0) {
-		free(map, M_DEVBUF);
-		*mapp = NULL;
-		return (error);
-	}
-
 	if (dmat->segments == NULL) {
 		dmat->segments = (bus_dma_segment_t *)malloc(
 		    sizeof(bus_dma_segment_t) * dmat->nsegments, M_DEVBUF,
