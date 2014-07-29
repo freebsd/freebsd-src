@@ -70,9 +70,9 @@ typedef int (ta_prepare_add)(struct ip_fw_chain *ch, struct tentry_info *tei,
 typedef int (ta_prepare_del)(struct ip_fw_chain *ch, struct tentry_info *tei,
     void *ta_buf);
 typedef int (ta_add)(void *ta_state, struct table_info *ti,
-    struct tentry_info *tei, void *ta_buf, uint64_t *pflags);
+    struct tentry_info *tei, void *ta_buf, uint64_t *pflags, uint32_t *pnum);
 typedef int (ta_del)(void *ta_state, struct table_info *ti,
-    struct tentry_info *tei, void *ta_buf, uint64_t *pflags);
+    struct tentry_info *tei, void *ta_buf, uint64_t *pflags, uint32_t *pnum);
 typedef void (ta_flush_entry)(struct ip_fw_chain *ch, struct tentry_info *tei,
     void *ta_buf);
 
