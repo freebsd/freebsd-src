@@ -241,8 +241,8 @@ SYSINIT(busdma, SI_SUB_KMEM, SI_ORDER_FOURTH, busdma_init, NULL);
  * possibly have RAM at an address higher than the highest address we can
  * express, so we take a fast out.
  */
-static __inline int
-_bus_dma_can_bounce(vm_offset_t lowaddr, vm_offset_t highaddr)
+static int
+exclusion_bounce(vm_offset_t lowaddr, vm_offset_t highaddr)
 {
 	int i;
 
@@ -256,6 +256,26 @@ _bus_dma_can_bounce(vm_offset_t lowaddr, vm_offset_t highaddr)
 			return (1);
 	}
 	return (0);
+}
+
+/*
+ * Return true if the given address does not fall on the alignment boundary.
+ */
+static __inline int
+alignment_bounce(bus_dma_tag_t dmat, bus_addr_t addr)
+{
+
+	return (addr & (dmat->alignment - 1));
+}
+
+/*
+ * Return true if the buffer start or end does not fall on a cacheline boundary.
+ */
+static __inline int
+cacheline_bounce(bus_addr_t addr, bus_size_t size)
+{
+
+	return ((addr | size) & arm_dcache_align_mask);
 }
 
 static __inline struct arm32_dma_range *
@@ -291,9 +311,8 @@ run_filter(bus_dma_tag_t dmat, bus_addr_t paddr, bus_size_t size, int coherent)
 
 	do {
 		if (((paddr > dmat->lowaddr && paddr <= dmat->highaddr)
-		 || ((paddr & (dmat->alignment - 1)) != 0) ||
-		 (!coherent && (size & arm_dcache_align_mask)) ||
-		 (!coherent && (paddr & arm_dcache_align_mask)))
+		 || alignment_bounce(dmat, paddr) ||
+		 (!coherent && cacheline_bounce(paddr, size)))
 		 && (dmat->filter == NULL
 		  || (*dmat->filter)(dmat->filterarg, paddr) != 0))
 			retval = 1;
@@ -438,8 +457,8 @@ bus_dma_tag_create(bus_dma_tag_t parent, bus_size_t alignment,
 			atomic_add_int(&parent->ref_count, 1);
 	}
 
-	if (_bus_dma_can_bounce(newtag->lowaddr, newtag->highaddr)
-	 || newtag->alignment > 1)
+	if (exclusion_bounce(newtag->lowaddr, newtag->highaddr)
+	 || alignment_bounce(newtag, 1))
 		newtag->flags |= BUS_DMA_COULD_BOUNCE;
 
 	/*
@@ -718,7 +737,7 @@ bus_dmamem_alloc(bus_dma_tag_t dmat, void** vaddr, int flags,
 	 * constraints is something that only the contig allocator can fulfill.
 	 */
 	if (bufzone != NULL && dmat->alignment <= bufzone->size &&
-	    !_bus_dma_can_bounce(dmat->lowaddr, dmat->highaddr)) {
+	    !exclusion_bounce(dmat->lowaddr, dmat->highaddr)) {
 		*vaddr = uma_zalloc(bufzone->umazone, mflags);
 	} else if (dmat->nsegments >= btoc(dmat->maxsize) &&
 	    dmat->alignment <= PAGE_SIZE && dmat->boundary == 0) {
@@ -765,7 +784,7 @@ bus_dmamem_free(bus_dma_tag_t dmat, void *vaddr, bus_dmamap_t map)
 	bufzone = busdma_bufalloc_findzone(ba, dmat->maxsize);
 
 	if (bufzone != NULL && dmat->alignment <= bufzone->size &&
-	    !_bus_dma_can_bounce(dmat->lowaddr, dmat->highaddr))
+	    !exclusion_bounce(dmat->lowaddr, dmat->highaddr))
 		uma_zfree(bufzone->umazone, vaddr);
 	else
 		kmem_free(kernel_arena, (vm_offset_t)vaddr, dmat->maxsize);
