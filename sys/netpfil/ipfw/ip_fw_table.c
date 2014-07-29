@@ -1592,10 +1592,9 @@ find_table_algo(struct tables_config *tcfg, struct tid_info *ti, char *name)
 	/* Search by type */
 	switch (ti->type) {
 	case IPFW_TABLE_CIDR:
-		return (&radix_cidr);
+		return (&cidr_radix);
 	case IPFW_TABLE_INTERFACE:
-		return (&idx_iface);
-		//return (&radix_iface);
+		return (&iface_idx);
 	}
 
 	return (NULL);

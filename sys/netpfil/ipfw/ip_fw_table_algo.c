@@ -514,7 +514,7 @@ ta_flush_cidr_entry(struct ip_fw_chain *ch, struct tentry_info *tei,
 		free(tb->ent_ptr, M_IPFW_TBL);
 }
 
-struct table_algo radix_cidr = {
+struct table_algo cidr_radix = {
 	.name		= "cidr:radix",
 	.lookup		= ta_lookup_radix,
 	.init		= ta_init_radix,
@@ -527,6 +527,686 @@ struct table_algo radix_cidr = {
 	.foreach	= ta_foreach_radix,
 	.dump_tentry	= ta_dump_radix_tentry,
 	.find_tentry	= ta_find_radix_tentry,
+};
+
+
+/*
+ * cidr:hash cmds
+ *
+ *
+ * ti->data:
+ * [inv.mask4][inv.mask6][log2hsize4][log2hsize6]
+ * [        8][        8[          8][         8]
+ *
+ * inv.mask4: 32 - mask
+ * inv.mask6:
+ * 1) _slow lookup: mask
+ * 2) _aligned: (128 - mask) / 8
+ * 3) _64: 8
+ */
+
+struct chashentry;
+
+SLIST_HEAD(chashbhead, chashentry);
+
+struct chash_cfg {
+	struct chashbhead *head4;
+	struct chashbhead *head6;
+	size_t	size4;
+	size_t	size6;
+	size_t	items;
+	uint8_t	mask4;
+	uint8_t	mask6;
+};
+
+struct chashentry {
+	SLIST_ENTRY(chashentry)	next;
+	uint32_t	value;
+	uint32_t	type;
+	union {
+		uint32_t	a4;	/* Host format */
+		struct in6_addr	a6;	/* Network format */
+	} a;
+};
+
+static __inline uint32_t
+hash_ip(uint32_t addr, int hsize)
+{
+
+	return (addr % (hsize - 1));
+}
+
+static __inline uint32_t
+hash_ip6(struct in6_addr *addr6, int hsize)
+{
+	uint32_t i;
+
+	i = addr6->s6_addr32[0] ^ addr6->s6_addr32[1] ^
+	    addr6->s6_addr32[2] ^ addr6->s6_addr32[3];
+
+	return (i % (hsize - 1));
+}
+
+
+static __inline uint16_t
+hash_ip64(struct in6_addr *addr6, int hsize)
+{
+	uint32_t i;
+
+	i = addr6->s6_addr32[0] ^ addr6->s6_addr32[1];
+
+	return (i % (hsize - 1));
+}
+
+
+static __inline uint32_t
+hash_ip6_slow(struct in6_addr *addr6, void *key, int mask, int hsize)
+{
+	struct in6_addr mask6;
+
+	ipv6_writemask(&mask6, mask);
+	memcpy(addr6, key, sizeof(struct in6_addr));
+	APPLY_MASK(addr6, &mask6);
+	return (hash_ip6(addr6, hsize));
+}
+
+static __inline uint32_t
+hash_ip6_al(struct in6_addr *addr6, void *key, int mask, int hsize)
+{
+	uint64_t *paddr;
+
+	paddr = (uint64_t *)addr6;
+	*paddr = 0;
+	*(paddr + 1) = 0;
+	memcpy(addr6, key, mask);
+	return (hash_ip6(addr6, hsize));
+}
+
+static int
+ta_lookup_chash_slow(struct table_info *ti, void *key, uint32_t keylen,
+    uint32_t *val)
+{
+	struct chashbhead *head;
+	struct chashentry *ent;
+	uint16_t hash, hsize;
+	uint8_t imask;
+
+	if (keylen == sizeof(in_addr_t)) {
+		head = (struct chashbhead *)ti->state;
+		imask = ti->data >> 24;
+		hsize = 1 << ((ti->data & 0xFFFF) >> 8);
+		uint32_t a;
+		a = ntohl(*((in_addr_t *)key));
+		a = a >> imask;
+		hash = hash_ip(a, hsize);
+		SLIST_FOREACH(ent, &head[hash], next) {
+			if (ent->a.a4 == a) {
+				*val = ent->value;
+				return (1);
+			}
+		}
+	} else {
+		/* IPv6: worst scenario: non-round mask */
+		struct in6_addr addr6;
+		head = (struct chashbhead *)ti->xstate;
+		imask = (ti->data & 0xFF0000) >> 16;
+		hsize = 1 << (ti->data & 0xFF);
+		hash = hash_ip6_slow(&addr6, key, imask, hsize);
+		SLIST_FOREACH(ent, &head[hash], next) {
+			if (memcmp(&ent->a.a6, &addr6, 16) == 0) {
+				*val = ent->value;
+				return (1);
+			}
+		}
+	}
+
+	return (0);
+}
+
+static int
+ta_lookup_chash_aligned(struct table_info *ti, void *key, uint32_t keylen,
+    uint32_t *val)
+{
+	struct chashbhead *head;
+	struct chashentry *ent;
+	uint16_t hash, hsize;
+	uint8_t imask;
+
+	if (keylen == sizeof(in_addr_t)) {
+		head = (struct chashbhead *)ti->state;
+		imask = ti->data >> 24;
+		hsize = 1 << ((ti->data & 0xFFFF) >> 8);
+		uint32_t a;
+		a = ntohl(*((in_addr_t *)key));
+		a = a >> imask;
+		hash = hash_ip(a, hsize);
+		SLIST_FOREACH(ent, &head[hash], next) {
+			if (ent->a.a4 == a) {
+				*val = ent->value;
+				return (1);
+			}
+		}
+	} else {
+		/* IPv6: aligned to 8bit mask */
+		struct in6_addr addr6;
+		uint64_t *paddr, *ptmp;
+		head = (struct chashbhead *)ti->xstate;
+		imask = (ti->data & 0xFF0000) >> 16;
+		hsize = 1 << (ti->data & 0xFF);
+
+		hash = hash_ip6_al(&addr6, key, imask, hsize);
+		paddr = (uint64_t *)&addr6;
+		SLIST_FOREACH(ent, &head[hash], next) {
+			ptmp = (uint64_t *)&ent->a.a6;
+			if (paddr[0] == ptmp[0] && paddr[1] == ptmp[1]) {
+				*val = ent->value;
+				return (1);
+			}
+		}
+	}
+
+	return (0);
+}
+
+static int
+ta_lookup_chash_64(struct table_info *ti, void *key, uint32_t keylen,
+    uint32_t *val)
+{
+	struct chashbhead *head;
+	struct chashentry *ent;
+	uint16_t hash, hsize;
+	uint8_t imask;
+
+	if (keylen == sizeof(in_addr_t)) {
+		head = (struct chashbhead *)ti->state;
+		imask = ti->data >> 24;
+		hsize = 1 << ((ti->data & 0xFFFF) >> 8);
+		uint32_t a;
+		a = ntohl(*((in_addr_t *)key));
+		a = a >> imask;
+		hash = hash_ip(a, hsize);
+		SLIST_FOREACH(ent, &head[hash], next) {
+			if (ent->a.a4 == a) {
+				*val = ent->value;
+				return (1);
+			}
+		}
+	} else {
+		/* IPv6: /64 */
+		uint64_t a6, *paddr;
+		head = (struct chashbhead *)ti->xstate;
+		paddr = (uint64_t *)key;
+		hsize = 1 << (ti->data & 0xFF);
+		a6 = *paddr;
+		hash = hash_ip64((struct in6_addr *)key, hsize);
+		SLIST_FOREACH(ent, &head[hash], next) {
+			paddr = (uint64_t *)&ent->a.a6;
+			if (a6 == *paddr) {
+				*val = ent->value;
+				return (1);
+			}
+		}
+	}
+
+	return (0);
+}
+
+static int
+chash_parse_opts(struct chash_cfg *ccfg, char *data)
+{
+	char *pdel, *pend, *s;
+	int mask4, mask6;
+
+	mask4 = ccfg->mask4;
+	mask6 = ccfg->mask6;
+
+	if (data == NULL)
+		return (0);
+	if ((pdel = strchr(data, ' ')) == NULL)
+		return (0);
+	while (*pdel == ' ')
+		pdel++;
+	if (strncmp(pdel, "masks=", 6) != 0)
+		return (EINVAL);
+	if ((s = strchr(pdel, ' ')) != NULL)
+		*s++ = '\0';
+
+	pdel += 6;
+	/* Need /XX[,/YY] */
+	if (*pdel++ != '/')
+		return (EINVAL);
+	mask4 = strtol(pdel, &pend, 10);
+	if (*pend == ',') {
+		/* ,/YY */
+		pdel = pend + 1;
+		if (*pdel++ != '/')
+			return (EINVAL);
+		mask6 = strtol(pdel, &pend, 10);
+		if (*pend != '\0')
+			return (EINVAL);
+	} else if (*pend != '\0')
+		return (EINVAL);
+
+	if (mask4 < 0 || mask4 > 32 || mask6 < 0 || mask6 > 128)
+		return (EINVAL);
+
+	ccfg->mask4 = mask4;
+	ccfg->mask6 = mask6;
+
+	return (0);
+}
+
+static void
+ta_print_chash_config(void *ta_state, struct table_info *ti, char *buf,
+    size_t bufsize)
+{
+	struct chash_cfg *ccfg;
+
+	ccfg = (struct chash_cfg *)ta_state;
+
+	if (ccfg->mask4 != 32 || ccfg->mask6 != 128)
+		snprintf(buf, bufsize, "%s masks=/%d,/%d", "cidr:hash",
+		    ccfg->mask4, ccfg->mask6);
+	else
+		snprintf(buf, bufsize, "%s", "cidr:hash");
+}
+
+
+/*
+ * New table.
+ * We assume 'data' to be either NULL or the following format:
+ * 'cidr:hash [masks=/32[,/128]]'
+ */
+static int
+ta_init_chash(struct ip_fw_chain *ch, void **ta_state, struct table_info *ti,
+    char *data)
+{
+	int error, i;
+	int v4, v6;
+	struct chash_cfg *ccfg;
+
+	ccfg = malloc(sizeof(struct chash_cfg), M_IPFW, M_WAITOK | M_ZERO);
+
+	ccfg->mask4 = 32;
+	ccfg->mask6 = 128;
+
+	if ((error = chash_parse_opts(ccfg, data)) != 0) {
+		free(ccfg, M_IPFW);
+		return (error);
+	}
+
+	v4 = 7;
+	v6 = 7;
+	ccfg->size4 = 1 << v4;
+	ccfg->size6 = 1 << v6;
+
+	ccfg->head4 = malloc(sizeof(struct chashbhead) * ccfg->size4, M_IPFW,
+	    M_WAITOK | M_ZERO);
+	ccfg->head6 = malloc(sizeof(struct chashbhead) * ccfg->size6, M_IPFW,
+	    M_WAITOK | M_ZERO);
+	for (i = 0; i < ccfg->size4; i++)
+		SLIST_INIT(&ccfg->head4[i]);
+	for (i = 0; i < ccfg->size6; i++)
+		SLIST_INIT(&ccfg->head6[i]);
+
+
+	*ta_state = ccfg;
+	ti->state = ccfg->head4;
+	ti->xstate = ccfg->head6;
+
+	/* Store data depending on v6 mask length */
+	if (ccfg->mask6 == 64) {
+		ti->data = (32 - ccfg->mask4) << 24 | (128 - ccfg->mask6) << 16 |
+		    v4 << 8 | v6;
+		ti->lookup = ta_lookup_chash_64;
+	} else if ((ccfg->mask6  % 8) == 0) {
+		ti->data = (32 - ccfg->mask4) << 24 |
+		    ccfg->mask6 << 13 | v4 << 8 | v6;
+		ti->lookup = ta_lookup_chash_aligned;
+	} else {
+		/* don't do that! */
+		ti->data = (32 - ccfg->mask4) << 24 |
+		    ccfg->mask6 << 16 | v4 << 8 | v6;
+		ti->lookup = ta_lookup_chash_slow;
+	}
+
+	return (0);
+}
+
+static void
+ta_destroy_chash(void *ta_state, struct table_info *ti)
+{
+	struct chash_cfg *ccfg;
+	struct chashentry *ent, *ent_next;
+	int i;
+
+	ccfg = (struct chash_cfg *)ta_state;
+
+	for (i = 0; i < ccfg->size4; i++)
+		SLIST_FOREACH_SAFE(ent, &ccfg->head4[i], next, ent_next)
+			free(ent, M_IPFW_TBL);
+
+	for (i = 0; i < ccfg->size6; i++)
+		SLIST_FOREACH_SAFE(ent, &ccfg->head6[i], next, ent_next)
+			free(ent, M_IPFW_TBL);
+
+	free(ccfg->head4, M_IPFW);
+	free(ccfg->head6, M_IPFW);
+}
+
+static int
+ta_dump_chash_tentry(void *ta_state, struct table_info *ti, void *e,
+    ipfw_obj_tentry *tent)
+{
+	struct chash_cfg *ccfg;
+	struct chashentry *ent;
+
+	ccfg = (struct chash_cfg *)ta_state;
+	ent = (struct chashentry *)e;
+
+	if (ent->type == AF_INET) {
+		tent->k.addr.s_addr = htonl(ent->a.a4 << (32 - ccfg->mask4));
+		tent->masklen = ccfg->mask4;
+		tent->subtype = AF_INET;
+		tent->value = ent->value;
+#ifdef INET6
+	} else {
+		memcpy(&tent->k, &ent->a.a6, sizeof(struct in6_addr));
+		tent->masklen = ccfg->mask6;
+		tent->subtype = AF_INET6;
+		tent->value = ent->value;
+#endif
+	}
+
+	return (0);
+}
+
+static int
+ta_find_chash_tentry(void *ta_state, struct table_info *ti, void *key,
+    uint32_t keylen, ipfw_obj_tentry *tent)
+{
+#if 0
+	struct radix_node_head *rnh;
+	void *e;
+
+	e = NULL;
+	if (keylen == sizeof(in_addr_t)) {
+		struct sockaddr_in sa;
+		KEY_LEN(sa) = KEY_LEN_INET;
+		sa.sin_addr.s_addr = *((in_addr_t *)key);
+		rnh = (struct radix_node_head *)ti->state;
+		e = rnh->rnh_matchaddr(&sa, rnh);
+	} else {
+		struct sa_in6 sa6;
+		KEY_LEN(sa6) = KEY_LEN_INET6;
+		memcpy(&sa6.sin6_addr, key, sizeof(struct in6_addr));
+		rnh = (struct radix_node_head *)ti->xstate;
+		e = rnh->rnh_matchaddr(&sa6, rnh);
+	}
+
+	if (e != NULL) {
+		ta_dump_radix_tentry(ta_state, ti, e, tent);
+		return (0);
+	}
+#endif
+	return (ENOENT);
+}
+
+static void
+ta_foreach_chash(void *ta_state, struct table_info *ti, ta_foreach_f *f,
+    void *arg)
+{
+	struct chash_cfg *ccfg;
+	struct chashentry *ent, *ent_next;
+	int i;
+
+	ccfg = (struct chash_cfg *)ta_state;
+
+	for (i = 0; i < ccfg->size4; i++)
+		SLIST_FOREACH_SAFE(ent, &ccfg->head4[i], next, ent_next)
+			f(ent, arg);
+
+	for (i = 0; i < ccfg->size6; i++)
+		SLIST_FOREACH_SAFE(ent, &ccfg->head6[i], next, ent_next)
+			f(ent, arg);
+}
+
+
+struct ta_buf_chash
+{
+	void *ent_ptr;
+	int type;
+	union {
+		uint32_t	a4;
+		struct in6_addr	a6;
+	} a;
+};
+
+static int
+ta_prepare_add_chash(struct ip_fw_chain *ch, struct tentry_info *tei,
+    void *ta_buf)
+{
+	struct ta_buf_chash *tb;
+	struct chashentry *ent;
+	int mlen;
+	struct in6_addr mask6;
+
+	tb = (struct ta_buf_chash *)ta_buf;
+	memset(tb, 0, sizeof(struct ta_buf_chash));
+
+	mlen = tei->masklen;
+	
+	if (tei->subtype == AF_INET) {
+#ifdef INET
+		if (mlen > 32)
+			return (EINVAL);
+		ent = malloc(sizeof(*ent), M_IPFW_TBL, M_WAITOK | M_ZERO);
+		ent->value = tei->value;
+		ent->type = AF_INET;
+
+		/* Calculate mask */
+		ent->a.a4 = ntohl(*((in_addr_t *)tei->paddr)) >> (32 - mlen);
+		tb->ent_ptr = ent;
+#endif
+#ifdef INET6
+	} else if (tei->subtype == AF_INET6) {
+		/* IPv6 case */
+		if (mlen > 128)
+			return (EINVAL);
+		ent = malloc(sizeof(*ent), M_IPFW_TBL, M_WAITOK | M_ZERO);
+		ent->value = tei->value;
+		ent->type = AF_INET6;
+
+		ipv6_writemask(&mask6, mlen);
+		memcpy(&ent->a.a6, tei->paddr, sizeof(struct in6_addr));
+		APPLY_MASK(&ent->a.a6, &mask6);
+		tb->ent_ptr = ent;
+#endif
+	} else {
+		/* Unknown CIDR type */
+		return (EINVAL);
+	}
+
+	return (0);
+}
+
+static int
+ta_add_chash(void *ta_state, struct table_info *ti, struct tentry_info *tei,
+    void *ta_buf, uint64_t *pflags, uint32_t *pnum)
+{
+	struct chash_cfg *ccfg;
+	struct chashbhead *head;
+	struct chashentry *ent, *tmp;
+	struct ta_buf_chash *tb;
+	int exists;
+	uint32_t hash;
+
+	ccfg = (struct chash_cfg *)ta_state;
+	tb = (struct ta_buf_chash *)ta_buf;
+	ent = (struct chashentry *)tb->ent_ptr;
+	hash = 0;
+	exists = 0;
+
+	if (tei->subtype == AF_INET) {
+		if (tei->masklen != ccfg->mask4)
+			return (EINVAL);
+		head = ccfg->head4;
+		hash = hash_ip(ent->a.a4, ccfg->size4);
+		/* Check for existence */
+		SLIST_FOREACH(tmp, &head[hash], next) {
+			if (tmp->a.a4 == ent->a.a4) {
+				exists = 1;
+				break;
+			}
+		}
+	} else {
+		if (tei->masklen != ccfg->mask6)
+			return (EINVAL);
+		head = ccfg->head6;
+		if (tei->masklen == 64)
+			hash = hash_ip64(&ent->a.a6, ccfg->size6);
+		else
+			hash = hash_ip6(&ent->a.a6, ccfg->size6);
+		/* Check for existence */
+		SLIST_FOREACH(tmp, &head[hash], next) {
+			if (memcmp(&tmp->a.a6, &ent->a.a6, 16)) {
+				exists = 1;
+				break;
+			}
+		}
+	}
+
+	if (exists == 1) {
+		if ((tei->flags & TEI_FLAGS_UPDATE) == 0)
+			return (EEXIST);
+		/* Record already exists. Update value if we're asked to */
+		tmp->value = tei->value;
+		/* Indicate that update has happened instead of addition */
+		tei->flags |= TEI_FLAGS_UPDATED;
+		*pnum = 0;
+	} else {
+		SLIST_INSERT_HEAD(&head[hash], ent, next);
+		tb->ent_ptr = NULL;
+		*pnum = 1;
+	}
+
+	return (0);
+}
+
+static int
+ta_prepare_del_chash(struct ip_fw_chain *ch, struct tentry_info *tei,
+    void *ta_buf)
+{
+	struct ta_buf_chash *tb;
+	int mlen;
+	struct in6_addr mask6;
+
+	tb = (struct ta_buf_chash *)ta_buf;
+	memset(tb, 0, sizeof(struct ta_buf_chash));
+
+	mlen = tei->masklen;
+	
+	if (tei->subtype == AF_INET) {
+#ifdef INET
+		if (mlen > 32)
+			return (EINVAL);
+		tb->type = AF_INET;
+
+		/* Calculate masked address */
+		tb->a.a4 = ntohl(*((in_addr_t *)tei->paddr)) >> (32 - mlen);
+#endif
+#ifdef INET6
+	} else if (tei->subtype == AF_INET6) {
+		/* IPv6 case */
+		if (mlen > 128)
+			return (EINVAL);
+		tb->type = AF_INET6;
+
+		ipv6_writemask(&mask6, mlen);
+		memcpy(&tb->a.a6, tei->paddr, sizeof(struct in6_addr));
+		APPLY_MASK(&tb->a.a6, &mask6);
+#endif
+	} else {
+		/* Unknown CIDR type */
+		return (EINVAL);
+	}
+
+	return (0);
+}
+
+static int
+ta_del_chash(void *ta_state, struct table_info *ti, struct tentry_info *tei,
+    void *ta_buf, uint64_t *pflags, uint32_t *pnum)
+{
+	struct chash_cfg *ccfg;
+	struct chashbhead *head;
+	struct chashentry *ent, *tmp_next;
+	struct ta_buf_chash *tb;
+	uint32_t hash;
+
+	ccfg = (struct chash_cfg *)ta_state;
+	tb = (struct ta_buf_chash *)ta_buf;
+
+	if (tei->subtype == AF_INET) {
+		if (tei->masklen != ccfg->mask4)
+			return (EINVAL);
+		head = ccfg->head4;
+		hash = hash_ip(tb->a.a4, ccfg->size4);
+
+		SLIST_FOREACH_SAFE(ent, &head[hash], next, tmp_next) {
+			if (ent->a.a4 == tb->a.a4) {
+				SLIST_REMOVE(&head[hash], ent, chashentry,next);
+				*pnum = 1;
+				return (0);
+			}
+		}
+	} else {
+		if (tei->masklen != ccfg->mask6)
+			return (EINVAL);
+		head = ccfg->head6;
+		if (tei->masklen == 64)
+			hash = hash_ip64(&tb->a.a6, ccfg->size6);
+		else
+			hash = hash_ip6(&tb->a.a6, ccfg->size6);
+
+		SLIST_FOREACH_SAFE(ent, &head[hash], next, tmp_next) {
+			if (memcmp(&ent->a.a6, &tb->a.a6, 16)) {
+				SLIST_REMOVE(&head[hash], ent, chashentry,next);
+				*pnum = 1;
+				return (0);
+			}
+		}
+	}
+
+	return (ENOENT);
+}
+
+static void
+ta_flush_chash_entry(struct ip_fw_chain *ch, struct tentry_info *tei,
+    void *ta_buf)
+{
+	struct ta_buf_chash *tb;
+
+	tb = (struct ta_buf_chash *)ta_buf;
+
+	if (tb->ent_ptr != NULL)
+		free(tb->ent_ptr, M_IPFW_TBL);
+}
+
+struct table_algo cidr_hash = {
+	.name		= "cidr:hash",
+	.lookup		= ta_lookup_chash_slow,
+	.init		= ta_init_chash,
+	.destroy	= ta_destroy_chash,
+	.prepare_add	= ta_prepare_add_chash,
+	.prepare_del	= ta_prepare_del_chash,
+	.add		= ta_add_chash,
+	.del		= ta_del_chash,
+	.flush_entry	= ta_flush_chash_entry,
+	.foreach	= ta_foreach_chash,
+	.dump_tentry	= ta_dump_chash_tentry,
+	.find_tentry	= ta_find_chash_tentry,
+	.print_config	= ta_print_chash_config,
 };
 
 
@@ -560,7 +1240,6 @@ struct ifentry {
 	struct named_object	no;
 	struct ipfw_ifc		ic;
 	struct iftable_cfg	*icfg;
-	TAILQ_ENTRY(ifentry)	next;
 	uint32_t		value;
 	int			linked;
 };
@@ -788,7 +1467,7 @@ ta_prepare_add_ifidx(struct ip_fw_chain *ch, struct tentry_info *tei,
 	struct ifentry *ife;
 
 	tb = (struct ta_buf_ifidx *)ta_buf;
-	memset(tb, 0, sizeof(struct ta_buf_cidr));
+	memset(tb, 0, sizeof(struct ta_buf_ifidx));
 
 	/* Check if string is terminated */
 	ifname = (char *)tei->paddr;
@@ -877,11 +1556,11 @@ static int
 ta_prepare_del_ifidx(struct ip_fw_chain *ch, struct tentry_info *tei,
     void *ta_buf)
 {
-	struct ta_buf_iface *tb;
+	struct ta_buf_ifidx *tb;
 	char *ifname;
 
-	tb = (struct ta_buf_iface *)ta_buf;
-	memset(tb, 0, sizeof(struct ta_buf_cidr));
+	tb = (struct ta_buf_ifidx *)ta_buf;
+	memset(tb, 0, sizeof(struct ta_buf_ifidx));
 
 	/* Check if string is terminated */
 	ifname = (char *)tei->paddr;
@@ -1167,7 +1846,7 @@ ta_foreach_ifidx(void *ta_state, struct table_info *ti, ta_foreach_f *f,
 	ipfw_objhash_foreach(icfg->ii, foreach_ifidx, &wa);
 }
 
-struct table_algo idx_iface = {
+struct table_algo iface_idx = {
 	.name		= "iface:array",
 	.lookup		= ta_lookup_ifidx,
 	.init		= ta_init_ifidx,
@@ -1193,8 +1872,9 @@ ipfw_table_algo_init(struct ip_fw_chain *chain)
 	/*
 	 * Register all algorithms presented here.
 	 */
-	ipfw_add_table_algo(chain, &radix_cidr);
-	ipfw_add_table_algo(chain, &idx_iface);
+	ipfw_add_table_algo(chain, &cidr_radix);
+	ipfw_add_table_algo(chain, &cidr_hash);
+	ipfw_add_table_algo(chain, &iface_idx);
 }
 
 void
