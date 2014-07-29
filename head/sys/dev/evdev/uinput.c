@@ -54,16 +54,11 @@ static int uinput_read(struct cdev *, struct uio *, int);
 static int uinput_write(struct cdev *, struct uio *, int);
 static int uinput_ioctl(struct cdev *, u_long, caddr_t, int, struct thread *);
 static int uinput_poll(struct cdev *, int, struct thread *);
-static int uinput_kqfilter(struct cdev *, struct knote *);
-static int uinput_kqread(struct knote *kn, long hint);
-static void uinput_kqdetach(struct knote *kn);
 static void uinput_dtor(void *);
 
 static int uinput_setup_provider(struct evdev_dev *, struct uinput_user_dev *);
 
-static evdev_open_t uinput_ev_open;
-static evdev_close_t uinput_ev_close;
-static evdev_event_t uinput_ev_event;
+
 
 static int uinput_cdev_create(void);
 
@@ -267,38 +262,38 @@ uinput_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag,
 		break;
 
 	case UI_SET_EVBIT:
-		evdev_support_event(state->ucs_evdev, (uint16_t)data);
+		evdev_support_event(state->ucs_evdev, (uint16_t)(uintptr_t)data);
 		break;
 
 	case UI_SET_KEYBIT:
-		evdev_support_key(state->ucs_evdev, (uint16_t)data);
+		evdev_support_key(state->ucs_evdev, (uint16_t)(uintptr_t)data);
 		break;
 
 	case UI_SET_RELBIT:
-		evdev_support_rel(state->ucs_evdev, (uint16_t)data);
+		evdev_support_rel(state->ucs_evdev, (uint16_t)(uintptr_t)data);
 		break;
 
 	case UI_SET_ABSBIT:
-		evdev_support_abs(state->ucs_evdev, (uint16_t)data);
+		evdev_support_abs(state->ucs_evdev, (uint16_t)(uintptr_t)data);
 		break;
 
 	case UI_SET_MSCBIT:
-		evdev_support_msc(state->ucs_evdev, (uint16_t)data);
+		evdev_support_msc(state->ucs_evdev, (uint16_t)(uintptr_t)data);
 		break;
 
 	case UI_SET_LEDBIT:
-		evdev_support_led(state->ucs_evdev, (uint16_t)data);
+		evdev_support_led(state->ucs_evdev, (uint16_t)(uintptr_t)data);
 		break;
 
 	case UI_SET_SNDBIT:
-		evdev_support_snd(state->ucs_evdev, (uint16_t)data);
+		evdev_support_snd(state->ucs_evdev, (uint16_t)(uintptr_t)data);
 		break;
 
 	case UI_SET_PHYS:
 		break;
 
 	case UI_SET_SWBIT:
-		evdev_support_sw(state->ucs_evdev, (uint16_t)data);
+		evdev_support_sw(state->ucs_evdev, (uint16_t)(uintptr_t)data);
 		break;
 
 	case UI_SET_PROPBIT:

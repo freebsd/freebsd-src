@@ -42,7 +42,6 @@
 #include <dev/evdev/input.h>
 #include <dev/evdev/evdev.h>
 
-#define	DEBUG
 #ifdef DEBUG
 #define	debugf(fmt, args...)	printf("evdev: " fmt "\n", ##args)
 #else
@@ -53,21 +52,36 @@
 
 MALLOC_DEFINE(M_EVDEV, "evdev", "evdev memory");
 
-static inline void changebit(uint32_t *array, int, int);
-static struct evdev_client *evdev_client_alloc(void);
+static inline void set_bit(unsigned long *, int);
+static inline void clr_bit(unsigned long *, int);
+static inline void change_bit(unsigned long *, int, int);
 static void evdev_assign_id(struct evdev_dev *);
+#if 0
 static void evdev_start_repeat(struct evdev_dev *, int32_t);
 static void evdev_stop_repeat(struct evdev_dev *);
+#endif
 static void evdev_client_push(struct evdev_client *, uint16_t, uint16_t,
     int32_t);
 
 static inline void
-changebit(uint32_t *array, int bit, int value)
+set_bit(unsigned long *array, int bit)
+{
+	array[bit / 64] |= (1LL << (bit % 64));
+}
+
+static inline void
+clr_bit(unsigned long *array, int bit)
+{
+	array[bit / 64] &= ~(1LL << (bit % 64));
+}
+
+static inline void
+change_bit(unsigned long *array, int bit, int value)
 {
 	if (value)
-		setbit(array, bit);
+		set_bit(array, bit);
 	else
-		clrbit(array, bit);
+		clr_bit(array, bit);
 }
 
 struct evdev_dev *
@@ -175,28 +189,28 @@ inline void
 evdev_support_event(struct evdev_dev *evdev, uint16_t type)
 {
 
-	setbit(&evdev->ev_type_flags, type);
+	set_bit(evdev->ev_type_flags, type);
 }
 
 inline void
 evdev_support_key(struct evdev_dev *evdev, uint16_t code)
 {
 
-	setbit(&evdev->ev_key_flags, code);
+	set_bit(evdev->ev_key_flags, code);
 }
 
 inline void
 evdev_support_rel(struct evdev_dev *evdev, uint16_t code)
 {
 
-	setbit(&evdev->ev_rel_flags, code);
+	set_bit(evdev->ev_rel_flags, code);
 }
 
 inline void
 evdev_support_abs(struct evdev_dev *evdev, uint16_t code)
 {
 
-	setbit(&evdev->ev_abs_flags, code);
+	set_bit(evdev->ev_abs_flags, code);
 }
 
 
@@ -204,7 +218,7 @@ inline void
 evdev_support_msc(struct evdev_dev *evdev, uint16_t code)
 {
 
-	setbit(&evdev->ev_msc_flags, code);
+	set_bit(evdev->ev_msc_flags, code);
 }
 
 
@@ -212,21 +226,21 @@ inline void
 evdev_support_led(struct evdev_dev *evdev, uint16_t code)
 {
 
-	setbit(&evdev->ev_led_flags, code);
+	set_bit(evdev->ev_led_flags, code);
 }
 
 inline void
 evdev_support_snd(struct evdev_dev *evdev, uint16_t code)
 {
 
-	setbit(&evdev->ev_snd_flags, code);
+	set_bit(evdev->ev_snd_flags, code);
 }
 
 inline void
 evdev_support_sw(struct evdev_dev *evdev, uint16_t code)
 {
 
-	setbit(&evdev->ev_sw_flags, code);
+	set_bit(evdev->ev_sw_flags, code);
 }
 
 inline void
@@ -234,7 +248,7 @@ evdev_support_repeat(struct evdev_dev *evdev, enum evdev_repeat_mode mode)
 {
 
 	if (mode != NO_REPEAT)
-		setbit(&evdev->ev_type_flags, EV_REP);
+		set_bit(evdev->ev_type_flags, EV_REP);
 
 	evdev->ev_repeat_mode = mode;
 }
@@ -268,16 +282,16 @@ evdev_push_event(struct evdev_dev *evdev, uint16_t type, uint16_t code,
 
 	/* For certain event types, update device state bits */
 	if (type == EV_KEY)
-		changebit(evdev->ev_key_states, code, value);
+		change_bit(evdev->ev_key_states, code, value);
 
 	if (type == EV_LED)
-		changebit(evdev->ev_led_states, code, value);
+		change_bit(evdev->ev_led_states, code, value);
 
 	if (type == EV_SND)
-		changebit(evdev->ev_snd_states, code, value);
+		change_bit(evdev->ev_snd_states, code, value);
 
 	if (type == EV_SW)
-		changebit(evdev->ev_sw_states, code, value);
+		change_bit(evdev->ev_sw_states, code, value);
 
 	/* For EV_ABS, save last value in absinfo */
 	if (type == EV_ABS)
@@ -307,11 +321,19 @@ evdev_inject_event(struct evdev_dev *evdev, uint16_t type, uint16_t code,
 	return (0);
 }
 
-int
+inline int
 evdev_sync(struct evdev_dev *evdev)
 {
 	
 	return (evdev_push_event(evdev, EV_SYN, SYN_REPORT, 1));
+}
+
+
+inline int
+evdev_mt_sync(struct evdev_dev *evdev)
+{
+	
+	return (evdev_push_event(evdev, EV_SYN, SYN_MT_REPORT, 1));
 }
 
 int
@@ -454,6 +476,7 @@ evdev_assign_id(struct evdev_dev *dev)
 	dev->ev_id.bustype = BUS_HOST;
 }
 
+#if 0
 static void
 evdev_start_repeat(struct evdev_dev *dev, int32_t key)
 {
@@ -465,6 +488,7 @@ evdev_stop_repeat(struct evdev_dev *dev)
 {
 
 }
+#endif
 
 static void
 evdev_client_push(struct evdev_client *client, uint16_t type, uint16_t code,

@@ -34,6 +34,7 @@
 #include <dev/evdev/input.h>
 
 #define	NAMELEN		80
+#define	nlongs(x)	(howmany(x, sizeof(unsigned long) * 8))
 
 MALLOC_DECLARE(M_EVDEV);
 
@@ -78,14 +79,14 @@ struct evdev_dev
 	enum evdev_repeat_mode	ev_repeat_mode;
 
 	/* Supported features: */
-	uint32_t		ev_type_flags[howmany(EV_CNT, 32)];
-	uint32_t		ev_key_flags[howmany(KEY_CNT, 32)];
-	uint32_t		ev_rel_flags[howmany(REL_CNT, 32)];
-	uint32_t		ev_abs_flags[howmany(ABS_CNT, 32)];
-	uint32_t		ev_msc_flags[howmany(MSC_CNT, 32)];
-	uint32_t		ev_led_flags[howmany(LED_CNT, 32)];
-	uint32_t		ev_snd_flags[howmany(SND_CNT, 32)];
-	uint32_t		ev_sw_flags[howmany(SW_CNT, 32)];
+	unsigned long		ev_type_flags[nlongs(EV_CNT)];
+	unsigned long		ev_key_flags[nlongs(KEY_CNT)];
+	unsigned long		ev_rel_flags[nlongs(REL_CNT)];
+	unsigned long		ev_abs_flags[nlongs(ABS_CNT)];
+	unsigned long		ev_msc_flags[nlongs(MSC_CNT)];
+	unsigned long		ev_led_flags[nlongs(LED_CNT)];
+	unsigned long		ev_snd_flags[nlongs(SND_CNT)];
+	unsigned long		ev_sw_flags[nlongs(SW_CNT)];
 	struct input_absinfo	ev_absinfo[ABS_CNT];
 
 	/* Repeat parameters & callout: */
@@ -93,10 +94,10 @@ struct evdev_dev
 	struct callout		ev_rep_callout;
 
 	/* State: */
-	uint32_t		ev_key_states[howmany(KEY_CNT, 32)];
-	uint32_t		ev_led_states[howmany(LED_CNT, 32)];
-	uint32_t		ev_snd_states[howmany(SND_CNT, 32)];
-	uint32_t		ev_sw_states[howmany(SW_CNT, 32)];
+	unsigned long		ev_key_states[nlongs(KEY_CNT)];
+	unsigned long		ev_led_states[nlongs(LED_CNT)];
+	unsigned long		ev_snd_states[nlongs(SND_CNT)];
+	unsigned long		ev_sw_states[nlongs(SW_CNT)];
 
 	/* Counters: */
 	uint64_t		ev_event_count;
@@ -146,6 +147,7 @@ int evdev_unregister(device_t, struct evdev_dev *);
 int evdev_push_event(struct evdev_dev *, uint16_t, uint16_t, int32_t);
 int evdev_inject_event(struct evdev_dev *, uint16_t, uint16_t, int32_t);
 int evdev_sync(struct evdev_dev *);
+int evdev_mt_sync(struct evdev_dev *);
 int evdev_cdev_create(struct evdev_dev *);
 int evdev_cdev_destroy(struct evdev_dev *);
 void evdev_support_event(struct evdev_dev *, uint16_t);

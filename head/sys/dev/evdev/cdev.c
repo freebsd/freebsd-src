@@ -446,7 +446,7 @@ evdev_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag,
 static int
 evdev_ioctl_eviocgbit(struct evdev_dev *evdev, int type, int len, caddr_t data)
 {
-	uint32_t *bitmap;
+	unsigned long *bitmap;
 	int limit;
 
 	switch (type) {
@@ -499,7 +499,7 @@ evdev_ioctl_eviocgbit(struct evdev_dev *evdev, int type, int len, caddr_t data)
 	 */
 	bzero(data, len);
 
-	limit = howmany(limit, 8);
+	limit = nlongs(limit) * sizeof(unsigned long);
 	len = MIN(limit, len);
 	memcpy(data, bitmap, len);
 	return (0);
