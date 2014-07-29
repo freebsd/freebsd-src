@@ -21,16 +21,16 @@
  * specific prior written permission.
  * 
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
- * TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE
- * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
- * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
- * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
- * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
+ * TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+ * PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+ * LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+ * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+ * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
 /**
@@ -40,7 +40,6 @@
  */
 
 #include "config.h"
-#include <ldns/ldns.h>
 #include "util/data/msgreply.h"
 #include "util/storage/lookup3.h"
 #include "util/log.h"
@@ -51,15 +50,17 @@
 #include "util/regional.h"
 #include "util/data/msgparse.h"
 #include "util/data/msgencode.h"
+#include "ldns/sbuffer.h"
+#include "ldns/wire2str.h"
 
 /** MAX TTL default for messages and rrsets */
-uint32_t MAX_TTL = 3600 * 24 * 10; /* ten days */
+time_t MAX_TTL = 3600 * 24 * 10; /* ten days */
 /** MIN TTL default for messages and rrsets */
-uint32_t MIN_TTL = 0;
+time_t MIN_TTL = 0;
 
 /** allocate qinfo, return 0 on error */
 static int
-parse_create_qinfo(ldns_buffer* pkt, struct msg_parse* msg, 
+parse_create_qinfo(sldns_buffer* pkt, struct msg_parse* msg, 
 	struct query_info* qinf, struct regional* region)
 {
 	if(msg->qname) {
@@ -79,7 +80,7 @@ parse_create_qinfo(ldns_buffer* pkt, struct msg_parse* msg,
 /** constructor for replyinfo */
 static struct reply_info*
 construct_reply_info_base(struct regional* region, uint16_t flags, size_t qd,
-	uint32_t ttl, uint32_t prettl, size_t an, size_t ns, size_t ar, 
+	time_t ttl, time_t prettl, size_t an, size_t ns, size_t ar, 
 	size_t total, enum sec_status sec)
 {
 	struct reply_info* rep;
@@ -153,13 +154,13 @@ repinfo_alloc_rrset_keys(struct reply_info* rep, struct alloc_cache* alloc,
 
 /** do the rdata copy */
 static int
-rdata_copy(ldns_buffer* pkt, struct packed_rrset_data* data, uint8_t* to, 
-	struct rr_parse* rr, uint32_t* rr_ttl, uint16_t type)
+rdata_copy(sldns_buffer* pkt, struct packed_rrset_data* data, uint8_t* to, 
+	struct rr_parse* rr, time_t* rr_ttl, uint16_t type)
 {
 	uint16_t pkt_len;
-	const ldns_rr_descriptor* desc;
+	const sldns_rr_descriptor* desc;
 
-	*rr_ttl = ldns_read_uint32(rr->ttl_data);
+	*rr_ttl = sldns_read_uint32(rr->ttl_data);
 	/* RFC 2181 Section 8. if msb of ttl is set treat as if zero. */
 	if(*rr_ttl & 0x80000000U)
 		*rr_ttl = 0;
@@ -174,18 +175,18 @@ rdata_copy(ldns_buffer* pkt, struct packed_rrset_data* data, uint8_t* to,
 		return 1;
 	}
 
-	ldns_buffer_set_position(pkt, (size_t)
-		(rr->ttl_data - ldns_buffer_begin(pkt) + sizeof(uint32_t)));
+	sldns_buffer_set_position(pkt, (size_t)
+		(rr->ttl_data - sldns_buffer_begin(pkt) + sizeof(uint32_t)));
 	/* insert decompressed size into rdata len stored in memory */
 	/* -2 because rdatalen bytes are not included. */
 	pkt_len = htons(rr->size - 2);
 	memmove(to, &pkt_len, sizeof(uint16_t));
 	to += 2;
 	/* read packet rdata len */
-	pkt_len = ldns_buffer_read_u16(pkt);
-	if(ldns_buffer_remaining(pkt) < pkt_len)
+	pkt_len = sldns_buffer_read_u16(pkt);
+	if(sldns_buffer_remaining(pkt) < pkt_len)
 		return 0;
-	desc = ldns_rr_descript(type);
+	desc = sldns_rr_descript(type);
 	if(pkt_len > 0 && desc && desc->_dname_count > 0) {
 		int count = (int)desc->_dname_count;
 		int rdf = 0;
@@ -195,25 +196,25 @@ rdata_copy(ldns_buffer* pkt, struct packed_rrset_data* data, uint8_t* to,
 		while(pkt_len > 0 && count) {
 			switch(desc->_wireformat[rdf]) {
 			case LDNS_RDF_TYPE_DNAME:
-				oldpos = ldns_buffer_position(pkt);
+				oldpos = sldns_buffer_position(pkt);
 				dname_pkt_copy(pkt, to, 
-					ldns_buffer_current(pkt));
+					sldns_buffer_current(pkt));
 				to += pkt_dname_len(pkt);
-				pkt_len -= ldns_buffer_position(pkt)-oldpos;
+				pkt_len -= sldns_buffer_position(pkt)-oldpos;
 				count--;
 				len = 0;
 				break;
 			case LDNS_RDF_TYPE_STR:
-				len = ldns_buffer_current(pkt)[0] + 1;
+				len = sldns_buffer_current(pkt)[0] + 1;
 				break;
 			default:
 				len = get_rdf_size(desc->_wireformat[rdf]);
 				break;
 			}
 			if(len) {
-				memmove(to, ldns_buffer_current(pkt), len);
+				memmove(to, sldns_buffer_current(pkt), len);
 				to += len;
-				ldns_buffer_skip(pkt, (ssize_t)len);
+				sldns_buffer_skip(pkt, (ssize_t)len);
 				log_assert(len <= pkt_len);
 				pkt_len -= len;
 			}
@@ -222,14 +223,14 @@ rdata_copy(ldns_buffer* pkt, struct packed_rrset_data* data, uint8_t* to,
 	}
 	/* copy remaining rdata */
 	if(pkt_len >  0)
-		memmove(to, ldns_buffer_current(pkt), pkt_len);
+		memmove(to, sldns_buffer_current(pkt), pkt_len);
 	
 	return 1;
 }
 
 /** copy over the data into packed rrset */
 static int
-parse_rr_copy(ldns_buffer* pkt, struct rrset_parse* pset, 
+parse_rr_copy(sldns_buffer* pkt, struct rrset_parse* pset, 
 	struct packed_rrset_data* data)
 {
 	size_t i;
@@ -245,7 +246,7 @@ parse_rr_copy(ldns_buffer* pkt, struct rrset_parse* pset,
 	data->rr_len = (size_t*)((uint8_t*)data + 
 		sizeof(struct packed_rrset_data));
 	data->rr_data = (uint8_t**)&(data->rr_len[total]);
-	data->rr_ttl = (uint32_t*)&(data->rr_data[total]);
+	data->rr_ttl = (time_t*)&(data->rr_data[total]);
 	nextrdata = (uint8_t*)&(data->rr_ttl[total]);
 	for(i=0; i<data->count; i++) {
 		data->rr_len[i] = rr->size;
@@ -272,13 +273,13 @@ parse_rr_copy(ldns_buffer* pkt, struct rrset_parse* pset,
 
 /** create rrset return 0 on failure */
 static int
-parse_create_rrset(ldns_buffer* pkt, struct rrset_parse* pset,
+parse_create_rrset(sldns_buffer* pkt, struct rrset_parse* pset,
 	struct packed_rrset_data** data, struct regional* region)
 {
 	/* allocate */
 	size_t s = sizeof(struct packed_rrset_data) + 
 		(pset->rr_count + pset->rrsig_count) * 
-		(sizeof(size_t)+sizeof(uint8_t*)+sizeof(uint32_t)) + 
+		(sizeof(size_t)+sizeof(uint8_t*)+sizeof(time_t)) + 
 		pset->size;
 	if(region)
 		*data = regional_alloc(region, s);
@@ -332,7 +333,7 @@ get_rrset_trust(struct msg_parse* msg, struct rrset_parse* rrset)
 }
 
 int
-parse_copy_decompress_rrset(ldns_buffer* pkt, struct msg_parse* msg,
+parse_copy_decompress_rrset(sldns_buffer* pkt, struct msg_parse* msg,
 	struct rrset_parse *pset, struct regional* region, 
 	struct ub_packed_rrset_key* pk)
 {
@@ -370,7 +371,7 @@ parse_copy_decompress_rrset(ldns_buffer* pkt, struct msg_parse* msg,
  * @return 0 on failure.
  */
 static int
-parse_copy_decompress(ldns_buffer* pkt, struct msg_parse* msg,
+parse_copy_decompress(sldns_buffer* pkt, struct msg_parse* msg,
 	struct reply_info* rep, struct regional* region)
 {
 	size_t i;
@@ -397,7 +398,7 @@ parse_copy_decompress(ldns_buffer* pkt, struct msg_parse* msg,
 }
 
 int 
-parse_create_msg(ldns_buffer* pkt, struct msg_parse* msg,
+parse_create_msg(sldns_buffer* pkt, struct msg_parse* msg,
 	struct alloc_cache* alloc, struct query_info* qinf, 
 	struct reply_info** rep, struct regional* region)
 {
@@ -413,7 +414,7 @@ parse_create_msg(ldns_buffer* pkt, struct msg_parse* msg,
 	return 1;
 }
 
-int reply_info_parse(ldns_buffer* pkt, struct alloc_cache* alloc,
+int reply_info_parse(sldns_buffer* pkt, struct alloc_cache* alloc,
         struct query_info* qinf, struct reply_info** rep, 
 	struct regional* region, struct edns_data* edns)
 {
@@ -428,7 +429,7 @@ int reply_info_parse(ldns_buffer* pkt, struct alloc_cache* alloc,
 	}
 	memset(msg, 0, sizeof(*msg));
 	
-	ldns_buffer_set_position(pkt, 0);
+	sldns_buffer_set_position(pkt, 0);
 	if((ret = parse_packet(pkt, msg, region)) != 0) {
 		return ret;
 	}
@@ -465,7 +466,7 @@ reply_info_sortref(struct reply_info* rep)
 }
 
 void 
-reply_info_set_ttls(struct reply_info* rep, uint32_t timenow)
+reply_info_set_ttls(struct reply_info* rep, time_t timenow)
 {
 	size_t i, j;
 	rep->ttl += timenow;
@@ -496,23 +497,23 @@ reply_info_parsedelete(struct reply_info* rep, struct alloc_cache* alloc)
 }
 
 int 
-query_info_parse(struct query_info* m, ldns_buffer* query)
+query_info_parse(struct query_info* m, sldns_buffer* query)
 {
-	uint8_t* q = ldns_buffer_begin(query);
+	uint8_t* q = sldns_buffer_begin(query);
 	/* minimum size: header + \0 + qtype + qclass */
-	if(ldns_buffer_limit(query) < LDNS_HEADER_SIZE + 5)
+	if(sldns_buffer_limit(query) < LDNS_HEADER_SIZE + 5)
 		return 0;
 	if(LDNS_OPCODE_WIRE(q) != LDNS_PACKET_QUERY || 
-		LDNS_QDCOUNT(q) != 1 || ldns_buffer_position(query) != 0)
+		LDNS_QDCOUNT(q) != 1 || sldns_buffer_position(query) != 0)
 		return 0;
-	ldns_buffer_skip(query, LDNS_HEADER_SIZE);
-	m->qname = ldns_buffer_current(query);
+	sldns_buffer_skip(query, LDNS_HEADER_SIZE);
+	m->qname = sldns_buffer_current(query);
 	if((m->qname_len = query_dname_len(query)) == 0)
 		return 0; /* parse error */
-	if(ldns_buffer_remaining(query) < 4)
+	if(sldns_buffer_remaining(query) < 4)
 		return 0; /* need qtype, qclass */
-	m->qtype = ldns_buffer_read_u16(query);
-	m->qclass = ldns_buffer_read_u16(query);
+	m->qtype = sldns_buffer_read_u16(query);
+	m->qclass = sldns_buffer_read_u16(query);
 	return 1;
 }
 
@@ -764,32 +765,23 @@ void
 log_dns_msg(const char* str, struct query_info* qinfo, struct reply_info* rep)
 {
 	/* not particularly fast but flexible, make wireformat and print */
-	ldns_buffer* buf = ldns_buffer_new(65535);
+	sldns_buffer* buf = sldns_buffer_new(65535);
 	struct regional* region = regional_create();
 	if(!reply_info_encode(qinfo, rep, 0, rep->flags, buf, 0, 
 		region, 65535, 1)) {
 		log_info("%s: log_dns_msg: out of memory", str);
 	} else {
-		ldns_status s;
-		ldns_pkt* pkt = NULL;
-		s = ldns_buffer2pkt_wire(&pkt, buf);
-		if(s != LDNS_STATUS_OK) {
-			log_info("%s: log_dns_msg: ldns parse gave: %s",
-				str, ldns_get_errorstr_by_id(s));
+		char* str = sldns_wire2str_pkt(sldns_buffer_begin(buf),
+			sldns_buffer_limit(buf));
+		if(!str) {
+			log_info("%s: log_dns_msg: ldns tostr failed", str);
 		} else {
-			ldns_buffer_clear(buf);
-			s = ldns_pkt2buffer_str(buf, pkt);
-			if(s != LDNS_STATUS_OK) {
-				log_info("%s: log_dns_msg: ldns tostr gave: %s",
-					str, ldns_get_errorstr_by_id(s));
-			} else {
-				log_info("%s %s", 
-					str, (char*)ldns_buffer_begin(buf));
-			}
+			log_info("%s %s", 
+				str, (char*)sldns_buffer_begin(buf));
 		}
-		ldns_pkt_free(pkt);
+		free(str);
 	}
-	ldns_buffer_free(buf);
+	sldns_buffer_free(buf);
 	regional_destroy(region);
 }
 

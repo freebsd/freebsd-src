@@ -23,16 +23,16 @@
  * specific prior written permission.
  * 
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
- * TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE
- * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
- * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
- * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
- * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
+ * TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+ * PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+ * LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+ * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+ * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
 %{
@@ -44,7 +44,6 @@
 #include <stdlib.h>
 #include <assert.h>
 
-#include "util/configyyrename.h"
 #include "util/config_file.h"
 #include "util/net_help.h"
 
@@ -101,10 +100,11 @@ extern struct config_parser_state* cfg_parser;
 %token VAR_VAL_SIG_SKEW_MAX VAR_CACHE_MIN_TTL VAR_VAL_LOG_LEVEL
 %token VAR_AUTO_TRUST_ANCHOR_FILE VAR_KEEP_MISSING VAR_ADD_HOLDDOWN 
 %token VAR_DEL_HOLDDOWN VAR_SO_RCVBUF VAR_EDNS_BUFFER_SIZE VAR_PREFETCH
-%token VAR_PREFETCH_KEY VAR_SO_SNDBUF VAR_HARDEN_BELOW_NXDOMAIN
+%token VAR_PREFETCH_KEY VAR_SO_SNDBUF VAR_SO_REUSEPORT VAR_HARDEN_BELOW_NXDOMAIN
 %token VAR_IGNORE_CD_FLAG VAR_LOG_QUERIES VAR_TCP_UPSTREAM VAR_SSL_UPSTREAM
 %token VAR_SSL_SERVICE_KEY VAR_SSL_SERVICE_PEM VAR_SSL_PORT VAR_FORWARD_FIRST
 %token VAR_STUB_FIRST VAR_MINIMAL_RESPONSES VAR_RRSET_ROUNDROBIN
+%token VAR_MAX_UDP_SIZE VAR_DELAY_CLOSE VAR_UNBLOCK_LAN_ZONES
 
 %%
 toplevelvars: /* empty */ | toplevelvars toplevelvar ;
@@ -161,7 +161,8 @@ content_server: server_num_threads | server_verbosity | server_port |
 	server_so_sndbuf | server_harden_below_nxdomain | server_ignore_cd_flag |
 	server_log_queries | server_tcp_upstream | server_ssl_upstream |
 	server_ssl_service_key | server_ssl_service_pem | server_ssl_port |
-	server_minimal_responses | server_rrset_roundrobin
+	server_minimal_responses | server_rrset_roundrobin | server_max_udp_size |
+	server_so_reuseport | server_delay_close | server_unblock_lan_zones
 	;
 stubstart: VAR_STUB_ZONE
 	{
@@ -594,6 +595,16 @@ server_so_sndbuf: VAR_SO_SNDBUF STRING_ARG
 		free($2);
 	}
 	;
+server_so_reuseport: VAR_SO_REUSEPORT STRING_ARG
+    {
+        OUTYY(("P(server_so_reuseport:%s)\n", $2));
+        if(strcmp($2, "yes") != 0 && strcmp($2, "no") != 0)
+            yyerror("expected yes or no.");
+        else cfg_parser->cfg->so_reuseport =
+            (strcmp($2, "yes")==0);
+        free($2);
+    }
+    ;
 server_edns_buffer_size: VAR_EDNS_BUFFER_SIZE STRING_ARG
 	{
 		OUTYY(("P(server_edns_buffer_size:%s)\n", $2));
@@ -654,6 +665,25 @@ server_jostle_timeout: VAR_JOSTLE_TIMEOUT STRING_ARG
 		if(atoi($2) == 0 && strcmp($2, "0") != 0)
 			yyerror("number expected");
 		else cfg_parser->cfg->jostle_time = atoi($2);
+		free($2);
+	}
+	;
+server_delay_close: VAR_DELAY_CLOSE STRING_ARG
+	{
+		OUTYY(("P(server_delay_close:%s)\n", $2));
+		if(atoi($2) == 0 && strcmp($2, "0") != 0)
+			yyerror("number expected");
+		else cfg_parser->cfg->delay_close = atoi($2);
+		free($2);
+	}
+	;
+server_unblock_lan_zones: VAR_UNBLOCK_LAN_ZONES STRING_ARG
+	{
+		OUTYY(("P(server_unblock_lan_zones:%s)\n", $2));
+		if(strcmp($2, "yes") != 0 && strcmp($2, "no") != 0)
+			yyerror("expected yes or no.");
+		else cfg_parser->cfg->unblock_lan_zones = 
+			(strcmp($2, "yes")==0);
 		free($2);
 	}
 	;
@@ -864,9 +894,12 @@ server_access_control: VAR_ACCESS_CONTROL STRING_ARG STRING_ARG
 	{
 		OUTYY(("P(server_access_control:%s %s)\n", $2, $3));
 		if(strcmp($3, "deny")!=0 && strcmp($3, "refuse")!=0 &&
+			strcmp($3, "deny_non_local")!=0 &&
+			strcmp($3, "refuse_non_local")!=0 &&
 			strcmp($3, "allow")!=0 && 
 			strcmp($3, "allow_snoop")!=0) {
-			yyerror("expected deny, refuse, allow or allow_snoop "
+			yyerror("expected deny, refuse, deny_non_local, "
+				"refuse_non_local, allow or allow_snoop "
 				"in access control action");
 		} else {
 			if(!cfg_str2list_insert(&cfg_parser->cfg->acls, $2, $3))
@@ -1114,6 +1147,13 @@ server_rrset_roundrobin: VAR_RRSET_ROUNDROBIN STRING_ARG
 			yyerror("expected yes or no.");
 		else cfg_parser->cfg->rrset_roundrobin =
 			(strcmp($2, "yes")==0);
+		free($2);
+	}
+	;
+server_max_udp_size: VAR_MAX_UDP_SIZE STRING_ARG
+	{
+		OUTYY(("P(server_max_udp_size:%s)\n", $2));
+		cfg_parser->cfg->max_udp_size = atoi($2);
 		free($2);
 	}
 	;

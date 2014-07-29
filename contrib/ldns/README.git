@@ -1,6 +1,5 @@
-
-# The ldns subversion repository can found at:
-# www.nlnetlabs.nl/ldns/svn/
+# The ldns git repository can found at:
+# git.nlnetlabs.nl/ldns/
 
 # small list of commands to build all on a linux system
 # libtoolize is needed for most other targets
@@ -16,7 +15,7 @@
 # it is needed)
 libtoolize -c --install
 autoreconf --install
-./configure --with-examples --with-drill # --with-pyldns
+./configure --with-examples --with-drill # --with-pyldns --with-p5-dns-ldns
 make
 make doc  # needs doxygen for the html pages
 (cd pcat && autoreconf && ./configure && make)

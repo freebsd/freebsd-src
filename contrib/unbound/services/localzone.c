@@ -21,16 +21,16 @@
  * specific prior written permission.
  * 
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
- * TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE
- * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
- * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
- * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
- * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
+ * TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+ * PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+ * LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+ * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+ * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
 /**
@@ -39,9 +39,9 @@
  * This file contains functions to enable local zone authority service.
  */
 #include "config.h"
-#include <ldns/dname.h>
-#include <ldns/host2wire.h>
 #include "services/localzone.h"
+#include "ldns/str2wire.h"
+#include "ldns/sbuffer.h"
 #include "util/regional.h"
 #include "util/config_file.h"
 #include "util/data/dname.h"
@@ -59,7 +59,7 @@ local_zones_create(void)
 	if(!zones)
 		return NULL;
 	rbtree_init(&zones->ztree, &local_zone_cmp);
-	lock_quick_init(&zones->lock);
+	lock_rw_init(&zones->lock);
 	lock_protect(&zones->lock, &zones->ztree, sizeof(zones->ztree));
 	/* also lock protects the rbnode's in struct local_zone */
 	return zones;
@@ -78,7 +78,7 @@ local_zones_delete(struct local_zones* zones)
 {
 	if(!zones)
 		return;
-	lock_quick_destroy(&zones->lock);
+	lock_rw_destroy(&zones->lock);
 	/* walk through zones and delete them all */
 	traverse_postorder(&zones->ztree, lzdel, NULL);
 	free(zones);
@@ -125,19 +125,10 @@ local_data_cmp(const void* d1, const void* d2)
 int
 parse_dname(const char* str, uint8_t** res, size_t* len, int* labs)
 {
-	ldns_rdf* rdf;
-	*res = NULL;
-	*len = 0;
+	*res = sldns_str2wire_dname(str, len);
 	*labs = 0;
-	rdf = ldns_dname_new_frm_str(str);
-	if(!rdf) {
-		log_err("cannot parse name %s", str);
-		return 0;
-	}
-	*res = memdup(ldns_rdf_data(rdf), ldns_rdf_size(rdf));
-	ldns_rdf_deep_free(rdf);
 	if(!*res) {
-		log_err("out of memory");
+		log_err("cannot parse name %s", str);
 		return 0;
 	}
 	*labs = dname_count_size_labels(*res, len);
@@ -183,16 +174,16 @@ lz_enter_zone_dname(struct local_zones* zones, uint8_t* nm, size_t len,
 	}
 
 	/* add to rbtree */
-	lock_quick_lock(&zones->lock);
+	lock_rw_wrlock(&zones->lock);
 	lock_rw_wrlock(&z->lock);
 	if(!rbtree_insert(&zones->ztree, &z->node)) {
 		log_warn("duplicate local-zone");
 		lock_rw_unlock(&z->lock);
 		local_zone_delete(z);
-		lock_quick_unlock(&zones->lock);
+		lock_rw_unlock(&zones->lock);
 		return NULL;
 	}
-	lock_quick_unlock(&zones->lock);
+	lock_rw_unlock(&zones->lock);
 	return z;
 }
 
@@ -225,39 +216,28 @@ lz_enter_zone(struct local_zones* zones, const char* name, const char* type,
 /** return name and class and rdata of rr; parses string */
 static int
 get_rr_content(const char* str, uint8_t** nm, uint16_t* type,
-	uint16_t* dclass, uint32_t* ttl, ldns_buffer* rdata)
+	uint16_t* dclass, time_t* ttl, uint8_t* rr, size_t len,
+	uint8_t** rdata, size_t* rdata_len)
 {
-	ldns_rr* rr = NULL;
-	ldns_status status = ldns_rr_new_frm_str(&rr, str, 3600, NULL, NULL);
-	if(status != LDNS_STATUS_OK) {
-		log_err("error parsing local-data '%s': %s",
-			str, ldns_get_errorstr_by_id(status));
-		ldns_rr_free(rr);
+	size_t dname_len = 0;
+	int e = sldns_str2wire_rr_buf(str, rr, &len, &dname_len, 3600,
+		NULL, 0, NULL, 0);
+	if(e) {
+		log_err("error parsing local-data at %d: '%s': %s",
+			LDNS_WIREPARSE_OFFSET(e), str,
+			sldns_get_errorstr_parse(e));
 		return 0;
 	}
-	*nm = memdup(ldns_rdf_data(ldns_rr_owner(rr)), 
-		ldns_rdf_size(ldns_rr_owner(rr)));
+	*nm = memdup(rr, dname_len);
 	if(!*nm) {
 		log_err("out of memory");
-		ldns_rr_free(rr);
 		return 0;
 	}
-	*dclass = ldns_rr_get_class(rr);
-	*type = ldns_rr_get_type(rr);
-	*ttl = (uint32_t)ldns_rr_ttl(rr);
-	ldns_buffer_clear(rdata);
-	ldns_buffer_skip(rdata, 2);
-	status = ldns_rr_rdata2buffer_wire(rdata, rr);
-	ldns_rr_free(rr);
-        if(status != LDNS_STATUS_OK) {
-                log_err("error converting RR '%s' to wireformat: %s",
-                        str, ldns_get_errorstr_by_id(status));
-		free(*nm);
-		*nm = NULL;
-                return 0;
-        }
-        ldns_buffer_flip(rdata);
-        ldns_buffer_write_u16_at(rdata, 0, ldns_buffer_limit(rdata) - 2);
+	*dclass = sldns_wirerr_get_class(rr, len, dname_len);
+	*type = sldns_wirerr_get_type(rr, len, dname_len);
+	*ttl = (time_t)sldns_wirerr_get_ttl(rr, len, dname_len);
+	*rdata = sldns_wirerr_get_rdatawl(rr, len, dname_len);
+	*rdata_len = sldns_wirerr_get_rdatalen(rr, len, dname_len)+2;
 	return 1;
 }
 
@@ -265,18 +245,18 @@ get_rr_content(const char* str, uint8_t** nm, uint16_t* type,
 static int
 get_rr_nameclass(const char* str, uint8_t** nm, uint16_t* dclass)
 {
-	ldns_rr* rr = NULL;
-	ldns_status status = ldns_rr_new_frm_str(&rr, str, 3600, NULL, NULL);
-	if(status != LDNS_STATUS_OK) {
-		log_err("error parsing local-data '%s': %s",
-			str, ldns_get_errorstr_by_id(status));
-		ldns_rr_free(rr);
+	uint8_t rr[LDNS_RR_BUF_SIZE];
+	size_t len = sizeof(rr), dname_len = 0;
+	int s = sldns_str2wire_rr_buf(str, rr, &len, &dname_len, 3600,
+		NULL, 0, NULL, 0);
+	if(s != 0) {
+		log_err("error parsing local-data at %d '%s': %s",
+			LDNS_WIREPARSE_OFFSET(s), str,
+			sldns_get_errorstr_parse(s));
 		return 0;
 	}
-	*nm = memdup(ldns_rdf_data(ldns_rr_owner(rr)), 
-		ldns_rdf_size(ldns_rr_owner(rr)));
-	*dclass = ldns_rr_get_class(rr);
-	ldns_rr_free(rr);
+	*nm = memdup(rr, dname_len);
+	*dclass = sldns_wirerr_get_class(rr, len, dname_len);
 	if(!*nm) {
 		log_err("out of memory");
 		return 0;
@@ -304,13 +284,12 @@ local_data_find_type(struct local_data* data, uint16_t type)
 
 /** check for RR duplicates */
 static int
-rr_is_duplicate(struct packed_rrset_data* pd, ldns_buffer* buf)
+rr_is_duplicate(struct packed_rrset_data* pd, uint8_t* rdata, size_t rdata_len)
 {
 	size_t i;
 	for(i=0; i<pd->count; i++) {
-		if(ldns_buffer_limit(buf) == pd->rr_len[i] &&
-			memcmp(ldns_buffer_begin(buf), pd->rr_data[i],
-				ldns_buffer_limit(buf)) == 0) 
+		if(pd->rr_len[i] == rdata_len &&
+			memcmp(pd->rr_data[i], rdata, rdata_len) == 0)
 			return 1;
 	}
 	return 0;
@@ -356,10 +335,10 @@ new_local_rrset(struct regional* region, struct local_data* node,
 /** insert RR into RRset data structure; Wastes a couple of bytes */
 static int
 insert_rr(struct regional* region, struct packed_rrset_data* pd,
-	ldns_buffer* buf, uint32_t ttl)
+	uint8_t* rdata, size_t rdata_len, time_t ttl)
 {
 	size_t* oldlen = pd->rr_len;
-	uint32_t* oldttl = pd->rr_ttl;
+	time_t* oldttl = pd->rr_ttl;
 	uint8_t** olddata = pd->rr_data;
 
 	/* add RR to rrset */
@@ -379,10 +358,9 @@ insert_rr(struct regional* region, struct packed_rrset_data* pd,
 		memcpy(pd->rr_data+1, olddata, 
 			sizeof(*pd->rr_data)*(pd->count-1));
 	}
-	pd->rr_len[0] = ldns_buffer_limit(buf);
+	pd->rr_len[0] = rdata_len;
 	pd->rr_ttl[0] = ttl;
-	pd->rr_data[0] = regional_alloc_init(region,
-		ldns_buffer_begin(buf), ldns_buffer_limit(buf));
+	pd->rr_data[0] = regional_alloc_init(region, rdata, rdata_len);
 	if(!pd->rr_data[0]) {
 		log_err("out of memory");
 		return 0;
@@ -440,8 +418,7 @@ lz_find_create_node(struct local_zone* z, uint8_t* nm, size_t nmlen,
 
 /** enter data RR into auth zone */
 static int
-lz_enter_rr_into_zone(struct local_zone* z, ldns_buffer* buf,
-	const char* rrstr)
+lz_enter_rr_into_zone(struct local_zone* z, const char* rrstr)
 {
 	uint8_t* nm;
 	size_t nmlen;
@@ -450,8 +427,12 @@ lz_enter_rr_into_zone(struct local_zone* z, ldns_buffer* buf,
 	struct local_rrset* rrset;
 	struct packed_rrset_data* pd;
 	uint16_t rrtype = 0, rrclass = 0;
-	uint32_t ttl = 0;
-	if(!get_rr_content(rrstr, &nm, &rrtype, &rrclass, &ttl, buf)) {
+	time_t ttl = 0;
+	uint8_t rr[LDNS_RR_BUF_SIZE];
+	uint8_t* rdata;
+	size_t rdata_len;
+	if(!get_rr_content(rrstr, &nm, &rrtype, &rrclass, &ttl, rr, sizeof(rr),
+		&rdata, &rdata_len)) {
 		log_err("bad local-data: %s", rrstr);
 		return 0;
 	}
@@ -487,16 +468,16 @@ lz_enter_rr_into_zone(struct local_zone* z, ldns_buffer* buf,
 	log_assert(rrset && pd);
 
 	/* check for duplicate RR */
-	if(rr_is_duplicate(pd, buf)) {
+	if(rr_is_duplicate(pd, rdata, rdata_len)) {
 		verbose(VERB_ALGO, "ignoring duplicate RR: %s", rrstr);
 		return 1;
 	} 
-	return insert_rr(z->region, pd, buf, ttl);
+	return insert_rr(z->region, pd, rdata, rdata_len, ttl);
 }
 
 /** enter a data RR into auth data; a zone for it must exist */
 static int
-lz_enter_rr_str(struct local_zones* zones, const char* rr, ldns_buffer* buf)
+lz_enter_rr_str(struct local_zones* zones, const char* rr)
 {
 	uint8_t* rr_name;
 	uint16_t rr_class;
@@ -509,16 +490,16 @@ lz_enter_rr_str(struct local_zones* zones, const char* rr, ldns_buffer* buf)
 		return 0;
 	}
 	labs = dname_count_size_labels(rr_name, &len);
-	lock_quick_lock(&zones->lock);
+	lock_rw_rdlock(&zones->lock);
 	z = local_zones_lookup(zones, rr_name, len, labs, rr_class);
 	if(!z) {
-		lock_quick_unlock(&zones->lock);
+		lock_rw_unlock(&zones->lock);
 		fatal_exit("internal error: no zone for rr %s", rr);
 	}
 	lock_rw_wrlock(&z->lock);
-	lock_quick_unlock(&zones->lock);
+	lock_rw_unlock(&zones->lock);
 	free(rr_name);
-	r = lz_enter_rr_into_zone(z, buf, rr);
+	r = lz_enter_rr_into_zone(z, rr);
 	lock_rw_unlock(&z->lock);
 	return r;
 }
@@ -549,13 +530,13 @@ lz_exists(struct local_zones* zones, const char* name)
 		log_err("bad name %s", name);
 		return 0;
 	}
-	lock_quick_lock(&zones->lock);
+	lock_rw_rdlock(&zones->lock);
 	if(rbtree_search(&zones->ztree, &z.node)) {
-		lock_quick_unlock(&zones->lock);
+		lock_rw_unlock(&zones->lock);
 		free(z.name);
 		return 1;
 	}
-	lock_quick_unlock(&zones->lock);
+	lock_rw_unlock(&zones->lock);
 	free(z.name);
 	return 0;
 }
@@ -582,7 +563,7 @@ lz_nodefault(struct config_file* cfg, const char* name)
 /** enter AS112 default zone */
 static int
 add_as112_default(struct local_zones* zones, struct config_file* cfg,
-        ldns_buffer* buf, const char* name)
+        const char* name)
 {
 	struct local_zone* z;
 	char str[1024]; /* known long enough */
@@ -592,12 +573,12 @@ add_as112_default(struct local_zones* zones, struct config_file* cfg,
 		return 0;
 	snprintf(str, sizeof(str), "%s 10800 IN SOA localhost. "
 		"nobody.invalid. 1 3600 1200 604800 10800", name);
-	if(!lz_enter_rr_into_zone(z, buf, str)) {
+	if(!lz_enter_rr_into_zone(z, str)) {
 		lock_rw_unlock(&z->lock);
 		return 0;
 	}
 	snprintf(str, sizeof(str), "%s 10800 IN NS localhost. ", name);
-	if(!lz_enter_rr_into_zone(z, buf, str)) {
+	if(!lz_enter_rr_into_zone(z, str)) {
 		lock_rw_unlock(&z->lock);
 		return 0;
 	}
@@ -607,26 +588,27 @@ add_as112_default(struct local_zones* zones, struct config_file* cfg,
 
 /** enter default zones */
 static int
-lz_enter_defaults(struct local_zones* zones, struct config_file* cfg,
-	ldns_buffer* buf)
+lz_enter_defaults(struct local_zones* zones, struct config_file* cfg)
 {
 	struct local_zone* z;
 
 	/* this list of zones is from RFC 6303 */
+
+	/* block localhost level zones, first, later the LAN zones */
 
 	/* localhost. zone */
 	if(!lz_exists(zones, "localhost.") &&
 		!lz_nodefault(cfg, "localhost.")) {
 		if(!(z=lz_enter_zone(zones, "localhost.", "static", 
 			LDNS_RR_CLASS_IN)) ||
-		   !lz_enter_rr_into_zone(z, buf,
+		   !lz_enter_rr_into_zone(z,
 			"localhost. 10800 IN NS localhost.") ||
-		   !lz_enter_rr_into_zone(z, buf,
+		   !lz_enter_rr_into_zone(z,
 			"localhost. 10800 IN SOA localhost. nobody.invalid. "
 			"1 3600 1200 604800 10800") ||
-		   !lz_enter_rr_into_zone(z, buf,
+		   !lz_enter_rr_into_zone(z,
 			"localhost. 10800 IN A 127.0.0.1") ||
-		   !lz_enter_rr_into_zone(z, buf,
+		   !lz_enter_rr_into_zone(z,
 			"localhost. 10800 IN AAAA ::1")) {
 			log_err("out of memory adding default zone");
 			if(z) { lock_rw_unlock(&z->lock); }
@@ -639,12 +621,12 @@ lz_enter_defaults(struct local_zones* zones, struct config_file* cfg,
 		!lz_nodefault(cfg, "127.in-addr.arpa.")) {
 		if(!(z=lz_enter_zone(zones, "127.in-addr.arpa.", "static", 
 			LDNS_RR_CLASS_IN)) ||
-		   !lz_enter_rr_into_zone(z, buf,
+		   !lz_enter_rr_into_zone(z,
 			"127.in-addr.arpa. 10800 IN NS localhost.") ||
-		   !lz_enter_rr_into_zone(z, buf,
+		   !lz_enter_rr_into_zone(z,
 			"127.in-addr.arpa. 10800 IN SOA localhost. "
 			"nobody.invalid. 1 3600 1200 604800 10800") ||
-		   !lz_enter_rr_into_zone(z, buf,
+		   !lz_enter_rr_into_zone(z,
 			"1.0.0.127.in-addr.arpa. 10800 IN PTR localhost.")) {
 			log_err("out of memory adding default zone");
 			if(z) { lock_rw_unlock(&z->lock); }
@@ -657,12 +639,12 @@ lz_enter_defaults(struct local_zones* zones, struct config_file* cfg,
 		!lz_nodefault(cfg, "1.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.ip6.arpa.")) {
 		if(!(z=lz_enter_zone(zones, "1.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.ip6.arpa.", "static", 
 			LDNS_RR_CLASS_IN)) ||
-		   !lz_enter_rr_into_zone(z, buf,
+		   !lz_enter_rr_into_zone(z,
 			"1.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.ip6.arpa. 10800 IN NS localhost.") ||
-		   !lz_enter_rr_into_zone(z, buf,
+		   !lz_enter_rr_into_zone(z,
 			"1.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.ip6.arpa. 10800 IN SOA localhost. "
 			"nobody.invalid. 1 3600 1200 604800 10800") ||
-		   !lz_enter_rr_into_zone(z, buf,
+		   !lz_enter_rr_into_zone(z,
 			"1.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.ip6.arpa. 10800 IN PTR localhost.")) {
 			log_err("out of memory adding default zone");
 			if(z) { lock_rw_unlock(&z->lock); }
@@ -670,37 +652,45 @@ lz_enter_defaults(struct local_zones* zones, struct config_file* cfg,
 		}
 		lock_rw_unlock(&z->lock);
 	}
-	if (	!add_as112_default(zones, cfg, buf, "10.in-addr.arpa.") ||
-		!add_as112_default(zones, cfg, buf, "16.172.in-addr.arpa.") ||
-		!add_as112_default(zones, cfg, buf, "17.172.in-addr.arpa.") ||
-		!add_as112_default(zones, cfg, buf, "18.172.in-addr.arpa.") ||
-		!add_as112_default(zones, cfg, buf, "19.172.in-addr.arpa.") ||
-		!add_as112_default(zones, cfg, buf, "20.172.in-addr.arpa.") ||
-		!add_as112_default(zones, cfg, buf, "21.172.in-addr.arpa.") ||
-		!add_as112_default(zones, cfg, buf, "22.172.in-addr.arpa.") ||
-		!add_as112_default(zones, cfg, buf, "23.172.in-addr.arpa.") ||
-		!add_as112_default(zones, cfg, buf, "24.172.in-addr.arpa.") ||
-		!add_as112_default(zones, cfg, buf, "25.172.in-addr.arpa.") ||
-		!add_as112_default(zones, cfg, buf, "26.172.in-addr.arpa.") ||
-		!add_as112_default(zones, cfg, buf, "27.172.in-addr.arpa.") ||
-		!add_as112_default(zones, cfg, buf, "28.172.in-addr.arpa.") ||
-		!add_as112_default(zones, cfg, buf, "29.172.in-addr.arpa.") ||
-		!add_as112_default(zones, cfg, buf, "30.172.in-addr.arpa.") ||
-		!add_as112_default(zones, cfg, buf, "31.172.in-addr.arpa.") ||
-		!add_as112_default(zones, cfg, buf, "168.192.in-addr.arpa.") ||
-		!add_as112_default(zones, cfg, buf, "0.in-addr.arpa.") ||
-		!add_as112_default(zones, cfg, buf, "254.169.in-addr.arpa.") ||
-		!add_as112_default(zones, cfg, buf, "2.0.192.in-addr.arpa.") ||
-		!add_as112_default(zones, cfg, buf, "100.51.198.in-addr.arpa.") ||
-		!add_as112_default(zones, cfg, buf, "113.0.203.in-addr.arpa.") ||
-		!add_as112_default(zones, cfg, buf, "255.255.255.255.in-addr.arpa.") ||
-		!add_as112_default(zones, cfg, buf, "0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.ip6.arpa.") ||
-		!add_as112_default(zones, cfg, buf, "d.f.ip6.arpa.") ||
-		!add_as112_default(zones, cfg, buf, "8.e.f.ip6.arpa.") ||
-		!add_as112_default(zones, cfg, buf, "9.e.f.ip6.arpa.") ||
-		!add_as112_default(zones, cfg, buf, "a.e.f.ip6.arpa.") ||
-		!add_as112_default(zones, cfg, buf, "b.e.f.ip6.arpa.") ||
-		!add_as112_default(zones, cfg, buf, "8.b.d.0.1.0.0.2.ip6.arpa.")) {
+
+	/* if unblock lan-zones, then do not add the zones below.
+	 * we do add the zones above, about 127.0.0.1, because localhost is
+	 * not on the lan. */
+	if(cfg->unblock_lan_zones)
+		return 1;
+
+	/* block LAN level zones */
+	if (	!add_as112_default(zones, cfg, "10.in-addr.arpa.") ||
+		!add_as112_default(zones, cfg, "16.172.in-addr.arpa.") ||
+		!add_as112_default(zones, cfg, "17.172.in-addr.arpa.") ||
+		!add_as112_default(zones, cfg, "18.172.in-addr.arpa.") ||
+		!add_as112_default(zones, cfg, "19.172.in-addr.arpa.") ||
+		!add_as112_default(zones, cfg, "20.172.in-addr.arpa.") ||
+		!add_as112_default(zones, cfg, "21.172.in-addr.arpa.") ||
+		!add_as112_default(zones, cfg, "22.172.in-addr.arpa.") ||
+		!add_as112_default(zones, cfg, "23.172.in-addr.arpa.") ||
+		!add_as112_default(zones, cfg, "24.172.in-addr.arpa.") ||
+		!add_as112_default(zones, cfg, "25.172.in-addr.arpa.") ||
+		!add_as112_default(zones, cfg, "26.172.in-addr.arpa.") ||
+		!add_as112_default(zones, cfg, "27.172.in-addr.arpa.") ||
+		!add_as112_default(zones, cfg, "28.172.in-addr.arpa.") ||
+		!add_as112_default(zones, cfg, "29.172.in-addr.arpa.") ||
+		!add_as112_default(zones, cfg, "30.172.in-addr.arpa.") ||
+		!add_as112_default(zones, cfg, "31.172.in-addr.arpa.") ||
+		!add_as112_default(zones, cfg, "168.192.in-addr.arpa.") ||
+		!add_as112_default(zones, cfg, "0.in-addr.arpa.") ||
+		!add_as112_default(zones, cfg, "254.169.in-addr.arpa.") ||
+		!add_as112_default(zones, cfg, "2.0.192.in-addr.arpa.") ||
+		!add_as112_default(zones, cfg, "100.51.198.in-addr.arpa.") ||
+		!add_as112_default(zones, cfg, "113.0.203.in-addr.arpa.") ||
+		!add_as112_default(zones, cfg, "255.255.255.255.in-addr.arpa.") ||
+		!add_as112_default(zones, cfg, "0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.ip6.arpa.") ||
+		!add_as112_default(zones, cfg, "d.f.ip6.arpa.") ||
+		!add_as112_default(zones, cfg, "8.e.f.ip6.arpa.") ||
+		!add_as112_default(zones, cfg, "9.e.f.ip6.arpa.") ||
+		!add_as112_default(zones, cfg, "a.e.f.ip6.arpa.") ||
+		!add_as112_default(zones, cfg, "b.e.f.ip6.arpa.") ||
+		!add_as112_default(zones, cfg, "8.b.d.0.1.0.0.2.ip6.arpa.")) {
 		log_err("out of memory adding default zone");
 		return 0;
 	}
@@ -713,7 +703,7 @@ init_parents(struct local_zones* zones)
 {
         struct local_zone* node, *prev = NULL, *p;
         int m;
-	lock_quick_lock(&zones->lock);
+	lock_rw_wrlock(&zones->lock);
         RBTREE_FOR(node, struct local_zone*, &zones->ztree) {
 		lock_rw_wrlock(&node->lock);
                 node->parent = NULL;
@@ -738,7 +728,7 @@ init_parents(struct local_zones* zones)
                 prev = node;
 		lock_rw_unlock(&node->lock);
         }
-	lock_quick_unlock(&zones->lock);
+	lock_rw_unlock(&zones->lock);
 }
 
 /** enter implicit transparent zone for local-data: without local-zone: */
@@ -768,7 +758,7 @@ lz_setup_implicit(struct local_zones* zones, struct config_file* cfg)
 			return 0;
 		}
 		labs = dname_count_size_labels(rr_name, &len);
-		lock_quick_lock(&zones->lock);
+		lock_rw_rdlock(&zones->lock);
 		if(!local_zones_lookup(zones, rr_name, len, labs, rr_class)) {
 			if(!have_name) {
 				dclass = rr_class;
@@ -783,7 +773,7 @@ lz_setup_implicit(struct local_zones* zones, struct config_file* cfg)
 					/* process other classes later */
 					free(rr_name);
 					have_other_classes = 1;
-					lock_quick_unlock(&zones->lock);
+					lock_rw_unlock(&zones->lock);
 					continue;
 				}
 				/* find smallest shared topdomain */
@@ -794,7 +784,7 @@ lz_setup_implicit(struct local_zones* zones, struct config_file* cfg)
 					match = m;
 			}
 		} else free(rr_name);
-		lock_quick_unlock(&zones->lock);
+		lock_rw_unlock(&zones->lock);
 	}
 	if(have_name) {
 		uint8_t* n2;
@@ -825,12 +815,11 @@ lz_setup_implicit(struct local_zones* zones, struct config_file* cfg)
 
 /** enter auth data */
 static int
-lz_enter_data(struct local_zones* zones, struct config_file* cfg,
-	ldns_buffer* buf)
+lz_enter_data(struct local_zones* zones, struct config_file* cfg)
 {
 	struct config_strlist* p;
 	for(p = cfg->local_data; p; p = p->next) {
-		if(!lz_enter_rr_str(zones, p->str, buf))
+		if(!lz_enter_rr_str(zones, p->str))
 			return 0;
 	}
 	return 1;
@@ -851,35 +840,27 @@ lz_freeup_cfg(struct config_file* cfg)
 int 
 local_zones_apply_cfg(struct local_zones* zones, struct config_file* cfg)
 {
-	ldns_buffer* buf = ldns_buffer_new(65535);
-	if(!buf) fatal_exit("cannot create temporary buffer");
-
 	/* create zones from zone statements. */
 	if(!lz_enter_zones(zones, cfg)) {
-		ldns_buffer_free(buf);
 		return 0;
 	}
 	/* apply default zones+content (unless disabled, or overridden) */
-	if(!lz_enter_defaults(zones, cfg, buf)) {
-		ldns_buffer_free(buf);
+	if(!lz_enter_defaults(zones, cfg)) {
 		return 0;
 	}
 	/* create implicit transparent zone from data. */
 	if(!lz_setup_implicit(zones, cfg)) {
-		ldns_buffer_free(buf);
 		return 0;
 	}
 
 	/* setup parent ptrs for lookup during data entry */
 	init_parents(zones);
 	/* insert local data */
-	if(!lz_enter_data(zones, cfg, buf)) {
-		ldns_buffer_free(buf);
+	if(!lz_enter_data(zones, cfg)) {
 		return 0;
 	}
 	/* freeup memory from cfg struct. */
 	lz_freeup_cfg(cfg);
-	ldns_buffer_free(buf);
 	return 1;
 }
 
@@ -948,7 +929,7 @@ local_zone_out(struct local_zone* z)
 void local_zones_print(struct local_zones* zones)
 {
 	struct local_zone* z;
-	lock_quick_lock(&zones->lock);
+	lock_rw_rdlock(&zones->lock);
 	log_info("number of auth zones %u", (unsigned)zones->ztree.count);
 	RBTREE_FOR(z, struct local_zone*, &zones->ztree) {
 		lock_rw_rdlock(&z->lock);
@@ -985,13 +966,13 @@ void local_zones_print(struct local_zones* zones)
 		local_zone_out(z);
 		lock_rw_unlock(&z->lock);
 	}
-	lock_quick_unlock(&zones->lock);
+	lock_rw_unlock(&zones->lock);
 }
 
 /** encode answer consisting of 1 rrset */
 static int
 local_encode(struct query_info* qinfo, struct edns_data* edns, 
-	ldns_buffer* buf, struct regional* temp, 
+	sldns_buffer* buf, struct regional* temp, 
 	struct ub_packed_rrset_key* rrset, int ansec, int rcode)
 {
 	struct reply_info rep;
@@ -1011,20 +992,20 @@ local_encode(struct query_info* qinfo, struct edns_data* edns,
 	edns->ext_rcode = 0;
 	edns->bits &= EDNS_DO;
 	if(!reply_info_answer_encode(qinfo, &rep, 
-		*(uint16_t*)ldns_buffer_begin(buf),
-		ldns_buffer_read_u16_at(buf, 2),
+		*(uint16_t*)sldns_buffer_begin(buf),
+		sldns_buffer_read_u16_at(buf, 2),
 		buf, 0, 0, temp, udpsize, edns, 
 		(int)(edns->bits&EDNS_DO), 0))
 		error_encode(buf, (LDNS_RCODE_SERVFAIL|BIT_AA), qinfo,
-			*(uint16_t*)ldns_buffer_begin(buf),
-		       ldns_buffer_read_u16_at(buf, 2), edns);
+			*(uint16_t*)sldns_buffer_begin(buf),
+		       sldns_buffer_read_u16_at(buf, 2), edns);
 	return 1;
 }
 
 /** answer local data match */
 static int
 local_data_answer(struct local_zone* z, struct query_info* qinfo,
-	struct edns_data* edns, ldns_buffer* buf, struct regional* temp,
+	struct edns_data* edns, sldns_buffer* buf, struct regional* temp,
 	int labs, struct local_data** ldp)
 {
 	struct local_data key;
@@ -1071,18 +1052,18 @@ local_data_answer(struct local_zone* z, struct query_info* qinfo,
  */
 static int
 lz_zone_answer(struct local_zone* z, struct query_info* qinfo,
-	struct edns_data* edns, ldns_buffer* buf, struct regional* temp,
+	struct edns_data* edns, sldns_buffer* buf, struct regional* temp,
 	struct local_data* ld)
 {
 	if(z->type == local_zone_deny) {
 		/** no reply at all, signal caller by clearing buffer. */
-		ldns_buffer_clear(buf);
-		ldns_buffer_flip(buf);
+		sldns_buffer_clear(buf);
+		sldns_buffer_flip(buf);
 		return 1;
 	} else if(z->type == local_zone_refuse) {
 		error_encode(buf, (LDNS_RCODE_REFUSED|BIT_AA), qinfo,
-			*(uint16_t*)ldns_buffer_begin(buf),
-		       ldns_buffer_read_u16_at(buf, 2), edns);
+			*(uint16_t*)sldns_buffer_begin(buf),
+		       sldns_buffer_read_u16_at(buf, 2), edns);
 		return 1;
 	} else if(z->type == local_zone_static ||
 		z->type == local_zone_redirect) {
@@ -1098,8 +1079,8 @@ lz_zone_answer(struct local_zone* z, struct query_info* qinfo,
 			return local_encode(qinfo, edns, buf, temp, 
 				z->soa, 0, rcode);
 		error_encode(buf, (rcode|BIT_AA), qinfo, 
-			*(uint16_t*)ldns_buffer_begin(buf), 
-			ldns_buffer_read_u16_at(buf, 2), edns);
+			*(uint16_t*)sldns_buffer_begin(buf), 
+			sldns_buffer_read_u16_at(buf, 2), edns);
 		return 1;
 	} else if(z->type == local_zone_typetransparent) {
 		/* no NODATA or NXDOMAINS for this zone type */
@@ -1115,8 +1096,8 @@ lz_zone_answer(struct local_zone* z, struct query_info* qinfo,
 			return local_encode(qinfo, edns, buf, temp, 
 				z->soa, 0, rcode);
 		error_encode(buf, (rcode|BIT_AA), qinfo, 
-			*(uint16_t*)ldns_buffer_begin(buf), 
-			ldns_buffer_read_u16_at(buf, 2), edns);
+			*(uint16_t*)sldns_buffer_begin(buf), 
+			sldns_buffer_read_u16_at(buf, 2), edns);
 		return 1;
 	}
 
@@ -1126,7 +1107,7 @@ lz_zone_answer(struct local_zone* z, struct query_info* qinfo,
 
 int 
 local_zones_answer(struct local_zones* zones, struct query_info* qinfo,
-	struct edns_data* edns, ldns_buffer* buf, struct regional* temp)
+	struct edns_data* edns, sldns_buffer* buf, struct regional* temp)
 {
 	/* see if query is covered by a zone,
 	 * 	if so:	- try to match (exact) local data 
@@ -1135,15 +1116,15 @@ local_zones_answer(struct local_zones* zones, struct query_info* qinfo,
 	struct local_data* ld;
 	struct local_zone* z;
 	int r;
-	lock_quick_lock(&zones->lock);
+	lock_rw_rdlock(&zones->lock);
 	z = local_zones_lookup(zones, qinfo->qname,
 		qinfo->qname_len, labs, qinfo->qclass);
 	if(!z) {
-		lock_quick_unlock(&zones->lock);
+		lock_rw_unlock(&zones->lock);
 		return 0;
 	}
 	lock_rw_rdlock(&z->lock);
-	lock_quick_unlock(&zones->lock);
+	lock_rw_unlock(&zones->lock);
 
 	if(local_data_answer(z, qinfo, edns, buf, temp, labs, &ld)) {
 		lock_rw_unlock(&z->lock);
@@ -1255,7 +1236,7 @@ void local_zones_del_zone(struct local_zones* zones, struct local_zone* z)
 }
 
 int
-local_zones_add_RR(struct local_zones* zones, const char* rr, ldns_buffer* buf)
+local_zones_add_RR(struct local_zones* zones, const char* rr)
 {
 	uint8_t* rr_name;
 	uint16_t rr_class;
@@ -1267,21 +1248,23 @@ local_zones_add_RR(struct local_zones* zones, const char* rr, ldns_buffer* buf)
 		return 0;
 	}
 	labs = dname_count_size_labels(rr_name, &len);
-	lock_quick_lock(&zones->lock);
+	/* could first try readlock then get writelock if zone does not exist,
+	 * but we do not add enough RRs (from multiple threads) to optimize */
+	lock_rw_wrlock(&zones->lock);
 	z = local_zones_lookup(zones, rr_name, len, labs, rr_class);
 	if(!z) {
 		z = local_zones_add_zone(zones, rr_name, len, labs, rr_class,
 			local_zone_transparent);
 		if(!z) {
-			lock_quick_unlock(&zones->lock);
+			lock_rw_unlock(&zones->lock);
 			return 0;
 		}
 	} else {
 		free(rr_name);
 	}
 	lock_rw_wrlock(&z->lock);
-	lock_quick_unlock(&zones->lock);
-	r = lz_enter_rr_into_zone(z, buf, rr);
+	lock_rw_unlock(&zones->lock);
+	r = lz_enter_rr_into_zone(z, rr);
 	lock_rw_unlock(&z->lock);
 	return r;
 }
@@ -1326,15 +1309,15 @@ void local_zones_del_data(struct local_zones* zones,
 	/* find zone */
 	struct local_zone* z;
 	struct local_data* d;
-	lock_quick_lock(&zones->lock);
+	lock_rw_rdlock(&zones->lock);
 	z = local_zones_lookup(zones, name, len, labs, dclass);
 	if(!z) {
 		/* no such zone, we're done */
-		lock_quick_unlock(&zones->lock);
+		lock_rw_unlock(&zones->lock);
 		return;
 	}
 	lock_rw_wrlock(&z->lock);
-	lock_quick_unlock(&zones->lock);
+	lock_rw_unlock(&zones->lock);
 
 	/* find the domain */
 	d = lz_find_node(z, name, len, labs);
