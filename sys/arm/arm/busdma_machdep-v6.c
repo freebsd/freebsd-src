@@ -64,6 +64,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/md_var.h>
 
 #define MAX_BPAGES 64
+#define MAX_DMA_SEGMENTS	4096
 #define BUS_DMA_EXCL_BOUNCE	BUS_DMA_BUS2
 #define BUS_DMA_ALIGN_BOUNCE	BUS_DMA_BUS3
 #define BUS_DMA_COULD_BOUNCE	(BUS_DMA_EXCL_BOUNCE | BUS_DMA_ALIGN_BOUNCE)
@@ -96,15 +97,6 @@ struct bus_dma_tag {
 	 */
 	struct arm32_dma_range	*ranges;
 	int			_nranges;
-	/*
-	 * Most tags need one or two segments, and can use the local tagsegs
-	 * array.  For tags with a larger limit, we'll allocate a bigger array
-	 * on first use.
-	 */
-	bus_dma_segment_t	*segments;
-	bus_dma_segment_t	tagsegs[2];
-
-
 };
 
 struct bounce_page {
@@ -165,6 +157,7 @@ struct bus_dmamap {
 #define DMAMAP_DMAMEM_ALLOC	(1 << 1)
 #define DMAMAP_MBUF		(1 << 2)
 	STAILQ_ENTRY(bus_dmamap) links;
+	bus_dma_segment_t	*segments;
 	int		       sync_count;
 	struct sync_list       slist[];
 };
@@ -476,18 +469,6 @@ bus_dma_tag_create(bus_dma_tag_t parent, bus_size_t alignment,
 		newtag->lockfunc = dflt_lock;
 		newtag->lockfuncarg = NULL;
 	}
-	/*
-	 * If all the segments we need fit into the local tagsegs array, set the
-	 * pointer now.  Otherwise NULL the pointer and an array of segments
-	 * will be allocated later, on first use.  We don't pre-allocate now
-	 * because some tags exist just to pass contraints to children in the
-	 * device hierarchy, and they tend to use BUS_SPACE_UNRESTRICTED and we
-	 * sure don't want to try to allocate an array for that.
-	 */
-	if (newtag->nsegments <= nitems(newtag->tagsegs))
-		newtag->segments = newtag->tagsegs;
-	else
-		newtag->segments = NULL;
 
 	/* Take into account any restrictions imposed by our parent tag */
 	if (parent != NULL) {
@@ -584,9 +565,6 @@ bus_dma_tag_destroy(bus_dma_tag_t dmat)
 			parent = dmat->parent;
 			atomic_subtract_int(&dmat->ref_count, 1);
 			if (dmat->ref_count == 0) {
-				if (dmat->segments != NULL &&
-				    dmat->segments != dmat->tagsegs)
-					free(dmat->segments, M_DEVBUF);
 				free(dmat, M_DEVBUF);
 				/*
 				 * Last reference count, so
@@ -643,6 +621,31 @@ static int allocate_bz_and_pages(bus_dma_tag_t dmat, bus_dmamap_t mapp)
 	return (0);
 }
 
+static bus_dmamap_t
+allocate_map(bus_dma_tag_t dmat, int mflags)
+{
+	int mapsize, segsize;
+	bus_dmamap_t map;
+
+	/*
+	 * Allocate the map.  The map structure ends with an embedded
+	 * variable-sized array of sync_list structures.  Following that
+	 * we allocate enough extra space to hold the array of bus_dma_segments.
+	 */
+	KASSERT(dmat->nsegments <= MAX_DMA_SEGMENTS, 
+	   ("cannot allocate %u dma segments (max is %u)",
+	    dmat->nsegments, MAX_DMA_SEGMENTS));
+	segsize = sizeof(struct bus_dma_segment) * dmat->nsegments;
+	mapsize = sizeof(*map) + sizeof(struct sync_list) * dmat->nsegments;
+	map = malloc(mapsize + segsize, M_DEVBUF, mflags | M_ZERO);
+	if (map == NULL) {
+		CTR3(KTR_BUSDMA, "%s: tag %p error %d", __func__, dmat, ENOMEM);
+		return (NULL);
+	}
+	map->segments = (bus_dma_segment_t *)((uintptr_t)map + mapsize);
+	return (map);
+}
+
 /*
  * Allocate a handle for mapping from kva/uva/physical
  * address space into bus device space.
@@ -651,33 +654,20 @@ int
 bus_dmamap_create(bus_dma_tag_t dmat, int flags, bus_dmamap_t *mapp)
 {
 	bus_dmamap_t map;
-	int mapsize;
 	int error = 0;
 
-	mapsize = sizeof(*map) + (sizeof(struct sync_list) * dmat->nsegments);
-	*mapp = map = malloc(mapsize, M_DEVBUF, M_NOWAIT | M_ZERO);
+	*mapp = map = allocate_map(dmat, M_NOWAIT);
 	if (map == NULL) {
 		CTR3(KTR_BUSDMA, "%s: tag %p error %d", __func__, dmat, ENOMEM);
 		return (ENOMEM);
 	}
-	map->sync_count = 0;
 
-	if (dmat->segments == NULL) {
-		dmat->segments = (bus_dma_segment_t *)malloc(
-		    sizeof(bus_dma_segment_t) * dmat->nsegments, M_DEVBUF,
-		    M_NOWAIT);
-		if (dmat->segments == NULL) {
-			CTR3(KTR_BUSDMA, "%s: tag %p error %d",
-			    __func__, dmat, ENOMEM);
-			free(map, M_DEVBUF);
-			*mapp = NULL;
-			return (ENOMEM);
-		}
-	}
 	/*
-	 * Bouncing might be required if the driver asks for an active
-	 * exclusion region, a data alignment that is stricter than 1, and/or
-	 * an active address boundary.
+	 * Bouncing might be required if the driver asks for an exclusion
+	 * region, a data alignment that is stricter than 1, or DMA that begins
+	 * or ends with a partial cacheline.  Whether bouncing will actually
+	 * happen can't be known until mapping time, but we need to pre-allocate
+	 * resources now because we might not be allowed to at mapping time.
 	 */
 	error = allocate_bz_and_pages(dmat, map);
 	if (error != 0) {
@@ -723,41 +713,23 @@ bus_dmamem_alloc(bus_dma_tag_t dmat, void** vaddr, int flags,
 	bus_dmamap_t map;
 	vm_memattr_t memattr;
 	int mflags;
-	int mapsize;
-	int error;
 
 	if (flags & BUS_DMA_NOWAIT)
 		mflags = M_NOWAIT;
 	else
 		mflags = M_WAITOK;
+	if (flags & BUS_DMA_ZERO)
+		mflags |= M_ZERO;
 
-	/* ARM non-snooping caches need a map for the VA cache sync structure */
-
-	mapsize = sizeof(*map) + (sizeof(struct sync_list) * dmat->nsegments);
-	*mapp = map = malloc(mapsize, M_DEVBUF, M_NOWAIT | M_ZERO);
+	*mapp = map = allocate_map(dmat, mflags);
 	if (map == NULL) {
 		CTR4(KTR_BUSDMA, "%s: tag %p tag flags 0x%x error %d",
 		    __func__, dmat, dmat->flags, ENOMEM);
 		return (ENOMEM);
 	}
 	map->flags = DMAMAP_DMAMEM_ALLOC;
-	map->sync_count = 0;
 
-	if (dmat->segments == NULL) {
-		dmat->segments = (bus_dma_segment_t *)malloc(
-		    sizeof(bus_dma_segment_t) * dmat->nsegments, M_DEVBUF,
-		    mflags);
-		if (dmat->segments == NULL) {
-			CTR4(KTR_BUSDMA, "%s: tag %p tag flags 0x%x error %d",
-			    __func__, dmat, dmat->flags, ENOMEM);
-			free(map, M_DEVBUF);
-			*mapp = NULL;
-			return (ENOMEM);
-		}
-	}
-
-	if (flags & BUS_DMA_ZERO)
-		mflags |= M_ZERO;
+	/* Choose a busdma buffer allocator based on memory type flags. */
 	if (flags & BUS_DMA_COHERENT) {
 		memattr = VM_MEMATTR_UNCACHEABLE;
 		ba = coherent_allocator;
@@ -1016,7 +988,7 @@ _bus_dmamap_load_phys(bus_dma_tag_t dmat,
 	int error;
 
 	if (segs == NULL)
-		segs = dmat->segments;
+		segs = map->segments;
 
 	if (might_bounce(dmat, map, buflen, buflen)) {
 		_bus_dmamap_count_phys(dmat, map, buf, buflen, flags);
@@ -1084,7 +1056,7 @@ _bus_dmamap_load_buffer(bus_dma_tag_t dmat,
 	int error;
 
 	if (segs == NULL)
-		segs = dmat->segments;
+		segs = map->segments;
 
 	if (flags & BUS_DMA_LOAD_MBUF)
 		map->flags |= DMAMAP_MBUF;
@@ -1179,7 +1151,7 @@ _bus_dmamap_complete(bus_dma_tag_t dmat, bus_dmamap_t map,
 {
 
 	if (segs == NULL)
-		segs = dmat->segments;
+		segs = map->segments;
 	return (segs);
 }
 
