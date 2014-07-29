@@ -139,6 +139,7 @@ add_table_entry(struct ip_fw_chain *ch, struct tid_info *ti,
 	struct namedobj_instance *ni;
 	uint16_t kidx;
 	int error;
+	uint32_t num;
 	uint64_t aflags;
 	char ta_buf[128];
 
@@ -222,16 +223,16 @@ add_table_entry(struct ip_fw_chain *ch, struct tid_info *ti,
 	/* We've got valid table in @tc. Let's add data */
 	kidx = tc->no.kidx;
 	ta = tc->ta;
+	num = 0;
 
 	IPFW_WLOCK(ch);
-
-	error = ta->add(tc->astate, KIDX_TO_TI(ch, kidx), tei, &ta_buf, &aflags);
-
+	error = ta->add(tc->astate, KIDX_TO_TI(ch, kidx), tei, &ta_buf,
+	    &aflags, &num);
 	IPFW_WUNLOCK(ch);
 
 	/* Update number of records. */
-	if (error == 0 && (tei->flags & TEI_FLAGS_UPDATED) == 0)
-		tc->count++;
+	if (error == 0)
+		tc->count += num;
 
 	tc->flags = aflags;
 
@@ -252,6 +253,7 @@ del_table_entry(struct ip_fw_chain *ch, struct tid_info *ti,
 	struct namedobj_instance *ni;
 	uint16_t kidx;
 	int error;
+	uint32_t num;
 	uint64_t aflags;
 	char ta_buf[128];
 
@@ -302,13 +304,15 @@ del_table_entry(struct ip_fw_chain *ch, struct tid_info *ti,
 	}
 
 	kidx = tc->no.kidx;
+	num = 0;
 
 	IPFW_WLOCK(ch);
-	error = ta->del(tc->astate, KIDX_TO_TI(ch, kidx), tei, &ta_buf,&aflags);
+	error = ta->del(tc->astate, KIDX_TO_TI(ch, kidx), tei, &ta_buf,
+	    &aflags, &num);
 	IPFW_WUNLOCK(ch);
 
 	if (error == 0)
-		tc->count--;
+		tc->count -= num;
 	tc->flags = aflags;
 
 	IPFW_UH_WUNLOCK(ch);

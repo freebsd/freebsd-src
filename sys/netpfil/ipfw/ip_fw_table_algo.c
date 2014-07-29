@@ -365,8 +365,8 @@ ta_prepare_add_cidr(struct ip_fw_chain *ch, struct tentry_info *tei,
 }
 
 static int
-ta_add_cidr(void *ta_state, struct table_info *ti,
-    struct tentry_info *tei, void *ta_buf, uint64_t *pflags)
+ta_add_cidr(void *ta_state, struct table_info *ti, struct tentry_info *tei,
+    void *ta_buf, uint64_t *pflags, uint32_t *pnum)
 {
 	struct radix_node_head *rnh;
 	struct radix_node *rn;
@@ -408,11 +408,13 @@ ta_add_cidr(void *ta_state, struct table_info *ti,
 
 		/* Indicate that update has happened instead of addition */
 		tei->flags |= TEI_FLAGS_UPDATED;
+		*pnum = 0;
 
 		return (0);
 	}
 
 	tb->ent_ptr = NULL;
+	*pnum = 1;
 
 	return (0);
 }
@@ -474,8 +476,8 @@ ta_prepare_del_cidr(struct ip_fw_chain *ch, struct tentry_info *tei,
 }
 
 static int
-ta_del_cidr(void *ta_state, struct table_info *ti,
-    struct tentry_info *tei, void *ta_buf, uint64_t *pflags)
+ta_del_cidr(void *ta_state, struct table_info *ti, struct tentry_info *tei,
+    void *ta_buf, uint64_t *pflags, uint32_t *pnum)
 {
 	struct radix_node_head *rnh;
 	struct radix_node *rn;
@@ -495,6 +497,8 @@ ta_del_cidr(void *ta_state, struct table_info *ti,
 	if (rn == NULL)
 		return (ENOENT);
 
+	*pnum = 1;
+
 	return (0);
 }
 
@@ -511,7 +515,7 @@ ta_flush_cidr_entry(struct ip_fw_chain *ch, struct tentry_info *tei,
 }
 
 struct table_algo radix_cidr = {
-	.name		= "radix_cidr",
+	.name		= "cidr:radix",
 	.lookup		= ta_lookup_radix,
 	.init		= ta_init_radix,
 	.destroy	= ta_destroy_radix,
@@ -808,8 +812,8 @@ ta_prepare_add_ifidx(struct ip_fw_chain *ch, struct tentry_info *tei,
 }
 
 static int
-ta_add_ifidx(void *ta_state, struct table_info *ti,
-    struct tentry_info *tei, void *ta_buf, uint64_t *pflags)
+ta_add_ifidx(void *ta_state, struct table_info *ti, struct tentry_info *tei,
+    void *ta_buf, uint64_t *pflags, uint32_t *pnum)
 {
 	struct iftable_cfg *icfg;
 	struct ifentry *ife, *tmp;
@@ -843,6 +847,7 @@ ta_add_ifidx(void *ta_state, struct table_info *ti,
 
 		/* Indicate that update has happened instead of addition */
 		tei->flags |= TEI_FLAGS_UPDATED;
+		*pnum = 0;
 		return (0);
 	}
 
@@ -859,6 +864,7 @@ ta_add_ifidx(void *ta_state, struct table_info *ti,
 	}
 
 	tb->ife = NULL;
+	*pnum = 1;
 
 	return (0);
 }
@@ -890,8 +896,8 @@ ta_prepare_del_ifidx(struct ip_fw_chain *ch, struct tentry_info *tei,
  * runtime array. Removed interface notification.
  */
 static int
-ta_del_ifidx(void *ta_state, struct table_info *ti,
-    struct tentry_info *tei, void *ta_buf, uint64_t *pflags)
+ta_del_ifidx(void *ta_state, struct table_info *ti, struct tentry_info *tei,
+    void *ta_buf, uint64_t *pflags, uint32_t *pnum)
 {
 	struct iftable_cfg *icfg;
 	struct ifentry *ife;
@@ -931,6 +937,7 @@ ta_del_ifidx(void *ta_state, struct table_info *ti,
 	icfg->count--;
 
 	tb->ife = ife;
+	*pnum = 1;
 
 	return (0);
 }
@@ -1161,7 +1168,7 @@ ta_foreach_ifidx(void *ta_state, struct table_info *ti, ta_foreach_f *f,
 }
 
 struct table_algo idx_iface = {
-	.name		= "idx_iface",
+	.name		= "iface:array",
 	.lookup		= ta_lookup_ifidx,
 	.init		= ta_init_ifidx,
 	.destroy	= ta_destroy_ifidx,
