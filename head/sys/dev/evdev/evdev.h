@@ -34,6 +34,7 @@
 #include <dev/evdev/input.h>
 
 #define	NAMELEN		80
+#define	LONG_WIDTH	(sizeof(unsigned long) * 8)
 #define	nlongs(x)	(howmany(x, sizeof(unsigned long) * 8))
 
 MALLOC_DECLARE(M_EVDEV);

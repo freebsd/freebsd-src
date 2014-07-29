@@ -66,13 +66,13 @@ static void evdev_client_push(struct evdev_client *, uint16_t, uint16_t,
 static inline void
 set_bit(unsigned long *array, int bit)
 {
-	array[bit / 64] |= (1LL << (bit % 64));
+	array[bit / LONG_WIDTH] |= (1LL << (bit % LONG_WIDTH));
 }
 
 static inline void
 clr_bit(unsigned long *array, int bit)
 {
-	array[bit / 64] &= ~(1LL << (bit % 64));
+	array[bit / LONG_WIDTH] &= ~(1LL << (bit % LONG_WIDTH));
 }
 
 static inline void
