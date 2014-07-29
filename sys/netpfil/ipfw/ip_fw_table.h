@@ -100,7 +100,6 @@ struct table_algo {
 	int		idx;
 	ta_init		*init;
 	ta_destroy	*destroy;
-	table_lookup_t	*lookup;
 	ta_prepare_add	*prepare_add;
 	ta_prepare_del	*prepare_del;
 	ta_add		*add;
@@ -117,7 +116,9 @@ struct table_algo {
 	ta_change_ti	*change_ti;
 };
 
-void ipfw_add_table_algo(struct ip_fw_chain *ch, struct table_algo *ta);
+int ipfw_add_table_algo(struct ip_fw_chain *ch, struct table_algo *ta,
+    size_t size, int *idx);
+void ipfw_del_table_algo(struct ip_fw_chain *ch, int idx);
 extern struct table_algo cidr_radix, iface_idx;
 
 void ipfw_table_algo_init(struct ip_fw_chain *chain);

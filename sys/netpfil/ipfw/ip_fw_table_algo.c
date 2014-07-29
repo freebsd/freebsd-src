@@ -516,7 +516,6 @@ ta_flush_cidr_entry(struct ip_fw_chain *ch, struct tentry_info *tei,
 
 struct table_algo cidr_radix = {
 	.name		= "cidr:radix",
-	.lookup		= ta_lookup_radix,
 	.init		= ta_init_radix,
 	.destroy	= ta_destroy_radix,
 	.prepare_add	= ta_prepare_add_cidr,
@@ -1195,7 +1194,6 @@ ta_flush_chash_entry(struct ip_fw_chain *ch, struct tentry_info *tei,
 
 struct table_algo cidr_hash = {
 	.name		= "cidr:hash",
-	.lookup		= ta_lookup_chash_slow,
 	.init		= ta_init_chash,
 	.destroy	= ta_destroy_chash,
 	.prepare_add	= ta_prepare_add_chash,
@@ -1848,7 +1846,6 @@ ta_foreach_ifidx(void *ta_state, struct table_info *ti, ta_foreach_f *f,
 
 struct table_algo iface_idx = {
 	.name		= "iface:array",
-	.lookup		= ta_lookup_ifidx,
 	.init		= ta_init_ifidx,
 	.destroy	= ta_destroy_ifidx,
 	.prepare_add	= ta_prepare_add_ifidx,
@@ -1867,20 +1864,26 @@ struct table_algo iface_idx = {
 };
 
 void
-ipfw_table_algo_init(struct ip_fw_chain *chain)
+ipfw_table_algo_init(struct ip_fw_chain *ch)
 {
+	size_t sz;
+
 	/*
 	 * Register all algorithms presented here.
 	 */
-	ipfw_add_table_algo(chain, &cidr_radix);
-	ipfw_add_table_algo(chain, &cidr_hash);
-	ipfw_add_table_algo(chain, &iface_idx);
+	sz = sizeof(struct table_algo);
+	ipfw_add_table_algo(ch, &cidr_radix, sz, &cidr_radix.idx);
+	ipfw_add_table_algo(ch, &cidr_hash, sz, &cidr_hash.idx);
+	ipfw_add_table_algo(ch, &iface_idx, sz, &iface_idx.idx);
 }
 
 void
-ipfw_table_algo_destroy(struct ip_fw_chain *chain)
+ipfw_table_algo_destroy(struct ip_fw_chain *ch)
 {
-	/* Do nothing */
+
+	ipfw_del_table_algo(ch, cidr_radix.idx);
+	ipfw_del_table_algo(ch, cidr_hash.idx);
+	ipfw_del_table_algo(ch, iface_idx.idx);
 }
 
 

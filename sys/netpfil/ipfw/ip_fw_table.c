@@ -1600,17 +1600,45 @@ find_table_algo(struct tables_config *tcfg, struct tid_info *ti, char *name)
 	return (NULL);
 }
 
-void
-ipfw_add_table_algo(struct ip_fw_chain *ch, struct table_algo *ta)
+int
+ipfw_add_table_algo(struct ip_fw_chain *ch, struct table_algo *ta, size_t size,
+    int *idx)
 {
 	struct tables_config *tcfg;
+	struct table_algo *ta_new;
+
+	if (size > sizeof(struct table_algo))
+		return (EINVAL);
+
+	ta_new = malloc(sizeof(struct table_algo), M_IPFW, M_WAITOK | M_ZERO);
+	memcpy(ta_new, ta, size);
 
 	tcfg = CHAIN_TO_TCFG(ch);
 
 	KASSERT(tcfg->algo_count < 255, ("Increase algo array size"));
 
-	tcfg->algo[++tcfg->algo_count] = ta;
-	ta->idx = tcfg->algo_count;
+	tcfg->algo[++tcfg->algo_count] = ta_new;
+	ta_new->idx = tcfg->algo_count;
+
+	*idx = ta_new->idx;
+	
+	return (0);
+}
+
+void
+ipfw_del_table_algo(struct ip_fw_chain *ch, int idx)
+{
+	struct tables_config *tcfg;
+	struct table_algo *ta;
+
+	tcfg = CHAIN_TO_TCFG(ch);
+
+	KASSERT(idx <= tcfg->algo_count, ("algo idx %d out of rage 1..%d", idx, 
+	    tcfg->algo_count));
+
+	ta = tcfg->algo[idx];
+	KASSERT(ta != NULL, ("algo idx %d is NULL", idx));
+	free(ta, M_IPFW);
 }
 
 
