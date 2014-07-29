@@ -297,6 +297,7 @@ void ipfw_flush(int force);
 void ipfw_zero(int ac, char *av[], int optname);
 void ipfw_list(int ac, char *av[], int show_counters);
 void ipfw_list_tifaces(void);
+void ipfw_list_ta(int ac, char *av[]);
 
 #ifdef PF
 /* altq.c */

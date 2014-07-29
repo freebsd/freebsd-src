@@ -89,6 +89,7 @@ typedef struct _ip_fw3_opheader {
 #define	IP_FW_XADD		98	/* add entry */
 #define	IP_FW_TABLE_XFIND	99	/* finds an entry */
 #define	IP_FW_XIFLIST		100	/* list tracked interfaces */
+#define	IP_FW_TABLES_ALIST	101	/* list table algorithms */
 
 /*
  * Usage guidelines:
@@ -798,6 +799,15 @@ typedef struct _ipfw_iface_info {
 	uint64_t	spare;
 } ipfw_iface_info;
 #define	IPFW_IFFLAG_RESOLVED	0x01	/* Interface exists		*/
+
+typedef struct _ipfw_ta_info {
+	char		algoname[32];	/* algorithm name		*/
+	uint32_t	type;		/* lookup type			*/
+	uint32_t	flags;
+	uint32_t	refcnt;
+	uint32_t	spare0;
+	uint64_t	spare1;
+} ipfw_ta_info;
 
 #define	IPFW_OBJTYPE_TABLE	1
 typedef struct _ipfw_obj_header {

@@ -2001,6 +2001,9 @@ ipfw_ctl(struct sockopt *sopt)
 	case IP_FW_TABLE_XFIND: /* IP_FW3 */
 		error = ipfw_find_table_entry(chain, op3, &sdata);
 		break;
+	case IP_FW_TABLES_ALIST: /* IP_FW3 */
+		error = ipfw_list_table_algo(chain, &sdata);
+		break;
 
 	/*--- LEGACY API ---*/
 	case IP_FW_TABLE_ADD:
