@@ -363,7 +363,6 @@ in_aifaddr_ioctl(u_long cmd, caddr_t data, struct ifnet *ifp, struct thread *td)
 	ifa->ifa_netmask = (struct sockaddr *)&ia->ia_sockmask;
 
 	ia->ia_ifp = ifp;
-	ia->ia_ifa.ifa_metric = ifp->if_metric;
 	ia->ia_addr = *addr;
 	if (mask->sin_len != 0) {
 		ia->ia_sockmask = *mask;
