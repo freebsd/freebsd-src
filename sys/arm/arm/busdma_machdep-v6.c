@@ -162,6 +162,8 @@ struct bus_dmamap {
 	void		      *callback_arg;
 	int		      flags;
 #define DMAMAP_COHERENT		(1 << 0)
+#define DMAMAP_DMAMEM_ALLOC	(1 << 1)
+#define DMAMAP_MBUF		(1 << 2)
 	STAILQ_ENTRY(bus_dmamap) links;
 	int		       sync_count;
 	struct sync_list       slist[];
@@ -279,12 +281,22 @@ alignment_bounce(bus_dma_tag_t dmat, bus_addr_t addr)
 }
 
 /*
- * Return true if the buffer start or end does not fall on a cacheline boundary.
+ * Return true if the DMA should bounce because the start or end does not fall
+ * on a cacheline boundary (which would require a partial cacheline flush).
+ * COHERENT memory doesn't trigger cacheline flushes.  Memory allocated by
+ * bus_dmamem_alloc() is always aligned to cacheline boundaries, and there's a
+ * strict rule that such memory cannot be accessed by the CPU while DMA is in
+ * progress (or by multiple DMA engines at once), so that it's always safe to do
+ * full cacheline flushes even if that affects memory outside the range of a
+ * given DMA operation that doesn't involve the full allocated buffer.  If we're
+ * mapping an mbuf, that follows the same rules as a buffer we allocated.
  */
 static __inline int
-cacheline_bounce(bus_addr_t addr, bus_size_t size)
+cacheline_bounce(bus_dmamap_t map, bus_addr_t addr, bus_size_t size)
 {
 
+	if (map->flags & (DMAMAP_DMAMEM_ALLOC | DMAMAP_COHERENT | DMAMAP_MBUF))
+		return (0);
 	return ((addr | size) & arm_dcache_align_mask);
 }
 
@@ -302,8 +314,9 @@ static __inline int
 might_bounce(bus_dma_tag_t dmat, bus_dmamap_t map, bus_addr_t addr, 
     bus_size_t size)
 {
-	return ((dmat->flags & BUS_DMA_COULD_BOUNCE) ||
-	    !((map->flags & DMAMAP_COHERENT) && cacheline_bounce(addr, size)));
+	return ((dmat->flags & BUS_DMA_EXCL_BOUNCE) ||
+	    alignment_bounce(dmat, addr) ||
+	    cacheline_bounce(map, addr, size));
 }
 
 /*
@@ -322,8 +335,7 @@ must_bounce(bus_dma_tag_t dmat, bus_dmamap_t map, bus_addr_t paddr,
     bus_size_t size)
 {
 
-	/* Coherent memory doesn't need to bounce due to cache alignment. */
-	if (!(map->flags & DMAMAP_COHERENT) && cacheline_bounce(paddr, size))
+	if (cacheline_bounce(map, paddr, size))
 		return (1);
 
 	/*
@@ -727,7 +739,9 @@ bus_dmamem_alloc(bus_dma_tag_t dmat, void** vaddr, int flags,
 		return (ENOMEM);
 	}
 
+	(*mapp)->flags = DMAMAP_DMAMEM_ALLOC;
 	(*mapp)->sync_count = 0;
+
 	/* We may need bounce pages, even for allocated memory */
 	error = allocate_bz_and_pages(dmat, *mapp);
 	if (error != 0) {
@@ -1080,6 +1094,9 @@ _bus_dmamap_load_buffer(bus_dma_tag_t dmat,
 	if (segs == NULL)
 		segs = dmat->segments;
 
+	if (flags & BUS_DMA_LOAD_MBUF)
+		map->flags |= DMAMAP_MBUF;
+
 	map->pmap = pmap;
 
 	if (might_bounce(dmat, map, (bus_addr_t)buf, buflen)) {
@@ -1196,6 +1213,7 @@ _bus_dmamap_unload(bus_dma_tag_t dmat, bus_dmamap_t map)
 		map->pagesneeded = 0;
 	}
 	map->sync_count = 0;
+	map->flags &= ~DMAMAP_MBUF;
 }
 
 #ifdef notyetbounceuser
