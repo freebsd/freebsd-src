@@ -255,7 +255,7 @@ mca_mute(const struct mca_record *rec)
 	 * (see HSD131 erratum) unless reporting is enabled.
 	 * Note that these errors also have been observed with D0-stepping,
 	 * while the revision 014 desktop Haswell specification update only
-	 * talks about CO-stepping.
+	 * talks about C0-stepping.
 	 */
 	if (rec->mr_cpu_vendor_id == CPU_VENDOR_INTEL &&
 	    rec->mr_cpu_id == 0x306c3 && rec->mr_bank == 0 &&
