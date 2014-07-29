@@ -772,7 +772,6 @@ bus_dmamem_alloc(bus_dma_tag_t dmat, void** vaddr, int flags,
 	} else {
 		memattr = VM_MEMATTR_DEFAULT;
 		ba = standard_allocator;
-		(*mapp)->flags = 0;
 	}
 
 	/*
