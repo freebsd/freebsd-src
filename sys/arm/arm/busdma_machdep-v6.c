@@ -64,7 +64,9 @@ __FBSDID("$FreeBSD$");
 #include <machine/md_var.h>
 
 #define MAX_BPAGES 64
-#define BUS_DMA_COULD_BOUNCE	BUS_DMA_BUS3
+#define BUS_DMA_EXCL_BOUNCE	BUS_DMA_BUS2
+#define BUS_DMA_ALIGN_BOUNCE	BUS_DMA_BUS3
+#define BUS_DMA_COULD_BOUNCE	(BUS_DMA_EXCL_BOUNCE | BUS_DMA_ALIGN_BOUNCE)
 #define BUS_DMA_MIN_ALLOC_COMP	BUS_DMA_BUS4
 
 struct bounce_zone;
@@ -242,7 +244,7 @@ SYSINIT(busdma, SI_SUB_KMEM, SI_ORDER_FOURTH, busdma_init, NULL);
  * express, so we take a fast out.
  */
 static int
-exclusion_bounce(vm_offset_t lowaddr, vm_offset_t highaddr)
+exclusion_bounce_check(vm_offset_t lowaddr, vm_offset_t highaddr)
 {
 	int i;
 
@@ -256,6 +258,16 @@ exclusion_bounce(vm_offset_t lowaddr, vm_offset_t highaddr)
 			return (1);
 	}
 	return (0);
+}
+
+/*
+ * Return true if the tag has an exclusion zone that could lead to bouncing.
+ */
+static __inline int
+exclusion_bounce(bus_dma_tag_t dmat)
+{
+
+	return (dmat->flags & BUS_DMA_EXCL_BOUNCE);
 }
 
 /*
@@ -436,17 +448,15 @@ bus_dma_tag_create(bus_dma_tag_t parent, bus_size_t alignment,
 	if (parent != NULL) {
 		newtag->lowaddr = MIN(parent->lowaddr, newtag->lowaddr);
 		newtag->highaddr = MAX(parent->highaddr, newtag->highaddr);
+		newtag->flags |= parent->flags & BUS_DMA_COULD_BOUNCE;
 		if (newtag->boundary == 0)
 			newtag->boundary = parent->boundary;
 		else if (parent->boundary != 0)
 			newtag->boundary = MIN(parent->boundary,
 					       newtag->boundary);
-		if ((newtag->filter != NULL) ||
-		    ((parent->flags & BUS_DMA_COULD_BOUNCE) != 0))
-			newtag->flags |= BUS_DMA_COULD_BOUNCE;
 		if (newtag->filter == NULL) {
 			/*
-			 * Short circuit looking at our parent directly
+			 * Short circuit to looking at our parent directly
 			 * since we have encapsulated all of its information
 			 */
 			newtag->filter = parent->filter;
@@ -457,9 +467,10 @@ bus_dma_tag_create(bus_dma_tag_t parent, bus_size_t alignment,
 			atomic_add_int(&parent->ref_count, 1);
 	}
 
-	if (exclusion_bounce(newtag->lowaddr, newtag->highaddr)
-	 || alignment_bounce(newtag, 1))
-		newtag->flags |= BUS_DMA_COULD_BOUNCE;
+	if (exclusion_bounce_check(newtag->lowaddr, newtag->highaddr))
+		newtag->flags |= BUS_DMA_EXCL_BOUNCE;
+	if (alignment_bounce(newtag, 1))
+		newtag->flags |= BUS_DMA_ALIGN_BOUNCE;
 
 	/*
 	 * Any request can auto-bounce due to cacheline alignment, in addition
@@ -737,7 +748,7 @@ bus_dmamem_alloc(bus_dma_tag_t dmat, void** vaddr, int flags,
 	 * constraints is something that only the contig allocator can fulfill.
 	 */
 	if (bufzone != NULL && dmat->alignment <= bufzone->size &&
-	    !exclusion_bounce(dmat->lowaddr, dmat->highaddr)) {
+	    !exclusion_bounce(dmat)) {
 		*vaddr = uma_zalloc(bufzone->umazone, mflags);
 	} else if (dmat->nsegments >= btoc(dmat->maxsize) &&
 	    dmat->alignment <= PAGE_SIZE && dmat->boundary == 0) {
@@ -784,7 +795,7 @@ bus_dmamem_free(bus_dma_tag_t dmat, void *vaddr, bus_dmamap_t map)
 	bufzone = busdma_bufalloc_findzone(ba, dmat->maxsize);
 
 	if (bufzone != NULL && dmat->alignment <= bufzone->size &&
-	    !exclusion_bounce(dmat->lowaddr, dmat->highaddr))
+	    !exclusion_bounce(dmat))
 		uma_zfree(bufzone->umazone, vaddr);
 	else
 		kmem_free(kernel_arena, (vm_offset_t)vaddr, dmat->maxsize);
