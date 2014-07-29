@@ -203,7 +203,7 @@ of type Destination Unreachable:
 .Bd -literal -offset indent
 SDT_PROVIDER_DECLARE(icmp);
 
-SDT_PROBE_DEFINE1(icmp, , unreach, pkt_receive, pkt-receive,
+SDT_PROBE_DEFINE1(icmp, , unreach, pkt__receive,
     "struct icmp *");
 
 .Ed
@@ -215,7 +215,7 @@ Consider a DTrace probe which fires when the network stack receives an IP
 packet.
 Such a probe would be defined by multiple tracepoints:
 .Bd -literal -offset indent
-SDT_PROBE_DEFINE3(ip, , , receive, receive, "struct ifnet *",
+SDT_PROBE_DEFINE3(ip, , , receive, "struct ifnet *",
     "struct ip *", "struct ip6_hdr *");
 
 int
@@ -271,7 +271,7 @@ all in the
 library path.
 Then the FreeBSD probe above can be defined with:
 .Bd -literal -offset indent
-SDT_PROBE_DEFINE1_XLATE(ip, , , receive, receive, "struct icmp *",
+SDT_PROBE_DEFINE1_XLATE(ip, , , receive, "struct icmp *",
     "struct icmp_hdr_dt *");
 .Ed
 .Sh SEE ALSO
