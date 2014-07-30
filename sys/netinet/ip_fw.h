@@ -674,7 +674,7 @@ struct _ipfw_dyn_rule {
 
 #define	IPFW_TABLE_CIDR		1	/* Table for holding IPv4/IPv6 prefixes */
 #define	IPFW_TABLE_INTERFACE	2	/* Table for holding interface names */
-#define	IPFW_TABLE_U32		3	/* Table for holidng ports/uid/gid/etc */
+#define	IPFW_TABLE_NUMBER	3	/* Table for holding ports/uid/gid/etc */
 #define	IPFW_TABLE_MAXTYPE	3	/* Maximum valid number */
 
 #define	IPFW_VTYPE_U32		1	/* Skipto/tablearg integer */

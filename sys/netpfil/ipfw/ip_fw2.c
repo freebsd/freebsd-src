@@ -1473,9 +1473,9 @@ do {								\
 						proto != IPPROTO_UDP)
 					    break;
 					else if (v == 2)
-					    key = htonl(dst_port);
+					    key = dst_port;
 					else if (v == 3)
-					    key = htonl(src_port);
+					    key = src_port;
 #ifndef USERSPACE
 					else if (v == 4 || v == 5) {
 					    check_uidgid(
@@ -1494,7 +1494,6 @@ do {								\
 					    else if (v == 5 /* O_JAIL */)
 						key = ucred_cache.xid;
 #endif /* !__FreeBSD__ */
-					    key = htonl(key);
 					} else
 #endif /* !USERSPACE */
 					    break;
