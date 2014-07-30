@@ -38,6 +38,8 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20140728: libsbuf restored to old version.
+OLD_LIBS+=lib/libsbuf.so.7
 # 20140728: Remove an obsolete man page
 OLD_FILES+=usr/share/man/man9/VOP_GETVOBJECT.9.gz
 OLD_FILES+=usr/share/man/man9/VOP_CREATEVOBJECT.9.gz
