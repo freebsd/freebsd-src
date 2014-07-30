@@ -648,6 +648,7 @@ flush_table(struct ip_fw_chain *ch, struct tid_info *ti)
 	struct table_algo *ta;
 	struct table_info ti_old, ti_new, *tablestate;
 	void *astate_old, *astate_new;
+	char algostate[32], *pstate;
 	int error;
 	uint16_t kidx;
 
@@ -663,14 +664,20 @@ flush_table(struct ip_fw_chain *ch, struct tid_info *ti)
 	}
 	ta = tc->ta;
 	tc->no.refcnt++;
+	/* Save statup algo parameters */
+	if (ta->print_config != NULL) {
+		ta->print_config(tc->astate, KIDX_TO_TI(ch, tc->no.kidx),
+		    algostate, sizeof(algostate));
+		pstate = algostate;
+	} else
+		pstate = NULL;
 	IPFW_UH_WUNLOCK(ch);
 
 	/*
 	 * Stage 2: allocate new table instance using same algo.
-	 * TODO: pass startup parametes somehow.
 	 */
 	memset(&ti_new, 0, sizeof(struct table_info));
-	if ((error = ta->init(ch, &astate_new, &ti_new, NULL)) != 0) {
+	if ((error = ta->init(ch, &astate_new, &ti_new, pstate)) != 0) {
 		IPFW_UH_WLOCK(ch);
 		tc->no.refcnt--;
 		IPFW_UH_WUNLOCK(ch);
