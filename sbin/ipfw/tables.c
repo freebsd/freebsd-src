@@ -82,7 +82,7 @@ static int tables_foreach(table_cb_t *f, void *arg, int sort);
 static struct _s_x tabletypes[] = {
       { "cidr",		IPFW_TABLE_CIDR },
       { "iface",	IPFW_TABLE_INTERFACE },
-      { "u32",		IPFW_TABLE_U32 },
+      { "number",	IPFW_TABLE_NUMBER },
       { NULL, 0 }
 };
 
@@ -654,7 +654,7 @@ tentry_fill_key_type(char *arg, ipfw_obj_tentry *tentry, uint8_t type)
 		/* Set mask to exact match */
 		masklen = 8 * IF_NAMESIZE;
 		break;
-	case IPFW_TABLE_U32:
+	case IPFW_TABLE_NUMBER:
 		/* Port or any other key */
 		key = strtol(arg, &p, 10);
 		if (*p != '\0')
@@ -899,6 +899,16 @@ table_show_entry(ipfw_xtable_info *i, ipfw_obj_tentry *tent)
 			    inet_ntoa(*(struct in_addr *)&tval));
 		} else
 			printf("%s %u\n", tent->k.iface, tval);
+		break;
+	case IPFW_TABLE_NUMBER:
+		/* numbers */
+		if (co.do_value_as_ip) {
+			tval = htonl(tval);
+			printf("%u %s\n", tent->k.key,
+			    inet_ntoa(*(struct in_addr *)&tval));
+		} else
+			printf("%u %u\n", tent->k.key, tval);
+		break;
 	}
 }
 

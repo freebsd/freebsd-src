@@ -1096,6 +1096,7 @@ print_ip(struct format_opts *fo, ipfw_insn_ip *cmd, char const *s)
 	struct hostent *he = NULL;
 	uint32_t len = F_LEN((ipfw_insn *)cmd);
 	uint32_t *a = ((ipfw_insn_u32 *)cmd)->d;
+	char *t;
 
 	if (cmd->o.opcode == O_IP_DST_LOOKUP && len > F_INSN_SIZE(ipfw_insn_u32)) {
 		uint32_t d = a[1];
@@ -1103,8 +1104,9 @@ print_ip(struct format_opts *fo, ipfw_insn_ip *cmd, char const *s)
 
 		if (d < sizeof(lookup_key)/sizeof(lookup_key[0]))
 			arg = match_value(rule_options, lookup_key[d]);
-		printf("%s lookup %s %d", cmd->o.len & F_NOT ? " not": "",
-			arg, cmd->o.arg1);
+		t = table_search_ctlv(fo->tstate, ((ipfw_insn *)cmd)->arg1);
+		printf("%s lookup %s %s", cmd->o.len & F_NOT ? " not": "",
+			arg, t);
 		return;
 	}
 	printf("%s%s ", cmd->o.len & F_NOT ? " not": "", s);
@@ -1115,7 +1117,6 @@ print_ip(struct format_opts *fo, ipfw_insn_ip *cmd, char const *s)
 	}
 	if (cmd->o.opcode == O_IP_SRC_LOOKUP ||
 	    cmd->o.opcode == O_IP_DST_LOOKUP) {
-		char *t;
 		t = table_search_ctlv(fo->tstate, ((ipfw_insn *)cmd)->arg1);
 		printf("table(%s", t);
 		if (len == F_INSN_SIZE(ipfw_insn_u32))
@@ -2624,13 +2625,8 @@ struct tidx {
 static uint16_t
 pack_table(struct tidx *tstate, char *name, uint32_t set)
 {
-	char *p;
 	int i;
 	ipfw_obj_ntlv *ntlv;
-
-	if ((p = strchr(name, ')')) == NULL)
-		return (0);
-	*p = '\0';
 
 	if (table_check_name(name) != 0)
 		return (0);
@@ -2694,6 +2690,9 @@ fill_ip(ipfw_insn_ip *cmd, char *av, int cblen, struct tidx *tstate)
 	}
 
 	if (strncmp(av, "table(", 6) == 0) {
+		if ((p = strchr(av + 6, ')')) == NULL)
+			errx(EX_DATAERR, "forgotten parenthesis: '%s'", av);
+		*p = '\0';
 		p = strchr(av + 6, ',');
 		if (p)
 			*p++ = '\0';
@@ -2983,6 +2982,7 @@ ipfw_delete(char *av[])
 static void
 fill_iface(ipfw_insn_if *cmd, char *arg, int cblen, struct tidx *tstate)
 {
+	char *p;
 	uint16_t uidx;
 
 	cmd->name[0] = '\0';
@@ -2994,7 +2994,10 @@ fill_iface(ipfw_insn_if *cmd, char *arg, int cblen, struct tidx *tstate)
 	if (strcmp(arg, "any") == 0)
 		cmd->o.len = 0;		/* effectively ignore this command */
 	else if (strncmp(arg, "table(", 6) == 0) {
-		char *p = strchr(arg + 6, ',');
+		if ((p = strchr(arg + 6, ')')) == NULL)
+			errx(EX_DATAERR, "forgotten parenthesis: '%s'", arg);
+		*p = '\0';
+		p = strchr(arg + 6, ',');
 		if (p)
 			*p++ = '\0';
 		if ((uidx = pack_table(tstate, arg + 6, 0)) == 0)
@@ -4381,7 +4384,6 @@ read_options:
 
 		case TOK_LOOKUP: {
 			ipfw_insn_u32 *c = (ipfw_insn_u32 *)cmd;
-			char *p;
 			int j;
 
 			if (!av[0] || !av[1])
@@ -4397,9 +4399,11 @@ read_options:
 				errx(EX_USAGE, "format: cannot lookup on %s", *av);
 			__PAST_END(c->d, 1) = j; // i converted to option
 			av++;
-			cmd->arg1 = strtoul(*av, &p, 0);
-			if (p && *p)
-				errx(EX_USAGE, "format: lookup argument tablenum");
+
+			if ((j = pack_table(tstate, *av, 0)) == 0)
+				errx(EX_DATAERR, "Invalid table name: %s", *av);
+
+			cmd->arg1 = j;
 			av++;
 		    }
 			break;

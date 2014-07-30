@@ -1376,7 +1376,7 @@ struct table_algo cidr_hash = {
  *
  * Runtime part:
  * - sorted array of "struct ifidx" pointed by ti->state.
- *   Array is allocated with routing up to IFIDX_CHUNK. Only existing
+ *   Array is allocated with rounding up to IFIDX_CHUNK. Only existing
  *   interfaces are stored in array, however its allocated size is
  *   sufficient to hold all table records if needed.
  * - current array size is stored in ti->data
@@ -2025,6 +2025,368 @@ struct table_algo iface_idx = {
 	.change_ti	= ta_change_ti_ifidx,
 };
 
+/*
+ * Number array cmds.
+ *
+ * Implementation:
+ *
+ * Runtime part:
+ * - sorted array of "struct numarray" pointed by ti->state.
+ *   Array is allocated with rounding up to NUMARRAY_CHUNK.
+ * - current array size is stored in ti->data
+ *
+ */
+
+struct numarray {
+	uint32_t	number;
+	uint32_t	value;
+};
+
+struct numarray_cfg {
+	void	*main_ptr;
+	size_t	size;	/* Number of items allocated in array */
+	size_t	used;	/* Number of items _active_ now */
+};
+
+#define	NUMARRAY_CHUNK	16
+
+int compare_numarray(const void *k, const void *v);
+
+int
+compare_numarray(const void *k, const void *v)
+{
+	struct numarray *na;
+	uint32_t key;
+
+	key = *((uint32_t *)k);
+	na = (struct numarray *)v;
+
+	if (key < na->number)
+		return (-1);
+	else if (key > na->number)
+		return (1);
+	
+	return (0);
+}
+
+static struct numarray *
+numarray_find(struct table_info *ti, void *key)
+{
+	struct numarray *ri;
+
+	ri = bsearch(key, ti->state, ti->data, sizeof(struct numarray),
+	    compare_ifidx);
+
+	return (ri);
+}
+
+static int
+ta_lookup_numarray(struct table_info *ti, void *key, uint32_t keylen,
+    uint32_t *val)
+{
+	struct numarray *ri;
+
+	ri = numarray_find(ti, key);
+
+	if (ri != NULL) {
+		*val = ri->value;
+		return (1);
+	}
+
+	return (0);
+}
+
+static int
+ta_init_numarray(struct ip_fw_chain *ch, void **ta_state, struct table_info *ti,
+    char *data)
+{
+	struct numarray_cfg *cfg;
+
+	cfg = malloc(sizeof(*cfg), M_IPFW, M_WAITOK | M_ZERO);
+
+	cfg->size = NUMARRAY_CHUNK;
+	cfg->main_ptr = malloc(sizeof(struct numarray) * cfg->size, M_IPFW,
+	    M_WAITOK | M_ZERO);
+
+	*ta_state = cfg;
+	ti->state = cfg->main_ptr;
+	ti->lookup = ta_lookup_numarray;
+
+	return (0);
+}
+
+/*
+ * Destroys table @ti
+ */
+static void
+ta_destroy_numarray(void *ta_state, struct table_info *ti)
+{
+	struct numarray_cfg *cfg;
+
+	cfg = (struct numarray_cfg *)ta_state;
+
+	if (cfg->main_ptr != NULL)
+		free(cfg->main_ptr, M_IPFW);
+
+	free(cfg, M_IPFW);
+}
+
+struct ta_buf_numarray
+{
+	struct numarray na;
+};
+
+/*
+ * Prepare for addition/deletion to an array.
+ */
+static int
+ta_prepare_add_numarray(struct ip_fw_chain *ch, struct tentry_info *tei,
+    void *ta_buf)
+{
+	struct ta_buf_numarray *tb;
+
+	tb = (struct ta_buf_numarray *)ta_buf;
+	memset(tb, 0, sizeof(*tb));
+
+	tb->na.number = *((uint32_t *)tei->paddr);
+	tb->na.value = tei->value;
+
+	return (0);
+}
+
+static int
+ta_add_numarray(void *ta_state, struct table_info *ti, struct tentry_info *tei,
+    void *ta_buf, uint64_t *pflags, uint32_t *pnum)
+{
+	struct numarray_cfg *cfg;
+	struct ta_buf_numarray *tb;
+	struct numarray *ri;
+	int res;
+
+	tb = (struct ta_buf_numarray*)ta_buf;
+	cfg = (struct numarray_cfg *)ta_state;
+
+	ri = numarray_find(ti, &tb->na.number);
+	
+	if (ri != NULL) {
+		if ((tei->flags & TEI_FLAGS_UPDATE) == 0)
+			return (EEXIST);
+
+		/* We need to update value */
+		ri->value = tb->na.value;
+		/* Indicate that update has happened instead of addition */
+		tei->flags |= TEI_FLAGS_UPDATED;
+		*pnum = 0;
+		return (0);
+	}
+
+	res = badd(&tb->na.number, &tb->na, cfg->main_ptr, cfg->used,
+	    sizeof(struct numarray), compare_numarray);
+
+	KASSERT(res == 1, ("number %d already exists", tb->na.number));
+	cfg->used++;
+	ti->data = cfg->used;
+
+	if (cfg->used + 1 == cfg->size) {
+		/* Notify core we need to grow */
+		*pflags = cfg->size + NUMARRAY_CHUNK;
+	}
+	*pnum = 1;
+
+	return (0);
+}
+
+/*
+ * Remove key from both configuration list and
+ * runtime array. Removed interface notification.
+ */
+static int
+ta_del_numarray(void *ta_state, struct table_info *ti, struct tentry_info *tei,
+    void *ta_buf, uint64_t *pflags, uint32_t *pnum)
+{
+	struct numarray_cfg *cfg;
+	struct ta_buf_numarray *tb;
+	struct numarray *ri;
+	int res;
+
+	tb = (struct ta_buf_numarray *)ta_buf;
+	cfg = (struct numarray_cfg *)ta_state;
+
+	ri = numarray_find(ti, &tb->na.number);
+	if (ri == NULL)
+		return (ENOENT);
+	
+	res = bdel(&tb->na.number, cfg->main_ptr, cfg->used,
+	    sizeof(struct numarray), compare_numarray);
+
+	KASSERT(res == 1, ("number %u does not exist", tb->na.number));
+	cfg->used--;
+	ti->data = cfg->used;
+
+	*pnum = 1;
+
+	return (0);
+}
+
+static void
+ta_flush_numarray_entry(struct ip_fw_chain *ch, struct tentry_info *tei,
+    void *ta_buf)
+{
+
+	/* Do nothing */
+}
+
+
+/*
+ * Table growing callbacks.
+ */
+
+/*
+ * Allocate ned, larger runtime numarray array.
+ */
+static int
+ta_prepare_mod_numarray(void *ta_buf, uint64_t *pflags)
+{
+	struct mod_item *mi;
+
+	mi = (struct mod_item *)ta_buf;
+
+	memset(mi, 0, sizeof(struct mod_item));
+	mi->size = *pflags;
+	mi->main_ptr = malloc(sizeof(struct numarray) * mi->size, M_IPFW,
+	    M_WAITOK | M_ZERO);
+
+	return (0);
+}
+
+/*
+ * Copy data from old runtime array to new one.
+ */
+static int
+ta_fill_mod_numarray(void *ta_state, struct table_info *ti, void *ta_buf,
+    uint64_t *pflags)
+{
+	struct mod_item *mi;
+	struct numarray_cfg *cfg;
+
+	mi = (struct mod_item *)ta_buf;
+	cfg = (struct numarray_cfg *)ta_state;
+
+	/* Check if we still need to grow array */
+	if (cfg->size >= mi->size) {
+		*pflags = 0;
+		return (0);
+	}
+
+	memcpy(mi->main_ptr, cfg->main_ptr, cfg->used * sizeof(struct numarray));
+
+	return (0);
+}
+
+/*
+ * Switch old & new arrays.
+ */
+static int
+ta_modify_numarray(void *ta_state, struct table_info *ti, void *ta_buf,
+    uint64_t pflags)
+{
+	struct mod_item *mi;
+	struct numarray_cfg *cfg;
+	void *old_ptr;
+
+	mi = (struct mod_item *)ta_buf;
+	cfg = (struct numarray_cfg *)ta_state;
+
+	old_ptr = cfg->main_ptr;
+	cfg->main_ptr = mi->main_ptr;
+	cfg->size = mi->size;
+	ti->state = cfg->main_ptr;
+
+	mi->main_ptr = old_ptr;
+
+	return (0);
+}
+
+/*
+ * Free unneded array.
+ */
+static void
+ta_flush_mod_numarray(void *ta_buf)
+{
+	struct mod_item *mi;
+
+	mi = (struct mod_item *)ta_buf;
+	if (mi->main_ptr != NULL)
+		free(mi->main_ptr, M_IPFW);
+}
+
+static int
+ta_dump_numarray_tentry(void *ta_state, struct table_info *ti, void *e,
+    ipfw_obj_tentry *tent)
+{
+	struct numarray *na;
+
+	na = (struct numarray *)e;
+
+	tent->k.key = na->number;
+	tent->value = na->value;
+
+	return (0);
+}
+
+static int
+ta_find_numarray_tentry(void *ta_state, struct table_info *ti, void *key,
+    uint32_t keylen, ipfw_obj_tentry *tent)
+{
+	struct numarray_cfg *cfg;
+	struct numarray *ri;
+
+	cfg = (struct numarray_cfg *)ta_state;
+
+	ri = numarray_find(ti, key);
+
+	if (ri != NULL) {
+		ta_dump_numarray_tentry(ta_state, ti, ri, tent);
+		return (0);
+	}
+
+	return (ENOENT);
+}
+
+static void
+ta_foreach_numarray(void *ta_state, struct table_info *ti, ta_foreach_f *f,
+    void *arg)
+{
+	struct numarray_cfg *cfg;
+	struct numarray *array;
+	int i;
+
+	cfg = (struct numarray_cfg *)ta_state;
+	array = cfg->main_ptr;
+
+	for (i = 0; i < cfg->used; i++)
+		f(&array[i], arg);
+}
+
+struct table_algo number_array = {
+	.name		= "number:array",
+	.type		= IPFW_TABLE_NUMBER,
+	.init		= ta_init_numarray,
+	.destroy	= ta_destroy_numarray,
+	.prepare_add	= ta_prepare_add_numarray,
+	.prepare_del	= ta_prepare_add_numarray,
+	.add		= ta_add_numarray,
+	.del		= ta_del_numarray,
+	.flush_entry	= ta_flush_numarray_entry,
+	.foreach	= ta_foreach_numarray,
+	.dump_tentry	= ta_dump_numarray_tentry,
+	.find_tentry	= ta_find_numarray_tentry,
+	.prepare_mod	= ta_prepare_mod_numarray,
+	.fill_mod	= ta_fill_mod_numarray,
+	.modify		= ta_modify_numarray,
+	.flush_mod	= ta_flush_mod_numarray,
+};
+
 void
 ipfw_table_algo_init(struct ip_fw_chain *ch)
 {
@@ -2037,6 +2399,7 @@ ipfw_table_algo_init(struct ip_fw_chain *ch)
 	ipfw_add_table_algo(ch, &cidr_radix, sz, &cidr_radix.idx);
 	ipfw_add_table_algo(ch, &cidr_hash, sz, &cidr_hash.idx);
 	ipfw_add_table_algo(ch, &iface_idx, sz, &iface_idx.idx);
+	ipfw_add_table_algo(ch, &number_array, sz, &number_array.idx);
 }
 
 void
@@ -2046,6 +2409,7 @@ ipfw_table_algo_destroy(struct ip_fw_chain *ch)
 	ipfw_del_table_algo(ch, cidr_radix.idx);
 	ipfw_del_table_algo(ch, cidr_hash.idx);
 	ipfw_del_table_algo(ch, iface_idx.idx);
+	ipfw_del_table_algo(ch, number_array.idx);
 }
 
 

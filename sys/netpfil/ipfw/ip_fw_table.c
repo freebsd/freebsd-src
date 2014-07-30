@@ -593,6 +593,9 @@ ipfw_find_table_entry(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
 			IPFW_UH_RUNLOCK(ch);
 			return (EINVAL);
 		}
+	case IPFW_TABLE_NUMBER:
+		plen = sizeof(uint32_t);
+		break;
 
 		break;
 	default:
@@ -1744,17 +1747,19 @@ classify_table_opcode(ipfw_insn *cmd, uint16_t *puidx, uint8_t *ptype)
 			case 2:
 			case 3:
 				/* src/dst port */
-				//type = IPFW_TABLE_U16;
+				*ptype = IPFW_TABLE_NUMBER;
 				break;
 			case 4:
 				/* uid/gid */
-				//type = IPFW_TABLE_U32;
+				*ptype = IPFW_TABLE_NUMBER;
+				break;
 			case 5:
-				//type = IPFW_TABLE_U32;
 				/* jid */
+				*ptype = IPFW_TABLE_NUMBER;
+				break;
 			case 6:
-				//type = IPFW_TABLE_U16;
 				/* dscp */
+				*ptype = IPFW_TABLE_NUMBER;
 				break;
 			}
 		}
