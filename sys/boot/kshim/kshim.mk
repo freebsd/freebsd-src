@@ -42,12 +42,12 @@ CFLAGS+=	-DHAVE_ENDIAN_DEFS
 #
 # Single threaded BSD kernel
 #
-SRCS+=	bsd_kernel.c
+KSRCS+=	bsd_kernel.c
 
 #
 # BUSSPACE implementation
 #
-SRCS+=	bsd_busspace.c
+KSRCS+=	bsd_busspace.c
 
 SRCS+=	sysinit_data.c
 SRCS+=	sysuninit_data.c
