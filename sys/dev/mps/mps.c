@@ -610,7 +610,7 @@ mps_iocfacts_free(struct mps_softc *sc)
 
 	mps_dprint(sc, MPS_TRACE, "%s\n", __func__);
 
-	if (sc->post_busaddr != 0)
+	if (sc->free_busaddr != 0)
 		bus_dmamap_unload(sc->queues_dmat, sc->queues_map);
 	if (sc->free_queue != NULL)
 		bus_dmamem_free(sc->queues_dmat, sc->free_queue,

@@ -32,7 +32,7 @@
 #ifndef _MPSVAR_H
 #define _MPSVAR_H
 
-#define MPS_DRIVER_VERSION	"18.00.00.00-fbsd"
+#define MPS_DRIVER_VERSION	"19.00.00.00-fbsd"
 
 #define MPS_DB_MAX_WAIT		2500
 
