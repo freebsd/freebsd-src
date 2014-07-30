@@ -32,10 +32,36 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/proc.h>
 
+#include <machine/frame.h>
+
 int
 cpu_fetch_syscall_args(struct thread *td, struct syscall_args *sa)
 {
 
 	panic("cpu_fetch_syscall_args");
+}
+
+void do_el1h_sync(struct trapframe *frame);
+void do_el1h_sync(struct trapframe *frame)
+{
+	uint32_t exception;
+	uint64_t esr;
+
+	/* Read the esr register to get the exception details */
+	__asm __volatile("mrs %x0, esr_el1" : "=&r"(esr));
+	KASSERT((esr & (1 << 25)) != 0,
+	    ("Invalid instruction length in exception"));
+
+	exception = (esr >> 26) & 0x3f;
+
+	printf("In do_el1h_sync %llx %llx %x\n", frame->tf_elr, esr, exception);
+	switch(exception) {
+	case 0x3c:
+		printf("Breakpoint %u\n", (uint32_t)(esr & 0xffffff));
+		break;
+	default:
+		panic("Unknown exception %x\n", exception);
+	}
+	frame->tf_elr += 4;
 }
 
