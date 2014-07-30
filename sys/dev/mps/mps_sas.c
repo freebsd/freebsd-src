@@ -115,7 +115,6 @@ static uint8_t op_code_prot[256] = {
 
 MALLOC_DEFINE(M_MPSSAS, "MPSSAS", "MPS SAS memory");
 
-static void mpssas_discovery_timeout(void *data);
 static void mpssas_remove_device(struct mps_softc *, struct mps_command *);
 static void mpssas_remove_complete(struct mps_softc *, struct mps_command *);
 static void mpssas_action(struct cam_sim *sim, union ccb *ccb);
@@ -907,46 +906,6 @@ mpssas_discovery_end(struct mpssas_softc *sassc)
 	if (sassc->flags & MPSSAS_DISCOVERY_TIMEOUT_PENDING)
 		callout_stop(&sassc->discovery_callout);
 
-}
-
-static void
-mpssas_discovery_timeout(void *data)
-{
-	struct mpssas_softc *sassc = data;
-	struct mps_softc *sc;
-
-	sc = sassc->sc;
-	MPS_FUNCTRACE(sc);
-
-	mps_lock(sc);
-	mps_dprint(sc, MPS_INFO,
-	    "Timeout waiting for discovery, interrupts may not be working!\n");
-	sassc->flags &= ~MPSSAS_DISCOVERY_TIMEOUT_PENDING;
-
-	/* Poll the hardware for events in case interrupts aren't working */
-	mps_intr_locked(sc);
-
-	mps_dprint(sassc->sc, MPS_INFO,
-	    "Finished polling after discovery timeout at %d\n", ticks);
-
-	if ((sassc->flags & MPSSAS_IN_DISCOVERY) == 0) {
-		mpssas_discovery_end(sassc);
-	} else {
-		if (sassc->discovery_timeouts < MPSSAS_MAX_DISCOVERY_TIMEOUTS) {
-			sassc->flags |= MPSSAS_DISCOVERY_TIMEOUT_PENDING;
-			callout_reset(&sassc->discovery_callout,
-			    MPSSAS_DISCOVERY_TIMEOUT * hz,
-			    mpssas_discovery_timeout, sassc);
-			sassc->discovery_timeouts++;
-		} else {
-			mps_dprint(sassc->sc, MPS_FAULT,
-			    "Discovery timed out, continuing.\n");
-			sassc->flags &= ~MPSSAS_IN_DISCOVERY;
-			mpssas_discovery_end(sassc);
-		}
-	}
-
-	mps_unlock(sc);
 }
 
 static void
