@@ -956,9 +956,9 @@ ipfw_list_ta(int ac, char *av[])
 	for (i = 0; i < olh->count; i++) {
 		if ((atype = match_value(tabletypes, info->type)) == NULL)
 			atype = "unknown";
+		printf("--- %s ---\n", info->algoname);
+		printf(" type: %s\n refcount: %u\n", atype, info->refcnt);
 
-		printf("%s type: %s references: %u\n", info->algoname,
-		    atype, info->refcnt);
 		info = (ipfw_ta_info *)((caddr_t)info + olh->objsize);
 	}
 
