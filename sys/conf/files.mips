@@ -68,7 +68,7 @@ dev/cfe/cfe_env.c			optional	cfe_env
 
 # syscons support
 dev/fb/fb.c				optional	sc
-dev/kbd/kbd.c				optional	sc
+dev/kbd/kbd.c				optional	sc | vt
 dev/syscons/scgfbrndr.c			optional	sc
 dev/syscons/scterm-teken.c		optional	sc
 dev/syscons/scvtb.c			optional	sc
