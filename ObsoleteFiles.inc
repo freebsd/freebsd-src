@@ -38,6 +38,10 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20140728: Remove an obsolete man page
+OLD_FILES+=usr/share/man/man9/VOP_GETVOBJECT.9.gz
+OLD_FILES+=usr/share/man/man9/VOP_CREATEVOBJECT.9.gz
+OLD_FILES+=usr/share/man/man9/VOP_DESTROYVOBJECT.9.gz
 # 20140614: send-pr removal
 OLD_FILES+=usr/share/man/man1/send-pr.1.gz
 OLD_FILES+=etc/gnats/freefall
