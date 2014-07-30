@@ -48,7 +48,7 @@
  * Locking key:
  * (c) - Constant after initial setup.
  * (p) - Protected by the process descriptor mutex.
- * (r) - Atomic eference count.
+ * (r) - Atomic reference count.
  * (s) - Protected by selinfo.
  * (t) - Protected by the proctree_lock
  */
