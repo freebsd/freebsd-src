@@ -364,6 +364,7 @@ extern int		devopen(struct open_file *, const char *, const char **);
 extern int		devclose(struct open_file *f);
 extern void		panic(const char *, ...) __dead2 __printflike(1, 2);
 extern struct fs_ops	*file_system[];
+extern struct fs_ops	*exclusive_file_system;
 extern struct devsw	*devsw[];
 
 /*
