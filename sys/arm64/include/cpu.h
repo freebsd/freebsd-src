@@ -39,7 +39,7 @@
 
 #include <machine/frame.h>
 
-#define	TRAPF_PC(tfp)		((tfp)->tf_pc)
+#define	TRAPF_PC(tfp)		((tfp)->tf_lr)
 #define	TRAPF_USERMODE(tfp)	(0) /* TODO: Fix */
 
 #define	cpu_getstack(td)	((td)->td_frame->tf_sp)
