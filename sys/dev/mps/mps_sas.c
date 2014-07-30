@@ -191,6 +191,16 @@ mpssas_startup_increment(struct mpssas_softc *sassc)
 }
 
 void
+mpssas_release_simq_reinit(struct mpssas_softc *sassc)
+{
+	if (sassc->flags & MPSSAS_QUEUE_FROZEN) {
+		sassc->flags &= ~MPSSAS_QUEUE_FROZEN;
+		xpt_release_simq(sassc->sim, 1);
+		mps_dprint(sassc->sc, MPS_INFO, "Unfreezing SIM queue\n");
+	}
+}
+
+void
 mpssas_startup_decrement(struct mpssas_softc *sassc)
 {
 	MPS_FUNCTRACE(sassc->sc);
@@ -1003,7 +1013,7 @@ mpssas_action(struct cam_sim *sim, union ccb *ccb)
 		    cts->ccb_h.target_id));
 		targ = &sassc->targets[cts->ccb_h.target_id];
 		if (targ->handle == 0x0) {
-			mpssas_set_ccbstatus(ccb, CAM_SEL_TIMEOUT);
+			mpssas_set_ccbstatus(ccb, CAM_DEV_NOT_THERE);
 			break;
 		}
 
@@ -1119,6 +1129,14 @@ mpssas_complete_all_commands(struct mps_softc *sc)
 			    cm, cm->cm_state, cm->cm_ccb);
 			wakeup(cm);
 			completed = 1;
+		}
+
+		if (cm->cm_sc->io_cmds_active != 0) {
+			cm->cm_sc->io_cmds_active--;
+		} else {
+			mps_dprint(cm->cm_sc, MPS_INFO, "Warning: "
+			    "io_cmds_active is out of sync - resynching to "
+			    "0\n");
 		}
 		
 		if ((completed == 0) && (cm->cm_state != MPS_CM_STATE_FREE)) {
@@ -1647,14 +1665,14 @@ mpssas_action_scsiio(struct mpssas_softc *sassc, union ccb *ccb)
 	if (targ->handle == 0x0) {
 		mps_dprint(sc, MPS_ERROR, "%s NULL handle for target %u\n", 
 		    __func__, csio->ccb_h.target_id);
-		mpssas_set_ccbstatus(ccb, CAM_SEL_TIMEOUT);
+		mpssas_set_ccbstatus(ccb, CAM_DEV_NOT_THERE);
 		xpt_done(ccb);
 		return;
 	}
 	if (targ->flags & MPS_TARGET_FLAGS_RAID_COMPONENT) {
 		mps_dprint(sc, MPS_ERROR, "%s Raid component no SCSI IO "
 		    "supported %u\n", __func__, csio->ccb_h.target_id);
-		mpssas_set_ccbstatus(ccb, CAM_TID_INVALID);
+		mpssas_set_ccbstatus(ccb, CAM_DEV_NOT_THERE);
 		xpt_done(ccb);
 		return;
 	}
@@ -1685,13 +1703,16 @@ mpssas_action_scsiio(struct mpssas_softc *sassc, union ccb *ccb)
 
 	if ((sc->mps_flags & MPS_FLAGS_SHUTDOWN) != 0) {
 		mps_dprint(sc, MPS_INFO, "%s shutting down\n", __func__);
-		mpssas_set_ccbstatus(ccb, CAM_TID_INVALID);
+		mpssas_set_ccbstatus(ccb, CAM_DEV_NOT_THERE);
 		xpt_done(ccb);
 		return;
 	}
 
 	cm = mps_alloc_command(sc);
-	if (cm == NULL) {
+	if (cm == NULL || (sc->mps_flags & MPS_FLAGS_DIAGRESET)) {
+		if (cm != NULL) {
+			mps_free_command(sc, cm);
+		}
 		if ((sassc->flags & MPSSAS_QUEUE_FROZEN) == 0) {
 			xpt_freeze_simq(sassc->sim, 1);
 			sassc->flags |= MPSSAS_QUEUE_FROZEN;
@@ -2168,6 +2189,18 @@ mpssas_scsiio_complete(struct mps_softc *sc, struct mps_command *cm)
 			mps_dprint(sc, MPS_XINFO, "Error sending command, "
 				   "freezing SIM queue\n");
 		}
+	}
+
+	/*
+	 * If this is a Start Stop Unit command and it was issued by the driver
+	 * during shutdown, decrement the refcount to account for all of the
+	 * commands that were sent.  All SSU commands should be completed before
+	 * shutdown completes, meaning SSU_refcount will be 0 after SSU_started
+	 * is TRUE.
+	 */
+	if (sc->SSU_started && (csio->cdb_io.cdb_bytes[0] == START_STOP_UNIT)) {
+		mps_dprint(sc, MPS_INFO, "Decrementing SSU count.\n");
+		sc->SSU_refcount--;
 	}
 
 	/* Take the fast path to completion */
@@ -2999,7 +3032,7 @@ mpssas_action_smpio(struct mpssas_softc *sassc, union ccb *ccb)
 			mps_dprint(sc, MPS_ERROR,
 				   "%s: handle %d does not have a valid "
 				   "parent handle!\n", __func__, targ->handle);
-			mpssas_set_ccbstatus(ccb, CAM_REQ_INVALID);
+			mpssas_set_ccbstatus(ccb, CAM_DEV_NOT_THERE);
 			goto bailout;
 		}
 #ifdef OLD_MPS_PROBE
@@ -3010,7 +3043,7 @@ mpssas_action_smpio(struct mpssas_softc *sassc, union ccb *ccb)
 			mps_dprint(sc, MPS_ERROR,
 				   "%s: handle %d does not have a valid "
 				   "parent target!\n", __func__, targ->handle);
-			mpssas_set_ccbstatus(ccb, CAM_REQ_INVALID);
+			mpssas_set_ccbstatus(ccb, CAM_DEV_NOT_THERE);
 			goto bailout;
 		}
 
@@ -3020,7 +3053,7 @@ mpssas_action_smpio(struct mpssas_softc *sassc, union ccb *ccb)
 				   "%s: handle %d parent %d does not "
 				   "have an SMP target!\n", __func__,
 				   targ->handle, parent_target->handle);
-			mpssas_set_ccbstatus(ccb, CAM_REQ_INVALID);
+			mpssas_set_ccbstatus(ccb, CAM_DEV_NOT_THERE);
 			goto bailout;
 
 		}
@@ -3033,7 +3066,7 @@ mpssas_action_smpio(struct mpssas_softc *sassc, union ccb *ccb)
 				   "%s: handle %d parent %d does not "
 				   "have an SMP target!\n", __func__,
 				   targ->handle, targ->parent_handle);
-			mpssas_set_ccbstatus(ccb, CAM_REQ_INVALID);
+			mpssas_set_ccbstatus(ccb, CAM_DEV_NOT_THERE);
 			goto bailout;
 
 		}
@@ -3042,7 +3075,7 @@ mpssas_action_smpio(struct mpssas_softc *sassc, union ccb *ccb)
 				   "%s: handle %d parent handle %d does "
 				   "not have a valid SAS address!\n",
 				   __func__, targ->handle, targ->parent_handle);
-			mpssas_set_ccbstatus(ccb, CAM_REQ_INVALID);
+			mpssas_set_ccbstatus(ccb, CAM_DEV_NOT_THERE);
 			goto bailout;
 		}
 
@@ -3055,7 +3088,7 @@ mpssas_action_smpio(struct mpssas_softc *sassc, union ccb *ccb)
 		mps_dprint(sc, MPS_INFO,
 			   "%s: unable to find SAS address for handle %d\n",
 			   __func__, targ->handle);
-		mpssas_set_ccbstatus(ccb, CAM_REQ_INVALID);
+		mpssas_set_ccbstatus(ccb, CAM_DEV_NOT_THERE);
 		goto bailout;
 	}
 	mpssas_send_smpcmd(sassc, ccb, sasaddr);
@@ -3366,6 +3399,20 @@ mpssas_check_eedp(struct mps_softc *sc, struct cam_path *path,
 	}
 
 	xpt_path_string(local_path, path_str, sizeof(path_str));
+
+	/*
+	 * If this is a SATA direct-access end device,
+	 * mark it so that a SCSI StartStopUnit command
+	 * will be sent to it when the driver is being
+	 * shutdown.
+	 */
+	if ((cgd.inq_data.device == T_DIRECT) && 
+		(target->devinfo & MPI2_SAS_DEVICE_INFO_SATA_DEVICE) &&
+		((target->devinfo & MPI2_SAS_DEVICE_INFO_MASK_DEVICE_TYPE) ==
+		MPI2_SAS_DEVICE_INFO_END_DEVICE)) {
+		lun->stop_at_shutdown = TRUE;
+	}
+
 	mps_dprint(sc, MPS_INFO, "Sending read cap: path %s handle %d\n",
 	    path_str, target->handle);
 
