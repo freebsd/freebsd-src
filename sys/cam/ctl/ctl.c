@@ -322,10 +322,10 @@ SYSCTL_INT(_kern_cam_ctl, OID_AUTO, verbose, CTLFLAG_RWTUN,
 
 /*
  * Supported pages (0x00), Serial number (0x80), Device ID (0x83),
- * SCSI Ports (0x88), Block limits (0xB0) and
+ * SCSI Ports (0x88), Third-party Copy (0x8F), Block limits (0xB0) and
  * Logical Block Provisioning (0xB2)
  */
-#define SCSI_EVPD_NUM_SUPPORTED_PAGES	6
+#define SCSI_EVPD_NUM_SUPPORTED_PAGES	7
 
 static void ctl_isc_event_handler(ctl_ha_channel chanel, ctl_ha_event event,
 				  int param);
@@ -351,8 +351,6 @@ static int ctl_ioctl_fill_ooa(struct ctl_lun *lun, uint32_t *cur_fill_num,
 			      struct ctl_ooa_entry *kern_entries);
 static int ctl_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
 		     struct thread *td);
-uint32_t ctl_get_resindex(struct ctl_nexus *nexus);
-uint32_t ctl_port_idx(int port_num);
 static uint32_t ctl_map_lun(int port_num, uint32_t lun);
 static uint32_t ctl_map_lun_back(int port_num, uint32_t lun);
 #ifdef unused
@@ -4600,6 +4598,7 @@ ctl_alloc_lun(struct ctl_softc *ctl_softc, struct ctl_lun *ctl_lun,
 	TAILQ_INIT(&lun->ooa_queue);
 	TAILQ_INIT(&lun->blocked_queue);
 	STAILQ_INIT(&lun->error_list);
+	ctl_tpc_init(lun);
 
 	/*
 	 * Initialize the mode page index.
@@ -4751,6 +4750,7 @@ ctl_free_lun(struct ctl_lun *lun)
 	atomic_subtract_int(&lun->be_lun->be->num_luns, 1);
 	lun->be_lun->lun_shutdown(lun->be_lun->be_lun);
 
+	ctl_tpc_shutdown(lun);
 	mtx_destroy(&lun->lun_lock);
 	free(lun->lun_devid, M_CTL);
 	if (lun->flags & CTL_LUN_MALLOCED)
@@ -9823,10 +9823,12 @@ ctl_inquiry_evpd_supported(struct ctl_scsiio *ctsio, int alloc_len)
 	pages->page_list[2] = SVPD_DEVICE_ID;
 	/* SCSI Ports */
 	pages->page_list[3] = SVPD_SCSI_PORTS;
+	/* Third-party Copy */
+	pages->page_list[4] = SVPD_SCSI_TPC;
 	/* Block limits */
-	pages->page_list[4] = SVPD_BLOCK_LIMITS;
+	pages->page_list[5] = SVPD_BLOCK_LIMITS;
 	/* Logical Block Provisioning */
-	pages->page_list[5] = SVPD_LBP;
+	pages->page_list[6] = SVPD_LBP;
 
 	ctsio->scsi_status = SCSI_STATUS_OK;
 
@@ -10025,7 +10027,7 @@ ctl_inquiry_evpd_scsi_ports(struct ctl_scsiio *ctsio, int alloc_len)
 	struct scsi_vpd_port_designation_cont *pdc;
 	struct ctl_lun *lun;
 	struct ctl_port *port;
-	int data_len, num_target_ports, id_len, g, pg, p;
+	int data_len, num_target_ports, iid_len, id_len, g, pg, p;
 	int num_target_port_groups, single;
 
 	lun = (struct ctl_lun *)ctsio->io_hdr.ctl_private[CTL_PRIV_LUN].ptr;
@@ -10036,6 +10038,7 @@ ctl_inquiry_evpd_scsi_ports(struct ctl_scsiio *ctsio, int alloc_len)
 	else
 		num_target_port_groups = NUM_TARGET_PORT_GROUPS;
 	num_target_ports = 0;
+	iid_len = 0;
 	id_len = 0;
 	mtx_lock(&softc->ctl_lock);
 	STAILQ_FOREACH(port, &softc->port_list, links) {
@@ -10046,6 +10049,8 @@ ctl_inquiry_evpd_scsi_ports(struct ctl_scsiio *ctsio, int alloc_len)
 		    CTL_MAX_LUNS)
 			continue;
 		num_target_ports++;
+		if (port->init_devid)
+			iid_len += port->init_devid->len;
 		if (port->port_devid)
 			id_len += port->port_devid->len;
 	}
@@ -10053,7 +10058,7 @@ ctl_inquiry_evpd_scsi_ports(struct ctl_scsiio *ctsio, int alloc_len)
 
 	data_len = sizeof(struct scsi_vpd_scsi_ports) + num_target_port_groups *
 	    num_target_ports * (sizeof(struct scsi_vpd_port_designation) +
-	     sizeof(struct scsi_vpd_port_designation_cont)) + id_len;
+	     sizeof(struct scsi_vpd_port_designation_cont)) + iid_len + id_len;
 	ctsio->kern_data_ptr = malloc(data_len, M_CTL, M_WAITOK | M_ZERO);
 	sp = (struct scsi_vpd_scsi_ports *)ctsio->kern_data_ptr;
 	ctsio->kern_sg_entries = 0;
@@ -10102,19 +10107,22 @@ ctl_inquiry_evpd_scsi_ports(struct ctl_scsiio *ctsio, int alloc_len)
 				continue;
 			p = port->targ_port % CTL_MAX_PORTS + g * CTL_MAX_PORTS;
 			scsi_ulto2b(p, pd->relative_port_id);
-			scsi_ulto2b(0, pd->initiator_transportid_length);
+			if (port->init_devid && g == pg) {
+				iid_len = port->init_devid->len;
+				memcpy(pd->initiator_transportid,
+				    port->init_devid->data, port->init_devid->len);
+			} else
+				iid_len = 0;
+			scsi_ulto2b(iid_len, pd->initiator_transportid_length);
 			pdc = (struct scsi_vpd_port_designation_cont *)
-			    &pd->initiator_transportid[0];
+			    (&pd->initiator_transportid[iid_len]);
 			if (port->port_devid && g == pg) {
 				id_len = port->port_devid->len;
-				scsi_ulto2b(port->port_devid->len,
-				    pdc->target_port_descriptors_length);
 				memcpy(pdc->target_port_descriptors,
 				    port->port_devid->data, port->port_devid->len);
-			} else {
+			} else
 				id_len = 0;
-				scsi_ulto2b(0, pdc->target_port_descriptors_length);
-			}
+			scsi_ulto2b(id_len, pdc->target_port_descriptors_length);
 			pd = (struct scsi_vpd_port_designation *)
 			    ((uint8_t *)pdc->target_port_descriptors + id_len);
 		}
@@ -10263,6 +10271,9 @@ ctl_inquiry_evpd(struct ctl_scsiio *ctsio)
 	case SVPD_SCSI_PORTS:
 		retval = ctl_inquiry_evpd_scsi_ports(ctsio, alloc_len);
 		break;
+	case SVPD_SCSI_TPC:
+		retval = ctl_inquiry_evpd_tpc(ctsio, alloc_len);
+		break;
 	case SVPD_BLOCK_LIMITS:
 		retval = ctl_inquiry_evpd_block_limits(ctsio, alloc_len);
 		break;
@@ -10293,7 +10304,7 @@ ctl_inquiry_std(struct ctl_scsiio *ctsio)
 	struct ctl_lun *lun;
 	char *val;
 	uint32_t alloc_len;
-	int is_fc;
+	ctl_port_type port_type;
 
 	ctl_softc = control_softc;
 
@@ -10302,11 +10313,10 @@ ctl_inquiry_std(struct ctl_scsiio *ctsio)
 	 * We treat the ioctl front end, and any SCSI adapters, as packetized
 	 * SCSI front ends.
 	 */
-	if (ctl_softc->ctl_ports[ctl_port_idx(ctsio->io_hdr.nexus.targ_port)]->port_type !=
-	    CTL_PORT_FC)
-		is_fc = 0;
-	else
-		is_fc = 1;
+	port_type = ctl_softc->ctl_ports[
+	    ctl_port_idx(ctsio->io_hdr.nexus.targ_port)]->port_type;
+	if (port_type == CTL_PORT_IOCTL || port_type == CTL_PORT_INTERNAL)
+		port_type = CTL_PORT_SCSI;
 
 	lun = ctsio->io_hdr.ctl_private[CTL_PRIV_LUN].ptr;
 	cdb = (struct scsi_inquiry *)ctsio->cdb;
@@ -10385,7 +10395,7 @@ ctl_inquiry_std(struct ctl_scsiio *ctsio)
 		inq_ptr->device = (SID_QUAL_BAD_LU << 5) | T_NODEVICE;
 
 	/* RMB in byte 2 is 0 */
-	inq_ptr->version = SCSI_REV_SPC3;
+	inq_ptr->version = SCSI_REV_SPC4;
 
 	/*
 	 * According to SAM-3, even if a device only supports a single
@@ -10410,17 +10420,18 @@ ctl_inquiry_std(struct ctl_scsiio *ctsio)
 	CTL_DEBUG_PRINT(("additional_length = %d\n",
 			 inq_ptr->additional_length));
 
-	inq_ptr->spc3_flags = SPC3_SID_TPGS_IMPLICIT;
+	inq_ptr->spc3_flags = SPC3_SID_3PC;
+	if (!ctl_is_single)
+		inq_ptr->spc3_flags |= SPC3_SID_TPGS_IMPLICIT;
 	/* 16 bit addressing */
-	if (is_fc == 0)
+	if (port_type == CTL_PORT_SCSI)
 		inq_ptr->spc2_flags = SPC2_SID_ADDR16;
 	/* XXX set the SID_MultiP bit here if we're actually going to
 	   respond on multiple ports */
 	inq_ptr->spc2_flags |= SPC2_SID_MultiP;
 
 	/* 16 bit data bus, synchronous transfers */
-	/* XXX these flags don't apply for FC */
-	if (is_fc == 0)
+	if (port_type == CTL_PORT_SCSI)
 		inq_ptr->flags = SID_WBus16 | SID_Sync;
 	/*
 	 * XXX KDM do we want to support tagged queueing on the control
@@ -10481,33 +10492,36 @@ ctl_inquiry_std(struct ctl_scsiio *ctsio)
 	 * and Selection) and Information Unit transfers on both the
 	 * control and array devices.
 	 */
-	if (is_fc == 0)
+	if (port_type == CTL_PORT_SCSI)
 		inq_ptr->spi3data = SID_SPI_CLOCK_DT_ST | SID_SPI_QAS |
 				    SID_SPI_IUS;
 
-	/* SAM-3 */
-	scsi_ulto2b(0x0060, inq_ptr->version1);
-	/* SPC-3 (no version claimed) XXX should we claim a version? */
-	scsi_ulto2b(0x0300, inq_ptr->version2);
-	if (is_fc) {
+	/* SAM-5 (no version claimed) */
+	scsi_ulto2b(0x00A0, inq_ptr->version1);
+	/* SPC-4 (no version claimed) */
+	scsi_ulto2b(0x0460, inq_ptr->version2);
+	if (port_type == CTL_PORT_FC) {
 		/* FCP-2 ANSI INCITS.350:2003 */
 		scsi_ulto2b(0x0917, inq_ptr->version3);
-	} else {
+	} else if (port_type == CTL_PORT_SCSI) {
 		/* SPI-4 ANSI INCITS.362:200x */
 		scsi_ulto2b(0x0B56, inq_ptr->version3);
+	} else if (port_type == CTL_PORT_ISCSI) {
+		/* iSCSI (no version claimed) */
+		scsi_ulto2b(0x0960, inq_ptr->version3);
+	} else if (port_type == CTL_PORT_SAS) {
+		/* SAS (no version claimed) */
+		scsi_ulto2b(0x0BE0, inq_ptr->version3);
 	}
 
 	if (lun == NULL) {
-		/* SBC-2 (no version claimed) XXX should we claim a version? */
-		scsi_ulto2b(0x0320, inq_ptr->version4);
+		/* SBC-3 (no version claimed) */
+		scsi_ulto2b(0x04C0, inq_ptr->version4);
 	} else {
 		switch (lun->be_lun->lun_type) {
 		case T_DIRECT:
-			/*
-			 * SBC-2 (no version claimed) XXX should we claim a
-			 * version?
-			 */
-			scsi_ulto2b(0x0320, inq_ptr->version4);
+			/* SBC-3 (no version claimed) */
+			scsi_ulto2b(0x04C0, inq_ptr->version4);
 			break;
 		case T_PROCESSOR:
 		default:
