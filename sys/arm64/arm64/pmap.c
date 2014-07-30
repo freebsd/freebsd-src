@@ -42,7 +42,9 @@ __FBSDID("$FreeBSD$");
 #include <machine/machdep.h>
 #include <machine/vmparam.h>
 
+/*
 #define PMAP_DEBUG
+*/
 
 #if !defined(DIAGNOSTIC)
 #ifdef __GNUC_GNU_INLINE__
@@ -748,12 +750,8 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_prot_t access, vm_page_t m,
 	vm_paddr_t pa;
 	pt_entry_t *l3, opte;
 
-	printf("TODO: pmap_enter\n");
-
 	PMAP_LOCK(pmap);
 	pa = VM_PAGE_TO_PHYS(m);
-	printf("pmap_enter: %llx -> %llx (%x %x %u)\n", va, pa, access,
-	    prot, wired);
 	l3 = pmap_l3(pmap, va);
 	KASSERT(l3 != NULL, ("TODO: grow va"));
 	KASSERT(pmap == pmap_kernel(), ("Only kernel mappings for now"));
