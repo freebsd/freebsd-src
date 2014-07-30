@@ -444,6 +444,12 @@ in6_selectsrc(struct sockaddr_in6 *dstsock, struct ip6_pktopts *opts,
 			REPLACE(8);
 
 		/*
+		 * Rule 9: prefer address with better virtual status.
+		 */
+		if (ifa_preferred(&ia_best->ia_ifa, &ia->ia_ifa))
+			REPLACE(9);
+
+		/*
 		 * Rule 14: Use longest matching prefix.
 		 * Note: in the address selection draft, this rule is
 		 * documented as "Rule 8".  However, since it is also
