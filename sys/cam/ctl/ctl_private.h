@@ -355,8 +355,8 @@ struct ctl_per_res_info {
 	uint8_t  registered;
 };
 
-#define CTL_PR_ALL_REGISTRANTS  0xFFFF
-#define CTL_PR_NO_RESERVATION   0xFFF0
+#define CTL_PR_ALL_REGISTRANTS  0xFFFFFFFF
+#define CTL_PR_NO_RESERVATION   0xFFFFFFF0
 
 struct ctl_devid {
 	int		len;
@@ -398,7 +398,7 @@ struct ctl_lun {
 	struct ctl_per_res_info		per_res[2*CTL_MAX_INITIATORS];
 	unsigned int			PRGeneration;
 	int				pr_key_count;
-	uint16_t        		pr_res_idx;
+	uint32_t			pr_res_idx;
 	uint8_t				res_type;
 	uint8_t				write_buffer[262144];
 	struct ctl_devid		*lun_devid;
