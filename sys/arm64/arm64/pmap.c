@@ -56,6 +56,13 @@ __FBSDID("$FreeBSD$");
 #define PMAP_INLINE
 #endif
 
+/*
+ * These are configured by the mair_el1 register. This is set up in locore.S
+ */
+#define	DEVICE_MEMORY	0
+#define	UNCACHED_MEMORY	1
+#define	CACHED_MEMORY	2
+
 vm_offset_t virtual_avail;	/* VA of first avail page (after kernel bss) */
 vm_offset_t virtual_end;	/* VA of last avail page (end of kernel AS) */
 vm_offset_t kernel_vm_end = 0;
@@ -168,7 +175,12 @@ pmap_bootstrap_dmap(vm_offset_t l1pt)
 	    pa += L1_SIZE, va += L1_SIZE, l1_slot++) {
 		KASSERT(l1_slot < Ln_ENTRIES, ("Invalid L1 index"));
 
-		l1[l1_slot] = (pa & ~L1_OFFSET) | ATTR_AF | L1_BLOCK;
+		/*
+		 * TODO: Turn the cache on here when we have cache
+		 * flushing code.
+		 */
+		l1[l1_slot] = (pa & ~L1_OFFSET) | ATTR_AF | L1_BLOCK |
+		    ATTR_IDX(UNCACHED_MEMORY);
 	}
 }
 
@@ -306,7 +318,12 @@ pmap_bootstrap(vm_offset_t l1pt, vm_paddr_t kernstart, vm_size_t kernlen)
 			    ("Physical slot too small"));
 		}
 
-		l2[l2_slot] = (pa & ~L2_OFFSET) | ATTR_AF | L2_BLOCK;
+		/*
+		 * TODO: Turn the cache on here when we have cache
+		 * flushing code.
+		 */
+		l2[l2_slot] = (pa & ~L2_OFFSET) | ATTR_AF | L2_BLOCK |
+		    ATTR_IDX(UNCACHED_MEMORY);
 
 		va += L2_SIZE;
 		pa += L2_SIZE;
@@ -472,7 +489,7 @@ pmap_extract_and_hold(pmap_t pmap, vm_offset_t va, vm_prot_t prot)
  * This function may be used before pmap_bootstrap() is called.
  */
 PMAP_INLINE void 
-pmap_kenter(vm_offset_t va, vm_paddr_t pa)
+pmap_kenter_internal(vm_offset_t va, vm_paddr_t pa, int type)
 {
 	pt_entry_t *l3;
 
@@ -482,7 +499,24 @@ pmap_kenter(vm_offset_t va, vm_paddr_t pa)
 
 	l3 = pmap_l3(kernel_pmap, va);
 	KASSERT(l3 != NULL, ("Invalid page table"));
-	*l3 = (pa & ~L3_OFFSET) | ATTR_AF | L3_PAGE;
+	*l3 = (pa & ~L3_OFFSET) | ATTR_AF | L3_PAGE | ATTR_IDX(type);
+}
+
+void
+pmap_kenter(vm_offset_t va, vm_paddr_t pa)
+{
+
+	/*
+	 * TODO: Turn the cache on here when we have cache flushing code.
+	 */
+	pmap_kenter_internal(va, pa, UNCACHED_MEMORY);
+}
+
+void
+pmap_kenter_device(vm_offset_t va, vm_paddr_t pa)
+{
+
+	pmap_kenter_internal(va, pa, DEVICE_MEMORY);
 }
 
 /*
