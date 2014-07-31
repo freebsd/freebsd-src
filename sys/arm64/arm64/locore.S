@@ -448,7 +448,8 @@ start_mmu:
 _exception_vectors:
 	.quad	exception_vectors
 mair:
-	.quad	MAIR(0x00, 0) |	MAIR(0x44, 1) |	MAIR(0xff, 2)
+		/* Device       Normal, no cache   Normal, write-back */
+	.quad	MAIR(0x00, 0) | MAIR(0x44, 1)    | MAIR(0xff, 2)
 tcr:
 	.quad (TCR_TxSZ(63 - VIRT_BITS) | TCR_ASID_16 | TCR_IPS_40BIT | \
 	    TCR_TG1_4K)
