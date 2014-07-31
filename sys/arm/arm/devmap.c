@@ -39,6 +39,8 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_extern.h>
 #include <vm/pmap.h>
 #include <machine/armreg.h>
+
+#if 0
 #include <machine/devmap.h>
 
 static const struct arm_devmap_entry *devmap_table;
@@ -232,6 +234,7 @@ arm_devmap_vtop(void * vpva, vm_size_t size)
 
 	return (DEVMAP_PADDR_NOTFOUND);
 }
+#endif
 
 /*
  * Map a set of physical memory pages into the kernel virtual address space.
@@ -247,11 +250,13 @@ void *
 pmap_mapdev(vm_offset_t pa, vm_size_t size)
 {
 	vm_offset_t va, tmpva, offset;
+#if 0
 	void * rva;
 
 	/* First look in the static mapping table. */
 	if ((rva = arm_devmap_ptov(pa, size)) != NULL)
 		return (rva);
+#endif
 	
 	offset = pa & PAGE_MASK;
 	pa = trunc_page(pa);
@@ -280,9 +285,11 @@ pmap_unmapdev(vm_offset_t va, vm_size_t size)
 	vm_offset_t tmpva, offset;
 	vm_size_t origsize;
 
+#if 0
 	/* Nothing to do if we find the mapping in the static table. */
 	if (arm_devmap_vtop((void*)va, size) != DEVMAP_PADDR_NOTFOUND)
 		return;
+#endif
 
 	origsize = size;
 	offset = va & PAGE_MASK;
@@ -298,6 +305,7 @@ pmap_unmapdev(vm_offset_t va, vm_size_t size)
 	kva_free(va, origsize);
 }
 
+#if 0
 #ifdef DDB
 #include <ddb/ddb.h>
 
@@ -307,4 +315,5 @@ DB_SHOW_COMMAND(devmap, db_show_devmap)
 }
 
 #endif /* DDB */
+#endif
 

@@ -1,4 +1,5 @@
 
+arm/arm/devmap.c		standard
 arm64/arm64/autoconf.c		standard
 arm64/arm64/bcopy.c		standard
 arm64/arm64/bus_machdep.c	standard
