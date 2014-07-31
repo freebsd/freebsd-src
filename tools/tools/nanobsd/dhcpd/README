@@ -9,6 +9,6 @@ and DHCPd.
 
 This is a work in progress. Generally, to build this you should
      cd tools/tools/nanobsd/dhcpd
-     sudo sh ../nandobsd.sh -C os-base
+     sudo sh ../nanobsd.sh -C os-base
 but do be careful if things are interrupted. There may still be
 bugs lurking that cause your entire FreeBSD tree to disappear.
