@@ -27,9 +27,37 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#if 1
+#include <stand.h>
+#include "bootstrap.h"
+
+/* HACK: Load the foundation model dtb from disk */
+static int
+load_dtb_file(const char *filename)
+{
+	struct preloaded_file *bfp, *oldbfp;
+	int err;
+
+	oldbfp = file_findfile(NULL, "dtb");
+
+	/* Attempt to load and validate a new dtb from a file. */
+	if ((bfp = file_loadraw(filename, "dtb")) == NULL) {
+		printf("failed to load file '%s': %s\n", filename, command_errbuf);
+		return (1);
+	}
+
+	/* A new dtb was validated, discard any previous file. */
+	if (oldbfp)
+		file_discard(oldbfp);
+	return (0);
+}
+#endif
+
 int
 amd64_autoload(void)
 {
+
+	load_dtb_file("/foundation.dtb");
 
 	return (0);
 }

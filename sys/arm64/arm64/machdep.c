@@ -62,6 +62,10 @@ __FBSDID("$FreeBSD$");
 #include <machine/reg.h>
 #include <machine/vmparam.h>
 
+#include <dev/ofw/openfirm.h>
+
+#include "opt_platform.h"
+
 struct pcpu __pcpu[MAXCPU];
 struct pcpu *pcpup = &__pcpu[0];
 
@@ -484,6 +488,28 @@ add_efi_map_entries(struct efi_map_header *efihdr, vm_paddr_t *physmap,
 	}
 }
 
+#ifdef FDT
+static void
+try_load_dtb(caddr_t kmdp)
+{
+	vm_offset_t dtboff;
+	void *dtbp;
+
+	dtboff = MD_FETCH(kmdp, MODINFOMD_DTB_OFF, vm_offset_t);
+	if (dtboff == 0)
+		return;
+
+	dtbp = (void *)(KERNBASE + dtboff);
+	printf("dtbp = %llx\n", *(uint64_t *)(KERNBASE + dtboff));
+
+	if (OF_install(OFW_FDT, 0) == FALSE)
+		panic("Cannot install FDT");
+
+	if (OF_init((void *)dtbp) != 0)
+		panic("OF_init failed with the found device tree");
+}
+#endif
+
 void
 initarm(struct arm64_bootparams *abp)
 {
@@ -502,6 +528,10 @@ initarm(struct arm64_bootparams *abp)
 	kmdp = preload_search_by_type("elf kernel");
 	if (kmdp == NULL)
 		kmdp = preload_search_by_type("elf64 kernel");
+
+#ifdef FDT
+	try_load_dtb(kmdp);
+#endif
 
 	/* Find the address to start allocating from */
 	lastaddr = MD_FETCH(kmdp, MODINFOMD_KERNEND, vm_offset_t);

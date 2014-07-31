@@ -30,6 +30,7 @@
 #define	_MACHINE_METADATA_H_
 
 #define	MODINFOMD_EFI_MAP	0x1001
+#define	MODINFOMD_DTB_OFF	0x1002
 
 struct efi_map_header {
 	size_t		memory_size;

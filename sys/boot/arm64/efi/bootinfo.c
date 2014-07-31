@@ -198,10 +198,11 @@ bi_load_efi_data(struct preloaded_file *kfp)
 int
 bi_load(char *args, vm_offset_t *modulep, vm_offset_t *kernendp)
 {
-	struct preloaded_file *xp, *kfp;
+	struct preloaded_file *xp, *kfp, *dtbfp;
 	struct file_metadata *md;
 	uint64_t kernend;
 	vm_offset_t addr, size;
+	vm_offset_t dtbp;
 
 	/* find the last module in the chain */
 	addr = 0;
@@ -218,6 +219,15 @@ bi_load(char *args, vm_offset_t *modulep, vm_offset_t *kernendp)
 	if (kfp == NULL)
 		panic("can't find kernel file");
 	kernend = 0;	/* fill it in later */
+
+	dtbfp = file_findfile(NULL, "dtb");
+	if (dtbfp != NULL) {
+		printf("dtbfp = %llx %lld\n", dtbfp->f_addr, dtbfp->f_addr - kfp->f_addr);
+
+		dtbp = dtbfp->f_addr - kfp->f_addr;
+		file_addmetadata(kfp, MODINFOMD_DTB_OFF, sizeof dtbp, &dtbp);
+	}
+
 	file_addmetadata(kfp, MODINFOMD_KERNEND, sizeof kernend, &kernend);
 
 	bi_load_efi_data(kfp);
