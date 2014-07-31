@@ -418,20 +418,22 @@ in_aifaddr_ioctl(u_long cmd, caddr_t data, struct ifnet *ifp, struct thread *td)
 	LIST_INSERT_HEAD(INADDR_HASH(ia->ia_addr.sin_addr.s_addr), ia, ia_hash);
 	IN_IFADDR_WUNLOCK();
 
-	if (vhid != 0)
+	if (vhid != 0) {
 		error = (*carp_attach_p)(&ia->ia_ifa, vhid);
-	if (error)
-		goto fail1;
+		if (error)
+			goto fail1;
+	}
 
 	/*
 	 * Give the interface a chance to initialize
 	 * if this is its first address,
 	 * and to validate the address if necessary.
 	 */
-	if (ifp->if_ioctl != NULL)
+	if (ifp->if_ioctl != NULL) {
 		error = (*ifp->if_ioctl)(ifp, SIOCSIFADDR, (caddr_t)ia);
-	if (error)
-		goto fail2;
+		if (error)
+			goto fail2;
+	}
 
 	/*
 	 * Add route for the network.
