@@ -364,6 +364,7 @@ static struct _s_x rule_options[] = {
 	{ "src-ipv6",		TOK_SRCIP6},
 	{ "src-ip6",		TOK_SRCIP6},
 	{ "lookup",		TOK_LOOKUP},
+	{ "flow",		TOK_FLOW},
 	{ "//",			TOK_COMMENT },
 
 	{ "not",		TOK_NOT },		/* pseudo option */
@@ -704,6 +705,54 @@ concat_tokens(char *buf, size_t bufsize, struct _s_x *table, char *delimiter)
 	}
 
 	return (sz);
+}
+
+/*
+ * helper function to process a set of flags and set bits in the
+ * appropriate masks.
+ */
+void
+fill_flags(struct _s_x *flags, char *p, uint8_t *set, uint8_t *clear)
+{
+	char *q;	/* points to the separator */
+	int val;
+	uint8_t *which;	/* mask we are working on */
+
+	while (p && *p) {
+		if (*p == '!') {
+			p++;
+			which = clear;
+		} else
+			which = set;
+		q = strchr(p, ',');
+		if (q)
+			*q++ = '\0';
+		val = match_token(flags, p);
+		if (val <= 0)
+			errx(EX_DATAERR, "invalid flag %s", p);
+		*which |= (uint8_t)val;
+		p = q;
+	}
+}
+
+void
+print_flags_buffer(char *buf, size_t sz, struct _s_x *list, uint8_t set)
+{
+	char const *comma = "";
+	int i, l;
+
+	for (i = 0; list[i].x != 0; i++) {
+		if ((set & list[i].x) == 0)
+			continue;
+		
+		set &= ~list[i].x;
+		l = snprintf(buf, sz, "%s%s", comma, list[i].s);
+		if (l >= sz)
+			return;
+		comma = ",";
+		buf += l;
+		sz -=l;
+	}
 }
 
 /*
@@ -1086,6 +1135,7 @@ print_flags(char const *name, ipfw_insn *cmd, struct _s_x *list)
 		}
 	}
 }
+
 
 /*
  * Print the ip address contained in a command.
@@ -1793,6 +1843,18 @@ show_static_rule(struct cmdline_opts *co, struct format_opts *fo,
 				} else
 					printf(" %s %s", s, cmdif->name);
 
+				break;
+			    }
+			case O_IP_FLOW_LOOKUP:
+			    {
+				char *t;
+
+				t = table_search_ctlv(fo->tstate, cmd->arg1);
+				printf(" flow table(%s", t);
+				if (F_LEN(cmd) == F_INSN_SIZE(ipfw_insn_u32))
+					printf(",%u",
+					    ((ipfw_insn_u32 *)cmd)->d[0]);
+				printf(")");
 				break;
 			    }
 			case O_IPID:
@@ -2660,6 +2722,33 @@ pack_table(struct tidx *tstate, char *name, uint32_t set)
 	return (ntlv->idx);
 }
 
+static void
+fill_table(ipfw_insn *cmd, char *av, uint8_t opcode, struct tidx *tstate)
+{
+	uint32_t *d = ((ipfw_insn_u32 *)cmd)->d;
+	uint16_t uidx;
+	char *p;
+
+	if ((p = strchr(av + 6, ')')) == NULL)
+		errx(EX_DATAERR, "forgotten parenthesis: '%s'", av);
+	*p = '\0';
+	p = strchr(av + 6, ',');
+	if (p)
+		*p++ = '\0';
+
+	if ((uidx = pack_table(tstate, av + 6, 0)) == 0)
+		errx(EX_DATAERR, "Invalid table name: %s", av + 6);
+
+	cmd->opcode = opcode;
+	cmd->arg1 = uidx;
+	if (p) {
+		cmd->len |= F_INSN_SIZE(ipfw_insn_u32);
+		d[0] = strtoul(p, NULL, 0);
+	} else
+		cmd->len |= F_INSN_SIZE(ipfw_insn);
+}
+
+
 /*
  * fills the addr and mask fields in the instruction as appropriate from av.
  * Update length as appropriate.
@@ -2676,8 +2765,6 @@ fill_ip(ipfw_insn_ip *cmd, char *av, int cblen, struct tidx *tstate)
 {
 	int len = 0;
 	uint32_t *d = ((ipfw_insn_u32 *)cmd)->d;
-	uint16_t uidx;
-	char *p;
 
 	cmd->o.len &= ~F_LEN_MASK;	/* zero len */
 
@@ -2690,23 +2777,7 @@ fill_ip(ipfw_insn_ip *cmd, char *av, int cblen, struct tidx *tstate)
 	}
 
 	if (strncmp(av, "table(", 6) == 0) {
-		if ((p = strchr(av + 6, ')')) == NULL)
-			errx(EX_DATAERR, "forgotten parenthesis: '%s'", av);
-		*p = '\0';
-		p = strchr(av + 6, ',');
-		if (p)
-			*p++ = '\0';
-
-		if ((uidx = pack_table(tstate, av + 6, 0)) == 0)
-			errx(EX_DATAERR, "Invalid table name: %s", av + 6);
-
-		cmd->o.opcode = O_IP_DST_LOOKUP;
-		cmd->o.arg1 = uidx;
-		if (p) {
-			cmd->o.len |= F_INSN_SIZE(ipfw_insn_u32);
-			d[0] = strtoul(p, NULL, 0);
-		} else
-			cmd->o.len |= F_INSN_SIZE(ipfw_insn);
+		fill_table(&cmd->o, av, O_IP_DST_LOOKUP, tstate);
 		return;
 	}
 
@@ -2887,35 +2958,14 @@ n2mask(struct in6_addr *mask, int n)
 	return;
 }
 
-/*
- * helper function to process a set of flags and set bits in the
- * appropriate masks.
- */
 static void
-fill_flags(ipfw_insn *cmd, enum ipfw_opcodes opcode,
+fill_flags_cmd(ipfw_insn *cmd, enum ipfw_opcodes opcode,
 	struct _s_x *flags, char *p)
 {
-	uint8_t set=0, clear=0;
+	uint8_t set = 0, clear = 0;
 
-	while (p && *p) {
-		char *q;	/* points to the separator */
-		int val;
-		uint8_t *which;	/* mask we are working on */
+	fill_flags(flags, p, &set, &clear);
 
-		if (*p == '!') {
-			p++;
-			which = &clear;
-		} else
-			which = &set;
-		q = strchr(p, ',');
-		if (q)
-			*q++ = '\0';
-		val = match_token(flags, p);
-		if (val <= 0)
-			errx(EX_DATAERR, "invalid flag %s", p);
-		*which |= (uint8_t)val;
-		p = q;
-	}
 	cmd->opcode = opcode;
 	cmd->len =  (cmd->len & (F_NOT | F_OR)) | 1;
 	cmd->arg1 = (set & 0xff) | ( (clear & 0xff) << 8);
@@ -4087,13 +4137,13 @@ read_options:
 
 		case TOK_IPOPTS:
 			NEED1("missing argument for ipoptions");
-			fill_flags(cmd, O_IPOPT, f_ipopts, *av);
+			fill_flags_cmd(cmd, O_IPOPT, f_ipopts, *av);
 			av++;
 			break;
 
 		case TOK_IPTOS:
 			NEED1("missing argument for iptos");
-			fill_flags(cmd, O_IPTOS, f_iptos, *av);
+			fill_flags_cmd(cmd, O_IPTOS, f_iptos, *av);
 			av++;
 			break;
 
@@ -4171,7 +4221,7 @@ read_options:
 
 		case TOK_TCPOPTS:
 			NEED1("missing argument for tcpoptions");
-			fill_flags(cmd, O_TCPOPTS, f_tcpopts, *av);
+			fill_flags_cmd(cmd, O_TCPOPTS, f_tcpopts, *av);
 			av++;
 			break;
 
@@ -4198,7 +4248,7 @@ read_options:
 		case TOK_TCPFLAGS:
 			NEED1("missing argument for tcpflags");
 			cmd->opcode = O_TCPFLAGS;
-			fill_flags(cmd, O_TCPFLAGS, f_tcpflags, *av);
+			fill_flags_cmd(cmd, O_TCPFLAGS, f_tcpflags, *av);
 			av++;
 			break;
 
@@ -4406,6 +4456,14 @@ read_options:
 			cmd->arg1 = j;
 			av++;
 		    }
+			break;
+		case TOK_FLOW:
+			NEED1("missing table name");
+			if (strncmp(*av, "table(", 6) != 0)
+				errx(EX_DATAERR,
+				    "enclose table name into \"table()\"");
+			fill_table(cmd, *av, O_IP_FLOW_LOOKUP, tstate);
+			av++;
 			break;
 
 		default:

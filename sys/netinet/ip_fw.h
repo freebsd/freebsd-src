@@ -262,6 +262,7 @@ enum ipfw_opcodes {		/* arguments (4 byte each)	*/
 
 	O_DSCP,			/* 2 u32 = DSCP mask */
 	O_SETDSCP,		/* arg1=DSCP value */
+	O_IP_FLOW_LOOKUP,	/* arg1=table number, u32=value	*/
 
 	O_LAST_OPCODE		/* not an opcode!		*/
 };
@@ -675,7 +676,8 @@ struct _ipfw_dyn_rule {
 #define	IPFW_TABLE_CIDR		1	/* Table for holding IPv4/IPv6 prefixes */
 #define	IPFW_TABLE_INTERFACE	2	/* Table for holding interface names */
 #define	IPFW_TABLE_NUMBER	3	/* Table for holding ports/uid/gid/etc */
-#define	IPFW_TABLE_MAXTYPE	3	/* Maximum valid number */
+#define	IPFW_TABLE_FLOW		4	/* Table for holding flow data */
+#define	IPFW_TABLE_MAXTYPE	4	/* Maximum valid number */
 
 #define	IPFW_VTYPE_U32		1	/* Skipto/tablearg integer */
 #define	IPFW_VTYPE_IP		2	/* Nexthop IP address */
@@ -743,6 +745,25 @@ typedef struct _ipfw_obj_ntlv {
 	char		name[64];	/* Null-terminated name		*/
 } ipfw_obj_ntlv;
 
+/* IPv4/IPv6 L4 flow description */
+struct tflow_entry {
+	uint8_t		af;
+	uint8_t		proto;
+	uint16_t	spare;
+	uint16_t	sport;
+	uint16_t	dport;
+	union {
+		struct {
+			struct in_addr	sip;
+			struct in_addr	dip;
+		} a4;
+		struct {
+			struct in6_addr	sip6;
+			struct in6_addr	dip6;
+		} a6;
+	} a;
+};
+
 /* Table entry TLV */
 typedef struct	_ipfw_obj_tentry {
 	ipfw_obj_tlv	head;		/* TLV header			*/
@@ -753,10 +774,11 @@ typedef struct	_ipfw_obj_tentry {
 	uint64_t	spare;
 	union {
 		/* Longest field needs to be aligned by 8-byte boundary	*/
-		struct in_addr addr;	/* IPv4 address			*/
-		uint32_t key;		/* uid/gid/port			*/
-		struct in6_addr	addr6;	/* IPv6 address 		*/
+		struct in_addr		addr;	/* IPv4 address		*/
+		uint32_t		key;		/* uid/gid/port	*/
+		struct in6_addr		addr6;	/* IPv6 address 	*/
 		char	iface[IF_NAMESIZE];	/* interface name	*/
+		struct tflow_entry	flow;	
 	} k;
 } ipfw_obj_tentry;
 #define	IPFW_TF_UPDATE	0x01		/* Update record if exists	*/
@@ -776,19 +798,44 @@ typedef struct _ipfw_obj_ctlv {
 	uint8_t		spare;
 } ipfw_obj_ctlv;
 
+typedef struct _ifpw_ta_tinfo {
+	uint32_t	flags;		/* Format flags			*/
+	uint8_t		taclass;	/* algorithm class		*/
+	uint8_t		spare0;
+	uint16_t	spare1;
+	uint32_t	rssize4;	/* runtime structure size	*/
+	uint32_t	rcount4;	/* number of items in runtime	*/
+	uint32_t	rsize4;		/* item size in runtime		*/
+	uint32_t	rssize6;	/* runtime structure size	*/
+	uint32_t	rcount6;	/* number of items in runtime	*/
+	uint32_t	rsize6;		/* item size in runtime		*/
+} ifpw_ta_tinfo;
+#define	IPFW_TACLASS_HASH	1	/* algo is based on hash	*/
+#define	IPFW_TACLASS_ARRAY	2	/* algo is based on array	*/
+#define	IPFW_TACLASS_RADIX	3	/* algo is based on radix tree	*/
+
+#define	IPFW_TATFLAGS_DATA	0x0001		/* Has data filled in	*/
+#define	IPFW_TATFLAGS_AF	0x0002		/* Separate data per AF	*/
+
 typedef struct _ipfw_xtable_info {
 	uint8_t		type;		/* table type (cidr,iface,..)	*/
+	uint8_t		tflags;		/* type flags			*/
 	uint8_t		ftype;		/* table value format type	*/
 	uint8_t		vtype;		/* value type			*/
-	uint16_t	spare0;
 	uint32_t	set;		/* set table is in		*/
 	uint32_t	kidx;		/* kernel index			*/
 	uint32_t	refcnt;		/* number of references		*/
 	uint32_t	count;		/* Number of records		*/
-	uint32_t	size;		/* Total size of records	*/
+	uint32_t	size;		/* Total size of records(export)*/
 	char		tablename[64];	/* table name */
-	char		algoname[32];	/* algorithm name		*/
+	char		algoname[64];	/* algorithm name		*/
+	ifpw_ta_tinfo	ta_info;	/* additional algo stats	*/
 } ipfw_xtable_info;
+#define	IPFW_TFFLAG_SRCIP	0x01
+#define	IPFW_TFFLAG_DSTIP	0x02
+#define	IPFW_TFFLAG_SRCPORT	0x04
+#define	IPFW_TFFLAG_DSTPORT	0x08
+#define	IPFW_TFFLAG_PROTO	0x10
 
 typedef struct _ipfw_iface_info {
 	char		ifname[64];	/* interface name		*/
@@ -801,7 +848,7 @@ typedef struct _ipfw_iface_info {
 #define	IPFW_IFFLAG_RESOLVED	0x01	/* Interface exists		*/
 
 typedef struct _ipfw_ta_info {
-	char		algoname[32];	/* algorithm name		*/
+	char		algoname[64];	/* algorithm name		*/
 	uint32_t	type;		/* lookup type			*/
 	uint32_t	flags;
 	uint32_t	refcnt;

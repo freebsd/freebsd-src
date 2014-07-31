@@ -149,7 +149,7 @@ ta_lookup_radix(struct table_info *ti, void *key, uint32_t keylen,
  */
 static int
 ta_init_radix(struct ip_fw_chain *ch, void **ta_state, struct table_info *ti,
-    char *data)
+    char *data, uint8_t tflags)
 {
 
 	if (!rn_inithead(&ti->state, OFF_LEN_INET))
@@ -221,23 +221,23 @@ ta_dump_radix_tentry(void *ta_state, struct table_info *ti, void *e,
 }
 
 static int
-ta_find_radix_tentry(void *ta_state, struct table_info *ti, void *key,
-    uint32_t keylen, ipfw_obj_tentry *tent)
+ta_find_radix_tentry(void *ta_state, struct table_info *ti,
+    ipfw_obj_tentry *tent)
 {
 	struct radix_node_head *rnh;
 	void *e;
 
 	e = NULL;
-	if (keylen == sizeof(in_addr_t)) {
+	if (tent->subtype == AF_INET) {
 		struct sockaddr_in sa;
 		KEY_LEN(sa) = KEY_LEN_INET;
-		sa.sin_addr.s_addr = *((in_addr_t *)key);
+		sa.sin_addr.s_addr = tent->k.addr.s_addr;
 		rnh = (struct radix_node_head *)ti->state;
 		e = rnh->rnh_matchaddr(&sa, rnh);
 	} else {
 		struct sa_in6 sa6;
 		KEY_LEN(sa6) = KEY_LEN_INET6;
-		memcpy(&sa6.sin6_addr, key, sizeof(struct in6_addr));
+		memcpy(&sa6.sin6_addr, &tent->k.addr6, sizeof(struct in6_addr));
 		rnh = (struct radix_node_head *)ti->xstate;
 		e = rnh->rnh_matchaddr(&sa6, rnh);
 	}
@@ -817,6 +817,17 @@ ta_print_chash_config(void *ta_state, struct table_info *ti, char *buf,
 		snprintf(buf, bufsize, "%s", "cidr:hash");
 }
 
+static int
+log2(uint32_t v)
+{
+	uint32_t r;
+
+	r = 0;
+	while (v >>= 1)
+		r++;
+
+	return (r);
+}
 
 /*
  * New table.
@@ -825,10 +836,10 @@ ta_print_chash_config(void *ta_state, struct table_info *ti, char *buf,
  */
 static int
 ta_init_chash(struct ip_fw_chain *ch, void **ta_state, struct table_info *ti,
-    char *data)
+    char *data, uint8_t tflags)
 {
 	int error, i;
-	int v4, v6;
+	uint32_t hsize;
 	struct chash_cfg *ccfg;
 
 	ccfg = malloc(sizeof(struct chash_cfg), M_IPFW, M_WAITOK | M_ZERO);
@@ -841,10 +852,8 @@ ta_init_chash(struct ip_fw_chain *ch, void **ta_state, struct table_info *ti,
 		return (error);
 	}
 
-	v4 = 6;
-	v6 = 6;
-	ccfg->size4 = 1 << v4;
-	ccfg->size6 = 1 << v6;
+	ccfg->size4 = 128;
+	ccfg->size6 = 128;
 
 	ccfg->head4 = malloc(sizeof(struct chashbhead) * ccfg->size4, M_IPFW,
 	    M_WAITOK | M_ZERO);
@@ -861,18 +870,19 @@ ta_init_chash(struct ip_fw_chain *ch, void **ta_state, struct table_info *ti,
 	ti->xstate = ccfg->head6;
 
 	/* Store data depending on v6 mask length */
+	hsize = log2(ccfg->size4) << 8 | log2(ccfg->size6);
 	if (ccfg->mask6 == 64) {
-		ti->data = (32 - ccfg->mask4) << 24 | (128 - ccfg->mask6) << 16 |
-		    v4 << 8 | v6;
+		ti->data = (32 - ccfg->mask4) << 24 | (128 - ccfg->mask6) << 16|
+		    hsize;
 		ti->lookup = ta_lookup_chash_64;
 	} else if ((ccfg->mask6  % 8) == 0) {
 		ti->data = (32 - ccfg->mask4) << 24 |
-		    ccfg->mask6 << 13 | v4 << 8 | v6;
+		    ccfg->mask6 << 13 | hsize;
 		ti->lookup = ta_lookup_chash_aligned;
 	} else {
 		/* don't do that! */
 		ti->data = (32 - ccfg->mask4) << 24 |
-		    ccfg->mask6 << 16 | v4 << 8 | v6;
+		    ccfg->mask6 << 16 | hsize;
 		ti->lookup = ta_lookup_chash_slow;
 	}
 
@@ -986,8 +996,8 @@ tei_to_chash_ent(struct tentry_info *tei, struct chashentry *ent)
 
 
 static int
-ta_find_chash_tentry(void *ta_state, struct table_info *ti, void *key,
-    uint32_t keylen, ipfw_obj_tentry *tent)
+ta_find_chash_tentry(void *ta_state, struct table_info *ti,
+    ipfw_obj_tentry *tent)
 {
 	struct chash_cfg *ccfg;
 	struct chashbhead *head;
@@ -1001,8 +1011,8 @@ ta_find_chash_tentry(void *ta_state, struct table_info *ti, void *key,
 	memset(&ent, 0, sizeof(ent));
 	memset(&tei, 0, sizeof(tei));
 
-	if (keylen == sizeof(in_addr_t)) { 
-		tei.paddr = key;
+	if (tent->subtype == AF_INET) { 
+		tei.paddr = &tent->k.addr;
 		tei.masklen = ccfg->mask4;
 		tei.subtype = AF_INET;
 
@@ -1020,7 +1030,7 @@ ta_find_chash_tentry(void *ta_state, struct table_info *ti, void *key,
 			return (0);
 		}
 	} else {
-		tei.paddr = key;
+		tei.paddr = &tent->k.addr6;
 		tei.masklen = ccfg->mask6;
 		tei.subtype = AF_INET6;
 
@@ -1330,6 +1340,9 @@ ta_modify_chash(void *ta_state, struct table_info *ti, void *ta_buf,
 		ccfg->size6 = mi->size;
 	}
 
+	ti->data = (ti->data & 0xFFFFFFFF00000000) | log2(ccfg->size4) << 8 | 
+	    log2(ccfg->size6);
+
 	mi->main_ptr = old_head;
 
 	return (0);
@@ -1539,7 +1552,7 @@ ta_lookup_ifidx(struct table_info *ti, void *key, uint32_t keylen,
 
 static int
 ta_init_ifidx(struct ip_fw_chain *ch, void **ta_state, struct table_info *ti,
-    char *data)
+    char *data, uint8_t tflags)
 {
 	struct iftable_cfg *icfg;
 
@@ -1949,15 +1962,15 @@ ta_dump_ifidx_tentry(void *ta_state, struct table_info *ti, void *e,
 }
 
 static int
-ta_find_ifidx_tentry(void *ta_state, struct table_info *ti, void *key,
-    uint32_t keylen, ipfw_obj_tentry *tent)
+ta_find_ifidx_tentry(void *ta_state, struct table_info *ti,
+    ipfw_obj_tentry *tent)
 {
 	struct iftable_cfg *icfg;
 	struct ifentry *ife;
 	char *ifname;
 
 	icfg = (struct iftable_cfg *)ta_state;
-	ifname = (char *)key;
+	ifname = tent->k.iface;
 
 	if (strnlen(ifname, IF_NAMESIZE) == IF_NAMESIZE)
 		return (EINVAL);
@@ -2098,7 +2111,7 @@ ta_lookup_numarray(struct table_info *ti, void *key, uint32_t keylen,
 
 static int
 ta_init_numarray(struct ip_fw_chain *ch, void **ta_state, struct table_info *ti,
-    char *data)
+    char *data, uint8_t tflags)
 {
 	struct numarray_cfg *cfg;
 
@@ -2335,15 +2348,15 @@ ta_dump_numarray_tentry(void *ta_state, struct table_info *ti, void *e,
 }
 
 static int
-ta_find_numarray_tentry(void *ta_state, struct table_info *ti, void *key,
-    uint32_t keylen, ipfw_obj_tentry *tent)
+ta_find_numarray_tentry(void *ta_state, struct table_info *ti,
+    ipfw_obj_tentry *tent)
 {
 	struct numarray_cfg *cfg;
 	struct numarray *ri;
 
 	cfg = (struct numarray_cfg *)ta_state;
 
-	ri = numarray_find(ti, key);
+	ri = numarray_find(ti, &tent->k.key);
 
 	if (ri != NULL) {
 		ta_dump_numarray_tentry(ta_state, ti, ri, tent);
@@ -2387,6 +2400,672 @@ struct table_algo number_array = {
 	.flush_mod	= ta_flush_mod_numarray,
 };
 
+/*
+ * flow:hash cmds
+ *
+ *
+ * ti->data:
+ * [inv.mask4][inv.mask6][log2hsize4][log2hsize6]
+ * [        8][        8[          8][         8]
+ *
+ * inv.mask4: 32 - mask
+ * inv.mask6:
+ * 1) _slow lookup: mask
+ * 2) _aligned: (128 - mask) / 8
+ * 3) _64: 8
+ *
+ *
+ * pflags:
+ * [v4=1/v6=0][hsize]
+ * [       32][   32]
+ */
+
+struct fhashentry;
+
+SLIST_HEAD(fhashbhead, fhashentry);
+
+/*
+struct tflow_entry {
+	uint8_t		af;
+	uint8_t		proto;
+	uint16_t	spare;
+	uint16_t	dport;
+	uint16_t	sport;
+	union {
+		struct {
+			struct in_addr	sip;
+			struct in_addr	dip;
+		} v4;
+		struct {
+			struct in6_addr	sip6;
+			struct in6_addr	dip6;
+		} v6;
+	} a;
+};
+*/
+
+struct fhashentry {
+	SLIST_ENTRY(fhashentry)	next;
+	uint8_t		af;
+	uint8_t		proto;
+	uint16_t	spare0;
+	uint16_t	dport;
+	uint16_t	sport;
+	uint32_t	value;
+	uint32_t	spare1;
+};
+
+struct fhashentry4 {
+	struct fhashentry	e;
+	struct in_addr		dip;
+	struct in_addr		sip;
+};
+
+struct fhashentry6 {
+	struct fhashentry	e;
+	struct in6_addr		dip6;
+	struct in6_addr		sip6;
+};
+
+struct fhash_cfg {
+	struct fhashbhead	*head;
+	size_t			size;
+	size_t			items;
+	struct fhashentry4	fe4;
+	struct fhashentry6	fe6;
+};
+
+static __inline int
+cmp_flow_ent(struct fhashentry *a, struct fhashentry *b, size_t sz)
+{
+	uint64_t *ka, *kb;
+
+	ka = (uint64_t *)(&a->next + 1);
+	kb = (uint64_t *)(&b->next + 1);
+
+	if (*ka == *kb && (memcmp(a + 1, b + 1, sz) == 0))
+		return (1);
+
+	return (0);
+}
+
+static __inline uint32_t
+hash_flow4(struct fhashentry4 *f, int hsize)
+{
+	uint32_t i;
+
+	i = (f->dip.s_addr) ^ (f->sip.s_addr) ^ (f->e.dport) ^ (f->e.sport);
+
+	return (i % (hsize - 1));
+}
+
+static __inline uint32_t
+hash_flow6(struct fhashentry6 *f, int hsize)
+{
+	uint32_t i;
+
+	i = (f->dip6.__u6_addr.__u6_addr32[2]) ^
+	    (f->dip6.__u6_addr.__u6_addr32[3]) ^
+	    (f->sip6.__u6_addr.__u6_addr32[2]) ^
+	    (f->sip6.__u6_addr.__u6_addr32[3]) ^
+	    (f->e.dport) ^ (f->e.sport);
+
+	return (i % (hsize - 1));
+}
+
+static uint32_t
+hash_flow_ent(struct fhashentry *ent, uint32_t size)
+{
+	uint32_t hash;
+
+	if (ent->af == AF_INET) {
+		hash = hash_flow4((struct fhashentry4 *)ent, size);
+	} else {
+		hash = hash_flow6((struct fhashentry6 *)ent, size);
+	}
+
+	return (hash);
+}
+
+static int
+ta_lookup_fhash(struct table_info *ti, void *key, uint32_t keylen,
+    uint32_t *val)
+{
+	struct fhashbhead *head;
+	struct fhashentry *ent;
+	struct fhashentry4 *m4;
+	struct ipfw_flow_id *id;
+	uint16_t hash, hsize;
+
+	id = (struct ipfw_flow_id *)key;
+	head = (struct fhashbhead *)ti->state;
+	hsize = ti->data;
+	m4 = (struct fhashentry4 *)ti->xstate;
+
+	if (id->addr_type == 4) {
+		struct fhashentry4 f;
+
+		/* Copy hash mask */
+		f = *m4;
+
+		f.dip.s_addr &= id->dst_ip;
+		f.sip.s_addr &= id->src_ip;
+		f.e.dport &= id->dst_port;
+		f.e.sport &= id->src_port;
+		f.e.proto &= id->proto;
+		hash = hash_flow4(&f, hsize);
+		SLIST_FOREACH(ent, &head[hash], next) {
+			if (cmp_flow_ent(ent, &f.e, 2 * 4) != 0) {
+				*val = ent->value;
+				return (1);
+			}
+		}
+	} else if (id->addr_type == 6) {
+		struct fhashentry6 f;
+		uint64_t *fp, *idp;
+
+		/* Copy hash mask */
+		f = *((struct fhashentry6 *)(m4 + 1));
+
+		/* Handle lack of __u6_addr.__u6_addr64 */
+		fp = (uint64_t *)&f.dip6;
+		idp = (uint64_t *)&id->dst_ip6;
+		/* src IPv6 is stored after dst IPv6 */
+		*fp++ &= *idp++;
+		*fp++ &= *idp++;
+		*fp++ &= *idp++;
+		*fp &= *idp;
+		f.e.dport &= id->dst_port;
+		f.e.sport &= id->src_port;
+		f.e.proto &= id->proto;
+		hash = hash_flow6(&f, hsize);
+		SLIST_FOREACH(ent, &head[hash], next) {
+			if (cmp_flow_ent(ent, &f.e, 2 * 16) != 0) {
+				*val = ent->value;
+				return (1);
+			}
+		}
+	}
+
+	return (0);
+}
+
+/*
+ * New table.
+ */
+static int
+ta_init_fhash(struct ip_fw_chain *ch, void **ta_state, struct table_info *ti,
+    char *data, uint8_t tflags)
+{
+	int i;
+	struct fhash_cfg *cfg;
+	struct fhashentry4 *fe4;
+	struct fhashentry6 *fe6;
+
+	cfg = malloc(sizeof(struct fhash_cfg), M_IPFW, M_WAITOK | M_ZERO);
+
+	cfg->size = 512;
+
+	cfg->head = malloc(sizeof(struct fhashbhead) * cfg->size, M_IPFW,
+	    M_WAITOK | M_ZERO);
+	for (i = 0; i < cfg->size; i++)
+		SLIST_INIT(&cfg->head[i]);
+
+	/* Fill in fe masks based on @tflags */
+	fe4 = &cfg->fe4;
+	fe6 = &cfg->fe6;
+	if (tflags & IPFW_TFFLAG_SRCIP) {
+		memset(&fe4->sip, 0xFF, sizeof(fe4->sip));
+		memset(&fe6->sip6, 0xFF, sizeof(fe6->sip6));
+	}
+	if (tflags & IPFW_TFFLAG_DSTIP) {
+		memset(&fe4->dip, 0xFF, sizeof(fe4->dip));
+		memset(&fe6->dip6, 0xFF, sizeof(fe6->dip6));
+	}
+	if (tflags & IPFW_TFFLAG_SRCPORT) {
+		memset(&fe4->e.sport, 0xFF, sizeof(fe4->e.sport));
+		memset(&fe6->e.sport, 0xFF, sizeof(fe6->e.sport));
+	}
+	if (tflags & IPFW_TFFLAG_DSTPORT) {
+		memset(&fe4->e.dport, 0xFF, sizeof(fe4->e.dport));
+		memset(&fe6->e.dport, 0xFF, sizeof(fe6->e.dport));
+	}
+	if (tflags & IPFW_TFFLAG_PROTO) {
+		memset(&fe4->e.proto, 0xFF, sizeof(fe4->e.proto));
+		memset(&fe6->e.proto, 0xFF, sizeof(fe6->e.proto));
+	}
+
+	fe4->e.af = AF_INET;
+	fe6->e.af = AF_INET6;
+
+	*ta_state = cfg;
+	ti->state = cfg->head;
+	ti->xstate = &cfg->fe4;
+	ti->data = cfg->size;
+	ti->lookup = ta_lookup_fhash;
+
+	return (0);
+}
+
+static void
+ta_destroy_fhash(void *ta_state, struct table_info *ti)
+{
+	struct fhash_cfg *cfg;
+	struct fhashentry *ent, *ent_next;
+	int i;
+
+	cfg = (struct fhash_cfg *)ta_state;
+
+	for (i = 0; i < cfg->size; i++)
+		SLIST_FOREACH_SAFE(ent, &cfg->head[i], next, ent_next)
+			free(ent, M_IPFW_TBL);
+
+	free(cfg->head, M_IPFW);
+	free(cfg, M_IPFW);
+}
+
+static int
+ta_dump_fhash_tentry(void *ta_state, struct table_info *ti, void *e,
+    ipfw_obj_tentry *tent)
+{
+	struct fhash_cfg *cfg;
+	struct fhashentry *ent;
+	struct fhashentry4 *fe4;
+	struct fhashentry6 *fe6;
+	struct tflow_entry *tfe;
+
+	cfg = (struct fhash_cfg *)ta_state;
+	ent = (struct fhashentry *)e;
+	tfe = &tent->k.flow;
+
+	tfe->af = ent->af;
+	tfe->proto = ent->proto;
+	tfe->dport = htons(ent->dport);
+	tfe->sport = htons(ent->sport);
+	tent->value = ent->value;
+	tent->subtype = ent->af;
+
+	if (ent->af == AF_INET) {
+		fe4 = (struct fhashentry4 *)ent;
+		tfe->a.a4.sip.s_addr = htonl(fe4->sip.s_addr);
+		tfe->a.a4.dip.s_addr = htonl(fe4->dip.s_addr);
+		tent->masklen = 32;
+#ifdef INET6
+	} else {
+		fe6 = (struct fhashentry6 *)ent;
+		tfe->a.a6.sip6 = fe6->sip6;
+		tfe->a.a6.dip6 = fe6->dip6;
+		tent->masklen = 128;
+#endif
+	}
+
+	return (0);
+}
+
+static int
+tei_to_fhash_ent(struct tentry_info *tei, struct fhashentry *ent)
+{
+	struct fhashentry4 *fe4;
+	struct fhashentry6 *fe6;
+	struct tflow_entry *tfe;
+
+	tfe = (struct tflow_entry *)tei->paddr;
+
+	ent->af = tei->subtype;
+	ent->proto = tfe->proto;
+	ent->value = tei->value;
+	ent->dport = ntohs(tfe->dport);
+	ent->sport = ntohs(tfe->sport);
+
+	if (tei->subtype == AF_INET) {
+#ifdef INET
+		fe4 = (struct fhashentry4 *)ent;
+		fe4->sip.s_addr = ntohl(tfe->a.a4.sip.s_addr);
+		fe4->dip.s_addr = ntohl(tfe->a.a4.dip.s_addr);
+#endif
+#ifdef INET6
+	} else if (tei->subtype == AF_INET6) {
+		fe6 = (struct fhashentry6 *)ent;
+		fe6->sip6 = tfe->a.a6.sip6;
+		fe6->dip6 = tfe->a.a6.dip6;
+#endif
+	} else {
+		/* Unknown CIDR type */
+		return (EINVAL);
+	}
+
+	return (0);
+}
+
+
+static int
+ta_find_fhash_tentry(void *ta_state, struct table_info *ti,
+    ipfw_obj_tentry *tent)
+{
+	struct fhash_cfg *cfg;
+	struct fhashbhead *head;
+	struct fhashentry *ent, *tmp;
+	struct fhashentry6 fe6;
+	struct tentry_info tei;
+	int error;
+	uint32_t hash;
+	size_t sz;
+
+	cfg = (struct fhash_cfg *)ta_state;
+
+	ent = &fe6.e;
+
+	memset(&fe6, 0, sizeof(fe6));
+	memset(&tei, 0, sizeof(tei));
+
+	tei.paddr = &tent->k.flow;
+	tei.subtype = tent->subtype;
+
+	if ((error = tei_to_fhash_ent(&tei, ent)) != 0)
+		return (error);
+
+	head = cfg->head;
+	hash = hash_flow_ent(ent, cfg->size);
+
+	if (tei.subtype == AF_INET)
+		sz = 2 * sizeof(struct in_addr);
+	else
+		sz = 2 * sizeof(struct in6_addr);
+
+	/* Check for existence */
+	SLIST_FOREACH(tmp, &head[hash], next) {
+		if (cmp_flow_ent(tmp, ent, sz) != 0) {
+			ta_dump_fhash_tentry(ta_state, ti, tmp, tent);
+			return (0);
+		}
+	}
+
+	return (ENOENT);
+}
+
+static void
+ta_foreach_fhash(void *ta_state, struct table_info *ti, ta_foreach_f *f,
+    void *arg)
+{
+	struct fhash_cfg *cfg;
+	struct fhashentry *ent, *ent_next;
+	int i;
+
+	cfg = (struct fhash_cfg *)ta_state;
+
+	for (i = 0; i < cfg->size; i++)
+		SLIST_FOREACH_SAFE(ent, &cfg->head[i], next, ent_next)
+			f(ent, arg);
+}
+
+
+struct ta_buf_fhash
+{
+	void *ent_ptr;
+	struct fhashentry6 fe6;
+};
+
+static int
+ta_prepare_add_fhash(struct ip_fw_chain *ch, struct tentry_info *tei,
+    void *ta_buf)
+{
+	struct ta_buf_fhash *tb;
+	struct fhashentry *ent;
+	size_t sz;
+	int error;
+
+	tb = (struct ta_buf_fhash *)ta_buf;
+	memset(tb, 0, sizeof(struct ta_buf_fhash));
+
+	if (tei->subtype == AF_INET)
+		sz = sizeof(struct fhashentry4);
+	else if (tei->subtype == AF_INET6)
+		sz = sizeof(struct fhashentry6);
+	else
+		return (EINVAL);
+
+	ent = malloc(sz, M_IPFW_TBL, M_WAITOK | M_ZERO);
+
+	error = tei_to_fhash_ent(tei, ent);
+	if (error != 0) {
+		free(ent, M_IPFW_TBL);
+		return (error);
+	}
+	tb->ent_ptr = ent;
+
+	return (0);
+}
+
+static int
+ta_add_fhash(void *ta_state, struct table_info *ti, struct tentry_info *tei,
+    void *ta_buf, uint64_t *pflags, uint32_t *pnum)
+{
+	struct fhash_cfg *cfg;
+	struct fhashbhead *head;
+	struct fhashentry *ent, *tmp;
+	struct ta_buf_fhash *tb;
+	int exists;
+	uint32_t hash;
+	size_t sz;
+
+	cfg = (struct fhash_cfg *)ta_state;
+	tb = (struct ta_buf_fhash *)ta_buf;
+	ent = (struct fhashentry *)tb->ent_ptr;
+	exists = 0;
+
+	head = cfg->head;
+	hash = hash_flow_ent(ent, cfg->size);
+
+	if (tei->subtype == AF_INET)
+		sz = 2 * sizeof(struct in_addr);
+	else
+		sz = 2 * sizeof(struct in6_addr);
+
+	/* Check for existence */
+	SLIST_FOREACH(tmp, &head[hash], next) {
+		if (cmp_flow_ent(tmp, ent, sz) != 0) {
+			exists = 1;
+			break;
+		}
+	}
+
+	if (exists == 1) {
+		if ((tei->flags & TEI_FLAGS_UPDATE) == 0)
+			return (EEXIST);
+		/* Record already exists. Update value if we're asked to */
+		tmp->value = tei->value;
+		/* Indicate that update has happened instead of addition */
+		tei->flags |= TEI_FLAGS_UPDATED;
+		*pnum = 0;
+	} else {
+		SLIST_INSERT_HEAD(&head[hash], ent, next);
+		tb->ent_ptr = NULL;
+		*pnum = 1;
+
+		/* Update counters and check if we need to grow hash */
+		cfg->items++;
+		if (cfg->items > cfg->size && cfg->size < 65536)
+			*pflags = cfg->size * 2;
+	}
+
+	return (0);
+}
+
+static int
+ta_prepare_del_fhash(struct ip_fw_chain *ch, struct tentry_info *tei,
+    void *ta_buf)
+{
+	struct ta_buf_fhash *tb;
+
+	tb = (struct ta_buf_fhash *)ta_buf;
+	memset(tb, 0, sizeof(struct ta_buf_fhash));
+
+	return (tei_to_fhash_ent(tei, &tb->fe6.e));
+}
+
+static int
+ta_del_fhash(void *ta_state, struct table_info *ti, struct tentry_info *tei,
+    void *ta_buf, uint64_t *pflags, uint32_t *pnum)
+{
+	struct fhash_cfg *cfg;
+	struct fhashbhead *head;
+	struct fhashentry *ent, *tmp;
+	struct ta_buf_fhash *tb;
+	uint32_t hash;
+	size_t sz;
+
+	cfg = (struct fhash_cfg *)ta_state;
+	tb = (struct ta_buf_fhash *)ta_buf;
+	ent = &tb->fe6.e;
+
+	head = cfg->head;
+	hash = hash_flow_ent(ent, cfg->size);
+
+	if (tei->subtype == AF_INET)
+		sz = 2 * sizeof(struct in_addr);
+	else
+		sz = 2 * sizeof(struct in6_addr);
+
+	/* Check for existence */
+	SLIST_FOREACH(tmp, &head[hash], next) {
+		if (cmp_flow_ent(tmp, ent, sz) != 0) {
+			SLIST_REMOVE(&head[hash], tmp, fhashentry, next);
+			*pnum = 1;
+			cfg->items--;
+			return (0);
+		}
+	}
+
+	return (ENOENT);
+}
+
+static void
+ta_flush_fhash_entry(struct ip_fw_chain *ch, struct tentry_info *tei,
+    void *ta_buf)
+{
+	struct ta_buf_fhash *tb;
+
+	tb = (struct ta_buf_fhash *)ta_buf;
+
+	if (tb->ent_ptr != NULL)
+		free(tb->ent_ptr, M_IPFW_TBL);
+}
+
+/*
+ * Hash growing callbacks.
+ */
+
+/*
+ * Allocate new, larger fhash.
+ */
+static int
+ta_prepare_mod_fhash(void *ta_buf, uint64_t *pflags)
+{
+	struct mod_item *mi;
+	struct fhashbhead *head;
+	int i;
+
+	mi = (struct mod_item *)ta_buf;
+
+	memset(mi, 0, sizeof(struct mod_item));
+	mi->size = *pflags;
+	head = malloc(sizeof(struct fhashbhead) * mi->size, M_IPFW,
+	    M_WAITOK | M_ZERO);
+	for (i = 0; i < mi->size; i++)
+		SLIST_INIT(&head[i]);
+
+	mi->main_ptr = head;
+
+	return (0);
+}
+
+/*
+ * Copy data from old runtime array to new one.
+ */
+static int
+ta_fill_mod_fhash(void *ta_state, struct table_info *ti, void *ta_buf,
+    uint64_t *pflags)
+{
+
+	/* In is not possible to do rehash if we're not holidng WLOCK. */
+	return (0);
+}
+
+
+/*
+ * Switch old & new arrays.
+ */
+static int
+ta_modify_fhash(void *ta_state, struct table_info *ti, void *ta_buf,
+    uint64_t pflags)
+{
+	struct mod_item *mi;
+	struct fhash_cfg *cfg;
+	struct fhashbhead *old_head, *new_head;
+	struct fhashentry *ent, *ent_next;
+	int i;
+	uint32_t nhash;
+	size_t old_size;
+
+	mi = (struct mod_item *)ta_buf;
+	cfg = (struct fhash_cfg *)ta_state;
+
+	/* Check which hash we need to grow and do we still need that */
+	old_size = cfg->size;
+	old_head = ti->state;
+
+	if (old_size >= mi->size)
+		return (0);
+	
+	new_head = (struct fhashbhead *)mi->main_ptr;
+	for (i = 0; i < old_size; i++) {
+		SLIST_FOREACH_SAFE(ent, &old_head[i], next, ent_next) {
+			nhash = hash_flow_ent(ent, mi->size);
+			SLIST_INSERT_HEAD(&new_head[nhash], ent, next);
+		}
+	}
+
+	ti->state = new_head;
+	ti->data = mi->size;
+	cfg->head = new_head;
+	cfg->size = mi->size;
+
+	mi->main_ptr = old_head;
+
+	return (0);
+}
+
+/*
+ * Free unneded array.
+ */
+static void
+ta_flush_mod_fhash(void *ta_buf)
+{
+	struct mod_item *mi;
+
+	mi = (struct mod_item *)ta_buf;
+	if (mi->main_ptr != NULL)
+		free(mi->main_ptr, M_IPFW);
+}
+
+struct table_algo flow_hash = {
+	.name		= "flow:hash",
+	.type		= IPFW_TABLE_FLOW,
+	.init		= ta_init_fhash,
+	.destroy	= ta_destroy_fhash,
+	.prepare_add	= ta_prepare_add_fhash,
+	.prepare_del	= ta_prepare_del_fhash,
+	.add		= ta_add_fhash,
+	.del		= ta_del_fhash,
+	.flush_entry	= ta_flush_fhash_entry,
+	.foreach	= ta_foreach_fhash,
+	.dump_tentry	= ta_dump_fhash_tentry,
+	.find_tentry	= ta_find_fhash_tentry,
+	.prepare_mod	= ta_prepare_mod_fhash,
+	.fill_mod	= ta_fill_mod_fhash,
+	.modify		= ta_modify_fhash,
+	.flush_mod	= ta_flush_mod_fhash,
+};
 void
 ipfw_table_algo_init(struct ip_fw_chain *ch)
 {
@@ -2400,6 +3079,7 @@ ipfw_table_algo_init(struct ip_fw_chain *ch)
 	ipfw_add_table_algo(ch, &cidr_hash, sz, &cidr_hash.idx);
 	ipfw_add_table_algo(ch, &iface_idx, sz, &iface_idx.idx);
 	ipfw_add_table_algo(ch, &number_array, sz, &number_array.idx);
+	ipfw_add_table_algo(ch, &flow_hash, sz, &flow_hash.idx);
 }
 
 void
@@ -2410,6 +3090,7 @@ ipfw_table_algo_destroy(struct ip_fw_chain *ch)
 	ipfw_del_table_algo(ch, cidr_hash.idx);
 	ipfw_del_table_algo(ch, iface_idx.idx);
 	ipfw_del_table_algo(ch, number_array.idx);
+	ipfw_del_table_algo(ch, flow_hash.idx);
 }
 
 

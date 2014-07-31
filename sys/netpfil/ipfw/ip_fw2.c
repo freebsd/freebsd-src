@@ -1522,6 +1522,17 @@ do {								\
 				}
 				break;
 
+			case O_IP_FLOW_LOOKUP:
+				{
+					uint32_t v = 0;
+					match = ipfw_lookup_table_extended(chain,
+					    cmd->arg1, 0, &args->f_id, &v);
+					if (cmdlen == F_INSN_SIZE(ipfw_insn_u32))
+						match = ((ipfw_insn_u32 *)cmd)->d[0] == v;
+					if (match)
+						tablearg = v;
+				}
+				break;
 			case O_IP_SRC_MASK:
 			case O_IP_DST_MASK:
 				if (is_ipv4) {
