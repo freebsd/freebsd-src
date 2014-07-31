@@ -77,7 +77,8 @@ struct table_config {
 	struct named_object	no;
 	uint8_t		vtype;		/* format table type */
 	uint8_t		linked;		/* 1 if already linked */
-	uint16_t	spare;
+	uint8_t		tflags;		/* type flags */
+	uint8_t	spare;
 	uint32_t	count;		/* Number of records */
 	uint64_t	flags;		/* state flags */
 	char		tablename[64];	/* table name */
@@ -95,11 +96,12 @@ struct tables_config {
 static struct table_config *find_table(struct namedobj_instance *ni,
     struct tid_info *ti);
 static struct table_config *alloc_table_config(struct ip_fw_chain *ch,
-    struct tid_info *ti, struct table_algo *ta, char *adata, uint8_t vtype);
+    struct tid_info *ti, struct table_algo *ta, char *adata, uint8_t tflags,
+    uint8_t vtype);
 static void free_table_config(struct namedobj_instance *ni,
     struct table_config *tc);
 static int create_table_internal(struct ip_fw_chain *ch, struct tid_info *ti,
-    char *aname, uint8_t vtype);
+    char *aname, uint8_t tflags, uint8_t vtype);
 static void link_table(struct ip_fw_chain *chain, struct table_config *tc);
 static void unlink_table(struct ip_fw_chain *chain, struct table_config *tc);
 static void free_table_state(void **state, void **xstate, uint8_t type);
@@ -169,7 +171,7 @@ add_table_entry(struct ip_fw_chain *ch, struct tid_info *ti,
 		if ((tei->flags & TEI_FLAGS_COMPAT) == 0)
 			return (ESRCH);
 
-		error = create_table_internal(ch, ti, NULL, IPFW_VTYPE_U32);
+		error = create_table_internal(ch, ti, NULL, 0, IPFW_VTYPE_U32);
 
 		if (error != 0)
 			return (error);
@@ -533,8 +535,7 @@ ipfw_find_table_entry(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
 	struct table_algo *ta;
 	struct table_info *kti;
 	struct namedobj_instance *ni;
-	int error, plen;
-	void *paddr;
+	int error;
 	size_t sz;
 
 	/* Check minimum header size */
@@ -571,41 +572,13 @@ ipfw_find_table_entry(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
 		return (EINVAL);
 	}
 
-	/* Check lookup key for validness */
-	plen = 0;
-	paddr = &tent->k;
-	switch (ti.type)
-	{
-	case IPFW_TABLE_CIDR:
-		if (tent->subtype == AF_INET)
-			plen = sizeof(struct in_addr);
-		else if (tent->subtype == AF_INET6)
-			plen = sizeof(struct in6_addr);
-		else {
-			IPFW_UH_RUNLOCK(ch);
-			return (EINVAL);
-		}
-		break;
-	case IPFW_TABLE_INTERFACE:
-		/* Check key first */
-		plen = sizeof(tent->k.iface);
-		if (strnlen(tent->k.iface, plen) == plen) {
-			IPFW_UH_RUNLOCK(ch);
-			return (EINVAL);
-		}
-	case IPFW_TABLE_NUMBER:
-		plen = sizeof(uint32_t);
-		break;
-
-		break;
-	default:
-		IPFW_UH_RUNLOCK(ch);
-		return (ENOTSUP);
-	}
 	kti = KIDX_TO_TI(ch, tc->no.kidx);
 	ta = tc->ta;
 
-	error = ta->find_tentry(tc->astate, kti, paddr, plen, tent);
+	if (ta->find_tentry == NULL)
+		return (ENOTSUP);
+
+	error = ta->find_tentry(tc->astate, kti, tent);
 
 	IPFW_UH_RUNLOCK(ch);
 
@@ -651,9 +624,10 @@ flush_table(struct ip_fw_chain *ch, struct tid_info *ti)
 	struct table_algo *ta;
 	struct table_info ti_old, ti_new, *tablestate;
 	void *astate_old, *astate_new;
-	char algostate[32], *pstate;
+	char algostate[64], *pstate;
 	int error;
 	uint16_t kidx;
+	uint8_t tflags;
 
 	/*
 	 * Stage 1: save table algoritm.
@@ -674,13 +648,14 @@ flush_table(struct ip_fw_chain *ch, struct tid_info *ti)
 		pstate = algostate;
 	} else
 		pstate = NULL;
+	tflags = tc->tflags;
 	IPFW_UH_WUNLOCK(ch);
 
 	/*
 	 * Stage 2: allocate new table instance using same algo.
 	 */
 	memset(&ti_new, 0, sizeof(struct table_info));
-	if ((error = ta->init(ch, &astate_new, &ti_new, pstate)) != 0) {
+	if ((error = ta->init(ch, &astate_new, &ti_new, pstate, tflags)) != 0) {
 		IPFW_UH_WLOCK(ch);
 		tc->no.refcnt--;
 		IPFW_UH_WUNLOCK(ch);
@@ -1211,7 +1186,7 @@ ipfw_create_table(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
 	}
 	IPFW_UH_RUNLOCK(ch);
 
-	return (create_table_internal(ch, &ti, aname, i->vtype));
+	return (create_table_internal(ch, &ti, aname, i->tflags, i->vtype));
 }
 
 /*
@@ -1224,7 +1199,7 @@ ipfw_create_table(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
  */
 static int
 create_table_internal(struct ip_fw_chain *ch, struct tid_info *ti,
-    char *aname, uint8_t vtype)
+    char *aname, uint8_t tflags, uint8_t vtype)
 {
 	struct namedobj_instance *ni;
 	struct table_config *tc;
@@ -1237,7 +1212,7 @@ create_table_internal(struct ip_fw_chain *ch, struct tid_info *ti,
 	if (ta == NULL)
 		return (ENOTSUP);
 	
-	if ((tc = alloc_table_config(ch, ti, ta, aname, vtype)) == NULL)
+	if ((tc = alloc_table_config(ch, ti, ta, aname, tflags, vtype)) == NULL)
 		return (ENOMEM);
 
 	IPFW_UH_WLOCK(ch);
@@ -1311,6 +1286,7 @@ export_table_info(struct ip_fw_chain *ch, struct table_config *tc,
 	struct table_info *ti;
 	
 	i->type = tc->no.type;
+	i->tflags = tc->tflags;
 	i->vtype = tc->vtype;
 	i->set = tc->no.set;
 	i->kidx = tc->no.kidx;
@@ -1605,6 +1581,10 @@ find_table_algo(struct tables_config *tcfg, struct tid_info *ti, char *name)
 		return (&cidr_radix);
 	case IPFW_TABLE_INTERFACE:
 		return (&iface_idx);
+	case IPFW_TABLE_NUMBER:
+		return (&number_array);
+	case IPFW_TABLE_FLOW:
+		return (&flow_hash);
 	}
 
 	return (NULL);
@@ -1776,6 +1756,11 @@ classify_table_opcode(ipfw_insn *cmd, uint16_t *puidx, uint8_t *ptype)
 		*puidx = cmdif->p.glob;
 		skip = 0;
 		break;
+	case O_IP_FLOW_LOOKUP:
+		*puidx = cmd->arg1;
+		*ptype = IPFW_TABLE_FLOW;
+		skip = 0;
+		break;
 	}
 
 	return (skip);
@@ -1802,6 +1787,9 @@ update_table_opcode(ipfw_insn *cmd, uint16_t idx)
 		/* Interface table, possibly */
 		cmdif = (ipfw_insn_if *)cmd;
 		cmdif->p.glob = idx;
+		break;
+	case O_IP_FLOW_LOOKUP:
+		cmd->arg1 = idx;
 		break;
 	}
 }
@@ -1906,7 +1894,7 @@ find_table(struct namedobj_instance *ni, struct tid_info *ti)
 
 static struct table_config *
 alloc_table_config(struct ip_fw_chain *ch, struct tid_info *ti,
-    struct table_algo *ta, char *aname, uint8_t vtype)
+    struct table_algo *ta, char *aname, uint8_t tflags, uint8_t vtype)
 {
 	char *name, bname[16];
 	struct table_config *tc;
@@ -1930,6 +1918,7 @@ alloc_table_config(struct ip_fw_chain *ch, struct tid_info *ti,
 	tc->no.name = tc->tablename;
 	tc->no.type = ti->type;
 	tc->no.set = set;
+	tc->tflags = tflags;
 	tc->ta = ta;
 	strlcpy(tc->tablename, name, sizeof(tc->tablename));
 	/* Set default value type to u32 for compability reasons */
@@ -1944,7 +1933,7 @@ alloc_table_config(struct ip_fw_chain *ch, struct tid_info *ti,
 	}
 
 	/* Preallocate data structures for new tables */
-	error = ta->init(ch, &tc->astate, &tc->ti, aname);
+	error = ta->init(ch, &tc->astate, &tc->ti, aname, tflags);
 	if (error != 0) {
 		free(tc, M_IPFW);
 		return (NULL);
@@ -2285,7 +2274,7 @@ ipfw_rewrite_table_uidx(struct ip_fw_chain *chain,
 				error = ENOTSUP;
 				goto free;
 			}
-			tc = alloc_table_config(chain, &ti, ta, NULL,
+			tc = alloc_table_config(chain, &ti, ta, NULL, 0,
 			    IPFW_VTYPE_U32);
 
 			if (tc == NULL) {

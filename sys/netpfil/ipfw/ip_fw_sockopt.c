@@ -1011,6 +1011,17 @@ check_ipfw_rule_body(ipfw_insn *cmd, int cmd_len, struct rule_check_info *ci)
 				goto bad_size;
 			ci->table_opcodes++;
 			break;
+		case O_IP_FLOW_LOOKUP:
+			if (cmd->arg1 >= V_fw_tables_max) {
+				printf("ipfw: invalid table number %d\n",
+				    cmd->arg1);
+				return (EINVAL);
+			}
+			if (cmdlen != F_INSN_SIZE(ipfw_insn) &&
+			    cmdlen != F_INSN_SIZE(ipfw_insn_u32))
+				goto bad_size;
+			ci->table_opcodes++;
+			break;
 		case O_MACADDR2:
 			if (cmdlen != F_INSN_SIZE(ipfw_insn_mac))
 				goto bad_size;
@@ -1726,7 +1737,7 @@ ipfw_ctl3(struct sockopt *sopt)
 	size_t bsize_max, size, valsize;
 	struct ip_fw_chain *chain;
 	uint32_t opt;
-	char xbuf[128];
+	char xbuf[256];
 	struct sockopt_data sdata;
 	ip_fw3_opheader *op3 = NULL;
 

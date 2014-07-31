@@ -83,6 +83,7 @@ static struct _s_x tabletypes[] = {
       { "cidr",		IPFW_TABLE_CIDR },
       { "iface",	IPFW_TABLE_INTERFACE },
       { "number",	IPFW_TABLE_NUMBER },
+      { "flow",		IPFW_TABLE_FLOW },
       { NULL, 0 }
 };
 
@@ -256,6 +257,59 @@ static struct _s_x tablenewcmds[] = {
       { NULL, 0 }
 };
 
+static struct _s_x flowtypecmds[] = {
+      { "src-ip",	IPFW_TFFLAG_SRCIP },
+      { "proto",	IPFW_TFFLAG_PROTO },
+      { "src-port",	IPFW_TFFLAG_SRCPORT },
+      { "dst-ip",	IPFW_TFFLAG_DSTIP },
+      { "dst-port",	IPFW_TFFLAG_DSTPORT },
+      { NULL, 0 }
+};
+
+int
+table_parse_type(uint8_t ttype, char *p, uint8_t *tflags)
+{
+	uint8_t fset, fclear;
+
+	/* Parse type options */
+	switch(ttype) {
+	case IPFW_TABLE_FLOW:
+		fset = fclear = 0;
+		fill_flags(flowtypecmds, p, &fset,
+		    &fclear);
+		*tflags = fset;
+		break;
+	default:
+		return (EX_USAGE);
+	}
+
+	return (0);
+}
+
+void
+table_print_type(char *tbuf, size_t size, uint8_t type, uint8_t tflags)
+{
+	const char *tname;
+	int l;
+
+	if ((tname = match_value(tabletypes, type)) == NULL)
+		tname = "unknown";
+
+	l = snprintf(tbuf, size, "%s", tname);
+	tbuf += l;
+	size -= l;
+
+	switch(type) {
+	case IPFW_TABLE_FLOW:
+		if (tflags != 0) {
+			*tbuf++ = ':';
+			l--;
+			print_flags_buffer(tbuf, size, flowtypecmds, tflags);
+		}
+		break;
+	}
+}
+
 /*
  * Creates new table
  *
@@ -271,6 +325,7 @@ table_create(ipfw_obj_header *oh, int ac, char *av[])
 	ipfw_xtable_info xi;
 	int error, tcmd, val;
 	size_t sz;
+	char *p;
 	char tbuf[128];
 
 	sz = sizeof(tbuf);
@@ -288,15 +343,25 @@ table_create(ipfw_obj_header *oh, int ac, char *av[])
 		switch (tcmd) {
 		case TOK_TYPE:
 			NEED1("table type required");
+			/* Type may have suboptions after ':' */
+			if ((p = strchr(*av, ':')) != NULL)
+				*p++ = '\0';
 			val = match_token(tabletypes, *av);
-			if (val != -1) {
-				xi.type = val;
-				ac--; av++;
-				break;
+			if (val == -1) {
+				concat_tokens(tbuf, sizeof(tbuf), tabletypes,
+				    ", ");
+				errx(EX_USAGE,
+				    "Unknown tabletype: %s. Supported: %s",
+				    *av, tbuf);
 			}
-			concat_tokens(tbuf, sizeof(tbuf), tabletypes, ", ");
-			errx(EX_USAGE, "Unknown tabletype: %s. Supported: %s",
-			    *av, tbuf);
+			xi.type = val;
+			if (p != NULL) {
+				error = table_parse_type(val, p, &xi.tflags);
+				if (error != 0)
+					errx(EX_USAGE,
+					    "Unsupported suboptions: %s", p);
+			}
+			ac--; av++;
 			break;
 		case TOK_VALTYPE:
 			NEED1("table value type required");
@@ -408,15 +473,15 @@ table_get_info(ipfw_obj_header *oh, ipfw_xtable_info *i)
 static int
 table_show_info(ipfw_xtable_info *i, void *arg)
 {
-	const char *ttype, *vtype;
+	const char *vtype;
+	char ttype[64];
 
-	printf("--- table(%s), set(%u) ---\n", i->tablename, i->set);
-	if ((ttype = match_value(tabletypes, i->type)) == NULL)
-		ttype = "unknown";
+	table_print_type(ttype, sizeof(ttype), i->type, i->tflags);
 	if ((vtype = match_value(tablevaltypes, i->vtype)) == NULL)
 		vtype = "unknown";
 
-	printf(" type: %s, kindex: %d\n", ttype, i->kidx);
+	printf("--- table(%s), set(%u) ---\n", i->tablename, i->set);
+	printf(" kindex: %d, type: %s\n", i->kidx, ttype);
 	printf(" valtype: %s, references: %u\n", vtype, i->refcnt);
 	printf(" algorithm: %s\n", i->algoname);
 	printf(" items: %u, size: %u\n", i->count, i->size);
@@ -575,12 +640,15 @@ table_lookup(ipfw_obj_header *oh, int ac, char *av[])
 {
 	ipfw_obj_tentry xtent;
 	ipfw_xtable_info xi;
+	char key[64];
 	int error;
 
 	if (ac == 0)
 		errx(EX_USAGE, "address required");
 
-	error = table_do_lookup(oh, *av, &xi, &xtent);
+	strlcpy(key, *av, sizeof(key));
+
+	error = table_do_lookup(oh, key, &xi, &xtent);
 
 	switch (error) {
 	case 0:
@@ -600,12 +668,17 @@ table_lookup(ipfw_obj_header *oh, int ac, char *av[])
 }
 
 static void
-tentry_fill_key_type(char *arg, ipfw_obj_tentry *tentry, uint8_t type)
+tentry_fill_key_type(char *arg, ipfw_obj_tentry *tentry, uint8_t type,
+    uint8_t tflags)
 {
-	char *p;
+	char *p, *pp;
 	int mask, af;
-	struct in6_addr *paddr;
+	struct in6_addr *paddr, tmp;
+	struct tflow_entry *tfe;
 	uint32_t key, *pkey;
+	uint16_t port;
+	struct protoent *pent;
+	struct servent *sent;
 	int masklen;
 
 	masklen = 0;
@@ -664,6 +737,117 @@ tentry_fill_key_type(char *arg, ipfw_obj_tentry *tentry, uint8_t type)
 		*pkey = key;
 		masklen = 32;
 		break;
+	case IPFW_TABLE_FLOW:
+		/* Assume [src-ip][,proto][,src-port][,dst-ip][,dst-port] */
+		tfe = &tentry->k.flow;
+		af = 0;
+
+		/* Handle <ipv4|ipv6>*/
+		if ((tflags & IPFW_TFFLAG_SRCIP) != 0) {
+			if ((p = strchr(arg, ',')) != NULL)
+				*p++ = '\0';
+			/* Determine family using temporary storage */
+			if (inet_pton(AF_INET, arg, &tmp) == 1) {
+				if (af != 0 && af != AF_INET)
+					errx(EX_DATAERR,
+					    "Inconsistent address family\n");
+				af = AF_INET;
+				memcpy(&tfe->a.a4.sip, &tmp, 4);
+			} else if (inet_pton(AF_INET6, arg, &tmp) == 1) {
+				if (af != 0 && af != AF_INET6)
+					errx(EX_DATAERR,
+					    "Inconsistent address family\n");
+				af = AF_INET6;
+				memcpy(&tfe->a.a6.sip6, &tmp, 16);
+			}
+
+			arg = p;
+		}
+
+		/* Handle <proto-num|proto-name> */
+		if ((tflags & IPFW_TFFLAG_PROTO) != 0) {
+			if ((p = strchr(arg, ',')) != NULL)
+				*p++ = '\0';
+
+			key = strtol(arg, &pp, 10);
+			if (*pp != '\0') {
+				if ((pent = getprotobyname(arg)) == NULL)
+					errx(EX_DATAERR, "Unknown proto: %s",
+					    arg);
+				else
+					key = pent->p_proto;
+			}
+			
+			if (key > 255)
+				errx(EX_DATAERR, "Bad protocol number: %u",key);
+
+			tfe->proto = key;
+
+			arg = p;
+		}
+
+		/* Handle <port-num|service-name> */
+		if ((tflags & IPFW_TFFLAG_SRCPORT) != 0) {
+			if ((p = strchr(arg, ',')) != NULL)
+				*p++ = '\0';
+
+			if ((port = htons(strtol(arg, NULL, 10))) == 0) {
+				if ((sent = getservbyname(arg, NULL)) == NULL)
+					errx(EX_DATAERR, "Unknown service: %s",
+					    arg);
+				else
+					key = sent->s_port;
+			}
+			
+			tfe->sport = port;
+
+			arg = p;
+		}
+
+		/* Handle <ipv4|ipv6>*/
+		if ((tflags & IPFW_TFFLAG_DSTIP) != 0) {
+			if ((p = strchr(arg, ',')) != NULL)
+				*p++ = '\0';
+			/* Determine family using temporary storage */
+			if (inet_pton(AF_INET, arg, &tmp) == 1) {
+				if (af != 0 && af != AF_INET)
+					errx(EX_DATAERR,
+					    "Inconsistent address family");
+				af = AF_INET;
+				memcpy(&tfe->a.a4.dip, &tmp, 4);
+			} else if (inet_pton(AF_INET6, arg, &tmp) == 1) {
+				if (af != 0 && af != AF_INET6)
+					errx(EX_DATAERR,
+					    "Inconsistent address family");
+				af = AF_INET6;
+				memcpy(&tfe->a.a6.dip6, &tmp, 16);
+			}
+
+			arg = p;
+		}
+
+		/* Handle <port-num|service-name> */
+		if ((tflags & IPFW_TFFLAG_DSTPORT) != 0) {
+			if ((p = strchr(arg, ',')) != NULL)
+				*p++ = '\0';
+
+			if ((port = htons(strtol(arg, NULL, 10))) == 0) {
+				if ((sent = getservbyname(arg, NULL)) == NULL)
+					errx(EX_DATAERR, "Unknown service: %s",
+					    arg);
+				else
+					key = sent->s_port;
+			}
+			
+			tfe->dport = port;
+
+			arg = p;
+		}
+
+		tfe->af = af;
+
+		break;
+	
 	default:
 		errx(EX_DATAERR, "Unsupported table type: %d", type);
 	}
@@ -676,11 +860,12 @@ static void
 tentry_fill_key(ipfw_obj_header *oh, ipfw_obj_tentry *tent, char *key,
     uint8_t *ptype, uint8_t *pvtype, ipfw_xtable_info *xi)
 {
-	uint8_t type, vtype;
+	uint8_t type, tflags, vtype;
 	int error;
 	char *del;
 
 	type = 0;
+	tflags = 0;
 	vtype = 0;
 
 	error = table_get_info(oh, xi);
@@ -688,6 +873,7 @@ tentry_fill_key(ipfw_obj_header *oh, ipfw_obj_tentry *tent, char *key,
 	if (error == 0) {
 		/* Table found. */
 		type = xi->type;
+		tflags = xi->tflags;
 		vtype = xi->vtype;
 	} else {
 		if (error != ESRCH)
@@ -718,7 +904,7 @@ tentry_fill_key(ipfw_obj_header *oh, ipfw_obj_tentry *tent, char *key,
 			*del = '/';
 	}
 
-	tentry_fill_key_type(key, tent, type);
+	tentry_fill_key_type(key, tent, type, tflags);
 
 	*ptype = type;
 	*pvtype = vtype;
@@ -874,41 +1060,75 @@ table_show_list(ipfw_obj_header *oh, int need_header)
 static void
 table_show_entry(ipfw_xtable_info *i, ipfw_obj_tentry *tent)
 {
-	char tbuf[128];
+	char *comma, tbuf[128], pval[32];
+	void *paddr;
 	uint32_t tval;
+	struct tflow_entry *tfe;
 
 	tval = tent->value;
+
+	if (co.do_value_as_ip) {
+		tval = htonl(tval);
+		inet_ntop(AF_INET, &tval, pval, sizeof(pval));
+	} else
+		snprintf(pval, sizeof(pval), "%u", tval);
 
 	switch (i->type) {
 	case IPFW_TABLE_CIDR:
 		/* IPv4 or IPv6 prefixes */
 		inet_ntop(tent->subtype, &tent->k, tbuf, sizeof(tbuf));
-
-		if (co.do_value_as_ip) {
-			tval = htonl(tval);
-			printf("%s/%u %s\n", tbuf, tent->masklen,
-			    inet_ntoa(*(struct in_addr *)&tval));
-		} else
-			printf("%s/%u %u\n", tbuf, tent->masklen, tval);
+		printf("%s/%u %s\n", tbuf, tent->masklen, pval);
 		break;
 	case IPFW_TABLE_INTERFACE:
 		/* Interface names */
-		if (co.do_value_as_ip) {
-			tval = htonl(tval);
-			printf("%s %s\n", tent->k.iface,
-			    inet_ntoa(*(struct in_addr *)&tval));
-		} else
-			printf("%s %u\n", tent->k.iface, tval);
+		printf("%s %s\n", tent->k.iface, pval);
 		break;
 	case IPFW_TABLE_NUMBER:
 		/* numbers */
-		if (co.do_value_as_ip) {
-			tval = htonl(tval);
-			printf("%u %s\n", tent->k.key,
-			    inet_ntoa(*(struct in_addr *)&tval));
-		} else
-			printf("%u %u\n", tent->k.key, tval);
+		printf("%u %s\n", tent->k.key, pval);
 		break;
+	case IPFW_TABLE_FLOW:
+		/* flows */
+		tfe = &tent->k.flow;
+		comma = "";
+
+		if ((i->tflags & IPFW_TFFLAG_SRCIP) != 0) {
+			if (tfe->af == AF_INET)
+				paddr = &tfe->a.a4.sip;
+			else
+				paddr = &tfe->a.a6.sip6;
+
+			inet_ntop(tfe->af, paddr, tbuf, sizeof(tbuf));
+			printf("%s%s", comma, tbuf);
+			comma = ",";
+		}
+
+		if ((i->tflags & IPFW_TFFLAG_PROTO) != 0) {
+			printf("%s%d", comma, tfe->proto);
+			comma = ",";
+		}
+
+		if ((i->tflags & IPFW_TFFLAG_SRCPORT) != 0) {
+			printf("%s%d", comma, ntohs(tfe->sport));
+			comma = ",";
+		}
+		if ((i->tflags & IPFW_TFFLAG_DSTIP) != 0) {
+			if (tfe->af == AF_INET)
+				paddr = &tfe->a.a4.dip;
+			else
+				paddr = &tfe->a.a6.dip6;
+
+			inet_ntop(tfe->af, paddr, tbuf, sizeof(tbuf));
+			printf("%s%s", comma, tbuf);
+			comma = ",";
+		}
+
+		if ((i->tflags & IPFW_TFFLAG_DSTPORT) != 0) {
+			printf("%s%d", comma, ntohs(tfe->dport));
+			comma = ",";
+		}
+
+		printf(" %s\n", pval);
 	}
 }
 

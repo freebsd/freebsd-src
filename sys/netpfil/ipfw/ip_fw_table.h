@@ -63,7 +63,7 @@ struct tentry_info {
 #define	TEI_FLAGS_COMPAT	0x04	/* Called from old ABI		*/
 
 typedef int (ta_init)(struct ip_fw_chain *ch, void **ta_state,
-    struct table_info *ti, char *data);
+    struct table_info *ti, char *data, uint8_t tflags);
 typedef void (ta_destroy)(void *ta_state, struct table_info *ti);
 typedef int (ta_prepare_add)(struct ip_fw_chain *ch, struct tentry_info *tei,
     void *ta_buf);
@@ -92,8 +92,10 @@ typedef void ta_foreach(void *ta_state, struct table_info *ti, ta_foreach_f *f,
   void *arg);
 typedef int ta_dump_tentry(void *ta_state, struct table_info *ti, void *e,
     ipfw_obj_tentry *tent);
-typedef int ta_find_tentry(void *ta_state, struct table_info *ti, void *key,
-    uint32_t keylen, ipfw_obj_tentry *tent);
+typedef int ta_find_tentry(void *ta_state, struct table_info *ti,
+    ipfw_obj_tentry *tent);
+typedef int ta_dump_tinfo(void *ta_state, struct table_info *ti, 
+    ifpw_ta_tinfo *tinfo);
 
 struct table_algo {
 	char		name[16];
@@ -108,21 +110,23 @@ struct table_algo {
 	ta_add		*add;
 	ta_del		*del;
 	ta_flush_entry	*flush_entry;
+	ta_find_tentry	*find_tentry;
 	ta_prepare_mod	*prepare_mod;
 	ta_fill_mod	*fill_mod;
 	ta_modify	*modify;
 	ta_flush_mod	*flush_mod;
+	ta_change_ti	*change_ti;
 	ta_foreach	*foreach;
 	ta_dump_tentry	*dump_tentry;
 	ta_print_config	*print_config;
-	ta_find_tentry	*find_tentry;
-	ta_change_ti	*change_ti;
+	ta_dump_tinfo	*dump_tinfo;
 };
 
 int ipfw_add_table_algo(struct ip_fw_chain *ch, struct table_algo *ta,
     size_t size, int *idx);
 void ipfw_del_table_algo(struct ip_fw_chain *ch, int idx);
-extern struct table_algo cidr_radix, iface_idx;
+
+extern struct table_algo cidr_radix, iface_idx, number_array, flow_hash;
 
 void ipfw_table_algo_init(struct ip_fw_chain *chain);
 void ipfw_table_algo_destroy(struct ip_fw_chain *chain);
