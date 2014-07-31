@@ -150,7 +150,7 @@ packetbody_t
 ns_nprint(packetbody_t cp, packetbody_t bp)
 {
 	register u_int i, l;
-	packetbody_t *rp = NULL;
+	packetbody_t rp = NULL;
 	register int compress = 0;
 	int chars_processed;
 	int elt;
