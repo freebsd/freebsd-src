@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 24, 2014
+.Dd July 20, 2014
 .Dt CTL.CONF 5
 .Os
 .Sh NAME
@@ -104,14 +104,14 @@ The following statements are available at the auth-group level:
 .It Ic auth-type Ao Ar type Ac
 Specifies authentication type.
 Type can be either "none", "deny", "chap", or "chap-mutual".
-In most cases it is not neccessary to set the type using this clause;
+In most cases it is not necessary to set the type using this clause;
 it is usually used to disable authentication for a given auth-group.
 .It Ic chap Ao Ar user Ac Aq Ar secret
 Specifies CHAP authentication credentials.
 .It Ic chap-mutual Ao Ar user Ac Ao Ar secret Ac Ao Ar mutualuser Ac Aq Ar mutualsecret
 Specifies mutual CHAP authentication credentials.
 Note that for any auth-group, configuration may contain either chap,
-or chap-mutual entries; it's an error to mix them.
+or chap-mutual entries; it is an error to mix them.
 .It Ic initiator-name Ao Ar initiator-name Ac
 Specifies iSCSI initiator name.
 If not defined, there will be no restrictions based on initiator
@@ -158,18 +158,18 @@ without authentication.
 .It Ic auth-type Ao Ar type Ac
 Specifies authentication type.
 Type can be either "none", "deny", "chap", or "chap-mutual".
-In most cases it is not neccessary to set the type using this clause;
+In most cases it is not necessary to set the type using this clause;
 it is usually used to disable authentication for a given target.
 This clause is mutually exclusive with auth-group; one cannot use
 both in a single target.
 .It Ic chap Ao Ar user Ac Aq Ar secret
 Specifies CHAP authentication credentials.
 Note that targets must use either auth-group, or chap,
-or chap-mutual clauses; it's a configuration error to mix them in one target.
+or chap-mutual clauses; it is a configuration error to mix them in one target.
 .It Ic chap-mutual Ao Ar user Ac Ao Ar secret Ac Ao Ar mutualuser Ac Aq Ar mutualsecret
 Specifies mutual CHAP authentication credentials.
 Note that targets must use either auth-group, chap, or
-chap-mutual clauses; it's a configuration error to mix them in one target.
+chap-mutual clauses; it is a configuration error to mix them in one target.
 .It Ic initiator-name Ao Ar initiator-name Ac
 Specifies iSCSI initiator name.
 If not defined, there will be no restrictions based on initiator
