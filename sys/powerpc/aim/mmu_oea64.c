@@ -1090,6 +1090,7 @@ moea64_unwire(mmu_t mmu, pmap_t pm, vm_offset_t sva, vm_offset_t eva)
 	for (pvo = RB_NFIND(pvo_tree, &pm->pmap_pvo, &key);
 	    pvo != NULL && PVO_VADDR(pvo) < eva;
 	    pvo = RB_NEXT(pvo_tree, &pm->pmap_pvo, pvo)) {
+		pt = MOEA64_PVO_TO_PTE(mmu, pvo);
 		if ((pvo->pvo_vaddr & PVO_WIRED) == 0)
 			panic("moea64_unwire: pvo %p is missing PVO_WIRED",
 			    pvo);
@@ -1098,7 +1099,7 @@ moea64_unwire(mmu_t mmu, pmap_t pm, vm_offset_t sva, vm_offset_t eva)
 			panic("moea64_unwire: pte %p is missing LPTE_WIRED",
 			    &pvo->pvo_pte.lpte);
 		pvo->pvo_pte.lpte.pte_hi &= ~LPTE_WIRED;
-		if ((pt = MOEA64_PVO_TO_PTE(mmu, pvo)) != -1) {
+		if (pt != -1) {
 			/*
 			 * The PTE's wired attribute is not a hardware
 			 * feature, so there is no need to invalidate any TLB
