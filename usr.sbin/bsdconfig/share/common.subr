@@ -222,7 +222,7 @@ f_have()
 
 # setvar $var_to_set [$value]
 #
-# Implement setvar for shells such as unlike FreeBSD sh(1).
+# Implement setvar for shells unlike FreeBSD sh(1).
 #
 if ! f_have setvar; then
 setvar()
@@ -235,6 +235,10 @@ setvar()
 	2) : fall through ;;
 	*) f_err "setvar: too many arguments\n"
 	   return $FAILURE
+	esac
+	case "$__setvar_var_to_set" in *[!0-9A-Za-z_]*)
+		f_err "setvar: %s: bad variable name\n" "$__setvar_var_to_set"
+		return 2
 	esac
 	while case "$__setvar_r" in *\'*) : ;; *) false ; esac
 	do
