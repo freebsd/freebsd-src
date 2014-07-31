@@ -126,6 +126,9 @@ void	pmap_kenter_device(vm_offset_t, vm_paddr_t);
 vm_paddr_t pmap_kextract(vm_offset_t va);
 void	pmap_kremove(vm_offset_t);
 
+void	*pmap_mapdev(vm_offset_t, vm_size_t);
+void	pmap_unmapdev(vm_offset_t, vm_size_t);
+
 #endif	/* _KERNEL */
 
 #endif	/* !LOCORE */
