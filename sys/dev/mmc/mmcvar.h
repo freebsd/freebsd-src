@@ -69,11 +69,12 @@ enum mmc_device_ivars {
     MMC_IVAR_BUS_WIDTH,
     MMC_IVAR_ERASE_SECTOR,
     MMC_IVAR_MAX_DATA,
-    MMC_IVAR_CARD_ID_STRING
+    MMC_IVAR_CARD_ID_STRING,
+    MMC_IVAR_CARD_SN_STRING,
 };
 
 /*
- * Simplified accessors for pci devices
+ * Simplified accessors for mmc devices
  */
 #define MMC_ACCESSOR(var, ivar, type)					\
 	__BUS_ACCESSOR(mmc, var, MMC, ivar, type)
@@ -90,5 +91,6 @@ MMC_ACCESSOR(bus_width, BUS_WIDTH, int)
 MMC_ACCESSOR(erase_sector, ERASE_SECTOR, int)
 MMC_ACCESSOR(max_data, MAX_DATA, int)
 MMC_ACCESSOR(card_id_string, CARD_ID_STRING, const char *)
+MMC_ACCESSOR(card_sn_string, CARD_SN_STRING, const char *)
 
 #endif /* DEV_MMC_MMCVAR_H */
