@@ -28,8 +28,36 @@
 #include <sys/param.h>
 __FBSDID("$FreeBSD$");
 
+#include <vm/vm.h>
+#include <vm/pmap.h>
+
 #include <machine/bus.h>
 
+static int
+generic_bs_map(void *t, bus_addr_t bpa, bus_size_t size, int flags,
+    bus_space_handle_t *bshp)
+{
+	void *va;
+
+	va = pmap_mapdev(bpa, size);
+	if (va == NULL)
+		return (ENOMEM);
+	*bshp = (bus_space_handle_t)va;
+	return (0);
+}
+
+static void
+generic_bs_unmap(void *t, bus_space_handle_t bsh, bus_size_t size)
+{
+
+	pmap_unmapdev(bsh, size);
+}
+
 struct bus_space memmap_bus = {
+	/* cookie */
 	.bs_cookie = NULL,
+
+	/* mapping/unmapping */
+	.bs_map = generic_bs_map,
+	.bs_unmap = generic_bs_unmap,
 };
