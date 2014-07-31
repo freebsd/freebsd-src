@@ -113,8 +113,10 @@ static device_method_t nexus_methods[] = {
 	DEVMETHOD(bus_deactivate_resource,	nexus_deactivate_resource),
 	DEVMETHOD(bus_setup_intr,	nexus_setup_intr),
 	DEVMETHOD(bus_teardown_intr,	nexus_teardown_intr),
+#if 0
 #ifdef FDT
 	DEVMETHOD(ofw_bus_map_intr,	nexus_ofw_map_intr),
+#endif
 #endif
 	{ 0, 0 }
 };
@@ -342,6 +344,7 @@ nexus_deactivate_resource(device_t bus, device_t child, int type, int rid,
 	return (rman_deactivate_resource(r));
 }
 
+#if 0
 #ifdef FDT
 static int
 nexus_ofw_map_intr(device_t dev, device_t child, phandle_t iparent, int icells,
@@ -372,4 +375,5 @@ nexus_ofw_map_intr(device_t dev, device_t child, phandle_t iparent, int icells,
 	return (interrupt);
 }
 #endif
- 
+#endif
+
