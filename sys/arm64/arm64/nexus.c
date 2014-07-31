@@ -64,7 +64,6 @@ __FBSDID("$FreeBSD$");
 
 #ifdef FDT
 #include <dev/fdt/fdt_common.h>
-#include <machine/fdt.h>
 #include "ofw_bus_if.h"
 #endif
 
