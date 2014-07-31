@@ -38,6 +38,8 @@ __FBSDID("$FreeBSD$");
 #include <efilib.h>
 #include <efiprot.h>
 
+#define	SEMIHOSTING_HACKS
+
 static EFI_GUID sfs_guid = SIMPLE_FILE_SYSTEM_PROTOCOL;
 static EFI_GUID file_info_guid = EFI_FILE_INFO_ID;
 
@@ -145,6 +147,16 @@ efifs_read(struct open_file *f, void *buf, size_t size, size_t *resid)
 
 	read_size = size;
 	status = file->Read(file, &read_size, buf);
+#ifdef SEMIHOSTING_HACKS
+	if (status == EFI_ABORTED) {
+		/*
+		 * Semihosting incorrectly returns EFI_ABORTED on EOF
+		 * with nothing to read.
+		 */
+		*resid = size;
+		return (0);
+	}
+#endif
 	if (EFI_ERROR(status))
 		return (efi_status_to_errno(status));
 
