@@ -67,6 +67,8 @@ __FBSDID("$FreeBSD$");
 #include "ofw_bus_if.h"
 #endif
 
+extern struct bus_space memmap_bus;
+
 static MALLOC_DEFINE(M_NEXUSDEV, "nexusdev", "Nexus device");
 
 struct nexus_device {
@@ -273,7 +275,6 @@ nexus_teardown_intr(device_t dev, device_t child, struct resource *r, void *ih)
 	panic("nexus_teardown_intr");
 }
 
-
 static int
 nexus_activate_resource(device_t bus, device_t child, int type, int rid,
     struct resource *r)
@@ -292,25 +293,12 @@ nexus_activate_resource(device_t bus, device_t child, int type, int rid,
 	if (type == SYS_RES_MEMORY || type == SYS_RES_IOPORT) {
 		paddr = (bus_addr_t)rman_get_start(r);
 		psize = (bus_size_t)rman_get_size(r);
-#if 0
-#ifdef FDT
-		err = bus_space_map(fdtbus_bs_tag, paddr, psize, 0, &vaddr);
+		err = bus_space_map(&memmap_bus, paddr, psize, 0, &vaddr);
 		if (err != 0) {
 			rman_deactivate_resource(r);
 			return (err);
 		}
-		rman_set_bustag(r, fdtbus_bs_tag);
-#else
-		vaddr = (bus_space_handle_t)pmap_mapdev((vm_offset_t)paddr,
-		    (vm_size_t)psize);
-		if (vaddr == 0) {
-			rman_deactivate_resource(r);
-			return (ENOMEM);
-		}
-		rman_set_bustag(r, (void *)1);
-#endif
-#endif
-		panic("nexus_activate_resource");
+		rman_set_bustag(r, &memmap_bus);
 		rman_set_virtual(r, (void *)vaddr);
 		rman_set_bushandle(r, vaddr);
 	}
@@ -328,14 +316,7 @@ nexus_deactivate_resource(device_t bus, device_t child, int type, int rid,
 	vaddr = rman_get_bushandle(r);
 
 	if (vaddr != 0) {
-#if 0
-#ifdef FDT
-		bus_space_unmap(fdtbus_bs_tag, vaddr, psize);
-#else
-		pmap_unmapdev((vm_offset_t)vaddr, (vm_size_t)psize);
-#endif
-#endif
-		panic("nexus_deactivate_resource");
+		bus_space_unmap(&memmap_bus, vaddr, psize);
 		rman_set_virtual(r, NULL);
 		rman_set_bushandle(r, 0);
 	}
