@@ -45,6 +45,7 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_capsicum.h"
+#include "opt_ktrace.h"
 
 #include <sys/param.h>
 #include <sys/capsicum.h>
@@ -53,6 +54,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/filedesc.h>
 #include <sys/fnv_hash.h>
 #include <sys/kernel.h>
+#include <sys/uio.h>
+#include <sys/signal.h>
+#include <sys/ktrace.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mman.h>
@@ -727,7 +731,10 @@ sys_shm_open(struct thread *td, struct shm_open_args *uap)
 	} else {
 		path = malloc(MAXPATHLEN, M_SHMFD, M_WAITOK);
 		error = copyinstr(uap->path, path, MAXPATHLEN, NULL);
-
+#ifdef KTRACE
+		if (error == 0 && KTRPOINT(curthread, KTR_NAMEI))
+			ktrnamei(path);
+#endif
 		/* Require paths to start with a '/' character. */
 		if (error == 0 && path[0] != '/')
 			error = EINVAL;
@@ -825,7 +832,10 @@ sys_shm_unlink(struct thread *td, struct shm_unlink_args *uap)
 		free(path, M_TEMP);
 		return (error);
 	}
-
+#ifdef KTRACE
+	if (KTRPOINT(curthread, KTR_NAMEI))
+		ktrnamei(path);
+#endif
 	fnv = fnv_32_str(path, FNV1_32_INIT);
 	sx_xlock(&shm_dict_lock);
 	error = shm_remove(path, fnv, td->td_ucred);
