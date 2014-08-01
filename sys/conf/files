@@ -3838,6 +3838,7 @@ pci/viapm.c			optional viapm pci
 rpc/auth_none.c			optional krpc | nfslockd | nfsclient | nfsserver | nfscl | nfsd
 rpc/auth_unix.c			optional krpc | nfslockd | nfsclient | nfscl | nfsd
 rpc/authunix_prot.c		optional krpc | nfslockd | nfsclient | nfsserver | nfscl | nfsd
+rpc/clnt_bck.c			optional krpc | nfslockd | nfsserver | nfscl | nfsd
 rpc/clnt_dg.c			optional krpc | nfslockd | nfsclient | nfscl | nfsd
 rpc/clnt_rc.c			optional krpc | nfslockd | nfsclient | nfscl | nfsd
 rpc/clnt_vc.c			optional krpc | nfslockd | nfsclient | nfsserver | nfscl | nfsd
