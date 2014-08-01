@@ -42,8 +42,8 @@
 #define	RF_ALLOCATED	0x0001	/* resource has been reserved */
 #define	RF_ACTIVE	0x0002	/* resource allocation has been activated */
 #define	RF_SHAREABLE	0x0004	/* resource permits contemporaneous sharing */
-#define	RF_TIMESHARE	0x0008	/* resource permits time-division sharing */
-#define	RF_WANTED	0x0010	/* somebody is waiting for this resource */
+#define	RF_SPARE1	0x0008
+#define	RF_SPARE2	0x0010
 #define	RF_FIRSTSHARE	0x0020	/* first in sharing list */
 #define	RF_PREFETCHABLE	0x0040	/* resource is prefetchable */
 #define	RF_OPTIONAL	0x0080	/* for bus_alloc_resources() */
