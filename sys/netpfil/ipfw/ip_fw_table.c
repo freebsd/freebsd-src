@@ -91,6 +91,7 @@ struct tables_config {
 	struct namedobj_instance	*namehash;
 	int				algo_count;
 	struct table_algo 		*algo[256];
+	struct table_algo		*def_algo[IPFW_TABLE_MAXTYPE + 1];
 };
 
 static struct table_config *find_table(struct namedobj_instance *ni,
@@ -1544,6 +1545,9 @@ find_table_algo(struct tables_config *tcfg, struct tid_info *ti, char *name)
 	int i, l;
 	struct table_algo *ta;
 
+	if (ti->type > IPFW_TABLE_MAXTYPE)
+		return (NULL);
+
 	/* Search by index */
 	if (ti->atype != 0) {
 		if (ti->atype > tcfg->algo_count)
@@ -1575,19 +1579,8 @@ find_table_algo(struct tables_config *tcfg, struct tid_info *ti, char *name)
 		return (NULL);
 	}
 
-	/* Search by type */
-	switch (ti->type) {
-	case IPFW_TABLE_CIDR:
-		return (&cidr_radix);
-	case IPFW_TABLE_INTERFACE:
-		return (&iface_idx);
-	case IPFW_TABLE_NUMBER:
-		return (&number_array);
-	case IPFW_TABLE_FLOW:
-		return (&flow_hash);
-	}
-
-	return (NULL);
+	/* Return default algorithm for given type if set */
+	return (tcfg->def_algo[ti->type]);
 }
 
 int
@@ -1600,6 +1593,8 @@ ipfw_add_table_algo(struct ip_fw_chain *ch, struct table_algo *ta, size_t size,
 	if (size > sizeof(struct table_algo))
 		return (EINVAL);
 
+	KASSERT(ta->type >= IPFW_TABLE_MAXTYPE,("Increase IPFW_TABLE_MAXTYPE"));
+
 	ta_new = malloc(sizeof(struct table_algo), M_IPFW, M_WAITOK | M_ZERO);
 	memcpy(ta_new, ta, size);
 
@@ -1609,6 +1604,11 @@ ipfw_add_table_algo(struct ip_fw_chain *ch, struct table_algo *ta, size_t size,
 
 	tcfg->algo[++tcfg->algo_count] = ta_new;
 	ta_new->idx = tcfg->algo_count;
+
+	/* Set algorithm as default one for given type */
+	if ((ta_new->flags & TA_FLAG_DEFAULT) != 0 &&
+	    tcfg->def_algo[ta_new->type] == NULL)
+		tcfg->def_algo[ta_new->type] = ta_new;
 
 	*idx = ta_new->idx;
 	
@@ -1628,6 +1628,10 @@ ipfw_del_table_algo(struct ip_fw_chain *ch, int idx)
 
 	ta = tcfg->algo[idx];
 	KASSERT(ta != NULL, ("algo idx %d is NULL", idx));
+
+	if (tcfg->def_algo[ta->type] == ta)
+		tcfg->def_algo[ta->type] = NULL;
+
 	free(ta, M_IPFW);
 }
 
