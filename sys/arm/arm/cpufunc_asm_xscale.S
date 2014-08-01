@@ -306,11 +306,12 @@ _C_LABEL(xscale_minidata_clean_size):
 	XSCALE_CACHE_CLEAN_UNBLOCK
 
 ENTRY_NP(xscale_cache_syncI)
-ENTRY_NP(xscale_cache_purgeID)
+
+EENTRY_NP(xscale_cache_purgeID)
 	mcr	p15, 0, r0, c7, c5, 0	/* flush I cache (D cleaned below) */
-ENTRY_NP(xscale_cache_cleanID)
-ENTRY_NP(xscale_cache_purgeD)
-ENTRY(xscale_cache_cleanD)
+EENTRY_NP(xscale_cache_cleanID)
+EENTRY_NP(xscale_cache_purgeD)
+EENTRY(xscale_cache_cleanD)
 	XSCALE_CACHE_CLEAN_PROLOGUE
 
 1:	subs	r0, r0, #32
@@ -326,11 +327,11 @@ ENTRY(xscale_cache_cleanD)
 
 	XSCALE_CACHE_CLEAN_EPILOGUE
 	RET
+EEND(xscale_cache_cleanD)
+EEND(xscale_cache_purgeD)
+EEND(xscale_cache_cleanID)
+EEND(xscale_cache_purgeID)
 END(xscale_cache_syncI)
-END(xscale_cache_purgeID)
-END(xscale_cache_cleanID)
-END(xscale_cache_purgeD)
-END(xscale_cache_cleanD)
 
 /*
  * Clean the mini-data cache.
@@ -374,7 +375,7 @@ END(xscale_cache_purgeD_E)
  */
 /* xscale_cache_syncI is identical to xscale_cache_purgeID */
 
-ENTRY(xscale_cache_cleanID_rng)
+EENTRY(xscale_cache_cleanID_rng)
 ENTRY(xscale_cache_cleanD_rng)
 	cmp	r1, #0x4000
 	bcs	_C_LABEL(xscale_cache_cleanID)
@@ -393,7 +394,7 @@ ENTRY(xscale_cache_cleanD_rng)
 	mcr	p15, 0, r0, c7, c10, 4	/* drain write buffer */
 
 	CPWAIT_AND_RETURN(r0)
-END(xscale_cache_cleanID_rng)
+/*END(xscale_cache_cleanID_rng)*/
 END(xscale_cache_cleanD_rng)
 
 ENTRY(xscale_cache_purgeID_rng)
