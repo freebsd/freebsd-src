@@ -2234,6 +2234,7 @@ moea64_pvo_enter(mmu_t mmu, pmap_t pm, uma_zone_t zone,
     uint64_t pte_lo, int flags)
 {
 	struct	 pvo_entry *pvo;
+	uintptr_t pt;
 	uint64_t vsid;
 	int	 first;
 	u_int	 ptegidx;
@@ -2276,13 +2277,42 @@ moea64_pvo_enter(mmu_t mmu, pmap_t pm, uma_zone_t zone,
 			if ((pvo->pvo_pte.lpte.pte_lo & LPTE_RPGN) == pa &&
 			    (pvo->pvo_pte.lpte.pte_lo & (LPTE_NOEXEC | LPTE_PP))
 			    == (pte_lo & (LPTE_NOEXEC | LPTE_PP))) {
+				/*
+				 * The physical page and protection are not
+				 * changing.  Instead, this may be a request
+				 * to change the mapping's wired attribute.
+				 */
+				pt = -1;
+				if ((flags & PVO_WIRED) != 0 &&
+				    (pvo->pvo_vaddr & PVO_WIRED) == 0) {
+					pt = MOEA64_PVO_TO_PTE(mmu, pvo);
+					pvo->pvo_vaddr |= PVO_WIRED;
+					pvo->pvo_pte.lpte.pte_hi |= LPTE_WIRED;
+					pm->pm_stats.wired_count++;
+				} else if ((flags & PVO_WIRED) == 0 &&
+				    (pvo->pvo_vaddr & PVO_WIRED) != 0) {
+					pt = MOEA64_PVO_TO_PTE(mmu, pvo);
+					pvo->pvo_vaddr &= ~PVO_WIRED;
+					pvo->pvo_pte.lpte.pte_hi &= ~LPTE_WIRED;
+					pm->pm_stats.wired_count--;
+				}
 			    	if (!(pvo->pvo_pte.lpte.pte_hi & LPTE_VALID)) {
+					KASSERT(pt == -1,
+					    ("moea64_pvo_enter: valid pt"));
 					/* Re-insert if spilled */
 					i = MOEA64_PTE_INSERT(mmu, ptegidx,
 					    &pvo->pvo_pte.lpte);
 					if (i >= 0)
 						PVO_PTEGIDX_SET(pvo, i);
 					moea64_pte_overflow--;
+				} else if (pt != -1) {
+					/*
+					 * The PTE's wired attribute is not a
+					 * hardware feature, so there is no
+					 * need to invalidate any TLB entries.
+					 */
+					MOEA64_PTE_CHANGE(mmu, pt,
+					    &pvo->pvo_pte.lpte, pvo->pvo_vpn);
 				}
 				return (0);
 			}
