@@ -58,9 +58,10 @@ struct tentry_info {
 	uint16_t	flags;		/* record flags			*/
 	uint32_t	value;		/* value			*/
 };
-#define	TEI_FLAGS_UPDATE	0x01	/* Update record if exists	*/
+#define	TEI_FLAGS_UPDATE	0x01	/* Add or update rec if exists	*/
 #define	TEI_FLAGS_UPDATED	0x02	/* Entry has been updated	*/
 #define	TEI_FLAGS_COMPAT	0x04	/* Called from old ABI		*/
+#define	TEI_FLAGS_DONTADD	0x08	/* Do not create new rec	*/
 
 typedef int (ta_init)(struct ip_fw_chain *ch, void **ta_state,
     struct table_info *ti, char *data, uint8_t tflags);

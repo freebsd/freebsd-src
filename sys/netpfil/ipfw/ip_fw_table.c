@@ -78,8 +78,9 @@ struct table_config {
 	uint8_t		vtype;		/* format table type */
 	uint8_t		linked;		/* 1 if already linked */
 	uint8_t		tflags;		/* type flags */
-	uint8_t	spare;
+	uint8_t		spare;
 	uint32_t	count;		/* Number of records */
+	uint32_t	limit;		/* Max number of records */
 	uint64_t	flags;		/* state flags */
 	char		tablename[64];	/* table name */
 	struct table_algo	*ta;	/* Callbacks for given algo */
@@ -102,7 +103,7 @@ static struct table_config *alloc_table_config(struct ip_fw_chain *ch,
 static void free_table_config(struct namedobj_instance *ni,
     struct table_config *tc);
 static int create_table_internal(struct ip_fw_chain *ch, struct tid_info *ti,
-    char *aname, uint8_t tflags, uint8_t vtype);
+    char *aname, ipfw_xtable_info *i);
 static void link_table(struct ip_fw_chain *chain, struct table_config *tc);
 static void unlink_table(struct ip_fw_chain *chain, struct table_config *tc);
 static void free_table_state(void **state, void **xstate, uint8_t type);
@@ -132,7 +133,6 @@ static struct table_algo *find_table_algo(struct tables_config *tableconf,
 #define	KIDX_TO_TI(ch, k)	(&(((struct table_info *)(ch)->tablestate)[k]))
 
 
-
 int
 add_table_entry(struct ip_fw_chain *ch, struct tid_info *ti,
     struct tentry_info *tei)
@@ -144,6 +144,7 @@ add_table_entry(struct ip_fw_chain *ch, struct tid_info *ti,
 	int error;
 	uint32_t num;
 	uint64_t aflags;
+	ipfw_xtable_info xi;
 	char ta_buf[128];
 
 	IPFW_UH_WLOCK(ch);
@@ -160,6 +161,13 @@ add_table_entry(struct ip_fw_chain *ch, struct tid_info *ti,
 			return (EINVAL);
 		}
 
+		/* Try to exit early on limit hit */
+		if (tc->limit != 0 && tc->count == tc->limit &&
+		    (tei->flags & TEI_FLAGS_UPDATE) == 0) {
+				IPFW_UH_WUNLOCK(ch);
+				return (EFBIG);
+		}
+
 		/* Reference and unlock */
 		tc->no.refcnt++;
 		ta = tc->ta;
@@ -172,7 +180,10 @@ add_table_entry(struct ip_fw_chain *ch, struct tid_info *ti,
 		if ((tei->flags & TEI_FLAGS_COMPAT) == 0)
 			return (ESRCH);
 
-		error = create_table_internal(ch, ti, NULL, 0, IPFW_VTYPE_U32);
+		memset(&xi, 0, sizeof(xi));
+		xi.vtype = IPFW_VTYPE_U32;
+
+		error = create_table_internal(ch, ti, NULL, &xi);
 
 		if (error != 0)
 			return (error);
@@ -223,6 +234,22 @@ add_table_entry(struct ip_fw_chain *ch, struct tid_info *ti,
 	/* Update aflags since it can be changed after previous read */
 	aflags = tc->flags;
 	
+	/* Check limit before adding */
+	if (tc->limit != 0 && tc->count == tc->limit) {
+		if ((tei->flags & TEI_FLAGS_UPDATE) == 0) {
+			IPFW_UH_WUNLOCK(ch);
+			return (EFBIG);
+		}
+
+		/*
+		 * We have UPDATE flag set.
+		 * Permit updating record (if found),
+		 * but restrict adding new one since we've
+		 * already hit the limit.
+		 */
+		tei->flags |= TEI_FLAGS_DONTADD;
+	}
+
 	/* We've got valid table in @tc. Let's add data */
 	kidx = tc->no.kidx;
 	ta = tc->ta;
@@ -1187,7 +1214,7 @@ ipfw_create_table(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
 	}
 	IPFW_UH_RUNLOCK(ch);
 
-	return (create_table_internal(ch, &ti, aname, i->tflags, i->vtype));
+	return (create_table_internal(ch, &ti, aname, i));
 }
 
 /*
@@ -1200,7 +1227,7 @@ ipfw_create_table(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
  */
 static int
 create_table_internal(struct ip_fw_chain *ch, struct tid_info *ti,
-    char *aname, uint8_t tflags, uint8_t vtype)
+    char *aname, ipfw_xtable_info *i)
 {
 	struct namedobj_instance *ni;
 	struct table_config *tc;
@@ -1212,9 +1239,12 @@ create_table_internal(struct ip_fw_chain *ch, struct tid_info *ti,
 	ta = find_table_algo(CHAIN_TO_TCFG(ch), ti, aname);
 	if (ta == NULL)
 		return (ENOTSUP);
-	
-	if ((tc = alloc_table_config(ch, ti, ta, aname, tflags, vtype)) == NULL)
+
+	tc = alloc_table_config(ch, ti, ta, aname, i->tflags, i->vtype);
+	if (tc == NULL)
 		return (ENOMEM);
+
+	tc->limit = i->limit;
 
 	IPFW_UH_WLOCK(ch);
 
@@ -1293,6 +1323,7 @@ export_table_info(struct ip_fw_chain *ch, struct table_config *tc,
 	i->kidx = tc->no.kidx;
 	i->refcnt = tc->no.refcnt;
 	i->count = tc->count;
+	i->limit = tc->limit;
 	i->size = tc->count * sizeof(ipfw_obj_tentry);
 	i->size += sizeof(ipfw_obj_header) + sizeof(ipfw_xtable_info);
 	strlcpy(i->tablename, tc->tablename, sizeof(i->tablename));

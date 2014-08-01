@@ -255,8 +255,6 @@ char const *match_value(struct _s_x *p, int value);
 size_t concat_tokens(char *buf, size_t bufsize, struct _s_x *table,
     char *delimiter);
 void fill_flags(struct _s_x *flags, char *p, uint8_t *set, uint8_t *clear);
-void print_flags(char const *name, struct _s_x *list, uint8_t set,
-    uint8_t clear);
 void print_flags_buffer(char *buf, size_t sz, struct _s_x *list, uint8_t set);
 
 struct _ip_fw3_opheader;
