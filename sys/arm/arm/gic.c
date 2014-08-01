@@ -47,7 +47,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <machine/bus.h>
+#if 0
 #include <machine/intr.h>
+#endif
 #include <machine/smp.h>
 
 #include <dev/fdt/fdt_common.h>
@@ -104,6 +106,12 @@ struct arm_gic_softc {
 	uint32_t		nirqs;
 };
 
+static struct ofw_compat_data compat_data[] = {
+	{ "arm,cortex-a9-gic", 1 },
+	{ "arm,gic", 1 },
+	{ NULL, 0 },
+};
+
 static struct resource_spec arm_gic_spec[] = {
 	{ SYS_RES_MEMORY,	0,	RF_ACTIVE },	/* Distributor registers */
 	{ SYS_RES_MEMORY,	1,	RF_ACTIVE },	/* CPU Interrupt Intf. registers */
@@ -132,12 +140,14 @@ arm_gic_probe(device_t dev)
 	if (!ofw_bus_status_okay(dev))
 		return (ENXIO);
 
-	if (!ofw_bus_is_compatible(dev, "arm,gic"))
+	if (!ofw_bus_search_compatible(dev, compat_data)->ocd_data)
 		return (ENXIO);
+
 	device_set_desc(dev, "ARM Generic Interrupt Controller");
 	return (BUS_PROBE_DEFAULT);
 }
 
+#if 0
 void
 gic_init_secondary(void)
 {
@@ -167,6 +177,7 @@ gic_init_secondary(void)
 	/* Activate IRQ 29, ie private timer IRQ*/
 	gic_d_write_4(GICD_ISENABLER(29 >> 5), (1UL << (29 & 0x1F)));
 }
+#endif
 
 static int
 arm_gic_attach(device_t dev)
@@ -206,9 +217,11 @@ arm_gic_attach(device_t dev)
 	sc->nirqs = gic_d_read_4(GICD_TYPER);
 	sc->nirqs = 32 * ((sc->nirqs & 0x1f) + 1);
 
+#if 0
 	/* Set up function pointers */
 	arm_post_filter = gic_post_filter;
 	arm_config_irq = gic_config_irq;
+#endif
 
 	icciidr = gic_c_read_4(GICC_IIDR);
 	device_printf(dev,"pn 0x%x, arch 0x%x, rev 0x%x, implementer 0x%x sc->nirqs %u\n",
@@ -262,6 +275,7 @@ static driver_t arm_gic_driver = {
 static devclass_t arm_gic_devclass;
 
 DRIVER_MODULE(gic, simplebus, arm_gic_driver, arm_gic_devclass, 0, 0);
+DRIVER_MODULE(gic, ofwbus, arm_gic_driver, arm_gic_devclass, 0, 0);
 
 static void
 gic_post_filter(void *arg)
@@ -271,6 +285,7 @@ gic_post_filter(void *arg)
 	gic_c_write_4(GICC_EOIR, irq);
 }
 
+#if 0
 int
 arm_get_next_irq(int last_irq)
 {
@@ -311,6 +326,7 @@ arm_unmask_irq(uintptr_t nb)
 
 	gic_d_write_4(GICD_ISENABLER(nb >> 5), (1UL << (nb & 0x1F)));
 }
+#endif
 
 static int
 gic_config_irq(int irq, enum intr_trigger trig,
