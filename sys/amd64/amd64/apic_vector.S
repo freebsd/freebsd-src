@@ -70,6 +70,8 @@ IDTVEC(vec_name) ;							\
 	movq	%rsp, %rsi	;                                       \
 	movl	%eax, %edi ;	/* pass the IRQ */			\
 	call	lapic_handle_intr ;					\
+.globl	vec_name ## _ret ;						\
+vec_name ## _ret : ;							\
 1: ;									\
 	MEXITCOUNT ;							\
 	jmp	doreti
@@ -107,6 +109,8 @@ IDTVEC(timerint)
 	FAKE_MCOUNT(TF_RIP(%rsp))
 	movq	%rsp, %rdi
 	call	lapic_handle_timer
+.globl	timerint_ret
+timerint_ret:
 	MEXITCOUNT
 	jmp	doreti
 
@@ -234,6 +238,8 @@ IDTVEC(ipi_intr_bitmap_handler)
 	FAKE_MCOUNT(TF_RIP(%rsp))
 
 	call	ipi_bitmap_handler
+.globl	ipi_intr_bitmap_handler_ret
+ipi_intr_bitmap_handler_ret:
 	MEXITCOUNT
 	jmp	doreti
 

@@ -147,6 +147,11 @@ char	*sched_tdname(struct thread *td);
 void	sched_clear_tdname(struct thread *td);
 #endif
 
+/*
+ * Used for lwref fixups.
+ */
+void sched_foreach_on_runq(void(*)(void *));
+
 static __inline void
 sched_pin(void)
 {
