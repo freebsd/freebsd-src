@@ -33,6 +33,16 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/bus.h>
 
+uint8_t  generic_bs_r_1(void *, bus_space_handle_t, bus_size_t);
+uint16_t generic_bs_r_2(void *, bus_space_handle_t, bus_size_t);
+uint32_t generic_bs_r_4(void *, bus_space_handle_t, bus_size_t);
+uint64_t generic_bs_r_8(void *, bus_space_handle_t, bus_size_t);
+
+void generic_bs_w_1(void *, bus_space_handle_t, bus_size_t, uint8_t);
+void generic_bs_w_2(void *, bus_space_handle_t, bus_size_t, uint16_t);
+void generic_bs_w_4(void *, bus_space_handle_t, bus_size_t, uint32_t);
+void generic_bs_w_8(void *, bus_space_handle_t, bus_size_t, uint64_t);
+
 static int
 generic_bs_map(void *t, bus_addr_t bpa, bus_size_t size, int flags,
     bus_space_handle_t *bshp)
@@ -60,4 +70,96 @@ struct bus_space memmap_bus = {
 	/* mapping/unmapping */
 	.bs_map = generic_bs_map,
 	.bs_unmap = generic_bs_unmap,
+	.bs_subregion = NULL,
+
+	/* allocation/deallocation */
+	.bs_alloc = NULL,
+	.bs_free = NULL,
+
+	/* barrier */
+	.bs_barrier = NULL,
+
+	/* read single */
+	.bs_r_1 = generic_bs_r_1,
+	.bs_r_2 = generic_bs_r_2,
+	.bs_r_4 = generic_bs_r_4,
+	.bs_r_8 = generic_bs_r_8,
+
+	/* read multiple */
+	.bs_rm_1 = NULL,
+	.bs_rm_2 = NULL,
+	.bs_rm_4 = NULL,
+	.bs_rm_8 = NULL,
+
+	/* write single */
+	.bs_w_1 = generic_bs_w_1,
+	.bs_w_2 = generic_bs_w_2,
+	.bs_w_4 = generic_bs_w_4,
+	.bs_w_8 = generic_bs_w_8,
+
+	/* write multiple */
+	.bs_wm_1 = NULL,
+	.bs_wm_2 = NULL,
+	.bs_wm_4 = NULL,
+	.bs_wm_8 = NULL,
+
+	/* write region */
+	.bs_wr_1 = NULL,
+	.bs_wr_2 = NULL,
+	.bs_wr_4 = NULL,
+	.bs_wr_8 = NULL,
+
+	/* set multiple */
+	.bs_sm_1 = NULL,
+	.bs_sm_2 = NULL,
+	.bs_sm_4 = NULL,
+	.bs_sm_8 = NULL,
+
+	/* set region */
+	.bs_sr_1 = NULL,
+	.bs_sr_2 = NULL,
+	.bs_sr_4 = NULL,
+	.bs_sr_8 = NULL,
+
+	/* copy */
+	.bs_c_1 = NULL,
+	.bs_c_2 = NULL,
+	.bs_c_4 = NULL,
+	.bs_c_8 = NULL,
+
+	/* read single stream */
+	.bs_r_1_s = NULL,
+	.bs_r_2_s = NULL,
+	.bs_r_4_s = NULL,
+	.bs_r_8_s = NULL,
+
+	/* read multiple stream */
+	.bs_rm_1_s = NULL,
+	.bs_rm_2_s = NULL,
+	.bs_rm_4_s = NULL,
+	.bs_rm_8_s = NULL,
+
+	/* read region stream */
+	.bs_rr_1_s = NULL,
+	.bs_rr_2_s = NULL,
+	.bs_rr_4_s = NULL,
+	.bs_rr_8_s = NULL,
+
+	/* write single stream */
+	.bs_w_1_s = NULL,
+	.bs_w_2_s = NULL,
+	.bs_w_4_s = NULL,
+	.bs_w_8_s = NULL,
+
+	/* write multiple stream */
+	.bs_wm_1_s = NULL,
+	.bs_wm_2_s = NULL,
+	.bs_wm_4_s = NULL,
+	.bs_wm_8_s = NULL,
+
+	/* write region stream */
+	.bs_wr_1_s = NULL,
+	.bs_wr_2_s = NULL,
+	.bs_wr_4_s = NULL,
+	.bs_wr_8_s = NULL,
 };
