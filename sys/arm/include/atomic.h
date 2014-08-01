@@ -729,13 +729,42 @@ atomic_set_32(volatile uint32_t *address, uint32_t setmask)
 }
 
 static __inline void
+atomic_set_64(volatile uint64_t *address, uint64_t setmask)
+{
+	__with_interrupts_disabled(*address |= setmask);
+}
+
+static __inline void
 atomic_clear_32(volatile uint32_t *address, uint32_t clearmask)
+{
+	__with_interrupts_disabled(*address &= ~clearmask);
+}
+
+static __inline void
+atomic_clear_64(volatile uint64_t *address, uint64_t clearmask)
 {
 	__with_interrupts_disabled(*address &= ~clearmask);
 }
 
 static __inline u_int32_t
 atomic_cmpset_32(volatile u_int32_t *p, volatile u_int32_t cmpval, volatile u_int32_t newval)
+{
+	int ret;
+	
+	__with_interrupts_disabled(
+	 {
+	    	if (*p == cmpval) {
+			*p = newval;
+			ret = 1;
+		} else {
+			ret = 0;
+		}
+	});
+	return (ret);
+}
+
+static __inline u_int64_t
+atomic_cmpset_64(volatile u_int64_t *p, volatile u_int64_t cmpval, volatile u_int64_t newval)
 {
 	int ret;
 	
@@ -758,7 +787,19 @@ atomic_add_32(volatile u_int32_t *p, u_int32_t val)
 }
 
 static __inline void
+atomic_add_64(volatile u_int64_t *p, u_int64_t val)
+{
+	__with_interrupts_disabled(*p += val);
+}
+
+static __inline void
 atomic_subtract_32(volatile u_int32_t *p, u_int32_t val)
+{
+	__with_interrupts_disabled(*p -= val);
+}
+
+static __inline void
+atomic_subtract_64(volatile u_int64_t *p, u_int64_t val)
 {
 	__with_interrupts_disabled(*p -= val);
 }
@@ -774,6 +815,34 @@ atomic_fetchadd_32(volatile uint32_t *p, uint32_t v)
 		*p += v;
 	});
 	return (value);
+}
+
+static __inline uint64_t
+atomic_fetchadd_64(volatile uint64_t *p, uint64_t v)
+{
+	uint64_t value;
+
+	__with_interrupts_disabled(
+	{
+	    	value = *p;
+		*p += v;
+	});
+	return (value);
+}
+
+static __inline uint64_t
+atomic_load_64(volatile uint64_t *p)
+{
+	uint64_t value;
+
+	__with_interrupts_disabled(value = *p);
+	return (value);
+}
+
+static __inline void
+atomic_store_64(volatile uint64_t *p, uint64_t value)
+{
+	__with_interrupts_disabled(*p = value);
 }
 
 #else /* !_KERNEL */
