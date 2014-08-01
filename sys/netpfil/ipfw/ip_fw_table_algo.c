@@ -266,9 +266,9 @@ ta_foreach_radix(void *ta_state, struct table_info *ti, ta_foreach_f *f,
 
 struct ta_buf_cidr 
 {
+	void *ent_ptr;
 	struct sockaddr	*addr_ptr;
 	struct sockaddr	*mask_ptr;
-	void *ent_ptr;
 	union {
 		struct {
 			struct sockaddr_in sa;
@@ -352,7 +352,6 @@ ta_prepare_add_cidr(struct ip_fw_chain *ch, struct tentry_info *tei,
 	int mlen, set_mask;
 
 	tb = (struct ta_buf_cidr *)ta_buf;
-	memset(tb, 0, sizeof(struct ta_buf_cidr));
 
 	mlen = tei->masklen;
 	set_mask = 0;
@@ -460,7 +459,6 @@ ta_prepare_del_cidr(struct ip_fw_chain *ch, struct tentry_info *tei,
 	int mlen, set_mask;
 
 	tb = (struct ta_buf_cidr *)ta_buf;
-	memset(tb, 0, sizeof(struct ta_buf_cidr));
 
 	mlen = tei->masklen;
 	set_mask = 0;
@@ -1103,7 +1101,6 @@ ta_prepare_add_chash(struct ip_fw_chain *ch, struct tentry_info *tei,
 	int error;
 
 	tb = (struct ta_buf_chash *)ta_buf;
-	memset(tb, 0, sizeof(struct ta_buf_chash));
 
 	ent = malloc(sizeof(*ent), M_IPFW_TBL, M_WAITOK | M_ZERO);
 
@@ -1196,7 +1193,6 @@ ta_prepare_del_chash(struct ip_fw_chain *ch, struct tentry_info *tei,
 	struct ta_buf_chash *tb;
 
 	tb = (struct ta_buf_chash *)ta_buf;
-	memset(tb, 0, sizeof(struct ta_buf_chash));
 
 	return (tei_to_chash_ent(tei, &tb->ent));
 }
@@ -1657,7 +1653,6 @@ ta_prepare_add_ifidx(struct ip_fw_chain *ch, struct tentry_info *tei,
 	struct ifentry *ife;
 
 	tb = (struct ta_buf_ifidx *)ta_buf;
-	memset(tb, 0, sizeof(struct ta_buf_ifidx));
 
 	/* Check if string is terminated */
 	ifname = (char *)tei->paddr;
@@ -1750,7 +1745,6 @@ ta_prepare_del_ifidx(struct ip_fw_chain *ch, struct tentry_info *tei,
 	char *ifname;
 
 	tb = (struct ta_buf_ifidx *)ta_buf;
-	memset(tb, 0, sizeof(struct ta_buf_ifidx));
 
 	/* Check if string is terminated */
 	ifname = (char *)tei->paddr;
@@ -2179,7 +2173,6 @@ ta_prepare_add_numarray(struct ip_fw_chain *ch, struct tentry_info *tei,
 	struct ta_buf_numarray *tb;
 
 	tb = (struct ta_buf_numarray *)ta_buf;
-	memset(tb, 0, sizeof(*tb));
 
 	tb->na.number = *((uint32_t *)tei->paddr);
 	tb->na.value = tei->value;
@@ -2836,7 +2829,6 @@ ta_prepare_add_fhash(struct ip_fw_chain *ch, struct tentry_info *tei,
 	int error;
 
 	tb = (struct ta_buf_fhash *)ta_buf;
-	memset(tb, 0, sizeof(struct ta_buf_fhash));
 
 	if (tei->subtype == AF_INET)
 		sz = sizeof(struct fhashentry4);
@@ -2919,7 +2911,6 @@ ta_prepare_del_fhash(struct ip_fw_chain *ch, struct tentry_info *tei,
 	struct ta_buf_fhash *tb;
 
 	tb = (struct ta_buf_fhash *)ta_buf;
-	memset(tb, 0, sizeof(struct ta_buf_fhash));
 
 	return (tei_to_fhash_ent(tei, &tb->fe6.e));
 }
