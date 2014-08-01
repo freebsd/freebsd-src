@@ -1289,31 +1289,21 @@ moea64_enter(mmu_t mmu, pmap_t pmap, vm_offset_t va, vm_page_t m,
 {
 	struct		pvo_head *pvo_head;
 	uma_zone_t	zone;
-	vm_page_t	pg;
 	uint64_t	pte_lo;
 	u_int		pvo_flags;
 	int		error;
 
-	if (!moea64_initialized) {
+	if ((m->oflags & VPO_UNMANAGED) == 0 && !vm_page_xbusied(m))
+		VM_OBJECT_ASSERT_LOCKED(m->object);
+
+	if ((m->oflags & VPO_UNMANAGED) != 0 || !moea64_initialized) {
 		pvo_head = NULL;
-		pg = NULL;
 		zone = moea64_upvo_zone;
 		pvo_flags = 0;
 	} else {
 		pvo_head = vm_page_to_pvoh(m);
-		pg = m;
 		zone = moea64_mpvo_zone;
 		pvo_flags = PVO_MANAGED;
-	}
-
-	if ((m->oflags & VPO_UNMANAGED) == 0 && !vm_page_xbusied(m))
-		VM_OBJECT_ASSERT_LOCKED(m->object);
-
-	/* XXX change the pvo head for fake pages */
-	if ((m->oflags & VPO_UNMANAGED) != 0) {
-		pvo_flags &= ~PVO_MANAGED;
-		pvo_head = NULL;
-		zone = moea64_upvo_zone;
 	}
 
 	pte_lo = moea64_calc_wimg(VM_PAGE_TO_PHYS(m), pmap_page_get_memattr(m));

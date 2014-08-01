@@ -1152,7 +1152,13 @@ moea_enter_locked(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 	u_int		pte_lo, pvo_flags;
 	int		error;
 
-	if (!moea_initialized) {
+	if (pmap_bootstrapped)
+		rw_assert(&pvh_global_lock, RA_WLOCKED);
+	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
+	if ((m->oflags & VPO_UNMANAGED) == 0 && !vm_page_xbusied(m))
+		VM_OBJECT_ASSERT_LOCKED(m->object);
+
+	if ((m->oflags & VPO_UNMANAGED) != 0 || !moea_initialized) {
 		pvo_head = &moea_pvo_kunmanaged;
 		zone = moea_upvo_zone;
 		pvo_flags = 0;
@@ -1160,18 +1166,6 @@ moea_enter_locked(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 		pvo_head = vm_page_to_pvoh(m);
 		zone = moea_mpvo_zone;
 		pvo_flags = PVO_MANAGED;
-	}
-	if (pmap_bootstrapped)
-		rw_assert(&pvh_global_lock, RA_WLOCKED);
-	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
-	if ((m->oflags & VPO_UNMANAGED) == 0 && !vm_page_xbusied(m))
-		VM_OBJECT_ASSERT_LOCKED(m->object);
-
-	/* XXX change the pvo head for unmanaged pages */
-	if ((m->oflags & VPO_UNMANAGED) != 0) {
-		pvo_flags &= ~PVO_MANAGED;
-		pvo_head = &moea_pvo_kunmanaged;
-		zone = moea_upvo_zone;
 	}
 
 	pte_lo = moea_calc_wimg(VM_PAGE_TO_PHYS(m), pmap_page_get_memattr(m));
