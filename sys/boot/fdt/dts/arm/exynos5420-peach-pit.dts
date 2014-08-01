@@ -31,29 +31,42 @@
 /include/ "exynos5420.dtsi"
 
 / {
-	model = "Arndale Octa Board";
+	model = "Chromebook Peach Pit";
 
 	memory {
 		device_type = "memory";
-		reg = < 0x20000000 0x7f200000 >;  /* 2G */
+		reg = < 0x20000000 0xdf000000 >; /* 3.5G */
 	};
 
 	SOC: Exynos5@0 {
-		serial3: serial@12C30000 {
+
+		fimd0: fimd@14400000 {
+			status = "okay";
+
+			panel-size = < 1366 768 >;
+			panel-hsync = < 80 32 48 >;
+			panel-vsync = < 14 5 3 >;
+			panel-clk-div = < 17 >;
+			panel-backlight-pin = < 25 >;
+		};
+
+		spi2: spi@12d40000 {
 			status = "okay";
 		};
 
-		usb@12110000 {
-			status = "okay";
+		keyboard-controller {
+			compatible = "google,mkbp-keyb";
+			google,key-rows = <8>;
+			google,key-columns = <13>;
+			freebsd,intr-gpio = < 21 >;
 		};
 
-		sdhci@12220000 {
-			status = "disabled";
+		usbdrd_phy0: phy@12100000 {
+			vbus-supply = < 217 >;
 		};
-	};
 
-	chosen {
-		stdin = &serial3;
-		stdout = &serial3;
+		usbdrd_phy1: phy@12500000 {
+			vbus-supply = < 218 >;
+		};
 	};
 };
