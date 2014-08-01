@@ -208,7 +208,6 @@ enum zio_flag {
 	ZIO_FLAG_NOPWRITE	= 1 << 26,
 	ZIO_FLAG_REEXECUTED	= 1 << 27,
 	ZIO_FLAG_DELEGATED	= 1 << 28,
-	ZIO_FLAG_QUEUE_IO_DONE	= 1 << 29,
 };
 
 #define	ZIO_FLAG_MUSTSUCCEED		0
@@ -363,7 +362,7 @@ typedef struct zio_transform {
 	struct zio_transform	*zt_next;
 } zio_transform_t;
 
-typedef int zio_pipe_stage_t(zio_t **ziop);
+typedef int zio_pipe_stage_t(zio_t *zio);
 
 /*
  * The io_reexecute flags are distinct from io_flags because the child must
