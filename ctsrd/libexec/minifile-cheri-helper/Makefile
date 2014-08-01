@@ -23,6 +23,7 @@ CFLAGS+=	-I${.CURDIR}/../../../lib/libc/${MACHINE}
 CFLAGS+=	-I${.CURDIR}/../../../lib/libc/include
 CFLAGS+=	-I${.CURDIR}/../../../lib/libc/softfloat
 CFLAGS+=	-I${.CURDIR}/../../../lib/libc/mips/softfloat
+CFLAGS+=	-I${.CURDIR}/../../../lib/libc/stdtime
 SRCS+=	_flock_stub.c				\
 	_once_stub.c				\
 	_pthread_stubs.c			\

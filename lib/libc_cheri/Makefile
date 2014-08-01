@@ -269,6 +269,7 @@ CFLAGS+=	-I${LIBC_DIR}/include			\
 		-I${LIBC_DIR}/softfloat			\
 		-I${LIBC_DIR}/string			\
 		-I${LIBC_DIR}/stdlib			\
+		-I${LIBC_DIR}/stdtime			\
 		-I${.CURDIR}/../../contrib/gdtoa	\
 		-I${.CURDIR}/../../include
 
