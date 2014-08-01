@@ -225,7 +225,7 @@ struct bus_space {
 	void		(*bs_rr_8_s) (void *, bus_space_handle_t,
 			    bus_size_t, u_int64_t *, bus_size_t);
 					
-	/* write stream (single) */
+	/* write single stream */
 	void		(*bs_w_1_s) (void *, bus_space_handle_t,
 			    bus_size_t, u_int8_t);
 	void		(*bs_w_2_s) (void *, bus_space_handle_t,
