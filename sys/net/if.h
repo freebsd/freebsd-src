@@ -304,7 +304,7 @@ struct ifa_msghdr {
 	int	ifam_addrs;	/* like rtm_addrs */
 	int	ifam_flags;	/* value of ifa_flags */
 	u_short	ifam_index;	/* index for associated ifp */
-	int	ifam_metric;	/* value of ifa_metric */
+	int	ifam_metric;	/* value of ifa_ifp->if_metric */
 };
 
 /*
@@ -329,7 +329,7 @@ struct ifa_msghdrl {
 	u_short _ifam_spare1;	/* spare space to grow if_index, see if_var.h */
 	u_short	ifam_len;	/* length of ifa_msghdrl incl. if_data */
 	u_short	ifam_data_off;	/* offset of if_data from beginning */
-	int	ifam_metric;	/* value of ifa_metric */
+	int	ifam_metric;	/* value of ifa_ifp->if_metric */
 	struct	if_data ifam_data;/* statistics and other data about if or
 				 * address */
 };

@@ -36,7 +36,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/drm2/drm_fb_helper.h>
 #include <dev/drm2/drm_crtc_helper.h>
 
-#if defined(__FreeBSD__)
 struct vt_kms_softc {
 	struct drm_fb_helper *fb_helper;
 	struct task	fb_mode_task;
@@ -69,7 +68,6 @@ vt_kms_postswitch(void *arg)
 
 	return (0);
 }
-#endif
 
 static DRM_LIST_HEAD(kernel_fb_helper_list);
 
@@ -934,10 +932,8 @@ int drm_fb_helper_single_fb_probe(struct drm_fb_helper *fb_helper,
 	struct fb_info *info;
 	struct drm_fb_helper_surface_size sizes;
 	int gamma_size = 0;
-#if defined(__FreeBSD__)
 	struct vt_kms_softc *sc;
 	device_t kdev;
-#endif
 
 	memset(&sizes, 0, sizeof(struct drm_fb_helper_surface_size));
 	sizes.surface_depth = 24;
@@ -1014,7 +1010,6 @@ int drm_fb_helper_single_fb_probe(struct drm_fb_helper *fb_helper,
 	if (new_fb < 0)
 		return new_fb;
 
-#if defined(__FreeBSD__)
 	sc = malloc(sizeof(struct vt_kms_softc), DRM_MEM_KMS,
 	    M_WAITOK | M_ZERO);
 	sc->fb_helper = fb_helper;
@@ -1029,14 +1024,12 @@ int drm_fb_helper_single_fb_probe(struct drm_fb_helper *fb_helper,
 	info->fb_stride = fb_helper->fb->pitches[0];
 	info->fb_priv = sc;
 	info->enter = &vt_kms_postswitch;
-#endif
 
 	/* set the fb pointer */
 	for (i = 0; i < fb_helper->crtc_count; i++) {
 		fb_helper->crtc_info[i].mode_set.fb = fb_helper->fb;
 	}
 
-#if defined(__FreeBSD__)
 	if (new_fb) {
 		device_t fbd;
 		int ret;
@@ -1052,30 +1045,6 @@ int drm_fb_helper_single_fb_probe(struct drm_fb_helper *fb_helper,
 			DRM_ERROR("Failed to attach fbd device: %d\n", ret);
 #endif
 	}
-#else
-	if (new_fb) {
-		info->var.pixclock = 0;
-		if (register_framebuffer(info) < 0) {
-			return -EINVAL;
-		}
-
-		printf("fb%d: %s frame buffer device\n", info->node,
-		       info->fix.id);
-
-	} else {
-		drm_fb_helper_set_par(info);
-	}
-
-	/* Switch back to kernel console on panic */
-	/* multi card linked list maybe */
-	if (list_empty(&kernel_fb_helper_list)) {
-		printf("drm: registered panic notifier\n");
-		atomic_notifier_chain_register(&panic_notifier_list,
-					       &paniced);
-	}
-	if (new_fb)
-		list_add(&fb_helper->kernel_fb_list, &kernel_fb_helper_list);
-#endif
 	return 0;
 }
 

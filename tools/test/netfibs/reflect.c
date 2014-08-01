@@ -94,7 +94,7 @@ reflect_conn(int s, char *buf, size_t buflen, ssize_t l, struct sockaddr *sa,
 		fprintf(stderr, "<< %s: %s\n", testcase, buf);
 
 	if (reflectfib != (u_int)-1)
-		l = snprintf(buf, sizeof(buf), "FIB %u\n", reflectfib);
+		l = snprintf(buf, buflen, "FIB %u\n", reflectfib);
 
 	/* If debug is on, log. */
 	if (debug > 0) {

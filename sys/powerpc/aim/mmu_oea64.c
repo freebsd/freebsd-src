@@ -1090,6 +1090,7 @@ moea64_unwire(mmu_t mmu, pmap_t pm, vm_offset_t sva, vm_offset_t eva)
 	for (pvo = RB_NFIND(pvo_tree, &pm->pmap_pvo, &key);
 	    pvo != NULL && PVO_VADDR(pvo) < eva;
 	    pvo = RB_NEXT(pvo_tree, &pm->pmap_pvo, pvo)) {
+		pt = MOEA64_PVO_TO_PTE(mmu, pvo);
 		if ((pvo->pvo_vaddr & PVO_WIRED) == 0)
 			panic("moea64_unwire: pvo %p is missing PVO_WIRED",
 			    pvo);
@@ -1098,7 +1099,7 @@ moea64_unwire(mmu_t mmu, pmap_t pm, vm_offset_t sva, vm_offset_t eva)
 			panic("moea64_unwire: pte %p is missing LPTE_WIRED",
 			    &pvo->pvo_pte.lpte);
 		pvo->pvo_pte.lpte.pte_hi &= ~LPTE_WIRED;
-		if ((pt = MOEA64_PVO_TO_PTE(mmu, pvo)) != -1) {
+		if (pt != -1) {
 			/*
 			 * The PTE's wired attribute is not a hardware
 			 * feature, so there is no need to invalidate any TLB
@@ -1288,31 +1289,21 @@ moea64_enter(mmu_t mmu, pmap_t pmap, vm_offset_t va, vm_page_t m,
 {
 	struct		pvo_head *pvo_head;
 	uma_zone_t	zone;
-	vm_page_t	pg;
 	uint64_t	pte_lo;
 	u_int		pvo_flags;
 	int		error;
 
-	if (!moea64_initialized) {
+	if ((m->oflags & VPO_UNMANAGED) == 0 && !vm_page_xbusied(m))
+		VM_OBJECT_ASSERT_LOCKED(m->object);
+
+	if ((m->oflags & VPO_UNMANAGED) != 0 || !moea64_initialized) {
 		pvo_head = NULL;
-		pg = NULL;
 		zone = moea64_upvo_zone;
 		pvo_flags = 0;
 	} else {
 		pvo_head = vm_page_to_pvoh(m);
-		pg = m;
 		zone = moea64_mpvo_zone;
 		pvo_flags = PVO_MANAGED;
-	}
-
-	if ((m->oflags & VPO_UNMANAGED) == 0 && !vm_page_xbusied(m))
-		VM_OBJECT_ASSERT_LOCKED(m->object);
-
-	/* XXX change the pvo head for fake pages */
-	if ((m->oflags & VPO_UNMANAGED) != 0) {
-		pvo_flags &= ~PVO_MANAGED;
-		pvo_head = NULL;
-		zone = moea64_upvo_zone;
 	}
 
 	pte_lo = moea64_calc_wimg(VM_PAGE_TO_PHYS(m), pmap_page_get_memattr(m));
@@ -2233,6 +2224,7 @@ moea64_pvo_enter(mmu_t mmu, pmap_t pm, uma_zone_t zone,
     uint64_t pte_lo, int flags)
 {
 	struct	 pvo_entry *pvo;
+	uintptr_t pt;
 	uint64_t vsid;
 	int	 first;
 	u_int	 ptegidx;
@@ -2275,13 +2267,42 @@ moea64_pvo_enter(mmu_t mmu, pmap_t pm, uma_zone_t zone,
 			if ((pvo->pvo_pte.lpte.pte_lo & LPTE_RPGN) == pa &&
 			    (pvo->pvo_pte.lpte.pte_lo & (LPTE_NOEXEC | LPTE_PP))
 			    == (pte_lo & (LPTE_NOEXEC | LPTE_PP))) {
+				/*
+				 * The physical page and protection are not
+				 * changing.  Instead, this may be a request
+				 * to change the mapping's wired attribute.
+				 */
+				pt = -1;
+				if ((flags & PVO_WIRED) != 0 &&
+				    (pvo->pvo_vaddr & PVO_WIRED) == 0) {
+					pt = MOEA64_PVO_TO_PTE(mmu, pvo);
+					pvo->pvo_vaddr |= PVO_WIRED;
+					pvo->pvo_pte.lpte.pte_hi |= LPTE_WIRED;
+					pm->pm_stats.wired_count++;
+				} else if ((flags & PVO_WIRED) == 0 &&
+				    (pvo->pvo_vaddr & PVO_WIRED) != 0) {
+					pt = MOEA64_PVO_TO_PTE(mmu, pvo);
+					pvo->pvo_vaddr &= ~PVO_WIRED;
+					pvo->pvo_pte.lpte.pte_hi &= ~LPTE_WIRED;
+					pm->pm_stats.wired_count--;
+				}
 			    	if (!(pvo->pvo_pte.lpte.pte_hi & LPTE_VALID)) {
+					KASSERT(pt == -1,
+					    ("moea64_pvo_enter: valid pt"));
 					/* Re-insert if spilled */
 					i = MOEA64_PTE_INSERT(mmu, ptegidx,
 					    &pvo->pvo_pte.lpte);
 					if (i >= 0)
 						PVO_PTEGIDX_SET(pvo, i);
 					moea64_pte_overflow--;
+				} else if (pt != -1) {
+					/*
+					 * The PTE's wired attribute is not a
+					 * hardware feature, so there is no
+					 * need to invalidate any TLB entries.
+					 */
+					MOEA64_PTE_CHANGE(mmu, pt,
+					    &pvo->pvo_pte.lpte, pvo->pvo_vpn);
 				}
 				return (0);
 			}

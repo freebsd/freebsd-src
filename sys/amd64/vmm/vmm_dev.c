@@ -173,6 +173,7 @@ vmmdev_ioctl(struct cdev *cdev, u_long cmd, caddr_t data, int fflag,
 	struct vm_gla2gpa *gg;
 	struct vm_activate_cpu *vac;
 	struct vm_cpuset *vm_cpuset;
+	struct vm_intinfo *vmii;
 
 	sc = vmmdev_lookup2(cdev);
 	if (sc == NULL)
@@ -199,6 +200,8 @@ vmmdev_ioctl(struct cdev *cdev, u_long cmd, caddr_t data, int fflag,
 	case VM_SET_X2APIC_STATE:
 	case VM_GLA2GPA:
 	case VM_ACTIVATE_CPU:
+	case VM_SET_INTINFO:
+	case VM_GET_INTINFO:
 		/*
 		 * XXX fragile, handle with care
 		 * Assumes that the first field of the ioctl data is the vcpu.
@@ -469,6 +472,15 @@ vmmdev_ioctl(struct cdev *cdev, u_long cmd, caddr_t data, int fflag,
 		if (error == 0)
 			error = copyout(cpuset, vm_cpuset->cpus, size);
 		free(cpuset, M_TEMP);
+		break;
+	case VM_SET_INTINFO:
+		vmii = (struct vm_intinfo *)data;
+		error = vm_exit_intinfo(sc->vm, vmii->vcpuid, vmii->info1);
+		break;
+	case VM_GET_INTINFO:
+		vmii = (struct vm_intinfo *)data;
+		error = vm_get_intinfo(sc->vm, vmii->vcpuid, &vmii->info1,
+		    &vmii->info2);
 		break;
 	default:
 		error = ENOTTY;

@@ -78,6 +78,8 @@ static struct vt_driver vt_ps3fb_driver = {
 	.vd_blank = vt_fb_blank,
 	.vd_bitbltchr = vt_fb_bitbltchr,
 	.vd_maskbitbltchr = vt_fb_maskbitbltchr,
+	.vd_fb_ioctl = vt_fb_ioctl,
+	.vd_fb_mmap = vt_fb_mmap,
 	/* Better than VGA, but still generic driver. */
 	.vd_priority = VD_PRIORITY_GENERIC + 1,
 };
@@ -187,6 +189,7 @@ ps3fb_init(struct vt_device *vd)
 	    L1GPU_CONTEXT_ATTRIBUTE_DISPLAY_FLIP, 1, 0, 0, 0);
 
 	fb_probe(&sc->fb_info);
+	sc->fb_info.fb_flags &= ~FB_FLAG_NOMMAP; /* Set wrongly by fb_probe */
 	vt_fb_init(vd);
 
 	/* Clear the screen. */

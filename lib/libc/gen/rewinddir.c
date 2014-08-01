@@ -58,6 +58,7 @@ rewinddir(dirp)
 		dirp->dd_seek = 0;
 	}
 	dirp->dd_loc = 0;
+	_reclaim_telldir(dirp);
 	if (__isthreaded)
 		_pthread_mutex_unlock(&dirp->dd_lock);
 }

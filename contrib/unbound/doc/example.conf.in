@@ -437,7 +437,14 @@ server:
 	# the amount of memory to use for the negative cache (used for DLV).
 	# plain value in bytes or you can append k, m or G. default is "1Mb". 
 	# neg-cache-size: 1m
-
+	
+	# if unbound is running service for the local host then it is useful
+	# to perform lan-wide lookups to the upstream, and unblock the
+	# long list of local-zones above.  If this unbound is a dns server
+	# for a network of computers, disabled is better and stops information
+	# leakage of local lan information.
+	# unblock-lan-zones: no
+	
 	# By default, for a number of zones a small default 'nothing here'
 	# reply is built-in.  Query traffic is thus blocked.  If you
 	# wish to serve such zone you can unblock them by uncommenting one

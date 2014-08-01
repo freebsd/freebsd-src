@@ -95,6 +95,7 @@ size_t linecap = 0;
 ssize_t linelen;
 while ((linelen = getline(&line, &linecap, fp)) > 0)
 	fwrite(line, linelen, 1, stdout);
+free(line);
 .Ed
 .Sh COMPATIBILITY
 Many application writers used the name

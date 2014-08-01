@@ -74,8 +74,19 @@
 #define GLOBAL(X) .globl x
 #define _ENTRY(x) \
 	.text; _ALIGN_TEXT; .globl x; .type x,_ASM_TYPE_FUNCTION; x: _FNSTART
-
 #define	_END(x)	.size x, . - x; _FNEND
+
+/*
+ * EENTRY()/EEND() mark "extra" entry/exit points from a function.
+ * The unwind info cannot handle the concept of a nested function, or a function
+ * with multiple .fnstart directives, but some of our assembler code is written
+ * with multiple labels to allow entry at several points.  The EENTRY() macro
+ * defines such an extra entry point without a new .fnstart, so that it's
+ * basically just a label that you can jump to.  The EEND() macro does nothing
+ * at all, except document the exit point associated with the same-named entry.
+ */
+#define _EENTRY(x) 	.globl x; .type x,_ASM_TYPE_FUNCTION; x:
+#define _EEND(x)	/* nothing */
 
 #ifdef GPROF
 #  define _PROF_PROLOGUE	\
@@ -85,11 +96,17 @@
 #endif
 
 #define	ENTRY(y)	_ENTRY(_C_LABEL(y)); _PROF_PROLOGUE
+#define	EENTRY(y)	_EENTRY(_C_LABEL(y)); _PROF_PROLOGUE
 #define	ENTRY_NP(y)	_ENTRY(_C_LABEL(y))
+#define	EENTRY_NP(y)	_EENTRY(_C_LABEL(y))
 #define	END(y)		_END(_C_LABEL(y))
+#define	EEND(y)
 #define	ASENTRY(y)	_ENTRY(_ASM_LABEL(y)); _PROF_PROLOGUE
+#define	ASEENTRY(y)	_EENTRY(_ASM_LABEL(y)); _PROF_PROLOGUE
 #define	ASENTRY_NP(y)	_ENTRY(_ASM_LABEL(y))
+#define	ASEENTRY_NP(y)	_EENTRY(_ASM_LABEL(y))
 #define	ASEND(y)	_END(_ASM_LABEL(y))
+#define	ASEEND(y)
 
 #define	ASMSTR		.asciz
 

@@ -290,8 +290,7 @@ struct cluster_metadata {
 
 struct fl_sdesc {
 	caddr_t cl;
-	uint8_t nimbuf;		/* # of inline mbufs with ref on the cluster */
-	uint8_t nembuf;		/* # of allocated mbufs with ref */
+	uint16_t nmbuf;	/* # of driver originated mbufs with ref on cluster */
 	struct cluster_layout cll;
 };
 
@@ -986,6 +985,8 @@ void t4_nm_intr(void *);
 
 /* t4_sge.c */
 void t4_sge_modload(void);
+void t4_sge_modunload(void);
+uint64_t t4_sge_extfree_refs(void);
 void t4_init_sge_cpl_handlers(struct adapter *);
 void t4_tweak_chip_settings(struct adapter *);
 int t4_read_chip_settings(struct adapter *);

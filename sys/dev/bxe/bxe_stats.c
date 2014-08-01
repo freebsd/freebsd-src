@@ -1302,7 +1302,10 @@ bxe_stats_update(struct bxe_softc *sc)
 
         if (bxe_storm_stats_update(sc)) {
             if (sc->stats_pending++ == 3) {
-                bxe_panic(sc, ("storm stats not updated for 3 times\n"));
+		if (if_getdrvflags(sc->ifp) & IFF_DRV_RUNNING) {
+			atomic_store_rel_long(&sc->chip_tq_flags, CHIP_TQ_REINIT);
+			taskqueue_enqueue(sc->chip_tq, &sc->chip_tq_task);
+		}
             }
             return;
         }

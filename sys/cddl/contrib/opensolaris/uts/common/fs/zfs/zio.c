@@ -883,8 +883,8 @@ zio_read_phys(zio_t *pio, vdev_t *vd, uint64_t offset, uint64_t size,
 	ASSERT3U(offset + size, <=, vd->vdev_psize);
 
 	zio = zio_create(pio, vd->vdev_spa, 0, NULL, data, size, done, private,
-	    ZIO_TYPE_READ, priority, flags, vd, offset, NULL,
-	    ZIO_STAGE_OPEN, ZIO_READ_PHYS_PIPELINE);
+	    ZIO_TYPE_READ, priority, flags | ZIO_FLAG_PHYSICAL, vd, offset,
+	    NULL, ZIO_STAGE_OPEN, ZIO_READ_PHYS_PIPELINE);
 
 	zio->io_prop.zp_checksum = checksum;
 
@@ -904,8 +904,8 @@ zio_write_phys(zio_t *pio, vdev_t *vd, uint64_t offset, uint64_t size,
 	ASSERT3U(offset + size, <=, vd->vdev_psize);
 
 	zio = zio_create(pio, vd->vdev_spa, 0, NULL, data, size, done, private,
-	    ZIO_TYPE_WRITE, priority, flags, vd, offset, NULL,
-	    ZIO_STAGE_OPEN, ZIO_WRITE_PHYS_PIPELINE);
+	    ZIO_TYPE_WRITE, priority, flags | ZIO_FLAG_PHYSICAL, vd, offset,
+	    NULL, ZIO_STAGE_OPEN, ZIO_WRITE_PHYS_PIPELINE);
 
 	zio->io_prop.zp_checksum = checksum;
 
@@ -1160,10 +1160,8 @@ zio_write_bp_init(zio_t **ziop)
 	}
 
 	if (compress != ZIO_COMPRESS_OFF) {
-		metaslab_class_t *mc = spa_normal_class(spa);
 		void *cbuf = zio_buf_alloc(lsize);
-		psize = zio_compress_data(compress, zio->io_data, cbuf, lsize,
-		    (size_t)metaslab_class_get_minblocksize(mc));
+		psize = zio_compress_data(compress, zio->io_data, cbuf, lsize);
 		if (psize == 0 || psize == lsize) {
 			compress = ZIO_COMPRESS_OFF;
 			zio_buf_free(cbuf, lsize);
@@ -2624,7 +2622,10 @@ zio_vdev_io_start(zio_t **ziop)
 
 	align = 1ULL << vd->vdev_top->vdev_ashift;
 
-	if (P2PHASE(zio->io_size, align) != 0) {
+	if ((!(zio->io_flags & ZIO_FLAG_PHYSICAL) ||
+	    (vd->vdev_top->vdev_physical_ashift > SPA_MINBLOCKSHIFT)) &&
+	    P2PHASE(zio->io_size, align) != 0) {
+		/* Transform logical writes to be a full physical block size. */
 		uint64_t asize = P2ROUNDUP(zio->io_size, align);
 		char *abuf = NULL;
 		if (zio->io_type == ZIO_TYPE_READ ||
@@ -2639,8 +2640,22 @@ zio_vdev_io_start(zio_t **ziop)
 		    zio_subblock);
 	}
 
-	ASSERT(P2PHASE(zio->io_offset, align) == 0);
-	ASSERT(P2PHASE(zio->io_size, align) == 0);
+	/*
+	 * If this is not a physical io, make sure that it is properly aligned
+	 * before proceeding.
+	 */
+	if (!(zio->io_flags & ZIO_FLAG_PHYSICAL)) {
+		ASSERT0(P2PHASE(zio->io_offset, align));
+		ASSERT0(P2PHASE(zio->io_size, align));
+	} else {
+		/*
+		 * For physical writes, we allow 512b aligned writes and assume
+		 * the device will perform a read-modify-write as necessary.
+		 */
+		ASSERT0(P2PHASE(zio->io_offset, SPA_MINBLOCKSIZE));
+		ASSERT0(P2PHASE(zio->io_size, SPA_MINBLOCKSIZE));
+	}
+
 	VERIFY(zio->io_type == ZIO_TYPE_READ || spa_writeable(spa));
 
 	/*

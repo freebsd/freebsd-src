@@ -27,6 +27,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_syscons.h"
 #include <dev/drm2/drmP.h>
 #include <dev/drm2/drm.h>
 #include <dev/drm2/drm_crtc.h>
@@ -216,7 +217,9 @@ static void intel_fbdev_destroy(struct drm_device *dev,
 	}
 }
 
+#ifdef DEV_SC
 extern int sc_txtmouse_no_retrace_wait;
+#endif
 
 int intel_fbdev_init(struct drm_device *dev)
 {
@@ -240,7 +243,9 @@ int intel_fbdev_init(struct drm_device *dev)
 
 	drm_fb_helper_single_add_all_connectors(&ifbdev->helper);
 	drm_fb_helper_initial_config(&ifbdev->helper, 32);
+#ifdef DEV_SC
 	sc_txtmouse_no_retrace_wait = 1;
+#endif
 	return 0;
 }
 

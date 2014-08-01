@@ -36,6 +36,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/_iovec.h>
 #include <sys/cpuset.h>
 
+#include <x86/segments.h>
 #include <machine/specialreg.h>
 #include <machine/param.h>
 
@@ -323,6 +324,16 @@ vm_get_desc(struct vmctx *ctx, int vcpu, int reg,
 		*limit = vmsegdesc.desc.limit;
 		*access = vmsegdesc.desc.access;
 	}
+	return (error);
+}
+
+int
+vm_get_seg_desc(struct vmctx *ctx, int vcpu, int reg, struct seg_desc *seg_desc)
+{
+	int error;
+
+	error = vm_get_desc(ctx, vcpu, reg, &seg_desc->base, &seg_desc->limit,
+	    &seg_desc->access);
 	return (error);
 }
 
@@ -988,7 +999,7 @@ gla2gpa(struct vmctx *ctx, int vcpu, struct vm_guest_paging *paging,
 #endif
 
 int
-vm_gla2gpa(struct vmctx *ctx, int vcpu, struct vm_guest_paging *paging,
+vm_copy_setup(struct vmctx *ctx, int vcpu, struct vm_guest_paging *paging,
     uint64_t gla, size_t len, int prot, struct iovec *iov, int iovcnt)
 {
 	uint64_t gpa;
@@ -1104,5 +1115,34 @@ vm_activate_cpu(struct vmctx *ctx, int vcpu)
 	bzero(&ac, sizeof(struct vm_activate_cpu));
 	ac.vcpuid = vcpu;
 	error = ioctl(ctx->fd, VM_ACTIVATE_CPU, &ac);
+	return (error);
+}
+
+int
+vm_get_intinfo(struct vmctx *ctx, int vcpu, uint64_t *info1, uint64_t *info2)
+{
+	struct vm_intinfo vmii;
+	int error;
+
+	bzero(&vmii, sizeof(struct vm_intinfo));
+	vmii.vcpuid = vcpu;
+	error = ioctl(ctx->fd, VM_GET_INTINFO, &vmii);
+	if (error == 0) {
+		*info1 = vmii.info1;
+		*info2 = vmii.info2;
+	}
+	return (error);
+}
+
+int
+vm_set_intinfo(struct vmctx *ctx, int vcpu, uint64_t info1)
+{
+	struct vm_intinfo vmii;
+	int error;
+
+	bzero(&vmii, sizeof(struct vm_intinfo));
+	vmii.vcpuid = vcpu;
+	vmii.info1 = info1;
+	error = ioctl(ctx->fd, VM_SET_INTINFO, &vmii);
 	return (error);
 }

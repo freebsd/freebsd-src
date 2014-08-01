@@ -35,8 +35,8 @@
 #include <sys/queue.h>
 #ifdef ICL_KERNEL_PROXY
 #include <sys/types.h>
-#include <sys/socket.h>
 #endif
+#include <sys/socket.h>
 #include <stdbool.h>
 #include <libutil.h>
 
@@ -67,6 +67,8 @@ struct auth_portal {
 	TAILQ_ENTRY(auth_portal)	ap_next;
 	struct auth_group		*ap_auth_group;
 	char				*ap_initator_portal;
+	struct sockaddr_storage		ap_sa;
+	int				ap_mask;
 };
 
 #define	AG_TYPE_UNKNOWN			0
@@ -179,6 +181,7 @@ struct connection {
 	char			*conn_initiator_addr;
 	char			*conn_initiator_alias;
 	uint8_t			conn_initiator_isid[6];
+	struct sockaddr_storage	conn_initiator_sa;
 	uint32_t		conn_cmdsn;
 	uint32_t		conn_statsn;
 	size_t			conn_max_data_segment_length;
@@ -235,7 +238,7 @@ const struct auth_portal	*auth_portal_new(struct auth_group *ag,
 				    const char *initiator_portal);
 bool			auth_portal_defined(const struct auth_group *ag);
 const struct auth_portal	*auth_portal_find(const struct auth_group *ag,
-				    const char *initiator_portal);
+				    const struct sockaddr_storage *sa);
 
 struct portal_group	*portal_group_new(struct conf *conf, const char *name);
 void			portal_group_delete(struct portal_group *pg);

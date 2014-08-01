@@ -1,4 +1,4 @@
-.\" Copyright (c) 2011-2013 Devin Teske
+.\" Copyright (c) 2011-2014 Devin Teske
 .\" All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd Nov 20, 2013
+.Dd Jul 18, 2014
 .Dt SYSRC 8
 .Os
 .Sh NAME
@@ -58,11 +58,14 @@ Dump a list of all non-default configuration variables.
 Dump a list of all configuration variables
 .Pq incl. defaults .
 .It Fl c
-Check if the value will change when assigning a new value.
+Check only.
+For querying, return success if all requested variables are set
+.Pq even if NULL ,
+otherwise return error status.
+For assignments, return success if no changes are required, otherwise failure.
 If verbose
 .Pq see Dq Fl v
-prints a message stating whether a change would occur.
-Exits with success if no change is necessary, else returns error status.
+prints a message stating whether variables are set and/or changes are required.
 .It Fl d
 Print a description of the given variable.
 .It Fl D
@@ -108,14 +111,12 @@ Show only variable values, not their names.
 Show only variable names, not their values.
 .It Fl q
 Quiet.
-Ignore previous occurrences of
-.Fl v
-flag.
+Disable verbose and hide certain errors.
 .It Fl R Ar dir
 Operate within the root directory
-.Pq Sq Ar dir
+.Sq Ar dir
 rather than
-.Pq Sq / .
+.Sq / .
 .It Fl v
 Verbose.
 Print the pathname of the specific
@@ -127,13 +128,13 @@ Print version information to stdout and exit.
 Remove variable(s) from specified file(s).
 .El
 .Pp
-This utility works similar to
+This utility has a similar syntax to
 .Xr sysctl 8 .
 It shares the `-e' and `-n' options
 .Pq detailed above
 and also has the same
 .Ql name[=value]
-syntax for querying/setting configuration options.
+syntax for making queries/assignments.
 .Pp
 However, while
 .Xr sysctl 8
@@ -304,5 +305,5 @@ utility first appeared in
 .An Devin Teske Aq Mt dteske@FreeBSD.org
 .Sh THANKS TO
 Brandon Gooch, Garrett Cooper, Julian Elischer, Pawel Jakub Dawidek,
-Cyrille Lefevre, Ross West, Stefan Esser, Marco Steinbach, and Jilles Tjoelker
-for suggestions and help.
+Cyrille Lefevre, Ross West, Stefan Esser, Marco Steinbach, Jilles Tjoelker,
+Allan Jude, and Lars Engels for suggestions, help, and testing.

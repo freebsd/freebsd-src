@@ -60,7 +60,7 @@ fflush(FILE *fp)
 
 	/*
 	 * There is disagreement about the correct behaviour of fflush()
-	 * when passed a file which is not open for reading.  According to
+	 * when passed a file which is not open for writing.  According to
 	 * the ISO C standard, the behaviour is undefined.
 	 * Under linux, such an fflush returns success and has no effect;
 	 * under Windows, such an fflush is documented as behaving instead
@@ -68,11 +68,13 @@ fflush(FILE *fp)
 	 * Given that applications may be written with the expectation of
 	 * either of these two behaviours, the only safe (non-astonishing)
 	 * option is to return EBADF and ask that applications be fixed.
+	 * SUSv3 now requires that fflush() returns success on a read-only
+	 * stream.
+	 *
 	 */
-	if ((fp->_flags & (__SWR | __SRW)) == 0) {
-		errno = EBADF;
-		retval = EOF;
-	} else
+	if ((fp->_flags & (__SWR | __SRW)) == 0)
+		retval = 0;
+	else
 		retval = __sflush(fp);
 	FUNLOCKFILE(fp);
 	return (retval);
@@ -89,10 +91,9 @@ __fflush(FILE *fp)
 
 	if (fp == NULL)
 		return (_fwalk(sflush_locked));
-	if ((fp->_flags & (__SWR | __SRW)) == 0) {
-		errno = EBADF;
-		retval = EOF;
-	} else
+	if ((fp->_flags & (__SWR | __SRW)) == 0)
+		retval = 0;
+	else
 		retval = __sflush(fp);
 	return (retval);
 }
@@ -122,6 +123,12 @@ __sflush(FILE *fp)
 	for (; n > 0; n -= t, p += t) {
 		t = _swrite(fp, (char *)p, n);
 		if (t <= 0) {
+			/* Reset _p and _w. */
+			if (p > fp->_p)	/* Some was written. */
+				memmove(fp->_p, p, n);
+			fp->_p += n;
+			if ((fp->_flags & (__SLBF | __SNBF)) == 0)
+				fp->_w -= n;
 			fp->_flags |= __SERR;
 			return (EOF);
 		}

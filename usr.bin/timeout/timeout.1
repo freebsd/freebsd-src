@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 16, 2014
+.Dd July 19, 2014
 .Dt TIMEOUT 1
 .Os
 .Sh NAME
@@ -44,9 +44,15 @@
 starts the
 .Ar command
 with its
-.Ar args
-and kills if it is still runs after
-.Ar duration .
+.Ar args.
+If
+.Ar command
+is still running after
+.Ar duration ,
+it is killed.
+By default,
+.Ar SIGTERM.
+is sent.
 .Bl -tag -width "-k time, --kill-after time"
 .It Fl -preserve-status
 Always exits with the same status as
@@ -57,14 +63,52 @@ Do not propagate timeout to the
 .Ar command
 children.
 .It Fl s Ar sig , Fl -signal Ar sig
-Speficy the signal to send on timeout by default
+Specify the signal to send on timeout.
+By default,
 .Ar SIGTERM .
+is sent.
 .It Fl k Ar time , Fl -kill-after Ar time
-Send a second kill if the
+Send a second kill signal if
 .Ar command
 is still running after
 .Ar time
-seconds after the first signal was sent
+after the first signal was sent.
+.El
+.Sh DURATION FORMAT
+.Ar duration
+and
+.Ar time
+can be integer or decimal numbers.
+Values without unit symbols are interpreted as seconds.
+.Pp
+Supported unit symbols are:
+.Bl -tag -width indent -compact
+.It s
+seconds
+.It m
+minutes
+.It h
+hours
+.It d
+days
+.El
+.Sh EXIT STATUS
+If the timeout was not reached, the exit status of
+.Ar command
+is returned.
+.Pp
+If the timeout was reached and
+.Fl -preserve-status
+is set, the exit status of
+.Ar command
+is returned.
+If
+.Fl -preserve-status
+is not set, an exit status of 124 is returned.
+.Pp
+If
+.Ar command
+exits after receiving a signal, the exit status returned is the signal number plus 128.
 .Sh SEE ALSO
-.Xr signal 3 ,
-.Xr kill 1
+.Xr kill 1 ,
+.Xr signal 3

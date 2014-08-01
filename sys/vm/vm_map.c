@@ -132,6 +132,7 @@ static void _vm_map_init(vm_map_t map, pmap_t pmap, vm_offset_t min,
     vm_offset_t max);
 static void vm_map_entry_deallocate(vm_map_entry_t entry, boolean_t system_map);
 static void vm_map_entry_dispose(vm_map_t map, vm_map_entry_t entry);
+static void vm_map_entry_unwire(vm_map_t map, vm_map_entry_t entry);
 #ifdef INVARIANTS
 static void vm_map_zdtor(void *mem, int size, void *arg);
 static void vmspace_zdtor(void *mem, int size, void *arg);
@@ -2393,16 +2394,10 @@ done:
 		    (entry->eflags & MAP_ENTRY_USER_WIRED))) {
 			if (user_unwire)
 				entry->eflags &= ~MAP_ENTRY_USER_WIRED;
-			entry->wired_count--;
-			if (entry->wired_count == 0) {
-				/*
-				 * Retain the map lock.
-				 */
-				vm_fault_unwire(map, entry->start, entry->end,
-				    entry->object.vm_object != NULL &&
-				    (entry->object.vm_object->flags &
-				    OBJ_FICTITIOUS) != 0);
-			}
+			if (entry->wired_count == 1)
+				vm_map_entry_unwire(map, entry);
+			else
+				entry->wired_count--;
 		}
 		KASSERT((entry->eflags & MAP_ENTRY_IN_TRANSITION) != 0,
 		    ("vm_map_unwire: in-transition flag missing %p", entry));
@@ -2635,19 +2630,12 @@ done:
 			 * unnecessary.
 			 */
 			entry->wired_count = 0;
-		} else {
-			if (!user_wire ||
-			    (entry->eflags & MAP_ENTRY_USER_WIRED) == 0)
+		} else if (!user_wire ||
+		    (entry->eflags & MAP_ENTRY_USER_WIRED) == 0) {
+			if (entry->wired_count == 1)
+				vm_map_entry_unwire(map, entry);
+			else
 				entry->wired_count--;
-			if (entry->wired_count == 0) {
-				/*
-				 * Retain the map lock.
-				 */
-				vm_fault_unwire(map, entry->start, entry->end,
-				    entry->object.vm_object != NULL &&
-				    (entry->object.vm_object->flags &
-				    OBJ_FICTITIOUS) != 0);
-			}
 		}
 	next_entry_done:
 		KASSERT((entry->eflags & MAP_ENTRY_IN_TRANSITION) != 0,
@@ -2783,9 +2771,13 @@ vm_map_sync(
 static void
 vm_map_entry_unwire(vm_map_t map, vm_map_entry_t entry)
 {
-	vm_fault_unwire(map, entry->start, entry->end,
-	    entry->object.vm_object != NULL &&
-	    (entry->object.vm_object->flags & OBJ_FICTITIOUS) != 0);
+
+	VM_MAP_ASSERT_LOCKED(map);
+	KASSERT(entry->wired_count > 0,
+	    ("vm_map_entry_unwire: entry %p isn't wired", entry));
+	pmap_unwire(map->pmap, entry->start, entry->end);
+	vm_object_unwire(entry->object.vm_object, entry->offset, entry->end -
+	    entry->start, PQ_ACTIVE);
 	entry->wired_count = 0;
 }
 

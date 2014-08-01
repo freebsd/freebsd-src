@@ -256,8 +256,8 @@
             tr
             ..
             truncate
-	    ..
-	    units
+            ..
+            units
             ..
             uudecode
             ..
@@ -266,6 +266,8 @@
             xargs
             ..
             yacc
+                yacc
+                ..
             ..
         ..
         usr.sbin

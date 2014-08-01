@@ -358,7 +358,7 @@ ENTRY(armv7_idcache_inv_all)
 	mcr     p15, 0, r0, c7, c5, 0   @ invalidate instruction+branch cache
 	isb                             @ instruction sync barrier
 	bx      lr                      @ return
-END(armv7_l1cache_inv_all)
+END(armv7_idcache_inv_all)
 
 ENTRY_NP(armv7_sleep)
 	dsb

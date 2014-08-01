@@ -372,6 +372,10 @@ null_lookup(struct vop_lookup_args *ap)
 	 */
 	ldvp = NULLVPTOLOWERVP(dvp);
 	vp = lvp = NULL;
+	KASSERT((ldvp->v_vflag & VV_ROOT) == 0 ||
+	    ((dvp->v_vflag & VV_ROOT) != 0 && (flags & ISDOTDOT) == 0),
+	    ("ldvp %p fl %#x dvp %p fl %#x flags %#x", ldvp, ldvp->v_vflag,
+	     dvp, dvp->v_vflag, flags));
 	error = VOP_LOOKUP(ldvp, &lvp, cnp);
 	if (error == EJUSTRETURN && (flags & ISLASTCN) &&
 	    (dvp->v_mount->mnt_flag & MNT_RDONLY) &&
@@ -738,7 +742,7 @@ null_reclaim(struct vop_reclaim_args *ap)
 	lowervp = xp->null_lowervp;
 
 	KASSERT(lowervp != NULL && vp->v_vnlock != &vp->v_lock,
-	    ("Reclaiming inclomplete null vnode %p", vp));
+	    ("Reclaiming incomplete null vnode %p", vp));
 
 	null_hashrem(xp);
 	/*

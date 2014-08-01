@@ -1152,7 +1152,13 @@ moea_enter_locked(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 	u_int		pte_lo, pvo_flags;
 	int		error;
 
-	if (!moea_initialized) {
+	if (pmap_bootstrapped)
+		rw_assert(&pvh_global_lock, RA_WLOCKED);
+	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
+	if ((m->oflags & VPO_UNMANAGED) == 0 && !vm_page_xbusied(m))
+		VM_OBJECT_ASSERT_LOCKED(m->object);
+
+	if ((m->oflags & VPO_UNMANAGED) != 0 || !moea_initialized) {
 		pvo_head = &moea_pvo_kunmanaged;
 		zone = moea_upvo_zone;
 		pvo_flags = 0;
@@ -1160,18 +1166,6 @@ moea_enter_locked(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 		pvo_head = vm_page_to_pvoh(m);
 		zone = moea_mpvo_zone;
 		pvo_flags = PVO_MANAGED;
-	}
-	if (pmap_bootstrapped)
-		rw_assert(&pvh_global_lock, RA_WLOCKED);
-	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
-	if ((m->oflags & VPO_UNMANAGED) == 0 && !vm_page_xbusied(m))
-		VM_OBJECT_ASSERT_LOCKED(m->object);
-
-	/* XXX change the pvo head for unmanaged pages */
-	if ((m->oflags & VPO_UNMANAGED) != 0) {
-		pvo_flags &= ~PVO_MANAGED;
-		pvo_head = &moea_pvo_kunmanaged;
-		zone = moea_upvo_zone;
 	}
 
 	pte_lo = moea_calc_wimg(VM_PAGE_TO_PHYS(m), pmap_page_get_memattr(m));
@@ -1183,9 +1177,6 @@ moea_enter_locked(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 			vm_page_aflag_set(m, PGA_WRITEABLE);
 	} else
 		pte_lo |= PTE_BR;
-
-	if (prot & VM_PROT_EXECUTE)
-		pvo_flags |= PVO_EXECUTABLE;
 
 	if (wired)
 		pvo_flags |= PVO_WIRED;
@@ -1742,8 +1733,6 @@ moea_protect(mmu_t mmu, pmap_t pm, vm_offset_t sva, vm_offset_t eva,
 	for (pvo = RB_NFIND(pvo_tree, &pm->pmap_pvo, &key);
 	    pvo != NULL && PVO_VADDR(pvo) < eva; pvo = tpvo) {
 		tpvo = RB_NEXT(pvo_tree, &pm->pmap_pvo, pvo);
-		if ((prot & VM_PROT_EXECUTE) == 0)
-			pvo->pvo_vaddr &= ~PVO_EXECUTABLE;
 
 		/*
 		 * Grab the PTE pointer before we diddle with the cached PTE
@@ -1951,7 +1940,21 @@ moea_pvo_enter(pmap_t pm, uma_zone_t zone, struct pvo_head *pvo_head,
 			if ((pvo->pvo_pte.pte.pte_lo & PTE_RPGN) == pa &&
 			    (pvo->pvo_pte.pte.pte_lo & PTE_PP) ==
 			    (pte_lo & PTE_PP)) {
+				/*
+				 * The PTE is not changing.  Instead, this may
+				 * be a request to change the mapping's wired
+				 * attribute.
+				 */
 				mtx_unlock(&moea_table_mutex);
+				if ((flags & PVO_WIRED) != 0 &&
+				    (pvo->pvo_vaddr & PVO_WIRED) == 0) {
+					pvo->pvo_vaddr |= PVO_WIRED;
+					pm->pm_stats.wired_count++;
+				} else if ((flags & PVO_WIRED) == 0 &&
+				    (pvo->pvo_vaddr & PVO_WIRED) != 0) {
+					pvo->pvo_vaddr &= ~PVO_WIRED;
+					pm->pm_stats.wired_count--;
+				}
 				return (0);
 			}
 			moea_pvo_remove(pvo, -1);
@@ -1985,8 +1988,6 @@ moea_pvo_enter(pmap_t pm, uma_zone_t zone, struct pvo_head *pvo_head,
 	pvo->pvo_pmap = pm;
 	LIST_INSERT_HEAD(&moea_pvo_table[ptegidx], pvo, pvo_olink);
 	pvo->pvo_vaddr &= ~ADDR_POFF;
-	if (flags & VM_PROT_EXECUTE)
-		pvo->pvo_vaddr |= PVO_EXECUTABLE;
 	if (flags & PVO_WIRED)
 		pvo->pvo_vaddr |= PVO_WIRED;
 	if (pvo_head != &moea_pvo_kunmanaged)

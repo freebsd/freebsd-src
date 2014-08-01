@@ -14,6 +14,7 @@ FILES+=		break2.0 break2.0.stdout
 FILES+=		break3.0
 FILES+=		break4.4
 FILES+=		break5.4
+FILES+=		break6.0
 FILES+=		builtin1.0
 FILES+=		case1.0
 FILES+=		case2.0

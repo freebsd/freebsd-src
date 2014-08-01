@@ -69,6 +69,9 @@ dbuf_cons(void *vdb, void *unused, int kmflag)
 	mutex_init(&db->db_mtx, NULL, MUTEX_DEFAULT, NULL);
 	cv_init(&db->db_changed, NULL, CV_DEFAULT, NULL);
 	refcount_create(&db->db_holds);
+
+	db->db_creation = gethrtime();
+
 	return (0);
 }
 
@@ -181,8 +184,7 @@ dbuf_hash_insert(dmu_buf_impl_t *db)
 }
 
 /*
- * Remove an entry from the hash table.  This operation will
- * fail if there are any existing holds on the db.
+ * Remove an entry from the hash table.  It must be in the EVICTING state.
  */
 static void
 dbuf_hash_remove(dmu_buf_impl_t *db)
@@ -194,7 +196,7 @@ dbuf_hash_remove(dmu_buf_impl_t *db)
 	dmu_buf_impl_t *dbf, **dbp;
 
 	/*
-	 * We musn't hold db_mtx to maintin lock ordering:
+	 * We musn't hold db_mtx to maintain lock ordering:
 	 * DBUF_HASH_MUTEX > db_mtx.
 	 */
 	ASSERT(refcount_is_zero(&db->db_holds));
@@ -331,7 +333,7 @@ dbuf_verify(dmu_buf_impl_t *db)
 		ASSERT3U(db->db_level, <, dn->dn_nlevels);
 		ASSERT(db->db_blkid == DMU_BONUS_BLKID ||
 		    db->db_blkid == DMU_SPILL_BLKID ||
-		    !list_is_empty(&dn->dn_dbufs));
+		    !avl_is_empty(&dn->dn_dbufs));
 	}
 	if (db->db_blkid == DMU_BONUS_BLKID) {
 		ASSERT(dn != NULL);
@@ -431,7 +433,6 @@ static void
 dbuf_set_data(dmu_buf_impl_t *db, arc_buf_t *buf)
 {
 	ASSERT(MUTEX_HELD(&db->db_mtx));
-	ASSERT(db->db_buf == NULL || !arc_has_callback(db->db_buf));
 	db->db_buf = buf;
 	if (buf != NULL) {
 		ASSERT(buf->b_data != NULL);
@@ -805,18 +806,30 @@ dbuf_unoverride(dbuf_dirty_record_t *dr)
  * receive; see comment below for details.
  */
 void
-dbuf_free_range(dnode_t *dn, uint64_t start, uint64_t end, dmu_tx_t *tx)
+dbuf_free_range(dnode_t *dn, uint64_t start_blkid, uint64_t end_blkid,
+    dmu_tx_t *tx)
 {
-	dmu_buf_impl_t *db, *db_next;
+	dmu_buf_impl_t *db, *db_next, db_search;
 	uint64_t txg = tx->tx_txg;
+	avl_index_t where;
 
-	if (end > dn->dn_maxblkid && (end != DMU_SPILL_BLKID))
-		end = dn->dn_maxblkid;
-	dprintf_dnode(dn, "start=%llu end=%llu\n", start, end);
+	if (end_blkid > dn->dn_maxblkid && (end_blkid != DMU_SPILL_BLKID))
+		end_blkid = dn->dn_maxblkid;
+	dprintf_dnode(dn, "start=%llu end=%llu\n", start_blkid, end_blkid);
+
+	db_search.db_level = 0;
+	db_search.db_blkid = start_blkid;
+	db_search.db_creation = 0;
 
 	mutex_enter(&dn->dn_dbufs_mtx);
-	if (start >= dn->dn_unlisted_l0_blkid * dn->dn_datablksz) {
+	if (start_blkid >= dn->dn_unlisted_l0_blkid) {
 		/* There can't be any dbufs in this range; no need to search. */
+#ifdef DEBUG
+		db = avl_find(&dn->dn_dbufs, &db_search, &where);
+		ASSERT3P(db, ==, NULL);
+		db = avl_nearest(&dn->dn_dbufs, where, AVL_AFTER);
+		ASSERT(db == NULL || db->db_level > 0);
+#endif
 		mutex_exit(&dn->dn_dbufs_mtx);
 		return;
 	} else if (dmu_objset_is_receiving(dn->dn_objset)) {
@@ -830,14 +843,18 @@ dbuf_free_range(dnode_t *dn, uint64_t start, uint64_t end, dmu_tx_t *tx)
 		atomic_inc_64(&zfs_free_range_recv_miss);
 	}
 
-	for (db = list_head(&dn->dn_dbufs); db != NULL; db = db_next) {
-		db_next = list_next(&dn->dn_dbufs, db);
+	db = avl_find(&dn->dn_dbufs, &db_search, &where);
+	ASSERT3P(db, ==, NULL);
+	db = avl_nearest(&dn->dn_dbufs, where, AVL_AFTER);
+
+	for (; db != NULL; db = db_next) {
+		db_next = AVL_NEXT(&dn->dn_dbufs, db);
 		ASSERT(db->db_blkid != DMU_BONUS_BLKID);
 
-		if (db->db_level != 0)
-			continue;
-		if (db->db_blkid < start || db->db_blkid > end)
-			continue;
+		if (db->db_level != 0 || db->db_blkid > end_blkid) {
+			break;
+		}
+		ASSERT3U(db->db_blkid, >=, start_blkid);
 
 		/* found a level 0 buffer in the range */
 		mutex_enter(&db->db_mtx);
@@ -1544,12 +1561,15 @@ dbuf_assign_arcbuf(dmu_buf_impl_t *db, arc_buf_t *buf, dmu_tx_t *tx)
  * when we are not holding the dn_dbufs_mtx, we can't clear the
  * entry in the dn_dbufs list.  We have to wait until dbuf_destroy()
  * in this case.  For callers from the DMU we will usually see:
- *	dbuf_clear()->arc_buf_evict()->dbuf_do_evict()->dbuf_destroy()
+ *	dbuf_clear()->arc_clear_callback()->dbuf_do_evict()->dbuf_destroy()
  * For the arc callback, we will usually see:
  *	dbuf_do_evict()->dbuf_clear();dbuf_destroy()
  * Sometimes, though, we will get a mix of these two:
- *	DMU: dbuf_clear()->arc_buf_evict()
+ *	DMU: dbuf_clear()->arc_clear_callback()
  *	ARC: dbuf_do_evict()->dbuf_destroy()
+ *
+ * This routine will dissociate the dbuf from the arc, by calling
+ * arc_clear_callback(), but will not evict the data from the ARC.
  */
 void
 dbuf_clear(dmu_buf_impl_t *db)
@@ -1557,7 +1577,7 @@ dbuf_clear(dmu_buf_impl_t *db)
 	dnode_t *dn;
 	dmu_buf_impl_t *parent = db->db_parent;
 	dmu_buf_impl_t *dndb;
-	int dbuf_gone = FALSE;
+	boolean_t dbuf_gone = B_FALSE;
 
 	ASSERT(MUTEX_HELD(&db->db_mtx));
 	ASSERT(refcount_is_zero(&db->db_holds));
@@ -1584,7 +1604,7 @@ dbuf_clear(dmu_buf_impl_t *db)
 	dn = DB_DNODE(db);
 	dndb = dn->dn_dbuf;
 	if (db->db_blkid != DMU_BONUS_BLKID && MUTEX_HELD(&dn->dn_dbufs_mtx)) {
-		list_remove(&dn->dn_dbufs, db);
+		avl_remove(&dn->dn_dbufs, db);
 		(void) atomic_dec_32_nv(&dn->dn_dbufs_count);
 		membar_producer();
 		DB_DNODE_EXIT(db);
@@ -1603,7 +1623,7 @@ dbuf_clear(dmu_buf_impl_t *db)
 	}
 
 	if (db->db_buf)
-		dbuf_gone = arc_buf_evict(db->db_buf);
+		dbuf_gone = arc_clear_callback(db->db_buf);
 
 	if (!dbuf_gone)
 		mutex_exit(&db->db_mtx);
@@ -1747,7 +1767,7 @@ dbuf_create(dnode_t *dn, uint8_t level, uint64_t blkid,
 		mutex_exit(&dn->dn_dbufs_mtx);
 		return (odb);
 	}
-	list_insert_head(&dn->dn_dbufs, db);
+	avl_add(&dn->dn_dbufs, db);
 	if (db->db_level == 0 && db->db_blkid >=
 	    dn->dn_unlisted_l0_blkid)
 		dn->dn_unlisted_l0_blkid = db->db_blkid + 1;
@@ -1771,8 +1791,7 @@ dbuf_create(dnode_t *dn, uint8_t level, uint64_t blkid,
 static int
 dbuf_do_evict(void *private)
 {
-	arc_buf_t *buf = private;
-	dmu_buf_impl_t *db = buf->b_private;
+	dmu_buf_impl_t *db = private;
 
 	if (!MUTEX_HELD(&db->db_mtx))
 		mutex_enter(&db->db_mtx);
@@ -1807,7 +1826,7 @@ dbuf_destroy(dmu_buf_impl_t *db)
 			DB_DNODE_ENTER(db);
 			dn = DB_DNODE(db);
 			mutex_enter(&dn->dn_dbufs_mtx);
-			list_remove(&dn->dn_dbufs, db);
+			avl_remove(&dn->dn_dbufs, db);
 			(void) atomic_dec_32_nv(&dn->dn_dbufs_count);
 			mutex_exit(&dn->dn_dbufs_mtx);
 			DB_DNODE_EXIT(db);
@@ -1825,7 +1844,6 @@ dbuf_destroy(dmu_buf_impl_t *db)
 	db->db_parent = NULL;
 	db->db_buf = NULL;
 
-	ASSERT(!list_link_active(&db->db_link));
 	ASSERT(db->db.db_data == NULL);
 	ASSERT(db->db_hash_next == NULL);
 	ASSERT(db->db_blkptr == NULL);
@@ -2135,11 +2153,23 @@ dbuf_rele_and_unlock(dmu_buf_impl_t *db, void *tag)
 			 * block on-disk. If so, then we simply evict
 			 * ourselves.
 			 */
-			if (!DBUF_IS_CACHEABLE(db) ||
-			    arc_buf_eviction_needed(db->db_buf))
+			if (!DBUF_IS_CACHEABLE(db)) {
+				if (db->db_blkptr != NULL &&
+				    !BP_IS_HOLE(db->db_blkptr) &&
+				    !BP_IS_EMBEDDED(db->db_blkptr)) {
+					spa_t *spa =
+					    dmu_objset_spa(db->db_objset);
+					blkptr_t bp = *db->db_blkptr;
+					dbuf_clear(db);
+					arc_freed(spa, &bp);
+				} else {
+					dbuf_clear(db);
+				}
+			} else if (arc_buf_eviction_needed(db->db_buf)) {
 				dbuf_clear(db);
-			else
+			} else {
 				mutex_exit(&db->db_mtx);
+			}
 		}
 	} else {
 		mutex_exit(&db->db_mtx);

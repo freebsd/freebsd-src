@@ -831,7 +831,7 @@ pmap_bootstrap(vm_paddr_t *firstaddr)
 
 
 	/* XXX do %cr0 as well */
-	load_cr4(rcr4() | CR4_PGE | CR4_PSE);
+	load_cr4(rcr4() | CR4_PGE);
 	load_cr3(KPML4phys);
 	if (cpu_stdext_feature & CPUID_STDEXT_SMEP)
 		load_cr4(rcr4() | CR4_SMEP);
@@ -5080,6 +5080,14 @@ pmap_copy_pages(vm_page_t ma[], vm_offset_t a_offset, vm_page_t mb[],
 	int cnt;
 	boolean_t pinned;
 
+	/*
+	 * NB:  The sequence of updating a page table followed by accesses
+	 * to the corresponding pages used in the !DMAP case is subject to
+	 * the situation described in the "AMD64 Architecture Programmer's
+	 * Manual Volume 2: System Programming" rev. 3.23, "7.3.1 Special
+	 * Coherency Considerations".  Therefore, issuing the INVLPG right
+	 * after modifying the PTE bits is crucial.
+	 */
 	pinned = FALSE;
 	while (xfersize > 0) {
 		a_pg_offset = a_offset & PAGE_MASK;

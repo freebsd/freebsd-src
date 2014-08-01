@@ -50,7 +50,8 @@ struct mem_range {
 #define	MEM_F_RW		0x3
 
 void	init_mem(void);
-int     emulate_mem(struct vmctx *, int vcpu, uint64_t paddr, struct vie *vie);
+int     emulate_mem(struct vmctx *, int vcpu, uint64_t paddr, struct vie *vie,
+		    struct vm_guest_paging *paging);
 		    
 int	register_mem(struct mem_range *memp);
 int	register_mem_fallback(struct mem_range *memp);
