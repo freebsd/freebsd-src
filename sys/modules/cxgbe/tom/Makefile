@@ -4,13 +4,13 @@
 
 .include <src.opts.mk>
 
-CXGBE = ${.CURDIR}/../../../dev/cxgbe
+CXGBE=	${.CURDIR}/../../../dev/cxgbe
 .PATH: ${CXGBE}/tom
 
-KMOD = t4_tom
-SRCS = t4_tom.c t4_connect.c t4_listen.c t4_cpl_io.c t4_tom_l2t.c t4_ddp.c
-SRCS+= device_if.h bus_if.h pci_if.h
-SRCS+= opt_inet.h opt_inet6.h
+KMOD=	t4_tom
+SRCS=	t4_tom.c t4_connect.c t4_listen.c t4_cpl_io.c t4_tom_l2t.c t4_ddp.c
+SRCS+=	device_if.h bus_if.h pci_if.h
+SRCS+=	opt_inet.h opt_inet6.h
 
 CFLAGS+= -I${CXGBE}
 
