@@ -60,6 +60,17 @@ gethrtime(void) {
 	struct timespec ts;
 	hrtime_t nsec;
 
+	nanouptime(&ts);
+	nsec = (hrtime_t)ts.tv_sec * NANOSEC + ts.tv_nsec;
+	return (nsec);
+}
+
+static __inline hrtime_t
+gethrtime_waitfree(void) {
+
+	struct timespec ts;
+	hrtime_t nsec;
+
 	getnanouptime(&ts);
 	nsec = (hrtime_t)ts.tv_sec * NANOSEC + ts.tv_nsec;
 	return (nsec);
@@ -67,7 +78,6 @@ gethrtime(void) {
 
 #define	gethrestime_sec()	(time_second)
 #define	gethrestime(ts)		getnanotime(ts)
-#define	gethrtime_waitfree()	gethrtime()
 
 extern int nsec_per_tick;	/* nanoseconds per clock tick */
 
