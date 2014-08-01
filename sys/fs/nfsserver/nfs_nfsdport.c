@@ -58,6 +58,7 @@ extern struct nfsrv_stablefirst nfsrv_stablefirst;
 extern void (*nfsd_call_servertimer)(void);
 extern SVCPOOL	*nfsrvd_pool;
 extern struct nfsv4lock nfsd_suspend_lock;
+extern struct nfssessionhash nfssessionhash[NFSSESSIONHASHSIZE];
 struct vfsoptlist nfsv4root_opt, nfsv4root_newopt;
 NFSDLOCKMUTEX;
 struct nfsrchash_bucket nfsrchash_table[NFSRVCACHE_HASHSIZE];
@@ -67,6 +68,7 @@ struct mtx nfs_v4root_mutex;
 struct nfsrvfh nfs_rootfh, nfs_pubfh;
 int nfs_pubfhset = 0, nfs_rootfhset = 0;
 struct proc *nfsd_master_proc = NULL;
+int nfsd_debuglevel = 0;
 static pid_t nfsd_master_pid = (pid_t)-1;
 static char nfsd_master_comm[MAXCOMLEN + 1];
 static struct timeval nfsd_master_start;
@@ -93,6 +95,8 @@ SYSCTL_INT(_vfs_nfsd, OID_AUTO, issue_delegations, CTLFLAG_RW,
     &nfsrv_issuedelegs, 0, "Enable nfsd to issue delegations");
 SYSCTL_INT(_vfs_nfsd, OID_AUTO, enable_locallocks, CTLFLAG_RW,
     &nfsrv_dolocallocks, 0, "Enable nfsd to acquire local locks on files");
+SYSCTL_INT(_vfs_nfsd, OID_AUTO, debuglevel, CTLFLAG_RW, &nfsd_debuglevel,
+    0, "Debug level for new nfs server");
 SYSCTL_INT(_vfs_nfsd, OID_AUTO, enable_stringtouid, CTLFLAG_RW,
     &nfsd_enable_stringtouid, 0, "Enable nfsd to accept numeric owner_names");
 
@@ -3261,6 +3265,18 @@ nfsrv_hashfh(fhandle_t *fhp)
 }
 
 /*
+ * Calculate a hash value for the sessionid.
+ */
+uint32_t
+nfsrv_hashsessionid(uint8_t *sessionid)
+{
+	uint32_t hashval;
+
+	hashval = hash32_buf(sessionid, NFSX_V4SESSIONID, 0);
+	return (hashval);
+}
+
+/*
  * Signal the userland master nfsd to backup the stable restart file.
  */
 void
@@ -3318,6 +3334,9 @@ nfsd_modevent(module_t mod, int type, void *data)
 		mtx_init(&nfs_v4root_mutex, "nfs_v4root_mutex", NULL, MTX_DEF);
 		mtx_init(&nfsv4root_mnt.mnt_mtx, "struct mount mtx", NULL,
 		    MTX_DEF);
+		for (i = 0; i < NFSSESSIONHASHSIZE; i++)
+			mtx_init(&nfssessionhash[i].mtx, "nfs_session_mutex",
+			    NULL, MTX_DEF);
 		lockinit(&nfsv4root_mnt.mnt_explock, PVFS, "explock", 0, 0);
 		nfsrvd_initcache();
 		nfsd_init();
@@ -3365,6 +3384,8 @@ nfsd_modevent(module_t mod, int type, void *data)
 		mtx_destroy(&nfsrc_udpmtx);
 		mtx_destroy(&nfs_v4root_mutex);
 		mtx_destroy(&nfsv4root_mnt.mnt_mtx);
+		for (i = 0; i < NFSSESSIONHASHSIZE; i++)
+			mtx_destroy(&nfssessionhash[i].mtx);
 		lockdestroy(&nfsv4root_mnt.mnt_explock);
 		loaded = 0;
 		break;
