@@ -99,10 +99,11 @@ typedef int ta_dump_tinfo(void *ta_state, struct table_info *ti,
 
 struct table_algo {
 	char		name[16];
-	int		idx;
-	int		type;
-	int		refcnt;
-	int		spare;
+	uint32_t	idx;
+	uint32_t	type;
+	uint32_t	refcnt;
+	uint32_t	flags;
+	size_t		ta_buf_size;
 	ta_init		*init;
 	ta_destroy	*destroy;
 	ta_prepare_add	*prepare_add;
@@ -121,12 +122,11 @@ struct table_algo {
 	ta_print_config	*print_config;
 	ta_dump_tinfo	*dump_tinfo;
 };
+#define	TA_FLAG_DEFAULT	0x01	/* Algorithm is default for given type */
 
 int ipfw_add_table_algo(struct ip_fw_chain *ch, struct table_algo *ta,
     size_t size, int *idx);
 void ipfw_del_table_algo(struct ip_fw_chain *ch, int idx);
-
-extern struct table_algo cidr_radix, iface_idx, number_array, flow_hash;
 
 void ipfw_table_algo_init(struct ip_fw_chain *chain);
 void ipfw_table_algo_destroy(struct ip_fw_chain *chain);
