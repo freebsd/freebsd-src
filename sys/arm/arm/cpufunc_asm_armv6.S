@@ -137,12 +137,12 @@ ENTRY_NP(armv6_idcache_wbinv_all)
 	/* Fall through to purge Dcache. */
 
 /* LINTSTUB: void armv6_dcache_wbinv_all(void); */
-ENTRY(armv6_dcache_wbinv_all)
+EENTRY(armv6_dcache_wbinv_all)
 	mcr	p15, 0, r0, c7, c14, 0	/* clean & invalidate D cache */
 	mcr	p15, 0, r0, c7, c10, 4	/* drain the write buffer */
 	RET
+EEND(armv6_dcache_wbinv_all)
 END(armv6_idcache_wbinv_all)
-END(armv6_dcache_wbinv_all)
 
 ENTRY(armv6_idcache_inv_all)
 	mov	r0, #0
