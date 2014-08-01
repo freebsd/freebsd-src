@@ -1951,7 +1951,21 @@ moea_pvo_enter(pmap_t pm, uma_zone_t zone, struct pvo_head *pvo_head,
 			if ((pvo->pvo_pte.pte.pte_lo & PTE_RPGN) == pa &&
 			    (pvo->pvo_pte.pte.pte_lo & PTE_PP) ==
 			    (pte_lo & PTE_PP)) {
+				/*
+				 * The PTE is not changing.  Instead, this may
+				 * be a request to change the mapping's wired
+				 * attribute.
+				 */
 				mtx_unlock(&moea_table_mutex);
+				if ((flags & PVO_WIRED) != 0 &&
+				    (pvo->pvo_vaddr & PVO_WIRED) == 0) {
+					pvo->pvo_vaddr |= PVO_WIRED;
+					pm->pm_stats.wired_count++;
+				} else if ((flags & PVO_WIRED) == 0 &&
+				    (pvo->pvo_vaddr & PVO_WIRED) != 0) {
+					pvo->pvo_vaddr &= ~PVO_WIRED;
+					pm->pm_stats.wired_count--;
+				}
 				return (0);
 			}
 			moea_pvo_remove(pvo, -1);
