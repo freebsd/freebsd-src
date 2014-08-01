@@ -293,6 +293,53 @@ ipv6_writemask(struct in6_addr *addr6, uint8_t mask)
 }
 #endif
 
+static void
+tei_to_sockaddr_ent(struct tentry_info *tei, struct sockaddr *sa,
+    struct sockaddr *ma, int *set_mask)
+{
+	int mlen;
+	struct sockaddr_in *addr, *mask;
+	struct sockaddr_in6 *addr6, *mask6;
+	in_addr_t a4;
+
+	mlen = tei->masklen;
+
+	if (tei->subtype == AF_INET) {
+#ifdef INET
+		addr = (struct sockaddr_in *)sa;
+		mask = (struct sockaddr_in *)ma;
+		/* Set 'total' structure length */
+		KEY_LEN(*addr) = KEY_LEN_INET;
+		KEY_LEN(*mask) = KEY_LEN_INET;
+		addr->sin_family = AF_INET;
+		mask->sin_addr.s_addr =
+		    htonl(mlen ? ~((1 << (32 - mlen)) - 1) : 0);
+		a4 = *((in_addr_t *)tei->paddr);
+		addr->sin_addr.s_addr = a4 & mask->sin_addr.s_addr;
+		if (mlen != 32)
+			*set_mask = 1;
+		else
+			*set_mask = 0;
+#endif
+#ifdef INET6
+	} else if (tei->subtype == AF_INET6) {
+		/* IPv6 case */
+		addr6 = (struct sockaddr_in6 *)sa;
+		mask6 = (struct sockaddr_in6 *)ma;
+		/* Set 'total' structure length */
+		KEY_LEN(*addr6) = KEY_LEN_INET6;
+		KEY_LEN(*mask6) = KEY_LEN_INET6;
+		addr6->sin6_family = AF_INET6;
+		ipv6_writemask(&mask6->sin6_addr, mlen);
+		memcpy(&addr6->sin6_addr, tei->paddr, sizeof(struct in6_addr));
+		APPLY_MASK(&addr6->sin6_addr, &mask6->sin6_addr);
+		if (mlen != 128)
+			*set_mask = 1;
+		else
+			*set_mask = 0;
+	}
+#endif
+}
 
 static int
 ta_prepare_add_cidr(struct ip_fw_chain *ch, struct tentry_info *tei,
@@ -301,15 +348,14 @@ ta_prepare_add_cidr(struct ip_fw_chain *ch, struct tentry_info *tei,
 	struct ta_buf_cidr *tb;
 	struct radix_cidr_entry *ent;
 	struct radix_cidr_xentry *xent;
-	in_addr_t addr;
-	struct sockaddr_in *mask;
-	struct sa_in6 *mask6;
-	int mlen;
+	struct sockaddr *addr, *mask;
+	int mlen, set_mask;
 
 	tb = (struct ta_buf_cidr *)ta_buf;
 	memset(tb, 0, sizeof(struct ta_buf_cidr));
 
 	mlen = tei->masklen;
+	set_mask = 0;
 	
 	if (tei->subtype == AF_INET) {
 #ifdef INET
@@ -317,21 +363,11 @@ ta_prepare_add_cidr(struct ip_fw_chain *ch, struct tentry_info *tei,
 			return (EINVAL);
 		ent = malloc(sizeof(*ent), M_IPFW_TBL, M_WAITOK | M_ZERO);
 		ent->value = tei->value;
-		mask = &tb->addr.a4.ma;
-		/* Set 'total' structure length */
-		KEY_LEN(ent->addr) = KEY_LEN_INET;
-		KEY_LEN(*mask) = KEY_LEN_INET;
-		ent->addr.sin_family = AF_INET;
-		mask->sin_addr.s_addr =
-		    htonl(mlen ? ~((1 << (32 - mlen)) - 1) : 0);
-		addr = *((in_addr_t *)tei->paddr);
-		ent->addr.sin_addr.s_addr = addr & mask->sin_addr.s_addr;
 		ent->masklen = mlen;
-		/* Set pointers */
+
+		addr = (struct sockaddr *)&ent->addr;
+		mask = (struct sockaddr *)&tb->addr.a4.ma;
 		tb->ent_ptr = ent;
-		tb->addr_ptr = (struct sockaddr *)&ent->addr;
-		if (mlen != 32)
-			tb->mask_ptr = (struct sockaddr *)mask;
 #endif
 #ifdef INET6
 	} else if (tei->subtype == AF_INET6) {
@@ -340,26 +376,22 @@ ta_prepare_add_cidr(struct ip_fw_chain *ch, struct tentry_info *tei,
 			return (EINVAL);
 		xent = malloc(sizeof(*xent), M_IPFW_TBL, M_WAITOK | M_ZERO);
 		xent->value = tei->value;
-		mask6 = &tb->addr.a6.ma;
-		/* Set 'total' structure length */
-		KEY_LEN(xent->addr6) = KEY_LEN_INET6;
-		KEY_LEN(*mask6) = KEY_LEN_INET6;
-		xent->addr6.sin6_family = AF_INET6;
-		ipv6_writemask(&mask6->sin6_addr, mlen);
-		memcpy(&xent->addr6.sin6_addr, tei->paddr,
-		    sizeof(struct in6_addr));
-		APPLY_MASK(&xent->addr6.sin6_addr, &mask6->sin6_addr);
 		xent->masklen = mlen;
-		/* Set pointers */
+
+		addr = (struct sockaddr *)&xent->addr6;
+		mask = (struct sockaddr *)&tb->addr.a6.ma;
 		tb->ent_ptr = xent;
-		tb->addr_ptr = (struct sockaddr *)&xent->addr6;
-		if (mlen != 128)
-			tb->mask_ptr = (struct sockaddr *)mask6;
 #endif
 	} else {
 		/* Unknown CIDR type */
 		return (EINVAL);
 	}
+
+	tei_to_sockaddr_ent(tei, addr, mask, &set_mask);
+	/* Set pointers */
+	tb->addr_ptr = addr;
+	if (set_mask != 0)
+		tb->mask_ptr = mask;
 
 	return (0);
 }
@@ -424,53 +456,36 @@ ta_prepare_del_cidr(struct ip_fw_chain *ch, struct tentry_info *tei,
     void *ta_buf)
 {
 	struct ta_buf_cidr *tb;
-	struct sockaddr_in sa, mask;
-	struct sa_in6 sa6, mask6;
-	in_addr_t addr;
-	int mlen;
+	struct sockaddr *addr, *mask;
+	int mlen, set_mask;
 
 	tb = (struct ta_buf_cidr *)ta_buf;
 	memset(tb, 0, sizeof(struct ta_buf_cidr));
 
 	mlen = tei->masklen;
+	set_mask = 0;
 
 	if (tei->subtype == AF_INET) {
 		if (mlen > 32)
 			return (EINVAL);
-		memset(&sa, 0, sizeof(struct sockaddr_in));
-		memset(&mask, 0, sizeof(struct sockaddr_in));
-		/* Set 'total' structure length */
-		KEY_LEN(sa) = KEY_LEN_INET;
-		KEY_LEN(mask) = KEY_LEN_INET;
-		mask.sin_addr.s_addr = htonl(mlen ? ~((1 << (32 - mlen)) - 1) : 0);
-		addr = *((in_addr_t *)tei->paddr);
-		sa.sin_addr.s_addr = addr & mask.sin_addr.s_addr;
-		tb->addr.a4.sa = sa;
-		tb->addr.a4.ma = mask;
-		tb->addr_ptr = (struct sockaddr *)&tb->addr.a4.sa;
-		if (mlen != 32)
-			tb->mask_ptr = (struct sockaddr *)&tb->addr.a4.ma;
+
+		addr = (struct sockaddr *)&tb->addr.a4.sa;
+		mask = (struct sockaddr *)&tb->addr.a4.ma;
 #ifdef INET6
 	} else if (tei->subtype == AF_INET6) {
 		if (mlen > 128)
 			return (EINVAL);
-		memset(&sa6, 0, sizeof(struct sa_in6));
-		memset(&mask6, 0, sizeof(struct sa_in6));
-		/* Set 'total' structure length */
-		KEY_LEN(sa6) = KEY_LEN_INET6;
-		KEY_LEN(mask6) = KEY_LEN_INET6;
-		ipv6_writemask(&mask6.sin6_addr, mlen);
-		memcpy(&sa6.sin6_addr, tei->paddr,
-		    sizeof(struct in6_addr));
-		APPLY_MASK(&sa6.sin6_addr, &mask6.sin6_addr);
-		tb->addr.a6.sa = sa6;
-		tb->addr.a6.ma = mask6;
-		tb->addr_ptr = (struct sockaddr *)&tb->addr.a6.sa;
-		if (mlen != 128)
-			tb->mask_ptr = (struct sockaddr *)&tb->addr.a6.ma;
+
+		addr = (struct sockaddr *)&tb->addr.a6.sa;
+		mask = (struct sockaddr *)&tb->addr.a6.ma;
 #endif
 	} else
 		return (EINVAL);
+
+	tei_to_sockaddr_ent(tei, addr, mask, &set_mask);
+	tb->addr_ptr = addr;
+	if (set_mask != 0)
+		tb->mask_ptr = mask;
 
 	return (0);
 }
