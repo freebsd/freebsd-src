@@ -64,6 +64,10 @@
 			google,key-columns = <13>;
 			freebsd,intr-gpio = <146>;
 		};
+
+		usbdrd_phy0: phy@12100000 {
+			vbus-supply = < 155 >;
+		};
 	};
 
 	i2c-arbitrator {

@@ -25,7 +25,7 @@
  */
 
 /*
- * Samsung Chromebook Embedded Controller
+ * Samsung Chromebook Embedded Controller (EC)
  */
 
 #include <sys/cdefs.h>
@@ -53,79 +53,40 @@ __FBSDID("$FreeBSD$");
 #include <machine/cpu.h>
 #include <machine/intr.h>
 
-#include <dev/iicbus/iiconf.h>
+#include <dev/spibus/spi.h>
+#include <dev/spibus/spibusvar.h>
 
-#include "iicbus_if.h"
+#include "spibus_if.h"
 #include "gpio_if.h"
 
 #include <arm/samsung/exynos/chrome_ec.h>
 
 struct ec_softc {
 	device_t	dev;
-	int		have_arbitrator;
-	pcell_t		our_gpio;
-	pcell_t		ec_gpio;
+	device_t	dev_gpio;
 };
 
 struct ec_softc *ec_sc;
 
-/*
- * bus_claim, bus_release
- * both functions used for bus arbitration
- * in multi-master mode
- */
+#define EC_SPI_CS	200
 
 static int
-bus_claim(struct ec_softc *sc)
+assert_cs(struct ec_softc *sc, int enable)
 {
-	device_t gpio_dev;
-	int status;
-
-	if (sc->our_gpio == 0 || sc->ec_gpio == 0) {
-		device_printf(sc->dev, "i2c arbitrator is not configured\n");
+	/* Get the GPIO device */
+	sc->dev_gpio = devclass_get_device(devclass_find("gpio"), 0);
+	if (sc->dev_gpio == NULL) {
+		device_printf(sc->dev, "Error: failed to get the GPIO dev\n");
 		return (1);
 	}
 
-	gpio_dev = devclass_get_device(devclass_find("gpio"), 0);
-	if (gpio_dev == NULL) {
-		device_printf(sc->dev, "cant find gpio_dev\n");
-		return (1);
+	GPIO_PIN_SETFLAGS(sc->dev_gpio, EC_SPI_CS, GPIO_PIN_OUTPUT);
+
+	if (enable) {
+		GPIO_PIN_SET(sc->dev_gpio, EC_SPI_CS, GPIO_PIN_LOW);
+	} else {
+		GPIO_PIN_SET(sc->dev_gpio, EC_SPI_CS, GPIO_PIN_HIGH);
 	}
-
-	/* Say we want the bus */
-	GPIO_PIN_SET(gpio_dev, sc->our_gpio, GPIO_PIN_LOW);
-
-	/* TODO: insert a delay to allow EC to react. */
-
-	/* Check EC decision */
-	GPIO_PIN_GET(gpio_dev, sc->ec_gpio, &status);
-
-	if (status == 1) {
-		/* Okay. We have bus */
-		return (0);
-	}
-
-	/* EC is master */
-	return (-1);
-}
-
-static int
-bus_release(struct ec_softc *sc)
-{
-	device_t gpio_dev;
-
-	if (sc->our_gpio == 0 || sc->ec_gpio == 0) {
-		device_printf(sc->dev, "i2c arbitrator is not configured\n");
-		return (1);
-	}
-
-	gpio_dev = devclass_get_device(devclass_find("gpio"), 0);
-	if (gpio_dev == NULL) {
-		device_printf(sc->dev, "cant find gpio_dev\n");
-		return (1);
-	}
-
-	GPIO_PIN_SET(gpio_dev, sc->our_gpio, GPIO_PIN_HIGH);
 
 	return (0);
 }
@@ -158,14 +119,20 @@ int
 ec_command(uint8_t cmd, uint8_t *dout, uint8_t dout_len,
     uint8_t *dinp, uint8_t dinp_len)
 {
+	struct spi_command spi_cmd;
 	struct ec_softc *sc;
 	uint8_t *msg_dout;
 	uint8_t *msg_dinp;
 	int ret;
 	int i;
 
-	msg_dout = malloc(dout_len + 4, M_DEVBUF, M_NOWAIT);
-	msg_dinp = malloc(dinp_len + 3, M_DEVBUF, M_NOWAIT);
+	memset(&spi_cmd, 0, sizeof(spi_cmd));
+
+	msg_dout = malloc(dout_len + 4, M_DEVBUF, M_NOWAIT | M_ZERO);
+	msg_dinp = malloc(dinp_len + 4, M_DEVBUF, M_NOWAIT | M_ZERO);
+
+	spi_cmd.tx_cmd = msg_dout;
+	spi_cmd.rx_cmd = msg_dinp;
 
 	if (ec_sc == NULL)
 		return (-1);
@@ -182,14 +149,29 @@ ec_command(uint8_t cmd, uint8_t *dout, uint8_t dout_len,
 
 	fill_checksum(msg_dout, dout_len + 3);
 
-	struct iic_msg msgs[] = {
-		{ 0x1e, IIC_M_WR, dout_len + 4, msg_dout, },
-		{ 0x1e, IIC_M_RD, dinp_len + 3, msg_dinp, },
-	};
+	assert_cs(sc, 1);
+	spi_cmd.rx_cmd_sz = spi_cmd.tx_cmd_sz = dout_len + 4;
+	ret = SPIBUS_TRANSFER(device_get_parent(sc->dev), sc->dev, &spi_cmd);
 
-	ret = iicbus_transfer(sc->dev, msgs, 2);
+	/* Wait 0xec */
+	for (i = 0; i < 1000; i++) {
+		DELAY(10);
+		msg_dout[0] = 0xff;
+		spi_cmd.rx_cmd_sz = spi_cmd.tx_cmd_sz = 1;
+		SPIBUS_TRANSFER(device_get_parent(sc->dev), sc->dev, &spi_cmd);
+		if (msg_dinp[0] == 0xec)
+			break;
+	}
+
+	/* Get the rest */
+	for (i = 0; i < (dout_len + 4); i++)
+		msg_dout[i] = 0xff;
+	spi_cmd.rx_cmd_sz = spi_cmd.tx_cmd_sz = dout_len + 4 - 1;
+	ret = SPIBUS_TRANSFER(device_get_parent(sc->dev), sc->dev, &spi_cmd);
+	assert_cs(sc, 0);
+
 	if (ret != 0) {
-		device_printf(sc->dev, "i2c transfer returned %d\n", ret);
+		device_printf(sc->dev, "spibus_transfer returned %d\n", ret);
 		free(msg_dout, M_DEVBUF);
 		free(msg_dinp, M_DEVBUF);
 		return (-1);
@@ -201,45 +183,8 @@ ec_command(uint8_t cmd, uint8_t *dout, uint8_t dout_len,
 
 	free(msg_dout, M_DEVBUF);
 	free(msg_dinp, M_DEVBUF);
-	return (0);
-}
-
-int ec_hello(void)
-{
-	uint8_t data_in[4];
-	uint8_t data_out[4];
-
-	data_in[0] = 0x40;
-	data_in[1] = 0x30;
-	data_in[2] = 0x20;
-	data_in[3] = 0x10;
-
-	ec_command(EC_CMD_HELLO, data_in, 4,
-	    data_out, 4);
 
 	return (0);
-}
-
-static void
-configure_i2c_arbitrator(struct ec_softc *sc)
-{
-	phandle_t arbitrator;
-
-	/* TODO: look for compatible entry instead of hard-coded path */
-	arbitrator = OF_finddevice("/i2c-arbitrator");
-	if (arbitrator > 0 &&
-	    OF_hasprop(arbitrator, "freebsd,our-gpio") &&
-	    OF_hasprop(arbitrator, "freebsd,ec-gpio")) {
-		sc->have_arbitrator = 1;
-		OF_getencprop(arbitrator, "freebsd,our-gpio",
-		    &sc->our_gpio, sizeof(sc->our_gpio));
-		OF_getencprop(arbitrator, "freebsd,ec-gpio",
-		    &sc->ec_gpio, sizeof(sc->ec_gpio));
-	} else {
-		sc->have_arbitrator = 0;
-		sc->our_gpio = 0;
-		sc->ec_gpio = 0;
-	}
 }
 
 static int
@@ -252,20 +197,6 @@ ec_attach(device_t dev)
 
 	ec_sc = sc;
 
-	configure_i2c_arbitrator(sc);
-
-	/*
-	 * Claim the bus.
-	 *
-	 * We don't know cases when EC is master,
-	 * so hold the bus forever for us.
-	 *
-	 */
-
-	if (sc->have_arbitrator && bus_claim(sc) != 0) {
-		return (ENXIO);
-	}
-
 	return (0);
 }
 
@@ -275,10 +206,6 @@ ec_detach(device_t dev)
 	struct ec_softc *sc;
 
 	sc = device_get_softc(dev);
-
-	if (sc->have_arbitrator) {
-		bus_release(sc);
-	}
 
 	return (0);
 }
@@ -298,6 +225,6 @@ static driver_t ec_driver = {
 
 static devclass_t ec_devclass;
 
-DRIVER_MODULE(chrome_ec, iicbus, ec_driver, ec_devclass, 0, 0);
+DRIVER_MODULE(chrome_ec, spibus, ec_driver, ec_devclass, 0, 0);
 MODULE_VERSION(chrome_ec, 1);
-MODULE_DEPEND(chrome_ec, iicbus, 1, 1, 1);
+MODULE_DEPEND(chrome_ec, spibus, 1, 1, 1);
