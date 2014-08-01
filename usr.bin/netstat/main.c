@@ -295,6 +295,7 @@ int	numeric_port;	/* show ports numerically */
 static int pflag;	/* show given protocol */
 int	Qflag;		/* show netisr information */
 int	rflag;		/* show routing tables (or routing stats) */
+int	Rflag;		/* show flow / RSS statistics */
 int	sflag;		/* show protocol statistics */
 int	Wflag;		/* wide display */
 int	Tflag;		/* TCP Information */
@@ -319,7 +320,7 @@ main(int argc, char *argv[])
 
 	af = AF_UNSPEC;
 
-	while ((ch = getopt(argc, argv, "46AaBbdF:f:ghI:iLlM:mN:np:Qq:rSTsuWw:xz"))
+	while ((ch = getopt(argc, argv, "46AaBbdF:f:ghI:iLlM:mN:np:Qq:RrSTsuWw:xz"))
 	    != -1)
 		switch(ch) {
 		case '4':
@@ -432,6 +433,9 @@ main(int argc, char *argv[])
 			break;
 		case 'r':
 			rflag = 1;
+			break;
+		case 'R':
+			Rflag = 1;
 			break;
 		case 's':
 			++sflag;
@@ -820,18 +824,20 @@ static void
 usage(void)
 {
 	(void)fprintf(stderr, "%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n",
-"usage: netstat [-46AaLnSTWx] [-f protocol_family | -p protocol]\n"
+"usage: netstat [-46AaLnRSTWx] [-f protocol_family | -p protocol]\n"
 "               [-M core] [-N system]",
 "       netstat -i | -I interface [-46abdhnW] [-f address_family]\n"
 "               [-M core] [-N system]",
-"       netstat -w wait [-I interface] [-46d] [-M core] [-N system] [-q howmany]",
-"       netstat -s [-s] [-46z] [-f protocol_family | -p protocol]\n"
+"       netstat -w wait [-I interface] [-46d] [-M core] [-N system]\n"
+"               [-q howmany]",
+"       netstat -s [-46sz] [-f protocol_family | -p protocol]\n"
 "               [-M core] [-N system]",
-"       netstat -i | -I interface [-46s] [-f protocol_family | -p protocol]\n"
-"               [-M core] [-N system]",
+"       netstat -i | -I interface -s [-46s]\n"
+"               [-f protocol_family | -p protocol] [-M core] [-N system]",
 "       netstat -m [-M core] [-N system]",
-"       netstat -B [-I interface]",
-"       netstat -r [-46AanW] [-f address_family] [-M core] [-N system]",
+"       netstat -B [-z] [-I interface]",
+"       netstat -r [-46AnW] [-F fibnum] [-f address_family]\n"
+"               [-M core] [-N system]",
 "       netstat -rs [-s] [-M core] [-N system]",
 "       netstat -g [-46W] [-f address_family] [-M core] [-N system]",
 "       netstat -gs [-46s] [-f address_family] [-M core] [-N system]",

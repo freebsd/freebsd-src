@@ -29,7 +29,7 @@
 .\"     @(#)ps.1	8.3 (Berkeley) 4/18/94
 .\" $FreeBSD$
 .\"
-.Dd May 2, 2014
+.Dd June 6, 2014
 .Dt PS 1
 .Os
 .Sh NAME
@@ -340,6 +340,15 @@ the include file
 .It Dv "P_SWAPPINGIN" Ta No "0x40000000" Ta "Process is being swapped in"
 .It Dv "P_PPTRACE" Ta No "0x80000000" Ta "Vforked child issued ptrace(PT_TRACEME)"
 .El
+.It Cm flags2
+The flags kept in
+.Va p_flag2
+associated with the process as in
+the include file
+.In sys/proc.h :
+.Bl -column P2_INHERIT_PROTECTED 0x00000001
+.It Dv "P2_INHERIT_PROTECTED" Ta No "0x00000001" Ta "New children get P_PROTECTED"
+.El
 .It Cm label
 The MAC label of the process.
 .It Cm lim
@@ -534,6 +543,9 @@ default FIB number, see
 .It Cm flags
 the process flags, in hexadecimal (alias
 .Cm f )
+.It Cm flags2
+the additional set of process flags, in hexadecimal (alias
+.Cm f2 )
 .It Cm gid
 effective group ID (alias
 .Cm egid )

@@ -13,7 +13,7 @@ divert(-1)
 #
 
 divert(0)
-VERSIONID(`$Id: aix3.m4,v 8.17 2013/11/22 20:51:15 ca Exp $')
+VERSIONID(`$Id: aix3.m4,v 8.17 2013-11-22 20:51:15 ca Exp $')
 ifdef(`LOCAL_MAILER_PATH',, `define(`LOCAL_MAILER_PATH', /bin/bellmail)')dnl
 ifdef(`LOCAL_MAILER_ARGS',, `define(`LOCAL_MAILER_ARGS', mail $u)')dnl
 _DEFIFNOT(`LOCAL_MAILER_FLAGS', `mn9')dnl

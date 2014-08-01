@@ -12,31 +12,27 @@
 # latest information.
 #
 # An exhaustive list of options and more detailed explanations of the
-# device lines is also present in the ../../conf/NOTES and NOTES files. 
-# If you are in doubt as to the purpose or necessity of a line, check first 
+# device lines is also present in the ../../conf/NOTES and NOTES files.
+# If you are in doubt as to the purpose or necessity of a line, check first
 # in NOTES.
 #
 # $FreeBSD$
 
 ident		PANDABOARD
 
-
-
 # This probably wants to move somewhere else.  Maybe we can create a basic
 # OMAP4340 config, then make a PANDABOARD config that includes the basic one,
 # adds the start addresses and custom devices plus pulls in this hints file.
 
-hints       "PANDABOARD.hints"
+hints		"PANDABOARD.hints"
 
-include     "../ti/omap4/pandaboard/std.pandaboard"
+include 	"../ti/omap4/pandaboard/std.pandaboard"
 
 #To statically compile in device wiring instead of /boot/device.hints
 makeoptions	MODULES_OVERRIDE=""
 makeoptions WITHOUT_MODULES="ahc"
 
-makeoptions	DEBUG=-g		# Build kernel with gdb(1) debug symbols
 options 	HZ=100
-
 options 	SCHED_4BSD		# 4BSD scheduler
 options 	INET			# InterNETworking
 #options 	INET6			# IPv6 communications protocols
@@ -44,16 +40,6 @@ options 	FFS			# Berkeley Fast Filesystem
 options 	SOFTUPDATES		# Enable FFS soft updates support
 options 	UFS_ACL			# Support for access control lists
 options 	UFS_DIRHASH		# Improve performance on big directories
-device		snp
-options 	BREAK_TO_DEBUGGER
-
-options 	NFSCL
-options 	NFS_ROOT		# NFS usable as /, requires NFSCLIENT
-#options 	BOOTP_NFSROOT
-#options 	BOOTP_COMPAT
-#options 	BOOTP
-#options 	BOOTP_NFSV3
-#options 	BOOTP_WIRED_TO=ue0
 options 	GEOM_PART_BSD		# BSD partition scheme
 options 	GEOM_PART_MBR		# MBR partition scheme
 options 	TMPFS			# Efficient memory filesystem
@@ -69,10 +55,34 @@ options 	SYSVMSG			# SYSV-style message queues
 options 	SYSVSEM			# SYSV-style semaphores
 options 	_KPOSIX_PRIORITY_SCHEDULING # Posix P1003_1B real-time extensions
 options 	KBD_INSTALL_CDEV	# install a CDEV entry in /dev
-options 	FREEBSD_BOOT_LOADER
-
 options 	PREEMPTION
 options 	PLATFORM
+options 	FREEBSD_BOOT_LOADER
+options 	VFP			# vfp/neon
+options  	SMP			# Enable multiple cores
+
+# Debugging for use in -current
+makeoptions	DEBUG=-g		# Build kernel with gdb(1) debug symbols
+options 	BREAK_TO_DEBUGGER
+#options 	VERBOSE_SYSINIT		# Enable verbose sysinit messages
+options 	KDB
+options 	DDB			# Enable the kernel debugger
+#options 	INVARIANTS		# Enable calls of extra sanity checking
+#options 	INVARIANT_SUPPORT	# Extra sanity checks of internal structures, required by INVARIANTS
+#options 	WITNESS			# Enable checks to detect deadlocks and cycles
+#options 	WITNESS_SKIPSPIN	# Don't run witness on spinlocks for speed
+#options 	DIAGNOSTIC
+
+# NFS support
+options 	NFSCL
+
+# NFS root
+options 	NFS_ROOT		# NFS usable as /, requires NFSCLIENT
+#options 	BOOTP_NFSROOT
+#options 	BOOTP_COMPAT
+#options 	BOOTP
+#options 	BOOTP_NFSV3
+#options 	BOOTP_WIRED_TO=ue0
 
 # MMC/SD/SDIO Card slot support
 device		mmc			# mmc/sd bus
@@ -84,41 +94,28 @@ device		iicbus
 device		iic
 device		ti_i2c
 
-device		loop
-device		ether
-device		mii
-device		smc
-device		smcphy
+# Console and misc
 device		uart
 device		uart_ns8250
-
-device		gpio
-
 device		pty
-
-device		pl310			# PL310 L2 cache controller
-# Debugging for use in -current
-#options 	VERBOSE_SYSINIT		# Enable verbose sysinit messages
-options 	KDB
-options 	DDB			# Enable the kernel debugger
-#options 	INVARIANTS		# Enable calls of extra sanity checking
-#options 	INVARIANT_SUPPORT	# Extra sanity checks of internal structures, required by INVARIANTS
-#options 	WITNESS			# Enable checks to detect deadlocks and cycles
-#options 	WITNESS_SKIPSPIN	# Don't run witness on spinlocks for speed
-#options 	DIAGNOSTIC
-
+device		snp
 device		md
+device		random			# Entropy device
+device		pl310			# PL310 L2 cache controller
+
+# GPIO
+device		gpio
 
 # The following enables MFS as root, this seems similar to an initramfs or initrd
 # as used in Linux.
 #options 	MD_ROOT
 #options 	MD_ROOT_SIZE=7560
 
-device		random			# Entropy device
+
 
 # USB support
-options 	USB_HOST_ALIGN=64	# Align usb buffers to cache line size.
 device		usb
+options 	USB_HOST_ALIGN=64	# Align usb buffers to cache line size.
 options 	USB_DEBUG
 #options 	USB_REQ_DEBUG
 #options 	USB_VERBOSE
@@ -128,12 +125,19 @@ device		umass
 device		scbus			# SCSI bus (required for SCSI)
 device		da			# Direct Access (disks)
 
+# Ethernet
+device		loop
+device		ether
+device		mii
+device		smc
+device		smcphy
+device		bpf
 
 # USB Ethernet support, requires miibus
 device		miibus
 #device		axe			# ASIX Electronics USB Ethernet
 device		smsc			# SMSC LAN95xx USB Ethernet
-device		bpf
+
 
 # OMAP-specific devices
 device		ti_sdma
@@ -145,6 +149,3 @@ device		twl_clks
 options         FDT
 options         FDT_DTB_STATIC
 makeoptions     FDT_DTS_FILE=pandaboard.dts
-
-options 	VFP			# vfp/neon
-options  	SMP			# Enable multiple cores

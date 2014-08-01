@@ -1,4 +1,4 @@
-/*	$OpenBSD: look.c,v 1.22 2010/09/07 19:58:09 marco Exp $	*/
+/*	$OpenBSD: look.c,v 1.23 2014/05/12 19:11:19 espie Exp $ */
 
 /*
  * Copyright (c) 1989, 1993
@@ -51,36 +51,34 @@ __FBSDID("$FreeBSD$");
 #include "stdd.h"
 #include "extern.h"
 
-static void *hash_alloc(size_t, void *);
-static void hash_free(void *, size_t, void *);
+static void *hash_calloc(size_t, size_t, void *);
+static void hash_free(void *, void *);
 static void *element_alloc(size_t, void *);
 static void setup_definition(struct macro_definition *, const char *,
     const char *);
 
 static struct ohash_info macro_info = {
 	offsetof(struct ndblock, name),
-	NULL, hash_alloc, hash_free, element_alloc };
+	NULL, hash_calloc, hash_free, element_alloc };
 
 struct ohash macros;
 
 /* Support routines for hash tables.  */
 void *
-hash_alloc(size_t s, __unused void *u)
+hash_calloc(size_t n, size_t s, void *u __unused)
 {
-	void *storage = xalloc(s, "hash alloc");
-	if (storage)
-		memset(storage, 0, s);
+	void *storage = xcalloc(n, s, "hash alloc");
 	return storage;
 }
 
 void
-hash_free(void *p, __unused size_t s, __unused void *u)
+hash_free(void *p, void *u __unused)
 {
 	free(p);
 }
 
 void *
-element_alloc(size_t s, __unused void *u)
+element_alloc(size_t s, void *u __unused)
 {
 	return xalloc(s, "element alloc");
 }

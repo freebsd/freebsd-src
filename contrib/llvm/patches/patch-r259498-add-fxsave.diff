@@ -1,6 +1,6 @@
 This patch adds the alias bit_FXSAVE for bit_FXSR to cpuid.h.
 
-Introduced here: http://svn.freebsd.org/changeset/base/259498
+Introduced here: http://svnweb.freebsd.org/changeset/base/259498
 
 Index: tools/clang/lib/Headers/cpuid.h
 ===================================================================

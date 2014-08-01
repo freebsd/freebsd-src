@@ -23,7 +23,7 @@ divert(-1)
 #
 
 divert(0)dnl
-VERSIONID(`$Id: clientproto.mc,v 8.17 2013/11/22 20:51:08 ca Exp $')
+VERSIONID(`$Id: clientproto.mc,v 8.17 2013-11-22 20:51:08 ca Exp $')
 
 OSTYPE(unknown)
 FEATURE(nullclient, mailhost.$m)

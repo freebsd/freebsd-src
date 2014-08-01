@@ -20,7 +20,7 @@
  */
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2013 by Delphix. All rights reserved.
+ * Copyright (c) 2012, 2014 by Delphix. All rights reserved.
  * Copyright (c) 2013 by Saso Kiselkov. All rights reserved.
  */
 
@@ -95,7 +95,6 @@ boolean_t arc_buf_remove_ref(arc_buf_t *buf, void *tag);
 int arc_buf_size(arc_buf_t *buf);
 void arc_release(arc_buf_t *buf, void *tag);
 int arc_released(arc_buf_t *buf);
-int arc_has_callback(arc_buf_t *buf);
 void arc_buf_freeze(arc_buf_t *buf);
 void arc_buf_thaw(arc_buf_t *buf);
 boolean_t arc_buf_eviction_needed(arc_buf_t *buf);
@@ -105,16 +104,16 @@ int arc_referenced(arc_buf_t *buf);
 
 int arc_read(zio_t *pio, spa_t *spa, const blkptr_t *bp,
     arc_done_func_t *done, void *priv, zio_priority_t priority, int flags,
-    uint32_t *arc_flags, const zbookmark_t *zb);
+    uint32_t *arc_flags, const zbookmark_phys_t *zb);
 zio_t *arc_write(zio_t *pio, spa_t *spa, uint64_t txg,
     blkptr_t *bp, arc_buf_t *buf, boolean_t l2arc, boolean_t l2arc_compress,
     const zio_prop_t *zp, arc_done_func_t *ready, arc_done_func_t *physdone,
     arc_done_func_t *done, void *priv, zio_priority_t priority,
-    int zio_flags, const zbookmark_t *zb);
+    int zio_flags, const zbookmark_phys_t *zb);
 void arc_freed(spa_t *spa, const blkptr_t *bp);
 
 void arc_set_callback(arc_buf_t *buf, arc_evict_func_t *func, void *priv);
-int arc_buf_evict(arc_buf_t *buf);
+boolean_t arc_clear_callback(arc_buf_t *buf);
 
 void arc_flush(spa_t *spa);
 void arc_tempreserve_clear(uint64_t reserve);

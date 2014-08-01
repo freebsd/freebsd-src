@@ -2,7 +2,7 @@ Pull in r198923 from upstream clang trunk (by Jakob Stoklund Olesen):
 
   Use the right dynamic linker for SPARC Linux executables.
 
-Introduced here: http://svn.freebsd.org/changeset/base/262262
+Introduced here: http://svnweb.freebsd.org/changeset/base/262262
 
 Index: tools/clang/lib/Driver/Tools.cpp
 ===================================================================

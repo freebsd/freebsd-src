@@ -1090,8 +1090,14 @@ main(int argc, char *argv[])
 		/* signal handling */
 		if (seenalrm) {
 			/* last packet sent, timeout reached? */
-			if (npackets && ntransmitted >= npackets)
-				break;
+			if (npackets && ntransmitted >= npackets) {
+				struct timeval zerotime = {0, 0};
+				itimer.it_value = zerotime;
+				itimer.it_interval = zerotime;
+				(void)setitimer(ITIMER_REAL, &itimer, NULL);
+				seenalrm = 0;   /* clear flag */
+				continue;
+			}
 			retransmit();
 			seenalrm = 0;
 			continue;

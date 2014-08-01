@@ -57,8 +57,8 @@ __FBSDID("$FreeBSD$");
 #include <net/if_arp.h>
 #include <net/ethernet.h>
 #include <net/if_dl.h>
-#include <net/if_media.h>
 #include <net/if_var.h>
+#include <net/if_media.h>
 #include <net/if_vlan_var.h>
 #include <net/zlib.h>
 #include <net/bpf.h>
@@ -1367,9 +1367,9 @@ enum {
 struct bxe_softc {
     /*
      * First entry must be a pointer to the BSD ifnet struct which
-     * has a first element of 'void *if_softc' (which is us).
+     * has a first element of 'void *if_softc' (which is us). XXX
      */
-    struct ifnet   *ifnet;
+    if_t 	    ifp;
     struct ifmedia  ifmedia; /* network interface media structure */
     int             media;
 
@@ -1528,22 +1528,22 @@ struct bxe_softc {
 #define BXE_MCAST_LOCK(sc)        \
     do {                          \
         mtx_lock(&sc->mcast_mtx); \
-        IF_ADDR_LOCK(sc->ifnet);  \
+        IF_ADDR_LOCK(sc->ifp);  \
     } while (0)
 #define BXE_MCAST_UNLOCK(sc)        \
     do {                            \
-        IF_ADDR_UNLOCK(sc->ifnet);  \
+        IF_ADDR_UNLOCK(sc->ifp);  \
         mtx_unlock(&sc->mcast_mtx); \
     } while (0)
 #else
 #define BXE_MCAST_LOCK(sc)         \
     do {                           \
         mtx_lock(&sc->mcast_mtx);  \
-        if_maddr_rlock(sc->ifnet); \
+        if_maddr_rlock(sc->ifp); \
     } while (0)
 #define BXE_MCAST_UNLOCK(sc)         \
     do {                             \
-        if_maddr_runlock(sc->ifnet); \
+        if_maddr_runlock(sc->ifp); \
         mtx_unlock(&sc->mcast_mtx);  \
     } while (0)
 #endif
@@ -2301,10 +2301,19 @@ void ecore_storm_memset_struct(struct bxe_softc *sc, uint32_t addr,
         }                                             \
     } while(0)
 
+#ifdef ECORE_STOP_ON_ERROR
+
 #define bxe_panic(sc, msg) \
     do {                   \
         panic msg;         \
     } while (0)
+
+#else
+
+#define bxe_panic(sc, msg) \
+    device_printf((sc)->dev, "%s (%s,%d)\n", __FUNCTION__, __FILE__, __LINE__);
+
+#endif
 
 #define CATC_TRIGGER(sc, data) REG_WR((sc), 0x2000, (data));
 #define CATC_TRIGGER_START(sc) CATC_TRIGGER((sc), 0xcafecafe)

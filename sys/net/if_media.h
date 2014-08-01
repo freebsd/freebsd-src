@@ -59,8 +59,8 @@ struct ifnet;
 /*
  * Driver callbacks for media status and change requests.
  */
-typedef	int (*ifm_change_cb_t)(struct ifnet *ifp);
-typedef	void (*ifm_stat_cb_t)(struct ifnet *ifp, struct ifmediareq *req);
+typedef	int (*ifm_change_cb_t)(struct ifnet *);
+typedef	void (*ifm_stat_cb_t)(struct ifnet *, struct ifmediareq *req);
 
 /*
  * In-kernel representation of a single supported media type.
@@ -105,6 +105,7 @@ void	ifmedia_set(struct ifmedia *ifm, int mword);
 /* Common ioctl function for getting/setting media, called by driver. */
 int	ifmedia_ioctl(struct ifnet *ifp, struct ifreq *ifr,
 	    struct ifmedia *ifm, u_long cmd);
+
 
 /* Compute baudrate for a given media. */
 uint64_t	ifmedia_baudrate(int);

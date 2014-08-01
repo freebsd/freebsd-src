@@ -80,10 +80,12 @@ bsd_write(lba_t imgsz, void *bootcode)
 	} else
 		memset(buf, 0, BBSIZE);
 
-	imgsz = ncyls * nheads * nsecs;
+	imgsz = (lba_t)ncyls * nheads * nsecs;
 	error = image_set_size(imgsz);
-	if (error)
+	if (error) {
+		free(buf);
 		return (error);
+	}
 
 	d = (void *)(buf + secsz);
 	le32enc(&d->d_magic, DISKMAGIC);

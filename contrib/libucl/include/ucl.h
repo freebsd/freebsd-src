@@ -236,7 +236,13 @@ UCL_EXTERN ucl_object_t* ucl_object_new (void) UCL_WARN_UNUSED_RESULT;
  * @param type type of a new object
  * @return new object
  */
-UCL_EXTERN ucl_object_t* ucl_object_typed_new (unsigned int type) UCL_WARN_UNUSED_RESULT;
+UCL_EXTERN ucl_object_t* ucl_object_typed_new (ucl_type_t type) UCL_WARN_UNUSED_RESULT;
+
+/**
+ * Return the type of an object
+ * @return the object type
+ */
+UCL_EXTERN ucl_type_t ucl_object_type (const ucl_object_t *obj);
 
 /**
  * Convert any string to an ucl object making the specified transformations
@@ -413,6 +419,15 @@ UCL_EXTERN const ucl_object_t* ucl_array_tail (const ucl_object_t *top);
 UCL_EXTERN ucl_object_t* ucl_array_pop_last (ucl_object_t *top);
 
 /**
+ * Return object identified by an index of the array `top`
+ * @param obj object to get a key from (must be of type UCL_ARRAY)
+ * @param index index to return
+ * @return object at the specified index or NULL if index is not found
+ */
+UCL_EXTERN const ucl_object_t* ucl_array_find_index (const ucl_object_t *top,
+		unsigned int index);
+
+/**
  * Removes the first element from the array `top`. Caller must unref the returned object when it is not
  * needed.
  * @param top array ucl object
@@ -534,6 +549,15 @@ UCL_EXTERN const ucl_object_t* ucl_object_find_keyl (const ucl_object_t *obj,
 		const char *key, size_t klen);
 
 /**
+ * Return object identified by dot notation string
+ * @param obj object to search in
+ * @param path dot.notation.path to the path to lookup. May use numeric .index on arrays
+ * @return object matched the specified path or NULL if path is not found
+ */
+UCL_EXTERN const ucl_object_t *ucl_lookup_path (const ucl_object_t *obj,
+		const char *path);
+
+/**
  * Returns a key of an object as a NULL terminated string
  * @param obj CL object
  * @return key or NULL if there is no key
@@ -643,6 +667,19 @@ UCL_EXTERN void ucl_parser_register_macro (struct ucl_parser *parser, const char
 		ucl_macro_handler handler, void* ud);
 
 /**
+ * Handler to detect unregistered variables
+ * @param data variable data
+ * @param len length of variable
+ * @param replace (out) replace value for variable
+ * @param replace_len (out) replace length for variable
+ * @param need_free (out) UCL will free `dest` after usage
+ * @param ud opaque userdata
+ * @return true if variable
+ */
+typedef bool (*ucl_variable_handler) (const unsigned char *data, size_t len,
+		unsigned char **replace, size_t *replace_len, bool *need_free, void* ud);
+
+/**
  * Register new parser variable
  * @param parser parser object
  * @param var variable name
@@ -650,6 +687,15 @@ UCL_EXTERN void ucl_parser_register_macro (struct ucl_parser *parser, const char
  */
 UCL_EXTERN void ucl_parser_register_variable (struct ucl_parser *parser, const char *var,
 		const char *value);
+
+/**
+ * Set handler for unknown variables
+ * @param parser parser structure
+ * @param handler desired handler
+ * @param ud opaque data for the handler
+ */
+UCL_EXTERN void ucl_parser_set_variables_handler (struct ucl_parser *parser,
+		ucl_variable_handler handler, void *ud);
 
 /**
  * Load new chunk to a parser
@@ -740,6 +786,7 @@ UCL_EXTERN bool ucl_parser_set_filevars (struct ucl_parser *parser, const char *
  * @{
  */
 
+struct ucl_emitter_context;
 /**
  * Structure using for emitter callbacks
  */
@@ -752,8 +799,47 @@ struct ucl_emitter_functions {
 	int (*ucl_emitter_append_int) (int64_t elt, void *ud);
 	/** Append floating point element */
 	int (*ucl_emitter_append_double) (double elt, void *ud);
+	/** Free userdata */
+	void (*ucl_emitter_free_func)(void *ud);
 	/** Opaque userdata pointer */
 	void *ud;
+};
+
+struct ucl_emitter_operations {
+	/** Write a primitive element */
+	void (*ucl_emitter_write_elt) (struct ucl_emitter_context *ctx,
+		const ucl_object_t *obj, bool first, bool print_key);
+	/** Start ucl object */
+	void (*ucl_emitter_start_object) (struct ucl_emitter_context *ctx,
+		const ucl_object_t *obj, bool print_key);
+	/** End ucl object */
+	void (*ucl_emitter_end_object) (struct ucl_emitter_context *ctx,
+		const ucl_object_t *obj);
+	/** Start ucl array */
+	void (*ucl_emitter_start_array) (struct ucl_emitter_context *ctx,
+		const ucl_object_t *obj, bool print_key);
+	void (*ucl_emitter_end_array) (struct ucl_emitter_context *ctx,
+		const ucl_object_t *obj);
+};
+
+/**
+ * Structure that defines emitter functions
+ */
+struct ucl_emitter_context {
+	/** Name of emitter (e.g. json, compact_json) */
+	const char *name;
+	/** Unique id (e.g. UCL_EMIT_JSON for standard emitters */
+	int id;
+	/** A set of output functions */
+	const struct ucl_emitter_functions *func;
+	/** A set of output operations */
+	const struct ucl_emitter_operations *ops;
+	/** Current amount of indent tabs */
+	unsigned int ident;
+	/** Top level object */
+	const ucl_object_t *top;
+	/** The rest of context */
+	unsigned char data[1];
 };
 
 /**
@@ -771,11 +857,81 @@ UCL_EXTERN unsigned char *ucl_object_emit (const ucl_object_t *obj,
  * @param obj object
  * @param emit_type if type is #UCL_EMIT_JSON then emit json, if type is
  * #UCL_EMIT_CONFIG then emit config like object
+ * @param emitter a set of emitter functions
  * @return dump of an object (must be freed after using) or NULL in case of error
  */
 UCL_EXTERN bool ucl_object_emit_full (const ucl_object_t *obj,
 		enum ucl_emitter emit_type,
 		struct ucl_emitter_functions *emitter);
+
+/**
+ * Start streamlined UCL object emitter
+ * @param obj top UCL object
+ * @param emit_type emit type
+ * @param emitter a set of emitter functions
+ * @return new streamlined context that should be freed by
+ * `ucl_object_emit_streamline_finish`
+ */
+UCL_EXTERN struct ucl_emitter_context* ucl_object_emit_streamline_new (
+		const ucl_object_t *obj, enum ucl_emitter emit_type,
+		struct ucl_emitter_functions *emitter);
+
+/**
+ * Start object or array container for the streamlined output
+ * @param ctx streamlined context
+ * @param obj container object
+ */
+UCL_EXTERN void ucl_object_emit_streamline_start_container (
+		struct ucl_emitter_context *ctx, const ucl_object_t *obj);
+/**
+ * Add a complete UCL object to streamlined output
+ * @param ctx streamlined context
+ * @param obj object to output
+ */
+UCL_EXTERN void ucl_object_emit_streamline_add_object (
+		struct ucl_emitter_context *ctx, const ucl_object_t *obj);
+/**
+ * End previously added container
+ * @param ctx streamlined context
+ */
+UCL_EXTERN void ucl_object_emit_streamline_end_container (
+		struct ucl_emitter_context *ctx);
+/**
+ * Terminate streamlined container finishing all containers in it
+ * @param ctx streamlined context
+ */
+UCL_EXTERN void ucl_object_emit_streamline_finish (
+		struct ucl_emitter_context *ctx);
+
+/**
+ * Returns functions to emit object to memory
+ * @param pmem target pointer (should be freed by caller)
+ * @return emitter functions structure
+ */
+UCL_EXTERN struct ucl_emitter_functions* ucl_object_emit_memory_funcs (
+		void **pmem);
+
+/**
+ * Returns functions to emit object to FILE *
+ * @param fp FILE * object
+ * @return emitter functions structure
+ */
+UCL_EXTERN struct ucl_emitter_functions* ucl_object_emit_file_funcs (
+		FILE *fp);
+/**
+ * Returns functions to emit object to a file descriptor
+ * @param fd file descriptor
+ * @return emitter functions structure
+ */
+UCL_EXTERN struct ucl_emitter_functions* ucl_object_emit_fd_funcs (
+		int fd);
+
+/**
+ * Free emitter functions
+ * @param f pointer to functions
+ */
+UCL_EXTERN void ucl_object_emit_funcs_free (struct ucl_emitter_functions *f);
+
 /** @} */
 
 /**

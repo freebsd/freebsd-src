@@ -14,6 +14,7 @@ FILES+=		break2.0 break2.0.stdout
 FILES+=		break3.0
 FILES+=		break4.4
 FILES+=		break5.4
+FILES+=		break6.0
 FILES+=		builtin1.0
 FILES+=		case1.0
 FILES+=		case2.0
@@ -99,7 +100,9 @@ FILES+=		local1.0
 FILES+=		local2.0
 FILES+=		local3.0
 FILES+=		local4.0
+.if ${MK_NLS} != "no"
 FILES+=		locale1.0
+.endif
 FILES+=		printf1.0
 FILES+=		printf2.0
 FILES+=		printf3.0

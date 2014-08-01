@@ -369,25 +369,38 @@ udp_dontroute_body()
 	atf_expect_fail "kern/187553 Source address selection for UDP packets with SO_DONTROUTE uses the default FIB"
 	# Configure the TAP interface to use an RFC5737 nonrouteable address
 	# and a non-default fib
-	ADDR="192.0.2.2"
+	ADDR0="192.0.2.2"
+	ADDR1="192.0.2.3"
 	SUBNET="192.0.2.0"
 	MASK="24"
 	# Use a different IP on the same subnet as the target
 	TARGET="192.0.2.100"
+	SRCDIR=`atf_get_srcdir`
 
 	# Check system configuration
 	if [ 0 != `sysctl -n net.add_addr_allfibs` ]; then
 		atf_skip "This test requires net.add_addr_allfibs=0"
 	fi
-	get_fibs 1
+	get_fibs 2
 
-	# Configure a TAP interface
-	setup_tap ${FIB0} ${ADDR} ${MASK}
+	# Configure the TAP interfaces
+	setup_tap ${FIB0} ${ADDR0} ${MASK}
+	TARGET_TAP=${TAP}
+	setup_tap ${FIB1} ${ADDR1} ${MASK}
 
 	# Send a UDP packet with SO_DONTROUTE.  In the failure case, it will
-	# return ENETUNREACH
-	SRCDIR=`atf_get_srcdir`
-	atf_check -o ignore setfib ${FIB0} ${SRCDIR}/udp_dontroute ${TARGET}
+	# return ENETUNREACH, or send the packet to the wrong tap
+	atf_check -o ignore setfib ${FIB0} \
+		${SRCDIR}/udp_dontroute ${TARGET} /dev/${TARGET_TAP}
+	cleanup_tap
+
+	# Repeat, but this time target the other tap
+	setup_tap ${FIB0} ${ADDR0} ${MASK}
+	setup_tap ${FIB1} ${ADDR1} ${MASK}
+	TARGET_TAP=${TAP}
+
+	atf_check -o ignore setfib ${FIB1} \
+		${SRCDIR}/udp_dontroute ${TARGET} /dev/${TARGET_TAP}
 }
 
 udp_dontroute_cleanup()
@@ -467,4 +480,5 @@ cleanup_tap()
 	for TAPD in `cat "tap_devices_to_cleanup"`; do
 		ifconfig ${TAPD} destroy
 	done
+	rm "tap_devices_to_cleanup"
 }

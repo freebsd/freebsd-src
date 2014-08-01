@@ -102,8 +102,8 @@ static apr_status_t proc_mutex_posix_create(apr_proc_mutex_t *new_mutex,
         apr_ssize_t flen = strlen(fname);
         char *p = apr_pstrndup(new_mutex->pool, fname, strlen(fname));
         unsigned int h1, h2;
-        h1 = apr_hashfunc_default((const char *)p, &flen);
-        h2 = rshash(p);
+        h1 = (apr_hashfunc_default((const char *)p, &flen) & 0xffffffff);
+        h2 = (rshash(p) & 0xffffffff);
         apr_snprintf(semname, sizeof(semname), "/ApR.%xH%x", h1, h2);
     } else {
         apr_time_t now;
@@ -951,7 +951,12 @@ APR_DECLARE(apr_status_t) apr_os_proc_mutex_get(apr_os_proc_mutex_t *ospmutex,
                                                 apr_proc_mutex_t *pmutex)
 {
 #if APR_HAS_SYSVSEM_SERIALIZE || APR_HAS_FCNTL_SERIALIZE || APR_HAS_FLOCK_SERIALIZE || APR_HAS_POSIXSEM_SERIALIZE
-    ospmutex->crossproc = pmutex->interproc->filedes;
+    if (pmutex->interproc) {
+        ospmutex->crossproc = pmutex->interproc->filedes;
+    }
+    else {
+        ospmutex->crossproc = -1;
+    }
 #endif
 #if APR_HAS_PROC_PTHREAD_SERIALIZE
     ospmutex->pthread_interproc = pmutex->pthread_interproc;

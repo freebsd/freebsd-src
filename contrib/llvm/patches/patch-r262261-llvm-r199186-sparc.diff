@@ -11,7 +11,7 @@ Pull in r199186 from upstream llvm trunk (by Jakob Stoklund Olesen):
   The allocation order for DPair begins with the QPR registers, so
   register allocation is unlikely to change much.
 
-Introduced here: http://svn.freebsd.org/changeset/base/262261
+Introduced here: http://svnweb.freebsd.org/changeset/base/262261
 
 Index: lib/Target/ARM/ARMISelLowering.cpp
 ===================================================================

@@ -1,6 +1,6 @@
 /******************************************************************************
 
-  Copyright (c) 2001-2013, Intel Corporation 
+  Copyright (c) 2001-2014, Intel Corporation 
   All rights reserved.
   
   Redistribution and use in source and binary forms, with or without 
@@ -536,7 +536,7 @@ s32 e1000_validate_nvm_checksum_i210(struct e1000_hw *hw)
  **/
 s32 e1000_update_nvm_checksum_i210(struct e1000_hw *hw)
 {
-	s32 ret_val = E1000_SUCCESS;
+	s32 ret_val;
 	u16 checksum = 0;
 	u16 i, nvm_data;
 
@@ -615,7 +615,7 @@ bool e1000_get_flash_presence_i210(struct e1000_hw *hw)
  **/
 s32 e1000_update_flash_i210(struct e1000_hw *hw)
 {
-	s32 ret_val = E1000_SUCCESS;
+	s32 ret_val;
 	u32 flup;
 
 	DEBUGFUNC("e1000_update_flash_i210");
@@ -671,7 +671,7 @@ s32 e1000_pool_flash_update_done_i210(struct e1000_hw *hw)
  **/
 static s32 e1000_init_nvm_params_i210(struct e1000_hw *hw)
 {
-	s32 ret_val = E1000_SUCCESS;
+	s32 ret_val;
 	struct e1000_nvm_info *nvm = &hw->nvm;
 
 	DEBUGFUNC("e1000_init_nvm_params_i210");
@@ -756,7 +756,7 @@ out:
 static s32 __e1000_access_xmdio_reg(struct e1000_hw *hw, u16 address,
 				    u8 dev_addr, u16 *data, bool read)
 {
-	s32 ret_val = E1000_SUCCESS;
+	s32 ret_val;
 
 	DEBUGFUNC("__e1000_access_xmdio_reg");
 
@@ -814,4 +814,91 @@ s32 e1000_write_xmdio_reg(struct e1000_hw *hw, u16 addr, u8 dev_addr, u16 data)
 	DEBUGFUNC("e1000_read_xmdio_reg");
 
 	return __e1000_access_xmdio_reg(hw, addr, dev_addr, &data, FALSE);
+}
+
+/**
+ * e1000_pll_workaround_i210
+ * @hw: pointer to the HW structure
+ *
+ * Works around an errata in the PLL circuit where it occasionally
+ * provides the wrong clock frequency after power up.
+ **/
+static s32 e1000_pll_workaround_i210(struct e1000_hw *hw)
+{
+	s32 ret_val;
+	u32 wuc, mdicnfg, ctrl, ctrl_ext, reg_val;
+	u16 nvm_word, phy_word, pci_word, tmp_nvm;
+	int i;
+
+	/* Get and set needed register values */
+	wuc = E1000_READ_REG(hw, E1000_WUC);
+	mdicnfg = E1000_READ_REG(hw, E1000_MDICNFG);
+	reg_val = mdicnfg & ~E1000_MDICNFG_EXT_MDIO;
+	E1000_WRITE_REG(hw, E1000_MDICNFG, reg_val);
+
+	/* Get data from NVM, or set default */
+	ret_val = e1000_read_invm_word_i210(hw, E1000_INVM_AUTOLOAD,
+					    &nvm_word);
+	if (ret_val != E1000_SUCCESS)
+		nvm_word = E1000_INVM_DEFAULT_AL;
+	tmp_nvm = nvm_word | E1000_INVM_PLL_WO_VAL;
+	for (i = 0; i < E1000_MAX_PLL_TRIES; i++) {
+		/* check current state directly from internal PHY */
+		e1000_read_phy_reg_gs40g(hw, (E1000_PHY_PLL_FREQ_PAGE |
+					 E1000_PHY_PLL_FREQ_REG), &phy_word);
+		if ((phy_word & E1000_PHY_PLL_UNCONF)
+		    != E1000_PHY_PLL_UNCONF) {
+			ret_val = E1000_SUCCESS;
+			break;
+		} else {
+			ret_val = -E1000_ERR_PHY;
+		}
+		/* directly reset the internal PHY */
+		ctrl = E1000_READ_REG(hw, E1000_CTRL);
+		E1000_WRITE_REG(hw, E1000_CTRL, ctrl|E1000_CTRL_PHY_RST);
+
+		ctrl_ext = E1000_READ_REG(hw, E1000_CTRL_EXT);
+		ctrl_ext |= (E1000_CTRL_EXT_PHYPDEN | E1000_CTRL_EXT_SDLPE);
+		E1000_WRITE_REG(hw, E1000_CTRL_EXT, ctrl_ext);
+
+		E1000_WRITE_REG(hw, E1000_WUC, 0);
+		reg_val = (E1000_INVM_AUTOLOAD << 4) | (tmp_nvm << 16);
+		E1000_WRITE_REG(hw, E1000_EEARBC_I210, reg_val);
+
+		e1000_read_pci_cfg(hw, E1000_PCI_PMCSR, &pci_word);
+		pci_word |= E1000_PCI_PMCSR_D3;
+		e1000_write_pci_cfg(hw, E1000_PCI_PMCSR, &pci_word);
+		msec_delay(1);
+		pci_word &= ~E1000_PCI_PMCSR_D3;
+		e1000_write_pci_cfg(hw, E1000_PCI_PMCSR, &pci_word);
+		reg_val = (E1000_INVM_AUTOLOAD << 4) | (nvm_word << 16);
+		E1000_WRITE_REG(hw, E1000_EEARBC_I210, reg_val);
+
+		/* restore WUC register */
+		E1000_WRITE_REG(hw, E1000_WUC, wuc);
+	}
+	/* restore MDICNFG setting */
+	E1000_WRITE_REG(hw, E1000_MDICNFG, mdicnfg);
+	return ret_val;
+}
+
+/**
+ *  e1000_init_hw_i210 - Init hw for I210/I211
+ *  @hw: pointer to the HW structure
+ *
+ *  Called to initialize hw for i210 hw family.
+ **/
+s32 e1000_init_hw_i210(struct e1000_hw *hw)
+{
+	s32 ret_val;
+
+	DEBUGFUNC("e1000_init_hw_i210");
+	if ((hw->mac.type >= e1000_i210) &&
+	    !(e1000_get_flash_presence_i210(hw))) {
+		ret_val = e1000_pll_workaround_i210(hw);
+		if (ret_val != E1000_SUCCESS)
+			return ret_val;
+	}
+	ret_val = e1000_init_hw_82575(hw);
+	return ret_val;
 }

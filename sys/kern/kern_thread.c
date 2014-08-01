@@ -234,7 +234,7 @@ thread_fini(void *mem, int size)
  * For a newly created process,
  * link up all the structures and its initial threads etc.
  * called from:
- * {arch}/{arch}/machdep.c   ia64_init(), init386() etc.
+ * {arch}/{arch}/machdep.c   {arch}_init(), init386() etc.
  * proc_dtor() (should go away)
  * proc_init()
  */
@@ -546,7 +546,7 @@ thread_link(struct thread *td, struct proc *p)
 	LIST_INIT(&td->td_lprof[1]);
 	sigqueue_init(&td->td_sigqueue, p);
 	callout_init(&td->td_slpcallout, CALLOUT_MPSAFE);
-	TAILQ_INSERT_HEAD(&p->p_threads, td, td_plist);
+	TAILQ_INSERT_TAIL(&p->p_threads, td, td_plist);
 	p->p_numthreads++;
 }
 

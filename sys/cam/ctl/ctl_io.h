@@ -96,6 +96,7 @@ typedef enum {
 	CTL_FLAG_CONTROL_DEV	= 0x00000080,	/* processor device */
 	CTL_FLAG_ALLOCATED	= 0x00000100,	/* data space allocated */
 	CTL_FLAG_BLOCKED	= 0x00000200,	/* on the blocked queue */
+	CTL_FLAG_ABORT_STATUS	= 0x00000400,	/* return TASK ABORTED status */
 	CTL_FLAG_ABORT		= 0x00000800,	/* this I/O should be aborted */
 	CTL_FLAG_DMA_INPROG	= 0x00001000,	/* DMA in progress */
 	CTL_FLAG_NO_DATASYNC	= 0x00002000,	/* don't cache flush data */
@@ -138,6 +139,10 @@ struct ctl_lba_len_flags {
 	uint64_t lba;
 	uint32_t len;
 	uint32_t flags;
+#define CTL_LLF_READ	0x10000000
+#define CTL_LLF_WRITE	0x20000000
+#define CTL_LLF_VERIFY	0x40000000
+#define CTL_LLF_COMPARE	0x80000000
 };
 
 struct ctl_ptr_len_flags {
@@ -216,8 +221,7 @@ struct ctl_nexus {
 	uint32_t targ_port;		/* Target port, filled in by PORT */
 	struct ctl_id targ_target;	/* Destination target */
 	uint32_t targ_lun;		/* Destination lun */
-	uint32_t (*lun_map_fn)(void *arg, uint32_t lun);
-	void *lun_map_arg;
+	uint32_t targ_mapped_lun;	/* Destination lun CTL-wide */
 };
 
 typedef enum {
@@ -361,6 +365,7 @@ typedef enum {
 	CTL_TASK_ABORT_TASK_SET,
 	CTL_TASK_CLEAR_ACA,
 	CTL_TASK_CLEAR_TASK_SET,
+	CTL_TASK_I_T_NEXUS_RESET,
 	CTL_TASK_LUN_RESET,
 	CTL_TASK_TARGET_RESET,
 	CTL_TASK_BUS_RESET,
@@ -402,7 +407,7 @@ struct ctl_pr_info {
 	ctl_pr_action        action;
 	uint8_t              sa_res_key[8];
 	uint8_t              res_type;
-	uint16_t             residx;
+	uint32_t             residx;
 };
 
 struct ctl_ha_msg_hdr {

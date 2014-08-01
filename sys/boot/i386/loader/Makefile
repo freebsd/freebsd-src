@@ -8,6 +8,8 @@ PROG=		${LOADER}.sym
 INTERNALPROG=
 NEWVERSWHAT?=	"bootstrap loader" x86
 
+NO_PIE=	yes
+
 # architecture-specific loader code
 SRCS=		main.c conf.c vers.c
 
@@ -132,6 +134,6 @@ LDADD=	${LIBFICL} ${LIBFIREWIRE} ${LIBZFSBOOT} ${LIBI386} ${LIBSTAND}
 beforedepend ${OBJS}: machine
 CLEANFILES+=	machine
 CFLAGS+=	-DLOADER_PREFER_AMD64
-machine:
+machine: .NOPATH
 	ln -sf ${.CURDIR}/../../../i386/include machine
 .endif

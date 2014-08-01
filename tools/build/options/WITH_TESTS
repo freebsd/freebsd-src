@@ -1,7 +1,0 @@
-.\" $FreeBSD$
-Set to install the
-.Fx
-Test Suite.
-See
-.Xr tests 7
-for more details.

@@ -244,11 +244,11 @@ printf_doformat(char *fmt, int *rval)
 		/* save format argument */
 		fargv = gargv;
 	} else {
-	fargv = NULL;
+		fargv = NULL;
 	}
 
 	/* skip to field width */
-	while (strchr(skip1, *fmt) != NULL) {
+	while (*fmt && strchr(skip1, *fmt) != NULL) {
 		*dptr++ = *fmt++;
 		*dptr = 0;
 	}
@@ -259,12 +259,19 @@ printf_doformat(char *fmt, int *rval)
 		l = strspn(fmt, digits);
 		if ((l > 0) && (fmt[l] == '$')) {
 			int idx = atoi(fmt);
+			if (fargv == NULL) {
+				warnx("incomplete use of n$");
+				return (NULL);
+			}
 			if (idx <= myargc) {
 				gargv = &myargv[idx - 1];
 			} else {
 				gargv = &myargv[myargc];
 			}
 			fmt += l + 1;
+		} else if (fargv != NULL) {
+			warnx("incomplete use of n$");
+			return (NULL);
 		}
 
 		if (getint(&fieldwidth))
@@ -296,12 +303,19 @@ printf_doformat(char *fmt, int *rval)
 			l = strspn(fmt, digits);
 			if ((l > 0) && (fmt[l] == '$')) {
 				int idx = atoi(fmt);
+				if (fargv == NULL) {
+					warnx("incomplete use of n$");
+					return (NULL);
+				}
 				if (idx <= myargc) {
 					gargv = &myargv[idx - 1];
 				} else {
 					gargv = &myargv[myargc];
 				}
 				fmt += l + 1;
+			} else if (fargv != NULL) {
+				warnx("incomplete use of n$");
+				return (NULL);
 			}
 
 			if (getint(&precision))
@@ -442,8 +456,7 @@ mknum(char *str, char ch)
 	len = strlen(str) + 2;
 	if (len > copy_size) {
 		newlen = ((len + 1023) >> 10) << 10;
-		if ((newcopy = realloc(copy, newlen)) == NULL)
-		{
+		if ((newcopy = realloc(copy, newlen)) == NULL) {
 			warnx("%s", strerror(ENOMEM));
 			return (NULL);
 		}

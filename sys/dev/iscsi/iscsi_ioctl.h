@@ -91,8 +91,8 @@ struct iscsi_session_state {
 struct iscsi_daemon_request {
 	unsigned int			idr_session_id;
 	struct iscsi_session_conf	idr_conf;
-	uint8_t				idr_spare_isid[6];
-	uint16_t			idr_spare_tsih;
+	uint8_t				idr_isid[6];
+	uint16_t			idr_tsih;
 	uint16_t			idr_spare_cid;
 	int				idr_spare[4];
 };
@@ -101,9 +101,9 @@ struct iscsi_daemon_handoff {
 	unsigned int			idh_session_id;
 	int				idh_socket;
 	char				idh_target_alias[ISCSI_ALIAS_LEN];
-	uint8_t				idh_isid[6];
-	uint16_t			idr_spare_tsih;
-	uint16_t			idr_spare_cid;
+	uint8_t				idh_spare_isid[6];
+	uint16_t			idh_tsih;
+	uint16_t			idh_spare_cid;
 	uint32_t			idh_statsn;
 	int				idh_header_digest;
 	int				idh_data_digest;
@@ -202,8 +202,15 @@ struct iscsi_session_list {
 	int				isl_spare[4];
 };
 
+struct iscsi_session_modify {
+	unsigned int			ism_session_id;
+	struct iscsi_session_conf	ism_conf;
+	int				ism_spare[4];
+};
+
 #define	ISCSISADD	_IOW('I', 0x11, struct iscsi_session_add)
 #define	ISCSISREMOVE	_IOW('I', 0x12, struct iscsi_session_remove)
 #define	ISCSISLIST	_IOWR('I', 0x13, struct iscsi_session_list)
+#define	ISCSISMODIFY	_IOWR('I', 0x14, struct iscsi_session_modify)
 
 #endif /* !ISCSI_IOCTL_H */

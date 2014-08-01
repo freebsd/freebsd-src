@@ -2099,9 +2099,13 @@ f_dialog_init()
 	#
 	# Process stored command-line arguments
 	#
+	# NB: Using backticks instead of $(...) for portability since Linux
+	#     bash(1) balks at the right parentheses encountered in the case-
+	#     statement (incorrectly interpreting it as the close of $(...)).
+	#
 	f_dprintf "f_dialog_init: ARGV=[%s] GETOPTS_STDARGS=[%s]" \
 	          "$ARGV" "$GETOPTS_STDARGS"
-	SECURE=$( set -- $ARGV
+	SECURE=`set -- $ARGV
 		while getopts \
 			"$GETOPTS_STDARGS$GETOPTS_EXTRA$GETOPTS_ALLFLAGS" \
 		flag > /dev/null; do
@@ -2109,8 +2113,8 @@ f_dialog_init()
 			S) echo 1 ;;
 			esac
 		done
-	)
-	USE_XDIALOG=$( set -- $ARGV
+	` # END-BACKTICK
+	USE_XDIALOG=`set -- $ARGV
 		while getopts \
 			"$GETOPTS_STDARGS$GETOPTS_EXTRA$GETOPTS_ALLFLAGS" \
 		flag > /dev/null; do
@@ -2118,7 +2122,7 @@ f_dialog_init()
 			S|X) echo 1 ;;
 			esac
 		done
-	)
+	` # END-BACKTICK
 	f_dprintf "f_dialog_init: SECURE=[%s] USE_XDIALOG=[%s]" \
 	          "$SECURE" "$USE_XDIALOG"
 

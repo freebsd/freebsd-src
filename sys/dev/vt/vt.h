@@ -50,11 +50,6 @@
 #include "opt_syscons.h"
 #include "opt_splash.h"
 
-#ifdef DEV_SC
-#error "Build with both syscons and vt is not supported. Please enable only \
-one 'device sc' or 'device vt'"
-#endif
-
 #ifndef	VT_MAXWINDOWS
 #ifdef	MAXCONS
 #define	VT_MAXWINDOWS	MAXCONS
@@ -89,9 +84,8 @@ one 'device sc' or 'device vt'"
 
 #define	VT_SYSCTL_INT(_name, _default, _descr)				\
 static int vt_##_name = _default;					\
-SYSCTL_INT(_kern_vt, OID_AUTO, _name, CTLFLAG_RW, &vt_##_name, _default,\
-		_descr);						\
-TUNABLE_INT("kern.vt." #_name, &vt_##_name);
+SYSCTL_INT(_kern_vt, OID_AUTO, _name, CTLFLAG_RWTUN, &vt_##_name, _default,\
+		_descr);
 
 struct vt_driver;
 
@@ -230,7 +224,7 @@ void vtbuf_extract_marked(struct vt_buf *vb, term_char_t *buf, int sz);
 	((mask)->vbm_row & ((uint64_t)1 << ((row) % 64)))
 #define	VTBUF_DIRTYCOL(mask, col) \
 	((mask)->vbm_col & ((uint64_t)1 << ((col) % 64)))
-#define	VTBUF_SPACE_CHAR	(' ' | TC_WHITE << 26 | TC_BLACK << 29)
+#define	VTBUF_SPACE_CHAR(attr)	(' ' | (attr))
 
 #define	VHS_SET	0
 #define	VHS_CUR	1
@@ -259,6 +253,7 @@ struct vt_window {
 #define	VWF_CONSOLE	0x8	/* Kernel message console window. */
 #define	VWF_VTYLOCK	0x10	/* Prevent window switch. */
 #define	VWF_MOUSE_HIDE	0x20	/* Disable mouse events processing. */
+#define	VWF_READY	0x40	/* Window fully initialized. */
 #define	VWF_SWWAIT_REL	0x10000	/* Program wait for VT acquire is done. */
 #define	VWF_SWWAIT_ACQ	0x20000	/* Program wait for VT release is done. */
 	pid_t			 vw_pid;	/* Terminal holding process */
@@ -351,54 +346,6 @@ void vt_upgrade(struct vt_device *vd);
 #ifndef VT_FB_DEFAULT_HEIGHT
 #define	VT_FB_DEFAULT_HEIGHT	1200
 #endif
-
-#define	VT_CONSDEV_DECLARE(driver, width, height, softc)		\
-static struct terminal	driver ## _consterm;				\
-static struct vt_window	driver ## _conswindow;				\
-static struct vt_device	driver ## _consdev = {				\
-	.vd_driver = &driver,						\
-	.vd_softc = (softc),						\
-	.vd_flags = VDF_INVALID,					\
-	.vd_windows = { [VT_CONSWINDOW] =  &driver ## _conswindow, },	\
-	.vd_curwindow = &driver ## _conswindow,				\
-	.vd_markedwin = NULL,						\
-	.vd_kbstate = 0,						\
-};									\
-static term_char_t	driver ## _constextbuf[(width) * 		\
-	    (VBF_DEFAULT_HISTORY_SIZE)];				\
-static term_char_t	*driver ## _constextbufrows[			\
-	    VBF_DEFAULT_HISTORY_SIZE];					\
-static struct vt_window	driver ## _conswindow = {			\
-	.vw_number = VT_CONSWINDOW,					\
-	.vw_flags = VWF_CONSOLE,					\
-	.vw_buf = {							\
-		.vb_buffer = driver ## _constextbuf,			\
-		.vb_rows = driver ## _constextbufrows,			\
-		.vb_history_size = VBF_DEFAULT_HISTORY_SIZE,		\
-		.vb_curroffset = 0,					\
-		.vb_roffset = 0,					\
-		.vb_flags = VBF_STATIC,					\
-		.vb_mark_start = {					\
-			.tp_row = 0,					\
-			.tp_col = 0,					\
-		},							\
-		.vb_mark_end = {					\
-			.tp_row = 0,					\
-			.tp_col = 0,					\
-		},							\
-		.vb_scr_size = {					\
-			.tp_row = height,				\
-			.tp_col = width,				\
-		},							\
-	},								\
-	.vw_device = &driver ## _consdev,				\
-	.vw_terminal = &driver ## _consterm,				\
-	.vw_kbdmode = K_XLATE,						\
-};									\
-TERMINAL_DECLARE_EARLY(driver ## _consterm, vt_termclass,		\
-    &driver ## _conswindow);						\
-SYSINIT(vt_early_cons, SI_SUB_INT_CONFIG_HOOKS, SI_ORDER_ANY,		\
-    vt_upgrade, &driver ## _consdev)
 
 /* name argument is not used yet. */
 #define VT_DRIVER_DECLARE(name, drv) DATA_SET(vt_drv_set, drv)

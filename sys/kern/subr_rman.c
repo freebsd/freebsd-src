@@ -94,26 +94,22 @@ struct resource_i {
 	u_long	r_end;		/* index of the last entry (inclusive) */
 	u_int	r_flags;
 	void	*r_virtual;	/* virtual address of this resource */
-	struct	device *r_dev;	/* device which has allocated this resource */
-	struct	rman *r_rm;	/* resource manager from whence this came */
+	struct device *r_dev;	/* device which has allocated this resource */
+	struct rman *r_rm;	/* resource manager from whence this came */
 	int	r_rid;		/* optional rid for this resource. */
 };
 
-static int     rman_debug = 0;
-TUNABLE_INT("debug.rman_debug", &rman_debug);
-SYSCTL_INT(_debug, OID_AUTO, rman_debug, CTLFLAG_RW,
+static int rman_debug = 0;
+SYSCTL_INT(_debug, OID_AUTO, rman_debug, CTLFLAG_RWTUN,
     &rman_debug, 0, "rman debug");
 
 #define DPRINTF(params) if (rman_debug) printf params
 
 static MALLOC_DEFINE(M_RMAN, "rman", "Resource manager");
 
-struct	rman_head rman_head;
-static	struct mtx rman_mtx; /* mutex to protect rman_head */
-static	int int_rman_activate_resource(struct rman *rm, struct resource_i *r,
-				       struct resource_i **whohas);
-static	int int_rman_deactivate_resource(struct resource_i *r);
-static	int int_rman_release_resource(struct rman *rm, struct resource_i *r);
+struct rman_head rman_head;
+static struct mtx rman_mtx; /* mutex to protect rman_head */
+static int int_rman_release_resource(struct rman *rm, struct resource_i *r);
 
 static __inline struct resource_i *
 int_alloc_resource(int malloc_flag)
@@ -317,12 +313,12 @@ rman_last_free_region(struct rman *rm, u_long *start, u_long *end)
 int
 rman_adjust_resource(struct resource *rr, u_long start, u_long end)
 {
-	struct	resource_i *r, *s, *t, *new;
-	struct	rman *rm;
+	struct resource_i *r, *s, *t, *new;
+	struct rman *rm;
 
 	/* Not supported for shared resources. */
 	r = rr->__r_i;
-	if (r->r_flags & (RF_TIMESHARE | RF_SHAREABLE))
+	if (r->r_flags & RF_SHAREABLE)
 		return (EINVAL);
 
 	/*
@@ -435,14 +431,16 @@ rman_adjust_resource(struct resource *rr, u_long start, u_long end)
 	return (0);
 }
 
+#define	SHARE_TYPE(f)	(f & (RF_SHAREABLE | RF_PREFETCHABLE))
+
 struct resource *
 rman_reserve_resource_bound(struct rman *rm, u_long start, u_long end,
-		      u_long count, u_long bound,  u_int flags,
-		      struct device *dev)
+			    u_long count, u_long bound, u_int flags,
+			    struct device *dev)
 {
-	u_int	want_activate;
-	struct	resource_i *r, *s, *rv;
-	u_long	rstart, rend, amask, bmask;
+	u_int new_rflags;
+	struct resource_i *r, *s, *rv;
+	u_long rstart, rend, amask, bmask;
 
 	rv = NULL;
 
@@ -450,8 +448,9 @@ rman_reserve_resource_bound(struct rman *rm, u_long start, u_long end,
 	       "length %#lx, flags %u, device %s\n", rm->rm_descr, start, end,
 	       count, flags,
 	       dev == NULL ? "<null>" : device_get_nameunit(dev)));
-	want_activate = (flags & RF_ACTIVE);
-	flags &= ~RF_ACTIVE;
+	KASSERT((flags & RF_FIRSTSHARE) == 0,
+	    ("invalid flags %#x", flags));
+	new_rflags = (flags & ~RF_FIRSTSHARE) | RF_ALLOCATED;
 
 	mtx_lock(rm->rm_mtx);
 
@@ -466,10 +465,8 @@ rman_reserve_resource_bound(struct rman *rm, u_long start, u_long end,
 	}
 
 	amask = (1ul << RF_ALIGNMENT(flags)) - 1;
-	if (start > ULONG_MAX - amask) {
-		DPRINTF(("start+amask would wrap around\n"));
-		goto out;
-	}
+	KASSERT(start <= ULONG_MAX - amask,
+	    ("start (%#lx) + amask (%#lx) would wrap around", start, amask));
 
 	/* If bound is 0, bmask will also be 0 */
 	bmask = ~(bound - 1);
@@ -522,7 +519,7 @@ rman_reserve_resource_bound(struct rman *rm, u_long start, u_long end,
 			if ((s->r_end - s->r_start + 1) == count) {
 				DPRINTF(("candidate region is entire chunk\n"));
 				rv = s;
-				rv->r_flags |= RF_ALLOCATED | flags;
+				rv->r_flags = new_rflags;
 				rv->r_dev = dev;
 				goto out;
 			}
@@ -542,7 +539,7 @@ rman_reserve_resource_bound(struct rman *rm, u_long start, u_long end,
 				goto out;
 			rv->r_start = rstart;
 			rv->r_end = rstart + count - 1;
-			rv->r_flags = flags | RF_ALLOCATED;
+			rv->r_flags = new_rflags;
 			rv->r_dev = dev;
 			rv->r_rm = rm;
 
@@ -599,11 +596,11 @@ rman_reserve_resource_bound(struct rman *rm, u_long start, u_long end,
 	 * additional work, but this does not seem warranted.)
 	 */
 	DPRINTF(("no unshared regions found\n"));
-	if ((flags & (RF_SHAREABLE | RF_TIMESHARE)) == 0)
+	if ((flags & RF_SHAREABLE) == 0)
 		goto out;
 
 	for (s = r; s && s->r_end <= end; s = TAILQ_NEXT(s, r_link)) {
-		if ((s->r_flags & flags) == flags &&
+		if (SHARE_TYPE(s->r_flags) == SHARE_TYPE(flags) &&
 		    s->r_start >= start &&
 		    (s->r_end - s->r_start + 1) == count &&
 		    (s->r_start & amask) == 0 &&
@@ -613,8 +610,7 @@ rman_reserve_resource_bound(struct rman *rm, u_long start, u_long end,
 				goto out;
 			rv->r_start = s->r_start;
 			rv->r_end = s->r_end;
-			rv->r_flags = s->r_flags &
-				(RF_ALLOCATED | RF_SHAREABLE | RF_TIMESHARE);
+			rv->r_flags = new_rflags;
 			rv->r_dev = dev;
 			rv->r_rm = rm;
 			if (s->r_sharehead == NULL) {
@@ -635,26 +631,11 @@ rman_reserve_resource_bound(struct rman *rm, u_long start, u_long end,
 			goto out;
 		}
 	}
-
 	/*
 	 * We couldn't find anything.
 	 */
-out:
-	/*
-	 * If the user specified RF_ACTIVE in the initial flags,
-	 * which is reflected in `want_activate', we attempt to atomically
-	 * activate the resource.  If this fails, we release the resource
-	 * and indicate overall failure.  (This behavior probably doesn't
-	 * make sense for RF_TIMESHARE-type resources.)
-	 */
-	if (rv && want_activate) {
-		struct resource_i *whohas;
-		if (int_rman_activate_resource(rm, rv, &whohas)) {
-			int_rman_release_resource(rm, rv);
-			rv = NULL;
-		}
-	}
 
+out:
 	mtx_unlock(rm->rm_mtx);
 	return (rv == NULL ? NULL : &rv->r_r);
 }
@@ -668,102 +649,28 @@ rman_reserve_resource(struct rman *rm, u_long start, u_long end, u_long count,
 	    dev));
 }
 
-static int
-int_rman_activate_resource(struct rman *rm, struct resource_i *r,
-			   struct resource_i **whohas)
-{
-	struct resource_i *s;
-	int ok;
-
-	/*
-	 * If we are not timesharing, then there is nothing much to do.
-	 * If we already have the resource, then there is nothing at all to do.
-	 * If we are not on a sharing list with anybody else, then there is
-	 * little to do.
-	 */
-	if ((r->r_flags & RF_TIMESHARE) == 0
-	    || (r->r_flags & RF_ACTIVE) != 0
-	    || r->r_sharehead == NULL) {
-		r->r_flags |= RF_ACTIVE;
-		return 0;
-	}
-
-	ok = 1;
-	for (s = LIST_FIRST(r->r_sharehead); s && ok;
-	     s = LIST_NEXT(s, r_sharelink)) {
-		if ((s->r_flags & RF_ACTIVE) != 0) {
-			ok = 0;
-			*whohas = s;
-		}
-	}
-	if (ok) {
-		r->r_flags |= RF_ACTIVE;
-		return 0;
-	}
-	return EBUSY;
-}
-
 int
 rman_activate_resource(struct resource *re)
 {
-	int rv;
-	struct resource_i *r, *whohas;
+	struct resource_i *r;
 	struct rman *rm;
 
 	r = re->__r_i;
 	rm = r->r_rm;
 	mtx_lock(rm->rm_mtx);
-	rv = int_rman_activate_resource(rm, r, &whohas);
+	r->r_flags |= RF_ACTIVE;
 	mtx_unlock(rm->rm_mtx);
-	return rv;
-}
-
-int
-rman_await_resource(struct resource *re, int pri, int timo)
-{
-	int	rv;
-	struct	resource_i *r, *whohas;
-	struct	rman *rm;
-
-	r = re->__r_i;
-	rm = r->r_rm;
-	mtx_lock(rm->rm_mtx);
-	for (;;) {
-		rv = int_rman_activate_resource(rm, r, &whohas);
-		if (rv != EBUSY)
-			return (rv);	/* returns with mutex held */
-
-		if (r->r_sharehead == NULL)
-			panic("rman_await_resource");
-		whohas->r_flags |= RF_WANTED;
-		rv = msleep(r->r_sharehead, rm->rm_mtx, pri, "rmwait", timo);
-		if (rv) {
-			mtx_unlock(rm->rm_mtx);
-			return (rv);
-		}
-	}
-}
-
-static int
-int_rman_deactivate_resource(struct resource_i *r)
-{
-
-	r->r_flags &= ~RF_ACTIVE;
-	if (r->r_flags & RF_WANTED) {
-		r->r_flags &= ~RF_WANTED;
-		wakeup(r->r_sharehead);
-	}
 	return 0;
 }
 
 int
 rman_deactivate_resource(struct resource *r)
 {
-	struct	rman *rm;
+	struct rman *rm;
 
 	rm = r->__r_i->r_rm;
 	mtx_lock(rm->rm_mtx);
-	int_rman_deactivate_resource(r->__r_i);
+	r->__r_i->r_flags &= ~RF_ACTIVE;
 	mtx_unlock(rm->rm_mtx);
 	return 0;
 }
@@ -771,10 +678,10 @@ rman_deactivate_resource(struct resource *r)
 static int
 int_rman_release_resource(struct rman *rm, struct resource_i *r)
 {
-	struct	resource_i *s, *t;
+	struct resource_i *s, *t;
 
 	if (r->r_flags & RF_ACTIVE)
-		int_rman_deactivate_resource(r);
+		r->r_flags &= ~RF_ACTIVE;
 
 	/*
 	 * Check for a sharing list first.  If there is one, then we don't
@@ -865,9 +772,9 @@ out:
 int
 rman_release_resource(struct resource *re)
 {
-	int	rv;
-	struct	resource_i *r;
-	struct	rman *rm;
+	int rv;
+	struct resource_i *r;
+	struct rman *rm;
 
 	r = re->__r_i;
 	rm = r->r_rm;
@@ -880,7 +787,7 @@ rman_release_resource(struct resource *re)
 uint32_t
 rman_make_alignment_flags(uint32_t size)
 {
-	int	i;
+	int i;
 
 	/*
 	 * Find the hightest bit set, and add one if more than one bit
@@ -898,96 +805,112 @@ rman_make_alignment_flags(uint32_t size)
 void
 rman_set_start(struct resource *r, u_long start)
 {
+
 	r->__r_i->r_start = start;
 }
 
 u_long
 rman_get_start(struct resource *r)
 {
+
 	return (r->__r_i->r_start);
 }
 
 void
 rman_set_end(struct resource *r, u_long end)
 {
+
 	r->__r_i->r_end = end;
 }
 
 u_long
 rman_get_end(struct resource *r)
 {
+
 	return (r->__r_i->r_end);
 }
 
 u_long
 rman_get_size(struct resource *r)
 {
+
 	return (r->__r_i->r_end - r->__r_i->r_start + 1);
 }
 
 u_int
 rman_get_flags(struct resource *r)
 {
+
 	return (r->__r_i->r_flags);
 }
 
 void
 rman_set_virtual(struct resource *r, void *v)
 {
+
 	r->__r_i->r_virtual = v;
 }
 
 void *
 rman_get_virtual(struct resource *r)
 {
+
 	return (r->__r_i->r_virtual);
 }
 
 void
 rman_set_bustag(struct resource *r, bus_space_tag_t t)
 {
+
 	r->r_bustag = t;
 }
 
 bus_space_tag_t
 rman_get_bustag(struct resource *r)
 {
+
 	return (r->r_bustag);
 }
 
 void
 rman_set_bushandle(struct resource *r, bus_space_handle_t h)
 {
+
 	r->r_bushandle = h;
 }
 
 bus_space_handle_t
 rman_get_bushandle(struct resource *r)
 {
+
 	return (r->r_bushandle);
 }
 
 void
 rman_set_rid(struct resource *r, int rid)
 {
+
 	r->__r_i->r_rid = rid;
 }
 
 int
 rman_get_rid(struct resource *r)
 {
+
 	return (r->__r_i->r_rid);
 }
 
 void
 rman_set_device(struct resource *r, struct device *dev)
 {
+
 	r->__r_i->r_dev = dev;
 }
 
 struct device *
 rman_get_device(struct resource *r)
 {
+
 	return (r->__r_i->r_dev);
 }
 

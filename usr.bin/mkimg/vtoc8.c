@@ -71,7 +71,7 @@ vtoc8_write(lba_t imgsz, void *bootcode __unused)
 	int error, n;
 	uint16_t ofs, sum;
 
-	imgsz = ncyls * nheads * nsecs;
+	imgsz = (lba_t)ncyls * nheads * nsecs;
 
 	memset(&vtoc8, 0, sizeof(vtoc8));
 	sprintf(vtoc8.ascii, "FreeBSD%lldM",

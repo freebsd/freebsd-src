@@ -12,7 +12,7 @@ divert(-1)
 #
 
 divert(0)
-VERSIONID(`$Id: solaris11.m4,v 1.2 2013/11/22 20:51:15 ca Exp $')
+VERSIONID(`$Id: solaris11.m4,v 1.2 2013-11-22 20:51:15 ca Exp $')
 divert(-1)
 
 ifdef(`UUCP_MAILER_ARGS',, `define(`UUCP_MAILER_ARGS', `uux - -r -a$g $h!rmail ($u)')')

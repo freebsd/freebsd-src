@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 17, 2014
+.Dd July 3, 2014
 .Dt GSTAT 8
 .Os
 .Sh NAME
@@ -32,7 +32,7 @@
 .Nd print statistics about GEOM disks
 .Sh SYNOPSIS
 .Nm
-.Op Fl abcdo
+.Op Fl abcdop
 .Op Fl f Ar filter
 .Op Fl I Ar interval
 .Sh DESCRIPTION
@@ -84,6 +84,8 @@ or
 .Cm us
 (the default) indicates that the update interval is specified in
 seconds, milliseconds, or microseconds, respectively.
+.It Fl p
+Only display physical providers (those with rank of 1).
 .El
 .Sh EXIT STATUS
 .Ex -std

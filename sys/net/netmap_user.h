@@ -133,6 +133,7 @@ nm_ring_space(struct netmap_ring *ring)
 #ifndef HAVE_NETMAP_WITH_LIBS
 #define HAVE_NETMAP_WITH_LIBS
 
+#include <stdio.h>
 #include <sys/time.h>
 #include <sys/mman.h>
 #include <string.h>	/* memset */
@@ -192,7 +193,7 @@ struct nm_desc {
 	struct nm_desc *self; /* point to self if netmap. */
 	int fd;
 	void *mem;
-	int memsize;
+	uint32_t memsize;
 	int done_mmap;	/* set if mem is the result of mmap */
 	struct netmap_if * const nifp;
 	uint16_t first_tx_ring, last_tx_ring, cur_tx_ring;
@@ -293,7 +294,7 @@ typedef void (*nm_cb_t)(u_char *, const struct nm_pkthdr *, const u_char *d);
  *		if passed a netmap_desc with mem != NULL,
  *		use that memory instead of mmap.
  */
- 
+
 static struct nm_desc *nm_open(const char *ifname, const struct nmreq *req,
 	uint64_t flags, const struct nm_desc *arg);
 
@@ -404,8 +405,6 @@ nm_open(const char *ifname, const struct nmreq *req,
 		errmsg = "invalid ringid";
 		goto fail;
 	}
-	/* add the *XPOLL flags */
-	nr_ringid |= new_flags & (NETMAP_NO_TX_POLL | NETMAP_DO_RX_POLL);
 
 	d = (struct nm_desc *)calloc(1, sizeof(*d));
 	if (d == NULL) {
@@ -461,6 +460,9 @@ nm_open(const char *ifname, const struct nmreq *req,
 			d->req.nr_flags = parent->req.nr_flags;
 		}
 	}
+	/* add the *XPOLL flags */
+	d->req.nr_ringid |= new_flags & (NETMAP_NO_TX_POLL | NETMAP_DO_RX_POLL);
+
 	if (ioctl(d->fd, NIOCREGIF, &d->req)) {
 		errmsg = "NIOCREGIF failed";
 		goto fail;
@@ -472,10 +474,11 @@ nm_open(const char *ifname, const struct nmreq *req,
 		d->memsize = parent->memsize;
 		d->mem = parent->mem;
 	} else {
+		/* XXX TODO: check if memsize is too large (or there is overflow) */
 		d->memsize = d->req.nr_memsize;
 		d->mem = mmap(0, d->memsize, PROT_WRITE | PROT_READ, MAP_SHARED,
 				d->fd, 0);
-		if (d->mem == NULL) {
+		if (d->mem == MAP_FAILED) {
 			errmsg = "mmap failed";
 			goto fail;
 		}
@@ -531,7 +534,7 @@ nm_open(const char *ifname, const struct nmreq *req,
 	}
     }
 #endif /* debugging */
-		
+
 	d->cur_tx_ring = d->first_tx_ring;
 	d->cur_rx_ring = d->first_rx_ring;
 	return d;

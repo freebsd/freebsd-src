@@ -221,23 +221,22 @@ ip6_ipsec_input(struct mbuf *m, int nxt)
 
 int
 ip6_ipsec_output(struct mbuf **m, struct inpcb *inp, int *flags, int *error,
-    struct ifnet **ifp, struct secpolicy **sp)
+    struct ifnet **ifp)
 {
 #ifdef IPSEC
+	struct secpolicy *sp = NULL;
 	struct tdb_ident *tdbi;
 	struct m_tag *mtag;
 	/* XXX int s; */
-	if (sp == NULL)
-		return 1;
 	mtag = m_tag_find(*m, PACKET_TAG_IPSEC_PENDING_TDB, NULL);
 	if (mtag != NULL) {
 		tdbi = (struct tdb_ident *)(mtag + 1);
-		*sp = ipsec_getpolicy(tdbi, IPSEC_DIR_OUTBOUND);
-		if (*sp == NULL)
+		sp = ipsec_getpolicy(tdbi, IPSEC_DIR_OUTBOUND);
+		if (sp == NULL)
 			*error = -EINVAL;	/* force silent drop */
 		m_tag_delete(*m, mtag);
 	} else {
-		*sp = ipsec4_checkpolicy(*m, IPSEC_DIR_OUTBOUND, *flags,
+		sp = ipsec4_checkpolicy(*m, IPSEC_DIR_OUTBOUND, *flags,
 					error, inp);
 	}
 
@@ -248,9 +247,9 @@ ip6_ipsec_output(struct mbuf **m, struct inpcb *inp, int *flags, int *error,
 	 *    sp == NULL, error == -EINVAL  discard packet w/o error
 	 *    sp == NULL, error != 0	    discard packet, report error
 	 */
-	if (*sp != NULL) {
+	if (sp != NULL) {
 		/* Loop detection, check if ipsec processing already done */
-		KASSERT((*sp)->req != NULL, ("ip_output: no ipsec request"));
+		KASSERT(sp->req != NULL, ("ip_output: no ipsec request"));
 		for (mtag = m_tag_first(*m); mtag != NULL;
 		     mtag = m_tag_next(*m, mtag)) {
 			if (mtag->m_tag_cookie != MTAG_ABI_COMPAT)
@@ -264,12 +263,12 @@ ip6_ipsec_output(struct mbuf **m, struct inpcb *inp, int *flags, int *error,
 			 * an SA; e.g. on first reference.  If it occurs,
 			 * then we let ipsec4_process_packet do its thing.
 			 */
-			if ((*sp)->req->sav == NULL)
+			if (sp->req->sav == NULL)
 				break;
 			tdbi = (struct tdb_ident *)(mtag + 1);
-			if (tdbi->spi == (*sp)->req->sav->spi &&
-			    tdbi->proto == (*sp)->req->sav->sah->saidx.proto &&
-			    bcmp(&tdbi->dst, &(*sp)->req->sav->sah->saidx.dst,
+			if (tdbi->spi == sp->req->sav->spi &&
+			    tdbi->proto == sp->req->sav->sah->saidx.proto &&
+			    bcmp(&tdbi->dst, &sp->req->sav->sah->saidx.dst,
 				 sizeof (union sockaddr_union)) == 0) {
 				/*
 				 * No IPsec processing is needed, free
@@ -278,7 +277,7 @@ ip6_ipsec_output(struct mbuf **m, struct inpcb *inp, int *flags, int *error,
 				 * NB: null pointer to avoid free at
 				 *     done: below.
 				 */
-				KEY_FREESP(sp), *sp = NULL;
+				KEY_FREESP(&sp), sp = NULL;
 				goto done;
 			}
 		}
@@ -286,16 +285,37 @@ ip6_ipsec_output(struct mbuf **m, struct inpcb *inp, int *flags, int *error,
 		/*
 		 * Do delayed checksums now because we send before
 		 * this is done in the normal processing path.
-		 * For IPv6 we do delayed checksums in ip6_output.c.
 		 */
 #ifdef INET
 		if ((*m)->m_pkthdr.csum_flags & CSUM_DELAY_DATA) {
-			ipseclog((LOG_DEBUG,
-			    "%s: we do not support IPv4 over IPv6", __func__));
 			in_delayed_cksum(*m);
 			(*m)->m_pkthdr.csum_flags &= ~CSUM_DELAY_DATA;
 		}
 #endif
+		if ((*m)->m_pkthdr.csum_flags & CSUM_DELAY_DATA_IPV6) {
+			in6_delayed_cksum(*m, (*m)->m_pkthdr.len - sizeof(struct ip6_hdr),
+							sizeof(struct ip6_hdr));
+			(*m)->m_pkthdr.csum_flags &= ~CSUM_DELAY_DATA_IPV6;
+		}
+#ifdef SCTP
+		if ((*m)->m_pkthdr.csum_flags & CSUM_SCTP_IPV6) {
+			sctp_delayed_cksum(*m, sizeof(struct ip6_hdr));
+			(*m)->m_pkthdr.csum_flags &= ~CSUM_SCTP_IPV6;
+		}
+#endif
+
+		/* NB: callee frees mbuf */
+		*error = ipsec6_process_packet(*m, sp->req);
+
+		if (*error == EJUSTRETURN) {
+			/*
+			 * We had a SP with a level of 'use' and no SA. We
+			 * will just continue to process the packet without
+			 * IPsec processing.
+			 */
+			*error = 0;
+			goto done;
+		}
 
 		/*
 		 * Preserve KAME behaviour: ENOENT can be returned
@@ -306,7 +326,7 @@ ip6_ipsec_output(struct mbuf **m, struct inpcb *inp, int *flags, int *error,
 		 */
 		if (*error == ENOENT)
 			*error = 0;
-		goto do_ipsec;
+		goto reinjected;
 	} else {	/* sp == NULL */
 		if (*error != 0) {
 			/*
@@ -323,10 +343,16 @@ ip6_ipsec_output(struct mbuf **m, struct inpcb *inp, int *flags, int *error,
 		}
 	}
 done:
+	if (sp != NULL)
+		KEY_FREESP(&sp);
 	return 0;
-do_ipsec:
+reinjected:
+	if (sp != NULL)
+		KEY_FREESP(&sp);
 	return -1;
 bad:
+	if (sp != NULL)
+		KEY_FREESP(&sp);
 	return 1;
 #endif /* IPSEC */
 	return 0;

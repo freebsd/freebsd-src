@@ -146,11 +146,11 @@ CLEANFILES+=	${KMOD:S/$/.c/}
 ${_firmw:C/\:.*$/.fwo/}:	${_firmw:C/\:.*$//}
 	@${ECHO} ${_firmw:C/\:.*$//} ${.ALLSRC:M*${_firmw:C/\:.*$//}}
 	@if [ -e ${_firmw:C/\:.*$//} ]; then			\
-		${LD} -b binary --no-warn-mismatch ${LDFLAGS}	\
+		${LD} -b binary --no-warn-mismatch ${_LDFLAGS}	\
 		    -r -d -o ${.TARGET}	${_firmw:C/\:.*$//};	\
 	else							\
 		ln -s ${.ALLSRC:M*${_firmw:C/\:.*$//}} ${_firmw:C/\:.*$//}; \
-		${LD} -b binary --no-warn-mismatch ${LDFLAGS}	\
+		${LD} -b binary --no-warn-mismatch ${_LDFLAGS}	\
 		    -r -d -o ${.TARGET}	${_firmw:C/\:.*$//};	\
 		rm ${_firmw:C/\:.*$//};				\
 	fi
@@ -178,7 +178,7 @@ ${PROG}.symbols: ${FULLPROG}
 
 .if ${__KLD_SHARED} == yes
 ${FULLPROG}: ${KMOD}.kld
-	${LD} -Bshareable ${LDFLAGS} -o ${.TARGET} ${KMOD}.kld
+	${LD} -Bshareable ${_LDFLAGS} -o ${.TARGET} ${KMOD}.kld
 .if !defined(DEBUG_FLAGS)
 	${OBJCOPY} --strip-debug ${.TARGET}
 .endif
@@ -194,7 +194,7 @@ ${KMOD}.kld: ${OBJS}
 .else
 ${FULLPROG}: ${OBJS}
 .endif
-	${LD} ${LDFLAGS} -r -d -o ${.TARGET} ${OBJS}
+	${LD} ${_LDFLAGS} -r -d -o ${.TARGET} ${OBJS}
 .if ${MK_CTF} != "no"
 	${CTFMERGE} ${CTFFLAGS} -o ${.TARGET} ${OBJS}
 .endif
@@ -222,6 +222,7 @@ _ILINKS+=${MACHINE_CPUARCH}
 .if ${MACHINE_CPUARCH} == "i386" || ${MACHINE_CPUARCH} == "amd64"
 _ILINKS+=x86
 .endif
+CLEANFILES+=${_ILINKS}
 
 all: objwarn ${PROG}
 

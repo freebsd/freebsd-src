@@ -28,7 +28,7 @@
 .\"     From: @(#)ifconfig.8	8.3 (Berkeley) 1/5/94
 .\" $FreeBSD$
 .\"
-.Dd October 21, 2013
+.Dd June 5, 2014
 .Dt IFCONFIG 8
 .Os
 .Sh NAME
@@ -141,13 +141,13 @@ The link-level
 .Pq Dq link
 address
 is specified as a series of colon-separated hex digits.
-This can be used to
-e.g.,\& set a new MAC address on an ethernet interface, though the
-mechanism used is not ethernet-specific.
+This can be used to, for example,
+set a new MAC address on an Ethernet interface, though the
+mechanism used is not Ethernet specific.
 If the interface is already
 up when this option is used, it will be briefly brought down and
 then brought back up again in order to ensure that the receive
-filter in the underlying ethernet hardware is properly reprogrammed.
+filter in the underlying Ethernet hardware is properly reprogrammed.
 .It Ar address_family
 Specify the
 address family
@@ -169,6 +169,18 @@ and
 .Dq lladdr
 are synonyms for
 .Dq link .
+When using the
+.Fl l
+flag, the
+.Dq ether
+address family has special meaning and is no longer synonymous with
+.Dq link
+or
+.Dq lladdr .
+Specifying
+.Fl l Dq ether
+will list only Ethernet interfaces, excluding all other interface types,
+including the loopback interface.
 .It Ar dest_address
 Specify the address of the correspondent on the other end
 of a point to point link.
@@ -649,7 +661,8 @@ Clear a flag
 .Cm defaultif .
 .It Cm ifdisabled
 Set a flag to disable all of IPv6 network communications on the
-specified interface.  Note that if there are already configured IPv6
+specified interface.
+Note that if there are already configured IPv6
 addresses on that interface, all of them are marked as
 .Dq tentative
 and DAD will be performed when this flag is cleared.
@@ -666,9 +679,11 @@ Set a flag to enable Neighbor Unreachability Detection.
 Clear a flag
 .Cm nud .
 .It Cm no_prefer_iface
-Set a flag to not prefer address on the interface as candidates of the
-source address for outgoing packets, even when the interface is
-outgoing interface.
+Set a flag to not honor rule 5 of source address selection in RFC 3484.         
+In practice this means the address on the outgoing interface will not be
+preferred, effectively yielding the decision to the address selection
+policy table, configurable with
+.Xr ip6addrctl 8 .
 .It Cm -no_prefer_iface
 Clear a flag
 .Cm no_prefer_iface .
@@ -1075,7 +1090,8 @@ specifies the number of beacon intervals between DTIM
 and must be in the range 1 to 15.
 By default DTIM is 1 (i.e., DTIM occurs at each beacon).
 .It Cm quiet
-Enable the use of quiet IE.  Hostap will use this to silence other
+Enable the use of quiet IE.
+Hostap will use this to silence other
 stations to reduce interference for radar detection when
 operating on 5GHz frequency and doth support is enabled.
 Use
@@ -1090,9 +1106,11 @@ scheduled quiet intervals defined by Quiet element.
 Set the QUIET
 .Ar count
 to the number of TBTTs until the beacon interval during which the
-next quiet interval shall start.  A value of 1 indicates the quiet
+next quiet interval shall start.
+A value of 1 indicates the quiet
 interval will start during the beacon interval starting at the next
-TBTT. A value 0 is reserved.
+TBTT.
+A value 0 is reserved.
 .It Cm quiet_offset Ar offset
 Set the QUIET
 .Ar offset
@@ -2317,7 +2335,6 @@ src/dst address for IPv4 or IPv6.
 .It Cm l4
 src/dst port for TCP/UDP/SCTP.
 .El
-.Pp
 .El
 .Pp
 The following parameters are specific to IP tunnel interfaces,
@@ -2342,7 +2359,8 @@ Another name for the
 parameter.
 .It Cm accept_rev_ethip_ver
 Set a flag to accept both correct EtherIP packets and ones
-with reversed version field.  Enabled by default.
+with reversed version field.
+Enabled by default.
 This is for backward compatibility with
 .Fx 6.1 ,
 6.2, 6.3, 7.0, and 7.1.
@@ -2351,7 +2369,8 @@ Clear a flag
 .Cm accept_rev_ethip_ver .
 .It Cm send_rev_ethip_ver
 Set a flag to send EtherIP packets with reversed version
-field intentionally.  Disabled by default.
+field intentionally.
+Disabled by default.
 This is for backward compatibility with
 .Fx 6.1 ,
 6.2, 6.3, 7.0, and 7.1.
@@ -2434,7 +2453,7 @@ pseudo-interface.
 The
 .Xr vlan 4
 interface is assigned a
-copy of the parent interface's flags and the parent's ethernet address.
+copy of the parent interface's flags and the parent's Ethernet address.
 The
 .Cm vlandev
 and
@@ -2554,6 +2573,11 @@ The
 .Fl l
 flag may be used to list all available interfaces on the system, with
 no other additional information.
+If an
+.Ar address_family
+is specified, only interfaces of that type will be listed.
+.Fl l Dq ether
+will list only Ethernet adapters, excluding the loopback interface.
 Use of this flag is mutually exclusive
 with all other flags and commands, except for
 .Fl d

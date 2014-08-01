@@ -42,6 +42,7 @@
 #include <net/ethernet.h>
 #include <net/if_vlan_var.h>
 #include <sys/sockio.h>
+#include <sys/sysctl.h>
 
 static void mlx4_en_init_locked(struct mlx4_en_priv *priv);
 static void mlx4_en_sysctl_stat(struct mlx4_en_priv *priv);

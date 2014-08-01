@@ -2480,7 +2480,7 @@ zyd_tx_start(struct zyd_softc *sc, struct mbuf *m0, struct ieee80211_node *ni)
 	const struct ieee80211_txparam *tp;
 	struct ieee80211_key *k;
 	int rate, totlen;
-	static uint8_t ratediv[] = ZYD_TX_RATEDIV;
+	static const uint8_t ratediv[] = ZYD_TX_RATEDIV;
 	uint8_t phy;
 	uint16_t pktlen;
 	uint32_t bits;

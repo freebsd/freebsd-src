@@ -29,7 +29,7 @@ NO_WSOMETIMES_UNINITIALIZED=	-Wno-error-sometimes-uninitialized
 # enough to error out the whole kernel build.  Display them anyway, so there is
 # some incentive to fix them eventually.
 CWARNEXTRA?=	-Wno-error-tautological-compare -Wno-error-empty-body \
-		-Wno-error-parentheses-equality -Wno-unused-function \
+		-Wno-error-parentheses-equality -Wno-error-unused-function \
 		${NO_WFORMAT}
 .endif
 
@@ -69,15 +69,6 @@ INLINE_LIMIT?=	8000
 
 .if ${MACHINE_CPUARCH} == "arm"
 INLINE_LIMIT?=	8000
-.endif
-
-#
-# For IA-64, we use r13 for the kernel globals pointer and we only use
-# a very small subset of float registers for integer divides.
-#
-.if ${MACHINE_CPUARCH} == "ia64"
-CFLAGS+=	-ffixed-r13 -mfixed-range=f32-f127 -fpic #-mno-sdata
-INLINE_LIMIT?=	15000
 .endif
 
 #
@@ -147,7 +138,7 @@ CFLAGS+=	-ffreestanding
 #
 # GCC SSP support
 #
-.if ${MK_SSP} != "no" && ${MACHINE_CPUARCH} != "ia64" && \
+.if ${MK_SSP} != "no" && \
     ${MACHINE_CPUARCH} != "arm" && ${MACHINE_CPUARCH} != "mips"
 CFLAGS+=	-fstack-protector
 .endif

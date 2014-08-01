@@ -122,6 +122,7 @@ static VNET_DEFINE(struct rwlock, tw_lock);
 
 static void	tcp_tw_2msl_reset(struct tcptw *, int);
 static void	tcp_tw_2msl_stop(struct tcptw *, int);
+static int	tcp_twrespond(struct tcptw *, int);
 
 /*
  * tw_pcbref() bumps the reference count on an tw in order to maintain
@@ -362,7 +363,7 @@ tcp_twstart(struct tcpcb *tp)
  * looking for a pcb in the listen state.  Returns 0 otherwise.
  */
 int
-tcp_twcheck(struct inpcb *inp, struct tcpopt *to, struct tcphdr *th,
+tcp_twcheck(struct inpcb *inp, struct tcpopt *to __unused, struct tcphdr *th,
     struct mbuf *m, int tlen)
 {
 	struct tcptw *tw;
@@ -508,7 +509,7 @@ tcp_twclose(struct tcptw *tw, int reuse)
 	TCPSTAT_INC(tcps_closed);
 }
 
-int
+static int
 tcp_twrespond(struct tcptw *tw, int flags)
 {
 	struct inpcb *inp = tw->tw_inpcb;

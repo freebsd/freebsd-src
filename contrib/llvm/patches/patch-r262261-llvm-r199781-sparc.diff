@@ -2,7 +2,7 @@ Pull in r199781 from upstream llvm trunk (by Venkatraman Govindaraju):
 
   [Sparc] Add support for inline assembly constraint 'I'.
 
-Introduced here: http://svn.freebsd.org/changeset/base/262261
+Introduced here: http://svnweb.freebsd.org/changeset/base/262261
 
 Index: test/CodeGen/SPARC/inlineasm.ll
 ===================================================================

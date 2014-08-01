@@ -4,7 +4,7 @@ Pull in r202422 from upstream llvm trunk (by Roman Divacky):
   expensive libcall. Also, Qp_neg is not implemented on at least
   FreeBSD. This is also what gcc is doing.
 
-Introduced here: http://svn.freebsd.org/changeset/base/262582
+Introduced here: http://svnweb.freebsd.org/changeset/base/262582
 
 Index: lib/Target/Sparc/SparcISelLowering.cpp
 ===================================================================

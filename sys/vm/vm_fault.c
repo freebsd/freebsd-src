@@ -106,6 +106,7 @@ __FBSDID("$FreeBSD$");
 #define PFFOR 4
 
 static int vm_fault_additional_pages(vm_page_t, int, int, vm_page_t *, int *);
+static void vm_fault_unwire(vm_map_t, vm_offset_t, vm_offset_t, boolean_t);
 
 #define	VM_FAULT_READ_BEHIND	8
 #define	VM_FAULT_READ_MAX	(1 + VM_FAULT_READ_AHEAD_MAX)
@@ -755,7 +756,7 @@ vnode_locked:
 					vm_page_unlock(fs.first_m);
 					
 					vm_page_lock(fs.m);
-					vm_page_unwire(fs.m, FALSE);
+					vm_page_unwire(fs.m, PQ_INACTIVE);
 					vm_page_unlock(fs.m);
 				}
 				/*
@@ -917,7 +918,7 @@ vnode_locked:
 		if (wired)
 			vm_page_wire(fs.m);
 		else
-			vm_page_unwire(fs.m, 1);
+			vm_page_unwire(fs.m, PQ_ACTIVE);
 	} else
 		vm_page_activate(fs.m);
 	if (m_hold != NULL) {
@@ -1186,7 +1187,7 @@ vm_fault_wire(vm_map_t map, vm_offset_t start, vm_offset_t end,
  *
  *	Unwire a range of virtual addresses in a map.
  */
-void
+static void
 vm_fault_unwire(vm_map_t map, vm_offset_t start, vm_offset_t end,
     boolean_t fictitious)
 {
@@ -1208,7 +1209,7 @@ vm_fault_unwire(vm_map_t map, vm_offset_t start, vm_offset_t end,
 			if (!fictitious) {
 				m = PHYS_TO_VM_PAGE(pa);
 				vm_page_lock(m);
-				vm_page_unwire(m, TRUE);
+				vm_page_unwire(m, PQ_ACTIVE);
 				vm_page_unlock(m);
 			}
 		}
@@ -1351,18 +1352,16 @@ again:
 			/*
 			 * Allocate a page in the destination object.
 			 */
-			do {
-				dst_m = vm_page_alloc(dst_object,
-				    (src_object == dst_object ? src_pindex :
-				    0) + dst_pindex, VM_ALLOC_NORMAL);
-				if (dst_m == NULL) {
-					VM_OBJECT_WUNLOCK(dst_object);
-					VM_OBJECT_RUNLOCK(object);
-					VM_WAIT;
-					VM_OBJECT_WLOCK(dst_object);
-					goto again;
-				}
-			} while (dst_m == NULL);
+			dst_m = vm_page_alloc(dst_object, (src_object ==
+			    dst_object ? src_pindex : 0) + dst_pindex,
+			    VM_ALLOC_NORMAL);
+			if (dst_m == NULL) {
+				VM_OBJECT_WUNLOCK(dst_object);
+				VM_OBJECT_RUNLOCK(object);
+				VM_WAIT;
+				VM_OBJECT_WLOCK(dst_object);
+				goto again;
+			}
 			pmap_copy_page(src_m, dst_m);
 			VM_OBJECT_RUNLOCK(object);
 			dst_m->valid = VM_PAGE_BITS_ALL;
@@ -1392,7 +1391,7 @@ again:
 		if (upgrade) {
 			if (src_m != dst_m) {
 				vm_page_lock(src_m);
-				vm_page_unwire(src_m, 0);
+				vm_page_unwire(src_m, PQ_INACTIVE);
 				vm_page_unlock(src_m);
 				vm_page_lock(dst_m);
 				vm_page_wire(dst_m);

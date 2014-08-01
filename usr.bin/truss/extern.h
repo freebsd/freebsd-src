@@ -55,10 +55,6 @@ extern long i386_syscall_exit(struct trussinfo *, int);
 extern void i386_linux_syscall_entry(struct trussinfo *, int);
 extern long i386_linux_syscall_exit(struct trussinfo *, int);
 #endif
-#ifdef __ia64__
-extern void ia64_syscall_entry(struct trussinfo *, int);
-extern long ia64_syscall_exit(struct trussinfo *, int);
-#endif
 #ifdef __powerpc__
 extern void powerpc_syscall_entry(struct trussinfo *, int);
 extern long powerpc_syscall_exit(struct trussinfo *, int);

@@ -124,7 +124,7 @@ main(int argc, CHAR16 *argv[])
 	archsw.arch_copyout = x86_efi_copyout;
 	archsw.arch_readin = x86_efi_readin;
 
-	interact();			/* doesn't return */
+	interact(NULL);			/* doesn't return */
 
 	return (EFI_SUCCESS);		/* keep compiler happy */
 }

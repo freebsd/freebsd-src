@@ -591,6 +591,7 @@ vatpic_write(struct vatpic *vatpic, struct atpic *atpic, bool in, int port,
 	int error;
 	uint8_t val;
 
+	error = 0;
 	val = *eax;
 
 	VATPIC_LOCK(vatpic);
