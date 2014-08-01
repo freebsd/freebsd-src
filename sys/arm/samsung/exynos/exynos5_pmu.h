@@ -14,7 +14,7 @@
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
  * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
  * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
  * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
@@ -26,34 +26,5 @@
  * $FreeBSD$
  */
 
-/dts-v1/;
-
-/include/ "exynos5420.dtsi"
-
-/ {
-	model = "Arndale Octa Board";
-
-	memory {
-		device_type = "memory";
-		reg = < 0x20000000 0x7f200000 >;  /* 2G */
-	};
-
-	SOC: Exynos5@0 {
-		serial3: serial@12C30000 {
-			status = "okay";
-		};
-
-		usb@12110000 {
-			status = "okay";
-		};
-
-		sdhci@12220000 {
-			status = "disabled";
-		};
-	};
-
-	chosen {
-		stdin = &serial3;
-		stdout = &serial3;
-	};
-};
+int usb2_phy_power_on(void);
+int usbdrd_phy_power_on(void);

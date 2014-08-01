@@ -1,4 +1,4 @@
-# Kernel configuration for Chromebook (Exynos5 Dual machine).
+# Kernel configuration for Chromebook2 (Exynos5 Octa machine).
 #
 # For more information on this file, please read the config(5) manual page,
 # and/or the handbook section on Kernel Configuration Files:
@@ -17,12 +17,14 @@
 #
 # $FreeBSD$
 
-include		"EXYNOS5250"
-ident		CHROMEBOOK
+#NO_UNIVERSE
 
-hints		"CHROMEBOOK.hints"
+include		"EXYNOS5420"
+ident		CHROMEBOOK-PEACH-PIT
 
-device		chrome_ec_i2c	# Chrome Embedded Controller
+hints		"CHROMEBOOK-PEACH-PIT.hints"
+
+device		chrome_ec_spi	# Chrome Embedded Controller
 device		chrome_kb	# Chrome Keyboard
 
 # Framebuffer
@@ -30,5 +32,16 @@ device		vt
 device		kbdmux
 device		ukbd
 
+# Uncomment this for NFS root
+#options	NFS_ROOT		# NFS usable as /, requires NFSCL
+#options	BOOTP_NFSROOT
+#options	BOOTP_COMPAT
+#options	BOOTP
+#options	BOOTP_NFSV3
+#options	BOOTP_WIRED_TO=ue0
+#options	ROOTDEVNAME=\"nfs:10.5.0.1:/tftpboot/root\"
+
 #FDT
-options 	FDT
+options		FDT
+options		FDT_DTB_STATIC
+makeoptions	FDT_DTS_FILE=exynos5420-peach-pit.dts
