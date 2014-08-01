@@ -20337,7 +20337,7 @@ arm_parse_arch (char * str)
     }
 
   for (opt = arm_archs; opt->name != NULL; opt++)
-    if (streq (opt->name, str))
+    if (strncmp (opt->name, str, optlen) == 0)
       {
 	march_cpu_opt = &opt->value;
 	march_fpu_opt = &opt->default_fpu;
