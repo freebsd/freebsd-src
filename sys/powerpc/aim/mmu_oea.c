@@ -1184,9 +1184,6 @@ moea_enter_locked(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 	} else
 		pte_lo |= PTE_BR;
 
-	if (prot & VM_PROT_EXECUTE)
-		pvo_flags |= PVO_EXECUTABLE;
-
 	if (wired)
 		pvo_flags |= PVO_WIRED;
 
@@ -1742,8 +1739,6 @@ moea_protect(mmu_t mmu, pmap_t pm, vm_offset_t sva, vm_offset_t eva,
 	for (pvo = RB_NFIND(pvo_tree, &pm->pmap_pvo, &key);
 	    pvo != NULL && PVO_VADDR(pvo) < eva; pvo = tpvo) {
 		tpvo = RB_NEXT(pvo_tree, &pm->pmap_pvo, pvo);
-		if ((prot & VM_PROT_EXECUTE) == 0)
-			pvo->pvo_vaddr &= ~PVO_EXECUTABLE;
 
 		/*
 		 * Grab the PTE pointer before we diddle with the cached PTE
@@ -1999,8 +1994,6 @@ moea_pvo_enter(pmap_t pm, uma_zone_t zone, struct pvo_head *pvo_head,
 	pvo->pvo_pmap = pm;
 	LIST_INSERT_HEAD(&moea_pvo_table[ptegidx], pvo, pvo_olink);
 	pvo->pvo_vaddr &= ~ADDR_POFF;
-	if (flags & VM_PROT_EXECUTE)
-		pvo->pvo_vaddr |= PVO_EXECUTABLE;
 	if (flags & PVO_WIRED)
 		pvo->pvo_vaddr |= PVO_WIRED;
 	if (pvo_head != &moea_pvo_kunmanaged)
