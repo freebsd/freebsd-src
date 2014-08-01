@@ -796,25 +796,14 @@ vdev_queue_io_done(zio_t *zio)
 
 	vq->vq_io_complete_ts = gethrtime();
 
-	if (zio->io_flags & ZIO_FLAG_QUEUE_IO_DONE) {
-		/*
-		 * Executing from a previous vdev_queue_io_done so
-		 * to avoid recursion we just unlock and return.
-		 */
-		mutex_exit(&vq->vq_lock);
-		return;
-	}
-
 	while ((nio = vdev_queue_io_to_issue(vq)) != NULL) {
 		mutex_exit(&vq->vq_lock);
-		nio->io_flags |= ZIO_FLAG_QUEUE_IO_DONE;
 		if (nio->io_done == vdev_queue_agg_io_done) {
 			zio_nowait(nio);
 		} else {
 			zio_vdev_io_reissue(nio);
 			zio_execute(nio);
 		}
-		nio->io_flags &= ~ZIO_FLAG_QUEUE_IO_DONE;
 		mutex_enter(&vq->vq_lock);
 	}
 
