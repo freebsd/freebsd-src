@@ -827,6 +827,8 @@ typedef struct _ipfw_xtable_info {
 	uint32_t	refcnt;		/* number of references		*/
 	uint32_t	count;		/* Number of records		*/
 	uint32_t	size;		/* Total size of records(export)*/
+	uint32_t	limit;		/* Max number of records	*/
+	uint32_t	spare;
 	char		tablename[64];	/* table name */
 	char		algoname[64];	/* algorithm name		*/
 	ifpw_ta_tinfo	ta_info;	/* additional algo stats	*/

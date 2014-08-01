@@ -411,22 +411,12 @@ ta_add_cidr(void *ta_state, struct table_info *ti, struct tentry_info *tei,
 	else
 		rnh = ti->xstate;
 
-	rn = rnh->rnh_addaddr(tb->addr_ptr, tb->mask_ptr, rnh, tb->ent_ptr);
-	
-	if (rn == NULL) {
+	/* Search for an entry first */
+	rn = rnh->rnh_lookup(tb->addr_ptr, tb->mask_ptr, rnh);
+	if (rn != NULL) {
 		if ((tei->flags & TEI_FLAGS_UPDATE) == 0)
 			return (EEXIST);
 		/* Record already exists. Update value if we're asked to */
-		rn = rnh->rnh_lookup(tb->addr_ptr, tb->mask_ptr, rnh);
-		if (rn == NULL) {
-
-			/*
-			 * Radix may have failed addition for other reasons
-			 * like failure in mask allocation code.
-			 */
-			return (EINVAL);
-		}
-		
 		if (tei->subtype == AF_INET) {
 			/* IPv4. */
 			value = ((struct radix_cidr_entry *)tb->ent_ptr)->value;
@@ -444,6 +434,15 @@ ta_add_cidr(void *ta_state, struct table_info *ti, struct tentry_info *tei,
 		return (0);
 	}
 
+	if ((tei->flags & TEI_FLAGS_DONTADD) != 0)
+		return (EFBIG);
+
+	rn = rnh->rnh_addaddr(tb->addr_ptr, tb->mask_ptr, rnh, tb->ent_ptr);
+	if (rn == NULL) {
+		/* Unknown error */
+		return (EINVAL);
+	}
+	
 	tb->ent_ptr = NULL;
 	*pnum = 1;
 
@@ -1167,6 +1166,8 @@ ta_add_chash(void *ta_state, struct table_info *ti, struct tentry_info *tei,
 		tei->flags |= TEI_FLAGS_UPDATED;
 		*pnum = 0;
 	} else {
+		if ((tei->flags & TEI_FLAGS_DONTADD) != 0)
+			return (EFBIG);
 		SLIST_INSERT_HEAD(&head[hash], ent, next);
 		tb->ent_ptr = NULL;
 		*pnum = 1;
@@ -1715,6 +1716,9 @@ ta_add_ifidx(void *ta_state, struct table_info *ti, struct tentry_info *tei,
 		return (0);
 	}
 
+	if ((tei->flags & TEI_FLAGS_DONTADD) != 0)
+		return (EFBIG);
+
 	/* Link to internal list */
 	ipfw_objhash_add(icfg->ii, &ife->no);
 
@@ -2205,6 +2209,9 @@ ta_add_numarray(void *ta_state, struct table_info *ti, struct tentry_info *tei,
 		*pnum = 0;
 		return (0);
 	}
+
+	if ((tei->flags & TEI_FLAGS_DONTADD) != 0)
+		return (EFBIG);
 
 	res = badd(&tb->na.number, &tb->na, cfg->main_ptr, cfg->used,
 	    sizeof(struct numarray), compare_numarray);
@@ -2891,6 +2898,9 @@ ta_add_fhash(void *ta_state, struct table_info *ti, struct tentry_info *tei,
 		tei->flags |= TEI_FLAGS_UPDATED;
 		*pnum = 0;
 	} else {
+		if ((tei->flags & TEI_FLAGS_DONTADD) != 0)
+			return (EFBIG);
+
 		SLIST_INSERT_HEAD(&head[hash], ent, next);
 		tb->ent_ptr = NULL;
 		*pnum = 1;

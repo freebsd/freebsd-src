@@ -251,9 +251,10 @@ table_fill_objheader(ipfw_obj_header *oh, ipfw_xtable_info *i)
 }
 
 static struct _s_x tablenewcmds[] = {
-      { "type",		TOK_TYPE},
+      { "type",		TOK_TYPE },
       { "valtype",	TOK_VALTYPE },
       { "algo",		TOK_ALGO },
+      { "limit",	TOK_LIMIT },
       { NULL, 0 }
 };
 
@@ -341,6 +342,11 @@ table_create(ipfw_obj_header *oh, int ac, char *av[])
 		ac--; av++;
 
 		switch (tcmd) {
+		case TOK_LIMIT:
+			NEED1("limit value required");
+			xi.limit = strtol(*av, NULL, 10);
+			ac--; av++;
+			break;
 		case TOK_TYPE:
 			NEED1("table type required");
 			/* Type may have suboptions after ':' */
@@ -485,6 +491,8 @@ table_show_info(ipfw_xtable_info *i, void *arg)
 	printf(" valtype: %s, references: %u\n", vtype, i->refcnt);
 	printf(" algorithm: %s\n", i->algoname);
 	printf(" items: %u, size: %u\n", i->count, i->size);
+	if (i->limit > 0)
+		printf(" limit: %u\n", i->limit);
 
 	return (0);
 }
@@ -561,8 +569,8 @@ table_modify_record(ipfw_obj_header *oh, int ac, char *av[], int add, int update
 	ipfw_obj_tentry tent;
 	ipfw_xtable_info xi;
 	uint8_t type, vtype;
-	int cmd;
-	char *texterr;
+	int cmd, error;
+	char *texterr, *etxt;
 
 	if (ac == 0)
 		errx(EX_USAGE, "address required");
@@ -592,14 +600,34 @@ table_modify_record(ipfw_obj_header *oh, int ac, char *av[], int add, int update
 		if (ac > 0)
 			tentry_fill_value(oh, &tent, *av, type, vtype);
 		cmd = IP_FW_TABLE_XADD;
-		texterr = "setsockopt(IP_FW_TABLE_XADD)";
+		texterr = "Adding record failed";
 	} else {
 		cmd = IP_FW_TABLE_XDEL;
-		texterr = "setsockopt(IP_FW_TABLE_XDEL)";
+		texterr = "Deleting record failed";
 	}
 
-	if (table_do_modify_record(cmd, oh, &tent, update) != 0)
-		err(EX_OSERR, "%s", texterr);
+	if ((error = table_do_modify_record(cmd, oh, &tent, update)) == 0)
+		return;
+
+	/* Try to provide more human-readable error */
+	switch (error) {
+	case EEXIST:
+		etxt = "record already exists";
+		break;
+	case EFBIG:
+		etxt = "limit hit";
+		break;
+	case ESRCH:
+		etxt = "table not found";
+		break;
+	case ENOENT:
+		etxt = "record not found";
+		break;
+	default:
+		etxt = strerror(error);
+	}
+
+	errx(EX_OSERR, "%s: %s", texterr, etxt);
 }
 
 static int

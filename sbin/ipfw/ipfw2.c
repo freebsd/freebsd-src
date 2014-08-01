@@ -580,11 +580,12 @@ do_cmd(int optname, void *optval, uintptr_t optlen)
  *
  * Assumes op3 header is already embedded.
  * Calls setsockopt() with IP_FW3 as kernel-visible opcode.
- * Returns 0 on success or -1 otherwise.
+ * Returns 0 on success or errno otherwise.
  */
 int
 do_set3(int optname, ip_fw3_opheader *op3, uintptr_t optlen)
 {
+	int errno;
 
 	if (co.test_only)
 		return (0);
@@ -596,7 +597,10 @@ do_set3(int optname, ip_fw3_opheader *op3, uintptr_t optlen)
 
 	op3->opcode = optname;
 
-	return (setsockopt(ipfw_socket, IPPROTO_IP, IP_FW3, op3, optlen));
+	if (setsockopt(ipfw_socket, IPPROTO_IP, IP_FW3, op3, optlen) != 0)
+		return (errno);
+
+	return (0);
 }
 
 int
