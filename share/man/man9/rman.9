@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 29, 2011
+.Dd July 15, 2014
 .Dt RMAN 9
 .Os
 .Sh NAME
@@ -141,13 +141,11 @@ represented by a 16-bit flag register, as follows.
 #define RF_ALLOCATED    0x0001 /* resource has been reserved */
 #define RF_ACTIVE       0x0002 /* resource allocation has been activated */
 #define RF_SHAREABLE    0x0004 /* resource permits contemporaneous sharing */
-#define RF_TIMESHARE    0x0008 /* resource permits time-division sharing */
-#define RF_WANTED       0x0010 /* somebody is waiting for this resource */
 #define RF_FIRSTSHARE   0x0020 /* first in sharing list */
 #define RF_PREFETCHABLE 0x0040 /* resource is prefetchable */
 .Ed
 .Pp
-The remainder of the flag bits are used to represent the desired alignment
+Bits 15:10  of the flag register are used to represent the desired alignment
 of the resource within the region.
 .Pp
 The
@@ -299,12 +297,9 @@ The
 .Fa bound
 argument must be a power of two.
 It may be set to zero to specify no boundary restriction.
-The default behavior is to allocate an exclusive segment, unless the
+A shared segment will be allocated if the
 .Dv RF_SHAREABLE
-or
-.Dv RF_TIMESHARE
-flags are set, in which case a shared
-segment will be allocated.
+flag is set, otherwise an exclusive segment will be allocated.
 If this shared segment already exists, the caller has its device
 added to the list of consumers.
 .Pp
