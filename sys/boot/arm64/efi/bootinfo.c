@@ -29,7 +29,9 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/reboot.h>
 #include <sys/linker.h>
+#include <sys/boot.h>
 
 #include <machine/metadata.h>
 
@@ -98,6 +100,81 @@ UINTN arm64_efi_mapkey;
 #define MOD_END(a, c) {					\
 	COPY32(MODINFO_END, a, c);			\
 	COPY32(0, a, c);				\
+}
+
+static int
+bi_getboothowto(char *kargs)
+{
+	char	*cp;
+	char	*p;
+	int	howto;
+	int	active;
+	int	i;
+
+	/* Parse kargs */
+	howto = 0;
+	if (kargs != NULL) {
+		cp = kargs;
+		active = 0;
+		while (*cp != 0) {
+			if (!active && (*cp == '-'))
+				active = 1;
+			else if (active)
+				switch (*cp) {
+				case 'a':
+					howto |= RB_ASKNAME;
+					break;
+				case 'C':
+					howto |= RB_CDROM;
+					break;
+				case 'd':
+					howto |= RB_KDB;
+					break;
+				case 'D':
+					howto |= RB_MULTIPLE;
+					break;
+				case 'm':
+					howto |= RB_MUTE;
+					break;
+				case 'g':
+					howto |= RB_GDB;
+					break;
+				case 'h':
+					howto |= RB_SERIAL;
+					break;
+				case 'p':
+					howto |= RB_PAUSE;
+					break;
+				case 'r':
+					howto |= RB_DFLTROOT;
+					break;
+				case 's':
+					howto |= RB_SINGLE;
+					break;
+				case 'v':
+					howto |= RB_VERBOSE;
+					break;
+				default:
+					active = 0;
+					break;
+				}
+				cp++;
+		}
+	}
+
+	/* get equivalents from the environment */
+	for (i = 0; howto_names[i].ev != NULL; i++) {
+		if (getenv(howto_names[i].ev) != NULL)
+			howto |= howto_names[i].mask;
+	}
+	if ((p = getenv("console"))) {
+		if (!strcmp(p, "comconsole"))
+			howto |= RB_SERIAL;
+		if (!strcmp(p, "nullconsole"))
+			howto |= RB_MUTE;
+	}
+
+	return(howto);
 }
 
 static vm_offset_t
@@ -203,6 +280,9 @@ bi_load(char *args, vm_offset_t *modulep, vm_offset_t *kernendp)
 	uint64_t kernend;
 	vm_offset_t addr, size;
 	vm_offset_t dtbp;
+	int howto;
+
+	howto = bi_getboothowto(args);
 
 	/* find the last module in the chain */
 	addr = 0;
@@ -219,6 +299,8 @@ bi_load(char *args, vm_offset_t *modulep, vm_offset_t *kernendp)
 	if (kfp == NULL)
 		panic("can't find kernel file");
 	kernend = 0;	/* fill it in later */
+
+	file_addmetadata(kfp, MODINFOMD_HOWTO, sizeof howto, &howto);
 
 	dtbfp = file_findfile(NULL, "dtb");
 	if (dtbfp != NULL) {
