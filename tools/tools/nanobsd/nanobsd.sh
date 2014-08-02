@@ -895,10 +895,11 @@ pprint() (
 
 usage () {
 	(
-	echo "Usage: $0 [-bfiknqvw] [-c config_file]"
+	echo "Usage: $0 [-bfiKknqvw] [-c config_file]"
 	echo "	-b	suppress builds (both kernel and world)"
 	echo "	-f	suppress code slice extraction"
 	echo "	-i	suppress disk image build"
+	echo "	-K	suppress installkernel"
 	echo "	-k	suppress buildkernel"
 	echo "	-n	add -DNO_CLEAN to buildworld, buildkernel, etc"
 	echo "	-q	make output more quiet"
@@ -914,12 +915,13 @@ usage () {
 
 do_clean=true
 do_kernel=true
+do_installkernel=true
 do_world=true
 do_image=true
 do_copyout_partition=true
 
 set +e
-args=`getopt bc:fhiknqvw $*`
+args=`getopt Kbc:fhiknqvw $*`
 if [ $? -ne 0 ] ; then
 	usage
 	exit 2
@@ -934,6 +936,10 @@ do
 	-b)
 		do_world=false
 		do_kernel=false
+		shift
+		;;
+	-K)
+		do_installkernel=false
 		shift
 		;;
 	-k)
@@ -1083,7 +1089,11 @@ make_conf_install
 install_world
 install_etc
 setup_nanobsd_etc
-install_kernel
+if $do_installkernel ; then
+	install_kernel
+else
+	pprint 2 "Skipping installkernel (as instructed)"
+fi
 
 run_customize
 setup_nanobsd
