@@ -444,43 +444,55 @@ enum {
 	FL_STARVING	= (1 << 0), /* on the adapter's list of starving fl's */
 	FL_DOOMED	= (1 << 1), /* about to be destroyed */
 	FL_BUF_PACKING	= (1 << 2), /* buffer packing enabled */
+	FL_BUF_RESUME	= (1 << 3), /* resume from the middle of the frame */
 };
 
-#define FL_RUNNING_LOW(fl)	(fl->cap - fl->needed <= fl->lowat)
-#define FL_NOT_RUNNING_LOW(fl)	(fl->cap - fl->needed >= 2 * fl->lowat)
+#define FL_RUNNING_LOW(fl) \
+    (IDXDIFF(fl->dbidx * 8, fl->cidx, fl->sidx * 8) <= fl->lowat)
+#define FL_NOT_RUNNING_LOW(fl) \
+    (IDXDIFF(fl->dbidx * 8, fl->cidx, fl->sidx * 8) >= 2 * fl->lowat)
 
 struct sge_fl {
-	bus_dma_tag_t desc_tag;
-	bus_dmamap_t desc_map;
-	struct cluster_layout cll_def;	/* default refill zone, layout */
-	struct cluster_layout cll_alt;	/* alternate refill zone, layout */
 	struct mtx fl_lock;
-	char lockname[16];
-	int flags;
-
 	__be64 *desc;		/* KVA of descriptor ring, ptr to addresses */
-	bus_addr_t ba;		/* bus address of descriptor ring */
 	struct fl_sdesc *sdesc;	/* KVA of software descriptor ring */
-	uint32_t cap;		/* max # of buffers, for convenience */
-	uint16_t qsize;		/* size (# of entries) of the queue */
-	uint16_t cntxt_id;	/* SGE context id for the freelist */
-	uint32_t cidx;		/* consumer idx (buffer idx, NOT hw desc idx) */
-	uint32_t rx_offset;	/* offset in fl buf (when buffer packing) */
-	uint32_t pidx;		/* producer idx (buffer idx, NOT hw desc idx) */
-	uint32_t needed;	/* # of buffers needed to fill up fl. */
-	uint32_t lowat;		/* # of buffers <= this means fl needs help */
-	uint32_t pending;	/* # of bufs allocated since last doorbell */
-	TAILQ_ENTRY(sge_fl) link; /* All starving freelists */
+	struct cluster_layout cll_def;	/* default refill zone, layout */
+	uint16_t lowat;		/* # of buffers <= this means fl needs help */
+	int flags;
+	uint16_t buf_boundary;
 
-	struct mbuf *m0;
-	struct mbuf **pnext;
-	u_int remaining;
+	/* The 16b idx all deal with hw descriptors */
+	uint16_t dbidx;		/* hw pidx after last doorbell */
+	uint16_t sidx;		/* index of status page */
+	volatile uint16_t hw_cidx;
+
+	/* The 32b idx are all buffer idx, not hardware descriptor idx */
+	uint32_t cidx;		/* consumer index */
+	uint32_t pidx;		/* producer index */
+
+	uint32_t dbval;
+	u_int rx_offset;	/* offset in fl buf (when buffer packing) */
+	volatile uint32_t *udb;
 
 	uint64_t mbuf_allocated;/* # of mbuf allocated from zone_mbuf */
 	uint64_t mbuf_inlined;	/* # of mbuf created within clusters */
 	uint64_t cl_allocated;	/* # of clusters allocated */
 	uint64_t cl_recycled;	/* # of clusters recycled */
 	uint64_t cl_fast_recycled; /* # of clusters recycled (fast) */
+
+	/* These 3 are valid when FL_BUF_RESUME is set, stale otherwise. */
+	struct mbuf *m0;
+	struct mbuf **pnext;
+	u_int remaining;
+
+	uint16_t qsize;		/* # of hw descriptors (status page included) */
+	uint16_t cntxt_id;	/* SGE context id for the freelist */
+	TAILQ_ENTRY(sge_fl) link; /* All starving freelists */
+	bus_dma_tag_t desc_tag;
+	bus_dmamap_t desc_map;
+	char lockname[16];
+	bus_addr_t ba;		/* bus address of descriptor ring */
+	struct cluster_layout cll_alt;	/* alternate refill zone, layout */
 };
 
 /* txq: SGE egress queue + what's needed for Ethernet NIC */
@@ -848,11 +860,11 @@ struct adapter {
 	for (q = &pi->adapter->sge.nm_rxq[pi->first_nm_rxq], iter = 0; \
 	    iter < pi->nnmrxq; ++iter, ++q)
 
-#define IDXINCR(head, incr, wrap) do { \
-	head = wrap - head > incr ? head + incr : incr - (wrap - head); \
+#define IDXINCR(idx, incr, wrap) do { \
+	idx = wrap - idx > incr ? idx + incr : incr - (wrap - idx); \
 } while (0)
 #define IDXDIFF(head, tail, wrap) \
-	(head >= tail ? head - tail : wrap - tail + head)
+	((head) >= (tail) ? (head) - (tail) : (wrap) - (tail) + (head))
 
 /* One for errors, one for firmware events */
 #define T4_EXTRA_INTR 2
