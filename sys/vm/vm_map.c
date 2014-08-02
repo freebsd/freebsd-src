@@ -2569,8 +2569,8 @@ vm_map_wire(vm_map_t map, vm_offset_t start, vm_offset_t end,
 			vm_map_busy(map);
 			vm_map_unlock(map);
 
-			for (faddr = saved_start; faddr < saved_end; faddr +=
-			    PAGE_SIZE) {
+			faddr = saved_start;
+			do {
 				/*
 				 * Simulate a fault to get the page and enter
 				 * it into the physical map.
@@ -2578,7 +2578,7 @@ vm_map_wire(vm_map_t map, vm_offset_t start, vm_offset_t end,
 				if ((rv = vm_fault(map, faddr, VM_PROT_NONE,
 				    VM_FAULT_CHANGE_WIRING)) != KERN_SUCCESS)
 					break;
-			}
+			} while ((faddr += PAGE_SIZE) < saved_end);
 			vm_map_lock(map);
 			vm_map_unbusy(map);
 			if (last_timestamp + 1 != map->timestamp) {
