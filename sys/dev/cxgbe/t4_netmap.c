@@ -390,7 +390,7 @@ alloc_nm_txq_hwq(struct port_info *pi, struct sge_nm_txq *nm_txq)
 		udb = sc->udbs_base + UDBS_DB_OFFSET;
 		udb += (nm_txq->cntxt_id >> s_qpp) << PAGE_SHIFT;
 		nm_txq->udb_qid = nm_txq->cntxt_id & mask;
-		if (nm_txq->udb_qid > PAGE_SIZE / UDBS_SEG_SIZE)
+		if (nm_txq->udb_qid >= PAGE_SIZE / UDBS_SEG_SIZE)
 	    		clrbit(&nm_txq->doorbells, DOORBELL_WCWR);
 		else {
 			udb += nm_txq->udb_qid << UDBS_SEG_SHIFT;
