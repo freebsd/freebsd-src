@@ -228,6 +228,7 @@ mp [label="Mark Peek\nmp@FreeBSD.org\n2001/07/27"]
 mr [label="Michael Reifenberger\nmr@FreeBSD.org\n2001/09/30"]
 neel [label="Neel Natu\nneel@FreeBSD.org\n2009/09/20"]
 netchild [label="Alexander Leidinger\nnetchild@FreeBSD.org\n2005/03/31"]
+ngie [label="Garrett Cooper\nngie@FreeBSD.org\n2014/07/27"]
 nork [label="Norikatsu Shigemura\nnork@FreeBSD.org\n2009/06/09"]
 np [label="Navdeep Parhar\nnp@FreeBSD.org\n2009/06/05"]
 nwhitehorn [label="Nathan Whitehorn\nnwhitehorn@FreeBSD.org\n2008/07/03"]
@@ -512,6 +513,8 @@ jlemon -> brooks
 
 jmallett -> pkelsey
 
+jmmv -> ngie
+
 joerg -> brian
 joerg -> eik
 joerg -> jmg
@@ -623,6 +626,7 @@ rpaulo -> avg
 rpaulo -> bschmidt
 rpaulo -> dim
 rpaulo -> jmmv
+rpaulo -> ngie
 
 rrs -> brucec
 rrs -> jchandra
