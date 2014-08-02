@@ -53,6 +53,7 @@
 
 #include <cheritest-helper.h>
 #include <err.h>
+#include <errno.h>
 #include <fcntl.h>
 #include <inttypes.h>
 #include <signal.h>
@@ -69,6 +70,7 @@
 #define	CT_FLAG_SIGNAL		0x00000001  /* Should fault; checks signum. */
 #define	CT_FLAG_MIPS_EXCCODE	0x00000002  /* Check MIPS exception code. */
 #define	CT_FLAG_CP2_EXCCODE	0x00000004  /* Check CP2 exception code. */
+#define	CT_FLAG_STDOUT_STRING	0x00000008  /* Check stdout for a string. */
 
 static const struct cheri_test {
 	const char	*ct_name;
@@ -80,6 +82,7 @@ static const struct cheri_test {
 	int		 ct_signum;
 	register_t	 ct_mips_exccode;
 	register_t	 ct_cp2_exccode;
+	const char	*ct_stdout_string;
 } cheri_tests[] = {
 	/*
 	 * Exercise CHERI functions without an expectation of a signal.
@@ -357,7 +360,9 @@ static const struct cheri_test {
 	{ .ct_name = "invoke_helloworld",
 	  .ct_desc = "Print 'hello world' in a libcheri sandbox",
 	  .ct_func_arg = cheritest_invoke_simple_op,
-	  .ct_arg = CHERITEST_HELPER_OP_CS_HELLOWORLD },
+	  .ct_arg = CHERITEST_HELPER_OP_CS_HELLOWORLD,
+	  .ct_flags = CT_FLAG_STDOUT_STRING,
+	  .ct_stdout_string = "hello world\n" },
 
 	{ .ct_name = "invoke_md5",
 	  .ct_desc = "Generate an MD5 checksum in a libcheri sandbox",
@@ -489,17 +494,27 @@ signal_handler(int signum, siginfo_t *info __unused, ucontext_t *uap)
 	_exit(EX_SOFTWARE);
 }
 
+/* Maximum size of stdout data we will check if called for by a test. */
+#define	TEST_BUFFER_LEN	128
+
 static void
 cheritest_run_test(const struct cheri_test *ctp)
 {
 	struct sigaction sa;
 	pid_t childpid;
-	int status;
+	int status, pipefd_stdin[2], pipefd_stdout[2];
 	char reason[TESTRESULT_STR_LEN];
+	char buffer[TEST_BUFFER_LEN];
 	register_t cp2_exccode, mips_exccode;
+	ssize_t len;
 
 	bzero(ccsp, sizeof(*ccsp));
 	printf("TEST: %s: %s\n", ctp->ct_name, ctp->ct_desc);
+
+	if (pipe(pipefd_stdin) < 0)
+		err(EX_OSERR, "pipe");
+	if (pipe(pipefd_stdout) < 0)
+		err(EX_OSERR, "pipe");
 
 	childpid = fork();
 	if (childpid < 0)
@@ -522,6 +537,18 @@ cheritest_run_test(const struct cheri_test *ctp)
 		if (sigaction(SIGTRAP, &sa, NULL) < 0)
 			err(EX_OSERR, "sigaction(SIGEMT)");
 
+		/*
+		 * Set up synthetic stdin and stdout.
+		 */
+		if (dup2(pipefd_stdin[0], STDIN_FILENO) < 0)
+			err(EX_OSERR, "dup2(STDIN_FILENO)");
+		if (dup2(pipefd_stdout[1], STDOUT_FILENO) < 0)
+			err(EX_OSERR, "dup2(STDOUT_FILENO)");
+		close(pipefd_stdin[0]);
+		close(pipefd_stdin[1]);
+		close(pipefd_stdout[0]);
+		close(pipefd_stdout[1]);
+
 		/* Run the actual test. */
 		if (ctp->ct_arg != 0)
 			ctp->ct_func_arg(ctp->ct_arg);
@@ -529,6 +556,10 @@ cheritest_run_test(const struct cheri_test *ctp)
 			ctp->ct_func();
 		exit(0);
 	}
+	close(pipefd_stdin[0]);
+	close(pipefd_stdout[1]);
+	if (fcntl(pipefd_stdout[0], F_SETFL, O_NONBLOCK) < 0)
+		err(EX_OSERR, "fcntl(F_SETFL, O_NONBLOCK) on test stdout");
 	(void)waitpid(childpid, &status, 0);
 
 	/*
@@ -580,6 +611,26 @@ cheritest_run_test(const struct cheri_test *ctp)
 	}
 
 	/*
+	 * Next, see whether any expected output was present.
+	 */
+	if (ctp->ct_flags & CT_FLAG_STDOUT_STRING) {
+		len = read(pipefd_stdout[0], buffer, sizeof(buffer) - 1);
+		if (len < 0) {
+			snprintf(reason, sizeof(reason),
+			    "read() on test stdout failed with -1 (%d)",
+			    errno);
+			goto fail;
+		}
+		buffer[len] = '\0';
+		if (strcmp(buffer, ctp->ct_stdout_string) != 0) {
+			snprintf(reason, sizeof(reason),
+			    "read() on test stdout expected '%s' but got "
+			    "'%s'", ctp->ct_stdout_string, buffer);
+			goto fail;
+		}
+	}
+
+	/*
 	 * Next, we are concerned with whether the test itself reports a
 	 * success.  This is based not on whether the test experiences a
 	 * fault, but whether its semantics are correct -- e.g., did code in a
@@ -613,10 +664,14 @@ cheritest_run_test(const struct cheri_test *ctp)
 	}
 
 	fprintf(stderr, "PASS: %s\n", ctp->ct_name);
+	close(pipefd_stdin[1]);
+	close(pipefd_stdout[0]);
 	return;
 
 fail:
 	fprintf(stderr, "FAIL: %s: %s\n", ctp->ct_name, reason);
+	close(pipefd_stdin[1]);
+	close(pipefd_stdout[0]);
 }
 
 static void
