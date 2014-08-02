@@ -88,6 +88,8 @@
 	defined (__ARM_ARCH_6T2__) || \
 	defined (__ARM_ARCH_6Z__)  || \
 	defined (__ARM_ARCH_6ZK__)
+#define	ARM_HAVE_ATOMIC64
+
 static __inline void
 __do_dmb(void)
 {
@@ -722,6 +724,8 @@ __swp(uint32_t val, volatile uint32_t *ptr)
 
 
 #ifdef _KERNEL
+#define	ARM_HAVE_ATOMIC64
+
 static __inline void
 atomic_set_32(volatile uint32_t *address, uint32_t setmask)
 {
