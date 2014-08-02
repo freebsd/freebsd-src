@@ -305,6 +305,7 @@ struct sockopt_data {
 	size_t		kavail;		/* number of bytes available */
 	size_t		ktotal;		/* total bytes pushed */
 	struct sockopt	*sopt;		/* socket data */
+	caddr_t		sopt_val;	/* sopt user buffer */
 	size_t		valsize;	/* original data size */
 };
 

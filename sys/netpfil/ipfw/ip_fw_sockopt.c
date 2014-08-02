@@ -1807,6 +1807,7 @@ ipfw_ctl3(struct sockopt *sopt)
 	}
 
 	sdata.sopt = sopt;
+	sdata.sopt_val = sopt->sopt_val;
 	sdata.valsize = valsize;
 
 	/*
@@ -1906,6 +1907,9 @@ ipfw_ctl3(struct sockopt *sopt)
 	else
 		ipfw_flush_sopt_data(&sdata);
 
+	/* Restore original pointer and set number of bytes written */
+	sopt->sopt_val = sdata.sopt_val;
+	sopt->sopt_valsize = sdata.ktotal;
 	if (sdata.kbuf != xbuf)
 		free(sdata.kbuf, M_TEMP);
 
@@ -2113,8 +2117,8 @@ ipfw_ctl(struct sockopt *sopt)
 			ti.type = IPFW_TABLE_CIDR;
 
 			error = (opt == IP_FW_TABLE_ADD) ?
-			    add_table_entry(chain, &ti, &tei) :
-			    del_table_entry(chain, &ti, &tei);
+			    add_table_entry(chain, &ti, &tei, 1) :
+			    del_table_entry(chain, &ti, &tei, 1);
 		}
 		break;
 
@@ -2239,12 +2243,13 @@ static int
 ipfw_flush_sopt_data(struct sockopt_data *sd)
 {
 	int error;
+	size_t sz;
 
-	if (sd->koff == 0)
+	if ((sz = sd->koff) == 0)
 		return (0);
 
 	if (sd->sopt->sopt_dir == SOPT_GET) {
-		error = sooptcopyout(sd->sopt, sd->kbuf, sd->koff);
+		error = sooptcopyout(sd->sopt, sd->kbuf, sz);
 		if (error != 0)
 			return (error);
 	}
@@ -2256,6 +2261,10 @@ ipfw_flush_sopt_data(struct sockopt_data *sd)
 		sd->kavail = sd->ksize;
 	else
 		sd->kavail = sd->valsize - sd->ktotal;
+
+	/* Update sopt buffer */
+	sd->sopt->sopt_valsize = sd->kavail;
+	sd->sopt->sopt_val = sd->sopt_val + sd->ktotal;
 
 	return (0);
 }

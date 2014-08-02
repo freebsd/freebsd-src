@@ -71,12 +71,14 @@ typedef int (ta_prepare_add)(struct ip_fw_chain *ch, struct tentry_info *tei,
 typedef int (ta_prepare_del)(struct ip_fw_chain *ch, struct tentry_info *tei,
     void *ta_buf);
 typedef int (ta_add)(void *ta_state, struct table_info *ti,
-    struct tentry_info *tei, void *ta_buf, uint64_t *pflags, uint32_t *pnum);
+    struct tentry_info *tei, void *ta_buf, uint32_t *pnum);
 typedef int (ta_del)(void *ta_state, struct table_info *ti,
-    struct tentry_info *tei, void *ta_buf, uint64_t *pflags, uint32_t *pnum);
+    struct tentry_info *tei, void *ta_buf, uint32_t *pnum);
 typedef void (ta_flush_entry)(struct ip_fw_chain *ch, struct tentry_info *tei,
     void *ta_buf);
 
+typedef int (ta_has_space)(void *ta_state, struct table_info *ti,
+    uint32_t count, uint64_t *pflags);
 typedef int (ta_prepare_mod)(void *ta_buf, uint64_t *pflags);
 typedef int (ta_fill_mod)(void *ta_state, struct table_info *ti,
     void *ta_buf, uint64_t *pflags);
@@ -113,6 +115,7 @@ struct table_algo {
 	ta_del		*del;
 	ta_flush_entry	*flush_entry;
 	ta_find_tentry	*find_tentry;
+	ta_has_space	*has_space;
 	ta_prepare_mod	*prepare_mod;
 	ta_fill_mod	*fill_mod;
 	ta_modify	*modify;
@@ -151,9 +154,9 @@ int ipfw_flush_table(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
 int ipfw_list_table_algo(struct ip_fw_chain *ch, struct sockopt_data *sd);
 /* Exported to support legacy opcodes */
 int add_table_entry(struct ip_fw_chain *ch, struct tid_info *ti,
-    struct tentry_info *tei);
+    struct tentry_info *tei, uint32_t count);
 int del_table_entry(struct ip_fw_chain *ch, struct tid_info *ti,
-    struct tentry_info *tei);
+    struct tentry_info *tei, uint32_t count);
 int flush_table(struct ip_fw_chain *ch, struct tid_info *ti);
 
 int ipfw_rewrite_table_uidx(struct ip_fw_chain *chain,
