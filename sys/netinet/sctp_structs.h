@@ -1151,7 +1151,7 @@ struct sctp_association {
 	 */
 
 	/* Flag to tell if ECN is allowed */
-	uint8_t ecn_allowed;
+	uint8_t ecn_supported;
 
 	/* Did the peer make the stream config (add out) request */
 	uint8_t peer_req_out;
