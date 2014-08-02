@@ -172,8 +172,7 @@ struct sgl {
 };
 
 static int service_iq(struct sge_iq *, int);
-static struct mbuf *get_fl_payload(struct adapter *, struct sge_fl *, uint32_t,
-    int *);
+static struct mbuf *get_fl_payload(struct adapter *, struct sge_fl *, uint32_t);
 static int t4_eth_rx(struct sge_iq *, const struct rss_header *, struct mbuf *);
 static inline void init_iq(struct sge_iq *, struct adapter *, int, int, int);
 static inline void init_fl(struct adapter *, struct sge_fl *, int, int, int,
@@ -1313,21 +1312,30 @@ service_iq(struct sge_iq *iq, int budget)
 {
 	struct sge_iq *q;
 	struct sge_rxq *rxq = iq_to_rxq(iq);	/* Use iff iq is part of rxq */
-	struct sge_fl *fl = &rxq->fl;		/* Use iff IQ_HAS_FL */
+	struct sge_fl *fl;			/* Use iff IQ_HAS_FL */
 	struct adapter *sc = iq->adapter;
 	struct iq_desc *d = &iq->desc[iq->cidx];
-	int ndescs = 0, limit, fl_bufs_used = 0;
-	int rsp_type;
+	int ndescs = 0, limit;
+	int rsp_type, refill;
 	uint32_t lq;
+	uint16_t fl_hw_cidx;
 	struct mbuf *m0;
 	STAILQ_HEAD(, sge_iq) iql = STAILQ_HEAD_INITIALIZER(iql);
 #if defined(INET) || defined(INET6)
 	const struct timeval lro_timeout = {0, sc->lro_timeout};
 #endif
 
-	limit = budget ? budget : iq->qsize / 8;
-
 	KASSERT(iq->state == IQS_BUSY, ("%s: iq %p not BUSY", __func__, iq));
+
+	limit = budget ? budget : iq->qsize / 16;
+
+	if (iq->flags & IQ_HAS_FL) {
+		fl = &rxq->fl;
+		fl_hw_cidx = fl->hw_cidx;	/* stable snapshot */
+	} else {
+		fl = NULL;
+		fl_hw_cidx = 0;			/* to silence gcc warning */
+	}
 
 	/*
 	 * We always come back and check the descriptor ring for new indirect
@@ -1338,6 +1346,7 @@ service_iq(struct sge_iq *iq, int budget)
 
 			rmb();
 
+			refill = 0;
 			m0 = NULL;
 			rsp_type = G_RSPD_TYPE(d->rsp.u.type_gen);
 			lq = be32toh(d->rsp.pldbuflen_qid);
@@ -1349,9 +1358,10 @@ service_iq(struct sge_iq *iq, int budget)
 				    ("%s: data for an iq (%p) with no freelist",
 				    __func__, iq));
 
-				m0 = get_fl_payload(sc, fl, lq, &fl_bufs_used);
+				m0 = get_fl_payload(sc, fl, lq);
 				if (__predict_false(m0 == NULL))
 					goto process_iql;
+				refill = IDXDIFF(fl->hw_cidx, fl_hw_cidx, fl->sidx) > 2;
 #ifdef T4_PKT_TIMESTAMP
 				/*
 				 * 60 bit timestamp for the payload is
@@ -1402,7 +1412,7 @@ service_iq(struct sge_iq *iq, int budget)
 				q = sc->sge.iqmap[lq - sc->sge.iq_start];
 				if (atomic_cmpset_int(&q->state, IQS_IDLE,
 				    IQS_BUSY)) {
-					if (service_iq(q, q->qsize / 8) == 0) {
+					if (service_iq(q, q->qsize / 16) == 0) {
 						atomic_cmpset_int(&q->state,
 						    IQS_BUSY, IQS_IDLE);
 					} else {
@@ -1420,14 +1430,6 @@ service_iq(struct sge_iq *iq, int budget)
 				    "%s: illegal response type %d on iq %p",
 				    device_get_nameunit(sc->dev), rsp_type, iq);
 				break;
-			}
-
-			if (fl_bufs_used >= 16) {
-				FL_LOCK(fl);
-				fl->needed += fl_bufs_used;
-				refill_fl(sc, fl, 32);
-				FL_UNLOCK(fl);
-				fl_bufs_used = 0;
 			}
 
 			d++;
@@ -1452,14 +1454,19 @@ service_iq(struct sge_iq *iq, int budget)
 #endif
 
 				if (budget) {
-					if (fl_bufs_used) {
+					if (iq->flags & IQ_HAS_FL) {
 						FL_LOCK(fl);
-						fl->needed += fl_bufs_used;
 						refill_fl(sc, fl, 32);
 						FL_UNLOCK(fl);
 					}
 					return (EINPROGRESS);
 				}
+			}
+			if (refill) {
+				FL_LOCK(fl);
+				refill_fl(sc, fl, 32);
+				FL_UNLOCK(fl);
+				fl_hw_cidx = fl->hw_cidx;
 			}
 		}
 
@@ -1499,7 +1506,6 @@ process_iql:
 		int starved;
 
 		FL_LOCK(fl);
-		fl->needed += fl_bufs_used;
 		starved = refill_fl(sc, fl, 64);
 		FL_UNLOCK(fl);
 		if (__predict_false(starved != 0))
@@ -1566,7 +1572,7 @@ get_scatter_segment(struct adapter *sc, struct sge_fl *fl, int total, int flags)
 	caddr_t payload;
 
 	len = min(total, hwb->size - fl->rx_offset);
-	padded_len = roundup2(len, fl_pad);
+	padded_len = roundup2(len, fl->buf_boundary);
 	payload = sd->cl + cll->region1 + fl->rx_offset;
 
 	if (sc->sc_do_rxcopy && len < RX_COPY_THRESHOLD) {
@@ -1632,38 +1638,32 @@ get_scatter_segment(struct adapter *sc, struct sge_fl *fl, int total, int flags)
 	m->m_len = len;
 
 	if (fl->flags & FL_BUF_PACKING) {
-		fl->rx_offset += roundup2(padded_len, sc->sge.pack_boundary);
+		fl->rx_offset += padded_len;
 		MPASS(fl->rx_offset <= hwb->size);
 		if (fl->rx_offset < hwb->size)
 			return (m);	/* without advancing the cidx */
 	}
 
-	if (__predict_false(++fl->cidx == fl->cap))
-		fl->cidx = 0;
+	if (__predict_false(++fl->cidx % 8 == 0)) {
+		uint16_t cidx = fl->cidx / 8;
+
+		if (__predict_false(cidx == fl->sidx))
+			fl->cidx = cidx = 0;
+		fl->hw_cidx = cidx;
+	}
 	fl->rx_offset = 0;
 
 	return (m);
 }
 
 static struct mbuf *
-get_fl_payload(struct adapter *sc, struct sge_fl *fl, uint32_t len_newbuf,
-    int *fl_bufs_used)
+get_fl_payload(struct adapter *sc, struct sge_fl *fl, uint32_t len_newbuf)
 {
 	struct mbuf *m0, *m, **pnext;
-	u_int nbuf, len;
+	u_int len;
 
-	/*
-	 * No assertion for the fl lock because we don't need it.  This routine
-	 * is called only from the rx interrupt handler and it only updates
-	 * fl->cidx.  (Contrast that with fl->pidx/fl->needed which could be
-	 * updated in the rx interrupt handler or the starvation helper routine.
-	 * That's why code that manipulates fl->pidx/fl->needed needs the fl
-	 * lock but this routine does not).
-	 */
-
-	nbuf = 0;
 	len = G_RSPD_LEN(len_newbuf);
-	if (__predict_false(fl->m0 != NULL)) {
+	if (__predict_false(fl->flags & FL_BUF_RESUME)) {
 		M_ASSERTPKTHDR(fl->m0);
 		MPASS(len == fl->m0->m_pkthdr.len);
 		MPASS(fl->remaining < len);
@@ -1671,15 +1671,19 @@ get_fl_payload(struct adapter *sc, struct sge_fl *fl, uint32_t len_newbuf,
 		m0 = fl->m0;
 		pnext = fl->pnext;
 		len = fl->remaining;
-		fl->m0 = NULL;
+		fl->flags &= ~FL_BUF_RESUME;
 		goto get_segment;
 	}
 
 	if (fl->rx_offset > 0 && len_newbuf & F_RSPD_NEWBUF) {
-		nbuf++;
 		fl->rx_offset = 0;
-		if (__predict_false(++fl->cidx == fl->cap))
-			fl->cidx = 0;
+		if (__predict_false(++fl->cidx % 8 == 0)) {
+			uint16_t cidx = fl->cidx / 8;
+
+			if (__predict_false(cidx == fl->sidx))
+				fl->cidx = cidx = 0;
+			fl->hw_cidx = cidx;
+		}
 	}
 
 	/*
@@ -1689,30 +1693,26 @@ get_fl_payload(struct adapter *sc, struct sge_fl *fl, uint32_t len_newbuf,
 
 	m0 = get_scatter_segment(sc, fl, len, M_PKTHDR);
 	if (m0 == NULL)
-		goto done;
+		return (NULL);
 	len -= m0->m_len;
 	pnext = &m0->m_next;
 	while (len > 0) {
-		nbuf++;
 get_segment:
 		MPASS(fl->rx_offset == 0);
 		m = get_scatter_segment(sc, fl, len, 0);
-		if (m == NULL) {
+		if (__predict_false(m == NULL)) {
 			fl->m0 = m0;
 			fl->pnext = pnext;
 			fl->remaining = len;
-			m0 = NULL;
-			goto done;
+			fl->flags |= FL_BUF_RESUME;
+			return (NULL);
 		}
 		*pnext = m;
 		pnext = &m->m_next;
 		len -= m->m_len;
 	}
 	*pnext = NULL;
-	if (fl->rx_offset == 0)
-		nbuf++;
-done:
-	(*fl_bufs_used) += nbuf;
+
 	return (m0);
 }
 
@@ -2126,6 +2126,7 @@ init_fl(struct adapter *sc, struct sge_fl *fl, int qsize, int maxp, int pack,
 {
 
 	fl->qsize = qsize;
+	fl->sidx = qsize - spg_len / EQ_ESIZE;
 	strlcpy(fl->lockname, name, sizeof(fl->lockname));
 	if (pack)
 		fl->flags |= FL_BUF_PACKING;
@@ -2266,7 +2267,6 @@ alloc_iq_fl(struct port_info *pi, struct sge_iq *iq, struct sge_fl *fl,
 			return (rc);
 
 		/* Allocate space for one software descriptor per buffer. */
-		fl->cap = (fl->qsize - spg_len / EQ_ESIZE) * 8;
 		rc = alloc_fl_sdesc(fl);
 		if (rc != 0) {
 			device_printf(sc->dev,
@@ -2274,10 +2274,14 @@ alloc_iq_fl(struct port_info *pi, struct sge_iq *iq, struct sge_fl *fl,
 			    rc);
 			return (rc);
 		}
-		fl->needed = fl->cap;
-		fl->lowat = fl->flags & FL_BUF_PACKING ?
-		    roundup2(sc->sge.fl_starve_threshold2, 8) :
-		    roundup2(sc->sge.fl_starve_threshold, 8);
+
+		if (fl->flags & FL_BUF_PACKING) {
+			fl->lowat = roundup2(sc->sge.fl_starve_threshold2, 8);
+			fl->buf_boundary = max(fl_pad, sc->sge.pack_boundary);
+		} else {
+			fl->lowat = roundup2(sc->sge.fl_starve_threshold, 8);
+			fl->buf_boundary = fl_pad;
+		}
 
 		c.iqns_to_fl0congen |=
 		    htobe32(V_FW_IQ_CMD_FL0HOSTFCMODE(X_HOSTFCMODE_NONE) |
@@ -2320,6 +2324,9 @@ alloc_iq_fl(struct port_info *pi, struct sge_iq *iq, struct sge_fl *fl,
 	sc->sge.iqmap[cntxt_id] = iq;
 
 	if (fl) {
+		u_int qid;
+
+		iq->flags |= IQ_HAS_FL;
 		fl->cntxt_id = be16toh(c.fl0id);
 		fl->pidx = fl->cidx = 0;
 
@@ -2330,12 +2337,29 @@ alloc_iq_fl(struct port_info *pi, struct sge_iq *iq, struct sge_fl *fl,
 		}
 		sc->sge.eqmap[cntxt_id] = (void *)fl;
 
+		qid = fl->cntxt_id;
+		if (isset(&sc->doorbells, DOORBELL_UDB)) {
+			uint32_t s_qpp = sc->sge.eq_s_qpp;
+			uint32_t mask = (1 << s_qpp) - 1;
+			volatile uint8_t *udb;
+
+			udb = sc->udbs_base + UDBS_DB_OFFSET;
+			udb += (qid >> s_qpp) << PAGE_SHIFT;
+			qid &= mask;
+			if (qid < PAGE_SIZE / UDBS_SEG_SIZE) {
+				udb += qid << UDBS_SEG_SHIFT;
+				qid = 0;
+			}
+			fl->udb = (volatile void *)udb;
+		}
+		fl->dbval = F_DBPRIO | V_QID(qid);
+		if (is_t5(sc))
+			fl->dbval |= F_DBTYPE;
+
 		FL_LOCK(fl);
 		/* Enough to make sure the SGE doesn't think it's starved */
 		refill_fl(sc, fl, fl->lowat);
 		FL_UNLOCK(fl);
-
-		iq->flags |= IQ_HAS_FL;
 	}
 
 	if (is_t5(sc) && cong >= 0) {
@@ -2545,8 +2569,12 @@ alloc_rxq(struct port_info *pi, struct sge_rxq *rxq, int intr_idx, int idx,
 	if (rc != 0)
 		return (rc);
 
+	/*
+	 * The freelist is just barely above the starvation threshold right now,
+	 * fill it up a bit more.
+	 */
 	FL_LOCK(&rxq->fl);
-	refill_fl(pi->adapter, &rxq->fl, rxq->fl.needed / 8);
+	refill_fl(pi->adapter, &rxq->fl, 128);
 	FL_UNLOCK(&rxq->fl);
 
 #if defined(INET) || defined(INET6)
@@ -3213,53 +3241,60 @@ oneseg_dma_callback(void *arg, bus_dma_segment_t *segs, int nseg, int error)
 	*ba = error ? 0 : segs->ds_addr;
 }
 
-#define FL_HW_IDX(x) ((x) >> 3)
 static inline void
 ring_fl_db(struct adapter *sc, struct sge_fl *fl)
 {
-	int ndesc = fl->pending / 8;
-	uint32_t v;
+	uint32_t n, v;
 
-	if (FL_HW_IDX(fl->pidx) == FL_HW_IDX(fl->cidx))
-		ndesc--;	/* hold back one credit */
-
-	if (ndesc <= 0)
-		return;		/* nothing to do */
-
-	v = F_DBPRIO | V_QID(fl->cntxt_id) | V_PIDX(ndesc);
-	if (is_t5(sc))
-		v |= F_DBTYPE;
+	n = IDXDIFF(fl->pidx / 8, fl->dbidx, fl->sidx);
+	MPASS(n > 0);
 
 	wmb();
-
-	t4_write_reg(sc, MYPF_REG(A_SGE_PF_KDOORBELL), v);
-	fl->pending -= ndesc * 8;
+	v = fl->dbval | V_PIDX(n);
+	if (fl->udb)
+		*fl->udb = htole32(v);
+	else
+		t4_write_reg(sc, MYPF_REG(A_SGE_PF_KDOORBELL), v);
+	IDXINCR(fl->dbidx, n, fl->sidx);
 }
 
 /*
- * Fill up the freelist by upto nbufs and maybe ring its doorbell.
+ * Fills up the freelist by allocating upto 'n' buffers.  Buffers that are
+ * recycled do not count towards this allocation budget.
  *
- * Returns non-zero to indicate that it should be added to the list of starving
- * freelists.
+ * Returns non-zero to indicate that this freelist should be added to the list
+ * of starving freelists.
  */
 static int
-refill_fl(struct adapter *sc, struct sge_fl *fl, int nbufs)
+refill_fl(struct adapter *sc, struct sge_fl *fl, int n)
 {
-	__be64 *d = &fl->desc[fl->pidx];
-	struct fl_sdesc *sd = &fl->sdesc[fl->pidx];
+	__be64 *d;
+	struct fl_sdesc *sd;
 	uintptr_t pa;
 	caddr_t cl;
-	struct cluster_layout *cll = &fl->cll_def;	/* default layout */
-	struct sw_zone_info *swz = &sc->sge.sw_zone_info[cll->zidx];
+	struct cluster_layout *cll;
+	struct sw_zone_info *swz;
 	struct cluster_metadata *clm;
+	uint16_t max_pidx;
+	uint16_t hw_cidx = fl->hw_cidx;		/* stable snapshot */
 
 	FL_LOCK_ASSERT_OWNED(fl);
 
-	if (nbufs > fl->needed)
-		nbufs = fl->needed;
-	nbufs -= (fl->pidx + nbufs) % 8;
+	/*
+	 * We always stop at the begining of the hardware descriptor that's just
+	 * before the one with the hw cidx.  This is to avoid hw pidx = hw cidx,
+	 * which would mean an empty freelist to the chip.
+	 */
+	max_pidx = __predict_false(hw_cidx == 0) ? fl->sidx - 1 : hw_cidx - 1;
+	if (fl->pidx == max_pidx * 8)
+		return (0);
 
-	while (nbufs--) {
+	d = &fl->desc[fl->pidx];
+	sd = &fl->sdesc[fl->pidx];
+	cll = &fl->cll_def;	/* default layout */
+	swz = &sc->sge.sw_zone_info[cll->zidx];
+
+	while (n > 0) {
 
 		if (sd->cl != NULL) {
 
@@ -3309,6 +3344,7 @@ alloc:
 			goto alloc;
 		}
 		fl->cl_allocated++;
+		n--;
 
 		pa = pmap_kextract((vm_offset_t)cl);
 		pa += cll->region1;
@@ -3325,18 +3361,26 @@ recycled:
 		}
 		sd->nmbuf = 0;
 recycled_fast:
-		fl->pending++;
-		fl->needed--;
 		d++;
 		sd++;
-		if (__predict_false(++fl->pidx == fl->cap)) {
-			fl->pidx = 0;
-			sd = fl->sdesc;
-			d = fl->desc;
+		if (__predict_false(++fl->pidx % 8 == 0)) {
+			uint16_t pidx = fl->pidx / 8;
+
+			if (__predict_false(pidx == fl->sidx)) {
+				fl->pidx = 0;
+				pidx = 0;
+				sd = fl->sdesc;
+				d = fl->desc;
+			}
+			if (pidx == max_pidx)
+				break;
+
+			if (IDXDIFF(pidx, fl->dbidx, fl->sidx) >= 4)
+				ring_fl_db(sc, fl);
 		}
 	}
 
-	if (fl->pending >= 8)
+	if (fl->pidx / 8 != fl->dbidx)
 		ring_fl_db(sc, fl);
 
 	return (FL_RUNNING_LOW(fl) && !(fl->flags & FL_STARVING));
@@ -3371,7 +3415,7 @@ static int
 alloc_fl_sdesc(struct sge_fl *fl)
 {
 
-	fl->sdesc = malloc(fl->cap * sizeof(struct fl_sdesc), M_CXGBE,
+	fl->sdesc = malloc(fl->sidx * 8 * sizeof(struct fl_sdesc), M_CXGBE,
 	    M_ZERO | M_WAITOK);
 
 	return (0);
@@ -3386,7 +3430,7 @@ free_fl_sdesc(struct adapter *sc, struct sge_fl *fl)
 	int i;
 
 	sd = fl->sdesc;
-	for (i = 0; i < fl->cap; i++, sd++) {
+	for (i = 0; i < fl->sidx * 8; i++, sd++) {
 		if (sd->cl == NULL)
 			continue;
 
