@@ -905,6 +905,7 @@ sctp_init_asoc(struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 	asoc->cookie_life = inp->sctp_ep.def_cookie_life;
 	asoc->sctp_cmt_on_off = inp->sctp_cmt_on_off;
 	asoc->ecn_supported = inp->ecn_supported;
+	asoc->prsctp_supported = inp->prsctp_supported;
 	asoc->sctp_nr_sack_on_off = (uint8_t) SCTP_BASE_SYSCTL(sctp_nr_sack_on_off);
 	asoc->sctp_cmt_pf = (uint8_t) 0;
 	asoc->sctp_frag_point = inp->sctp_frag_point;
@@ -2620,7 +2621,7 @@ sctp_notify_assoc_change(uint16_t state, struct sctp_tcb *stcb,
 		if (notif_len > sizeof(struct sctp_assoc_change)) {
 			if ((state == SCTP_COMM_UP) || (state == SCTP_RESTART)) {
 				i = 0;
-				if (stcb->asoc.peer_supports_prsctp) {
+				if (stcb->asoc.prsctp_supported) {
 					sac->sac_info[i++] = SCTP_ASSOC_SUPPORTS_PR;
 				}
 				if (stcb->asoc.peer_supports_auth) {
