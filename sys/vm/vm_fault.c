@@ -106,7 +106,6 @@ __FBSDID("$FreeBSD$");
 #define PFFOR 4
 
 static int vm_fault_additional_pages(vm_page_t, int, int, vm_page_t *, int *);
-static void vm_fault_unwire(vm_map_t, vm_offset_t, vm_offset_t, boolean_t);
 
 #define	VM_FAULT_READ_BEHIND	8
 #define	VM_FAULT_READ_MAX	(1 + VM_FAULT_READ_AHEAD_MAX)
@@ -1152,68 +1151,6 @@ error:
 			vm_page_unlock(*mp);
 		}
 	return (-1);
-}
-
-/*
- *	vm_fault_wire:
- *
- *	Wire down a range of virtual addresses in a map.
- */
-int
-vm_fault_wire(vm_map_t map, vm_offset_t start, vm_offset_t end,
-    boolean_t fictitious)
-{
-	vm_offset_t va;
-	int rv;
-
-	/*
-	 * We simulate a fault to get the page and enter it in the physical
-	 * map.  For user wiring, we only ask for read access on currently
-	 * read-only sections.
-	 */
-	for (va = start; va < end; va += PAGE_SIZE) {
-		rv = vm_fault(map, va, VM_PROT_NONE, VM_FAULT_CHANGE_WIRING);
-		if (rv) {
-			if (va != start)
-				vm_fault_unwire(map, start, va, fictitious);
-			return (rv);
-		}
-	}
-	return (KERN_SUCCESS);
-}
-
-/*
- *	vm_fault_unwire:
- *
- *	Unwire a range of virtual addresses in a map.
- */
-static void
-vm_fault_unwire(vm_map_t map, vm_offset_t start, vm_offset_t end,
-    boolean_t fictitious)
-{
-	vm_paddr_t pa;
-	vm_offset_t va;
-	vm_page_t m;
-	pmap_t pmap;
-
-	pmap = vm_map_pmap(map);
-
-	/*
-	 * Since the pages are wired down, we must be able to get their
-	 * mappings from the physical map system.
-	 */
-	for (va = start; va < end; va += PAGE_SIZE) {
-		pa = pmap_extract(pmap, va);
-		if (pa != 0) {
-			pmap_change_wiring(pmap, va, FALSE);
-			if (!fictitious) {
-				m = PHYS_TO_VM_PAGE(pa);
-				vm_page_lock(m);
-				vm_page_unwire(m, PQ_ACTIVE);
-				vm_page_unlock(m);
-			}
-		}
-	}
 }
 
 /*
