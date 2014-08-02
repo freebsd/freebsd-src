@@ -50,7 +50,7 @@ int
 cheri_system_helloworld(void)
 {
 
-	printf("%s: hello world\n", __func__);
+	printf("hello world\n");
 	return (123456);
 }
 
