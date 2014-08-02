@@ -45,6 +45,7 @@ struct sctp_sysctl {
 	uint32_t sctp_auto_asconf;
 	uint32_t sctp_multiple_asconfs;
 	uint32_t sctp_ecn_enable;
+	uint32_t sctp_pr_enable;
 	uint32_t sctp_fr_max_burst_default;
 	uint32_t sctp_strict_sacks;
 	uint32_t sctp_peer_chunk_oh;
@@ -153,6 +154,12 @@ struct sctp_sysctl {
 #define SCTPCTL_ECN_ENABLE_MIN		0
 #define SCTPCTL_ECN_ENABLE_MAX		1
 #define SCTPCTL_ECN_ENABLE_DEFAULT	1
+
+/* pr_enable: Enable PR-SCTP */
+#define SCTPCTL_PR_ENABLE_DESC		"Enable PR-SCTP"
+#define SCTPCTL_PR_ENABLE_MIN		0
+#define SCTPCTL_PR_ENABLE_MAX		1
+#define SCTPCTL_PR_ENABLE_DEFAULT	1
 
 /* strict_sacks: Enable SCTP Strict SACK checking */
 #define SCTPCTL_STRICT_SACKS_DESC	"Enable SCTP Strict SACK checking"
