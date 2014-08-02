@@ -92,6 +92,7 @@ struct ctlname {
 #define	CTLFLAG_CAPRD	0x00008000	/* Can be read in capability mode */
 #define	CTLFLAG_CAPWR	0x00004000	/* Can be written in capability mode */
 #define	CTLFLAG_STATS	0x00002000	/* Statistics, not a tuneable */
+#define	CTLFLAG_NOFETCH	0x00001000	/* Don't fetch tunable from getenv() */
 #define	CTLFLAG_CAPRW	(CTLFLAG_CAPRD|CTLFLAG_CAPWR)
 
 /*
@@ -206,6 +207,7 @@ void sysctl_unregister_oid(struct sysctl_oid *oidp);
 /* Hide these in macros. */
 #define	SYSCTL_CHILDREN(oid_ptr)					\
 	(struct sysctl_oid_list *)(oid_ptr)->oid_arg1
+#define	SYSCTL_PARENT(oid_ptr)			NULL	/* not supported */
 #define	SYSCTL_CHILDREN_SET(oid_ptr, val)	(oid_ptr)->oid_arg1 = (val)
 #define	SYSCTL_STATIC_CHILDREN(oid_name)	(&sysctl_##oid_name##_children)
 
@@ -296,11 +298,18 @@ SYSCTL_ALLOWED_TYPES(UINT64, uint64_t *a; unsigned long long *b; );
 #define	SYSCTL_ADD_OID(ctx, parent, nbr, name, kind, a1, a2, handler, fmt, descr) \
 	sysctl_add_oid(ctx, parent, nbr, name, kind, a1, a2, handler, fmt, __DESCR(descr))
 
+/* This constructs a root node from which other nodes can hang. */
+#define	SYSCTL_ROOT_NODE(nbr, name, access, handler, descr)		\
+	SYSCTL_NODE(, nbr, name, access, handler, descr)
+
 /* This constructs a node from which other oids can hang. */
 #define	SYSCTL_NODE(parent, nbr, name, access, handler, descr)		    \
 	struct sysctl_oid_list SYSCTL_NODE_CHILDREN(parent, name);	    \
 	SYSCTL_OID(parent, nbr, name, CTLTYPE_NODE|(access),		    \
 	    (void*)&SYSCTL_NODE_CHILDREN(parent, name), 0, handler, "N", descr)
+
+#define	SYSCTL_ADD_ROOT_NODE(ctx, nbr, name, access, handler, descr) \
+	SYSCTL_ADD_NODE(ctx, SYSCTL_STATIC_CHILDREN(), nbr, name, access, handler, descr)
 
 #define	SYSCTL_ADD_NODE(ctx, parent, nbr, name, access, handler, descr)	    \
 	sysctl_add_oid(ctx, parent, nbr, name, CTLTYPE_NODE|(access),	    \
