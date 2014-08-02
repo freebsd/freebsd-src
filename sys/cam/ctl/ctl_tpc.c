@@ -327,6 +327,21 @@ ctl_receive_copy_operating_parameters(struct ctl_scsiio *ctsio)
 	return (retval);
 }
 
+static struct tpc_list *
+tpc_find_list(struct ctl_lun *lun, uint32_t list_id, uint32_t init_idx)
+{
+	struct tpc_list *list;
+
+	mtx_assert(&lun->lun_lock, MA_OWNED);
+	TAILQ_FOREACH(list, &lun->tpc_lists, links) {
+		if ((list->flags & EC_LIST_ID_USAGE_MASK) !=
+		     EC_LIST_ID_USAGE_NONE && list->list_id == list_id &&
+		    list->init_idx == init_idx)
+			break;
+	}
+	return (list);
+}
+
 int
 ctl_receive_copy_status_lid1(struct ctl_scsiio *ctsio)
 {
@@ -348,11 +363,8 @@ ctl_receive_copy_status_lid1(struct ctl_scsiio *ctsio)
 
 	list_id = cdb->list_identifier;
 	mtx_lock(&lun->lun_lock);
-	TAILQ_FOREACH(list, &lun->tpc_lists, links) {
-		if ((list->flags & EC_LIST_ID_USAGE_MASK) !=
-		     EC_LIST_ID_USAGE_NONE && list->list_id == list_id)
-			break;
-	}
+	list = tpc_find_list(lun, list_id,
+	    ctl_get_resindex(&ctsio->io_hdr.nexus));
 	if (list == NULL) {
 		mtx_unlock(&lun->lun_lock);
 		ctl_set_invalid_field(ctsio, /*sks_valid*/ 1,
@@ -433,12 +445,9 @@ ctl_receive_copy_failure_details(struct ctl_scsiio *ctsio)
 
 	list_id = cdb->list_identifier;
 	mtx_lock(&lun->lun_lock);
-	TAILQ_FOREACH(list, &lun->tpc_lists, links) {
-		if (list->completed && (list->flags & EC_LIST_ID_USAGE_MASK) !=
-		     EC_LIST_ID_USAGE_NONE && list->list_id == list_id)
-			break;
-	}
-	if (list == NULL) {
+	list = tpc_find_list(lun, list_id,
+	    ctl_get_resindex(&ctsio->io_hdr.nexus));
+	if (list == NULL || !list->completed) {
 		mtx_unlock(&lun->lun_lock);
 		ctl_set_invalid_field(ctsio, /*sks_valid*/ 1,
 		    /*command*/ 1, /*field*/ 2, /*bit_valid*/ 0,
@@ -507,11 +516,8 @@ ctl_receive_copy_status_lid4(struct ctl_scsiio *ctsio)
 
 	list_id = scsi_4btoul(cdb->list_identifier);
 	mtx_lock(&lun->lun_lock);
-	TAILQ_FOREACH(list, &lun->tpc_lists, links) {
-		if ((list->flags & EC_LIST_ID_USAGE_MASK) !=
-		     EC_LIST_ID_USAGE_NONE && list->list_id == list_id)
-			break;
-	}
+	list = tpc_find_list(lun, list_id,
+	    ctl_get_resindex(&ctsio->io_hdr.nexus));
 	if (list == NULL) {
 		mtx_unlock(&lun->lun_lock);
 		ctl_set_invalid_field(ctsio, /*sks_valid*/ 1,
@@ -596,11 +602,8 @@ ctl_copy_operation_abort(struct ctl_scsiio *ctsio)
 
 	list_id = scsi_4btoul(cdb->list_identifier);
 	mtx_lock(&lun->lun_lock);
-	TAILQ_FOREACH(list, &lun->tpc_lists, links) {
-		if ((list->flags & EC_LIST_ID_USAGE_MASK) !=
-		     EC_LIST_ID_USAGE_NONE && list->list_id == list_id)
-			break;
-	}
+	list = tpc_find_list(lun, list_id,
+	    ctl_get_resindex(&ctsio->io_hdr.nexus));
 	if (list == NULL) {
 		mtx_unlock(&lun->lun_lock);
 		ctl_set_invalid_field(ctsio, /*sks_valid*/ 1,
@@ -1210,12 +1213,7 @@ ctl_extended_copy_lid1(struct ctl_scsiio *ctsio)
 	list->lun = lun;
 	mtx_lock(&lun->lun_lock);
 	if ((list->flags & EC_LIST_ID_USAGE_MASK) != EC_LIST_ID_USAGE_NONE) {
-		TAILQ_FOREACH(tlist, &lun->tpc_lists, links) {
-			if ((tlist->flags & EC_LIST_ID_USAGE_MASK) !=
-			     EC_LIST_ID_USAGE_NONE &&
-			    tlist->list_id == list->list_id)
-				break;
-		}
+		tlist = tpc_find_list(lun, list->list_id, list->init_idx);
 		if (tlist != NULL && !tlist->completed) {
 			mtx_unlock(&lun->lun_lock);
 			free(list, M_CTL);
@@ -1338,12 +1336,7 @@ ctl_extended_copy_lid4(struct ctl_scsiio *ctsio)
 	list->lun = lun;
 	mtx_lock(&lun->lun_lock);
 	if ((list->flags & EC_LIST_ID_USAGE_MASK) != EC_LIST_ID_USAGE_NONE) {
-		TAILQ_FOREACH(tlist, &lun->tpc_lists, links) {
-			if ((tlist->flags & EC_LIST_ID_USAGE_MASK) !=
-			     EC_LIST_ID_USAGE_NONE &&
-			    tlist->list_id == list->list_id)
-				break;
-		}
+		tlist = tpc_find_list(lun, list->list_id, list->init_idx);
 		if (tlist != NULL && !tlist->completed) {
 			mtx_unlock(&lun->lun_lock);
 			free(list, M_CTL);
