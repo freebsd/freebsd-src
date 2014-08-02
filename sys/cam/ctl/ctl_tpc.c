@@ -481,7 +481,8 @@ ctl_receive_copy_failure_details(struct ctl_scsiio *ctsio)
 
 	data = (struct scsi_receive_copy_failure_details_data *)ctsio->kern_data_ptr;
 	if (list_copy.completed && (list_copy.error || list_copy.abort)) {
-		scsi_ulto4b(sizeof(*data) - 4, data->available_data);
+		scsi_ulto4b(sizeof(*data) - 4 + list_copy.sense_len,
+		    data->available_data);
 		data->copy_command_status = RCS_CCS_ERROR;
 	} else
 		scsi_ulto4b(0, data->available_data);
@@ -553,7 +554,8 @@ ctl_receive_copy_status_lid4(struct ctl_scsiio *ctsio)
 	ctsio->kern_rel_offset = 0;
 
 	data = (struct scsi_receive_copy_status_lid4_data *)ctsio->kern_data_ptr;
-	scsi_ulto4b(sizeof(*data) - 4, data->available_data);
+	scsi_ulto4b(sizeof(*data) - 4 + list_copy.sense_len,
+	    data->available_data);
 	data->response_to_service_action = list_copy.service_action;
 	if (list_copy.completed) {
 		if (list_copy.error)
@@ -566,14 +568,10 @@ ctl_receive_copy_status_lid4(struct ctl_scsiio *ctsio)
 		data->copy_command_status = RCS_CCS_INPROG_FG;
 	scsi_ulto2b(list_copy.curops, data->operation_counter);
 	scsi_ulto4b(UINT32_MAX, data->estimated_status_update_delay);
-	if (list_copy.curbytes <= UINT32_MAX) {
-		data->transfer_count_units = RCS_TC_BYTES;
-		scsi_ulto4b(list_copy.curbytes, data->transfer_count);
-	} else {
-		data->transfer_count_units = RCS_TC_MBYTES;
-		scsi_ulto4b(list_copy.curbytes >> 20, data->transfer_count);
-	}
+	data->transfer_count_units = RCS_TC_BYTES;
+	scsi_u64to8b(list_copy.curbytes, data->transfer_count);
 	scsi_ulto2b(list_copy.curseg, data->segments_processed);
+	data->length_of_the_sense_data_field = list_copy.sense_len;
 	data->sense_data_length = list_copy.sense_len;
 	memcpy(data->sense_data, &list_copy.sense_data, list_copy.sense_len);
 
