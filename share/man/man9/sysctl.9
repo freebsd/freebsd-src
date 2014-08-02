@@ -243,22 +243,22 @@ See
 for how to create a new sysctl context.
 Programmers are strongly advised to use contexts to organize the
 dynamic OIDs which they create because when a context is destroyed all
-belonging sysctls are destroyed aswell.
+belonging sysctls are destroyed as well.
 This makes the sysctl cleanup code much simpler.
-Else deletion of all created OIDs is required at module unload typically.
+Else deletion of all created OIDs is required at module unload.
 .It Fa parent
 A pointer to a
 .Li struct sysctl_oid_list ,
 which is the head of the parent's list of children.
-This pointer is retrieved by using the
+This pointer is retrieved using the
 .Fn SYSCTL_STATIC_CHILDREN
 macro for static sysctls and the
 .Fn SYSCTL_CHILDREN
 macro for dynamic sysctls.
-To get the parent of an OID the
+The
 .Fn SYSCTL_PARENT
-macro shall be used.
-If there is no parent this macro returns NULL.
+macro can be used to get the parent of an OID.
+The macro returns NULL if there is no parent.
 .It Fa number
 The OID number that will be assigned to this OID.
 In almost all cases this should be set to
