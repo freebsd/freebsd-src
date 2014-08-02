@@ -316,8 +316,8 @@ struct xhci_trb {
 } __aligned(4);
 
 struct xhci_dev_endpoint_trbs {
-	struct xhci_trb		trb[XHCI_MAX_ENDPOINTS]
-	    [(XHCI_MAX_STREAMS * XHCI_MAX_TRANSFERS) + XHCI_MAX_STREAMS];
+	struct xhci_trb		trb[(XHCI_MAX_STREAMS *
+	    XHCI_MAX_TRANSFERS) + XHCI_MAX_STREAMS];
 };
 
 #define	XHCI_TD_PAGE_NBUF	17	/* units, room enough for 64Kbytes */
@@ -385,11 +385,11 @@ enum {
 struct xhci_hw_dev {
 	struct usb_page_cache	device_pc;
 	struct usb_page_cache	input_pc;
-	struct usb_page_cache	endpoint_pc;
+	struct usb_page_cache	endpoint_pc[XHCI_MAX_ENDPOINTS];
 
 	struct usb_page		device_pg;
 	struct usb_page		input_pg;
-	struct usb_page		endpoint_pg;
+	struct usb_page		endpoint_pg[XHCI_MAX_ENDPOINTS];
 
 	struct xhci_endpoint_ext endp[XHCI_MAX_ENDPOINTS];
 
