@@ -2985,7 +2985,7 @@ alloc_eq(struct adapter *sc, struct port_info *pi, struct sge_eq *eq)
 		udb = sc->udbs_base + UDBS_DB_OFFSET;
 		udb += (eq->cntxt_id >> s_qpp) << PAGE_SHIFT;	/* pg offset */
 		eq->udb_qid = eq->cntxt_id & mask;		/* id in page */
-		if (eq->udb_qid > PAGE_SIZE / UDBS_SEG_SIZE)
+		if (eq->udb_qid >= PAGE_SIZE / UDBS_SEG_SIZE)
 	    		clrbit(&eq->doorbells, DOORBELL_WCWR);
 		else {
 			udb += eq->udb_qid << UDBS_SEG_SHIFT;	/* seg offset */
