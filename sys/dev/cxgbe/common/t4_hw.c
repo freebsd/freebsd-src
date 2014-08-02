@@ -5206,19 +5206,6 @@ int t4_enable_vi(struct adapter *adap, unsigned int mbox, unsigned int viid,
 	return t4_wr_mbox(adap, mbox, &c, sizeof(c), NULL);
 }
 
-int t4_enable_vi_ns(struct adapter *adap, unsigned int mbox, unsigned int viid,
-		 bool rx_en, bool tx_en)
-{
-	struct fw_vi_enable_cmd c;
-
-	memset(&c, 0, sizeof(c));
-	c.op_to_viid = htonl(V_FW_CMD_OP(FW_VI_ENABLE_CMD) | F_FW_CMD_REQUEST |
-			     F_FW_CMD_EXEC | V_FW_VI_ENABLE_CMD_VIID(viid));
-	c.ien_to_len16 = htonl(V_FW_VI_ENABLE_CMD_IEN(rx_en) |
-			       V_FW_VI_ENABLE_CMD_EEN(tx_en) | FW_LEN16(c));
-	return t4_wr_mbox_ns(adap, mbox, &c, sizeof(c), NULL);
-}
-
 /**
  *	t4_identify_port - identify a VI's port by blinking its LED
  *	@adap: the adapter
