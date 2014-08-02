@@ -987,7 +987,7 @@ nandfs_check_possible(struct vnode *vp, struct vattr *vap, mode_t mode)
 		 * Normal nodes: check if we're on a read-only mounted
 		 * filingsystem and bomb out if we're trying to write.
 		 */
-		if ((mode & VWRITE) && (vp->v_mount->mnt_flag & MNT_RDONLY))
+		if ((mode & VMODIFY_PERMS) && (vp->v_mount->mnt_flag & MNT_RDONLY))
 			return (EROFS);
 		break;
 	case VBLK:
