@@ -933,16 +933,12 @@ for i
 do
 	case "$i" 
 	in
-	-b)
-		do_world=false
-		do_kernel=false
-		shift
-		;;
 	-K)
 		do_installkernel=false
 		shift
 		;;
-	-k)
+	-b)
+		do_world=false
 		do_kernel=false
 		shift
 		;;
@@ -964,6 +960,10 @@ do
 		;;
 	-i)
 		do_image=false
+		shift
+		;;
+	-k)
+		do_kernel=false
 		shift
 		;;
 	-n)
