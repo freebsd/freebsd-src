@@ -175,8 +175,7 @@ static int service_iq(struct sge_iq *, int);
 static struct mbuf *get_fl_payload(struct adapter *, struct sge_fl *, uint32_t,
     int *);
 static int t4_eth_rx(struct sge_iq *, const struct rss_header *, struct mbuf *);
-static inline void init_iq(struct sge_iq *, struct adapter *, int, int, int,
-    int);
+static inline void init_iq(struct sge_iq *, struct adapter *, int, int, int);
 static inline void init_fl(struct adapter *, struct sge_fl *, int, int, int,
     char *);
 static inline void init_eq(struct sge_eq *, int, int, uint8_t, uint16_t,
@@ -224,8 +223,6 @@ static int alloc_txq(struct port_info *, struct sge_txq *, int,
     struct sysctl_oid *);
 static int free_txq(struct port_info *, struct sge_txq *);
 static void oneseg_dma_callback(void *, bus_dma_segment_t *, int, int);
-static inline bool is_new_response(const struct sge_iq *, struct rsp_ctrl **);
-static inline void iq_next(struct sge_iq *);
 static inline void ring_fl_db(struct adapter *, struct sge_fl *);
 static int refill_fl(struct adapter *, struct sge_fl *, int);
 static void refill_sfl(void *);
@@ -1005,8 +1002,7 @@ t4_setup_port_queues(struct port_info *pi)
 	}
 	for_each_rxq(pi, i, rxq) {
 
-		init_iq(&rxq->iq, sc, pi->tmr_idx, pi->pktc_idx, pi->qsize_rxq,
-		    RX_IQ_ESIZE);
+		init_iq(&rxq->iq, sc, pi->tmr_idx, pi->pktc_idx, pi->qsize_rxq);
 
 		snprintf(name, sizeof(name), "%s rxq%d-fl",
 		    device_get_nameunit(pi->dev), i);
@@ -1030,7 +1026,7 @@ t4_setup_port_queues(struct port_info *pi)
 	for_each_ofld_rxq(pi, i, ofld_rxq) {
 
 		init_iq(&ofld_rxq->iq, sc, pi->tmr_idx, pi->pktc_idx,
-		    pi->qsize_rxq, RX_IQ_ESIZE);
+		    pi->qsize_rxq);
 
 		snprintf(name, sizeof(name), "%s ofld_rxq%d-fl",
 		    device_get_nameunit(pi->dev), i);
@@ -1319,8 +1315,7 @@ service_iq(struct sge_iq *iq, int budget)
 	struct sge_rxq *rxq = iq_to_rxq(iq);	/* Use iff iq is part of rxq */
 	struct sge_fl *fl = &rxq->fl;		/* Use iff IQ_HAS_FL */
 	struct adapter *sc = iq->adapter;
-	struct rsp_ctrl *ctrl;
-	const struct rss_header *rss;
+	struct iq_desc *d = &iq->desc[iq->cidx];
 	int ndescs = 0, limit, fl_bufs_used = 0;
 	int rsp_type;
 	uint32_t lq;
@@ -1339,14 +1334,13 @@ service_iq(struct sge_iq *iq, int budget)
 	 * interrupts and other responses after running a single handler.
 	 */
 	for (;;) {
-		while (is_new_response(iq, &ctrl)) {
+		while ((d->rsp.u.type_gen & F_RSPD_GEN) == iq->gen) {
 
 			rmb();
 
 			m0 = NULL;
-			rsp_type = G_RSPD_TYPE(ctrl->u.type_gen);
-			lq = be32toh(ctrl->pldbuflen_qid);
-			rss = (const void *)iq->cdesc;
+			rsp_type = G_RSPD_TYPE(d->rsp.u.type_gen);
+			lq = be32toh(d->rsp.pldbuflen_qid);
 
 			switch (rsp_type) {
 			case X_RSPD_TYPE_FLBUF:
@@ -1376,10 +1370,10 @@ service_iq(struct sge_iq *iq, int budget)
 				/* fall through */
 
 			case X_RSPD_TYPE_CPL:
-				KASSERT(rss->opcode < NUM_CPL_CMDS,
+				KASSERT(d->rss.opcode < NUM_CPL_CMDS,
 				    ("%s: bad opcode %02x.", __func__,
-				    rss->opcode));
-				sc->cpl_handler[rss->opcode](iq, rss, m0);
+				    d->rss.opcode));
+				sc->cpl_handler[d->rss.opcode](iq, &d->rss, m0);
 				break;
 
 			case X_RSPD_TYPE_INTR:
@@ -1401,7 +1395,7 @@ service_iq(struct sge_iq *iq, int budget)
 				 * iWARP async notification.
 				 */
 				if (lq >= 1024) {
-                                        sc->an_handler(iq, ctrl);
+                                        sc->an_handler(iq, &d->rsp);
                                         break;
                                 }
 
@@ -1436,8 +1430,13 @@ service_iq(struct sge_iq *iq, int budget)
 				fl_bufs_used = 0;
 			}
 
-			iq_next(iq);
-			if (++ndescs == limit) {
+			d++;
+			if (__predict_false(++iq->cidx == iq->sidx)) {
+				iq->cidx = 0;
+				iq->gen ^= F_RSPD_GEN;
+				d = &iq->desc[0];
+			}
+			if (__predict_false(++ndescs == limit)) {
 				t4_write_reg(sc, MYPF_REG(A_SGE_PF_GTS),
 				    V_CIDXINC(ndescs) |
 				    V_INGRESSQID(iq->cntxt_id) |
@@ -2101,8 +2100,9 @@ can_resume_tx(struct sge_eq *eq)
 
 static inline void
 init_iq(struct sge_iq *iq, struct adapter *sc, int tmr_idx, int pktc_idx,
-    int qsize, int esize)
+    int qsize)
 {
+
 	KASSERT(tmr_idx >= 0 && tmr_idx < SGE_NTIMERS,
 	    ("%s: bad tmr_idx %d", __func__, tmr_idx));
 	KASSERT(pktc_idx < SGE_NCOUNTERS,	/* -ve is ok, means don't use */
@@ -2117,7 +2117,7 @@ init_iq(struct sge_iq *iq, struct adapter *sc, int tmr_idx, int pktc_idx,
 		iq->intr_pktc_idx = pktc_idx;
 	}
 	iq->qsize = roundup2(qsize, 16);	/* See FW_IQ_CMD/iqsize */
-	iq->esize = max(esize, 16);		/* See FW_IQ_CMD/iqesize */
+	iq->sidx = iq->qsize - spg_len / IQ_ESIZE;
 }
 
 static inline void
@@ -2218,7 +2218,7 @@ alloc_iq_fl(struct port_info *pi, struct sge_iq *iq, struct sge_fl *fl,
 	struct adapter *sc = iq->adapter;
 	__be32 v = 0;
 
-	len = iq->qsize * iq->esize;
+	len = iq->qsize * IQ_ESIZE;
 	rc = alloc_ring(sc, len, &iq->desc_tag, &iq->desc_map, &iq->ba,
 	    (void **)&iq->desc);
 	if (rc != 0)
@@ -2250,7 +2250,7 @@ alloc_iq_fl(struct port_info *pi, struct sge_iq *iq, struct sge_fl *fl,
 	c.iqdroprss_to_iqesize = htobe16(V_FW_IQ_CMD_IQPCIECH(pi->tx_chan) |
 	    F_FW_IQ_CMD_IQGTSMODE |
 	    V_FW_IQ_CMD_IQINTCNTTHRESH(iq->intr_pktc_idx) |
-	    V_FW_IQ_CMD_IQESIZE(ilog2(iq->esize) - 4));
+	    V_FW_IQ_CMD_IQESIZE(ilog2(IQ_ESIZE) - 4));
 	c.iqsize = htobe16(iq->qsize);
 	c.iqaddr = htobe64(iq->ba);
 	if (cong >= 0)
@@ -2259,14 +2259,14 @@ alloc_iq_fl(struct port_info *pi, struct sge_iq *iq, struct sge_fl *fl,
 	if (fl) {
 		mtx_init(&fl->fl_lock, fl->lockname, NULL, MTX_DEF);
 
-		len = fl->qsize * RX_FL_ESIZE;
+		len = fl->qsize * EQ_ESIZE;
 		rc = alloc_ring(sc, len, &fl->desc_tag, &fl->desc_map,
 		    &fl->ba, (void **)&fl->desc);
 		if (rc)
 			return (rc);
 
 		/* Allocate space for one software descriptor per buffer. */
-		fl->cap = (fl->qsize - spg_len / RX_FL_ESIZE) * 8;
+		fl->cap = (fl->qsize - spg_len / EQ_ESIZE) * 8;
 		rc = alloc_fl_sdesc(fl);
 		if (rc != 0) {
 			device_printf(sc->dev,
@@ -2305,9 +2305,8 @@ alloc_iq_fl(struct port_info *pi, struct sge_iq *iq, struct sge_fl *fl,
 		return (rc);
 	}
 
-	iq->cdesc = iq->desc;
 	iq->cidx = 0;
-	iq->gen = 1;
+	iq->gen = F_RSPD_GEN;
 	iq->intr_next = iq->intr_params;
 	iq->cntxt_id = be16toh(c.iqid);
 	iq->abs_id = be16toh(c.physiqid);
@@ -2457,7 +2456,7 @@ alloc_fwq(struct adapter *sc)
 	struct sysctl_oid *oid = device_get_sysctl_tree(sc->dev);
 	struct sysctl_oid_list *children = SYSCTL_CHILDREN(oid);
 
-	init_iq(fwq, sc, 0, 0, FW_IQ_QSIZE, FW_IQ_ESIZE);
+	init_iq(fwq, sc, 0, 0, FW_IQ_QSIZE);
 	fwq->flags |= IQ_INTR;	/* always */
 	intr_idx = sc->intr_count > 1 ? 1 : 0;
 	rc = alloc_iq_fl(sc->port[0], fwq, NULL, intr_idx, -1);
@@ -2677,13 +2676,13 @@ alloc_nm_rxq(struct port_info *pi, struct sge_nm_rxq *nm_rxq, int intr_idx,
 
 	MPASS(na != NULL);
 
-	len = pi->qsize_rxq * RX_IQ_ESIZE;
+	len = pi->qsize_rxq * IQ_ESIZE;
 	rc = alloc_ring(sc, len, &nm_rxq->iq_desc_tag, &nm_rxq->iq_desc_map,
 	    &nm_rxq->iq_ba, (void **)&nm_rxq->iq_desc);
 	if (rc != 0)
 		return (rc);
 
-	len = na->num_rx_desc * RX_FL_ESIZE + spg_len;
+	len = na->num_rx_desc * EQ_ESIZE + spg_len;
 	rc = alloc_ring(sc, len, &nm_rxq->fl_desc_tag, &nm_rxq->fl_desc_map,
 	    &nm_rxq->fl_ba, (void **)&nm_rxq->fl_desc);
 	if (rc != 0)
@@ -2692,7 +2691,7 @@ alloc_nm_rxq(struct port_info *pi, struct sge_nm_rxq *nm_rxq, int intr_idx,
 	nm_rxq->pi = pi;
 	nm_rxq->nid = idx;
 	nm_rxq->iq_cidx = 0;
-	nm_rxq->iq_sidx = pi->qsize_rxq - spg_len / RX_IQ_ESIZE;
+	nm_rxq->iq_sidx = pi->qsize_rxq - spg_len / IQ_ESIZE;
 	nm_rxq->iq_gen = F_RSPD_GEN;
 	nm_rxq->fl_pidx = nm_rxq->fl_cidx = 0;
 	nm_rxq->fl_sidx = na->num_rx_desc;
@@ -3212,26 +3211,6 @@ oneseg_dma_callback(void *arg, bus_dma_segment_t *segs, int nseg, int error)
 	    ("%s meant for single segment mappings only.", __func__));
 
 	*ba = error ? 0 : segs->ds_addr;
-}
-
-static inline bool
-is_new_response(const struct sge_iq *iq, struct rsp_ctrl **ctrl)
-{
-	*ctrl = (void *)((uintptr_t)iq->cdesc +
-	    (iq->esize - sizeof(struct rsp_ctrl)));
-
-	return (((*ctrl)->u.type_gen >> S_RSPD_GEN) == iq->gen);
-}
-
-static inline void
-iq_next(struct sge_iq *iq)
-{
-	iq->cdesc = (void *) ((uintptr_t)iq->cdesc + iq->esize);
-	if (__predict_false(++iq->cidx == iq->qsize - spg_len / iq->esize)) {
-		iq->cidx = 0;
-		iq->gen ^= 1;
-		iq->cdesc = iq->desc;
-	}
 }
 
 #define FL_HW_IDX(x) ((x) >> 3)
