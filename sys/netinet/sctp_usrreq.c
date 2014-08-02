@@ -5903,7 +5903,7 @@ sctp_setopt(struct socket *so, int optname, void *optval, size_t optsize,
 					if (av->assoc_value == 0) {
 						inp->ecn_supported = 0;
 					} else {
-						inp->ecn_supported = 0;
+						inp->ecn_supported = 1;
 					}
 					SCTP_INP_WUNLOCK(inp);
 				} else {
