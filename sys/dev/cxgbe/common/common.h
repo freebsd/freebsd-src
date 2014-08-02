@@ -581,8 +581,6 @@ int t4_set_addr_hash(struct adapter *adap, unsigned int mbox, unsigned int viid,
 		     bool ucast, u64 vec, bool sleep_ok);
 int t4_enable_vi(struct adapter *adap, unsigned int mbox, unsigned int viid,
 		 bool rx_en, bool tx_en);
-int t4_enable_vi_ns(struct adapter *adap, unsigned int mbox, unsigned int viid,
-		 bool rx_en, bool tx_en);
 int t4_identify_port(struct adapter *adap, unsigned int mbox, unsigned int viid,
 		     unsigned int nblinks);
 int t4_mdio_rd(struct adapter *adap, unsigned int mbox, unsigned int phy_addr,
