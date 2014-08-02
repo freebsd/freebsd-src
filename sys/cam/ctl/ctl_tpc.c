@@ -948,6 +948,8 @@ done:
 		free(list, M_CTL);
 	} else {
 		list->completed = 1;
+		free(list->params, M_CTL);
+		list->params = NULL;
 		list->sense_data = ctsio->sense_data;
 		list->sense_len = ctsio->sense_len;
 		list->scsi_status = ctsio->scsi_status;
