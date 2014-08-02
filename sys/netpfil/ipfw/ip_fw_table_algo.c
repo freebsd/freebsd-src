@@ -397,7 +397,7 @@ ta_prepare_add_cidr(struct ip_fw_chain *ch, struct tentry_info *tei,
 
 static int
 ta_add_cidr(void *ta_state, struct table_info *ti, struct tentry_info *tei,
-    void *ta_buf, uint64_t *pflags, uint32_t *pnum)
+    void *ta_buf, uint32_t *pnum)
 {
 	struct radix_node_head *rnh;
 	struct radix_node *rn;
@@ -489,7 +489,7 @@ ta_prepare_del_cidr(struct ip_fw_chain *ch, struct tentry_info *tei,
 
 static int
 ta_del_cidr(void *ta_state, struct table_info *ti, struct tentry_info *tei,
-    void *ta_buf, uint64_t *pflags, uint32_t *pnum)
+    void *ta_buf, uint32_t *pnum)
 {
 	struct radix_node_head *rnh;
 	struct radix_node *rn;
@@ -526,6 +526,20 @@ ta_flush_cidr_entry(struct ip_fw_chain *ch, struct tentry_info *tei,
 		free(tb->ent_ptr, M_IPFW_TBL);
 }
 
+static int
+ta_has_space_radix(void *ta_state, struct table_info *ti, uint32_t count,
+    uint64_t *pflags)
+{
+
+	/*
+	 * radix does not not require additional memory allocations
+	 * other than nodes itself. Adding new masks to the tree do
+	 * but we don't have any API to call (and we don't known which
+	 * sizes do we need).
+	 */
+	return (1);
+}
+
 struct table_algo cidr_radix = {
 	.name		= "cidr:radix",
 	.type		= IPFW_TABLE_CIDR,
@@ -541,6 +555,7 @@ struct table_algo cidr_radix = {
 	.foreach	= ta_foreach_radix,
 	.dump_tentry	= ta_dump_radix_tentry,
 	.find_tentry	= ta_find_radix_tentry,
+	.has_space	= ta_has_space_radix,
 };
 
 
@@ -1115,7 +1130,7 @@ ta_prepare_add_chash(struct ip_fw_chain *ch, struct tentry_info *tei,
 
 static int
 ta_add_chash(void *ta_state, struct table_info *ti, struct tentry_info *tei,
-    void *ta_buf, uint64_t *pflags, uint32_t *pnum)
+    void *ta_buf, uint32_t *pnum)
 {
 	struct chash_cfg *ccfg;
 	struct chashbhead *head;
@@ -1172,16 +1187,11 @@ ta_add_chash(void *ta_state, struct table_info *ti, struct tentry_info *tei,
 		tb->ent_ptr = NULL;
 		*pnum = 1;
 
-		/* Update counters and check if we need to grow hash */
-		if (tei->subtype == AF_INET) {
+		/* Update counters */
+		if (tei->subtype == AF_INET)
 			ccfg->items4++;
-			if (ccfg->items4 > ccfg->size4 && ccfg->size4 < 65536)
-				*pflags = (ccfg->size4 * 2) | (1UL << 32);
-		} else {
+		else
 			ccfg->items6++;
-			if (ccfg->items6 > ccfg->size6 && ccfg->size6 < 65536)
-				*pflags = ccfg->size6 * 2;
-		}
 	}
 
 	return (0);
@@ -1200,7 +1210,7 @@ ta_prepare_del_chash(struct ip_fw_chain *ch, struct tentry_info *tei,
 
 static int
 ta_del_chash(void *ta_state, struct table_info *ti, struct tentry_info *tei,
-    void *ta_buf, uint64_t *pflags, uint32_t *pnum)
+    void *ta_buf, uint32_t *pnum)
 {
 	struct chash_cfg *ccfg;
 	struct chashbhead *head;
@@ -1263,7 +1273,38 @@ ta_flush_chash_entry(struct ip_fw_chain *ch, struct tentry_info *tei,
 struct mod_item {
 	void	*main_ptr;
 	size_t	size;
+	void	*main_ptr6;
+	size_t	size6;
 };
+
+static int
+ta_has_space_chash(void *ta_state, struct table_info *ti, uint32_t count,
+    uint64_t *pflags)
+{
+	struct chash_cfg *cfg;
+	uint64_t data;
+
+	/*
+	 * Since we don't know exact number of IPv4/IPv6 records in @count,
+	 * ignore non-zero @count value at all. Check current hash sizes
+	 * and return appropriate data.
+	 */
+
+	cfg = (struct chash_cfg *)ta_state;
+
+	data = 0;
+	if (cfg->items4 > cfg->size4 && cfg->size4 < 65536)
+		data |= (cfg->size4 * 2) << 16;
+	if (cfg->items6 > cfg->size6 && cfg->size6 < 65536)
+		data |= cfg->size6 * 2;
+
+	if (data != 0) {
+		*pflags = data;
+		return (0);
+	}
+
+	return (1);
+}
 
 /*
  * Allocate new, larger chash.
@@ -1278,13 +1319,23 @@ ta_prepare_mod_chash(void *ta_buf, uint64_t *pflags)
 	mi = (struct mod_item *)ta_buf;
 
 	memset(mi, 0, sizeof(struct mod_item));
-	mi->size = *pflags & 0xFFFFFFFF;
-	head = malloc(sizeof(struct chashbhead) * mi->size, M_IPFW,
-	    M_WAITOK | M_ZERO);
-	for (i = 0; i < mi->size; i++)
-		SLIST_INIT(&head[i]);
+	mi->size = (*pflags >> 16) & 0xFFFF;
+	mi->size6 = *pflags & 0xFFFF;
+	if (mi->size > 0) {
+		head = malloc(sizeof(struct chashbhead) * mi->size,
+		    M_IPFW, M_WAITOK | M_ZERO);
+		for (i = 0; i < mi->size; i++)
+			SLIST_INIT(&head[i]);
+		mi->main_ptr = head;
+	}
 
-	mi->main_ptr = head;
+	if (mi->size6 > 0) {
+		head = malloc(sizeof(struct chashbhead) * mi->size6,
+		    M_IPFW, M_WAITOK | M_ZERO);
+		for (i = 0; i < mi->size6; i++)
+			SLIST_INIT(&head[i]);
+		mi->main_ptr6 = head;
+	}
 
 	return (0);
 }
@@ -1301,7 +1352,6 @@ ta_fill_mod_chash(void *ta_state, struct table_info *ti, void *ta_buf,
 	return (0);
 }
 
-
 /*
  * Switch old & new arrays.
  */
@@ -1310,54 +1360,62 @@ ta_modify_chash(void *ta_state, struct table_info *ti, void *ta_buf,
     uint64_t pflags)
 {
 	struct mod_item *mi;
-	struct chash_cfg *ccfg;
+	struct chash_cfg *cfg;
 	struct chashbhead *old_head, *new_head;
 	struct chashentry *ent, *ent_next;
 	int af, i, mlen;
 	uint32_t nhash;
-	size_t old_size;
+	size_t old_size, new_size;
 
 	mi = (struct mod_item *)ta_buf;
-	ccfg = (struct chash_cfg *)ta_state;
+	cfg = (struct chash_cfg *)ta_state;
 
 	/* Check which hash we need to grow and do we still need that */
-	if ((pflags >> 32) == 1) {
-		old_size = ccfg->size4;
+	if (mi->size > 0 && cfg->size4 < mi->size) {
+		new_head = (struct chashbhead *)mi->main_ptr;
+		new_size = mi->size;
+		old_size = cfg->size4;
 		old_head = ti->state;
-		mlen = ccfg->mask4;
+		mlen = cfg->mask4;
 		af = AF_INET;
-	} else {
-		old_size = ccfg->size6;
-		old_head = ti->xstate;
-		mlen = ccfg->mask6;
-		af = AF_INET6;
-	}
 
-	if (old_size >= mi->size)
-		return (0);
-	
-	new_head = (struct chashbhead *)mi->main_ptr;
-	for (i = 0; i < old_size; i++) {
-		SLIST_FOREACH_SAFE(ent, &old_head[i], next, ent_next) {
-			nhash = hash_ent(ent, af, mlen, mi->size);
-			SLIST_INSERT_HEAD(&new_head[nhash], ent, next);
+		for (i = 0; i < old_size; i++) {
+			SLIST_FOREACH_SAFE(ent, &old_head[i], next, ent_next) {
+				nhash = hash_ent(ent, af, mlen, new_size);
+				SLIST_INSERT_HEAD(&new_head[nhash], ent, next);
+			}
 		}
-	}
 
-	if (af == AF_INET) {
 		ti->state = new_head;
-		ccfg->head4 = new_head;
-		ccfg->size4 = mi->size;
-	} else {
-		ti->xstate = new_head;
-		ccfg->head6 = new_head;
-		ccfg->size6 = mi->size;
+		cfg->head4 = new_head;
+		cfg->size4 = mi->size;
+		mi->main_ptr = old_head;
 	}
 
-	ti->data = (ti->data & 0xFFFFFFFF00000000) | log2(ccfg->size4) << 8 | 
-	    log2(ccfg->size6);
+	if (mi->size6 > 0 && cfg->size6 < mi->size6) {
+		new_head = (struct chashbhead *)mi->main_ptr6;
+		new_size = mi->size6;
+		old_size = cfg->size6;
+		old_head = ti->xstate;
+		mlen = cfg->mask6;
+		af = AF_INET6;
 
-	mi->main_ptr = old_head;
+		for (i = 0; i < old_size; i++) {
+			SLIST_FOREACH_SAFE(ent, &old_head[i], next, ent_next) {
+				nhash = hash_ent(ent, af, mlen, new_size);
+				SLIST_INSERT_HEAD(&new_head[nhash], ent, next);
+			}
+		}
+
+		ti->xstate = new_head;
+		cfg->head6 = new_head;
+		cfg->size6 = mi->size6;
+		mi->main_ptr6 = old_head;
+	}
+
+	/* Update lower 32 bits with new values */
+	ti->data &= 0xFFFFFFFF00000000;
+	ti->data |= log2(cfg->size4) << 8 | log2(cfg->size6);
 
 	return (0);
 }
@@ -1373,6 +1431,8 @@ ta_flush_mod_chash(void *ta_buf)
 	mi = (struct mod_item *)ta_buf;
 	if (mi->main_ptr != NULL)
 		free(mi->main_ptr, M_IPFW);
+	if (mi->main_ptr6 != NULL)
+		free(mi->main_ptr6, M_IPFW);
 }
 
 struct table_algo cidr_hash = {
@@ -1390,6 +1450,7 @@ struct table_algo cidr_hash = {
 	.dump_tentry	= ta_dump_chash_tentry,
 	.find_tentry	= ta_find_chash_tentry,
 	.print_config	= ta_print_chash_config,
+	.has_space	= ta_has_space_chash,
 	.prepare_mod	= ta_prepare_mod_chash,
 	.fill_mod	= ta_fill_mod_chash,
 	.modify		= ta_modify_chash,
@@ -1678,7 +1739,7 @@ ta_prepare_add_ifidx(struct ip_fw_chain *ch, struct tentry_info *tei,
 
 static int
 ta_add_ifidx(void *ta_state, struct table_info *ti, struct tentry_info *tei,
-    void *ta_buf, uint64_t *pflags, uint32_t *pnum)
+    void *ta_buf, uint32_t *pnum)
 {
 	struct iftable_cfg *icfg;
 	struct ifentry *ife, *tmp;
@@ -1726,11 +1787,6 @@ ta_add_ifidx(void *ta_state, struct table_info *ti, struct tentry_info *tei,
 	ipfw_iface_add_notify(icfg->ch, &ife->ic);
 	icfg->count++;
 
-	if (icfg->count + 1 == icfg->size) {
-		/* Notify core we need to grow */
-		*pflags = icfg->size + IFIDX_CHUNK;
-	}
-
 	tb->ife = NULL;
 	*pnum = 1;
 
@@ -1764,7 +1820,7 @@ ta_prepare_del_ifidx(struct ip_fw_chain *ch, struct tentry_info *tei,
  */
 static int
 ta_del_ifidx(void *ta_state, struct table_info *ti, struct tentry_info *tei,
-    void *ta_buf, uint64_t *pflags, uint32_t *pnum)
+    void *ta_buf, uint32_t *pnum)
 {
 	struct iftable_cfg *icfg;
 	struct ifentry *ife;
@@ -1882,6 +1938,22 @@ struct mod_ifidx {
 	void	*main_ptr;
 	size_t	size;
 };
+
+static int
+ta_has_space_ifidx(void *ta_state, struct table_info *ti, uint32_t count,
+    uint64_t *pflags)
+{
+	struct iftable_cfg *cfg;
+
+	cfg = (struct iftable_cfg *)ta_state;
+
+	if (cfg->count + count > cfg->size) {
+		*pflags = roundup2(cfg->count + count, IFIDX_CHUNK);
+		return (0);
+	}
+
+	return (1);
+}
 
 /*
  * Allocate ned, larger runtime ifidx array.
@@ -2049,6 +2121,7 @@ struct table_algo iface_idx = {
 	.foreach	= ta_foreach_ifidx,
 	.dump_tentry	= ta_dump_ifidx_tentry,
 	.find_tentry	= ta_find_ifidx_tentry,
+	.has_space	= ta_has_space_ifidx,
 	.prepare_mod	= ta_prepare_mod_ifidx,
 	.fill_mod	= ta_fill_mod_ifidx,
 	.modify		= ta_modify_ifidx,
@@ -2186,7 +2259,7 @@ ta_prepare_add_numarray(struct ip_fw_chain *ch, struct tentry_info *tei,
 
 static int
 ta_add_numarray(void *ta_state, struct table_info *ti, struct tentry_info *tei,
-    void *ta_buf, uint64_t *pflags, uint32_t *pnum)
+    void *ta_buf, uint32_t *pnum)
 {
 	struct numarray_cfg *cfg;
 	struct ta_buf_numarray *tb;
@@ -2219,11 +2292,6 @@ ta_add_numarray(void *ta_state, struct table_info *ti, struct tentry_info *tei,
 	KASSERT(res == 1, ("number %d already exists", tb->na.number));
 	cfg->used++;
 	ti->data = cfg->used;
-
-	if (cfg->used + 1 == cfg->size) {
-		/* Notify core we need to grow */
-		*pflags = cfg->size + NUMARRAY_CHUNK;
-	}
 	*pnum = 1;
 
 	return (0);
@@ -2235,7 +2303,7 @@ ta_add_numarray(void *ta_state, struct table_info *ti, struct tentry_info *tei,
  */
 static int
 ta_del_numarray(void *ta_state, struct table_info *ti, struct tentry_info *tei,
-    void *ta_buf, uint64_t *pflags, uint32_t *pnum)
+    void *ta_buf, uint32_t *pnum)
 {
 	struct numarray_cfg *cfg;
 	struct ta_buf_numarray *tb;
@@ -2255,7 +2323,6 @@ ta_del_numarray(void *ta_state, struct table_info *ti, struct tentry_info *tei,
 	KASSERT(res == 1, ("number %u does not exist", tb->na.number));
 	cfg->used--;
 	ti->data = cfg->used;
-
 	*pnum = 1;
 
 	return (0);
@@ -2274,8 +2341,24 @@ ta_flush_numarray_entry(struct ip_fw_chain *ch, struct tentry_info *tei,
  * Table growing callbacks.
  */
 
+static int
+ta_has_space_numarray(void *ta_state, struct table_info *ti, uint32_t count,
+    uint64_t *pflags)
+{
+	struct numarray_cfg *cfg;
+
+	cfg = (struct numarray_cfg *)ta_state;
+
+	if (cfg->used + count > cfg->size) {
+		*pflags = roundup2(cfg->used + count, NUMARRAY_CHUNK);
+		return (0);
+	}
+
+	return (1);
+}
+
 /*
- * Allocate ned, larger runtime numarray array.
+ * Allocate new, larger runtime array.
  */
 static int
 ta_prepare_mod_numarray(void *ta_buf, uint64_t *pflags)
@@ -2415,6 +2498,7 @@ struct table_algo number_array = {
 	.foreach	= ta_foreach_numarray,
 	.dump_tentry	= ta_dump_numarray_tentry,
 	.find_tentry	= ta_find_numarray_tentry,
+	.has_space	= ta_has_space_numarray,
 	.prepare_mod	= ta_prepare_mod_numarray,
 	.fill_mod	= ta_fill_mod_numarray,
 	.modify		= ta_modify_numarray,
@@ -2437,8 +2521,8 @@ struct table_algo number_array = {
  *
  *
  * pflags:
- * [v4=1/v6=0][hsize]
- * [       32][   32]
+ * [hsize4][hsize6]
+ * [    16][    16]
  */
 
 struct fhashentry;
@@ -2858,7 +2942,7 @@ ta_prepare_add_fhash(struct ip_fw_chain *ch, struct tentry_info *tei,
 
 static int
 ta_add_fhash(void *ta_state, struct table_info *ti, struct tentry_info *tei,
-    void *ta_buf, uint64_t *pflags, uint32_t *pnum)
+    void *ta_buf, uint32_t *pnum)
 {
 	struct fhash_cfg *cfg;
 	struct fhashbhead *head;
@@ -2907,8 +2991,6 @@ ta_add_fhash(void *ta_state, struct table_info *ti, struct tentry_info *tei,
 
 		/* Update counters and check if we need to grow hash */
 		cfg->items++;
-		if (cfg->items > cfg->size && cfg->size < 65536)
-			*pflags = cfg->size * 2;
 	}
 
 	return (0);
@@ -2927,7 +3009,7 @@ ta_prepare_del_fhash(struct ip_fw_chain *ch, struct tentry_info *tei,
 
 static int
 ta_del_fhash(void *ta_state, struct table_info *ti, struct tentry_info *tei,
-    void *ta_buf, uint64_t *pflags, uint32_t *pnum)
+    void *ta_buf, uint32_t *pnum)
 {
 	struct fhash_cfg *cfg;
 	struct fhashbhead *head;
@@ -2976,6 +3058,22 @@ ta_flush_fhash_entry(struct ip_fw_chain *ch, struct tentry_info *tei,
 /*
  * Hash growing callbacks.
  */
+
+static int
+ta_has_space_fhash(void *ta_state, struct table_info *ti, uint32_t count,
+    uint64_t *pflags)
+{
+	struct fhash_cfg *cfg;
+
+	cfg = (struct fhash_cfg *)ta_state;
+
+	if (cfg->items > cfg->size && cfg->size < 65536) {
+		*pflags = cfg->size * 2;
+		return (0);
+	}
+
+	return (1);
+}
 
 /*
  * Allocate new, larger fhash.
@@ -3085,6 +3183,7 @@ struct table_algo flow_hash = {
 	.foreach	= ta_foreach_fhash,
 	.dump_tentry	= ta_dump_fhash_tentry,
 	.find_tentry	= ta_find_fhash_tentry,
+	.has_space	= ta_has_space_fhash,
 	.prepare_mod	= ta_prepare_mod_fhash,
 	.fill_mod	= ta_fill_mod_fhash,
 	.modify		= ta_modify_fhash,

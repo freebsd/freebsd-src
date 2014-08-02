@@ -81,7 +81,6 @@ struct table_config {
 	uint8_t		spare;
 	uint32_t	count;		/* Number of records */
 	uint32_t	limit;		/* Max number of records */
-	uint64_t	flags;		/* state flags */
 	char		tablename[64];	/* table name */
 	struct table_algo	*ta;	/* Callbacks for given algo */
 	void		*astate;	/* algorithm state */
@@ -121,8 +120,8 @@ static int ipfw_manage_table_ent_v0(struct ip_fw_chain *ch, ip_fw3_opheader *op3
 static int ipfw_manage_table_ent_v1(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
     struct sockopt_data *sd);
 
-static int modify_table(struct ip_fw_chain *ch, struct table_config *tc,
-    struct table_algo *ta, void *ta_buf, uint64_t pflags);
+static int check_table_space(struct ip_fw_chain *ch, struct table_config *tc,
+    struct table_info *ti, uint32_t count);
 static int destroy_table(struct ip_fw_chain *ch, struct tid_info *ti);
 
 static struct table_algo *find_table_algo(struct tables_config *tableconf,
@@ -132,10 +131,12 @@ static struct table_algo *find_table_algo(struct tables_config *tableconf,
 #define	CHAIN_TO_NI(chain)	(CHAIN_TO_TCFG(chain)->namehash)
 #define	KIDX_TO_TI(ch, k)	(&(((struct table_info *)(ch)->tablestate)[k]))
 
+#define	TA_BUF_SZ	128	/* On-stack buffer for add/delete state */
+
 
 int
 add_table_entry(struct ip_fw_chain *ch, struct tid_info *ti,
-    struct tentry_info *tei)
+    struct tentry_info *tei, uint32_t count)
 {
 	struct table_config *tc;
 	struct table_algo *ta;
@@ -143,9 +144,8 @@ add_table_entry(struct ip_fw_chain *ch, struct tid_info *ti,
 	uint16_t kidx;
 	int error;
 	uint32_t num;
-	uint64_t aflags;
-	ipfw_xtable_info xi;
-	char ta_buf[128];
+	ipfw_xtable_info *xi;
+	char ta_buf[TA_BUF_SZ];
 
 	IPFW_UH_WLOCK(ch);
 	ni = CHAIN_TO_NI(ch);
@@ -171,7 +171,6 @@ add_table_entry(struct ip_fw_chain *ch, struct tid_info *ti,
 		/* Reference and unlock */
 		tc->no.refcnt++;
 		ta = tc->ta;
-		aflags = tc->flags;
 	}
 	IPFW_UH_WUNLOCK(ch);
 
@@ -180,10 +179,11 @@ add_table_entry(struct ip_fw_chain *ch, struct tid_info *ti,
 		if ((tei->flags & TEI_FLAGS_COMPAT) == 0)
 			return (ESRCH);
 
-		memset(&xi, 0, sizeof(xi));
-		xi.vtype = IPFW_VTYPE_U32;
+		xi = malloc(sizeof(ipfw_xtable_info), M_TEMP, M_WAITOK|M_ZERO);
+		xi->vtype = IPFW_VTYPE_U32;
 
-		error = create_table_internal(ch, ti, NULL, &xi);
+		error = create_table_internal(ch, ti, NULL, xi);
+		free(xi, M_TEMP);
 
 		if (error != 0)
 			return (error);
@@ -203,20 +203,8 @@ add_table_entry(struct ip_fw_chain *ch, struct tid_info *ti,
 		/* Reference and unlock */
 		tc->no.refcnt++;
 		ta = tc->ta;
-		aflags = tc->flags;
 
 		IPFW_UH_WUNLOCK(ch);
-	}
-
-	if (aflags != 0) {
-
-		/*
-		 * Previous add/delete call returned non-zero state.
-		 * Run appropriate handler.
-		 */
-		error = modify_table(ch, tc, ta, &ta_buf, aflags);
-		if (error != 0)
-			return (error);
 	}
 
 	/* Prepare record (allocate memory) */
@@ -227,17 +215,28 @@ add_table_entry(struct ip_fw_chain *ch, struct tid_info *ti,
 
 	IPFW_UH_WLOCK(ch);
 
+	/*
+	 * Ensure we are able to add all entries without additional
+	 * memory allocations. May release/reacquire UH_WLOCK.
+	 */
+	kidx = tc->no.kidx;
+	error = check_table_space(ch, tc, KIDX_TO_TI(ch, kidx), count);
+	if (error != 0) {
+		IPFW_UH_WUNLOCK(ch);
+		ta->flush_entry(ch, tei, &ta_buf);
+		return (error);
+	}
+
 	ni = CHAIN_TO_NI(ch);
 
 	/* Drop reference we've used in first search */
 	tc->no.refcnt--;
-	/* Update aflags since it can be changed after previous read */
-	aflags = tc->flags;
 	
 	/* Check limit before adding */
 	if (tc->limit != 0 && tc->count == tc->limit) {
 		if ((tei->flags & TEI_FLAGS_UPDATE) == 0) {
 			IPFW_UH_WUNLOCK(ch);
+			ta->flush_entry(ch, tei, &ta_buf);
 			return (EFBIG);
 		}
 
@@ -256,15 +255,15 @@ add_table_entry(struct ip_fw_chain *ch, struct tid_info *ti,
 	num = 0;
 
 	IPFW_WLOCK(ch);
-	error = ta->add(tc->astate, KIDX_TO_TI(ch, kidx), tei, &ta_buf,
-	    &aflags, &num);
+	error = ta->add(tc->astate, KIDX_TO_TI(ch, kidx), tei, &ta_buf, &num);
 	IPFW_WUNLOCK(ch);
 
 	/* Update number of records. */
-	if (error == 0)
+	if (error == 0) {
 		tc->count += num;
-
-	tc->flags = aflags;
+		/* Permit post-add algorithm grow/rehash. */
+		error = check_table_space(ch, tc, KIDX_TO_TI(ch, kidx), 0);
+	}
 
 	IPFW_UH_WUNLOCK(ch);
 
@@ -276,7 +275,7 @@ add_table_entry(struct ip_fw_chain *ch, struct tid_info *ti,
 
 int
 del_table_entry(struct ip_fw_chain *ch, struct tid_info *ti,
-    struct tentry_info *tei)
+    struct tentry_info *tei, uint32_t count)
 {
 	struct table_config *tc;
 	struct table_algo *ta;
@@ -284,8 +283,7 @@ del_table_entry(struct ip_fw_chain *ch, struct tid_info *ti,
 	uint16_t kidx;
 	int error;
 	uint32_t num;
-	uint64_t aflags;
-	char ta_buf[128];
+	char ta_buf[TA_BUF_SZ];
 
 	IPFW_UH_WLOCK(ch);
 	ni = CHAIN_TO_NI(ch);
@@ -299,33 +297,23 @@ del_table_entry(struct ip_fw_chain *ch, struct tid_info *ti,
 		return (EINVAL);
 	}
 
-	aflags = tc->flags;
 	ta = tc->ta;
 
-	if (aflags != 0) {
-
-		/*
-		 * Give the chance to algo to shrink its state.
-		 */
-		tc->no.refcnt++;
+	/*
+	 * Give a chance for algorithm to shrink.
+	 * May release/reacquire UH_WLOCK.
+	 */
+	kidx = tc->no.kidx;
+	error = check_table_space(ch, tc, KIDX_TO_TI(ch, kidx), 0);
+	if (error != 0) {
 		IPFW_UH_WUNLOCK(ch);
-		memset(&ta_buf, 0, sizeof(ta_buf));
-
-		error = modify_table(ch, tc, ta, &ta_buf, aflags);
-
-		IPFW_UH_WLOCK(ch);
-		tc->no.refcnt--;
-		aflags = tc->flags;
-
-		if (error != 0) {
-			IPFW_UH_WUNLOCK(ch);
-			return (error);
-		}
+		ta->flush_entry(ch, tei, &ta_buf);
+		return (error);
 	}
 
 	/*
 	 * We assume ta_buf size is enough for storing
-	 * prepare_del() key, so we're running under UH_LOCK here.
+	 * prepare_del() key, so we're running under UH_WLOCK here.
 	 */
 	memset(&ta_buf, 0, sizeof(ta_buf));
 	if ((error = ta->prepare_del(ch, tei, &ta_buf)) != 0) {
@@ -337,13 +325,14 @@ del_table_entry(struct ip_fw_chain *ch, struct tid_info *ti,
 	num = 0;
 
 	IPFW_WLOCK(ch);
-	error = ta->del(tc->astate, KIDX_TO_TI(ch, kidx), tei, &ta_buf,
-	    &aflags, &num);
+	error = ta->del(tc->astate, KIDX_TO_TI(ch, kidx), tei, &ta_buf, &num);
 	IPFW_WUNLOCK(ch);
 
-	if (error == 0)
+	if (error == 0) {
 		tc->count -= num;
-	tc->flags = aflags;
+		/* Run post-del hook to permit shrinking */
+		error = check_table_space(ch, tc, KIDX_TO_TI(ch, kidx), 0);
+	}
 
 	IPFW_UH_WUNLOCK(ch);
 
@@ -353,48 +342,87 @@ del_table_entry(struct ip_fw_chain *ch, struct tid_info *ti,
 }
 
 /*
- * Runs callbacks to modify algo state (typically, table resize).
+ * Ensure that table @tc has enough space to add @count entries without
+ * need for reallocation.
  *
  * Callbacks order:
+ * 0) has_space() (UH_WLOCK) - checks if @count items can be added w/o resize.
+ *
  * 1) alloc_modify (no locks, M_WAITOK) - alloc new state based on @pflags.
  * 2) prepare_modifyt (UH_WLOCK) - copy old data into new storage
  * 3) modify (UH_WLOCK + WLOCK) - switch pointers
- * 4) flush_modify (no locks) - free state, if needed
+ * 4) flush_modify (UH_WLOCK) - free state, if needed
+ *
+ * Returns 0 on success.
  */
 static int
-modify_table(struct ip_fw_chain *ch, struct table_config *tc,
-    struct table_algo *ta, void *ta_buf, uint64_t pflags)
+check_table_space(struct ip_fw_chain *ch, struct table_config *tc,
+    struct table_info *ti, uint32_t count)
 {
-	struct table_info *ti;
+	struct table_algo *ta;
+	uint64_t pflags;
+	char ta_buf[TA_BUF_SZ];
 	int error;
 
-	error = ta->prepare_mod(ta_buf, &pflags);
-	if (error != 0)
-		return (error);
+	IPFW_UH_WLOCK_ASSERT(ch);
 
-	IPFW_UH_WLOCK(ch);
-	ti = KIDX_TO_TI(ch, tc->no.kidx);
-
-	error = ta->fill_mod(tc->astate, ti, ta_buf, &pflags);
+	error = 0;
+	ta = tc->ta;
+	/* Acquire reference not to loose @tc between locks/unlocks */
+	tc->no.refcnt++;
 
 	/*
-	 * prepare_mofify may return zero in @pflags to
-	 * indicate that modifications are not unnesessary.
+	 * TODO: think about avoiding race between large add/large delete
+	 * operation on algorithm which implements shrinking along with
+	 * growing.
 	 */
+	while (true) {
+		pflags = 0;
+		if (ta->has_space(tc->astate, ti, count, &pflags) != 0) {
+			tc->no.refcnt--;
+			return (0);
+		}
 
-	if (error == 0 && pflags != 0) {
-		/* Do actual modification */
-		IPFW_WLOCK(ch);
-		ta->modify(tc->astate, ti, ta_buf, pflags);
-		IPFW_WUNLOCK(ch);
+		/* We have to shrink/grow table */
+		IPFW_UH_WUNLOCK(ch);
+		memset(&ta_buf, 0, sizeof(ta_buf));
+		
+		if ((error = ta->prepare_mod(ta_buf, &pflags)) != 0) {
+			IPFW_UH_WLOCK(ch);
+			break;
+		}
+
+		IPFW_UH_WLOCK(ch);
+
+		/* Check if we still need to alter table */
+		ti = KIDX_TO_TI(ch, tc->no.kidx);
+		if (ta->has_space(tc->astate, ti, count, &pflags) != 0) {
+
+			/*
+			 * Other threads has already performed resize.
+			 * Flush our state and return/
+			 */
+			ta->flush_mod(ta_buf);
+			break;
+		}
+	
+		error = ta->fill_mod(tc->astate, ti, ta_buf, &pflags);
+		if (error == 0) {
+			/* Do actual modification */
+			IPFW_WLOCK(ch);
+			ta->modify(tc->astate, ti, ta_buf, pflags);
+			IPFW_WUNLOCK(ch);
+		}
+
+		/* Anyway, flush data and retry */
+		ta->flush_mod(ta_buf);
 	}
 
-	IPFW_UH_WUNLOCK(ch);
-
-	ta->flush_mod(ta_buf);
-
+	tc->no.refcnt--;
 	return (error);
 }
+
+
 
 int
 ipfw_manage_table_ent(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
@@ -463,8 +491,8 @@ ipfw_manage_table_ent_v0(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
 	ti.type = xent->type;
 
 	error = (op3->opcode == IP_FW_TABLE_XADD) ?
-	    add_table_entry(ch, &ti, &tei) :
-	    del_table_entry(ch, &ti, &tei);
+	    add_table_entry(ch, &ti, &tei, 1) :
+	    del_table_entry(ch, &ti, &tei, 1);
 
 	return (error);
 }
@@ -538,8 +566,8 @@ ipfw_manage_table_ent_v1(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
 	ti.uidx = tent->idx;
 
 	error = (oh->opheader.opcode == IP_FW_TABLE_XADD) ?
-	    add_table_entry(ch, &ti, &tei) :
-	    del_table_entry(ch, &ti, &tei);
+	    add_table_entry(ch, &ti, &tei, 1) :
+	    del_table_entry(ch, &ti, &tei, 1);
 
 	return (error);
 }
@@ -1614,14 +1642,26 @@ find_table_algo(struct tables_config *tcfg, struct tid_info *ti, char *name)
 	return (tcfg->def_algo[ti->type]);
 }
 
+/*
+ * Register new table algo @ta.
+ * Stores algo id iside @idx.<F2>
+ *
+ * Returns 0 on success.
+ */
 int
 ipfw_add_table_algo(struct ip_fw_chain *ch, struct table_algo *ta, size_t size,
     int *idx)
 {
 	struct tables_config *tcfg;
 	struct table_algo *ta_new;
+	size_t sz;
 
 	if (size > sizeof(struct table_algo))
+		return (EINVAL);
+
+	/* Check for the required on-stack size for add/del */
+	sz = roundup2(ta->ta_buf_size, sizeof(void *));
+	if (sz > TA_BUF_SZ)
 		return (EINVAL);
 
 	KASSERT(ta->type >= IPFW_TABLE_MAXTYPE,("Increase IPFW_TABLE_MAXTYPE"));
@@ -1646,6 +1686,9 @@ ipfw_add_table_algo(struct ip_fw_chain *ch, struct table_algo *ta, size_t size,
 	return (0);
 }
 
+/*
+ * Unregisters table algo using @idx as id.
+ */
 void
 ipfw_del_table_algo(struct ip_fw_chain *ch, int idx)
 {
@@ -1654,8 +1697,8 @@ ipfw_del_table_algo(struct ip_fw_chain *ch, int idx)
 
 	tcfg = CHAIN_TO_TCFG(ch);
 
-	KASSERT(idx <= tcfg->algo_count, ("algo idx %d out of rage 1..%d", idx, 
-	    tcfg->algo_count));
+	KASSERT(idx <= tcfg->algo_count, ("algo idx %d out of range 1..%d",
+	    idx, tcfg->algo_count));
 
 	ta = tcfg->algo[idx];
 	KASSERT(ta != NULL, ("algo idx %d is NULL", idx));
