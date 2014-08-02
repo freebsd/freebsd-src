@@ -2484,6 +2484,7 @@ sctp_inpcb_alloc(struct socket *so, uint32_t vrf_id)
 	inp->sctp_frag_point = SCTP_DEFAULT_MAXSEGMENT;
 	inp->sctp_cmt_on_off = SCTP_BASE_SYSCTL(sctp_cmt_on_off);
 	inp->ecn_supported = (uint8_t) SCTP_BASE_SYSCTL(sctp_ecn_enable);
+	inp->prsctp_supported = (uint8_t) SCTP_BASE_SYSCTL(sctp_pr_enable);
 	/* init the small hash table we use to track asocid <-> tcb */
 	inp->sctp_asocidhash = SCTP_HASH_INIT(SCTP_STACK_VTAG_HASH_SIZE, &inp->hashasocidmark);
 	if (inp->sctp_asocidhash == NULL) {
@@ -6082,6 +6083,7 @@ sctp_load_addresses_from_init(struct sctp_tcb *stcb, struct mbuf *m,
 	uint32_t keylen;
 	int got_random = 0, got_hmacs = 0, got_chklist = 0;
 	uint8_t ecn_supported;
+	uint8_t prsctp_supported;
 
 #ifdef INET
 	struct sockaddr_in sin;
@@ -6112,6 +6114,7 @@ sctp_load_addresses_from_init(struct sctp_tcb *stcb, struct mbuf *m,
 	}
 	/* Turn off ECN until we get through all params */
 	ecn_supported = 0;
+	prsctp_supported = 0;
 	TAILQ_FOREACH(net, &stcb->asoc.nets, sctp_next) {
 		/* mark all addresses that we have currently on the list */
 		net->dest_state |= SCTP_ADDR_NOT_IN_ASSOC;
@@ -6436,7 +6439,7 @@ sctp_load_addresses_from_init(struct sctp_tcb *stcb, struct mbuf *m,
 			stcb->asoc.peer_supports_nat = 1;
 		} else if (ptype == SCTP_PRSCTP_SUPPORTED) {
 			/* Peer supports pr-sctp */
-			stcb->asoc.peer_supports_prsctp = 1;
+			prsctp_supported = 1;
 		} else if (ptype == SCTP_SUPPORTED_CHUNK_EXT) {
 			/* A supported extension chunk */
 			struct sctp_supported_chunk_types_param *pr_supported;
@@ -6449,7 +6452,6 @@ sctp_load_addresses_from_init(struct sctp_tcb *stcb, struct mbuf *m,
 				return (-25);
 			}
 			stcb->asoc.peer_supports_asconf = 0;
-			stcb->asoc.peer_supports_prsctp = 0;
 			stcb->asoc.peer_supports_pktdrop = 0;
 			stcb->asoc.peer_supports_strreset = 0;
 			stcb->asoc.peer_supports_nr_sack = 0;
@@ -6463,7 +6465,7 @@ sctp_load_addresses_from_init(struct sctp_tcb *stcb, struct mbuf *m,
 					stcb->asoc.peer_supports_asconf = 1;
 					break;
 				case SCTP_FORWARD_CUM_TSN:
-					stcb->asoc.peer_supports_prsctp = 1;
+					prsctp_supported = 1;
 					break;
 				case SCTP_PACKET_DROPPED:
 					stcb->asoc.peer_supports_pktdrop = 1;
@@ -6613,6 +6615,7 @@ next_param:
 		}
 	}
 	stcb->asoc.ecn_supported &= ecn_supported;
+	stcb->asoc.prsctp_supported &= prsctp_supported;
 	/* validate authentication required parameters */
 	if (got_random && got_hmacs) {
 		stcb->asoc.peer_supports_auth = 1;
