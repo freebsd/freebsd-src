@@ -47,6 +47,7 @@ struct sctp_sysctl {
 	uint32_t sctp_ecn_enable;
 	uint32_t sctp_pr_enable;
 	uint32_t sctp_nrsack_enable;
+	uint32_t sctp_pktdrop_enable;
 	uint32_t sctp_fr_max_burst_default;
 	uint32_t sctp_strict_sacks;
 	uint32_t sctp_peer_chunk_oh;
@@ -166,6 +167,11 @@ struct sctp_sysctl {
 #define SCTPCTL_NRSACK_ENABLE_MAX	1
 #define SCTPCTL_NRSACK_ENABLE_DEFAULT	0
 
+/* pktdrop_enable: Enable SCTP Packet Drop Reports */
+#define SCTPCTL_PKTDROP_ENABLE_DESC	"Enable SCTP PKTDROP"
+#define SCTPCTL_PKTDROP_ENABLE_MIN	0
+#define SCTPCTL_PKTDROP_ENABLE_MAX	1
+#define SCTPCTL_PKTDROP_ENABLE_DEFAULT	0
 
 /* strict_sacks: Enable SCTP Strict SACK checking */
 #define SCTPCTL_STRICT_SACKS_DESC	"Enable SCTP Strict SACK checking"
