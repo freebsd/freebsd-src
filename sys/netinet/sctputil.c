@@ -906,7 +906,7 @@ sctp_init_asoc(struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 	asoc->sctp_cmt_on_off = inp->sctp_cmt_on_off;
 	asoc->ecn_supported = inp->ecn_supported;
 	asoc->prsctp_supported = inp->prsctp_supported;
-	asoc->sctp_nr_sack_on_off = (uint8_t) SCTP_BASE_SYSCTL(sctp_nr_sack_on_off);
+	asoc->nrsack_supported = inp->nrsack_supported;
 	asoc->sctp_cmt_pf = (uint8_t) 0;
 	asoc->sctp_frag_point = inp->sctp_frag_point;
 	asoc->sctp_features = inp->sctp_features;

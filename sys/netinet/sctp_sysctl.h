@@ -46,6 +46,7 @@ struct sctp_sysctl {
 	uint32_t sctp_multiple_asconfs;
 	uint32_t sctp_ecn_enable;
 	uint32_t sctp_pr_enable;
+	uint32_t sctp_nrsack_enable;
 	uint32_t sctp_fr_max_burst_default;
 	uint32_t sctp_strict_sacks;
 	uint32_t sctp_peer_chunk_oh;
@@ -77,8 +78,6 @@ struct sctp_sysctl {
 	uint32_t sctp_nr_outgoing_streams_default;
 	uint32_t sctp_cmt_on_off;
 	uint32_t sctp_cmt_use_dac;
-	/* EY 5/5/08 - nr_sack flag variable */
-	uint32_t sctp_nr_sack_on_off;
 	uint32_t sctp_use_cwnd_based_maxburst;
 	uint32_t sctp_auth_disable;
 	uint32_t sctp_nat_friendly;
@@ -160,6 +159,13 @@ struct sctp_sysctl {
 #define SCTPCTL_PR_ENABLE_MIN		0
 #define SCTPCTL_PR_ENABLE_MAX		1
 #define SCTPCTL_PR_ENABLE_DEFAULT	1
+
+/* nrsack_enable: Enable NR_SACK */
+#define SCTPCTL_NRSACK_ENABLE_DESC	"Enable NR_SACK"
+#define SCTPCTL_NRSACK_ENABLE_MIN	0
+#define SCTPCTL_NRSACK_ENABLE_MAX	1
+#define SCTPCTL_NRSACK_ENABLE_DEFAULT	0
+
 
 /* strict_sacks: Enable SCTP Strict SACK checking */
 #define SCTPCTL_STRICT_SACKS_DESC	"Enable SCTP Strict SACK checking"
@@ -347,12 +353,6 @@ struct sctp_sysctl {
 #define SCTPCTL_CMT_ON_OFF_MIN		SCTP_CMT_OFF
 #define SCTPCTL_CMT_ON_OFF_MAX		SCTP_CMT_MAX
 #define SCTPCTL_CMT_ON_OFF_DEFAULT	SCTP_CMT_OFF
-
-/* EY - nr_sack_on_off: NR_SACK on/off flag */
-#define SCTPCTL_NR_SACK_ON_OFF_DESC	"NR_SACK on/off flag"
-#define SCTPCTL_NR_SACK_ON_OFF_MIN	0
-#define SCTPCTL_NR_SACK_ON_OFF_MAX	1
-#define SCTPCTL_NR_SACK_ON_OFF_DEFAULT	0
 
 /* cmt_use_dac: CMT DAC on/off flag */
 #define SCTPCTL_CMT_USE_DAC_DESC	"CMT DAC on/off flag"
