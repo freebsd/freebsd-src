@@ -1154,6 +1154,7 @@ struct sctp_association {
 	uint8_t ecn_supported;
 	uint8_t prsctp_supported;
 	uint8_t nrsack_supported;
+	uint8_t pktdrop_supported;
 
 	/* Did the peer make the stream config (add out) request */
 	uint8_t peer_req_out;
@@ -1167,11 +1168,6 @@ struct sctp_association {
 	uint8_t local_strreset_support;
 
 	uint8_t peer_supports_nat;
-	/*
-	 * packet drop's are supported by the peer, we don't really care
-	 * about this but we bookkeep it anyway.
-	 */
-	uint8_t peer_supports_pktdrop;
 
 	struct sctp_scoping scope;
 	/* flags to handle send alternate net tracking */
