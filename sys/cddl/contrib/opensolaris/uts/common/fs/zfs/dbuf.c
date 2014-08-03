@@ -70,7 +70,11 @@ dbuf_cons(void *vdb, void *unused, int kmflag)
 	cv_init(&db->db_changed, NULL, CV_DEFAULT, NULL);
 	refcount_create(&db->db_holds);
 
+#if defined(illumos) || !defined(_KERNEL)
 	db->db_creation = gethrtime();
+#else
+	db->db_creation = cpu_ticks() ^ ((uint64_t)CPU_SEQID << 48);
+#endif
 
 	return (0);
 }
