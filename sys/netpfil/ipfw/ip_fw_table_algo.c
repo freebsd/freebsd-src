@@ -192,7 +192,7 @@ ta_init_radix(struct ip_fw_chain *ch, void **ta_state, struct table_info *ti,
 }
 
 static int
-flush_table_entry(struct radix_node *rn, void *arg)
+flush_radix_entry(struct radix_node *rn, void *arg)
 {
 	struct radix_node_head * const rnh = arg;
 	struct radix_cidr_entry *ent;
@@ -210,11 +210,11 @@ ta_destroy_radix(void *ta_state, struct table_info *ti)
 	struct radix_node_head *rnh;
 
 	rnh = (struct radix_node_head *)(ti->state);
-	rnh->rnh_walktree(rnh, flush_table_entry, rnh);
+	rnh->rnh_walktree(rnh, flush_radix_entry, rnh);
 	rn_detachhead(&ti->state);
 
 	rnh = (struct radix_node_head *)(ti->xstate);
-	rnh->rnh_walktree(rnh, flush_table_entry, rnh);
+	rnh->rnh_walktree(rnh, flush_radix_entry, rnh);
 	rn_detachhead(&ti->xstate);
 }
 
@@ -351,7 +351,7 @@ tei_to_sockaddr_ent(struct tentry_info *tei, struct sockaddr *sa,
 }
 
 static int
-ta_prepare_add_cidr(struct ip_fw_chain *ch, struct tentry_info *tei,
+ta_prepare_add_radix(struct ip_fw_chain *ch, struct tentry_info *tei,
     void *ta_buf)
 {
 	struct ta_buf_cidr *tb;
@@ -405,7 +405,7 @@ ta_prepare_add_cidr(struct ip_fw_chain *ch, struct tentry_info *tei,
 }
 
 static int
-ta_add_cidr(void *ta_state, struct table_info *ti, struct tentry_info *tei,
+ta_add_radix(void *ta_state, struct table_info *ti, struct tentry_info *tei,
     void *ta_buf, uint32_t *pnum)
 {
 	struct radix_node_head *rnh;
@@ -458,7 +458,7 @@ ta_add_cidr(void *ta_state, struct table_info *ti, struct tentry_info *tei,
 }
 
 static int
-ta_prepare_del_cidr(struct ip_fw_chain *ch, struct tentry_info *tei,
+ta_prepare_del_radix(struct ip_fw_chain *ch, struct tentry_info *tei,
     void *ta_buf)
 {
 	struct ta_buf_cidr *tb;
@@ -496,7 +496,7 @@ ta_prepare_del_cidr(struct ip_fw_chain *ch, struct tentry_info *tei,
 }
 
 static int
-ta_del_cidr(void *ta_state, struct table_info *ti, struct tentry_info *tei,
+ta_del_radix(void *ta_state, struct table_info *ti, struct tentry_info *tei,
     void *ta_buf, uint32_t *pnum)
 {
 	struct radix_node_head *rnh;
@@ -529,7 +529,7 @@ ta_del_cidr(void *ta_state, struct table_info *ti, struct tentry_info *tei,
 }
 
 static void
-ta_flush_cidr_entry(struct ip_fw_chain *ch, struct tentry_info *tei,
+ta_flush_radix_entry(struct ip_fw_chain *ch, struct tentry_info *tei,
     void *ta_buf)
 {
 	struct ta_buf_cidr *tb;
@@ -561,11 +561,11 @@ struct table_algo cidr_radix = {
 	.ta_buf_size	= sizeof(struct ta_buf_cidr),
 	.init		= ta_init_radix,
 	.destroy	= ta_destroy_radix,
-	.prepare_add	= ta_prepare_add_cidr,
-	.prepare_del	= ta_prepare_del_cidr,
-	.add		= ta_add_cidr,
-	.del		= ta_del_cidr,
-	.flush_entry	= ta_flush_cidr_entry,
+	.prepare_add	= ta_prepare_add_radix,
+	.prepare_del	= ta_prepare_del_radix,
+	.add		= ta_add_radix,
+	.del		= ta_del_radix,
+	.flush_entry	= ta_flush_radix_entry,
 	.foreach	= ta_foreach_radix,
 	.dump_tentry	= ta_dump_radix_tentry,
 	.find_tentry	= ta_find_radix_tentry,
