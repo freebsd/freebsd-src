@@ -48,8 +48,6 @@ __FBSDID("$FreeBSD: projects/ipfw/sys/netpfil/ipfw/ip_fw_table.c 267384 2014-06-
 #include <sys/queue.h>
 #include <net/if.h>	/* ip_fw.h requires IFNAMSIZ */
 #include <net/radix.h>
-#include <net/route.h>
-#include <net/vnet.h>
 
 #include <netinet/in.h>
 #include <netinet/ip_var.h>	/* struct ipfw_rule_ref */
