@@ -383,6 +383,7 @@ static int ipfw_get_config(struct cmdline_opts *co, struct format_opts *fo,
     ipfw_cfg_lheader **pcfg, size_t *psize);
 static int ipfw_show_config(struct cmdline_opts *co, struct format_opts *fo,
     ipfw_cfg_lheader *cfg, size_t sz, int ac, char **av);
+static void ipfw_list_tifaces(void);
 
 /*
  * Simple string buffer API.
@@ -4768,7 +4769,34 @@ ipfw_flush(int force)
 		printf("Flushed all %s.\n", co.do_pipe ? "pipes" : "rules");
 }
 
-int
+static struct _s_x intcmds[] = {
+      { "talist",	TOK_TALIST },
+      { "iflist",	TOK_IFLIST },
+      { NULL, 0 }
+};
+
+void
+ipfw_internal_handler(int ac, char *av[])
+{
+	int tcmd;
+
+	ac--; av++;
+	NEED1("internal cmd required");
+
+	if ((tcmd = match_token(intcmds, *av)) == -1)
+		errx(EX_USAGE, "invalid internal sub-cmd: %s", *av);
+
+	switch (tcmd) {
+	case TOK_IFLIST:
+		ipfw_list_tifaces();
+		break;
+	case TOK_TALIST:
+		ipfw_list_ta(ac, av);
+		break;
+	}
+}
+
+static int
 ipfw_get_tracked_ifaces(ipfw_obj_lheader **polh)
 {
 	ipfw_obj_lheader req, *olh;
@@ -4812,7 +4840,7 @@ ifinfo_cmp(const void *a, const void *b)
  * optionally sorts it and calls requested function for each table.
  * Returns 0 on success.
  */
-void
+static void
 ipfw_list_tifaces()
 {
 	ipfw_obj_lheader *olh;
