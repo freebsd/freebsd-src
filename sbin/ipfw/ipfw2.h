@@ -216,6 +216,7 @@ enum tokens {
 	TOK_INFO,
 	TOK_DETAIL,
 	TOK_FLUSH,
+	TOK_SWAP,
 	TOK_ADD,
 	TOK_DEL,
 	TOK_VALTYPE,

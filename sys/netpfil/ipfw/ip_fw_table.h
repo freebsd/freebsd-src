@@ -152,6 +152,8 @@ int ipfw_manage_table_ent(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
 int ipfw_flush_table(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
     struct sockopt_data *sd);
 int ipfw_list_table_algo(struct ip_fw_chain *ch, struct sockopt_data *sd);
+int ipfw_swap_table(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
+    struct sockopt_data *sd);
 /* Exported to support legacy opcodes */
 int add_table_entry(struct ip_fw_chain *ch, struct tid_info *ti,
     struct tentry_info *tei, uint32_t count);
@@ -171,7 +173,6 @@ void ipfw_unbind_table_rule(struct ip_fw_chain *chain, struct ip_fw *rule);
 void ipfw_unbind_table_list(struct ip_fw_chain *chain, struct ip_fw *head);
 
 /* utility functions  */
-void objheader_to_ti(struct _ipfw_obj_header *oh, struct tid_info *ti);
 int ipfw_check_table_name(char *name);
 
 /* Legacy interfaces */

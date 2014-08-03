@@ -2691,12 +2691,12 @@ vnet_ipfw_init(const void *unused)
 	rule->cmd[0].opcode = default_to_accept ? O_ACCEPT : O_DENY;
 	chain->default_rule = chain->map[0] = rule;
 	chain->id = rule->id = 1;
-	ipfw_init_skipto_cache(chain);
 	/* Pre-calculate rules length for legacy dump format */
 	chain->static_len = sizeof(struct ip_fw_rule0);
 
 	IPFW_LOCK_INIT(chain);
 	ipfw_dyn_init(chain);
+	ipfw_init_skipto_cache(chain);
 
 	/* First set up some values that are compile time options */
 	V_ipfw_vnet_ready = 1;		/* Open for business */

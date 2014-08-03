@@ -90,6 +90,7 @@ typedef struct _ip_fw3_opheader {
 #define	IP_FW_TABLE_XFIND	99	/* finds an entry */
 #define	IP_FW_XIFLIST		100	/* list tracked interfaces */
 #define	IP_FW_TABLES_ALIST	101	/* list table algorithms */
+#define	IP_FW_TABLE_XSWAP	102	/* swap two tables */
 
 /*
  * Usage guidelines:

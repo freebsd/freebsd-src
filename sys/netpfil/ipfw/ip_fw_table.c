@@ -117,6 +117,8 @@ static int ipfw_manage_table_ent_v0(struct ip_fw_chain *ch, ip_fw3_opheader *op3
     struct sockopt_data *sd);
 static int ipfw_manage_table_ent_v1(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
     struct sockopt_data *sd);
+static int swap_table(struct ip_fw_chain *ch, struct tid_info *a,
+    struct tid_info *b);
 
 static int check_table_space(struct ip_fw_chain *ch, struct table_config *tc,
     struct table_info *ti, uint32_t count);
@@ -124,6 +126,9 @@ static int destroy_table(struct ip_fw_chain *ch, struct tid_info *ti);
 
 static struct table_algo *find_table_algo(struct tables_config *tableconf,
     struct tid_info *ti, char *name);
+
+static void objheader_to_ti(struct _ipfw_obj_header *oh, struct tid_info *ti);
+static void ntlv_to_ti(struct _ipfw_obj_ntlv *ntlv, struct tid_info *ti);
 
 #define	CHAIN_TO_TCFG(chain)	((struct tables_config *)(chain)->tblcfg)
 #define	CHAIN_TO_NI(chain)	(CHAIN_TO_TCFG(chain)->namehash)
@@ -639,6 +644,13 @@ ipfw_find_table_entry(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
 	return (error);
 }
 
+/*
+ * Flushes all entries or destroys given table.
+ * Data layout (v0)(current):
+ * Request: [ ipfw_obj_header ]
+ *
+ * Returns 0 on success
+ */
 int
 ipfw_flush_table(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
     struct sockopt_data *sd)
@@ -663,13 +675,6 @@ ipfw_flush_table(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
 	return (error);
 }
 
-/*
- * Flushes all entries in given table.
- * Data layout (v0)(current):
- * Request: [ ip_fw3_opheader ]
- *
- * Returns 0 on success
- */
 int
 flush_table(struct ip_fw_chain *ch, struct tid_info *ti)
 {
@@ -743,6 +748,114 @@ flush_table(struct ip_fw_chain *ch, struct tid_info *ti)
 	 * Stage 4: perform real flush.
 	 */
 	ta->destroy(astate_old, &ti_old);
+
+	return (0);
+}
+
+/*
+ * Swaps two tables.
+ * Data layout (v0)(current):
+ * Request: [ ipfw_obj_header ipfw_obj_ntlv ]
+ *
+ * Returns 0 on success
+ */
+int
+ipfw_swap_table(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
+    struct sockopt_data *sd)
+{
+	int error;
+	struct _ipfw_obj_header *oh;
+	struct tid_info ti_a, ti_b;
+
+	if (sd->valsize != sizeof(*oh) + sizeof(ipfw_obj_ntlv))
+		return (EINVAL);
+
+	oh = (struct _ipfw_obj_header *)op3;
+	ntlv_to_ti(&oh->ntlv, &ti_a);
+	ntlv_to_ti((ipfw_obj_ntlv *)(oh + 1), &ti_b);
+
+	error = swap_table(ch, &ti_a, &ti_b);
+
+	return (error);
+}
+
+static int
+swap_table(struct ip_fw_chain *ch, struct tid_info *a,
+    struct tid_info *b)
+{
+	struct namedobj_instance *ni;
+	struct table_config *tc_a, *tc_b;
+	struct table_algo *ta;
+	struct table_info ti, *tablestate;
+	void *astate;
+	uint32_t count;
+
+	/*
+	 * Stage 1: find both tables and ensure they are of
+	 * the same type and algo.
+	 */
+	IPFW_UH_WLOCK(ch);
+	ni = CHAIN_TO_NI(ch);
+	if ((tc_a = find_table(ni, a)) == NULL) {
+		IPFW_UH_WUNLOCK(ch);
+		return (ESRCH);
+	}
+	if ((tc_b = find_table(ni, b)) == NULL) {
+		IPFW_UH_WUNLOCK(ch);
+		return (ESRCH);
+	}
+
+	/* It is very easy to swap between the same table */
+	if (tc_a == tc_b) {
+		IPFW_UH_WUNLOCK(ch);
+		return (0);
+	}
+
+	/* Check type and value are the same */
+	if (tc_a->no.type != tc_b->no.type || tc_a->tflags != tc_b->tflags ||
+	    tc_a->vtype != tc_b->vtype) {
+		IPFW_UH_WUNLOCK(ch);
+		return (EINVAL);
+	}
+
+	/* Check limits before swap */
+	if ((tc_a->limit != 0 && tc_b->count > tc_a->limit) ||
+	    (tc_b->limit != 0 && tc_a->count > tc_b->limit)) {
+		IPFW_UH_WUNLOCK(ch);
+		return (EFBIG);
+	}
+
+	/* Everything is fine, prepare to swap */
+	tablestate = (struct table_info *)ch->tablestate;
+	ti = tablestate[tc_a->no.kidx];
+	ta = tc_a->ta;
+	astate = tc_a->astate;
+	count = tc_a->count;
+
+	IPFW_WLOCK(ch);
+	/* a <- b */
+	tablestate[tc_a->no.kidx] = tablestate[tc_b->no.kidx];
+	tc_a->ta = tc_b->ta;
+	tc_a->astate = tc_b->astate;
+	tc_a->count = tc_b->count;
+	/* b <- a */
+	tablestate[tc_b->no.kidx] = ti;
+	tc_b->ta = ta;
+	tc_b->astate = astate;
+	tc_b->count = count;
+	IPFW_WUNLOCK(ch);
+
+	/* Ensure tc.ti copies are in sync */
+	tc_a->ti = tablestate[tc_a->no.kidx];
+	tc_b->ti = tablestate[tc_b->no.kidx];
+
+	/* Notify both tables on @ti change */
+	if (tc_a->ta->change_ti != NULL)
+		tc_a->ta->change_ti(tc_a->astate, &tablestate[tc_a->no.kidx]);
+	if (tc_b->ta->change_ti != NULL)
+		tc_b->ta->change_ti(tc_b->astate, &tablestate[tc_b->no.kidx]);
+
+	IPFW_UH_WUNLOCK(ch);
 
 	return (0);
 }
@@ -1300,15 +1413,22 @@ create_table_internal(struct ip_fw_chain *ch, struct tid_info *ti,
 	return (0);
 }
 
-void
-objheader_to_ti(struct _ipfw_obj_header *oh, struct tid_info *ti)
+static void
+ntlv_to_ti(ipfw_obj_ntlv *ntlv, struct tid_info *ti)
 {
 
 	memset(ti, 0, sizeof(struct tid_info));
-	ti->set = oh->ntlv.set;
-	ti->uidx = oh->idx;
-	ti->tlvs = &oh->ntlv;
-	ti->tlen = oh->ntlv.head.length;
+	ti->set = ntlv->set;
+	ti->uidx = ntlv->idx;
+	ti->tlvs = ntlv;
+	ti->tlen = ntlv->head.length;
+}
+
+static void
+objheader_to_ti(struct _ipfw_obj_header *oh, struct tid_info *ti)
+{
+
+	ntlv_to_ti(&oh->ntlv, ti);
 }
 
 int
