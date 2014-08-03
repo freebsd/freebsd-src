@@ -1673,28 +1673,28 @@ static struct asc_table_entry asc_table[] = {
 	{ SST(0x26, 0x05, SS_RDEF,	/* XXX TBD */
 	    "Data decryption error") },
 	/* DTLPWRO    K   */
-	{ SST(0x26, 0x06, SS_RDEF,	/* XXX TBD */
+	{ SST(0x26, 0x06, SS_FATAL | EINVAL,
 	    "Too many target descriptors") },
 	/* DTLPWRO    K   */
-	{ SST(0x26, 0x07, SS_RDEF,	/* XXX TBD */
+	{ SST(0x26, 0x07, SS_FATAL | EINVAL,
 	    "Unsupported target descriptor type code") },
 	/* DTLPWRO    K   */
-	{ SST(0x26, 0x08, SS_RDEF,	/* XXX TBD */
+	{ SST(0x26, 0x08, SS_FATAL | EINVAL,
 	    "Too many segment descriptors") },
 	/* DTLPWRO    K   */
-	{ SST(0x26, 0x09, SS_RDEF,	/* XXX TBD */
+	{ SST(0x26, 0x09, SS_FATAL | EINVAL,
 	    "Unsupported segment descriptor type code") },
 	/* DTLPWRO    K   */
-	{ SST(0x26, 0x0A, SS_RDEF,	/* XXX TBD */
+	{ SST(0x26, 0x0A, SS_FATAL | EINVAL,
 	    "Unexpected inexact segment") },
 	/* DTLPWRO    K   */
-	{ SST(0x26, 0x0B, SS_RDEF,	/* XXX TBD */
+	{ SST(0x26, 0x0B, SS_FATAL | EINVAL,
 	    "Inline data length exceeded") },
 	/* DTLPWRO    K   */
-	{ SST(0x26, 0x0C, SS_RDEF,	/* XXX TBD */
+	{ SST(0x26, 0x0C, SS_FATAL | EINVAL,
 	    "Invalid operation for copy source or destination") },
 	/* DTLPWRO    K   */
-	{ SST(0x26, 0x0D, SS_RDEF,	/* XXX TBD */
+	{ SST(0x26, 0x0D, SS_FATAL | EINVAL,
 	    "Copy segment granularity violation") },
 	/* DT PWROMAEBK   */
 	{ SST(0x26, 0x0E, SS_RDEF,	/* XXX TBD */
