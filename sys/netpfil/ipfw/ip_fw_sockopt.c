@@ -198,6 +198,104 @@ ipfw_find_rule(struct ip_fw_chain *chain, uint32_t key, uint32_t id)
 }
 
 /*
+ * Builds skipto cache on rule set @map.
+ */
+static void
+update_skipto_cache(struct ip_fw_chain *chain, struct ip_fw **map)
+{
+	int *smap, rulenum;
+	int i, mi;
+
+	IPFW_UH_WLOCK_ASSERT(chain);
+
+	mi = 0;
+	rulenum = map[mi]->rulenum;
+	smap = chain->idxmap_back;
+
+	if (smap == NULL)
+		return;
+
+	for (i = 0; i < 65536; i++) {
+		smap[i] = mi;
+		/* Use the same rule index until i < rulenum */
+		if (i != rulenum || i == 65535)
+			continue;
+		/* Find next rule with num > i */
+		rulenum = map[++mi]->rulenum;
+		while (rulenum == i)
+			rulenum = map[++mi]->rulenum;
+	}
+}
+
+/*
+ * Swaps prepared (backup) index with current one.
+ */
+static void
+swap_skipto_cache(struct ip_fw_chain *chain)
+{
+	int *map;
+
+	IPFW_UH_WLOCK_ASSERT(chain);
+	IPFW_WLOCK_ASSERT(chain);
+
+	map = chain->idxmap;
+	chain->idxmap = chain->idxmap_back;
+	chain->idxmap_back = map;
+}
+
+/*
+ * Allocate and initialize skipto cache.
+ */
+void
+ipfw_init_skipto_cache(struct ip_fw_chain *chain)
+{
+	int *idxmap, *idxmap_back;
+
+	idxmap = malloc(65536 * sizeof(uint32_t *), M_IPFW,
+	    M_WAITOK | M_ZERO);
+	idxmap_back = malloc(65536 * sizeof(uint32_t *), M_IPFW,
+	    M_WAITOK | M_ZERO);
+
+	/*
+	 * Note we may be called at any time after initialization,
+	 * for example, on first skipto rule, so we need to
+	 * provide valid chain->idxmap on return
+	 */
+
+	IPFW_UH_WLOCK(chain);
+	if (chain->idxmap != NULL) {
+		IPFW_UH_WUNLOCK(chain);
+		free(idxmap, M_IPFW);
+		free(idxmap_back, M_IPFW);
+		return;
+	}
+
+	/* Set backup pointer first to permit building cache */
+	chain->idxmap_back = idxmap_back;
+	update_skipto_cache(chain, chain->map);
+	IPFW_WLOCK(chain);
+	/* It is now safe to set chain->idxmap ptr */
+	chain->idxmap = idxmap;
+	swap_skipto_cache(chain);
+	IPFW_WUNLOCK(chain);
+	IPFW_UH_WUNLOCK(chain);
+}
+
+/*
+ * Destroys skipto cache.
+ */
+void
+ipfw_destroy_skipto_cache(struct ip_fw_chain *chain)
+{
+
+	if (chain->idxmap != NULL)
+		free(chain->idxmap, M_IPFW);
+	if (chain->idxmap != NULL)
+		free(chain->idxmap_back, M_IPFW);
+}
+
+
+/*
  * allocate a new map, returns the chain locked. extra is the number
  * of entries to add or delete.
  */
@@ -240,6 +338,7 @@ swap_map(struct ip_fw_chain *chain, struct ip_fw **new_map, int new_len)
 	chain->n_rules = new_len;
 	old_map = chain->map;
 	chain->map = new_map;
+	swap_skipto_cache(chain);
 	IPFW_WUNLOCK(chain);
 	return old_map;
 }
@@ -498,6 +597,7 @@ commit_rules(struct ip_fw_chain *chain, struct rule_check_info *rci, int count)
 	}
 
 	krule->id = chain->id + 1;
+	update_skipto_cache(chain, map);
 	map = swap_map(chain, map, chain->n_rules + 1);
 	chain->static_len += RULEUSIZE0(krule);
 	IPFW_UH_WUNLOCK(chain);
@@ -668,7 +768,9 @@ del_entry(struct ip_fw_chain *chain, uint32_t arg)
 		/* 3. copy the final part of the map */
 		bcopy(chain->map + end, map + ofs,
 			(chain->n_rules - end) * sizeof(struct ip_fw *));
-		/* 4. swap the maps (under BH_LOCK) */
+		/* 3.5. recalculate skipto cache */
+		update_skipto_cache(chain, map);
+		/* 4. swap the maps (under UH_WLOCK + WHLOCK) */
 		map = swap_map(chain, map, chain->n_rules - n);
 		/* 5. now remove the rules deleted from the old map */
 		if (cmd == 1)
@@ -726,7 +828,6 @@ del_entry(struct ip_fw_chain *chain, uint32_t arg)
 		free(map, M_IPFW);
 	return error;
 }
-
 /*
  * Clear counters for a specific rule.
  * Normally run under IPFW_UH_RLOCK, but these are idempotent ops

@@ -816,7 +816,10 @@ jump_fast(struct ip_fw_chain *chain, struct ip_fw *f, int num,
 		/* make sure we do not jump backward */
 		if (jump_backwards == 0 && i <= f->rulenum)
 			i = f->rulenum + 1;
-		f_pos = ipfw_find_rule(chain, i, 0);
+		if (chain->idxmap != NULL)
+			f_pos = chain->idxmap[i];
+		else
+			f_pos = ipfw_find_rule(chain, i, 0);
 		/* update the cache */
 		if (num != IP_FW_TABLEARG) {
 			f->next_rule = (void *)(uintptr_t)f_pos;
@@ -2688,6 +2691,7 @@ vnet_ipfw_init(const void *unused)
 	rule->cmd[0].opcode = default_to_accept ? O_ACCEPT : O_DENY;
 	chain->default_rule = chain->map[0] = rule;
 	chain->id = rule->id = 1;
+	ipfw_init_skipto_cache(chain);
 	/* Pre-calculate rules length for legacy dump format */
 	chain->static_len = sizeof(struct ip_fw_rule0);
 
@@ -2750,6 +2754,7 @@ vnet_ipfw_uninit(const void *unused)
 	}
 	if (chain->map)
 		free(chain->map, M_IPFW);
+	ipfw_destroy_skipto_cache(chain);
 	IPFW_WUNLOCK(chain);
 	IPFW_UH_WUNLOCK(chain);
 	ipfw_destroy_tables(chain);
