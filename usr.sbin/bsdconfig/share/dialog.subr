@@ -1557,12 +1557,22 @@ f_dialog_info()
 # EOF. This implies that you must execute this either as an rvalue to a pipe,
 # lvalue to indirection or in a sub-shell that provides data on stdin.
 #
+# To open an Xdialog(1) infobox that does not disappear until expeclitly dis-
+# missed, use the following:
+#
+# 	f_xdialog_info "$info_text" < /dev/tty &
+# 	pid=$!
+# 	# Perform some lengthy actions
+# 	kill $pid
+#
+# NB: Check $USE_XDIALOG if you need to support both dialog(1) and Xdialog(1).
+#
 f_xdialog_info()
 {
 	local info_text="$*" height width
 	f_dialog_infobox_size height width \
 		"$DIALOG_TITLE" "$DIALOG_BACKTITLE" "$info_text"
-	$DIALOG \
+	exec $DIALOG \
 		--title "$DIALOG_TITLE"               \
 		--backtitle "$DIALOG_BACKTITLE"       \
 		--no-close --no-buttons               \
