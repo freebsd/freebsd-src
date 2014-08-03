@@ -1341,6 +1341,7 @@ export_table_info(struct ip_fw_chain *ch, struct table_config *tc,
     ipfw_xtable_info *i)
 {
 	struct table_info *ti;
+	struct table_algo *ta;
 	
 	i->type = tc->no.type;
 	i->tflags = tc->tflags;
@@ -1353,13 +1354,19 @@ export_table_info(struct ip_fw_chain *ch, struct table_config *tc,
 	i->size = tc->count * sizeof(ipfw_obj_tentry);
 	i->size += sizeof(ipfw_obj_header) + sizeof(ipfw_xtable_info);
 	strlcpy(i->tablename, tc->tablename, sizeof(i->tablename));
-	if (tc->ta->print_config != NULL) {
+	ti = KIDX_TO_TI(ch, tc->no.kidx);
+	ta = tc->ta;
+	if (ta->print_config != NULL) {
 		/* Use algo function to print table config to string */
-		ti = KIDX_TO_TI(ch, tc->no.kidx);
-		tc->ta->print_config(tc->astate, ti, i->algoname,
+		ta->print_config(tc->astate, ti, i->algoname,
 		    sizeof(i->algoname));
 	} else
-		strlcpy(i->algoname, tc->ta->name, sizeof(i->algoname));
+		strlcpy(i->algoname, ta->name, sizeof(i->algoname));
+	/* Dump algo-specific data, if possible */
+	if (ta->dump_tinfo != NULL) {
+		ta->dump_tinfo(tc->astate, ti, &i->ta_info);
+		i->ta_info.flags |= IPFW_TATFLAGS_DATA;
+	}
 }
 
 struct dump_table_args {

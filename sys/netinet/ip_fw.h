@@ -798,24 +798,27 @@ typedef struct _ipfw_obj_ctlv {
 	uint8_t		spare;
 } ipfw_obj_ctlv;
 
-typedef struct _ifpw_ta_tinfo {
+typedef struct _ipfw_ta_tinfo {
 	uint32_t	flags;		/* Format flags			*/
-	uint8_t		taclass;	/* algorithm class		*/
-	uint8_t		spare0;
-	uint16_t	spare1;
-	uint32_t	rssize4;	/* runtime structure size	*/
-	uint32_t	rcount4;	/* number of items in runtime	*/
-	uint32_t	rsize4;		/* item size in runtime		*/
-	uint32_t	rssize6;	/* runtime structure size	*/
-	uint32_t	rcount6;	/* number of items in runtime	*/
-	uint32_t	rsize6;		/* item size in runtime		*/
-} ifpw_ta_tinfo;
+	uint32_t	spare;
+	uint8_t		taclass4;	/* algorithm class		*/
+	uint8_t		spare4;
+	uint16_t	itemsize4;	/* item size in runtime		*/
+	uint32_t	size4;		/* runtime structure size	*/
+	uint32_t	count4;		/* number of items in runtime	*/
+	uint8_t		taclass6;	/* algorithm class		*/
+	uint8_t		spare6;
+	uint16_t	itemsize6;	/* item size in runtime		*/
+	uint32_t	size6;		/* runtime structure size	*/
+	uint32_t	count6;		/* number of items in runtime	*/
+} ipfw_ta_tinfo;
 #define	IPFW_TACLASS_HASH	1	/* algo is based on hash	*/
 #define	IPFW_TACLASS_ARRAY	2	/* algo is based on array	*/
 #define	IPFW_TACLASS_RADIX	3	/* algo is based on radix tree	*/
 
 #define	IPFW_TATFLAGS_DATA	0x0001		/* Has data filled in	*/
-#define	IPFW_TATFLAGS_AF	0x0002		/* Separate data per AF	*/
+#define	IPFW_TATFLAGS_AFDATA	0x0002		/* Separate data per AF	*/
+#define	IPFW_TATFLAGS_AFITEM	0x0004		/* diff. items per AF	*/
 
 typedef struct _ipfw_xtable_info {
 	uint8_t		type;		/* table type (cidr,iface,..)	*/
@@ -831,7 +834,7 @@ typedef struct _ipfw_xtable_info {
 	uint32_t	spare;
 	char		tablename[64];	/* table name */
 	char		algoname[64];	/* algorithm name		*/
-	ifpw_ta_tinfo	ta_info;	/* additional algo stats	*/
+	ipfw_ta_tinfo	ta_info;	/* additional algo stats	*/
 } ipfw_xtable_info;
 #define	IPFW_TFFLAG_SRCIP	0x01
 #define	IPFW_TFFLAG_DSTIP	0x02
