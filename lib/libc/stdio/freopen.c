@@ -96,7 +96,7 @@ freopen(const char * __restrict file, const char * __restrict mode,
 		    (oflags & O_ACCMODE)) {
 			fclose(fp);
 			FUNLOCKFILE(fp);
-			errno = EINVAL;
+			errno = EBADF;
 			return (NULL);
 		}
 		if (fp->_flags & __SWR)
