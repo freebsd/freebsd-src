@@ -865,7 +865,7 @@ SYSCTL_VNET_PROC(_net_inet_sctp, OID_AUTO, pr_enable, CTLTYPE_UINT | CTLFLAG_RW,
     &SCTP_BASE_SYSCTL(sctp_pr_enable), 0, sysctl_sctp_check, "IU",
     SCTPCTL_PR_ENABLE_DESC);
 
-SYSCTL_VNET_PROC(_net_inet_sctp, OID_AUTO, nr_sack_on_off, CTLTYPE_UINT | CTLFLAG_RW,
+SYSCTL_VNET_PROC(_net_inet_sctp, OID_AUTO, nrsack_enable, CTLTYPE_UINT | CTLFLAG_RW,
     &SCTP_BASE_SYSCTL(sctp_nrsack_enable), 0, sysctl_sctp_check, "IU",
     SCTPCTL_NRSACK_ENABLE_DESC);
 
