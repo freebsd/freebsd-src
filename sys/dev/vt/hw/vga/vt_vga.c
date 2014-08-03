@@ -87,7 +87,7 @@ static const struct vt_driver vt_vga_driver = {
 	.vd_init	= vga_init,
 	.vd_blank	= vga_blank,
 	.vd_bitbltchr	= vga_bitbltchr,
-	.vd_maskbitbltchr = vga_maskbitbltchr,
+	.vd_maskbitbltchr = vga_bitbltchr,
 	.vd_drawrect	= vga_drawrect,
 	.vd_setpixel	= vga_setpixel,
 	.vd_putchar	= vga_putchar,
@@ -172,88 +172,83 @@ vga_drawrect(struct vt_device *vd, int x1, int y1, int x2, int y2, int fill,
 	}
 }
 
-static inline void
-vga_bitblt_draw(struct vt_device *vd, const uint8_t *src,
-    u_long ldst, uint8_t shift, unsigned int width, unsigned int height,
-    term_color_t color, int negate)
-{
-	u_long dst;
-	int w;
-	uint8_t b, r, out;
+/*
+ * Shift bitmap of one row of the glyph.
+ * a - array of bytes with src bitmap and result storage.
+ * m - resulting background color bitmask.
+ * size - number of bytes per glyph row (+ one byte to store shift overflow).
+ * shift - offset for target bitmap.
+ */
 
-	for (; height > 0; height--) {
-		dst = ldst;
-		ldst += VT_VGA_WIDTH / 8;
-		r = 0;
-		for (w = width; w > 0; w -= 8) {
-			b = *src++;
-			if (negate) {
-				b = ~b;
-				/* Don't go too far. */
-				if (w < 8)
-					b &= 0xff << (8 - w);
-			}
-			/* Reintroduce bits from previous column. */
-			out = (b >> shift) | r;
-			r = b << (8 - shift);
-			vga_bitblt_put(vd, dst++, color, out);
-		}
-		/* Print the remainder. */
-		vga_bitblt_put(vd, dst, color, r);
+static void
+vga_shift_u8array(uint8_t *a, uint8_t *m, int size, int shift)
+{
+	int i;
+
+	for (i = (size - 1); i > 0; i--) {
+		a[i] = (a[i] >> shift) | (a[i-1] << (7 - shift));
+		m[i] = ~a[i];
 	}
+	a[0] = (a[0] >> shift);
+	m[0] = ~a[0] & (0xff >> shift);
+	m[size - 1] = ~a[size - 1] & (0xff << (7 - shift));
 }
 
+/* XXX: fix gaps on mouse track when character size is not rounded to 8. */
 static void
 vga_bitbltchr(struct vt_device *vd, const uint8_t *src, const uint8_t *mask,
     int bpl, vt_axis_t top, vt_axis_t left, unsigned int width,
     unsigned int height, term_color_t fg, term_color_t bg)
 {
-	u_long dst, ldst;
-	int w;
+	uint8_t aa[64], ma[64], *r;
+	int dst, shift, sz, x, y;
+	struct vga_softc *sc;
 
-	/* Don't try to put off screen pixels */
-	if (((left + width) > VT_VGA_WIDTH) || ((top + height) >
-	    VT_VGA_HEIGHT))
+	if ((left + width) > VT_VGA_WIDTH)
+		return;
+	if ((top + height) > VT_VGA_HEIGHT)
 		return;
 
-	dst = (VT_VGA_WIDTH * top + left) / 8;
+	sc = vd->vd_softc;
 
-	for (; height > 0; height--) {
-		ldst = dst;
-		for (w = width; w > 0; w -= 8) {
-			vga_bitblt_put(vd, ldst, fg, *src);
-			vga_bitblt_put(vd, ldst, bg, ~*src);
-			ldst++;
-			src++;
-		}
-		dst += VT_VGA_WIDTH / 8;
-	}
-}
-
-/* Bitblt with mask support. Slow. */
-static void
-vga_maskbitbltchr(struct vt_device *vd, const uint8_t *src, const uint8_t *mask,
-    int bpl, vt_axis_t top, vt_axis_t left, unsigned int width,
-    unsigned int height, term_color_t fg, term_color_t bg)
-{
-	struct vga_softc *sc = vd->vd_softc;
-	u_long dst;
-	uint8_t shift;
-
-	dst = (VT_VGA_WIDTH * top + left) / 8;
+	sz = (width + 7) / 8;
 	shift = left % 8;
 
-	/* Don't try to put off screen pixels */
-	if (((left + width) > VT_VGA_WIDTH) || ((top + height) >
-	    VT_VGA_HEIGHT))
-		return;
+	dst = (VT_VGA_WIDTH * top + left) / 8;
 
-	if (sc->vga_curcolor == fg) {
-		vga_bitblt_draw(vd, src, dst, shift, width, height, fg, 0);
-		vga_bitblt_draw(vd, src, dst, shift, width, height, bg, 1);
-	} else {
-		vga_bitblt_draw(vd, src, dst, shift, width, height, bg, 1);
-		vga_bitblt_draw(vd, src, dst, shift, width, height, fg, 0);
+	for (y = 0; y < height; y++) {
+		r = (uint8_t *)src + (y * sz);
+		memcpy(aa, r, sz);
+		aa[sz] = 0;
+		vga_shift_u8array(aa, ma, sz + 1, shift);
+
+		vga_setcolor(vd, bg);
+		for (x = 0; x < (sz + 1); x ++) {
+			if (ma[x] == 0)
+				continue;
+			/*
+			 * XXX Only mouse cursor can go out of screen.
+			 * So for mouse it have to just return, but for regular
+			 * characters it have to panic, to indicate error in
+			 * size/coordinates calculations.
+			 */
+			if ((dst + x) >= (VT_VGA_WIDTH * VT_VGA_HEIGHT))
+				return;
+			if (ma[x] != 0xff)
+				MEM_READ1(sc, dst + x);
+			MEM_WRITE1(sc, dst + x, ma[x]);
+		}
+
+		vga_setcolor(vd, fg);
+		for (x = 0; x < (sz + 1); x ++) {
+			if (aa[x] == 0)
+				continue;
+			if (aa[x] != 0xff)
+				MEM_READ1(sc, dst + x);
+			MEM_WRITE1(sc, dst + x, aa[x]);
+		}
+
+		dst += VT_VGA_WIDTH / 8;
 	}
 }
 
