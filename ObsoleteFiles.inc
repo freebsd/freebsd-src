@@ -38,6 +38,8 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20140803: Remove an obsolete man page
+OLD_FILES+=usr/share/man/man9/pmap_change_wiring.9.gz
 # 20140728: libsbuf restored to old version.
 OLD_LIBS+=lib/libsbuf.so.7
 # 20140728: Remove an obsolete man page

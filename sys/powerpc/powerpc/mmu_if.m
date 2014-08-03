@@ -152,22 +152,6 @@ METHOD void advise {
 
 
 /**
- * @brief Change the wiring attribute for the page in the given physical
- * map and virtual address.
- *
- * @param _pmap		physical map of page
- * @param _va		page virtual address
- * @param _wired	TRUE to increment wired count, FALSE to decrement
- */
-METHOD void change_wiring {
-	mmu_t		_mmu;
-	pmap_t		_pmap;
-	vm_offset_t	_va;
-	boolean_t	_wired;
-};
-
-
-/**
  * @brief Clear the 'modified' bit on the given physical page
  *
  * @param _pg		physical page
