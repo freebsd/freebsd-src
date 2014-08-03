@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 1, 2014
+.Dd August 3, 2014
 .Dt GPART 8
 .Os
 .Sh NAME
@@ -129,6 +129,14 @@
 .Op Fl f Ar flags
 .Ar geom
 .\"
+.Nm
+.Cm list
+.Nm
+.Cm status
+.Nm
+.Cm load
+.Nm
+.Cm unload
 .Sh DESCRIPTION
 The
 .Nm
@@ -467,6 +475,18 @@ See the section entitled
 below for a discussion
 about its use.
 .El
+.It Cm list
+See
+.Xr geom 8 .
+.It Cm status
+See
+.Xr geom 8 .
+.It Cm load
+See
+.Xr geom 8 .
+.It Cm unload
+See
+.Xr geom 8 .
 .El
 .Sh PARTITIONING SCHEMES
 Several partitioning schemes are supported by the
