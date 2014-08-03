@@ -39,6 +39,7 @@
 #include <sys/lock.h>
 #include <sys/lockmgr.h>
 #include <sys/_mutex.h>
+#include <sys/_sx.h>
 #endif
 
 /*
@@ -889,6 +890,11 @@ void	vfs_unmountall(void);
 extern	TAILQ_HEAD(mntlist, mount) mountlist;	/* mounted filesystem list */
 extern	struct mtx mountlist_mtx;
 extern	struct nfs_public nfs_pub;
+extern	struct sx vfsconf_sx;
+#define	vfsconf_lock()		sx_xlock(&vfsconf_sx)
+#define	vfsconf_unlock()	sx_xunlock(&vfsconf_sx)
+#define	vfsconf_slock()		sx_slock(&vfsconf_sx)
+#define	vfsconf_sunlock()	sx_sunlock(&vfsconf_sx)
 
 /*
  * Declarations for these vfs default operations are located in
