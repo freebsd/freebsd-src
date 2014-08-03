@@ -30,7 +30,7 @@
 
 /*
  * Internal constants and data structures used by ipfw tables
- * and not meant to be exported outside the kernel.
+ * not meant to be exported outside the kernel.
  */
 #ifdef _KERNEL
 
