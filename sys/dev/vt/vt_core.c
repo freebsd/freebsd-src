@@ -116,6 +116,9 @@ VT_SYSCTL_INT(enable_altgr, 1, "Enable AltGr key (Do not assume R.Alt as Alt)");
 VT_SYSCTL_INT(debug, 0, "vt(9) debug level");
 VT_SYSCTL_INT(deadtimer, 15, "Time to wait busy process in VT_PROCESS mode");
 VT_SYSCTL_INT(suspendswitch, 1, "Switch to VT0 before suspend");
+VT_SYSCTL_INT(spclkeys, (VT_DEBUG_KEY_ENABLED|VT_REBOOT_KEY_ENABLED|
+    VT_HALT_KEY_ENABLED|VT_POWEROFF_KEY_ENABLED), "Enabled special keys "
+    "handled by vt(4)");
 
 static struct vt_device	vt_consdev;
 static unsigned int vt_unit = 0;
@@ -402,17 +405,21 @@ vt_machine_kbdevent(int c)
 
 	switch (c) {
 	case SPCLKEY | DBG:
-		kdb_enter(KDB_WHY_BREAK, "manual escape to debugger");
+		if (vt_spclkeys & VT_DEBUG_KEY_ENABLED)
+			kdb_enter(KDB_WHY_BREAK, "manual escape to debugger");
 		return (1);
 	case SPCLKEY | RBT:
-		/* XXX: Make this configurable! */
-		shutdown_nice(0);
+		if (vt_spclkeys & VT_REBOOT_KEY_ENABLED)
+			/* XXX: Make this configurable! */
+			shutdown_nice(0);
 		return (1);
 	case SPCLKEY | HALT:
-		shutdown_nice(RB_HALT);
+		if (vt_spclkeys & VT_HALT_KEY_ENABLED)
+			shutdown_nice(RB_HALT);
 		return (1);
 	case SPCLKEY | PDWN:
-		shutdown_nice(RB_HALT|RB_POWEROFF);
+		if (vt_spclkeys & VT_POWEROFF_KEY_ENABLED)
+			shutdown_nice(RB_HALT|RB_POWEROFF);
 		return (1);
 	};
 
