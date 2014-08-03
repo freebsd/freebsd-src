@@ -269,7 +269,6 @@ int		moea_pte_spill(vm_offset_t);
 /*
  * Kernel MMU interface
  */
-void moea_change_wiring(mmu_t, pmap_t, vm_offset_t, boolean_t);
 void moea_clear_modify(mmu_t, vm_page_t);
 void moea_copy_page(mmu_t, vm_page_t, vm_page_t);
 void moea_copy_pages(mmu_t mmu, vm_page_t *ma, vm_offset_t a_offset,
@@ -319,7 +318,6 @@ vm_offset_t moea_dumpsys_map(mmu_t mmu, struct pmap_md *md, vm_size_t ofs,
 struct pmap_md * moea_scan_md(mmu_t mmu, struct pmap_md *prev);
 
 static mmu_method_t moea_methods[] = {
-	MMUMETHOD(mmu_change_wiring,	moea_change_wiring),
 	MMUMETHOD(mmu_clear_modify,	moea_clear_modify),
 	MMUMETHOD(mmu_copy_page,	moea_copy_page),
 	MMUMETHOD(mmu_copy_pages,	moea_copy_pages),
@@ -1013,28 +1011,6 @@ moea_deactivate(mmu_t mmu, struct thread *td)
 	pm = &td->td_proc->p_vmspace->vm_pmap;
 	CPU_CLR(PCPU_GET(cpuid), &pm->pm_active);
 	PCPU_SET(curpmap, NULL);
-}
-
-void
-moea_change_wiring(mmu_t mmu, pmap_t pm, vm_offset_t va, boolean_t wired)
-{
-	struct	pvo_entry *pvo;
-
-	PMAP_LOCK(pm);
-	pvo = moea_pvo_find_va(pm, va & ~ADDR_POFF, NULL);
-
-	if (pvo != NULL) {
-		if (wired) {
-			if ((pvo->pvo_vaddr & PVO_WIRED) == 0)
-				pm->pm_stats.wired_count++;
-			pvo->pvo_vaddr |= PVO_WIRED;
-		} else {
-			if ((pvo->pvo_vaddr & PVO_WIRED) != 0)
-				pm->pm_stats.wired_count--;
-			pvo->pvo_vaddr &= ~PVO_WIRED;
-		}
-	}
-	PMAP_UNLOCK(pm);
 }
 
 void

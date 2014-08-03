@@ -1666,31 +1666,6 @@ pmap_object_init_pt(pmap_t pm, vm_offset_t addr, vm_object_t object,
 	    ("pmap_object_init_pt: non-device object"));
 }
 
-/*
- * Change the wiring attribute for a map/virtual-address pair.
- * The mapping must already exist in the pmap.
- */
-void
-pmap_change_wiring(pmap_t pm, vm_offset_t va, boolean_t wired)
-{
-	struct tte *tp;
-	u_long data;
-
-	PMAP_LOCK(pm);
-	if ((tp = tsb_tte_lookup(pm, va)) != NULL) {
-		if (wired) {
-			data = atomic_set_long(&tp->tte_data, TD_WIRED);
-			if ((data & TD_WIRED) == 0)
-				pm->pm_stats.wired_count++;
-		} else {
-			data = atomic_clear_long(&tp->tte_data, TD_WIRED);
-			if ((data & TD_WIRED) != 0)
-				pm->pm_stats.wired_count--;
-		}
-	}
-	PMAP_UNLOCK(pm);
-}
-
 static int
 pmap_unwire_tte(pmap_t pm, pmap_t pm2, struct tte *tp, vm_offset_t va)
 {

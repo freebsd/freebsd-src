@@ -3253,56 +3253,6 @@ pmap_enter_quick(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot)
 }
 
 /*
- *	Routine:	pmap_change_wiring
- *	Function:	Change the wiring attribute for a map/virtual-address
- *			pair.
- *	In/out conditions:
- *			The mapping must already exist in the pmap.
- */
-void
-pmap_change_wiring(pmap_t pmap, vm_offset_t va, boolean_t wired)
-{
-	struct l2_bucket *l2b;
-	struct md_page *pvh;
-	struct pv_entry *pve;
-	pd_entry_t *pl1pd, l1pd;
-	pt_entry_t *ptep, pte;
-	vm_page_t m;
-
-	rw_wlock(&pvh_global_lock);
-	PMAP_LOCK(pmap);
-	pl1pd = &pmap->pm_l1->l1_kva[L1_IDX(va)];
-	l1pd = *pl1pd;
-	if ((l1pd & L1_TYPE_MASK) == L1_S_PROTO) {
-		m = PHYS_TO_VM_PAGE(l1pd & L1_S_FRAME);
-		KASSERT((m != NULL) && ((m->oflags & VPO_UNMANAGED) == 0),
-		    ("pmap_change_wiring: unmanaged superpage should not "
-		     "be changed"));
-		KASSERT(pmap != pmap_kernel(),
-		    ("pmap_change_wiring: managed kernel superpage "
-		     "should not exist"));
-		pvh = pa_to_pvh(l1pd & L1_S_FRAME);
-		pve = pmap_find_pv(pvh, pmap, trunc_1mpage(va));
-		if (!wired != ((pve->pv_flags & PVF_WIRED) == 0)) {
-			if (!pmap_demote_section(pmap, va))
-				panic("pmap_change_wiring: demotion failed");
-		} else
-			goto out;
-	}
-	l2b = pmap_get_l2_bucket(pmap, va);
-	KASSERT(l2b, ("No l2b bucket in pmap_change_wiring"));
-	ptep = &l2b->l2b_kva[l2pte_index(va)];
-	pte = *ptep;
-	m = PHYS_TO_VM_PAGE(l2pte_pa(pte));
-	if (m != NULL)
-		pmap_modify_pv(m, pmap, va, PVF_WIRED,
-		    wired == TRUE ? PVF_WIRED : 0);
-out:
-	rw_wunlock(&pvh_global_lock);
-	PMAP_UNLOCK(pmap);
-}
-
-/*
  *	Clear the wired attribute from the mappings for the specified range of
  *	addresses in the given pmap.  Every valid mapping within that range
  *	must have the wired attribute set.  In contrast, invalid mappings

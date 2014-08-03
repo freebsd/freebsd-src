@@ -100,14 +100,6 @@ pmap_advise(pmap_t pmap, vm_offset_t start, vm_offset_t end, int advice)
 }
 
 void
-pmap_change_wiring(pmap_t pmap, vm_offset_t va, boolean_t wired)
-{
-
-	CTR4(KTR_PMAP, "%s(%p, %#x, %u)", __func__, pmap, va, wired);
-	MMU_CHANGE_WIRING(mmu_obj, pmap, va, wired);
-}
-
-void
 pmap_clear_modify(vm_page_t m)
 {
 

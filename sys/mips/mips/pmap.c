@@ -2425,37 +2425,6 @@ pmap_object_init_pt(pmap_t pmap, vm_offset_t addr,
 }
 
 /*
- *	Routine:	pmap_change_wiring
- *	Function:	Change the wiring attribute for a map/virtual-address
- *			pair.
- *	In/out conditions:
- *			The mapping must already exist in the pmap.
- */
-void
-pmap_change_wiring(pmap_t pmap, vm_offset_t va, boolean_t wired)
-{
-	pt_entry_t *pte;
-
-	PMAP_LOCK(pmap);
-	pte = pmap_pte(pmap, va);
-
-	if (wired && !pte_test(pte, PTE_W))
-		pmap->pm_stats.wired_count++;
-	else if (!wired && pte_test(pte, PTE_W))
-		pmap->pm_stats.wired_count--;
-
-	/*
-	 * Wiring is not a hardware characteristic so there is no need to
-	 * invalidate TLB.
-	 */
-	if (wired)
-		pte_set(pte, PTE_W);
-	else
-		pte_clear(pte, PTE_W);
-	PMAP_UNLOCK(pmap);
-}
-
-/*
  *	Clear the wired attribute from the mappings for the specified range of
  *	addresses in the given pmap.  Every valid mapping within that range
  *	must have the wired attribute set.  In contrast, invalid mappings
