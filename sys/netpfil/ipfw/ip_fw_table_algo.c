@@ -1062,7 +1062,7 @@ ta_find_chash_tentry(void *ta_state, struct table_info *ti,
 	memset(&ent, 0, sizeof(ent));
 	memset(&tei, 0, sizeof(tei));
 
-	if (tent->subtype == AF_INET) { 
+	if (tent->subtype == AF_INET) {
 		tei.paddr = &tent->k.addr;
 		tei.masklen = cfg->mask4;
 		tei.subtype = AF_INET;
@@ -1540,7 +1540,7 @@ compare_ifidx(const void *k, const void *v)
 		return (-1);
 	else if (key > ifidx->kidx)
 		return (1);
-	
+
 	return (0);
 }
 
@@ -1573,9 +1573,9 @@ badd(const void *key, void *item, void *base, size_t nmemb,
 			return (0);
 
 		if (res > 0)
-			 min = mid + 1;
+			min = mid + 1;
 		else
-			 max = mid - 1;
+			max = mid - 1;
 	}
 
 	/* Item not found. */
@@ -1656,7 +1656,7 @@ ta_init_ifidx(struct ip_fw_chain *ch, void **ta_state, struct table_info *ti,
 
 	icfg->ii = ipfw_objhash_create(16);
 	icfg->size = 16;
-	icfg->main_ptr = malloc(sizeof(struct ifidx) * icfg->size,  M_IPFW,
+	icfg->main_ptr = malloc(sizeof(struct ifidx) * icfg->size, M_IPFW,
 	    M_WAITOK | M_ZERO);
 	icfg->ch = ch;
 
@@ -2190,7 +2190,7 @@ compare_numarray(const void *k, const void *v)
 		return (-1);
 	else if (key > na->number)
 		return (1);
-	
+
 	return (0);
 }
 
@@ -2283,7 +2283,7 @@ ta_add_numarray(void *ta_state, struct table_info *ti, struct tentry_info *tei,
 	int res;
 	uint32_t value;
 
-	tb = (struct ta_buf_numarray*)ta_buf;
+	tb = (struct ta_buf_numarray *)ta_buf;
 	cfg = (struct numarray_cfg *)ta_state;
 
 	ri = numarray_find(ti, &tb->na.number);
@@ -2586,9 +2586,8 @@ struct fhash_cfg {
 	struct fhashentry6	fe6;
 };
 
-struct ta_buf_fhash
-{
-	void *ent_ptr;
+struct ta_buf_fhash {
+	void	*ent_ptr;
 	struct fhashentry6 fe6;
 };
 
@@ -3146,7 +3145,7 @@ ta_modify_fhash(void *ta_state, struct table_info *ti, void *ta_buf,
 
 	if (old_size >= mi->size)
 		return (0);
-	
+
 	new_head = (struct fhashbhead *)mi->main_ptr;
 	for (i = 0; i < old_size; i++) {
 		SLIST_FOREACH_SAFE(ent, &old_head[i], next, ent_next) {
@@ -3199,6 +3198,7 @@ struct table_algo flow_hash = {
 	.modify		= ta_modify_fhash,
 	.flush_mod	= ta_flush_mod_fhash,
 };
+
 void
 ipfw_table_algo_init(struct ip_fw_chain *ch)
 {
