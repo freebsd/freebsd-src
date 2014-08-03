@@ -409,6 +409,7 @@ struct sctp_inpcb {
 	uint8_t ecn_supported;
 	uint8_t prsctp_supported;
 	uint8_t nrsack_supported;
+	uint8_t pktdrop_supported;
 	struct sctp_nonpad_sndrcvinfo def_send;
 	/*-
 	 * These three are here for the sosend_dgram
