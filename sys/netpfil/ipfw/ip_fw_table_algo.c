@@ -60,6 +60,17 @@ __FBSDID("$FreeBSD: projects/ipfw/sys/netpfil/ipfw/ip_fw_table.c 267384 2014-06-
 
 static MALLOC_DEFINE(M_IPFW_TBL, "ipfw_tbl", "IpFw tables");
 
+/*
+ * Utility structures/functions common to more than one algo
+ */
+
+struct mod_item {
+	void	*main_ptr;
+	size_t	size;
+	void	*main_ptr6;
+	size_t	size6;
+};
+
 static int badd(const void *key, void *item, void *base, size_t nmemb,
     size_t size, int (*compar) (const void *, const void *));
 static int bdel(const void *key, void *base, size_t nmemb, size_t size,
@@ -109,6 +120,23 @@ struct radix_cidr_xentry {
 	struct sa_in6		addr6;
 	uint32_t		value;
 	uint8_t			masklen;
+};
+
+struct ta_buf_cidr 
+{
+	void *ent_ptr;
+	struct sockaddr	*addr_ptr;
+	struct sockaddr	*mask_ptr;
+	union {
+		struct {
+			struct sockaddr_in sa;
+			struct sockaddr_in ma;
+		} a4;
+		struct {
+			struct sa_in6 sa;
+			struct sa_in6 ma;
+		} a6;
+	} addr;
 };
 
 static int
@@ -263,23 +291,6 @@ ta_foreach_radix(void *ta_state, struct table_info *ti, ta_foreach_f *f,
 	rnh->rnh_walktree(rnh, (walktree_f_t *)f, arg);
 }
 
-
-struct ta_buf_cidr 
-{
-	void *ent_ptr;
-	struct sockaddr	*addr_ptr;
-	struct sockaddr	*mask_ptr;
-	union {
-		struct {
-			struct sockaddr_in sa;
-			struct sockaddr_in ma;
-		} a4;
-		struct {
-			struct sa_in6 sa;
-			struct sa_in6 ma;
-		} a6;
-	} addr;
-};
 
 #ifdef INET6
 static inline void
@@ -537,7 +548,7 @@ ta_has_space_radix(void *ta_state, struct table_info *ti, uint32_t count,
 {
 
 	/*
-	 * radix does not not require additional memory allocations
+	 * radix does not require additional memory allocations
 	 * other than nodes itself. Adding new masks to the tree do
 	 * but we don't have any API to call (and we don't known which
 	 * sizes do we need).
@@ -608,6 +619,13 @@ struct chashentry {
 		struct in6_addr	a6;	/* Network format */
 	} a;
 };
+
+struct ta_buf_chash
+{
+	void *ent_ptr;
+	struct chashentry ent;
+};
+
 
 static __inline uint32_t
 hash_ip(uint32_t addr, int hsize)
@@ -792,13 +810,13 @@ ta_lookup_chash_64(struct table_info *ti, void *key, uint32_t keylen,
 }
 
 static int
-chash_parse_opts(struct chash_cfg *ccfg, char *data)
+chash_parse_opts(struct chash_cfg *cfg, char *data)
 {
 	char *pdel, *pend, *s;
 	int mask4, mask6;
 
-	mask4 = ccfg->mask4;
-	mask6 = ccfg->mask6;
+	mask4 = cfg->mask4;
+	mask6 = cfg->mask6;
 
 	if (data == NULL)
 		return (0);
@@ -830,8 +848,8 @@ chash_parse_opts(struct chash_cfg *ccfg, char *data)
 	if (mask4 < 0 || mask4 > 32 || mask6 < 0 || mask6 > 128)
 		return (EINVAL);
 
-	ccfg->mask4 = mask4;
-	ccfg->mask6 = mask6;
+	cfg->mask4 = mask4;
+	cfg->mask6 = mask6;
 
 	return (0);
 }
@@ -840,13 +858,13 @@ static void
 ta_print_chash_config(void *ta_state, struct table_info *ti, char *buf,
     size_t bufsize)
 {
-	struct chash_cfg *ccfg;
+	struct chash_cfg *cfg;
 
-	ccfg = (struct chash_cfg *)ta_state;
+	cfg = (struct chash_cfg *)ta_state;
 
-	if (ccfg->mask4 != 32 || ccfg->mask6 != 128)
+	if (cfg->mask4 != 32 || cfg->mask6 != 128)
 		snprintf(buf, bufsize, "%s masks=/%d,/%d", "cidr:hash",
-		    ccfg->mask4, ccfg->mask6);
+		    cfg->mask4, cfg->mask6);
 	else
 		snprintf(buf, bufsize, "%s", "cidr:hash");
 }
@@ -874,49 +892,49 @@ ta_init_chash(struct ip_fw_chain *ch, void **ta_state, struct table_info *ti,
 {
 	int error, i;
 	uint32_t hsize;
-	struct chash_cfg *ccfg;
+	struct chash_cfg *cfg;
 
-	ccfg = malloc(sizeof(struct chash_cfg), M_IPFW, M_WAITOK | M_ZERO);
+	cfg = malloc(sizeof(struct chash_cfg), M_IPFW, M_WAITOK | M_ZERO);
 
-	ccfg->mask4 = 32;
-	ccfg->mask6 = 128;
+	cfg->mask4 = 32;
+	cfg->mask6 = 128;
 
-	if ((error = chash_parse_opts(ccfg, data)) != 0) {
-		free(ccfg, M_IPFW);
+	if ((error = chash_parse_opts(cfg, data)) != 0) {
+		free(cfg, M_IPFW);
 		return (error);
 	}
 
-	ccfg->size4 = 128;
-	ccfg->size6 = 128;
+	cfg->size4 = 128;
+	cfg->size6 = 128;
 
-	ccfg->head4 = malloc(sizeof(struct chashbhead) * ccfg->size4, M_IPFW,
+	cfg->head4 = malloc(sizeof(struct chashbhead) * cfg->size4, M_IPFW,
 	    M_WAITOK | M_ZERO);
-	ccfg->head6 = malloc(sizeof(struct chashbhead) * ccfg->size6, M_IPFW,
+	cfg->head6 = malloc(sizeof(struct chashbhead) * cfg->size6, M_IPFW,
 	    M_WAITOK | M_ZERO);
-	for (i = 0; i < ccfg->size4; i++)
-		SLIST_INIT(&ccfg->head4[i]);
-	for (i = 0; i < ccfg->size6; i++)
-		SLIST_INIT(&ccfg->head6[i]);
+	for (i = 0; i < cfg->size4; i++)
+		SLIST_INIT(&cfg->head4[i]);
+	for (i = 0; i < cfg->size6; i++)
+		SLIST_INIT(&cfg->head6[i]);
 
 
-	*ta_state = ccfg;
-	ti->state = ccfg->head4;
-	ti->xstate = ccfg->head6;
+	*ta_state = cfg;
+	ti->state = cfg->head4;
+	ti->xstate = cfg->head6;
 
 	/* Store data depending on v6 mask length */
-	hsize = log2(ccfg->size4) << 8 | log2(ccfg->size6);
-	if (ccfg->mask6 == 64) {
-		ti->data = (32 - ccfg->mask4) << 24 | (128 - ccfg->mask6) << 16|
+	hsize = log2(cfg->size4) << 8 | log2(cfg->size6);
+	if (cfg->mask6 == 64) {
+		ti->data = (32 - cfg->mask4) << 24 | (128 - cfg->mask6) << 16|
 		    hsize;
 		ti->lookup = ta_lookup_chash_64;
-	} else if ((ccfg->mask6  % 8) == 0) {
-		ti->data = (32 - ccfg->mask4) << 24 |
-		    ccfg->mask6 << 13 | hsize;
+	} else if ((cfg->mask6  % 8) == 0) {
+		ti->data = (32 - cfg->mask4) << 24 |
+		    cfg->mask6 << 13 | hsize;
 		ti->lookup = ta_lookup_chash_aligned;
 	} else {
 		/* don't do that! */
-		ti->data = (32 - ccfg->mask4) << 24 |
-		    ccfg->mask6 << 16 | hsize;
+		ti->data = (32 - cfg->mask4) << 24 |
+		    cfg->mask6 << 16 | hsize;
 		ti->lookup = ta_lookup_chash_slow;
 	}
 
@@ -926,45 +944,45 @@ ta_init_chash(struct ip_fw_chain *ch, void **ta_state, struct table_info *ti,
 static void
 ta_destroy_chash(void *ta_state, struct table_info *ti)
 {
-	struct chash_cfg *ccfg;
+	struct chash_cfg *cfg;
 	struct chashentry *ent, *ent_next;
 	int i;
 
-	ccfg = (struct chash_cfg *)ta_state;
+	cfg = (struct chash_cfg *)ta_state;
 
-	for (i = 0; i < ccfg->size4; i++)
-		SLIST_FOREACH_SAFE(ent, &ccfg->head4[i], next, ent_next)
+	for (i = 0; i < cfg->size4; i++)
+		SLIST_FOREACH_SAFE(ent, &cfg->head4[i], next, ent_next)
 			free(ent, M_IPFW_TBL);
 
-	for (i = 0; i < ccfg->size6; i++)
-		SLIST_FOREACH_SAFE(ent, &ccfg->head6[i], next, ent_next)
+	for (i = 0; i < cfg->size6; i++)
+		SLIST_FOREACH_SAFE(ent, &cfg->head6[i], next, ent_next)
 			free(ent, M_IPFW_TBL);
 
-	free(ccfg->head4, M_IPFW);
-	free(ccfg->head6, M_IPFW);
+	free(cfg->head4, M_IPFW);
+	free(cfg->head6, M_IPFW);
 
-	free(ccfg, M_IPFW);
+	free(cfg, M_IPFW);
 }
 
 static int
 ta_dump_chash_tentry(void *ta_state, struct table_info *ti, void *e,
     ipfw_obj_tentry *tent)
 {
-	struct chash_cfg *ccfg;
+	struct chash_cfg *cfg;
 	struct chashentry *ent;
 
-	ccfg = (struct chash_cfg *)ta_state;
+	cfg = (struct chash_cfg *)ta_state;
 	ent = (struct chashentry *)e;
 
 	if (ent->type == AF_INET) {
-		tent->k.addr.s_addr = htonl(ent->a.a4 << (32 - ccfg->mask4));
-		tent->masklen = ccfg->mask4;
+		tent->k.addr.s_addr = htonl(ent->a.a4 << (32 - cfg->mask4));
+		tent->masklen = cfg->mask4;
 		tent->subtype = AF_INET;
 		tent->value = ent->value;
 #ifdef INET6
 	} else {
 		memcpy(&tent->k, &ent->a.a6, sizeof(struct in6_addr));
-		tent->masklen = ccfg->mask6;
+		tent->masklen = cfg->mask6;
 		tent->subtype = AF_INET6;
 		tent->value = ent->value;
 #endif
@@ -1028,33 +1046,32 @@ tei_to_chash_ent(struct tentry_info *tei, struct chashentry *ent)
 	return (0);
 }
 
-
 static int
 ta_find_chash_tentry(void *ta_state, struct table_info *ti,
     ipfw_obj_tentry *tent)
 {
-	struct chash_cfg *ccfg;
+	struct chash_cfg *cfg;
 	struct chashbhead *head;
 	struct chashentry ent, *tmp;
 	struct tentry_info tei;
 	int error;
 	uint32_t hash;
 
-	ccfg = (struct chash_cfg *)ta_state;
+	cfg = (struct chash_cfg *)ta_state;
 
 	memset(&ent, 0, sizeof(ent));
 	memset(&tei, 0, sizeof(tei));
 
 	if (tent->subtype == AF_INET) { 
 		tei.paddr = &tent->k.addr;
-		tei.masklen = ccfg->mask4;
+		tei.masklen = cfg->mask4;
 		tei.subtype = AF_INET;
 
 		if ((error = tei_to_chash_ent(&tei, &ent)) != 0)
 			return (error);
 
-		head = ccfg->head4;
-		hash = hash_ent(&ent, AF_INET, ccfg->mask4, ccfg->size4);
+		head = cfg->head4;
+		hash = hash_ent(&ent, AF_INET, cfg->mask4, cfg->size4);
 		/* Check for existence */
 		SLIST_FOREACH(tmp, &head[hash], next) {
 			if (tmp->a.a4 != ent.a.a4)
@@ -1065,14 +1082,14 @@ ta_find_chash_tentry(void *ta_state, struct table_info *ti,
 		}
 	} else {
 		tei.paddr = &tent->k.addr6;
-		tei.masklen = ccfg->mask6;
+		tei.masklen = cfg->mask6;
 		tei.subtype = AF_INET6;
 
 		if ((error = tei_to_chash_ent(&tei, &ent)) != 0)
 			return (error);
 
-		head = ccfg->head6;
-		hash = hash_ent(&ent, AF_INET6, ccfg->mask6, ccfg->size6);
+		head = cfg->head6;
+		hash = hash_ent(&ent, AF_INET6, cfg->mask6, cfg->size6);
 		/* Check for existence */
 		SLIST_FOREACH(tmp, &head[hash], next) {
 			if (memcmp(&tmp->a.a6, &ent.a.a6, 16) != 0)
@@ -1089,27 +1106,20 @@ static void
 ta_foreach_chash(void *ta_state, struct table_info *ti, ta_foreach_f *f,
     void *arg)
 {
-	struct chash_cfg *ccfg;
+	struct chash_cfg *cfg;
 	struct chashentry *ent, *ent_next;
 	int i;
 
-	ccfg = (struct chash_cfg *)ta_state;
+	cfg = (struct chash_cfg *)ta_state;
 
-	for (i = 0; i < ccfg->size4; i++)
-		SLIST_FOREACH_SAFE(ent, &ccfg->head4[i], next, ent_next)
+	for (i = 0; i < cfg->size4; i++)
+		SLIST_FOREACH_SAFE(ent, &cfg->head4[i], next, ent_next)
 			f(ent, arg);
 
-	for (i = 0; i < ccfg->size6; i++)
-		SLIST_FOREACH_SAFE(ent, &ccfg->head6[i], next, ent_next)
+	for (i = 0; i < cfg->size6; i++)
+		SLIST_FOREACH_SAFE(ent, &cfg->head6[i], next, ent_next)
 			f(ent, arg);
 }
-
-
-struct ta_buf_chash
-{
-	void *ent_ptr;
-	struct chashentry ent;
-};
 
 static int
 ta_prepare_add_chash(struct ip_fw_chain *ch, struct tentry_info *tei,
@@ -1137,24 +1147,24 @@ static int
 ta_add_chash(void *ta_state, struct table_info *ti, struct tentry_info *tei,
     void *ta_buf, uint32_t *pnum)
 {
-	struct chash_cfg *ccfg;
+	struct chash_cfg *cfg;
 	struct chashbhead *head;
 	struct chashentry *ent, *tmp;
 	struct ta_buf_chash *tb;
 	int exists;
 	uint32_t hash, value;
 
-	ccfg = (struct chash_cfg *)ta_state;
+	cfg = (struct chash_cfg *)ta_state;
 	tb = (struct ta_buf_chash *)ta_buf;
 	ent = (struct chashentry *)tb->ent_ptr;
 	hash = 0;
 	exists = 0;
 
 	if (tei->subtype == AF_INET) {
-		if (tei->masklen != ccfg->mask4)
+		if (tei->masklen != cfg->mask4)
 			return (EINVAL);
-		head = ccfg->head4;
-		hash = hash_ent(ent, AF_INET, ccfg->mask4, ccfg->size4);
+		head = cfg->head4;
+		hash = hash_ent(ent, AF_INET, cfg->mask4, cfg->size4);
 
 		/* Check for existence */
 		SLIST_FOREACH(tmp, &head[hash], next) {
@@ -1164,10 +1174,10 @@ ta_add_chash(void *ta_state, struct table_info *ti, struct tentry_info *tei,
 			}
 		}
 	} else {
-		if (tei->masklen != ccfg->mask6)
+		if (tei->masklen != cfg->mask6)
 			return (EINVAL);
-		head = ccfg->head6;
-		hash = hash_ent(ent, AF_INET6, ccfg->mask6, ccfg->size6);
+		head = cfg->head6;
+		hash = hash_ent(ent, AF_INET6, cfg->mask6, cfg->size6);
 		/* Check for existence */
 		SLIST_FOREACH(tmp, &head[hash], next) {
 			if (memcmp(&tmp->a.a6, &ent->a.a6, 16) == 0) {
@@ -1196,9 +1206,9 @@ ta_add_chash(void *ta_state, struct table_info *ti, struct tentry_info *tei,
 
 		/* Update counters */
 		if (tei->subtype == AF_INET)
-			ccfg->items4++;
+			cfg->items4++;
 		else
-			ccfg->items6++;
+			cfg->items6++;
 	}
 
 	return (0);
@@ -1219,46 +1229,46 @@ static int
 ta_del_chash(void *ta_state, struct table_info *ti, struct tentry_info *tei,
     void *ta_buf, uint32_t *pnum)
 {
-	struct chash_cfg *ccfg;
+	struct chash_cfg *cfg;
 	struct chashbhead *head;
-	struct chashentry *ent, *tmp_next, *dent;
+	struct chashentry *tmp, *tmp_next, *ent;
 	struct ta_buf_chash *tb;
 	uint32_t hash;
 
-	ccfg = (struct chash_cfg *)ta_state;
+	cfg = (struct chash_cfg *)ta_state;
 	tb = (struct ta_buf_chash *)ta_buf;
-	dent = &tb->ent;
+	ent = &tb->ent;
 
 	if (tei->subtype == AF_INET) {
-		if (tei->masklen != ccfg->mask4)
+		if (tei->masklen != cfg->mask4)
 			return (EINVAL);
-		head = ccfg->head4;
-		hash = hash_ent(dent, AF_INET, ccfg->mask4, ccfg->size4);
+		head = cfg->head4;
+		hash = hash_ent(ent, AF_INET, cfg->mask4, cfg->size4);
 
-		SLIST_FOREACH_SAFE(ent, &head[hash], next, tmp_next) {
-			if (ent->a.a4 != dent->a.a4)
+		SLIST_FOREACH_SAFE(tmp, &head[hash], next, tmp_next) {
+			if (tmp->a.a4 != ent->a.a4)
 				continue;
 
-			SLIST_REMOVE(&head[hash], ent, chashentry, next);
-			ccfg->items4--;
-			tb->ent_ptr = ent;
-			tei->value = ent->value;
+			SLIST_REMOVE(&head[hash], tmp, chashentry, next);
+			cfg->items4--;
+			tb->ent_ptr = tmp;
+			tei->value = tmp->value;
 			*pnum = 1;
 			return (0);
 		}
 	} else {
-		if (tei->masklen != ccfg->mask6)
+		if (tei->masklen != cfg->mask6)
 			return (EINVAL);
-		head = ccfg->head6;
-		hash = hash_ent(dent, AF_INET6, ccfg->mask6, ccfg->size6);
-		SLIST_FOREACH_SAFE(ent, &head[hash], next, tmp_next) {
-			if (memcmp(&ent->a.a6, &dent->a.a6, 16) != 0)
+		head = cfg->head6;
+		hash = hash_ent(ent, AF_INET6, cfg->mask6, cfg->size6);
+		SLIST_FOREACH_SAFE(tmp, &head[hash], next, tmp_next) {
+			if (memcmp(&tmp->a.a6, &ent->a.a6, 16) != 0)
 				continue;
 
-			SLIST_REMOVE(&head[hash], ent, chashentry, next);
-			ccfg->items6--;
-			tb->ent_ptr = ent;
-			tei->value = ent->value;
+			SLIST_REMOVE(&head[hash], tmp, chashentry, next);
+			cfg->items6--;
+			tb->ent_ptr = tmp;
+			tei->value = tmp->value;
 			*pnum = 1;
 			return (0);
 		}
@@ -1282,13 +1292,6 @@ ta_flush_chash_entry(struct ip_fw_chain *ch, struct tentry_info *tei,
 /*
  * Hash growing callbacks.
  */
-
-struct mod_item {
-	void	*main_ptr;
-	size_t	size;
-	void	*main_ptr6;
-	size_t	size6;
-};
 
 static int
 ta_has_space_chash(void *ta_state, struct table_info *ti, uint32_t count,
@@ -1515,7 +1518,11 @@ struct iftable_cfg {
 	size_t	used;	/* Number of items _active_ now */
 };
 
-#define	IFIDX_CHUNK	16
+struct ta_buf_ifidx
+{
+	struct ifentry *ife;
+	uint32_t value;
+};
 
 int compare_ifidx(const void *k, const void *v);
 static void if_notifier(struct ip_fw_chain *ch, void *cbdata, uint16_t ifindex);
@@ -1648,9 +1655,9 @@ ta_init_ifidx(struct ip_fw_chain *ch, void **ta_state, struct table_info *ti,
 	icfg = malloc(sizeof(struct iftable_cfg), M_IPFW, M_WAITOK | M_ZERO);
 
 	icfg->ii = ipfw_objhash_create(16);
-	icfg->main_ptr = malloc(sizeof(struct ifidx) * IFIDX_CHUNK,  M_IPFW,
+	icfg->size = 16;
+	icfg->main_ptr = malloc(sizeof(struct ifidx) * icfg->size,  M_IPFW,
 	    M_WAITOK | M_ZERO);
-	icfg->size = IFIDX_CHUNK;
 	icfg->ch = ch;
 
 	*ta_state = icfg;
@@ -1708,12 +1715,6 @@ ta_destroy_ifidx(void *ta_state, struct table_info *ti)
 
 	free(icfg, M_IPFW);
 }
-
-struct ta_buf_ifidx
-{
-	struct ifentry *ife;
-	uint32_t value;
-};
 
 /*
  * Prepare state to add to the table:
@@ -1951,21 +1952,21 @@ if_notifier(struct ip_fw_chain *ch, void *cbdata, uint16_t ifindex)
  * Table growing callbacks.
  */
 
-struct mod_ifidx {
-	void	*main_ptr;
-	size_t	size;
-};
-
 static int
 ta_has_space_ifidx(void *ta_state, struct table_info *ti, uint32_t count,
     uint64_t *pflags)
 {
 	struct iftable_cfg *cfg;
+	uint32_t size;
 
 	cfg = (struct iftable_cfg *)ta_state;
 
-	if (cfg->count + count > cfg->size) {
-		*pflags = roundup2(cfg->count + count, IFIDX_CHUNK);
+	size = cfg->size;
+	while (size < cfg->count + count)
+		size *= 2;
+
+	if (size != cfg->size) {
+		*pflags = size;
 		return (0);
 	}
 
@@ -1978,11 +1979,11 @@ ta_has_space_ifidx(void *ta_state, struct table_info *ti, uint32_t count,
 static int
 ta_prepare_mod_ifidx(void *ta_buf, uint64_t *pflags)
 {
-	struct mod_ifidx *mi;
+	struct mod_item *mi;
 
-	mi = (struct mod_ifidx *)ta_buf;
+	mi = (struct mod_item *)ta_buf;
 
-	memset(mi, 0, sizeof(struct mod_ifidx));
+	memset(mi, 0, sizeof(struct mod_item));
 	mi->size = *pflags;
 	mi->main_ptr = malloc(sizeof(struct ifidx) * mi->size, M_IPFW,
 	    M_WAITOK | M_ZERO);
@@ -1997,10 +1998,10 @@ static int
 ta_fill_mod_ifidx(void *ta_state, struct table_info *ti, void *ta_buf,
     uint64_t *pflags)
 {
-	struct mod_ifidx *mi;
+	struct mod_item *mi;
 	struct iftable_cfg *icfg;
 
-	mi = (struct mod_ifidx *)ta_buf;
+	mi = (struct mod_item *)ta_buf;
 	icfg = (struct iftable_cfg *)ta_state;
 
 	/* Check if we still need to grow array */
@@ -2021,11 +2022,11 @@ static int
 ta_modify_ifidx(void *ta_state, struct table_info *ti, void *ta_buf,
     uint64_t pflags)
 {
-	struct mod_ifidx *mi;
+	struct mod_item *mi;
 	struct iftable_cfg *icfg;
 	void *old_ptr;
 
-	mi = (struct mod_ifidx *)ta_buf;
+	mi = (struct mod_item *)ta_buf;
 	icfg = (struct iftable_cfg *)ta_state;
 
 	old_ptr = icfg->main_ptr;
@@ -2044,9 +2045,9 @@ ta_modify_ifidx(void *ta_state, struct table_info *ti, void *ta_buf,
 static void
 ta_flush_mod_ifidx(void *ta_buf)
 {
-	struct mod_ifidx *mi;
+	struct mod_item *mi;
 
-	mi = (struct mod_ifidx *)ta_buf;
+	mi = (struct mod_item *)ta_buf;
 	if (mi->main_ptr != NULL)
 		free(mi->main_ptr, M_IPFW);
 }
@@ -2169,7 +2170,10 @@ struct numarray_cfg {
 	size_t	used;	/* Number of items _active_ now */
 };
 
-#define	NUMARRAY_CHUNK	16
+struct ta_buf_numarray
+{
+	struct numarray na;
+};
 
 int compare_numarray(const void *k, const void *v);
 
@@ -2225,7 +2229,7 @@ ta_init_numarray(struct ip_fw_chain *ch, void **ta_state, struct table_info *ti,
 
 	cfg = malloc(sizeof(*cfg), M_IPFW, M_WAITOK | M_ZERO);
 
-	cfg->size = NUMARRAY_CHUNK;
+	cfg->size = 16;
 	cfg->main_ptr = malloc(sizeof(struct numarray) * cfg->size, M_IPFW,
 	    M_WAITOK | M_ZERO);
 
@@ -2251,11 +2255,6 @@ ta_destroy_numarray(void *ta_state, struct table_info *ti)
 
 	free(cfg, M_IPFW);
 }
-
-struct ta_buf_numarray
-{
-	struct numarray na;
-};
 
 /*
  * Prepare for addition/deletion to an array.
@@ -2355,7 +2354,7 @@ ta_flush_numarray_entry(struct ip_fw_chain *ch, struct tentry_info *tei,
     void *ta_buf)
 {
 
-	/* Do nothing */
+	/* We don't have any state, do nothing */
 }
 
 
@@ -2368,11 +2367,16 @@ ta_has_space_numarray(void *ta_state, struct table_info *ti, uint32_t count,
     uint64_t *pflags)
 {
 	struct numarray_cfg *cfg;
+	size_t size;
 
 	cfg = (struct numarray_cfg *)ta_state;
 
-	if (cfg->used + count > cfg->size) {
-		*pflags = roundup2(cfg->used + count, NUMARRAY_CHUNK);
+	size = cfg->size;
+	while (size < cfg->used + count)
+		size *= 2;
+
+	if (size != cfg->size) {
+		*pflags = size;
 		return (0);
 	}
 
@@ -2580,6 +2584,12 @@ struct fhash_cfg {
 	size_t			items;
 	struct fhashentry4	fe4;
 	struct fhashentry6	fe6;
+};
+
+struct ta_buf_fhash
+{
+	void *ent_ptr;
+	struct fhashentry6 fe6;
 };
 
 static __inline int
@@ -2905,13 +2915,6 @@ ta_foreach_fhash(void *ta_state, struct table_info *ti, ta_foreach_f *f,
 			f(ent, arg);
 }
 
-
-struct ta_buf_fhash
-{
-	void *ent_ptr;
-	struct fhashentry6 fe6;
-};
-
 static int
 ta_prepare_add_fhash(struct ip_fw_chain *ch, struct tentry_info *tei,
     void *ta_buf)
@@ -3118,7 +3121,6 @@ ta_fill_mod_fhash(void *ta_state, struct table_info *ti, void *ta_buf,
 	/* In is not possible to do rehash if we're not holidng WLOCK. */
 	return (0);
 }
-
 
 /*
  * Switch old & new arrays.
