@@ -264,6 +264,7 @@ struct ip_fw_chain {
 	int		n_rules;	/* number of static rules */
 	LIST_HEAD(nat_list, cfg_nat) nat;       /* list of nat entries */
 	void		*tablestate;		/* runtime table info */
+	int		*idxmap;	/* skipto array of rules */
 #if defined( __linux__ ) || defined( _WIN32 )
 	spinlock_t rwmtx;
 #else
@@ -275,6 +276,7 @@ struct ip_fw_chain {
 	struct ip_fw	*default_rule;
 	struct tables_config *tblcfg;	/* tables module data */
 	void		*ifcfg;		/* interface module data */
+	int		*idxmap_back;	/* standby skipto array of rules */
 #if defined( __linux__ ) || defined( _WIN32 )
 	spinlock_t uh_lock;
 #else
@@ -495,6 +497,8 @@ void ipfw_iface_del_notify(struct ip_fw_chain *ch, struct ipfw_ifc *ic);
 int ipfw_list_ifaces(struct ip_fw_chain *ch, struct sockopt_data *sd);
 
 /* In ip_fw_sockopt.c */
+void ipfw_init_skipto_cache(struct ip_fw_chain *chain);
+void ipfw_destroy_skipto_cache(struct ip_fw_chain *chain);
 int ipfw_find_rule(struct ip_fw_chain *chain, uint32_t key, uint32_t id);
 int ipfw_ctl(struct sockopt *sopt);
 int ipfw_ctl3(struct sockopt *sopt);
