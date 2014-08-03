@@ -120,6 +120,13 @@ struct radix_cidr_xentry {
 	uint8_t			masklen;
 };
 
+struct radix_cfg {
+	struct radix_node_head	*head4;
+	struct radix_node_head	*head6;
+	size_t			count4;
+	size_t			count6;
+};
+
 struct ta_buf_cidr 
 {
 	void *ent_ptr;
@@ -177,6 +184,7 @@ static int
 ta_init_radix(struct ip_fw_chain *ch, void **ta_state, struct table_info *ti,
     char *data, uint8_t tflags)
 {
+	struct radix_cfg *cfg;
 
 	if (!rn_inithead(&ti->state, OFF_LEN_INET))
 		return (ENOMEM);
@@ -185,7 +193,9 @@ ta_init_radix(struct ip_fw_chain *ch, void **ta_state, struct table_info *ti,
 		return (ENOMEM);
 	}
 
-	*ta_state = NULL;
+	cfg = malloc(sizeof(struct radix_cfg), M_IPFW, M_WAITOK | M_ZERO);
+
+	*ta_state = cfg;
 	ti->lookup = ta_lookup_radix;
 
 	return (0);
@@ -207,7 +217,10 @@ flush_radix_entry(struct radix_node *rn, void *arg)
 static void
 ta_destroy_radix(void *ta_state, struct table_info *ti)
 {
+	struct radix_cfg *cfg;
 	struct radix_node_head *rnh;
+
+	cfg = (struct radix_cfg *)ta_state;
 
 	rnh = (struct radix_node_head *)(ti->state);
 	rnh->rnh_walktree(rnh, flush_radix_entry, rnh);
@@ -216,6 +229,27 @@ ta_destroy_radix(void *ta_state, struct table_info *ti)
 	rnh = (struct radix_node_head *)(ti->xstate);
 	rnh->rnh_walktree(rnh, flush_radix_entry, rnh);
 	rn_detachhead(&ti->xstate);
+
+	free(cfg, M_IPFW);
+}
+
+/*
+ * Provide algo-specific table info
+ */
+static void
+ta_dump_radix_tinfo(void *ta_state, struct table_info *ti, ipfw_ta_tinfo *tinfo)
+{
+	struct radix_cfg *cfg;
+
+	cfg = (struct radix_cfg *)ta_state;
+
+	tinfo->flags = IPFW_TATFLAGS_AFDATA | IPFW_TATFLAGS_AFITEM;
+	tinfo->taclass4 = IPFW_TACLASS_RADIX;
+	tinfo->count4 = cfg->count4;
+	tinfo->itemsize4 = sizeof(struct radix_cidr_entry);
+	tinfo->taclass6 = IPFW_TACLASS_RADIX;
+	tinfo->count6 = cfg->count6;
+	tinfo->itemsize6 = sizeof(struct radix_cidr_xentry);
 }
 
 static int
@@ -408,11 +442,13 @@ static int
 ta_add_radix(void *ta_state, struct table_info *ti, struct tentry_info *tei,
     void *ta_buf, uint32_t *pnum)
 {
+	struct radix_cfg *cfg;
 	struct radix_node_head *rnh;
 	struct radix_node *rn;
 	struct ta_buf_cidr *tb;
 	uint32_t *old_value, value;
 
+	cfg = (struct radix_cfg *)ta_state;
 	tb = (struct ta_buf_cidr *)ta_buf;
 
 	if (tei->subtype == AF_INET)
@@ -451,6 +487,10 @@ ta_add_radix(void *ta_state, struct table_info *ti, struct tentry_info *tei,
 		return (EINVAL);
 	}
 	
+	if (tei->subtype == AF_INET)
+		cfg->count4++;
+	else
+		cfg->count6++;
 	tb->ent_ptr = NULL;
 	*pnum = 1;
 
@@ -499,10 +539,12 @@ static int
 ta_del_radix(void *ta_state, struct table_info *ti, struct tentry_info *tei,
     void *ta_buf, uint32_t *pnum)
 {
+	struct radix_cfg *cfg;
 	struct radix_node_head *rnh;
 	struct radix_node *rn;
 	struct ta_buf_cidr *tb;
 
+	cfg = (struct radix_cfg *)ta_state;
 	tb = (struct ta_buf_cidr *)ta_buf;
 
 	if (tei->subtype == AF_INET)
@@ -523,6 +565,10 @@ ta_del_radix(void *ta_state, struct table_info *ti, struct tentry_info *tei,
 	if (rn == NULL)
 		return (ENOENT);
 
+	if (tei->subtype == AF_INET)
+		cfg->count4--;
+	else
+		cfg->count6--;
 	*pnum = 1;
 
 	return (0);
@@ -569,6 +615,7 @@ struct table_algo cidr_radix = {
 	.foreach	= ta_foreach_radix,
 	.dump_tentry	= ta_dump_radix_tentry,
 	.find_tentry	= ta_find_radix_tentry,
+	.dump_tinfo	= ta_dump_radix_tinfo,
 	.has_space	= ta_has_space_radix,
 };
 
@@ -960,6 +1007,24 @@ ta_destroy_chash(void *ta_state, struct table_info *ti)
 	free(cfg->head6, M_IPFW);
 
 	free(cfg, M_IPFW);
+}
+
+static void
+ta_dump_chash_tinfo(void *ta_state, struct table_info *ti, ipfw_ta_tinfo *tinfo)
+{
+	struct chash_cfg *cfg;
+
+	cfg = (struct chash_cfg *)ta_state;
+
+	tinfo->flags = IPFW_TATFLAGS_AFDATA | IPFW_TATFLAGS_AFITEM;
+	tinfo->taclass4 = IPFW_TACLASS_HASH;
+	tinfo->size4 = cfg->size4;
+	tinfo->count4 = cfg->items4;
+	tinfo->itemsize4 = sizeof(struct chashentry);
+	tinfo->taclass6 = IPFW_TACLASS_HASH;
+	tinfo->size6 = cfg->size6;
+	tinfo->count6 = cfg->items6;
+	tinfo->itemsize6 = sizeof(struct chashentry);
 }
 
 static int
@@ -1464,6 +1529,7 @@ struct table_algo cidr_hash = {
 	.dump_tentry	= ta_dump_chash_tentry,
 	.find_tentry	= ta_find_chash_tentry,
 	.print_config	= ta_print_chash_config,
+	.dump_tinfo	= ta_dump_chash_tinfo,
 	.has_space	= ta_has_space_chash,
 	.prepare_mod	= ta_prepare_mod_chash,
 	.fill_mod	= ta_fill_mod_chash,
@@ -1712,6 +1778,22 @@ ta_destroy_ifidx(void *ta_state, struct table_info *ti)
 	ipfw_objhash_destroy(icfg->ii);
 
 	free(icfg, M_IPFW);
+}
+
+/*
+ * Provide algo-specific table info
+ */
+static void
+ta_dump_ifidx_tinfo(void *ta_state, struct table_info *ti, ipfw_ta_tinfo *tinfo)
+{
+	struct iftable_cfg *cfg;
+
+	cfg = (struct iftable_cfg *)ta_state;
+
+	tinfo->taclass4 = IPFW_TACLASS_ARRAY;
+	tinfo->size4 = cfg->size;
+	tinfo->count4 = cfg->used;
+	tinfo->itemsize4 = sizeof(struct ifidx);
 }
 
 /*
@@ -2137,6 +2219,7 @@ struct table_algo iface_idx = {
 	.foreach	= ta_foreach_ifidx,
 	.dump_tentry	= ta_dump_ifidx_tentry,
 	.find_tentry	= ta_find_ifidx_tentry,
+	.dump_tinfo	= ta_dump_ifidx_tinfo,
 	.has_space	= ta_has_space_ifidx,
 	.prepare_mod	= ta_prepare_mod_ifidx,
 	.fill_mod	= ta_fill_mod_ifidx,
@@ -2252,6 +2335,22 @@ ta_destroy_numarray(void *ta_state, struct table_info *ti)
 		free(cfg->main_ptr, M_IPFW);
 
 	free(cfg, M_IPFW);
+}
+
+/*
+ * Provide algo-specific table info
+ */
+static void
+ta_dump_numarray_tinfo(void *ta_state, struct table_info *ti, ipfw_ta_tinfo *tinfo)
+{
+	struct numarray_cfg *cfg;
+
+	cfg = (struct numarray_cfg *)ta_state;
+
+	tinfo->taclass4 = IPFW_TACLASS_ARRAY;
+	tinfo->size4 = cfg->size;
+	tinfo->count4 = cfg->used;
+	tinfo->itemsize4 = sizeof(struct numarray);
 }
 
 /*
@@ -2522,6 +2621,7 @@ struct table_algo number_array = {
 	.foreach	= ta_foreach_numarray,
 	.dump_tentry	= ta_dump_numarray_tentry,
 	.find_tentry	= ta_find_numarray_tentry,
+	.dump_tinfo	= ta_dump_numarray_tinfo,
 	.has_space	= ta_has_space_numarray,
 	.prepare_mod	= ta_prepare_mod_numarray,
 	.fill_mod	= ta_fill_mod_numarray,
@@ -2776,6 +2876,24 @@ ta_destroy_fhash(void *ta_state, struct table_info *ti)
 
 	free(cfg->head, M_IPFW);
 	free(cfg, M_IPFW);
+}
+
+/*
+ * Provide algo-specific table info
+ */
+static void
+ta_dump_fhash_tinfo(void *ta_state, struct table_info *ti, ipfw_ta_tinfo *tinfo)
+{
+	struct fhash_cfg *cfg;
+
+	cfg = (struct fhash_cfg *)ta_state;
+
+	tinfo->flags = IPFW_TATFLAGS_AFITEM;
+	tinfo->taclass4 = IPFW_TACLASS_HASH;
+	tinfo->size4 = cfg->size;
+	tinfo->count4 = cfg->items;
+	tinfo->itemsize4 = sizeof(struct fhashentry4);
+	tinfo->itemsize6 = sizeof(struct fhashentry6);
 }
 
 static int
@@ -3190,6 +3308,7 @@ struct table_algo flow_hash = {
 	.foreach	= ta_foreach_fhash,
 	.dump_tentry	= ta_dump_fhash_tentry,
 	.find_tentry	= ta_find_fhash_tentry,
+	.dump_tinfo	= ta_dump_fhash_tinfo,
 	.has_space	= ta_has_space_fhash,
 	.prepare_mod	= ta_prepare_mod_fhash,
 	.fill_mod	= ta_fill_mod_fhash,

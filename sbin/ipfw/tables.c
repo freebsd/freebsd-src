@@ -473,6 +473,58 @@ table_get_info(ipfw_obj_header *oh, ipfw_xtable_info *i)
 	return (0);
 }
 
+static struct _s_x tablealgoclass[] = {
+      { "hash",		IPFW_TACLASS_HASH },
+      { "array",	IPFW_TACLASS_ARRAY },
+      { "radix",	IPFW_TACLASS_RADIX },
+      { NULL, 0 }
+};
+
+struct ta_cldata {
+	uint8_t		taclass;
+	uint8_t		spare4;
+	uint16_t	itemsize;
+	uint16_t	itemsize6;
+	uint32_t	size;	
+	uint32_t	count;
+};
+
+/*
+ * Print global/per-AF table @i algorithm info.
+ */
+static void
+table_show_tainfo(ipfw_xtable_info *i, struct ta_cldata *d,
+    const char *af, const char *taclass)
+{
+
+	switch (d->taclass) {
+	case IPFW_TACLASS_HASH:
+	case IPFW_TACLASS_ARRAY:
+		printf(" %salgorithm %s info\n", af, taclass);
+		if (d->itemsize == d->itemsize6)
+			printf("  size: %u items: %u itemsize: %u\n",
+			    d->size, d->count, d->itemsize);
+		else
+			printf("  size: %u items: %u "
+			    "itemsize4: %u itemsize6: %u\n",
+			    d->size, d->count,
+			    d->itemsize, d->itemsize6);
+		break;
+	case IPFW_TACLASS_RADIX:
+		printf(" %salgorithm %s info\n", af, taclass);
+		if (d->itemsize == d->itemsize6)
+			printf("  items: %u itemsize: %u\n",
+			    d->count, d->itemsize);
+		else
+			printf("  items: %u "
+			    "itemsize4: %u itemsize6: %u\n",
+			    d->count, d->itemsize, d->itemsize6);
+		break;
+	default:
+		printf(" algo class: %s\n", taclass);
+	}
+}
+
 /*
  * Prints table info struct @i in human-readable form.
  */
@@ -480,6 +532,9 @@ static int
 table_show_info(ipfw_xtable_info *i, void *arg)
 {
 	const char *vtype;
+	ipfw_ta_tinfo *tainfo;
+	int afdata, afitem;
+	struct ta_cldata d;
 	char ttype[64];
 
 	table_print_type(ttype, sizeof(ttype), i->type, i->tflags);
@@ -493,6 +548,45 @@ table_show_info(ipfw_xtable_info *i, void *arg)
 	printf(" items: %u, size: %u\n", i->count, i->size);
 	if (i->limit > 0)
 		printf(" limit: %u\n", i->limit);
+
+	/* Print algo-specific info if any */
+	if ((i->ta_info.flags & IPFW_TATFLAGS_DATA) == 0)
+		return (0);
+	tainfo = &i->ta_info;
+
+	afdata = 0;
+	afitem = 0;
+	if (tainfo->flags & IPFW_TATFLAGS_AFDATA)
+		afdata = 1;
+	if (tainfo->flags & IPFW_TATFLAGS_AFITEM)
+		afitem = 1;
+
+	memset(&d, 0, sizeof(d));
+	d.taclass = tainfo->taclass4;
+	d.size = tainfo->size4;
+	d.count = tainfo->count4;
+	d.itemsize = tainfo->itemsize4;
+	if (afdata == 0 && afitem != 0)
+		d.itemsize6 = tainfo->itemsize6;
+	else
+		d.itemsize6 = d.itemsize;
+	if ((vtype = match_value(tablealgoclass, d.taclass)) == NULL)
+		vtype = "unknown";
+
+	if (afdata == 0) {
+		table_show_tainfo(i, &d, "", vtype);
+	} else {
+		table_show_tainfo(i, &d, "IPv4 ", vtype);
+		memset(&d, 0, sizeof(d));
+		d.taclass = tainfo->taclass6;
+		if ((vtype = match_value(tablealgoclass, d.taclass)) == NULL)
+			vtype = "unknown";
+		d.size = tainfo->size6;
+		d.count = tainfo->count6;
+		d.itemsize = tainfo->itemsize6;
+		d.itemsize6 = d.itemsize;
+		table_show_tainfo(i, &d, "IPv6 ", vtype);
+	}
 
 	return (0);
 }

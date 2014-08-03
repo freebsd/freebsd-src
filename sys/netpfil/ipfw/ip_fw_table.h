@@ -97,8 +97,8 @@ typedef int ta_dump_tentry(void *ta_state, struct table_info *ti, void *e,
     ipfw_obj_tentry *tent);
 typedef int ta_find_tentry(void *ta_state, struct table_info *ti,
     ipfw_obj_tentry *tent);
-typedef int ta_dump_tinfo(void *ta_state, struct table_info *ti, 
-    ifpw_ta_tinfo *tinfo);
+typedef void ta_dump_tinfo(void *ta_state, struct table_info *ti, 
+    ipfw_ta_tinfo *tinfo);
 
 struct table_algo {
 	char		name[16];
