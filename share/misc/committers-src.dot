@@ -170,6 +170,7 @@ grehan [label="Peter Grehan\ngrehan@FreeBSD.org\n2002/08/08"]
 grog [label="Greg Lehey\ngrog@FreeBSD.org\n1998/08/30"]
 gshapiro [label="Gregory Shapiro\ngshapiro@FreeBSD.org\n2000/07/12"]
 harti [label="Hartmut Brandt\nharti@FreeBSD.org\n2003/01/29"]
+hiren [label="Hiren Panchasara\nhiren@FreeBSD.org\n2013/04/12"]
 hmp [label="Hiten Pandya\nhmp@FreeBSD.org\n2004/03/23"]
 ian [label="Ian Lepore\nian@FreeBSD.org\n2013/01/07"]
 iedowse [label="Ian Dowse\niedowse@FreeBSD.org\n2000/12/01"]
@@ -664,6 +665,7 @@ sam -> andre
 sam -> benjsc
 sam -> sephe
 
+sbruno -> hiren
 sbruno -> jimharris
 
 schweikh -> dds
