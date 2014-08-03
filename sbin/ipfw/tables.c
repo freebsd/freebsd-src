@@ -56,6 +56,8 @@ static int table_destroy(ipfw_obj_header *oh);
 static int table_do_create(ipfw_obj_header *oh, ipfw_xtable_info *i);
 static void table_create(ipfw_obj_header *oh, int ac, char *av[]);
 static void table_lookup(ipfw_obj_header *oh, int ac, char *av[]);
+static int table_do_swap(ipfw_obj_header *oh, char *second);
+static int table_swap(ipfw_obj_header *oh, char *second);
 static int table_get_info(ipfw_obj_header *oh, ipfw_xtable_info *i);
 static int table_show_info(ipfw_xtable_info *i, void *arg);
 static void table_fill_ntlv(ipfw_obj_ntlv *ntlv, char *name, uint32_t set,
@@ -96,10 +98,11 @@ static struct _s_x tablevaltypes[] = {
 
 static struct _s_x tablecmds[] = {
       { "add",		TOK_ADD },
-      { "create",	TOK_CREATE },
       { "delete",	TOK_DEL },
+      { "create",	TOK_CREATE },
       { "destroy",	TOK_DESTROY },
       { "flush",	TOK_FLUSH },
+      { "swap",		TOK_SWAP },
       { "info",		TOK_INFO },
       { "detail",	TOK_DETAIL },
       { "list",		TOK_LIST },
@@ -203,6 +206,11 @@ ipfw_table_handler(int ac, char *av[])
 			if (error != 0)
 				err(EX_OSERR, "failed to flush tables list");
 		}
+		break;
+	case TOK_SWAP:
+		ac--; av++;
+		NEED1("second table name required");
+		table_swap(&oh, *av);
 		break;
 	case TOK_DETAIL:
 	case TOK_INFO:
@@ -449,6 +457,46 @@ table_flush(ipfw_obj_header *oh)
 
 	return (0);
 }
+
+static int
+table_do_swap(ipfw_obj_header *oh, char *second)
+{
+	char tbuf[sizeof(ipfw_obj_header) + sizeof(ipfw_obj_ntlv)];
+	int error;
+
+	memset(tbuf, 0, sizeof(tbuf));
+	memcpy(tbuf, oh, sizeof(*oh));
+	oh = (ipfw_obj_header *)tbuf;
+	table_fill_ntlv((ipfw_obj_ntlv *)(oh + 1), second, oh->ntlv.set, 1);
+
+	error = do_set3(IP_FW_TABLE_XSWAP, &oh->opheader, sizeof(tbuf));
+
+	return (error);
+}
+
+/*
+ * Swaps given table with @second one.
+ */
+static int
+table_swap(ipfw_obj_header *oh, char *second)
+{
+	int error;
+
+	if (table_check_name(second) != 0)
+		errx(EX_USAGE, "table name %s is invalid", second);
+
+	error = table_do_swap(oh, second);
+
+	switch (error) {
+	case EINVAL:
+		errx(EX_USAGE, "Unable to swap table: check types");
+	case EFBIG:
+		errx(EX_USAGE, "Unable to swap table: check limits");
+	}
+
+	return (0);
+}
+
 
 /*
  * Retrieves table in given table specified by @oh->ntlv.

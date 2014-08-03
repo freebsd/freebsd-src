@@ -1970,6 +1970,10 @@ ipfw_ctl3(struct sockopt *sopt)
 		error = ipfw_find_table_entry(chain, op3, &sdata);
 		break;
 
+	case IP_FW_TABLE_XSWAP:
+		error = ipfw_swap_table(chain, op3, &sdata);
+		break;
+
 	case IP_FW_TABLES_ALIST:
 		error = ipfw_list_table_algo(chain, &sdata);
 		break;
