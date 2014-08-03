@@ -101,6 +101,7 @@ static struct _s_x tablecmds[] = {
       { "destroy",	TOK_DESTROY },
       { "flush",	TOK_FLUSH },
       { "info",		TOK_INFO },
+      { "detail",	TOK_DETAIL },
       { "list",		TOK_LIST },
       { "lookup",	TOK_LOOKUP },
       { NULL, 0 }
@@ -138,6 +139,7 @@ ipfw_table_handler(int ac, char *av[])
 	ipfw_obj_header oh;
 	char *tablename;
 	uint32_t set;
+	void *arg;
 
 	memset(&oh, 0, sizeof(oh));
 	is_all = 0;
@@ -168,6 +170,7 @@ ipfw_table_handler(int ac, char *av[])
 	switch (tcmd) {
 	case TOK_LIST:
 	case TOK_INFO:
+	case TOK_DETAIL:
 	case TOK_FLUSH:
 		break;
 	default:
@@ -201,13 +204,15 @@ ipfw_table_handler(int ac, char *av[])
 				err(EX_OSERR, "failed to flush tables list");
 		}
 		break;
+	case TOK_DETAIL:
 	case TOK_INFO:
+		arg = (tcmd == TOK_DETAIL) ? (void *)1 : NULL;
 		if (is_all == 0) {
 			if ((error = table_get_info(&oh, &i)) != 0)
 				err(EX_OSERR, "failed to request table info");
-			table_show_info(&i, NULL);
+			table_show_info(&i, arg);
 		} else {
-			error = tables_foreach(table_show_info, NULL, 1);
+			error = tables_foreach(table_show_info, arg, 1);
 			if (error != 0)
 				err(EX_OSERR, "failed to request tables list");
 		}
@@ -549,7 +554,10 @@ table_show_info(ipfw_xtable_info *i, void *arg)
 	if (i->limit > 0)
 		printf(" limit: %u\n", i->limit);
 
-	/* Print algo-specific info if any */
+	/* Print algo-specific info if requested & set  */
+	if (arg == NULL)
+		return (0);
+
 	if ((i->ta_info.flags & IPFW_TATFLAGS_DATA) == 0)
 		return (0);
 	tainfo = &i->ta_info;

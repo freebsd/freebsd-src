@@ -207,17 +207,20 @@ enum tokens {
 	TOK_LOOKUP,
 	TOK_SOCKARG,
 	TOK_SETDSCP,
+	TOK_FLOW,
+	TOK_IFLIST,
 	/* Table tokens */
 	TOK_CREATE,
 	TOK_DESTROY,
 	TOK_LIST,
 	TOK_INFO,
+	TOK_DETAIL,
 	TOK_FLUSH,
 	TOK_ADD,
 	TOK_DEL,
 	TOK_VALTYPE,
 	TOK_ALGO,
-	TOK_FLOW,
+	TOK_TALIST,
 };
 /*
  * the following macro returns an error message if we run out of
@@ -299,8 +302,7 @@ void ipfw_delete(char *av[]);
 void ipfw_flush(int force);
 void ipfw_zero(int ac, char *av[], int optname);
 void ipfw_list(int ac, char *av[], int show_counters);
-void ipfw_list_tifaces(void);
-void ipfw_list_ta(int ac, char *av[]);
+void ipfw_internal_handler(int ac, char *av[]);
 
 #ifdef PF
 /* altq.c */
@@ -336,4 +338,5 @@ struct _ipfw_obj_ctlv;
 char *table_search_ctlv(struct _ipfw_obj_ctlv *ctlv, uint16_t idx);
 void table_sort_ctlv(struct _ipfw_obj_ctlv *ctlv);
 int table_check_name(char *tablename);
+void ipfw_list_ta(int ac, char *av[]);
 
