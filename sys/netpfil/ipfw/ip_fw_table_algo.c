@@ -402,7 +402,7 @@ ta_add_cidr(void *ta_state, struct table_info *ti, struct tentry_info *tei,
 	struct radix_node_head *rnh;
 	struct radix_node *rn;
 	struct ta_buf_cidr *tb;
-	uint32_t value;
+	uint32_t *old_value, value;
 
 	tb = (struct ta_buf_cidr *)ta_buf;
 
@@ -417,15 +417,14 @@ ta_add_cidr(void *ta_state, struct table_info *ti, struct tentry_info *tei,
 		if ((tei->flags & TEI_FLAGS_UPDATE) == 0)
 			return (EEXIST);
 		/* Record already exists. Update value if we're asked to */
-		if (tei->subtype == AF_INET) {
-			/* IPv4. */
-			value = ((struct radix_cidr_entry *)tb->ent_ptr)->value;
-			((struct radix_cidr_entry *)rn)->value = value;
-		} else {
-			/* IPv6 */
-			value = ((struct radix_cidr_xentry *)tb->ent_ptr)->value;
-			((struct radix_cidr_xentry *)rn)->value = value;
-		}
+		if (tei->subtype == AF_INET)
+			old_value = &((struct radix_cidr_entry *)rn)->value;
+		else
+			old_value = &((struct radix_cidr_xentry *)rn)->value;
+
+		value = *old_value;
+		*old_value = tei->value;
+		tei->value = value;
 
 		/* Indicate that update has happened instead of addition */
 		tei->flags |= TEI_FLAGS_UPDATED;
@@ -503,6 +502,12 @@ ta_del_cidr(void *ta_state, struct table_info *ti, struct tentry_info *tei,
 		rnh = ti->xstate;
 
 	rn = rnh->rnh_deladdr(tb->addr_ptr, tb->mask_ptr, rnh);
+
+	/* Save entry value to @tei */
+	if (tei->subtype == AF_INET)
+		tei->value = ((struct radix_cidr_entry *)rn)->value;
+	else
+		tei->value = ((struct radix_cidr_xentry *)rn)->value;
 
 	tb->ent_ptr = rn;
 	
@@ -1137,7 +1142,7 @@ ta_add_chash(void *ta_state, struct table_info *ti, struct tentry_info *tei,
 	struct chashentry *ent, *tmp;
 	struct ta_buf_chash *tb;
 	int exists;
-	uint32_t hash;
+	uint32_t hash, value;
 
 	ccfg = (struct chash_cfg *)ta_state;
 	tb = (struct ta_buf_chash *)ta_buf;
@@ -1176,7 +1181,9 @@ ta_add_chash(void *ta_state, struct table_info *ti, struct tentry_info *tei,
 		if ((tei->flags & TEI_FLAGS_UPDATE) == 0)
 			return (EEXIST);
 		/* Record already exists. Update value if we're asked to */
+		value = tmp->value;
 		tmp->value = tei->value;
+		tei->value = value;
 		/* Indicate that update has happened instead of addition */
 		tei->flags |= TEI_FLAGS_UPDATED;
 		*pnum = 0;
@@ -1229,12 +1236,15 @@ ta_del_chash(void *ta_state, struct table_info *ti, struct tentry_info *tei,
 		hash = hash_ent(dent, AF_INET, ccfg->mask4, ccfg->size4);
 
 		SLIST_FOREACH_SAFE(ent, &head[hash], next, tmp_next) {
-			if (ent->a.a4 == dent->a.a4) {
-				SLIST_REMOVE(&head[hash], ent, chashentry,next);
-				*pnum = 1;
-				ccfg->items4--;
-				return (0);
-			}
+			if (ent->a.a4 != dent->a.a4)
+				continue;
+
+			SLIST_REMOVE(&head[hash], ent, chashentry, next);
+			ccfg->items4--;
+			tb->ent_ptr = ent;
+			tei->value = ent->value;
+			*pnum = 1;
+			return (0);
 		}
 	} else {
 		if (tei->masklen != ccfg->mask6)
@@ -1242,12 +1252,15 @@ ta_del_chash(void *ta_state, struct table_info *ti, struct tentry_info *tei,
 		head = ccfg->head6;
 		hash = hash_ent(dent, AF_INET6, ccfg->mask6, ccfg->size6);
 		SLIST_FOREACH_SAFE(ent, &head[hash], next, tmp_next) {
-			if (memcmp(&ent->a.a6, &dent->a.a6, 16) == 0) {
-				SLIST_REMOVE(&head[hash], ent, chashentry,next);
-				ccfg->items6--;
-				*pnum = 1;
-				return (0);
-			}
+			if (memcmp(&ent->a.a6, &dent->a.a6, 16) != 0)
+				continue;
+
+			SLIST_REMOVE(&head[hash], ent, chashentry, next);
+			ccfg->items6--;
+			tb->ent_ptr = ent;
+			tei->value = ent->value;
+			*pnum = 1;
+			return (0);
 		}
 	}
 
@@ -1747,6 +1760,7 @@ ta_add_ifidx(void *ta_state, struct table_info *ti, struct tentry_info *tei,
 	struct ipfw_iface *iif;
 	struct ifidx *ifi;
 	char *ifname;
+	uint32_t value;
 
 	tb = (struct ta_buf_ifidx *)ta_buf;
 	ifname = (char *)tei->paddr;
@@ -1761,12 +1775,14 @@ ta_add_ifidx(void *ta_state, struct table_info *ti, struct tentry_info *tei,
 		if ((tei->flags & TEI_FLAGS_UPDATE) == 0)
 			return (EEXIST);
 
-		/* We need to update value */
-		iif = tmp->ic.iface;
-		tmp->value = ife->value;
+		/* Exchange values in @tmp and @tei */
+		value = tmp->value;
+		tmp->value = tei->value;
+		tei->value = value;
 
+		iif = tmp->ic.iface;
 		if (iif->resolved != 0) {
-			/* We need to update runtime value, too */
+			/* We have to update runtime value, too */
 			ifi = ifidx_find(ti, &iif->ifindex);
 			ifi->value = ife->value;
 		}
@@ -1858,6 +1874,7 @@ ta_del_ifidx(void *ta_state, struct table_info *ti, struct tentry_info *tei,
 	ipfw_iface_del_notify(icfg->ch, &ife->ic);
 
 	icfg->count--;
+	tei->value = ife->value;
 
 	tb->ife = ife;
 	*pnum = 1;
@@ -2265,6 +2282,7 @@ ta_add_numarray(void *ta_state, struct table_info *ti, struct tentry_info *tei,
 	struct ta_buf_numarray *tb;
 	struct numarray *ri;
 	int res;
+	uint32_t value;
 
 	tb = (struct ta_buf_numarray*)ta_buf;
 	cfg = (struct numarray_cfg *)ta_state;
@@ -2275,8 +2293,10 @@ ta_add_numarray(void *ta_state, struct table_info *ti, struct tentry_info *tei,
 		if ((tei->flags & TEI_FLAGS_UPDATE) == 0)
 			return (EEXIST);
 
-		/* We need to update value */
-		ri->value = tb->na.value;
+		/* Exchange values between ri and @tei */
+		value = ri->value;
+		ri->value = tei->value;
+		tei->value = value;
 		/* Indicate that update has happened instead of addition */
 		tei->flags |= TEI_FLAGS_UPDATED;
 		*pnum = 0;
@@ -2316,6 +2336,8 @@ ta_del_numarray(void *ta_state, struct table_info *ti, struct tentry_info *tei,
 	ri = numarray_find(ti, &tb->na.number);
 	if (ri == NULL)
 		return (ENOENT);
+
+	tei->value = ri->value;
 	
 	res = bdel(&tb->na.number, cfg->main_ptr, cfg->used,
 	    sizeof(struct numarray), compare_numarray);
@@ -2528,26 +2550,6 @@ struct table_algo number_array = {
 struct fhashentry;
 
 SLIST_HEAD(fhashbhead, fhashentry);
-
-/*
-struct tflow_entry {
-	uint8_t		af;
-	uint8_t		proto;
-	uint16_t	spare;
-	uint16_t	dport;
-	uint16_t	sport;
-	union {
-		struct {
-			struct in_addr	sip;
-			struct in_addr	dip;
-		} v4;
-		struct {
-			struct in6_addr	sip6;
-			struct in6_addr	dip6;
-		} v6;
-	} a;
-};
-*/
 
 struct fhashentry {
 	SLIST_ENTRY(fhashentry)	next;
@@ -2949,7 +2951,7 @@ ta_add_fhash(void *ta_state, struct table_info *ti, struct tentry_info *tei,
 	struct fhashentry *ent, *tmp;
 	struct ta_buf_fhash *tb;
 	int exists;
-	uint32_t hash;
+	uint32_t hash, value;
 	size_t sz;
 
 	cfg = (struct fhash_cfg *)ta_state;
@@ -2977,7 +2979,10 @@ ta_add_fhash(void *ta_state, struct table_info *ti, struct tentry_info *tei,
 		if ((tei->flags & TEI_FLAGS_UPDATE) == 0)
 			return (EEXIST);
 		/* Record already exists. Update value if we're asked to */
+		/* Exchange values between tmp and @tei */
+		value = tmp->value;
 		tmp->value = tei->value;
+		tei->value = value;
 		/* Indicate that update has happened instead of addition */
 		tei->flags |= TEI_FLAGS_UPDATED;
 		*pnum = 0;
@@ -3032,12 +3037,15 @@ ta_del_fhash(void *ta_state, struct table_info *ti, struct tentry_info *tei,
 
 	/* Check for existence */
 	SLIST_FOREACH(tmp, &head[hash], next) {
-		if (cmp_flow_ent(tmp, ent, sz) != 0) {
-			SLIST_REMOVE(&head[hash], tmp, fhashentry, next);
-			*pnum = 1;
-			cfg->items--;
-			return (0);
-		}
+		if (cmp_flow_ent(tmp, ent, sz) == 0)
+			continue;
+
+		SLIST_REMOVE(&head[hash], tmp, fhashentry, next);
+		tei->value = tmp->value;
+		*pnum = 1;
+		cfg->items--;
+		tb->ent_ptr = tmp;
+		return (0);
 	}
 
 	return (ENOENT);
