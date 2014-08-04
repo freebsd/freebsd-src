@@ -4820,7 +4820,9 @@ sctp_send_initiate(struct sctp_inpcb *inp, struct sctp_tcb *stcb, int so_locked
 	if (stcb->asoc.pktdrop_supported == 1) {
 		pr_supported->chunk_types[num_ext++] = SCTP_PACKET_DROPPED;
 	}
-	pr_supported->chunk_types[num_ext++] = SCTP_STREAM_RESET;
+	if (stcb->asoc.reconfig_supported == 1) {
+		pr_supported->chunk_types[num_ext++] = SCTP_STREAM_RESET;
+	}
 	if (!SCTP_BASE_SYSCTL(sctp_auth_disable)) {
 		pr_supported->chunk_types[num_ext++] = SCTP_AUTHENTICATION;
 	}
@@ -5926,7 +5928,10 @@ do_a_abort:
 	    ((asoc == NULL) && (inp->pktdrop_supported == 1))) {
 		pr_supported->chunk_types[num_ext++] = SCTP_PACKET_DROPPED;
 	}
-	pr_supported->chunk_types[num_ext++] = SCTP_STREAM_RESET;
+	if (((asoc != NULL) && (asoc->reconfig_supported == 1)) ||
+	    ((asoc == NULL) && (inp->reconfig_supported == 1))) {
+		pr_supported->chunk_types[num_ext++] = SCTP_STREAM_RESET;
+	}
 	if (!SCTP_BASE_SYSCTL(sctp_auth_disable)) {
 		pr_supported->chunk_types[num_ext++] = SCTP_AUTHENTICATION;
 	}
