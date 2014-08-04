@@ -98,7 +98,8 @@ struct	buf_ops buf_ops_bio = {
 struct buf *buf;		/* buffer header pool */
 caddr_t unmapped_buf;
 
-static struct proc *bufdaemonproc;
+/* Used below and for softdep flushing threads in ufs/ffs/ffs_softdep.c */
+struct proc *bufdaemonproc;
 
 static int inmem(struct vnode *vp, daddr_t blkno);
 static void vm_hold_free_pages(struct buf *bp, int newbsize);
