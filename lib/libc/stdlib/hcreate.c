@@ -142,7 +142,6 @@ hdestroy(void)
 		while (!SLIST_EMPTY(&htable[idx])) {
 			ie = SLIST_FIRST(&htable[idx]);
 			SLIST_REMOVE_HEAD(&htable[idx], link);
-			free(ie->ent.key);
 			free(ie);
 		}
 	}
