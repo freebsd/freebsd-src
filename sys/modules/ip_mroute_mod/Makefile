@@ -1,7 +1,5 @@
 # $FreeBSD$
 
-.include <bsd.own.mk>
-
 .PATH: ${.CURDIR}/../../netinet ${.CURDIR}/../../netinet6
 
 KMOD=	ip_mroute
