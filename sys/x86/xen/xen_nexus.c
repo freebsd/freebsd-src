@@ -36,8 +36,10 @@ __FBSDID("$FreeBSD$");
 #include <sys/smp.h>
 
 #include <machine/nexusvar.h>
+#include <machine/intr_machdep.h>
 
 #include <xen/xen-os.h>
+#include <xen/xen_intr.h>
 
 /*
  * Xen nexus(4) driver.
@@ -63,10 +65,32 @@ nexus_xen_attach(device_t dev)
 	return (0);
 }
 
+static int
+nexus_xen_config_intr(device_t dev, int irq, enum intr_trigger trig,
+    enum intr_polarity pol)
+{
+	int ret;
+
+	/*
+	 * ISA and PCI intline IRQs are not preregistered on Xen, so
+	 * intercept calls to configure those and register them on the fly.
+	 */
+	if ((irq < FIRST_MSI_INT) && (intr_lookup_source(irq) == NULL)) {
+		ret = xen_register_pirq(irq, trig, pol);
+		if (ret != 0)
+			return (ret);
+		nexus_add_irq(irq);
+	}
+	return (intr_config_intr(irq, trig, pol));
+}
+
 static device_method_t nexus_xen_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		nexus_xen_probe),
 	DEVMETHOD(device_attach,	nexus_xen_attach),
+
+	/* INTR */
+	DEVMETHOD(bus_config_intr,	nexus_xen_config_intr),
 
 	{ 0, 0 }
 };
