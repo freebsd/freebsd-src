@@ -422,6 +422,7 @@ struct ctl_thread {
 	STAILQ_HEAD(, ctl_io_hdr) isc_queue;
 };
 
+struct tpc_token;
 struct ctl_softc {
 	struct mtx ctl_lock;
 	struct cdev *dev;
@@ -460,6 +461,8 @@ struct ctl_softc {
 	time_t last_print_jiffies;
 	uint32_t skipped_prints;
 	struct ctl_thread threads[CTL_MAX_THREADS];
+	TAILQ_HEAD(tpc_tokens, tpc_token) tpc_tokens;
+	struct callout tpc_timeout;
 };
 
 #ifdef _KERNEL
@@ -500,8 +503,10 @@ int ctl_report_supported_tmf(struct ctl_scsiio *ctsio);
 int ctl_report_timestamp(struct ctl_scsiio *ctsio);
 int ctl_isc(struct ctl_scsiio *ctsio);
 
-void ctl_tpc_init(struct ctl_lun *lun);
-void ctl_tpc_shutdown(struct ctl_lun *lun);
+void ctl_tpc_init(struct ctl_softc *softc);
+void ctl_tpc_shutdown(struct ctl_softc *softc);
+void ctl_tpc_lun_init(struct ctl_lun *lun);
+void ctl_tpc_lun_shutdown(struct ctl_lun *lun);
 int ctl_inquiry_evpd_tpc(struct ctl_scsiio *ctsio, int alloc_len);
 int ctl_receive_copy_status_lid1(struct ctl_scsiio *ctsio);
 int ctl_receive_copy_failure_details(struct ctl_scsiio *ctsio);
@@ -510,6 +515,10 @@ int ctl_receive_copy_operating_parameters(struct ctl_scsiio *ctsio);
 int ctl_extended_copy_lid1(struct ctl_scsiio *ctsio);
 int ctl_extended_copy_lid4(struct ctl_scsiio *ctsio);
 int ctl_copy_operation_abort(struct ctl_scsiio *ctsio);
+int ctl_populate_token(struct ctl_scsiio *ctsio);
+int ctl_write_using_token(struct ctl_scsiio *ctsio);
+int ctl_receive_rod_token_information(struct ctl_scsiio *ctsio);
+int ctl_report_all_rod_tokens(struct ctl_scsiio *ctsio);
 
 #endif	/* _KERNEL */
 
