@@ -1025,7 +1025,7 @@ TAILQ_HEAD(indir_hashhead, freework);
  * Allocated at mount and freed at unmount.
  */
 struct mount_softdeps {
-	struct	rwlock *sd_fslock;		/* softdep lock */
+	struct	rwlock sd_fslock;		/* softdep lock */
 	struct	workhead sd_workitem_pending;	/* softdep work queue */
 	struct	worklist *sd_worklist_tail;	/* Tail pointer for above */
 	struct	workhead sd_journal_pending;	/* journal work queue */
@@ -1046,14 +1046,23 @@ struct mount_softdeps {
 	u_long	sd_bmhashsize;			/* bmsafemap hash table size-1*/
 	struct	indir_hashhead *sd_indirhash;	/* indir hash table */
 	u_long	sd_indirhashsize;		/* indir hash table size-1 */
-	long	sd_numindirdeps;		/* outstanding indirdeps */
 	int	sd_on_journal;			/* Items on the journal list */
 	int	sd_on_worklist;			/* Items on the worklist */
 	int	sd_deps;			/* Total dependency count */
 	int	sd_accdeps;			/* accumulated dep count */
 	int	sd_req;				/* Wakeup when deps hits 0. */
+	int	sd_flags;			/* comm with flushing thread */
+	int	sd_cleanups;			/* Calls to cleanup */
+	struct	thread *sd_flushtd;		/* thread handling flushing */
+	TAILQ_ENTRY(mount_softdeps) sd_next;	/* List of softdep filesystem */
+	struct	ufsmount *sd_ump;		/* our ufsmount structure */
 	u_long	sd_curdeps[D_LAST + 1];		/* count of current deps */
 };
+/*
+ * Flags for communicating with the syncer thread.
+ */
+#define FLUSH_EXIT	0x0001	/* time to exit */
+#define FLUSH_CLEANUP	0x0002	/* need to clear out softdep structures */
 /*
  * Keep the old names from when these were in the ufsmount structure.
  */
@@ -1077,10 +1086,11 @@ struct mount_softdeps {
 #define	bmsafemap_hash_size		um_softdep->sd_bmhashsize
 #define	indir_hashtbl			um_softdep->sd_indirhash
 #define	indir_hash_size			um_softdep->sd_indirhashsize
-#define	softdep_numindirdeps		um_softdep->sd_numindirdeps
 #define	softdep_on_journal		um_softdep->sd_on_journal
 #define	softdep_on_worklist		um_softdep->sd_on_worklist
 #define	softdep_deps			um_softdep->sd_deps
 #define	softdep_accdeps			um_softdep->sd_accdeps
 #define	softdep_req			um_softdep->sd_req
+#define	softdep_flags			um_softdep->sd_flags
+#define	softdep_flushtd			um_softdep->sd_flushtd
 #define	softdep_curdeps			um_softdep->sd_curdeps
