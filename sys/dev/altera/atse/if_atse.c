@@ -1123,9 +1123,35 @@ atse_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 }
 
 static void
+atse_intr_debug(struct atse_softc *sc, const char *intrname)
+{
+	uint32_t rxs, rxe, rxi, rxf, txs, txe, txi, txf;
+
+	if (!atse_intr_debug_enable)
+		return;
+
+	rxs = ATSE_RX_STATUS_READ(sc);
+	rxe = ATSE_RX_EVENT_READ(sc);
+	rxi = ATSE_RX_INTR_READ(sc);
+	rxf = ATSE_RX_READ_FILL_LEVEL(sc);
+
+	txs = ATSE_TX_STATUS_READ(sc);
+	txe = ATSE_TX_EVENT_READ(sc);
+	txi = ATSE_TX_INTR_READ(sc);
+	txf = ATSE_TX_READ_FILL_LEVEL(sc);
+
+	printf(
+	    "%s - %s: "
+	    "rxs 0x%x rxe 0x%x rxi 0x%x rxf 0x%x "
+	    "txs 0x%x txe 0x%x txi 0x%x txf 0x%x\n",
+	    __func__, intrname,
+	    rxs, rxe, rxi, rxf,
+	    txs, txe, txi, txf);
+}
+
+static void
 atse_watchdog(struct atse_softc *sc)
 {
-	uint32_t rxs, rxe, txs, txe;
 
 	ATSE_LOCK_ASSERT(sc);
 
@@ -1363,33 +1389,6 @@ atse_ifmedia_sts(struct ifnet *ifp, struct ifmediareq *ifmr)
 }
 
 static void
-atse_intr_debug(struct atse_softc *sc, const char *intrname)
-{
-	uint32_t rxs, rxe, rxi, rxf, txs, txe, txi, txf;
-
-	if (!atse_intr_debug_enable)
-		return;
-
-	rxs = ATSE_RX_STATUS_READ(sc);
-	rxe = ATSE_RX_EVENT_READ(sc);
-	rxi = ATSE_RX_INTR_READ(sc);
-	rxf = ATSE_RX_READ_FILL_LEVEL(sc);
-
-	txs = ATSE_TX_STATUS_READ(sc);
-	txe = ATSE_TX_EVENT_READ(sc);
-	txi = ATSE_TX_INTR_READ(sc);
-	txf = ATSE_TX_READ_FILL_LEVEL(sc);
-
-	printf(
-	    "%s - %s: "
-	    "rxs 0x%x rxe 0x%x rxi 0x%x rxf 0x%x "
-	    "txs 0x%x txe 0x%x txi 0x%x txf 0x%x\n",
-	    __func__, intrname,
-	    rxs, rxe, rxi, rxf,
-	    txs, txe, txi, txf);
-}
-
-static void
 atse_rx_intr(void *arg)
 {
 	struct atse_softc *sc;
@@ -1483,6 +1482,7 @@ atse_tx_intr(void *arg)
 	 * reenable interrupts, but there is a possible race between clear and
 	 * enable, so we must recheck and potentially repeat the whole process
 	 * if it is detected.
+	 */
 	do {
 		ATSE_TX_INTR_DISABLE(sc);
 		sc->atse_watchdog_timer = 0;
