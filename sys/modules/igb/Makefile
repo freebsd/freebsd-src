@@ -4,7 +4,7 @@
 
 .PATH:  ${.CURDIR}/../../dev/e1000
 KMOD    = if_igb
-SRCS    = device_if.h bus_if.h pci_if.h opt_inet.h opt_inet6.h
+SRCS    = device_if.h bus_if.h pci_if.h opt_inet.h opt_inet6.h opt_rss.h
 SRCS    += if_igb.c $(SHARED_SRCS)
 SHARED_SRCS = e1000_api.c e1000_phy.c e1000_nvm.c e1000_mac.c e1000_manage.c
 SHARED_SRCS += e1000_80003es2lan.c e1000_82542.c e1000_82541.c e1000_82543.c
@@ -33,6 +33,10 @@ opt_inet.h:
 opt_inet6.h:
 	@echo "#define INET6 1" > ${.TARGET}
 .endif
+
+opt_rss.h:
+	@echo "" > ${.TARGET}
+
 .endif
 
 .include <bsd.kmod.mk>
