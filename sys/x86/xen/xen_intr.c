@@ -634,7 +634,7 @@ xen_intr_init(void *dummy __unused)
 
 	return (0);
 }
-SYSINIT(xen_intr_init, SI_SUB_INTR, SI_ORDER_MIDDLE, xen_intr_init, NULL);
+SYSINIT(xen_intr_init, SI_SUB_INTR, SI_ORDER_SECOND, xen_intr_init, NULL);
 
 /*--------------------------- Common PIC Functions ---------------------------*/
 /**
