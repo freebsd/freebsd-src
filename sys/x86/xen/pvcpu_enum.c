@@ -67,7 +67,7 @@ static struct apic_enumerator xenpv_enumerator = {
 static int
 xenpv_probe(void)
 {
-	return (-100);
+	return (0);
 }
 
 /*

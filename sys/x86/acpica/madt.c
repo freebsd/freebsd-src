@@ -102,7 +102,7 @@ madt_probe(void)
 	madt_physaddr = acpi_find_table(ACPI_SIG_MADT);
 	if (madt_physaddr == 0)
 		return (ENXIO);
-	return (0);
+	return (-50);
 }
 
 /*
