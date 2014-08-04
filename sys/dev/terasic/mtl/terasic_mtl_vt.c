@@ -72,6 +72,20 @@ terasic_mtl_fbd_panel_info(struct terasic_mtl_softc *sc, struct fb_info *info)
 	info->fb_bpp = info->fb_depth = 32;
 	info->fb_stride = info->fb_width * (info->fb_depth / 8);
 
+	/*
+	 * Safety belt to ensure framebuffer params are as expected.  May be
+	 * removed when we have full confidence in fdt / hints params.
+	 */
+	if (info->fb_width != TERASIC_MTL_FB_WIDTH ||
+	    info->fb_height != TERASIC_MTL_FB_HEIGHT ||
+	    info->fb_stride != 3200 ||
+	    info->fb_bpp != 32 || info->fb_depth != 32) {
+		device_printf("obtained invalid panel params width=%u "
+		    "height=%u\n", (unsigned)info->fb_width,
+		    (unsigned)info->fb_height);
+		return (EINVAL);
+	}
+
 	return (0);
 }
 
