@@ -65,9 +65,10 @@ KMODLOAD?=	/sbin/kldload
 KMODUNLOAD?=	/sbin/kldunload
 OBJCOPY?=	objcopy
 
-# Grab all the options for a kernel build.
-.include "kern.opts.mk"
 .include <bsd.init.mk>
+# Grab all the options for a kernel build. For backwards compat, we need to
+# do this after bsd.own.mk.
+.include "kern.opts.mk"
 .include <bsd.compiler.mk>
 
 .SUFFIXES: .out .o .c .cc .cxx .C .y .l .s .S
