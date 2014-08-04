@@ -1228,9 +1228,10 @@ again:
 		vnode_t *vp = ZTOV(zp);
 
 		err = insmntque(vp, zfsvfs->z_vfs);
-		if (err == 0)
+		if (err == 0) {
+			vp->v_hash = obj_num;
 			VOP_UNLOCK(vp, 0);
-		else {
+		} else {
 			zp->z_vnode = NULL;
 			zfs_znode_dmu_fini(zp);
 			zfs_znode_free(zp);
