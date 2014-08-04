@@ -908,9 +908,9 @@ static	void add_to_worklist(struct worklist *, int);
 static	void wake_worklist(struct worklist *);
 static	void wait_worklist(struct worklist *, char *);
 static	void remove_from_worklist(struct worklist *);
-static	void softdep_flush(void);
+static	void softdep_flush(void *);
 static	void softdep_flushjournal(struct mount *);
-static	int softdep_speedup(void);
+static	int softdep_speedup(struct ufsmount *);
 static	void worklist_speedup(struct mount *);
 static	int journal_mount(struct mount *, struct fs *, struct ucred *);
 static	void journal_unmount(struct ufsmount *);
@@ -962,18 +962,21 @@ static	int softdep_count_dependencies(struct buf *bp, int);
 /*
  * Global lock over all of soft updates.
  */
-static struct rwlock lk;
-RW_SYSINIT(softdep_lock, &lk, "Softdep Lock");
+static struct mtx lk;
+MTX_SYSINIT(softdep_lock, &lk, "Global Softdep Lock", MTX_DEF);
+
+#define ACQUIRE_GBLLOCK(lk)	mtx_lock(lk)
+#define FREE_GBLLOCK(lk)	mtx_unlock(lk)
+#define GBLLOCK_OWNED(lk)	mtx_assert((lk), MA_OWNED)
 
 /*
- * Allow per-filesystem soft-updates locking.
- * For now all use the same global lock defined above.
+ * Per-filesystem soft-updates locking.
  */
-#define LOCK_PTR(ump)		((ump)->um_softdep->sd_fslock)
-#define TRY_ACQUIRE_LOCK(ump)	rw_try_wlock((ump)->um_softdep->sd_fslock)
-#define ACQUIRE_LOCK(ump)	rw_wlock((ump)->um_softdep->sd_fslock)
-#define FREE_LOCK(ump)		rw_wunlock((ump)->um_softdep->sd_fslock)
-#define LOCK_OWNED(ump)		rw_assert((ump)->um_softdep->sd_fslock, \
+#define LOCK_PTR(ump)		(&(ump)->um_softdep->sd_fslock)
+#define TRY_ACQUIRE_LOCK(ump)	rw_try_wlock(&(ump)->um_softdep->sd_fslock)
+#define ACQUIRE_LOCK(ump)	rw_wlock(&(ump)->um_softdep->sd_fslock)
+#define FREE_LOCK(ump)		rw_wunlock(&(ump)->um_softdep->sd_fslock)
+#define LOCK_OWNED(ump)		rw_assert(&(ump)->um_softdep->sd_fslock, \
 				    RA_WLOCKED)
 
 #define	BUF_AREC(bp)		lockallowrecurse(&(bp)->b_lock)
@@ -1178,7 +1181,7 @@ workitem_free(item, type)
 	KASSERT(ump->softdep_curdeps[item->wk_type] > 0,
 	    ("workitem_free: %s: softdep_curdeps[%s] going negative",
 	    ump->um_fs->fs_fsmnt, TYPENAME(item->wk_type)));
-	dep_current[item->wk_type]--;
+	atomic_subtract_long(&dep_current[item->wk_type], 1);
 	ump->softdep_curdeps[item->wk_type] -= 1;
 	free(item, DtoM(type));
 }
@@ -1196,11 +1199,13 @@ workitem_alloc(item, type, mp)
 	item->wk_state = 0;
 
 	ump = VFSTOUFS(mp);
-	ACQUIRE_LOCK(ump);
+	ACQUIRE_GBLLOCK(&lk);
 	dep_current[type]++;
 	if (dep_current[type] > dep_highuse[type])
 		dep_highuse[type] = dep_current[type];
 	dep_total[type]++;
+	FREE_GBLLOCK(&lk);
+	ACQUIRE_LOCK(ump);
 	ump->softdep_curdeps[type] += 1;
 	ump->softdep_deps++;
 	ump->softdep_accdeps++;
@@ -1224,11 +1229,13 @@ workitem_reassign(item, newtype)
 	KASSERT(dep_current[item->wk_type] > 0,
 	    ("workitem_reassign: %s: dep_current[%s] going negative",
 	    VFSTOUFS(item->wk_mp)->um_fs->fs_fsmnt, TYPENAME(item->wk_type)));
-	dep_current[item->wk_type]--;
+	ACQUIRE_GBLLOCK(&lk);
 	dep_current[newtype]++;
+	dep_current[item->wk_type]--;
 	if (dep_current[newtype] > dep_highuse[newtype])
 		dep_highuse[newtype] = dep_current[newtype];
 	dep_total[newtype]++;
+	FREE_GBLLOCK(&lk);
 	item->wk_type = newtype;
 }
 
@@ -1236,13 +1243,10 @@ workitem_reassign(item, newtype)
  * Workitem queue management
  */
 static int max_softdeps;	/* maximum number of structs before slowdown */
-static int maxindirdeps = 50;	/* max number of indirdeps before slowdown */
 static int tickdelay = 2;	/* number of ticks to pause during slowdown */
 static int proc_waiting;	/* tracks whether we have a timeout posted */
 static int *stat_countp;	/* statistic to count in proc_waiting timeout */
 static struct callout softdep_callout;
-static struct mount *req_pending;
-#define ALLCLEAN ((struct mount *)-1)
 static int req_clear_inodedeps;	/* syncer process flush some inodedeps */
 static int req_clear_remove;	/* syncer process flush some freeblks */
 static int softdep_flushcache = 0; /* Should we do BIO_FLUSH? */
@@ -1250,7 +1254,7 @@ static int softdep_flushcache = 0; /* Should we do BIO_FLUSH? */
 /*
  * runtime statistics
  */
-static int stat_softdep_mounts;	/* number of softdep mounted filesystems */
+static int stat_flush_threads;	/* number of softdep flushing threads */
 static int stat_worklist_push;	/* number of worklist cleanups */
 static int stat_blk_limit_push;	/* number of times block limit neared */
 static int stat_ino_limit_push;	/* number of times inode limit neared */
@@ -1281,10 +1285,8 @@ SYSCTL_INT(_debug_softdep, OID_AUTO, max_softdeps, CTLFLAG_RW,
     &max_softdeps, 0, "");
 SYSCTL_INT(_debug_softdep, OID_AUTO, tickdelay, CTLFLAG_RW,
     &tickdelay, 0, "");
-SYSCTL_INT(_debug_softdep, OID_AUTO, maxindirdeps, CTLFLAG_RW,
-    &maxindirdeps, 0, "");
-SYSCTL_INT(_debug_softdep, OID_AUTO, softdep_mounts, CTLFLAG_RD,
-    &stat_softdep_mounts, 0, "");
+SYSCTL_INT(_debug_softdep, OID_AUTO, flush_threads, CTLFLAG_RD,
+    &stat_flush_threads, 0, "");
 SYSCTL_INT(_debug_softdep, OID_AUTO, worklist_push, CTLFLAG_RW,
     &stat_worklist_push, 0,"");
 SYSCTL_INT(_debug_softdep, OID_AUTO, blk_limit_push, CTLFLAG_RW,
@@ -1344,53 +1346,67 @@ SYSCTL_DECL(_vfs_ffs);
 static int compute_summary_at_mount = 0;
 SYSCTL_INT(_vfs_ffs, OID_AUTO, compute_summary_at_mount, CTLFLAG_RW,
 	   &compute_summary_at_mount, 0, "Recompute summary at mount");
-static struct proc *softdepproc;
-static struct kproc_desc softdep_kp = {
-	"softdepflush",
-	softdep_flush,
-	&softdepproc
-};
-SYSINIT(sdproc, SI_SUB_KTHREAD_UPDATE, SI_ORDER_ANY, kproc_start,
-    &softdep_kp);
+static int print_threads = 0;
+SYSCTL_INT(_debug_softdep, OID_AUTO, print_threads, CTLFLAG_RW,
+    &print_threads, 0, "Notify flusher thread start/stop");
 
+/* List of all filesystems mounted with soft updates */
+static TAILQ_HEAD(, mount_softdeps) softdepmounts;
+
+/*
+ * This function cleans the worklist for a filesystem.
+ * Each filesystem running with soft dependencies gets its own
+ * thread to run in this function. The thread is started up in
+ * softdep_mount and shutdown in softdep_unmount. They show up
+ * as part of the kernel "bufdaemon" process whose process
+ * entry is available in bufdaemonproc.
+ */
+static int searchfailed;
+extern struct proc *bufdaemonproc;
 static void
-softdep_flush(void)
+softdep_flush(addr)
+	void *addr;
 {
-	struct mount *nmp;
 	struct mount *mp;
-	struct ufsmount *ump;
 	struct thread *td;
-	int remaining;
-	int progress;
+	struct ufsmount *ump;
 
 	td = curthread;
 	td->td_pflags |= TDP_NORUNNINGBUF;
-
+	mp = (struct mount *)addr;
+	ump = VFSTOUFS(mp);
+	atomic_add_int(&stat_flush_threads, 1);
+	if (print_threads) {
+		if (stat_flush_threads == 1)
+			printf("Running %s at pid %d\n", bufdaemonproc->p_comm,
+			    bufdaemonproc->p_pid);
+		printf("Start thread %s\n", td->td_name);
+	}
 	for (;;) {	
-		kproc_suspend_check(softdepproc);
-		remaining = progress = 0;
-		mtx_lock(&mountlist_mtx);
-		for (mp = TAILQ_FIRST(&mountlist); mp != NULL; mp = nmp)  {
-			nmp = TAILQ_NEXT(mp, mnt_list);
-			if (MOUNTEDSOFTDEP(mp) == 0)
-				continue;
-			if (vfs_busy(mp, MBF_NOWAIT | MBF_MNTLSTLOCK))
-				continue;
-			ump = VFSTOUFS(mp);
-			progress += softdep_process_worklist(mp, 0);
-			remaining += ump->softdep_on_worklist;
-			mtx_lock(&mountlist_mtx);
-			nmp = TAILQ_NEXT(mp, mnt_list);
-			vfs_unbusy(mp);
-		}
-		mtx_unlock(&mountlist_mtx);
-		if (remaining && progress)
+		while (softdep_process_worklist(mp, 0) > 0 ||
+		    (MOUNTEDSUJ(mp) &&
+		    VFSTOUFS(mp)->softdep_jblocks->jb_suspended))
+			kthread_suspend_check();
+		ACQUIRE_LOCK(ump);
+		if ((ump->softdep_flags & FLUSH_CLEANUP) == 0)
+			msleep(&ump->softdep_flushtd, LOCK_PTR(ump), PVM,
+			    "sdflush", hz / 2);
+		ump->softdep_flags &= ~FLUSH_CLEANUP;
+		/*
+		 * Check to see if we are done and need to exit.
+		 */
+		if ((ump->softdep_flags & FLUSH_EXIT) == 0) {
+			FREE_LOCK(ump);
 			continue;
-		rw_wlock(&lk);
-		if (req_pending == NULL)
-			msleep(&req_pending, &lk, PVM, "sdflush", hz);
-		req_pending = NULL;
-		rw_wunlock(&lk);
+		}
+		ump->softdep_flags &= ~FLUSH_EXIT;
+		FREE_LOCK(ump);
+		wakeup(&ump->softdep_flags);
+		if (print_threads)
+			printf("Stop thread %s: searchfailed %d, did cleanups %d\n", td->td_name, searchfailed, ump->um_softdep->sd_cleanups);
+		atomic_subtract_int(&stat_flush_threads, 1);
+		kthread_exit();
+		panic("kthread_exit failed\n");
 	}
 }
 
@@ -1398,19 +1414,70 @@ static void
 worklist_speedup(mp)
 	struct mount *mp;
 {
-	rw_assert(&lk, RA_WLOCKED);
-	if (req_pending == 0) {
-		req_pending = mp;
-		wakeup(&req_pending);
+	struct ufsmount *ump;
+
+	ump = VFSTOUFS(mp);
+	LOCK_OWNED(ump);
+	if ((ump->softdep_flags & (FLUSH_CLEANUP | FLUSH_EXIT)) == 0) {
+		ump->softdep_flags |= FLUSH_CLEANUP;
+		if (ump->softdep_flushtd->td_wchan == &ump->softdep_flushtd)
+			wakeup(&ump->softdep_flushtd);
 	}
 }
 
 static int
-softdep_speedup(void)
+softdep_speedup(ump)
+	struct ufsmount *ump;
 {
+	struct ufsmount *altump;
+	struct mount_softdeps *sdp;
 
-	worklist_speedup(ALLCLEAN);
+	LOCK_OWNED(ump);
+	worklist_speedup(ump->um_mountp);
 	bd_speedup();
+	/*
+	 * If we have global shortages, then we need other
+	 * filesystems to help with the cleanup. Here we wakeup a
+	 * flusher thread for a filesystem that is over its fair
+	 * share of resources.
+	 */
+	if (req_clear_inodedeps || req_clear_remove) {
+		ACQUIRE_GBLLOCK(&lk);
+		TAILQ_FOREACH(sdp, &softdepmounts, sd_next) {
+			if ((altump = sdp->sd_ump) == ump)
+				continue;
+			if (((req_clear_inodedeps &&
+			    altump->softdep_curdeps[D_INODEDEP] >
+			    max_softdeps / stat_flush_threads) ||
+			    (req_clear_remove &&
+			    altump->softdep_curdeps[D_DIRREM] >
+			    (max_softdeps / 2) / stat_flush_threads)) &&
+			    TRY_ACQUIRE_LOCK(altump))
+				break;
+		}
+		if (sdp == NULL) {
+			searchfailed++;
+			FREE_GBLLOCK(&lk);
+		} else {
+			/*
+			 * Move to the end of the list so we pick a
+			 * different one on out next try.
+			 */
+			TAILQ_REMOVE(&softdepmounts, sdp, sd_next);
+			TAILQ_INSERT_TAIL(&softdepmounts, sdp, sd_next);
+			FREE_GBLLOCK(&lk);
+			if ((altump->softdep_flags &
+			    (FLUSH_CLEANUP | FLUSH_EXIT)) == 0) {
+				altump->softdep_flags |= FLUSH_CLEANUP;
+				altump->um_softdep->sd_cleanups++;
+				if (altump->softdep_flushtd->td_wchan ==
+				    &altump->softdep_flushtd) {
+					wakeup(&altump->softdep_flushtd);
+				}
+			}
+			FREE_LOCK(altump);
+		}
+	}
 	return (speedup_syncer());
 }
 
@@ -2126,9 +2193,14 @@ inodedep_lookup(mp, inum, flags, inodedeppp)
 	if ((flags & DEPALLOC) == 0)
 		return (0);
 	/*
-	 * If we are over our limit, try to improve the situation.
+	 * If the system is over its limit and our filesystem is
+	 * responsible for more than our share of that usage and
+	 * we are not in a rush, request some inodedep cleanup.
 	 */
-	if (dep_current[D_INODEDEP] > max_softdeps && (flags & NODELAY) == 0)
+	while (dep_current[D_INODEDEP] > max_softdeps &&
+	    (flags & NODELAY) == 0 &&
+	    ump->softdep_curdeps[D_INODEDEP] >
+	    max_softdeps / stat_flush_threads)
 		request_cleanup(mp, FLUSH_INODES);
 	FREE_LOCK(ump);
 	inodedep = malloc(sizeof(struct inodedep),
@@ -2320,6 +2392,7 @@ void
 softdep_initialize()
 {
 
+	TAILQ_INIT(&softdepmounts);
 	max_softdeps = desiredvnodes * 4;
 
 	/* initialise bioops hack */
@@ -2378,7 +2451,9 @@ softdep_mount(devvp, mp, fs, cred)
 	ump = VFSTOUFS(mp);
 	ump->um_softdep = sdp;
 	MNT_IUNLOCK(mp);
-	LOCK_PTR(ump) = &lk;
+	rw_init(LOCK_PTR(ump), "Per-Filesystem Softdep Lock");
+	TAILQ_INSERT_TAIL(&softdepmounts, sdp, sd_next);
+	sdp->sd_ump = ump;
 	LIST_INIT(&ump->softdep_workitem_pending);
 	LIST_INIT(&ump->softdep_journal_pending);
 	TAILQ_INIT(&ump->softdep_unlinked);
@@ -2409,7 +2484,12 @@ softdep_mount(devvp, mp, fs, cred)
 		softdep_unmount(mp);
 		return (error);
 	}
-	atomic_add_int(&stat_softdep_mounts, 1);
+	/*
+	 * Start our flushing thread in the bufdaemon process.
+	 */
+	kproc_kthread_add(&softdep_flush, mp, &bufdaemonproc,
+	    &ump->softdep_flushtd, 0, 0, "softdepflush", "%s worker",
+	    mp->mnt_stat.f_mntonname);
 	/*
 	 * When doing soft updates, the counters in the
 	 * superblock may have gotten out of sync. Recomputation
@@ -2465,7 +2545,24 @@ softdep_unmount(mp)
 		MNT_IUNLOCK(mp);
 		journal_unmount(ump);
 	}
-	atomic_subtract_int(&stat_softdep_mounts, 1);
+	/*
+	 * Shut down our flushing thread. Check for NULL is if
+	 * softdep_mount errors out before the thread has been created.
+	 */
+	if (ump->softdep_flushtd != NULL) {
+		ACQUIRE_LOCK(ump);
+		ump->softdep_flags |= FLUSH_EXIT;
+		wakeup(&ump->softdep_flushtd);
+		msleep(&ump->softdep_flags, LOCK_PTR(ump), PVM | PDROP,
+		    "sdwait", 0);
+		KASSERT((ump->softdep_flags & FLUSH_EXIT) == 0,
+		    ("Thread shutdown failed"));
+	}
+	/*
+	 * Free up our resources.
+	 */
+	rw_destroy(LOCK_PTR(ump));
+	TAILQ_REMOVE(&softdepmounts, ump->um_softdep, sd_next);
 	hashdestroy(ump->pagedep_hashtbl, M_PAGEDEP, ump->pagedep_hash_size);
 	hashdestroy(ump->inodedep_hashtbl, M_INODEDEP, ump->inodedep_hash_size);
 	hashdestroy(ump->newblk_hashtbl, M_NEWBLK, ump->newblk_hash_size);
@@ -2788,7 +2885,7 @@ journal_space(ump, thresh)
 	 */
 	limit = (max_softdeps / 10) * 9;
 	if (dep_current[D_INODEDEP] > limit &&
-	    ump->softdep_curdeps[D_INODEDEP] > limit / stat_softdep_mounts)
+	    ump->softdep_curdeps[D_INODEDEP] > limit / stat_flush_threads)
 		return (0);
 	if (thresh)
 		thresh = jblocks->jb_min;
@@ -2813,7 +2910,7 @@ journal_suspend(ump)
 	if ((mp->mnt_kern_flag & MNTK_SUSPEND) == 0) {
 		stat_journal_min++;
 		mp->mnt_kern_flag |= MNTK_SUSPEND;
-		mp->mnt_susp_owner = FIRST_THREAD_IN_PROC(softdepproc);
+		mp->mnt_susp_owner = ump->softdep_flushtd;
 	}
 	jblocks->jb_suspended = 1;
 	MNT_IUNLOCK(mp);
@@ -2888,7 +2985,7 @@ softdep_prealloc(vp, waitok)
 	process_removes(vp);
 	process_truncates(vp);
 	if (journal_space(ump, 0) == 0) {
-		softdep_speedup();
+		softdep_speedup(ump);
 		if (journal_space(ump, 1) == 0)
 			journal_suspend(ump);
 	}
@@ -2932,10 +3029,10 @@ softdep_prelink(dvp, vp)
 	}
 	process_removes(dvp);
 	process_truncates(dvp);
-	softdep_speedup();
+	softdep_speedup(ump);
 	process_worklist_item(UFSTOVFS(ump), 2, LK_NOWAIT);
 	if (journal_space(ump, 0) == 0) {
-		softdep_speedup();
+		softdep_speedup(ump);
 		if (journal_space(ump, 1) == 0)
 			journal_suspend(ump);
 	}
@@ -3257,7 +3354,7 @@ softdep_process_journal(mp, needwk, flags)
 			if (flags != MNT_WAIT)
 				break;
 			printf("softdep: Out of journal space!\n");
-			softdep_speedup();
+			softdep_speedup(ump);
 			msleep(jblocks, LOCK_PTR(ump), PRIBIO, "jblocks", hz);
 		}
 		FREE_LOCK(ump);
@@ -3970,7 +4067,7 @@ free_freedep(freedep)
 /*
  * Allocate a new freework structure that may be a level in an indirect
  * when parent is not NULL or a top level block when it is.  The top level
- * freework structures are allocated without the soft updates lock held
+ * freework structures are allocated without the per-filesystem lock held
  * and before the freeblks is visible outside of softdep_setup_freeblocks().
  */
 static struct freework *
@@ -4039,7 +4136,7 @@ cancel_jfreeblk(freeblks, blkno)
 
 /*
  * Allocate a new jfreeblk to journal top level block pointer when truncating
- * a file.  The caller must add this to the worklist when the soft updates
+ * a file.  The caller must add this to the worklist when the per-filesystem
  * lock is held.
  */
 static struct jfreeblk *
@@ -7419,7 +7516,7 @@ softdep_freefile(pvp, ino, mode)
 			clear_unlinked_inodedep(inodedep);
 			/*
 			 * Re-acquire inodedep as we've dropped the
-			 * soft updates lock in clear_unlinked_inodedep().
+			 * per-filesystem lock in clear_unlinked_inodedep().
 			 */
 			inodedep_lookup(pvp->v_mount, ino, 0, &inodedep);
 		}
@@ -7965,10 +8062,8 @@ indir_trunc(freework, dbn, lbn)
 		 * If we're goingaway, free the indirdep.  Otherwise it will
 		 * linger until the write completes.
 		 */
-		if (goingaway) {
+		if (goingaway)
 			free_indirdep(indirdep);
-			ump->softdep_numindirdeps -= 1;
-		}
 	}
 	FREE_LOCK(ump);
 	/* Initialize pointers depending on block size. */
@@ -8140,7 +8235,7 @@ cancel_allocindir(aip, bp, freeblks, trunc)
  * Create the mkdir dependencies for . and .. in a new directory.  Link them
  * in to a newdirblk so any subsequent additions are tracked properly.  The
  * caller is responsible for adding the mkdir1 dependency to the journal
- * and updating id_mkdiradd.  This function returns with the soft updates
+ * and updating id_mkdiradd.  This function returns with the per-filesystem
  * lock held.
  */
 static struct mkdir *
@@ -8958,12 +9053,16 @@ newdirrem(bp, dp, ip, isrmdir, prevdirremp)
 		panic("newdirrem: whiteout");
 	dvp = ITOV(dp);
 	/*
-	 * If we are over our limit, try to improve the situation.
+	 * If the system is over its limit and our filesystem is
+	 * responsible for more than our share of that usage and
+	 * we are not a snapshot, request some inodedep cleanup.
 	 * Limiting the number of dirrem structures will also limit
 	 * the number of freefile and freeblks structures.
 	 */
 	ACQUIRE_LOCK(ip->i_ump);
-	if (!IS_SNAPSHOT(ip) && dep_current[D_DIRREM] > max_softdeps / 2)
+	while (!IS_SNAPSHOT(ip) && dep_current[D_DIRREM] > max_softdeps / 2 &&
+	    ip->i_ump->softdep_curdeps[D_DIRREM] >
+	    (max_softdeps / 2) / stat_flush_threads)
 		(void) request_cleanup(ITOV(dp)->v_mount, FLUSH_BLOCKS);
 	FREE_LOCK(ip->i_ump);
 	dirrem = malloc(sizeof(struct dirrem),
@@ -9914,7 +10013,7 @@ initiate_write_filepage(pagedep, bp)
 	 * Wait for all journal remove dependencies to hit the disk.
 	 * We can not allow any potentially conflicting directory adds
 	 * to be visible before removes and rollback is too difficult.
-	 * The soft updates lock may be dropped and re-acquired, however 
+	 * The per-filesystem lock may be dropped and re-acquired, however 
 	 * we hold the buf locked so the dependency can not go away.
 	 */
 	LIST_FOREACH(dirrem, &pagedep->pd_dirremhd, dm_next)
@@ -10378,7 +10477,6 @@ cancel_indirdep(indirdep, bp, freeblks)
 		LIST_REMOVE(indirdep, ir_next);
 	}
 	indirdep->ir_state |= GOINGAWAY;
-	VFSTOUFS(indirdep->ir_list.wk_mp)->softdep_numindirdeps += 1;
 	/*
 	 * Pass in bp for blocks still have journal writes
 	 * pending so we can cancel them on their own.
@@ -10805,7 +10903,7 @@ softdep_disk_write_complete(bp)
 	ACQUIRE_LOCK(ump);
 	while ((wk = LIST_FIRST(&bp->b_dep)) != NULL) {
 		WORKLIST_REMOVE(wk);
-		dep_write[wk->wk_type]++;
+		atomic_add_long(&dep_write[wk->wk_type], 1);
 		if (wk == owk)
 			panic("duplicate worklist: %p\n", wk);
 		owk = wk;
@@ -11488,7 +11586,7 @@ diradd_inode_written(dap, inodedep)
 
 /*
  * Returns true if the bmsafemap will have rollbacks when written.  Must only
- * be called with the soft updates lock and the buf lock on the cg held.
+ * be called with the per-filesystem lock and the buf lock on the cg held.
  */
 static int
 bmsafemap_backgroundwrite(bmsafemap, bp)
@@ -12912,18 +13010,42 @@ softdep_slowdown(vp)
 		if (journal_space(ump, 0) == 0)
 			jlow = 1;
 	}
+	/*
+	 * If the system is under its limits and our filesystem is
+	 * not responsible for more than our share of the usage and
+	 * we are not low on journal space, then no need to slow down.
+	 */
 	max_softdeps_hard = max_softdeps * 11 / 10;
 	if (dep_current[D_DIRREM] < max_softdeps_hard / 2 &&
 	    dep_current[D_INODEDEP] < max_softdeps_hard &&
-	    VFSTOUFS(vp->v_mount)->softdep_numindirdeps < maxindirdeps &&
-	    dep_current[D_FREEBLKS] < max_softdeps_hard && jlow == 0) {
+	    dep_current[D_INDIRDEP] < max_softdeps_hard / 1000 &&
+	    dep_current[D_FREEBLKS] < max_softdeps_hard && jlow == 0 &&
+	    ump->softdep_curdeps[D_DIRREM] <
+	    (max_softdeps_hard / 2) / stat_flush_threads &&
+	    ump->softdep_curdeps[D_INODEDEP] <
+	    max_softdeps_hard / stat_flush_threads &&
+	    ump->softdep_curdeps[D_INDIRDEP] <
+	    (max_softdeps_hard / 1000) / stat_flush_threads &&
+	    ump->softdep_curdeps[D_FREEBLKS] <
+	    max_softdeps_hard / stat_flush_threads) {
 		FREE_LOCK(ump);
   		return (0);
 	}
-	if (VFSTOUFS(vp->v_mount)->softdep_numindirdeps >= maxindirdeps || jlow)
-		softdep_speedup();
+	/*
+	 * If the journal is low or our filesystem is over its limit
+	 * then speedup the cleanup.
+	 */
+	if (ump->softdep_curdeps[D_INDIRDEP] <
+	    (max_softdeps_hard / 1000) / stat_flush_threads || jlow)
+		softdep_speedup(ump);
 	stat_sync_limit_hit += 1;
 	FREE_LOCK(ump);
+	/*
+	 * We only slow down the rate at which new dependencies are
+	 * generated if we are not using journaling. With journaling,
+	 * the cleanup should always be sufficient to keep things
+	 * under control.
+	 */
 	if (DOINGSUJ(vp))
 		return (0);
 	return (1);
@@ -12981,13 +13103,12 @@ softdep_request_cleanup(fs, vp, cred, resource)
 		return (0);
 	}
 	/*
-	 * If we are in need of resources, consider pausing for
-	 * tickdelay to give ourselves some breathing room.
+	 * If we are in need of resources, start by cleaning up
+	 * any block removals associated with our inode.
 	 */
 	ACQUIRE_LOCK(ump);
 	process_removes(vp);
 	process_truncates(vp);
-	request_cleanup(UFSTOVFS(ump), resource);
 	FREE_LOCK(ump);
 	/*
 	 * Now clean up at least as many resources as we will need.
@@ -13120,7 +13241,7 @@ request_cleanup(mp, resource)
 	 * Next, we attempt to speed up the syncer process. If that
 	 * is successful, then we allow the process to continue.
 	 */
-	if (softdep_speedup() &&
+	if (softdep_speedup(ump) &&
 	    resource != FLUSH_BLOCKS_WAIT &&
 	    resource != FLUSH_INODES_WAIT)
 		return(0);
@@ -13138,15 +13259,19 @@ request_cleanup(mp, resource)
 
 	case FLUSH_INODES:
 	case FLUSH_INODES_WAIT:
+		ACQUIRE_GBLLOCK(&lk);
 		stat_ino_limit_push += 1;
 		req_clear_inodedeps += 1;
+		FREE_GBLLOCK(&lk);
 		stat_countp = &stat_ino_limit_hit;
 		break;
 
 	case FLUSH_BLOCKS:
 	case FLUSH_BLOCKS_WAIT:
+		ACQUIRE_GBLLOCK(&lk);
 		stat_blk_limit_push += 1;
 		req_clear_remove += 1;
+		FREE_GBLLOCK(&lk);
 		stat_countp = &stat_blk_limit_hit;
 		break;
 
@@ -13157,6 +13282,8 @@ request_cleanup(mp, resource)
 	 * Hopefully the syncer daemon will catch up and awaken us.
 	 * We wait at most tickdelay before proceeding in any case.
 	 */
+	ACQUIRE_GBLLOCK(&lk);
+	FREE_LOCK(ump);
 	proc_waiting += 1;
 	if (callout_pending(&softdep_callout) == FALSE)
 		callout_reset(&softdep_callout, tickdelay > 2 ? tickdelay : 2,
@@ -13164,6 +13291,8 @@ request_cleanup(mp, resource)
 
 	msleep((caddr_t)&proc_waiting, &lk, PPAUSE, "softupdate", 0);
 	proc_waiting -= 1;
+	FREE_GBLLOCK(&lk);
+	ACQUIRE_LOCK(ump);
 	return (1);
 }
 
@@ -13177,16 +13306,13 @@ pause_timer(arg)
 	void *arg;
 {
 
-	rw_assert(&lk, RA_WLOCKED);
+	GBLLOCK_OWNED(&lk);
 	/*
 	 * The callout_ API has acquired mtx and will hold it around this
 	 * function call.
 	 */
-	*stat_countp += 1;
-	wakeup_one(&proc_waiting);
-	if (proc_waiting > 0)
-		callout_reset(&softdep_callout, tickdelay > 2 ? tickdelay : 2,
-		    pause_timer, 0);
+	*stat_countp += proc_waiting;
+	wakeup(&proc_waiting);
 }
 
 /*
@@ -13197,7 +13323,6 @@ check_clear_deps(mp)
 	struct mount *mp;
 {
 
-	rw_assert(&lk, RA_WLOCKED);
 	/*
 	 * If we are suspended, it may be because of our using
 	 * too many inodedeps, so help clear them out.
@@ -13207,16 +13332,22 @@ check_clear_deps(mp)
 	/*
 	 * General requests for cleanup of backed up dependencies
 	 */
+	ACQUIRE_GBLLOCK(&lk);
 	if (req_clear_inodedeps) {
 		req_clear_inodedeps -= 1;
+		FREE_GBLLOCK(&lk);
 		clear_inodedeps(mp);
-		wakeup_one(&proc_waiting);
+		ACQUIRE_GBLLOCK(&lk);
+		wakeup(&proc_waiting);
 	}
 	if (req_clear_remove) {
 		req_clear_remove -= 1;
+		FREE_GBLLOCK(&lk);
 		clear_remove(mp);
-		wakeup_one(&proc_waiting);
+		ACQUIRE_GBLLOCK(&lk);
+		wakeup(&proc_waiting);
 	}
+	FREE_GBLLOCK(&lk);
 }
 
 /*
