@@ -32,6 +32,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_ddb.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
@@ -61,6 +63,10 @@ __FBSDID("$FreeBSD$");
 #include <xen/evtchn/evtchnvar.h>
 
 #include <dev/xen/xenpci/xenpcivar.h>
+
+#ifdef DDB
+#include <ddb/ddb.h>
+#endif
 
 static MALLOC_DEFINE(M_XENINTR, "xen_intr", "Xen Interrupt Services");
 
@@ -1427,3 +1433,74 @@ xen_intr_port(xen_intr_handle_t handle)
 	
 	return (isrc->xi_port);
 }
+
+#ifdef DDB
+static const char *
+xen_intr_print_type(enum evtchn_type type)
+{
+	static const char *evtchn_type_to_string[EVTCHN_TYPE_COUNT] = {
+		[EVTCHN_TYPE_UNBOUND]	= "UNBOUND",
+		[EVTCHN_TYPE_PIRQ]	= "PIRQ",
+		[EVTCHN_TYPE_VIRQ]	= "VIRQ",
+		[EVTCHN_TYPE_IPI]	= "IPI",
+		[EVTCHN_TYPE_PORT]	= "PORT",
+	};
+
+	if (type >= EVTCHN_TYPE_COUNT)
+		return ("UNKNOWN");
+
+	return (evtchn_type_to_string[type]);
+}
+
+static void
+xen_intr_dump_port(struct xenisrc *isrc)
+{
+	struct xen_intr_pcpu_data *pcpu;
+	shared_info_t *s = HYPERVISOR_shared_info;
+	int i;
+
+	db_printf("Port %d Type: %s\n",
+	    isrc->xi_port, xen_intr_print_type(isrc->xi_type));
+	if (isrc->xi_type == EVTCHN_TYPE_PIRQ) {
+		db_printf("\tPirq: %d ActiveHi: %d EdgeTrigger: %d "
+		    "NeedsEOI: %d Shared: %d\n",
+		    isrc->xi_pirq, isrc->xi_activehi, isrc->xi_edgetrigger,
+		    !!test_bit(isrc->xi_pirq, xen_intr_pirq_eoi_map),
+		    isrc->xi_shared);
+	}
+	if (isrc->xi_type == EVTCHN_TYPE_VIRQ)
+		db_printf("\tVirq: %d\n", isrc->xi_virq);
+
+	db_printf("\tMasked: %d Pending: %d\n",
+	    !!test_bit(isrc->xi_port, &s->evtchn_mask[0]),
+	    !!test_bit(isrc->xi_port, &s->evtchn_pending[0]));
+
+	db_printf("\tPer-CPU Masks: ");
+	CPU_FOREACH(i) {
+		pcpu = DPCPU_ID_PTR(i, xen_intr_pcpu);
+		db_printf("cpu#%d: %d ", i,
+		    !!test_bit(isrc->xi_port, pcpu->evtchn_enabled));
+	}
+	db_printf("\n");
+}
+
+DB_SHOW_COMMAND(xen_evtchn, db_show_xen_evtchn)
+{
+	int i;
+
+	if (!xen_domain()) {
+		db_printf("Only available on Xen guests\n");
+		return;
+	}
+
+	for (i = 0; i < NR_EVENT_CHANNELS; i++) {
+		struct xenisrc *isrc;
+
+		isrc = xen_intr_port_to_isrc[i];
+		if (isrc == NULL)
+			continue;
+
+		xen_intr_dump_port(isrc);
+	}
+}
+#endif /* DDB */
