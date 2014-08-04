@@ -5435,30 +5435,35 @@ scsi_devid_is_lun_name(uint8_t *bufp)
 }
 
 struct scsi_vpd_id_descriptor *
-scsi_get_devid(struct scsi_vpd_device_id *id, uint32_t page_len,
+scsi_get_devid_desc(struct scsi_vpd_id_descriptor *desc, uint32_t len,
     scsi_devid_checkfn_t ck_fn)
 {
-	struct scsi_vpd_id_descriptor *desc;
-	uint8_t *page_end;
 	uint8_t *desc_buf_end;
 
-	page_end = (uint8_t *)id + page_len;
-	if (page_end < id->desc_list)
-		return (NULL);
+	desc_buf_end = (uint8_t *)desc + len;
 
-	desc_buf_end = MIN(id->desc_list + scsi_2btoul(id->length), page_end);
-
-	for (desc = (struct scsi_vpd_id_descriptor *)id->desc_list;
-	     desc->identifier <= desc_buf_end
-	  && desc->identifier + desc->length <= desc_buf_end;
-	     desc = (struct scsi_vpd_id_descriptor *)(desc->identifier
+	for (; desc->identifier <= desc_buf_end &&
+	    desc->identifier + desc->length <= desc_buf_end;
+	    desc = (struct scsi_vpd_id_descriptor *)(desc->identifier
 						    + desc->length)) {
 
 		if (ck_fn == NULL || ck_fn((uint8_t *)desc) != 0)
 			return (desc);
 	}
-
 	return (NULL);
+}
+
+struct scsi_vpd_id_descriptor *
+scsi_get_devid(struct scsi_vpd_device_id *id, uint32_t page_len,
+    scsi_devid_checkfn_t ck_fn)
+{
+	uint32_t len;
+
+	if (page_len < sizeof(*id))
+		return (NULL);
+	len = MIN(scsi_2btoul(id->length), page_len - sizeof(*id));
+	return (scsi_get_devid_desc((struct scsi_vpd_id_descriptor *)
+	    id->desc_list, len, ck_fn));
 }
 
 int
