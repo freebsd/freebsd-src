@@ -2544,8 +2544,10 @@ sosetopt(struct socket *so, struct sockopt *sopt)
 				error = EDOM;
 				goto bad;
 			}
-			val = tvtosbt(tv);
-
+			if (tv.tv_sec > INT32_MAX)
+				val = SBT_MAX;
+			else
+				val = tvtosbt(tv);
 			switch (sopt->sopt_name) {
 			case SO_SNDTIMEO:
 				so->so_snd.sb_timeo = val;
@@ -2694,10 +2696,8 @@ integer:
 
 		case SO_SNDTIMEO:
 		case SO_RCVTIMEO:
-			optval = (sopt->sopt_name == SO_SNDTIMEO ?
-				  so->so_snd.sb_timeo : so->so_rcv.sb_timeo);
-
-			tv = sbttotv(optval);
+			tv = sbttotv(sopt->sopt_name == SO_SNDTIMEO ?
+			    so->so_snd.sb_timeo : so->so_rcv.sb_timeo);
 #ifdef COMPAT_FREEBSD32
 			if (SV_CURPROC_FLAG(SV_ILP32)) {
 				struct timeval32 tv32;
