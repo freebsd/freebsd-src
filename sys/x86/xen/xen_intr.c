@@ -584,6 +584,7 @@ xen_intr_handle_upcall(struct trapframe *trap_frame)
 static int
 xen_intr_init(void *dummy __unused)
 {
+	shared_info_t *s = HYPERVISOR_shared_info;
 	struct xen_intr_pcpu_data *pcpu;
 	struct physdev_pirq_eoi_gmfn eoi_gmfn;
 	int i, rc;
@@ -606,6 +607,9 @@ xen_intr_init(void *dummy __unused)
 		       sizeof(pcpu->evtchn_enabled));
 		xen_intr_intrcnt_add(i);
 	}
+
+	for (i = 0; i < nitems(s->evtchn_mask); i++)
+		atomic_store_rel_long(&s->evtchn_mask[i], ~0);
 
 	/* Try to register PIRQ EOI map */
 	xen_intr_pirq_eoi_map = malloc(PAGE_SIZE, M_XENINTR, M_WAITOK | M_ZERO);
