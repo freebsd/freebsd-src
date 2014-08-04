@@ -35,6 +35,11 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/smp.h>
 
+#include <contrib/dev/acpica/include/acpi.h>
+
+#include <dev/acpica/acpivar.h>
+
+#include <x86/init.h>
 #include <machine/nexusvar.h>
 #include <machine/intr_machdep.h>
 
@@ -51,18 +56,40 @@ nexus_xen_probe(device_t dev)
 	if (!xen_pv_domain())
 		return (ENXIO);
 
-	return (BUS_PROBE_DEFAULT);
+	return (BUS_PROBE_SPECIFIC);
 }
 
 static int
 nexus_xen_attach(device_t dev)
 {
+	int error;
+#ifndef XEN
+	device_t acpi_dev;
+#endif
 
 	nexus_init_resources();
 	bus_generic_probe(dev);
-	bus_generic_attach(dev);
 
-	return (0);
+#ifndef XEN
+	if (xen_initial_domain()) {
+		/* Disable some ACPI devices that are not usable by Dom0 */
+		acpi_cpu_disabled = true;
+		acpi_hpet_disabled = true;
+		acpi_timer_disabled = true;
+
+		acpi_dev = BUS_ADD_CHILD(dev, 10, "acpi", 0);
+		if (acpi_dev == NULL)
+			panic("Unable to add ACPI bus to Xen Dom0");
+	}
+#endif
+
+	error = bus_generic_attach(dev);
+#ifndef XEN
+	if (xen_initial_domain() && (error == 0))
+		acpi_install_wakeup_handler(device_get_softc(acpi_dev));
+#endif
+
+	return (error);
 }
 
 static int
