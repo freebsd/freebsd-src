@@ -11,11 +11,6 @@ SRCS    = bus_if.h device_if.h \
           firewire.h firewirereg.h \
           if_fwsubr.c
 
-.if !defined(KERNBUILDDIR)
-opt_inet.h:
-	echo "#define INET      1" > ${.TARGET}
-.endif
-
 #CFLAGS += -DDEVICE_POLLING
 
 .include <bsd.kmod.mk>

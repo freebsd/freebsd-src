@@ -18,6 +18,8 @@
 __DEFAULT_YES_OPTIONS = \
     ARM_EABI \
     FORMAT_EXTENSIONS \
+    INET \
+    INET6 \
     KERNEL_SYMBOLS
 
 # expanded inline from bsd.mkopt.mk:
@@ -32,3 +34,17 @@ MK_${var}:=	yes
 .endif
 .endfor
 .undef __DEFAULT_YES_OPTIONS
+
+#
+# MK_*_SUPPORT options which default to "yes" unless their corresponding
+# MK_* variable is set to "no".
+#
+.for var in \
+    INET \
+    INET6
+.if defined(WITHOUT_${var}_SUPPORT) || ${MK_${var}} == "no"
+MK_${var}_SUPPORT:= no
+.else
+MK_${var}_SUPPORT:= yes
+.endif
+.endfor
