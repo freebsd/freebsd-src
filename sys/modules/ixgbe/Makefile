@@ -6,7 +6,7 @@
 
 KMOD    = if_ixgbe
 SRCS    = device_if.h bus_if.h pci_if.h
-SRCS	+= opt_inet.h opt_inet6.h
+SRCS	+= opt_inet.h opt_inet6.h opt_rss.h
 SRCS    += ixgbe.c ixv.c
 # Shared source
 SRCS    += ixgbe_common.c ixgbe_api.c ixgbe_phy.c ixgbe_mbx.c ixgbe_vf.c
@@ -24,6 +24,10 @@ opt_inet.h:
 opt_inet6.h:
 	@echo "#define INET6 1" > ${.TARGET}
 .endif
+
+opt_rss.h:
+	@echo "" > ${.TARGET}
+
 .endif
 
 .include <bsd.kmod.mk>
