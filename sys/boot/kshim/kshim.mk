@@ -31,28 +31,49 @@
 # SUCH DAMAGE.
 #
 
-LIB=		usbboot
-INTERNALLIB=
+KSHIM_DIR:=	${.PARSEDIR}
+.PATH:		${KSHIM_DIR}
 
-CFLAGS+=	-DBOOTPROG=\"usbloader\"
-CFLAGS+=	-ffunction-sections -fdata-sections
-CFLAGS+=	-ffreestanding
-CFLAGS+=	-Wformat -Wall
-CFLAGS+=	-g
-CFLAGS+=	-fno-pic
+CFLAGS+=	-I${KSHIM_DIR}
+CFLAGS+=	-I${KSHIM_DIR}/../..
+CFLAGS+=	-DUSB_GLOBAL_INCLUDE_FILE=\"bsd_global.h\"
+CFLAGS+=	-DHAVE_ENDIAN_DEFS
 
-.if ${MACHINE_CPUARCH} == "i386" || ${MACHINE_CPUARCH} == "amd64"
-CFLAGS+=	-march=i386
-CFLAGS.gcc+=	-mpreferred-stack-boundary=2
-.endif
-.if ${MACHINE_CPUARCH} == "amd64"
-CFLAGS+=	-m32
-.endif
-.if ${MACHINE_CPUARCH} == "mips"
-CFLAGS+=	-mno-abicalls
-.endif
+#
+# Single threaded BSD kernel
+#
+KSRCS+=	bsd_kernel.c
 
+#
+# BUSSPACE implementation
+#
+KSRCS+=	bsd_busspace.c
 
-.include "usbcore.mk"
-.include "../kshim/kshim.mk"
-.include <bsd.lib.mk>
+SRCS+=	sysinit_data.c
+SRCS+=	sysuninit_data.c
+
+CLEANFILES+= sysinit.bin
+CLEANFILES+= sysinit_data.c
+CLEANFILES+= sysuninit_data.c
+
+SRCS+=	${KSRCS}
+SYSINIT_OBJS=	${KSRCS:R:C/$/.osys/}
+CLEANFILES+=	${SYSINIT_OBJS}
+
+#
+# SYSINIT() and SYSUNINIT() handling
+#
+
+sysinit_data.c: sysinit.bin
+	sysinit -i sysinit.bin -o ${.TARGET} -k sysinit -s sysinit_data
+
+sysuninit_data.c: sysinit.bin
+	sysinit -i sysinit.bin -o ${.TARGET} -R -k sysuninit -s sysuninit_data
+
+.for KSRC in ${KSRCS:R}
+${KSRC}.osys: ${KSRC}.o
+	${OBJCOPY} -j ".debug.sysinit" -O binary ${KSRC}.o ${KSRC}.osys
+.endfor
+
+sysinit.bin: ${SYSINIT_OBJS}
+	cat ${.ALLSRC} > sysinit.bin
