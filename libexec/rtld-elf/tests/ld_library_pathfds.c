@@ -79,7 +79,7 @@ ATF_TC_BODY(bad_library_directories, tc)
 	char *pathfds;
 
 	setup(&files, tc);
-	ATF_REQUIRE(asprintf(&pathfds, "::", files.etc) > 0);
+	ATF_REQUIRE(asprintf(&pathfds, "LD_LIBRARY_PATH_FDS=::") > 0);
 
 	expect_missing_library(files.binary, pathfds);
 }
