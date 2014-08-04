@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 10, 2014
+.Dd August 4, 2014
 .Dt JAIL 8
 .Os
 .Sh NAME
@@ -687,18 +687,24 @@ jail is created, and will be removed from the interface after the
 jail is removed.
 .It Va ip4.addr
 In addition to the IP addresses that are passed to the kernel, an
-interface and/or a netmask may also be specified, in the form
-.Dq Ar interface Ns | Ns Ar ip-address Ns / Ns Ar netmask .
+interface, netmask and additional paramters (as supported by
+.Xr ifconfig 8 Ns )
+may also be specified, in the form
+.Dq Ar interface Ns | Ns Ar ip-address Ns / Ns Ar netmask param ... .
 If an interface is given before the IP address, an alias for the address
 will be added to that interface, as it is with the
 .Va interface
 parameter.
 If a netmask in either dotted-quad or CIDR form is given
 after an IP address, it will be used when adding the IP alias.
+If additional parameters are specified then they will also be used when
+adding the IP alias.
 .It Va ip6.addr
 In addition to the IP addresses that are passed to the kernel,
-an interface and/or a prefix may also be specified, in the form
-.Dq Ar interface Ns | Ns Ar ip-address Ns / Ns Ar prefix .
+an interface, prefix and additional parameters (as supported by
+.Xr ifconfig 8 Ns )
+may also be specified, in the form
+.Dq Ar interface Ns | Ns Ar ip-address Ns / Ns Ar prefix param ... .
 .It Va vnet.interface
 A network interface to give to a vnet-enabled jail after is it created.
 The interface will automatically be released when the jail is removed.
@@ -1177,6 +1183,7 @@ environment of the first jail.
 .Xr pkill 1 ,
 .Xr ps 1 ,
 .Xr quota 1 ,
+.Xr ifconfig 8 ,
 .Xr jail_set 2 ,
 .Xr devfs 5 ,
 .Xr fdescfs 5 ,
