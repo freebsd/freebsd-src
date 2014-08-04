@@ -46,7 +46,7 @@ testmcmp(const MINT *mp1, const MINT *mp2, const char *tname)
 		printf("not ok - %d %s\n", ++tnr, tname);
 }
 
-static int
+static void
 testsimpel(void)
 {
 	const char str42[] = "2a";
@@ -74,7 +74,7 @@ testsimpel(void)
 	mp_mfree(t2);
 }
 
-static int
+static void
 testgcd(void)
 {
 
@@ -82,7 +82,7 @@ testgcd(void)
 	testmcmp(t0, c5, "gcd0");
 }
 
-static int
+static void
 testmsqrt(void)
 {
 
@@ -94,7 +94,7 @@ testmsqrt(void)
 	testmcmp(t1, c6, "msqrt3");
 }
 
-static int
+static void
 testdiv(void)
 {
 	short ro;
@@ -121,7 +121,7 @@ testdiv(void)
 	mp_mfree(t2);
 }
 
-static int
+static void
 testmult(void)
 {
 
@@ -131,7 +131,7 @@ testmult(void)
 	testmcmp(t0, c42, "mmult1");
 }
 
-static int
+static void
 testpow(void)
 {
 

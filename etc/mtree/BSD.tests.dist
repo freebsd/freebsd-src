@@ -85,6 +85,8 @@
             ..
             libcrypt
             ..
+            libmp
+            ..
         ..
         libexec
             atf
