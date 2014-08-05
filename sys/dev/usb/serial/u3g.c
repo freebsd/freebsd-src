@@ -754,7 +754,8 @@ u3g_test_autoinst(void *arg, struct usb_device *udev,
 			break;
 		case U3GINIT_ZTESTOR:
 			error = usb_msc_eject(udev, 0, MSC_EJECT_STOPUNIT);
-			error |= usb_msc_eject(udev, 0, MSC_EJECT_ZTESTOR);
+			if (error == 0)
+			    error = usb_msc_eject(udev, 0, MSC_EJECT_ZTESTOR);
 			break;
 		case U3GINIT_CMOTECH:
 			error = usb_msc_eject(udev, 0, MSC_EJECT_CMOTECH);
