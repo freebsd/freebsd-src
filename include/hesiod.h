@@ -15,44 +15,25 @@
  * OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#ifndef lint
-static const char rcsid[] = "$Id: ns_netint.c,v 1.3 2005/04/27 04:56:40 sra Exp $";
-#endif
+/*! \file 
+ * \brief
+ * This file is primarily maintained by <tytso@mit.edu> and <ghudson@mit.edu>.
+ */
 
-/* Import. */
+/*
+ * $Id: hesiod.h,v 1.4 2005/04/27 04:56:14 sra Exp $
+ */
 
-#include "port_before.h"
+#ifndef _HESIOD_H_INCLUDED
+#define _HESIOD_H_INCLUDED
 
-#include <arpa/nameser.h>
+int		hesiod_init __P((void **));
+void		hesiod_end __P((void *));
+char *		hesiod_to_bind __P((void *, const char *, const char *));
+char **		hesiod_resolve __P((void *, const char *, const char *));
+void		hesiod_free_list __P((void *, char **));
+struct __res_state * __hesiod_res_get __P((void *));
+void		__hesiod_res_set __P((void *, struct __res_state *,
+				      void (*)(void *)));
 
-#include "port_after.h"
-
-/* Public. */
-
-u_int
-ns_get16(const u_char *src) {
-	u_int dst;
-
-	NS_GET16(dst, src);
-	return (dst);
-}
-
-u_long
-ns_get32(const u_char *src) {
-	u_long dst;
-
-	NS_GET32(dst, src);
-	return (dst);
-}
-
-void
-ns_put16(u_int src, u_char *dst) {
-	NS_PUT16(src, dst);
-}
-
-void
-ns_put32(u_long src, u_char *dst) {
-	NS_PUT32(src, dst);
-}
-
-/*! \file */
+#endif /*_HESIOD_H_INCLUDED*/

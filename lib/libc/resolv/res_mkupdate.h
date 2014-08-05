@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2004 by Internet Systems Consortium, Inc. ("ISC")
- * Copyright (c) 1996,1999 by Internet Software Consortium.
+ * Copyright (c) 1998,1999 by Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -15,44 +15,11 @@
  * OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#ifndef lint
-static const char rcsid[] = "$Id: ns_netint.c,v 1.3 2005/04/27 04:56:40 sra Exp $";
-#endif
+#ifndef _RES_MKUPDATE_H_
+#define _RES_MKUPDATE_H_
 
-/* Import. */
+__BEGIN_DECLS
+__END_DECLS
 
-#include "port_before.h"
-
-#include <arpa/nameser.h>
-
-#include "port_after.h"
-
-/* Public. */
-
-u_int
-ns_get16(const u_char *src) {
-	u_int dst;
-
-	NS_GET16(dst, src);
-	return (dst);
-}
-
-u_long
-ns_get32(const u_char *src) {
-	u_long dst;
-
-	NS_GET32(dst, src);
-	return (dst);
-}
-
-void
-ns_put16(u_int src, u_char *dst) {
-	NS_PUT16(src, dst);
-}
-
-void
-ns_put32(u_long src, u_char *dst) {
-	NS_PUT32(src, dst);
-}
-
+#endif /* _RES_MKUPDATE_H_ */ 
 /*! \file */
