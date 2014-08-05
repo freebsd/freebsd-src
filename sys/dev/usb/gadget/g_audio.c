@@ -587,6 +587,16 @@ g_audio_handle_request(device_t dev,
 				*plen = 0;
 			}
 			return (0);
+		} else if ((req->bmRequestType == UT_READ_CLASS_INTERFACE) &&
+		    (req->bRequest == 0x81 /* get value */ )) {
+
+			if (offset == 0) {
+				*plen = sizeof(sc->sc_volume_setting);
+				*pptr = &sc->sc_volume_setting;
+			} else {
+				*plen = 0;
+			}
+			return (0);
 		} else if ((req->bmRequestType == UT_WRITE_CLASS_INTERFACE) &&
 		    (req->bRequest == 0x01 /* set value */ )) {
 
