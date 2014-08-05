@@ -568,6 +568,12 @@ void	bus_data_generation_update(void);
 #define	BUS_PASS_SCHEDULER	60	/* Start scheduler. */
 #define	BUS_PASS_DEFAULT	__INT_MAX /* Everything else. */
 
+#define	BUS_PASS_ORDER_FIRST	0
+#define	BUS_PASS_ORDER_EARLY	2
+#define	BUS_PASS_ORDER_MIDDLE	5
+#define	BUS_PASS_ORDER_LATE	7
+#define	BUS_PASS_ORDER_LAST	9
+
 extern int bus_current_pass;
 
 void	bus_set_pass(int pass);
