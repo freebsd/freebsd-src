@@ -2766,8 +2766,9 @@ vdev_get_stats(vdev_t *vd, vdev_stat_t *vs)
 	    ? vd->vdev_top->vdev_ashift : vd->vdev_ashift;
 	vs->vs_logical_ashift = vd->vdev_logical_ashift;
 	vs->vs_physical_ashift = vd->vdev_physical_ashift;
-	if (vd->vdev_aux == NULL && vd == vd->vdev_top)
+	if (vd->vdev_aux == NULL && vd == vd->vdev_top && !vd->vdev_ishole) {
 		vs->vs_fragmentation = vd->vdev_mg->mg_fragmentation;
+	}
 
 	/*
 	 * If we're getting stats on the root vdev, aggregate the I/O counts
