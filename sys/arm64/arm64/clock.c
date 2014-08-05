@@ -35,5 +35,5 @@ void
 cpu_initclocks(void)
 {
 
-	panic("cpu_initclocks");
+	printf("cpu_initclocks\n");
 }
