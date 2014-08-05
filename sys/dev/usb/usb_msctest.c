@@ -485,6 +485,7 @@ bbb_command_start(struct bbb_transfer *sc, uint8_t dir, uint8_t lun,
 	sc->data_rem = data_len;
 	sc->data_timeout = (data_timeout + USB_MS_HZ);
 	sc->actlen = 0;
+	sc->error = 0;
 	sc->cmd_len = cmd_len;
 	memset(&sc->cbw->CBWCDB, 0, sizeof(sc->cbw->CBWCDB));
 	memcpy(&sc->cbw->CBWCDB, cmd_ptr, cmd_len);
