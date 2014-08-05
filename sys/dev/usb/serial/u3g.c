@@ -76,15 +76,6 @@ SYSCTL_INT(_hw_usb_u3g, OID_AUTO, debug, CTLFLAG_RW,
 #define	U3G_CONFIG_INDEX	0
 #define	U3G_BSIZE		2048
 
-#define	U3GSP_GPRS		0
-#define	U3GSP_EDGE		1
-#define	U3GSP_CDMA		2
-#define	U3GSP_UMTS		3
-#define	U3GSP_HSDPA		4
-#define	U3GSP_HSUPA		5
-#define	U3GSP_HSPA		6
-#define	U3GSP_MAX		7
-
 /* Eject methods; See also usb_quirks.h:UQ_MSC_EJECT_* */
 #define	U3GINIT_HUAWEI		1	/* Requires Huawei init command */
 #define	U3GINIT_SIERRA		2	/* Requires Sierra init command */
@@ -890,7 +881,7 @@ u3g_attach(device_t dev)
 		sc->sc_iface[nports] = id->bInterfaceNumber;
 
 		if (bootverbose && sc->sc_xfer[nports][U3G_INTR]) {
-			device_printf(dev, "port %d supports modem control",
+			device_printf(dev, "port %d supports modem control\n",
 				      nports);
 		}
 
