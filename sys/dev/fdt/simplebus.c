@@ -124,7 +124,7 @@ static devclass_t simplebus_devclass;
 EARLY_DRIVER_MODULE(simplebus, ofwbus, simplebus_driver, simplebus_devclass,
     0, 0, BUS_PASS_BUS);
 EARLY_DRIVER_MODULE(simplebus, simplebus, simplebus_driver, simplebus_devclass,
-    0, 0, BUS_PASS_BUS);
+    0, 0, BUS_PASS_BUS + BUS_PASS_ORDER_MIDDLE);
 
 static int
 simplebus_probe(device_t dev)
