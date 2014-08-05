@@ -2342,9 +2342,11 @@ product HUAWEI E392		0x1505	LTE modem
 product HUAWEI E3131		0x1506	3G modem
 product HUAWEI K3765_INIT	0x1520	K3765 Initial
 product HUAWEI K4505_INIT	0x1521	K4505 Initial
+product HUAWEI E3272_INIT	0x155b	LTE modem initial
 product HUAWEI ETS2055		0x1803	CDMA modem
 product HUAWEI E173		0x1c05	3G modem
 product HUAWEI E173_INIT	0x1c0b	3G modem initial
+product HUAWEI E3272		0x1c1e	LTE modem
 
 /* HUAWEI 3com products */
 product HUAWEI3COM WUB320G	0x0009	Aolynk WUB320g
