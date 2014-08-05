@@ -942,6 +942,8 @@ tpc_process(struct tpc_list *list)
 
 done:
 //printf("ZZZ done\n");
+	free(list->params, M_CTL);
+	list->params = NULL;
 	mtx_lock(&lun->lun_lock);
 	if ((list->flags & EC_LIST_ID_USAGE_MASK) == EC_LIST_ID_USAGE_NONE) {
 		TAILQ_REMOVE(&lun->tpc_lists, list, links);
