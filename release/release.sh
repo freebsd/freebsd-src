@@ -166,6 +166,7 @@ if [ -n "${TARGET}" ] && [ -n "${TARGET_ARCH}" ]; then
 else
 	ARCH_FLAGS=
 fi
+load_chroot_env
 CHROOT_MAKEENV="${CHROOT_MAKEENV} MAKEOBJDIRPREFIX=${CHROOTDIR}/tmp/obj"
 CHROOT_WMAKEFLAGS="${MAKE_FLAGS} ${WORLD_FLAGS} ${CONF_FILES}"
 CHROOT_IMAKEFLAGS="${CONF_FILES}"
@@ -228,6 +229,7 @@ if [ -e ${SRC_CONF} ] && [ ! -c ${SRC_CONF} ]; then
 	cp ${SRC_CONF} ${CHROOTDIR}/${SRC_CONF}
 fi
 
+load_target_env
 # Embedded builds do not use the 'make release' target.
 if [ -n "${EMBEDDEDBUILD}" ]; then
 	# If a crochet configuration file exists in *this* checkout of
@@ -252,6 +254,7 @@ else
 fi
 
 if [ -d ${CHROOTDIR}/usr/ports ]; then
+	load_chroot_env
 	# Run ldconfig(8) in the chroot directory so /var/run/ld-elf*.so.hints
 	# is created.  This is needed by ports-mgmt/pkg.
 	chroot ${CHROOTDIR} /etc/rc.d/ldconfig forcerestart
@@ -264,6 +267,7 @@ if [ -d ${CHROOTDIR}/usr/ports ]; then
 		chroot ${CHROOTDIR} make -C /usr/ports/textproc/docproj \
 			${PBUILD_FLAGS} OPTIONS_UNSET="FOP IGOR" install clean distclean
 	fi
+	load_target_env
 fi
 
 eval chroot ${CHROOTDIR} make -C /usr/src ${RELEASE_WMAKEFLAGS} buildworld
