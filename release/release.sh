@@ -41,7 +41,6 @@ export PATH
 
 # Prototypes that can be redefined per-chroot or per-target.
 load_chroot_env() { }
-
 load_target_env() { }
 
 # The directory within which the release will be built.
