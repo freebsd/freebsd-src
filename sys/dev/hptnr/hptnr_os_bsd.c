@@ -86,25 +86,10 @@ BUS_ADDRESS get_dmapool_phy_addr(void *osext, void * dmapool_virt_addr)
 	return (BUS_ADDRESS)vtophys(dmapool_virt_addr);
 }
 
-#if __FreeBSD_version < 500043
-HPT_U32 pcicfg_read_dword(HPT_U8 bus, HPT_U8 dev, HPT_U8 func, HPT_U8 reg)
-{
-	HPT_U32 v;
-	pcicfgregs pciref;
-
-	pciref.bus  = bus;
-	pciref.slot = dev;
-	pciref.func = func;
-
-	v = pci_cfgread(&pciref, reg, 4);
-	return v;
-}/* PCI space access */
-#else 
 HPT_U32 pcicfg_read_dword(HPT_U8 bus, HPT_U8 dev, HPT_U8 func, HPT_U8 reg)
 {
 	return (HPT_U32)pci_cfgregread(bus, dev, func, reg, 4);;
 }/* PCI space access */
-#endif
 
 void *os_map_pci_bar(
     void *osext, 
@@ -249,9 +234,9 @@ void  os_request_timer(void * osext, HPT_U32 interval)
 	PVBUS_EXT vbus_ext = osext;
 
 	HPT_ASSERT(vbus_ext->ext_type==EXT_TYPE_VBUS);
-	
-	untimeout(os_timer_for_ldm, vbus_ext, vbus_ext->timer);
-	vbus_ext->timer = timeout(os_timer_for_ldm, vbus_ext, interval * hz / 1000000);
+
+	callout_reset(&vbus_ext->timer, interval * hz / 1000000,
+	    os_timer_for_ldm, vbus_ext);
 }
 
 HPT_TIME os_query_time(void)
