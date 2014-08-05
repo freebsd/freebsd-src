@@ -77,15 +77,15 @@ static device_method_t uss820dci_methods[] = {
 };
 
 static driver_t uss820dci_driver = {
-	.name = "uss820",
+	.name = "uss820dci",
 	.methods = uss820dci_methods,
 	.size = sizeof(struct uss820dci_softc),
 };
 
 static devclass_t uss820dci_devclass;
 
-DRIVER_MODULE(uss820, atmelarm, uss820dci_driver, uss820dci_devclass, 0, 0);
-MODULE_DEPEND(uss820, usb, 1, 1, 1);
+DRIVER_MODULE(uss820dci, atmelarm, uss820dci_driver, uss820dci_devclass, 0, 0);
+MODULE_DEPEND(uss820dci, usb, 1, 1, 1);
 
 static const char *const uss820_desc = "USS820 USB Device Controller";
 
