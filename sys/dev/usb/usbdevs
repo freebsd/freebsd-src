@@ -3231,6 +3231,7 @@ product NOVATEL EU740		0x2410	Expedite EU740
 product NOVATEL EU870D		0x2420	Expedite EU870D
 product NOVATEL U727		0x4100	Merlin U727 CDMA
 product NOVATEL MC950D		0x4400	Novatel MC950D HSUPA
+product NOVATEL MC990D		0x7001	Novatel MC990D
 product NOVATEL ZEROCD		0x5010	Novatel ZeroCD
 product NOVATEL MIFI2200V	0x5020	Novatel MiFi 2200 CDMA Virgin Mobile
 product NOVATEL ZEROCD2		0x5030	Novatel ZeroCD
@@ -3239,6 +3240,7 @@ product NOVATEL U727_2		0x5100	Merlin U727 CDMA
 product NOVATEL U760		0x6000	Novatel U760
 product NOVATEL MC760		0x6002	Novatel MC760
 product NOVATEL MC547		0x7042	Novatel MC547
+product NOVATEL MC679		0x7031	Novatel MC679
 product NOVATEL2 FLEXPACKGPS	0x0100	NovAtel FlexPack GPS receiver
 
 /* Merlin products */

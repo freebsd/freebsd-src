@@ -232,13 +232,18 @@ fbt_provide_module_function(linker_file_t lf, int symindx,
 	int size;
 	u_int8_t *instr, *limit;
 
-	if (strncmp(name, "dtrace_", 7) == 0 &&
-	    strncmp(name, "dtrace_safe_", 12) != 0) {
+	if ((strncmp(name, "dtrace_", 7) == 0 &&
+	    strncmp(name, "dtrace_safe_", 12) != 0) ||
+	    strcmp(name, "trap_check") == 0) {
 		/*
 		 * Anything beginning with "dtrace_" may be called
 		 * from probe context unless it explicitly indicates
 		 * that it won't be called from probe context by
 		 * using the prefix "dtrace_safe_".
+		 *
+		 * Additionally, we avoid instrumenting trap_check() to avoid
+		 * the possibility of generating a fault in probe context before
+		 * DTrace's fault handler is called.
 		 */
 		return (0);
 	}

@@ -1082,7 +1082,7 @@ sctp_process_unrecog_chunk(struct sctp_tcb *stcb, struct sctp_paramhdr *phdr,
 		sctp_asconf_cleanup(stcb, net);
 		break;
 	case SCTP_FORWARD_CUM_TSN:
-		stcb->asoc.peer_supports_prsctp = 0;
+		stcb->asoc.prsctp_supported = 0;
 		break;
 	default:
 		SCTPDBG(SCTP_DEBUG_INPUT2,
@@ -1106,7 +1106,7 @@ sctp_process_unrecog_param(struct sctp_tcb *stcb, struct sctp_paramhdr *phdr)
 	switch (ntohs(pbad->param_type)) {
 		/* pr-sctp draft */
 	case SCTP_PRSCTP_SUPPORTED:
-		stcb->asoc.peer_supports_prsctp = 0;
+		stcb->asoc.prsctp_supported = 0;
 		break;
 	case SCTP_SUPPORTED_CHUNK_EXT:
 		break;
@@ -2785,7 +2785,11 @@ sctp_handle_cookie_echo(struct mbuf *m, int iphlen, int offset,
 			inp->sctp_socket = so;
 			inp->sctp_frag_point = (*inp_p)->sctp_frag_point;
 			inp->sctp_cmt_on_off = (*inp_p)->sctp_cmt_on_off;
-			inp->sctp_ecn_enable = (*inp_p)->sctp_ecn_enable;
+			inp->ecn_supported = (*inp_p)->ecn_supported;
+			inp->prsctp_supported = (*inp_p)->prsctp_supported;
+			inp->reconfig_supported = (*inp_p)->reconfig_supported;
+			inp->nrsack_supported = (*inp_p)->nrsack_supported;
+			inp->pktdrop_supported = (*inp_p)->pktdrop_supported;
 			inp->partial_delivery_point = (*inp_p)->partial_delivery_point;
 			inp->sctp_context = (*inp_p)->sctp_context;
 			inp->local_strreset_support = (*inp_p)->local_strreset_support;
@@ -4910,8 +4914,7 @@ process_control_chunks:
 					SCTPDBG(SCTP_DEBUG_INDATA1, "No stcb when processing NR-SACK chunk\n");
 					break;
 				}
-				if ((stcb->asoc.sctp_nr_sack_on_off == 0) ||
-				    (stcb->asoc.peer_supports_nr_sack == 0)) {
+				if (stcb->asoc.nrsack_supported == 0) {
 					goto unknown_chunk;
 				}
 				if (chk_length < sizeof(struct sctp_nr_sack_chunk)) {
@@ -5387,13 +5390,13 @@ process_control_chunks:
 				*offset = length;
 				return (NULL);
 			}
-			if (stcb->asoc.peer_supports_strreset == 0) {
+			if (stcb->asoc.reconfig_supported == 0) {
 				/*
 				 * hmm, peer should have announced this, but
 				 * we will turn it on since he is sending us
 				 * a stream reset.
 				 */
-				stcb->asoc.peer_supports_strreset = 1;
+				stcb->asoc.reconfig_supported = 1;
 			}
 			if (sctp_handle_stream_reset(stcb, m, *offset, ch)) {
 				/* stop processing */
@@ -5484,7 +5487,7 @@ process_control_chunks:
 					SCTP_BUF_LEN(mm) = sizeof(*phd);
 					SCTP_BUF_NEXT(mm) = SCTP_M_COPYM(m, *offset, chk_length, M_NOWAIT);
 					if (SCTP_BUF_NEXT(mm)) {
-						if (sctp_pad_lastmbuf(SCTP_BUF_NEXT(mm), SCTP_SIZE32(chk_length) - chk_length, NULL)) {
+						if (sctp_pad_lastmbuf(SCTP_BUF_NEXT(mm), SCTP_SIZE32(chk_length) - chk_length, NULL) == NULL) {
 							sctp_m_freem(mm);
 						} else {
 #ifdef SCTP_MBUF_LOGGING
@@ -5898,7 +5901,7 @@ sctp_common_input_processing(struct mbuf **mm, int iphlen, int offset, int lengt
 	}
 	/* take care of ecn */
 	if ((data_processed == 1) &&
-	    (stcb->asoc.ecn_allowed == 1) &&
+	    (stcb->asoc.ecn_supported == 1) &&
 	    ((ecn_bits & SCTP_CE_BITS) == SCTP_CE_BITS)) {
 		/* Yep, we need to add a ECNE */
 		sctp_send_ecn_echo(stcb, net, high_tsn);

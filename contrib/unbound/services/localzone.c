@@ -594,6 +594,8 @@ lz_enter_defaults(struct local_zones* zones, struct config_file* cfg)
 
 	/* this list of zones is from RFC 6303 */
 
+	/* block localhost level zones, first, later the LAN zones */
+
 	/* localhost. zone */
 	if(!lz_exists(zones, "localhost.") &&
 		!lz_nodefault(cfg, "localhost.")) {
@@ -650,6 +652,14 @@ lz_enter_defaults(struct local_zones* zones, struct config_file* cfg)
 		}
 		lock_rw_unlock(&z->lock);
 	}
+
+	/* if unblock lan-zones, then do not add the zones below.
+	 * we do add the zones above, about 127.0.0.1, because localhost is
+	 * not on the lan. */
+	if(cfg->unblock_lan_zones)
+		return 1;
+
+	/* block LAN level zones */
 	if (	!add_as112_default(zones, cfg, "10.in-addr.arpa.") ||
 		!add_as112_default(zones, cfg, "16.172.in-addr.arpa.") ||
 		!add_as112_default(zones, cfg, "17.172.in-addr.arpa.") ||

@@ -96,7 +96,7 @@ static cpuset_t cpumask;
 
 static void vm_loop(struct vmctx *ctx, int vcpu, uint64_t rip);
 
-struct vm_exit vmexit[VM_MAXCPU];
+static struct vm_exit vmexit[VM_MAXCPU];
 
 struct bhyvestats {
         uint64_t        vmexit_bogus;
@@ -107,8 +107,6 @@ struct bhyvestats {
         uint64_t        vmexit_inst_emul;
         uint64_t        cpu_switch_rotate;
         uint64_t        cpu_switch_direct;
-        int             io_reset;
-	int		io_poweroff;
 } stats;
 
 struct mt_vmm_info {
@@ -180,6 +178,27 @@ pincpu_parse(const char *opt)
 	}
 	CPU_SET(pcpu, vcpumap[vcpu]);
 	return (0);
+}
+
+void
+vm_inject_fault(void *arg, int vcpu, int vector, int errcode_valid,
+    int errcode)
+{
+	struct vmctx *ctx;
+	int error;
+
+	ctx = arg;
+	if (errcode_valid)
+		error = vm_inject_exception2(ctx, vcpu, vector, errcode);
+	else
+		error = vm_inject_exception(ctx, vcpu, vector);
+	assert(error == 0);
+
+	/*
+	 * Set the instruction length to 0 to ensure that the instruction is
+	 * restarted when the fault handler returns.
+	 */
+	vmexit[vcpu].inst_length = 0;
 }
 
 void *
@@ -310,27 +329,18 @@ vmexit_inout(struct vmctx *ctx, struct vm_exit *vme, int *pvcpu)
 	}
 
 	error = emulate_inout(ctx, vcpu, vme, strictio);
-	if (error == INOUT_OK && in && !string) {
+	if (!error && in && !string) {
 		error = vm_set_register(ctx, vcpu, VM_REG_GUEST_RAX,
 		    vme->u.inout.eax);
+		assert(error == 0);
 	}
 
-	switch (error) {
-	case INOUT_OK:
-		return (VMEXIT_CONTINUE);
-	case INOUT_RESTART:
-		return (VMEXIT_RESTART);
-	case INOUT_RESET:
-		stats.io_reset++;
-		return (VMEXIT_RESET);
-	case INOUT_POWEROFF:
-		stats.io_poweroff++;
-		return (VMEXIT_POWEROFF);
-	default:
-		fprintf(stderr, "Unhandled %s%c 0x%04x\n",
-			in ? "in" : "out",
-			bytes == 1 ? 'b' : (bytes == 2 ? 'w' : 'l'), port);
+	if (error) {
+		fprintf(stderr, "Unhandled %s%c 0x%04x\n", in ? "in" : "out",
+		    bytes == 1 ? 'b' : (bytes == 2 ? 'w' : 'l'), port);
 		return (VMEXIT_ABORT);
+	} else {
+		return (VMEXIT_CONTINUE);
 	}
 }
 
@@ -347,8 +357,7 @@ vmexit_rdmsr(struct vmctx *ctx, struct vm_exit *vme, int *pvcpu)
 		fprintf(stderr, "rdmsr to register %#x on vcpu %d\n",
 		    vme->u.msr.code, *pvcpu);
 		if (strictmsr) {
-			error = vm_inject_exception2(ctx, *pvcpu, IDT_GP, 0);
-			assert(error == 0);
+			vm_inject_gp(ctx, *pvcpu);
 			return (VMEXIT_RESTART);
 		}
 	}
@@ -374,8 +383,7 @@ vmexit_wrmsr(struct vmctx *ctx, struct vm_exit *vme, int *pvcpu)
 		fprintf(stderr, "wrmsr to register %#x(%#lx) on vcpu %d\n",
 		    vme->u.msr.code, vme->u.msr.wval, *pvcpu);
 		if (strictmsr) {
-			error = vm_inject_exception2(ctx, *pvcpu, IDT_GP, 0);
-			assert(error == 0);
+			vm_inject_gp(ctx, *pvcpu);
 			return (VMEXIT_RESTART);
 		}
 	}
@@ -484,7 +492,7 @@ vmexit_inst_emul(struct vmctx *ctx, struct vm_exit *vmexit, int *pvcpu)
 	stats.vmexit_inst_emul++;
 
 	err = emulate_mem(ctx, *pvcpu, vmexit->u.inst_emul.gpa,
-			  &vmexit->u.inst_emul.vie);
+	    &vmexit->u.inst_emul.vie, &vmexit->u.inst_emul.paging);
 
 	if (err) {
 		if (err == EINVAL) {
@@ -534,6 +542,8 @@ vmexit_suspend(struct vmctx *ctx, struct vm_exit *vmexit, int *pvcpu)
 		exit(1);
 	case VM_SUSPEND_HALT:
 		exit(2);
+	case VM_SUSPEND_TRIPLEFAULT:
+		exit(3);
 	default:
 		fprintf(stderr, "vmexit_suspend: invalid reason %d\n", how);
 		exit(100);
@@ -560,7 +570,6 @@ vm_loop(struct vmctx *ctx, int vcpu, uint64_t rip)
 {
 	int error, rc, prevcpu;
 	enum vm_exitcode exitcode;
-	enum vm_suspend_how how;
 	cpuset_t active_cpus;
 
 	if (vcpumap[vcpu] != NULL) {
@@ -594,16 +603,6 @@ vm_loop(struct vmctx *ctx, int vcpu, uint64_t rip)
 			break;
 		case VMEXIT_RESTART:
                         rip = vmexit[vcpu].rip;
-			break;
-		case VMEXIT_RESET:
-		case VMEXIT_POWEROFF:
-			if (rc == VMEXIT_RESET)
-				how = VM_SUSPEND_RESET;
-			else
-				how = VM_SUSPEND_POWEROFF;
-			error = vm_suspend(ctx, how);
-			assert(error == 0 || errno == EALREADY);
-                        rip = vmexit[vcpu].rip + vmexit[vcpu].inst_length;
 			break;
 		case VMEXIT_ABORT:
 			abort();

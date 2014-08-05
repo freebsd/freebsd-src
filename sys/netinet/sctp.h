@@ -121,6 +121,11 @@ struct sctp_paramhdr {
 #define SCTP_DEFAULT_PRINFO             0x00000022
 #define SCTP_PEER_ADDR_THLDS            0x00000023
 #define SCTP_REMOTE_UDP_ENCAPS_PORT     0x00000024
+#define SCTP_ECN_SUPPORTED              0x00000025
+#define SCTP_PR_SUPPORTED               0x00000026
+#define SCTP_NRSACK_SUPPORTED           0x00000027
+#define SCTP_PKTDROP_SUPPORTED          0x00000028
+#define SCTP_RECONFIG_SUPPORTED         0x00000029
 
 /*
  * read-only options

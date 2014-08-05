@@ -266,7 +266,6 @@ void pmap_bootstrap_ap(volatile uint32_t *);
 /*
  * Kernel MMU interface
  */
-static void		mmu_booke_change_wiring(mmu_t, pmap_t, vm_offset_t, boolean_t);
 static void		mmu_booke_clear_modify(mmu_t, vm_page_t);
 static void		mmu_booke_copy(mmu_t, pmap_t, pmap_t, vm_offset_t,
     vm_size_t, vm_offset_t);
@@ -331,7 +330,6 @@ static struct pmap_md	*mmu_booke_scan_md(mmu_t, struct pmap_md *);
 
 static mmu_method_t mmu_booke_methods[] = {
 	/* pmap dispatcher interface */
-	MMUMETHOD(mmu_change_wiring,	mmu_booke_change_wiring),
 	MMUMETHOD(mmu_clear_modify,	mmu_booke_clear_modify),
 	MMUMETHOD(mmu_copy,		mmu_booke_copy),
 	MMUMETHOD(mmu_copy_page,	mmu_booke_copy_page),
@@ -2409,31 +2407,6 @@ mmu_booke_ts_referenced(mmu_t mmu, vm_page_t m)
 	}
 	rw_wunlock(&pvh_global_lock);
 	return (count);
-}
-
-/*
- * Change wiring attribute for a map/virtual-address pair.
- */
-static void
-mmu_booke_change_wiring(mmu_t mmu, pmap_t pmap, vm_offset_t va, boolean_t wired)
-{
-	pte_t *pte;
-
-	PMAP_LOCK(pmap);
-	if ((pte = pte_find(mmu, pmap, va)) != NULL) {
-		if (wired) {
-			if (!PTE_ISWIRED(pte)) {
-				pte->flags |= PTE_WIRED;
-				pmap->pm_stats.wired_count++;
-			}
-		} else {
-			if (PTE_ISWIRED(pte)) {
-				pte->flags &= ~PTE_WIRED;
-				pmap->pm_stats.wired_count--;
-			}
-		}
-	}
-	PMAP_UNLOCK(pmap);
 }
 
 /*

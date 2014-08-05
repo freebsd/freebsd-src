@@ -2147,7 +2147,7 @@ kern_proc_vmmap_resident(vm_map_t map, vm_map_entry_t entry,
 	obj = entry->object.vm_object;
 	addr = entry->start;
 	m_adv = NULL;
-	pi = OFF_TO_IDX(entry->offset + addr - entry->start);
+	pi = OFF_TO_IDX(entry->offset);
 	for (; addr < entry->end; addr += IDX_TO_OFF(pi_adv), pi += pi_adv) {
 		if (m_adv != NULL) {
 			m = m_adv;

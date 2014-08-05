@@ -664,7 +664,10 @@ icl_conn_receive_pdu(struct icl_conn *ic, size_t *availablep)
 	}
 
 	if (error != 0) {
-		icl_pdu_free(request);
+		/*
+		 * Don't free the PDU; it's pointed to by ic->ic_receive_pdu
+		 * and will get freed in icl_conn_close().
+		 */
 		icl_conn_fail(ic);
 	}
 

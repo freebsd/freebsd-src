@@ -363,7 +363,6 @@ in_aifaddr_ioctl(u_long cmd, caddr_t data, struct ifnet *ifp, struct thread *td)
 	ifa->ifa_netmask = (struct sockaddr *)&ia->ia_sockmask;
 
 	ia->ia_ifp = ifp;
-	ia->ia_ifa.ifa_metric = ifp->if_metric;
 	ia->ia_addr = *addr;
 	if (mask->sin_len != 0) {
 		ia->ia_sockmask = *mask;
@@ -408,6 +407,12 @@ in_aifaddr_ioctl(u_long cmd, caddr_t data, struct ifnet *ifp, struct thread *td)
 	if (ifp->if_flags & IFF_LOOPBACK)
                 ia->ia_dstaddr = ia->ia_addr;
 
+	if (vhid != 0) {
+		error = (*carp_attach_p)(&ia->ia_ifa, vhid);
+		if (error)
+			return (error);
+	}
+
 	/* if_addrhead is already referenced by ifa_alloc() */
 	IF_ADDR_WLOCK(ifp);
 	TAILQ_INSERT_TAIL(&ifp->if_addrhead, ifa, ifa_link);
@@ -419,20 +424,16 @@ in_aifaddr_ioctl(u_long cmd, caddr_t data, struct ifnet *ifp, struct thread *td)
 	LIST_INSERT_HEAD(INADDR_HASH(ia->ia_addr.sin_addr.s_addr), ia, ia_hash);
 	IN_IFADDR_WUNLOCK();
 
-	if (vhid != 0)
-		error = (*carp_attach_p)(&ia->ia_ifa, vhid);
-	if (error)
-		goto fail1;
-
 	/*
 	 * Give the interface a chance to initialize
 	 * if this is its first address,
 	 * and to validate the address if necessary.
 	 */
-	if (ifp->if_ioctl != NULL)
+	if (ifp->if_ioctl != NULL) {
 		error = (*ifp->if_ioctl)(ifp, SIOCSIFADDR, (caddr_t)ia);
-	if (error)
-		goto fail2;
+		if (error)
+			goto fail1;
+	}
 
 	/*
 	 * Add route for the network.
@@ -445,7 +446,7 @@ in_aifaddr_ioctl(u_long cmd, caddr_t data, struct ifnet *ifp, struct thread *td)
 
 		error = in_addprefix(ia, flags);
 		if (error)
-			goto fail2;
+			goto fail1;
 	}
 
 	/*
@@ -463,7 +464,7 @@ in_aifaddr_ioctl(u_long cmd, caddr_t data, struct ifnet *ifp, struct thread *td)
 			error = ifa_add_loopback_route((struct ifaddr *)ia,
 			    (struct sockaddr *)&ia->ia_addr);
 			if (error)
-				goto fail3;
+				goto fail2;
 		} else
 			ifa_free(&eia->ia_ifa);
 	}
@@ -483,15 +484,14 @@ in_aifaddr_ioctl(u_long cmd, caddr_t data, struct ifnet *ifp, struct thread *td)
 
 	return (error);
 
-fail3:
+fail2:
 	if (vhid == 0)
 		(void )in_scrubprefix(ia, LLE_STATIC);
 
-fail2:
+fail1:
 	if (ia->ia_ifa.ifa_carp)
 		(*carp_detach_p)(&ia->ia_ifa);
 
-fail1:
 	IF_ADDR_WLOCK(ifp);
 	TAILQ_REMOVE(&ifp->if_addrhead, &ia->ia_ifa, ifa_link);
 	IF_ADDR_WUNLOCK(ifp);

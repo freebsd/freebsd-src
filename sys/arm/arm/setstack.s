@@ -71,7 +71,7 @@ ENTRY(set_stackptr)
         msr	cpsr_fsxc, r3		/* Restore the old mode */
 
 	mov	pc, lr			/* Exit */
-
+END(set_stackptr)
 /* To get the stack pointer for a particular mode we must switch
  * to that mode copy the banked r13 and then switch back.
  * This routine provides an easy way of doing this for any mode
@@ -90,5 +90,5 @@ ENTRY(get_stackptr)
         msr	cpsr_fsxc, r3		/* Restore the old mode */
 
 	mov	pc, lr			/* Exit */
-
+END(get_stackptr)
 /* End of setstack.S */

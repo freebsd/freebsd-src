@@ -3148,7 +3148,7 @@ retry_space:
 			m0->m_ext.ext_arg1 = sf;
 			m0->m_ext.ext_arg2 = sfs;
 			m0->m_ext.ext_type = (flags & SF_NOCACHE) ?
-			    SF_SFBUF_NOCACHE : EXT_SFBUF;
+			    EXT_SFBUF_NOCACHE : EXT_SFBUF;
 			m0->m_ext.ext_flags = 0;
 			m0->m_flags |= (M_EXT | M_RDONLY);
 			if (nios)

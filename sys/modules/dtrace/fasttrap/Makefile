@@ -20,7 +20,7 @@ CFLAGS+=	-I${SYSDIR}/cddl/contrib/opensolaris/uts/powerpc
 .PATH:		${SYSDIR}/cddl/contrib/opensolaris/uts/powerpc/dtrace
 .endif
 
-.PATH:		${.CURDIR}/../../../cddl/contrib/opensolaris/common/unicode
+.PATH:		${SYSDIR}/cddl/contrib/opensolaris/common/unicode
 SRCS+=		u8_textprep.c
 
 CFLAGS+=	-DSMP

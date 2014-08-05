@@ -2483,7 +2483,11 @@ sctp_inpcb_alloc(struct socket *so, uint32_t vrf_id)
 	inp->partial_delivery_point = SCTP_SB_LIMIT_RCV(so) >> SCTP_PARTIAL_DELIVERY_SHIFT;
 	inp->sctp_frag_point = SCTP_DEFAULT_MAXSEGMENT;
 	inp->sctp_cmt_on_off = SCTP_BASE_SYSCTL(sctp_cmt_on_off);
-	inp->sctp_ecn_enable = SCTP_BASE_SYSCTL(sctp_ecn_enable);
+	inp->ecn_supported = (uint8_t) SCTP_BASE_SYSCTL(sctp_ecn_enable);
+	inp->prsctp_supported = (uint8_t) SCTP_BASE_SYSCTL(sctp_pr_enable);
+	inp->reconfig_supported = (uint8_t) SCTP_BASE_SYSCTL(sctp_reconfig_enable);
+	inp->nrsack_supported = (uint8_t) SCTP_BASE_SYSCTL(sctp_nrsack_enable);
+	inp->pktdrop_supported = (uint8_t) SCTP_BASE_SYSCTL(sctp_pktdrop_enable);
 	/* init the small hash table we use to track asocid <-> tcb */
 	inp->sctp_asocidhash = SCTP_HASH_INIT(SCTP_STACK_VTAG_HASH_SIZE, &inp->hashasocidmark);
 	if (inp->sctp_asocidhash == NULL) {
@@ -6081,7 +6085,11 @@ sctp_load_addresses_from_init(struct sctp_tcb *stcb, struct mbuf *m,
 	sctp_key_t *new_key;
 	uint32_t keylen;
 	int got_random = 0, got_hmacs = 0, got_chklist = 0;
-	uint8_t ecn_allowed;
+	uint8_t ecn_supported;
+	uint8_t prsctp_supported;
+	uint8_t reconfig_supported;
+	uint8_t nrsack_supported;
+	uint8_t pktdrop_supported;
 
 #ifdef INET
 	struct sockaddr_in sin;
@@ -6110,8 +6118,11 @@ sctp_load_addresses_from_init(struct sctp_tcb *stcb, struct mbuf *m,
 	} else {
 		sa = src;
 	}
-	/* Turn off ECN until we get through all params */
-	ecn_allowed = 0;
+	ecn_supported = 0;
+	prsctp_supported = 0;
+	reconfig_supported = 0;
+	nrsack_supported = 0;
+	pktdrop_supported = 0;
 	TAILQ_FOREACH(net, &stcb->asoc.nets, sctp_next) {
 		/* mark all addresses that we have currently on the list */
 		net->dest_state |= SCTP_ADDR_NOT_IN_ASSOC;
@@ -6360,7 +6371,7 @@ sctp_load_addresses_from_init(struct sctp_tcb *stcb, struct mbuf *m,
 		} else
 #endif
 		if (ptype == SCTP_ECN_CAPABLE) {
-			ecn_allowed = 1;
+			ecn_supported = 1;
 		} else if (ptype == SCTP_ULP_ADAPTATION) {
 			if (stcb->asoc.state != SCTP_STATE_OPEN) {
 				struct sctp_adaptation_layer_indication ai,
@@ -6436,7 +6447,7 @@ sctp_load_addresses_from_init(struct sctp_tcb *stcb, struct mbuf *m,
 			stcb->asoc.peer_supports_nat = 1;
 		} else if (ptype == SCTP_PRSCTP_SUPPORTED) {
 			/* Peer supports pr-sctp */
-			stcb->asoc.peer_supports_prsctp = 1;
+			prsctp_supported = 1;
 		} else if (ptype == SCTP_SUPPORTED_CHUNK_EXT) {
 			/* A supported extension chunk */
 			struct sctp_supported_chunk_types_param *pr_supported;
@@ -6449,10 +6460,6 @@ sctp_load_addresses_from_init(struct sctp_tcb *stcb, struct mbuf *m,
 				return (-25);
 			}
 			stcb->asoc.peer_supports_asconf = 0;
-			stcb->asoc.peer_supports_prsctp = 0;
-			stcb->asoc.peer_supports_pktdrop = 0;
-			stcb->asoc.peer_supports_strreset = 0;
-			stcb->asoc.peer_supports_nr_sack = 0;
 			stcb->asoc.peer_supports_auth = 0;
 			pr_supported = (struct sctp_supported_chunk_types_param *)phdr;
 			num_ent = plen - sizeof(struct sctp_paramhdr);
@@ -6463,16 +6470,16 @@ sctp_load_addresses_from_init(struct sctp_tcb *stcb, struct mbuf *m,
 					stcb->asoc.peer_supports_asconf = 1;
 					break;
 				case SCTP_FORWARD_CUM_TSN:
-					stcb->asoc.peer_supports_prsctp = 1;
+					prsctp_supported = 1;
 					break;
 				case SCTP_PACKET_DROPPED:
-					stcb->asoc.peer_supports_pktdrop = 1;
+					pktdrop_supported = 1;
 					break;
 				case SCTP_NR_SELECTIVE_ACK:
-					stcb->asoc.peer_supports_nr_sack = 1;
+					nrsack_supported = 1;
 					break;
 				case SCTP_STREAM_RESET:
-					stcb->asoc.peer_supports_strreset = 1;
+					reconfig_supported = 1;
 					break;
 				case SCTP_AUTHENTICATION:
 					stcb->asoc.peer_supports_auth = 1;
@@ -6612,9 +6619,11 @@ next_param:
 			}
 		}
 	}
-	if (ecn_allowed == 0) {
-		stcb->asoc.ecn_allowed = 0;
-	}
+	stcb->asoc.ecn_supported &= ecn_supported;
+	stcb->asoc.prsctp_supported &= prsctp_supported;
+	stcb->asoc.reconfig_supported &= reconfig_supported;
+	stcb->asoc.nrsack_supported &= nrsack_supported;
+	stcb->asoc.pktdrop_supported &= pktdrop_supported;
 	/* validate authentication required parameters */
 	if (got_random && got_hmacs) {
 		stcb->asoc.peer_supports_auth = 1;
@@ -6625,8 +6634,7 @@ next_param:
 		/* peer does not support auth but sent a chunks list? */
 		return (-31);
 	}
-	if (!SCTP_BASE_SYSCTL(sctp_asconf_auth_nochk) && stcb->asoc.peer_supports_asconf &&
-	    !stcb->asoc.peer_supports_auth) {
+	if (stcb->asoc.peer_supports_asconf && !stcb->asoc.peer_supports_auth) {
 		/* peer supports asconf but not auth? */
 		return (-32);
 	} else if ((stcb->asoc.peer_supports_asconf) && (stcb->asoc.peer_supports_auth) &&

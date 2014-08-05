@@ -520,6 +520,7 @@ isa/vga_isa.c			optional vga
 kern/kern_clocksource.c		standard
 kern/imgact_aout.c		optional compat_aout
 kern/imgact_gzip.c		optional gzip
+kern/subr_sfbuf.c		standard
 libkern/divdi3.c		standard
 libkern/flsll.c			standard
 libkern/memmove.c		standard

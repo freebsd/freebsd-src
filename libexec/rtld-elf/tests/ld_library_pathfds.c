@@ -38,7 +38,7 @@ struct descriptors {
 	int	usr;
 };
 
-static void	setup(struct descriptors *);
+static void	setup(struct descriptors *, const atf_tc_t *);
 static void	expect_success(int binary, char *pathfds);
 static void	expect_missing_library(int binary, char *pathfds);
 
@@ -53,7 +53,7 @@ ATF_TC_BODY(missing_library, tc)
 {
 	struct descriptors files;
 
-	setup(&files);
+	setup(&files, tc);
 	expect_missing_library(files.binary, NULL);
 }
 
@@ -64,7 +64,7 @@ ATF_TC_BODY(wrong_library_directories, tc)
 	struct descriptors files;
 	char *pathfds;
 
-	setup(&files);
+	setup(&files, tc);
 	ATF_REQUIRE(
 		asprintf(&pathfds, "LD_LIBRARY_PATH_FDS=%d", files.etc) > 0);
 
@@ -78,8 +78,8 @@ ATF_TC_BODY(bad_library_directories, tc)
 	struct descriptors files;
 	char *pathfds;
 
-	setup(&files);
-	ATF_REQUIRE(asprintf(&pathfds, "::", files.etc) > 0);
+	setup(&files, tc);
+	ATF_REQUIRE(asprintf(&pathfds, "LD_LIBRARY_PATH_FDS=::") > 0);
 
 	expect_missing_library(files.binary, pathfds);
 }
@@ -91,7 +91,7 @@ ATF_TC_BODY(single_library_directory, tc)
 	struct descriptors files;
 	char *pathfds;
 
-	setup(&files);
+	setup(&files, tc);
 	ATF_REQUIRE(
 	    asprintf(&pathfds, "LD_LIBRARY_PATH_FDS=%d", files.testdir) > 0);
 
@@ -105,7 +105,7 @@ ATF_TC_BODY(first_library_directory, tc)
 	struct descriptors files;
 	char *pathfds;
 
-	setup(&files);
+	setup(&files, tc);
 	ATF_REQUIRE(
 	    asprintf(&pathfds, "LD_LIBRARY_PATH_FDS=%d:%d",
 		files.testdir, files.etc) > 0);
@@ -120,7 +120,7 @@ ATF_TC_BODY(middle_library_directory, tc)
 	struct descriptors files;
 	char *pathfds;
 
-	setup(&files);
+	setup(&files, tc);
 	ATF_REQUIRE(
 	    asprintf(&pathfds, "LD_LIBRARY_PATH_FDS=%d:%d:%d",
 		files.root, files.testdir, files.usr) > 0);
@@ -135,7 +135,7 @@ ATF_TC_BODY(last_library_directory, tc)
 	struct descriptors files;
 	char *pathfds;
 
-	setup(&files);
+	setup(&files, tc);
 	ATF_REQUIRE(
 	    asprintf(&pathfds, "LD_LIBRARY_PATH_FDS=%d:%d",
 		files.root, files.testdir) > 0);
@@ -161,10 +161,11 @@ ATF_TP_ADD_TCS(tp)
 
 
 static void
-setup(struct descriptors *dp)
+setup(struct descriptors *dp, const atf_tc_t *tc)
 {
 
-	ATF_REQUIRE((dp->testdir = opendir(TESTSDIR)) >= 0);
+	dp->testdir = opendir(atf_tc_get_config_var(tc, "srcdir"));
+	ATF_REQUIRE(dp->testdir >= 0);
 	ATF_REQUIRE(
 	    (dp->binary = openat(dp->testdir, "target", O_RDONLY)) >= 0);
 

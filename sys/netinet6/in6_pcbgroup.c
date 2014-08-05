@@ -73,6 +73,8 @@ in6_pcbgroup_byhash(struct inpcbinfo *pcbinfo, u_int hashtype, uint32_t hash)
 #ifdef RSS
 	if ((pcbinfo->ipi_hashfields == IPI_HASHFIELDS_4TUPLE &&
 	    hashtype == M_HASHTYPE_RSS_TCP_IPV6) ||
+	    (pcbinfo->ipi_hashfields == IPI_HASHFIELDS_4TUPLE &&
+	    hashtype == M_HASHTYPE_RSS_UDP_IPV6) ||
 	    (pcbinfo->ipi_hashfields == IPI_HASHFIELDS_2TUPLE &&
 	    hashtype == M_HASHTYPE_RSS_IPV6))
 		return (&pcbinfo->ipi_pcbgroups[

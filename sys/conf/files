@@ -2514,6 +2514,7 @@ dev/usb/template/usb_template_modem.c	optional usb_template
 dev/usb/template/usb_template_mouse.c	optional usb_template
 dev/usb/template/usb_template_msc.c	optional usb_template
 dev/usb/template/usb_template_mtp.c	optional usb_template
+dev/usb/template/usb_template_phone.c	optional usb_template
 #
 # USB END
 #
@@ -3017,7 +3018,7 @@ kern/tty_outq.c			standard
 kern/tty_pts.c			standard
 kern/tty_tty.c			standard
 kern/tty_ttydisc.c		standard
-kern/uipc_accf.c		optional inet
+kern/uipc_accf.c		standard
 kern/uipc_debug.c		optional ddb
 kern/uipc_domain.c		standard
 kern/uipc_mbuf.c		standard

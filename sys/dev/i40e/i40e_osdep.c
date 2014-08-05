@@ -89,7 +89,7 @@ i40e_allocate_dma(struct i40e_hw *hw, struct i40e_dma_mem *dma,
 		goto fail_0;
 	}
 	err = bus_dmamem_alloc(dma->tag, (void **)&dma->va,
-			     BUS_DMA_NOWAIT | M_ZERO, &dma->map);
+			     BUS_DMA_NOWAIT | BUS_DMA_ZERO, &dma->map);
 	if (err != 0) {
 		device_printf(dev,
 		    "i40e_allocate_dma: bus_dmamem_alloc failed, "
@@ -116,6 +116,7 @@ fail_2:
 fail_1:
 	bus_dma_tag_destroy(dma->tag);
 fail_0:
+	dma->map = NULL;
 	dma->tag = NULL;
 	return (err);
 }

@@ -904,8 +904,11 @@ sctp_init_asoc(struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 	asoc->heart_beat_delay = TICKS_TO_MSEC(inp->sctp_ep.sctp_timeoutticks[SCTP_TIMER_HEARTBEAT]);
 	asoc->cookie_life = inp->sctp_ep.def_cookie_life;
 	asoc->sctp_cmt_on_off = inp->sctp_cmt_on_off;
-	asoc->ecn_allowed = inp->sctp_ecn_enable;
-	asoc->sctp_nr_sack_on_off = (uint8_t) SCTP_BASE_SYSCTL(sctp_nr_sack_on_off);
+	asoc->ecn_supported = inp->ecn_supported;
+	asoc->prsctp_supported = inp->prsctp_supported;
+	asoc->reconfig_supported = inp->reconfig_supported;
+	asoc->nrsack_supported = inp->nrsack_supported;
+	asoc->pktdrop_supported = inp->pktdrop_supported;
 	asoc->sctp_cmt_pf = (uint8_t) 0;
 	asoc->sctp_frag_point = inp->sctp_frag_point;
 	asoc->sctp_features = inp->sctp_features;
@@ -951,7 +954,6 @@ sctp_init_asoc(struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 	    sctp_select_initial_TSN(&inp->sctp_ep);
 	asoc->asconf_seq_out_acked = asoc->asconf_seq_out - 1;
 	/* we are optimisitic here */
-	asoc->peer_supports_pktdrop = 1;
 	asoc->peer_supports_nat = 0;
 	asoc->sent_queue_retran_cnt = 0;
 
@@ -2516,58 +2518,44 @@ sctp_get_next_param(struct mbuf *m,
 }
 
 
-int
+struct mbuf *
 sctp_add_pad_tombuf(struct mbuf *m, int padlen)
 {
-	/*
-	 * add padlen bytes of 0 filled padding to the end of the mbuf. If
-	 * padlen is > 3 this routine will fail.
-	 */
-	uint8_t *dp;
-	int i;
+	struct mbuf *m_last;
+	caddr_t dp;
 
 	if (padlen > 3) {
-		SCTP_LTRACE_ERR_RET_PKT(m, NULL, NULL, NULL, SCTP_FROM_SCTPUTIL, ENOBUFS);
-		return (ENOBUFS);
+		return (NULL);
 	}
 	if (padlen <= M_TRAILINGSPACE(m)) {
 		/*
 		 * The easy way. We hope the majority of the time we hit
 		 * here :)
 		 */
-		dp = (uint8_t *) (mtod(m, caddr_t)+SCTP_BUF_LEN(m));
-		SCTP_BUF_LEN(m) += padlen;
+		m_last = m;
 	} else {
-		/* Hard way we must grow the mbuf */
-		struct mbuf *tmp;
-
-		tmp = sctp_get_mbuf_for_msg(padlen, 0, M_NOWAIT, 1, MT_DATA);
-		if (tmp == NULL) {
-			/* Out of space GAK! we are in big trouble. */
-			SCTP_LTRACE_ERR_RET_PKT(m, NULL, NULL, NULL, SCTP_FROM_SCTPUTIL, ENOBUFS);
-			return (ENOBUFS);
+		/* Hard way we must grow the mbuf chain */
+		m_last = sctp_get_mbuf_for_msg(padlen, 0, M_NOWAIT, 1, MT_DATA);
+		if (m_last == NULL) {
+			return (NULL);
 		}
-		/* setup and insert in middle */
-		SCTP_BUF_LEN(tmp) = padlen;
-		SCTP_BUF_NEXT(tmp) = NULL;
-		SCTP_BUF_NEXT(m) = tmp;
-		dp = mtod(tmp, uint8_t *);
+		SCTP_BUF_LEN(m_last) = 0;
+		SCTP_BUF_NEXT(m_last) = NULL;
+		SCTP_BUF_NEXT(m) = m_last;
 	}
-	/* zero out the pad */
-	for (i = 0; i < padlen; i++) {
-		*dp = 0;
-		dp++;
-	}
-	return (0);
+	dp = mtod(m_last, caddr_t)+SCTP_BUF_LEN(m_last);
+	SCTP_BUF_LEN(m_last) += padlen;
+	memset(dp, 0, padlen);
+	return (m_last);
 }
 
-int
+struct mbuf *
 sctp_pad_lastmbuf(struct mbuf *m, int padval, struct mbuf *last_mbuf)
 {
 	/* find the last mbuf in chain and pad it */
 	struct mbuf *m_at;
 
-	if (last_mbuf) {
+	if (last_mbuf != NULL) {
 		return (sctp_add_pad_tombuf(last_mbuf, padval));
 	} else {
 		for (m_at = m; m_at; m_at = SCTP_BUF_NEXT(m_at)) {
@@ -2576,8 +2564,7 @@ sctp_pad_lastmbuf(struct mbuf *m, int padval, struct mbuf *last_mbuf)
 			}
 		}
 	}
-	SCTP_LTRACE_ERR_RET_PKT(m, NULL, NULL, NULL, SCTP_FROM_SCTPUTIL, EFAULT);
-	return (EFAULT);
+	return (NULL);
 }
 
 static void
@@ -2635,7 +2622,7 @@ sctp_notify_assoc_change(uint16_t state, struct sctp_tcb *stcb,
 		if (notif_len > sizeof(struct sctp_assoc_change)) {
 			if ((state == SCTP_COMM_UP) || (state == SCTP_RESTART)) {
 				i = 0;
-				if (stcb->asoc.peer_supports_prsctp) {
+				if (stcb->asoc.prsctp_supported) {
 					sac->sac_info[i++] = SCTP_ASSOC_SUPPORTS_PR;
 				}
 				if (stcb->asoc.peer_supports_auth) {
@@ -2645,7 +2632,7 @@ sctp_notify_assoc_change(uint16_t state, struct sctp_tcb *stcb,
 					sac->sac_info[i++] = SCTP_ASSOC_SUPPORTS_ASCONF;
 				}
 				sac->sac_info[i++] = SCTP_ASSOC_SUPPORTS_MULTIBUF;
-				if (stcb->asoc.peer_supports_strreset) {
+				if (stcb->asoc.reconfig_supported) {
 					sac->sac_info[i++] = SCTP_ASSOC_SUPPORTS_RE_CONFIG;
 				}
 				sac->sac_length += i;
@@ -2746,6 +2733,7 @@ sctp_notify_peer_addr_change(struct sctp_tcb *stcb, uint32_t state,
 		return;
 	SCTP_BUF_LEN(m_notify) = 0;
 	spc = mtod(m_notify, struct sctp_paddr_change *);
+	memset(spc, 0, sizeof(struct sctp_paddr_change));
 	spc->spc_type = SCTP_PEER_ADDR_CHANGE;
 	spc->spc_flags = 0;
 	spc->spc_length = sizeof(struct sctp_paddr_change);
@@ -3488,6 +3476,7 @@ sctp_notify_remote_error(struct sctp_tcb *stcb, uint16_t error, struct sctp_erro
 	}
 	SCTP_BUF_NEXT(m_notify) = NULL;
 	sre = mtod(m_notify, struct sctp_remote_error *);
+	memset(sre, 0, notif_len);
 	sre->sre_type = SCTP_REMOTE_ERROR;
 	sre->sre_flags = 0;
 	sre->sre_length = sizeof(struct sctp_remote_error);

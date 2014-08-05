@@ -9,6 +9,4 @@ SUBDIR+=	libpythagoras target
 
 ATF_TESTS_C=	ld_library_pathfds
 
-CFLAGS+=	 -DTESTSDIR="\"${TESTSDIR}\""
-
 .include <bsd.test.mk>

@@ -3415,7 +3415,10 @@ dtrace_dif_variable(dtrace_mstate_t *mstate, dtrace_state_t *state, uint64_t v,
 		 */
 		return ((uint64_t)curthread->t_procp->p_ppid);
 #else
-		return ((uint64_t)curproc->p_pptr->p_pid);
+		if (curproc->p_pid == proc0.p_pid)
+			return (curproc->p_pid);
+		else
+			return (curproc->p_pptr->p_pid);
 #endif
 
 	case DIF_VAR_TID:

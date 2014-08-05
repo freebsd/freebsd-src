@@ -149,16 +149,15 @@ SYSCTL_INT(_net_inet_rss, OID_AUTO, basecpu, CTLFLAG_RD,
  *
  * XXXRW: And that we don't randomize it yet!
  *
- * XXXRW: This default is actually the default key from Chelsio T5 cards, as
- * it offers reasonable distribution, unlike all-0 keys which always
- * generate a hash of 0 (upsettingly).
+ * This is the default Microsoft RSS specification key which is also
+ * the Chelsio T5 firmware default key.
  */
 static uint8_t rss_key[RSS_KEYSIZE] = {
-	0xbe, 0xac, 0x01, 0xfa, 0x6a, 0x42, 0xb7, 0x3b,
-	0x80, 0x30, 0xf2, 0x0c, 0x77, 0xcb, 0x2d, 0xa3,
-	0xae, 0x7b, 0x30, 0xb4, 0xd0, 0xca, 0x2b, 0xcb,
-	0x43, 0xa3, 0x8f, 0xb0, 0x41, 0x67, 0x25, 0x3d,
-	0x25, 0x5b, 0x0e, 0xc2, 0x6d, 0x5a, 0x56, 0xda,
+	0x6d, 0x5a, 0x56, 0xda, 0x25, 0x5b, 0x0e, 0xc2,
+	0x41, 0x67, 0x25, 0x3d, 0x43, 0xa3, 0x8f, 0xb0,
+	0xd0, 0xca, 0x2b, 0xcb, 0xae, 0x7b, 0x30, 0xb4,
+	0x77, 0xcb, 0x2d, 0xa3, 0x80, 0x30, 0xf2, 0x0c,
+	0x6a, 0x42, 0xb7, 0x3b, 0xbe, 0xac, 0x01, 0xfa,
 };
 
 /*
@@ -437,8 +436,10 @@ rss_hash2cpuid(uint32_t hash_val, uint32_t hash_type)
 	switch (hash_type) {
 	case M_HASHTYPE_RSS_IPV4:
 	case M_HASHTYPE_RSS_TCP_IPV4:
+	case M_HASHTYPE_RSS_UDP_IPV4:
 	case M_HASHTYPE_RSS_IPV6:
 	case M_HASHTYPE_RSS_TCP_IPV6:
+	case M_HASHTYPE_RSS_UDP_IPV6:
 		return (rss_getcpu(rss_getbucket(hash_val)));
 	default:
 		return (NETISR_CPUID_NONE);
@@ -456,8 +457,10 @@ rss_hash2bucket(uint32_t hash_val, uint32_t hash_type, uint32_t *bucket_id)
 	switch (hash_type) {
 	case M_HASHTYPE_RSS_IPV4:
 	case M_HASHTYPE_RSS_TCP_IPV4:
+	case M_HASHTYPE_RSS_UDP_IPV4:
 	case M_HASHTYPE_RSS_IPV6:
 	case M_HASHTYPE_RSS_TCP_IPV6:
+	case M_HASHTYPE_RSS_UDP_IPV6:
 		*bucket_id = rss_getbucket(hash_val);
 		return (0);
 	default:
@@ -533,6 +536,40 @@ rss_getnumcpus(void)
 {
 
 	return (rss_ncpus);
+}
+
+/*
+ * Return the supported RSS hash configuration.
+ *
+ * NICs should query this to determine what to configure in their redirection
+ * matching table.
+ */
+u_int
+rss_gethashconfig(void)
+{
+	/* Return 4-tuple for TCP; 2-tuple for others */
+	/*
+	 * UDP may fragment more often than TCP and thus we'll end up with
+	 * NICs returning 2-tuple fragments.
+	 * udp_init() and udplite_init() both currently initialise things
+	 * as 2-tuple.
+	 * So for now disable UDP 4-tuple hashing until all of the other
+	 * pieces are in place.
+	 */
+	return (
+	    RSS_HASHTYPE_RSS_IPV4
+	|    RSS_HASHTYPE_RSS_TCP_IPV4
+	|    RSS_HASHTYPE_RSS_IPV6
+	|    RSS_HASHTYPE_RSS_TCP_IPV6
+	|    RSS_HASHTYPE_RSS_IPV6_EX
+	|    RSS_HASHTYPE_RSS_TCP_IPV6_EX
+#if 0
+	|    RSS_HASHTYPE_RSS_UDP_IPV4
+	|    RSS_HASHTYPE_RSS_UDP_IPV4_EX
+	|    RSS_HASHTYPE_RSS_UDP_IPV6
+	|    RSS_HASHTYPE_RSS_UDP_IPV6_EX
+#endif
+	);
 }
 
 /*

@@ -44,14 +44,24 @@ __FBSDID("$FreeBSD$");
 #include <machine/smp.h>
 
 #include <xen/xen-os.h>
+#include <xen/xen_intr.h>
 #include <xen/hypervisor.h>
 
 #include <xen/interface/vcpu.h>
+
+#include <contrib/dev/acpica/include/acpi.h>
+#include <contrib/dev/acpica/include/actables.h>
+
+#include <dev/acpica/acpivar.h>
 
 static int xenpv_probe(void);
 static int xenpv_probe_cpus(void);
 static int xenpv_setup_local(void);
 static int xenpv_setup_io(void);
+
+static ACPI_TABLE_MADT *madt;
+static vm_paddr_t madt_physaddr;
+static vm_offset_t madt_length;
 
 static struct apic_enumerator xenpv_enumerator = {
 	"Xen PV",
@@ -61,13 +71,62 @@ static struct apic_enumerator xenpv_enumerator = {
 	xenpv_setup_io
 };
 
+/*--------------------- Helper functions to parse MADT -----------------------*/
+
+/*
+ * Parse an interrupt source override for an ISA interrupt.
+ */
+static void
+madt_parse_interrupt_override(ACPI_MADT_INTERRUPT_OVERRIDE *intr)
+{
+	enum intr_trigger trig;
+	enum intr_polarity pol;
+
+	if (acpi_quirks & ACPI_Q_MADT_IRQ0 && intr->SourceIrq == 0 &&
+	    intr->GlobalIrq == 2) {
+		if (bootverbose)
+			printf("MADT: Skipping timer override\n");
+		return;
+	}
+
+	madt_parse_interrupt_values(intr, &trig, &pol);
+
+	/* Register the IRQ with the polarity and trigger mode found. */
+	xen_register_pirq(intr->GlobalIrq, trig, pol);
+}
+
+/*
+ * Call the handler routine for each entry in the MADT table.
+ */
+static void
+madt_walk_table(acpi_subtable_handler *handler, void *arg)
+{
+
+	acpi_walk_subtables(madt + 1, (char *)madt + madt->Header.Length,
+	    handler, arg);
+}
+
+/*
+ * Parse interrupt entries.
+ */
+static void
+madt_parse_ints(ACPI_SUBTABLE_HEADER *entry, void *arg __unused)
+{
+
+	if (entry->Type == ACPI_MADT_TYPE_INTERRUPT_OVERRIDE)
+		madt_parse_interrupt_override(
+		    (ACPI_MADT_INTERRUPT_OVERRIDE *)entry);
+}
+
+/*---------------------------- Xen PV enumerator -----------------------------*/
+
 /*
  * This enumerator will only be registered on PVH
  */
 static int
 xenpv_probe(void)
 {
-	return (-100);
+	return (0);
 }
 
 /*
@@ -105,6 +164,40 @@ xenpv_setup_local(void)
 static int
 xenpv_setup_io(void)
 {
+
+	if (xen_initial_domain()) {
+		int i;
+
+		/* Map MADT */
+		madt_physaddr = acpi_find_table(ACPI_SIG_MADT);
+		madt = acpi_map_table(madt_physaddr, ACPI_SIG_MADT);
+		madt_length = madt->Header.Length;
+
+		/* Try to initialize ACPI so that we can access the FADT. */
+		i = acpi_Startup();
+		if (ACPI_FAILURE(i)) {
+			printf("MADT: ACPI Startup failed with %s\n",
+			    AcpiFormatException(i));
+			printf("Try disabling either ACPI or apic support.\n");
+			panic("Using MADT but ACPI doesn't work");
+		}
+
+		/* Run through the table to see if there are any overrides. */
+		madt_walk_table(madt_parse_ints, NULL);
+
+		/*
+		 * If there was not an explicit override entry for the SCI,
+		 * force it to use level trigger and active-low polarity.
+		 */
+		if (!madt_found_sci_override) {
+			printf(
+	"MADT: Forcing active-low polarity and level trigger for SCI\n");
+			xen_register_pirq(AcpiGbl_FADT.SciInterrupt,
+			    INTR_TRIGGER_LEVEL, INTR_POLARITY_LOW);
+		}
+
+		acpi_SetDefaultIntrModel(ACPI_INTR_APIC);
+	}
 	return (0);
 }
 

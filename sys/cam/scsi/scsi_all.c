@@ -1592,37 +1592,37 @@ static struct asc_table_entry asc_table[] = {
 	{ SST(0x22, 0x00, SS_FATAL | EINVAL,
 	    "Illegal function (use 20 00, 24 00, or 26 00)") },
 	/* DT P      B    */
-	{ SST(0x23, 0x00, SS_RDEF,	/* XXX TBD */
+	{ SST(0x23, 0x00, SS_FATAL | EINVAL,
 	    "Invalid token operation, cause not reportable") },
 	/* DT P      B    */
-	{ SST(0x23, 0x01, SS_RDEF,	/* XXX TBD */
+	{ SST(0x23, 0x01, SS_FATAL | EINVAL,
 	    "Invalid token operation, unsupported token type") },
 	/* DT P      B    */
-	{ SST(0x23, 0x02, SS_RDEF,	/* XXX TBD */
+	{ SST(0x23, 0x02, SS_FATAL | EINVAL,
 	    "Invalid token operation, remote token usage not supported") },
 	/* DT P      B    */
-	{ SST(0x23, 0x03, SS_RDEF,	/* XXX TBD */
+	{ SST(0x23, 0x03, SS_FATAL | EINVAL,
 	    "Invalid token operation, remote ROD token creation not supported") },
 	/* DT P      B    */
-	{ SST(0x23, 0x04, SS_RDEF,	/* XXX TBD */
+	{ SST(0x23, 0x04, SS_FATAL | EINVAL,
 	    "Invalid token operation, token unknown") },
 	/* DT P      B    */
-	{ SST(0x23, 0x05, SS_RDEF,	/* XXX TBD */
+	{ SST(0x23, 0x05, SS_FATAL | EINVAL,
 	    "Invalid token operation, token corrupt") },
 	/* DT P      B    */
-	{ SST(0x23, 0x06, SS_RDEF,	/* XXX TBD */
+	{ SST(0x23, 0x06, SS_FATAL | EINVAL,
 	    "Invalid token operation, token revoked") },
 	/* DT P      B    */
-	{ SST(0x23, 0x07, SS_RDEF,	/* XXX TBD */
+	{ SST(0x23, 0x07, SS_FATAL | EINVAL,
 	    "Invalid token operation, token expired") },
 	/* DT P      B    */
-	{ SST(0x23, 0x08, SS_RDEF,	/* XXX TBD */
+	{ SST(0x23, 0x08, SS_FATAL | EINVAL,
 	    "Invalid token operation, token cancelled") },
 	/* DT P      B    */
-	{ SST(0x23, 0x09, SS_RDEF,	/* XXX TBD */
+	{ SST(0x23, 0x09, SS_FATAL | EINVAL,
 	    "Invalid token operation, token deleted") },
 	/* DT P      B    */
-	{ SST(0x23, 0x0A, SS_RDEF,	/* XXX TBD */
+	{ SST(0x23, 0x0A, SS_FATAL | EINVAL,
 	    "Invalid token operation, invalid token length") },
 	/* DTLPWROMAEBKVF */
 	{ SST(0x24, 0x00, SS_FATAL | EINVAL,
@@ -1673,28 +1673,28 @@ static struct asc_table_entry asc_table[] = {
 	{ SST(0x26, 0x05, SS_RDEF,	/* XXX TBD */
 	    "Data decryption error") },
 	/* DTLPWRO    K   */
-	{ SST(0x26, 0x06, SS_RDEF,	/* XXX TBD */
+	{ SST(0x26, 0x06, SS_FATAL | EINVAL,
 	    "Too many target descriptors") },
 	/* DTLPWRO    K   */
-	{ SST(0x26, 0x07, SS_RDEF,	/* XXX TBD */
+	{ SST(0x26, 0x07, SS_FATAL | EINVAL,
 	    "Unsupported target descriptor type code") },
 	/* DTLPWRO    K   */
-	{ SST(0x26, 0x08, SS_RDEF,	/* XXX TBD */
+	{ SST(0x26, 0x08, SS_FATAL | EINVAL,
 	    "Too many segment descriptors") },
 	/* DTLPWRO    K   */
-	{ SST(0x26, 0x09, SS_RDEF,	/* XXX TBD */
+	{ SST(0x26, 0x09, SS_FATAL | EINVAL,
 	    "Unsupported segment descriptor type code") },
 	/* DTLPWRO    K   */
-	{ SST(0x26, 0x0A, SS_RDEF,	/* XXX TBD */
+	{ SST(0x26, 0x0A, SS_FATAL | EINVAL,
 	    "Unexpected inexact segment") },
 	/* DTLPWRO    K   */
-	{ SST(0x26, 0x0B, SS_RDEF,	/* XXX TBD */
+	{ SST(0x26, 0x0B, SS_FATAL | EINVAL,
 	    "Inline data length exceeded") },
 	/* DTLPWRO    K   */
-	{ SST(0x26, 0x0C, SS_RDEF,	/* XXX TBD */
+	{ SST(0x26, 0x0C, SS_FATAL | EINVAL,
 	    "Invalid operation for copy source or destination") },
 	/* DTLPWRO    K   */
-	{ SST(0x26, 0x0D, SS_RDEF,	/* XXX TBD */
+	{ SST(0x26, 0x0D, SS_FATAL | EINVAL,
 	    "Copy segment granularity violation") },
 	/* DT PWROMAEBK   */
 	{ SST(0x26, 0x0E, SS_RDEF,	/* XXX TBD */
@@ -5435,30 +5435,35 @@ scsi_devid_is_lun_name(uint8_t *bufp)
 }
 
 struct scsi_vpd_id_descriptor *
-scsi_get_devid(struct scsi_vpd_device_id *id, uint32_t page_len,
+scsi_get_devid_desc(struct scsi_vpd_id_descriptor *desc, uint32_t len,
     scsi_devid_checkfn_t ck_fn)
 {
-	struct scsi_vpd_id_descriptor *desc;
-	uint8_t *page_end;
 	uint8_t *desc_buf_end;
 
-	page_end = (uint8_t *)id + page_len;
-	if (page_end < id->desc_list)
-		return (NULL);
+	desc_buf_end = (uint8_t *)desc + len;
 
-	desc_buf_end = MIN(id->desc_list + scsi_2btoul(id->length), page_end);
-
-	for (desc = (struct scsi_vpd_id_descriptor *)id->desc_list;
-	     desc->identifier <= desc_buf_end
-	  && desc->identifier + desc->length <= desc_buf_end;
-	     desc = (struct scsi_vpd_id_descriptor *)(desc->identifier
+	for (; desc->identifier <= desc_buf_end &&
+	    desc->identifier + desc->length <= desc_buf_end;
+	    desc = (struct scsi_vpd_id_descriptor *)(desc->identifier
 						    + desc->length)) {
 
 		if (ck_fn == NULL || ck_fn((uint8_t *)desc) != 0)
 			return (desc);
 	}
-
 	return (NULL);
+}
+
+struct scsi_vpd_id_descriptor *
+scsi_get_devid(struct scsi_vpd_device_id *id, uint32_t page_len,
+    scsi_devid_checkfn_t ck_fn)
+{
+	uint32_t len;
+
+	if (page_len < sizeof(*id))
+		return (NULL);
+	len = MIN(scsi_2btoul(id->length), page_len - sizeof(*id));
+	return (scsi_get_devid_desc((struct scsi_vpd_id_descriptor *)
+	    id->desc_list, len, ck_fn));
 }
 
 int

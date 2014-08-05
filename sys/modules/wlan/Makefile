@@ -16,18 +16,6 @@ SRCS=	ieee80211.c ieee80211_action.c ieee80211_ageq.c \
 SRCS+=	bus_if.h device_if.h opt_ddb.h opt_inet.h opt_inet6.h \
 	opt_tdma.h opt_wlan.h
 
-.if !defined(KERNBUILDDIR)
-opt_wlan.h:
-	echo "#define IEEE80211_DEBUG 1" > ${.TARGET}
-	echo "#define IEEE80211_AMPDU_AGE 1" >> ${.TARGET}
-	echo "#define IEEE80211_SUPPORT_MESH 1" >> ${.TARGET}
-opt_inet.h:
-	echo "#define INET 1" > ${.TARGET}
-# override to get ddb support?
-opt_ddb.h:
-	:> ${.TARGET}
-.endif
-
 .include <bsd.kmod.mk>
 
 CWARNFLAGS.ieee80211_adhoc.c=	-Wno-unused-function

@@ -3544,33 +3544,6 @@ pmap_enter_quick(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot)
 }
 
 /*
- *	Routine:	pmap_change_wiring
- *	Function:	Change the wiring attribute for a map/virtual-address
- *			pair.
- *	In/out conditions:
- *			The mapping must already exist in the pmap.
- */
-void
-pmap_change_wiring(pmap_t pmap, vm_offset_t va, boolean_t wired)
-{
-	struct l2_bucket *l2b;
-	pt_entry_t *ptep, pte;
-	vm_page_t pg;
-
-	rw_wlock(&pvh_global_lock);
- 	PMAP_LOCK(pmap);
-	l2b = pmap_get_l2_bucket(pmap, va);
-	KASSERT(l2b, ("No l2b bucket in pmap_change_wiring"));
-	ptep = &l2b->l2b_kva[l2pte_index(va)];
-	pte = *ptep;
-	pg = PHYS_TO_VM_PAGE(l2pte_pa(pte));
-	if (pg)
-		pmap_modify_pv(pg, pmap, va, PVF_WIRED, wired ? PVF_WIRED : 0);
-	rw_wunlock(&pvh_global_lock);
- 	PMAP_UNLOCK(pmap);
-}
-
-/*
  *	Clear the wired attribute from the mappings for the specified range of
  *	addresses in the given pmap.  Every valid mapping within that range
  *	must have the wired attribute set.  In contrast, invalid mappings

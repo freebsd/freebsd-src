@@ -113,6 +113,9 @@ static void hpet_test(struct hpet_softc *sc);
 
 static char *hpet_ids[] = { "PNP0103", NULL };
 
+/* Knob to disable acpi_hpet device */
+bool acpi_hpet_disabled = false;
+
 static u_int
 hpet_get_timecount(struct timecounter *tc)
 {
@@ -360,7 +363,7 @@ hpet_probe(device_t dev)
 {
 	ACPI_FUNCTION_TRACE((char *)(uintptr_t) __func__);
 
-	if (acpi_disabled("hpet"))
+	if (acpi_disabled("hpet") || acpi_hpet_disabled)
 		return (ENXIO);
 	if (acpi_get_handle(dev) != NULL &&
 	    ACPI_ID_PROBE(device_get_parent(dev), dev, hpet_ids) == NULL)

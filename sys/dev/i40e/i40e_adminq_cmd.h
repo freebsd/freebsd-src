@@ -43,9 +43,6 @@
 
 #define I40E_FW_API_VERSION_MAJOR  0x0001
 #define I40E_FW_API_VERSION_MINOR  0x0002
-#ifdef FORTVILLE_A0_SUPPORT
-#define I40E_FW_API_VERSION_A0_MINOR  0x0000
-#endif
 
 struct i40e_aq_desc {
 	__le16 flags;
@@ -698,9 +695,6 @@ struct i40e_aqc_add_get_update_vsi {
 #define I40E_AQ_VSI_TYPE_PF             0x2
 #define I40E_AQ_VSI_TYPE_EMP_MNG        0x3
 #define I40E_AQ_VSI_FLAG_CASCADED_PV    0x4
-#ifdef FORTVILLE_A0_SUPPORT
-#define I40E_AQ_VSI_FLAG_CLOUD_VSI      0x8
-#endif
 	__le32 addr_high;
 	__le32 addr_low;
 };
@@ -1223,11 +1217,6 @@ struct i40e_aqc_add_remove_cloud_filters_element_data {
 #define I40E_AQC_ADD_CLOUD_FILTER_SHIFT                 0
 #define I40E_AQC_ADD_CLOUD_FILTER_MASK                  (0x3F << \
 					I40E_AQC_ADD_CLOUD_FILTER_SHIFT)
-#ifdef FORTVILLE_A0_SUPPORT
-#define I40E_AQC_ADD_CLOUD_FILTER_OIP_GRE               0x0002
-#define I40E_AQC_ADD_CLOUD_FILTER_IMAC_IVLAN_GRE        0x0004
-#define I40E_AQC_ADD_CLOUD_FILTER_IMAC_IVLAN_VNL        0x0007
-#endif
 /* 0x0000 reserved */
 #define I40E_AQC_ADD_CLOUD_FILTER_OIP                   0x0001
 /* 0x0002 reserved */
@@ -2012,22 +2001,6 @@ I40E_CHECK_CMD_LENGTH(i40e_aqc_lldp_start);
 
 /* Add Udp Tunnel command and completion (direct 0x0B00) */
 struct i40e_aqc_add_udp_tunnel {
-#ifdef FORTVILLE_A0_SUPPORT
-	__le16 udp_port;
-	u8     header_len; /* in DWords, 1 to 15 */
-	u8     protocol_type;
-#define I40E_AQC_TUNNEL_TYPE_TEREDO	0x0
-#define I40E_AQC_TUNNEL_TYPE_VXLAN	0x2
-#define I40E_AQC_TUNNEL_TYPE_NGE	0x3
-	u8     variable_udp_length;
-#define I40E_AQC_TUNNEL_FIXED_UDP_LENGTH	0x0
-#define I40E_AQC_TUNNEL_VARIABLE_UDP_LENGTH	0x1
-	u8		udp_key_index;
-#define I40E_AQC_TUNNEL_KEY_INDEX_VXLAN			0x0
-#define I40E_AQC_TUNNEL_KEY_INDEX_NGE			0x1
-#define I40E_AQC_TUNNEL_KEY_INDEX_PROPRIETARY_UDP	0x2
-	u8		reserved[10];
-#else
 	__le16 udp_port;
 	u8     reserved0[3];
 	u8     protocol_type;
@@ -2035,7 +2008,6 @@ struct i40e_aqc_add_udp_tunnel {
 #define I40E_AQC_TUNNEL_TYPE_NGE	0x01
 #define I40E_AQC_TUNNEL_TYPE_TEREDO	0x10
 	u8     reserved1[10];
-#endif
 };
 
 I40E_CHECK_CMD_LENGTH(i40e_aqc_add_udp_tunnel);
@@ -2056,13 +2028,7 @@ I40E_CHECK_CMD_LENGTH(i40e_aqc_add_udp_tunnel_completion);
 struct i40e_aqc_remove_udp_tunnel {
 	u8     reserved[2];
 	u8     index; /* 0 to 15 */
-#ifdef FORTVILLE_A0_SUPPORT
-	u8     pf_filters;
-	u8     total_filters;
-	u8     reserved2[11];
-#else
 	u8     reserved2[13];
-#endif
 };
 
 I40E_CHECK_CMD_LENGTH(i40e_aqc_remove_udp_tunnel);
@@ -2072,37 +2038,13 @@ struct i40e_aqc_del_udp_tunnel_completion {
 	u8     index; /* 0 to 15 */
 	u8     multiple_pfs;
 	u8     total_filters_used;
-#ifdef FORTVILLE_A0_SUPPORT
-	u8     reserved;
-	u8     tunnels_free;
-	u8     reserved1[9];
-#else
 	u8     reserved1[11];
-#endif
 };
 
 I40E_CHECK_CMD_LENGTH(i40e_aqc_del_udp_tunnel_completion);
 
 /* tunnel key structure 0x0B10 */
 
-#ifdef FORTVILLE_A0_SUPPORT
-struct i40e_aqc_tunnel_key_structure_A0 {
-	__le16     key1_off;
-	__le16     key1_len;
-	__le16     key2_off;
-	__le16     key2_len;
-	__le16     flags;
-#define I40E_AQC_TUNNEL_KEY_STRUCT_OVERRIDE 0x01
-/* response flags */
-#define I40E_AQC_TUNNEL_KEY_STRUCT_SUCCESS    0x01
-#define I40E_AQC_TUNNEL_KEY_STRUCT_MODIFIED   0x02
-#define I40E_AQC_TUNNEL_KEY_STRUCT_OVERRIDDEN 0x03
-	u8         resreved[6];
-};
-
-I40E_CHECK_CMD_LENGTH(i40e_aqc_tunnel_key_structure_A0);
-
-#endif
 struct i40e_aqc_tunnel_key_structure {
 	u8	key1_off;
 	u8	key2_off;

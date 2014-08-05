@@ -77,15 +77,15 @@ static device_method_t uss820dci_methods[] = {
 };
 
 static driver_t uss820dci_driver = {
-	.name = "uss820",
+	.name = "uss820dci",
 	.methods = uss820dci_methods,
 	.size = sizeof(struct uss820dci_softc),
 };
 
 static devclass_t uss820dci_devclass;
 
-DRIVER_MODULE(uss820, atmelarm, uss820dci_driver, uss820dci_devclass, 0, 0);
-MODULE_DEPEND(uss820, usb, 1, 1, 1);
+DRIVER_MODULE(uss820dci, atmelarm, uss820dci_driver, uss820dci_devclass, 0, 0);
+MODULE_DEPEND(uss820dci, usb, 1, 1, 1);
 
 static const char *const uss820_desc = "USS820 USB Device Controller";
 
@@ -136,13 +136,8 @@ uss820_atmelarm_attach(device_t dev)
 	}
 	device_set_ivars(sc->sc_bus.bdev, &sc->sc_bus);
 
-#if (__FreeBSD_version >= 700031)
-	err = bus_setup_intr(dev, sc->sc_irq_res, INTR_TYPE_BIO | INTR_MPSAFE,
-	    NULL, (driver_intr_t *)uss820dci_interrupt, sc, &sc->sc_intr_hdl);
-#else
-	err = bus_setup_intr(dev, sc->sc_irq_res, INTR_TYPE_BIO | INTR_MPSAFE,
-	    (driver_intr_t *)uss820dci_interrupt, sc, &sc->sc_intr_hdl);
-#endif
+	err = bus_setup_intr(dev, sc->sc_irq_res, INTR_TYPE_TTY | INTR_MPSAFE,
+	    uss820dci_filter_interrupt, uss820dci_interrupt, sc, &sc->sc_intr_hdl);
 	if (err) {
 		sc->sc_intr_hdl = NULL;
 		goto error;

@@ -28,7 +28,7 @@
 .\"     @(#)ttyname.3	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd May 14, 2005
+.Dd July 18, 2014
 .Dt TTYNAME 3
 .Os
 .Sh NAME
@@ -76,6 +76,14 @@ function
 takes a buffer and length as arguments to avoid this problem.
 .Sh RETURN VALUES
 The
+.Fn isatty
+function returns 1 if
+.Fa fd
+refers to a terminal type device;
+otherwise, it returns 0 and may set
+.Va errno
+to indicate the error.
+The
 .Fn ttyname
 function
 returns the null terminated name if the device is found and
@@ -89,15 +97,23 @@ The
 function returns 0 if successful.
 Otherwise an error number is returned.
 .Sh ERRORS
-The
-.Fn ttyname_r
-may fail and return the following error codes:
+These functions may fail if:
 .Bl -tag -width Er
-.It Bq Er ENOTTY
+.It Bq Er EBADF
 The
 .Fa fd
 argument
 is not a valid file descriptor.
+.It Bq Er ENOTTY
+The file associated with
+.Fa fd
+is not a terminal.
+.El
+.Pp
+Additionally,
+.Fn ttyname_r
+may fail if:
+.Bl -tag -width Er
 .It Bq Er ERANGE
 The
 .Fa bufsize

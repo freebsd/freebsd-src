@@ -88,6 +88,8 @@
 	defined (__ARM_ARCH_6T2__) || \
 	defined (__ARM_ARCH_6Z__)  || \
 	defined (__ARM_ARCH_6ZK__)
+#define	ARM_HAVE_ATOMIC64
+
 static __inline void
 __do_dmb(void)
 {
@@ -146,6 +148,28 @@ atomic_set_32(volatile uint32_t *address, uint32_t setmask)
 }
 
 static __inline void
+atomic_set_64(volatile uint64_t *p, uint64_t val)
+{
+	uint64_t tmp;
+	uint32_t exflag;
+
+	__asm __volatile(
+		"1:          \n"
+		"   ldrexd   %[tmp], [%[ptr]]\n"
+		"   orr      %Q[tmp], %Q[val]\n"
+		"   orr      %R[tmp], %R[val]\n"
+		"   strexd   %[exf], %[tmp], [%[ptr]]\n"
+		"   teq      %[exf], #0\n"
+		"   it ne    \n"
+		"   bne      1b\n"
+		:   [exf]    "=&r"  (exflag), 
+		    [tmp]    "=&r"  (tmp)
+		:   [ptr]    "r"    (p), 
+		    [val]    "r"    (val)
+		:   "cc", "memory");
+}
+
+static __inline void
 atomic_set_long(volatile u_long *address, u_long setmask)
 {
 	u_long tmp = 0, tmp2 = 0;
@@ -174,6 +198,28 @@ atomic_clear_32(volatile uint32_t *address, uint32_t setmask)
 			    "bne	1b\n"
 			   : "=&r" (tmp), "+r" (tmp2)
 			   ,"+r" (address), "+r" (setmask) : : "cc", "memory");
+}
+
+static __inline void
+atomic_clear_64(volatile uint64_t *p, uint64_t val)
+{
+	uint64_t tmp;
+	uint32_t exflag;
+
+	__asm __volatile(
+		"1:          \n"
+		"   ldrexd   %[tmp], [%[ptr]]\n"
+		"   bic      %Q[tmp], %Q[val]\n"
+		"   bic      %R[tmp], %R[val]\n"
+		"   strexd   %[exf], %[tmp], [%[ptr]]\n"
+		"   teq      %[exf], #0\n"
+		"   it ne    \n"
+		"   bne      1b\n"
+		:   [exf]    "=&r"  (exflag), 
+		    [tmp]    "=&r"  (tmp)
+		:   [ptr]    "r"    (p), 
+		    [val]    "r"    (val)
+		:   "cc", "memory");
 }
 
 static __inline void
@@ -213,6 +259,35 @@ atomic_cmpset_32(volatile u_int32_t *p, volatile u_int32_t cmpval, volatile u_in
 	return (ret);
 }
 
+static __inline int
+atomic_cmpset_64(volatile uint64_t *p, uint64_t cmpval, uint64_t newval)
+{
+	uint64_t tmp;
+	uint32_t ret;
+
+	__asm __volatile(
+		"1:          \n"
+		"   ldrexd   %[tmp], [%[ptr]]\n"
+		"   teq      %Q[tmp], %Q[cmp]\n"
+		"   itee eq  \n"
+		"   teqeq    %R[tmp], %R[cmp]\n"
+		"   movne    %[ret], #0\n"
+		"   bne      2f\n"
+		"   strexd   %[ret], %[new], [%[ptr]]\n"
+		"   teq      %[ret], #0\n"
+		"   it ne    \n"
+		"   bne      1b\n"
+		"   mov      %[ret], #1\n"
+		"2:          \n"
+		:   [ret]    "=&r"  (ret), 
+		    [tmp]    "=&r"  (tmp)
+		:   [ptr]    "r"    (p), 
+		    [cmp]    "r"    (cmpval), 
+		    [new]    "r"    (newval)
+		:   "cc", "memory");
+	return (ret);
+}
+
 static __inline u_long
 atomic_cmpset_long(volatile u_long *p, volatile u_long cmpval, volatile u_long newval)
 {
@@ -244,6 +319,15 @@ atomic_cmpset_acq_32(volatile u_int32_t *p, volatile u_int32_t cmpval, volatile 
 	return (ret);
 }
 
+static __inline uint64_t
+atomic_cmpset_acq_64(volatile uint64_t *p, volatile uint64_t cmpval, volatile uint64_t newval)
+{
+	uint64_t ret = atomic_cmpset_64(p, cmpval, newval);
+
+	__do_dmb();
+	return (ret);
+}
+
 static __inline u_long
 atomic_cmpset_acq_long(volatile u_long *p, volatile u_long cmpval, volatile u_long newval)
 {
@@ -259,6 +343,14 @@ atomic_cmpset_rel_32(volatile u_int32_t *p, volatile u_int32_t cmpval, volatile 
 	
 	__do_dmb();
 	return (atomic_cmpset_32(p, cmpval, newval));
+}
+
+static __inline uint64_t
+atomic_cmpset_rel_64(volatile uint64_t *p, volatile uint64_t cmpval, volatile uint64_t newval)
+{
+	
+	__do_dmb();
+	return (atomic_cmpset_64(p, cmpval, newval));
 }
 
 static __inline u_long
@@ -283,6 +375,28 @@ atomic_add_32(volatile u_int32_t *p, u_int32_t val)
 			    "bne	1b\n"
 			    : "=&r" (tmp), "+r" (tmp2)
 			    ,"+r" (p), "+r" (val) : : "cc", "memory");
+}
+
+static __inline void
+atomic_add_64(volatile uint64_t *p, uint64_t val)
+{
+	uint64_t tmp;
+	uint32_t exflag;
+
+	__asm __volatile(
+		"1:          \n"
+		"   ldrexd   %[tmp], [%[ptr]]\n"
+		"   adds     %Q[tmp], %Q[val]\n"
+		"   adc      %R[tmp], %R[val]\n"
+		"   strexd   %[exf], %[tmp], [%[ptr]]\n"
+		"   teq      %[exf], #0\n"
+		"   it ne    \n"
+		"   bne      1b\n"
+		:   [exf]    "=&r"  (exflag), 
+		    [tmp]    "=&r"  (tmp)
+		:   [ptr]    "r"    (p), 
+		    [val]    "r"    (val)
+		:   "cc", "memory");
 }
 
 static __inline void
@@ -316,6 +430,28 @@ atomic_subtract_32(volatile u_int32_t *p, u_int32_t val)
 }
 
 static __inline void
+atomic_subtract_64(volatile uint64_t *p, uint64_t val)
+{
+	uint64_t tmp;
+	uint32_t exflag;
+
+	__asm __volatile(
+		"1:          \n"
+		"   ldrexd   %[tmp], [%[ptr]]\n"
+		"   subs     %Q[tmp], %Q[val]\n"
+		"   sbc      %R[tmp], %R[val]\n"
+		"   strexd   %[exf], %[tmp], [%[ptr]]\n"
+		"   teq      %[exf], #0\n"
+		"   it ne    \n"
+		"   bne      1b\n"
+		:   [exf]    "=&r"  (exflag), 
+		    [tmp]    "=&r"  (tmp)
+		:   [ptr]    "r"    (p), 
+		    [val]    "r"    (val)
+		:   "cc", "memory");
+}
+
+static __inline void
 atomic_subtract_long(volatile u_long *p, u_long val)
 {
 	u_long tmp = 0, tmp2 = 0;
@@ -334,6 +470,10 @@ ATOMIC_ACQ_REL(clear, 32)
 ATOMIC_ACQ_REL(add, 32)
 ATOMIC_ACQ_REL(subtract, 32)
 ATOMIC_ACQ_REL(set, 32)
+ATOMIC_ACQ_REL(clear, 64)
+ATOMIC_ACQ_REL(add, 64)
+ATOMIC_ACQ_REL(subtract, 64)
+ATOMIC_ACQ_REL(set, 64)
 ATOMIC_ACQ_REL_LONG(clear)
 ATOMIC_ACQ_REL_LONG(add)
 ATOMIC_ACQ_REL_LONG(subtract)
@@ -390,6 +530,116 @@ atomic_store_rel_32(volatile uint32_t *p, uint32_t v)
 	
 	__do_dmb();
 	*p = v;
+}
+
+static __inline uint64_t
+atomic_fetchadd_64(volatile uint64_t *p, uint64_t val)
+{
+	uint64_t ret, tmp;
+	uint32_t exflag;
+
+	__asm __volatile(
+		"1:          \n"
+		"   ldrexd   %[ret], [%[ptr]]\n"
+		"   adds     %Q[tmp], %Q[ret], %Q[val]\n"
+		"   adc      %R[tmp], %R[ret], %R[val]\n"
+		"   strexd   %[exf], %[tmp], [%[ptr]]\n"
+		"   teq      %[exf], #0\n"
+		"   it ne    \n"
+		"   bne      1b\n"
+		:   [ret]    "=&r"  (ret),
+		    [exf]    "=&r"  (exflag),
+		    [tmp]    "=&r"  (tmp)
+		:   [ptr]    "r"    (p), 
+		    [val]    "r"    (val)
+		:   "cc", "memory");
+	return (ret);
+}
+
+static __inline uint64_t
+atomic_readandclear_64(volatile uint64_t *p)
+{
+	uint64_t ret, tmp;
+	uint32_t exflag;
+
+	__asm __volatile(
+		"1:          \n"
+		"   ldrexd   %[ret], [%[ptr]]\n"
+		"   mov      %Q[tmp], #0\n"
+		"   mov      %R[tmp], #0\n"
+		"   strexd   %[exf], %[tmp], [%[ptr]]\n"
+		"   teq      %[exf], #0\n"
+		"   it ne    \n"
+		"   bne      1b\n"
+		:   [ret]    "=&r"  (ret),
+		    [exf]    "=&r"  (exflag),
+		    [tmp]    "=&r"  (tmp)
+		:   [ptr]    "r"    (p)
+		:   "cc", "memory");
+	return (ret);
+}
+
+static __inline uint64_t
+atomic_load_64(volatile uint64_t *p)
+{
+	uint64_t ret;
+
+	/*
+	 * The only way to atomically load 64 bits is with LDREXD which puts the
+	 * exclusive monitor into the open state, so reset it with CLREX because
+	 * we don't actually need to store anything.
+	 */
+	__asm __volatile(
+		"1:          \n"
+		"   ldrexd   %[ret], [%[ptr]]\n"
+		"   clrex    \n"
+		:   [ret]    "=&r"  (ret)
+		:   [ptr]    "r"    (p)
+		:   "cc", "memory");
+	return (ret);
+}
+
+static __inline uint64_t
+atomic_load_acq_64(volatile uint64_t *p)
+{
+	uint64_t ret;
+
+	ret = atomic_load_64(p);
+	__do_dmb();
+	return (ret);
+}
+
+static __inline void
+atomic_store_64(volatile uint64_t *p, uint64_t val)
+{
+	uint64_t tmp;
+	uint32_t exflag;
+
+	/*
+	 * The only way to atomically store 64 bits is with STREXD, which will
+	 * succeed only if paired up with a preceeding LDREXD using the same
+	 * address, so we read and discard the existing value before storing.
+	 */
+	__asm __volatile(
+		"1:          \n"
+		"   ldrexd   %[tmp], [%[ptr]]\n"
+		"   strexd   %[exf], %[val], [%[ptr]]\n"
+		"   teq      %[exf], #0\n"
+		"   it ne    \n"
+		"   bne      1b\n"
+		:   [tmp]    "=&r"  (tmp),
+		    [exf]    "=&r"  (exflag)
+		:   [ptr]    "r"    (p),
+		    [val]    "r"    (val)
+		:   "cc", "memory");
+}
+
+static __inline void
+atomic_store_rel_64(volatile uint64_t *p, uint64_t val)
+{
+
+	__do_dmb();
+	atomic_store_64(p, val);
 }
 
 static __inline u_long
@@ -474,8 +724,16 @@ __swp(uint32_t val, volatile uint32_t *ptr)
 
 
 #ifdef _KERNEL
+#define	ARM_HAVE_ATOMIC64
+
 static __inline void
 atomic_set_32(volatile uint32_t *address, uint32_t setmask)
+{
+	__with_interrupts_disabled(*address |= setmask);
+}
+
+static __inline void
+atomic_set_64(volatile uint64_t *address, uint64_t setmask)
 {
 	__with_interrupts_disabled(*address |= setmask);
 }
@@ -486,8 +744,31 @@ atomic_clear_32(volatile uint32_t *address, uint32_t clearmask)
 	__with_interrupts_disabled(*address &= ~clearmask);
 }
 
+static __inline void
+atomic_clear_64(volatile uint64_t *address, uint64_t clearmask)
+{
+	__with_interrupts_disabled(*address &= ~clearmask);
+}
+
 static __inline u_int32_t
 atomic_cmpset_32(volatile u_int32_t *p, volatile u_int32_t cmpval, volatile u_int32_t newval)
+{
+	int ret;
+	
+	__with_interrupts_disabled(
+	 {
+	    	if (*p == cmpval) {
+			*p = newval;
+			ret = 1;
+		} else {
+			ret = 0;
+		}
+	});
+	return (ret);
+}
+
+static __inline u_int64_t
+atomic_cmpset_64(volatile u_int64_t *p, volatile u_int64_t cmpval, volatile u_int64_t newval)
 {
 	int ret;
 	
@@ -510,7 +791,19 @@ atomic_add_32(volatile u_int32_t *p, u_int32_t val)
 }
 
 static __inline void
+atomic_add_64(volatile u_int64_t *p, u_int64_t val)
+{
+	__with_interrupts_disabled(*p += val);
+}
+
+static __inline void
 atomic_subtract_32(volatile u_int32_t *p, u_int32_t val)
+{
+	__with_interrupts_disabled(*p -= val);
+}
+
+static __inline void
+atomic_subtract_64(volatile u_int64_t *p, u_int64_t val)
 {
 	__with_interrupts_disabled(*p -= val);
 }
@@ -526,6 +819,34 @@ atomic_fetchadd_32(volatile uint32_t *p, uint32_t v)
 		*p += v;
 	});
 	return (value);
+}
+
+static __inline uint64_t
+atomic_fetchadd_64(volatile uint64_t *p, uint64_t v)
+{
+	uint64_t value;
+
+	__with_interrupts_disabled(
+	{
+	    	value = *p;
+		*p += v;
+	});
+	return (value);
+}
+
+static __inline uint64_t
+atomic_load_64(volatile uint64_t *p)
+{
+	uint64_t value;
+
+	__with_interrupts_disabled(value = *p);
+	return (value);
+}
+
+static __inline void
+atomic_store_64(volatile uint64_t *p, uint64_t value)
+{
+	__with_interrupts_disabled(*p = value);
 }
 
 #else /* !_KERNEL */

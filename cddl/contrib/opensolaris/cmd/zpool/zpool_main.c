@@ -2900,10 +2900,15 @@ print_one_column(zpool_prop_t prop, uint64_t value, boolean_t scripted)
 	boolean_t fixed;
 	size_t width = zprop_width(prop, &fixed, ZFS_TYPE_POOL);
 
-	zfs_nicenum(value, propval, sizeof (propval));
 
 	if (prop == ZPOOL_PROP_EXPANDSZ && value == 0)
 		(void) strlcpy(propval, "-", sizeof (propval));
+	else if (prop == ZPOOL_PROP_FRAGMENTATION && value == ZFS_FRAG_INVALID)
+		(void) strlcpy(propval, "-", sizeof (propval));
+	else if (prop == ZPOOL_PROP_FRAGMENTATION)
+		(void) snprintf(propval, sizeof (propval), "%llu%%", value);
+	else
+		zfs_nicenum(value, propval, sizeof (propval));
 
 	if (scripted)
 		(void) printf("\t%s", propval);
@@ -2936,9 +2941,9 @@ print_list_stats(zpool_handle_t *zhp, const char *name, nvlist_t *nv,
 		/* only toplevel vdevs have capacity stats */
 		if (vs->vs_space == 0) {
 			if (scripted)
-				(void) printf("\t-\t-\t-");
+				(void) printf("\t-\t-\t-\t-");
 			else
-				(void) printf("      -      -      -");
+				(void) printf("      -      -      -      -");
 		} else {
 			print_one_column(ZPOOL_PROP_SIZE, vs->vs_space,
 			    scripted);
@@ -2946,6 +2951,8 @@ print_list_stats(zpool_handle_t *zhp, const char *name, nvlist_t *nv,
 			    scripted);
 			print_one_column(ZPOOL_PROP_FREE,
 			    vs->vs_space - vs->vs_alloc, scripted);
+			print_one_column(ZPOOL_PROP_FRAGMENTATION,
+			    vs->vs_fragmentation, scripted);
 		}
 		print_one_column(ZPOOL_PROP_EXPANDSZ, vs->vs_esize,
 		    scripted);
@@ -3031,8 +3038,8 @@ zpool_do_list(int argc, char **argv)
 	int ret;
 	list_cbdata_t cb = { 0 };
 	static char default_props[] =
-	    "name,size,allocated,free,capacity,dedupratio,"
-	    "health,altroot";
+	    "name,size,allocated,free,fragmentation,expandsize,capacity,"
+	    "dedupratio,health,altroot";
 	char *props = default_props;
 	unsigned long interval = 0, count = 0;
 	zpool_list_t *list;

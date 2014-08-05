@@ -831,7 +831,7 @@ pmap_bootstrap(vm_paddr_t *firstaddr)
 
 
 	/* XXX do %cr0 as well */
-	load_cr4(rcr4() | CR4_PGE | CR4_PSE);
+	load_cr4(rcr4() | CR4_PGE);
 	load_cr3(KPML4phys);
 	if (cpu_stdext_feature & CPUID_STDEXT_SMEP)
 		load_cr4(rcr4() | CR4_SMEP);
@@ -4693,58 +4693,6 @@ pmap_object_init_pt(pmap_t pmap, vm_offset_t addr, vm_object_t object,
 }
 
 /*
- *	Routine:	pmap_change_wiring
- *	Function:	Change the wiring attribute for a map/virtual-address
- *			pair.
- *	In/out conditions:
- *			The mapping must already exist in the pmap.
- */
-void
-pmap_change_wiring(pmap_t pmap, vm_offset_t va, boolean_t wired)
-{
-	pd_entry_t *pde;
-	pt_entry_t *pte;
-	boolean_t pv_lists_locked;
-
-	pv_lists_locked = FALSE;
-
-	/*
-	 * Wiring is not a hardware characteristic so there is no need to
-	 * invalidate TLB.
-	 */
-retry:
-	PMAP_LOCK(pmap);
-	pde = pmap_pde(pmap, va);
-	if ((*pde & PG_PS) != 0) {
-		if (!wired != ((*pde & PG_W) == 0)) {
-			if (!pv_lists_locked) {
-				pv_lists_locked = TRUE;
-				if (!rw_try_rlock(&pvh_global_lock)) {
-					PMAP_UNLOCK(pmap);
-					rw_rlock(&pvh_global_lock);
-					goto retry;
-				}
-			}
-			if (!pmap_demote_pde(pmap, pde, va))
-				panic("pmap_change_wiring: demotion failed");
-		} else
-			goto out;
-	}
-	pte = pmap_pde_to_pte(pde, va);
-	if (wired && (*pte & PG_W) == 0) {
-		pmap->pm_stats.wired_count++;
-		atomic_set_long(pte, PG_W);
-	} else if (!wired && (*pte & PG_W) != 0) {
-		pmap->pm_stats.wired_count--;
-		atomic_clear_long(pte, PG_W);
-	}
-out:
-	if (pv_lists_locked)
-		rw_runlock(&pvh_global_lock);
-	PMAP_UNLOCK(pmap);
-}
-
-/*
  *	Clear the wired attribute from the mappings for the specified range of
  *	addresses in the given pmap.  Every valid mapping within that range
  *	must have the wired attribute set.  In contrast, invalid mappings
@@ -5080,6 +5028,14 @@ pmap_copy_pages(vm_page_t ma[], vm_offset_t a_offset, vm_page_t mb[],
 	int cnt;
 	boolean_t pinned;
 
+	/*
+	 * NB:  The sequence of updating a page table followed by accesses
+	 * to the corresponding pages used in the !DMAP case is subject to
+	 * the situation described in the "AMD64 Architecture Programmer's
+	 * Manual Volume 2: System Programming" rev. 3.23, "7.3.1 Special
+	 * Coherency Considerations".  Therefore, issuing the INVLPG right
+	 * after modifying the PTE bits is crucial.
+	 */
 	pinned = FALSE;
 	while (xfersize > 0) {
 		a_pg_offset = a_offset & PAGE_MASK;

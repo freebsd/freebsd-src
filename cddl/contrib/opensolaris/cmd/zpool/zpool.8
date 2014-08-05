@@ -21,12 +21,12 @@
 .\" Copyright (c) 2010, Sun Microsystems, Inc. All Rights Reserved.
 .\" Copyright 2011, Nexenta Systems, Inc. All Rights Reserved.
 .\" Copyright (c) 2011, Justin T. Gibbs <gibbs@FreeBSD.org>
-.\" Copyright (c) 2012 by Delphix. All Rights Reserved.
+.\" Copyright (c) 2013 by Delphix. All Rights Reserved.
 .\" Copyright (c) 2012, Glen Barber <gjb@FreeBSD.org>
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 14, 2014
+.Dd July 26, 2014
 .Dt ZPOOL 8
 .Os
 .Sh NAME
@@ -543,6 +543,15 @@ For example, a
 value of 1.76 indicates that 1.76 units of data were stored but only 1 unit of disk space was actually consumed. See
 .Xr zfs 8
 for a description of the deduplication feature.
+.It Sy expandsize
+Amount of uninitialized space within the pool or device that can be used to
+increase the total capacity of the pool.
+Uninitialized space consists of
+any space on an EFI labeled vdev which has not been brought online
+.Pq i.e. zpool online -e .
+This space occurs when a LUN is dynamically expanded.
+.It Sy fragmentation
+The amount of fragmentation in the pool.
 .It Sy free
 Number of blocks within the pool that are not allocated.
 .It Sy freeing
@@ -555,8 +564,6 @@ Over time
 will decrease while
 .Sy free
 increases.
-.It Sy expandsize
-This property has currently no value on FreeBSD.
 .It Sy guid
 A unique identifier for the pool.
 .It Sy health
@@ -1391,7 +1398,10 @@ instead of arbitrary space.
 .It Fl p
 Display numbers in parsable (exact) values.
 .It Fl v
-Show more detailed information.
+Verbose statistics. Reports usage statistics for individual
+.Em vdevs
+within
+the pool, in addition to the pool-wide statistics.
 .It Fl o Ar property Ns Op , Ns Ar ...
 Comma-separated list of properties to display. See the
 .Qq Sx Properties
@@ -1400,6 +1410,8 @@ section for a list of valid properties. The default list is
 .Sy size ,
 .Sy used ,
 .Sy available ,
+.Sy fragmentation ,
+.Sy expandsize ,
 .Sy capacity  ,
 .Sy health ,
 .Sy altroot .
@@ -1785,9 +1797,9 @@ is immediately available to any datasets within the pool.
 The following command lists all available pools on the system.
 .Bd -literal -offset 2n
 .Li # Ic zpool list
-NAME   SIZE  ALLOC   FREE    CAP  DEDUP  HEALTH  ALTROOT
-pool  2.70T   473G  2.24T    17%  1.00x  ONLINE  -
-test  1.98G  89.5K  1.98G     0%  1.00x  ONLINE  -
+NAME   SIZE  ALLOC   FREE   FRAG  EXPANDSZ    CAP  DEDUP  HEALTH  ALTROOT
+pool  2.70T   473G  2.24T    33%         -    17%  1.00x  ONLINE  -
+test  1.98G  89.5K  1.98G    48%         -     0%  1.00x  ONLINE  -
 .Ed
 .It Sy Example 7 No Listing All Properties for a Pool
 .Pp
@@ -1915,7 +1927,35 @@ subcommand as follows:
 .Bd -literal -offset 2n
 .Li # Ic zpool iostat -v pool 5
 .Ed
-.It Sy Example 15 No Removing a Mirrored Log Device
+.It Xo
+.Sy Example 15
+Displaying expanded space on a device
+.Xc
+.Pp
+The following command dipslays the detailed information for the
+.Em data
+pool.
+This pool is comprised of a single
+.Em raidz
+vdev where one of its
+devices increased its capacity by 10GB.
+In this example, the pool will not
+be able to utilized this extra capacity until all the devices under the
+.Em raidz
+vdev have been expanded.
+.Bd -literal -offset 2n
+.Li # Ic zpool list -v data
+NAME       SIZE  ALLOC   FREE   FRAG  EXPANDSZ    CAP  DEDUP  HEALTH  ALTROOT
+data      23.9G  14.6G  9.30G    48%         -    61%  1.00x  ONLINE  -
+  raidz1  23.9G  14.6G  9.30G    48%         -
+    ada0      -      -      -      -         -
+    ada1      -      -      -      -       10G
+    ada2      -      -      -      -         -
+.Ed
+.It Xo
+.Sy Example 16
+Removing a Mirrored Log Device
+.Xc
 .Pp
 The following command removes the mirrored log device
 .Em mirror-2 .
@@ -1947,7 +1987,12 @@ is:
 .Bd -literal -offset 2n
 .Li # Ic zpool remove tank mirror-2
 .Ed
-.It Sy Example 16 No Recovering a Faulted Tn ZFS No Pool
+.It Xo
+.Sy Example 17
+Recovering a Faulted
+.Tn ZFS
+Pool
+.Xc
 .Pp
 If a pool is faulted but recoverable, a message indicating this state is
 provided by

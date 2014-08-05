@@ -179,6 +179,7 @@ static struct ctl_frontend cfiscsi_frontend =
 	.ioctl = cfiscsi_ioctl,
 };
 CTL_FRONTEND_DECLARE(ctlcfiscsi, cfiscsi_frontend);
+MODULE_DEPEND(ctlcfiscsi, icl, 1, 1, 1);
 
 static struct icl_pdu *
 cfiscsi_pdu_new_response(struct icl_pdu *request, int flags)

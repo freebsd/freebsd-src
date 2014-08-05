@@ -800,7 +800,7 @@ load_keymap(char *opt, int dumponly)
 	char	*name, *cp;
 	char	blank[] = "", keymap_path[] = KEYMAP_PATH;
 	char	vt_keymap_path[] = VT_KEYMAP_PATH, dotkbd[] = ".kbd";
-	char	*prefix[]  = {blank, blank, keymap_path, NULL};
+	char	*prefix[]  = {blank, blank, blank, keymap_path, NULL};
 	char	*postfix[] = {blank, dotkbd, NULL};
 
 	if (is_vt4())

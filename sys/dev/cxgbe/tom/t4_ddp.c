@@ -493,6 +493,7 @@ do_rx_data_ddp(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 	unsigned int tid = GET_TID(cpl);
 	uint32_t vld;
 	struct toepcb *toep = lookup_tid(sc, tid);
+	struct tom_data *td = toep->td;
 
 	KASSERT(m == NULL, ("%s: wasn't expecting payload", __func__));
 	KASSERT(toep->tid == tid, ("%s: toep tid/atid mismatch", __func__));
@@ -504,6 +505,16 @@ do_rx_data_ddp(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 		panic("%s: DDP error 0x%x (tid %d, toep %p)",
 		    __func__, vld, tid, toep);
 	}
+	if (toep->ulp_mode == ULP_MODE_ISCSI) {
+		m = m_get(M_NOWAIT, MT_DATA);
+		if (m == NULL)
+			CXGBE_UNIMPLEMENTED("mbuf alloc failure");
+		memcpy(mtod(m, unsigned char *), cpl,
+		    sizeof(struct cpl_rx_data_ddp));
+        	if (!t4_cpl_iscsi_callback(td, toep, m, CPL_RX_DATA_DDP))
+			return (0);
+		m_freem(m);
+        }
 
 	handle_ddp_data(toep, cpl->u.ddp_report, cpl->seq, be16toh(cpl->len));
 

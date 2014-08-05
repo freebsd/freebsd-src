@@ -291,6 +291,8 @@ void vm_object_shadow (vm_object_t *, vm_ooffset_t *, vm_size_t);
 void vm_object_split(vm_map_entry_t);
 boolean_t vm_object_sync(vm_object_t, vm_ooffset_t, vm_size_t, boolean_t,
     boolean_t);
+void vm_object_unwire(vm_object_t object, vm_ooffset_t offset,
+    vm_size_t length, uint8_t queue);
 #endif				/* _KERNEL */
 
 #endif				/* _VM_OBJECT_ */

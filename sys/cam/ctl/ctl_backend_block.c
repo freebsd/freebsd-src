@@ -722,10 +722,93 @@ ctl_be_block_dispatch_file(struct ctl_be_block_lun *be_lun,
 	}
 
 	/*
-	 * If this is a write, we're all done.
+	 * If this is a write or a verify, we're all done.
 	 * If this is a read, we can now send the data to the user.
 	 */
-	if (ARGS(io)->flags & (CTL_LLF_WRITE | CTL_LLF_VERIFY)) {
+	if ((beio->bio_cmd == BIO_WRITE) ||
+	    (ARGS(io)->flags & CTL_LLF_VERIFY)) {
+		ctl_set_success(&io->scsiio);
+		ctl_complete_beio(beio);
+	} else {
+#ifdef CTL_TIME_IO
+        	getbintime(&io->io_hdr.dma_start_bt);
+#endif  
+		ctl_datamove(io);
+	}
+}
+
+static void
+ctl_be_block_dispatch_zvol(struct ctl_be_block_lun *be_lun,
+			   struct ctl_be_block_io *beio)
+{
+	struct ctl_be_block_devdata *dev_data;
+	union ctl_io *io;
+	struct uio xuio;
+	struct iovec *xiovec;
+	int flags;
+	int error, i;
+
+	DPRINTF("entered\n");
+
+	dev_data = &be_lun->backend.dev;
+	io = beio->io;
+	flags = beio->bio_flags;
+
+	bzero(&xuio, sizeof(xuio));
+	if (beio->bio_cmd == BIO_READ) {
+		SDT_PROBE(cbb, kernel, read, file_start, 0, 0, 0, 0, 0);
+		xuio.uio_rw = UIO_READ;
+	} else {
+		SDT_PROBE(cbb, kernel, write, file_start, 0, 0, 0, 0, 0);
+		xuio.uio_rw = UIO_WRITE;
+	}
+	xuio.uio_offset = beio->io_offset;
+	xuio.uio_resid = beio->io_len;
+	xuio.uio_segflg = UIO_SYSSPACE;
+	xuio.uio_iov = beio->xiovecs;
+	xuio.uio_iovcnt = beio->num_segs;
+	xuio.uio_td = curthread;
+
+	for (i = 0, xiovec = xuio.uio_iov; i < xuio.uio_iovcnt; i++, xiovec++) {
+		xiovec->iov_base = beio->sg_segs[i].addr;
+		xiovec->iov_len = beio->sg_segs[i].len;
+	}
+
+	binuptime(&beio->ds_t0);
+	mtx_lock(&be_lun->io_lock);
+	devstat_start_transaction(beio->lun->disk_stats, &beio->ds_t0);
+	mtx_unlock(&be_lun->io_lock);
+
+	if (beio->bio_cmd == BIO_READ) {
+		error = (*dev_data->csw->d_read)(dev_data->cdev, &xuio, 0);
+		SDT_PROBE(cbb, kernel, read, file_done, 0, 0, 0, 0, 0);
+	} else {
+		error = (*dev_data->csw->d_write)(dev_data->cdev, &xuio, 0);
+		SDT_PROBE(cbb, kernel, write, file_done, 0, 0, 0, 0, 0);
+	}
+
+	mtx_lock(&be_lun->io_lock);
+	devstat_end_transaction(beio->lun->disk_stats, beio->io_len,
+	    beio->ds_tag_type, beio->ds_trans_type,
+	    /*now*/ NULL, /*then*/&beio->ds_t0);
+	mtx_unlock(&be_lun->io_lock);
+
+	/*
+	 * If we got an error, set the sense data to "MEDIUM ERROR" and
+	 * return the I/O to the user.
+	 */
+	if (error != 0) {
+		ctl_set_medium_error(&io->scsiio);
+		ctl_complete_beio(beio);
+		return;
+	}
+
+	/*
+	 * If this is a write or a verify, we're all done.
+	 * If this is a read, we can now send the data to the user.
+	 */
+	if ((beio->bio_cmd == BIO_WRITE) ||
+	    (ARGS(io)->flags & CTL_LLF_VERIFY)) {
 		ctl_set_success(&io->scsiio);
 		ctl_complete_beio(beio);
 	} else {
@@ -1577,14 +1660,17 @@ ctl_be_block_open_dev(struct ctl_be_block_lun *be_lun, struct ctl_lun_req *req)
 	params = &req->reqdata.create;
 
 	be_lun->dev_type = CTL_BE_BLOCK_DEV;
-	be_lun->dispatch = ctl_be_block_dispatch_dev;
-	be_lun->lun_flush = ctl_be_block_flush_dev;
-	be_lun->unmap = ctl_be_block_unmap_dev;
 	be_lun->backend.dev.cdev = be_lun->vn->v_rdev;
 	be_lun->backend.dev.csw = dev_refthread(be_lun->backend.dev.cdev,
 					     &be_lun->backend.dev.dev_ref);
 	if (be_lun->backend.dev.csw == NULL)
 		panic("Unable to retrieve device switch");
+	if (strcmp(be_lun->backend.dev.csw->d_name, "zvol") == 0)
+		be_lun->dispatch = ctl_be_block_dispatch_zvol;
+	else
+		be_lun->dispatch = ctl_be_block_dispatch_dev;
+	be_lun->lun_flush = ctl_be_block_flush_dev;
+	be_lun->unmap = ctl_be_block_unmap_dev;
 
 	error = VOP_GETATTR(be_lun->vn, &vattr, NOCRED);
 	if (error) {

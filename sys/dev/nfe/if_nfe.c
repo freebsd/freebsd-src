@@ -2582,7 +2582,6 @@ nfe_setmulti(struct nfe_softc *sc)
 	bcopy(etherbroadcastaddr, addr, ETHER_ADDR_LEN);
 	bcopy(etherbroadcastaddr, mask, ETHER_ADDR_LEN);
 
-	if_maddr_rlock(ifp);
 	mc_count = if_multiaddr_count(ifp, -1);
 	mta = malloc(sizeof(uint8_t) * ETHER_ADDR_LEN * mc_count, M_DEVBUF,
 	    M_NOWAIT);
@@ -2594,24 +2593,24 @@ nfe_setmulti(struct nfe_softc *sc)
 
 		bzero(addr, ETHER_ADDR_LEN);
 		bzero(mask, ETHER_ADDR_LEN);
-		free(mta, M_DEVBUF);
-		if_maddr_runlock(ifp);
 		goto done;
 	};
 
-	if_setupmultiaddr(ifp, mta, &mcnt, mc_count);
+	if_multiaddr_array(ifp, mta, &mcnt, mc_count);
 
 	for (i = 0; i < mcnt; i++) {
 		uint8_t *addrp;
+		int j;
 
 		addrp = mta + (i * ETHER_ADDR_LEN);
-		for (i = 0; i < ETHER_ADDR_LEN; i++) {
-			u_int8_t mcaddr = addrp[i];
-			addr[i] &= mcaddr;
-			mask[i] &= ~mcaddr;
+		for (j = 0; j < ETHER_ADDR_LEN; j++) {
+			u_int8_t mcaddr = addrp[j];
+			addr[j] &= mcaddr;
+			mask[j] &= ~mcaddr;
 		}
 	}
-	if_maddr_runlock(ifp);
+
+	free(mta, M_DEVBUF);
 
 	for (i = 0; i < ETHER_ADDR_LEN; i++) {
 		mask[i] |= addr[i];

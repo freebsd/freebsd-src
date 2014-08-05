@@ -1023,6 +1023,7 @@ ctl_init(void)
 	STAILQ_INIT(&softc->port_list);
 	STAILQ_INIT(&softc->be_list);
 	STAILQ_INIT(&softc->io_pools);
+	ctl_tpc_init(softc);
 
 	if (ctl_pool_create(softc, CTL_POOL_INTERNAL, CTL_POOL_ENTRIES_INTERNAL,
 			    &internal_pool)!= 0){
@@ -1170,6 +1171,7 @@ ctl_shutdown(void)
 	mtx_destroy(&softc->queue_lock);
 #endif
 
+	ctl_tpc_shutdown(softc);
 	mtx_destroy(&softc->pool_lock);
 	mtx_destroy(&softc->ctl_lock);
 
@@ -4596,7 +4598,7 @@ ctl_alloc_lun(struct ctl_softc *ctl_softc, struct ctl_lun *ctl_lun,
 	TAILQ_INIT(&lun->ooa_queue);
 	TAILQ_INIT(&lun->blocked_queue);
 	STAILQ_INIT(&lun->error_list);
-	ctl_tpc_init(lun);
+	ctl_tpc_lun_init(lun);
 
 	/*
 	 * Initialize the mode page index.
@@ -4748,7 +4750,7 @@ ctl_free_lun(struct ctl_lun *lun)
 	atomic_subtract_int(&lun->be_lun->be->num_luns, 1);
 	lun->be_lun->lun_shutdown(lun->be_lun->be_lun);
 
-	ctl_tpc_shutdown(lun);
+	ctl_tpc_lun_shutdown(lun);
 	mtx_destroy(&lun->lun_lock);
 	free(lun->lun_devid, M_CTL);
 	if (lun->flags & CTL_LUN_MALLOCED)
@@ -10024,7 +10026,8 @@ ctl_inquiry_evpd_scsi_ports(struct ctl_scsiio *ctsio, int alloc_len)
 	STAILQ_FOREACH(port, &softc->port_list, links) {
 		if ((port->status & CTL_PORT_STATUS_ONLINE) == 0)
 			continue;
-		if (ctl_map_lun_back(port->targ_port, lun->lun) >=
+		if (lun != NULL &&
+		    ctl_map_lun_back(port->targ_port, lun->lun) >=
 		    CTL_MAX_LUNS)
 			continue;
 		num_target_ports++;
@@ -10080,7 +10083,8 @@ ctl_inquiry_evpd_scsi_ports(struct ctl_scsiio *ctsio, int alloc_len)
 		STAILQ_FOREACH(port, &softc->port_list, links) {
 			if ((port->status & CTL_PORT_STATUS_ONLINE) == 0)
 				continue;
-			if (ctl_map_lun_back(port->targ_port, lun->lun) >=
+			if (lun != NULL &&
+			    ctl_map_lun_back(port->targ_port, lun->lun) >=
 			    CTL_MAX_LUNS)
 				continue;
 			p = port->targ_port % CTL_MAX_PORTS + g * CTL_MAX_PORTS;
@@ -10123,7 +10127,6 @@ ctl_inquiry_evpd_block_limits(struct ctl_scsiio *ctsio, int alloc_len)
 	int bs;
 
 	lun = (struct ctl_lun *)ctsio->io_hdr.ctl_private[CTL_PRIV_LUN].ptr;
-	bs = lun->be_lun->blocksize;
 
 	ctsio->kern_data_ptr = malloc(sizeof(*bl_ptr), M_CTL, M_WAITOK | M_ZERO);
 	bl_ptr = (struct scsi_vpd_block_limits *)ctsio->kern_data_ptr;
@@ -10157,10 +10160,13 @@ ctl_inquiry_evpd_block_limits(struct ctl_scsiio *ctsio, int alloc_len)
 	scsi_ulto2b(sizeof(*bl_ptr), bl_ptr->page_length);
 	bl_ptr->max_cmp_write_len = 0xff;
 	scsi_ulto4b(0xffffffff, bl_ptr->max_txfer_len);
-	scsi_ulto4b(MAXPHYS / bs, bl_ptr->opt_txfer_len);
-	if (lun->be_lun->flags & CTL_LUN_FLAG_UNMAP) {
-		scsi_ulto4b(0xffffffff, bl_ptr->max_unmap_lba_cnt);
-		scsi_ulto4b(0xffffffff, bl_ptr->max_unmap_blk_cnt);
+	if (lun != NULL) {
+		bs = lun->be_lun->blocksize;
+		scsi_ulto4b(MAXPHYS / bs, bl_ptr->opt_txfer_len);
+		if (lun->be_lun->flags & CTL_LUN_FLAG_UNMAP) {
+			scsi_ulto4b(0xffffffff, bl_ptr->max_unmap_lba_cnt);
+			scsi_ulto4b(0xffffffff, bl_ptr->max_unmap_blk_cnt);
+		}
 	}
 	scsi_u64to8b(UINT64_MAX, bl_ptr->max_write_same_length);
 
@@ -10177,10 +10183,8 @@ ctl_inquiry_evpd_lbp(struct ctl_scsiio *ctsio, int alloc_len)
 {
 	struct scsi_vpd_logical_block_prov *lbp_ptr;
 	struct ctl_lun *lun;
-	int bs;
 
 	lun = (struct ctl_lun *)ctsio->io_hdr.ctl_private[CTL_PRIV_LUN].ptr;
-	bs = lun->be_lun->blocksize;
 
 	ctsio->kern_data_ptr = malloc(sizeof(*lbp_ptr), M_CTL, M_WAITOK | M_ZERO);
 	lbp_ptr = (struct scsi_vpd_logical_block_prov *)ctsio->kern_data_ptr;
@@ -10211,7 +10215,7 @@ ctl_inquiry_evpd_lbp(struct ctl_scsiio *ctsio, int alloc_len)
 		lbp_ptr->device = (SID_QUAL_LU_OFFLINE << 5) | T_DIRECT;
 
 	lbp_ptr->page_code = SVPD_LBP;
-	if (lun->be_lun->flags & CTL_LUN_FLAG_UNMAP)
+	if (lun != NULL && lun->be_lun->flags & CTL_LUN_FLAG_UNMAP)
 		lbp_ptr->flags = SVPD_LBP_UNMAP | SVPD_LBP_WS16 | SVPD_LBP_WS10;
 
 	ctsio->scsi_status = SCSI_STATUS_OK;

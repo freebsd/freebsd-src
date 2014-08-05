@@ -28,7 +28,7 @@
 .\"	@(#)hier.7	8.1 (Berkeley) 6/5/93
 .\" $FreeBSD$
 .\"
-.Dd December 25, 2013
+.Dd July 25, 2014
 .Dt HIER 7
 .Os
 .Sh NAME
@@ -222,6 +222,8 @@ WaveLAN driver
 .El
 .It Pa fs/
 .Bl -tag -width ".Pa kerberos5/" -compact
+.It Pa cd9660/
+iso9660 file system
 .It Pa fdescfs/
 per-process file descriptors file system
 .It Pa fifofs/
@@ -261,11 +263,6 @@ STRIPE GEOM class
 .Pp
 .It Pa isc/
 ISC utility library libisc include files
-.It Pa isofs/
-.Bl -tag -width ".Pa kerberos5/" -compact
-.It Pa cd9660/
-iso9660 file system
-.El
 .It Pa libmilter/
 C include files for libmilter,
 the
@@ -275,6 +272,10 @@ mail filter API
 machine-specific C include files
 .It Pa net/
 miscellaneous network C include files
+.It Pa net80211/
+C include files for 802.11 wireless networking;
+see
+.Xr net80211 4
 .It Pa netinet/
 C include files for Internet standard protocols;
 see

@@ -194,6 +194,7 @@ typedef enum {
 	ZPOOL_PROP_COMMENT,
 	ZPOOL_PROP_EXPANDSZ,
 	ZPOOL_PROP_FREEING,
+	ZPOOL_PROP_FRAGMENTATION,
 	ZPOOL_PROP_LEAKED,
 	ZPOOL_NUM_PROPS
 } zpool_prop_t;
@@ -599,6 +600,13 @@ typedef struct zpool_rewind_policy {
 #define	SPA_MINDEVSIZE		(64ULL << 20)
 
 /*
+ * Set if the fragmentation has not yet been calculated. This can happen
+ * because the space maps have not been upgraded or the histogram feature
+ * is not enabled.
+ */
+#define	ZFS_FRAG_INVALID	UINT64_MAX
+
+/*
  * The location of the pool configuration repository, shared between kernel and
  * userland.
  */
@@ -739,6 +747,7 @@ typedef struct vdev_stat {
  	uint64_t	vs_configured_ashift;	/* TLV vdev_ashift      */
  	uint64_t	vs_logical_ashift;	/* vdev_logical_ashift  */
  	uint64_t	vs_physical_ashift;	/* vdev_physical_ashift */
+	uint64_t	vs_fragmentation;	/* device fragmentation */
 } vdev_stat_t;
 #define VDEV_STAT_VALID(field, uint64_t_field_count) \
     ((uint64_t_field_count * sizeof(uint64_t)) >= \
