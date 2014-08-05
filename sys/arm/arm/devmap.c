@@ -40,8 +40,8 @@ __FBSDID("$FreeBSD$");
 #include <vm/pmap.h>
 #include <machine/armreg.h>
 
-#if 0
 #include <machine/devmap.h>
+#include <machine/vmparam.h>
 
 static const struct arm_devmap_entry *devmap_table;
 static boolean_t devmap_bootstrap_done = false;
@@ -55,8 +55,9 @@ static boolean_t devmap_bootstrap_done = false;
 #define	AKVA_DEVMAP_MAX_ENTRIES	32
 static struct arm_devmap_entry	akva_devmap_entries[AKVA_DEVMAP_MAX_ENTRIES];
 static u_int			akva_devmap_idx;
-static vm_offset_t		akva_devmap_vaddr = ARM_VECTORS_HIGH;
+static vm_offset_t		akva_devmap_vaddr = VM_MAX_KERNEL_ADDRESS;
 
+#if 0
 /*
  * Print the contents of the static mapping table using the provided printf-like
  * output function (which will be either printf or db_printf).
@@ -86,6 +87,7 @@ arm_devmap_print_table()
 {
 	devmap_dump_table(printf);
 }
+#endif
 
 /*
  * Return the "last" kva address used by the registered devmap table.  It's
@@ -101,7 +103,7 @@ arm_devmap_lastaddr()
 	if (akva_devmap_idx > 0)
 		return (akva_devmap_vaddr);
 
-	lowaddr = ARM_VECTORS_HIGH;
+	lowaddr = VM_MAX_KERNEL_ADDRESS;
 	for (pd = devmap_table; pd != NULL && pd->pd_size != 0; ++pd) {
 		if (lowaddr > pd->pd_va)
 			lowaddr = pd->pd_va;
@@ -138,17 +140,22 @@ arm_devmap_add_entry(vm_paddr_t pa, vm_size_t sz)
 	 * align the virtual address to the next-lower 1MB boundary so that we
 	 * end up with a nice efficient section mapping.
 	 */
+#if 0
 	if ((pa & 0x000fffff) == 0 && (sz & 0x000fffff) == 0) {
 		akva_devmap_vaddr = trunc_1mpage(akva_devmap_vaddr - sz);
 	} else {
 		akva_devmap_vaddr = trunc_page(akva_devmap_vaddr - sz);
 	}
+#else
+	akva_devmap_vaddr = trunc_page(akva_devmap_vaddr - sz);
+#endif
+
 	m = &akva_devmap_entries[akva_devmap_idx++];
 	m->pd_va    = akva_devmap_vaddr;
 	m->pd_pa    = pa;
 	m->pd_size  = sz;
 	m->pd_prot  = VM_PROT_READ | VM_PROT_WRITE;
-	m->pd_cache = PTE_DEVICE;
+	m->pd_cache = 0;
 }
 
 /*
@@ -175,6 +182,8 @@ void
 arm_devmap_bootstrap(vm_offset_t l1pt, const struct arm_devmap_entry *table)
 {
 	const struct arm_devmap_entry *pd;
+	vm_offset_t pa, va;
+	vm_size_t size;
 
 	devmap_bootstrap_done = true;
 
@@ -188,8 +197,16 @@ arm_devmap_bootstrap(vm_offset_t l1pt, const struct arm_devmap_entry *table)
 		return;
 
 	for (pd = devmap_table; pd->pd_size != 0; ++pd) {
-		pmap_map_chunk(l1pt, pd->pd_va, pd->pd_pa, pd->pd_size,
-		    pd->pd_prot,pd->pd_cache);
+		va = pd->pd_va;
+		pa = pd->pd_pa;
+		size = pd->pd_size;
+
+		while (size > 0) {
+			pmap_kenter_device(va, pa);
+			size -= PAGE_SIZE;
+			va += PAGE_SIZE;
+			pa += PAGE_SIZE;
+		}
 	}
 }
 
@@ -234,7 +251,6 @@ arm_devmap_vtop(void * vpva, vm_size_t size)
 
 	return (DEVMAP_PADDR_NOTFOUND);
 }
-#endif
 
 /*
  * Map a set of physical memory pages into the kernel virtual address space.
@@ -250,14 +266,12 @@ void *
 pmap_mapdev(vm_offset_t pa, vm_size_t size)
 {
 	vm_offset_t va, tmpva, offset;
-#if 0
 	void * rva;
 
 	/* First look in the static mapping table. */
 	if ((rva = arm_devmap_ptov(pa, size)) != NULL)
 		return (rva);
-#endif
-	
+
 	offset = pa & PAGE_MASK;
 	pa = trunc_page(pa);
 	size = round_page(size + offset);
@@ -285,11 +299,9 @@ pmap_unmapdev(vm_offset_t va, vm_size_t size)
 	vm_offset_t tmpva, offset;
 	vm_size_t origsize;
 
-#if 0
 	/* Nothing to do if we find the mapping in the static table. */
 	if (arm_devmap_vtop((void*)va, size) != DEVMAP_PADDR_NOTFOUND)
 		return;
-#endif
 
 	origsize = size;
 	offset = va & PAGE_MASK;
