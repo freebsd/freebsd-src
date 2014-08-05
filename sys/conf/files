@@ -2514,6 +2514,7 @@ dev/usb/template/usb_template_modem.c	optional usb_template
 dev/usb/template/usb_template_mouse.c	optional usb_template
 dev/usb/template/usb_template_msc.c	optional usb_template
 dev/usb/template/usb_template_mtp.c	optional usb_template
+dev/usb/template/usb_template_phone.c	optional usb_template
 #
 # USB END
 #
