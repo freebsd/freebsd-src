@@ -37,6 +37,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/linker.h>
 #include <sys/module.h>
 #include <sys/queue.h>
+#include <sys/stdint.h>
 
 #include "bootstrap.h"
 
@@ -387,6 +388,8 @@ file_loadraw(char *name, char *type)
     if (archsw.arch_loadaddr != NULL)
 	loadaddr = archsw.arch_loadaddr(LOAD_RAW, name, loadaddr);
 
+    printf("%s ", name);
+
     laddr = loadaddr;
     for (;;) {
 	/* read in 4k chunks; size is not really important */
@@ -401,7 +404,9 @@ file_loadraw(char *name, char *type)
 	}
 	laddr += got;
     }
-    
+
+    printf("size=%#jx\n", (uintmax_t)(laddr - loadaddr));
+
     /* Looks OK so far; create & populate control structure */
     fp = file_alloc();
     fp->f_name = strdup(name);
