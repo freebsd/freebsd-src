@@ -78,7 +78,9 @@ void
 cpu_reset(void)
 {
 
-	panic("cpu_reset");
+	printf("cpu_reset");
+	while(1)
+		__asm volatile("wfi" ::: "memory");
 }
 
 void
