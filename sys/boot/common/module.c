@@ -237,8 +237,10 @@ command_lsmod(int argc, char *argv[])
 
     pager_open();
     for (fp = preloaded_files; fp; fp = fp->f_next) {
-	sprintf(lbuf, " %p: %s (%s, 0x%lx)\n", 
-		(void *) fp->f_addr, fp->f_name, fp->f_type, (long) fp->f_size);
+	sprintf(lbuf, " %p: ", (void *) fp->f_addr);
+	pager_output(lbuf);
+	pager_output(fp->f_name);
+	sprintf(lbuf, " (%s, 0x%lx)\n", fp->f_type, (long)fp->f_size);
 	pager_output(lbuf);
 	if (fp->f_args != NULL) {
 	    pager_output("    args: ");
