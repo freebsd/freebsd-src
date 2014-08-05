@@ -460,7 +460,7 @@ struct hpt_iop_srb {
 	u_int64_t            phy_addr;
 	u_int32_t            srb_flag;
 	int                  index;
-	struct callout_handle	timeout_ch;
+	struct callout	     timeout;
 };
 
 #define hptiop_lock_adapter(hba)   mtx_lock(&(hba)->lock)
