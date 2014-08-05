@@ -72,7 +72,7 @@ struct	ext2fs_direct_2 {
 /*
  * Maximal count of links to a file
  */
-#define	EXT2_LINK_MAX	LINK_MAX
+#define	EXT2_LINK_MAX	32000
 
 /*
  * Ext2 directory file types.  Only the low 3 bits are used.  The
