@@ -264,7 +264,8 @@ static driver_t arm_gic_driver = {
 
 static devclass_t arm_gic_devclass;
 
-DRIVER_MODULE(gic, simplebus, arm_gic_driver, arm_gic_devclass, 0, 0);
+EARLY_DRIVER_MODULE(gic, simplebus, arm_gic_driver, arm_gic_devclass, 0, 0,
+    BUS_PASS_INTERRUPT + BUS_PASS_ORDER_MIDDLE);
 
 static void
 gic_post_filter(void *arg)
