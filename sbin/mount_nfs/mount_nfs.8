@@ -28,7 +28,7 @@
 .\"	@(#)mount_nfs.8	8.3 (Berkeley) 3/29/95
 .\" $FreeBSD$
 .\"
-.Dd December 7, 2013
+.Dd August 5, 2014
 .Dt MOUNT_NFS 8
 .Os
 .Sh NAME
@@ -371,6 +371,14 @@ tune the timeout
 interval.)
 .It Cm udp
 Use UDP transport.
+.It Cm vers Ns = Ns Aq Ar vers_number
+Use the specified version number for NFS requests.
+See the
+.Cm nfsv2 ,
+.Cm nfsv3 ,
+and 
+.Cm nfsv4
+options for details.
 .It Cm wcommitsize Ns = Ns Aq Ar value
 Set the maximum pending write commit size to the specified value.
 This determines the maximum amount of pending write data that the NFS
@@ -465,6 +473,26 @@ Same as
 .It Fl x
 Same as
 .Fl o Cm retrans Ns = Ns Aq Ar value
+.El
+.Pp
+The following
+.Fl o
+named options are equivalent to other
+.Fl o
+named options and are supported for compatibility with other
+operating systems (e.g., Linux, Solaris, and OSX) to ease usage of
+.Xr autofs 5
+support.
+.Bl -tag -width indent
+.It Fl o Cm vers Ns = Ns 2
+Same as
+.Fl o Cm nfsv2
+.It Fl o Cm vers Ns = Ns 3
+Same as
+.Fl o Cm nfsv3
+.It Fl o Cm vers Ns = Ns 4
+Same as
+.Fl o Cm nfsv4
 .El
 .Sh SEE ALSO
 .Xr nmount 2 ,
