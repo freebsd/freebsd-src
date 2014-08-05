@@ -148,7 +148,7 @@ void
 DELAY(int delay)
 {
 
-	panic("DELAY");
+	/* TODO: Implement... */
 }
 
 int
