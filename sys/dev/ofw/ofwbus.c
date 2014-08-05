@@ -137,7 +137,7 @@ static driver_t ofwbus_driver = {
 };
 static devclass_t ofwbus_devclass;
 EARLY_DRIVER_MODULE(ofwbus, nexus, ofwbus_driver, ofwbus_devclass, 0, 0,
-    BUS_PASS_BUS);
+    BUS_PASS_BUS + BUS_PASS_ORDER_MIDDLE);
 MODULE_VERSION(ofwbus, 1);
 
 static const char *const ofwbus_excl_name[] = {
