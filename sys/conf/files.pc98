@@ -205,6 +205,7 @@ i386/svr4/svr4_machdep.c	optional compat_svr4
 kern/kern_clocksource.c		standard
 kern/imgact_aout.c		optional compat_aout
 kern/imgact_gzip.c		optional gzip
+kern/subr_sfbuf.c		standard
 libkern/divdi3.c		standard
 libkern/flsll.c			standard
 libkern/memmove.c		standard

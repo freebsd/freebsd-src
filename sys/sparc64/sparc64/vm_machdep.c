@@ -53,7 +53,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/mutex.h>
 #include <sys/proc.h>
 #include <sys/sysent.h>
-#include <sys/sf_buf.h>
 #include <sys/sched.h>
 #include <sys/sysctl.h>
 #include <sys/unistd.h>
@@ -83,35 +82,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/pcb.h>
 #include <machine/tlb.h>
 #include <machine/tstate.h>
-
-#ifndef NSFBUFS
-#define	NSFBUFS		(512 + maxusers * 16)
-#endif
-
-static int nsfbufs;
-static int nsfbufspeak;
-static int nsfbufsused;
-
-SYSCTL_INT(_kern_ipc, OID_AUTO, nsfbufs, CTLFLAG_RDTUN, &nsfbufs, 0,
-    "Maximum number of sendfile(2) sf_bufs available");
-SYSCTL_INT(_kern_ipc, OID_AUTO, nsfbufspeak, CTLFLAG_RD, &nsfbufspeak, 0,
-    "Number of sendfile(2) sf_bufs at peak usage");
-SYSCTL_INT(_kern_ipc, OID_AUTO, nsfbufsused, CTLFLAG_RD, &nsfbufsused, 0,
-    "Number of sendfile(2) sf_bufs in use");
-
-static void	sf_buf_init(void *arg);
-SYSINIT(sock_sf, SI_SUB_MBUF, SI_ORDER_ANY, sf_buf_init, NULL);
-
-/*
- * Expanded sf_freelist head.  Really an SLIST_HEAD() in disguise, with the
- * sf_freelist head with the sf_lock mutex.
- */
-static struct {
-	SLIST_HEAD(, sf_buf) sf_head;
-	struct mtx sf_lock;
-} sf_freelist;
-
-static u_int	sf_buf_alloc_want;
 
 PMAP_STATS_VAR(uma_nsmall_alloc);
 PMAP_STATS_VAR(uma_nsmall_alloc_oc);
@@ -415,83 +385,6 @@ is_physical_memory(vm_paddr_t addr)
 		if (addr >= mr->mr_start && addr < mr->mr_start + mr->mr_size)
 			return (1);
 	return (0);
-}
-
-/*
- * Allocate a pool of sf_bufs (sendfile(2) or "super-fast" if you prefer. :-))
- */
-static void
-sf_buf_init(void *arg)
-{
-	struct sf_buf *sf_bufs;
-	vm_offset_t sf_base;
-	int i;
-
-	nsfbufs = NSFBUFS;
-	TUNABLE_INT_FETCH("kern.ipc.nsfbufs", &nsfbufs);
-
-	mtx_init(&sf_freelist.sf_lock, "sf_bufs list lock", NULL, MTX_DEF);
-	SLIST_INIT(&sf_freelist.sf_head);
-	sf_base = kva_alloc(nsfbufs * PAGE_SIZE);
-	sf_bufs = malloc(nsfbufs * sizeof(struct sf_buf), M_TEMP,
-	    M_NOWAIT | M_ZERO);
-	for (i = 0; i < nsfbufs; i++) {
-		sf_bufs[i].kva = sf_base + i * PAGE_SIZE;
-		SLIST_INSERT_HEAD(&sf_freelist.sf_head, &sf_bufs[i], free_list);
-	}
-	sf_buf_alloc_want = 0;
-}
-
-/*
- * Get an sf_buf from the freelist.  Will block if none are available.
- */
-struct sf_buf *
-sf_buf_alloc(struct vm_page *m, int flags)
-{
-	struct sf_buf *sf;
-	int error;
-
-	mtx_lock(&sf_freelist.sf_lock);
-	while ((sf = SLIST_FIRST(&sf_freelist.sf_head)) == NULL) {
-		if (flags & SFB_NOWAIT)
-			break;
-		sf_buf_alloc_want++;
-		SFSTAT_INC(sf_allocwait);
-		error = msleep(&sf_freelist, &sf_freelist.sf_lock,
-		    (flags & SFB_CATCH) ? PCATCH | PVM : PVM, "sfbufa", 0);
-		sf_buf_alloc_want--;
-
-		/*
-		 * If we got a signal, don't risk going back to sleep.
-		 */
-		if (error)
-			break;
-	}
-	if (sf != NULL) {
-		SLIST_REMOVE_HEAD(&sf_freelist.sf_head, free_list);
-		sf->m = m;
-		nsfbufsused++;
-		nsfbufspeak = imax(nsfbufspeak, nsfbufsused);
-		pmap_qenter(sf->kva, &sf->m, 1);
-	}
-	mtx_unlock(&sf_freelist.sf_lock);
-	return (sf);
-}
-
-/*
- * Release resources back to the system.
- */
-void
-sf_buf_free(struct sf_buf *sf)
-{
-
-	pmap_qremove(sf->kva, 1);
-	mtx_lock(&sf_freelist.sf_lock);
-	SLIST_INSERT_HEAD(&sf_freelist.sf_head, sf, free_list);
-	nsfbufsused--;
-	if (sf_buf_alloc_want > 0)
-		wakeup(&sf_freelist);
-	mtx_unlock(&sf_freelist.sf_lock);
 }
 
 void
