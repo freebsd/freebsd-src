@@ -39,6 +39,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_pageout.h>
 #include <vm/vm_map.h>
 
+#include <machine/devmap.h>
 #include <machine/machdep.h>
 #include <machine/vmparam.h>
 
@@ -212,6 +213,36 @@ pmap_bootstrap_l2(vm_offset_t l1pt, vm_offset_t va, vm_offset_t l2_start)
 	return l2pt;
 }
 
+static vm_offset_t
+pmap_bootstrap_l3(vm_offset_t l1pt, vm_offset_t va, vm_offset_t l3_start)
+{
+	vm_offset_t l2pt, l3pt;
+	vm_paddr_t pa;
+	pd_entry_t *l2;
+	u_int l2_slot;
+
+	KASSERT((va & L2_OFFSET) == 0, ("Invalid virtual address"));
+
+	l2 = pmap_l2(kernel_pmap, va);
+	l2 = (pd_entry_t *)((uintptr_t)l2 & ~(PAGE_SIZE - 1));
+	l2pt = (vm_offset_t)l2;
+	l2_slot = pmap_l2_index(va);
+	l3pt = l3_start;
+
+	for (; va < VM_MAX_KERNEL_ADDRESS; l2_slot++, va += L2_SIZE) {
+		KASSERT(l2_slot < Ln_ENTRIES, ("Invalid L2 index"));
+
+		pa = pmap_early_vtophys(l1pt, l3pt);
+		l2[l2_slot] = (pa & ~Ln_TABLE_MASK) | ATTR_AF | L2_TABLE;
+		l3pt += PAGE_SIZE;
+	}
+
+	/* Clean the L2 page table */
+	memset((void *)l3_start, 0, l3pt - l3_start);
+
+	return l3pt;
+}
+
 void
 pmap_bootstrap(vm_offset_t l1pt, vm_paddr_t kernstart, vm_size_t kernlen)
 {
@@ -333,6 +364,9 @@ pmap_bootstrap(vm_offset_t l1pt, vm_paddr_t kernstart, vm_size_t kernlen)
 	freemempos = roundup2(freemempos, PAGE_SIZE);
 	/* Create the l2 tables up to VM_MAX_KERNEL_ADDRESS */
 	freemempos = pmap_bootstrap_l2(l1pt, va, freemempos);
+	/* And the l3 tables for the early devmap */
+	freemempos = pmap_bootstrap_l3(l1pt,
+	    arm_devmap_lastaddr() & ~L2_OFFSET, freemempos);
 
 	/* Flush the cache and tlb to ensure the new entries are valid */
 	/* TODO: Flush the cache, we are relying on it being off */
@@ -353,7 +387,7 @@ pmap_bootstrap(vm_offset_t l1pt, vm_paddr_t kernstart, vm_size_t kernlen)
 	dpcpu_init((void *)dpcpu, 0);
 
 	virtual_avail = roundup2(freemempos, L1_SIZE);
-	virtual_end = VM_MAX_KERNEL_ADDRESS;
+	virtual_end = arm_devmap_lastaddr() & ~L1_OFFSET;
 	kernel_vm_end = virtual_avail;
 	
 	pa = pmap_early_vtophys(l1pt, freemempos);
