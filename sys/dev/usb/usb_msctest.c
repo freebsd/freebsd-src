@@ -859,9 +859,10 @@ usb_msc_eject(struct usb_device *udev, uint8_t iface_index, int method)
 		break;
 	default:
 		DPRINTF("Unknown eject method (%d)\n", method);
-		err = 0;
-		break;
+		bbb_detach(sc);
+		return (USB_ERR_INVAL);
 	}
+
 	DPRINTF("Eject CD command status: %s\n", usbd_errstr(err));
 
 	bbb_detach(sc);
