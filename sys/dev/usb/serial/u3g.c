@@ -86,7 +86,8 @@ SYSCTL_INT(_hw_usb_u3g, OID_AUTO, debug, CTLFLAG_RW,
 #define	U3GINIT_WAIT		7	/* Device reappears after a delay */
 #define	U3GINIT_SAEL_M460	8	/* Requires vendor init */
 #define	U3GINIT_HUAWEISCSI	9	/* Requires Huawei SCSI init command */
-#define	U3GINIT_TCT		10	/* Requires TCT Mobile init command */
+#define	U3GINIT_HUAWEISCSI2	10	/* Requires Huawei SCSI init command (2) */
+#define	U3GINIT_TCT		11	/* Requires TCT Mobile init command */
 
 enum {
 	U3G_BULK_WR,
@@ -720,6 +721,8 @@ u3g_test_autoinst(void *arg, struct usb_device *udev,
 		method = U3GINIT_WAIT;
 	else if (usb_test_quirk(uaa, UQ_MSC_EJECT_HUAWEISCSI))
 		method = U3GINIT_HUAWEISCSI;
+	else if (usb_test_quirk(uaa, UQ_MSC_EJECT_HUAWEISCSI2))
+		method = U3GINIT_HUAWEISCSI2;
 	else if (usb_test_quirk(uaa, UQ_MSC_EJECT_TCT))
 		method = U3GINIT_TCT;
 	else if (usbd_lookup_id_by_uaa(u3g_devs, sizeof(u3g_devs), uaa) == 0)
@@ -739,6 +742,9 @@ u3g_test_autoinst(void *arg, struct usb_device *udev,
 			break;
 		case U3GINIT_HUAWEISCSI:
 			error = usb_msc_eject(udev, 0, MSC_EJECT_HUAWEI);
+			break;
+		case U3GINIT_HUAWEISCSI2:
+			error = usb_msc_eject(udev, 0, MSC_EJECT_HUAWEI2);
 			break;
 		case U3GINIT_SCSIEJECT:
 			error = usb_msc_eject(udev, 0, MSC_EJECT_STOPUNIT);
