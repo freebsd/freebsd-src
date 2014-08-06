@@ -41,6 +41,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/syslog.h>
+#include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/proc.h>
 #include <sys/bus.h>
@@ -75,8 +76,8 @@ size_t sintrnames = sizeof(intrnames);
  * assumptions of vmstat(8) and the kdb "show intrcnt" command, the two
  * consumers of this data.
  */
-void
-arm_intrnames_init(void)
+static void
+intr_init(void *unused)
 {
 	int i;
 
@@ -85,6 +86,8 @@ arm_intrnames_init(void)
 		    INTRNAME_LEN - 1, "");
 	}
 }
+
+SYSINIT(intr_init, SI_SUB_INTR, SI_ORDER_FIRST, intr_init, NULL);
 
 void
 arm_setup_irqhandler(const char *name, driver_filter_t *filt,
