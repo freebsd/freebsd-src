@@ -1039,8 +1039,8 @@ ctl_be_block_cw_dispatch_ws(struct ctl_be_block_lun *be_lun,
 	softc = be_lun->softc;
 	lbalen = ARGS(beio->io);
 
-	if (lbalen->flags & ~(SWS_LBDATA | SWS_UNMAP) ||
-	    (lbalen->flags & SWS_UNMAP && be_lun->unmap == NULL)) {
+	if (lbalen->flags & ~(SWS_LBDATA | SWS_UNMAP | SWS_ANCHOR) ||
+	    (lbalen->flags & (SWS_UNMAP | SWS_ANCHOR) && be_lun->unmap == NULL)) {
 		ctl_free_beio(beio);
 		ctl_set_invalid_field(&io->scsiio,
 				      /*sks_valid*/ 1,
@@ -1076,7 +1076,7 @@ ctl_be_block_cw_dispatch_ws(struct ctl_be_block_lun *be_lun,
 		break;
 	}
 
-	if (lbalen->flags & SWS_UNMAP) {
+	if (lbalen->flags & (SWS_UNMAP | SWS_ANCHOR)) {
 		beio->io_offset = lbalen->lba * be_lun->blocksize;
 		beio->io_len = (uint64_t)lbalen->len * be_lun->blocksize;
 		beio->bio_cmd = BIO_DELETE;
@@ -1146,7 +1146,7 @@ ctl_be_block_cw_dispatch_unmap(struct ctl_be_block_lun *be_lun,
 	softc = be_lun->softc;
 	ptrlen = (struct ctl_ptr_len_flags *)&io->io_hdr.ctl_private[CTL_PRIV_LBA_LEN];
 
-	if (ptrlen->flags != 0 || be_lun->unmap == NULL) {
+	if ((ptrlen->flags & ~SU_ANCHOR) != 0 || be_lun->unmap == NULL) {
 		ctl_free_beio(beio);
 		ctl_set_invalid_field(&io->scsiio,
 				      /*sks_valid*/ 0,
