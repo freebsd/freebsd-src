@@ -1278,7 +1278,6 @@ initarm(struct arm_boot_params *abp)
 
 	init_proc0(kernelstack.pv_va);
 
-	arm_intrnames_init();
 	arm_vector_init(ARM_VECTORS_HIGH, ARM_VEC_ALL);
 	pmap_bootstrap(freemempos, &kernel_l1pt);
 	msgbufp = (void *)msgbufpv.pv_va;
