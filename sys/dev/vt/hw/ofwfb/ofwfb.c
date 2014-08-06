@@ -399,7 +399,6 @@ ofwfb_init(struct vt_device *vd)
 	sc->fb.fb_pbase = fb_phys;
 
 	ofwfb_initialize(vd);
-	fb_probe(&sc->fb);
 	vt_fb_init(vd);
 
 	return (CN_INTERNAL);

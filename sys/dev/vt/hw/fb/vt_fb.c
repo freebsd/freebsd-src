@@ -61,6 +61,30 @@ static struct vt_driver vt_fb_driver = {
 
 VT_DRIVER_DECLARE(vt_fb, vt_fb_driver);
 
+static void
+vt_fb_mem_wr1(struct fb_info *sc, uint32_t o, uint8_t v)
+{
+
+	KASSERT((o < sc->fb_size), ("Offset %#08x out of fb size", o));
+	*(uint8_t *)(sc->fb_vbase + o) = v;
+}
+
+static void
+vt_fb_mem_wr2(struct fb_info *sc, uint32_t o, uint16_t v)
+{
+
+	KASSERT((o < sc->fb_size), ("Offset %#08x out of fb size", o));
+	*(uint16_t *)(sc->fb_vbase + o) = v;
+}
+
+static void
+vt_fb_mem_wr4(struct fb_info *sc, uint32_t o, uint32_t v)
+{
+
+	KASSERT((o < sc->fb_size), ("Offset %#08x out of fb size", o));
+	*(uint32_t *)(sc->fb_vbase + o) = v;
+}
+
 int
 vt_fb_ioctl(struct vt_device *vd, u_long cmd, caddr_t data, struct thread *td)
 {
@@ -134,20 +158,22 @@ vt_fb_setpixel(struct vt_device *vd, int x, int y, term_color_t color)
 	c = info->fb_cmap[color];
 	o = info->fb_stride * y + x * FBTYPE_GET_BYTESPP(info);
 
+	KASSERT((info->fb_vbase != 0), ("Unmapped framebuffer"));
+
 	switch (FBTYPE_GET_BYTESPP(info)) {
 	case 1:
-		info->wr1(info, o, c);
+		vt_fb_mem_wr1(info, o, c);
 		break;
 	case 2:
-		info->wr2(info, o, c);
+		vt_fb_mem_wr2(info, o, c);
 		break;
 	case 3:
-		info->wr1(info, o, (c >> 16) & 0xff);
-		info->wr1(info, o + 1, (c >> 8) & 0xff);
-		info->wr1(info, o + 2, c & 0xff);
+		vt_fb_mem_wr1(info, o, (c >> 16) & 0xff);
+		vt_fb_mem_wr1(info, o + 1, (c >> 8) & 0xff);
+		vt_fb_mem_wr1(info, o + 2, c & 0xff);
 		break;
 	case 4:
-		info->wr4(info, o, c);
+		vt_fb_mem_wr4(info, o, c);
 		break;
 	default:
 		/* panic? */
@@ -183,32 +209,34 @@ vt_fb_blank(struct vt_device *vd, term_color_t color)
 	info = vd->vd_softc;
 	c = info->fb_cmap[color];
 
+	KASSERT((info->fb_vbase != 0), ("Unmapped framebuffer"));
+
 	switch (FBTYPE_GET_BYTESPP(info)) {
 	case 1:
 		for (h = 0; h < info->fb_height; h++)
 			for (o = 0; o < info->fb_stride; o++)
-				info->wr1(info, h*info->fb_stride + o, c);
+				vt_fb_mem_wr1(info, h*info->fb_stride + o, c);
 		break;
 	case 2:
 		for (h = 0; h < info->fb_height; h++)
 			for (o = 0; o < info->fb_stride; o += 2)
-				info->wr2(info, h*info->fb_stride + o, c);
+				vt_fb_mem_wr2(info, h*info->fb_stride + o, c);
 		break;
 	case 3:
 		for (h = 0; h < info->fb_height; h++)
 			for (o = 0; o < info->fb_stride; o += 3) {
-				info->wr1(info, h*info->fb_stride + o,
+				vt_fb_mem_wr1(info, h*info->fb_stride + o,
 				    (c >> 16) & 0xff);
-				info->wr1(info, h*info->fb_stride + o + 1,
+				vt_fb_mem_wr1(info, h*info->fb_stride + o + 1,
 				    (c >> 8) & 0xff);
-				info->wr1(info, h*info->fb_stride + o + 2,
+				vt_fb_mem_wr1(info, h*info->fb_stride + o + 2,
 				    c & 0xff);
 			}
 		break;
 	case 4:
 		for (h = 0; h < info->fb_height; h++)
 			for (o = 0; o < info->fb_stride; o += 4)
-				info->wr4(info, h*info->fb_stride + o, c);
+				vt_fb_mem_wr4(info, h*info->fb_stride + o, c);
 		break;
 	default:
 		/* panic? */
@@ -241,6 +269,8 @@ vt_fb_bitbltchr(struct vt_device *vd, const uint8_t *src, const uint8_t *mask,
 	    info->fb_height))
 		return;
 
+	KASSERT((info->fb_vbase != 0), ("Unmapped framebuffer"));
+
 	line = (info->fb_stride * top) + (left * bpp);
 	for (l = 0; l < height; l++) {
 		ch = src;
@@ -254,19 +284,19 @@ vt_fb_bitbltchr(struct vt_device *vd, const uint8_t *src, const uint8_t *mask,
 
 			switch(bpp) {
 			case 1:
-				info->wr1(info, o, cc);
+				vt_fb_mem_wr1(info, o, cc);
 				break;
 			case 2:
-				info->wr2(info, o, cc);
+				vt_fb_mem_wr2(info, o, cc);
 				break;
 			case 3:
 				/* Packed mode, so unaligned. Byte access. */
-				info->wr1(info, o, (cc >> 16) & 0xff);
-				info->wr1(info, o + 1, (cc >> 8) & 0xff);
-				info->wr1(info, o + 2, cc & 0xff);
+				vt_fb_mem_wr1(info, o, (cc >> 16) & 0xff);
+				vt_fb_mem_wr1(info, o + 1, (cc >> 8) & 0xff);
+				vt_fb_mem_wr1(info, o + 2, cc & 0xff);
 				break;
 			case 4:
-				info->wr4(info, o, cc);
+				vt_fb_mem_wr4(info, o, cc);
 				break;
 			default:
 				/* panic? */
@@ -303,6 +333,8 @@ vt_fb_maskbitbltchr(struct vt_device *vd, const uint8_t *src, const uint8_t *mas
 	    info->fb_height))
 		return;
 
+	KASSERT((info->fb_vbase != 0), ("Unmapped framebuffer"));
+
 	line = (info->fb_stride * top) + (left * bpp);
 	for (l = 0; l < height; l++) {
 		ch = src;
@@ -325,19 +357,19 @@ vt_fb_maskbitbltchr(struct vt_device *vd, const uint8_t *src, const uint8_t *mas
 
 			switch(bpp) {
 			case 1:
-				info->wr1(info, o, cc);
+				vt_fb_mem_wr1(info, o, cc);
 				break;
 			case 2:
-				info->wr2(info, o, cc);
+				vt_fb_mem_wr2(info, o, cc);
 				break;
 			case 3:
 				/* Packed mode, so unaligned. Byte access. */
-				info->wr1(info, o, (cc >> 16) & 0xff);
-				info->wr1(info, o + 1, (cc >> 8) & 0xff);
-				info->wr1(info, o + 2, cc & 0xff);
+				vt_fb_mem_wr1(info, o, (cc >> 16) & 0xff);
+				vt_fb_mem_wr1(info, o + 1, (cc >> 8) & 0xff);
+				vt_fb_mem_wr1(info, o + 2, cc & 0xff);
 				break;
 			case 4:
-				info->wr4(info, o, cc);
+				vt_fb_mem_wr4(info, o, cc);
 				break;
 			default:
 				/* panic? */
@@ -392,6 +424,12 @@ vt_fb_init(struct vt_device *vd)
 	info = vd->vd_softc;
 	vd->vd_height = info->fb_height;
 	vd->vd_width = info->fb_width;
+
+	if (info->fb_size == 0)
+		return (CN_DEAD);
+
+	if (info->fb_pbase == 0)
+		info->fb_flags |= FB_FLAG_NOMMAP;
 
 	if (info->fb_cmsize <= 0) {
 		err = vt_fb_init_cmap(info->fb_cmap, FBTYPE_GET_BPP(info));
