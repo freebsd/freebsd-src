@@ -1,6 +1,6 @@
 /******************************************************************************
 
-  Copyright (c) 2001-2013, Intel Corporation 
+  Copyright (c) 2001-2014, Intel Corporation 
   All rights reserved.
   
   Redistribution and use in source and binary forms, with or without 
@@ -37,7 +37,7 @@
 static s32 e1000_validate_mdi_setting_generic(struct e1000_hw *hw);
 static void e1000_set_lan_id_multi_port_pcie(struct e1000_hw *hw);
 static void e1000_config_collision_dist_generic(struct e1000_hw *hw);
-static void e1000_rar_set_generic(struct e1000_hw *hw, u8 *addr, u32 index);
+static int e1000_rar_set_generic(struct e1000_hw *hw, u8 *addr, u32 index);
 
 /**
  *  e1000_init_mac_ops_generic - Initialize MAC function pointers
@@ -85,7 +85,7 @@ void e1000_init_mac_ops_generic(struct e1000_hw *hw)
  *  e1000_null_ops_generic - No-op function, returns 0
  *  @hw: pointer to the HW structure
  **/
-s32 e1000_null_ops_generic(struct e1000_hw *hw)
+s32 e1000_null_ops_generic(struct e1000_hw E1000_UNUSEDARG *hw)
 {
 	DEBUGFUNC("e1000_null_ops_generic");
 	return E1000_SUCCESS;
@@ -95,7 +95,7 @@ s32 e1000_null_ops_generic(struct e1000_hw *hw)
  *  e1000_null_mac_generic - No-op function, return void
  *  @hw: pointer to the HW structure
  **/
-void e1000_null_mac_generic(struct e1000_hw *hw)
+void e1000_null_mac_generic(struct e1000_hw E1000_UNUSEDARG *hw)
 {
 	DEBUGFUNC("e1000_null_mac_generic");
 	return;
@@ -105,7 +105,8 @@ void e1000_null_mac_generic(struct e1000_hw *hw)
  *  e1000_null_link_info - No-op function, return 0
  *  @hw: pointer to the HW structure
  **/
-s32 e1000_null_link_info(struct e1000_hw *hw, u16 *s, u16 *d)
+s32 e1000_null_link_info(struct e1000_hw E1000_UNUSEDARG *hw,
+			 u16 E1000_UNUSEDARG *s, u16 E1000_UNUSEDARG *d)
 {
 	DEBUGFUNC("e1000_null_link_info");
 	return E1000_SUCCESS;
@@ -115,7 +116,8 @@ s32 e1000_null_link_info(struct e1000_hw *hw, u16 *s, u16 *d)
  *  e1000_null_mng_mode - No-op function, return FALSE
  *  @hw: pointer to the HW structure
  **/
-bool e1000_null_mng_mode(struct e1000_hw *hw) {
+bool e1000_null_mng_mode(struct e1000_hw E1000_UNUSEDARG *hw)
+{
 	DEBUGFUNC("e1000_null_mng_mode");
 	return FALSE;
 }
@@ -124,7 +126,8 @@ bool e1000_null_mng_mode(struct e1000_hw *hw) {
  *  e1000_null_update_mc - No-op function, return void
  *  @hw: pointer to the HW structure
  **/
-void e1000_null_update_mc(struct e1000_hw *hw, u8 *h, u32 a)
+void e1000_null_update_mc(struct e1000_hw E1000_UNUSEDARG *hw,
+			  u8 E1000_UNUSEDARG *h, u32 E1000_UNUSEDARG a)
 {
 	DEBUGFUNC("e1000_null_update_mc");
 	return;
@@ -134,27 +137,30 @@ void e1000_null_update_mc(struct e1000_hw *hw, u8 *h, u32 a)
  *  e1000_null_write_vfta - No-op function, return void
  *  @hw: pointer to the HW structure
  **/
-void e1000_null_write_vfta(struct e1000_hw *hw, u32 a, u32 b)
+void e1000_null_write_vfta(struct e1000_hw E1000_UNUSEDARG *hw,
+			   u32 E1000_UNUSEDARG a, u32 E1000_UNUSEDARG b)
 {
 	DEBUGFUNC("e1000_null_write_vfta");
 	return;
 }
 
 /**
- *  e1000_null_rar_set - No-op function, return void
+ *  e1000_null_rar_set - No-op function, return 0
  *  @hw: pointer to the HW structure
  **/
-void e1000_null_rar_set(struct e1000_hw *hw, u8 *h, u32 a)
+int e1000_null_rar_set(struct e1000_hw E1000_UNUSEDARG *hw,
+			u8 E1000_UNUSEDARG *h, u32 E1000_UNUSEDARG a)
 {
 	DEBUGFUNC("e1000_null_rar_set");
-	return;
+	return E1000_SUCCESS;
 }
 
 /**
  *  e1000_null_set_obff_timer - No-op function, return 0
  *  @hw: pointer to the HW structure
  **/
-s32 e1000_null_set_obff_timer(struct e1000_hw *hw, u32 a)
+s32 e1000_null_set_obff_timer(struct e1000_hw E1000_UNUSEDARG *hw,
+			      u32 E1000_UNUSEDARG a)
 {
 	DEBUGFUNC("e1000_null_set_obff_timer");
 	return E1000_SUCCESS;
@@ -469,7 +475,7 @@ s32 e1000_check_alt_mac_addr_generic(struct e1000_hw *hw)
  *  Sets the receive address array register at index to the address passed
  *  in by addr.
  **/
-static void e1000_rar_set_generic(struct e1000_hw *hw, u8 *addr, u32 index)
+static int e1000_rar_set_generic(struct e1000_hw *hw, u8 *addr, u32 index)
 {
 	u32 rar_low, rar_high;
 
@@ -495,6 +501,8 @@ static void e1000_rar_set_generic(struct e1000_hw *hw, u8 *addr, u32 index)
 	E1000_WRITE_FLUSH(hw);
 	E1000_WRITE_REG(hw, E1000_RAH(index), rar_high);
 	E1000_WRITE_FLUSH(hw);
+
+	return E1000_SUCCESS;
 }
 
 /**
@@ -940,6 +948,7 @@ s32 e1000_set_default_fc_generic(struct e1000_hw *hw)
 {
 	s32 ret_val;
 	u16 nvm_data;
+	u16 nvm_offset = 0;
 
 	DEBUGFUNC("e1000_set_default_fc_generic");
 
@@ -951,7 +960,18 @@ s32 e1000_set_default_fc_generic(struct e1000_hw *hw)
 	 * control setting, then the variable hw->fc will
 	 * be initialized based on a value in the EEPROM.
 	 */
-	ret_val = hw->nvm.ops.read(hw, NVM_INIT_CONTROL2_REG, 1, &nvm_data);
+	if (hw->mac.type == e1000_i350) {
+		nvm_offset = NVM_82580_LAN_FUNC_OFFSET(hw->bus.func);
+		ret_val = hw->nvm.ops.read(hw,
+					   NVM_INIT_CONTROL2_REG +
+					   nvm_offset,
+					   1, &nvm_data);
+	} else {
+		ret_val = hw->nvm.ops.read(hw,
+					   NVM_INIT_CONTROL2_REG,
+					   1, &nvm_data);
+	}
+
 
 	if (ret_val) {
 		DEBUGOUT("NVM Read Error\n");
@@ -1675,7 +1695,7 @@ s32 e1000_get_speed_and_duplex_copper_generic(struct e1000_hw *hw, u16 *speed,
  *  Sets the speed and duplex to gigabit full duplex (the only possible option)
  *  for fiber/serdes links.
  **/
-s32 e1000_get_speed_and_duplex_fiber_serdes_generic(struct e1000_hw *hw,
+s32 e1000_get_speed_and_duplex_fiber_serdes_generic(struct e1000_hw E1000_UNUSEDARG *hw,
 						    u16 *speed, u16 *duplex)
 {
 	DEBUGFUNC("e1000_get_speed_and_duplex_fiber_serdes_generic");
@@ -2078,7 +2098,8 @@ s32 e1000_disable_pcie_master_generic(struct e1000_hw *hw)
 
 	while (timeout) {
 		if (!(E1000_READ_REG(hw, E1000_STATUS) &
-		      E1000_STATUS_GIO_MASTER_ENABLE))
+		      E1000_STATUS_GIO_MASTER_ENABLE) ||
+				E1000_REMOVED(hw->hw_addr))
 			break;
 		usec_delay(100);
 		timeout--;
@@ -2187,7 +2208,7 @@ static s32 e1000_validate_mdi_setting_generic(struct e1000_hw *hw)
  *  Validate the MDI/MDIx setting, allowing for auto-crossover during forced
  *  operation.
  **/
-s32 e1000_validate_mdi_setting_crossover_generic(struct e1000_hw *hw)
+s32 e1000_validate_mdi_setting_crossover_generic(struct e1000_hw E1000_UNUSEDARG *hw)
 {
 	DEBUGFUNC("e1000_validate_mdi_setting_crossover_generic");
 
