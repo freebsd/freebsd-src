@@ -38,6 +38,31 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20140807: Remove private lib files that should not be installed.
+OLD_FILES+=usr/lib/private/libatf-c.a
+OLD_FILES+=usr/lib/private/libatf-c.so
+OLD_FILES+=usr/lib/private/libatf-c_p.a
+OLD_FILES+=usr/lib/private/libatf-c++.a
+OLD_FILES+=usr/lib/private/libatf-c++.so
+OLD_FILES+=usr/lib/private/libatf-c++_p.a
+OLD_FILES+=usr/lib/private/libheimipcc.a
+OLD_FILES+=usr/lib/private/libheimipcc.so
+OLD_FILES+=usr/lib/private/libheimipcc_p.a
+OLD_FILES+=usr/lib/private/libheimipcs.a
+OLD_FILES+=usr/lib/private/libheimipcs.so
+OLD_FILES+=usr/lib/private/libheimipcs_p.a
+OLD_FILES+=usr/lib/private/libldns.a
+OLD_FILES+=usr/lib/private/libldns.so
+OLD_FILES+=usr/lib/private/libldns_p.a
+OLD_FILES+=usr/lib/private/libssh.a
+OLD_FILES+=usr/lib/private/libssh.so
+OLD_FILES+=usr/lib/private/libssh.p.a
+OLD_FILES+=usr/lib/private/libunbound.a
+OLD_FILES+=usr/lib/private/libunbound.so
+OLD_FILES+=usr/lib/private/libunbound_p.a
+OLD_FILES+=usr/lib/private/libucl.a
+OLD_FILES+=usr/lib/private/libucl.so
+OLD_FILES+=usr/lib/private/libucl_p.a
 # 20140803: Remove an obsolete man page
 OLD_FILES+=usr/share/man/man9/pmap_change_wiring.9.gz
 # 20140728: libsbuf restored to old version.

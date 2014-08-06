@@ -8,13 +8,13 @@
 .error bsd.libnames.mk cannot be included directly.
 .endif
 
+.sinclude <src.libnames.mk>
+
 LIBCRT0?=	${DESTDIR}${LIBDIR}/crt0.o
 
 LIBALIAS?=	${DESTDIR}${LIBDIR}/libalias.a
 LIBARCHIVE?=	${DESTDIR}${LIBDIR}/libarchive.a
 LIBASN1?=	${DESTDIR}${LIBDIR}/libasn1.a
-LIBATF_C?=	${DESTDIR}${LIBPRIVATEDIR}/libatf-c.a
-LIBATF_CXX?=	${DESTDIR}${LIBPRIVATEDIR}/libatf-c++.a
 LIBATM?=	${DESTDIR}${LIBDIR}/libatm.a
 LIBAUDITD?=	${DESTDIR}${LIBDIR}/libauditd.a
 LIBAVL?=	${DESTDIR}${LIBDIR}/libavl.a
@@ -58,8 +58,6 @@ LIBGSSAPI?=	${DESTDIR}${LIBDIR}/libgssapi.a
 LIBGSSAPI_KRB5?= ${DESTDIR}${LIBDIR}/libgssapi_krb5.a
 LIBHDB?=	${DESTDIR}${LIBDIR}/libhdb.a
 LIBHEIMBASE?=	${DESTDIR}${LIBDIR}/libheimbase.a
-LIBHEIMIPCC?=	${DESTDIR}${LIBPRIVATEDIR}/libheimipcc.a
-LIBHEIMIPCS?=	${DESTDIR}${LIBPRIVATEDIR}/libheimipcs.a
 LIBHEIMNTLM?=	${DESTDIR}${LIBDIR}/libheimntlm.a
 LIBHEIMSQLITE?=	${DESTDIR}${LIBDIR}/libheimsqlite.a
 LIBHX509?=	${DESTDIR}${LIBDIR}/libhx509.a
@@ -74,7 +72,6 @@ LIBKICONV?=	${DESTDIR}${LIBDIR}/libkiconv.a
 LIBKRB5?=	${DESTDIR}${LIBDIR}/libkrb5.a
 LIBKVM?=	${DESTDIR}${LIBDIR}/libkvm.a
 LIBL?=		${DESTDIR}${LIBDIR}/libl.a
-LIBLDNS?=	${DESTDIR}${LIBPRIVATEDIR}/libldns.a
 LIBLN?=		"don't use LIBLN, use LIBL"
 LIBLZMA?=	${DESTDIR}${LIBDIR}/liblzma.a
 LIBM?=		${DESTDIR}${LIBDIR}/libm.a
@@ -134,7 +131,6 @@ LIBRTLD_DB?=	${DESTDIR}${LIBDIR}/librtld_db.a
 LIBSBUF?=	${DESTDIR}${LIBDIR}/libsbuf.a
 LIBSDP?=	${DESTDIR}${LIBDIR}/libsdp.a
 LIBSMB?=	${DESTDIR}${LIBDIR}/libsmb.a
-LIBSSH?=	${DESTDIR}${LIBPRIVATEDIR}/libssh.a
 LIBSSL?=	${DESTDIR}${LIBDIR}/libssl.a
 LIBSTAND?=	${DESTDIR}${LIBDIR}/libstand.a
 LIBSTDCPLUSPLUS?= ${DESTDIR}${LIBDIR}/libstdc++.a
@@ -142,11 +138,9 @@ LIBTACPLUS?=	${DESTDIR}${LIBDIR}/libtacplus.a
 LIBTERMCAP?=	${DESTDIR}${LIBDIR}/libtermcap.a
 LIBTERMLIB?=	"don't use LIBTERMLIB, use LIBTERMCAP"
 LIBTINFO?=	"don't use LIBTINFO, use LIBNCURSES"
-LIBUCL?=	${DESTDIR}${LIBPRIVATEDIR}/libucl.a
 LIBUFS?=	${DESTDIR}${LIBDIR}/libufs.a
 LIBUGIDFW?=	${DESTDIR}${LIBDIR}/libugidfw.a
 LIBUMEM?=	${DESTDIR}${LIBDIR}/libumem.a
-LIBUNBOUND?=	${DESTDIR}${LIBPRIVATEDIR}/libunbound.a
 LIBUSBHID?=	${DESTDIR}${LIBDIR}/libusbhid.a
 LIBUSB?=	${DESTDIR}${LIBDIR}/libusb.a
 LIBULOG?=	${DESTDIR}${LIBDIR}/libulog.a

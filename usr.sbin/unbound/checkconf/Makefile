@@ -10,7 +10,7 @@ PROG=	unbound-checkconf
 SRCS=	unbound-checkconf.c worker_cb.c
 CFLAGS=	-I${UNBOUNDDIR} -I${LDNSDIR}
 DPADD=	${LIBUNBOUND} ${LIBLDNS} ${LIBUTIL} ${LIBSSL} ${LIBCRYPTO} ${LIBPTHREAD}
-LDADD=	-lunbound -lldns -lutil -lssl -lcrypto -lpthread
+LDADD=	${LDUNBOUND} ${LDLDNS} -lutil -lssl -lcrypto -lpthread
 USEPRIVATELIB=	ldns
 MAN=	unbound-checkconf.8
 

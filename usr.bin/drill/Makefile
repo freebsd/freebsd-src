@@ -13,7 +13,7 @@ NO_WERROR= true
 MAN=	drill.1
 
 DPADD+=	${LIBLDNS} ${LIBCRYPTO}
-LDADD+=	-lldns -lcrypto
+LDADD+=	${LDLDNS} -lcrypto
 USEPRIVATELIB= ldns
 
 .include <bsd.prog.mk>
