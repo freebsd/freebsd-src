@@ -337,6 +337,8 @@ ofwfb_init(struct vt_device *vd)
 	#else
 		#error Unsupported platform!
 	#endif
+
+		sc->fb.fb_pbase = fb_phys;
 	} else {
 		/*
 		 * Some IBM systems don't have an address property. Try to
@@ -386,17 +388,13 @@ ofwfb_init(struct vt_device *vd)
 
 	#if defined(__powerpc__)
 		OF_decode_addr(node, fb_phys, &sc->sc_memt, &sc->fb.fb_vbase);
-	#elif defined(__sparc64__)
-		OF_decode_addr(node, fb_phys, &space, &phys);
-		sc->sc_memt = &ofwfb_memt[0];
-		sc->fb.fb_vbase = sparc64_fake_bustag(space, phys, sc->sc_memt);
+		sc->fb.fb_pbase = sc->fb.fb_vbase; /* 1:1 mapped */
 	#else
 		/* No ability to interpret assigned-addresses otherwise */
 		return (CN_DEAD);
 	#endif
         }
 
-	sc->fb.fb_pbase = fb_phys;
 
 	ofwfb_initialize(vd);
 	vt_fb_init(vd);
