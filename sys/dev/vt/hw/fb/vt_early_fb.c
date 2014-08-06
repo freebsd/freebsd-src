@@ -296,7 +296,6 @@ vt_efb_init(struct vt_device *vd)
 #else
 	vt_efb_initialize(info);
 #endif
-	fb_probe(info);
 	vt_fb_init(vd);
 
 	return (CN_INTERNAL);
