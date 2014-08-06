@@ -1,6 +1,6 @@
 /******************************************************************************
 
-  Copyright (c) 2001-2013, Intel Corporation 
+  Copyright (c) 2001-2014, Intel Corporation 
   All rights reserved.
   
   Redistribution and use in source and binary forms, with or without 
@@ -133,6 +133,10 @@ struct e1000_hw;
 #define E1000_DEV_ID_PCH_LPT_I217_V		0x153B
 #define E1000_DEV_ID_PCH_LPTLP_I218_LM		0x155A
 #define E1000_DEV_ID_PCH_LPTLP_I218_V		0x1559
+#define E1000_DEV_ID_PCH_I218_LM2		0x15A0
+#define E1000_DEV_ID_PCH_I218_V2		0x15A1
+#define E1000_DEV_ID_PCH_I218_LM3		0x15A2 /* Wildcat Point PCH */
+#define E1000_DEV_ID_PCH_I218_V3		0x15A3 /* Wildcat Point PCH */
 #define E1000_DEV_ID_82576			0x10C9
 #define E1000_DEV_ID_82576_FIBER		0x10E6
 #define E1000_DEV_ID_82576_SERDES		0x10E7
@@ -165,7 +169,12 @@ struct e1000_hw;
 #define E1000_DEV_ID_I210_FIBER			0x1536
 #define E1000_DEV_ID_I210_SERDES		0x1537
 #define E1000_DEV_ID_I210_SGMII			0x1538
+#define E1000_DEV_ID_I210_COPPER_FLASHLESS	0x157B
+#define E1000_DEV_ID_I210_SERDES_FLASHLESS	0x157C
 #define E1000_DEV_ID_I211_COPPER		0x1539
+#define E1000_DEV_ID_I354_BACKPLANE_1GBPS	0x1F40
+#define E1000_DEV_ID_I354_SGMII			0x1F41
+#define E1000_DEV_ID_I354_BACKPLANE_2_5GBPS	0x1F45
 #define E1000_DEV_ID_DH89XXCC_SGMII		0x0438
 #define E1000_DEV_ID_DH89XXCC_SERDES		0x043A
 #define E1000_DEV_ID_DH89XXCC_BACKPLANE		0x043C
@@ -217,6 +226,7 @@ enum e1000_mac_type {
 	e1000_82576,
 	e1000_82580,
 	e1000_i350,
+	e1000_i354,
 	e1000_i210,
 	e1000_i211,
 	e1000_vfadapt,
@@ -238,6 +248,7 @@ enum e1000_nvm_type {
 	e1000_nvm_eeprom_spi,
 	e1000_nvm_eeprom_microwire,
 	e1000_nvm_flash_hw,
+	e1000_nvm_invm,
 	e1000_nvm_flash_sw
 };
 
@@ -391,6 +402,10 @@ union e1000_rx_desc_extended {
 };
 
 #define MAX_PS_BUFFERS 4
+
+/* Number of packet split data buffers (not including the header buffer) */
+#define PS_PAGE_BUFFERS	(MAX_PS_BUFFERS - 1)
+
 /* Receive Descriptor - Packet Split */
 union e1000_rx_desc_packet_split {
 	struct {
@@ -415,7 +430,8 @@ union e1000_rx_desc_packet_split {
 		} middle;
 		struct {
 			__le16 header_status;
-			__le16 length[3];     /* length of buffers 1-3 */
+			/* length of buffers 1-3 */
+			__le16 length[PS_PAGE_BUFFERS];
 		} upper;
 		__le64 reserved;
 	} wb; /* writeback */
@@ -684,7 +700,7 @@ struct e1000_mac_operations {
 	s32  (*setup_led)(struct e1000_hw *);
 	void (*write_vfta)(struct e1000_hw *, u32, u32);
 	void (*config_collision_dist)(struct e1000_hw *);
-	void (*rar_set)(struct e1000_hw *, u8*, u32);
+	int  (*rar_set)(struct e1000_hw *, u8*, u32);
 	s32  (*read_mac_addr)(struct e1000_hw *);
 	s32  (*validate_mdi_setting)(struct e1000_hw *);
 	s32  (*set_obff_timer)(struct e1000_hw *, u32);
@@ -922,6 +938,13 @@ struct e1000_shadow_ram {
 
 #define E1000_SHADOW_RAM_WORDS		2048
 
+/* I218 PHY Ultra Low Power (ULP) states */
+enum e1000_ulp_state {
+	e1000_ulp_state_unknown,
+	e1000_ulp_state_off,
+	e1000_ulp_state_on,
+};
+
 struct e1000_dev_spec_ich8lan {
 	bool kmrn_lock_loss_workaround_enabled;
 	struct e1000_shadow_ram shadow_ram[E1000_SHADOW_RAM_WORDS];
@@ -930,6 +953,7 @@ struct e1000_dev_spec_ich8lan {
 	bool nvm_k1_enabled;
 	bool eee_disable;
 	u16 eee_lp_ability;
+	enum e1000_ulp_state ulp_state;
 };
 
 struct e1000_dev_spec_82575 {
@@ -940,6 +964,8 @@ struct e1000_dev_spec_82575 {
 	bool clear_semaphore_once;
 	u32 mtu;
 	struct sfp_e1000_flags eth_flags;
+	u8 media_port;
+	bool media_changed;
 };
 
 struct e1000_dev_spec_vf {
