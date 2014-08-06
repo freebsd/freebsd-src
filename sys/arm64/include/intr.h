@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2014 Andrew Turner
+ * Copyright (c) 2014 Andrew Turner <andrew@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -26,45 +26,13 @@
  * $FreeBSD$
  */
 
-#ifndef _MACHINE_CPUFUNC_H_
-#define	_MACHINE_CPUFUNC_H_
+#ifndef _MACHINE_INTR_H_
+#define _MACHINE_INTR_H_
 
-#ifdef _KERNEL
+void cpu_set_pic(device_t, u_int);
+void cpu_establish_intr(const char *, driver_filter_t *, void (*)(void*),
+    void *, int, int, void **);
+void arm_mask_irq(u_int);
+void arm_unmask_irq(u_int);
 
-static __inline void
-breakpoint(void)
-{
-
-	__asm("brk #0");
-}
-
-static __inline register_t
-intr_disable(void)
-{
-	/* DAIF is a 32-bit register */
-	uint32_t ret;
-
-	__asm __volatile(
-	    "mrs %x0, daif   \n"
-	    "msr daifset, #2 \n"
-	    : "=&r" (ret));
-
-	return (ret);
-}
-
-static __inline void
-intr_restore(register_t s)
-{
-
-	__asm __volatile("msr daif, %x0" : : "r" (s));
-}
-
-static __inline void
-intr_enable(void)
-{
-
-	__asm __volatile("msr daifclr, #2");
-}
-
-#endif	/* _KERNEL */
-#endif	/* _MACHINE_CPUFUNC_H_ */
+#endif	/* _MACHINE_INTR_H */

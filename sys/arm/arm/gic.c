@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 2011 The FreeBSD Foundation
+ * Copyright (c) 2014 Andrew Turner
  * All rights reserved.
  *
  * Developed by Damjan Marion <damjan.marion@gmail.com>
@@ -47,15 +48,16 @@ __FBSDID("$FreeBSD$");
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <machine/bus.h>
-#if 0
 #include <machine/intr.h>
-#endif
 #include <machine/smp.h>
 
 #include <dev/fdt/fdt_common.h>
 #include <dev/ofw/openfirm.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
+
+
+#include "pic_if.h"
 
 /* We are using GICv2 register naming */
 
@@ -131,7 +133,10 @@ static struct arm_gic_softc *arm_gic_sc = NULL;
 
 static int gic_config_irq(int irq, enum intr_trigger trig,
     enum intr_polarity pol);
-static void gic_post_filter(void *);
+static void gic_pre_filter(device_t, u_int);
+static void gic_post_filter(device_t, u_int);
+void gic_mask_irq(device_t, u_int);
+void gic_unmask_irq(device_t, u_int);
 
 static int
 arm_gic_probe(device_t dev)
@@ -217,11 +222,7 @@ arm_gic_attach(device_t dev)
 	sc->nirqs = gic_d_read_4(GICD_TYPER);
 	sc->nirqs = 32 * ((sc->nirqs & 0x1f) + 1);
 
-#if 0
-	/* Set up function pointers */
-	arm_post_filter = gic_post_filter;
-	arm_config_irq = gic_config_irq;
-#endif
+	cpu_set_pic(dev, sc->nirqs);
 
 	icciidr = gic_c_read_4(GICC_IIDR);
 	device_printf(dev,"pn 0x%x, arch 0x%x, rev 0x%x, implementer 0x%x sc->nirqs %u\n",
@@ -263,6 +264,13 @@ arm_gic_attach(device_t dev)
 static device_method_t arm_gic_methods[] = {
 	DEVMETHOD(device_probe,		arm_gic_probe),
 	DEVMETHOD(device_attach,	arm_gic_attach),
+
+	/* pic_if */
+	DEVMETHOD(pic_pre_filter,	gic_pre_filter),
+	DEVMETHOD(pic_post_filter,	gic_post_filter),
+	DEVMETHOD(pic_mask,		gic_mask_irq),
+	DEVMETHOD(pic_unmask,		gic_unmask_irq),
+
 	{ 0, 0 }
 };
 
@@ -278,10 +286,13 @@ DRIVER_MODULE(gic, simplebus, arm_gic_driver, arm_gic_devclass, 0, 0);
 DRIVER_MODULE(gic, ofwbus, arm_gic_driver, arm_gic_devclass, 0, 0);
 
 static void
-gic_post_filter(void *arg)
+gic_pre_filter(device_t dev, u_int irq)
 {
-	uintptr_t irq = (uintptr_t) arg;
+}
 
+static void
+gic_post_filter(device_t dev, u_int irq)
+{
 	gic_c_write_4(GICC_EOIR, irq);
 }
 
@@ -311,22 +322,22 @@ arm_get_next_irq(int last_irq)
 
 	return active_irq;
 }
-
-void
-arm_mask_irq(uintptr_t nb)
-{
-
-	gic_d_write_4(GICD_ICENABLER(nb >> 5), (1UL << (nb & 0x1F)));
-	gic_c_write_4(GICC_EOIR, nb);
-}
-
-void
-arm_unmask_irq(uintptr_t nb)
-{
-
-	gic_d_write_4(GICD_ISENABLER(nb >> 5), (1UL << (nb & 0x1F)));
-}
 #endif
+
+void
+gic_mask_irq(device_t dev, u_int irq)
+{
+
+	gic_d_write_4(GICD_ICENABLER(irq >> 5), (1UL << (irq & 0x1F)));
+	gic_c_write_4(GICC_EOIR, irq);
+}
+
+void
+gic_unmask_irq(device_t dev, u_int irq)
+{
+
+	gic_d_write_4(GICD_ISENABLER(irq >> 5), (1UL << (irq & 0x1F)));
+}
 
 static int
 gic_config_irq(int irq, enum intr_trigger trig,

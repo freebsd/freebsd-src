@@ -58,7 +58,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/pmap.h>
 
 #include <machine/resource.h>
-//#include <machine/intr.h>
+#include <machine/intr.h>
 
 #include "opt_platform.h"
 
@@ -249,20 +249,16 @@ static int
 nexus_setup_intr(device_t dev, device_t child, struct resource *res, int flags,
     driver_filter_t *filt, driver_intr_t *intr, void *arg, void **cookiep)
 {
-#if 0
 	int irq;
 
 	if ((rman_get_flags(res) & RF_SHAREABLE) == 0)
 		flags |= INTR_EXCL;
 
 	for (irq = rman_get_start(res); irq <= rman_get_end(res); irq++) {
-		arm_setup_irqhandler(device_get_nameunit(child),
-		    filt, intr, arg, irq, flags, cookiep);
-		arm_unmask_irq(irq);
+		cpu_establish_intr(device_get_nameunit(child), filt, intr,
+		    arg, irq, flags, cookiep);
 	}
 	return (0);
-#endif
-	panic("nexus_setup_intr");
 }
 
 static int

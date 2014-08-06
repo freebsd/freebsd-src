@@ -99,6 +99,7 @@ configure(void *dummy)
 static void
 configure_final(void *dummy)
 {
+	intr_enable();
 	cninit_finish(); 
 
 	if (bootverbose)
