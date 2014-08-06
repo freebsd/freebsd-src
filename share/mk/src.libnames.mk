@@ -44,3 +44,7 @@ LIBUCL?=	${LIBUCLDIR}/libucl.a
 LIBREADLINEDIR=	${ROOTOBJDIR}/gnu/lib/libreadline/readline
 LDREADLINE?=	${LIBREADLINEDIR}/libreadline.a
 LIBREADLINE?=	${LIBREADLINEDIR}/libreadline.a
+
+LIBOHASHDIR=	${ROOTOBJDIR}/lib/libohash
+LDOHASH?=	${LIBOHASHDIR}/libohash.a
+LIBOHASH?=	${LIBOHASHDIR}/libohash.a
