@@ -97,6 +97,12 @@ main() {
 		${XDEV_FLAGS} XDEV=${XDEV} XDEV_ARCH=${XDEV_ARCH} \
 		${WORLD_FLAGS} xdev
 
+	# Install the cross-build symlinks to /usr/bin to make crochet
+	# happy.
+	eval chroot ${CHROOTDIR} make -C /usr/src \
+		${XDEV_FLAGS} XDEV=${XDEV} XDEV_ARCH=${XDEV_ARCH} \
+		${WORLD_FLAGS} xdev-links
+
 	# Run the ldconfig(8) startup script so /var/run/ld-elf*.so.hints
 	# is created.
 	eval chroot ${CHROOTDIR} /etc/rc.d/ldconfig forcerestart
