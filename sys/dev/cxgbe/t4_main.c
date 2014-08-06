@@ -7617,7 +7617,7 @@ set_sched_class(struct adapter *sc, struct t4_sched_params *p)
 		}
 
 		/* And pass the request to the firmware ...*/
-		rc = -t4_sched_config(sc, fw_type, p->u.config.minmax);
+		rc = -t4_sched_config(sc, fw_type, p->u.config.minmax, 1);
 		goto done;
 	}
 
@@ -7715,7 +7715,7 @@ set_sched_class(struct adapter *sc, struct t4_sched_params *p)
 		rc = -t4_sched_params(sc, fw_type, fw_level, fw_mode,
 		    fw_rateunit, fw_ratemode, p->u.params.channel,
 		    p->u.params.cl, p->u.params.minrate, p->u.params.maxrate,
-		    p->u.params.weight, p->u.params.pktsize);
+		    p->u.params.weight, p->u.params.pktsize, 1);
 		goto done;
 	}
 
