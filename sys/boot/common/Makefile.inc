@@ -72,4 +72,9 @@ MAN+=	../forth/version.4th.8
 CFLAGS+=	-DBOOT_PROMPT_123
 .endif
 
+.if defined(LOADER_INSTALL_SUPPORT)
+SRCS+=	install.c
+CFLAGS+=-I${.CURDIR}/../../../../lib/libstand
+.endif
+
 MAN+=	loader.8
