@@ -128,10 +128,6 @@ DOCBRANCH="${SVNROOT}${DOCBRANCH}"
 PORTBRANCH="${SVNROOT}${PORTBRANCH}"
 
 if [ -n "${EMBEDDEDBUILD}" ]; then
-	if [ -z "${XDEV}" ] || [ -z "${XDEV_ARCH}" ]; then
-		echo "ERROR: XDEV and XDEV_ARCH must be set in ${RELEASECONF}."
-		exit 1
-	fi
 	WITH_DVD=
 	WITH_COMPRESSED_IMAGES=
 	NODOC=yes
