@@ -155,7 +155,7 @@ LDFLAGS+=	-Wl,--version-script=${VERSION_MAP}
 .endif
 
 .if defined(USEPRIVATELIB)
-LDFLAGS+= -L${_SHLIBDIRPREFIX}${LIBPRIVATEDIR} -rpath ${LIBPRIVATEDIR}
+LDFLAGS+= -rpath ${LIBPRIVATEDIR}
 .endif
 
 .if defined(LIB) && !empty(LIB) || defined(SHLIB_NAME)
@@ -306,11 +306,11 @@ _SHLINSTALLFLAGS:=	${_SHLINSTALLFLAGS${ie}}
 realinstall: _libinstall
 .ORDER: beforeinstall _libinstall
 _libinstall:
-.if defined(LIB) && !empty(LIB) && ${MK_INSTALLLIB} != "no"
+.if defined(LIB) && !empty(LIB) && ${MK_INSTALLLIB} != "no" && !defined(PRIVATELIB)
 	${INSTALL} -C -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE} \
 	    ${_INSTALLFLAGS} lib${LIB}.a ${DESTDIR}${_LIBDIR}
 .endif
-.if ${MK_PROFILE} != "no" && defined(LIB) && !empty(LIB)
+.if ${MK_PROFILE} != "no" && defined(LIB) && !empty(LIB) && !defined(PRIVATELIB)
 	${INSTALL} -C -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE} \
 	    ${_INSTALLFLAGS} lib${LIB}_p.a ${DESTDIR}${_LIBDIR}
 .endif
@@ -326,7 +326,7 @@ _libinstall:
 	    ${_INSTALLFLAGS} \
 	    ${SHLIB_NAME}.debug ${DESTDIR}${DEBUGFILEDIR}
 .endif
-.if defined(SHLIB_LINK)
+.if defined(SHLIB_LINK) && !defined(PRIVATELIB)
 # ${_SHLIBDIRPREFIX} and ${_LDSCRIPTROOT} are both needed when cross-building
 # and when building 32 bits library shims.  ${_SHLIBDIRPREFIX} is the directory
 # prefix where shared objects will be installed by the install target.
@@ -367,7 +367,7 @@ _libinstall:
 .endif # SHLIB_LDSCRIPT
 .endif # SHLIB_LINK
 .endif # SHIB_NAME
-.if defined(INSTALL_PIC_ARCHIVE) && defined(LIB) && !empty(LIB) && ${MK_TOOLCHAIN} != "no"
+.if defined(INSTALL_PIC_ARCHIVE) && defined(LIB) && !empty(LIB) && ${MK_TOOLCHAIN} != "no" && !defined(PRIVATELIB)
 	${INSTALL} -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE} \
 	    ${_INSTALLFLAGS} lib${LIB}_pic.a ${DESTDIR}${_LIBDIR}
 .endif

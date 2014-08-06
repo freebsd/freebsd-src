@@ -13,7 +13,7 @@ SRCS+=	roaming_dummy.c
 .endif
 
 DPADD=	${LIBSSH}
-LDADD=	-lssh
+LDADD=	${LDSSH}
 USEPRIVATELIB= ssh
 
 .if ${MK_LDNS} != "no"
