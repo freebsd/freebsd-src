@@ -97,16 +97,44 @@ SDT_PROBE_DEFINE1(proc, kernel, , exit, "int");
 /* Hook for NFS teardown procedure. */
 void (*nlminfo_release_p)(struct proc *p);
 
+struct proc *
+proc_realparent(struct proc *child)
+{
+	struct proc *p, *parent;
+
+	sx_assert(&proctree_lock, SX_LOCKED);
+	if ((child->p_treeflag & P_TREE_ORPHANED) == 0) {
+		return (child->p_pptr->p_pid == child->p_oppid ?
+		    child->p_pptr : initproc);
+	}
+	for (p = child; (p->p_treeflag & P_TREE_FIRST_ORPHAN) == 0;) {
+		/* Cannot use LIST_PREV(), since the list head is not known. */
+		p = __containerof(p->p_orphan.le_prev, struct proc,
+		    p_orphan.le_next);
+		KASSERT((p->p_treeflag & P_TREE_ORPHANED) != 0,
+		    ("missing P_ORPHAN %p", p));
+	}
+	parent = __containerof(p->p_orphan.le_prev, struct proc,
+	    p_orphans.lh_first);
+	return (parent);
+}
+
 static void
 clear_orphan(struct proc *p)
 {
+	struct proc *p1;
 
-	PROC_LOCK_ASSERT(p, MA_OWNED);
-
-	if (p->p_flag & P_ORPHAN) {
-		LIST_REMOVE(p, p_orphan);
-		p->p_flag &= ~P_ORPHAN;
+	sx_assert(&proctree_lock, SA_XLOCKED);
+	if ((p->p_treeflag & P_TREE_ORPHANED) == 0)
+		return;
+	if ((p->p_treeflag & P_TREE_FIRST_ORPHAN) != 0) {
+		p1 = LIST_NEXT(p, p_orphan);
+		if (p1 != NULL)
+			p1->p_treeflag |= P_TREE_FIRST_ORPHAN;
+		p->p_treeflag &= ~P_TREE_FIRST_ORPHAN;
 	}
+	LIST_REMOVE(p, p_orphan);
+	p->p_treeflag &= ~P_TREE_ORPHANED;
 }
 
 /*
@@ -772,7 +800,9 @@ proc_reap(struct thread *td, struct proc *p, int *status, int options)
 	 * If we got the child via a ptrace 'attach', we need to give it back
 	 * to the old parent.
 	 */
-	if (p->p_oppid && (t = pfind(p->p_oppid)) != NULL) {
+	if (p->p_oppid != 0) {
+		t = proc_realparent(p);
+		PROC_LOCK(t);
 		PROC_LOCK(p);
 		proc_reparent(p, t);
 		p->p_oppid = 0;
@@ -1243,8 +1273,15 @@ proc_reparent(struct proc *child, struct proc *parent)
 
 	clear_orphan(child);
 	if (child->p_flag & P_TRACED) {
-		LIST_INSERT_HEAD(&child->p_pptr->p_orphans, child, p_orphan);
-		child->p_flag |= P_ORPHAN;
+		if (LIST_EMPTY(&child->p_pptr->p_orphans)) {
+			child->p_treeflag |= P_TREE_FIRST_ORPHAN;
+			LIST_INSERT_HEAD(&child->p_pptr->p_orphans, child,
+			    p_orphan);
+		} else {
+			LIST_INSERT_AFTER(child,
+			    LIST_FIRST(&child->p_pptr->p_orphans), p_orphan);
+		}
+		child->p_treeflag |= P_TREE_ORPHANED;
 	}
 
 	child->p_pptr = parent;

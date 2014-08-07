@@ -549,6 +549,7 @@ struct proc {
 	int		p_pendingcnt;	/* how many signals are pending */
 	struct itimers	*p_itimers;	/* (c) POSIX interval timers. */
 	struct procdesc	*p_procdesc;	/* (e) Process descriptor, if any. */
+	u_int		p_treeflag;	/* (e) P_TREE flags */
 /* End area that is zeroed on creation. */
 #define	p_endzero	p_magic
 
@@ -632,7 +633,7 @@ struct proc {
 #define	P_SINGLE_BOUNDARY 0x400000 /* Threads should suspend at user boundary. */
 #define	P_HWPMC		0x800000 /* Process is using HWPMCs */
 #define	P_JAILED	0x1000000 /* Process is in jail. */
-#define	P_ORPHAN	0x2000000 /* Orphaned. */
+#define	P_UNUSED1	0x2000000
 #define	P_INEXEC	0x4000000 /* Process is in execve(). */
 #define	P_STATCHILD	0x8000000 /* Child process stopped or exited. */
 #define	P_INMEM		0x10000000 /* Loaded into memory. */
@@ -646,6 +647,11 @@ struct proc {
 
 /* These flags are kept in p_flag2. */
 #define	P2_INHERIT_PROTECTED 0x00000001 /* New children get P_PROTECTED. */
+
+/* Flags protected by proctree_lock, kept in p_treeflags. */
+#define	P_TREE_ORPHANED		0x00000001	/* Reparented, on orphan list */
+#define	P_TREE_FIRST_ORPHAN	0x00000002	/* First element of orphan
+						   list */
 
 /*
  * These were process status values (p_stat), now they are only used in
@@ -887,6 +893,7 @@ int	proc_getenvv(struct thread *td, struct proc *p, struct sbuf *sb);
 void	procinit(void);
 void	proc_linkup0(struct proc *p, struct thread *td);
 void	proc_linkup(struct proc *p, struct thread *td);
+struct proc *proc_realparent(struct proc *child);
 void	proc_reap(struct thread *td, struct proc *p, int *status, int options);
 void	proc_reparent(struct proc *child, struct proc *newparent);
 struct	pstats *pstats_alloc(void);
