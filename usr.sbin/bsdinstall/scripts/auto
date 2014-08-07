@@ -35,11 +35,15 @@ BSDCFG_SHARE="/usr/share/bsdconfig"
 ############################################################ FUNCTIONS
 
 error() {
+	local msg
+	if [ -n "$1" ]; then
+		msg="$1\n\n"
+	fi
 	test -n "$DISTDIR_IS_UNIONFS" && umount -f $BSDINSTALL_DISTDIR
 	test -f $PATH_FSTAB && bsdinstall umount
 	dialog --backtitle "FreeBSD Installer" --title "Abort" \
 	    --no-label "Exit" --yes-label "Restart" --yesno \
-	    "An installation step has been aborted. Would you like to restart the installation or exit the installer?" 0 0
+	    "${msg}An installation step has been aborted. Would you like to restart the installation or exit the installer?" 0 0
 	if [ $? -ne 0 ]; then
 		exit 1
 	else
@@ -58,7 +62,7 @@ trap true SIGINT	# This section is optional
 bsdinstall keymap
 
 trap error SIGINT	# Catch cntrl-C here
-bsdinstall hostname || error
+bsdinstall hostname || error "Set hostname failed"
 
 export DISTRIBUTIONS="base.txz kernel.txz"
 if [ -f $BSDINSTALL_DISTDIR/MANIFEST ]; then
@@ -95,7 +99,7 @@ if [ -n "$FETCH_DISTRIBUTIONS" ]; then
 	BSDINSTALL_DISTSITE=$(`dirname $0`/mirrorselect 2>&1 1>&3)
 	MIRROR_BUTTON=$?
 	exec 3>&-
-	test $MIRROR_BUTTON -eq 0 || error
+	test $MIRROR_BUTTON -eq 0 || error "No mirror selected"
 	export BSDINSTALL_DISTSITE
 fi
 
@@ -125,8 +129,8 @@ exec 3>&-
 
 case "$PARTMODE" in
 "Guided")	# Guided
-	bsdinstall autopart || error
-	bsdinstall mount || error
+	bsdinstall autopart || error "Partitioning error"
+	bsdinstall mount || error "Failed to mount filesystem"
 	;;
 "Shell")	# Shell
 	clear
@@ -136,18 +140,18 @@ case "$PARTMODE" in
 "Manual")	# Manual
 	if f_isset debugFile; then
 		# Give partedit the path to our logfile so it can append
-		BSDINSTALL_LOG="${debugFile#+}" bsdinstall partedit || error
+		BSDINSTALL_LOG="${debugFile#+}" bsdinstall partedit || error "Partitioning error"
 	else
-		bsdinstall partedit || error
+		bsdinstall partedit || error "Partitioning error"
 	fi
-	bsdinstall mount || error
+	bsdinstall mount || error "Failed to mount filesystem"
 	;;
 "ZFS")	# ZFS
-	bsdinstall zfsboot || error
-	bsdinstall mount || error
+	bsdinstall zfsboot || error "ZFS setup failed"
+	bsdinstall mount || error "Failed to mount filesystem"
 	;;
 *)
-	error
+	error "Unknown partitioning mode"
 	;;
 esac
 
@@ -156,7 +160,7 @@ if [ ! -z "$FETCH_DISTRIBUTIONS" ]; then
 
 	# Download to a directory in the new system as scratch space
 	BSDINSTALL_FETCHDEST="$BSDINSTALL_CHROOT/usr/freebsd-dist"
-	mkdir -p "$BSDINSTALL_FETCHDEST" || error
+	mkdir -p "$BSDINSTALL_FETCHDEST" || error "Could not create directory $BSDINSTALL_FETCHDEST"
 
 	export DISTRIBUTIONS="$FETCH_DISTRIBUTIONS"
 	# Try to use any existing distfiles
@@ -169,13 +173,13 @@ if [ ! -z "$FETCH_DISTRIBUTIONS" ]; then
 	fi
 		
 	export FTP_PASSIVE_MODE=YES
-	bsdinstall distfetch || error
+	bsdinstall distfetch || error "Failed to fetch distribution"
 	export DISTRIBUTIONS="$ALL_DISTRIBUTIONS"
 fi
 
-bsdinstall checksum || error
-bsdinstall distextract || error
-bsdinstall rootpass || error
+bsdinstall checksum || error "Distribution checksum failed"
+bsdinstall distextract || error "Distribution extract failed"
+bsdinstall rootpass || error "Could not set root password"
 
 trap true SIGINT	# This section is optional
 if [ "$NETCONFIG_DONE" != yes ]; then
@@ -239,7 +243,7 @@ finalconfig() {
 finalconfig
 
 trap error SIGINT	# SIGINT is bad again
-bsdinstall config  || error
+bsdinstall config  || error "Failed to save config"
 
 if [ ! -z "$BSDINSTALL_FETCHDEST" ]; then
 	[ "$BSDINSTALL_FETCHDEST" != "$BSDINSTALL_DISTDIR" ] && \
