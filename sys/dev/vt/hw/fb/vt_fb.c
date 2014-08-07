@@ -50,7 +50,6 @@ static struct vt_driver vt_fb_driver = {
 	.vd_init = vt_fb_init,
 	.vd_blank = vt_fb_blank,
 	.vd_bitbltchr = vt_fb_bitbltchr,
-	.vd_maskbitbltchr = vt_fb_maskbitbltchr,
 	.vd_drawrect = vt_fb_drawrect,
 	.vd_setpixel = vt_fb_setpixel,
 	.vd_postswitch = vt_fb_postswitch,
@@ -246,70 +245,6 @@ vt_fb_blank(struct vt_device *vd, term_color_t color)
 
 void
 vt_fb_bitbltchr(struct vt_device *vd, const uint8_t *src, const uint8_t *mask,
-    int bpl, vt_axis_t top, vt_axis_t left, unsigned int width,
-    unsigned int height, term_color_t fg, term_color_t bg)
-{
-	struct fb_info *info;
-	uint32_t fgc, bgc, cc, o;
-	int c, l, bpp;
-	u_long line;
-	uint8_t b;
-	const uint8_t *ch;
-
-	info = vd->vd_softc;
-	bpp = FBTYPE_GET_BYTESPP(info);
-	fgc = info->fb_cmap[fg];
-	bgc = info->fb_cmap[bg];
-	b = 0;
-	if (bpl == 0)
-		bpl = (width + 7) >> 3; /* Bytes per sorce line. */
-
-	/* Don't try to put off screen pixels */
-	if (((left + width) > info->fb_width) || ((top + height) >
-	    info->fb_height))
-		return;
-
-	KASSERT((info->fb_vbase != 0), ("Unmapped framebuffer"));
-
-	line = (info->fb_stride * top) + (left * bpp);
-	for (l = 0; l < height; l++) {
-		ch = src;
-		for (c = 0; c < width; c++) {
-			if (c % 8 == 0)
-				b = *ch++;
-			else
-				b <<= 1;
-			o = line + (c * bpp);
-			cc = b & 0x80 ? fgc : bgc;
-
-			switch(bpp) {
-			case 1:
-				vt_fb_mem_wr1(info, o, cc);
-				break;
-			case 2:
-				vt_fb_mem_wr2(info, o, cc);
-				break;
-			case 3:
-				/* Packed mode, so unaligned. Byte access. */
-				vt_fb_mem_wr1(info, o, (cc >> 16) & 0xff);
-				vt_fb_mem_wr1(info, o + 1, (cc >> 8) & 0xff);
-				vt_fb_mem_wr1(info, o + 2, cc & 0xff);
-				break;
-			case 4:
-				vt_fb_mem_wr4(info, o, cc);
-				break;
-			default:
-				/* panic? */
-				break;
-			}
-		}
-		line += info->fb_stride;
-		src += bpl;
-	}
-}
-
-void
-vt_fb_maskbitbltchr(struct vt_device *vd, const uint8_t *src, const uint8_t *mask,
     int bpl, vt_axis_t top, vt_axis_t left, unsigned int width,
     unsigned int height, term_color_t fg, term_color_t bg)
 {
