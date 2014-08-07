@@ -11,14 +11,14 @@ First, read http://wiki.freebsd.org/SubversionPrimer/VendorImports
 # Xlist
 setenv XLIST /FreeBSD/work/openssl/svn-FREEBSD-files/FREEBSD-Xlist
 setenv FSVN "svn+ssh://svn.freebsd.org/base"
-setenv OSSLVER 1.0.1h
-# OSSLTAG format: v1_0_1h
+setenv OSSLVER 1.0.1i
+# OSSLTAG format: v1_0_1i
 
 ###setenv OSSLTAG v`echo ${OSSLVER} | tr . _`
 
 cd /FreeBSD/work/openssl/merge
-fetch  http://www.openssl.org/source/openssl-${OSSLVER}.tar.gz \
-	http://www.openssl.org/source/openssl-${OSSLVER}.tar.gz.asc
+fetch http://www.openssl.org/source/openssl-${OSSLVER}.tar.gz \
+    http://www.openssl.org/source/openssl-${OSSLVER}.tar.gz.asc
 gpg --verify openssl-${OSSLVER}.tar.gz.asc openssl-${OSSLVER}.tar.gz
 
 svn co $FSVN/vendor-crypto/openssl/dist dist
@@ -43,13 +43,13 @@ comm -13 ../old ../new | xargs svn --parents add
 
 svn stat
 svn ci
-svn cp $FSVN/vendor-crypto/openssl/dist $FSVN/vendor-crypto/openssl/$OSSLVER
+svn cp ^/vendor-crypto/openssl/dist ^/vendor-crypto/openssl/$OSSLVER
 
 # Merge to head
 mkdir ../head
 cd ../head
 svn co $FSVN/head/crypto/openssl crypto/openssl
-svn merge $FSVN/vendor-crypto/openssl/dist crypto/openssl
+svn merge ^/vendor-crypto/openssl/dist crypto/openssl
 
 # Resolve conflicts manually
 
