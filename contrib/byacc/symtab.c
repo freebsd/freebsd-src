@@ -1,4 +1,4 @@
-/* $Id: symtab.c,v 1.10 2012/05/26 15:16:12 tom Exp $ */
+/* $Id: symtab.c,v 1.11 2014/03/26 00:17:09 Tom.Shields Exp $ */
 
 #include "defs.h"
 
@@ -48,6 +48,12 @@ make_bucket(const char *name)
     bp->prec = 0;
     bp->class = UNKNOWN;
     bp->assoc = TOKEN;
+#if defined(YYBTYACC)
+    bp->args = -1;
+    bp->argnames = 0;
+    bp->argtags = 0;
+    bp->destructor = 0;
+#endif
     strcpy(bp->name, name);
 
     return (bp);

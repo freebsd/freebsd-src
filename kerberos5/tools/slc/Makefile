@@ -4,7 +4,7 @@ PROG=	slc
 LIBROKEN_A=     ${.OBJDIR}/../../lib/libroken/libroken.a
 LDADD=  ${LIBROKEN_A} ${LIBVERS}
 DPADD=  ${LIBROKEN_A} ${LIBVERS}
-NO_MAN=
+MAN=
 
 SRCS=	roken.h \
 	slc-gram.y \
@@ -13,6 +13,8 @@ SRCS=	roken.h \
 CFLAGS+=-I${KRB5DIR}/lib/roken -I${KRB5DIR}/lib/sl -I${KRB5DIR}/lib/vers -I.
 
 CLEANFILES= roken.h slc-gram.c slc-lex.c
+
+NO_PIE=	yes
 
 roken.h:
 	${MAKE_ROKEN} > ${.TARGET}

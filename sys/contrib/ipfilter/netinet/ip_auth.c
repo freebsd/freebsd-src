@@ -131,33 +131,6 @@ static const char rcsid[] = "@(#)$FreeBSD$";
 #endif
 
 
-
-typedef	struct ipf_auth_softc_s {
-#if SOLARIS && defined(_KERNEL)
-	kcondvar_t	ipf_auth_wait;
-#endif /* SOLARIS */
-#if defined(linux) && defined(_KERNEL)
-	wait_queue_head_t ipf_auth_next_linux;
-#endif
-	ipfrwlock_t	ipf_authlk;
-	ipfmutex_t	ipf_auth_mx;
-	int		ipf_auth_size;
-	int		ipf_auth_used;
-	int		ipf_auth_replies;
-	int		ipf_auth_defaultage;
-	int		ipf_auth_lock;
-	ipf_authstat_t	ipf_auth_stats;
-	frauth_t	*ipf_auth;
-	mb_t		**ipf_auth_pkts;
-	int		ipf_auth_start;
-	int		ipf_auth_end;
-	int		ipf_auth_next;
-	frauthent_t	*ipf_auth_entries;
-	frentry_t	*ipf_auth_ip;
-	frentry_t	*ipf_auth_rules;
-} ipf_auth_softc_t;
-
-
 static void ipf_auth_deref __P((frauthent_t **));
 static void ipf_auth_deref_unlocked __P((ipf_auth_softc_t *, frauthent_t **));
 static int ipf_auth_geniter __P((ipf_main_softc_t *, ipftoken_t *,

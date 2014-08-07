@@ -21,16 +21,16 @@
  * specific prior written permission.
  * 
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
- * TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE
- * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
- * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
- * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
- * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
+ * TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+ * PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+ * LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+ * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+ * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  */
 
@@ -67,9 +67,12 @@
 #include <grp.h>
 #endif
 
+#ifndef S_SPLINT_S
+/* splint chokes on this system header file */
 #ifdef HAVE_SYS_RESOURCE_H
 #include <sys/resource.h>
 #endif
+#endif /* S_SPLINT_S */
 #ifdef HAVE_LOGIN_CAP_H
 #include <login_cap.h>
 #endif
@@ -165,8 +168,8 @@ static void usage()
 #endif
 	printf("Version %s\n", PACKAGE_VERSION);
 	get_event_sys(&evnm, &evsys, &evmethod);
-	printf("linked libs: %s %s (it uses %s), ldns %s, %s\n", 
-		evnm, evsys, evmethod, ldns_version(), 
+	printf("linked libs: %s %s (it uses %s), %s\n", 
+		evnm, evsys, evmethod,
 #ifdef HAVE_SSL
 		SSLeay_version(SSLEAY_VERSION)
 #elif defined(HAVE_NSS)
@@ -193,6 +196,7 @@ int replay_var_compare(const void* ATTR_UNUSED(a), const void* ATTR_UNUSED(b))
 static void
 checkrlimits(struct config_file* cfg)
 {
+#ifndef S_SPLINT_S
 #ifdef HAVE_GETRLIMIT
 	/* list has number of ports to listen to, ifs number addresses */
 	int list = ((cfg->do_udp?1:0) + (cfg->do_tcp?1 + 
@@ -283,6 +287,7 @@ checkrlimits(struct config_file* cfg)
 #else	
 	(void)cfg;
 #endif /* HAVE_GETRLIMIT */
+#endif /* S_SPLINT_S */
 }
 
 /** set verbosity, check rlimits, cache settings */
@@ -522,7 +527,7 @@ perform_setup(struct daemon* daemon, struct config_file* cfg, int debug_mode,
 		/* setusercontext does initgroups, setuid, setgid, and
 		 * also resource limits from login config, but we
 		 * still call setresuid, setresgid to be sure to set all uid*/
-		if(setusercontext(NULL, pwd, uid,
+		if(setusercontext(NULL, pwd, uid, (unsigned)
 			LOGIN_SETALL & ~LOGIN_SETUSER & ~LOGIN_SETGROUP) != 0)
 			log_warn("unable to setusercontext %s: %s",
 				cfg->username, strerror(errno));
@@ -715,6 +720,7 @@ main(int argc, char* argv[])
 #endif
 
 	log_init(NULL, 0, NULL);
+	log_ident_set(strrchr(argv[0],'/')?strrchr(argv[0],'/')+1:argv[0]);
 	/* parse the options */
 	while( (c=getopt(argc, argv, "c:dhvw:")) != -1) {
 		switch(c) {

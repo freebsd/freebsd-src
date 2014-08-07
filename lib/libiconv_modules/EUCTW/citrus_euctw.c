@@ -119,7 +119,7 @@ _citrus_EUCTW_count(int cs)
 	case 1:
 		/*FALLTHROUGH*/
 	case 2:
-		return (2^cs);
+		return (1 << cs);
 	case 3:
 		abort();
 		/*NOTREACHED*/

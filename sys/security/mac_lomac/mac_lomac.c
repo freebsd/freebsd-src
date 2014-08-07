@@ -101,34 +101,28 @@ SYSCTL_INT(_security_mac_lomac, OID_AUTO, label_size, CTLFLAG_RD,
     &lomac_label_size, 0, "Size of struct mac_lomac");
 
 static int	lomac_enabled = 1;
-SYSCTL_INT(_security_mac_lomac, OID_AUTO, enabled, CTLFLAG_RW,
+SYSCTL_INT(_security_mac_lomac, OID_AUTO, enabled, CTLFLAG_RWTUN,
     &lomac_enabled, 0, "Enforce MAC/LOMAC policy");
-TUNABLE_INT("security.mac.lomac.enabled", &lomac_enabled);
 
 static int	destroyed_not_inited;
 SYSCTL_INT(_security_mac_lomac, OID_AUTO, destroyed_not_inited, CTLFLAG_RD,
     &destroyed_not_inited, 0, "Count of labels destroyed but not inited");
 
 static int	trust_all_interfaces = 0;
-SYSCTL_INT(_security_mac_lomac, OID_AUTO, trust_all_interfaces, CTLFLAG_RD,
+SYSCTL_INT(_security_mac_lomac, OID_AUTO, trust_all_interfaces, CTLFLAG_RDTUN,
     &trust_all_interfaces, 0, "Consider all interfaces 'trusted' by MAC/LOMAC");
-TUNABLE_INT("security.mac.lomac.trust_all_interfaces", &trust_all_interfaces);
 
 static char	trusted_interfaces[128];
-SYSCTL_STRING(_security_mac_lomac, OID_AUTO, trusted_interfaces, CTLFLAG_RD,
+SYSCTL_STRING(_security_mac_lomac, OID_AUTO, trusted_interfaces, CTLFLAG_RDTUN,
     trusted_interfaces, 0, "Interfaces considered 'trusted' by MAC/LOMAC");
-TUNABLE_STR("security.mac.lomac.trusted_interfaces", trusted_interfaces,
-    sizeof(trusted_interfaces));
 
 static int	ptys_equal = 0;
-SYSCTL_INT(_security_mac_lomac, OID_AUTO, ptys_equal, CTLFLAG_RW,
+SYSCTL_INT(_security_mac_lomac, OID_AUTO, ptys_equal, CTLFLAG_RWTUN,
     &ptys_equal, 0, "Label pty devices as lomac/equal on create");
-TUNABLE_INT("security.mac.lomac.ptys_equal", &ptys_equal);
 
 static int	revocation_enabled = 1;
-SYSCTL_INT(_security_mac_lomac, OID_AUTO, revocation_enabled, CTLFLAG_RW,
+SYSCTL_INT(_security_mac_lomac, OID_AUTO, revocation_enabled, CTLFLAG_RWTUN,
     &revocation_enabled, 0, "Revoke access to objects on relabel");
-TUNABLE_INT("security.mac.lomac.revocation_enabled", &revocation_enabled);
 
 static int	lomac_slot;
 #define	SLOT(l)	((struct mac_lomac *)mac_label_get((l), lomac_slot))

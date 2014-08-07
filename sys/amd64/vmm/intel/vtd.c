@@ -99,6 +99,8 @@ struct vtdmap {
 #define	VTD_PTE_SUPERPAGE	(1UL << 7)
 #define	VTD_PTE_ADDR_M		(0x000FFFFFFFFFF000UL)
 
+#define VTD_RID2IDX(rid)	(((rid) & 0xff) * 2)
+
 struct domain {
 	uint64_t	*ptp;		/* first level page table page */
 	int		pt_levels;	/* number of page table levels */
@@ -360,27 +362,24 @@ vtd_disable(void)
 }
 
 static void
-vtd_add_device(void *arg, int bus, int slot, int func)
+vtd_add_device(void *arg, uint16_t rid)
 {
 	int idx;
 	uint64_t *ctxp;
 	struct domain *dom = arg;
 	vm_paddr_t pt_paddr;
 	struct vtdmap *vtdmap;
-
-	if (bus < 0 || bus > PCI_BUSMAX ||
-	    slot < 0 || slot > PCI_SLOTMAX ||
-	    func < 0 || func > PCI_FUNCMAX)
-		panic("vtd_add_device: invalid bsf %d/%d/%d", bus, slot, func);
+	uint8_t bus;
 
 	vtdmap = vtdmaps[0];
+	bus = PCI_RID2BUS(rid);
 	ctxp = ctx_tables[bus];
 	pt_paddr = vtophys(dom->ptp);
-	idx = (slot << 3 | func) * 2;
+	idx = VTD_RID2IDX(rid);
 
 	if (ctxp[idx] & VTD_CTX_PRESENT) {
-		panic("vtd_add_device: device %d/%d/%d is already owned by "
-		      "domain %d", bus, slot, func,
+		panic("vtd_add_device: device %x is already owned by "
+		      "domain %d", rid,
 		      (uint16_t)(ctxp[idx + 1] >> 8));
 	}
 
@@ -404,19 +403,16 @@ vtd_add_device(void *arg, int bus, int slot, int func)
 }
 
 static void
-vtd_remove_device(void *arg, int bus, int slot, int func)
+vtd_remove_device(void *arg, uint16_t rid)
 {
 	int i, idx;
 	uint64_t *ctxp;
 	struct vtdmap *vtdmap;
+	uint8_t bus;
 
-	if (bus < 0 || bus > PCI_BUSMAX ||
-	    slot < 0 || slot > PCI_SLOTMAX ||
-	    func < 0 || func > PCI_FUNCMAX)
-		panic("vtd_add_device: invalid bsf %d/%d/%d", bus, slot, func);
-
+	bus = PCI_RID2BUS(rid);
 	ctxp = ctx_tables[bus];
-	idx = (slot << 3 | func) * 2;
+	idx = VTD_RID2IDX(rid);
 
 	/*
 	 * Order is important. The 'present' bit is must be cleared first.

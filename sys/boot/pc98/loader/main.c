@@ -193,7 +193,7 @@ main(void)
     extract_currdev();				/* set $currdev and $loaddev */
     setenv("LINES", "24", 1);			/* optional */
 
-    interact();			/* doesn't return */
+    interact(NULL);			/* doesn't return */
 
     /* if we ever get here, it is an error */
     return (1);

@@ -363,7 +363,6 @@ in_aifaddr_ioctl(u_long cmd, caddr_t data, struct ifnet *ifp, struct thread *td)
 	ifa->ifa_netmask = (struct sockaddr *)&ia->ia_sockmask;
 
 	ia->ia_ifp = ifp;
-	ia->ia_ifa.ifa_metric = ifp->if_metric;
 	ia->ia_addr = *addr;
 	if (mask->sin_len != 0) {
 		ia->ia_sockmask = *mask;
@@ -408,6 +407,12 @@ in_aifaddr_ioctl(u_long cmd, caddr_t data, struct ifnet *ifp, struct thread *td)
 	if (ifp->if_flags & IFF_LOOPBACK)
                 ia->ia_dstaddr = ia->ia_addr;
 
+	if (vhid != 0) {
+		error = (*carp_attach_p)(&ia->ia_ifa, vhid);
+		if (error)
+			return (error);
+	}
+
 	/* if_addrhead is already referenced by ifa_alloc() */
 	IF_ADDR_WLOCK(ifp);
 	TAILQ_INSERT_TAIL(&ifp->if_addrhead, ifa, ifa_link);
@@ -419,20 +424,16 @@ in_aifaddr_ioctl(u_long cmd, caddr_t data, struct ifnet *ifp, struct thread *td)
 	LIST_INSERT_HEAD(INADDR_HASH(ia->ia_addr.sin_addr.s_addr), ia, ia_hash);
 	IN_IFADDR_WUNLOCK();
 
-	if (vhid != 0)
-		error = (*carp_attach_p)(&ia->ia_ifa, vhid);
-	if (error)
-		goto fail1;
-
 	/*
 	 * Give the interface a chance to initialize
 	 * if this is its first address,
 	 * and to validate the address if necessary.
 	 */
-	if (ifp->if_ioctl != NULL)
+	if (ifp->if_ioctl != NULL) {
 		error = (*ifp->if_ioctl)(ifp, SIOCSIFADDR, (caddr_t)ia);
-	if (error)
-		goto fail2;
+		if (error)
+			goto fail1;
+	}
 
 	/*
 	 * Add route for the network.
@@ -445,7 +446,7 @@ in_aifaddr_ioctl(u_long cmd, caddr_t data, struct ifnet *ifp, struct thread *td)
 
 		error = in_addprefix(ia, flags);
 		if (error)
-			goto fail2;
+			goto fail1;
 	}
 
 	/*
@@ -463,7 +464,7 @@ in_aifaddr_ioctl(u_long cmd, caddr_t data, struct ifnet *ifp, struct thread *td)
 			error = ifa_add_loopback_route((struct ifaddr *)ia,
 			    (struct sockaddr *)&ia->ia_addr);
 			if (error)
-				goto fail3;
+				goto fail2;
 		} else
 			ifa_free(&eia->ia_ifa);
 	}
@@ -483,15 +484,14 @@ in_aifaddr_ioctl(u_long cmd, caddr_t data, struct ifnet *ifp, struct thread *td)
 
 	return (error);
 
-fail3:
+fail2:
 	if (vhid == 0)
 		(void )in_scrubprefix(ia, LLE_STATIC);
 
-fail2:
+fail1:
 	if (ia->ia_ifa.ifa_carp)
 		(*carp_detach_p)(&ia->ia_ifa);
 
-fail1:
 	IF_ADDR_WLOCK(ifp);
 	TAILQ_REMOVE(&ifp->if_addrhead, &ia->ia_ifa, ifa_link);
 	IF_ADDR_WUNLOCK(ifp);
@@ -617,7 +617,7 @@ in_addprefix(struct in_ifaddr *target, int flags)
 {
 	struct in_ifaddr *ia;
 	struct in_addr prefix, mask, p, m;
-	int error, fibnum;
+	int error;
 
 	if ((flags & RTF_HOST) != 0) {
 		prefix = target->ia_dstaddr.sin_addr;
@@ -628,9 +628,8 @@ in_addprefix(struct in_ifaddr *target, int flags)
 		prefix.s_addr &= mask.s_addr;
 	}
 
-	fibnum = rt_add_addr_allfibs ? RT_ALL_FIBS : target->ia_ifp->if_fib;
-
 	IN_IFADDR_RLOCK();
+	/* Look for an existing address with the same prefix, mask, and fib */
 	TAILQ_FOREACH(ia, &V_in_ifaddrhead, ia_link) {
 		if (rtinitflags(ia)) {
 			p = ia->ia_dstaddr.sin_addr;
@@ -646,6 +645,8 @@ in_addprefix(struct in_ifaddr *target, int flags)
 			    mask.s_addr != m.s_addr)
 				continue;
 		}
+		if (target->ia_ifp->if_fib != ia->ia_ifp->if_fib)
+			continue;
 
 		/*
 		 * If we got a matching prefix route inserted by other
@@ -664,6 +665,10 @@ in_addprefix(struct in_ifaddr *target, int flags)
 				IN_IFADDR_RUNLOCK();
 				return (EEXIST);
 			} else {
+				int fibnum;
+
+				fibnum = rt_add_addr_allfibs ? RT_ALL_FIBS :
+					target->ia_ifp->if_fib;
 				rt_addrmsg(RTM_ADD, &target->ia_ifa, fibnum);
 				IN_IFADDR_RUNLOCK();
 				return (0);
@@ -691,10 +696,8 @@ in_scrubprefix(struct in_ifaddr *target, u_int flags)
 {
 	struct in_ifaddr *ia;
 	struct in_addr prefix, mask, p, m;
-	int error = 0, fibnum;
+	int error = 0;
 	struct sockaddr_in prefix0, mask0;
-
-	fibnum = rt_add_addr_allfibs ? RT_ALL_FIBS : target->ia_ifp->if_fib;
 
 	/*
 	 * Remove the loopback route to the interface address.
@@ -707,8 +710,10 @@ in_scrubprefix(struct in_ifaddr *target, u_int flags)
 		eia = in_localip_more(target);
 
 		if (eia != NULL) {
+			int fibnum = target->ia_ifp->if_fib;
+
 			error = ifa_switch_loopback_route((struct ifaddr *)eia,
-			    (struct sockaddr *)&target->ia_addr);
+			    (struct sockaddr *)&target->ia_addr, fibnum);
 			ifa_free(&eia->ia_ifa);
 		} else {
 			error = ifa_del_loopback_route((struct ifaddr *)target,
@@ -731,6 +736,10 @@ in_scrubprefix(struct in_ifaddr *target, u_int flags)
 	}
 
 	if ((target->ia_flags & IFA_ROUTE) == 0) {
+		int fibnum;
+		
+		fibnum = rt_add_addr_allfibs ? RT_ALL_FIBS :
+			target->ia_ifp->if_fib;
 		rt_addrmsg(RTM_DELETE, &target->ia_ifa, fibnum);
 		return (0);
 	}
@@ -859,6 +868,7 @@ in_ifdetach(struct ifnet *ifp)
 
 	in_pcbpurgeif0(&V_ripcbinfo, ifp);
 	in_pcbpurgeif0(&V_udbinfo, ifp);
+	in_pcbpurgeif0(&V_ulitecbinfo, ifp);
 	in_purgemaddrs(ifp);
 }
 

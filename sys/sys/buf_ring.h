@@ -172,7 +172,10 @@ buf_ring_dequeue_mc(struct buf_ring *br)
 static __inline void *
 buf_ring_dequeue_sc(struct buf_ring *br)
 {
-	uint32_t cons_head, cons_next, cons_next_next;
+	uint32_t cons_head, cons_next;
+#ifdef PREFETCH_DEFINED
+	uint32_t cons_next_next;
+#endif
 	uint32_t prod_tail;
 	void *buf;
 	
@@ -180,7 +183,9 @@ buf_ring_dequeue_sc(struct buf_ring *br)
 	prod_tail = br->br_prod_tail;
 	
 	cons_next = (cons_head + 1) & br->br_cons_mask;
+#ifdef PREFETCH_DEFINED
 	cons_next_next = (cons_head + 2) & br->br_cons_mask;
+#endif
 	
 	if (cons_head == prod_tail) 
 		return (NULL);

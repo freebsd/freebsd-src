@@ -291,7 +291,6 @@ cpu_mp_start(void)
 	KASSERT(!isjbus || mp_ncpus <= IDR_JALAPENO_MAX_BN_PAIRS,
 	    ("%s: can only IPI a maximum of %d JBus-CPUs",
 	    __func__, IDR_JALAPENO_MAX_BN_PAIRS));
-	smp_active = 1;
 }
 
 static void

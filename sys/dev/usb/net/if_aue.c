@@ -212,9 +212,7 @@ static uint8_t	aue_csr_read_1(struct aue_softc *, uint16_t);
 static uint16_t	aue_csr_read_2(struct aue_softc *, uint16_t);
 static void	aue_csr_write_1(struct aue_softc *, uint16_t, uint8_t);
 static void	aue_csr_write_2(struct aue_softc *, uint16_t, uint16_t);
-static void	aue_eeprom_getword(struct aue_softc *, int, uint16_t *);
-static void	aue_read_eeprom(struct aue_softc *, uint8_t *, uint16_t,
-		    uint16_t);
+static uint16_t	aue_eeprom_getword(struct aue_softc *, int);
 static void	aue_reset(struct aue_softc *);
 static void	aue_reset_pegasus_II(struct aue_softc *);
 
@@ -376,11 +374,10 @@ aue_csr_write_2(struct aue_softc *sc, uint16_t reg, uint16_t val)
 /*
  * Read a word of data stored in the EEPROM at address 'addr.'
  */
-static void
-aue_eeprom_getword(struct aue_softc *sc, int addr, uint16_t *dest)
+static uint16_t
+aue_eeprom_getword(struct aue_softc *sc, int addr)
 {
 	int i;
-	uint16_t word = 0;
 
 	aue_csr_write_1(sc, AUE_EE_REG, addr);
 	aue_csr_write_1(sc, AUE_EE_CTL, AUE_EECTL_READ);
@@ -395,22 +392,23 @@ aue_eeprom_getword(struct aue_softc *sc, int addr, uint16_t *dest)
 	if (i == AUE_TIMEOUT)
 		device_printf(sc->sc_ue.ue_dev, "EEPROM read timed out\n");
 
-	word = aue_csr_read_2(sc, AUE_EE_DATA);
-	*dest = word;
+	return (aue_csr_read_2(sc, AUE_EE_DATA));
 }
 
 /*
- * Read a sequence of words from the EEPROM.
+ * Read station address(offset 0) from the EEPROM.
  */
 static void
-aue_read_eeprom(struct aue_softc *sc, uint8_t *dest,
-    uint16_t off, uint16_t len)
+aue_read_mac(struct aue_softc *sc, uint8_t *eaddr)
 {
-	uint16_t *ptr = (uint16_t *)dest;
-	int i;
+	int i, offset;
+	uint16_t word;
 
-	for (i = 0; i != len; i++, ptr++)
-		aue_eeprom_getword(sc, off + i, ptr);
+	for (i = 0, offset = 0; i < ETHER_ADDR_LEN / 2; i++) {
+		word = aue_eeprom_getword(sc, offset + i);
+		eaddr[i * 2] = (uint8_t)word;
+		eaddr[i * 2 + 1] = (uint8_t)(word >> 8);
+	}
 }
 
 static int
@@ -636,7 +634,7 @@ aue_attach_post(struct usb_ether *ue)
 	aue_reset(sc);
 
 	/* get station address from the EEPROM */
-	aue_read_eeprom(sc, ue->ue_eaddr, 0, 3);
+	aue_read_mac(sc, ue->ue_eaddr);
 }
 
 /*

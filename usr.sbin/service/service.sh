@@ -109,7 +109,7 @@ fi
 if [ -n "$LIST" ]; then
 	for dir in /etc/rc.d $local_startup; do
 		[ -n "$VERBOSE" ] && echo "From ${dir}:"
-		cd $dir && for file in *; do echo $file; done
+		[ -d ${dir} ] && /bin/ls -1 ${dir}
 	done
 	exit 0
 fi

@@ -10,6 +10,6 @@
 
 #include <sendmail.h>
 
-SM_RCSID("@(#)$Id: debug.c,v 8.10 2013/11/22 20:51:50 ca Exp $")
+SM_RCSID("@(#)$Id: debug.c,v 8.10 2013-11-22 20:51:50 ca Exp $")
 
 unsigned char	tTdvect[100];	/* trace vector */

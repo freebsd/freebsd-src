@@ -6,7 +6,7 @@ PROG=	mkregtable
 
 SRCS=	mkregtable.c
 
-NO_MAN=
+MAN=
 
 MKREGTABLE=	${PROG}
 KERNSRCDIR=	${.CURDIR}/../../../../../sys

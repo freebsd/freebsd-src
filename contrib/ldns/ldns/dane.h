@@ -22,6 +22,7 @@
 
 #ifndef LDNS_DANE_H
 #define LDNS_DANE_H
+#if LDNS_BUILD_CONFIG_USE_DANE
 
 #include <ldns/common.h>
 #include <ldns/rdata.h>
@@ -240,5 +241,6 @@ ldns_status ldns_dane_verify(ldns_rr_list* tlsas,
 }
 #endif
 
+#endif /* LDNS_BUILD_CONFIG_USE_DANE */
 #endif /* LDNS_DANE_H */
 

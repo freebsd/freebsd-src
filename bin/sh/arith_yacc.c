@@ -139,7 +139,7 @@ static arith_t do_binop(int op, arith_t a, arith_t b)
 	case ARITH_SUB:
 		return (uintmax_t)a - (uintmax_t)b;
 	case ARITH_LSHIFT:
-		return a << b;
+		return (uintmax_t)a << b;
 	case ARITH_RSHIFT:
 		return a >> b;
 	case ARITH_LT:

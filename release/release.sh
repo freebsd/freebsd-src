@@ -39,6 +39,10 @@
 PATH="/bin:/sbin:/usr/bin:/usr/sbin:/usr/local/bin"
 export PATH
 
+# Prototypes that can be redefined per-chroot or per-target.
+load_chroot_env() { }
+load_target_env() { }
+
 # The directory within which the release will be built.
 CHROOTDIR="/scratch"
 RELENGDIR="$(realpath $(dirname $(basename ${0})))"
@@ -83,6 +87,7 @@ NOPORTS=
 
 # Set to non-empty value to build dvd1.iso as part of the release.
 WITH_DVD=
+WITH_COMPRESSED_IMAGES=
 
 usage() {
 	echo "Usage: $0 [-c release.conf]"
@@ -123,11 +128,8 @@ DOCBRANCH="${SVNROOT}${DOCBRANCH}"
 PORTBRANCH="${SVNROOT}${PORTBRANCH}"
 
 if [ -n "${EMBEDDEDBUILD}" ]; then
-	if [ -z "${XDEV}" ] || [ -z "${XDEV_ARCH}" ]; then
-		echo "ERROR: XDEV and XDEV_ARCH must be set in ${RELEASECONF}."
-		exit 1
-	fi
 	WITH_DVD=
+	WITH_COMPRESSED_IMAGES=
 	NODOC=yes
 fi
 
@@ -159,6 +161,7 @@ if [ -n "${TARGET}" ] && [ -n "${TARGET_ARCH}" ]; then
 else
 	ARCH_FLAGS=
 fi
+load_chroot_env
 CHROOT_MAKEENV="${CHROOT_MAKEENV} MAKEOBJDIRPREFIX=${CHROOTDIR}/tmp/obj"
 CHROOT_WMAKEFLAGS="${MAKE_FLAGS} ${WORLD_FLAGS} ${CONF_FILES}"
 CHROOT_IMAKEFLAGS="${CONF_FILES}"
@@ -188,11 +191,13 @@ set -e # Everything must succeed
 
 mkdir -p ${CHROOTDIR}/usr
 
-${VCSCMD} ${FORCE_SRC_KEY} ${SRCBRANCH} ${CHROOTDIR}/usr/src
-if [ -z "${NODOC}" ]; then
+if [ -z "${SRC_UPDATE_SKIP}" ]; then
+	${VCSCMD} ${FORCE_SRC_KEY} ${SRCBRANCH} ${CHROOTDIR}/usr/src
+fi
+if [ -z "${NODOC}" ] && [ -z "${DOC_UPDATE_SKIP}" ]; then
 	${VCSCMD} ${DOCBRANCH} ${CHROOTDIR}/usr/doc
 fi
-if [ -z "${NOPORTS}" ]; then
+if [ -z "${NOPORTS}" ] && [ -z "${PORTS_UPDATE_SKIP}" ]; then
 	${VCSCMD} ${PORTBRANCH} ${CHROOTDIR}/usr/ports
 fi
 
@@ -225,6 +230,7 @@ if [ -n "${EMBEDDEDBUILD}" ]; then
 	# release/, copy it to the /tmp/external directory within the chroot.
 	# This allows building embedded releases without relying on updated
 	# scripts and/or configurations to exist in the branch being built.
+	load_target_env
 	if [ -e ${RELENGDIR}/tools/${XDEV}/crochet-${KERNEL}.conf ] && \
 		[ -e ${RELENGDIR}/${XDEV}/release.sh ]; then
 			mkdir -p ${CHROOTDIR}/tmp/external/${XDEV}/
@@ -257,9 +263,10 @@ if [ -d ${CHROOTDIR}/usr/ports ]; then
 	fi
 fi
 
+load_target_env
 eval chroot ${CHROOTDIR} make -C /usr/src ${RELEASE_WMAKEFLAGS} buildworld
 eval chroot ${CHROOTDIR} make -C /usr/src ${RELEASE_KMAKEFLAGS} buildkernel
 eval chroot ${CHROOTDIR} make -C /usr/src/release ${RELEASE_RMAKEFLAGS} \
 	release
 eval chroot ${CHROOTDIR} make -C /usr/src/release ${RELEASE_RMAKEFLAGS} \
-	install DESTDIR=/R
+	install DESTDIR=/R WITH_COMPRESSED_IMAGES=${WITH_COMPRESSED_IMAGES}

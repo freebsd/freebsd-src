@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-NO_MAN=	svnserve.1
+MAN=
 
 .include "${.CURDIR}/../Makefile.inc"
 
@@ -40,5 +40,7 @@ DPADD=	${LIBSVN_RA} ${LIBSVN_RA_LOCAL} ${LIBSVN_RA_SVN} ${LIBSVN_RA_SERF} \
 	${LIBSVN_DELTA} ${LIBSVN_SUBR} ${LIBSERF} ${LIBAPR_UTIL} \
 	${LIBBSDXML} ${LIBAPR} ${LIBSQLITE} ${LIBZ} ${LIBCRYPT} ${LIBMAGIC} \
 	${LIBCRYPTO} ${LIBSSL} ${LIBPTHREAD}
+
+NO_PIE=	yes
 
 .include <bsd.prog.mk>

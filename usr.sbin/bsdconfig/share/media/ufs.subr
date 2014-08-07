@@ -89,22 +89,20 @@ f_media_set_ufs()
 
 		f_struct_copy device_ufs device_media
 		f_struct_free device_ufs
-	elif [ $ndevs -gt 1 ]; then
+	elif [ $ndevs -eq 1 ]; then
+		f_struct_copy $devs device_media
+	else
+		local dev
 		local title="$msg_choose_a_ufs_partition"
 		local prompt="$msg_please_select_ufs_partition"
 		local hline=""
 
-		local dev retval
 		dev=$( f_device_menu \
 			"$title" "$prompt" "$hline" $DEVICE_TYPE_UFS \
-			2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD )
-		retval=$?
-		[ "$dev" ] || return $FAILURE
+			2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD ) ||
+			return $FAILURE
 
-		f_struct_copy device_$dev device_media
-		[ $retval -eq $SUCCESS ] || return $FAILURE
-	else
-		f_struct_copy device_$devs device_media
+		f_struct_copy "$dev" device_media
 	fi
 
 	f_struct device_media || return $FAILURE
@@ -120,7 +118,7 @@ f_media_init_ufs()
 	local funcname=f_media_init_ufs
 	local dev="$1" devname err
 
-	device_$dev get devname devname || return $FAILURE
+	$dev get devname devname || return $FAILURE
 	f_dprintf "Init routine called for UFS device. devname=[%s]" \
 	          "$devname"
 
@@ -162,9 +160,11 @@ f_media_init_ufs()
 f_media_get_ufs()
 {
 	local dev="$1" file="$2" probe_type="$3"
+	local name
 
+	$dev get name name
 	f_dprintf "f_media_get_ufs: dev=[%s] file=[%s] probe_type=%s" \
-	          "$dev" "$file" "$probe_type"
+	          "$name" "$file" "$probe_type"
 
 	f_media_generic_get "$MOUNTPOINT" "$file" "$probe_type"
 }

@@ -220,12 +220,12 @@ random_adaptors_init(void *unused)
 
 	SYSCTL_PROC(_kern_random, OID_AUTO, adaptors,
 	    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE,
-	    NULL, 0, random_sysctl_adaptors_handler, "",
+	    NULL, 0, random_sysctl_adaptors_handler, "A",
 	    "Random Number Generator adaptors");
 
 	SYSCTL_PROC(_kern_random, OID_AUTO, active_adaptor,
 	    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE,
-	    NULL, 0, random_sysctl_active_adaptor_handler, "",
+	    NULL, 0, random_sysctl_active_adaptor_handler, "A",
 	    "Active Random Number Generator Adaptor");
 
 	sx_init(&adaptors_lock, "random_adaptors");

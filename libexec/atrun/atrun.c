@@ -567,6 +567,12 @@ main(int argc, char *argv[])
     if (run_batch && (gloadavg() < load_avg))
 	run_file(batch_name, batch_uid, batch_gid);
 
+    if (flock(dirfd(spool), LOCK_UN) == -1)
+	perr("cannot unlock %s", ATJOB_DIR);
+
+    if (closedir(spool) == -1)
+	perr("cannot closedir %s", ATJOB_DIR);
+
     closelog();
     exit(EXIT_SUCCESS);
 }

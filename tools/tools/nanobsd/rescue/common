@@ -3,7 +3,7 @@
 #
 NANO_TOOLS=`pwd`
 NANO_PACKAGE_DIR=`pwd`/Pkg
-NANO_RAM_TMPVARSIZE=20480
+NANO_RAM_TMPVARSIZE=40960
 NANO_PMAKE="make -j 8"
 NANO_LABEL="rescue"
 NANO_RAM_TMPVARSIZE=40960
@@ -68,6 +68,7 @@ cust_etc_cfg () (
 	echo "#ifconfig_fxp0=\"AUTO\"" >> etc/rc.conf
 	echo "#sshd_enable=\"YES\"" >> etc/rc.conf
 	echo "/dev/ufs/${NANO_LABEL}s1a / ufs ro,noatime 0 0" > etc/fstab
+	echo "/dev/${NANO_DRIVE}s3 /cfg ufs rw,noauto 2 2" >> etc/fstab
 	echo "tmpfs /boot/zfs tmpfs rw,size=1048576,mode=777 0 0" >> etc/fstab
 	echo "ports:/usr/ports /usr/ports nfs rw,noauto,noatime,bg,soft,intr,nfsv3 0 0" >> etc/fstab
 #	echo "/dev/ad1s1a /scratch ufs rw,noauto,noatime 0 0" >> etc/fstab
@@ -100,9 +101,9 @@ last_orders () (
 	touch conf/default/etc/.keepme
 	touch conf/default/var/.keepme
 	cd ..
-	mkisofs -quiet -r -J -no-emul-boot \
-	-V ${NANO_LABEL} \
-	-b boot/cdboot -o _.disk.iso _.w/
+	makefs -t cd9660 -o rockridge \
+	-o label="${NANO_LABEL}" -o publisher="RMX" \
+	-o bootimage="i386;_.w/boot/cdboot" -o no-emul-boot _.disk.iso _.w/
 	)
 )
 

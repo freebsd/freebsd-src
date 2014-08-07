@@ -4,7 +4,7 @@
 
 SHLIBDIR?=	/lib
 
-.include <bsd.own.mk>
+.include <src.opts.mk>
 
 SHLIB_MAJOR=	5
 LIB=		crypt

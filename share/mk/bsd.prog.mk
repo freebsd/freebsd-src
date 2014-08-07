@@ -2,12 +2,25 @@
 # $FreeBSD$
 
 .include <bsd.init.mk>
+.include <bsd.compiler.mk>
 
 .SUFFIXES: .out .o .c .cc .cpp .cxx .C .m .y .l .ln .s .S .asm
 
 # XXX The use of COPTS in modern makefiles is discouraged.
 .if defined(COPTS)
 CFLAGS+=${COPTS}
+.endif
+
+.if ${MK_PIE} != "no" && (!defined(NO_PIE) || ${NO_PIE} == "no")
+.if !defined(RESCUE) && !defined(NO_SHARED)
+CFLAGS+= -fPIE -pie
+LDFLAGS+= -pie
+.elif defined(NO_SHARED)
+.if ${NO_SHARED} == "no" || ${NO_SHARED} == "NO"
+CFLAGS+= -fPIE -pie
+LDFLAGS+= -pie
+.endif
+.endif
 .endif
 
 .if ${MK_ASSERT_DEBUG} == "no"
@@ -172,8 +185,8 @@ _EXTRADEPEND:
 .endif
 .else
 	echo ${PROG}: ${LIBC} ${DPADD} >> ${DEPENDFILE}
-.if defined(PROG_CXX) && !defined(EARLY_BUILD)
-.if ${MK_CLANG_IS_CC} != "no" && empty(CXXFLAGS:M-stdlib=libstdc++)
+.if defined(PROG_CXX)
+.if ${COMPILER_TYPE} == "clang" && empty(CXXFLAGS:M-stdlib=libstdc++)
 	echo ${PROG}: ${LIBCPLUSPLUS} >> ${DEPENDFILE}
 .else
 	echo ${PROG}: ${LIBSTDCPLUSPLUS} >> ${DEPENDFILE}
@@ -275,7 +288,3 @@ ${OBJS}: ${SRCS:M*.h}
 .include <bsd.obj.mk>
 
 .include <bsd.sys.mk>
-
-.if defined(PORTNAME)
-.include <bsd.pkg.mk>
-.endif

@@ -40,7 +40,7 @@
 #include <sys/cdefs.h>
 #include <sys/dirent.h>
 
-#if __BSD_VISIBLE || __XSI_VISIBLE
+#if __XSI_VISIBLE
 /*
  * XXX this is probably illegal in the __XSI_VISIBLE case, but brings us closer
  * to the specification.
@@ -63,6 +63,7 @@ typedef struct _dirdesc DIR;
 #define DTF_NODUP	0x0002	/* don't return duplicate names */
 #define DTF_REWIND	0x0004	/* rewind after reading union stack */
 #define __DTF_READALL	0x0008	/* everything has been read */
+#define	__DTF_SKIPREAD	0x0010  /* assume internal buffer is populated */
 
 #else /* !__BSD_VISIBLE */
 
@@ -95,6 +96,11 @@ void	 rewinddir(DIR *);
 int	 scandir(const char *, struct dirent ***,
 	    int (*)(const struct dirent *), int (*)(const struct dirent **,
 	    const struct dirent **));
+#ifdef __BLOCKS__
+int	 scandir_b(const char *, struct dirent ***,
+	    int (^)(const struct dirent *),
+	    int (^)(const struct dirent **, const struct dirent **));
+#endif
 #endif
 #if __XSI_VISIBLE
 void	 seekdir(DIR *, long);

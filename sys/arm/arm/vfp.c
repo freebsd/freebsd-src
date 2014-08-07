@@ -149,6 +149,7 @@ vfp_bounce(u_int addr, u_int insn, struct trapframe *frame, int code)
 {
 	u_int cpu, fpexc;
 	struct pcb *curpcb;
+	ksiginfo_t ksi;
 
 	if ((code & FAULT_USER) == 0)
 		panic("undefined floating point instruction in supervisor mode");
@@ -162,9 +163,27 @@ vfp_bounce(u_int addr, u_int insn, struct trapframe *frame, int code)
 	 */
 	fpexc = fmrx(VFPEXC);
 	if (fpexc & VFPEXC_EN) {
+		/* Clear any exceptions */
+		fmxr(VFPEXC, fpexc & ~(VFPEXC_EX | VFPEXC_FP2V));
+
 		/* kill the process - we do not handle emulation */
 		critical_exit();
-		killproc(curthread->td_proc, "vfp emulation");
+
+		if (fpexc & VFPEXC_EX) {
+			/* We have an exception, signal a SIGFPE */
+			ksiginfo_init_trap(&ksi);
+			ksi.ksi_signo = SIGFPE;
+			if (fpexc & VFPEXC_UFC)
+				ksi.ksi_code = FPE_FLTUND;
+			else if (fpexc & VFPEXC_OFC)
+				ksi.ksi_code = FPE_FLTOVF;
+			else if (fpexc & VFPEXC_IOC)
+				ksi.ksi_code = FPE_FLTINV;
+			ksi.ksi_addr = (void *)addr;
+			trapsignal(curthread, &ksi);
+			return 0;
+		}
+
 		return 1;
 	}
 
@@ -192,15 +211,24 @@ vfp_bounce(u_int addr, u_int insn, struct trapframe *frame, int code)
 static void
 vfp_restore(struct vfp_state *vfpsave)
 {
-	u_int vfpscr = 0;
+	uint32_t fpexc;
 
-	__asm __volatile("ldc	p10, c0, [%1], #128\n" /* d0-d15 */
-			"cmp	%2, #0\n"		/* -D16 or -D32? */
-			LDCLNE "p11, c0, [%1], #128\n"	/* d16-d31 */
-			"addeq	%1, %1, #128\n"		/* skip missing regs */
-			"ldr	%0, [%1]\n"		/* set old vfpscr */
-			"mcr	p10, 7, %0, cr1, c0, 0\n"
-			: "=&r" (vfpscr) : "r" (vfpsave), "r" (is_d32) : "cc");
+	/* On VFPv2 we may need to restore FPINST and FPINST2 */
+	fpexc = vfpsave->fpexec;
+	if (fpexc & VFPEXC_EX) {
+		fmxr(VFPINST, vfpsave->fpinst);
+		if (fpexc & VFPEXC_FP2V)
+			fmxr(VFPINST2, vfpsave->fpinst2);
+	}
+	fmxr(VFPSCR, vfpsave->fpscr);
+
+	__asm __volatile("ldc	p10, c0, [%0], #128\n" /* d0-d15 */
+			"cmp	%1, #0\n"		/* -D16 or -D32? */
+			LDCLNE "p11, c0, [%0], #128\n"	/* d16-d31 */
+			"addeq	%0, %0, #128\n"		/* skip missing regs */
+			: : "r" (vfpsave), "r" (is_d32) : "cc");
+
+	fmxr(VFPEXC, fpexc);
 }
 
 /*
@@ -211,20 +239,30 @@ vfp_restore(struct vfp_state *vfpsave)
 void
 vfp_store(struct vfp_state *vfpsave, boolean_t disable_vfp)
 {
-	u_int tmp, vfpscr;
+	uint32_t fpexc;
 
-	tmp = fmrx(VFPEXC);		/* Is the vfp enabled? */
-	if (tmp & VFPEXC_EN) {
+	fpexc = fmrx(VFPEXC);		/* Is the vfp enabled? */
+	if (fpexc & VFPEXC_EN) {
+		vfpsave->fpexec = fpexc;
+		vfpsave->fpscr = fmrx(VFPSCR);
+
+		/* On VFPv2 we may need to save FPINST and FPINST2 */
+		if (fpexc & VFPEXC_EX) {
+			vfpsave->fpinst = fmrx(VFPINST);
+			if (fpexc & VFPEXC_FP2V)
+				vfpsave->fpinst2 = fmrx(VFPINST2);
+			fpexc &= ~VFPEXC_EX;
+		}
+
 		__asm __volatile(
-			"stc	p11, c0, [%1], #128\n"  /* d0-d15 */
-			"cmp	%2, #0\n"		/* -D16 or -D32? */
-			STCLNE "p11, c0, [%1], #128\n"	/* d16-d31 */
-			"addeq	%1, %1, #128\n"		/* skip missing regs */
-			"mrc	p10, 7, %0, cr1, c0, 0\n" /* fmxr(VFPSCR) */
-			"str	%0, [%1]\n"		/* save vfpscr */
-			: "=&r" (vfpscr) : "r" (vfpsave), "r" (is_d32) : "cc");
+			"stc	p11, c0, [%0], #128\n"  /* d0-d15 */
+			"cmp	%1, #0\n"		/* -D16 or -D32? */
+			STCLNE "p11, c0, [%0], #128\n"	/* d16-d31 */
+			"addeq	%0, %0, #128\n"		/* skip missing regs */
+			: : "r" (vfpsave), "r" (is_d32) : "cc");
+
 		if (disable_vfp)
-			fmxr(VFPEXC , tmp & ~VFPEXC_EN);
+			fmxr(VFPEXC , fpexc & ~VFPEXC_EN);
 	}
 }
 

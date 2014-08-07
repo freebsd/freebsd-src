@@ -54,7 +54,7 @@ __FBSDID("$FreeBSD$");
 #include <arm/freescale/imx/imx_gptreg.h>
 
 #include <sys/kdb.h>
-#include <arm/freescale/imx/imx51_ccmvar.h>
+#include <arm/freescale/imx/imx_ccmvar.h>
 
 #define	WRITE4(_sc, _r, _v)						\
 	    bus_space_write_4((_sc)->sc_iot, (_sc)->sc_ioh, (_r), (_v))
@@ -164,10 +164,10 @@ imx_gpt_attach(device_t dev)
 		basefreq = 32768;
 		break;
 	case GPT_CR_CLKSRC_IPG:
-		basefreq = imx51_get_clock(IMX51CLK_IPG_CLK_ROOT);
+		basefreq = imx_ccm_ipg_hz();
 		break;
 	case GPT_CR_CLKSRC_IPG_HIGH:
-		basefreq = imx51_get_clock(IMX51CLK_IPG_CLK_ROOT) * 2;
+		basefreq = imx_ccm_ipg_hz() * 2;
 		break;
 	case GPT_CR_CLKSRC_24M:
 		ctlreg |= GPT_CR_24MEN;

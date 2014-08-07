@@ -91,9 +91,13 @@ main (void)
     return 0;
 }
 
+#define UNUSED(x) ((void)(x))
+
 static void
 YYERROR_DECL()
 {
+    UNUSED(regs); /* %parse-param regs is not actually used here */
+    UNUSED(base); /* %parse-param base is not actually used here */
     fprintf(stderr, "%s\n", s);
 }
 

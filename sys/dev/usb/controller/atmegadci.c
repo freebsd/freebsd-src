@@ -804,7 +804,8 @@ atmegadci_setup_standard_chain(struct usb_xfer *xfer)
 	temp.td = NULL;
 	temp.td_next = xfer->td_start[0];
 	temp.offset = 0;
-	temp.setup_alt_next = xfer->flags_int.short_frames_ok;
+	temp.setup_alt_next = xfer->flags_int.short_frames_ok ||
+	    xfer->flags_int.isochronous_xfr;
 	temp.did_stall = !xfer->flags_int.control_stall;
 
 	sc = ATMEGA_BUS2SC(xfer->xroot->bus);
@@ -1010,7 +1011,8 @@ atmegadci_standard_done_sub(struct usb_xfer *xfer)
 		}
 		/* Check for short transfer */
 		if (len > 0) {
-			if (xfer->flags_int.short_frames_ok) {
+			if (xfer->flags_int.short_frames_ok ||
+			    xfer->flags_int.isochronous_xfr) {
 				/* follow alt next */
 				if (td->alt_next) {
 					td = td->obj_next;
@@ -1380,9 +1382,9 @@ atmegadci_do_poll(struct usb_bus *bus)
 }
 
 /*------------------------------------------------------------------------*
- * at91dci bulk support
- * at91dci control support
- * at91dci interrupt support
+ * atmegadci bulk support
+ * atmegadci control support
+ * atmegadci interrupt support
  *------------------------------------------------------------------------*/
 static void
 atmegadci_device_non_isoc_open(struct usb_xfer *xfer)
@@ -1419,7 +1421,7 @@ static const struct usb_pipe_methods atmegadci_device_non_isoc_methods =
 };
 
 /*------------------------------------------------------------------------*
- * at91dci full speed isochronous support
+ * atmegadci full speed isochronous support
  *------------------------------------------------------------------------*/
 static void
 atmegadci_device_isoc_fs_open(struct usb_xfer *xfer)
@@ -1505,7 +1507,7 @@ static const struct usb_pipe_methods atmegadci_device_isoc_fs_methods =
 };
 
 /*------------------------------------------------------------------------*
- * at91dci root control support
+ * atmegadci root control support
  *------------------------------------------------------------------------*
  * Simulate a hardware HUB by handling all the necessary requests.
  *------------------------------------------------------------------------*/

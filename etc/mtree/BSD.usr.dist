@@ -101,6 +101,10 @@
             ..
             include
             ..
+            includes
+                include
+                ..
+            ..
         ..
         bsdinstall
         ..
@@ -296,8 +300,6 @@
             bsdconfig
             ..
             csh
-            ..
-            cvsup
             ..
             diskless
             ..
@@ -1402,6 +1404,12 @@
         ..
         vi
             catalog
+            ..
+        ..
+        vt
+            fonts
+            ..
+            keymaps
             ..
         ..
         zoneinfo

@@ -1,5 +1,6 @@
 # $FreeBSD$
 
+.include <src.opts.mk>
 NO_MAN=
 BUILDING_EFI=
 

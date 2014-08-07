@@ -12,6 +12,8 @@ MLINKS=	fifolog.1 fifolog_create.1 \
 	fifolog.1 fifolog_reader.1 \
 	fifolog.1 fifolog_writer.1
 
+NO_PIE=	yes
+
 regress:
 	rm -f /tmp/fifolog.?
 	./${PROG} /tmp/fifolog.0

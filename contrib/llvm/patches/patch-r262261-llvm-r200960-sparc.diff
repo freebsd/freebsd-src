@@ -2,7 +2,7 @@ Pull in r200960 from upstream llvm trunk (by Venkatraman Govindaraju):
 
   [Sparc] Use SparcMCExpr::VariantKind itself as MachineOperand's target flags.
 
-Introduced here: http://svn.freebsd.org/changeset/base/262261
+Introduced here: http://svnweb.freebsd.org/changeset/base/262261
 
 Index: lib/Target/Sparc/SparcISelLowering.cpp
 ===================================================================

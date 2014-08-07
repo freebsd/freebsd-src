@@ -1,7 +1,7 @@
 # $FreeBSD$
 
 PROG=	asn1_compile
-NO_MAN=
+MAN=
 LIBROKEN_A=	${.OBJDIR}/../../lib/libroken/libroken.a
 LDADD=	${LIBROKEN_A} ${LIBVERS}
 DPADD=	${LIBROKEN_A} ${LIBVERS}
@@ -26,6 +26,8 @@ SRCS=	\
 CFLAGS+=-I${KRB5DIR}/lib/roken -I${KRB5DIR}/lib/asn1 -I.
 
 CLEANFILES= roken.h lex.c parse.c
+
+NO_PIE=	yes
 
 roken.h:
 	 make-roken > ${.TARGET}

@@ -1,7 +1,7 @@
 # $FreeBSD$
 
 PROG= test1
-NO_MAN=
+MAN=
 NFSSERVER?= herring.nlsystems.com
 CLEANFILES= test1.zeros test1.good test1.data test1.scratch
 

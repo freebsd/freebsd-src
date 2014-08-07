@@ -56,7 +56,7 @@ typedef	__sigset_t	sigset_t;
  * be enough for most uses.
  */
 #ifndef	FD_SETSIZE
-#define	FD_SETSIZE	1024U
+#define	FD_SETSIZE	1024
 #endif
 
 #define	_NFDBITS	(sizeof(__fd_mask) * 8)	/* bits per mask */

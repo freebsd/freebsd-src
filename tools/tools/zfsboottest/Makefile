@@ -8,7 +8,7 @@ SCRIPTSDIR?=	/usr/bin
 PROG=		zfsboottest
 SCRIPTS=	zfsboottest.sh
 SCRIPTSNAME=	zfsboottest.sh
-NO_MAN=
+MAN=
 
 CFLAGS=	-O1 \
 	-I${.CURDIR}/../../../sys/boot/zfs \

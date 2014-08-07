@@ -45,13 +45,15 @@ __FBSDID("$FreeBSD$");
 
 #include <arm/freescale/imx/imx6_anatopreg.h>
 #include <arm/freescale/imx/imx6_anatopvar.h>
-#include <arm/freescale/imx/imx_machdep.h>
 #include <arm/freescale/imx/imx6_ccmreg.h>
+#include <arm/freescale/imx/imx_machdep.h>
+#include <arm/freescale/imx/imx_ccmvar.h>
 
-
-/* XXX temp kludge for imx51_get_clock. */
-#include <arm/freescale/imx/imx51_ccmvar.h>
-#include <arm/freescale/imx/imx51_ccmreg.h>
+#ifndef CCGR_CLK_MODE_ALWAYS
+#define	CCGR_CLK_MODE_OFF		0
+#define	CCGR_CLK_MODE_RUNMODE		1
+#define	CCGR_CLK_MODE_ALWAYS		3
+#endif
 
 struct ccm_softc {
 	device_t	dev;
@@ -208,24 +210,32 @@ imx_ccm_usbphy_enable(device_t _phydev)
 #endif
 }
 
-
-
-
-
-// XXX Fix this.  This has to be here for other code to link,
-// but it doesn't have to return anything useful for imx6 right now.
-u_int
-imx51_get_clock(enum imx51_clock clk)
+uint32_t
+imx_ccm_ipg_hz(void)
 {
-	switch (clk)
-	{
-	case IMX51CLK_IPG_CLK_ROOT:
-		return 66000000;
-	default:
-		printf("imx51_get_clock() on imx6 doesn't know about clock %d\n", clk);
-		break;
-	}
-	return 0;
+
+	return (66000000);
+}
+
+uint32_t
+imx_ccm_perclk_hz(void)
+{
+
+	return (66000000);
+}
+
+uint32_t
+imx_ccm_sdhci_hz(void)
+{
+
+	return (200000000);
+}
+
+uint32_t
+imx_ccm_uart_hz(void)
+{
+
+	return (80000000);
 }
 
 static device_method_t ccm_methods[] = {

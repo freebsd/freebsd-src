@@ -60,19 +60,15 @@
 #		Unload a module.
 #
 
-# backwards compat option for older systems.
-MACHINE_CPUARCH?=${MACHINE_ARCH:C/mips(n32|64)?(el)?/mips/:C/arm(v6)?(eb)?/arm/:C/powerpc64/powerpc/}
-
 AWK?=		awk
 KMODLOAD?=	/sbin/kldload
 KMODUNLOAD?=	/sbin/kldunload
 OBJCOPY?=	objcopy
 
-.if defined(KMODDEPS)
-.error "Do not use KMODDEPS on 5.0+; use MODULE_VERSION/MODULE_DEPEND"
-.endif
-
 .include <bsd.init.mk>
+# Grab all the options for a kernel build. For backwards compat, we need to
+# do this after bsd.own.mk.
+.include "kern.opts.mk"
 .include <bsd.compiler.mk>
 
 .SUFFIXES: .out .o .c .cc .cxx .C .y .l .s .S
@@ -109,11 +105,9 @@ CFLAGS+=	-I. -I@
 # for example.
 CFLAGS+=	-I@/contrib/altq
 
-.if ${COMPILER_TYPE} != "clang"
-CFLAGS+=	-finline-limit=${INLINE_LIMIT}
-CFLAGS+= --param inline-unit-growth=100
-CFLAGS+= --param large-function-growth=1000
-.endif
+CFLAGS.gcc+=	-finline-limit=${INLINE_LIMIT}
+CFLAGS.gcc+= --param inline-unit-growth=100
+CFLAGS.gcc+= --param large-function-growth=1000
 
 # Disallow common variables, and if we end up with commons from
 # somewhere unexpected, allocate storage for them in the module itself.
@@ -153,11 +147,11 @@ CLEANFILES+=	${KMOD:S/$/.c/}
 ${_firmw:C/\:.*$/.fwo/}:	${_firmw:C/\:.*$//}
 	@${ECHO} ${_firmw:C/\:.*$//} ${.ALLSRC:M*${_firmw:C/\:.*$//}}
 	@if [ -e ${_firmw:C/\:.*$//} ]; then			\
-		${LD} -b binary --no-warn-mismatch ${LDFLAGS}	\
+		${LD} -b binary --no-warn-mismatch ${_LDFLAGS}	\
 		    -r -d -o ${.TARGET}	${_firmw:C/\:.*$//};	\
 	else							\
 		ln -s ${.ALLSRC:M*${_firmw:C/\:.*$//}} ${_firmw:C/\:.*$//}; \
-		${LD} -b binary --no-warn-mismatch ${LDFLAGS}	\
+		${LD} -b binary --no-warn-mismatch ${_LDFLAGS}	\
 		    -r -d -o ${.TARGET}	${_firmw:C/\:.*$//};	\
 		rm ${_firmw:C/\:.*$//};				\
 	fi
@@ -185,7 +179,7 @@ ${PROG}.symbols: ${FULLPROG}
 
 .if ${__KLD_SHARED} == yes
 ${FULLPROG}: ${KMOD}.kld
-	${LD} -Bshareable ${LDFLAGS} -o ${.TARGET} ${KMOD}.kld
+	${LD} -Bshareable ${_LDFLAGS} -o ${.TARGET} ${KMOD}.kld
 .if !defined(DEBUG_FLAGS)
 	${OBJCOPY} --strip-debug ${.TARGET}
 .endif
@@ -201,8 +195,8 @@ ${KMOD}.kld: ${OBJS}
 .else
 ${FULLPROG}: ${OBJS}
 .endif
-	${LD} ${LDFLAGS} -r -d -o ${.TARGET} ${OBJS}
-.if defined(MK_CTF) && ${MK_CTF} != "no"
+	${LD} ${_LDFLAGS} -r -d -o ${.TARGET} ${OBJS}
+.if ${MK_CTF} != "no"
 	${CTFMERGE} ${CTFFLAGS} -o ${.TARGET} ${OBJS}
 .endif
 .if defined(EXPORT_SYMS)
@@ -229,6 +223,7 @@ _ILINKS+=${MACHINE_CPUARCH}
 .if ${MACHINE_CPUARCH} == "i386" || ${MACHINE_CPUARCH} == "amd64"
 _ILINKS+=x86
 .endif
+CLEANFILES+=${_ILINKS}
 
 all: objwarn ${PROG}
 
@@ -318,6 +313,34 @@ load: ${PROG}
 .if !target(unload)
 unload:
 	${KMODUNLOAD} -v ${PROG}
+.endif
+
+# Generate options files that otherwise would be built
+# in substantially similar ways through the tree. Move
+# the code here when they all produce identical results
+# (or should)
+.if !defined(KERNBUILDDIR)
+opt_bpf.h:
+	echo "#define DEV_BPF 1" > ${.TARGET}
+.if ${MK_INET_SUPPORT} != "no"
+opt_inet.h:
+	@echo "#define INET 1" > ${.TARGET}
+	@echo "#define TCP_OFFLOAD 1" >> ${.TARGET}
+.endif
+.if ${MK_INET6_SUPPORT} != "no"
+opt_inet6.h:
+	@echo "#define INET6 1" > ${.TARGET}
+.endif
+opt_mrouting.h:
+	echo "#define MROUTING 1" > ${.TARGET}
+opt_natm.h:
+	echo "#define NATM 1" > ${.TARGET}
+opt_scsi.h:
+	echo "#define SCSI_DELAY 15000" > ${.TARGET}
+opt_wlan.h:
+	echo "#define IEEE80211_DEBUG 1" > ${.TARGET}
+	echo "#define IEEE80211_AMPDU_AGE 1" >> ${.TARGET}
+	echo "#define IEEE80211_SUPPORT_MESH 1" >> ${.TARGET}
 .endif
 
 .if defined(KERNBUILDDIR)

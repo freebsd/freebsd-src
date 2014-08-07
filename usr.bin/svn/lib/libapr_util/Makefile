@@ -28,7 +28,7 @@ CFLAGS+= 	-DHAVE_CONFIG_H \
 		-I${APR}/include/arch/unix \
 		-I${APR}/include
 
-.include <bsd.own.mk>
+.include <src.opts.mk>
 
 .if ${MK_ICONV} == "yes"
 CFLAGS+=	-DHAVE_ICONV_H=1 -DAPU_HAVE_ICONV=1

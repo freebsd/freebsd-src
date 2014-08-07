@@ -18,9 +18,6 @@
 #define Double_Align
 #else
 /* TODO: Generate these values on a LE machine */
-/* Current values were stolen from ia64 except the
- * Xpointer define.
- */
 #define IEEE_8087
 #define Arith_Kind_ASL 1
 #define Long int

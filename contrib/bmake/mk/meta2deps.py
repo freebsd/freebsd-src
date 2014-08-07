@@ -37,7 +37,7 @@ We only pay attention to a subset of the information in the
 
 """
 RCSid:
-	$Id: meta2deps.py,v 1.16 2013/12/20 06:08:52 sjg Exp $
+	$Id: meta2deps.py,v 1.17 2014/04/05 22:56:54 sjg Exp $
 
 	Copyright (c) 2011-2013, Juniper Networks, Inc.
 	All rights reserved.
@@ -166,7 +166,7 @@ class MetaFile:
         	Sometimes MACHINE isn't enough.
                 
         HOST_TARGET
-		when we build for the psuedo machine 'host'
+		when we build for the pseudo machine 'host'
 		the object tree uses HOST_TARGET rather than MACHINE.
 
         OBJROOTS a list of the common prefix for all obj dirs it might
@@ -296,7 +296,7 @@ class MetaFile:
                 print("%s: %sAdd: %s" % (self.name, clue, data), file=self.debug_out)
 
     def find_top(self, path, list):
-        """the logical tree may be split accross multiple trees"""
+        """the logical tree may be split across multiple trees"""
         for top in list:
             if path.startswith(top):
                 if self.debug > 2:

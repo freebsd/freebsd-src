@@ -20,8 +20,9 @@
  */
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2013 by Delphix. All rights reserved.
+ * Copyright (c) 2012, 2014 by Delphix. All rights reserved.
  * Copyright (c) 2013 by Saso Kiselkov. All rights reserved.
+ * Copyright (c) 2013, Joyent, Inc. All rights reserved.
  */
 
 /* Portions Copyright 2010 Robert Milkowski */
@@ -114,13 +115,13 @@ dmu_objset_id(objset_t *os)
 	return (ds ? ds->ds_object : 0);
 }
 
-uint64_t
+zfs_sync_type_t
 dmu_objset_syncprop(objset_t *os)
 {
 	return (os->os_sync);
 }
 
-uint64_t
+zfs_logbias_op_t
 dmu_objset_logbias(objset_t *os)
 {
 	return (os->os_logbias);
@@ -229,6 +230,20 @@ sync_changed_cb(void *arg, uint64_t newval)
 }
 
 static void
+redundant_metadata_changed_cb(void *arg, uint64_t newval)
+{
+	objset_t *os = arg;
+
+	/*
+	 * Inheritance and range checking should have been done by now.
+	 */
+	ASSERT(newval == ZFS_REDUNDANT_METADATA_ALL ||
+	    newval == ZFS_REDUNDANT_METADATA_MOST);
+
+	os->os_redundant_metadata = newval;
+}
+
+static void
 logbias_changed_cb(void *arg, uint64_t newval)
 {
 	objset_t *os = arg;
@@ -271,7 +286,7 @@ dmu_objset_open_impl(spa_t *spa, dsl_dataset_t *ds, blkptr_t *bp,
 	os->os_rootbp = bp;
 	if (!BP_IS_HOLE(os->os_rootbp)) {
 		uint32_t aflags = ARC_WAIT;
-		zbookmark_t zb;
+		zbookmark_phys_t zb;
 		SET_BOOKMARK(&zb, ds ? ds->ds_object : DMU_META_OBJSET,
 		    ZB_ROOT_OBJECT, ZB_ROOT_LEVEL, ZB_ROOT_BLKID);
 
@@ -323,7 +338,7 @@ dmu_objset_open_impl(spa_t *spa, dsl_dataset_t *ds, blkptr_t *bp,
 	 * default (fletcher2/off).  Snapshots don't need to know about
 	 * checksum/compression/copies.
 	 */
-	if (ds) {
+	if (ds != NULL) {
 		err = dsl_prop_register(ds,
 		    zfs_prop_to_name(ZFS_PROP_PRIMARYCACHE),
 		    primary_cache_changed_cb, os);
@@ -363,6 +378,12 @@ dmu_objset_open_impl(spa_t *spa, dsl_dataset_t *ds, blkptr_t *bp,
 				    zfs_prop_to_name(ZFS_PROP_SYNC),
 				    sync_changed_cb, os);
 			}
+			if (err == 0) {
+				err = dsl_prop_register(ds,
+				    zfs_prop_to_name(
+				    ZFS_PROP_REDUNDANT_METADATA),
+				    redundant_metadata_changed_cb, os);
+			}
 		}
 		if (err != 0) {
 			VERIFY(arc_buf_remove_ref(os->os_phys_buf,
@@ -370,15 +391,15 @@ dmu_objset_open_impl(spa_t *spa, dsl_dataset_t *ds, blkptr_t *bp,
 			kmem_free(os, sizeof (objset_t));
 			return (err);
 		}
-	} else if (ds == NULL) {
+	} else {
 		/* It's the meta-objset. */
 		os->os_checksum = ZIO_CHECKSUM_FLETCHER_4;
 		os->os_compress = ZIO_COMPRESS_LZJB;
 		os->os_copies = spa_max_replication(spa);
 		os->os_dedup_checksum = ZIO_CHECKSUM_OFF;
-		os->os_dedup_verify = 0;
-		os->os_logbias = 0;
-		os->os_sync = 0;
+		os->os_dedup_verify = B_FALSE;
+		os->os_logbias = ZFS_LOGBIAS_LATENCY;
+		os->os_sync = ZFS_SYNC_STANDARD;
 		os->os_primary_cache = ZFS_CACHE_ALL;
 		os->os_secondary_cache = ZFS_CACHE_ALL;
 	}
@@ -414,17 +435,6 @@ dmu_objset_open_impl(spa_t *spa, dsl_dataset_t *ds, blkptr_t *bp,
 		    &os->os_groupused_dnode);
 	}
 
-	/*
-	 * We should be the only thread trying to do this because we
-	 * have ds_opening_lock
-	 */
-	if (ds) {
-		mutex_enter(&ds->ds_lock);
-		ASSERT(ds->ds_objset == NULL);
-		ds->ds_objset = os;
-		mutex_exit(&ds->ds_lock);
-	}
-
 	*osp = os;
 	return (0);
 }
@@ -435,11 +445,19 @@ dmu_objset_from_ds(dsl_dataset_t *ds, objset_t **osp)
 	int err = 0;
 
 	mutex_enter(&ds->ds_opening_lock);
-	*osp = ds->ds_objset;
-	if (*osp == NULL) {
+	if (ds->ds_objset == NULL) {
+		objset_t *os;
 		err = dmu_objset_open_impl(dsl_dataset_get_spa(ds),
-		    ds, dsl_dataset_get_blkptr(ds), osp);
+		    ds, dsl_dataset_get_blkptr(ds), &os);
+
+		if (err == 0) {
+			mutex_enter(&ds->ds_lock);
+			ASSERT(ds->ds_objset == NULL);
+			ds->ds_objset = os;
+			mutex_exit(&ds->ds_lock);
+		}
 	}
+	*osp = ds->ds_objset;
 	mutex_exit(&ds->ds_opening_lock);
 	return (err);
 }
@@ -621,6 +639,9 @@ dmu_objset_evict(objset_t *os)
 			VERIFY0(dsl_prop_unregister(ds,
 			    zfs_prop_to_name(ZFS_PROP_SYNC),
 			    sync_changed_cb, os));
+			VERIFY0(dsl_prop_unregister(ds,
+			    zfs_prop_to_name(ZFS_PROP_REDUNDANT_METADATA),
+			    redundant_metadata_changed_cb, os));
 		}
 		VERIFY0(dsl_prop_unregister(ds,
 		    zfs_prop_to_name(ZFS_PROP_PRIMARYCACHE),
@@ -758,9 +779,11 @@ dmu_objset_create_check(void *arg, dmu_tx_t *tx)
 		dsl_dir_rele(pdd, FTAG);
 		return (SET_ERROR(EEXIST));
 	}
+	error = dsl_fs_ss_limit_check(pdd, 1, ZFS_PROP_FILESYSTEM_LIMIT, NULL,
+	    doca->doca_cred);
 	dsl_dir_rele(pdd, FTAG);
 
-	return (0);
+	return (error);
 }
 
 static void
@@ -809,7 +832,8 @@ dmu_objset_create(const char *name, dmu_objset_type_t type, uint64_t flags,
 	doca.doca_type = type;
 
 	return (dsl_sync_task(name,
-	    dmu_objset_create_check, dmu_objset_create_sync, &doca, 5));
+	    dmu_objset_create_check, dmu_objset_create_sync, &doca,
+	    5, ZFS_SPACE_CHECK_NORMAL));
 }
 
 typedef struct dmu_objset_clone_arg {
@@ -843,6 +867,12 @@ dmu_objset_clone_check(void *arg, dmu_tx_t *tx)
 	if (pdd->dd_pool != dp) {
 		dsl_dir_rele(pdd, FTAG);
 		return (SET_ERROR(EXDEV));
+	}
+	error = dsl_fs_ss_limit_check(pdd, 1, ZFS_PROP_FILESYSTEM_LIMIT, NULL,
+	    doca->doca_cred);
+	if (error != 0) {
+		dsl_dir_rele(pdd, FTAG);
+		return (SET_ERROR(EDQUOT));
 	}
 	dsl_dir_rele(pdd, FTAG);
 
@@ -902,7 +932,8 @@ dmu_objset_clone(const char *clone, const char *origin)
 	doca.doca_cred = CRED();
 
 	return (dsl_sync_task(clone,
-	    dmu_objset_clone_check, dmu_objset_clone_sync, &doca, 5));
+	    dmu_objset_clone_check, dmu_objset_clone_sync, &doca,
+	    5, ZFS_SPACE_CHECK_NORMAL));
 }
 
 int
@@ -954,6 +985,7 @@ dmu_objset_write_ready(zio_t *zio, arc_buf_t *abuf, void *arg)
 	objset_t *os = arg;
 	dnode_phys_t *dnp = &os->os_phys->os_meta_dnode;
 
+	ASSERT(!BP_IS_EMBEDDED(bp));
 	ASSERT3P(bp, ==, os->os_rootbp);
 	ASSERT3U(BP_GET_TYPE(bp), ==, DMU_OT_OBJSET);
 	ASSERT0(BP_GET_LEVEL(bp));
@@ -966,7 +998,7 @@ dmu_objset_write_ready(zio_t *zio, arc_buf_t *abuf, void *arg)
 	 */
 	bp->blk_fill = 0;
 	for (int i = 0; i < dnp->dn_nblkptr; i++)
-		bp->blk_fill += dnp->dn_blkptr[i].blk_fill;
+		bp->blk_fill += BP_GET_FILL(&dnp->dn_blkptr[i]);
 }
 
 /* ARGSUSED */
@@ -993,7 +1025,7 @@ void
 dmu_objset_sync(objset_t *os, zio_t *pio, dmu_tx_t *tx)
 {
 	int txgoff;
-	zbookmark_t zb;
+	zbookmark_phys_t zb;
 	zio_prop_t zp;
 	zio_t *zio;
 	list_t *list;

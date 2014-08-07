@@ -2,7 +2,6 @@
 
 .if ${MACHINE_ARCH} == "amd64" || \
     ${MACHINE_ARCH} == "i386" || \
-    ${MACHINE_ARCH} == "ia64" || \
     ${MACHINE_ARCH} == "arm"  || \
     ${MACHINE_ARCH} == "arm64"  || \
     ${MACHINE_ARCH} == "armv6"  || \

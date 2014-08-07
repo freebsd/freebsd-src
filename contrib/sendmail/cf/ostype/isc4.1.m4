@@ -14,7 +14,7 @@ divert(-1)
 #
 
 divert(0)
-VERSIONID(`$Id: isc4.1.m4,v 8.17 2013/11/22 20:51:15 ca Exp $')
+VERSIONID(`$Id: isc4.1.m4,v 8.17 2013-11-22 20:51:15 ca Exp $')
 ifdef(`LOCAL_MAILER_ARGS',, `define(`LOCAL_MAILER_ARGS', `lmail -s $u')')dnl
 _DEFIFNOT(`LOCAL_MAILER_FLAGS', `humS9')dnl
 ifdef(`LOCAL_MAILER_PATH',, `define(`LOCAL_MAILER_PATH', /bin/lmail)')dnl

@@ -189,20 +189,6 @@ cpu_exit(struct thread *td)
 {
 }
 
-struct sf_buf *
-sf_buf_alloc(struct vm_page *m, int flags)
-{
-
-	panic("sf_buf_alloc");
-}
-
-void
-sf_buf_free(struct sf_buf *sf)
-{
-
-	panic("sf_buf_free");
-}
-
 void
 swi_vm(void *v)
 {

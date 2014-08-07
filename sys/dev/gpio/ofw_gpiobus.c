@@ -30,27 +30,14 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/bus.h>
-#include <sys/gpio.h>
 #include <sys/kernel.h>
-#include <sys/libkern.h>
-#include <sys/lock.h>
+#include <sys/malloc.h>
 #include <sys/module.h>
-#include <sys/mutex.h>
 
 #include <dev/gpio/gpiobusvar.h>
 #include <dev/ofw/ofw_bus.h>
-#include <dev/ofw/openfirm.h>
-
-#include <machine/resource.h>
-
-#include "gpio_if.h"
-#include "gpiobus_if.h"
-
-struct ofw_gpiobus_devinfo {
-	struct gpiobus_ivar	opd_dinfo;
-	struct ofw_bus_devinfo	opd_obdinfo;
-};
 
 static int ofw_gpiobus_parse_gpios(struct gpiobus_softc *,
     struct gpiobus_ivar *, phandle_t);
@@ -83,10 +70,37 @@ ofw_gpiobus_add_fdt_child(device_t bus, phandle_t child)
 }
 
 static int
+ofw_gpiobus_alloc_ivars(struct gpiobus_ivar *dinfo)
+{
+
+	/* Allocate pins and flags memory. */
+	dinfo->pins = malloc(sizeof(uint32_t) * dinfo->npins, M_DEVBUF,
+	    M_NOWAIT | M_ZERO);
+	if (dinfo->pins == NULL)
+		return (ENOMEM);
+	dinfo->flags = malloc(sizeof(uint32_t) * dinfo->npins, M_DEVBUF,
+	    M_NOWAIT | M_ZERO);
+	if (dinfo->flags == NULL) {
+		free(dinfo->pins, M_DEVBUF);
+		return (ENOMEM);
+	}
+
+	return (0);
+}
+
+static void
+ofw_gpiobus_free_ivars(struct gpiobus_ivar *dinfo)
+{
+
+	free(dinfo->flags, M_DEVBUF);
+	free(dinfo->pins, M_DEVBUF);
+}
+
+static int
 ofw_gpiobus_parse_gpios(struct gpiobus_softc *sc, struct gpiobus_ivar *dinfo,
 	phandle_t child)
 {
-	int i, len;
+	int cells, i, j, len;
 	pcell_t *gpios;
 	phandle_t gpio;
 
@@ -102,44 +116,81 @@ ofw_gpiobus_parse_gpios(struct gpiobus_softc *sc, struct gpiobus_ivar *dinfo,
 	}
 
 	/*
-	 * Each 'gpios' entry must contain 4 pcells.
-	 * The first one is the GPIO controller phandler.
-	 * Then the last three are the GPIO pin, the GPIO pin direction and
-	 * the GPIO pin flags.
+	 * The gpio-specifier is controller independent, but the first pcell
+	 * has the reference to the GPIO controller phandler.
+	 * One the first pass we count the number of encoded gpio-specifiers.
 	 */
-	if ((len / sizeof(pcell_t)) % 4) {
+	i = 0;
+	len /= sizeof(pcell_t);
+	while (i < len) {
+		/* Allow NULL specifiers. */
+		if (gpios[i] == 0) {
+			dinfo->npins++;
+			i++;
+			continue;
+		}
+		gpio = OF_xref_phandle(gpios[i]);
+		/* Verify if we're attaching to the correct GPIO controller. */
+		if (!OF_hasprop(gpio, "gpio-controller") ||
+		    gpio != ofw_bus_get_node(sc->sc_dev)) {
+			free(gpios, M_DEVBUF);
+			return (EINVAL);
+		}
+		/* Read gpio-cells property for this GPIO controller. */
+		if (OF_getencprop(gpio, "#gpio-cells", &cells,
+		    sizeof(cells)) < 0) {
+			free(gpios, M_DEVBUF);
+			return (EINVAL);
+		}
+		dinfo->npins++;
+		i += cells + 1;
+	}
+
+	if (dinfo->npins == 0) {
 		free(gpios, M_DEVBUF);
 		return (EINVAL);
 	}
-	dinfo->npins = len / (sizeof(pcell_t) * 4);
-	dinfo->pins = malloc(sizeof(uint32_t) * dinfo->npins, M_DEVBUF,
-	    M_NOWAIT | M_ZERO);
-	if (dinfo->pins == NULL) {
+
+	/* Allocate the child resources. */
+	if (ofw_gpiobus_alloc_ivars(dinfo) != 0) {
 		free(gpios, M_DEVBUF);
 		return (ENOMEM);
 	}
 
-	for (i = 0; i < dinfo->npins; i++) {
+	/* Decode the gpio specifier on the second pass. */
+	i = 0;
+	j = 0;
+	while (i < len) {
+		/* Allow NULL specifiers. */
+		if (gpios[i] == 0) {
+			i++;
+			j++;
+			continue;
+		}
 
-		/* Verify if we're attaching to the correct gpio controller. */
-		gpio = OF_xref_phandle(gpios[i * 4 + 0]);
-		if (!OF_hasprop(gpio, "gpio-controller") ||
-		    gpio != ofw_bus_get_node(sc->sc_dev)) {
-			free(dinfo->pins, M_DEVBUF);
+		gpio = OF_xref_phandle(gpios[i]);
+		/* Read gpio-cells property for this GPIO controller. */
+		if (OF_getencprop(gpio, "#gpio-cells", &cells,
+		    sizeof(cells)) < 0) {
+			ofw_gpiobus_free_ivars(dinfo);
 			free(gpios, M_DEVBUF);
 			return (EINVAL);
 		}
 
-		/* Get the GPIO pin number. */
-		dinfo->pins[i] = gpios[i * 4 + 1];
-		/* gpios[i * 4 + 2] - GPIO pin direction */
-		/* gpios[i * 4 + 3] - GPIO pin flags */
+		/* Get the GPIO pin number and flags. */
+		if (gpio_map_gpios(sc->sc_dev, child, gpio, cells,
+		    &gpios[i + 1], &dinfo->pins[j], &dinfo->flags[j]) != 0) {
+			ofw_gpiobus_free_ivars(dinfo);
+			free(gpios, M_DEVBUF);
+			return (EINVAL);
+		}
 
-		if (dinfo->pins[i] > sc->sc_npins) {
+		/* Consistency check. */
+		if (dinfo->pins[j] > sc->sc_npins) {
 			device_printf(sc->sc_busdev,
 			    "invalid pin %d, max: %d\n",
-			    dinfo->pins[i], sc->sc_npins - 1);
-			free(dinfo->pins, M_DEVBUF);
+			    dinfo->pins[j], sc->sc_npins - 1);
+			ofw_gpiobus_free_ivars(dinfo);
 			free(gpios, M_DEVBUF);
 			return (EINVAL);
 		}
@@ -147,15 +198,18 @@ ofw_gpiobus_parse_gpios(struct gpiobus_softc *sc, struct gpiobus_ivar *dinfo,
 		/*
 		 * Mark pin as mapped and give warning if it's already mapped.
 		 */
-		if (sc->sc_pins_mapped[dinfo->pins[i]]) {
+		if (sc->sc_pins_mapped[dinfo->pins[j]]) {
 			device_printf(sc->sc_busdev,
 			    "warning: pin %d is already mapped\n",
-			    dinfo->pins[i]);
-			free(dinfo->pins, M_DEVBUF);
+			    dinfo->pins[j]);
+			ofw_gpiobus_free_ivars(dinfo);
 			free(gpios, M_DEVBUF);
 			return (EINVAL);
 		}
-		sc->sc_pins_mapped[dinfo->pins[i]] = 1;
+		sc->sc_pins_mapped[dinfo->pins[j]] = 1;
+
+		i += cells + 1;
+		j++;
 	}
 
 	free(gpios, M_DEVBUF);

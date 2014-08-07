@@ -4,10 +4,6 @@
 .error "The ACPI module is deprecated, set FORCE_BUILD to force it"
 .endif
 
-.if ${MACHINE_CPUARCH} == "ia64"
-.error "ACPI can only be compiled into the kernel on the ia64 platform"
-.endif
-
 .if ${MACHINE} != "amd64" && ${MACHINE} != "i386"
 .error "The ACPI module is only for amd64 and i386"
 .endif

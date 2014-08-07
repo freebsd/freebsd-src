@@ -13,7 +13,7 @@ cpu 	CPU_XSCALE_IXP435
 cpu	CPU_XSCALE_PXA2X0
 
 files	"../at91/files.at91"
-files	"../econa/files.econa"
+files	"../cavium/cns11xx/files.econa"
 files	"../mv/files.mv"
 files	"../mv/discovery/files.db78xxx"
 files	"../mv/kirkwood/files.kirkwood"

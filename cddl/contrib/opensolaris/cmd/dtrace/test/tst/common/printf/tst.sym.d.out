@@ -1,1 +1,1 @@
-symbol = kernel`kmem_alloc
+symbol = kernel`malloc

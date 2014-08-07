@@ -31,7 +31,7 @@
 .\"	@(#)printf.1	8.1 (Berkeley) 6/6/93
 .\" $FreeBSD$
 .\"
-.Dd May 28, 2011
+.Dd April 21, 2014
 .Dt PRINTF 1
 .Os
 .Sh NAME
@@ -290,6 +290,9 @@ octal escapes are
 .Cm \e0 Ns Ar num
 instead of
 .Cm \e Ns Ar num .
+.It Cm n$
+Allows reordering of the output according to
+.Ar argument .
 .It Cm \&%
 Print a `%'; no argument is used.
 .El

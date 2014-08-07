@@ -250,6 +250,11 @@ sctp_build_ctl_nchunk(struct sctp_inpcb *inp, struct sctp_sndrcvinfo *sinfo)
 
 	/* We need a CMSG header followed by the struct */
 	cmh = mtod(ret, struct cmsghdr *);
+	/*
+	 * Make sure that there is no un-initialized padding between the
+	 * cmsg header and cmsg data and after the cmsg data.
+	 */
+	memset(cmh, 0, len);
 	if (sctp_is_feature_on(inp, SCTP_PCB_FLAGS_RECVRCVINFO)) {
 		cmh->cmsg_level = IPPROTO_SCTP;
 		cmh->cmsg_len = CMSG_LEN(sizeof(struct sctp_rcvinfo));
@@ -828,7 +833,6 @@ sctp_queue_data_for_reasm(struct sctp_tcb *stcb, struct sctp_association *asoc,
 {
 	struct mbuf *op_err;
 	char msg[SCTP_DIAG_INFO_LEN];
-
 	uint32_t cum_ackp1, prev_tsn, post_tsn;
 	struct sctp_tmit_chunk *at, *prev, *next;
 
@@ -1002,7 +1006,7 @@ sctp_queue_data_for_reasm(struct sctp_tcb *stcb, struct sctp_association *asoc,
 					 * Huh, need the correct STR here,
 					 * they must be the same.
 					 */
-					SCTP_PRINTF("Prev check - Gak, Evil plot, sid:%d not the same as at:%d\n",
+					SCTPDBG(SCTP_DEBUG_INDATA1, "Prev check - Gak, Evil plot, sid:%d not the same as at:%d\n",
 					    chk->rec.data.stream_number,
 					    prev->rec.data.stream_number);
 					snprintf(msg, sizeof(msg),
@@ -1011,6 +1015,24 @@ sctp_queue_data_for_reasm(struct sctp_tcb *stcb, struct sctp_association *asoc,
 					    chk->rec.data.TSN_seq,
 					    chk->rec.data.stream_number,
 					    chk->rec.data.stream_seq);
+					op_err = sctp_generate_cause(SCTP_CAUSE_PROTOCOL_VIOLATION, msg);
+					stcb->sctp_ep->last_abort_code = SCTP_FROM_SCTP_INDATA + SCTP_LOC_7;
+					sctp_abort_an_association(stcb->sctp_ep, stcb, op_err, SCTP_SO_NOT_LOCKED);
+					*abort_flag = 1;
+					return;
+				}
+				if ((chk->rec.data.rcv_flags & SCTP_DATA_UNORDERED) !=
+				    (prev->rec.data.rcv_flags & SCTP_DATA_UNORDERED)) {
+					/*
+					 * Huh, need the same ordering here,
+					 * they must be the same.
+					 */
+					SCTPDBG(SCTP_DEBUG_INDATA1, "Prev check - Gak, Evil plot, U-bit not constant\n");
+					snprintf(msg, sizeof(msg),
+					    "Expect U-bit=%d for TSN=%8.8x, got U-bit=%d",
+					    (prev->rec.data.rcv_flags & SCTP_DATA_UNORDERED) ? 1 : 0,
+					    chk->rec.data.TSN_seq,
+					    (chk->rec.data.rcv_flags & SCTP_DATA_UNORDERED) ? 1 : 0);
 					op_err = sctp_generate_cause(SCTP_CAUSE_PROTOCOL_VIOLATION, msg);
 					stcb->sctp_ep->last_abort_code = SCTP_FROM_SCTP_INDATA + SCTP_LOC_7;
 					sctp_abort_an_association(stcb->sctp_ep, stcb, op_err, SCTP_SO_NOT_LOCKED);
@@ -1121,6 +1143,24 @@ sctp_queue_data_for_reasm(struct sctp_tcb *stcb, struct sctp_association *asoc,
 					    chk->rec.data.TSN_seq,
 					    chk->rec.data.stream_number,
 					    chk->rec.data.stream_seq);
+					op_err = sctp_generate_cause(SCTP_CAUSE_PROTOCOL_VIOLATION, msg);
+					stcb->sctp_ep->last_abort_code = SCTP_FROM_SCTP_INDATA + SCTP_LOC_12;
+					sctp_abort_an_association(stcb->sctp_ep, stcb, op_err, SCTP_SO_NOT_LOCKED);
+					*abort_flag = 1;
+					return;
+				}
+				if ((chk->rec.data.rcv_flags & SCTP_DATA_UNORDERED) !=
+				    (next->rec.data.rcv_flags & SCTP_DATA_UNORDERED)) {
+					/*
+					 * Huh, need the same ordering here,
+					 * they must be the same.
+					 */
+					SCTPDBG(SCTP_DEBUG_INDATA1, "Next check - Gak, Evil plot, U-bit not constant\n");
+					snprintf(msg, sizeof(msg),
+					    "Expect U-bit=%d for TSN=%8.8x, got U-bit=%d",
+					    (next->rec.data.rcv_flags & SCTP_DATA_UNORDERED) ? 1 : 0,
+					    chk->rec.data.TSN_seq,
+					    (chk->rec.data.rcv_flags & SCTP_DATA_UNORDERED) ? 1 : 0);
 					op_err = sctp_generate_cause(SCTP_CAUSE_PROTOCOL_VIOLATION, msg);
 					stcb->sctp_ep->last_abort_code = SCTP_FROM_SCTP_INDATA + SCTP_LOC_12;
 					sctp_abort_an_association(stcb->sctp_ep, stcb, op_err, SCTP_SO_NOT_LOCKED);
@@ -1682,6 +1722,9 @@ failed_pdapi_express_del:
 				stcb->sctp_ep->last_abort_code = SCTP_FROM_SCTP_INDATA + SCTP_LOC_15;
 				sctp_abort_an_association(stcb->sctp_ep, stcb, op_err, SCTP_SO_NOT_LOCKED);
 				*abort_flag = 1;
+				if (last_chunk) {
+					*m = NULL;
+				}
 				return (0);
 			} else {
 				if (sctp_does_tsn_belong_to_reasm(asoc, control->sinfo_tsn)) {
@@ -1698,6 +1741,9 @@ failed_pdapi_express_del:
 					stcb->sctp_ep->last_abort_code = SCTP_FROM_SCTP_INDATA + SCTP_LOC_16;
 					sctp_abort_an_association(stcb->sctp_ep, stcb, op_err, SCTP_SO_NOT_LOCKED);
 					*abort_flag = 1;
+					if (last_chunk) {
+						*m = NULL;
+					}
 					return (0);
 				}
 			}
@@ -1724,6 +1770,9 @@ failed_pdapi_express_del:
 					stcb->sctp_ep->last_abort_code = SCTP_FROM_SCTP_INDATA + SCTP_LOC_17;
 					sctp_abort_an_association(stcb->sctp_ep, stcb, op_err, SCTP_SO_NOT_LOCKED);
 					*abort_flag = 1;
+					if (last_chunk) {
+						*m = NULL;
+					}
 					return (0);
 				}
 			}
@@ -1787,6 +1836,9 @@ failed_pdapi_express_del:
 			} else {
 				sctp_queue_data_to_stream(stcb, asoc, control, abort_flag);
 				if (*abort_flag) {
+					if (last_chunk) {
+						*m = NULL;
+					}
 					return (0);
 				}
 			}
@@ -1799,7 +1851,9 @@ failed_pdapi_express_del:
 			 * the assoc is now gone and chk was put onto the
 			 * reasm queue, which has all been freed.
 			 */
-			*m = NULL;
+			if (last_chunk) {
+				*m = NULL;
+			}
 			return (0);
 		}
 	}
@@ -2323,7 +2377,7 @@ sctp_process_data(struct mbuf **mm, int iphlen, int *offset, int length,
 			continue;
 		}
 		if (ch->ch.chunk_type == SCTP_DATA) {
-			if ((size_t)chk_length < sizeof(struct sctp_data_chunk) + 1) {
+			if ((size_t)chk_length < sizeof(struct sctp_data_chunk)) {
 				/*
 				 * Need to send an abort since we had a
 				 * invalid data chunk.
@@ -2334,6 +2388,21 @@ sctp_process_data(struct mbuf **mm, int iphlen, int *offset, int length,
 				snprintf(msg, sizeof(msg), "DATA chunk of length %d",
 				    chk_length);
 				op_err = sctp_generate_cause(SCTP_CAUSE_PROTOCOL_VIOLATION, msg);
+				stcb->sctp_ep->last_abort_code = SCTP_FROM_SCTP_INDATA + SCTP_LOC_19;
+				sctp_abort_association(inp, stcb, m, iphlen,
+				    src, dst, sh, op_err,
+				    use_mflowid, mflowid,
+				    vrf_id, port);
+				return (2);
+			}
+			if ((size_t)chk_length == sizeof(struct sctp_data_chunk)) {
+				/*
+				 * Need to send an abort since we had an
+				 * empty data chunk.
+				 */
+				struct mbuf *op_err;
+
+				op_err = sctp_generate_no_user_data_cause(ch->dp.tsn);
 				stcb->sctp_ep->last_abort_code = SCTP_FROM_SCTP_INDATA + SCTP_LOC_19;
 				sctp_abort_association(inp, stcb, m, iphlen,
 				    src, dst, sh, op_err,
@@ -2436,7 +2505,7 @@ sctp_process_data(struct mbuf **mm, int iphlen, int *offset, int length,
 						SCTP_BUF_LEN(merr) = sizeof(*phd);
 						SCTP_BUF_NEXT(merr) = SCTP_M_COPYM(m, *offset, chk_length, M_NOWAIT);
 						if (SCTP_BUF_NEXT(merr)) {
-							if (sctp_pad_lastmbuf(SCTP_BUF_NEXT(merr), SCTP_SIZE32(chk_length) - chk_length, NULL)) {
+							if (sctp_pad_lastmbuf(SCTP_BUF_NEXT(merr), SCTP_SIZE32(chk_length) - chk_length, NULL) == NULL) {
 								sctp_m_freem(merr);
 							} else {
 								sctp_queue_op_err(stcb, merr);
@@ -2891,7 +2960,7 @@ sctp_strike_gap_ack_chunks(struct sctp_tcb *stcb, struct sctp_association *asoc,
 				num_dests_sacked++;
 		}
 	}
-	if (stcb->asoc.peer_supports_prsctp) {
+	if (stcb->asoc.prsctp_supported) {
 		(void)SCTP_GETTIME_TIMEVAL(&now);
 	}
 	TAILQ_FOREACH(tp1, &asoc->sent_queue, sctp_next) {
@@ -2912,7 +2981,7 @@ sctp_strike_gap_ack_chunks(struct sctp_tcb *stcb, struct sctp_association *asoc,
 			/* done */
 			break;
 		}
-		if (stcb->asoc.peer_supports_prsctp) {
+		if (stcb->asoc.prsctp_supported) {
 			if ((PR_SCTP_TTL_ENABLED(tp1->flags)) && tp1->sent < SCTP_DATAGRAM_ACKED) {
 				/* Is it expired? */
 				if (timevalcmp(&now, &tp1->rec.data.timetodrop, >)) {
@@ -3166,7 +3235,7 @@ sctp_strike_gap_ack_chunks(struct sctp_tcb *stcb, struct sctp_association *asoc,
 			/* remove from the total flight */
 			sctp_total_flight_decrease(stcb, tp1);
 
-			if ((stcb->asoc.peer_supports_prsctp) &&
+			if ((stcb->asoc.prsctp_supported) &&
 			    (PR_SCTP_RTX_ENABLED(tp1->flags))) {
 				/*
 				 * Has it been retransmitted tv_sec times? -
@@ -3311,7 +3380,7 @@ sctp_try_advance_peer_ack_point(struct sctp_tcb *stcb,
 	struct timeval now;
 	int now_filled = 0;
 
-	if (asoc->peer_supports_prsctp == 0) {
+	if (asoc->prsctp_supported == 0) {
 		return (NULL);
 	}
 	TAILQ_FOREACH_SAFE(tp1, &asoc->sent_queue, sctp_next, tp2) {
@@ -3973,7 +4042,7 @@ again:
 		asoc->advanced_peer_ack_point = cumack;
 	}
 	/* PR-Sctp issues need to be addressed too */
-	if ((asoc->peer_supports_prsctp) && (asoc->pr_sctp_cnt > 0)) {
+	if ((asoc->prsctp_supported) && (asoc->pr_sctp_cnt > 0)) {
 		struct sctp_tmit_chunk *lchk;
 		uint32_t old_adv_peer_ack_point;
 
@@ -4410,7 +4479,7 @@ sctp_handle_sack(struct mbuf *m, int offset_seg, int offset_dup,
 			sctp_free_bufspace(stcb, asoc, tp1, 1);
 			sctp_m_freem(tp1->data);
 			tp1->data = NULL;
-			if (asoc->peer_supports_prsctp && PR_SCTP_BUF_ENABLED(tp1->flags)) {
+			if (asoc->prsctp_supported && PR_SCTP_BUF_ENABLED(tp1->flags)) {
 				asoc->sent_queue_cnt_removeable--;
 			}
 		}
@@ -4822,7 +4891,7 @@ again:
 		asoc->advanced_peer_ack_point = cum_ack;
 	}
 	/* C2. try to further move advancedPeerAckPoint ahead */
-	if ((asoc->peer_supports_prsctp) && (asoc->pr_sctp_cnt > 0)) {
+	if ((asoc->prsctp_supported) && (asoc->pr_sctp_cnt > 0)) {
 		struct sctp_tmit_chunk *lchk;
 		uint32_t old_adv_peer_ack_point;
 

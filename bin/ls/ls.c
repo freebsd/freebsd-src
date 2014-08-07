@@ -226,6 +226,9 @@ main(int argc, char *argv[])
 			f_accesstime = 0;
 			f_statustime = 0;
 			break;
+		case 'f':
+			f_nosort = 1;
+		       /* FALLTHROUGH */
 		case 'a':
 			fts_options |= FTS_SEEDOT;
 			/* FALLTHROUGH */
@@ -299,9 +302,6 @@ main(int argc, char *argv[])
 		case 'd':
 			f_listdir = 1;
 			f_recursive = 0;
-			break;
-		case 'f':
-			f_nosort = 1;
 			break;
 		case 'g':	/* Compatibility with 4.3BSD. */
 			break;

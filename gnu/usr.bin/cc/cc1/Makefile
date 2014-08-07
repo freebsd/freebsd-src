@@ -1,7 +1,7 @@
 # $FreeBSD$
 
-NO_MAN=
-.include <bsd.own.mk>
+MAN=
+.include <src.opts.mk>
 
 .include "../Makefile.inc"
 

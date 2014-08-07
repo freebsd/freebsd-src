@@ -247,6 +247,7 @@ cap_getaddrinfo(cap_channel_t *chan, const char *hostname, const char *servname,
 			prevai->ai_next = curai;
 		else if (firstai == NULL)
 			firstai = curai;
+		prevai = curai;
 	}
 	nvlist_destroy(nvl);
 	if (curai == NULL && nvlai != NULL) {

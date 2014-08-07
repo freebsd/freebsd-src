@@ -17,6 +17,8 @@
 #
 # $FreeBSD$
 
+#NO_UNIVERSE
+
 ident		NSLU
 
 # XXX What is defined in std.avila does not exactly match the following:

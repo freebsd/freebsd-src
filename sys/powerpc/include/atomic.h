@@ -74,7 +74,7 @@
 	"	bne-	1b\n"					\
 	: "=&r" (t), "=m" (*p)					\
 	: "r" (p), "r" (v), "m" (*p)				\
-	: "cc", "memory")					\
+	: "cr0", "memory")					\
     /* __atomic_add_int */
 
 #ifdef __powerpc64__
@@ -86,7 +86,7 @@
 	"	bne-	1b\n"					\
 	: "=&r" (t), "=m" (*p)					\
 	: "r" (p), "r" (v), "m" (*p)				\
-	: "cc", "memory")					\
+	: "cr0", "memory")					\
     /* __atomic_add_long */
 #else
 #define	__atomic_add_long(p, v, t)				\
@@ -97,7 +97,7 @@
 	"	bne-	1b\n"					\
 	: "=&r" (t), "=m" (*p)					\
 	: "r" (p), "r" (v), "m" (*p)				\
-	: "cc", "memory")					\
+	: "cr0", "memory")					\
     /* __atomic_add_long */
 #endif
 
@@ -160,7 +160,7 @@ _ATOMIC_ADD(long)
 	"	bne-	1b\n"					\
 	: "=&r" (t), "=m" (*p)					\
 	: "r" (p), "r" (v), "m" (*p)				\
-	: "cc", "memory")					\
+	: "cr0", "memory")					\
     /* __atomic_clear_int */
 
 #ifdef __powerpc64__
@@ -172,7 +172,7 @@ _ATOMIC_ADD(long)
 	"	bne-	1b\n"					\
 	: "=&r" (t), "=m" (*p)					\
 	: "r" (p), "r" (v), "m" (*p)				\
-	: "cc", "memory")					\
+	: "cr0", "memory")					\
     /* __atomic_clear_long */
 #else
 #define	__atomic_clear_long(p, v, t)				\
@@ -183,7 +183,7 @@ _ATOMIC_ADD(long)
 	"	bne-	1b\n"					\
 	: "=&r" (t), "=m" (*p)					\
 	: "r" (p), "r" (v), "m" (*p)				\
-	: "cc", "memory")					\
+	: "cr0", "memory")					\
     /* __atomic_clear_long */
 #endif
 
@@ -262,7 +262,7 @@ _ATOMIC_CLEAR(long)
 	"	bne-	1b\n"					\
 	: "=&r" (t), "=m" (*p)					\
 	: "r" (p), "r" (v), "m" (*p)				\
-	: "cc", "memory")					\
+	: "cr0", "memory")					\
     /* __atomic_set_int */
 
 #ifdef __powerpc64__
@@ -274,7 +274,7 @@ _ATOMIC_CLEAR(long)
 	"	bne-	1b\n"					\
 	: "=&r" (t), "=m" (*p)					\
 	: "r" (p), "r" (v), "m" (*p)				\
-	: "cc", "memory")					\
+	: "cr0", "memory")					\
     /* __atomic_set_long */
 #else
 #define	__atomic_set_long(p, v, t)				\
@@ -285,7 +285,7 @@ _ATOMIC_CLEAR(long)
 	"	bne-	1b\n"					\
 	: "=&r" (t), "=m" (*p)					\
 	: "r" (p), "r" (v), "m" (*p)				\
-	: "cc", "memory")					\
+	: "cr0", "memory")					\
     /* __atomic_set_long */
 #endif
 
@@ -348,7 +348,7 @@ _ATOMIC_SET(long)
 	"	bne-	1b\n"					\
 	: "=&r" (t), "=m" (*p)					\
 	: "r" (p), "r" (v), "m" (*p)				\
-	: "cc", "memory")					\
+	: "cr0", "memory")					\
     /* __atomic_subtract_int */
 
 #ifdef __powerpc64__
@@ -360,7 +360,7 @@ _ATOMIC_SET(long)
 	"	bne-	1b\n"					\
 	: "=&r" (t), "=m" (*p)					\
 	: "r" (p), "r" (v), "m" (*p)				\
-	: "cc", "memory")					\
+	: "cr0", "memory")					\
     /* __atomic_subtract_long */
 #else
 #define	__atomic_subtract_long(p, v, t)				\
@@ -371,7 +371,7 @@ _ATOMIC_SET(long)
 	"	bne-	1b\n"					\
 	: "=&r" (t), "=m" (*p)					\
 	: "r" (p), "r" (v), "m" (*p)				\
-	: "cc", "memory")					\
+	: "cr0", "memory")					\
     /* __atomic_subtract_long */
 #endif
 
@@ -444,7 +444,7 @@ atomic_readandclear_int(volatile u_int *addr)
 		"bne- 1b\n\t"			/* spin if failed */
 		: "=&r"(result), "=&r"(temp), "=m" (*addr)
 		: "r" (addr), "m" (*addr)
-		: "cc", "memory");
+		: "cr0", "memory");
 #endif
 
 	return (result);
@@ -465,7 +465,7 @@ atomic_readandclear_long(volatile u_long *addr)
 		"bne- 1b\n\t"			/* spin if failed */
 		: "=&r"(result), "=&r"(temp), "=m" (*addr)
 		: "r" (addr), "m" (*addr)
-		: "cc", "memory");
+		: "cr0", "memory");
 #endif
 
 	return (result);
@@ -568,7 +568,7 @@ atomic_cmpset_int(volatile u_int* p, u_int cmpval, u_int newval)
 		"3:\n\t"
 		: "=&r" (ret), "=m" (*p)
 		: "r" (p), "r" (cmpval), "r" (newval), "m" (*p)
-		: "cc", "memory");
+		: "cr0", "memory");
 #endif
 
 	return (ret);
@@ -604,7 +604,7 @@ atomic_cmpset_long(volatile u_long* p, u_long cmpval, u_long newval)
 		"3:\n\t"
 		: "=&r" (ret), "=m" (*p)
 		: "r" (p), "r" (cmpval), "r" (newval), "m" (*p)
-		: "cc", "memory");
+		: "cr0", "memory");
 #endif
 
 	return (ret);
@@ -695,7 +695,7 @@ atomic_swap_32(volatile u_int *p, u_int v)
 	"	bne-	1b\n"
 	: "=&r" (prev), "+m" (*(volatile u_int *)p)
 	: "r" (p), "r" (v)
-	: "cc", "memory");
+	: "cr0", "memory");
 
 	return (prev);
 }
@@ -712,7 +712,7 @@ atomic_swap_64(volatile u_long *p, u_long v)
 	"	bne-	1b\n"
 	: "=&r" (prev), "+m" (*(volatile u_long *)p)
 	: "r" (p), "r" (v)
-	: "cc", "memory");
+	: "cr0", "memory");
 
 	return (prev);
 }

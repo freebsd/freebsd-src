@@ -23,7 +23,6 @@
  * Use is subject to license terms.
  */
 
-#pragma ident	"%Z%%M%	%I%	%E% SMI"
 
 
 /*
@@ -143,10 +142,10 @@
 #define	U8_16BIT_TABLE_INDICATOR	(0x8000U)
 
 /* The following are some convenience macros. */
-#define	U8_PUT_3BYTES_INTO_UTF32(u, b1, b2, b3) \
-	(u) = ((uint32_t)(b1) & 0x0F) << 12 | ((uint32_t)(b2) & 0x3F) << 6 | \
-		(uint32_t)(b3) & 0x3F;
-
+#define	U8_PUT_3BYTES_INTO_UTF32(u, b1, b2, b3)  \
+	(u) = ((((uint32_t)(b1) & 0x0F) << 12) | \
+		(((uint32_t)(b2) & 0x3F) << 6)  | \
+		((uint32_t)(b3) & 0x3F));
 #define	U8_SIMPLE_SWAP(a, b, t) \
 	(t) = (a); \
 	(a) = (b); \
@@ -216,10 +215,10 @@ const int8_t u8_number_of_bytes[0x100] = {
 /*	80  81  82  83  84  85  86  87  88  89  8A  8B  8C  8D  8E  8F  */
 	I_, I_, I_, I_, I_, I_, I_, I_, I_, I_, I_, I_, I_, I_, I_, I_,
 
-/*  	90  91  92  93  94  95  96  97  98  99  9A  9B  9C  9D  9E  9F  */
+/*	90  91  92  93  94  95  96  97  98  99  9A  9B  9C  9D  9E  9F  */
 	I_, I_, I_, I_, I_, I_, I_, I_, I_, I_, I_, I_, I_, I_, I_, I_,
 
-/*  	A0  A1  A2  A3  A4  A5  A6  A7  A8  A9  AA  AB  AC  AD  AE  AF  */
+/*	A0  A1  A2  A3  A4  A5  A6  A7  A8  A9  AA  AB  AC  AD  AE  AF  */
 	I_, I_, I_, I_, I_, I_, I_, I_, I_, I_, I_, I_, I_, I_, I_, I_,
 
 /*	B0  B1  B2  B3  B4  B5  B6  B7  B8  B9  BA  BB  BC  BD  BE  BF  */

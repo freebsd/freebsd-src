@@ -287,7 +287,7 @@ xctrl_suspend()
 	}
 	HYPERVISOR_shared_info->arch.max_pfn = max_pfn;
 
-	gnttab_resume();
+	gnttab_resume(NULL);
 	intr_resume(suspend_cancelled != 0);
 	local_irq_enable();
 	xencons_resume();
@@ -314,21 +314,6 @@ xctrl_suspend()
 		restart_cpus(map);
 #endif
 	EVENTHANDLER_INVOKE(power_resume);
-}
-
-static void
-xen_pv_shutdown_final(void *arg, int howto)
-{
-	/*
-	 * Inform the hypervisor that shutdown is complete.
-	 * This is not necessary in HVM domains since Xen
-	 * emulates ACPI in that mode and FreeBSD's ACPI
-	 * support will request this transition.
-	 */
-	if (howto & (RB_HALT | RB_POWEROFF))
-		HYPERVISOR_shutdown(SHUTDOWN_poweroff);
-	else
-		HYPERVISOR_shutdown(SHUTDOWN_reboot);
 }
 
 #else
@@ -400,7 +385,7 @@ xctrl_suspend()
 	/*
 	 * Reset grant table info.
 	 */
-	gnttab_resume();
+	gnttab_resume(NULL);
 
 #ifdef SMP
 	if (smp_started && !CPU_EMPTY(&cpu_suspend_map)) {
@@ -438,6 +423,21 @@ static void
 xctrl_crash()
 {
 	panic("Xen directed crash");
+}
+
+static void
+xen_pv_shutdown_final(void *arg, int howto)
+{
+	/*
+	 * Inform the hypervisor that shutdown is complete.
+	 * This is not necessary in HVM domains since Xen
+	 * emulates ACPI in that mode and FreeBSD's ACPI
+	 * support will request this transition.
+	 */
+	if (howto & (RB_HALT | RB_POWEROFF))
+		HYPERVISOR_shutdown(SHUTDOWN_poweroff);
+	else
+		HYPERVISOR_shutdown(SHUTDOWN_reboot);
 }
 
 /*------------------------------ Event Reception -----------------------------*/
@@ -522,10 +522,9 @@ xctrl_attach(device_t dev)
 	xctrl->xctrl_watch.callback_data = (uintptr_t)xctrl;
 	xs_register_watch(&xctrl->xctrl_watch);
 
-#ifndef XENHVM
-	EVENTHANDLER_REGISTER(shutdown_final, xen_pv_shutdown_final, NULL,
-			      SHUTDOWN_PRI_LAST);
-#endif
+	if (xen_pv_domain())
+		EVENTHANDLER_REGISTER(shutdown_final, xen_pv_shutdown_final, NULL,
+		                      SHUTDOWN_PRI_LAST);
 
 	return (0);
 }

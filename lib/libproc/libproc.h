@@ -102,6 +102,7 @@ typedef struct lwpstatus {
 #define PR_FAULTED	2
 #define PR_SYSENTRY	3
 #define PR_SYSEXIT	4
+#define PR_SIGNALLED	5
 	int pr_what;
 #define FLTBPT		-1
 } lwpstatus_t;

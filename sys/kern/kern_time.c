@@ -774,6 +774,14 @@ kern_setitimer(struct thread *td, u_int which, struct itimerval *aitv,
 				timevalsub(&oitv->it_value, &ctv);
 		}
 	} else {
+		if (aitv->it_interval.tv_sec == 0 &&
+		    aitv->it_interval.tv_usec != 0 &&
+		    aitv->it_interval.tv_usec < tick)
+			aitv->it_interval.tv_usec = tick;
+		if (aitv->it_value.tv_sec == 0 &&
+		    aitv->it_value.tv_usec != 0 &&
+		    aitv->it_value.tv_usec < tick)
+			aitv->it_value.tv_usec = tick;
 		PROC_SLOCK(p);
 		*oitv = p->p_stats->p_timer[which];
 		p->p_stats->p_timer[which] = *aitv;

@@ -134,16 +134,19 @@ ar5212SetPowerMode(struct ath_hal *ah, HAL_POWER_MODE mode, int setChip)
 		setChip ? "set chip " : "");
 	switch (mode) {
 	case HAL_PM_AWAKE:
-		ah->ah_powerMode = mode;
+		if (setChip)
+			ah->ah_powerMode = mode;
 		status = ar5212SetPowerModeAwake(ah, setChip);
 		break;
 	case HAL_PM_FULL_SLEEP:
 		ar5212SetPowerModeSleep(ah, setChip);
-		ah->ah_powerMode = mode;
+		if (setChip)
+			ah->ah_powerMode = mode;
 		break;
 	case HAL_PM_NETWORK_SLEEP:
 		ar5212SetPowerModeNetworkSleep(ah, setChip);
-		ah->ah_powerMode = mode;
+		if (setChip)
+			ah->ah_powerMode = mode;
 		break;
 	default:
 		HALDEBUG(ah, HAL_DEBUG_ANY, "%s: unknown power mode %u\n",

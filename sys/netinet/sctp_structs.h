@@ -1150,30 +1150,23 @@ struct sctp_association {
 	 * sum is updated as well.
 	 */
 
-	/* Flag to tell if ECN is allowed */
-	uint8_t ecn_allowed;
+	/* Flags whether an extension is supported or not */
+	uint8_t ecn_supported;
+	uint8_t prsctp_supported;
+	uint8_t reconfig_supported;
+	uint8_t nrsack_supported;
+	uint8_t pktdrop_supported;
 
 	/* Did the peer make the stream config (add out) request */
 	uint8_t peer_req_out;
 
 	/* flag to indicate if peer can do asconf */
 	uint8_t peer_supports_asconf;
-	/* EY - flag to indicate if peer can do nr_sack */
-	uint8_t peer_supports_nr_sack;
-	/* pr-sctp support flag */
-	uint8_t peer_supports_prsctp;
 	/* peer authentication support flag */
 	uint8_t peer_supports_auth;
-	/* stream resets are supported by the peer */
-	uint8_t peer_supports_strreset;
 	uint8_t local_strreset_support;
 
 	uint8_t peer_supports_nat;
-	/*
-	 * packet drop's are supported by the peer, we don't really care
-	 * about this but we bookkeep it anyway.
-	 */
-	uint8_t peer_supports_pktdrop;
 
 	struct sctp_scoping scope;
 	/* flags to handle send alternate net tracking */
@@ -1198,8 +1191,6 @@ struct sctp_association {
 	uint8_t sctp_cmt_on_off;
 	uint8_t iam_blocking;
 	uint8_t cookie_how[8];
-	/* EY 05/05/08 - NR_SACK variable */
-	uint8_t sctp_nr_sack_on_off;
 	/* JRS 5/21/07 - CMT PF variable */
 	uint8_t sctp_cmt_pf;
 	uint8_t use_precise_time;

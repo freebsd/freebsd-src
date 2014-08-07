@@ -60,7 +60,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 30, 2013
+.Dd July 15, 2014
 .Dt DDB 4
 .Os
 .Sh NAME
@@ -572,17 +572,26 @@ Dump data about APIC IDT vector mappings.
 Show breakpoints set with the "break" command.
 .\"
 .Pp
-.It Ic show Cm buffer
-Show buffer structure of
+.It Ic show Cm bio Ar addr
+Show information about the bio structure
+.Vt struct bio
+present at
+.Ar addr .
+See the
+.Pa sys/bio.h
+header file and
+.Xr g_bio 9
+for more details on the exact meaning of the structure fields.
+.\"
+.Pp
+.It Ic show Cm buffer Ar addr
+Show information about the buf structure
 .Vt struct buf
-type.
-Such a structure is used within the
-.Fx
-kernel for the I/O subsystem
-implementation.
-For an exact interpretation of the output, please see the
+present at
+.Ar addr .
+See the
 .Pa sys/buf.h
-header file.
+header file for more details on the exact meaning of the structure fields.
 .\"
 .Pp
 .It Ic show Cm cbstat
@@ -1115,7 +1124,7 @@ abbreviations.
 .It Ic capture status
 .Nm
 supports a basic output capture facility, which can be used to retrieve the
-results of debugging commands from userpsace using
+results of debugging commands from userspace using
 .Xr sysctl 2 .
 .Ic capture on
 enables output capture;
@@ -1420,7 +1429,7 @@ diagnose problems.
 Other bus' bridge chipsets may be able to generate NMI using bus specific
 methods.
 .Sh FILES
-Header files mention in this manual page can be found below
+Header files mentioned in this manual page can be found below
 .Pa /usr/include
 directory.
 .Pp

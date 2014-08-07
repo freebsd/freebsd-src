@@ -776,7 +776,7 @@ struct rl_stats {
 #define	RL_TX_DESC_CNT		RL_8169_TX_DESC_CNT
 #define	RL_RX_DESC_CNT		RL_8169_RX_DESC_CNT
 #define	RL_RX_JUMBO_DESC_CNT	RL_RX_DESC_CNT
-#define	RL_NTXSEGS		32
+#define	RL_NTXSEGS		35
 
 #define	RL_RING_ALIGN		256
 #define	RL_DUMP_ALIGN		64

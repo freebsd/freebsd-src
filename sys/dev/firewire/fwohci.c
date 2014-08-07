@@ -78,14 +78,13 @@
 
 #undef OHCI_DEBUG
 
-static int nocyclemaster = 0;
+static int nocyclemaster;
 int firewire_phydma_enable = 1;
 SYSCTL_DECL(_hw_firewire);
-SYSCTL_INT(_hw_firewire, OID_AUTO, nocyclemaster, CTLFLAG_RW, &nocyclemaster, 0,
-        "Do not send cycle start packets");
-SYSCTL_INT(_hw_firewire, OID_AUTO, phydma_enable, CTLFLAG_RW,
-	&firewire_phydma_enable, 1, "Allow physical request DMA from firewire");
-TUNABLE_INT("hw.firewire.phydma_enable", &firewire_phydma_enable);
+SYSCTL_INT(_hw_firewire, OID_AUTO, nocyclemaster, CTLFLAG_RWTUN,
+	&nocyclemaster, 0, "Do not send cycle start packets");
+SYSCTL_INT(_hw_firewire, OID_AUTO, phydma_enable, CTLFLAG_RWTUN,
+	&firewire_phydma_enable, 0, "Allow physical request DMA from firewire");
 
 static char dbcode[16][0x10]={"OUTM", "OUTL","INPM","INPL",
 		"STOR","LOAD","NOP ","STOP",};

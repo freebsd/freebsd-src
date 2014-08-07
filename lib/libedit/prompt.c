@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$NetBSD: prompt.c,v 1.11 2003/08/07 16:44:32 agc Exp $
+ *	$NetBSD: prompt.c,v 1.14 2009/03/31 17:38:27 christos Exp $
  */
 
 #if !defined(lint) && !defined(SCCSID)

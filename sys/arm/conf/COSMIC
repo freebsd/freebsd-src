@@ -17,7 +17,9 @@
 #
 # $FreeBSD$
 
-include		"VYBRID.common"
+#NO_UNIVERSE
+
+include		"VYBRID"
 ident		COSMIC
 
 #FDT

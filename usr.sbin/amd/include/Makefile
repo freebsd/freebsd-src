@@ -7,7 +7,7 @@
 #	Portions derived from amd/libamu/Makefile
 #	$NetBSD: Makefile,v 1.8 1998/08/08 22:33:37 christos Exp $
 
-.include <bsd.own.mk>
+.include <src.opts.mk>
 
 SRCS=	config_local.h
 .if ${MK_NIS} == "no"

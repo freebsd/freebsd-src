@@ -90,10 +90,9 @@ __FBSDID("$FreeBSD$");
 #define PANIC_REBOOT_WAIT_TIME 15 /* default to 15 seconds */
 #endif
 static int panic_reboot_wait_time = PANIC_REBOOT_WAIT_TIME;
-SYSCTL_INT(_kern, OID_AUTO, panic_reboot_wait_time, CTLFLAG_RW | CTLFLAG_TUN,
+SYSCTL_INT(_kern, OID_AUTO, panic_reboot_wait_time, CTLFLAG_RWTUN,
     &panic_reboot_wait_time, 0,
     "Seconds to wait before rebooting after a panic");
-TUNABLE_INT("kern.panic_reboot_wait_time", &panic_reboot_wait_time);
 
 /*
  * Note that stdarg.h and the ANSI style va_start macro is used for both
@@ -108,9 +107,8 @@ int debugger_on_panic = 0;
 int debugger_on_panic = 1;
 #endif
 SYSCTL_INT(_debug, OID_AUTO, debugger_on_panic,
-    CTLFLAG_RW | CTLFLAG_SECURE | CTLFLAG_TUN,
+    CTLFLAG_RWTUN | CTLFLAG_SECURE,
     &debugger_on_panic, 0, "Run debugger on kernel panic");
-TUNABLE_INT("debug.debugger_on_panic", &debugger_on_panic);
 
 #ifdef KDB_TRACE
 static int trace_on_panic = 1;
@@ -118,15 +116,13 @@ static int trace_on_panic = 1;
 static int trace_on_panic = 0;
 #endif
 SYSCTL_INT(_debug, OID_AUTO, trace_on_panic,
-    CTLFLAG_RW | CTLFLAG_SECURE | CTLFLAG_TUN,
+    CTLFLAG_RWTUN | CTLFLAG_SECURE,
     &trace_on_panic, 0, "Print stack trace on kernel panic");
-TUNABLE_INT("debug.trace_on_panic", &trace_on_panic);
 #endif /* KDB */
 
 static int sync_on_panic = 0;
-SYSCTL_INT(_kern, OID_AUTO, sync_on_panic, CTLFLAG_RW | CTLFLAG_TUN,
+SYSCTL_INT(_kern, OID_AUTO, sync_on_panic, CTLFLAG_RWTUN,
 	&sync_on_panic, 0, "Do a sync before rebooting from a panic");
-TUNABLE_INT("kern.sync_on_panic", &sync_on_panic);
 
 static SYSCTL_NODE(_kern, OID_AUTO, shutdown, CTLFLAG_RW, 0,
     "Shutdown environment");
@@ -202,26 +198,25 @@ sys_reboot(struct thread *td, struct reboot_args *uap)
 /*
  * Called by events that want to shut down.. e.g  <CTL><ALT><DEL> on a PC
  */
-static int shutdown_howto = 0;
-
 void
 shutdown_nice(int howto)
 {
 
-	shutdown_howto = howto;
-
-	/* Send a signal to init(8) and have it shutdown the world */
 	if (initproc != NULL) {
+		/* Send a signal to init(8) and have it shutdown the world. */
 		PROC_LOCK(initproc);
-		kern_psignal(initproc, SIGINT);
+		if (howto & RB_POWEROFF)
+			kern_psignal(initproc, SIGUSR2);
+		else if (howto & RB_HALT)
+			kern_psignal(initproc, SIGUSR1);
+		else
+			kern_psignal(initproc, SIGINT);
 		PROC_UNLOCK(initproc);
 	} else {
-		/* No init(8) running, so simply reboot */
-		kern_reboot(RB_NOSYNC);
+		/* No init(8) running, so simply reboot. */
+		kern_reboot(howto | RB_NOSYNC);
 	}
-	return;
 }
-static int	waittime = -1;
 
 static void
 print_uptime(void)
@@ -254,7 +249,9 @@ int
 doadump(boolean_t textdump)
 {
 	boolean_t coredump;
+	int error;
 
+	error = 0;
 	if (dumping)
 		return (EBUSY);
 	if (dumper.dumper == NULL)
@@ -272,10 +269,10 @@ doadump(boolean_t textdump)
 	}
 #endif
 	if (coredump)
-		dumpsys(&dumper);
+		error = dumpsys(&dumper);
 
 	dumping--;
-	return (0);
+	return (error);
 }
 
 static int
@@ -295,6 +292,7 @@ void
 kern_reboot(int howto)
 {
 	static int first_buf_printf = 1;
+	static int waittime = -1;
 
 #if defined(SMP)
 	/*
@@ -311,9 +309,6 @@ kern_reboot(int howto)
 #endif
 	/* We're in the process of rebooting. */
 	rebooting = 1;
-
-	/* collect extra flags that shutdown_nice might have set */
-	howto |= shutdown_howto;
 
 	/* We are out of the debugger now. */
 	kdb_active = 0;
@@ -562,43 +557,35 @@ static int kassert_warnings = 0;
 
 SYSCTL_NODE(_debug, OID_AUTO, kassert, CTLFLAG_RW, NULL, "kassert options");
 
-SYSCTL_INT(_debug_kassert, OID_AUTO, warn_only, CTLFLAG_RW | CTLFLAG_TUN,
+SYSCTL_INT(_debug_kassert, OID_AUTO, warn_only, CTLFLAG_RWTUN,
     &kassert_warn_only, 0,
     "KASSERT triggers a panic (1) or just a warning (0)");
-TUNABLE_INT("debug.kassert.warn_only", &kassert_warn_only);
 
 #ifdef KDB
-SYSCTL_INT(_debug_kassert, OID_AUTO, do_kdb, CTLFLAG_RW | CTLFLAG_TUN,
+SYSCTL_INT(_debug_kassert, OID_AUTO, do_kdb, CTLFLAG_RWTUN,
     &kassert_do_kdb, 0, "KASSERT will enter the debugger");
-TUNABLE_INT("debug.kassert.do_kdb", &kassert_do_kdb);
 #endif
 
 #ifdef KTR
-SYSCTL_UINT(_debug_kassert, OID_AUTO, do_ktr, CTLFLAG_RW | CTLFLAG_TUN,
+SYSCTL_UINT(_debug_kassert, OID_AUTO, do_ktr, CTLFLAG_RWTUN,
     &kassert_do_ktr, 0,
     "KASSERT does a KTR, set this to the KTRMASK you want");
-TUNABLE_INT("debug.kassert.do_ktr", &kassert_do_ktr);
 #endif
 
-SYSCTL_INT(_debug_kassert, OID_AUTO, do_log, CTLFLAG_RW | CTLFLAG_TUN,
+SYSCTL_INT(_debug_kassert, OID_AUTO, do_log, CTLFLAG_RWTUN,
     &kassert_do_log, 0, "KASSERT triggers a panic (1) or just a warning (0)");
-TUNABLE_INT("debug.kassert.do_log", &kassert_do_log);
 
-SYSCTL_INT(_debug_kassert, OID_AUTO, warnings, CTLFLAG_RW | CTLFLAG_TUN,
+SYSCTL_INT(_debug_kassert, OID_AUTO, warnings, CTLFLAG_RWTUN,
     &kassert_warnings, 0, "number of KASSERTs that have been triggered");
-TUNABLE_INT("debug.kassert.warnings", &kassert_warnings);
 
-SYSCTL_INT(_debug_kassert, OID_AUTO, log_panic_at, CTLFLAG_RW | CTLFLAG_TUN,
+SYSCTL_INT(_debug_kassert, OID_AUTO, log_panic_at, CTLFLAG_RWTUN,
     &kassert_log_panic_at, 0, "max number of KASSERTS before we will panic");
-TUNABLE_INT("debug.kassert.log_panic_at", &kassert_log_panic_at);
 
-SYSCTL_INT(_debug_kassert, OID_AUTO, log_pps_limit, CTLFLAG_RW | CTLFLAG_TUN,
+SYSCTL_INT(_debug_kassert, OID_AUTO, log_pps_limit, CTLFLAG_RWTUN,
     &kassert_log_pps_limit, 0, "limit number of log messages per second");
-TUNABLE_INT("debug.kassert.log_pps_limit", &kassert_log_pps_limit);
 
-SYSCTL_INT(_debug_kassert, OID_AUTO, log_mute_at, CTLFLAG_RW | CTLFLAG_TUN,
+SYSCTL_INT(_debug_kassert, OID_AUTO, log_mute_at, CTLFLAG_RWTUN,
     &kassert_log_mute_at, 0, "max number of KASSERTS to log");
-TUNABLE_INT("debug.kassert.log_mute_at", &kassert_log_mute_at);
 
 static int kassert_sysctl_kassert(SYSCTL_HANDLER_ARGS);
 

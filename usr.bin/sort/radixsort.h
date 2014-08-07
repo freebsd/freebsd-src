@@ -28,7 +28,7 @@
  */
 
 #if !defined(__SORT_RADIX_H__)
-#define __SORT_RADIX_H__
+#define	__SORT_RADIX_H__
 
 #include "coll.h"
 #include "sort.h"

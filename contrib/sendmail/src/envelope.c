@@ -13,7 +13,7 @@
 
 #include <sendmail.h>
 
-SM_RCSID("@(#)$Id: envelope.c,v 8.313 2013/11/22 20:51:55 ca Exp $")
+SM_RCSID("@(#)$Id: envelope.c,v 8.313 2013-11-22 20:51:55 ca Exp $")
 
 /*
 **  CLRSESSENVELOPE -- clear session oriented data in an envelope

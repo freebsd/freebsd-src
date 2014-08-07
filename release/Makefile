@@ -1,7 +1,7 @@
 # $FreeBSD$
 #
 # Makefile for building releases and release media.
-# 
+#
 # User-driven targets:
 #  cdrom: Builds release CD-ROM media (disc1.iso)
 #  dvdrom: Builds release DVD-ROM media (dvd1.iso)
@@ -13,7 +13,7 @@
 #
 # Variables affecting the build process:
 #  WORLDDIR: location of src tree -- must have built world and default kernel
-#            (by default, the directory above this one) 
+#            (by default, the directory above this one)
 #  PORTSDIR: location of ports tree to distribute (default: /usr/ports)
 #  DOCDIR:   location of doc tree (default: /usr/doc)
 #  NOPKG:    if set, do not distribute third-party packages
@@ -21,13 +21,16 @@
 #  NOSRC:    if set, do not distribute source tree
 #  NODOC:    if set, do not generate release documentation
 #  WITH_DVD: if set, generate dvd1.iso
-#  TARGET/TARGET_ARCH: architecture of built release 
+#  WITH_COMPRESSED_IMAGES: if set, compress installation images with xz(1)
+#		(uncompressed images are not removed)
+#  TARGET/TARGET_ARCH: architecture of built release
 #
 
 WORLDDIR?=	${.CURDIR}/..
 PORTSDIR?=	/usr/ports
 DOCDIR?=	/usr/doc
 RELNOTES_LANG?= en_US.ISO8859-1
+XZCMD?=		/usr/bin/xz
 
 .if !defined(TARGET) || empty(TARGET)
 TARGET=		${MACHINE}
@@ -63,7 +66,7 @@ NODOC= true
 NOPORTS= true
 .endif
 
-EXTRA_PACKAGES= 
+EXTRA_PACKAGES=
 .if !defined(NOPORTS)
 EXTRA_PACKAGES+= ports.txz
 .endif
@@ -92,6 +95,14 @@ IMAGES+=	mini-memstick.img
 .endif
 
 CLEANFILES=	packagesystem *.txz MANIFEST system ${IMAGES}
+.if defined(WITH_COMPRESSED_IMAGES) && !empty(WITH_COMPRESSED_IMAGES)
+. for I in ${IMAGES}
+CLEANFILES+=	${I}.xz
+. endfor
+.endif
+.if defined(WITH_DVD) && !empty(WITH_DVD)
+CLEANFILES+=	pkg-stage
+.endif
 CLEANDIRS=	dist ftp release bootonly dvd
 beforeclean:
 	chflags -R noschg .
@@ -143,11 +154,14 @@ system: packagesystem
 # Install system
 	mkdir -p release
 	cd ${WORLDDIR} && ${IMAKE} installkernel installworld distribution \
-		DESTDIR=${.OBJDIR}/release WITHOUT_RESCUE=1 WITHOUT_KERNEL_SYMBOLS=1 \
-		WITHOUT_PROFILE=1 WITHOUT_SENDMAIL=1 WITHOUT_ATF=1 WITHOUT_LIB32=1
+		DESTDIR=${.OBJDIR}/release MK_RESCUE=no MK_KERNEL_SYMBOLS=no \
+		MK_PROFILE=no MK_SENDMAIL=no MK_TESTS=no MK_LIB32=no \
+		MK_DEBUG_FILES=no
 # Copy distfiles
 	mkdir -p release/usr/freebsd-dist
-	cp *.txz MANIFEST release/usr/freebsd-dist
+	for dist in MANIFEST $$(ls *.txz | grep -v -- '-dbg'); \
+	    do cp $${dist} release/usr/freebsd-dist; \
+	done
 # Copy documentation, if generated
 .if !defined(NODOC)
 	cp reldoc/* release
@@ -156,6 +170,7 @@ system: packagesystem
 	ln -fs /tmp/bsdinstall_etc/resolv.conf release/etc/resolv.conf
 	echo sendmail_enable=\"NONE\" > release/etc/rc.conf
 	echo hostid_enable=\"NO\" >> release/etc/rc.conf
+	echo debug.witness.trace=0 >> release/etc/sysctl.conf
 	cp ${.CURDIR}/rc.local release/etc
 	touch ${.TARGET}
 
@@ -163,12 +178,12 @@ bootonly: packagesystem
 # Install system
 	mkdir -p bootonly
 	cd ${WORLDDIR} && ${IMAKE} installkernel installworld distribution \
-	    DESTDIR=${.OBJDIR}/bootonly WITHOUT_AMD=1 WITHOUT_AT=1 \
-	    WITHOUT_GAMES=1 WITHOUT_GROFF=1 \
-	    WITHOUT_INSTALLLIB=1 WITHOUT_LIB32=1 WITHOUT_MAIL=1 \
-	    WITHOUT_NCP=1 WITHOUT_TOOLCHAIN=1 WITHOUT_PROFILE=1 \
-	    WITHOUT_INSTALLIB=1 WITHOUT_RESCUE=1 WITHOUT_DICT=1 \
-	    WITHOUT_KERNEL_SYMBOLS=1
+	    DESTDIR=${.OBJDIR}/bootonly MK_AMD=no MK_AT=no \
+	    MK_GAMES=no MK_GROFF=no \
+	    MK_INSTALLLIB=no MK_LIB32=no MK_MAIL=no \
+	    MK_NCP=no MK_TOOLCHAIN=no MK_PROFILE=no \
+	    MK_INSTALLIB=no MK_RESCUE=no MK_DICT=no \
+	    MK_KERNEL_SYMBOLS=no MK_TESTS=no MK_DEBUG_FILES=no
 # Copy manifest only (no distfiles) to get checksums
 	mkdir -p bootonly/usr/freebsd-dist
 	cp MANIFEST bootonly/usr/freebsd-dist
@@ -180,16 +195,20 @@ bootonly: packagesystem
 	ln -fs /tmp/bsdinstall_etc/resolv.conf bootonly/etc/resolv.conf
 	echo sendmail_enable=\"NONE\" > bootonly/etc/rc.conf
 	echo hostid_enable=\"NO\" >> bootonly/etc/rc.conf
+	echo debug.witness.trace=0 >> bootonly/etc/sysctl.conf
 	cp ${.CURDIR}/rc.local bootonly/etc
 
 dvd:
 # Install system
 	mkdir -p ${.TARGET}
 	cd ${WORLDDIR} && ${IMAKE} installkernel installworld distribution \
-		DESTDIR=${.OBJDIR}/${.TARGET} WITHOUT_RESCUE=1 WITHOUT_KERNEL_SYMBOLS=1
+		DESTDIR=${.OBJDIR}/${.TARGET} MK_RESCUE=no MK_KERNEL_SYMBOLS=no \
+		MK_TESTS=no MK_DEBUG_FILES=no
 # Copy distfiles
 	mkdir -p ${.TARGET}/usr/freebsd-dist
-	cp *.txz MANIFEST ${.TARGET}/usr/freebsd-dist
+	for dist in MANIFEST $$(ls *.txz | grep -v -- '-dbg'); \
+	    do cp $${dist} ${.TARGET}/usr/freebsd-dist; \
+	done
 # Copy documentation, if generated
 .if !defined(NODOC)
 	cp reldoc/* ${.TARGET}
@@ -198,6 +217,7 @@ dvd:
 	ln -fs /tmp/bsdinstall_etc/resolv.conf ${.TARGET}/etc/resolv.conf
 	echo sendmail_enable=\"NONE\" > ${.TARGET}/etc/rc.conf
 	echo hostid_enable=\"NO\" >> ${.TARGET}/etc/rc.conf
+	echo debug.witness.trace=0 >> ${.TARGET}/etc/sysctl.conf
 	cp ${.CURDIR}/rc.local ${.TARGET}/etc
 	touch ${.TARGET}
 
@@ -251,6 +271,9 @@ install:
 	cp -a ftp ${DESTDIR}/
 .for I in ${IMAGES}
 	cp -p ${I} ${DESTDIR}/${OSRELEASE}-${I}
+. if defined(WITH_COMPRESSED_IMAGES) && !empty(WITH_COMPRESSED_IMAGES)
+	${XZCMD} -k ${DESTDIR}/${OSRELEASE}-${I}
+. endif
 .endfor
 	cd ${DESTDIR} && sha256 ${OSRELEASE}* > ${DESTDIR}/CHECKSUM.SHA256
 	cd ${DESTDIR} && md5 ${OSRELEASE}* > ${DESTDIR}/CHECKSUM.MD5

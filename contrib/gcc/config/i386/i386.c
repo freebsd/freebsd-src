@@ -14408,7 +14408,7 @@ ix86_local_alignment (tree type, int align)
       if (AGGREGATE_TYPE_P (type)
 	   && TYPE_SIZE (type)
 	   && TREE_CODE (TYPE_SIZE (type)) == INTEGER_CST
-	   && (TREE_INT_CST_LOW (TYPE_SIZE (type)) >= 16
+	   && (TREE_INT_CST_LOW (TYPE_SIZE (type)) >= 128
 	       || TREE_INT_CST_HIGH (TYPE_SIZE (type))) && align < 128)
 	return 128;
     }

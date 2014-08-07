@@ -125,7 +125,12 @@ static driver_t nexus_driver = {
 	nexus_methods,
 	1			/* no softc */
 };
+#ifdef ARM_DEVICE_MULTIPASS
+EARLY_DRIVER_MODULE(nexus, root, nexus_driver, nexus_devclass, 0, 0, 
+    BUS_PASS_BUS + BUS_PASS_ORDER_EARLY);
+#else
 DRIVER_MODULE(nexus, root, nexus_driver, nexus_devclass, 0, 0);
+#endif
 
 static int
 nexus_probe(device_t dev)

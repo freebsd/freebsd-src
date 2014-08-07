@@ -36,6 +36,7 @@
 #define	_DEV_MII_MIIVAR_H_
 
 #include <sys/queue.h>
+#include <net/if_var.h>	/* XXX driver API temporary */
 
 /*
  * Media Independent Interface data structure defintions
@@ -57,7 +58,7 @@ typedef	void (*mii_statchg_t)(struct device *);
  */
 struct mii_data {
 	struct ifmedia mii_media;	/* media information */
-	struct ifnet *mii_ifp;		/* pointer back to network interface */
+	if_t mii_ifp;		/* pointer back to network interface */
 
 	/*
 	 * For network interfaces with multiple PHYs, a list of all
@@ -246,7 +247,7 @@ MIIBUS_ACCESSOR(flags,		FLAGS,		u_int)
 extern devclass_t	miibus_devclass;
 extern driver_t		miibus_driver;
 
-int	mii_attach(device_t, device_t *, struct ifnet *, ifm_change_cb_t,
+int	mii_attach(device_t, device_t *, if_t, ifm_change_cb_t,
 	    ifm_stat_cb_t, int, int, int, int);
 void	mii_down(struct mii_data *);
 int	mii_mediachg(struct mii_data *);

@@ -323,12 +323,8 @@ struct mtx *mtx_pool_alloc(struct mtx_pool *pool);
 	mtx_unlock_spin(mtx_pool_find((pool), (ptr)))
 
 /*
- * mtxpool_lockbuilder is a pool of sleep locks that is not witness
- * checked and should only be used for building higher level locks.
- *
  * mtxpool_sleep is a general purpose pool of sleep mutexes.
  */
-extern struct mtx_pool *mtxpool_lockbuilder;
 extern struct mtx_pool *mtxpool_sleep;
 
 #ifndef LOCK_DEBUG

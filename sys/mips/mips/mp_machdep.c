@@ -317,7 +317,6 @@ smp_init_secondary(u_int32_t cpuid)
 
 	if (smp_cpus == mp_ncpus) {
 		atomic_store_rel_int(&smp_started, 1);
-		smp_active = 1;
 	}
 
 	mtx_unlock_spin(&ap_boot_mtx);

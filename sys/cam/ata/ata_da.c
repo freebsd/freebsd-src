@@ -546,30 +546,22 @@ static int ada_write_cache = ADA_DEFAULT_WRITE_CACHE;
 
 static SYSCTL_NODE(_kern_cam, OID_AUTO, ada, CTLFLAG_RD, 0,
             "CAM Direct Access Disk driver");
-SYSCTL_INT(_kern_cam_ada, OID_AUTO, legacy_aliases, CTLFLAG_RW,
+SYSCTL_INT(_kern_cam_ada, OID_AUTO, legacy_aliases, CTLFLAG_RWTUN,
            &ada_legacy_aliases, 0, "Create legacy-like device aliases");
-TUNABLE_INT("kern.cam.ada.legacy_aliases", &ada_legacy_aliases);
-SYSCTL_INT(_kern_cam_ada, OID_AUTO, retry_count, CTLFLAG_RW,
+SYSCTL_INT(_kern_cam_ada, OID_AUTO, retry_count, CTLFLAG_RWTUN,
            &ada_retry_count, 0, "Normal I/O retry count");
-TUNABLE_INT("kern.cam.ada.retry_count", &ada_retry_count);
-SYSCTL_INT(_kern_cam_ada, OID_AUTO, default_timeout, CTLFLAG_RW,
+SYSCTL_INT(_kern_cam_ada, OID_AUTO, default_timeout, CTLFLAG_RWTUN,
            &ada_default_timeout, 0, "Normal I/O timeout (in seconds)");
-TUNABLE_INT("kern.cam.ada.default_timeout", &ada_default_timeout);
-SYSCTL_INT(_kern_cam_ada, OID_AUTO, send_ordered, CTLFLAG_RW,
+SYSCTL_INT(_kern_cam_ada, OID_AUTO, send_ordered, CTLFLAG_RWTUN,
            &ada_send_ordered, 0, "Send Ordered Tags");
-TUNABLE_INT("kern.cam.ada.send_ordered", &ada_send_ordered);
-SYSCTL_INT(_kern_cam_ada, OID_AUTO, spindown_shutdown, CTLFLAG_RW,
+SYSCTL_INT(_kern_cam_ada, OID_AUTO, spindown_shutdown, CTLFLAG_RWTUN,
            &ada_spindown_shutdown, 0, "Spin down upon shutdown");
-TUNABLE_INT("kern.cam.ada.spindown_shutdown", &ada_spindown_shutdown);
-SYSCTL_INT(_kern_cam_ada, OID_AUTO, spindown_suspend, CTLFLAG_RW,
+SYSCTL_INT(_kern_cam_ada, OID_AUTO, spindown_suspend, CTLFLAG_RWTUN,
            &ada_spindown_suspend, 0, "Spin down upon suspend");
-TUNABLE_INT("kern.cam.ada.spindown_suspend", &ada_spindown_suspend);
-SYSCTL_INT(_kern_cam_ada, OID_AUTO, read_ahead, CTLFLAG_RW,
+SYSCTL_INT(_kern_cam_ada, OID_AUTO, read_ahead, CTLFLAG_RWTUN,
            &ada_read_ahead, 0, "Enable disk read-ahead");
-TUNABLE_INT("kern.cam.ada.read_ahead", &ada_read_ahead);
-SYSCTL_INT(_kern_cam_ada, OID_AUTO, write_cache, CTLFLAG_RW,
+SYSCTL_INT(_kern_cam_ada, OID_AUTO, write_cache, CTLFLAG_RWTUN,
            &ada_write_cache, 0, "Enable disk write cache");
-TUNABLE_INT("kern.cam.ada.write_cache", &ada_write_cache);
 
 /*
  * ADA_ORDEREDTAG_INTERVAL determines how often, relative
@@ -727,12 +719,12 @@ adastrategy(struct bio *bp)
 	/*
 	 * Place it in the queue of disk activities for this disk
 	 */
-	if (bp->bio_cmd == BIO_DELETE &&
-	    (softc->flags & ADA_FLAG_CAN_TRIM)) {
-		if (ADA_SIO)
-		    bioq_disksort(&softc->trim_queue, bp);
-		else
-		    bioq_insert_tail(&softc->trim_queue, bp);
+	if (bp->bio_cmd == BIO_DELETE) {
+		KASSERT((softc->flags & ADA_FLAG_CAN_TRIM) ||
+			((softc->flags & ADA_FLAG_CAN_CFA) &&
+			 !(softc->flags & ADA_FLAG_CAN_48BIT)),
+			("BIO_DELETE but no supported TRIM method."));
+		bioq_disksort(&softc->trim_queue, bp);
 	} else {
 		if (ADA_SIO)
 		    bioq_disksort(&softc->bio_queue, bp);
@@ -1387,6 +1379,96 @@ adaregister(struct cam_periph *periph, void *arg)
 }
 
 static void
+ada_dsmtrim(struct ada_softc *softc, struct bio *bp, struct ccb_ataio *ataio)
+{
+	struct trim_request *req = &softc->trim_req;
+	uint64_t lastlba = (uint64_t)-1;
+	int c, lastcount = 0, off, ranges = 0;
+
+	bzero(req, sizeof(*req));
+	TAILQ_INIT(&req->bps);
+	do {
+		uint64_t lba = bp->bio_pblkno;
+		int count = bp->bio_bcount / softc->params.secsize;
+
+		bioq_remove(&softc->trim_queue, bp);
+
+		/* Try to extend the previous range. */
+		if (lba == lastlba) {
+			c = min(count, ATA_DSM_RANGE_MAX - lastcount);
+			lastcount += c;
+			off = (ranges - 1) * ATA_DSM_RANGE_SIZE;
+			req->data[off + 6] = lastcount & 0xff;
+			req->data[off + 7] =
+				(lastcount >> 8) & 0xff;
+			count -= c;
+			lba += c;
+		}
+
+		while (count > 0) {
+			c = min(count, ATA_DSM_RANGE_MAX);
+			off = ranges * ATA_DSM_RANGE_SIZE;
+			req->data[off + 0] = lba & 0xff;
+			req->data[off + 1] = (lba >> 8) & 0xff;
+			req->data[off + 2] = (lba >> 16) & 0xff;
+			req->data[off + 3] = (lba >> 24) & 0xff;
+			req->data[off + 4] = (lba >> 32) & 0xff;
+			req->data[off + 5] = (lba >> 40) & 0xff;
+			req->data[off + 6] = c & 0xff;
+			req->data[off + 7] = (c >> 8) & 0xff;
+			lba += c;
+			count -= c;
+			lastcount = c;
+			ranges++;
+			/*
+			 * Its the caller's responsibility to ensure the
+			 * request will fit so we don't need to check for
+			 * overrun here
+			 */
+		}
+		lastlba = lba;
+		TAILQ_INSERT_TAIL(&req->bps, bp, bio_queue);
+		bp = bioq_first(&softc->trim_queue);
+		if (bp == NULL ||
+		    bp->bio_bcount / softc->params.secsize >
+		    (softc->trim_max_ranges - ranges) * ATA_DSM_RANGE_MAX)
+			break;
+	} while (1);
+	cam_fill_ataio(ataio,
+	    ada_retry_count,
+	    adadone,
+	    CAM_DIR_OUT,
+	    0,
+	    req->data,
+	    ((ranges + ATA_DSM_BLK_RANGES - 1) /
+	    ATA_DSM_BLK_RANGES) * ATA_DSM_BLK_SIZE,
+	    ada_default_timeout * 1000);
+	ata_48bit_cmd(ataio, ATA_DATA_SET_MANAGEMENT,
+	    ATA_DSM_TRIM, 0, (ranges + ATA_DSM_BLK_RANGES -
+	    1) / ATA_DSM_BLK_RANGES);
+}
+
+static void
+ada_cfaerase(struct ada_softc *softc, struct bio *bp, struct ccb_ataio *ataio)
+{
+	uint64_t lba = bp->bio_pblkno;
+	uint16_t count = bp->bio_bcount / softc->params.secsize;
+
+	cam_fill_ataio(ataio,
+	    ada_retry_count,
+	    adadone,
+	    CAM_DIR_NONE,
+	    0,
+	    NULL,
+	    0,
+	    ada_default_timeout*1000);
+
+	if (count >= 256)
+		count = 0;
+	ata_28bit_cmd(ataio, ATA_CFA_ERASE, 0, lba, count);
+}
+
+static void
 adastart(struct cam_periph *periph, union ccb *start_ccb)
 {
 	struct ada_softc *softc = (struct ada_softc *)periph->softc;
@@ -1403,76 +1485,15 @@ adastart(struct cam_periph *periph, union ccb *start_ccb)
 		/* Run TRIM if not running yet. */
 		if (!softc->trim_running &&
 		    (bp = bioq_first(&softc->trim_queue)) != 0) {
-			struct trim_request *req = &softc->trim_req;
-			struct bio *bp1;
-			uint64_t lastlba = (uint64_t)-1;
-			int c, lastcount = 0, off, ranges = 0;
-
+			if (softc->flags & ADA_FLAG_CAN_TRIM) {
+				ada_dsmtrim(softc, bp, ataio);
+			} else if ((softc->flags & ADA_FLAG_CAN_CFA) &&
+			    !(softc->flags & ADA_FLAG_CAN_48BIT)) {
+				ada_cfaerase(softc, bp, ataio);
+			} else {
+				panic("adastart: BIO_DELETE without method, not possible.");
+			}
 			softc->trim_running = 1;
-			bzero(req, sizeof(*req));
-			TAILQ_INIT(&req->bps);
-			bp1 = bp;
-			do {
-				uint64_t lba = bp1->bio_pblkno;
-				int count = bp1->bio_bcount /
-				    softc->params.secsize;
-
-				bioq_remove(&softc->trim_queue, bp1);
-
-				/* Try to extend the previous range. */
-				if (lba == lastlba) {
-					c = min(count, ATA_DSM_RANGE_MAX - lastcount);
-					lastcount += c;
-					off = (ranges - 1) * ATA_DSM_RANGE_SIZE;
-					req->data[off + 6] = lastcount & 0xff;
-					req->data[off + 7] =
-					    (lastcount >> 8) & 0xff;
-					count -= c;
-					lba += c;
-				}
-
-				while (count > 0) {
-					c = min(count, ATA_DSM_RANGE_MAX);
-					off = ranges * ATA_DSM_RANGE_SIZE;
-					req->data[off + 0] = lba & 0xff;
-					req->data[off + 1] = (lba >> 8) & 0xff;
-					req->data[off + 2] = (lba >> 16) & 0xff;
-					req->data[off + 3] = (lba >> 24) & 0xff;
-					req->data[off + 4] = (lba >> 32) & 0xff;
-					req->data[off + 5] = (lba >> 40) & 0xff;
-					req->data[off + 6] = c & 0xff;
-					req->data[off + 7] = (c >> 8) & 0xff;
-					lba += c;
-					count -= c;
-					lastcount = c;
-					ranges++;
-					/*
-					 * Its the caller's responsibility to ensure the
-					 * request will fit so we don't need to check for
-					 * overrun here
-					 */
-				}
-				lastlba = lba;
-				TAILQ_INSERT_TAIL(&req->bps, bp1, bio_queue);
-				bp1 = bioq_first(&softc->trim_queue);
-				if (bp1 == NULL ||
-				    bp1->bio_bcount / softc->params.secsize >
-				    (softc->trim_max_ranges - ranges) *
-				    ATA_DSM_RANGE_MAX)
-					break;
-			} while (1);
-			cam_fill_ataio(ataio,
-			    ada_retry_count,
-			    adadone,
-			    CAM_DIR_OUT,
-			    0,
-			    req->data,
-			    ((ranges + ATA_DSM_BLK_RANGES - 1) /
-			        ATA_DSM_BLK_RANGES) * ATA_DSM_BLK_SIZE,
-			    ada_default_timeout * 1000);
-			ata_48bit_cmd(ataio, ATA_DATA_SET_MANAGEMENT,
-			    ATA_DSM_TRIM, 0, (ranges + ATA_DSM_BLK_RANGES -
-			    1) / ATA_DSM_BLK_RANGES);
 			start_ccb->ccb_h.ccb_state = ADA_CCB_TRIM;
 			start_ccb->ccb_h.flags |= CAM_UNLOCKED;
 			goto out;
@@ -1605,25 +1626,6 @@ adastart(struct cam_periph *periph, union ccb *start_ccb)
 					}
 				}
 			}
-			break;
-		}
-		case BIO_DELETE:
-		{
-			uint64_t lba = bp->bio_pblkno;
-			uint16_t count = bp->bio_bcount / softc->params.secsize;
-
-			cam_fill_ataio(ataio,
-			    ada_retry_count,
-			    adadone,
-			    CAM_DIR_NONE,
-			    0,
-			    NULL,
-			    0,
-			    ada_default_timeout*1000);
-
-			if (count >= 256)
-				count = 0;
-			ata_28bit_cmd(ataio, ATA_CFA_ERASE, 0, lba, count);
 			break;
 		}
 		case BIO_FLUSH:

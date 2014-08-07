@@ -1,5 +1,5 @@
 diff --git a/doc/jemalloc.xml.in b/doc/jemalloc.xml.in
-index c7e2e87..2bd59f0 100644
+index d8e2e71..330ba2a 100644
 --- a/doc/jemalloc.xml.in
 +++ b/doc/jemalloc.xml.in
 @@ -57,12 +57,23 @@
@@ -27,7 +27,7 @@ index c7e2e87..2bd59f0 100644
        <refsect2>
          <title>Standard API</title>
          <funcprototype>
-@@ -2338,4 +2349,19 @@ malloc_conf = "lg_chunk:24";]]></programlisting></para>
+@@ -2342,4 +2353,19 @@ malloc_conf = "lg_chunk:24";]]></programlisting></para>
      <para>The <function>posix_memalign<parameter/></function> function conforms
      to IEEE Std 1003.1-2001 (&ldquo;POSIX.1&rdquo;).</para>
    </refsect1>
@@ -48,7 +48,7 @@ index c7e2e87..2bd59f0 100644
 +  </refsect1>
  </refentry>
 diff --git a/include/jemalloc/internal/jemalloc_internal.h.in b/include/jemalloc/internal/jemalloc_internal.h.in
-index d24a1fe..d101c3d 100644
+index 574bbb1..e3eafdf 100644
 --- a/include/jemalloc/internal/jemalloc_internal.h.in
 +++ b/include/jemalloc/internal/jemalloc_internal.h.in
 @@ -1,5 +1,8 @@
@@ -100,10 +100,10 @@ index de44e14..564d604 100644
  
  bool	malloc_mutex_init(malloc_mutex_t *mutex);
 diff --git a/include/jemalloc/internal/private_symbols.txt b/include/jemalloc/internal/private_symbols.txt
-index 1e64ed5..29ddba3 100644
+index 93516d2..22f9af9 100644
 --- a/include/jemalloc/internal/private_symbols.txt
 +++ b/include/jemalloc/internal/private_symbols.txt
-@@ -225,7 +225,6 @@ iralloc
+@@ -226,7 +226,6 @@ iralloc
  iralloct
  iralloct_realign
  isalloc
@@ -263,7 +263,7 @@ index f943891..47d032c 100755
 +#include "jemalloc_FreeBSD.h"
  EOF
 diff --git a/src/jemalloc.c b/src/jemalloc.c
-index 563d99f..42f97b4 100644
+index 204778b..9e5f2df 100644
 --- a/src/jemalloc.c
 +++ b/src/jemalloc.c
 @@ -8,6 +8,10 @@ malloc_tsd_data(, arenas, arena_t *, NULL)

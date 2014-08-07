@@ -1,5 +1,5 @@
 /* $FreeBSD$ */
-/* $NetBSD: citrus_csmapper.c,v 1.10 2009/01/11 02:46:24 christos Exp $ */
+/*	$NetBSD: citrus_csmapper.c,v 1.11 2011/11/20 07:43:52 tnozaki Exp $	*/
 
 /*-
  * Copyright (c)2003 Citrus Project,
@@ -140,6 +140,7 @@ find_best_pivot_pvdb(const char *src, const char *dst, char *pivot,
 		if (ret)
 			goto quit3;
 		if (_db_lookup_by_s(db3, dst, &r2, NULL) != 0)
+			/* don't break the loop, test all src/dst pairs. */
 			goto quit4;
 		/* r2: norm among pivot and dst */
 		ret = get32(&r2, &val32);

@@ -82,9 +82,9 @@ enum _vflag { ALL, DUP, FIRST, WAIT };	/* -v values */
 extern enum _vflag vflag;
 
 void	 add(const char *);
-void	 addfile(char *);
-void	 badcnt(char *);
-void	 badconv(char *);
+void	 addfile(const char *);
+void	 badcnt(const char *);
+void	 badconv(const char *);
 void	 badfmt(const char *);
 void	 badsfmt(void);
 void	 bpad(PR *);

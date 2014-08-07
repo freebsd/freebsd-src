@@ -6,7 +6,7 @@ Pull in r200373 from upstream llvm trunk (by Venkatraman Govindaraju):
   combines symbols in different segments". This is because MC computes
   pc_rel entries with subtract expression between labels from different sections.
 
-Introduced here: http://svn.freebsd.org/changeset/base/262261
+Introduced here: http://svnweb.freebsd.org/changeset/base/262261
 
 Index: lib/Target/Sparc/SparcTargetObjectFile.h
 ===================================================================

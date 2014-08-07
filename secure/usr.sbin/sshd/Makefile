@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.include <bsd.own.mk>
+.include <src.opts.mk>
 
 PROG=	sshd
 SRCS=	sshd.c auth-rhosts.c auth-passwd.c auth-rsa.c auth-rh-rsa.c \
@@ -26,7 +26,7 @@ MAN=	sshd.8 sshd_config.5
 CFLAGS+=-I${SSHDIR} -include ssh_namespace.h
 
 DPADD=	${LIBSSH} ${LIBUTIL} ${LIBWRAP} ${LIBPAM}
-LDADD=	-lssh -lutil -lwrap ${MINUSLPAM}
+LDADD=	${LDSSH} -lutil -lwrap ${MINUSLPAM}
 USEPRIVATELIB= ssh
 
 .if ${MK_LDNS} != "no"
@@ -47,7 +47,7 @@ CFLAGS+= -include krb5_config.h
 DPADD+=	 ${LIBGSSAPI_KRB5} ${LIBGSSAPI} ${LIBKRB5} ${LIBHX509} ${LIBASN1} \
 	${LIBCOM_ERR} ${LIBROKEN} ${LIBWIND} ${LIBHEIMBASE} ${LIBHEIMIPCC}
 LDADD+=	 -lgssapi_krb5 -lgssapi -lkrb5 -lhx509 -lasn1 \
-	-lcom_err -lroken -lwind -lheimbase -lheimipcc
+	-lcom_err -lroken -lwind -lheimbase ${LDHEIMIPCC}
 .endif
 
 .if ${MK_OPENSSH_NONE_CIPHER} != "no"
@@ -56,6 +56,16 @@ CFLAGS+= -DNONE_CIPHER_ENABLED
 
 DPADD+= ${LIBCRYPT} ${LIBCRYPTO} ${LIBZ}
 LDADD+= -lcrypt -lcrypto -lz
+
+# Fix the order of NEEDED entries for libthr and libc. The libthr
+# needs to interpose libc symbols, leaving the libthr loading as
+# dependency of krb causes reversed order and broken interposing. Put
+# the threading library last on the linker command line, just before
+# the -lc added by a compiler driver.
+.if ${MK_KERBEROS_SUPPORT} != "no"
+DPADD+= ${LIBPTHREAD}
+LDADD+= -lpthread
+.endif
 
 .if defined(LOCALBASE)
 CFLAGS+= -DXAUTH_PATH=\"${LOCALBASE}/bin/xauth\"

@@ -672,7 +672,7 @@ DoFile(const char *savedir, const char *device)
 	if (fclose(fp) < 0) {
 		syslog(LOG_ERR, "error on %s: %m", corename);
 		nerr++;
-		goto closeall;
+		goto closefd;
 	}
 
 	symlinks_remove();

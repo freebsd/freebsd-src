@@ -38,10 +38,11 @@ TUNABLE_INT("debug.minidump", &do_minidump);
 SYSCTL_INT(_debug, OID_AUTO, minidump, CTLFLAG_RW, &do_minidump, 0,
     "Enable mini crash dumps");
 
-void
+int
 dumpsys(struct dumperinfo *di)
 {
 
 	printf("dumpsys\n");
+	return (ENXIO);
 }
 

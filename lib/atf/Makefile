@@ -25,7 +25,7 @@
 #
 # $FreeBSD$
 
-.include <bsd.own.mk>
+.include <src.opts.mk>
 
 SUBDIR=		libatf-c \
 		libatf-c++ \

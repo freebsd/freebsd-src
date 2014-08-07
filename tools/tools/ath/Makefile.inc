@@ -1,7 +1,7 @@
 #	$FreeBSD$
 
 BINDIR=	/usr/local/bin
-NO_MAN=
+MAN=
 
 ATH_DEFAULT=	ath0
 

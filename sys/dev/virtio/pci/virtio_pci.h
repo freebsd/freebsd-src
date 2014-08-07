@@ -72,8 +72,7 @@
  * The remaining space is defined by each driver as the per-driver
  * configuration space.
  */
-#define VIRTIO_PCI_CONFIG(sc) \
-    (((sc)->vtpci_flags & VTPCI_FLAG_MSIX) ? 24 : 20)
+#define VIRTIO_PCI_CONFIG_OFF(msix_enabled)     ((msix_enabled) ? 24 : 20)
 
 /*
  * How many bits to shift physical queue address written to QUEUE_PFN.

@@ -126,7 +126,8 @@ extract_pkg_static(int fd, char *p, int sz)
 	if (r == ARCHIVE_OK)
 		ret = 0;
 	else
-		warnx("fail to extract pkg-static");
+		warnx("failed to extract pkg-static: %s",
+		    archive_error_string(a));
 
 cleanup:
 	archive_read_free(a);
@@ -270,7 +271,7 @@ cleanup:
 static struct fingerprint *
 parse_fingerprint(ucl_object_t *obj)
 {
-	ucl_object_t *cur;
+	const ucl_object_t *cur;
 	ucl_object_iter_t it = NULL;
 	const char *function, *fp, *key;
 	struct fingerprint *f;
@@ -349,7 +350,7 @@ load_fingerprint(const char *dir, const char *filename)
 	if (f != NULL)
 		f->name = strdup(filename);
 
-	ucl_object_free(obj);
+	ucl_object_unref(obj);
 	ucl_parser_free(p);
 
 	return (f);

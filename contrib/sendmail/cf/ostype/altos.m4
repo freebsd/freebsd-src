@@ -15,7 +15,7 @@ divert(-1)
 #
 
 divert(0)
-VERSIONID(`$Id: altos.m4,v 8.16 2013/11/22 20:51:15 ca Exp $')
+VERSIONID(`$Id: altos.m4,v 8.16 2013-11-22 20:51:15 ca Exp $')
 
 ifdef(`QUEUE_DIR',, `define(`QUEUE_DIR', /usr/spool/mqueue)')dnl
 ifdef(`UUCP_MAILER_PATH',, `define(`UUCP_MAILER_PATH', /usr/bin/uux)')dnl

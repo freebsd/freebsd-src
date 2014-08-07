@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.include <bsd.own.mk>
+.include <src.opts.mk>
 
 PROG=	newsyslog
 MAN=	newsyslog.8 newsyslog.conf.5

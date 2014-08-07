@@ -28,7 +28,7 @@
  */
 
 #if !defined(__COLL_H__)
-#define __COLL_H__
+#define	__COLL_H__
 
 #include "bwstring.h"
 #include "sort.h"

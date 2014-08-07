@@ -155,17 +155,18 @@ sfxge_ev_exception(void *arg, uint32_t code, uint32_t data)
 }
 
 static boolean_t
-sfxge_ev_rxq_flush_done(void *arg, uint32_t label)
+sfxge_ev_rxq_flush_done(void *arg, uint32_t rxq_index)
 {
 	struct sfxge_evq *evq;
 	struct sfxge_softc *sc;
 	struct sfxge_rxq *rxq;
 	unsigned int index;
+	unsigned int label;
 	uint16_t magic;
 
 	evq = (struct sfxge_evq *)arg;
 	sc = evq->sc;
-	rxq = sc->rxq[label];
+	rxq = sc->rxq[rxq_index];
 
 	KASSERT(rxq != NULL, ("rxq == NULL"));
 
@@ -173,6 +174,7 @@ sfxge_ev_rxq_flush_done(void *arg, uint32_t label)
 	index = rxq->index;
 	evq = sc->evq[index];
 
+	label = rxq_index;
 	KASSERT((label & SFXGE_MAGIC_DMAQ_LABEL_MASK) == label,
 	    ("(label & SFXGE_MAGIC_DMAQ_LABEL_MASK) != level"));
 	magic = SFXGE_MAGIC_RX_QFLUSH_DONE | label;
@@ -185,17 +187,18 @@ sfxge_ev_rxq_flush_done(void *arg, uint32_t label)
 }
 
 static boolean_t
-sfxge_ev_rxq_flush_failed(void *arg, uint32_t label)
+sfxge_ev_rxq_flush_failed(void *arg, uint32_t rxq_index)
 {
 	struct sfxge_evq *evq;
 	struct sfxge_softc *sc;
 	struct sfxge_rxq *rxq;
 	unsigned int index;
+	unsigned int label;
 	uint16_t magic;
 
 	evq = (struct sfxge_evq *)arg;
 	sc = evq->sc;
-	rxq = sc->rxq[label];
+	rxq = sc->rxq[rxq_index];
 
 	KASSERT(rxq != NULL, ("rxq == NULL"));
 
@@ -203,6 +206,7 @@ sfxge_ev_rxq_flush_failed(void *arg, uint32_t label)
 	index = rxq->index;
 	evq = sc->evq[index];
 
+	label = rxq_index;
 	KASSERT((label & SFXGE_MAGIC_DMAQ_LABEL_MASK) == label,
 	    ("(label & SFXGE_MAGIC_DMAQ_LABEL_MASK) != label"));
 	magic = SFXGE_MAGIC_RX_QFLUSH_FAILED | label;
@@ -214,18 +218,27 @@ sfxge_ev_rxq_flush_failed(void *arg, uint32_t label)
 	return (B_FALSE);
 }
 
+static struct sfxge_txq *
+sfxge_get_txq_by_label(struct sfxge_evq *evq, enum sfxge_txq_type label)
+{
+	unsigned int index;
+
+	KASSERT((evq->index == 0 && label < SFXGE_TXQ_NTYPES) ||
+	    (label == SFXGE_TXQ_IP_TCP_UDP_CKSUM), ("unexpected txq label"));
+	index = (evq->index == 0) ? label : (evq->index - 1 + SFXGE_TXQ_NTYPES);
+	return evq->sc->txq[index];
+}
+
 static boolean_t
 sfxge_ev_tx(void *arg, uint32_t label, uint32_t id)
 {
 	struct sfxge_evq *evq;
-	struct sfxge_softc *sc;
 	struct sfxge_txq *txq;
 	unsigned int stop;
 	unsigned int delta;
 
 	evq = (struct sfxge_evq *)arg;
-	sc = evq->sc;
-	txq = sc->txq[label];
+	txq = sfxge_get_txq_by_label(evq, label);
 
 	KASSERT(txq != NULL, ("txq == NULL"));
 	KASSERT(evq->index == txq->evq_index,
@@ -256,16 +269,17 @@ done:
 }
 
 static boolean_t
-sfxge_ev_txq_flush_done(void *arg, uint32_t label)
+sfxge_ev_txq_flush_done(void *arg, uint32_t txq_index)
 {
 	struct sfxge_evq *evq;
 	struct sfxge_softc *sc;
 	struct sfxge_txq *txq;
+	unsigned int label;
 	uint16_t magic;
 
 	evq = (struct sfxge_evq *)arg;
 	sc = evq->sc;
-	txq = sc->txq[label];
+	txq = sc->txq[txq_index];
 
 	KASSERT(txq != NULL, ("txq == NULL"));
 	KASSERT(txq->init_state == SFXGE_TXQ_INITIALIZED,
@@ -274,6 +288,7 @@ sfxge_ev_txq_flush_done(void *arg, uint32_t label)
 	/* Resend a software event on the correct queue */
 	evq = sc->evq[txq->evq_index];
 
+	label = txq->type;
 	KASSERT((label & SFXGE_MAGIC_DMAQ_LABEL_MASK) == label,
 	    ("(label & SFXGE_MAGIC_DMAQ_LABEL_MASK) != label"));
 	magic = SFXGE_MAGIC_TX_QFLUSH_DONE | label;
@@ -330,7 +345,7 @@ sfxge_ev_software(void *arg, uint16_t magic)
 		break;
 	}
 	case SFXGE_MAGIC_TX_QFLUSH_DONE: {
-		struct sfxge_txq *txq = sc->txq[label];
+		struct sfxge_txq *txq = sfxge_get_txq_by_label(evq, label);
 
 		KASSERT(txq != NULL, ("txq == NULL"));
 		KASSERT(evq->index == txq->evq_index,

@@ -1162,7 +1162,6 @@ ses_page_cdb(char *cdb, int bufsiz, SesDiagPageCodes pagenum, int dir)
 static int
 ses_set_timed_completion(enc_softc_t *enc, uint8_t tc_en)
 {
-	int err;
 	union ccb *ccb;
 	struct cam_periph *periph;
 	struct ses_mgmt_mode_page *mgmt;
@@ -1187,7 +1186,7 @@ ses_set_timed_completion(enc_softc_t *enc, uint8_t tc_en)
 	 * Ignore illegal request errors, as they are quite common and we
 	 * will print something out in that case anyway.
 	 */
-	err = cam_periph_runccb(ccb, enc_error, ENC_CFLAGS,
+	cam_periph_runccb(ccb, enc_error, ENC_CFLAGS,
 	    ENC_FLAGS|SF_QUIET_IR, NULL);
 	if (ccb->ccb_h.status != CAM_REQ_CMP) {
 		ENC_VLOG(enc, "Timed Completion Unsupported\n");
@@ -1211,7 +1210,7 @@ ses_set_timed_completion(enc_softc_t *enc, uint8_t tc_en)
 	    /*page_fmt*/FALSE, /*save_pages*/TRUE, mode_buf, mode_buf_len,
 	    SSD_FULL_SIZE, /*timeout*/60 * 1000);
 
-	err = cam_periph_runccb(ccb, enc_error, ENC_CFLAGS, ENC_FLAGS, NULL);
+	cam_periph_runccb(ccb, enc_error, ENC_CFLAGS, ENC_FLAGS, NULL);
 	if (ccb->ccb_h.status != CAM_REQ_CMP) {
 		ENC_VLOG(enc, "Timed Completion Set Failed\n");
 		goto release;
@@ -1881,11 +1880,9 @@ ses_publish_physpaths(enc_softc_t *enc, struct enc_fsm_state *state,
 {
 	struct ses_iterator iter;
 	enc_cache_t *enc_cache;
-	ses_cache_t *ses_cache;
 	enc_element_t *element;
 
 	enc_cache = &enc->enc_daemon_cache;
-	ses_cache = enc_cache->private;
 
 	ses_iter_init(enc, enc_cache, &iter);
 	while ((element = ses_iter_next(&iter)) != NULL) {

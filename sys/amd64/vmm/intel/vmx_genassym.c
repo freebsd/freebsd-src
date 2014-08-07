@@ -65,7 +65,6 @@ ASSYM(VMXCTX_HOST_R12, offsetof(struct vmxctx, host_r12));
 ASSYM(VMXCTX_HOST_RBP, offsetof(struct vmxctx, host_rbp));
 ASSYM(VMXCTX_HOST_RSP, offsetof(struct vmxctx, host_rsp));
 ASSYM(VMXCTX_HOST_RBX, offsetof(struct vmxctx, host_rbx));
-ASSYM(VMXCTX_HOST_RIP, offsetof(struct vmxctx, host_rip));
 
 ASSYM(VMXCTX_INST_FAIL_STATUS, offsetof(struct vmxctx, inst_fail_status));
 ASSYM(VMXCTX_PMAP, offsetof(struct vmxctx, pmap));

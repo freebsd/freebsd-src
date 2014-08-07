@@ -755,7 +755,7 @@ vnode_locked:
 					vm_page_unlock(fs.first_m);
 					
 					vm_page_lock(fs.m);
-					vm_page_unwire(fs.m, FALSE);
+					vm_page_unwire(fs.m, PQ_INACTIVE);
 					vm_page_unlock(fs.m);
 				}
 				/*
@@ -917,7 +917,7 @@ vnode_locked:
 		if (wired)
 			vm_page_wire(fs.m);
 		else
-			vm_page_unwire(fs.m, 1);
+			vm_page_unwire(fs.m, PQ_ACTIVE);
 	} else
 		vm_page_activate(fs.m);
 	if (m_hold != NULL) {
@@ -1154,68 +1154,6 @@ error:
 }
 
 /*
- *	vm_fault_wire:
- *
- *	Wire down a range of virtual addresses in a map.
- */
-int
-vm_fault_wire(vm_map_t map, vm_offset_t start, vm_offset_t end,
-    boolean_t fictitious)
-{
-	vm_offset_t va;
-	int rv;
-
-	/*
-	 * We simulate a fault to get the page and enter it in the physical
-	 * map.  For user wiring, we only ask for read access on currently
-	 * read-only sections.
-	 */
-	for (va = start; va < end; va += PAGE_SIZE) {
-		rv = vm_fault(map, va, VM_PROT_NONE, VM_FAULT_CHANGE_WIRING);
-		if (rv) {
-			if (va != start)
-				vm_fault_unwire(map, start, va, fictitious);
-			return (rv);
-		}
-	}
-	return (KERN_SUCCESS);
-}
-
-/*
- *	vm_fault_unwire:
- *
- *	Unwire a range of virtual addresses in a map.
- */
-void
-vm_fault_unwire(vm_map_t map, vm_offset_t start, vm_offset_t end,
-    boolean_t fictitious)
-{
-	vm_paddr_t pa;
-	vm_offset_t va;
-	vm_page_t m;
-	pmap_t pmap;
-
-	pmap = vm_map_pmap(map);
-
-	/*
-	 * Since the pages are wired down, we must be able to get their
-	 * mappings from the physical map system.
-	 */
-	for (va = start; va < end; va += PAGE_SIZE) {
-		pa = pmap_extract(pmap, va);
-		if (pa != 0) {
-			pmap_change_wiring(pmap, va, FALSE);
-			if (!fictitious) {
-				m = PHYS_TO_VM_PAGE(pa);
-				vm_page_lock(m);
-				vm_page_unwire(m, TRUE);
-				vm_page_unlock(m);
-			}
-		}
-	}
-}
-
-/*
  *	Routine:
  *		vm_fault_copy_entry
  *	Function:
@@ -1240,46 +1178,55 @@ vm_fault_copy_entry(vm_map_t dst_map, vm_map_t src_map,
 	vm_offset_t vaddr;
 	vm_page_t dst_m;
 	vm_page_t src_m;
-	boolean_t src_readonly, upgrade;
+	boolean_t upgrade;
 
 #ifdef	lint
 	src_map++;
 #endif	/* lint */
 
 	upgrade = src_entry == dst_entry;
+	access = prot = dst_entry->protection;
 
 	src_object = src_entry->object.vm_object;
 	src_pindex = OFF_TO_IDX(src_entry->offset);
-	src_readonly = (src_entry->protection & VM_PROT_WRITE) == 0;
 
-	/*
-	 * Create the top-level object for the destination entry. (Doesn't
-	 * actually shadow anything - we copy the pages directly.)
-	 */
-	dst_object = vm_object_allocate(OBJT_DEFAULT,
-	    OFF_TO_IDX(dst_entry->end - dst_entry->start));
+	if (upgrade && (dst_entry->eflags & MAP_ENTRY_NEEDS_COPY) == 0) {
+		dst_object = src_object;
+		vm_object_reference(dst_object);
+	} else {
+		/*
+		 * Create the top-level object for the destination entry. (Doesn't
+		 * actually shadow anything - we copy the pages directly.)
+		 */
+		dst_object = vm_object_allocate(OBJT_DEFAULT,
+		    OFF_TO_IDX(dst_entry->end - dst_entry->start));
 #if VM_NRESERVLEVEL > 0
-	dst_object->flags |= OBJ_COLORED;
-	dst_object->pg_color = atop(dst_entry->start);
+		dst_object->flags |= OBJ_COLORED;
+		dst_object->pg_color = atop(dst_entry->start);
 #endif
+	}
 
 	VM_OBJECT_WLOCK(dst_object);
 	KASSERT(upgrade || dst_entry->object.vm_object == NULL,
 	    ("vm_fault_copy_entry: vm_object not NULL"));
-	dst_entry->object.vm_object = dst_object;
-	dst_entry->offset = 0;
-	dst_object->charge = dst_entry->end - dst_entry->start;
+	if (src_object != dst_object) {
+		dst_entry->object.vm_object = dst_object;
+		dst_entry->offset = 0;
+		dst_object->charge = dst_entry->end - dst_entry->start;
+	}
 	if (fork_charge != NULL) {
 		KASSERT(dst_entry->cred == NULL,
 		    ("vm_fault_copy_entry: leaked swp charge"));
 		dst_object->cred = curthread->td_ucred;
 		crhold(dst_object->cred);
 		*fork_charge += dst_object->charge;
-	} else {
+	} else if (dst_object->cred == NULL) {
+		KASSERT(dst_entry->cred != NULL, ("no cred for entry %p",
+		    dst_entry));
 		dst_object->cred = dst_entry->cred;
 		dst_entry->cred = NULL;
 	}
-	access = prot = dst_entry->protection;
+
 	/*
 	 * If not an upgrade, then enter the mappings in the pmap as
 	 * read and/or execute accesses.  Otherwise, enter them as
@@ -1305,45 +1252,65 @@ vm_fault_copy_entry(vm_map_t dst_map, vm_map_t src_map,
 	for (vaddr = dst_entry->start, dst_pindex = 0;
 	    vaddr < dst_entry->end;
 	    vaddr += PAGE_SIZE, dst_pindex++) {
-
-		/*
-		 * Allocate a page in the destination object.
-		 */
-		do {
-			dst_m = vm_page_alloc(dst_object, dst_pindex,
-			    VM_ALLOC_NORMAL);
-			if (dst_m == NULL) {
-				VM_OBJECT_WUNLOCK(dst_object);
-				VM_WAIT;
-				VM_OBJECT_WLOCK(dst_object);
-			}
-		} while (dst_m == NULL);
-
+again:
 		/*
 		 * Find the page in the source object, and copy it in.
-		 * (Because the source is wired down, the page will be in
-		 * memory.)
+		 * Because the source is wired down, the page will be
+		 * in memory.
 		 */
-		VM_OBJECT_RLOCK(src_object);
+		if (src_object != dst_object)
+			VM_OBJECT_RLOCK(src_object);
 		object = src_object;
 		pindex = src_pindex + dst_pindex;
 		while ((src_m = vm_page_lookup(object, pindex)) == NULL &&
-		    src_readonly &&
 		    (backing_object = object->backing_object) != NULL) {
 			/*
-			 * Allow fallback to backing objects if we are reading.
+			 * Unless the source mapping is read-only or
+			 * it is presently being upgraded from
+			 * read-only, the first object in the shadow
+			 * chain should provide all of the pages.  In
+			 * other words, this loop body should never be
+			 * executed when the source mapping is already
+			 * read/write.
 			 */
+			KASSERT((src_entry->protection & VM_PROT_WRITE) == 0 ||
+			    upgrade,
+			    ("vm_fault_copy_entry: main object missing page"));
+
 			VM_OBJECT_RLOCK(backing_object);
 			pindex += OFF_TO_IDX(object->backing_object_offset);
-			VM_OBJECT_RUNLOCK(object);
+			if (object != dst_object)
+				VM_OBJECT_RUNLOCK(object);
 			object = backing_object;
 		}
-		if (src_m == NULL)
-			panic("vm_fault_copy_wired: page missing");
-		pmap_copy_page(src_m, dst_m);
-		VM_OBJECT_RUNLOCK(object);
-		dst_m->valid = VM_PAGE_BITS_ALL;
-		dst_m->dirty = VM_PAGE_BITS_ALL;
+		KASSERT(src_m != NULL, ("vm_fault_copy_entry: page missing"));
+
+		if (object != dst_object) {
+			/*
+			 * Allocate a page in the destination object.
+			 */
+			dst_m = vm_page_alloc(dst_object, (src_object ==
+			    dst_object ? src_pindex : 0) + dst_pindex,
+			    VM_ALLOC_NORMAL);
+			if (dst_m == NULL) {
+				VM_OBJECT_WUNLOCK(dst_object);
+				VM_OBJECT_RUNLOCK(object);
+				VM_WAIT;
+				VM_OBJECT_WLOCK(dst_object);
+				goto again;
+			}
+			pmap_copy_page(src_m, dst_m);
+			VM_OBJECT_RUNLOCK(object);
+			dst_m->valid = VM_PAGE_BITS_ALL;
+			dst_m->dirty = VM_PAGE_BITS_ALL;
+		} else {
+			dst_m = src_m;
+			if (vm_page_sleep_if_busy(dst_m, "fltupg"))
+				goto again;
+			vm_page_xbusy(dst_m);
+			KASSERT(dst_m->valid == VM_PAGE_BITS_ALL,
+			    ("invalid dst page %p", dst_m));
+		}
 		VM_OBJECT_WUNLOCK(dst_object);
 
 		/*
@@ -1359,13 +1326,17 @@ vm_fault_copy_entry(vm_map_t dst_map, vm_map_t src_map,
 		VM_OBJECT_WLOCK(dst_object);
 		
 		if (upgrade) {
-			vm_page_lock(src_m);
-			vm_page_unwire(src_m, 0);
-			vm_page_unlock(src_m);
-
-			vm_page_lock(dst_m);
-			vm_page_wire(dst_m);
-			vm_page_unlock(dst_m);
+			if (src_m != dst_m) {
+				vm_page_lock(src_m);
+				vm_page_unwire(src_m, PQ_INACTIVE);
+				vm_page_unlock(src_m);
+				vm_page_lock(dst_m);
+				vm_page_wire(dst_m);
+				vm_page_unlock(dst_m);
+			} else {
+				KASSERT(dst_m->wire_count > 0,
+				    ("dst_m %p is not wired", dst_m));
+			}
 		} else {
 			vm_page_lock(dst_m);
 			vm_page_activate(dst_m);

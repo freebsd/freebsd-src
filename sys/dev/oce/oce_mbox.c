@@ -961,9 +961,9 @@ oce_get_link_status(POCE_SOFTC sc, struct link_status *link)
 		goto error;
 	}
 	/* interpret response */
-	bcopy(&fwcmd->params.rsp, link, sizeof(struct link_status));
-	link->logical_link_status = HOST_32(link->logical_link_status);
-	link->qos_link_speed = HOST_16(link->qos_link_speed);
+	link->qos_link_speed = HOST_16(fwcmd->params.rsp.qos_link_speed);
+	link->phys_port_speed = fwcmd->params.rsp.physical_port_speed;
+	link->logical_link_status = fwcmd->params.rsp.logical_link_status;
 error:
 	return rc;
 }

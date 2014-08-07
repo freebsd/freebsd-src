@@ -5,7 +5,7 @@ Pull in r200131 from upstream llvm trunk (by Jakob Stoklund Olesen):
   The popc instruction is defined in the SPARCv9 instruction set
   architecture, but it was emulated on CPUs older than Niagara 2.
 
-Introduced here: http://svn.freebsd.org/changeset/base/262261
+Introduced here: http://svnweb.freebsd.org/changeset/base/262261
 
 Index: lib/Target/Sparc/SparcISelLowering.cpp
 ===================================================================

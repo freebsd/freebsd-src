@@ -39,6 +39,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/tree.h>
 #include <sys/errno.h>
 #include <machine/vmm.h>
+#include <machine/vmm_instruction_emul.h>
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -156,7 +157,9 @@ mem_write(void *ctx, int vcpu, uint64_t gpa, uint64_t wval, int size, void *arg)
 }
 
 int
-emulate_mem(struct vmctx *ctx, int vcpu, uint64_t paddr, struct vie *vie)
+emulate_mem(struct vmctx *ctx, int vcpu, uint64_t paddr, struct vie *vie,
+    struct vm_guest_paging *paging)
+
 {
 	struct mmio_rb_range *entry;
 	int err;
@@ -183,10 +186,10 @@ emulate_mem(struct vmctx *ctx, int vcpu, uint64_t paddr, struct vie *vie)
 	}
 
 	assert(entry != NULL);
-	err = vmm_emulate_instruction(ctx, vcpu, paddr, vie,
+	err = vmm_emulate_instruction(ctx, vcpu, paddr, vie, paging,
 				      mem_read, mem_write, &entry->mr_param);
 	pthread_rwlock_unlock(&mmio_rwlock);
-	
+
 	return (err);
 }
 

@@ -364,10 +364,8 @@ int g_raid_md_modevent(module_t, int, void *);
     SYSCTL_NODE(_kern_geom_raid, OID_AUTO, name, CTLFLAG_RD,	\
 	NULL, label " metadata module");			\
     SYSCTL_INT(_kern_geom_raid_##name, OID_AUTO, enable,	\
-	CTLFLAG_RW, &g_raid_md_##name##_class.mdc_enable, 0,	\
-	"Enable " label " metadata format taste");		\
-    TUNABLE_INT("kern.geom.raid." __XSTRING(name) ".enable",	\
-	&g_raid_md_##name##_class.mdc_enable)
+	CTLFLAG_RWTUN, &g_raid_md_##name##_class.mdc_enable, 0,	\
+	"Enable " label " metadata format taste")
 
 /*
  * KOBJ parent class of data transformation modules.
@@ -403,10 +401,8 @@ int g_raid_tr_modevent(module_t, int, void *);
     SYSCTL_NODE(_kern_geom_raid, OID_AUTO, name, CTLFLAG_RD,	\
 	NULL, label " transformation module");			\
     SYSCTL_INT(_kern_geom_raid_##name, OID_AUTO, enable,	\
-	CTLFLAG_RW, &g_raid_tr_##name##_class.trc_enable, 0,	\
-	"Enable " label " transformation module taste");	\
-    TUNABLE_INT("kern.geom.raid." __XSTRING(name) ".enable",	\
-	&g_raid_tr_##name##_class.trc_enable)
+	CTLFLAG_RWTUN, &g_raid_tr_##name##_class.trc_enable, 0,	\
+	"Enable " label " transformation module taste")
 
 const char * g_raid_volume_level2str(int level, int qual);
 int g_raid_volume_str2level(const char *str, int *level, int *qual);

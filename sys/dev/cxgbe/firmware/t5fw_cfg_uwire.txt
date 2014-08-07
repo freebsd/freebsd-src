@@ -1,6 +1,6 @@
 # Chelsio T5 Factory Default configuration file.
 #
-# Copyright (C) 2010-2013 Chelsio Communications.  All rights reserved.
+# Copyright (C) 2010-2014 Chelsio Communications.  All rights reserved.
 #
 #   DO NOT MODIFY THIS FILE UNDER ANY CIRCUMSTANCES.  MODIFICATION OF
 #   THIS FILE WILL RESULT IN A NON-FUNCTIONAL T4 ADAPTER AND MAY RESULT
@@ -176,6 +176,9 @@
 
 	# TP_GLOBAL_CONFIG
 	reg[0x7d08] = 0x00000800/0x00000800 # set IssFromCplEnable
+
+	# TP_PC_CONFIG
+	reg[0x7d48] = 0x00000000/0x00000400 # clear EnableFLMError
 
 	# TP_PARA_REG0
 	reg[0x7d60] = 0x06000000/0x07000000 # set InitCWND to 6
@@ -433,7 +436,7 @@
 	pmask = all		# access to all four ports ...
 	nserver = 16
 	nhash = 2048
-	tp_l2t = 1024
+	tp_l2t = 1020
 	protocol = iscsi_initiator_fofld
 	tp_ddp_iscsi = 2
 	iscsi_ntask = 2048
@@ -454,6 +457,7 @@
 	cmask = all		# access to all channels
 	pmask = all		# access to all four ports ...
 	nhash = 2048
+	tp_l2t = 4
 	protocol = fcoe_initiator
 	tp_ddp = 2
 	fcoe_nfcf = 16
@@ -544,6 +548,9 @@
 	hwm = 30
 	lwm = 15
 	dwm = 30
+	dcb_app_tlv[0] = 0x8906, ethertype, 3
+	dcb_app_tlv[1] = 0x8914, ethertype, 3
+	dcb_app_tlv[2] = 3260, socketnum, 5
 
 [port "1"]
 	dcb = ppp, dcbx
@@ -552,6 +559,9 @@
 	hwm = 30
 	lwm = 15
 	dwm = 30
+	dcb_app_tlv[0] = 0x8906, ethertype, 3
+	dcb_app_tlv[1] = 0x8914, ethertype, 3
+	dcb_app_tlv[2] = 3260, socketnum, 5
 
 [port "2"]
 	dcb = ppp, dcbx
@@ -560,6 +570,9 @@
 	hwm = 30
 	lwm = 15
 	dwm = 30
+	dcb_app_tlv[0] = 0x8906, ethertype, 3
+	dcb_app_tlv[1] = 0x8914, ethertype, 3
+	dcb_app_tlv[2] = 3260, socketnum, 5
 
 [port "3"]
 	dcb = ppp, dcbx
@@ -568,10 +581,13 @@
 	hwm = 30
 	lwm = 15
 	dwm = 30
+	dcb_app_tlv[0] = 0x8906, ethertype, 3
+	dcb_app_tlv[1] = 0x8914, ethertype, 3
+	dcb_app_tlv[2] = 3260, socketnum, 5
 
 [fini]
-	version = 0x14250013
-	checksum = 0xd66f5b23
+	version = 0x14250016
+	checksum = 0x5d740273
 
 # Total resources used by above allocations:
 #   Virtual Interfaces: 104

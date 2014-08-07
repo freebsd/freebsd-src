@@ -50,11 +50,6 @@
 #include "opt_syscons.h"
 #include "opt_splash.h"
 
-#ifdef DEV_SC
-#error "Build with both syscons and vt is not supported. Please enable only \
-one 'device sc' or 'device vt'"
-#endif
-
 #ifndef	VT_MAXWINDOWS
 #ifdef	MAXCONS
 #define	VT_MAXWINDOWS	MAXCONS
@@ -78,14 +73,25 @@ one 'device sc' or 'device vt'"
 #endif /* defined(SC_TWOBUTTON_MOUSE) || defined(VT_TWOBUTTON_MOUSE) */
 
 #define	SC_DRIVER_NAME	"vt"
+#ifdef VT_DEBUG
 #define	DPRINTF(_l, ...)	if (vt_debug > (_l)) printf( __VA_ARGS__ )
+#define VT_CONSOLECTL_DEBUG
+#define VT_SYSMOUSE_DEBUG
+#else
+#define	DPRINTF(_l, ...)	do {} while (0)
+#endif
 #define	ISSIGVALID(sig)	((sig) > 0 && (sig) < NSIG)
 
 #define	VT_SYSCTL_INT(_name, _default, _descr)				\
 static int vt_##_name = _default;					\
-SYSCTL_INT(_kern_vt, OID_AUTO, _name, CTLFLAG_RW, &vt_##_name, _default,\
-		_descr);						\
-TUNABLE_INT("kern.vt." #_name, &vt_##_name);
+SYSCTL_INT(_kern_vt, OID_AUTO, _name, CTLFLAG_RWTUN, &vt_##_name, _default,\
+		_descr);
+
+/* Allow to disable some special keys by users. */
+#define	VT_DEBUG_KEY_ENABLED	(1 << 0)
+#define	VT_REBOOT_KEY_ENABLED	(1 << 1)
+#define	VT_HALT_KEY_ENABLED	(1 << 2)
+#define	VT_POWEROFF_KEY_ENABLED	(1 << 3)
 
 struct vt_driver;
 
@@ -224,7 +230,7 @@ void vtbuf_extract_marked(struct vt_buf *vb, term_char_t *buf, int sz);
 	((mask)->vbm_row & ((uint64_t)1 << ((row) % 64)))
 #define	VTBUF_DIRTYCOL(mask, col) \
 	((mask)->vbm_col & ((uint64_t)1 << ((col) % 64)))
-#define	VTBUF_SPACE_CHAR	(' ' | TC_WHITE << 26 | TC_BLACK << 29)
+#define	VTBUF_SPACE_CHAR(attr)	(' ' | (attr))
 
 #define	VHS_SET	0
 #define	VHS_CUR	1
@@ -253,6 +259,7 @@ struct vt_window {
 #define	VWF_CONSOLE	0x8	/* Kernel message console window. */
 #define	VWF_VTYLOCK	0x10	/* Prevent window switch. */
 #define	VWF_MOUSE_HIDE	0x20	/* Disable mouse events processing. */
+#define	VWF_READY	0x40	/* Window fully initialized. */
 #define	VWF_SWWAIT_REL	0x10000	/* Program wait for VT acquire is done. */
 #define	VWF_SWWAIT_ACQ	0x20000	/* Program wait for VT release is done. */
 	pid_t			 vw_pid;	/* Terminal holding process */
@@ -277,9 +284,13 @@ struct vt_window {
  */
 
 typedef int vd_init_t(struct vt_device *vd);
+typedef int vd_probe_t(struct vt_device *vd);
 typedef void vd_postswitch_t(struct vt_device *vd);
 typedef void vd_blank_t(struct vt_device *vd, term_color_t color);
 typedef void vd_bitbltchr_t(struct vt_device *vd, const uint8_t *src,
+    const uint8_t *mask, int bpl, vt_axis_t top, vt_axis_t left,
+    unsigned int width, unsigned int height, term_color_t fg, term_color_t bg);
+typedef void vd_maskbitbltchr_t(struct vt_device *vd, const uint8_t *src,
     const uint8_t *mask, int bpl, vt_axis_t top, vt_axis_t left,
     unsigned int width, unsigned int height, term_color_t fg, term_color_t bg);
 typedef void vd_putchar_t(struct vt_device *vd, term_char_t,
@@ -292,12 +303,15 @@ typedef void vd_drawrect_t(struct vt_device *, int, int, int, int, int,
 typedef void vd_setpixel_t(struct vt_device *, int, int, term_color_t);
 
 struct vt_driver {
+	char		 vd_name[16];
 	/* Console attachment. */
+	vd_probe_t	*vd_probe;
 	vd_init_t	*vd_init;
 
 	/* Drawing. */
 	vd_blank_t	*vd_blank;
 	vd_bitbltchr_t	*vd_bitbltchr;
+	vd_maskbitbltchr_t *vd_maskbitbltchr;
 	vd_drawrect_t	*vd_drawrect;
 	vd_setpixel_t	*vd_setpixel;
 
@@ -333,59 +347,14 @@ void vt_upgrade(struct vt_device *vd);
 #define	PIXEL_HEIGHT(h)	((h) / 16)
 
 #ifndef VT_FB_DEFAULT_WIDTH
-#define	VT_FB_DEFAULT_WIDTH	640
+#define	VT_FB_DEFAULT_WIDTH	2048
 #endif
 #ifndef VT_FB_DEFAULT_HEIGHT
-#define	VT_FB_DEFAULT_HEIGHT	480
+#define	VT_FB_DEFAULT_HEIGHT	1200
 #endif
 
-#define	VT_CONSDEV_DECLARE(driver, width, height, softc)		\
-static struct terminal	driver ## _consterm;				\
-static struct vt_window	driver ## _conswindow;				\
-static struct vt_device	driver ## _consdev = {				\
-	.vd_driver = &driver,						\
-	.vd_softc = (softc),						\
-	.vd_flags = VDF_INVALID,					\
-	.vd_windows = { [VT_CONSWINDOW] =  &driver ## _conswindow, },	\
-	.vd_curwindow = &driver ## _conswindow,				\
-	.vd_markedwin = NULL,						\
-	.vd_kbstate = 0,						\
-};									\
-static term_char_t	driver ## _constextbuf[(width) * 		\
-	    (VBF_DEFAULT_HISTORY_SIZE)];				\
-static term_char_t	*driver ## _constextbufrows[			\
-	    VBF_DEFAULT_HISTORY_SIZE];					\
-static struct vt_window	driver ## _conswindow = {			\
-	.vw_number = VT_CONSWINDOW,					\
-	.vw_flags = VWF_CONSOLE,					\
-	.vw_buf = {							\
-		.vb_buffer = driver ## _constextbuf,			\
-		.vb_rows = driver ## _constextbufrows,			\
-		.vb_history_size = VBF_DEFAULT_HISTORY_SIZE,		\
-		.vb_curroffset = 0,					\
-		.vb_roffset = 0,					\
-		.vb_flags = VBF_STATIC,					\
-		.vb_mark_start = {					\
-			.tp_row = 0,					\
-			.tp_col = 0,					\
-		},							\
-		.vb_mark_end = {					\
-			.tp_row = 0,					\
-			.tp_col = 0,					\
-		},							\
-		.vb_scr_size = {					\
-			.tp_row = height,				\
-			.tp_col = width,				\
-		},							\
-	},								\
-	.vw_device = &driver ## _consdev,				\
-	.vw_terminal = &driver ## _consterm,				\
-	.vw_kbdmode = K_XLATE,						\
-};									\
-TERMINAL_DECLARE_EARLY(driver ## _consterm, vt_termclass,		\
-    &driver ## _conswindow);						\
-SYSINIT(vt_early_cons, SI_SUB_INT_CONFIG_HOOKS, SI_ORDER_ANY,		\
-    vt_upgrade, &driver ## _consdev)
+/* name argument is not used yet. */
+#define VT_DRIVER_DECLARE(name, drv) DATA_SET(vt_drv_set, drv)
 
 /*
  * Fonts.

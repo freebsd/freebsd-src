@@ -24,10 +24,6 @@ SRCS+=	hwpmc_pentium.c hwpmc_tsc.c hwpmc_x86.c hwpmc_uncore.c
 SRCS+=	device_if.h bus_if.h
 .endif
 
-.if ${MACHINE_CPUARCH} == "ia64"
-SRCS+=	hwpmc_ia64.c
-.endif
-
 .if ${MACHINE_CPUARCH} == "powerpc"
 SRCS+=	hwpmc_powerpc.c hwpmc_mpc7xxx.c hwpmc_ppc970.c
 .endif

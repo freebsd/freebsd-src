@@ -23,7 +23,7 @@
  * Use is subject to license terms.
  */
 /*
- * Copyright (c) 2013 by Delphix. All rights reserved.
+ * Copyright (c) 2012, 2014 by Delphix. All rights reserved.
  */
 
 #include <sys/zfs_context.h>
@@ -202,10 +202,10 @@ space_map_histogram_add(space_map_t *sm, range_tree_t *rt, dmu_tx_t *tx)
 		 * reached the maximum bucket size. Accumulate all ranges
 		 * larger than the max bucket size into the last bucket.
 		 */
-		if (idx < SPACE_MAP_HISTOGRAM_SIZE(sm) - 1) {
+		if (idx < SPACE_MAP_HISTOGRAM_SIZE - 1) {
 			ASSERT3U(idx + sm->sm_shift, ==, i);
 			idx++;
-			ASSERT3U(idx, <, SPACE_MAP_HISTOGRAM_SIZE(sm));
+			ASSERT3U(idx, <, SPACE_MAP_HISTOGRAM_SIZE);
 		}
 	}
 }
@@ -267,7 +267,7 @@ space_map_set_blocksize(space_map_t *sm, uint64_t size, dmu_tx_t *tx)
 		 * adding more blocks. The block size can grow until it
 		 * reaches space_map_max_blksz.
 		 */
-		newsz = ISP2(size) ? size : 1ULL << highbit(size);
+		newsz = ISP2(size) ? size : 1ULL << highbit64(size);
 		if (newsz > space_map_max_blksz)
 			newsz = space_map_max_blksz;
 

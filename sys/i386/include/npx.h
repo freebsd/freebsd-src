@@ -71,6 +71,7 @@ int	is_fpu_kern_thread(u_int flags);
  */
 #define	FPU_KERN_NORMAL	0x0000
 #define	FPU_KERN_NOWAIT	0x0001
+#define	FPU_KERN_KTHR	0x0002
 
 #endif
 

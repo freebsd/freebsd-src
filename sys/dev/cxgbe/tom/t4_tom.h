@@ -279,6 +279,7 @@ int t4_send_fin(struct toedev *, struct tcpcb *);
 int t4_send_rst(struct toedev *, struct tcpcb *);
 void t4_set_tcb_field(struct adapter *, struct toepcb *, int, uint16_t,
     uint64_t, uint64_t);
+void t4_push_frames(struct adapter *sc, struct toepcb *toep, int drop);
 
 /* t4_ddp.c */
 void t4_init_ddp(struct adapter *, struct tom_data *);
@@ -289,4 +290,20 @@ struct mbuf *get_ddp_mbuf(int);
 void enable_ddp(struct adapter *, struct toepcb *toep);
 void release_ddp_resources(struct toepcb *toep);
 void insert_ddp_data(struct toepcb *, uint32_t);
+
+/* ULP related */
+#define CXGBE_ISCSI_MBUF_TAG          50
+int t4tom_cpl_handler_registered(struct adapter *, unsigned int);
+void t4tom_register_cpl_iscsi_callback(void (*fp)(struct tom_data *,
+    struct socket *, void *, unsigned int));
+void t4tom_register_queue_iscsi_callback(struct mbuf *(*fp)(struct socket *,
+    unsigned int, int *));
+void t4_ulp_push_frames(struct adapter *sc, struct toepcb *toep, int);
+int t4_cpl_iscsi_callback(struct tom_data *, struct toepcb *, void *, uint32_t);
+struct mbuf *t4_queue_iscsi_callback(struct socket *, struct toepcb *, uint32_t,
+    int *);
+extern void (*tom_cpl_iscsi_callback)(struct tom_data *, struct socket *,
+    void *, unsigned int);
+extern struct mbuf *(*tom_queue_iscsi_callback)(struct socket*, unsigned int,
+    int *);
 #endif

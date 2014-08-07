@@ -24,6 +24,9 @@
 #define LDNS_BUILD_CONFIG_HAVE_ATTR_FORMAT @ldns_build_config_have_attr_format@
 #define LDNS_BUILD_CONFIG_HAVE_ATTR_UNUSED @ldns_build_config_have_attr_unused@
 #define LDNS_BUILD_CONFIG_HAVE_SOCKLEN_T   @ldns_build_config_have_socklen_t@
+#define LDNS_BUILD_CONFIG_USE_DANE         @ldns_build_config_use_dane@
+#define LDNS_BUILD_CONFIG_HAVE_B32_PTON    @ldns_build_config_have_b32_pton@
+#define LDNS_BUILD_CONFIG_HAVE_B32_NTOP    @ldns_build_config_have_b32_ntop@
 
 /*
  * HAVE_STDBOOL_H is not available when distributed as a library, but no build 

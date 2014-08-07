@@ -16,8 +16,8 @@
 #####
 #####		SENDMAIL CONFIGURATION FILE
 #####
-##### built by ca@lab.smi.sendmail.com on Thu Jan 23 12:29:13 PST 2014
-##### in /home/ca/sm8-rel/sm-8.14.8/OpenSource/sendmail-8.14.8/cf/cf
+##### built by ca@lab.smi.sendmail.com on Tue May 20 12:12:52 PDT 2014
+##### in /home/ca/sm8.git/sendmail/OpenSource/sendmail-8.14.9/cf/cf
 ##### using ../ as configuration include directory
 #####
 ######################################################################
@@ -27,15 +27,15 @@
 ######################################################################
 ######################################################################
 
-#####  $Id: cfhead.m4,v 8.122 2013/11/22 20:51:13 ca Exp $  #####
-#####  $Id: cf.m4,v 8.33 2013/11/22 20:51:13 ca Exp $  #####
-#####  $Id: submit.mc,v 8.15 2013/11/22 20:51:08 ca Exp $  #####
-#####  $Id: msp.m4,v 1.34 2013/11/22 20:51:11 ca Exp $  #####
+#####  $Id: cfhead.m4,v 8.122 2013-11-22 20:51:13 ca Exp $  #####
+#####  $Id: cf.m4,v 8.33 2013-11-22 20:51:13 ca Exp $  #####
+#####  $Id: submit.mc,v 8.15 2013-11-22 20:51:08 ca Exp $  #####
+#####  $Id: msp.m4,v 1.34 2013-11-22 20:51:11 ca Exp $  #####
 
-#####  $Id: no_default_msa.m4,v 8.3 2013/11/22 20:51:11 ca Exp $  #####
+#####  $Id: no_default_msa.m4,v 8.3 2013-11-22 20:51:11 ca Exp $  #####
 
 
-#####  $Id: proto.m4,v 8.762 2013/11/22 20:51:13 ca Exp $  #####
+#####  $Id: proto.m4,v 8.762 2013-11-22 20:51:13 ca Exp $  #####
 
 # level 10 config file format
 V10/Berkeley
@@ -114,7 +114,7 @@ D{MTAHost}[127.0.0.1]
 
 
 # Configuration version number
-DZ8.14.8/Submit
+DZ8.14.9/Submit
 
 
 ###############
@@ -1299,7 +1299,7 @@ R$*			$#relay $@ ${MTAHost} $: $1 < @ $j >
 ###   Local and Program Mailer specification   ###
 ##################################################
 
-#####  $Id: local.m4,v 8.60 2013/11/22 20:51:14 ca Exp $  #####
+#####  $Id: local.m4,v 8.60 2013-11-22 20:51:14 ca Exp $  #####
 
 #
 #  Envelope sender rewriting
@@ -1351,7 +1351,7 @@ Mprog,		P=[IPC], F=lmDFMuXk5, S=EnvFromL/HdrFromL, R=EnvToL/HdrToL, D=$z:/,
 ###   SMTP Mailer specification   ###
 #####################################
 
-#####  $Id: smtp.m4,v 8.66 2013/11/22 20:51:14 ca Exp $  #####
+#####  $Id: smtp.m4,v 8.66 2013-11-22 20:51:14 ca Exp $  #####
 
 #
 #  common sender and masquerading recipient rewriting
@@ -1457,7 +1457,7 @@ Mrelay,		P=[IPC], F=mDFMuXa8k, S=EnvFromSMTP/HdrFromSMTP, R=MasqSMTP, E=\r\n, L=
 # #
 # 
 # divert(0)dnl
-# VERSIONID(`$Id: submit.mc,v 8.15 2013/11/22 20:51:08 ca Exp $')
+# VERSIONID(`$Id: submit.mc,v 8.15 2013-11-22 20:51:08 ca Exp $')
 # define(`confCF_VERSION', `Submit')dnl
 # define(`__OSTYPE__',`')dnl dirty hack to keep proto.m4 from complaining
 # define(`_USE_DECNET_SYNTAX_', `1')dnl support DECnet

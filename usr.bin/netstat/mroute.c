@@ -236,16 +236,7 @@ mroutepr()
 	 * functionality was deprecated, as PIM does not use it.
 	 */
 	maxvif = 0;
-
-	kresolve_list(mrl);
-	pmfchashtbl = mrl[N_MFCHASHTBL].n_value;
-	pmfctablesize = mrl[N_MFCTABLESIZE].n_value;
-	pviftbl = mrl[N_VIFTABLE].n_value;
-
-	if (pmfchashtbl == 0 || pmfctablesize == 0 || pviftbl == 0) {
-		fprintf(stderr, "No IPv4 MROUTING kernel support.\n");
-		return;
-	}
+	pmfchashtbl = pmfctablesize = pviftbl = 0;
 
 	len = sizeof(viftable);
 	if (live) {
@@ -254,8 +245,19 @@ mroutepr()
 			warn("sysctl: net.inet.ip.viftable");
 			return;
 		}
-	} else
+	} else {
+		kresolve_list(mrl);
+		pmfchashtbl = mrl[N_MFCHASHTBL].n_value;
+		pmfctablesize = mrl[N_MFCTABLESIZE].n_value;
+		pviftbl = mrl[N_VIFTABLE].n_value;
+
+		if (pmfchashtbl == 0 || pmfctablesize == 0 || pviftbl == 0) {
+			fprintf(stderr, "No IPv4 MROUTING kernel support.\n");
+			return;
+		}
+
 		kread(pviftbl, (char *)viftable, sizeof(viftable));
+	}
 
 	banner_printed = 0;
 	for (vifi = 0, v = viftable; vifi < MAXVIFS; ++vifi, ++v) {

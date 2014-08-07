@@ -766,7 +766,7 @@ show_progress(int ac, char **av __unused)
 			printf("drive %s ", mfi_drive_name(NULL, device_id,
 			    MFI_DNAME_DEVICE_ID|MFI_DNAME_HONOR_OPTS));
 			mfi_display_progress("Clear", &pinfo.prog_info.clear);
-			
+			busy = 1;
 		}
 	}
 

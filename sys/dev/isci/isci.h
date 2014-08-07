@@ -164,6 +164,7 @@ struct ISCI_CONTROLLER
 	uint32_t		initial_discovery_mask;
 	BOOL			is_frozen;
 	BOOL			release_queued_ccbs;
+	BOOL			fail_on_task_timeout;
 	uint8_t			*remote_device_memory;
 	struct ISCI_MEMORY	cached_controller_memory;
 	struct ISCI_MEMORY	uncached_controller_memory;

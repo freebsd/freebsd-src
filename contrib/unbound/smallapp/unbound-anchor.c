@@ -21,16 +21,16 @@
  * specific prior written permission.
  * 
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
- * TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE
- * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
- * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
- * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
- * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
+ * TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+ * PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+ * LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+ * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+ * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
 /**
@@ -116,7 +116,7 @@
 
 #include "config.h"
 #include "libunbound/unbound.h"
-#include <ldns/rr.h>
+#include "ldns/rrdef.h"
 #include <expat.h>
 #ifndef HAVE_EXPAT_H
 #error "need libexpat to parse root-anchors.xml file."
@@ -667,6 +667,15 @@ count_unused(struct ip_list* p)
 	return num;
 }
 
+static int get_random(void)
+{
+	int r;
+	if (RAND_bytes((unsigned char*)&r, (int)sizeof(r)) == 1) {
+		return r;
+	}
+	return (int)random();
+}
+
 /** pick random unused element from IP list */
 static struct ip_list*
 pick_random_ip(struct ip_list* list)
@@ -676,7 +685,7 @@ pick_random_ip(struct ip_list* list)
 	int sel;
 	if(num == 0) return NULL;
 	/* not perfect, but random enough */
-	sel = (int)ldns_get_random() % num;
+	sel = get_random() % num;
 	/* skip over unused elements that we did not select */
 	while(sel > 0 && p) {
 		if(!p->used) sel--;
@@ -1229,7 +1238,7 @@ xml_charhandle(void *userData, const XML_Char *s, int len)
 		printf("'\n");
 	}
 	if(strcasecmp(data->tag, "Zone") == 0) {
-		if(BIO_write(data->czone, s, len) <= 0) {
+		if(BIO_write(data->czone, s, len) < 0) {
 			if(verb) printf("out of memory in BIO_write\n");
 			exit(0);
 		}
@@ -1240,7 +1249,7 @@ xml_charhandle(void *userData, const XML_Char *s, int len)
 		return;
 	b = xml_selectbio(data, data->tag);
 	if(b) {
-		if(BIO_write(b, s, len) <= 0) {
+		if(BIO_write(b, s, len) < 0) {
 			if(verb) printf("out of memory in BIO_write\n");
 			exit(0);
 		}
@@ -1433,7 +1442,7 @@ xml_startelem(void *userData, const XML_Char *name, const XML_Char **atts)
 static void
 xml_append_str(BIO* b, const char* s)
 {
-	if(BIO_write(b, s, (int)strlen(s)) <= 0) {
+	if(BIO_write(b, s, (int)strlen(s)) < 0) {
 		if(verb) printf("out of memory in BIO_write\n");
 		exit(0);
 	}
@@ -1457,7 +1466,7 @@ xml_append_bio(BIO* b, BIO* a)
 			z[i] = ' ';
 	}
 	/* write to BIO */
-	if(BIO_write(b, z, len) <= 0) {
+	if(BIO_write(b, z, len) < 0) {
 		if(verb) printf("out of memory in BIO_write\n");
 		exit(0);
 	}
@@ -1543,7 +1552,7 @@ xml_parse_setup(XML_Parser parser, struct xml_data* data, time_t now)
 	}
 	snprintf(buf, sizeof(buf), "; created by unbound-anchor on %s",
 		ctime(&now));
-	if(BIO_write(data->ds, buf, (int)strlen(buf)) <= 0) {
+	if(BIO_write(data->ds, buf, (int)strlen(buf)) < 0) {
 		if(verb) printf("out of memory\n");
 		exit(0);
 	}

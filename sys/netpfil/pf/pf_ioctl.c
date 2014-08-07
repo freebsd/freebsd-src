@@ -208,6 +208,8 @@ pfattach(void)
 	u_int32_t *my_timeout = V_pf_default_rule.timeout;
 	int error;
 
+	if (IS_DEFAULT_VNET(curvnet))
+		pf_mtag_initialize();
 	pf_initialize();
 	pfr_initialize();
 	pfi_initialize();
@@ -341,7 +343,9 @@ pf_empty_pool(struct pf_palist *poola)
 			pfi_dynaddr_remove(pa->addr.p.dyn);
 			break;
 		case PF_ADDR_TABLE:
-			pfr_detach_table(pa->addr.p.tbl);
+			/* XXX: this could be unfinished pooladdr on pabuf */
+			if (pa->addr.p.tbl != NULL)
+				pfr_detach_table(pa->addr.p.tbl);
 			break;
 		}
 		if (pa->kif)
@@ -3725,6 +3729,8 @@ pf_unload(void)
 	pfr_cleanup();
 	pf_osfp_flush();
 	pf_cleanup();
+	if (IS_DEFAULT_VNET(curvnet))
+		pf_mtag_cleanup();
 	PF_RULES_WUNLOCK();
 	destroy_dev(pf_dev);
 	rw_destroy(&pf_rules_lock);

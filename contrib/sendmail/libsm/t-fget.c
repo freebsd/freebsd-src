@@ -8,7 +8,7 @@
  */
 
 #include <sm/gen.h>
-SM_IDSTR(id, "@(#)$Id: t-fget.c,v 1.2 2013/11/22 20:51:43 ca Exp $")
+SM_IDSTR(id, "@(#)$Id: t-fget.c,v 1.2 2013-11-22 20:51:43 ca Exp $")
 
 #include <sm/io.h>
 #include <sm/string.h>

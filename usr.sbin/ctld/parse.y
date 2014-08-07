@@ -659,6 +659,19 @@ lun_serial:	SERIAL STR
 		}
 		lun_set_serial(lun, $2);
 		free($2);
+	} |	SERIAL NUM
+	{
+		char *str = NULL;
+
+		if (lun->l_serial != NULL) {
+			log_warnx("serial for lun %d, target \"%s\" "
+			    "specified more than once",
+			    lun->l_lun, target->t_name);
+			return (1);
+		}
+		asprintf(&str, "%ju", $2);
+		lun_set_serial(lun, str);
+		free(str);
 	}
 	;
 
@@ -772,6 +785,8 @@ conf_new_from_file(const char *path)
 		portal_group_add_listen(pg, "0.0.0.0:3260", false);
 		portal_group_add_listen(pg, "[::]:3260", false);
 	}
+
+	conf->conf_kernel_port_on = true;
 
 	error = conf_verify(conf);
 	if (error != 0) {

@@ -1,7 +1,7 @@
 # $FreeBSD$
 
 PROG=	gnu
-NO_MAN=	yes
+MAN=
 
 WARNS?=	3
 CFLAGS+= -L/usr/local/lib -I/usr/local/include

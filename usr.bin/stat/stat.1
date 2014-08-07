@@ -38,7 +38,7 @@
 .Nd display file status
 .Sh SYNOPSIS
 .Nm
-.Op Fl FLnq
+.Op Fl FHLnq
 .Op Fl f Ar format | Fl l | r | s | x
 .Op Fl t Ar timefmt
 .Op Ar
@@ -124,6 +124,13 @@ The use of
 .Fl F
 implies
 .Fl l .
+.It Fl H
+Treat each argument as the hexadecimal representation of an NFS file handle,
+and use
+.Xr fhstat 2
+instead of
+.Xr lstat 2 .
+This requires root privileges.
 .It Fl L
 Use
 .Xr stat 2
@@ -594,8 +601,6 @@ and
 The
 .Nm
 utility was written by
-.An Andrew Brown
-.Aq atatat@NetBSD.org .
+.An Andrew Brown Aq Mt atatat@NetBSD.org .
 This man page was written by
-.An Jan Schaumann
-.Aq jschauma@NetBSD.org .
+.An Jan Schaumann Aq Mt jschauma@NetBSD.org .

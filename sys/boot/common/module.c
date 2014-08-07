@@ -37,6 +37,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/linker.h>
 #include <sys/module.h>
 #include <sys/queue.h>
+#include <sys/stdint.h>
 
 #include "bootstrap.h"
 
@@ -191,13 +192,11 @@ command_load_geli(int argc, char *argv[])
     return(file_loadraw(argv[2], typestr) ? CMD_OK : CMD_ERROR);
 }
 
-COMMAND_SET(unload, "unload", "unload all modules", command_unload);
-
-static int
-command_unload(int argc, char *argv[])
+void
+unload(void)
 {
-    struct preloaded_file	*fp;
-    
+    struct preloaded_file *fp;
+
     while (preloaded_files != NULL) {
 	fp = preloaded_files;
 	preloaded_files = preloaded_files->f_next;
@@ -205,6 +204,14 @@ command_unload(int argc, char *argv[])
     }
     loadaddr = 0;
     unsetenv("kernelname");
+}
+
+COMMAND_SET(unload, "unload", "unload all modules", command_unload);
+
+static int
+command_unload(int argc, char *argv[])
+{
+    unload();
     return(CMD_OK);
 }
 
@@ -236,8 +243,10 @@ command_lsmod(int argc, char *argv[])
 
     pager_open();
     for (fp = preloaded_files; fp; fp = fp->f_next) {
-	sprintf(lbuf, " %p: %s (%s, 0x%lx)\n", 
-		(void *) fp->f_addr, fp->f_name, fp->f_type, (long) fp->f_size);
+	sprintf(lbuf, " %p: ", (void *) fp->f_addr);
+	pager_output(lbuf);
+	pager_output(fp->f_name);
+	sprintf(lbuf, " (%s, 0x%lx)\n", fp->f_type, (long)fp->f_size);
 	pager_output(lbuf);
 	if (fp->f_args != NULL) {
 	    pager_output("    args: ");
@@ -387,6 +396,8 @@ file_loadraw(char *name, char *type)
     if (archsw.arch_loadaddr != NULL)
 	loadaddr = archsw.arch_loadaddr(LOAD_RAW, name, loadaddr);
 
+    printf("%s ", name);
+
     laddr = loadaddr;
     for (;;) {
 	/* read in 4k chunks; size is not really important */
@@ -401,7 +412,9 @@ file_loadraw(char *name, char *type)
 	}
 	laddr += got;
     }
-    
+
+    printf("size=%#jx\n", (uintmax_t)(laddr - loadaddr));
+
     /* Looks OK so far; create & populate control structure */
     fp = file_alloc();
     fp->f_name = strdup(name);

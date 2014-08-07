@@ -31,7 +31,7 @@
 .\"	@(#)sed.1	8.2 (Berkeley) 12/30/93
 .\" $FreeBSD$
 .\"
-.Dd December 9, 2013
+.Dd June 20, 2014
 .Dt SED 1
 .Os
 .Sh NAME
@@ -39,7 +39,7 @@
 .Nd stream editor
 .Sh SYNOPSIS
 .Nm
-.Op Fl Ealnr
+.Op Fl Ealnru
 .Ar command
 .Op Ar
 .Nm
@@ -148,6 +148,8 @@ option suppresses this behavior.
 Same as
 .Fl E
 for compatibility with GNU sed.
+.It Fl u
+Make output unbuffered.
 .El
 .Pp
 The form of a
@@ -618,7 +620,7 @@ command, written by
 appeared in
 .At v7 .
 .Sh AUTHORS
-.An "Diomidis D. Spinellis" Aq dds@FreeBSD.org
+.An Diomidis D. Spinellis Aq Mt dds@FreeBSD.org
 .Sh BUGS
 Multibyte characters containing a byte with value 0x5C
 .Tn ( ASCII

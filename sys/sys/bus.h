@@ -122,8 +122,7 @@ typedef struct kobj_class	driver_t;
 typedef struct devclass		*devclass_t;
 
 /**
- * @brief A device method (included mainly for compatibility with
- * FreeBSD 4.x).
+ * @brief A device method
  */
 #define device_method_t		kobj_method_t
 
@@ -568,6 +567,12 @@ void	bus_data_generation_update(void);
 #define	BUS_PASS_TIMER		50	/* Timers and clocks. */
 #define	BUS_PASS_SCHEDULER	60	/* Start scheduler. */
 #define	BUS_PASS_DEFAULT	__INT_MAX /* Everything else. */
+
+#define	BUS_PASS_ORDER_FIRST	0
+#define	BUS_PASS_ORDER_EARLY	2
+#define	BUS_PASS_ORDER_MIDDLE	5
+#define	BUS_PASS_ORDER_LATE	7
+#define	BUS_PASS_ORDER_LAST	9
 
 extern int bus_current_pass;
 

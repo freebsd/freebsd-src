@@ -10,7 +10,7 @@ INSTALLFLAGS=   -b
 FILES=		boot1.hfs
 SRCS=		boot1.c ashldi3.c syncicache.c
 
-NO_MAN=
+MAN=
 
 CFLAGS= -ffreestanding -msoft-float -Os \
 	-I${.CURDIR}/../../common -I${.CURDIR}/../../../ \

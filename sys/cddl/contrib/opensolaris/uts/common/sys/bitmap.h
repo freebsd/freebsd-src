@@ -24,14 +24,16 @@
  * Use is subject to license terms.
  */
 
+/*
+ * Copyright (c) 2014 by Delphix. All rights reserved.
+ */
+
 /*	Copyright (c) 1984, 1986, 1987, 1988, 1989 AT&T	*/
 /*	  All Rights Reserved  	*/
 
 
 #ifndef _SYS_BITMAP_H
 #define	_SYS_BITMAP_H
-
-#pragma ident	"%Z%%M%	%I%	%E% SMI"
 
 #ifdef	__cplusplus
 extern "C" {
@@ -152,6 +154,7 @@ extern int	bt_range(ulong_t *bitmap, size_t *pos1, size_t *pos2,
  * Low order bit is 0, high order bit is 31.
  */
 extern int	highbit(ulong_t);
+extern int	highbit64(uint64_t);
 extern int	lowbit(ulong_t);
 extern int	bt_getlowbit(ulong_t *bitmap, size_t start, size_t stop);
 extern void	bt_copy(ulong_t *, ulong_t *, ulong_t);

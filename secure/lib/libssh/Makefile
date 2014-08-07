@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.include <bsd.own.mk>
+.include <src.opts.mk>
 
 LIB=	ssh
 PRIVATELIB=	true
@@ -35,7 +35,7 @@ LDNSDIR=	${.CURDIR}/../../../contrib/ldns
 CFLAGS+=	-DHAVE_LDNS=1 -I${LDNSDIR}
 SRCS+=	getrrsetbyname-ldns.c
 DPADD+=	${LIBLDNS}
-LDADD+=	-lldns
+LDADD+=	${LDLDNS}
 USEPRIVATELIB+= ldns
 .endif
 

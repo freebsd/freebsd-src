@@ -337,6 +337,9 @@ ar5416SetInterrupts(struct ath_hal *ah, HAL_INT ints)
 	/* Write the new IMR and store off our SW copy. */
 	HALDEBUG(ah, HAL_DEBUG_INTERRUPT, "%s: new IMR 0x%x\n", __func__, mask);
 	OS_REG_WRITE(ah, AR_IMR, mask);
+	/* Flush write */
+	(void) OS_REG_READ(ah, AR_IMR);
+
 	mask = OS_REG_READ(ah, AR_IMR_S2) & ~(AR_IMR_S2_TIM |
 					AR_IMR_S2_DTIM |
 					AR_IMR_S2_DTIMSYNC |

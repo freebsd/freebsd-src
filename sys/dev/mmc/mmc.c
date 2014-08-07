@@ -102,6 +102,7 @@ struct mmc_ivars {
 	uint32_t hs_tran_speed;	/* Max speed in high speed mode */
 	uint32_t erase_sector;	/* Card native erase sector size */
 	char card_id_string[64];/* Formatted CID info (serial, MFG, etc) */
+	char card_sn_string[16];/* Formatted serial # for disk->d_ident */
 };
 
 #define CMD_RETRIES	3
@@ -887,6 +888,9 @@ mmc_format_card_id_string(struct mmc_ivars *ivar)
 	 * mmcsd0: 968MB <SD SD01G 8.0 SN 2686905 Mfg 08/2008 by 3 TN> at mmc0
 	 * 22.5MHz/4bit/128-block
 	 *
+	 * Also format just the card serial number, which the mmcsd driver will
+	 * use as the disk->d_ident string.
+	 *
 	 * The card_id_string in mmc_ivars is currently allocated as 64 bytes,
 	 * and our max formatted length is currently 55 bytes if every field
 	 * contains the largest value.
@@ -900,8 +904,10 @@ mmc_format_card_id_string(struct mmc_ivars *ivar)
 		snprintf(oidstr, sizeof(oidstr), "%c%c", c1, c2);
 	else
 		snprintf(oidstr, sizeof(oidstr), "0x%04x", ivar->cid.oid);
+	snprintf(ivar->card_sn_string, sizeof(ivar->card_sn_string),
+	    "%08X", ivar->cid.psn);
 	snprintf(ivar->card_id_string, sizeof(ivar->card_id_string),
-	    "%s%s %s %d.%d SN %u MFG %02d/%04d by %d %s",
+	    "%s%s %s %d.%d SN %08X MFG %02d/%04d by %d %s",
 	    ivar->mode == mode_sd ? "SD" : "MMC", ivar->high_cap ? "HC" : "",
 	    ivar->cid.pnm, ivar->cid.prv >> 4, ivar->cid.prv & 0x0f,
 	    ivar->cid.psn, ivar->cid.mdt_month, ivar->cid.mdt_year,
@@ -1697,6 +1703,9 @@ mmc_read_ivar(device_t bus, device_t child, int which, uintptr_t *result)
 		break;
 	case MMC_IVAR_CARD_ID_STRING:
 		*(char **)result = ivar->card_id_string;
+		break;
+	case MMC_IVAR_CARD_SN_STRING:
+		*(char **)result = ivar->card_sn_string;
 		break;
 	}
 	return (0);

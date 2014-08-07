@@ -45,9 +45,12 @@ static const char rcsid[] =
 #include <unistd.h>
 #include <sys/fbio.h>
 #include <sys/consio.h>
+#include <sys/endian.h>
 #include <sys/errno.h>
+#include <sys/param.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <sys/sysctl.h>
 #include "path.h"
 #include "decode.h"
 
@@ -78,6 +81,15 @@ static struct {
 	struct video_info	video_mode_info;
 } cur_info;
 
+struct vt4font_header {
+	uint8_t		magic[8];
+	uint8_t		width;
+	uint8_t		height;
+	uint16_t	pad;
+	uint32_t	glyph_count;
+	uint32_t	map_count[4];
+} __packed;
+
 static int	hex = 0;
 static int	vesa_cols;
 static int	vesa_rows;
@@ -86,6 +98,7 @@ static int	colors_changed;
 static int	video_mode_changed;
 static int	normal_fore_color, normal_back_color;
 static int	revers_fore_color, revers_back_color;
+static int	vt4_mode = 0;
 static struct	vid_info info;
 static struct	video_info new_mode_info;
 
@@ -115,7 +128,9 @@ init(void)
 	if (ioctl(0, CONS_GETINFO, &cur_info.console_info) == -1)
 		errc(1, errno, "getting console information");
 
-	if (ioctl(0, GIO_SCRNMAP, &cur_info.screen_map) == -1)
+	/* vt(4) use unicode, so no screen mapping required. */
+	if (vt4_mode == 0 &&
+	    ioctl(0, GIO_SCRNMAP, &cur_info.screen_map) == -1)
 		errc(1, errno, "getting screen map");
 
 	if (ioctl(0, CONS_GET, &cur_info.video_mode_number) == -1)
@@ -153,7 +168,8 @@ revert(void)
 	fprintf(stderr, "\033[=%dH", cur_info.console_info.mv_rev.fore);
 	fprintf(stderr, "\033[=%dI", cur_info.console_info.mv_rev.back);
 
-	ioctl(0, PIO_SCRNMAP, &cur_info.screen_map);
+	if (vt4_mode == 0)
+		ioctl(0, PIO_SCRNMAP, &cur_info.screen_map);
 
 	if (cur_info.video_mode_number >= M_VESA_BASE)
 		ioctl(0, _IO('V', cur_info.video_mode_number - M_VESA_BASE),
@@ -179,7 +195,15 @@ revert(void)
 static void
 usage(void)
 {
-	fprintf(stderr, "%s\n%s\n%s\n%s\n%s\n",
+	if (vt4_mode)
+		fprintf(stderr, "%s\n%s\n%s\n%s\n%s\n",
+"usage: vidcontrol [-CHPpx] [-b color] [-c appearance] [-f [size] file]",
+"                  [-g geometry] [-h size] [-i adapter | mode]",
+"                  [-M char] [-m on | off] [-r foreground background]",
+"                  [-S on | off] [-s number] [-T xterm | cons25] [-t N | off]",
+"                  [mode] [foreground [background]] [show]");
+	else
+		fprintf(stderr, "%s\n%s\n%s\n%s\n%s\n",
 "usage: vidcontrol [-CdHLPpx] [-b color] [-c appearance] [-f [size] file]",
 "                  [-g geometry] [-h size] [-i adapter | mode] [-l screen_map]",
 "                  [-M char] [-m on | off] [-r foreground background]",
@@ -188,6 +212,17 @@ usage(void)
 	exit(1);
 }
 
+/* Detect presence of vt(4). */
+static int
+is_vt4(void)
+{
+	char vty_name[4] = "";
+	size_t len = sizeof(vty_name);
+
+	if (sysctlbyname("kern.vty", vty_name, &len, NULL, 0) != 0)
+		return (0);
+	return (strcmp(vty_name, "vt") == 0);
+}
 
 /*
  * Retrieve the next argument from the command line (for options that require
@@ -349,6 +384,72 @@ fsize(FILE *file)
 		return -1;
 }
 
+static vfnt_map_t *
+load_vt4mappingtable(unsigned int nmappings, FILE *f)
+{
+	vfnt_map_t *t;
+	unsigned int i;
+
+	if (nmappings == 0)
+		return (NULL);
+
+	t = malloc(sizeof *t * nmappings);
+
+	if (fread(t, sizeof *t * nmappings, 1, f) != 1) {
+		perror("mappings");
+		exit(1);
+	}
+
+	for (i = 0; i < nmappings; i++) {
+		t[i].src = be32toh(t[i].src);
+		t[i].dst = be16toh(t[i].dst);
+		t[i].len = be16toh(t[i].len);
+	}
+
+	return (t);
+}
+
+static int
+load_vt4font(FILE *f)
+{
+	struct vt4font_header fh;
+	static vfnt_t vfnt;
+	size_t glyphsize;
+	unsigned int i;
+
+	if (fread(&fh, sizeof fh, 1, f) != 1) {
+		perror("file_header");
+		return (1);
+	}
+
+	if (memcmp(fh.magic, "VFNT0002", 8) != 0) {
+		fprintf(stderr, "Bad magic\n");
+		return (1);
+	}
+
+	for (i = 0; i < VFNT_MAPS; i++)
+		vfnt.map_count[i] = be32toh(fh.map_count[i]);
+	vfnt.glyph_count = be32toh(fh.glyph_count);
+	vfnt.width = fh.width;
+	vfnt.height = fh.height;
+
+	glyphsize = howmany(vfnt.width, 8) * vfnt.height * vfnt.glyph_count;
+	vfnt.glyphs = malloc(glyphsize);
+
+	if (fread(vfnt.glyphs, glyphsize, 1, f) != 1) {
+		perror("glyphs");
+		return (1);
+	}
+
+	for (i = 0; i < VFNT_MAPS; i++)
+		vfnt.map[i] = load_vt4mappingtable(vfnt.map_count[i], f);
+
+	if (ioctl(STDIN_FILENO, PIO_VFONT, &vfnt) == -1) {
+		perror("PIO_VFONT");
+		return (1);
+	}
+	return (0);
+}
 
 /*
  * Load a font from file and set it.
@@ -362,6 +463,7 @@ load_font(const char *type, const char *filename)
 	unsigned long io = 0;	/* silence stupid gcc(1) in the Wall mode */
 	char	*name, *fontmap, size_sufx[6];
 	const char	*a[] = {"", FONT_PATH, NULL};
+	const char	*vt4a[] = {"", VT_FONT_PATH, NULL};
 	const char	*b[] = {filename, NULL};
 	const char	*c[] = {"", size_sufx, NULL};
 	const char	*d[] = {"", ".fnt", NULL};
@@ -376,19 +478,30 @@ load_font(const char *type, const char *filename)
 		     {8,  8,  PIO_FONT8x8},
 		     {0,  0,            0}};
 
-	_info.size = sizeof(_info);
-	if (ioctl(0, CONS_GETINFO, &_info) == -1) {
-		revert();
-		warn("failed to obtain current video mode parameters");
-		return;
-	}
+	if (vt4_mode) {
+		size_sufx[0] = '\0';
+	} else {
+		_info.size = sizeof(_info);
+		if (ioctl(0, CONS_GETINFO, &_info) == -1) {
+			revert();
+			warn("failed to obtain current video mode parameters");
+			return;
+		}
 
-	snprintf(size_sufx, sizeof(size_sufx), "-8x%d", _info.font_size);
-	fd = openguess(a, b, c, d, &name);
+		snprintf(size_sufx, sizeof(size_sufx), "-8x%d", _info.font_size);
+	}
+	fd = openguess((vt4_mode == 0) ? a : vt4a, b, c, d, &name);
 
 	if (fd == NULL) {
 		revert();
 		errx(1, "%s: can't load font file", filename);
+	}
+
+	if (vt4_mode) {
+		if(load_vt4font(fd))
+			warn("failed to load font \"%s\"", filename);
+		fclose(fd);
+		return;
 	}
 
 	if (type != NULL) {
@@ -1199,8 +1312,11 @@ int
 main(int argc, char **argv)
 {
 	char    *font, *type, *termmode;
+	const char *opts;
 	int	dumpmod, dumpopt, opt;
 	int	reterr;
+
+	vt4_mode = is_vt4();
 
 	init();
 
@@ -1211,8 +1327,12 @@ main(int argc, char **argv)
 	dumpmod = 0;
 	dumpopt = DUMP_FBF;
 	termmode = NULL;
-	while ((opt = getopt(argc, argv,
-	    "b:Cc:df:g:h:Hi:l:LM:m:pPr:S:s:T:t:x")) != -1)
+	if (vt4_mode)
+		opts = "b:Cc:f:g:h:Hi:M:m:pPr:S:s:T:t:x";
+	else
+		opts = "b:Cc:df:g:h:Hi:l:LM:m:pPr:S:s:T:t:x";
+
+	while ((opt = getopt(argc, argv, opts)) != -1)
 		switch(opt) {
 		case 'b':
 			set_border_color(optarg);
@@ -1224,6 +1344,8 @@ main(int argc, char **argv)
 			set_cursor_type(optarg);
 			break;
 		case 'd':
+			if (vt4_mode)
+				break;
 			print_scrnmap();
 			break;
 		case 'f':
@@ -1255,9 +1377,13 @@ main(int argc, char **argv)
 			show_info(optarg);
 			break;
 		case 'l':
+			if (vt4_mode)
+				break;
 			load_scrnmap(optarg);
 			break;
 		case 'L':
+			if (vt4_mode)
+				break;
 			load_default_scrnmap();
 			break;
 		case 'M':

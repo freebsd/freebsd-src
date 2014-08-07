@@ -100,6 +100,10 @@ static struct syscall syscalls[] = {
 	  .args = { { Rforkflags, 0 } } },
 	{ .name = "getegid", .ret_type = 1, .nargs = 0 },
 	{ .name = "geteuid", .ret_type = 1, .nargs = 0 },
+	{ .name = "linux_readlink", .ret_type = 1, .nargs = 3,
+	  .args = { { Name, 0 } , { Name | OUT, 1 }, { Int, 2 }}},
+	{ .name = "linux_socketcall", .ret_type = 1, .nargs = 2,
+	  .args = { { Int, 0 } , { LinuxSockArgs, 1 }}},
 	{ .name = "getgid", .ret_type = 1, .nargs = 0 },
 	{ .name = "getpid", .ret_type = 1, .nargs = 0 },
 	{ .name = "getpgid", .ret_type = 1, .nargs = 1,
@@ -117,6 +121,8 @@ static struct syscall syscalls[] = {
 	  .args = { { Int, 0 }, { Int, 1 }, { Whence, 2 } } },
 	{ .name = "mmap", .ret_type = 2, .nargs = 6,
 	  .args = { { Ptr, 0 }, { Int, 1 }, { Mprot, 2 }, { Mmapflags, 3 }, { Int, 4 }, { Quad, 5 + QUAD_ALIGN } } },
+	{ .name = "linux_mkdir", .ret_type = 1, .nargs = 2,
+	  .args = { { Name | IN, 0} , {Int, 1}}},
 	{ .name = "mprotect", .ret_type = 1, .nargs = 3,
 	  .args = { { Ptr, 0 }, { Int, 1 }, { Mprot, 2 } } },
 	{ .name = "open", .ret_type = 1, .nargs = 3,
@@ -141,6 +147,8 @@ static struct syscall syscalls[] = {
 	  .args = { { Name, 0 }, { Octal, 1 } } },
 	{ .name = "chown", .ret_type = 0, .nargs = 3,
 	  .args = { { Name, 0 }, { Int, 1 }, { Int, 2 } } },
+	{ .name = "linux_stat64", .ret_type = 1, .nargs = 3,
+	  .args = { { Name | IN, 0 }, { Ptr | OUT, 1 }, { Ptr | IN, 1 }}},
 	{ .name = "mount", .ret_type = 0, .nargs = 4,
 	  .args = { { Name, 0 }, { Name, 1 }, { Int, 2 }, { Ptr, 3 } } },
 	{ .name = "umount", .ret_type = 0, .nargs = 2,
@@ -153,6 +161,8 @@ static struct syscall syscalls[] = {
 	  .args = { { Name | IN, 0 }, { Stat | OUT, 1 } } },
 	{ .name = "linux_newstat", .ret_type = 1, .nargs = 2,
 	  .args = { { Name | IN, 0 }, { Ptr | OUT, 1 } } },
+	{ .name = "linux_access", .ret_type = 1, .nargs = 2,
+	  .args = { { Name, 0 }, { Int, 1 }}},
 	{ .name = "linux_newfstat", .ret_type = 1, .nargs = 2,
 	  .args = { { Int, 0 }, { Ptr | OUT, 1 } } },
 	{ .name = "write", .ret_type = 1, .nargs = 3,
@@ -761,6 +771,76 @@ print_arg(struct syscall_args *sc, unsigned long *args, long retval,
 			    itv.it_value.tv_usec);
 		else
 			asprintf(&tmp, "0x%lx", args[sc->offset]);
+		break;
+	}
+	case LinuxSockArgs:
+	{
+		struct linux_socketcall_args largs;
+		if (get_struct(pid, (void *)args[sc->offset], (void *)&largs,
+		    sizeof(largs)) == -1) {
+			err(1, "get_struct %p", (void *)args[sc->offset]);
+		}
+		const char *what;
+		char buf[30];
+
+		switch (largs.what) {
+		case LINUX_SOCKET:
+			what = "LINUX_SOCKET";
+			break;
+		case LINUX_BIND:
+			what = "LINUX_BIND";
+			break;
+		case LINUX_CONNECT:
+			what = "LINUX_CONNECT";
+			break;
+		case LINUX_LISTEN:
+			what = "LINUX_LISTEN";
+			break;
+		case LINUX_ACCEPT:
+			what = "LINUX_ACCEPT";
+			break;
+		case LINUX_GETSOCKNAME:
+			what = "LINUX_GETSOCKNAME";
+			break;
+		case LINUX_GETPEERNAME:
+			what = "LINUX_GETPEERNAME";
+			break;
+		case LINUX_SOCKETPAIR:
+			what = "LINUX_SOCKETPAIR";
+			break;
+		case LINUX_SEND:   
+			what = "LINUX_SEND";
+			break;
+		case LINUX_RECV: 
+			what = "LINUX_RECV";
+			break;
+		case LINUX_SENDTO:
+			what = "LINUX_SENDTO";
+			break;
+		case LINUX_RECVFROM:
+			what = "LINUX_RECVFROM";
+			break;
+		case LINUX_SHUTDOWN:
+			what = "LINUX_SHUTDOWN";
+			break;
+		case LINUX_SETSOCKOPT:
+			what = "LINUX_SETSOCKOPT";
+			break;
+		case LINUX_GETSOCKOPT:
+			what = "LINUX_GETSOCKOPT";
+			break;
+		case LINUX_SENDMSG:
+			what = "LINUX_SENDMSG";
+			break;
+		case LINUX_RECVMSG:
+			what = "LINUX_RECVMSG";
+			break;
+		default:
+			sprintf(buf, "%d", largs.what);
+			what = buf;
+			break;
+		}
+		asprintf(&tmp, "(0x%lx)%s, 0x%lx", args[sc->offset], what, (long unsigned int)largs.args);
 		break;
 	}
 	case Pollfd: {

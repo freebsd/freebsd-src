@@ -429,6 +429,18 @@ number:
 }
 
 int
+rtld_snprintf(char *buf, size_t bufsize, const char *fmt, ...)
+{
+	va_list ap;
+	int retval;
+
+	va_start(ap, fmt);
+	retval = rtld_vsnprintf(buf, bufsize, fmt, ap);
+	va_end(ap);
+	return (retval);
+}
+
+int
 rtld_vsnprintf(char *buf, size_t bufsize, const char *fmt, va_list ap)
 {
 	struct snprintf_arg info;

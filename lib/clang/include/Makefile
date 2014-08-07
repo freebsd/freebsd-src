@@ -8,7 +8,7 @@ LLVM_SRCS= ${.CURDIR}/../../../contrib/llvm
 
 .PATH: ${LLVM_SRCS}/tools/clang/lib/Headers
 
-INCSDIR=${INCLUDEDIR}/clang/3.4
+INCSDIR=${INCLUDEDIR}/clang/3.4.1
 
 INCS=	__wmmintrin_aes.h \
 	__wmmintrin_pclmul.h \

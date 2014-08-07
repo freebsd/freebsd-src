@@ -104,6 +104,8 @@ static char *rifname;
 static time_t	expire_time;
 static int	flags, doing_proxy;
 
+struct if_nameindex *ifnameindex;
+
 /* which function we're supposed to do */
 #define F_GET		1
 #define F_SET		2
@@ -199,6 +201,9 @@ main(int argc, char *argv[])
 		rtn = file(argv[0]);
 		break;
 	}
+
+	if (ifnameindex != NULL)
+		if_freenameindex(ifnameindex);
 
 	return (rtn);
 }
@@ -558,8 +563,6 @@ search(u_long addr, action_fn *action)
 /*
  * Display an arp entry
  */
-static char lifname[IF_NAMESIZE];
-static int64_t lifindex = -1;
 
 static void
 print_entry(struct sockaddr_dl *sdl,
@@ -568,7 +571,12 @@ print_entry(struct sockaddr_dl *sdl,
 	const char *host;
 	struct hostent *hp;
 	struct iso88025_sockaddr_dl_data *trld;
+	struct if_nameindex *p;
 	int seg;
+
+	if (ifnameindex == NULL) 
+		if ((ifnameindex = if_nameindex()) == NULL)
+			err(1, "cannot retrieve interface names");
 
 	if (nflag == 0)
 		hp = gethostbyaddr((caddr_t)&(addr->sin_addr),
@@ -596,12 +604,15 @@ print_entry(struct sockaddr_dl *sdl,
 		}
 	} else
 		printf("(incomplete)");
-	if (sdl->sdl_index != lifindex &&
-	    if_indextoname(sdl->sdl_index, lifname) != NULL) {
-        	lifindex = sdl->sdl_index;
-		printf(" on %s", lifname);
-        } else if (sdl->sdl_index == lifindex)
-		printf(" on %s", lifname);
+
+	for (p = ifnameindex; p && ifnameindex->if_index &&
+		 ifnameindex->if_name; p++) {
+		if (p->if_index == sdl->sdl_index) {
+			printf(" on %s", p->if_name);
+			break;
+		}
+	}
+
 	if (rtm->rtm_rmx.rmx_expire == 0)
 		printf(" permanent");
 	else {

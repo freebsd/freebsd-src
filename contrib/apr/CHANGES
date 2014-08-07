@@ -1,235 +1,124 @@
                                                      -*- coding: utf-8 -*-
-Changes for APR 1.4.8
+Changes for APR 1.5.1
 
-  *) Fix compiltation with FreeBSD on ARM.  [Olli Hauer <ohauer gmx.de>]
+  *) apr_os_proc_mutex_get() on Unix:  Avoid segfault for cross-
+     process pthread mutexes.  [Yann Ylavic <ylavic.dev gmail.com>]
 
-  *) Fix 1.4.7 regression in apr_mcast_hops() and apr_mcast_loopback()
-     for AF_INET (IPv4) sockets on most Unix platforms.  [Joe Orton]
+  *) When using shmget-based shared memory, the ID used for ftok is
+     now an APR hash of the filename instead of the constant '1'.
+     We do this to help avoid collisions. PR 53996 [Jim Jagielski]
 
-  *) Fix the return value of apr_threadattr_detach_get() on some
-     platforms like OS X and Solaris. [Rainer Jung, <dusanv gmail com>]
+  *) apr_socket_atreadeof(): Fix breakage on OS X. [Jim Jagielski]
 
-Changes for APR 1.4.7
+  *) Fix POSIX shared memory (shm_open) use for named shared memory.
+     Includes adding '--enable-posix-shm' to force POSIX shm if
+     available, and OS X compatibility. PR 55928.
+     [Jozef Hatala <jh-asf skrt org>, Jim Jagielski]
 
-  *) Fix apr_sockaddr_info_get() not returning an error in some cases.
-     PR 54779. [Jan Kaluža <jkaluza redhat com>]
+  *) Fix race condition when calling apr_dir_make_recursive from
+     multiple threads on Windows.
+     [Bert Huijben]
 
-  *) Fix amd64 assembler version of apr_atomic_xchgptr(). PR 51851. [Mattias
-     Engdegård <mattiase acm org>]
+  *) Fix apr_escape.c compilation errors on EBCDIC platforms.
+     [Eric Covener]
 
-  *) Fix PPC atomics to work with gcc 4.0. PR 54840. [Mattias Engdegård
-     <mattiase acm org>]
+  *) FreeBSD 10: Correct a regression in 1.5.0 which affected non-
+     blocking sockets in some applications, including httpd.  [Jeff
+     Trawick]
 
-  *) configure: Fix detection of O_NONBLOCK inheritance on busy
-     systems.  [Rainer Jung]
+  *) Windows cmake build: Fix incorrect installation of some .pdb
+     files.  Fix incorrect use of some logic intended for Windows 9x,
+     including legacy filesystem interfaces and dynamic loading of
+     some Windows APIs.  [Jeff Trawick]
 
-  *) Remove unused code, fix strict C compliance bug in SHA-256
-     implementation.  [Jan Kaluza <jkaluza redhat.com>]
-
-  *) Fix apr_ipsubnet_test() false positives when comparing IPv4
-     subnet representation against an IPv6 address.  PR 54047.  [Joe Orton]
-
-  *) apr_socket_accept_filter: Return success when trying to again set
-     the filter to the same value as before, avoiding an unhelpful
-     APR_EINVAL.  PR 37863.  [Jeff Trawick]
-
-  *) configure: Fix Linux 3.x detection. PR 54001. [Gilles Espinasse
-     <g esp free fr>]
-
-  *) apr_time_exp_*() on Windows: Fix error in the tm_yday field of
-     apr_time_exp_t for times within leap years.  PR 53175.
+  *) apr_skiplist: Add compatibility with C++ applications.
      [Jeff Trawick]
 
-  *) Improve platform detection by updating config.guess and config.sub.
-     [Rainer Jung]
+  *) Correct a regression in 1.5.0 which affected out-of-tree
+     builds on Unix.  [Rainer Jung]
 
-  *) Add support for OSX Mountain Lion (10.8) [Jim Jagielski]
+  *) Improve platform detection for bundled expat by updating
+     config.guess and config.sub. [Rainer Jung]
 
-  *) Add various gcc function attributes. [Stefan Fritsch]
+Changes for APR 1.5.0
 
-  *) Fix some problems in apr_sockaddr_info_get() when trying to resolve
-     the loopback addresses of a protocol family that is not otherwise
-     configured on the system. PR 52709. [Nirgal Vourgère
-     <jmv_deb nirgal com>, Stefan Fritsch]
+  *) Fix Linux kernel version check to recognize more versions,
+     including versions 3.10 and later.  PR 55690.  [Joe Orton,
+     Arfrever Frehtes Taifersar Arahesis <arfrever.fta gmail.com>]
 
-  *) Fix file not being unlocked if truncate call on a file fails.
-     [Mladen Turk]
+  *) Add apr_sockaddr_is_wildcard() to check if a socket address
+     refers to the wildcard address for the protocol family (e.g.,
+     0.0.0.0/INADDR_ANY for IPv4).  [Jeff Trawick]
 
-  *) apr_mcast_hops: Fix EINVAL for IPv6 sockets caused by using byte
-     instead integer for setsockopt. [Mladen Turk]
+  *) apr_file_dup2() on Windows: Fix debug RTL assertion when 
+     attempting to _commit(stdout) or _commit(stderr).  [Mike Rumph
+     <mike.rumph oracle.com>]
 
-  *) Windows: Fix compile-time checks for 64-bit builds, resolving a
-     crash in httpd's mod_rewrite.  PR 49155.  [<anindyabaruah gmail.com>]
+  *) apr_socket_connect() on Windows: Handle WSAEISCONN.  PR 48736.
+     [<inoue ariel-networks.com>, Jeff Trawick]
 
-Changes for APR 1.4.6
+  *) z/OS: threadsafe apr_pollset_poll support for sockets [Greg Ames]
 
-  *) Flush write buffer before truncate call on a file.
-     [Mladen Turk]
+  *) Windows:  Don't obtain a mutex for buffered file I/O unless the
+     file was opened with the APR_FOPEN_XTHREAD flag.  [Ivan Zhakov
+     <ivan visualsvn.com>]
 
-  *) Randomise hashes by providing a seed. 
-     Assigned CVE-2012-0840, oCERT-2011-003, but not known to be exploitable.
-     [Bojan Smojver, Branko Čibej, Ruediger Pluem et al.]
-
-  *) apr_random: Prevent segfault if pool used to initialize apr_random is
-     destroyed before forking. [Stefan Fritsch]
-
-  *) testrand: Improve child randomness test case. [Rainer Jung]
-
-  *) apr_proc_fork, apr_random_after_fork: disambiguate what happens to the 
-     proc structure passed in, and ensure that the pid is set correctly in 
-     a newly created child; note that merely mixing a PID into the random 
-     seed of a new child doesn't markedly increase entropy. [Sander Temme]
-
-  *) apr_file_open: Avoid fcntl() calls if support for O_CLOEXEC works.
-     PR 48557. [Mike Frysinger <vapier gentoo org>]
-
-  *) apr_dir_make_recursive: Fix race condition that could lead to EEXIST
-     being returned. PR 51254. [William Lee <william lee rainstor com>,
-     Wim Lewis <wiml omnigroup com>]
-
-  *) configure: Fix APR_RESTORE_THE_ENVIRONMENT if the original variable was
-     a single space. PR 50334. [Nathan Phillip Brink <binki gentoo org>]
-
-  *) apr_proc_create: Don't close any of the new stdin/stdout/stderr in the
-     child if it already has the correct FD. PR 51995.
-     [Dan Ports <drkp csail mit edu>]
-
-  *) Fix flag character '#' in combination with format character 'x' in
-     apr snprintf implementations.  [Rainer Jung]
-
-  *) Improve platform detection by updating config.guess and config.sub.
-     [Rainer Jung]
-
-  *) Add libtool2 files to extraclean make target.  [Rainer Jung]
-
-  *) Don't overwrite our config.guess and config.sub
-     when running buildconf.  [Rainer Jung]
-
-  *) Silence autoconf 2.68 warnings.  [Rainer Jung]
-
-Changes for APR 1.4.5
-
-  *) Security: CVE-2011-1928
-     apr_fnmatch(): Fix high CPU loop.  [William Rowe]
-
-  *) Fix top_builddir in installed apr_rules.mk.  [Bojan Smojver]
-
-Changes for APR 1.4.4
-
-  *) Windows: Fix command-line builds.  [William Rowe]
-
-Changes for APR 1.4.3
-
-  *) Security: CVE-2011-0419
-     Reimplement apr_fnmatch() from scratch using a non-recursive
-     algorithm; now has improved compliance with the fnmatch() spec.
-     [William Rowe]
-
-  *) Fix environment-related crash using some non-standard builds on
-     Windows 7/Server 2008.  [Steve Hay <SteveHay planit.com>]
-
-  *) poll, pollset, pollcb on Windows: Handle calls with no file/socket
-     descriptors.  PR 49882.  [Stefan Ruppert <sr myarm.com>, Jeff Trawick]
-
-  *) Fix APR_IPV6_V6ONLY issues on Windows related to run-time behavior 
-     on Windows older than Vista and SDK/MinGW levels without IPV6_V6ONLY.
-     PR 45321.  [Sob <sob hisoftware.cz>]
-
-  *) Fix address handling when accepting an AF_INET socket from a socket
-     bound as AF_INET6.   PR 49678.  [Joe Orton]
-
-  *) Fix error return values from apr_sockaddr_info_get() on Windows for
-     IPv6 builds.  [Ivan Zhakov <ivan visualsvn.com>]
-
-  *) Add new experimental configure option --enable-allocator-uses-mmap to
-     use mmap instead of malloc in apr_allocator_alloc(). This greatly reduces
-     memory fragmentation with malloc implementations (e.g. glibc) that
-     don't handle allocationss of a page-size-multiples in an efficient way.
-     It also makes apr_allocator_max_free_set() actually have some effect
-     on such platforms. [Stefan Fritsch]
-
-  *) configure: Support 64 and 32 bit universal builds for Darwin/
-     OS X 10.6+. [Jim Jagielski]
-
-  *) apr_sockaddr_info_get() on AIX: Fix a problem which could set
-     the port field in the native socket address to 1 when 0 was
-     specified.  PR 46964.  [Jeff Trawick]
-
-  *) configure: Make definition of apr_ino_t independent of
-     _FILE_OFFSET_BITS even on platforms where ino_t is 'unsigned int'.
-     [Stefan Fritsch]
-
-  *) apr_ring: Workaround for aliasing problem that causes gcc 4.5 to
-     miscompile some brigade related code. PR 50190. [Stefan Fritsch]
-
-  *) apr_file_flush_locked(): Handle short writes. [Stefan Fritsch]
-
-  *) apr_pollset_create_ex(): Trap errors from pollset providers.
-     PR 49094.  [Sami Tolvanen <sami.tolvanen mywot.com>]
-
-  *) apr_pollset_create*(): Fix memory lifetime problem with the wakeup
-     pipe when the pollset was created with APR_POLLSET_NOCOPY.
-     [Neil Conway <nrc cs.berkeley.edu>]
-
-  *) Fix detection of some Linux variants when configure is built with
-     recent GNU tools.  [Eric Covener]
-
-  *) Avoid a redundant fcntl() call in apr_file_open() where O_CLOEXEC
-     is supported.  PR 46297.  [Joe Orton]
-
-  *) Improve platform detection by updating config.guess and config.sub.
-     [Rainer Jung]
-
-Changes for APR 1.4.2
-
-  *) Undo a crash-bug introduced in 1.4.1 affecting some applications of 
-     the apr hash and table structures, reported to affect Subversion
-     by Bert Huijben <bert qqmail.nl>.  [Graham Leggett]
-
-Changes for APR 1.4.1
-
-  *) Win32: Properly handle the ERROR_DIRECTORY system error code.
-     [Brane Čibej]
-
-Changes for APR 1.4.0
-
-  *) Windows: Default build configurations assume NT or higher at run-time. 
-
-  *) Add apr_global_mutex_lockfile() for retrieving the file, if any,
-     associated with the mutex.  Add apr_global_mutex_name() for retrieving
-     the name of the lock mechanism used by the underlying proc mutex.
+  *) Windows:  Create named shared memory segments under the "Local"
+     namespace if the caller is unprivileged, fixing an inability of
+     unprivileged callers to use apr_shm_create() with named shared
+     memory segments under recent Windows.  As before, shared memory
+     segments are created under the "Global" namespace for privileged
+     callers.  Add apr_shm_create_ex() and apr_shm_attach_ex(), which
+     provide the ability to override the normal namespace selection.
      [Jeff Trawick]
 
-  *) Add apr_socket_atreadeof to determine whether the receive part of the
-     socket has been closed by the peer.
-     [Ruediger Pluem, Mladen Turk, Joe Orton]
+  *) Update compile settings for MINT OS.  PR 47181. [Alan Hourihane
+     <alanh fairlite.co.uk>]
 
-  *) Make apr_pollset and apr_pollcb implementations using providers.
-     Added apr_pollset_create_ex and apr_pollcb_create_ex that allows
-     choosing non-default providers.
-     [Mladen Turk]
+  *) Files and pipes on Windows:  Don't create an unused pollset when
+     files and pipes are opened.  [Mladen Turk]
 
-  *) Win32: Use WSAPoll as default pollset method if supported and found
-     inside winsock dll.  [Mladen Turk]
+  *) apr_socket_timeout_set() on Windows: If the socket was in a non-
+     blocking state before, disable that setting so that timeouts work.
+     [Jeff Trawick]
 
-  *) apr_temp_dir_get() now checks the TMPDIR environment variable first,
-     instead of third.  [Jim Jagielski]
+  *) File info APIs: Fix calculation of atime and mtime on AIX. PR 51146.
+     [Ruediger Pluem]
 
-  *) Add apr_file_sync() and apr_file_datasync() calls.  [Bojan Smojver]
+  *) Add the apr_escape interface. [Graham Leggett]
 
-  *) apr_pollset_wakeup() on Windows: Fix core caused by closing the
-     file_socket_pipe with standard file_close. 
-     [Arsen Chaloyan, Mladen Turk]
+  *) Cygwin build fixes.  PRs 51016 and 55586.  [Carlo Bramini
+     <carlo.bramix libero.it>] 
 
-  *) Introduce apr_hash_do() for iterating over a hash table.  [Mladen Turk]
+  *) Add apr_skiplist family. [Jim Jagielski]
 
-  *) Make sure WIN32 behaves the same as posix for file-backed shared memory 
-     by removing the file on cleanup/remove.  [Mladen Turk]
+  *) Add experimental cmake-based build system for Windows.  Refer to 
+     README.cmake for more information.  [Jeff Trawick, Tom Donovan]
 
-  *) Introduce apr_pollset_wakeup() for interrupting the blocking
-     apr_pollset_poll() call.  [Mladen Turk]
+  *) Add the apr_table_getm() call, which transparently handles the
+     merging of keys with multiple values. [Graham Leggett]
 
-  *) Add apr_file_link() function.  PR 44841.  [Mark Heily <mark heily.com>]
+  *) Add apr_hash_this_key(), apr_hash_this_key_len(), and 
+     apr_hash_this_val() for easier access to those attributes from
+     a hash iterator.  [Hyrum K. Wright <hyrum_wright mail.utexas.edu>]
+
+  *) MinGW/MSYS:  Support shared builds of APR, other general improvements
+     to support of this toolchain.  PR 46175.  [Carlo Bramini 
+     <carlo.bramix libero.it>]  
+
+  *) Improve platform detection by updating config.guess and config.sub.
+     [Rainer Jung]
+
+  *) apr_socket_opt_set: Add support for APR_SO_BROADCAST. PR 46389.
+     [Armin Müller <mueller itestra com>]
+
+  *) Enable platform specific support for the opening of a file or
+     pipe in non-blocking mode through the APR_FOPEN_NONBLOCK flag.
+     [Graham Leggett]
+
+Changes for APR 1.4.x and later:
+
+  *) http://svn.apache.org/viewvc/apr/apr/branches/1.4.x/CHANGES?view=markup
 
 Changes for APR 1.3.x and later:
 

@@ -21,16 +21,16 @@
  * specific prior written permission.
  * 
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
- * TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE
- * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
- * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
- * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
- * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
+ * TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+ * PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+ * LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+ * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+ * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
 /**
@@ -60,7 +60,7 @@
 #ifndef NET_EVENT_H
 #define NET_EVENT_H
 
-#include <ldns/buffer.h>
+struct sldns_buffer;
 struct comm_point;
 struct comm_reply;
 struct event_base;
@@ -149,7 +149,7 @@ struct comm_point {
 	struct timeval* timeout;
 
 	/** buffer pointer. Either to perthread, or own buffer or NULL */
-	ldns_buffer* buffer;
+	struct sldns_buffer* buffer;
 
 	/* -------- TCP Handler -------- */
 	/** Read/Write state for TCP */
@@ -295,6 +295,21 @@ struct comm_signal {
 struct comm_base* comm_base_create(int sigs);
 
 /**
+ * Create comm base that uses the given event_base (underlying event
+ * mechanism pointer).
+ * @param base: underlying lib event base.
+ * @return: the new comm base. NULL on error.
+ */
+struct comm_base* comm_base_create_event(struct event_base* base);
+
+/**
+ * Delete comm base structure but not the underlying lib event base.
+ * All comm points must have been deleted.
+ * @param b: the base to delete.
+ */
+void comm_base_delete_no_base(struct comm_base* b);
+
+/**
  * Destroy a comm base.
  * All comm points must have been deleted.
  * @param b: the base to delete.
@@ -308,7 +323,7 @@ void comm_base_delete(struct comm_base* b);
  * @param tt: pointer to time in seconds is returned.
  * @param tv: pointer to time in microseconds is returned.
  */
-void comm_base_timept(struct comm_base* b, uint32_t** tt, struct timeval** tv);
+void comm_base_timept(struct comm_base* b, time_t** tt, struct timeval** tv);
 
 /**
  * Dispatch the comm base events.
@@ -352,7 +367,7 @@ struct event_base* comm_base_internal(struct comm_base* b);
  * Sets timeout to NULL. Turns off TCP options.
  */
 struct comm_point* comm_point_create_udp(struct comm_base* base,
-	int fd, ldns_buffer* buffer, 
+	int fd, struct sldns_buffer* buffer, 
 	comm_point_callback_t* callback, void* callback_arg);
 
 /**
@@ -368,7 +383,7 @@ struct comm_point* comm_point_create_udp(struct comm_base* base,
  * Sets timeout to NULL. Turns off TCP options.
  */
 struct comm_point* comm_point_create_udp_ancil(struct comm_base* base,
-	int fd, ldns_buffer* buffer, 
+	int fd, struct sldns_buffer* buffer, 
 	comm_point_callback_t* callback, void* callback_arg);
 
 /**
@@ -462,7 +477,7 @@ void comm_point_drop_reply(struct comm_reply* repinfo);
  * @param addrlen: length of addr.
  * @return: false on a failure.
  */
-int comm_point_send_udp_msg(struct comm_point* c, ldns_buffer* packet,
+int comm_point_send_udp_msg(struct comm_point* c, struct sldns_buffer* packet,
 	struct sockaddr* addr, socklen_t addrlen);
 
 /**

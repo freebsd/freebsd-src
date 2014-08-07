@@ -332,19 +332,19 @@ set_mac_from_idprom(void)
 		    DEVOFFSET_BSO_SIGNATURE + sizeof(sig), 
 		    &dev_offset, sizeof(dev_offset));
 		if (status == -1)
-				return -1;;
+				return -1;
 
 		/* Check for the boot section signature. */
 		status = eeprom_read(EE_DEV_ADDR, 
 		    dev_offset + OFFSET_BS_SIGNATURE, &sig, sizeof(sig));
 		if ((status == -1) || (sig != BS_SIGNATURE))
-				return -1;;
+				return -1;
 	}
 	dev_offset += OFFSET_EUI64;
 
 	/* Read the EUI64 from the device.  */
 	if (eeprom_read(EE_DEV_ADDR, dev_offset, eui64, sizeof(eui64)) == -1)
-		return -1;;
+		return -1;
 
 	/* Transcribe the EUI-64 to a MAC-48.
 	 *

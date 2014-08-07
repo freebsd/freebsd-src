@@ -828,7 +828,7 @@ chroot_refuse_vdir_fds(fdp)
 
 	FILEDESC_LOCK_ASSERT(fdp);
 
-	for (fd = 0; fd < fdp->fd_nfiles ; fd++) {
+	for (fd = 0; fd <= fdp->fd_lastfile; fd++) {
 		fp = fget_locked(fdp, fd);
 		if (fp == NULL)
 			continue;
@@ -1554,6 +1554,7 @@ kern_linkat(struct thread *td, int fd1, int fd2, char *path1, char *path2,
 	bwillwrite();
 	NDINIT_AT(&nd, LOOKUP, follow | AUDITVNODE1, segflg, path1, fd1, td);
 
+again:
 	if ((error = namei(&nd)) != 0)
 		return (error);
 	NDFREE(&nd, NDF_ONLY_PNBUF);
@@ -1576,9 +1577,16 @@ kern_linkat(struct thread *td, int fd1, int fd2, char *path1, char *path2,
 				vput(nd.ni_dvp);
 			vrele(nd.ni_vp);
 			error = EEXIST;
-		} else if ((error = vn_lock(vp, LK_EXCLUSIVE | LK_RETRY))
-		    == 0) {
-			error = can_hardlink(vp, td->td_ucred);
+		} else if ((error = vn_lock(vp, LK_EXCLUSIVE)) == 0) {
+			/*
+			 * Check for cross-device links.  No need to
+			 * recheck vp->v_type, since it cannot change
+			 * for non-doomed vnode.
+			 */
+			if (nd.ni_dvp->v_mount != vp->v_mount)
+				error = EXDEV;
+			else
+				error = can_hardlink(vp, td->td_ucred);
 			if (error == 0)
 #ifdef MAC
 				error = mac_vnode_check_link(td->td_ucred,
@@ -1588,6 +1596,12 @@ kern_linkat(struct thread *td, int fd1, int fd2, char *path1, char *path2,
 				error = VOP_LINK(nd.ni_dvp, vp, &nd.ni_cnd);
 			VOP_UNLOCK(vp, 0);
 			vput(nd.ni_dvp);
+		} else {
+			vput(nd.ni_dvp);
+			NDFREE(&nd, NDF_ONLY_PNBUF);
+			vrele(vp);
+			vn_finished_write(mp);
+			goto again;
 		}
 		NDFREE(&nd, NDF_ONLY_PNBUF);
 	}

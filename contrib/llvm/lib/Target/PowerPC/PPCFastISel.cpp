@@ -892,11 +892,13 @@ unsigned PPCFastISel::PPCMoveToFPReg(MVT SrcVT, unsigned SrcReg,
   unsigned LoadOpc = PPC::LFD;
 
   if (SrcVT == MVT::i32) {
-    Addr.Offset = 4;
-    if (!IsSigned)
+    if (!IsSigned) {
       LoadOpc = PPC::LFIWZX;
-    else if (PPCSubTarget.hasLFIWAX())
+      Addr.Offset = 4;
+    } else if (PPCSubTarget.hasLFIWAX()) {
       LoadOpc = PPC::LFIWAX;
+      Addr.Offset = 4;
+    }
   }
 
   const TargetRegisterClass *RC = &PPC::F8RCRegClass;
@@ -1022,6 +1024,10 @@ bool PPCFastISel::SelectFPToI(const Instruction *I, bool IsSigned) {
     return false;
 
   if (DstVT != MVT::i32 && DstVT != MVT::i64)
+    return false;
+
+  // If we don't have FCTIDUZ and we need it, punt to SelectionDAG.
+  if (DstVT == MVT::i64 && !IsSigned && !PPCSubTarget.hasFPCVT())
     return false;
 
   Value *Src = I->getOperand(0);

@@ -87,6 +87,8 @@ __FBSDID("$FreeBSD$");
 #define GICC_ABPR		0x001C			/* v1 ICCABPR */
 #define GICC_IIDR		0x00FC			/* v1 ICCIIDR*/
 
+#define	GIC_LAST_IPI		15	/* Irqs 0-15 are IPIs. */
+
 /* First bit is a polarity bit (0 - low, 1 - high) */
 #define GICD_ICFGR_POL_LOW	(0 << 0)
 #define GICD_ICFGR_POL_HIGH	(1 << 0)
@@ -179,8 +181,9 @@ gic_init_secondary(void)
 	/* Enable interrupt distribution */
 	gic_d_write_4(GICD_CTLR, 0x01);
 
-	/* Activate IRQ 29, ie private timer IRQ*/
+	/* Activate IRQ 29-30, ie private timer (secure & non-secure) IRQs */
 	gic_d_write_4(GICD_ISENABLER(29 >> 5), (1UL << (29 & 0x1F)));
+	gic_d_write_4(GICD_ISENABLER(30 >> 5), (1UL << (30 & 0x1F)));
 }
 #endif
 
@@ -282,7 +285,8 @@ static driver_t arm_gic_driver = {
 
 static devclass_t arm_gic_devclass;
 
-DRIVER_MODULE(gic, simplebus, arm_gic_driver, arm_gic_devclass, 0, 0);
+EARLY_DRIVER_MODULE(gic, simplebus, arm_gic_driver, arm_gic_devclass, 0, 0,
+    BUS_PASS_INTERRUPT + BUS_PASS_ORDER_MIDDLE);
 DRIVER_MODULE(gic, ofwbus, arm_gic_driver, arm_gic_devclass, 0, 0);
 
 static void
@@ -293,6 +297,11 @@ gic_pre_filter(device_t dev, u_int irq)
 static void
 gic_post_filter(device_t dev, u_int irq)
 {
+	/* TODO: Get working on arm64 */
+#if 0
+	if (irq > GIC_LAST_IPI)
+		arm_irq_memory_barrier(irq);
+#endif
 	gic_c_write_4(GICC_EOIR, irq);
 }
 
@@ -310,13 +319,13 @@ arm_get_next_irq(int last_irq)
 	 * have this information later.
 	 */
 
-	if ((active_irq & 0x3ff) < 16)
+	if ((active_irq & 0x3ff) <= GIC_LAST_IPI)
 		gic_c_write_4(GICC_EOIR, active_irq);
 	active_irq &= 0x3FF;
 
 	if (active_irq == 0x3FF) {
 		if (last_irq == -1)
-			printf("Spurious interrupt detected [0x%08x]\n", active_irq);
+			printf("Spurious interrupt detected\n");
 		return -1;
 	}
 
@@ -336,6 +345,11 @@ void
 gic_unmask_irq(device_t dev, u_int irq)
 {
 
+	/* TODO: Get working on arm64 */
+#if 0
+	if (nb > GIC_LAST_IPI)
+		arm_irq_memory_barrier(irq);
+#endif
 	gic_d_write_4(GICD_ISENABLER(irq >> 5), (1UL << (irq & 0x1F)));
 }
 

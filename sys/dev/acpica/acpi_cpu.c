@@ -129,10 +129,12 @@ struct acpi_cpu_device {
 
 /* Allow users to ignore processor orders in MADT. */
 static int cpu_unordered;
-TUNABLE_INT("debug.acpi.cpu_unordered", &cpu_unordered);
 SYSCTL_INT(_debug_acpi, OID_AUTO, cpu_unordered, CTLFLAG_RDTUN,
     &cpu_unordered, 0,
     "Do not use the MADT to match ACPI Processor objects to CPUs.");
+
+/* Knob to disable acpi_cpu devices */
+bool acpi_cpu_disabled = false;
 
 /* Platform hardware resource information. */
 static uint32_t		 cpu_smi_cmd;	/* Value to write to SMI_CMD. */
@@ -172,6 +174,7 @@ static void	acpi_cpu_idle(sbintime_t sbt);
 static void	acpi_cpu_notify(ACPI_HANDLE h, UINT32 notify, void *context);
 static int	acpi_cpu_quirks(void);
 static int	acpi_cpu_usage_sysctl(SYSCTL_HANDLER_ARGS);
+static int	acpi_cpu_usage_counters_sysctl(SYSCTL_HANDLER_ARGS);
 static int	acpi_cpu_set_cx_lowest(struct acpi_cpu_softc *sc);
 static int	acpi_cpu_cx_lowest_sysctl(SYSCTL_HANDLER_ARGS);
 static int	acpi_cpu_global_cx_lowest_sysctl(SYSCTL_HANDLER_ARGS);
@@ -220,7 +223,8 @@ acpi_cpu_probe(device_t dev)
     ACPI_OBJECT		   *obj;
     ACPI_STATUS		   status;
 
-    if (acpi_disabled("cpu") || acpi_get_type(dev) != ACPI_TYPE_PROCESSOR)
+    if (acpi_disabled("cpu") || acpi_get_type(dev) != ACPI_TYPE_PROCESSOR ||
+	    acpi_cpu_disabled)
 	return (ENXIO);
 
     handle = acpi_get_handle(dev);
@@ -938,6 +942,11 @@ acpi_cpu_startup_cx(struct acpi_cpu_softc *sc)
 		    OID_AUTO, "cx_usage", CTLTYPE_STRING | CTLFLAG_RD,
 		    (void *)sc, 0, acpi_cpu_usage_sysctl, "A",
 		    "percent usage for each Cx state");
+    SYSCTL_ADD_PROC(&sc->cpu_sysctl_ctx,
+		    SYSCTL_CHILDREN(device_get_sysctl_tree(sc->cpu_dev)),
+		    OID_AUTO, "cx_usage_counters", CTLTYPE_STRING | CTLFLAG_RD,
+		    (void *)sc, 0, acpi_cpu_usage_counters_sysctl, "A",
+		    "Cx sleep state counters");
 
     /* Signal platform that we can handle _CST notification. */
     if (!cpu_cx_generic && cpu_cst_cnt != 0) {
@@ -1229,6 +1238,35 @@ acpi_cpu_usage_sysctl(SYSCTL_HANDLER_ARGS)
 	    sbuf_printf(&sb, "0.00%% ");
     }
     sbuf_printf(&sb, "last %dus", sc->cpu_prev_sleep);
+    sbuf_trim(&sb);
+    sbuf_finish(&sb);
+    sysctl_handle_string(oidp, sbuf_data(&sb), sbuf_len(&sb), req);
+    sbuf_delete(&sb);
+
+    return (0);
+}
+
+/*
+ * XXX TODO: actually add support to count each entry/exit
+ * from the Cx states.
+ */
+static int
+acpi_cpu_usage_counters_sysctl(SYSCTL_HANDLER_ARGS)
+{
+    struct acpi_cpu_softc *sc;
+    struct sbuf	 sb;
+    char	 buf[128];
+    int		 i;
+
+    sc = (struct acpi_cpu_softc *) arg1;
+
+    /* Print out the raw counters */
+    sbuf_new(&sb, buf, sizeof(buf), SBUF_FIXEDLEN);
+
+    for (i = 0; i < sc->cpu_cx_count; i++) {
+        sbuf_printf(&sb, "%u ", sc->cpu_cx_stats[i]);
+    }
+
     sbuf_trim(&sb);
     sbuf_finish(&sb);
     sysctl_handle_string(oidp, sbuf_data(&sb), sbuf_len(&sb), req);

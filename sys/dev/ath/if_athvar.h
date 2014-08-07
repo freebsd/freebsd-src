@@ -510,6 +510,7 @@ struct ath_rx_edma {
 	int		m_fifo_tail;
 	int		m_fifo_depth;
 	struct mbuf	*m_rxpending;
+	struct ath_buf	*m_holdbf;
 };
 
 struct ath_tx_edma_fifo {
@@ -621,7 +622,8 @@ struct ath_softc {
 				sc_resetcal : 1,/* reset cal state next trip */
 				sc_rxslink  : 1,/* do self-linked final descriptor */
 				sc_rxtsf32  : 1,/* RX dec TSF is 32 bits */
-				sc_isedma   : 1;/* supports EDMA */
+				sc_isedma   : 1,/* supports EDMA */
+				sc_do_mybeacon : 1; /* supports mybeacon */
 
 	/*
 	 * Second set of flags.
@@ -864,6 +866,22 @@ struct ath_softc {
 	void			(*sc_bar_response)(struct ieee80211_node *ni,
 				    struct ieee80211_tx_ampdu *tap,
 				    int status);
+
+	/*
+	 * Powersave state tracking.
+	 *
+	 * target/cur powerstate is the chip power state.
+	 * target selfgen state is the self-generated frames
+	 *   state.  The chip can be awake but transmitted frames
+	 *   can have the PWRMGT bit set to 1 so the destination
+	 *   thinks the node is asleep.
+	 */
+	HAL_POWER_MODE		sc_target_powerstate;
+	HAL_POWER_MODE		sc_target_selfgen_state;
+
+	HAL_POWER_MODE		sc_cur_powerstate;
+
+	int			sc_powersave_refcnt;
 };
 
 #define	ATH_LOCK_INIT(_sc) \
@@ -1038,6 +1056,8 @@ void	ath_intr(void *);
 	((*(_ah)->ah_updateTxTrigLevel)((_ah), (_inc)))
 #define	ath_hal_setpower(_ah, _mode) \
 	((*(_ah)->ah_setPowerMode)((_ah), (_mode), AH_TRUE))
+#define	ath_hal_setselfgenpower(_ah, _mode) \
+	((*(_ah)->ah_setPowerMode)((_ah), (_mode), AH_FALSE))
 #define	ath_hal_keycachesize(_ah) \
 	((*(_ah)->ah_getKeyCacheSize)((_ah)))
 #define	ath_hal_keyreset(_ah, _ix) \
@@ -1266,6 +1286,8 @@ void	ath_intr(void *);
 #define	ath_hal_setintmit(_ah, _v) \
 	ath_hal_setcapability(_ah, HAL_CAP_INTMIT, \
 	HAL_CAP_INTMIT_ENABLE, _v, NULL)
+#define	ath_hal_hasmybeacon(_ah) \
+	(ath_hal_getcapability(_ah, HAL_CAP_DO_MYBEACON, 1, NULL) == HAL_OK)
 
 #define	ath_hal_hasenforcetxop(_ah) \
 	(ath_hal_getcapability(_ah, HAL_CAP_ENFORCE_TXOP, 0, NULL) == HAL_OK)

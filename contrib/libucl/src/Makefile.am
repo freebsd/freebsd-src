@@ -4,6 +4,8 @@ libucl_common_cflags=	-I$(top_srcdir)/src \
 			-Wall -W -Wno-unused-parameter -Wno-pointer-sign
 lib_LTLIBRARIES=	libucl.la
 libucl_la_SOURCES=	ucl_emitter.c \
+					ucl_emitter_streamline.c \
+					ucl_emitter_utils.c \
 					ucl_hash.c \
 					ucl_parser.c \
 					ucl_schema.c \
@@ -13,6 +15,8 @@ libucl_la_CFLAGS=	$(libucl_common_cflags) \
 					@CURL_CFLAGS@
 libucl_la_LDFLAGS = -version-info @SO_VERSION@
 libucl_la_LIBADD=	@LIBFETCH_LIBS@ \
+					@LIBCRYPTO_LIB@ \
+					@LIBREGEX_LIB@ \
 					@CURL_LIBS@
 
 include_HEADERS=	$(top_srcdir)/include/ucl.h

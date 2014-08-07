@@ -2,8 +2,10 @@
 
 PROG=	btx
 INTERNALPROG=
-NO_MAN=
+MAN=
 SRCS=	btx.S
+
+NO_PIE=	yes
 
 .if defined(BOOT_BTX_NOHANG)
 BOOT_BTX_FLAGS=0x1

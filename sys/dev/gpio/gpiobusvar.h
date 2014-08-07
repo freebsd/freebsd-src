@@ -32,13 +32,14 @@
 
 #include "opt_platform.h"
 
-#include <sys/param.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
 
 #ifdef FDT
 #include <dev/ofw/ofw_bus_subr.h>
 #endif
+
+#include "gpio_if.h"
 
 #define	GPIOBUS_IVAR(d) (struct gpiobus_ivar *) device_get_ivars(d)
 #define	GPIOBUS_SOFTC(d) (struct gpiobus_softc *) device_get_softc(d)
@@ -60,17 +61,29 @@ struct gpiobus_softc
 	int		*sc_pins_mapped; /* mark mapped pins */
 };
 
-
 struct gpiobus_ivar
 {
 	uint32_t	npins;	/* pins total */
+	uint32_t	*flags;	/* pins flags */
 	uint32_t	*pins;	/* pins map */
 };
 
-void gpiobus_print_pins(struct gpiobus_ivar *);
 #ifdef FDT
+struct ofw_gpiobus_devinfo {
+	struct gpiobus_ivar	opd_dinfo;
+	struct ofw_bus_devinfo	opd_obdinfo;
+};
+
+static __inline int
+gpio_map_gpios(device_t bus, phandle_t dev, phandle_t gparent, int gcells,
+    pcell_t *gpios, uint32_t *pin, uint32_t *flags)
+{
+	return (GPIO_MAP_GPIOS(bus, dev, gparent, gcells, gpios, pin, flags));
+}
+
 device_t ofw_gpiobus_add_fdt_child(device_t, phandle_t);
 #endif
+void gpiobus_print_pins(struct gpiobus_ivar *);
 
 extern driver_t gpiobus_driver;
 

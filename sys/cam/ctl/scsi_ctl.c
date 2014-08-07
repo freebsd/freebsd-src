@@ -77,8 +77,9 @@ typedef enum {
 } ctlfe_ccb_types;
 
 struct ctlfe_softc {
-	struct ctl_frontend fe;
+	struct ctl_port port;
 	path_id_t path_id;
+	u_int	maxio;
 	struct cam_sim *sim;
 	char port_name[DEV_IDLEN];
 	struct mtx lun_softc_mtx;
@@ -129,13 +130,15 @@ typedef enum {
  */
 struct ctlfe_lun_cmd_info {
 	int cur_transfer_index;
+	size_t cur_transfer_off;
 	ctlfe_cmd_flags flags;
 	/*
 	 * XXX KDM struct bus_dma_segment is 8 bytes on i386, and 16
 	 * bytes on amd64.  So with 32 elements, this is 256 bytes on
 	 * i386 and 512 bytes on amd64.
 	 */
-	bus_dma_segment_t cam_sglist[32];
+#define CTLFE_MAX_SEGS	32
+	bus_dma_segment_t cam_sglist[CTLFE_MAX_SEGS];
 };
 
 /*
@@ -195,7 +198,7 @@ MALLOC_DEFINE(M_CTLFE, "CAM CTL FE", "CAM CTL FE interface");
 
 int			ctlfeinitialize(void);
 void			ctlfeshutdown(void);
-static periph_init_t	ctlfeinit;
+static periph_init_t	ctlfeperiphinit;
 static void		ctlfeasync(void *callback_arg, uint32_t code,
 				   struct cam_path *path, void *arg);
 static periph_ctor_t	ctlferegister;
@@ -208,8 +211,6 @@ static void		ctlfedone(struct cam_periph *periph,
 static void 		ctlfe_onoffline(void *arg, int online);
 static void 		ctlfe_online(void *arg);
 static void 		ctlfe_offline(void *arg);
-static int 		ctlfe_targ_enable(void *arg, struct ctl_id targ_id);
-static int 		ctlfe_targ_disable(void *arg, struct ctl_id targ_id);
 static int 		ctlfe_lun_enable(void *arg, struct ctl_id targ_id,
 					 int lun_id);
 static int 		ctlfe_lun_disable(void *arg, struct ctl_id targ_id,
@@ -222,26 +223,18 @@ static void 		ctlfe_dump(void);
 
 static struct periph_driver ctlfe_driver =
 {
-	ctlfeinit, "ctl",
+	ctlfeperiphinit, "ctl",
 	TAILQ_HEAD_INITIALIZER(ctlfe_driver.units), /*generation*/ 0
 };
 
-static int ctlfe_module_event_handler(module_t, int /*modeventtype_t*/, void *);
-
-/*
- * We're not using PERIPHDRIVER_DECLARE(), because it runs at SI_SUB_DRIVERS,
- * and that happens before CTL gets initialised.
- */
-static moduledata_t ctlfe_moduledata = {
-	"ctlfe",
-	ctlfe_module_event_handler,
-	NULL
+static struct ctl_frontend ctlfe_frontend =
+{
+	.name = "camtarget",
+	.init = ctlfeinitialize,
+	.fe_dump = ctlfe_dump,
+	.shutdown = ctlfeshutdown,
 };
-
-DECLARE_MODULE(ctlfe, ctlfe_moduledata, SI_SUB_CONFIGURE, SI_ORDER_FOURTH);
-MODULE_VERSION(ctlfe, 1);
-MODULE_DEPEND(ctlfe, ctl, 1, 1, 1);
-MODULE_DEPEND(ctlfe, cam, 1, 1, 1);
+CTL_FRONTEND_DECLARE(ctlfe, ctlfe_frontend);
 
 extern struct ctl_softc *control_softc;
 
@@ -251,38 +244,26 @@ ctlfeshutdown(void)
 	return;
 }
 
+int
+ctlfeinitialize(void)
+{
+
+	STAILQ_INIT(&ctlfe_softc_list);
+	mtx_init(&ctlfe_list_mtx, ctlfe_mtx_desc, NULL, MTX_DEF);
+	periphdriver_register(&ctlfe_driver);
+	return (0);
+}
+
 void
-ctlfeinit(void)
+ctlfeperiphinit(void)
 {
 	cam_status status;
 
-	STAILQ_INIT(&ctlfe_softc_list);
-
-	mtx_init(&ctlfe_list_mtx, ctlfe_mtx_desc, NULL, MTX_DEF);
-
-	KASSERT(control_softc != NULL, ("CTL is not initialized!"));
-
 	status = xpt_register_async(AC_PATH_REGISTERED | AC_PATH_DEREGISTERED |
 				    AC_CONTRACT, ctlfeasync, NULL, NULL);
-
 	if (status != CAM_REQ_CMP) {
 		printf("ctl: Failed to attach async callback due to CAM "
 		       "status 0x%x!\n", status);
-	}
-}
-
-static int
-ctlfe_module_event_handler(module_t mod, int what, void *arg)
-{
-
-	switch (what) {
-	case MOD_LOAD:
-		periphdriver_register(&ctlfe_driver);
-		return (0);
-	case MOD_UNLOAD:
-		return (EBUSY);
-	default:
-		return (EOPNOTSUPP);
 	}
 }
 
@@ -301,7 +282,7 @@ ctlfeasync(void *callback_arg, uint32_t code, struct cam_path *path, void *arg)
  	 */
 	switch (code) {
 	case AC_PATH_REGISTERED: {
-		struct ctl_frontend *fe;
+		struct ctl_port *port;
 		struct ctlfe_softc *bus_softc;
 		struct ccb_pathinq *cpi;
 		int retval;
@@ -375,60 +356,64 @@ ctlfeasync(void *callback_arg, uint32_t code, struct cam_path *path, void *arg)
 
 		bus_softc->path_id = cpi->ccb_h.path_id;
 		bus_softc->sim = xpt_path_sim(path);
+		if (cpi->maxio != 0)
+			bus_softc->maxio = cpi->maxio;
+		else
+			bus_softc->maxio = DFLTPHYS;
 		mtx_init(&bus_softc->lun_softc_mtx, "LUN softc mtx", NULL,
 		    MTX_DEF);
 		STAILQ_INIT(&bus_softc->lun_softc_list);
 
-		fe = &bus_softc->fe;
+		port = &bus_softc->port;
+		port->frontend = &ctlfe_frontend;
 
 		/*
 		 * XXX KDM should we be more accurate here ?
 		 */
 		if (cpi->transport == XPORT_FC)
-			fe->port_type = CTL_PORT_FC;
+			port->port_type = CTL_PORT_FC;
+		else if (cpi->transport == XPORT_SAS)
+			port->port_type = CTL_PORT_SAS;
 		else
-			fe->port_type = CTL_PORT_SCSI;
+			port->port_type = CTL_PORT_SCSI;
 
 		/* XXX KDM what should the real number be here? */
-		fe->num_requested_ctl_io = 4096;
+		port->num_requested_ctl_io = 4096;
 		snprintf(bus_softc->port_name, sizeof(bus_softc->port_name),
 			 "%s%d", cpi->dev_name, cpi->unit_number);
 		/*
 		 * XXX KDM it would be nice to allocate storage in the
 		 * frontend structure itself.
 	 	 */
-		fe->port_name = bus_softc->port_name;
-		fe->physical_port = cpi->unit_number;
-		fe->virtual_port = cpi->bus_id;
-		fe->port_online = ctlfe_online;
-		fe->port_offline = ctlfe_offline;
-		fe->onoff_arg = bus_softc;
-		fe->targ_enable = ctlfe_targ_enable;
-		fe->targ_disable = ctlfe_targ_disable;
-		fe->lun_enable = ctlfe_lun_enable;
-		fe->lun_disable = ctlfe_lun_disable;
-		fe->targ_lun_arg = bus_softc;
-		fe->fe_datamove = ctlfe_datamove_done;
-		fe->fe_done = ctlfe_datamove_done;
-		fe->fe_dump = ctlfe_dump;
+		port->port_name = bus_softc->port_name;
+		port->physical_port = cpi->unit_number;
+		port->virtual_port = cpi->bus_id;
+		port->port_online = ctlfe_online;
+		port->port_offline = ctlfe_offline;
+		port->onoff_arg = bus_softc;
+		port->lun_enable = ctlfe_lun_enable;
+		port->lun_disable = ctlfe_lun_disable;
+		port->targ_lun_arg = bus_softc;
+		port->fe_datamove = ctlfe_datamove_done;
+		port->fe_done = ctlfe_datamove_done;
 		/*
 		 * XXX KDM the path inquiry doesn't give us the maximum
 		 * number of targets supported.
 		 */
-		fe->max_targets = cpi->max_target;
-		fe->max_target_id = cpi->max_target;
+		port->max_targets = cpi->max_target;
+		port->max_target_id = cpi->max_target;
 		
 		/*
 		 * XXX KDM need to figure out whether we're the master or
 		 * slave.
 		 */
 #ifdef CTLFEDEBUG
-		printf("%s: calling ctl_frontend_register() for %s%d\n",
+		printf("%s: calling ctl_port_register() for %s%d\n",
 		       __func__, cpi->dev_name, cpi->unit_number);
 #endif
-		retval = ctl_frontend_register(fe, /*master_SC*/ 1);
+		retval = ctl_port_register(port, /*master_SC*/ 1);
 		if (retval != 0) {
-			printf("%s: ctl_frontend_register() failed with "
+			printf("%s: ctl_port_register() failed with "
 			       "error %d!\n", __func__, retval);
 			mtx_destroy(&bus_softc->lun_softc_mtx);
 			free(bus_softc, M_CTLFE);
@@ -459,7 +444,7 @@ ctlfeasync(void *callback_arg, uint32_t code, struct cam_path *path, void *arg)
 			 * XXX KDM are we certain at this point that there
 			 * are no outstanding commands for this frontend?
 			 */
-			ctl_frontend_deregister(&softc->fe);
+			ctl_port_deregister(&softc->port);
 			mtx_destroy(&softc->lun_softc_mtx);
 			free(softc, M_CTLFE);
 		}
@@ -501,18 +486,18 @@ ctlfeasync(void *callback_arg, uint32_t code, struct cam_path *path, void *arg)
 				break;
 			}
 			if (dev_chg->arrived != 0) {
-				retval = ctl_add_initiator(dev_chg->wwpn,
-					softc->fe.targ_port, dev_chg->target);
+				retval = ctl_add_initiator(&softc->port,
+				    dev_chg->target, dev_chg->wwpn, NULL);
 			} else {
-				retval = ctl_remove_initiator(
-					softc->fe.targ_port, dev_chg->target);
+				retval = ctl_remove_initiator(&softc->port,
+				    dev_chg->target);
 			}
 
-			if (retval != 0) {
+			if (retval < 0) {
 				printf("%s: could not %s port %d iid %u "
 				       "WWPN %#jx!\n", __func__,
 				       (dev_chg->arrived != 0) ? "add" :
-				       "remove", softc->fe.targ_port,
+				       "remove", softc->port.targ_port,
 				       dev_chg->target,
 				       (uintmax_t)dev_chg->wwpn);
 			}
@@ -693,6 +678,90 @@ ctlfecleanup(struct cam_periph *periph)
 }
 
 static void
+ctlfedata(struct ctlfe_lun_softc *softc, union ctl_io *io,
+    ccb_flags *flags, uint8_t **data_ptr, uint32_t *dxfer_len,
+    u_int16_t *sglist_cnt)
+{
+	struct ctlfe_softc *bus_softc;
+	struct ctlfe_lun_cmd_info *cmd_info;
+	struct ctl_sg_entry *ctl_sglist;
+	bus_dma_segment_t *cam_sglist;
+	size_t off;
+	int i, idx;
+
+	cmd_info = (struct ctlfe_lun_cmd_info *)io->io_hdr.port_priv;
+	bus_softc = softc->parent_softc;
+
+	/*
+	 * Set the direction, relative to the initiator.
+	 */
+	*flags &= ~CAM_DIR_MASK;
+	if ((io->io_hdr.flags & CTL_FLAG_DATA_MASK) == CTL_FLAG_DATA_IN)
+		*flags |= CAM_DIR_IN;
+	else
+		*flags |= CAM_DIR_OUT;
+
+	*flags &= ~CAM_DATA_MASK;
+	idx = cmd_info->cur_transfer_index;
+	off = cmd_info->cur_transfer_off;
+	cmd_info->flags &= ~CTLFE_CMD_PIECEWISE;
+	if (io->scsiio.kern_sg_entries == 0) {
+		/* No S/G list. */
+		*data_ptr = io->scsiio.kern_data_ptr + off;
+		if (io->scsiio.kern_data_len - off <= bus_softc->maxio) {
+			*dxfer_len = io->scsiio.kern_data_len - off;
+		} else {
+			*dxfer_len = bus_softc->maxio;
+			cmd_info->cur_transfer_index = -1;
+			cmd_info->cur_transfer_off = bus_softc->maxio;
+			cmd_info->flags |= CTLFE_CMD_PIECEWISE;
+		}
+		*sglist_cnt = 0;
+
+		if (io->io_hdr.flags & CTL_FLAG_BUS_ADDR)
+			*flags |= CAM_DATA_PADDR;
+		else
+			*flags |= CAM_DATA_VADDR;
+	} else {
+		/* S/G list with physical or virtual pointers. */
+		ctl_sglist = (struct ctl_sg_entry *)io->scsiio.kern_data_ptr;
+		cam_sglist = cmd_info->cam_sglist;
+		*dxfer_len = 0;
+		for (i = 0; i < io->scsiio.kern_sg_entries - idx; i++) {
+			cam_sglist[i].ds_addr = (bus_addr_t)ctl_sglist[i + idx].addr + off;
+			if (ctl_sglist[i + idx].len - off <= bus_softc->maxio - *dxfer_len) {
+				cam_sglist[i].ds_len = ctl_sglist[idx + i].len - off;
+				*dxfer_len += cam_sglist[i].ds_len;
+			} else {
+				cam_sglist[i].ds_len = bus_softc->maxio - *dxfer_len;
+				cmd_info->cur_transfer_index = idx + i;
+				cmd_info->cur_transfer_off = cam_sglist[i].ds_len + off;
+				cmd_info->flags |= CTLFE_CMD_PIECEWISE;
+				*dxfer_len += cam_sglist[i].ds_len;
+				if (ctl_sglist[i].len != 0)
+					i++;
+				break;
+			}
+			if (i == (CTLFE_MAX_SEGS - 1) &&
+			    idx + i < (io->scsiio.kern_sg_entries - 1)) {
+				cmd_info->cur_transfer_index = idx + i + 1;
+				cmd_info->cur_transfer_off = 0;
+				cmd_info->flags |= CTLFE_CMD_PIECEWISE;
+				i++;
+				break;
+			}
+			off = 0;
+		}
+		*sglist_cnt = i;
+		if (io->io_hdr.flags & CTL_FLAG_BUS_ADDR)
+			*flags |= CAM_DATA_SG_PADDR;
+		else
+			*flags |= CAM_DATA_SG;
+		*data_ptr = (uint8_t *)cam_sglist;
+	}
+}
+
+static void
 ctlfestart(struct cam_periph *periph, union ccb *start_ccb)
 {
 	struct ctlfe_lun_softc *softc;
@@ -735,8 +804,8 @@ ctlfestart(struct cam_periph *periph, union ccb *start_ccb)
 			if (io == NULL) {
 				scsi_status = SCSI_STATUS_BUSY;
 				csio->sense_len = 0;
-			} else if ((io->io_hdr.status & CTL_STATUS_MASK) ==
-				   CTL_CMD_ABORTED) {
+			} else if ((io->io_hdr.flags & CTL_FLAG_ABORT) &&
+			    (io->io_hdr.flags & CTL_FLAG_ABORT_STATUS) == 0) {
 				io->io_hdr.flags &= ~CTL_FLAG_STATUS_QUEUED;
 
 				/*
@@ -854,84 +923,10 @@ ctlfestart(struct cam_periph *periph, union ccb *start_ccb)
 			bzero(cmd_info, sizeof(*cmd_info));
 			scsi_status = 0;
 
-			/*
-			 * Set the direction, relative to the initiator.
-			 */
-			flags &= ~CAM_DIR_MASK;
-			if ((io->io_hdr.flags & CTL_FLAG_DATA_MASK) ==
-			     CTL_FLAG_DATA_IN)
-				flags |= CAM_DIR_IN;
-			else
-				flags |= CAM_DIR_OUT;
-			
 			csio->cdb_len = atio->cdb_len;
 
-			flags &= ~CAM_DATA_MASK;
-			if (io->scsiio.kern_sg_entries == 0) {
-				/* No S/G list */
-				data_ptr = io->scsiio.kern_data_ptr;
-				dxfer_len = io->scsiio.kern_data_len;
-				csio->sglist_cnt = 0;
-
-				if (io->io_hdr.flags & CTL_FLAG_BUS_ADDR)
-					flags |= CAM_DATA_PADDR;
-				else
-					flags |= CAM_DATA_VADDR;
-			} else if (io->scsiio.kern_sg_entries <=
-				   (sizeof(cmd_info->cam_sglist)/
-				   sizeof(cmd_info->cam_sglist[0]))) {
-				/*
-				 * S/G list with physical or virtual pointers.
-				 * Just populate the CAM S/G list with the
-				 * pointers.
-				 */
-				int i;
-				struct ctl_sg_entry *ctl_sglist;
-				bus_dma_segment_t *cam_sglist;
-
-				ctl_sglist = (struct ctl_sg_entry *)
-					io->scsiio.kern_data_ptr;
-				cam_sglist = cmd_info->cam_sglist;
-
-				for (i = 0; i < io->scsiio.kern_sg_entries;i++){
-					cam_sglist[i].ds_addr =
-						(bus_addr_t)ctl_sglist[i].addr;
-					cam_sglist[i].ds_len =
-						ctl_sglist[i].len;
-				}
-				csio->sglist_cnt = io->scsiio.kern_sg_entries;
-				if (io->io_hdr.flags & CTL_FLAG_BUS_ADDR)
-					flags |= CAM_DATA_SG_PADDR;
-				else
-					flags |= CAM_DATA_SG;
-				data_ptr = (uint8_t *)cam_sglist;
-				dxfer_len = io->scsiio.kern_data_len;
-			} else {
-				/* S/G list with virtual pointers */
-				struct ctl_sg_entry *sglist;
-				int *ti;
-
-				/*
-				 * If we have more S/G list pointers than
-				 * will fit in the available storage in the
-				 * cmd_info structure inside the ctl_io header,
-				 * then we need to send down the pointers
-				 * one element at a time.
-				 */
-
-				sglist = (struct ctl_sg_entry *)
-					io->scsiio.kern_data_ptr;
-				ti = &cmd_info->cur_transfer_index;
-				data_ptr = sglist[*ti].addr;
-				dxfer_len = sglist[*ti].len;
-				csio->sglist_cnt = 0;
-				if (io->io_hdr.flags & CTL_FLAG_BUS_ADDR)
-					flags |= CAM_DATA_PADDR;
-				else
-					flags |= CAM_DATA_VADDR;
-				cmd_info->flags |= CTLFE_CMD_PIECEWISE;
-				(*ti)++;
-			}
+			ctlfedata(softc, io, &flags, &data_ptr, &dxfer_len,
+			    &csio->sglist_cnt);
 
 			io->scsiio.ext_data_filled += dxfer_len;
 
@@ -1189,7 +1184,7 @@ ctlfedone(struct cam_periph *periph, union ccb *done_ccb)
 		 * Allocate a ctl_io, pass it to CTL, and wait for the
 		 * datamove or done.
 		 */
-		io = ctl_alloc_io(bus_softc->fe.ctl_pool_ref);
+		io = ctl_alloc_io(bus_softc->port.ctl_pool_ref);
 		if (io == NULL) {
 			atio->ccb_h.flags &= ~CAM_DIR_MASK;
 			atio->ccb_h.flags |= CAM_DIR_NONE;
@@ -1222,7 +1217,7 @@ ctlfedone(struct cam_periph *periph, union ccb *done_ccb)
 		 */
 		io->io_hdr.io_type = CTL_IO_SCSI;
 		io->io_hdr.nexus.initid.id = atio->init_id;
-		io->io_hdr.nexus.targ_port = bus_softc->fe.targ_port;
+		io->io_hdr.nexus.targ_port = bus_softc->port.targ_port;
 		io->io_hdr.nexus.targ_target.id = atio->ccb_h.target_id;
 		io->io_hdr.nexus.targ_lun = atio->ccb_h.target_lun;
 		io->scsiio.tag_num = atio->tag_id;
@@ -1416,37 +1411,18 @@ ctlfedone(struct cam_periph *periph, union ccb *done_ccb)
 			 * continue sending pieces if necessary.
 			 */
 			if ((cmd_info->flags & CTLFE_CMD_PIECEWISE)
-			 && (io->io_hdr.port_status == 0)
-			 && (cmd_info->cur_transfer_index <
-			     io->scsiio.kern_sg_entries)) {
-				struct ctl_sg_entry *sglist;
+			 && (io->io_hdr.port_status == 0)) {
 				ccb_flags flags;
 				uint8_t scsi_status;
 				uint8_t *data_ptr;
 				uint32_t dxfer_len;
-				int *ti;
 
-				sglist = (struct ctl_sg_entry *)
-					io->scsiio.kern_data_ptr;
-				ti = &cmd_info->cur_transfer_index;
 				flags = atio->ccb_h.flags &
 					(CAM_DIS_DISCONNECT|
-					 CAM_TAG_ACTION_VALID|
-					 CAM_DIR_MASK);
-				
-				/*
-				 * Set the direction, relative to the initiator.
-				 */
-				flags &= ~CAM_DIR_MASK;
-				if ((io->io_hdr.flags & CTL_FLAG_DATA_MASK) ==
-				     CTL_FLAG_DATA_IN)
-					flags |= CAM_DIR_IN;
-				else
-					flags |= CAM_DIR_OUT;
+					 CAM_TAG_ACTION_VALID);
 
-				data_ptr = sglist[*ti].addr;
-				dxfer_len = sglist[*ti].len;
-				(*ti)++;
+				ctlfedata(softc, io, &flags, &data_ptr,
+				    &dxfer_len, &csio->sglist_cnt);
 
 				scsi_status = 0;
 
@@ -1513,7 +1489,7 @@ ctlfedone(struct cam_periph *periph, union ccb *done_ccb)
 		       "seq %#x\n", __func__, inot->ccb_h.status,
 		       inot->tag_id, inot->seq_id);
 
-		io = ctl_alloc_io(bus_softc->fe.ctl_pool_ref);
+		io = ctl_alloc_io(bus_softc->port.ctl_pool_ref);
 		if (io != NULL) {
 			int send_ctl_io;
 
@@ -1524,7 +1500,7 @@ ctlfedone(struct cam_periph *periph, union ccb *done_ccb)
 			io->io_hdr.ctl_private[CTL_PRIV_FRONTEND].ptr =done_ccb;
 			inot->ccb_h.io_ptr = io;
 			io->io_hdr.nexus.initid.id = inot->initiator_id;
-			io->io_hdr.nexus.targ_port = bus_softc->fe.targ_port;
+			io->io_hdr.nexus.targ_port = bus_softc->port.targ_port;
 			io->io_hdr.nexus.targ_target.id = inot->ccb_h.target_id;
 			io->io_hdr.nexus.targ_lun = inot->ccb_h.target_lun;
 			/* XXX KDM should this be the tag_id? */
@@ -1736,7 +1712,7 @@ ctlfe_onoffline(void *arg, int online)
 			 * This should be replaced later with ddb_GetWWNN,
 			 * or possibly a more centralized scheme.  (It
 			 * would be nice to have the WWNN/WWPN for each
-			 * port stored in the ctl_frontend structure.)
+			 * port stored in the ctl_port structure.)
 			 */
 #ifdef RANDOM_WWNN
 			ccb->knob.xport_specific.fc.wwnn = 
@@ -1749,7 +1725,7 @@ ctlfe_onoffline(void *arg, int online)
 				0x0000000fffffff00ULL) |
 				/* Company ID */ 0x5000ED5000000000ULL |
 				/* NL-Port */    0x3000 |
-				/* Port Num */ (bus_softc->fe.targ_port & 0xff);
+				/* Port Num */ (bus_softc->port.targ_port & 0xff);
 
 			/*
 			 * This is a bit of an API break/reversal, but if
@@ -1758,10 +1734,9 @@ ctlfe_onoffline(void *arg, int online)
 			 * using with the frontend code so it's reported
 			 * accurately.
 			 */
-			bus_softc->fe.wwnn = 
-				ccb->knob.xport_specific.fc.wwnn;
-			bus_softc->fe.wwpn = 
-				ccb->knob.xport_specific.fc.wwpn;
+			ctl_port_set_wwns(&bus_softc->port,
+			    true, ccb->knob.xport_specific.fc.wwnn,
+			    true, ccb->knob.xport_specific.fc.wwpn);
 			set_wwnn = 1;
 #else /* RANDOM_WWNN */
 			/*
@@ -1769,18 +1744,17 @@ ctlfe_onoffline(void *arg, int online)
 			 * down to the SIM.  Otherwise, record what the SIM
 			 * has reported.
 			 */
-			if ((bus_softc->fe.wwnn != 0)
-			 && (bus_softc->fe.wwpn != 0)) {
+			if ((bus_softc->port.wwnn != 0)
+			 && (bus_softc->port.wwpn != 0)) {
 				ccb->knob.xport_specific.fc.wwnn =
-					bus_softc->fe.wwnn;
+					bus_softc->port.wwnn;
 				ccb->knob.xport_specific.fc.wwpn =
-					bus_softc->fe.wwpn;
+					bus_softc->port.wwpn;
 				set_wwnn = 1;
 			} else {
-				bus_softc->fe.wwnn =
-					ccb->knob.xport_specific.fc.wwnn;
-				bus_softc->fe.wwpn =
-					ccb->knob.xport_specific.fc.wwpn;
+				ctl_port_set_wwns(&bus_softc->port,
+				    true, ccb->knob.xport_specific.fc.wwnn,
+				    true, ccb->knob.xport_specific.fc.wwpn);
 			}
 #endif /* RANDOM_WWNN */
 
@@ -1927,18 +1901,6 @@ ctlfe_offline(void *arg)
 
 	xpt_path_unlock(path);
 	xpt_free_path(path);
-}
-
-static int
-ctlfe_targ_enable(void *arg, struct ctl_id targ_id)
-{
-	return (0);
-}
-
-static int
-ctlfe_targ_disable(void *arg, struct ctl_id targ_id)
-{
-	return (0);
 }
 
 /*

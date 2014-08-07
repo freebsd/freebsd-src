@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.include <bsd.own.mk>
+.include <src.opts.mk>
 
 PROG=	scp
 SRCS=	scp.c
@@ -12,7 +12,7 @@ SRCS+=	roaming_dummy.c
 .endif
 
 DPADD=	${LIBSSH}
-LDADD=	-lssh
+LDADD=	${LDSSH}
 USEPRIVATELIB= ssh
 
 .if ${MK_LDNS} != "no"

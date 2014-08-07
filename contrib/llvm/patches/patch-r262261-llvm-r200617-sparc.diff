@@ -2,7 +2,7 @@ Pull in r200617 from upstream llvm trunk (by Venkatraman Govindaraju):
 
   [Sparc] Set %o7 as the return address register instead of %i7 in MCRegisterInfo. Also, add CFI instructions to initialize the frame correctly.
 
-Introduced here: http://svn.freebsd.org/changeset/base/262261
+Introduced here: http://svnweb.freebsd.org/changeset/base/262261
 
 Index: lib/Target/Sparc/MCTargetDesc/SparcMCTargetDesc.cpp
 ===================================================================

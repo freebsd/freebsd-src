@@ -644,6 +644,11 @@ bad:
 		if (inrand)
 			app_RAND_load_files(inrand);
 
+		if (!NCONF_get_number(req_conf,SECTION,BITS, &newkey))
+			{
+			newkey=DEFAULT_KEY_LENGTH;
+			}
+
 		if (keyalg)
 			{
 			genctx = set_keygen_ctx(bio_err, keyalg, &pkey_type, &newkey,
@@ -652,12 +657,6 @@ bad:
 				goto end;
 			}
 	
-		if (newkey <= 0)
-			{
-			if (!NCONF_get_number(req_conf,SECTION,BITS, &newkey))
-				newkey=DEFAULT_KEY_LENGTH;
-			}
-
 		if (newkey < MIN_KEY_LENGTH && (pkey_type == EVP_PKEY_RSA || pkey_type == EVP_PKEY_DSA))
 			{
 			BIO_printf(bio_err,"private key length is too short,\n");
@@ -1490,7 +1489,13 @@ start:
 #ifdef CHARSET_EBCDIC
 	ebcdic2ascii(buf, buf, i);
 #endif
-	if(!req_check_len(i, n_min, n_max)) goto start;
+	if(!req_check_len(i, n_min, n_max))
+		{
+		if (batch || value)
+			return 0;
+		goto start;
+		}
+
 	if (!X509_NAME_add_entry_by_NID(n,nid, chtype,
 				(unsigned char *) buf, -1,-1,mval)) goto err;
 	ret=1;
@@ -1549,7 +1554,12 @@ start:
 #ifdef CHARSET_EBCDIC
 	ebcdic2ascii(buf, buf, i);
 #endif
-	if(!req_check_len(i, n_min, n_max)) goto start;
+	if(!req_check_len(i, n_min, n_max))
+		{
+		if (batch || value)
+			return 0;
+		goto start;
+		}
 
 	if(!X509_REQ_add1_attr_by_NID(req, nid, chtype,
 					(unsigned char *)buf, -1)) {
@@ -1649,6 +1659,8 @@ static EVP_PKEY_CTX *set_keygen_ctx(BIO *err, const char *gstr, int *pkey_type,
 				keylen = atol(p + 1);
 				*pkeylen = keylen;
 				}
+			else
+				keylen = *pkeylen;
 			}
 		else if (p)
 			paramfile = p + 1;

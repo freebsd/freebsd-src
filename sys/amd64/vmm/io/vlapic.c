@@ -70,7 +70,12 @@ __FBSDID("$FreeBSD$");
 #define	VLAPIC_TIMER_UNLOCK(vlapic)	mtx_unlock_spin(&((vlapic)->timer_mtx))
 #define	VLAPIC_TIMER_LOCKED(vlapic)	mtx_owned(&((vlapic)->timer_mtx))
 
-#define VLAPIC_BUS_FREQ	tsc_freq
+/*
+ * APIC timer frequency:
+ * - arbitrary but chosen to be in the ballpark of contemporary hardware.
+ * - power-of-two to avoid loss of precision when converted to a bintime.
+ */
+#define VLAPIC_BUS_FREQ		(128 * 1024 * 1024)
 
 static __inline uint32_t
 vlapic_get_id(struct vlapic *vlapic)
@@ -901,6 +906,46 @@ vlapic_calcdest(struct vm *vm, cpuset_t *dmask, uint32_t dest, bool phys,
 
 static VMM_STAT_ARRAY(IPIS_SENT, VM_MAXCPU, "ipis sent to vcpu");
 
+static void
+vlapic_set_tpr(struct vlapic *vlapic, uint8_t val)
+{
+	struct LAPIC *lapic = vlapic->apic_page;
+
+	lapic->tpr = val;
+	vlapic_update_ppr(vlapic);
+}
+
+static uint8_t
+vlapic_get_tpr(struct vlapic *vlapic)
+{
+	struct LAPIC *lapic = vlapic->apic_page;
+
+	return (lapic->tpr);
+}
+
+void
+vlapic_set_cr8(struct vlapic *vlapic, uint64_t val)
+{
+	uint8_t tpr;
+
+	if (val & ~0xf) {
+		vm_inject_gp(vlapic->vm, vlapic->vcpuid);
+		return;
+	}
+
+	tpr = val << 4;
+	vlapic_set_tpr(vlapic, tpr);
+}
+
+uint64_t
+vlapic_get_cr8(struct vlapic *vlapic)
+{
+	uint8_t tpr;
+
+	tpr = vlapic_get_tpr(vlapic);
+	return (tpr >> 4);
+}
+
 int
 vlapic_icrlo_write_handler(struct vlapic *vlapic, bool *retu)
 {
@@ -999,11 +1044,7 @@ vlapic_icrlo_write_handler(struct vlapic *vlapic, bool *retu)
 			if (vlapic2->boot_state != BS_SIPI)
 				return (0);
 
-			/*
-			 * XXX this assumes that the startup IPI always succeeds
-			 */
 			vlapic2->boot_state = BS_RUNNING;
-			vm_activate_cpu(vlapic2->vm, dest);
 
 			*retu = true;
 			vmexit = vm_exitinfo(vlapic->vm, vlapic->vcpuid);
@@ -1183,7 +1224,7 @@ vlapic_read(struct vlapic *vlapic, int mmio_access, uint64_t offset,
 			*data = lapic->version;
 			break;
 		case APIC_OFFSET_TPR:
-			*data = lapic->tpr;
+			*data = vlapic_get_tpr(vlapic);
 			break;
 		case APIC_OFFSET_APR:
 			*data = lapic->apr;
@@ -1304,8 +1345,7 @@ vlapic_write(struct vlapic *vlapic, int mmio_access, uint64_t offset,
 			vlapic_id_write_handler(vlapic);
 			break;
 		case APIC_OFFSET_TPR:
-			lapic->tpr = data & 0xff;
-			vlapic_update_ppr(vlapic);
+			vlapic_set_tpr(vlapic, data & 0xff);
 			break;
 		case APIC_OFFSET_EOI:
 			vlapic_process_eoi(vlapic);

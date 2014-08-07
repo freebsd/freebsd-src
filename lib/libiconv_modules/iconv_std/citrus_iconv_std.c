@@ -1,5 +1,5 @@
 /* $FreeBSD$ */
-/*	$NetBSD: citrus_iconv_std.c,v 1.15 2006/11/13 19:08:19 tnozaki Exp $	*/
+/*	$NetBSD: citrus_iconv_std.c,v 1.16 2012/02/12 13:51:29 wiz Exp $	*/
 
 /*-
  * Copyright (c)2003 Citrus Project,

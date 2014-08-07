@@ -4,8 +4,8 @@
 # It is used exclusively with libc.so.* - there is no need for any other
 # compile modes.
 # bsd.lib.mk doesn't have an easy way to express that.
-NO_PROFILE?=
-.include <bsd.own.mk>
+MK_PROFILE?=no
+.include <src.opts.mk>
 NO_PIC=	
 # -fpic on some platforms, -fPIC on others.
 CFLAGS+=${PICFLAG} -DPIC -fvisibility=hidden

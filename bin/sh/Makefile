@@ -1,7 +1,7 @@
 #	@(#)Makefile	8.4 (Berkeley) 5/5/95
 # $FreeBSD$
 
-.include <bsd.own.mk>
+.include <src.opts.mk>
 
 PROG=	sh
 INSTALLFLAGS= -S
@@ -18,8 +18,8 @@ SRCS= ${SHSRCS} ${GENSRCS} ${GENHDRS}
 # utilities of the same name are handled with the associated manpage,
 # builtin.1 in share/man/man1/.
 
-DPADD= ${LIBEDIT} ${LIBTERMCAP}
-LDADD= -ledit -ltermcap
+DPADD= ${LIBEDIT} ${LIBTERMCAPW}
+LDADD= -ledit -ltermcapw
 
 CFLAGS+=-DSHELL -I. -I${.CURDIR}
 # for debug:

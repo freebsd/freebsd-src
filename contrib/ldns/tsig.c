@@ -134,19 +134,15 @@ ldns_digest_function(char *name)
 {
 	/* these are the mandatory algorithms from RFC4635 */
 	/* The optional algorithms are not yet implemented */
-	if (strlen(name) == 12 
-			&& strncasecmp(name, "hmac-sha256.", 11) == 0) {
+	if (strcasecmp(name, "hmac-sha256.") == 0) {
 #ifdef HAVE_EVP_SHA256
 		return EVP_sha256();
 #else
 		return NULL;
 #endif
-	} else if (strlen(name) == 10
-			&& strncasecmp(name, "hmac-sha1.", 9) == 0) {
+	} else if (strcasecmp(name, "hmac-sha1.") == 0) {
 		return EVP_sha1();
-	} else if (strlen(name) == 25 
-			&& strncasecmp(name, "hmac-md5.sig-alg.reg.int.", 25) 
-			== 0) {
+	} else if (strcasecmp(name, "hmac-md5.sig-alg.reg.int.") == 0) {
 		return EVP_md5();
 	} else {
 		return NULL;

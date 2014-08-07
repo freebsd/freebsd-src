@@ -1539,7 +1539,6 @@ fasttrap_pid_probe(struct reg *rp)
 		uint_t i = 0;
 #if defined(sun)
 		klwp_t *lwp = ttolwp(curthread);
-#endif
 
 		/*
 		 * Compute the address of the ulwp_t and step over the
@@ -1547,7 +1546,6 @@ fasttrap_pid_probe(struct reg *rp)
 		 * thread pointer is very different on 32- and 64-bit
 		 * kernels.
 		 */
-#if defined(sun)
 #if defined(__amd64)
 		if (p->p_model == DATAMODEL_LP64) {
 			addr = lwp->lwp_pcb.pcb_fsbase;
@@ -1560,13 +1558,23 @@ fasttrap_pid_probe(struct reg *rp)
 		addr = USD_GETBASE(&lwp->lwp_pcb.pcb_gsdesc);
 		addr += sizeof (void *);
 #endif
-#endif /* sun */
-#ifdef __i386__
-		addr = USD_GETBASE(&curthread->td_pcb->pcb_gsd);
 #else
-		addr = curthread->td_pcb->pcb_gsbase;
-#endif
-		addr += sizeof (void *);
+		fasttrap_scrspace_t *scrspace;
+		scrspace = fasttrap_scraddr(curthread, tp->ftt_proc);
+		if (scrspace == NULL) {
+			/*
+			 * We failed to allocate scratch space for this thread.
+			 * Try to write the original instruction back out and
+			 * reset the pc.
+			 */
+			if (fasttrap_copyout(tp->ftt_instr, (void *)pc,
+			    tp->ftt_size))
+				fasttrap_sigtrap(p, curthread, pc);
+			new_pc = pc;
+			break;
+		}
+		addr = scrspace->ftss_addr;
+#endif /* sun */
 
 		/*
 		 * Generic Instruction Tracing

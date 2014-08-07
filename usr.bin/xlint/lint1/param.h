@@ -62,10 +62,7 @@
  * Should be set to 1 if the difference of two pointers is of type long
  * or the value of sizeof is of type unsigned long.
  */
-#ifdef __ia64__
-#define PTRDIFF_IS_LONG		1
-#define SIZEOF_IS_ULONG		1
-#elif __amd64__
+#if __amd64__
 #define PTRDIFF_IS_LONG		1
 #define SIZEOF_IS_ULONG		1
 #elif __alpha__

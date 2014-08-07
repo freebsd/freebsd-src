@@ -36,8 +36,8 @@ extern "C" {
 /** The bytes TTL, CLASS and length use up in an rr */
 #define LDNS_RR_OVERHEAD	10
 
-/* The first fields are 'common' and can be referenced instantly */
-#define LDNS_RDATA_FIELD_DESCRIPTORS_COMMON 53
+/* The first fields are contiguous and can be referenced instantly */
+#define LDNS_RDATA_FIELD_DESCRIPTORS_COMMON 258
 
 
 
@@ -163,7 +163,7 @@ enum ldns_enum_rr_type
 	LDNS_RR_TYPE_OPT = 41,
 	/**  RFC3123 */
 	LDNS_RR_TYPE_APL = 42,
-	/**  draft-ietf-dnsext-delegation */
+	/**  RFC4034, RFC3658 */
 	LDNS_RR_TYPE_DS = 43,
 	/**  SSH Key Fingerprint */
 	LDNS_RR_TYPE_SSHFP = 44, /* RFC 4255 */
@@ -179,19 +179,35 @@ enum ldns_enum_rr_type
 	LDNS_RR_TYPE_NSEC3 = 50, /* RFC 5155 */
 	LDNS_RR_TYPE_NSEC3PARAM = 51, /* RFC 5155 */
 	LDNS_RR_TYPE_NSEC3PARAMS = 51,
-	/** draft-ietf-dane-protocol */
-	LDNS_RR_TYPE_TLSA = 52,
+	LDNS_RR_TYPE_TLSA = 52, /* RFC 6698 */
 
+	LDNS_RR_TYPE_HIP = 55, /* RFC 5205 */
+
+	/** draft-reid-dnsext-zs */
+	LDNS_RR_TYPE_NINFO = 56,
+	/** draft-reid-dnsext-rkey */
+	LDNS_RR_TYPE_RKEY = 57,
         /** draft-ietf-dnsop-trust-history */
         LDNS_RR_TYPE_TALINK = 58,
+	/** draft-barwood-dnsop-ds-publis */
+	LDNS_RR_TYPE_CDS = 59,
 
-	LDNS_RR_TYPE_SPF = 99,
+	LDNS_RR_TYPE_SPF = 99, /* RFC 4408 */
 
 	LDNS_RR_TYPE_UINFO = 100,
 	LDNS_RR_TYPE_UID = 101,
 	LDNS_RR_TYPE_GID = 102,
 	LDNS_RR_TYPE_UNSPEC = 103,
 
+	LDNS_RR_TYPE_NID = 104, /* RFC 6742 */
+	LDNS_RR_TYPE_L32 = 105, /* RFC 6742 */
+	LDNS_RR_TYPE_L64 = 106, /* RFC 6742 */
+	LDNS_RR_TYPE_LP = 107, /* RFC 6742 */
+
+	LDNS_RR_TYPE_EUI48 = 108, /* RFC 7043 */
+	LDNS_RR_TYPE_EUI64 = 109, /* RFC 7043 */
+
+	LDNS_RR_TYPE_TKEY = 249, /* RFC 2930 */
 	LDNS_RR_TYPE_TSIG = 250,
 	LDNS_RR_TYPE_IXFR = 251,
 	LDNS_RR_TYPE_AXFR = 252,
@@ -201,7 +217,12 @@ enum ldns_enum_rr_type
 	LDNS_RR_TYPE_MAILA = 254,
 	/**  any type (wildcard) */
 	LDNS_RR_TYPE_ANY = 255,
+	/** draft-faltstrom-uri-06 */
+	LDNS_RR_TYPE_URI = 256,
+	LDNS_RR_TYPE_CAA = 257, /* RFC 6844 */
 
+	/** DNSSEC Trust Authorities */
+	LDNS_RR_TYPE_TA = 32768,
 	/* RFC 4431, 5074, DNSSEC Lookaside Validation */
 	LDNS_RR_TYPE_DLV = 32769,
 
@@ -336,6 +357,23 @@ struct ldns_struct_rr_descriptor
 	uint8_t _dname_count;
 };
 typedef struct ldns_struct_rr_descriptor ldns_rr_descriptor;
+
+
+/**
+ * Create a rr type bitmap rdf providing enough space to set all 
+ * known (to ldns) rr types.
+ * \param[out] rdf the constructed rdf
+ * \return LDNS_STATUS_OK if all went well.
+ */
+ldns_status ldns_rdf_bitmap_known_rr_types_space(ldns_rdf** rdf);
+
+/**
+ * Create a rr type bitmap rdf with at least all known (to ldns) rr types set.
+ * \param[out] rdf the constructed rdf
+ * \return LDNS_STATUS_OK if all went well.
+ */
+ldns_status ldns_rdf_bitmap_known_rr_types(ldns_rdf** rdf);
+
 
 /**
  * creates a new rr structure.

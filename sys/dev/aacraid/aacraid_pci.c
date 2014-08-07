@@ -111,12 +111,10 @@ static struct aac_ident *
 aac_find_ident(device_t dev)
 {
 	struct aac_ident *m;
-	u_int16_t vendid, devid, sub_vendid, sub_devid;
+	u_int16_t vendid, devid;
 
 	vendid = pci_get_vendor(dev);
 	devid = pci_get_device(dev);
-	sub_vendid = pci_get_subvendor(dev);
-	sub_devid = pci_get_subdevice(dev);
 
 	for (m = aacraid_family_identifiers; m->vendor != 0; m++) {
 		if ((m->vendor == vendid) && (m->device == devid))

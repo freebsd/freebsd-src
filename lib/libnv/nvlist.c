@@ -582,7 +582,7 @@ nvlist_check_header(struct nvlist_header *nvlhdrp)
 		errno = EINVAL;
 		return (false);
 	}
-	if ((nvlhdrp->nvlh_flags &= ~NV_FLAG_ALL_MASK) != 0) {
+	if ((nvlhdrp->nvlh_flags & ~NV_FLAG_ALL_MASK) != 0) {
 		errno = EINVAL;
 		return (false);
 	}

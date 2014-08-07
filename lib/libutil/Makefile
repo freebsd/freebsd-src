@@ -3,7 +3,7 @@
 
 SHLIBDIR?= /lib
 
-.include <bsd.own.mk>
+.include <src.opts.mk>
 
 LIB=	util
 SHLIB_MAJOR= 9

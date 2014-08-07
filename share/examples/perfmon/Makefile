@@ -1,7 +1,7 @@
 # $FreeBSD$
 
 PROG=	perfmon
-NO_MAN=
+MAN=
 
 install:
 

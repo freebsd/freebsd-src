@@ -230,9 +230,6 @@ prepare_elf32(dtrace_hdl_t *dtp, const dof_hdr_t *dof, dof_elf32_t *dep)
 #if defined(__arm__)
 /* XXX */
 printf("%s:%s(%d): DOODAD\n",__FUNCTION__,__FILE__,__LINE__);
-#elif defined(__ia64__)
-/* XXX */
-printf("%s:%s(%d): DOODAD\n",__FUNCTION__,__FILE__,__LINE__);
 #elif defined(__i386) || defined(__amd64)
 			rel->r_offset = s->dofs_offset +
 			    dofr[j].dofr_offset;
@@ -424,8 +421,6 @@ prepare_elf64(dtrace_hdl_t *dtp, const dof_hdr_t *dof, dof_elf64_t *dep)
 #ifdef DOODAD
 #if defined(__arm__)
 /* XXX */
-#elif defined(__ia64__)
-/* XXX */
 #elif defined(__mips__)
 /* XXX */
 #elif defined(__powerpc__)
@@ -535,8 +530,6 @@ dump_elf32(dtrace_hdl_t *dtp, const dof_hdr_t *dof, int fd)
 	elf_file.ehdr.e_type = ET_REL;
 #if defined(__arm__)
 	elf_file.ehdr.e_machine = EM_ARM;
-#elif defined(__ia64__)
-	elf_file.ehdr.e_machine = EM_IA_64;
 #elif defined(__mips__)
 	elf_file.ehdr.e_machine = EM_MIPS;
 #elif defined(__powerpc__)
@@ -683,8 +676,6 @@ dump_elf64(dtrace_hdl_t *dtp, const dof_hdr_t *dof, int fd)
 	elf_file.ehdr.e_type = ET_REL;
 #if defined(__arm__)
 	elf_file.ehdr.e_machine = EM_ARM;
-#elif defined(__ia64__)
-	elf_file.ehdr.e_machine = EM_IA_64;
 #elif defined(__mips__)
 	elf_file.ehdr.e_machine = EM_MIPS;
 #elif defined(__powerpc__)
@@ -806,15 +797,6 @@ dt_symtab_lookup(Elf_Data *data_sym, int nsym, uintptr_t addr, uint_t shn,
 }
 
 #if defined(__arm__)
-/* XXX */
-static int
-dt_modtext(dtrace_hdl_t *dtp, char *p, int isenabled, GElf_Rela *rela,
-    uint32_t *off)
-{
-printf("%s:%s(%d): DOODAD\n",__FUNCTION__,__FILE__,__LINE__);
-	return (0);
-}
-#elif defined(__ia64__)
 /* XXX */
 static int
 dt_modtext(dtrace_hdl_t *dtp, char *p, int isenabled, GElf_Rela *rela,
@@ -1235,9 +1217,7 @@ process_obj(dtrace_hdl_t *dtp, const char *obj, int *eprobesp)
 
 	if (dtp->dt_oflags & DTRACE_O_LP64) {
 		eclass = ELFCLASS64;
-#if defined(__ia64__)
-		emachine1 = emachine2 = EM_IA_64;
-#elif defined(__mips__)
+#if defined(__mips__)
 		emachine1 = emachine2 = EM_MIPS;
 #elif defined(__powerpc__)
 		emachine1 = emachine2 = EM_PPC64;
@@ -1258,7 +1238,7 @@ process_obj(dtrace_hdl_t *dtp, const char *obj, int *eprobesp)
 #elif defined(__sparc)
 		emachine1 = EM_SPARC;
 		emachine2 = EM_SPARC32PLUS;
-#elif defined(__i386) || defined(__amd64) || defined(__ia64__)
+#elif defined(__i386) || defined(__amd64)
 		emachine1 = emachine2 = EM_386;
 #endif
 		symsize = sizeof (Elf32_Sym);

@@ -3,7 +3,7 @@ Pull in r199974 from upstream llvm trunk (by Venkatraman Govindaraju):
   [Sparc] Correct quad register list in the asm parser.
   Add test cases to check parsing of v9 double registers and their aliased quad registers.
 
-Introduced here: http://svn.freebsd.org/changeset/base/262261
+Introduced here: http://svnweb.freebsd.org/changeset/base/262261
 
 Index: test/MC/Disassembler/Sparc/sparc-fp.txt
 ===================================================================

@@ -59,6 +59,7 @@ options 	KBD_INSTALL_CDEV	# install a CDEV entry in /dev
 #options         ROOTDEVNAME=\"ufs:mmcsd0s2\"
 
 options 	PREEMPTION
+options 	PLATFORM
 
 device		bpf
 device		loop
@@ -71,8 +72,6 @@ device		pty
 # Comment following lines for boot console on serial port
 device		vt
 device		kbdmux
-options         SC_DFLT_FONT		# compile font in
-makeoptions     SC_DFLT_FONT=cp437
 device		ukbd
 
 device		sdhci

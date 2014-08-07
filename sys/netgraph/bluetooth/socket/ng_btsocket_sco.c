@@ -1107,6 +1107,10 @@ ng_btsocket_sco_init(void)
 {
 	int	error = 0;
 
+	/* Skip initialization of globals for non-default instances. */
+	if (!IS_DEFAULT_VNET(curvnet))
+		return;
+
 	ng_btsocket_sco_node = NULL;
 	ng_btsocket_sco_debug_level = NG_BTSOCKET_WARN_LEVEL;
 

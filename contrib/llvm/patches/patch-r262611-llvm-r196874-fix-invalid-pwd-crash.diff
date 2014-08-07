@@ -18,7 +18,7 @@ Pull in r196874 from upstream llvm trunk (by Andrew Trick):
   purely hypothetically and untestable case that this happens, the
   AT_comp_dir will be omitted from the compilation_unit DIE.
 
-Introduced here: http://svn.freebsd.org/changeset/base/262611
+Introduced here: http://svnweb.freebsd.org/changeset/base/262611
 
 Index: include/llvm/MC/MCContext.h
 ===================================================================

@@ -1813,6 +1813,10 @@ ng_btsocket_l2cap_init(void)
 {
 	int	error = 0;
 
+	/* Skip initialization of globals for non-default instances. */
+	if (!IS_DEFAULT_VNET(curvnet))
+		return;
+
 	ng_btsocket_l2cap_node = NULL;
 	ng_btsocket_l2cap_debug_level = NG_BTSOCKET_WARN_LEVEL;
 

@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-NO_MAN=	svndumpfilter.1
+MAN=
 
 .include "${.CURDIR}/../Makefile.inc"
 
@@ -33,5 +33,7 @@ LDADD=	-L${LIBSVN_REPOSDIR} -lsvn_repos \
 DPADD=	${LIBSVN_REPOS} ${LIBSVN_FS} ${LIBSVN_FS_FS} ${LIBSVN_FS_UTIL} \
 	${LIBSVN_DELTA} ${LIBSVN_SUBR} ${LIBAPR_UTIL} \
 	${LIBBSDXML} ${LIBAPR} ${LIBSQLITE} ${LIBZ} ${LIBCRYPT}
+
+NO_PIE=	yes
 
 .include <bsd.prog.mk>

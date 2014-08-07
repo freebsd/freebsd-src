@@ -44,12 +44,6 @@ __FBSDID("$FreeBSD$");
  * addresses that are about to change.
  */
 ENTRY(arm11_setttb)
-#ifdef	PMAP_CACHE_VIVT
-	stmfd	sp!, {r0, lr}
-	bl	_C_LABEL(armv5_idcache_wbinv_all)
-	ldmfd	sp!, {r0, lr}
-#endif
-
 	mcr	p15, 0, r0, c2, c0, 0	/* load new TTB */
 
 	mcr	p15, 0, r0, c8, c7, 0	/* invalidate I+D TLBs */

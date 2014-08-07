@@ -121,6 +121,11 @@ struct sctp_paramhdr {
 #define SCTP_DEFAULT_PRINFO             0x00000022
 #define SCTP_PEER_ADDR_THLDS            0x00000023
 #define SCTP_REMOTE_UDP_ENCAPS_PORT     0x00000024
+#define SCTP_ECN_SUPPORTED              0x00000025
+#define SCTP_PR_SUPPORTED               0x00000026
+#define SCTP_NRSACK_SUPPORTED           0x00000027
+#define SCTP_PKTDROP_SUPPORTED          0x00000028
+#define SCTP_RECONFIG_SUPPORTED         0x00000029
 
 /*
  * read-only options
@@ -407,6 +412,11 @@ struct sctp_error_unrecognized_chunk {
 	struct sctp_error_cause cause;	/* code=SCTP_ERROR_UNRECOG_CHUNK */
 	struct sctp_chunkhdr ch;/* header from chunk in error */
 }                             SCTP_PACKED;
+
+struct sctp_error_no_user_data {
+	struct sctp_error_cause cause;	/* code=SCTP_CAUSE_NO_USER_DATA */
+	uint32_t tsn;		/* TSN of the empty data chunk */
+}                       SCTP_PACKED;
 
 /*
  * Main SCTP chunk types we place these here so natd and f/w's in user land

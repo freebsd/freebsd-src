@@ -2,6 +2,6 @@
 # $FreeBSD$
 
 PROG=	unexpand
-NO_MAN=
+MAN=
 
 .include <bsd.prog.mk>

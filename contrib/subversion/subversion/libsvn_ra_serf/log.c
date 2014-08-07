@@ -571,7 +571,7 @@ svn_ra_serf__get_log(svn_ra_session_t *ra_session,
   /* At this point, we may have a deleted file.  So, we'll match ra_neon's
    * behavior and use the larger of start or end as our 'peg' rev.
    */
-  peg_rev = (start > end) ? start : end;
+  peg_rev = (start == SVN_INVALID_REVNUM || start > end) ? start : end;
 
   SVN_ERR(svn_ra_serf__get_stable_url(&req_url, NULL /* latest_revnum */,
                                       session, NULL /* conn */,

@@ -164,6 +164,12 @@ static int overcommit = 0;
 SYSCTL_INT(_vm, OID_AUTO, overcommit, CTLFLAG_RW, &overcommit, 0,
     "Configure virtual memory overcommit behavior. See tuning(7) "
     "for details.");
+static unsigned long swzone;
+SYSCTL_ULONG(_vm, OID_AUTO, swzone, CTLFLAG_RD, &swzone, 0,
+    "Actual size of swap metadata zone");
+static unsigned long swap_maxpages;
+SYSCTL_ULONG(_vm, OID_AUTO, swap_maxpages, CTLFLAG_RD, &swap_maxpages, 0,
+    "Maximum amount of swap supported");
 
 /* bits from overcommit */
 #define	SWAP_RESERVE_FORCE_ON		(1 << 0)
@@ -506,7 +512,7 @@ swap_pager_init(void)
 void
 swap_pager_swap_init(void)
 {
-	int n, n2;
+	unsigned long n, n2;
 
 	/*
 	 * Number of in-transit swap bp operations.  Don't
@@ -542,7 +548,7 @@ swap_pager_swap_init(void)
 	/*
 	 * Initialize our zone.  Right now I'm just guessing on the number
 	 * we need based on the number of pages in the system.  Each swblock
-	 * can hold 16 pages, so this is probably overkill.  This reservation
+	 * can hold 32 pages, so this is probably overkill.  This reservation
 	 * is typically limited to around 32MB by default.
 	 */
 	n = vm_cnt.v_page_count / 2;
@@ -563,7 +569,9 @@ swap_pager_swap_init(void)
 		n -= ((n + 2) / 3);
 	} while (n > 0);
 	if (n2 != n)
-		printf("Swap zone entries reduced from %d to %d.\n", n2, n);
+		printf("Swap zone entries reduced from %lu to %lu.\n", n2, n);
+	swap_maxpages = n * SWAP_META_PAGES;
+	swzone = n * sizeof(struct swblock);
 	n2 = n;
 
 	/*

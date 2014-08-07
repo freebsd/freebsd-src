@@ -302,16 +302,10 @@
  */
 #define	CAP_FCNTL_GETFL		(1 << F_GETFL)
 #define	CAP_FCNTL_SETFL		(1 << F_SETFL)
-#if __BSD_VISIBLE || __XSI_VISIBLE || __POSIX_VISIBLE >= 200112
 #define	CAP_FCNTL_GETOWN	(1 << F_GETOWN)
 #define	CAP_FCNTL_SETOWN	(1 << F_SETOWN)
-#endif
-#if __BSD_VISIBLE || __XSI_VISIBLE || __POSIX_VISIBLE >= 200112
 #define	CAP_FCNTL_ALL		(CAP_FCNTL_GETFL | CAP_FCNTL_SETFL | \
 				 CAP_FCNTL_GETOWN | CAP_FCNTL_SETOWN)
-#else
-#define	CAP_FCNTL_ALL		(CAP_FCNTL_GETFL | CAP_FCNTL_SETFL)
-#endif
 
 #define	CAP_IOCTLS_ALL	SSIZE_MAX
 
@@ -347,6 +341,7 @@ __END_DECLS
 #define IN_CAPABILITY_MODE(td) (((td)->td_ucred->cr_flags & CRED_FLAG_CAPMODE) != 0)
 
 struct filedesc;
+struct filedescent;
 
 /*
  * Test whether a capability grants the requested rights.
@@ -361,9 +356,11 @@ u_char	cap_rights_to_vmprot(cap_rights_t *havep);
  * For the purposes of procstat(1) and similar tools, allow kern_descrip.c to
  * extract the rights from a capability.
  */
+cap_rights_t	*cap_rights_fde(struct filedescent *fde);
 cap_rights_t	*cap_rights(struct filedesc *fdp, int fd);
 
 int	cap_ioctl_check(struct filedesc *fdp, int fd, u_long cmd);
+int	cap_fcntl_check_fde(struct filedescent *fde, int cmd);
 int	cap_fcntl_check(struct filedesc *fdp, int fd, int cmd);
 
 #else /* !_KERNEL */

@@ -42,7 +42,7 @@
 
 #define	AGE_TSO_MAXSEGSIZE	4096
 #define	AGE_TSO_MAXSIZE		(65535 + sizeof(struct ether_vlan_header))
-#define	AGE_MAXTXSEGS		32
+#define	AGE_MAXTXSEGS		35
 #define	AGE_RX_BUF_ALIGN	8
 #ifndef __NO_STRICT_ALIGNMENT
 #define	AGE_RX_BUF_SIZE		(MCLBYTES - AGE_RX_BUF_ALIGN)	

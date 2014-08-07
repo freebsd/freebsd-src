@@ -1,4 +1,4 @@
-# $Id: meta.autodep.mk,v 1.32 2012/11/13 00:44:26 sjg Exp $
+# $Id: meta.autodep.mk,v 1.35 2014/05/09 00:05:46 sjg Exp $
 
 #
 #	@(#) Copyright (c) 2010, Simon J. Gerraty
@@ -120,7 +120,7 @@ FORCE_DPADD += ${_nonlibs:@x@${DPADD:M*/$x}@}
 # some makefiles and/or targets contain
 # circular dependencies if you dig too deep 
 # (as meta mode is apt to do) 
-# so we provide a means of supressing them.
+# so we provide a means of suppressing them.
 # the input to the loop below is target: dependency
 # with just one dependency per line.
 # Also some targets are not really local, or use random names.
@@ -137,7 +137,7 @@ SUPPRESS_DEPEND += \
 # the double $$ defers initial evaluation
 # if necessary, we fake .po dependencies, just so the result 
 # in Makefile.depend* is stable
-# The current objdir may be refered to in various ways
+# The current objdir may be referred to in various ways
 OBJDIR_REFS += ${.OBJDIR} ${.OBJDIR:tA} ${_OBJDIR} ${RELOBJTOP}/${RELDIR}
 _depend = .depend
 # it would be nice to be able to get .SUFFIXES as ${.SUFFIXES}
@@ -176,7 +176,9 @@ _depend =
 .info ${_DEPENDFILE:S,${SRCTOP}/,,} _depend=${_depend}
 .endif
 
+.if ${UPDATE_DEPENDFILE} == "yes"
 gendirdeps:	${_DEPENDFILE}
+.endif
 
 .if !target(${_DEPENDFILE})
 .if ${_bootstrap_dirdeps} == "yes"
@@ -259,4 +261,28 @@ ${_DEPENDFILE}: .PRECIOUS
 .endif
 
 CLEANFILES += *.meta filemon.* *.db
+
+# these make it easy to gather some stats
+now_utc = ${%s:L:gmtime}
+start_utc := ${now_utc}
+
+meta_stats= meta=${empty(.MAKE.META.FILES):?0:${.MAKE.META.FILES:[#]}} \
+	created=${empty(.MAKE.META.CREATED):?0:${.MAKE.META.CREATED:[#]}}
+
+#.END: _reldir_finish
+.if target(gendirdeps)
+_reldir_finish: gendirdeps
+.endif
+_reldir_finish: .NOMETA
+	@echo "${TIME_STAMP} Finished ${RELDIR}.${TARGET_SPEC} seconds=$$(( ${now_utc} - ${start_utc} )) ${meta_stats}"
+
+#.ERROR: _reldir_failed
+_reldir_failed: .NOMETA
+	@echo "${TIME_STAMP} Failed ${RELDIR}.${TARGET_SPEC} seconds=$$(( ${now_utc} - ${start_utc} )) ${meta_stats}"
+
+.if defined(WITH_META_STATS) && ${.MAKE.LEVEL} > 0
+.END: _reldir_finish
+.ERROR: _reldir_failed
+.endif
+
 .endif
