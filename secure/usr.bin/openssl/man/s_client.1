@@ -124,7 +124,7 @@
 .\" ========================================================================
 .\"
 .IX Title "S_CLIENT 1"
-.TH S_CLIENT 1 "2014-06-05" "0.9.8za" "OpenSSL"
+.TH S_CLIENT 1 "2014-08-06" "0.9.8zb" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -143,6 +143,22 @@ s_client \- SSL/TLS client program
 [\fB\-pass arg\fR]
 [\fB\-CApath directory\fR]
 [\fB\-CAfile filename\fR]
+[\fB\-attime timestamp\fR]
+[\fB\-check_ss_sig\fR]
+[\fB\-crl_check\fR]
+[\fB\-crl_check_all\fR]
+[\fB\-explicit_policy\fR]
+[\fB\-ignore_critical\fR]
+[\fB\-inhibit_any\fR]
+[\fB\-inhibit_map\fR]
+[\fB\-issuer_checks\fR]
+[\fB\-policy arg\fR]
+[\fB\-policy_check\fR]
+[\fB\-policy_print\fR]
+[\fB\-purpose purpose\fR]
+[\fB\-use_deltas\fR]
+[\fB\-verify_depth num\fR]
+[\fB\-x509_strict\fR]
 [\fB\-reconnect\fR]
 [\fB\-pause\fR]
 [\fB\-showcerts\fR]
@@ -163,6 +179,7 @@ s_client \- SSL/TLS client program
 [\fB\-bugs\fR]
 [\fB\-cipher cipherlist\fR]
 [\fB\-starttls protocol\fR]
+[\fB\-xmpphost hostname\fR]
 [\fB\-engine id\fR]
 [\fB\-tlsextdebug\fR]
 [\fB\-no_ticket\fR]
@@ -176,6 +193,10 @@ to a remote host using \s-1SSL/TLS\s0. It is a \fIvery\fR useful diagnostic tool
 \&\s-1SSL\s0 servers.
 .SH "OPTIONS"
 .IX Header "OPTIONS"
+In addition to the options below the \fBs_client\fR utility also supports the
+common and client only options documented in the
+in the \fISSL_CONF_cmd\fR\|(3)
+manual page.
 .IP "\fB\-connect host:port\fR" 4
 .IX Item "-connect host:port"
 This specifies the host and optional port to connect to. If not specified
@@ -214,6 +235,10 @@ also used when building the client certificate chain.
 .IX Item "-CAfile file"
 A file containing trusted certificates to use during server authentication
 and to use when attempting to build the client certificate chain.
+.IP "\fB\-attime\fR, \fB\-check_ss_sig\fR, \fB\-crl_check\fR, \fB\-crl_check_all\fR, \fBexplicit_policy\fR, \fB\-ignore_critical\fR, \fB\-inhibit_any\fR, \fB\-inhibit_map\fR, \fB\-issuer_checks\fR, \fB\-policy\fR, \fB\-policy_check\fR, \fB\-policy_print\fR, \fB\-purpose\fR, \fB\-use_deltas\fR, \fB\-verify_depth\fR, \fB\-x509_strict\fR" 4
+.IX Item "-attime, -check_ss_sig, -crl_check, -crl_check_all, explicit_policy, -ignore_critical, -inhibit_any, -inhibit_map, -issuer_checks, -policy, -policy_check, -policy_print, -purpose, -use_deltas, -verify_depth, -x509_strict"
+Set various certificate chain valiadition options. See the
+\&\fBverify\fR manual page for details.
 .IP "\fB\-reconnect\fR" 4
 .IX Item "-reconnect"
 reconnects to the same server 5 times using the same session \s-1ID\s0, this can
@@ -286,16 +311,19 @@ command for more information.
 .IX Item "-starttls protocol"
 send the protocol-specific message(s) to switch to \s-1TLS\s0 for communication.
 \&\fBprotocol\fR is a keyword for the intended protocol.  Currently, the only
-supported keywords are \*(L"smtp\*(R", \*(L"pop3\*(R", \*(L"imap\*(R", and \*(L"ftp\*(R".
+supported keywords are \*(L"smtp\*(R", \*(L"pop3\*(R", \*(L"imap\*(R", \*(L"ftp\*(R" and \*(L"xmpp\*(R".
+.IP "\fB\-xmpphost hostname\fR" 4
+.IX Item "-xmpphost hostname"
+This option, when used with \*(L"\-starttls xmpp\*(R", specifies the host for the
+\&\*(L"to\*(R" attribute of the stream element.
+If this option is not specified, then the host specified with \*(L"\-connect\*(R"
+will be used.
 .IP "\fB\-tlsextdebug\fR" 4
 .IX Item "-tlsextdebug"
-print out a hex dump of any \s-1TLS\s0 extensions received from the server. Note: this
-option is only available if extension support is explicitly enabled at compile
-time
+print out a hex dump of any \s-1TLS\s0 extensions received from the server.
 .IP "\fB\-no_ticket\fR" 4
 .IX Item "-no_ticket"
-disable RFC4507bis session ticket support. Note: this option is only available
-if extension support is explicitly enabled at compile time
+disable RFC4507bis session ticket support.
 .IP "\fB\-sess_out filename\fR" 4
 .IX Item "-sess_out filename"
 output \s-1SSL\s0 session to \fBfilename\fR
@@ -305,7 +333,7 @@ load \s-1SSL\s0 session from \fBfilename\fR. The client will attempt to resume a
 connection from this session.
 .IP "\fB\-engine id\fR" 4
 .IX Item "-engine id"
-specifying an engine (by it's unique \fBid\fR string) will cause \fBs_client\fR
+specifying an engine (by its unique \fBid\fR string) will cause \fBs_client\fR
 to attempt to obtain a functional reference to the specified engine,
 thus initialising it if needed. The engine will then be set as the default
 for all available algorithms.
@@ -364,17 +392,17 @@ Since the SSLv23 client hello cannot include compression methods or extensions
 these will only be supported if its use is disabled, for example by using the
 \&\fB\-no_sslv2\fR option.
 .PP
-\&\s-1TLS\s0 extensions are only supported in OpenSSL 0.9.8 if they are explictly
-enabled at compile time using for example the \fBenable-tlsext\fR switch.
+The \fBs_client\fR utility is a test tool and is designed to continue the
+handshake after any certificate verification errors. As a result it will
+accept any certificate chain (trusted or not) sent by the peer. None test
+applications should \fBnot\fR do this as it makes them vulnerable to a \s-1MITM\s0
+attack.
 .SH "BUGS"
 .IX Header "BUGS"
 Because this program has a lot of options and also because some of
 the techniques used are rather old, the C source of s_client is rather
 hard to read and not a model of how things should be done. A typical
 \&\s-1SSL\s0 client program would be much simpler.
-.PP
-The \fB\-verify\fR option should really exit if the server verification
-fails.
 .PP
 The \fB\-prexit\fR option is a bit of a hack. We should really report
 information whenever a session is renegotiated.
