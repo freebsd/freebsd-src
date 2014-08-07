@@ -580,7 +580,7 @@ g_audio_handle_request(device_t dev,
 		    (req->bRequest == 0x84 /* get residue */ )) {
 
 			if (offset == 0) {
-				USETW(sc->sc_volume_limit, 0);
+				USETW(sc->sc_volume_limit, 1);
 				*plen = 2;
 				*pptr = &sc->sc_volume_limit;
 			} else {
@@ -591,6 +591,7 @@ g_audio_handle_request(device_t dev,
 		    (req->bRequest == 0x81 /* get value */ )) {
 
 			if (offset == 0) {
+				USETW(sc->sc_volume_setting, 0x2000);
 				*plen = sizeof(sc->sc_volume_setting);
 				*pptr = &sc->sc_volume_setting;
 			} else {
