@@ -116,7 +116,7 @@
  */
 #ifndef	MALLOC_PRODUCTION
 #define	MALLOC_PRODUCTION
-#define
+#endif
 
 #ifndef MALLOC_PRODUCTION
    /*
