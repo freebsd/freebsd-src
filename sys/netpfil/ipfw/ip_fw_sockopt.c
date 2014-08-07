@@ -305,11 +305,12 @@ get_map(struct ip_fw_chain *chain, int extra, int locked)
 
 	for (;;) {
 		struct ip_fw **map;
-		int i;
+		int i, mflags;
+
+		mflags = M_ZERO | ((locked != 0) ? M_NOWAIT : M_WAITOK);
 
 		i = chain->n_rules + extra;
-		map = malloc(i * sizeof(struct ip_fw *), M_IPFW,
-			locked ? M_NOWAIT : M_WAITOK);
+		map = malloc(i * sizeof(struct ip_fw *), M_IPFW, mflags);
 		if (map == NULL) {
 			printf("%s: cannot allocate map\n", __FUNCTION__);
 			return NULL;
@@ -623,16 +624,6 @@ ipfw_reap_rules(struct ip_fw *head)
 }
 
 /*
- * Used by del_entry() to check if a rule should be kept.
- * Returns 1 if the rule must be kept, 0 otherwise.
- *
- * Called with cmd = {0,1,5}.
- * cmd == 0 matches on rule numbers, excludes rules in RESVD_SET if n == 0 ;
- * cmd == 1 matches on set numbers only, rule numbers are ignored;
- * cmd == 5 matches on rule and set numbers.
- *
- * n == 0 is a wildcard for rule numbers, there is no wildcard for sets.
- *
  * Rules to keep are
  *	(default || reserved || !match_set || !match_number)
  * where
@@ -649,14 +640,386 @@ ipfw_reap_rules(struct ip_fw *head)
  *	// number is ignored for cmd == 1 or n == 0
  *
  */
-static int
-keep_rule(struct ip_fw *rule, uint8_t cmd, uint8_t set, uint32_t n)
+int
+ipfw_match_range(struct ip_fw *rule, ipfw_range_tlv *rt)
 {
-	return
-		 (rule->rulenum == IPFW_DEFAULT_RULE)		||
-		 (cmd == 0 && n == 0 && rule->set == RESVD_SET)	||
-		!(cmd == 0 || rule->set == set)			||
-		!(cmd == 1 || n == 0 || n == rule->rulenum);
+
+	/* Don't match default rule regardless of query */
+	if (rule->rulenum == IPFW_DEFAULT_RULE)
+		return (0);
+
+	/* Don't match rules in reserved set for flush requests */
+	if ((rt->flags & IPFW_RCFLAG_ALL) != 0 && rule->set == RESVD_SET)
+		return (0);
+
+	/* If we're filtering by set, don't match other sets */
+	if ((rt->flags & IPFW_RCFLAG_SET) != 0 && rule->set != rt->set)
+		return (0);
+
+	if ((rt->flags & IPFW_RCFLAG_RANGE) != 0 &&
+	    (rule->rulenum < rt->start_rule || rule->rulenum > rt->end_rule))
+		return (0);
+
+	return (1);
+}
+
+/*
+ * Delete rules matching range @rt.
+ * Saves number of deleted rules in @ndel.
+ *
+ * Returns 0 on success.
+ */
+static int
+delete_range(struct ip_fw_chain *chain, ipfw_range_tlv *rt, int *ndel)
+{
+	struct ip_fw *reap, *rule, **map;
+	int end, start;
+	int i, n, ndyn, ofs;
+
+	reap = NULL;
+	IPFW_UH_WLOCK(chain);	/* arbitrate writers */
+
+	/*
+	 * Stage 1: Determine range to inspect.
+	 * Range is half-inclusive, e.g [start, end).
+	 */
+	start = 0;
+	end = chain->n_rules - 1;
+
+	if ((rt->flags & IPFW_RCFLAG_RANGE) != 0) {
+		start = ipfw_find_rule(chain, rt->start_rule, 0);
+
+		end = ipfw_find_rule(chain, rt->end_rule, 0);
+		if (rt->end_rule != IPFW_DEFAULT_RULE)
+			while (chain->map[end]->rulenum == rt->end_rule)
+				end++;
+	}
+
+	/* Allocate new map of the same size */
+	map = get_map(chain, 0, 1 /* locked */);
+	if (map == NULL) {
+		IPFW_UH_WUNLOCK(chain);
+		return (ENOMEM);
+	}
+
+	n = 0;
+	ndyn = 0;
+	ofs = start;
+	/* 1. bcopy the initial part of the map */
+	if (start > 0)
+		bcopy(chain->map, map, start * sizeof(struct ip_fw *));
+	/* 2. copy active rules between start and end */
+	for (i = start; i < end; i++) {
+		rule = chain->map[i];
+		if (ipfw_match_range(rule, rt) == 0) {
+			map[ofs++] = rule;
+			continue;
+		}
+
+		n++;
+		if (ipfw_is_dyn_rule(rule) != 0)
+			ndyn++;
+	}
+	/* 3. copy the final part of the map */
+	bcopy(chain->map + end, map + ofs,
+		(chain->n_rules - end) * sizeof(struct ip_fw *));
+	/* 4. recalculate skipto cache */
+	update_skipto_cache(chain, map);
+	/* 5. swap the maps (under UH_WLOCK + WHLOCK) */
+	map = swap_map(chain, map, chain->n_rules - n);
+	/* 6. Remove all dynamic states originated by deleted rules */
+	if (ndyn > 0)
+		ipfw_expire_dyn_rules(chain, rt);
+	/* 7. now remove the rules deleted from the old map */
+	for (i = start; i < end; i++) {
+		rule = map[i];
+		if (ipfw_match_range(rule, rt) == 0)
+			continue;
+		chain->static_len -= RULEUSIZE0(rule);
+		rule->x_next = reap;
+		reap = rule;
+	}
+
+	ipfw_unbind_table_list(chain, reap);
+	IPFW_UH_WUNLOCK(chain);
+	ipfw_reap_rules(reap);
+	if (map != NULL)
+		free(map, M_IPFW);
+	*ndel = n;
+	return (0);
+}
+
+/*
+ * Changes set of given rule rannge @rt
+ * with each other.
+ *
+ * Returns 0 on success.
+ */
+static int
+move_range(struct ip_fw_chain *chain, ipfw_range_tlv *rt)
+{
+	struct ip_fw *rule;
+	int i;
+
+	IPFW_UH_WLOCK(chain);
+
+	/*
+	 * Move rules with matching paramenerts to a new set.
+	 * This one is much more complex. We have to ensure
+	 * that all referenced tables (if any) are referenced
+	 * by given rule subset only. Otherwise, we can't move
+	 * them to new set and have to return error.
+	 */
+	if (V_fw_tables_sets != 0) {
+		if (ipfw_move_tables_sets(chain, rt, rt->new_set) != 0) {
+			IPFW_UH_WUNLOCK(chain);
+			return (EBUSY);
+		}
+	}
+
+	/* XXX: We have to do swap holding WLOCK */
+	for (i = 0; i < chain->n_rules - 1; i++) {
+		rule = chain->map[i];
+		if (ipfw_match_range(rule, rt) == 0)
+			continue;
+		rule->set = rt->new_set;
+	}
+
+	IPFW_UH_WUNLOCK(chain);
+
+	return (0);
+}
+
+/*
+ * Clear counters for a specific rule.
+ * Normally run under IPFW_UH_RLOCK, but these are idempotent ops
+ * so we only care that rules do not disappear.
+ */
+static void
+clear_counters(struct ip_fw *rule, int log_only)
+{
+	ipfw_insn_log *l = (ipfw_insn_log *)ACTION_PTR(rule);
+
+	if (log_only == 0)
+		IPFW_ZERO_RULE_COUNTER(rule);
+	if (l->o.opcode == O_LOG)
+		l->log_left = l->max_log;
+}
+
+/*
+ * Flushes rules counters and/or log values on matching range.
+ *
+ * Returns number of items cleared.
+ */
+static int
+clear_range(struct ip_fw_chain *chain, ipfw_range_tlv *rt, int log_only)
+{
+	struct ip_fw *rule;
+	int num;
+	int i;
+
+	num = 0;
+
+	IPFW_UH_WLOCK(chain);	/* arbitrate writers */
+	for (i = 0; i < chain->n_rules - 1; i++) {
+		rule = chain->map[i];
+		if (ipfw_match_range(rule, rt) == 0)
+			continue;
+		clear_counters(rule, log_only);
+		num++;
+	}
+	IPFW_UH_WUNLOCK(chain);
+
+	return (num);
+}
+
+static int
+check_range_tlv(ipfw_range_tlv *rt)
+{
+
+	if (rt->head.length != sizeof(*rt))
+		return (1);
+	if (rt->start_rule > rt->end_rule)
+		return (1);
+	if (rt->set >= IPFW_MAX_SETS || rt->new_set >= IPFW_MAX_SETS)
+		return (1);
+
+	return (0);
+}
+
+/*
+ * Delete rules matching specified parameters
+ * Data layout (v0)(current):
+ * Request: [ ipfw_obj_header ipfw_range_tlv ]
+ * Reply: [ ipfw_obj_header ipfw_range_tlv ]
+ *
+ * Saves number of deleted rules in ipfw_range_tlv->new_set.
+ *
+ * Returns 0 on success.
+ */
+static int
+del_rules(struct ip_fw_chain *chain, ip_fw3_opheader *op3,
+    struct sockopt_data *sd)
+{
+	ipfw_range_header *rh;
+	int error, ndel;
+
+	if (sd->valsize != sizeof(*rh))
+		return (EINVAL);
+
+	rh = (ipfw_range_header *)ipfw_get_sopt_space(sd, sd->valsize);
+
+	if (check_range_tlv(&rh->range) != 0)
+		return (EINVAL);
+
+	ndel = 0;
+	if ((error = delete_range(chain, &rh->range, &ndel)) != 0)
+		return (error);
+
+	/* Save number of rules deleted */
+	rh->range.new_set = ndel;
+	return (0);
+}
+
+/*
+ * Move rules/sets matching specified parameters
+ * Data layout (v0)(current):
+ * Request: [ ipfw_obj_header ipfw_range_tlv ]
+ *
+ * Returns 0 on success.
+ */
+static int
+move_rules(struct ip_fw_chain *chain, ip_fw3_opheader *op3,
+    struct sockopt_data *sd)
+{
+	ipfw_range_header *rh;
+
+	if (sd->valsize != sizeof(*rh))
+		return (EINVAL);
+
+	rh = (ipfw_range_header *)ipfw_get_sopt_space(sd, sd->valsize);
+
+	if (check_range_tlv(&rh->range) != 0)
+		return (EINVAL);
+
+	return (move_range(chain, &rh->range));
+}
+
+/*
+ * Clear rule accounting data matching specified parameters
+ * Data layout (v0)(current):
+ * Request: [ ipfw_obj_header ipfw_range_tlv ]
+ * Reply: [ ipfw_obj_header ipfw_range_tlv ]
+ *
+ * Saves number of cleared rules in ipfw_range_tlv->new_set.
+ *
+ * Returns 0 on success.
+ */
+static int
+clear_rules(struct ip_fw_chain *chain, ip_fw3_opheader *op3,
+    struct sockopt_data *sd)
+{
+	ipfw_range_header *rh;
+	int log_only, num;
+	char *msg;
+
+	if (sd->valsize != sizeof(*rh))
+		return (EINVAL);
+
+	rh = (ipfw_range_header *)ipfw_get_sopt_space(sd, sd->valsize);
+
+	if (check_range_tlv(&rh->range) != 0)
+		return (EINVAL);
+
+	log_only = (op3->opcode == IP_FW_XRESETLOG);
+
+	num = clear_range(chain, &rh->range, log_only);
+
+	if (rh->range.flags & IPFW_RCFLAG_ALL)
+		msg = log_only ? "All logging counts reset" :
+		    "Accounting cleared";
+	else
+		msg = log_only ? "logging count reset" : "cleared";
+
+	if (V_fw_verbose) {
+		int lev = LOG_SECURITY | LOG_NOTICE;
+		log(lev, "ipfw: %s.\n", msg);
+	}
+
+	/* Save number of rules cleared */
+	rh->range.new_set = num;
+	return (0);
+}
+
+static void
+enable_sets(struct ip_fw_chain *chain, ipfw_range_tlv *rt)
+{
+	uint32_t v_set;
+
+	IPFW_UH_WLOCK_ASSERT(chain);
+
+	/* Change enabled/disabled sets mask */
+	v_set = (V_set_disable | rt->set) & ~rt->new_set;
+	v_set &= ~(1 << RESVD_SET); /* set RESVD_SET always enabled */
+	IPFW_WLOCK(chain);
+	V_set_disable = v_set;
+	IPFW_WUNLOCK(chain);
+}
+
+static void
+swap_sets(struct ip_fw_chain *chain, ipfw_range_tlv *rt, int mv)
+{
+	struct ip_fw *rule;
+	int i;
+
+	IPFW_UH_WLOCK_ASSERT(chain);
+
+	/* Swap or move two sets */
+	for (i = 0; i < chain->n_rules - 1; i++) {
+		rule = chain->map[i];
+		if (rule->set == rt->set)
+			rule->set = rt->new_set;
+		else if (rule->set == rt->new_set && mv == 0)
+			rule->set = rt->set;
+	}
+	if (V_fw_tables_sets != 0)
+		ipfw_swap_tables_sets(chain, rt->set, rt->new_set, mv);
+}
+
+/*
+ * Swaps or moves set
+ * Data layout (v0)(current):
+ * Request: [ ipfw_obj_header ipfw_range_tlv ]
+ *
+ * Returns 0 on success.
+ */
+static int
+manage_sets(struct ip_fw_chain *chain, ip_fw3_opheader *op3,
+    struct sockopt_data *sd)
+{
+	ipfw_range_header *rh;
+
+	if (sd->valsize != sizeof(*rh))
+		return (EINVAL);
+
+	rh = (ipfw_range_header *)ipfw_get_sopt_space(sd, sd->valsize);
+
+	if (rh->range.head.length != sizeof(ipfw_range_tlv))
+		return (1);
+
+	IPFW_UH_WLOCK(chain);
+	switch (op3->opcode) {
+	case IP_FW_SET_SWAP:
+	case IP_FW_SET_MOVE:
+		swap_sets(chain, &rh->range, op3->opcode == IP_FW_SET_MOVE);
+		break;
+	case IP_FW_SET_ENABLE:
+		enable_sets(chain, &rh->range);
+		break;
+	}
+	IPFW_UH_WUNLOCK(chain);
+
+	return (0);
 }
 
 /**
@@ -676,12 +1039,11 @@ keep_rule(struct ip_fw *rule, uint8_t cmd, uint8_t set, uint32_t n)
 static int
 del_entry(struct ip_fw_chain *chain, uint32_t arg)
 {
-	struct ip_fw *rule;
 	uint32_t num;	/* rule number or old_set */
 	uint8_t cmd, new_set;
-	int start, end, i, ofs, n;
-	struct ip_fw **map = NULL;
+	int do_del, ndel;
 	int error = 0;
+	ipfw_range_tlv rt;
 
 	num = arg & 0xffff;
 	cmd = (arg >> 24) & 0xff;
@@ -697,151 +1059,60 @@ del_entry(struct ip_fw_chain *chain, uint32_t arg)
 			return EINVAL;
 	}
 
-	IPFW_UH_WLOCK(chain);	/* arbitrate writers */
-	chain->reap = NULL;	/* prepare for deletions */
+	/* Convert old requests into new representation */
+	memset(&rt, 0, sizeof(rt));
+	rt.start_rule = num;
+	rt.end_rule = num;
+	rt.set = num;
+	rt.new_set = new_set;
+	do_del = 0;
 
 	switch (cmd) {
-	case 0:	/* delete rules "num" (num == 0 matches all) */
-	case 1:	/* delete all rules in set N */
-	case 5: /* delete rules with number N and set "new_set". */
-
-		/*
-		 * Locate first rule to delete (start), the rule after
-		 * the last one to delete (end), and count how many
-		 * rules to delete (n). Always use keep_rule() to
-		 * determine which rules to keep.
-		 */
-		n = 0;
-		if (cmd == 1) {
-			/* look for a specific set including RESVD_SET.
-			 * Must scan the entire range, ignore num.
-			 */
-			new_set = num;
-			for (start = -1, end = i = 0; i < chain->n_rules; i++) {
-				if (keep_rule(chain->map[i], cmd, new_set, 0))
-					continue;
-				if (start < 0)
-					start = i;
-				end = i;
-				n++;
-			}
-			end++;	/* first non-matching */
-		} else {
-			/* Optimized search on rule numbers */
-			start = ipfw_find_rule(chain, num, 0);
-			for (end = start; end < chain->n_rules; end++) {
-				rule = chain->map[end];
-				if (num > 0 && rule->rulenum != num)
-					break;
-				if (!keep_rule(rule, cmd, new_set, num))
-					n++;
-			}
-		}
-
-		if (n == 0) {
-			/* A flush request (arg == 0 or cmd == 1) on empty
-			 * ruleset returns with no error. On the contrary,
-			 * if there is no match on a specific request,
-			 * we return EINVAL.
-			 */
-			if (arg != 0 && cmd != 1)
-				error = EINVAL;
-			break;
-		}
-
-		/* We have something to delete. Allocate the new map */
-		map = get_map(chain, -n, 1 /* locked */);
-		if (map == NULL) {
-			error = EINVAL;
-			break;
-		}
-
-		/* 1. bcopy the initial part of the map */
-		if (start > 0)
-			bcopy(chain->map, map, start * sizeof(struct ip_fw *));
-		/* 2. copy active rules between start and end */
-		for (i = ofs = start; i < end; i++) {
-			rule = chain->map[i];
-			if (keep_rule(rule, cmd, new_set, num))
-				map[ofs++] = rule;
-		}
-		/* 3. copy the final part of the map */
-		bcopy(chain->map + end, map + ofs,
-			(chain->n_rules - end) * sizeof(struct ip_fw *));
-		/* 3.5. recalculate skipto cache */
-		update_skipto_cache(chain, map);
-		/* 4. swap the maps (under UH_WLOCK + WHLOCK) */
-		map = swap_map(chain, map, chain->n_rules - n);
-		/* 5. now remove the rules deleted from the old map */
-		if (cmd == 1)
-			ipfw_expire_dyn_rules(chain, NULL, new_set);
-		for (i = start; i < end; i++) {
-			rule = map[i];
-			if (keep_rule(rule, cmd, new_set, num))
-				continue;
-			chain->static_len -= RULEUSIZE0(rule);
-			if (cmd != 1)
-				ipfw_expire_dyn_rules(chain, rule, RESVD_SET);
-			rule->x_next = chain->reap;
-			chain->reap = rule;
-		}
+	case 0: /* delete rules numbered "rulenum" */
+		if (num == 0)
+			rt.flags |= IPFW_RCFLAG_ALL;
+		else
+			rt.flags |= IPFW_RCFLAG_RANGE;
+		do_del = 1;
 		break;
-
-	/*
-	 * In the next 3 cases the loop stops at (n_rules - 1)
-	 * because the default rule is never eligible..
-	 */
-
-	case 2:	/* move rules with given RULE number to new set */
-		for (i = 0; i < chain->n_rules - 1; i++) {
-			rule = chain->map[i];
-			if (rule->rulenum == num)
-				rule->set = new_set;
-		}
+	case 1: /* delete rules in set "rulenum" */
+		rt.flags |= IPFW_RCFLAG_SET;
+		do_del = 1;
 		break;
-
-	case 3: /* move rules with given SET number to new set */
-		for (i = 0; i < chain->n_rules - 1; i++) {
-			rule = chain->map[i];
-			if (rule->set == num)
-				rule->set = new_set;
-		}
+	case 5: /* delete rules "rulenum" and set "new_set" */
+		rt.flags |= IPFW_RCFLAG_RANGE | IPFW_RCFLAG_SET;
+		rt.set = new_set;
+		rt.new_set = 0;
+		do_del = 1;
 		break;
-
-	case 4: /* swap two sets */
-		for (i = 0; i < chain->n_rules - 1; i++) {
-			rule = chain->map[i];
-			if (rule->set == num)
-				rule->set = new_set;
-			else if (rule->set == new_set)
-				rule->set = num;
-		}
+	case 2: /* move rules "rulenum" to set "new_set" */
+		rt.flags |= IPFW_RCFLAG_RANGE;
 		break;
+	case 3: /* move rules from set "rulenum" to set "new_set" */
+		IPFW_UH_WLOCK(chain);
+		swap_sets(chain, &rt, 1);
+		IPFW_UH_WUNLOCK(chain);
+		return (0);
+	case 4: /* swap sets "rulenum" and "new_set" */
+		IPFW_UH_WLOCK(chain);
+		swap_sets(chain, &rt, 0);
+		IPFW_UH_WUNLOCK(chain);
+		return (0);
+	default:
+		return (ENOTSUP);
 	}
 
-	rule = chain->reap;
-	chain->reap = NULL;
-	ipfw_unbind_table_list(chain, rule);
-	IPFW_UH_WUNLOCK(chain);
-	ipfw_reap_rules(rule);
-	if (map)
-		free(map, M_IPFW);
-	return error;
-}
-/*
- * Clear counters for a specific rule.
- * Normally run under IPFW_UH_RLOCK, but these are idempotent ops
- * so we only care that rules do not disappear.
- */
-static void
-clear_counters(struct ip_fw *rule, int log_only)
-{
-	ipfw_insn_log *l = (ipfw_insn_log *)ACTION_PTR(rule);
+	if (do_del != 0) {
+		if ((error = delete_range(chain, &rt, &ndel)) != 0)
+			return (error);
 
-	if (log_only == 0)
-		IPFW_ZERO_RULE_COUNTER(rule);
-	if (l->o.opcode == O_LOG)
-		l->log_left = l->max_log;
+		if (ndel == 0 && (cmd != 1 && num != 0))
+			return (EINVAL);
+
+		return (0);
+	}
+
+	return (move_range(chain, &rt));
 }
 
 /**
@@ -1654,7 +1925,8 @@ check_object_name(ipfw_obj_ntlv *ntlv)
  * Returns 0 on success.
  */
 static int
-add_entry(struct ip_fw_chain *chain, struct sockopt_data *sd)
+add_rules(struct ip_fw_chain *chain, ip_fw3_opheader *op3,
+    struct sockopt_data *sd)
 {
 	ipfw_obj_ctlv *ctlv, *rtlv, *tstate;
 	ipfw_obj_ntlv *ntlv;
@@ -1662,7 +1934,6 @@ add_entry(struct ip_fw_chain *chain, struct sockopt_data *sd)
 	uint32_t count, read;
 	struct ip_fw_rule *r;
 	struct rule_check_info rci, *ci, *cbuf;
-	ip_fw3_opheader *op3;
 	int i, rsize;
 
 	if (sd->valsize > IP_FW3_READBUF)
@@ -1870,8 +2141,8 @@ ipfw_ctl3(struct sockopt *sopt)
 	 * Disallow modifications in really-really secure mode, but still allow
 	 * the logging counters to be reset.
 	 */
-	if (opt == IP_FW_ADD ||
-	    (sopt->sopt_dir == SOPT_SET && opt != IP_FW_RESETLOG)) {
+	if (opt == IP_FW_XADD || opt == IP_FW_XDEL ||
+	    (sopt->sopt_dir == SOPT_SET && opt != IP_FW_XRESETLOG)) {
 		error = securelevel_ge(sopt->sopt_td->td_ucred, 3);
 		if (error != 0)
 			return (error);
@@ -1928,13 +2199,33 @@ ipfw_ctl3(struct sockopt *sopt)
 		error = dump_config(chain, &sdata);
 		break;
 
+	case IP_FW_XADD:
+		error = add_rules(chain, op3, &sdata);
+		break;
+
+	case IP_FW_XDEL:
+		error = del_rules(chain, op3, &sdata);
+		break;
+
+	case IP_FW_XZERO:
+	case IP_FW_XRESETLOG:
+		error = clear_rules(chain, op3, &sdata);
+		break;
+
+	case IP_FW_XMOVE:
+		error = move_rules(chain, op3, &sdata);
+		break;
+
+	case IP_FW_SET_SWAP:
+	case IP_FW_SET_MOVE:
+	case IP_FW_SET_ENABLE:
+		error = manage_sets(chain, op3, &sdata);
+		break;
+
 	case IP_FW_XIFLIST:
 		error = ipfw_list_ifaces(chain, &sdata);
 		break;
 
-	case IP_FW_XADD:
-		error = add_entry(chain, &sdata);
-		break;
 	/*--- TABLE opcodes ---*/
 	case IP_FW_TABLE_XCREATE:
 		error = ipfw_create_table(chain, op3, &sdata);

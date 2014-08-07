@@ -158,6 +158,7 @@ ipfw_nat_cfg_t *ipfw_nat_get_log_ptr;
 #ifdef SYSCTL_NODE
 uint32_t dummy_def = IPFW_DEFAULT_RULE;
 static int sysctl_ipfw_table_num(SYSCTL_HANDLER_ARGS);
+static int sysctl_ipfw_tables_sets(SYSCTL_HANDLER_ARGS);
 
 SYSBEGIN(f3)
 
@@ -180,8 +181,8 @@ SYSCTL_UINT(_net_inet_ip_fw, OID_AUTO, default_rule, CTLFLAG_RD,
 SYSCTL_VNET_PROC(_net_inet_ip_fw, OID_AUTO, tables_max,
     CTLTYPE_UINT|CTLFLAG_RW, 0, 0, sysctl_ipfw_table_num, "IU",
     "Maximum number of concurrently used tables");
-SYSCTL_VNET_INT(_net_inet_ip_fw, OID_AUTO, tables_sets,
-    CTLFLAG_RW, &VNET_NAME(fw_tables_sets), 0,
+SYSCTL_VNET_PROC(_net_inet_ip_fw, OID_AUTO, tables_sets,
+    CTLTYPE_UINT|CTLFLAG_RW, 0, 0, sysctl_ipfw_tables_sets, "IU",
     "Use per-set namespace for tables");
 SYSCTL_INT(_net_inet_ip_fw, OID_AUTO, default_to_accept, CTLFLAG_RDTUN,
     &default_to_accept, 0,
@@ -2569,7 +2570,27 @@ sysctl_ipfw_table_num(SYSCTL_HANDLER_ARGS)
 
 	return (ipfw_resize_tables(&V_layer3_chain, ntables));
 }
+
+/*
+ * Switches table namespace between global and per-set.
+ */
+static int
+sysctl_ipfw_tables_sets(SYSCTL_HANDLER_ARGS)
+{
+	int error;
+	unsigned int sets;
+
+	sets = V_fw_tables_sets;
+
+	error = sysctl_handle_int(oidp, &sets, 0, req);
+	/* Read operation or some error */
+	if ((error != 0) || (req->newptr == NULL))
+		return (error);
+
+	return (ipfw_switch_tables_namespace(&V_layer3_chain, sets));
+}
 #endif
+
 /*
  * Module and VNET glue
  */
@@ -2752,8 +2773,7 @@ vnet_ipfw_uninit(const void *unused)
 		rule->x_next = reap;
 		reap = rule;
 	}
-	if (chain->map)
-		free(chain->map, M_IPFW);
+	free(chain->map, M_IPFW);
 	ipfw_destroy_skipto_cache(chain);
 	IPFW_WUNLOCK(chain);
 	IPFW_UH_WUNLOCK(chain);

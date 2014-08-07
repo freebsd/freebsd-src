@@ -174,6 +174,10 @@ void ipfw_unbind_table_list(struct ip_fw_chain *chain, struct ip_fw *head);
 
 /* utility functions  */
 int ipfw_check_table_name(char *name);
+int ipfw_move_tables_sets(struct ip_fw_chain *ch, ipfw_range_tlv *rt,
+    uint32_t new_set);
+void ipfw_swap_tables_sets(struct ip_fw_chain *ch, uint32_t old_set,
+    uint32_t new_set, int mv);
 
 /* Legacy interfaces */
 int ipfw_count_table(struct ip_fw_chain *ch, struct tid_info *ti,

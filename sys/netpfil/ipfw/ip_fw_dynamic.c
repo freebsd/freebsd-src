@@ -196,8 +196,7 @@ static int ipfw_dyn_count;	/* number of objects */
 static int last_log;	/* Log ratelimiting */
 
 static void ipfw_dyn_tick(void *vnetx);
-static void check_dyn_rules(struct ip_fw_chain *, struct ip_fw *,
-    int, int, int);
+static void check_dyn_rules(struct ip_fw_chain *, ipfw_range_tlv *, int, int);
 #ifdef SYSCTL_NODE
 
 static int sysctl_ipfw_dyn_count(SYSCTL_HANDLER_ARGS);
@@ -1008,7 +1007,7 @@ ipfw_dyn_tick(void * vnetx)
 		check_ka = 1;
 	}
 
-	check_dyn_rules(chain, NULL, RESVD_SET, check_ka, 1);
+	check_dyn_rules(chain, NULL, check_ka, 1);
 
 	callout_reset_on(&V_ipfw_timeout, hz, ipfw_dyn_tick, vnetx, 0);
 
@@ -1040,8 +1039,8 @@ ipfw_dyn_tick(void * vnetx)
  * are not freed by other instance (see stage 2, 3)
  */
 static void
-check_dyn_rules(struct ip_fw_chain *chain, struct ip_fw *rule,
-    int set, int check_ka, int timer)
+check_dyn_rules(struct ip_fw_chain *chain, ipfw_range_tlv *rt,
+    int check_ka, int timer)
 {
 	struct mbuf *m0, *m, *mnext, **mtailp;
 	struct ip *h;
@@ -1105,12 +1104,10 @@ check_dyn_rules(struct ip_fw_chain *chain, struct ip_fw *rule,
 			/*
 			 * Remove rules which are:
 			 * 1) expired
-			 * 2) created by given rule
-			 * 3) created by any rule in given set
+			 * 2) matches deletion range
 			 */
 			if ((TIME_LEQ(q->expire, time_uptime)) ||
-			    ((rule != NULL) && (q->rule == rule)) ||
-			    ((set != RESVD_SET) && (q->rule->set == set))) {
+			    (rt != NULL && ipfw_match_range(q->rule, rt))) {
 				if (TIME_LE(time_uptime, q->expire) &&
 				    q->dyn_type == O_KEEP_STATE &&
 				    V_dyn_keep_states != 0) {
@@ -1324,8 +1321,7 @@ check_dyn_rules(struct ip_fw_chain *chain, struct ip_fw *rule,
  * Deletes all dynamic rules originated by given rule or all rules in
  * given set. Specify RESVD_SET to indicate set should not be used.
  * @chain - pointer to current ipfw rules chain
- * @rule - delete all states originated by given rule if != NULL
- * @set - delete all states originated by any rule in set @set if != RESVD_SET
+ * @rr - delete all states originated by rules in matched range.
  *
  * Function has to be called with IPFW_UH_WLOCK held.
  * Additionally, function assume that dynamic rule/set is
@@ -1333,10 +1329,39 @@ check_dyn_rules(struct ip_fw_chain *chain, struct ip_fw *rule,
  * 'deleted' rules.
  */
 void
-ipfw_expire_dyn_rules(struct ip_fw_chain *chain, struct ip_fw *rule, int set)
+ipfw_expire_dyn_rules(struct ip_fw_chain *chain, ipfw_range_tlv *rt)
 {
 
-	check_dyn_rules(chain, rule, set, 0, 0);
+	check_dyn_rules(chain, rt, 0, 0);
+}
+
+/*
+ * Check if rule contains at least one dynamic opcode.
+ *
+ * Returns 1 if such opcode is found, 0 otherwise.
+ */
+int
+ipfw_is_dyn_rule(struct ip_fw *rule)
+{
+	int cmdlen, l;
+	ipfw_insn *cmd;
+
+	l = rule->cmd_len;
+	cmd = rule->cmd;
+	cmdlen = 0;
+	for ( ;	l > 0 ; l -= cmdlen, cmd += cmdlen) {
+		cmdlen = F_LEN(cmd);
+
+		switch (cmd->opcode) {
+		case O_LIMIT:
+		case O_KEEP_STATE:
+		case O_PROBE_STATE:
+		case O_CHECK_STATE:
+			return (1);
+		}
+	}
+
+	return (0);
 }
 
 void

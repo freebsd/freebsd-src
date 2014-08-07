@@ -2110,6 +2110,19 @@ show_dyn_state(struct cmdline_opts *co, struct format_opts *fo,
 		bprintf(bp, " UNKNOWN <-> UNKNOWN\n");
 }
 
+static int
+do_range_cmd(int cmd, ipfw_range_tlv *rt)
+{
+	ipfw_range_header rh;
+
+	memset(&rh, 0, sizeof(rh));
+	memcpy(&rh.range, rt, sizeof(*rt));
+	rh.range.head.length = sizeof(*rt);
+	rh.range.head.type = IPFW_TLV_RANGE;
+
+	return (do_set3(cmd, &rh.opheader, sizeof(rh)));
+}
+
 /*
  * This one handles all set-related commands
  * 	ipfw set { show | enable | disable }
@@ -2122,12 +2135,13 @@ ipfw_sets_handler(char *av[])
 {
 	uint32_t masks[2];
 	int i;
-	uint16_t rulenum;
-	uint8_t cmd, new_set;
+	uint8_t cmd, new_set, rulenum;
+	ipfw_range_tlv rt;
 	char *msg;
 	size_t size;
 
 	av++;
+	memset(&rt, 0, sizeof(rt));
 
 	if (av[0] == NULL)
 		errx(EX_USAGE, "set needs command");
@@ -2156,33 +2170,38 @@ ipfw_sets_handler(char *av[])
 		av++;
 		if ( av[0] == NULL || av[1] == NULL )
 			errx(EX_USAGE, "set swap needs 2 set numbers\n");
-		rulenum = atoi(av[0]);
-		new_set = atoi(av[1]);
-		if (!isdigit(*(av[0])) || rulenum > RESVD_SET)
+		rt.set = atoi(av[0]);
+		rt.new_set = atoi(av[1]);
+		if (!isdigit(*(av[0])) || rt.set > RESVD_SET)
 			errx(EX_DATAERR, "invalid set number %s\n", av[0]);
-		if (!isdigit(*(av[1])) || new_set > RESVD_SET)
+		if (!isdigit(*(av[1])) || rt.new_set > RESVD_SET)
 			errx(EX_DATAERR, "invalid set number %s\n", av[1]);
-		masks[0] = (4 << 24) | (new_set << 16) | (rulenum);
-		i = do_cmd(IP_FW_DEL, masks, sizeof(uint32_t));
+		i = do_range_cmd(IP_FW_SET_SWAP, &rt);
 	} else if (_substrcmp(*av, "move") == 0) {
 		av++;
 		if (av[0] && _substrcmp(*av, "rule") == 0) {
-			cmd = 2;
+			rt.flags = IPFW_RCFLAG_RANGE; /* move rules to new set */
+			cmd = IP_FW_XMOVE;
 			av++;
 		} else
-			cmd = 3;
+			cmd = IP_FW_SET_MOVE; /* Move set to new one */
 		if (av[0] == NULL || av[1] == NULL || av[2] == NULL ||
 				av[3] != NULL ||  _substrcmp(av[1], "to") != 0)
 			errx(EX_USAGE, "syntax: set move [rule] X to Y\n");
 		rulenum = atoi(av[0]);
-		new_set = atoi(av[2]);
-		if (!isdigit(*(av[0])) || (cmd == 3 && rulenum > RESVD_SET) ||
-			(cmd == 2 && rulenum == IPFW_DEFAULT_RULE) )
+		rt.new_set = atoi(av[2]);
+		if (cmd == IP_FW_XMOVE) {
+			rt.start_rule = rulenum;
+			rt.end_rule = rulenum;
+		} else
+			rt.set = rulenum;
+		rt.new_set = atoi(av[2]);
+		if (!isdigit(*(av[0])) || (cmd == 3 && rt.set > RESVD_SET) ||
+			(cmd == 2 && rt.start_rule == IPFW_DEFAULT_RULE) )
 			errx(EX_DATAERR, "invalid source number %s\n", av[0]);
 		if (!isdigit(*(av[2])) || new_set > RESVD_SET)
 			errx(EX_DATAERR, "invalid dest. set %s\n", av[1]);
-		masks[0] = (cmd << 24) | (new_set << 16) | (rulenum);
-		i = do_cmd(IP_FW_DEL, masks, sizeof(uint32_t));
+		i = do_range_cmd(cmd, &rt);
 	} else if (_substrcmp(*av, "disable") == 0 ||
 		   _substrcmp(*av, "enable") == 0 ) {
 		int which = _substrcmp(*av, "enable") == 0 ? 1 : 0;
@@ -2210,9 +2229,11 @@ ipfw_sets_handler(char *av[])
 			errx(EX_DATAERR,
 			    "cannot enable and disable the same set\n");
 
-		i = do_cmd(IP_FW_DEL, masks, sizeof(masks));
+		rt.set = masks[0];
+		rt.new_set = masks[1];
+		i = do_range_cmd(IP_FW_SET_ENABLE, &rt);
 		if (i)
-			warn("set enable/disable: setsockopt(IP_FW_DEL)");
+			warn("set enable/disable: setsockopt(IP_FW_SET_ENABLE)");
 	} else
 		errx(EX_USAGE, "invalid set command %s\n", *av);
 }
@@ -2984,9 +3005,11 @@ ipfw_delete(char *av[])
 	int i;
 	int exitval = EX_OK;
 	int do_set = 0;
+	ipfw_range_tlv rt;
 
 	av++;
 	NEED1("missing rule specification");
+	memset(&rt, 0, sizeof(rt));
 	if ( *av && _substrcmp(*av, "set") == 0) {
 		/* Do not allow using the following syntax:
 		 *	ipfw set N delete set M
@@ -3009,15 +3032,25 @@ ipfw_delete(char *av[])
  		} else if (co.do_pipe) {
 			exitval = ipfw_delete_pipe(co.do_pipe, i);
 		} else {
-			if (co.use_set)
-				rulenum = (i & 0xffff) | (5 << 24) |
-				    ((co.use_set - 1) << 16);
-			else
-			rulenum =  (i & 0xffff) | (do_set << 24);
-			i = do_cmd(IP_FW_DEL, &rulenum, sizeof rulenum);
-			if (i) {
+			if (do_set != 0) {
+				rt.set = i & 31;
+				rt.flags = IPFW_RCFLAG_SET;
+			} else {
+				rt.start_rule = i & 0xffff;
+				rt.end_rule = i & 0xffff;
+				if (rt.start_rule == 0 && rt.end_rule == 0)
+					rt.flags |= IPFW_RCFLAG_ALL;
+				else
+					rt.flags |= IPFW_RCFLAG_RANGE;
+				if (co.use_set != 0) {
+					rt.set = co.use_set - 1;
+					rt.flags |= IPFW_RCFLAG_SET;
+				}
+			}
+			i = do_range_cmd(IP_FW_XDEL, &rt);
+			if (i != 0) {
 				exitval = EX_UNAVAILABLE;
-				warn("rule %u: setsockopt(IP_FW_DEL)",
+				warn("rule %u: setsockopt(IP_FW_XDEL)",
 				    rulenum);
 			}
 		}
@@ -4681,25 +4714,31 @@ ipfw_add(char *av[])
 
 /*
  * clear the counters or the log counters.
+ * optname has the following values:
+ *  0 (zero both counters and logging)
+ *  1 (zero logging only)
  */
 void
-ipfw_zero(int ac, char *av[], int optname /* 0 = IP_FW_ZERO, 1 = IP_FW_RESETLOG */)
+ipfw_zero(int ac, char *av[], int optname)
 {
-	uint32_t arg, saved_arg;
+	ipfw_range_tlv rt;
+	uint32_t arg;
 	int failed = EX_OK;
 	char const *errstr;
 	char const *name = optname ? "RESETLOG" : "ZERO";
 
-	optname = optname ? IP_FW_RESETLOG : IP_FW_ZERO;
+	optname = optname ? IP_FW_XRESETLOG : IP_FW_XZERO;
+	memset(&rt, 0, sizeof(rt));
 
 	av++; ac--;
 
-	if (!ac) {
+	if (ac == 0) {
 		/* clear all entries */
-		if (do_cmd(optname, NULL, 0) < 0)
-			err(EX_UNAVAILABLE, "setsockopt(IP_FW_%s)", name);
+		rt.flags = IPFW_RCFLAG_ALL;
+		if (do_range_cmd(optname, &rt) < 0)
+			err(EX_UNAVAILABLE, "setsockopt(IP_FW_X%s)", name);
 		if (!co.do_quiet)
-			printf("%s.\n", optname == IP_FW_ZERO ?
+			printf("%s.\n", optname == IP_FW_XZERO ?
 			    "Accounting cleared":"Logging counts reset");
 
 		return;
@@ -4712,18 +4751,20 @@ ipfw_zero(int ac, char *av[], int optname /* 0 = IP_FW_ZERO, 1 = IP_FW_RESETLOG 
 			if (errstr)
 				errx(EX_DATAERR,
 				    "invalid rule number %s\n", *av);
-			saved_arg = arg;
-			if (co.use_set)
-				arg |= (1 << 24) | ((co.use_set - 1) << 16);
-			av++;
-			ac--;
-			if (do_cmd(optname, &arg, sizeof(arg))) {
-				warn("rule %u: setsockopt(IP_FW_%s)",
-				    saved_arg, name);
+			rt.start_rule = arg;
+			rt.end_rule = arg;
+			rt.flags |= IPFW_RCFLAG_RANGE;
+			if (co.use_set != 0) {
+				rt.set = co.use_set - 1;
+				rt.flags |= IPFW_RCFLAG_SET;
+			}
+			if (do_range_cmd(optname, &rt) != 0) {
+				warn("rule %u: setsockopt(IP_FW_X%s)",
+				    arg, name);
 				failed = EX_UNAVAILABLE;
 			} else if (!co.do_quiet)
-				printf("Entry %d %s.\n", saved_arg,
-				    optname == IP_FW_ZERO ?
+				printf("Entry %d %s.\n", arg,
+				    optname == IP_FW_XZERO ?
 					"cleared" : "logging count reset");
 		} else {
 			errx(EX_USAGE, "invalid rule number ``%s''", *av);
@@ -4736,7 +4777,7 @@ ipfw_zero(int ac, char *av[], int optname /* 0 = IP_FW_ZERO, 1 = IP_FW_RESETLOG 
 void
 ipfw_flush(int force)
 {
-	int cmd = co.do_pipe ? IP_DUMMYNET_FLUSH : IP_FW_FLUSH;
+	ipfw_range_tlv rt;
 
 	if (!force && !co.do_quiet) { /* need to ask user */
 		int c;
@@ -4758,13 +4799,14 @@ ipfw_flush(int force)
 		return;
 	}
 	/* `ipfw set N flush` - is the same that `ipfw delete set N` */
-	if (co.use_set) {
-		uint32_t arg = ((co.use_set - 1) & 0xffff) | (1 << 24);
-		if (do_cmd(IP_FW_DEL, &arg, sizeof(arg)) < 0)
-			err(EX_UNAVAILABLE, "setsockopt(IP_FW_DEL)");
-	} else if (do_cmd(cmd, NULL, 0) < 0)
-		err(EX_UNAVAILABLE, "setsockopt(IP_%s_FLUSH)",
-		    co.do_pipe ? "DUMMYNET" : "FW");
+	memset(&rt, 0, sizeof(rt));
+	if (co.use_set != 0) {
+		rt.set = co.use_set - 1;
+		rt.flags = IPFW_RCFLAG_SET;
+	} else
+		rt.flags = IPFW_RCFLAG_ALL;
+	if (do_range_cmd(IP_FW_XDEL, &rt) != 0)
+			err(EX_UNAVAILABLE, "setsockopt(IP_FW_XDEL)");
 	if (!co.do_quiet)
 		printf("Flushed all %s.\n", co.do_pipe ? "pipes" : "rules");
 }

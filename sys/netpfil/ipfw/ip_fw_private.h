@@ -177,7 +177,8 @@ enum { /* result for matching dynamic rules */
  */
 struct ip_fw_chain;
 struct sockopt_data;
-void ipfw_expire_dyn_rules(struct ip_fw_chain *, struct ip_fw *, int);
+int ipfw_is_dyn_rule(struct ip_fw *rule);
+void ipfw_expire_dyn_rules(struct ip_fw_chain *, ipfw_range_tlv *);
 void ipfw_dyn_unlock(ipfw_dyn_rule *q);
 
 struct tcphdr;
@@ -272,7 +273,6 @@ struct ip_fw_chain {
 #endif
 	int		static_len;	/* total len of static rules (v0) */
 	uint32_t	gencnt;		/* NAT generation count */
-	struct ip_fw	*reap;		/* list of rules to reap */
 	struct ip_fw	*default_rule;
 	struct tables_config *tblcfg;	/* tables module data */
 	void		*ifcfg;		/* interface module data */
@@ -507,6 +507,7 @@ void ipfw_reap_rules(struct ip_fw *head);
 void ipfw_init_counters(void);
 void ipfw_destroy_counters(void);
 struct ip_fw *ipfw_alloc_rule(struct ip_fw_chain *chain, size_t rulesize);
+int ipfw_match_range(struct ip_fw *rule, ipfw_range_tlv *rt);
 
 caddr_t ipfw_get_sopt_space(struct sockopt_data *sd, size_t needed);
 caddr_t ipfw_get_sopt_header(struct sockopt_data *sd, size_t needed);
@@ -547,6 +548,7 @@ int ipfw_lookup_table_extended(struct ip_fw_chain *ch, uint16_t tbl, uint16_t pl
     void *paddr, uint32_t *val);
 int ipfw_init_tables(struct ip_fw_chain *ch);
 int ipfw_resize_tables(struct ip_fw_chain *ch, unsigned int ntables);
+int ipfw_switch_tables_namespace(struct ip_fw_chain *ch, unsigned int nsets);
 void ipfw_destroy_tables(struct ip_fw_chain *ch);
 
 /* In ip_fw_nat.c -- XXX to be moved to ip_var.h */
