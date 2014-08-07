@@ -86,11 +86,18 @@ typedef struct _ip_fw3_opheader {
 #define	IP_FW_TABLE_XCREATE	95	/* create new table  */
 //#define	IP_FW_TABLE_XMODIFY	96	/* modify existing table */
 #define	IP_FW_XGET		97	/* Retrieve configuration */
-#define	IP_FW_XADD		98	/* add entry */
-#define	IP_FW_TABLE_XFIND	99	/* finds an entry */
-#define	IP_FW_XIFLIST		100	/* list tracked interfaces */
-#define	IP_FW_TABLES_ALIST	101	/* list table algorithms */
-#define	IP_FW_TABLE_XSWAP	102	/* swap two tables */
+#define	IP_FW_XADD		98	/* add rule */
+#define	IP_FW_XDEL		99	/* del rule */
+#define	IP_FW_XMOVE		100	/* move rules to different set  */
+#define	IP_FW_XZERO		101	/* clear accounting */
+#define	IP_FW_XRESETLOG		102	/* zero rules logs */
+#define	IP_FW_SET_SWAP		103	/* Swap between 2 sets */
+#define	IP_FW_SET_MOVE		104	/* Move one set to another one */
+#define	IP_FW_SET_ENABLE	105	/* Enable/disable sets */
+#define	IP_FW_TABLE_XFIND	106	/* finds an entry */
+#define	IP_FW_XIFLIST		107	/* list tracked interfaces */
+#define	IP_FW_TABLES_ALIST	108	/* list table algorithms */
+#define	IP_FW_TABLE_XSWAP	109	/* swap two tables */
 
 /*
  * Usage guidelines:
@@ -735,6 +742,7 @@ typedef struct  _ipfw_obj_tlv {
 #define	IPFW_TLV_DYN_ENT	6
 #define	IPFW_TLV_RULE_ENT	7
 #define	IPFW_TLV_TBLENT_LIST	8
+#define	IPFW_TLV_RANGE		9
 
 /* Object name TLV */
 typedef struct _ipfw_obj_ntlv {
@@ -798,6 +806,19 @@ typedef struct _ipfw_obj_ctlv {
 	uint8_t		version;	/* TLV version			*/
 	uint8_t		spare;
 } ipfw_obj_ctlv;
+
+/* Range TLV */
+typedef struct _ipfw_range_tlv {
+	ipfw_obj_tlv	head;		/* TLV header			*/
+	uint32_t	flags;		/* Range flags			*/
+	uint16_t	start_rule;	/* Range start			*/
+	uint16_t	end_rule;	/* Range end			*/
+	uint32_t	set;		/* Range set to match		 */
+	uint32_t	new_set;	/* New set to move/swap to	*/
+} ipfw_range_tlv;
+#define	IPFW_RCFLAG_RANGE	0x01	/* rule range is set		*/
+#define	IPFW_RCFLAG_ALL		0x02	/* match ALL rules		*/
+#define	IPFW_RCFLAG_SET		0x04	/* match rules in given set	*/
 
 typedef struct _ipfw_ta_tinfo {
 	uint32_t	flags;		/* Format flags			*/
@@ -892,5 +913,10 @@ typedef struct _ipfw_cfg_lheader {
 	uint32_t	start_rule;
 	uint32_t	end_rule;
 } ipfw_cfg_lheader;
+
+typedef struct _ipfw_range_header {
+	ip_fw3_opheader	opheader;	/* IP_FW3 opcode		*/
+	ipfw_range_tlv	range;
+} ipfw_range_header;
 
 #endif /* _IPFW2_H */
