@@ -366,7 +366,7 @@ pmap_bootstrap(vm_offset_t l1pt, vm_paddr_t kernstart, vm_size_t kernlen)
 	freemempos = pmap_bootstrap_l2(l1pt, va, freemempos);
 	/* And the l3 tables for the early devmap */
 	freemempos = pmap_bootstrap_l3(l1pt,
-	    arm_devmap_lastaddr() & ~L2_OFFSET, freemempos);
+	    VM_MAX_KERNEL_ADDRESS - L2_SIZE, freemempos);
 
 	/* Flush the cache and tlb to ensure the new entries are valid */
 	/* TODO: Flush the cache, we are relying on it being off */
@@ -387,7 +387,7 @@ pmap_bootstrap(vm_offset_t l1pt, vm_paddr_t kernstart, vm_size_t kernlen)
 	dpcpu_init((void *)dpcpu, 0);
 
 	virtual_avail = roundup2(freemempos, L1_SIZE);
-	virtual_end = arm_devmap_lastaddr() & ~L1_OFFSET;
+	virtual_end = VM_MAX_KERNEL_ADDRESS - L2_SIZE;
 	kernel_vm_end = virtual_avail;
 	
 	pa = pmap_early_vtophys(l1pt, freemempos);

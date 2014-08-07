@@ -57,6 +57,8 @@ static struct arm_devmap_entry	akva_devmap_entries[AKVA_DEVMAP_MAX_ENTRIES];
 static u_int			akva_devmap_idx;
 static vm_offset_t		akva_devmap_vaddr = VM_MAX_KERNEL_ADDRESS;
 
+extern int early_boot;
+
 #if 0
 /*
  * Print the contents of the static mapping table using the provided printf-like
@@ -275,8 +277,14 @@ pmap_mapdev(vm_offset_t pa, vm_size_t size)
 	offset = pa & PAGE_MASK;
 	pa = trunc_page(pa);
 	size = round_page(size + offset);
-	
-	va = kva_alloc(size);
+
+	if (early_boot) {
+		akva_devmap_vaddr = trunc_page(akva_devmap_vaddr - size);
+		va = akva_devmap_vaddr;
+		KASSERT(va >= VM_MAX_KERNEL_ADDRESS - L2_SIZE,
+		    ("Too many early devmap mappings"));
+	} else
+		va = kva_alloc(size);
 	if (!va)
 		panic("pmap_mapdev: Couldn't alloc kernel virtual memory");
 

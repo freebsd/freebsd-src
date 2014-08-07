@@ -32,6 +32,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/buf.h>
 #include <sys/bus.h>
+#include <sys/cons.h>
 #include <sys/cpu.h>
 #include <sys/efi.h>
 #include <sys/imgact.h>
@@ -56,6 +57,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_pager.h>
 
 #include <machine/cpu.h>
+#include <machine/devmap.h>
 #include <machine/machdep.h>
 #include <machine/metadata.h>
 #include <machine/pcb.h>
@@ -73,6 +75,7 @@ static struct trapframe proc0_tf;
 
 vm_paddr_t phys_avail[PHYS_AVAIL_SIZE];
 
+int early_boot = 1;
 int cold = 1;
 long realmem = 0;
 
@@ -563,11 +566,16 @@ initarm(struct arm64_bootparams *abp)
 	pmap_bootstrap(abp->kern_l1pt, KERNBASE - abp->kern_delta,
 	    lastaddr - KERNBASE);
 
+	arm_devmap_bootstrap(0, NULL);
+
+	cninit();
+
 	init_proc0(abp->kern_stack);
 	mutex_init();
 	init_param2(physmem);
 	kdb_init();
 
+	early_boot = 0;
 	printf("End initarm\n");
 }
 
