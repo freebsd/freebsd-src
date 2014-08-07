@@ -46,6 +46,7 @@ void do_el1h_sync(struct trapframe *frame)
 {
 	uint32_t exception;
 	uint64_t esr;
+	u_int reg;
 
 	/* Read the esr register to get the exception details */
 	__asm __volatile("mrs %x0, esr_el1" : "=&r"(esr));
@@ -55,7 +56,14 @@ void do_el1h_sync(struct trapframe *frame)
 	exception = (esr >> 26) & 0x3f;
 
 	printf("In do_el1h_sync %llx %llx %x\n", frame->tf_elr, esr, exception);
+
+	for (reg = 0; reg < 31; reg++) {
+		printf("x%d: %llx\n", reg, frame->tf_x[reg]);
+	}
 	switch(exception) {
+	case 0x25:
+		panic("Data abort at %#llx", frame->tf_elr);
+		break;
 	case 0x3c:
 		printf("Breakpoint %u\n", (uint32_t)(esr & 0xffffff));
 		break;

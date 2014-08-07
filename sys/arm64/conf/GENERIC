@@ -82,7 +82,8 @@ options 	MALLOC_DEBUG_MAXZONES=8	# Separate malloc(9) zones
 options 	EARLY_PRINTF
 
 # Serial (COM) ports
-#device		uart		# Generic UART driver
+device		uart		# Generic UART driver
+device		pl011
 
 # Pseudo devices.
 device		loop		# Network loopback

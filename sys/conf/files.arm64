@@ -29,6 +29,9 @@ arm64/arm64/trap.c		standard
 arm64/arm64/uio_machdep.c	standard
 arm64/arm64/vm_machdep.c	standard
 dev/fdt/fdt_arm64.c		optional	fdt
+dev/uart/uart_bus_fdt.c		optional	uart fdt
+dev/uart/uart_cpu_fdt.c		optional	uart fdt
+dev/uart/uart_dev_pl011.c	optional	uart pl011
 kern/kern_clocksource.c		standard
 kern/subr_dummy_vdso_tc.c	standard
 libkern/bcmp.c			standard

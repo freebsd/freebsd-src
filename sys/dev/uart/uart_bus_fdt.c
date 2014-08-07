@@ -120,9 +120,11 @@ uart_fdt_get_shift(phandle_t node, pcell_t *cell)
 {
 	pcell_t shift;
 
+	/* TODO: Not all uart bindings need reg-shift */
 	if ((OF_getprop(node, "reg-shift", &shift, sizeof(shift))) <= 0)
-		shift = 0;
-	*cell = fdt32_to_cpu(shift);
+		*cell = 2;
+	else
+		*cell = fdt32_to_cpu(shift);
 	return (0);
 }
 

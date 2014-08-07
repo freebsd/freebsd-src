@@ -42,7 +42,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/pmap.h>
 
 #include <machine/bus.h>
-#include <machine/fdt.h>
+//#include <machine/fdt.h>
 
 #include <dev/fdt/fdt_common.h>
 #include <dev/ofw/ofw_bus.h>
@@ -50,6 +50,8 @@ __FBSDID("$FreeBSD$");
 #include <dev/uart/uart.h>
 #include <dev/uart/uart_bus.h>
 #include <dev/uart/uart_cpu.h>
+
+extern bus_space_tag_t fdtbus_bs_tag;
 
 /*
  * UART console routines.
@@ -83,9 +85,11 @@ uart_fdt_get_shift(phandle_t node, pcell_t *cell)
 {
 	pcell_t shift;
 
+	/* TODO: Not all uart bindings need reg-shift */
 	if ((OF_getprop(node, "reg-shift", &shift, sizeof(shift))) <= 0)
-		shift = 0;
-	*cell = fdt32_to_cpu(shift);
+		*cell = 2;
+	else
+		*cell = fdt32_to_cpu(shift);
 	return (0);
 }
 
@@ -195,6 +199,8 @@ uart_cpu_getdev(int devtype, struct uart_devinfo *di)
 	if (err)
 		pbase = 0;
 
+	/* TODO: fdt_get_range to work with the Foundation Models dts */
+	pbase = 0x1c000000;
 	start += pbase;
 
 	return (bus_space_map(di->bas.bst, start, size, 0, &di->bas.bsh));
