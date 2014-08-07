@@ -265,7 +265,7 @@ killdiv(void)
 extern char *__progname;
 
 void
-m4errx(int eval, const char *fmt, ...)
+m4errx(int exitstatus, const char *fmt, ...)
 {
 	fprintf(stderr, "%s: ", __progname);
 	fprintf(stderr, "%s at line %lu: ", CURRENT_NAME, CURRENT_LINE);
@@ -277,7 +277,7 @@ m4errx(int eval, const char *fmt, ...)
 		va_end(ap);
 	}
 	fprintf(stderr, "\n");
-	exit(eval);
+	exit(exitstatus);
 }
 
 /*
