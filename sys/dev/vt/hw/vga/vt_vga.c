@@ -75,7 +75,6 @@ static vd_probe_t	vga_probe;
 static vd_init_t	vga_init;
 static vd_blank_t	vga_blank;
 static vd_bitbltchr_t	vga_bitbltchr;
-static vd_maskbitbltchr_t vga_maskbitbltchr;
 static vd_drawrect_t	vga_drawrect;
 static vd_setpixel_t	vga_setpixel;
 static vd_putchar_t	vga_putchar;
@@ -87,7 +86,6 @@ static const struct vt_driver vt_vga_driver = {
 	.vd_init	= vga_init,
 	.vd_blank	= vga_blank,
 	.vd_bitbltchr	= vga_bitbltchr,
-	.vd_maskbitbltchr = vga_bitbltchr,
 	.vd_drawrect	= vga_drawrect,
 	.vd_setpixel	= vga_setpixel,
 	.vd_putchar	= vga_putchar,
