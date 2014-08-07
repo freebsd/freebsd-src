@@ -205,13 +205,13 @@ terasic_mtl_blend_textbg_set(struct terasic_mtl_softc *sc, uint8_t alpha)
 }
 
 void
-terasic_mtl_reg_pixel_endian_set(struct terasic_mtl_softc *sc, int big_endian)
+terasic_mtl_reg_pixel_endian_set(struct terasic_mtl_softc *sc, int endian_swap)
 {
 	uint32_t v;
 
 	TERASIC_MTL_LOCK(sc);
 	terasic_mtl_reg_blend_get(sc, &v);
-	if (big_endian)
+	if (endian_swap)
 		v |= TERASIC_MTL_BLEND_PIXEL_ENDIAN_SWAP;
 	else
 		v &= ~TERASIC_MTL_BLEND_PIXEL_ENDIAN_SWAP;

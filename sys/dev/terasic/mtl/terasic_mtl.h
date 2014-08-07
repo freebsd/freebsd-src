@@ -222,7 +222,7 @@ void	terasic_mtl_blend_textfg_set(struct terasic_mtl_softc *sc,
 void	terasic_mtl_blend_textbg_set(struct terasic_mtl_softc *sc,
 	    uint8_t alpha);
 void	terasic_mtl_reg_pixel_endian_set(struct terasic_mtl_softc *sc,
-	    int big_endian);
+	    int endian_swap);
 
 /*
  * Text frame buffer I/O routines.
