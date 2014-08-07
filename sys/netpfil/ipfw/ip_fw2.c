@@ -2735,7 +2735,7 @@ vnet_ipfw_init(const void *unused)
 	 * In layer2 we have the same behaviour, except that V_ether_ipfw
 	 * is checked on each packet because there are no pfil hooks.
 	 */
-	V_ip_fw_ctl_ptr = ipfw_ctl;
+	V_ip_fw_ctl_ptr = ipfw_ctl3;
 	error = ipfw_attach_hooks(1);
 	return (error);
 }

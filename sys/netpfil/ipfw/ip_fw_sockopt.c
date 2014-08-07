@@ -69,6 +69,7 @@ __FBSDID("$FreeBSD$");
 #include <security/mac/mac_framework.h>
 #endif
 
+static int ipfw_ctl(struct sockopt *sopt);
 static int check_ipfw_rule_body(ipfw_insn *cmd, int cmd_len,
     struct rule_check_info *ci);
 static int check_ipfw_rule1(struct ip_fw_rule *rule, int size,
@@ -2102,6 +2103,93 @@ add_rules(struct ip_fw_chain *chain, ip_fw3_opheader *op3,
 	return (error);
 }
 
+/*
+ * Writes data accumulated in @sd to sockopt buffer.
+ * Zeroes internal @sd buffer.
+ */
+static int
+ipfw_flush_sopt_data(struct sockopt_data *sd)
+{
+	int error;
+	size_t sz;
+
+	if ((sz = sd->koff) == 0)
+		return (0);
+
+	if (sd->sopt->sopt_dir == SOPT_GET) {
+		error = sooptcopyout(sd->sopt, sd->kbuf, sz);
+		if (error != 0)
+			return (error);
+	}
+
+	memset(sd->kbuf, 0, sd->ksize);
+	sd->ktotal += sd->koff;
+	sd->koff = 0;
+	if (sd->ktotal + sd->ksize < sd->valsize)
+		sd->kavail = sd->ksize;
+	else
+		sd->kavail = sd->valsize - sd->ktotal;
+
+	/* Update sopt buffer */
+	sd->sopt->sopt_valsize = sd->kavail;
+	sd->sopt->sopt_val = sd->sopt_val + sd->ktotal;
+
+	return (0);
+}
+
+/*
+ * Ensures that @sd buffer has contigious @neeeded number of
+ * bytes.
+ *
+ * Returns pointer to requested space or NULL.
+ */
+caddr_t
+ipfw_get_sopt_space(struct sockopt_data *sd, size_t needed)
+{
+	int error;
+	caddr_t addr;
+
+	if (sd->kavail < needed) {
+		/*
+		 * Flush data and try another time.
+		 */
+		error = ipfw_flush_sopt_data(sd);
+
+		if (sd->kavail < needed || error != 0)
+			return (NULL);
+	}
+
+	addr = sd->kbuf + sd->koff;
+	sd->koff += needed;
+	sd->kavail -= needed;
+	return (addr);
+}
+
+/*
+ * Requests @needed contigious bytes from @sd buffer.
+ * Function is used to notify subsystem that we are
+ * interesed in first @needed bytes (request header)
+ * and the rest buffer can be safely zeroed.
+ *
+ * Returns pointer to requested space or NULL.
+ */
+caddr_t
+ipfw_get_sopt_header(struct sockopt_data *sd, size_t needed)
+{
+	caddr_t addr;
+
+	if ((addr = ipfw_get_sopt_space(sd, needed)) == NULL)
+		return (NULL);
+
+	if (sd->kavail > 0)
+		memset(sd->kbuf + sd->koff, 0, sd->kavail);
+	
+	return (addr);
+}
+
+/*
+ * New sockopt handler.
+ */
 int
 ipfw_ctl3(struct sockopt *sopt)
 {
@@ -2113,15 +2201,12 @@ ipfw_ctl3(struct sockopt *sopt)
 	struct sockopt_data sdata;
 	ip_fw3_opheader *op3 = NULL;
 
-	/* Do not check privs twice untile we're called from ipfw_ctl() */
-#if 0
 	error = priv_check(sopt->sopt_td, PRIV_NETINET_IPFW);
 	if (error != 0)
 		return (error);
-#endif
 
 	if (sopt->sopt_name != IP_FW3)
-		return (ENOTSUP);
+		return (ipfw_ctl(sopt));
 
 	chain = &V_layer3_chain;
 	error = 0;
@@ -2328,20 +2413,12 @@ ipfw_ctl(struct sockopt *sopt)
 	uint32_t opt;
 	struct rule_check_info ci;
 
-	error = priv_check(sopt->sopt_td, PRIV_NETINET_IPFW);
-	if (error)
-		return (error);
-
 	chain = &V_layer3_chain;
 	error = 0;
 
 	/* Save original valsize before it is altered via sooptcopyin() */
 	valsize = sopt->sopt_valsize;
 	opt = sopt->sopt_name;
-
-	/* Pass IP_FW3 to a new handler */
-	if (opt == IP_FW3)
-		return (ipfw_ctl3(sopt));
 
 	/*
 	 * Disallow modifications in really-really secure mode, but still allow
@@ -2634,73 +2711,6 @@ ipfw_ctl(struct sockopt *sopt)
 	return (error);
 #undef RULE_MAXSIZE
 }
-
-static int
-ipfw_flush_sopt_data(struct sockopt_data *sd)
-{
-	int error;
-	size_t sz;
-
-	if ((sz = sd->koff) == 0)
-		return (0);
-
-	if (sd->sopt->sopt_dir == SOPT_GET) {
-		error = sooptcopyout(sd->sopt, sd->kbuf, sz);
-		if (error != 0)
-			return (error);
-	}
-
-	memset(sd->kbuf, 0, sd->ksize);
-	sd->ktotal += sd->koff;
-	sd->koff = 0;
-	if (sd->ktotal + sd->ksize < sd->valsize)
-		sd->kavail = sd->ksize;
-	else
-		sd->kavail = sd->valsize - sd->ktotal;
-
-	/* Update sopt buffer */
-	sd->sopt->sopt_valsize = sd->kavail;
-	sd->sopt->sopt_val = sd->sopt_val + sd->ktotal;
-
-	return (0);
-}
-
-caddr_t
-ipfw_get_sopt_space(struct sockopt_data *sd, size_t needed)
-{
-	int error;
-	caddr_t addr;
-
-	if (sd->kavail < needed) {
-		/*
-		 * Flush data and try another time.
-		 */
-		error = ipfw_flush_sopt_data(sd);
-
-		if (sd->kavail < needed || error != 0)
-			return (NULL);
-	}
-
-	addr = sd->kbuf + sd->koff;
-	sd->koff += needed;
-	sd->kavail -= needed;
-	return (addr);
-}
-
-caddr_t
-ipfw_get_sopt_header(struct sockopt_data *sd, size_t needed)
-{
-	caddr_t addr;
-
-	if ((addr = ipfw_get_sopt_space(sd, needed)) == NULL)
-		return (NULL);
-
-	if (sd->kavail > 0)
-		memset(sd->kbuf + sd->koff, 0, sd->kavail);
-	
-	return (addr);
-}
-
 #define	RULE_MAXSIZE	(256*sizeof(u_int32_t))
 
 /* Functions to convert rules 7.2 <==> 8.0 */
