@@ -238,8 +238,8 @@ SRCS+=	p12_add.c p12_asn.c p12_attr.c p12_crpt.c p12_crt.c \
 INCS+=	pkcs12.h pkcs7.h
 
 # pkcs7
-SRCS+=	example.c pk7_asn1.c pk7_attr.c pk7_dgst.c pk7_doit.c \
-	pk7_lib.c pk7_mime.c pk7_smime.c pkcs7err.c
+SRCS+=	pk7_asn1.c pk7_attr.c pk7_dgst.c pk7_doit.c pk7_lib.c \
+	pk7_mime.c pk7_smime.c pkcs7err.c
 
 # pqueue
 SRCS+=	pqueue.c
