@@ -124,7 +124,7 @@
 .\" ========================================================================
 .\"
 .IX Title "SSL_CTX_add_extra_chain_cert 3"
-.TH SSL_CTX_add_extra_chain_cert 3 "2014-06-05" "1.0.1h" "OpenSSL"
+.TH SSL_CTX_add_extra_chain_cert 3 "2014-08-06" "1.0.1i" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -150,6 +150,15 @@ these certificates explicitly specified. If no chain is specified,
 the library will try to complete the chain from the available \s-1CA\s0
 certificates in the trusted \s-1CA\s0 storage, see
 \&\fISSL_CTX_load_verify_locations\fR\|(3).
+.PP
+The \fBx509\fR certificate provided to \fISSL_CTX_add_extra_chain_cert()\fR will be freed by the library when the \fB\s-1SSL_CTX\s0\fR is destroyed. An application \fBshould not\fR free the \fBx509\fR object.
+.SH "RESTRICTIONS"
+.IX Header "RESTRICTIONS"
+Only one set of extra chain certificates can be specified per \s-1SSL_CTX\s0
+structure. Different chains for different certificates (for example if both
+\&\s-1RSA\s0 and \s-1DSA\s0 certificates are specified by the same server) or different \s-1SSL\s0
+structures with the same parent \s-1SSL_CTX\s0 cannot be specified using this
+function.
 .SH "RETURN VALUES"
 .IX Header "RETURN VALUES"
 \&\fISSL_CTX_add_extra_chain_cert()\fR returns 1 on success. Check out the
