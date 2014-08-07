@@ -124,7 +124,7 @@
 .\" ========================================================================
 .\"
 .IX Title "SSL_CIPHER_get_name 3"
-.TH SSL_CIPHER_get_name 3 "2014-06-05" "1.0.1h" "OpenSSL"
+.TH SSL_CIPHER_get_name 3 "2014-08-06" "1.0.1i" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -151,8 +151,12 @@ returned.
 \&\fBalg_bits\fR is not \s-1NULL\s0, it contains the number of bits processed by the
 chosen algorithm. If \fBcipher\fR is \s-1NULL\s0, 0 is returned.
 .PP
-\&\fISSL_CIPHER_get_version()\fR returns the protocol version for \fBcipher\fR, currently
-\&\*(L"SSLv2\*(R", \*(L"SSLv3\*(R", or \*(L"TLSv1\*(R". If \fBcipher\fR is \s-1NULL\s0, \*(L"(\s-1NONE\s0)\*(R" is returned.
+\&\fISSL_CIPHER_get_version()\fR returns string which indicates the \s-1SSL/TLS\s0 protocol
+version that first defined the cipher.
+This is currently \fBSSLv2\fR or \fBTLSv1/SSLv3\fR.
+In some cases it should possibly return \*(L"TLSv1.2\*(R" but does not;
+use \fISSL_CIPHER_description()\fR instead.
+If \fBcipher\fR is \s-1NULL\s0, \*(L"(\s-1NONE\s0)\*(R" is returned.
 .PP
 \&\fISSL_CIPHER_description()\fR returns a textual description of the cipher used
 into the buffer \fBbuf\fR of length \fBlen\fR provided. \fBlen\fR must be at least
@@ -175,7 +179,8 @@ sequence:
 Textual representation of the cipher name.
 .IP "<protocol version>" 4
 .IX Item "<protocol version>"
-Protocol version: \fBSSLv2\fR, \fBSSLv3\fR. The TLSv1 ciphers are flagged with SSLv3.
+Protocol version: \fBSSLv2\fR, \fBSSLv3\fR, \fBTLSv1.2\fR. The TLSv1.0 ciphers are
+flagged with SSLv3. No new ciphers were added by TLSv1.1.
 .IP "Kx=<key exchange>" 4
 .IX Item "Kx=<key exchange>"
 Key exchange method: \fB\s-1RSA\s0\fR (for export ciphers as \fB\s-1RSA\s0(512)\fR or
@@ -206,6 +211,12 @@ Some examples for the output of \fISSL_CIPHER_description()\fR:
 \& EDH\-DSS\-DES\-CBC3\-SHA    SSLv3 Kx=DH       Au=DSS  Enc=3DES(168) Mac=SHA1
 \& RC4\-MD5                 SSLv3 Kx=RSA      Au=RSA  Enc=RC4(128)  Mac=MD5
 \& EXP\-RC4\-MD5             SSLv3 Kx=RSA(512) Au=RSA  Enc=RC4(40)   Mac=MD5  export
+.Ve
+.PP
+A comp[lete list can be retrieved by invoking the following command:
+.PP
+.Vb 1
+\& openssl ciphers \-v ALL
 .Ve
 .SH "BUGS"
 .IX Header "BUGS"
