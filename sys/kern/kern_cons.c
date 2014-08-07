@@ -160,6 +160,10 @@ cninit(void)
 void
 cninit_finish()
 {
+
+#ifdef EARLY_PRINTF
+	early_putc = NULL;
+#endif
 	console_pausing = 0;
 } 
 
