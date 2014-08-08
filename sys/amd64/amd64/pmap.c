@@ -4116,9 +4116,9 @@ setpte:
  *	or lose information.  That is, this routine must actually
  *	insert this page into the given map NOW.
  */
-void
-pmap_enter(pmap_t pmap, vm_offset_t va, vm_prot_t access, vm_page_t m,
-    vm_prot_t prot, boolean_t wired)
+int
+pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
+    u_int flags, int8_t psind __unused)
 {
 	struct rwlock *lock;
 	pd_entry_t *pde;
@@ -4127,6 +4127,7 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_prot_t access, vm_page_t m,
 	pv_entry_t pv;
 	vm_paddr_t opa, pa;
 	vm_page_t mpte, om;
+	boolean_t nosleep;
 
 	PG_A = pmap_accessed_bit(pmap);
 	PG_G = pmap_global_bit(pmap);
@@ -4143,10 +4144,10 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_prot_t access, vm_page_t m,
 	    va >= kmi.clean_eva,
 	    ("pmap_enter: managed mapping within the clean submap"));
 	if ((m->oflags & VPO_UNMANAGED) == 0 && !vm_page_xbusied(m))
-		VM_OBJECT_ASSERT_WLOCKED(m->object);
+		VM_OBJECT_ASSERT_LOCKED(m->object);
 	pa = VM_PAGE_TO_PHYS(m);
 	newpte = (pt_entry_t)(pa | PG_A | PG_V);
-	if ((access & VM_PROT_WRITE) != 0)
+	if ((flags & VM_PROT_WRITE) != 0)
 		newpte |= PG_M;
 	if ((prot & VM_PROT_WRITE) != 0)
 		newpte |= PG_RW;
@@ -4154,7 +4155,7 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_prot_t access, vm_page_t m,
 	    ("pmap_enter: access includes VM_PROT_WRITE but prot doesn't"));
 	if ((prot & VM_PROT_EXECUTE) == 0)
 		newpte |= pg_nx;
-	if (wired)
+	if ((flags & PMAP_ENTER_WIRED) != 0)
 		newpte |= PG_W;
 	if (va < VM_MAXUSER_ADDRESS)
 		newpte |= PG_U;
@@ -4196,7 +4197,15 @@ retry:
 		 * Here if the pte page isn't mapped, or if it has been
 		 * deallocated.
 		 */
-		mpte = _pmap_allocpte(pmap, pmap_pde_pindex(va), &lock);
+		nosleep = (flags & PMAP_ENTER_NOSLEEP) != 0;
+		mpte = _pmap_allocpte(pmap, pmap_pde_pindex(va),
+		    nosleep ? NULL : &lock);
+		if (mpte == NULL && nosleep) {
+			KASSERT(lock == NULL, ("lock leaked for nosleep"));
+			PMAP_UNLOCK(pmap);
+			rw_runlock(&pvh_global_lock);
+			return (KERN_RESOURCE_SHORTAGE);
+		}
 		goto retry;
 	} else
 		panic("pmap_enter: invalid page directory va=%#lx", va);
@@ -4328,6 +4337,7 @@ unchanged:
 		rw_wunlock(lock);
 	rw_runlock(&pvh_global_lock);
 	PMAP_UNLOCK(pmap);
+	return (KERN_SUCCESS);
 }
 
 /*

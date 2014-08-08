@@ -135,14 +135,14 @@ pmap_copy_pages(vm_page_t ma[], vm_offset_t a_offset, vm_page_t mb[],
 	MMU_COPY_PAGES(mmu_obj, ma, a_offset, mb, b_offset, xfersize);
 }
 
-void
-pmap_enter(pmap_t pmap, vm_offset_t va, vm_prot_t access, vm_page_t p,
-    vm_prot_t prot, boolean_t wired)
+int
+pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t p, vm_prot_t prot,
+    u_int flags, int8_t psind)
 {
 
-	CTR6(KTR_PMAP, "pmap_enter(%p, %#x, %#x, %p, %#x, %u)", pmap, va,
-	    access, p, prot, wired);
-	MMU_ENTER(mmu_obj, pmap, va, p, prot, wired);
+	CTR6(KTR_PMAP, "pmap_enter(%p, %#x, %p, %#x, %x, %d)", pmap, va,
+	    p, prot, flags, psind);
+	return (MMU_ENTER(mmu_obj, pmap, va, p, prot, flags, psind));
 }
 
 void
