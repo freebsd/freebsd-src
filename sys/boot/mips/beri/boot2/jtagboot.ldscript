@@ -33,7 +33,7 @@
 INCLUDE ../common/common.ldscript
 
 /*
- * When boot2 is loaded via JTAG, it's dropped at 0x10000, and will not need
+ * When boot2 is loaded via JTAG, it's dropped at 0x100000, and will not need
  * to self-relocate, since it will be in DRAM.
  */
 __boot2_base__ = 0x100000;
