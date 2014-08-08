@@ -1245,9 +1245,8 @@ ipfw_dump_table_v1(struct ip_fw_chain *ch, struct sockopt_data *sd)
 		return (ESRCH);
 	}
 	export_table_info(ch, tc, i);
-	sz = tc->count;
 
-	if (sd->valsize < sz + tc->count * sizeof(ipfw_obj_tentry)) {
+	if (sd->valsize < i->size) {
 
 		/*
 		 * Submitted buffer size is not enough.

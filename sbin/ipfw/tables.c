@@ -67,7 +67,7 @@ static void table_fill_ntlv(ipfw_obj_ntlv *ntlv, char *name, uint32_t set,
 
 static int table_flush_one(ipfw_xtable_info *i, void *arg);
 static int table_show_one(ipfw_xtable_info *i, void *arg);
-static int table_get_list(ipfw_xtable_info *i, ipfw_obj_header *oh);
+static int table_do_get_list(ipfw_xtable_info *i, ipfw_obj_header **poh);
 static void table_show_list(ipfw_obj_header *oh, int need_header);
 static void table_show_entry(ipfw_xtable_info *i, ipfw_obj_tentry *tent);
 
@@ -760,10 +760,7 @@ table_show_one(ipfw_xtable_info *i, void *arg)
 	ipfw_obj_header *oh;
 	int error;
 
-	if ((oh = calloc(1, i->size)) == NULL)
-		return (ENOMEM);
-
-	if ((error = table_get_list(i, oh)) != 0) {
+	if ((error = table_do_get_list(i, &oh)) != 0) {
 		err(EX_OSERR, "Error requesting table %s list", i->tablename);
 		return (error);
 	}
@@ -1304,31 +1301,43 @@ tables_foreach(table_cb_t *f, void *arg, int sort)
 
 /*
  * Retrieves all entries for given table @i in
- * eXtended format. Assumes buffer of size
- * @i->size has already been allocated by caller.
+ * eXtended format. Allocate buffer large enough
+ * to store result. Called needs to free it later.
  *
  * Returns 0 on success.
  */
 static int
-table_get_list(ipfw_xtable_info *i, ipfw_obj_header *oh)
+table_do_get_list(ipfw_xtable_info *i, ipfw_obj_header **poh)
 {
+	ipfw_obj_header *oh;
 	size_t sz;
 	int error, c;
 
 	sz = 0;
-	for (c = 0; c < 3; c++) {
-		table_fill_objheader(oh, i);
+	oh = NULL;
+	error = 0;
+	for (c = 0; c < 8; c++) {
 		if (sz < i->size)
-			sz = i->size;
-
+			sz = i->size + 44;
+		if (oh != NULL)
+			free(oh);
+		if ((oh = calloc(1, sz)) == NULL)
+			continue;
+		table_fill_objheader(oh, i);
 		oh->opheader.version = 1; /* Current version */
 		error = do_get3(IP_FW_TABLE_XLIST, &oh->opheader, &sz);
 
-		if (error != ENOMEM)
-			return (errno);
-	}
+		if (error == 0) {
+			*poh = oh;
+			return (0);
+		}
 
-	return (ENOMEM);
+		if (error != ENOMEM)
+			break;
+	}
+	free(oh);
+
+	return (error);
 }
 
 /*
