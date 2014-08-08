@@ -2325,10 +2325,6 @@ ipfw_ctl3(struct sockopt *sopt)
 		error = ipfw_describe_table(chain, &sdata);
 		break;
 
-	case IP_FW_TABLES_XGETSIZE:
-		error = ipfw_listsize_tables(chain, &sdata);
-		break;
-
 	case IP_FW_TABLES_XLIST:
 		error = ipfw_list_tables(chain, &sdata);
 		break;
