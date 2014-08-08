@@ -585,8 +585,7 @@ parse()
 		 */
 		unit = q[len-1];
 		if (unit < '0' || unit > '9') {
-		    printf("Invalid device: invalid unit\n", q,
-		      unit);
+		    printf("Invalid device %s: invalid unit %c\n", q, unit);
 		    return (-1);
 		}
 		unit -= '0';
