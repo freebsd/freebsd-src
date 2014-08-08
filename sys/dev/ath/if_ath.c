@@ -4427,14 +4427,12 @@ ath_tx_process_buf_completion(struct ath_softc *sc, struct ath_txq *txq,
     struct ath_tx_status *ts, struct ath_buf *bf)
 {
 	struct ieee80211_node *ni = bf->bf_node;
-	struct ath_node *an = NULL;
 
 	ATH_TX_UNLOCK_ASSERT(sc);
 	ATH_TXQ_UNLOCK_ASSERT(txq);
 
 	/* If unicast frame, update general statistics */
 	if (ni != NULL) {
-		an = ATH_NODE(ni);
 		/* update statistics */
 		ath_tx_update_stats(sc, ts, bf);
 	}
