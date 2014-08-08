@@ -2321,6 +2321,10 @@ ipfw_ctl3(struct sockopt *sopt)
 		error = ipfw_flush_table(chain, op3, &sdata);
 		break;
 
+	case IP_FW_TABLE_XMODIFY:
+		error = ipfw_modify_table(chain, op3, &sdata);
+		break;
+
 	case IP_FW_TABLE_XINFO:
 		error = ipfw_describe_table(chain, &sdata);
 		break;

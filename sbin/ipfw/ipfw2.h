@@ -215,6 +215,7 @@ enum tokens {
 	TOK_LIST,
 	TOK_INFO,
 	TOK_DETAIL,
+	TOK_MODIFY,
 	TOK_FLUSH,
 	TOK_SWAP,
 	TOK_ADD,
@@ -222,6 +223,7 @@ enum tokens {
 	TOK_VALTYPE,
 	TOK_ALGO,
 	TOK_TALIST,
+	TOK_FTYPE,
 };
 /*
  * the following macro returns an error message if we run out of

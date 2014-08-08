@@ -54,9 +54,11 @@ static void table_modify_record(ipfw_obj_header *oh, int ac, char *av[],
 static int table_flush(ipfw_obj_header *oh);
 static int table_destroy(ipfw_obj_header *oh);
 static int table_do_create(ipfw_obj_header *oh, ipfw_xtable_info *i);
-static void table_create(ipfw_obj_header *oh, int ac, char *av[]);
-static void table_lookup(ipfw_obj_header *oh, int ac, char *av[]);
+static int table_do_modify(ipfw_obj_header *oh, ipfw_xtable_info *i);
 static int table_do_swap(ipfw_obj_header *oh, char *second);
+static void table_create(ipfw_obj_header *oh, int ac, char *av[]);
+static void table_modify(ipfw_obj_header *oh, int ac, char *av[]);
+static void table_lookup(ipfw_obj_header *oh, int ac, char *av[]);
 static int table_swap(ipfw_obj_header *oh, char *second);
 static int table_get_info(ipfw_obj_header *oh, ipfw_xtable_info *i);
 static int table_show_info(ipfw_xtable_info *i, void *arg);
@@ -90,9 +92,13 @@ static struct _s_x tabletypes[] = {
 };
 
 static struct _s_x tablevaltypes[] = {
-      { "dscp",		IPFW_VTYPE_DSCP },
-      { "ip",		IPFW_VTYPE_IP },
       { "number",	IPFW_VTYPE_U32 },
+      { NULL, 0 }
+};
+
+static struct _s_x tablefvaltypes[] = {
+      { "ip",		IPFW_VFTYPE_IP },
+      { "number",	IPFW_VFTYPE_U32 },
       { NULL, 0 }
 };
 
@@ -102,6 +108,7 @@ static struct _s_x tablecmds[] = {
       { "create",	TOK_CREATE },
       { "destroy",	TOK_DESTROY },
       { "flush",	TOK_FLUSH },
+      { "modify",	TOK_MODIFY },
       { "swap",		TOK_SWAP },
       { "info",		TOK_INFO },
       { "detail",	TOK_DETAIL },
@@ -192,6 +199,10 @@ ipfw_table_handler(int ac, char *av[])
 		ac--; av++;
 		table_create(&oh, ac, av);
 		break;
+	case TOK_MODIFY:
+		ac--; av++;
+		table_modify(&oh, ac, av);
+		break;
 	case TOK_DESTROY:
 		if (table_destroy(&oh) != 0)
 			err(EX_OSERR, "failed to destroy table %s", tablename);
@@ -265,6 +276,7 @@ table_fill_objheader(ipfw_obj_header *oh, ipfw_xtable_info *i)
 
 static struct _s_x tablenewcmds[] = {
       { "type",		TOK_TYPE },
+      { "ftype",	TOK_FTYPE },
       { "valtype",	TOK_VALTYPE },
       { "algo",		TOK_ALGO },
       { "limit",	TOK_LIMIT },
@@ -330,8 +342,6 @@ table_print_type(char *tbuf, size_t size, uint8_t type, uint8_t tflags)
  * ipfw table NAME create [ type { cidr | iface | u32 } ]
  *     [ valtype { number | ip | dscp } ]
  *     [ algo algoname ]
- *
- * Request: [ ipfw_obj_header ipfw_xtable_info ]
  */
 static void
 table_create(ipfw_obj_header *oh, int ac, char *av[])
@@ -394,6 +404,18 @@ table_create(ipfw_obj_header *oh, int ac, char *av[])
 			errx(EX_USAGE, "Unknown value type: %s. Supported: %s",
 			    *av, tbuf);
 			break;
+		case TOK_FTYPE:
+			NEED1("table value format type required");
+			val = match_token(tablefvaltypes, *av);
+			if (val != -1) {
+				xi.vftype = val;
+				ac--; av++;
+				break;
+			}
+			concat_tokens(tbuf, sizeof(tbuf), tablefvaltypes, ", ");
+			errx(EX_USAGE, "Unknown format type: %s. Supported: %s",
+			    *av, tbuf);
+			break;
 		case TOK_ALGO:
 			NEED1("table algorithm name required");
 			if (strlen(*av) > sizeof(xi.algoname))
@@ -430,6 +452,79 @@ table_do_create(ipfw_obj_header *oh, ipfw_xtable_info *i)
 	return (error);
 }
 
+/*
+ * Modifies existing table
+ *
+ * ipfw table NAME modify [ limit number ] [ ftype { number | ip } ]
+ */
+static void
+table_modify(ipfw_obj_header *oh, int ac, char *av[])
+{
+	ipfw_xtable_info xi;
+	int error, tcmd, val;
+	size_t sz;
+	char tbuf[128];
+
+	sz = sizeof(tbuf);
+	memset(&xi, 0, sizeof(xi));
+
+	/* Set some defaults to preserve compability */
+	xi.type = IPFW_TABLE_CIDR;
+	xi.vtype = IPFW_VTYPE_U32;
+
+	while (ac > 0) {
+		if ((tcmd = match_token(tablenewcmds, *av)) == -1)
+			errx(EX_USAGE, "unknown option: %s", *av);
+		ac--; av++;
+
+		switch (tcmd) {
+		case TOK_LIMIT:
+			NEED1("limit value required");
+			xi.limit = strtol(*av, NULL, 10);
+			xi.mflags |= IPFW_TMFLAGS_LIMIT;
+			ac--; av++;
+			break;
+		case TOK_FTYPE:
+			NEED1("table value format type required");
+			val = match_token(tablefvaltypes, *av);
+			if (val != -1) {
+				xi.vftype = val;
+				xi.mflags |= IPFW_TMFLAGS_FTYPE;
+				ac--; av++;
+				break;
+			}
+			concat_tokens(tbuf, sizeof(tbuf), tablefvaltypes, ", ");
+			errx(EX_USAGE, "Unknown value type: %s. Supported: %s",
+			    *av, tbuf);
+			break;
+		}
+	}
+
+	if ((error = table_do_modify(oh, &xi)) != 0)
+		err(EX_OSERR, "Table modification failed");
+}
+
+/*
+ * Modifies existing table.
+ *
+ * Request: [ ipfw_obj_header ipfw_xtable_info ]
+ *
+ * Returns 0 on success.
+ */
+static int
+table_do_modify(ipfw_obj_header *oh, ipfw_xtable_info *i)
+{
+	char tbuf[sizeof(ipfw_obj_header) + sizeof(ipfw_xtable_info)];
+	int error;
+
+	memcpy(tbuf, oh, sizeof(*oh));
+	memcpy(tbuf + sizeof(*oh), i, sizeof(*i));
+	oh = (ipfw_obj_header *)tbuf;
+
+	error = do_set3(IP_FW_TABLE_XMODIFY, &oh->opheader, sizeof(tbuf));
+
+	return (error);
+}
 /*
  * Destroys given table specified by @oh->ntlv.
  * Returns 0 on success.
@@ -584,19 +679,25 @@ table_show_tainfo(ipfw_xtable_info *i, struct ta_cldata *d,
 static int
 table_show_info(ipfw_xtable_info *i, void *arg)
 {
-	const char *vtype;
+	const char *vtype, *vftype;
 	ipfw_ta_tinfo *tainfo;
 	int afdata, afitem;
 	struct ta_cldata d;
-	char ttype[64];
+	char ttype[64], tvtype[64];
 
 	table_print_type(ttype, sizeof(ttype), i->type, i->tflags);
 	if ((vtype = match_value(tablevaltypes, i->vtype)) == NULL)
 		vtype = "unknown";
+	if ((vftype = match_value(tablefvaltypes, i->vftype)) == NULL)
+		vftype = "unknown";
+	if (strcmp(vtype, vftype) != 0)
+		snprintf(tvtype, sizeof(tvtype), "%s(%s)", vtype, vftype);
+	else
+		snprintf(tvtype, sizeof(tvtype), "%s", vtype);
 
 	printf("--- table(%s), set(%u) ---\n", i->tablename, i->set);
 	printf(" kindex: %d, type: %s\n", i->kidx, ttype);
-	printf(" valtype: %s, references: %u\n", vtype, i->refcnt);
+	printf(" valtype: %s, references: %u\n", tvtype, i->refcnt);
 	printf(" algorithm: %s\n", i->algoname);
 	printf(" items: %u, size: %u\n", i->count, i->size);
 	if (i->limit > 0)
@@ -1092,9 +1193,22 @@ static void
 tentry_fill_value(ipfw_obj_header *oh, ipfw_obj_tentry *tent, char *arg,
     uint8_t type, uint8_t vtype)
 {
-	int code;
+	uint32_t val;
 	char *p;
 
+	/* Try to interpret as number first */
+	tent->value = strtoul(arg, &p, 0);
+	if (*p == '\0')
+		return;
+	if (inet_pton(AF_INET, arg, &val) == 1) {
+		tent->value = ntohl(val);
+		return;
+	}
+	/* Try hostname */
+	if (lookup_host(arg, (struct in_addr *)&tent->value) == 0)
+		return;
+	errx(EX_OSERR, "Unable to parse value %s", arg);
+#if 0
 	switch (vtype) {
 	case IPFW_VTYPE_U32:
 		tent->value = strtoul(arg, &p, 0);
@@ -1122,6 +1236,7 @@ tentry_fill_value(ipfw_obj_header *oh, ipfw_obj_tentry *tent, char *arg,
 	default:
 		errx(EX_OSERR, "Unsupported format type %d", vtype);
 	}
+#endif
 }
 
 /*
@@ -1250,7 +1365,7 @@ table_show_entry(ipfw_xtable_info *i, ipfw_obj_tentry *tent)
 
 	tval = tent->value;
 
-	if (co.do_value_as_ip) {
+	if (co.do_value_as_ip || i->vftype == IPFW_VFTYPE_IP) {
 		tval = htonl(tval);
 		inet_ntop(AF_INET, &tval, pval, sizeof(pval));
 	} else
