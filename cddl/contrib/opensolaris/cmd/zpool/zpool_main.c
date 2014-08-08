@@ -3031,7 +3031,7 @@ zpool_do_list(int argc, char **argv)
 	int ret;
 	list_cbdata_t cb = { 0 };
 	static char default_props[] =
-	    "name,size,allocated,free,capacity,dedupratio,"
+	    "name,size,allocated,free,expandsize,capacity,dedupratio,"
 	    "health,altroot";
 	char *props = default_props;
 	unsigned long interval = 0, count = 0;
