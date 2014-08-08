@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 28, 2014
+.Dd July 14, 2014
 .Dt ZPOOL 8
 .Os
 .Sh NAME
@@ -1664,7 +1664,8 @@ can change.
 .It Fl x
 Only display status for pools that are exhibiting errors or are otherwise
 unavailable.
-Warnings about pools not using the latest on-disk format will not be included.
+Warnings about pools not using the latest on-disk format, having non-native
+block size or disabled features will not be included.
 .It Fl v
 Displays verbose data error information, printing out a complete list of all
 data errors since the last complete pool scrub.
