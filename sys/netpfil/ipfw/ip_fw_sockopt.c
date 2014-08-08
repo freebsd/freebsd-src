@@ -375,7 +375,7 @@ export_cntr0_base(struct ip_fw *krule, struct ip_fw_bcounter0 *cntr)
 }
 
 /*
- * Copies rule @urule from v1 userland format
+ * Copies rule @urule from v1 userland format (current).
  * to kernel @krule.
  * Assume @krule is zeroed.
  */
@@ -454,6 +454,10 @@ import_rule0(struct rule_check_info *ci)
 {
 	struct ip_fw_rule0 *urule;
 	struct ip_fw *krule;
+	int cmdlen, l;
+	ipfw_insn *cmd;
+	ipfw_insn_limit *lcmd;
+	ipfw_insn_if *cmdif;
 
 	urule = (struct ip_fw_rule0 *)ci->urule;
 	krule = (struct ip_fw *)ci->krule;
@@ -471,11 +475,68 @@ import_rule0(struct rule_check_info *ci)
 
 	/* Copy opcodes */
 	memcpy(krule->cmd, urule->cmd, krule->cmd_len * sizeof(uint32_t));
+
+	/*
+	 * Alter opcodes:
+	 * 1) convert tablearg value from 65335 to 0
+	 * 2) convert table number in iface opcodes to u16
+	 */
+	l = krule->cmd_len;
+	cmd = krule->cmd;
+	cmdlen = 0;
+
+	for ( ;	l > 0 ; l -= cmdlen, cmd += cmdlen) {
+		cmdlen = F_LEN(cmd);
+
+		switch (cmd->opcode) {
+		/* Opcodes supporting tablearg */
+		case O_TAG:
+		case O_TAGGED:
+		case O_PIPE:
+		case O_QUEUE:
+		case O_DIVERT:
+		case O_TEE:
+		case O_SKIPTO:
+		case O_CALLRETURN:
+		case O_NETGRAPH:
+		case O_NGTEE:
+		case O_SETFIB:
+		case O_SETDSCP:
+		case O_NAT:
+			if (cmd->arg1 == 65535)
+				cmd->arg1 = IP_FW_TARG;
+			break;
+		case O_LIMIT:
+			lcmd = (ipfw_insn_limit *)cmd;
+			if (lcmd->conn_limit == 65535)
+				lcmd->conn_limit = IP_FW_TARG;
+			break;
+		/* Interface tables */
+		case O_XMIT:
+		case O_RECV:
+		case O_VIA:
+			/* Interface table, possibly */
+			cmdif = (ipfw_insn_if *)cmd;
+			if (cmdif->name[0] != '\1')
+				break;
+
+			cmdif->p.kidx = (uint16_t)cmdif->p.glob;
+			break;
+		}
+	}
 }
 
+/*
+ * Copies rule @krule from kernel to FreeBSD8 userland format (v0)
+ */
 static void
 export_rule0(struct ip_fw *krule, struct ip_fw_rule0 *urule, int len)
 {
+	int cmdlen, l;
+	ipfw_insn *cmd;
+	ipfw_insn_limit *lcmd;
+	ipfw_insn_if *cmdif;
+
 	/* copy header */
 	memset(urule, 0, len);
 	urule->act_ofs = krule->act_ofs;
@@ -490,6 +551,55 @@ export_rule0(struct ip_fw *krule, struct ip_fw_rule0 *urule, int len)
 
 	/* Export counters */
 	export_cntr0_base(krule, (struct ip_fw_bcounter0 *)&urule->pcnt);
+
+	/*
+	 * Alter opcodes:
+	 * 1) convert tablearg value from 0 to 65335
+	 * 2) convert table number in iface opcodes to int
+	 */
+	l = urule->cmd_len;
+	cmd = urule->cmd;
+	cmdlen = 0;
+
+	for ( ;	l > 0 ; l -= cmdlen, cmd += cmdlen) {
+		cmdlen = F_LEN(cmd);
+
+		switch (cmd->opcode) {
+		/* Opcodes supporting tablearg */
+		case O_TAG:
+		case O_TAGGED:
+		case O_PIPE:
+		case O_QUEUE:
+		case O_DIVERT:
+		case O_TEE:
+		case O_SKIPTO:
+		case O_CALLRETURN:
+		case O_NETGRAPH:
+		case O_NGTEE:
+		case O_SETFIB:
+		case O_SETDSCP:
+		case O_NAT:
+			if (cmd->arg1 == IP_FW_TARG)
+				cmd->arg1 = 65535;
+			break;
+		case O_LIMIT:
+			lcmd = (ipfw_insn_limit *)cmd;
+			if (lcmd->conn_limit == IP_FW_TARG)
+				lcmd->conn_limit = 65535;
+			break;
+		/* Interface tables */
+		case O_XMIT:
+		case O_RECV:
+		case O_VIA:
+			/* Interface table, possibly */
+			cmdif = (ipfw_insn_if *)cmd;
+			if (cmdif->name[0] != '\1')
+				break;
+
+			cmdif->p.glob = cmdif->p.kidx;
+			break;
+		}
+	}
 }
 
 /*

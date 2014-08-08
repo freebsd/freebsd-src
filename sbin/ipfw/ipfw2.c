@@ -93,7 +93,7 @@ int ipfw_socket = -1;
 	if (!av[0])							\
 		errx(EX_USAGE, "%s: missing argument", match_value(s_x, tok)); \
 	if (_substrcmp(*av, "tablearg") == 0) {				\
-		arg = IP_FW_TABLEARG;					\
+		arg = IP_FW_TARG;					\
 		break;							\
 	}								\
 									\
@@ -111,7 +111,7 @@ int ipfw_socket = -1;
 		errx(EX_DATAERR, "%s: argument is out of range (%u..%u): %s", \
 		    match_value(s_x, tok), min, max, *av);		\
 									\
-	if (_xval == IP_FW_TABLEARG)					\
+	if (_xval == IP_FW_TARG)					\
 		errx(EX_DATAERR, "%s: illegal argument value: %s",	\
 		    match_value(s_x, tok), *av);			\
 	arg = _xval;							\
@@ -123,7 +123,7 @@ PRINT_UINT_ARG(const char *str, uint32_t arg)
 {
 	if (str != NULL)
 		printf("%s",str);
-	if (arg == IP_FW_TABLEARG)
+	if (arg == IP_FW_TARG)
 		printf("tablearg");
 	else
 		printf("%u", arg);
@@ -469,7 +469,7 @@ bprint_uint_arg(struct buf_pr *bp, const char *str, uint32_t arg)
 
 	if (str != NULL)
 		bprintf(bp, "%s", str);
-	if (arg == IP_FW_TABLEARG)
+	if (arg == IP_FW_TARG)
 		bprintf(bp, "tablearg");
 	else
 		bprintf(bp, "%u", arg);
@@ -1843,7 +1843,7 @@ show_static_rule(struct cmdline_opts *co, struct format_opts *fo,
 				else if (cmdif->name[0] == '\1') {
 					/* interface table */
 					t = table_search_ctlv(fo->tstate,
-					    cmdif->p.glob);
+					    cmdif->p.kidx);
 					printf(" %s table(%s)", s, t);
 				} else
 					printf(" %s %s", s, cmdif->name);
@@ -3092,7 +3092,7 @@ fill_iface(ipfw_insn_if *cmd, char *arg, int cblen, struct tidx *tstate)
 			errx(EX_DATAERR, "Invalid table name: %s", arg + 6);
 
 		cmd->name[0] = '\1'; /* Special value indicating table */
-		cmd->p.glob = uidx;
+		cmd->p.kidx = uidx;
 	} else if (!isdigit(*arg)) {
 		strlcpy(cmd->name, arg, sizeof(cmd->name));
 		cmd->p.glob = strpbrk(arg, "*?[") != NULL ? 1 : 0;
@@ -3596,11 +3596,11 @@ chkarg:
 			errx(EX_USAGE, "missing argument for %s", *(av - 1));
 		if (isdigit(**av)) {
 			action->arg1 = strtoul(*av, NULL, 10);
-			if (action->arg1 <= 0 || action->arg1 >= IP_FW_TABLEARG)
+			if (action->arg1 <= 0 || action->arg1 >= IP_FW_TARG)
 				errx(EX_DATAERR, "illegal argument for %s",
 				    *(av - 1));
 		} else if (_substrcmp(*av, "tablearg") == 0) {
-			action->arg1 = IP_FW_TABLEARG;
+			action->arg1 = IP_FW_TARG;
 		} else if (i == TOK_DIVERT || i == TOK_TEE) {
 			struct servent *s;
 			setservent(1);
@@ -3724,7 +3724,7 @@ chkarg:
 		action->opcode = O_SETFIB;
 		NEED1("missing fib number");
 		if (_substrcmp(*av, "tablearg") == 0) {
-			action->arg1 = IP_FW_TABLEARG;
+			action->arg1 = IP_FW_TARG;
 		} else {
 		        action->arg1 = strtoul(*av, NULL, 10);
 			if (sysctlbyname("net.fibs", &numfibs, &intsize,
@@ -3744,7 +3744,7 @@ chkarg:
 		action->opcode = O_SETDSCP;
 		NEED1("missing DSCP code");
 		if (_substrcmp(*av, "tablearg") == 0) {
-			action->arg1 = IP_FW_TABLEARG;
+			action->arg1 = IP_FW_TARG;
 		} else if (isalpha(*av[0])) {
 			if ((code = match_token(f_ipdscp, *av)) == -1)
 				errx(EX_DATAERR, "Unknown DSCP code");

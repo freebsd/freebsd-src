@@ -719,7 +719,7 @@ ipfw_install_state(struct ip_fw *rule, ipfw_insn_limit *cmd,
 		conn_limit = IP_FW_ARG_TABLEARG(cmd->conn_limit);
 		  
 		DEB(
-		if (cmd->conn_limit == IP_FW_TABLEARG)
+		if (cmd->conn_limit == IP_FW_TARG)
 			printf("ipfw: %s: O_LIMIT rule, conn_limit: %u "
 			    "(tablearg)\n", __func__, conn_limit);
 		else
