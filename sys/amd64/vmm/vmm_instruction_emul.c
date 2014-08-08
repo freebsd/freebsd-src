@@ -82,6 +82,10 @@ static const struct vie_op two_byte_opcodes[256] = {
 		.op_byte = 0xB6,
 		.op_type = VIE_OP_TYPE_MOVZX,
 	},
+	[0xB7] = {
+		.op_byte = 0xB7,
+		.op_type = VIE_OP_TYPE_MOVZX,
+	},
 	[0xBE] = {
 		.op_byte = 0xBE,
 		.op_type = VIE_OP_TYPE_MOVSX,
@@ -503,6 +507,25 @@ emulate_movx(void *vm, int vcpuid, uint64_t gpa, struct vie *vie,
 		val = (uint8_t)val;
 
 		/* write the result */
+		error = vie_update_register(vm, vcpuid, reg, val, size);
+		break;
+	case 0xB7:
+		/*
+		 * MOV and zero extend word from mem (ModRM:r/m) to
+		 * reg (ModRM:reg).
+		 *
+		 * 0F B7/r		movzx r32, r/m16
+		 * REX.W + 0F B7/r	movzx r64, r/m16
+		 */
+		error = memread(vm, vcpuid, gpa, &val, 2, arg);
+		if (error)
+			return (error);
+
+		reg = gpr_map[vie->reg];
+
+		/* zero-extend word */
+		val = (uint16_t)val;
+
 		error = vie_update_register(vm, vcpuid, reg, val, size);
 		break;
 	case 0xBE:
