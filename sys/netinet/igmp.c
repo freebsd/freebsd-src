@@ -1436,7 +1436,7 @@ igmp_input(struct mbuf **mp, int *offp, int proto)
 	int minlen;
 	int queryver;
 
-	CTR3(KTR_IGMPV3, "%s: called w/mbuf (%p,%d)", __func__, m, *offp);
+	CTR3(KTR_IGMPV3, "%s: called w/mbuf (%p,%d)", __func__, *mp, *offp);
 
 	m = *mp;
 	ifp = m->m_pkthdr.rcvif;
