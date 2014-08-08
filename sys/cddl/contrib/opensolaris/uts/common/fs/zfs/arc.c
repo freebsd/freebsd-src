@@ -5207,7 +5207,7 @@ l2arc_compress_buf(l2arc_buf_hdr_t *l2hdr)
 	len = l2hdr->b_asize;
 	cdata = zio_data_buf_alloc(len);
 	csize = zio_compress_data(ZIO_COMPRESS_LZ4, l2hdr->b_tmp_cdata,
-	    cdata, l2hdr->b_asize, (size_t)(1ULL << l2hdr->b_dev->l2ad_vdev->vdev_ashift));
+	    cdata, l2hdr->b_asize);
 
 	rounded = P2ROUNDUP(csize, (size_t)SPA_MINBLOCKSIZE);
 	if (rounded > csize) {
