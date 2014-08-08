@@ -254,10 +254,18 @@ ipsec4_common_input(struct mbuf *m, ...)
 				  AF_INET, nxt);
 }
 
-void
-ah4_input(struct mbuf *m, int off)
+int
+ah4_input(struct mbuf **mp, int *offp, int proto)
 {
+	struct mbuf *m;
+	int off;
+
+	m = *mp;
+	off = *offp;
+	*mp = NULL;
+
 	ipsec4_common_input(m, off, IPPROTO_AH);
+	return (IPPROTO_DONE);
 }
 void
 ah4_ctlinput(int cmd, struct sockaddr *sa, void *v)
@@ -267,11 +275,20 @@ ah4_ctlinput(int cmd, struct sockaddr *sa, void *v)
 		ipsec4_common_ctlinput(cmd, sa, v, IPPROTO_AH);
 }
 
-void
-esp4_input(struct mbuf *m, int off)
+int
+esp4_input(struct mbuf **mp, int *offp, int proto)
 {
+	struct mbuf *m;
+	int off;
+
+	m = *mp;
+	off = *offp;
+	mp = NULL;
+
 	ipsec4_common_input(m, off, IPPROTO_ESP);
+	return (IPPROTO_DONE);
 }
+
 void
 esp4_ctlinput(int cmd, struct sockaddr *sa, void *v)
 {
@@ -280,10 +297,18 @@ esp4_ctlinput(int cmd, struct sockaddr *sa, void *v)
 		ipsec4_common_ctlinput(cmd, sa, v, IPPROTO_ESP);
 }
 
-void
-ipcomp4_input(struct mbuf *m, int off)
+int
+ipcomp4_input(struct mbuf **mp, int *offp, int proto)
 {
+	struct mbuf *m;
+	int off;
+
+	m = *mp;
+	off = *offp;
+	mp = NULL;
+
 	ipsec4_common_input(m, off, IPPROTO_IPCOMP);
+	return (IPPROTO_DONE);
 }
 
 /*
