@@ -73,9 +73,14 @@
 #define PCHK(fmt, args...)	{printf("%s(%d): " fmt "\n", __func__, __LINE__ , ##args); getchar();}
 
 /* Avoid unwanted userlandish components */
+#ifndef _KERNEL
+#define __NOT_KERNEL
 #define _KERNEL
+#endif
 #include <sys/errno.h>
+#ifdef __NOT_KERNEL
 #undef _KERNEL
+#endif
 
 /* special stand error codes */
 #define	EADAPT	(ELAST+1)	/* bad adaptor */
