@@ -1147,40 +1147,45 @@ tablename_cmp(const void *a, const void *b)
 static int
 tables_foreach(table_cb_t *f, void *arg, int sort)
 {
-	ipfw_obj_lheader req, *olh;
+	ipfw_obj_lheader *olh;
 	ipfw_xtable_info *info;
 	size_t sz;
 	int i, error;
 
-	memset(&req, 0, sizeof(req));
-	sz = sizeof(req);
+	/* Start with reasonable default */
+	sz = sizeof(*olh) + 16 * sizeof(ipfw_xtable_info);
 
-	if ((error = do_get3(IP_FW_TABLES_XGETSIZE, &req.opheader, &sz)) != 0)
-		return (errno);
+	for (;;) {
+		if ((olh = calloc(1, sz)) == NULL)
+			return (ENOMEM);
 
-	sz = req.size;
-	if ((olh = calloc(1, sz)) == NULL)
-		return (ENOMEM);
+		olh->size = sz;
+		error = do_get3(IP_FW_TABLES_XLIST, &olh->opheader, &sz);
+		if (error == ENOMEM) {
+			sz = olh->size;
+			free(olh);
+			continue;
+		} else if (error != 0) {
+			free(olh);
+			return (error);
+		}
 
-	olh->size = sz;
-	if ((error = do_get3(IP_FW_TABLES_XLIST, &olh->opheader, &sz)) != 0) {
+		if (sort != 0)
+			qsort(olh + 1, olh->count, olh->objsize, tablename_cmp);
+
+		info = (ipfw_xtable_info *)(olh + 1);
+		for (i = 0; i < olh->count; i++) {
+			error = f(info, arg); /* Ignore errors for now */
+			info = (ipfw_xtable_info *)((caddr_t)info + olh->objsize);
+		}
+
 		free(olh);
-		return (errno);
+		break;
 	}
-
-	if (sort != 0)
-		qsort(olh + 1, olh->count, olh->objsize, tablename_cmp);
-
-	info = (ipfw_xtable_info *)(olh + 1);
-	for (i = 0; i < olh->count; i++) {
-		error = f(info, arg); /* Ignore errors for now */
-		info = (ipfw_xtable_info *)((caddr_t)info + olh->objsize);
-	}
-
-	free(olh);
 
 	return (0);
 }
+
 
 /*
  * Retrieves all entries for given table @i in

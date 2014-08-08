@@ -1115,32 +1115,6 @@ ipfw_lookup_table_extended(struct ip_fw_chain *ch, uint16_t tbl, uint16_t plen,
  */
 
 /*
- * Get buffer size needed to list info for all tables.
- * Data layout (v0)(current):
- * Request: [ empty ], size = sizeof(ipfw_obj_lheader)
- * Reply: [ ipfw_obj_lheader ]
- *
- * Returns 0 on success
- */
-int
-ipfw_listsize_tables(struct ip_fw_chain *ch, struct sockopt_data *sd)
-{
-	struct _ipfw_obj_lheader *olh;
-
-	olh = (struct _ipfw_obj_lheader *)ipfw_get_sopt_header(sd,sizeof(*olh));
-	if (olh == NULL)
-		return (EINVAL);
-
-	olh->size = sizeof(*olh); /* Make export_table store needed size */
-
-	IPFW_UH_RLOCK(ch);
-	export_tables(ch, olh, sd);
-	IPFW_UH_RUNLOCK(ch);
-
-	return (0);
-}
-
-/*
  * Lists all tables currently available in kernel.
  * Data layout (v0)(current):
  * Request: [ ipfw_obj_lheader ], size = ipfw_obj_lheader.size
@@ -1570,6 +1544,9 @@ export_table_internal(struct namedobj_instance *ni, struct named_object *no,
 /*
  * Export all tables as ipfw_xtable_info structures to
  * storage provided by @sd.
+ *
+ * If supplied buffer is too small, fills in required size
+ * and returns ENOMEM.
  * Returns 0 on success.
  */
 static int

@@ -137,7 +137,6 @@ void ipfw_table_algo_destroy(struct ip_fw_chain *chain);
 
 
 /* direct ipfw_ctl handlers */
-int ipfw_listsize_tables(struct ip_fw_chain *ch, struct sockopt_data *sd);
 int ipfw_list_tables(struct ip_fw_chain *ch, struct sockopt_data *sd);
 int ipfw_dump_table(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
     struct sockopt_data *sd);

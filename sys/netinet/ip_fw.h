@@ -79,7 +79,6 @@ typedef struct _ip_fw3_opheader {
 #define	IP_FW_TABLE_XGETSIZE	88	/* get table size (deprecated) */
 #define	IP_FW_TABLE_XLIST	89	/* list table contents */
 #define	IP_FW_TABLE_XDESTROY	90	/* destroy table */
-#define	IP_FW_TABLES_XGETSIZE	91	/* get size for tables list */
 #define	IP_FW_TABLES_XLIST	92	/* list all tables  */
 #define	IP_FW_TABLE_XINFO	93	/* request info for one table */
 #define	IP_FW_TABLE_XFLUSH	94	/* flush table data */
