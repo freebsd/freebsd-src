@@ -3458,9 +3458,9 @@ setpte:
  *	or lose information.  That is, this routine must actually
  *	insert this page into the given map NOW.
  */
-void
-pmap_enter(pmap_t pmap, vm_offset_t va, vm_prot_t access, vm_page_t m,
-    vm_prot_t prot, boolean_t wired)
+int
+pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
+    u_int flags, int8_t psind)
 {
 	pd_entry_t *pde;
 	pt_entry_t *pte;
@@ -3468,17 +3468,19 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_prot_t access, vm_page_t m,
 	pv_entry_t pv;
 	vm_paddr_t opa, pa;
 	vm_page_t mpte, om;
-	boolean_t invlva;
+	boolean_t invlva, nosleep, wired;
 
 	va = trunc_page(va);
+	mpte = NULL;
+	wired = (flags & PMAP_ENTER_WIRED) != 0;
+	nosleep = (flags & PMAP_ENTER_NOSLEEP) != 0;
+
 	KASSERT(va <= VM_MAX_KERNEL_ADDRESS, ("pmap_enter: toobig"));
 	KASSERT(va < UPT_MIN_ADDRESS || va >= UPT_MAX_ADDRESS,
 	    ("pmap_enter: invalid to pmap_enter page table pages (va: 0x%x)",
 	    va));
 	if ((m->oflags & VPO_UNMANAGED) == 0 && !vm_page_xbusied(m))
-		VM_OBJECT_ASSERT_WLOCKED(m->object);
-
-	mpte = NULL;
+		VM_OBJECT_ASSERT_LOCKED(m->object);
 
 	rw_wlock(&pvh_global_lock);
 	PMAP_LOCK(pmap);
@@ -3489,7 +3491,15 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_prot_t access, vm_page_t m,
 	 * resident, we are creating it here.
 	 */
 	if (va < VM_MAXUSER_ADDRESS) {
-		mpte = pmap_allocpte(pmap, va, M_WAITOK);
+		mpte = pmap_allocpte(pmap, va, nosleep ? M_NOWAIT : M_WAITOK);
+		if (mpte == NULL) {
+			KASSERT(nosleep,
+			    ("pmap_allocpte failed with sleep allowed"));
+			sched_unpin();
+			rw_wunlock(&pvh_global_lock);
+			PMAP_UNLOCK(pmap);
+			return (KERN_RESOURCE_SHORTAGE);
+		}
 	}
 
 	pde = pmap_pde(pmap, va);
@@ -3607,7 +3617,7 @@ validate:
 	 */
 	if ((origpte & ~(PG_M|PG_A)) != newpte) {
 		newpte |= PG_A;
-		if ((access & VM_PROT_WRITE) != 0)
+		if ((flags & VM_PROT_WRITE) != 0)
 			newpte |= PG_M;
 		if (origpte & PG_V) {
 			invlva = FALSE;
@@ -3652,6 +3662,7 @@ validate:
 	sched_unpin();
 	rw_wunlock(&pvh_global_lock);
 	PMAP_UNLOCK(pmap);
+	return (KERN_SUCCESS);
 }
 
 /*

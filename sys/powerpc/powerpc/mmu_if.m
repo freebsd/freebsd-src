@@ -224,15 +224,17 @@ METHOD void copy_pages {
  * @param _va		mapping virtual address
  * @param _p		mapping physical page
  * @param _prot		mapping page protection
- * @param _wired	TRUE if page will be wired
+ * @param _flags	pmap_enter flags
+ * @param _psind	superpage size index
  */
-METHOD void enter {
+METHOD int enter {
 	mmu_t		_mmu;
 	pmap_t		_pmap;
 	vm_offset_t	_va;
 	vm_page_t	_p;
 	vm_prot_t	_prot;
-	boolean_t	_wired;
+	u_int		_flags;
+	int8_t		_psind;
 };
 
 

@@ -902,7 +902,8 @@ vnode_locked:
 	 * back on the active queue until later so that the pageout daemon
 	 * won't find it (yet).
 	 */
-	pmap_enter(fs.map->pmap, vaddr, fault_type, fs.m, prot, wired);
+	pmap_enter(fs.map->pmap, vaddr, fs.m, prot,
+	    fault_type | (wired ? PMAP_ENTER_WIRED : 0), 0);
 	if (faultcount != 1 && (fault_flags & VM_FAULT_CHANGE_WIRING) == 0 &&
 	    wired == 0)
 		vm_fault_prefault(&fs, vaddr, faultcount, reqpage);
@@ -1318,7 +1319,8 @@ again:
 		 * mapping is being replaced by a write-enabled
 		 * mapping, then wire that new mapping.
 		 */
-		pmap_enter(dst_map->pmap, vaddr, access, dst_m, prot, upgrade);
+		pmap_enter(dst_map->pmap, vaddr, dst_m, prot,
+		    access | (upgrade ? PMAP_ENTER_WIRED : 0), 0);
 
 		/*
 		 * Mark it no longer busy, and put it on the active list.
