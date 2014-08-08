@@ -342,7 +342,7 @@ tei_to_sockaddr_ent(struct tentry_info *tei, struct sockaddr *sa,
 {
 	int mlen;
 	struct sockaddr_in *addr, *mask;
-	struct sockaddr_in6 *addr6, *mask6;
+	struct sa_in6 *addr6, *mask6;
 	in_addr_t a4;
 
 	mlen = tei->masklen;
@@ -367,8 +367,8 @@ tei_to_sockaddr_ent(struct tentry_info *tei, struct sockaddr *sa,
 #ifdef INET6
 	} else if (tei->subtype == AF_INET6) {
 		/* IPv6 case */
-		addr6 = (struct sockaddr_in6 *)sa;
-		mask6 = (struct sockaddr_in6 *)ma;
+		addr6 = (struct sa_in6 *)sa;
+		mask6 = (struct sa_in6 *)ma;
 		/* Set 'total' structure length */
 		KEY_LEN(*addr6) = KEY_LEN_INET6;
 		KEY_LEN(*mask6) = KEY_LEN_INET6;

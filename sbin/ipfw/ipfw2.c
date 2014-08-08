@@ -2659,7 +2659,7 @@ ipfw_get_config(struct cmdline_opts *co, struct format_opts *fo,
 	sz = 4096;
 	cfg = NULL;
 
-	for (i = 0; i < 10; i++) {
+	for (i = 0; i < 16; i++) {
 		if (cfg != NULL)
 			free(cfg);
 		if ((cfg = calloc(1, sz)) == NULL)
@@ -2676,9 +2676,10 @@ ipfw_get_config(struct cmdline_opts *co, struct format_opts *fo,
 			}
 
 			/* Buffer size is not enough. Try to increase */
-			sz = sz * 2 + 200;
+			sz = sz * 2;
 			if (sz < cfg->size)
-				sz = cfg->size + 200;
+				sz = cfg->size;
+			continue;
 		}
 
 		*pcfg = cfg;
