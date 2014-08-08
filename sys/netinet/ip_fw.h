@@ -49,16 +49,16 @@
  * Most commands (queue, pipe, tag, untag, limit...) can have a 16-bit
  * argument between 1 and 65534. The value 0 is unused, the value
  * 65535 (IP_FW_TABLEARG) is used to represent 'tablearg', i.e. the
- * can be 1..65534, or 0 to indicate the use of a 'tablearg'
+ * can be 1..65534, or 65535 to indicate the use of a 'tablearg'
  * result of the most recent table() lookup.
  * Note that 16bit is only a historical limit, resulting from
  * the use of a 16-bit fields for that value. In reality, we can have
  * 2^32 pipes, queues, tag values and so on, and use 0 as a tablearg.
+ * Note there are some opcodes where value 0 is perfectly valid (fib, dscp).
  */
 #define	IPFW_ARG_MIN		1
 #define	IPFW_ARG_MAX		65534
-#define IP_FW_TABLEARG		65535	/* Compat value for old clients */
-#define	IP_FW_TARG		0	/* Current tablearg value */
+#define IP_FW_TABLEARG		65535
 
 /*
  * Number of entries in the call stack of the call/return commands.

@@ -810,7 +810,7 @@ jump_fast(struct ip_fw_chain *chain, struct ip_fw *f, int num,
 	 * whose version is written in f->next_rule
 	 * (horrible hacks to avoid changing the ABI).
 	 */
-	if (num != IP_FW_TARG && (uintptr_t)f->x_next == chain->id)
+	if (num != IP_FW_TABLEARG && (uintptr_t)f->x_next == chain->id)
 		f_pos = (uintptr_t)f->next_rule;
 	else {
 		int i = IP_FW_ARG_TABLEARG(num);
@@ -822,7 +822,7 @@ jump_fast(struct ip_fw_chain *chain, struct ip_fw *f, int num,
 		else
 			f_pos = ipfw_find_rule(chain, i, 0);
 		/* update the cache */
-		if (num != IP_FW_TARG) {
+		if (num != IP_FW_TABLEARG) {
 			f->next_rule = (void *)(uintptr_t)f_pos;
 			f->x_next = (void *)(uintptr_t)chain->id;
 		}
@@ -2461,7 +2461,7 @@ do {								\
 					    retval = IP_FW_DENY;
 					    break;
 					}
-					if (cmd->arg1 != IP_FW_TARG)
+					if (cmd->arg1 != IP_FW_TABLEARG)
 					    ((ipfw_insn_nat *)cmd)->nat = t;
 				}
 				retval = ipfw_nat_ptr(args, t, m);
