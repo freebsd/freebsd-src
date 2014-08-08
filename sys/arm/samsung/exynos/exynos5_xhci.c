@@ -49,8 +49,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/usb/controller/xhci.h>
 #include <dev/usb/controller/xhcireg.h>
 
-#include <dev/fdt/fdt_common.h>
-
 #include <machine/bus.h>
 #include <machine/resource.h>
 

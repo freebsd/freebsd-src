@@ -50,8 +50,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/usb/controller/ehci.h>
 #include <dev/usb/controller/ehcireg.h>
 
-#include <dev/fdt/fdt_common.h>
-
 #include <machine/bus.h>
 #include <machine/resource.h>
 
