@@ -6064,13 +6064,12 @@ scsi_parse_transportid_iscsi(char *id_str, struct scsi_transportid_header **hdr,
 			     char *error_str, int error_str_len)
 {
 	size_t id_len, sep_len, id_size, name_len;
-	int is_full_id, retval;
+	int retval;
 	unsigned int i, sep_pos, sep_found;
 	const char *sep_template = ",i,0x";
 	const char *iqn_prefix = "iqn.";
 	struct scsi_transportid_iscsi_device *iscsi;
 
-	is_full_id = 0;
 	retval = 0;
 	sep_found = 0;
 
