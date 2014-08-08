@@ -2077,15 +2077,18 @@ static void pcie_intr_handler(struct adapter *adapter)
 
 	int fat;
 
-	fat = t4_handle_intr_status(adapter,
-				    A_PCIE_CORE_UTL_SYSTEM_BUS_AGENT_STATUS,
-				    sysbus_intr_info) +
-	      t4_handle_intr_status(adapter,
-				    A_PCIE_CORE_UTL_PCI_EXPRESS_PORT_STATUS,
-				    pcie_port_intr_info) +
-	      t4_handle_intr_status(adapter, A_PCIE_INT_CAUSE,
-				    is_t4(adapter) ?
-				    pcie_intr_info : t5_pcie_intr_info);
+	if (is_t4(adapter))
+		fat = t4_handle_intr_status(adapter,
+					    A_PCIE_CORE_UTL_SYSTEM_BUS_AGENT_STATUS,
+					    sysbus_intr_info) +
+		      t4_handle_intr_status(adapter,
+					    A_PCIE_CORE_UTL_PCI_EXPRESS_PORT_STATUS,
+					    pcie_port_intr_info) +
+		      t4_handle_intr_status(adapter, A_PCIE_INT_CAUSE,
+					    pcie_intr_info);
+	else
+		fat = t4_handle_intr_status(adapter, A_PCIE_INT_CAUSE,
+					    t5_pcie_intr_info);
 	if (fat)
 		t4_fatal_err(adapter);
 }
@@ -2466,9 +2469,15 @@ static void ma_intr_handler(struct adapter *adapter)
 {
 	u32 v, status = t4_read_reg(adapter, A_MA_INT_CAUSE);
 
-	if (status & F_MEM_PERR_INT_CAUSE)
+	if (status & F_MEM_PERR_INT_CAUSE) {
 		CH_ALERT(adapter, "MA parity error, parity status %#x\n",
-			 t4_read_reg(adapter, A_MA_PARITY_ERROR_STATUS));
+			 t4_read_reg(adapter, A_MA_PARITY_ERROR_STATUS1));
+		if (is_t5(adapter))
+			CH_ALERT(adapter,
+				 "MA parity error, parity status %#x\n",
+				 t4_read_reg(adapter,
+				 	     A_MA_PARITY_ERROR_STATUS2));
+	}
 	if (status & F_MEM_WRAP_INT_CAUSE) {
 		v = t4_read_reg(adapter, A_MA_INT_WRAP_STATUS);
 		CH_ALERT(adapter, "MA address wrap-around error by client %u to"
@@ -2685,10 +2694,8 @@ void t4_intr_clear(struct adapter *adapter)
 {
 	static const unsigned int cause_reg[] = {
 		A_SGE_INT_CAUSE1, A_SGE_INT_CAUSE2, A_SGE_INT_CAUSE3,
-		A_PCIE_CORE_UTL_SYSTEM_BUS_AGENT_STATUS,
-		A_PCIE_CORE_UTL_PCI_EXPRESS_PORT_STATUS,
 		A_PCIE_NONFAT_ERR, A_PCIE_INT_CAUSE,
-		A_MA_INT_WRAP_STATUS, A_MA_PARITY_ERROR_STATUS, A_MA_INT_CAUSE,
+		A_MA_INT_WRAP_STATUS, A_MA_PARITY_ERROR_STATUS1, A_MA_INT_CAUSE,
 		A_EDC_INT_CAUSE, EDC_REG(A_EDC_INT_CAUSE, 1),
 		A_CIM_HOST_INT_CAUSE, A_CIM_HOST_UPACC_INT_CAUSE,
 		MYPF_REG(A_CIM_PF_HOST_INT_CAUSE),
@@ -2709,6 +2716,14 @@ void t4_intr_clear(struct adapter *adapter)
 
 	t4_write_reg(adapter, is_t4(adapter) ? A_MC_INT_CAUSE :
 				A_MC_P_INT_CAUSE, 0xffffffff);
+
+	if (is_t4(adapter)) {
+		t4_write_reg(adapter, A_PCIE_CORE_UTL_SYSTEM_BUS_AGENT_STATUS,
+				0xffffffff);
+		t4_write_reg(adapter, A_PCIE_CORE_UTL_PCI_EXPRESS_PORT_STATUS,
+				0xffffffff);
+	} else
+		t4_write_reg(adapter, A_MA_PARITY_ERROR_STATUS2, 0xffffffff);
 
 	t4_write_reg(adapter, A_PL_INT_CAUSE, GLBL_INTR_MASK);
 	(void) t4_read_reg(adapter, A_PL_INT_CAUSE);          /* flush */
