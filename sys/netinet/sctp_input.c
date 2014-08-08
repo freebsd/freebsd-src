@@ -6108,9 +6108,14 @@ extern int *sctp_cpuarry;
 
 #endif
 
-void
-sctp_input(struct mbuf *m, int off)
+int
+sctp_input(struct mbuf **mp, int *offp, int proto)
 {
+	struct mbuf *m;
+	int off;
+
+	m = *mp;
+	off = *offp;
 #if defined(__FreeBSD__) && defined(SCTP_MCORE_INPUT) && defined(SMP)
 	struct ip *ip;
 	struct sctphdr *sh;
@@ -6130,7 +6135,7 @@ sctp_input(struct mbuf *m, int off)
 			if (SCTP_BUF_LEN(m) < offset) {
 				if ((m = m_pullup(m, offset)) == NULL) {
 					SCTP_STAT_INCR(sctps_hdrops);
-					return;
+					return (IPPROTO_DONE);
 				}
 			}
 			ip = mtod(m, struct ip *);
@@ -6142,10 +6147,11 @@ sctp_input(struct mbuf *m, int off)
 		}
 		cpu_to_use = sctp_cpuarry[flowid % mp_ncpus];
 		sctp_queue_to_mcore(m, off, cpu_to_use);
-		return;
+		return (IPPROTO_DONE);
 	}
 #endif
 	sctp_input_with_port(m, off, 0);
+	return (IPPROTO_DONE);
 }
 
 #endif
