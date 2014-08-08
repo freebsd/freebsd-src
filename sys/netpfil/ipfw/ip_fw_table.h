@@ -146,6 +146,8 @@ int ipfw_find_table_entry(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
     struct sockopt_data *sd);
 int ipfw_create_table(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
     struct sockopt_data *sd);
+int ipfw_modify_table(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
+    struct sockopt_data *sd);
 int ipfw_manage_table_ent(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
     struct sockopt_data *sd);
 int ipfw_flush_table(struct ip_fw_chain *ch, ip_fw3_opheader *op3,

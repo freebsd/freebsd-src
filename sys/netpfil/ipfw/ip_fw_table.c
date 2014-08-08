@@ -73,12 +73,16 @@ __FBSDID("$FreeBSD$");
  */
 struct table_config {
 	struct named_object	no;
-	uint8_t		vtype;		/* format table type */
-	uint8_t		linked;		/* 1 if already linked */
+	uint8_t		vtype;		/* value type */
+	uint8_t		vftype;		/* value format type */
 	uint8_t		tflags;		/* type flags */
-	uint8_t		ochanged;	/* used by set swapping */
+	uint8_t		spare0;	
 	uint32_t	count;		/* Number of records */
 	uint32_t	limit;		/* Max number of records */
+	uint8_t		linked;		/* 1 if already linked */
+	uint8_t		ochanged;	/* used by set swapping */
+	uint16_t	spare1;
+	uint32_t	spare2;
 	uint32_t	ocount;		/* used by set swapping */
 	uint64_t	gencnt;		/* generation count */
 	char		tablename[64];	/* table name */
@@ -168,7 +172,7 @@ add_table_entry(struct ip_fw_chain *ch, struct tid_info *ti,
 		}
 
 		/* Try to exit early on limit hit */
-		if (tc->limit != 0 && tc->count == tc->limit &&
+		if (tc->limit != 0 && tc->count >= tc->limit &&
 		    (tei->flags & TEI_FLAGS_UPDATE) == 0) {
 				IPFW_UH_WUNLOCK(ch);
 				return (EFBIG);
@@ -239,7 +243,7 @@ add_table_entry(struct ip_fw_chain *ch, struct tid_info *ti,
 	tc->no.refcnt--;
 	
 	/* Check limit before adding */
-	if (tc->limit != 0 && tc->count == tc->limit) {
+	if (tc->limit != 0 && tc->count >= tc->limit) {
 		if ((tei->flags & TEI_FLAGS_UPDATE) == 0) {
 			IPFW_UH_WUNLOCK(ch);
 			ta->flush_entry(ch, tei, &ta_buf);
@@ -1335,6 +1339,56 @@ ipfw_dump_table_v0(struct ip_fw_chain *ch, struct sockopt_data *sd)
 }
 
 /*
+ * Modifies existing table.
+ * Data layout (v0)(current):
+ * Request: [ ipfw_obj_header ipfw_xtable_info ]
+ *
+ * Returns 0 on success
+ */
+int
+ipfw_modify_table(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
+    struct sockopt_data *sd)
+{
+	struct _ipfw_obj_header *oh;
+	ipfw_xtable_info *i;
+	char *tname;
+	struct tid_info ti;
+	struct namedobj_instance *ni;
+	struct table_config *tc;
+
+	if (sd->valsize != sizeof(*oh) + sizeof(ipfw_xtable_info))
+		return (EINVAL);
+
+	oh = (struct _ipfw_obj_header *)sd->kbuf;
+	i = (ipfw_xtable_info *)(oh + 1);
+
+	/*
+	 * Verify user-supplied strings.
+	 * Check for null-terminated/zero-length strings/
+	 */
+	tname = oh->ntlv.name;
+	if (ipfw_check_table_name(tname) != 0)
+		return (EINVAL);
+
+	objheader_to_ti(oh, &ti);
+	ti.type = i->type;
+
+	IPFW_UH_WLOCK(ch);
+	ni = CHAIN_TO_NI(ch);
+	if ((tc = find_table(ni, &ti)) == NULL) {
+		IPFW_UH_WUNLOCK(ch);
+		return (ESRCH);
+	}
+	if ((i->mflags & IPFW_TMFLAGS_FTYPE) != 0)
+		tc->vftype = i->vftype;
+	if ((i->mflags & IPFW_TMFLAGS_LIMIT) != 0)
+		tc->limit = i->limit;
+	IPFW_UH_WUNLOCK(ch);
+
+	return (0);
+}
+
+/*
  * Creates new table.
  * Data layout (v0)(current):
  * Request: [ ipfw_obj_header ipfw_xtable_info ]
@@ -1415,6 +1469,7 @@ create_table_internal(struct ip_fw_chain *ch, struct tid_info *ti,
 	if (tc == NULL)
 		return (ENOMEM);
 
+	tc->vftype = i->vftype;
 	tc->limit = i->limit;
 
 	IPFW_UH_WLOCK(ch);
@@ -1498,6 +1553,7 @@ export_table_info(struct ip_fw_chain *ch, struct table_config *tc,
 	i->type = tc->no.type;
 	i->tflags = tc->tflags;
 	i->vtype = tc->vtype;
+	i->vftype = tc->vftype;
 	i->set = tc->no.set;
 	i->kidx = tc->no.kidx;
 	i->refcnt = tc->no.refcnt;

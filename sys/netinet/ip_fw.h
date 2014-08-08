@@ -83,7 +83,7 @@ typedef struct _ip_fw3_opheader {
 #define	IP_FW_TABLE_XINFO	93	/* request info for one table */
 #define	IP_FW_TABLE_XFLUSH	94	/* flush table data */
 #define	IP_FW_TABLE_XCREATE	95	/* create new table  */
-//#define	IP_FW_TABLE_XMODIFY	96	/* modify existing table */
+#define	IP_FW_TABLE_XMODIFY	96	/* modify existing table */
 #define	IP_FW_XGET		97	/* Retrieve configuration */
 #define	IP_FW_XADD		98	/* add rule */
 #define	IP_FW_XDEL		99	/* del rule */
@@ -686,9 +686,12 @@ struct _ipfw_dyn_rule {
 #define	IPFW_TABLE_FLOW		4	/* Table for holding flow data */
 #define	IPFW_TABLE_MAXTYPE	4	/* Maximum valid number */
 
+/* Value types */
 #define	IPFW_VTYPE_U32		1	/* Skipto/tablearg integer */
-#define	IPFW_VTYPE_IP		2	/* Nexthop IP address */
-#define	IPFW_VTYPE_DSCP		3	/* DiffServ codepoints */
+
+/* Value format types */
+#define	IPFW_VFTYPE_U32		0	/* Skipto/tablearg integer */
+#define	IPFW_VFTYPE_IP		1	/* Nexthop IP address */
 
 typedef struct	_ipfw_table_entry {
 	in_addr_t	addr;		/* network address		*/
@@ -844,15 +847,16 @@ typedef struct _ipfw_ta_tinfo {
 typedef struct _ipfw_xtable_info {
 	uint8_t		type;		/* table type (cidr,iface,..)	*/
 	uint8_t		tflags;		/* type flags			*/
-	uint8_t		ftype;		/* table value format type	*/
-	uint8_t		vtype;		/* value type			*/
+	uint8_t		vtype;		/* value type (u32)		*/
+	uint8_t		vftype;		/* value format type (ip,number)*/
+	uint16_t	mflags;		/* modification flags		*/
+	uint16_t	spare;
 	uint32_t	set;		/* set table is in		*/
 	uint32_t	kidx;		/* kernel index			*/
 	uint32_t	refcnt;		/* number of references		*/
 	uint32_t	count;		/* Number of records		*/
 	uint32_t	size;		/* Total size of records(export)*/
 	uint32_t	limit;		/* Max number of records	*/
-	uint32_t	spare;
 	char		tablename[64];	/* table name */
 	char		algoname[64];	/* algorithm name		*/
 	ipfw_ta_tinfo	ta_info;	/* additional algo stats	*/
@@ -862,6 +866,8 @@ typedef struct _ipfw_xtable_info {
 #define	IPFW_TFFLAG_SRCPORT	0x04
 #define	IPFW_TFFLAG_DSTPORT	0x08
 #define	IPFW_TFFLAG_PROTO	0x10
+#define	IPFW_TMFLAGS_FTYPE	0x01	/* Change ftype field		*/
+#define	IPFW_TMFLAGS_LIMIT	0x02	/* Change limit value		*/
 
 typedef struct _ipfw_iface_info {
 	char		ifname[64];	/* interface name		*/
