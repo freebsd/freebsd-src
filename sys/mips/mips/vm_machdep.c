@@ -54,8 +54,10 @@ __FBSDID("$FreeBSD$");
 #include <sys/vnode.h>
 #include <sys/vmmeter.h>
 #include <sys/kernel.h>
+#include <sys/rwlock.h>
 #include <sys/sysctl.h>
 #include <sys/unistd.h>
+#include <sys/vmem.h>
 
 #include <machine/cache.h>
 #ifdef CPU_CHERI
@@ -74,6 +76,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/pmap.h>
 #include <vm/vm_kern.h>
 #include <vm/vm_map.h>
+#include <vm/vm_object.h>
 #include <vm/vm_page.h>
 #include <vm/vm_pageout.h>
 #include <vm/vm_param.h>
@@ -681,6 +684,49 @@ cpu_set_user_tls(struct thread *td, void *tls_base)
 	}
 
 	return (0);
+}
+
+/*
+ * Allocate the virtual address space for the kernel thread stack.
+ */
+vm_offset_t
+vm_kstack_valloc(int pages)
+{
+	vm_offset_t ks;
+
+	/*
+	 * We need to align the kstack's mapped address to fit within
+	 * a single TLB entry.
+	 */
+	if (vmem_xalloc(kernel_arena,
+	    (pages + KSTACK_GUARD_PAGES) * PAGE_SIZE,
+	    KSTACK_PAGE_SIZE * 2, 0, 0, VMEM_ADDR_MIN, VMEM_ADDR_MAX,
+	    M_BESTFIT | M_NOWAIT, &ks)) {
+		return (0);
+	}
+	return (ks);
+}
+
+/*
+ * Allocate the physical memory for the kernel thread stack.
+ */
+int
+vm_kstack_palloc(struct vm_object *ksobj, vm_offset_t ks,
+    int allocflags, int pages, struct vm_page *ma[])
+{
+	int i;
+
+	VM_OBJECT_ASSERT_WLOCKED(ksobj);
+
+	 allocflags = (allocflags & ~VM_ALLOC_CLASS_MASK) | VM_ALLOC_NORMAL;
+
+	 for (i = 0; i < pages; i++) {
+		 /* Get a kernel stack page. */
+		 ma[i] = vm_page_grab(ksobj, i, allocflags);
+		 if (allocflags & VM_ALLOC_NOBUSY)
+			 ma[i]->valid = VM_PAGE_BITS_ALL;
+	 }
+	 return (i);
 }
 
 #ifdef DDB

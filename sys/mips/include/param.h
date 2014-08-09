@@ -170,7 +170,11 @@
 #else
 #define	KSTACK_PAGES		2	/* kernel stack */
 #endif
+#define	KSTACK_SIZE		(KSTACK_PAGES * PAGE_SIZE)
+#define	KSTACK_PAGE_SIZE	PAGE_SIZE
+#define	KSTACK_PAGE_MASK	(PAGE_SIZE - 1)
 #define	KSTACK_GUARD_PAGES	2	/* pages of kstack guard; 0 disables */
+#define	KSTACK_OBJT		OBJT_DEFAULT
 
 /*
  * Mach derived conversion macros
