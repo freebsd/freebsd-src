@@ -60,7 +60,7 @@ proc_ops(int op, proc_t *p, void *kaddr, off_t uaddr, size_t len)
 	uio.uio_td = curthread;
 	uio.uio_rw = op;
 	PHOLD(p);
-	if (proc_rwmem(p, &uio) < 0) {
+	if (proc_rwmem(p, &uio) != 0) {
 		PRELE(p);
 		return (-1);
 	}
