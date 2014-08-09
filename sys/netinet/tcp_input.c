@@ -1793,11 +1793,13 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 		 * reassembly queue.
 		 *
 		 * The criteria to step up the receive buffer one notch are:
-		 *  1. the number of bytes received during the time it takes
+		 *  1. Application has not set receive buffer size with
+		 *     SO_RCVBUF. Setting SO_RCVBUF clears SB_AUTOSIZE.
+		 *  2. the number of bytes received during the time it takes
 		 *     one timestamp to be reflected back to us (the RTT);
-		 *  2. received bytes per RTT is within seven eighth of the
+		 *  3. received bytes per RTT is within seven eighth of the
 		 *     current socket buffer size;
-		 *  3. receive buffer size has not hit maximal automatic size;
+		 *  4. receive buffer size has not hit maximal automatic size;
 		 *
 		 * This algorithm does one step per RTT at most and only if
 		 * we receive a bulk stream w/o packet losses or reorderings.
