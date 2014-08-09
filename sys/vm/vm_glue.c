@@ -535,7 +535,8 @@ vm_thread_swapin(struct thread *td)
 	ksobj = td->td_kstack_obj;
 	VM_OBJECT_WLOCK(ksobj);
 #if defined(__mips__)
-	rv = vm_kstack_palloc(ksobj, td->td_kstack, VM_ALLOC_WIRED, pages, ma);
+	rv = vm_kstack_palloc(ksobj, td->td_kstack, (VM_ALLOC_NORMAL |
+		VM_ALLOC_WIRED), pages, ma);
 	KASSERT(rv != 0, ("vm_thread_swapin: vm_kstack_palloc() failed"));
 #else /* ! defined(__mips__) */
 	for (i = 0; i < pages; i++)

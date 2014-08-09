@@ -546,9 +546,15 @@ again:
 	msgbufinit(msgbufp, msgbufsize);
 
 	/*
-	 * Steal thread0 kstack.
+	 * Steal thread0 kstack.  This must be aligned to
+	 * (KSTACK_PAGE_SIZE * 2) so it can mapped to a single TLB entry.
+	 *
+	 * XXX There should be a better way of getting aligned memory
+	 * with pmap_steal_memory().
 	 */
-	kstack0 = pmap_steal_memory(KSTACK_PAGES << PAGE_SHIFT);
+	kstack0 = pmap_steal_memory((KSTACK_PAGES + KSTACK_GUARD_PAGES) \
+					<< PAGE_SHIFT);
+	kstack0 = roundup2(kstack0, (KSTACK_PAGE_SIZE * 2));
 
 	virtual_avail = VM_MIN_KERNEL_ADDRESS;
 	virtual_end = VM_MAX_KERNEL_ADDRESS;
