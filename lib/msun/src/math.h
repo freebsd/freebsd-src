@@ -465,6 +465,7 @@ long double	frexpl(long double value, int *); /* fundamentally !__pure2 */
 long double	hypotl(long double, long double);
 int		ilogbl(long double) __pure2;
 long double	ldexpl(long double, int);
+long double	lgammal(long double);
 long long	llrintl(long double);
 long long	llroundl(long double);
 long double	log10l(long double);
@@ -481,6 +482,7 @@ long double	nextafterl(long double, long double);
 double		nexttoward(double, long double);
 float		nexttowardf(float, long double);
 long double	nexttowardl(long double, long double);
+long double	powl(long double, long double);
 long double	remainderl(long double, long double);
 long double	remquol(long double, long double, int *);
 long double	rintl(long double);
@@ -492,31 +494,10 @@ long double	sinl(long double);
 long double	sqrtl(long double);
 long double	tanhl(long double);
 long double	tanl(long double);
+long double	tgammal(long double);
 long double	truncl(long double);
 
 #endif /* __ISO_C_VISIBLE >= 1999 */
 __END_DECLS
 
 #endif /* !_MATH_H_ */
-
-/* separate header for cmath */
-#ifndef _MATH_EXTRA_H_
-#if __ISO_C_VISIBLE >= 1999
-#if _DECLARE_C99_LDBL_MATH
-
-#define _MATH_EXTRA_H_
-
-/*
- * extra long double versions of math functions for C99 and cmath
- */
-__BEGIN_DECLS
-
-long double	lgammal(long double);
-long double	powl(long double, long double);
-long double	tgammal(long double);
-
-__END_DECLS
-
-#endif /* !_DECLARE_C99_LDBL_MATH */
-#endif /* __ISO_C_VISIBLE >= 1999 */
-#endif /* !_MATH_EXTRA_H_ */
