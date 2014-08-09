@@ -810,8 +810,8 @@ jump_fast(struct ip_fw_chain *chain, struct ip_fw *f, int num,
 	 * whose version is written in f->next_rule
 	 * (horrible hacks to avoid changing the ABI).
 	 */
-	if (num != IP_FW_TABLEARG && (uintptr_t)f->x_next == chain->id)
-		f_pos = (uintptr_t)f->next_rule;
+	if (num != IP_FW_TABLEARG && f->cached_id == chain->id)
+		f_pos = f->cached_pos;
 	else {
 		int i = IP_FW_ARG_TABLEARG(num);
 		/* make sure we do not jump backward */
@@ -823,8 +823,8 @@ jump_fast(struct ip_fw_chain *chain, struct ip_fw *f, int num,
 			f_pos = ipfw_find_rule(chain, i, 0);
 		/* update the cache */
 		if (num != IP_FW_TABLEARG) {
-			f->next_rule = (void *)(uintptr_t)f_pos;
-			f->x_next = (void *)(uintptr_t)chain->id;
+			f->cached_id = chain->id;
+			f->cached_pos = f_pos;
 		}
 	}
 
@@ -2746,7 +2746,7 @@ vnet_ipfw_init(const void *unused)
 static int
 vnet_ipfw_uninit(const void *unused)
 {
-	struct ip_fw *reap, *rule;
+	struct ip_fw *reap;
 	struct ip_fw_chain *chain = &V_layer3_chain;
 	int i;
 
@@ -2768,11 +2768,8 @@ vnet_ipfw_uninit(const void *unused)
 
 	reap = NULL;
 	IPFW_WLOCK(chain);
-	for (i = 0; i < chain->n_rules; i++) {
-		rule = chain->map[i];
-		rule->x_next = reap;
-		reap = rule;
-	}
+	for (i = 0; i < chain->n_rules; i++)
+		ipfw_reap_add(chain, &reap, chain->map[i]);
 	free(chain->map, M_IPFW);
 	ipfw_destroy_skipto_cache(chain);
 	IPFW_WUNLOCK(chain);
