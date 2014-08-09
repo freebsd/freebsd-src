@@ -4152,7 +4152,7 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 	if ((prot & VM_PROT_WRITE) != 0)
 		newpte |= PG_RW;
 	KASSERT((newpte & (PG_M | PG_RW)) != PG_M,
-	    ("pmap_enter: access includes VM_PROT_WRITE but prot doesn't"));
+	    ("pmap_enter: flags includes VM_PROT_WRITE but prot doesn't"));
 	if ((prot & VM_PROT_EXECUTE) == 0)
 		newpte |= pg_nx;
 	if ((flags & PMAP_ENTER_WIRED) != 0)
