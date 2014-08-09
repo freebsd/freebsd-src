@@ -6109,7 +6109,7 @@ extern int *sctp_cpuarry;
 #endif
 
 int
-sctp_input(struct mbuf **mp, int *offp, int proto)
+sctp_input(struct mbuf **mp, int *offp, int proto SCTP_UNUSED)
 {
 	struct mbuf *m;
 	int off;
@@ -6117,13 +6117,13 @@ sctp_input(struct mbuf **mp, int *offp, int proto)
 	m = *mp;
 	off = *offp;
 #if defined(__FreeBSD__) && defined(SCTP_MCORE_INPUT) && defined(SMP)
-	struct ip *ip;
-	struct sctphdr *sh;
-	int offset;
-	int cpu_to_use;
-	uint32_t flowid, tag;
-
 	if (mp_ncpus > 1) {
+		struct ip *ip;
+		struct sctphdr *sh;
+		int offset;
+		int cpu_to_use;
+		uint32_t flowid, tag;
+
 		if (m->m_flags & M_FLOWID) {
 			flowid = m->m_pkthdr.flowid;
 		} else {
