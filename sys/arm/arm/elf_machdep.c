@@ -120,6 +120,34 @@ elf32_dump_thread(struct thread *td __unused, void *dst __unused,
 {
 }
 
+/*
+ * It is possible for the compiler to emit relocations for unaligned data.
+ * We handle this situation with these inlines.
+ */
+#define	RELOC_ALIGNED_P(x) \
+	(((uintptr_t)(x) & (sizeof(void *) - 1)) == 0)
+
+static __inline Elf_Addr
+load_ptr(Elf_Addr *where)
+{
+	Elf_Addr res;
+
+	if (RELOC_ALIGNED_P(where))
+		return *where;
+	memcpy(&res, where, sizeof(res));
+	return (res);
+}
+
+static __inline void
+store_ptr(Elf_Addr *where, Elf_Addr val)
+{
+	if (RELOC_ALIGNED_P(where))
+		*where = val;
+	else
+		memcpy(where, &val, sizeof(val));
+}
+#undef RELOC_ALIGNED_P
+
 
 /* Process one elf relocation with addend. */
 static int
@@ -137,7 +165,7 @@ elf_reloc_internal(linker_file_t lf, Elf_Addr relocbase, const void *data,
 	case ELF_RELOC_REL:
 		rel = (const Elf_Rel *)data;
 		where = (Elf_Addr *) (relocbase + rel->r_offset);
-		addend = *where;
+		addend = load_ptr(where);
 		rtype = ELF_R_TYPE(rel->r_info);
 		symidx = ELF_R_SYM(rel->r_info);
 		break;
@@ -155,8 +183,8 @@ elf_reloc_internal(linker_file_t lf, Elf_Addr relocbase, const void *data,
 	if (local) {
 		if (rtype == R_ARM_RELATIVE) {	/* A + B */
 			addr = elf_relocaddr(lf, relocbase + addend);
-			if (*where != addr)
-				*where = addr;
+			if (load_ptr(where) != addr)
+				store_ptr(where, addr);
 		}
 		return (0);
 	}
@@ -170,7 +198,7 @@ elf_reloc_internal(linker_file_t lf, Elf_Addr relocbase, const void *data,
 			addr = lookup(lf, symidx, 1);
 			if (addr == 0)
 				return -1;
-			*where += addr;
+			store_ptr(where, addr + load_ptr(where));
 			break;
 
 		case R_ARM_COPY:	/* none */
@@ -185,7 +213,7 @@ elf_reloc_internal(linker_file_t lf, Elf_Addr relocbase, const void *data,
 		case R_ARM_JUMP_SLOT:
 			addr = lookup(lf, symidx, 1);
 			if (addr) {
-				*where = addr;
+				store_ptr(where, addr);
 				return (0);
 			}
 			return (-1);
