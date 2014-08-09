@@ -49,13 +49,6 @@ __FBSDID("$FreeBSD$");
 #error "Add support for your architecture"
 #endif
 
-static void
-proc_cont(struct proc_handle *phdl)
-{
-
-	ptrace(PT_CONTINUE, proc_getpid(phdl), (caddr_t)1, 0);
-}
-
 static int
 proc_stop(struct proc_handle *phdl)
 {
@@ -81,7 +74,7 @@ proc_bkptset(struct proc_handle *phdl, uintptr_t address,
 {
 	struct ptrace_io_desc piod;
 	unsigned long paddr, caddr;
-	int ret = 0;
+	int ret = 0, stopped;
 
 	*saved = 0;
 	if (phdl->status == PS_DEAD || phdl->status == PS_UNDEAD ||
@@ -92,9 +85,12 @@ proc_bkptset(struct proc_handle *phdl, uintptr_t address,
 
 	DPRINTFX("adding breakpoint at 0x%lx", address);
 
-	if (phdl->status != PS_STOP)
+	stopped = 0;
+	if (phdl->status != PS_STOP) {
 		if (proc_stop(phdl) != 0)
 			return (-1);
+		stopped = 1;
+	}
 
 	/*
 	 * Read the original instruction.
@@ -129,9 +125,9 @@ proc_bkptset(struct proc_handle *phdl, uintptr_t address,
 	}
 
 done:
-	if (phdl->status != PS_STOP)
+	if (stopped)
 		/* Restart the process if we had to stop it. */
-		proc_cont(phdl);
+		proc_continue(phdl);
 
 	return (ret);
 }
@@ -142,7 +138,7 @@ proc_bkptdel(struct proc_handle *phdl, uintptr_t address,
 {
 	struct ptrace_io_desc piod;
 	unsigned long paddr, caddr;
-	int ret = 0;
+	int ret = 0, stopped;
 
 	if (phdl->status == PS_DEAD || phdl->status == PS_UNDEAD ||
 	    phdl->status == PS_IDLE) {
@@ -152,9 +148,12 @@ proc_bkptdel(struct proc_handle *phdl, uintptr_t address,
 
 	DPRINTFX("removing breakpoint at 0x%lx", address);
 
-	if (phdl->status != PS_STOP)
+	stopped = 0;
+	if (phdl->status != PS_STOP) {
 		if (proc_stop(phdl) != 0)
 			return (-1);
+		stopped = 1;
+	}
 
 	/*
 	 * Overwrite the breakpoint instruction that we setup previously.
@@ -171,9 +170,9 @@ proc_bkptdel(struct proc_handle *phdl, uintptr_t address,
 		ret = -1;
 	}
 
-	if (phdl->status != PS_STOP)
+	if (stopped)
 		/* Restart the process if we had to stop it. */
-		proc_cont(phdl);
+		proc_continue(phdl);
  
 	return (ret);
 }
