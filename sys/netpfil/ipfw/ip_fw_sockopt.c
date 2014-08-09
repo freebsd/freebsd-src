@@ -668,6 +668,23 @@ commit_rules(struct ip_fw_chain *chain, struct rule_check_info *rci, int count)
 }
 
 /*
+ * Adds @rule to the list of rules to reap
+ */
+void
+ipfw_reap_add(struct ip_fw_chain *chain, struct ip_fw **head,
+    struct ip_fw *rule)
+{
+
+	IPFW_UH_WLOCK_ASSERT(chain);
+
+	/* Unlink rule from everywhere */
+	ipfw_unbind_table_rule(chain, rule);
+
+	*((struct ip_fw **)rule) = *head;
+	*head = rule;
+}
+
+/*
  * Reclaim storage associated with a list of rules.  This is
  * typically the list created using remove_rule.
  * A NULL pointer on input is handled correctly.
@@ -678,7 +695,7 @@ ipfw_reap_rules(struct ip_fw *head)
 	struct ip_fw *rule;
 
 	while ((rule = head) != NULL) {
-		head = head->x_next;
+		head = *((struct ip_fw **)head);
 		free_rule(rule);
 	}
 }
@@ -796,12 +813,10 @@ delete_range(struct ip_fw_chain *chain, ipfw_range_tlv *rt, int *ndel)
 		if (ipfw_match_range(rule, rt) == 0)
 			continue;
 		chain->static_len -= RULEUSIZE0(rule);
-		rule->x_next = reap;
-		reap = rule;
+		ipfw_reap_add(chain, &reap, rule);
 	}
-
-	ipfw_unbind_table_list(chain, reap);
 	IPFW_UH_WUNLOCK(chain);
+
 	ipfw_reap_rules(reap);
 	if (map != NULL)
 		free(map, M_IPFW);
@@ -2779,7 +2794,7 @@ convert_rule_to_7(struct ip_fw_rule0 *rule)
 	/* Used to modify original rule */
 	struct ip_fw7 *rule7 = (struct ip_fw7 *)rule;
 	/* copy of original rule, version 8 */
-	struct ip_fw *tmp;
+	struct ip_fw_rule0 *tmp;
 
 	/* Used to copy commands */
 	ipfw_insn *ccmd, *dst;
@@ -2798,9 +2813,10 @@ convert_rule_to_7(struct ip_fw_rule0 *rule)
 	rule7->cmd_len = tmp->cmd_len;
 	rule7->act_ofs = tmp->act_ofs;
 	rule7->next_rule = (struct ip_fw7 *)tmp->next_rule;
-	rule7->next = (struct ip_fw7 *)tmp->x_next;
 	rule7->cmd_len = tmp->cmd_len;
-	export_cntr1_base(tmp, (struct ip_fw_bcounter *)&rule7->pcnt);
+	rule7->pcnt = tmp->pcnt;
+	rule7->bcnt = tmp->bcnt;
+	rule7->timestamp = tmp->timestamp;
 
 	/* Copy commands */
 	for (ll = tmp->cmd_len, ccmd = tmp->cmd, dst = rule7->cmd ;
@@ -2869,7 +2885,6 @@ convert_rule_to_8(struct ip_fw_rule0 *rule)
 	rule->cmd_len = tmp->cmd_len;
 	rule->act_ofs = tmp->act_ofs;
 	rule->next_rule = (struct ip_fw *)tmp->next_rule;
-	rule->x_next = (struct ip_fw *)tmp->next;
 	rule->cmd_len = tmp->cmd_len;
 	rule->id = 0; /* XXX see if is ok = 0 */
 	rule->pcnt = tmp->pcnt;

@@ -171,7 +171,6 @@ int ipfw_mark_table_kidx(struct ip_fw_chain *chain, struct ip_fw *rule,
 int ipfw_export_table_ntlv(struct ip_fw_chain *ch, uint16_t kidx,
     struct sockopt_data *sd);
 void ipfw_unbind_table_rule(struct ip_fw_chain *chain, struct ip_fw *rule);
-void ipfw_unbind_table_list(struct ip_fw_chain *chain, struct ip_fw *head);
 
 /* utility functions  */
 int ipfw_check_table_name(char *name);

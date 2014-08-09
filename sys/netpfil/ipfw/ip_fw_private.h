@@ -251,8 +251,8 @@ struct ip_fw {
 	counter_u64_t	cntr;		/* Pointer to rule counters	*/
 	uint32_t	timestamp;	/* tv_sec of last match		*/
 	uint32_t	id;		/* rule id			*/
-	struct ip_fw    *x_next;	/* linked list of rules		*/
-	struct ip_fw    *next_rule;	/* ptr to next [skipto] rule	*/
+	uint32_t	cached_id;	/* used by jump_fast		*/
+	uint32_t	cached_pos;	/* used by jump_fast		*/
 
 	ipfw_insn	cmd[1];		/* storage for commands		*/
 };
@@ -502,6 +502,8 @@ void ipfw_destroy_skipto_cache(struct ip_fw_chain *chain);
 int ipfw_find_rule(struct ip_fw_chain *chain, uint32_t key, uint32_t id);
 int ipfw_ctl3(struct sockopt *sopt);
 int ipfw_chk(struct ip_fw_args *args);
+void ipfw_reap_add(struct ip_fw_chain *chain, struct ip_fw **head,
+    struct ip_fw *rule);
 void ipfw_reap_rules(struct ip_fw *head);
 void ipfw_init_counters(void);
 void ipfw_destroy_counters(void);

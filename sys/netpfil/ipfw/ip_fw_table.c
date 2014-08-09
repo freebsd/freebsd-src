@@ -2909,6 +2909,7 @@ ipfw_unbind_table_rule(struct ip_fw_chain *chain, struct ip_fw *rule)
 	uint16_t kidx;
 	uint8_t type;
 
+	IPFW_UH_WLOCK_ASSERT(chain);
 	ni = CHAIN_TO_NI(chain);
 
 	l = rule->cmd_len;
@@ -2931,21 +2932,5 @@ ipfw_unbind_table_rule(struct ip_fw_chain *chain, struct ip_fw *rule)
 		no->refcnt--;
 	}
 }
-
-
-/*
- * Removes table bindings for every rule in rule chain @head.
- */
-void
-ipfw_unbind_table_list(struct ip_fw_chain *chain, struct ip_fw *head)
-{
-	struct ip_fw *rule;
-
-	while ((rule = head) != NULL) {
-		head = head->x_next;
-		ipfw_unbind_table_rule(chain, rule);
-	}
-}
-
 
 /* end of file */
