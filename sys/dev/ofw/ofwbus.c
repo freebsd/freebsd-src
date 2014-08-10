@@ -438,7 +438,7 @@ ofwbus_setup_dinfo(device_t dev, phandle_t node)
 	uint32_t *reg, *intr, icells;
 	uint64_t phys, size;
 	phandle_t iparent;
-	int i, j;
+	int i, j, rid;
 	int nintr;
 	int nreg;
 
@@ -467,7 +467,7 @@ ofwbus_setup_dinfo(device_t dev, phandle_t node)
 		nreg = 0;
 	}
 
-	for (i = 0; i < nreg; i += sc->acells + sc->scells) {
+	for (i = 0, rid = 0; i < nreg; i += sc->acells + sc->scells, rid++) {
 		phys = size = 0;
 		for (j = 0; j < sc->acells; j++) {
 			phys <<= 32;
@@ -479,7 +479,7 @@ ofwbus_setup_dinfo(device_t dev, phandle_t node)
 		}
 		/* Skip the dummy reg property of glue devices like ssm(4). */
 		if (size != 0)
-			resource_list_add(&ndi->ndi_rl, SYS_RES_MEMORY, i,
+			resource_list_add(&ndi->ndi_rl, SYS_RES_MEMORY, rid,
 			    phys, phys + size - 1, size);
 	}
 	free(reg, M_OFWPROP);
@@ -492,10 +492,10 @@ ofwbus_setup_dinfo(device_t dev, phandle_t node)
 		    sizeof(iparent));
 		OF_searchencprop(OF_xref_phandle(iparent), "#interrupt-cells",
 		    &icells, sizeof(icells));
-		for (i = 0; i < nintr; i+= icells) {
+		for (i = 0, rid = 0; i < nintr; i += icells, rid++) {
 			intr[i] = ofw_bus_map_intr(dev, iparent, icells,
 			    &intr[i]);
-			resource_list_add(&ndi->ndi_rl, SYS_RES_IRQ, i, intr[i],
+			resource_list_add(&ndi->ndi_rl, SYS_RES_IRQ, rid, intr[i],
 			    intr[i], 1);
 		}
 		free(intr, M_OFWPROP);
