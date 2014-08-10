@@ -240,6 +240,6 @@ extern vm_offset_t vm_max_kernel_address;
 #define	ZERO_REGION_SIZE	PAGE_SIZE
 
 #define	SFBUF
-#define	SFBUF_NOMD
+#define	SFBUF_MAP
 
 #endif /* !_MACHINE_VMPARAM_H_ */
