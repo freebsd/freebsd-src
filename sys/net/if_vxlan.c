@@ -150,7 +150,7 @@ struct vxlan_softc {
 #define VXLAN_FLAG_TEARDOWN	0x0002
 #define VXLAN_FLAG_LEARN	0x0004
 
-	uint32_t			 vxl_last_port_hash;
+	uint32_t			 vxl_port_hash_key;
 	uint16_t			 vxl_min_port;
 	uint16_t			 vxl_max_port;
 	uint8_t				 vxl_ttl;
@@ -310,8 +310,7 @@ static int	vxlan_ioctl_drvspec(struct vxlan_softc *,
 static int	vxlan_ioctl_ifflags(struct vxlan_softc *);
 static int	vxlan_ioctl(struct ifnet *, u_long, caddr_t);
 
-static uint16_t vxlan_pick_source_port(struct vxlan_softc *,
-		    const struct ether_header *);
+static uint16_t vxlan_pick_source_port(struct vxlan_softc *, struct mbuf *);
 static void	vxlan_encap_header(struct vxlan_softc *, struct mbuf *,
 		    int, uint16_t, uint16_t);
 static int	vxlan_encap4(struct vxlan_softc *,
@@ -2218,19 +2217,19 @@ vxlan_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 }
 
 static uint16_t
-vxlan_pick_source_port(struct vxlan_softc *sc, const struct ether_header *eh)
+vxlan_pick_source_port(struct vxlan_softc *sc, struct mbuf *m)
 {
-	uint32_t hash;
 	int range;
+	uint32_t hash;
 
 	range = sc->vxl_max_port - sc->vxl_min_port + 1;
 
-	/*
-	 * The specification recommends the source port be based on a hash
-	 * of the inner frame's Ethernet header.
-	 */
-	hash = jenkins_hash(eh, ETHER_HDR_LEN, sc->vxl_last_port_hash);
-	sc->vxl_last_port_hash = hash;
+	if (M_HASHTYPE_GET(m) != M_HASHTYPE_NONE &&
+	    M_HASHTYPE_GET(m) != M_HASHTYPE_OPAQUE)
+		hash = m->m_pkthdr.flowid;
+	else
+		hash = jenkins_hash(m->m_data, ETHER_HDR_LEN,
+		    sc->vxl_port_hash_key);
 
 	return (sc->vxl_min_port + (hash % range));
 }
@@ -2272,7 +2271,7 @@ vxlan_encap4(struct vxlan_softc *sc, const union vxlan_sockaddr *fvxlsa,
 
 	ifp = sc->vxl_ifp;
 	srcaddr = sc->vxl_src_addr.in4.sin_addr;
-	srcport = vxlan_pick_source_port(sc, mtod(m, struct ether_header *));
+	srcport = vxlan_pick_source_port(sc, m);
 	dstaddr = fvxlsa->in4.sin_addr;
 	dstport = fvxlsa->in4.sin_port;
 
@@ -2328,7 +2327,7 @@ vxlan_encap6(struct vxlan_softc *sc, const union vxlan_sockaddr *fvxlsa,
 
 	ifp = sc->vxl_ifp;
 	srcaddr = &sc->vxl_src_addr.in6.sin6_addr;
-	srcport = vxlan_pick_source_port(sc, mtod(m, struct ether_header *));
+	srcport = vxlan_pick_source_port(sc, m);
 	dstaddr = &fvxlsa->in6.sin6_addr;
 	dstport = fvxlsa->in6.sin6_port;
 
@@ -2639,7 +2638,7 @@ vxlan_clone_create(struct if_clone *ifc, int unit, caddr_t params)
 	sc->vxl_ifp = ifp;
 	rw_init(&sc->vxl_lock, "vxlanrw");
 	callout_init_rw(&sc->vxl_callout, &sc->vxl_lock, 0);
-	sc->vxl_last_port_hash = arc4random();
+	sc->vxl_port_hash_key = arc4random();
 	vxlan_ftable_init(sc);
 
 	vxlan_sysctl_setup(sc);
