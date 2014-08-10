@@ -117,6 +117,12 @@ SYSCTL_INT(_vfs_zfs, OID_AUTO, mg_noalloc_threshold, CTLFLAG_RWTUN,
  * class have also crossed this threshold.
  */
 int zfs_mg_fragmentation_threshold = 85;
+TUNABLE_INT("vfs.zfs.mg_fragmentation_threshold", &zfs_mg_fragmentation_threshold);
+SYSCTL_INT(_vfs_zfs, OID_AUTO, mg_fragmentation_threshold, CTLFLAG_RWTUN,
+    &zfs_mg_fragmentation_threshold, 0,
+    "Percentage of metaslab group size that should be considered "
+    "eligible for allocations unless all metaslab groups within the metaslab class "
+    "have also crossed this threshold");
 
 /*
  * Allow metaslabs to keep their active state as long as their fragmentation
@@ -125,6 +131,11 @@ int zfs_mg_fragmentation_threshold = 85;
  * status allowing better metaslabs to be selected.
  */
 int zfs_metaslab_fragmentation_threshold = 70;
+TUNABLE_INT("vfs.zfs.metaslab.fragmentation_threshold",
+    &zfs_metaslab_fragmentation_threshold);
+SYSCTL_INT(_vfs_zfs_metaslab, OID_AUTO, fragmentation_threshold, CTLFLAG_RWTUN,
+    &zfs_metaslab_fragmentation_threshold, 0,
+    "Maximum percentage of metaslab fragmentation level to keep their active state");
 
 /*
  * When set will load all metaslabs when pool is first opened.
