@@ -151,8 +151,9 @@ creatorfb_init(struct vt_device *vd)
 	sc->memh = sparc64_fake_bustag(space, phys, &sc->memt[0]);
 
 	/* 32-bit VGA palette */
-	vt_generate_vga_palette(sc->fb.fb_cmap, COLOR_FORMAT_RGB,
-	    255, 16, 255, 8, 255, 0);
+	vt_generate_cons_palette(sc->fb.fb_cmap, COLOR_FORMAT_RGB,
+	    255, 0, 255, 8, 255, 16);
+	sc->fb.fb_cmsize = 16;
 
 	vt_fb_init(vd);
 
