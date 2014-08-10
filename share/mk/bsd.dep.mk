@@ -125,21 +125,26 @@ ${_YC:R}.o: ${_YC}
 .if ${SRCS:M*.d}
 LDFLAGS+=	-lelf
 LDADD+=		${LIBELF}
-CFLAGS+=	-D_DTRACE_VERSION=1
+CFLAGS+=	-D_DTRACE_VERSION=1 -I${.OBJDIR}
 .endif
 .for _DSRC in ${SRCS:M*.d:N*/*}
 .for _D in ${_DSRC:R}
 ${_D}.h: ${_DSRC}
 	${DTRACE} -xnolibs -h -s ${.ALLSRC}
 SRCS:=	${SRCS:S/${_DSRC}/${_D}.h/}
-${_D}.o: ${_D}.h ${_DSRC} ${OBJS} ${SOBJS}
-	${DTRACE} -xnolibs -G -o ${.TARGET} -s ${_DSRC} \
-		${OBJS:S/${_D}.o//} ${SOBJS:S/${_D}.o//}
-CLEANFILES+= ${_D}.h ${_D}.o
-.if defined(PROG)
 OBJS+=	${_D}.o
-.else
-SOBJS+=	${_D}.o
+CLEANFILES+= ${_D}.h ${_D}.o
+${_D}.o: ${_D.h} ${OBJS:S/${_D}.o//}
+	${DTRACE} -xnolibs -G -o ${.TARGET} -s ${.CURDIR}/${_DSRC} \
+		${OBJS:S/${_D}.o//}
+.if defined(LIB)
+CLEANFILES+= ${_D}.So ${_D}.po
+${_D}.So: ${_D.h} ${SOBJS:S/${_D}.So//}
+	${DTRACE} -xnolibs -G -o ${.TARGET} -s ${.CURDIR}/${_DSRC} \
+		${SOBJS:S/${_D}.So//}
+${_D}.po: ${_D}.h ${POBJS:S/${_D}.po//}
+	${DTRACE} -xnolibs -G -o ${.TARGET} -s ${.CURDIR}/${_DSRC} \
+		${POBJS:S/${_D}.po//}
 .endif
 .endfor
 .endfor
