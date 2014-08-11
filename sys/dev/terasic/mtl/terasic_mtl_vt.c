@@ -80,9 +80,9 @@ terasic_mtl_fbd_panel_info(struct terasic_mtl_softc *sc, struct fb_info *info)
 	    info->fb_height != TERASIC_MTL_FB_HEIGHT ||
 	    info->fb_stride != 3200 ||
 	    info->fb_bpp != 32 || info->fb_depth != 32) {
-		device_printf("obtained invalid panel params width=%u "
-		    "height=%u\n", (unsigned)info->fb_width,
-		    (unsigned)info->fb_height);
+		device_printf(sc->mtl_dev,
+		    "rejecting invalid panel params width=%u height=%u\n",
+		    (unsigned)info->fb_width, (unsigned)info->fb_height);
 		return (EINVAL);
 	}
 
