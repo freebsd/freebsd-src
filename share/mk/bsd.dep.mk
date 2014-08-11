@@ -73,7 +73,7 @@ tags: ${SRCS}
 CLEANFILES?=
 
 .if !exists(${.OBJDIR}/${DEPENDFILE})
-.for _S in ${SRCS:N*.[hly]}
+.for _S in ${SRCS:N*.[dhly]}
 ${_S:R}.o: ${_S}
 .endfor
 .endif
