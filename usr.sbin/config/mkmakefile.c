@@ -43,27 +43,13 @@ static const char rcsid[] =
 
 #include <ctype.h>
 #include <err.h>
+#include <stdarg.h>
 #include <stdio.h>
 #include <string.h>
 #include <sys/param.h>
 #include "y.tab.h"
 #include "config.h"
 #include "configvers.h"
-
-#define next_word(fp, wd) \
-	{ char *word = get_word(fp); \
-	  if (word == (char *)EOF) \
-		return; \
-	  else \
-		wd = word; \
-	}
-#define next_quoted_word(fp, wd) \
-	{ char *word = get_quoted_word(fp); \
-	  if (word == (char *)EOF) \
-		return; \
-	  else \
-		wd = word; \
-	}
 
 static char *tail(char *);
 static void do_clean(FILE *);
@@ -73,6 +59,16 @@ static void do_objs(FILE *);
 static void do_before_depend(FILE *);
 static int opteq(const char *, const char *);
 static void read_files(void);
+
+static void errout(const char *fmt, ...)
+{
+	va_list ap;
+
+	va_start(ap, fmt);
+	vfprintf(stderr, fmt, ap);
+	va_end(ap);
+	exit(1);
+}
 
 /*
  * Lookup a file, by name.
@@ -313,8 +309,8 @@ read_file(char *fname)
 	struct opt *op;
 	char *wd, *this, *compilewith, *depends, *clean, *warning;
 	const char *objprefix;
-	int compile, match, nreqs, std, filetype,
-	    imp_rule, no_obj, before_depend, mandatory, nowerror;
+	int compile, match, nreqs, std, filetype, not,
+	    imp_rule, no_obj, before_depend, nowerror;
 
 	fp = fopen(fname, "r");
 	if (fp == 0)
@@ -322,7 +318,7 @@ read_file(char *fname)
 next:
 	/*
 	 * include "filename"
-	 * filename    [ standard | mandatory | optional ]
+	 * filename    [ standard | optional ]
 	 *	[ dev* [ | dev* ... ] | profiling-routine ] [ no-obj ]
 	 *	[ compile-with "compile rule" [no-implicit-rule] ]
 	 *      [ dependency "dependency-list"] [ before-depend ]
@@ -343,12 +339,9 @@ next:
 		goto next;
 	}
 	if (eq(wd, "include")) {
-		next_quoted_word(fp, wd);
-		if (wd == 0) {
-			fprintf(stderr, "%s: missing include filename.\n",
-			    fname);
-			exit(1);
-		}
+		wd = get_quoted_word(fp);
+		if (wd == (char *)EOF || wd == 0)
+			errout("%s: missing include filename.\n", fname);
 		(void) snprintf(ifname, sizeof(ifname), "../../%s", wd);
 		read_file(ifname);
 		while (((wd = get_word(fp)) != (char *)EOF) && wd)
@@ -356,11 +349,11 @@ next:
 		goto next;
 	}
 	this = ns(wd);
-	next_word(fp, wd);
-	if (wd == 0) {
-		fprintf(stderr, "%s: No type for %s.\n", fname, this);
-		exit(1);
-	}
+	wd = get_word(fp);
+	if (wd == (char *)EOF)
+		return;
+	if (wd == 0)
+		errout("%s: No type for %s.\n", fname, this);
 	tp = fl_lookup(this);
 	compile = 0;
 	match = 1;
@@ -369,186 +362,154 @@ next:
 	depends = 0;
 	clean = 0;
 	warning = 0;
-	std = mandatory = 0;
+	std = 0;
 	imp_rule = 0;
 	no_obj = 0;
 	before_depend = 0;
 	nowerror = 0;
+	not = 0;
 	filetype = NORMAL;
 	objprefix = "";
-	if (eq(wd, "standard")) {
+	if (eq(wd, "standard"))
 		std = 1;
-	/*
-	 * If an entry is marked "mandatory", config will abort if it's
-	 * not called by a configuration line in the config file.  Apart
-	 * from this, the device is handled like one marked "optional".
-	 */
-	} else if (eq(wd, "mandatory")) {
-		mandatory = 1;
-	} else if (!eq(wd, "optional")) {
-		fprintf(stderr,
-		    "%s: \"%s\" %s must be optional, mandatory or standard\n",
+	else if (!eq(wd, "optional"))
+		errout("%s: \"%s\" %s must be optional or standard\n",
 		    fname, wd, this);
-		exit(1);
+	for (wd = get_word(fp); wd; wd = get_word(fp)) {
+		if (wd == (char *)EOF)
+			return;
+		if (eq(wd, "!")) {
+			not = 1;
+			continue;
+		}
+		if (eq(wd, "|")) {
+			if (nreqs == 0)
+				errout("%s: syntax error describing %s\n",
+				       fname, this);
+			if (not)
+				compile += !match;
+			else
+				compile += match;
+			match = 1;
+			nreqs = 0;
+			not = 0;
+			continue;
+		}
+		if (eq(wd, "no-obj")) {
+			no_obj++;
+			continue;
+		}
+		if (eq(wd, "no-implicit-rule")) {
+			if (compilewith == 0)
+				errout("%s: alternate rule required when "
+				       "\"no-implicit-rule\" is specified for"
+				       " %s.\n",
+				       fname, this);
+			imp_rule++;
+			continue;
+		}
+		if (eq(wd, "before-depend")) {
+			before_depend++;
+			continue;
+		}
+		if (eq(wd, "dependency")) {
+			wd = get_quoted_word(fp);
+			if (wd == (char *)EOF || wd == 0)
+				errout("%s: %s missing dependency string.\n",
+				       fname, this);
+			depends = ns(wd);
+			continue;
+		}
+		if (eq(wd, "clean")) {
+			wd = get_quoted_word(fp);
+			if (wd == (char *)EOF || wd == 0)
+				errout("%s: %s missing clean file list.\n",
+				       fname, this);
+			clean = ns(wd);
+			continue;
+		}
+		if (eq(wd, "compile-with")) {
+			wd = get_quoted_word(fp);
+			if (wd == (char *)EOF || wd == 0)
+				errout("%s: %s missing compile command string.\n",
+				       fname, this);
+			compilewith = ns(wd);
+			continue;
+		}
+		if (eq(wd, "warning")) {
+			wd = get_quoted_word(fp);
+			if (wd == (char *)EOF || wd == 0)
+				errout("%s: %s missing warning text string.\n",
+				       fname, this);
+			warning = ns(wd);
+			continue;
+		}
+		if (eq(wd, "obj-prefix")) {
+			wd = get_quoted_word(fp);
+			if (wd == (char *)EOF || wd == 0)
+				errout("%s: %s missing object prefix string.\n",
+				       fname, this);
+			objprefix = ns(wd);
+			continue;
+		}
+		if (eq(wd, "nowerror")) {
+			nowerror = 1;
+			continue;
+		}
+		if (eq(wd, "local")) {
+			filetype = LOCAL;
+			continue;
+		}
+		if (eq(wd, "no-depend")) {
+			filetype = NODEPEND;
+			continue;
+		}
+		nreqs++;
+		if (eq(wd, "profiling-routine")) {
+			filetype = PROFILING;
+			continue;
+		}
+		if (std)
+			errout("standard entry %s has optional inclusion specifier %s!\n",
+			       this, wd);
+		STAILQ_FOREACH(dp, &dtab, d_next)
+			if (eq(dp->d_name, wd)) {
+				dp->d_done |= DEVDONE;
+				goto nextparam;
+			}
+		SLIST_FOREACH(op, &opt, op_next)
+			if (op->op_value == 0 && opteq(op->op_name, wd))
+				goto nextparam;
+		match = 0;
+nextparam:;
 	}
-nextparam:
-	next_word(fp, wd);
-	if (wd == 0) {
+	if (not)
+		compile += !match;
+	else
 		compile += match;
-		if (compile && tp == NULL)
-			goto doneparam;
-		goto next;
+	if (compile && tp == NULL) {
+		if (std == 0 && nreqs == 0)
+			errout("%s: what is %s optional on?\n",
+			       fname, this);
+		if (filetype == PROFILING && profiling == 0)
+			goto next;
+		tp = new_fent();
+		tp->f_fn = this;
+		tp->f_type = filetype;
+		if (imp_rule)
+			tp->f_flags |= NO_IMPLCT_RULE;
+		if (no_obj)
+			tp->f_flags |= NO_OBJ;
+		if (before_depend)
+			tp->f_flags |= BEFORE_DEPEND;
+		if (nowerror)
+			tp->f_flags |= NOWERROR;
+		tp->f_compilewith = compilewith;
+		tp->f_depends = depends;
+		tp->f_clean = clean;
+		tp->f_warn = warning;
+		tp->f_objprefix = objprefix;
 	}
-	if (eq(wd, "|")) {
-		if (nreqs == 0) {
-			fprintf(stderr, "%s: syntax error describing %s\n",
-			    fname, this);
-			exit(1);
-		}
-		compile += match;
-		match = 1;
-		nreqs = 0;
-		goto nextparam;
-	}
-	if (eq(wd, "no-obj")) {
-		no_obj++;
-		goto nextparam;
-	}
-	if (eq(wd, "no-implicit-rule")) {
-		if (compilewith == 0) {
-			fprintf(stderr, "%s: alternate rule required when "
-			    "\"no-implicit-rule\" is specified.\n",
-			    fname);
-		}
-		imp_rule++;
-		goto nextparam;
-	}
-	if (eq(wd, "before-depend")) {
-		before_depend++;
-		goto nextparam;
-	}
-	if (eq(wd, "dependency")) {
-		next_quoted_word(fp, wd);
-		if (wd == 0) {
-			fprintf(stderr,
-			    "%s: %s missing dependency string.\n",
-			    fname, this);
-			exit(1);
-		}
-		depends = ns(wd);
-		goto nextparam;
-	}
-	if (eq(wd, "clean")) {
-		next_quoted_word(fp, wd);
-		if (wd == 0) {
-			fprintf(stderr, "%s: %s missing clean file list.\n",
-			    fname, this);
-			exit(1);
-		}
-		clean = ns(wd);
-		goto nextparam;
-	}
-	if (eq(wd, "compile-with")) {
-		next_quoted_word(fp, wd);
-		if (wd == 0) {
-			fprintf(stderr,
-			    "%s: %s missing compile command string.\n",
-			    fname, this);
-			exit(1);
-		}
-		compilewith = ns(wd);
-		goto nextparam;
-	}
-	if (eq(wd, "warning")) {
-		next_quoted_word(fp, wd);
-		if (wd == 0) {
-			fprintf(stderr,
-			    "%s: %s missing warning text string.\n",
-			    fname, this);
-			exit(1);
-		}
-		warning = ns(wd);
-		goto nextparam;
-	}
-	if (eq(wd, "obj-prefix")) {
-		next_quoted_word(fp, wd);
-		if (wd == 0) {
-			printf("%s: %s missing object prefix string.\n",
-				fname, this);
-			exit(1);
-		}
-		objprefix = ns(wd);
-		goto nextparam;
-	}
-	nreqs++;
-	if (eq(wd, "local")) {
-		filetype = LOCAL;
-		goto nextparam;
-	}
-	if (eq(wd, "no-depend")) {
-		filetype = NODEPEND;
-		goto nextparam;
-	}
-	if (eq(wd, "profiling-routine")) {
-		filetype = PROFILING;
-		goto nextparam;
-	}
-	if (eq(wd, "nowerror")) {
-		nowerror = 1;
-		goto nextparam;
-	}
-	STAILQ_FOREACH(dp, &dtab, d_next)
-		if (eq(dp->d_name, wd)) {
-			dp->d_done |= DEVDONE;
-			goto nextparam;
-		}
-	if (mandatory) {
-		fprintf(stderr, "%s: mandatory device \"%s\" not found\n",
-		       fname, wd);
-		exit(1);
-	}
-	if (std) {
-		fprintf(stderr,
-		    "standard entry %s has a device keyword - %s!\n",
-		    this, wd);
-		exit(1);
-	}
-	SLIST_FOREACH(op, &opt, op_next)
-		if (op->op_value == 0 && opteq(op->op_name, wd))
-			goto nextparam;
-	match = 0;
-	goto nextparam;
-
-doneparam:
-	if (std == 0 && nreqs == 0) {
-		fprintf(stderr, "%s: what is %s optional on?\n",
-		    fname, this);
-		exit(1);
-	}
-
-	if (wd) {
-		fprintf(stderr, "%s: syntax error describing %s\n",
-		    fname, this);
-		exit(1);
-	}
-	if (filetype == PROFILING && profiling == 0)
-		goto next;
-	tp = new_fent();
-	tp->f_fn = this;
-	tp->f_type = filetype;
-	if (imp_rule)
-		tp->f_flags |= NO_IMPLCT_RULE;
-	if (no_obj)
-		tp->f_flags |= NO_OBJ;
-	if (before_depend)
-		tp->f_flags |= BEFORE_DEPEND;
-	if (nowerror)
-		tp->f_flags |= NOWERROR;
-	tp->f_compilewith = compilewith;
-	tp->f_depends = depends;
-	tp->f_clean = clean;
-	tp->f_warn = warning;
-	tp->f_objprefix = objprefix;
 	goto next;
 }
 
