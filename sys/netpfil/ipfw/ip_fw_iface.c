@@ -69,7 +69,6 @@ static void handle_ifattach(struct ip_fw_chain *ch, struct ipfw_iface *iif,
 /*
  * FreeBSD Kernel interface.
  */
-
 static void ipfw_kifhandler(void *arg, struct ifnet *ifp);
 static int ipfw_kiflookup(char *name);
 static void iface_khandler_register(void);
@@ -188,8 +187,6 @@ ipfw_kiflookup(char *name)
 
 	return (ifindex);
 }
-
-
 
 /*
  * Global ipfw startup hook.
