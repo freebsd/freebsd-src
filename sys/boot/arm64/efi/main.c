@@ -129,7 +129,7 @@ main(int argc, CHAR16 *argv[])
 	archsw.arch_copyout = arm64_efi_copyout;
 	archsw.arch_readin = arm64_efi_readin;
 
-	interact();			/* doesn't return */
+	interact(NULL);			/* doesn't return */
 
 	return (EFI_SUCCESS);		/* keep compiler happy */
 }
