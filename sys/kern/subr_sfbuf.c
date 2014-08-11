@@ -201,6 +201,22 @@ sf_buf_free(struct sf_buf *sf)
 	mtx_unlock(&sf_buf_lock);
 }
 
+void
+sf_buf_ref(struct sf_buf *sf)
+{
+
+#ifdef SFBUF_OPTIONAL_DIRECT_MAP
+	if (SFBUF_OPTIONAL_DIRECT_MAP)
+		return;
+#endif
+
+	KASSERT(sf->ref_count > 0, ("%s: sf %p not allocated", __func__, sf));
+
+	mtx_lock(&sf_buf_lock);
+	sf->ref_count++;
+	mtx_unlock(&sf_buf_lock);
+}
+
 #ifdef SFBUF_PROCESS_PAGE
 /*
  * Run callback function on sf_buf that holds a certain page.
