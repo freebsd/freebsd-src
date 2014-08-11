@@ -134,7 +134,7 @@ ${_D}.h: ${_DSRC}
 SRCS:=	${SRCS:S/${_DSRC}/${_D}.h/}
 OBJS+=	${_D}.o
 CLEANFILES+= ${_D}.h ${_D}.o
-${_D}.o: ${_D.h} ${OBJS:S/${_D}.o//}
+${_D}.o: ${_D}.h ${OBJS:S/${_D}.o//}
 	${DTRACE} -xnolibs -G -o ${.TARGET} -s ${.CURDIR}/${_DSRC} \
 		${OBJS:S/${_D}.o//}
 .if defined(LIB)
