@@ -173,32 +173,59 @@ check_table_limit(struct table_config *tc, struct tentry_info *tei)
 }
 
 /*
- * Adds/updates one or more entries in table @ti.
- *
- * Returns 0 on success.
+ * Convert algorithm callback return code into
+ * one of pre-defined states known by userland.
  */
-int
-add_table_entry(struct ip_fw_chain *ch, struct tid_info *ti,
-    struct tentry_info *tei, uint8_t flags, uint32_t count)
+static void
+store_tei_result(struct tentry_info *tei, int do_add, int error, uint32_t num)
 {
+	int flag;
+
+	flag = 0;
+
+	switch (error) {
+	case 0:
+		if (do_add && num != 0)
+			flag = TEI_FLAGS_ADDED;
+		if (do_add == 0)
+			flag = TEI_FLAGS_DELETED;
+		break;
+	case ENOENT:
+		flag = TEI_FLAGS_NOTFOUND;
+		break;
+	case EEXIST:
+		flag = TEI_FLAGS_EXISTS;
+		break;
+	default:
+		flag = TEI_FLAGS_ERROR;
+	}
+
+	tei->flags |= flag;
+}
+
+/*
+ * Find and reference existing table optionally
+ * creating new one.
+ *
+ * Saves found table config/table algo into @ptc / @pta.
+ * Returns 0 if table was found/created and referenced
+ * or non-zero return code.
+ */
+static int
+find_ref_table(struct ip_fw_chain *ch, struct tid_info *ti,
+    struct tentry_info *tei, uint32_t count, int do_add,
+    struct table_config **ptc, struct table_algo **pta)
+{
+	struct namedobj_instance *ni;
 	struct table_config *tc;
 	struct table_algo *ta;
-	struct namedobj_instance *ni;
-	uint16_t kidx;
-	int error, first_error, i, j, rerror, rollback;
-	uint32_t num, numadd;
 	ipfw_xtable_info *xi;
-	struct tentry_info *ptei;
-	char ta_buf[TA_BUF_SZ];
-	size_t ta_buf_sz;
-	caddr_t ta_buf_m, v, vv;
+	int error;
 
 	IPFW_UH_WLOCK(ch);
-	ni = CHAIN_TO_NI(ch);
 
-	/*
-	 * Find and reference existing table.
-	 */
+	ni = CHAIN_TO_NI(ch);
+	tc = NULL;
 	ta = NULL;
 	if ((tc = find_table(ni, ti)) != NULL) {
 		/* check table type */
@@ -213,9 +240,10 @@ add_table_entry(struct ip_fw_chain *ch, struct tid_info *ti,
 		}
 
 		/* Try to exit early on limit hit */
-		if ((error = check_table_limit(tc, tei)) != 0 && count == 1) {
-				IPFW_UH_WUNLOCK(ch);
-				return (EFBIG);
+		if (do_add != 0 && count == 1 &&
+		    check_table_limit(tc, tei) != 0) {
+			IPFW_UH_WUNLOCK(ch);
+			return (EFBIG);
 		}
 
 		/* Reference and unlock */
@@ -225,6 +253,9 @@ add_table_entry(struct ip_fw_chain *ch, struct tid_info *ti,
 	IPFW_UH_WUNLOCK(ch);
 
 	if (tc == NULL) {
+		if (do_add == 0)
+			return (ESRCH);
+
 		/* Compability mode: create new table for old clients */
 		if ((tei->flags & TEI_FLAGS_COMPAT) == 0)
 			return (ESRCH);
@@ -257,26 +288,101 @@ add_table_entry(struct ip_fw_chain *ch, struct tid_info *ti,
 		IPFW_UH_WUNLOCK(ch);
 	}
 
-	/* Allocate memory and prepare record(s) */
+	*ptc = tc;
+	*pta = ta;
+	return (0);
+}
+
+/*
+ * Rolls back already @added to @tc entries using state arrat @ta_buf_m.
+ * Assume the following layout:
+ * 1) ADD state (ta_buf_m[0] ... t_buf_m[added - 1]) for handling update cases
+ * 2) DEL state (ta_buf_m[count[ ... t_buf_m[count + added - 1])
+ *   for storing deleted state
+ */
+static void
+rollback_added_entries(struct ip_fw_chain *ch, struct table_config *tc,
+    struct table_info *tinfo, struct tentry_info *tei, caddr_t ta_buf_m,
+    uint32_t count, uint32_t added)
+{
+	struct table_algo *ta;
+	struct tentry_info *ptei;
+	caddr_t v, vv;
+	size_t ta_buf_sz;
+	int error, i;
+	uint32_t num;
+
+	IPFW_UH_WLOCK_ASSERT(ch);
+
+	ta = tc->ta;
 	ta_buf_sz = ta->ta_buf_size;
-	rollback = 0;
+	v = ta_buf_m;
+	vv = v + count * ta_buf_sz;
+	for (i = 0; i < added; i++, v += ta_buf_sz, vv += ta_buf_sz) {
+		ptei = &tei[i];
+		if ((ptei->flags & TEI_FLAGS_UPDATED) != 0) {
+
+			/*
+			 * We have old value stored by previous
+			 * call in @ptei->value. Do add once again
+			 * to restore it.
+			 */
+			error = ta->add(tc->astate, tinfo, ptei, v, &num);
+			KASSERT(error == 0, ("rollback UPDATE fail"));
+			KASSERT(num == 0, ("rollback UPDATE fail2"));
+			continue;
+		}
+
+		error = ta->prepare_del(ch, ptei, vv);
+		KASSERT(error == 0, ("pre-rollback INSERT failed"));
+		error = ta->del(tc->astate, tinfo, ptei, vv, &num);
+		KASSERT(error == 0, ("rollback INSERT failed"));
+		tc->count -= num;
+	}
+}
+
+/*
+ * Prepares add/del state for all @count entries in @tei.
+ * Uses either stack buffer (@ta_buf) or allocates a new one.
+ * Stores pointer to allocated buffer back to @ta_buf.
+ *
+ * Returns 0 on success.
+ */
+static int
+prepare_batch_buffer(struct ip_fw_chain *ch, struct table_algo *ta,
+    struct tentry_info *tei, uint32_t count, int do_add, caddr_t *ta_buf)
+{
+	caddr_t ta_buf_m, v;
+	size_t ta_buf_sz, sz;
+	struct tentry_info *ptei;
+	int error, i;
+
+	error = 0;
+	ta_buf_sz = ta->ta_buf_size;
 	if (count == 1) {
-		memset(&ta_buf, 0, sizeof(ta_buf));
-		ta_buf_m = ta_buf;
+		/* Sigle add/delete, use on-stack buffer */
+		memset(*ta_buf, 0, TA_BUF_SZ);
+		ta_buf_m = *ta_buf;
 	} else {
 
 		/*
-		 * Multiple adds, allocate larger buffer
-		 * sufficient to hold both ADD state
+		 * Multiple adds/deletes, allocate larger buffer
+		 *
+		 * Note we need 2xcount buffer for add case:
+		 * we have hold both ADD state
 		 * and DELETE state (this may be needed
 		 * if we need to rollback all changes)
 		 */
-		ta_buf_m = malloc(2 * count * ta_buf_sz, M_TEMP,
+		sz = count * ta_buf_sz;
+		ta_buf_m = malloc((do_add != 0) ? sz * 2 : sz, M_TEMP,
 		    M_WAITOK | M_ZERO);
 	}
+
 	v = ta_buf_m;
 	for (i = 0; i < count; i++, v += ta_buf_sz) {
-		error = ta->prepare_add(ch, &tei[i], v);
+		ptei = &tei[i];
+		error = (do_add != 0) ?
+		    ta->prepare_add(ch, ptei, v) : ta->prepare_del(ch, ptei, v);
 
 		/*
 		 * Some syntax error (incorrect mask, or address, or
@@ -284,8 +390,75 @@ add_table_entry(struct ip_fw_chain *ch, struct tid_info *ti,
 		 * settings.
 		 */
 		if (error != 0)
-			goto cleanup;
+			break;
 	}
+
+	*ta_buf = ta_buf_m;
+	return (error);
+}
+
+/*
+ * Flushes allocated state for each @count entries in @tei.
+ * Frees @ta_buf_m if differs from stack buffer @ta_buf.
+ */
+static void
+flush_batch_buffer(struct ip_fw_chain *ch, struct table_algo *ta,
+    struct tentry_info *tei, uint32_t count, int do_add, int rollback,
+    caddr_t ta_buf_m, caddr_t ta_buf)
+{
+	caddr_t v;
+	size_t ta_buf_sz;
+	int i;
+
+	ta_buf_sz = ta->ta_buf_size;
+
+	/* Run cleaning callback anyway */
+	v = ta_buf_m;
+	for (i = 0; i < count; i++, v += ta_buf_sz)
+		ta->flush_entry(ch, &tei[i], v);
+
+	/* Clean up "deleted" state in case of rollback */
+	if (rollback != 0) {
+		v = ta_buf_m + count * ta_buf_sz;
+		for (i = 0; i < count; i++, v += ta_buf_sz)
+			ta->flush_entry(ch, &tei[i], v);
+	}
+
+	if (ta_buf_m != ta_buf)
+		free(ta_buf_m, M_TEMP);
+}
+
+/*
+ * Adds/updates one or more entries in table @ti.
+ *
+ * Returns 0 on success.
+ */
+int
+add_table_entry(struct ip_fw_chain *ch, struct tid_info *ti,
+    struct tentry_info *tei, uint8_t flags, uint32_t count)
+{
+	struct table_config *tc;
+	struct table_algo *ta;
+	uint16_t kidx;
+	int error, first_error, i, rollback;
+	uint32_t num, numadd;
+	struct tentry_info *ptei;
+	char ta_buf[TA_BUF_SZ];
+	caddr_t ta_buf_m, v;
+
+	/*
+	 * Find and reference existing table.
+	 */
+	if ((error = find_ref_table(ch, ti, tei, count, 1, &tc, &ta)) != 0)
+		return (error);
+
+	/* Allocate memory and prepare record(s) */
+	rollback = 0;
+	/* Pass stack buffer by default */
+	ta_buf_m = ta_buf;
+	error = prepare_batch_buffer(ch, ta, tei, count, 1, &ta_buf_m);
+	if (error != 0)
+		goto cleanup;
 
 	IPFW_UH_WLOCK(ch);
 
@@ -300,8 +473,6 @@ add_table_entry(struct ip_fw_chain *ch, struct tid_info *ti,
 		goto cleanup;
 	}
 
-	ni = CHAIN_TO_NI(ch);
-
 	/* Drop reference we've used in first search */
 	tc->no.refcnt--;
 	/* We've got valid table in @tc. Let's try to add data */
@@ -313,7 +484,7 @@ add_table_entry(struct ip_fw_chain *ch, struct tid_info *ti,
 	IPFW_WLOCK(ch);
 
 	v = ta_buf_m;
-	for (i = 0; i < count; i++, v += ta_buf_sz) {
+	for (i = 0; i < count; i++, v += ta->ta_buf_size) {
 		ptei = &tei[i];
 		num = 0;
 		/* check limit before adding */
@@ -321,14 +492,7 @@ add_table_entry(struct ip_fw_chain *ch, struct tid_info *ti,
 			error = ta->add(tc->astate, KIDX_TO_TI(ch, kidx),
 			    ptei, v, &num);
 			/* Set status flag to inform userland */
-			if (error == 0 && num != 0)
-				ptei->flags |= TEI_FLAGS_ADDED;
-			else if (error == ENOENT)
-				ptei->flags |= TEI_FLAGS_NOTFOUND;
-			else if (error == EEXIST)
-				ptei->flags |= TEI_FLAGS_EXISTS;
-			else
-				ptei->flags |= TEI_FLAGS_ERROR;
+			store_tei_result(ptei, 1, error, num);
 		}
 		if (error == 0) {
 			/* Update number of records to ease limit checking */
@@ -348,39 +512,8 @@ add_table_entry(struct ip_fw_chain *ch, struct tid_info *ti,
 		if ((flags & IPFW_CTF_ATOMIC) == 0)
 			continue;
 
-		/*
-		 * We need to rollback changes.
-		 * This is tricky since some entries may have been
-		 * updated, so  we need to change their value back
-		 * instead of deletion.
-		 */
-		rollback = 1;
-		v = ta_buf_m;
-		vv = v + count * ta_buf_sz;
-		for (j = 0; j < i; j++, v += ta_buf_sz, vv += ta_buf_sz) {
-			ptei = &tei[j];
-			if ((ptei->flags & TEI_FLAGS_UPDATED) != 0) {
-
-				/*
-				 * We have old value stored by previous
-				 * call in @ptei->value. Do add once again
-				 * to restore it.
-				 */
-				rerror = ta->add(tc->astate,
-				    KIDX_TO_TI(ch, kidx), ptei, v, &num);
-				KASSERT(rerror == 0, ("rollback UPDATE fail"));
-				KASSERT(num == 0, ("rollback UPDATE fail2"));
-				continue;
-			}
-
-			rerror = ta->prepare_del(ch, ptei, vv);
-			KASSERT(rerror == 0, ("pre-rollback INSERT failed"));
-			rerror = ta->del(tc->astate, KIDX_TO_TI(ch, kidx), ptei,
-			    vv, &num);
-			KASSERT(rerror == 0, ("rollback INSERT failed"));
-			tc->count -= num;
-		}
-
+		rollback_added_entries(ch, tc, KIDX_TO_TI(ch, kidx),
+		    tei, ta_buf_m, count, i);
 		break;
 	}
 
@@ -396,20 +529,7 @@ add_table_entry(struct ip_fw_chain *ch, struct tid_info *ti,
 	error = first_error;
 
 cleanup:
-	/* Run cleaning callback anyway */
-	v = ta_buf_m;
-	for (i = 0; i < count; i++, v += ta_buf_sz)
-		ta->flush_entry(ch, &tei[i], v);
-
-	/* Clean up "deleted" state in case of rollback */
-	if (rollback != 0) {
-		vv = ta_buf_m + count * ta_buf_sz;
-		for (i = 0; i < count; i++, vv += ta_buf_sz)
-			ta->flush_entry(ch, &tei[i], vv);
-	}
-
-	if (ta_buf_m != ta_buf)
-		free(ta_buf_m, M_TEMP);
+	flush_batch_buffer(ch, ta, tei, count, 1, rollback, ta_buf_m, ta_buf);
 
 	return (error);
 }
@@ -425,74 +545,25 @@ del_table_entry(struct ip_fw_chain *ch, struct tid_info *ti,
 {
 	struct table_config *tc;
 	struct table_algo *ta;
-	struct namedobj_instance *ni;
 	struct tentry_info *ptei;
 	uint16_t kidx;
 	int error, first_error, i;
 	uint32_t num, numdel;
 	char ta_buf[TA_BUF_SZ];
-	size_t ta_buf_sz;
 	caddr_t ta_buf_m, v;
 
-	IPFW_UH_WLOCK(ch);
-	ni = CHAIN_TO_NI(ch);
-	if ((tc = find_table(ni, ti)) == NULL) {
-		IPFW_UH_WUNLOCK(ch);
-		return (ESRCH);
-	}
-
-	if (tc->locked != 0) {
-		IPFW_UH_WUNLOCK(ch);
-		return (EACCES);
-	}
-
-	if (tc->no.type != ti->type) {
-		IPFW_UH_WUNLOCK(ch);
-		return (EINVAL);
-	}
-
 	/*
-	 * Give a chance for algorithm to shrink.
-	 * May release/reacquire UH_WLOCK.
+	 * Find and reference existing table.
 	 */
-	kidx = tc->no.kidx;
-	error = check_table_space(ch, tc, KIDX_TO_TI(ch, kidx), 0);
-	if (error != 0) {
-		IPFW_UH_WUNLOCK(ch);
+	if ((error = find_ref_table(ch, ti, tei, count, 0, &tc, &ta)) != 0)
 		return (error);
-	}
-
-	/* Reference and unlock */
-	tc->no.refcnt++;
-	ta = tc->ta;
-
-	IPFW_UH_WUNLOCK(ch);
 
 	/* Allocate memory and prepare record(s) */
-	ta_buf_sz = ta->ta_buf_size;
-	if (count == 1) {
-		memset(&ta_buf, 0, sizeof(ta_buf));
-		ta_buf_m = ta_buf;
-	} else {
-
-		/*
-		 * Multiple deletes, allocate larger buffer
-		 * sufficient to hold delete state.
-		 */
-		ta_buf_m = malloc(count * ta_buf_sz, M_TEMP,
-		    M_WAITOK | M_ZERO);
-	}
-	v = ta_buf_m;
-	for (i = 0; i < count; i++, v += ta_buf_sz) {
-		error = ta->prepare_del(ch, &tei[i], v);
-
-		/*
-		 * Some syntax error (incorrect mask, or address, or
-		 * anything). Return error immediately.
-		 */
-		if (error != 0)
-			goto cleanup;
-	}
+	/* Pass stack buffer by default */
+	ta_buf_m = ta_buf;
+	error = prepare_batch_buffer(ch, ta, tei, count, 0, &ta_buf_m);
+	if (error != 0)
+		goto cleanup;
 
 	IPFW_UH_WLOCK(ch);
 
@@ -505,18 +576,13 @@ del_table_entry(struct ip_fw_chain *ch, struct tid_info *ti,
 
 	IPFW_WLOCK(ch);
 	v = ta_buf_m;
-	for (i = 0; i < count; i++, v += ta_buf_sz) {
+	for (i = 0; i < count; i++, v += ta->ta_buf_size) {
 		ptei = &tei[i];
 		num = 0;
 		error = ta->del(tc->astate, KIDX_TO_TI(ch, kidx), ptei, v,
 		    &num);
 		/* Save state for userland */
-		if (error == 0)
-			ptei->flags |= TEI_FLAGS_DELETED;
-		else if (error == ENOENT)
-			ptei->flags |= TEI_FLAGS_NOTFOUND;
-		else
-			ptei->flags |= TEI_FLAGS_ERROR;
+		store_tei_result(ptei, 0, error, num);
 		if (error != 0 && first_error == 0)
 			first_error = error;
 		tc->count -= num;
@@ -535,13 +601,7 @@ del_table_entry(struct ip_fw_chain *ch, struct tid_info *ti,
 	error = first_error;
 
 cleanup:
-	/* Run cleaning callback anyway */
-	v = ta_buf_m;
-	for (i = 0; i < count; i++, v += ta_buf_sz)
-		ta->flush_entry(ch, &tei[i], v);
-
-	if (ta_buf_m != ta_buf)
-		free(ta_buf_m, M_TEMP);
+	flush_batch_buffer(ch, ta, tei, count, 0, 0, ta_buf_m, ta_buf);
 
 	return (error);
 }
