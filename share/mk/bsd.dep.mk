@@ -139,7 +139,7 @@ ${_D}.o: ${_D}.h ${OBJS:S/${_D}.o//}
 		${OBJS:S/${_D}.o//}
 .if defined(LIB)
 CLEANFILES+= ${_D}.So ${_D}.po
-${_D}.So: ${_D.h} ${SOBJS:S/${_D}.So//}
+${_D}.So: ${_D}.h ${SOBJS:S/${_D}.So//}
 	${DTRACE} -xnolibs -G -o ${.TARGET} -s ${.CURDIR}/${_DSRC} \
 		${SOBJS:S/${_D}.So//}
 ${_D}.po: ${_D}.h ${POBJS:S/${_D}.po//}
