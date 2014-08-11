@@ -427,15 +427,18 @@ struct obj_idx {
 };
 
 struct rule_check_info {
+	uint16_t	flags;		/* rule-specific check flags */
 	uint16_t	table_opcodes;	/* count of opcodes referencing table */
-	uint16_t	new_tables;	/* count of opcodes referencing table */
 	uint16_t	urule_numoff;	/* offset of rulenum in bytes */
 	uint8_t		version;	/* rule version */
+	uint8_t		spare;
 	ipfw_obj_ctlv	*ctlv;		/* name TLV containter */
 	struct ip_fw	*krule;		/* resulting rule pointer */
 	caddr_t		urule;		/* original rule pointer */
 	struct obj_idx	obuf[8];	/* table references storage */
 };
+#define	IPFW_RCF_TABLES		0x01	/* Has table-referencing opcode */
+
 
 /* Legacy interface support */
 /*
