@@ -32,6 +32,8 @@
 void cpu_set_pic(device_t, u_int);
 void cpu_establish_intr(const char *, driver_filter_t *, void (*)(void*),
     void *, int, int, void **);
+void cpu_dispatch_intr(u_int, struct trapframe *);
+void cpu_intr(struct trapframe *);
 void arm_mask_irq(u_int);
 void arm_unmask_irq(u_int);
 

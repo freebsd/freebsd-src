@@ -103,6 +103,13 @@ handle_el1h_sync:
 	restore_registers
 	eret
 
+handle_el1h_irq:
+	save_registers
+	mov	x0, sp
+	bl	cpu_intr
+	restore_registers
+	eret
+
 .macro	vempty
 	.align 7
 	EMIT('Z');
@@ -112,6 +119,11 @@ handle_el1h_sync:
 .macro	el1h_sync
 	.align 7
 	b	handle_el1h_sync
+.endm
+
+.macro	el1h_irq
+	.align 7
+	b	handle_el1h_irq
 .endm
 
 .macro	el1h_error
@@ -129,7 +141,7 @@ exception_vectors:
 	vempty		/* Error EL1t */
 
 	el1h_sync	/* Synchronous EL1h */
-	vempty		/* IRQ EL1h */
+	el1h_irq	/* IRQ EL1h */
 	vempty		/* FIQ EL1h */
 	el1h_error	/* Error EL1h */
 

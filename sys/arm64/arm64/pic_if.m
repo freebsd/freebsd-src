@@ -43,14 +43,19 @@ CODE {
 		*pol = INTR_POLARITY_CONFORM;
 	}
 
-	static void pic_pre_filter(device_t dev, u_int irq)
+	static void pic_pre_ithread(device_t dev, u_int irq)
 	{
 		PIC_MASK(dev, irq);
+		PIC_EOI(dev, irq);
+	}
+
+	static void pic_post_ithread(device_t dev, u_int irq)
+	{
+		PIC_UNMASK(dev, irq);
 	}
 
 	static void pic_post_filter(device_t dev, u_int irq)
 	{
-		PIC_UNMASK(dev, irq);
 		PIC_EOI(dev, irq);
 	}
 };
@@ -87,10 +92,15 @@ METHOD void enable {
 	u_int		vector;
 };
 
-METHOD void pre_filter {
+METHOD void pre_ithread {
 	device_t	dev;
 	u_int		irq;
-} DEFAULT pic_pre_filter;
+} DEFAULT pic_pre_ithread;
+
+METHOD void post_ithread {
+	device_t	dev;
+	u_int		irq;
+} DEFAULT pic_post_ithread;
 
 METHOD void post_filter {
 	device_t	dev;

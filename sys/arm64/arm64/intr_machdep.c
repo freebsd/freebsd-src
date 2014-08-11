@@ -87,61 +87,26 @@ arm_unmask_irq(u_int irq)
 	PIC_UNMASK(root_pic, irq);
 }
 
-#if 0
-static void
-mips_mask_soft_irq(void *source)
-{
-	uintptr_t irq = (uintptr_t)source;
-
-	mips_wr_status(mips_rd_status() & ~((1 << irq) << 8));
-}
-
-static void
-mips_unmask_soft_irq(void *source)
-{
-	uintptr_t irq = (uintptr_t)source;
-
-	mips_wr_status(mips_rd_status() | ((1 << irq) << 8));
-}
-
-/*
- * Perform initialization of interrupts prior to setting 
- * handlings
- */
-void
-cpu_init_interrupts()
-{
-	int i;
-	char name[MAXCOMLEN + 1];
-
-	/*
-	 * Initialize all available vectors so spare IRQ
-	 * would show up in systat output 
-	 */
-	for (i = 0; i < NSOFT_IRQS; i++) {
-		snprintf(name, MAXCOMLEN + 1, "sint%d:", i);
-		mips_intr_counters[i] = mips_intrcnt_create(name);
-	}
-
-	for (i = 0; i < NHARD_IRQS; i++) {
-		snprintf(name, MAXCOMLEN + 1, "int%d:", i);
-		mips_intr_counters[NSOFT_IRQS + i] = mips_intrcnt_create(name);
-	}
-}
-#endif
-
 static void
 intr_pre_ithread(void *arg)
 {
-	int irq = (uintptr_t)arg;
+	u_int irq = (uintptr_t)arg;
 
-	PIC_PRE_FILTER(root_pic, irq);
+	PIC_PRE_ITHREAD(root_pic, irq);
 }
 
 static void
 intr_post_ithread(void *arg)
 {
-	int irq = (uintptr_t)arg;
+	u_int irq = (uintptr_t)arg;
+
+	PIC_POST_ITHREAD(root_pic, irq);
+}
+
+static void
+intr_post_filter(void *arg)
+{
+	u_int irq = (uintptr_t)arg;
 
 	PIC_POST_FILTER(root_pic, irq);
 }
@@ -172,7 +137,7 @@ cpu_establish_intr(const char *name, driver_filter_t *filt,
 	if (event == NULL) {
 		error = intr_event_create(&event, (void *)(uintptr_t)irq, 0,
 		    irq, intr_pre_ithread, intr_post_ithread,
-		    NULL, NULL, "int%d", irq);
+		    intr_post_filter, NULL, "int%d", irq);
 		if (error)
 			return;
 		intr_events[irq] = event;
@@ -188,65 +153,24 @@ cpu_establish_intr(const char *name, driver_filter_t *filt,
 #endif
 }
 
-#if 0
+void
+cpu_dispatch_intr(u_int irq, struct trapframe *tf)
+{
+	struct intr_event *event;
+
+	event = intr_events[irq];
+	if (intr_event_handle(event, tf) != 0) {
+		/* Stray irq */
+		printf("Stray IRQ %u\n", irq);
+		arm_mask_irq(irq);
+	}
+}
+
 void
 cpu_intr(struct trapframe *tf)
 {
-	struct intr_event *event;
-	register_t cause, status;
-	int hard, i, intr;
-
 	critical_enter();
-
-	cause = mips_rd_cause();
-	status = mips_rd_status();
-	intr = (cause & MIPS_INT_MASK) >> 8;
-	/*
-	 * Do not handle masked interrupts. They were masked by 
-	 * pre_ithread function (mips_mask_XXX_intr) and will be 
-	 * unmasked once ithread is through with handler
-	 */
-	intr &= (status & MIPS_INT_MASK) >> 8;
-	while ((i = fls(intr)) != 0) {
-		intr &= ~(1 << (i - 1));
-		switch (i) {
-		case 1: case 2:
-			/* Software interrupt. */
-			i--; /* Get a 0-offset interrupt. */
-			hard = 0;
-			event = softintr_events[i];
-			mips_intrcnt_inc(mips_intr_counters[i]);
-			break;
-		default:
-			/* Hardware interrupt. */
-			i -= 2; /* Trim software interrupt bits. */
-			i--; /* Get a 0-offset interrupt. */
-			hard = 1;
-			event = hardintr_events[i];
-			mips_intrcnt_inc(mips_intr_counters[NSOFT_IRQS + i]);
-			break;
-		}
-
-		if (!event || TAILQ_EMPTY(&event->ie_handlers)) {
-			printf("stray %s interrupt %d\n",
-			    hard ? "hard" : "soft", i);
-			continue;
-		}
-
-		if (intr_event_handle(event, tf) != 0) {
-			printf("stray %s interrupt %d\n", 
-			    hard ? "hard" : "soft", i);
-		}
-	}
-
-	KASSERT(i == 0, ("all interrupts handled"));
-
+	PIC_DISPATCH(root_pic, tf);
 	critical_exit();
-
-#ifdef HWPMC_HOOKS
-	if (pmc_hook && (PCPU_GET(curthread)->td_pflags & TDP_CALLCHAIN))
-		pmc_hook(PCPU_GET(curthread), PMC_FN_USER_CALLCHAIN, tf);
-#endif
 }
-#endif
 

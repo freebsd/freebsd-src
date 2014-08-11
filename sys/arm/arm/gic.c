@@ -135,10 +135,10 @@ static struct arm_gic_softc *arm_gic_sc = NULL;
 
 static int gic_config_irq(int irq, enum intr_trigger trig,
     enum intr_polarity pol);
-static void gic_pre_filter(device_t, u_int);
-static void gic_post_filter(device_t, u_int);
-void gic_mask_irq(device_t, u_int);
-void gic_unmask_irq(device_t, u_int);
+static pic_dispatch_t gic_dispatch;
+static pic_eoi_t gic_eoi;
+static pic_mask_t gic_mask_irq;
+static pic_unmask_t gic_unmask_irq;
 
 static int
 arm_gic_probe(device_t dev)
@@ -269,8 +269,8 @@ static device_method_t arm_gic_methods[] = {
 	DEVMETHOD(device_attach,	arm_gic_attach),
 
 	/* pic_if */
-	DEVMETHOD(pic_pre_filter,	gic_pre_filter),
-	DEVMETHOD(pic_post_filter,	gic_post_filter),
+	DEVMETHOD(pic_dispatch,		gic_dispatch),
+	DEVMETHOD(pic_eoi,		gic_eoi),
 	DEVMETHOD(pic_mask,		gic_mask_irq),
 	DEVMETHOD(pic_unmask,		gic_unmask_irq),
 
@@ -289,13 +289,37 @@ EARLY_DRIVER_MODULE(gic, simplebus, arm_gic_driver, arm_gic_devclass, 0, 0,
     BUS_PASS_INTERRUPT + BUS_PASS_ORDER_MIDDLE);
 DRIVER_MODULE(gic, ofwbus, arm_gic_driver, arm_gic_devclass, 0, 0);
 
-static void
-gic_pre_filter(device_t dev, u_int irq)
+static void gic_dispatch(device_t dev, struct trapframe *frame)
 {
+	uint32_t active_irq;
+	int first = 1;
+
+	while (1) {
+		active_irq = gic_c_read_4(GICC_IAR);
+
+		/*
+		 * Immediatly EOIR the SGIs, because doing so requires the other
+		 * bits (ie CPU number), not just the IRQ number, and we do not
+		 * have this information later.
+		 */
+
+		if ((active_irq & 0x3ff) <= GIC_LAST_IPI)
+			gic_c_write_4(GICC_EOIR, active_irq);
+		active_irq &= 0x3FF;
+
+		if (active_irq == 0x3FF) {
+			if (first)
+				printf("Spurious interrupt detected\n");
+			return;
+		}
+
+		cpu_dispatch_intr(active_irq, frame);
+		first = 0;
+	}
 }
 
 static void
-gic_post_filter(device_t dev, u_int irq)
+gic_eoi(device_t dev, u_int irq)
 {
 	/* TODO: Get working on arm64 */
 #if 0
