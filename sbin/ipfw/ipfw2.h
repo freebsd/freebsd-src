@@ -225,6 +225,8 @@ enum tokens {
 	TOK_TALIST,
 	TOK_FTYPE,
 	TOK_ATOMIC,
+	TOK_LOCK,
+	TOK_UNLOCK,
 };
 /*
  * the following macro returns an error message if we run out of
