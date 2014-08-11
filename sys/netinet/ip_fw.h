@@ -587,7 +587,7 @@ struct ip_fw {
 	uint16_t	act_ofs;	/* offset of action in 32-bit units */
 	uint16_t	cmd_len;	/* # of 32-bit words in cmd	*/
 	uint16_t	rulenum;	/* rule number			*/
-	uint8_t	set;		/* rule set (0..31)		*/
+	uint8_t		set;		/* rule set (0..31)		*/
 	uint8_t		_pad;		/* padding			*/
 	uint32_t	id;		/* rule id */
 
@@ -784,7 +784,10 @@ typedef struct	_ipfw_obj_tentry {
 	uint8_t		masklen;	/* mask length			*/
 	uint16_t	idx;		/* Table name index		*/
 	uint32_t	value;		/* value			*/
-	uint64_t	spare;
+	uint8_t		result;		/* request result		*/
+	uint8_t		spare0;
+	uint16_t	spare1;
+	uint32_t	spare2;
 	union {
 		/* Longest field needs to be aligned by 8-byte boundary	*/
 		struct in_addr		addr;	/* IPv4 address		*/
@@ -795,6 +798,17 @@ typedef struct	_ipfw_obj_tentry {
 	} k;
 } ipfw_obj_tentry;
 #define	IPFW_TF_UPDATE	0x01		/* Update record if exists	*/
+/* Container TLV */
+#define	IPFW_CTF_ATOMIC	0x01		/* Perform atomic operation	*/
+/* Operation results */
+#define	IPFW_TR_IGNORED		0	/* Entry was ignored (rollback)	*/
+#define	IPFW_TR_ADDED		1	/* Entry was succesfully added	*/
+#define	IPFW_TR_UPDATED		2	/* Entry was succesfully updated*/
+#define	IPFW_TR_DELETED		3	/* Entry was succesfully deleted*/
+#define	IPFW_TR_LIMIT		4	/* Entry was ignored (limit)	*/
+#define	IPFW_TR_NOTFOUND	5	/* Entry was not found		*/
+#define	IPFW_TR_EXISTS		6	/* Entry already exists		*/
+#define	IPFW_TR_ERROR		7	/* Request has failed (unknown)	*/
 
 typedef struct _ipfw_obj_dyntlv {
 	ipfw_obj_tlv	head;
@@ -808,7 +822,7 @@ typedef struct _ipfw_obj_ctlv {
 	uint32_t	count;		/* Number of sub-TLVs		*/
 	uint16_t	objsize;	/* Single object size		*/
 	uint8_t		version;	/* TLV version			*/
-	uint8_t		spare;
+	uint8_t		flags;		/* TLV-specific flags		*/
 } ipfw_obj_ctlv;
 
 /* Range TLV */

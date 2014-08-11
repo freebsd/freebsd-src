@@ -2267,7 +2267,7 @@ ipfw_get_sopt_header(struct sockopt_data *sd, size_t needed)
 int
 ipfw_ctl3(struct sockopt *sopt)
 {
-	int error;
+	int error, ctype;
 	size_t bsize_max, size, valsize;
 	struct ip_fw_chain *chain;
 	uint32_t opt;
@@ -2297,25 +2297,33 @@ ipfw_ctl3(struct sockopt *sopt)
 	sopt->sopt_valsize = valsize;
 
 	/*
-	 * Disallow modifications in really-really secure mode, but still allow
-	 * the logging counters to be reset.
-	 */
-	if (opt == IP_FW_XADD || opt == IP_FW_XDEL ||
-	    (sopt->sopt_dir == SOPT_SET && opt != IP_FW_XRESETLOG)) {
-		error = securelevel_ge(sopt->sopt_td->td_ucred, 3);
-		if (error != 0)
-			return (error);
-	}
-
-	/*
-	 * Determine buffer size:
+	 * Determine opcode type/buffer size:
 	 * use on-stack xbuf for short request,
 	 * allocate sliding-window buf for data export or
 	 * contigious buffer for special ops.
 	 */
-	bsize_max = IP_FW3_WRITEBUF;
-	if (opt == IP_FW_ADD)
+	ctype = (sopt->sopt_dir == SOPT_GET) ? SOPT_GET : SOPT_SET;
+	switch (opt) {
+	case IP_FW_XADD:
+	case IP_FW_XDEL:
+	case IP_FW_TABLE_XADD:
+	case IP_FW_TABLE_XDEL:
+		ctype = SOPT_SET;
 		bsize_max = IP_FW3_READBUF;
+		break;
+	default:
+		bsize_max = IP_FW3_WRITEBUF;
+	}
+
+	/*
+	 * Disallow modifications in really-really secure mode, but still allow
+	 * the logging counters to be reset.
+	 */
+	if (ctype == SOPT_SET && opt != IP_FW_XRESETLOG) {
+		error = securelevel_ge(sopt->sopt_td->td_ucred, 3);
+		if (error != 0)
+			return (error);
+	}
 
 	/*
 	 * Fill in sockopt_data structure that may be useful for
@@ -2664,8 +2672,8 @@ ipfw_ctl(struct sockopt *sopt)
 			ti.type = IPFW_TABLE_CIDR;
 
 			error = (opt == IP_FW_TABLE_ADD) ?
-			    add_table_entry(chain, &ti, &tei, 1) :
-			    del_table_entry(chain, &ti, &tei, 1);
+			    add_table_entry(chain, &ti, &tei, 0, 1) :
+			    del_table_entry(chain, &ti, &tei, 0, 1);
 		}
 		break;
 

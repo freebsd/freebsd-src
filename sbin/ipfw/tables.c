@@ -50,7 +50,7 @@
 
 static void table_list(ipfw_xtable_info *i, int need_header);
 static void table_modify_record(ipfw_obj_header *oh, int ac, char *av[],
-    int add, int update);
+    int add, int quiet, int update, int atomic);
 static int table_flush(ipfw_obj_header *oh);
 static int table_destroy(ipfw_obj_header *oh);
 static int table_do_create(ipfw_obj_header *oh, ipfw_xtable_info *i);
@@ -114,6 +114,7 @@ static struct _s_x tablecmds[] = {
       { "detail",	TOK_DETAIL },
       { "list",		TOK_LIST },
       { "lookup",	TOK_LOOKUP },
+      { "atomic",	TOK_ATOMIC },
       { NULL, 0 }
 };
 
@@ -144,7 +145,7 @@ void
 ipfw_table_handler(int ac, char *av[])
 {
 	int do_add, is_all;
-	int error, tcmd;
+	int atomic, error, tcmd;
 	ipfw_xtable_info i;
 	ipfw_obj_header oh;
 	char *tablename;
@@ -176,6 +177,21 @@ ipfw_table_handler(int ac, char *av[])
 
 	if ((tcmd = match_token(tablecmds, *av)) == -1)
 		errx(EX_USAGE, "invalid table command %s", *av);
+	/* Check if atomic operation was requested */
+	atomic = 0;
+	if (tcmd == TOK_ATOMIC) {
+		ac--; av++;
+		NEED1("atomic needs command");
+		if ((tcmd = match_token(tablecmds, *av)) == -1)
+			errx(EX_USAGE, "invalid table command %s", *av);
+		switch (tcmd) {
+		case TOK_ADD:
+			break;
+		default:
+			errx(EX_USAGE, "atomic is not compatible with %s", *av);
+		}
+		atomic = 1;
+	}
 
 	switch (tcmd) {
 	case TOK_LIST:
@@ -193,7 +209,8 @@ ipfw_table_handler(int ac, char *av[])
 	case TOK_DEL:
 		do_add = **av == 'a';
 		ac--; av++;
-		table_modify_record(&oh, ac, av, do_add, co.do_quiet);
+		table_modify_record(&oh, ac, av, do_add, co.do_quiet,
+		    co.do_quiet, atomic);
 		break;
 	case TOK_CREATE:
 		ac--; av++;
@@ -785,68 +802,68 @@ table_flush_one(ipfw_xtable_info *i, void *arg)
 
 static int
 table_do_modify_record(int cmd, ipfw_obj_header *oh,
-    ipfw_obj_tentry *tent, int update)
+    ipfw_obj_tentry *tent, int count, int atomic)
 {
 	ipfw_obj_ctlv *ctlv;
+	ipfw_obj_tentry *tent_base;
+	caddr_t pbuf;
 	char xbuf[sizeof(*oh) + sizeof(ipfw_obj_ctlv) + sizeof(*tent)];
-	int error;
+	int error, i;
+	size_t sz;
 
-	memset(xbuf, 0, sizeof(xbuf));
-	memcpy(xbuf, oh, sizeof(*oh));
-	oh = (ipfw_obj_header *)xbuf;
+	sz = sizeof(*ctlv) + sizeof(*tent) * count;
+	if (count == 1) {
+		memset(xbuf, 0, sizeof(xbuf));
+		pbuf = xbuf;
+	} else {
+		if ((pbuf = calloc(1, sizeof(*oh) + sz)) == NULL)
+			return (ENOMEM);
+	}
+
+	memcpy(pbuf, oh, sizeof(*oh));
+	oh = (ipfw_obj_header *)pbuf;
 	oh->opheader.version = 1;
 
 	ctlv = (ipfw_obj_ctlv *)(oh + 1);
-	ctlv->count = 1;
-	ctlv->head.length = sizeof(*ctlv) + sizeof(*tent);
+	ctlv->count = count;
+	ctlv->head.length = sz;
+	if (atomic != 0)
+		ctlv->flags |= IPFW_CTF_ATOMIC;
 
-	memcpy(ctlv + 1, tent, sizeof(*tent));
+	tent_base = tent;
+	memcpy(ctlv + 1, tent, sizeof(*tent) * count);
 	tent = (ipfw_obj_tentry *)(ctlv + 1);
-	if (update != 0)
-		tent->head.flags |= IPFW_TF_UPDATE;
-	tent->head.length = sizeof(ipfw_obj_tentry);
+	for (i = 0; i < count; i++, tent++) {
+		tent->head.length = sizeof(ipfw_obj_tentry);
+		tent->idx = oh->idx;
+	}
 
-	error = do_set3(cmd, &oh->opheader, sizeof(xbuf));
+	sz += sizeof(*oh);
+	error = do_get3(cmd, &oh->opheader, &sz);
+	tent = (ipfw_obj_tentry *)(ctlv + 1);
+	/* Copy result back to provided buffer */
+	memcpy(tent_base, ctlv + 1, sizeof(*tent) * count);
+
+	if (pbuf != xbuf)
+		free(pbuf);
 
 	return (error);
 }
 
 static void
-table_modify_record(ipfw_obj_header *oh, int ac, char *av[], int add, int update)
+table_modify_record(ipfw_obj_header *oh, int ac, char *av[], int add,
+    int quiet, int update, int atomic)
 {
-	ipfw_obj_tentry tent;
+	ipfw_obj_tentry *ptent, tent, *tent_buf;
 	ipfw_xtable_info xi;
 	uint8_t type, vtype;
-	int cmd, error;
-	char *texterr, *etxt;
+	int cmd, count, error, i, ignored;
+	char *texterr, *etxt, *px;
 
 	if (ac == 0)
 		errx(EX_USAGE, "address required");
 	
-	memset(&tent, 0, sizeof(tent));
-	tent.head.length = sizeof(tent);
-	tent.idx = 1;
-
-	tentry_fill_key(oh, &tent, *av, &type, &vtype, &xi);
-
-	/*
-	 * compability layer: auto-create table if not exists
-	 */
-	if (xi.tablename[0] == '\0') {
-		xi.type = type;
-		xi.vtype = vtype;
-		strlcpy(xi.tablename, oh->ntlv.name, sizeof(xi.tablename));
-		fprintf(stderr, "DEPRECATED: inserting data info non-existent "
-		    "table %s. (auto-created)\n", xi.tablename);
-		table_do_create(oh, &xi);
-	}
-
-	oh->ntlv.type = type;
-	ac--; av++;
-
 	if (add != 0) {
-		if (ac > 0)
-			tentry_fill_value(oh, &tent, *av, type, vtype);
 		cmd = IP_FW_TABLE_XADD;
 		texterr = "Adding record failed";
 	} else {
@@ -854,7 +871,126 @@ table_modify_record(ipfw_obj_header *oh, int ac, char *av[], int add, int update
 		texterr = "Deleting record failed";
 	}
 
-	if ((error = table_do_modify_record(cmd, oh, &tent, update)) == 0)
+	/*
+	 * Calculate number of entries:
+	 * Assume [key val] x N for add
+	 * and
+	 * key x N for delete
+	 */
+	count = (add != 0) ? ac / 2 + 1 : ac;
+
+	if (count <= 1) {
+		/* Adding single entry with/without value */
+		memset(&tent, 0, sizeof(tent));
+		tent_buf = &tent;
+	} else {
+		
+		if ((tent_buf = calloc(count, sizeof(tent))) == NULL)
+			errx(EX_OSERR,
+			    "Unable to allocate memory for all entries");
+	}
+	ptent = tent_buf;
+
+	memset(&xi, 0, sizeof(xi));
+	count = 0;
+	while (ac > 0) {
+		tentry_fill_key(oh, ptent, *av, &type, &vtype, &xi);
+
+		/*
+		 * compability layer: auto-create table if not exists
+		 */
+		if (xi.tablename[0] == '\0') {
+			xi.type = type;
+			xi.vtype = vtype;
+			strlcpy(xi.tablename, oh->ntlv.name,
+			    sizeof(xi.tablename));
+			fprintf(stderr, "DEPRECATED: inserting data info "
+			    "non-existent table %s. (auto-created)\n",
+			    xi.tablename);
+			table_do_create(oh, &xi);
+		}
+	
+		oh->ntlv.type = type;
+		ac--; av++;
+	
+		if (add != 0 && ac > 0) {
+			tentry_fill_value(oh, ptent, *av, type, vtype);
+			ac--; av++;
+		}
+
+		if (update != 0)
+			ptent->head.flags |= IPFW_TF_UPDATE;
+
+		count++;
+		ptent++;
+	}
+
+	error = table_do_modify_record(cmd, oh, tent_buf, count, atomic);
+
+	/*
+	 * Compatibility stuff: do not yell on duplicate keys or
+	 * failed deletions.
+	 */
+	if (error == 0 || (error == EEXIST && add != 0) ||
+	    (error == ENOENT && add == 0)) {
+		if (quiet != 0) {
+			if (tent_buf != &tent)
+				free(tent_buf);
+			return;
+		}
+	}
+
+	/* Report results back */
+	ptent = tent_buf;
+	for (i = 0; i < count; ptent++, i++) {
+		ignored = 0;
+		switch (ptent->result) {
+		case IPFW_TR_ADDED:
+			px = "added";
+			break;
+		case IPFW_TR_DELETED:
+			px = "deleted";
+			break;
+		case IPFW_TR_UPDATED:
+			px = "updated";
+			break;
+		case IPFW_TR_LIMIT:
+			px = "limit";
+			ignored = 1;
+			break;
+		case IPFW_TR_ERROR:
+			px = "error";
+			ignored = 1;
+			break;
+		case IPFW_TR_NOTFOUND:
+			px = "notfound";
+			ignored = 1;
+			break;
+		case IPFW_TR_EXISTS:
+			px = "exists";
+			ignored = 1;
+			break;
+		case IPFW_TR_IGNORED:
+			px = "ignored";
+			ignored = 1;
+			break;
+		default:
+			px = "unknown";
+			ignored = 1;
+		}
+
+		if (error != 0 && atomic != 0 && ignored == 0)
+			printf("%s(reverted): ", px);
+		else
+			printf("%s: ", px);
+
+		table_show_entry(&xi, ptent);
+	}
+
+	if (tent_buf != &tent)
+		free(tent_buf);
+
+	if (error == 0)
 		return;
 
 	/* Try to provide more human-readable error */
@@ -924,6 +1060,7 @@ table_lookup(ipfw_obj_header *oh, int ac, char *av[])
 
 	strlcpy(key, *av, sizeof(key));
 
+	memset(&xi, 0, sizeof(xi));
 	error = table_do_lookup(oh, key, &xi, &xtent);
 
 	switch (error) {
@@ -1144,7 +1281,10 @@ tentry_fill_key(ipfw_obj_header *oh, ipfw_obj_tentry *tent, char *key,
 	tflags = 0;
 	vtype = 0;
 
-	error = table_get_info(oh, xi);
+	if (xi->tablename[0] == '\0')
+		error = table_get_info(oh, xi);
+	else
+		error = 0;
 
 	if (error == 0) {
 		/* Table found. */

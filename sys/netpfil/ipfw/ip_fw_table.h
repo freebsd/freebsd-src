@@ -58,10 +58,16 @@ struct tentry_info {
 	uint16_t	flags;		/* record flags			*/
 	uint32_t	value;		/* value			*/
 };
-#define	TEI_FLAGS_UPDATE	0x01	/* Add or update rec if exists	*/
-#define	TEI_FLAGS_UPDATED	0x02	/* Entry has been updated	*/
-#define	TEI_FLAGS_COMPAT	0x04	/* Called from old ABI		*/
-#define	TEI_FLAGS_DONTADD	0x08	/* Do not create new rec	*/
+#define	TEI_FLAGS_UPDATE	0x0001	/* Add or update rec if exists	*/
+#define	TEI_FLAGS_UPDATED	0x0002	/* Entry has been updated	*/
+#define	TEI_FLAGS_COMPAT	0x0004	/* Called from old ABI		*/
+#define	TEI_FLAGS_DONTADD	0x0008	/* Do not create new rec	*/
+#define	TEI_FLAGS_ADDED		0x0010	/* Entry was added		*/
+#define	TEI_FLAGS_DELETED	0x0020	/* Entry was deleted		*/
+#define	TEI_FLAGS_LIMIT		0x0040	/* Limit was hit		*/
+#define	TEI_FLAGS_ERROR		0x0080	/* Unknown request error	*/
+#define	TEI_FLAGS_NOTFOUND	0x0100	/* Entry was not found		*/
+#define	TEI_FLAGS_EXISTS	0x0200	/* Entry already exists		*/
 
 typedef int (ta_init)(struct ip_fw_chain *ch, void **ta_state,
     struct table_info *ti, char *data, uint8_t tflags);
@@ -157,9 +163,9 @@ int ipfw_swap_table(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
     struct sockopt_data *sd);
 /* Exported to support legacy opcodes */
 int add_table_entry(struct ip_fw_chain *ch, struct tid_info *ti,
-    struct tentry_info *tei, uint32_t count);
+    struct tentry_info *tei, uint8_t flags, uint32_t count);
 int del_table_entry(struct ip_fw_chain *ch, struct tid_info *ti,
-    struct tentry_info *tei, uint32_t count);
+    struct tentry_info *tei, uint8_t flags, uint32_t count);
 int flush_table(struct ip_fw_chain *ch, struct tid_info *ti);
 
 int ipfw_rewrite_table_uidx(struct ip_fw_chain *chain,

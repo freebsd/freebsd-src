@@ -554,6 +554,9 @@ ta_del_radix(void *ta_state, struct table_info *ti, struct tentry_info *tei,
 
 	rn = rnh->rnh_deladdr(tb->addr_ptr, tb->mask_ptr, rnh);
 
+	if (rn == NULL)
+		return (ENOENT);
+
 	/* Save entry value to @tei */
 	if (tei->subtype == AF_INET)
 		tei->value = ((struct radix_cidr_entry *)rn)->value;
@@ -562,9 +565,6 @@ ta_del_radix(void *ta_state, struct table_info *ti, struct tentry_info *tei,
 
 	tb->ent_ptr = rn;
 	
-	if (rn == NULL)
-		return (ENOENT);
-
 	if (tei->subtype == AF_INET)
 		cfg->count4--;
 	else
