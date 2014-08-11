@@ -58,14 +58,11 @@ __FBSDID("$FreeBSD$");
 #include <netpfil/ipfw/ip_fw_private.h>
 #include <netpfil/ipfw/ip_fw_table.h>
 
-
  /*
  * Table has the following `type` concepts:
  *
  * `no.type` represents lookup key type (cidr, ifp, uid, etc..)
- * `ta->atype` represents exact lookup algorithm.
- *     For example, we can use more efficient search schemes if we plan
- *     to use some specific table for storing host-routes only.
+ * `vtype` represents table value type (currently U32)
  * `ftype` (at the moment )is pure userland field helping to properly
  *     format value data e.g. "value is IPv4 nexthop" or "value is DSCP"
  *     or "value is port".
@@ -260,7 +257,7 @@ add_table_entry(struct ip_fw_chain *ch, struct tid_info *ti,
 		IPFW_UH_WUNLOCK(ch);
 	}
 
-	/* Prepare record (allocate memory) */
+	/* Allocate memory and prepare record(s) */
 	ta_buf_sz = ta->ta_buf_size;
 	rollback = 0;
 	if (count == 1) {
@@ -471,7 +468,7 @@ del_table_entry(struct ip_fw_chain *ch, struct tid_info *ti,
 
 	IPFW_UH_WUNLOCK(ch);
 
-	/* Prepare record (allocate memory) */
+	/* Allocate memory and prepare record(s) */
 	ta_buf_sz = ta->ta_buf_size;
 	if (count == 1) {
 		memset(&ta_buf, 0, sizeof(ta_buf));
@@ -587,8 +584,8 @@ check_table_space(struct ip_fw_chain *ch, struct table_config *tc,
 	while (true) {
 		pflags = 0;
 		if (ta->has_space(tc->astate, ti, count, &pflags) != 0) {
-			tc->no.refcnt--;
-			return (0);
+			error = 0;
+			break;
 		}
 
 		/* We have to shrink/grow table */
@@ -607,8 +604,8 @@ check_table_space(struct ip_fw_chain *ch, struct table_config *tc,
 		if (ta->has_space(tc->astate, ti, count, &pflags) != 0) {
 
 			/*
-			 * Other threads has already performed resize.
-			 * Flush our state and return/
+			 * Other thread has already performed resize.
+			 * Flush our state and return.
 			 */
 			ta->flush_mod(ta_buf);
 			break;
@@ -757,7 +754,7 @@ ipfw_manage_table_ent_v1(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
 
 	/*
 	 * Mark entire buffer as "read".
-	 * This makes sopt api write it back
+	 * This instructs sopt api write it back
 	 * after function return.
 	 */
 	ipfw_get_sopt_header(sd, sd->valsize);
@@ -926,6 +923,15 @@ ipfw_flush_table(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
 	return (error);
 }
 
+/*
+ * Flushes given table.
+ *
+ * Function create new table instance with the same
+ * parameters, swaps it with old one and
+ * flushes state without holding any locks.
+ *
+ * Returns 0 on success.
+ */
 int
 flush_table(struct ip_fw_chain *ch, struct tid_info *ti)
 {
@@ -951,7 +957,7 @@ flush_table(struct ip_fw_chain *ch, struct tid_info *ti)
 	}
 	ta = tc->ta;
 	tc->no.refcnt++;
-	/* Save statup algo parameters */
+	/* Save startup algo parameters */
 	if (ta->print_config != NULL) {
 		ta->print_config(tc->astate, KIDX_TO_TI(ch, tc->no.kidx),
 		    algostate, sizeof(algostate));
@@ -1030,6 +1036,21 @@ ipfw_swap_table(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
 	return (error);
 }
 
+/*
+ * Swaps two tables of the same type/valtype.
+ *
+ * Checks if tables are compatible and limits
+ * permits swap, than actually perform swap
+ * by switching
+ * 1) runtime data (ch->tablestate)
+ * 2) runtime cache in @tc
+ * 3) algo-specific data (tc->astate)
+ * 4) number of items
+ *
+ * Since @ti has changed for each table, calls notification callbacks.
+ *
+ * Returns 0 on success.
+ */
 static int
 swap_tables(struct ip_fw_chain *ch, struct tid_info *a,
     struct tid_info *b)
@@ -1043,7 +1064,7 @@ swap_tables(struct ip_fw_chain *ch, struct tid_info *a,
 
 	/*
 	 * Stage 1: find both tables and ensure they are of
-	 * the same type and algo.
+	 * the same type.
 	 */
 	IPFW_UH_WLOCK(ch);
 	ni = CHAIN_TO_NI(ch);
@@ -1166,6 +1187,9 @@ destroy_table_locked(struct namedobj_instance *ni, struct named_object *no,
 	free_table_config(ni, (struct table_config *)no);
 }
 
+/*
+ * Shuts tables module down.
+ */
 void
 ipfw_destroy_tables(struct ip_fw_chain *ch)
 {
@@ -1186,6 +1210,9 @@ ipfw_destroy_tables(struct ip_fw_chain *ch)
 	free(CHAIN_TO_TCFG(ch), M_IPFW);
 }
 
+/*
+ * Starts tables module.
+ */
 int
 ipfw_init_tables(struct ip_fw_chain *ch)
 {
@@ -1204,6 +1231,11 @@ ipfw_init_tables(struct ip_fw_chain *ch)
 	return (0);
 }
 
+/*
+ * Grow tables index.
+ *
+ * Returns 0 on success.
+ */
 int
 ipfw_resize_tables(struct ip_fw_chain *ch, unsigned int ntables)
 {
@@ -1277,7 +1309,7 @@ ipfw_resize_tables(struct ip_fw_chain *ch, unsigned int ntables)
 }
 
 /*
- * Switch between "set 0" and "rule set" table binding,
+ * Switch between "set 0" and "rule's set" table binding,
  * Check all ruleset bindings and permits changing
  * IFF each binding has both rule AND table in default set (set 0).
  *
@@ -1303,6 +1335,9 @@ ipfw_switch_tables_namespace(struct ip_fw_chain *ch, unsigned int sets)
 
 	ni = CHAIN_TO_NI(ch);
 
+	/*
+	 * Scan all rules and examine tables opcodes.
+	 */
 	for (i = 0; i < ch->n_rules; i++) {
 		rule = ch->map[i];
 
@@ -1317,6 +1352,7 @@ ipfw_switch_tables_namespace(struct ip_fw_chain *ch, unsigned int sets)
 
 			no = ipfw_objhash_lookup_kidx(ni, kidx);
 
+			/* Check if both table object and rule has the set 0 */
 			if (no->set != 0 || rule->set != 0) {
 				IPFW_UH_WUNLOCK(ch);
 				return (EBUSY);
@@ -1764,6 +1800,13 @@ objheader_to_ti(struct _ipfw_obj_header *oh, struct tid_info *ti)
 	ntlv_to_ti(&oh->ntlv, ti);
 }
 
+/*
+ * Exports basic table info as name TLV.
+ * Used inside dump_static_rules() to provide info
+ * about all tables referenced by current ruleset.
+ *
+ * Returns 0 on success.
+ */
 int
 ipfw_export_table_ntlv(struct ip_fw_chain *ch, uint16_t kidx,
     struct sockopt_data *sd)
@@ -1789,6 +1832,9 @@ ipfw_export_table_ntlv(struct ip_fw_chain *ch, uint16_t kidx,
 	return (0);
 }
 
+/*
+ * Exports table @tc info into standard ipfw_xtable_info format.
+ */
 static void
 export_table_info(struct ip_fw_chain *ch, struct table_config *tc,
     ipfw_xtable_info *i)
@@ -1895,7 +1941,6 @@ ipfw_count_table(struct ip_fw_chain *ch, struct tid_info *ti, uint32_t *cnt)
 	*cnt = tc->count;
 	return (0);
 }
-
 
 /*
  * Legacy IP_FW_TABLE_XGETSIZE handler
@@ -2059,7 +2104,9 @@ dump_table_xentry(void *e, void *arg)
  */ 
 
 /*
- * Finds algoritm by index, table type or supplied name
+ * Finds algoritm by index, table type or supplied name.
+ *
+ * Returns pointer to algo or NULL.
  */
 static struct table_algo *
 find_table_algo(struct tables_config *tcfg, struct tid_info *ti, char *name)
@@ -2107,7 +2154,7 @@ find_table_algo(struct tables_config *tcfg, struct tid_info *ti, char *name)
 
 /*
  * Register new table algo @ta.
- * Stores algo id iside @idx.<F2>
+ * Stores algo id inside @idx.
  *
  * Returns 0 on success.
  */
@@ -2129,6 +2176,7 @@ ipfw_add_table_algo(struct ip_fw_chain *ch, struct table_algo *ta, size_t size,
 
 	KASSERT(ta->type >= IPFW_TABLE_MAXTYPE,("Increase IPFW_TABLE_MAXTYPE"));
 
+	/* Copy algorithm data to stable storage. */
 	ta_new = malloc(sizeof(struct table_algo), M_IPFW, M_WAITOK | M_ZERO);
 	memcpy(ta_new, ta, size);
 
@@ -2433,6 +2481,12 @@ find_table(struct namedobj_instance *ni, struct tid_info *ti)
 	return ((struct table_config *)no);
 }
 
+/*
+ * Allocate new table config structure using
+ * specified @algo and @aname.
+ *
+ * Returns pointer to config or NULL.
+ */
 static struct table_config *
 alloc_table_config(struct ip_fw_chain *ch, struct tid_info *ti,
     struct table_algo *ta, char *aname, uint8_t tflags, uint8_t vtype)
@@ -2483,13 +2537,16 @@ alloc_table_config(struct ip_fw_chain *ch, struct tid_info *ti,
 	return (tc);
 }
 
+/*
+ * Destroys table state and config.
+ */
 static void
 free_table_config(struct namedobj_instance *ni, struct table_config *tc)
 {
 
-	if (tc->linked == 0)
-		tc->ta->destroy(tc->astate, &tc->ti);
+	KASSERT(tc->linked == 0, ("free() on linked config"));
 
+	tc->ta->destroy(tc->astate, &tc->ti);
 	free(tc, M_IPFW);
 }
 
@@ -2553,9 +2610,9 @@ unlink_table(struct ip_fw_chain *ch, struct table_config *tc)
 }
 
 /*
- * Finds named object by @uidx number.
- * Refs found object, allocate new index for non-existing object.
- * Fills in @oib with userland/kernel indexes.
+ * Finds and bumps refcount for tables referenced by given @rule.
+ * Allocates new indexes for non-existing tables.
+ * Fills in @oib array with userland/kernel indexes.
  * First free oidx pointer is saved back in @oib.
  *
  * Returns 0 on success.
@@ -2580,6 +2637,10 @@ bind_table_rule(struct ip_fw_chain *ch, struct ip_fw *rule,
 	IPFW_UH_WLOCK(ch);
 	ni = CHAIN_TO_NI(ch);
 
+	/*
+	 * Increase refcount on each referenced table.
+	 * Allocate table indexes for non-existing tables.
+	 */
 	for ( ;	l > 0 ; l -= cmdlen, cmd += cmdlen) {
 		cmdlen = F_LEN(cmd);
 
@@ -2832,11 +2893,10 @@ ipfw_move_tables_sets(struct ip_fw_chain *ch, ipfw_range_tlv *rt,
 /*
  * Compatibility function for old ipfw(8) binaries.
  * Rewrites table kernel indices with userland ones.
- * Works for \d+ talbes only (e.g. for tables, converted
- * from old numbered system calls).
+ * Convert tables matching '/^\d+$/' to their atoi() value.
+ * Use number 65535 for other tables.
  *
  * Returns 0 on success.
- * Raises error on any other tables.
  */
 int
 ipfw_rewrite_table_kidx(struct ip_fw_chain *chain, struct ip_fw_rule0 *rule)
@@ -2882,7 +2942,8 @@ ipfw_rewrite_table_kidx(struct ip_fw_chain *chain, struct ip_fw_rule0 *rule)
 }
 
 /*
- * Sets every table kidx in @bmask which is used in rule @rule.
+ * Marks every table kidx used in @rule with bit in @bmask.
+ * Used to generate bitmask of referenced tables for given ruleset.
  * 
  * Returns number of newly-referenced tables.
  */
@@ -2914,8 +2975,6 @@ ipfw_mark_table_kidx(struct ip_fw_chain *chain, struct ip_fw *rule,
 	return (count);
 }
 
-
-
 /*
  * Checks is opcode is referencing table of appropriate type.
  * Adds reference count for found table if true.
@@ -2941,7 +3000,7 @@ ipfw_rewrite_table_uidx(struct ip_fw_chain *chain,
 
 	ni = CHAIN_TO_NI(chain);
 
-	/* Prepare queue to store configs */
+	/* Prepare queue to store newly-allocated configs */
 	TAILQ_INIT(&nh);
 
 	/*
@@ -2989,7 +3048,6 @@ ipfw_rewrite_table_uidx(struct ip_fw_chain *chain,
 	/*
 	 * Stage 2: allocate table configs for every non-existent table
 	 */
-
 	if ((ci->flags & IPFW_RCF_TABLES) != 0) {
 		for (p = pidx_first; p < pidx_last; p++) {
 			if (p->new == 0)
@@ -3020,7 +3078,7 @@ ipfw_rewrite_table_uidx(struct ip_fw_chain *chain,
 		}
 
 		/*
-		 * Stage 2.1: Check if we're going to create 2 tables
+		 * Stage 2.1: Check if we're going to create two tables
 		 * with the same name, but different table types.
 		 */
 		TAILQ_FOREACH(no, &nh, nn_next) {
@@ -3038,16 +3096,15 @@ ipfw_rewrite_table_uidx(struct ip_fw_chain *chain,
 	IPFW_UH_WLOCK(chain);
 
 	if ((ci->flags & IPFW_RCF_TABLES) != 0) {
+
 		/*
 		 * Stage 3: link & reference new table configs
 		 */
-
 
 		/*
 		 * Step 3.1: Check if some tables we need to create have been
 		 * already created with different table type.
 		 */
-
 		error = 0;
 		TAILQ_FOREACH_SAFE(no, &nh, nn_next, no_tmp) {
 			no_n = ipfw_objhash_lookup_name(ni, no->set, no->name);
@@ -3181,4 +3238,3 @@ ipfw_unbind_table_rule(struct ip_fw_chain *chain, struct ip_fw *rule)
 	}
 }
 
-/* end of file */
