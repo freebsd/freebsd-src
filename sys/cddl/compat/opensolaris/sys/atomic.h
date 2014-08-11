@@ -36,7 +36,7 @@
 	atomic_cmpset_ptr((volatile uintptr_t *)(_a), (uintptr_t)(_b), (uintptr_t) (_c))
 #define cas32	atomic_cmpset_32
 
-#if !defined(__LP64__) && !defined(__mips_n32)
+#if !defined(__LP64__) && !defined(__mips_n32) && !defined(ARM_HAVE_ATOMIC64)
 extern void atomic_add_64(volatile uint64_t *target, int64_t delta);
 extern void atomic_dec_64(volatile uint64_t *target);
 #endif
@@ -85,7 +85,7 @@ atomic_dec_32_nv(volatile uint32_t *target)
 	return (atomic_fetchadd_32(target, -1) - 1);
 }
 
-#if defined(__LP64__) || defined(__mips_n32)
+#if defined(__LP64__) || defined(__mips_n32) || defined(ARM_HAVE_ATOMIC64)
 static __inline void
 atomic_dec_64(volatile uint64_t *target)
 {
