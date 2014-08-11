@@ -209,9 +209,8 @@ sf_buf_ref(struct sf_buf *sf)
 		return;
 #endif
 
-	KASSERT(sf->ref_count > 0, ("%s: sf %p not allocated", __func__, sf));
-
 	mtx_lock(&sf_buf_lock);
+	KASSERT(sf->ref_count > 0, ("%s: sf %p not allocated", __func__, sf));
 	sf->ref_count++;
 	mtx_unlock(&sf_buf_lock);
 }
