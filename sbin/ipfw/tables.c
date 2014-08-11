@@ -59,6 +59,7 @@ static int table_do_swap(ipfw_obj_header *oh, char *second);
 static void table_create(ipfw_obj_header *oh, int ac, char *av[]);
 static void table_modify(ipfw_obj_header *oh, int ac, char *av[]);
 static void table_lookup(ipfw_obj_header *oh, int ac, char *av[]);
+static void table_lock(ipfw_obj_header *oh, int lock);
 static int table_swap(ipfw_obj_header *oh, char *second);
 static int table_get_info(ipfw_obj_header *oh, ipfw_xtable_info *i);
 static int table_show_info(ipfw_xtable_info *i, void *arg);
@@ -115,6 +116,8 @@ static struct _s_x tablecmds[] = {
       { "list",		TOK_LIST },
       { "lookup",	TOK_LOOKUP },
       { "atomic",	TOK_ATOMIC },
+      { "lock",		TOK_LOCK },
+      { "unlock",	TOK_UNLOCK },
       { NULL, 0 }
 };
 
@@ -240,6 +243,10 @@ ipfw_table_handler(int ac, char *av[])
 		NEED1("second table name required");
 		table_swap(&oh, *av);
 		break;
+	case TOK_LOCK:
+	case TOK_UNLOCK:
+		table_lock(&oh, (tcmd == TOK_LOCK));
+		break;
 	case TOK_DETAIL:
 	case TOK_INFO:
 		arg = (tcmd == TOK_DETAIL) ? (void *)1 : NULL;
@@ -297,6 +304,7 @@ static struct _s_x tablenewcmds[] = {
       { "valtype",	TOK_VALTYPE },
       { "algo",		TOK_ALGO },
       { "limit",	TOK_LIMIT },
+      { "locked",	TOK_LOCK },
       { NULL, 0 }
 };
 
@@ -440,6 +448,9 @@ table_create(ipfw_obj_header *oh, int ac, char *av[])
 			strlcpy(xi.algoname, *av, sizeof(xi.algoname));
 			ac--; av++;
 			break;
+		case TOK_LOCK:
+			xi.flags |= IPFW_TGFLAGS_LOCKED;
+			break;
 		}
 	}
 
@@ -484,10 +495,6 @@ table_modify(ipfw_obj_header *oh, int ac, char *av[])
 
 	sz = sizeof(tbuf);
 	memset(&xi, 0, sizeof(xi));
-
-	/* Set some defaults to preserve compability */
-	xi.type = IPFW_TABLE_CIDR;
-	xi.vtype = IPFW_VTYPE_U32;
 
 	while (ac > 0) {
 		if ((tcmd = match_token(tablenewcmds, *av)) == -1)
@@ -542,6 +549,25 @@ table_do_modify(ipfw_obj_header *oh, ipfw_xtable_info *i)
 
 	return (error);
 }
+
+/*
+ * Locks or unlocks given table
+ */
+static void
+table_lock(ipfw_obj_header *oh, int lock)
+{
+	ipfw_xtable_info xi;
+	int error;
+
+	memset(&xi, 0, sizeof(xi));
+
+	xi.mflags |= IPFW_TMFLAGS_LOCK;
+	xi.flags |= (lock != 0) ? IPFW_TGFLAGS_LOCKED : 0;
+
+	if ((error = table_do_modify(oh, &xi)) != 0)
+		err(EX_OSERR, "Table %s failed", lock != 0 ? "lock" : "unlock");
+}
+
 /*
  * Destroys given table specified by @oh->ntlv.
  * Returns 0 on success.
@@ -713,7 +739,10 @@ table_show_info(ipfw_xtable_info *i, void *arg)
 		snprintf(tvtype, sizeof(tvtype), "%s", vtype);
 
 	printf("--- table(%s), set(%u) ---\n", i->tablename, i->set);
-	printf(" kindex: %d, type: %s\n", i->kidx, ttype);
+	if ((i->flags & IPFW_TGFLAGS_LOCKED) != 0)
+		printf(" kindex: %d, type: %s, locked\n", i->kidx, ttype);
+	else
+		printf(" kindex: %d, type: %s\n", i->kidx, ttype);
 	printf(" valtype: %s, references: %u\n", tvtype, i->refcnt);
 	printf(" algorithm: %s\n", i->algoname);
 	printf(" items: %u, size: %u\n", i->count, i->size);
@@ -1006,6 +1035,9 @@ table_modify_record(ipfw_obj_header *oh, int ac, char *av[], int add,
 		break;
 	case ENOENT:
 		etxt = "record not found";
+		break;
+	case EACCES:
+		etxt = "table is locked";
 		break;
 	default:
 		etxt = strerror(error);

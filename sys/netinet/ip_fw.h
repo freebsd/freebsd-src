@@ -866,7 +866,7 @@ typedef struct _ipfw_xtable_info {
 	uint8_t		vtype;		/* value type (u32)		*/
 	uint8_t		vftype;		/* value format type (ip,number)*/
 	uint16_t	mflags;		/* modification flags		*/
-	uint16_t	spare;
+	uint16_t	flags;		/* generic table flags		*/
 	uint32_t	set;		/* set table is in		*/
 	uint32_t	kidx;		/* kernel index			*/
 	uint32_t	refcnt;		/* number of references		*/
@@ -877,13 +877,18 @@ typedef struct _ipfw_xtable_info {
 	char		algoname[64];	/* algorithm name		*/
 	ipfw_ta_tinfo	ta_info;	/* additional algo stats	*/
 } ipfw_xtable_info;
+/* Generic table flags */
+#define	IPFW_TGFLAGS_LOCKED	0x01	/* Tables is locked from changes*/
+/* Table type-specific flags */
 #define	IPFW_TFFLAG_SRCIP	0x01
 #define	IPFW_TFFLAG_DSTIP	0x02
 #define	IPFW_TFFLAG_SRCPORT	0x04
 #define	IPFW_TFFLAG_DSTPORT	0x08
 #define	IPFW_TFFLAG_PROTO	0x10
-#define	IPFW_TMFLAGS_FTYPE	0x01	/* Change ftype field		*/
-#define	IPFW_TMFLAGS_LIMIT	0x02	/* Change limit value		*/
+/* Table modification flags */
+#define	IPFW_TMFLAGS_FTYPE	0x0001	/* Change ftype field		*/
+#define	IPFW_TMFLAGS_LIMIT	0x0002	/* Change limit value		*/
+#define	IPFW_TMFLAGS_LOCK	0x0004	/* Change table lock state	*/
 
 typedef struct _ipfw_iface_info {
 	char		ifname[64];	/* interface name		*/

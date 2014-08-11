@@ -76,7 +76,7 @@ struct table_config {
 	uint8_t		vtype;		/* value type */
 	uint8_t		vftype;		/* value format type */
 	uint8_t		tflags;		/* type flags */
-	uint8_t		spare0;	
+	uint8_t		locked;		/* 1 if locked from changes */
 	uint32_t	count;		/* Number of records */
 	uint32_t	limit;		/* Max number of records */
 	uint8_t		linked;		/* 1 if already linked */
@@ -208,6 +208,11 @@ add_table_entry(struct ip_fw_chain *ch, struct tid_info *ti,
 		if (tc->no.type != ti->type) {
 			IPFW_UH_WUNLOCK(ch);
 			return (EINVAL);
+		}
+
+		if (tc->locked != 0) {
+			IPFW_UH_WUNLOCK(ch);
+			return (EACCES);
 		}
 
 		/* Try to exit early on limit hit */
@@ -437,6 +442,11 @@ del_table_entry(struct ip_fw_chain *ch, struct tid_info *ti,
 	if ((tc = find_table(ni, ti)) == NULL) {
 		IPFW_UH_WUNLOCK(ch);
 		return (ESRCH);
+	}
+
+	if (tc->locked != 0) {
+		IPFW_UH_WUNLOCK(ch);
+		return (EACCES);
 	}
 
 	if (tc->no.type != ti->type) {
@@ -1616,6 +1626,8 @@ ipfw_modify_table(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
 		tc->vftype = i->vftype;
 	if ((i->mflags & IPFW_TMFLAGS_LIMIT) != 0)
 		tc->limit = i->limit;
+	if ((i->mflags & IPFW_TMFLAGS_LOCK) != 0)
+		tc->locked = ((i->flags & IPFW_TGFLAGS_LOCKED) != 0);
 	IPFW_UH_WUNLOCK(ch);
 
 	return (0);
@@ -1704,6 +1716,7 @@ create_table_internal(struct ip_fw_chain *ch, struct tid_info *ti,
 
 	tc->vftype = i->vftype;
 	tc->limit = i->limit;
+	tc->locked = (i->flags & IPFW_TGFLAGS_LOCKED) != 0;
 
 	IPFW_UH_WLOCK(ch);
 
@@ -1792,6 +1805,7 @@ export_table_info(struct ip_fw_chain *ch, struct table_config *tc,
 	i->refcnt = tc->no.refcnt;
 	i->count = tc->count;
 	i->limit = tc->limit;
+	i->flags |= (tc->locked != 0) ? IPFW_TGFLAGS_LOCKED : 0;
 	i->size = tc->count * sizeof(ipfw_obj_tentry);
 	i->size += sizeof(ipfw_obj_header) + sizeof(ipfw_xtable_info);
 	strlcpy(i->tablename, tc->tablename, sizeof(i->tablename));
