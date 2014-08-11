@@ -255,7 +255,7 @@ main(int argc, char *argv[] __unused)
 			warnx("invalid color %s", argv[2]);
 			usage();
 		}
-		pixel = fb_colour((color >> 16) & 0xFF, (color >> 16) & 0xFF,
+		pixel = fb_colour((color >> 16) & 0xFF, (color >> 8) & 0xFF,
 		    color & 0xFF);
 		fb_fill(pixel);
 		/* XXX: A bit too heavyhanded */
