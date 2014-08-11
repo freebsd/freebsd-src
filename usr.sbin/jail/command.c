@@ -268,7 +268,7 @@ run_command(struct cfjail *j)
 	pid_t pid;
 	int argc, bg, clean, consfd, down, fib, i, injail, sjuser, timeout;
 #if defined(INET) || defined(INET6)
-	char *addr;
+	char *addr, *extrap, *p, *val;
 #endif
 
 	static char *cleanenv;
@@ -317,16 +317,30 @@ run_command(struct cfjail *j)
 	switch (comparam) {
 #ifdef INET
 	case IP__IP4_IFADDR:
-		argv = alloca(8 * sizeof(char *));
+		argc = 0;
+		val = alloca(strlen(comstring->s) + 1);
+		strcpy(val, comstring->s);
+		cs = val;
+		extrap = NULL;
+		while ((p = strchr(cs, ' ')) != NULL && strlen(p) > 1) {
+			if (extrap == NULL) {
+				*p = '\0';
+				extrap = p + 1;
+			}
+			cs = p + 1;
+			argc++;
+		}
+
+		argv = alloca((8 + argc) * sizeof(char *));
 		*(const char **)&argv[0] = _PATH_IFCONFIG;
-		if ((cs = strchr(comstring->s, '|'))) {
-			argv[1] = alloca(cs - comstring->s + 1);
-			strlcpy(argv[1], comstring->s, cs - comstring->s + 1);
+		if ((cs = strchr(val, '|'))) {
+			argv[1] = alloca(cs - val + 1);
+			strlcpy(argv[1], val, cs - val + 1);
 			addr = cs + 1;
 		} else {
 			*(const char **)&argv[1] =
 			    string_param(j->intparams[IP_INTERFACE]);
-			addr = comstring->s;
+			addr = val;
 		}
 		*(const char **)&argv[2] = "inet";
 		if (!(cs = strchr(addr, '/'))) {
@@ -344,6 +358,15 @@ run_command(struct cfjail *j)
 			argv[3] = addr;
 			argc = 4;
 		}
+
+		if (!down) {
+			for (cs = strtok(extrap, " "); cs; cs = strtok(NULL, " ")) {
+				size_t len = strlen(cs) + 1;
+				argv[argc] = alloca(len);
+				strlcpy(argv[argc++], cs, len);
+			}
+		}
+
 		*(const char **)&argv[argc] = down ? "-alias" : "alias";
 		argv[argc + 1] = NULL;
 		break;
@@ -351,16 +374,30 @@ run_command(struct cfjail *j)
 
 #ifdef INET6
 	case IP__IP6_IFADDR:
-		argv = alloca(8 * sizeof(char *));
+		argc = 0;
+		val = alloca(strlen(comstring->s) + 1);
+		strcpy(val, comstring->s);
+		cs = val;
+		extrap = NULL;
+		while ((p = strchr(cs, ' ')) != NULL && strlen(p) > 1) {
+			if (extrap == NULL) {
+				*p = '\0';
+				extrap = p + 1;
+			}
+			cs = p + 1;
+			argc++;
+		}
+
+		argv = alloca((8 + argc) * sizeof(char *));
 		*(const char **)&argv[0] = _PATH_IFCONFIG;
-		if ((cs = strchr(comstring->s, '|'))) {
-			argv[1] = alloca(cs - comstring->s + 1);
-			strlcpy(argv[1], comstring->s, cs - comstring->s + 1);
+		if ((cs = strchr(val, '|'))) {
+			argv[1] = alloca(cs - val + 1);
+			strlcpy(argv[1], val, cs - val + 1);
 			addr = cs + 1;
 		} else {
 			*(const char **)&argv[1] =
 			    string_param(j->intparams[IP_INTERFACE]);
-			addr = comstring->s;
+			addr = val;
 		}
 		*(const char **)&argv[2] = "inet6";
 		argv[3] = addr;
@@ -370,6 +407,15 @@ run_command(struct cfjail *j)
 			argc = 6;
 		} else
 			argc = 4;
+
+		if (!down) {
+			for (cs = strtok(extrap, " "); cs; cs = strtok(NULL, " ")) {
+				size_t len = strlen(cs) + 1;
+				argv[argc] = alloca(len);
+				strlcpy(argv[argc++], cs, len);
+			}
+		}
+
 		*(const char **)&argv[argc] = down ? "-alias" : "alias";
 		argv[argc + 1] = NULL;
 		break;	
