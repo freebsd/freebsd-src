@@ -69,8 +69,8 @@ struct opie {
 /* Maximum length of a seed */
 #define OPIE_SEED_MAX 16
 
-/* Max length of hash algorithm name (md4/md5) */
-#define OPIE_HASHNAME_MAX 3
+/* Max length of hash algorithm name (md4/md5/sha1) */
+#define OPIE_HASHNAME_MAX 4
 
 /* Maximum length of a challenge (otp-md? 9999 seed ext) */
 #define OPIE_CHALLENGE_MAX (4+OPIE_HASHNAME_MAX+1+4+1+OPIE_SEED_MAX+1+3)
