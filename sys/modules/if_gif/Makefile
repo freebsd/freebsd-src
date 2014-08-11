@@ -1,8 +1,9 @@
 # $FreeBSD$
 
-.include <src.opts.mk>
+SYSDIR?=${.CURDIR}/../..
+.include "${SYSDIR}/conf/kern.opts.mk"
 
-.PATH: ${.CURDIR}/../../net ${.CURDIR}/../../netinet ${.CURDIR}/../../netinet6
+.PATH: ${SYSDIR}/net ${SYSDIR}/netinet ${SYSDIR}/netinet6
 
 KMOD=	if_gif
 SRCS=	if_gif.c in_gif.c opt_inet.h opt_inet6.h opt_mrouting.h

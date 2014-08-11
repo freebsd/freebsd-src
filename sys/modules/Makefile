@@ -1,6 +1,7 @@
 # $FreeBSD$
 
-.include <src.opts.mk>
+SYSDIR?=${.CURDIR}/..
+.include "${SYSDIR}/conf/kern.opts.mk"
 
 SUBDIR_PARALLEL=
 

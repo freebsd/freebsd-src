@@ -25,7 +25,8 @@
 # SUCH DAMAGE.
 #
 
-.include <src.opts.mk>
+SYSDIR?=${.CURDIR}/../..
+.include "${SYSDIR}/conf/kern.opts.mk"
 
 #
 # Check for common USB debug flags to pass when building the USB
