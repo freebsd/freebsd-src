@@ -119,8 +119,6 @@ terasic_mtl_fbd_attach(struct terasic_mtl_softc *sc)
 		    "Failed to attach fbd device\n");
 		return (ENXIO);
 	}
-	(void)vt_generate_cons_palette(info->fb_cmap, COLOR_FORMAT_RGB,
-	    0xff, 8, 0xff, 16, 0xff, 24);
 	return (0);
 }
 

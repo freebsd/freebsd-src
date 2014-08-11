@@ -38,6 +38,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/condvar.h>
 #include <sys/conf.h>
 #include <sys/consio.h>				/* struct vt_mode */
+#include <sys/endian.h>
 #include <sys/fbio.h>				/* video_adapter_t */
 #include <sys/kernel.h>
 #include <sys/lock.h>
@@ -87,6 +88,7 @@ terasic_mtl_attach(struct terasic_mtl_softc *sc)
 	 * it last.
 	 */
 #if defined(DEV_VT)
+	terasic_mtl_reg_pixel_endian_set(sc, BYTE_ORDER == BIG_ENDIAN);
 	error = terasic_mtl_fbd_attach(sc);
 	if (error)
 		goto error;

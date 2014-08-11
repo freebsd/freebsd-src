@@ -205,6 +205,21 @@ terasic_mtl_blend_textbg_set(struct terasic_mtl_softc *sc, uint8_t alpha)
 }
 
 void
+terasic_mtl_reg_pixel_endian_set(struct terasic_mtl_softc *sc, int big_endian)
+{
+	uint32_t v;
+
+	TERASIC_MTL_LOCK(sc);
+	terasic_mtl_reg_blend_get(sc, &v);
+	if (big_endian)
+		v |= TERASIC_MTL_BLEND_PIXEL_ENDIAN_SWAP;
+	else
+		v &= ~TERASIC_MTL_BLEND_PIXEL_ENDIAN_SWAP;
+	terasic_mtl_reg_blend_set(sc, v);
+	TERASIC_MTL_UNLOCK(sc);
+}
+
+void
 terasic_mtl_reg_textcursor_get(struct terasic_mtl_softc *sc, uint8_t *colp,
     uint8_t *rowp)
 {

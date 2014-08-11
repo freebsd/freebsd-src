@@ -116,6 +116,7 @@ struct terasic_mtl_softc {
 /*
  * Constants to help interpret various control registers.
  */
+#define	TERASIC_MTL_BLEND_PIXEL_ENDIAN_SWAP	0x10000000
 #define	TERASIC_MTL_BLEND_DEFAULT_MASK		0x0f000000
 #define	TERASIC_MTL_BLEND_DEFAULT_SHIFT		24
 #define	TERASIC_MTL_BLEND_PIXEL_MASK		0x00ff0000
@@ -220,6 +221,8 @@ void	terasic_mtl_blend_textfg_set(struct terasic_mtl_softc *sc,
 	    uint8_t alpha);
 void	terasic_mtl_blend_textbg_set(struct terasic_mtl_softc *sc,
 	    uint8_t alpha);
+void	terasic_mtl_reg_pixel_endian_set(struct terasic_mtl_softc *sc,
+	    int big_endian);
 
 /*
  * Text frame buffer I/O routines.
