@@ -1,7 +1,7 @@
 # $FreeBSD$
 
-.include <src.opts.mk>
-.include <bsd.own.mk>
+SYSDIR?=${.CURDIR}/../..
+.include "${SYSDIR}/conf/kern.opts.mk"
 
 .if ${MACHINE_CPUARCH} == "amd64"
 _radeonkms=	radeonkms
