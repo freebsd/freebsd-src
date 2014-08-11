@@ -103,7 +103,7 @@ main() {
 	eval chroot ${CHROOTDIR} make -C /usr/src \
 		${XDEV_FLAGS} XDEV=${XDEV} XDEV_ARCH=${XDEV_ARCH} \
 		TARGET=${XDEV} TARGET_ARCH=${XDEV_ARCH} \
-		${WORLD_FLAGS} xdev-links
+		${WORLD_FLAGS} xdev-links || true
 
 	# Run the ldconfig(8) startup script so /var/run/ld-elf*.so.hints
 	# is created.
