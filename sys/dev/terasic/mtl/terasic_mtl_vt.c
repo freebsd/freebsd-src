@@ -64,11 +64,11 @@ terasic_mtl_fbd_panel_info(struct terasic_mtl_softc *sc, struct fb_info *info)
 		return (ENXIO);
 
 	/* panel size */
-	if ((len = OF_getproplen(node, "panel-size")) <= 0)
+	if ((len = OF_getproplen(node, "panel-size")) != sizeof(dts_value))
 		return (ENXIO);
-	OF_getprop(node, "panel-size", &dts_value, len);
-	info->fb_width = fdt32_to_cpu(dts_value[0]);
-	info->fb_height = fdt32_to_cpu(dts_value[1]);
+	OF_getencprop(node, "panel-size", dts_value, len);
+	info->fb_width = dts_value[0];
+	info->fb_height = dts_value[1];
 	info->fb_bpp = info->fb_depth = 32;
 	info->fb_stride = info->fb_width * (info->fb_depth / 8);
 
