@@ -151,7 +151,7 @@ copies:
 	done
 .endif
 .endfor
-.for i in ${LDIRS} ${LSUBDIRS:Ndev/agp:Ndev/acpica:Ndev/bktr:Ndev/nand:Ndev/pci} ${LSUBSUBDIRS}
+.for i in ${LDIRS} ${LSUBDIRS:Ndev/agp:Ndev/acpica:Ndev/bktr:Ndev/evdev:Ndev/nand:Ndev/pci} ${LSUBSUBDIRS}
 	cd ${.CURDIR}/../sys; \
 	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 $i/*.h \
 	    ${DESTDIR}${INCLUDEDIR}/$i
@@ -172,6 +172,11 @@ copies:
 	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 nand_dev.h \
 	    ${DESTDIR}${INCLUDEDIR}/dev/nand
 .endif
+	cd ${.CURDIR}/../sys/dev/evdev; \
+	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 input.h \
+	    ${DESTDIR}${INCLUDEDIR}/dev/evdev; \
+	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 uinput.h \
+	    ${DESTDIR}${INCLUDEDIR}/dev/evdev
 	cd ${.CURDIR}/../sys/dev/pci; \
 	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 pcireg.h \
 	    ${DESTDIR}${INCLUDEDIR}/dev/pci
@@ -236,7 +241,7 @@ symlinks:
 		ln -fs ../../../sys/$i/$$h ${DESTDIR}${INCLUDEDIR}/$i; \
 	done
 .endfor
-.for i in ${LSUBDIRS:Ndev/agp:Ndev/acpica:Ndev/bktr:Ndev/nand:Ndev/pci}
+.for i in ${LSUBDIRS:Ndev/agp:Ndev/acpica:Ndev/bktr:Ndev/evdev:Ndev/nand:Ndev/pci}
 	cd ${.CURDIR}/../sys/$i; \
 	for h in *.h; do \
 		ln -fs ../../../../sys/$i/$$h ${DESTDIR}${INCLUDEDIR}/$i; \
@@ -264,6 +269,11 @@ symlinks:
 		    ${DESTDIR}${INCLUDEDIR}/dev/nand; \
 	done
 .endif
+	cd ${.CURDIR}/../sys/dev/evdev; \
+	for h in input.h uinput.h; do \
+		ln -fs ../../../../sys/dev/evdev/$$h \
+		    ${DESTDIR}${INCLUDEDIR}/dev/evdev; \
+	done
 	cd ${.CURDIR}/../sys/dev/pci; \
 	for h in pcireg.h; do \
 		ln -fs ../../../../sys/dev/pci/$$h \
