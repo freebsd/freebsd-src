@@ -356,7 +356,7 @@ efisfs_init(void)
 		nout++;
 	}
 
-	err = efi_register_handles(&efisfs_dev, hout, nout);
+	err = efi_register_handles(&efisfs_dev, hout, NULL, nout);
 	free(hin);
 	return (err);
 }
