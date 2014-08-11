@@ -99,8 +99,7 @@ sf_buf_init(void *arg)
 	TAILQ_INIT(&sf_buf_freelist);
 	sf_base = kva_alloc(nsfbufs * PAGE_SIZE);
 	sf_bufs = malloc(nsfbufs * sizeof(struct sf_buf), M_TEMP,
-	    M_NOWAIT | M_ZERO);
-	KASSERT(sf_bufs, ("%s: malloc failure", __func__));
+	    M_WAITOK | M_ZERO);
 	for (i = 0; i < nsfbufs; i++) {
 		sf_bufs[i].kva = sf_base + i * PAGE_SIZE;
 		TAILQ_INSERT_TAIL(&sf_buf_freelist, &sf_bufs[i], free_entry);
