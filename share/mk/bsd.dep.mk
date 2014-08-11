@@ -122,7 +122,7 @@ ${_YC:R}.o: ${_YC}
 
 # DTrace probe definitions
 # libelf is currently needed for drti.o
-.if ${SRCS:M*.d}
+.if !empty(${SRCS:M*.d})
 LDFLAGS+=	-lelf
 LDADD+=		${LIBELF}
 CFLAGS+=	-D_DTRACE_VERSION=1 -I${.OBJDIR}
