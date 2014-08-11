@@ -38,6 +38,8 @@ __FBSDID("$FreeBSD$");
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
 
+#include <machine/fdt.h>
+
 struct simplebus_range {
 	uint64_t bus;
 	uint64_t host;
@@ -68,6 +70,7 @@ static struct resource *simplebus_alloc_resource(device_t, device_t, int,
     int *, u_long, u_long, u_long, u_int);
 static void		simplebus_probe_nomatch(device_t bus, device_t child);
 static int		simplebus_print_child(device_t bus, device_t child);
+static int		simplebus_print_irqs(struct resource_list *rl);
 
 /*
  * ofw_bus interface
@@ -295,8 +298,8 @@ simplebus_setup_dinfo(device_t dev, phandle_t node)
 		if (OF_searchencprop(node, "interrupt-parent", &iparent,
 		    sizeof(iparent)) == -1) {
 			device_printf(dev, "No interrupt-parent found, "
-			    "assuming direct parent\n");
-			iparent = OF_parent(node);
+			    "assuming nexus\n");
+			iparent = 0xffffffff;
 		}
 		if (OF_searchencprop(OF_xref_phandle(iparent), 
 		    "#interrupt-cells", &icells, sizeof(icells)) == -1) {
@@ -396,7 +399,7 @@ simplebus_print_res(struct simplebus_devinfo *di)
 
 	rv = 0;
 	rv += resource_list_print_type(&di->rl, "mem", SYS_RES_MEMORY, "%#lx");
-	rv += resource_list_print_type(&di->rl, "irq", SYS_RES_IRQ, "%ld");
+	rv += simplebus_print_irqs(&di->rl);
 	return (rv);
 }
 
@@ -421,6 +424,28 @@ simplebus_probe_nomatch(device_t bus, device_t child)
 	if (compat)
 		printf(" compat %s", compat);
 	printf(" (no driver attached)\n");
+}
+
+
+static int
+simplebus_print_irqs(struct resource_list *rl)
+{
+	struct resource_list_entry *rle;
+	int printed, retval;
+
+	printed = 0;
+	retval = 0;
+
+	STAILQ_FOREACH(rle, rl, link) {
+		if (rle->type != SYS_RES_IRQ)
+			continue;
+
+		retval += printf("%s", printed ? "," : " irq ");
+		retval += printf("%s", FDT_DESCRIBE_IRQ(rle->start));
+		printed++;
+	}
+
+	return (retval);
 }
 
 static int

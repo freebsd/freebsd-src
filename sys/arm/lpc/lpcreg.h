@@ -34,28 +34,17 @@
 #define	LPC_DEV_P6_PHYS_BASE		0x30000000
 #define	LPC_DEV_SIZE			0x10000000
 
+
 /*
  * Interrupt controller (from UM10326: LPC32x0 User manual, page 87)
 
  */
-#define	LPC_INTC_MIC_ER			0x0000
-#define	LPC_INTC_MIC_RSR		0x0004
-#define	LPC_INTC_MIC_SR			0x0008
-#define	LPC_INTC_MIC_APR		0x000c
-#define	LPC_INTC_MIC_ATR		0x0010
-#define	LPC_INTC_MIC_ITR		0x0014
-#define	LPC_INTC_SIC1_ER		0x4000
-#define	LPC_INTC_SIC1_RSR		0x4004
-#define	LPC_INTC_SIC1_SR		0x4008
-#define	LPC_INTC_SIC1_APR		0x400c
-#define	LPC_INTC_SIC1_ATR		0x4010
-#define	LPC_INTC_SIC1_ITR		0x4014
-#define	LPC_INTC_SIC2_ER		0x8000
-#define	LPC_INTC_SIC2_RSR		0x8004
-#define	LPC_INTC_SIC2_SR		0x8008
-#define	LPC_INTC_SIC2_APR		0x800c
-#define	LPC_INTC_SIC2_ATR		0x8010
-#define	LPC_INTC_SIC2_ITR		0x8014
+#define	LPC_INTC_ER			0x0000
+#define	LPC_INTC_RSR			0x0004
+#define	LPC_INTC_SR			0x0008
+#define	LPC_INTC_APR			0x000c
+#define	LPC_INTC_ATR			0x0010
+#define	LPC_INTC_ITR			0x0014
 
 
 /*

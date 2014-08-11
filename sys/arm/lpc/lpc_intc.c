@@ -36,6 +36,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/rman.h>
 #include <sys/timetc.h>
+#include <sys/cpuset.h>
 #include <machine/bus.h>
 #include <machine/intr.h>
 
@@ -47,22 +48,29 @@ __FBSDID("$FreeBSD$");
 
 #include <arm/lpc/lpcreg.h>
 
+#include "pic_if.h"
+
 struct lpc_intc_softc {
-	struct resource *	li_res;
+	device_t		li_dev;
+	struct resource *	li_mem_res;
+	struct resource *	li_irq_res;
 	bus_space_tag_t		li_bst;
 	bus_space_handle_t	li_bsh;
+	void *			li_intrhand;
 };
 
 static int lpc_intc_probe(device_t);
 static int lpc_intc_attach(device_t);
-static void lpc_intc_eoi(void *);
+static int lpc_intc_intr(void *);
+static int lpc_intc_config(device_t, int, enum intr_trigger, enum intr_polarity);
+static void lpc_intc_mask(device_t, int);
+static void lpc_intc_unmask(device_t, int);
+static void lpc_intc_eoi(device_t, int);
 
-static struct lpc_intc_softc *intc_softc = NULL;
-
-#define	intc_read_4(reg)		\
-    bus_space_read_4(intc_softc->li_bst, intc_softc->li_bsh, reg)
-#define	intc_write_4(reg, val)		\
-    bus_space_write_4(intc_softc->li_bst, intc_softc->li_bsh, reg, val)
+#define	intc_read_4(_sc, _reg)		\
+    bus_space_read_4((_sc)->li_bst, (_sc)->li_bsh, _reg)
+#define	intc_write_4(_sc, _reg, _val)		\
+    bus_space_write_4((_sc)->li_bst, (_sc)->li_bsh, _reg, _val)
 
 static int
 lpc_intc_probe(device_t dev)
@@ -84,34 +92,114 @@ lpc_intc_attach(device_t dev)
 	struct lpc_intc_softc *sc = device_get_softc(dev);
 	int rid = 0;
 
-	if (intc_softc)
-		return (ENXIO);
-
-	sc->li_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid, 
+	sc->li_dev = dev;
+	sc->li_mem_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid, 
 	    RF_ACTIVE);
-	if (!sc->li_res) {
-		device_printf(dev, "could not alloc resources\n");
+	if (!sc->li_mem_res) {
+		device_printf(dev, "could not alloc memory resource\n");
 		return (ENXIO);
 	}
 
-	sc->li_bst = rman_get_bustag(sc->li_res);
-	sc->li_bsh = rman_get_bushandle(sc->li_res);
-	intc_softc = sc;
-	arm_post_filter = lpc_intc_eoi;
+	rid = 0;
+	sc->li_irq_res = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid,
+	    RF_ACTIVE | RF_SHAREABLE);
+	if (!sc->li_irq_res) {
+		device_printf(dev, "could not alloc interrupt resource\n");
+		bus_release_resource(dev, SYS_RES_MEMORY, 0, sc->li_mem_res);
+		return (ENXIO);
+	}
+
+	sc->li_bst = rman_get_bustag(sc->li_mem_res);
+	sc->li_bsh = rman_get_bushandle(sc->li_mem_res);
+
+	if (bus_setup_intr(dev, sc->li_irq_res, INTR_TYPE_MISC | INTR_CONTROLLER,
+	    lpc_intc_intr, NULL, sc, &sc->li_intrhand)) {
+		device_printf(dev, "could not setup interrupt handler\n");
+		bus_release_resource(dev, SYS_RES_MEMORY, 0, sc->li_mem_res);
+		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->li_irq_res);
+		return (ENXIO);
+	}
+
+	arm_register_pic(dev, 0);
 
 	/* Clear interrupt status registers and disable all interrupts */
-	intc_write_4(LPC_INTC_MIC_ER, 0);
-	intc_write_4(LPC_INTC_SIC1_ER, 0);
-	intc_write_4(LPC_INTC_SIC2_ER, 0);
-	intc_write_4(LPC_INTC_MIC_RSR, ~0);
-	intc_write_4(LPC_INTC_SIC1_RSR, ~0);
-	intc_write_4(LPC_INTC_SIC2_RSR, ~0);
+	intc_write_4(sc, LPC_INTC_ER, 0);
+	intc_write_4(sc, LPC_INTC_RSR, ~0);
 	return (0);
 }
 
+static int
+lpc_intc_intr(void *arg)
+{
+	struct lpc_intc_softc *sc = (struct lpc_intc_softc *)arg;
+	uint32_t value;
+	int i;
+
+	value = intc_read_4(sc, LPC_INTC_SR);
+	for (i = 0; i < 32; i++) {
+		if (value & (1 << i))
+			arm_dispatch_irq(sc->li_dev, NULL, i);
+	}
+
+	return (FILTER_HANDLED);
+}
+
+static int
+lpc_intc_config(device_t dev, int irq, enum intr_trigger trig,
+    enum intr_polarity pol)
+{
+	/* no-op */
+	return (0);
+}
+
+static void
+lpc_intc_mask(device_t dev, int irq)
+{
+	struct lpc_intc_softc *sc = device_get_softc(dev);
+	uint32_t value;
+
+	/* Make sure interrupt isn't active already */
+	lpc_intc_eoi(dev, irq);
+
+	/* Clear bit in ER register */
+	value = intc_read_4(sc, LPC_INTC_ER);
+	value &= ~(1 << irq);
+	intc_write_4(sc, LPC_INTC_ER, value);
+}
+
+static void
+lpc_intc_unmask(device_t dev, int irq)
+{
+	struct lpc_intc_softc *sc = device_get_softc(dev);
+	uint32_t value;
+
+	/* Set bit in ER register */
+	value = intc_read_4(sc, LPC_INTC_ER);
+	value |= (1 << irq);
+	intc_write_4(sc, LPC_INTC_ER, value);
+}
+
+static void
+lpc_intc_eoi(device_t dev, int irq)
+{
+	struct lpc_intc_softc *sc = device_get_softc(dev);
+	uint32_t value;
+	
+	/* Set bit in RSR register */
+	value = intc_read_4(sc, LPC_INTC_RSR);
+	value |= (1 << irq);
+	intc_write_4(sc, LPC_INTC_RSR, value);
+}
+
 static device_method_t lpc_intc_methods[] = {
+	/* Device interface */
 	DEVMETHOD(device_probe,		lpc_intc_probe),
 	DEVMETHOD(device_attach,	lpc_intc_attach),
+	/* Interrupt controller interface */
+	DEVMETHOD(pic_config,		lpc_intc_config),
+	DEVMETHOD(pic_mask,		lpc_intc_mask),
+	DEVMETHOD(pic_unmask,		lpc_intc_unmask),
+	DEVMETHOD(pic_eoi,		lpc_intc_eoi),
 	{ 0, 0 }
 };
 
@@ -124,104 +212,6 @@ static driver_t lpc_intc_driver = {
 static devclass_t lpc_intc_devclass;
 
 DRIVER_MODULE(pic, simplebus, lpc_intc_driver, lpc_intc_devclass, 0, 0);
-
-int
-arm_get_next_irq(int last)
-{
-	uint32_t value;
-	int i;
-
-	/* IRQs 0-31 are mapped to LPC_INTC_MIC_SR */
-	value = intc_read_4(LPC_INTC_MIC_SR);
-	for (i = 0; i < 32; i++) {
-		if (value & (1 << i))
-			return (i);
-	}
-
-	/* IRQs 32-63 are mapped to LPC_INTC_SIC1_SR */
-	value = intc_read_4(LPC_INTC_SIC1_SR);
-	for (i = 0; i < 32; i++) {
-		if (value & (1 << i))
-			return (i + 32);
-	}
-
-	/* IRQs 64-95 are mapped to LPC_INTC_SIC2_SR */
-	value = intc_read_4(LPC_INTC_SIC2_SR);
-	for (i = 0; i < 32; i++) {
-		if (value & (1 << i))
-			return (i + 64);
-	}
-
-	return (-1);
-}
-
-void
-arm_mask_irq(uintptr_t nb)
-{
-	int reg;
-	uint32_t value;
-
-	/* Make sure that interrupt isn't active already */
-	lpc_intc_eoi((void *)nb);
-
-	if (nb > 63) {
-		nb -= 64;
-		reg = LPC_INTC_SIC2_ER;
-	} else if (nb > 31) {
-		nb -= 32;
-		reg = LPC_INTC_SIC1_ER;
-	} else
-		reg = LPC_INTC_MIC_ER;
-
-	/* Clear bit in ER register */
-	value = intc_read_4(reg);
-	value &= ~(1 << nb);
-	intc_write_4(reg, value);
-}
-
-void
-arm_unmask_irq(uintptr_t nb)
-{
-	int reg;
-	uint32_t value;
-
-	if (nb > 63) {
-		nb -= 64;
-		reg = LPC_INTC_SIC2_ER;
-	} else if (nb > 31) {
-		nb -= 32;
-		reg = LPC_INTC_SIC1_ER;
-	} else
-		reg = LPC_INTC_MIC_ER;
-
-	/* Set bit in ER register */
-	value = intc_read_4(reg);
-	value |= (1 << nb);
-	intc_write_4(reg, value);
-}
-
-static void
-lpc_intc_eoi(void *data)
-{
-	int reg;
-	int nb = (int)data;
-	uint32_t value;
-
-	if (nb > 63) {
-		nb -= 64;
-		reg = LPC_INTC_SIC2_RSR;
-	} else if (nb > 31) {
-		nb -= 32;
-		reg = LPC_INTC_SIC1_RSR;
-	} else
-		reg = LPC_INTC_MIC_RSR;
-
-	/* Set bit in RSR register */
-	value = intc_read_4(reg);
-	value |= (1 << nb);
-	intc_write_4(reg, value);
-
-}
 
 struct fdt_fixup_entry fdt_fixup_table[] = {
 	{ NULL, NULL }

@@ -50,6 +50,7 @@
 
 			interrupt-controller;
 			#interrupt-cells = <1>;
+			interrupts = <0>;
 
 			/* Bank 0
 			 * 0: ARM_TIMER

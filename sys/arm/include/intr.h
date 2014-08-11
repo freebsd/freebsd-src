@@ -39,6 +39,41 @@
 #ifndef _MACHINE_INTR_H_
 #define _MACHINE_INTR_H_
 
+#include <machine/psl.h>
+#include <machine/pcb.h>
+#include <dev/ofw/openfirm.h>
+
+#include "opt_global.h"
+
+#if defined(ARM_INTRNG)
+
+#define	NIRQ		255
+#define	NPIC		16
+#define	INTR_CONTROLLER	INTR_MD1
+#define	INTR_IPI	INTR_MD2
+#define	CORE_PIC_IDX	(0)
+#define	CORE_PIC_NODE	(0xffffffff)
+
+/* Interrupt controller features used in arm_register_pic(): */
+#define	PIC_FEATURE_IPI	0x1
+
+int arm_fdt_map_irq(phandle_t ic, int irq);
+void arm_register_pic(device_t dev, int features);
+void arm_unregister_pic(device_t dev);
+void arm_dispatch_irq(device_t dev, struct trapframe *tf, int irq);
+void arm_setup_irqhandler(device_t dev, int (*)(void*), void (*)(void*), 
+    void *, int, int, void **);
+int arm_remove_irqhandler(int, void *);
+int arm_intrng_config_irq(int, enum intr_trigger, enum intr_polarity);
+
+#ifdef SMP
+void arm_init_secondary_ic(void);
+void arm_unmask_ipi(int);
+void arm_mask_ipi(int);
+#endif
+
+#else
+
 /* XXX move to std.* files? */
 #ifdef CPU_XSCALE_81342
 #define NIRQ		128
@@ -71,7 +106,6 @@
 int arm_get_next_irq(int);
 void arm_mask_irq(uintptr_t);
 void arm_unmask_irq(uintptr_t);
-void arm_intrnames_init(void);
 void arm_setup_irqhandler(const char *, int (*)(void*), void (*)(void*),
     void *, int, int, void **);
 int arm_remove_irqhandler(int, void *);
@@ -82,5 +116,10 @@ extern int (*arm_config_irq)(int irq, enum intr_trigger trig,
 void arm_irq_memory_barrier(uintptr_t);
 
 void gic_init_secondary(void);
+
+#endif /* !ARM_INTRNG */
+
+const char *arm_describe_irq(int irq);
+void arm_intrnames_init(void);
 
 #endif	/* _MACHINE_INTR_H */

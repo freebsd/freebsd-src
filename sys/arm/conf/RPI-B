@@ -36,6 +36,7 @@ options 	GEOM_PART_BSD		# BSD partition scheme
 options 	GEOM_PART_MBR		# MBR partition scheme
 options 	TMPFS			# Efficient memory filesystem
 options 	MSDOSFS			# MSDOS Filesystem
+options		ARM_INTRNG
 device		snp
 
 options 	NFSCL			# Network Filesystem Client

@@ -37,6 +37,9 @@
 
 	aliases {
 		soc = &soc;
+		pwr = &pwr;
+		gpio = &gpio;
+		watchdog = &watchdog;
 		serial4 = &serial4;
 	};
 
@@ -70,16 +73,35 @@
 		ranges = <0x0 0x40000000 0x10000000>;
 		bus-frequency = <13000000>;
 
-		pwr@4000 {
+		pwr: pwr@4000 {
 			compatible = "lpc,pwr";
 			reg = <0x4000 0x4000>;
 		};
 
-		PIC: pic@8000 {
+		MIC: pic@8000 {
 			interrupt-controller;
 			#address-cells = <0>;
 			#interrupt-cells = <1>;
-			reg = <0x8000 0xc000>;
+			reg = <0x8000 0x1000>;
+			interrupts = <0>;
+			compatible = "lpc,pic";
+		};
+
+		SIC1: pic@c000 {
+			interrupt-controller;
+			#address-cells = <0>;
+			#interrupt-cells = <1>;
+			reg = <0xc000 0x1000>;
+			interrupts = <0>;
+			compatible = "lpc,pic";
+		};
+
+		SIC2: pic@10000 {
+			interrupt-controller;
+			#address-cells = <0>;
+			#interrupt-cells = <1>;
+			reg = <0x10000 0x1000>;
+			interrupts = <0>;
 			compatible = "lpc,pic";
 		};
 
@@ -88,14 +110,14 @@
 			reg = <0x44000 0x4000
 			       0x4c000 0x4000>;
 			interrupts = <16 17>;
-			interrupt-parent = <&PIC>;
+			interrupt-parent = <&MIC>;
 		};
 
 		rtc@24000 {
 			compatible = "lpc,rtc";
 			reg = <0x24000 0x4000>;
-			interrupts = <52>;
-			interrupt-parent = <&PIC>;
+			interrupts = <20>;
+			interrupt-parent = <&SIC1>;
 		};
 
 		serial0: serial@14000 {
@@ -105,7 +127,7 @@
 			reg-shift = <2>;
 			clock-frequency = <0>;
 			interrupts = <26>;
-			interrupt-parent = <&PIC>;
+			interrupt-parent = <&MIC>;
 		};
 
 		serial1: serial@18000 {
@@ -115,7 +137,7 @@
 			reg-shift = <2>;
 			clock-frequency = <0>;
 			interrupts = <25>;
-			interrupt-parent = <&PIC>;
+			interrupt-parent = <&MIC>;
 		};
 
 		serial2: serial@80000 {
@@ -125,7 +147,7 @@
 			reg-shift = <2>;
 			clock-frequency = <13000000>;
 			interrupts = <7>;
-			interrupt-parent = <&PIC>;
+			interrupt-parent = <&MIC>;
 		};
 
 		serial3: serial@88000 {
@@ -135,7 +157,7 @@
 			reg-shift = <2>;
 			clock-frequency = <13000000>;
 			interrupts = <8>;
-			interrupt-parent = <&PIC>;
+			interrupt-parent = <&MIC>;
 		};
 
 		serial4: serial@90000 {
@@ -145,7 +167,7 @@
 			clock-frequency = <13000000>;
 			current-speed = <115200>;
 			interrupts = <9>;
-			interrupt-parent = <&PIC>;
+			interrupt-parent = <&MIC>;
 		};
 
 		serial5: serial@98000 {
@@ -155,7 +177,7 @@
 			reg-shift = <2>;
 			clock-frequency = <13000000>;
 			interrupts = <10>;
-			interrupt-parent = <&PIC>;
+			interrupt-parent = <&MIC>;
 		};
 
 		serial6: serial@1c000 {
@@ -165,12 +187,17 @@
 			reg-shift = <2>;
 			clock-frequency = <0>;
 			interrupts = <24>;
-			interrupt-parent = <&PIC>;
+			interrupt-parent = <&MIC>;
 		};
 
-		gpio@28000 {
+		gpio: gpio@28000 {
 			compatible = "lpc,gpio";
 			reg = <0x28000 0x4000>;
+		};
+
+		watchdog: watchdog@3c000 {
+			compatible = "lpc,watchdog";
+			reg = <0x3c000 0x4000>;
 		};
 	};
 
@@ -184,21 +211,21 @@
 			compatible = "lpc,dmac";
 			reg = <0x1000000 0x20000>;
 			interrupts = <28>;
-			interrupt-parent = <&PIC>;
+			interrupt-parent = <&MIC>;
 		};
 
 		usb@1020000 {
 			compatible = "lpc,usb-ohci", "usb-ohci";
 			reg = <0x1020000 0x20000>;
-			interrupts = <59>;
-			interrupt-parent = <&PIC>;
+			interrupts = <27>;
+			interrupt-parent = <&SIC1>;
 		};
 
 		lpcfb@1040000 {
 			compatible = "lpc,fb";
 			reg = <0x1040000 0x20000>;
 			interrupts = <14>;
-			interrupt-parent = <&PIC>;
+			interrupt-parent = <&MIC>;
 			
 			/* Screen parameters: */
 			is-tft = <1>;
@@ -218,7 +245,7 @@
 			compatible = "lpc,ethernet";
 			reg = <0x1060000 0x20000>;
 			interrupts = <29>;
-			interrupt-parent = <&PIC>;	
+			interrupt-parent = <&MIC>;	
 			local-mac-address = [ 00 1a f1 01 1f 23 ];
 
 			mdio@0 {
@@ -244,7 +271,7 @@
 			compatible = "lpc,spi";
 			reg = <0x84000 0x4000>;
 			interrupts = <20>;
-			interrupt-parent = <&PIC>;
+			interrupt-parent = <&MIC>;
 		};
 
 		spi1@8c000 {
@@ -252,14 +279,14 @@
 			status = "disabled";
 			reg = <0x8c000 0x4000>;
 			interrupts = <21>;
-			interrupt-parent = <&PIC>;
+			interrupt-parent = <&MIC>;
 		};
 
 		lpcmmc@98000 {
 			compatible = "lpc,mmc";
 			reg = <0x98000 0x4000>;
 			interrupts = <15 13>;
-			interrupt-parent = <&PIC>;
+			interrupt-parent = <&MIC>;
 		};
 	};
 

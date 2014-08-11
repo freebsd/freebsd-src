@@ -55,6 +55,8 @@ __FBSDID("$FreeBSD$");
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
 
+#include "pic_if.h"
+
 /* We are using GICv2 register naming */
 
 /* Distributor Registers */
@@ -95,42 +97,49 @@ __FBSDID("$FreeBSD$");
 #define GICD_ICFGR_TRIG_MASK	0x2
 
 struct arm_gic_softc {
+	device_t		gic_dev;
 	struct resource *	gic_res[3];
 	bus_space_tag_t		gic_c_bst;
 	bus_space_tag_t		gic_d_bst;
 	bus_space_handle_t	gic_c_bsh;
 	bus_space_handle_t	gic_d_bsh;
+	void *			gic_intrhand;
 	uint8_t			ver;
-	device_t		dev;
 	struct mtx		mutex;
 	uint32_t		nirqs;
 };
-
 static struct resource_spec arm_gic_spec[] = {
 	{ SYS_RES_MEMORY,	0,	RF_ACTIVE },	/* Distributor registers */
 	{ SYS_RES_MEMORY,	1,	RF_ACTIVE },	/* CPU Interrupt Intf. registers */
+	{ SYS_RES_IRQ,		0,	RF_ACTIVE }, 	/* Parent interrupt */
 	{ -1, 0 }
 };
 
 static struct arm_gic_softc *arm_gic_sc = NULL;
 
-#define	gic_c_read_4(reg)		\
-    bus_space_read_4(arm_gic_sc->gic_c_bst, arm_gic_sc->gic_c_bsh, reg)
-#define	gic_c_write_4(reg, val)		\
-    bus_space_write_4(arm_gic_sc->gic_c_bst, arm_gic_sc->gic_c_bsh, reg, val)
-#define	gic_d_read_4(reg)		\
-    bus_space_read_4(arm_gic_sc->gic_d_bst, arm_gic_sc->gic_d_bsh, reg)
-#define	gic_d_write_4(reg, val)		\
-    bus_space_write_4(arm_gic_sc->gic_d_bst, arm_gic_sc->gic_d_bsh, reg, val)
+static int arm_gic_probe(device_t);
+static int arm_gic_attach(device_t);
+static void arm_gic_init_secondary(device_t);
+static int arm_gic_intr(void *);
+static int arm_gic_config(device_t, int, enum intr_trigger, enum intr_polarity);
+static void arm_gic_eoi(device_t, int);
+static void arm_gic_mask(device_t, int);
+static void arm_gic_unmask(device_t, int);
+static void arm_gic_ipi_send(device_t, cpuset_t, int);
+static void arm_gic_ipi_clear(device_t, int);
 
-static int gic_config_irq(int irq, enum intr_trigger trig,
-    enum intr_polarity pol);
-static void gic_post_filter(void *);
+#define	gic_c_read_4(_sc, _reg)		\
+    bus_space_read_4((_sc)->gic_c_bst, (_sc)->gic_c_bsh, (_reg))
+#define	gic_c_write_4(_sc, _reg, _val)		\
+    bus_space_write_4((_sc)->gic_c_bst, (_sc)->gic_c_bsh, (_reg), (_val))
+#define	gic_d_read_4(_sc, _reg)		\
+    bus_space_read_4((_sc)->gic_d_bst, (_sc)->gic_d_bsh, (_reg))
+#define	gic_d_write_4(_sc, _reg, _val)		\
+    bus_space_write_4((_sc)->gic_d_bst, (_sc)->gic_d_bsh, (_reg), (_val))
 
 static int
 arm_gic_probe(device_t dev)
 {
-
 	if (!ofw_bus_status_okay(dev))
 		return (ENXIO);
 
@@ -140,17 +149,13 @@ arm_gic_probe(device_t dev)
 	return (BUS_PROBE_DEFAULT);
 }
 
-void
-gic_init_secondary(void)
+static void
+arm_gic_init_secondary(device_t dev)
 {
-	int i, nirqs;
-
-  	/* Get the number of interrupts */
-	nirqs = gic_d_read_4(GICD_TYPER);
-	nirqs = 32 * ((nirqs & 0x1f) + 1);
-
-	for (i = 0; i < nirqs; i += 4)
-		gic_d_write_4(GICD_IPRIORITYR(i >> 2), 0);
+	struct arm_gic_softc *sc = device_get_softc(dev);
+	
+	for (int i = 0; i < sc->nirqs; i += 4)
+		gic_d_write_4(sc, GICD_IPRIORITYR(i >> 2), 0);
 
 	/* Set all the interrupts to be in Group 0 (secure) */
 	for (i = 0; i < nirqs; i += 32) {
@@ -158,14 +163,12 @@ gic_init_secondary(void)
 	}
 
 	/* Enable CPU interface */
-	gic_c_write_4(GICC_CTLR, 1);
-
-	/* Set priority mask register. */
-	gic_c_write_4(GICC_PMR, 0xff);
+	gic_c_write_4(sc, GICC_CTLR, 1);
 
 	/* Enable interrupt distribution */
-	gic_d_write_4(GICD_CTLR, 0x01);
-
+	gic_d_write_4(sc, GICD_CTLR, 0x01);
+		
+	/* Activate IRQ 29, ie private timer IRQ*/
 	/* Activate IRQ 29-30, ie private timer (secure & non-secure) IRQs */
 	gic_d_write_4(GICD_ISENABLER(29 >> 5), (1UL << (29 & 0x1F)));
 	gic_d_write_4(GICD_ISENABLER(30 >> 5), (1UL << (30 & 0x1F)));
@@ -174,20 +177,17 @@ gic_init_secondary(void)
 static int
 arm_gic_attach(device_t dev)
 {
-	struct		arm_gic_softc *sc;
+	struct		arm_gic_softc *sc = device_get_softc(dev);
 	int		i;
 	uint32_t	icciidr;
-
-	if (arm_gic_sc)
-		return (ENXIO);
-
-	sc = device_get_softc(dev);
-	sc->dev = dev;
 
 	if (bus_alloc_resources(dev, arm_gic_spec, sc->gic_res)) {
 		device_printf(dev, "could not allocate resources\n");
 		return (ENXIO);
 	}
+
+	sc->gic_dev = dev;
+	arm_gic_sc = sc;
 
 	/* Initialize mutex */
 	mtx_init(&sc->mutex, "GIC lock", "", MTX_SPIN);
@@ -200,32 +200,35 @@ arm_gic_attach(device_t dev)
 	sc->gic_c_bst = rman_get_bustag(sc->gic_res[1]);
 	sc->gic_c_bsh = rman_get_bushandle(sc->gic_res[1]);
 
-	arm_gic_sc = sc;
+	arm_register_pic(dev, PIC_FEATURE_IPI);
+
+	if (bus_setup_intr(dev, sc->gic_res[2], INTR_TYPE_MISC | INTR_CONTROLLER,
+	    arm_gic_intr, NULL, sc, &sc->gic_intrhand)) {
+		device_printf(dev, "could not setup interrupt handler\n");
+		bus_release_resources(dev, arm_gic_spec, sc->gic_res);
+		return (ENXIO);
+	}
 
 	/* Disable interrupt forwarding to the CPU interface */
-	gic_d_write_4(GICD_CTLR, 0x00);
+	gic_d_write_4(sc, GICD_CTLR, 0x00);
 
 	/* Get the number of interrupts */
-	sc->nirqs = gic_d_read_4(GICD_TYPER);
+	sc->nirqs = gic_d_read_4(sc, GICD_TYPER);
 	sc->nirqs = 32 * ((sc->nirqs & 0x1f) + 1);
 
-	/* Set up function pointers */
-	arm_post_filter = gic_post_filter;
-	arm_config_irq = gic_config_irq;
-
-	icciidr = gic_c_read_4(GICC_IIDR);
-	device_printf(dev,"pn 0x%x, arch 0x%x, rev 0x%x, implementer 0x%x sc->nirqs %u\n",
+	icciidr = gic_c_read_4(sc, GICC_IIDR);
+	device_printf(dev,"pn 0x%x, arch 0x%x, rev 0x%x, implementer 0x%x nirqs %u\n", 
 			icciidr>>20, (icciidr>>16) & 0xF, (icciidr>>12) & 0xf,
 			(icciidr & 0xfff), sc->nirqs);
 
 	/* Set all global interrupts to be level triggered, active low. */
 	for (i = 32; i < sc->nirqs; i += 16) {
-		gic_d_write_4(GICD_ICFGR(i >> 4), 0x00000000);
+		gic_d_write_4(sc, GICD_ICFGR(i >> 4), 0x00000000);
 	}
 
 	/* Disable all interrupts. */
 	for (i = 32; i < sc->nirqs; i += 32) {
-		gic_d_write_4(GICD_ICENABLER(i >> 5), 0xFFFFFFFF);
+		gic_d_write_4(sc, GICD_ICENABLER(i >> 5), 0xFFFFFFFF);
 	}
 
 	for (i = 0; i < sc->nirqs; i += 4) {
@@ -235,100 +238,61 @@ arm_gic_attach(device_t dev)
 
 	/* Set all the interrupts to be in Group 0 (secure) */
 	for (i = 0; i < sc->nirqs; i += 32) {
-		gic_d_write_4(GICD_IGROUPR(i >> 5), 0);
+		gic_d_write_4(sc, GICD_IGROUPR(i >> 5), 0);
 	}
 
 	/* Enable CPU interface */
-	gic_c_write_4(GICC_CTLR, 1);
+	gic_c_write_4(sc, GICC_CTLR, 1);
 
 	/* Set priority mask register. */
-	gic_c_write_4(GICC_PMR, 0xff);
+	gic_c_write_4(sc, GICC_PMR, 0xff);
 
 	/* Enable interrupt distribution */
-	gic_d_write_4(GICD_CTLR, 0x01);
+	gic_d_write_4(sc, GICD_CTLR, 0x01);
 
 	return (0);
 }
 
-static device_method_t arm_gic_methods[] = {
-	DEVMETHOD(device_probe,		arm_gic_probe),
-	DEVMETHOD(device_attach,	arm_gic_attach),
-	{ 0, 0 }
-};
-
-static driver_t arm_gic_driver = {
-	"gic",
-	arm_gic_methods,
-	sizeof(struct arm_gic_softc),
-};
-
-static devclass_t arm_gic_devclass;
-
-EARLY_DRIVER_MODULE(gic, simplebus, arm_gic_driver, arm_gic_devclass, 0, 0,
-    BUS_PASS_INTERRUPT + BUS_PASS_ORDER_MIDDLE);
-
-static void
-gic_post_filter(void *arg)
+static int
+arm_gic_intr(void *arg)
 {
-	uintptr_t irq = (uintptr_t) arg;
+	struct arm_gic_softc *sc = (struct arm_gic_softc *)arg;
+	uint32_t active_irq, last_irq = 0;
 
-	if (irq > GIC_LAST_IPI)
-		arm_irq_memory_barrier(irq);
-	gic_c_write_4(GICC_EOIR, irq);
-}
+	active_irq = gic_c_read_4(sc, GICC_IAR);
 
-int
-arm_get_next_irq(int last_irq)
-{
-	uint32_t active_irq;
-
-	active_irq = gic_c_read_4(GICC_IAR);
-
-	/*
+	/* 
 	 * Immediatly EOIR the SGIs, because doing so requires the other
 	 * bits (ie CPU number), not just the IRQ number, and we do not
 	 * have this information later.
 	 */
-
-	if ((active_irq & 0x3ff) <= GIC_LAST_IPI)
-		gic_c_write_4(GICC_EOIR, active_irq);
+	   
+	if ((active_irq & 0x3ff) < 1)
+		gic_c_write_4(sc, GICC_EOIR, active_irq);
 	active_irq &= 0x3FF;
 
 	if (active_irq == 0x3FF) {
 		if (last_irq == -1)
-			printf("Spurious interrupt detected\n");
-		return -1;
+			printf("Spurious interrupt detected [0x%08x]\n", active_irq);
+		return (FILTER_HANDLED);
 	}
+	
+	gic_c_write_4(sc, GICC_EOIR, active_irq);
+	arm_dispatch_irq(sc->gic_dev, NULL, active_irq);
 
-	return active_irq;
-}
-
-void
-arm_mask_irq(uintptr_t nb)
-{
-
-	gic_d_write_4(GICD_ICENABLER(nb >> 5), (1UL << (nb & 0x1F)));
-	gic_c_write_4(GICC_EOIR, nb);
-}
-
-void
-arm_unmask_irq(uintptr_t nb)
-{
-
-	if (nb > GIC_LAST_IPI)
-		arm_irq_memory_barrier(nb);
-	gic_d_write_4(GICD_ISENABLER(nb >> 5), (1UL << (nb & 0x1F)));
+	return (FILTER_HANDLED);
 }
 
 static int
-gic_config_irq(int irq, enum intr_trigger trig,
+arm_gic_config(device_t dev, int irq, enum intr_trigger trig,
     enum intr_polarity pol)
 {
+	struct arm_gic_softc *sc = device_get_softc(dev);
 	uint32_t reg;
 	uint32_t mask;
 
 	/* Function is public-accessible, so validate input arguments */
-	if ((irq < 0) || (irq >= arm_gic_sc->nirqs))
+	if ((irq < 0) || (irq >= sc->nirqs))
 		goto invalid_args;
 	if ((trig != INTR_TRIGGER_EDGE) && (trig != INTR_TRIGGER_LEVEL) &&
 	    (trig != INTR_TRIGGER_CONFORM))
@@ -337,9 +301,9 @@ gic_config_irq(int irq, enum intr_trigger trig,
 	    (pol != INTR_POLARITY_CONFORM))
 		goto invalid_args;
 
-	mtx_lock_spin(&arm_gic_sc->mutex);
+	mtx_lock_spin(&sc->mutex);
 
-	reg = gic_d_read_4(GICD_ICFGR(irq >> 4));
+	reg = gic_d_read_4(sc, GICD_ICFGR(irq >> 4));
 	mask = (reg >> 2*(irq % 16)) & 0x3;
 
 	if (pol == INTR_POLARITY_LOW) {
@@ -361,32 +325,64 @@ gic_config_irq(int irq, enum intr_trigger trig,
 	/* Set mask */
 	reg = reg & ~(0x3 << 2*(irq % 16));
 	reg = reg | (mask << 2*(irq % 16));
-	gic_d_write_4(GICD_ICFGR(irq >> 4), reg);
+	gic_d_write_4(sc, GICD_ICFGR(irq >> 4), reg);
 
-	mtx_unlock_spin(&arm_gic_sc->mutex);
+	mtx_unlock_spin(&sc->mutex);
 
 	return (0);
 
 invalid_args:
-	device_printf(arm_gic_sc->dev, "gic_config_irg, invalid parameters\n");
+	device_printf(dev, "gic_config_irg, invalid parameters\n");
 	return (EINVAL);
 }
 
-#ifdef SMP
-void
-pic_ipi_send(cpuset_t cpus, u_int ipi)
+static void
+arm_gic_eoi(device_t dev, int irq)
 {
+	struct arm_gic_softc *sc = device_get_softc(dev);
+
+	if (irq > GIC_LAST_IPI)
+		arm_irq_memory_barrier(irq);
+
+	gic_c_write_4(sc, GICC_EOIR, irq);
+}
+
+
+static void
+arm_gic_mask(device_t dev, int irq)
+{
+	struct arm_gic_softc *sc = device_get_softc(dev);
+
+	gic_d_write_4(sc, GICD_ICENABLER(irq >> 5), (1UL << (irq & 0x1F)));
+	gic_c_write_4(GICC_EOIR, nb);
+}
+
+static void
+arm_gic_unmask(device_t dev, int irq)
+{
+	struct arm_gic_softc *sc = device_get_softc(dev);
+
+	if (nb > GIC_LAST_IPI)
+		arm_irq_memory_barrier(nb);
+
+	gic_d_write_4(sc, GICD_ISENABLER(irq >> 5), (1UL << (irq & 0x1F)));
+}
+
+static void
+arm_gic_ipi_send(device_t dev, cpuset_t cpus, int ipi)
+{
+	struct arm_gic_softc *sc = device_get_softc(dev);
 	uint32_t val = 0, i;
 
 	for (i = 0; i < MAXCPU; i++)
 		if (CPU_ISSET(i, &cpus))
 			val |= 1 << (16 + i);
-	gic_d_write_4(GICD_SGIR(0), val | ipi);
 
+	gic_d_write_4(sc, GICD_SGIR(0), val | ipi);
 }
 
-int
-pic_ipi_get(int i)
+static int
+arm_gic_ipi_read(device_t dev, int i)
 {
 
 	if (i != -1) {
@@ -394,16 +390,44 @@ pic_ipi_get(int i)
 		 * The intr code will automagically give the frame pointer
 		 * if the interrupt argument is 0.
 		 */
-		if ((unsigned int)i > 16)
+		if ((unsigned int)i > 16) 
 			return (0);
 		return (i);
 	}
+
 	return (0x3ff);
 }
 
-void
-pic_ipi_clear(int ipi)
+static void
+arm_gic_ipi_clear(device_t dev, int ipi)
 {
+	/* no-op */
 }
-#endif
+
+static device_method_t arm_gic_methods[] = {
+	/* Device interface */
+	DEVMETHOD(device_probe,		arm_gic_probe),
+	DEVMETHOD(device_attach,	arm_gic_attach),
+
+	/* Interrupt controller interface */
+	DEVMETHOD(pic_config,		arm_gic_config),
+	DEVMETHOD(pic_mask,		arm_gic_mask),
+	DEVMETHOD(pic_unmask,		arm_gic_unmask),
+	DEVMETHOD(pic_eoi,		arm_gic_eoi),
+	DEVMETHOD(pic_init_secondary,	arm_gic_init_secondary),
+	DEVMETHOD(pic_ipi_send,		arm_gic_ipi_send),
+	DEVMETHOD(pic_ipi_clear,	arm_gic_ipi_clear),
+	DEVMETHOD(pic_ipi_read,		arm_gic_ipi_read),
+	{ 0, 0 }
+};
+
+static driver_t arm_gic_driver = {
+	"gic",
+	arm_gic_methods,
+	sizeof(struct arm_gic_softc),
+};
+
+static devclass_t arm_gic_devclass;
+
+DRIVER_MODULE(gic, simplebus, arm_gic_driver, arm_gic_devclass, 0, 0);
 

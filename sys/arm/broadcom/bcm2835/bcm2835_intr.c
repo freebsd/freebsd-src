@@ -45,6 +45,8 @@ __FBSDID("$FreeBSD$");
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
 
+#include "pic_if.h"
+
 #define	INTC_PENDING_BASIC	0x00
 #define	INTC_PENDING_BANK1	0x04
 #define	INTC_PENDING_BANK2	0x08
@@ -60,7 +62,6 @@ __FBSDID("$FreeBSD$");
 #define	BANK1_END	(BANK1_START + 32 - 1)
 #define	BANK2_START	(BANK1_START + 32)
 #define	BANK2_END	(BANK2_START + 32 - 1)
-#define	BANK3_START	(BANK2_START + 32)
 
 #define	IS_IRQ_BASIC(n)	(((n) >= 0) && ((n) < BANK1_START))
 #define	IS_IRQ_BANK1(n)	(((n) >= BANK1_START) && ((n) <= BANK1_END))
@@ -76,17 +77,24 @@ __FBSDID("$FreeBSD$");
 
 struct bcm_intc_softc {
 	device_t		sc_dev;
-	struct resource *	intc_res;
+	struct resource *	intc_mem_res;
+	struct resource *	intc_irq_res;
+	void *			intc_intrhand;
 	bus_space_tag_t		intc_bst;
 	bus_space_handle_t	intc_bsh;
 };
 
-static struct bcm_intc_softc *bcm_intc_sc = NULL;
+#define	intc_read_4(_sc, reg)		\
+    bus_space_read_4(_sc->intc_bst, _sc->intc_bsh, reg)
+#define	intc_write_4(_sc, reg, val)		\
+    bus_space_write_4(_sc->intc_bst, _sc->intc_bsh, reg, val)
 
-#define	intc_read_4(reg)		\
-    bus_space_read_4(bcm_intc_sc->intc_bst, bcm_intc_sc->intc_bsh, reg)
-#define	intc_write_4(reg, val)		\
-    bus_space_write_4(bcm_intc_sc->intc_bst, bcm_intc_sc->intc_bsh, reg, val)
+static int bcm_intc_probe(device_t);
+static int bcm_intc_attach(device_t);
+static int bcm_intc_intr(void *);
+static int bcm_intc_config(device_t, int, enum intr_trigger, enum intr_polarity);
+static void bcm_intc_mask(device_t, int);
+static void bcm_intc_unmask(device_t, int);
 
 static int
 bcm_intc_probe(device_t dev)
@@ -105,30 +113,128 @@ static int
 bcm_intc_attach(device_t dev)
 {
 	struct		bcm_intc_softc *sc = device_get_softc(dev);
-	int		rid = 0;
+	int		rid;
 
 	sc->sc_dev = dev;
 
-	if (bcm_intc_sc)
-		return (ENXIO);
-
-	sc->intc_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid, RF_ACTIVE);
-	if (sc->intc_res == NULL) {
+	rid = 0;
+	sc->intc_mem_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid,
+	    RF_ACTIVE);
+	if (sc->intc_mem_res == NULL) {
 		device_printf(dev, "could not allocate memory resource\n");
 		return (ENXIO);
 	}
 
-	sc->intc_bst = rman_get_bustag(sc->intc_res);
-	sc->intc_bsh = rman_get_bushandle(sc->intc_res);
+	rid = 0;
+	sc->intc_irq_res = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid,
+	    RF_ACTIVE);
+	if (sc->intc_irq_res == NULL) {
+		device_printf(dev, "could not alloc interrupt resource\n");
+		bus_release_resource(dev, SYS_RES_MEMORY, 0, sc->intc_mem_res);
+		return (ENXIO);
+	}
 
-	bcm_intc_sc = sc;
+	sc->intc_bst = rman_get_bustag(sc->intc_mem_res);
+	sc->intc_bsh = rman_get_bushandle(sc->intc_mem_res);
+
+
+	if (bus_setup_intr(dev, sc->intc_irq_res,
+	    INTR_TYPE_MISC | INTR_CONTROLLER, bcm_intc_intr, NULL, sc, 
+	    &sc->intc_intrhand)) {
+		device_printf(dev, "could not setup interrupt handler\n");
+		bus_release_resource(dev, SYS_RES_MEMORY, 0, sc->intc_mem_res);
+		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->intc_irq_res);
+		return (ENXIO);
+	}
+
+	arm_register_pic(dev, 0);
 
 	return (0);
 }
 
+static int
+bcm_intc_intr(void *arg)
+{
+	struct bcm_intc_softc *sc = (struct bcm_intc_softc *)arg;
+	uint32_t pending;
+	int32_t irq = 0;
+
+	/* TODO: should we mask last_irq? */
+	pending = intc_read_4(sc, INTC_PENDING_BASIC);
+	while (irq < BANK1_START) {
+		if (pending & (1 << irq))
+			arm_dispatch_irq(sc->sc_dev, NULL, irq);
+		irq++;
+	}
+
+	pending = intc_read_4(sc, INTC_PENDING_BANK1);
+	while (irq < BANK2_START) {
+		if (pending & (1 << IRQ_BANK1(irq)))
+			arm_dispatch_irq(sc->sc_dev, NULL, irq);
+		irq++;
+	}
+
+	pending = intc_read_4(sc, INTC_PENDING_BANK2);
+	while (irq <= BANK2_END) {
+		if (pending & (1 << IRQ_BANK2(irq)))
+			arm_dispatch_irq(sc->sc_dev, NULL, irq);
+		irq++;
+	}
+
+	return (FILTER_HANDLED);
+}
+
+static int
+bcm_intc_config(device_t dev, int irq, enum intr_trigger trig,
+    enum intr_polarity pol)
+{
+
+	/* no-op */
+	return (0);
+}
+
+
+static void
+bcm_intc_mask(device_t dev, int nb)
+{
+	struct bcm_intc_softc *sc = device_get_softc(dev);
+	dprintf("%s: %d\n", __func__, nb);
+
+	if (IS_IRQ_BASIC(nb))
+		intc_write_4(sc, INTC_DISABLE_BASIC, (1 << nb));
+	else if (IS_IRQ_BANK1(nb))
+		intc_write_4(sc, INTC_DISABLE_BANK1, (1 << IRQ_BANK1(nb)));
+	else if (IS_IRQ_BANK2(nb))
+		intc_write_4(sc, INTC_DISABLE_BANK2, (1 << IRQ_BANK2(nb)));
+	else
+		printf("arm_mask_irq: Invalid IRQ number: %d\n", nb);
+}
+
+static void
+bcm_intc_unmask(device_t dev, int nb)
+{
+	struct bcm_intc_softc *sc = device_get_softc(dev);
+	dprintf("%s: %d\n", __func__, nb);
+
+	if (IS_IRQ_BASIC(nb))
+		intc_write_4(sc, INTC_ENABLE_BASIC, (1 << nb));
+	else if (IS_IRQ_BANK1(nb))
+		intc_write_4(sc, INTC_ENABLE_BANK1, (1 << IRQ_BANK1(nb)));
+	else if (IS_IRQ_BANK2(nb))
+		intc_write_4(sc, INTC_ENABLE_BANK2, (1 << IRQ_BANK2(nb)));
+	else
+		printf("arm_mask_irq: Invalid IRQ number: %d\n", nb);
+}
+
 static device_method_t bcm_intc_methods[] = {
+	/* Device interface */
 	DEVMETHOD(device_probe,		bcm_intc_probe),
 	DEVMETHOD(device_attach,	bcm_intc_attach),
+
+	/* Interrupt controller interface */
+	DEVMETHOD(pic_config,		bcm_intc_config),
+	DEVMETHOD(pic_mask,		bcm_intc_mask),
+	DEVMETHOD(pic_unmask,		bcm_intc_unmask),
 	{ 0, 0 }
 };
 
@@ -142,74 +248,4 @@ static devclass_t bcm_intc_devclass;
 
 DRIVER_MODULE(intc, simplebus, bcm_intc_driver, bcm_intc_devclass, 0, 0);
 
-int
-arm_get_next_irq(int last_irq)
-{
-	uint32_t pending;
-	int32_t irq = last_irq + 1;
 
-	/* Sanity check */
-	if (irq < 0)
-		irq = 0;
-
-	/* TODO: should we mask last_irq? */
-	if (irq < BANK1_START) {
-		pending = intc_read_4(INTC_PENDING_BASIC);
-		if ((pending & 0xFF) == 0) {
-			irq  = BANK1_START;	/* skip to next bank */
-		} else do {
-			if (pending & (1 << irq))
-				return irq;
-			irq++;
-		} while (irq < BANK1_START);
-	}
-	if (irq < BANK2_START) {
-		pending = intc_read_4(INTC_PENDING_BANK1);
-		if (pending == 0) {
-			irq  = BANK2_START;	/* skip to next bank */
-		} else do {
-			if (pending & (1 << IRQ_BANK1(irq)))
-				return irq;
-			irq++;
-		} while (irq < BANK2_START);
-	}
-	if (irq < BANK3_START) {
-		pending = intc_read_4(INTC_PENDING_BANK2);
-		if (pending != 0) do {
-			if (pending & (1 << IRQ_BANK2(irq)))
-				return irq;
-			irq++;
-		} while (irq < BANK3_START);
-	}
-	return (-1);
-}
-
-void
-arm_mask_irq(uintptr_t nb)
-{
-	dprintf("%s: %d\n", __func__, nb);
-
-	if (IS_IRQ_BASIC(nb))
-		intc_write_4(INTC_DISABLE_BASIC, (1 << nb));
-	else if (IS_IRQ_BANK1(nb))
-		intc_write_4(INTC_DISABLE_BANK1, (1 << IRQ_BANK1(nb)));
-	else if (IS_IRQ_BANK2(nb))
-		intc_write_4(INTC_DISABLE_BANK2, (1 << IRQ_BANK2(nb)));
-	else
-		printf("arm_mask_irq: Invalid IRQ number: %d\n", nb);
-}
-
-void
-arm_unmask_irq(uintptr_t nb)
-{
-	dprintf("%s: %d\n", __func__, nb);
-
-	if (IS_IRQ_BASIC(nb))
-		intc_write_4(INTC_ENABLE_BASIC, (1 << nb));
-	else if (IS_IRQ_BANK1(nb))
-		intc_write_4(INTC_ENABLE_BANK1, (1 << IRQ_BANK1(nb)));
-	else if (IS_IRQ_BANK2(nb))
-		intc_write_4(INTC_ENABLE_BANK2, (1 << IRQ_BANK2(nb)));
-	else
-		printf("arm_mask_irq: Invalid IRQ number: %d\n", nb);
-}

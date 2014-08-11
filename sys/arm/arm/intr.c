@@ -89,6 +89,15 @@ intr_init(void *unused)
 
 SYSINIT(intr_init, SI_SUB_INTR, SI_ORDER_FIRST, intr_init, NULL);
 
+const char *
+arm_describe_irq(int irq)
+{
+	static char buffer[8];
+
+	sprintf(buffer, "%d", irq);
+	return (buffer);
+}
+
 void
 arm_setup_irqhandler(const char *name, driver_filter_t *filt,
     void (*hand)(void*), void *arg, int irq, int flags, void **cookiep)

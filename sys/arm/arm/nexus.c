@@ -68,6 +68,8 @@ __FBSDID("$FreeBSD$");
 #include "ofw_bus_if.h"
 #endif
 
+#include "pic_if.h"
+
 static MALLOC_DEFINE(M_NEXUSDEV, "nexusdev", "Nexus device");
 
 struct nexus_device {
@@ -77,6 +79,9 @@ struct nexus_device {
 #define DEVTONX(dev)	((struct nexus_device *)device_get_ivars(dev))
 
 static struct rman mem_rman;
+#if defined(ARM_INTRNG)
+static device_t nexus_dev;
+#endif
 
 static	int nexus_probe(device_t);
 static	int nexus_attach(device_t);
@@ -94,6 +99,13 @@ static	int nexus_deactivate_resource(device_t, device_t, int, int,
 static int nexus_setup_intr(device_t dev, device_t child, struct resource *res,
     int flags, driver_filter_t *filt, driver_intr_t *intr, void *arg, void **cookiep);
 static int nexus_teardown_intr(device_t, device_t, struct resource *, void *);
+#if defined(ARM_INTRNG)
+static int nexus_pic_config(device_t, int, enum intr_trigger, enum intr_polarity);
+static void nexus_pic_mask(device_t, int);
+static void nexus_pic_unmask(device_t, int);
+static void nexus_pic_eoi(device_t, int);
+void arm_irq_handler(struct trapframe *tf, int irqnb);
+#endif
 
 #ifdef FDT
 static int nexus_ofw_map_intr(device_t dev, device_t child, phandle_t iparent,
@@ -104,6 +116,7 @@ static device_method_t nexus_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		nexus_probe),
 	DEVMETHOD(device_attach,	nexus_attach),
+
 	/* Bus interface */
 	DEVMETHOD(bus_print_child,	nexus_print_child),
 	DEVMETHOD(bus_add_child,	nexus_add_child),
@@ -115,6 +128,13 @@ static device_method_t nexus_methods[] = {
 	DEVMETHOD(bus_teardown_intr,	nexus_teardown_intr),
 #ifdef FDT
 	DEVMETHOD(ofw_bus_map_intr,	nexus_ofw_map_intr),
+#endif
+#ifdef ARM_INTRNG
+	/* PIC interface */
+	DEVMETHOD(pic_config,		nexus_pic_config),
+	DEVMETHOD(pic_mask,		nexus_pic_mask),
+	DEVMETHOD(pic_unmask,		nexus_pic_unmask),
+	DEVMETHOD(pic_eoi,		nexus_pic_eoi),
 #endif
 	{ 0, 0 }
 };
@@ -151,6 +171,12 @@ nexus_attach(device_t dev)
 	mem_rman.rm_descr = "I/O memory addresses";
 	if (rman_init(&mem_rman) || rman_manage_region(&mem_rman, 0, ~0))
 		panic("nexus_probe mem_rman");
+
+#if defined(ARM_INTRNG)
+	/* Register core interrupt controller */
+	nexus_dev = dev;
+	arm_register_pic(dev, 0);
+#endif
 
 	/*
 	 * First, deal with the children we know about already
@@ -238,9 +264,12 @@ nexus_config_intr(device_t dev, int irq, enum intr_trigger trig,
 {
 	int ret = ENODEV;
 
+#ifdef ARM_INTRNG
+	ret = arm_intrng_config_irq(irq, trig, pol);
+#else
 	if (arm_config_irq)
 		ret = (*arm_config_irq)(irq, trig, pol);
-
+#endif
 	return (ret);
 }
 
@@ -254,10 +283,16 @@ nexus_setup_intr(device_t dev, device_t child, struct resource *res, int flags,
 		flags |= INTR_EXCL;
 
 	for (irq = rman_get_start(res); irq <= rman_get_end(res); irq++) {
+#if defined(ARM_INTRNG)
+		arm_setup_irqhandler(child, 
+		    filt, intr, arg, irq, flags, cookiep);
+#else
 		arm_setup_irqhandler(device_get_nameunit(child),
 		    filt, intr, arg, irq, flags, cookiep);
 		arm_unmask_irq(irq);
+#endif
 	}
+
 	return (0);
 }
 
@@ -332,6 +367,41 @@ nexus_deactivate_resource(device_t bus, device_t child, int type, int rid,
 	return (rman_deactivate_resource(r));
 }
 
+#if defined(ARM_INTRNG)
+static int
+nexus_pic_config(device_t bus, int irq, enum intr_trigger trig,
+    enum intr_polarity pol)
+{
+	/* unused */
+	return (0);
+}
+
+static void
+nexus_pic_mask(device_t bus, int irq)
+{
+	/* unused */
+}
+
+static void
+nexus_pic_unmask(device_t bus, int irq)
+{
+	/* unused */
+}
+
+static void
+nexus_pic_eoi(device_t bus, int irq)
+{
+	/* unused */
+}
+
+void
+arm_irq_handler(struct trapframe *tf, int irqnb)
+{
+	/* Dispatch root interrupt from core */
+	arm_dispatch_irq(nexus_dev, tf, 0);
+}
+#endif
+
 #ifdef FDT
 static int
 nexus_ofw_map_intr(device_t dev, device_t child, phandle_t iparent, int icells,
@@ -342,6 +412,7 @@ nexus_ofw_map_intr(device_t dev, device_t child, phandle_t iparent, int icells,
 	int i, rv, interrupt, trig, pol;
 
 	intr_offset = OF_xref_phandle(iparent);
+
 	for (i = 0; i < icells; i++)
 		intr[i] = cpu_to_fdt32(intr[i]);
 
@@ -351,13 +422,13 @@ nexus_ofw_map_intr(device_t dev, device_t child, phandle_t iparent, int icells,
 
 		if (rv == 0) {
 			/* This was recognized as our PIC and decoded. */
-			interrupt = FDT_MAP_IRQ(intr_parent, interrupt);
+			interrupt = FDT_MAP_IRQ(iparent, interrupt);
 			return (interrupt);
 		}
 	}
 
 	/* Not in table, so guess */
-	interrupt = FDT_MAP_IRQ(intr_parent, fdt32_to_cpu(intr[0]));
+	interrupt = FDT_MAP_IRQ(iparent, fdt32_to_cpu(intr[0]));
 
 	return (interrupt);
 }

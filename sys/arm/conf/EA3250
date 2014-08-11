@@ -10,7 +10,7 @@ hints		"EA3250.hints"
 
 makeoptions	MODULES_OVERRIDE=""
 
-#makeoptions	DEBUG=-g		# Build kernel with gdb(1) debug symbols
+makeoptions	DEBUG=-g		# Build kernel with gdb(1) debug symbols
 makeoptions	WERROR="-Werror"
 
 options 	SCHED_4BSD		# 4BSD scheduler
@@ -52,6 +52,8 @@ options 	WITNESS			# Enable checks to detect deadlocks and cycles
 options 	WITNESS_SKIPSPIN	# Don't run witness on spinlocks for speed
 #options 	WITNESS_KDB
 
+options		ARM_INTRNG
+
 # Pseudo devices
 device		loop
 device		md
@@ -76,9 +78,9 @@ device		scbus
 device		pass
 device		da
 
-device		mmc
-device		mmcsd
-device		lpcmmc
+#device		mmc
+#device		mmcsd
+#device		lpcmmc
 
 device		gpio
 device		gpioled

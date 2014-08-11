@@ -235,7 +235,7 @@ init_secondary(int cpu)
 #endif
 				
 	for (int i = start; i <= end; i++)
-		arm_unmask_irq(i);
+		arm_unmask_ipi(i);
 	enable_interrupts(I32_bit);
 
 	loop_counter = 0;
@@ -265,7 +265,7 @@ ipi_handler(void *arg)
 
 	cpu = PCPU_GET(cpuid);
 
-	ipi = pic_ipi_get((int)arg);
+	ipi = pic_ipi_read((int)arg);
 
 	while ((ipi != 0x3ff)) {
 		switch (ipi) {
@@ -328,7 +328,7 @@ ipi_handler(void *arg)
 		}
 
 		pic_ipi_clear(ipi);
-		ipi = pic_ipi_get(-1);
+		ipi = pic_ipi_read(-1);
 	}
 
 	return (FILTER_HANDLED);
@@ -360,11 +360,10 @@ release_aps(void *dummy __unused)
 		 * if we used 0, the intr code will give the trap frame
 		 * pointer instead.
 		 */
-		arm_setup_irqhandler("ipi", ipi_handler, NULL, (void *)i, i,
-		    INTR_TYPE_MISC | INTR_EXCL, NULL);
-
-		/* Enable ipi */
-		arm_unmask_irq(i);
+		arm_setup_irqhandler((device_t)"ipi", ipi_handler, NULL, (void *)i, i,
+		    INTR_TYPE_MISC | INTR_EXCL | INTR_IPI, NULL);
+	
+		arm_unmask_ipi(i);
 	}
 	atomic_store_rel_int(&aps_ready, 1);
 
