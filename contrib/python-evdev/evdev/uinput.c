@@ -50,7 +50,7 @@ uinput_open(PyObject *self, PyObject *args)
 static PyObject *
 uinput_create(PyObject *self, PyObject *args) {
     int fd, len, i, abscode;
-    __u16 vendor, product, version, bustype;
+    uint16_t vendor, product, version, bustype;
 
     PyObject *absinfo = NULL, *item = NULL;
 
@@ -150,7 +150,7 @@ static PyObject *
 uinput_enable_event(PyObject *self, PyObject *args)
 {
     int fd;
-    __u16 type, code;
+    uint16_t type, code;
     unsigned long req;
 
     int ret = PyArg_ParseTuple(args, "ihh", &fd, &type, &code);
