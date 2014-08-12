@@ -2453,7 +2453,6 @@ softdep_mount(devvp, mp, fs, cred)
 	ump->um_softdep = sdp;
 	MNT_IUNLOCK(mp);
 	rw_init(LOCK_PTR(ump), "Per-Filesystem Softdep Lock");
-	TAILQ_INSERT_TAIL(&softdepmounts, sdp, sd_next);
 	sdp->sd_ump = ump;
 	LIST_INIT(&ump->softdep_workitem_pending);
 	LIST_INIT(&ump->softdep_journal_pending);
@@ -2479,6 +2478,9 @@ softdep_mount(devvp, mp, fs, cred)
 	ump->indir_hash_size = i - 1;
 	for (i = 0; i <= ump->indir_hash_size; i++)
 		TAILQ_INIT(&ump->indir_hashtbl[i]);
+	ACQUIRE_GBLLOCK(&lk);
+	TAILQ_INSERT_TAIL(&softdepmounts, sdp, sd_next);
+	FREE_GBLLOCK(&lk);
 	if ((fs->fs_flags & FS_SUJ) &&
 	    (error = journal_mount(mp, fs, cred)) != 0) {
 		printf("Failed to start journal: %d\n", error);
@@ -2562,8 +2564,10 @@ softdep_unmount(mp)
 	/*
 	 * Free up our resources.
 	 */
-	rw_destroy(LOCK_PTR(ump));
+	ACQUIRE_GBLLOCK(&lk);
 	TAILQ_REMOVE(&softdepmounts, ump->um_softdep, sd_next);
+	FREE_GBLLOCK(&lk);
+	rw_destroy(LOCK_PTR(ump));
 	hashdestroy(ump->pagedep_hashtbl, M_PAGEDEP, ump->pagedep_hash_size);
 	hashdestroy(ump->inodedep_hashtbl, M_INODEDEP, ump->inodedep_hash_size);
 	hashdestroy(ump->newblk_hashtbl, M_NEWBLK, ump->newblk_hash_size);
