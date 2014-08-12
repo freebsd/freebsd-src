@@ -38,6 +38,9 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20140812: example files removed
+OLD_FILES+=usr/share/examples/libusb20/aux.c
+OLD_FILES+=usr/share/examples/libusb20/aux.h
 # 20140728: Remove an obsolete man page
 OLD_FILES+=usr/share/man/man9/VOP_GETVOBJECT.9.gz
 OLD_FILES+=usr/share/man/man9/VOP_CREATEVOBJECT.9.gz
