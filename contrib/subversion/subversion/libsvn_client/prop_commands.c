@@ -890,8 +890,14 @@ svn_client_propget5(apr_hash_t **props,
           const char *copy_root_abspath;
           svn_boolean_t is_copy;
 
-          SVN_ERR(svn_dirent_get_absolute(&local_abspath, target,
-                                          scratch_pool));
+          /* Avoid assertion on the next line when somebody accidentally asks for
+             a working copy revision on a URL */
+          if (svn_path_is_url(target))
+            return svn_error_create(SVN_ERR_CLIENT_VERSIONED_PATH_REQUIRED,
+                                    NULL, NULL);
+
+          SVN_ERR_ASSERT(svn_dirent_is_absolute(target));
+          local_abspath = target;
 
           if (SVN_CLIENT__REVKIND_NEEDS_WC(peg_revision->kind))
             {
@@ -1232,7 +1238,7 @@ recursive_proplist_receiver(void *baton,
          Report iprops anyway */
 
       SVN_ERR(b->wrapped_receiver(b->wrapped_receiver_baton,
-                                  b->anchor ? b->anchor : local_abspath,
+                                  b->anchor ? b->anchor : b->anchor_abspath,
                                   NULL /* prop_hash */,
                                   b->iprops,
                                   scratch_pool));
@@ -1292,6 +1298,12 @@ get_remote_props(const char *path_or_url,
       const char *local_abspath;
       const char *copy_root_abspath;
       svn_boolean_t is_copy;
+
+      /* Avoid assertion on the next line when somebody accidentally asks for
+         a working copy revision on a URL */
+      if (svn_path_is_url(path_or_url))
+        return svn_error_create(SVN_ERR_CLIENT_VERSIONED_PATH_REQUIRED,
+                                NULL, NULL);
 
       SVN_ERR(svn_dirent_get_absolute(&local_abspath, path_or_url,
                                       scratch_pool));

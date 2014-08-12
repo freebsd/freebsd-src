@@ -935,7 +935,7 @@ handle_text_conflict(svn_wc_conflict_result_t *result,
           /* We only allow the user accept the merged version of
              the file if they've edited it, or at least looked at
              the diff. */
-          if (result->choice == svn_wc_conflict_choose_merged
+          if (opt->choice == svn_wc_conflict_choose_merged
               && ! knows_something)
             {
               SVN_ERR(svn_cmdline_fprintf(

@@ -1,7 +1,5 @@
 # $FreeBSD$
 
-NO_MAN=	svn.1
-
 .include "${.CURDIR}/../Makefile.inc"
 
 .PATH:	${SVNDIR}/svn
@@ -61,5 +59,9 @@ freebsd-organization.h:
 	@echo '#define ORGANIZATION_NAME ${ORGANIZATION}' \
 	    > freebsd-organization.h
 .endif
+
+svnlite.1: svn.1
+	# Avoid the website
+	sed -E 's,(^| |B|`)svn,\1svnlite,g' ${SVNDIR}/svn/svn.1 > ${.OBJDIR}/svnlite.1
 
 .include <bsd.prog.mk>

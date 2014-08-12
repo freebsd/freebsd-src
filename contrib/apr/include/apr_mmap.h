@@ -120,7 +120,7 @@ struct apr_mmap_t {
 /** 
  * Create a new mmap'ed file out of an existing APR file.
  * @param newmmap The newly created mmap'ed file.
- * @param file The file turn into an mmap.
+ * @param file The file to turn into an mmap.
  * @param offset The offset into the file to start the data pointer at.
  * @param size The size of the file
  * @param flag bit-wise or of:

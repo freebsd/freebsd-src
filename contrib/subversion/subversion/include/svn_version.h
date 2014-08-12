@@ -72,7 +72,7 @@ extern "C" {
  *
  * @since New in 1.1.
  */
-#define SVN_VER_PATCH      8
+#define SVN_VER_PATCH      10
 
 
 /** @deprecated Provided for backward compatibility with the 1.0 API. */
@@ -95,7 +95,7 @@ extern "C" {
  *
  * Always change this at the same time as SVN_VER_NUMTAG.
  */
-#define SVN_VER_TAG        " (r1568071)"
+#define SVN_VER_TAG        " (r1615264)"
 
 
 /** Number tag: a string describing the version.
@@ -121,7 +121,7 @@ extern "C" {
  * When rolling a tarball, we automatically replace it with what we
  * guess to be the correct revision number.
  */
-#define SVN_VER_REVISION   1568071
+#define SVN_VER_REVISION   1615264
 
 
 /* Version strings composed from the above definitions. */
