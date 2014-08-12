@@ -480,7 +480,7 @@ sctp_process_init_ack(struct mbuf *m, int iphlen, int offset,
 		return (-1);
 	}
 	/* if the peer doesn't support asconf, flush the asconf queue */
-	if (asoc->peer_supports_asconf == 0) {
+	if (asoc->asconf_supported == 0) {
 		struct sctp_asconf_addr *param, *nparam;
 
 		TAILQ_FOREACH_SAFE(param, &asoc->asconf_queue, next, nparam) {
@@ -756,7 +756,7 @@ sctp_handle_nat_missing_state(struct sctp_tcb *stcb,
 	 * return 0 means we want you to proceed with the abort non-zero
 	 * means no abort processing
 	 */
-	if (stcb->asoc.peer_supports_auth == 0) {
+	if (stcb->asoc.auth_supported == 0) {
 		SCTPDBG(SCTP_DEBUG_INPUT2, "sctp_handle_nat_missing_state: Peer does not support AUTH, cannot send an asconf\n");
 		return (0);
 	}
@@ -1096,6 +1096,7 @@ sctp_process_unrecog_chunk(struct sctp_tcb *stcb, struct sctp_paramhdr *phdr,
  * Skip past the param header and then we will find the param that caused the
  * problem.  There are a number of param's in a ASCONF OR the prsctp param
  * these will turn of specific features.
+ * XXX: Is this the right thing to do?
  */
 static void
 sctp_process_unrecog_param(struct sctp_tcb *stcb, struct sctp_paramhdr *phdr)
@@ -1117,14 +1118,14 @@ sctp_process_unrecog_param(struct sctp_tcb *stcb, struct sctp_paramhdr *phdr)
 	case SCTP_ADD_IP_ADDRESS:
 	case SCTP_DEL_IP_ADDRESS:
 	case SCTP_SET_PRIM_ADDR:
-		stcb->asoc.peer_supports_asconf = 0;
+		stcb->asoc.asconf_supported = 0;
 		break;
 	case SCTP_SUCCESS_REPORT:
 	case SCTP_ERROR_CAUSE_IND:
 		SCTPDBG(SCTP_DEBUG_INPUT2, "Huh, the peer does not support success? or error cause?\n");
 		SCTPDBG(SCTP_DEBUG_INPUT2,
 		    "Turning off ASCONF to this strange peer\n");
-		stcb->asoc.peer_supports_asconf = 0;
+		stcb->asoc.asconf_supported = 0;
 		break;
 	default:
 		SCTPDBG(SCTP_DEBUG_INPUT2,
@@ -2787,6 +2788,8 @@ sctp_handle_cookie_echo(struct mbuf *m, int iphlen, int offset,
 			inp->sctp_cmt_on_off = (*inp_p)->sctp_cmt_on_off;
 			inp->ecn_supported = (*inp_p)->ecn_supported;
 			inp->prsctp_supported = (*inp_p)->prsctp_supported;
+			inp->auth_supported = (*inp_p)->auth_supported;
+			inp->asconf_supported = (*inp_p)->asconf_supported;
 			inp->reconfig_supported = (*inp_p)->reconfig_supported;
 			inp->nrsack_supported = (*inp_p)->nrsack_supported;
 			inp->pktdrop_supported = (*inp_p)->pktdrop_supported;
@@ -2966,7 +2969,7 @@ sctp_handle_cookie_ack(struct sctp_cookie_ack_chunk *cp SCTP_UNUSED,
 		 * in flight)
 		 */
 		if ((sctp_is_feature_on(stcb->sctp_ep, SCTP_PCB_FLAGS_DO_ASCONF)) &&
-		    (stcb->asoc.peer_supports_asconf) &&
+		    (stcb->asoc.asconf_supported == 1) &&
 		    (!TAILQ_EMPTY(&stcb->asoc.asconf_queue))) {
 #ifdef SCTP_TIMER_BASED_ASCONF
 			sctp_timer_start(SCTP_TIMER_TYPE_ASCONF,
@@ -4439,7 +4442,7 @@ __attribute__((noinline))
 		 */
 		if ((ch->chunk_type == SCTP_AUTHENTICATION) &&
 		    (stcb == NULL) &&
-		    !SCTP_BASE_SYSCTL(sctp_auth_disable)) {
+		    (inp->auth_supported == 1)) {
 			/* save this chunk for later processing */
 			auth_skipped = 1;
 			auth_offset = *offset;
@@ -4706,7 +4709,7 @@ process_control_chunks:
 
 		/* check to see if this chunk required auth, but isn't */
 		if ((stcb != NULL) &&
-		    !SCTP_BASE_SYSCTL(sctp_auth_disable) &&
+		    (stcb->asoc.auth_supported == 1) &&
 		    sctp_auth_is_required_chunk(ch->chunk_type, stcb->asoc.local_auth_chunks) &&
 		    !stcb->asoc.authenticated) {
 			/* "silently" ignore */
@@ -5225,6 +5228,9 @@ process_control_chunks:
 				return (NULL);
 			}
 			if (stcb) {
+				if (stcb->asoc.ecn_supported == 0) {
+					goto unknown_chunk;
+				}
 				if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_THRESHOLD_LOGGING) {
 					sctp_misc_ints(SCTP_THRESHOLD_CLEAR,
 					    stcb->asoc.overall_error_count,
@@ -5250,6 +5256,9 @@ process_control_chunks:
 				return (NULL);
 			}
 			if (stcb) {
+				if (stcb->asoc.ecn_supported == 0) {
+					goto unknown_chunk;
+				}
 				if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_THRESHOLD_LOGGING) {
 					sctp_misc_ints(SCTP_THRESHOLD_CLEAR,
 					    stcb->asoc.overall_error_count,
@@ -5283,6 +5292,9 @@ process_control_chunks:
 			SCTPDBG(SCTP_DEBUG_INPUT3, "SCTP_ASCONF\n");
 			/* He's alive so give him credit */
 			if (stcb) {
+				if (stcb->asoc.asconf_supported == 0) {
+					goto unknown_chunk;
+				}
 				if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_THRESHOLD_LOGGING) {
 					sctp_misc_ints(SCTP_THRESHOLD_CLEAR,
 					    stcb->asoc.overall_error_count,
@@ -5307,6 +5319,9 @@ process_control_chunks:
 				return (NULL);
 			}
 			if ((stcb) && netp && *netp) {
+				if (stcb->asoc.asconf_supported == 0) {
+					goto unknown_chunk;
+				}
 				/* He's alive so give him credit */
 				if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_THRESHOLD_LOGGING) {
 					sctp_misc_ints(SCTP_THRESHOLD_CLEAR,
@@ -5336,6 +5351,9 @@ process_control_chunks:
 			if (stcb) {
 				int abort_flag = 0;
 
+				if (stcb->asoc.prsctp_supported == 0) {
+					goto unknown_chunk;
+				}
 				stcb->asoc.overall_error_count = 0;
 				if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_THRESHOLD_LOGGING) {
 					sctp_misc_ints(SCTP_THRESHOLD_CLEAR,
@@ -5391,12 +5409,7 @@ process_control_chunks:
 				return (NULL);
 			}
 			if (stcb->asoc.reconfig_supported == 0) {
-				/*
-				 * hmm, peer should have announced this, but
-				 * we will turn it on since he is sending us
-				 * a stream reset.
-				 */
-				stcb->asoc.reconfig_supported = 1;
+				goto unknown_chunk;
 			}
 			if (sctp_handle_stream_reset(stcb, m, *offset, ch)) {
 				/* stop processing */
@@ -5416,18 +5429,17 @@ process_control_chunks:
 				return (NULL);
 			}
 			if (ch && (stcb) && netp && (*netp)) {
+				if (stcb->asoc.pktdrop_supported == 0) {
+					goto unknown_chunk;
+				}
 				sctp_handle_packet_dropped((struct sctp_pktdrop_chunk *)ch,
 				    stcb, *netp,
 				    min(chk_length, (sizeof(chunk_buf) - 4)));
 
 			}
 			break;
-
 		case SCTP_AUTHENTICATION:
 			SCTPDBG(SCTP_DEBUG_INPUT3, "SCTP_AUTHENTICATION\n");
-			if (SCTP_BASE_SYSCTL(sctp_auth_disable))
-				goto unknown_chunk;
-
 			if (stcb == NULL) {
 				/* save the first AUTH for later processing */
 				if (auth_skipped == 0) {
@@ -5437,6 +5449,9 @@ process_control_chunks:
 				}
 				/* skip this chunk (temporarily) */
 				goto next_chunk;
+			}
+			if (stcb->asoc.auth_supported == 0) {
+				goto unknown_chunk;
 			}
 			if ((chk_length < (sizeof(struct sctp_auth_chunk))) ||
 			    (chk_length > (sizeof(struct sctp_auth_chunk) +
@@ -5778,7 +5793,7 @@ sctp_common_input_processing(struct mbuf **mm, int iphlen, int offset, int lengt
 		 * chunks
 		 */
 		if ((stcb != NULL) &&
-		    !SCTP_BASE_SYSCTL(sctp_auth_disable) &&
+		    (stcb->asoc.auth_supported == 1) &&
 		    sctp_auth_is_required_chunk(SCTP_DATA, stcb->asoc.local_auth_chunks)) {
 			/* "silently" ignore */
 			SCTP_STAT_INCR(sctps_recvauthmissing);
@@ -5820,7 +5835,7 @@ sctp_common_input_processing(struct mbuf **mm, int iphlen, int offset, int lengt
 	 */
 	if ((length > offset) &&
 	    (stcb != NULL) &&
-	    !SCTP_BASE_SYSCTL(sctp_auth_disable) &&
+	    (stcb->asoc.auth_supported == 1) &&
 	    sctp_auth_is_required_chunk(SCTP_DATA, stcb->asoc.local_auth_chunks) &&
 	    !stcb->asoc.authenticated) {
 		/* "silently" ignore */
