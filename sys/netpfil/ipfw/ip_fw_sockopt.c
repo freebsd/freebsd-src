@@ -2917,7 +2917,7 @@ ipfw_objhash_bitmap_alloc(uint32_t items, void **idx, int *pblocks)
 {
 	size_t size;
 	int max_blocks;
-	void *idx_mask;
+	u_long *idx_mask;
 
 	items = roundup2(items, BLOCK_ITEMS);	/* Align to block size */
 	max_blocks = items / BLOCK_ITEMS;
@@ -2925,6 +2925,7 @@ ipfw_objhash_bitmap_alloc(uint32_t items, void **idx, int *pblocks)
 	idx_mask = malloc(size * IPFW_MAX_SETS, M_IPFW, M_WAITOK);
 	/* Mark all as free */
 	memset(idx_mask, 0xFF, size * IPFW_MAX_SETS);
+	*idx_mask &= ~(u_long)1; /* Skip index 0 */
 
 	*idx = idx_mask;
 	*pblocks = max_blocks;
