@@ -46,7 +46,7 @@ struct sctp_sysctl {
 	uint32_t sctp_multiple_asconfs;
 	uint32_t sctp_ecn_enable;
 	uint32_t sctp_pr_enable;
-	uint32_t sctp_auth_disable;
+	uint32_t sctp_auth_enable;
 	uint32_t sctp_asconf_enable;
 	uint32_t sctp_reconfig_enable;
 	uint32_t sctp_nrsack_enable;
@@ -163,11 +163,11 @@ struct sctp_sysctl {
 #define SCTPCTL_PR_ENABLE_MAX		1
 #define SCTPCTL_PR_ENABLE_DEFAULT	1
 
-/* auth_disable: Disable SCTP AUTH function */
-#define SCTPCTL_AUTH_DISABLE_DESC	"Disable SCTP AUTH function"
-#define SCTPCTL_AUTH_DISABLE_MIN	0
-#define SCTPCTL_AUTH_DISABLE_MAX	1
-#define SCTPCTL_AUTH_DISABLE_DEFAULT	0
+/* auth_enable: Enable SCTP AUTH function */
+#define SCTPCTL_AUTH_ENABLE_DESC	"Enable SCTP AUTH function"
+#define SCTPCTL_AUTH_ENABLE_MIN		0
+#define SCTPCTL_AUTH_ENABLE_MAX		1
+#define SCTPCTL_AUTH_ENABLE_DEFAULT	1
 
 /* asconf_enable: Enable SCTP ASCONF */
 #define SCTPCTL_ASCONF_ENABLE_DESC	"Enable SCTP ASCONF"
