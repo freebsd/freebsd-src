@@ -681,6 +681,37 @@ match_token(struct _s_x *table, char *string)
 }
 
 /**
+ * match_token takes a table and a string, returns the value associated
+ * with the string for the best match.
+ *
+ * Returns:
+ * value from @table for matched records
+ * -1 for non-matched records
+ * -2 if more than one records match @string.
+ */
+int
+match_token_relaxed(struct _s_x *table, char *string)
+{
+	struct _s_x *pt, *m;
+	int i, c;
+
+	i = strlen(string);
+	c = 0;
+
+	for (pt = table ; i != 0 && pt->s != NULL ; pt++) {
+		if (strncmp(pt->s, string, i) != 0)
+			continue;
+		m = pt;
+		c++;
+	}
+
+	if (c == 1)
+		return (m->x);
+
+	return (c > 0 ? -2: -1);
+}
+
+/**
  * match_value takes a table and a value, returns the string associated
  * with the value (NULL in case of failure).
  */
