@@ -2940,14 +2940,14 @@ ipfw_move_tables_sets(struct ip_fw_chain *ch, ipfw_range_tlv *rt,
 
 /*
  * Finds and bumps refcount for tables referenced by given @rule.
- * Allocates new indexes for non-existing tables.
+ * Auto-creates non-existing tables.
  * Fills in @oib array with userland/kernel indexes.
  * First free oidx pointer is saved back in @oib.
  *
  * Returns 0 on success.
  */
 static int
-bind_table_rule(struct ip_fw_chain *ch, struct ip_fw *rule,
+find_ref_rule_tables(struct ip_fw_chain *ch, struct ip_fw *rule,
     struct rule_check_info *ci, struct obj_idx **oib, struct tid_info *ti)
 {
 	struct table_config *tc;
@@ -2969,10 +2969,7 @@ bind_table_rule(struct ip_fw_chain *ch, struct ip_fw *rule,
 	IPFW_UH_WLOCK(ch);
 	ni = CHAIN_TO_NI(ch);
 
-	/*
-	 * Increase refcount on each referenced table.
-	 * Allocate table indexes for non-existing tables.
-	 */
+	/* Increase refcount on each existing referenced table. */
 	for ( ;	l > 0 ; l -= cmdlen, cmd += cmdlen) {
 		cmdlen = F_LEN(cmd);
 
@@ -3071,7 +3068,7 @@ bind_table_rule(struct ip_fw_chain *ch, struct ip_fw *rule,
  * Remove references from every table used in @rule.
  */
 void
-ipfw_unbind_table_rule(struct ip_fw_chain *chain, struct ip_fw *rule)
+ipfw_unref_rule_tables(struct ip_fw_chain *chain, struct ip_fw *rule)
 {
 	int cmdlen, l;
 	ipfw_insn *cmd;
@@ -3203,7 +3200,7 @@ ipfw_rewrite_table_uidx(struct ip_fw_chain *chain,
 	}
 
 	/* Reference all used tables */
-	error = bind_table_rule(chain, ci->krule, ci, &pidx_last, &ti);
+	error = find_ref_rule_tables(chain, ci->krule, ci, &pidx_last, &ti);
 	if (error != 0)
 		goto free;
 

@@ -658,7 +658,7 @@ commit_rules(struct ip_fw_chain *chain, struct rule_check_info *rci, int count)
 					ci--;
 					if (ci->table_opcodes == 0)
 						continue;
-					ipfw_unbind_table_rule(chain,ci->krule);
+					ipfw_unref_rule_tables(chain,ci->krule);
 
 				}
 				IPFW_UH_WUNLOCK(chain);
