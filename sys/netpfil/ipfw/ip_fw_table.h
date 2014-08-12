@@ -83,12 +83,12 @@ typedef int (ta_del)(void *ta_state, struct table_info *ti,
 typedef void (ta_flush_entry)(struct ip_fw_chain *ch, struct tentry_info *tei,
     void *ta_buf);
 
-typedef int (ta_has_space)(void *ta_state, struct table_info *ti,
+typedef int (ta_need_modify)(void *ta_state, struct table_info *ti,
     uint32_t count, uint64_t *pflags);
 typedef int (ta_prepare_mod)(void *ta_buf, uint64_t *pflags);
 typedef int (ta_fill_mod)(void *ta_state, struct table_info *ti,
     void *ta_buf, uint64_t *pflags);
-typedef int (ta_modify)(void *ta_state, struct table_info *ti,
+typedef void (ta_modify)(void *ta_state, struct table_info *ti,
     void *ta_buf, uint64_t pflags);
 typedef void (ta_flush_mod)(void *ta_buf);
 
@@ -121,7 +121,7 @@ struct table_algo {
 	ta_del		*del;
 	ta_flush_entry	*flush_entry;
 	ta_find_tentry	*find_tentry;
-	ta_has_space	*has_space;
+	ta_need_modify	*need_modify;
 	ta_prepare_mod	*prepare_mod;
 	ta_fill_mod	*fill_mod;
 	ta_modify	*modify;

@@ -623,7 +623,7 @@ cleanup:
  * need for reallocation.
  *
  * Callbacks order:
- * 0) has_space() (UH_WLOCK) - checks if @count items can be added w/o resize.
+ * 0) need_modify() (UH_WLOCK) - checks if @count items can be added w/o resize.
  *
  * 1) alloc_modify (no locks, M_WAITOK) - alloc new state based on @pflags.
  * 2) prepare_modifyt (UH_WLOCK) - copy old data into new storage
@@ -655,15 +655,15 @@ check_table_space(struct ip_fw_chain *ch, struct table_config *tc,
 	 */
 	while (true) {
 		pflags = 0;
-		if (ta->has_space(tc->astate, ti, count, &pflags) != 0) {
+		if (ta->need_modify(tc->astate, ti, count, &pflags) == 0) {
 			error = 0;
 			break;
 		}
 
 		/* We have to shrink/grow table */
 		IPFW_UH_WUNLOCK(ch);
+
 		memset(&ta_buf, 0, sizeof(ta_buf));
-		
 		if ((error = ta->prepare_mod(ta_buf, &pflags)) != 0) {
 			IPFW_UH_WLOCK(ch);
 			break;
@@ -673,7 +673,8 @@ check_table_space(struct ip_fw_chain *ch, struct table_config *tc,
 
 		/* Check if we still need to alter table */
 		ti = KIDX_TO_TI(ch, tc->no.kidx);
-		if (ta->has_space(tc->astate, ti, count, &pflags) != 0) {
+		if (ta->need_modify(tc->astate, ti, count, &pflags) == 0) {
+			IPFW_UH_WUNLOCK(ch);
 
 			/*
 			 * Other thread has already performed resize.
@@ -3229,5 +3230,4 @@ free:
 
 	return (error);
 }
-
 
