@@ -681,7 +681,7 @@ commit_rules(struct ip_fw_chain *chain, struct rule_check_info *rci, int count)
 				if (ci->table_opcodes == 0)
 					continue;
 
-				ipfw_unbind_table_rule(chain, ci->krule);
+				ipfw_unref_rule_tables(chain, ci->krule);
 			}
 			IPFW_UH_WUNLOCK(chain);
 		}
@@ -741,7 +741,7 @@ ipfw_reap_add(struct ip_fw_chain *chain, struct ip_fw **head,
 	IPFW_UH_WLOCK_ASSERT(chain);
 
 	/* Unlink rule from everywhere */
-	ipfw_unbind_table_rule(chain, rule);
+	ipfw_unref_rule_tables(chain, rule);
 
 	*((struct ip_fw **)rule) = *head;
 	*head = rule;
