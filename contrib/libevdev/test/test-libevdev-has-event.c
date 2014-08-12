@@ -21,7 +21,11 @@
  */
 
 #include <config.h>
+#ifdef __FreeBSD__
+#include <dev/evdev/input.h>
+#else
 #include <linux/input.h>
+#endif
 #include <errno.h>
 #include <unistd.h>
 #include <limits.h>

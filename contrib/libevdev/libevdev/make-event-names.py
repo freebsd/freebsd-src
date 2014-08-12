@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-# Parses linux/input.h scanning for #define KEY_FOO 134
+# Parses input.h scanning for #define KEY_FOO 134
 # Prints C header files or Python files that can be used as
 # mapping and lookup tables.
 #

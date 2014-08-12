@@ -30,7 +30,12 @@
 #include <dirent.h>
 #include <sys/stat.h>
 #include <time.h>
-#include <linux/uinput.h>
+
+#ifdef __FreeBSD__
+#include <dev/evdev/input.h>
+#else
+#include <linux/input.h>
+#endif
 
 #include "libevdev.h"
 #include "libevdev-int.h"

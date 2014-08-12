@@ -27,7 +27,11 @@
 extern "C" {
 #endif
 
+#ifdef __FreeBSD__
+#include <dev/evdev/input.h>
+#else
 #include <linux/input.h>
+#endif
 #include <stdarg.h>
 
 #define LIBEVDEV_ATTRIBUTE_PRINTF(_format, _args) __attribute__ ((format (printf, _format, _args)))

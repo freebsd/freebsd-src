@@ -27,7 +27,11 @@
 #include <string.h>
 #include <stdio.h>
 #include <errno.h>
+#ifdef __FreeBSD__
+#include <dev/evdev/uinput.h>
+#else
 #include <linux/uinput.h>
+#endif
 #include <dirent.h>
 
 #include <libevdev/libevdev.h>

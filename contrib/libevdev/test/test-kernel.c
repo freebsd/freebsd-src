@@ -29,7 +29,12 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <stdio.h>
+
+#ifdef __FreeBSD__
+#include <dev/evdev/input.h>
+#else
 #include <linux/input.h>
+#endif
 
 #include <libevdev/libevdev.h>
 #include <libevdev/libevdev-uinput.h>
