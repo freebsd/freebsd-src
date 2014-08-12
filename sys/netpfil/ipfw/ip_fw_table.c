@@ -204,6 +204,14 @@ store_tei_result(struct tentry_info *tei, int do_add, int error, uint32_t num)
 	tei->flags |= flag;
 }
 
+/*
+ * Creates and references table with default parameters.
+ * Saves table config, algo and allocated kidx info @ptc, @pta and
+ * @pkidx if non-zero.
+ * Used for table auto-creation to support old binaries.
+ *
+ * Returns 0 on success.
+ */
 static int
 create_table_compat(struct ip_fw_chain *ch, struct tid_info *ti,
     struct table_config **ptc, struct table_algo **pta, uint16_t *pkidx)
@@ -212,6 +220,7 @@ create_table_compat(struct ip_fw_chain *ch, struct tid_info *ti,
 	int error;
 
 	memset(&xi, 0, sizeof(xi));
+	/* Set u32 as default value type for legacy clients */
 	xi.vtype = IPFW_VTYPE_U32;
 
 	error = create_table_internal(ch, ti, NULL, &xi, ptc, pta, pkidx, 1);
@@ -1523,163 +1532,6 @@ ipfw_describe_table(struct ip_fw_chain *ch, struct sockopt_data *sd)
 	return (0);
 }
 
-struct dump_args {
-	struct table_info *ti;
-	struct table_config *tc;
-	struct sockopt_data *sd;
-	uint32_t cnt;
-	uint16_t uidx;
-	int error;
-	ipfw_table_entry *ent;
-	uint32_t size;
-	ipfw_obj_tentry tent;
-};
-
-int
-ipfw_dump_table(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
-    struct sockopt_data *sd)
-{
-	int error;
-
-	switch (op3->version) {
-	case 0:
-		error = ipfw_dump_table_v0(ch, sd);
-		break;
-	case 1:
-		error = ipfw_dump_table_v1(ch, sd);
-		break;
-	default:
-		error = ENOTSUP;
-	}
-
-	return (error);
-}
-
-/*
- * Dumps all table data
- * Data layout (v1)(current):
- * Request: [ ipfw_obj_header ], size = ipfw_xtable_info.size
- * Reply: [ ipfw_obj_header ipfw_xtable_info ipfw_obj_tentry x N ]
- *
- * Returns 0 on success
- */
-static int
-ipfw_dump_table_v1(struct ip_fw_chain *ch, struct sockopt_data *sd)
-{
-	struct _ipfw_obj_header *oh;
-	ipfw_xtable_info *i;
-	struct tid_info ti;
-	struct table_config *tc;
-	struct table_algo *ta;
-	struct dump_args da;
-	uint32_t sz;
-
-	sz = sizeof(ipfw_obj_header) + sizeof(ipfw_xtable_info);
-	oh = (struct _ipfw_obj_header *)ipfw_get_sopt_header(sd, sz);
-	if (oh == NULL)
-		return (EINVAL);
-
-	i = (ipfw_xtable_info *)(oh + 1);
-	objheader_to_ti(oh, &ti);
-
-	IPFW_UH_RLOCK(ch);
-	if ((tc = find_table(CHAIN_TO_NI(ch), &ti)) == NULL) {
-		IPFW_UH_RUNLOCK(ch);
-		return (ESRCH);
-	}
-	export_table_info(ch, tc, i);
-
-	if (sd->valsize < i->size) {
-
-		/*
-		 * Submitted buffer size is not enough.
-		 * WE've already filled in @i structure with
-		 * relevant table info including size, so we
-		 * can return. Buffer will be flushed automatically.
-		 */
-		IPFW_UH_RUNLOCK(ch);
-		return (ENOMEM);
-	}
-
-	/*
-	 * Do the actual dump in eXtended format
-	 */
-	memset(&da, 0, sizeof(da));
-	da.ti = KIDX_TO_TI(ch, tc->no.kidx);
-	da.tc = tc;
-	da.sd = sd;
-
-	ta = tc->ta;
-
-	ta->foreach(tc->astate, da.ti, dump_table_tentry, &da);
-	IPFW_UH_RUNLOCK(ch);
-
-	return (da.error);
-}
-
-/*
- * Dumps all table data
- * Data layout (version 0)(legacy):
- * Request: [ ipfw_xtable ], size = IP_FW_TABLE_XGETSIZE()
- * Reply: [ ipfw_xtable ipfw_table_xentry x N ]
- *
- * Returns 0 on success
- */
-static int
-ipfw_dump_table_v0(struct ip_fw_chain *ch, struct sockopt_data *sd)
-{
-	ipfw_xtable *xtbl;
-	struct tid_info ti;
-	struct table_config *tc;
-	struct table_algo *ta;
-	struct dump_args da;
-	size_t sz;
-
-	xtbl = (ipfw_xtable *)ipfw_get_sopt_header(sd, sizeof(ipfw_xtable));
-	if (xtbl == NULL)
-		return (EINVAL);
-
-	memset(&ti, 0, sizeof(ti));
-	ti.uidx = xtbl->tbl;
-	
-	IPFW_UH_RLOCK(ch);
-	if ((tc = find_table(CHAIN_TO_NI(ch), &ti)) == NULL) {
-		IPFW_UH_RUNLOCK(ch);
-		return (0);
-	}
-	sz = tc->count * sizeof(ipfw_table_xentry) + sizeof(ipfw_xtable);
-
-	xtbl->cnt = tc->count;
-	xtbl->size = sz;
-	xtbl->type = tc->no.type;
-	xtbl->tbl = ti.uidx;
-
-	if (sd->valsize < sz) {
-
-		/*
-		 * Submitted buffer size is not enough.
-		 * WE've already filled in @i structure with
-		 * relevant table info including size, so we
-		 * can return. Buffer will be flushed automatically.
-		 */
-		IPFW_UH_RUNLOCK(ch);
-		return (ENOMEM);
-	}
-
-	/* Do the actual dump in eXtended format */
-	memset(&da, 0, sizeof(da));
-	da.ti = KIDX_TO_TI(ch, tc->no.kidx);
-	da.tc = tc;
-	da.sd = sd;
-
-	ta = tc->ta;
-
-	ta->foreach(tc->astate, da.ti, dump_table_xentry, &da);
-	IPFW_UH_RUNLOCK(ch);
-
-	return (0);
-}
-
 /*
  * Modifies existing table.
  * Data layout (v0)(current):
@@ -1927,6 +1779,41 @@ ipfw_export_table_ntlv(struct ip_fw_chain *ch, uint16_t kidx,
 }
 
 /*
+ * Marks every table kidx used in @rule with bit in @bmask.
+ * Used to generate bitmask of referenced tables for given ruleset.
+ * 
+ * Returns number of newly-referenced tables.
+ */
+int
+ipfw_mark_table_kidx(struct ip_fw_chain *chain, struct ip_fw *rule,
+    uint32_t *bmask)
+{
+	int cmdlen, l, count;
+	ipfw_insn *cmd;
+	uint16_t kidx;
+	uint8_t type;
+
+	l = rule->cmd_len;
+	cmd = rule->cmd;
+	cmdlen = 0;
+	count = 0;
+	for ( ;	l > 0 ; l -= cmdlen, cmd += cmdlen) {
+		cmdlen = F_LEN(cmd);
+
+		if (classify_table_opcode(cmd, &kidx, &type) != 0)
+			continue;
+
+		if ((bmask[kidx / 32] & (1 << (kidx % 32))) == 0)
+			count++;
+
+		bmask[kidx / 32] |= 1 << (kidx % 32);
+	}
+
+	return (count);
+}
+
+
+/*
  * Exports table @tc info into standard ipfw_xtable_info format.
  */
 static void
@@ -2021,6 +1908,164 @@ export_tables(struct ip_fw_chain *ch, ipfw_obj_lheader *olh,
 
 	return (0);
 }
+
+struct dump_args {
+	struct table_info *ti;
+	struct table_config *tc;
+	struct sockopt_data *sd;
+	uint32_t cnt;
+	uint16_t uidx;
+	int error;
+	ipfw_table_entry *ent;
+	uint32_t size;
+	ipfw_obj_tentry tent;
+};
+
+int
+ipfw_dump_table(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
+    struct sockopt_data *sd)
+{
+	int error;
+
+	switch (op3->version) {
+	case 0:
+		error = ipfw_dump_table_v0(ch, sd);
+		break;
+	case 1:
+		error = ipfw_dump_table_v1(ch, sd);
+		break;
+	default:
+		error = ENOTSUP;
+	}
+
+	return (error);
+}
+
+/*
+ * Dumps all table data
+ * Data layout (v1)(current):
+ * Request: [ ipfw_obj_header ], size = ipfw_xtable_info.size
+ * Reply: [ ipfw_obj_header ipfw_xtable_info ipfw_obj_tentry x N ]
+ *
+ * Returns 0 on success
+ */
+static int
+ipfw_dump_table_v1(struct ip_fw_chain *ch, struct sockopt_data *sd)
+{
+	struct _ipfw_obj_header *oh;
+	ipfw_xtable_info *i;
+	struct tid_info ti;
+	struct table_config *tc;
+	struct table_algo *ta;
+	struct dump_args da;
+	uint32_t sz;
+
+	sz = sizeof(ipfw_obj_header) + sizeof(ipfw_xtable_info);
+	oh = (struct _ipfw_obj_header *)ipfw_get_sopt_header(sd, sz);
+	if (oh == NULL)
+		return (EINVAL);
+
+	i = (ipfw_xtable_info *)(oh + 1);
+	objheader_to_ti(oh, &ti);
+
+	IPFW_UH_RLOCK(ch);
+	if ((tc = find_table(CHAIN_TO_NI(ch), &ti)) == NULL) {
+		IPFW_UH_RUNLOCK(ch);
+		return (ESRCH);
+	}
+	export_table_info(ch, tc, i);
+
+	if (sd->valsize < i->size) {
+
+		/*
+		 * Submitted buffer size is not enough.
+		 * WE've already filled in @i structure with
+		 * relevant table info including size, so we
+		 * can return. Buffer will be flushed automatically.
+		 */
+		IPFW_UH_RUNLOCK(ch);
+		return (ENOMEM);
+	}
+
+	/*
+	 * Do the actual dump in eXtended format
+	 */
+	memset(&da, 0, sizeof(da));
+	da.ti = KIDX_TO_TI(ch, tc->no.kidx);
+	da.tc = tc;
+	da.sd = sd;
+
+	ta = tc->ta;
+
+	ta->foreach(tc->astate, da.ti, dump_table_tentry, &da);
+	IPFW_UH_RUNLOCK(ch);
+
+	return (da.error);
+}
+
+/*
+ * Dumps all table data
+ * Data layout (version 0)(legacy):
+ * Request: [ ipfw_xtable ], size = IP_FW_TABLE_XGETSIZE()
+ * Reply: [ ipfw_xtable ipfw_table_xentry x N ]
+ *
+ * Returns 0 on success
+ */
+static int
+ipfw_dump_table_v0(struct ip_fw_chain *ch, struct sockopt_data *sd)
+{
+	ipfw_xtable *xtbl;
+	struct tid_info ti;
+	struct table_config *tc;
+	struct table_algo *ta;
+	struct dump_args da;
+	size_t sz;
+
+	xtbl = (ipfw_xtable *)ipfw_get_sopt_header(sd, sizeof(ipfw_xtable));
+	if (xtbl == NULL)
+		return (EINVAL);
+
+	memset(&ti, 0, sizeof(ti));
+	ti.uidx = xtbl->tbl;
+	
+	IPFW_UH_RLOCK(ch);
+	if ((tc = find_table(CHAIN_TO_NI(ch), &ti)) == NULL) {
+		IPFW_UH_RUNLOCK(ch);
+		return (0);
+	}
+	sz = tc->count * sizeof(ipfw_table_xentry) + sizeof(ipfw_xtable);
+
+	xtbl->cnt = tc->count;
+	xtbl->size = sz;
+	xtbl->type = tc->no.type;
+	xtbl->tbl = ti.uidx;
+
+	if (sd->valsize < sz) {
+
+		/*
+		 * Submitted buffer size is not enough.
+		 * WE've already filled in @i structure with
+		 * relevant table info including size, so we
+		 * can return. Buffer will be flushed automatically.
+		 */
+		IPFW_UH_RUNLOCK(ch);
+		return (ENOMEM);
+	}
+
+	/* Do the actual dump in eXtended format */
+	memset(&da, 0, sizeof(da));
+	da.ti = KIDX_TO_TI(ch, tc->no.kidx);
+	da.tc = tc;
+	da.sd = sd;
+
+	ta = tc->ta;
+
+	ta->foreach(tc->astate, da.ti, dump_table_xentry, &da);
+	IPFW_UH_RUNLOCK(ch);
+
+	return (0);
+}
+
 
 /*
  * Legacy IP_FW_TABLE_GETSIZE handler
@@ -2610,11 +2655,7 @@ alloc_table_config(struct ip_fw_chain *ch, struct tid_info *ti,
 	tc->tflags = tflags;
 	tc->ta = ta;
 	strlcpy(tc->tablename, name, sizeof(tc->tablename));
-	/* Set default value type to u32 for compability reasons */
-	if (vtype == 0)
-		tc->vtype = IPFW_VTYPE_U32;
-	else
-		tc->vtype = vtype;
+	tc->vtype = vtype;
 
 	if (ti->tlvs == NULL) {
 		tc->no.compat = 1;
@@ -2705,135 +2746,6 @@ unlink_table(struct ip_fw_chain *ch, struct table_config *tc)
 	/* Notify algo on real @ti address */
 	if (tc->ta->change_ti != NULL)
 		tc->ta->change_ti(tc->astate, NULL);
-}
-
-/*
- * Finds and bumps refcount for tables referenced by given @rule.
- * Allocates new indexes for non-existing tables.
- * Fills in @oib array with userland/kernel indexes.
- * First free oidx pointer is saved back in @oib.
- *
- * Returns 0 on success.
- */
-static int
-bind_table_rule(struct ip_fw_chain *ch, struct ip_fw *rule,
-    struct rule_check_info *ci, struct obj_idx **oib, struct tid_info *ti)
-{
-	struct table_config *tc;
-	struct namedobj_instance *ni;
-	struct named_object *no;
-	int cmdlen, error, l, numnew;
-	uint16_t kidx;
-	ipfw_insn *cmd;
-	struct obj_idx *pidx, *pidx_first, *p;
-
-	pidx_first = *oib;
-	pidx = pidx_first;
-	l = rule->cmd_len;
-	cmd = rule->cmd;
-	cmdlen = 0;
-	error = 0;
-	numnew = 0;
-
-	IPFW_UH_WLOCK(ch);
-	ni = CHAIN_TO_NI(ch);
-
-	/*
-	 * Increase refcount on each referenced table.
-	 * Allocate table indexes for non-existing tables.
-	 */
-	for ( ;	l > 0 ; l -= cmdlen, cmd += cmdlen) {
-		cmdlen = F_LEN(cmd);
-
-		if (classify_table_opcode(cmd, &ti->uidx, &ti->type) != 0)
-			continue;
-
-		pidx->uidx = ti->uidx;
-		pidx->type = ti->type;
-
-		if ((tc = find_table(ni, ti)) != NULL) {
-			if (tc->no.type != ti->type) {
-				/* Incompatible types */
-				error = EINVAL;
-				break;
-			}
-
-			/* Reference found table and save kidx */
-			tc->no.refcnt++;
-			pidx->kidx = tc->no.kidx;
-			pidx++;
-			continue;
-		}
-
-		/*
-		 * Compability stuff for old clients:
-		 * prepare to manually create non-existing tables.
-		 */
-		pidx++;
-		numnew++;
-	}
-
-	if (error != 0) {
-		/* Unref everything we have already done */
-		for (p = *oib; p < pidx; p++) {
-			if (p->kidx == 0)
-				continue;
-
-			/* Find & unref by existing idx */
-			no = ipfw_objhash_lookup_kidx(ni, p->kidx);
-			KASSERT(no != NULL, ("Ref'd table %d disappeared",
-			    p->kidx));
-
-			no->refcnt--;
-		}
-	}
-
-	IPFW_UH_WUNLOCK(ch);
-
-	if (numnew == 0) {
-		*oib = pidx;
-		return (error);
-	}
-
-	/*
-	 * Compatibility stuff: do actual creation for non-existing,
-	 * but referenced tables.
-	 */
-	for (p = pidx_first; p < pidx; p++) {
-		if (p->kidx != 0)
-			continue;
-
-		ti->uidx = p->uidx;
-		ti->type = p->type;
-		ti->atype = 0;
-
-		error = create_table_compat(ch, ti, NULL, NULL, &kidx);
-		if (error == 0) {
-			p->kidx = kidx;
-			continue;
-		}
-
-		/* Error. We have to drop references */
-		IPFW_UH_WLOCK(ch);
-		for (p = pidx_first; p < pidx; p++) {
-			if (p->kidx == 0)
-				continue;
-
-			/* Find & unref by existing idx */
-			no = ipfw_objhash_lookup_kidx(ni, p->kidx);
-			KASSERT(no != NULL, ("Ref'd table %d disappeared",
-			    p->kidx));
-
-			no->refcnt--;
-		}
-		IPFW_UH_WUNLOCK(ch);
-
-		return (error);
-	}
-
-	*oib = pidx;
-
-	return (error);
 }
 
 struct swap_table_args {
@@ -3026,6 +2938,172 @@ ipfw_move_tables_sets(struct ip_fw_chain *ch, ipfw_range_tlv *rt,
 }
 
 /*
+ * Finds and bumps refcount for tables referenced by given @rule.
+ * Allocates new indexes for non-existing tables.
+ * Fills in @oib array with userland/kernel indexes.
+ * First free oidx pointer is saved back in @oib.
+ *
+ * Returns 0 on success.
+ */
+static int
+bind_table_rule(struct ip_fw_chain *ch, struct ip_fw *rule,
+    struct rule_check_info *ci, struct obj_idx **oib, struct tid_info *ti)
+{
+	struct table_config *tc;
+	struct namedobj_instance *ni;
+	struct named_object *no;
+	int cmdlen, error, l, numnew;
+	uint16_t kidx;
+	ipfw_insn *cmd;
+	struct obj_idx *pidx, *pidx_first, *p;
+
+	pidx_first = *oib;
+	pidx = pidx_first;
+	l = rule->cmd_len;
+	cmd = rule->cmd;
+	cmdlen = 0;
+	error = 0;
+	numnew = 0;
+
+	IPFW_UH_WLOCK(ch);
+	ni = CHAIN_TO_NI(ch);
+
+	/*
+	 * Increase refcount on each referenced table.
+	 * Allocate table indexes for non-existing tables.
+	 */
+	for ( ;	l > 0 ; l -= cmdlen, cmd += cmdlen) {
+		cmdlen = F_LEN(cmd);
+
+		if (classify_table_opcode(cmd, &ti->uidx, &ti->type) != 0)
+			continue;
+
+		pidx->uidx = ti->uidx;
+		pidx->type = ti->type;
+
+		if ((tc = find_table(ni, ti)) != NULL) {
+			if (tc->no.type != ti->type) {
+				/* Incompatible types */
+				error = EINVAL;
+				break;
+			}
+
+			/* Reference found table and save kidx */
+			tc->no.refcnt++;
+			pidx->kidx = tc->no.kidx;
+			pidx++;
+			continue;
+		}
+
+		/*
+		 * Compability stuff for old clients:
+		 * prepare to manually create non-existing tables.
+		 */
+		pidx++;
+		numnew++;
+	}
+
+	if (error != 0) {
+		/* Unref everything we have already done */
+		for (p = *oib; p < pidx; p++) {
+			if (p->kidx == 0)
+				continue;
+
+			/* Find & unref by existing idx */
+			no = ipfw_objhash_lookup_kidx(ni, p->kidx);
+			KASSERT(no != NULL, ("Ref'd table %d disappeared",
+			    p->kidx));
+
+			no->refcnt--;
+		}
+	}
+
+	IPFW_UH_WUNLOCK(ch);
+
+	if (numnew == 0) {
+		*oib = pidx;
+		return (error);
+	}
+
+	/*
+	 * Compatibility stuff: do actual creation for non-existing,
+	 * but referenced tables.
+	 */
+	for (p = pidx_first; p < pidx; p++) {
+		if (p->kidx != 0)
+			continue;
+
+		ti->uidx = p->uidx;
+		ti->type = p->type;
+		ti->atype = 0;
+
+		error = create_table_compat(ch, ti, NULL, NULL, &kidx);
+		if (error == 0) {
+			p->kidx = kidx;
+			continue;
+		}
+
+		/* Error. We have to drop references */
+		IPFW_UH_WLOCK(ch);
+		for (p = pidx_first; p < pidx; p++) {
+			if (p->kidx == 0)
+				continue;
+
+			/* Find & unref by existing idx */
+			no = ipfw_objhash_lookup_kidx(ni, p->kidx);
+			KASSERT(no != NULL, ("Ref'd table %d disappeared",
+			    p->kidx));
+
+			no->refcnt--;
+		}
+		IPFW_UH_WUNLOCK(ch);
+
+		return (error);
+	}
+
+	*oib = pidx;
+
+	return (error);
+}
+
+/*
+ * Remove references from every table used in @rule.
+ */
+void
+ipfw_unbind_table_rule(struct ip_fw_chain *chain, struct ip_fw *rule)
+{
+	int cmdlen, l;
+	ipfw_insn *cmd;
+	struct namedobj_instance *ni;
+	struct named_object *no;
+	uint16_t kidx;
+	uint8_t type;
+
+	IPFW_UH_WLOCK_ASSERT(chain);
+	ni = CHAIN_TO_NI(chain);
+
+	l = rule->cmd_len;
+	cmd = rule->cmd;
+	cmdlen = 0;
+	for ( ;	l > 0 ; l -= cmdlen, cmd += cmdlen) {
+		cmdlen = F_LEN(cmd);
+
+		if (classify_table_opcode(cmd, &kidx, &type) != 0)
+			continue;
+
+		no = ipfw_objhash_lookup_kidx(ni, kidx); 
+
+		KASSERT(no != NULL, ("table id %d not found", kidx));
+		KASSERT(no->type == type, ("wrong type %d (%d) for table id %d",
+		    no->type, type, kidx));
+		KASSERT(no->refcnt > 0, ("refcount for table %d is %d",
+		    kidx, no->refcnt));
+
+		no->refcnt--;
+	}
+}
+
+/*
  * Compatibility function for old ipfw(8) binaries.
  * Rewrites table kernel indices with userland ones.
  * Convert tables matching '/^\d+$/' to their atoi() value.
@@ -3074,40 +3152,6 @@ ipfw_rewrite_table_kidx(struct ip_fw_chain *chain, struct ip_fw_rule0 *rule)
 	}
 
 	return (error);
-}
-
-/*
- * Marks every table kidx used in @rule with bit in @bmask.
- * Used to generate bitmask of referenced tables for given ruleset.
- * 
- * Returns number of newly-referenced tables.
- */
-int
-ipfw_mark_table_kidx(struct ip_fw_chain *chain, struct ip_fw *rule,
-    uint32_t *bmask)
-{
-	int cmdlen, l, count;
-	ipfw_insn *cmd;
-	uint16_t kidx;
-	uint8_t type;
-
-	l = rule->cmd_len;
-	cmd = rule->cmd;
-	cmdlen = 0;
-	count = 0;
-	for ( ;	l > 0 ; l -= cmdlen, cmd += cmdlen) {
-		cmdlen = F_LEN(cmd);
-
-		if (classify_table_opcode(cmd, &kidx, &type) != 0)
-			continue;
-
-		if ((bmask[kidx / 32] & (1 << (kidx % 32))) == 0)
-			count++;
-
-		bmask[kidx / 32] |= 1 << (kidx % 32);
-	}
-
-	return (count);
 }
 
 /*
@@ -3186,40 +3230,4 @@ free:
 	return (error);
 }
 
-/*
- * Remove references from every table used in @rule.
- */
-void
-ipfw_unbind_table_rule(struct ip_fw_chain *chain, struct ip_fw *rule)
-{
-	int cmdlen, l;
-	ipfw_insn *cmd;
-	struct namedobj_instance *ni;
-	struct named_object *no;
-	uint16_t kidx;
-	uint8_t type;
-
-	IPFW_UH_WLOCK_ASSERT(chain);
-	ni = CHAIN_TO_NI(chain);
-
-	l = rule->cmd_len;
-	cmd = rule->cmd;
-	cmdlen = 0;
-	for ( ;	l > 0 ; l -= cmdlen, cmd += cmdlen) {
-		cmdlen = F_LEN(cmd);
-
-		if (classify_table_opcode(cmd, &kidx, &type) != 0)
-			continue;
-
-		no = ipfw_objhash_lookup_kidx(ni, kidx); 
-
-		KASSERT(no != NULL, ("table id %d not found", kidx));
-		KASSERT(no->type == type, ("wrong type %d (%d) for table id %d",
-		    no->type, type, kidx));
-		KASSERT(no->refcnt > 0, ("refcount for table %d is %d",
-		    kidx, no->refcnt));
-
-		no->refcnt--;
-	}
-}
 
