@@ -1699,4 +1699,4 @@ static moduledata_t mlx4_mod = {
 	.evhand = mlx4_evhand,
 };
 MODULE_VERSION(mlx4, 1);
-DECLARE_MODULE(mlx4, mlx4_mod, SI_SUB_SMP, SI_ORDER_ANY);
+DECLARE_MODULE(mlx4, mlx4_mod, SI_SUB_OFED_PREINIT, SI_ORDER_ANY);
