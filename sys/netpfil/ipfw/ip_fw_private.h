@@ -422,7 +422,7 @@ struct obj_idx {
 	uint16_t	uidx;	/* internal index supplied by userland */
 	uint16_t	kidx;	/* kernel object index */
 	uint16_t	off;	/* tlv offset from rule end in 4-byte words */
-	uint8_t		new;	/* index is newly-allocated */
+	uint8_t		spare;
 	uint8_t		type;	/* object type within its category */
 };
 
@@ -437,8 +437,6 @@ struct rule_check_info {
 	caddr_t		urule;		/* original rule pointer */
 	struct obj_idx	obuf[8];	/* table references storage */
 };
-#define	IPFW_RCF_TABLES		0x01	/* Has table-referencing opcode */
-
 
 /* Legacy interface support */
 /*
