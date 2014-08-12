@@ -328,10 +328,10 @@ int ipfw_delete_pipe(int pipe_or_queue, int n);
 
 /* ipv6.c */
 void print_unreach6_code(uint16_t code);
-void print_ip6(struct _ipfw_insn_ip6 *cmd, char const *s);
-void print_flow6id(struct _ipfw_insn_u32 *cmd);
-void print_icmp6types(struct _ipfw_insn_u32 *cmd);
-void print_ext6hdr(struct _ipfw_insn *cmd );
+void print_ip6(struct buf_pr *bp, struct _ipfw_insn_ip6 *cmd, char const *s);
+void print_flow6id(struct buf_pr *bp, struct _ipfw_insn_u32 *cmd);
+void print_icmp6types(struct buf_pr *bp, struct _ipfw_insn_u32 *cmd);
+void print_ext6hdr(struct buf_pr *bp, struct _ipfw_insn *cmd );
 
 struct _ipfw_insn *add_srcip6(struct _ipfw_insn *cmd, char *av, int cblen);
 struct _ipfw_insn *add_dstip6(struct _ipfw_insn *cmd, char *av, int cblen);
