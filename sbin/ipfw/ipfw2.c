@@ -93,7 +93,7 @@ int ipfw_socket = -1;
 	if (!av[0])							\
 		errx(EX_USAGE, "%s: missing argument", match_value(s_x, tok)); \
 	if (_substrcmp(*av, "tablearg") == 0) {				\
-		arg = IP_FW_TABLEARG;					\
+		arg = IP_FW_TARG;					\
 		break;							\
 	}								\
 									\
@@ -111,7 +111,7 @@ int ipfw_socket = -1;
 		errx(EX_DATAERR, "%s: argument is out of range (%u..%u): %s", \
 		    match_value(s_x, tok), min, max, *av);		\
 									\
-	if (_xval == IP_FW_TABLEARG)					\
+	if (_xval == IP_FW_TARG)					\
 		errx(EX_DATAERR, "%s: illegal argument value: %s",	\
 		    match_value(s_x, tok), *av);			\
 	arg = _xval;							\
@@ -123,7 +123,7 @@ PRINT_UINT_ARG(const char *str, uint32_t arg)
 {
 	if (str != NULL)
 		printf("%s",str);
-	if (arg == IP_FW_TABLEARG)
+	if (arg == IP_FW_TARG)
 		printf("tablearg");
 	else
 		printf("%u", arg);
@@ -469,7 +469,7 @@ bprint_uint_arg(struct buf_pr *bp, const char *str, uint32_t arg)
 
 	if (str != NULL)
 		bprintf(bp, "%s", str);
-	if (arg == IP_FW_TABLEARG)
+	if (arg == IP_FW_TARG)
 		bprintf(bp, "tablearg");
 	else
 		bprintf(bp, "%u", arg);
@@ -1386,6 +1386,7 @@ show_static_rule(struct cmdline_opts *co, struct format_opts *fo,
 	ipfw_insn_log *logptr = NULL; /* set if we find an O_LOG */
 	ipfw_insn_altq *altqptr = NULL; /* set if we find an O_ALTQ */
 	int or_block = 0;	/* we are in an or block */
+	uint32_t uval;
 
 	if ((fo->set_mask & (1 << rule->set)) == 0) {
 		/* disabled mask */
@@ -1556,17 +1557,22 @@ show_static_rule(struct cmdline_opts *co, struct format_opts *fo,
 			break;
 
 		case O_SETFIB:
-			bprint_uint_arg(bp, "setfib ", cmd->arg1);
+			bprint_uint_arg(bp, "setfib ", cmd->arg1 & 0x7FFF);
  			break;
 
 		case O_SETDSCP:
 		    {
 			const char *code;
 
-			if ((code = match_value(f_ipdscp, cmd->arg1)) != NULL)
+			if (cmd->arg1 == IP_FW_TARG) {
+				bprint_uint_arg(bp, "setdscp ", cmd->arg1);
+				break;
+			}
+			uval = cmd->arg1 & 0x3F;
+			if ((code = match_value(f_ipdscp, uval)) != NULL)
 				bprintf(bp, "setdscp %s", code);
 			else
-				bprint_uint_arg(bp, "setdscp ", cmd->arg1);
+				bprint_uint_arg(bp, "setdscp ", uval);
 		    }
  			break;
 
@@ -3597,11 +3603,11 @@ chkarg:
 			errx(EX_USAGE, "missing argument for %s", *(av - 1));
 		if (isdigit(**av)) {
 			action->arg1 = strtoul(*av, NULL, 10);
-			if (action->arg1 <= 0 || action->arg1 >= IP_FW_TABLEARG)
+			if (action->arg1 <= 0 || action->arg1 >= IP_FW_TARG)
 				errx(EX_DATAERR, "illegal argument for %s",
 				    *(av - 1));
 		} else if (_substrcmp(*av, "tablearg") == 0) {
-			action->arg1 = IP_FW_TABLEARG;
+			action->arg1 = IP_FW_TARG;
 		} else if (i == TOK_DIVERT || i == TOK_TEE) {
 			struct servent *s;
 			setservent(1);
@@ -3725,7 +3731,7 @@ chkarg:
 		action->opcode = O_SETFIB;
 		NEED1("missing fib number");
 		if (_substrcmp(*av, "tablearg") == 0) {
-			action->arg1 = IP_FW_TABLEARG;
+			action->arg1 = IP_FW_TARG;
 		} else {
 		        action->arg1 = strtoul(*av, NULL, 10);
 			if (sysctlbyname("net.fibs", &numfibs, &intsize,
@@ -3733,6 +3739,8 @@ chkarg:
 				errx(EX_DATAERR, "fibs not suported.\n");
 			if (action->arg1 >= numfibs)  /* Temporary */
 				errx(EX_DATAERR, "fib too large.\n");
+			/* Add high-order bit to fib to make room for tablearg*/
+			action->arg1 |= 0x8000;
 		}
 		av++;
 		break;
@@ -3745,13 +3753,16 @@ chkarg:
 		action->opcode = O_SETDSCP;
 		NEED1("missing DSCP code");
 		if (_substrcmp(*av, "tablearg") == 0) {
-			action->arg1 = IP_FW_TABLEARG;
+			action->arg1 = IP_FW_TARG;
 		} else if (isalpha(*av[0])) {
 			if ((code = match_token(f_ipdscp, *av)) == -1)
 				errx(EX_DATAERR, "Unknown DSCP code");
 			action->arg1 = code;
 		} else
 		        action->arg1 = strtoul(*av, NULL, 10);
+		/* Add high-order bit to DSCP to make room for tablearg */
+		if (action->arg1 != IP_FW_TARG)
+			action->arg1 |= 0x8000;
 		av++;
 		break;
 	    }

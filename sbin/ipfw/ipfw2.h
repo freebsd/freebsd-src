@@ -228,6 +228,7 @@ enum tokens {
 	TOK_LOCK,
 	TOK_UNLOCK,
 };
+
 /*
  * the following macro returns an error message if we run out of
  * arguments.

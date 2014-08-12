@@ -2482,7 +2482,7 @@ classify_table_opcode(ipfw_insn *cmd, uint16_t *puidx, uint8_t *ptype)
 			break;
 
 		*ptype = IPFW_TABLE_INTERFACE;
-		*puidx = cmdif->p.glob;
+		*puidx = cmdif->p.kidx;
 		skip = 0;
 		break;
 	case O_IP_FLOW_LOOKUP:
@@ -2515,7 +2515,7 @@ update_table_opcode(ipfw_insn *cmd, uint16_t idx)
 	case O_VIA:
 		/* Interface table, possibly */
 		cmdif = (ipfw_insn_if *)cmd;
-		cmdif->p.glob = idx;
+		cmdif->p.kidx = idx;
 		break;
 	case O_IP_FLOW_LOOKUP:
 		cmd->arg1 = idx;
