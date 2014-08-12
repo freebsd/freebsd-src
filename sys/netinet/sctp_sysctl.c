@@ -55,7 +55,7 @@ sctp_init_sysctls()
 	SCTP_BASE_SYSCTL(sctp_multiple_asconfs) = SCTPCTL_MULTIPLEASCONFS_DEFAULT;
 	SCTP_BASE_SYSCTL(sctp_ecn_enable) = SCTPCTL_ECN_ENABLE_DEFAULT;
 	SCTP_BASE_SYSCTL(sctp_pr_enable) = SCTPCTL_PR_ENABLE_DEFAULT;
-	SCTP_BASE_SYSCTL(sctp_auth_disable) = SCTPCTL_AUTH_DISABLE_DEFAULT;
+	SCTP_BASE_SYSCTL(sctp_auth_enable) = SCTPCTL_AUTH_ENABLE_DEFAULT;
 	SCTP_BASE_SYSCTL(sctp_asconf_enable) = SCTPCTL_ASCONF_ENABLE_DEFAULT;
 	SCTP_BASE_SYSCTL(sctp_reconfig_enable) = SCTPCTL_RECONFIG_ENABLE_DEFAULT;
 	SCTP_BASE_SYSCTL(sctp_nrsack_enable) = SCTPCTL_NRSACK_ENABLE_DEFAULT;
@@ -684,19 +684,19 @@ sysctl_sctp_auth_check(SYSCTL_HANDLER_ARGS)
 
 	error = sysctl_handle_int(oidp, oidp->oid_arg1, oidp->oid_arg2, req);
 	if (error == 0) {
-		if (SCTP_BASE_SYSCTL(sctp_auth_disable) < SCTPCTL_AUTH_DISABLE_MIN) {
-			SCTP_BASE_SYSCTL(sctp_auth_disable) = SCTPCTL_AUTH_DISABLE_MIN;
+		if (SCTP_BASE_SYSCTL(sctp_auth_enable) < SCTPCTL_AUTH_ENABLE_MIN) {
+			SCTP_BASE_SYSCTL(sctp_auth_enable) = SCTPCTL_AUTH_ENABLE_MIN;
 		}
-		if (SCTP_BASE_SYSCTL(sctp_auth_disable) > SCTPCTL_AUTH_DISABLE_MAX) {
-			SCTP_BASE_SYSCTL(sctp_auth_disable) = SCTPCTL_AUTH_DISABLE_MAX;
+		if (SCTP_BASE_SYSCTL(sctp_auth_enable) > SCTPCTL_AUTH_ENABLE_MAX) {
+			SCTP_BASE_SYSCTL(sctp_auth_enable) = SCTPCTL_AUTH_ENABLE_MAX;
 		}
-		if ((SCTP_BASE_SYSCTL(sctp_auth_disable) == 1) &&
+		if ((SCTP_BASE_SYSCTL(sctp_auth_enable) == 0) &&
 		    (SCTP_BASE_SYSCTL(sctp_asconf_enable) == 1)) {
 			/*
 			 * You can't disable AUTH with disabling ASCONF
 			 * first
 			 */
-			SCTP_BASE_SYSCTL(sctp_auth_disable) = 0;
+			SCTP_BASE_SYSCTL(sctp_auth_enable) = 1;
 		}
 	}
 	return (error);
@@ -716,7 +716,7 @@ sysctl_sctp_asconf_check(SYSCTL_HANDLER_ARGS)
 			SCTP_BASE_SYSCTL(sctp_asconf_enable) = SCTPCTL_ASCONF_ENABLE_MAX;
 		}
 		if ((SCTP_BASE_SYSCTL(sctp_asconf_enable) == 1) &&
-		    (SCTP_BASE_SYSCTL(sctp_auth_disable) == 1)) {
+		    (SCTP_BASE_SYSCTL(sctp_auth_enable) == 0)) {
 			/*
 			 * You can't enable ASCONF without enabling AUTH
 			 * first
@@ -919,9 +919,9 @@ SYSCTL_VNET_PROC(_net_inet_sctp, OID_AUTO, pr_enable, CTLTYPE_UINT | CTLFLAG_RW,
     &SCTP_BASE_SYSCTL(sctp_pr_enable), 0, sysctl_sctp_check, "IU",
     SCTPCTL_PR_ENABLE_DESC);
 
-SYSCTL_VNET_PROC(_net_inet_sctp, OID_AUTO, auth_disable, CTLTYPE_UINT | CTLFLAG_RW,
-    &SCTP_BASE_SYSCTL(sctp_auth_disable), 0, sysctl_sctp_auth_check, "IU",
-    SCTPCTL_AUTH_DISABLE_DESC);
+SYSCTL_VNET_PROC(_net_inet_sctp, OID_AUTO, auth_enable, CTLTYPE_UINT | CTLFLAG_RW,
+    &SCTP_BASE_SYSCTL(sctp_auth_enable), 0, sysctl_sctp_auth_check, "IU",
+    SCTPCTL_AUTH_ENABLE_DESC);
 
 SYSCTL_VNET_PROC(_net_inet_sctp, OID_AUTO, asconf_enable, CTLTYPE_UINT | CTLFLAG_RW,
     &SCTP_BASE_SYSCTL(sctp_asconf_enable), 0, sysctl_sctp_asconf_check, "IU",
