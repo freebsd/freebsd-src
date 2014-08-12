@@ -1176,7 +1176,7 @@ If this variable set to 1 each component of the mirrored volume will be
 present as independent partition.
 .Em NOTE :
 This may break a mirrored volume and lead to data damage.
-.It Va kern.geom.part.mbr.enforce_chs : No 1
+.It Va kern.geom.part.mbr.enforce_chs : No 0
 Specify how the Master Boot Record (MBR) module does alignment.
 If this variable is set to a non-zero value, the module will automatically
 recalculate the user-specified offset and size for alignment with the CHS
