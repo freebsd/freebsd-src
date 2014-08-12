@@ -474,9 +474,14 @@ add_table_entry(struct ip_fw_chain *ch, struct tid_info *ti,
 
 	IPFW_UH_WLOCK(ch);
 
+	/* Drop reference we've used in first search */
+	tc->no.refcnt--;
+
 	/*
 	 * Ensure we are able to add all entries without additional
 	 * memory allocations. May release/reacquire UH_WLOCK.
+	 * check_table_space() guarantees us @tc won't disappear
+	 * by referencing it internally.
 	 */
 	kidx = tc->no.kidx;
 	error = check_table_space(ch, tc, KIDX_TO_TI(ch, kidx), count);
@@ -485,8 +490,16 @@ add_table_entry(struct ip_fw_chain *ch, struct tid_info *ti,
 		goto cleanup;
 	}
 
-	/* Drop reference we've used in first search */
-	tc->no.refcnt--;
+	/*
+	 * Check if table algo is still the same.
+	 * (changed ta may be the result of table swap).
+	 */
+	if (ta != tc->ta) {
+		IPFW_UH_WUNLOCK(ch);
+		error = EINVAL;
+		goto cleanup;
+	}
+
 	/* We've got valid table in @tc. Let's try to add data */
 	kidx = tc->no.kidx;
 	ta = tc->ta;
@@ -581,6 +594,16 @@ del_table_entry(struct ip_fw_chain *ch, struct tid_info *ti,
 
 	/* Drop reference we've used in first search */
 	tc->no.refcnt--;
+
+	/*
+	 * Check if table algo is still the same.
+	 * (changed ta may be the result of table swap).
+	 */
+	if (ta != tc->ta) {
+		IPFW_UH_WUNLOCK(ch);
+		error = EINVAL;
+		goto cleanup;
+	}
 
 	kidx = tc->no.kidx;
 	numdel = 0;
@@ -1113,14 +1136,28 @@ ipfw_swap_table(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
  * Swaps two tables of the same type/valtype.
  *
  * Checks if tables are compatible and limits
- * permits swap, than actually perform swap
- * by switching
- * 1) runtime data (ch->tablestate)
- * 2) runtime cache in @tc
- * 3) algo-specific data (tc->astate)
- * 4) number of items
+ * permits swap, than actually perform swap.
  *
- * Since @ti has changed for each table, calls notification callbacks.
+ * Each table consists of 2 different parts:
+ * config:
+ *   @tc (with name, set, kidx) and rule bindings, which is "stable".
+ *   number of items
+ *   table algo
+ * runtime:
+ *   runtime data @ti (ch->tablestate)
+ *   runtime cache in @tc
+ *   algo-specific data (@tc->astate)
+ *
+ * So we switch:
+ *  all runtime data
+ *   number of items
+ *   table algo
+ *
+ * After that we call @ti change handler for each table.
+ *
+ * Note that referencing @tc won't protect tc->ta from change.
+ * XXX: Do we need to restrict swap between locked tables?
+ * XXX: Do we need to exchange ftype?
  *
  * Returns 0 on success.
  */
@@ -1440,24 +1477,36 @@ ipfw_switch_tables_namespace(struct ip_fw_chain *ch, unsigned int sets)
 	return (0);
 }
 
+/*
+ * Lookup an IP @addr in table @tbl.
+ * Stores found value in @val.
+ *
+ * Returns 1 if @addr was found.
+ */
 int
 ipfw_lookup_table(struct ip_fw_chain *ch, uint16_t tbl, in_addr_t addr,
     uint32_t *val)
 {
 	struct table_info *ti;
 
-	ti = &(((struct table_info *)ch->tablestate)[tbl]);
+	ti = KIDX_TO_TI(ch, tbl);
 
 	return (ti->lookup(ti, &addr, sizeof(in_addr_t), val));
 }
 
+/*
+ * Lookup an arbtrary key @paddr of legth @plen in table @tbl.
+ * Stores found value in @val.
+ *
+ * Returns 1 if key was found.
+ */
 int
 ipfw_lookup_table_extended(struct ip_fw_chain *ch, uint16_t tbl, uint16_t plen,
     void *paddr, uint32_t *val)
 {
 	struct table_info *ti;
 
-	ti = &(((struct table_info *)ch->tablestate)[tbl]);
+	ti = KIDX_TO_TI(ch, tbl);
 
 	return (ti->lookup(ti, paddr, plen, val));
 }
@@ -1656,7 +1705,7 @@ create_table_internal(struct ip_fw_chain *ch, struct tid_info *ti,
     struct table_algo **pta, uint16_t *pkidx, int compat)
 {
 	struct namedobj_instance *ni;
-	struct table_config *tc, *tc_new, *tmp;;
+	struct table_config *tc, *tc_new, *tmp;
 	struct table_algo *ta;
 	uint16_t kidx;
 
@@ -2067,7 +2116,6 @@ ipfw_dump_table_v0(struct ip_fw_chain *ch, struct sockopt_data *sd)
 	return (0);
 }
 
-
 /*
  * Legacy IP_FW_TABLE_GETSIZE handler
  */
@@ -2339,6 +2387,8 @@ ipfw_add_table_algo(struct ip_fw_chain *ch, struct table_algo *ta, size_t size,
 
 /*
  * Unregisters table algo using @idx as id.
+ * XXX: It is NOT safe to call this function in any place
+ * other than ipfw instance destroy handler.
  */
 void
 ipfw_del_table_algo(struct ip_fw_chain *ch, int idx)
@@ -2413,10 +2463,8 @@ ipfw_list_table_algo(struct ip_fw_chain *ch, struct sockopt_data *sd)
 	return (0);
 }
 
-
 /*
  * Tables rewriting code 
- *
  */
 
 /*
