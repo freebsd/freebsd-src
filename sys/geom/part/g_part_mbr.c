@@ -53,9 +53,9 @@ SYSCTL_DECL(_kern_geom_part);
 static SYSCTL_NODE(_kern_geom_part, OID_AUTO, mbr, CTLFLAG_RW, 0,
     "GEOM_PART_MBR Master Boot Record");
 
-static u_int enforce_chs = 1;
+static u_int enforce_chs = 0;
 SYSCTL_UINT(_kern_geom_part_mbr, OID_AUTO, enforce_chs,
-    CTLFLAG_RWTUN, &enforce_chs, 1, "Enforce alignment to CHS addressing");
+    CTLFLAG_RWTUN, &enforce_chs, 0, "Enforce alignment to CHS addressing");
 
 #define	MBRSIZE		512
 
