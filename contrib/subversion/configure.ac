@@ -98,7 +98,7 @@ dnl   now generating errors instead of silently ignoring
 dnl   them.  Only .7 and later can guarantee repository
 dnl   integrity with FSFS.
 
-APR_VER_REGEXES=["0\.9\.[7-9] 0\.9\.1[0-9] 1\. 2\."]
+APR_VER_REGEXES=["0\.9\.[7-9] 0\.9\.[12][0-9] 1\. 2\."]
 
 SVN_LIB_APR($APR_VER_REGEXES)
 
@@ -755,7 +755,7 @@ AC_ARG_WITH(libmagic,AS_HELP_STRING([--with-libmagic=PREFIX],
     CPPFLAGS="$CPPFLAGS -I$libmagic_prefix/include"
     AC_CHECK_HEADERS(magic.h,[
       save_ldflags="$LDFLAGS"
-      LDFLAGS="-L$libmagic_prefix/lib"
+      LDFLAGS="-L$libmagic_prefix/lib $LDFLAGS"
       AC_CHECK_LIB(magic, magic_open, [libmagic_found="yes"])
       LDFLAGS="$save_ldflags"
     ])
@@ -1280,10 +1280,6 @@ if test "$RUBY" != "none"; then
       RUBY="none"
       AC_MSG_WARN([The detected Ruby is between 1.9 and 1.9.3])
       AC_MSG_WARN([Only 1.8.x and 1.9.3 releases are supported at this time])
-    elif test \(  "$RUBY_MAJOR" -eq "1" -a "$RUBY_MINOR" -eq "9" -a "$RUBY_TEENY" -eq "3" \); then
-      #Warn about 1.9.3 support
-      AC_MSG_WARN([WARNING: The detected Ruby is 1.9.3])
-      AC_MSG_WARN([WARNING: Only 1.8.x releases are fully supported, 1.9.3 support is new])
     fi
   else
     AC_MSG_RESULT([no])
