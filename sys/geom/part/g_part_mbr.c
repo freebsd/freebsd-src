@@ -49,6 +49,14 @@ __FBSDID("$FreeBSD$");
 
 FEATURE(geom_part_mbr, "GEOM partitioning class for MBR support");
 
+SYSCTL_DECL(_kern_geom_part);
+static SYSCTL_NODE(_kern_geom_part, OID_AUTO, mbr, CTLFLAG_RW, 0,
+    "GEOM_PART_MBR Master Boot Record");
+
+static u_int enforce_chs = 1;
+SYSCTL_UINT(_kern_geom_part_mbr, OID_AUTO, enforce_chs,
+    CTLFLAG_RWTUN, &enforce_chs, 1, "Enforce alignment to CHS addressing");
+
 #define	MBRSIZE		512
 
 struct g_part_mbr_table {
@@ -200,6 +208,8 @@ mbr_align(struct g_part_table *basetable, uint32_t *start, uint32_t *size)
 {
 	uint32_t sectors;
 
+	if (enforce_chs == 0)
+		return (0);
 	sectors = basetable->gpt_sectors;
 	if (*size < sectors)
 		return (EINVAL);
