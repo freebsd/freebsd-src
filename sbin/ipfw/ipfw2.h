@@ -261,6 +261,7 @@ int stringnum_cmp(const char *a, const char *b);
 
 /* utility functions */
 int match_token(struct _s_x *table, char *string);
+int match_token_relaxed(struct _s_x *table, char *string);
 char const *match_value(struct _s_x *p, int value);
 size_t concat_tokens(char *buf, size_t bufsize, struct _s_x *table,
     char *delimiter);

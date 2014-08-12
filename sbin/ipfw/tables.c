@@ -30,21 +30,15 @@
 #include <err.h>
 #include <errno.h>
 #include <netdb.h>
-#include <stddef.h>	/* offsetof */
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sysexits.h>
 
-#define IPFW_INTERNAL	/* Access to protected structures in ip_fw.h. */
-
 #include <net/if.h>
-#include <net/if_dl.h>
-#include <net/route.h> /* def. of struct route */
 #include <netinet/in.h>
 #include <netinet/ip_fw.h>
 #include <arpa/inet.h>
-#include <alias.h>
 
 #include "ipfw2.h"
 
@@ -134,15 +128,34 @@ lookup_host (char *host, struct in_addr *ipaddr)
 	return(0);
 }
 
+static int
+get_token(struct _s_x *table, char *string, char *errbase)
+{
+	int tcmd;
+
+	if ((tcmd = match_token_relaxed(table, string)) < 0)
+		errx(EX_USAGE, "%s %s %s",
+		    (tcmd == 0) ? "invalid" : "ambiguous", errbase, string);
+
+	return (tcmd);
+}
+
 /*
  * This one handles all table-related commands
  * 	ipfw table NAME create ...
+ * 	ipfw table NAME modify ...
  * 	ipfw table NAME destroy
- * 	ipfw table NAME add addr[/masklen] [value]
- * 	ipfw table NAME delete addr[/masklen]
+ * 	ipfw table NAME swap NAME
+ * 	ipfw table NAME lock
+ * 	ipfw table NAME unlock
+ * 	ipfw table NAME add addr[/masklen] [value] 
+ * 	ipfw table NAME add [addr[/masklen] value] [addr[/masklen] value] ..
+ * 	ipfw table NAME delete addr[/masklen] [addr[/masklen]] ..
+ * 	ipfw table NAME lookup addr
  * 	ipfw table {NAME | all} flush
  * 	ipfw table {NAME | all} list
  * 	ipfw table {NAME | all} info
+ * 	ipfw table {NAME | all} detail
  */
 void
 ipfw_table_handler(int ac, char *av[])
@@ -178,15 +191,13 @@ ipfw_table_handler(int ac, char *av[])
 	ac--; av++;
 	NEED1("table needs command");
 
-	if ((tcmd = match_token(tablecmds, *av)) == -1)
-		errx(EX_USAGE, "invalid table command %s", *av);
+	tcmd = get_token(tablecmds, *av, "table command");
 	/* Check if atomic operation was requested */
 	atomic = 0;
 	if (tcmd == TOK_ATOMIC) {
 		ac--; av++;
 		NEED1("atomic needs command");
-		if ((tcmd = match_token(tablecmds, *av)) == -1)
-			errx(EX_USAGE, "invalid table command %s", *av);
+		tcmd = get_token(tablecmds, *av, "table command");
 		switch (tcmd) {
 		case TOK_ADD:
 			break;
@@ -385,8 +396,7 @@ table_create(ipfw_obj_header *oh, int ac, char *av[])
 	xi.vtype = IPFW_VTYPE_U32;
 
 	while (ac > 0) {
-		if ((tcmd = match_token(tablenewcmds, *av)) == -1)
-			errx(EX_USAGE, "unknown option: %s", *av);
+		tcmd = get_token(tablenewcmds, *av, "option");
 		ac--; av++;
 
 		switch (tcmd) {
@@ -497,8 +507,7 @@ table_modify(ipfw_obj_header *oh, int ac, char *av[])
 	memset(&xi, 0, sizeof(xi));
 
 	while (ac > 0) {
-		if ((tcmd = match_token(tablenewcmds, *av)) == -1)
-			errx(EX_USAGE, "unknown option: %s", *av);
+		tcmd = get_token(tablenewcmds, *av, "option");
 		ac--; av++;
 
 		switch (tcmd) {
