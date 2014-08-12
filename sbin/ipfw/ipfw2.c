@@ -118,17 +118,6 @@ int ipfw_socket = -1;
 	}								\
 } while (0)
 
-static void
-PRINT_UINT_ARG(const char *str, uint32_t arg)
-{
-	if (str != NULL)
-		printf("%s",str);
-	if (arg == IP_FW_TARG)
-		printf("tablearg");
-	else
-		printf("%u", arg);
-}
-
 static struct _s_x f_tcpflags[] = {
 	{ "syn", TH_SYN },
 	{ "fin", TH_FIN },
@@ -845,16 +834,16 @@ _substrcmp2(const char *str1, const char* str2, const char* str3)
  * prints one port, symbolic or numeric
  */
 static void
-print_port(int proto, uint16_t port)
+print_port(struct buf_pr *bp, int proto, uint16_t port)
 {
 
 	if (proto == IPPROTO_ETHERTYPE) {
 		char const *s;
 
 		if (co.do_resolv && (s = match_value(ether_types, port)) )
-			printf("%s", s);
+			bprintf(bp, "%s", s);
 		else
-			printf("0x%04x", port);
+			bprintf(bp, "0x%04x", port);
 	} else {
 		struct servent *se = NULL;
 		if (co.do_resolv) {
@@ -863,9 +852,9 @@ print_port(int proto, uint16_t port)
 			se = getservbyport(htons(port), pe ? pe->p_name : NULL);
 		}
 		if (se)
-			printf("%s", se->s_name);
+			bprintf(bp, "%s", se->s_name);
 		else
-			printf("%d", port);
+			bprintf(bp, "%d", port);
 	}
 }
 
@@ -887,7 +876,7 @@ static struct _s_x _port_name[] = {
  * XXX todo: add support for mask.
  */
 static void
-print_newports(ipfw_insn_u16 *cmd, int proto, int opcode)
+print_newports(struct buf_pr *bp, ipfw_insn_u16 *cmd, int proto, int opcode)
 {
 	uint16_t *p = cmd->ports;
 	int i;
@@ -897,15 +886,15 @@ print_newports(ipfw_insn_u16 *cmd, int proto, int opcode)
 		sep = match_value(_port_name, opcode);
 		if (sep == NULL)
 			sep = "???";
-		printf (" %s", sep);
+		bprintf(bp, " %s", sep);
 	}
 	sep = " ";
 	for (i = F_LEN((ipfw_insn *)cmd) - 1; i > 0; i--, p += 2) {
-		printf("%s", sep);
-		print_port(proto, p[0]);
+		bprintf(bp, "%s", sep);
+		print_port(bp, proto, p[0]);
 		if (p[0] != p[1]) {
-			printf("-");
-			print_port(proto, p[1]);
+			bprintf(bp, "-");
+			print_port(bp, proto, p[1]);
 		}
 		sep = ",";
 	}
@@ -1145,7 +1134,8 @@ contigmask(uint8_t *p, int len)
  * There is a specialized check for f_tcpflags.
  */
 static void
-print_flags(char const *name, ipfw_insn *cmd, struct _s_x *list)
+print_flags(struct buf_pr *bp, char const *name, ipfw_insn *cmd,
+    struct _s_x *list)
 {
 	char const *comma = "";
 	int i;
@@ -1153,20 +1143,20 @@ print_flags(char const *name, ipfw_insn *cmd, struct _s_x *list)
 	uint8_t clear = (cmd->arg1 >> 8) & 0xff;
 
 	if (list == f_tcpflags && set == TH_SYN && clear == TH_ACK) {
-		printf(" setup");
+		bprintf(bp, " setup");
 		return;
 	}
 
-	printf(" %s ", name);
+	bprintf(bp, " %s ", name);
 	for (i=0; list[i].x != 0; i++) {
 		if (set & list[i].x) {
 			set &= ~list[i].x;
-			printf("%s%s", comma, list[i].s);
+			bprintf(bp, "%s%s", comma, list[i].s);
 			comma = ",";
 		}
 		if (clear & list[i].x) {
 			clear &= ~list[i].x;
-			printf("%s!%s", comma, list[i].s);
+			bprintf(bp, "%s!%s", comma, list[i].s);
 			comma = ",";
 		}
 	}
@@ -1177,9 +1167,11 @@ print_flags(char const *name, ipfw_insn *cmd, struct _s_x *list)
  * Print the ip address contained in a command.
  */
 static void
-print_ip(struct format_opts *fo, ipfw_insn_ip *cmd, char const *s)
+print_ip(struct buf_pr *bp, struct format_opts *fo, ipfw_insn_ip *cmd,
+    char const *s)
 {
 	struct hostent *he = NULL;
+	struct in_addr *ia;
 	uint32_t len = F_LEN((ipfw_insn *)cmd);
 	uint32_t *a = ((ipfw_insn_u32 *)cmd)->d;
 	char *t;
@@ -1191,23 +1183,23 @@ print_ip(struct format_opts *fo, ipfw_insn_ip *cmd, char const *s)
 		if (d < sizeof(lookup_key)/sizeof(lookup_key[0]))
 			arg = match_value(rule_options, lookup_key[d]);
 		t = table_search_ctlv(fo->tstate, ((ipfw_insn *)cmd)->arg1);
-		printf("%s lookup %s %s", cmd->o.len & F_NOT ? " not": "",
+		bprintf(bp, "%s lookup %s %s", cmd->o.len & F_NOT ? " not": "",
 			arg, t);
 		return;
 	}
-	printf("%s%s ", cmd->o.len & F_NOT ? " not": "", s);
+	bprintf(bp, "%s%s ", cmd->o.len & F_NOT ? " not": "", s);
 
 	if (cmd->o.opcode == O_IP_SRC_ME || cmd->o.opcode == O_IP_DST_ME) {
-		printf("me");
+		bprintf(bp, "me");
 		return;
 	}
 	if (cmd->o.opcode == O_IP_SRC_LOOKUP ||
 	    cmd->o.opcode == O_IP_DST_LOOKUP) {
 		t = table_search_ctlv(fo->tstate, ((ipfw_insn *)cmd)->arg1);
-		printf("table(%s", t);
+		bprintf(bp, "table(%s", t);
 		if (len == F_INSN_SIZE(ipfw_insn_u32))
-			printf(",%u", *a);
-		printf(")");
+			bprintf(bp, ",%u", *a);
+		bprintf(bp, ")");
 		return;
 	}
 	if (cmd->o.opcode == O_IP_SRC_SET || cmd->o.opcode == O_IP_DST_SET) {
@@ -1218,7 +1210,7 @@ print_ip(struct format_opts *fo, ipfw_insn_ip *cmd, char const *s)
 		x = cmd->o.arg1 - 1;
 		x = htonl( ~x );
 		cmd->addr.s_addr = htonl(cmd->addr.s_addr);
-		printf("%s/%d", inet_ntoa(cmd->addr),
+		bprintf(bp, "%s/%d", inet_ntoa(cmd->addr),
 			contigmask((uint8_t *)&x, 32));
 		x = cmd->addr.s_addr = htonl(cmd->addr.s_addr);
 		x &= 0xff; /* base */
@@ -1233,14 +1225,14 @@ print_ip(struct format_opts *fo, ipfw_insn_ip *cmd, char const *s)
 				for (j=i+1; j < cmd->o.arg1; j++)
 					if (!(map[ j/32] & (1<<(j & 31))))
 						break;
-				printf("%c%d", comma, i+x);
+				bprintf(bp, "%c%d", comma, i+x);
 				if (j>i+2) { /* range has at least 3 elements */
-					printf("-%d", j-1+x);
+					bprintf(bp, "-%d", j-1+x);
 					i = j-1;
 				}
 				comma = ',';
 			}
-		printf("}");
+		bprintf(bp, "}");
 		return;
 	}
 	/*
@@ -1255,18 +1247,19 @@ print_ip(struct format_opts *fo, ipfw_insn_ip *cmd, char const *s)
 	if (mb == 32 && co.do_resolv)
 		he = gethostbyaddr((char *)&(a[0]), sizeof(u_long), AF_INET);
 	if (he != NULL)		/* resolved to name */
-		printf("%s", he->h_name);
+		bprintf(bp, "%s", he->h_name);
 	else if (mb == 0)	/* any */
-		printf("any");
+		bprintf(bp, "any");
 	else {		/* numeric IP followed by some kind of mask */
-		printf("%s", inet_ntoa( *((struct in_addr *)&a[0]) ) );
+		ia = (struct in_addr *)&a[0];
+		bprintf(bp, "%s", inet_ntoa(*ia));
 		if (mb < 0)
-			printf(":%s", inet_ntoa( *((struct in_addr *)&a[1]) ) );
+			bprintf(bp, ":%s", inet_ntoa(*ia ) );
 		else if (mb < 32)
-			printf("/%d", mb);
+			bprintf(bp, "/%d", mb);
 	}
 	if (len > 1)
-		printf(",");
+		bprintf(bp, ",");
     }
 }
 
@@ -1274,21 +1267,21 @@ print_ip(struct format_opts *fo, ipfw_insn_ip *cmd, char const *s)
  * prints a MAC address/mask pair
  */
 static void
-print_mac(uint8_t *addr, uint8_t *mask)
+print_mac(struct buf_pr *bp, uint8_t *addr, uint8_t *mask)
 {
 	int l = contigmask(mask, 48);
 
 	if (l == 0)
-		printf(" any");
+		bprintf(bp, " any");
 	else {
-		printf(" %02x:%02x:%02x:%02x:%02x:%02x",
+		bprintf(bp, " %02x:%02x:%02x:%02x:%02x:%02x",
 		    addr[0], addr[1], addr[2], addr[3], addr[4], addr[5]);
 		if (l == -1)
-			printf("&%02x:%02x:%02x:%02x:%02x:%02x",
+			bprintf(bp, "&%02x:%02x:%02x:%02x:%02x:%02x",
 			    mask[0], mask[1], mask[2],
 			    mask[3], mask[4], mask[5]);
 		else if (l < 48)
-			printf("/%d", l);
+			bprintf(bp, "/%d", l);
 	}
 }
 
@@ -1317,38 +1310,38 @@ fill_icmptypes(ipfw_insn_u32 *cmd, char *av)
 }
 
 static void
-print_icmptypes(ipfw_insn_u32 *cmd)
+print_icmptypes(struct buf_pr *bp, ipfw_insn_u32 *cmd)
 {
 	int i;
 	char sep= ' ';
 
-	printf(" icmptypes");
+	bprintf(bp, " icmptypes");
 	for (i = 0; i < 32; i++) {
 		if ( (cmd->d[0] & (1 << (i))) == 0)
 			continue;
-		printf("%c%d", sep, i);
+		bprintf(bp, "%c%d", sep, i);
 		sep = ',';
 	}
 }
 
 static void
-print_dscp(ipfw_insn_u32 *cmd)
+print_dscp(struct buf_pr *bp, ipfw_insn_u32 *cmd)
 {
 	int i, c;
 	uint32_t *v;
 	char sep= ' ';
 	const char *code;
 
-	printf(" dscp");
+	bprintf(bp, " dscp");
 	i = 0;
 	c = 0;
 	v = cmd->d;
 	while (i < 64) {
 		if (*v & (1 << i)) {
 			if ((code = match_value(f_ipdscp, i)) != NULL)
-				printf("%c%s", sep, code);
+				bprintf(bp, "%c%s", sep, code);
 			else
-				printf("%c%d", sep, i);
+				bprintf(bp, "%c%d", sep, i);
 			sep = ',';
 		}
 
@@ -1379,7 +1372,7 @@ print_dscp(ipfw_insn_u32 *cmd)
 #define	HAVE_OPTIONS	0x8000
 
 static void
-show_prerequisites(int *flags, int want, int cmd)
+show_prerequisites(struct buf_pr *bp, int *flags, int want, int cmd)
 {
 	(void)cmd;	/* UNUSED */
 	if (co.comment_only)
@@ -1390,16 +1383,16 @@ show_prerequisites(int *flags, int want, int cmd)
 	if ( !(*flags & HAVE_OPTIONS)) {
 		if ( !(*flags & HAVE_PROTO) && (want & HAVE_PROTO)) {
 			if ( (*flags & HAVE_PROTO4))
-				printf(" ip4");
+				bprintf(bp, " ip4");
 			else if ( (*flags & HAVE_PROTO6))
-				printf(" ip6");
+				bprintf(bp, " ip6");
 			else
-				printf(" ip");
+				bprintf(bp, " ip");
 		}
 		if ( !(*flags & HAVE_SRCIP) && (want & HAVE_SRCIP))
-			printf(" from any");
+			bprintf(bp, " from any");
 		if ( !(*flags & HAVE_DSTIP) && (want & HAVE_DSTIP))
-			printf(" to any");
+			bprintf(bp, " to any");
 	}
 	*flags |= want;
 }
@@ -1642,12 +1635,6 @@ show_static_rule(struct cmdline_opts *co, struct format_opts *fo,
 	}
 
 	/*
-	 * TODO: convert remainings to use @bp buffer
-	 *
-	 */
-	printf("%s", bp->buf);
-
-	/*
 	 * then print the body.
 	 */
 	for (l = rule->act_ofs, cmd = rule->cmd;
@@ -1664,8 +1651,8 @@ show_static_rule(struct cmdline_opts *co, struct format_opts *fo,
 	}
 	if (rule->flags & IPFW_RULE_NOOPT) {	/* empty rules before options */
 		if (!co->do_compact) {
-			show_prerequisites(&flags, HAVE_PROTO, 0);
-			printf(" from any to any");
+			show_prerequisites(bp, &flags, HAVE_PROTO, 0);
+			bprintf(bp, " from any to any");
 		}
 		flags |= HAVE_IP | HAVE_OPTIONS | HAVE_PROTO |
 			 HAVE_SRCIP | HAVE_DSTIP;
@@ -1682,11 +1669,11 @@ show_static_rule(struct cmdline_opts *co, struct format_opts *fo,
 		if (co->comment_only) {
 			if (cmd->opcode != O_NOP)
 				continue;
-			printf(" // %s\n", (char *)(cmd + 1));
+			bprintf(bp, " // %s\n", (char *)(cmd + 1));
 			return;
 		}
 
-		show_prerequisites(&flags, 0, cmd->opcode);
+		show_prerequisites(bp, &flags, 0, cmd->opcode);
 
 		switch(cmd->opcode) {
 		case O_PROB:
@@ -1700,12 +1687,12 @@ show_static_rule(struct cmdline_opts *co, struct format_opts *fo,
 		case O_IP_SRC_MASK:
 		case O_IP_SRC_ME:
 		case O_IP_SRC_SET:
-			show_prerequisites(&flags, HAVE_PROTO, 0);
+			show_prerequisites(bp, &flags, HAVE_PROTO, 0);
 			if (!(flags & HAVE_SRCIP))
-				printf(" from");
+				bprintf(bp, " from");
 			if ((cmd->len & F_OR) && !or_block)
-				printf(" {");
-			print_ip(fo, (ipfw_insn_ip *)cmd,
+				bprintf(bp, " {");
+			print_ip(bp, fo, (ipfw_insn_ip *)cmd,
 				(flags & HAVE_OPTIONS) ? " src-ip" : "");
 			flags |= HAVE_SRCIP;
 			break;
@@ -1715,12 +1702,12 @@ show_static_rule(struct cmdline_opts *co, struct format_opts *fo,
 		case O_IP_DST_MASK:
 		case O_IP_DST_ME:
 		case O_IP_DST_SET:
-			show_prerequisites(&flags, HAVE_PROTO|HAVE_SRCIP, 0);
+			show_prerequisites(bp, &flags, HAVE_PROTO|HAVE_SRCIP, 0);
 			if (!(flags & HAVE_DSTIP))
-				printf(" to");
+				bprintf(bp, " to");
 			if ((cmd->len & F_OR) && !or_block)
-				printf(" {");
-			print_ip(fo, (ipfw_insn_ip *)cmd,
+				bprintf(bp, " {");
+			print_ip(bp, fo, (ipfw_insn_ip *)cmd,
 				(flags & HAVE_OPTIONS) ? " dst-ip" : "");
 			flags |= HAVE_DSTIP;
 			break;
@@ -1728,12 +1715,12 @@ show_static_rule(struct cmdline_opts *co, struct format_opts *fo,
 		case O_IP6_SRC:
 		case O_IP6_SRC_MASK:
 		case O_IP6_SRC_ME:
-			show_prerequisites(&flags, HAVE_PROTO, 0);
+			show_prerequisites(bp, &flags, HAVE_PROTO, 0);
 			if (!(flags & HAVE_SRCIP))
-				printf(" from");
+				bprintf(bp, " from");
 			if ((cmd->len & F_OR) && !or_block)
-				printf(" {");
-			print_ip6((ipfw_insn_ip6 *)cmd,
+				bprintf(bp, " {");
+			print_ip6(bp, (ipfw_insn_ip6 *)cmd,
 			    (flags & HAVE_OPTIONS) ? " src-ip6" : "");
 			flags |= HAVE_SRCIP | HAVE_PROTO;
 			break;
@@ -1741,35 +1728,35 @@ show_static_rule(struct cmdline_opts *co, struct format_opts *fo,
 		case O_IP6_DST:
 		case O_IP6_DST_MASK:
 		case O_IP6_DST_ME:
-			show_prerequisites(&flags, HAVE_PROTO|HAVE_SRCIP, 0);
+			show_prerequisites(bp, &flags, HAVE_PROTO|HAVE_SRCIP, 0);
 			if (!(flags & HAVE_DSTIP))
-				printf(" to");
+				bprintf(bp, " to");
 			if ((cmd->len & F_OR) && !or_block)
-				printf(" {");
-			print_ip6((ipfw_insn_ip6 *)cmd,
+				bprintf(bp, " {");
+			print_ip6(bp, (ipfw_insn_ip6 *)cmd,
 			    (flags & HAVE_OPTIONS) ? " dst-ip6" : "");
 			flags |= HAVE_DSTIP;
 			break;
 
 		case O_FLOW6ID:
-		print_flow6id( (ipfw_insn_u32 *) cmd );
-		flags |= HAVE_OPTIONS;
-		break;
+			print_flow6id(bp, (ipfw_insn_u32 *) cmd );
+			flags |= HAVE_OPTIONS;
+			break;
 
 		case O_IP_DSTPORT:
-			show_prerequisites(&flags,
+			show_prerequisites(bp, &flags,
 				HAVE_PROTO | HAVE_SRCIP |
 				HAVE_DSTIP | HAVE_IP, 0);
 		case O_IP_SRCPORT:
 			if (flags & HAVE_DSTIP)
 				flags |= HAVE_IP;
-			show_prerequisites(&flags,
+			show_prerequisites(bp, &flags,
 				HAVE_PROTO | HAVE_SRCIP, 0);
 			if ((cmd->len & F_OR) && !or_block)
-				printf(" {");
+				bprintf(bp, " {");
 			if (cmd->len & F_NOT)
-				printf(" not");
-			print_newports((ipfw_insn_u16 *)cmd, proto,
+				bprintf(bp, " not");
+			print_newports(bp, (ipfw_insn_u16 *)cmd, proto,
 				(flags & HAVE_OPTIONS) ? cmd->opcode : 0);
 			break;
 
@@ -1777,22 +1764,22 @@ show_static_rule(struct cmdline_opts *co, struct format_opts *fo,
 			struct protoent *pe = NULL;
 
 			if ((cmd->len & F_OR) && !or_block)
-				printf(" {");
+				bprintf(bp, " {");
 			if (cmd->len & F_NOT)
-				printf(" not");
+				bprintf(bp, " not");
 			proto = cmd->arg1;
 			pe = getprotobynumber(cmd->arg1);
 			if ((flags & (HAVE_PROTO4 | HAVE_PROTO6)) &&
 			    !(flags & HAVE_PROTO))
-				show_prerequisites(&flags,
+				show_prerequisites(bp, &flags,
 				    HAVE_PROTO | HAVE_IP | HAVE_SRCIP |
 				    HAVE_DSTIP | HAVE_OPTIONS, 0);
 			if (flags & HAVE_OPTIONS)
-				printf(" proto");
+				bprintf(bp, " proto");
 			if (pe)
-				printf(" %s", pe->p_name);
+				bprintf(bp, " %s", pe->p_name);
 			else
-				printf(" %u", cmd->arg1);
+				bprintf(bp, " %u", cmd->arg1);
 			}
 			flags |= HAVE_PROTO;
 			break;
@@ -1804,62 +1791,62 @@ show_static_rule(struct cmdline_opts *co, struct format_opts *fo,
 				    ((cmd->opcode == O_IP4) &&
 				    (flags & HAVE_PROTO4)))
 					break;
-			show_prerequisites(&flags, HAVE_PROTO | HAVE_SRCIP |
+			show_prerequisites(bp, &flags, HAVE_PROTO | HAVE_SRCIP |
 				    HAVE_DSTIP | HAVE_IP | HAVE_OPTIONS, 0);
 			if ((cmd->len & F_OR) && !or_block)
-				printf(" {");
+				bprintf(bp, " {");
 			if (cmd->len & F_NOT && cmd->opcode != O_IN)
-				printf(" not");
+				bprintf(bp, " not");
 			switch(cmd->opcode) {
 			case O_MACADDR2: {
 				ipfw_insn_mac *m = (ipfw_insn_mac *)cmd;
 
-				printf(" MAC");
-				print_mac(m->addr, m->mask);
-				print_mac(m->addr + 6, m->mask + 6);
+				bprintf(bp, " MAC");
+				print_mac(bp, m->addr, m->mask);
+				print_mac(bp, m->addr + 6, m->mask + 6);
 				}
 				break;
 
 			case O_MAC_TYPE:
-				print_newports((ipfw_insn_u16 *)cmd,
+				print_newports(bp, (ipfw_insn_u16 *)cmd,
 						IPPROTO_ETHERTYPE, cmd->opcode);
 				break;
 
 
 			case O_FRAG:
-				printf(" frag");
+				bprintf(bp, " frag");
 				break;
 
 			case O_FIB:
-				printf(" fib %u", cmd->arg1 );
+				bprintf(bp, " fib %u", cmd->arg1 );
 				break;
 			case O_SOCKARG:
-				printf(" sockarg");
+				bprintf(bp, " sockarg");
 				break;
 
 			case O_IN:
-				printf(cmd->len & F_NOT ? " out" : " in");
+				bprintf(bp, cmd->len & F_NOT ? " out" : " in");
 				break;
 
 			case O_DIVERTED:
 				switch (cmd->arg1) {
 				case 3:
-					printf(" diverted");
+					bprintf(bp, " diverted");
 					break;
 				case 1:
-					printf(" diverted-loopback");
+					bprintf(bp, " diverted-loopback");
 					break;
 				case 2:
-					printf(" diverted-output");
+					bprintf(bp, " diverted-output");
 					break;
 				default:
-					printf(" diverted-?<%u>", cmd->arg1);
+					bprintf(bp, " diverted-?<%u>", cmd->arg1);
 					break;
 				}
 				break;
 
 			case O_LAYER2:
-				printf(" layer2");
+				bprintf(bp, " layer2");
 				break;
 			case O_XMIT:
 			case O_RECV:
@@ -1875,15 +1862,15 @@ show_static_rule(struct cmdline_opts *co, struct format_opts *fo,
 				else /* if (cmd->opcode == O_VIA) */
 					s = "via";
 				if (cmdif->name[0] == '\0')
-					printf(" %s %s", s,
+					bprintf(bp, " %s %s", s,
 					    inet_ntoa(cmdif->p.ip));
 				else if (cmdif->name[0] == '\1') {
 					/* interface table */
 					t = table_search_ctlv(fo->tstate,
 					    cmdif->p.kidx);
-					printf(" %s table(%s)", s, t);
+					bprintf(bp, " %s table(%s)", s, t);
 				} else
-					printf(" %s %s", s, cmdif->name);
+					bprintf(bp, " %s %s", s, cmdif->name);
 
 				break;
 			    }
@@ -1892,95 +1879,95 @@ show_static_rule(struct cmdline_opts *co, struct format_opts *fo,
 				char *t;
 
 				t = table_search_ctlv(fo->tstate, cmd->arg1);
-				printf(" flow table(%s", t);
+				bprintf(bp, " flow table(%s", t);
 				if (F_LEN(cmd) == F_INSN_SIZE(ipfw_insn_u32))
-					printf(",%u",
+					bprintf(bp, ",%u",
 					    ((ipfw_insn_u32 *)cmd)->d[0]);
-				printf(")");
+				bprintf(bp, ")");
 				break;
 			    }
 			case O_IPID:
 				if (F_LEN(cmd) == 1)
-				    printf(" ipid %u", cmd->arg1 );
+				    bprintf(bp, " ipid %u", cmd->arg1 );
 				else
-				    print_newports((ipfw_insn_u16 *)cmd, 0,
+				    print_newports(bp, (ipfw_insn_u16 *)cmd, 0,
 					O_IPID);
 				break;
 
 			case O_IPTTL:
 				if (F_LEN(cmd) == 1)
-				    printf(" ipttl %u", cmd->arg1 );
+				    bprintf(bp, " ipttl %u", cmd->arg1 );
 				else
-				    print_newports((ipfw_insn_u16 *)cmd, 0,
+				    print_newports(bp, (ipfw_insn_u16 *)cmd, 0,
 					O_IPTTL);
 				break;
 
 			case O_IPVER:
-				printf(" ipver %u", cmd->arg1 );
+				bprintf(bp, " ipver %u", cmd->arg1 );
 				break;
 
 			case O_IPPRECEDENCE:
-				printf(" ipprecedence %u", (cmd->arg1) >> 5 );
+				bprintf(bp, " ipprecedence %u", cmd->arg1 >> 5);
 				break;
 
 			case O_DSCP:
-				print_dscp((ipfw_insn_u32 *)cmd);
+				print_dscp(bp, (ipfw_insn_u32 *)cmd);
 	 			break;
 
 			case O_IPLEN:
 				if (F_LEN(cmd) == 1)
-				    printf(" iplen %u", cmd->arg1 );
+				    bprintf(bp, " iplen %u", cmd->arg1 );
 				else
-				    print_newports((ipfw_insn_u16 *)cmd, 0,
+				    print_newports(bp, (ipfw_insn_u16 *)cmd, 0,
 					O_IPLEN);
 				break;
 
 			case O_IPOPT:
-				print_flags("ipoptions", cmd, f_ipopts);
+				print_flags(bp, "ipoptions", cmd, f_ipopts);
 				break;
 
 			case O_IPTOS:
-				print_flags("iptos", cmd, f_iptos);
+				print_flags(bp, "iptos", cmd, f_iptos);
 				break;
 
 			case O_ICMPTYPE:
-				print_icmptypes((ipfw_insn_u32 *)cmd);
+				print_icmptypes(bp, (ipfw_insn_u32 *)cmd);
 				break;
 
 			case O_ESTAB:
-				printf(" established");
+				bprintf(bp, " established");
 				break;
 
 			case O_TCPDATALEN:
 				if (F_LEN(cmd) == 1)
-				    printf(" tcpdatalen %u", cmd->arg1 );
+				    bprintf(bp, " tcpdatalen %u", cmd->arg1 );
 				else
-				    print_newports((ipfw_insn_u16 *)cmd, 0,
+				    print_newports(bp, (ipfw_insn_u16 *)cmd, 0,
 					O_TCPDATALEN);
 				break;
 
 			case O_TCPFLAGS:
-				print_flags("tcpflags", cmd, f_tcpflags);
+				print_flags(bp, "tcpflags", cmd, f_tcpflags);
 				break;
 
 			case O_TCPOPTS:
-				print_flags("tcpoptions", cmd, f_tcpopts);
+				print_flags(bp, "tcpoptions", cmd, f_tcpopts);
 				break;
 
 			case O_TCPWIN:
 				if (F_LEN(cmd) == 1)
-				    printf(" tcpwin %u", cmd->arg1);
+				    bprintf(bp, " tcpwin %u", cmd->arg1);
 				else
-				    print_newports((ipfw_insn_u16 *)cmd, 0,
+				    print_newports(bp, (ipfw_insn_u16 *)cmd, 0,
 					O_TCPWIN);
 				break;
 
 			case O_TCPACK:
-				printf(" tcpack %d", ntohl(cmd32->d[0]));
+				bprintf(bp, " tcpack %d", ntohl(cmd32->d[0]));
 				break;
 
 			case O_TCPSEQ:
-				printf(" tcpseq %d", ntohl(cmd32->d[0]));
+				bprintf(bp, " tcpseq %d", ntohl(cmd32->d[0]));
 				break;
 
 			case O_UID:
@@ -1988,9 +1975,9 @@ show_static_rule(struct cmdline_opts *co, struct format_opts *fo,
 				struct passwd *pwd = getpwuid(cmd32->d[0]);
 
 				if (pwd)
-					printf(" uid %s", pwd->pw_name);
+					bprintf(bp, " uid %s", pwd->pw_name);
 				else
-					printf(" uid %u", cmd32->d[0]);
+					bprintf(bp, " uid %u", cmd32->d[0]);
 			    }
 				break;
 
@@ -1999,30 +1986,30 @@ show_static_rule(struct cmdline_opts *co, struct format_opts *fo,
 				struct group *grp = getgrgid(cmd32->d[0]);
 
 				if (grp)
-					printf(" gid %s", grp->gr_name);
+					bprintf(bp, " gid %s", grp->gr_name);
 				else
-					printf(" gid %u", cmd32->d[0]);
+					bprintf(bp, " gid %u", cmd32->d[0]);
 			    }
 				break;
 
 			case O_JAIL:
-				printf(" jail %d", cmd32->d[0]);
+				bprintf(bp, " jail %d", cmd32->d[0]);
 				break;
 
 			case O_VERREVPATH:
-				printf(" verrevpath");
+				bprintf(bp, " verrevpath");
 				break;
 
 			case O_VERSRCREACH:
-				printf(" versrcreach");
+				bprintf(bp, " versrcreach");
 				break;
 
 			case O_ANTISPOOF:
-				printf(" antispoof");
+				bprintf(bp, " antispoof");
 				break;
 
 			case O_IPSEC:
-				printf(" ipsec");
+				bprintf(bp, " ipsec");
 				break;
 
 			case O_NOP:
@@ -2030,7 +2017,7 @@ show_static_rule(struct cmdline_opts *co, struct format_opts *fo,
 				break;
 
 			case O_KEEP_STATE:
-				printf(" keep-state");
+				bprintf(bp, " keep-state");
 				break;
 
 			case O_LIMIT: {
@@ -2039,59 +2026,60 @@ show_static_rule(struct cmdline_opts *co, struct format_opts *fo,
 				uint8_t x = c->limit_mask;
 				char const *comma = " ";
 
-				printf(" limit");
+				bprintf(bp, " limit");
 				for (; p->x != 0 ; p++)
 					if ((x & p->x) == p->x) {
 						x &= ~p->x;
-						printf("%s%s", comma, p->s);
+						bprintf(bp, "%s%s", comma,p->s);
 						comma = ",";
 					}
-				PRINT_UINT_ARG(" ", c->conn_limit);
+				bprint_uint_arg(bp, " ", c->conn_limit);
 				break;
 			}
 
 			case O_IP6:
-				printf(" ip6");
+				bprintf(bp, " ip6");
 				break;
 
 			case O_IP4:
-				printf(" ip4");
+				bprintf(bp, " ip4");
 				break;
 
 			case O_ICMP6TYPE:
-				print_icmp6types((ipfw_insn_u32 *)cmd);
+				print_icmp6types(bp, (ipfw_insn_u32 *)cmd);
 				break;
 
 			case O_EXT_HDR:
-				print_ext6hdr( (ipfw_insn *) cmd );
+				print_ext6hdr(bp, (ipfw_insn *)cmd);
 				break;
 
 			case O_TAGGED:
 				if (F_LEN(cmd) == 1)
-					PRINT_UINT_ARG(" tagged ", cmd->arg1);
+					bprint_uint_arg(bp, " tagged ",
+					    cmd->arg1);
 				else
-					print_newports((ipfw_insn_u16 *)cmd, 0,
-					    O_TAGGED);
+					print_newports(bp, (ipfw_insn_u16 *)cmd,
+					    0, O_TAGGED);
 				break;
 
 			default:
-				printf(" [opcode %d len %d]",
+				bprintf(bp, " [opcode %d len %d]",
 				    cmd->opcode, cmd->len);
 			}
 		}
 		if (cmd->len & F_OR) {
-			printf(" or");
+			bprintf(bp, " or");
 			or_block = 1;
 		} else if (or_block) {
-			printf(" }");
+			bprintf(bp, " }");
 			or_block = 0;
 		}
 	}
-	show_prerequisites(&flags, HAVE_PROTO | HAVE_SRCIP | HAVE_DSTIP
+	show_prerequisites(bp, &flags, HAVE_PROTO | HAVE_SRCIP | HAVE_DSTIP
 					      | HAVE_IP, 0);
 	if (comment)
-		printf(" // %s", comment);
-	printf("\n");
+		bprintf(bp, " // %s", comment);
+	bprintf(bp, "\n");
 }
 
 static void
@@ -2448,6 +2436,7 @@ list_static_range(struct cmdline_opts *co, struct format_opts *fo,
 			continue;
 		if (r->rulenum >= fo->first && r->rulenum <= fo->last) {
 			show_static_rule(co, fo, bp, r, cntr);
+			printf("%s", bp->buf);
 			c += rtlv->length;
 			bp_flush(bp);
 			seen++;
@@ -4745,6 +4734,7 @@ ipfw_add(char *av[])
 		sfo.set_mask = (uint32_t)(-1);
 		bp_alloc(&bp, 4096);
 		show_static_rule(&co, &sfo, &bp, rule, NULL);
+		printf("%s", bp.buf);
 		bp_free(&bp);
 	}
 
