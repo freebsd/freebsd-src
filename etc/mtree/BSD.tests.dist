@@ -89,6 +89,8 @@
             ..
             libnv
             ..
+            libutil
+            ..
         ..
         libexec
             atf
