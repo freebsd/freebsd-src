@@ -48,41 +48,41 @@ in-kernel NAT.
 .Brq Cm firewall | altq | one_pass | debug | verbose | dyn_keepalive
 .Ss LOOKUP TABLES
 .Nm
-.Cm table Ar name Cm create Ar create-options
+.Oo Cm set Ar N Oc Cm table Ar name Cm create Ar create-options
 .Nm
-.Cm table Ar name Cm destroy
+.Oo Cm set Ar N Oc Cm table Ar name Cm destroy
 .Nm
-.Cm table Ar name Cm modify Ar modify-options
+.Oo Cm set Ar N Oc Cm table Ar name Cm modify Ar modify-options
 .Nm
-.Cm table Ar name Cm swap Ar name
+.Oo Cm set Ar N Oc Cm table Ar name Cm swap Ar name
 .Nm
-.Cm table Ar name Cm add Ar table-key Op Ar value
+.Oo Cm set Ar N Oc Cm table Ar name Cm add Ar table-key Op Ar value
 .Nm
-.Cm table Ar name Cm add Op Ar table-key Ar value ...
+.Oo Cm set Ar N Oc Cm table Ar name Cm add Op Ar table-key Ar value ...
 .Nm
-.Cm table Ar name Cm atomic add Op Ar table-key Ar value ...
+.Oo Cm set Ar N Oc Cm table Ar name Cm atomic add Op Ar table-key Ar value ...
 .Nm
-.Cm table Ar name Cm delete Op Ar table-key ...
+.Oo Cm set Ar N Oc Cm table Ar name Cm delete Op Ar table-key ...
 .Nm
-.Cm table Ar name Cm lookup Ar addr
+.Oo Cm set Ar N Oc Cm table Ar name Cm lookup Ar addr
 .Nm
-.Cm table Ar name Cm lock
+.Oo Cm set Ar N Oc Cm table Ar name Cm lock
 .Nm
-.Cm table Ar name Cm unlock
+.Oo Cm set Ar N Oc Cm table Ar name Cm unlock
 .Nm
-.Cm table
+.Oo Cm set Ar N Oc Cm table
 .Brq Ar name | all
 .Cm list
 .Nm
-.Cm table
+.Oo Cm set Ar N Oc Cm table
 .Brq Ar name | all
 .Cm info 
 .Nm
-.Cm table
+.Oo Cm set Ar N Oc Cm table
 .Brq Ar name | all
 .Cm detail
 .Nm
-.Cm table
+.Oo Cm set Ar N Oc Cm table
 .Brq Ar name | all
 .Cm flush
 .Ss DUMMYNET CONFIGURATION (TRAFFIC SHAPER AND PACKET SCHEDULER)
@@ -1867,6 +1867,17 @@ addresses or other search keys (e.g., ports, jail IDs, interface names).
 In the rest of this section we will use the term ``key''.
 Table name needs to match the following spec:
 .Ar table-name .
+Tables with the same name can be created in different 
+.Ar sets .
+However, rule links to the tables in
+.Ar set 0
+by default.
+This behavior can be controlled by
+.Va net.inet.ip.fw.tables_sets
+variable.
+See the
+.Sx SETS OF RULES
+section for more information.
 There may be up to 65535 different lookup tables.
 .Pp
 The following table types are supported:
@@ -2058,6 +2069,7 @@ The following value types are supported:
 Default value type.
 If value is not specified, defaults to 0.
 .El
+.Pp
 The
 .Cm tablearg
 argument can be used with the following actions:
@@ -2082,17 +2094,25 @@ up to a rule equal to, or past, the given number,
 and should therefore try keep the
 ruleset compact between the skipto and the target rules.
 .Sh SETS OF RULES
-Each rule belongs to one of 32 different
+Each rule or table belongs to one of 32 different
 .Em sets
 , numbered 0 to 31.
 Set 31 is reserved for the default rule.
 .Pp
-By default, rules are put in set 0, unless you use the
+By default, rules or tables are put in set 0, unless you use the
 .Cm set N
-attribute when entering a new rule.
+attribute when adding a new rule or table.
 Sets can be individually and atomically enabled or disabled,
 so this mechanism permits an easy way to store multiple configurations
 of the firewall and quickly (and atomically) switch between them.
+.Pp
+By default, tables from set 0 are referenced when adding rule with
+table opcodes regardless of rule set.
+This behavior can be changed by setting
+.Va net.inet.ip.fw.tables_set
+variable to 1.
+Rule's set will then be used for table references.
+.Pp
 The command to enable/disable sets is
 .Bd -ragged -offset indent
 .Nm
