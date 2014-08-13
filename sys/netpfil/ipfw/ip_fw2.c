@@ -126,6 +126,12 @@ VNET_DEFINE(unsigned int, fw_tables_sets) = 0;	/* Don't use set-aware tables */
 /* Use 128 tables by default */
 static unsigned int default_fw_tables = IPFW_TABLES_DEFAULT;
 
+static int jump_fast(struct ip_fw_chain *chain, struct ip_fw *f, int num,
+    int tablearg, int jump_backwards);
+static int jump_linear(struct ip_fw_chain *chain, struct ip_fw *f, int num,
+    int tablearg, int jump_backwards);
+#define	JUMP(ch, f, num, targ, back)	jump_fast(ch, f, num, targ, back)
+
 /*
  * Each rule belongs to one of 32 different sets (0..31).
  * The variable set_disable contains one bit per set.
@@ -798,7 +804,7 @@ set_match(struct ip_fw_args *args, int slot,
 
 /*
  * Helper function to enable cached rule lookups using
- * x_next and next_rule fields in ipfw rule.
+ * cached_id and cached_pos fields in ipfw rule.
  */
 static int
 jump_fast(struct ip_fw_chain *chain, struct ip_fw *f, int num,
@@ -806,8 +812,8 @@ jump_fast(struct ip_fw_chain *chain, struct ip_fw *f, int num,
 {
 	int f_pos;
 
-	/* If possible use cached f_pos (in f->next_rule),
-	 * whose version is written in f->next_rule
+	/* If possible use cached f_pos (in f->cached_pos),
+	 * whose version is written in f->cached_id
 	 * (horrible hacks to avoid changing the ABI).
 	 */
 	if (num != IP_FW_TARG && f->cached_id == chain->id)
@@ -827,6 +833,24 @@ jump_fast(struct ip_fw_chain *chain, struct ip_fw *f, int num,
 			f->cached_pos = f_pos;
 		}
 	}
+
+	return (f_pos);
+}
+
+/*
+ * Helper function to enable real fast rule lookups.
+ */
+static int
+jump_linear(struct ip_fw_chain *chain, struct ip_fw *f, int num,
+    int tablearg, int jump_backwards)
+{
+	int f_pos;
+
+	num = IP_FW_ARG_TABLEARG(num);
+	/* make sure we do not jump backward */
+	if (jump_backwards == 0 && num <= f->rulenum)
+		num = f->rulenum + 1;
+	f_pos = chain->idxmap[num];
 
 	return (f_pos);
 }
@@ -2190,7 +2214,7 @@ do {								\
 
 			case O_SKIPTO:
 			    IPFW_INC_RULE_COUNTER(f, pktlen);
-			    f_pos = jump_fast(chain, f, cmd->arg1, tablearg, 0);
+			    f_pos = JUMP(chain, f, cmd->arg1, tablearg, 0);
 			    /*
 			     * Skip disabled rules, and re-enter
 			     * the inner loop with the correct
@@ -2279,7 +2303,7 @@ do {								\
 				if (IS_CALL) {
 					stack[mtag->m_tag_id] = f->rulenum;
 					mtag->m_tag_id++;
-			    		f_pos = jump_fast(chain, f, cmd->arg1,
+			    		f_pos = JUMP(chain, f, cmd->arg1,
 					    tablearg, 1);
 				} else {	/* `return' action */
 					mtag->m_tag_id--;
