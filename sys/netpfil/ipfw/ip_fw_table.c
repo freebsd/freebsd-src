@@ -2362,7 +2362,7 @@ ipfw_add_table_algo(struct ip_fw_chain *ch, struct table_algo *ta, size_t size,
 	if (sz > TA_BUF_SZ)
 		return (EINVAL);
 
-	KASSERT(ta->type >= IPFW_TABLE_MAXTYPE,("Increase IPFW_TABLE_MAXTYPE"));
+	KASSERT(ta->type <= IPFW_TABLE_MAXTYPE,("Increase IPFW_TABLE_MAXTYPE"));
 
 	/* Copy algorithm data to stable storage. */
 	ta_new = malloc(sizeof(struct table_algo), M_IPFW, M_WAITOK | M_ZERO);
