@@ -310,18 +310,10 @@ simplebus_setup_dinfo(device_t dev, phandle_t node)
 			icells = 1;
 		}
 		for (i = 0, k = 0; i < nintr; i += icells, k++) {
-			u_int irq;
-
-			if (icells == 3) {
-				irq = intr[i + 1];
-				if (intr[i] == 0)
-					irq += 32;
-			} else
-				irq = intr[i];
 			intr[i] = ofw_bus_map_intr(dev, iparent, icells,
 			    &intr[i]);
-			resource_list_add(&ndi->rl, SYS_RES_IRQ, k, irq,
-			    irq, 1);
+			resource_list_add(&ndi->rl, SYS_RES_IRQ, k, intr[i],
+			    intr[i], 1);
 		}
 		free(intr, M_OFWPROP);
 	}

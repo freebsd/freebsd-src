@@ -114,10 +114,8 @@ static device_method_t nexus_methods[] = {
 	DEVMETHOD(bus_deactivate_resource,	nexus_deactivate_resource),
 	DEVMETHOD(bus_setup_intr,	nexus_setup_intr),
 	DEVMETHOD(bus_teardown_intr,	nexus_teardown_intr),
-#if 0
 #ifdef FDT
 	DEVMETHOD(ofw_bus_map_intr,	nexus_ofw_map_intr),
-#endif
 #endif
 	{ 0, 0 }
 };
@@ -320,36 +318,23 @@ nexus_deactivate_resource(device_t bus, device_t child, int type, int rid,
 	return (rman_deactivate_resource(r));
 }
 
-#if 0
 #ifdef FDT
 static int
 nexus_ofw_map_intr(device_t dev, device_t child, phandle_t iparent, int icells,
     pcell_t *intr)
 {
-	fdt_pic_decode_t intr_decode;
-	phandle_t intr_offset;
-	int i, rv, interrupt, trig, pol;
+	int irq;
 
-	intr_offset = OF_xref_phandle(iparent);
-	for (i = 0; i < icells; i++)
-		intr[i] = cpu_to_fdt32(intr[i]);
+	if (icells == 3) {
+		irq = intr[1];
+		if (intr[0] == 0)
+			irq += 32; /* SPI */
+		else
+			irq += 16; /* PPI */
+	} else
+		irq = intr[0];
 
-	for (i = 0; fdt_pic_table[i] != NULL; i++) {
-		intr_decode = fdt_pic_table[i];
-		rv = intr_decode(intr_offset, intr, &interrupt, &trig, &pol);
-
-		if (rv == 0) {
-			/* This was recognized as our PIC and decoded. */
-			interrupt = FDT_MAP_IRQ(intr_parent, interrupt);
-			return (interrupt);
-		}
-	}
-
-	/* Not in table, so guess */
-	interrupt = FDT_MAP_IRQ(intr_parent, fdt32_to_cpu(intr[0]));
-
-	return (interrupt);
+	return (irq);
 }
-#endif
 #endif
 
