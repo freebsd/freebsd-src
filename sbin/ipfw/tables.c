@@ -67,7 +67,7 @@ static void table_show_list(ipfw_obj_header *oh, int need_header);
 static void table_show_entry(ipfw_xtable_info *i, ipfw_obj_tentry *tent);
 
 static void tentry_fill_key(ipfw_obj_header *oh, ipfw_obj_tentry *tent,
-    char *key, uint8_t *ptype, uint8_t *pvtype, ipfw_xtable_info *xi);
+    char *key, int add, uint8_t *ptype, uint8_t *pvtype, ipfw_xtable_info *xi);
 static void tentry_fill_value(ipfw_obj_header *oh, ipfw_obj_tentry *tent,
     char *arg, uint8_t type, uint8_t vtype);
 
@@ -932,7 +932,7 @@ table_modify_record(ipfw_obj_header *oh, int ac, char *av[], int add,
 	memset(&xi, 0, sizeof(xi));
 	count = 0;
 	while (ac > 0) {
-		tentry_fill_key(oh, ptent, *av, &type, &vtype, &xi);
+		tentry_fill_key(oh, ptent, *av, add, &type, &vtype, &xi);
 
 		/*
 		 * compability layer: auto-create table if not exists
@@ -1073,7 +1073,7 @@ table_do_lookup(ipfw_obj_header *oh, char *key, ipfw_xtable_info *xi,
 	tent->head.length = sizeof(*tent);
 	tent->idx = 1;
 
-	tentry_fill_key(oh, tent, key, &type, &vtype, xi);
+	tentry_fill_key(oh, tent, key, 0, &type, &vtype, xi);
 	oh->ntlv.type = type;
 
 	sz = sizeof(xbuf);
@@ -1196,7 +1196,7 @@ tentry_fill_key_type(char *arg, ipfw_obj_tentry *tentry, uint8_t type,
 		tfe = &tentry->k.flow;
 		af = 0;
 
-		/* Handle <ipv4|ipv6>*/
+		/* Handle <ipv4|ipv6> */
 		if ((tflags & IPFW_TFFLAG_SRCIP) != 0) {
 			if ((p = strchr(arg, ',')) != NULL)
 				*p++ = '\0';
@@ -1220,6 +1220,8 @@ tentry_fill_key_type(char *arg, ipfw_obj_tentry *tentry, uint8_t type,
 
 		/* Handle <proto-num|proto-name> */
 		if ((tflags & IPFW_TFFLAG_PROTO) != 0) {
+			if (arg == NULL)
+				errx(EX_DATAERR, "invalid key: proto missing");
 			if ((p = strchr(arg, ',')) != NULL)
 				*p++ = '\0';
 
@@ -1242,6 +1244,8 @@ tentry_fill_key_type(char *arg, ipfw_obj_tentry *tentry, uint8_t type,
 
 		/* Handle <port-num|service-name> */
 		if ((tflags & IPFW_TFFLAG_SRCPORT) != 0) {
+			if (arg == NULL)
+				errx(EX_DATAERR, "invalid key: src port missing");
 			if ((p = strchr(arg, ',')) != NULL)
 				*p++ = '\0';
 
@@ -1260,6 +1264,8 @@ tentry_fill_key_type(char *arg, ipfw_obj_tentry *tentry, uint8_t type,
 
 		/* Handle <ipv4|ipv6>*/
 		if ((tflags & IPFW_TFFLAG_DSTIP) != 0) {
+			if (arg == NULL)
+				errx(EX_DATAERR, "invalid key: dst ip missing");
 			if ((p = strchr(arg, ',')) != NULL)
 				*p++ = '\0';
 			/* Determine family using temporary storage */
@@ -1282,6 +1288,8 @@ tentry_fill_key_type(char *arg, ipfw_obj_tentry *tentry, uint8_t type,
 
 		/* Handle <port-num|service-name> */
 		if ((tflags & IPFW_TFFLAG_DSTPORT) != 0) {
+			if (arg == NULL)
+				errx(EX_DATAERR, "invalid key: dst port missing");
 			if ((p = strchr(arg, ',')) != NULL)
 				*p++ = '\0';
 
@@ -1312,7 +1320,7 @@ tentry_fill_key_type(char *arg, ipfw_obj_tentry *tentry, uint8_t type,
 
 static void
 tentry_fill_key(ipfw_obj_header *oh, ipfw_obj_tentry *tent, char *key,
-    uint8_t *ptype, uint8_t *pvtype, ipfw_xtable_info *xi)
+    int add, uint8_t *ptype, uint8_t *pvtype, ipfw_xtable_info *xi)
 {
 	uint8_t type, tflags, vtype;
 	int error;
@@ -1335,6 +1343,9 @@ tentry_fill_key(ipfw_obj_header *oh, ipfw_obj_tentry *tent, char *key,
 	} else {
 		if (error != ESRCH)
 			errx(EX_OSERR, "Error requesting table %s info",
+			    oh->ntlv.name);
+		if (add == 0)
+			errx(EX_DATAERR, "Table %s does not exist",
 			    oh->ntlv.name);
 		/*
 		 * Table does not exist.
