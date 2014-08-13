@@ -1289,7 +1289,7 @@ rtsock_addrmsg(int cmd, struct ifaddr *ifa, int fibnum)
 		return (ENOBUFS);
 	ifam = mtod(m, struct ifa_msghdr *);
 	ifam->ifam_index = ifp->if_index;
-	ifam->ifam_metric = ifa->ifa_metric;
+	ifam->ifam_metric = ifa->ifa_ifp->if_metric;
 	ifam->ifam_flags = ifa->ifa_flags;
 	ifam->ifam_addrs = info.rti_addrs;
 
@@ -1638,7 +1638,7 @@ sysctl_iflist_ifaml(struct ifaddr *ifa, struct rt_addrinfo *info,
 		ifam32->ifam_len = sizeof(*ifam32);
 		ifam32->ifam_data_off =
 		    offsetof(struct ifa_msghdrl32, ifam_data);
-		ifam32->ifam_metric = ifa->ifa_metric;
+		ifam32->ifam_metric = ifa->ifa_ifp->if_metric;
 		ifd = &ifam32->ifam_data;
 	} else
 #endif
@@ -1649,7 +1649,7 @@ sysctl_iflist_ifaml(struct ifaddr *ifa, struct rt_addrinfo *info,
 		ifam->_ifam_spare1 = 0;
 		ifam->ifam_len = sizeof(*ifam);
 		ifam->ifam_data_off = offsetof(struct ifa_msghdrl, ifam_data);
-		ifam->ifam_metric = ifa->ifa_metric;
+		ifam->ifam_metric = ifa->ifa_ifp->if_metric;
 		ifd = &ifam->ifam_data;
 	}
 
@@ -1677,7 +1677,7 @@ sysctl_iflist_ifam(struct ifaddr *ifa, struct rt_addrinfo *info,
 	ifam->ifam_addrs = info->rti_addrs;
 	ifam->ifam_flags = ifa->ifa_flags;
 	ifam->ifam_index = ifa->ifa_ifp->if_index;
-	ifam->ifam_metric = ifa->ifa_metric;
+	ifam->ifam_metric = ifa->ifa_ifp->if_metric;
 
 	return (SYSCTL_OUT(w->w_req, w->w_tmem, len));
 }

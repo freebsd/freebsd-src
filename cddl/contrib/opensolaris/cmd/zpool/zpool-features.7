@@ -23,7 +23,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 23, 2014
+.Dd July 1, 2014
 .Dt ZPOOL-FEATURES 7
 .Os
 .Sh NAME
@@ -235,14 +235,11 @@ administrator can turn on
 compression on any dataset on the
 pool using the
 .Xr zfs 8
-command. Please note that doing so will
-immediately activate the
-.Sy lz4_compress
-feature on the underlying
-pool
-.Pq even before any data is written ,
-and the feature will not be
-deactivated.
+command.
+Also, all newly written metadata
+will be compressed with
+.Sy lz4
+algorithm.
 Since this feature is not read-only compatible, this
 operation will render the pool unimportable on systems without support
 for the
@@ -251,6 +248,12 @@ feature.
 Booting off of
 .Sy lz4
 -compressed root pools is supported.
+.Pp
+This feature becomes
+.Sy active
+as soon as it is enabled and will
+never return to being
+.Sy enabled .
 .It Sy multi_vdev_crash_dump
 .Bl -column "READ\-ONLY COMPATIBLE" "com.joyent:multi_vdev_crash_dump"
 .It GUID Ta com.joyent:multi_vdev_crash_dump
@@ -390,6 +393,34 @@ of all new holes will be recorded.
 Incremental sends between snapshots
 created after this feature is enabled will use this new metadata to avoid
 sending information about holes that already exist on the receiving side.
+.Pp
+This feature becomes
+.Sy active
+as soon as it is enabled and will
+never return to being
+.Sy enabled .
+.It Sy embedded_data
+.Bl -column "READ\-ONLY COMPATIBLE" "com.delphix:embedded_data"
+.It GUID Ta com.delphix:embedded_data
+.It READ\-ONLY COMPATIBLE Ta no
+.It DEPENDENCIES Ta none
+.El
+.Pp
+This feature improves the performance and compression ratio of
+highly-compressible blocks.
+Blocks whose contents can compress to 112 bytes
+or smaller can take advantage of this feature.
+.Pp
+When this feature is enabled, the contents of highly-compressible blocks are
+stored in the block "pointer" itself
+.Po a misnomer in this case, as it contains
+the compresseed data, rather than a pointer to its location on disk
+.Pc .
+Thus
+the space of the block
+.Pq one sector, typically 512 bytes or 4KB
+is saved,
+and no additional i/o is needed to read and write the data block.
 .Pp
 This feature becomes
 .Sy active

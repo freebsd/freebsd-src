@@ -63,29 +63,23 @@ static int g_eli_version = G_ELI_VERSION;
 SYSCTL_INT(_kern_geom_eli, OID_AUTO, version, CTLFLAG_RD, &g_eli_version, 0,
     "GELI version");
 int g_eli_debug = 0;
-TUNABLE_INT("kern.geom.eli.debug", &g_eli_debug);
-SYSCTL_INT(_kern_geom_eli, OID_AUTO, debug, CTLFLAG_RW, &g_eli_debug, 0,
+SYSCTL_INT(_kern_geom_eli, OID_AUTO, debug, CTLFLAG_RWTUN, &g_eli_debug, 0,
     "Debug level");
 static u_int g_eli_tries = 3;
-TUNABLE_INT("kern.geom.eli.tries", &g_eli_tries);
-SYSCTL_UINT(_kern_geom_eli, OID_AUTO, tries, CTLFLAG_RW, &g_eli_tries, 0,
+SYSCTL_UINT(_kern_geom_eli, OID_AUTO, tries, CTLFLAG_RWTUN, &g_eli_tries, 0,
     "Number of tries for entering the passphrase");
 static u_int g_eli_visible_passphrase = GETS_NOECHO;
-TUNABLE_INT("kern.geom.eli.visible_passphrase", &g_eli_visible_passphrase);
-SYSCTL_UINT(_kern_geom_eli, OID_AUTO, visible_passphrase, CTLFLAG_RW,
+SYSCTL_UINT(_kern_geom_eli, OID_AUTO, visible_passphrase, CTLFLAG_RWTUN,
     &g_eli_visible_passphrase, 0,
     "Visibility of passphrase prompt (0 = invisible, 1 = visible, 2 = asterisk)");
 u_int g_eli_overwrites = G_ELI_OVERWRITES;
-TUNABLE_INT("kern.geom.eli.overwrites", &g_eli_overwrites);
-SYSCTL_UINT(_kern_geom_eli, OID_AUTO, overwrites, CTLFLAG_RW, &g_eli_overwrites,
+SYSCTL_UINT(_kern_geom_eli, OID_AUTO, overwrites, CTLFLAG_RWTUN, &g_eli_overwrites,
     0, "Number of times on-disk keys should be overwritten when destroying them");
 static u_int g_eli_threads = 0;
-TUNABLE_INT("kern.geom.eli.threads", &g_eli_threads);
-SYSCTL_UINT(_kern_geom_eli, OID_AUTO, threads, CTLFLAG_RW, &g_eli_threads, 0,
+SYSCTL_UINT(_kern_geom_eli, OID_AUTO, threads, CTLFLAG_RWTUN, &g_eli_threads, 0,
     "Number of threads doing crypto work");
 u_int g_eli_batch = 0;
-TUNABLE_INT("kern.geom.eli.batch", &g_eli_batch);
-SYSCTL_UINT(_kern_geom_eli, OID_AUTO, batch, CTLFLAG_RW, &g_eli_batch, 0,
+SYSCTL_UINT(_kern_geom_eli, OID_AUTO, batch, CTLFLAG_RWTUN, &g_eli_batch, 0,
     "Use crypto operations batching");
 
 static eventhandler_tag g_eli_pre_sync = NULL;

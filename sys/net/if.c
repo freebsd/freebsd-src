@@ -106,7 +106,6 @@ struct ifindex_entry {
 SYSCTL_NODE(_net, PF_LINK, link, CTLFLAG_RW, 0, "Link layers");
 SYSCTL_NODE(_net_link, 0, generic, CTLFLAG_RW, 0, "Generic link-management");
 
-TUNABLE_INT("net.link.ifqmaxlen", &ifqmaxlen);
 SYSCTL_INT(_net_link, OID_AUTO, ifqmaxlen, CTLFLAG_RDTUN,
     &ifqmaxlen, 0, "max send queue size");
 
@@ -1748,19 +1747,6 @@ next:				continue;
 				}
 			} else {
 				/*
-				 * if we have a special address handler,
-				 * then use it instead of the generic one.
-				 */
-				if (ifa->ifa_claim_addr) {
-					if ((*ifa->ifa_claim_addr)(ifa, addr)) {
-						ifa_ref(ifa);
-						IF_ADDR_RUNLOCK(ifp);
-						goto done;
-					}
-					continue;
-				}
-
-				/*
 				 * Scan all the bits in the ifa's address.
 				 * If a bit dissagrees with what we are
 				 * looking for, mask it with the netmask
@@ -2088,7 +2074,7 @@ if_qflush(struct ifnet *ifp)
 #endif
 	n = ifq->ifq_head;
 	while ((m = n) != 0) {
-		n = m->m_act;
+		n = m->m_nextpkt;
 		m_freem(m);
 	}
 	ifq->ifq_head = 0;

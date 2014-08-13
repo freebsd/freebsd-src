@@ -159,10 +159,9 @@ struct ixpqmgr_softc {
 	uint32_t		aqmFreeSramAddress;	/* SRAM free space */
 };
 
-static int qmgr_debug = 0;
-SYSCTL_INT(_debug, OID_AUTO, qmgr, CTLFLAG_RW, &qmgr_debug,
+static int qmgr_debug;
+SYSCTL_INT(_debug, OID_AUTO, qmgr, CTLFLAG_RWTUN, &qmgr_debug,
 	   0, "IXP4XX Q-Manager debug msgs");
-TUNABLE_INT("debug.qmgr", &qmgr_debug);
 #define	DPRINTF(dev, fmt, ...) do {					\
 	if (qmgr_debug) printf(fmt, __VA_ARGS__);			\
 } while (0)

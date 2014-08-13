@@ -69,18 +69,6 @@ SRCS+=	bcmp.c bcopy.c bzero.c ffs.c memccpy.c memchr.c memcmp.c memcpy.c \
 .PATH: ${LIBC}/arm/gen
 SRCS+= divsi3.S
 .endif
-.if ${MACHINE_CPUARCH} == "ia64"
-.PATH: ${LIBC}/ia64/string
-SRCS+=	bcmp.c bcopy.S bzero.S ffs.S index.c memccpy.c memchr.c memcmp.c \
-	memcpy.S memmove.S memset.c rindex.c strcat.c strchr.c \
-	strcmp.c strcpy.c strcspn.c strlen.c \
-	strncat.c strncmp.c strncpy.c strpbrk.c strrchr.c strsep.c \
-	strspn.c strstr.c strtok.c swab.c
-
-.PATH: ${LIBC}/ia64/gen
-SRCS+= __divdi3.S __divsi3.S __moddi3.S __modsi3.S
-SRCS+= __udivdi3.S __udivsi3.S __umoddi3.S __umodsi3.S
-.endif
 .if ${MACHINE_CPUARCH} == "powerpc"
 .PATH: ${LIBC}/libc/quad
 SRCS+=	ashldi3.c ashrdi3.c

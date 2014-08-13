@@ -129,8 +129,7 @@ SYSCTL_INT(_net_link_stf, OID_AUTO, route_cache, CTLFLAG_RW,
     &stf_route_cache, 0, "Caching of IPv4 routes for 6to4 Output");
 
 static int stf_permit_rfc1918 = 0;
-TUNABLE_INT("net.link.stf.permit_rfc1918", &stf_permit_rfc1918);
-SYSCTL_INT(_net_link_stf, OID_AUTO, permit_rfc1918, CTLFLAG_RW | CTLFLAG_TUN,
+SYSCTL_INT(_net_link_stf, OID_AUTO, permit_rfc1918, CTLFLAG_RWTUN,
     &stf_permit_rfc1918, 0, "Permit the use of private IPv4 addresses");
 
 #define STFUNIT		0
@@ -679,23 +678,23 @@ stf_checkaddr6(sc, in6, inifp)
 	return 0;
 }
 
-void
-in_stf_input(m, off)
-	struct mbuf *m;
-	int off;
+int
+in_stf_input(struct mbuf **mp, int *offp, int proto)
 {
-	int proto;
 	struct stf_softc *sc;
 	struct ip *ip;
 	struct ip6_hdr *ip6;
+	struct mbuf *m;
 	u_int8_t otos, itos;
 	struct ifnet *ifp;
+	int off;
 
-	proto = mtod(m, struct ip *)->ip_p;
+	m = *mp;
+	off = *offp;
 
 	if (proto != IPPROTO_IPV6) {
 		m_freem(m);
-		return;
+		return (IPPROTO_DONE);
 	}
 
 	ip = mtod(m, struct ip *);
@@ -704,7 +703,7 @@ in_stf_input(m, off)
 
 	if (sc == NULL || (STF2IFP(sc)->if_flags & IFF_UP) == 0) {
 		m_freem(m);
-		return;
+		return (IPPROTO_DONE);
 	}
 
 	ifp = STF2IFP(sc);
@@ -720,7 +719,7 @@ in_stf_input(m, off)
 	if (stf_checkaddr4(sc, &ip->ip_dst, NULL) < 0 ||
 	    stf_checkaddr4(sc, &ip->ip_src, m->m_pkthdr.rcvif) < 0) {
 		m_freem(m);
-		return;
+		return (IPPROTO_DONE);
 	}
 
 	otos = ip->ip_tos;
@@ -729,7 +728,7 @@ in_stf_input(m, off)
 	if (m->m_len < sizeof(*ip6)) {
 		m = m_pullup(m, sizeof(*ip6));
 		if (!m)
-			return;
+			return (IPPROTO_DONE);
 	}
 	ip6 = mtod(m, struct ip6_hdr *);
 
@@ -740,7 +739,7 @@ in_stf_input(m, off)
 	if (stf_checkaddr6(sc, &ip6->ip6_dst, NULL) < 0 ||
 	    stf_checkaddr6(sc, &ip6->ip6_src, m->m_pkthdr.rcvif) < 0) {
 		m_freem(m);
-		return;
+		return (IPPROTO_DONE);
 	}
 
 	itos = (ntohl(ip6->ip6_flow) >> 20) & 0xff;
@@ -775,6 +774,7 @@ in_stf_input(m, off)
 	ifp->if_ibytes += m->m_pkthdr.len;
 	M_SETFIB(m, ifp->if_fib);
 	netisr_dispatch(NETISR_IPV6, m);
+	return (IPPROTO_DONE);
 }
 
 /* ARGSUSED */

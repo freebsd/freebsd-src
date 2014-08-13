@@ -522,25 +522,26 @@ tcp6_input(struct mbuf **mp, int *offp, int proto)
 		ip6 = mtod(m, struct ip6_hdr *);
 		icmp6_error(m, ICMP6_DST_UNREACH, ICMP6_DST_UNREACH_ADDR,
 			    (caddr_t)&ip6->ip6_dst - (caddr_t)ip6);
-		return IPPROTO_DONE;
+		return (IPPROTO_DONE);
 	}
 	if (ia6)
 		ifa_free(&ia6->ia_ifa);
 
-	tcp_input(m, *offp);
-	return IPPROTO_DONE;
+	return (tcp_input(mp, offp, proto));
 }
 #endif /* INET6 */
 
-void
-tcp_input(struct mbuf *m, int off0)
+int
+tcp_input(struct mbuf **mp, int *offp, int proto)
 {
+	struct mbuf *m = *mp;
 	struct tcphdr *th = NULL;
 	struct ip *ip = NULL;
 	struct inpcb *inp = NULL;
 	struct tcpcb *tp = NULL;
 	struct socket *so = NULL;
 	u_char *optp = NULL;
+	int off0;
 	int optlen = 0;
 #ifdef INET
 	int len;
@@ -580,6 +581,9 @@ tcp_input(struct mbuf *m, int off0)
 	isipv6 = (mtod(m, struct ip *)->ip_v == 6) ? 1 : 0;
 #endif
 
+	off0 = *offp;
+	m = *mp;
+	*mp = NULL;
 	to.to_flags = 0;
 	TCPSTAT_INC(tcps_rcvtotal);
 
@@ -591,7 +595,7 @@ tcp_input(struct mbuf *m, int off0)
 			m = m_pullup(m, sizeof(*ip6) + sizeof(*th));
 			if (m == NULL) {
 				TCPSTAT_INC(tcps_rcvshort);
-				return;
+				return (IPPROTO_DONE);
 			}
 		}
 
@@ -643,7 +647,7 @@ tcp_input(struct mbuf *m, int off0)
 			if ((m = m_pullup(m, sizeof (struct tcpiphdr)))
 			    == NULL) {
 				TCPSTAT_INC(tcps_rcvshort);
-				return;
+				return (IPPROTO_DONE);
 			}
 		}
 		ip = mtod(m, struct ip *);
@@ -706,7 +710,7 @@ tcp_input(struct mbuf *m, int off0)
 	if (off > sizeof (struct tcphdr)) {
 #ifdef INET6
 		if (isipv6) {
-			IP6_EXTHDR_CHECK(m, off0, off, );
+			IP6_EXTHDR_CHECK(m, off0, off, IPPROTO_DONE);
 			ip6 = mtod(m, struct ip6_hdr *);
 			th = (struct tcphdr *)((caddr_t)ip6 + off0);
 		}
@@ -720,7 +724,7 @@ tcp_input(struct mbuf *m, int off0)
 				if ((m = m_pullup(m, sizeof (struct ip) + off))
 				    == NULL) {
 					TCPSTAT_INC(tcps_rcvshort);
-					return;
+					return (IPPROTO_DONE);
 				}
 				ip = mtod(m, struct ip *);
 				th = (struct tcphdr *)((caddr_t)ip + off0);
@@ -949,7 +953,7 @@ relocked:
 		if (tcp_twcheck(inp, &to, th, m, tlen))
 			goto findpcb;
 		INP_INFO_WUNLOCK(&V_tcbinfo);
-		return;
+		return (IPPROTO_DONE);
 	}
 	/*
 	 * The TCPCB may no longer exist if the connection is winding
@@ -1138,7 +1142,7 @@ relocked:
 			tcp_do_segment(m, th, so, tp, drop_hdrlen, tlen,
 			    iptos, ti_locked);
 			INP_INFO_UNLOCK_ASSERT(&V_tcbinfo);
-			return;
+			return (IPPROTO_DONE);
 		}
 		/*
 		 * Segment flag validation for new connection attempts:
@@ -1338,7 +1342,7 @@ relocked:
 		 * Everything already unlocked by syncache_add().
 		 */
 		INP_INFO_UNLOCK_ASSERT(&V_tcbinfo);
-		return;
+		return (IPPROTO_DONE);
 	} else if (tp->t_state == TCPS_LISTEN) {
 		/*
 		 * When a listen socket is torn down the SO_ACCEPTCONN
@@ -1378,7 +1382,7 @@ relocked:
 	 */
 	tcp_do_segment(m, th, so, tp, drop_hdrlen, tlen, iptos, ti_locked);
 	INP_INFO_UNLOCK_ASSERT(&V_tcbinfo);
-	return;
+	return (IPPROTO_DONE);
 
 dropwithreset:
 	TCP_PROBE5(receive, NULL, tp, mtod(m, const char *), tp, th);
@@ -1428,6 +1432,7 @@ drop:
 		free(s, M_TCPLOG);
 	if (m != NULL)
 		m_freem(m);
+	return (IPPROTO_DONE);
 }
 
 static void
@@ -1788,11 +1793,13 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 		 * reassembly queue.
 		 *
 		 * The criteria to step up the receive buffer one notch are:
-		 *  1. the number of bytes received during the time it takes
+		 *  1. Application has not set receive buffer size with
+		 *     SO_RCVBUF. Setting SO_RCVBUF clears SB_AUTOSIZE.
+		 *  2. the number of bytes received during the time it takes
 		 *     one timestamp to be reflected back to us (the RTT);
-		 *  2. received bytes per RTT is within seven eighth of the
+		 *  3. received bytes per RTT is within seven eighth of the
 		 *     current socket buffer size;
-		 *  3. receive buffer size has not hit maximal automatic size;
+		 *  4. receive buffer size has not hit maximal automatic size;
 		 *
 		 * This algorithm does one step per RTT at most and only if
 		 * we receive a bulk stream w/o packet losses or reorderings.
@@ -3472,8 +3479,8 @@ tcp_mss_update(struct tcpcb *tp, int offer, int mtuoffer,
 		bcopy(&metrics, metricptr, sizeof(struct hc_metrics_lite));
 
 	/*
-	 * If there's a discovered mtu int tcp hostcache, use it
-	 * else, use the link mtu.
+	 * If there's a discovered mtu in tcp hostcache, use it.
+	 * Else, use the link mtu.
 	 */
 	if (metrics.rmx_mtu)
 		mss = min(metrics.rmx_mtu, maxmtu) - min_protoh;

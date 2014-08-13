@@ -233,8 +233,6 @@ free_verify(dmu_buf_impl_t *db, uint64_t start, uint64_t end, dmu_tx_t *tx)
 }
 #endif
 
-#define	ALL -1
-
 static void
 free_children(dmu_buf_impl_t *db, uint64_t blkid, uint64_t nblks,
     dmu_tx_t *tx)
@@ -362,7 +360,6 @@ dnode_sync_free_range_impl(dnode_t *dn, uint64_t blkid, uint64_t nblks,
 
 			free_children(db, blkid, nblks, tx);
 			dbuf_rele(db, FTAG);
-
 		}
 	}
 
@@ -403,16 +400,13 @@ dnode_evict_dbufs(dnode_t *dn)
 	int pass = 0;
 
 	do {
-		dmu_buf_impl_t *db, marker;
+		dmu_buf_impl_t *db, *db_next;
 		int evicting = FALSE;
 
 		progress = FALSE;
 		mutex_enter(&dn->dn_dbufs_mtx);
-		list_insert_tail(&dn->dn_dbufs, &marker);
-		db = list_head(&dn->dn_dbufs);
-		for (; db != &marker; db = list_head(&dn->dn_dbufs)) {
-			list_remove(&dn->dn_dbufs, db);
-			list_insert_tail(&dn->dn_dbufs, db);
+		for (db = avl_first(&dn->dn_dbufs); db != NULL; db = db_next) {
+			db_next = AVL_NEXT(&dn->dn_dbufs, db);
 #ifdef	DEBUG
 			DB_DNODE_ENTER(db);
 			ASSERT3P(DB_DNODE(db), ==, dn);
@@ -432,7 +426,6 @@ dnode_evict_dbufs(dnode_t *dn)
 			}
 
 		}
-		list_remove(&dn->dn_dbufs, &marker);
 		/*
 		 * NB: we need to drop dn_dbufs_mtx between passes so
 		 * that any DB_EVICTING dbufs can make progress.
@@ -479,8 +472,8 @@ dnode_undirty_dbufs(list_t *list)
 			    dr->dt.dl.dr_data == db->db_buf);
 			dbuf_unoverride(dr);
 		} else {
-			list_destroy(&dr->dt.di.dr_children);
 			mutex_destroy(&dr->dt.di.dr_mtx);
+			list_destroy(&dr->dt.di.dr_children);
 		}
 		kmem_free(dr, sizeof (dbuf_dirty_record_t));
 		dbuf_rele_and_unlock(db, (void *)(uintptr_t)txg);
@@ -503,7 +496,7 @@ dnode_sync_free(dnode_t *dn, dmu_tx_t *tx)
 
 	dnode_undirty_dbufs(&dn->dn_dirty_records[txgoff]);
 	dnode_evict_dbufs(dn);
-	ASSERT3P(list_head(&dn->dn_dbufs), ==, NULL);
+	ASSERT(avl_is_empty(&dn->dn_dbufs));
 	ASSERT3P(dn->dn_bonus, ==, NULL);
 
 	/*
@@ -594,11 +587,14 @@ dnode_sync(dnode_t *dn, dmu_tx_t *tx)
 		dnp->dn_bonustype = dn->dn_bonustype;
 		dnp->dn_bonuslen = dn->dn_bonuslen;
 	}
-
 	ASSERT(dnp->dn_nlevels > 1 ||
 	    BP_IS_HOLE(&dnp->dn_blkptr[0]) ||
+	    BP_IS_EMBEDDED(&dnp->dn_blkptr[0]) ||
 	    BP_GET_LSIZE(&dnp->dn_blkptr[0]) ==
 	    dnp->dn_datablkszsec << SPA_MINBLOCKSHIFT);
+	ASSERT(dnp->dn_nlevels < 2 ||
+	    BP_IS_HOLE(&dnp->dn_blkptr[0]) ||
+	    BP_GET_LSIZE(&dnp->dn_blkptr[0]) == 1 << dnp->dn_indblkshift);
 
 	if (dn->dn_next_type[txgoff] != 0) {
 		dnp->dn_type = dn->dn_type;

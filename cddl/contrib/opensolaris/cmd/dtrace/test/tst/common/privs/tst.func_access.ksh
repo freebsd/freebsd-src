@@ -22,8 +22,8 @@
 #
 # Copyright 2006 Sun Microsystems, Inc.  All rights reserved.
 # Use is subject to license terms.
+# Copyright (c) 2012, Joyent, Inc. All rights reserved.
 #
-#ident	"%Z%%M%	%I%	%E% SMI"
 
 ppriv -s A=basic,dtrace_proc,dtrace_user $$
 
@@ -31,7 +31,7 @@ ppriv -s A=basic,dtrace_proc,dtrace_user $$
 
 BEGIN {
 	errorcount = 0;
-	expected_errorcount = 23;
+	expected_errorcount = 27;
 }
 
 BEGIN { trace(mutex_owned(&`pidlock)); }
@@ -55,6 +55,8 @@ BEGIN { trace(strtok(`initname, "/")); }
 BEGIN { trace(strtok(NULL, "/")); }
 BEGIN { trace(strtok("foo/bar", `initname)); }
 BEGIN { trace(strtok(NULL, `initname)); }
+BEGIN { trace(strtoll(`initname)); }
+BEGIN { trace(strtoll(`initname, 10)); }
 BEGIN { trace(substr(`initname, 2, 3)); }
 
 BEGIN { trace(ddi_pathname(`top_devinfo, 1)); }
@@ -62,6 +64,9 @@ BEGIN { trace(strjoin(`initname, "foo")); }
 BEGIN { trace(strjoin("foo", `initname)); }
 BEGIN { trace(dirname(`initname)); }
 BEGIN { trace(cleanpath(`initname)); }
+
+BEGIN { j = "{\"/sbin/init\":\"uh oh\"}"; trace(json(j, `initname)); }
+BEGIN { trace(json(`initname, "x")); }
 
 ERROR {
 	errorcount++;

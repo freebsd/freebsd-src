@@ -111,14 +111,14 @@ const struct terminal_class vt_termclass = {
 #define	VT_UNIT(vw)	((vw)->vw_device->vd_unit * VT_MAXWINDOWS + \
 			(vw)->vw_number)
 
-/* XXX while syscons is here. */
-int sc_txtmouse_no_retrace_wait;
-
 static SYSCTL_NODE(_kern, OID_AUTO, vt, CTLFLAG_RD, 0, "vt(9) parameters");
 VT_SYSCTL_INT(enable_altgr, 1, "Enable AltGr key (Do not assume R.Alt as Alt)");
 VT_SYSCTL_INT(debug, 0, "vt(9) debug level");
 VT_SYSCTL_INT(deadtimer, 15, "Time to wait busy process in VT_PROCESS mode");
 VT_SYSCTL_INT(suspendswitch, 1, "Switch to VT0 before suspend");
+VT_SYSCTL_INT(spclkeys, (VT_DEBUG_KEY_ENABLED|VT_REBOOT_KEY_ENABLED|
+    VT_HALT_KEY_ENABLED|VT_POWEROFF_KEY_ENABLED), "Enabled special keys "
+    "handled by vt(4)");
 
 static struct vt_device	vt_consdev;
 static unsigned int vt_unit = 0;
@@ -169,8 +169,8 @@ static struct vt_window	vt_conswindow = {
 	.vw_number = VT_CONSWINDOW,
 	.vw_flags = VWF_CONSOLE,
 	.vw_buf = {
-		.vb_buffer = vt_constextbuf,
-		.vb_rows = vt_constextbufrows,
+		.vb_buffer = &vt_constextbuf[0],
+		.vb_rows = &vt_constextbufrows[0],
 		.vb_history_size = VBF_DEFAULT_HISTORY_SIZE,
 		.vb_curroffset = 0,
 		.vb_roffset = 0,
@@ -215,6 +215,8 @@ static void
 vt_update_static(void *dummy)
 {
 
+	if (!vty_enabled(VTY_VT))
+		return;
 	if (main_vd->vd_driver != NULL)
 		printf("VT: running with driver \"%s\".\n",
 		    main_vd->vd_driver->vd_name);
@@ -403,17 +405,21 @@ vt_machine_kbdevent(int c)
 
 	switch (c) {
 	case SPCLKEY | DBG:
-		kdb_enter(KDB_WHY_BREAK, "manual escape to debugger");
+		if (vt_spclkeys & VT_DEBUG_KEY_ENABLED)
+			kdb_enter(KDB_WHY_BREAK, "manual escape to debugger");
 		return (1);
 	case SPCLKEY | RBT:
-		/* XXX: Make this configurable! */
-		shutdown_nice(0);
+		if (vt_spclkeys & VT_REBOOT_KEY_ENABLED)
+			/* XXX: Make this configurable! */
+			shutdown_nice(0);
 		return (1);
 	case SPCLKEY | HALT:
-		shutdown_nice(RB_HALT);
+		if (vt_spclkeys & VT_HALT_KEY_ENABLED)
+			shutdown_nice(RB_HALT);
 		return (1);
 	case SPCLKEY | PDWN:
-		shutdown_nice(RB_HALT|RB_POWEROFF);
+		if (vt_spclkeys & VT_POWEROFF_KEY_ENABLED)
+			shutdown_nice(RB_HALT|RB_POWEROFF);
 		return (1);
 	};
 
@@ -616,7 +622,7 @@ vt_kbdevent(keyboard_t *kbd, int event, void *arg)
 	case KBDIO_UNLOADING:
 		mtx_lock(&Giant);
 		vd->vd_keyboard = -1;
-		kbd_release(kbd, (void *)&vd->vd_keyboard);
+		kbd_release(kbd, (void *)vd);
 		mtx_unlock(&Giant);
 		return (0);
 	default:
@@ -881,7 +887,7 @@ vt_flush(struct vt_device *vd)
 		if ((vd->vd_my + m->h) > (size.tp_row * vf->vf_height))
 			h = (size.tp_row * vf->vf_height) - vd->vd_my - 1;
 
-		vd->vd_driver->vd_maskbitbltchr(vd, m->map, m->mask, bpl,
+		vd->vd_driver->vd_bitbltchr(vd, m->map, m->mask, bpl,
 		    vd->vd_offset.tp_row + vd->vd_my,
 		    vd->vd_offset.tp_col + vd->vd_mx,
 		    w, h, TC_WHITE, TC_BLACK);
@@ -956,6 +962,11 @@ vtterm_cnprobe(struct terminal *tm, struct consdev *cp)
 	struct vt_window *vw = tm->tm_softc;
 	struct vt_device *vd = vw->vw_device;
 	struct winsize wsz;
+	term_attr_t attr;
+	term_char_t c;
+
+	if (!vty_enabled(VTY_VT))
+		return;
 
 	if (vd->vd_flags & VDF_INITIALIZED)
 		/* Initialization already done. */
@@ -992,12 +1003,17 @@ vtterm_cnprobe(struct terminal *tm, struct consdev *cp)
 	sprintf(cp->cn_name, "ttyv%r", VT_UNIT(vw));
 
 	/* Attach default font if not in TEXTMODE. */
-	if (!(vd->vd_flags & VDF_TEXTMODE))
+	if ((vd->vd_flags & VDF_TEXTMODE) == 0)
 		vw->vw_font = vtfont_ref(&vt_font_default);
 
 	vtbuf_init_early(&vw->vw_buf);
 	vt_winsize(vd, vw->vw_font, &wsz);
-	terminal_set_winsize(tm, &wsz);
+	c = (boothowto & RB_MUTE) == 0 ? TERMINAL_KERN_ATTR :
+	    TERMINAL_NORM_ATTR;
+	attr.ta_format = TCHAR_FORMAT(c);
+	attr.ta_fgcolor = TCHAR_FGCOLOR(c);
+	attr.ta_bgcolor = TCHAR_BGCOLOR(c);
+	terminal_set_winsize_blank(tm, &wsz, 1, &attr);
 
 	if (vtdbest != NULL) {
 #ifdef DEV_SPLASH
@@ -1138,7 +1154,7 @@ vt_change_font(struct vt_window *vw, struct vt_font *vf)
 		VT_UNLOCK(vd);
 		return (EBUSY);
 	}
-	if (vw->vw_font == NULL) {
+	if (vd->vd_flags & VDF_TEXTMODE) {
 		/* Our device doesn't need fonts. */
 		VT_UNLOCK(vd);
 		return (ENOTTY);
@@ -1155,13 +1171,19 @@ vt_change_font(struct vt_window *vw, struct vt_font *vf)
 	/* Grow the screen buffer and terminal. */
 	terminal_mute(tm, 1);
 	vtbuf_grow(&vw->vw_buf, &size, vw->vw_buf.vb_history_size);
-	terminal_set_winsize_blank(tm, &wsz, 0);
+	terminal_set_winsize_blank(tm, &wsz, 0, NULL);
 	terminal_mute(tm, 0);
 
 	/* Actually apply the font to the current window. */
 	VT_LOCK(vd);
-	vtfont_unref(vw->vw_font);
-	vw->vw_font = vtfont_ref(vf);
+	if (vw->vw_font != vf) {
+		/*
+		 * In case vt_change_font called to update size we don't need
+		 * to update font link.
+		 */
+		vtfont_unref(vw->vw_font);
+		vw->vw_font = vtfont_ref(vf);
+	}
 
 	/* Force a full redraw the next timer tick. */
 	if (vd->vd_curwindow == vw)
@@ -1773,11 +1795,10 @@ skip_thunk:
 				return (EINVAL);
 			}
 			i = kbd_allocate(kbd->kb_name, kbd->kb_unit,
-			    (void *)&vd->vd_keyboard, vt_kbdevent, vd);
+			    (void *)vd, vt_kbdevent, vd);
 			if (i >= 0) {
 				if (vd->vd_keyboard != -1) {
-					kbd_release(kbd,
-					    (void *)&vd->vd_keyboard);
+					kbd_release(kbd, (void *)vd);
 				}
 				kbd = kbd_get_keyboard(i);
 				vd->vd_keyboard = i;
@@ -1799,7 +1820,7 @@ skip_thunk:
 				mtx_unlock(&Giant);
 				return (EINVAL);
 			}
-			error = kbd_release(kbd, (void *)&vd->vd_keyboard);
+			error = kbd_release(kbd, (void *)vd);
 			if (error == 0) {
 				vd->vd_keyboard = -1;
 			}
@@ -1970,7 +1991,7 @@ vt_allocate_window(struct vt_device *vd, unsigned int window)
 	vw->vw_number = window;
 	vw->vw_kbdmode = K_XLATE;
 
-	if (!(vd->vd_flags & VDF_TEXTMODE))
+	if ((vd->vd_flags & VDF_TEXTMODE) == 0)
 		vw->vw_font = vtfont_ref(&vt_font_default);
 
 	vt_termsize(vd, vw->vw_font, &size);
@@ -1990,6 +2011,9 @@ vt_upgrade(struct vt_device *vd)
 {
 	struct vt_window *vw;
 	unsigned int i;
+
+	if (!vty_enabled(VTY_VT))
+		return;
 
 	for (i = 0; i < VT_MAXWINDOWS; i++) {
 		vw = vd->vd_windows[i];
@@ -2014,9 +2038,8 @@ vt_upgrade(struct vt_device *vd)
 		vd->vd_curwindow = vd->vd_windows[VT_CONSWINDOW];
 
 	if (!(vd->vd_flags & VDF_ASYNC)) {
-	/* Attach keyboard. */
-	vt_allocate_keyboard(vd);
-	DPRINTF(20, "%s: vd_keyboard = %d\n", __func__, vd->vd_keyboard);
+		/* Attach keyboard. */
+		vt_allocate_keyboard(vd);
 
 		/* Init 25 Hz timer. */
 		callout_init_mtx(&vd->vd_timer, &vd->vd_lock, 0);
@@ -2046,7 +2069,10 @@ vt_resize(struct vt_device *vd)
 			vw->vw_font = vtfont_ref(&vt_font_default);
 		VT_UNLOCK(vd);
 		/* Resize terminal windows */
-		vt_change_font(vw, vw->vw_font);
+		while (vt_change_font(vw, vw->vw_font) == EBUSY) {
+			DPRINTF(100, "%s: vt_change_font() is busy, "
+			    "window %d\n", __func__, i);
+		}
 	}
 }
 
@@ -2054,7 +2080,9 @@ void
 vt_allocate(struct vt_driver *drv, void *softc)
 {
 	struct vt_device *vd;
-	struct winsize wsz;
+
+	if (!vty_enabled(VTY_VT))
+		return;
 
 	if (main_vd->vd_driver == NULL) {
 		main_vd->vd_driver = drv;
@@ -2075,8 +2103,6 @@ vt_allocate(struct vt_driver *drv, void *softc)
 	}
 	vd = main_vd;
 	VT_LOCK(vd);
-	if (drv->vd_maskbitbltchr == NULL)
-		drv->vd_maskbitbltchr = drv->vd_bitbltchr;
 
 	if (vd->vd_flags & VDF_ASYNC) {
 		/* Stop vt_flush periodic task. */
@@ -2099,6 +2125,7 @@ vt_allocate(struct vt_driver *drv, void *softc)
 	vd->vd_driver->vd_init(vd);
 	VT_UNLOCK(vd);
 
+	/* Update windows sizes and initialize last items. */
 	vt_upgrade(vd);
 
 #ifdef DEV_SPLASH
@@ -2107,16 +2134,17 @@ vt_allocate(struct vt_driver *drv, void *softc)
 #endif
 
 	if (vd->vd_flags & VDF_ASYNC) {
+		/* Allow to put chars now. */
 		terminal_mute(vd->vd_curwindow->vw_terminal, 0);
+		/* Rerun timer for screen updates. */
 		callout_schedule(&vd->vd_timer, hz / VT_TIMERFREQ);
 	}
 
+	/*
+	 * Register as console. If it already registered, cnadd() will ignore
+	 * it.
+	 */
 	termcn_cnregister(vd->vd_windows[VT_CONSWINDOW]->vw_terminal);
-
-	/* Update console window sizes to actual. */
-	vt_winsize(vd, vd->vd_windows[VT_CONSWINDOW]->vw_font, &wsz);
-	terminal_set_winsize_blank(vd->vd_windows[VT_CONSWINDOW]->vw_terminal,
-	    &wsz, 0);
 }
 
 void

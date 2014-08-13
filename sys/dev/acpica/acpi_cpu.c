@@ -129,10 +129,12 @@ struct acpi_cpu_device {
 
 /* Allow users to ignore processor orders in MADT. */
 static int cpu_unordered;
-TUNABLE_INT("debug.acpi.cpu_unordered", &cpu_unordered);
 SYSCTL_INT(_debug_acpi, OID_AUTO, cpu_unordered, CTLFLAG_RDTUN,
     &cpu_unordered, 0,
     "Do not use the MADT to match ACPI Processor objects to CPUs.");
+
+/* Knob to disable acpi_cpu devices */
+bool acpi_cpu_disabled = false;
 
 /* Platform hardware resource information. */
 static uint32_t		 cpu_smi_cmd;	/* Value to write to SMI_CMD. */
@@ -221,7 +223,8 @@ acpi_cpu_probe(device_t dev)
     ACPI_OBJECT		   *obj;
     ACPI_STATUS		   status;
 
-    if (acpi_disabled("cpu") || acpi_get_type(dev) != ACPI_TYPE_PROCESSOR)
+    if (acpi_disabled("cpu") || acpi_get_type(dev) != ACPI_TYPE_PROCESSOR ||
+	    acpi_cpu_disabled)
 	return (ENXIO);
 
     handle = acpi_get_handle(dev);

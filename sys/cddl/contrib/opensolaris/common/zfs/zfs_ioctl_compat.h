@@ -19,6 +19,7 @@
  * CDDL HEADER END
  */
 /*
+ * Copyright 2014 Xin Li <delphij@FreeBSD.org>.  All rights reserved.
  * Copyright 2013 Martin Matuska <mm@FreeBSD.org>.  All rights reserved.
  * Use is subject to license terms.
  */
@@ -50,7 +51,8 @@ extern "C" {
 #define	ZFS_IOCVER_DEADMAN	1
 #define	ZFS_IOCVER_LZC		2
 #define	ZFS_IOCVER_ZCMD		3
-#define	ZFS_IOCVER_CURRENT	ZFS_IOCVER_ZCMD
+#define	ZFS_IOCVER_EDBP		4
+#define	ZFS_IOCVER_CURRENT	ZFS_IOCVER_EDBP
 
 /* compatibility conversion flag */
 #define	ZFS_CMD_COMPAT_NONE	0
@@ -58,6 +60,7 @@ extern "C" {
 #define	ZFS_CMD_COMPAT_V28	2
 #define	ZFS_CMD_COMPAT_DEADMAN	3
 #define	ZFS_CMD_COMPAT_LZC	4
+#define	ZFS_CMD_COMPAT_ZCMD	5
 
 #define	ZFS_IOC_COMPAT_PASS	254
 #define	ZFS_IOC_COMPAT_FAIL	255
@@ -199,6 +202,49 @@ typedef struct zfs_cmd_deadman {
 	uint64_t	zc_createtxg;
 	zfs_stat_t	zc_stat;
 } zfs_cmd_deadman_t;
+
+typedef struct zfs_cmd_zcmd {
+	char		zc_name[MAXPATHLEN];	/* name of pool or dataset */
+	uint64_t	zc_nvlist_src;		/* really (char *) */
+	uint64_t	zc_nvlist_src_size;
+	uint64_t	zc_nvlist_dst;		/* really (char *) */
+	uint64_t	zc_nvlist_dst_size;
+	boolean_t	zc_nvlist_dst_filled;	/* put an nvlist in dst? */
+	int		zc_pad2;
+
+	/*
+	 * The following members are for legacy ioctls which haven't been
+	 * converted to the new method.
+	 */
+	uint64_t	zc_history;		/* really (char *) */
+	char		zc_value[MAXPATHLEN * 2];
+	char		zc_string[MAXNAMELEN];
+	uint64_t	zc_guid;
+	uint64_t	zc_nvlist_conf;		/* really (char *) */
+	uint64_t	zc_nvlist_conf_size;
+	uint64_t	zc_cookie;
+	uint64_t	zc_objset_type;
+	uint64_t	zc_perm_action;
+	uint64_t	zc_history_len;
+	uint64_t	zc_history_offset;
+	uint64_t	zc_obj;
+	uint64_t	zc_iflags;		/* internal to zfs(7fs) */
+	zfs_share_t	zc_share;
+	uint64_t	zc_jailid;
+	dmu_objset_stats_t zc_objset_stats;
+	struct drr_begin zc_begin_record;
+	zinject_record_t zc_inject_record;
+	boolean_t	zc_defer_destroy;
+	boolean_t	zc_temphold;
+	uint64_t	zc_action_handle;
+	int		zc_cleanup_fd;
+	uint8_t		zc_simple;
+	uint8_t		zc_pad[3];		/* alignment */
+	uint64_t	zc_sendobj;
+	uint64_t	zc_fromobj;
+	uint64_t	zc_createtxg;
+	zfs_stat_t	zc_stat;
+} zfs_cmd_zcmd_t;
 
 #ifdef _KERNEL
 unsigned static long zfs_ioctl_v15_to_v28[] = {

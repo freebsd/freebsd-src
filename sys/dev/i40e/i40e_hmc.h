@@ -39,7 +39,6 @@
 
 /* forward-declare the HW struct for the compiler */
 struct i40e_hw;
-enum i40e_status_code;
 
 #define I40E_HMC_INFO_SIGNATURE		0x484D5347 /* HMSG */
 #define I40E_HMC_PD_CNT_IN_SD		512
@@ -136,7 +135,7 @@ struct i40e_hmc_info {
 		((((type) == I40E_SD_TYPE_PAGED) ? 0 : 1) <<		\
 		I40E_PFHMC_SDDATALOW_PMSDTYPE_SHIFT) |			\
 		(1 << I40E_PFHMC_SDDATALOW_PMSDVALID_SHIFT);		\
-	val3 = (sd_index) | (1 << I40E_PFHMC_SDCMD_PMSDWR_SHIFT);	\
+	val3 = (sd_index) | (1u << I40E_PFHMC_SDCMD_PMSDWR_SHIFT);	\
 	wr32((hw), I40E_PFHMC_SDDATAHIGH, val1);			\
 	wr32((hw), I40E_PFHMC_SDDATALOW, val2);				\
 	wr32((hw), I40E_PFHMC_SDCMD, val3);				\
@@ -155,7 +154,7 @@ struct i40e_hmc_info {
 		I40E_PFHMC_SDDATALOW_PMSDBPCOUNT_SHIFT) |		\
 		((((type) == I40E_SD_TYPE_PAGED) ? 0 : 1) <<		\
 		I40E_PFHMC_SDDATALOW_PMSDTYPE_SHIFT);			\
-	val3 = (sd_index) | (1 << I40E_PFHMC_SDCMD_PMSDWR_SHIFT);	\
+	val3 = (sd_index) | (1u << I40E_PFHMC_SDCMD_PMSDWR_SHIFT);	\
 	wr32((hw), I40E_PFHMC_SDDATAHIGH, 0);				\
 	wr32((hw), I40E_PFHMC_SDDATALOW, val2);				\
 	wr32((hw), I40E_PFHMC_SDCMD, val3);				\

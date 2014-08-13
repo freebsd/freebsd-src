@@ -33,7 +33,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 9, 2011
+.Dd July 19, 2014
 .Dt PAM_GROUP 8
 .Os
 .Sh NAME
@@ -48,6 +48,11 @@
 .Sh DESCRIPTION
 The group service module for PAM accepts or rejects users based on
 their membership in a particular file group.
+.Nm pam_group
+provides functionality for two PAM categories: authentication and
+account management.
+In terms of the module-type parameter, they are the ``auth'' and
+``account'' features.
 .Pp
 The following options may be passed to the
 .Nm

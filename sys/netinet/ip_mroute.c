@@ -247,7 +247,7 @@ static const struct protosw in_pim_protosw = {
 	.pr_protocol =		IPPROTO_PIM,
 	.pr_flags =		PR_ATOMIC|PR_ADDR|PR_LASTHDR,
 	.pr_input =		pim_input,
-	.pr_output =		(pr_output_t*)rip_output,
+	.pr_output =		(pr_output_t *)rip_output,
 	.pr_ctloutput =		rip_ctloutput,
 	.pr_usrreqs =		&rip_usrreqs
 };
@@ -1718,12 +1718,16 @@ X_ip_rsvp_force_done(struct socket *so __unused)
 
 }
 
-static void
-X_rsvp_input(struct mbuf *m, int off __unused)
+static int
+X_rsvp_input(struct mbuf **mp, int *offp, int proto)
 {
+	struct mbuf *m;
 
+	m = *mp;
+	*mp = NULL;
 	if (!V_rsvp_on)
 		m_freem(m);
+	return (IPPROTO_DONE);
 }
 
 /*
@@ -2556,14 +2560,18 @@ pim_encapcheck(const struct mbuf *m, int off, int proto, void *arg)
  * (used by PIM-SM): the PIM header is stripped off, and the inner packet
  * is passed to if_simloop().
  */
-void
-pim_input(struct mbuf *m, int iphlen)
+int
+pim_input(struct mbuf **mp, int *offp, int proto)
 {
+    struct mbuf *m = *mp;
     struct ip *ip = mtod(m, struct ip *);
     struct pim *pim;
+    int iphlen = *offp;
     int minlen;
     int datalen = ntohs(ip->ip_len) - iphlen;
     int ip_tos;
+
+    *mp = NULL;
 
     /* Keep statistics */
     PIMSTAT_INC(pims_rcv_total_msgs);
@@ -2577,7 +2585,7 @@ pim_input(struct mbuf *m, int iphlen)
 	CTR3(KTR_IPMF, "%s: short packet (%d) from %s",
 	    __func__, datalen, inet_ntoa(ip->ip_src));
 	m_freem(m);
-	return;
+	return (IPPROTO_DONE);
     }
 
     /*
@@ -2595,7 +2603,7 @@ pim_input(struct mbuf *m, int iphlen)
      */
     if (m->m_len < minlen && (m = m_pullup(m, minlen)) == 0) {
 	CTR1(KTR_IPMF, "%s: m_pullup() failed", __func__);
-	return;
+	return (IPPROTO_DONE);
     }
 
     /* m_pullup() may have given us a new mbuf so reset ip. */
@@ -2620,7 +2628,7 @@ pim_input(struct mbuf *m, int iphlen)
 	PIMSTAT_INC(pims_rcv_badsum);
 	CTR1(KTR_IPMF, "%s: invalid checksum", __func__);
 	m_freem(m);
-	return;
+	return (IPPROTO_DONE);
     }
 
     /* PIM version check */
@@ -2629,7 +2637,7 @@ pim_input(struct mbuf *m, int iphlen)
 	CTR3(KTR_IPMF, "%s: bad version %d expect %d", __func__,
 	    (int)PIM_VT_V(pim->pim_vt), PIM_VERSION);
 	m_freem(m);
-	return;
+	return (IPPROTO_DONE);
     }
 
     /* restore mbuf back to the outer IP */
@@ -2654,7 +2662,7 @@ pim_input(struct mbuf *m, int iphlen)
 	    CTR2(KTR_IPMF, "%s: register vif not set: %d", __func__,
 		(int)V_reg_vif_num);
 	    m_freem(m);
-	    return;
+	    return (IPPROTO_DONE);
 	}
 	/* XXX need refcnt? */
 	vifp = V_viftable[V_reg_vif_num].v_ifp;
@@ -2668,7 +2676,7 @@ pim_input(struct mbuf *m, int iphlen)
 	    PIMSTAT_INC(pims_rcv_badregisters);
 	    CTR1(KTR_IPMF, "%s: register packet size too small", __func__);
 	    m_freem(m);
-	    return;
+	    return (IPPROTO_DONE);
 	}
 
 	reghdr = (u_int32_t *)(pim + 1);
@@ -2682,7 +2690,7 @@ pim_input(struct mbuf *m, int iphlen)
 	    PIMSTAT_INC(pims_rcv_badregisters);
 	    CTR1(KTR_IPMF, "%s: bad encap ip version", __func__);
 	    m_freem(m);
-	    return;
+	    return (IPPROTO_DONE);
 	}
 
 	/* verify the inner packet is destined to a mcast group */
@@ -2691,7 +2699,7 @@ pim_input(struct mbuf *m, int iphlen)
 	    CTR2(KTR_IPMF, "%s: bad encap ip dest %s", __func__,
 		inet_ntoa(encap_ip->ip_dst));
 	    m_freem(m);
-	    return;
+	    return (IPPROTO_DONE);
 	}
 
 	/* If a NULL_REGISTER, pass it to the daemon */
@@ -2730,7 +2738,7 @@ pim_input(struct mbuf *m, int iphlen)
 	if (mcp == NULL) {
 	    CTR1(KTR_IPMF, "%s: m_copy() failed", __func__);
 	    m_freem(m);
-	    return;
+	    return (IPPROTO_DONE);
 	}
 
 	/* Keep statistics */
@@ -2766,9 +2774,10 @@ pim_input_to_daemon:
      * XXX: the outer IP header pkt size of a Register is not adjust to
      * reflect the fact that the inner multicast data is truncated.
      */
-    rip_input(m, iphlen);
+    *mp = m;
+    rip_input(mp, offp, proto);
 
-    return;
+    return (IPPROTO_DONE);
 }
 
 static int

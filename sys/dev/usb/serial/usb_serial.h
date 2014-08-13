@@ -195,7 +195,7 @@ struct ucom_softc {
 #define	UCOM_MTX_LOCK(sc) mtx_lock((sc)->sc_mtx)
 #define	UCOM_MTX_UNLOCK(sc) mtx_unlock((sc)->sc_mtx)
 #define	UCOM_UNLOAD_DRAIN(x) \
-SYSUNINIT(var, SI_SUB_KLD - 3, SI_ORDER_ANY, ucom_drain_all, 0)
+SYSUNINIT(var, SI_SUB_KLD - 2, SI_ORDER_ANY, ucom_drain_all, 0)
 
 #define	ucom_cfg_do_request(udev,com,req,ptr,flags,timo) \
     usbd_do_request_proc(udev,&(com)->sc_super->sc_tq,req,ptr,flags,NULL,timo)

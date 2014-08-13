@@ -73,7 +73,7 @@ LDFLAGS=	-nostdlib			\
 CFLAGS+=	-I${.CURDIR}/../common
 
 flashboot.elf: relocate.o start.o boot2.o altera_jtag_uart.o cfi.o sdcard.o
-	${LD} ${LDFLAGS} -T ${.CURDIR}/flashboot.ldscript -o ${.TARGET}	\
+	${LD} ${_LDFLAGS} -T ${.CURDIR}/flashboot.ldscript -o ${.TARGET}	\
 	    ${.ALLSRC} ${LIBSTAND}
 flashboot: flashboot.elf
 	objcopy -S -O binary ${.TARGET}.elf ${.TARGET}
@@ -81,7 +81,7 @@ flashboot.md5: flashboot
 	md5 flashboot > flashboot.md5
 
 jtagboot: start.o boot2.o altera_jtag_uart.o cfi.o sdcard.o
-	${LD} ${LDFLAGS} -T ${.CURDIR}/jtagboot.ldscript -o ${.TARGET}	\
+	${LD} ${_LDFLAGS} -T ${.CURDIR}/jtagboot.ldscript -o ${.TARGET}	\
 	    ${.ALLSRC} ${LIBSTAND}
 jtagboot.md5: jtagboot
 	md5 jtagboot > jtagboot.md5

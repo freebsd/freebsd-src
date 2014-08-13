@@ -176,8 +176,6 @@ atkbdc_configure(void)
 	/* XXX: tag should be passed from the caller */
 #if defined(__amd64__) || defined(__i386__)
 	tag = X86_BUS_SPACE_IO;
-#elif defined(__ia64__)
-	tag = IA64_BUS_SPACE_IO;
 #elif defined(__sparc64__)
 	tag = &atkbdc_bst_store[0];
 #else

@@ -72,7 +72,7 @@ struct pimstat {
 
 #ifdef _KERNEL
 
-void pim_input(struct mbuf *, int);
+int pim_input(struct mbuf **, int *, int);
 SYSCTL_DECL(_net_inet_pim);
 #endif
 

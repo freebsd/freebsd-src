@@ -47,7 +47,9 @@ __FBSDID("$FreeBSD$");
 #include <netinet/sctp_bsd_addr.h>
 #include <netinet/sctp_timer.h>
 #include <netinet/sctp_crc32.h>
+#if defined(INET) || defined(INET6)
 #include <netinet/udp.h>
+#endif
 #include <sys/smp.h>
 
 
@@ -478,7 +480,7 @@ sctp_process_init_ack(struct mbuf *m, int iphlen, int offset,
 		return (-1);
 	}
 	/* if the peer doesn't support asconf, flush the asconf queue */
-	if (asoc->peer_supports_asconf == 0) {
+	if (asoc->asconf_supported == 0) {
 		struct sctp_asconf_addr *param, *nparam;
 
 		TAILQ_FOREACH_SAFE(param, &asoc->asconf_queue, next, nparam) {
@@ -754,7 +756,7 @@ sctp_handle_nat_missing_state(struct sctp_tcb *stcb,
 	 * return 0 means we want you to proceed with the abort non-zero
 	 * means no abort processing
 	 */
-	if (stcb->asoc.peer_supports_auth == 0) {
+	if (stcb->asoc.auth_supported == 0) {
 		SCTPDBG(SCTP_DEBUG_INPUT2, "sctp_handle_nat_missing_state: Peer does not support AUTH, cannot send an asconf\n");
 		return (0);
 	}
@@ -1080,7 +1082,7 @@ sctp_process_unrecog_chunk(struct sctp_tcb *stcb, struct sctp_paramhdr *phdr,
 		sctp_asconf_cleanup(stcb, net);
 		break;
 	case SCTP_FORWARD_CUM_TSN:
-		stcb->asoc.peer_supports_prsctp = 0;
+		stcb->asoc.prsctp_supported = 0;
 		break;
 	default:
 		SCTPDBG(SCTP_DEBUG_INPUT2,
@@ -1094,6 +1096,7 @@ sctp_process_unrecog_chunk(struct sctp_tcb *stcb, struct sctp_paramhdr *phdr,
  * Skip past the param header and then we will find the param that caused the
  * problem.  There are a number of param's in a ASCONF OR the prsctp param
  * these will turn of specific features.
+ * XXX: Is this the right thing to do?
  */
 static void
 sctp_process_unrecog_param(struct sctp_tcb *stcb, struct sctp_paramhdr *phdr)
@@ -1104,7 +1107,7 @@ sctp_process_unrecog_param(struct sctp_tcb *stcb, struct sctp_paramhdr *phdr)
 	switch (ntohs(pbad->param_type)) {
 		/* pr-sctp draft */
 	case SCTP_PRSCTP_SUPPORTED:
-		stcb->asoc.peer_supports_prsctp = 0;
+		stcb->asoc.prsctp_supported = 0;
 		break;
 	case SCTP_SUPPORTED_CHUNK_EXT:
 		break;
@@ -1115,14 +1118,14 @@ sctp_process_unrecog_param(struct sctp_tcb *stcb, struct sctp_paramhdr *phdr)
 	case SCTP_ADD_IP_ADDRESS:
 	case SCTP_DEL_IP_ADDRESS:
 	case SCTP_SET_PRIM_ADDR:
-		stcb->asoc.peer_supports_asconf = 0;
+		stcb->asoc.asconf_supported = 0;
 		break;
 	case SCTP_SUCCESS_REPORT:
 	case SCTP_ERROR_CAUSE_IND:
 		SCTPDBG(SCTP_DEBUG_INPUT2, "Huh, the peer does not support success? or error cause?\n");
 		SCTPDBG(SCTP_DEBUG_INPUT2,
 		    "Turning off ASCONF to this strange peer\n");
-		stcb->asoc.peer_supports_asconf = 0;
+		stcb->asoc.asconf_supported = 0;
 		break;
 	default:
 		SCTPDBG(SCTP_DEBUG_INPUT2,
@@ -2783,7 +2786,13 @@ sctp_handle_cookie_echo(struct mbuf *m, int iphlen, int offset,
 			inp->sctp_socket = so;
 			inp->sctp_frag_point = (*inp_p)->sctp_frag_point;
 			inp->sctp_cmt_on_off = (*inp_p)->sctp_cmt_on_off;
-			inp->sctp_ecn_enable = (*inp_p)->sctp_ecn_enable;
+			inp->ecn_supported = (*inp_p)->ecn_supported;
+			inp->prsctp_supported = (*inp_p)->prsctp_supported;
+			inp->auth_supported = (*inp_p)->auth_supported;
+			inp->asconf_supported = (*inp_p)->asconf_supported;
+			inp->reconfig_supported = (*inp_p)->reconfig_supported;
+			inp->nrsack_supported = (*inp_p)->nrsack_supported;
+			inp->pktdrop_supported = (*inp_p)->pktdrop_supported;
 			inp->partial_delivery_point = (*inp_p)->partial_delivery_point;
 			inp->sctp_context = (*inp_p)->sctp_context;
 			inp->local_strreset_support = (*inp_p)->local_strreset_support;
@@ -2960,7 +2969,7 @@ sctp_handle_cookie_ack(struct sctp_cookie_ack_chunk *cp SCTP_UNUSED,
 		 * in flight)
 		 */
 		if ((sctp_is_feature_on(stcb->sctp_ep, SCTP_PCB_FLAGS_DO_ASCONF)) &&
-		    (stcb->asoc.peer_supports_asconf) &&
+		    (stcb->asoc.asconf_supported == 1) &&
 		    (!TAILQ_EMPTY(&stcb->asoc.asconf_queue))) {
 #ifdef SCTP_TIMER_BASED_ASCONF
 			sctp_timer_start(SCTP_TIMER_TYPE_ASCONF,
@@ -4433,7 +4442,7 @@ __attribute__((noinline))
 		 */
 		if ((ch->chunk_type == SCTP_AUTHENTICATION) &&
 		    (stcb == NULL) &&
-		    !SCTP_BASE_SYSCTL(sctp_auth_disable)) {
+		    (inp->auth_supported == 1)) {
 			/* save this chunk for later processing */
 			auth_skipped = 1;
 			auth_offset = *offset;
@@ -4700,7 +4709,7 @@ process_control_chunks:
 
 		/* check to see if this chunk required auth, but isn't */
 		if ((stcb != NULL) &&
-		    !SCTP_BASE_SYSCTL(sctp_auth_disable) &&
+		    (stcb->asoc.auth_supported == 1) &&
 		    sctp_auth_is_required_chunk(ch->chunk_type, stcb->asoc.local_auth_chunks) &&
 		    !stcb->asoc.authenticated) {
 			/* "silently" ignore */
@@ -4908,8 +4917,7 @@ process_control_chunks:
 					SCTPDBG(SCTP_DEBUG_INDATA1, "No stcb when processing NR-SACK chunk\n");
 					break;
 				}
-				if ((stcb->asoc.sctp_nr_sack_on_off == 0) ||
-				    (stcb->asoc.peer_supports_nr_sack == 0)) {
+				if (stcb->asoc.nrsack_supported == 0) {
 					goto unknown_chunk;
 				}
 				if (chk_length < sizeof(struct sctp_nr_sack_chunk)) {
@@ -5220,6 +5228,9 @@ process_control_chunks:
 				return (NULL);
 			}
 			if (stcb) {
+				if (stcb->asoc.ecn_supported == 0) {
+					goto unknown_chunk;
+				}
 				if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_THRESHOLD_LOGGING) {
 					sctp_misc_ints(SCTP_THRESHOLD_CLEAR,
 					    stcb->asoc.overall_error_count,
@@ -5245,6 +5256,9 @@ process_control_chunks:
 				return (NULL);
 			}
 			if (stcb) {
+				if (stcb->asoc.ecn_supported == 0) {
+					goto unknown_chunk;
+				}
 				if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_THRESHOLD_LOGGING) {
 					sctp_misc_ints(SCTP_THRESHOLD_CLEAR,
 					    stcb->asoc.overall_error_count,
@@ -5278,6 +5292,9 @@ process_control_chunks:
 			SCTPDBG(SCTP_DEBUG_INPUT3, "SCTP_ASCONF\n");
 			/* He's alive so give him credit */
 			if (stcb) {
+				if (stcb->asoc.asconf_supported == 0) {
+					goto unknown_chunk;
+				}
 				if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_THRESHOLD_LOGGING) {
 					sctp_misc_ints(SCTP_THRESHOLD_CLEAR,
 					    stcb->asoc.overall_error_count,
@@ -5302,6 +5319,9 @@ process_control_chunks:
 				return (NULL);
 			}
 			if ((stcb) && netp && *netp) {
+				if (stcb->asoc.asconf_supported == 0) {
+					goto unknown_chunk;
+				}
 				/* He's alive so give him credit */
 				if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_THRESHOLD_LOGGING) {
 					sctp_misc_ints(SCTP_THRESHOLD_CLEAR,
@@ -5331,6 +5351,9 @@ process_control_chunks:
 			if (stcb) {
 				int abort_flag = 0;
 
+				if (stcb->asoc.prsctp_supported == 0) {
+					goto unknown_chunk;
+				}
 				stcb->asoc.overall_error_count = 0;
 				if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_THRESHOLD_LOGGING) {
 					sctp_misc_ints(SCTP_THRESHOLD_CLEAR,
@@ -5385,13 +5408,8 @@ process_control_chunks:
 				*offset = length;
 				return (NULL);
 			}
-			if (stcb->asoc.peer_supports_strreset == 0) {
-				/*
-				 * hmm, peer should have announced this, but
-				 * we will turn it on since he is sending us
-				 * a stream reset.
-				 */
-				stcb->asoc.peer_supports_strreset = 1;
+			if (stcb->asoc.reconfig_supported == 0) {
+				goto unknown_chunk;
 			}
 			if (sctp_handle_stream_reset(stcb, m, *offset, ch)) {
 				/* stop processing */
@@ -5411,18 +5429,17 @@ process_control_chunks:
 				return (NULL);
 			}
 			if (ch && (stcb) && netp && (*netp)) {
+				if (stcb->asoc.pktdrop_supported == 0) {
+					goto unknown_chunk;
+				}
 				sctp_handle_packet_dropped((struct sctp_pktdrop_chunk *)ch,
 				    stcb, *netp,
 				    min(chk_length, (sizeof(chunk_buf) - 4)));
 
 			}
 			break;
-
 		case SCTP_AUTHENTICATION:
 			SCTPDBG(SCTP_DEBUG_INPUT3, "SCTP_AUTHENTICATION\n");
-			if (SCTP_BASE_SYSCTL(sctp_auth_disable))
-				goto unknown_chunk;
-
 			if (stcb == NULL) {
 				/* save the first AUTH for later processing */
 				if (auth_skipped == 0) {
@@ -5432,6 +5449,9 @@ process_control_chunks:
 				}
 				/* skip this chunk (temporarily) */
 				goto next_chunk;
+			}
+			if (stcb->asoc.auth_supported == 0) {
+				goto unknown_chunk;
 			}
 			if ((chk_length < (sizeof(struct sctp_auth_chunk))) ||
 			    (chk_length > (sizeof(struct sctp_auth_chunk) +
@@ -5482,7 +5502,7 @@ process_control_chunks:
 					SCTP_BUF_LEN(mm) = sizeof(*phd);
 					SCTP_BUF_NEXT(mm) = SCTP_M_COPYM(m, *offset, chk_length, M_NOWAIT);
 					if (SCTP_BUF_NEXT(mm)) {
-						if (sctp_pad_lastmbuf(SCTP_BUF_NEXT(mm), SCTP_SIZE32(chk_length) - chk_length, NULL)) {
+						if (sctp_pad_lastmbuf(SCTP_BUF_NEXT(mm), SCTP_SIZE32(chk_length) - chk_length, NULL) == NULL) {
 							sctp_m_freem(mm);
 						} else {
 #ifdef SCTP_MBUF_LOGGING
@@ -5603,12 +5623,14 @@ sctp_common_input_processing(struct mbuf **mm, int iphlen, int offset, int lengt
 			    calc_check, check, (void *)m, length, iphlen);
 			stcb = sctp_findassociation_addr(m, offset, src, dst,
 			    sh, ch, &inp, &net, vrf_id);
+#if defined(INET) || defined(INET6)
 			if ((net != NULL) && (port != 0)) {
 				if (net->port == 0) {
 					sctp_pathmtu_adjustment(stcb, net->mtu - sizeof(struct udphdr));
 				}
 				net->port = port;
 			}
+#endif
 			if ((net != NULL) && (use_mflowid != 0)) {
 				net->flowid = mflowid;
 #ifdef INVARIANTS
@@ -5634,12 +5656,14 @@ sctp_common_input_processing(struct mbuf **mm, int iphlen, int offset, int lengt
 	}
 	stcb = sctp_findassociation_addr(m, offset, src, dst,
 	    sh, ch, &inp, &net, vrf_id);
+#if defined(INET) || defined(INET6)
 	if ((net != NULL) && (port != 0)) {
 		if (net->port == 0) {
 			sctp_pathmtu_adjustment(stcb, net->mtu - sizeof(struct udphdr));
 		}
 		net->port = port;
 	}
+#endif
 	if ((net != NULL) && (use_mflowid != 0)) {
 		net->flowid = mflowid;
 #ifdef INVARIANTS
@@ -5748,12 +5772,14 @@ sctp_common_input_processing(struct mbuf **mm, int iphlen, int offset, int lengt
 			 * it changes our INP.
 			 */
 			inp = stcb->sctp_ep;
+#if defined(INET) || defined(INET6)
 			if ((net) && (port)) {
 				if (net->port == 0) {
 					sctp_pathmtu_adjustment(stcb, net->mtu - sizeof(struct udphdr));
 				}
 				net->port = port;
 			}
+#endif
 		}
 	} else {
 		/*
@@ -5767,7 +5793,7 @@ sctp_common_input_processing(struct mbuf **mm, int iphlen, int offset, int lengt
 		 * chunks
 		 */
 		if ((stcb != NULL) &&
-		    !SCTP_BASE_SYSCTL(sctp_auth_disable) &&
+		    (stcb->asoc.auth_supported == 1) &&
 		    sctp_auth_is_required_chunk(SCTP_DATA, stcb->asoc.local_auth_chunks)) {
 			/* "silently" ignore */
 			SCTP_STAT_INCR(sctps_recvauthmissing);
@@ -5809,7 +5835,7 @@ sctp_common_input_processing(struct mbuf **mm, int iphlen, int offset, int lengt
 	 */
 	if ((length > offset) &&
 	    (stcb != NULL) &&
-	    !SCTP_BASE_SYSCTL(sctp_auth_disable) &&
+	    (stcb->asoc.auth_supported == 1) &&
 	    sctp_auth_is_required_chunk(SCTP_DATA, stcb->asoc.local_auth_chunks) &&
 	    !stcb->asoc.authenticated) {
 		/* "silently" ignore */
@@ -5890,7 +5916,7 @@ sctp_common_input_processing(struct mbuf **mm, int iphlen, int offset, int lengt
 	}
 	/* take care of ecn */
 	if ((data_processed == 1) &&
-	    (stcb->asoc.ecn_allowed == 1) &&
+	    (stcb->asoc.ecn_supported == 1) &&
 	    ((ecn_bits & SCTP_CE_BITS) == SCTP_CE_BITS)) {
 		/* Yep, we need to add a ECNE */
 		sctp_send_ecn_echo(stcb, net, high_tsn);
@@ -6097,17 +6123,22 @@ extern int *sctp_cpuarry;
 
 #endif
 
-void
-sctp_input(struct mbuf *m, int off)
+int
+sctp_input(struct mbuf **mp, int *offp, int proto SCTP_UNUSED)
 {
-#if defined(__FreeBSD__) && defined(SCTP_MCORE_INPUT) && defined(SMP)
-	struct ip *ip;
-	struct sctphdr *sh;
-	int offset;
-	int cpu_to_use;
-	uint32_t flowid, tag;
+	struct mbuf *m;
+	int off;
 
+	m = *mp;
+	off = *offp;
+#if defined(__FreeBSD__) && defined(SCTP_MCORE_INPUT) && defined(SMP)
 	if (mp_ncpus > 1) {
+		struct ip *ip;
+		struct sctphdr *sh;
+		int offset;
+		int cpu_to_use;
+		uint32_t flowid, tag;
+
 		if (m->m_flags & M_FLOWID) {
 			flowid = m->m_pkthdr.flowid;
 		} else {
@@ -6119,7 +6150,7 @@ sctp_input(struct mbuf *m, int off)
 			if (SCTP_BUF_LEN(m) < offset) {
 				if ((m = m_pullup(m, offset)) == NULL) {
 					SCTP_STAT_INCR(sctps_hdrops);
-					return;
+					return (IPPROTO_DONE);
 				}
 			}
 			ip = mtod(m, struct ip *);
@@ -6131,10 +6162,11 @@ sctp_input(struct mbuf *m, int off)
 		}
 		cpu_to_use = sctp_cpuarry[flowid % mp_ncpus];
 		sctp_queue_to_mcore(m, off, cpu_to_use);
-		return;
+		return (IPPROTO_DONE);
 	}
 #endif
 	sctp_input_with_port(m, off, 0);
+	return (IPPROTO_DONE);
 }
 
 #endif

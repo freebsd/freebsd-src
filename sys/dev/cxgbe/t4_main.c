@@ -1178,7 +1178,7 @@ cxgbe_init(void *arg)
 static int
 cxgbe_ioctl(struct ifnet *ifp, unsigned long cmd, caddr_t data)
 {
-	int rc = 0, mtu, flags;
+	int rc = 0, mtu, flags, can_sleep;
 	struct port_info *pi = ifp->if_softc;
 	struct adapter *sc = pi->adapter;
 	struct ifreq *ifr = (struct ifreq *)data;
@@ -1203,7 +1203,10 @@ cxgbe_ioctl(struct ifnet *ifp, unsigned long cmd, caddr_t data)
 		break;
 
 	case SIOCSIFFLAGS:
-		rc = begin_synchronized_op(sc, pi, SLEEP_OK | INTR_OK, "t4flg");
+		can_sleep = 0;
+redo_sifflags:
+		rc = begin_synchronized_op(sc, pi,
+		    can_sleep ? (SLEEP_OK | INTR_OK) : HOLD_LOCK, "t4flg");
 		if (rc)
 			return (rc);
 
@@ -1212,15 +1215,32 @@ cxgbe_ioctl(struct ifnet *ifp, unsigned long cmd, caddr_t data)
 				flags = pi->if_flags;
 				if ((ifp->if_flags ^ flags) &
 				    (IFF_PROMISC | IFF_ALLMULTI)) {
+					if (can_sleep == 1) {
+						end_synchronized_op(sc, 0);
+						can_sleep = 0;
+						goto redo_sifflags;
+					}
 					rc = update_mac_settings(ifp,
 					    XGMAC_PROMISC | XGMAC_ALLMULTI);
 				}
-			} else
+			} else {
+				if (can_sleep == 0) {
+					end_synchronized_op(sc, LOCK_HELD);
+					can_sleep = 1;
+					goto redo_sifflags;
+				}
 				rc = cxgbe_init_synchronized(pi);
+			}
 			pi->if_flags = ifp->if_flags;
-		} else if (ifp->if_drv_flags & IFF_DRV_RUNNING)
+		} else if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
+			if (can_sleep == 0) {
+				end_synchronized_op(sc, LOCK_HELD);
+				can_sleep = 1;
+				goto redo_sifflags;
+			}
 			rc = cxgbe_uninit_synchronized(pi);
-		end_synchronized_op(sc, 0);
+		}
+		end_synchronized_op(sc, can_sleep ? 0 : LOCK_HELD);
 		break;
 
 	case SIOCADDMULTI:
@@ -5546,6 +5566,7 @@ const char *devlog_level_strings[] = {
 
 const char *devlog_facility_strings[] = {
 	[FW_DEVLOG_FACILITY_CORE]	= "CORE",
+	[FW_DEVLOG_FACILITY_CF]		= "CF",
 	[FW_DEVLOG_FACILITY_SCHED]	= "SCHED",
 	[FW_DEVLOG_FACILITY_TIMER]	= "TIMER",
 	[FW_DEVLOG_FACILITY_RES]	= "RES",
@@ -7535,16 +7556,14 @@ read_i2c(struct adapter *sc, struct t4_i2c_data *i2cd)
 	if (i2cd->len == 0 || i2cd->port_id >= sc->params.nports)
 		return (EINVAL);
 
-	if (i2cd->len > 1) {
-		/* XXX: need fw support for longer reads in one go */
-		return (ENOTSUP);
-	}
+	if (i2cd->len > sizeof(i2cd->data))
+		return (EFBIG);
 
 	rc = begin_synchronized_op(sc, NULL, SLEEP_OK | INTR_OK, "t4i2crd");
 	if (rc)
 		return (rc);
 	rc = -t4_i2c_rd(sc, sc->mbox, i2cd->port_id, i2cd->dev_addr,
-	    i2cd->offset, &i2cd->data[0]);
+	    i2cd->offset, i2cd->len, &i2cd->data[0]);
 	end_synchronized_op(sc, 0);
 
 	return (rc);
@@ -7598,7 +7617,7 @@ set_sched_class(struct adapter *sc, struct t4_sched_params *p)
 		}
 
 		/* And pass the request to the firmware ...*/
-		rc = -t4_sched_config(sc, fw_type, p->u.config.minmax);
+		rc = -t4_sched_config(sc, fw_type, p->u.config.minmax, 1);
 		goto done;
 	}
 
@@ -7696,7 +7715,7 @@ set_sched_class(struct adapter *sc, struct t4_sched_params *p)
 		rc = -t4_sched_params(sc, fw_type, fw_level, fw_mode,
 		    fw_rateunit, fw_ratemode, p->u.params.channel,
 		    p->u.params.cl, p->u.params.minrate, p->u.params.maxrate,
-		    p->u.params.weight, p->u.params.pktsize);
+		    p->u.params.weight, p->u.params.pktsize, 1);
 		goto done;
 	}
 
@@ -8035,6 +8054,19 @@ t4_ioctl(struct cdev *dev, unsigned long cmd, caddr_t data, int fflag,
 }
 
 #ifdef TCP_OFFLOAD
+void
+t4_iscsi_init(struct ifnet *ifp, unsigned int tag_mask,
+    const unsigned int *pgsz_order)
+{
+	struct port_info *pi = ifp->if_softc;
+	struct adapter *sc = pi->adapter;
+
+	t4_write_reg(sc, A_ULP_RX_ISCSI_TAGMASK, tag_mask);
+	t4_write_reg(sc, A_ULP_RX_ISCSI_PSZ, V_HPZ0(pgsz_order[0]) |
+		V_HPZ1(pgsz_order[1]) | V_HPZ2(pgsz_order[2]) |
+		V_HPZ3(pgsz_order[3]));
+}
+
 static int
 toe_capability(struct port_info *pi, int enable)
 {
@@ -8260,6 +8292,9 @@ tweak_tunables(void)
 	t4_intr_types &= INTR_MSIX | INTR_MSI | INTR_INTX;
 }
 
+static struct sx mlu;	/* mod load unload */
+SX_SYSINIT(cxgbe_mlu, &mlu, "cxgbe mod load/unload");
+
 static int
 mod_event(module_t mod, int cmd, void *arg)
 {
@@ -8268,41 +8303,67 @@ mod_event(module_t mod, int cmd, void *arg)
 
 	switch (cmd) {
 	case MOD_LOAD:
-		if (atomic_fetchadd_int(&loaded, 1))
-			break;
-		t4_sge_modload();
-		sx_init(&t4_list_lock, "T4/T5 adapters");
-		SLIST_INIT(&t4_list);
+		sx_xlock(&mlu);
+		if (loaded++ == 0) {
+			t4_sge_modload();
+			sx_init(&t4_list_lock, "T4/T5 adapters");
+			SLIST_INIT(&t4_list);
 #ifdef TCP_OFFLOAD
-		sx_init(&t4_uld_list_lock, "T4/T5 ULDs");
-		SLIST_INIT(&t4_uld_list);
+			sx_init(&t4_uld_list_lock, "T4/T5 ULDs");
+			SLIST_INIT(&t4_uld_list);
 #endif
-		t4_tracer_modload();
-		tweak_tunables();
+			t4_tracer_modload();
+			tweak_tunables();
+		}
+		sx_xunlock(&mlu);
 		break;
 
 	case MOD_UNLOAD:
-		if (atomic_fetchadd_int(&loaded, -1) > 1)
-			break;
-		t4_tracer_modunload();
+		sx_xlock(&mlu);
+		if (--loaded == 0) {
+			int tries;
+
+			sx_slock(&t4_list_lock);
+			if (!SLIST_EMPTY(&t4_list)) {
+				rc = EBUSY;
+				sx_sunlock(&t4_list_lock);
+				goto done_unload;
+			}
 #ifdef TCP_OFFLOAD
-		sx_slock(&t4_uld_list_lock);
-		if (!SLIST_EMPTY(&t4_uld_list)) {
-			rc = EBUSY;
-			sx_sunlock(&t4_uld_list_lock);
-			break;
-		}
-		sx_sunlock(&t4_uld_list_lock);
-		sx_destroy(&t4_uld_list_lock);
+			sx_slock(&t4_uld_list_lock);
+			if (!SLIST_EMPTY(&t4_uld_list)) {
+				rc = EBUSY;
+				sx_sunlock(&t4_uld_list_lock);
+				sx_sunlock(&t4_list_lock);
+				goto done_unload;
+			}
 #endif
-		sx_slock(&t4_list_lock);
-		if (!SLIST_EMPTY(&t4_list)) {
-			rc = EBUSY;
+			tries = 0;
+			while (tries++ < 5 && t4_sge_extfree_refs() != 0) {
+				uprintf("%ju clusters with custom free routine "
+				    "still is use.\n", t4_sge_extfree_refs());
+				pause("t4unload", 2 * hz);
+			}
+#ifdef TCP_OFFLOAD
+			sx_sunlock(&t4_uld_list_lock);
+#endif
 			sx_sunlock(&t4_list_lock);
-			break;
+
+			if (t4_sge_extfree_refs() == 0) {
+				t4_tracer_modunload();
+#ifdef TCP_OFFLOAD
+				sx_destroy(&t4_uld_list_lock);
+#endif
+				sx_destroy(&t4_list_lock);
+				t4_sge_modunload();
+				loaded = 0;
+			} else {
+				rc = EBUSY;
+				loaded++;	/* undo earlier decrement */
+			}
 		}
-		sx_sunlock(&t4_list_lock);
-		sx_destroy(&t4_list_lock);
+done_unload:
+		sx_xunlock(&mlu);
 		break;
 	}
 

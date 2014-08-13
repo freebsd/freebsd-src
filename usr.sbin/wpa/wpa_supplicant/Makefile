@@ -49,8 +49,8 @@ CFLAGS+=-DCONFIG_BACKEND_FILE \
 	-DCONFIG_GAS \
 	-DPKCS12_FUNCS
 #CFLAGS+= -g
-DPADD+=	${LIBPCAP}
-LDADD+=	-lpcap
+DPADD+=	${LIBPCAP} ${LIBUTIL}
+LDADD+=	-lpcap -lutil
 
 # User customizations to the wpa_supplicant build environment
 CFLAGS+=${WPA_SUPPLICANT_CFLAGS}

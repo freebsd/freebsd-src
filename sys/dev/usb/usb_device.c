@@ -118,8 +118,7 @@ int	usb_template = USB_TEMPLATE;
 int	usb_template;
 #endif
 
-TUNABLE_INT("hw.usb.usb_template", &usb_template);
-SYSCTL_INT(_hw_usb, OID_AUTO, template, CTLFLAG_RW | CTLFLAG_TUN,
+SYSCTL_INT(_hw_usb, OID_AUTO, template, CTLFLAG_RWTUN,
     &usb_template, 0, "Selected USB device side template");
 
 /* English is default language */
@@ -127,12 +126,10 @@ SYSCTL_INT(_hw_usb, OID_AUTO, template, CTLFLAG_RW | CTLFLAG_TUN,
 static int usb_lang_id = 0x0009;
 static int usb_lang_mask = 0x00FF;
 
-TUNABLE_INT("hw.usb.usb_lang_id", &usb_lang_id);
-SYSCTL_INT(_hw_usb, OID_AUTO, usb_lang_id, CTLFLAG_RW | CTLFLAG_TUN,
+SYSCTL_INT(_hw_usb, OID_AUTO, usb_lang_id, CTLFLAG_RWTUN,
     &usb_lang_id, 0, "Preferred USB language ID");
 
-TUNABLE_INT("hw.usb.usb_lang_mask", &usb_lang_mask);
-SYSCTL_INT(_hw_usb, OID_AUTO, usb_lang_mask, CTLFLAG_RW | CTLFLAG_TUN,
+SYSCTL_INT(_hw_usb, OID_AUTO, usb_lang_mask, CTLFLAG_RWTUN,
     &usb_lang_mask, 0, "Preferred USB language mask");
 
 static const char* statestr[USB_STATE_MAX] = {
@@ -451,6 +448,17 @@ usb_endpoint_foreach(struct usb_device *udev, struct usb_endpoint *ep)
 	return (NULL);
 }
 
+#if USB_HAVE_UGEN
+static uint16_t
+usb_get_refcount(struct usb_device *udev)
+{
+	if (usb_proc_is_called_from(USB_BUS_EXPLORE_PROC(udev->bus)) ||
+	    usb_proc_is_called_from(USB_BUS_CONTROL_XFER_PROC(udev->bus)))
+		return (1);
+	return (2);
+}
+#endif
+
 /*------------------------------------------------------------------------*
  *	usb_wait_pending_ref_locked
  *
@@ -463,9 +471,7 @@ static void
 usb_wait_pending_ref_locked(struct usb_device *udev)
 {
 #if USB_HAVE_UGEN
-	const uint16_t refcount =
-	    usb_proc_is_called_from(
-	    USB_BUS_EXPLORE_PROC(udev->bus)) ? 1 : 2;
+	const uint16_t refcount = usb_get_refcount(udev);
 
 	DPRINTF("Refcount = %d\n", (int)refcount); 
 
@@ -496,9 +502,7 @@ static void
 usb_ref_restore_locked(struct usb_device *udev)
 {
 #if USB_HAVE_UGEN
-	const uint16_t refcount =
-	    usb_proc_is_called_from(
-	    USB_BUS_EXPLORE_PROC(udev->bus)) ? 1 : 2;
+	const uint16_t refcount = usb_get_refcount(udev);
 
 	DPRINTF("Refcount = %d\n", (int)refcount); 
 

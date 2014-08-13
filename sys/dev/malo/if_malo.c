@@ -65,27 +65,22 @@ SYSCTL_NODE(_hw, OID_AUTO, malo, CTLFLAG_RD, 0,
     "Marvell 88w8335 driver parameters");
 
 static	int malo_txcoalesce = 8;	/* # tx pkts to q before poking f/w*/
-SYSCTL_INT(_hw_malo, OID_AUTO, txcoalesce, CTLFLAG_RW, &malo_txcoalesce,
+SYSCTL_INT(_hw_malo, OID_AUTO, txcoalesce, CTLFLAG_RWTUN, &malo_txcoalesce,
 	    0, "tx buffers to send at once");
-TUNABLE_INT("hw.malo.txcoalesce", &malo_txcoalesce);
 static	int malo_rxbuf = MALO_RXBUF;		/* # rx buffers to allocate */
-SYSCTL_INT(_hw_malo, OID_AUTO, rxbuf, CTLFLAG_RW, &malo_rxbuf,
+SYSCTL_INT(_hw_malo, OID_AUTO, rxbuf, CTLFLAG_RWTUN, &malo_rxbuf,
 	    0, "rx buffers allocated");
-TUNABLE_INT("hw.malo.rxbuf", &malo_rxbuf);
 static	int malo_rxquota = MALO_RXBUF;		/* # max buffers to process */
-SYSCTL_INT(_hw_malo, OID_AUTO, rxquota, CTLFLAG_RW, &malo_rxquota,
+SYSCTL_INT(_hw_malo, OID_AUTO, rxquota, CTLFLAG_RWTUN, &malo_rxquota,
 	    0, "max rx buffers to process per interrupt");
-TUNABLE_INT("hw.malo.rxquota", &malo_rxquota);
 static	int malo_txbuf = MALO_TXBUF;		/* # tx buffers to allocate */
-SYSCTL_INT(_hw_malo, OID_AUTO, txbuf, CTLFLAG_RW, &malo_txbuf,
+SYSCTL_INT(_hw_malo, OID_AUTO, txbuf, CTLFLAG_RWTUN, &malo_txbuf,
 	    0, "tx buffers allocated");
-TUNABLE_INT("hw.malo.txbuf", &malo_txbuf);
 
 #ifdef MALO_DEBUG
 static	int malo_debug = 0;
-SYSCTL_INT(_hw_malo, OID_AUTO, debug, CTLFLAG_RW, &malo_debug,
+SYSCTL_INT(_hw_malo, OID_AUTO, debug, CTLFLAG_RWTUN, &malo_debug,
 	    0, "control debugging printfs");
-TUNABLE_INT("hw.malo.debug", &malo_debug);
 enum {
 	MALO_DEBUG_XMIT		= 0x00000001,	/* basic xmit operation */
 	MALO_DEBUG_XMIT_DESC	= 0x00000002,	/* xmit descriptors */

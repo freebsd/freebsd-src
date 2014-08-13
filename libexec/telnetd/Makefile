@@ -30,8 +30,8 @@ CFLAGS+=	-I${TELNETDIR}
 
 LIBTELNET=	${.OBJDIR}/../../lib/libtelnet/libtelnet.a
 
-DPADD=		${LIBUTIL} ${LIBTERMCAP} ${LIBTELNET}
-LDADD=		-lutil -ltermcap ${LIBTELNET}
+DPADD=		${LIBUTIL} ${LIBTERMCAPW} ${LIBTELNET}
+LDADD=		-lutil -ltermcapw ${LIBTELNET}
 
 .if ${MK_OPENSSL} != "no"
 SRCS+=		authenc.c

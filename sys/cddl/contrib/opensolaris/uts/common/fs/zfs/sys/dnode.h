@@ -211,7 +211,7 @@ typedef struct dnode {
 	refcount_t dn_holds;
 
 	kmutex_t dn_dbufs_mtx;
-	list_t dn_dbufs;		/* descendent dbufs */
+	avl_tree_t dn_dbufs;		/* descendent dbufs */
 
 	/* protected by dn_struct_rwlock */
 	struct dmu_buf_impl *dn_bonus;	/* bonus buffer dbuf */
@@ -245,7 +245,7 @@ typedef struct dnode_handle {
 
 typedef struct dnode_children {
 	size_t dnc_count;		/* number of children */
-	dnode_handle_t dnc_children[1];	/* sized dynamically */
+	dnode_handle_t dnc_children[];	/* sized dynamically */
 } dnode_children_t;
 
 typedef struct free_range {

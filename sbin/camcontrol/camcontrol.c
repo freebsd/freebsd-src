@@ -96,6 +96,7 @@ typedef enum {
 	CAM_CMD_SECURITY	= 0x0000001d,
 	CAM_CMD_HPA		= 0x0000001e,
 	CAM_CMD_SANITIZE	= 0x0000001f,
+	CAM_CMD_PERSIST		= 0x00000020
 } cam_cmdmask;
 
 typedef enum {
@@ -218,18 +219,13 @@ static struct camcontrol_opts option_table[] = {
 	{"fwdownload", CAM_CMD_DOWNLOAD_FW, CAM_ARG_NONE, "f:ys"},
 	{"security", CAM_CMD_SECURITY, CAM_ARG_NONE, "d:e:fh:k:l:qs:T:U:y"},
 	{"hpa", CAM_CMD_HPA, CAM_ARG_NONE, "Pflp:qs:U:y"},
+	{"persist", CAM_CMD_PERSIST, CAM_ARG_NONE, "ai:I:k:K:o:ps:ST:U"},
 #endif /* MINIMALISTIC */
 	{"help", CAM_CMD_USAGE, CAM_ARG_NONE, NULL},
 	{"-?", CAM_CMD_USAGE, CAM_ARG_NONE, NULL},
 	{"-h", CAM_CMD_USAGE, CAM_ARG_NONE, NULL},
 	{NULL, 0, 0, NULL}
 };
-
-typedef enum {
-	CC_OR_NOT_FOUND,
-	CC_OR_AMBIGUOUS,
-	CC_OR_FOUND
-} camcontrol_optret;
 
 struct cam_devitem {
 	struct device_match_result dev_match;
@@ -7826,6 +7822,9 @@ usage(int printlong)
 "                              [-U <user|master>] [-y]\n"
 "        camcontrol hpa        [dev_id][generic args] [-f] [-l] [-P] [-p pwd]\n"
 "                              [-q] [-s max_sectors] [-U pwd] [-y]\n"
+"        camcontrol persist    [dev_id][generic args] <-i action|-o action>\n"
+"                              [-a][-I tid][-k key][-K sa_key][-p][-R rtp]\n"
+"                              [-s scope][-S][-T type][-U]\n"
 #endif /* MINIMALISTIC */
 "        camcontrol help\n");
 	if (!printlong)
@@ -7862,8 +7861,9 @@ usage(int printlong)
 "idle        send the ATA IDLE command to the named device\n"
 "standby     send the ATA STANDBY command to the named device\n"
 "sleep       send the ATA SLEEP command to the named device\n"
-"fwdownload  program firmware of the named device with the given image"
+"fwdownload  program firmware of the named device with the given image\n"
 "security    report or send ATA security commands to the named device\n"
+"persist     send the SCSI PERSISTENT RESERVE IN or OUT commands\n"
 "help        this message\n"
 "Device Identifiers:\n"
 "bus:target        specify the bus and target, lun defaults to 0\n"
@@ -7998,6 +7998,22 @@ usage(int printlong)
 "                  device\n"
 "-U pwd            unlock the HPA configuration of the device\n"
 "-y                don't ask any questions\n"
+"persist arguments:\n"
+"-i action         specify read_keys, read_reservation, report_cap, or\n"
+"                  read_full_status\n"
+"-o action         specify register, register_ignore, reserve, release,\n"
+"                  clear, preempt, preempt_abort, register_move, replace_lost\n"
+"-a                set the All Target Ports (ALL_TG_PT) bit\n"
+"-I tid            specify a Transport ID, e.g.: sas,0x1234567812345678\n"
+"-k key            specify the Reservation Key\n"
+"-K sa_key         specify the Service Action Reservation Key\n"
+"-p                set the Activate Persist Through Power Loss bit\n"
+"-R rtp            specify the Relative Target Port\n"
+"-s scope          specify the scope: lun, extent, element or a number\n"
+"-S                specify Transport ID for register, requires -I\n"
+"-T res_type       specify the reservation type: read_shared, wr_ex, rd_ex,\n"
+"                  ex_ac, wr_ex_ro, ex_ac_ro, wr_ex_ar, ex_ac_ar\n"
+"-U                unregister the current initiator for register_move\n"
 );
 #endif /* MINIMALISTIC */
 }
@@ -8331,6 +8347,11 @@ main(int argc, char **argv)
 		case CAM_CMD_SANITIZE:
 			error = scsisanitize(cam_dev, argc, argv,
 					     combinedopt, retry_count, timeout);
+			break;
+		case CAM_CMD_PERSIST:
+			error = scsipersist(cam_dev, argc, argv, combinedopt,
+			    retry_count, timeout, arglist & CAM_ARG_VERBOSE,
+			    arglist & CAM_ARG_ERR_RECOVER);
 			break;
 #endif /* MINIMALISTIC */
 		case CAM_CMD_USAGE:

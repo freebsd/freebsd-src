@@ -557,3 +557,6 @@ x86/xen/hvm.c			optional	xenhvm
 x86/xen/xen_intr.c		optional	xen | xenhvm
 x86/xen/pv.c			optional	xenhvm
 x86/xen/pvcpu_enum.c		optional	xenhvm
+x86/xen/xen_apic.c		optional	xenhvm
+x86/xen/xenpv.c			optional	xenhvm
+x86/xen/xen_nexus.c		optional	xenhvm

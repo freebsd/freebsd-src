@@ -193,7 +193,7 @@ retry:
 				i -= PAGE_SIZE;
 				m = vm_page_lookup(object,
 				    OFF_TO_IDX(offset + i));
-				vm_page_unwire(m, 0);
+				vm_page_unwire(m, PQ_INACTIVE);
 				vm_page_free(m);
 			}
 			vmem_free(vmem, addr, size);
@@ -202,8 +202,8 @@ retry:
 		if ((flags & M_ZERO) && (m->flags & PG_ZERO) == 0)
 			pmap_zero_page(m);
 		m->valid = VM_PAGE_BITS_ALL;
-		pmap_enter(kernel_pmap, addr + i, VM_PROT_ALL, m, VM_PROT_ALL,
-		    TRUE);
+		pmap_enter(kernel_pmap, addr + i, m, VM_PROT_ALL,
+		    VM_PROT_ALL | PMAP_ENTER_WIRED, 0);
 	}
 	VM_OBJECT_WUNLOCK(object);
 	return (addr);
@@ -255,7 +255,8 @@ retry:
 		if ((flags & M_ZERO) && (m->flags & PG_ZERO) == 0)
 			pmap_zero_page(m);
 		m->valid = VM_PAGE_BITS_ALL;
-		pmap_enter(kernel_pmap, tmp, VM_PROT_ALL, m, VM_PROT_ALL, true);
+		pmap_enter(kernel_pmap, tmp, m, VM_PROT_ALL,
+		    VM_PROT_ALL | PMAP_ENTER_WIRED, 0);
 		tmp += PAGE_SIZE;
 	}
 	VM_OBJECT_WUNLOCK(object);
@@ -367,7 +368,7 @@ retry:
 				i -= PAGE_SIZE;
 				m = vm_page_lookup(object,
 						   OFF_TO_IDX(offset + i));
-				vm_page_unwire(m, 0);
+				vm_page_unwire(m, PQ_INACTIVE);
 				vm_page_free(m);
 			}
 			VM_OBJECT_WUNLOCK(object);
@@ -378,8 +379,8 @@ retry:
 		KASSERT((m->oflags & VPO_UNMANAGED) != 0,
 		    ("kmem_malloc: page %p is managed", m));
 		m->valid = VM_PAGE_BITS_ALL;
-		pmap_enter(kernel_pmap, addr + i, VM_PROT_ALL, m, VM_PROT_ALL,
-		    TRUE);
+		pmap_enter(kernel_pmap, addr + i, m, VM_PROT_ALL,
+		    VM_PROT_ALL | PMAP_ENTER_WIRED, 0);
 	}
 	VM_OBJECT_WUNLOCK(object);
 
@@ -401,7 +402,7 @@ kmem_unback(vm_object_t object, vm_offset_t addr, vm_size_t size)
 	VM_OBJECT_WLOCK(object);
 	for (i = 0; i < size; i += PAGE_SIZE) {
 		m = vm_page_lookup(object, OFF_TO_IDX(offset + i));
-		vm_page_unwire(m, 0);
+		vm_page_unwire(m, PQ_INACTIVE);
 		vm_page_free(m);
 	}
 	VM_OBJECT_WUNLOCK(object);

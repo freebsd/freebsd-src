@@ -20,7 +20,7 @@
  */
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2013 by Delphix. All rights reserved.
+ * Copyright (c) 2012, 2014 by Delphix. All rights reserved.
  * Copyright (c) 2013 by Saso Kiselkov. All rights reserved.
  */
 
@@ -213,11 +213,14 @@ typedef struct dmu_buf_impl {
 	/* pointer to most recent dirty record for this buffer */
 	dbuf_dirty_record_t *db_last_dirty;
 
+	/* Creation time of dbuf (see comment in dbuf_compare). */
+	hrtime_t db_creation;
+
 	/*
 	 * Our link on the owner dnodes's dn_dbufs list.
 	 * Protected by its dn_dbufs_mtx.
 	 */
-	list_node_t db_link;
+	avl_node_t db_link;
 
 	/* Data which is unique to data (leaf) blocks: */
 
@@ -274,6 +277,9 @@ void dmu_buf_fill_done(dmu_buf_t *db, dmu_tx_t *tx);
 void dbuf_assign_arcbuf(dmu_buf_impl_t *db, arc_buf_t *buf, dmu_tx_t *tx);
 dbuf_dirty_record_t *dbuf_dirty(dmu_buf_impl_t *db, dmu_tx_t *tx);
 arc_buf_t *dbuf_loan_arcbuf(dmu_buf_impl_t *db);
+void dmu_buf_write_embedded(dmu_buf_t *dbuf, void *data,
+    bp_embedded_type_t etype, enum zio_compress comp,
+    int uncompressed_size, int compressed_size, int byteorder, dmu_tx_t *tx);
 
 void dbuf_clear(dmu_buf_impl_t *db);
 void dbuf_evict(dmu_buf_impl_t *db);

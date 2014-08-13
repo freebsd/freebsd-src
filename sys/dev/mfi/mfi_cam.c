@@ -90,8 +90,7 @@ static struct mfi_command * mfip_start(void *);
 static void	mfip_done(struct mfi_command *cm);
 
 static int mfi_allow_disks = 0;
-TUNABLE_INT("hw.mfi.allow_cam_disk_passthrough", &mfi_allow_disks);
-SYSCTL_INT(_hw_mfi, OID_AUTO, allow_cam_disk_passthrough, CTLFLAG_RD,
+SYSCTL_INT(_hw_mfi, OID_AUTO, allow_cam_disk_passthrough, CTLFLAG_RDTUN,
     &mfi_allow_disks, 0, "event message locale");
 
 static devclass_t	mfip_devclass;

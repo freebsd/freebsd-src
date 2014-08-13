@@ -28,7 +28,7 @@
 .\"	From: @(#)listen.2	8.2 (Berkeley) 12/11/93
 .\" $FreeBSD$
 .\"
-.Dd October 20, 2012
+.Dd July 15, 2014
 .Dt LISTEN 2
 .Os
 .Sh NAME
@@ -139,6 +139,9 @@ will fail if:
 The argument
 .Fa s
 is not a valid descriptor.
+.It Bq Er EDESTADDRREQ
+The socket is not bound to a local address, and the protocol does not
+support listening on an unbound socket.
 .It Bq Er EINVAL
 The socket is already connected, or in the process of being connected.
 .It Bq Er ENOTSOCK

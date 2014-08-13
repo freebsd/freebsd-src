@@ -86,7 +86,7 @@ _syscons=	syscons
 _tests=		tests
 .endif
 
-.if ${MK_VT_SUPPORT} != "no"
+.if ${MK_VT} != "no"
 _vt=		vt
 .endif
 

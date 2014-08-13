@@ -2361,7 +2361,6 @@ sis_add_sysctls(struct sis_softc *sc)
 {
 	struct sysctl_ctx_list *ctx;
 	struct sysctl_oid_list *children;
-	char tn[32];
 	int unit;
 
 	ctx = device_get_sysctl_ctx(sc->sis_dev);
@@ -2376,10 +2375,8 @@ sis_add_sysctls(struct sis_softc *sc)
 	 * because it will consume extra CPU cycles for short frames.
 	 */
 	sc->sis_manual_pad = 0;
-	snprintf(tn, sizeof(tn), "dev.sis.%d.manual_pad", unit);
-	TUNABLE_INT_FETCH(tn, &sc->sis_manual_pad);
 	SYSCTL_ADD_INT(ctx, children, OID_AUTO, "manual_pad",
-	    CTLFLAG_RW, &sc->sis_manual_pad, 0, "Manually pad short frames");
+	    CTLFLAG_RWTUN, &sc->sis_manual_pad, 0, "Manually pad short frames");
 }
 
 static device_method_t sis_methods[] = {

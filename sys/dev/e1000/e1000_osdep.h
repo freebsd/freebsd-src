@@ -1,6 +1,6 @@
 /******************************************************************************
 
-  Copyright (c) 2001-2013, Intel Corporation 
+  Copyright (c) 2001-2014, Intel Corporation 
   All rights reserved.
   
   Redistribution and use in source and binary forms, with or without 
@@ -64,11 +64,9 @@
 #define msec_delay(x) DELAY(1000*(x))
 #define msec_delay_irq(x) DELAY(1000*(x))
 
-#define MSGOUT(S, A, B)     printf(S "\n", A, B)
 #define DEBUGFUNC(F)        DEBUGOUT(F);
 #define DEBUGOUT(S)			do {} while (0)
-/* This define is needed or shared code will not build */
-#define DEBUGOUT1(S,A)			if (0) printf(S,A);
+#define DEBUGOUT1(S,A)			do {} while (0)
 #define DEBUGOUT2(S,A,B)		do {} while (0)
 #define DEBUGOUT3(S,A,B,C)		do {} while (0)
 #define DEBUGOUT7(S,A,B,C,D,E,F,G)	do {} while (0)
@@ -77,7 +75,7 @@
 #define FALSE			0
 #define TRUE			1
 #ifndef __bool_true_false_are_defined
-#define false			FALSE
+#define false			FALSE 
 #define true			TRUE
 #endif
 #define CMD_MEM_WRT_INVALIDATE	0x0010  /* BIT_4 */
@@ -87,7 +85,7 @@
 #define E1000_MUTEX                     struct mtx
 #define E1000_MUTEX_INIT(mutex)         mtx_init((mutex), #mutex, \
                                             MTX_NETWORK_LOCK, \
-                                            MTX_DEF | MTX_DUPOK)
+					    MTX_DEF | MTX_DUPOK)
 #define E1000_MUTEX_DESTROY(mutex)      mtx_destroy(mutex)
 #define E1000_MUTEX_LOCK(mutex)         mtx_lock(mutex)
 #define E1000_MUTEX_TRYLOCK(mutex)      mtx_trylock(mutex)
@@ -109,7 +107,7 @@ typedef boolean_t	bool;
 #define __le32		u32
 #define __le64		u64
 
-#if __FreeBSD_version < 800000 /* Now in HEAD */
+#if __FreeBSD_version < 800000
 #if defined(__i386__) || defined(__amd64__)
 #define mb()	__asm volatile("mfence" ::: "memory")
 #define wmb()	__asm volatile("sfence" ::: "memory")

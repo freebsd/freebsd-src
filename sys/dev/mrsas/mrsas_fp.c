@@ -1219,7 +1219,7 @@ void mrsas_set_pd_lba(MRSAS_RAID_SCSI_IO_REQUEST *io_request, u_int8_t cdb_len,
 	    opcode = cdb[0] == READ_6 ? READ_10 : WRITE_10;
 	    control = cdb[5];
 		
-	    memset(cdb, 0, sizeof(cdb));
+	    memset(cdb, 0, sizeof(io_request->CDB.CDB32));
 	    cdb[0] = opcode;
 	    cdb[9] = control;
 

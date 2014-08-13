@@ -703,6 +703,9 @@ arge_attach(device_t dev)
 	ifp->if_snd.ifq_maxlen = ifqmaxlen;
 	IFQ_SET_READY(&ifp->if_snd);
 
+	/* Tell the upper layer(s) we support long frames. */
+	ifp->if_capabilities |= IFCAP_VLAN_MTU;
+
 	ifp->if_capenable = ifp->if_capabilities;
 #ifdef DEVICE_POLLING
 	ifp->if_capabilities |= IFCAP_POLLING;

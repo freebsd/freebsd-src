@@ -109,6 +109,9 @@ FBSD_1.4 {
 	heapsort_b;
 	mergesort_b;
 	qsort_b;
+	hcreate_r;
+	hdestroy_r;
+	hsearch_r;
 };
 
 FBSDprivate_1.0 {

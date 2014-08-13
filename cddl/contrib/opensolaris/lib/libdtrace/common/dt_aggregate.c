@@ -25,7 +25,7 @@
  */
 
 /*
- * Copyright (c) 2011, Joyent, Inc. All rights reserved.
+ * Copyright (c) 2013, Joyent, Inc. All rights reserved.
  * Copyright (c) 2012 by Delphix. All rights reserved.
  */
 
@@ -1301,6 +1301,231 @@ dtrace_aggregate_walk(dtrace_hdl_t *dtp, dtrace_aggregate_f *func, void *arg)
 }
 
 static int
+dt_aggregate_total(dtrace_hdl_t *dtp, boolean_t clear)
+{
+	dt_ahashent_t *h;
+	dtrace_aggdata_t **total;
+	dtrace_aggid_t max = DTRACE_AGGVARIDNONE, id;
+	dt_aggregate_t *agp = &dtp->dt_aggregate;
+	dt_ahash_t *hash = &agp->dtat_hash;
+	uint32_t tflags;
+
+	tflags = DTRACE_A_TOTAL | DTRACE_A_HASNEGATIVES | DTRACE_A_HASPOSITIVES;
+
+	/*
+	 * If we need to deliver per-aggregation totals, we're going to take
+	 * three passes over the aggregate:  one to clear everything out and
+	 * determine our maximum aggregation ID, one to actually total
+	 * everything up, and a final pass to assign the totals to the
+	 * individual elements.
+	 */
+	for (h = hash->dtah_all; h != NULL; h = h->dtahe_nextall) {
+		dtrace_aggdata_t *aggdata = &h->dtahe_data;
+
+		if ((id = dt_aggregate_aggvarid(h)) > max)
+			max = id;
+
+		aggdata->dtada_total = 0;
+		aggdata->dtada_flags &= ~tflags;
+	}
+
+	if (clear || max == DTRACE_AGGVARIDNONE)
+		return (0);
+
+	total = dt_zalloc(dtp, (max + 1) * sizeof (dtrace_aggdata_t *));
+
+	if (total == NULL)
+		return (-1);
+
+	for (h = hash->dtah_all; h != NULL; h = h->dtahe_nextall) {
+		dtrace_aggdata_t *aggdata = &h->dtahe_data;
+		dtrace_aggdesc_t *agg = aggdata->dtada_desc;
+		dtrace_recdesc_t *rec;
+		caddr_t data;
+		int64_t val, *addr;
+
+		rec = &agg->dtagd_rec[agg->dtagd_nrecs - 1];
+		data = aggdata->dtada_data;
+		addr = (int64_t *)(uintptr_t)(data + rec->dtrd_offset);
+
+		switch (rec->dtrd_action) {
+		case DTRACEAGG_STDDEV:
+			val = dt_stddev((uint64_t *)addr, 1);
+			break;
+
+		case DTRACEAGG_SUM:
+		case DTRACEAGG_COUNT:
+			val = *addr;
+			break;
+
+		case DTRACEAGG_AVG:
+			val = addr[0] ? (addr[1] / addr[0]) : 0;
+			break;
+
+		default:
+			continue;
+		}
+
+		if (total[agg->dtagd_varid] == NULL) {
+			total[agg->dtagd_varid] = aggdata;
+			aggdata->dtada_flags |= DTRACE_A_TOTAL;
+		} else {
+			aggdata = total[agg->dtagd_varid];
+		}
+
+		if (val > 0)
+			aggdata->dtada_flags |= DTRACE_A_HASPOSITIVES;
+
+		if (val < 0) {
+			aggdata->dtada_flags |= DTRACE_A_HASNEGATIVES;
+			val = -val;
+		}
+
+		if (dtp->dt_options[DTRACEOPT_AGGZOOM] != DTRACEOPT_UNSET) {
+			val = (int64_t)((long double)val *
+			    (1 / DTRACE_AGGZOOM_MAX));
+
+			if (val > aggdata->dtada_total)
+				aggdata->dtada_total = val;
+		} else {
+			aggdata->dtada_total += val;
+		}
+	}
+
+	/*
+	 * And now one final pass to set everyone's total.
+	 */
+	for (h = hash->dtah_all; h != NULL; h = h->dtahe_nextall) {
+		dtrace_aggdata_t *aggdata = &h->dtahe_data, *t;
+		dtrace_aggdesc_t *agg = aggdata->dtada_desc;
+
+		if ((t = total[agg->dtagd_varid]) == NULL || aggdata == t)
+			continue;
+
+		aggdata->dtada_total = t->dtada_total;
+		aggdata->dtada_flags |= (t->dtada_flags & tflags);
+	}
+
+	dt_free(dtp, total);
+
+	return (0);
+}
+
+static int
+dt_aggregate_minmaxbin(dtrace_hdl_t *dtp, boolean_t clear)
+{
+	dt_ahashent_t *h;
+	dtrace_aggdata_t **minmax;
+	dtrace_aggid_t max = DTRACE_AGGVARIDNONE, id;
+	dt_aggregate_t *agp = &dtp->dt_aggregate;
+	dt_ahash_t *hash = &agp->dtat_hash;
+
+	for (h = hash->dtah_all; h != NULL; h = h->dtahe_nextall) {
+		dtrace_aggdata_t *aggdata = &h->dtahe_data;
+
+		if ((id = dt_aggregate_aggvarid(h)) > max)
+			max = id;
+
+		aggdata->dtada_minbin = 0;
+		aggdata->dtada_maxbin = 0;
+		aggdata->dtada_flags &= ~DTRACE_A_MINMAXBIN;
+	}
+
+	if (clear || max == DTRACE_AGGVARIDNONE)
+		return (0);
+
+	minmax = dt_zalloc(dtp, (max + 1) * sizeof (dtrace_aggdata_t *));
+
+	if (minmax == NULL)
+		return (-1);
+
+	for (h = hash->dtah_all; h != NULL; h = h->dtahe_nextall) {
+		dtrace_aggdata_t *aggdata = &h->dtahe_data;
+		dtrace_aggdesc_t *agg = aggdata->dtada_desc;
+		dtrace_recdesc_t *rec;
+		caddr_t data;
+		int64_t *addr;
+		int minbin = -1, maxbin = -1, i;
+		int start = 0, size;
+
+		rec = &agg->dtagd_rec[agg->dtagd_nrecs - 1];
+		size = rec->dtrd_size / sizeof (int64_t);
+		data = aggdata->dtada_data;
+		addr = (int64_t *)(uintptr_t)(data + rec->dtrd_offset);
+
+		switch (rec->dtrd_action) {
+		case DTRACEAGG_LQUANTIZE:
+			/*
+			 * For lquantize(), we always display the entire range
+			 * of the aggregation when aggpack is set.
+			 */
+			start = 1;
+			minbin = start;
+			maxbin = size - 1 - start;
+			break;
+
+		case DTRACEAGG_QUANTIZE:
+			for (i = start; i < size; i++) {
+				if (!addr[i])
+					continue;
+
+				if (minbin == -1)
+					minbin = i - start;
+
+				maxbin = i - start;
+			}
+
+			if (minbin == -1) {
+				/*
+				 * If we have no data (e.g., due to a clear()
+				 * or negative increments), we'll use the
+				 * zero bucket as both our min and max.
+				 */
+				minbin = maxbin = DTRACE_QUANTIZE_ZEROBUCKET;
+			}
+
+			break;
+
+		default:
+			continue;
+		}
+
+		if (minmax[agg->dtagd_varid] == NULL) {
+			minmax[agg->dtagd_varid] = aggdata;
+			aggdata->dtada_flags |= DTRACE_A_MINMAXBIN;
+			aggdata->dtada_minbin = minbin;
+			aggdata->dtada_maxbin = maxbin;
+			continue;
+		}
+
+		if (minbin < minmax[agg->dtagd_varid]->dtada_minbin)
+			minmax[agg->dtagd_varid]->dtada_minbin = minbin;
+
+		if (maxbin > minmax[agg->dtagd_varid]->dtada_maxbin)
+			minmax[agg->dtagd_varid]->dtada_maxbin = maxbin;
+	}
+
+	/*
+	 * And now one final pass to set everyone's minbin and maxbin.
+	 */
+	for (h = hash->dtah_all; h != NULL; h = h->dtahe_nextall) {
+		dtrace_aggdata_t *aggdata = &h->dtahe_data, *mm;
+		dtrace_aggdesc_t *agg = aggdata->dtada_desc;
+
+		if ((mm = minmax[agg->dtagd_varid]) == NULL || aggdata == mm)
+			continue;
+
+		aggdata->dtada_minbin = mm->dtada_minbin;
+		aggdata->dtada_maxbin = mm->dtada_maxbin;
+		aggdata->dtada_flags |= DTRACE_A_MINMAXBIN;
+	}
+
+	dt_free(dtp, minmax);
+
+	return (0);
+}
+
+static int
 dt_aggregate_walk_sorted(dtrace_hdl_t *dtp,
     dtrace_aggregate_f *func, void *arg,
     int (*sfunc)(const void *, const void *))
@@ -1309,6 +1534,23 @@ dt_aggregate_walk_sorted(dtrace_hdl_t *dtp,
 	dt_ahashent_t *h, **sorted;
 	dt_ahash_t *hash = &agp->dtat_hash;
 	size_t i, nentries = 0;
+	int rval = -1;
+
+	agp->dtat_flags &= ~(DTRACE_A_TOTAL | DTRACE_A_MINMAXBIN);
+
+	if (dtp->dt_options[DTRACEOPT_AGGHIST] != DTRACEOPT_UNSET) {
+		agp->dtat_flags |= DTRACE_A_TOTAL;
+
+		if (dt_aggregate_total(dtp, B_FALSE) != 0)
+			return (-1);
+	}
+
+	if (dtp->dt_options[DTRACEOPT_AGGPACK] != DTRACEOPT_UNSET) {
+		agp->dtat_flags |= DTRACE_A_MINMAXBIN;
+
+		if (dt_aggregate_minmaxbin(dtp, B_FALSE) != 0)
+			return (-1);
+	}
 
 	for (h = hash->dtah_all; h != NULL; h = h->dtahe_nextall)
 		nentries++;
@@ -1316,7 +1558,7 @@ dt_aggregate_walk_sorted(dtrace_hdl_t *dtp,
 	sorted = dt_alloc(dtp, nentries * sizeof (dt_ahashent_t *));
 
 	if (sorted == NULL)
-		return (-1);
+		goto out;
 
 	for (h = hash->dtah_all, i = 0; h != NULL; h = h->dtahe_nextall)
 		sorted[i++] = h;
@@ -1340,14 +1582,20 @@ dt_aggregate_walk_sorted(dtrace_hdl_t *dtp,
 	for (i = 0; i < nentries; i++) {
 		h = sorted[i];
 
-		if (dt_aggwalk_rval(dtp, h, func(&h->dtahe_data, arg)) == -1) {
-			dt_free(dtp, sorted);
-			return (-1);
-		}
+		if (dt_aggwalk_rval(dtp, h, func(&h->dtahe_data, arg)) == -1)
+			goto out;
 	}
 
+	rval = 0;
+out:
+	if (agp->dtat_flags & DTRACE_A_TOTAL)
+		(void) dt_aggregate_total(dtp, B_TRUE);
+
+	if (agp->dtat_flags & DTRACE_A_MINMAXBIN)
+		(void) dt_aggregate_minmaxbin(dtp, B_TRUE);
+
 	dt_free(dtp, sorted);
-	return (0);
+	return (rval);
 }
 
 int
@@ -1869,6 +2117,8 @@ dtrace_aggregate_print(dtrace_hdl_t *dtp, FILE *fp,
     dtrace_aggregate_walk_f *func)
 {
 	dt_print_aggdata_t pd;
+
+	bzero(&pd, sizeof (pd));
 
 	pd.dtpa_dtp = dtp;
 	pd.dtpa_fp = fp;
