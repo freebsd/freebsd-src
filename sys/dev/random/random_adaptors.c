@@ -242,13 +242,10 @@ static void
 random_adaptors_reseed(void *unused)
 {
 
-	/* TODO: This sleeps which is broken on arm64 */
-#if 0
 	(void)unused;
 	if (random_adaptor != NULL)
 		(*random_adaptor->reseed)();
 	arc4rand(NULL, 0, 1);
-#endif
 }
 SYSINIT(random_reseed, SI_SUB_INTRINSIC_POST, SI_ORDER_SECOND,
     random_adaptors_reseed, NULL);
