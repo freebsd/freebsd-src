@@ -4,12 +4,12 @@
 #
 # -- ~    : SHIFT + ALT + a accentata
 # -- {    : SHIFT + [
-#         : ALT + 7  
+#         : ALT + 7
 # -- }    : SHIFT + ]
 #         : ALT + 0
-# -- [    : definita anche come ALT + 8 
-# -- ]    : definita anche come ALT + 9 
-# -- `    : ALT +  ' 
+# -- [    : definita anche come ALT + 8
+# -- ]    : definita anche come ALT + 9
+# -- `    : ALT +  '
 #         : CTRL + '
 #
 # Per usare la mappatura dare i seguenti comandi:
@@ -20,8 +20,8 @@
 #  setenv MM_CHARSET iso-8859-15
 #  setenv TERM cons25l1
 #
-# Per l'utilizzo della stessa in modo permanente e/o  
-# per eventuali note su specifiche applicazioni: 
+# Per l'utilizzo della stessa in modo permanente e/o
+# per eventuali note su specifiche applicazioni:
 # Gruppo utenti FreeBSD Italia - http://www.gufi.org
 # Gianmarco Home Page - http://www.gufi.org/~gmarco
 #
@@ -32,7 +32,7 @@
 #       Nicola Vitale <nivit@libero.it>
 #       Marco Trentini <m.trentini@remotelab.org>
 #
-#################################################################### 
+####################################################################
 #                                                         alt
 # scan                       cntrl          alt    alt   cntrl lock
 # code  base   shift  cntrl  shift  alt    shift  cntrl  shift state
@@ -77,7 +77,7 @@
   037   'k'    'K'    vt     vt     'k'    '&'    vt     vt      C
   038   'l'    'L'    ff     ff     'l'    'L'    ff     ff      C
   039   242    231    nop    nop    '@'    ddac   nop    nop     O
-  040   224    176    nop    drin   '#'    '~'    nop    dtil    O  
+  040   224    176    nop    drin   '#'    '~'    nop    dtil    O
   041   '\'    '|'    fs     nop    172    nop    nop    nop     O
   042   lshift lshift lshift lshift lshift lshift lshift lshift  O
   043   249    167    fs     dgra   fs     fs     fs     dbre    O
@@ -146,22 +146,22 @@
   106   fkey63 fkey63 fkey63 fkey63 fkey63 fkey63 fkey63 fkey63  O
   107   fkey64 fkey64 fkey64 fkey64 fkey64 fkey64 fkey64 fkey64  O
 
-  dgra  '`'  ( 'a' 224 ) ( 'A' 192 ) ( 'e' 232 ) ( 'E' 200 ) 
-             ( 'i' 236 ) ( 'I' 204 ) ( 'o' 242 ) ( 'O' 210 ) 
+  dgra  '`'  ( 'a' 224 ) ( 'A' 192 ) ( 'e' 232 ) ( 'E' 200 )
+             ( 'i' 236 ) ( 'I' 204 ) ( 'o' 242 ) ( 'O' 210 )
              ( 'u' 249 ) ( 'U' 217 )
-  dacu  '''  ( 'a' 225 ) ( 'A' 193 ) ( 'e' 233 ) ( 'E' 201 ) 
-             ( 'i' 237 ) ( 'I' 205 ) ( 'o' 243 ) ( 'O' 211 ) 
-             ( 'u' 250 ) ( 'U' 218 ) ( 'y' 253 ) ( 'Y' 221 ) 
-  dcir  '^'  ( 'a' 226 ) ( 'A' 194 ) ( 'e' 234 ) ( 'E' 202 ) 
-             ( 'i' 238 ) ( 'I' 206 ) ( 'o' 244 ) ( 'O' 212 ) 
+  dacu  '''  ( 'a' 225 ) ( 'A' 193 ) ( 'e' 233 ) ( 'E' 201 )
+             ( 'i' 237 ) ( 'I' 205 ) ( 'o' 243 ) ( 'O' 211 )
+             ( 'u' 250 ) ( 'U' 218 ) ( 'y' 253 ) ( 'Y' 221 )
+  dcir  '^'  ( 'a' 226 ) ( 'A' 194 ) ( 'e' 234 ) ( 'E' 202 )
+             ( 'i' 238 ) ( 'I' 206 ) ( 'o' 244 ) ( 'O' 212 )
              ( 'u' 251 ) ( 'U' 219 )
-  dtil  '~'  ( 'a' 227 ) ( 'A' 195 ) ( 'n' 241 ) ( 'N' 209 ) 
+  dtil  '~'  ( 'a' 227 ) ( 'A' 195 ) ( 'n' 241 ) ( 'N' 209 )
              ( 'o' 245 ) ( 'O' 213 )
   dmac  175
   dbre  000
   ddot  000
-  duml  168  ( 'a' 228 ) ( 'A' 196 ) ( 'e' 235 ) ( 'E' 203 ) 
-             ( 'i' 239 ) ( 'I' 207 ) ( 'o' 246 ) ( 'O' 214 ) 
+  duml  168  ( 'a' 228 ) ( 'A' 196 ) ( 'e' 235 ) ( 'E' 203 )
+             ( 'i' 239 ) ( 'I' 207 ) ( 'o' 246 ) ( 'O' 214 )
              ( 'u' 252 ) ( 'U' 220 ) ( 'y' 255 )
   dsla  000
   drin  176  ( 'a' 229 ) ( 'A' 197 )
