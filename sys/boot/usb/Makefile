@@ -116,6 +116,7 @@ SRCS+=	usb_template_modem.c
 SRCS+=	usb_template_mouse.c
 SRCS+=	usb_template_kbd.c
 SRCS+=	usb_template_audio.c
+SRCS+=	usb_template_phone.c
 SRCS+=	sysinit_data.c
 SRCS+=	sysuninit_data.c
 
