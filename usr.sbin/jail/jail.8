@@ -653,8 +653,9 @@ file, instead of in the prison's file.
 The user to run commands as, when running in the system environment.
 The default is to run the commands as the current user.
 .It Va exec.timeout
-The maximum amount of time to wait for a command to complete.
-If a command is still running after this many seconds have passed,
+The maximum amount of time to wait for a command to complete, in
+seconds.
+If a command is still running after this timeout has passed,
 the jail not be created or removed.
 .It Va exec.consolelog
 A file to direct command output (stdout and stderr) to.
