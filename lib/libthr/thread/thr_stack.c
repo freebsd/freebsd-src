@@ -268,7 +268,7 @@ _thr_stack_alloc(struct pthread_attr *attr)
 
 		/* Map the stack and guard page together, and split guard
 		   page from allocated space: */
-		if ((stackaddr = mmap(stackaddr, stacksize+guardsize,
+		if ((stackaddr = mmap(stackaddr, stacksize + guardsize,
 		     _rtld_get_stack_prot(), MAP_STACK,
 		     -1, 0)) != MAP_FAILED &&
 		    (guardsize == 0 ||
