@@ -45,6 +45,11 @@ OLD_FILES+=usr/share/examples/libusb20/aux.h
 OLD_FILES+=usr/share/man/man9/VOP_GETVOBJECT.9.gz
 OLD_FILES+=usr/share/man/man9/VOP_CREATEVOBJECT.9.gz
 OLD_FILES+=usr/share/man/man9/VOP_DESTROYVOBJECT.9.gz
+OLD_FILES+=usr/share/examples/cvsup/README
+OLD_FILES+=usr/share/examples/cvsup/cvs-supfile
+OLD_FILES+=usr/share/examples/cvsup/stable-supfile
+OLD_FILES+=usr/share/examples/cvsup/standard-supfile
+OLD_DIRS+=usr/share/examples/cvsup
 # 20140614: send-pr removal
 OLD_FILES+=usr/share/man/man1/send-pr.1.gz
 OLD_FILES+=etc/gnats/freefall
