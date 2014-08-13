@@ -35,5 +35,5 @@ void
 cpu_initclocks(void)
 {
 
-	printf("cpu_initclocks\n");
+	cpu_initclocks_bsp();
 }

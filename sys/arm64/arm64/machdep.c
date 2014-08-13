@@ -147,13 +147,6 @@ set_dbregs(struct thread *td, struct dbreg *regs)
 	panic("set_dbregs");
 }
 
-void
-DELAY(int delay)
-{
-
-	/* TODO: Implement... */
-}
-
 int
 ptrace_set_pc(struct thread *td, u_long addr)
 {

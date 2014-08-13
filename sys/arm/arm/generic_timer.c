@@ -57,7 +57,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/ofw/ofw_bus_subr.h>
 
 #include <machine/bus.h>
-#include <machine/fdt.h>
+//#include <machine/fdt.h>
 
 #define	GT_CTRL_ENABLE		(1 << 0)
 #define	GT_CTRL_INT_MASK	(1 << 1)
@@ -106,29 +106,20 @@ get_freq(void)
 {
 	uint32_t val;
 
-	__asm volatile("mrc p15, 0, %0, c14, c0, 0" : "=r" (val));
+	//__asm volatile("mrc p15, 0, %0, c14, c0, 0" : "=r" (val));
+	__asm volatile("mrs %x0, cntfrq_el0" : "=r" (val));
 
 	return (val);
 }
-
-static inline int
-set_freq(uint32_t val)
-{
-
-	__asm volatile("mcr p15, 0, %[val], c14, c0, 0" : :
-	    [val] "r" (val));
-	isb();
-
-	return (val);
-}
-
 
 static inline long
 get_cntpct(void)
 {
 	uint64_t val;
 
-	__asm volatile("mrrc p15, 0, %Q0, %R0, c14" : "=r" (val));
+	//__asm volatile("mrrc p15, 0, %Q0, %R0, c14" : "=r" (val));
+	isb();
+	__asm volatile("mrs %0, cntvct_el0" : "=r" (val));
 
 	return (val);
 }
@@ -137,8 +128,9 @@ static inline int
 set_ctrl(uint32_t val)
 {
 
-	__asm volatile("mcr p15, 0, %[val], c14, c2, 1" : :
-	    [val] "r" (val));
+	//__asm volatile("mcr p15, 0, %[val], c14, c2, 1" : :
+	//    [val] "r" (val));
+	__asm volatile("msr cntv_ctl_el0, %x0" : : "r" (val));
 	isb();
 
 	return (0);
@@ -148,8 +140,9 @@ static inline int
 set_tval(uint32_t val)
 {
 
-	__asm volatile("mcr p15, 0, %[val], c14, c2, 0" : :
-	    [val] "r" (val));
+	//__asm volatile("mcr p15, 0, %[val], c14, c2, 0" : :
+	//    [val] "r" (val));
+	__asm volatile("msr cntv_tval_el0, %x0" : : "r" (val));
 	isb();
 
 	return (0);
@@ -160,17 +153,8 @@ get_ctrl(void)
 {
 	uint32_t val;
 
-	__asm volatile("mrc p15, 0, %0, c14, c2, 1" : "=r" (val));
-
-	return (val);
-}
-
-static inline int
-get_tval(void)
-{
-	uint32_t val;
-
-	__asm volatile("mrc p15, 0, %0, c14, c2, 0" : "=r" (val));
+	//__asm volatile("mrc p15, 0, %0, c14, c2, 1" : "=r" (val));
+	__asm volatile("mrs %x0, cntv_ctl_el0" : "=r" (val));
 
 	return (val);
 }
@@ -180,12 +164,17 @@ disable_user_access(void)
 {
 	uint32_t cntkctl;
 
-	__asm volatile("mrc p15, 0, %0, c14, c1, 0" : "=r" (cntkctl));
+	//__asm volatile("mrc p15, 0, %0, c14, c1, 0" : "=r" (cntkctl));
+	__asm volatile("mrs %x0, cntkctl_el1" : "=r" (cntkctl));
 	cntkctl &= ~(GT_CNTKCTL_PL0PTEN | GT_CNTKCTL_PL0VTEN |
-	    GT_CNTKCTL_EVNTEN | GT_CNTKCTL_PL0VCTEN | GT_CNTKCTL_PL0PCTEN);
-	__asm volatile("mcr p15, 0, %0, c14, c1, 0" : : "r" (cntkctl));
+	    GT_CNTKCTL_EVNTEN | GT_CNTKCTL_PL0VCTEN | GT_CNTKCTL_PL0PCTEN |
+	    0xf << 4);
+	cntkctl |= GT_CNTKCTL_EVNTEN | 0 << 4;
+	//__asm volatile("mcr p15, 0, %0, c14, c1, 0" : : "r" (cntkctl));
+	__asm volatile("msr cntkctl_el1, %x0" :: "r" (cntkctl));
 	isb();
 }
+
 
 static unsigned
 arm_tmr_get_timecount(struct timecounter *tc)
@@ -213,7 +202,6 @@ arm_tmr_start(struct eventtimer *et, sbintime_t first, sbintime_t period)
 	}
 
 	return (EINVAL);
-
 }
 
 static int
@@ -254,10 +242,15 @@ arm_tmr_probe(device_t dev)
 	if (!ofw_bus_status_okay(dev))
 		return (ENXIO);
 
-	if (!ofw_bus_is_compatible(dev, "arm,armv7-timer"))
+	if (!ofw_bus_is_compatible(dev, "arm,armv7-timer") &&
+	    !ofw_bus_is_compatible(dev, "arm,armv8-timer"))
 		return (ENXIO);
 
+#if 0
 	device_set_desc(dev, "ARMv7 Generic Timer");
+#else
+	device_set_desc(dev, "ARMv8 Generic Timer");
+#endif
 	return (BUS_PROBE_DEFAULT);
 }
 
@@ -300,7 +293,7 @@ arm_tmr_attach(device_t dev)
 	arm_tmr_sc = sc;
 
 	/* Setup secure and non-secure IRQs handler */
-	for (i = 0; i < 2; i++) {
+	for (i = 0; i < 4; i++) {
 		error = bus_setup_intr(dev, sc->res[i], INTR_TYPE_CLK,
 		    arm_tmr_intr, NULL, sc, &sc->ihl[i]);
 		if (error) {
@@ -345,6 +338,8 @@ static devclass_t arm_tmr_devclass;
 
 EARLY_DRIVER_MODULE(timer, simplebus, arm_tmr_driver, arm_tmr_devclass, 0, 0,
     BUS_PASS_TIMER + BUS_PASS_ORDER_MIDDLE);
+EARLY_DRIVER_MODULE(timer, ofwbus, arm_tmr_driver, arm_tmr_devclass, 0, 0,
+    BUS_PASS_TIMER + BUS_PASS_ORDER_MIDDLE);
 
 void
 DELAY(int usec)
@@ -360,10 +355,10 @@ DELAY(int usec)
 		for (; usec > 0; usec--)
 			for (counts = 200; counts > 0; counts--)
 				/*
-				 * Prevent gcc from optimizing
+				 * Prevent the compiler from optimizing
 				 * out the loop
 				 */
-				cpufunc_nullop();
+				__asm __volatile("nop" ::: "memory");
 		return;
 	}
 
@@ -389,3 +384,4 @@ DELAY(int usec)
 		first = last;
 	}
 }
+
