@@ -1915,7 +1915,6 @@ dtrace_program_link(dtrace_hdl_t *dtp, dtrace_prog_t *pgp, uint_t dflags,
 			goto done;
 		}
 #if !defined(sun)
-#define BROKEN_LIBELF
 		/*
 		 * FreeBSD's ld(1) is not instructed to interpret and add
 		 * correctly the SUNW_dof section present in tfile.
@@ -1939,9 +1938,6 @@ dtrace_program_link(dtrace_hdl_t *dtp, dtrace_prog_t *pgp, uint_t dflags,
 		/*
 		 * Add the string '.SUWN_dof' to the shstrtab section.
 		 */
-#ifdef BROKEN_LIBELF
-		elf_flagelf(e, ELF_C_SET, ELF_F_LAYOUT);
-#endif
 		elf_getshdrstrndx(e, &stridx);
 		scn = elf_getscn(e, stridx);
 		gelf_getshdr(scn, &shdr);
@@ -1953,54 +1949,6 @@ dtrace_program_link(dtrace_hdl_t *dtp, dtrace_prog_t *pgp, uint_t dflags,
 		loc = shdr.sh_size;
 		shdr.sh_size += data->d_size;
 		gelf_update_shdr(scn, &shdr);
-#ifdef BROKEN_LIBELF
-		off = shdr.sh_offset;
-		rc = shdr.sh_offset + shdr.sh_size;
-		gelf_getehdr(e, &ehdr);
-		if (ehdr.e_shoff > off) {
-			off = ehdr.e_shoff + ehdr.e_shnum * ehdr.e_shentsize;
-			rc = roundup(rc, 8);
-			ehdr.e_shoff = rc;
-			gelf_update_ehdr(e, &ehdr);
-			rc += ehdr.e_shnum * ehdr.e_shentsize;
-		}
-		for (;;) {
-			scn0 = NULL;
-			scn = NULL;
-			while ((scn = elf_nextscn(e, scn)) != NULL) {
-				gelf_getshdr(scn, &shdr);
-				if (shdr.sh_type == SHT_NOBITS ||
-				    shdr.sh_offset < off)
-					continue;
-				/* Find the immediately adjcent section. */
-				if (scn0 == NULL ||
-				    shdr.sh_offset < shdr0.sh_offset) {
-					scn0 = scn;
-					gelf_getshdr(scn0, &shdr0);
-				}
-			}
-			if (scn0 == NULL)
-				break;
-			/* Load section data to work around another bug */
-			elf_getdata(scn0, NULL);
-			/* Update section header, assure section alignment */
-			off = shdr0.sh_offset + shdr0.sh_size;
-			rc = roundup(rc, shdr0.sh_addralign);
-			shdr0.sh_offset = rc;
-			gelf_update_shdr(scn0, &shdr0);
-			rc += shdr0.sh_size;
-		}
-		if (elf_update(e, ELF_C_WRITE) < 0) {
-			ret = dt_link_error(dtp, NULL, -1, NULL,
-			    "failed to add append the shstrtab section: %s",
-			    elf_errmsg(elf_errno()));
-			elf_end(e);
-			close(efd);
-			goto done;
-		}
-		elf_end(e);
-		e = elf_begin(efd, ELF_C_RDWR, NULL);
-#endif
 		/*
 		 * Construct the .SUNW_dof section.
 		 */
