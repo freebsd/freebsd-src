@@ -129,6 +129,7 @@ CFLAGS+=	-D_DTRACE_VERSION=1 -I${.OBJDIR}
 .endif
 .for _DSRC in ${SRCS:M*.d:N*/*}
 .for _D in ${_DSRC:R}
+DHDRS+=	${_D}.h
 ${_D}.h: ${_DSRC}
 	${DTRACE} -xnolibs -h -s ${.ALLSRC}
 SRCS:=	${SRCS:S/${_DSRC}/${_D}.h/}
@@ -148,6 +149,8 @@ ${_D}.po: ${_D}.h ${POBJS:S/${_D}.po//}
 .endif
 .endfor
 .endfor
+beforedepend: ${DHDRS}
+beforebuild: ${DHDRS}
 .endif
 
 .if !target(depend)
