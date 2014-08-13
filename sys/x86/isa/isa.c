@@ -241,3 +241,8 @@ isa_release_resource(device_t bus, device_t child, int type, int rid,
  * On this platform, isa can also attach to the legacy bus.
  */
 DRIVER_MODULE(isa, legacy, isa_driver, isa_devclass, 0, 0);
+
+/*
+ * Attach the ISA bus to the xenpv bus in order to get syscons.
+ */
+DRIVER_MODULE(isa, xenpv, isa_driver, isa_devclass, 0, 0);

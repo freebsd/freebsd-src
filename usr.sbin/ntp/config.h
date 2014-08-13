@@ -1176,7 +1176,7 @@
 /* #undef SCO5_CLOCK */
 
 /* The size of a `char*', as computed by sizeof. */
-#if defined(__alpha__) || defined(__ia64__) || defined(__sparc64__) || defined(__amd64__)
+#if defined(__alpha__) || defined(__sparc64__) || defined(__amd64__)
 #define SIZEOF_CHARP 8
 #else
 #define SIZEOF_CHARP 4
@@ -1186,7 +1186,7 @@
 #define SIZEOF_INT 4
 
 /* The size of a `long', as computed by sizeof. */
-#if defined(__alpha__) || defined(__ia64__) || defined(__sparc64__) || defined(__amd64__)
+#if defined(__alpha__) || defined(__sparc64__) || defined(__amd64__)
 #define SIZEOF_LONG 8
 #else
 #define SIZEOF_LONG 4
@@ -1199,7 +1199,7 @@
 #define SIZEOF_SIGNED_CHAR 1
 
 /* The size of a `time_t', as computed by sizeof. */
-#if defined(__alpha__) || defined(__ia64__) || defined(__sparc64__) || defined(__amd64__)
+#if defined(__alpha__) || defined(__sparc64__) || defined(__amd64__)
 #define SIZEOF_TIME_T 8
 #else
 #define SIZEOF_TIME_T 4
@@ -1227,8 +1227,6 @@
 #define STR_SYSTEM "sparc64-undermydesk-freebsd"
 #elif defined(__amd64__)
 #define STR_SYSTEM "amd64-undermydesk-freebsd"
-#elif defined(__ia64__)
-#define STR_SYSTEM "ia64-undermydesk-freebsd"
 #else
 #define STR_SYSTEM "i386-undermydesk-freebsd"
 #endif

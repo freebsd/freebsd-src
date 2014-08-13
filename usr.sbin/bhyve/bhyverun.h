@@ -35,6 +35,10 @@
 #define	__CTASSERT(x, y)	typedef char __assert ## y[(x) ? 1 : -1]
 #endif
 
+#define	VMEXIT_CONTINUE		1	/* continue from next instruction */
+#define	VMEXIT_RESTART		2	/* restart current instruction */
+#define	VMEXIT_ABORT		3	/* abort the vm run loop */
+
 struct vmctx;
 extern int guest_ncpus;
 extern char *guest_uuid_str;

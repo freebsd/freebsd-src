@@ -70,10 +70,8 @@ enum i40e_status_code i40e_asq_send_command(struct i40e_hw *hw,
 bool i40e_asq_done(struct i40e_hw *hw);
 
 /* debug function for adminq */
-void i40e_debug_aq(struct i40e_hw *hw,
-		   enum i40e_debug_mask mask,
-		   void *desc,
-		   void *buffer);
+void i40e_debug_aq(struct i40e_hw *hw, enum i40e_debug_mask mask,
+		   void *desc, void *buffer, u16 buf_len);
 
 void i40e_idle_aq(struct i40e_hw *hw);
 void i40e_resume_aq(struct i40e_hw *hw);
@@ -89,6 +87,9 @@ void i40e_led_set(struct i40e_hw *hw, u32 mode, bool blink);
 enum i40e_status_code i40e_aq_get_firmware_version(struct i40e_hw *hw,
 				u16 *fw_major_version, u16 *fw_minor_version,
 				u16 *api_major_version, u16 *api_minor_version,
+				struct i40e_asq_cmd_details *cmd_details);
+enum i40e_status_code i40e_aq_debug_write_register(struct i40e_hw *hw,
+				u32 reg_addr, u64 reg_val,
 				struct i40e_asq_cmd_details *cmd_details);
 enum i40e_status_code i40e_aq_set_phy_debug(struct i40e_hw *hw, u8 cmd_flags,
 				struct i40e_asq_cmd_details *cmd_details);
@@ -116,12 +117,10 @@ enum i40e_status_code i40e_aq_get_partner_advt(struct i40e_hw *hw,
 				struct i40e_asq_cmd_details *cmd_details);
 enum i40e_status_code i40e_aq_set_lb_modes(struct i40e_hw *hw, u16 lb_modes,
 				struct i40e_asq_cmd_details *cmd_details);
-#ifndef FORTVILLE_A0_SUPPORT
 enum i40e_status_code i40e_aq_clear_pxe_mode(struct i40e_hw *hw,
 			struct i40e_asq_cmd_details *cmd_details);
-#endif
 enum i40e_status_code i40e_aq_set_link_restart_an(struct i40e_hw *hw,
-				struct i40e_asq_cmd_details *cmd_details);
+		bool enable_link, struct i40e_asq_cmd_details *cmd_details);
 enum i40e_status_code i40e_aq_get_link_info(struct i40e_hw *hw,
 				bool enable_lse, struct i40e_link_status *link,
 				struct i40e_asq_cmd_details *cmd_details);
@@ -226,17 +225,10 @@ enum i40e_status_code i40e_aq_stop_lldp(struct i40e_hw *hw, bool shutdown_agent,
 				struct i40e_asq_cmd_details *cmd_details);
 enum i40e_status_code i40e_aq_start_lldp(struct i40e_hw *hw,
 				struct i40e_asq_cmd_details *cmd_details);
-#ifdef FORTVILLE_A0_SUPPORT
-enum i40e_status_code i40e_aq_add_udp_tunnel(struct i40e_hw *hw,
-				u16 udp_port, u8 header_len,
-				u8 protocol_index, u8 *filter_index,
-				struct i40e_asq_cmd_details *cmd_details);
-#else
 enum i40e_status_code i40e_aq_add_udp_tunnel(struct i40e_hw *hw,
 				u16 udp_port, u8 protocol_index,
 				u8 *filter_index,
 				struct i40e_asq_cmd_details *cmd_details);
-#endif
 enum i40e_status_code i40e_aq_del_udp_tunnel(struct i40e_hw *hw, u8 index,
 				struct i40e_asq_cmd_details *cmd_details);
 enum i40e_status_code i40e_aq_get_switch_resource_alloc(struct i40e_hw *hw,
@@ -361,6 +353,7 @@ enum i40e_status_code i40e_aq_set_oem_mode(struct i40e_hw *hw,
 /* i40e_common */
 enum i40e_status_code i40e_init_shared_code(struct i40e_hw *hw);
 enum i40e_status_code i40e_pf_reset(struct i40e_hw *hw);
+void i40e_clear_hw(struct i40e_hw *hw);
 void i40e_clear_pxe_mode(struct i40e_hw *hw);
 bool i40e_get_link_status(struct i40e_hw *hw);
 enum i40e_status_code i40e_get_mac_addr(struct i40e_hw *hw, u8 *mac_addr);
@@ -371,9 +364,6 @@ enum i40e_status_code i40e_aq_configure_partition_bw(struct i40e_hw *hw,
 			struct i40e_asq_cmd_details *cmd_details);
 enum i40e_status_code i40e_get_port_mac_addr(struct i40e_hw *hw, u8 *mac_addr);
 void i40e_pre_tx_queue_cfg(struct i40e_hw *hw, u32 queue, bool enable);
-#ifdef FORTVILLE_A0_SUPPORT
-void i40e_set_tag_alloc_method(struct i40e_hw *hw, bool debug);
-#endif
 enum i40e_status_code i40e_validate_mac_addr(u8 *mac_addr);
 enum i40e_aq_link_speed i40e_get_link_speed(struct i40e_hw *hw);
 /* prototype for functions used for NVM access */

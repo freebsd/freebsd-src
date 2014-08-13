@@ -95,7 +95,15 @@ main() {
 	# Build the 'xdev' target for crochet.
 	eval chroot ${CHROOTDIR} make -C /usr/src \
 		${XDEV_FLAGS} XDEV=${XDEV} XDEV_ARCH=${XDEV_ARCH} \
+		TARGET=${XDEV} TARGET_ARCH=${XDEV_ARCH} \
 		${WORLD_FLAGS} xdev
+
+	# Install the cross-build symlinks to /usr/bin to make crochet
+	# happy.
+	eval chroot ${CHROOTDIR} make -C /usr/src \
+		${XDEV_FLAGS} XDEV=${XDEV} XDEV_ARCH=${XDEV_ARCH} \
+		TARGET=${XDEV} TARGET_ARCH=${XDEV_ARCH} \
+		${WORLD_FLAGS} xdev-links || true
 
 	# Run the ldconfig(8) startup script so /var/run/ld-elf*.so.hints
 	# is created.
@@ -110,6 +118,9 @@ main() {
 		eval chroot ${CHROOTDIR} make -C /usr/ports/${_PORT} \
 			BATCH=1 FORCE_PKG_REGISTER=1 install clean distclean
 	done
+
+	eval chroot ${CHROOTDIR} make -C /usr/src/gnu/usr.bin/cc \
+		WITH_GCC=1 ${WORLD_FLAGS} -j1 obj depend all install
 
 	mkdir -p ${CHROOTDIR}/tmp/crochet/work
 	before_build

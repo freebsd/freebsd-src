@@ -116,10 +116,8 @@ SYSCTL_INT(_debug, OID_AUTO, if_tun_debug, CTLFLAG_RW, &tundebug, 0, "");
 SYSCTL_DECL(_net_link);
 static SYSCTL_NODE(_net_link, OID_AUTO, tun, CTLFLAG_RW, 0,
     "IP tunnel software network interface.");
-SYSCTL_INT(_net_link_tun, OID_AUTO, devfs_cloning, CTLFLAG_RW, &tundclone, 0,
+SYSCTL_INT(_net_link_tun, OID_AUTO, devfs_cloning, CTLFLAG_RWTUN, &tundclone, 0,
     "Enable legacy devfs interface creation.");
-
-TUNABLE_INT("net.link.tun.devfs_cloning", &tundclone);
 
 static void	tunclone(void *arg, struct ucred *cred, char *name,
 		    int namelen, struct cdev **dev);

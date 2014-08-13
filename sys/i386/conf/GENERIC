@@ -187,6 +187,10 @@ device		splash			# Splash screen and screen saver support
 device		sc
 options 	SC_PIXEL_MODE		# add support for the raster text mode
 
+# vt is the new video console driver
+device		vt
+device		vt_vga
+
 device		agp			# support several AGP chipsets
 
 # Power management support (see NOTES for more options)

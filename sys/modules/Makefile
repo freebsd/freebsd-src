@@ -1,12 +1,16 @@
 # $FreeBSD$
 
-.include <src.opts.mk>
+SYSDIR?=${.CURDIR}/..
+.include "${SYSDIR}/conf/kern.opts.mk"
 
 SUBDIR_PARALLEL=
 
 # Modules that include binary-only blobs of microcode should be selectable by
 # MK_SOURCELESS_UCODE option (see below).
 
+.if defined(MODULES_OVERRIDE) && !defined(ALL_MODULES)
+SUBDIR=${MODULES_OVERRIDE}
+.else
 SUBDIR=	\
 	${_3dfx} \
 	${_3dfx_linux} \
@@ -82,6 +86,7 @@ SUBDIR=	\
 	${_ct} \
 	${_ctau} \
 	ctl \
+	cuse \
 	${_cxgb} \
 	${_cxgbe} \
 	${_cyclic} \
@@ -781,46 +786,6 @@ _cpsw=		cpsw
 _sound=		sound
 .endif
 
-.if ${MACHINE_CPUARCH} == "ia64"
-_aac=		aac
-_aacraid=	aacraid
-_aic=		aic
-_an=		an
-_arcnet=	arcnet
-_asr=		asr
-_bktr=		bktr
-_cardbus=	cardbus
-_cbb=		cbb
-_ciss=		ciss
-_cm=		cm
-_cmx=		cmx
-_coff=		coff
-_cpufreq=	cpufreq
-_dpt=		dpt
-_em=		em
-_ep=		ep
-_et=		et
-_exca=		exca
-_fe=		fe
-_hptiop=	hptiop
-_ida=		ida
-_igb=		igb
-_iir=		iir
-_ips=		ips
-_mly=		mly
-_pccard=	pccard
-_scsi_low=	scsi_low
-_smbfs=		smbfs
-_sound=		sound
-_splash=	splash
-_sppp=		sppp
-_streams=	streams
-_tpm=		tpm
-_twa=		twa
-_wi=		wi
-_xe=		xe
-.endif
-
 .if ${MACHINE_CPUARCH} == "powerpc"
 _agp=		agp
 _an=		an
@@ -868,9 +833,6 @@ _sound=		sound
 _zfs=		zfs
 .endif
 .endif
-
-.if defined(MODULES_OVERRIDE) && !defined(ALL_MODULES)
-SUBDIR=${MODULES_OVERRIDE}
 .endif
 
 .for reject in ${WITHOUT_MODULES}

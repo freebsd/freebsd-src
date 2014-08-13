@@ -262,7 +262,6 @@ is returned.
 .Ft "void"
 .Fn "cuse_poll_wakeup" "void"
 This function will wake up any file pollers.
-.Pp
 .Sh LIBRARY LIMITATIONS
 Transfer lengths for
 .Fn read ,
@@ -374,7 +373,6 @@ values in case of failure and success.
 The events argument is also a mask of
 .Dv CUSE_POLL_XXX
 values.
-.Pp
 .Bd -literal -offset indent
 struct cuse_methods {
   cuse_open_t *cm_open;

@@ -34,8 +34,21 @@ __FBSDID("$FreeBSD$");
 #include "boot2.h"
 #include "lib.h"
 
+/* Define to 0 to omit serial support */
+#ifndef SERIAL
+#define SERIAL 1
+#endif
+
 #define IO_KEYBOARD	1
 #define IO_SERIAL	2
+
+#if SERIAL
+#define DO_KBD (ioctrl & IO_KEYBOARD)
+#define DO_SIO (ioctrl & IO_SERIAL)
+#else
+#define DO_KBD (1)
+#define DO_SIO (0)
+#endif
 
 #define SECOND		18	/* Circa that many ticks in a second. */
 
@@ -131,9 +144,11 @@ static struct dsk {
 static char cmd[512], cmddup[512], knamebuf[1024];
 static const char *kname;
 static uint32_t opts;
-static int comspeed = SIOSPD;
 static struct bootinfo bootinfo;
+#if SERIAL
+static int comspeed = SIOSPD;
 static uint8_t ioctrl = IO_KEYBOARD;
+#endif
 
 void exit(int);
 static void load(void);
@@ -276,7 +291,7 @@ main(void)
 		   "boot: ",
 		   dsk.drive & DRV_MASK, dev_nm[dsk.type], dsk.unit,
 		   'a' + dsk.part, kname);
-	if (ioctrl & IO_SERIAL)
+	if (DO_SIO)
 	    sio_flush();
 	if (!autoboot || keyhit(3*SECOND))
 	    getstr();
@@ -398,6 +413,7 @@ parse()
 		    }
 		    printf("Keyboard: %s\n", cp);
 		    continue;
+#if SERIAL
 		} else if (c == 'S') {
 		    j = 0;
 		    while ((unsigned int)(i = *arg++ - '0') <= 9)
@@ -407,18 +423,21 @@ parse()
 			break;
 		    }
 		    /* Fall through to error below ('S' not in optstr[]). */
+#endif
 		}
 		for (i = 0; c != optstr[i]; i++)
 		    if (i == NOPT - 1)
 			return -1;
 		opts ^= OPT_SET(flags[i]);
 	    }
+#if SERIAL
 	    ioctrl = OPT_CHECK(RBX_DUAL) ? (IO_SERIAL|IO_KEYBOARD) :
 		     OPT_CHECK(RBX_SERIAL) ? IO_SERIAL : IO_KEYBOARD;
-	    if (ioctrl & IO_SERIAL) {
+	    if (DO_SIO) {
 	        if (sio_init(115200 / comspeed) != 0)
 		    ioctrl &= ~IO_SERIAL;
 	    }
+#endif
 	} else {
 	    for (q = arg--; *q && *q != '('; q++);
 	    if (*q) {
@@ -626,9 +645,9 @@ keyhit(unsigned ticks)
 static int
 xputc(int c)
 {
-    if (ioctrl & IO_KEYBOARD)
+    if (DO_KBD)
 	putc(c);
-    if (ioctrl & IO_SERIAL)
+    if (DO_SIO)
 	sio_putc(c);
     return c;
 }
@@ -648,9 +667,9 @@ xgetc(int fn)
     if (OPT_CHECK(RBX_NOINTR))
 	return 0;
     for (;;) {
-	if (ioctrl & IO_KEYBOARD && getc(1))
+	if (DO_KBD && getc(1))
 	    return fn ? 1 : getc(0);
-	if (ioctrl & IO_SERIAL && sio_ischar())
+	if (DO_SIO && sio_ischar())
 	    return fn ? 1 : sio_getc();
 	if (fn)
 	    return 0;

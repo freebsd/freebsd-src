@@ -23,6 +23,7 @@ arm/freescale/vybrid/vf_src.c			standard
 arm/freescale/vybrid/vf_edma.c			standard
 arm/freescale/vybrid/vf_dmamux.c		standard
 arm/freescale/vybrid/vf_port.c			standard
+arm/freescale/vybrid/vf_adc.c			standard
 arm/freescale/vybrid/vf_i2c.c			optional	iicbus
 arm/freescale/vybrid/vf_tcon.c			optional	vt
 arm/freescale/vybrid/vf_dcu4.c			optional	vt

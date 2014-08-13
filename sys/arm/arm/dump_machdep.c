@@ -50,8 +50,7 @@ __FBSDID("$FreeBSD$");
 CTASSERT(sizeof(struct kerneldumpheader) == 512);
 
 int do_minidump = 1;
-TUNABLE_INT("debug.minidump", &do_minidump);
-SYSCTL_INT(_debug, OID_AUTO, minidump, CTLFLAG_RW, &do_minidump, 0,
+SYSCTL_INT(_debug, OID_AUTO, minidump, CTLFLAG_RWTUN, &do_minidump, 0,
     "Enable mini crash dumps");
 
 /*
@@ -272,7 +271,7 @@ foreach_chunk(callback_t cb, void *arg)
 	return (seqnr);
 }
 
-void
+int
 dumpsys(struct dumperinfo *di)
 {
 	Elf_Ehdr ehdr;
@@ -283,7 +282,7 @@ dumpsys(struct dumperinfo *di)
 
 	if (do_minidump) {
 		minidumpsys(di);
-		return;
+		return (0);
 	}
 
 	bzero(&ehdr, sizeof(ehdr));
@@ -369,7 +368,7 @@ dumpsys(struct dumperinfo *di)
 	/* Signal completion, signoff and exit stage left. */
 	dump_write(di, NULL, 0, 0, 0);
 	printf("\nDump complete\n");
-	return;
+	return (0);
 
  fail:
 	if (error < 0)
@@ -381,4 +380,5 @@ dumpsys(struct dumperinfo *di)
 		printf("\nDump failed. Partition too small.\n");
 	else
 		printf("\n** DUMP FAILED (ERROR %d) **\n", error);
+	return (error);
 }

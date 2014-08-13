@@ -32,15 +32,18 @@
 ******************************************************************************/
 /*$FreeBSD$*/
 
+#ifdef HAVE_KERNEL_OPTION_HEADERS
 #include "opt_inet.h"
 #include "opt_inet6.h"
+#endif
+
 #include "i40e.h"
 #include "i40e_pf.h"
 
 /*********************************************************************
  *  Driver version
  *********************************************************************/
-char i40e_driver_version[] = "0.6.9 - Beta Release";
+char i40e_driver_version[] = "1.0.0";
 
 /*********************************************************************
  *  PCI Device ID Table
@@ -145,12 +148,14 @@ static void	i40e_print_debug_info(struct i40e_pf *);
 static void	i40e_intr(void *);
 static void	i40e_msix_que(void *);
 static void	i40e_msix_adminq(void *);
+static void	i40e_handle_mdd_event(struct i40e_pf *);
 
 /* Deferred interrupt tasklets */
 static void	i40e_do_adminq(void *, int);
 
 /* Sysctl handlers */
 static int	i40e_set_flowcntl(SYSCTL_HANDLER_ARGS);
+static int	i40e_set_advertise(SYSCTL_HANDLER_ARGS);
 
 /* Statistics */
 static void     i40e_add_hw_stats(struct i40e_pf *);
@@ -172,6 +177,8 @@ static void	i40e_stat_update32(struct i40e_hw *, u32, bool,
 static int 	i40e_sysctl_link_status(SYSCTL_HANDLER_ARGS);
 static int	i40e_sysctl_phy_abilities(SYSCTL_HANDLER_ARGS);
 static int	i40e_sysctl_sw_filter_list(SYSCTL_HANDLER_ARGS);
+static int	i40e_sysctl_hw_res_info(SYSCTL_HANDLER_ARGS);
+static int	i40e_sysctl_dump_txd(SYSCTL_HANDLER_ARGS);
 #endif
 
 /*********************************************************************
@@ -188,7 +195,7 @@ static device_method_t i40e_methods[] = {
 };
 
 static driver_t i40e_driver = {
-	"i40e", i40e_methods, sizeof(struct i40e_pf),
+	"ixl", i40e_methods, sizeof(struct i40e_pf),
 };
 
 devclass_t i40e_devclass;
@@ -196,6 +203,11 @@ DRIVER_MODULE(i40e, pci, i40e_driver, i40e_devclass, 0, 0);
 
 MODULE_DEPEND(i40e, pci, 1, 1, 1);
 MODULE_DEPEND(i40e, ether, 1, 1, 1);
+
+/*
+** Global reset mutex
+*/
+static struct mtx i40e_reset_mtx;
 
 /*
  * MSIX should be the default for best performance,
@@ -252,6 +264,7 @@ static char *i40e_fc_string[6] = {
 	"Default"
 };
 
+
 /*********************************************************************
  *  Device identification routine
  *
@@ -269,6 +282,7 @@ i40e_probe(device_t dev)
 	u16	pci_vendor_id, pci_device_id;
 	u16	pci_subvendor_id, pci_subdevice_id;
 	char	device_name[256];
+	static bool lock_init = FALSE;
 
 	INIT_DEBUGOUT("i40e_probe: begin");
 
@@ -294,6 +308,13 @@ i40e_probe(device_t dev)
 				i40e_strings[ent->index],
 				i40e_driver_version);
 			device_set_desc_copy(dev, device_name);
+			/* One shot mutex init */
+			if (lock_init == FALSE) {
+				lock_init = TRUE;
+				mtx_init(&i40e_reset_mtx,
+				    "i40e_reset",
+				    "I40E RESET Lock", MTX_DEF);
+			}
 			return (BUS_PROBE_DEFAULT);
 		}
 		ent++;
@@ -318,7 +339,6 @@ i40e_attach(device_t dev)
 	struct i40e_hw	*hw;
 	struct i40e_vsi *vsi;
 	u16		bus;
-	u32		reg;
 	int             error = 0;
 
 	INIT_DEBUGOUT("i40e_attach: begin");
@@ -346,6 +366,11 @@ i40e_attach(device_t dev)
 	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
 	    OID_AUTO, "fc", CTLTYPE_INT | CTLFLAG_RW,
 	    pf, 0, i40e_set_flowcntl, "I", "Flow Control");
+
+	SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
+	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
+	    OID_AUTO, "advertise_speed", CTLTYPE_INT | CTLFLAG_RW,
+	    pf, 0, i40e_set_advertise, "I", "Advertised Speed");
 
 	SYSCTL_ADD_INT(device_get_sysctl_ctx(dev),
 	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
@@ -382,6 +407,16 @@ i40e_attach(device_t dev)
 	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
 	    OID_AUTO, "filter_list", CTLTYPE_STRING | CTLFLAG_RD,
 	    pf, 0, i40e_sysctl_sw_filter_list, "A", "SW Filter List");
+
+	SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
+	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
+	    OID_AUTO, "hw_res_info", CTLTYPE_STRING | CTLFLAG_RD,
+	    pf, 0, i40e_sysctl_hw_res_info, "A", "HW Resource Allocation");
+
+	SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
+	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
+	    OID_AUTO, "dump_desc", CTLTYPE_INT | CTLFLAG_WR,
+	    pf, 0, i40e_sysctl_dump_txd, "I", "Desc dump");
 #endif
 
 	/* Save off the information about this board */
@@ -393,7 +428,7 @@ i40e_attach(device_t dev)
 	hw->subsystem_device_id =
 	    pci_read_config(dev, PCIR_SUBDEV_0, 2);
 
-	hw->bus.device = pci_get_device(dev);
+	hw->bus.device = pci_get_slot(dev);
 	hw->bus.func = pci_get_function(dev);
 
 	/* Do PCI setup - map BAR0, etc */
@@ -409,31 +444,56 @@ i40e_attach(device_t dev)
 	    OID_AUTO, "debug", CTLTYPE_INT|CTLFLAG_RW, pf, 0,
 	    i40e_debug_info, "I", "Debug Information");
 
-	/* Workaround to keep ARI detection off */
-	reg = rd32(hw, I40E_GLPCI_CAPSUP);
-	reg &= ~I40E_GLPCI_CAPSUP_ARI_EN_MASK;
-	wr32(hw, I40E_GLPCI_CAPSUP, reg);
 
 	/* Establish a clean starting point */
+	i40e_clear_hw(hw);
 	error = i40e_pf_reset(hw);
 	if (error) {
-		// TODO: Remove EMPR reset
-		/* Use the heavy hammer, force a firmware reset */
-		reg = rd32(&pf->hw, I40E_GLGEN_RSTENA_EMP);
-		reg |= I40E_GLGEN_RSTENA_EMP_EMP_RST_ENA_MASK;
-		wr32(&pf->hw, I40E_GLGEN_RSTENA_EMP, reg);
-		/* force the reset */
-		reg = rd32(&pf->hw, I40E_GLGEN_RTRIG);
-		reg |= I40E_GLGEN_RTRIG_EMPFWR_MASK;
-		wr32(&pf->hw, I40E_GLGEN_RTRIG, reg);
-		i40e_flush(hw);
+		device_printf(dev,"PF reset failure %x\n", error);
+		error = EIO;
+		goto err_out;
+	}
 
-		error = i40e_pf_reset(hw);
-		if (error) {
-			device_printf(dev,"PF reset failure %x\n", error);
-			error = EIO;
-			goto err_out;
+	/* For now always do an initial CORE reset on first device */
+	{
+		static int	i40e_dev_count;
+		static int	i40e_dev_track[32];
+		u32		my_dev;
+		int		i, found = FALSE;
+		u16		bus = pci_get_bus(dev);
+
+		mtx_lock(&i40e_reset_mtx);
+		my_dev = (bus << 8) | hw->bus.device;
+
+		for (i = 0; i < i40e_dev_count; i++) {
+			if (i40e_dev_track[i] == my_dev)
+				found = TRUE;
 		}
+
+                if (!found) {
+                        u32 reg;
+
+                        i40e_dev_track[i40e_dev_count] = my_dev;
+                        i40e_dev_count++;
+
+                        device_printf(dev, "Initial CORE RESET\n");
+                        wr32(hw, I40E_GLGEN_RTRIG, I40E_GLGEN_RTRIG_CORER_MASK);
+                        i40e_flush(hw);
+                        i = 50;
+                        do {
+				i40e_msec_delay(50);
+                                reg = rd32(hw, I40E_GLGEN_RSTAT);
+                                if (!(reg & I40E_GLGEN_RSTAT_DEVSTATE_MASK))
+                                        break;
+                        } while (i--);
+
+                        /* paranoia */
+                        wr32(hw, I40E_PF_ATQLEN, 0);
+                        wr32(hw, I40E_PF_ATQBAL, 0);
+                        wr32(hw, I40E_PF_ATQBAH, 0);
+                        i40e_clear_pxe_mode(hw);
+                }
+                mtx_unlock(&i40e_reset_mtx);
 	}
 
 	/* Set admin queue parameters */
@@ -453,17 +513,24 @@ i40e_attach(device_t dev)
 	/* Set up the admin queue */
 	error = i40e_init_adminq(hw);
 	if (error) {
-		device_printf(dev, "Admin Queue setup failure!\n");
+		device_printf(dev, "The driver for the device stopped "
+		    "because the NVM image is newer than expected.\n"
+		    "You must install the most recent version of "
+		    " the network driver.\n");
 		goto err_out;
 	}
+	device_printf(dev, "%s\n", i40e_fw_version_str(hw));
 
-#ifdef I40E_DEBUG
-	device_printf(dev,"Firmware version: %d.%d "
-	    "API version %d.%d NVM track %x version %x\n", 
-	    hw->aq.fw_maj_ver, hw->aq.fw_min_ver,
-	    hw->aq.api_maj_ver, hw->aq.api_min_ver,
-	    hw->nvm.eetrack, hw->nvm.version);
-#endif
+        if (hw->aq.api_maj_ver == I40E_FW_API_VERSION_MAJOR &&
+	    hw->aq.api_min_ver > I40E_FW_API_VERSION_MINOR)
+		device_printf(dev, "The driver for the device detected "
+		    "a newer version of the NVM image than expected.\n"
+		    "Please install the most recent version of the network driver.\n");
+	else if (hw->aq.api_maj_ver < I40E_FW_API_VERSION_MAJOR ||
+	    hw->aq.api_min_ver < (I40E_FW_API_VERSION_MINOR - 1))
+		device_printf(dev, "The driver for the device detected "
+		    "an older version of the NVM image than expected.\n"
+		    "Please update the NVM image.\n");
 
 	/* Clear PXE mode */
 	i40e_clear_pxe_mode(hw);
@@ -487,6 +554,9 @@ i40e_attach(device_t dev)
 		device_printf(dev, "configure_lan_hmc failed: %d\n", error);
 		goto err_mac_hmc;
 	}
+
+	/* Disable LLDP from the firmware */
+	i40e_aq_stop_lldp(hw, TRUE, NULL);
 
 	i40e_get_mac_addr(hw, hw->mac.addr);
 	error = i40e_validate_mac_addr(hw->mac.addr);
@@ -517,6 +587,15 @@ i40e_attach(device_t dev)
 	/* Determine link state */
 	vsi->link_up = i40e_config_link(hw);
 
+	/* Report if Unqualified modules are found */
+	if ((vsi->link_up == FALSE) &&
+	    (pf->hw.phy.link_info.link_info &
+	    I40E_AQ_MEDIA_AVAILABLE) &&
+	    (!(pf->hw.phy.link_info.an_info &
+	    I40E_AQ_QUALIFIED_MODULE)))
+		device_printf(dev, "Link failed because "
+		    "an unqualified module was detected\n");
+
 	/* Setup OS specific network interface */
 	if (i40e_setup_interface(dev, vsi) != 0)
 		goto err_late;
@@ -535,6 +614,7 @@ i40e_attach(device_t dev)
 	    i40e_register_vlan, vsi, EVENTHANDLER_PRI_FIRST);
 	vsi->vlan_detach = EVENTHANDLER_REGISTER(vlan_unconfig,
 	    i40e_unregister_vlan, vsi, EVENTHANDLER_PRI_FIRST);
+
 
 	INIT_DEBUGOUT("i40e_attach: end");
 	return (0);
@@ -1014,12 +1094,6 @@ i40e_init_locked(struct i40e_pf *pf)
 	} else
 		i40e_configure_legacy(pf);
 
-	/*
-	** Only a temporary workaround for RX hangs
-	*/
-	if (rd32(hw, I40E_PRTRPB_SLW) != 0x30000)
-		wr32(hw, I40E_PRTRPB_SLW, 0x30000);
-
 	i40e_enable_rings(vsi);
 
 	i40e_aq_set_default_vsi(hw, vsi->seid, NULL);
@@ -1171,6 +1245,10 @@ i40e_msix_que(void *arg)
 	struct tx_ring	*txr = &que->txr;
 	bool		more_tx, more_rx;
 
+	/* Protect against spurious interrupts */
+	if (!(vsi->ifp->if_drv_flags & IFF_DRV_RUNNING))
+		return;
+
 	++que->irqs;
 
 	more_rx = i40e_rxeof(que, I40E_RX_LIMIT);
@@ -1219,8 +1297,10 @@ i40e_msix_adminq(void *arg)
 	if (reg & I40E_PFINT_ICR0_ADMINQ_MASK)
 		mask &= ~I40E_PFINT_ICR0_ENA_ADMINQ_MASK;
 
-	if (reg & I40E_PFINT_ICR0_MAL_DETECT_MASK)
+	if (reg & I40E_PFINT_ICR0_MAL_DETECT_MASK) {
+		i40e_handle_mdd_event(pf);
 		mask &= ~I40E_PFINT_ICR0_ENA_MAL_DETECT_MASK;
+	}
 
 	if (reg & I40E_PFINT_ICR0_VFLR_MASK)
 		mask &= ~I40E_PFINT_ICR0_ENA_VFLR_MASK;
@@ -1274,6 +1354,12 @@ i40e_media_status(struct ifnet * ifp, struct ifmediareq * ifmr)
 		case I40E_PHY_TYPE_1000BASE_T:
 			ifmr->ifm_active |= IFM_1000_T;
 			break;
+		case I40E_PHY_TYPE_1000BASE_SX:
+			ifmr->ifm_active |= IFM_1000_SX;
+			break;
+		case I40E_PHY_TYPE_1000BASE_LX:
+			ifmr->ifm_active |= IFM_1000_LX;
+			break;
 		/* 10 G */
 		case I40E_PHY_TYPE_10GBASE_CR1_CU:
 		case I40E_PHY_TYPE_10GBASE_SFPP_CU:
@@ -1296,16 +1382,11 @@ i40e_media_status(struct ifnet * ifp, struct ifmediareq * ifmr)
 		case I40E_PHY_TYPE_40GBASE_LR4:
 			ifmr->ifm_active |= IFM_40G_LR4;
 			break;
-		/*
-		 * FreeBSD doesn't know about the other phy
-		 * types this hardware supports.
-		 */
 		default:
 			ifmr->ifm_active |= IFM_UNKNOWN;
 			break;
 	}
 	/* Report flow control status as well */
-	/* TODO: Something special if PFC is enabled instead */
 	if (hw->phy.link_info.an_info & I40E_AQ_LINK_PAUSE_TX)
 		ifmr->ifm_active |= IFM_ETH_TXPAUSE;
 	if (hw->phy.link_info.an_info & I40E_AQ_LINK_PAUSE_RX)
@@ -1335,7 +1416,9 @@ i40e_media_change(struct ifnet * ifp)
 	if (IFM_TYPE(ifm->ifm_media) != IFM_ETHER)
 		return (EINVAL);
 
-	return (0);
+	if_printf(ifp, "Media change is currently not supported.\n");
+
+	return (ENODEV);
 }
 
 
@@ -1568,7 +1651,7 @@ i40e_local_timer(void *arg)
 	i40e_update_stats_counters(pf);
 
 	/*
-	** Check status on the queues for a hang
+	** Check status of the queues
 	*/
 	mask = (I40E_PFINT_DYN_CTLN_INTENA_MASK |
 		I40E_PFINT_DYN_CTLN_SWINT_TRIG_MASK);
@@ -1582,9 +1665,20 @@ i40e_local_timer(void *arg)
 		** are uncleaned descriptors it increments busy. If
 		** we get to 5 we declare it hung.
 		*/
+		if (que->busy == I40E_QUEUE_HUNG) {
+			++hung;
+			/* Mark the queue as inactive */
+			vsi->active_queues &= ~((u64)1 << que->me);
+			continue;
+		} else {
+			/* Check if we've come back from hung */
+			if ((vsi->active_queues & ((u64)1 << que->me)) == 0)
+				vsi->active_queues |= ((u64)1 << que->me);
+		}
 		if (que->busy >= I40E_MAX_TX_BUSY) {
 			device_printf(dev,"Warning queue %d "
-			    "appears to be hung!", i);
+			    "appears to be hung!\n", i);
+			que->busy = I40E_QUEUE_HUNG;
 			++hung;
 		}
 	}
@@ -1809,6 +1903,27 @@ i40e_init_msix(struct i40e_pf *pf)
 	if (i40e_enable_msix == 0)
 		goto msi;
 
+	/*
+	** When used in a virtualized environment 
+	** PCI BUSMASTER capability may not be set
+	** so explicity set it here and rewrite
+	** the ENABLE in the MSIX control register
+	** at this point to cause the host to
+	** successfully initialize us.
+	*/
+	{
+		u16 pci_cmd_word;
+		int msix_ctrl;
+		pci_cmd_word = pci_read_config(dev, PCIR_COMMAND, 2);
+		pci_cmd_word |= PCIM_CMD_BUSMASTEREN;
+		pci_write_config(dev, PCIR_COMMAND, pci_cmd_word, 2);
+		pci_find_cap(dev, PCIY_MSIX, &rid);
+		rid += PCIR_MSIX_CTRL;
+		msix_ctrl = pci_read_config(dev, rid, 2);
+		msix_ctrl |= PCIM_MSIXCTRL_MSIX_ENABLE;
+		pci_write_config(dev, rid, msix_ctrl, 2);
+	}
+
 	/* First try MSI/X */
 	rid = PCIR_BAR(I40E_BAR);
 	pf->msix_mem = bus_alloc_resource_any(dev,
@@ -1850,7 +1965,6 @@ i40e_init_msix(struct i40e_pf *pf)
 		return (0); /* Will go to Legacy setup */
 	}
 
-	// NOTE this is all simplified based on ONE VSI
 	if (pci_alloc_msix(dev, &vectors) == 0) {
                	device_printf(pf->dev,
 		    "Using MSIX interrupts with %d vectors\n", vectors);
@@ -2194,7 +2308,7 @@ i40e_setup_interface(device_t dev, struct i40e_vsi *vsi)
 		return (EPERM);
 	}
 
-	/* Display PHY's supported media types */
+	/* Display supported media types */
 	if (abilities_resp.phy_type & (1 << I40E_PHY_TYPE_100BASE_TX))
 		ifmedia_add(&vsi->media, IFM_ETHER | IFM_100_TX, 0, NULL);
 
@@ -2355,7 +2469,11 @@ i40e_initialize_vsi(struct i40e_vsi *vsi)
 		tctx.base = (txr->dma.pa/128);
 		tctx.qlen = que->num_desc;
 		tctx.fc_ena = 0;
-		tctx.rdylist = vsi->info.qs_handle[0];
+		tctx.rdylist = vsi->info.qs_handle[0]; /* index is TC */
+		/* Enable HEAD writeback */
+		tctx.head_wb_ena = 1;
+		tctx.head_wb_addr = txr->dma.pa +
+		    (que->num_desc * sizeof(struct i40e_tx_desc));
 		tctx.rdylist_act = 0;
 		err = i40e_clear_lan_tx_queue_context(hw, i);
 		if (err) {
@@ -2401,11 +2519,7 @@ i40e_initialize_vsi(struct i40e_vsi *vsi)
 		rctx.tphwdesc_ena = 1;
 		rctx.tphdata_ena = 0;
 		rctx.tphhead_ena = 0;
-#ifdef FORTVILLE_A0_SUPPORT
-		rctx.lrxqthresh = 0;
-#else
 		rctx.lrxqthresh = 2;
-#endif
 		rctx.crcstrip = 1;
 		rctx.l2tsel = 1;
 		rctx.showiv = 1;
@@ -2520,16 +2634,20 @@ i40e_setup_stations(struct i40e_pf *pf)
 		que->num_desc = i40e_ringsz;
 		que->me = i;
 		que->vsi = vsi;
+		/* mark the queue as active */
+		vsi->active_queues |= (u64)1 << que->me;
 		txr = &que->txr;
 		txr->que = que;
+		txr->tail = I40E_QTX_TAIL(que->me);
 
 		/* Initialize the TX lock */
 		snprintf(txr->mtx_name, sizeof(txr->mtx_name), "%s:tx(%d)",
 		    device_get_nameunit(dev), que->me);
 		mtx_init(&txr->mtx, txr->mtx_name, NULL, MTX_DEF);
 		/* Create the TX descriptor ring */
-		tsize = roundup2(que->num_desc *
-		    sizeof(struct i40e_tx_desc), DBA_ALIGN);
+		tsize = roundup2((que->num_desc *
+		    sizeof(struct i40e_tx_desc)) +
+		    sizeof(u32), DBA_ALIGN);
 		if (i40e_allocate_dma(&pf->hw,
 		    &txr->dma, tsize, DBA_ALIGN)) {
 			device_printf(dev,
@@ -2563,6 +2681,7 @@ i40e_setup_stations(struct i40e_pf *pf)
 		    sizeof(union i40e_rx_desc), DBA_ALIGN);
 		rxr = &que->rxr;
 		rxr->que = que;
+		rxr->tail = I40E_QRX_TAIL(que->me);
 
 		/* Initialize the RX side lock */
 		snprintf(rxr->mtx_name, sizeof(rxr->mtx_name), "%s:rx(%d)",
@@ -2698,7 +2817,7 @@ i40e_set_queue_tx_itr(struct i40e_queue *que)
 	if (txr->bytes == 0)
 		return;
 
-	if (i40e_dynamic_rx_itr) {
+	if (i40e_dynamic_tx_itr) {
 		tx_bytes = txr->bytes/txr->itr;
 		tx_itr = txr->itr;
 
@@ -2757,6 +2876,10 @@ static void
 i40e_add_hw_stats(struct i40e_pf *pf)
 {
 	device_t dev = pf->dev;
+	struct i40e_vsi *vsi = &pf->vsi;
+	struct i40e_queue *queues = vsi->queues;
+	struct i40e_eth_stats *vsi_stats = &vsi->eth_stats;
+	struct i40e_hw_port_stats *pf_stats = &pf->stats;
 
 	struct sysctl_ctx_list *ctx = device_get_sysctl_ctx(dev);
 	struct sysctl_oid *tree = device_get_sysctl_tree(dev);
@@ -2765,9 +2888,8 @@ i40e_add_hw_stats(struct i40e_pf *pf)
 	struct sysctl_oid *vsi_node, *queue_node;
 	struct sysctl_oid_list *vsi_list, *queue_list;
 
-	struct i40e_vsi *vsi = &pf->vsi;
-	struct i40e_eth_stats *vsi_stats = &vsi->eth_stats;
-	struct i40e_hw_port_stats *pf_stats = &pf->stats;
+	struct tx_ring *txr;
+	struct rx_ring *rxr;
 
 	/* Driver statistics */
 	SYSCTL_ADD_ULONG(ctx, child, OID_AUTO, "watchdog_events",
@@ -2779,51 +2901,39 @@ i40e_add_hw_stats(struct i40e_pf *pf)
 
 	/* VSI statistics */
 #define QUEUE_NAME_LEN 32
-	char vsi_namebuf[QUEUE_NAME_LEN];
 	char queue_namebuf[QUEUE_NAME_LEN];
 	
-	snprintf(vsi_namebuf, QUEUE_NAME_LEN, "vsi%d", vsi->info.stat_counter_idx);
-	vsi_node = SYSCTL_ADD_NODE(ctx, child, OID_AUTO, vsi_namebuf,
-				   CTLFLAG_RD, NULL, "VSI Number");
+	// ERJ: Only one vsi now, re-do when >1 VSI enabled
+	// snprintf(vsi_namebuf, QUEUE_NAME_LEN, "vsi%d", vsi->info.stat_counter_idx);
+	vsi_node = SYSCTL_ADD_NODE(ctx, child, OID_AUTO, "vsi",
+				   CTLFLAG_RD, NULL, "VSI-specific stats");
 	vsi_list = SYSCTL_CHILDREN(vsi_node);
 
 	i40e_add_sysctls_eth_stats(ctx, vsi_list, vsi_stats);
 
 	/* Queue statistics */
-	struct i40e_queue *queues = vsi->queues;
-	struct tx_ring *txr;
-	struct rx_ring *rxr;
 	for (int q = 0; q < vsi->num_queues; q++) {
-		snprintf(queue_namebuf, QUEUE_NAME_LEN, "queue%d", q);
+		snprintf(queue_namebuf, QUEUE_NAME_LEN, "que%d", q);
 		queue_node = SYSCTL_ADD_NODE(ctx, vsi_list, OID_AUTO, queue_namebuf,
-					     CTLFLAG_RD, NULL, "Queue Name");
+					     CTLFLAG_RD, NULL, "Queue #");
 		queue_list = SYSCTL_CHILDREN(queue_node);
 
-		SYSCTL_ADD_ULONG(ctx, queue_list, OID_AUTO, "mbuf_defrag_failed",
+		txr = &(queues[q].txr);
+		rxr = &(queues[q].rxr);
+
+		SYSCTL_ADD_UQUAD(ctx, queue_list, OID_AUTO, "mbuf_defrag_failed",
 				CTLFLAG_RD, &(queues[q].mbuf_defrag_failed),
 				"m_defrag() failed");
-		SYSCTL_ADD_ULONG(ctx, queue_list, OID_AUTO, "dropped",
+		SYSCTL_ADD_UQUAD(ctx, queue_list, OID_AUTO, "dropped",
 				CTLFLAG_RD, &(queues[q].dropped_pkts),
 				"Driver dropped packets");
-
-		txr = &(queues[q].txr);
-		/* ERJ - Need:
-		 * i40e_sysctl_interrupt_rate_handler
-		 * i40e_sysctl_tdh_handler
-		 * i40e_sysctl_tdt_handler
-		 *
-		 * i40e_sysctl_rdh_handler
-		 * i40e_sysctl_rdt_handler
-		 * rx_copies
-		 * LRO stats
-		 */
 		SYSCTL_ADD_UQUAD(ctx, queue_list, OID_AUTO, "irqs",
 				CTLFLAG_RD, &(queues[q].irqs),
 				"irqs on this queue");
-		SYSCTL_ADD_ULONG(ctx, queue_list, OID_AUTO, "tso_tx",
+		SYSCTL_ADD_UQUAD(ctx, queue_list, OID_AUTO, "tso_tx",
 				CTLFLAG_RD, &(queues[q].tso),
 				"TSO");
-		SYSCTL_ADD_ULONG(ctx, queue_list, OID_AUTO, "tx_dma_setup",
+		SYSCTL_ADD_UQUAD(ctx, queue_list, OID_AUTO, "tx_dma_setup",
 				CTLFLAG_RD, &(queues[q].tx_dma_setup),
 				"Driver tx dma failure in xmit");
 		SYSCTL_ADD_UQUAD(ctx, queue_list, OID_AUTO, "no_desc_avail",
@@ -2835,8 +2945,6 @@ i40e_add_hw_stats(struct i40e_pf *pf)
 		SYSCTL_ADD_UQUAD(ctx, queue_list, OID_AUTO, "tx_bytes",
 				CTLFLAG_RD, &(txr->bytes),
 				"Queue Bytes Transmitted");
-		
-		rxr = &(queues[q].rxr);
 		SYSCTL_ADD_UQUAD(ctx, queue_list, OID_AUTO, "rx_packets",
 				CTLFLAG_RD, &(rxr->rx_packets),
 				"Queue Packets Received");
@@ -2863,16 +2971,14 @@ i40e_add_sysctls_eth_stats(struct sysctl_ctx_list *ctx,
 			"Multicast Packets Received"},
 		{&eth_stats->rx_broadcast, "bcast_pkts_rcvd",
 			"Broadcast Packets Received"},
-		// Add description
-		{&eth_stats->rx_discards, "rx_discards", "?"},
+		{&eth_stats->rx_discards, "rx_discards", "Discarded RX packets"},
 		{&eth_stats->tx_bytes, "good_octets_txd", "Good Octets Transmitted"},
 		{&eth_stats->tx_unicast, "ucast_pkts_txd", "Unicast Packets Transmitted"},
 		{&eth_stats->tx_multicast, "mcast_pkts_txd",
 			"Multicast Packets Transmitted"},
 		{&eth_stats->tx_broadcast, "bcast_pkts_txd",
 			"Broadcast Packets Transmitted"},
-		// Add description
-		{&eth_stats->tx_discards, "tx_discards", "?"},
+		{&eth_stats->tx_discards, "tx_discards", "Discarded TX packets"},
 		// end
 		{0,0,0}
 	};
@@ -2892,7 +2998,7 @@ i40e_add_sysctls_mac_stats(struct sysctl_ctx_list *ctx,
 	struct sysctl_oid_list *child,
 	struct i40e_hw_port_stats *stats)
 {
-	struct sysctl_oid *stat_node = SYSCTL_ADD_NODE(ctx, child, OID_AUTO, "mac_stats",
+	struct sysctl_oid *stat_node = SYSCTL_ADD_NODE(ctx, child, OID_AUTO, "mac",
 				    CTLFLAG_RD, NULL, "Mac Statistics");
 	struct sysctl_oid_list *stat_list = SYSCTL_CHILDREN(stat_node);
 
@@ -3095,11 +3201,9 @@ i40e_setup_vlan_filters(struct i40e_vsi *vsi)
 static void
 i40e_init_filters(struct i40e_vsi *vsi)
 {
-	/* Protocol addresses */
-	/* - Flow control multicast */
-	u8 mc[6] = {0x01, 0x80, 0xC2, 0x00, 0x00, 0x01};
-	i40e_add_filter(vsi, mc, I40E_VLAN_ANY);
-	/* TODO: other protocols */
+	/* Add broadcast address */
+	u8 bc[6] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
+	i40e_add_filter(vsi, bc, I40E_VLAN_ANY);
 }
 
 /*
@@ -3332,7 +3436,6 @@ i40e_enable_rings(struct i40e_vsi *vsi)
 	u32		reg;
 
 	for (int i = 0; i < vsi->num_queues; i++) {
-		// ERJ: pre_tx_queue_cfg is B0-only?
 		i40e_pre_tx_queue_cfg(hw, i, TRUE);
 
 		reg = rd32(hw, I40E_QTX_ENA(i));
@@ -3372,10 +3475,7 @@ i40e_disable_rings(struct i40e_vsi *vsi)
 	u32		reg;
 
 	for (int i = 0; i < vsi->num_queues; i++) {
-		// ERJ
-		// this step can be executed concurrently for each queue
 		i40e_pre_tx_queue_cfg(hw, i, FALSE);
-		// min 100usec for 2x10, 400usec for 1x10
 		i40e_usec_delay(500);
 
 		reg = rd32(hw, I40E_QTX_ENA(i));
@@ -3404,6 +3504,78 @@ i40e_disable_rings(struct i40e_vsi *vsi)
 		if (reg & I40E_QRX_ENA_QENA_STAT_MASK)
 			printf("RX queue %d still enabled!\n", i);
 	}
+}
+
+/**
+ * i40e_handle_mdd_event
+ *
+ * Called from interrupt handler to identify possibly malicious vfs
+ * (But also detects events from the PF, as well)
+ **/
+static void i40e_handle_mdd_event(struct i40e_pf *pf)
+{
+	struct i40e_hw *hw = &pf->hw;
+	device_t dev = pf->dev;
+	bool mdd_detected = false;
+	bool pf_mdd_detected = false;
+	u32 reg;
+
+	/* find what triggered the MDD event */
+	reg = rd32(hw, I40E_GL_MDET_TX);
+	if (reg & I40E_GL_MDET_TX_VALID_MASK) {
+		u8 pf_num = (reg & I40E_GL_MDET_TX_PF_NUM_MASK) >>
+				I40E_GL_MDET_TX_PF_NUM_SHIFT;
+		u8 event = (reg & I40E_GL_MDET_TX_EVENT_MASK) >>
+				I40E_GL_MDET_TX_EVENT_SHIFT;
+		u8 queue = (reg & I40E_GL_MDET_TX_QUEUE_MASK) >>
+				I40E_GL_MDET_TX_QUEUE_SHIFT;
+		device_printf(dev,
+			 "Malicious Driver Detection event 0x%02x"
+			 " on TX queue %d pf number 0x%02x\n",
+			 event, queue, pf_num);
+		wr32(hw, I40E_GL_MDET_TX, 0xffffffff);
+		mdd_detected = true;
+	}
+	reg = rd32(hw, I40E_GL_MDET_RX);
+	if (reg & I40E_GL_MDET_RX_VALID_MASK) {
+		u8 func = (reg & I40E_GL_MDET_RX_FUNCTION_MASK) >>
+				I40E_GL_MDET_RX_FUNCTION_SHIFT;
+		u8 event = (reg & I40E_GL_MDET_RX_EVENT_MASK) >>
+				I40E_GL_MDET_RX_EVENT_SHIFT;
+		u8 queue = (reg & I40E_GL_MDET_RX_QUEUE_MASK) >>
+				I40E_GL_MDET_RX_QUEUE_SHIFT;
+		device_printf(dev,
+			 "Malicious Driver Detection event 0x%02x"
+			 " on RX queue %d of function 0x%02x\n",
+			 event, queue, func);
+		wr32(hw, I40E_GL_MDET_RX, 0xffffffff);
+		mdd_detected = true;
+	}
+
+	if (mdd_detected) {
+		reg = rd32(hw, I40E_PF_MDET_TX);
+		if (reg & I40E_PF_MDET_TX_VALID_MASK) {
+			wr32(hw, I40E_PF_MDET_TX, 0xFFFF);
+			device_printf(dev,
+				 "MDD TX event is for this function 0x%08x",
+				 reg);
+			pf_mdd_detected = true;
+		}
+		reg = rd32(hw, I40E_PF_MDET_RX);
+		if (reg & I40E_PF_MDET_RX_VALID_MASK) {
+			wr32(hw, I40E_PF_MDET_RX, 0xFFFF);
+			device_printf(dev,
+				 "MDD RX event is for this function 0x%08x",
+				 reg);
+			pf_mdd_detected = true;
+		}
+	}
+
+	/* re-enable mdd interrupt cause */
+	reg = rd32(hw, I40E_PFINT_ICR0_ENA);
+	reg |= I40E_PFINT_ICR0_ENA_MAL_DETECT_MASK;
+	wr32(hw, I40E_PFINT_ICR0_ENA, reg);
+	i40e_flush(hw);
 }
 
 static void
@@ -3505,6 +3677,9 @@ static void
 i40e_update_stats_counters(struct i40e_pf *pf)
 {
 	struct i40e_hw	*hw = &pf->hw;
+	struct i40e_vsi *vsi = &pf->vsi;
+	struct ifnet	*ifp = vsi->ifp;
+
 	struct i40e_hw_port_stats *nsd = &pf->stats;
 	struct i40e_hw_port_stats *osd = &pf->stats_offsets;
 
@@ -3579,7 +3754,7 @@ i40e_update_stats_counters(struct i40e_pf *pf)
 			   &osd->rx_length_errors,
 			   &nsd->rx_length_errors);
 
-	/* Update flow control stats */
+	/* Flow control (LFC) stats */
 	i40e_stat_update32(hw, I40E_GLPRT_LXONRXC(hw->port),
 			   pf->stat_offsets_loaded,
 			   &osd->link_xon_rx, &nsd->link_xon_rx);
@@ -3593,10 +3768,7 @@ i40e_update_stats_counters(struct i40e_pf *pf)
 			   pf->stat_offsets_loaded,
 			   &osd->link_xoff_tx, &nsd->link_xoff_tx);
 
-	/* 
-	 * Uncomment these out when priority flow control
-	 * is implemented.
-	 */
+	/* Priority flow control stats */
 #if 0
 	for (int i = 0; i < 8; i++) {
 		i40e_stat_update32(hw, I40E_GLPRT_PXONRXC(hw->port, i),
@@ -3619,6 +3791,7 @@ i40e_update_stats_counters(struct i40e_pf *pf)
 	}
 #endif
 
+	/* Packet size stats rx */
 	i40e_stat_update48(hw, I40E_GLPRT_PRC64H(hw->port),
 			   I40E_GLPRT_PRC64L(hw->port),
 			   pf->stat_offsets_loaded,
@@ -3648,6 +3821,7 @@ i40e_update_stats_counters(struct i40e_pf *pf)
 			   pf->stat_offsets_loaded,
 			   &osd->rx_size_big, &nsd->rx_size_big);
 
+	/* Packet size stats tx */
 	i40e_stat_update48(hw, I40E_GLPRT_PTC64H(hw->port),
 			   I40E_GLPRT_PTC64L(hw->port),
 			   pf->stat_offsets_loaded,
@@ -3690,45 +3864,13 @@ i40e_update_stats_counters(struct i40e_pf *pf)
 			   pf->stat_offsets_loaded,
 			   &osd->rx_jabber, &nsd->rx_jabber);
 	pf->stat_offsets_loaded = true;
-	/* End pf-only stats */
+	/* End hw stats */
 
 	/* Update vsi stats */
-	struct i40e_vsi *vsi = &pf->vsi;
 	i40e_update_eth_stats(vsi);
 
-	/* ERJ - does something need these statistics?
-	u64 rx_p = 0, rx_b = 0, tx_p = 0, tx_b = 0;
-	u64 tx_no_desc;
-	u64 rx_split, rx_discarded, rx_not_done;
-	for (u16 q = 0; q < vsi->num_queues; q++)
-	{
-		struct i40e_queue *p = &vsi->queues[q];	
-	
-		rx_p += p->rxr.packets;
-		tx_p += p->txr.packets;
-		rx_b += p->rxr.bytes;
-		tx_b += p->txr.bytes;
-	
-		tx_no_desc += p->txr.no_desc;
-		rx_split += p->rxr.split;
-		rx_discarded += p->rxr.discarded;
-		rx_not_done += p->rxr.not_done;
-	}
-	*/
-
 	/* OS statistics */
-	struct ifnet	*ifp = vsi->ifp;
-
-	// ifp->if_ipackets = rx_p; // no gprc
-	// ifp->if_opackets = tx_p; // no gptc
-	ifp->if_ibytes = nsd->eth.rx_bytes;
-	ifp->if_obytes = nsd->eth.tx_bytes;
-	ifp->if_imcasts = nsd->eth.rx_multicast;
-	ifp->if_omcasts = nsd->eth.tx_multicast;
-	ifp->if_collisions = 0;
-
-	/* Rx Errors */
-	// Linux uses illegal_bytes instead of rx_length_errors
+	// ERJ - these are per-port, update all vsis?
 	ifp->if_ierrors = nsd->crc_errors + nsd->illegal_bytes;
 }
 
@@ -3781,7 +3923,7 @@ i40e_do_adminq(void *context, int pending)
 	} while (result && (loop++ < I40E_ADM_LIMIT));
 
 	reg = rd32(hw, I40E_PFINT_ICR0_ENA);
-	reg |=  I40E_PFINT_ICR0_ENA_ADMINQ_MASK;
+	reg |= I40E_PFINT_ICR0_ENA_ADMINQ_MASK;
 	wr32(hw, I40E_PFINT_ICR0_ENA, reg);
 	free(event.msg_buf, M_DEVBUF);
 
@@ -3861,8 +4003,9 @@ i40e_print_debug_info(struct i40e_pf *pf)
  **/
 void i40e_update_eth_stats(struct i40e_vsi *vsi)
 {
-	struct i40e_pf	*pf = (struct i40e_pf *)vsi->back;
+	struct i40e_pf *pf = (struct i40e_pf *)vsi->back;
 	struct i40e_hw *hw = &pf->hw;
+	struct ifnet *ifp = vsi->ifp;
 	struct i40e_eth_stats *es;
 	struct i40e_eth_stats *oes;
 	u16 stat_idx = vsi->info.stat_counter_idx;
@@ -3912,6 +4055,23 @@ void i40e_update_eth_stats(struct i40e_vsi *vsi)
 			   vsi->stat_offsets_loaded,
 			   &oes->tx_broadcast, &es->tx_broadcast);
 	vsi->stat_offsets_loaded = true;
+
+	/* Update ifnet stats */
+	ifp->if_ipackets = es->rx_unicast +
+	                   es->rx_multicast +
+			   es->rx_broadcast;
+	ifp->if_opackets = es->tx_unicast +
+	                   es->tx_multicast +
+			   es->tx_broadcast;
+	ifp->if_ibytes = es->rx_bytes;
+	ifp->if_obytes = es->tx_bytes;
+	ifp->if_imcasts = es->rx_multicast;
+	ifp->if_omcasts = es->tx_multicast;
+
+	ifp->if_oerrors = es->tx_errors;
+	ifp->if_iqdrops = es->rx_discards;
+	ifp->if_noproto = es->rx_unknown_protocol;
+	ifp->if_collisions = 0;
 }
 
 /**
@@ -3952,7 +4112,7 @@ i40e_stat_update48(struct i40e_hw *hw, u32 hireg, u32 loreg,
 	new_data = rd64(hw, loreg);
 #else
 	/*
-	 * Use two rd32's instead of one rd64 because FreeBSD versions before
+	 * Use two rd32's instead of one rd64; FreeBSD versions before
 	 * 10 don't support 8 byte bus reads/writes.
 	 */
 	new_data = rd32(hw, loreg);
@@ -3988,7 +4148,6 @@ i40e_stat_update32(struct i40e_hw *hw, u32 reg,
 
 /*
 ** Set flow control using sysctl:
-** Flow control values:
 ** 	0 - off
 **	1 - rx pause
 **	2 - tx pause
@@ -4007,113 +4166,156 @@ i40e_set_flowcntl(SYSCTL_HANDLER_ARGS)
 	struct i40e_pf *pf = (struct i40e_pf *)arg1;
 	struct i40e_hw *hw = &pf->hw;
 	device_t dev = pf->dev;
-	struct i40e_aq_get_phy_abilities_resp abilities;
 	int requested_fc = 0, error = 0;
 	enum i40e_status_code aq_error = 0;
 	u8 fc_aq_err = 0;
 
-	/* Get current capability information */
-	aq_error = i40e_aq_get_phy_capabilities(hw, FALSE, FALSE, &abilities, NULL);
-	if (aq_error)
-		device_printf(dev, "Error getting phy capabilities %d,"
-		    " aq error: %d\n", aq_error, hw->aq.asq_last_status);
-
-	if ((abilities.abilities & I40E_AQ_PHY_FLAG_PAUSE_TX) &&
-	    (abilities.abilities & I40E_AQ_PHY_FLAG_PAUSE_RX))
-		hw->fc.current_mode = I40E_FC_FULL;
-	else if (abilities.abilities & I40E_AQ_PHY_FLAG_PAUSE_TX)
-		hw->fc.current_mode = I40E_FC_TX_PAUSE;
-	else if (abilities.abilities & I40E_AQ_PHY_FLAG_PAUSE_RX)
-		hw->fc.current_mode = I40E_FC_RX_PAUSE;
-	else
-		hw->fc.current_mode = I40E_FC_NONE;
+	aq_error = i40e_aq_get_link_info(hw, TRUE, NULL, NULL);
+	if (aq_error) {
+		device_printf(dev,
+		    "%s: Error retrieving link info from aq, %d\n",
+		    __func__, aq_error);
+		return (EAGAIN);
+	}
 
 	/* Read in new mode */
 	requested_fc = hw->fc.current_mode;
 	error = sysctl_handle_int(oidp, &requested_fc, 0, req);
 	if ((error) || (req->newptr == NULL))
-		goto no_set;
+		return (error);
 	if (requested_fc < 0 || requested_fc > 3) {
 		device_printf(dev,
 		    "Invalid fc mode; valid modes are 0 through 3\n");
 		return (EINVAL);
 	}
 
+	/*
+	** Changing flow control mode currently does not work on
+	** 40GBASE-CR4 PHYs
+	*/
+	if (hw->phy.link_info.phy_type == I40E_PHY_TYPE_40GBASE_CR4
+	    || hw->phy.link_info.phy_type == I40E_PHY_TYPE_40GBASE_CR4_CU) {
+		device_printf(dev, "Changing flow control mode unsupported"
+		    " on 40GBase-CR4 media.\n");
+		return (ENODEV);
+	}
+
 	/* Set fc ability for port */
 	hw->fc.requested_mode = requested_fc;
-	i40e_set_fc(hw, &fc_aq_err, TRUE);
+	aq_error = i40e_set_fc(hw, &fc_aq_err, TRUE);
+	if (aq_error) {
+		device_printf(dev,
+		    "%s: Error setting new fc mode %d; fc_err %#x\n",
+		    __func__, aq_error, fc_aq_err);
+		return (EAGAIN);
+	}
 
-	// DEBUG: Verify flow control setting was successfully set
 	if (hw->fc.current_mode != hw->fc.requested_mode) {
-		device_printf(dev, "FC set failure:\n");
-		device_printf(dev, "Current: %s / Requested: %s\n",
+		device_printf(dev, "%s: FC set failure:\n", __func__);
+		device_printf(dev, "%s: Current: %s / Requested: %s\n",
+		    __func__,
 		    i40e_fc_string[hw->fc.current_mode],
 		    i40e_fc_string[hw->fc.requested_mode]);
 	}
 
-no_set:;
-#ifdef I40E_DEBUG
-	/* Print FC registers */
-	u32 reg = 0;
-	printf("Current FC mode: %s\n", i40e_fc_string[hw->fc.current_mode]);
-	if (i40e_is_40G_device(hw->device_id)) {
-		// XXX: Why are these names so long?
-		reg = rd32(hw, I40E_PRTMAC_HSEC_CTL_RX_ENABLE_GPP);
-		printf("PRTMAC_HSEC_CTL_RX_ENABLE_GPP (LFC)         : %s\n",
-		    ON_OFF_STR(reg & I40E_PRTMAC_HSEC_CTL_RX_ENABLE_GPP_HSEC_CTL_RX_ENABLE_GPP_MASK));
+	return (0);
+}
 
-		reg = rd32(hw, I40E_PRTMAC_HSEC_CTL_RX_ENABLE_PPP);
-		printf("PRTMAC_HSEC_CTL_RX_ENABLE_PPP (PFC)         : %s\n",
-		    ON_OFF_STR(reg & I40E_PRTMAC_HSEC_CTL_RX_ENABLE_GPP_HSEC_CTL_RX_ENABLE_GPP_MASK));
+/*
+** Control link advertise speed:
+**	1 - advertise 1G only
+**	2 - advertise 10G only
+**	3 - advertise 1 and 10G
+**
+** Does not work on 40G devices.
+*/
+static int
+i40e_set_advertise(SYSCTL_HANDLER_ARGS)
+{
+	struct i40e_pf *pf = (struct i40e_pf *)arg1;
+	struct i40e_hw *hw = &pf->hw;
+	device_t dev = pf->dev;
+	struct i40e_aq_get_phy_abilities_resp abilities;
+	struct i40e_aq_set_phy_config config;
+	int current_ls = 0, requested_ls = 0;
+	enum i40e_status_code aq_error = 0;
+	int error = 0;
 
-		reg = rd32(hw, I40E_PRTMAC_HSEC_CTL_RX_PAUSE_ENABLE);
-		printf("PRTMAC_HSEC_CTL_RX_PAUSE_ENABLE (LFC)       : %s\n",
-		    ON_OFF_STR(reg & I40E_PRTMAC_HSEC_CTL_RX_PAUSE_ENABLE_HSEC_CTL_RX_PAUSE_ENABLE_MASK));
+	/*
+	** FW doesn't support changing advertised speed
+	** for 40G devices; speed is always 40G.
+	*/
+	if (i40e_is_40G_device(hw->device_id))
+		return (ENODEV);
 
-		reg = rd32(hw, I40E_PRTMAC_HSEC_CTL_TX_PAUSE_ENABLE);
-		printf("PRTMAC_HSEC_CTL_TX_PAUSE_ENABLE (LFC)       : %s\n",
-		    ON_OFF_STR(reg & I40E_PRTMAC_HSEC_CTL_TX_PAUSE_ENABLE_HSEC_CTL_TX_PAUSE_ENABLE_MASK));
-
-		reg = rd32(hw, I40E_PRTMAC_HSEC_CTL_TX_PAUSE_REFRESH_TIMER(8));
-		printf("PRTMAC_HSEC_CTL_TX_PAUSE_REFRESH_TIMER (LFC): %#010x\n", reg);
-
-		reg = rd32(hw, I40E_PRTMAC_HSEC_CTL_TX_PAUSE_QUANTA(8));
-		printf("PRTMAC_HSEC_CTL_TX_PAUSE_QUANTA (LFC)       : %#010x\n",
-		    reg & I40E_PRTMAC_HSEC_CTL_TX_PAUSE_QUANTA_HSEC_CTL_TX_PAUSE_QUANTA_MASK);
-	} else {
-		reg = rd32(hw, I40E_PRTDCB_MFLCN);
-		printf("PRTDCB_MFLCN                     :\n");
-		printf("- PMCF  (Pass MAC Control Frames): %s\n",
-		    ON_OFF_STR(reg & I40E_PRTDCB_MFLCN_PMCF_MASK));
-		printf("- DPF   (Discard Pause Frames)   : %s\n",
-		    ON_OFF_STR(reg & I40E_PRTDCB_MFLCN_DPF_MASK));
-		printf("- RPFCM (Rx PFC Mode)            : %s\n",
-		    ON_OFF_STR(reg & I40E_PRTDCB_MFLCN_RPFCM_MASK));
-		printf("- RFCE  (Rx LFC Mode)            : %s\n",
-		    ON_OFF_STR(reg & I40E_PRTDCB_MFLCN_RFCE_MASK));
-		printf("- RPFCE (Rx PFC Enable Bitmap)   : %#04x\n",
-		    reg & I40E_PRTDCB_MFLCN_RPFCE_MASK);
-		reg = rd32(hw, I40E_PRTDCB_FCCFG);
-		printf("PRTDCB_FCCFG                     :\n");
-		u8 tfce = reg & I40E_PRTDCB_FCCFG_TFCE_MASK;
-		printf("- TFCE  (Tx FC Enable)           : %s\n",
-		    (tfce == 3) ? "Reserved" :
-		    (tfce == 2) ? "PFC Enabled" :
-		    (tfce == 1) ? "LFC Enabled" :
-				  "Tx FC Disabled");
-		reg = rd32(hw, I40E_PRTDCB_FCTTVN(0));
-		printf("PRTDCB_FCCTTVN (LFC)             : %#06x\n",
-		    reg & I40E_PRTDCB_FCTTVN_TTV_2N_MASK);
-		reg = rd32(hw, I40E_PRTDCB_FCRTV);
-		printf("PRTDCB_FCRTV (Pause ref thresh)  : %#06x\n",
-		    reg & I40E_PRTDCB_FCRTV_FC_REFRESH_TH_MASK);
-		reg = rd32(hw, I40E_PRTDCB_TC2PFC);
-		printf("PRTDCB_TC2PFC is 0xff            : %s\n",
-		    ((reg & I40E_PRTDCB_TC2PFC_TC2PFC_MASK) == 0xFF)
-		    ? "Yes" : "No");
+	/* Get current capability information */
+	aq_error = i40e_aq_get_phy_capabilities(hw, FALSE, FALSE, &abilities, NULL);
+	if (aq_error) {
+		device_printf(dev, "%s: Error getting phy capabilities %d,"
+		    " aq error: %d\n", __func__, aq_error,
+		    hw->aq.asq_last_status);
+		return (EAGAIN);
 	}
-#endif
-	return (error);
+
+	/* Figure out current mode */
+	else if (abilities.link_speed & I40E_LINK_SPEED_10GB
+	    && abilities.link_speed & I40E_LINK_SPEED_1GB)
+		current_ls = 3;
+	else if (abilities.link_speed & I40E_LINK_SPEED_10GB)
+		current_ls = 2;
+	else if (abilities.link_speed & I40E_LINK_SPEED_1GB)
+		current_ls = 1;
+	else
+		current_ls = 0;
+
+	/* Read in new mode */
+	requested_ls = current_ls;
+	error = sysctl_handle_int(oidp, &requested_ls, 0, req);
+	if ((error) || (req->newptr == NULL))
+		return (error);
+	if (requested_ls < 1 || requested_ls > 3) {
+		device_printf(dev,
+		    "Invalid advertised speed; valid modes are 1 through 3\n");
+		return (EINVAL);
+	}
+
+	/* Exit if no change */
+	if (current_ls == requested_ls)
+		return (0);
+
+	/* Prepare new config */
+	bzero(&config, sizeof(config));
+	config.phy_type = abilities.phy_type;
+	config.abilities = abilities.abilities
+	    | I40E_AQ_PHY_ENABLE_ATOMIC_LINK;
+	config.eee_capability = abilities.eee_capability;
+	config.eeer = abilities.eeer_val;
+	config.low_power_ctrl = abilities.d3_lpan;
+	/* Translate into aq cmd link_speed */
+	switch (requested_ls) {
+	case 3:
+		config.link_speed = I40E_LINK_SPEED_10GB
+		    | I40E_LINK_SPEED_1GB;
+	case 2:
+		config.link_speed = I40E_LINK_SPEED_10GB;
+	case 1:
+		config.link_speed = I40E_LINK_SPEED_1GB;
+	default:
+		// nothing should get here
+		break;
+	}
+
+	/* Do aq command & restart link */
+	aq_error = i40e_aq_set_phy_config(hw, &config, NULL);
+	if (aq_error) {
+		device_printf(dev, "%s: Error setting new phy config %d,"
+		    " aq error: %d\n", __func__, aq_error,
+		    hw->aq.asq_last_status);
+		return (EAGAIN);
+	}
+
+	i40e_update_link_status(pf);
+	return (0);
 }
 
 /*
@@ -4292,6 +4494,130 @@ i40e_sysctl_sw_filter_list(SYSCTL_HANDLER_ARGS)
 	if (error)
 		printf("sysctl error: %d\n", error);
 	free(buf, M_DEVBUF);
+	return error;
+}
+
+#define I40E_SW_RES_SIZE 0x14
+static int
+i40e_sysctl_hw_res_info(SYSCTL_HANDLER_ARGS)
+{
+	struct i40e_pf *pf = (struct i40e_pf *)arg1;
+	struct i40e_hw *hw = &pf->hw;
+	device_t dev = pf->dev;
+	struct sbuf *buf;
+	int error = 0;
+
+	u8 num_entries;
+	struct i40e_aqc_switch_resource_alloc_element_resp resp[I40E_SW_RES_SIZE];
+
+	buf = sbuf_new_for_sysctl(NULL, NULL, 0, req);
+	if (!buf) {
+		device_printf(dev, "Could not allocate sbuf for output.\n");
+		return (ENOMEM);
+	}
+
+	error = i40e_aq_get_switch_resource_alloc(hw, &num_entries,
+				resp,
+				I40E_SW_RES_SIZE,
+				NULL);
+	if (error) {
+		device_printf(dev, "%s: get_switch_resource_alloc() error %d, aq error %d\n",
+		    __func__, error, hw->aq.asq_last_status);
+		sbuf_delete(buf);
+		return error;
+	}
+	device_printf(dev, "Num_entries: %d\n", num_entries);
+
+	sbuf_cat(buf, "\n");
+	sbuf_printf(buf,
+	    "Type | Guaranteed | Total | Used   | Un-allocated\n"
+	    "     | (this)     | (all) | (this) | (all)       \n");
+	for (int i = 0; i < num_entries; i++) {
+		sbuf_printf(buf,
+		    "%#4x | %10d   %5d   %6d   %12d",
+		    resp[i].resource_type,
+		    resp[i].guaranteed,
+		    resp[i].total,
+		    resp[i].used,
+		    resp[i].total_unalloced);
+		if (i < num_entries - 1)
+			sbuf_cat(buf, "\n");
+	}
+
+	error = sbuf_finish(buf);
+	if (error) {
+		device_printf(dev, "Error finishing sbuf: %d\n", error);
+		sbuf_delete(buf);
+		return error;
+	}
+
+	error = sysctl_handle_string(oidp, sbuf_data(buf), sbuf_len(buf), req);
+	if (error)
+		device_printf(dev, "sysctl error: %d\n", error);
+	sbuf_delete(buf);
+	return error;
+
+}
+
+/*
+** Dump TX desc given index.
+** Doesn't work; don't use.
+** TODO: Also needs a queue index input!
+**/
+static int
+i40e_sysctl_dump_txd(SYSCTL_HANDLER_ARGS)
+{
+	struct i40e_pf *pf = (struct i40e_pf *)arg1;
+	device_t dev = pf->dev;
+	struct sbuf *buf;
+	int error = 0;
+
+	u16 desc_idx = 0;
+
+	buf = sbuf_new_for_sysctl(NULL, NULL, 0, req);
+	if (!buf) {
+		device_printf(dev, "Could not allocate sbuf for output.\n");
+		return (ENOMEM);
+	}
+
+	/* Read in index */
+	error = sysctl_handle_int(oidp, &desc_idx, 0, req);
+	if (error)
+		return (error);
+	if (req->newptr == NULL)
+		return (EIO); // fix
+	if (desc_idx > 1024) { // fix
+		device_printf(dev,
+		    "Invalid descriptor index, needs to be < 1024\n"); // fix
+		return (EINVAL);
+	}
+
+	// Don't use this sysctl yet
+	if (TRUE)
+		return (ENODEV);
+
+	sbuf_cat(buf, "\n");
+
+	// set to queue 1?
+	struct i40e_queue *que = pf->vsi.queues;
+	struct tx_ring *txr = &(que[1].txr);
+	struct i40e_tx_desc *txd = &txr->base[desc_idx];
+
+	sbuf_printf(buf, "Que: %d, Desc: %d\n", que->me, desc_idx);
+	sbuf_printf(buf, "Addr: %#18lx\n", txd->buffer_addr);
+	sbuf_printf(buf, "Opts: %#18lx\n", txd->cmd_type_offset_bsz);
+
+	error = sbuf_finish(buf);
+	if (error) {
+		device_printf(dev, "Error finishing sbuf: %d\n", error);
+		sbuf_delete(buf);
+		return error;
+	}
+
+	error = sysctl_handle_string(oidp, sbuf_data(buf), sbuf_len(buf), req);
+	if (error)
+		device_printf(dev, "sysctl error: %d\n", error);
+	sbuf_delete(buf);
 	return error;
 }
 #endif

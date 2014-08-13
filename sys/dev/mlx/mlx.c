@@ -191,6 +191,8 @@ mlx_free(struct mlx_softc *sc)
 	bus_dma_tag_destroy(sc->mlx_buffer_dmat);
 
     /* free and destroy DMA memory and tag for s/g lists */
+    if (sc->mlx_sgbusaddr)
+	bus_dmamap_unload(sc->mlx_sg_dmat, sc->mlx_sg_dmamap);
     if (sc->mlx_sgtable)
 	bus_dmamem_free(sc->mlx_sg_dmat, sc->mlx_sgtable, sc->mlx_sg_dmamap);
     if (sc->mlx_sg_dmat)
@@ -239,10 +241,15 @@ mlx_sglist_map(struct mlx_softc *sc)
     debug_called(1);
 
     /* destroy any existing mappings */
+    if (sc->mlx_sgbusaddr)
+	bus_dmamap_unload(sc->mlx_sg_dmat, sc->mlx_sg_dmamap);
     if (sc->mlx_sgtable)
 	bus_dmamem_free(sc->mlx_sg_dmat, sc->mlx_sgtable, sc->mlx_sg_dmamap);
     if (sc->mlx_sg_dmat)
 	bus_dma_tag_destroy(sc->mlx_sg_dmat);
+    sc->mlx_sgbusaddr = 0;
+    sc->mlx_sgtable = NULL;
+    sc->mlx_sg_dmat = NULL;
 
     /*
      * Create a single tag describing a region large enough to hold all of

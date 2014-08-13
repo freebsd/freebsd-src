@@ -460,48 +460,48 @@ trunk_destroy(struct ifvlantrunk *trunk)
  * traffic that it doesn't really want, which ends up being discarded
  * later by the upper protocol layers. Unfortunately, there's no way
  * to avoid this: there really is only one physical interface.
- *
- * XXX: There is a possible race here if more than one thread is
- *      modifying the multicast state of the vlan interface at the same time.
  */
 static int
 vlan_setmulti(struct ifnet *ifp)
 {
 	struct ifnet		*ifp_p;
-	struct ifmultiaddr	*ifma, *rifma = NULL;
+	struct ifmultiaddr	*ifma;
 	struct ifvlan		*sc;
 	struct vlan_mc_entry	*mc;
 	int			error;
 
-	/*VLAN_LOCK_ASSERT();*/
-
 	/* Find the parent. */
 	sc = ifp->if_softc;
+	TRUNK_LOCK_ASSERT(TRUNK(sc));
 	ifp_p = PARENT(sc);
 
 	CURVNET_SET_QUIET(ifp_p->if_vnet);
 
 	/* First, remove any existing filter entries. */
 	while ((mc = SLIST_FIRST(&sc->vlan_mc_listhead)) != NULL) {
-		error = if_delmulti(ifp_p, (struct sockaddr *)&mc->mc_addr);
-		if (error)
-			return (error);
 		SLIST_REMOVE_HEAD(&sc->vlan_mc_listhead, mc_entries);
+		(void)if_delmulti(ifp_p, (struct sockaddr *)&mc->mc_addr);
 		free(mc, M_VLAN);
 	}
 
 	/* Now program new ones. */
+	IF_ADDR_WLOCK(ifp);
 	TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 		if (ifma->ifma_addr->sa_family != AF_LINK)
 			continue;
 		mc = malloc(sizeof(struct vlan_mc_entry), M_VLAN, M_NOWAIT);
-		if (mc == NULL)
+		if (mc == NULL) {
+			IF_ADDR_WUNLOCK(ifp);
 			return (ENOMEM);
+		}
 		bcopy(ifma->ifma_addr, &mc->mc_addr, ifma->ifma_addr->sa_len);
 		mc->mc_addr.sdl_index = ifp_p->if_index;
 		SLIST_INSERT_HEAD(&sc->vlan_mc_listhead, mc, mc_entries);
+	}
+	IF_ADDR_WUNLOCK(ifp);
+	SLIST_FOREACH (mc, &sc->vlan_mc_listhead, mc_entries) {
 		error = if_addmulti(ifp_p, (struct sockaddr *)&mc->mc_addr,
-		    &rifma);
+		    NULL);
 		if (error)
 			return (error);
 	}
@@ -1374,7 +1374,7 @@ vlan_unconfig_locked(struct ifnet *ifp, int departing)
 		 * Check if we were the last.
 		 */
 		if (trunk->refcnt == 0) {
-			trunk->parent->if_vlantrunk = NULL;
+			parent->if_vlantrunk = NULL;
 			/*
 			 * XXXGL: If some ithread has already entered
 			 * vlan_input() and is now blocked on the trunk
@@ -1568,6 +1568,7 @@ vlan_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	struct ifreq *ifr;
 	struct ifaddr *ifa;
 	struct ifvlan *ifv;
+	struct ifvlantrunk *trunk;
 	struct vlanreq vlr;
 	int error = 0;
 
@@ -1712,8 +1713,12 @@ vlan_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		 * If we don't have a parent, just remember the membership for
 		 * when we do.
 		 */
-		if (TRUNK(ifv) != NULL)
+		trunk = TRUNK(ifv);
+		if (trunk != NULL) {
+			TRUNK_LOCK(trunk);
 			error = vlan_setmulti(ifp);
+			TRUNK_UNLOCK(trunk);
+		}
 		break;
 
 	default:

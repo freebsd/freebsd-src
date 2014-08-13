@@ -584,7 +584,7 @@ bridge_get_basemac(const char *bif_name, u_char *mac, size_t mlen)
 
 		/*
 		 * Not just casting because of alignment constraints
-		 * on sparc64 and ia64.
+		 * on sparc64.
 		 */
 		bcopy(ifa->ifa_addr, &sdl, sizeof(struct sockaddr_dl));
 

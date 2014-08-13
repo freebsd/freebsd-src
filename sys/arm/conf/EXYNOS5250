@@ -21,7 +21,5 @@ ident		EXYNOS5250
 include		"EXYNOS5.common"
 include		"../samsung/exynos/std.exynos5250"
 
-options		SMP
-
 #FDT
 options 	FDT

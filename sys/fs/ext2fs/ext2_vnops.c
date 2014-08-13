@@ -666,10 +666,6 @@ ext2_link(struct vop_link_args *ap)
 	if ((cnp->cn_flags & HASBUF) == 0)
 		panic("ext2_link: no name");
 #endif
-	if (tdvp->v_mount != vp->v_mount) {
-		error = EXDEV;
-		goto out;
-	}
 	ip = VTOI(vp);
 	if ((nlink_t)ip->i_nlink >= EXT2_LINK_MAX) {
 		error = EMLINK;

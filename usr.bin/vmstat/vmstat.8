@@ -28,7 +28,7 @@
 .\"	@(#)vmstat.8	8.1 (Berkeley) 6/6/93
 .\" $FreeBSD$
 .\"
-.Dd October 21, 2006
+.Dd August 8, 2014
 .Dt VMSTAT 8
 .Os
 .Sh NAME
@@ -38,9 +38,8 @@
 .Nm
 .\" .Op Fl fimst
 .Op Fl afHhimPsz
-.Op Fl c Ar count
 .Op Fl M Ar core Op Fl N Ar system
-.Op Fl w Ar wait
+.Op Fl c Ar count
 .Op Fl n Ar devs
 .Oo
 .Fl p
@@ -48,7 +47,9 @@
 .Ar type , if , pass
 .Sm on
 .Oc
-.Op Ar disks
+.Op Fl w Ar wait
+.Op Ar disks ...
+.Op wait Op count
 .Sh DESCRIPTION
 The
 .Nm
@@ -91,10 +92,12 @@ and
 system calls since system startup, and the number of pages of virtual memory
 involved in each.
 .It Fl h
-Changes memory columns into more easily human readable form.  Default if
+Changes memory columns into more easily human readable form.
+The default if
 standard output is a terminal device.
 .It Fl H
-Changes memory columns into straight numbers.  Default if standard output
+Changes memory columns into straight numbers.
+The default if standard output
 is not a terminal device (such as a script).
 .It Fl i
 Report on the number of interrupts taken by each device since system
@@ -213,6 +216,21 @@ Report on memory used by the kernel zone allocator,
 .Xr uma 9 ,
 by zone.
 .El
+.Pp
+The
+.Ar wait
+and
+.Ar count
+arguments may be given after their respective flags at any point
+on the command line before the
+.Ar disks
+argument(s), or without their flags, as the final argument(s).
+The latter form is accepted for backwards compatibility, but it is
+preferred to use the forms with
+.Fl w
+and
+.Fl c
+to avoid ambiguity.
 .Pp
 By default,
 .Nm

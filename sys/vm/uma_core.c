@@ -205,7 +205,7 @@ struct uma_bucket_zone {
 #define	BUCKET_SIZE(n)						\
     (((sizeof(void *) * (n)) - sizeof(struct uma_bucket)) / sizeof(void *))
 
-#define	BUCKET_MAX	BUCKET_SIZE(128)
+#define	BUCKET_MAX	BUCKET_SIZE(256)
 
 struct uma_bucket_zone bucket_zones[] = {
 	{ NULL, "4 Bucket", BUCKET_SIZE(4), 4096 },
@@ -216,6 +216,7 @@ struct uma_bucket_zone bucket_zones[] = {
 	{ NULL, "32 Bucket", BUCKET_SIZE(32), 512 },
 	{ NULL, "64 Bucket", BUCKET_SIZE(64), 256 },
 	{ NULL, "128 Bucket", BUCKET_SIZE(128), 128 },
+	{ NULL, "256 Bucket", BUCKET_SIZE(256), 64 },
 	{ NULL, NULL, 0}
 };
 
@@ -280,8 +281,7 @@ SYSCTL_PROC(_vm, OID_AUTO, zone_stats, CTLFLAG_RD|CTLTYPE_STRUCT,
     0, 0, sysctl_vm_zone_stats, "s,struct uma_type_header", "Zone Stats");
 
 static int zone_warnings = 1;
-TUNABLE_INT("vm.zone_warnings", &zone_warnings);
-SYSCTL_INT(_vm, OID_AUTO, zone_warnings, CTLFLAG_RW, &zone_warnings, 0,
+SYSCTL_INT(_vm, OID_AUTO, zone_warnings, CTLFLAG_RWTUN, &zone_warnings, 0,
     "Warn when UMA zones becomes full");
 
 /*
@@ -381,6 +381,8 @@ bucket_alloc(uma_zone_t zone, void *udata, int flags)
 	if ((uintptr_t)udata & UMA_ZFLAG_CACHEONLY)
 		flags |= M_NOVM;
 	ubz = bucket_zone_lookup(zone->uz_count);
+	if (ubz->ubz_zone == zone && (ubz + 1)->ubz_entries != 0)
+		ubz++;
 	bucket = uma_zalloc_arg(ubz->ubz_zone, udata, flags);
 	if (bucket) {
 #ifdef INVARIANTS
@@ -1151,7 +1153,7 @@ noobj_alloc(uma_zone_t zone, int bytes, uint8_t *flags, int wait)
 		 * exit.
 		 */
 		TAILQ_FOREACH_SAFE(p, &alloctail, listq, p_next) {
-			vm_page_unwire(p, 0);
+			vm_page_unwire(p, PQ_INACTIVE);
 			vm_page_free(p); 
 		}
 		return (NULL);

@@ -38,12 +38,15 @@
 ** 	    both the BASE and the VF drivers.
 */
 
+#ifdef HAVE_KERNEL_OPTION_HEADERS
 #include "opt_inet.h"
 #include "opt_inet6.h"
+#endif
+
 #include "i40e.h"
 
 /* Local Prototypes */
-static void	i40e_rx_checksum(struct mbuf *, u32, u32, u32);
+static void	i40e_rx_checksum(struct mbuf *, u32, u32, u8);
 static void	i40e_refresh_mbufs(struct i40e_queue *, int);
 static int      i40e_xmit(struct i40e_queue *, struct mbuf **);
 static int	i40e_tx_setup_offload(struct i40e_queue *,
@@ -52,7 +55,7 @@ static bool	i40e_tso_setup(struct i40e_queue *, struct mbuf *);
 
 static __inline void i40e_rx_discard(struct rx_ring *, int);
 static __inline void i40e_rx_input(struct rx_ring *, struct ifnet *,
-		    struct mbuf *, u32);
+		    struct mbuf *, u8);
 
 /*
 ** Multiqueue Transmit driver
@@ -72,6 +75,10 @@ i40e_mq_start(struct ifnet *ifp, struct mbuf *m)
 	else
 		i = curcpu % vsi->num_queues;
 
+	/* Check for a hung queue and pick alternative */
+	if (((1 << i) & vsi->active_queues) == 0)
+		i = ffsl(vsi->active_queues);
+
 	que = &vsi->queues[i];
 	txr = &que->txr;
 
@@ -79,12 +86,12 @@ i40e_mq_start(struct ifnet *ifp, struct mbuf *m)
 	if (err)
 		return(err);
 	if (I40E_TX_TRYLOCK(txr)) {
-		err = i40e_mq_start_locked(ifp, txr);
+		i40e_mq_start_locked(ifp, txr);
 		I40E_TX_UNLOCK(txr);
 	} else
 		taskqueue_enqueue(que->tq, &que->tx_task);
 
-	return (err);
+	return (0);
 }
 
 int
@@ -159,6 +166,34 @@ i40e_qflush(struct ifnet *ifp)
 	if_qflush(ifp);
 }
 
+/*
+** Find mbuf chains passed to the driver 
+** that are 'sparse', using more than 8
+** mbufs to deliver an mss-size chunk of data
+*/
+static inline bool
+i40e_tso_detect_sparse(struct mbuf *mp)
+{
+	struct mbuf	*m;
+	int		num = 0, mss;
+	bool		ret = FALSE;
+
+	mss = mp->m_pkthdr.tso_segsz;
+	for (m = mp->m_next; m != NULL; m = m->m_next) {
+		num++;
+		mss -= m->m_len;
+		if (mss < 1)
+			break;
+		if (m->m_next == NULL)
+			break;
+	}
+	if (num > I40E_SPARSE_CHAIN)
+		ret = TRUE;
+
+	return (ret);
+}
+
+
 /*********************************************************************
  *
  *  This routine maps the mbufs to tx descriptors, allowing the
@@ -176,21 +211,18 @@ i40e_xmit(struct i40e_queue *que, struct mbuf **m_headp)
 	struct tx_ring		*txr = &que->txr;
 	struct i40e_tx_buf	*buf;
 	struct i40e_tx_desc	*txd = NULL;
-	struct mbuf		*m_head;
-	int             	i, j, error, nsegs;
+	struct mbuf		*m_head, *m;
+	int             	i, j, error, nsegs, maxsegs;
 	int			first, last = 0;
 	u16			vtag = 0;
 	u32			cmd, off;
 	bus_dmamap_t		map;
-	bus_dma_segment_t	segs[I40E_MAX_SEGS];
+	bus_dma_tag_t		tag;
+	bus_dma_segment_t	segs[I40E_MAX_TSO_SEGS];
 
 
 	cmd = off = 0;
 	m_head = *m_headp;
-
-	/* Grab the VLAN tag */
-	if (m_head->m_flags & M_VLANTAG)
-		vtag = htole16(m_head->m_pkthdr.ether_vtag);
 
         /*
          * Important to capture the first descriptor
@@ -200,17 +232,29 @@ i40e_xmit(struct i40e_queue *que, struct mbuf **m_headp)
         first = txr->next_avail;
 	buf = &txr->buffers[first];
 	map = buf->map;
+	tag = txr->tx_tag;
+	maxsegs = I40E_MAX_TX_SEGS;
+
+	if (m_head->m_pkthdr.csum_flags & CSUM_TSO) {
+		/* Use larger mapping for TSO */
+		tag = txr->tso_tag;
+		maxsegs = I40E_MAX_TSO_SEGS;
+		if (i40e_tso_detect_sparse(m_head)) {
+			m = m_defrag(m_head, M_NOWAIT);
+			*m_headp = m;
+		}
+	}
 
 	/*
 	 * Map the packet for DMA.
 	 */
-	error = bus_dmamap_load_mbuf_sg(txr->tag, map,
+	error = bus_dmamap_load_mbuf_sg(tag, map,
 	    *m_headp, segs, &nsegs, BUS_DMA_NOWAIT);
 
 	if (error == EFBIG) {
 		struct mbuf *m;
 
-		m = m_defrag(*m_headp, M_NOWAIT);
+		m = m_collapse(*m_headp, M_NOWAIT, maxsegs);
 		if (m == NULL) {
 			que->mbuf_defrag_failed++;
 			m_freem(*m_headp);
@@ -220,7 +264,7 @@ i40e_xmit(struct i40e_queue *que, struct mbuf **m_headp)
 		*m_headp = m;
 
 		/* Try it again */
-		error = bus_dmamap_load_mbuf_sg(txr->tag, map,
+		error = bus_dmamap_load_mbuf_sg(tag, map,
 		    *m_headp, segs, &nsegs, BUS_DMA_NOWAIT);
 
 		if (error == ENOMEM) {
@@ -251,20 +295,25 @@ i40e_xmit(struct i40e_queue *que, struct mbuf **m_headp)
 	m_head = *m_headp;
 
 	/* Set up the TSO/CSUM offload */
-	error = i40e_tx_setup_offload(que, m_head, &cmd, &off);
-	if (error)
-		goto xmit_fail;
+	if (m_head->m_pkthdr.csum_flags & CSUM_OFFLOAD) {
+		error = i40e_tx_setup_offload(que, m_head, &cmd, &off);
+		if (error)
+			goto xmit_fail;
+	}
 
 	cmd |= I40E_TX_DESC_CMD_ICRC;
-	/* Add vlan tag to each descriptor */
-	if (m_head->m_flags & M_VLANTAG)
+	/* Grab the VLAN tag */
+	if (m_head->m_flags & M_VLANTAG) {
 		cmd |= I40E_TX_DESC_CMD_IL2TAG1;
+		vtag = htole16(m_head->m_pkthdr.ether_vtag);
+	}
 
 	i = txr->next_avail;
 	for (j = 0; j < nsegs; j++) {
 		bus_size_t seglen;
 
 		buf = &txr->buffers[i];
+		buf->tag = tag; /* Keep track of the type tag */
 		txd = &txr->base[i];
 		seglen = segs[j].ds_len;
 
@@ -294,7 +343,7 @@ i40e_xmit(struct i40e_queue *que, struct mbuf **m_headp)
 	/* Swap the dma map between the first and last descriptor */
 	txr->buffers[first].map = buf->map;
 	buf->map = map;
-	bus_dmamap_sync(txr->tag, map, BUS_DMASYNC_PREWRITE);
+	bus_dmamap_sync(tag, map, BUS_DMASYNC_PREWRITE);
 
         /* Set the index of the descriptor that will be marked done */
         buf = &txr->buffers[first];
@@ -307,8 +356,8 @@ i40e_xmit(struct i40e_queue *que, struct mbuf **m_headp)
 	 * hardware that this frame is available to transmit.
 	 */
 	++txr->total_packets;
+	wr32(hw, txr->tail, i);
 
-	wr32(hw, I40E_QTX_TAIL(que->me), i);
 	i40e_flush(hw);
 	/* Mark outstanding work */
 	if (que->busy == 0)
@@ -316,7 +365,7 @@ i40e_xmit(struct i40e_queue *que, struct mbuf **m_headp)
 	return (0);
 
 xmit_fail:
-	bus_dmamap_unload(txr->tag, buf->map);
+	bus_dmamap_unload(tag, buf->map);
 	return (error);
 }
 
@@ -341,18 +390,35 @@ i40e_allocate_tx_data(struct i40e_queue *que)
 	 * Setup DMA descriptor areas.
 	 */
 	if ((error = bus_dma_tag_create(NULL,		/* parent */
-			       1, 0,		/* alignment, bounds */
+			       1, 0,			/* alignment, bounds */
 			       BUS_SPACE_MAXADDR,	/* lowaddr */
 			       BUS_SPACE_MAXADDR,	/* highaddr */
 			       NULL, NULL,		/* filter, filterarg */
 			       I40E_TSO_SIZE,		/* maxsize */
-			       32,
+			       I40E_MAX_TX_SEGS,	/* nsegments */
 			       PAGE_SIZE,		/* maxsegsize */
 			       0,			/* flags */
 			       NULL,			/* lockfunc */
 			       NULL,			/* lockfuncarg */
-			       &txr->tag))) {
+			       &txr->tx_tag))) {
 		device_printf(dev,"Unable to allocate TX DMA tag\n");
+		goto fail;
+	}
+
+	/* Make a special tag for TSO */
+	if ((error = bus_dma_tag_create(NULL,		/* parent */
+			       1, 0,			/* alignment, bounds */
+			       BUS_SPACE_MAXADDR,	/* lowaddr */
+			       BUS_SPACE_MAXADDR,	/* highaddr */
+			       NULL, NULL,		/* filter, filterarg */
+			       I40E_TSO_SIZE,		/* maxsize */
+			       I40E_MAX_TSO_SEGS,	/* nsegments */
+			       PAGE_SIZE,		/* maxsegsize */
+			       0,			/* flags */
+			       NULL,			/* lockfunc */
+			       NULL,			/* lockfuncarg */
+			       &txr->tso_tag))) {
+		device_printf(dev,"Unable to allocate TX TSO DMA tag\n");
 		goto fail;
 	}
 
@@ -364,10 +430,11 @@ i40e_allocate_tx_data(struct i40e_queue *que)
 		goto fail;
 	}
 
-        /* Create the descriptor buffer dma maps */
+        /* Create the descriptor buffer default dma maps */
 	buf = txr->buffers;
 	for (int i = 0; i < que->num_desc; i++, buf++) {
-		error = bus_dmamap_create(txr->tag, 0, &buf->map);
+		buf->tag = txr->tx_tag;
+		error = bus_dmamap_create(buf->tag, 0, &buf->map);
 		if (error != 0) {
 			device_printf(dev, "Unable to create TX DMA map\n");
 			goto fail;
@@ -410,9 +477,9 @@ i40e_init_tx_ring(struct i40e_queue *que)
         buf = txr->buffers;
 	for (int i = 0; i < que->num_desc; i++, buf++) {
 		if (buf->m_head != NULL) {
-			bus_dmamap_sync(txr->tag, buf->map,
+			bus_dmamap_sync(buf->tag, buf->map,
 			    BUS_DMASYNC_POSTWRITE);
-			bus_dmamap_unload(txr->tag, buf->map);
+			bus_dmamap_unload(buf->tag, buf->map);
 			m_freem(buf->m_head);
 			buf->m_head = NULL;
 		}
@@ -445,21 +512,21 @@ i40e_free_que_tx(struct i40e_queue *que)
 	for (int i = 0; i < que->num_desc; i++) {
 		buf = &txr->buffers[i];
 		if (buf->m_head != NULL) {
-			bus_dmamap_sync(txr->tag, buf->map,
+			bus_dmamap_sync(buf->tag, buf->map,
 			    BUS_DMASYNC_POSTWRITE);
-			bus_dmamap_unload(txr->tag,
+			bus_dmamap_unload(buf->tag,
 			    buf->map);
 			m_freem(buf->m_head);
 			buf->m_head = NULL;
 			if (buf->map != NULL) {
-				bus_dmamap_destroy(txr->tag,
+				bus_dmamap_destroy(buf->tag,
 				    buf->map);
 				buf->map = NULL;
 			}
 		} else if (buf->map != NULL) {
-			bus_dmamap_unload(txr->tag,
+			bus_dmamap_unload(buf->tag,
 			    buf->map);
-			bus_dmamap_destroy(txr->tag,
+			bus_dmamap_destroy(buf->tag,
 			    buf->map);
 			buf->map = NULL;
 		}
@@ -470,9 +537,13 @@ i40e_free_que_tx(struct i40e_queue *que)
 		free(txr->buffers, M_DEVBUF);
 		txr->buffers = NULL;
 	}
-	if (txr->tag != NULL) {
-		bus_dma_tag_destroy(txr->tag);
-		txr->tag = NULL;
+	if (txr->tx_tag != NULL) {
+		bus_dma_tag_destroy(txr->tx_tag);
+		txr->tx_tag = NULL;
+	}
+	if (txr->tso_tag != NULL) {
+		bus_dma_tag_destroy(txr->tso_tag);
+		txr->tso_tag = NULL;
 	}
 	return;
 }
@@ -549,8 +620,7 @@ i40e_tx_setup_offload(struct i40e_queue *que,
 	switch (ipproto) {
 		case IPPROTO_TCP:
 			tcp_hlen = th->th_off << 2;
-			if (mp->m_pkthdr.csum_flags & CSUM_TCP || 
-				mp->m_pkthdr.csum_flags & CSUM_TCP_IPV6) {
+			if (mp->m_pkthdr.csum_flags & (CSUM_TCP|CSUM_TCP_IPV6)) {
 				*cmd |= I40E_TX_DESC_CMD_L4T_EOFT_TCP;
 				*off |= (tcp_hlen >> 2) <<
 				    I40E_TX_DESC_LENGTH_L4_FC_LEN_SHIFT;
@@ -560,8 +630,7 @@ i40e_tx_setup_offload(struct i40e_queue *que,
 #endif
 			break;
 		case IPPROTO_UDP:
-			if (mp->m_pkthdr.csum_flags & CSUM_UDP ||
-				mp->m_pkthdr.csum_flags & CSUM_UDP_IPV6) {
+			if (mp->m_pkthdr.csum_flags & (CSUM_UDP|CSUM_UDP_IPV6)) {
 				*cmd |= I40E_TX_DESC_CMD_L4T_EOFT_UDP;
 				*off |= (sizeof(struct udphdr) >> 2) <<
 				    I40E_TX_DESC_LENGTH_L4_FC_LEN_SHIFT;
@@ -569,7 +638,7 @@ i40e_tx_setup_offload(struct i40e_queue *que,
 			break;
 
 		case IPPROTO_SCTP:
-			if (mp->m_pkthdr.csum_flags & CSUM_SCTP) {
+			if (mp->m_pkthdr.csum_flags & (CSUM_SCTP|CSUM_SCTP_IPV6)) {
 				*cmd |= I40E_TX_DESC_CMD_L4T_EOFT_SCTP;
 				*off |= (sizeof(struct sctphdr) >> 2) <<
 				    I40E_TX_DESC_LENGTH_L4_FC_LEN_SHIFT;
@@ -679,6 +748,18 @@ i40e_tso_setup(struct i40e_queue *que, struct mbuf *mp)
 	return TRUE;
 }
 
+/*             
+** i40e_get_tx_head - Retrieve the value from the 
+**    location the HW records its HEAD index
+*/
+static inline u32
+i40e_get_tx_head(struct i40e_queue *que)
+{
+	struct tx_ring  *txr = &que->txr;
+	void *head = &txr->base[que->num_desc];
+	return LE32_TO_CPU(*(volatile __le32 *)head);
+}
+
 /**********************************************************************
  *
  *  Examine each tx_buffer in the used queue. If the hardware is done
@@ -692,7 +773,7 @@ i40e_txeof(struct i40e_queue *que)
 	struct i40e_vsi		*vsi = que->vsi;
 	struct ifnet		*ifp = vsi->ifp;
 	struct tx_ring		*txr = &que->txr;
-	u32			first, last, done, processed;
+	u32			first, last, head, done, processed;
 	struct i40e_tx_buf	*buf;
 	struct i40e_tx_desc	*tx_desc, *eop_desc;
 
@@ -715,6 +796,9 @@ i40e_txeof(struct i40e_queue *que)
 		return FALSE;
 	eop_desc = (struct i40e_tx_desc *)&txr->base[last];
 
+	/* Get the Head WB value */
+	head = i40e_get_tx_head(que);
+
 	/*
 	** Get the index of the first descriptor
 	** BEYOND the EOP and call that 'done'.
@@ -727,25 +811,24 @@ i40e_txeof(struct i40e_queue *que)
         bus_dmamap_sync(txr->dma.tag, txr->dma.map,
             BUS_DMASYNC_POSTREAD);
 	/*
-	** Only the EOP descriptor of a packet now has the DD
-	** bit set, this is what we look for...
+	** The HEAD index of the ring is written in a 
+	** defined location, this rather than a done bit
+	** is what is used to keep track of what must be
+	** 'cleaned'.
 	*/
-	while (eop_desc->cmd_type_offset_bsz &
-	    htole32(I40E_TX_DESC_DTYPE_DESC_DONE)) {
+	while (first != head) {
 		/* We clean the range of the packet */
 		while (first != done) {
-			tx_desc->cmd_type_offset_bsz &=
-			    ~I40E_TXD_QW1_DTYPE_MASK;
 			++txr->avail;
 			++processed;
 
 			if (buf->m_head) {
 				txr->bytes +=
 				    buf->m_head->m_pkthdr.len;
-				bus_dmamap_sync(txr->tag,
+				bus_dmamap_sync(buf->tag,
 				    buf->map,
 				    BUS_DMASYNC_POSTWRITE);
-				bus_dmamap_unload(txr->tag,
+				bus_dmamap_unload(buf->tag,
 				    buf->map);
 				m_freem(buf->m_head);
 				buf->m_head = NULL;
@@ -786,10 +869,11 @@ i40e_txeof(struct i40e_queue *que)
 	** be considered hung. If anything has been
 	** cleaned then reset the state.
 	*/
-	if (!processed)
+	if ((processed == 0) && (que->busy != I40E_QUEUE_HUNG))
 		++que->busy;
-	else
-		que->busy = 1;
+
+	if (processed)
+		que->busy = 1; /* Note this turns off HUNG */
 
 	/*
 	 * If there are no pending descriptors, clear the timeout.
@@ -884,6 +968,7 @@ no_split:
 		    BUS_DMASYNC_PREREAD);
 		rxr->base[i].read.pkt_addr =
 		   htole64(pseg[0].ds_addr);
+		/* Used only when doing header split */
 		rxr->base[i].read.hdr_addr = 0;
 
 		refreshed = TRUE;
@@ -895,7 +980,7 @@ no_split:
 	}
 update:
 	if (refreshed) /* Update hardware tail index */
-		wr32(vsi->hw, I40E_QRX_TAIL(que->me), rxr->next_refresh);
+		wr32(vsi->hw, rxr->tail, rxr->next_refresh);
 	return;
 }
 
@@ -1020,6 +1105,7 @@ i40e_init_rx_ring(struct i40e_queue *que)
 		buf->m_pack = NULL;
 	}
 
+	/* header split is off */
 	rxr->hdr_split = FALSE;
 
 	/* Now replenish the mbufs */
@@ -1170,7 +1256,7 @@ i40e_free_que_rx(struct i40e_queue *que)
 }
 
 static __inline void
-i40e_rx_input(struct rx_ring *rxr, struct ifnet *ifp, struct mbuf *m, u32 ptype)
+i40e_rx_input(struct rx_ring *rxr, struct ifnet *ifp, struct mbuf *m, u8 ptype)
 {
         /*
          * ATM LRO is only for IPv4/TCP packets and TCP checksum of the packet
@@ -1260,9 +1346,10 @@ i40e_rxeof(struct i40e_queue *que, int count)
 
 	for (i = rxr->next_check; count != 0;) {
 		struct mbuf	*sendmp, *mh, *mp;
-		u32		rsc, ptype, status, error;
+		u32		rsc, status, error;
 		u16		hlen, plen, vtag;
 		u64		qword;
+		u8		ptype;
 		bool		eop;
  
 		/* Sync the ring. */
@@ -1478,8 +1565,11 @@ next_desc:
  *
  *********************************************************************/
 static void
-i40e_rx_checksum(struct mbuf * mp, u32 status, u32 error, u32 ptype)
+i40e_rx_checksum(struct mbuf * mp, u32 status, u32 error, u8 ptype)
 {
+	struct i40e_rx_ptype_decoded decoded;
+
+	decoded = decode_rx_desc_ptype(ptype);
 
 	/* Errors? */
  	if (error & ((1 << I40E_RX_DESC_ERROR_IPE_SHIFT) |
@@ -1488,6 +1578,16 @@ i40e_rx_checksum(struct mbuf * mp, u32 status, u32 error, u32 ptype)
 		return;
 	}
 
+	/* IPv6 with extension headers likely have bad csum */
+	if (decoded.outer_ip == I40E_RX_PTYPE_OUTER_IP &&
+	    decoded.outer_ip_ver == I40E_RX_PTYPE_OUTER_IPV6)
+		if (status &
+		    (1 << I40E_RX_DESC_STATUS_IPV6EXADD_SHIFT)) {
+			mp->m_pkthdr.csum_flags = 0;
+			return;
+		}
+
+ 
 	/* IP Checksum Good */
 	mp->m_pkthdr.csum_flags = CSUM_IP_CHECKED;
 	mp->m_pkthdr.csum_flags |= CSUM_IP_VALID;

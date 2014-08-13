@@ -10,11 +10,14 @@ ATF=		${.CURDIR:H:H:H:H}/contrib/atf
 ATF_TESTS_SH+=	atf_check_test
 ATF_TESTS_SH+=	config_test
 ATF_TESTS_SH+=	integration_test
-ATF_TESTS_SH_SED_integration_test= \
-    -e 's,/usr/bin/env *atf-sh,/usr/libexec/atf-sh,g'
 ATF_TESTS_SH+=	normalize_test
 ATF_TESTS_SH+=	tc_test
 ATF_TESTS_SH+=	tp_test
+
+integration_test: Makefile
+ATF_TESTS_SH_SED_integration_test= \
+    -e 's,atf_check,PATH=/usr/libexec:$${PATH} atf_check,g' \
+    -e 's,/usr/bin/env *atf-sh,/usr/libexec/atf-sh,g'
 
 SCRIPTS+=		misc_helpers
 SCRIPTSDIR_misc_helpers=${TESTSDIR}

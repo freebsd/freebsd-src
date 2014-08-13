@@ -45,6 +45,12 @@ struct sctp_sysctl {
 	uint32_t sctp_auto_asconf;
 	uint32_t sctp_multiple_asconfs;
 	uint32_t sctp_ecn_enable;
+	uint32_t sctp_pr_enable;
+	uint32_t sctp_auth_enable;
+	uint32_t sctp_asconf_enable;
+	uint32_t sctp_reconfig_enable;
+	uint32_t sctp_nrsack_enable;
+	uint32_t sctp_pktdrop_enable;
 	uint32_t sctp_fr_max_burst_default;
 	uint32_t sctp_strict_sacks;
 	uint32_t sctp_peer_chunk_oh;
@@ -76,11 +82,7 @@ struct sctp_sysctl {
 	uint32_t sctp_nr_outgoing_streams_default;
 	uint32_t sctp_cmt_on_off;
 	uint32_t sctp_cmt_use_dac;
-	/* EY 5/5/08 - nr_sack flag variable */
-	uint32_t sctp_nr_sack_on_off;
 	uint32_t sctp_use_cwnd_based_maxburst;
-	uint32_t sctp_asconf_auth_nochk;
-	uint32_t sctp_auth_disable;
 	uint32_t sctp_nat_friendly;
 	uint32_t sctp_L2_abc_variable;
 	uint32_t sctp_mbuf_threshold_count;
@@ -154,6 +156,42 @@ struct sctp_sysctl {
 #define SCTPCTL_ECN_ENABLE_MIN		0
 #define SCTPCTL_ECN_ENABLE_MAX		1
 #define SCTPCTL_ECN_ENABLE_DEFAULT	1
+
+/* pr_enable: Enable PR-SCTP */
+#define SCTPCTL_PR_ENABLE_DESC		"Enable PR-SCTP"
+#define SCTPCTL_PR_ENABLE_MIN		0
+#define SCTPCTL_PR_ENABLE_MAX		1
+#define SCTPCTL_PR_ENABLE_DEFAULT	1
+
+/* auth_enable: Enable SCTP AUTH function */
+#define SCTPCTL_AUTH_ENABLE_DESC	"Enable SCTP AUTH function"
+#define SCTPCTL_AUTH_ENABLE_MIN		0
+#define SCTPCTL_AUTH_ENABLE_MAX		1
+#define SCTPCTL_AUTH_ENABLE_DEFAULT	1
+
+/* asconf_enable: Enable SCTP ASCONF */
+#define SCTPCTL_ASCONF_ENABLE_DESC	"Enable SCTP ASCONF"
+#define SCTPCTL_ASCONF_ENABLE_MIN	0
+#define SCTPCTL_ASCONF_ENABLE_MAX	1
+#define SCTPCTL_ASCONF_ENABLE_DEFAULT	1
+
+/* reconfig_enable: Enable SCTP RE-CONFIG */
+#define SCTPCTL_RECONFIG_ENABLE_DESC	"Enable SCTP RE-CONFIG"
+#define SCTPCTL_RECONFIG_ENABLE_MIN	0
+#define SCTPCTL_RECONFIG_ENABLE_MAX	1
+#define SCTPCTL_RECONFIG_ENABLE_DEFAULT	1
+
+/* nrsack_enable: Enable NR_SACK */
+#define SCTPCTL_NRSACK_ENABLE_DESC	"Enable SCTP NR-SACK"
+#define SCTPCTL_NRSACK_ENABLE_MIN	0
+#define SCTPCTL_NRSACK_ENABLE_MAX	1
+#define SCTPCTL_NRSACK_ENABLE_DEFAULT	0
+
+/* pktdrop_enable: Enable SCTP Packet Drop Reports */
+#define SCTPCTL_PKTDROP_ENABLE_DESC	"Enable SCTP PKTDROP"
+#define SCTPCTL_PKTDROP_ENABLE_MIN	0
+#define SCTPCTL_PKTDROP_ENABLE_MAX	1
+#define SCTPCTL_PKTDROP_ENABLE_DEFAULT	0
 
 /* strict_sacks: Enable SCTP Strict SACK checking */
 #define SCTPCTL_STRICT_SACKS_DESC	"Enable SCTP Strict SACK checking"
@@ -342,12 +380,6 @@ struct sctp_sysctl {
 #define SCTPCTL_CMT_ON_OFF_MAX		SCTP_CMT_MAX
 #define SCTPCTL_CMT_ON_OFF_DEFAULT	SCTP_CMT_OFF
 
-/* EY - nr_sack_on_off: NR_SACK on/off flag */
-#define SCTPCTL_NR_SACK_ON_OFF_DESC	"NR_SACK on/off flag"
-#define SCTPCTL_NR_SACK_ON_OFF_MIN	0
-#define SCTPCTL_NR_SACK_ON_OFF_MAX	1
-#define SCTPCTL_NR_SACK_ON_OFF_DEFAULT	0
-
 /* cmt_use_dac: CMT DAC on/off flag */
 #define SCTPCTL_CMT_USE_DAC_DESC	"CMT DAC on/off flag"
 #define SCTPCTL_CMT_USE_DAC_MIN		0
@@ -359,18 +391,6 @@ struct sctp_sysctl {
 #define SCTPCTL_CWND_MAXBURST_MIN	0
 #define SCTPCTL_CWND_MAXBURST_MAX	1
 #define SCTPCTL_CWND_MAXBURST_DEFAULT	1
-
-/* asconf_auth_nochk: Disable SCTP ASCONF AUTH requirement */
-#define SCTPCTL_ASCONF_AUTH_NOCHK_DESC	"Disable SCTP ASCONF AUTH requirement"
-#define SCTPCTL_ASCONF_AUTH_NOCHK_MIN	0
-#define SCTPCTL_ASCONF_AUTH_NOCHK_MAX	1
-#define SCTPCTL_ASCONF_AUTH_NOCHK_DEFAULT	0
-
-/* auth_disable: Disable SCTP AUTH function */
-#define SCTPCTL_AUTH_DISABLE_DESC	"Disable SCTP AUTH function"
-#define SCTPCTL_AUTH_DISABLE_MIN	0
-#define SCTPCTL_AUTH_DISABLE_MAX	1
-#define SCTPCTL_AUTH_DISABLE_DEFAULT	0
 
 /* nat_friendly: SCTP NAT friendly operation */
 #define SCTPCTL_NAT_FRIENDLY_DESC	"SCTP NAT friendly operation"

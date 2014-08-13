@@ -1,4 +1,4 @@
-/*	$NetBSD: var.c,v 1.184 2013/09/04 15:38:26 sjg Exp $	*/
+/*	$NetBSD: var.c,v 1.186 2014/06/20 06:13:45 sjg Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990, 1993
@@ -69,14 +69,14 @@
  */
 
 #ifndef MAKE_NATIVE
-static char rcsid[] = "$NetBSD: var.c,v 1.184 2013/09/04 15:38:26 sjg Exp $";
+static char rcsid[] = "$NetBSD: var.c,v 1.186 2014/06/20 06:13:45 sjg Exp $";
 #else
 #include <sys/cdefs.h>
 #ifndef lint
 #if 0
 static char sccsid[] = "@(#)var.c	8.3 (Berkeley) 3/19/94";
 #else
-__RCSID("$NetBSD: var.c,v 1.184 2013/09/04 15:38:26 sjg Exp $");
+__RCSID("$NetBSD: var.c,v 1.186 2014/06/20 06:13:45 sjg Exp $");
 #endif
 #endif /* not lint */
 #endif
@@ -2637,7 +2637,7 @@ ApplyModifiers(char *nstr, const char *tstr,
 			break;
 		    }
 		    free(UNCONST(pattern.rhs));
-		    newStr = var_Error;
+		    newStr = varNoError;
 		    break;
 		}
 		goto default_case; /* "::<unrecognised>" */
@@ -3661,6 +3661,7 @@ Var_Parse(const char *str, GNode *ctxt, Boolean errnum, int *lengthPtr,
 	}
     } else {
 	Buffer buf;	/* Holds the variable name */
+	int depth = 1;
 
 	endc = startc == PROPEN ? PRCLOSE : BRCLOSE;
 	Buf_Init(&buf, 0);
@@ -3668,10 +3669,21 @@ Var_Parse(const char *str, GNode *ctxt, Boolean errnum, int *lengthPtr,
 	/*
 	 * Skip to the end character or a colon, whichever comes first.
 	 */
-	for (tstr = str + 2;
-	     *tstr != '\0' && *tstr != endc && *tstr != ':';
-	     tstr++)
+	for (tstr = str + 2; *tstr != '\0'; tstr++)
 	{
+	    /*
+	     * Track depth so we can spot parse errors.
+	     */
+	    if (*tstr == startc) {
+		depth++;
+	    }
+	    if (*tstr == endc) {
+		if (--depth == 0)
+		    break;
+	    }
+	    if (depth == 1 && *tstr == ':') {
+		break;
+	    }
 	    /*
 	     * A variable inside a variable, expand
 	     */
@@ -3691,7 +3703,7 @@ Var_Parse(const char *str, GNode *ctxt, Boolean errnum, int *lengthPtr,
 	}
 	if (*tstr == ':') {
 	    haveModifier = TRUE;
-	} else if (*tstr != '\0') {
+	} else if (*tstr == endc) {
 	    haveModifier = FALSE;
 	} else {
 	    /*
@@ -4041,7 +4053,7 @@ Var_Subst(const char *var, const char *str, GNode *ctxt, Boolean undefErr)
 		 */
 		if (oldVars) {
 		    str += length;
-		} else if (undefErr) {
+		} else if (undefErr || val == var_Error) {
 		    /*
 		     * If variable is undefined, complain and skip the
 		     * variable. The complaint will stop us from doing anything

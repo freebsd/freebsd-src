@@ -96,9 +96,7 @@ extern void sctp_addr_change(struct ifaddr *ifa, int cmd);
 
 /* This is read-only.. */
 u_int rt_numfibs = RT_NUMFIBS;
-SYSCTL_UINT(_net, OID_AUTO, fibs, CTLFLAG_RD, &rt_numfibs, 0, "");
-/* and this can be set too big but will be fixed before it is used */
-TUNABLE_INT("net.fibs", &rt_numfibs);
+SYSCTL_UINT(_net, OID_AUTO, fibs, CTLFLAG_RDTUN, &rt_numfibs, 0, "");
 
 /*
  * By default add routes to all fibs for new interfaces.
@@ -111,9 +109,8 @@ TUNABLE_INT("net.fibs", &rt_numfibs);
  * from the network stack context.
  */
 u_int rt_add_addr_allfibs = 1;
-SYSCTL_UINT(_net, OID_AUTO, add_addr_allfibs, CTLFLAG_RW,
+SYSCTL_UINT(_net, OID_AUTO, add_addr_allfibs, CTLFLAG_RWTUN,
     &rt_add_addr_allfibs, 0, "");
-TUNABLE_INT("net.add_addr_allfibs", &rt_add_addr_allfibs);
 
 VNET_DEFINE(struct rtstat, rtstat);
 #define	V_rtstat	VNET(rtstat)

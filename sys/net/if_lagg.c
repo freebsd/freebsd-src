@@ -46,7 +46,6 @@ __FBSDID("$FreeBSD$");
 #include <net/if_clone.h>
 #include <net/if_arp.h>
 #include <net/if_dl.h>
-#include <net/if_llc.h>
 #include <net/if_media.h>
 #include <net/if_types.h>
 #include <net/if_var.h>
@@ -180,13 +179,11 @@ SYSCTL_INT(_net_link_lagg, OID_AUTO, failover_rx_all, CTLFLAG_RW,
     &lagg_failover_rx_all, 0,
     "Accept input from any interface in a failover lagg");
 static int def_use_flowid = 1; /* Default value for using M_FLOWID */
-TUNABLE_INT("net.link.lagg.default_use_flowid", &def_use_flowid);
-SYSCTL_INT(_net_link_lagg, OID_AUTO, default_use_flowid, CTLFLAG_RW,
+SYSCTL_INT(_net_link_lagg, OID_AUTO, default_use_flowid, CTLFLAG_RWTUN,
     &def_use_flowid, 0,
     "Default setting for using flow id for load sharing");
 static int def_flowid_shift = 16; /* Default value for using M_FLOWID */
-TUNABLE_INT("net.link.lagg.default_flowid_shift", &def_flowid_shift);
-SYSCTL_INT(_net_link_lagg, OID_AUTO, default_flowid_shift, CTLFLAG_RW,
+SYSCTL_INT(_net_link_lagg, OID_AUTO, default_flowid_shift, CTLFLAG_RWTUN,
     &def_flowid_shift, 0,
     "Default setting for flowid shift for load sharing");
 
@@ -1219,35 +1216,39 @@ lagg_ether_cmdmulti(struct lagg_port *lp, int set)
 	struct ifnet *ifp = lp->lp_ifp;
 	struct ifnet *scifp = sc->sc_ifp;
 	struct lagg_mc *mc;
-	struct ifmultiaddr *ifma, *rifma = NULL;
-	struct sockaddr_dl sdl;
+	struct ifmultiaddr *ifma;
 	int error;
 
 	LAGG_WLOCK_ASSERT(sc);
 
-	link_init_sdl(ifp, (struct sockaddr *)&sdl, IFT_ETHER);
-	sdl.sdl_alen = ETHER_ADDR_LEN;
-
 	if (set) {
+		IF_ADDR_WLOCK(scifp);
 		TAILQ_FOREACH(ifma, &scifp->if_multiaddrs, ifma_link) {
 			if (ifma->ifma_addr->sa_family != AF_LINK)
 				continue;
-			bcopy(LLADDR((struct sockaddr_dl *)ifma->ifma_addr),
-			    LLADDR(&sdl), ETHER_ADDR_LEN);
-
-			error = if_addmulti(ifp, (struct sockaddr *)&sdl, &rifma);
+			mc = malloc(sizeof(struct lagg_mc), M_DEVBUF, M_NOWAIT);
+			if (mc == NULL) {
+				IF_ADDR_WUNLOCK(scifp);
+				return (ENOMEM);
+			}
+			bcopy(ifma->ifma_addr, &mc->mc_addr,
+			    ifma->ifma_addr->sa_len);
+			mc->mc_addr.sdl_index = ifp->if_index;
+			mc->mc_ifma = NULL;
+			SLIST_INSERT_HEAD(&lp->lp_mc_head, mc, mc_entries);
+		}
+		IF_ADDR_WUNLOCK(scifp);
+		SLIST_FOREACH (mc, &lp->lp_mc_head, mc_entries) {
+			error = if_addmulti(ifp,
+			    (struct sockaddr *)&mc->mc_addr, &mc->mc_ifma);
 			if (error)
 				return (error);
-			mc = malloc(sizeof(struct lagg_mc), M_DEVBUF, M_NOWAIT);
-			if (mc == NULL)
-				return (ENOMEM);
-			mc->mc_ifma = rifma;
-			SLIST_INSERT_HEAD(&lp->lp_mc_head, mc, mc_entries);
 		}
 	} else {
 		while ((mc = SLIST_FIRST(&lp->lp_mc_head)) != NULL) {
 			SLIST_REMOVE(&lp->lp_mc_head, mc, lagg_mc, mc_entries);
-			if_delmulti_ifma(mc->mc_ifma);
+			if (mc->mc_ifma && !lp->lp_detaching)
+				if_delmulti_ifma(mc->mc_ifma);
 			free(mc, M_DEVBUF);
 		}
 	}

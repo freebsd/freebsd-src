@@ -69,6 +69,7 @@ __FBSDID("$FreeBSD$");
 #include "opt_ipsec.h"
 #include "opt_sctp.h"
 #include "opt_route.h"
+#include "opt_rss.h"
 
 #include <sys/param.h>
 #include <sys/kernel.h>
@@ -102,6 +103,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet/in_pcb.h>
 #include <netinet/tcp_var.h>
 #include <netinet6/nd6.h>
+#include <netinet/in_rss.h>
 
 #ifdef IPSEC
 #include <netipsec/ipsec.h>
@@ -1287,6 +1289,10 @@ ip6_ctloutput(struct socket *so, struct sockopt *sopt)
 	int level, op, optname;
 	int optlen;
 	struct thread *td;
+#ifdef	RSS
+	uint32_t rss_bucket;
+	int retval;
+#endif
 
 	level = sopt->sopt_level;
 	op = sopt->sopt_dir;
@@ -1390,6 +1396,10 @@ ip6_ctloutput(struct socket *so, struct sockopt *sopt)
 			case IPV6_V6ONLY:
 			case IPV6_AUTOFLOWLABEL:
 			case IPV6_BINDANY:
+			case IPV6_BINDMULTI:
+#ifdef	RSS
+			case IPV6_RSS_LISTEN_BUCKET:
+#endif
 				if (optname == IPV6_BINDANY && td != NULL) {
 					error = priv_check(td,
 					    PRIV_NETINET_BINDANY);
@@ -1438,6 +1448,16 @@ do { \
 	INP_WUNLOCK(in6p); \
 } while (/*CONSTCOND*/ 0)
 #define OPTBIT(bit) (in6p->inp_flags & (bit) ? 1 : 0)
+
+#define OPTSET2(bit, val) do {						\
+	INP_WLOCK(in6p);						\
+	if (val)							\
+		in6p->inp_flags2 |= bit;				\
+	else								\
+		in6p->inp_flags2 &= ~bit;				\
+	INP_WUNLOCK(in6p);						\
+} while (0)
+#define OPTBIT2(bit) (in6p->inp_flags2 & (bit) ? 1 : 0)
 
 				case IPV6_RECVPKTINFO:
 					/* cannot mix with RFC2292 */
@@ -1557,6 +1577,21 @@ do { \
 				case IPV6_BINDANY:
 					OPTSET(INP_BINDANY);
 					break;
+
+				case IPV6_BINDMULTI:
+					OPTSET2(INP_BINDMULTI, optval);
+					break;
+#ifdef	RSS
+				case IPV6_RSS_LISTEN_BUCKET:
+					if ((optval >= 0) &&
+					    (optval < rss_getnumbuckets())) {
+						in6p->inp_rss_listen_bucket = optval;
+						OPTSET2(INP_RSS_BUCKET_SET, 1);
+					} else {
+						error = EINVAL;
+					}
+					break;
+#endif
 				}
 				break;
 
@@ -1772,6 +1807,11 @@ do { \
 			case IPV6_RECVTCLASS:
 			case IPV6_AUTOFLOWLABEL:
 			case IPV6_BINDANY:
+			case IPV6_FLOWID:
+			case IPV6_FLOWTYPE:
+#ifdef	RSS
+			case IPV6_RSSBUCKETID:
+#endif
 				switch (optname) {
 
 				case IPV6_RECVHOPOPTS:
@@ -1837,6 +1877,31 @@ do { \
 				case IPV6_BINDANY:
 					optval = OPTBIT(INP_BINDANY);
 					break;
+
+				case IPV6_FLOWID:
+					optval = in6p->inp_flowid;
+					break;
+
+				case IPV6_FLOWTYPE:
+					optval = in6p->inp_flowtype;
+					break;
+#ifdef	RSS
+				case IPV6_RSSBUCKETID:
+					retval =
+					    rss_hash2bucket(in6p->inp_flowid,
+					    in6p->inp_flowtype,
+					    &rss_bucket);
+					if (retval == 0)
+						optval = rss_bucket;
+					else
+						error = EINVAL;
+					break;
+#endif
+
+				case IPV6_BINDMULTI:
+					optval = OPTBIT2(INP_BINDMULTI);
+					break;
+
 				}
 				if (error)
 					break;

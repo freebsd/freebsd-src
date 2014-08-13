@@ -48,7 +48,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/rman.h>
 
 #include <dev/virtio/virtio.h>
-#include <dev/virtio/virtio_config.h>
 #include <dev/virtio/virtqueue.h>
 #include <dev/virtio/virtio_ring.h>
 
@@ -373,6 +372,13 @@ virtqueue_size(struct virtqueue *vq)
 {
 
 	return (vq->vq_nentries);
+}
+
+int
+virtqueue_nfree(struct virtqueue *vq)
+{
+
+	return (vq->vq_free_cnt);
 }
 
 int

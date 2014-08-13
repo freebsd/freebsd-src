@@ -21,6 +21,8 @@
     ..
     tests
         bin
+            chown
+            ..
             date
             ..
             mv
@@ -83,6 +85,12 @@
             ..
             libcrypt
             ..
+            libmp
+            ..
+            libnv
+            ..
+            libutil
+            ..
         ..
         libexec
             atf
@@ -90,6 +98,8 @@
                 ..
                 atf-sh
                 ..
+            ..
+            rtld-elf
             ..
         ..
         sbin
@@ -253,6 +263,8 @@
             ..
             truncate
             ..
+            units
+            ..
             uudecode
             ..
             uuencode
@@ -260,6 +272,8 @@
             xargs
             ..
             yacc
+                yacc
+                ..
             ..
         ..
         usr.sbin

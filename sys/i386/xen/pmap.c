@@ -298,9 +298,9 @@ static void pmap_remove_entry(struct pmap *pmap, vm_page_t m,
 static boolean_t pmap_try_insert_pv_entry(pmap_t pmap, vm_offset_t va,
     vm_page_t m);
 
-static vm_page_t pmap_allocpte(pmap_t pmap, vm_offset_t va, int flags);
+static vm_page_t pmap_allocpte(pmap_t pmap, vm_offset_t va, u_int flags);
 
-static vm_page_t _pmap_allocpte(pmap_t pmap, u_int ptepindex, int flags);
+static vm_page_t _pmap_allocpte(pmap_t pmap, u_int ptepindex, u_int flags);
 static void _pmap_unwire_ptp(pmap_t pmap, vm_page_t m, vm_page_t *free);
 static pt_entry_t *pmap_pte_quick(pmap_t pmap, vm_offset_t va);
 static void pmap_pte_release(pt_entry_t *pte);
@@ -1546,21 +1546,17 @@ pmap_pinit(pmap_t pmap)
  * mapped correctly.
  */
 static vm_page_t
-_pmap_allocpte(pmap_t pmap, u_int ptepindex, int flags)
+_pmap_allocpte(pmap_t pmap, u_int ptepindex, u_int flags)
 {
 	vm_paddr_t ptema;
 	vm_page_t m;
-
-	KASSERT((flags & (M_NOWAIT | M_WAITOK)) == M_NOWAIT ||
-	    (flags & (M_NOWAIT | M_WAITOK)) == M_WAITOK,
-	    ("_pmap_allocpte: flags is neither M_NOWAIT nor M_WAITOK"));
 
 	/*
 	 * Allocate a page table page.
 	 */
 	if ((m = vm_page_alloc(NULL, ptepindex, VM_ALLOC_NOOBJ |
 	    VM_ALLOC_WIRED | VM_ALLOC_ZERO)) == NULL) {
-		if (flags & M_WAITOK) {
+		if ((flags & PMAP_ENTER_NOSLEEP) == 0) {
 			PMAP_UNLOCK(pmap);
 			rw_wunlock(&pvh_global_lock);
 			VM_WAIT;
@@ -1595,15 +1591,11 @@ _pmap_allocpte(pmap_t pmap, u_int ptepindex, int flags)
 }
 
 static vm_page_t
-pmap_allocpte(pmap_t pmap, vm_offset_t va, int flags)
+pmap_allocpte(pmap_t pmap, vm_offset_t va, u_int flags)
 {
 	u_int ptepindex;
 	pd_entry_t ptema;
 	vm_page_t m;
-
-	KASSERT((flags & (M_NOWAIT | M_WAITOK)) == M_NOWAIT ||
-	    (flags & (M_NOWAIT | M_WAITOK)) == M_WAITOK,
-	    ("pmap_allocpte: flags is neither M_NOWAIT nor M_WAITOK"));
 
 	/*
 	 * Calculate pagetable page index
@@ -1644,7 +1636,7 @@ retry:
 		CTR3(KTR_PMAP, "pmap_allocpte: pmap=%p va=0x%08x flags=0x%x",
 		    pmap, va, flags);
 		m = _pmap_allocpte(pmap, ptepindex, flags);
-		if (m == NULL && (flags & M_WAITOK))
+		if (m == NULL && (flags & PMAP_ENTER_NOSLEEP) == 0)
 			goto retry;
 
 		KASSERT(pmap->pm_pdir[ptepindex], ("ptepindex=%d did not get mapped", ptepindex));
@@ -2144,7 +2136,7 @@ free_pv_chunk(struct pv_chunk *pc)
 	/* entire chunk is free, return it */
 	m = PHYS_TO_VM_PAGE(pmap_kextract((vm_offset_t)pc));
 	pmap_qremove((vm_offset_t)pc, 1);
-	vm_page_unwire(m, 0);
+	vm_page_unwire(m, PQ_INACTIVE);
 	vm_page_free(m);
 	pmap_ptelist_free(&pv_vafree, (vm_offset_t)pc);
 }
@@ -2643,9 +2635,9 @@ retry:
  *	or lose information.  That is, this routine must actually
  *	insert this page into the given map NOW.
  */
-void
-pmap_enter(pmap_t pmap, vm_offset_t va, vm_prot_t access, vm_page_t m,
-    vm_prot_t prot, boolean_t wired)
+int
+pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
+    u_int flags, int8_t psind __unused)
 {
 	pd_entry_t *pde;
 	pt_entry_t *pte;
@@ -2653,19 +2645,21 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_prot_t access, vm_page_t m,
 	pv_entry_t pv;
 	vm_paddr_t opa, pa;
 	vm_page_t mpte, om;
-	boolean_t invlva;
+	boolean_t invlva, wired;
 
-	CTR6(KTR_PMAP, "pmap_enter: pmap=%08p va=0x%08x access=0x%x ma=0x%08x prot=0x%x wired=%d",
-	    pmap, va, access, VM_PAGE_TO_MACH(m), prot, wired);
+	CTR5(KTR_PMAP,
+	    "pmap_enter: pmap=%08p va=0x%08x ma=0x%08x prot=0x%x flags=0x%x",
+	    pmap, va, VM_PAGE_TO_MACH(m), prot, flags);
 	va = trunc_page(va);
 	KASSERT(va <= VM_MAX_KERNEL_ADDRESS, ("pmap_enter: toobig"));
 	KASSERT(va < UPT_MIN_ADDRESS || va >= UPT_MAX_ADDRESS,
 	    ("pmap_enter: invalid to pmap_enter page table pages (va: 0x%x)",
 	    va));
 	if ((m->oflags & VPO_UNMANAGED) == 0 && !vm_page_xbusied(m))
-		VM_OBJECT_ASSERT_WLOCKED(m->object);
+		VM_OBJECT_ASSERT_LOCKED(m->object);
 
 	mpte = NULL;
+	wired = (flags & PMAP_ENTER_WIRED) != 0;
 
 	rw_wlock(&pvh_global_lock);
 	PMAP_LOCK(pmap);
@@ -2676,7 +2670,15 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_prot_t access, vm_page_t m,
 	 * resident, we are creating it here.
 	 */
 	if (va < VM_MAXUSER_ADDRESS) {
-		mpte = pmap_allocpte(pmap, va, M_WAITOK);
+		mpte = pmap_allocpte(pmap, va, flags);
+		if (mpte == NULL) {
+			KASSERT((flags & PMAP_ENTER_NOSLEEP) != 0,
+			    ("pmap_allocpte failed with sleep allowed"));
+			sched_unpin();
+			rw_wunlock(&pvh_global_lock);
+			PMAP_UNLOCK(pmap);
+			return (KERN_RESOURCE_SHORTAGE);
+		}
 	}
 
 	pde = pmap_pde(pmap, va);
@@ -2842,6 +2844,7 @@ validate:
 	sched_unpin();
 	rw_wunlock(&pvh_global_lock);
 	PMAP_UNLOCK(pmap);
+	return (KERN_SUCCESS);
 }
 
 /*
@@ -2996,7 +2999,7 @@ pmap_enter_quick_locked(multicall_entry_t **mclpp, int *count, pmap_t pmap, vm_o
 				mpte->wire_count++;
 			} else {
 				mpte = _pmap_allocpte(pmap, ptepindex,
-				    M_NOWAIT);
+				    PMAP_ENTER_NOSLEEP);
 				if (mpte == NULL)
 					return (mpte);
 			}
@@ -3167,38 +3170,56 @@ pmap_object_init_pt(pmap_t pmap, vm_offset_t addr, vm_object_t object,
 }
 
 /*
- *	Routine:	pmap_change_wiring
- *	Function:	Change the wiring attribute for a map/virtual-address
- *			pair.
- *	In/out conditions:
- *			The mapping must already exist in the pmap.
+ *	Clear the wired attribute from the mappings for the specified range of
+ *	addresses in the given pmap.  Every valid mapping within that range
+ *	must have the wired attribute set.  In contrast, invalid mappings
+ *	cannot have the wired attribute set, so they are ignored.
+ *
+ *	The wired attribute of the page table entry is not a hardware feature,
+ *	so there is no need to invalidate any TLB entries.
  */
 void
-pmap_change_wiring(pmap_t pmap, vm_offset_t va, boolean_t wired)
+pmap_unwire(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 {
+	vm_offset_t pdnxt;
+	pd_entry_t *pde;
 	pt_entry_t *pte;
 
+	CTR3(KTR_PMAP, "pmap_unwire: pmap=%p sva=0x%x eva=0x%x", pmap, sva,
+	    eva);
 	rw_wlock(&pvh_global_lock);
+	sched_pin();
 	PMAP_LOCK(pmap);
-	pte = pmap_pte(pmap, va);
-
-	if (wired && !pmap_pte_w(pte)) {
-		PT_SET_VA_MA((pte), *(pte) | PG_W, TRUE);
-		pmap->pm_stats.wired_count++;
-	} else if (!wired && pmap_pte_w(pte)) {
-		PT_SET_VA_MA((pte), *(pte) & ~PG_W, TRUE);
-		pmap->pm_stats.wired_count--;
+	for (; sva < eva; sva = pdnxt) {
+		pdnxt = (sva + NBPDR) & ~PDRMASK;
+		if (pdnxt < sva)
+			pdnxt = eva;
+		pde = pmap_pde(pmap, sva);
+		if ((*pde & PG_V) == 0)
+			continue;
+		if ((*pde & PG_PS) != 0)
+			panic("pmap_unwire: unexpected PG_PS in pde %#jx",
+			    (uintmax_t)*pde);
+		if (pdnxt > eva)
+			pdnxt = eva;
+		for (pte = pmap_pte_quick(pmap, sva); sva != pdnxt; pte++,
+		    sva += PAGE_SIZE) {
+			if ((*pte & PG_V) == 0)
+				continue;
+			if ((*pte & PG_W) == 0)
+				panic("pmap_unwire: pte %#jx is missing PG_W",
+				    (uintmax_t)*pte);
+			PT_SET_VA_MA(pte, *pte & ~PG_W, FALSE);
+			pmap->pm_stats.wired_count--;
+		}
 	}
-	
-	/*
-	 * Wiring is not a hardware characteristic so there is no need to
-	 * invalidate TLB.
-	 */
-	pmap_pte_release(pte);
-	PMAP_UNLOCK(pmap);
+	if (*PMAP1)
+		PT_CLEAR_VA(PMAP1, FALSE);
+	PT_UPDATES_FLUSH();
+	sched_unpin();
 	rw_wunlock(&pvh_global_lock);
+	PMAP_UNLOCK(pmap);
 }
-
 
 
 /*
@@ -3287,7 +3308,7 @@ pmap_copy(pmap_t dst_pmap, pmap_t src_pmap, vm_offset_t dst_addr, vm_size_t len,
 			 */
 			if ((ptetemp & PG_MANAGED) != 0) {
 				dstmpte = pmap_allocpte(dst_pmap, addr,
-				    M_NOWAIT);
+				    PMAP_ENTER_NOSLEEP);
 				if (dstmpte == NULL)
 					goto out;
 				dst_pte = pmap_pte_quick(dst_pmap, addr);

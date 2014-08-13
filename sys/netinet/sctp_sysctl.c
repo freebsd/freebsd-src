@@ -54,6 +54,12 @@ sctp_init_sysctls()
 	SCTP_BASE_SYSCTL(sctp_auto_asconf) = SCTPCTL_AUTOASCONF_DEFAULT;
 	SCTP_BASE_SYSCTL(sctp_multiple_asconfs) = SCTPCTL_MULTIPLEASCONFS_DEFAULT;
 	SCTP_BASE_SYSCTL(sctp_ecn_enable) = SCTPCTL_ECN_ENABLE_DEFAULT;
+	SCTP_BASE_SYSCTL(sctp_pr_enable) = SCTPCTL_PR_ENABLE_DEFAULT;
+	SCTP_BASE_SYSCTL(sctp_auth_enable) = SCTPCTL_AUTH_ENABLE_DEFAULT;
+	SCTP_BASE_SYSCTL(sctp_asconf_enable) = SCTPCTL_ASCONF_ENABLE_DEFAULT;
+	SCTP_BASE_SYSCTL(sctp_reconfig_enable) = SCTPCTL_RECONFIG_ENABLE_DEFAULT;
+	SCTP_BASE_SYSCTL(sctp_nrsack_enable) = SCTPCTL_NRSACK_ENABLE_DEFAULT;
+	SCTP_BASE_SYSCTL(sctp_pktdrop_enable) = SCTPCTL_PKTDROP_ENABLE_DEFAULT;
 	SCTP_BASE_SYSCTL(sctp_strict_sacks) = SCTPCTL_STRICT_SACKS_DEFAULT;
 	SCTP_BASE_SYSCTL(sctp_peer_chunk_oh) = SCTPCTL_PEER_CHKOH_DEFAULT;
 	SCTP_BASE_SYSCTL(sctp_max_burst_default) = SCTPCTL_MAXBURST_DEFAULT;
@@ -84,12 +90,8 @@ sctp_init_sysctls()
 	SCTP_BASE_SYSCTL(sctp_nr_incoming_streams_default) = SCTPCTL_INCOMING_STREAMS_DEFAULT;
 	SCTP_BASE_SYSCTL(sctp_nr_outgoing_streams_default) = SCTPCTL_OUTGOING_STREAMS_DEFAULT;
 	SCTP_BASE_SYSCTL(sctp_cmt_on_off) = SCTPCTL_CMT_ON_OFF_DEFAULT;
-	/* EY */
-	SCTP_BASE_SYSCTL(sctp_nr_sack_on_off) = SCTPCTL_NR_SACK_ON_OFF_DEFAULT;
 	SCTP_BASE_SYSCTL(sctp_cmt_use_dac) = SCTPCTL_CMT_USE_DAC_DEFAULT;
 	SCTP_BASE_SYSCTL(sctp_use_cwnd_based_maxburst) = SCTPCTL_CWND_MAXBURST_DEFAULT;
-	SCTP_BASE_SYSCTL(sctp_asconf_auth_nochk) = SCTPCTL_ASCONF_AUTH_NOCHK_DEFAULT;
-	SCTP_BASE_SYSCTL(sctp_auth_disable) = SCTPCTL_AUTH_DISABLE_DEFAULT;
 	SCTP_BASE_SYSCTL(sctp_nat_friendly) = SCTPCTL_NAT_FRIENDLY_DEFAULT;
 	SCTP_BASE_SYSCTL(sctp_L2_abc_variable) = SCTPCTL_ABC_L_VAR_DEFAULT;
 	SCTP_BASE_SYSCTL(sctp_mbuf_threshold_count) = SCTPCTL_MAX_CHAINED_MBUFS_DEFAULT;
@@ -252,6 +254,10 @@ copy_out_local_addresses(struct sctp_inpcb *inp, struct sctp_tcb *stcb, struct s
 						sin = (struct sockaddr_in *)&sctp_ifa->address.sa;
 						if (sin->sin_addr.s_addr == 0)
 							continue;
+						if (prison_check_ip4(inp->ip_inp.inp.inp_cred,
+						    &sin->sin_addr) != 0) {
+							continue;
+						}
 						if ((ipv4_local_scope == 0) && (IN4_ISPRIVATE_ADDRESS(&sin->sin_addr)))
 							continue;
 					} else {
@@ -267,6 +273,10 @@ copy_out_local_addresses(struct sctp_inpcb *inp, struct sctp_tcb *stcb, struct s
 						sin6 = (struct sockaddr_in6 *)&sctp_ifa->address.sa;
 						if (IN6_IS_ADDR_UNSPECIFIED(&sin6->sin6_addr))
 							continue;
+						if (prison_check_ip6(inp->ip_inp.inp.inp_cred,
+						    &sin6->sin6_addr) != 0) {
+							continue;
+						}
 						if (IN6_IS_ADDR_LINKLOCAL(&sin6->sin6_addr)) {
 							if (local_scope == 0)
 								continue;
@@ -593,6 +603,10 @@ sysctl_sctp_check(SYSCTL_HANDLER_ARGS)
 		RANGECHK(SCTP_BASE_SYSCTL(sctp_recvspace), SCTPCTL_RECVSPACE_MIN, SCTPCTL_RECVSPACE_MAX);
 		RANGECHK(SCTP_BASE_SYSCTL(sctp_auto_asconf), SCTPCTL_AUTOASCONF_MIN, SCTPCTL_AUTOASCONF_MAX);
 		RANGECHK(SCTP_BASE_SYSCTL(sctp_ecn_enable), SCTPCTL_ECN_ENABLE_MIN, SCTPCTL_ECN_ENABLE_MAX);
+		RANGECHK(SCTP_BASE_SYSCTL(sctp_pr_enable), SCTPCTL_PR_ENABLE_MIN, SCTPCTL_PR_ENABLE_MAX);
+		RANGECHK(SCTP_BASE_SYSCTL(sctp_reconfig_enable), SCTPCTL_RECONFIG_ENABLE_MIN, SCTPCTL_RECONFIG_ENABLE_MAX);
+		RANGECHK(SCTP_BASE_SYSCTL(sctp_nrsack_enable), SCTPCTL_NRSACK_ENABLE_MIN, SCTPCTL_NRSACK_ENABLE_MAX);
+		RANGECHK(SCTP_BASE_SYSCTL(sctp_pktdrop_enable), SCTPCTL_PKTDROP_ENABLE_MIN, SCTPCTL_PKTDROP_ENABLE_MAX);
 		RANGECHK(SCTP_BASE_SYSCTL(sctp_strict_sacks), SCTPCTL_STRICT_SACKS_MIN, SCTPCTL_STRICT_SACKS_MAX);
 		RANGECHK(SCTP_BASE_SYSCTL(sctp_peer_chunk_oh), SCTPCTL_PEER_CHKOH_MIN, SCTPCTL_PEER_CHKOH_MAX);
 		RANGECHK(SCTP_BASE_SYSCTL(sctp_max_burst_default), SCTPCTL_MAXBURST_MIN, SCTPCTL_MAXBURST_MAX);
@@ -623,12 +637,8 @@ sysctl_sctp_check(SYSCTL_HANDLER_ARGS)
 		RANGECHK(SCTP_BASE_SYSCTL(sctp_nr_incoming_streams_default), SCTPCTL_INCOMING_STREAMS_MIN, SCTPCTL_INCOMING_STREAMS_MAX);
 		RANGECHK(SCTP_BASE_SYSCTL(sctp_nr_outgoing_streams_default), SCTPCTL_OUTGOING_STREAMS_MIN, SCTPCTL_OUTGOING_STREAMS_MAX);
 		RANGECHK(SCTP_BASE_SYSCTL(sctp_cmt_on_off), SCTPCTL_CMT_ON_OFF_MIN, SCTPCTL_CMT_ON_OFF_MAX);
-		/* EY */
-		RANGECHK(SCTP_BASE_SYSCTL(sctp_nr_sack_on_off), SCTPCTL_NR_SACK_ON_OFF_MIN, SCTPCTL_NR_SACK_ON_OFF_MAX);
 		RANGECHK(SCTP_BASE_SYSCTL(sctp_cmt_use_dac), SCTPCTL_CMT_USE_DAC_MIN, SCTPCTL_CMT_USE_DAC_MAX);
 		RANGECHK(SCTP_BASE_SYSCTL(sctp_use_cwnd_based_maxburst), SCTPCTL_CWND_MAXBURST_MIN, SCTPCTL_CWND_MAXBURST_MAX);
-		RANGECHK(SCTP_BASE_SYSCTL(sctp_asconf_auth_nochk), SCTPCTL_ASCONF_AUTH_NOCHK_MIN, SCTPCTL_ASCONF_AUTH_NOCHK_MAX);
-		RANGECHK(SCTP_BASE_SYSCTL(sctp_auth_disable), SCTPCTL_AUTH_DISABLE_MIN, SCTPCTL_AUTH_DISABLE_MAX);
 		RANGECHK(SCTP_BASE_SYSCTL(sctp_nat_friendly), SCTPCTL_NAT_FRIENDLY_MIN, SCTPCTL_NAT_FRIENDLY_MAX);
 		RANGECHK(SCTP_BASE_SYSCTL(sctp_L2_abc_variable), SCTPCTL_ABC_L_VAR_MIN, SCTPCTL_ABC_L_VAR_MAX);
 		RANGECHK(SCTP_BASE_SYSCTL(sctp_mbuf_threshold_count), SCTPCTL_MAX_CHAINED_MBUFS_MIN, SCTPCTL_MAX_CHAINED_MBUFS_MAX);
@@ -663,6 +673,56 @@ sysctl_sctp_check(SYSCTL_HANDLER_ARGS)
 #if defined(__APPLE__) || defined(SCTP_SO_LOCK_TESTING)
 		RANGECHK(SCTP_BASE_SYSCTL(sctp_output_unlocked), SCTPCTL_OUTPUT_UNLOCKED_MIN, SCTPCTL_OUTPUT_UNLOCKED_MAX);
 #endif
+	}
+	return (error);
+}
+
+static int
+sysctl_sctp_auth_check(SYSCTL_HANDLER_ARGS)
+{
+	int error;
+
+	error = sysctl_handle_int(oidp, oidp->oid_arg1, oidp->oid_arg2, req);
+	if (error == 0) {
+		if (SCTP_BASE_SYSCTL(sctp_auth_enable) < SCTPCTL_AUTH_ENABLE_MIN) {
+			SCTP_BASE_SYSCTL(sctp_auth_enable) = SCTPCTL_AUTH_ENABLE_MIN;
+		}
+		if (SCTP_BASE_SYSCTL(sctp_auth_enable) > SCTPCTL_AUTH_ENABLE_MAX) {
+			SCTP_BASE_SYSCTL(sctp_auth_enable) = SCTPCTL_AUTH_ENABLE_MAX;
+		}
+		if ((SCTP_BASE_SYSCTL(sctp_auth_enable) == 0) &&
+		    (SCTP_BASE_SYSCTL(sctp_asconf_enable) == 1)) {
+			/*
+			 * You can't disable AUTH with disabling ASCONF
+			 * first
+			 */
+			SCTP_BASE_SYSCTL(sctp_auth_enable) = 1;
+		}
+	}
+	return (error);
+}
+
+static int
+sysctl_sctp_asconf_check(SYSCTL_HANDLER_ARGS)
+{
+	int error;
+
+	error = sysctl_handle_int(oidp, oidp->oid_arg1, oidp->oid_arg2, req);
+	if (error == 0) {
+		if (SCTP_BASE_SYSCTL(sctp_asconf_enable) < SCTPCTL_ASCONF_ENABLE_MIN) {
+			SCTP_BASE_SYSCTL(sctp_asconf_enable) = SCTPCTL_ASCONF_ENABLE_MIN;
+		}
+		if (SCTP_BASE_SYSCTL(sctp_asconf_enable) > SCTPCTL_ASCONF_ENABLE_MAX) {
+			SCTP_BASE_SYSCTL(sctp_asconf_enable) = SCTPCTL_ASCONF_ENABLE_MAX;
+		}
+		if ((SCTP_BASE_SYSCTL(sctp_asconf_enable) == 1) &&
+		    (SCTP_BASE_SYSCTL(sctp_auth_enable) == 0)) {
+			/*
+			 * You can't enable ASCONF without enabling AUTH
+			 * first
+			 */
+			SCTP_BASE_SYSCTL(sctp_asconf_enable) = 0;
+		}
 	}
 	return (error);
 }
@@ -855,6 +915,30 @@ SYSCTL_VNET_PROC(_net_inet_sctp, OID_AUTO, ecn_enable, CTLTYPE_UINT | CTLFLAG_RW
     &SCTP_BASE_SYSCTL(sctp_ecn_enable), 0, sysctl_sctp_check, "IU",
     SCTPCTL_ECN_ENABLE_DESC);
 
+SYSCTL_VNET_PROC(_net_inet_sctp, OID_AUTO, pr_enable, CTLTYPE_UINT | CTLFLAG_RW,
+    &SCTP_BASE_SYSCTL(sctp_pr_enable), 0, sysctl_sctp_check, "IU",
+    SCTPCTL_PR_ENABLE_DESC);
+
+SYSCTL_VNET_PROC(_net_inet_sctp, OID_AUTO, auth_enable, CTLTYPE_UINT | CTLFLAG_RW,
+    &SCTP_BASE_SYSCTL(sctp_auth_enable), 0, sysctl_sctp_auth_check, "IU",
+    SCTPCTL_AUTH_ENABLE_DESC);
+
+SYSCTL_VNET_PROC(_net_inet_sctp, OID_AUTO, asconf_enable, CTLTYPE_UINT | CTLFLAG_RW,
+    &SCTP_BASE_SYSCTL(sctp_asconf_enable), 0, sysctl_sctp_asconf_check, "IU",
+    SCTPCTL_ASCONF_ENABLE_DESC);
+
+SYSCTL_VNET_PROC(_net_inet_sctp, OID_AUTO, reconfig_enable, CTLTYPE_UINT | CTLFLAG_RW,
+    &SCTP_BASE_SYSCTL(sctp_reconfig_enable), 0, sysctl_sctp_check, "IU",
+    SCTPCTL_RECONFIG_ENABLE_DESC);
+
+SYSCTL_VNET_PROC(_net_inet_sctp, OID_AUTO, nrsack_enable, CTLTYPE_UINT | CTLFLAG_RW,
+    &SCTP_BASE_SYSCTL(sctp_nrsack_enable), 0, sysctl_sctp_check, "IU",
+    SCTPCTL_NRSACK_ENABLE_DESC);
+
+SYSCTL_VNET_PROC(_net_inet_sctp, OID_AUTO, pktdrop_enable, CTLTYPE_UINT | CTLFLAG_RW,
+    &SCTP_BASE_SYSCTL(sctp_pktdrop_enable), 0, sysctl_sctp_check, "IU",
+    SCTPCTL_PKTDROP_ENABLE_DESC);
+
 SYSCTL_VNET_PROC(_net_inet_sctp, OID_AUTO, strict_sacks, CTLTYPE_UINT | CTLFLAG_RW,
     &SCTP_BASE_SYSCTL(sctp_strict_sacks), 0, sysctl_sctp_check, "IU",
     SCTPCTL_STRICT_SACKS_DESC);
@@ -976,10 +1060,6 @@ SYSCTL_VNET_PROC(_net_inet_sctp, OID_AUTO, cmt_on_off, CTLTYPE_UINT | CTLFLAG_RW
     &SCTP_BASE_SYSCTL(sctp_cmt_on_off), 0, sysctl_sctp_check, "IU",
     SCTPCTL_CMT_ON_OFF_DESC);
 
-SYSCTL_VNET_PROC(_net_inet_sctp, OID_AUTO, nr_sack_on_off, CTLTYPE_UINT | CTLFLAG_RW,
-    &SCTP_BASE_SYSCTL(sctp_nr_sack_on_off), 0, sysctl_sctp_check, "IU",
-    SCTPCTL_NR_SACK_ON_OFF_DESC);
-
 SYSCTL_VNET_PROC(_net_inet_sctp, OID_AUTO, cmt_use_dac, CTLTYPE_UINT | CTLFLAG_RW,
     &SCTP_BASE_SYSCTL(sctp_cmt_use_dac), 0, sysctl_sctp_check, "IU",
     SCTPCTL_CMT_USE_DAC_DESC);
@@ -987,14 +1067,6 @@ SYSCTL_VNET_PROC(_net_inet_sctp, OID_AUTO, cmt_use_dac, CTLTYPE_UINT | CTLFLAG_R
 SYSCTL_VNET_PROC(_net_inet_sctp, OID_AUTO, cwnd_maxburst, CTLTYPE_UINT | CTLFLAG_RW,
     &SCTP_BASE_SYSCTL(sctp_use_cwnd_based_maxburst), 0, sysctl_sctp_check, "IU",
     SCTPCTL_CWND_MAXBURST_DESC);
-
-SYSCTL_VNET_PROC(_net_inet_sctp, OID_AUTO, asconf_auth_nochk, CTLTYPE_UINT | CTLFLAG_RW,
-    &SCTP_BASE_SYSCTL(sctp_asconf_auth_nochk), 0, sysctl_sctp_check, "IU",
-    SCTPCTL_ASCONF_AUTH_NOCHK_DESC);
-
-SYSCTL_VNET_PROC(_net_inet_sctp, OID_AUTO, auth_disable, CTLTYPE_UINT | CTLFLAG_RW,
-    &SCTP_BASE_SYSCTL(sctp_auth_disable), 0, sysctl_sctp_check, "IU",
-    SCTPCTL_AUTH_DISABLE_DESC);
 
 SYSCTL_VNET_PROC(_net_inet_sctp, OID_AUTO, nat_friendly, CTLTYPE_UINT | CTLFLAG_RW,
     &SCTP_BASE_SYSCTL(sctp_nat_friendly), 0, sysctl_sctp_check, "IU",

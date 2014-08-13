@@ -134,7 +134,6 @@ static SYSCTL_NODE(_hw, OID_AUTO, apic, CTLFLAG_RD, 0, "APIC options");
 static int enable_extint;
 SYSCTL_INT(_hw_apic, OID_AUTO, enable_extint, CTLFLAG_RDTUN, &enable_extint, 0,
     "Enable the ExtINT pin in the first I/O APIC");
-TUNABLE_INT("hw.apic.enable_extint", &enable_extint);
 
 static __inline void
 _ioapic_eoi_source(struct intsrc *isrc)

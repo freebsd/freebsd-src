@@ -181,7 +181,8 @@ struct inpcb {
 	u_int	inp_refcount;		/* (i) refcount */
 	void	*inp_pspare[5];		/* (x) route caching / general use */
 	uint32_t inp_flowtype;		/* (x) M_HASHTYPE value */
-	u_int	inp_ispare[5];		/* (x) route caching / user cookie /
+	uint32_t inp_rss_listen_bucket;	/* (x) overridden RSS listen bucket */
+	u_int	inp_ispare[4];		/* (x) route caching / user cookie /
 					 *     general use */
 
 	/* Local and foreign ports, local and foreign addr. */
@@ -546,6 +547,8 @@ short	inp_so_options(const struct inpcb *inp);
 #define	INP_REUSEPORT		0x00000008 /* SO_REUSEPORT option is set */
 #define	INP_FREED		0x00000010 /* inp itself is not valid */
 #define	INP_REUSEADDR		0x00000020 /* SO_REUSEADDR option is set */
+#define	INP_BINDMULTI		0x00000040 /* IP_BINDMULTI option is set */
+#define	INP_RSS_BUCKET_SET	0x00000080 /* IP_RSS_LISTEN_BUCKET is set */
 
 /*
  * Flags passed to in_pcblookup*() functions.
@@ -603,6 +606,9 @@ VNET_DECLARE(int, ipport_tcpallocs);
 void	in_pcbinfo_destroy(struct inpcbinfo *);
 void	in_pcbinfo_init(struct inpcbinfo *, const char *, struct inpcbhead *,
 	    int, int, char *, uma_init, uma_fini, uint32_t, u_int);
+
+int	in_pcbbind_check_bindmulti(const struct inpcb *ni,
+	    const struct inpcb *oi);
 
 struct inpcbgroup *
 	in_pcbgroup_byhash(struct inpcbinfo *, u_int, uint32_t);

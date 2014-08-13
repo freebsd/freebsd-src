@@ -562,6 +562,7 @@ getjob_nonotfound(const char *name)
 {
 	int jobno;
 	struct job *found, *jp;
+	size_t namelen;
 	pid_t pid;
 	int i;
 
@@ -603,10 +604,12 @@ currentjob:	if ((jp = getcurjob(NULL)) == NULL)
 			if (found != NULL)
 				return (found);
 		} else {
+			namelen = strlen(name);
 			found = NULL;
 			for (jp = jobtab, i = njobs ; --i >= 0 ; jp++) {
 				if (jp->used && jp->nprocs > 0
-				 && prefix(name + 1, jp->ps[0].cmd)) {
+				 && strncmp(jp->ps[0].cmd, name + 1,
+				 namelen - 1) == 0) {
 					if (found)
 						error("%s: ambiguous", name);
 					found = jp;

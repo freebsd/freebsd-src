@@ -350,6 +350,27 @@ sctp_opt_info(int sd, sctp_assoc_t id, int opt, void *arg, socklen_t * size)
 	case SCTP_REMOTE_UDP_ENCAPS_PORT:
 		((struct sctp_udpencaps *)arg)->sue_assoc_id = id;
 		break;
+	case SCTP_ECN_SUPPORTED:
+		((struct sctp_assoc_value *)arg)->assoc_id = id;
+		break;
+	case SCTP_PR_SUPPORTED:
+		((struct sctp_assoc_value *)arg)->assoc_id = id;
+		break;
+	case SCTP_AUTH_SUPPORTED:
+		((struct sctp_assoc_value *)arg)->assoc_id = id;
+		break;
+	case SCTP_ASCONF_SUPPORTED:
+		((struct sctp_assoc_value *)arg)->assoc_id = id;
+		break;
+	case SCTP_RECONFIG_SUPPORTED:
+		((struct sctp_assoc_value *)arg)->assoc_id = id;
+		break;
+	case SCTP_NRSACK_SUPPORTED:
+		((struct sctp_assoc_value *)arg)->assoc_id = id;
+		break;
+	case SCTP_PKTDROP_SUPPORTED:
+		((struct sctp_assoc_value *)arg)->assoc_id = id;
+		break;
 	case SCTP_MAX_BURST:
 		((struct sctp_assoc_value *)arg)->assoc_id = id;
 		break;
@@ -575,6 +596,7 @@ sctp_sendmsg(int s,
 	cmsg->cmsg_type = SCTP_SNDRCV;
 	cmsg->cmsg_len = CMSG_LEN(sizeof(struct sctp_sndrcvinfo));
 	sinfo = (struct sctp_sndrcvinfo *)CMSG_DATA(cmsg);
+	memset(sinfo, 0, sizeof(struct sctp_sndrcvinfo));
 	sinfo->sinfo_stream = stream_no;
 	sinfo->sinfo_ssn = 0;
 	sinfo->sinfo_flags = flags;

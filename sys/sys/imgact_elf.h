@@ -77,7 +77,6 @@ typedef struct {
 #define	BI_CAN_EXEC_DYN		0x0001
 #define	BI_BRAND_NOTE		0x0002	/* May have note.ABI-tag section. */
 #define	BI_BRAND_NOTE_MANDATORY	0x0004	/* Must have note.ABI-tag section. */
-#define	BI_CAN_EXEC_INTERP	0x0008	/* Allow to run interpreter itself. */
 } __ElfN(Brandinfo);
 
 __ElfType(Auxargs);

@@ -91,6 +91,11 @@ OCTEON_BOARD_CAPK_0100ND	opt_cvmx.h
 BERI_LARGE_TLB			opt_global.h
 
 #
+# Options that control the NetFPGA-10G Embedded CPU Ethernet Core.
+#
+NF10BMAC_64BIT			opt_netfpga.h
+
+#
 # Options that control the Atheros SoC peripherals
 #
 ARGE_DEBUG			opt_arge.h

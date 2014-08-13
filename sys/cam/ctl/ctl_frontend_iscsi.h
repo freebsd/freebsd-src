@@ -32,13 +32,20 @@
 #ifndef CTL_FRONTEND_ISCSI_H
 #define	CTL_FRONTEND_ISCSI_H
 
+#define CFISCSI_TARGET_STATE_INVALID	0
+#define CFISCSI_TARGET_STATE_ACTIVE	1
+#define CFISCSI_TARGET_STATE_DYING	2
+
 struct cfiscsi_target {
 	TAILQ_ENTRY(cfiscsi_target)	ct_next;
-	int				ct_luns[CTL_MAX_LUNS];
+	uint32_t			ct_luns[CTL_MAX_LUNS];
 	struct cfiscsi_softc		*ct_softc;
 	volatile u_int			ct_refcount;
 	char				ct_name[CTL_ISCSI_NAME_LEN];
 	char				ct_alias[CTL_ISCSI_ALIAS_LEN];
+	int				ct_state;
+	int				ct_online;
+	struct ctl_port			ct_port;
 };
 
 struct cfiscsi_data_wait {
@@ -72,13 +79,16 @@ struct cfiscsi_session {
 	int				cs_timeout;
 	int				cs_portal_group_tag;
 	struct cv			cs_maintenance_cv;
-	int				cs_terminating;
+	bool				cs_terminating;
+	bool				cs_tasks_aborted;
 	size_t				cs_max_data_segment_length;
 	size_t				cs_max_burst_length;
 	bool				cs_immediate_data;
 	char				cs_initiator_name[CTL_ISCSI_NAME_LEN];
 	char				cs_initiator_addr[CTL_ISCSI_ADDR_LEN];
 	char				cs_initiator_alias[CTL_ISCSI_ALIAS_LEN];
+	char				cs_initiator_isid[6];
+	char				cs_initiator_id[CTL_ISCSI_NAME_LEN + 5 + 6 + 1];
 	unsigned int			cs_id;
 	int				cs_ctl_initid;
 #ifdef ICL_KERNEL_PROXY
@@ -96,15 +106,12 @@ struct icl_listen;
 #endif
 
 struct cfiscsi_softc {
-	struct ctl_frontend		fe;
 	struct mtx			lock;
 	char				port_name[32];
 	int				online;
 	unsigned int			last_session_id;
 	TAILQ_HEAD(, cfiscsi_target)	targets;
 	TAILQ_HEAD(, cfiscsi_session)	sessions;
-	char				ctl_initids[CTL_MAX_INIT_PER_PORT];
-	int				max_initiators;
 #ifdef ICL_KERNEL_PROXY
 	struct icl_listen		*listener;
 	struct cv			accept_cv;

@@ -1,6 +1,6 @@
 /******************************************************************************
 
-  Copyright (c) 2001-2013, Intel Corporation 
+  Copyright (c) 2001-2014, Intel Corporation 
   All rights reserved.
   
   Redistribution and use in source and binary forms, with or without 
@@ -384,7 +384,7 @@ struct e1000_adv_tx_context_desc {
 #define E1000_ETQF_FILTER_ENABLE	(1 << 26)
 #define E1000_ETQF_IMM_INT		(1 << 29)
 #define E1000_ETQF_1588			(1 << 30)
-#define E1000_ETQF_QUEUE_ENABLE		(1U << 31)
+#define E1000_ETQF_QUEUE_ENABLE		(1 << 31)
 /*
  * ETQF filter list: one static filter per filter consumer. This is
  *                   to avoid filter collisions later. Add new filters
@@ -411,7 +411,7 @@ struct e1000_adv_tx_context_desc {
 #define E1000_DTXSWC_LLE_MASK		0x00FF0000 /* Per VF Local LB enables */
 #define E1000_DTXSWC_VLAN_SPOOF_SHIFT	8
 #define E1000_DTXSWC_LLE_SHIFT		16
-#define E1000_DTXSWC_VMDQ_LOOPBACK_EN	(1U << 31)  /* global VF LB enable */
+#define E1000_DTXSWC_VMDQ_LOOPBACK_EN	(1 << 31)  /* global VF LB enable */
 
 /* Easy defines for setting default pool, would normally be left a zero */
 #define E1000_VT_CTL_DEFAULT_POOL_SHIFT	7
@@ -480,6 +480,7 @@ void e1000_vmdq_set_loopback_pf(struct e1000_hw *hw, bool enable);
 void e1000_vmdq_set_anti_spoofing_pf(struct e1000_hw *hw, bool enable, int pf);
 void e1000_vmdq_set_replication_pf(struct e1000_hw *hw, bool enable);
 s32 e1000_init_nvm_params_82575(struct e1000_hw *hw);
+s32  e1000_init_hw_82575(struct e1000_hw *hw);
 
 enum e1000_promisc_type {
 	e1000_promisc_disabled = 0,   /* all promisc modes disabled */
@@ -497,6 +498,7 @@ s32 e1000_read_emi_reg(struct e1000_hw *hw, u16 addr, u16 *data);
 s32 e1000_set_eee_i350(struct e1000_hw *);
 s32 e1000_set_eee_i354(struct e1000_hw *);
 s32 e1000_get_eee_status_i354(struct e1000_hw *, bool *);
+s32 e1000_initialize_M88E1512_phy(struct e1000_hw *hw);
 
 /* I2C SDA and SCL timing parameters for standard mode */
 #define E1000_I2C_T_HD_STA	4

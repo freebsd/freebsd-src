@@ -107,14 +107,12 @@ driver_intr_t	csintr;
 static SYSCTL_NODE(_hw, OID_AUTO, cs, CTLFLAG_RD, 0, "cs device parameters");
 
 int	cs_ignore_cksum_failure = 0;
-TUNABLE_INT("hw.cs.ignore_checksum_failure", &cs_ignore_cksum_failure);
-SYSCTL_INT(_hw_cs, OID_AUTO, ignore_checksum_failure, CTLFLAG_RW,
+SYSCTL_INT(_hw_cs, OID_AUTO, ignore_checksum_failure, CTLFLAG_RWTUN,
     &cs_ignore_cksum_failure, 0,
   "ignore checksum errors in cs card EEPROM");
 
 static int	cs_recv_delay = 570;
-TUNABLE_INT("hw.cs.recv_delay", &cs_recv_delay);
-SYSCTL_INT(_hw_cs, OID_AUTO, recv_delay, CTLFLAG_RW, &cs_recv_delay, 570, "");
+SYSCTL_INT(_hw_cs, OID_AUTO, recv_delay, CTLFLAG_RWTUN, &cs_recv_delay, 570, "");
 
 static int cs8900_eeint2irq[16] = {
 	 10,  11,  12,   5, 255, 255, 255, 255,

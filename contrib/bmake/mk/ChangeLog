@@ -1,3 +1,60 @@
+2014-05-22  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* install-mk (MK_VERSION): 20140522
+
+	* lib.mk: use CC to link shlib for linux too
+	  patch from Brendan MacDonell
+
+2014-05-05  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* meta.autodep.mk: add _reldir_{finish,failed} for gathering stats
+	  if WITH_META_STATS is defined.
+
+2014-05-02  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* dirdeps.mk: accept -DWITHOUT_DIRDEPS (same a as -DNO_DIRDEPS)
+	  to supress dirdeps outside of .CURDIR.
+
+2014-04-05  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Fix spelling errors - patch from Pedro Giffuni
+
+2014-03-14  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* install-mk (MK_VERSION): 20140314
+
+	* dirdeps.mk (beforedirdeps): a handy hook
+
+	* dirdeps.mk (DIRDEP_MAKE): allow the actual command we run
+	  to visit leaf dirs to be intercepted (eg. for distributed
+	  build).
+
+	* dirdeps.mk (__depdirs): ensure // don't sneak in
+	
+	* gendirdeps.mk (DIRDEPS): ensure // don't sneak in
+
+
+2014-02-21  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* rst2htm.mk (RST2PDF): add support for rst2pdf
+
+2014-02-14  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* install-mk (MK_VERSION): bump version
+	* dirdeps.mk (_last_dependfile): use .INCLUDEDFROMFILE if
+	  available.
+
+2014-02-10  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* options.mk: avoid :U so this isn't bmake dependent
+
+2014-02-09  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* options.mk: cleanup and simplify semanitcs 
+	  NO_* dominates all, if both WITH_* and WITHOUT_*
+	  are defined then result is DOMINATE_* which defaults to "no".
+	  Ie. WITHOUT_ normally wins.
+
 2013-12-12  Simon J. Gerraty  <sjg@bad.crufty.net>
 
 	* install-mk (MK_VERSION): bump version
@@ -490,7 +547,7 @@
 	* dep.mk: auto.dep.mk does not do 'make depend' so ignore it if
 	  asked to do that.
 	  fix/simplify the tests for when to run mkdep.
-	* auto.dep.mk: add some explaination of how/what we do.
+	* auto.dep.mk: add some explanation of how/what we do.
 	* autodep.mk: skip the .OPTIONAL frobbing of .depend
 	  bmake's FROM_DEPEND flag makes it redundant.
 	
@@ -640,7 +697,7 @@
 2006-12-30  Simon J. Gerraty  <sjg@void.crufty.net>
 
 	* install-mk (MK_VERSION): bump version
-	* added libs.mk - analagous to progs.mk
+	* added libs.mk - analogous to progs.mk
 	  make both of them always inlcude {lib,prog}.mk
 
 2006-12-28  Simon J. Gerraty  <sjg@void.crufty.net>

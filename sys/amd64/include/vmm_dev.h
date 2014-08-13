@@ -189,6 +189,12 @@ struct vm_cpuset {
 #define	VM_ACTIVE_CPUS		0
 #define	VM_SUSPENDED_CPUS	1
 
+struct vm_intinfo {
+	int		vcpuid;
+	uint64_t	info1;
+	uint64_t	info2;
+};
+
 enum {
 	/* general routines */
 	IOCNUM_ABIVERS = 0,
@@ -211,6 +217,8 @@ enum {
 	IOCNUM_GET_SEGMENT_DESCRIPTOR = 23,
 
 	/* interrupt injection */
+	IOCNUM_GET_INTINFO = 28,
+	IOCNUM_SET_INTINFO = 29,
 	IOCNUM_INJECT_EXCEPTION = 30,
 	IOCNUM_LAPIC_IRQ = 31,
 	IOCNUM_INJECT_NMI = 32,
@@ -324,4 +332,8 @@ enum {
 	_IOW('v', IOCNUM_ACTIVATE_CPU, struct vm_activate_cpu)
 #define	VM_GET_CPUS	\
 	_IOW('v', IOCNUM_GET_CPUSET, struct vm_cpuset)
+#define	VM_SET_INTINFO	\
+	_IOW('v', IOCNUM_SET_INTINFO, struct vm_intinfo)
+#define	VM_GET_INTINFO	\
+	_IOWR('v', IOCNUM_GET_INTINFO, struct vm_intinfo)
 #endif

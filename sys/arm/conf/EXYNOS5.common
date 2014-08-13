@@ -51,6 +51,8 @@ options 	PREEMPTION
 options 	FREEBSD_BOOT_LOADER
 options 	VFP			# vfp/neon
 
+options 	SMP
+
 # Debugging
 makeoptions	DEBUG=-g		# Build kernel with gdb(1) debug symbols
 options 	BREAK_TO_DEBUGGER
@@ -99,6 +101,7 @@ options 	USB_DEBUG
 #device		musb
 device		ehci
 #device		ohci
+device		xhci
 
 device		umass
 device		scbus			# SCSI bus (required for SCSI)
@@ -116,6 +119,10 @@ device		uart
 # I2C (TWSI)
 device		iic
 device		iicbus
+
+# SPI
+device		spibus
+device		exynos_spi
 
 # Ethernet
 device		ether

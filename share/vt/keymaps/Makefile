@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-FILES=	ua.kbd ua.shift.alt.kbd
+FILES=	pl.kbd ua.kbd ua.shift.alt.kbd
 
 FILESDIR= ${SHAREDIR}/vt/keymaps
 

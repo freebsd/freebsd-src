@@ -468,14 +468,14 @@ fha_nd_complete(SVCTHREAD *thread, struct svc_req *req)
 int
 fhe_stats_sysctl(SYSCTL_HANDLER_ARGS, struct fha_params *softc)
 {
-	int error, count, i;
+	int error, i;
 	struct sbuf sb;
 	struct fha_hash_entry *fhe;
-	bool_t first = TRUE;
+	bool_t first, hfirst;
 	SVCTHREAD *thread;
 	SVCPOOL *pool;
 
-	sbuf_new(&sb, NULL, 4096, SBUF_FIXEDLEN);
+	sbuf_new(&sb, NULL, 65536, SBUF_FIXEDLEN);
 
 	pool = NULL;
 
@@ -485,42 +485,44 @@ fhe_stats_sysctl(SYSCTL_HANDLER_ARGS, struct fha_params *softc)
 	}
 	pool = *softc->pool;
 
-	count = 0;
 	for (i = 0; i < FHA_HASH_SIZE; i++)
 		if (!LIST_EMPTY(&softc->fha_hash[i].list))
-			count++;
+			break;
 
-	if (count == 0) {
+	if (i == FHA_HASH_SIZE) {
 		sbuf_printf(&sb, "No file handle entries.\n");
 		goto out;
 	}
 
-	for (i = 0; i < FHA_HASH_SIZE; i++) {
+	hfirst = TRUE;
+	for (; i < FHA_HASH_SIZE; i++) {
 		mtx_lock(&softc->fha_hash[i].mtx);
+		if (LIST_EMPTY(&softc->fha_hash[i].list)) {
+			mtx_unlock(&softc->fha_hash[i].mtx);
+			continue;
+		}
+		sbuf_printf(&sb, "%shash %d: {\n", hfirst ? "" : ", ", i);
+		first = TRUE;
 		LIST_FOREACH(fhe, &softc->fha_hash[i].list, link) {
-			sbuf_printf(&sb, "%sfhe %p: {\n", first ? "" : ", ", fhe);
+			sbuf_printf(&sb, "%sfhe %p: {\n", first ? "  " : ", ", fhe);
 
 			sbuf_printf(&sb, "    fh: %ju\n", (uintmax_t) fhe->fh);
-			sbuf_printf(&sb, "    num_rw: %d\n", fhe->num_rw);
-			sbuf_printf(&sb, "    num_exclusive: %d\n", fhe->num_exclusive);
+			sbuf_printf(&sb, "    num_rw/exclusive: %d/%d\n",
+			    fhe->num_rw, fhe->num_exclusive);
 			sbuf_printf(&sb, "    num_threads: %d\n", fhe->num_threads);
 
 			LIST_FOREACH(thread, &fhe->threads, st_alink) {
-				sbuf_printf(&sb, "    thread %p offset %ju "
-				    "(count %d)\n", thread,
+				sbuf_printf(&sb, "      thread %p offset %ju "
+				    "reqs %d\n", thread,
 				    thread->st_p3, thread->st_p2);
 			}
 
-			sbuf_printf(&sb, "}");
+			sbuf_printf(&sb, "  }");
 			first = FALSE;
-
-			/* Limit the output. */
-			if (++count > 128) {
-				sbuf_printf(&sb, "...");
-				break;
-			}
 		}
+		sbuf_printf(&sb, "\n}");
 		mtx_unlock(&softc->fha_hash[i].mtx);
+		hfirst = FALSE;
 	}
 
  out:

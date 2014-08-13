@@ -178,6 +178,15 @@ SRCCONF=${SRCCONF:=/dev/null}
 #
 #######################################################################
 
+# rm doesn't know -x prior to FreeBSD 10, so cope with a variety of build
+# hosts for now.
+nano_rm ( ) {
+	case $(uname -r) in
+	7*|8*|9*) rm $* ;;
+	*) rm -x $* ;;
+	esac
+}
+
 # run in the world chroot, errors fatal
 CR()
 {
@@ -200,9 +209,9 @@ nano_cleanup ( ) (
 clean_build ( ) (
 	pprint 2 "Clean and create object directory (${MAKEOBJDIRPREFIX})"
 
-	if ! rm -xrf ${MAKEOBJDIRPREFIX}/ > /dev/null 2>&1 ; then
+	if ! nano_rm -rf ${MAKEOBJDIRPREFIX}/ > /dev/null 2>&1 ; then
 		chflags -R noschg ${MAKEOBJDIRPREFIX}/
-		rm -xr ${MAKEOBJDIRPREFIX}/
+		nano_rm -r ${MAKEOBJDIRPREFIX}/
 	fi
 	mkdir -p ${MAKEOBJDIRPREFIX}
 	printenv > ${MAKEOBJDIRPREFIX}/_.env
@@ -256,17 +265,17 @@ build_kernel ( ) (
 clean_world ( ) (
 	if [ "${NANO_OBJ}" != "${MAKEOBJDIRPREFIX}" ]; then
 		pprint 2 "Clean and create object directory (${NANO_OBJ})"
-		if ! rm -rxf ${NANO_OBJ}/ > /dev/null 2>&1 ; then
+		if ! nano_rm -rf ${NANO_OBJ}/ > /dev/null 2>&1 ; then
 			chflags -R noschg ${NANO_OBJ}
-			rm -xr ${NANO_OBJ}/
+			nano_rm -r ${NANO_OBJ}/
 		fi
 		mkdir -p ${NANO_OBJ} ${NANO_WORLDDIR}
 		printenv > ${NANO_OBJ}/_.env
 	else
 		pprint 2 "Clean and create world directory (${NANO_WORLDDIR})"
-		if ! rm -rxf ${NANO_WORLDDIR}/ > /dev/null 2>&1 ; then
+		if ! nano_rm -rf ${NANO_WORLDDIR}/ > /dev/null 2>&1 ; then
 			chflags -R noschg ${NANO_WORLDDIR}
-			rm -rxf ${NANO_WORLDDIR}/
+			nano_rm -rf ${NANO_WORLDDIR}/
 		fi
 		mkdir -p ${NANO_WORLDDIR}
 	fi
@@ -378,7 +387,7 @@ setup_nanobsd ( ) (
 		cd usr/local/etc
 		find . -print | cpio -dumpl ../../../etc/local
 		cd ..
-		rm -rf etc
+		nano_rm -rf etc
 		ln -s ../../etc/local etc
 		)
 	fi
@@ -400,7 +409,7 @@ setup_nanobsd ( ) (
 	echo "mount -o ro /dev/${NANO_DRIVE}s3" > conf/default/etc/remount
 
 	# Put /tmp on the /var ramdisk (could be symlink already)
-	test -d tmp && rmdir tmp || rm -f tmp
+	test -d tmp && rmdir tmp || nano_rm -f tmp
 	ln -s var/tmp tmp
 
 	) > ${NANO_OBJ}/_.dl 2>&1
@@ -560,7 +569,7 @@ create_i386_diskimage ( ) (
 			-y ${NANO_HEADS}`
 	else
 		echo "Creating md backing file..."
-		rm -f ${IMG}
+		nano_rm -f ${IMG}
 		dd if=/dev/zero of=${IMG} seek=${NANO_MEDIASIZE} count=0
 		MD=`mdconfig -a -t vnode -f ${IMG} -x ${NANO_SECTS} \
 			-y ${NANO_HEADS}`
@@ -785,7 +794,7 @@ cust_pkg () (
 			exit 2
 		fi
 	done
-	rm -rxf ${NANO_WORLDDIR}/Pkg
+	nano_rm -rf ${NANO_WORLDDIR}/Pkg
 )
 
 cust_pkgng () (
@@ -820,7 +829,7 @@ cust_pkgng () (
 		echo "FAILED: pkg bootstrapping faied"
 		exit 2
 	fi
-	rm -f ${NANO_WORLDDIR}/Pkg/pkg-*
+	nano_rm -f ${NANO_WORLDDIR}/Pkg/pkg-*
 
 	# Count & report how many we have to install
 	todo=`ls ${NANO_WORLDDIR}/Pkg | /usr/bin/wc -l`
@@ -849,7 +858,7 @@ cust_pkgng () (
 			exit 2
 		fi
 	done
-	rm -rxf ${NANO_WORLDDIR}/Pkg
+	nano_rm -rf ${NANO_WORLDDIR}/Pkg
 )
 
 #######################################################################
@@ -886,8 +895,10 @@ pprint() (
 
 usage () {
 	(
-	echo "Usage: $0 [-bfiknqvw] [-c config_file]"
+	echo "Usage: $0 [-bfiKknqvw] [-c config_file]"
+	echo "	-K	suppress installkernel"
 	echo "	-b	suppress builds (both kernel and world)"
+	echo "	-c	specify config file"
 	echo "	-f	suppress code slice extraction"
 	echo "	-i	suppress disk image build"
 	echo "	-k	suppress buildkernel"
@@ -895,7 +906,6 @@ usage () {
 	echo "	-q	make output more quiet"
 	echo "	-v	make output more verbose"
 	echo "	-w	suppress buildworld"
-	echo "	-c	specify config file"
 	) 1>&2
 	exit 2
 }
@@ -905,12 +915,13 @@ usage () {
 
 do_clean=true
 do_kernel=true
+do_installkernel=true
 do_world=true
 do_image=true
 do_copyout_partition=true
 
 set +e
-args=`getopt bc:fhiknqvw $*`
+args=`getopt Kbc:fhiknqvw $*`
 if [ $? -ne 0 ] ; then
 	usage
 	exit 2
@@ -922,12 +933,12 @@ for i
 do
 	case "$i" 
 	in
-	-b)
-		do_world=false
-		do_kernel=false
+	-K)
+		do_installkernel=false
 		shift
 		;;
-	-k)
+	-b)
+		do_world=false
 		do_kernel=false
 		shift
 		;;
@@ -949,6 +960,10 @@ do
 		;;
 	-i)
 		do_image=false
+		shift
+		;;
+	-k)
+		do_kernel=false
 		shift
 		;;
 	-n)
@@ -983,7 +998,7 @@ trap nano_cleanup EXIT
 #######################################################################
 # Setup and Export Internal variables
 #
-test -n "${NANO_OBJ}" || NANO_OBJ=/usr/obj/nanobsd.${NANO_NAME}/
+test -n "${NANO_OBJ}" || NANO_OBJ=/usr/obj/nanobsd.${NANO_NAME}
 test -n "${MAKEOBJDIRPREFIX}" || MAKEOBJDIRPREFIX=${NANO_OBJ}
 test -n "${NANO_DISKIMGDIR}" || NANO_DISKIMGDIR=${NANO_OBJ}
 
@@ -1074,7 +1089,11 @@ make_conf_install
 install_world
 install_etc
 setup_nanobsd_etc
-install_kernel
+if $do_installkernel ; then
+	install_kernel
+else
+	pprint 2 "Skipping installkernel (as instructed)"
+fi
 
 run_customize
 setup_nanobsd

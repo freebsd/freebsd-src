@@ -80,5 +80,9 @@ beforeinstall:
 
 NO_PIE=	yes
 
+.if ${MK_TESTS} != "no"
+SUBDIR+=	tests
+.endif
+
 .include <bsd.symver.mk>
 .include <bsd.prog.mk>

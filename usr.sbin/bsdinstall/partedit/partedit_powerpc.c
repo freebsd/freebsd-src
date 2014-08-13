@@ -60,7 +60,8 @@ is_scheme_bootable(const char *part_type) {
 	if (strcmp(platform, "ps3") == 0 && strcmp(part_type, "GPT") == 0)
 		return (1);
 	if (strcmp(platform, "chrp") == 0 &&
-	    (strcmp(part_type, "MBR") == 0 || strcmp(part_type, "BSD") == 0))
+	    (strcmp(part_type, "MBR") == 0 || strcmp(part_type, "BSD") == 0 ||
+	     strcmp(part_type, "GPT") == 0))
 		return (1);
 
 	return (0);
@@ -68,13 +69,28 @@ is_scheme_bootable(const char *part_type) {
 
 size_t
 bootpart_size(const char *part_type) {
+	size_t platlen = sizeof(platform);
+	if (strlen(platform) == 0)
+		sysctlbyname("hw.platform", platform, &platlen, NULL, -1);
+
 	if (strcmp(part_type, "APM") == 0 || strcmp(part_type, "MBR") == 0)
+		return (800*1024);
+	if (strcmp(platform, "chrp") == 0 && strcmp(part_type, "GPT") == 0)
 		return (800*1024);
 	return (0);
 }
 
 const char *
 bootpart_type(const char *scheme) {
+	size_t platlen = sizeof(platform);
+	if (strlen(platform) == 0)
+		sysctlbyname("hw.platform", platform, &platlen, NULL, -1);
+
+	if (strcmp(platform, "chrp") == 0)
+		return ("prep-boot");
+	if (strcmp(platform, "powermac") == 0)
+		return ("apple-boot");
+
 	return ("freebsd-boot");
 }
 
@@ -85,9 +101,14 @@ bootcode_path(const char *part_type) {
 	
 const char *
 partcode_path(const char *part_type) {
+	size_t platlen = sizeof(platform);
+	if (strlen(platform) == 0)
+		sysctlbyname("hw.platform", platform, &platlen, NULL, -1);
+
 	if (strcmp(part_type, "APM") == 0)
 		return ("/boot/boot1.hfs");
-	if (strcmp(part_type, "MBR") == 0)
+	if (strcmp(part_type, "MBR") == 0 ||
+	    (strcmp(platform, "chrp") == 0 && strcmp(part_type, "GPT") == 0))
 		return ("/boot/boot1.elf");
 	return (NULL);
 }

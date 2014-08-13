@@ -132,7 +132,6 @@ ata_dmafini(device_t dev)
 	bus_dmamap_unload(ch->dma.work_tag, ch->dma.work_map);
 	bus_dmamem_free(ch->dma.work_tag, ch->dma.work, ch->dma.work_map);
 	ch->dma.work_bus = 0;
-	ch->dma.work_map = NULL;
 	ch->dma.work = NULL;
     }
     if (ch->dma.work_tag) {

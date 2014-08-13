@@ -132,33 +132,27 @@ static int mfi_check_for_sscd(struct mfi_softc *sc, struct mfi_command *cm);
 
 SYSCTL_NODE(_hw, OID_AUTO, mfi, CTLFLAG_RD, 0, "MFI driver parameters");
 static int	mfi_event_locale = MFI_EVT_LOCALE_ALL;
-TUNABLE_INT("hw.mfi.event_locale", &mfi_event_locale);
 SYSCTL_INT(_hw_mfi, OID_AUTO, event_locale, CTLFLAG_RWTUN, &mfi_event_locale,
            0, "event message locale");
 
 static int	mfi_event_class = MFI_EVT_CLASS_INFO;
-TUNABLE_INT("hw.mfi.event_class", &mfi_event_class);
 SYSCTL_INT(_hw_mfi, OID_AUTO, event_class, CTLFLAG_RWTUN, &mfi_event_class,
            0, "event message class");
 
 static int	mfi_max_cmds = 128;
-TUNABLE_INT("hw.mfi.max_cmds", &mfi_max_cmds);
 SYSCTL_INT(_hw_mfi, OID_AUTO, max_cmds, CTLFLAG_RDTUN, &mfi_max_cmds,
 	   0, "Max commands limit (-1 = controller limit)");
 
 static int	mfi_detect_jbod_change = 1;
-TUNABLE_INT("hw.mfi.detect_jbod_change", &mfi_detect_jbod_change);
 SYSCTL_INT(_hw_mfi, OID_AUTO, detect_jbod_change, CTLFLAG_RWTUN,
 	   &mfi_detect_jbod_change, 0, "Detect a change to a JBOD");
 
 int		mfi_polled_cmd_timeout = MFI_POLL_TIMEOUT_SECS;
-TUNABLE_INT("hw.mfi.polled_cmd_timeout", &mfi_polled_cmd_timeout);
 SYSCTL_INT(_hw_mfi, OID_AUTO, polled_cmd_timeout, CTLFLAG_RWTUN,
 	   &mfi_polled_cmd_timeout, 0,
 	   "Polled command timeout - used for firmware flash etc (in seconds)");
 
 static int	mfi_cmd_timeout = MFI_CMD_TIMEOUT;
-TUNABLE_INT("hw.mfi.cmd_timeout", &mfi_cmd_timeout);
 SYSCTL_INT(_hw_mfi, OID_AUTO, cmd_timeout, CTLFLAG_RWTUN, &mfi_cmd_timeout,
 	   0, "Command timeout (in seconds)");
 

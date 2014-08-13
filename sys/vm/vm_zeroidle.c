@@ -55,10 +55,9 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_phys.h>
 
 static int idlezero_enable_default = 0;
-TUNABLE_INT("vm.idlezero_enable", &idlezero_enable_default);
 /* Defer setting the enable flag until the kthread is running. */
 static int idlezero_enable = 0;
-SYSCTL_INT(_vm, OID_AUTO, idlezero_enable, CTLFLAG_RW, &idlezero_enable, 0,
+SYSCTL_INT(_vm, OID_AUTO, idlezero_enable, CTLFLAG_RWTUN, &idlezero_enable, 0,
     "Allow the kernel to use idle cpu cycles to zero-out pages");
 /*
  * Implement the pre-zeroed page mechanism.

@@ -16,13 +16,13 @@ SRCS=	ssh.c readconf.c clientloop.c sshtty.c \
 SRCS+=	gss-genr.c
 
 DPADD=	${LIBSSH} ${LIBUTIL}
-LDADD=	-lssh -lutil
+LDADD=	${LDSSH} -lutil
 USEPRIVATELIB= ssh
 
 .if ${MK_LDNS} != "no"
 CFLAGS+=	-DHAVE_LDNS=1
 DPADD+=	${LIBLDNS}
-LDADD+=	-lldns
+LDADD+=	${LIBLDNSADD}
 USEPRIVATELIB+= ldns
 .endif
 

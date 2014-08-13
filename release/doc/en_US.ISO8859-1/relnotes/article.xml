@@ -108,10 +108,6 @@
   <sect2 xml:id="kernel">
     <title>Kernel Changes</title>
 
-    <para revision="260888">The <filename>VT</filename> kernel
-      configuration file has been added, which enables the new
-      <literal>vt</literal> console driver.</para>
-
     <para revision="260903">Support for GPS ports has been added to
       &man.uhso.4;.</para>
 
@@ -160,6 +156,23 @@
       &man.sysctl.8; on &intel; processors with Turbo
       Boost&nbsp;&trade; enabled has been fixed.</para>
 
+    <para revision="266531">The <literal>IMAGACT_BINMISC</literal>
+      kernel configuration option has been enabled by default,
+      which enables application execution through emulators, such
+      as <application>Qemu</application>.</para>
+
+    <para revision="266757" contrib="sponsor"
+	sponsor="&chelsio;">Support for the &man.cxgbe.4; Terminator 5
+      (T5) 10G/40G cards has been added to &man.netmap.4;.</para>
+
+    <para revision="268045">The <literal>VT</literal> kernel
+      configuration file has been removed, and the &man.vt.4;
+      driver is included in the <literal>GENERIC</literal> kernel.
+      To enable &man.vt.4;, enter <literal>set kern.vty=vt</literal>
+      at the &man.loader.8; prompt during boot, or add
+      <literal>kern.vty=vt</literal> to &man.loader.conf.5; and
+      reboot the system.</para>
+
     <sect3 xml:id="kernel-virtualization">
       <title>Virtualization support</title>
 
@@ -187,6 +200,15 @@
 
       <para revision="260847">The &man.virtio_random.4; driver has
 	been added to harvest entropy from the host system.</para>
+
+      <para revision="267536" contrib="sponsor"
+	sponsor="&citrix.rd;">Support for running a &os;/&arch.amd64;
+	<application>Xen</application> guest instance as
+	<acronym>PVH</acronym> guest has been added.
+	<acronym>PVH</acronym> mode, short for <quote>Para-Virtualized
+	  Hardware</quote>, uses para-virtualized drivers for boot
+	and I/O, and uses hardware virtualization extensions for all
+	other tasks, without the need for emulation.</para>
     </sect3>
 
     <sect3 xml:id="kernel-arm">
@@ -204,6 +226,12 @@
 
     <sect3 xml:id="proc">
       <title>Hardware Support</title>
+
+      <para revision="268303">The &man.asmc.4; driver has been updated
+	to support the &apple;&nbsp;MacMini 3,1.</para>
+
+      <para revision="268351">Support for &os;/ia64 has been dropped
+	as of &os;&nbsp;11.</para>
 
       <sect4 xml:id="mm">
 	<title>Multimedia Support</title>
@@ -234,6 +262,10 @@
 	<para revision="265348" contrib="sponsor"
 	  sponsor="&netgate;">The &man.ath.hal.4; driver has been
 	  updated to support the Atheros AR1111 chipset.</para>
+
+	<para revision="266770">Support for the &intel;
+	  Centrino&trade; Wireless-N 105 chipset has been
+	  added.</para>
       </sect4>
     </sect3>
 
@@ -248,7 +280,9 @@
     <sect3 xml:id="disks">
       <title>Disks and Storage</title>
 
-      <para>&nbsp;</para>
+      <para revision="267359">Support for the
+	<literal>disklabel64</literal> partitioning scheme has been
+	added to &man.gpart.8;.</para>
     </sect3>
 
     <sect3 xml:id="fs">
@@ -317,7 +351,7 @@
 
     <para revision="266209">The &man.pmcstat.8; utility has been
       updated to include a new flag, <literal>-l</literal>, which
-      adds event collection after the specified number of
+      ends event collection after the specified number of
       seconds.</para>
 
     <para revision="266463">The default &man.newsyslog.conf.5; now
@@ -325,6 +359,11 @@
       <filename>/etc/newsyslog.conf.d/</filename> and
       <filename>/usr/local/etc/newsyslog.conf.d/</filename>
       directories by default for &man.newsyslog.8;.</para>
+
+    <para revision="268461">The &man.readline.3; library is now
+      statically linked in software within the base system, and the
+      shared library is no longer installed, allowing the Ports
+      Collection to use a modern version of the library.</para>
 
     <sect3 xml:id="rc-scripts">
       <title><filename>/etc/rc.d</filename> Scripts</title>

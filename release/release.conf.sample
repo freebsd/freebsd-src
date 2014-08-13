@@ -3,6 +3,11 @@
 # $FreeBSD$
 #
 
+## Redefine environment variables here to override prototypes
+## defined in release.sh.
+#load_chroot_env() { }
+#load_target_env() { }
+
 ## Set the directory within which the release will be built.
 CHROOTDIR="/scratch"
 

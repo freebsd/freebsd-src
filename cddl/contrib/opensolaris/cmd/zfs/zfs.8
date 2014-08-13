@@ -30,7 +30,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 27, 2014
+.Dd June 30, 2014
 .Dt ZFS 8
 .Os
 .Sh NAME
@@ -179,11 +179,12 @@
 .Ar bookmark
 .Nm
 .Cm send
-.Op Fl DnPpRv
+.Op Fl DnPpRve
 .Op Fl i Ar snapshot | Fl I Ar snapshot
 .Ar snapshot
 .Nm
 .Cm send
+.Op Fl e
 .Op Fl i Ar snapshot Ns | Ns bookmark
 .Ar filesystem Ns | Ns Ar volume Ns | Ns Ar snapshot
 .Nm
@@ -2476,7 +2477,7 @@ feature.
 .It Xo
 .Nm
 .Cm send
-.Op Fl DnPpRv
+.Op Fl DnPpRve
 .Op Fl i Ar snapshot | Fl I Ar snapshot
 .Ar snapshot
 .Xc
@@ -2548,6 +2549,29 @@ be used regardless of the dataset's
 property, but performance will be much better if the filesystem uses a
 dedup-capable checksum (eg.
 .Sy sha256 ) .
+.It Fl e
+Generate a more compact stream by using WRITE_EMBEDDED records for blocks
+which are stored more compactly on disk by the
+.Sy embedded_data
+pool
+feature.
+This flag has no effect if the
+.Sy embedded_data
+feature is
+disabled.
+The receiving system must have the
+.Sy embedded_data
+feature
+enabled.
+If the
+.Sy lz4_compress
+feature is active on the sending system,
+then the receiving system must have that feature enabled as well.
+See
+.Xr zpool-features 7
+for details on ZFS feature flags and the
+.Sy embedded_data
+feature.
 .It Fl p
 Include the dataset's properties in the stream. This flag is implicit when
 .Fl R
@@ -2572,6 +2596,7 @@ on future versions of
 .It Xo
 .Nm
 .Cm send
+.Op Fl e
 .Op Fl i Ar snapshot Ns | Ns Ar bookmark
 .Ar filesystem Ns | Ns Ar volume Ns | Ns Ar snapshot
 .Xc
@@ -2597,6 +2622,29 @@ specified as the last component of the name
 If the incremental target is a clone, the incremental source can
 be the origin snapshot, or an earlier snapshot in the origin's filesystem,
 or the origin's origin, etc.
+.It Fl e
+Generate a more compact stream by using WRITE_EMBEDDED records for blocks
+which are stored more compactly on disk by the
+.Sy embedded_data
+pool
+feature.
+This flag has no effect if the
+.Sy embedded_data
+feature is
+disabled.
+The receiving system must have the
+.Sy embedded_data
+feature
+enabled.
+If the
+.Sy lz4_compress
+feature is active on the sending system,
+then the receiving system must have that feature enabled as well.
+See
+.Xr zpool-features 7
+for details on ZFS feature flags and the
+.Sy embedded_data
+feature.
 .El
 .It Xo
 .Nm

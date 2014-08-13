@@ -1,25 +1,32 @@
 #!/bin/sh
 # $FreeBSD$
 #
-# This sample downloads the package INDEX file from HTTP to /tmp (if it doesn't
-# already exist) and then displays the package configuration/management screen
-# using the local INDEX file (results in faster browsing of packages from-start
-# since the INDEX can be loaded from local media).
+# This sample downloads the package digests.txz and packagesite.txz files from
+# HTTP to /tmp (if they don't already exist) and then displays the package
+# configuration/management screen using the local files (resulting in faster
+# browsing of packages from-start since digests.txz/packagesite.txz can be
+# loaded from local media).
 #
-# NOTE: Packages cannot be installed unless staged to /tmp/packages/All
+# NOTE: Packages cannot be installed unless staged to
+#       /tmp/packages/$PKG_ABI/All
 #
-. /usr/share/bsdconfig/script.subr
+[ "$_SCRIPT_SUBR" ] || . /usr/share/bsdconfig/script.subr || exit 1
 nonInteractive=1
+f_musthavepkg_init # Make sure we have a usable pkg(8) with $PKG_ABI
 TMPDIR=/tmp
-if [ ! -e "$TMPDIR/packages/INDEX" ]; then
-	[ -d "$TMPDIR/packages" ] || mkdir -p "$TMPDIR/packages" || exit 1
-	_httpPath=http://ftp.freebsd.org
-	# For older releases, use http://ftp-archive.freebsd.org
-	mediaSetHTTP
-	mediaOpen
-	f_show_info "Downloading packages/INDEX from\n %s" "$_httpPath"
-	f_device_get device_media packages/INDEX > $TMPDIR/packages/INDEX
-fi
+PKGDIR=$TMPDIR/packages/$PKG_ABI
+[ -d "$PKGDIR" ] || mkdir -p "$PKGDIR" || exit 1
+for file in digests.txz packagesite.txz; do
+	[ -s "$PKGDIR/$file" ] && continue
+	if [ ! "$HTTP_INITIALIZED" ]; then
+		_httpPath=http://pkg.freebsd.org
+		mediaSetHTTP
+		mediaOpen
+	fi
+	f_show_info "Downloading %s from\n %s" "$file" "$_httpPath"
+	f_device_get device_media "/$PKG_ABI/latest/$file" > $PKGDIR/$file ||
+		exit 1
+done
 _directoryPath=$TMPDIR
 mediaSetDirectory
 configPackages

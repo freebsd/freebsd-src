@@ -129,10 +129,10 @@
       </itemizedlist>
 
       <para>&intel; EM64T is an extended version of IA-32 (x86) and
-	different from &intel; IA-64 (Itanium) architecture, which
-	&os;/ia64 supports.  Some &intel;'s old documentation refers
-	to &intel; EM64T as <quote>64-bit extension technology</quote>
-	or <quote>IA-32e</quote>.</para>
+	different from &intel; IA-64 (Itanium) architecture.  Some
+	&intel;'s old documentation refers to &intel; EM64T as
+	<quote>64-bit extension technology</quote> or
+	<quote>IA-32e</quote>.</para>
 
       <para>Both Uniprocessor (UP) and Symmetric Multi-processor (SMP)
 	configurations are supported.</para>
@@ -230,41 +230,6 @@
 	Web site.  &os; can use these DSDTs to override the DSDT
 	provided by the BIOS; see the &man.acpi.4; manual page for
 	more information.</para>
-    </sect2>
-
-    <sect2 xml:id="proc-ia64">
-      <title>ia64</title>
-
-      <para>Currently supported processors are the <link xlink:href="http://people.freebsd.org/~marcel/refs/ia64/itanium/24532003.pdf">&itanium;</link>
-	and the <link xlink:href="http://people.freebsd.org/~marcel/refs/ia64/itanium2/25111003.pdf">&itanium;
-	  2</link>.</para>
-
-      <para>Supported chipsets include:</para>
-
-      <itemizedlist>
-	<listitem>
-	  <para>HP zx1</para>
-	</listitem>
-
-	<listitem>
-	  <para>&intel; 460GX</para>
-	</listitem>
-
-	<listitem>
-	  <para>&intel; E8870</para>
-	</listitem>
-      </itemizedlist>
-
-      <para>Both Uniprocessor (UP) and Symmetric Multi-processor (SMP)
-	configurations are supported.</para>
-
-      <para>Most devices that can be found in or are compatible with
-	&arch.ia64; machines are fully supported.  The notable
-	exception is the VGA console. The &os; support for VGA
-	consoles is at this time too much based on PC hardware and not
-	all &arch.ia64; machines have chipsets that provide sufficient
-	PC legacy support. As such &man.syscons.4; can not be enabled
-	and the use of a serial console is required.</para>
     </sect2>
 
     <sect2 xml:id="proc-pc98">
@@ -651,9 +616,8 @@
     <sect2 xml:id="disk">
       <title>Disk Controllers</title>
 
-      <para>[&arch.amd64;, &arch.i386;, &arch.ia64;, &arch.pc98;,
-	&arch.sparc64;] IDE/ATA controllers (&man.ata.4;
-	driver)</para>
+      <para>[&arch.amd64;, &arch.i386;, &arch.pc98;, &arch.sparc64;]
+	IDE/ATA controllers (&man.ata.4; driver)</para>
 
       <para>[&arch.pc98;] IDE/ATA controllers (wdc driver)</para>
 
@@ -1124,8 +1088,8 @@
       <para>[&arch.i386;] DigiBoard intelligent serial cards (digi
 	driver)</para>
 
-      <para>[&arch.amd64;, &arch.i386;, &arch.ia64;] PCI-Based
-	multi-port serial boards (&man.puc.4; driver)</para>
+      <para>[&arch.amd64;, &arch.i386;] PCI-Based multi-port serial
+	boards (&man.puc.4; driver)</para>
 
       <itemizedlist>
 	<listitem>
@@ -1144,10 +1108,6 @@
 	<listitem>
 	  <para>[&arch.amd64;, &arch.i386;] Decision Computers PCCOM
 	    4-port serial and dual port RS232/422/485</para>
-	</listitem>
-
-	<listitem>
-	  <para>[&arch.ia64;] Diva Serial (GSP) Multiport UART</para>
 	</listitem>
 
 	<listitem>
@@ -1428,7 +1388,7 @@
     <sect2 xml:id="usb">
       <title>USB Devices</title>
 
-      <para>[&arch.amd64;, &arch.i386;, &arch.ia64;, &arch.pc98;] A
+      <para>[&arch.amd64;, &arch.i386;, &arch.pc98;] A
 	range of USB peripherals are supported; devices known to work
 	are listed in this section.  Owing to the generic nature of
 	most USB devices, with some exceptions any device of a given
@@ -1436,14 +1396,14 @@
 	here.</para>
 
       <note>
-	<para>[&arch.amd64;, &arch.i386;, &arch.ia64;, &arch.pc98;]
+	<para>[&arch.amd64;, &arch.i386;, &arch.pc98;]
 	  USB Ethernet adapters can be found in the section listing
 	  <link linkend="ethernet">Ethernet
 	    interfaces</link>.</para>
       </note>
 
       <note>
-	<para>[&arch.amd64;, &arch.i386;, &arch.ia64;, &arch.pc98;]
+	<para>[&arch.amd64;, &arch.i386;, &arch.pc98;]
 	  USB Bluetooth adapters can be found in <link linkend="bluetooth">Bluetooth</link> section.</para>
       </note>
 
@@ -1451,14 +1411,14 @@
 
       &hwlist.uhci;
 
-      <para>[&arch.amd64;, &arch.i386;, &arch.ia64;, &arch.pc98;] USB
+      <para>[&arch.amd64;, &arch.i386;, &arch.pc98;] USB
 	2.0 controllers using the EHCI interface (&man.ehci.4;
 	driver)</para>
 
-      <para>[&arch.amd64;, &arch.i386;, &arch.ia64;, &arch.pc98;]
+      <para>[&arch.amd64;, &arch.i386;, &arch.pc98;]
 	Hubs</para>
 
-      <para>[&arch.amd64;, &arch.i386;, &arch.ia64;, &arch.pc98;]
+      <para>[&arch.amd64;, &arch.i386;, &arch.pc98;]
 	Keyboards (&man.ukbd.4; driver)</para>
 
       <para>[&arch.amd64;, &arch.i386;, &arch.pc98;]
@@ -1490,7 +1450,7 @@
 
       &hwlist.umodem;
 
-      <para>[&arch.amd64;, &arch.i386;, &arch.ia64;, &arch.pc98;] Mice
+      <para>[&arch.amd64;, &arch.i386;, &arch.pc98;] Mice
 	(&man.ums.4; driver)</para>
 
       &hwlist.ulpt;
@@ -1569,7 +1529,7 @@
 	  found at <uri xlink:href="http://www.x.org/">http://www.x.org/</uri>.</para>
       </note>
 
-      <para>[&arch.amd64;, &arch.i386;, &arch.ia64;, &arch.pc98;]
+      <para>[&arch.amd64;, &arch.i386;, &arch.pc98;]
 	Keyboards including:</para>
 
       <itemizedlist>
@@ -1588,12 +1548,12 @@
 	</listitem>
 
 	<listitem>
-	  <para>[&arch.amd64;, &arch.i386;, &arch.ia64;, &arch.pc98;]
+	  <para>[&arch.amd64;, &arch.i386;, &arch.pc98;]
 	    USB keyboards (&man.ukbd.4; driver)</para>
 	</listitem>
       </itemizedlist>
 
-      <para>[&arch.amd64;, &arch.i386;, &arch.ia64;, &arch.pc98;]
+      <para>[&arch.amd64;, &arch.i386;, &arch.pc98;]
 	Pointing devices including:</para>
 
       <itemizedlist>
@@ -1613,7 +1573,7 @@
 	</listitem>
 
 	<listitem>
-	  <para>[&arch.amd64;, &arch.i386;, &arch.ia64;, &arch.pc98;]
+	  <para>[&arch.amd64;, &arch.i386;, &arch.pc98;]
 	    USB mice (&man.ums.4; driver)</para>
 	</listitem>
       </itemizedlist>

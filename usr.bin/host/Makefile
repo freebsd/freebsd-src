@@ -15,7 +15,7 @@ host.1: ldns-host.1
 
 CFLAGS+=	-I${LDNSDIR}
 DPADD+=		${LIBLDNS} ${LIBCRYPTO}
-LDADD+=		-lldns -lcrypto
+LDADD+=		${LDLDNS} -lcrypto
 USEPRIVATELIB=	ldns
 
 .include <bsd.prog.mk>

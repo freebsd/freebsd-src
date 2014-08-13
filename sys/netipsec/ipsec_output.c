@@ -498,9 +498,11 @@ ipsec4_process_packet(
 				goto bad;
 			}
 			ip = mtod(m, struct ip *);
-			ip->ip_len = htons(m->m_pkthdr.len);
-			ip->ip_sum = 0;
-			ip->ip_sum = in_cksum(m, ip->ip_hl << 2);
+			if (ip->ip_v == IPVERSION) {
+				ip->ip_len = htons(m->m_pkthdr.len);
+				ip->ip_sum = 0;
+				ip->ip_sum = in_cksum(m, ip->ip_hl << 2);
+			}
 
 			/* Encapsulate the packet */
 			error = ipip_output(m, isr, &mp, 0, 0);

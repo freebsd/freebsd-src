@@ -86,6 +86,8 @@ cam/ctl/ctl_frontend_cam_sim.c	optional ctl
 cam/ctl/ctl_frontend_internal.c	optional ctl
 cam/ctl/ctl_frontend_iscsi.c	optional ctl
 cam/ctl/ctl_scsi_all.c		optional ctl
+cam/ctl/ctl_tpc.c		optional ctl
+cam/ctl/ctl_tpc_local.c		optional ctl
 cam/ctl/ctl_error.c		optional ctl
 cam/ctl/ctl_util.c		optional ctl
 cam/ctl/scsi_ctl.c		optional ctl
@@ -138,6 +140,7 @@ cddl/contrib/opensolaris/common/zfs/zprop_common.c			optional zfs compile-with "
 cddl/contrib/opensolaris/uts/common/fs/gfs.c				optional zfs compile-with "${ZFS_C}"
 cddl/contrib/opensolaris/uts/common/fs/vnode.c				optional zfs compile-with "${ZFS_C}"
 cddl/contrib/opensolaris/uts/common/fs/zfs/arc.c			optional zfs compile-with "${ZFS_C}"
+cddl/contrib/opensolaris/uts/common/fs/zfs/blkptr.c			optional zfs compile-with "${ZFS_C}"
 cddl/contrib/opensolaris/uts/common/fs/zfs/bplist.c			optional zfs compile-with "${ZFS_C}"
 cddl/contrib/opensolaris/uts/common/fs/zfs/bpobj.c			optional zfs compile-with "${ZFS_C}"
 cddl/contrib/opensolaris/uts/common/fs/zfs/bptree.c			optional zfs compile-with "${ZFS_C}"
@@ -1167,7 +1170,7 @@ t4fw.fwo		optional cxgbe					\
 	no-implicit-rule						\
 	clean		"t4fw.fwo"
 t4fw.fw			optional cxgbe					\
-	dependency	"$S/dev/cxgbe/firmware/t4fw-1.9.12.0.bin.uu"	\
+	dependency	"$S/dev/cxgbe/firmware/t4fw-1.11.27.0.bin.uu"	\
 	compile-with	"${NORMAL_FW}"					\
 	no-obj no-implicit-rule						\
 	clean		"t4fw.fw"
@@ -1191,7 +1194,7 @@ t5fw.fwo		optional cxgbe					\
 	no-implicit-rule						\
 	clean		"t5fw.fwo"
 t5fw.fw			optional cxgbe					\
-	dependency	"$S/dev/cxgbe/firmware/t5fw-1.9.12.0.bin.uu"	\
+	dependency	"$S/dev/cxgbe/firmware/t5fw-1.11.27.0.bin.uu"	\
 	compile-with	"${NORMAL_FW}"					\
 	no-obj no-implicit-rule						\
 	clean		"t5fw.fw"
@@ -2511,6 +2514,7 @@ dev/usb/template/usb_template_modem.c	optional usb_template
 dev/usb/template/usb_template_mouse.c	optional usb_template
 dev/usb/template/usb_template_msc.c	optional usb_template
 dev/usb/template/usb_template_mtp.c	optional usb_template
+dev/usb/template/usb_template_phone.c	optional usb_template
 #
 # USB END
 #
@@ -2526,7 +2530,7 @@ dev/vt/font/vt_font_default.c	optional vt
 dev/vt/font/vt_mouse_cursor.c	optional vt
 dev/vt/hw/efifb/efifb.c		optional vt_efifb
 dev/vt/hw/fb/vt_fb.c		optional vt
-dev/vt/hw/vga/vga.c		optional vt vt_vga
+dev/vt/hw/vga/vt_vga.c		optional vt vt_vga
 dev/vt/logo/logo_freebsd.c	optional vt splash
 dev/vt/vt_buf.c			optional vt
 dev/vt/vt_consolectl.c		optional vt
@@ -2589,6 +2593,7 @@ dev/xen/netback/netback.c	optional xen | xenhvm
 dev/xen/netfront/netfront.c	optional xen | xenhvm
 dev/xen/xenpci/xenpci.c		optional xenpci
 dev/xen/timer/timer.c		optional xen | xenhvm
+dev/xen/pvcpu/pvcpu.c		optional xen | xenhvm
 dev/xl/if_xl.c			optional xl pci
 dev/xl/xlphy.c			optional xl pci
 fs/deadfs/dead_vnops.c		standard
@@ -3013,7 +3018,7 @@ kern/tty_outq.c			standard
 kern/tty_pts.c			standard
 kern/tty_tty.c			standard
 kern/tty_ttydisc.c		standard
-kern/uipc_accf.c		optional inet
+kern/uipc_accf.c		standard
 kern/uipc_debug.c		optional ddb
 kern/uipc_domain.c		standard
 kern/uipc_mbuf.c		standard
@@ -3810,6 +3815,7 @@ pci/viapm.c			optional viapm pci
 rpc/auth_none.c			optional krpc | nfslockd | nfsclient | nfsserver | nfscl | nfsd
 rpc/auth_unix.c			optional krpc | nfslockd | nfsclient | nfscl | nfsd
 rpc/authunix_prot.c		optional krpc | nfslockd | nfsclient | nfsserver | nfscl | nfsd
+rpc/clnt_bck.c			optional krpc | nfslockd | nfsserver | nfscl | nfsd
 rpc/clnt_dg.c			optional krpc | nfslockd | nfsclient | nfscl | nfsd
 rpc/clnt_rc.c			optional krpc | nfslockd | nfsclient | nfscl | nfsd
 rpc/clnt_vc.c			optional krpc | nfslockd | nfsclient | nfsserver | nfscl | nfsd

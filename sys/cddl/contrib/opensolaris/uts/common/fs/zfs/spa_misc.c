@@ -20,7 +20,7 @@
  */
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2013 by Delphix. All rights reserved.
+ * Copyright (c) 2011, 2014 by Delphix. All rights reserved.
  * Copyright 2011 Nexenta Systems, Inc.  All rights reserved.
  * Copyright 2013 Martin Matuska <mm@FreeBSD.org>. All rights reserved.
  */
@@ -244,7 +244,6 @@ int zfs_flags = ~(ZFS_DEBUG_DPRINTF | ZFS_DEBUG_SPA);
 int zfs_flags = 0;
 #endif
 SYSCTL_DECL(_debug);
-TUNABLE_INT("debug.zfs_flags", &zfs_flags);
 SYSCTL_INT(_debug, OID_AUTO, zfs_flags, CTLFLAG_RWTUN, &zfs_flags, 0,
     "ZFS debug flags.");
 
@@ -255,11 +254,41 @@ SYSCTL_INT(_debug, OID_AUTO, zfs_flags, CTLFLAG_RWTUN, &zfs_flags, 0,
  * This should only be used as a last resort, as it typically results
  * in leaked space, or worse.
  */
-int zfs_recover = 0;
+boolean_t zfs_recover = B_FALSE;
 SYSCTL_DECL(_vfs_zfs);
-TUNABLE_INT("vfs.zfs.recover", &zfs_recover);
 SYSCTL_INT(_vfs_zfs, OID_AUTO, recover, CTLFLAG_RDTUN, &zfs_recover, 0,
     "Try to recover from otherwise-fatal errors.");
+
+/*
+ * If destroy encounters an EIO while reading metadata (e.g. indirect
+ * blocks), space referenced by the missing metadata can not be freed.
+ * Normally this causes the background destroy to become "stalled", as
+ * it is unable to make forward progress.  While in this stalled state,
+ * all remaining space to free from the error-encountering filesystem is
+ * "temporarily leaked".  Set this flag to cause it to ignore the EIO,
+ * permanently leak the space from indirect blocks that can not be read,
+ * and continue to free everything else that it can.
+ *
+ * The default, "stalling" behavior is useful if the storage partially
+ * fails (i.e. some but not all i/os fail), and then later recovers.  In
+ * this case, we will be able to continue pool operations while it is
+ * partially failed, and when it recovers, we can continue to free the
+ * space, with no leaks.  However, note that this case is actually
+ * fairly rare.
+ *
+ * Typically pools either (a) fail completely (but perhaps temporarily,
+ * e.g. a top-level vdev going offline), or (b) have localized,
+ * permanent errors (e.g. disk returns the wrong data due to bit flip or
+ * firmware bug).  In case (a), this setting does not matter because the
+ * pool will be suspended and the sync thread will not be able to make
+ * forward progress regardless.  In case (b), because the error is
+ * permanent, the best we can do is leak the minimum amount of space,
+ * which is what setting this flag will do.  Therefore, it is reasonable
+ * for this flag to normally be set, but we chose the more conservative
+ * approach of not setting it, so that there is no possibility of
+ * leaking space in the "partial temporary" failure case.
+ */
+boolean_t zfs_free_leak_on_eio = B_FALSE;
 
 /*
  * Expiration time in milliseconds. This value has two meanings. First it is
@@ -270,7 +299,6 @@ SYSCTL_INT(_vfs_zfs, OID_AUTO, recover, CTLFLAG_RDTUN, &zfs_recover, 0,
  * in a system panic.
  */
 uint64_t zfs_deadman_synctime_ms = 1000000ULL;
-TUNABLE_QUAD("vfs.zfs.deadman_synctime_ms", &zfs_deadman_synctime_ms);
 SYSCTL_UQUAD(_vfs_zfs, OID_AUTO, deadman_synctime_ms, CTLFLAG_RDTUN,
     &zfs_deadman_synctime_ms, 0,
     "Stalled ZFS I/O expiration time in milliseconds");
@@ -280,7 +308,6 @@ SYSCTL_UQUAD(_vfs_zfs, OID_AUTO, deadman_synctime_ms, CTLFLAG_RDTUN,
  * for hung I/O.
  */
 uint64_t zfs_deadman_checktime_ms = 5000ULL;
-TUNABLE_QUAD("vfs.zfs.deadman_checktime_ms", &zfs_deadman_checktime_ms);
 SYSCTL_UQUAD(_vfs_zfs, OID_AUTO, deadman_checktime_ms, CTLFLAG_RDTUN,
     &zfs_deadman_checktime_ms, 0,
     "Period of checks for stalled ZFS I/O in milliseconds");
@@ -290,7 +317,6 @@ SYSCTL_UQUAD(_vfs_zfs, OID_AUTO, deadman_checktime_ms, CTLFLAG_RDTUN,
  * zfs_deadman_init()
  */
 int zfs_deadman_enabled = -1;
-TUNABLE_INT("vfs.zfs.deadman_enabled", &zfs_deadman_enabled);
 SYSCTL_INT(_vfs_zfs, OID_AUTO, deadman_enabled, CTLFLAG_RDTUN,
     &zfs_deadman_enabled, 0, "Kernel panic on stalled ZFS I/O");
 
@@ -304,7 +330,6 @@ SYSCTL_INT(_vfs_zfs, OID_AUTO, deadman_enabled, CTLFLAG_RDTUN,
  *     (VDEV_RAIDZ_MAXPARITY + 1) * SPA_DVAS_PER_BP * 2 == 24
  */
 int spa_asize_inflation = 24;
-TUNABLE_INT("vfs.zfs.spa_asize_inflation", &spa_asize_inflation);
 SYSCTL_INT(_vfs_zfs, OID_AUTO, spa_asize_inflation, CTLFLAG_RWTUN,
     &spa_asize_inflation, 0, "Worst case inflation factor for single sector writes");
 
@@ -327,6 +352,32 @@ zfs_deadman_init()
 }
 #endif	/* _KERNEL */
 #endif	/* !illumos */
+
+/*
+ * Normally, we don't allow the last 3.2% (1/(2^spa_slop_shift)) of space in
+ * the pool to be consumed.  This ensures that we don't run the pool
+ * completely out of space, due to unaccounted changes (e.g. to the MOS).
+ * It also limits the worst-case time to allocate space.  If we have
+ * less than this amount of free space, most ZPL operations (e.g. write,
+ * create) will return ENOSPC.
+ *
+ * Certain operations (e.g. file removal, most administrative actions) can
+ * use half the slop space.  They will only return ENOSPC if less than half
+ * the slop space is free.  Typically, once the pool has less than the slop
+ * space free, the user will use these operations to free up space in the pool.
+ * These are the operations that call dsl_pool_adjustedsize() with the netfree
+ * argument set to TRUE.
+ *
+ * A very restricted set of operations are always permitted, regardless of
+ * the amount of free space.  These are the operations that call
+ * dsl_sync_task(ZFS_SPACE_CHECK_NONE), e.g. "zfs destroy".  If these
+ * operations result in a net increase in the amount of space used,
+ * it is possible to run the pool completely out of space, causing it to
+ * be permanently read-only.
+ *
+ * See also the comments in zfs_space_check_t.
+ */
+int spa_slop_shift = 5;
 
 /*
  * ==========================================================================
@@ -519,6 +570,12 @@ spa_deadman(void *arg)
 	    ++spa->spa_deadman_calls);
 	if (zfs_deadman_enabled)
 		vdev_deadman(spa->spa_root_vdev);
+#ifdef __FreeBSD__
+#ifdef _KERNEL
+	callout_schedule(&spa->spa_deadman_cycid,
+	    hz * zfs_deadman_checktime_ms / MILLISEC);
+#endif
+#endif
 }
 
 /*
@@ -1391,7 +1448,10 @@ snprintf_blkptr(char *buf, size_t buflen, const blkptr_t *bp)
 			(void) strlcpy(type, dmu_ot[BP_GET_TYPE(bp)].ot_name,
 			    sizeof (type));
 		}
-		checksum = zio_checksum_table[BP_GET_CHECKSUM(bp)].ci_name;
+		if (!BP_IS_EMBEDDED(bp)) {
+			checksum =
+			    zio_checksum_table[BP_GET_CHECKSUM(bp)].ci_name;
+		}
 		compress = zio_compress_table[BP_GET_COMPRESS(bp)].ci_name;
 	}
 
@@ -1594,6 +1654,18 @@ spa_get_asize(spa_t *spa, uint64_t lsize)
 	return (lsize * spa_asize_inflation);
 }
 
+/*
+ * Return the amount of slop space in bytes.  It is 1/32 of the pool (3.2%),
+ * or at least 32MB.
+ *
+ * See the comment above spa_slop_shift for details.
+ */
+uint64_t
+spa_get_slop_space(spa_t *spa) {
+	uint64_t space = spa_get_dspace(spa);
+	return (MAX(space >> spa_slop_shift, SPA_MINDEVSIZE >> 1));
+}
+
 uint64_t
 spa_get_dspace(spa_t *spa)
 {
@@ -1693,7 +1765,7 @@ bp_get_dsize_sync(spa_t *spa, const blkptr_t *bp)
 {
 	uint64_t dsize = 0;
 
-	for (int d = 0; d < SPA_DVAS_PER_BP; d++)
+	for (int d = 0; d < BP_GET_NDVAS(bp); d++)
 		dsize += dva_get_dsize_sync(spa, &bp->blk_dva[d]);
 
 	return (dsize);
@@ -1706,7 +1778,7 @@ bp_get_dsize(spa_t *spa, const blkptr_t *bp)
 
 	spa_config_enter(spa, SCL_VDEV, FTAG, RW_READER);
 
-	for (int d = 0; d < SPA_DVAS_PER_BP; d++)
+	for (int d = 0; d < BP_GET_NDVAS(bp); d++)
 		dsize += dva_get_dsize_sync(spa, &bp->blk_dva[d]);
 
 	spa_config_exit(spa, SCL_VDEV, FTAG);
@@ -1864,6 +1936,16 @@ boolean_t
 spa_writeable(spa_t *spa)
 {
 	return (!!(spa->spa_mode & FWRITE));
+}
+
+/*
+ * Returns true if there is a pending sync task in any of the current
+ * syncing txg, the current quiescing txg, or the current open txg.
+ */
+boolean_t
+spa_has_pending_synctask(spa_t *spa)
+{
+	return (!txg_all_lists_empty(&spa->spa_dsl_pool->dp_sync_tasks));
 }
 
 int

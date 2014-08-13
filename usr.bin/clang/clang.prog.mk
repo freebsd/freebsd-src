@@ -11,8 +11,8 @@ DPADD+=	${.OBJDIR}/../../../lib/clang/lib${lib}/lib${lib}.a
 LDADD+=	${.OBJDIR}/../../../lib/clang/lib${lib}/lib${lib}.a
 .endfor
 
-DPADD+=	${LIBNCURSES}
-LDADD+=	-lncurses
+DPADD+=	${LIBNCURSESW}
+LDADD+=	-lncursesw
 
 BINDIR?= /usr/bin
 

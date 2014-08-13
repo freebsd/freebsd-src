@@ -51,7 +51,6 @@ __<bsd.opts.mk>__:
 __DEFAULT_YES_OPTIONS = \
     ASSERT_DEBUG \
     DOCCOMPRESS \
-    INFO \
     INSTALLLIB \
     KERBEROS \
     MAN \
@@ -69,6 +68,7 @@ __DEFAULT_NO_OPTIONS = \
     CTF \
     DEBUG_FILES \
     INSTALL_AS_USER \
+    INFO \
     PIE
 
 .include <bsd.mkopt.mk>

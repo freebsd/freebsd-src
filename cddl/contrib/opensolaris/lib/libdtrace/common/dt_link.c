@@ -230,9 +230,6 @@ prepare_elf32(dtrace_hdl_t *dtp, const dof_hdr_t *dof, dof_elf32_t *dep)
 #if defined(__arm__)
 /* XXX */
 printf("%s:%s(%d): DOODAD\n",__FUNCTION__,__FILE__,__LINE__);
-#elif defined(__ia64__)
-/* XXX */
-printf("%s:%s(%d): DOODAD\n",__FUNCTION__,__FILE__,__LINE__);
 #elif defined(__i386) || defined(__amd64)
 			rel->r_offset = s->dofs_offset +
 			    dofr[j].dofr_offset;
@@ -424,8 +421,6 @@ prepare_elf64(dtrace_hdl_t *dtp, const dof_hdr_t *dof, dof_elf64_t *dep)
 #ifdef DOODAD
 #if defined(__arm__)
 /* XXX */
-#elif defined(__ia64__)
-/* XXX */
 #elif defined(__mips__)
 /* XXX */
 #elif defined(__powerpc__)
@@ -535,8 +530,6 @@ dump_elf32(dtrace_hdl_t *dtp, const dof_hdr_t *dof, int fd)
 	elf_file.ehdr.e_type = ET_REL;
 #if defined(__arm__)
 	elf_file.ehdr.e_machine = EM_ARM;
-#elif defined(__ia64__)
-	elf_file.ehdr.e_machine = EM_IA_64;
 #elif defined(__mips__)
 	elf_file.ehdr.e_machine = EM_MIPS;
 #elif defined(__powerpc__)
@@ -683,8 +676,6 @@ dump_elf64(dtrace_hdl_t *dtp, const dof_hdr_t *dof, int fd)
 	elf_file.ehdr.e_type = ET_REL;
 #if defined(__arm__)
 	elf_file.ehdr.e_machine = EM_ARM;
-#elif defined(__ia64__)
-	elf_file.ehdr.e_machine = EM_IA_64;
 #elif defined(__mips__)
 	elf_file.ehdr.e_machine = EM_MIPS;
 #elif defined(__powerpc__)
@@ -806,15 +797,6 @@ dt_symtab_lookup(Elf_Data *data_sym, int nsym, uintptr_t addr, uint_t shn,
 }
 
 #if defined(__arm__)
-/* XXX */
-static int
-dt_modtext(dtrace_hdl_t *dtp, char *p, int isenabled, GElf_Rela *rela,
-    uint32_t *off)
-{
-printf("%s:%s(%d): DOODAD\n",__FUNCTION__,__FILE__,__LINE__);
-	return (0);
-}
-#elif defined(__ia64__)
 /* XXX */
 static int
 dt_modtext(dtrace_hdl_t *dtp, char *p, int isenabled, GElf_Rela *rela,
@@ -1235,9 +1217,7 @@ process_obj(dtrace_hdl_t *dtp, const char *obj, int *eprobesp)
 
 	if (dtp->dt_oflags & DTRACE_O_LP64) {
 		eclass = ELFCLASS64;
-#if defined(__ia64__)
-		emachine1 = emachine2 = EM_IA_64;
-#elif defined(__mips__)
+#if defined(__mips__)
 		emachine1 = emachine2 = EM_MIPS;
 #elif defined(__powerpc__)
 		emachine1 = emachine2 = EM_PPC64;
@@ -1258,7 +1238,7 @@ process_obj(dtrace_hdl_t *dtp, const char *obj, int *eprobesp)
 #elif defined(__sparc)
 		emachine1 = EM_SPARC;
 		emachine2 = EM_SPARC32PLUS;
-#elif defined(__i386) || defined(__amd64) || defined(__ia64__)
+#elif defined(__i386) || defined(__amd64)
 		emachine1 = emachine2 = EM_386;
 #endif
 		symsize = sizeof (Elf32_Sym);
@@ -1915,7 +1895,6 @@ dtrace_program_link(dtrace_hdl_t *dtp, dtrace_prog_t *pgp, uint_t dflags,
 			goto done;
 		}
 #if !defined(sun)
-#define BROKEN_LIBELF
 		/*
 		 * FreeBSD's ld(1) is not instructed to interpret and add
 		 * correctly the SUNW_dof section present in tfile.
@@ -1939,9 +1918,6 @@ dtrace_program_link(dtrace_hdl_t *dtp, dtrace_prog_t *pgp, uint_t dflags,
 		/*
 		 * Add the string '.SUWN_dof' to the shstrtab section.
 		 */
-#ifdef BROKEN_LIBELF
-		elf_flagelf(e, ELF_C_SET, ELF_F_LAYOUT);
-#endif
 		elf_getshdrstrndx(e, &stridx);
 		scn = elf_getscn(e, stridx);
 		gelf_getshdr(scn, &shdr);
@@ -1953,54 +1929,6 @@ dtrace_program_link(dtrace_hdl_t *dtp, dtrace_prog_t *pgp, uint_t dflags,
 		loc = shdr.sh_size;
 		shdr.sh_size += data->d_size;
 		gelf_update_shdr(scn, &shdr);
-#ifdef BROKEN_LIBELF
-		off = shdr.sh_offset;
-		rc = shdr.sh_offset + shdr.sh_size;
-		gelf_getehdr(e, &ehdr);
-		if (ehdr.e_shoff > off) {
-			off = ehdr.e_shoff + ehdr.e_shnum * ehdr.e_shentsize;
-			rc = roundup(rc, 8);
-			ehdr.e_shoff = rc;
-			gelf_update_ehdr(e, &ehdr);
-			rc += ehdr.e_shnum * ehdr.e_shentsize;
-		}
-		for (;;) {
-			scn0 = NULL;
-			scn = NULL;
-			while ((scn = elf_nextscn(e, scn)) != NULL) {
-				gelf_getshdr(scn, &shdr);
-				if (shdr.sh_type == SHT_NOBITS ||
-				    shdr.sh_offset < off)
-					continue;
-				/* Find the immediately adjcent section. */
-				if (scn0 == NULL ||
-				    shdr.sh_offset < shdr0.sh_offset) {
-					scn0 = scn;
-					gelf_getshdr(scn0, &shdr0);
-				}
-			}
-			if (scn0 == NULL)
-				break;
-			/* Load section data to work around another bug */
-			elf_getdata(scn0, NULL);
-			/* Update section header, assure section alignment */
-			off = shdr0.sh_offset + shdr0.sh_size;
-			rc = roundup(rc, shdr0.sh_addralign);
-			shdr0.sh_offset = rc;
-			gelf_update_shdr(scn0, &shdr0);
-			rc += shdr0.sh_size;
-		}
-		if (elf_update(e, ELF_C_WRITE) < 0) {
-			ret = dt_link_error(dtp, NULL, -1, NULL,
-			    "failed to add append the shstrtab section: %s",
-			    elf_errmsg(elf_errno()));
-			elf_end(e);
-			close(efd);
-			goto done;
-		}
-		elf_end(e);
-		e = elf_begin(efd, ELF_C_RDWR, NULL);
-#endif
 		/*
 		 * Construct the .SUNW_dof section.
 		 */

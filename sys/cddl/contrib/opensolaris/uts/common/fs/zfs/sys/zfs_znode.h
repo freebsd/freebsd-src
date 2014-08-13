@@ -256,7 +256,7 @@ VTOZ(vnode_t *vp)
 /* Called on entry to each ZFS vnode and vfs operation  */
 #define	ZFS_ENTER(zfsvfs) \
 	{ \
-		rrw_enter_read(&(zfsvfs)->z_teardown_lock, FTAG); \
+		rrm_enter_read(&(zfsvfs)->z_teardown_lock, FTAG); \
 		if ((zfsvfs)->z_unmounted) { \
 			ZFS_EXIT(zfsvfs); \
 			return (EIO); \
@@ -265,10 +265,10 @@ VTOZ(vnode_t *vp)
 
 /* Called on entry to each ZFS vnode and vfs operation that can not return EIO */
 #define	ZFS_ENTER_NOERROR(zfsvfs) \
-	rrw_enter(&(zfsvfs)->z_teardown_lock, RW_READER, FTAG)
+	rrm_enter(&(zfsvfs)->z_teardown_lock, RW_READER, FTAG)
 
 /* Must be called before exiting the vop */
-#define	ZFS_EXIT(zfsvfs) rrw_exit(&(zfsvfs)->z_teardown_lock, FTAG)
+#define	ZFS_EXIT(zfsvfs) rrm_exit(&(zfsvfs)->z_teardown_lock, FTAG)
 
 /* Verifies the znode is valid */
 #define	ZFS_VERIFY_ZP(zp) \

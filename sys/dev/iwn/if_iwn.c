@@ -1733,16 +1733,12 @@ fail:	iwn_dma_contig_free(dma);
 static void
 iwn_dma_contig_free(struct iwn_dma_info *dma)
 {
-	if (dma->map != NULL) {
-		if (dma->vaddr != NULL) {
-			bus_dmamap_sync(dma->tag, dma->map,
-			    BUS_DMASYNC_POSTREAD | BUS_DMASYNC_POSTWRITE);
-			bus_dmamap_unload(dma->tag, dma->map);
-			bus_dmamem_free(dma->tag, dma->vaddr, dma->map);
-			dma->vaddr = NULL;
-		}
-		bus_dmamap_destroy(dma->tag, dma->map);
-		dma->map = NULL;
+	if (dma->vaddr != NULL) {
+		bus_dmamap_sync(dma->tag, dma->map,
+		    BUS_DMASYNC_POSTREAD | BUS_DMASYNC_POSTWRITE);
+		bus_dmamap_unload(dma->tag, dma->map);
+		bus_dmamem_free(dma->tag, dma->vaddr, dma->map);
+		dma->vaddr = NULL;
 	}
 	if (dma->tag != NULL) {
 		bus_dma_tag_destroy(dma->tag);
@@ -8469,9 +8465,10 @@ iwn_panicked(void *arg0, int pending)
 	device_printf(sc->sc_dev, "%s: controller panicked, iv_state = %d; "
 	    "resetting...\n", __func__, vap->iv_state);
 
-	iwn_stop(sc);
-	iwn_init(sc);
-	iwn_start(sc->sc_ifp);
+	IWN_LOCK(sc);
+
+	iwn_stop_locked(sc);
+	iwn_init_locked(sc);
 	if (vap->iv_state >= IEEE80211_S_AUTH &&
 	    (error = iwn_auth(sc, vap)) != 0) {
 		device_printf(sc->sc_dev,
@@ -8482,6 +8479,11 @@ iwn_panicked(void *arg0, int pending)
 		device_printf(sc->sc_dev,
 		    "%s: could not move to run state\n", __func__);
 	}
+
+	/* Only run start once the NIC is in a useful state, like associated */
+	iwn_start_locked(sc->sc_ifp);
+
+	IWN_UNLOCK(sc);
 }
 
 static void
