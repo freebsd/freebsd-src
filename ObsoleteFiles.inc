@@ -51,7 +51,10 @@ OLD_FILES+=usr/share/examples/cvsup/stable-supfile
 OLD_FILES+=usr/share/examples/cvsup/standard-supfile
 OLD_DIRS+=usr/share/examples/cvsup
 # 20140614: send-pr removal
+OLD_FILES+=usr/bin/sendbug
+OLD_FILES+=usr/share/info/send-pr.info.gz
 OLD_FILES+=usr/share/man/man1/send-pr.1.gz
+OLD_FILES+=usr/share/man/man1/sendbug.1.gz
 OLD_FILES+=etc/gnats/freefall
 OLD_DIRS+=etc/gnats
 # 20140512: new clang import which bumps version from 3.4 to 3.4.1.
