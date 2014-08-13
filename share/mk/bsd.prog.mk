@@ -146,7 +146,8 @@ MAN1=	${MAN}
 .endif
 .endif # defined(PROG)
 
-all: objwarn ${PROG} ${SCRIPTS}
+all: beforebuild .WAIT ${PROG} ${SCRIPTS}
+beforebuild: objwarn
 .if ${MK_MAN} != "no"
 all: _manpages
 .endif
