@@ -377,6 +377,12 @@ sctp_opt_info(int sd, sctp_assoc_t id, int opt, void *arg, socklen_t * size)
 	case SCTP_ENABLE_STREAM_RESET:
 		((struct sctp_assoc_value *)arg)->assoc_id = id;
 		break;
+	case SCTP_PR_STREAM_STATUS:
+		((struct sctp_prstatus *)arg)->sprstat_assoc_id = id;
+		break;
+	case SCTP_PR_ASSOC_STATUS:
+		((struct sctp_prstatus *)arg)->sprstat_assoc_id = id;
+		break;
 	default:
 		break;
 	}
