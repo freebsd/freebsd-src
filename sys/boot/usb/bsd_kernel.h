@@ -37,6 +37,7 @@
 #define	isalpha(x) (((x) >= 'a' && (x) <= 'z') || ((x) >= 'A' && (x) <= 'Z'))
 #define	isdigit(x) ((x) >= '0' && (x) <= '9')
 #define	panic(...) do { printf("USB PANIC: " __VA_ARGS__); while (1) ; } while (0)
+#define	rebooting 0
 #define	M_USB 0
 #define	M_USBDEV 0
 #define	USB_PROC_MAX 3
@@ -96,6 +97,7 @@ SYSINIT_ENTRY(uniq##_entry, "sysuninit", (subs),	\
 #define	MIN(a,b) (((a) < (b)) ? (a) : (b))
 #define	MAX(a,b) (((a) > (b)) ? (a) : (b))
 #define	MTX_DEF 0
+#define	MTX_SPIN 0
 #define	MTX_RECURSE 0
 #define	SX_DUPOK 0
 #define	SX_NOWITNESS 0
@@ -201,6 +203,8 @@ struct mtx {
 void	mtx_init(struct mtx *, const char *, const char *, int);
 void	mtx_lock(struct mtx *);
 void	mtx_unlock(struct mtx *);
+#define	mtx_lock_spin(x) mtx_lock(x)
+#define	mtx_unlock_spin(x) mtx_unlock(x)
 int	mtx_owned(struct mtx *);
 void	mtx_destroy(struct mtx *);
 
@@ -266,7 +270,11 @@ struct module_data;
 typedef struct driver driver_t;
 typedef struct devclass *devclass_t;
 typedef struct device *device_t;
-typedef void (intr_fn_t)(void *arg);
+typedef void (driver_intr_t)(void *arg);
+typedef int (driver_filter_t)(void *arg);
+#define	FILTER_STRAY		0x01
+#define	FILTER_HANDLED		0x02
+#define	FILTER_SCHEDULE_THREAD	0x04
 
 typedef int device_attach_t (device_t dev);
 typedef int device_detach_t (device_t dev);
@@ -294,7 +302,8 @@ struct device {
 	const struct module_data *dev_module;
 	void   *dev_sc;
 	void   *dev_aux;
-	intr_fn_t *dev_irq_fn;
+	driver_filter_t *dev_irq_filter;
+	driver_intr_t *dev_irq_fn;
 	void   *dev_irq_arg;
 
 	uint16_t dev_unit;
@@ -341,7 +350,7 @@ const char *device_get_nameunit(device_t dev);
 	printf("%s: " fmt, device_get_nameunit(dev),## __VA_ARGS__)
 device_t device_add_child(device_t dev, const char *name, int unit);
 void	device_quiet(device_t dev);
-void	device_set_interrupt(device_t dev, intr_fn_t *fn, void *arg);
+void	device_set_interrupt(device_t dev, driver_filter_t *, driver_intr_t *, void *);
 void	device_run_interrupts(device_t parent);
 void	device_set_ivars(device_t dev, void *ivars);
 void   *device_get_ivars(device_t dev);
