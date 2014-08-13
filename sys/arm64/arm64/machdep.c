@@ -44,6 +44,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/ptrace.h>
 #include <sys/reboot.h>
 #include <sys/rwlock.h>
+#include <sys/sched.h>
 #include <sys/signalvar.h>
 #include <sys/sysproto.h>
 #include <sys/ucontext.h>
@@ -196,7 +197,16 @@ void
 cpu_idle(int busy)
 {
 
-	/* Insert code to halt (until next interrupt) for the idle loop. */
+	spinlock_enter();
+	if (!busy)
+		cpu_idleclock();
+	if (!sched_runnable())
+		__asm __volatile(
+		    "dsb sy \n"
+		    "wfi    \n");
+	if (!busy)
+		cpu_activeclock();
+	spinlock_exit();
 }
 
 void
