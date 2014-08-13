@@ -140,6 +140,8 @@ struct sctp_paramhdr {
 #define SCTP_GET_ASSOC_NUMBER           0x00000104	/* ro */
 #define SCTP_GET_ASSOC_ID_LIST          0x00000105	/* ro */
 #define SCTP_TIMEOUTS                   0x00000106
+#define SCTP_PR_STREAM_STATUS           0x00000107
+#define SCTP_PR_ASSOC_STATUS            0x00000108
 
 /*
  * user socket options: BSD implementation specific

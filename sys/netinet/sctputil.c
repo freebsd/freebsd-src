@@ -896,6 +896,11 @@ sctp_init_asoc(struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 	 */
 	int i;
 
+#if defined(SCTP_DETAILED_STR_STATS)
+	int j;
+
+#endif
+
 	asoc = &stcb->asoc;
 	/* init all variables to a known value. */
 	SCTP_SET_STATE(&stcb->asoc, SCTP_STATE_INUSE);
@@ -1056,6 +1061,15 @@ sctp_init_asoc(struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 		asoc->strmout[i].next_sequence_send = 0x0;
 		TAILQ_INIT(&asoc->strmout[i].outqueue);
 		asoc->strmout[i].chunks_on_queues = 0;
+#if defined(SCTP_DETAILED_STR_STATS)
+		for (j = 0; j < SCTP_PR_SCTP_MAX + 1; j++) {
+			asoc->strmout[i].abandoned_sent[j] = 0;
+			asoc->strmout[i].abandoned_unsent[j] = 0;
+		}
+#else
+		asoc->strmout[i].abandoned_sent[0] = 0;
+		asoc->strmout[i].abandoned_unsent[0] = 0;
+#endif
 		asoc->strmout[i].stream_no = i;
 		asoc->strmout[i].last_msg_incomplete = 0;
 		asoc->ss_functions.sctp_ss_init_stream(&asoc->strmout[i], NULL);
@@ -1111,6 +1125,10 @@ sctp_init_asoc(struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 	asoc->timoshutdownack = 0;
 	(void)SCTP_GETTIME_TIMEVAL(&asoc->start_time);
 	asoc->discontinuity_time = asoc->start_time;
+	for (i = 0; i < SCTP_PR_SCTP_MAX + 1; i++) {
+		asoc->abandoned_unsent[i] = 0;
+		asoc->abandoned_sent[i] = 0;
+	}
 	/*
 	 * sa_ignore MEMLEAK {memory is put in the assoc mapping array and
 	 * freed later when the association is freed.
@@ -4713,6 +4731,21 @@ sctp_release_pr_sctp_chunk(struct sctp_tcb *stcb, struct sctp_tmit_chunk *tp1,
 
 	stream = tp1->rec.data.stream_number;
 	seq = tp1->rec.data.stream_seq;
+	if (sent || !(tp1->rec.data.rcv_flags & SCTP_DATA_FIRST_FRAG)) {
+		stcb->asoc.abandoned_sent[0]++;
+		stcb->asoc.abandoned_sent[PR_SCTP_POLICY(tp1->flags)]++;
+		stcb->asoc.strmout[stream].abandoned_sent[0]++;
+#if defined(SCTP_DETAILED_STR_STATS)
+		stcb->asoc.strmout[stream].abandoned_sent[PR_SCTP_POLICY(tp1->flags)]++;
+#endif
+	} else {
+		stcb->asoc.abandoned_unsent[0]++;
+		stcb->asoc.abandoned_unsent[PR_SCTP_POLICY(tp1->flags)]++;
+		stcb->asoc.strmout[stream].abandoned_unsent[0]++;
+#if defined(SCTP_DETAILED_STR_STATS)
+		stcb->asoc.strmout[stream].abandoned_unsent[PR_SCTP_POLICY(tp1->flags)]++;
+#endif
+	}
 	do {
 		ret_sz += tp1->book_size;
 		if (tp1->data != NULL) {
