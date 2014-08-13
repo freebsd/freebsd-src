@@ -117,7 +117,8 @@ PO_FLAG=-pg
 	${CC} ${PICFLAG} -DPIC ${CFLAGS} ${ACFLAGS} -c ${.IMPSRC} -o ${.TARGET}
 	${CTFCONVERT_CMD}
 
-all: objwarn
+all: beforebuild .WAIT
+beforebuild: objwarn
 
 .if defined(PRIVATELIB)
 _LIBDIR:=${LIBPRIVATEDIR}
