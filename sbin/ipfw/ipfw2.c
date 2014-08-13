@@ -593,6 +593,16 @@ do_set3(int optname, ip_fw3_opheader *op3, uintptr_t optlen)
 	return (0);
 }
 
+/*
+ * do_get3 - pass ipfw control cmd to kernel
+ * @optname: option name
+ * @optval: pointer to option data
+ * @optlen: pointer to option length
+ *
+ * Assumes op3 header is already embedded.
+ * Calls getsockopt() with IP_FW3 as kernel-visible opcode.
+ * Returns 0 on success or errno otherwise.
+ */
 int
 do_get3(int optname, ip_fw3_opheader *op3, size_t *optlen)
 {
@@ -617,40 +627,6 @@ do_get3(int optname, ip_fw3_opheader *op3, size_t *optlen)
 	}
 
 	return (error);
-}
-
-/*
- * do_setcmd3 - pass ipfw control cmd to kernel
- * @optname: option name
- * @optval: pointer to option data
- * @optlen: option length
- *
- * Function encapsulates option value in IP_FW3 socket option
- * and calls setsockopt().
- * Function returns 0 on success or -1 otherwise.
- */
-static int
-do_setcmd3(int optname, void *optval, socklen_t optlen)
-{
-	socklen_t len;
-	ip_fw3_opheader *op3;
-
-	if (co.test_only)
-		return (0);
-
-	if (ipfw_socket == -1)
-		ipfw_socket = socket(AF_INET, SOCK_RAW, IPPROTO_RAW);
-	if (ipfw_socket < 0)
-		err(EX_UNAVAILABLE, "socket");
-
-	len = sizeof(ip_fw3_opheader) + optlen;
-	op3 = alloca(len);
-	/* Zero reserved fields */
-	memset(op3, 0, sizeof(ip_fw3_opheader));
-	memcpy(op3 + 1, optval, optlen);
-	op3->opcode = optname;
-
-	return setsockopt(ipfw_socket, IPPROTO_IP, IP_FW3, op3, len);
 }
 
 /**
