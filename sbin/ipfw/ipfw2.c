@@ -2711,10 +2711,11 @@ struct tidx {
 	uint32_t count;
 	uint32_t size;
 	uint16_t counter;
+	uint8_t set;
 };
 
 static uint16_t
-pack_table(struct tidx *tstate, char *name, uint32_t set)
+pack_table(struct tidx *tstate, char *name)
 {
 	int i;
 	ipfw_obj_ntlv *ntlv;
@@ -2725,7 +2726,7 @@ pack_table(struct tidx *tstate, char *name, uint32_t set)
 	for (i = 0; i < tstate->count; i++) {
 		if (strcmp(tstate->idx[i].name, name) != 0)
 			continue;
-		if (tstate->idx[i].set != set)
+		if (tstate->idx[i].set != tstate->set)
 			continue;
 
 		return (tstate->idx[i].idx);
@@ -2744,7 +2745,7 @@ pack_table(struct tidx *tstate, char *name, uint32_t set)
 	strlcpy(ntlv->name, name, sizeof(ntlv->name));
 	ntlv->head.type = IPFW_TLV_TBL_NAME;
 	ntlv->head.length = sizeof(ipfw_obj_ntlv);
-	ntlv->set = set;
+	ntlv->set = tstate->set;
 	ntlv->idx = ++tstate->counter;
 	tstate->count++;
 
@@ -2765,7 +2766,7 @@ fill_table(ipfw_insn *cmd, char *av, uint8_t opcode, struct tidx *tstate)
 	if (p)
 		*p++ = '\0';
 
-	if ((uidx = pack_table(tstate, av + 6, 0)) == 0)
+	if ((uidx = pack_table(tstate, av + 6)) == 0)
 		errx(EX_DATAERR, "Invalid table name: %s", av + 6);
 
 	cmd->opcode = opcode;
@@ -3091,7 +3092,7 @@ fill_iface(ipfw_insn_if *cmd, char *arg, int cblen, struct tidx *tstate)
 		p = strchr(arg + 6, ',');
 		if (p)
 			*p++ = '\0';
-		if ((uidx = pack_table(tstate, arg + 6, 0)) == 0)
+		if ((uidx = pack_table(tstate, arg + 6)) == 0)
 			errx(EX_DATAERR, "Invalid table name: %s", arg + 6);
 
 		cmd->name[0] = '\1'; /* Special value indicating table */
@@ -3494,6 +3495,7 @@ compile_rule(char *av[], uint32_t *rbuf, int *rbufsize, struct tidx *tstate)
 		if (set < 0 || set > RESVD_SET)
 			errx(EX_DATAERR, "illegal set %s", av[1]);
 		rule->set = set;
+		tstate->set = set;
 		av += 2;
 	}
 
@@ -4496,7 +4498,7 @@ read_options:
 			__PAST_END(c->d, 1) = j; // i converted to option
 			av++;
 
-			if ((j = pack_table(tstate, *av, 0)) == 0)
+			if ((j = pack_table(tstate, *av)) == 0)
 				errx(EX_DATAERR, "Invalid table name: %s", *av);
 
 			cmd->arg1 = j;

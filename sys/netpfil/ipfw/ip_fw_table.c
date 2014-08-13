@@ -2657,7 +2657,13 @@ find_table(struct namedobj_instance *ni, struct tid_info *ti)
 		if (ntlv == NULL)
 			return (NULL);
 		name = ntlv->name;
-		set = ntlv->set;
+
+		/*
+		 * Use set provided by @ti instead of @ntlv one.
+		 * This is needed due to different sets behavior
+		 * controlled by V_fw_tables_sets.
+		 */
+		set = ti->set;
 	} else {
 		snprintf(bname, sizeof(bname), "%d", ti->uidx);
 		name = bname;
