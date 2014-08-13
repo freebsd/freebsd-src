@@ -28,17 +28,15 @@
  *
  */
 
-#include <sys/types.h>
-#include <stdlib.h>
-#include <libutil.h>
-#include <stdio.h>
-#include <string.h>
+#include <sys/param.h>
 #include <inttypes.h>
-#include <math.h>
-#include <unistd.h>
+#include <libutil.h>
 #include <limits.h>
-
-extern char * optarg;
+#include <math.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
 
 #define	MAX_STR_FLAGS_RESULT	80
 #define MAX_INT_STR_DIGITS	12
@@ -490,7 +488,7 @@ static void
 testskipped(size_t i)
 {
 
-	printf("ok %lu # skip - not turned on\n", i);
+	printf("ok %zu # skip - not turned on\n", i);
 }
 
 int
@@ -498,10 +496,8 @@ main(int argc, char * const argv[])
 {
 	char *buf;
 	char *flag_str, *scale_str;
-	size_t i;
-	size_t errcnt, tested, skipped;
+	size_t buflen, errcnt, i, skipped, tested;
 	int r;
-	size_t buflen;
 	int includeNegScale;
 	int includeExabyteTests;
 	int verbose;
@@ -522,8 +518,8 @@ main(int argc, char * const argv[])
 	if (buflen != 4)
 		printf("Warning: buffer size %zu != 4, expect some results to differ.\n", buflen);
 
-	printf("1..%lu\n", sizeof test_args / sizeof *test_args);
-	for (i = 0; i < sizeof test_args / sizeof *test_args; i++) {
+	printf("1..%zu\n", nitems(test_args));
+	for (i = 0; i < nitems(test_args); i++) {
 		/* KLUDGE */
 		if (test_args[i].num == INT64_MAX && buflen == 4) {
 		        /* Start final tests which require buffer of 6 */
@@ -537,12 +533,12 @@ main(int argc, char * const argv[])
 
 		if (test_args[i].scale < 0 && ! includeNegScale) {
 			skipped++;
-			testskipped(i);
+			testskipped(i + 1);
 			continue;
 		}
 		if (test_args[i].num >= halfExabyte && ! includeExabyteTests) {
 			skipped++;
-			testskipped(i);
+			testskipped(i + 1);
 			continue;
 		}
 
@@ -553,36 +549,46 @@ main(int argc, char * const argv[])
 
 		if (r != test_args[i].retval) {
 			if (verbose)
-				printf("wrong return value on index %lu, buflen: %zu, got: %d + \"%s\", expected %d + \"%s\"; num = %" PRId64 ", scale = %s, flags= %s.\n",
+				printf("wrong return value on index %zu, "
+				    "buflen: %zu, got: %d + \"%s\", "
+				    "expected %d + \"%s\"; num = %jd, "
+				    "scale = %s, flags= %s.\n",
 				    i, buflen, r, buf, test_args[i].retval,
-				    test_args[i].res, test_args[i].num,
+				    test_args[i].res,
+				    (intmax_t)test_args[i].num,
 				    scale_str, flag_str);
 			else
-				printf("not ok %lu # return %d != %d\n", i, r,
-				    test_args[i].retval);
+				printf("not ok %zu # return %d != %d\n",
+				    i + 1, r, test_args[i].retval);
 			errcnt++;
 		} else if (strcmp(buf, test_args[i].res) != 0) {
 			if (verbose)
-				printf("result mismatch on index %lu, got: \"%s\", expected \"%s\"; num = %" PRId64 ", scale = %s, flags= %s.\n",
-				    i, buf, test_args[i].res, test_args[i].num,
+				printf("result mismatch on index %zu, got: "
+				    "\"%s\", expected \"%s\"; num = %jd, "
+				    "scale = %s, flags= %s.\n",
+				    i, buf, test_args[i].res,
+				    (intmax_t)test_args[i].num,
 				    scale_str, flag_str);
 			else
-				printf("not ok %lu # buf \"%s\" != \"%s\"\n", i,
-				    buf, test_args[i].res);
+				printf("not ok %zu # buf \"%s\" != \"%s\"\n",
+				    i + 1, buf, test_args[i].res);
 			errcnt++;
 		} else {
 			if (verbose)
-				printf("successful result on index %lu, returned %d, got: \"%s\"; num = %" PRId64 ", scale = %s, flags= %s.\n",
-				    i, r, buf, test_args[i].num, scale_str,
-				    flag_str);
+				printf("successful result on index %zu, "
+				    "returned %d, got: \"%s\"; num = %jd, "
+				    "scale = %s, flags= %s.\n",
+				    i, r, buf,
+				    (intmax_t)test_args[i].num,
+				    scale_str, flag_str);
 			else
-				printf("ok %lu\n", i);
+				printf("ok %zu\n", i + 1);
 		}
 		tested++;
 	}
 
 	if (verbose)
-		printf("total errors: %lu/%lu tests, %lu skipped\n", errcnt,
+		printf("total errors: %zu/%zu tests, %zu skipped\n", errcnt,
 		    tested, skipped);
 
 	if (errcnt)
