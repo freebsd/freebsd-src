@@ -391,10 +391,6 @@ table_create(ipfw_obj_header *oh, int ac, char *av[])
 	sz = sizeof(tbuf);
 	memset(&xi, 0, sizeof(xi));
 
-	/* Set some defaults to preserve compability */
-	xi.type = IPFW_TABLE_CIDR;
-	xi.vtype = IPFW_VTYPE_U32;
-
 	while (ac > 0) {
 		tcmd = get_token(tablenewcmds, *av, "option");
 		ac--; av++;
@@ -463,6 +459,12 @@ table_create(ipfw_obj_header *oh, int ac, char *av[])
 			break;
 		}
 	}
+
+	/* Set some defaults to preserve compability */
+	if (xi.algoname[0] == '\0' && xi.type == 0)
+		xi.type = IPFW_TABLE_CIDR;
+	if (xi.vtype == 0)
+		xi.vtype = IPFW_VTYPE_U32;
 
 	if ((error = table_do_create(oh, &xi)) != 0)
 		err(EX_OSERR, "Table creation failed");
