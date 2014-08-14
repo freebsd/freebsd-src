@@ -489,6 +489,7 @@ export_iface_internal(struct namedobj_instance *ii, struct named_object *no,
 int
 ipfw_list_ifaces(struct ip_fw_chain *ch, struct sockopt_data *sd)
 {
+	struct namedobj_instance *ii;
 	struct _ipfw_obj_lheader *olh;
 	struct dump_iface_args da;
 	uint32_t count, size;
@@ -500,7 +501,11 @@ ipfw_list_ifaces(struct ip_fw_chain *ch, struct sockopt_data *sd)
 		return (EINVAL);
 
 	IPFW_UH_RLOCK(ch);
-	count = ipfw_objhash_count(CHAIN_TO_II(ch));
+	ii = CHAIN_TO_II(ch);
+	if (ii != NULL)
+		count = ipfw_objhash_count(ii);
+	else
+		count = 0;
 	size = count * sizeof(ipfw_iface_info) + sizeof(ipfw_obj_lheader);
 
 	/* Fill in header regadless of buffer size */
@@ -517,10 +522,10 @@ ipfw_list_ifaces(struct ip_fw_chain *ch, struct sockopt_data *sd)
 	da.ch = ch;
 	da.sd = sd;
 
-	ipfw_objhash_foreach(CHAIN_TO_II(ch), export_iface_internal, &da);
+	if (ii != NULL)
+		ipfw_objhash_foreach(ii, export_iface_internal, &da);
 	IPFW_UH_RUNLOCK(ch);
 
 	return (0);
 }
-
 
