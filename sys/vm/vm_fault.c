@@ -851,8 +851,9 @@ vnode_locked:
 	if (hardfault)
 		fs.entry->next_read = fs.pindex + faultcount - reqpage;
 
-	if ((prot & VM_PROT_WRITE) != 0 ||
-	    (fault_flags & VM_FAULT_DIRTY) != 0) {
+	if (((prot & VM_PROT_WRITE) != 0 ||
+	    (fault_flags & VM_FAULT_DIRTY) != 0) &&
+	    (fs.m->oflags & VPO_UNMANAGED) == 0) {
 		vm_object_set_writeable_dirty(fs.object);
 
 		/*
