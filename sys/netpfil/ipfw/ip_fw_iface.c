@@ -76,7 +76,7 @@ static void iface_khandler_deregister(void);
 
 static eventhandler_tag ipfw_ifdetach_event, ipfw_ifattach_event;
 static int num_vnets = 0;
-struct mtx vnet_mtx;
+static struct mtx vnet_mtx;
 
 /*
  * Checks if kernel interface is contained in our tracked
@@ -90,11 +90,11 @@ ipfw_kifhandler(void *arg, struct ifnet *ifp)
 	struct namedobj_instance *ii;
 	uintptr_t htype;
 
+	if (V_ipfw_vnet_ready == 0)
+		return;
+
 	ch = &V_layer3_chain;
 	htype = (uintptr_t)arg;
-
-	if (ch == NULL)
-		return;
 
 	IPFW_UH_WLOCK(ch);
 	ii = CHAIN_TO_II(ch);
@@ -102,7 +102,8 @@ ipfw_kifhandler(void *arg, struct ifnet *ifp)
 		IPFW_UH_WUNLOCK(ch);
 		return;
 	}
-	iif = (struct ipfw_iface*)ipfw_objhash_lookup_name(ii, 0,ifp->if_xname);
+	iif = (struct ipfw_iface*)ipfw_objhash_lookup_name(ii, 0,
+	    if_name(ifp));
 	if (iif != NULL) {
 		if (htype == 1)
 			handle_ifattach(ch, iif, ifp->if_index);
@@ -154,8 +155,9 @@ iface_khandler_deregister()
 
 	destroy = 0;
 	mtx_lock(&vnet_mtx);
-	if (--num_vnets == 0)
+	if (num_vnets == 1)
 		destroy = 1;
+	num_vnets--;
 	mtx_unlock(&vnet_mtx);
 
 	if (destroy == 0)
@@ -242,14 +244,9 @@ static void
 destroy_iface(struct namedobj_instance *ii, struct named_object *no,
     void *arg)
 {
-	struct ipfw_iface *iif;
-	struct ip_fw_chain *ch;
-
-	ch = (struct ip_fw_chain *)arg;
-	iif = (struct ipfw_iface *)no;
 
 	/* Assume all consumers have been already detached */
-	free(iif, M_IPFW);
+	free(no, M_IPFW);
 }
 
 /*
@@ -376,7 +373,7 @@ ipfw_iface_add_notify(struct ip_fw_chain *ch, struct ipfw_ifc *ic)
 
 /*
  * Unlinks interface tracker object @ic from interface.
- * Must be called whi holding UH lock.
+ * Must be called while holding UH lock.
  */
 void
 ipfw_iface_del_notify(struct ip_fw_chain *ch, struct ipfw_ifc *ic)

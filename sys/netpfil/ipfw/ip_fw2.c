@@ -102,10 +102,6 @@ __FBSDID("$FreeBSD$");
  * All ipfw global variables are here.
  */
 
-/* ipfw_vnet_ready controls when we are open for business */
-static VNET_DEFINE(int, ipfw_vnet_ready) = 0;
-#define	V_ipfw_vnet_ready	VNET(ipfw_vnet_ready)
-
 static VNET_DEFINE(int, fw_deny_unknown_exthdrs);
 #define	V_fw_deny_unknown_exthdrs	VNET(fw_deny_unknown_exthdrs)
 
@@ -151,6 +147,9 @@ VNET_DEFINE(int, verbose_limit);
 
 /* layer3_chain contains the list of rules for layer 3 */
 VNET_DEFINE(struct ip_fw_chain, layer3_chain);
+
+/* ipfw_vnet_ready controls when we are open for business */
+VNET_DEFINE(int, ipfw_vnet_ready) = 0;
 
 VNET_DEFINE(int, ipfw_nat_ready) = 0;
 
