@@ -48,7 +48,7 @@
   040   230    198    nop    nop    223    223    nop    nop     C
   041   184    168    nop    nop    184    168    nop    nop     O
   042   lshift lshift lshift lshift lshift lshift lshift lshift  O
-  043   190    174    fs     fs     164    164    fs     fs      C
+  043   190    174    fs     fs     8364   8364   fs     fs      C
   044   'y'    'Y'    em     em     'y'    'Y'    em     em      C
   045   'x'    'X'    can    can    'x'    'X'    can    can     C
   046   'c'    'C'    etx    etx    'c'    'C'    etx    etx     C

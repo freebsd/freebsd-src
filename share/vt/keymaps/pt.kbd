@@ -23,7 +23,7 @@
   015   ht     btab   nop    nop    ht     btab   nop    nop     O
   016   'q'    'Q'    dc1    dc1    'q'    'Q'    dc1    dc1     C
   017   'w'    'W'    etb    etb    'w'    'W'    etb    etb     C
-  018   'e'    'E'    enq    enq    164    'E'    enq    enq     C
+  018   'e'    'E'    enq    enq    8364   'E'    enq    enq     C
   019   'r'    'R'    dc2    dc2    'r'    'R'    dc2    dc2     C
   020   't'    'T'    dc4    dc4    't'    'T'    dc4    dc4     C
   021   'y'    'Y'    em     em     'y'    'Y'    em     em      C
