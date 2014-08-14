@@ -578,7 +578,8 @@ hint.mse.0.irq="5"
 # ipw:	Intel PRO/Wireless 2100 IEEE 802.11 adapter
 # iwi:	Intel PRO/Wireless 2200BG/2225BG/2915ABG IEEE 802.11 adapters
 #	Requires the iwi firmware module
-# iwn:	Intel Wireless WiFi Link 4965AGN 802.11 network adapters
+# iwn:	Intel Wireless WiFi Link 1000/105/135/2000/4965/5000/6000/6050 abgn
+#	802.11 network adapters
 #	Requires the iwn firmware module
 # mlx4ib: Mellanox ConnectX HCA InfiniBand
 # mlxen: Mellanox ConnectX HCA Ethernet
@@ -656,12 +657,18 @@ device		wpi		# Intel 3945ABG wireless NICs.
 #   iwiibssfw:		IBSS mode firmware
 #   iwimonitorfw:	Monitor mode firmware
 # Intel Wireless WiFi Link 4965/1000/5000/6000 series firmware:
-#   iwnfw:		Single module to support the 4965/1000/5000/5150/6000
-#   iwn4965fw:		Specific module for the 4965 only
+#   iwnfw:		Single module to support all devices
 #   iwn1000fw:		Specific module for the 1000 only
+#   iwn105fw:		Specific module for the 105 only
+#   iwn135fw:		Specific module for the 135 only
+#   iwn2000fw:		Specific module for the 2000 only
+#   iwn2030fw:		Specific module for the 2030 only
+#   iwn4965fw:		Specific module for the 4965 only
 #   iwn5000fw:		Specific module for the 5000 only
 #   iwn5150fw:		Specific module for the 5150 only
 #   iwn6000fw:		Specific module for the 6000 only
+#   iwn6000g2afw:	Specific module for the 6000g2a only
+#   iwn6000g2bfw:	Specific module for the 6000g2b only
 #   iwn6050fw:		Specific module for the 6050 only
 # wpifw:	Intel 3945ABG Wireless LAN Controller firmware
 
@@ -674,11 +681,17 @@ device		ipwbssfw
 device		ipwibssfw
 device		ipwmonitorfw
 device		iwnfw
-device		iwn4965fw
 device		iwn1000fw
+device		iwn105fw
+device		iwn135fw
+device		iwn2000fw
+device		iwn2030fw
+device		iwn4965fw
 device		iwn5000fw
 device		iwn5150fw
 device		iwn6000fw
+device		iwn6000g2afw
+device		iwn6000g2bfw
 device		iwn6050fw
 device		wpifw
 
