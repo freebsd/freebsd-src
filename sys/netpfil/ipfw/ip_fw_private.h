@@ -207,6 +207,9 @@ VNET_DECLARE(int, fw_verbose);
 VNET_DECLARE(struct ip_fw_chain, layer3_chain);
 #define	V_layer3_chain		VNET(layer3_chain)
 
+VNET_DECLARE(int, ipfw_vnet_ready);
+#define	V_ipfw_vnet_ready	VNET(ipfw_vnet_ready)
+
 VNET_DECLARE(u_int32_t, set_disable);
 #define	V_set_disable		VNET(set_disable)
 
