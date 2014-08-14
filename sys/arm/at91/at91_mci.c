@@ -1210,8 +1210,8 @@ at91_mci_intr(void *arg)
 		 */
 		if (cmd->opcode != 8) {
 			device_printf(sc->dev,
-			    "IO error; status MCI_SR = 0x%x cmd opcode = %d%s\n",
-			    sr, cmd->opcode,
+			    "IO error; status MCI_SR = 0x%b cmd opcode = %d%s\n",
+			    sr, MCI_SR_BITSTRING, cmd->opcode,
 			    (cmd->opcode != 12) ? "" :
 			    (sc->flags & CMD_MULTIREAD) ? " after read" : " after write");
 			at91_mci_reset(sc);
