@@ -132,7 +132,8 @@ struct table_algo {
 	ta_print_config	*print_config;
 	ta_dump_tinfo	*dump_tinfo;
 };
-#define	TA_FLAG_DEFAULT	0x01	/* Algorithm is default for given type */
+#define	TA_FLAG_DEFAULT		0x01	/* Algo is default for given type */
+#define	TA_FLAG_READONLY	0x02	/* Algo does not support modifications*/
 
 int ipfw_add_table_algo(struct ip_fw_chain *ch, struct table_algo *ta,
     size_t size, int *idx);

@@ -179,7 +179,7 @@ __FBSDID("$FreeBSD: projects/ipfw/sys/netpfil/ipfw/ip_fw_table.c 267384 2014-06-
  * -need_modify: checks if @ti has enough space to hold another @count items.
  *  typedef int (ta_need_modify)(void *ta_state, struct table_info *ti,
  *      uint32_t count, uint64_t *pflags);
- *  MANDATORY, locked (UH). (M_NOWAIT). Returns 0 if has.
+ *  OPTIONAL, locked (UH). (M_NOWAIT). Returns 0 if has.
  *
  *  Checks if given table has enough space to add @count items without
  *  resize. Caller may use @pflags to store desired modification data.
@@ -188,7 +188,7 @@ __FBSDID("$FreeBSD: projects/ipfw/sys/netpfil/ipfw/ip_fw_table.c 267384 2014-06-
  *
  * -prepare_mod: allocate structures for table modification.
  *  typedef int (ta_prepare_mod)(void *ta_buf, uint64_t *pflags);
- * MANDATORY, unlocked. (M_WAITOK). Returns 0 on success.
+ * OPTIONAL(need_modify), unlocked. (M_WAITOK). Returns 0 on success.
  *
  * Allocate all needed state for table modification. Caller
  * should use `struct mod_item` to store new state in @ta_buf.
@@ -199,7 +199,7 @@ __FBSDID("$FreeBSD: projects/ipfw/sys/netpfil/ipfw/ip_fw_table.c 267384 2014-06-
  * -fill_mod: copy some data to new state/
  *  typedef int (ta_fill_mod)(void *ta_state, struct table_info *ti,
  *      void *ta_buf, uint64_t *pflags);
- * MANDATORY, locked (UH). (M_NOWAIT). Returns 0 on success.
+ * OPTIONAL(need_modify), locked (UH). (M_NOWAIT). Returns 0 on success.
  *
  * Copy as much data as we can to minimize changes under WLOCK.
  * For example, array can be merged inside this callback.
@@ -209,7 +209,7 @@ __FBSDID("$FreeBSD: projects/ipfw/sys/netpfil/ipfw/ip_fw_table.c 267384 2014-06-
  * -modify: perform final modification.
  *  typedef void (ta_modify)(void *ta_state, struct table_info *ti,
  *      void *ta_buf, uint64_t pflags);
- * MANDATORY, locked (UH+WLOCK). (M_NOWAIT). 
+ * OPTIONAL(need_modify), locked (UH+WLOCK). (M_NOWAIT). 
  *
  * Performs all changes necessary to switch to new structures.
  * * Caller should save old pointers to @ta_buf storage.
@@ -218,7 +218,7 @@ __FBSDID("$FreeBSD: projects/ipfw/sys/netpfil/ipfw/ip_fw_table.c 267384 2014-06-
  *
  * -flush_mod: flush table modification state.
  *  typedef void (ta_flush_mod)(void *ta_buf);
- * MANDATORY, unlocked. (M_WAITOK).
+ * OPTIONAL(need_modify), unlocked. (M_WAITOK).
  *
  * Performs flush for the following:
  *   - prepare_mod (modification was not necessary)

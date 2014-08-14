@@ -667,6 +667,9 @@ check_table_space(struct ip_fw_chain *ch, struct table_config *tc,
 
 	error = 0;
 	ta = tc->ta;
+	if (ta->need_modify == NULL)
+		return (0);
+
 	/* Acquire reference not to loose @tc between locks/unlocks */
 	tc->no.refcnt++;
 
@@ -1051,6 +1054,11 @@ flush_table(struct ip_fw_chain *ch, struct tid_info *ti)
 		return (ESRCH);
 	}
 	ta = tc->ta;
+	/* Do not flush readonly tables */
+	if ((ta->flags & TA_FLAG_READONLY) != 0) {
+		IPFW_UH_WUNLOCK(ch);
+		return (EACCES);
+	}
 	tc->no.refcnt++;
 	/* Save startup algo parameters */
 	if (ta->print_config != NULL) {
@@ -1204,6 +1212,12 @@ swap_tables(struct ip_fw_chain *ch, struct tid_info *a,
 	    (tc_b->limit != 0 && tc_a->count > tc_b->limit)) {
 		IPFW_UH_WUNLOCK(ch);
 		return (EFBIG);
+	}
+
+	/* Check if one of the tables is readonly */
+	if (((tc_a->ta->flags | tc_b->ta->flags) & TA_FLAG_READONLY) != 0) {
+		IPFW_UH_WUNLOCK(ch);
+		return (EACCES);
 	}
 
 	/* Everything is fine, prepare to swap */
@@ -1622,6 +1636,13 @@ ipfw_modify_table(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
 		IPFW_UH_WUNLOCK(ch);
 		return (ESRCH);
 	}
+
+	/* Do not support any modifications for readonly tables */
+	if ((tc->ta->flags & TA_FLAG_READONLY) != 0) {
+		IPFW_UH_WUNLOCK(ch);
+		return (EACCES);
+	}
+
 	if ((i->mflags & IPFW_TMFLAGS_FTYPE) != 0)
 		tc->vftype = i->vftype;
 	if ((i->mflags & IPFW_TMFLAGS_LIMIT) != 0)
@@ -1720,7 +1741,10 @@ create_table_internal(struct ip_fw_chain *ch, struct tid_info *ti,
 
 	tc->vftype = i->vftype;
 	tc->limit = i->limit;
-	tc->locked = (i->flags & IPFW_TGFLAGS_LOCKED) != 0;
+	if (ta->flags & TA_FLAG_READONLY)
+		tc->locked = 1;
+	else
+		tc->locked = (i->flags & IPFW_TGFLAGS_LOCKED) != 0;
 
 	IPFW_UH_WLOCK(ch);
 
@@ -2311,32 +2335,36 @@ find_table_algo(struct tables_config *tcfg, struct tid_info *ti, char *name)
 		return (tcfg->algo[ti->atype]);
 	}
 
-	/* Search by name if supplied */
-	if (name != NULL) {
-		/* TODO: better search */
-		for (i = 1; i <= tcfg->algo_count; i++) {
-			ta = tcfg->algo[i];
-
-			/*
-			 * One can supply additional algorithm
-			 * parameters so we compare only the first word
-			 * of supplied name:
-			 * 'hash_cidr hsize=32'
-			 * '^^^^^^^^^'
-			 *
-			 */
-			l = strlen(ta->name);
-			if (strncmp(name, ta->name, l) == 0) {
-				if (name[l] == '\0' || name[l] == ' ')
-					return (ta);
-			}
-		}
-
-		return (NULL);
+	if (name == NULL) {
+		/* Return default algorithm for given type if set */
+		return (tcfg->def_algo[ti->type]);
 	}
 
-	/* Return default algorithm for given type if set */
-	return (tcfg->def_algo[ti->type]);
+	/* Search by name */
+	/* TODO: better search */
+	for (i = 1; i <= tcfg->algo_count; i++) {
+		ta = tcfg->algo[i];
+
+		/*
+		 * One can supply additional algorithm
+		 * parameters so we compare only the first word
+		 * of supplied name:
+		 * 'hash_cidr hsize=32'
+		 * '^^^^^^^^^'
+		 *
+		 */
+		l = strlen(ta->name);
+		if (strncmp(name, ta->name, l) != 0)
+			continue;
+		if (name[l] != '\0' && name[l] != ' ')
+			continue;
+		/* Check if we're requesting proper table type */
+		if (ti->type != 0 && ti->type != ta->type)
+			return (NULL);
+		return (ta);
+	}
+
+	return (NULL);
 }
 
 /*
@@ -2704,7 +2732,7 @@ alloc_table_config(struct ip_fw_chain *ch, struct tid_info *ti,
 
 	tc = malloc(sizeof(struct table_config), M_IPFW, M_WAITOK | M_ZERO);
 	tc->no.name = tc->tablename;
-	tc->no.type = ti->type;
+	tc->no.type = ta->type;
 	tc->no.set = set;
 	tc->tflags = tflags;
 	tc->ta = ta;

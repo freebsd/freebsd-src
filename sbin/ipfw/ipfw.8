@@ -113,6 +113,11 @@ in-kernel NAT.
 .Oc
 .Oc
 .Ar pathname
+.Ss INTERNAL DIAGNOSTICS
+.Nm
+.Cm internal iflist
+.Nm
+.Cm internal talist
 .Sh DESCRIPTION
 The
 .Nm
@@ -3180,6 +3185,22 @@ Default is no.
 Controls whether bridged packets are passed to
 .Nm .
 Default is no.
+.El
+.Sh INTERNAL DIAGNOSTICS
+There are some commands that may be useful to understand current state
+of certain subsystems inside kernel module.
+These commands provide debugging output which may change without notice.
+.Pp
+Currently the following commands are available as
+.Cm internal
+sub-options:
+.Bl -tag -width indent
+.It Cm iflist
+Lists all interface which are currently tracked by
+.Nm
+with their in-kernel status.
+.It Cm talist
+List all table lookup algorithms currently available.
 .El
 .Sh EXAMPLES
 There are far too many possible uses of
