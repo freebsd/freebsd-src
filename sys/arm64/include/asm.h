@@ -41,6 +41,10 @@
 	.text; .globl sym; .align 2; sym:
 #define END(sym) .size sym, . - sym
 
+#define	WEAK_REFERENCE(sym, alias)				\
+	.weak alias;						\
+	.set alias,sym
+
 #define	UINT64_C(x)	(x)
 
 #endif /* _MACHINE_ASM_H_ */
