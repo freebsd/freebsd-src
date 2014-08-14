@@ -105,6 +105,7 @@ typedef int ta_find_tentry(void *ta_state, struct table_info *ti,
     ipfw_obj_tentry *tent);
 typedef void ta_dump_tinfo(void *ta_state, struct table_info *ti, 
     ipfw_ta_tinfo *tinfo);
+typedef uint32_t ta_get_count(void *ta_state, struct table_info *ti);
 
 struct table_algo {
 	char		name[16];
@@ -131,9 +132,11 @@ struct table_algo {
 	ta_dump_tentry	*dump_tentry;
 	ta_print_config	*print_config;
 	ta_dump_tinfo	*dump_tinfo;
+	ta_get_count	*get_count;
 };
 #define	TA_FLAG_DEFAULT		0x01	/* Algo is default for given type */
 #define	TA_FLAG_READONLY	0x02	/* Algo does not support modifications*/
+#define	TA_FLAG_EXTCOUNTER	0x04	/* Algo has external counter available*/
 
 int ipfw_add_table_algo(struct ip_fw_chain *ch, struct table_algo *ta,
     size_t size, int *idx);

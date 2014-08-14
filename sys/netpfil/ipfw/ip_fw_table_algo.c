@@ -48,6 +48,7 @@ __FBSDID("$FreeBSD: projects/ipfw/sys/netpfil/ipfw/ip_fw_table.c 267384 2014-06-
 #include <sys/queue.h>
 #include <net/if.h>	/* ip_fw.h requires IFNAMSIZ */
 #include <net/radix.h>
+#include <net/route.h>
 
 #include <netinet/in.h>
 #include <netinet/ip_var.h>	/* struct ipfw_rule_ref */
@@ -3519,6 +3520,263 @@ struct table_algo flow_hash = {
 	.flush_mod	= ta_flush_mod_fhash,
 };
 
+/*
+ * Kernel fibs bindings.
+ *
+ * Implementation:
+ *
+ * Runtime part:
+ * - fully relies on route API
+ * - fib number is stored in ti->data
+ *
+ */
+
+static struct rtentry *
+lookup_kfib(void *key, int keylen, int fib)
+{
+	struct sockaddr *s;
+
+	if (keylen == 4) {
+		struct sockaddr_in sin;
+		bzero(&sin, sizeof(sin));
+		sin.sin_len = sizeof(struct sockaddr_in);
+		sin.sin_family = AF_INET;
+		sin.sin_addr.s_addr = *(in_addr_t *)key;
+		s = (struct sockaddr *)&sin;
+	} else {
+		struct sockaddr_in6 sin6;
+		bzero(&sin6, sizeof(sin6));
+		sin6.sin6_len = sizeof(struct sockaddr_in6);
+		sin6.sin6_family = AF_INET6;
+		sin6.sin6_addr = *(struct in6_addr *)key;
+		s = (struct sockaddr *)&sin6;
+	}
+
+	return (rtalloc1_fib(s, 0, 0, fib));
+}
+
+static int
+ta_lookup_kfib(struct table_info *ti, void *key, uint32_t keylen,
+    uint32_t *val)
+{
+	struct rtentry *rte;
+
+	if ((rte = lookup_kfib(key, keylen, ti->data)) == NULL)
+		return (0);
+
+	*val = 0;
+	RTFREE_LOCKED(rte);
+
+	return (1);
+}
+
+/* Parse 'fib=%d' */
+static int
+kfib_parse_opts(int *pfib, char *data)
+{
+	char *pdel, *pend, *s;
+	int fibnum;
+
+	if (data == NULL)
+		return (0);
+	if ((pdel = strchr(data, ' ')) == NULL)
+		return (0);
+	while (*pdel == ' ')
+		pdel++;
+	if (strncmp(pdel, "fib=", 4) != 0)
+		return (EINVAL);
+	if ((s = strchr(pdel, ' ')) != NULL)
+		*s++ = '\0';
+
+	pdel += 4;
+	/* Need \d+ */
+	fibnum = strtol(pdel, &pend, 10);
+	if (*pend != '\0')
+		return (EINVAL);
+
+	*pfib = fibnum;
+
+	return (0);
+}
+
+static void
+ta_print_kfib_config(void *ta_state, struct table_info *ti, char *buf,
+    size_t bufsize)
+{
+
+	if (ti->data != 0)
+		snprintf(buf, bufsize, "%s fib=%lu", "cidr:kfib", ti->data);
+	else
+		snprintf(buf, bufsize, "%s", "cidr:kfib");
+}
+
+static int
+ta_init_kfib(struct ip_fw_chain *ch, void **ta_state, struct table_info *ti,
+    char *data, uint8_t tflags)
+{
+	int error, fibnum;
+
+	fibnum = 0;
+	if ((error = kfib_parse_opts(&fibnum, data)) != 0)
+		return (error);
+
+	if (fibnum >= rt_numfibs)
+		return (E2BIG);
+
+	ti->data = fibnum;
+	ti->lookup = ta_lookup_kfib;
+
+	return (0);
+}
+
+/*
+ * Destroys table @ti
+ */
+static void
+ta_destroy_kfib(void *ta_state, struct table_info *ti)
+{
+
+}
+
+/*
+ * Provide algo-specific table info
+ */
+static void
+ta_dump_kfib_tinfo(void *ta_state, struct table_info *ti, ipfw_ta_tinfo *tinfo)
+{
+
+	tinfo->flags = IPFW_TATFLAGS_AFDATA;
+	tinfo->taclass4 = IPFW_TACLASS_RADIX;
+	tinfo->count4 = 0;
+	tinfo->itemsize4 = sizeof(struct rtentry);
+	tinfo->taclass6 = IPFW_TACLASS_RADIX;
+	tinfo->count6 = 0;
+	tinfo->itemsize6 = sizeof(struct rtentry);
+}
+
+static int
+contigmask(uint8_t *p, int len)
+{
+	int i, n;
+
+	for (i = 0; i < len ; i++)
+		if ( (p[i/8] & (1 << (7 - (i%8)))) == 0) /* first bit unset */
+			break;
+	for (n= i + 1; n < len; n++)
+		if ( (p[n/8] & (1 << (7 - (n % 8)))) != 0)
+			return (-1); /* mask not contiguous */
+	return (i);
+}
+
+
+static int
+ta_dump_kfib_tentry(void *ta_state, struct table_info *ti, void *e,
+    ipfw_obj_tentry *tent)
+{
+	struct rtentry *rte;
+	struct sockaddr_in *addr, *mask;
+	struct sockaddr_in6 *addr6, *mask6;
+	int len;
+
+	rte = (struct rtentry *)e;
+	addr = (struct sockaddr_in *)rt_key(rte);
+	mask = (struct sockaddr_in *)rt_mask(rte);
+	len = 0;
+
+	/* Guess IPv4/IPv6 radix by sockaddr family */
+	if (addr->sin_family == AF_INET) {
+		tent->k.addr.s_addr = addr->sin_addr.s_addr;
+		len = 32;
+		if (mask != NULL)
+			len = contigmask((uint8_t *)&mask->sin_addr, 32);
+		if (len == -1)
+			len = 0;
+		tent->masklen = len;
+		tent->subtype = AF_INET;
+		tent->value = 0; /* Do we need to put GW here? */
+#ifdef INET6
+	} else if (addr->sin_family == AF_INET6) {
+		addr6 = (struct sockaddr_in6 *)addr;
+		mask6 = (struct sockaddr_in6 *)mask;
+		memcpy(&tent->k, &addr6->sin6_addr, sizeof(struct in6_addr));
+		len = 128;
+		if (mask6 != NULL)
+			len = contigmask((uint8_t *)&mask6->sin6_addr, 128);
+		if (len == -1)
+			len = 0;
+		tent->masklen = len;
+		tent->subtype = AF_INET6;
+		tent->value = 0;
+#endif
+	}
+
+	return (0);
+}
+
+static int
+ta_find_kfib_tentry(void *ta_state, struct table_info *ti,
+    ipfw_obj_tentry *tent)
+{
+	struct rtentry *rte;
+	void *key;
+	int keylen;
+
+	if (tent->subtype == AF_INET) {
+		key = &tent->k.addr;
+		keylen = sizeof(struct in_addr);
+	} else {
+		key = &tent->k.addr6;
+		keylen = sizeof(struct in6_addr);
+	}
+
+	if ((rte = lookup_kfib(key, keylen, ti->data)) == NULL)
+		return (0);
+
+	if (rte != NULL) {
+		ta_dump_kfib_tentry(ta_state, ti, rte, tent);
+		RTFREE_LOCKED(rte);
+		return (0);
+	}
+
+	return (ENOENT);
+}
+
+static void
+ta_foreach_kfib(void *ta_state, struct table_info *ti, ta_foreach_f *f,
+    void *arg)
+{
+	struct radix_node_head *rnh;
+	int error;
+
+	rnh = rt_tables_get_rnh(ti->data, AF_INET);
+	if (rnh != NULL) {
+		RADIX_NODE_HEAD_RLOCK(rnh); 
+		error = rnh->rnh_walktree(rnh, (walktree_f_t *)f, arg);
+		RADIX_NODE_HEAD_RUNLOCK(rnh);
+	}
+
+	rnh = rt_tables_get_rnh(ti->data, AF_INET6);
+	if (rnh != NULL) {
+		RADIX_NODE_HEAD_RLOCK(rnh); 
+		error = rnh->rnh_walktree(rnh, (walktree_f_t *)f, arg);
+		RADIX_NODE_HEAD_RUNLOCK(rnh);
+	}
+}
+
+struct table_algo cidr_kfib = {
+	.name		= "cidr:kfib",
+	.type		= IPFW_TABLE_CIDR,
+	.flags		= TA_FLAG_READONLY,
+	.ta_buf_size	= 0,
+	.init		= ta_init_kfib,
+	.destroy	= ta_destroy_kfib,
+	.foreach	= ta_foreach_kfib,
+	.dump_tentry	= ta_dump_kfib_tentry,
+	.find_tentry	= ta_find_kfib_tentry,
+	.dump_tinfo	= ta_dump_kfib_tinfo,
+	.print_config	= ta_print_kfib_config,
+};
+
 void
 ipfw_table_algo_init(struct ip_fw_chain *ch)
 {
@@ -3533,6 +3791,7 @@ ipfw_table_algo_init(struct ip_fw_chain *ch)
 	ipfw_add_table_algo(ch, &iface_idx, sz, &iface_idx.idx);
 	ipfw_add_table_algo(ch, &number_array, sz, &number_array.idx);
 	ipfw_add_table_algo(ch, &flow_hash, sz, &flow_hash.idx);
+	ipfw_add_table_algo(ch, &cidr_kfib, sz, &cidr_kfib.idx);
 }
 
 void
@@ -3544,6 +3803,7 @@ ipfw_table_algo_destroy(struct ip_fw_chain *ch)
 	ipfw_del_table_algo(ch, iface_idx.idx);
 	ipfw_del_table_algo(ch, number_array.idx);
 	ipfw_del_table_algo(ch, flow_hash.idx);
+	ipfw_del_table_algo(ch, cidr_kfib.idx);
 }
 
 
