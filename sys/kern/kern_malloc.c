@@ -172,6 +172,10 @@ u_long vm_kmem_size;
 SYSCTL_ULONG(_vm, OID_AUTO, kmem_size, CTLFLAG_RDTUN, &vm_kmem_size, 0,
     "Size of kernel memory");
 
+static u_long kmem_zmax = KMEM_ZMAX;
+SYSCTL_ULONG(_vm, OID_AUTO, kmem_zmax, CTLFLAG_RDTUN, &kmem_zmax, 0,
+    "Maximum allocation size that malloc(9) would use UMA as backend");
+
 static u_long vm_kmem_size_min;
 SYSCTL_ULONG(_vm, OID_AUTO, kmem_size_min, CTLFLAG_RDTUN, &vm_kmem_size_min, 0,
     "Minimum size of kernel memory");
@@ -485,7 +489,7 @@ malloc(unsigned long size, struct malloc_type *mtp, int flags)
 	size = redzone_size_ntor(size);
 #endif
 
-	if (size <= KMEM_ZMAX) {
+	if (size <= kmem_zmax) {
 		mtip = mtp->ks_handle;
 		if (size & KMEM_ZMASK)
 			size = (size & ~KMEM_ZMASK) + KMEM_ZBASE;
@@ -776,6 +780,9 @@ mallocinit(void *dummy)
 
 	uma_startup2();
 
+	if (kmem_zmax < PAGE_SIZE || kmem_zmax > KMEM_ZMAX)
+		kmem_zmax = KMEM_ZMAX;
+
 	mt_zone = uma_zcreate("mt_zone", sizeof(struct malloc_type_internal),
 #ifdef INVARIANTS
 	    mtrash_ctor, mtrash_dtor, mtrash_init, mtrash_fini,
@@ -800,7 +807,7 @@ mallocinit(void *dummy)
 		}		    
 		for (;i <= size; i+= KMEM_ZBASE)
 			kmemsize[i >> KMEM_ZSHIFT] = indx;
-		
+
 	}
 }
 SYSINIT(kmem, SI_SUB_KMEM, SI_ORDER_SECOND, mallocinit, NULL);
