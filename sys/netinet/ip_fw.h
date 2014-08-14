@@ -654,11 +654,13 @@ struct _ipfw_dyn_rule {
  * These are used for lookup tables.
  */
 
-#define	IPFW_TABLE_CIDR		1	/* Table for holding IPv4/IPv6 prefixes */
+#define	IPFW_TABLE_ADDR		1	/* Table for holding IPv4/IPv6 prefixes */
 #define	IPFW_TABLE_INTERFACE	2	/* Table for holding interface names */
 #define	IPFW_TABLE_NUMBER	3	/* Table for holding ports/uid/gid/etc */
 #define	IPFW_TABLE_FLOW		4	/* Table for holding flow data */
 #define	IPFW_TABLE_MAXTYPE	4	/* Maximum valid number */
+
+#define	IPFW_TABLE_CIDR	IPFW_TABLE_ADDR	/* compat */
 
 /* Value types */
 #define	IPFW_VTYPE_U32		1	/* Skipto/tablearg integer */
@@ -833,7 +835,7 @@ typedef struct _ipfw_ta_tinfo {
 #define	IPFW_TATFLAGS_AFITEM	0x0004		/* diff. items per AF	*/
 
 typedef struct _ipfw_xtable_info {
-	uint8_t		type;		/* table type (cidr,iface,..)	*/
+	uint8_t		type;		/* table type (addr,iface,..)	*/
 	uint8_t		tflags;		/* type flags			*/
 	uint8_t		vtype;		/* value type (u32)		*/
 	uint8_t		vftype;		/* value format type (ip,number)*/

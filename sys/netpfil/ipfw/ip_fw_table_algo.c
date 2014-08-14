@@ -65,8 +65,8 @@ __FBSDID("$FreeBSD: projects/ipfw/sys/netpfil/ipfw/ip_fw_table.c 267384 2014-06-
  *
  * Algo init:
  * * struct table_algo has to be filled with:
- *   name: "type:algoname" format, e.g. "cidr:radix". Currently
- *     there are the following types: "cidr", "iface", "number" and "flow".
+ *   name: "type:algoname" format, e.g. "addr:radix". Currently
+ *     there are the following types: "addr", "iface", "number" and "flow".
  *   type: one of IPFW_TABLE_* types
  *   flags: one or more TA_FLAGS_*
  *   ta_buf_size: size of structure used to store add/del item state.
@@ -292,7 +292,7 @@ static int bdel(const void *key, void *base, size_t nmemb, size_t size,
 
 
 /*
- * CIDR implementation using radix
+ * ADDR implementation using radix
  *
  */
 
@@ -315,7 +315,7 @@ static int bdel(const void *key, void *base, size_t nmemb, size_t size,
 #define OFF_LEN_INET	(8 * offsetof(struct sockaddr_in, sin_addr))
 #define OFF_LEN_INET6	(8 * offsetof(struct sa_in6, sin6_addr))
 
-struct radix_cidr_entry {
+struct radix_addr_entry {
 	struct radix_node	rn[2];
 	struct sockaddr_in	addr;
 	uint32_t		value;
@@ -329,7 +329,7 @@ struct sa_in6 {
 	struct in6_addr		sin6_addr;
 };
 
-struct radix_cidr_xentry {
+struct radix_addr_xentry {
 	struct radix_node	rn[2];
 	struct sa_in6		addr6;
 	uint32_t		value;
@@ -343,7 +343,7 @@ struct radix_cfg {
 	size_t			count6;
 };
 
-struct ta_buf_cidr 
+struct ta_buf_radix
 {
 	void *ent_ptr;
 	struct sockaddr	*addr_ptr;
@@ -367,23 +367,23 @@ ta_lookup_radix(struct table_info *ti, void *key, uint32_t keylen,
 	struct radix_node_head *rnh;
 
 	if (keylen == sizeof(in_addr_t)) {
-		struct radix_cidr_entry *ent;
+		struct radix_addr_entry *ent;
 		struct sockaddr_in sa;
 		KEY_LEN(sa) = KEY_LEN_INET;
 		sa.sin_addr.s_addr = *((in_addr_t *)key);
 		rnh = (struct radix_node_head *)ti->state;
-		ent = (struct radix_cidr_entry *)(rnh->rnh_matchaddr(&sa, rnh));
+		ent = (struct radix_addr_entry *)(rnh->rnh_matchaddr(&sa, rnh));
 		if (ent != NULL) {
 			*val = ent->value;
 			return (1);
 		}
 	} else {
-		struct radix_cidr_xentry *xent;
+		struct radix_addr_xentry *xent;
 		struct sa_in6 sa6;
 		KEY_LEN(sa6) = KEY_LEN_INET6;
 		memcpy(&sa6.sin6_addr, key, sizeof(struct in6_addr));
 		rnh = (struct radix_node_head *)ti->xstate;
-		xent = (struct radix_cidr_xentry *)(rnh->rnh_matchaddr(&sa6, rnh));
+		xent = (struct radix_addr_xentry *)(rnh->rnh_matchaddr(&sa6, rnh));
 		if (xent != NULL) {
 			*val = xent->value;
 			return (1);
@@ -421,9 +421,9 @@ static int
 flush_radix_entry(struct radix_node *rn, void *arg)
 {
 	struct radix_node_head * const rnh = arg;
-	struct radix_cidr_entry *ent;
+	struct radix_addr_entry *ent;
 
-	ent = (struct radix_cidr_entry *)
+	ent = (struct radix_addr_entry *)
 	    rnh->rnh_deladdr(rn->rn_key, rn->rn_mask, rnh);
 	if (ent != NULL)
 		free(ent, M_IPFW_TBL);
@@ -462,20 +462,20 @@ ta_dump_radix_tinfo(void *ta_state, struct table_info *ti, ipfw_ta_tinfo *tinfo)
 	tinfo->flags = IPFW_TATFLAGS_AFDATA | IPFW_TATFLAGS_AFITEM;
 	tinfo->taclass4 = IPFW_TACLASS_RADIX;
 	tinfo->count4 = cfg->count4;
-	tinfo->itemsize4 = sizeof(struct radix_cidr_entry);
+	tinfo->itemsize4 = sizeof(struct radix_addr_entry);
 	tinfo->taclass6 = IPFW_TACLASS_RADIX;
 	tinfo->count6 = cfg->count6;
-	tinfo->itemsize6 = sizeof(struct radix_cidr_xentry);
+	tinfo->itemsize6 = sizeof(struct radix_addr_xentry);
 }
 
 static int
 ta_dump_radix_tentry(void *ta_state, struct table_info *ti, void *e,
     ipfw_obj_tentry *tent)
 {
-	struct radix_cidr_entry *n;
-	struct radix_cidr_xentry *xn;
+	struct radix_addr_entry *n;
+	struct radix_addr_xentry *xn;
 
-	n = (struct radix_cidr_entry *)e;
+	n = (struct radix_addr_entry *)e;
 
 	/* Guess IPv4/IPv6 radix by sockaddr family */
 	if (n->addr.sin_family == AF_INET) {
@@ -485,7 +485,7 @@ ta_dump_radix_tentry(void *ta_state, struct table_info *ti, void *e,
 		tent->value = n->value;
 #ifdef INET6
 	} else {
-		xn = (struct radix_cidr_xentry *)e;
+		xn = (struct radix_addr_xentry *)e;
 		memcpy(&tent->k, &xn->addr6.sin6_addr, sizeof(struct in6_addr));
 		tent->masklen = xn->masklen;
 		tent->subtype = AF_INET6;
@@ -604,13 +604,13 @@ static int
 ta_prepare_add_radix(struct ip_fw_chain *ch, struct tentry_info *tei,
     void *ta_buf)
 {
-	struct ta_buf_cidr *tb;
-	struct radix_cidr_entry *ent;
-	struct radix_cidr_xentry *xent;
+	struct ta_buf_radix *tb;
+	struct radix_addr_entry *ent;
+	struct radix_addr_xentry *xent;
 	struct sockaddr *addr, *mask;
 	int mlen, set_mask;
 
-	tb = (struct ta_buf_cidr *)ta_buf;
+	tb = (struct ta_buf_radix *)ta_buf;
 
 	mlen = tei->masklen;
 	set_mask = 0;
@@ -661,11 +661,11 @@ ta_add_radix(void *ta_state, struct table_info *ti, struct tentry_info *tei,
 	struct radix_cfg *cfg;
 	struct radix_node_head *rnh;
 	struct radix_node *rn;
-	struct ta_buf_cidr *tb;
+	struct ta_buf_radix *tb;
 	uint32_t *old_value, value;
 
 	cfg = (struct radix_cfg *)ta_state;
-	tb = (struct ta_buf_cidr *)ta_buf;
+	tb = (struct ta_buf_radix *)ta_buf;
 
 	if (tei->subtype == AF_INET)
 		rnh = ti->state;
@@ -679,9 +679,9 @@ ta_add_radix(void *ta_state, struct table_info *ti, struct tentry_info *tei,
 			return (EEXIST);
 		/* Record already exists. Update value if we're asked to */
 		if (tei->subtype == AF_INET)
-			old_value = &((struct radix_cidr_entry *)rn)->value;
+			old_value = &((struct radix_addr_entry *)rn)->value;
 		else
-			old_value = &((struct radix_cidr_xentry *)rn)->value;
+			old_value = &((struct radix_addr_xentry *)rn)->value;
 
 		value = *old_value;
 		*old_value = tei->value;
@@ -717,11 +717,11 @@ static int
 ta_prepare_del_radix(struct ip_fw_chain *ch, struct tentry_info *tei,
     void *ta_buf)
 {
-	struct ta_buf_cidr *tb;
+	struct ta_buf_radix *tb;
 	struct sockaddr *addr, *mask;
 	int mlen, set_mask;
 
-	tb = (struct ta_buf_cidr *)ta_buf;
+	tb = (struct ta_buf_radix *)ta_buf;
 
 	mlen = tei->masklen;
 	set_mask = 0;
@@ -758,10 +758,10 @@ ta_del_radix(void *ta_state, struct table_info *ti, struct tentry_info *tei,
 	struct radix_cfg *cfg;
 	struct radix_node_head *rnh;
 	struct radix_node *rn;
-	struct ta_buf_cidr *tb;
+	struct ta_buf_radix *tb;
 
 	cfg = (struct radix_cfg *)ta_state;
-	tb = (struct ta_buf_cidr *)ta_buf;
+	tb = (struct ta_buf_radix *)ta_buf;
 
 	if (tei->subtype == AF_INET)
 		rnh = ti->state;
@@ -775,9 +775,9 @@ ta_del_radix(void *ta_state, struct table_info *ti, struct tentry_info *tei,
 
 	/* Save entry value to @tei */
 	if (tei->subtype == AF_INET)
-		tei->value = ((struct radix_cidr_entry *)rn)->value;
+		tei->value = ((struct radix_addr_entry *)rn)->value;
 	else
-		tei->value = ((struct radix_cidr_xentry *)rn)->value;
+		tei->value = ((struct radix_addr_xentry *)rn)->value;
 
 	tb->ent_ptr = rn;
 	
@@ -794,9 +794,9 @@ static void
 ta_flush_radix_entry(struct ip_fw_chain *ch, struct tentry_info *tei,
     void *ta_buf)
 {
-	struct ta_buf_cidr *tb;
+	struct ta_buf_radix *tb;
 
-	tb = (struct ta_buf_cidr *)ta_buf;
+	tb = (struct ta_buf_radix *)ta_buf;
 
 	if (tb->ent_ptr != NULL)
 		free(tb->ent_ptr, M_IPFW_TBL);
@@ -816,11 +816,11 @@ ta_need_modify_radix(void *ta_state, struct table_info *ti, uint32_t count,
 	return (0);
 }
 
-struct table_algo cidr_radix = {
-	.name		= "cidr:radix",
-	.type		= IPFW_TABLE_CIDR,
+struct table_algo addr_radix = {
+	.name		= "addr:radix",
+	.type		= IPFW_TABLE_ADDR,
 	.flags		= TA_FLAG_DEFAULT,
-	.ta_buf_size	= sizeof(struct ta_buf_cidr),
+	.ta_buf_size	= sizeof(struct ta_buf_radix),
 	.init		= ta_init_radix,
 	.destroy	= ta_destroy_radix,
 	.prepare_add	= ta_prepare_add_radix,
@@ -837,7 +837,7 @@ struct table_algo cidr_radix = {
 
 
 /*
- * cidr:hash cmds
+ * addr:hash cmds
  *
  *
  * ti->data:
@@ -1124,10 +1124,10 @@ ta_print_chash_config(void *ta_state, struct table_info *ti, char *buf,
 	cfg = (struct chash_cfg *)ta_state;
 
 	if (cfg->mask4 != 32 || cfg->mask6 != 128)
-		snprintf(buf, bufsize, "%s masks=/%d,/%d", "cidr:hash",
+		snprintf(buf, bufsize, "%s masks=/%d,/%d", "addr:hash",
 		    cfg->mask4, cfg->mask6);
 	else
-		snprintf(buf, bufsize, "%s", "cidr:hash");
+		snprintf(buf, bufsize, "%s", "addr:hash");
 }
 
 static int
@@ -1145,7 +1145,7 @@ log2(uint32_t v)
 /*
  * New table.
  * We assume 'data' to be either NULL or the following format:
- * 'cidr:hash [masks=/32[,/128]]'
+ * 'addr:hash [masks=/32[,/128]]'
  */
 static int
 ta_init_chash(struct ip_fw_chain *ch, void **ta_state, struct table_info *ti,
@@ -1728,9 +1728,9 @@ ta_flush_mod_chash(void *ta_buf)
 		free(mi->main_ptr6, M_IPFW);
 }
 
-struct table_algo cidr_hash = {
-	.name		= "cidr:hash",
-	.type		= IPFW_TABLE_CIDR,
+struct table_algo addr_hash = {
+	.name		= "addr:hash",
+	.type		= IPFW_TABLE_ADDR,
 	.ta_buf_size	= sizeof(struct ta_buf_chash),
 	.init		= ta_init_chash,
 	.destroy	= ta_destroy_chash,
@@ -3605,9 +3605,9 @@ ta_print_kfib_config(void *ta_state, struct table_info *ti, char *buf,
 {
 
 	if (ti->data != 0)
-		snprintf(buf, bufsize, "%s fib=%lu", "cidr:kfib", ti->data);
+		snprintf(buf, bufsize, "%s fib=%lu", "addr:kfib", ti->data);
 	else
-		snprintf(buf, bufsize, "%s", "cidr:kfib");
+		snprintf(buf, bufsize, "%s", "addr:kfib");
 }
 
 static int
@@ -3763,9 +3763,9 @@ ta_foreach_kfib(void *ta_state, struct table_info *ti, ta_foreach_f *f,
 	}
 }
 
-struct table_algo cidr_kfib = {
-	.name		= "cidr:kfib",
-	.type		= IPFW_TABLE_CIDR,
+struct table_algo addr_kfib = {
+	.name		= "addr:kfib",
+	.type		= IPFW_TABLE_ADDR,
 	.flags		= TA_FLAG_READONLY,
 	.ta_buf_size	= 0,
 	.init		= ta_init_kfib,
@@ -3786,24 +3786,24 @@ ipfw_table_algo_init(struct ip_fw_chain *ch)
 	 * Register all algorithms presented here.
 	 */
 	sz = sizeof(struct table_algo);
-	ipfw_add_table_algo(ch, &cidr_radix, sz, &cidr_radix.idx);
-	ipfw_add_table_algo(ch, &cidr_hash, sz, &cidr_hash.idx);
+	ipfw_add_table_algo(ch, &addr_radix, sz, &addr_radix.idx);
+	ipfw_add_table_algo(ch, &addr_hash, sz, &addr_hash.idx);
 	ipfw_add_table_algo(ch, &iface_idx, sz, &iface_idx.idx);
 	ipfw_add_table_algo(ch, &number_array, sz, &number_array.idx);
 	ipfw_add_table_algo(ch, &flow_hash, sz, &flow_hash.idx);
-	ipfw_add_table_algo(ch, &cidr_kfib, sz, &cidr_kfib.idx);
+	ipfw_add_table_algo(ch, &addr_kfib, sz, &addr_kfib.idx);
 }
 
 void
 ipfw_table_algo_destroy(struct ip_fw_chain *ch)
 {
 
-	ipfw_del_table_algo(ch, cidr_radix.idx);
-	ipfw_del_table_algo(ch, cidr_hash.idx);
+	ipfw_del_table_algo(ch, addr_radix.idx);
+	ipfw_del_table_algo(ch, addr_hash.idx);
 	ipfw_del_table_algo(ch, iface_idx.idx);
 	ipfw_del_table_algo(ch, number_array.idx);
 	ipfw_del_table_algo(ch, flow_hash.idx);
-	ipfw_del_table_algo(ch, cidr_kfib.idx);
+	ipfw_del_table_algo(ch, addr_kfib.idx);
 }
 
 

@@ -61,7 +61,7 @@ __FBSDID("$FreeBSD$");
  /*
  * Table has the following `type` concepts:
  *
- * `no.type` represents lookup key type (cidr, ifp, uid, etc..)
+ * `no.type` represents lookup key type (addr, ifp, uid, etc..)
  * `vtype` represents table value type (currently U32)
  * `ftype` (at the moment )is pure userland field helping to properly
  *     format value data e.g. "value is IPv4 nexthop" or "value is DSCP"
@@ -784,7 +784,7 @@ ipfw_manage_table_ent_v0(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
 	tei.value = xent->value;
 	/* Old requests compability */
 	tei.flags = TEI_FLAGS_COMPAT;
-	if (xent->type == IPFW_TABLE_CIDR) {
+	if (xent->type == IPFW_TABLE_ADDR) {
 		if (xent->len - hdrlen == sizeof(in_addr_t))
 			tei.subtype = AF_INET;
 		else
@@ -2268,7 +2268,7 @@ ipfw_dump_table_legacy(struct ip_fw_chain *ch, struct tid_info *ti,
 	ta = tc->ta;
 
 	/* This dump format supports IPv4 only */
-	if (tc->no.type != IPFW_TABLE_CIDR)
+	if (tc->no.type != IPFW_TABLE_ADDR)
 		return (0);
 
 	memset(&da, 0, sizeof(da));
@@ -2347,7 +2347,7 @@ dump_table_xentry(void *e, void *arg)
 	xent->masklen = tent->masklen;
 	xent->value = tent->value;
 	/* Apply some hacks */
-	if (tc->no.type == IPFW_TABLE_CIDR && tent->subtype == AF_INET) {
+	if (tc->no.type == IPFW_TABLE_ADDR && tent->subtype == AF_INET) {
 		xent->k.addr6.s6_addr32[3] = tent->k.addr.s_addr;
 		xent->flags = IPFW_TCF_INET;
 	} else
@@ -2395,7 +2395,7 @@ find_table_algo(struct tables_config *tcfg, struct tid_info *ti, char *name)
 		 * One can supply additional algorithm
 		 * parameters so we compare only the first word
 		 * of supplied name:
-		 * 'hash_cidr hsize=32'
+		 * 'addr:chash hsize=32'
 		 * '^^^^^^^^^'
 		 *
 		 */
@@ -2559,8 +2559,8 @@ classify_table_opcode(ipfw_insn *cmd, uint16_t *puidx, uint8_t *ptype)
 	case O_IP_DST_LOOKUP:
 		/* Basic IPv4/IPv6 or u32 lookups */
 		*puidx = cmd->arg1;
-		/* Assume CIDR by default */
-		*ptype = IPFW_TABLE_CIDR;
+		/* Assume ADDR by default */
+		*ptype = IPFW_TABLE_ADDR;
 		skip = 0;
 		
 		if (F_LEN(cmd) > F_INSN_SIZE(ipfw_insn_u32)) {
