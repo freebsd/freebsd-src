@@ -1886,11 +1886,11 @@ There may be up to 65535 different lookup tables.
 .Pp
 The following table types are supported:
 .Bl -tag -width indent
-.It Ar table-type : Ar cidr | iface | number | flow
+.It Ar table-type : Ar addr | iface | number | flow
 .It Ar table-key : Ar addr Ns Oo / Ns Ar masklen Oc | iface-name | number | flow-spec
 .It Ar flow-spec : Ar flow-field Ns Op , Ns Ar flow-spec
 .It Ar flow-field : src-ip | proto | src-port | dst-ip | dst-port
-.It Cm cidr
+.It Cm addr
 matches IPv4 or IPv6 address.
 Each entry is represented by an
 .Ar addr Ns Op / Ns Ar masklen
@@ -2030,18 +2030,18 @@ Shows generic table information and algo-specific data.
 The following lookup algorithms are supported:
 .Bl -tag -width indent
 .It Ar algo-desc : algo-name | "algo-name algo-data"
-.It Ar algo-name: Ar cidr:radix | cidr:hash | iface:arrray | number:array | flow:hash
-.It Cm cidr:radix
+.It Ar algo-name: Ar addr:radix | addr:hash | iface:arrray | number:array | flow:hash
+.It Cm addr:radix
 Separate Radix trees for IPv4 and IPv6, the same way as the routing table (see
 .Xr route 4 ) .
 Default choice for
 .Ar
-cidr
+addr
 type.
-.It Cm cidr:hash
+.It Cm addr:hash
 Separate auto-growing hashes for IPv4 and IPv6.
 Accepts entries with the same mask length specified initially via
-.Cm "cidr:hash masks=/v4,/v6"
+.Cm "addr:hash masks=/v4,/v6"
 algorithm creation options.
 Assume /32 and /128 masks by default.
 Search removes host bits (according to mask) from supplied address and checks
@@ -3454,7 +3454,7 @@ Then we classify traffic using a single rule:
 .Dl "ipfw pipe 1 config bw 1000Kbyte/s"
 .Dl "ipfw pipe 4 config bw 4000Kbyte/s"
 .Dl "..."
-.Dl "ipfw table T1 create type cidr"
+.Dl "ipfw table T1 create type addr"
 .Dl "ipfw table T1 add 192.168.2.0/24 1"
 .Dl "ipfw table T1 add 192.168.0.0/27 4"
 .Dl "ipfw table T1 add 192.168.0.2 1"
@@ -3465,7 +3465,7 @@ Using the
 .Cm fwd
 action, the table entries may include hostnames and IP addresses.
 .Pp
-.Dl "ipfw table T2 create type cidr ftype ip"
+.Dl "ipfw table T2 create type addr ftype ip"
 .Dl "ipfw table T2 add 192.168.2.0/24 10.23.2.1"
 .Dl "ipfw table T21 add 192.168.0.0/27 router1.dmz"
 .Dl "..."

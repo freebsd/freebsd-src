@@ -79,7 +79,7 @@ static int tables_foreach(table_cb_t *f, void *arg, int sort);
 #endif
 
 static struct _s_x tabletypes[] = {
-      { "cidr",		IPFW_TABLE_CIDR },
+      { "addr",		IPFW_TABLE_ADDR },
       { "iface",	IPFW_TABLE_INTERFACE },
       { "number",	IPFW_TABLE_NUMBER },
       { "flow",		IPFW_TABLE_FLOW },
@@ -375,8 +375,7 @@ table_print_type(char *tbuf, size_t size, uint8_t type, uint8_t tflags)
 /*
  * Creates new table
  *
- * ipfw table NAME create [ type { cidr | iface | u32 } ]
- *     [ valtype { number | ip | dscp } ]
+ * ipfw table NAME create [ type { addr | iface | number | flow } ]
  *     [ algo algoname ]
  */
 static void
@@ -462,7 +461,7 @@ table_create(ipfw_obj_header *oh, int ac, char *av[])
 
 	/* Set some defaults to preserve compability */
 	if (xi.algoname[0] == '\0' && xi.type == 0)
-		xi.type = IPFW_TABLE_CIDR;
+		xi.type = IPFW_TABLE_ADDR;
 	if (xi.vtype == 0)
 		xi.vtype = IPFW_VTYPE_U32;
 
@@ -1142,7 +1141,7 @@ tentry_fill_key_type(char *arg, ipfw_obj_tentry *tentry, uint8_t type,
 	paddr = (struct in6_addr *)&tentry->k;
 
 	switch (type) {
-	case IPFW_TABLE_CIDR:
+	case IPFW_TABLE_ADDR:
 		/* Remove / if exists */
 		if ((p = strchr(arg, '/')) != NULL) {
 			*p = '\0';
@@ -1172,7 +1171,7 @@ tentry_fill_key_type(char *arg, ipfw_obj_tentry *tentry, uint8_t type,
 				errx(EX_NOHOST, "hostname ``%s'' unknown", arg);
 
 			masklen = 32;
-			type = IPFW_TABLE_CIDR;
+			type = IPFW_TABLE_ADDR;
 			af = AF_INET;
 		}
 		break;
@@ -1351,7 +1350,7 @@ tentry_fill_key(ipfw_obj_header *oh, ipfw_obj_tentry *tent, char *key,
 			    oh->ntlv.name);
 		/*
 		 * Table does not exist.
-		 * Compability layer: try to interpret data as CIDR
+		 * Compability layer: try to interpret data as ADDR
 		 * before failing.
 		 */
 		if ((del = strchr(key, '/')) != NULL)
@@ -1359,7 +1358,7 @@ tentry_fill_key(ipfw_obj_header *oh, ipfw_obj_tentry *tent, char *key,
 		if (inet_pton(AF_INET, key, &tent->k.addr6) == 1 ||
 		    inet_pton(AF_INET6, key, &tent->k.addr6) == 1) {
 			/* OK Prepare and send */
-			type = IPFW_TABLE_CIDR;
+			type = IPFW_TABLE_ADDR;
 			/*
 			 * XXX: Value type is forced to be u32.
 			 * This should be changed for MFC.
@@ -1575,7 +1574,7 @@ table_show_entry(ipfw_xtable_info *i, ipfw_obj_tentry *tent)
 		snprintf(pval, sizeof(pval), "%u", tval);
 
 	switch (i->type) {
-	case IPFW_TABLE_CIDR:
+	case IPFW_TABLE_ADDR:
 		/* IPv4 or IPv6 prefixes */
 		inet_ntop(tent->subtype, &tent->k, tbuf, sizeof(tbuf));
 		printf("%s/%u %s\n", tbuf, tent->masklen, pval);
