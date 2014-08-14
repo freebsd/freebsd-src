@@ -1596,6 +1596,34 @@ iwn1000.fw			optional iwn1000fw | iwnfw		\
 	compile-with	"${NORMAL_FW}"					\
 	no-obj no-implicit-rule						\
 	clean		"iwn1000.fw"
+iwn105fw.c			optional iwn105fw | iwnfw		\
+	compile-with	"${AWK} -f $S/tools/fw_stub.awk iwn105.fw:iwn105fw -miwn105fw -c${.TARGET}" \
+	no-implicit-rule before-depend local				\
+	clean		"iwn105fw.c"
+iwn105fw.fwo			optional iwn105fw | iwnfw		\
+	dependency	"iwn105.fw"					\
+	compile-with	"${NORMAL_FWO}"					\
+	no-implicit-rule						\
+	clean		"iwn105fw.fwo"
+iwn105.fw			optional iwn105fw | iwnfw		\
+	dependency	"$S/contrib/dev/iwn/iwlwifi-105-6-18.168.6.1.fw.uu" \
+	compile-with	"${NORMAL_FW}"					\
+	no-obj no-implicit-rule						\
+	clean		"iwn105.fw"
+iwn135fw.c			optional iwn135fw | iwnfw		\
+	compile-with	"${AWK} -f $S/tools/fw_stub.awk iwn135.fw:iwn135fw -miwn135fw -c${.TARGET}" \
+	no-implicit-rule before-depend local				\
+	clean		"iwn135fw.c"
+iwn135fw.fwo			optional iwn135fw | iwnfw		\
+	dependency	"iwn135.fw"					\
+	compile-with	"${NORMAL_FWO}"					\
+	no-implicit-rule						\
+	clean		"iwn135fw.fwo"
+iwn135.fw			optional iwn135fw | iwnfw		\
+	dependency	"$S/contrib/dev/iwn/iwlwifi-135-6-18.168.6.1.fw.uu" \
+	compile-with	"${NORMAL_FW}"					\
+	no-obj no-implicit-rule						\
+	clean		"iwn135.fw"
 iwn2000fw.c			optional iwn2000fw | iwnfw		\
 	compile-with	"${AWK} -f $S/tools/fw_stub.awk iwn2000.fw:iwn2000fw -miwn2000fw -c${.TARGET}" \
 	no-implicit-rule before-depend local				\
