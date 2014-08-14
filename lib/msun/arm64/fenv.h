@@ -71,18 +71,18 @@ extern const fenv_t	__fe_dfl_env;
 #define _FPUSW_SHIFT	8
 #define	_ENABLE_MASK	(FE_ALL_EXCEPT << _FPUSW_SHIFT)
 
-#define	__mrs_fpcr(__r)	__asm __volatile("mrs %0, fpcr" : : "r" (__r))
-#define	__msr_fpcr(__r)	__asm __volatile("msr fpcr, %0" : "=r" (*(__r)))
+#define	__mrs_fpcr(__r)	__asm __volatile("mrs %0, fpcr" : "=r" (__r))
+#define	__msr_fpcr(__r)	__asm __volatile("msr fpcr, %0" : : "r" (__r))
 
-#define	__mrs_fpsr(__r)	__asm __volatile("mrs %0, fpsr" : : "r" (__r))
-#define	__msr_fpsr(__r)	__asm __volatile("msr fpsr, %0" : "=r" (*(__r)))
+#define	__mrs_fpsr(__r)	__asm __volatile("mrs %0, fpsr" : "=r" (__r))
+#define	__msr_fpsr(__r)	__asm __volatile("msr fpsr, %0" : : "r" (__r))
 
 __fenv_static __inline int
 feclearexcept(int __excepts)
 {
 	fexcept_t __r;
 
-	__mrs_fpsr(&__r);
+	__mrs_fpsr(__r);
 	__r &= ~__excepts;
 	__msr_fpsr(__r);
 	return (0);
@@ -93,7 +93,7 @@ fegetexceptflag(fexcept_t *__flagp, int __excepts)
 {
 	fexcept_t __r;
 
-	__mrs_fpsr(&__r);
+	__mrs_fpsr(__r);
 	*__flagp = __r & __excepts;
 	return (0);
 }
@@ -103,7 +103,7 @@ fesetexceptflag(const fexcept_t *__flagp, int __excepts)
 {
 	fexcept_t __r;
 
-	__mrs_fpsr(&__r);
+	__mrs_fpsr(__r);
 	__r &= ~__excepts;
 	__r |= *__flagp & __excepts;
 	__msr_fpsr(__r);
@@ -115,7 +115,7 @@ feraiseexcept(int __excepts)
 {
 	fexcept_t __r;
 
-	__mrs_fpsr(&__r);
+	__mrs_fpsr(__r);
 	__r |= __excepts;
 	__msr_fpsr(__r);
 	return (0);
@@ -126,7 +126,7 @@ fetestexcept(int __excepts)
 {
 	fexcept_t __r;
 
-	__mrs_fpsr(&__r);
+	__mrs_fpsr(__r);
 	return (__r & __excepts);
 }
 
@@ -135,7 +135,7 @@ fegetround(void)
 {
 	fenv_t __r;
 
-	__mrs_fpcr(&__r);
+	__mrs_fpcr(__r);
 	return ((__r >> _ROUND_SHIFT) & _ROUND_MASK);
 }
 
@@ -146,7 +146,7 @@ fesetround(int __round)
 
 	if (__round & ~_ROUND_MASK)
 		return (-1);
-	__mrs_fpcr(&__r);
+	__mrs_fpcr(__r);
 	__r &= ~(_ROUND_MASK << _ROUND_SHIFT);
 	__r |= __round << _ROUND_SHIFT;
 	__msr_fpcr(__r);
@@ -156,11 +156,12 @@ fesetround(int __round)
 __fenv_static inline int
 fegetenv(fenv_t *__envp)
 {
+	fenv_t __r;
 
-	__mrs_fpcr(&__r);
+	__mrs_fpcr(__r);
 	*__envp = __r & _ENABLE_MASK;
 
-	__mrs_fpsr(&__r);
+	__mrs_fpsr(__r);
 	*__envp |= __r & (FE_ALL_EXCEPT | (_ROUND_MASK << _ROUND_SHIFT));
 
 	return (0);
@@ -171,14 +172,14 @@ feholdexcept(fenv_t *__envp)
 {
 	fenv_t __r;
 
-	__mrs_fpcr(&__r);
+	__mrs_fpcr(__r);
 	*__envp = __r & _ENABLE_MASK;
 	__r &= ~(_ENABLE_MASK);
 	__msr_fpcr(__r);
 
-	__mrs_fpsr(&__r);
+	__mrs_fpsr(__r);
 	*__envp |= __r & (FE_ALL_EXCEPT | (_ROUND_MASK << _ROUND_SHIFT));
-	r &= ~(_ENABLE_MASK);
+	__r &= ~(_ENABLE_MASK);
 	__msr_fpsr(__r);
 	return (0);
 }
@@ -188,7 +189,7 @@ fesetenv(const fenv_t *__envp)
 {
 
 	__msr_fpcr((*__envp) & _ENABLE_MASK);
-	__msr_fpsr((*__envp) & (FE_ALL_EXCEPT | (_ROUND_MASK << _ROUND_SHIFT));
+	__msr_fpsr((*__envp) & (FE_ALL_EXCEPT | (_ROUND_MASK << _ROUND_SHIFT)));
 	return (0);
 }
 
@@ -197,7 +198,7 @@ feupdateenv(const fenv_t *__envp)
 {
 	fexcept_t __r;
 
-	__mrs_fpsr(&__r);
+	__mrs_fpsr(__r);
 	fesetenv(__envp);
 	feraiseexcept(__r & FE_ALL_EXCEPT);
 	return (0);
@@ -212,7 +213,7 @@ feenableexcept(int __mask)
 {
 	fenv_t __old_r, __new_r;
 
-	__mrs_fpcr(&__old_r);
+	__mrs_fpcr(__old_r);
 	__new_r = __old_r | ((__mask & FE_ALL_EXCEPT) << _FPUSW_SHIFT);
 	__msr_fpcr(__new_r);
 	return ((__old_r >> _FPUSW_SHIFT) & FE_ALL_EXCEPT);
@@ -223,7 +224,7 @@ fedisableexcept(int __mask)
 {
 	fenv_t __old_r, __new_r;
 
-	__mrs_fpcr(&__old_r);
+	__mrs_fpcr(__old_r);
 	__new_r = __old_r & ~((__mask & FE_ALL_EXCEPT) << _FPUSW_SHIFT);
 	__msr_fpcr(__new_r);
 	return ((__old_r >> _FPUSW_SHIFT) & FE_ALL_EXCEPT);
@@ -234,7 +235,7 @@ fegetexcept(void)
 {
 	fenv_t __r;
 
-	__mrs_fpcr(&__r);
+	__mrs_fpcr(__r);
 	return ((__r & _ENABLE_MASK) >> _FPUSW_SHIFT);
 }
 
