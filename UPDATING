@@ -16,6 +16,11 @@ from older versions of FreeBSD, try WITHOUT_CLANG to bootstrap to the tip of
 stable/10, and then rebuild without this option. The bootstrap process from
 older version of current is a bit fragile.
 
+20140814:
+	The ixgbe tunables now match their sysctl counterparts, for example:
+	hw.ixgbe.enable_aim => hw.ix.enable_aim
+	Anyone using ixgbe tunables should ensure they update /boot/loader.conf.
+
 20140801:
 	The NFSv4.1 server committed by r269398 changes the internal
 	function call interfaces used between the NFS and krpc modules.
