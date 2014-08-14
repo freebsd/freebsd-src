@@ -1885,6 +1885,60 @@ ipfw_mark_table_kidx(struct ip_fw_chain *chain, struct ip_fw *rule,
 	return (count);
 }
 
+struct dump_args {
+	struct table_info *ti;
+	struct table_config *tc;
+	struct sockopt_data *sd;
+	uint32_t cnt;
+	uint16_t uidx;
+	int error;
+	ipfw_table_entry *ent;
+	uint32_t size;
+	ipfw_obj_tentry tent;
+};
+
+static int
+count_ext_entries(void *e, void *arg)
+{
+	struct dump_args *da;
+
+	da = (struct dump_args *)arg;
+	da->cnt++;
+
+	return (0);
+}
+
+/*
+ * Gets number of items from table either using
+ * internal counter or calling algo callback for
+ * externally-managed tables.
+ *
+ * Returns number of records.
+ */
+static uint32_t
+table_get_count(struct ip_fw_chain *ch, struct table_config *tc)
+{
+	struct table_info *ti;
+	struct table_algo *ta;
+	struct dump_args da;
+
+	ti = KIDX_TO_TI(ch, tc->no.kidx);
+	ta = tc->ta;
+
+	/* Use internal counter for self-managed tables */
+	if ((ta->flags & TA_FLAG_READONLY) == 0)
+		return (tc->count);
+
+	/* Use callback to quickly get number of items */
+	if ((ta->flags & TA_FLAG_EXTCOUNTER) != 0)
+		return (ta->get_count(tc->astate, ti));
+
+	/* Count number of iterms ourselves */
+	memset(&da, 0, sizeof(da));
+	ta->foreach(tc->astate, ti, count_ext_entries, &da);
+
+	return (da.cnt);
+}
 
 /*
  * Exports table @tc info into standard ipfw_xtable_info format.
@@ -1903,7 +1957,7 @@ export_table_info(struct ip_fw_chain *ch, struct table_config *tc,
 	i->set = tc->no.set;
 	i->kidx = tc->no.kidx;
 	i->refcnt = tc->no.refcnt;
-	i->count = tc->count;
+	i->count = table_get_count(ch, tc);
 	i->limit = tc->limit;
 	i->flags |= (tc->locked != 0) ? IPFW_TGFLAGS_LOCKED : 0;
 	i->size = tc->count * sizeof(ipfw_obj_tentry);
@@ -1981,18 +2035,6 @@ export_tables(struct ip_fw_chain *ch, ipfw_obj_lheader *olh,
 
 	return (0);
 }
-
-struct dump_args {
-	struct table_info *ti;
-	struct table_config *tc;
-	struct sockopt_data *sd;
-	uint32_t cnt;
-	uint16_t uidx;
-	int error;
-	ipfw_table_entry *ent;
-	uint32_t size;
-	ipfw_obj_tentry tent;
-};
 
 int
 ipfw_dump_table(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
@@ -2092,7 +2134,7 @@ ipfw_dump_table_v0(struct ip_fw_chain *ch, struct sockopt_data *sd)
 	struct table_config *tc;
 	struct table_algo *ta;
 	struct dump_args da;
-	size_t sz;
+	size_t sz, count;
 
 	xtbl = (ipfw_xtable *)ipfw_get_sopt_header(sd, sizeof(ipfw_xtable));
 	if (xtbl == NULL)
@@ -2106,9 +2148,10 @@ ipfw_dump_table_v0(struct ip_fw_chain *ch, struct sockopt_data *sd)
 		IPFW_UH_RUNLOCK(ch);
 		return (0);
 	}
-	sz = tc->count * sizeof(ipfw_table_xentry) + sizeof(ipfw_xtable);
+	count = table_get_count(ch, tc);
+	sz = count * sizeof(ipfw_table_xentry) + sizeof(ipfw_xtable);
 
-	xtbl->cnt = tc->count;
+	xtbl->cnt = count;
 	xtbl->size = sz;
 	xtbl->type = tc->no.type;
 	xtbl->tbl = ti.uidx;
@@ -2149,7 +2192,7 @@ ipfw_count_table(struct ip_fw_chain *ch, struct tid_info *ti, uint32_t *cnt)
 
 	if ((tc = find_table(CHAIN_TO_NI(ch), ti)) == NULL)
 		return (ESRCH);
-	*cnt = tc->count;
+	*cnt = table_get_count(ch, tc);
 	return (0);
 }
 
@@ -2160,13 +2203,16 @@ int
 ipfw_count_xtable(struct ip_fw_chain *ch, struct tid_info *ti, uint32_t *cnt)
 {
 	struct table_config *tc;
+	uint32_t count;
 
 	if ((tc = find_table(CHAIN_TO_NI(ch), ti)) == NULL) {
 		*cnt = 0;
 		return (0); /* 'table all list' requires success */
 	}
-	*cnt = tc->count * sizeof(ipfw_table_xentry);
-	if (tc->count > 0)
+
+	count = table_get_count(ch, tc);
+	*cnt = count * sizeof(ipfw_table_xentry);
+	if (count > 0)
 		*cnt += sizeof(ipfw_xtable);
 	return (0);
 }
