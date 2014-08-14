@@ -110,7 +110,7 @@ VNET_DEFINE(struct pf_altqqueue,	 pf_altqs[2]);
 VNET_DEFINE(struct pf_palist,		 pf_pabuf);
 VNET_DEFINE(struct pf_altqqueue *,	 pf_altqs_active);
 VNET_DEFINE(struct pf_altqqueue *,	 pf_altqs_inactive);
-VNET_DEFINE(struct pf_status,		 pf_status);
+VNET_DEFINE(struct pf_kstatus,		 pf_status);
 
 VNET_DEFINE(u_int32_t,			 ticket_altqs_active);
 VNET_DEFINE(u_int32_t,			 ticket_altqs_inactive);
@@ -469,13 +469,13 @@ pf_src_connlimit(struct pf_state **state)
 	if ((*state)->rule.ptr->max_src_conn &&
 	    (*state)->rule.ptr->max_src_conn <
 	    (*state)->src_node->conn) {
-		V_pf_status.lcounters[LCNT_SRCCONN]++;
+		counter_u64_add(V_pf_status.lcounters[LCNT_SRCCONN], 1);
 		bad++;
 	}
 
 	if ((*state)->rule.ptr->max_src_conn_rate.limit &&
 	    pf_check_threshold(&(*state)->src_node->conn_rate)) {
-		V_pf_status.lcounters[LCNT_SRCCONNRATE]++;
+		counter_u64_add(V_pf_status.lcounters[LCNT_SRCCONNRATE], 1);
 		bad++;
 	}
 
@@ -523,7 +523,7 @@ pf_overload_task(void *v, int pending)
 
 	bzero(&p, sizeof(p));
 	SLIST_FOREACH(pfoe, &queue, next) {
-		V_pf_status.lcounters[LCNT_OVERLOAD_TABLE]++;
+		counter_u64_add(V_pf_status.lcounters[LCNT_OVERLOAD_TABLE], 1);
 		if (V_pf_status.debug >= PF_DEBUG_MISC) {
 			printf("%s: blocking address ", __func__);
 			pf_print_host(&pfoe->addr, 0, pfoe->af);
@@ -559,7 +559,8 @@ pf_overload_task(void *v, int pending)
 			SLIST_REMOVE(&queue, pfoe, pf_overload_entry, next);
 			free(pfoe, M_PFTEMP);
 		} else
-			V_pf_status.lcounters[LCNT_OVERLOAD_FLUSH]++;
+			counter_u64_add(
+			    V_pf_status.lcounters[LCNT_OVERLOAD_FLUSH], 1);
 
 	/* If nothing to flush, return. */
 	if (SLIST_EMPTY(&queue)) {
@@ -609,7 +610,7 @@ pf_find_src_node(struct pf_addr *src, struct pf_rule *rule, sa_family_t af,
 	struct pf_srchash *sh;
 	struct pf_src_node *n;
 
-	V_pf_status.scounters[SCNT_SRC_NODE_SEARCH]++;
+	counter_u64_add(V_pf_status.scounters[SCNT_SRC_NODE_SEARCH], 1);
 
 	sh = &V_pf_srchash[pf_hashsrc(src, af)];
 	PF_HASHROW_LOCK(sh);
@@ -645,7 +646,8 @@ pf_insert_src_node(struct pf_src_node **sn, struct pf_rule *rule,
 		    counter_u64_fetch(rule->src_nodes) < rule->max_src_nodes)
 			(*sn) = uma_zalloc(V_pf_sources_z, M_NOWAIT | M_ZERO);
 		else
-			V_pf_status.lcounters[LCNT_SRCNODES]++;
+			counter_u64_add(V_pf_status.lcounters[LCNT_SRCNODES],
+			    1);
 		if ((*sn) == NULL) {
 			PF_HASHROW_UNLOCK(sh);
 			return (-1);
@@ -664,12 +666,12 @@ pf_insert_src_node(struct pf_src_node **sn, struct pf_rule *rule,
 		if ((*sn)->rule.ptr != NULL)
 			counter_u64_add((*sn)->rule.ptr->src_nodes, 1);
 		PF_HASHROW_UNLOCK(sh);
-		V_pf_status.scounters[SCNT_SRC_NODE_INSERT]++;
-		V_pf_status.src_nodes++;
+		counter_u64_add(V_pf_status.scounters[SCNT_SRC_NODE_INSERT], 1);
 	} else {
 		if (rule->max_src_states &&
 		    (*sn)->states >= rule->max_src_states) {
-			V_pf_status.lcounters[LCNT_SRCSTATES]++;
+			counter_u64_add(V_pf_status.lcounters[LCNT_SRCSTATES],
+			    1);
 			return (-1);
 		}
 	}
@@ -688,8 +690,7 @@ pf_unlink_src_node_locked(struct pf_src_node *src)
 	LIST_REMOVE(src, entry);
 	if (src->rule.ptr)
 		counter_u64_add(src->rule.ptr->src_nodes, -1);
-	V_pf_status.scounters[SCNT_SRC_NODE_REMOVALS]++;
-	V_pf_status.src_nodes--;
+	counter_u64_add(V_pf_status.scounters[SCNT_SRC_NODE_REMOVALS], 1);
 }
 
 void
@@ -1203,7 +1204,7 @@ pf_state_insert(struct pfi_kif *kif, struct pf_state_key *skw,
 	/* One for keys, one for ID hash. */
 	refcount_init(&s->refs, 2);
 
-	V_pf_status.fcounters[FCNT_STATE_INSERT]++;
+	counter_u64_add(V_pf_status.fcounters[FCNT_STATE_INSERT], 1);
 	if (pfsync_insert_state_ptr != NULL)
 		pfsync_insert_state_ptr(s);
 
@@ -1220,7 +1221,7 @@ pf_find_state_byid(uint64_t id, uint32_t creatorid)
 	struct pf_idhash *ih;
 	struct pf_state *s;
 
-	V_pf_status.fcounters[FCNT_STATE_SEARCH]++;
+	counter_u64_add(V_pf_status.fcounters[FCNT_STATE_SEARCH], 1);
 
 	ih = &V_pf_idhash[(be64toh(id) % (pf_hashmask + 1))];
 
@@ -1247,7 +1248,7 @@ pf_find_state(struct pfi_kif *kif, struct pf_state_key_cmp *key, u_int dir)
 	struct pf_state		*s;
 	int idx;
 
-	V_pf_status.fcounters[FCNT_STATE_SEARCH]++;
+	counter_u64_add(V_pf_status.fcounters[FCNT_STATE_SEARCH], 1);
 
 	kh = &V_pf_keyhash[pf_hashkey((struct pf_state_key *)key)];
 
@@ -1291,7 +1292,7 @@ pf_find_state_all(struct pf_state_key_cmp *key, u_int dir, int *more)
 	struct pf_state		*s, *ret = NULL;
 	int			 idx, inout = 0;
 
-	V_pf_status.fcounters[FCNT_STATE_SEARCH]++;
+	counter_u64_add(V_pf_status.fcounters[FCNT_STATE_SEARCH], 1);
 
 	kh = &V_pf_keyhash[pf_hashkey((struct pf_state_key *)key)];
 
@@ -1519,6 +1520,8 @@ pf_purge_expired_src_nodes()
 	}
 
 	pf_free_src_nodes(&freelist);
+
+	V_pf_status.src_nodes = uma_zone_get_cur(V_pf_sources_z);
 }
 
 static void
@@ -1613,7 +1616,7 @@ pf_free_state(struct pf_state *cur)
 
 	pf_normalize_tcp_cleanup(cur);
 	uma_zfree(V_pf_state_z, cur);
-	V_pf_status.fcounters[FCNT_STATE_REMOVALS]++;
+	counter_u64_add(V_pf_status.fcounters[FCNT_STATE_REMOVALS], 1);
 }
 
 /*
@@ -3454,7 +3457,7 @@ pf_create_state(struct pf_rule *r, struct pf_rule *nr, struct pf_rule *a,
 	/* check maximums */
 	if (r->max_states &&
 	    (counter_u64_fetch(r->states_cur) >= r->max_states)) {
-		V_pf_status.lcounters[LCNT_STATES]++;
+		counter_u64_add(V_pf_status.lcounters[LCNT_STATES], 1);
 		REASON_SET(&reason, PFRES_MAXSTATES);
 		return (PF_DROP);
 	}
