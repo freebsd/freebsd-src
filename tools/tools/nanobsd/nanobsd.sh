@@ -487,7 +487,7 @@ populate_data_slice ( ) (
 	populate_slice "$1" "$2" "$3" "$4"
 )
 
-create_i386_diskimage ( ) (
+create_diskimage ( ) (
 	pprint 2 "build diskimage"
 	pprint 3 "log: ${NANO_OBJ}/_.di"
 
@@ -647,11 +647,6 @@ create_i386_diskimage ( ) (
 	trap nano_cleanup EXIT
 
 	) > ${NANO_OBJ}/_.di 2>&1
-)
-
-# i386 and amd64 are identical for disk images
-create_amd64_diskimage ( ) (
-	create_i386_diskimage
 )
 
 last_orders () (
@@ -1106,7 +1101,7 @@ setup_nanobsd
 prune_usr
 run_late_customize
 if $do_image ; then
-	create_${NANO_ARCH}_diskimage
+	create_diskimage
 else
 	pprint 2 "Skipping image build (as instructed)"
 fi
