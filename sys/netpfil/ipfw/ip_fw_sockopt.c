@@ -1927,7 +1927,8 @@ dump_config(struct ip_fw_chain *chain, struct sockopt_data *sd)
 {
 	ipfw_cfg_lheader *hdr;
 	struct ip_fw *rule;
-	uint32_t sz, rnum;
+	size_t sz, rnum;
+	uint32_t hdr_flags;
 	int error, i;
 	struct dump_args da;
 	uint32_t *bmask;
@@ -1987,27 +1988,33 @@ dump_config(struct ip_fw_chain *chain, struct sockopt_data *sd)
 		sz += ipfw_dyn_get_count() * sizeof(ipfw_obj_dyntlv) +
 		     sizeof(ipfw_obj_ctlv);
 
-	/* Fill header anyway */
+
+	/*
+	 * Fill header anyway.
+	 * Note we have to save header fields to stable storage
+	 * buffer inside @sd can be flushed after dumping rules
+	 */
 	hdr->size = sz;
 	hdr->set_mask = ~V_set_disable;
+	hdr_flags = hdr->flags;
+	hdr = NULL;
 
 	if (sd->valsize < sz) {
-		IPFW_UH_RUNLOCK(chain);
-		return (ENOMEM);
+		error = ENOMEM;
+		goto cleanup;
 	}
 
 	/* STAGE2: Store actual data */
-	if (hdr->flags & IPFW_CFG_GET_STATIC) {
+	if (hdr_flags & IPFW_CFG_GET_STATIC) {
 		error = dump_static_rules(chain, &da, bmask, sd);
-		if (error != 0) {
-			IPFW_UH_RUNLOCK(chain);
-			return (error);
-		}
+		if (error != 0)
+			goto cleanup;
 	}
 
-	if (hdr->flags & IPFW_CFG_GET_STATES)
+	if (hdr_flags & IPFW_CFG_GET_STATES)
 		error = ipfw_dump_states(chain, sd);
 
+cleanup:
 	IPFW_UH_RUNLOCK(chain);
 
 	if (bmask != NULL)

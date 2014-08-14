@@ -107,7 +107,6 @@ static int create_table_internal(struct ip_fw_chain *ch, struct tid_info *ti,
     struct table_algo **pta, uint16_t *pkidx, int ref);
 static void link_table(struct ip_fw_chain *ch, struct table_config *tc);
 static void unlink_table(struct ip_fw_chain *ch, struct table_config *tc);
-static void free_table_state(void **state, void **xstate, uint8_t type);
 static int export_tables(struct ip_fw_chain *ch, ipfw_obj_lheader *olh,
     struct sockopt_data *sd);
 static void export_table_info(struct ip_fw_chain *ch, struct table_config *tc,

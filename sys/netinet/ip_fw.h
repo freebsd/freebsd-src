@@ -72,8 +72,7 @@ typedef struct _ip_fw3_opheader {
 	uint16_t reserved[2];	/* Align to 64-bit boundary */
 } ip_fw3_opheader;
 
-
-/* IPFW extented tables support */
+/* IP_FW3 opcodes */
 #define	IP_FW_TABLE_XADD	86	/* add entry */
 #define	IP_FW_TABLE_XDEL	87	/* delete entry */
 #define	IP_FW_TABLE_XGETSIZE	88	/* get table size (deprecated) */
@@ -97,32 +96,6 @@ typedef struct _ip_fw3_opheader {
 #define	IP_FW_XIFLIST		107	/* list tracked interfaces */
 #define	IP_FW_TABLES_ALIST	108	/* list table algorithms */
 #define	IP_FW_TABLE_XSWAP	109	/* swap two tables */
-
-/*
- * Usage guidelines:
- *
- * IP_FW_TABLE_XLIST(ver 1): Dumps all table data
- *   Request(getsockopt): [ ipfw_obj_lheader ], size = ipfw_xtable_info.size
- *   Reply: [ ipfw_obj_lheader ipfw_xtable_info ipfw_table_xentry x N ]
- *
- * IP_FW_TABLE_XDESTROY: Destroys given table
- *   Request(setsockopt): [ ipfw_obj_header ]
- *
- * IP_FW_TABLES_XGETSIZE: Get buffer size needed to list info for all tables.
- *   Request(getsockopt): [ empty ], size = sizeof(ipfw_obj_lheader)
- *   Reply: [ ipfw_obj_lheader ]
- *
- * IP_FW_TABLES_XLIST: Lists all tables currently available in kernel.
- *   Request(getsockopt): [ ipfw_obj_lheader ], size = ipfw_obj_lheader.size
- *   Reply: [ ipfw_obj_lheader ipfw_xtable_info x N ]
- *
- * IP_FW_TABLE_XINFO: Store table info to buffer.
- *   Request(getsockopt): [ ipfw_obj_header ipfw_xtable_info(empty)]
- *   Reply: [ ipfw_obj_header ipfw_xtable_info ]
- *
- * IP_FW_TABLE_XFLUSH: Removes all data from given table leaving type etc..
- *   Request(setsockopt): [ ipfw_obj_header ]
- */
 
 /*
  * The kernel representation of ipfw rules is made of a list of
