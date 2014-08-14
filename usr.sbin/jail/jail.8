@@ -63,7 +63,9 @@
 The
 .Nm
 utility creates new jails, or modifies or removes existing jails.
-A jail is specified via parameters on the command line, or in the
+A jail
+.Pq or Dq prison
+is specified via parameters on the command line, or in the
 .Xr jail.conf 5
 file.
 .Pp
@@ -73,7 +75,7 @@ At least one of the options
 or
 .Fl r
 must be specified.
-These options are used alone or in combination describe the operation to
+These options are used alone or in combination to describe the operation to
 perform:
 .Bl -tag -width indent
 .It Fl c
@@ -82,8 +84,7 @@ The jail
 .Va jid
 and
 .Va name
-parameters (if specified) on the command line,
-or any jails
+parameters (if specified on the command line)
 must not refer to an existing jail.
 .It Fl m
 Modify an existing jail.
@@ -97,14 +98,15 @@ Some parameters may not be changed on a running jail.
 Remove the
 .Ar jail
 specified by jid or name.
-All jailed processes are killed, and all children of this jail are also
+All jailed processes are killed, and all jails that are
+children of this jail are also
 removed.
 .It Fl rc
 Restart an existing jail.
 The jail is first removed and then re-created, as if
-.Dq Nm Fl c
-and
 .Dq Nm Fl r
+and
+.Dq Nm Fl c
 were run in succession.
 .It Fl cm
 Create a jail if it does not exist, or modify the jail if it does exist.
@@ -134,7 +136,7 @@ Resolve the
 parameter (or
 .Va hostname )
 and add all IP addresses returned by the resolver
-to the list of addresses for this prison.
+to the list of addresses for this jail.
 This is equivalent to the
 .Va ip_hostname
 parameter.
@@ -146,7 +148,7 @@ option.
 .It Fl J Ar jid_file
 Write a
 .Ar jid_file
-file, containing parameters used to start the jail.
+file, containing the parameters used to start the jail.
 .It Fl l
 Run commands in a clean environment.
 This is deprecated and is equivalent to the exec.clean parameter.
@@ -166,7 +168,7 @@ Only error messages will be printed.
 A variation of the
 .Fl r
 option that removes an existing jail without using the configuration file.
-No removal-related parameters for this jail will be used - the jail will
+No removal-related parameters for this jail will be used \(em the jail will
 simply be removed.
 .It Fl s Ar securelevel
 Set the
@@ -183,7 +185,7 @@ and
 .Va exec.system_jail_user
 parameters.
 .It Fl U Ar username
-The user name from jailed environment as whom jailed commands should run.
+The user name from the jailed environment as whom jailed commands should run.
 This is deprecated and is equivalent to the
 .Va exec.jail_user
 parameter.
@@ -237,13 +239,12 @@ This mode will always create a new jail, and the
 .Fl c
 and
 .Fl m
-options don't apply (and must not exist).
+options do not apply (and must not be present).
 .Ss Jail Parameters
 Parameters in the
 .Xr jail.conf 5
-file, or on the command line, are generally in
-.Dq name=value
-form.
+file, or on the command line, are generally of the form
+.Dq name=value .
 Some parameters are boolean, and do not have a value but are set by the
 name alone with or without a
 .Dq no
@@ -264,9 +265,10 @@ for details).
 .Pp
 The
 .Nm
-utility recognizes two classes of parameters.  There are the true jail
+utility recognizes two classes of parameters.
+There are the true jail
 parameters that are passed to the kernel when the jail is created,
-can be seen with
+which can be seen with
 .Xr jls 8 ,
 and can (usually) be changed with
 .Dq Nm Fl m .
@@ -314,26 +316,26 @@ parameter is implied by the
 file format, and need not be explicitly set when using the configuration
 file.
 .It Va path
-The directory which is to be the root of the prison.
-Any commands run inside the prison, either by
+The directory which is to be the root of the jail.
+Any commands run inside the jail, either by
 .Nm
 or from
 .Xr jexec 8 ,
 are run from this directory.
 .It Va ip4.addr
-A list of IPv4 addresses assigned to the prison.
+A list of IPv4 addresses assigned to the jail.
 If this is set, the jail is restricted to using only these addresses.
 Any attempts to use other addresses fail, and attempts to use wildcard
 addresses silently use the jailed address instead.
-For IPv4 the first address given will be kept used as the source address
-in case source address selection on unbound sockets cannot find a better
+For IPv4 the first address given will be used as the source address
+when source address selection on unbound sockets cannot find a better
 match.
-It is only possible to start multiple jails with the same IP address,
+It is only possible to start multiple jails with the same IP address
 if none of the jails has more than this single overlapping IP address
 assigned to itself.
 .It Va ip4.saddrsel
 A boolean option to change the formerly mentioned behaviour and disable
-IPv4 source address selection for the prison in favour of the primary
+IPv4 source address selection for the jail in favour of the primary
 IPv4 address of the jail.
 Source address selection is enabled by default for all jails and the
 .Va ip4.nosaddrsel
@@ -345,8 +347,8 @@ Possible values are
 to allow unrestricted access to all system addresses,
 .Dq new
 to restrict addresses via
-.Va ip4.addr
-above, and
+.Va ip4.addr ,
+and
 .Dq disable
 to stop the jail from using IPv4 entirely.
 Setting the
@@ -354,14 +356,14 @@ Setting the
 parameter implies a value of
 .Dq new .
 .It Va ip6.addr , Va ip6.saddrsel , Va ip6
-A set of IPv6 options for the prison, the counterparts to
+A set of IPv6 options for the jail, the counterparts to
 .Va ip4.addr ,
 .Va ip4.saddrsel
 and
 .Va ip4
 above.
 .It vnet
-Create the prison with its own virtual network stack,
+Create the jail with its own virtual network stack,
 with its own network interfaces, addresses, routing table, etc.
 The kernel must have been compiled with the
 .Sy VIMAGE option
@@ -373,7 +375,7 @@ and
 .Dq new
 to create a new network stack.
 .It Va host.hostname
-The hostname of the prison.
+The hostname of the jail.
 Other similar parameters are
 .Va host.domainname ,
 .Va host.hostuuid
@@ -392,7 +394,7 @@ Setting any of the above fields implies a value of
 The value of the jail's
 .Va kern.securelevel
 sysctl.
-A jail never has a lower securelevel than the default system, but by
+A jail never has a lower securelevel than its parent system, but by
 setting this parameter it may have a higher one.
 If the system securelevel is changed, any jail securelevels will be at
 least as secure.
@@ -432,12 +434,12 @@ section for more information.
 The number of descendants of this jail, including its own child jails
 and any jails created under them.
 .It Va enforce_statfs
-This determines which information processes in a jail are able to get
+This determines what information processes in a jail are able to get
 about mount points.
 It affects the behaviour of the following syscalls:
 .Xr statfs 2 ,
 .Xr fstatfs 2 ,
-.Xr getfsstat 2
+.Xr getfsstat 2 ,
 and
 .Xr fhstatfs 2
 (as well as similar compatibility syscalls).
@@ -488,12 +490,12 @@ namespace across the host and jail environments, meaning that processes
 within a jail would be able to communicate with (and potentially interfere
 with) processes outside of the jail, and in other jails.
 .It Va allow.raw_sockets
-The prison root is allowed to create raw sockets.
+The jail root is allowed to create raw sockets.
 Setting this parameter allows utilities like
 .Xr ping 8
 and
 .Xr traceroute 8
-to operate inside the prison.
+to operate inside the jail.
 If this is set, the source IP addresses are enforced to comply
 with the IP address bound to the jail, regardless of whether or not
 the
@@ -523,10 +525,10 @@ privileged users inside the jail will be able to mount and unmount the
 devfs file system.
 This permission is effective only together with
 .Va allow.mount
-and if
+and only when
 .Va enforce_statfs
 is set to a value lower than 2.
-Please consider restricting the devfs ruleset with the
+The devfs ruleset should be restricted from the default by using the
 .Va devfs_ruleset
 option.
 .It Va allow.mount.nullfs
@@ -534,7 +536,7 @@ privileged users inside the jail will be able to mount and unmount the
 nullfs file system.
 This permission is effective only together with
 .Va allow.mount
-and if
+and only when
 .Va enforce_statfs
 is set to a value lower than 2.
 .It Va allow.mount.procfs
@@ -542,7 +544,7 @@ privileged users inside the jail will be able to mount and unmount the
 procfs file system.
 This permission is effective only together with
 .Va allow.mount
-and if
+and only when
 .Va enforce_statfs
 is set to a value lower than 2.
 .It Va allow.mount.tmpfs
@@ -550,7 +552,7 @@ privileged users inside the jail will be able to mount and unmount the
 tmpfs file system.
 This permission is effective only together with
 .Va allow.mount
-and if
+and only when
 .Va enforce_statfs
 is set to a value lower than 2.
 .It Va allow.mount.zfs
@@ -558,7 +560,7 @@ privileged users inside the jail will be able to mount and unmount the
 ZFS file system.
 This permission is effective only together with
 .Va allow.mount
-and if
+and only when
 .Va enforce_statfs
 is set to a value lower than 2.
 See
@@ -566,7 +568,7 @@ See
 for information on how to configure the ZFS filesystem to operate from
 within a jail.
 .It Va allow.quotas
-The prison root may administer quotas on the jail's filesystem(s).
+The jail root may administer quotas on the jail's filesystem(s).
 This includes filesystems that the jail may share with other jails or
 with non-jailed parts of the system.
 .It Va allow.socket_af
@@ -576,33 +578,33 @@ have not had jail functionality added to them.
 .El
 .El
 .Pp
-There are pseudo-parameters that aren't passed to the kernel, but are
+There are pseudo-parameters that are not passed to the kernel, but are
 used by
 .Nm
-to set up the prison environment, often by running specified commands
+to set up the jail environment, often by running specified commands
 when jails are created or removed.
 The
 .Va exec.*
 command parameters are
 .Xr sh 1
-command lines that are run in either the system or prison environment.
+command lines that are run in either the system or jail environment.
 They may be given multiple values, which run would the specified
 commands in sequence.
 All commands must succeed (return a zero exit status), or the jail will
-not be created or removed.
+not be created or removed, as appropriate.
 .Pp
 The pseudo-parameters are:
 .Bl -tag -width indent
 .It Va exec.prestart
-Command(s) to run in the system environment before a prison is created.
+Command(s) to run in the system environment before a jail is created.
 .It Va exec.start
-Command(s) to run in the prison environment when a jail is created.
+Command(s) to run in the jail environment when a jail is created.
 A typical command to run is
 .Dq sh /etc/rc .
 .It Va command
 A synonym for
 .Va exec.start
-for use when specifying a prison directly on the command line.
+for use when specifying a jail directly on the command line.
 Unlike other parameters whose value is a single string,
 .Va command
 uses the remainder of the
@@ -616,7 +618,7 @@ commands have completed.
 .It Va exec.prestop
 Command(s) to run in the system environment before a jail is removed.
 .It Va exec.stop
-Command(s) to run in the prison environment before a jail is removed,
+Command(s) to run in the jail environment before a jail is removed,
 and after any
 .Va exec.prestop
 commands have completed.
@@ -641,14 +643,14 @@ is imported from the current environment.
 The environment variables from the login class capability database for the
 target login are also set.
 .It Va exec.jail_user
-The user to run commands as, when running in the prison environment.
+The user to run commands as, when running in the jail environment.
 The default is to run the commands as the current user.
 .It Va exec.system_jail_user
 This boolean option looks for the
 .Va exec.jail_user
 in the system
 .Xr passwd 5
-file, instead of in the prison's file.
+file, instead of in the jail's file.
 .It Va exec.system_user
 The user to run commands as, when running in the system environment.
 The default is to run the commands as the current user.
@@ -656,35 +658,35 @@ The default is to run the commands as the current user.
 The maximum amount of time to wait for a command to complete, in
 seconds.
 If a command is still running after this timeout has passed,
-the jail not be created or removed.
+the jail will not be created or removed, as appropriate.
 .It Va exec.consolelog
 A file to direct command output (stdout and stderr) to.
 .It Va exec.fib
-The FIB (routing table) to set when running commands inside the prison.
+The FIB (routing table) to set when running commands inside the jail.
 .It Va stop.timeout
-The maximum amount of time to wait for a prison's processes to exit
+The maximum amount of time to wait for a jail's processes to exit
 after sending them a
 .Dv SIGTERM
 signal (which happens after the
 .Va exec.stop
 commands have completed).
-After this many seconds have passed, the prison will be removed, which
+After this many seconds have passed, the jail will be removed, which
 will kill any remaining processes.
 If this is set to zero, no
 .Dv SIGTERM
-is sent and the prison is immediately removed.
+is sent and the jail is immediately removed.
 The default is 10 seconds.
 .It Va interface
-A network interface to add the prison's IP addresses
+A network interface to add the jail's IP addresses
 .Va ( ip4.addr
 and
 .Va ip6.addr )
 to.
 An alias for each address will be added to the interface before the
-prison is created, and will be removed from the interface after the
-prison is removed.
+jail is created, and will be removed from the interface after the
+jail is removed.
 .It Va ip4.addr
-In addition to the IP addresses that are passed to the kernel, and
+In addition to the IP addresses that are passed to the kernel, an
 interface, netmask and additional paramters (as supported by
 .Xr ifconfig 8 Ns )
 may also be specified, in the form
@@ -692,8 +694,9 @@ may also be specified, in the form
 If an interface is given before the IP address, an alias for the address
 will be added to that interface, as it is with the
 .Va interface
-parameter.  If a netmask in either dotted-quad or CIDR form is given
-after IP address, it will be used when adding the IP alias.
+parameter.
+If a netmask in either dotted-quad or CIDR form is given
+after an IP address, it will be used when adding the IP alias.
 If additional parameters are specified then they will also be used when
 adding the IP alias.
 .It Va ip6.addr
@@ -704,20 +707,20 @@ may also be specified, in the form
 .Dq Ar interface Ns | Ns Ar ip-address Ns / Ns Ar prefix param ... .
 .It Va vnet.interface
 A network interface to give to a vnet-enabled jail after is it created.
-The interface will automatically be returned when the jail is removed.
+The interface will automatically be released when the jail is removed.
 .It Va ip_hostname
 Resolve the
 .Va host.hostname
 parameter and add all IP addresses returned by the resolver
 to the list of addresses
-.Va ( ip4.addr
+.Po Va ip4.addr
 or
-.Va ip6.addr )
-for this prison.
+.Va ip6.addr Pc
+for this jail.
 This may affect default address selection for outgoing IPv4 connections
-of prisons.
+from jails.
 The address first returned by the resolver for each address family
-will be used as primary address.
+will be used as the primary address.
 .It Va mount
 A filesystem to mount before creating the jail (and to unmount after
 removing it), given as a single
@@ -735,7 +738,7 @@ filesystem on the chrooted
 directory, and apply the ruleset in the
 .Va devfs_ruleset
 parameter (or a default of ruleset 4: devfsrules_jail)
-to restrict the devices visible inside the prison.
+to restrict the devices visible inside the jail.
 .It Va mount.fdescfs
 Mount a
 .Xr fdescfs 5
@@ -768,11 +771,11 @@ is
 required, so as to provide the necessary command line tools, daemons,
 libraries, application configuration files, etc.
 However, for a virtual server configuration, a fair amount of
-additional work is required so as to configure the
+additional work is required so as to replace the
 .Dq boot
 process.
 This manual page documents the configuration steps necessary to support
-either of these steps, although the configuration steps may be
+either of these steps, although the configuration steps may need to be
 refined based on local requirements.
 .Ss "Setting up a Jail Directory Tree"
 To set up a jail directory tree containing an entire
@@ -792,7 +795,7 @@ In many cases this example would put far more in the jail than needed.
 In the other extreme case a jail might contain only one file:
 the executable to be run in the jail.
 .Pp
-We recommend experimentation and caution that it is a lot easier to
+We recommend experimentation, and caution that it is a lot easier to
 start with a
 .Dq fat
 jail and remove things until it stops working,
@@ -811,13 +814,13 @@ for a jail named
 Substitute below as needed with your
 own directory, IP address, and hostname.
 .Ss "Setting up the Host Environment"
-First, you will want to set up your real system's environment to be
+First, set up the real system's environment to be
 .Dq jail-friendly .
 For consistency, we will refer to the parent box as the
 .Dq "host environment" ,
 and to the jailed virtual machine as the
 .Dq "jail environment" .
-Since jail is implemented using IP aliases, one of the first things to do
+Since jails are implemented using IP aliases, one of the first things to do
 is to disable IP services on the host system that listen on all local
 IP addresses for a service.
 If a network service is present in the host environment that binds all
@@ -840,13 +843,12 @@ rpcbind_enable="NO"
 is the native IP address for the host system, in this example.
 Daemons that run out of
 .Xr inetd 8
-can be easily set to use only the specified host IP address.
+can be easily configured to use only the specified host IP address.
 Other daemons
-will need to be manually configured\(emfor some this is possible through
-the
+will need to be manually configured \(em for some this is possible through
 .Xr rc.conf 5
 flags entries; for others it is necessary to modify per-application
-configuration files, or to recompile the applications.
+configuration files, or to recompile the application.
 The following frequently deployed services must have their individual
 configuration files modified to limit the application to listening
 to a specific IP address:
@@ -884,7 +886,7 @@ easily reconfigured to use only specific IPs, as some NFS services are
 hosted directly from the kernel.
 Any third-party network software running
 in the host environment should also be checked and configured so that it
-does not bind all IP addresses, which would result in those services' also
+does not bind all IP addresses, which would result in those services also
 appearing to be offered by the jail environments.
 .Pp
 Once
@@ -897,7 +899,7 @@ etc.).
 Start any jail for the first time without configuring the network
 interface so that you can clean it up a little and set up accounts.
 As
-with any machine (virtual or not) you will need to set a root password, time
+with any machine (virtual or not), you will need to set a root password, time
 zone, etc.
 Some of these steps apply only if you intend to run a full virtual server
 inside the jail; others apply both for constraining a particular application
@@ -921,7 +923,7 @@ etc.
 .It
 Configure
 .Pa /etc/resolv.conf
-so that name resolution within the jail will work correctly
+so that name resolution within the jail will work correctly.
 .It
 Run
 .Xr newaliases 1
@@ -929,13 +931,13 @@ to quell
 .Xr sendmail 8
 warnings.
 .It
-Set a root password, probably different from the real host system
+Set a root password, probably different from the real host system.
 .It
-Set the timezone
+Set the timezone.
 .It
-Add accounts for users in the jail environment
+Add accounts for users in the jail environment.
 .It
-Install any packages the environment requires
+Install any packages the environment requires.
 .El
 .Pp
 You may also want to perform any package-specific configuration (web servers,
@@ -995,11 +997,12 @@ and other processes running within the jail using
 with the
 .Ql J
 flag appearing beside jailed processes.
-To see an active list of jails, use the
-.Xr jls 8
-utility.
-You should also be able to
-.Xr telnet 1
+To see an active list of jails, use
+.Xr jls 8 .
+If
+.Xr sshd 8
+is enabled in the jail environment, you should be able to
+.Xr ssh 1
 to the hostname or IP address of the jailed environment, and log
 in using the accounts you created previously.
 .Pp
@@ -1027,7 +1030,7 @@ This will send the
 .Dv SIGTERM
 or
 .Dv SIGKILL
-signals to all processes in the jail - be careful not to run this from
+signals to all processes in the jail \(em be careful not to run this from
 the host environment!
 Once all of the jail's processes have died, unless the jail was created
 with the
@@ -1082,18 +1085,18 @@ or
 any file system inside a jail unless the file system is marked
 jail-friendly, the jail's
 .Va allow.mount
-parameter is set and the jail's
+parameter is set, and the jail's
 .Va enforce_statfs
 parameter is lower than 2.
 .Pp
 Multiple jails sharing the same file system can influence each other.
-For example a user in one jail can fill the file system also
+For example, a user in one jail can fill the file system,
 leaving no space for processes in the other jail.
 Trying to use
 .Xr quota 1
-to prevent this will not work either as the file system quotas
+to prevent this will not work either, as the file system quotas
 are not aware of jails but only look at the user and group IDs.
-This means the same user ID in two jails share the same file
+This means the same user ID in two jails share a single file
 system quota.
 One would need to use one file system per jail to make this work.
 .Ss "Sysctl MIB Entries"
@@ -1104,11 +1107,11 @@ is one) or not (value is zero).
 .Pp
 The variable
 .Va security.jail.max_af_ips
-determines how may address per address family a prison may have.
+determines how may address per address family a jail may have.
 The default is 255.
 .Pp
 Some MIB variables have per-jail settings.
-Changes to these variables by a jailed process do not effect the host
+Changes to these variables by a jailed process do not affect the host
 environment, only the jail environment.
 These variables are
 .Va kern.securelevel ,
@@ -1133,7 +1136,7 @@ of 0 indicates the jail is a child of the current jail (or is a top-level
 jail if the current process isn't jailed).
 .Pp
 Jailed processes are not allowed to confer greater permissions than they
-themselves are given, e.g. if a jail is created with
+themselves are given, e.g., if a jail is created with
 .Va allow.nomount ,
 it is not able to create a jail with
 .Va allow.mount
