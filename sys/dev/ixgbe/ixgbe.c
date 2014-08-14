@@ -317,7 +317,7 @@ SYSCTL_INT(_hw_ix, OID_AUTO, rxd, CTLFLAG_RDTUN, &ixgbe_rxd, 0,
 ** doing so you are on your own :)
 */
 static int allow_unsupported_sfp = FALSE;
-TUNABLE_INT("hw.ixgbe.unsupported_sfp", &allow_unsupported_sfp);
+TUNABLE_INT("hw.ix.unsupported_sfp", &allow_unsupported_sfp);
 
 /*
 ** HW RSC control: 
