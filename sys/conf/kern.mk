@@ -32,6 +32,10 @@ CWARNEXTRA?=	-Wno-error-tautological-compare -Wno-error-empty-body \
 		-Wno-error-parentheses-equality -Wno-error-unused-function
 .endif
 
+.if ${COMPILER_TYPE} == "gcc" && ${COMPILER_VERSION} >= 40300
+CWARNEXTRA?=	-Wno-inline
+.endif
+
 # External compilers may not support our format extensions.  Allow them
 # to be disabled.  WARNING: format checking is disabled in this case.
 .if ${MK_FORMAT_EXTENSIONS} == "no"
