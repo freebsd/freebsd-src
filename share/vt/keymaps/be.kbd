@@ -21,7 +21,7 @@
   015   ht     btab   nop    nop    ht     btab   nop    nop     O
   016   'a'    'A'    soh    soh    'a'    'A'    soh    soh     C
   017   'z'    'Z'    sub    sub    'z'    'Z'    sub    sub     C
-  018   'e'    'E'    enq    enq    164    'E'    enq    enq     C
+  018   'e'    'E'    enq    enq    8364   'E'    enq    enq     C
   019   'r'    'R'    dc2    dc2    'r'    'R'    dc2    dc2     C
   020   't'    'T'    dc4    dc4    't'    'T'    dc4    dc4     C
   021   'y'    'Y'    em     em     'y'    'Y'    em     em      C
