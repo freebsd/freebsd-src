@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 2013-2014 Robert N. M. Watson
+ * Copyright (c) 2014 SRI International
  * All rights reserved.
  *
  * This software was developed by SRI International and the University of
@@ -53,6 +54,8 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/bootinfo.h>
 #include <machine/elf.h>
+
+#include <contrib/libfdt/fdt.h>
 
 #include <stand.h>
 #include <stdarg.h>
@@ -328,12 +331,17 @@ exit(int x)
 static void
 boot(void *entryp, int argc, const char *argv[], const char *envv[])
 {
+    int dtb_needs_swap;
+    size_t dtb_size;
+    struct fdt_header *dtb_rom, *dtb;
+    uint32_t *swapptr;
 
     bootinfo.bi_kernelname = (bi_ptr_t)kname;
     bootinfo.bi_boot2opts = opts & RBX_MASK;
     bootinfo.bi_boot_dev_type = dsk.type;
     bootinfo.bi_boot_dev_unitptr = dsk.unitptr;
     bootinfo.bi_memsize = beri_memsize;
+
 #if 0
     /*
      * XXXRW: A possible future way to distinguish Miniboot passing a memory
@@ -344,6 +352,41 @@ boot(void *entryp, int argc, const char *argv[], const char *envv[])
     else
 	bootinfo.bi_dtb = beri_memsize;
 #endif
+
+    /*
+     * XXXBD: Ideally we'd get this as an argument from miniboot.  For
+     * now just know where it should be and check for a valid signature.
+     */
+    dtb_rom = (void*)(intptr_t)0x900000007f010000;
+    printf("Checking for DTB at %p\n", dtb_rom);
+
+    dtb_size = 0;
+    if (dtb_rom->magic == FDT_MAGIC) {
+	dtb_needs_swap = 0;
+        dtb_size = dtb_rom->totalsize;
+    } else if (dtb_rom->magic == bswap32(FDT_MAGIC)) {
+	dtb_needs_swap = 1;
+	dtb_size = bswap32(dtb_rom->totalsize);
+    }
+    if (dtb_size != 0) {
+	printf("Found device tree blob of length %u at %p\n", dtb_size, dtb);
+        dtb = (void*)(intptr_t)(0x9000000000020000 -
+				roundup2(dtb_size, PAGE_SIZE));
+        printf("Relocating device tree blob to %p\n", dtb);
+        if (dtb_size < 0x20000 - PAGE_SIZE) {
+	    memcpy(dtb, dtb_rom, dtb_size);
+	    if (dtb_needs_swap) {
+	        printf("Swapping bytes of device tree blob\n");
+	        for (swapptr = (uint32_t *)dtb;
+		     swapptr < dtb + (dtb_size/sizeof(*dtb));
+		     swapptr++)
+		    *swapptr = bswap32(*swapptr);
+	    }
+            bootinfo.bi_dtb = (uint64_t)dtb;
+        } else
+	    printf("Device tree blob too large to relocate!\n");
+    }
+
     ((void(*)(int, const char **, const char **, void *))entryp)(argc, argv,
       envv, &bootinfo);
 }
@@ -540,8 +583,7 @@ parse()
 		 */
 		unit = q[len-1];
 		if (unit < '0' || unit > '9') {
-		    printf("Invalid device: invalid unit\n", q,
-		      unit);
+		    printf("Invalid device %s: invalid unit %c\n", q, unit);
 		    return (-1);
 		}
 		unit -= '0';
