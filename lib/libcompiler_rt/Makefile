@@ -51,34 +51,22 @@ SRCF=	absvdi2 \
 	ffsdi2 \
 	ffsti2 \
 	fixdfdi \
-	fixdfti \
 	fixsfdi \
-	fixsfti \
 	fixunsdfdi \
 	fixunsdfsi \
-	fixunsdfti \
 	fixunssfdi \
 	fixunssfsi \
-	fixunssfti \
 	fixunsxfdi \
 	fixunsxfsi \
-	fixunsxfti \
 	fixxfdi \
-	fixxfti \
 	floatdidf \
 	floatdisf \
 	floatdixf \
-	floattidf \
-	floattisf \
-	floattixf \
 	floatundidf \
 	floatundisf \
 	floatundixf \
 	floatunsidf \
 	floatunsisf \
-	floatuntidf \
-	floatuntisf \
-	floatuntixf \
 	int_util \
 	lshrdi3 \
 	lshrti3 \
@@ -88,12 +76,10 @@ SRCF=	absvdi2 \
 	muldi3 \
 	mulodi4 \
 	mulosi4 \
-	muloti4 \
 	mulsc3 \
 	multi3 \
 	mulvdi3 \
 	mulvsi3 \
-	mulvti3 \
 	mulxc3 \
 	negdf2 \
 	negdi2 \
