@@ -65,13 +65,14 @@ void __libc_free_tls(void *tls, size_t tcbsize, size_t tcbalign);
 #if defined(__amd64__)
 #define TLS_TCB_ALIGN 16
 #elif defined(__powerpc__) || defined(__i386__) || defined(__arm__) || \
-    defined(__sparc64__) || defined(__mips__)
+    defined(__sparc64__) || defined(__mips__) || defined(__aarch64__)
 #define TLS_TCB_ALIGN sizeof(void *)
 #else
 #error TLS_TCB_ALIGN undefined for target architecture
 #endif
 
-#if defined(__arm__) || defined(__mips__) || defined(__powerpc__)
+#if defined(__arm__) || defined(__mips__) || defined(__powerpc__) || \
+    defined(__aarch64__)
 #define TLS_VARIANT_I
 #endif
 #if defined(__i386__) || defined(__amd64__) || defined(__sparc64__)
