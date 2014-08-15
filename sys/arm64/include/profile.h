@@ -66,6 +66,13 @@ void user(void);
 
 void	mcount(uintfptr_t frompc, uintfptr_t selfpc);
 
+#else /* !_KERNEL */
+
+typedef unsigned long long	uintfptr_t;
+
+#define	_MCOUNT_DECL	void mcount
+#define	MCOUNT
+
 #endif /* _KERNEL */
 
 #endif /* !_MACHINE_PROFILE_H_ */
