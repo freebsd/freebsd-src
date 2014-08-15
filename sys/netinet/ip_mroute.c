@@ -247,7 +247,7 @@ static const struct protosw in_pim_protosw = {
 	.pr_protocol =		IPPROTO_PIM,
 	.pr_flags =		PR_ATOMIC|PR_ADDR|PR_LASTHDR,
 	.pr_input =		pim_input,
-	.pr_output =		(pr_output_t *)rip_output,
+	.pr_output =		rip_output,
 	.pr_ctloutput =		rip_ctloutput,
 	.pr_usrreqs =		&rip_usrreqs
 };
