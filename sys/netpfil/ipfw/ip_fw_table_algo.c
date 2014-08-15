@@ -482,14 +482,14 @@ ta_dump_radix_tentry(void *ta_state, struct table_info *ti, void *e,
 		tent->k.addr.s_addr = n->addr.sin_addr.s_addr;
 		tent->masklen = n->masklen;
 		tent->subtype = AF_INET;
-		tent->value = n->value;
+		tent->v.value = n->value;
 #ifdef INET6
 	} else {
 		xn = (struct radix_addr_xentry *)e;
 		memcpy(&tent->k, &xn->addr6.sin6_addr, sizeof(struct in6_addr));
 		tent->masklen = xn->masklen;
 		tent->subtype = AF_INET6;
-		tent->value = xn->value;
+		tent->v.value = xn->value;
 #endif
 	}
 
@@ -1257,13 +1257,13 @@ ta_dump_chash_tentry(void *ta_state, struct table_info *ti, void *e,
 		tent->k.addr.s_addr = htonl(ent->a.a4 << (32 - cfg->mask4));
 		tent->masklen = cfg->mask4;
 		tent->subtype = AF_INET;
-		tent->value = ent->value;
+		tent->v.value = ent->value;
 #ifdef INET6
 	} else {
 		memcpy(&tent->k, &ent->a.a6, sizeof(struct in6_addr));
 		tent->masklen = cfg->mask6;
 		tent->subtype = AF_INET6;
-		tent->value = ent->value;
+		tent->v.value = ent->value;
 #endif
 	}
 
@@ -2354,7 +2354,7 @@ ta_dump_ifidx_tentry(void *ta_state, struct table_info *ti, void *e,
 
 	tent->masklen = 8 * IF_NAMESIZE;
 	memcpy(&tent->k, ife->no.name, IF_NAMESIZE);
-	tent->value = ife->value;
+	tent->v.value = ife->value;
 
 	return (0);
 }
@@ -2778,7 +2778,7 @@ ta_dump_numarray_tentry(void *ta_state, struct table_info *ti, void *e,
 	na = (struct numarray *)e;
 
 	tent->k.key = na->number;
-	tent->value = na->value;
+	tent->v.value = na->value;
 
 	return (0);
 }
@@ -3124,7 +3124,7 @@ ta_dump_fhash_tentry(void *ta_state, struct table_info *ti, void *e,
 	tfe->proto = ent->proto;
 	tfe->dport = htons(ent->dport);
 	tfe->sport = htons(ent->sport);
-	tent->value = ent->value;
+	tent->v.value = ent->value;
 	tent->subtype = ent->af;
 
 	if (ent->af == AF_INET) {
@@ -3693,7 +3693,7 @@ ta_dump_kfib_tentry(void *ta_state, struct table_info *ti, void *e,
 			len = 0;
 		tent->masklen = len;
 		tent->subtype = AF_INET;
-		tent->value = 0; /* Do we need to put GW here? */
+		tent->v.value = 0; /* Do we need to put GW here? */
 #ifdef INET6
 	} else if (addr->sin_family == AF_INET6) {
 		addr6 = (struct sockaddr_in6 *)addr;
@@ -3706,7 +3706,7 @@ ta_dump_kfib_tentry(void *ta_state, struct table_info *ti, void *e,
 			len = 0;
 		tent->masklen = len;
 		tent->subtype = AF_INET6;
-		tent->value = 0;
+		tent->v.value = 0;
 #endif
 	}
 

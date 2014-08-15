@@ -1387,15 +1387,15 @@ tentry_fill_value(ipfw_obj_header *oh, ipfw_obj_tentry *tent, char *arg,
 	char *p;
 
 	/* Try to interpret as number first */
-	tent->value = strtoul(arg, &p, 0);
+	tent->v.value = strtoul(arg, &p, 0);
 	if (*p == '\0')
 		return;
 	if (inet_pton(AF_INET, arg, &val) == 1) {
-		tent->value = ntohl(val);
+		tent->v.value = ntohl(val);
 		return;
 	}
 	/* Try hostname */
-	if (lookup_host(arg, (struct in_addr *)&tent->value) == 0)
+	if (lookup_host(arg, (struct in_addr *)&tent->v.value) == 0)
 		return;
 	errx(EX_OSERR, "Unable to parse value %s", arg);
 #if 0
@@ -1565,7 +1565,7 @@ table_show_entry(ipfw_xtable_info *i, ipfw_obj_tentry *tent)
 	uint32_t tval;
 	struct tflow_entry *tfe;
 
-	tval = tent->value;
+	tval = tent->v.value;
 
 	if (co.do_value_as_ip || i->vftype == IPFW_VFTYPE_IP) {
 		tval = htonl(tval);

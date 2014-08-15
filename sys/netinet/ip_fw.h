@@ -756,12 +756,10 @@ typedef struct	_ipfw_obj_tentry {
 	ipfw_obj_tlv	head;		/* TLV header			*/
 	uint8_t		subtype;	/* subtype (IPv4,IPv6)		*/
 	uint8_t		masklen;	/* mask length			*/
-	uint16_t	idx;		/* Table name index		*/
-	uint32_t	value;		/* value			*/
 	uint8_t		result;		/* request result		*/
 	uint8_t		spare0;
+	uint16_t	idx;		/* Table name index		*/
 	uint16_t	spare1;
-	uint32_t	spare2;
 	union {
 		/* Longest field needs to be aligned by 8-byte boundary	*/
 		struct in_addr		addr;	/* IPv4 address		*/
@@ -770,6 +768,10 @@ typedef struct	_ipfw_obj_tentry {
 		char	iface[IF_NAMESIZE];	/* interface name	*/
 		struct tflow_entry	flow;	
 	} k;
+	union {
+		uint32_t		value;	/* 32-bit value */
+		char			storage[64]; /* Future needs	*/
+	} v;
 } ipfw_obj_tentry;
 #define	IPFW_TF_UPDATE	0x01		/* Update record if exists	*/
 /* Container TLV */

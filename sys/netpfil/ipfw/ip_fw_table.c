@@ -888,7 +888,7 @@ ipfw_manage_table_ent_v1(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
 		ptei->masklen = ptent->masklen;
 		if (ptent->head.flags & IPFW_TF_UPDATE)
 			ptei->flags |= TEI_FLAGS_UPDATE;
-		ptei->value = ptent->value;
+		ptei->value = ptent->v.value;
 	}
 
 	error = (oh->opheader.opcode == IP_FW_TABLE_XADD) ?
@@ -2244,7 +2244,7 @@ dump_table_entry(void *e, void *arg)
 
 	ent->addr = da->tent.k.addr.s_addr;
 	ent->masklen = da->tent.masklen;
-	ent->value = da->tent.value;
+	ent->value = da->tent.v.value;
 
 	return (0);
 }
@@ -2345,7 +2345,7 @@ dump_table_xentry(void *e, void *arg)
 
 	/* Convert current format to previous one */
 	xent->masklen = tent->masklen;
-	xent->value = tent->value;
+	xent->value = tent->v.value;
 	/* Apply some hacks */
 	if (tc->no.type == IPFW_TABLE_ADDR && tent->subtype == AF_INET) {
 		xent->k.addr6.s6_addr32[3] = tent->k.addr.s_addr;
