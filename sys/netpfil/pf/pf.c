@@ -3518,8 +3518,6 @@ pf_create_state(struct pf_rule *r, struct pf_rule *nr, struct pf_rule *a,
 	}
 
 	if (r->rt && r->rt != PF_FASTROUTE) {
-		struct pf_src_node *sn = NULL;
-
 		if (pf_map_addr(pd->af, r, pd->src, &s->rt_addr, NULL, &sn)) {
 			REASON_SET(&reason, PFRES_MAPFAILED);
 			pf_src_tree_remove_state(s);
