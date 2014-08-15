@@ -161,6 +161,22 @@
 
 #define	MAXDUMPPGS		1		/* xxx: why is this only one? */
 
+#ifdef KSTACK_LARGE_PAGE
+/*
+ * For a large kernel stack page the KSTACK_SIZE needs to be a page size
+ * supported by the hardware (e.g. 16K).
+ */
+#define	KSTACK_SIZE		(1 << 14)	/* Single 16K page */
+#define	KSTACK_PAGE_SIZE	KSTACK_SIZE
+#define	KSTACK_PAGE_MASK	(KSTACK_PAGE_SIZE - 1)
+#define	KSTACK_PAGES		(KSTACK_SIZE / PAGE_SIZE)
+#define	KSTACK_TLBMASK_MASK	((KSTACK_PAGE_MASK >> (TLBMASK_SHIFT - 1)) \
+					<< TLBMASK_SHIFT)
+#define	KSTACK_GUARD_PAGES	((KSTACK_PAGE_SIZE * 2) / PAGE_SIZE)
+#define	KSTACK_OBJT		OBJT_PHYS
+
+#else /* ! KSTACK_LARGE_PAGE */
+
 /*
  * The kernel stack needs to be aligned on a (PAGE_SIZE * 2) boundary.
  */
@@ -170,7 +186,12 @@
 #else
 #define	KSTACK_PAGES		2	/* kernel stack */
 #endif
+#define	KSTACK_SIZE		(KSTACK_PAGES * PAGE_SIZE)
+#define	KSTACK_PAGE_SIZE	PAGE_SIZE
+#define	KSTACK_PAGE_MASK	(PAGE_SIZE - 1)
 #define	KSTACK_GUARD_PAGES	2	/* pages of kstack guard; 0 disables */
+#define	KSTACK_OBJT		OBJT_DEFAULT
+#endif /* ! KSTACK_LARGE_PAGE */
 
 /*
  * Mach derived conversion macros

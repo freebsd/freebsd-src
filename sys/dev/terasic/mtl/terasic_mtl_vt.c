@@ -64,13 +64,27 @@ terasic_mtl_fbd_panel_info(struct terasic_mtl_softc *sc, struct fb_info *info)
 		return (ENXIO);
 
 	/* panel size */
-	if ((len = OF_getproplen(node, "panel-size")) <= 0)
+	if ((len = OF_getproplen(node, "panel-size")) != sizeof(dts_value))
 		return (ENXIO);
-	OF_getprop(node, "panel-size", &dts_value, len);
-	info->fb_width = fdt32_to_cpu(dts_value[0]);
-	info->fb_height = fdt32_to_cpu(dts_value[1]);
+	OF_getencprop(node, "panel-size", dts_value, len);
+	info->fb_width = dts_value[0];
+	info->fb_height = dts_value[1];
 	info->fb_bpp = info->fb_depth = 32;
 	info->fb_stride = info->fb_width * (info->fb_depth / 8);
+
+	/*
+	 * Safety belt to ensure framebuffer params are as expected.  May be
+	 * removed when we have full confidence in fdt / hints params.
+	 */
+	if (info->fb_width != TERASIC_MTL_FB_WIDTH ||
+	    info->fb_height != TERASIC_MTL_FB_HEIGHT ||
+	    info->fb_stride != 3200 ||
+	    info->fb_bpp != 32 || info->fb_depth != 32) {
+		device_printf(sc->mtl_dev,
+		    "rejecting invalid panel params width=%u height=%u\n",
+		    (unsigned)info->fb_width, (unsigned)info->fb_height);
+		return (EINVAL);
+	}
 
 	return (0);
 }
@@ -105,7 +119,7 @@ terasic_mtl_fbd_attach(struct terasic_mtl_softc *sc)
 		    "Failed to attach fbd device\n");
 		return (ENXIO);
 	}
-	(void)vt_generate_vga_palette(info->fb_cmap, COLOR_FORMAT_RGB,
+	(void)vt_generate_cons_palette(info->fb_cmap, COLOR_FORMAT_RGB,
 	    0xff, 8, 0xff, 16, 0xff, 24);
 	return (0);
 }

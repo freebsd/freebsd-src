@@ -158,6 +158,12 @@ struct terasic_mtl_softc {
 #define	TERASIC_MTL_TEXTFRAMEBUF_ATTR_SHIFT	8
 
 /*
+ * Framebuffer constants.
+ */
+#define	TERASIC_MTL_FB_WIDTH		800
+#define	TERASIC_MTL_FB_HEIGHT		640
+
+/*
  * Alpha-blending constants.
  */
 #define	TERASIC_MTL_ALPHA_TRANSPARENT	0

@@ -82,13 +82,13 @@ usage(void)
 {
 	
 	printf("usage:	\n");
-	printf("	mtlclt fbdump <file>\n");
-	printf("	mtlclt fbdumppng <file>\n");
-	printf("	mtlclt fbfill <RRGGBB>\n");
-	printf("	mtlclt fbloaddump <file>\n");
-	printf("	mtlclt fbloadpng <file>\n");
-	printf("	mtlclt gesture\n");
-	printf("	mtlclt gestures\n");
+	printf("	mtlctl fbdump <file>\n");
+	printf("	mtlctl fbdumppng <file>\n");
+	printf("	mtlctl fbfill <RRGGBB>\n");
+	printf("	mtlctl fbloaddump <file>\n");
+	printf("	mtlctl fbloadpng <file>\n");
+	printf("	mtlctl gesture\n");
+	printf("	mtlctl gestures\n");
 	exit(1);
 }
 
@@ -255,7 +255,7 @@ main(int argc, char *argv[] __unused)
 			warnx("invalid color %s", argv[2]);
 			usage();
 		}
-		pixel = fb_colour((color >> 16) & 0xFF, (color >> 16) & 0xFF,
+		pixel = fb_colour((color >> 16) & 0xFF, (color >> 8) & 0xFF,
 		    color & 0xFF);
 		fb_fill(pixel);
 		/* XXX: A bit too heavyhanded */

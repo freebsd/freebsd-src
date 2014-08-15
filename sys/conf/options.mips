@@ -98,6 +98,13 @@ PLATFORM_INIT_SECONDARY		opt_global.h
 NF10BMAC_64BIT			opt_netfpga.h
 
 #
+# Options for hardware with PageMask register support
+#
+
+# Use one large page (currently 16K) for the kernel thread stack
+KSTACK_LARGE_PAGE   		opt_global.h
+
+#
 # Options that control the Atheros SoC peripherals
 #
 ARGE_DEBUG			opt_arge.h

@@ -54,8 +54,10 @@ __FBSDID("$FreeBSD$");
 #include <sys/vnode.h>
 #include <sys/vmmeter.h>
 #include <sys/kernel.h>
+#include <sys/rwlock.h>
 #include <sys/sysctl.h>
 #include <sys/unistd.h>
+#include <sys/vmem.h>
 
 #include <machine/cache.h>
 #ifdef CPU_CHERI
@@ -74,6 +76,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/pmap.h>
 #include <vm/vm_kern.h>
 #include <vm/vm_map.h>
+#include <vm/vm_object.h>
 #include <vm/vm_page.h>
 #include <vm/vm_pageout.h>
 #include <vm/vm_param.h>
@@ -312,7 +315,6 @@ void
 cpu_thread_swapin(struct thread *td)
 {
 	pt_entry_t *pte;
-	int i;
 
 	/*
 	 * The kstack may be at a different physical address now.
@@ -320,10 +322,21 @@ cpu_thread_swapin(struct thread *td)
 	 * part of the thread struct so cpu_switch() can quickly map in
 	 * the pcb struct and kernel stack.
 	 */
+#ifdef KSTACK_LARGE_PAGE
+	/* Just one entry for one large kernel page. */
+	pte = pmap_pte(kernel_pmap, td->td_kstack);
+	td->td_md.md_upte[0] = *pte & ~TLBLO_SWBITS_MASK;
+	td->td_md.md_upte[1] = 1;
+
+#else
+
+	int i;
+
 	for (i = 0; i < KSTACK_PAGES; i++) {
 		pte = pmap_pte(kernel_pmap, td->td_kstack + i * PAGE_SIZE);
 		td->td_md.md_upte[i] = *pte & ~TLBLO_SWBITS_MASK;
 	}
+#endif /* ! KSTACK_LARGE_PAGE */
 }
 
 void
@@ -335,17 +348,31 @@ void
 cpu_thread_alloc(struct thread *td)
 {
 	pt_entry_t *pte;
-	int i;
 
-	KASSERT((td->td_kstack & (1 << PAGE_SHIFT)) == 0, ("kernel stack must be aligned."));
+	KASSERT((td->td_kstack & ((KSTACK_PAGE_SIZE * 2) - 1) ) == 0,
+	    ("kernel stack must be aligned."));
 	td->td_pcb = (struct pcb *)(td->td_kstack +
 	    td->td_kstack_pages * PAGE_SIZE) - 1;
 	td->td_frame = &td->td_pcb->pcb_regs;
 
-	for (i = 0; i < KSTACK_PAGES; i++) {
-		pte = pmap_pte(kernel_pmap, td->td_kstack + i * PAGE_SIZE);
-		td->td_md.md_upte[i] = *pte & ~TLBLO_SWBITS_MASK;
+#ifdef KSTACK_LARGE_PAGE
+	/* Just one entry for one large kernel page. */
+	pte = pmap_pte(kernel_pmap, td->td_kstack);
+	td->td_md.md_upte[0] = *pte & ~TLBLO_SWBITS_MASK;
+	td->td_md.md_upte[1] = 1;
+
+#else
+
+	{
+		int i;
+
+		for (i = 0; i < KSTACK_PAGES; i++) {
+			pte = pmap_pte(kernel_pmap, td->td_kstack + i *
+			    PAGE_SIZE);
+			td->td_md.md_upte[i] = *pte & ~TLBLO_SWBITS_MASK;
+		}
 	}
+#endif /* ! KSTACK_LARGE_PAGE */
 }
 
 void
@@ -682,6 +709,121 @@ cpu_set_user_tls(struct thread *td, void *tls_base)
 
 	return (0);
 }
+
+/*
+ * Allocate the virtual address space for the kernel thread stack.
+ */
+vm_offset_t
+vm_kstack_valloc(int pages)
+{
+	vm_offset_t ks;
+
+	/*
+	 * We need to align the kstack's mapped address to fit within
+	 * a single TLB entry.
+	 */
+	if (vmem_xalloc(kernel_arena,
+	    (pages + KSTACK_GUARD_PAGES) * PAGE_SIZE,
+	    KSTACK_PAGE_SIZE * 2, 0, 0, VMEM_ADDR_MIN, VMEM_ADDR_MAX,
+	    M_BESTFIT | M_NOWAIT, &ks)) {
+		return (0);
+	}
+	return (ks);
+}
+
+#ifdef KSTACK_LARGE_PAGE
+
+/*
+ * Allocate the physical memory for the kernel thread stack.
+ */
+int
+vm_kstack_palloc(vm_object_t ksobj, vm_offset_t ks, int allocflags, int pages,
+    vm_page_t ma[])
+{
+	vm_page_t m, end_m;
+	int i;
+
+	KASSERT((ksobj != NULL), ("vm_kstack_palloc: invalid VM object"));
+	VM_OBJECT_ASSERT_WLOCKED(ksobj);
+
+	allocflags = (allocflags & ~VM_ALLOC_CLASS_MASK) | VM_ALLOC_NORMAL;
+
+	for (i = 0; i < pages; i++) {
+retrylookup:
+		if ((m = vm_page_lookup(ksobj, i)) == NULL)
+			break;
+		if (vm_page_busied(m)) {
+			/*
+			 * Reference the page before unlocking and
+			 * sleeping so that the page daemon is less
+			 * likely to reclaim it.
+			 */
+			vm_page_aflag_set(m, PGA_REFERENCED);
+			vm_page_lock(m);
+			VM_OBJECT_WUNLOCK(ksobj);
+			vm_page_busy_sleep(m, "pgrbwt");
+			VM_OBJECT_WLOCK(ksobj);
+			goto retrylookup;
+		} else {
+			if ((allocflags & VM_ALLOC_WIRED) != 0) {
+				vm_page_lock(m);
+				vm_page_wire(m);
+				vm_page_unlock(m);
+			}
+			ma[i] = m;
+		}
+	}
+	if (i == pages)
+		return (i);
+
+	KASSERT((i == 0), ("vm_kstack_palloc: ksobj already has kstack pages"));
+
+	for (;;) {
+		m = vm_page_alloc_contig(ksobj, 0, allocflags,
+		    atop(KSTACK_PAGE_SIZE), 0ul, ~0ul, KSTACK_PAGE_SIZE * 2, 0,
+		    VM_MEMATTR_DEFAULT);
+		if (m != NULL)
+			break;
+		VM_OBJECT_WUNLOCK(ksobj);
+		VM_WAIT;
+		VM_OBJECT_WLOCK(ksobj);
+	}
+	end_m = m + atop(KSTACK_PAGE_SIZE);
+	for (i = 0; m < end_m; m++) {
+		m->pindex = (vm_pindex_t)i;
+		if ((allocflags & VM_ALLOC_NOBUSY) != 0)
+			m->valid = VM_PAGE_BITS_ALL;
+		ma[i] = m;
+		i++;
+	}
+	return (i);
+}
+
+#else /* ! KSTACK_LARGE_PAGE */
+
+/*
+ * Allocate the physical memory for the kernel thread stack.
+ */
+int
+vm_kstack_palloc(struct vm_object *ksobj, vm_offset_t ks,
+    int allocflags, int pages, struct vm_page *ma[])
+{
+	int i;
+
+	KASSERT((ksobj != NULL), ("vm_kstack_palloc: invalid VM object"));
+	VM_OBJECT_ASSERT_WLOCKED(ksobj);
+
+	 allocflags = (allocflags & ~VM_ALLOC_CLASS_MASK) | VM_ALLOC_NORMAL;
+
+	 for (i = 0; i < pages; i++) {
+		 /* Get a kernel stack page. */
+		 ma[i] = vm_page_grab(ksobj, i, allocflags);
+		 if (allocflags & VM_ALLOC_NOBUSY)
+			 ma[i]->valid = VM_PAGE_BITS_ALL;
+	 }
+	 return (i);
+}
+#endif /* ! KSTACK_LARGE_PAGE */
 
 #ifdef DDB
 #include <ddb/ddb.h>
