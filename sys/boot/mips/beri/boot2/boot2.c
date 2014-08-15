@@ -359,7 +359,6 @@ boot(void *entryp, int argc, const char *argv[], const char *envv[])
      */
     dtb_rom = (void*)(intptr_t)0x900000007f010000;
     printf("Checking for DTB at %p\n", dtb_rom);
-    printf("magic = %x, size = %x\n", dtb_rom->magic, dtb_rom->totalsize);
 
     dtb_size = 0;
     if (dtb_rom->magic == FDT_MAGIC) {
@@ -379,15 +378,14 @@ boot(void *entryp, int argc, const char *argv[], const char *envv[])
 	    if (dtb_needs_swap) {
 	        printf("Swapping bytes of device tree blob\n");
 	        for (swapptr = (uint32_t *)dtb;
-		     swapptr < (uint32_t*)((char *)dtb) + dtb_size;
+		     swapptr < dtb + (dtb_size/sizeof(*dtb));
 		     swapptr++)
 		    *swapptr = bswap32(*swapptr);
 	    }
             bootinfo.bi_dtb = (uint64_t)dtb;
         } else
 	    printf("Device tree blob too large to relocate!\n");
-    } else
-	printf("No DTB found\n");
+    }
 
     ((void(*)(int, const char **, const char **, void *))entryp)(argc, argv,
       envv, &bootinfo);
