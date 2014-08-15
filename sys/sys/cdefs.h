@@ -735,7 +735,7 @@
 #endif
 #endif
 
-#if defined(__mips) || defined(__powerpc64__)
+#if defined(__aarch64__) || defined(__mips) || defined(__powerpc64__)
 #define __NO_TLS 1
 #endif
 
