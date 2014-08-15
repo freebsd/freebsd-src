@@ -64,14 +64,14 @@ cpu_fork(struct thread *td1, struct proc *p2, struct thread *td2, int flags)
 	bcopy(td1->td_pcb, pcb2, sizeof(*pcb2));
 
 	/* Set the return value registers for fork() */
-	td1->td_pcb->pcb_x[8] = (uintptr_t)fork_return;
-	td1->td_pcb->pcb_x[9] = (uintptr_t)td2;
-	td1->td_pcb->pcb_x[PCB_LR] = (uintptr_t)fork_trampoline;
-	td1->td_pcb->pcb_sp = (uintptr_t)td1->td_frame;
+	td2->td_pcb->pcb_x[8] = (uintptr_t)fork_return;
+	td2->td_pcb->pcb_x[9] = (uintptr_t)td2;
+	td2->td_pcb->pcb_x[PCB_LR] = (uintptr_t)fork_trampoline;
+	td2->td_pcb->pcb_sp = (uintptr_t)td2->td_frame;
 
 	/* Setup to release spin count in fork_exit(). */
-	td1->td_md.md_spinlock_count = 1;
-	td1->td_md.md_saved_daif = 0;
+	td2->td_md.md_spinlock_count = 1;
+	td2->td_md.md_saved_daif = 0;
 }
 
 void
