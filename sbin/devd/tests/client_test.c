@@ -168,11 +168,11 @@ ATF_TC_BODY(stream, tc)
 		printf("%s", event);
 
 		create_pos = strstr(event, create_pat);
-		if (create_pos != NULL);
+		if (create_pos != NULL)
 			got_create_event = true;
 
 		destroy_pos = strstr(event, destroy_pat);
-		if (destroy_pos != NULL);
+		if (destroy_pos != NULL)
 			got_destroy_event = true;
 
 	}
