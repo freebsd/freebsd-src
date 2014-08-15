@@ -25,7 +25,8 @@ CFLAGS+=	-DIN_GCC -DIN_LIBGCC2 -D__GCC_FLOAT_NOT_NEEDED \
 		-DHAVE_GTHR_DEFAULT \
 		-I${GCCLIB}/include \
 		-I${GCCDIR}/config -I${GCCDIR} -I. \
-		-I${.CURDIR}/../../usr.bin/cc/cc_tools
+		-I${.CURDIR}/../../usr.bin/cc/cc_tools \
+		-I${.CURDIR}
 
 LDFLAGS+=	-nodefaultlibs
 LDADD+=		-lc
@@ -55,7 +56,8 @@ LIB2FUNCS+= _fixuns${mode}si
 .endfor
 
 # Likewise double-word routines.
-.if ${TARGET_CPUARCH} != "arm" || ${MK_ARM_EABI} == "no"
+.if (${TARGET_CPUARCH} != "arm" || ${MK_ARM_EABI} == "no") && \
+    ${TARGET_CPUARCH} != "arm64"
 # These are implemented in an ARM specific file but will not be filtered out
 .for mode in sf df xf tf
 LIB2FUNCS+= _fix${mode}di _fixuns${mode}di

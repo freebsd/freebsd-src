@@ -849,6 +849,8 @@ execute_cfa_program (const unsigned char *insn_ptr,
 		     struct _Unwind_Context *context,
 		     _Unwind_FrameState *fs)
 {
+  abort();
+#if 0 /* Broken woth clang 3.4 for arm64 */
   struct frame_state_reg_info *unused_rs = NULL;
 
   /* Don't allow remember/restore between CIE and FDE programs.  */
@@ -1082,6 +1084,7 @@ execute_cfa_program (const unsigned char *insn_ptr,
 	  gcc_unreachable ();
 	}
     }
+#endif
 }
 
 /* Given the _Unwind_Context CONTEXT for a stack frame, look up the FDE for

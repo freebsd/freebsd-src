@@ -20,7 +20,7 @@ CFLAGS+=	-fno-inline-functions -fno-exceptions \
 		-fno-zero-initialized-in-bss -fno-asynchronous-unwind-tables \
 		-fno-omit-frame-pointer
 CFLAGS+=	-I${GCCLIB}/include -I${GCCDIR}/config -I${GCCDIR} -I. \
-		-I${CCDIR}/cc_tools
+		-I${CCDIR}/cc_tools -I${.CURDIR}/../libgcc
 CRTS_CFLAGS=	-DCRTSTUFFS_O -DSHARED ${PICFLAG}
 MKDEP=		-DCRT_BEGIN
 
