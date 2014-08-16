@@ -34,6 +34,7 @@ static const char rcsid[] =
 #include <sys/socket.h>
 
 #include <net/if.h>
+#include <net/sff8472.h>
 
 #include <math.h>
 #include <err.h>
@@ -44,10 +45,6 @@ static const char rcsid[] =
 #include <unistd.h>
 
 #include "ifconfig.h"
-
-/* 2wire addresses */
-#define	SFP_ADDR_MSA	0xA0	/* Identification data */
-#define	SFP_ADDR_DDM	0xA2	/* digital monitoring interface */
 
 /* Definitions from Table 3.1 */
 #define SFP_MSA_IDENTIFIER	0	/* Type of transceiver (T. 3.2), 1B */
@@ -88,25 +85,6 @@ struct _nv {
 const char *find_value(struct _nv *x, int value);
 const char *find_zero_bit(struct _nv *x, int value, int sz);
 
-
-/* SFF-8472 Rev. 11.4 table 3.2: Identifier values */
-static struct _nv ids[] = {
-	{ 0x00, "Unknown" },
-	{ 0x01, "GBIC" },
-	{ 0x02, "SFF" },
-	{ 0x03, "SFP/SFP+" },
-	{ 0x04, "300 pin XBI" },
-	{ 0x05, "Xenpak" },
-	{ 0x06, "XFP" },
-	{ 0x07, "XFF" },
-	{ 0x08, "XFP-E" },
-	{ 0x09, "XPak" },
-	{ 0x0A, "X2" },
-	{ 0x0B, "DWDM-SFP/DWDM-SFP+" },
-	{ 0x0C, "QSFP" },
-	{ 0, NULL, },
-};
-
 /* SFF-8472 Rev. 11.4 table 3.4: Connector values */
 static struct _nv conn[] = {
 	{ 0x00, "Unknown" },
@@ -127,72 +105,6 @@ static struct _nv conn[] = {
 	{ 0x22, "RJ45" },
 	{ 0, NULL }
 };
-
-const char *
-find_value(struct _nv *x, int value)
-{
-	for (; x->n != NULL; x++)
-		if (x->v == value)
-			return (x->n);
-	return (NULL);
-}
-
-const char *
-find_zero_bit(struct _nv *x, int value, int sz)
-{
-	int v, m;
-	const char *s;
-
-	v = 1;
-	for (v = 1, m = 1 << (8 * sz); v < m; v *= 2) {
-		if ((value & v) == 0)
-			continue;
-		if ((s = find_value(x, value & v)) != NULL) {
-			value &= ~v;
-			return (s);
-		}
-	}
-
-	return (NULL);
-}
-
-static void
-get_sfp_identifier(struct i2c_info *ii, char *buf, size_t size)
-{
-	const char *x;
-	uint8_t data;
-
-	ii->f(ii, SFP_ADDR_MSA, SFP_MSA_IDENTIFIER, 1, (caddr_t)&data);
-
-	if ((x = find_value(ids, data)) == NULL) {
-		if (data > 0x80)
-			x = "Vendor specific";
-		else
-			x = "Reserved";
-	}
-
-	snprintf(buf, size, "%s", x);
-}
-
-static void
-get_sfp_connector(struct i2c_info *ii, char *buf, size_t size)
-{
-	const char *x;
-	uint8_t data;
-
-	ii->f(ii, SFP_ADDR_MSA, SFP_MSA_CONNECTOR, 1, (caddr_t)&data);
-
-	if ((x = find_value(conn, data)) == NULL) {
-		if (data >= 0x0D && data <= 0x1F)
-			x = "Unallocated";
-		else if (data >= 0x23 && data <= 0x7F)
-			x = "Unallocated";
-		else
-			x = "Vendor specific";
-	}
-
-	snprintf(buf, size, "%s", x);
-}
 
 /* SFF-8472 Rev. 11.4 table 3.5: Transceiver codes */
 /* 10G Ethernet compliance codes, byte 3 */
@@ -270,6 +182,76 @@ static struct _nv fc_speed[] = {
 	{ 0, NULL }
 };
 
+const char *
+find_value(struct _nv *x, int value)
+{
+	for (; x->n != NULL; x++)
+		if (x->v == value)
+			return (x->n);
+	return (NULL);
+}
+
+const char *
+find_zero_bit(struct _nv *x, int value, int sz)
+{
+	int v, m;
+	const char *s;
+
+	v = 1;
+	for (v = 1, m = 1 << (8 * sz); v < m; v *= 2) {
+		if ((value & v) == 0)
+			continue;
+		if ((s = find_value(x, value & v)) != NULL) {
+			value &= ~v;
+			return (s);
+		}
+	}
+
+	return (NULL);
+}
+
+static void
+get_sfp_identifier(struct i2c_info *ii, char *buf, size_t size)
+{
+	const char *x;
+	uint8_t data;
+
+	ii->f(ii, SFF_8472_BASE, SFF_8472_ID, 1, (caddr_t)&data);
+
+	x = NULL;
+	if (data <= SFF_8472_ID_LAST) {
+		x = NULL;
+		//x = sff_8472_id[data];
+	} else {
+		if (data > 0x80)
+			x = "Vendor specific";
+		else
+			x = "Reserved";
+	}
+
+	snprintf(buf, size, "%s", x);
+}
+
+static void
+get_sfp_connector(struct i2c_info *ii, char *buf, size_t size)
+{
+	const char *x;
+	uint8_t data;
+
+	ii->f(ii, SFF_8472_BASE, SFF_8472_CONNECTOR, 1, (caddr_t)&data);
+
+	if ((x = find_value(conn, data)) == NULL) {
+		if (data >= 0x0D && data <= 0x1F)
+			x = "Unallocated";
+		else if (data >= 0x23 && data <= 0x7F)
+			x = "Unallocated";
+		else
+			x = "Vendor specific";
+	}
+
+	snprintf(buf, size, "%s", x);
+}
+
 static void
 printf_sfp_transceiver_descr(struct i2c_info *ii, char *buf, size_t size)
 {
@@ -283,7 +265,7 @@ printf_sfp_transceiver_descr(struct i2c_info *ii, char *buf, size_t size)
 	tech_speed = NULL;
 
 	/* Read bytes 3-10 at once */
-	ii->f(ii, SFP_ADDR_MSA, 3, 8, &xbuf[3]);
+	ii->f(ii, SFF_8472_BASE, SFF_8472_TRANS_START, 8, &xbuf[3]);
 
 	/* Check 10G first */
 	tech_class = find_zero_bit(eth_10g, xbuf[3], 1);
@@ -311,11 +293,12 @@ get_sfp_transceiver_class(struct i2c_info *ii, char *buf, size_t size)
 	uint8_t code;
 
 	/* Check 10G Ethernet/IB first */
-	ii->f(ii, SFP_ADDR_MSA, SFP_MSA_TRANSCEIVER_CLASS, 1, (caddr_t)&code);
+	ii->f(ii, SFF_8472_BASE, SFF_8472_TRANS_START, 1, (caddr_t)&code);
 	tech_class = find_zero_bit(eth_10g, code, 1);
 	if (tech_class == NULL) {
 		/* No match. Try Ethernet 1G */
-		ii->f(ii, SFP_ADDR_MSA, 6, 1, (caddr_t)&code);
+		ii->f(ii, SFF_8472_BASE, SFF_8472_TRANS_START + 3,
+		    1, (caddr_t)&code);
 		tech_class = find_zero_bit(eth_compat, code, 1);
 	}
 
@@ -333,7 +316,7 @@ get_sfp_vendor_name(struct i2c_info *ii, char *buf, size_t size)
 
 	memset(xbuf, 0, sizeof(xbuf));
 	/* ASCII String, right-padded with 0x20 */
-	ii->f(ii, SFP_ADDR_MSA, SFP_MSA_VENDOR_NAME, 16, xbuf);
+	ii->f(ii, SFF_8472_BASE, SFF_8472_VENDOR_START, 16, xbuf);
 	for (p = &xbuf[16]; *(p - 1) == 0x20; p--)
 		;
 	*p = '\0';
@@ -348,7 +331,7 @@ get_sfp_vendor_pn(struct i2c_info *ii, char *buf, size_t size)
 
 	memset(xbuf, 0, sizeof(xbuf));
 	/* ASCII String, right-padded with 0x20 */
-	ii->f(ii, SFP_ADDR_MSA, SFP_MSA_VENDOR_PN, 16, xbuf);
+	ii->f(ii, SFF_8472_BASE, SFF_8472_PN_START, 16, xbuf);
 	for (p = &xbuf[16]; *(p - 1) == 0x20; p--)
 		;
 	*p = '\0';
@@ -363,7 +346,7 @@ get_sfp_vendor_sn(struct i2c_info *ii, char *buf, size_t size)
 
 	memset(xbuf, 0, sizeof(xbuf));
 	/* ASCII String, right-padded with 0x20 */
-	ii->f(ii, SFP_ADDR_MSA, SFP_MSA_VENDOR_SN, 16, xbuf);
+	ii->f(ii, SFF_8472_BASE, SFF_8472_SN_START, 16, xbuf);
 	for (p = &xbuf[16]; *(p - 1) == 0x20; p--)
 		;
 	*p = '\0';
@@ -377,7 +360,7 @@ get_sfp_vendor_date(struct i2c_info *ii, char *buf, size_t size)
 
 	memset(xbuf, 0, sizeof(xbuf));
 	/* Date code, see Table 3.8 for description */
-	ii->f(ii, SFP_ADDR_MSA, SFP_MSA_VENDOR_DATE, 6, xbuf);
+	ii->f(ii, SFF_8472_BASE, SFF_8472_DATE_START, 6, xbuf);
 	snprintf(buf, size, "20%c%c-%c%c-%c%c", xbuf[0], xbuf[1],
 	    xbuf[2], xbuf[3], xbuf[4], xbuf[5]);
 }
@@ -407,7 +390,7 @@ get_sfp_temp(struct i2c_info *ii, char *buf, size_t size)
 	int k;
 
 	memset(xbuf, 0, sizeof(xbuf));
-	ii->f(ii, SFP_ADDR_DDM, SFP_DDM_TEMP, 2, xbuf);
+	ii->f(ii, SFF_8472_DIAG, SFF_8472_TEMP, 2, xbuf);
 
 	/* Convert temperature to string according to table 3.13 */
 	major = (int8_t)xbuf[0];
@@ -441,7 +424,7 @@ get_sfp_rx_power(struct i2c_info *ii, char *buf, size_t size)
 	char xbuf[2];
 
 	memset(xbuf, 0, sizeof(xbuf));
-	ii->f(ii, SFP_ADDR_DDM, SFP_DDM_RXPOWER, 2, xbuf);
+	ii->f(ii, SFF_8472_DIAG, SFF_8472_RX_POWER, 2, xbuf);
 	convert_power(ii, xbuf, buf, size);
 }
 
@@ -451,7 +434,7 @@ get_sfp_tx_power(struct i2c_info *ii, char *buf, size_t size)
 	char xbuf[2];
 
 	memset(xbuf, 0, sizeof(xbuf));
-	ii->f(ii, SFP_ADDR_DDM, SFP_DDM_TXPOWER, 2, xbuf);
+	ii->f(ii, SFF_8472_DIAG, SFF_8472_TX_POWER, 2, xbuf);
 	convert_power(ii, xbuf, buf, size);
 }
 
@@ -514,7 +497,7 @@ sfp_status(int s, struct ifreq *ifr, int verbose)
 	ii.ifr = ifr;
 
 	/* Read diagnostic monitoring type */
-	ii.f(&ii, SFP_ADDR_MSA, SFP_MSA_DMONTYPE, 1, (caddr_t)&ii.diag_type);
+	ii.f(&ii, SFF_8472_BASE, SFF_8472_DIAG_TYPE, 1, (caddr_t)&ii.diag_type);
 
 	/* Transceiver type */
 	get_sfp_identifier(&ii, buf, sizeof(buf));
@@ -527,8 +510,9 @@ sfp_status(int s, struct ifreq *ifr, int verbose)
 	print_sfp_vendor(&ii, buf, sizeof(buf));
 	if (ii.error == 0)
 		printf("\t%s\n", buf);
+
 	/*
-	 * Request current measurements iff they are implemented:
+	 * Request current measurements iff they are provided:
 	 * Bit 6 must be set.
 	 */
 	if ((ii.diag_type & 0x40) != 0) {
@@ -537,7 +521,5 @@ sfp_status(int s, struct ifreq *ifr, int verbose)
 		get_sfp_tx_power(&ii, buf3, sizeof(buf3));
 		printf("\tTemp: %s RX: %s TX: %s\n", buf, buf2, buf3);
 	}
-
-	close(s);
 }
 
