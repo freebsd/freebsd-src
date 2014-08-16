@@ -121,7 +121,6 @@ SYSCTL_VNET_INT(_net_inet_tcp, OID_AUTO, syncookies_only, CTLFLAG_RW,
 static void	 syncache_drop(struct syncache *, struct syncache_head *);
 static void	 syncache_free(struct syncache *);
 static void	 syncache_insert(struct syncache *, struct syncache_head *);
-struct syncache *syncache_lookup(struct in_conninfo *, struct syncache_head **);
 static int	 syncache_respond(struct syncache *);
 static struct	 socket *syncache_socket(struct syncache *, struct socket *,
 		    struct mbuf *m);
@@ -492,7 +491,7 @@ syncache_timer(void *xsch)
  * Find an entry in the syncache.
  * Returns always with locked syncache_head plus a matching entry or NULL.
  */
-struct syncache *
+static struct syncache *
 syncache_lookup(struct in_conninfo *inc, struct syncache_head **schp)
 {
 	struct syncache *sc;
