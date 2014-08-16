@@ -695,7 +695,6 @@ void	 tcp_tw_destroy(void);
 void	 tcp_tw_zone_change(void);
 int	 tcp_twcheck(struct inpcb *, struct tcpopt *, struct tcphdr *,
 	    struct mbuf *, int);
-int	 tcp_twrespond(struct tcptw *, int);
 void	 tcp_setpersist(struct tcpcb *);
 #ifdef TCP_SIGNATURE
 int	 tcp_signature_compute(struct mbuf *, int, int, int, u_char *, u_int);

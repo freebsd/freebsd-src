@@ -105,6 +105,7 @@ static VNET_DEFINE(TAILQ_HEAD(, tcptw), twq_2msl);
 
 static void	tcp_tw_2msl_reset(struct tcptw *, int);
 static void	tcp_tw_2msl_stop(struct tcptw *);
+static int	tcp_twrespond(struct tcptw *, int);
 
 static int
 tcptw_auto_size(void)
@@ -501,7 +502,7 @@ tcp_twclose(struct tcptw *tw, int reuse)
 	uma_zfree(V_tcptw_zone, tw);
 }
 
-int
+static int
 tcp_twrespond(struct tcptw *tw, int flags)
 {
 	struct inpcb *inp = tw->tw_inpcb;
