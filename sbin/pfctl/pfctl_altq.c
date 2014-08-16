@@ -1122,7 +1122,7 @@ getifspeed(char *ifname)
 	struct ifreq	ifr;
 	struct if_data	ifrdat;
 
-	if ((s = socket(AF_INET, SOCK_DGRAM, 0)) < 0)
+	if ((s = socket(get_socket_domain(), SOCK_DGRAM, 0)) < 0)
 		err(1, "socket");
 	bzero(&ifr, sizeof(ifr));
 	if (strlcpy(ifr.ifr_name, ifname, sizeof(ifr.ifr_name)) >=
@@ -1143,7 +1143,7 @@ getifmtu(char *ifname)
 	int		s;
 	struct ifreq	ifr;
 
-	if ((s = socket(AF_INET, SOCK_DGRAM, 0)) < 0)
+	if ((s = socket(get_socket_domain(), SOCK_DGRAM, 0)) < 0)
 		err(1, "socket");
 	bzero(&ifr, sizeof(ifr));
 	if (strlcpy(ifr.ifr_name, ifname, sizeof(ifr.ifr_name)) >=
