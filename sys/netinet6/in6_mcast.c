@@ -1849,8 +1849,7 @@ in6p_join_group(struct inpcb *inp, struct sockopt *sopt)
 		if (mreq.ipv6mr_interface == 0) {
 			ifp = in6p_lookup_mcast_ifp(inp, &gsa->sin6);
 		} else {
-			if (mreq.ipv6mr_interface < 0 ||
-			    V_if_index < mreq.ipv6mr_interface)
+			if (V_if_index < mreq.ipv6mr_interface)
 				return (EADDRNOTAVAIL);
 			ifp = ifnet_byindex(mreq.ipv6mr_interface);
 		}
@@ -2194,7 +2193,7 @@ in6p_leave_group(struct inpcb *inp, struct sockopt *sopt)
 	 * XXX SCOPE6 lock potentially taken here.
 	 */
 	if (ifindex != 0) {
-		if (ifindex < 0 || V_if_index < ifindex)
+		if (V_if_index < ifindex)
 			return (EADDRNOTAVAIL);
 		ifp = ifnet_byindex(ifindex);
 		if (ifp == NULL)
@@ -2349,7 +2348,7 @@ in6p_set_multicast_if(struct inpcb *inp, struct sockopt *sopt)
 	error = sooptcopyin(sopt, &ifindex, sizeof(u_int), sizeof(u_int));
 	if (error)
 		return (error);
-	if (ifindex < 0 || V_if_index < ifindex)
+	if (V_if_index < ifindex)
 		return (EINVAL);
 
 	ifp = ifnet_byindex(ifindex);
