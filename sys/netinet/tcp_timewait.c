@@ -350,7 +350,7 @@ tcp_twrecycleable(struct tcptw *tw)
  * looking for a pcb in the listen state.  Returns 0 otherwise.
  */
 int
-tcp_twcheck(struct inpcb *inp, struct tcpopt *to, struct tcphdr *th,
+tcp_twcheck(struct inpcb *inp, struct tcpopt *to __unused, struct tcphdr *th,
     struct mbuf *m, int tlen)
 {
 	struct tcptw *tw;
