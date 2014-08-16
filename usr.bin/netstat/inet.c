@@ -723,6 +723,17 @@ tcp_stats(u_long off, const char *name, int af1 __unused, int proto __unused)
 	p(tcps_ecn_ect1, "\t%ju packet%s with ECN ECT(1) bit set\n");
 	p(tcps_ecn_shs, "\t%ju successful ECN handshake%s\n");
 	p(tcps_ecn_rcwnd, "\t%ju time%s ECN reduced the congestion window\n");
+
+	p(tcps_sig_rcvgoodsig,
+	     "\t%ju packet%s with valid tcp-md5 signature received\n");
+	p(tcps_sig_rcvbadsig,
+	     "\t%ju packet%s with invalid tcp-md5 signature received\n");
+	p(tcps_sig_err_buildsig,
+	     "\t%ju packet%s with tcp-md5 signature mismatch\n");
+	p(tcps_sig_err_sigopt,
+	     "\t%ju packet%s with unexpected tcp-md5 signature received\n");
+	p(tcps_sig_err_nosigopt,
+	     "\t%ju packet%s without expected tcp-md5 signature received\n");
 #undef p
 #undef p1a
 #undef p2
