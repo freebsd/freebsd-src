@@ -393,7 +393,7 @@ enum {
 	SFF_8472_ID_LAST	= SFF_8472_ID_QSFP
 	};
 
-static char *sff_8472_id[SFF_8472_ID_LAST + 1] = {"Unknown",
+static const char *sff_8472_id[SFF_8472_ID_LAST + 1] = {"Unknown",
 					     "GBIC",
 					     "SFF",
 					     "SFP",
