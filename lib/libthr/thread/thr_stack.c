@@ -246,7 +246,10 @@ _thr_stack_alloc(struct pthread_attr *attr)
 		THREAD_LIST_UNLOCK(curthread);
 	}
 	else {
-		/* Allocate a stack from usrstack. */
+		/*
+		 * Allocate a stack from or below usrstack, depending
+		 * on the LIBPTHREAD_BIGSTACK_MAIN env variable.
+		 */
 		if (last_stack == NULL)
 			last_stack = _usrstack - _thr_stack_initial -
 			    _thr_guard_default;
