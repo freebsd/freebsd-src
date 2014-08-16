@@ -1085,7 +1085,9 @@ key_allocsa(
 	struct secasvar *sav;
 	u_int stateidx, arraysize, state;
 	const u_int *saorder_state_valid;
-	int chkport;
+#ifdef IPSEC_NAT_T
+	int natt_chkport;
+#endif
 
 	IPSEC_ASSERT(dst != NULL, ("null dst address"));
 
@@ -1093,11 +1095,9 @@ key_allocsa(
 		printf("DP %s from %s:%u\n", __func__, where, tag));
 
 #ifdef IPSEC_NAT_T
-        chkport = (dst->sa.sa_family == AF_INET &&
+        natt_chkport = (dst->sa.sa_family == AF_INET &&
 	    dst->sa.sa_len == sizeof(struct sockaddr_in) &&
 	    dst->sin.sin_port != 0);
-#else
-	chkport = 0;
 #endif
 
 	/*
@@ -1115,6 +1115,8 @@ key_allocsa(
 		arraysize = _ARRAYLEN(saorder_state_valid_prefer_new);
 	}
 	LIST_FOREACH(sah, &V_sahtree, chain) {
+		int checkport;
+
 		/* search valid state */
 		for (stateidx = 0; stateidx < arraysize; stateidx++) {
 			state = saorder_state_valid[stateidx];
@@ -1129,13 +1131,25 @@ key_allocsa(
 					continue;
 				if (spi != sav->spi)
 					continue;
+				checkport = 0;
+#ifdef IPSEC_NAT_T
+				/*
+				 * Really only check ports when this is a NAT-T
+				 * SA.  Otherwise other lookups providing ports
+				 * might suffer.
+				 */
+				if (sav->natt_type && natt_chkport)
+					checkport = 1;
+#endif
 #if 0	/* don't check src */
 				/* check src address */
-				if (key_sockaddrcmp(&src->sa, &sav->sah->saidx.src.sa, chkport) != 0)
+				if (key_sockaddrcmp(&src->sa,	
+				    &sav->sah->saidx.src.sa, checkport) != 0)
 					continue;
 #endif
 				/* check dst address */
-				if (key_sockaddrcmp(&dst->sa, &sav->sah->saidx.dst.sa, chkport) != 0)
+				if (key_sockaddrcmp(&dst->sa,
+				    &sav->sah->saidx.dst.sa, checkport) != 0)
 					continue;
 				sa_addref(sav);
 				goto done;
