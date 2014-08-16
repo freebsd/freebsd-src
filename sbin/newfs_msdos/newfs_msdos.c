@@ -689,7 +689,7 @@ main(int argc, char *argv[])
 			 ((u_int)tm->tm_hour << 8 |
 			  (u_int)tm->tm_min));
 		mk4(bsx->exVolumeID, x);
-		mklabel(bsx->exVolumeLabel, opt_L ? opt_L : "NO_NAME");
+		mklabel(bsx->exVolumeLabel, opt_L ? opt_L : "NO NAME");
 		sprintf(buf, "FAT%u", fat);
 		setstr(bsx->exFileSysType, buf, sizeof(bsx->exFileSysType));
 		if (!opt_B) {
