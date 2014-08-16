@@ -46,23 +46,6 @@ static const char rcsid[] =
 
 #include "ifconfig.h"
 
-/* Definitions from Table 3.1 */
-#define SFP_MSA_IDENTIFIER	0	/* Type of transceiver (T. 3.2), 1B */
-#define	SFP_MSA_CONNECTOR	2	/* Connector type (T. 3.3), 1B */
-
-#define	SFP_MSA_TRANSCEIVER_CLASS	3	/* Ethernet/Sonet/IB code, 1B */
-
-#define	SFP_MSA_VENDOR_NAME	20	/* ASCII vendor name, 16B */
-#define	SFP_MSA_VENDOR_PN	40	/* ASCII vendor partnum, 16B */
-#define	SFP_MSA_VENDOR_SN	68	/* ASCII vendor serialnum, 16B */
-#define	SFP_MSA_VENDOR_DATE	84	/* Vendor's date code, 8B */
-#define	SFP_MSA_DMONTYPE	92	/* Type of disagnostic monitoring, 1B */
-
-/* Definitions from table 3.17 */
-#define	SFP_DDM_TEMP		96	/* Module temperature, 2B */
-#define	SFP_DDM_TXPOWER		102	/* Measured TX output power, 2B */
-#define	SFP_DDM_RXPOWER		104	/* Measured RX input power, 2B */
-
 struct i2c_info;
 typedef int (read_i2c)(struct i2c_info *ii, uint8_t addr, uint8_t off,
     uint8_t len, caddr_t buf);
@@ -219,10 +202,9 @@ get_sfp_identifier(struct i2c_info *ii, char *buf, size_t size)
 	ii->f(ii, SFF_8472_BASE, SFF_8472_ID, 1, (caddr_t)&data);
 
 	x = NULL;
-	if (data <= SFF_8472_ID_LAST) {
-		x = NULL;
-		//x = sff_8472_id[data];
-	} else {
+	if (data <= SFF_8472_ID_LAST)
+		x = sff_8472_id[data];
+	else {
 		if (data > 0x80)
 			x = "Vendor specific";
 		else
@@ -267,7 +249,7 @@ printf_sfp_transceiver_descr(struct i2c_info *ii, char *buf, size_t size)
 	/* Read bytes 3-10 at once */
 	ii->f(ii, SFF_8472_BASE, SFF_8472_TRANS_START, 8, &xbuf[3]);
 
-	/* Check 10G first */
+	/* Check 10G ethernet first */
 	tech_class = find_zero_bit(eth_10g, xbuf[3], 1);
 	if (tech_class == NULL) {
 		/* No match. Try 1G */
@@ -400,6 +382,10 @@ get_sfp_temp(struct i2c_info *ii, char *buf, size_t size)
 	snprintf(buf, size, "%d.%d C", major, k / 100);
 }
 
+/*
+ * Converts value in @xbuf to both milliwats and dBm
+ * human representation.
+ */
 static void
 convert_power(struct i2c_info *ii, char *xbuf, char *buf, size_t size)
 {
