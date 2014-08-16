@@ -1,7 +1,7 @@
 /*-
  * Copyright (c) 2012-2013 Robert N. M. Watson
  * Copyright (c) 2013 SRI International
- * Copyright (c) 2013 Bjoern A. Zeeb
+ * Copyright (c) 2013-2014 Bjoern A. Zeeb
  * All rights reserved.
  *
  * This software was developed by SRI International and the University of
@@ -130,6 +130,18 @@
 			interrupt-parent = <&beripic>;
 		};
 */
+
+		ethernet@7f005000 {
+			compatible = "netfpag10g,nf10bmac";
+			// LOOP, TX, RX, INTR
+			reg = <0x7f005000 0x20
+			       0x7f005020 0x30
+			       0x7f005050 0x30
+			       0x7f005100 0x10>;
+			// RX
+			interrupts = <1>;
+			interrupt-parent = <&beripic>;
+		};
 	};
 
 	aliases { 

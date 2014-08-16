@@ -6,6 +6,8 @@ dev/altera/jtag_uart/altera_jtag_uart_cons.c	optional altera_jtag_uart
 dev/altera/jtag_uart/altera_jtag_uart_tty.c	optional altera_jtag_uart
 dev/altera/jtag_uart/altera_jtag_uart_fdt.c	optional altera_jtag_uart fdt
 dev/altera/jtag_uart/altera_jtag_uart_nexus.c	optional altera_jtag_uart
+dev/netfpga10g/nf10bmac/if_nf10bmac_fdt.c	optional netfpga10g_nf10bmac fdt
+dev/netfpga10g/nf10bmac/if_nf10bmac.c	optional netfpga10g_nf10bmac
 dev/terasic/de4led/terasic_de4led.c	optional terasic_de4led
 dev/terasic/de4led/terasic_de4led_fdt.c	optional terasic_de4led fdt
 dev/terasic/de4led/terasic_de4led_nexus.c	optional terasic_de4led
