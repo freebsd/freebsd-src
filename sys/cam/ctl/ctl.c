@@ -1025,6 +1025,7 @@ ctl_init(void)
 	STAILQ_INIT(&softc->port_list);
 	STAILQ_INIT(&softc->be_list);
 	STAILQ_INIT(&softc->io_pools);
+	ctl_tpc_init(softc);
 
 	if (ctl_pool_create(softc, CTL_POOL_INTERNAL, CTL_POOL_ENTRIES_INTERNAL,
 			    &internal_pool)!= 0){
@@ -1172,6 +1173,7 @@ ctl_shutdown(void)
 	mtx_destroy(&softc->queue_lock);
 #endif
 
+	ctl_tpc_shutdown(softc);
 	mtx_destroy(&softc->pool_lock);
 	mtx_destroy(&softc->ctl_lock);
 
@@ -4598,7 +4600,7 @@ ctl_alloc_lun(struct ctl_softc *ctl_softc, struct ctl_lun *ctl_lun,
 	TAILQ_INIT(&lun->ooa_queue);
 	TAILQ_INIT(&lun->blocked_queue);
 	STAILQ_INIT(&lun->error_list);
-	ctl_tpc_init(lun);
+	ctl_tpc_lun_init(lun);
 
 	/*
 	 * Initialize the mode page index.
@@ -4750,7 +4752,7 @@ ctl_free_lun(struct ctl_lun *lun)
 	atomic_subtract_int(&lun->be_lun->be->num_luns, 1);
 	lun->be_lun->lun_shutdown(lun->be_lun->be_lun);
 
-	ctl_tpc_shutdown(lun);
+	ctl_tpc_lun_shutdown(lun);
 	mtx_destroy(&lun->lun_lock);
 	free(lun->lun_devid, M_CTL);
 	if (lun->flags & CTL_LUN_MALLOCED)
