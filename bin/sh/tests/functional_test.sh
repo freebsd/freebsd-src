@@ -39,13 +39,7 @@ check()
 	local out_file="${SRCDIR}/${tc}.stdout"
 	[ -f "${out_file}" ] && out_flag="-o file:${out_file}"
 
-	# We need to copy the testcase scenario file because some of the
-	# testcases hardcode relative paths in the stderr/stdout.
-	#
-	# TODO: we might be able to generate this path at build time
-	cp ${SRCDIR}/${tc} .
-
-	atf_check -s exit:${tc##*.} ${err_flag} ${out_flag} ${SH} "./${tc}"
+	atf_check -s exit:${tc##*.} ${err_flag} ${out_flag} ${SH} "${SRCDIR}/${tc}"
 }
 
 add_testcase()
