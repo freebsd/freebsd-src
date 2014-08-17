@@ -1004,11 +1004,7 @@ vlapic_icrlo_write_handler(struct vlapic *vlapic, bool *retu)
 			if (vlapic2->boot_state != BS_SIPI)
 				return (0);
 
-			/*
-			 * XXX this assumes that the startup IPI always succeeds
-			 */
 			vlapic2->boot_state = BS_RUNNING;
-			vm_activate_cpu(vlapic2->vm, dest);
 
 			*retu = true;
 			vmexit = vm_exitinfo(vlapic->vm, vlapic->vcpuid);
