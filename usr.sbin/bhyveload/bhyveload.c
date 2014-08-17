@@ -505,8 +505,8 @@ static void
 cb_getmem(void *arg, uint64_t *ret_lowmem, uint64_t *ret_highmem)
 {
 
-	vm_get_memory_seg(ctx, 0, ret_lowmem, NULL);
-	vm_get_memory_seg(ctx, 4 * GB, ret_highmem, NULL);
+	*ret_lowmem = vm_get_lowmem_size(ctx);
+	*ret_highmem = vm_get_highmem_size(ctx);
 }
 
 struct env {
