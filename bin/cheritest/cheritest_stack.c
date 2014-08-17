@@ -104,7 +104,7 @@ cheritest_libcheri_userfn_getstack(void)
 }
 
 void
-cheritest_getstack(const struct cheri_test *ctp __unused)
+test_sandbox_getstack(const struct cheri_test *ctp __unused)
 {
 	__capability void *cclear;
 	register_t v;
@@ -181,7 +181,7 @@ cheritest_libcheri_userfn_setstack(register_t arg)
 }
 
 void
-cheritest_setstack(const struct cheri_test *ctp __unused)
+test_sandbox_setstack(const struct cheri_test *ctp __unused)
 {
 	__capability void *cclear;
 	register_t v;
@@ -210,7 +210,7 @@ cheritest_setstack(const struct cheri_test *ctp __unused)
 }
 
 void
-cheritest_setstack_nop(const struct cheri_test *ctp __unused)
+test_sandbox_setstack_nop(const struct cheri_test *ctp __unused)
 {
 	__capability void *cclear;
 	register_t v;

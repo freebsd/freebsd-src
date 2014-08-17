@@ -122,7 +122,7 @@ void	cheritest_success(void) __dead2;
 
 /* cheritest_ccall.c */
 struct cheri_test;
-void	cheritest_sandbox_setup(void *sandbox_base, void *sandbox_end,
+void	test_sandbox_setup(void *sandbox_base, void *sandbox_end,
 	    register_t sandbox_pc, __capability void **codecapp,
 	    __capability void **datacapp);
 void	test_fault_creturn(const struct cheri_test *ctp);
@@ -150,17 +150,17 @@ void	test_nofault_ccheck_user_pass(const struct cheri_test *ctp);
 extern struct sandbox_class	*cheritest_classp;
 extern struct sandbox_object	*cheritest_objectp;
 
-void	cheritest_invoke_fd_op(const struct cheri_test *ctp, int op);
-void	cheritest_fd_read(const struct cheri_test *ctp);
-void	cheritest_fd_read_revoke(const struct cheri_test *ctp);
-void	cheritest_fd_write(const struct cheri_test *ctp);
-void	cheritest_fd_write_revoke(const struct cheri_test *ctp);
-void	cheritest_invoke_simple_op(const struct cheri_test *ctp, int op);
-void	cheritest_invoke_syscall(const struct cheri_test *ctp);
-void	cheritest_invoke_md5(const struct cheri_test *ctp);
-void	cheritest_libcheri_userfn(const struct cheri_test *ctp);
-void	cheritest_save_global(const struct cheri_test *ctp);
-void	cheritest_save_ephemeral(const struct cheri_test *ctp);
+void	test_sandbox_fd_op(const struct cheri_test *ctp, int op);
+void	test_sandbox_fd_read(const struct cheri_test *ctp);
+void	test_sandbox_fd_read_revoke(const struct cheri_test *ctp);
+void	test_sandbox_fd_write(const struct cheri_test *ctp);
+void	test_sandbox_fd_write_revoke(const struct cheri_test *ctp);
+void	test_sandbox_simple_op(const struct cheri_test *ctp, int op);
+void	test_sandbox_syscall(const struct cheri_test *ctp);
+void	test_sandbox_md5(const struct cheri_test *ctp);
+void	test_sandbox_userfn(const struct cheri_test *ctp);
+void	test_sandbox_save_global(const struct cheri_test *ctp);
+void	test_sandbox_save_ephemeral(const struct cheri_test *ctp);
 int	cheritest_libcheri_setup(void);
 void	cheritest_libcheri_destroy(void);
 void	test_sandbox_cp2_bound_catch(const struct cheri_test *ctp);
@@ -185,12 +185,12 @@ void	test_sandbox_vm_xfault_nocatch(const struct cheri_test *ctp);
 /* cheritest_stack.c */
 register_t	cheritest_libcheri_userfn_getstack(void);
 register_t	cheritest_libcheri_userfn_setstack(register_t arg);
-void	cheritest_getstack(const struct cheri_test *ctp);
-void	cheritest_setstack(const struct cheri_test *ctp);
-void	cheritest_setstack_nop(const struct cheri_test *ctp);
+void	test_sandbox_getstack(const struct cheri_test *ctp);
+void	test_sandbox_setstack(const struct cheri_test *ctp);
+void	test_sandbox_setstack_nop(const struct cheri_test *ctp);
 
 /* cheritest_registers.c */
-void	cheritest_copyregs(const struct cheri_test *ctp);
-void	cheritest_listregs(const struct cheri_test *ctp);
+void	test_copyregs(const struct cheri_test *ctp);
+void	test_listregs(const struct cheri_test *ctp);
 
 #endif /* !_CHERITEST_H_ */

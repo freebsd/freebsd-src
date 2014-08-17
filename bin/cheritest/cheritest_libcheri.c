@@ -69,7 +69,7 @@ static int zero_fd = -1;
 static struct cheri_object stdin_fd_object, stdout_fd_object, zero_fd_object;
 
 void
-cheritest_invoke_fd_op(const struct cheri_test *ctp __unused, int op)
+test_sandbox_fd_op(const struct cheri_test *ctp __unused, int op)
 {
 	register_t v;
 
@@ -91,7 +91,7 @@ cheritest_invoke_fd_op(const struct cheri_test *ctp __unused, int op)
 static char read_string[128];
 
 void
-cheritest_fd_read(const struct cheri_test *ctp)
+test_sandbox_fd_read(const struct cheri_test *ctp)
 {
 	__capability char *stringc;
 	register_t v;
@@ -112,13 +112,13 @@ cheritest_fd_read(const struct cheri_test *ctp)
 }
 
 void
-cheritest_fd_read_revoke(const struct cheri_test *ctp __unused)
+test_sandbox_fd_read_revoke(const struct cheri_test *ctp __unused)
 {
 	__capability char *stringc;
 	register_t v;
 
 	/*
-	 * Essentially the same test as cheritest_fd_read() except that we
+	 * Essentially the same test as test_sandbox_fd_read() except that we
 	 * expect not to receive input.
 	 */
 	cheri_fd_revoke(stdin_fd_object);
@@ -138,7 +138,7 @@ cheritest_fd_read_revoke(const struct cheri_test *ctp __unused)
 }
 
 void
-cheritest_fd_write(const struct cheri_test *ctp __unused)
+test_sandbox_fd_write(const struct cheri_test *ctp __unused)
 {
 	__capability char *stringc;
 	register_t v;
@@ -159,13 +159,13 @@ cheritest_fd_write(const struct cheri_test *ctp __unused)
 }
 
 void
-cheritest_fd_write_revoke(const struct cheri_test *ctp __unused)
+test_sandbox_fd_write_revoke(const struct cheri_test *ctp __unused)
 {
 	__capability char *stringc;
 	register_t v;
 
 	/*
-	 * Essentially the same test as cheritest_fd_write() except that we
+	 * Essentially the same test as test_sandbox_fd_write() except that we
 	 * expect to see no output.
 	 */
 	cheri_fd_revoke(stdout_fd_object);
@@ -185,7 +185,7 @@ cheritest_fd_write_revoke(const struct cheri_test *ctp __unused)
 }
 
 void
-cheritest_invoke_simple_op(const struct cheri_test *ctp __unused, int op)
+test_sandbox_simple_op(const struct cheri_test *ctp __unused, int op)
 {
 	register_t v;
 
@@ -426,7 +426,7 @@ test_sandbox_vm_xfault_nocatch(const struct cheri_test *ctp __unused)
 }
 
 void
-cheritest_invoke_syscall(const struct cheri_test *ctp)
+test_sandbox_syscall(const struct cheri_test *ctp)
 {
 	size_t len;
 	int old, new;
@@ -444,7 +444,7 @@ cheritest_invoke_syscall(const struct cheri_test *ctp)
 		cheritest_failure_errx(
 		    "security.cheri.syscall_violations sysctl read (%d)",
 		    errno);
-	cheritest_invoke_simple_op(ctp, CHERITEST_HELPER_OP_SYSCALL);
+	test_sandbox_simple_op(ctp, CHERITEST_HELPER_OP_SYSCALL);
 	len = sizeof(new);
 	if (sysctlbyname("security.cheri.syscall_violations", &new, &len,
 	    NULL, 0) < 0)
@@ -461,7 +461,7 @@ static char string_to_md5[] = "hello world";
 static char string_md5[] = "5eb63bbbe01eeed093cb22bb8f5acdc3";
 
 void
-cheritest_invoke_md5(const struct cheri_test *ctp __unused)
+test_sandbox_md5(const struct cheri_test *ctp __unused)
 {
 	__capability void *md5cap, *bufcap, *cclear;
 	char buf[33];
@@ -518,7 +518,7 @@ cheritest_libcheri_userfn_handler(register_t methodnum, register_t arg,
 }
 
 void
-cheritest_libcheri_userfn(const struct cheri_test *ctp __unused)
+test_sandbox_userfn(const struct cheri_test *ctp __unused)
 {
 	__capability void *cclear;
 	register_t i, v;
@@ -539,7 +539,7 @@ cheritest_libcheri_userfn(const struct cheri_test *ctp __unused)
 }
 
 void
-cheritest_save_global(const struct cheri_test *ctp __unused)
+test_sandbox_save_global(const struct cheri_test *ctp __unused)
 {
 	__capability void *carg, *cclear;
 	register_t v;
@@ -558,7 +558,7 @@ cheritest_save_global(const struct cheri_test *ctp __unused)
 }
 
 void
-cheritest_save_ephemeral(const struct cheri_test *ctp __unused)
+test_sandbox_save_ephemeral(const struct cheri_test *ctp __unused)
 {
 	__capability void *carg, *cclear;
 	register_t v;

@@ -59,7 +59,7 @@
 #include "cheritest.h"
 
 void
-cheritest_copyregs(const struct cheri_test *ctp __unused)
+test_copyregs(const struct cheri_test *ctp __unused)
 {
 
 	CHERI_CGETDEFAULT(2);
@@ -72,7 +72,7 @@ cheritest_copyregs(const struct cheri_test *ctp __unused)
 }
 
 void
-cheritest_listregs(const struct cheri_test *ctp __unused)
+test_listregs(const struct cheri_test *ctp __unused)
 {
 
 	/*

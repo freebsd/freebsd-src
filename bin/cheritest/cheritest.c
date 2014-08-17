@@ -71,13 +71,13 @@ static const struct cheri_test cheri_tests[] = {
 	/*
 	 * Exercise CHERI functions without an expectation of a signal.
 	 */
-	{ .ct_name = "copyregs",
+	{ .ct_name = "test_copyregs",
 	  .ct_desc = "Exercise CP2 register assignments",
-	  .ct_func = cheritest_copyregs },
+	  .ct_func = test_copyregs },
 
-	{ .ct_name = "listregs",
+	{ .ct_name = "test_listregs",
 	  .ct_desc = "Print out a list of CP2 registers and values",
-	  .ct_func = cheritest_listregs },
+	  .ct_func = test_listregs },
 
 	/*
 	 * Capability manipulation and use tests that sometimes generate
@@ -222,14 +222,14 @@ static const struct cheri_test cheri_tests[] = {
 	/*
 	 * Test libcheri sandboxing -- and kernel sandbox unwind.
 	 */
-	{ .ct_name = "invoke_abort",
+	{ .ct_name = "test_sandbox_abort",
 	  .ct_desc = "Exercise system call in a libcheri sandbox",
-	  .ct_func_arg = cheritest_invoke_simple_op,
+	  .ct_func_arg = test_sandbox_simple_op,
 	  .ct_arg = CHERITEST_HELPER_OP_ABORT },
 
-	{ .ct_name = "invoke_clock_gettime",
+	{ .ct_name = "test_sandbox_clock_gettime",
 	  .ct_desc = "Exercise clock_gettime() in a libcheri sandbox",
-	  .ct_func_arg = cheritest_invoke_simple_op,
+	  .ct_func_arg = test_sandbox_simple_op,
 	  .ct_arg = CHERITEST_HELPER_OP_CS_CLOCK_GETTIME },
 
 	{ .ct_name = "test_sandbox_cp2_bound_catch",
@@ -341,114 +341,114 @@ static const struct cheri_test cheri_tests[] = {
 	  .ct_desc = "Exercise sandboxed VM exec fault; uncaught",
 	  .ct_func = test_sandbox_vm_xfault_nocatch },
 
-	{ .ct_name = "invoke_helloworld",
+	{ .ct_name = "test_sandbox_helloworld",
 	  .ct_desc = "Print 'hello world' in a libcheri sandbox",
-	  .ct_func_arg = cheritest_invoke_simple_op,
+	  .ct_func_arg = test_sandbox_simple_op,
 	  .ct_arg = CHERITEST_HELPER_OP_CS_HELLOWORLD,
 	  .ct_flags = CT_FLAG_STDOUT_STRING,
 	  .ct_stdout_string = "hello world\n" },
 
-	{ .ct_name = "invoke_md5",
+	{ .ct_name = "test_sandbox_md5",
 	  .ct_desc = "Generate an MD5 checksum in a libcheri sandbox",
-	  .ct_func = cheritest_invoke_md5 },
+	  .ct_func = test_sandbox_md5 },
 
-	{ .ct_name = "invoke_malloc",
+	{ .ct_name = "test_sandbox_malloc",
 	  .ct_desc = "Malloc memory in a libcheri sandbox",
-	  .ct_func_arg = cheritest_invoke_simple_op,
+	  .ct_func_arg = test_sandbox_simple_op,
 	  .ct_arg = CHERITEST_HELPER_OP_MALLOC },
 
-	{ .ct_name = "invoke_printf",
+	{ .ct_name = "test_sandbox_printf",
 	  .ct_desc = "printf() in a libcheri sandbox",
-	  .ct_func_arg = cheritest_invoke_simple_op,
+	  .ct_func_arg = test_sandbox_simple_op,
 	  .ct_arg = CHERITEST_HELPER_OP_PRINTF },
 
-	{ .ct_name = "invoke_cs_putchar",
+	{ .ct_name = "test_sandbox_cs_putchar",
 	  .ct_desc = "putchar() in a libcheri sandbox",
-	  .ct_func_arg = cheritest_invoke_simple_op,
+	  .ct_func_arg = test_sandbox_simple_op,
 	  .ct_arg = CHERITEST_HELPER_OP_CS_PUTCHAR },
 
-	{ .ct_name = "invoke_cs_puts",
+	{ .ct_name = "test_sandbox_cs_puts",
 	  .ct_desc = "puts() in a libcheri sandbox",
-	  .ct_func_arg = cheritest_invoke_simple_op,
+	  .ct_func_arg = test_sandbox_simple_op,
 	  .ct_arg = CHERITEST_HELPER_OP_CS_PUTS },
 
-	{ .ct_name = "invoke_spin",
+	{ .ct_name = "test_sandbox_spin",
 	  .ct_desc = "spin in a libcheri sandbox",
-	  .ct_func_arg = cheritest_invoke_simple_op,
+	  .ct_func_arg = test_sandbox_simple_op,
 	  .ct_arg = CHERITEST_HELPER_OP_SPIN,
 	  .ct_flags = CT_FLAG_SIGNAL,
 	  .ct_signum = SIGALRM },
 
-	{ .ct_name = "invoke_syscall",
+	{ .ct_name = "test_sandbox_syscall",
 	  .ct_desc = "Invoke a system call in a libcheri sandbox",
-	  .ct_func_arg = cheritest_invoke_simple_op,
+	  .ct_func_arg = test_sandbox_simple_op,
 	  .ct_arg = CHERITEST_HELPER_OP_SYSCALL },
 
-	{ .ct_name = "invoke_syscap",
+	{ .ct_name = "test_sandbox_syscap",
 	  .ct_desc = "Invoke the system capability in a libcheri sandbox",
-	  .ct_func_arg = cheritest_invoke_simple_op,
+	  .ct_func_arg = test_sandbox_simple_op,
 	  .ct_arg = CHERITEST_HELPER_OP_SYSCAP },
 
 	/*
 	 * libcheri + cheri_fd tests.
 	 */
-	{ .ct_name = "invoke_fd_fstat",
+	{ .ct_name = "test_sandbox_fd_fstat",
 	  .ct_desc = "Exercise fstat() on a cheri_fd in a libcheri sandbox",
-	  .ct_func_arg = cheritest_invoke_fd_op,
+	  .ct_func_arg = test_sandbox_fd_op,
 	  .ct_arg = CHERITEST_HELPER_OP_FD_FSTAT_C },
 
-	{ .ct_name = "invoke_fd_lseek",
+	{ .ct_name = "test_sandbox_fd_lseek",
 	  .ct_desc = "Exercise lseek() on a cheri_fd in a libcheri sandbox",
-	  .ct_func_arg = cheritest_invoke_fd_op,
+	  .ct_func_arg = test_sandbox_fd_op,
 	  .ct_arg = CHERITEST_HELPER_OP_FD_LSEEK_C },
 
-	{ .ct_name = "invoke_fd_read",
+	{ .ct_name = "test_sandbox_fd_read",
 	  .ct_desc = "Exercise read() on a cheri_fd in a libcheri sandbox",
-	  .ct_func = cheritest_fd_read,
+	  .ct_func = test_sandbox_fd_read,
 	  .ct_flags = CT_FLAG_STDIN_STRING,
 	  .ct_stdin_string = "read123" },
 
-	{ .ct_name = "revoke_fd_read",
+	{ .ct_name = "test_sandbox_fd_read_revoke",
 	  .ct_desc = "Exercise revoke() before read() on a cheri_fd",
-	  .ct_func = cheritest_fd_read_revoke,
+	  .ct_func = test_sandbox_fd_read_revoke,
 	  .ct_flags = CT_FLAG_STDIN_STRING,
 	  .ct_stdin_string = "read123" },
 
-	{ .ct_name = "invoke_fd_write",
+	{ .ct_name = "test_sandbox_fd_write",
 	  .ct_desc = "Exercise write() on a cheri_fd in a libcheri sandbox",
-	  .ct_func = cheritest_fd_write,
+	  .ct_func = test_sandbox_fd_write,
 	  .ct_flags = CT_FLAG_STDOUT_STRING,
 	  .ct_stdout_string = "write123" },
 
-	{ .ct_name = "revoke_fd_write",
+	{ .ct_name = "test_sandbox_fd_write_revoke",
 	  .ct_desc = "Exercise revoke() before write() on a cheri_fd",
-	  .ct_func = cheritest_fd_write_revoke,
+	  .ct_func = test_sandbox_fd_write_revoke,
 	  /* NB: String defined but flag not set: shouldn't print. */
 	  .ct_stdout_string = "write123" },
 
-	{ .ct_name = "libcheri_userfn",
+	{ .ct_name = "test_sandbox_userfn",
 	  .ct_desc = "Exercise user-defined system-class method",
-	  .ct_func = cheritest_libcheri_userfn },
+	  .ct_func = test_sandbox_userfn },
 
-	{ .ct_name = "getstack",
+	{ .ct_name = "test_sandbox_getstack",
 	  .ct_desc = "Exercise CHERI_GET_STACK sysarch()",
-	  .ct_func = cheritest_getstack },
+	  .ct_func = test_sandbox_getstack },
 
-	{ .ct_name = "setstack_nop",
+	{ .ct_name = "test_sandbox_setstack_nop",
 	  .ct_desc = "Exercise CHERI_SET_STACK sysarch() for nop rewrite",
-	  .ct_func = cheritest_setstack_nop },
+	  .ct_func = test_sandbox_setstack_nop },
 
-	{ .ct_name = "setstack",
+	{ .ct_name = "test_sandbox_setstack",
 	  .ct_desc = "Exercise CHERI_SET_STACK sysarch() to change stack",
-	  .ct_func = cheritest_setstack },
+	  .ct_func = test_sandbox_setstack },
 
-	{ .ct_name = "save_global",
+	{ .ct_name = "test_sandbox_save_global",
 	  .ct_desc = "Try to save global argument to sandbox heap",
-	  .ct_func = cheritest_save_global },
+	  .ct_func = test_sandbox_save_global },
 
-	{ .ct_name = "save_ephemeral",
+	{ .ct_name = "test_sandbox_save_ephemeral",
 	  .ct_desc = "Try to save ephemeral argument to sandbox heap",
-	  .ct_func = cheritest_save_ephemeral,
+	  .ct_func = test_sandbox_save_ephemeral,
 	  .ct_flags = CT_FLAG_SIGNAL | CT_FLAG_MIPS_EXCCODE |
 		    CT_FLAG_CP2_EXCCODE,
 	  .ct_signum = SIGPROT,
