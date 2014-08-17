@@ -152,8 +152,9 @@ extern struct sandbox_object	*cheritest_objectp;
 
 void	cheritest_invoke_fd_op(const struct cheri_test *ctp, int op);
 void	cheritest_fd_read(const struct cheri_test *ctp);
-void	cheritest_fd_revoke(const struct cheri_test *ctp);
+void	cheritest_fd_read_revoke(const struct cheri_test *ctp);
 void	cheritest_fd_write(const struct cheri_test *ctp);
+void	cheritest_fd_write_revoke(const struct cheri_test *ctp);
 void	cheritest_invoke_simple_op(const struct cheri_test *ctp, int op);
 void	cheritest_invoke_syscall(const struct cheri_test *ctp);
 void	cheritest_invoke_md5(const struct cheri_test *ctp);

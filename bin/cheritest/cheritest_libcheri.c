@@ -112,24 +112,24 @@ cheritest_fd_read(const struct cheri_test *ctp)
 }
 
 void
-cheritest_fd_revoke(const struct cheri_test *ctp __unused)
+cheritest_fd_read_revoke(const struct cheri_test *ctp __unused)
 {
 	__capability char *stringc;
 	register_t v;
 
 	/*
-	 * Essentially the same test as cheritest_fd_write() except that we
-	 * expect to see no output.
+	 * Essentially the same test as cheritest_fd_read() except that we
+	 * expect not to receive input.
 	 */
-	cheri_fd_revoke(stdout_fd_object);
-	stringc = cheri_ptrperm(ctp->ct_stdout_string,
-	    strlen(ctp->ct_stdout_string), CHERI_PERM_LOAD);
+	cheri_fd_revoke(stdin_fd_object);
+	stringc = cheri_ptrperm(read_string, sizeof(read_string),
+	    CHERI_PERM_STORE);
 	v = sandbox_object_cinvoke(cheritest_objectp,
-	    CHERITEST_HELPER_OP_FD_WRITE_C, 0, 0, 0, 0, 0, 0, 0,
+	    CHERITEST_HELPER_OP_FD_READ_C, 0, 0, 0, 0, 0, 0, 0,
 	    sandbox_object_getsystemobject(cheritest_objectp).co_codecap,
 	    sandbox_object_getsystemobject(cheritest_objectp).co_datacap,
-	    /* data_input */ stringc, /* data_output */ cheri_zerocap(),
-	    stdout_fd_object.co_codecap, stdout_fd_object.co_datacap,
+	    /* data_input */ cheri_zerocap(), /* data_output */ stringc,
+	    stdin_fd_object.co_codecap, stdin_fd_object.co_datacap,
 	    cheri_zerocap(), cheri_zerocap());
 	if (v != -1)
 		cheritest_failure_errx("invoke returned %lu; expected %d\n",
@@ -155,6 +155,32 @@ cheritest_fd_write(const struct cheri_test *ctp __unused)
 	if (v != strlen(ctp->ct_stdout_string))
 		cheritest_failure_errx("invoke returned %lu; expected %d\n",
 		    v, strlen(ctp->ct_stdout_string));
+	cheritest_success();
+}
+
+void
+cheritest_fd_write_revoke(const struct cheri_test *ctp __unused)
+{
+	__capability char *stringc;
+	register_t v;
+
+	/*
+	 * Essentially the same test as cheritest_fd_write() except that we
+	 * expect to see no output.
+	 */
+	cheri_fd_revoke(stdout_fd_object);
+	stringc = cheri_ptrperm(ctp->ct_stdout_string,
+	    strlen(ctp->ct_stdout_string), CHERI_PERM_LOAD);
+	v = sandbox_object_cinvoke(cheritest_objectp,
+	    CHERITEST_HELPER_OP_FD_WRITE_C, 0, 0, 0, 0, 0, 0, 0,
+	    sandbox_object_getsystemobject(cheritest_objectp).co_codecap,
+	    sandbox_object_getsystemobject(cheritest_objectp).co_datacap,
+	    /* data_input */ stringc, /* data_output */ cheri_zerocap(),
+	    stdout_fd_object.co_codecap, stdout_fd_object.co_datacap,
+	    cheri_zerocap(), cheri_zerocap());
+	if (v != -1)
+		cheritest_failure_errx("invoke returned %lu; expected %d\n",
+		    v, -1);
 	cheritest_success();
 }
 

@@ -408,15 +408,21 @@ static const struct cheri_test cheri_tests[] = {
 	  .ct_flags = CT_FLAG_STDIN_STRING,
 	  .ct_stdin_string = "read123" },
 
+	{ .ct_name = "revoke_fd_read",
+	  .ct_desc = "Exercise revoke() before read() on a cheri_fd",
+	  .ct_func = cheritest_fd_read_revoke,
+	  .ct_flags = CT_FLAG_STDIN_STRING,
+	  .ct_stdin_string = "read123" },
+
 	{ .ct_name = "invoke_fd_write",
 	  .ct_desc = "Exercise write() on a cheri_fd in a libcheri sandbox",
 	  .ct_func = cheritest_fd_write,
 	  .ct_flags = CT_FLAG_STDOUT_STRING,
 	  .ct_stdout_string = "write123" },
 
-	{ .ct_name = "revoke_fd",
-	  .ct_desc = "Exercise revoke() on a cheri_fd",
-	  .ct_func = cheritest_fd_revoke,
+	{ .ct_name = "revoke_fd_write",
+	  .ct_desc = "Exercise revoke() before write() on a cheri_fd",
+	  .ct_func = cheritest_fd_write_revoke,
 	  /* NB: String defined but flag not set: shouldn't print. */
 	  .ct_stdout_string = "write123" },
 
