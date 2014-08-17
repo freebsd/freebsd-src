@@ -382,7 +382,8 @@ static driver_t arm_tmr_driver = {
 
 static devclass_t arm_tmr_devclass;
 
-DRIVER_MODULE(mp_tmr, simplebus, arm_tmr_driver, arm_tmr_devclass, 0, 0);
+EARLY_DRIVER_MODULE(mp_tmr, simplebus, arm_tmr_driver, arm_tmr_devclass, 0, 0,
+    BUS_PASS_TIMER + BUS_PASS_ORDER_MIDDLE);
 
 /*
  * Handle a change in clock frequency.  The mpcore timer runs at half the CPU
