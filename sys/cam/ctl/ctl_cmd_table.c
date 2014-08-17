@@ -248,10 +248,18 @@ const struct ctl_cmd_entry ctl_cmd_table_83[32] =
 {NULL, CTL_SERIDX_INVLD, CTL_CMD_FLAG_NONE, CTL_LUN_PAT_NONE},
 
 /* 10 POPULATE TOKEN */
-{NULL, CTL_SERIDX_INVLD, CTL_CMD_FLAG_NONE, CTL_LUN_PAT_NONE},
+{ctl_populate_token, CTL_SERIDX_RD_CAP, CTL_CMD_FLAG_OK_ON_SLUN |
+					CTL_FLAG_DATA_OUT,
+ CTL_LUN_PAT_NONE,
+ 16, { 0x10, 0, 0, 0, 0, 0xff, 0xff, 0xff, 0xff,
+       0xff, 0xff, 0xff, 0xff, 0, 0x07}},
 
 /* 11 WRITE USING TOKEN */
-{NULL, CTL_SERIDX_INVLD, CTL_CMD_FLAG_NONE, CTL_LUN_PAT_NONE},
+{ctl_write_using_token, CTL_SERIDX_RD_CAP, CTL_CMD_FLAG_OK_ON_SLUN |
+					CTL_FLAG_DATA_OUT,
+ CTL_LUN_PAT_NONE,
+ 16, { 0x11, 0, 0, 0, 0, 0xff, 0xff, 0xff, 0xff,
+       0xff, 0xff, 0xff, 0xff, 0, 0x07}},
 
 /* 12 */
 {NULL, CTL_SERIDX_INVLD, CTL_CMD_FLAG_NONE, CTL_LUN_PAT_NONE},
@@ -334,10 +342,18 @@ const struct ctl_cmd_entry ctl_cmd_table_84[32] =
 {NULL, CTL_SERIDX_INVLD, CTL_CMD_FLAG_NONE, CTL_LUN_PAT_NONE},
 
 /* 07 RECEIVE ROD TOKEN INFORMATION */
-{NULL, CTL_SERIDX_INVLD, CTL_CMD_FLAG_NONE, CTL_LUN_PAT_NONE},
+{ctl_receive_rod_token_information, CTL_SERIDX_RD_CAP,
+ CTL_CMD_FLAG_OK_ON_BOTH |
+ CTL_FLAG_DATA_IN,
+ CTL_LUN_PAT_NONE,
+ 16, {0x07, 0xff, 0xff, 0xff, 0xff, 0, 0, 0, 0, 0xff, 0xff, 0xff, 0xff, 0, 0x07}},
 
 /* 08 REPORT ALL ROD TOKENS */
-{NULL, CTL_SERIDX_INVLD, CTL_CMD_FLAG_NONE, CTL_LUN_PAT_NONE},
+{ctl_report_all_rod_tokens, CTL_SERIDX_RD_CAP,
+ CTL_CMD_FLAG_OK_ON_BOTH |
+ CTL_FLAG_DATA_IN,
+ CTL_LUN_PAT_NONE,
+ 16, {0x08, 0, 0, 0, 0, 0, 0, 0, 0, 0xff, 0xff, 0xff, 0xff, 0, 0x07}},
 };
 
 /* 9E SERVICE ACTION IN(16) */
