@@ -1219,7 +1219,8 @@ _sed=		usr.bin/sed
 .endif
 
 .if ${BOOTSTRAPPING} < 1000002
-_m4=		usr.bin/m4
+_m4=		lib/libohash \
+		usr.bin/m4
 .endif
 
 .if ${BOOTSTRAPPING} < 1000013
