@@ -374,6 +374,7 @@ static d_close_t	devclose;
 static d_read_t		devread;
 static d_ioctl_t	devioctl;
 static d_poll_t		devpoll;
+static d_kqfilter_t	devkqfilter;
 
 static struct cdevsw dev_cdevsw = {
 	.d_version =	D_VERSION,
@@ -382,6 +383,7 @@ static struct cdevsw dev_cdevsw = {
 	.d_read =	devread,
 	.d_ioctl =	devioctl,
 	.d_poll =	devpoll,
+	.d_kqfilter =	devkqfilter,
 	.d_name =	"devctl",
 };
 
@@ -398,12 +400,22 @@ static struct dev_softc
 	int	inuse;
 	int	nonblock;
 	int	queued;
+	int	async;
 	struct mtx mtx;
 	struct cv cv;
 	struct selinfo sel;
 	struct devq devq;
-	struct proc *async_proc;
+	struct sigio *sigio;
 } devsoftc;
+
+static void	filt_devctl_detach(struct knote *kn);
+static int	filt_devctl_read(struct knote *kn, long hint);
+
+struct filterops devctl_rfiltops = {
+	.f_isfd = 1,
+	.f_detach = filt_devctl_detach,
+	.f_event = filt_devctl_read,
+};
 
 static struct cdev *devctl_dev;
 
@@ -415,6 +427,7 @@ devinit(void)
 	mtx_init(&devsoftc.mtx, "dev mtx", "devd", MTX_DEF);
 	cv_init(&devsoftc.cv, "dev cv");
 	TAILQ_INIT(&devsoftc.devq);
+	knlist_init_mtx(&devsoftc.sel.si_note, &devsoftc.mtx);
 }
 
 static int
@@ -428,8 +441,6 @@ devopen(struct cdev *dev, int oflags, int devtype, struct thread *td)
 	}
 	/* move to init */
 	devsoftc.inuse = 1;
-	devsoftc.nonblock = 0;
-	devsoftc.async_proc = NULL;
 	mtx_unlock(&devsoftc.mtx);
 	return (0);
 }
@@ -440,8 +451,10 @@ devclose(struct cdev *dev, int fflag, int devtype, struct thread *td)
 
 	mtx_lock(&devsoftc.mtx);
 	devsoftc.inuse = 0;
-	devsoftc.async_proc = NULL;
+	devsoftc.nonblock = 0;
+	devsoftc.async = 0;
 	cv_broadcast(&devsoftc.cv);
+	funsetown(&devsoftc.sigio);
 	mtx_unlock(&devsoftc.mtx);
 	return (0);
 }
@@ -497,33 +510,21 @@ devioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag, struct thread *t
 			devsoftc.nonblock = 0;
 		return (0);
 	case FIOASYNC:
-		/*
-		 * FIXME:
-		 * Since this is a simple assignment there is no guarantee that
-		 * devsoftc.async_proc consumers will get a valid pointer.
-		 *
-		 * Example scenario where things break (processes A and B):
-		 * 1. A opens devctl
-		 * 2. A sends fd to B
-		 * 3. B sets itself as async_proc
-		 * 4. B exits
-		 *
-		 * However, normally this requires root privileges and the only
-		 * in-tree consumer does not behave in a dangerous way so the
-		 * issue is not critical.
-		 */
 		if (*(int*)data)
-			devsoftc.async_proc = td->td_proc;
+			devsoftc.async = 1;
 		else
-			devsoftc.async_proc = NULL;
+			devsoftc.async = 0;
+		return (0);
+	case FIOSETOWN:
+		return fsetown(*(int *)data, &devsoftc.sigio);
+	case FIOGETOWN:
+		*(int *)data = fgetown(&devsoftc.sigio);
 		return (0);
 
 		/* (un)Support for other fcntl() calls. */
 	case FIOCLEX:
 	case FIONCLEX:
 	case FIONREAD:
-	case FIOSETOWN:
-	case FIOGETOWN:
 	default:
 		break;
 	}
@@ -547,6 +548,34 @@ devpoll(struct cdev *dev, int events, struct thread *td)
 	return (revents);
 }
 
+static int
+devkqfilter(struct cdev *dev, struct knote *kn)
+{
+	int error;
+
+	if (kn->kn_filter == EVFILT_READ) {
+		kn->kn_fop = &devctl_rfiltops;
+		knlist_add(&devsoftc.sel.si_note, kn, 0);
+		error = 0;
+	} else
+		error = EINVAL;
+	return (error);
+}
+
+static void
+filt_devctl_detach(struct knote *kn)
+{
+
+	knlist_remove(&devsoftc.sel.si_note, kn, 0);
+}
+
+static int
+filt_devctl_read(struct knote *kn, long hint)
+{
+	kn->kn_data = devsoftc.queued;
+	return (kn->kn_data != 0);
+}
+
 /**
  * @brief Return whether the userland process is running
  */
@@ -567,7 +596,6 @@ void
 devctl_queue_data_f(char *data, int flags)
 {
 	struct dev_event_info *n1 = NULL, *n2 = NULL;
-	struct proc *p;
 
 	if (strlen(data) == 0)
 		goto out;
@@ -595,15 +623,11 @@ devctl_queue_data_f(char *data, int flags)
 	TAILQ_INSERT_TAIL(&devsoftc.devq, n1, dei_link);
 	devsoftc.queued++;
 	cv_broadcast(&devsoftc.cv);
+	KNOTE_LOCKED(&devsoftc.sel.si_note, 0);
 	mtx_unlock(&devsoftc.mtx);
 	selwakeup(&devsoftc.sel);
-	/* XXX see a comment in devioctl */
-	p = devsoftc.async_proc;
-	if (p != NULL) {
-		PROC_LOCK(p);
-		kern_psignal(p, SIGIO);
-		PROC_UNLOCK(p);
-	}
+	if (devsoftc.async && devsoftc.sigio != NULL)
+		pgsigio(&devsoftc.sigio, SIGIO, 0);
 	return;
 out:
 	/*
