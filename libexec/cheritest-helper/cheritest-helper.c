@@ -206,14 +206,10 @@ invoke_malloc(void)
 
 	for (i = 0; i < sizeof(sizes) / sizeof(*sizes); i++) {
 		tmp = malloc(sizes[i]);
-		if (tmp == NULL) {
-			printf("Failed to allocate %zd bytes\n", sizes[i]);
+		if (tmp == NULL)
 			return (-1);
-		}
-		printf("allocated %zd bytes at %p\n", sizes[i], tmp);
 		free(tmp);
 	}
-
 	return (0);
 }
 
@@ -224,10 +220,6 @@ invoke_clock_gettime(void)
 
 	if (clock_gettime(CLOCK_REALTIME, &t) == -1)
 		return (-1);
-
-	printf("real time since epoch is %jd.%09ld\n", (intmax_t)t.tv_sec,
-	    t.tv_nsec);
-
 	return (0);
 }
 
