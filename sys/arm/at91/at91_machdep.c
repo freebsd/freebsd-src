@@ -117,7 +117,7 @@ extern struct bus_space at91_bs_tag;
 
 struct pv_addr kernel_pt_table[NUM_KERNEL_PTS];
 
-uint32_t at91_master_clock;
+extern uint32_t at91_master_clock;
 
 /* Static device mappings. */
 const struct arm_devmap_entry at91_devmap[] = {
