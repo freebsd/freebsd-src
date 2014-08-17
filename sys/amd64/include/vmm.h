@@ -140,8 +140,9 @@ int vm_set_capability(struct vm *vm, int vcpu, int type, int val);
 int vm_get_x2apic_state(struct vm *vm, int vcpu, enum x2apic_state *state);
 int vm_set_x2apic_state(struct vm *vm, int vcpu, enum x2apic_state state);
 int vm_apicid2vcpuid(struct vm *vm, int apicid);
-void vm_activate_cpu(struct vm *vm, int vcpu);
+int vm_activate_cpu(struct vm *vm, int vcpu);
 cpuset_t vm_active_cpus(struct vm *vm);
+cpuset_t vm_suspended_cpus(struct vm *vm);
 struct vm_exit *vm_exitinfo(struct vm *vm, int vcpuid);
 void vm_exit_suspended(struct vm *vm, int vcpuid, uint64_t rip);
 

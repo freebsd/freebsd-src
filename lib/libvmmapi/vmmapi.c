@@ -29,11 +29,12 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <sys/types.h>
+#include <sys/param.h>
 #include <sys/sysctl.h>
 #include <sys/ioctl.h>
 #include <sys/mman.h>
 #include <sys/_iovec.h>
+#include <sys/cpuset.h>
 
 #include <machine/specialreg.h>
 #include <machine/param.h>
@@ -1042,4 +1043,45 @@ vm_copyout(struct vmctx *ctx, int vcpu, const void *vp, struct iovec *iov,
 		src += n;
 		len -= n;
 	}
+}
+
+static int
+vm_get_cpus(struct vmctx *ctx, int which, cpuset_t *cpus)
+{
+	struct vm_cpuset vm_cpuset;
+	int error;
+
+	bzero(&vm_cpuset, sizeof(struct vm_cpuset));
+	vm_cpuset.which = which;
+	vm_cpuset.cpusetsize = sizeof(cpuset_t);
+	vm_cpuset.cpus = cpus;
+
+	error = ioctl(ctx->fd, VM_GET_CPUS, &vm_cpuset);
+	return (error);
+}
+
+int
+vm_active_cpus(struct vmctx *ctx, cpuset_t *cpus)
+{
+
+	return (vm_get_cpus(ctx, VM_ACTIVE_CPUS, cpus));
+}
+
+int
+vm_suspended_cpus(struct vmctx *ctx, cpuset_t *cpus)
+{
+
+	return (vm_get_cpus(ctx, VM_SUSPENDED_CPUS, cpus));
+}
+
+int
+vm_activate_cpu(struct vmctx *ctx, int vcpu)
+{
+	struct vm_activate_cpu ac;
+	int error;
+
+	bzero(&ac, sizeof(struct vm_activate_cpu));
+	ac.vcpuid = vcpu;
+	error = ioctl(ctx->fd, VM_ACTIVATE_CPU, &ac);
+	return (error);
 }

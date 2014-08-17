@@ -242,6 +242,15 @@ fbsdrun_addcpu(struct vmctx *ctx, int fromcpu, int newcpu, uint64_t rip)
 
 	assert(fromcpu == BSP);
 
+	/*
+	 * The 'newcpu' must be activated in the context of 'fromcpu'. If
+	 * vm_activate_cpu() is delayed until newcpu's pthread starts running
+	 * then vmm.ko is out-of-sync with bhyve and this can create a race
+	 * with vm_suspend().
+	 */
+	error = vm_activate_cpu(ctx, newcpu);
+	assert(error == 0);
+
 	CPU_SET_ATOMIC(newcpu, &cpumask);
 
 	/*
@@ -532,12 +541,16 @@ vm_loop(struct vmctx *ctx, int vcpu, uint64_t rip)
 	int error, rc, prevcpu;
 	enum vm_exitcode exitcode;
 	enum vm_suspend_how how;
+	cpuset_t active_cpus;
 
 	if (vcpumap[vcpu] != NULL) {
 		error = pthread_setaffinity_np(pthread_self(),
 		    sizeof(cpuset_t), vcpumap[vcpu]);
 		assert(error == 0);
 	}
+
+	error = vm_active_cpus(ctx, &active_cpus);
+	assert(CPU_ISSET(vcpu, &active_cpus));
 
 	while (1) {
 		error = vm_run(ctx, vcpu, rip, &vmexit[vcpu]);
