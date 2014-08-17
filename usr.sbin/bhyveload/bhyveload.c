@@ -642,7 +642,7 @@ main(int argc, char** argv)
 	void *h;
 	void (*func)(struct loader_callbacks *, void *, int, int);
 	uint64_t mem_size;
-	int opt, error;
+	int opt, error, need_reinit;
 
 	progname = basename(argv[0]);
 
@@ -691,17 +691,28 @@ main(int argc, char** argv)
 
 	vmname = argv[0];
 
+	need_reinit = 0;
 	error = vm_create(vmname);
-	if (error != 0 && errno != EEXIST) {
-		perror("vm_create");
-		exit(1);
-
+	if (error) {
+		if (errno != EEXIST) {
+			perror("vm_create");
+			exit(1);
+		}
+		need_reinit = 1;
 	}
 
 	ctx = vm_open(vmname);
 	if (ctx == NULL) {
 		perror("vm_open");
 		exit(1);
+	}
+
+	if (need_reinit) {
+		error = vm_reinit(ctx);
+		if (error) {
+			perror("vm_reinit");
+			exit(1);
+		}
 	}
 
 	error = vm_setup_memory(ctx, mem_size, VM_MMAP_ALL);
