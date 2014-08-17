@@ -7,6 +7,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm.h>
 #include <machine/devmap.h>
 #include <machine/machdep.h>
+#include <machine/platform.h> 
 #include <arm/at91/at91var.h>
 #include <arm/at91/at91soc.h>
 #include <arm/at91/at91_aicreg.h>
@@ -55,36 +56,37 @@ at91_eoi(void *unused)
 
 
 vm_offset_t
-initarm_lastaddr(void)
+platform_lastaddr(void)
 {
 
 	return (arm_devmap_lastaddr());
 }
 
 void
-initarm_early_init(void)
+platform_probe_and_attach(void)
 {
 
 	arm_post_filter = at91_eoi;
 	at91_soc_id();
-	arm_devmap_register_table(at91_devmap);
 }
 
 int
-initarm_devmap_init(void)
+platform_devmap_init(void)
 {
 
 //	arm_devmap_add_entry(0xfff00000, 0x00100000); /* 1MB - uart, aic and timers*/
+
+	arm_devmap_register_table(at91_devmap);
 
 	return (0);
 }
 
 void
-initarm_gpio_init(void)
+platform_gpio_init(void)
 {
 }
 
 void
-initarm_late_init(void)
+platform_late_init(void)
 {
 }
