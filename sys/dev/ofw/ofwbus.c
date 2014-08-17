@@ -435,10 +435,11 @@ ofwbus_setup_dinfo(device_t dev, phandle_t node)
 {
 	struct ofwbus_softc *sc;
 	struct ofwbus_devinfo *ndi;
+	const char *nodename;
 	uint32_t *reg, *intr, icells;
 	uint64_t phys, size;
 	phandle_t iparent;
-	int i, j;
+	int i, j, rid;
 	int nintr;
 	int nreg;
 
@@ -449,8 +450,8 @@ ofwbus_setup_dinfo(device_t dev, phandle_t node)
 		free(ndi, M_DEVBUF);
 		return (NULL);
 	}
-	if (OFWBUS_EXCLUDED(ndi->ndi_obdinfo.obd_name,
-	    ndi->ndi_obdinfo.obd_type)) {
+	nodename = ndi->ndi_obdinfo.obd_name;
+	if (OFWBUS_EXCLUDED(nodename, ndi->ndi_obdinfo.obd_type)) {
 		ofw_bus_gen_destroy_devinfo(&ndi->ndi_obdinfo);
 		free(ndi, M_DEVBUF);
 		return (NULL);
@@ -463,11 +464,11 @@ ofwbus_setup_dinfo(device_t dev, phandle_t node)
 	if (nreg % (sc->acells + sc->scells) != 0) {
 		if (bootverbose)
 			device_printf(dev, "Malformed reg property on <%s>\n",
-			    ndi->ndi_obdinfo.obd_name);
+			    nodename);
 		nreg = 0;
 	}
 
-	for (i = 0; i < nreg; i += sc->acells + sc->scells) {
+	for (i = 0, rid = 0; i < nreg; i += sc->acells + sc->scells, rid++) {
 		phys = size = 0;
 		for (j = 0; j < sc->acells; j++) {
 			phys <<= 32;
@@ -479,7 +480,7 @@ ofwbus_setup_dinfo(device_t dev, phandle_t node)
 		}
 		/* Skip the dummy reg property of glue devices like ssm(4). */
 		if (size != 0)
-			resource_list_add(&ndi->ndi_rl, SYS_RES_MEMORY, i,
+			resource_list_add(&ndi->ndi_rl, SYS_RES_MEMORY, rid,
 			    phys, phys + size - 1, size);
 	}
 	free(reg, M_OFWPROP);
@@ -487,15 +488,28 @@ ofwbus_setup_dinfo(device_t dev, phandle_t node)
 	nintr = OF_getencprop_alloc(node, "interrupts",  sizeof(*intr),
 	    (void **)&intr);
 	if (nintr > 0) {
-		iparent = 0;
-		OF_searchencprop(node, "interrupt-parent", &iparent,
-		    sizeof(iparent));
-		OF_searchencprop(OF_xref_phandle(iparent), "#interrupt-cells",
-		    &icells, sizeof(icells));
-		for (i = 0; i < nintr; i+= icells) {
+		if (OF_searchencprop(node, "interrupt-parent", &iparent,
+		    sizeof(iparent)) == -1) {
+			device_printf(dev, "No interrupt-parent found, "
+			    "assuming nexus on <%s>\n", nodename);
+			iparent = 0xffffffff;
+		}
+		if (OF_searchencprop(OF_xref_phandle(iparent), 
+		    "#interrupt-cells", &icells, sizeof(icells)) == -1) {
+			device_printf(dev, "Missing #interrupt-cells property, "
+			    "assuming <1> on <%s>\n", nodename);
+			icells = 1;
+		}
+		if (icells < 1 || icells > nintr) {
+			device_printf(dev, "Invalid #interrupt-cells property "
+			    "value <%d>, assuming <1> on <%s>\n", icells, 
+			    nodename);
+			icells = 1;
+		}
+		for (i = 0, rid = 0; i < nintr; i += icells, rid++) {
 			intr[i] = ofw_bus_map_intr(dev, iparent, icells,
 			    &intr[i]);
-			resource_list_add(&ndi->ndi_rl, SYS_RES_IRQ, i, intr[i],
+			resource_list_add(&ndi->ndi_rl, SYS_RES_IRQ, rid, intr[i],
 			    intr[i], 1);
 		}
 		free(intr, M_OFWPROP);
