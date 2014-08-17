@@ -626,8 +626,10 @@ interpret:
 		oldsigacts = p->p_sigacts;
 		newsigacts = sigacts_alloc();
 		sigacts_copy(newsigacts, oldsigacts);
-	} else
+	} else {
 		oldsigacts = NULL;
+		newsigacts = NULL; /* satisfy gcc */
+	}
 
 	PROC_LOCK(p);
 	if (oldsigacts)
