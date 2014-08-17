@@ -64,7 +64,7 @@ fdt_aic_decode_ic(phandle_t node, pcell_t *intr, int *interrupt, int *trig,
 	*pol = INTR_POLARITY_CONFORM;
 
 	return (0);
-u}
+}
 
 fdt_pic_decode_t fdt_pic_table[] = {
 	&fdt_aic_decode_ic,
