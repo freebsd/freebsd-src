@@ -2627,6 +2627,9 @@ dev/xen/timer/timer.c		optional xen | xenhvm
 dev/xen/pvcpu/pvcpu.c		optional xen | xenhvm
 dev/xl/if_xl.c			optional xl pci
 dev/xl/xlphy.c			optional xl pci
+fs/autofs/autofs.c		optional autofs
+fs/autofs/autofs_vfsops.c	optional autofs
+fs/autofs/autofs_vnops.c	optional autofs
 fs/deadfs/dead_vnops.c		standard
 fs/devfs/devfs_devs.c		standard
 fs/devfs/devfs_dir.c		standard
@@ -3164,6 +3167,7 @@ libkern/strcmp.c		standard
 libkern/strcpy.c		standard
 libkern/strcspn.c		standard
 libkern/strdup.c		standard
+libkern/strndup.c		standard
 libkern/strlcat.c		standard
 libkern/strlcpy.c		standard
 libkern/strlen.c		standard
