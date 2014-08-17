@@ -367,6 +367,13 @@ vm_suspend(struct vmctx *ctx, enum vm_suspend_how how)
 	return (ioctl(ctx->fd, VM_SUSPEND, &vmsuspend));
 }
 
+int
+vm_reinit(struct vmctx *ctx)
+{
+
+	return (ioctl(ctx->fd, VM_REINIT, 0));
+}
+
 static int
 vm_inject_exception_real(struct vmctx *ctx, int vcpu, int vector,
     int error_code, int error_code_valid)
