@@ -274,6 +274,20 @@ vm_map_gpa(struct vmctx *ctx, vm_paddr_t gaddr, size_t len)
 	return (NULL);
 }
 
+size_t
+vm_get_lowmem_size(struct vmctx *ctx)
+{
+
+	return (ctx->lowmem);
+}
+
+size_t
+vm_get_highmem_size(struct vmctx *ctx)
+{
+
+	return (ctx->highmem);
+}
+
 int
 vm_set_desc(struct vmctx *ctx, int vcpu, int reg,
 	    uint64_t base, uint32_t limit, uint32_t access)

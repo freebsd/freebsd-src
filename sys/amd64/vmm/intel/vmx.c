@@ -1327,9 +1327,13 @@ vmx_inject_interrupts(struct vmx *vmx, int vcpu, struct vlapic *vlapic)
 		 * have posted another one.  If that is the case, set
 		 * the Interrupt Window Exiting execution control so
 		 * we can inject that one too.
+		 *
+		 * Also, interrupt window exiting allows us to inject any
+		 * pending APIC vector that was preempted by the ExtINT
+		 * as soon as possible. This applies both for the software
+		 * emulated vlapic and the hardware assisted virtual APIC.
 		 */
-		if (vm_extint_pending(vmx->vm, vcpu))
-			vmx_set_int_window_exiting(vmx, vcpu);
+		vmx_set_int_window_exiting(vmx, vcpu);
 	}
 
 	VCPU_CTR1(vmx->vm, vcpu, "Injecting hwintr at vector %d", vector);
@@ -2275,32 +2279,7 @@ vmx_exit_process(struct vmx *vmx, int vcpu, struct vm_exit *vmexit)
 	return (handled);
 }
 
-static __inline int
-vmx_exit_astpending(struct vmx *vmx, int vcpu, struct vm_exit *vmexit)
-{
-
-	vmexit->rip = vmcs_guest_rip();
-	vmexit->inst_length = 0;
-	vmexit->exitcode = VM_EXITCODE_BOGUS;
-	vmx_astpending_trace(vmx, vcpu, vmexit->rip);
-	vmm_stat_incr(vmx->vm, vcpu, VMEXIT_ASTPENDING, 1);
-
-	return (HANDLED);
-}
-
-static __inline int
-vmx_exit_rendezvous(struct vmx *vmx, int vcpu, struct vm_exit *vmexit)
-{
-
-	vmexit->rip = vmcs_guest_rip();
-	vmexit->inst_length = 0;
-	vmexit->exitcode = VM_EXITCODE_RENDEZVOUS;
-	vmm_stat_incr(vmx->vm, vcpu, VMEXIT_RENDEZVOUS, 1);
-
-	return (UNHANDLED);
-}
-
-static __inline int
+static __inline void
 vmx_exit_inst_error(struct vmxctx *vmxctx, int rc, struct vm_exit *vmexit)
 {
 
@@ -2324,8 +2303,6 @@ vmx_exit_inst_error(struct vmxctx *vmxctx, int rc, struct vm_exit *vmexit)
 	default:
 		panic("vm_exit_inst_error: vmx_enter_guest returned %d", rc);
 	}
-
-	return (UNHANDLED);
 }
 
 /*
@@ -2398,6 +2375,8 @@ vmx_run(void *arg, int vcpu, register_t startrip, pmap_t pmap,
 	vmcs_write(VMCS_GUEST_RIP, startrip);
 	vmx_set_pcpu_defaults(vmx, vcpu, pmap);
 	do {
+		handled = UNHANDLED;
+
 		/*
 		 * Interrupts are disabled from this point on until the
 		 * guest starts executing. This is done for the following
@@ -2420,19 +2399,20 @@ vmx_run(void *arg, int vcpu, register_t startrip, pmap_t pmap,
 		if (vcpu_suspended(suspend_cookie)) {
 			enable_intr();
 			vm_exit_suspended(vmx->vm, vcpu, vmcs_guest_rip());
-			handled = UNHANDLED;
 			break;
 		}
 
 		if (vcpu_rendezvous_pending(rendezvous_cookie)) {
 			enable_intr();
-			handled = vmx_exit_rendezvous(vmx, vcpu, vmexit);
+			vm_exit_rendezvous(vmx->vm, vcpu, vmcs_guest_rip());
 			break;
 		}
 
 		if (curthread->td_flags & (TDF_ASTPENDING | TDF_NEEDRESCHED)) {
 			enable_intr();
-			handled = vmx_exit_astpending(vmx, vcpu, vmexit);
+			vm_exit_astpending(vmx->vm, vcpu, vmcs_guest_rip());
+			vmx_astpending_trace(vmx, vcpu, vmexit->rip);
+			handled = HANDLED;
 			break;
 		}
 
@@ -2452,7 +2432,7 @@ vmx_run(void *arg, int vcpu, register_t startrip, pmap_t pmap,
 			handled = vmx_exit_process(vmx, vcpu, vmexit);
 		} else {
 			enable_intr();
-			handled = vmx_exit_inst_error(vmxctx, rc, vmexit);
+			vmx_exit_inst_error(vmxctx, rc, vmexit);
 		}
 		launched = 1;
 		vmx_exit_trace(vmx, vcpu, rip, exit_reason, handled);
