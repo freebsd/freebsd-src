@@ -91,7 +91,7 @@ cheritest_sandbox_setup(void *sandbox_base, void *sandbox_end,
  * context.
  */
 void
-test_fault_creturn(void)
+test_fault_creturn(const struct cheri_test *ctp __unused)
 {
 
 	CHERI_CRETURN();
@@ -101,7 +101,7 @@ test_fault_creturn(void)
  * CCall code that will immediately CReturn.
  */
 void
-test_nofault_ccall_creturn(void)
+test_nofault_ccall_creturn(const struct cheri_test *ctp __unused)
 {
 	__capability void *codecap, *datacap;
 
@@ -115,7 +115,7 @@ test_nofault_ccall_creturn(void)
  * CCall code that will execute a few NOPs, then CReturn.
  */
 void
-test_nofault_ccall_nop_creturn(void)
+test_nofault_ccall_nop_creturn(const struct cheri_test *ctp __unused)
 {
 	__capability void *codecap, *datacap;
 
@@ -132,7 +132,7 @@ test_nofault_ccall_nop_creturn(void)
  */
 #define	DLI_RETVAL	0x1234
 void
-test_nofault_ccall_dli_creturn(void)
+test_nofault_ccall_dli_creturn(const struct cheri_test *ctp __unused)
 {
 	__capability void *codecap, *datacap;
 	register_t v0;

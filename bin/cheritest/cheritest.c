@@ -67,23 +67,7 @@
 
 #define	max(x, y)	((x) > (y) ? (x) : (y))
 
-#define	CT_FLAG_SIGNAL		0x00000001  /* Should fault; checks signum. */
-#define	CT_FLAG_MIPS_EXCCODE	0x00000002  /* Check MIPS exception code. */
-#define	CT_FLAG_CP2_EXCCODE	0x00000004  /* Check CP2 exception code. */
-#define	CT_FLAG_STDOUT_STRING	0x00000008  /* Check stdout for a string. */
-
-static const struct cheri_test {
-	const char	*ct_name;
-	const char	*ct_desc;
-	int		 ct_arg;	/* 0: ct_func; otherwise ct_func_arg. */
-	void		(*ct_func)(void);
-	void		(*ct_func_arg)(int);
-	u_int		 ct_flags;
-	int		 ct_signum;
-	register_t	 ct_mips_exccode;
-	register_t	 ct_cp2_exccode;
-	const char	*ct_stdout_string;
-} cheri_tests[] = {
+static const struct cheri_test cheri_tests[] = {
 	/*
 	 * Exercise CHERI functions without an expectation of a signal.
 	 */
@@ -408,29 +392,33 @@ static const struct cheri_test {
 	/*
 	 * libcheri + cheri_fd tests.
 	 */
-	{ .ct_name = "invoke_fd_fstat_c",
-	  .ct_desc = "Exercise fstat_c() on a cheri_fd in a libcheri sandbox",
+	{ .ct_name = "invoke_fd_fstat",
+	  .ct_desc = "Exercise fstat() on a cheri_fd in a libcheri sandbox",
 	  .ct_func_arg = cheritest_invoke_fd_op,
 	  .ct_arg = CHERITEST_HELPER_OP_FD_FSTAT_C },
 
-	{ .ct_name = "invoke_fd_lseek_c",
-	  .ct_desc = "Exercise lseek_c() on a cheri_fd in a libcheri sandbox",
+	{ .ct_name = "invoke_fd_lseek",
+	  .ct_desc = "Exercise lseek() on a cheri_fd in a libcheri sandbox",
 	  .ct_func_arg = cheritest_invoke_fd_op,
 	  .ct_arg = CHERITEST_HELPER_OP_FD_LSEEK_C },
 
-	{ .ct_name = "invoke_fd_read_c",
-	  .ct_desc = "Exercise read_c() on a cheri_fd in a libcheri sandbox",
-	  .ct_func_arg = cheritest_invoke_fd_op,
-	  .ct_arg = CHERITEST_HELPER_OP_FD_READ_C },
+	{ .ct_name = "invoke_fd_read",
+	  .ct_desc = "Exercise read() on a cheri_fd in a libcheri sandbox",
+	  .ct_func = cheritest_fd_read,
+	  .ct_flags = CT_FLAG_STDIN_STRING,
+	  .ct_stdin_string = "read123" },
 
-	{ .ct_name = "invoke_fd_write_c",
-	  .ct_desc = "Exercise write_c() on a cheri_fd in a libcheri sandbox",
-	  .ct_func_arg = cheritest_invoke_fd_op,
-	  .ct_arg = CHERITEST_HELPER_OP_FD_WRITE_C },
+	{ .ct_name = "invoke_fd_write",
+	  .ct_desc = "Exercise write() on a cheri_fd in a libcheri sandbox",
+	  .ct_func = cheritest_fd_write,
+	  .ct_flags = CT_FLAG_STDOUT_STRING,
+	  .ct_stdout_string = "write123" },
 
 	{ .ct_name = "revoke_fd",
-	  .ct_desc = "Exercise revoke_c() on a cheri_fd",
-	  .ct_func = cheritest_revoke_fd },
+	  .ct_desc = "Exercise revoke() on a cheri_fd",
+	  .ct_func = cheritest_fd_revoke,
+	  /* NB: String defined but flag not set: shouldn't print. */
+	  .ct_stdout_string = "write123" },
 
 	{ .ct_name = "libcheri_userfn",
 	  .ct_desc = "Exercise user-defined system-class method",
@@ -516,6 +504,24 @@ cheritest_run_test(const struct cheri_test *ctp)
 	if (pipe(pipefd_stdout) < 0)
 		err(EX_OSERR, "pipe");
 
+	/* If stdin is to be filled, fill it. */
+	if (ctp->ct_flags & CT_FLAG_STDIN_STRING) {
+		len = write(pipefd_stdin[1], ctp->ct_stdin_string,
+		    strlen(ctp->ct_stdin_string));
+		if (len < 0) {
+			snprintf(reason, sizeof(reason),
+			    "write() on test stdin failed with -1 (%d)",
+			    errno);
+			goto fail;
+		}
+		if (len != (ssize_t)strlen(ctp->ct_stdin_string)) {
+			snprintf(reason, sizeof(reason),
+			    "write() on test stdin expected %lu but got %ld",
+			    strlen(ctp->ct_stdin_string), len);
+			goto fail;
+		}
+	}
+
 	childpid = fork();
 	if (childpid < 0)
 		err(EX_OSERR, "fork");
@@ -551,9 +557,9 @@ cheritest_run_test(const struct cheri_test *ctp)
 
 		/* Run the actual test. */
 		if (ctp->ct_arg != 0)
-			ctp->ct_func_arg(ctp->ct_arg);
+			ctp->ct_func_arg(ctp, ctp->ct_arg);
 		else
-			ctp->ct_func();
+			ctp->ct_func(ctp);
 		exit(0);
 	}
 	close(pipefd_stdin[0]);

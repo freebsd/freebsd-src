@@ -63,7 +63,7 @@ static char array[ARRAY_LEN];
 static char sink;
 
 void
-test_fault_bounds(void)
+test_fault_bounds(const struct cheri_test *ctp __unused)
 {
 	__capability char *arrayp = cheri_ptr(array, sizeof(array));
 	int i;
@@ -74,7 +74,7 @@ test_fault_bounds(void)
 }
 
 void
-test_fault_perm_load(void)
+test_fault_perm_load(const struct cheri_test *ctp __unused)
 {
 	__capability char *arrayp = cheri_ptrperm(array, sizeof(array), 0);
 
@@ -82,7 +82,7 @@ test_fault_perm_load(void)
 }
 
 void
-test_nofault_perm_load(void)
+test_nofault_perm_load(const struct cheri_test *ctp __unused)
 {
 	__capability char *arrayp = cheri_ptrperm(array, sizeof(array),
 	    CHERI_PERM_LOAD);
@@ -92,7 +92,7 @@ test_nofault_perm_load(void)
 }
 
 void
-test_fault_perm_store(void)
+test_fault_perm_store(const struct cheri_test *ctp __unused)
 {
 	__capability char *arrayp = cheri_ptrperm(array, sizeof(array), 0);
 
@@ -100,7 +100,7 @@ test_fault_perm_store(void)
 }
 
 void
-test_nofault_perm_store(void)
+test_nofault_perm_store(const struct cheri_test *ctp __unused)
 {
 	__capability char *arrayp = cheri_ptrperm(array, sizeof(array),
 	    CHERI_PERM_STORE);
@@ -110,7 +110,7 @@ test_nofault_perm_store(void)
 }
 
 void
-test_fault_tag(void)
+test_fault_tag(const struct cheri_test *ctp __unused)
 {
 	char ch;
 	__capability char *chp = cheri_ptr(&ch, sizeof(ch));
@@ -120,7 +120,7 @@ test_fault_tag(void)
 }
 
 void
-test_fault_ccheck_user_fail(void)
+test_fault_ccheck_user_fail(const struct cheri_test *ctp __unused)
 {
 	__capability void *cp;
 	char ch;
@@ -130,7 +130,7 @@ test_fault_ccheck_user_fail(void)
 }
 
 void
-test_nofault_ccheck_user_pass(void)
+test_nofault_ccheck_user_pass(const struct cheri_test *ctp __unused)
 {
 	__capability void *cp;
 	char ch;
@@ -141,7 +141,7 @@ test_nofault_ccheck_user_pass(void)
 }
 
 void
-test_fault_cgetcause(void)
+test_fault_cgetcause(const struct cheri_test *ctp __unused)
 {
 	register_t cause;
 
@@ -150,35 +150,35 @@ test_fault_cgetcause(void)
 }
 
 void
-test_fault_read_kr1c(void)
+test_fault_read_kr1c(const struct cheri_test *ctp __unused)
 {
 
 	CHERI_CAPREG_PRINT(27);
 }
 
 void
-test_fault_read_kr2c(void)
+test_fault_read_kr2c(const struct cheri_test *ctp __unused)
 {
 
 	CHERI_CAPREG_PRINT(28);
 }
 
 void
-test_fault_read_kcc(void)
+test_fault_read_kcc(const struct cheri_test *ctp __unused)
 {
 
 	CHERI_CAPREG_PRINT(29);
 }
 
 void
-test_fault_read_kdc(void)
+test_fault_read_kdc(const struct cheri_test *ctp __unused)
 {
 
 	CHERI_CAPREG_PRINT(30);
 }
 
 void
-test_fault_read_epcc(void)
+test_fault_read_epcc(const struct cheri_test *ctp __unused)
 {
 
 	CHERI_CAPREG_PRINT(31);
