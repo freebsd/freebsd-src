@@ -10464,7 +10464,9 @@ ctl_inquiry_std(struct ctl_scsiio *ctsio)
 	 */
 	inq_ptr->response_format = SID_HiSup | 2;
 
-	inq_ptr->additional_length = sizeof(*inq_ptr) - 4;
+	inq_ptr->additional_length =
+	    offsetof(struct scsi_inquiry_data, vendor_specific1) -
+	    (offsetof(struct scsi_inquiry_data, additional_length) + 1);
 	CTL_DEBUG_PRINT(("additional_length = %d\n",
 			 inq_ptr->additional_length));
 
