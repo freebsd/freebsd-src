@@ -42,7 +42,7 @@
  *   and need to be freed;
  * - buffers queued by netmap return the txq/rxq, and do not need work
  */
-void
+static void
 vtnet_netmap_free_bufs(struct SOFTC_T* sc)
 {
 	int i, nmb = 0, n = 0, last;
@@ -80,7 +80,7 @@ vtnet_netmap_free_bufs(struct SOFTC_T* sc)
 }
 
 /* Register and unregister. */
-int
+static int
 vtnet_netmap_reg(struct netmap_adapter *na, int onoff)
 {
         struct ifnet *ifp = na->ifp;
@@ -237,7 +237,7 @@ vtnet_refill_rxq(struct netmap_kring *kring, u_int nm_i, u_int head)
 
 	/* use a local sglist, default might be short */
 	struct sglist_seg ss[2];
-	struct sglist sg[1] = { ss, 0, 0, 2};
+	struct sglist sg = { ss, 0, 0, 2 };
 
 	for (n = 0; nm_i != head; n++) {
 		static struct virtio_net_hdr_mrg_rxbuf hdr;
@@ -252,11 +252,11 @@ vtnet_refill_rxq(struct netmap_kring *kring, u_int nm_i, u_int head)
 		}
 
 		slot->flags &= ~NS_BUF_CHANGED;
-		sglist_reset(sg); // cheap
-		err = sglist_append(sg, &hdr, sc->vtnet_hdr_size);
-		err = sglist_append_phys(sg, paddr, NETMAP_BUF_SIZE(na));
+		sglist_reset(&sg); // cheap
+		err = sglist_append(&sg, &hdr, sc->vtnet_hdr_size);
+		err = sglist_append_phys(&sg, paddr, NETMAP_BUF_SIZE(na));
 		/* writable for the host */
-		err = virtqueue_enqueue(vq, rxq, sg, 0, sg->sg_nseg);
+		err = virtqueue_enqueue(vq, rxq, &sg, 0, sg.sg_nseg);
 		if (err < 0) {
 			D("virtqueue_enqueue failed");
 			break;
