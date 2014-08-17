@@ -83,7 +83,9 @@ __FBSDID("$FreeBSD$");
 	(PROCBASED_SECONDARY_CONTROLS	|				\
 	 PROCBASED_IO_EXITING		|				\
 	 PROCBASED_MSR_BITMAPS		|				\
-	 PROCBASED_CTLS_WINDOW_SETTING)
+	 PROCBASED_CTLS_WINDOW_SETTING	|				\
+	 PROCBASED_CR8_LOAD_EXITING	|				\
+	 PROCBASED_CR8_STORE_EXITING)
 #define	PROCBASED_CTLS_ZERO_SETTING	\
 	(PROCBASED_CR3_LOAD_EXITING |	\
 	PROCBASED_CR3_STORE_EXITING |	\
@@ -712,6 +714,13 @@ vmx_init(int ipinum)
 		procbased_ctls |= PROCBASED_USE_TPR_SHADOW;
 		procbased_ctls2 |= procbased2_vid_bits;
 		procbased_ctls2 &= ~PROCBASED2_VIRTUALIZE_X2APIC_MODE;
+
+		/*
+		 * No need to emulate accesses to %CR8 if virtual
+		 * interrupt delivery is enabled.
+		 */
+		procbased_ctls &= ~PROCBASED_CR8_LOAD_EXITING;
+		procbased_ctls &= ~PROCBASED_CR8_STORE_EXITING;
 
 		/*
 		 * Check for Posted Interrupts only if Virtual Interrupt
@@ -1442,97 +1451,130 @@ vmx_emulate_xsetbv(struct vmx *vmx, int vcpu, struct vm_exit *vmexit)
 	return (HANDLED);
 }
 
-static int
-vmx_emulate_cr_access(struct vmx *vmx, int vcpu, uint64_t exitqual)
+static uint64_t
+vmx_get_guest_reg(struct vmx *vmx, int vcpu, int ident)
 {
-	int cr, vmcs_guest_cr, vmcs_shadow_cr;
-	uint64_t crval, regval, ones_mask, zeros_mask;
 	const struct vmxctx *vmxctx;
 
-	/* We only handle mov to %cr0 or %cr4 at this time */
+	vmxctx = &vmx->ctx[vcpu];
+
+	switch (ident) {
+	case 0:
+		return (vmxctx->guest_rax);
+	case 1:
+		return (vmxctx->guest_rcx);
+	case 2:
+		return (vmxctx->guest_rdx);
+	case 3:
+		return (vmxctx->guest_rbx);
+	case 4:
+		return (vmcs_read(VMCS_GUEST_RSP));
+	case 5:
+		return (vmxctx->guest_rbp);
+	case 6:
+		return (vmxctx->guest_rsi);
+	case 7:
+		return (vmxctx->guest_rdi);
+	case 8:
+		return (vmxctx->guest_r8);
+	case 9:
+		return (vmxctx->guest_r9);
+	case 10:
+		return (vmxctx->guest_r10);
+	case 11:
+		return (vmxctx->guest_r11);
+	case 12:
+		return (vmxctx->guest_r12);
+	case 13:
+		return (vmxctx->guest_r13);
+	case 14:
+		return (vmxctx->guest_r14);
+	case 15:
+		return (vmxctx->guest_r15);
+	default:
+		panic("invalid vmx register %d", ident);
+	}
+}
+
+static void
+vmx_set_guest_reg(struct vmx *vmx, int vcpu, int ident, uint64_t regval)
+{
+	struct vmxctx *vmxctx;
+
+	vmxctx = &vmx->ctx[vcpu];
+
+	switch (ident) {
+	case 0:
+		vmxctx->guest_rax = regval;
+		break;
+	case 1:
+		vmxctx->guest_rcx = regval;
+		break;
+	case 2:
+		vmxctx->guest_rdx = regval;
+		break;
+	case 3:
+		vmxctx->guest_rbx = regval;
+		break;
+	case 4:
+		vmcs_write(VMCS_GUEST_RSP, regval);
+		break;
+	case 5:
+		vmxctx->guest_rbp = regval;
+		break;
+	case 6:
+		vmxctx->guest_rsi = regval;
+		break;
+	case 7:
+		vmxctx->guest_rdi = regval;
+		break;
+	case 8:
+		vmxctx->guest_r8 = regval;
+		break;
+	case 9:
+		vmxctx->guest_r9 = regval;
+		break;
+	case 10:
+		vmxctx->guest_r10 = regval;
+		break;
+	case 11:
+		vmxctx->guest_r11 = regval;
+		break;
+	case 12:
+		vmxctx->guest_r12 = regval;
+		break;
+	case 13:
+		vmxctx->guest_r13 = regval;
+		break;
+	case 14:
+		vmxctx->guest_r14 = regval;
+		break;
+	case 15:
+		vmxctx->guest_r15 = regval;
+		break;
+	default:
+		panic("invalid vmx register %d", ident);
+	}
+}
+
+static int
+vmx_emulate_cr0_access(struct vmx *vmx, int vcpu, uint64_t exitqual)
+{
+	uint64_t crval, regval;
+
+	/* We only handle mov to %cr0 at this time */
 	if ((exitqual & 0xf0) != 0x00)
 		return (UNHANDLED);
 
-	cr = exitqual & 0xf;
-	if (cr != 0 && cr != 4)
-		return (UNHANDLED);
+	regval = vmx_get_guest_reg(vmx, vcpu, (exitqual >> 8) & 0xf);
 
-	regval = 0; /* silence gcc */
-	vmxctx = &vmx->ctx[vcpu];
+	vmcs_write(VMCS_CR0_SHADOW, regval);
 
-	/*
-	 * We must use vmcs_write() directly here because vmcs_setreg() will
-	 * call vmclear(vmcs) as a side-effect which we certainly don't want.
-	 */
-	switch ((exitqual >> 8) & 0xf) {
-	case 0:
-		regval = vmxctx->guest_rax;
-		break;
-	case 1:
-		regval = vmxctx->guest_rcx;
-		break;
-	case 2:
-		regval = vmxctx->guest_rdx;
-		break;
-	case 3:
-		regval = vmxctx->guest_rbx;
-		break;
-	case 4:
-		regval = vmcs_read(VMCS_GUEST_RSP);
-		break;
-	case 5:
-		regval = vmxctx->guest_rbp;
-		break;
-	case 6:
-		regval = vmxctx->guest_rsi;
-		break;
-	case 7:
-		regval = vmxctx->guest_rdi;
-		break;
-	case 8:
-		regval = vmxctx->guest_r8;
-		break;
-	case 9:
-		regval = vmxctx->guest_r9;
-		break;
-	case 10:
-		regval = vmxctx->guest_r10;
-		break;
-	case 11:
-		regval = vmxctx->guest_r11;
-		break;
-	case 12:
-		regval = vmxctx->guest_r12;
-		break;
-	case 13:
-		regval = vmxctx->guest_r13;
-		break;
-	case 14:
-		regval = vmxctx->guest_r14;
-		break;
-	case 15:
-		regval = vmxctx->guest_r15;
-		break;
-	}
+	crval = regval | cr0_ones_mask;
+	crval &= ~cr0_zeros_mask;
+	vmcs_write(VMCS_GUEST_CR0, crval);
 
-	if (cr == 0) {
-		ones_mask = cr0_ones_mask;
-		zeros_mask = cr0_zeros_mask;
-		vmcs_guest_cr = VMCS_GUEST_CR0;
-		vmcs_shadow_cr = VMCS_CR0_SHADOW;
-	} else {
-		ones_mask = cr4_ones_mask;
-		zeros_mask = cr4_zeros_mask;
-		vmcs_guest_cr = VMCS_GUEST_CR4;
-		vmcs_shadow_cr = VMCS_CR4_SHADOW;
-	}
-	vmcs_write(vmcs_shadow_cr, regval);
-
-	crval = regval | ones_mask;
-	crval &= ~zeros_mask;
-	vmcs_write(vmcs_guest_cr, crval);
-
-	if (cr == 0 && regval & CR0_PG) {
+	if (regval & CR0_PG) {
 		uint64_t efer, entry_ctls;
 
 		/*
@@ -1548,6 +1590,51 @@ vmx_emulate_cr_access(struct vmx *vmx, int vcpu, uint64_t exitqual)
 			entry_ctls |= VM_ENTRY_GUEST_LMA;
 			vmcs_write(VMCS_ENTRY_CTLS, entry_ctls);
 		}
+	}
+
+	return (HANDLED);
+}
+
+static int
+vmx_emulate_cr4_access(struct vmx *vmx, int vcpu, uint64_t exitqual)
+{
+	uint64_t crval, regval;
+
+	/* We only handle mov to %cr4 at this time */
+	if ((exitqual & 0xf0) != 0x00)
+		return (UNHANDLED);
+
+	regval = vmx_get_guest_reg(vmx, vcpu, (exitqual >> 8) & 0xf);
+
+	vmcs_write(VMCS_CR4_SHADOW, regval);
+
+	crval = regval | cr4_ones_mask;
+	crval &= ~cr4_zeros_mask;
+	vmcs_write(VMCS_GUEST_CR4, crval);
+
+	return (HANDLED);
+}
+
+static int
+vmx_emulate_cr8_access(struct vmx *vmx, int vcpu, uint64_t exitqual)
+{
+	struct vlapic *vlapic;
+	uint64_t cr8;
+	int regnum;
+
+	/* We only handle mov %cr8 to/from a register at this time. */
+	if ((exitqual & 0xe0) != 0x00) {
+		return (UNHANDLED);
+	}
+
+	vlapic = vm_lapic(vmx->vm, vcpu);
+	regnum = (exitqual >> 8) & 0xf;
+	if (exitqual & 0x10) {
+		cr8 = vlapic_get_cr8(vlapic);
+		vmx_set_guest_reg(vmx, vcpu, regnum, cr8);
+	} else {
+		cr8 = vmx_get_guest_reg(vmx, vcpu, regnum);
+		vlapic_set_cr8(vlapic, cr8);
 	}
 
 	return (HANDLED);
@@ -1945,7 +2032,17 @@ vmx_exit_process(struct vmx *vmx, int vcpu, struct vm_exit *vmexit)
 	switch (reason) {
 	case EXIT_REASON_CR_ACCESS:
 		vmm_stat_incr(vmx->vm, vcpu, VMEXIT_CR_ACCESS, 1);
-		handled = vmx_emulate_cr_access(vmx, vcpu, qual);
+		switch (qual & 0xf) {
+		case 0:
+			handled = vmx_emulate_cr0_access(vmx, vcpu, qual);
+			break;
+		case 4:
+			handled = vmx_emulate_cr4_access(vmx, vcpu, qual);
+			break;
+		case 8:
+			handled = vmx_emulate_cr8_access(vmx, vcpu, qual);
+			break;
+		}
 		break;
 	case EXIT_REASON_RDMSR:
 		vmm_stat_incr(vmx->vm, vcpu, VMEXIT_RDMSR, 1);
