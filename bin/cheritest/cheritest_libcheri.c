@@ -105,7 +105,7 @@ test_sandbox_fd_read(const struct cheri_test *ctp)
 	    /* data_input */ cheri_zerocap(), /* data_output */ stringc,
 	    stdin_fd_object.co_codecap, stdin_fd_object.co_datacap,
 	    cheri_zerocap(), cheri_zerocap());
-	if (v != strlen(ctp->ct_stdin_string))
+	if (v != (ssize_t)strlen(ctp->ct_stdin_string))
 		cheritest_failure_errx("invoke returned %lu; expected %d\n",
 		    v, strlen(read_string));
 	cheritest_success();
@@ -152,7 +152,7 @@ test_sandbox_fd_write(const struct cheri_test *ctp __unused)
 	    /* data_input */ stringc, /* data_output */ cheri_zerocap(),
 	    stdout_fd_object.co_codecap, stdout_fd_object.co_datacap,
 	    cheri_zerocap(), cheri_zerocap());
-	if (v != strlen(ctp->ct_stdout_string))
+	if (v != (ssize_t)strlen(ctp->ct_stdout_string))
 		cheritest_failure_errx("invoke returned %lu; expected %d\n",
 		    v, strlen(ctp->ct_stdout_string));
 	cheritest_success();
