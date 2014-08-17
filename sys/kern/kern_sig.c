@@ -3463,10 +3463,6 @@ sigacts_copy(struct sigacts *dest, struct sigacts *src)
 int
 sigacts_shared(struct sigacts *ps)
 {
-	int shared;
 
-	mtx_lock(&ps->ps_mtx);
-	shared = ps->ps_refcnt > 1;
-	mtx_unlock(&ps->ps_mtx);
-	return (shared);
+	return (ps->ps_refcnt > 1);
 }
