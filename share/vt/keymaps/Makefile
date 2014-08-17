@@ -1,16 +1,79 @@
 # $FreeBSD$
 
-FILES=	be.kbd \
-	fr.kbd \
+FILES=	INDEX.keymaps \
+	am.kbd \
+	bg.bds.ctrlcaps.kbd \
+	bg.bds.kbd \
+	br.acc.kbd \
+	br.kbd \
+	ca.kbd \
+	centraleuropean.kbd \
+	ch-fr.acc.kbd \
+	ch-fr.kbd \
+	ch.acc.kbd \
+	ch.kbd \
+	ch.macbook.acc.kbd \
+	colemak.kbd \
+	cz.kbd \
+	de.acc.kbd \
+	de.kbd \
+	dk.acc.kbd \
+	dk.kbd \
+	dk.macbook.kbd \
+	ee.kbd \
+	es.acc.kbd \
+	es.dvorak.kbd \
+	es.kbd \
+	fi.kbd \
+	gr.101.acc.kbd \
+	gr.elot.acc.kbd \
+	gr.kbd \
 	hr.kbd \
+	hu.101.kbd \
+	hu.102.kbd \
+	il.kbd \
+	is.acc.kbd \
+	is.kbd \
 	it.kbd \
+	jp.capsctrl.kbd \
+	jp.kbd \
+	jp.pc98.iso.kbd \
+	jp.pc98.kbd \
+	kz.io.kbd \
+	kz.kst.kbd \
+	latinamerican.acc.kbd \
+	latinamerican.kbd \
+	lt.kbd \
+	nl.kbd \
+	no.dvorak.kbd \
+	no.kbd \
+	nordic.asus-eee.kbd \
+	pl.dvorak.kbd \
 	pl.kbd \
+	pt.acc.kbd \
 	pt.kbd \
+	ru.kbd \
+	ru.shift.kbd \
+	ru.win.kbd \
+	se.kbd \
 	si.kbd \
+	sk.kbd \
+	tr.kbd \
 	ua.kbd \
 	ua.shift.alt.kbd \
+	uk.capsctrl.kbd \
+	uk.dvorak.kbd \
 	uk.kbd \
-	us.kbd
+	us.acc.kbd \
+	us.ctrl.kbd \
+	us.dvorak.kbd \
+	us.dvorakl.kbd \
+	us.dvorakp.kbd \
+	us.dvorakr.kbd \
+	us.dvorakx.kbd \
+	us.emacs.kbd \
+	us.kbd \
+	us.unix.kbd \
 
 FILESDIR= ${SHAREDIR}/vt/keymaps
 
