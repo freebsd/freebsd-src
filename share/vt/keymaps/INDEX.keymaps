@@ -200,11 +200,11 @@ fr.dvorak.acc.kbd:pt:Francês Dvorak (com acentos)
 fr.dvorak.acc.kbd:es:Francés Dvorak (con acentos)
 fr.dvorak.acc.kbd:uk:French Dvorak-like (accent keys)
 
-ca.kbd:en:French Canadian (accent keys)
-ca.kbd:de:Französisch Kanada (mit Akzenten)
-ca.kbd:fr:Français Canadien (avec accents)
-ca.kbd:es:Francocanadiense (con acentos)
-ca.kbd:uk:Французько-канадська (accent keys)
+ca-fr.kbd:en:French Canadian (accent keys)
+ca-fr.kbd:de:Französisch Kanada (mit Akzenten)
+ca-fr.kbd:fr:Français Canadien (avec accents)
+ca-fr.kbd:es:Francocanadiense (con acentos)
+ca-fr.kbd:uk:Французько-канадська (accent keys)
 
 de.kbd:en:German
 de.kbd:de:Deutsch
