@@ -451,6 +451,7 @@ read_i2c_ixgbe(struct i2c_info *ii, uint8_t addr, uint8_t off, uint8_t len,
 	for (i = 0; i < len; i += 1) {
 		ixreq.offset = off + i;
 		ixreq.len = 1;
+		ixreq.data[0] = '\0';
 
 		if (ioctl(ii->s, SIOCGI2C, ii->ifr) != 0) {
 			ii->error = errno;
