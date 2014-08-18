@@ -7,6 +7,7 @@ SUBDIR=	${_atf} \
 	${_atrun} \
 	bootpd \
 	${_casper} \
+	${_cheri_helloworld_helper} \
 	${_cheritest_helper} \
 	${_comsat} \
 	${_dma} \
@@ -48,6 +49,7 @@ _casper=	casper
 .endif
 
 .if ${MK_CHERI} != "no"
+_cheri_helloworld_helper=	cheri_helloworld-helper
 _cheritest_helper=	cheritest-helper
 _tcpdump_helper=	tcpdump-helper
 .endif

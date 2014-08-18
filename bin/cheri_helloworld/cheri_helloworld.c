@@ -39,25 +39,46 @@
 #include <machine/cheri.h>
 #include <machine/cheric.h>
 
+#include <cheri/cheri_fd.h>
 #include <cheri/sandbox.h>
 
-#include <cheritest-helper.h>
+#include <cheri_helloworld-helper.h>
 #include <err.h>
 #include <stdio.h>
 #include <sysexits.h>
+#include <unistd.h>
 
+/*
+ * Print "hello world" from a sandbox ... three different ways!
+ */
 static void
-cheritest_helloworld(struct sandbox_object *objectp)
+cheri_helloworld(struct sandbox_object *objectp,
+    struct cheri_object stdout_fd, register_t op)
 {
 	register_t v;
 
-	v = sandbox_object_cinvoke(objectp,
-	    CHERITEST_HELPER_OP_CS_HELLOWORLD, 0, 0, 0, 0, 0, 0, 0,
+	/*
+	 * XXXRW: Once we have more compiler support, this will be a lot
+	 * tidier, hopefully.
+	 */
+	v = sandbox_object_cinvoke(objectp, op, 0, 0, 0, 0, 0, 0, 0,
             sandbox_object_getsystemobject(objectp).co_codecap,
             sandbox_object_getsystemobject(objectp).co_datacap,
-            cheri_zerocap(), cheri_zerocap(), cheri_zerocap(),
-            cheri_zerocap(), cheri_zerocap(), cheri_zerocap());
-	assert(v == 123456);
+	    stdout_fd.co_codecap, stdout_fd.co_datacap, cheri_zerocap(),
+	    cheri_zerocap(), cheri_zerocap(), cheri_zerocap());
+	switch (op) {
+	case CHERI_HELLOWORLD_HELPER_OP_HELLOWORLD:
+		assert(v == 123456);
+		break;
+
+	case CHERI_HELLOWORLD_HELPER_OP_PUTS:
+		assert(v >= 0);
+		break;
+
+	case CHERI_HELLOWORLD_HELPER_OP_FD_WRITE_C:
+		assert(v == 12);
+		break;
+	}
 }
 
 int
@@ -65,19 +86,37 @@ main(int argc __unused, char *argv[] __unused)
 {
 	struct sandbox_class *classp;
 	struct sandbox_object *objectp;
+	struct cheri_object stdout_fd;
 
-	if (sandbox_class_new("/usr/libexec/cheritest-helper.bin",
+	if (cheri_fd_new(STDOUT_FILENO, &stdout_fd) < 0)
+		err(EX_OSFILE, "cheri_fd_new: stdout");
+	if (sandbox_class_new("/usr/libexec/cheri_helloworld-helper.bin",
 	    4*1024*1024, &classp) < 0)
 		err(EX_OSFILE, "sandbox_class_new");
 	if (sandbox_object_new(classp, &objectp) < 0)
 		err(EX_OSFILE, "sandbox_object_new");
-	(void)sandbox_class_method_declare(classp,
-	    CHERITEST_HELPER_OP_CS_HELLOWORLD, "helloworld");
 
-	cheritest_helloworld(objectp);
+	/*
+	 * Ideally, this information would be sucked out of ELF.
+	 */
+	(void)sandbox_class_method_declare(classp,
+	    CHERI_HELLOWORLD_HELPER_OP_HELLOWORLD, "helloworld");
+	(void)sandbox_class_method_declare(classp,
+	    CHERI_HELLOWORLD_HELPER_OP_PUTS, "puts");
+	(void)sandbox_class_method_declare(classp,
+	    CHERI_HELLOWORLD_HELPER_OP_FD_WRITE_C, "fd_write_c");
+
+	/* Do it three times, one for each possible way. */
+	cheri_helloworld(objectp, stdout_fd,
+	    CHERI_HELLOWORLD_HELPER_OP_HELLOWORLD);
+	cheri_helloworld(objectp, stdout_fd,
+	    CHERI_HELLOWORLD_HELPER_OP_PUTS);
+	cheri_helloworld(objectp, stdout_fd,
+	    CHERI_HELLOWORLD_HELPER_OP_FD_WRITE_C);
 
 	sandbox_object_destroy(objectp);
 	sandbox_class_destroy(classp);
+	cheri_fd_destroy(stdout_fd);
 
 	return (0);
 }
