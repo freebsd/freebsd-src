@@ -6,6 +6,7 @@ FILES=	INDEX.keymaps \
 	bg.bds.kbd \
 	br.acc.kbd \
 	br.kbd \
+	ca.kbd \
 	ca-fr.kbd \
 	centraleuropean.kbd \
 	ch-fr.acc.kbd \
