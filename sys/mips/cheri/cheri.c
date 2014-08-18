@@ -89,14 +89,12 @@ SYSCTL_UINT(_security_cheri, OID_AUTO, debugger_on_exception, CTLFLAG_RW,
 	CHERI_CGETTYPE(c_otype, (crn));					\
 	CHERI_CGETBASE(c_base, (crn));					\
 	CHERI_CGETLEN(c_length, (crn));					\
-									\
-	printf("t: %u u: %u perms 0x%08jx otype 0x%016jx\n", ctag,	\
-	    c_unsealed, c_perms, c_otype);				\
-	printf("\tbase 0x%016jx length 0x%016jx\n", c_base, c_length);	\
+	printf("t:%u u:%u b:%016jx l:%016jx o:%016jx p:%08jx\n", ctag,	\
+	    c_unsealed, c_base, c_length, c_otype, c_perms);		\
 } while (0)
 
 #define	CHERI_REG_PRINT(crn, num) do {					\
-	printf("C%u ", num);						\
+	printf("C%02u: ", num);						\
 	CHERI_CAP_PRINT(crn);						\
 } while (0)
 
@@ -483,11 +481,9 @@ cheri_signal_sandboxed(struct thread *td)
 	CHERI_CGETTYPE(c_otype, (crn));					\
 	CHERI_CGETBASE(c_base, (crn));					\
 	CHERI_CGETLEN(c_length, (crn));					\
-									\
-	db_printf("C%u t: %u u: %u perms 0x%08jx otype 0x%016jx\n",	\
-	    num, ctag, c_unsealed, c_perms, c_otype);			\
-	db_printf("\tbase 0x%016jx length 0x%016jx\n", c_base,		\
-	    c_length);							\
+	db_printf(							\
+	    "C%02u t:%u u:%u b:%016jx l:%016jx o:%016jx p:%08jx\n",	\
+	    num, ctag, c_unsealed, c_base, c_length, c_otype, c_perms);	\
 } while (0)
 
 #define	DB_CHERI_REG_PRINT(crn)	 DB_CHERI_REG_PRINT_NUM(crn, crn)
