@@ -47,10 +47,10 @@
 #include <machine/pcb.h>
 #include <machine/sysarch.h>
 
-static u_int	security_cheri_debugger_on_sandbox_exception;
-SYSCTL_UINT(_security_cheri, OID_AUTO, debugger_on_sandbox_exception,
-    CTLFLAG_RW, &security_cheri_debugger_on_sandbox_exception, 0,
-    "Run debugger on sandbox exception");
+static u_int	security_cheri_debugger_on_sandbox_unwind;
+SYSCTL_UINT(_security_cheri, OID_AUTO, debugger_on_sandbox_unwind,
+    CTLFLAG_RW, &security_cheri_debugger_on_sandbox_unwind, 0,
+    "Run debugger on sandbox unwind");
 
 /*-
  * Some user-level security models rely on strict call-return semantics, which
@@ -145,8 +145,8 @@ cheri_stack_unwind(struct thread *td, struct trapframe *tf, int signum)
 		return (0);
 
 #if DDB
-	if (security_cheri_debugger_on_sandbox_exception)
-		kdb_enter(KDB_WHY_CHERI, "CHERI sandbox exception");
+	if (security_cheri_debugger_on_sandbox_unwind)
+		kdb_enter(KDB_WHY_CHERI, "CHERI sandbox unwind");
 #endif
 
 	/*
