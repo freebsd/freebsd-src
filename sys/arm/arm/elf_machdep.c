@@ -46,6 +46,8 @@ __FBSDID("$FreeBSD$");
 #include <machine/elf.h>
 #include <machine/md_var.h>
 
+static boolean_t elf32_arm_abi_supported(struct image_params *);
+
 struct sysentvec elf32_freebsd_sysvec = {
 	.sv_size	= SYS_MAXSYSCALL,
 	.sv_table	= sysent,
@@ -90,7 +92,8 @@ static Elf32_Brandinfo freebsd_brand_info = {
 	.sysvec		= &elf32_freebsd_sysvec,
 	.interp_newpath	= NULL,
 	.brand_note	= &elf32_freebsd_brandnote,
-	.flags		= BI_CAN_EXEC_DYN | BI_BRAND_NOTE
+	.flags		= BI_CAN_EXEC_DYN | BI_BRAND_NOTE,
+	.header_supported= elf32_arm_abi_supported,
 };
 
 SYSINIT(elf32, SI_SUB_EXEC, SI_ORDER_FIRST,
@@ -106,13 +109,42 @@ static Elf32_Brandinfo freebsd_brand_oinfo = {
 	.sysvec		= &elf32_freebsd_sysvec,
 	.interp_newpath	= NULL,
 	.brand_note	= &elf32_freebsd_brandnote,
-	.flags		= BI_CAN_EXEC_DYN | BI_BRAND_NOTE
+	.flags		= BI_CAN_EXEC_DYN | BI_BRAND_NOTE,
+	.header_supported= elf32_arm_abi_supported,
 };
 
 SYSINIT(oelf32, SI_SUB_EXEC, SI_ORDER_ANY,
 	(sysinit_cfunc_t) elf32_insert_brand_entry,
 	&freebsd_brand_oinfo);
 
+static boolean_t
+elf32_arm_abi_supported(struct image_params *imgp)
+{
+	const Elf_Ehdr *hdr = (const Elf_Ehdr *)imgp->image_header;
+
+#ifdef __ARM_EABI__
+	/*
+	 * When configured for EABI, FreeBSD supports EABI vesions 4 and 5.
+	 */
+	if (EF_ARM_EABI_VERSION(hdr->e_flags) < EF_ARM_EABI_FREEBSD_MIN) {
+		if (bootverbose)
+			uprintf("Attempting to execute non EABI binary (rev %d) image %s",
+			    EF_ARM_EABI_VERSION(hdr->e_flags), imgp->args->fname);
+		return (FALSE);
+	}
+#else
+	/*
+	 * When configured for OABI, that's all we do, so reject EABI binaries.
+	 */
+	if (EF_ARM_EABI_VERSION(hdr->e_flags) != EF_ARM_EABI_VERSION_UNKNOWN) {
+		if (bootverbose)
+			uprintf("Attempting to execute EABI binary (rev %d) image %s",
+			    EF_ARM_EABI_VERSION(hdr->e_flags), imgp->args->fname);
+		return (FALSE);
+	}
+#endif
+	return (TRUE);
+}
 
 void
 elf32_dump_thread(struct thread *td __unused, void *dst __unused,
