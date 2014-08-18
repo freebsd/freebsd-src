@@ -670,6 +670,7 @@ const char *PPCTargetLowering::getTargetNodeName(unsigned Opcode) const {
   case PPCISD::ADDIS_TOC_HA:    return "PPCISD::ADDIS_TOC_HA";
   case PPCISD::LD_TOC_L:        return "PPCISD::LD_TOC_L";
   case PPCISD::ADDI_TOC_L:      return "PPCISD::ADDI_TOC_L";
+  case PPCISD::PPC32_GOT:       return "PPCISD::PPC32_GOT";
   case PPCISD::ADDIS_GOT_TPREL_HA: return "PPCISD::ADDIS_GOT_TPREL_HA";
   case PPCISD::LD_GOT_TPREL_L:  return "PPCISD::LD_GOT_TPREL_L";
   case PPCISD::ADD_TLS:         return "PPCISD::ADD_TLS";
@@ -1307,10 +1308,7 @@ static bool GetLabelAccessInfo(const TargetMachine &TM, unsigned &HiOpFlags,
   HiOpFlags = PPCII::MO_HA;
   LoOpFlags = PPCII::MO_LO;
 
-  // Don't use the pic base if not in PIC relocation model.  Or if we are on a
-  // non-darwin platform.  We don't support PIC on other platforms yet.
-  bool isPIC = TM.getRelocationModel() == Reloc::PIC_ &&
-               TM.getSubtarget<PPCSubtarget>().isDarwin();
+  bool isPIC = TM.getRelocationModel() == Reloc::PIC_;
   if (isPIC) {
     HiOpFlags |= PPCII::MO_PIC_FLAG;
     LoOpFlags |= PPCII::MO_PIC_FLAG;
@@ -1366,6 +1364,15 @@ SDValue PPCTargetLowering::LowerConstantPool(SDValue Op,
 
   unsigned MOHiFlag, MOLoFlag;
   bool isPIC = GetLabelAccessInfo(DAG.getTarget(), MOHiFlag, MOLoFlag);
+
+  if (isPIC && PPCSubTarget.isSVR4ABI()) {
+    SDValue GA = DAG.getTargetConstantPool(C, PtrVT, CP->getAlignment(),
+                                           PPCII::MO_PIC_FLAG);
+    SDLoc DL(CP);
+    return DAG.getNode(PPCISD::TOC_ENTRY, SDLoc(CP), MVT::i32, GA,
+                       DAG.getNode(PPCISD::GlobalBaseReg, DL, PtrVT));
+  }
+
   SDValue CPIHi =
     DAG.getTargetConstantPool(C, PtrVT, CP->getAlignment(), 0, MOHiFlag);
   SDValue CPILo =
@@ -1387,6 +1394,15 @@ SDValue PPCTargetLowering::LowerJumpTable(SDValue Op, SelectionDAG &DAG) const {
 
   unsigned MOHiFlag, MOLoFlag;
   bool isPIC = GetLabelAccessInfo(DAG.getTarget(), MOHiFlag, MOLoFlag);
+
+  if (isPIC && PPCSubTarget.isSVR4ABI()) {
+    SDValue GA = DAG.getTargetJumpTable(JT->getIndex(), PtrVT,
+                                        PPCII::MO_PIC_FLAG);
+    SDLoc DL(GA);
+    return DAG.getNode(PPCISD::TOC_ENTRY, SDLoc(JT), PtrVT, GA,
+                       DAG.getNode(PPCISD::GlobalBaseReg, DL, PtrVT));
+  }
+
   SDValue JTIHi = DAG.getTargetJumpTable(JT->getIndex(), PtrVT, MOHiFlag);
   SDValue JTILo = DAG.getTargetJumpTable(JT->getIndex(), PtrVT, MOLoFlag);
   return LowerLabelRef(JTIHi, JTILo, isPIC, DAG);
@@ -1400,6 +1416,7 @@ SDValue PPCTargetLowering::LowerBlockAddress(SDValue Op,
 
   unsigned MOHiFlag, MOLoFlag;
   bool isPIC = GetLabelAccessInfo(DAG.getTarget(), MOHiFlag, MOLoFlag);
+
   SDValue TgtBAHi = DAG.getTargetBlockAddress(BA, PtrVT, 0, MOHiFlag);
   SDValue TgtBALo = DAG.getTargetBlockAddress(BA, PtrVT, 0, MOLoFlag);
   return LowerLabelRef(TgtBAHi, TgtBALo, isPIC, DAG);
@@ -1431,64 +1448,79 @@ SDValue PPCTargetLowering::LowerGlobalTLSAddress(SDValue Op,
     return DAG.getNode(PPCISD::Lo, dl, PtrVT, TGALo, Hi);
   }
 
-  if (!is64bit)
-    llvm_unreachable("only local-exec is currently supported for ppc32");
-
   if (Model == TLSModel::InitialExec) {
     SDValue TGA = DAG.getTargetGlobalAddress(GV, dl, PtrVT, 0, 0);
     SDValue TGATLS = DAG.getTargetGlobalAddress(GV, dl, PtrVT, 0,
                                                 PPCII::MO_TLS);
-    SDValue GOTReg = DAG.getRegister(PPC::X2, MVT::i64);
-    SDValue TPOffsetHi = DAG.getNode(PPCISD::ADDIS_GOT_TPREL_HA, dl,
-                                     PtrVT, GOTReg, TGA);
+    SDValue GOTPtr;
+    if (is64bit) {
+      SDValue GOTReg = DAG.getRegister(PPC::X2, MVT::i64);
+      GOTPtr = DAG.getNode(PPCISD::ADDIS_GOT_TPREL_HA, dl,
+                           PtrVT, GOTReg, TGA);
+    } else
+      GOTPtr = DAG.getNode(PPCISD::PPC32_GOT, dl, PtrVT);
     SDValue TPOffset = DAG.getNode(PPCISD::LD_GOT_TPREL_L, dl,
-                                   PtrVT, TGA, TPOffsetHi);
+                                   PtrVT, TGA, GOTPtr);
     return DAG.getNode(PPCISD::ADD_TLS, dl, PtrVT, TPOffset, TGATLS);
   }
 
   if (Model == TLSModel::GeneralDynamic) {
     SDValue TGA = DAG.getTargetGlobalAddress(GV, dl, PtrVT, 0, 0);
-    SDValue GOTReg = DAG.getRegister(PPC::X2, MVT::i64);
-    SDValue GOTEntryHi = DAG.getNode(PPCISD::ADDIS_TLSGD_HA, dl, PtrVT,
-                                     GOTReg, TGA);
+    SDValue GOTPtr;
+    if (is64bit) {
+      SDValue GOTReg = DAG.getRegister(PPC::X2, MVT::i64);
+      GOTPtr = DAG.getNode(PPCISD::ADDIS_TLSGD_HA, dl, PtrVT,
+                                   GOTReg, TGA);
+    } else {
+      GOTPtr = DAG.getNode(PPCISD::PPC32_PICGOT, dl, PtrVT);
+    }
     SDValue GOTEntry = DAG.getNode(PPCISD::ADDI_TLSGD_L, dl, PtrVT,
-                                   GOTEntryHi, TGA);
+                                   GOTPtr, TGA);
 
     // We need a chain node, and don't have one handy.  The underlying
     // call has no side effects, so using the function entry node
     // suffices.
     SDValue Chain = DAG.getEntryNode();
-    Chain = DAG.getCopyToReg(Chain, dl, PPC::X3, GOTEntry);
-    SDValue ParmReg = DAG.getRegister(PPC::X3, MVT::i64);
+    Chain = DAG.getCopyToReg(Chain, dl,
+                             is64bit ? PPC::X3 : PPC::R3, GOTEntry);
+    SDValue ParmReg = DAG.getRegister(is64bit ? PPC::X3 : PPC::R3,
+                                      is64bit ? MVT::i64 : MVT::i32);
     SDValue TLSAddr = DAG.getNode(PPCISD::GET_TLS_ADDR, dl,
                                   PtrVT, ParmReg, TGA);
     // The return value from GET_TLS_ADDR really is in X3 already, but
     // some hacks are needed here to tie everything together.  The extra
     // copies dissolve during subsequent transforms.
-    Chain = DAG.getCopyToReg(Chain, dl, PPC::X3, TLSAddr);
-    return DAG.getCopyFromReg(Chain, dl, PPC::X3, PtrVT);
+    Chain = DAG.getCopyToReg(Chain, dl, is64bit ? PPC::X3 : PPC::R3, TLSAddr);
+    return DAG.getCopyFromReg(Chain, dl, is64bit ? PPC::X3 : PPC::R3, PtrVT);
   }
 
   if (Model == TLSModel::LocalDynamic) {
     SDValue TGA = DAG.getTargetGlobalAddress(GV, dl, PtrVT, 0, 0);
-    SDValue GOTReg = DAG.getRegister(PPC::X2, MVT::i64);
-    SDValue GOTEntryHi = DAG.getNode(PPCISD::ADDIS_TLSLD_HA, dl, PtrVT,
-                                     GOTReg, TGA);
+    SDValue GOTPtr;
+    if (is64bit) {
+      SDValue GOTReg = DAG.getRegister(PPC::X2, MVT::i64);
+      GOTPtr = DAG.getNode(PPCISD::ADDIS_TLSLD_HA, dl, PtrVT,
+                           GOTReg, TGA);
+    } else {
+      GOTPtr = DAG.getNode(PPCISD::PPC32_PICGOT, dl, PtrVT);
+    }
     SDValue GOTEntry = DAG.getNode(PPCISD::ADDI_TLSLD_L, dl, PtrVT,
-                                   GOTEntryHi, TGA);
+                                   GOTPtr, TGA);
 
     // We need a chain node, and don't have one handy.  The underlying
     // call has no side effects, so using the function entry node
     // suffices.
     SDValue Chain = DAG.getEntryNode();
-    Chain = DAG.getCopyToReg(Chain, dl, PPC::X3, GOTEntry);
-    SDValue ParmReg = DAG.getRegister(PPC::X3, MVT::i64);
+    Chain = DAG.getCopyToReg(Chain, dl,
+                             is64bit ? PPC::X3 : PPC::R3, GOTEntry);
+    SDValue ParmReg = DAG.getRegister(is64bit ? PPC::X3 : PPC::R3,
+                                      is64bit ? MVT::i64 : MVT::i32);
     SDValue TLSAddr = DAG.getNode(PPCISD::GET_TLSLD_ADDR, dl,
                                   PtrVT, ParmReg, TGA);
     // The return value from GET_TLSLD_ADDR really is in X3 already, but
     // some hacks are needed here to tie everything together.  The extra
     // copies dissolve during subsequent transforms.
-    Chain = DAG.getCopyToReg(Chain, dl, PPC::X3, TLSAddr);
+    Chain = DAG.getCopyToReg(Chain, dl, is64bit ? PPC::X3 : PPC::R3, TLSAddr);
     SDValue DtvOffsetHi = DAG.getNode(PPCISD::ADDIS_DTPREL_HA, dl, PtrVT,
                                       Chain, ParmReg, TGA);
     return DAG.getNode(PPCISD::ADDI_DTPREL_L, dl, PtrVT, DtvOffsetHi, TGA);
@@ -1514,6 +1546,14 @@ SDValue PPCTargetLowering::LowerGlobalAddress(SDValue Op,
 
   unsigned MOHiFlag, MOLoFlag;
   bool isPIC = GetLabelAccessInfo(DAG.getTarget(), MOHiFlag, MOLoFlag, GV);
+
+  if (isPIC && PPCSubTarget.isSVR4ABI()) {
+    SDValue GA = DAG.getTargetGlobalAddress(GV, DL, PtrVT,
+                                            GSDN->getOffset(),
+                                            PPCII::MO_PIC_FLAG);
+    return DAG.getNode(PPCISD::TOC_ENTRY, DL, MVT::i32, GA,
+                       DAG.getNode(PPCISD::GlobalBaseReg, DL, MVT::i32));
+  }
 
   SDValue GAHi =
     DAG.getTargetGlobalAddress(GV, DL, PtrVT, GSDN->getOffset(), MOHiFlag);
@@ -3214,15 +3254,18 @@ unsigned PrepareCall(SelectionDAG &DAG, SDValue &Callee, SDValue &InFlag,
     // far-call stubs may be outside relocation limits for a BL instruction.
     if (!DAG.getTarget().getSubtarget<PPCSubtarget>().isJITCodeModel()) {
       unsigned OpFlags = 0;
-      if (DAG.getTarget().getRelocationModel() != Reloc::Static &&
+      if ((DAG.getTarget().getRelocationModel() != Reloc::Static &&
           (PPCSubTarget.getTargetTriple().isMacOSX() &&
            PPCSubTarget.getTargetTriple().isMacOSXVersionLT(10, 5)) &&
           (G->getGlobal()->isDeclaration() ||
-           G->getGlobal()->isWeakForLinker())) {
+           G->getGlobal()->isWeakForLinker())) ||
+          (PPCSubTarget.isTargetELF() && !isPPC64 &&
+           !G->getGlobal()->hasLocalLinkage() &&
+           DAG.getTarget().getRelocationModel() == Reloc::PIC_)) {
         // PC-relative references to external symbols should go through $stub,
         // unless we're building with the leopard linker or later, which
         // automatically synthesizes these stubs.
-        OpFlags = PPCII::MO_DARWIN_STUB;
+        OpFlags = PPCII::MO_PLT_OR_STUB;
       }
 
       // If the callee is a GlobalAddress/ExternalSymbol node (quite common,
@@ -3244,7 +3287,7 @@ unsigned PrepareCall(SelectionDAG &DAG, SDValue &Callee, SDValue &InFlag,
       // PC-relative references to external symbols should go through $stub,
       // unless we're building with the leopard linker or later, which
       // automatically synthesizes these stubs.
-      OpFlags = PPCII::MO_DARWIN_STUB;
+      OpFlags = PPCII::MO_PLT_OR_STUB;
     }
 
     Callee = DAG.getTargetExternalSymbol(S->getSymbol(), Callee.getValueType(),
@@ -6255,7 +6298,10 @@ PPCTargetLowering::emitEHSjLjLongJmp(MachineInstr *MI,
   // Since FP is only updated here but NOT referenced, it's treated as GPR.
   unsigned FP  = (PVT == MVT::i64) ? PPC::X31 : PPC::R31;
   unsigned SP  = (PVT == MVT::i64) ? PPC::X1 : PPC::R1;
-  unsigned BP  = (PVT == MVT::i64) ? PPC::X30 : PPC::R30;
+  unsigned BP  = (PVT == MVT::i64) ? PPC::X30 :
+                  (PPCSubTarget.isSVR4ABI() &&
+                   MF->getTarget().getRelocationModel() == Reloc::PIC_ ?
+                     PPC::R29 : PPC::R30);
 
   MachineInstrBuilder MIB;
 
