@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 20, 2014
+.Dd July 28, 2014
 .Dt CTL.CONF 5
 .Os
 .Sh NAME
@@ -119,7 +119,7 @@ name.
 Otherwise, only initiators with names matching one of defined
 ones will be allowed to connect.
 .It Ic initiator-portal Ao Ar address Ac
-Specifies iSCSI initiator portal - IPv4 or IPv6 address.
+Specifies iSCSI initiator portal - IPv4 or IPv6 address or network.
 If not defined, there will be no restrictions based on initiator
 address.
 Otherwise, only initiators with addresses matching one of defined
