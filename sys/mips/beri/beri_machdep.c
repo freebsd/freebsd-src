@@ -249,8 +249,6 @@ platform_start(__register_t a0, __register_t a1,  __register_t a2,
 	 */
 	if (dtbp == (vm_offset_t)NULL)
 		dtbp = (vm_offset_t)&fdt_static_dtb;
-#else
-#error	"Non-static FDT not yet supported on BERI"
 #endif
 
 	if (OF_install(OFW_FDT, 0) == FALSE)
