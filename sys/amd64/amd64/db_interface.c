@@ -42,10 +42,6 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm.h>
 #include <vm/pmap.h>
 
-#ifdef XEN
-#include <amd64/xen/mmu_map.h>
-#endif
-
 #include <ddb/ddb.h>
 
 /*
