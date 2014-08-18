@@ -1243,7 +1243,7 @@ _awk=		usr.bin/awk
 _gensnmptree=	usr.sbin/bsnmpd/gensnmptree
 .endif
 
-# We need to build tlbgen when we're building clang either as
+# We need to build tblgen when we're building clang either as
 # the bootstrap compiler, or as the part of the normal build.
 .if ${MK_CLANG_BOOTSTRAP} != "no" || ${MK_CLANG} != "no"
 _clang_tblgen= \
@@ -1416,6 +1416,48 @@ cross-tools: .MAKE
 		${MAKE} DIRPRFX=${_tool}/ depend && \
 		${MAKE} DIRPRFX=${_tool}/ all && \
 		${MAKE} DIRPRFX=${_tool}/ DESTDIR=${MAKEOBJDIRPREFIX} install
+.endfor
+
+NXBENV=		MAKEOBJDIRPREFIX=${OBJTREE}/nxb \
+		INSTALL="sh ${.CURDIR}/tools/install.sh" \
+		VERSION="${VERSION}"
+NXBMAKE=	${NXBENV} ${MAKE} \
+		TBLGEN=${OBJTREE}/nxb-bin/usr/bin/tblgen \
+		CLANG_TBLGEN=${OBJTREE}/nxb-bin/usr/bin/clang-tblgen \
+		MACHINE=${TARGET} MACHINE_ARCH=${TARGET_ARCH} \
+		MK_GDB=no MK_TESTS=no \
+		SSP_CFLAGS= MK_PIE=no \
+		MK_HTML=no MK_INFO=no NO_LINT=yes MK_MAN=no \
+		-DNO_PIC MK_PROFILE=no -DNO_SHARED \
+		-DNO_CPU_CFLAGS MK_WARNS=no MK_CTF=no \
+		MK_CLANG_FULL=no MK_LLDB=no
+
+native-xtools: .MAKE
+	mkdir -p ${OBJTREE}/nxb-bin/usr
+	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.usr.dist \
+	    -p ${OBJTREE}/nxb-bin/usr >/dev/null
+	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.include.dist \
+	    -p ${OBJTREE}/nxb-bin/usr/include >/dev/null
+.for _tool in \
+    ${_clang_tblgen} \
+    usr.bin/ar \
+    ${_binutils} \
+    ${_cc} \
+    ${_gcc_tools} \
+    ${_clang_libs} \
+    ${_clang} \
+    usr.bin/awk \
+    usr.bin/bmake \
+    usr.bin/lex \
+    usr.bin/lorder \
+    usr.bin/sed \
+    usr.bin/yacc
+	${_+_}@${ECHODIR} "===> ${_tool} (obj,depend,all,install)"; \
+		cd ${.CURDIR}/${_tool} && \
+		${NXBMAKE} DIRPRFX=${_tool}/ obj && \
+		${NXBMAKE} DIRPRFX=${_tool}/ depend && \
+		${NXBMAKE} DIRPRFX=${_tool}/ all && \
+		${NXBMAKE} DIRPRFX=${_tool}/ DESTDIR=${OBJTREE}/nxb-bin install
 .endfor
 
 #
