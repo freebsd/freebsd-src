@@ -1214,6 +1214,7 @@ at91_mci_intr(void *arg)
 			    sr, MCI_SR_BITSTRING, cmd->opcode,
 			    (cmd->opcode != 12) ? "" :
 			    (sc->flags & CMD_MULTIREAD) ? " after read" : " after write");
+			/* XXX not sure RTOE needs a full reset, just a retry */
 			at91_mci_reset(sc);
 		}
 		at91_mci_next_operation(sc);
