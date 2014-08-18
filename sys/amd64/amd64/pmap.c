@@ -4201,9 +4201,10 @@ retry:
 		mpte = _pmap_allocpte(pmap, pmap_pde_pindex(va),
 		    nosleep ? NULL : &lock);
 		if (mpte == NULL && nosleep) {
-			KASSERT(lock == NULL, ("lock leaked for nosleep"));
-			PMAP_UNLOCK(pmap);
+			if (lock != NULL)
+				rw_wunlock(lock);
 			rw_runlock(&pvh_global_lock);
+			PMAP_UNLOCK(pmap);
 			return (KERN_RESOURCE_SHORTAGE);
 		}
 		goto retry;
