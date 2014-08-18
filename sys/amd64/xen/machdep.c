@@ -99,8 +99,8 @@
 #include <xen/interface/arch-x86/cpuid.h>
 #include <xen/xen_intr.h>
 
-#define	CS_SECURE(cs)		(0) /* XXX: TODO */
-#define	EFL_SECURE(ef, oef)	(0) /* XXX: TODO */
+#define	CS_SECURE(cs)		(ISPL(cs) == SEL_UPL)
+#define	EFL_SECURE(ef, oef)	((((ef) ^ (oef)) & ~PSL_USERCHANGE) == 0)
 
 int	_udatasel, _ucodesel, _ufssel, _ugssel;
 
@@ -681,6 +681,12 @@ initxen(struct start_info *si)
         env = getenv("kernelname");
 	if (env != NULL)
 		strlcpy(kernelname, env, sizeof(kernelname));
+
+	/* unmap unused kmem after physfree */
+	intptr_t unmapva;
+	for (unmapva = PTOV(physfree); unmapva < (xenstack + 512 * 1024); unmapva += PAGE_SIZE) {
+		PT_SET_MA(unmapva, 0);
+	}
 
 	return (u_int64_t) thread0.td_pcb  & ~0xFul /* 16 byte aligned */;
 }

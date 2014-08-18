@@ -281,6 +281,7 @@ ld_gs:
 	callq	pcpu_find
 	movq	%rax, %rdi	/* kgsbase == pcpu_find(PCPU_GET(cpuid)) */
 	
+#if 0 /* XXX: Investigate tls restore to userland further */
 	movw	(TF_GS + 8)(%rsp), %ax
 	movw	%ax, %gs	/* blew away (k)gsbase here */
 
@@ -294,7 +295,7 @@ ld_gs:
 3:	
 	cmpq	$0x666, %rbx	/* reload user %fs/%gs ? */
 	jne	4f
-
+#endif
 	movq	PCPU(CURPCB), %rdi
 	callq	xen_load_tls 	/* Update user %fs/%gs to pcb_fsbase and pcb_gsbase */
 	
