@@ -38,6 +38,9 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20140814: libopie version bump
+OLD_LIBS+=usr/lib/libopie.so.7
+OLD_LIBS+=usr/lib32/libopie.so.7
 # 20140811: otp-sha renamed to otp-sha1
 OLD_FILES+=usr/bin/otp-sha
 OLD_FILES+=usr/share/man/man1/otp-sha.1.gz
