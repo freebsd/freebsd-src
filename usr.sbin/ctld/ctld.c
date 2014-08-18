@@ -34,6 +34,7 @@
 #include <sys/socket.h>
 #include <sys/wait.h>
 #include <netinet/in.h>
+#include <arpa/inet.h>
 #include <assert.h>
 #include <ctype.h>
 #include <errno.h>
@@ -319,14 +320,56 @@ const struct auth_portal *
 auth_portal_new(struct auth_group *ag, const char *portal)
 {
 	struct auth_portal *ap;
+	char *net, *mask, *str, *tmp;
+	int len, dm, m;
 
 	ap = calloc(1, sizeof(*ap));
 	if (ap == NULL)
 		log_err(1, "calloc");
 	ap->ap_auth_group = ag;
 	ap->ap_initator_portal = checked_strdup(portal);
+	mask = str = checked_strdup(portal);
+	net = strsep(&mask, "/");
+	if (net[0] == '[')
+		net++;
+	len = strlen(net);
+	if (len == 0)
+		goto error;
+	if (net[len - 1] == ']')
+		net[len - 1] = 0;
+	if (strchr(net, ':') != NULL) {
+		struct sockaddr_in6 *sin6 =
+		    (struct sockaddr_in6 *)&ap->ap_sa;
+
+		sin6->sin6_len = sizeof(*sin6);
+		sin6->sin6_family = AF_INET6;
+		if (inet_pton(AF_INET6, net, &sin6->sin6_addr) <= 0)
+			goto error;
+		dm = 128;
+	} else {
+		struct sockaddr_in *sin =
+		    (struct sockaddr_in *)&ap->ap_sa;
+
+		sin->sin_len = sizeof(*sin);
+		sin->sin_family = AF_INET;
+		if (inet_pton(AF_INET, net, &sin->sin_addr) <= 0)
+			goto error;
+		dm = 32;
+	}
+	if (mask != NULL) {
+		m = strtol(mask, &tmp, 0);
+		if (m < 0 || m > dm || tmp[0] != 0)
+			goto error;
+	} else
+		m = dm;
+	ap->ap_mask = m;
+	free(str);
 	TAILQ_INSERT_TAIL(&ag->ag_portals, ap, ap_next);
 	return (ap);
+
+error:
+	log_errx(1, "Incorrect initiator portal '%s'", portal);
+	return (NULL);
 }
 
 static void
@@ -347,13 +390,39 @@ auth_portal_defined(const struct auth_group *ag)
 }
 
 const struct auth_portal *
-auth_portal_find(const struct auth_group *ag, const char *portal)
+auth_portal_find(const struct auth_group *ag, const struct sockaddr_storage *ss)
 {
-	const struct auth_portal *auth_portal;
+	const struct auth_portal *ap;
+	const uint8_t *a, *b;
+	int i;
+	uint8_t bmask;
 
-	TAILQ_FOREACH(auth_portal, &ag->ag_portals, ap_next) {
-		if (strcmp(auth_portal->ap_initator_portal, portal) == 0)
-			return (auth_portal);
+	TAILQ_FOREACH(ap, &ag->ag_portals, ap_next) {
+		if (ap->ap_sa.ss_family != ss->ss_family)
+			continue;
+		if (ss->ss_family == AF_INET) {
+			a = (const uint8_t *)
+			    &((const struct sockaddr_in *)ss)->sin_addr;
+			b = (const uint8_t *)
+			    &((const struct sockaddr_in *)&ap->ap_sa)->sin_addr;
+		} else {
+			a = (const uint8_t *)
+			    &((const struct sockaddr_in6 *)ss)->sin6_addr;
+			b = (const uint8_t *)
+			    &((const struct sockaddr_in6 *)&ap->ap_sa)->sin6_addr;
+		}
+		for (i = 0; i < ap->ap_mask / 8; i++) {
+			if (a[i] != b[i])
+				goto next;
+		}
+		if (ap->ap_mask % 8) {
+			bmask = 0xff << (8 - (ap->ap_mask % 8));
+			if ((a[i] & bmask) != (b[i] & bmask))
+				goto next;
+		}
+		return (ap);
+next:
+		;
 	}
 
 	return (NULL);
@@ -950,7 +1019,8 @@ lun_option_set(struct lun_option *lo, const char *value)
 }
 
 static struct connection *
-connection_new(struct portal *portal, int fd, const char *host)
+connection_new(struct portal *portal, int fd, const char *host,
+    const struct sockaddr *client_sa)
 {
 	struct connection *conn;
 
@@ -960,6 +1030,7 @@ connection_new(struct portal *portal, int fd, const char *host)
 	conn->conn_portal = portal;
 	conn->conn_socket = fd;
 	conn->conn_initiator_addr = checked_strdup(host);
+	memcpy(&conn->conn_initiator_sa, client_sa, client_sa->sa_len);
 
 	/*
 	 * Default values, from RFC 3720, section 12.
@@ -1586,7 +1657,7 @@ wait_for_children(bool block)
 
 static void
 handle_connection(struct portal *portal, int fd,
-    const struct sockaddr *client_sa, socklen_t client_salen, bool dont_fork)
+    const struct sockaddr *client_sa, bool dont_fork)
 {
 	struct connection *conn;
 	int error;
@@ -1621,7 +1692,7 @@ handle_connection(struct portal *portal, int fd,
 	}
 	pidfile_close(conf->conf_pidfh);
 
-	error = getnameinfo(client_sa, client_salen,
+	error = getnameinfo(client_sa, client_sa->sa_len,
 	    host, sizeof(host), NULL, 0, NI_NUMERICHOST);
 	if (error != 0)
 		log_errx(1, "getnameinfo: %s", gai_strerror(error));
@@ -1631,7 +1702,7 @@ handle_connection(struct portal *portal, int fd,
 	log_set_peer_addr(host);
 	setproctitle("%s", host);
 
-	conn = connection_new(portal, fd, host);
+	conn = connection_new(portal, fd, host, client_sa);
 	set_timeout(conf);
 	kernel_capsicate();
 	login(conn);
@@ -1687,6 +1758,9 @@ main_loop(struct conf *conf, bool dont_fork)
 			client_salen = sizeof(client_sa);
 			kernel_accept(&connection_id, &portal_id,
 			    (struct sockaddr *)&client_sa, &client_salen);
+			if (client_salen < client_sa.ss_len)
+				log_errx(1, "salen %u < %u",
+				    client_salen, client_sa.ss_len);
 
 			log_debugx("incoming connection, id %d, portal id %d",
 			    connection_id, portal_id);
@@ -1703,8 +1777,7 @@ main_loop(struct conf *conf, bool dont_fork)
 
 found:
 			handle_connection(portal, connection_id,
-			    (struct sockaddr *)&client_sa, client_salen,
-			    dont_fork);
+			    (struct sockaddr *)&client_sa, dont_fork);
 		} else {
 #endif
 			assert(proxy_mode == false);
@@ -1731,9 +1804,13 @@ found:
 					    &client_salen);
 					if (client_fd < 0)
 						log_err(1, "accept");
+					if (client_salen < client_sa.ss_len)
+						log_errx(1, "salen %u < %u",
+						    client_salen,
+						    client_sa.ss_len);
 					handle_connection(portal, client_fd,
 					    (struct sockaddr *)&client_sa,
-					    client_salen, dont_fork);
+					    dont_fork);
 					break;
 				}
 			}
