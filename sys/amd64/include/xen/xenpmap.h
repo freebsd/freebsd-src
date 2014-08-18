@@ -226,10 +226,12 @@ do { 								\
 
 #define	pde_store(pdep, pde) pte_store(pdep, pde)
 
-static inline pt_entry_t pte_load_store(pt_entry_t *ptep, pt_entry_t npte)
+static __inline pt_entry_t
+pte_load_store(pt_entry_t *ptep, pt_entry_t npte)
 {
 	pt_entry_t pte;
 
+	/* XXX: review for SMP */
 	pte = *ptep;
 	
 	pte_store(ptep, npte);
@@ -245,6 +247,22 @@ static inline pt_entry_t pte_load_store(pt_entry_t *ptep, pt_entry_t npte)
 
 #define pte_load_clear(ptep) pte_load_store(ptep, 0);
 
+static inline bool
+pte_cmp_store(pt_entry_t *ptep, pt_entry_t oldpte, pt_entry_t newpte)
+{
+	/* XXX: locking for SMP */
+	pt_entry_t tpte;
+
+	tpte = *ptep;
+
+	if (*ptep == oldpte) {
+		pte_store(ptep, newpte);
+		return true;
+	}
+	else {
+		return false;
+	}
+}
 
 static __inline vm_paddr_t
 xpmap_mtop(vm_paddr_t mpa)
