@@ -41,6 +41,7 @@ SUBDIR= cat \
 	uuidgen
 
 .if ${MK_CHERI} != "no"
+SUBDIR+=	cheri_helloworld
 SUBDIR+=	cheritest
 .endif
 
