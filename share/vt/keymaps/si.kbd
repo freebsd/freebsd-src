@@ -9,15 +9,15 @@
   000   nop    nop    nop    nop    nop    nop    nop    nop     O
   001   esc    esc    esc    esc    esc    esc    debug  esc     O
   002   '1'    '!'    nop    nop    '~'    '~'    nop    nop     O
-  003   '2'    '"'    nul    nul    0xb7   0xb7   nul    nul     O
+  003   '2'    '"'    nul    nul    0x02c7 0x02c7 nul    nul     O
   004   '3'    '#'    nop    nop    '^'    '^'    nop    nop     O
-  005   '4'    '$'    nop    nop    0xa2   0xa2   nop    nop     O
+  005   '4'    '$'    nop    nop    0x02d8 0x02d8 nop    nop     O
   006   '5'    '%'    nop    nop    0xb0   0xb0   nop    nop     O
-  007   '6'    '&'    rs     rs     0xb2   0xb2   rs     rs      O
+  007   '6'    '&'    rs     rs     0x02db 0x02db rs     rs      O
   008   '7'    '/'    nop    nop    '`'    '`'    nop    nop     O
-  009   '8'    '('    nop    nop    0xff   0xff   nop    nop     O
+  009   '8'    '('    nop    nop    0x02d9 0x02d9 nop    nop     O
   010   '9'    ')'    nop    nop    '''    '''    nop    nop     O
-  011   '0'    '='    nop    nop    0x0266 0x0266 nop    nop     O
+  011   '0'    '='    nop    nop    0x02dd 0x02dd nop    nop     O
   012   '''    '?'    us     us     0xa8   0xa8   us     us      O
   013   '+'    '*'    nop    nop    0xb8   0xb8   nop    nop     O
   014   bs     bs     del    del    bs     bs     del    del     O
@@ -32,8 +32,8 @@
   023   'i'    'I'    ht     ht     'i'    'I'    ht     ht      C
   024   'o'    'O'    si     si     'o'    'O'    si     si      C
   025   'p'    'P'    dle    dle    'p'    'P'    dle    dle     C
-  026   0xb9   0xa9   esc    esc    0xf7   0xf7   esc    esc     C
-  027   0xf0   0xd0   gs     gs     0xd7   0xd7   gs     gs      C
+  026   0x0161 0x0160 esc    esc    0xf7   0xf7   esc    esc     C
+  027   0x0111 0x0110 gs     gs     0xd7   0xd7   gs     gs      C
   028   cr     cr     nl     nl     cr     cr     nl     nl      O
   029   lctrl  lctrl  lctrl  lctrl  lctrl  lctrl  lctrl  lctrl   O
   030   'a'    'A'    soh    soh    'a'    'A'    soh    soh     C
@@ -43,13 +43,13 @@
   034   'g'    'G'    bel    bel    ']'    ']'    bel    bel     C
   035   'h'    'H'    bs     bs     'h'    'H'    bs     bs      C
   036   'j'    'J'    nl     nl     'j'    'J'    nl     nl      C
-  037   'k'    'K'    vt     vt     0xb3   0xb3   vt     vt      C
-  038   'l'    'L'    ff     ff     0xa3   0xa3   ff     ff      C
-  039   0xe8   0xc8   nop    nop    0xe8   0xc8   nop    nop     C
-  040   0xe6   0xc6   nop    nop    0xdf   0xdf   nop    nop     C
+  037   'k'    'K'    vt     vt     0x0142 0x0142 vt     vt      C
+  038   'l'    'L'    ff     ff     0x0141 0x0141 ff     ff      C
+  039   0x010d 0x010c nop    nop    0x010d 0x010c nop    nop     C
+  040   0x0107 0x0106 nop    nop    0xdf   0xdf   nop    nop     C
   041   0xb8   0xa8   nop    nop    0xb8   0xa8   nop    nop     O
   042   lshift lshift lshift lshift lshift lshift lshift lshift  O
-  043   0x017e 0x017d  fs     fs     0xa4   0xa4   fs     fs      C
+  043   0x017e 0x017d fs     fs     0xa4   0xa4   fs     fs      C
   044   'y'    'Y'    em     em     'y'    'Y'    em     em      C
   045   'x'    'X'    can    can    'x'    'X'    can    can     C
   046   'c'    'C'    etx    etx    'c'    'C'    etx    etx     C

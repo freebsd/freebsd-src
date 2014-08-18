@@ -4,7 +4,6 @@ FILES=	INDEX.keymaps \
 	am.kbd \
 	bg.bds.ctrlcaps.kbd \
 	bg.bds.kbd \
-	br.acc.kbd \
 	br.kbd \
 	ca.kbd \
 	ca-fr.kbd \
