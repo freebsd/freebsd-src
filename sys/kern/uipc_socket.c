@@ -118,7 +118,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/mutex.h>
 #include <sys/domain.h>
 #include <sys/file.h>			/* for struct knote */
+#include <sys/hhook.h>
 #include <sys/kernel.h>
+#include <sys/khelp.h>
 #include <sys/event.h>
 #include <sys/eventhandler.h>
 #include <sys/poll.h>
@@ -157,6 +159,7 @@ static int	filt_soread(struct knote *kn, long hint);
 static void	filt_sowdetach(struct knote *kn);
 static int	filt_sowrite(struct knote *kn, long hint);
 static int	filt_solisten(struct knote *kn, long hint);
+static int inline hhook_run_socket(struct socket *so, void *hctx, int32_t h_id);
 
 static struct filterops solisten_filtops = {
 	.f_isfd = 1,
@@ -182,6 +185,9 @@ MALLOC_DEFINE(M_PCB, "pcb", "protocol control block");
 #define	VNET_SO_ASSERT(so)						\
 	VNET_ASSERT(curvnet != NULL,					\
 	    ("%s:%d curvnet is NULL, so=%p", __func__, __LINE__, (so)));
+
+VNET_DEFINE(struct hhook_head *, socket_hhh[HHOOK_SOCKET_LAST + 1]);
+#define	V_socket_hhh		VNET(socket_hhh)
 
 /*
  * Limit on the number of connections in the listen queue waiting
@@ -255,8 +261,19 @@ socket_zone_change(void *tag)
 }
 
 static void
+socket_hhook_register(int subtype)
+{
+	
+	if (hhook_head_register(HHOOK_TYPE_SOCKET, subtype,
+	    &V_socket_hhh[subtype],
+	    HHOOK_NOWAIT|HHOOK_HEADISINVNET) != 0)
+		printf("%s: WARNING: unable to register hook\n", __func__);
+}
+
+static void
 socket_init(void *tag)
 {
+	int i;
 
 	socket_zone = uma_zcreate("socket", sizeof(struct socket), NULL, NULL,
 	    NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_NOFREE);
@@ -264,6 +281,11 @@ socket_init(void *tag)
 	uma_zone_set_warning(socket_zone, "kern.ipc.maxsockets limit reached");
 	EVENTHANDLER_REGISTER(maxsockets_change, socket_zone_change, NULL,
 	    EVENTHANDLER_PRI_FIRST);
+
+	/* We expect a contiguous range */
+	for (i = 0; i <= HHOOK_SOCKET_LAST; i++) {
+		socket_hhook_register(i);
+	}
 }
 SYSINIT(socket, SI_SUB_PROTO_DOMAININIT, SI_ORDER_ANY, socket_init, NULL);
 
@@ -333,6 +355,11 @@ soalloc(struct vnet *vnet)
 		return (NULL);
 	}
 #endif
+	if (khelp_init_osd(HELPER_CLASS_SOCKET, &so->osd)) {
+		uma_zfree(socket_zone, so);
+		return (NULL);
+	}
+
 	SOCKBUF_LOCK_INIT(&so->so_snd, "so_snd");
 	SOCKBUF_LOCK_INIT(&so->so_rcv, "so_rcv");
 	sx_init(&so->so_snd.sb_sx, "so_snd_sx");
@@ -348,6 +375,13 @@ soalloc(struct vnet *vnet)
 	so->so_vnet = vnet;
 #endif
 	mtx_unlock(&so_global_mtx);
+
+	/* We shouldn't need the so_global_mtx */
+	if (V_socket_hhh[HHOOK_SOCKET_CREATE]->hhh_nhooks > 0) {
+		if (hhook_run_socket(so, NULL, HHOOK_SOCKET_CREATE))
+			/* Do we need more comprehensive error returns? */
+			return (NULL);
+	}
 	return (so);
 }
 
@@ -384,7 +418,11 @@ sodealloc(struct socket *so)
 #ifdef MAC
 	mac_socket_destroy(so);
 #endif
+	if (V_socket_hhh[HHOOK_SOCKET_CLOSE]->hhh_nhooks > 0)
+		hhook_run_socket(so, NULL, HHOOK_SOCKET_CLOSE);
+
 	crfree(so->so_cred);
+	khelp_destroy_osd(&so->osd);
 	sx_destroy(&so->so_snd.sb_sx);
 	sx_destroy(&so->so_rcv.sb_sx);
 	SOCKBUF_LOCK_DESTROY(&so->so_snd);
@@ -2328,6 +2366,25 @@ sorflush(struct socket *so)
 }
 
 /*
+ * Wrapper for Socket established helper hook.
+ * Parameters: socket, context of the hook point, hook id.
+ */
+static int inline
+hhook_run_socket(struct socket *so, void *hctx, int32_t h_id)
+{
+	struct socket_hhook_data hhook_data = {
+		.so = so,
+		.hctx = hctx,
+		.m = NULL
+	};
+
+	hhook_run_hooks(V_socket_hhh[h_id], &hhook_data, &so->osd);
+
+	/* Ugly but needed, since hhooks return void for now */
+	return (hhook_data.status);
+}
+
+/*
  * Perhaps this routine, and sooptcopyout(), below, ought to come in an
  * additional variant to handle the case where the option value needs to be
  * some kind of integer, but not a specific size.  In addition to their use
@@ -2572,7 +2629,11 @@ sosetopt(struct socket *so, struct sockopt *sopt)
 			break;
 
 		default:
-			error = ENOPROTOOPT;
+			if (V_socket_hhh[HHOOK_SOCKET_OPT]->hhh_nhooks > 0)
+				error = hhook_run_socket(so, sopt,
+				    HHOOK_SOCKET_OPT);
+			else
+				error = ENOPROTOOPT;
 			break;
 		}
 		if (error == 0 && so->so_proto->pr_ctloutput != NULL)
@@ -2755,7 +2816,11 @@ integer:
 			goto integer;
 
 		default:
-			error = ENOPROTOOPT;
+			if (V_socket_hhh[HHOOK_SOCKET_OPT]->hhh_nhooks > 0)
+				error = hhook_run_socket(so, sopt,
+				    HHOOK_SOCKET_OPT);
+			else
+				error = ENOPROTOOPT;
 			break;
 		}
 	}
@@ -3160,10 +3225,20 @@ filt_soread(struct knote *kn, long hint)
 		return (1);
 	} else if (so->so_error)	/* temporary udp error */
 		return (1);
-	else if (kn->kn_sfflags & NOTE_LOWAT)
-		return (kn->kn_data >= kn->kn_sdata);
-	else
-		return (so->so_rcv.sb_cc >= so->so_rcv.sb_lowat);
+
+	if (kn->kn_sfflags & NOTE_LOWAT) {
+		if (kn->kn_data >= kn->kn_sdata)
+			return 1;
+	} else {
+		if (so->so_rcv.sb_cc >= so->so_rcv.sb_lowat)
+			return 1;
+	}
+
+	if (V_socket_hhh[HHOOK_FILT_SOREAD]->hhh_nhooks > 0)
+		/* This hook returning non-zero indicates an event, not error */
+		return (hhook_run_socket(so, NULL, HHOOK_FILT_SOREAD));
+	
+	return (0);
 }
 
 static void
@@ -3187,6 +3262,10 @@ filt_sowrite(struct knote *kn, long hint)
 	so = kn->kn_fp->f_data;
 	SOCKBUF_LOCK_ASSERT(&so->so_snd);
 	kn->kn_data = sbspace(&so->so_snd);
+
+	if (V_socket_hhh[HHOOK_FILT_SOWRITE]->hhh_nhooks > 0)
+		hhook_run_socket(so, kn, HHOOK_FILT_SOWRITE);
+
 	if (so->so_snd.sb_state & SBS_CANTSENDMORE) {
 		kn->kn_flags |= EV_EOF;
 		kn->kn_fflags = so->so_error;
