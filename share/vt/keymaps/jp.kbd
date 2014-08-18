@@ -115,4 +115,4 @@
   115   '\'    '_'    fs     us     '\'    '_'    fs     us      O
   121   ' '    ' '    nul    ' '    ' '    ' '    susp   ' '     O
   123   ' '    ' '    nul    ' '    ' '    ' '    susp   ' '     O
-  125   '\'    '|'    fs     fs     '\'    '|'    fs     fs      O
+  125   0xa5   '|'    fs     us     0xa5   '|'    fs     us      O
