@@ -120,8 +120,10 @@ uinput_dtor(void *data)
 {
 	struct uinput_cdev_state *state = (struct uinput_cdev_state *)data;
 
-	evdev_unregister(NULL, state->ucs_evdev);
-	evdev_free(state->ucs_evdev);
+	if (state->ucs_connected) {
+		evdev_unregister(NULL, state->ucs_evdev);
+		evdev_free(state->ucs_evdev);
+	}
 
 	free(data, M_EVDEV);
 }
@@ -261,6 +263,11 @@ uinput_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag,
 		state->ucs_connected = false;
 		break;
 
+	case UI_DEV_GETPATH:
+		strncpy((char *)data, state->ucs_evdev->ev_cdev_name,
+		    UINPUT_MAXLEN);
+		break;
+
 	case UI_SET_EVBIT:
 		evdev_support_event(state->ucs_evdev, (uint16_t)(uintptr_t)data);
 		break;
@@ -290,6 +297,7 @@ uinput_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag,
 		break;
 
 	case UI_SET_PHYS:
+		evdev_set_phys(state->ucs_evdev, (char *)data);
 		break;
 
 	case UI_SET_SWBIT:

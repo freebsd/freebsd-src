@@ -34,6 +34,8 @@
 #include <sys/uio.h>
 #include <sys/proc.h>
 #include <sys/poll.h>
+#include <sys/filio.h>
+#include <sys/fcntl.h>
 #include <sys/selinfo.h>
 #include <sys/malloc.h>
 
@@ -97,6 +99,8 @@ struct evdev_cdev_state
 	struct evdev_client *	ecs_client;
 	struct selinfo		ecs_selp;
 	struct sigio *		ecs_sigio;
+	bool			ecs_async;
+	bool			ecs_revoked;
 };
 
 static int evdev_cdev_count = 0;
@@ -141,6 +145,7 @@ evdev_dtor(void *data)
 	struct evdev_cdev_state *state = (struct evdev_cdev_state *)data;
 
 	seldrain(&state->ecs_selp);
+	funsetown(&state->ecs_sigio);
 	evdev_dispose_client(state->ecs_client);
 	free(data, M_EVDEV);
 }
@@ -161,6 +166,9 @@ evdev_read(struct cdev *dev, struct uio *uio, int ioflag)
 	if (ret != 0)
 		return (ret);
 
+	if (state->ecs_revoked)
+		return (EPERM);
+
 	client = state->ecs_client;
 
 	if (uio->uio_resid % sizeof(struct input_event) != 0) {
@@ -172,8 +180,14 @@ evdev_read(struct cdev *dev, struct uio *uio, int ioflag)
 
 	EVDEV_CLIENT_LOCKQ(client);
 
-	if (EVDEV_CLIENT_EMPTYQ(client))
+	if (EVDEV_CLIENT_EMPTYQ(client)) {
+		if (ioflag & O_NONBLOCK) {
+			EVDEV_CLIENT_UNLOCKQ(client);
+			return (EWOULDBLOCK);
+		}
+
 		mtx_sleep(client, &client->ec_buffer_mtx, 0, "evrea", 0);
+	}
 
 	for (;;) {
 		if (EVDEV_CLIENT_EMPTYQ(client))
@@ -210,6 +224,9 @@ evdev_write(struct cdev *dev, struct uio *uio, int ioflag)
 	if (ret != 0)
 		return (ret);
 
+	if (state->ecs_revoked)
+		return (EPERM);
+
 	if (uio->uio_resid % sizeof(struct input_event) != 0) {
 		debugf("write size not multiple of struct input_event size");
 		return (EINVAL);
@@ -230,6 +247,9 @@ evdev_poll(struct cdev *dev, int events, struct thread *td)
 
 	ret = devfs_get_cdevpriv((void **)&state);
 	if (ret != 0)
+		return (POLLNVAL);
+
+	if (state->ecs_revoked)
 		return (POLLNVAL);
 
 	client = state->ecs_client;
@@ -299,16 +319,40 @@ evdev_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag,
 	int rep_params[2];
 	int ret, len, num, limit;
 
-	len = IOCPARM_LEN(cmd);
-	cmd = IOCBASECMD(cmd);
-	num = IOCNUM(cmd);
-
 	ret = devfs_get_cdevpriv((void **)&state);
 	if (ret != 0)
 		return (ret);
 
+	if (state->ecs_revoked)
+		return (EPERM);
+
+	/* file I/O ioctl handling */
+	switch (cmd) {
+	case FIOSETOWN:
+		return (fsetown(*(int *)data, &state->ecs_sigio));
+
+	case FIOGETOWN:
+		*(int *)data = fgetown(&state->ecs_sigio);
+		return (0);
+
+	case FIONBIO:
+		return (0);
+
+	case FIOASYNC:
+		if (*(int *)data)
+			state->ecs_async = true;
+		else
+			state->ecs_async = false;
+
+		return (0);
+	}
+
+	len = IOCPARM_LEN(cmd);
+	cmd = IOCBASECMD(cmd);
+	num = IOCNUM(cmd);
 	debugf("cdev: ioctl called: cmd=0x%08lx, data=%p", cmd, data);
 
+	/* evdev ioctls handling */
 	switch (cmd) {
 	case IOCBASECMD(EVIOCGVERSION):
 		data = (caddr_t)EV_VERSION;
@@ -412,7 +456,12 @@ evdev_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag,
 		break;
 
 	case IOCBASECMD(EVIOCREVOKE):
+		if (*(int *)data != 0)
+			return (EINVAL);
+
+		state->ecs_revoked = true;
 		break;
+
 	}
 
 	if (IOCGROUP(cmd) != 'E')
@@ -511,6 +560,9 @@ evdev_notify_event(struct evdev_client *client, void *data)
 	struct evdev_cdev_state *state = (struct evdev_cdev_state *)data;
 
 	selwakeup(&state->ecs_selp);
+
+	if (state->ecs_async && state->ecs_sigio != NULL)
+		pgsigio(&state->ecs_sigio, SIGIO, 0);
 }
 
 int
@@ -519,10 +571,13 @@ evdev_cdev_create(struct evdev_dev *evdev)
 	struct evdev_cdev_softc *sc;
 	struct cdev *cdev;
 
+	snprintf(evdev->ev_cdev_name, NAMELEN, "input/event%d",
+	    evdev_cdev_count++);
 	cdev = make_dev(&evdev_cdevsw, 0, UID_ROOT, GID_WHEEL, 0600,
-	    "input/event%d", evdev_cdev_count++);
+	    evdev->ev_cdev_name, evdev_cdev_count++);
 
-	sc = malloc(sizeof(struct evdev_cdev_softc), M_EVDEV, M_WAITOK | M_ZERO);
+	sc = malloc(sizeof(struct evdev_cdev_softc), M_EVDEV,
+	    M_WAITOK | M_ZERO);
 	
 	sc->ecs_evdev = evdev;
 	evdev->ev_cdev = cdev;

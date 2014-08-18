@@ -322,6 +322,7 @@ device		umass			# Disks/Mass storage - Requires scbus and da
 device		ums
 device		uhid
 device		utouch
+device		uep
 
 # Sound support
 device		sound			# Generic sound driver (required)
