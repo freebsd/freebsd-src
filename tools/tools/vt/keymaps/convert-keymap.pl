@@ -46,7 +46,7 @@ sub convert_token
         if $C =~ m/^(\d+)$/;            # decimal number
     return local_to_UCS_code(chr(hex($1)))
         if $C =~ m/^0x([0-9a-f]+)$/i;   # hex number
-    return local_to_UCS_code($1)
+    return local_to_UCS_code(chr(ord($1)))
         if $C =~ m/^'(.)'$/;            # character
     return "<?$C?>";                    # uncovered case
 }

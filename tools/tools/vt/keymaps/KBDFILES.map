@@ -6,13 +6,13 @@ ISO8859-15	be.iso.acc.kbd			be.acc.kbd
 ISO8859-5	bg.bds.ctrlcaps.kbd		bg.bds.kbd
 ISO8859-5	bg.phonetic.ctrlcaps.kbd	bg.bds.ctrlcaps.kbd
 
-ISO8859-1	br275.iso.kbd			br.kbd
-ISO8859-1	br275.iso.acc.kbd		br.acc.kbd
-CP850		br275.cp850.kbd			br.kbd.from-cp850
+#ISO8859-1	br275.iso.kbd			br.kbd.from-iso1	(only AltGr-Shift-6 differs from CP850)
+ISO8859-1	br275.iso.acc.kbd		br.kbd
+CP850		br275.cp850.kbd			br.noacc.kbd
 
-CP1131		by.cp1131.kbd			by.kbd.from-cp1131
-CP1251		by.cp1251.kbd			by.kbd.from-cp1251
-ISO8859-5	by.iso5.kbd			by.kbd.from-iso5
+#CP1131		by.cp1131.kbd			by.kbd.from-cp1131	(Shift-3 not OK)
+#CP1251		by.cp1251.kbd			by.kbd.from-cp1251	(result identical to CP1251)
+ISO8859-5	by.iso5.kbd			by.kbd
 
 ISO8859-2	ce.iso2.kbd			centraleuropean.kbd
 
@@ -119,11 +119,11 @@ ISO8859-1	swissgerman.macbook.acc.kbd	ch.macbook.acc.kbd
 
 ISO8859-9	tr.iso9.q.kbd			tr.kbd
 
-ISO8859-1	uk.iso.kbd			uk.kbd
-ISO8859-1	uk.iso-ctrl.kbd			uk.capsctrl.kbd
-CP850		uk.cp850.kbd			uk.kbd.from-cp850
-CP850		uk.cp850-ctrl.kbd		uk.capsctrl.kbd.from-cp850
-ISO8859-1	uk.dvorak.kbd			uk.dvorak.kbd
+ISO8859-15	uk.iso.kbd			uk.kbd
+ISO8859-15	uk.iso-ctrl.kbd			uk.capsctrl.kbd
+#CP850		uk.cp850.kbd			uk.kbd.from-cp850		(no ¤ and different Alt/Alt-Shift encodings)
+#CP850		uk.cp850-ctrl.kbd		uk.capsctrl.kbd.from-cp850	(no ¤ and different Alt/Alt-Shift encodings)
+ISO8859-15	uk.dvorak.kbd			uk.dvorak.kbd
 
 ISO8859-1	us.iso.kbd			us.kbd
 ISO8859-1	us.iso.acc.kbd			us.acc.kbd
