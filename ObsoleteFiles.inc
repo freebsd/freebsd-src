@@ -38,6 +38,9 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20140811: otp-sha renamed to otp-sha1
+OLD_FILES+=usr/bin/otp-sha
+OLD_FILES+=usr/share/man/man1/otp-sha.1.gz
 # 20140812: example files removed
 OLD_FILES+=usr/share/examples/libusb20/aux.c
 OLD_FILES+=usr/share/examples/libusb20/aux.h
