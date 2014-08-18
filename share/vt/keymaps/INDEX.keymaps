@@ -56,35 +56,21 @@ bg.bds.kbd:de:Bulgarisch (BDS)
 bg.bds.ctrlcaps.kbd:en:Bulgarian (Phonetic)
 bg.bds.ctrlcaps.kbd:de:Bulgarisch (phonetisch)
 
-br.kbd:en:Brazilian
-br.kbd:de:Brasilianisch
-br.kbd:fr:Brésilien
-br.kbd:pt:Brasileiro
-br.kbd:es:Brasileño
+br.kbd:en:Brazilian (accent keys)
+br.kbd:de:Brasilianisch (mit Akzenten)
+br.kbd:fr:Brésilien (avec accents)
+br.kbd:pt:Brasileiro (com acentos)
+br.kbd:es:Brasileño (con acentos)
 
-br.acc.kbd:en:Brazilian (accent keys)
-br.acc.kbd:de:Brasilianisch (mit Akzenten)
-br.acc.kbd:fr:Brésilien (avec accents)
-br.acc.kbd:pt:Brasileiro (com acentos)
-br.acc.kbd:es:Brasileño (con acentos)
+br.noacc.kbd:en:Brazilian (without accent keys)
+br.noacc.kbd:de:Brasilianisch (ohne Akzente)
+br.noacc.kbd:fr:Brésilien (sans accents)
+br.noacc.kbd:pt:Brasileiro (without accent keys)
+br.noacc.kbd:es:Brasileño (without accent keys)
 
-br.kbd.from-cp850:en:Brazilian
-br.kbd.from-cp850:de:Brasilianisch
-br.kbd.from-cp850:fr:Brésilien
-br.kbd.from-cp850:pt:Brasileiro
-br.kbd.from-cp850:es:Brasileño
-
-by.kbd.from-cp1131:en:Belarusian
-by.kbd.from-cp1131:de:Weißrussisch
-by.kbd.from-cp1131:fr:Biélorusse
-
-by.kbd.from-cp1251:en:Belarusian
-by.kbd.from-cp1251:de:Weißrussisch
-by.kbd.from-cp1251:fr:Biélorusse
-
-by.kbd.from-iso5:en:Belarusian
-by.kbd.from-iso5:de:Weißrussisch
-by.kbd.from-iso5:fr:Biélorusse
+by.kbd:en:Belarusian
+by.kbd:de:Weißrussisch
+by.kbd:fr:Biélorusse
 
 centraleuropean.kbd:en:Central European
 centraleuropean.kbd:de:Zentral Europäisch
