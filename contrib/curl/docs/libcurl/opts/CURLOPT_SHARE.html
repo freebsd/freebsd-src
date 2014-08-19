@@ -1,0 +1,63 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+ "http://www.w3.org/TR/html4/loose.dtd">
+<html><head>
+<title>CURLOPT_SHARE man page</title>
+<meta name="generator" content="roffit">
+<STYLE type="text/css">
+P.level0 {
+ padding-left: 2em;
+}
+
+P.level1 {
+ padding-left: 4em;
+}
+
+P.level2 {
+ padding-left: 6em;
+}
+
+span.emphasis {
+ font-style: italic;
+}
+
+span.bold {
+ font-weight: bold;
+}
+
+span.manpage {
+ font-weight: bold;
+}
+
+h2.nroffsh {
+ background-color: #e0e0e0;
+}
+
+span.nroffip {
+ font-weight: bold;
+ font-size: 120%;
+ font-family: monospace;
+}
+
+p.roffit {
+ text-align: center;
+ font-size: 80%;
+}
+</STYLE>
+</head><body>
+
+<p class="level0"><a name="NAME"></a><h2 class="nroffsh">NAME</h2>
+<p class="level0">CURLOPT_SHARE - specify share handle to use <a name="SYNOPSIS"></a><h2 class="nroffsh">SYNOPSIS</h2>
+<p class="level0">#include &lt;curl/curl.h&gt; 
+<p class="level0">CURLcode curl_easy_setopt(CURL *handle, CURLOPT_SHARE, CURLSH *share); <a name="DESCRIPTION"></a><h2 class="nroffsh">DESCRIPTION</h2>
+<p class="level0">Pass a <span Class="emphasis">share</span> handle as a parameter. The share handle must have been created by a previous call to <span Class="emphasis">curl_share_init(3)</span>. Setting this option, will make this curl handle use the data from the shared handle instead of keeping the data to itself. This enables several curl handles to share data. If the curl handles are used simultaneously in multiple threads, you <span Class="bold">MUST</span> use the locking methods in the share handle. See <span Class="emphasis">curl_share_setopt(3)</span> for details. 
+<p class="level0">If you add a share that is set to share cookies, your easy handle will use that cookie cache and get the cookie engine enabled. If you unshare an object that was using cookies (or change to another object that doesn't share cookies), the easy handle will get its cookie engine disabled. 
+<p class="level0">Data that the share object is not set to share will be dealt with the usual way, as if no share was used. 
+<p class="level0">Set this option to NULL again to stop using that share object. <a name="DEFAULT"></a><h2 class="nroffsh">DEFAULT</h2>
+<p class="level0">NULL <a name="PROTOCOLS"></a><h2 class="nroffsh">PROTOCOLS</h2>
+<p class="level0">All <a name="EXAMPLE"></a><h2 class="nroffsh">EXAMPLE</h2>
+<p class="level0">TODO <a name="AVAILABILITY"></a><h2 class="nroffsh">AVAILABILITY</h2>
+<p class="level0">Always <a name="RETURN"></a><h2 class="nroffsh">RETURN VALUE</h2>
+<p class="level0">Returns CURLE_OK <a name="SEE"></a><h2 class="nroffsh">SEE ALSO</h2>
+<p class="level0"><a Class="manpage" href="./CURLOPT_COOKIE.html">CURLOPT_COOKIE</a> <span Class="manpage"> </span> <p class="roffit">
+ This HTML page was made with <a href="http://daniel.haxx.se/projects/roffit/">roffit</a>.
+</body></html>

@@ -1,0 +1,82 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+ "http://www.w3.org/TR/html4/loose.dtd">
+<html><head>
+<title>CURLOPT_RTSP_REQUEST man page</title>
+<meta name="generator" content="roffit">
+<STYLE type="text/css">
+P.level0 {
+ padding-left: 2em;
+}
+
+P.level1 {
+ padding-left: 4em;
+}
+
+P.level2 {
+ padding-left: 6em;
+}
+
+span.emphasis {
+ font-style: italic;
+}
+
+span.bold {
+ font-weight: bold;
+}
+
+span.manpage {
+ font-weight: bold;
+}
+
+h2.nroffsh {
+ background-color: #e0e0e0;
+}
+
+span.nroffip {
+ font-weight: bold;
+ font-size: 120%;
+ font-family: monospace;
+}
+
+p.roffit {
+ text-align: center;
+ font-size: 80%;
+}
+</STYLE>
+</head><body>
+
+<p class="level0"><a name="NAME"></a><h2 class="nroffsh">NAME</h2>
+<p class="level0">CURLOPT_RTSP_REQUEST - specify RTSP request <a name="SYNOPSIS"></a><h2 class="nroffsh">SYNOPSIS</h2>
+<p class="level0">#include &lt;curl/curl.h&gt; 
+<p class="level0">CURLcode curl_easy_setopt(CURL *handle, CURLOPT_RTSP_REQUEST, long request); <a name="DESCRIPTION"></a><h2 class="nroffsh">DESCRIPTION</h2>
+<p class="level0">Tell libcurl what kind of RTSP request to make. Pass one of the following RTSP enum values as a long in the <span Class="emphasis">request</span> argument. Unless noted otherwise, commands require the Session ID to be initialized. 
+<p class="level0"><a name="CURLRTSPREQOPTIONS"></a><span class="nroffip">CURL_RTSPREQ_OPTIONS</span> 
+<p class="level1">Used to retrieve the available methods of the server. The application is responsible for parsing and obeying the response. <span class="bold">(The session ID is not needed for this method.)</span> 
+<p class="level0"><a name="CURLRTSPREQDESCRIBE"></a><span class="nroffip">CURL_RTSPREQ_DESCRIBE</span> 
+<p class="level1">Used to get the low level description of a stream. The application should note what formats it understands in the <span Class="emphasis">'Accept:'</span> header. Unless set manually, libcurl will automatically fill in <span class="emphasis">'Accept: application/sdp'</span>. Time-condition headers will be added to Describe requests if the <a Class="emphasis" href="./CURLOPT_TIMECONDITION.html">CURLOPT_TIMECONDITION</a> option is active. <span class="bold">(The session ID is not needed for this method)</span> 
+<p class="level0"><a name="CURLRTSPREQANNOUNCE"></a><span class="nroffip">CURL_RTSPREQ_ANNOUNCE</span> 
+<p class="level1">When sent by a client, this method changes the description of the session. For example, if a client is using the server to record a meeting, the client can use Announce to inform the server of all the meta-information about the session.  ANNOUNCE acts like a HTTP PUT or POST just like <a class="emphasis" href="#CURLRTSPREQSETPARAMETER">CURL_RTSPREQ_SET_PARAMETER</a> 
+<p class="level0"><a name="CURLRTSPREQSETUP"></a><span class="nroffip">CURL_RTSPREQ_SETUP</span> 
+<p class="level1">Setup is used to initialize the transport layer for the session. The application must set the desired Transport options for a session by using the <a Class="emphasis" href="./CURLOPT_RTSP_TRANSPORT.html">CURLOPT_RTSP_TRANSPORT</a> option prior to calling setup. If no session ID is currently set with <a Class="emphasis" href="./CURLOPT_RTSP_SESSION_ID.html">CURLOPT_RTSP_SESSION_ID</a>, libcurl will extract and use the session ID in the response to this request. <span class="bold">(The session ID is not needed for this method).</span> 
+<p class="level0"><a name="CURLRTSPREQPLAY"></a><span class="nroffip">CURL_RTSPREQ_PLAY</span> 
+<p class="level1">Send a Play command to the server. Use the <a Class="emphasis" href="./CURLOPT_RANGE.html">CURLOPT_RANGE</a> option to modify the playback time (e.g. 'npt=10-15'). 
+<p class="level0"><a name="CURLRTSPREQPAUSE"></a><span class="nroffip">CURL_RTSPREQ_PAUSE</span> 
+<p class="level1">Send a Pause command to the server. Use the <a Class="emphasis" href="./CURLOPT_RANGE.html">CURLOPT_RANGE</a> option with a single value to indicate when the stream should be halted. (e.g. npt='25') 
+<p class="level0"><a name="CURLRTSPREQTEARDOWN"></a><span class="nroffip">CURL_RTSPREQ_TEARDOWN</span> 
+<p class="level1">This command terminates an RTSP session. Simply closing a connection does not terminate the RTSP session since it is valid to control an RTSP session over different connections. 
+<p class="level0"><a name="CURLRTSPREQGETPARAMETER"></a><span class="nroffip">CURL_RTSPREQ_GET_PARAMETER</span> 
+<p class="level1">Retrieve a parameter from the server. By default, libcurl will automatically include a <span Class="emphasis">Content-Type: text/parameters</span> header on all non-empty requests unless a custom one is set. GET_PARAMETER acts just like a HTTP PUT or POST (see <a class="emphasis" href="#CURLRTSPREQSETPARAMETER">CURL_RTSPREQ_SET_PARAMETER</a>). Applications wishing to send a heartbeat message (e.g. in the presence of a server-specified timeout) should send use an empty GET_PARAMETER request. 
+<p class="level0"><a name="CURLRTSPREQSETPARAMETER"></a><span class="nroffip">CURL_RTSPREQ_SET_PARAMETER</span> 
+<p class="level1">Set a parameter on the server. By default, libcurl will automatically include a <span Class="emphasis">Content-Type: text/parameters</span> header unless a custom one is set. The interaction with SET_PARAMETER is much like a HTTP PUT or POST. An application may either use <a Class="emphasis" href="./CURLOPT_UPLOAD.html">CURLOPT_UPLOAD</a> with <a Class="emphasis" href="./CURLOPT_READDATA.html">CURLOPT_READDATA</a> like a HTTP PUT, or it may use <a Class="emphasis" href="./CURLOPT_POSTFIELDS.html">CURLOPT_POSTFIELDS</a> like a HTTP POST. No chunked transfers are allowed, so the application must set the <a Class="emphasis" href="./CURLOPT_INFILESIZE.html">CURLOPT_INFILESIZE</a> in the former and <a Class="emphasis" href="./CURLOPT_POSTFIELDSIZE.html">CURLOPT_POSTFIELDSIZE</a> in the latter. Also, there is no use of multi-part POSTs within RTSP. 
+<p class="level0"><a name="CURLRTSPREQRECORD"></a><span class="nroffip">CURL_RTSPREQ_RECORD</span> 
+<p class="level1">Used to tell the server to record a session. Use the <a Class="emphasis" href="./CURLOPT_RANGE.html">CURLOPT_RANGE</a> option to modify the record time. 
+<p class="level0"><a name="CURLRTSPREQRECEIVE"></a><span class="nroffip">CURL_RTSPREQ_RECEIVE</span> 
+<p class="level1">This is a special request because it does not send any data to the server. The application may call this function in order to receive interleaved RTP data. It will return after processing one read buffer of data in order to give the application a chance to run. <a name="DEFAULT"></a><h2 class="nroffsh">DEFAULT</h2>
+<p class="level0"><a name="PROTOCOLS"></a><h2 class="nroffsh">PROTOCOLS</h2>
+<p class="level0"><a name="EXAMPLE"></a><h2 class="nroffsh">EXAMPLE</h2>
+<p class="level0">TODO <a name="AVAILABILITY"></a><h2 class="nroffsh">AVAILABILITY</h2>
+<p class="level0">Added in 7.20.0 <a name="RETURN"></a><h2 class="nroffsh">RETURN VALUE</h2>
+<p class="level0">Returns CURLE_OK if the option is supported, and CURLE_UNKNOWN_OPTION if not. <a name="SEE"></a><h2 class="nroffsh">SEE ALSO</h2>
+<p class="level0"><a Class="manpage" href="./CURLOPT_RTSP_SESSION_ID.html">CURLOPT_RTSP_SESSION_ID</a> <a Class="manpage" href="./CURLOPT_RTSP_STREAM_URI.html">CURLOPT_RTSP_STREAM_URI</a> <span Class="manpage"> </span> <p class="roffit">
+ This HTML page was made with <a href="http://daniel.haxx.se/projects/roffit/">roffit</a>.
+</body></html>

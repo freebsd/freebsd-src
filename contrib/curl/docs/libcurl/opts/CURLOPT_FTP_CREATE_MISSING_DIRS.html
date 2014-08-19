@@ -1,0 +1,72 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+ "http://www.w3.org/TR/html4/loose.dtd">
+<html><head>
+<title>CURLOPT_FTP_CREATE_MISSING_DIRS man page</title>
+<meta name="generator" content="roffit">
+<STYLE type="text/css">
+P.level0 {
+ padding-left: 2em;
+}
+
+P.level1 {
+ padding-left: 4em;
+}
+
+P.level2 {
+ padding-left: 6em;
+}
+
+span.emphasis {
+ font-style: italic;
+}
+
+span.bold {
+ font-weight: bold;
+}
+
+span.manpage {
+ font-weight: bold;
+}
+
+h2.nroffsh {
+ background-color: #e0e0e0;
+}
+
+span.nroffip {
+ font-weight: bold;
+ font-size: 120%;
+ font-family: monospace;
+}
+
+p.roffit {
+ text-align: center;
+ font-size: 80%;
+}
+</STYLE>
+</head><body>
+
+<p class="level0"><a name="NAME"></a><h2 class="nroffsh">NAME</h2>
+<p class="level0">CURLOPT_FTP_CREATE_MISSING_DIRS - create missing dirs for FTP and SFTP <a name="SYNOPSIS"></a><h2 class="nroffsh">SYNOPSIS</h2>
+<p class="level0"><pre>
+<p class="level0">#include &lt;curl/curl.h&gt;
+ <p class="level0">typedef enum {
+ &nbsp; CURLFTP_CREATE_DIR_NONE,
+ &nbsp; CURLFTP_CREATE_DIR,
+ &nbsp; CURLFTP_CREATE_DIR_RETRY
+ } curl_ftpcreatedir;
+ <p class="level0">CURLcode curl_easy_setopt(CURL *handle, CURLOPT_FTP_CREATE_MISSING_DIRS,
+ &nbsp;                         long create);
+ </pre>
+<a name="DESCRIPTION"></a><h2 class="nroffsh">DESCRIPTION</h2>
+<p class="level0">Pass a long telling libcurl to <span Class="emphasis">create</span> the dir. If the value is <span Class="emphasis">CURLFTP_CREATE_DIR</span> (1), libcurl will attempt to create any remote directory that it fails to "move" into. 
+<p class="level0">For FTP requests, that means a CWD command fails. CWD being the command that changes working directory. 
+<p class="level0">For SFTP requests, libcurl will attempt to create the remote directory if it can't obtain a handle to the target-location. The creation will fail if a file of the same name as the directory to create already exists or lack of permissions prevents creation. 
+<p class="level0">Setting <span Class="emphasis">create</span> to <span Class="emphasis">CURLFTP_CREATE_DIR_RETRY</span> (2), tells libcurl to retry the CWD command again if the subsequent MKD command fails. This is especially useful if you're doing many simultaneous connections against the same server and they all have this option enabled, as then CWD may first fail but then another connection does MKD before this connection and thus MKD fails but trying CWD works! <a name="DEFAULT"></a><h2 class="nroffsh">DEFAULT</h2>
+<p class="level0">CURLFTP_CREATE_DIR_NONE (0) <a name="PROTOCOLS"></a><h2 class="nroffsh">PROTOCOLS</h2>
+<p class="level0">FTP and SFTP <a name="EXAMPLE"></a><h2 class="nroffsh">EXAMPLE</h2>
+<p class="level0">TODO <a name="AVAILABILITY"></a><h2 class="nroffsh">AVAILABILITY</h2>
+<p class="level0">Added in 7.10.7. SFTP support added in 7.16.3. The retry option was added in 7.19.4. <a name="RETURN"></a><h2 class="nroffsh">RETURN VALUE</h2>
+<p class="level0">Returns CURLE_OK if the option is supported, and CURLE_UNKNOWN_OPTION if the create value is not. <a name="SEE"></a><h2 class="nroffsh">SEE ALSO</h2>
+<p class="level0"><a Class="manpage" href="./CURLOPT_FTP_FILEMETHOD.html">CURLOPT_FTP_FILEMETHOD</a> <a Class="manpage" href="./CURLOPT_FTP_USE_EPSV.html">CURLOPT_FTP_USE_EPSV</a> <span Class="manpage"> </span> <p class="roffit">
+ This HTML page was made with <a href="http://daniel.haxx.se/projects/roffit/">roffit</a>.
+</body></html>

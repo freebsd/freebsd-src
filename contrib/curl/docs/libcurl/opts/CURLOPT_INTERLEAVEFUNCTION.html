@@ -1,0 +1,68 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+ "http://www.w3.org/TR/html4/loose.dtd">
+<html><head>
+<title>CURLOPT_INTERLEAVEFUNCTION man page</title>
+<meta name="generator" content="roffit">
+<STYLE type="text/css">
+P.level0 {
+ padding-left: 2em;
+}
+
+P.level1 {
+ padding-left: 4em;
+}
+
+P.level2 {
+ padding-left: 6em;
+}
+
+span.emphasis {
+ font-style: italic;
+}
+
+span.bold {
+ font-weight: bold;
+}
+
+span.manpage {
+ font-weight: bold;
+}
+
+h2.nroffsh {
+ background-color: #e0e0e0;
+}
+
+span.nroffip {
+ font-weight: bold;
+ font-size: 120%;
+ font-family: monospace;
+}
+
+p.roffit {
+ text-align: center;
+ font-size: 80%;
+}
+</STYLE>
+</head><body>
+
+<p class="level0"><a name="NAME"></a><h2 class="nroffsh">NAME</h2>
+<p class="level0">CURLOPT_INTERLEAVEFUNCTION - callback function for RTSP interleaved data <a name="SYNOPSIS"></a><h2 class="nroffsh">SYNOPSIS</h2>
+<p class="level0"><pre>
+<p class="level0">#include &lt;curl/curl.h&gt;
+ <p class="level0">size_t interleave_callback(void *ptr, size_t size, size_t nmemb,
+ &nbsp;                          void *userdata);
+ <p class="level0">CURLcode curl_easy_setopt(CURL *handle, CURLOPT_INTERLEAVEFUNCTION,
+ &nbsp;                         interleave_callback);
+ </pre>
+<a name="DESCRIPTION"></a><h2 class="nroffsh">DESCRIPTION</h2>
+<p class="level0">Pass a pointer to your callback function, which should match the prototype shown above. 
+<p class="level0">This callback function gets called by libcurl as soon as it has received interleaved RTP data. This function gets called for each $ block and therefore contains exactly one upper-layer protocol unit (e.g.  one RTP packet). Curl writes the interleaved header as well as the included data for each call. The first byte is always an ASCII dollar sign. The dollar sign is followed by a one byte channel identifier and then a 2 byte integer length in network byte order. See <span Class="emphasis"><a href="http://www.ietf.org/rfc/rfc2326.txt">RFC 2326</a> Section 10.12</span> for more information on how RTP interleaving behaves. If unset or set to NULL, curl will use the default write function. 
+<p class="level0">Interleaved RTP poses some challenges for the client application. Since the stream data is sharing the RTSP control connection, it is critical to service the RTP in a timely fashion. If the RTP data is not handled quickly, subsequent response processing may become unreasonably delayed and the connection may close. The application may use <span Class="emphasis">CURL_RTSPREQ_RECEIVE</span> to service RTP data when no requests are desired. If the application makes a request, (e.g.  <span Class="emphasis">CURL_RTSPREQ_PAUSE</span>) then the response handler will process any pending RTP data before marking the request as finished. <a name="DEFAULT"></a><h2 class="nroffsh">DEFAULT</h2>
+<p class="level0">NULL <a name="PROTOCOLS"></a><h2 class="nroffsh">PROTOCOLS</h2>
+<p class="level0">RTSP <a name="EXAMPLE"></a><h2 class="nroffsh">EXAMPLE</h2>
+<p class="level0">TODO <a name="AVAILABILITY"></a><h2 class="nroffsh">AVAILABILITY</h2>
+<p class="level0">Added in 7.20.0 <a name="RETURN"></a><h2 class="nroffsh">RETURN VALUE</h2>
+<p class="level0">Returns CURLE_OK if the option is supported, and CURLE_UNKNOWN_OPTION if not. <a name="SEE"></a><h2 class="nroffsh">SEE ALSO</h2>
+<p class="level0"><a Class="manpage" href="./CURLOPT_INTERLEAVEFUNCTION.html">CURLOPT_INTERLEAVEFUNCTION</a> <a Class="manpage" href="./CURLOPT_RTSP_REQUEST.html">CURLOPT_RTSP_REQUEST</a> <span Class="manpage"> </span> <p class="roffit">
+ This HTML page was made with <a href="http://daniel.haxx.se/projects/roffit/">roffit</a>.
+</body></html>

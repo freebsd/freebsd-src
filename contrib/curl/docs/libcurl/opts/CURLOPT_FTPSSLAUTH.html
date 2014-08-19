@@ -1,0 +1,67 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+ "http://www.w3.org/TR/html4/loose.dtd">
+<html><head>
+<title>CURLOPT_FTPSSLAUTH man page</title>
+<meta name="generator" content="roffit">
+<STYLE type="text/css">
+P.level0 {
+ padding-left: 2em;
+}
+
+P.level1 {
+ padding-left: 4em;
+}
+
+P.level2 {
+ padding-left: 6em;
+}
+
+span.emphasis {
+ font-style: italic;
+}
+
+span.bold {
+ font-weight: bold;
+}
+
+span.manpage {
+ font-weight: bold;
+}
+
+h2.nroffsh {
+ background-color: #e0e0e0;
+}
+
+span.nroffip {
+ font-weight: bold;
+ font-size: 120%;
+ font-family: monospace;
+}
+
+p.roffit {
+ text-align: center;
+ font-size: 80%;
+}
+</STYLE>
+</head><body>
+
+<p class="level0"><a name="NAME"></a><h2 class="nroffsh">NAME</h2>
+<p class="level0">CURLOPT_FTPSSLAUTH - set order to attemp TSL vs SSL when using FTP <a name="SYNOPSIS"></a><h2 class="nroffsh">SYNOPSIS</h2>
+<p class="level0">#include &lt;curl/curl.h&gt; 
+<p class="level0">CURLcode curl_easy_setopt(CURL *handle, CURLOPT_FTPSSLAUTH, long order); <a name="DESCRIPTION"></a><h2 class="nroffsh">DESCRIPTION</h2>
+<p class="level0">Pass a long using one of the values from below, to alter how libcurl issues "AUTH TLS" or "AUTH SSL" when FTP over SSL is activated. This is only interesting if <a Class="emphasis" href="./CURLOPT_USE_SSL.html">CURLOPT_USE_SSL</a> is also set. 
+<p class="level0">Possible <span Class="emphasis">order</span> values: 
+<p class="level0"><a name="CURLFTPAUTHDEFAULT"></a><span class="nroffip">CURLFTPAUTH_DEFAULT</span> 
+<p class="level1">Allow libcurl to decide. 
+<p class="level0"><a name="CURLFTPAUTHSSL"></a><span class="nroffip">CURLFTPAUTH_SSL</span> 
+<p class="level1">Try "AUTH SSL" first, and only if that fails try "AUTH TLS". 
+<p class="level0"><a name="CURLFTPAUTHTLS"></a><span class="nroffip">CURLFTPAUTH_TLS</span> 
+<p class="level1">Try "AUTH TLS" first, and only if that fails try "AUTH SSL". <a name="DEFAULT"></a><h2 class="nroffsh">DEFAULT</h2>
+<p class="level0">CURLFTPAUTH_DEFAULT <a name="PROTOCOLS"></a><h2 class="nroffsh">PROTOCOLS</h2>
+<p class="level0">FTP <a name="EXAMPLE"></a><h2 class="nroffsh">EXAMPLE</h2>
+<p class="level0">TODO <a name="AVAILABILITY"></a><h2 class="nroffsh">AVAILABILITY</h2>
+<p class="level0">Added in 7.12.2 <a name="RETURN"></a><h2 class="nroffsh">RETURN VALUE</h2>
+<p class="level0">Returns CURLE_OK if the option is supported, and CURLE_UNKNOWN_OPTION if not. <a name="SEE"></a><h2 class="nroffsh">SEE ALSO</h2>
+<p class="level0"><a Class="manpage" href="./CURLOPT_USE_SSL.html">CURLOPT_USE_SSL</a> <a Class="manpage" href="./CURLOPT_FTP_SSL_CCC.html">CURLOPT_FTP_SSL_CCC</a> <span Class="manpage"> </span> <p class="roffit">
+ This HTML page was made with <a href="http://daniel.haxx.se/projects/roffit/">roffit</a>.
+</body></html>

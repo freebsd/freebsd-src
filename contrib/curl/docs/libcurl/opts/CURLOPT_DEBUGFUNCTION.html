@@ -1,0 +1,96 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+ "http://www.w3.org/TR/html4/loose.dtd">
+<html><head>
+<title>CURLOPT_DEBUGFUNCTION man page</title>
+<meta name="generator" content="roffit">
+<STYLE type="text/css">
+P.level0 {
+ padding-left: 2em;
+}
+
+P.level1 {
+ padding-left: 4em;
+}
+
+P.level2 {
+ padding-left: 6em;
+}
+
+span.emphasis {
+ font-style: italic;
+}
+
+span.bold {
+ font-weight: bold;
+}
+
+span.manpage {
+ font-weight: bold;
+}
+
+h2.nroffsh {
+ background-color: #e0e0e0;
+}
+
+span.nroffip {
+ font-weight: bold;
+ font-size: 120%;
+ font-family: monospace;
+}
+
+p.roffit {
+ text-align: center;
+ font-size: 80%;
+}
+</STYLE>
+</head><body>
+
+<p class="level0"><a name="NAME"></a><h2 class="nroffsh">NAME</h2>
+<p class="level0">CURLOPT_DEBUGFUNCTION - debug callback <a name="SYNOPSIS"></a><h2 class="nroffsh">SYNOPSIS</h2>
+<p class="level0"><pre>
+<p class="level0">#include &lt;curl/curl.h&gt;
+ <p class="level0">typedef enum {
+ &nbsp; CURLINFO_TEXT = 0,
+ &nbsp; CURLINFO_HEADER_IN,    /* 1 */
+ &nbsp; CURLINFO_HEADER_OUT,   /* 2 */
+ &nbsp; CURLINFO_DATA_IN,      /* 3 */
+ &nbsp; CURLINFO_DATA_OUT,     /* 4 */
+ &nbsp; CURLINFO_SSL_DATA_IN,  /* 5 */
+ &nbsp; CURLINFO_SSL_DATA_OUT, /* 6 */
+ &nbsp; CURLINFO_END
+ } curl_infotype;
+ <p class="level0">int debug_callback(CURL *handle,
+ &nbsp;                  curl_infotype type,
+ &nbsp;                  char *data,
+ &nbsp;                  size_t size,
+ &nbsp;                  void *userptr);
+ <p class="level0">CURLcode curl_easy_setopt(CURL *handle, CURLOPT_DEBUGFUNCTION,
+ &nbsp;                         debug_callback);
+ </pre>
+<a name="DESCRIPTION"></a><h2 class="nroffsh">DESCRIPTION</h2>
+<p class="level0">Pass a pointer to your callback function, which should match the prototype shown above. 
+<p class="level0"><a Class="emphasis" href="./CURLOPT_DEBUGFUNCTION.html">CURLOPT_DEBUGFUNCTION</a> replaces the standard debug function used when <a Class="emphasis" href="./CURLOPT_VERBOSE.html">CURLOPT_VERBOSE</a> is in effect. This callback receives debug information, as specified in the <span Class="emphasis">type</span> argument. This function must return 0. The <span Class="emphasis">data</span> pointed to by the char * passed to this function WILL NOT be zero terminated, but will be exactly of the <span Class="emphasis">size</span> as told by the <span Class="emphasis">size</span> argument. 
+<p class="level0">The <span Class="emphasis">userptr</span> argument is the pointer set with <a Class="emphasis" href="./CURLOPT_DEBUGDATA.html">CURLOPT_DEBUGDATA</a>. 
+<p class="level0">Available curl_infotype values: 
+<p class="level0"><a name="CURLINFOTEXT"></a><span class="nroffip">CURLINFO_TEXT</span> 
+<p class="level1">The data is informational text. 
+<p class="level0"><a name="CURLINFOHEADERIN"></a><span class="nroffip">CURLINFO_HEADER_IN</span> 
+<p class="level1">The data is header (or header-like) data received from the peer. 
+<p class="level0"><a name="CURLINFOHEADEROUT"></a><span class="nroffip">CURLINFO_HEADER_OUT</span> 
+<p class="level1">The data is header (or header-like) data sent to the peer. 
+<p class="level0"><a name="CURLINFODATAIN"></a><span class="nroffip">CURLINFO_DATA_IN</span> 
+<p class="level1">The data is protocol data received from the peer. 
+<p class="level0"><a name="CURLINFODATAOUT"></a><span class="nroffip">CURLINFO_DATA_OUT</span> 
+<p class="level1">The data is protocol data sent to the peer. 
+<p class="level0"><a name="CURLINFOSSLDATAOUT"></a><span class="nroffip">CURLINFO_SSL_DATA_OUT</span> 
+<p class="level1">The data is SSL/TLS (binary) data sent to the peer. 
+<p class="level0"><a name="CURLINFOSSLDATAIN"></a><span class="nroffip">CURLINFO_SSL_DATA_IN</span> 
+<p class="level1">The data is SSL/TLS (binary) data received from the peer. <a name="DEFAULT"></a><h2 class="nroffsh">DEFAULT</h2>
+<p class="level0">NULL <a name="PROTOCOLS"></a><h2 class="nroffsh">PROTOCOLS</h2>
+<p class="level0">All <a name="EXAMPLE"></a><h2 class="nroffsh">EXAMPLE</h2>
+<p class="level0"><a href="http://curl.haxx.se/libcurl/c/debug.html">http://curl.haxx.se/libcurl/c/debug.html</a> <a name="AVAILABILITY"></a><h2 class="nroffsh">AVAILABILITY</h2>
+<p class="level0">Always <a name="RETURN"></a><h2 class="nroffsh">RETURN VALUE</h2>
+<p class="level0">Returns CURLE_OK <a name="SEE"></a><h2 class="nroffsh">SEE ALSO</h2>
+<p class="level0"><a Class="manpage" href="./CURLOPT_VERBOSE.html">CURLOPT_VERBOSE</a> <a Class="manpage" href="./CURLOPT_DEBUGDATA.html">CURLOPT_DEBUGDATA</a> <span Class="manpage"> </span> <p class="roffit">
+ This HTML page was made with <a href="http://daniel.haxx.se/projects/roffit/">roffit</a>.
+</body></html>

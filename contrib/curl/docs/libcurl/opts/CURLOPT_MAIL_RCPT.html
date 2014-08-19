@@ -1,0 +1,67 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+ "http://www.w3.org/TR/html4/loose.dtd">
+<html><head>
+<title>CURLOPT_MAIL_RCPT man page</title>
+<meta name="generator" content="roffit">
+<STYLE type="text/css">
+P.level0 {
+ padding-left: 2em;
+}
+
+P.level1 {
+ padding-left: 4em;
+}
+
+P.level2 {
+ padding-left: 6em;
+}
+
+span.emphasis {
+ font-style: italic;
+}
+
+span.bold {
+ font-weight: bold;
+}
+
+span.manpage {
+ font-weight: bold;
+}
+
+h2.nroffsh {
+ background-color: #e0e0e0;
+}
+
+span.nroffip {
+ font-weight: bold;
+ font-size: 120%;
+ font-family: monospace;
+}
+
+p.roffit {
+ text-align: center;
+ font-size: 80%;
+}
+</STYLE>
+</head><body>
+
+<p class="level0"><a name="NAME"></a><h2 class="nroffsh">NAME</h2>
+<p class="level0">CURLOPT_MAIL_RCPT - provide list of mail recipients <a name="SYNOPSIS"></a><h2 class="nroffsh">SYNOPSIS</h2>
+<p class="level0"><pre>
+<p class="level0">#include &lt;curl/curl.h&gt;
+ <p class="level0">CURLcode curl_easy_setopt(CURL *handle, CURLOPT_MAIL_RCPT,
+ &nbsp;                         struct curl_slist *rcpts);
+ </pre>
+<a name="DESCRIPTION"></a><h2 class="nroffsh">DESCRIPTION</h2>
+<p class="level0">Pass a pointer to a linked list of recipients to pass to the server in your SMTP mail request. The linked list should be a fully valid list of <span class="bold">struct curl_slist</span> structs properly filled in. Use <span Class="emphasis">curl_slist_append(3)</span> to create the list and <span Class="emphasis">curl_slist_free_all(3)</span> to clean up an entire list. 
+<p class="level0">When performing a mail transfer, each recipient should be specified within a pair of angled brackets (&lt;&gt;), however, should you not use an angled bracket as the first character libcurl will assume you provided a single email address and enclose that address within brackets for you. 
+<p class="level0">When performing an address verification (VRFY command), each recipient should be specified as the user name or user name and domain (as per Section 3.5 of <a href="http://www.ietf.org/rfc/rfc5321.txt">RFC 5321</a>). 
+<p class="level0">When performing a mailing list expand (EXPN command), each recipient should be specified using the mailing list name, such as "Friends" or "London-Office". <a name="DEFAULT"></a><h2 class="nroffsh">DEFAULT</h2>
+<p class="level0">NULL <a name="PROTOCOLS"></a><h2 class="nroffsh">PROTOCOLS</h2>
+<p class="level0">SMTP <a name="EXAMPLE"></a><h2 class="nroffsh">EXAMPLE</h2>
+<p class="level0">TODO <a name="AVAILABILITY"></a><h2 class="nroffsh">AVAILABILITY</h2>
+<p class="level0">Added in 7.20.0. The VRFY and EXPN logic was added in 7.34.0 <a name="RETURN"></a><h2 class="nroffsh">RETURN VALUE</h2>
+<p class="level0">Returns CURLE_OK if the option is supported, and CURLE_UNKNOWN_OPTION if not. <a name="SEE"></a><h2 class="nroffsh">SEE ALSO</h2>
+<p class="level0"><a Class="manpage" href="./CURLOPT_MAIL_FROM.html">CURLOPT_MAIL_FROM</a> <a Class="manpage" href="./CURLOPT_MAIL_AUTH.html">CURLOPT_MAIL_AUTH</a> <span Class="manpage"> </span> <p class="roffit">
+ This HTML page was made with <a href="http://daniel.haxx.se/projects/roffit/">roffit</a>.
+</body></html>

@@ -1,0 +1,71 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+ "http://www.w3.org/TR/html4/loose.dtd">
+<html><head>
+<title>CURLOPT_CHUNK_BGN_FUNCTION man page</title>
+<meta name="generator" content="roffit">
+<STYLE type="text/css">
+P.level0 {
+ padding-left: 2em;
+}
+
+P.level1 {
+ padding-left: 4em;
+}
+
+P.level2 {
+ padding-left: 6em;
+}
+
+span.emphasis {
+ font-style: italic;
+}
+
+span.bold {
+ font-weight: bold;
+}
+
+span.manpage {
+ font-weight: bold;
+}
+
+h2.nroffsh {
+ background-color: #e0e0e0;
+}
+
+span.nroffip {
+ font-weight: bold;
+ font-size: 120%;
+ font-family: monospace;
+}
+
+p.roffit {
+ text-align: center;
+ font-size: 80%;
+}
+</STYLE>
+</head><body>
+
+<p class="level0"><a name="NAME"></a><h2 class="nroffsh">NAME</h2>
+<p class="level0">CURLOPT_CHUNK_BGN_FUNCTION - callback before a transfer with FTP wildcardmatch <a name="SYNOPSIS"></a><h2 class="nroffsh">SYNOPSIS</h2>
+<p class="level0"><pre>
+<p class="level0">#include &lt;curl/curl.h&gt;
+ <p class="level0">long chunk_bgn_callback(const void *transfer_info, void *ptr,
+ &nbsp;                       int remains);
+ <p class="level0">CURLcode curl_easy_setopt(CURL *handle, CURLOPT_CHUNK_BGN_FUNCTION,
+ &nbsp;                         chunk_bgn_callback);
+ </pre>
+<a name="DESCRIPTION"></a><h2 class="nroffsh">DESCRIPTION</h2>
+<p class="level0">Pass a pointer to your callback function, which should match the prototype shown above. 
+<p class="level0">This callback function gets called by libcurl before a part of the stream is going to be transferred (if the transfer supports chunks). 
+<p class="level0">The <span Class="emphasis">transfer_info</span> pointer will point to a struct curl_fileinfo with details about the file that is about to get transfered. 
+<p class="level0">This callback makes sense only when using the <a Class="emphasis" href="./CURLOPT_WILDCARDMATCH.html">CURLOPT_WILDCARDMATCH</a> option for now. 
+<p class="level0">The target of transfer_info parameter is a "feature depended" structure. For the FTP wildcard download, the target is curl_fileinfo structure (see <span Class="emphasis">curl/curl.h</span>).  The parameter <span Class="emphasis">ptr</span> is a pointer given by <a Class="emphasis" href="./CURLOPT_CHUNK_DATA.html">CURLOPT_CHUNK_DATA</a>. The parameter remains contains number of chunks remaining per the transfer. If the feature is not available, the parameter has zero value. 
+<p class="level0">Return <span Class="emphasis">CURL_CHUNK_BGN_FUNC_OK</span> if everything is fine, <span Class="emphasis">CURL_CHUNK_BGN_FUNC_SKIP</span> if you want to skip the concrete chunk or <span Class="emphasis">CURL_CHUNK_BGN_FUNC_FAIL</span> to tell libcurl to stop if some error occurred. <a name="DEFAULT"></a><h2 class="nroffsh">DEFAULT</h2>
+<p class="level0">NULL <a name="PROTOCOLS"></a><h2 class="nroffsh">PROTOCOLS</h2>
+<p class="level0">FTP <a name="EXAMPLE"></a><h2 class="nroffsh">EXAMPLE</h2>
+<p class="level0">TODO <a name="AVAILABILITY"></a><h2 class="nroffsh">AVAILABILITY</h2>
+<p class="level0">This was added in 7.21.0 <a name="RETURN"></a><h2 class="nroffsh">RETURN VALUE</h2>
+<p class="level0">Returns CURLE_OK if the option is supported, and CURLE_UNKNOWN_OPTION if not. <a name="SEE"></a><h2 class="nroffsh">SEE ALSO</h2>
+<p class="level0"><a Class="manpage" href="./CURLOPT_CHUNK_END_FUNCTION.html">CURLOPT_CHUNK_END_FUNCTION</a> <a Class="manpage" href="./CURLOPT_WILDCARDMATCH.html">CURLOPT_WILDCARDMATCH</a> <span Class="manpage"> </span> <p class="roffit">
+ This HTML page was made with <a href="http://daniel.haxx.se/projects/roffit/">roffit</a>.
+</body></html>

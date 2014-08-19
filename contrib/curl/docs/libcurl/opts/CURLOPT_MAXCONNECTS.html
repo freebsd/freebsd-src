@@ -1,0 +1,63 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+ "http://www.w3.org/TR/html4/loose.dtd">
+<html><head>
+<title>CURLOPT_MAXCONNECTS man page</title>
+<meta name="generator" content="roffit">
+<STYLE type="text/css">
+P.level0 {
+ padding-left: 2em;
+}
+
+P.level1 {
+ padding-left: 4em;
+}
+
+P.level2 {
+ padding-left: 6em;
+}
+
+span.emphasis {
+ font-style: italic;
+}
+
+span.bold {
+ font-weight: bold;
+}
+
+span.manpage {
+ font-weight: bold;
+}
+
+h2.nroffsh {
+ background-color: #e0e0e0;
+}
+
+span.nroffip {
+ font-weight: bold;
+ font-size: 120%;
+ font-family: monospace;
+}
+
+p.roffit {
+ text-align: center;
+ font-size: 80%;
+}
+</STYLE>
+</head><body>
+
+<p class="level0"><a name="NAME"></a><h2 class="nroffsh">NAME</h2>
+<p class="level0">CURLOPT_MAXCONNECTS - set connection cache size <a name="SYNOPSIS"></a><h2 class="nroffsh">SYNOPSIS</h2>
+<p class="level0">#include &lt;curl/curl.h&gt; 
+<p class="level0">CURLcode curl_easy_setopt(CURL *handle, CURLOPT_MAXCONNECTS, long amount); <a name="DESCRIPTION"></a><h2 class="nroffsh">DESCRIPTION</h2>
+<p class="level0">Pass a long. The set number will be the persistent connection cache size. The set <span Class="emphasis">amount</span> will be the maximum amount of simultaneously open connections that libcurl may cache in cache associated with this handle. Default is 5, and there isn't much point in changing this value unless you are perfectly aware of how this works and changes libcurl's behaviour. This concerns connections using any of the protocols that support persistent connections. 
+<p class="level0">When reaching the maximum limit, curl closes the oldest one in the cache to prevent increasing the number of open connections. 
+<p class="level0">If you already have performed transfers with this curl handle, setting a smaller <a Class="emphasis" href="./CURLOPT_MAXCONNECTS.html">CURLOPT_MAXCONNECTS</a> than before may cause open connections to get closed unnecessarily. 
+<p class="level0">If you add this easy handle to a multi handle, this setting is not acknowledged, and you must instead use <span Class="emphasis">curl_multi_setopt(3)</span> and the <span Class="emphasis">CURLMOPT_MAXCONNECTS</span> option. <a name="DEFAULT"></a><h2 class="nroffsh">DEFAULT</h2>
+<p class="level0">5 <a name="PROTOCOLS"></a><h2 class="nroffsh">PROTOCOLS</h2>
+<p class="level0">Most <a name="EXAMPLE"></a><h2 class="nroffsh">EXAMPLE</h2>
+<p class="level0">TODO <a name="AVAILABILITY"></a><h2 class="nroffsh">AVAILABILITY</h2>
+<p class="level0">Always <a name="RETURN"></a><h2 class="nroffsh">RETURN VALUE</h2>
+<p class="level0">Returns CURLE_OK <a name="SEE"></a><h2 class="nroffsh">SEE ALSO</h2>
+<p class="level0"><span Class="manpage">CURLMOPT_MAXCONNECTS (3)</span> <a Class="manpage" href="./CURLOPT_MAXREDIRS.html">CURLOPT_MAXREDIRS</a> <span Class="manpage"> </span> <p class="roffit">
+ This HTML page was made with <a href="http://daniel.haxx.se/projects/roffit/">roffit</a>.
+</body></html>

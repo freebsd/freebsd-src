@@ -1,0 +1,84 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+ "http://www.w3.org/TR/html4/loose.dtd">
+<html><head>
+<title>CURLOPT_QUOTE man page</title>
+<meta name="generator" content="roffit">
+<STYLE type="text/css">
+P.level0 {
+ padding-left: 2em;
+}
+
+P.level1 {
+ padding-left: 4em;
+}
+
+P.level2 {
+ padding-left: 6em;
+}
+
+span.emphasis {
+ font-style: italic;
+}
+
+span.bold {
+ font-weight: bold;
+}
+
+span.manpage {
+ font-weight: bold;
+}
+
+h2.nroffsh {
+ background-color: #e0e0e0;
+}
+
+span.nroffip {
+ font-weight: bold;
+ font-size: 120%;
+ font-family: monospace;
+}
+
+p.roffit {
+ text-align: center;
+ font-size: 80%;
+}
+</STYLE>
+</head><body>
+
+<p class="level0"><a name="NAME"></a><h2 class="nroffsh">NAME</h2>
+<p class="level0">CURLOPT_QUOTE - (S)FTP commands to run before transfer <a name="SYNOPSIS"></a><h2 class="nroffsh">SYNOPSIS</h2>
+<p class="level0">#include &lt;curl/curl.h&gt; 
+<p class="level0">CURLcode curl_easy_setopt(CURL *handle, CURLOPT_QUOTE, struct curl_slist *cmds); <a name="DESCRIPTION"></a><h2 class="nroffsh">DESCRIPTION</h2>
+<p class="level0">Pass a pointer to a linked list of FTP or SFTP commands to pass to the server prior to your request. This will be done before any other commands are issued (even before the CWD command for FTP). The linked list should be a fully valid list of 'struct curl_slist' structs properly filled in with text strings. Use <span Class="emphasis">curl_slist_append(3)</span> to append strings (commands) to the list, and clear the entire list afterwards with <span Class="emphasis">curl_slist_free_all(3)</span>. Disable this operation again by setting a NULL to this option. When speaking to a FTP server, prefix the command with an asterisk (*) to make libcurl continue even if the command fails as by default libcurl will stop at first failure. 
+<p class="level0">The set of valid FTP commands depends on the server (see <a href="http://www.ietf.org/rfc/rfc959.txt">RFC 959</a> for a list of mandatory commands). 
+<p class="level0">The valid SFTP commands are: 
+<p class="level1">
+<p class="level0"><a name="chgrp"></a><span class="nroffip">chgrp group file</span> 
+<p class="level1">The chgrp command sets the group ID of the file named by the file operand to the group ID specified by the group operand. The group operand is a decimal integer group ID. 
+<p class="level0"><a name="chmod"></a><span class="nroffip">chmod mode file</span> 
+<p class="level1">The chmod command modifies the file mode bits of the specified file. The mode operand is an octal integer mode number. 
+<p class="level0"><a name="chown"></a><span class="nroffip">chown user file</span> 
+<p class="level1">The chown command sets the owner of the file named by the file operand to the user ID specified by the user operand. The user operand is a decimal integer user ID. 
+<p class="level0"><a name="ln"></a><span class="nroffip">ln source_file target_file</span> 
+<p class="level1">The ln and symlink commands create a symbolic link at the target_file location pointing to the source_file location. 
+<p class="level0"><a name="mkdir"></a><span class="nroffip">mkdir directory_name</span> 
+<p class="level1">The mkdir command creates the directory named by the directory_name operand. 
+<p class="level0"><a name="pwd"></a><span class="nroffip">pwd</span> 
+<p class="level1">The pwd command returns the absolute pathname of the current working directory. 
+<p class="level0"><a name="rename"></a><span class="nroffip">rename source target</span> 
+<p class="level1">The rename command renames the file or directory named by the source operand to the destination path named by the target operand. 
+<p class="level0"><a name="rm"></a><span class="nroffip">rm file</span> 
+<p class="level1">The rm command removes the file specified by the file operand. 
+<p class="level0"><a name="rmdir"></a><span class="nroffip">rmdir directory</span> 
+<p class="level1">The rmdir command removes the directory entry specified by the directory operand, provided it is empty. 
+<p class="level0"><a name="symlink"></a><span class="nroffip">symlink source_file target_file</span> 
+<p class="level1">See ln. 
+<p class="level0"><a name="DEFAULT"></a><h2 class="nroffsh">DEFAULT</h2>
+<p class="level0">NULL <a name="PROTOCOLS"></a><h2 class="nroffsh">PROTOCOLS</h2>
+<p class="level0">SFTP and FTP <a name="EXAMPLE"></a><h2 class="nroffsh">EXAMPLE</h2>
+<p class="level0">TODO <a name="AVAILABILITY"></a><h2 class="nroffsh">AVAILABILITY</h2>
+<p class="level0">SFTP support added in 7.16.3. *-prefix for SFTP added in 7.24.0 <a name="RETURN"></a><h2 class="nroffsh">RETURN VALUE</h2>
+<p class="level0">Returns CURLE_OK <a name="SEE"></a><h2 class="nroffsh">SEE ALSO</h2>
+<p class="level0"><a Class="manpage" href="./CURLOPT_POSTQUOTE.html">CURLOPT_POSTQUOTE</a> <a Class="manpage" href="./CURLOPT_PREQUOTE.html">CURLOPT_PREQUOTE</a> <span Class="manpage"> </span> <p class="roffit">
+ This HTML page was made with <a href="http://daniel.haxx.se/projects/roffit/">roffit</a>.
+</body></html>

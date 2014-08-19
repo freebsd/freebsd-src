@@ -1,0 +1,62 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+ "http://www.w3.org/TR/html4/loose.dtd">
+<html><head>
+<title>CURLOPT_TIMEOUT man page</title>
+<meta name="generator" content="roffit">
+<STYLE type="text/css">
+P.level0 {
+ padding-left: 2em;
+}
+
+P.level1 {
+ padding-left: 4em;
+}
+
+P.level2 {
+ padding-left: 6em;
+}
+
+span.emphasis {
+ font-style: italic;
+}
+
+span.bold {
+ font-weight: bold;
+}
+
+span.manpage {
+ font-weight: bold;
+}
+
+h2.nroffsh {
+ background-color: #e0e0e0;
+}
+
+span.nroffip {
+ font-weight: bold;
+ font-size: 120%;
+ font-family: monospace;
+}
+
+p.roffit {
+ text-align: center;
+ font-size: 80%;
+}
+</STYLE>
+</head><body>
+
+<p class="level0"><a name="NAME"></a><h2 class="nroffsh">NAME</h2>
+<p class="level0">CURLOPT_TIMEOUT - set maximum time the request is allowed to take <a name="SYNOPSIS"></a><h2 class="nroffsh">SYNOPSIS</h2>
+<p class="level0">#include &lt;curl/curl.h&gt; 
+<p class="level0">CURLcode curl_easy_setopt(CURL *handle, CURLOPT_TIMEOUT, long timeout); <a name="DESCRIPTION"></a><h2 class="nroffsh">DESCRIPTION</h2>
+<p class="level0">Pass a long as parameter containing <span Class="emphasis">timeout</span> - the maximum time in seconds that you allow the libcurl transfer operation to take. Normally, name lookups can take a considerable time and limiting operations to less than a few minutes risk aborting perfectly normal operations. This option may cause libcurl to use the SIGALRM signal to timeout system calls. 
+<p class="level0">In unix-like systems, this might cause signals to be used unless <a Class="emphasis" href="./CURLOPT_NOSIGNAL.html">CURLOPT_NOSIGNAL</a> is set. 
+<p class="level0">Since this puts a hard limit for how long time a request is allowed to take, it has limited use in dynamic use cases with varying transfer times. You are then advised to explore <a Class="emphasis" href="./CURLOPT_LOW_SPEED_LIMIT.html">CURLOPT_LOW_SPEED_LIMIT</a>, <a Class="emphasis" href="./CURLOPT_LOW_SPEED_TIME.html">CURLOPT_LOW_SPEED_TIME</a> or using <a Class="emphasis" href="./CURLOPT_PROGRESSFUNCTION.html">CURLOPT_PROGRESSFUNCTION</a> to implement your own timeout logic. <a name="DEFAULT"></a><h2 class="nroffsh">DEFAULT</h2>
+<p class="level0">Default timeout is 0 (zero) which means it never times out during transfer. <a name="PROTOCOLS"></a><h2 class="nroffsh">PROTOCOLS</h2>
+<p class="level0">All <a name="EXAMPLE"></a><h2 class="nroffsh">EXAMPLE</h2>
+<p class="level0">TODO <a name="AVAILABILITY"></a><h2 class="nroffsh">AVAILABILITY</h2>
+<p class="level0">Always <a name="RETURN"></a><h2 class="nroffsh">RETURN VALUE</h2>
+<p class="level0">Returns CURLE_OK <a name="SEE"></a><h2 class="nroffsh">SEE ALSO</h2>
+<p class="level0"><a Class="manpage" href="./CURLOPT_TIMEOUT_MS.html">CURLOPT_TIMEOUT_MS</a> <span Class="manpage">  </span> <a Class="manpage" href="./CURLOPT_CONNECTTIMEOUT.html">CURLOPT_CONNECTTIMEOUT</a> <a Class="manpage" href="./CURLOPT_LOW_SPEED_LIMIT.html">CURLOPT_LOW_SPEED_LIMIT</a> <span Class="manpage"> </span> <p class="roffit">
+ This HTML page was made with <a href="http://daniel.haxx.se/projects/roffit/">roffit</a>.
+</body></html>

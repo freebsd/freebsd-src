@@ -1,0 +1,83 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+ "http://www.w3.org/TR/html4/loose.dtd">
+<html><head>
+<title>CURLOPT_WILDCARDMATCH man page</title>
+<meta name="generator" content="roffit">
+<STYLE type="text/css">
+P.level0 {
+ padding-left: 2em;
+}
+
+P.level1 {
+ padding-left: 4em;
+}
+
+P.level2 {
+ padding-left: 6em;
+}
+
+span.emphasis {
+ font-style: italic;
+}
+
+span.bold {
+ font-weight: bold;
+}
+
+span.manpage {
+ font-weight: bold;
+}
+
+h2.nroffsh {
+ background-color: #e0e0e0;
+}
+
+span.nroffip {
+ font-weight: bold;
+ font-size: 120%;
+ font-family: monospace;
+}
+
+p.roffit {
+ text-align: center;
+ font-size: 80%;
+}
+</STYLE>
+</head><body>
+
+<p class="level0"><a name="NAME"></a><h2 class="nroffsh">NAME</h2>
+<p class="level0">CURLOPT_WILDCARDMATCH - enable directory wildcard transfers <a name="SYNOPSIS"></a><h2 class="nroffsh">SYNOPSIS</h2>
+<p class="level0">#include &lt;curl/curl.h&gt; 
+<p class="level0">CURLcode curl_easy_setopt(CURL *handle, CURLOPT_WILDCARDMATCH, long onoff); <a name="DESCRIPTION"></a><h2 class="nroffsh">DESCRIPTION</h2>
+<p class="level0">Set <span Class="emphasis">onoff</span> to 1 if you want to transfer multiple files according to a file name pattern. The pattern can be specified as part of the <a Class="emphasis" href="./CURLOPT_URL.html">CURLOPT_URL</a> option, using an fnmatch-like pattern (Shell Pattern Matching) in the last part of URL (file name). 
+<p class="level0">By default, libcurl uses its internal wildcard matching implementation. You can provide your own matching function by the <a Class="emphasis" href="./CURLOPT_FNMATCH_FUNCTION.html">CURLOPT_FNMATCH_FUNCTION</a> option. 
+<p class="level0">A brief introduction of its syntax follows: 
+<p class="level1">
+<p class="level0"><a name=""></a><span class="nroffip">* - ASTERISK</span> 
+<p class="level1"><a href="ftp://example.com/some/path/">ftp://example.com/some/path/</a><span Class="bold">*.txt</span> (for all txt's from the root directory) 
+<p class="level0">
+<p class="level1">
+<p class="level0"><a name=""></a><span class="nroffip">? - QUESTION MARK</span> 
+<p class="level1">Question mark matches any (exactly one) character. 
+<p class="level1"><a href="ftp://example.com/some/path/">ftp://example.com/some/path/</a><span Class="bold">photo?.jpeg</span> 
+<p class="level0">
+<p class="level1">
+<p class="level0"><a name=""></a><span class="nroffip">[ - BRACKET EXPRESSION</span> 
+<p class="level1">The left bracket opens a bracket expression. The question mark and asterisk have no special meaning in a bracket expression. Each bracket expression ends by the right bracket and matches exactly one character. Some examples follow: 
+<p class="level1"><span Class="bold">[a-zA-Z0-9]</span> or <span Class="bold">[f-gF-G]</span> - character interval 
+<p class="level1"><span Class="bold">[abc]</span> - character enumeration 
+<p class="level1"><span Class="bold">[^abc]</span> or <span Class="bold">[!abc]</span> - negation 
+<p class="level1"><a class="bold" href="#">[[:</a><span Class="emphasis">name</span><a class="bold" href="#">:]]</a> class expression. Supported classes are <span Class="bold">alnum</span>,<span Class="bold">lower</span>, <span Class="bold">space</span>, <span Class="bold">alpha</span>, <span Class="bold">digit</span>, <span Class="bold">print</span>, <span Class="bold">upper</span>, <span Class="bold">blank</span>, <span Class="bold">graph</span>, <span Class="bold">xdigit</span>. 
+<p class="level1"><span Class="bold">[][-!^]</span> - special case - matches only '-', ']', '[', '!' or '^'. These characters have no special purpose. 
+<p class="level1"><a class="bold" href="#">[\[\]\\]</a> - escape syntax. Matches '[', ']' or '&acute;. 
+<p class="level1">Using the rules above, a file name pattern can be constructed: 
+<p class="level1"><a href="ftp://example.com/some/path/">ftp://example.com/some/path/</a><span Class="bold">[a-z[:upper:]\\].jpeg</span> 
+<p class="level0">
+<p class="level0"><a name="PROTOCOLS"></a><h2 class="nroffsh">PROTOCOLS</h2>
+<p class="level0">This feature is only supported for FTP download. <a name="EXAMPLE"></a><h2 class="nroffsh">EXAMPLE</h2>
+<p class="level0">See <a href="http://curl.haxx.se/libcurl/c/ftp-wildcard.html">http://curl.haxx.se/libcurl/c/ftp-wildcard.html</a> <a name="AVAILABILITY"></a><h2 class="nroffsh">AVAILABILITY</h2>
+<p class="level0">Added in 7.21.0 <a name="RETURN"></a><h2 class="nroffsh">RETURN VALUE</h2>
+<p class="level0">Returns CURLE_OK if the option is supported, and CURLE_UNKNOWN_OPTION if not. <a name="SEE"></a><h2 class="nroffsh">SEE ALSO</h2>
+<p class="level0"><a Class="manpage" href="./CURLOPT_FNMATCH_FUNCTION.html">CURLOPT_FNMATCH_FUNCTION</a> <a Class="manpage" href="./CURLOPT_URL.html">CURLOPT_URL</a> <a class="manpage" href="#"> </a> <p class="roffit">
+ This HTML page was made with <a href="http://daniel.haxx.se/projects/roffit/">roffit</a>.
+</body></html>

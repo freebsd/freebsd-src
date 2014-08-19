@@ -1,0 +1,69 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+ "http://www.w3.org/TR/html4/loose.dtd">
+<html><head>
+<title>CURLOPT_HTTP_VERSION man page</title>
+<meta name="generator" content="roffit">
+<STYLE type="text/css">
+P.level0 {
+ padding-left: 2em;
+}
+
+P.level1 {
+ padding-left: 4em;
+}
+
+P.level2 {
+ padding-left: 6em;
+}
+
+span.emphasis {
+ font-style: italic;
+}
+
+span.bold {
+ font-weight: bold;
+}
+
+span.manpage {
+ font-weight: bold;
+}
+
+h2.nroffsh {
+ background-color: #e0e0e0;
+}
+
+span.nroffip {
+ font-weight: bold;
+ font-size: 120%;
+ font-family: monospace;
+}
+
+p.roffit {
+ text-align: center;
+ font-size: 80%;
+}
+</STYLE>
+</head><body>
+
+<p class="level0"><a name="NAME"></a><h2 class="nroffsh">NAME</h2>
+<p class="level0">CURLOPT_HTTP_VERSION - specify HTTP protocol version to use <a name="SYNOPSIS"></a><h2 class="nroffsh">SYNOPSIS</h2>
+<p class="level0">#include &lt;curl/curl.h&gt; 
+<p class="level0">CURLcode curl_easy_setopt(CURL *handle, CURLOPT_HTTP_VERSION, long version); <a name="DESCRIPTION"></a><h2 class="nroffsh">DESCRIPTION</h2>
+<p class="level0">Pass <span Class="emphasis">version</span> a long, set to one of the values described below. They force libcurl to use the specific HTTP versions. This is not sensible to do unless you have a good reason. You have to set this option if you want to use libcurl's HTTP/2 support. 
+<p class="level0">
+<p class="level0"><a name="CURLHTTPVERSIONNONE"></a><span class="nroffip">CURL_HTTP_VERSION_NONE</span> 
+<p class="level1">We don't care about what version the library uses. libcurl will use whatever it thinks fit. 
+<p class="level0"><a name="CURLHTTPVERSION10"></a><span class="nroffip">CURL_HTTP_VERSION_1_0</span> 
+<p class="level1">Enforce HTTP 1.0 requests. 
+<p class="level0"><a name="CURLHTTPVERSION11"></a><span class="nroffip">CURL_HTTP_VERSION_1_1</span> 
+<p class="level1">Enforce HTTP 1.1 requests. 
+<p class="level0"><a name="CURLHTTPVERSION20"></a><span class="nroffip">CURL_HTTP_VERSION_2_0</span> 
+<p class="level1">Attempt HTTP 2.0 requests. libcurl will fall back to HTTP 1.x if HTTP 2.0 can't be negotiated with the server. <a name="DEFAULT"></a><h2 class="nroffsh">DEFAULT</h2>
+<p class="level0">CURL_HTTP_VERSION_NONE <a name="PROTOCOLS"></a><h2 class="nroffsh">PROTOCOLS</h2>
+<p class="level0">HTTP <a name="EXAMPLE"></a><h2 class="nroffsh">EXAMPLE</h2>
+<p class="level0">TODO <a name="AVAILABILITY"></a><h2 class="nroffsh">AVAILABILITY</h2>
+<p class="level0">Along with HTTP <a name="RETURN"></a><h2 class="nroffsh">RETURN VALUE</h2>
+<p class="level0">Returns CURLE_OK if HTTP is supported, and CURLE_UNKNOWN_OPTION if not. <a name="SEE"></a><h2 class="nroffsh">SEE ALSO</h2>
+<p class="level0"><a Class="manpage" href="./CURLOPT_SSLVERSION.html">CURLOPT_SSLVERSION</a> <a Class="manpage" href="./CURLOPT_HTTP200ALIASES.html">CURLOPT_HTTP200ALIASES</a> <span Class="manpage"> </span> <p class="roffit">
+ This HTML page was made with <a href="http://daniel.haxx.se/projects/roffit/">roffit</a>.
+</body></html>

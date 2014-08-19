@@ -1,0 +1,72 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+ "http://www.w3.org/TR/html4/loose.dtd">
+<html><head>
+<title>CURLOPT_WRITEFUNCTION man page</title>
+<meta name="generator" content="roffit">
+<STYLE type="text/css">
+P.level0 {
+ padding-left: 2em;
+}
+
+P.level1 {
+ padding-left: 4em;
+}
+
+P.level2 {
+ padding-left: 6em;
+}
+
+span.emphasis {
+ font-style: italic;
+}
+
+span.bold {
+ font-weight: bold;
+}
+
+span.manpage {
+ font-weight: bold;
+}
+
+h2.nroffsh {
+ background-color: #e0e0e0;
+}
+
+span.nroffip {
+ font-weight: bold;
+ font-size: 120%;
+ font-family: monospace;
+}
+
+p.roffit {
+ text-align: center;
+ font-size: 80%;
+}
+</STYLE>
+</head><body>
+
+<p class="level0"><a name="NAME"></a><h2 class="nroffsh">NAME</h2>
+<p class="level0">CURLOPT_WRITEFUNCTION - set callback for writing received data <a name="SYNOPSIS"></a><h2 class="nroffsh">SYNOPSIS</h2>
+<p class="level0"><pre>
+<p class="level0">#include &lt;curl/curl.h&gt;
+ <p class="level0">size_t write_callback(char *ptr, size_t size, size_t nmemb, void *userdata);
+ <p class="level0">CURLcode curl_easy_setopt(CURL *handle, CURLOPT_WRITEFUNCTION, write_callback);
+ </pre>
+<a name="DESCRIPTION"></a><h2 class="nroffsh">DESCRIPTION</h2>
+<p class="level0">Pass a pointer to your callback function, which should match the prototype shown above. 
+<p class="level0">This callback function gets called by libcurl as soon as there is data received that needs to be saved.  <span Class="emphasis">ptr</span> points to the delivered data, and the size of that data is <span Class="emphasis">size</span> multiplied with <span Class="emphasis">nmemb</span>. 
+<p class="level0">The callback function will be passed as much data as possible in all invokes, but you must not make any assumptions. It may be one byte, it may be thousands. The maximum amount of body data that will be passed to the write callback is defined in the curl.h header file: <span Class="emphasis">CURL_MAX_WRITE_SIZE</span> (the usual default is 16K). If <a Class="emphasis" href="./CURLOPT_HEADER.html">CURLOPT_HEADER</a> is enabled, which makes header data get passed to the write callback, you can get up to <span Class="emphasis">CURL_MAX_HTTP_HEADER</span> bytes of header data passed into it. This usually means 100K. 
+<p class="level0">This function may be called with zero bytes data if the transferred file is empty. 
+<p class="level0">The data passed to this function will not be zero terminated! 
+<p class="level0">Set the <span Class="emphasis">userdata</span> argument with the <a Class="emphasis" href="./CURLOPT_WRITEDATA.html">CURLOPT_WRITEDATA</a> option. 
+<p class="level0">Your callback should return the number of bytes actually taken care of. If that amount differs from the amount passed to your callback function, it'll signal an error condition to the library. This will cause the transfer to get aborted and the libcurl function used will return <span Class="emphasis">CURLE_WRITE_ERROR</span>. 
+<p class="level0">If your callback function returns CURL_WRITEFUNC_PAUSE it will cause this transfer to become paused.  See <span Class="emphasis">curl_easy_pause(3)</span> for further details. 
+<p class="level0">Set this option to NULL to get the internal default function used instead of your callback. The internal default function will write the data to the FILE * given with <a Class="emphasis" href="./CURLOPT_WRITEDATA.html">CURLOPT_WRITEDATA</a>. <a name="DEFAULT"></a><h2 class="nroffsh">DEFAULT</h2>
+<p class="level0">libcurl will use 'fwrite' as a callback by default. <a name="PROTOCOLS"></a><h2 class="nroffsh">PROTOCOLS</h2>
+<p class="level0">For all protocols <a name="AVAILABILITY"></a><h2 class="nroffsh">AVAILABILITY</h2>
+<p class="level0">Support for the CURL_WRITEFUNC_PAUSE return code was added in version 7.18.0. <a name="RETURN"></a><h2 class="nroffsh">RETURN VALUE</h2>
+<p class="level0">This will return CURLE_OK. <a name="EXAMPLE"></a><h2 class="nroffsh">EXAMPLE</h2>
+<p class="level0">A common technique is to use this callback to store the incoming data into a dynamically growing allocated buffer. Like in the getinmemory example: <a href="http://curl.haxx.se/libcurl/c/getinmemory.html">http://curl.haxx.se/libcurl/c/getinmemory.html</a> <a name="SEE"></a><h2 class="nroffsh">SEE ALSO</h2>
+<p class="level0"><a Class="manpage" href="./CURLOPT_WRITEDATA.html">CURLOPT_WRITEDATA</a> <a Class="manpage" href="./CURLOPT_READFUNCTION.html">CURLOPT_READFUNCTION</a> <span Class="manpage"> </span> <p class="roffit">
+ This HTML page was made with <a href="http://daniel.haxx.se/projects/roffit/">roffit</a>.
+</body></html>

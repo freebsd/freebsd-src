@@ -1,0 +1,61 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+ "http://www.w3.org/TR/html4/loose.dtd">
+<html><head>
+<title>CURLOPT_INTERFACE man page</title>
+<meta name="generator" content="roffit">
+<STYLE type="text/css">
+P.level0 {
+ padding-left: 2em;
+}
+
+P.level1 {
+ padding-left: 4em;
+}
+
+P.level2 {
+ padding-left: 6em;
+}
+
+span.emphasis {
+ font-style: italic;
+}
+
+span.bold {
+ font-weight: bold;
+}
+
+span.manpage {
+ font-weight: bold;
+}
+
+h2.nroffsh {
+ background-color: #e0e0e0;
+}
+
+span.nroffip {
+ font-weight: bold;
+ font-size: 120%;
+ font-family: monospace;
+}
+
+p.roffit {
+ text-align: center;
+ font-size: 80%;
+}
+</STYLE>
+</head><body>
+
+<p class="level0"><a name="NAME"></a><h2 class="nroffsh">NAME</h2>
+<p class="level0">CURLOPT_INTERFACE - source interface for outgoing traffic <a name="SYNOPSIS"></a><h2 class="nroffsh">SYNOPSIS</h2>
+<p class="level0">#include &lt;curl/curl.h&gt; 
+<p class="level0">CURLcode curl_easy_setopt(CURL *handle, CURLOPT_INTERFACE, char *interface); <a name="DESCRIPTION"></a><h2 class="nroffsh">DESCRIPTION</h2>
+<p class="level0">Pass a char * as parameter. This sets the <span Class="emphasis">interface</span> name to use as outgoing network interface. The name can be an interface name, an IP address, or a host name. 
+<p class="level0">If the parameter starts with "if!" then it is treated as only as interface name and no attempt will ever be named to do treat it as an IP address or to do name resolution on it.  If the parameter starts with "host!" it is treated as either an IP address or a hostname.  Hostnames are resolved synchronously.  Using the if! format is highly recommended when using the multi interfaces to avoid allowing the code to block.  If "if!" is specified but the parameter does not match an existing interface, CURLE_INTERFACE_FAILED is returned from the libcurl function used to perform the transfer. <a name="DEFAULT"></a><h2 class="nroffsh">DEFAULT</h2>
+<p class="level0">NULL, use whatever the TCP stack finds suitable <a name="PROTOCOLS"></a><h2 class="nroffsh">PROTOCOLS</h2>
+<p class="level0">All <a name="EXAMPLE"></a><h2 class="nroffsh">EXAMPLE</h2>
+<p class="level0">TODO <a name="AVAILABILITY"></a><h2 class="nroffsh">AVAILABILITY</h2>
+<p class="level0">The "if!" and "host!" syntax was added in 7.24.0. <a name="RETURN"></a><h2 class="nroffsh">RETURN VALUE</h2>
+<p class="level0">Returns CURLE_OK on success or CURLE_OUT_OF_MEMORY if there was insufficient heap space. <a name="SEE"></a><h2 class="nroffsh">SEE ALSO</h2>
+<p class="level0"><a Class="manpage" href="./CURLOPT_SOCKOPTFUNCTION.html">CURLOPT_SOCKOPTFUNCTION</a> <a Class="manpage" href="./CURLOPT_TCP_NODELAY.html">CURLOPT_TCP_NODELAY</a> <span Class="manpage"> </span> <p class="roffit">
+ This HTML page was made with <a href="http://daniel.haxx.se/projects/roffit/">roffit</a>.
+</body></html>

@@ -1,0 +1,81 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+ "http://www.w3.org/TR/html4/loose.dtd">
+<html><head>
+<title>CURLOPT_CUSTOMREQUEST man page</title>
+<meta name="generator" content="roffit">
+<STYLE type="text/css">
+P.level0 {
+ padding-left: 2em;
+}
+
+P.level1 {
+ padding-left: 4em;
+}
+
+P.level2 {
+ padding-left: 6em;
+}
+
+span.emphasis {
+ font-style: italic;
+}
+
+span.bold {
+ font-weight: bold;
+}
+
+span.manpage {
+ font-weight: bold;
+}
+
+h2.nroffsh {
+ background-color: #e0e0e0;
+}
+
+span.nroffip {
+ font-weight: bold;
+ font-size: 120%;
+ font-family: monospace;
+}
+
+p.roffit {
+ text-align: center;
+ font-size: 80%;
+}
+</STYLE>
+</head><body>
+
+<p class="level0"><a name="NAME"></a><h2 class="nroffsh">NAME</h2>
+<p class="level0">CURLOPT_CUSTOMREQUEST - custom string for request <a name="SYNOPSIS"></a><h2 class="nroffsh">SYNOPSIS</h2>
+<p class="level0">#include &lt;curl/curl.h&gt; 
+<p class="level0">CURLcode curl_easy_setopt(CURL *handle, CURLOPT_CUSTOMREQUEST, char *request); <a name="DESCRIPTION"></a><h2 class="nroffsh">DESCRIPTION</h2>
+<p class="level0">Pass a pointer to a zero terminated string as parameter. 
+<p class="level0">When you change the request method by setting <a Class="bold" href="./CURLOPT_CUSTOMREQUEST.html">CURLOPT_CUSTOMREQUEST</a> to something, you don't actually change how libcurl behaves or acts in regards to the particular request method, it will only change the actual string sent in the request. 
+<p class="level0">Restore to the internal default by setting this to NULL. 
+<p class="level0">This option can be used to specify the request: 
+<p class="level0"><a name="HTTP"></a><span class="nroffip">HTTP</span> 
+<p class="level1">Instead of GET or HEAD when performing HTTP based requests. This is particularly useful, for example, for performing a HTTP DELETE request. 
+<p class="level1">For example: 
+<p class="level1">When you tell libcurl to do a HEAD request, but then specify a GET though a custom request libcurl will still act as if it sent a HEAD. To switch to a proper HEAD use <a Class="emphasis" href="./CURLOPT_NOBODY.html">CURLOPT_NOBODY</a>, to switch to a proper POST use <a Class="emphasis" href="./CURLOPT_POST.html">CURLOPT_POST</a> or <a Class="emphasis" href="./CURLOPT_POSTFIELDS.html">CURLOPT_POSTFIELDS</a> and to switch to a proper GET use <a Class="emphasis" href="./CURLOPT_HTTPGET.html">CURLOPT_HTTPGET</a>. 
+<p class="level1">Many people have wrongly used this option to replace the entire request with their own, including multiple headers and POST contents. While that might work in many cases, it will cause libcurl to send invalid requests and it could possibly confuse the remote server badly. Use <a Class="emphasis" href="./CURLOPT_POST.html">CURLOPT_POST</a> and <a Class="emphasis" href="./CURLOPT_POSTFIELDS.html">CURLOPT_POSTFIELDS</a> to set POST data. Use <a Class="emphasis" href="./CURLOPT_HTTPHEADER.html">CURLOPT_HTTPHEADER</a> to replace or extend the set of headers sent by libcurl. Use <a Class="emphasis" href="./CURLOPT_HTTP_VERSION.html">CURLOPT_HTTP_VERSION</a> to change HTTP version. 
+<p class="level1">
+<p class="level0"><a name="FTP"></a><span class="nroffip">FTP</span> 
+<p class="level1">Instead of LIST and NLST when performing FTP directory listings. 
+<p class="level0"><a name="IMAP"></a><span class="nroffip">IMAP</span> 
+<p class="level1">Instead of LIST when issuing IMAP based requests. 
+<p class="level0"><a name="POP3"></a><span class="nroffip">POP3</span> 
+<p class="level1">Instead of LIST and RETR when issuing POP3 based requests. 
+<p class="level1">For example: 
+<p class="level1">When you tell libcurl to use a custom request it will behave like a LIST or RETR command was sent where it expects data to be returned by the server. As such <a Class="emphasis" href="./CURLOPT_NOBODY.html">CURLOPT_NOBODY</a> should be used when specifying commands such as DELE and NOOP for example. 
+<p class="level0"><a name="SMTP"></a><span class="nroffip">SMTP</span> 
+<p class="level1">Instead of a HELP or VRFY when issuing SMTP based requests. 
+<p class="level1">For example: 
+<p class="level1">Normally a multiline response is returned which can be used, in conjunction with <a Class="emphasis" href="./CURLOPT_MAIL_RCPT.html">CURLOPT_MAIL_RCPT</a>, to specify an EXPN request. If the <a Class="emphasis" href="./CURLOPT_NOBODY.html">CURLOPT_NOBODY</a> option is specified then the request can be used to issue NOOP and RSET commands. <a name="DEFAULT"></a><h2 class="nroffsh">DEFAULT</h2>
+<p class="level0">NULL <a name="PROTOCOLS"></a><h2 class="nroffsh">PROTOCOLS</h2>
+<p class="level0">HTTP, FTP, IMAP, POP3 <a name="EXAMPLE"></a><h2 class="nroffsh">EXAMPLE</h2>
+<p class="level0">TODO <a name="AVAILABILITY"></a><h2 class="nroffsh">AVAILABILITY</h2>
+<p class="level0">IMAP is supported since 7.30.0, POP3 since 7.26.0 and SMTP since 7.34.0. <a name="RETURN"></a><h2 class="nroffsh">RETURN VALUE</h2>
+<p class="level0">Returns CURLE_OK if the option is supported, CURLE_UNKNOWN_OPTION if not, or CURLE_OUT_OF_MEMORY if there was insufficient heap space. <a name="SEE"></a><h2 class="nroffsh">SEE ALSO</h2>
+<p class="level0"><a Class="manpage" href="./CURLOPT_HTTPHEADER.html">CURLOPT_HTTPHEADER</a> <a Class="manpage" href="./CURLOPT_NOBODY.html">CURLOPT_NOBODY</a> <span Class="manpage"> </span> <p class="roffit">
+ This HTML page was made with <a href="http://daniel.haxx.se/projects/roffit/">roffit</a>.
+</body></html>

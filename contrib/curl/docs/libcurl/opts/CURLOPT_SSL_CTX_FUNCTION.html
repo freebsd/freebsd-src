@@ -1,0 +1,69 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+ "http://www.w3.org/TR/html4/loose.dtd">
+<html><head>
+<title>CURLOPT_SSL_CTX_FUNCTION man page</title>
+<meta name="generator" content="roffit">
+<STYLE type="text/css">
+P.level0 {
+ padding-left: 2em;
+}
+
+P.level1 {
+ padding-left: 4em;
+}
+
+P.level2 {
+ padding-left: 6em;
+}
+
+span.emphasis {
+ font-style: italic;
+}
+
+span.bold {
+ font-weight: bold;
+}
+
+span.manpage {
+ font-weight: bold;
+}
+
+h2.nroffsh {
+ background-color: #e0e0e0;
+}
+
+span.nroffip {
+ font-weight: bold;
+ font-size: 120%;
+ font-family: monospace;
+}
+
+p.roffit {
+ text-align: center;
+ font-size: 80%;
+}
+</STYLE>
+</head><body>
+
+<p class="level0"><a name="NAME"></a><h2 class="nroffsh">NAME</h2>
+<p class="level0">CURLOPT_SSL_CTX_FUNCTION - openssl specific callback to do SSL magic <a name="SYNOPSIS"></a><h2 class="nroffsh">SYNOPSIS</h2>
+<p class="level0"><pre>
+<p class="level0">#include &lt;curl/curl.h&gt;
+ <p class="level0">CURLcode ssl_ctx_callback(CURL *curl, void *ssl_ctx, void *userptr);
+ <p class="level0">CURLcode curl_easy_setopt(CURL *handle, CURLOPT_SSL_CTX_FUNCTION,
+ &nbsp;                         ssl_ctx_callback);
+ </pre>
+<a name="DESCRIPTION"></a><h2 class="nroffsh">DESCRIPTION</h2>
+<p class="level0">This option only works for libcurl powered by OpenSSL. If libcurl was built against another SSL library, this functionality is absent. 
+<p class="level0">Pass a pointer to your callback function, which should match the prototype shown above. 
+<p class="level0">This callback function gets called by libcurl just before the initialization of a SSL connection after having processed all other SSL related options to give a last chance to an application to modify the behaviour of openssl's ssl initialization. The <span Class="emphasis">sslctx</span> parameter is actually a pointer to an openssl <span Class="emphasis">SSL_CTX</span>. If an error is returned from the callback, no attempt to establish a connection is made and the perform operation will return the error code.  Set the <span Class="emphasis">userptr</span> argument with the <a Class="emphasis" href="./CURLOPT_SSL_CTX_DATA.html">CURLOPT_SSL_CTX_DATA</a> option. 
+<p class="level0">This function will get called on all new connections made to a server, during the SSL negotiation. The SSL_CTX pointer will be a new one every time. 
+<p class="level0">To use this properly, a non-trivial amount of knowledge of the openssl libraries is necessary. For example, using this function allows you to use openssl callbacks to add additional validation code for certificates, and even to change the actual URI of a HTTPS request (example used in the lib509 test case).  See also the example section for a replacement of the key, certificate and trust file settings. <a name="DEFAULT"></a><h2 class="nroffsh">DEFAULT</h2>
+<p class="level0">NULL <a name="PROTOCOLS"></a><h2 class="nroffsh">PROTOCOLS</h2>
+<p class="level0">All TLS based protocols: HTTPS, FTPS, IMAPS, POP3, SMTPS etc. <a name="EXAMPLE"></a><h2 class="nroffsh">EXAMPLE</h2>
+<p class="level0">TODO <a name="AVAILABILITY"></a><h2 class="nroffsh">AVAILABILITY</h2>
+<p class="level0">Added in 7.11.0. Only supported when built with OpenSSL. <a name="RETURN"></a><h2 class="nroffsh">RETURN VALUE</h2>
+<p class="level0">Returns CURLE_OK if the option is supported, and CURLE_UNKNOWN_OPTION if not. <a name="SEE"></a><h2 class="nroffsh">SEE ALSO</h2>
+<p class="level0"><a Class="manpage" href="./CURLOPT_SSL_CTX_DATA.html">CURLOPT_SSL_CTX_DATA</a> <a Class="manpage" href="./CURLOPT_SSL_VERIFYPEER.html">CURLOPT_SSL_VERIFYPEER</a> <span Class="manpage"> </span> <p class="roffit">
+ This HTML page was made with <a href="http://daniel.haxx.se/projects/roffit/">roffit</a>.
+</body></html>

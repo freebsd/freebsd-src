@@ -1,0 +1,101 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+ "http://www.w3.org/TR/html4/loose.dtd">
+<html><head>
+<title>CURLOPT_SSH_KEYFUNCTION man page</title>
+<meta name="generator" content="roffit">
+<STYLE type="text/css">
+P.level0 {
+ padding-left: 2em;
+}
+
+P.level1 {
+ padding-left: 4em;
+}
+
+P.level2 {
+ padding-left: 6em;
+}
+
+span.emphasis {
+ font-style: italic;
+}
+
+span.bold {
+ font-weight: bold;
+}
+
+span.manpage {
+ font-weight: bold;
+}
+
+h2.nroffsh {
+ background-color: #e0e0e0;
+}
+
+span.nroffip {
+ font-weight: bold;
+ font-size: 120%;
+ font-family: monospace;
+}
+
+p.roffit {
+ text-align: center;
+ font-size: 80%;
+}
+</STYLE>
+</head><body>
+
+<p class="level0"><a name="NAME"></a><h2 class="nroffsh">NAME</h2>
+<p class="level0">CURLOPT_SSH_KEYFUNCTION - callback for known host matching logic <a name="SYNOPSIS"></a><h2 class="nroffsh">SYNOPSIS</h2>
+<p class="level0"><pre>
+<p class="level0">#include &lt;curl/curl.h&gt;
+ <p class="level0">enum curl_khstat {
+ &nbsp; CURLKHSTAT_FINE_ADD_TO_FILE,
+ &nbsp; CURLKHSTAT_FINE,
+ &nbsp; CURLKHSTAT_REJECT, /* reject the connection, return an error */
+ &nbsp; CURLKHSTAT_DEFER,  /* do not accept it, but we can't answer right
+ &nbsp;                       now so this causes a CURLE_DEFER error but
+ &nbsp;                       otherwise the connection will be left intact
+ &nbsp;                       etc */
+ };
+ <p class="level0">enum curl_khmatch {
+ &nbsp; CURLKHMATCH_OK,       /* match */
+ &nbsp; CURLKHMATCH_MISMATCH, /* host found, key mismatch! */
+ &nbsp; CURLKHMATCH_MISSING,  /* no matching host/key found */
+ };
+ <p class="level0">struct curl_khkey {
+ &nbsp; const char *key; /* points to a zero-terminated string encoded with
+ &nbsp;                     base64 if len is zero, otherwise to the "raw"
+ &nbsp;                     data */
+ &nbsp; size_t len;
+ &nbsp; enum curl_khtype keytype;
+ };
+ <p class="level0">int ssh_keycallback(CURL *easy,
+ &nbsp;                   const struct curl_khkey *knownkey,
+ &nbsp;                   const struct curl_khkey *foundkey,
+ &nbsp;                   enum curl_khmatch,
+ &nbsp;                   void *clientp);
+ <p class="level0">CURLcode curl_easy_setopt(CURL *handle, CURLOPT_SSH_KEYFUNCTION,
+ &nbsp;                         ssh_keycallback);
+ </pre>
+<a name="DESCRIPTION"></a><h2 class="nroffsh">DESCRIPTION</h2>
+<p class="level0">Pass a pointer to your callback function, which should match the prototype shown above. 
+<p class="level0">It gets called when the known_host matching has been done, to allow the application to act and decide for libcurl how to proceed. The callback will only be called if <a Class="emphasis" href="./CURLOPT_SSH_KNOWNHOSTS.html">CURLOPT_SSH_KNOWNHOSTS</a> is also set. 
+<p class="level0">This callback function gets passed the CURL handle, the key from the known_hosts file <span Class="emphasis">knownkey</span>, the key from the remote site <span Class="emphasis">foundkey</span>, info from libcurl on the matching status and a custom pointer (set with <a Class="emphasis" href="./CURLOPT_SSH_KEYDATA.html">CURLOPT_SSH_KEYDATA</a>). It MUST return one of the following return codes to tell libcurl how to act: 
+<p class="level0">
+<p class="level0"><a name="CURLKHSTATFINEADDTOFILE"></a><span class="nroffip">CURLKHSTAT_FINE_ADD_TO_FILE</span> 
+<p class="level1">The host+key is accepted and libcurl will append it to the known_hosts file before continuing with the connection. This will also add the host+key combo to the known_host pool kept in memory if it wasn't already present there. The adding of data to the file is done by completely replacing the file with a new copy, so the permissions of the file must allow this. 
+<p class="level0"><a name="CURLKHSTATFINE"></a><span class="nroffip">CURLKHSTAT_FINE</span> 
+<p class="level1">The host+key is accepted libcurl will continue with the connection. This will also add the host+key combo to the known_host pool kept in memory if it wasn't already present there. 
+<p class="level0"><a name="CURLKHSTATREJECT"></a><span class="nroffip">CURLKHSTAT_REJECT</span> 
+<p class="level1">The host+key is rejected. libcurl will deny the connection to continue and it will be closed. 
+<p class="level0"><a name="CURLKHSTATDEFER"></a><span class="nroffip">CURLKHSTAT_DEFER</span> 
+<p class="level1">The host+key is rejected, but the SSH connection is asked to be kept alive. This feature could be used when the app wants to somehow return back and act on the host+key situation and then retry without needing the overhead of setting it up from scratch again. <a name="DEFAULT"></a><h2 class="nroffsh">DEFAULT</h2>
+<p class="level0">NULL <a name="PROTOCOLS"></a><h2 class="nroffsh">PROTOCOLS</h2>
+<p class="level0">SFTP and SCP <a name="EXAMPLE"></a><h2 class="nroffsh">EXAMPLE</h2>
+<p class="level0">TODO <a name="AVAILABILITY"></a><h2 class="nroffsh">AVAILABILITY</h2>
+<p class="level0">Added in 7.19.6 <a name="RETURN"></a><h2 class="nroffsh">RETURN VALUE</h2>
+<p class="level0">Returns CURLE_OK if the option is supported, and CURLE_UNKNOWN_OPTION if not. <a name="SEE"></a><h2 class="nroffsh">SEE ALSO</h2>
+<p class="level0"><a Class="manpage" href="./CURLOPT_SSH_KEYDATA.html">CURLOPT_SSH_KEYDATA</a> <a Class="manpage" href="./CURLOPT_SSH_KNOWNHOSTS.html">CURLOPT_SSH_KNOWNHOSTS</a> <span Class="manpage"> </span> <p class="roffit">
+ This HTML page was made with <a href="http://daniel.haxx.se/projects/roffit/">roffit</a>.
+</body></html>

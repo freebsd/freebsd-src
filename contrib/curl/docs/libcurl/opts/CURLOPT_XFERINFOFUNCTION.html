@@ -1,0 +1,68 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+ "http://www.w3.org/TR/html4/loose.dtd">
+<html><head>
+<title>CURLOPT_XFERINFOFUNCTION man page</title>
+<meta name="generator" content="roffit">
+<STYLE type="text/css">
+P.level0 {
+ padding-left: 2em;
+}
+
+P.level1 {
+ padding-left: 4em;
+}
+
+P.level2 {
+ padding-left: 6em;
+}
+
+span.emphasis {
+ font-style: italic;
+}
+
+span.bold {
+ font-weight: bold;
+}
+
+span.manpage {
+ font-weight: bold;
+}
+
+h2.nroffsh {
+ background-color: #e0e0e0;
+}
+
+span.nroffip {
+ font-weight: bold;
+ font-size: 120%;
+ font-family: monospace;
+}
+
+p.roffit {
+ text-align: center;
+ font-size: 80%;
+}
+</STYLE>
+</head><body>
+
+<p class="level0"><a name="NAME"></a><h2 class="nroffsh">NAME</h2>
+<p class="level0">CURLOPT_XFERINFOFUNCTION - callback to progress meter function <a name="SYNOPSIS"></a><h2 class="nroffsh">SYNOPSIS</h2>
+<p class="level0">#include &lt;curl/curl.h&gt; 
+<p class="level0">int progress_callback(void *clientp, &nbsp;                     curl_off_t dltotal, &nbsp;                     curl_off_t dlnow, &nbsp;                     curl_off_t ultotal, &nbsp;                     curl_off_t ulnow); 
+<p class="level0">CURLcode curl_easy_setopt(CURL *handle, CURLOPT_XFERINFOFUNCTION, progress_callback); <a name="DESCRIPTION"></a><h2 class="nroffsh">DESCRIPTION</h2>
+<p class="level0">Pass a pointer to your callback function, which should match the prototype shown above. 
+<p class="level0">This function gets called by libcurl instead of its internal equivalent with a frequent interval. While data is being transferred it will be called very frequently, and during slow periods like when nothing is being transferred it can slow down to about one call per second. 
+<p class="level0"><span Class="emphasis">clientp</span> is the pointer set with <a Class="emphasis" href="./CURLOPT_XFERINFODATA.html">CURLOPT_XFERINFODATA</a>, it is not used by libcurl but is only passed along from the application to the callback. 
+<p class="level0">The callback gets told how much data libcurl will transfer and has transferred, in number of bytes. <span Class="emphasis">dltotal</span> is the total number of bytes libcurl expects to download in this transfer. <span Class="emphasis">dlnow</span> is the number of bytes downloaded so far. <span Class="emphasis">ultotal</span> is the total number of bytes libcurl expects to upload in this transfer. <span Class="emphasis">ulnow</span> is the number of bytes uploaded so far. 
+<p class="level0">Unknown/unused argument values passed to the callback will be set to zero (like if you only download data, the upload size will remain 0). Many times the callback will be called one or more times first, before it knows the data sizes so a program must be made to handle that. 
+<p class="level0">Returning a non-zero value from this callback will cause libcurl to abort the transfer and return <span Class="emphasis">CURLE_ABORTED_BY_CALLBACK</span>. 
+<p class="level0">If you transfer data with the multi interface, this function will not be called during periods of idleness unless you call the appropriate libcurl function that performs transfers. 
+<p class="level0"><a Class="emphasis" href="./CURLOPT_NOPROGRESS.html">CURLOPT_NOPROGRESS</a> must be set to 0 to make this function actually get called. <a name="DEFAULT"></a><h2 class="nroffsh">DEFAULT</h2>
+<p class="level0">By default, libcurl has an internal progress meter. That's rarely wanted by users. <a name="PROTOCOLS"></a><h2 class="nroffsh">PROTOCOLS</h2>
+<p class="level0">All <a name="EXAMPLE"></a><h2 class="nroffsh">EXAMPLE</h2>
+<p class="level0"><a href="http://curl.haxx.se/libcurl/c/progressfunc.html">http://curl.haxx.se/libcurl/c/progressfunc.html</a> <a name="AVAILABILITY"></a><h2 class="nroffsh">AVAILABILITY</h2>
+<p class="level0">Added in 7.32.0. This callback replaces <a Class="emphasis" href="./CURLOPT_PROGRESSFUNCTION.html">CURLOPT_PROGRESSFUNCTION</a> <a name="RETURN"></a><h2 class="nroffsh">RETURN VALUE</h2>
+<p class="level0">Returns CURLE_OK. <a name="SEE"></a><h2 class="nroffsh">SEE ALSO</h2>
+<p class="level0"><a Class="manpage" href="./CURLOPT_XFERINFODATA.html">CURLOPT_XFERINFODATA</a> <a Class="manpage" href="./CURLOPT_NOPROGRESS.html">CURLOPT_NOPROGRESS</a> <span Class="manpage"> </span> <p class="roffit">
+ This HTML page was made with <a href="http://daniel.haxx.se/projects/roffit/">roffit</a>.
+</body></html>

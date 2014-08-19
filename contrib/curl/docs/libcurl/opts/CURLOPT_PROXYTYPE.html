@@ -1,0 +1,62 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+ "http://www.w3.org/TR/html4/loose.dtd">
+<html><head>
+<title>CURLOPT_PROXYTYPE man page</title>
+<meta name="generator" content="roffit">
+<STYLE type="text/css">
+P.level0 {
+ padding-left: 2em;
+}
+
+P.level1 {
+ padding-left: 4em;
+}
+
+P.level2 {
+ padding-left: 6em;
+}
+
+span.emphasis {
+ font-style: italic;
+}
+
+span.bold {
+ font-weight: bold;
+}
+
+span.manpage {
+ font-weight: bold;
+}
+
+h2.nroffsh {
+ background-color: #e0e0e0;
+}
+
+span.nroffip {
+ font-weight: bold;
+ font-size: 120%;
+ font-family: monospace;
+}
+
+p.roffit {
+ text-align: center;
+ font-size: 80%;
+}
+</STYLE>
+</head><body>
+
+<p class="level0"><a name="NAME"></a><h2 class="nroffsh">NAME</h2>
+<p class="level0">CURLOPT_PROXYTYPE - proxy protocol type <a name="SYNOPSIS"></a><h2 class="nroffsh">SYNOPSIS</h2>
+<p class="level0">#include &lt;curl/curl.h&gt; 
+<p class="level0">CURLcode curl_easy_setopt(CURL *handle, CURLOPT_PROXYTYPE, long type); <a name="DESCRIPTION"></a><h2 class="nroffsh">DESCRIPTION</h2>
+<p class="level0">Pass a long with this option to set type of the proxy. Available options for this are <span Class="emphasis">CURLPROXY_HTTP</span>, <span Class="emphasis">CURLPROXY_HTTP_1_0</span> <span Class="emphasis">CURLPROXY_SOCKS4</span>, <span Class="emphasis">CURLPROXY_SOCKS5</span>, <span Class="emphasis">CURLPROXY_SOCKS4A</span> and <span Class="emphasis">CURLPROXY_SOCKS5_HOSTNAME</span>. The HTTP type is default. 
+<p class="level0">If you set <a Class="bold" href="./CURLOPT_PROXYTYPE.html">CURLOPT_PROXYTYPE</a> to <span Class="emphasis">CURLPROXY_HTTP_1_0</span>, it will only affect how libcurl speaks to a proxy when CONNECT is used. The HTTP version used for "regular" HTTP requests is instead controlled with <a Class="emphasis" href="./CURLOPT_HTTP_VERSION.html">CURLOPT_HTTP_VERSION</a>. 
+<p class="level0">Often it is more convenient to specify the proxy type with the scheme part of the <a Class="emphasis" href="./CURLOPT_PROXY.html">CURLOPT_PROXY</a> string. <a name="DEFAULT"></a><h2 class="nroffsh">DEFAULT</h2>
+<p class="level0">CURLPROXY_HTTP <a name="PROTOCOLS"></a><h2 class="nroffsh">PROTOCOLS</h2>
+<p class="level0">Most <a name="EXAMPLE"></a><h2 class="nroffsh">EXAMPLE</h2>
+<p class="level0">TODO <a name="AVAILABILITY"></a><h2 class="nroffsh">AVAILABILITY</h2>
+<p class="level0">Always <a name="RETURN"></a><h2 class="nroffsh">RETURN VALUE</h2>
+<p class="level0">Returns CURLE_OK <a name="SEE"></a><h2 class="nroffsh">SEE ALSO</h2>
+<p class="level0"><a Class="manpage" href="./CURLOPT_PROXY.html">CURLOPT_PROXY</a> <a Class="manpage" href="./CURLOPT_PROXYPORT.html">CURLOPT_PROXYPORT</a> <span Class="manpage"> </span> <p class="roffit">
+ This HTML page was made with <a href="http://daniel.haxx.se/projects/roffit/">roffit</a>.
+</body></html>

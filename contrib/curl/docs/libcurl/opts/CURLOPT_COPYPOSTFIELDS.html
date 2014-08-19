@@ -1,0 +1,61 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+ "http://www.w3.org/TR/html4/loose.dtd">
+<html><head>
+<title>CURLOPT_COPYPOSTFIELDS man page</title>
+<meta name="generator" content="roffit">
+<STYLE type="text/css">
+P.level0 {
+ padding-left: 2em;
+}
+
+P.level1 {
+ padding-left: 4em;
+}
+
+P.level2 {
+ padding-left: 6em;
+}
+
+span.emphasis {
+ font-style: italic;
+}
+
+span.bold {
+ font-weight: bold;
+}
+
+span.manpage {
+ font-weight: bold;
+}
+
+h2.nroffsh {
+ background-color: #e0e0e0;
+}
+
+span.nroffip {
+ font-weight: bold;
+ font-size: 120%;
+ font-family: monospace;
+}
+
+p.roffit {
+ text-align: center;
+ font-size: 80%;
+}
+</STYLE>
+</head><body>
+
+<p class="level0"><a name="NAME"></a><h2 class="nroffsh">NAME</h2>
+<p class="level0">CURLOPT_COPYPOSTFIELDS - have libcurl copy data to POST <a name="SYNOPSIS"></a><h2 class="nroffsh">SYNOPSIS</h2>
+<p class="level0">#include &lt;curl/curl.h&gt; 
+<p class="level0">CURLcode curl_easy_setopt(CURL *handle, CURLOPT_COPYPOSTFIELDS, char *data); <a name="DESCRIPTION"></a><h2 class="nroffsh">DESCRIPTION</h2>
+<p class="level0">Pass a char * as parameter, which should be the full data to post in a HTTP POST operation. It behaves as the <a Class="emphasis" href="./CURLOPT_POSTFIELDS.html">CURLOPT_POSTFIELDS</a> option, but the original data is instead copied by the library, allowing the application to overwrite the original data after setting this option. 
+<p class="level0">Because data are copied, care must be taken when using this option in conjunction with <a Class="emphasis" href="./CURLOPT_POSTFIELDSIZE.html">CURLOPT_POSTFIELDSIZE</a> or <a Class="emphasis" href="./CURLOPT_POSTFIELDSIZE_LARGE.html">CURLOPT_POSTFIELDSIZE_LARGE</a>: If the size has not been set prior to <a Class="emphasis" href="./CURLOPT_COPYPOSTFIELDS.html">CURLOPT_COPYPOSTFIELDS</a>, the data is assumed to be a zero terminated string; else the stored size informs the library about the byte count to copy. In any case, the size must not be changed after <a Class="emphasis" href="./CURLOPT_COPYPOSTFIELDS.html">CURLOPT_COPYPOSTFIELDS</a>, unless another <a Class="emphasis" href="./CURLOPT_POSTFIELDS.html">CURLOPT_POSTFIELDS</a> or <a Class="emphasis" href="./CURLOPT_COPYPOSTFIELDS.html">CURLOPT_COPYPOSTFIELDS</a> option is issued. <a name="DEFAULT"></a><h2 class="nroffsh">DEFAULT</h2>
+<p class="level0">NULL <a name="PROTOCOLS"></a><h2 class="nroffsh">PROTOCOLS</h2>
+<p class="level0">HTTP <a name="EXAMPLE"></a><h2 class="nroffsh">EXAMPLE</h2>
+<p class="level0">TODO <a name="AVAILABILITY"></a><h2 class="nroffsh">AVAILABILITY</h2>
+<p class="level0">Added in 7.17.1 <a name="RETURN"></a><h2 class="nroffsh">RETURN VALUE</h2>
+<p class="level0">Returns CURLE_OK if the option is supported, CURLE_UNKNOWN_OPTION if not, or CURLE_OUT_OF_MEMORY if there was insufficient heap space. <a name="SEE"></a><h2 class="nroffsh">SEE ALSO</h2>
+<p class="level0"><a Class="manpage" href="./CURLOPT_POSTFIELDS.html">CURLOPT_POSTFIELDS</a> <a Class="manpage" href="./CURLOPT_POSTFIELDSIZE.html">CURLOPT_POSTFIELDSIZE</a> <span Class="manpage"> </span> <p class="roffit">
+ This HTML page was made with <a href="http://daniel.haxx.se/projects/roffit/">roffit</a>.
+</body></html>

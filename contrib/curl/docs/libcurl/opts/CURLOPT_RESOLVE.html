@@ -1,0 +1,67 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+ "http://www.w3.org/TR/html4/loose.dtd">
+<html><head>
+<title>CURLOPT_RESOLVE man page</title>
+<meta name="generator" content="roffit">
+<STYLE type="text/css">
+P.level0 {
+ padding-left: 2em;
+}
+
+P.level1 {
+ padding-left: 4em;
+}
+
+P.level2 {
+ padding-left: 6em;
+}
+
+span.emphasis {
+ font-style: italic;
+}
+
+span.bold {
+ font-weight: bold;
+}
+
+span.manpage {
+ font-weight: bold;
+}
+
+h2.nroffsh {
+ background-color: #e0e0e0;
+}
+
+span.nroffip {
+ font-weight: bold;
+ font-size: 120%;
+ font-family: monospace;
+}
+
+p.roffit {
+ text-align: center;
+ font-size: 80%;
+}
+</STYLE>
+</head><body>
+
+<p class="level0"><a name="NAME"></a><h2 class="nroffsh">NAME</h2>
+<p class="level0">CURLOPT_RESOLVE - provide custom host name to IP address resolves <a name="SYNOPSIS"></a><h2 class="nroffsh">SYNOPSIS</h2>
+<p class="level0"><pre>
+<p class="level0">#include &lt;curl/curl.h&gt;
+ <p class="level0">CURLcode curl_easy_setopt(CURL *handle, CURLOPT_RESOLVE,
+ &nbsp;                         struct curl_slist *hosts);
+ </pre>
+<a name="DESCRIPTION"></a><h2 class="nroffsh">DESCRIPTION</h2>
+<p class="level0">Pass a pointer to a linked list of strings with host name resolve information to use for requests with this handle. The linked list should be a fully valid list of <span Class="bold">struct curl_slist</span> structs properly filled in. Use <span Class="emphasis">curl_slist_append(3)</span> to create the list and <span Class="emphasis">curl_slist_free_all(3)</span> to clean up an entire list. 
+<p class="level0">Each single name resolve string should be written using the format HOST:PORT:ADDRESS where HOST is the name libcurl will try to resolve, PORT is the port number of the service where libcurl wants to connect to the HOST and ADDRESS is the numerical IP address. If libcurl is built to support IPv6, ADDRESS can of course be either IPv4 or IPv6 style addressing. 
+<p class="level0">This option effectively pre-populates the DNS cache with entries for the host+port pair so redirects and everything that operations against the HOST+PORT will instead use your provided ADDRESS. Addresses to set with <span Class="emphasis">CURL_RESOLVE</span> will not time-out from the DNS cache like ordinary entries. 
+<p class="level0">You can remove names from the DNS cache again, to stop providing these fake resolves, by including a string in the linked list that uses the format "-HOST:PORT". The host name must be prefixed with a dash, and the host name and port number must exactly match what was already added previously. <a name="DEFAULT"></a><h2 class="nroffsh">DEFAULT</h2>
+<p class="level0">NULL <a name="PROTOCOLS"></a><h2 class="nroffsh">PROTOCOLS</h2>
+<p class="level0">All <a name="EXAMPLE"></a><h2 class="nroffsh">EXAMPLE</h2>
+<p class="level0">TODO <a name="AVAILABILITY"></a><h2 class="nroffsh">AVAILABILITY</h2>
+<p class="level0">Added in 7.21.3 <a name="RETURN"></a><h2 class="nroffsh">RETURN VALUE</h2>
+<p class="level0">Returns CURLE_OK if the option is supported, and CURLE_UNKNOWN_OPTION if not. <a name="SEE"></a><h2 class="nroffsh">SEE ALSO</h2>
+<p class="level0"><a Class="manpage" href="./CURLOPT_IPRESOLVE.html">CURLOPT_IPRESOLVE</a> <a Class="manpage" href="./CURLOPT_DNS_CACHE_TIMEOUT.html">CURLOPT_DNS_CACHE_TIMEOUT</a> <span Class="manpage"> </span> <p class="roffit">
+ This HTML page was made with <a href="http://daniel.haxx.se/projects/roffit/">roffit</a>.
+</body></html>

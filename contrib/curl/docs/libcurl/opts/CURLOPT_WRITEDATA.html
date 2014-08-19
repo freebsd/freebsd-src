@@ -1,0 +1,62 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+ "http://www.w3.org/TR/html4/loose.dtd">
+<html><head>
+<title>CURLOPT_WRITEDATA man page</title>
+<meta name="generator" content="roffit">
+<STYLE type="text/css">
+P.level0 {
+ padding-left: 2em;
+}
+
+P.level1 {
+ padding-left: 4em;
+}
+
+P.level2 {
+ padding-left: 6em;
+}
+
+span.emphasis {
+ font-style: italic;
+}
+
+span.bold {
+ font-weight: bold;
+}
+
+span.manpage {
+ font-weight: bold;
+}
+
+h2.nroffsh {
+ background-color: #e0e0e0;
+}
+
+span.nroffip {
+ font-weight: bold;
+ font-size: 120%;
+ font-family: monospace;
+}
+
+p.roffit {
+ text-align: center;
+ font-size: 80%;
+}
+</STYLE>
+</head><body>
+
+<p class="level0"><a name="NAME"></a><h2 class="nroffsh">NAME</h2>
+<p class="level0">CURLOPT_WRITEDATA - custom pointer passed to the write callback <a name="SYNOPSIS"></a><h2 class="nroffsh">SYNOPSIS</h2>
+<p class="level0">#include &lt;curl/curl.h&gt; 
+<p class="level0">CURLcode curl_easy_setopt(CURL *handle, CURLOPT_WRITEDATA, void *pointer); <a name="DESCRIPTION"></a><h2 class="nroffsh">DESCRIPTION</h2>
+<p class="level0">A data <span Class="emphasis">pointer</span> to pass to the write callback. If you use the <a Class="emphasis" href="./CURLOPT_WRITEFUNCTION.html">CURLOPT_WRITEFUNCTION</a> option, this is the pointer you'll get in that callback's 4th argument. If you don't use a write callback, you must make <span Class="emphasis">pointer</span> a 'FILE *' (cast to 'void *') as libcurl will pass this to <span Class="emphasis">fwrite(3)</span> when writing data. 
+<p class="level0">The internal <a Class="emphasis" href="./CURLOPT_WRITEFUNCTION.html">CURLOPT_WRITEFUNCTION</a> will write the data to the FILE * given with this option, or to stdout if this option hasn't been set. 
+<p class="level0">If you're using libcurl as a win32 DLL, you <span Class="bold">MUST</span> use the <a Class="emphasis" href="./CURLOPT_WRITEFUNCTION.html">CURLOPT_WRITEFUNCTION</a> if you set this option or you will experience crashes. <a name="DEFAULT"></a><h2 class="nroffsh">DEFAULT</h2>
+<p class="level0">By default, this is a FILE * to stdout. <a name="PROTOCOLS"></a><h2 class="nroffsh">PROTOCOLS</h2>
+<p class="level0">Used for all protocols. <a name="EXAMPLE"></a><h2 class="nroffsh">EXAMPLE</h2>
+<p class="level0">A common technique is to use the write callback to store the incoming data into a dynamically growing allocated buffer, and then this CURLOPT_WRITEDATA is used to point to a struct or the buffer to store data in. Like in the getinmemory example: <a href="http://curl.haxx.se/libcurl/c/getinmemory.html">http://curl.haxx.se/libcurl/c/getinmemory.html</a> <a name="AVAILABILITY"></a><h2 class="nroffsh">AVAILABILITY</h2>
+<p class="level0">Available in all libcurl versions. This option was formerly known as <span Class="emphasis">CURLOPT_FILE</span>, the name <span Class="emphasis">CURLOPT_WRITEDATA</span> was introduced in 7.9.7. <a name="RETURN"></a><h2 class="nroffsh">RETURN VALUE</h2>
+<p class="level0">This will return CURLE_OK. <a name="SEE"></a><h2 class="nroffsh">SEE ALSO</h2>
+<p class="level0"><a Class="manpage" href="./CURLOPT_WRITEFUNCTION.html">CURLOPT_WRITEFUNCTION</a> <a Class="manpage" href="./CURLOPT_READDATA.html">CURLOPT_READDATA</a> <span Class="manpage"> </span> <p class="roffit">
+ This HTML page was made with <a href="http://daniel.haxx.se/projects/roffit/">roffit</a>.
+</body></html>

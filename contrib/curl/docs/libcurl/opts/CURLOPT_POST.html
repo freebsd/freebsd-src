@@ -1,0 +1,67 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+ "http://www.w3.org/TR/html4/loose.dtd">
+<html><head>
+<title>CURLOPT_POST man page</title>
+<meta name="generator" content="roffit">
+<STYLE type="text/css">
+P.level0 {
+ padding-left: 2em;
+}
+
+P.level1 {
+ padding-left: 4em;
+}
+
+P.level2 {
+ padding-left: 6em;
+}
+
+span.emphasis {
+ font-style: italic;
+}
+
+span.bold {
+ font-weight: bold;
+}
+
+span.manpage {
+ font-weight: bold;
+}
+
+h2.nroffsh {
+ background-color: #e0e0e0;
+}
+
+span.nroffip {
+ font-weight: bold;
+ font-size: 120%;
+ font-family: monospace;
+}
+
+p.roffit {
+ text-align: center;
+ font-size: 80%;
+}
+</STYLE>
+</head><body>
+
+<p class="level0"><a name="NAME"></a><h2 class="nroffsh">NAME</h2>
+<p class="level0">CURLOPT_POST - request a HTTP POST <a name="SYNOPSIS"></a><h2 class="nroffsh">SYNOPSIS</h2>
+<p class="level0">#include &lt;curl/curl.h&gt; 
+<p class="level0">CURLcode curl_easy_setopt(CURL *handle, CURLOPT_POST, long post); <a name="DESCRIPTION"></a><h2 class="nroffsh">DESCRIPTION</h2>
+<p class="level0">A parameter set to 1 tells libcurl to do a regular HTTP post. This will also make the library use a "Content-Type: application/x-www-form-urlencoded" header. (This is by far the most commonly used POST method). 
+<p class="level0">Use one of <a Class="emphasis" href="./CURLOPT_POSTFIELDS.html">CURLOPT_POSTFIELDS</a> or <a Class="emphasis" href="./CURLOPT_COPYPOSTFIELDS.html">CURLOPT_COPYPOSTFIELDS</a> options to specify what data to post and <a Class="emphasis" href="./CURLOPT_POSTFIELDSIZE.html">CURLOPT_POSTFIELDSIZE</a> or <a Class="emphasis" href="./CURLOPT_POSTFIELDSIZE_LARGE.html">CURLOPT_POSTFIELDSIZE_LARGE</a> to set the data size. 
+<p class="level0">Optionally, you can provide data to POST using the <a Class="emphasis" href="./CURLOPT_READFUNCTION.html">CURLOPT_READFUNCTION</a> and <a Class="emphasis" href="./CURLOPT_READDATA.html">CURLOPT_READDATA</a> options but then you must make sure to not set <a Class="emphasis" href="./CURLOPT_POSTFIELDS.html">CURLOPT_POSTFIELDS</a> to anything but NULL. When providing data with a callback, you must transmit it using chunked transfer-encoding or you must set the size of the data with the <a Class="emphasis" href="./CURLOPT_POSTFIELDSIZE.html">CURLOPT_POSTFIELDSIZE</a> or <a Class="emphasis" href="./CURLOPT_POSTFIELDSIZE_LARGE.html">CURLOPT_POSTFIELDSIZE_LARGE</a> options. To enable chunked encoding, you simply pass in the appropriate Transfer-Encoding header, see the post-callback.c example. 
+<p class="level0">You can override the default POST Content-Type: header by setting your own with <a Class="emphasis" href="./CURLOPT_HTTPHEADER.html">CURLOPT_HTTPHEADER</a>. 
+<p class="level0">Using POST with HTTP 1.1 implies the use of a "Expect: 100-continue" header. You can disable this header with <a Class="emphasis" href="./CURLOPT_HTTPHEADER.html">CURLOPT_HTTPHEADER</a> as usual. 
+<p class="level0">If you use POST to a HTTP 1.1 server, you can send data without knowing the size before starting the POST if you use chunked encoding. You enable this by adding a header like "Transfer-Encoding: chunked" with <a Class="emphasis" href="./CURLOPT_HTTPHEADER.html">CURLOPT_HTTPHEADER</a>. With HTTP 1.0 or without chunked transfer, you must specify the size in the request. 
+<p class="level0">When setting <a Class="emphasis" href="./CURLOPT_POST.html">CURLOPT_POST</a> to 1, it will automatically set <a Class="emphasis" href="./CURLOPT_NOBODY.html">CURLOPT_NOBODY</a> to 0. 
+<p class="level0">If you issue a POST request and then want to make a HEAD or GET using the same re-used handle, you must explicitly set the new request type using <a Class="emphasis" href="./CURLOPT_NOBODY.html">CURLOPT_NOBODY</a> or <a Class="emphasis" href="./CURLOPT_HTTPGET.html">CURLOPT_HTTPGET</a> or similar. <a name="DEFAULT"></a><h2 class="nroffsh">DEFAULT</h2>
+<p class="level0">0, disabled <a name="PROTOCOLS"></a><h2 class="nroffsh">PROTOCOLS</h2>
+<p class="level0">HTTP <a name="EXAMPLE"></a><h2 class="nroffsh">EXAMPLE</h2>
+<p class="level0">TODO <a name="AVAILABILITY"></a><h2 class="nroffsh">AVAILABILITY</h2>
+<p class="level0">Along with HTTP <a name="RETURN"></a><h2 class="nroffsh">RETURN VALUE</h2>
+<p class="level0">Returns CURLE_OK if HTTP is supported, and CURLE_UNKNOWN_OPTION if not. <a name="SEE"></a><h2 class="nroffsh">SEE ALSO</h2>
+<p class="level0"><a Class="manpage" href="./CURLOPT_POSTFIELDS.html">CURLOPT_POSTFIELDS</a> <a Class="manpage" href="./CURLOPT_HTTPPOST.html">CURLOPT_HTTPPOST</a> <span Class="manpage"> </span> <p class="roffit">
+ This HTML page was made with <a href="http://daniel.haxx.se/projects/roffit/">roffit</a>.
+</body></html>

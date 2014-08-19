@@ -1,0 +1,86 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+ "http://www.w3.org/TR/html4/loose.dtd">
+<html><head>
+<title>CURLOPT_OPENSOCKETFUNCTION man page</title>
+<meta name="generator" content="roffit">
+<STYLE type="text/css">
+P.level0 {
+ padding-left: 2em;
+}
+
+P.level1 {
+ padding-left: 4em;
+}
+
+P.level2 {
+ padding-left: 6em;
+}
+
+span.emphasis {
+ font-style: italic;
+}
+
+span.bold {
+ font-weight: bold;
+}
+
+span.manpage {
+ font-weight: bold;
+}
+
+h2.nroffsh {
+ background-color: #e0e0e0;
+}
+
+span.nroffip {
+ font-weight: bold;
+ font-size: 120%;
+ font-family: monospace;
+}
+
+p.roffit {
+ text-align: center;
+ font-size: 80%;
+}
+</STYLE>
+</head><body>
+
+<p class="level0"><a name="NAME"></a><h2 class="nroffsh">NAME</h2>
+<p class="level0">CURLOPT_OPENSOCKETFUNCTION - set callback for opening sockets <a name="SYNOPSIS"></a><h2 class="nroffsh">SYNOPSIS</h2>
+<p class="level0"><pre>
+<p class="level0">#include &lt;curl/curl.h&gt;
+ <p class="level0">typedef enum  {
+ &nbsp; CURLSOCKTYPE_IPCXN,  /* socket created for a specific IP connection */
+ &nbsp; CURLSOCKTYPE_ACCEPT, /* socket created by accept() call */
+ &nbsp; CURLSOCKTYPE_LAST    /* never use */
+ } curlsocktype;
+ <p class="level0">struct curl_sockaddr {
+ &nbsp; int family;
+ &nbsp; int socktype;
+ &nbsp; int protocol;
+ &nbsp; unsigned int addrlen;
+ &nbsp; struct sockaddr addr;
+ };
+ <p class="level0">curl_socket_t opensocket_callback(void *clientp,
+ &nbsp;                                 curlsocktype purpose,
+ &nbsp;                                 struct curl_sockaddr *address);
+ <p class="level0">CURLcode curl_easy_setopt(CURL *handle, CURLOPT_OPENSOCKETFUNCTION, opensocket_callback);
+ </pre>
+<a name="DESCRIPTION"></a><h2 class="nroffsh">DESCRIPTION</h2>
+<p class="level0">Pass a pointer to your callback function, which should match the prototype shown above. 
+<p class="level0">This callback function gets called by libcurl instead of the <span Class="emphasis">socket(2)</span> call. The callback's <span Class="emphasis">purpose</span> argument identifies the exact purpose for this particular socket: <span Class="emphasis">CURLSOCKTYPE_IPCXN</span> is for IP based connections and <span Class="emphasis">CURLSOCKTYPE_ACCEPT</span> is for sockets created after accept() - such as when doing active FTP. Future versions of libcurl may support more purposes. 
+<p class="level0">The <span Class="emphasis">clientp</span> pointer contains whatever user-defined value set using the <a Class="emphasis" href="./CURLOPT_OPENSOCKETDATA.html">CURLOPT_OPENSOCKETDATA</a> function. 
+<p class="level0">The callback gets the resolved peer address as the <span Class="emphasis">address</span> argument and is allowed to modify the address or refuse to connect completely. The callback function should return the newly created socket or <span Class="emphasis">CURL_SOCKET_BAD</span> in case no connection could be established or another error was detected. Any additional <span Class="emphasis">setsockopt(2)</span> calls can of course be done on the socket at the user's discretion.  A <span Class="emphasis">CURL_SOCKET_BAD</span> return value from the callback function will signal an unrecoverable error to libcurl and it will return <span Class="emphasis">CURLE_COULDNT_CONNECT</span> from the function that triggered this callback. This return code can be used for IP address blacklisting. 
+<p class="level0">If you want to pass in a socket with an already established connection, pass the socket back with this callback and then use <a Class="emphasis" href="./CURLOPT_SOCKOPTFUNCTION.html">CURLOPT_SOCKOPTFUNCTION</a> to signal that it already is connected. <a name="DEFAULT"></a><h2 class="nroffsh">DEFAULT</h2>
+<p class="level0">The default behavior is the equivalent of this: <pre>
+<p class="level0">&nbsp;  return socket(addr-&gt;family, addr-&gt;socktype, addr-&gt;protocol);
+ </pre>
+
+<p class="level0"><a name="PROTOCOLS"></a><h2 class="nroffsh">PROTOCOLS</h2>
+<p class="level0">All <a name="EXAMPLE"></a><h2 class="nroffsh">EXAMPLE</h2>
+<p class="level0"><a name="AVAILABILITY"></a><h2 class="nroffsh">AVAILABILITY</h2>
+<p class="level0">Added in 7.17.1. <a name="RETURN"></a><h2 class="nroffsh">RETURN VALUE</h2>
+<p class="level0">Returns CURLE_OK if the option is supported, and CURLE_UNKNOWN_OPTION if not. <a name="SEE"></a><h2 class="nroffsh">SEE ALSO</h2>
+<p class="level0"><a Class="manpage" href="./CURLOPT_OPENSOCKETDATA.html">CURLOPT_OPENSOCKETDATA</a> <a Class="manpage" href="./CURLOPT_SOCKOPTFUNCTION.html">CURLOPT_SOCKOPTFUNCTION</a> <span Class="manpage"> </span> <a Class="manpage" href="./CURLOPT_CLOSESOCKETFUNCTION.html">CURLOPT_CLOSESOCKETFUNCTION</a> <span Class="manpage"> </span> <p class="roffit">
+ This HTML page was made with <a href="http://daniel.haxx.se/projects/roffit/">roffit</a>.
+</body></html>

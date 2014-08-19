@@ -1,0 +1,75 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+ "http://www.w3.org/TR/html4/loose.dtd">
+<html><head>
+<title>CURLOPT_CONV_TO_NETWORK_FUNCTION man page</title>
+<meta name="generator" content="roffit">
+<STYLE type="text/css">
+P.level0 {
+ padding-left: 2em;
+}
+
+P.level1 {
+ padding-left: 4em;
+}
+
+P.level2 {
+ padding-left: 6em;
+}
+
+span.emphasis {
+ font-style: italic;
+}
+
+span.bold {
+ font-weight: bold;
+}
+
+span.manpage {
+ font-weight: bold;
+}
+
+h2.nroffsh {
+ background-color: #e0e0e0;
+}
+
+span.nroffip {
+ font-weight: bold;
+ font-size: 120%;
+ font-family: monospace;
+}
+
+p.roffit {
+ text-align: center;
+ font-size: 80%;
+}
+</STYLE>
+</head><body>
+
+<p class="level0"><a name="NAME"></a><h2 class="nroffsh">NAME</h2>
+<p class="level0">CURLOPT_CONV_TO_NETWORK_FUNCTION - convert data to network from host encoding <a name="SYNOPSIS"></a><h2 class="nroffsh">SYNOPSIS</h2>
+<p class="level0"><pre>
+<p class="level0">#include &lt;curl/curl.h&gt;
+ <p class="level0">CURLcode conv_callback(char *ptr, size_t length);
+ <p class="level0">CURLcode curl_easy_setopt(CURL *handle, CURLOPT_CONV_TO_NETWORK_FUNCTION,
+ &nbsp;                         conv_callback);
+ </pre>
+<a name="DESCRIPTION"></a><h2 class="nroffsh">DESCRIPTION</h2>
+<p class="level0">Pass a pointer to your callback function, which should match the prototype shown above. 
+<p class="level0">Applies to non-ASCII platforms. <span Class="emphasis">curl_version_info(3)</span> will return the CURL_VERSION_CONV feature bit set if this option is provided. 
+<p class="level0">The data to be converted is in a buffer pointed to by the <span Class="emphasis">ptr</span> parameter. The amount of data to convert is indicated by the <span Class="emphasis">length</span> parameter.  The converted data overlays the input data in the buffer pointed to by the ptr parameter. <span Class="emphasis">CURLE_OK</span> must be returned upon successful conversion.  A CURLcode return value defined by curl.h, such as <span Class="emphasis">CURLE_CONV_FAILED</span>, should be returned if an error was encountered. 
+<p class="level0"><span Class="bold">CURLOPT_CONV_TO_NETWORK_FUNCTION</span> converts from host encoding to the network encoding.  It is used when commands or ASCII data are sent over the network. 
+<p class="level0">If you set a callback pointer to NULL, or don't set it at all, the built-in libcurl iconv functions will be used.  If HAVE_ICONV was not defined when libcurl was built, and no callback has been established, conversion will return the CURLE_CONV_REQD error code. 
+<p class="level0">If HAVE_ICONV is defined, CURL_ICONV_CODESET_OF_HOST must also be defined. For example: 
+<p class="level0">&nbsp;#define CURL_ICONV_CODESET_OF_HOST "IBM-1047" 
+<p class="level0">The iconv code in libcurl will default the network and UTF8 codeset names as follows: 
+<p class="level0">&nbsp;#define CURL_ICONV_CODESET_OF_NETWORK "ISO8859-1" 
+<p class="level0">&nbsp;#define CURL_ICONV_CODESET_FOR_UTF8   "UTF-8" 
+<p class="level0">You will need to override these definitions if they are different on your system. <a name="DEFAULT"></a><h2 class="nroffsh">DEFAULT</h2>
+<p class="level0">NULL <a name="PROTOCOLS"></a><h2 class="nroffsh">PROTOCOLS</h2>
+<p class="level0">FTP, SMTP, IMAP, POP3 <a name="EXAMPLE"></a><h2 class="nroffsh">EXAMPLE</h2>
+<p class="level0">TODO <a name="AVAILABILITY"></a><h2 class="nroffsh">AVAILABILITY</h2>
+<p class="level0">Available only if <span Class="bold">CURL_DOES_CONVERSIONS</span> was defined when libcurl was built. <a name="RETURN"></a><h2 class="nroffsh">RETURN VALUE</h2>
+<p class="level0">Returns CURLE_OK if the option is supported, and CURLE_UNKNOWN_OPTION if not. <a name="SEE"></a><h2 class="nroffsh">SEE ALSO</h2>
+<p class="level0"><a Class="manpage" href="./CURLOPT_CONV_FROM_NETWORK_FUNCTION.html">CURLOPT_CONV_FROM_NETWORK_FUNCTION</a> <span Class="manpage">  CURLOPT_CONV_TO_UTF8_FUNCTION (3)</span> <span Class="manpage"> </span> <p class="roffit">
+ This HTML page was made with <a href="http://daniel.haxx.se/projects/roffit/">roffit</a>.
+</body></html>

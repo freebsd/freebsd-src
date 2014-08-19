@@ -1,0 +1,143 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+ "http://www.w3.org/TR/html4/loose.dtd">
+<html><head>
+<title>CURLOPT_URL man page</title>
+<meta name="generator" content="roffit">
+<STYLE type="text/css">
+P.level0 {
+ padding-left: 2em;
+}
+
+P.level1 {
+ padding-left: 4em;
+}
+
+P.level2 {
+ padding-left: 6em;
+}
+
+span.emphasis {
+ font-style: italic;
+}
+
+span.bold {
+ font-weight: bold;
+}
+
+span.manpage {
+ font-weight: bold;
+}
+
+h2.nroffsh {
+ background-color: #e0e0e0;
+}
+
+span.nroffip {
+ font-weight: bold;
+ font-size: 120%;
+ font-family: monospace;
+}
+
+p.roffit {
+ text-align: center;
+ font-size: 80%;
+}
+</STYLE>
+</head><body>
+
+<p class="level0"><a name="NAME"></a><h2 class="nroffsh">NAME</h2>
+<p class="level0">CURLOPT_URL - provide the URL to use in the reqest <a name="SYNOPSIS"></a><h2 class="nroffsh">SYNOPSIS</h2>
+<p class="level0">#include &lt;curl/curl.h&gt; 
+<p class="level0">CURLcode curl_easy_setopt(CURL *handle, CURLOPT_URL, char *URL); <a name="DESCRIPTION"></a><h2 class="nroffsh">DESCRIPTION</h2>
+<p class="level0">Pass in a pointer to the <span Class="emphasis">URL</span> to work with. The parameter should be a char * to a zero terminated string which must be URL-encoded in the following format: 
+<p class="level0">scheme://host:port/path 
+<p class="level0">For a greater explanation of the format please see <a href="http://www.ietf.org/rfc/rfc3986.txt">RFC 3986</a>. 
+<p class="level0">libcurl doesn't validate the syntax or use this variable until the transfer is issued. Even if you set a crazy value here, <span Class="emphasis">curl_easy_setopt(3)</span> will still return <span Class="emphasis">CURLE_OK</span>. 
+<p class="level0">If the given URL lacks the scheme (such as "http://" or "ftp://" etc) then libcurl will attempt to resolve the protocol based on one of the following given host names: HTTP, FTP, DICT, LDAP, IMAP, POP3 or SMTP 
+<p class="level0">Should the protocol, either that specified by the scheme or deduced by libcurl from the host name, not be supported by libcurl then <span Class="emphasis">CURLE_UNSUPPORTED_PROTOCOL</span> will be returned from either the <span Class="emphasis">curl_easy_perform(3)</span> or <span Class="emphasis">curl_multi_perform(3)</span> functions when you call them. Use <span Class="emphasis">curl_version_info(3)</span> for detailed information of which protocols are supported by the build of libcurl you are using. 
+<p class="level0"><a Class="emphasis" href="./CURLOPT_PROTOCOLS.html">CURLOPT_PROTOCOLS</a> can be used to limit what protocols libcurl will use for this transfer, independent of what libcurl has been compiled to support. That may be useful if you accept the URL from an external source and want to limit the accessibility. 
+<p class="level0"><a Class="emphasis" href="./CURLOPT_URL.html">CURLOPT_URL</a> is the only option that <span Class="bold">must</span> be set before a transfer is started. 
+<p class="level0">The host part of the URL contains the address of the server that you want to connect to. This can be the fully qualified domain name of the server, the local network name of the machine on your network or the IP address of the server or machine represented by either an IPv4 or IPv6 address. For example: 
+<p class="level0"><a href="http://www.example.com/">http://www.example.com/</a> 
+<p class="level0"><a href="http://hostname/">http://hostname/</a> 
+<p class="level0"><a href="http://192.168.0.1/">http://192.168.0.1/</a> 
+<p class="level0">http://[2001:1890:1112:1::20]/ 
+<p class="level0">It is also possible to specify the user name, password and any supported login options as part of the host, for the following protocols, when connecting to servers that require authentication: 
+<p class="level0"><a href="http://user">http://user</a>:password@www.example.com 
+<p class="level0"><a href="ftp://user">ftp://user</a>:password@ftp.example.com 
+<p class="level0">imap://user:password;options@mail.example.com 
+<p class="level0">pop3://user:password;options@mail.example.com 
+<p class="level0">smtp://user:password;options@mail.example.com 
+<p class="level0">At present only IMAP, POP3 and SMTP support login options as part of the host. For more information about the login options in URL syntax please see <a href="http://www.ietf.org/rfc/rfc2384.txt">RFC 2384</a>, <a href="http://www.ietf.org/rfc/rfc5092.txt">RFC 5092</a> and IETF draft draft-earhart-url-smtp-00.txt (Added in 7.31.0). 
+<p class="level0">The port is optional and when not specified libcurl will use the default port based on the determined or specified protocol: 80 for HTTP, 21 for FTP and 25 for SMTP, etc. The following examples show how to specify the port: 
+<p class="level0"><a href="http://www.example.com">http://www.example.com</a>:8080/ - This will connect to a web server using port 8080 rather than 80. 
+<p class="level0">smtp://mail.example.com:587/ - This will connect to a SMTP server on the alternative mail port. 
+<p class="level0">The path part of the URL is protocol specific and whilst some examples are given below this list is not conclusive: 
+<p class="level0">
+<p class="level0"><a name="HTTP"></a><span class="nroffip">HTTP</span> 
+<p class="level1">The path part of a HTTP request specifies the file to retrieve and from what directory. If the directory is not specified then the web server's root directory is used. If the file is omitted then the default document will be retrieved for either the directory specified or the root directory. The exact resource returned for each URL is entirely dependent on the server's configuration. 
+<p class="level1"><a href="http://www.example.com">http://www.example.com</a> - This gets the main page from the web server. 
+<p class="level1"><a href="http://www.example.com/index.html">http://www.example.com/index.html</a> - This returns the main page by explicitly requesting it. 
+<p class="level1"><a href="http://www.example.com/contactus/">http://www.example.com/contactus/</a> - This returns the default document from the contactus directory. 
+<p class="level1">
+<p class="level0"><a name="FTP"></a><span class="nroffip">FTP</span> 
+<p class="level1">The path part of an FTP request specifies the file to retrieve and from what directory. If the file part is omitted then libcurl downloads the directory listing for the directory specified. If the directory is omitted then the directory listing for the root / home directory will be returned. 
+<p class="level1"><a href="ftp://ftp.example.com">ftp://ftp.example.com</a> - This retrieves the directory listing for the root directory. 
+<p class="level1"><a href="ftp://ftp.example.com/readme.txt">ftp://ftp.example.com/readme.txt</a> - This downloads the file readme.txt from the root directory. 
+<p class="level1"><a href="ftp://ftp.example.com/libcurl/readme.txt">ftp://ftp.example.com/libcurl/readme.txt</a> - This downloads readme.txt from the libcurl directory. 
+<p class="level1"><a href="ftp://user">ftp://user</a>:password@ftp.example.com/readme.txt - This retrieves the readme.txt file from the user's home directory. When a username and password is specified, everything that is specified in the path part is relative to the user's home directory. To retrieve files from the root directory or a directory underneath the root directory then the absolute path must be specified by prepending an additional forward slash to the beginning of the path. 
+<p class="level1"><a href="ftp://user">ftp://user</a>:password@ftp.example.com//readme.txt - This retrieves the readme.txt from the root directory when logging in as a specified user. 
+<p class="level1">
+<p class="level0"><a name="SMTP"></a><span class="nroffip">SMTP</span> 
+<p class="level1">The path part of a SMTP request specifies the host name to present during communication with the mail server. If the path is omitted then libcurl will attempt to resolve the local computer's host name. However, this may not return the fully qualified domain name that is required by some mail servers and specifying this path allows you to set an alternative name, such as your machine's fully qualified domain name, which you might have obtained from an external function such as gethostname or getaddrinfo. 
+<p class="level1">smtp://mail.example.com - This connects to the mail server at example.com and sends your local computer's host name in the HELO / EHLO command. 
+<p class="level1">smtp://mail.example.com/client.example.com - This will send client.example.com in the HELO / EHLO command to the mail server at example.com. 
+<p class="level1">
+<p class="level0"><a name="POP3"></a><span class="nroffip">POP3</span> 
+<p class="level1">The path part of a POP3 request specifies the message ID to retrieve. If the ID is not specified then a list of waiting messages is returned instead. 
+<p class="level1">pop3://user:password@mail.example.com - This lists the available messages for the user 
+<p class="level1">pop3://user:password@mail.example.com/1 - This retrieves the first message for the user 
+<p class="level1">
+<p class="level0"><a name="IMAP"></a><span class="nroffip">IMAP</span> 
+<p class="level1">The path part of an IMAP request not only specifies the mailbox to list (Added in 7.30.0) or select, but can also be used to check the UIDVALIDITY of the mailbox, to specify the UID, SECTION (Added in 7.30.0) and PARTIAL octets (Added in 7.37.0) of the message to fetch and to specify what messages to search for (Added in 7.37.0). 
+<p class="level1">imap://user:password@mail.example.com - Performs a top level folder list 
+<p class="level1">imap://user:password@mail.example.com/INBOX - Performs a folder list on the user's inbox 
+<p class="level1">imap://user:password@mail.example.com/INBOX/;UID=1 - Selects the user's inbox and fetches message 1 
+<p class="level1">imap://user:password@mail.example.com/INBOX;UIDVALIDITY=50/;UID=2 - Selects the user's inbox, checks the UIDVALIDITY of the mailbox is 50 and fetches message 2 if it is 
+<p class="level1">imap://user:password@mail.example.com/INBOX/;UID=3/;SECTION=TEXT - Selects the user's inbox and fetches the text portion of message 3 
+<p class="level1">imap://user:password@mail.example.com/INBOX/;UID=4/;PARTIAL=0.1024 - Selects the user's inbox and fetches the first 1024 octets of message 4 
+<p class="level1">imap://user:password@mail.example.com/INBOX?NEW - Selects the user's inbox and checks for NEW messages 
+<p class="level1">imap://user:password@mail.example.com/INBOX?SUBJECT%20shadows - Selects the user's inbox and searches for messages containing "shadows" in the subject line 
+<p class="level1">For more information about the individual components of an IMAP URL please see <a href="http://www.ietf.org/rfc/rfc5092.txt">RFC 5092</a>. 
+<p class="level1">
+<p class="level0"><a name="SCP"></a><span class="nroffip">SCP</span> 
+<p class="level1">The path part of a SCP request specifies the file to retrieve and from what directory. The file part may not be omitted. The file is taken as an absolute path from the root directory on the server. To specify a path relative to the user's home directory on the server, prepend ~/ to the path portion.  If the user name is not embedded in the URL, it can be set with the <a Class="emphasis" href="./CURLOPT_USERPWD.html">CURLOPT_USERPWD</a> or <a Class="emphasis" href="./CURLOPT_USERNAME.html">CURLOPT_USERNAME</a> option. 
+<p class="level1">scp://user@example.com/etc/issue - This specifies the file /etc/issue 
+<p class="level1">scp://example.com/~/my-file - This specifies the file my-file in the user's home directory on the server 
+<p class="level1">
+<p class="level0"><a name="SFTP"></a><span class="nroffip">SFTP</span> 
+<p class="level1">The path part of a SFTP request specifies the file to retrieve and from what directory. If the file part is omitted then libcurl downloads the directory listing for the directory specified.  If the path ends in a / then a directory listing is returned instead of a file.  If the path is omitted entirely then the directory listing for the root / home directory will be returned.  If the user name is not embedded in the URL, it can be set with the <a Class="emphasis" href="./CURLOPT_USERPWD.html">CURLOPT_USERPWD</a> or <a Class="emphasis" href="./CURLOPT_USERNAME.html">CURLOPT_USERNAME</a> option. 
+<p class="level1">s<a href="ftp://user">ftp://user</a>:password@example.com/etc/issue - This specifies the file /etc/issue 
+<p class="level1">s<a href="ftp://user">ftp://user</a>@example.com/~/my-file - This specifies the file my-file in the user's home directory 
+<p class="level1">s<a href="ftp://ssh.example.com/">ftp://ssh.example.com/</a>~/Documents/ - This requests a directory listing of the Documents directory under the user's home directory 
+<p class="level1">
+<p class="level0"><a name="LDAP"></a><span class="nroffip">LDAP</span> 
+<p class="level1">The path part of a LDAP request can be used to specify the: Distinguished Name, Attributes, Scope, Filter and Extension for a LDAP search. Each field is separated by a question mark and when that field is not required an empty string with the question mark separator should be included. 
+<p class="level1">ldap://ldap.example.com/o=My%20Organisation - This will perform a LDAP search with the DN as My Organisation. 
+<p class="level1">ldap://ldap.example.com/o=My%20Organisation?postalAddress - This will perform the same search but will only return postalAddress attributes. 
+<p class="level1">ldap://ldap.example.com/?rootDomainNamingContext - This specifies an empty DN and requests information about the rootDomainNamingContext attribute for an Active Directory server. 
+<p class="level1">For more information about the individual components of a LDAP URL please see <a href="http://www.ietf.org/rfc/rfc4516.txt">RFC 4516</a>. 
+<p class="level0"><a name="RTMP"></a><span class="nroffip">RTMP</span> 
+<p class="level1">There's no official URL spec for RTMP so libcurl uses the URL syntax supported by the underlying librtmp library. It has a syntax where it wants a traditional URL, followed by a space and a series of space-separated name=value pairs. 
+<p class="level1">While space is not typically a "legal" letter, libcurl accepts them. When a user wants to pass in a '#' (hash) character it will be treated as a fragment and get cut off by libcurl if provided literally. You will instead have to escape it by providing it as backslash and its ASCII value in hexadecimal: "\23". <a name="DEFAULT"></a><h2 class="nroffsh">DEFAULT</h2>
+<p class="level0">There is no default URL. If this option isn't set, no transfer can be performed. <a name="PROTOCOLS"></a><h2 class="nroffsh">PROTOCOLS</h2>
+<p class="level0">All <a name="EXAMPLE"></a><h2 class="nroffsh">EXAMPLE</h2>
+<p class="level0"><pre>
+<p class="level0">&nbsp;  curl_easy_setopt(curl, CURLOPT_URL, "<a href="http://example.com">http://example.com</a>");
+ </pre>
+<a name="AVAILABILITY"></a><h2 class="nroffsh">AVAILABILITY</h2>
+<p class="level0">POP3 and SMTP added in 7.31.0 <a name="RETURN"></a><h2 class="nroffsh">RETURN VALUE</h2>
+<p class="level0">Returns CURLE_OK on success or CURLE_OUT_OF_MEMORY if there was insufficient heap space. <a name="SEE"></a><h2 class="nroffsh">SEE ALSO</h2>
+<p class="level0"><a Class="manpage" href="./CURLOPT_VERBOSE.html">CURLOPT_VERBOSE</a> <a Class="manpage" href="./CURLOPT_PROTOCOLS.html">CURLOPT_PROTOCOLS</a> <span Class="manpage"> </span> <span Class="manpage">curl_easy_perform (3)</span> <p class="roffit">
+ This HTML page was made with <a href="http://daniel.haxx.se/projects/roffit/">roffit</a>.
+</body></html>

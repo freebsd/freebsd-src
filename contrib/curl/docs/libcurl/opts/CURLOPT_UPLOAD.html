@@ -1,0 +1,62 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+ "http://www.w3.org/TR/html4/loose.dtd">
+<html><head>
+<title>CURLOPT_UPLOAD man page</title>
+<meta name="generator" content="roffit">
+<STYLE type="text/css">
+P.level0 {
+ padding-left: 2em;
+}
+
+P.level1 {
+ padding-left: 4em;
+}
+
+P.level2 {
+ padding-left: 6em;
+}
+
+span.emphasis {
+ font-style: italic;
+}
+
+span.bold {
+ font-weight: bold;
+}
+
+span.manpage {
+ font-weight: bold;
+}
+
+h2.nroffsh {
+ background-color: #e0e0e0;
+}
+
+span.nroffip {
+ font-weight: bold;
+ font-size: 120%;
+ font-family: monospace;
+}
+
+p.roffit {
+ text-align: center;
+ font-size: 80%;
+}
+</STYLE>
+</head><body>
+
+<p class="level0"><a name="NAME"></a><h2 class="nroffsh">NAME</h2>
+<p class="level0">CURLOPT_UPLOAD - enable data upload <a name="SYNOPSIS"></a><h2 class="nroffsh">SYNOPSIS</h2>
+<p class="level0">#include &lt;curl/curl.h&gt; 
+<p class="level0">CURLcode curl_easy_setopt(CURL *handle, CURLOPT_UPLOAD, long upload); <a name="DESCRIPTION"></a><h2 class="nroffsh">DESCRIPTION</h2>
+<p class="level0">The long parameter <span Class="emphasis">upload</span> set to 1 tells the library to prepare for and perform an upload. The <a Class="emphasis" href="./CURLOPT_READDATA.html">CURLOPT_READDATA</a> and <a Class="emphasis" href="./CURLOPT_INFILESIZE.html">CURLOPT_INFILESIZE</a> or <a Class="emphasis" href="./CURLOPT_INFILESIZE_LARGE.html">CURLOPT_INFILESIZE_LARGE</a> options are also interesting for uploads. If the protocol is HTTP, uploading means using the PUT request unless you tell libcurl otherwise. 
+<p class="level0">Using PUT with HTTP 1.1 implies the use of a "Expect: 100-continue" header. You can disable this header with <a Class="emphasis" href="./CURLOPT_HTTPHEADER.html">CURLOPT_HTTPHEADER</a> as usual. 
+<p class="level0">If you use PUT to a HTTP 1.1 server, you can upload data without knowing the size before starting the transfer if you use chunked encoding. You enable this by adding a header like "Transfer-Encoding: chunked" with <a Class="emphasis" href="./CURLOPT_HTTPHEADER.html">CURLOPT_HTTPHEADER</a>. With HTTP 1.0 or without chunked transfer, you must specify the size. <a name="DEFAULT"></a><h2 class="nroffsh">DEFAULT</h2>
+<p class="level0">0, default is download <a name="PROTOCOLS"></a><h2 class="nroffsh">PROTOCOLS</h2>
+<p class="level0">Most <a name="EXAMPLE"></a><h2 class="nroffsh">EXAMPLE</h2>
+<p class="level0">TODO <a name="AVAILABILITY"></a><h2 class="nroffsh">AVAILABILITY</h2>
+<p class="level0">Always <a name="RETURN"></a><h2 class="nroffsh">RETURN VALUE</h2>
+<p class="level0">Returns CURLE_OK <a name="SEE"></a><h2 class="nroffsh">SEE ALSO</h2>
+<p class="level0"><a Class="manpage" href="./CURLOPT_PUT.html">CURLOPT_PUT</a> <a Class="manpage" href="./CURLOPT_READFUNCTION.html">CURLOPT_READFUNCTION</a> <span Class="manpage"> </span> <a Class="manpage" href="./CURLOPT_INFILESIZE_LARGE.html">CURLOPT_INFILESIZE_LARGE</a> <span Class="manpage"> </span> <p class="roffit">
+ This HTML page was made with <a href="http://daniel.haxx.se/projects/roffit/">roffit</a>.
+</body></html>

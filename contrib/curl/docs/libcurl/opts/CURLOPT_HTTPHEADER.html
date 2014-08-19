@@ -1,0 +1,66 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+ "http://www.w3.org/TR/html4/loose.dtd">
+<html><head>
+<title>CURLOPT_HTTPHEADER man page</title>
+<meta name="generator" content="roffit">
+<STYLE type="text/css">
+P.level0 {
+ padding-left: 2em;
+}
+
+P.level1 {
+ padding-left: 4em;
+}
+
+P.level2 {
+ padding-left: 6em;
+}
+
+span.emphasis {
+ font-style: italic;
+}
+
+span.bold {
+ font-weight: bold;
+}
+
+span.manpage {
+ font-weight: bold;
+}
+
+h2.nroffsh {
+ background-color: #e0e0e0;
+}
+
+span.nroffip {
+ font-weight: bold;
+ font-size: 120%;
+ font-family: monospace;
+}
+
+p.roffit {
+ text-align: center;
+ font-size: 80%;
+}
+</STYLE>
+</head><body>
+
+<p class="level0"><a name="NAME"></a><h2 class="nroffsh">NAME</h2>
+<p class="level0">CURLOPT_HTTPHEADER - set custom HTTP headers <a name="SYNOPSIS"></a><h2 class="nroffsh">SYNOPSIS</h2>
+<p class="level0">#include &lt;curl/curl.h&gt; 
+<p class="level0">CURLcode curl_easy_setopt(CURL *handle, CURLOPT_HTTPHEADER, struct curl_slist *headers); <a name="DESCRIPTION"></a><h2 class="nroffsh">DESCRIPTION</h2>
+<p class="level0">Pass a pointer to a linked list of HTTP headers to pass to the server and/or proxy in your HTTP request. The same list can be used for both host and proxy requests! 
+<p class="level0">The linked list should be a fully valid list of <span Class="bold">struct curl_slist</span> structs properly filled in. Use <span Class="emphasis">curl_slist_append(3)</span> to create the list and <span Class="emphasis">curl_slist_free_all(3)</span> to clean up an entire list. If you add a header that is otherwise generated and used by libcurl internally, your added one will be used instead. If you add a header with no content as in 'Accept:' (no data on the right side of the colon), the internally used header will get disabled. With this option you can add new headers, replace internal headers and remove internal headers. To add a header with no content (nothing to the right side of the colon), use the form 'MyHeader;' (note the ending semicolon). 
+<p class="level0">The headers included in the linked list <span Class="bold">must not</span> be CRLF-terminated, because libcurl adds CRLF after each header item. Failure to comply with this will result in strange bugs because the server will most likely ignore part of the headers you specified. 
+<p class="level0">The first line in a request (containing the method, usually a GET or POST) is not a header and cannot be replaced using this option. Only the lines following the request-line are headers. Adding this method line in this list of headers will only cause your request to send an invalid header. Use <a Class="emphasis" href="./CURLOPT_CUSTOMREQUEST.html">CURLOPT_CUSTOMREQUEST</a> to change the method. 
+<p class="level0">Pass a NULL to this option to reset back to no custom headers. 
+<p class="level0">The most commonly replaced headers have "shortcuts" in the options <a Class="emphasis" href="./CURLOPT_COOKIE.html">CURLOPT_COOKIE</a>, <a Class="emphasis" href="./CURLOPT_USERAGENT.html">CURLOPT_USERAGENT</a> and <a Class="emphasis" href="./CURLOPT_REFERER.html">CURLOPT_REFERER</a>. 
+<p class="level0">There's an alternative option that sets or replaces headers only for requests that are sent with CONNECT to a proxy: <a Class="emphasis" href="./CURLOPT_PROXYHEADER.html">CURLOPT_PROXYHEADER</a>. Use <a Class="emphasis" href="./CURLOPT_HEADEROPT.html">CURLOPT_HEADEROPT</a> to control the behavior. <a name="DEFAULT"></a><h2 class="nroffsh">DEFAULT</h2>
+<p class="level0">NULL <a name="PROTOCOLS"></a><h2 class="nroffsh">PROTOCOLS</h2>
+<p class="level0">HTTP <a name="EXAMPLE"></a><h2 class="nroffsh">EXAMPLE</h2>
+<p class="level0">TODO <a name="AVAILABILITY"></a><h2 class="nroffsh">AVAILABILITY</h2>
+<p class="level0">As long as HTTP is enabled <a name="RETURN"></a><h2 class="nroffsh">RETURN VALUE</h2>
+<p class="level0">Returns CURLE_OK if HTTP is supported, and CURLE_UNKNOWN_OPTION if not. <a name="SEE"></a><h2 class="nroffsh">SEE ALSO</h2>
+<p class="level0"><a Class="manpage" href="./CURLOPT_CUSTOMREQUEST.html">CURLOPT_CUSTOMREQUEST</a> <a Class="manpage" href="./CURLOPT_HEADEROPT.html">CURLOPT_HEADEROPT</a> <span Class="manpage"> </span> <a Class="manpage" href="./CURLOPT_PROXYHEADER.html">CURLOPT_PROXYHEADER</a> <p class="roffit">
+ This HTML page was made with <a href="http://daniel.haxx.se/projects/roffit/">roffit</a>.
+</body></html>

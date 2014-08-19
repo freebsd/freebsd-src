@@ -1,0 +1,79 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+ "http://www.w3.org/TR/html4/loose.dtd">
+<html><head>
+<title>CURLOPT_IOCTLFUNCTION man page</title>
+<meta name="generator" content="roffit">
+<STYLE type="text/css">
+P.level0 {
+ padding-left: 2em;
+}
+
+P.level1 {
+ padding-left: 4em;
+}
+
+P.level2 {
+ padding-left: 6em;
+}
+
+span.emphasis {
+ font-style: italic;
+}
+
+span.bold {
+ font-weight: bold;
+}
+
+span.manpage {
+ font-weight: bold;
+}
+
+h2.nroffsh {
+ background-color: #e0e0e0;
+}
+
+span.nroffip {
+ font-weight: bold;
+ font-size: 120%;
+ font-family: monospace;
+}
+
+p.roffit {
+ text-align: center;
+ font-size: 80%;
+}
+</STYLE>
+</head><body>
+
+<p class="level0"><a name="NAME"></a><h2 class="nroffsh">NAME</h2>
+<p class="level0">CURLOPT_IOCTLFUNCTION - callback for I/O operations <a name="SYNOPSIS"></a><h2 class="nroffsh">SYNOPSIS</h2>
+<p class="level0"><pre>
+<p class="level0">#include &lt;curl/curl.h&gt;
+ <p class="level0">typedef enum {
+ &nbsp; CURLIOE_OK,            /* I/O operation successful */
+ &nbsp; CURLIOE_UNKNOWNCMD,    /* command was unknown to callback */
+ &nbsp; CURLIOE_FAILRESTART,   /* failed to restart the read */
+ &nbsp; CURLIOE_LAST           /* never use */
+ } curlioerr;
+ <p class="level0">typedef enum  {
+ &nbsp; CURLIOCMD_NOP,         /* no operation */
+ &nbsp; CURLIOCMD_RESTARTREAD, /* restart the read stream from start */
+ &nbsp; CURLIOCMD_LAST         /* never use */
+ } curliocmd;
+ <p class="level0">curlioerr ioctl_callback(CURL *handle, int cmd, void *clientp);
+ <p class="level0">CURLcode curl_easy_setopt(CURL *handle, CURLOPT_IOCTLFUNCTION, ioctl_callback);
+ </pre>
+<a name="DESCRIPTION"></a><h2 class="nroffsh">DESCRIPTION</h2>
+<p class="level0">Pass a pointer to your callback function, which should match the prototype shown above. 
+<p class="level0">This callback function gets called by libcurl when something special I/O-related needs to be done that the library can't do by itself. For now, rewinding the read data stream is the only action it can request. The rewinding of the read data stream may be necessary when doing a HTTP PUT or POST with a multi-pass authentication method. 
+<p class="level0">The callback MUST return <span Class="emphasis">CURLIOE_UNKNOWNCMD</span> if the input <span Class="emphasis">cmd</span> is not <span Class="emphasis">CURLIOCMD_RESTARTREAD</span>. 
+<p class="level0">The <span Class="emphasis">clientp</span> argument to the callback is set with the fUICURLOPT_IOCTLDATA(3)</span> option. 
+<p class="level0">This option is deprecated! Do not use it. Use <a Class="emphasis" href="./CURLOPT_SEEKFUNCTION.html">CURLOPT_SEEKFUNCTION</a> instead to provide seeking! If <a Class="emphasis" href="./CURLOPT_SEEKFUNCTION.html">CURLOPT_SEEKFUNCTION</a> is set, this parameter will be ignored when seeking. <a name="DEFAULT"></a><h2 class="nroffsh">DEFAULT</h2>
+<p class="level0">By default, this parameter is set to NULL. Not used. <a name="PROTOCOLS"></a><h2 class="nroffsh">PROTOCOLS</h2>
+<p class="level0">Used with HTTP <a name="EXAMPLE"></a><h2 class="nroffsh">EXAMPLE</h2>
+<p class="level0">TODO <a name="AVAILABILITY"></a><h2 class="nroffsh">AVAILABILITY</h2>
+<p class="level0">Added in 7.12.3 <a name="RETURN"></a><h2 class="nroffsh">RETURN VALUE</h2>
+<p class="level0">Returns CURLE_OK if the option is supported, and CURLE_UNKNOWN_OPTION if not. <a name="SEE"></a><h2 class="nroffsh">SEE ALSO</h2>
+<p class="level0"><a Class="manpage" href="./CURLOPT_IOCTLDATA.html">CURLOPT_IOCTLDATA</a> <a Class="manpage" href="./CURLOPT_SEEKFUNCTION.html">CURLOPT_SEEKFUNCTION</a> <span Class="manpage"> </span> <p class="roffit">
+ This HTML page was made with <a href="http://daniel.haxx.se/projects/roffit/">roffit</a>.
+</body></html>
