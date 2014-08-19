@@ -6,7 +6,7 @@ SRCS=	cheri_helloworld.c
 MAN=
 USE_CHERI=	yes
 
-#DPADD=  ${LIBDEVSTAT} ${LIBKVM} ${LIBMEMSTAT} ${LIBUTIL}
+DPADD=	${LIBCHERI}
 LDADD=  -lcheri
 
 NO_SHARED?=	YES

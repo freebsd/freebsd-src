@@ -8,10 +8,8 @@ INCS=	cheri_helloworld-helper.h
 
 LDFLAGS+=	-Wl,--script=${.CURDIR}/sandbox.ld -nostdlib
 MAN=
-#STRIP=
 DPADD=	${LIBC_CHERI}
 LDADD=	-lc_cheri
-#LDADD=	${.OBJDIR}/../../lib/csu/cheri/crt_sb.o -lc_cheri
 
 USE_CHERI=	yes
 USE_CHERI_STACK=	yes
@@ -30,9 +28,6 @@ cheri_helloworld-helper.bin: cheri_helloworld-helper
 
 cheri_helloworld-helper.dump: cheri_helloworld-helper
 	objdump -xsSD ${.ALLSRC} > ${.TARGET}
-
-.PATH: ${.CURDIR}/../../lib/libc/${MACHINE}/string
-.PATH: ${.CURDIR}/../../lib/libc/string
 
 .include <src.opts.mk>
 .include <bsd.prog.mk>
