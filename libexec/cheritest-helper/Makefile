@@ -10,7 +10,6 @@ INCS=	cheritest-helper.h
 LDFLAGS+=	-Wl,--script=${.CURDIR}/../../lib/libc_cheri/sandbox.ld \
 		-nostdlib
 MAN=
-#STRIP=
 DPADD=	${LIBMD} ${LIBC_CHERI}
 LDADD=	-lmd -lc_cheri
 
@@ -31,10 +30,6 @@ cheritest-helper.bin: cheritest-helper
 
 cheritest-helper.dump: cheritest-helper
 	objdump -xsSD ${.ALLSRC} > ${.TARGET}
-
-.PATH: ${.CURDIR}/${MACHINE_ARCH}
-.PATH: ${.CURDIR}/../../lib/libc/${MACHINE}/string
-.PATH: ${.CURDIR}/../../lib/libc/string
 
 .include <src.opts.mk>
 .include <bsd.prog.mk>
