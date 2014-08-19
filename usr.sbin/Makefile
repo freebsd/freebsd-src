@@ -47,6 +47,7 @@ SUBDIR=	${_ac} \
 	${_editmap} \
 	${_edquota} \
 	${_eeprom} \
+	etcupdate \
 	extattr \
 	extattrctl \
 	${_faithd} \
