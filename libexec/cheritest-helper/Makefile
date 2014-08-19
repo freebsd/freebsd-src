@@ -3,8 +3,7 @@
 #
 PROG=	cheritest-helper
 SRCS=	cheritest-helper.c			\
-	stub.c					\
-	chsbrt.S
+	stub.c
 
 INCS=	cheritest-helper.h
 
@@ -23,8 +22,8 @@ FILESOWN=       ${LIBOWN}
 FILESGRP=       ${LIBGRP}
 FILESMODE=      ${LIBMODE}
 FILESDIR=       ${LIBEXECDIR}
-FILES=		cheritest-helper.bin cheritest-helper.dump chsbrt.o
-CLEANFILES=	cheritest-helper.bin cheritest-helper.dump chsbrt.o
+FILES=		cheritest-helper.bin cheritest-helper.dump
+CLEANFILES=	cheritest-helper.bin cheritest-helper.dump
 
 cheritest-helper.bin: cheritest-helper
 	objcopy -S -O binary ${.ALLSRC} ${.TARGET}

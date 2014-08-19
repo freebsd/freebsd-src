@@ -9,6 +9,7 @@
 # naming just these few items.
 
 SUBDIR_ORDERED=	${_csu} \
+	${_csu_cheri} \
 	.WAIT \
 	libc \
 	libc_nonshared \
@@ -156,6 +157,11 @@ _csu=csu/${MACHINE_ARCH}
 _csu=csu/${MACHINE_CPUARCH}
 .else
 _csu=csu
+.endif
+
+# XXXRW: And arguable also mips64-dependent
+.if ${MK_CHERI} != "no"
+_csu_cheri=csu/cheri
 .endif
 
 # NB: keep these sorted by MK_* knobs

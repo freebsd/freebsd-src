@@ -40,7 +40,7 @@ SECTIONS
 {
 	. = __code_base__;
 
-	.text ALIGN(0x8): { chsbrt.o }
+	.text ALIGN(0x8): { crt_sb.o }
 	.text ALIGN(0x8): { *(.text) }
 	.MIPS.options ALIGN(0x8): { *(.MIPS.options) }
 	.bss ALIGN(0x8): { *(.bss) }

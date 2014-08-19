@@ -2,8 +2,7 @@
 # $FreeBSD$
 #
 PROG=	cheri_helloworld-helper
-SRCS=	cheri_helloworld-helper.c		\
-	chsbrt.S
+SRCS=	cheri_helloworld-helper.c
 
 INCS=	cheri_helloworld-helper.h
 
@@ -12,6 +11,7 @@ MAN=
 #STRIP=
 DPADD=	${LIBC_CHERI}
 LDADD=	-lc_cheri
+#LDADD=	${.OBJDIR}/../../lib/csu/cheri/crt_sb.o -lc_cheri
 
 USE_CHERI=	yes
 USE_CHERI_STACK=	yes
@@ -22,8 +22,8 @@ FILESOWN=       ${LIBOWN}
 FILESGRP=       ${LIBGRP}
 FILESMODE=      ${LIBMODE}
 FILESDIR=       ${LIBEXECDIR}
-FILES=		cheri_helloworld-helper.bin cheri_helloworld-helper.dump chsbrt.o
-CLEANFILES=	cheri_helloworld-helper.bin cheri_helloworld-helper.dump chsbrt.o
+FILES=		cheri_helloworld-helper.bin cheri_helloworld-helper.dump
+CLEANFILES=	cheri_helloworld-helper.bin cheri_helloworld-helper.dump
 
 cheri_helloworld-helper.bin: cheri_helloworld-helper
 	objcopy -S -O binary ${.ALLSRC} ${.TARGET}
@@ -31,7 +31,6 @@ cheri_helloworld-helper.bin: cheri_helloworld-helper
 cheri_helloworld-helper.dump: cheri_helloworld-helper
 	objdump -xsSD ${.ALLSRC} > ${.TARGET}
 
-.PATH: ${.CURDIR}/${MACHINE_ARCH}
 .PATH: ${.CURDIR}/../../lib/libc/${MACHINE}/string
 .PATH: ${.CURDIR}/../../lib/libc/string
 
