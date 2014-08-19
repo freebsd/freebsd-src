@@ -66,6 +66,8 @@ int	vm_set_desc(struct vmctx *ctx, int vcpu, int reg,
 		    uint64_t base, uint32_t limit, uint32_t access);
 int	vm_get_desc(struct vmctx *ctx, int vcpu, int reg,
 		    uint64_t *base, uint32_t *limit, uint32_t *access);
+int	vm_get_seg_desc(struct vmctx *ctx, int vcpu, int reg,
+			struct seg_desc *seg_desc);
 int	vm_set_register(struct vmctx *ctx, int vcpu, int reg, uint64_t val);
 int	vm_get_register(struct vmctx *ctx, int vcpu, int reg, uint64_t *retval);
 int	vm_run(struct vmctx *ctx, int vcpu, uint64_t rip,
@@ -104,6 +106,9 @@ int	vm_setup_pptdev_msix(struct vmctx *ctx, int vcpu, int bus, int slot,
 	    int func, int idx, uint64_t addr, uint64_t msg,
 	    uint32_t vector_control);
 
+int	vm_get_intinfo(struct vmctx *ctx, int vcpu, uint64_t *i1, uint64_t *i2);
+int	vm_set_intinfo(struct vmctx *ctx, int vcpu, uint64_t exit_intinfo);
+
 /*
  * Return a pointer to the statistics buffer. Note that this is not MT-safe.
  */
@@ -121,7 +126,7 @@ int	vm_get_hpet_capabilities(struct vmctx *ctx, uint32_t *capabilities);
  * The 'iovcnt' should be big enough to accomodate all GPA segments.
  * Returns 0 on success, 1 on a guest fault condition and -1 otherwise.
  */
-int	vm_gla2gpa(struct vmctx *ctx, int vcpu, struct vm_guest_paging *paging,
+int	vm_copy_setup(struct vmctx *ctx, int vcpu, struct vm_guest_paging *pg,
 	    uint64_t gla, size_t len, int prot, struct iovec *iov, int iovcnt);
 void	vm_copyin(struct vmctx *ctx, int vcpu, struct iovec *guest_iov,
 	    void *host_dst, size_t len);
