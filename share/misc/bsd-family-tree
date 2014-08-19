@@ -303,9 +303,18 @@ FreeBSD 5.2           |      |                 |                       |
  |             |      |      |    NetBSD 6.1.4 |                       |
  |             |      |      |                 |                       |
  |             |      |      |            OpenBSD 5.5                  |
+ |             |      |      |                 |                       |
  |             |      |      |                 |               DragonFly 3.8.0
+ |             |      |      |                 |                       |
+ |             |      |      |                 |                       |
+ |             |      |      |                 |               DragonFly 3.8.1
+ |             |      |      |                 |                       |
+ |             |      |      |                 |                       |
+ |             |      |      |                 |               DragonFly 3.6.3
+ |             |      |      |                 |                       |
  |          FreeBSD   |      |                 |                       |
  |            9.3     |      |                 |                       |
+ |                    |      |                 |               DragonFly 3.8.2
  |                    |      |                 |                       |
  |                    |      |                 |                       |
  |                    |      |                 |                       |
@@ -640,7 +649,10 @@ NetBSD 6.0.5		2014-04-19 [NDB]
 NetBSD 6.1.4		2014-04-19 [NDB]
 OpenBSD 5.5		2014-05-01 [OBD]
 DragonFly 3.8.0		2014-06-04 [DFB]
+DragonFly 3.8.1		2014-06-16 [DFB]
+DragonFly 3.6.3		2014-06-17 [DFB]
 FreeBSD 9.3		2014-07-05 [FBD]
+DragonFly 3.8.2		2014-08-08 [DFB]
 
 Bibliography
 ------------------------
