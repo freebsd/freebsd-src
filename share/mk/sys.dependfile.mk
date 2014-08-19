@@ -1,4 +1,4 @@
-# $Id: sys.dependfile.mk,v 1.5 2013/03/08 00:59:21 sjg Exp $
+# $Id: sys.dependfile.mk,v 1.6 2014/08/02 18:02:06 sjg Exp $
 #
 #	@(#) Copyright (c) 2012, Simon J. Gerraty
 #
@@ -24,6 +24,12 @@
 
 # All depend file names should start with this
 .MAKE.DEPENDFILE_PREFIX ?= Makefile.depend
+
+.if !empty(.MAKE.DEPENDFILE) && \
+	${.MAKE.DEPENDFILE:M${.MAKE.DEPENDFILE_PREFIX}*} == ""
+# let us do our thing below...
+.undef .MAKE.DEPENDFILE
+.endif
 
 # The order of preference: we will use the first one of these we find.
 # It usually makes sense to order from most specific to least.

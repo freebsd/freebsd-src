@@ -62,7 +62,7 @@ ip175d_reset(struct ip17x_softc *sc)
 
 	/* Reset all the switch settings. */
 	ip17x_writephy(sc->sc_dev, IP175D_RESET_PHY, IP175D_RESET_REG, 0x175d);
-	DELAY(2);
+	DELAY(2000);
 
 	/* Disable the special tagging mode. */
 	ip17x_updatephy(sc->sc_dev, 21, 22, 0x3, 0x0);

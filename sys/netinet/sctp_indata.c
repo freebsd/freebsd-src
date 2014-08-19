@@ -250,6 +250,11 @@ sctp_build_ctl_nchunk(struct sctp_inpcb *inp, struct sctp_sndrcvinfo *sinfo)
 
 	/* We need a CMSG header followed by the struct */
 	cmh = mtod(ret, struct cmsghdr *);
+	/*
+	 * Make sure that there is no un-initialized padding between the
+	 * cmsg header and cmsg data and after the cmsg data.
+	 */
+	memset(cmh, 0, len);
 	if (sctp_is_feature_on(inp, SCTP_PCB_FLAGS_RECVRCVINFO)) {
 		cmh->cmsg_level = IPPROTO_SCTP;
 		cmh->cmsg_len = CMSG_LEN(sizeof(struct sctp_rcvinfo));

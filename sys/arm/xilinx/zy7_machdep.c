@@ -51,31 +51,32 @@ __FBSDID("$FreeBSD$");
 #include <machine/bus.h>
 #include <machine/devmap.h>
 #include <machine/machdep.h>
+#include <machine/platform.h> 
 
 #include <arm/xilinx/zy7_reg.h>
 
 void (*zynq7_cpu_reset)(void);
 
 vm_offset_t
-initarm_lastaddr(void)
+platform_lastaddr(void)
 {
 
 	return (arm_devmap_lastaddr());
 }
 
 void
-initarm_early_init(void)
+platform_probe_and_attach(void)
 {
 
 }
 
 void
-initarm_gpio_init(void)
+platform_gpio_init(void)
 {
 }
 
 void
-initarm_late_init(void)
+platform_late_init(void)
 {
 }
 
@@ -85,7 +86,7 @@ initarm_late_init(void)
  * nice efficient 1MB section mappings.
  */
 int
-initarm_devmap_init(void)
+platform_devmap_init(void)
 {
 
 	arm_devmap_add_entry(ZYNQ7_PSIO_HWBASE, ZYNQ7_PSIO_SIZE);

@@ -1,4 +1,4 @@
-/* $Id: main.c,v 1.49 2014/04/09 21:25:20 Rick.Spates Exp $ */
+/* $Id: main.c,v 1.51 2014/05/28 02:01:55 Tom.Shields Exp $ */
 
 #include <signal.h>
 #ifndef _WIN32
@@ -166,6 +166,7 @@ done(int k)
     lr0_leaks();
     lalr_leaks();
     mkpar_leaks();
+    mstring_leaks();
     output_leaks();
     reader_leaks();
 #endif
@@ -207,7 +208,6 @@ usage(void)
 	,"  -b file_prefix        set filename prefix (default \"y.\")"
 	,"  -B                    create a backtracking parser"
 	,"  -d                    write definitions (" DEFINES_SUFFIX ")"
-	,"  -D                    enable value stack memory reclamation"
 	,"  -i                    write interface (y.tab.i)"
 	,"  -g                    write a graphical description"
 	,"  -l                    suppress #line directives"

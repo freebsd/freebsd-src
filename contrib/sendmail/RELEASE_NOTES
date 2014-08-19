@@ -1,10 +1,19 @@
 			SENDMAIL RELEASE NOTES
-      $Id: RELEASE_NOTES,v 8.2043 2014/01/23 20:27:19 ca Exp $
 
 
 This listing shows the version of the sendmail binary, the version
 of the sendmail configuration files, the date of release, and a
 summary of the changes in that release.
+
+8.14.9/8.14.9	2014/05/21
+	SECURITY: Properly set the close-on-exec flag for file descriptors
+		(except stdin, stdout, and stderr) before executing mailers.
+	Fix a misformed comment in conf.c: "/*" within comment
+		which may cause a compilation error on some systems.
+		Problem reported by John Beck of Oracle.
+	DEVTOOLS: Fix regression in auto-detection of libraries when only
+		shared libraries are available.  Problem reported by
+		Bryan Costales.
 
 8.14.8/8.14.8	2014/01/26
 	Properly initialize all OpenSSL algorithms for versions before

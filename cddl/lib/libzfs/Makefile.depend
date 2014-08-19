@@ -3,6 +3,7 @@
 DEP_RELDIR := ${_PARSEDIR:S,${SRCTOP}/,,}
 
 DIRDEPS = \
+	cddl/lib/libavl \
 	cddl/lib/libnvpair \
 	cddl/lib/libumem \
 	cddl/lib/libzfs_core \

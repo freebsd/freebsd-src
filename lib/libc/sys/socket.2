@@ -57,23 +57,29 @@ These families are defined in the include file
 The currently understood formats are:
 .Pp
 .Bd -literal -offset indent -compact
-PF_LOCAL	Host-internal protocols, formerly called PF_UNIX,
-PF_UNIX		Host-internal protocols, deprecated, use PF_LOCAL,
+PF_LOCAL	Host-internal protocols (alias for PF_UNIX),
+PF_UNIX		Host-internal protocols,
 PF_INET		Internet version 4 protocols,
-PF_PUP		PUP protocols, like BSP,
-PF_APPLETALK	AppleTalk protocols,
-PF_ROUTE	Internal Routing protocol,
-PF_LINK		Link layer interface,
-PF_IPX		Novell Internet Packet eXchange protocol,
-PF_RTIP		Help Identify RTIP packets,
-PF_PIP		Help Identify PIP packets,
-PF_ISDN		Integrated Services Digital Network,
-PF_KEY		Internal key-management function,
 PF_INET6	Internet version 6 protocols,
-PF_NATM		Native ATM access,
-PF_ATM		ATM,
-PF_NETGRAPH	Netgraph sockets
+PF_ROUTE	Internal routing protocol,
+PF_LINK		Link layer interface,
+PF_KEY		Internal key-management function,
+PF_NATM		Asynchronous transfer mode protocols,
+PF_NETGRAPH	Netgraph sockets,
+PF_IEEE80211	IEEE 802.11 wireless link-layer protocols (WiFi),
+PF_BLUETOOTH	Bluetooth protocols,
+PF_INET_SDP	OFED socket direct protocol (IPv4),
+PF_INET6_SDP	OFED socket direct protocol (IPv6)
 .Ed
+.Pp
+Each protocol family is connected to an address family, which has the
+same name except that the prefix is
+.Dq Dv AF_
+in place of
+.Dq Dv PF_ .
+Other protocol families may be also defined, beginning with
+.Dq Dv PF_ ,
+with corresponding address families.
 .Pp
 The socket has the indicated
 .Fa type ,
@@ -307,6 +313,37 @@ The socket type is not supported by the protocol.
 .%B PS1
 .%N 8
 .Re
+.Sh STANDARDS
+The
+.Fn socket
+function conforms to
+.St -p1003.1-2008 .
+The
+.Tn POSIX
+standard specifies only the
+.Dv AF_INET ,
+.Dv AF_INET6 ,
+and
+.Dv AF_UNIX
+constants for address families, and requires the use of
+.Dv AF_*
+constants for the
+.Fa domain
+argument of
+.Fn socket .
+The
+.Dv SOCK_CLOEXEC
+flag is expected to conform to the next revision of the
+.Tn POSIX
+standard.
+The
+.Dv SOCK_RDM
+.Fa type ,
+the
+.Dv PF_*
+constants, and other address families are
+.Fx
+extensions.
 .Sh HISTORY
 The
 .Fn socket

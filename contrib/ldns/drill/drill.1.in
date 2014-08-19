@@ -83,6 +83,11 @@ Chase the signature(s) of 'name' to a known key or as high up in
 the tree as possible.
 
 .TP
+\fB\-I  \fIIPv4 or IPv6 address\fR
+Source address to query from.  The source address has to be present
+on an interface of the host running drill.
+
+.TP
 \fB\-V \fIlevel\fR
 Be more verbose. Set level to 5 to see the actual query that is sent.
 
@@ -216,6 +221,12 @@ specify named base64 tsig key, and optional an algorithm (defaults to hmac-md5.s
 .TP
 \fB\-z \fR
 don't randomize the nameserver list before sending queries.
+
+.SH "EXIT STATUS"
+The exit status is 0 if the looked up answer is secure and trusted,
+or insecure.
+The exit status is not 0 if the looked up answer is untrusted or bogus,
+or an error occurred while performing the lookup.
 
 .SH "FILES"
 .TP

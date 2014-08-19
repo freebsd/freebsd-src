@@ -80,7 +80,7 @@ lm_init(char *libmap_override)
 
 	if (libmap_override) {
 		/*
-		 * Do some character replacement to make $LIBMAP look
+		 * Do some character replacement to make $LDLIBMAP look
 		 * like a text file, then parse it.
 		 */
 		libmap_override = xstrdup(libmap_override);
@@ -94,8 +94,8 @@ lm_init(char *libmap_override)
 				break;
 			}
 		}
-		lmc_parse(p, strlen(p));
-		free(p);
+		lmc_parse(libmap_override, p - libmap_override);
+		free(libmap_override);
 	}
 
 	return (lm_count == 0);

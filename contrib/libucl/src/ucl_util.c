@@ -1330,20 +1330,10 @@ ucl_object_find_keyl (const ucl_object_t *obj, const char *key, size_t klen)
 const ucl_object_t *
 ucl_object_find_key (const ucl_object_t *obj, const char *key)
 {
-	size_t klen;
-	const ucl_object_t *ret;
-	ucl_object_t srch;
-
-	if (obj == NULL || obj->type != UCL_OBJECT || key == NULL) {
+	if (key == NULL)
 		return NULL;
-	}
 
-	klen = strlen (key);
-	srch.key = key;
-	srch.keylen = klen;
-	ret = ucl_hash_search_obj (obj->value.ov, &srch);
-
-	return ret;
+	return ucl_object_find_keyl (obj, key, strlen(key));
 }
 
 const ucl_object_t*
@@ -1396,6 +1386,58 @@ ucl_iterate_object (const ucl_object_t *obj, ucl_object_iter_t *iter, bool expan
 	return NULL;
 }
 
+const ucl_object_t *
+ucl_lookup_path (const ucl_object_t *top, const char *path_in) {
+	const ucl_object_t *o = NULL, *found;
+	const char *p, *c;
+	char *err_str;
+	unsigned index;
+
+	if (path_in == NULL || top == NULL) {
+		return NULL;
+	}
+
+	found = NULL;
+	p = path_in;
+
+	/* Skip leading dots */
+	while (*p == '.') {
+		p ++;
+	}
+
+	c = p;
+	while (*p != '\0') {
+		p ++;
+		if (*p == '.' || *p == '\0') {
+			if (p > c) {
+				switch (top->type) {
+				case UCL_ARRAY:
+					/* Key should be an int */
+					index = strtoul (c, &err_str, 10);
+					if (err_str != NULL && (*err_str != '.' && *err_str != '\0')) {
+						return NULL;
+					}
+					o = ucl_array_find_index (top, index);
+					break;
+				default:
+					o = ucl_object_find_keyl (top, c, p - c);
+					break;
+				}
+				if (o == NULL) {
+					return NULL;
+				}
+				top = o;
+			}
+			if (*p != '\0') {
+				c = p + 1;
+			}
+		}
+	}
+	found = o;
+
+	return found;
+}
+
 
 ucl_object_t *
 ucl_object_new (void)
@@ -1411,7 +1453,7 @@ ucl_object_new (void)
 }
 
 ucl_object_t *
-ucl_object_typed_new (unsigned int type)
+ucl_object_typed_new (ucl_type_t type)
 {
 	ucl_object_t *new;
 	new = malloc (sizeof (ucl_object_t));
@@ -1421,6 +1463,12 @@ ucl_object_typed_new (unsigned int type)
 		new->type = (type <= UCL_NULL ? type : UCL_NULL);
 	}
 	return new;
+}
+
+ucl_type_t
+ucl_object_type (const ucl_object_t *obj)
+{
+	return obj->type;
 }
 
 ucl_object_t*
@@ -1589,6 +1637,27 @@ ucl_object_t *
 ucl_array_pop_first (ucl_object_t *top)
 {
 	return ucl_array_delete (top, __DECONST(ucl_object_t *, ucl_array_head (top)));
+}
+
+const ucl_object_t *
+ucl_array_find_index (const ucl_object_t *top, unsigned int index)
+{
+	ucl_object_iter_t it = NULL;
+	const ucl_object_t *ret;
+
+	if (top == NULL || top->type != UCL_ARRAY || top->len == 0 ||
+	    (index + 1) > top->len) {
+		return NULL;
+	}
+
+	while ((ret = ucl_iterate_object (top, &it, true)) != NULL) {
+		if (index == 0) {
+			return ret;
+		}
+		--index;
+	}
+
+	return NULL;
 }
 
 ucl_object_t *

@@ -6,6 +6,7 @@ DEP_RELDIR := ${_PARSEDIR:S,${SRCTOP}/,,}
 
 DIRDEPS = \
 	libexec/atf/atf-check \
+	libexec/atf/atf-sh \
 	libexec/atrun \
 	libexec/bootpd/bootpgw \
 	libexec/bootpd/tools/bootpef \

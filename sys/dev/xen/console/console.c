@@ -509,4 +509,4 @@ xcons_force_flush(void)
 	}
 }
 
-DRIVER_MODULE(xc, nexus, xc_driver, xc_devclass, 0, 0);
+DRIVER_MODULE(xc, xenpv, xc_driver, xc_devclass, 0, 0);

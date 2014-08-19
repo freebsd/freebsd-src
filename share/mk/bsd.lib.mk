@@ -45,7 +45,8 @@ STRIP?=	-s
 
 .if ${MK_DEBUG_FILES} != "no" && empty(DEBUG_FLAGS:M-g) && \
     empty(DEBUG_FLAGS:M-gdwarf*)
-CFLAGS+= -g
+SHARED_CFLAGS+= -g
+SHARED_CXXFLAGS+= -g
 CTFFLAGS+= -g
 .endif
 
@@ -162,6 +163,7 @@ LDFLAGS+= -L${_SHLIBDIRPREFIX}${LIBPRIVATEDIR} -rpath ${LIBPRIVATEDIR}
 
 .if defined(LIB) && !empty(LIB) || defined(SHLIB_NAME)
 OBJS+=		${SRCS:N*.h:R:S/$/.o/}
+NOPATH_FILES+=	${OBJS}
 .endif
 
 .if defined(LIB) && !empty(LIB)
@@ -183,6 +185,7 @@ lib${LIB}.a: ${OBJS} ${STATICOBJS}
 .if ${MK_PROFILE} != "no" && defined(LIB) && !empty(LIB)
 _LIBS+=		lib${LIB}_p.a
 POBJS+=		${OBJS:.o=.po} ${STATICOBJS:.o=.po}
+NOPATH_FILES+=	${POBJS}
 
 lib${LIB}_p.a: ${POBJS}
 	@${ECHO} building profiled ${LIB} library
@@ -198,6 +201,7 @@ lib${LIB}_p.a: ${POBJS}
 .if defined(SHLIB_NAME) || \
     defined(INSTALL_PIC_ARCHIVE) && defined(LIB) && !empty(LIB)
 SOBJS+=		${OBJS:.o=.So}
+NOPATH_FILES+=	${SOBJS}
 .endif
 
 .if defined(SHLIB_NAME)
@@ -286,6 +290,7 @@ lib${LIB}_pic.a: ${SOBJS}
 LINTLIB=	llib-l${LIB}.ln
 _LIBS+=		${LINTLIB}
 LINTOBJS+=	${SRCS:M*.c:.c=.ln}
+NOPATH_FILES+=	${LINTOBJS}
 
 ${LINTLIB}: ${LINTOBJS}
 	@${ECHO} building lint library ${.TARGET}
@@ -466,6 +471,10 @@ clean:
 .if !empty(VERSION_DEF) && !empty(SYMBOL_MAPS)
 	rm -f ${VERSION_MAP}
 .endif
+.endif
+
+.if !empty(_LIBS)
+NOPATH_FILES+=	${_LIBS}
 .endif
 
 .include <bsd.obj.mk>

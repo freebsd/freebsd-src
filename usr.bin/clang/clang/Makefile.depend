@@ -83,7 +83,7 @@ DIRDEPS = \
 	lib/libc++ \
 	lib/libcompiler_rt \
 	lib/msun \
-	lib/ncurses/ncurses \
+	lib/ncurses/ncursesw \
 	usr.bin/clang/clang-tblgen.host \
 	usr.bin/clang/tblgen.host \
 

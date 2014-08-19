@@ -20,7 +20,7 @@ DIRDEPS = \
 	lib/libcompiler_rt \
 	lib/libcrypt \
 	lib/libedit \
-	lib/ncurses/ncurses \
+	lib/ncurses/ncursesw \
 	secure/lib/libcrypto \
 
 

@@ -428,54 +428,6 @@ freebsd32_fexecve(struct thread *td, struct freebsd32_fexecve_args *uap)
 	return (error);
 }
 
-#ifdef __ia64__
-static int
-freebsd32_mmap_partial(struct thread *td, vm_offset_t start, vm_offset_t end,
-		       int prot, int fd, off_t pos)
-{
-	vm_map_t map;
-	vm_map_entry_t entry;
-	int rv;
-
-	map = &td->td_proc->p_vmspace->vm_map;
-	if (fd != -1)
-		prot |= VM_PROT_WRITE;
-
-	if (vm_map_lookup_entry(map, start, &entry)) {
-		if ((entry->protection & prot) != prot) {
-			rv = vm_map_protect(map,
-					    trunc_page(start),
-					    round_page(end),
-					    entry->protection | prot,
-					    FALSE);
-			if (rv != KERN_SUCCESS)
-				return (EINVAL);
-		}
-	} else {
-		vm_offset_t addr = trunc_page(start);
-		rv = vm_map_find(map, NULL, 0, &addr, PAGE_SIZE, 0,
-		    VMFS_NO_SPACE, prot, VM_PROT_ALL, 0);
-		if (rv != KERN_SUCCESS)
-			return (EINVAL);
-	}
-
-	if (fd != -1) {
-		struct pread_args r;
-		r.fd = fd;
-		r.buf = (void *) start;
-		r.nbyte = end - start;
-		r.offset = pos;
-		return (sys_pread(td, &r));
-	} else {
-		while (start < end) {
-			subyte((void *) start, 0);
-			start++;
-		}
-		return (0);
-	}
-}
-#endif
-
 int
 freebsd32_mprotect(struct thread *td, struct freebsd32_mprotect_args *uap)
 {
@@ -484,7 +436,7 @@ freebsd32_mprotect(struct thread *td, struct freebsd32_mprotect_args *uap)
 	ap.addr = PTRIN(uap->addr);
 	ap.len = uap->len;
 	ap.prot = uap->prot;
-#if defined(__amd64__) || defined(__ia64__)
+#if defined(__amd64__)
 	if (i386_read_exec && (ap.prot & PROT_READ) != 0)
 		ap.prot |= PROT_EXEC;
 #endif
@@ -501,80 +453,8 @@ freebsd32_mmap(struct thread *td, struct freebsd32_mmap_args *uap)
 	int flags	 = uap->flags;
 	int fd		 = uap->fd;
 	off_t pos	 = PAIR32TO64(off_t,uap->pos);
-#ifdef __ia64__
-	vm_size_t pageoff;
-	int error;
 
-	/*
-	 * Attempt to handle page size hassles.
-	 */
-	pageoff = (pos & PAGE_MASK);
-	if (flags & MAP_FIXED) {
-		vm_offset_t start, end;
-		start = addr;
-		end = addr + len;
-
-		if (start != trunc_page(start)) {
-			error = freebsd32_mmap_partial(td, start,
-						       round_page(start), prot,
-						       fd, pos);
-			if (fd != -1)
-				pos += round_page(start) - start;
-			start = round_page(start);
-		}
-		if (end != round_page(end)) {
-			vm_offset_t t = trunc_page(end);
-			error = freebsd32_mmap_partial(td, t, end,
-						  prot, fd,
-						  pos + t - start);
-			end = trunc_page(end);
-		}
-		if (end > start && fd != -1 && (pos & PAGE_MASK)) {
-			/*
-			 * We can't map this region at all. The specified
-			 * address doesn't have the same alignment as the file
-			 * position. Fake the mapping by simply reading the
-			 * entire region into memory. First we need to make
-			 * sure the region exists.
-			 */
-			vm_map_t map;
-			struct pread_args r;
-			int rv;
-
-			prot |= VM_PROT_WRITE;
-			map = &td->td_proc->p_vmspace->vm_map;
-			rv = vm_map_remove(map, start, end);
-			if (rv != KERN_SUCCESS)
-				return (EINVAL);
-			rv = vm_map_find(map, NULL, 0, &start, end - start,
-			    0, VMFS_NO_SPACE, prot, VM_PROT_ALL, 0);
-			if (rv != KERN_SUCCESS)
-				return (EINVAL);
-			r.fd = fd;
-			r.buf = (void *) start;
-			r.nbyte = end - start;
-			r.offset = pos;
-			error = sys_pread(td, &r);
-			if (error)
-				return (error);
-
-			td->td_retval[0] = addr;
-			return (0);
-		}
-		if (end == start) {
-			/*
-			 * After dealing with the ragged ends, there
-			 * might be none left.
-			 */
-			td->td_retval[0] = addr;
-			return (0);
-		}
-		addr = start;
-		len = end - start;
-	}
-#endif
-
-#if defined(__amd64__) || defined(__ia64__)
+#if defined(__amd64__)
 	if (i386_read_exec && (prot & PROT_READ))
 		prot |= PROT_EXEC;
 #endif

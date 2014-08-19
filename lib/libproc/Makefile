@@ -17,7 +17,9 @@ CFLAGS+=	-I${.CURDIR}
 # avoid cyclic dependency
 CFLAGS+=	-I${.CURDIR:H}/librtld_db
 
-.if ${MK_LIBCPLUSPLUS} != "no"
+.if ${MK_CXX} == "no"
+CFLAGS+=	-DNO_CXA_DEMANGLE
+.elif ${MK_LIBCPLUSPLUS} != "no"
 LDADD+=		-lcxxrt
 DPADD+=		${LIBCXXRT}
 .else

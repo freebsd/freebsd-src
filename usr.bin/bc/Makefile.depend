@@ -12,6 +12,7 @@ DIRDEPS = \
 	lib/libcompiler_rt \
 	lib/libedit \
 	lib/ncurses/ncurses \
+	lib/ncurses/ncursesw \
 
 
 .include <dirdeps.mk>

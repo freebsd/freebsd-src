@@ -3,6 +3,7 @@
 DEP_RELDIR := ${_PARSEDIR:S,${SRCTOP}/,,}
 
 DIRDEPS = \
+	bin/cat.host \
 	share/i18n/csmapper/APPLE \
 	share/i18n/csmapper/AST \
 	share/i18n/csmapper/BIG5 \

@@ -381,7 +381,8 @@ struct l2_dtable {
 
 /* pmap_kenter_internal flags */
 #define KENTER_CACHE	0x1
-#define KENTER_USER	0x2
+#define KENTER_DEVICE	0x2
+#define KENTER_USER	0x4
 
 /*
  * Given an L1 table index, calculate the corresponding l2_dtable index
@@ -463,8 +464,8 @@ static const uint32_t pc_freemask[_NPCM] = {
 static SYSCTL_NODE(_vm, OID_AUTO, pmap, CTLFLAG_RD, 0, "VM/pmap parameters");
 
 /* Superpages utilization enabled = 1 / disabled = 0 */
-static int sp_enabled = 0;
-SYSCTL_INT(_vm_pmap, OID_AUTO, sp_enabled, CTLFLAG_RDTUN, &sp_enabled, 0,
+static int sp_enabled = 1;
+SYSCTL_INT(_vm_pmap, OID_AUTO, sp_enabled, CTLFLAG_RDTUN | CTLFLAG_NOFETCH, &sp_enabled, 0,
     "Are large page mappings enabled?");
 
 SYSCTL_INT(_vm_pmap, OID_AUTO, pv_entry_count, CTLFLAG_RD, &pv_entry_count, 0,
@@ -2401,12 +2402,17 @@ pmap_kenter_internal(vm_offset_t va, vm_offset_t pa, int flags)
 	ptep = &l2b->l2b_kva[l2pte_index(va)];
 	opte = *ptep;
 
+	if (flags & KENTER_CACHE)
+		*ptep = L2_S_PROTO | l2s_mem_types[PTE_CACHE] | pa | L2_S_REF;
+	else if (flags & KENTER_DEVICE)
+		*ptep = L2_S_PROTO | l2s_mem_types[PTE_DEVICE] | pa | L2_S_REF;
+	else
+		*ptep = L2_S_PROTO | l2s_mem_types[PTE_NOCACHE] | pa | L2_S_REF;
+
 	if (flags & KENTER_CACHE) {
-		*ptep = L2_S_PROTO | pa | pte_l2_s_cache_mode | L2_S_REF;
 		pmap_set_prot(ptep, VM_PROT_READ | VM_PROT_WRITE,
 		    flags & KENTER_USER);
 	} else {
-		*ptep = L2_S_PROTO | pa | L2_S_REF;
 		pmap_set_prot(ptep, VM_PROT_READ|VM_PROT_WRITE|VM_PROT_EXECUTE,
 		    0);
 	}
@@ -2444,11 +2450,7 @@ void
 pmap_kenter_device(vm_offset_t va, vm_paddr_t pa)
 {
 
-	/*
-	 * XXX - Need a way for kenter_internal to handle PTE_DEVICE mapping as
-	 * a potentially different thing than PTE_NOCACHE.
-	 */
-	pmap_kenter_internal(va, pa, 0);
+	pmap_kenter_internal(va, pa, KENTER_DEVICE);
 }
 
 void
@@ -2750,16 +2752,6 @@ pmap_change_attr(vm_offset_t sva, vm_size_t len, int mode)
 	offset = sva & PAGE_MASK;
 	size = roundup(offset + len, PAGE_SIZE);
 
-#ifdef checkit
-	/*
-	 * Only supported on kernel virtual addresses, including the direct
-	 * map but excluding the recursive map.
-	 */
-	if (base < DMAP_MIN_ADDRESS) {
-		PMAP_UNLOCK(kernel_pmap);
-		return (EINVAL);
-	}
-#endif
 	for (tmpva = base; tmpva < base + size; ) {
 		next_bucket = L2_NEXT_BUCKET(tmpva);
 		if (next_bucket > base + size)
@@ -2850,11 +2842,11 @@ pmap_protect(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
 			 * Are we protecting the entire large page? If not,
 			 * demote the mapping and fall through.
 			 */
-			if (sva + L1_S_SIZE == L2_NEXT_BUCKET(sva) &&
-			    eva >= L2_NEXT_BUCKET(sva)) {
+			if (sva + L1_S_SIZE == next_bucket &&
+			    eva >= next_bucket) {
 				l1pd &= ~(L1_S_PROT_MASK | L1_S_XN);
 				if (!(prot & VM_PROT_EXECUTE))
-					*pl1pd |= L1_S_XN;
+					l1pd |= L1_S_XN;
 				/*
 				 * At this point we are always setting
 				 * write-protect bit.
@@ -3226,8 +3218,7 @@ pmap_enter_object(pmap_t pmap, vm_offset_t start, vm_offset_t end,
 	while (m != NULL && (diff = m->pindex - m_start->pindex) < psize) {
 		va = start + ptoa(diff);
 		if ((va & L1_S_OFFSET) == 0 && L2_NEXT_BUCKET(va) <= end &&
-		    (VM_PAGE_TO_PHYS(m) & L1_S_OFFSET) == 0 &&
-		    sp_enabled && vm_reserv_level_iffullpop(m) == 0 &&
+		    m->psind == 1 && sp_enabled &&
 		    pmap_enter_section(pmap, va, m, prot))
 			m = &m[L1_S_SIZE / PAGE_SIZE - 1];
 		else
@@ -3309,6 +3300,79 @@ pmap_change_wiring(pmap_t pmap, vm_offset_t va, boolean_t wired)
 out:
 	rw_wunlock(&pvh_global_lock);
 	PMAP_UNLOCK(pmap);
+}
+
+/*
+ *	Clear the wired attribute from the mappings for the specified range of
+ *	addresses in the given pmap.  Every valid mapping within that range
+ *	must have the wired attribute set.  In contrast, invalid mappings
+ *	cannot have the wired attribute set, so they are ignored.
+ *
+ *	XXX Wired mappings of unmanaged pages cannot be counted by this pmap
+ *	implementation.
+ */
+void
+pmap_unwire(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
+{
+	struct l2_bucket *l2b;
+	struct md_page *pvh;
+	pd_entry_t l1pd;
+	pt_entry_t *ptep, pte;
+	pv_entry_t pv;
+	vm_offset_t next_bucket;
+	vm_paddr_t pa;
+	vm_page_t m;
+ 
+	rw_wlock(&pvh_global_lock);
+	PMAP_LOCK(pmap);
+	while (sva < eva) {
+		next_bucket = L2_NEXT_BUCKET(sva);
+		l1pd = pmap->pm_l1->l1_kva[L1_IDX(sva)];
+		if ((l1pd & L1_TYPE_MASK) == L1_S_PROTO) {
+			pa = l1pd & L1_S_FRAME;
+			m = PHYS_TO_VM_PAGE(pa);
+			KASSERT(m != NULL && (m->oflags & VPO_UNMANAGED) == 0,
+			    ("pmap_unwire: unmanaged 1mpage %p", m));
+			pvh = pa_to_pvh(pa);
+			pv = pmap_find_pv(pvh, pmap, trunc_1mpage(sva));
+			if ((pv->pv_flags & PVF_WIRED) == 0)
+				panic("pmap_unwire: pv %p isn't wired", pv);
+
+			/*
+			 * Are we unwiring the entire large page? If not,
+			 * demote the mapping and fall through.
+			 */
+			if (sva + L1_S_SIZE == next_bucket &&
+			    eva >= next_bucket) {
+				pv->pv_flags &= ~PVF_WIRED;
+				pmap->pm_stats.wired_count -= L2_PTE_NUM_TOTAL;
+				sva = next_bucket;
+				continue;
+			} else if (!pmap_demote_section(pmap, sva))
+				panic("pmap_unwire: demotion failed");
+		}
+		if (next_bucket > eva)
+			next_bucket = eva;
+		l2b = pmap_get_l2_bucket(pmap, sva);
+		if (l2b == NULL) {
+			sva = next_bucket;
+			continue;
+		}
+		for (ptep = &l2b->l2b_kva[l2pte_index(sva)]; sva < next_bucket;
+		    sva += PAGE_SIZE, ptep++) {
+			if ((pte = *ptep) == 0 ||
+			    (m = PHYS_TO_VM_PAGE(l2pte_pa(pte))) == NULL ||
+			    (m->oflags & VPO_UNMANAGED) != 0)
+				continue;
+			pv = pmap_find_pv(&m->md, pmap, sva);
+			if ((pv->pv_flags & PVF_WIRED) == 0)
+				panic("pmap_unwire: pv %p isn't wired", pv);
+			pv->pv_flags &= ~PVF_WIRED;
+			pmap->pm_stats.wired_count--;
+		}
+	}
+	rw_wunlock(&pvh_global_lock);
+ 	PMAP_UNLOCK(pmap);
 }
 
 
@@ -4221,7 +4285,7 @@ pmap_free_pv_chunk(struct pv_chunk *pc)
 	/* entire chunk is free, return it */
 	m = PHYS_TO_VM_PAGE(pmap_kextract((vm_offset_t)pc));
 	pmap_qremove((vm_offset_t)pc, 1);
-	vm_page_unwire(m, 0);
+	vm_page_unwire(m, PQ_INACTIVE);
 	vm_page_free(m);
 	pmap_ptelist_free(&pv_vafree, (vm_offset_t)pc);
 
@@ -4314,7 +4378,7 @@ pmap_remove(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 {
 	struct l2_bucket *l2b;
 	vm_offset_t next_bucket;
-	pd_entry_t *pl1pd, l1pd;
+	pd_entry_t l1pd;
 	pt_entry_t *ptep;
 	u_int total;
 	u_int mappings, is_exec, is_refd;
@@ -4329,11 +4393,12 @@ pmap_remove(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 	PMAP_LOCK(pmap);
 	total = 0;
 	while (sva < eva) {
+		next_bucket = L2_NEXT_BUCKET(sva);
+
 		/*
 		 * Check for large page.
 		 */
-		pl1pd = &pmap->pm_l1->l1_kva[L1_IDX(sva)];
-		l1pd = *pl1pd;
+		l1pd = pmap->pm_l1->l1_kva[L1_IDX(sva)];
 		if ((l1pd & L1_TYPE_MASK) == L1_S_PROTO) {
 			KASSERT((l1pd & L1_S_DOM_MASK) !=
 			    L1_S_DOM(PMAP_DOMAIN_KERNEL), ("pmap_remove: "
@@ -4342,21 +4407,20 @@ pmap_remove(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 			 * Are we removing the entire large page?  If not,
 			 * demote the mapping and fall through.
 			 */
-			if (sva + L1_S_SIZE == L2_NEXT_BUCKET(sva) &&
-			    eva >= L2_NEXT_BUCKET(sva)) {
+			if (sva + L1_S_SIZE == next_bucket &&
+			    eva >= next_bucket) {
 				pmap_remove_section(pmap, sva);
-				sva = L2_NEXT_BUCKET(sva);
+				sva = next_bucket;
 				continue;
 			} else if (!pmap_demote_section(pmap, sva)) {
 				/* The large page mapping was destroyed. */
-				sva = L2_NEXT_BUCKET(sva);
+				sva = next_bucket;
 				continue;
 			}
 		}
 		/*
 		 * Do one L2 bucket's worth at a time.
 		 */
-		next_bucket = L2_NEXT_BUCKET(sva);
 		if (next_bucket > eva)
 			next_bucket = eva;
 
@@ -4855,7 +4919,7 @@ pmap_advise(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, int advice)
 {
 	struct l2_bucket *l2b;
 	struct pv_entry *pve;
-	pd_entry_t *pl1pd, l1pd;
+	pd_entry_t l1pd;
 	pt_entry_t *ptep, opte, pte;
 	vm_offset_t next_bucket;
 	vm_page_t m;
@@ -4868,8 +4932,7 @@ pmap_advise(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, int advice)
 		next_bucket = L2_NEXT_BUCKET(sva);
 		if (next_bucket < sva)
 			next_bucket = eva;
-		pl1pd = &pmap->pm_l1->l1_kva[L1_IDX(sva)];
-		l1pd = *pl1pd;
+		l1pd = pmap->pm_l1->l1_kva[L1_IDX(sva)];
 		if ((l1pd & L1_TYPE_MASK) == L1_S_PROTO) {
 			if (pmap == pmap_kernel())
 				continue;

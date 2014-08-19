@@ -344,9 +344,8 @@ const char
 {
 	char *buf;
 
-	if ((buf = malloc((size_t)PATH_MAX)) == NULL)
+	if ((buf = calloc((size_t)PATH_MAX, sizeof(*buf))) == NULL)
 		return (NULL);
-	memset((void *)buf, 0, (size_t)PATH_MAX);
 	_citrus_esdb_alias(name, buf, (size_t)PATH_MAX);
 	return (buf);
 }

@@ -124,7 +124,7 @@
 .\" ========================================================================
 .\"
 .IX Title "SMIME 1"
-.TH SMIME 1 "2014-04-07" "1.0.1g" "OpenSSL"
+.TH SMIME 1 "2014-06-05" "1.0.1h" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -264,7 +264,7 @@ triple \s-1DES\s0 (168 bits) \- \fB\-des3\fR,
 example \fB\-aes_128_cbc\fR. See \fBenc\fR for list of ciphers
 supported by your version of OpenSSL.
 .Sp
-If not specified 40 bit \s-1RC2\s0 is used. Only used with \fB\-encrypt\fR.
+If not specified triple \s-1DES\s0 is used. Only used with \fB\-encrypt\fR.
 .IP "\fB\-nointern\fR" 4
 .IX Item "-nointern"
 when verifying a message normally certificates (if any) included in

@@ -62,6 +62,12 @@
 /* Define to 1 if you have the <dlfcn.h> header file. */
 #define HAVE_DLFCN_H 1
 
+/* Define to 1 if you have the `endprotoent' function. */
+#define HAVE_ENDPROTOENT 1
+
+/* Define to 1 if you have the `endservent' function. */
+#define HAVE_ENDSERVENT 1
+
 /* Define to 1 if you have the `event_base_free' function. */
 /* #undef HAVE_EVENT_BASE_FREE */
 
@@ -158,15 +164,6 @@
 /* Define to 1 if you have the `kill' function. */
 #define HAVE_KILL 1
 
-/* Define to 1 if you have the `ldns_key_EVP_unload_gost' function. */
-/* #undef HAVE_LDNS_KEY_EVP_UNLOAD_GOST */
-
-/* Define to 1 if you have the <ldns/ldns.h> header file. */
-#define HAVE_LDNS_LDNS_H 1
-
-/* Define to 1 if you have the `ldns' library (-lldns). */
-#define HAVE_LIBLDNS 1
-
 /* Define to 1 if you have the `localtime_r' function. */
 #define HAVE_LOCALTIME_R 1
 
@@ -212,6 +209,9 @@
 /* Define if you have POSIX threads libraries and header files. */
 #define HAVE_PTHREAD 1
 
+/* Have PTHREAD_PRIO_INHERIT. */
+#define HAVE_PTHREAD_PRIO_INHERIT 1
+
 /* Define to 1 if the system has the type `pthread_rwlock_t'. */
 #define HAVE_PTHREAD_RWLOCK_T 1
 
@@ -231,7 +231,7 @@
 #define HAVE_RECVMSG 1
 
 /* Define to 1 if you have the `sbrk' function. */
-#define HAVE_SBRK 1
+/* #undef HAVE_SBRK */
 
 /* Define to 1 if you have the `sendmsg' function. */
 #define HAVE_SENDMSG 1
@@ -298,6 +298,9 @@
 
 /* Define to 1 if you have the <string.h> header file. */
 #define HAVE_STRING_H 1
+
+/* Define to 1 if you have the `strlcat' function. */
+#define HAVE_STRLCAT 1
 
 /* Define to 1 if you have the `strlcpy' function. */
 #define HAVE_STRLCPY 1
@@ -428,7 +431,7 @@
 #define PACKAGE_NAME "unbound"
 
 /* Define to the full name and version of this package. */
-#define PACKAGE_STRING "unbound 1.4.20"
+#define PACKAGE_STRING "unbound 1.4.22"
 
 /* Define to the one symbol short name of this package. */
 #define PACKAGE_TARNAME "unbound"
@@ -437,7 +440,7 @@
 #define PACKAGE_URL ""
 
 /* Define to the version of this package. */
-#define PACKAGE_VERSION "1.4.20"
+#define PACKAGE_VERSION "1.4.22"
 
 /* default pidfile location */
 #define PIDFILE "/var/unbound/unbound.pid"
@@ -456,13 +459,16 @@
 #define ROOT_CERT_FILE "/var/unbound/icannbundle.pem"
 
 /* version number for resource files */
-#define RSRC_PACKAGE_VERSION 1,4,2,0
+#define RSRC_PACKAGE_VERSION 1,4,22,0
 
 /* Directory to chdir to */
 #define RUN_DIR "/var/unbound"
 
 /* Shared data */
 #define SHARE_DIR "/var/unbound"
+
+/* The size of `time_t', as computed by sizeof. */
+#define SIZEOF_TIME_T 8
 
 /* Define to 1 if you have the ANSI C header files. */
 #define STDC_HEADERS 1
@@ -557,6 +563,9 @@
 
 /* Define to 1 if on MINIX. */
 /* #undef _MINIX */
+
+/* Enable for compile on Minix */
+/* #undef _NETBSD_SOURCE */
 
 /* Define to 2 if the system does not provide POSIX.1 features except with
    this defined. */
@@ -676,6 +685,12 @@
 #  define NDEBUG
 #endif
 
+/** Use small-ldns codebase */
+#define USE_SLDNS 1
+#ifdef HAVE_SSL
+#  define LDNS_BUILD_CONFIG_HAVE_SSL 1
+#endif
+
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
@@ -684,6 +699,10 @@
 #if STDC_HEADERS
 #include <stdlib.h>
 #include <stddef.h>
+#endif
+
+#ifdef HAVE_STDARG_H
+#include <stdarg.h>
 #endif
 
 #ifdef HAVE_STDINT_H
@@ -718,6 +737,12 @@
 
 #ifdef HAVE_WS2TCPIP_H
 #include <ws2tcpip.h>
+#endif
+
+#ifndef USE_WINSOCK
+#define ARG_LL "%ll"
+#else
+#define ARG_LL "%I64"
 #endif
 
 
@@ -785,6 +810,12 @@ void *memmove(void *dest, const void *src, size_t n);
 #endif
 
 
+#ifndef HAVE_STRLCAT
+#define strlcat strlcat_unbound
+size_t strlcat(char *dst, const char *src, size_t siz);
+#endif
+
+
 #ifndef HAVE_STRLCPY
 #define strlcpy strlcpy_unbound
 size_t strlcpy(char *dst, const char *src, size_t siz);
@@ -797,7 +828,7 @@ struct tm *gmtime_r(const time_t *timep, struct tm *result);
 #endif
 
 
-#ifndef HAVE_SLEEP
+#if !defined(HAVE_SLEEP) || defined(HAVE_WINDOWS_H)
 #define sleep(x) Sleep((x)*1000) /* on win32 */
 #endif /* HAVE_SLEEP */
 
@@ -863,8 +894,6 @@ char *strptime(const char *s, const char *format, struct tm *tm);
 #  endif
 #endif /* CHECKED_INET6 */
 
-/* maximum nesting of included files */
-#define MAXINCLUDES 10
 #ifndef HAVE_GETADDRINFO
 struct sockaddr_storage;
 #include "compat/fake-rfc2553.h"

@@ -12,7 +12,7 @@ Pull in r203311 from upstream llvm trunk (by Arnold Schwaighofer):
 
   Fixes PR18036.
 
-Introduced here: http://svn.freebsd.org/changeset/base/263313
+Introduced here: http://svnweb.freebsd.org/changeset/base/263313
 
 Index: test/CodeGen/X86/sse1.ll
 ===================================================================

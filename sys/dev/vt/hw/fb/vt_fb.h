@@ -43,5 +43,7 @@ vd_blank_t	vt_fb_blank;
 vd_bitbltchr_t	vt_fb_bitbltchr;
 vd_maskbitbltchr_t vt_fb_maskbitbltchr;
 vd_postswitch_t	vt_fb_postswitch;
+vd_fb_ioctl_t	vt_fb_ioctl;
+vd_fb_mmap_t	vt_fb_mmap;
 
 #endif /* _DEV_VT_HW_FB_VT_FB_H_ */

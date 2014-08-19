@@ -23,7 +23,7 @@ divert(-1)
 #
 
 divert(0)dnl
-VERSIONID(`$Id: cs-solaris2.mc,v 8.13 2013/11/22 20:51:08 ca Exp $')
+VERSIONID(`$Id: cs-solaris2.mc,v 8.13 2013-11-22 20:51:08 ca Exp $')
 OSTYPE(solaris2)dnl
 DOMAIN(CS.Berkeley.EDU)dnl
 MAILER(local)dnl

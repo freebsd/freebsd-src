@@ -36,6 +36,7 @@
 #                       specified with XDEV and XDEV_ARCH.
 # xdev-build          - Build cross-development tools.
 # xdev-install        - Install cross-development tools.
+# xdev-links          - Create traditional links in /usr/bin for cc, etc
 # 
 # "quick" way to test all kernel builds:
 # 	_jflag=`sysctl -n hw.ncpu`
@@ -82,7 +83,7 @@
 #
 # See src/UPDATING `COMMON ITEMS' for more complete information.
 #
-# If TARGET=machine (e.g. ia64, sparc64, ...) is specified you can
+# If TARGET=machine (e.g. powerpc, sparc64, ...) is specified you can
 # cross build world for other machine types using the buildworld target,
 # and once the world is built you can cross build a kernel using the
 # buildkernel target.
@@ -110,6 +111,7 @@ TGTS=	all all-man buildenv buildenvvars buildkernel buildworld \
 	_worldtmp _legacy _bootstrap-tools _cleanobj _obj \
 	_build-tools _cross-tools _includes _libraries _depend \
 	build32 builddtb distribute32 install32 xdev xdev-build xdev-install \
+	xdev-links \
 
 TGTS+=	${SUBDIR_TARGETS}
 
@@ -171,6 +173,13 @@ _TARGET=${TARGET}
 .endif
 .if defined(TARGET_ARCH) && !defined(_TARGET_ARCH)
 _TARGET_ARCH=${TARGET_ARCH}
+.endif
+# for historical compatibility for xdev targets
+.if defined(XDEV)
+_TARGET=	${XDEV}
+.endif
+.if defined(XDEV_ARCH)
+_TARGET_ARCH=	${XDEV_ARCH}
 .endif
 # Otherwise, default to current machine type and architecture.
 _TARGET?=	${MACHINE}
@@ -316,13 +325,6 @@ kernel: buildkernel installkernel
 upgrade_checks:
 .if ${HAVE_MAKE} != ${WANT_MAKE}
 	@(cd ${.CURDIR} && ${MAKE} ${WANT_MAKE:S,^f,,})
-.elif ${WANT_MAKE} == "fmake"
-	@if ! (cd ${.CURDIR}/tools/build/make_check && \
-	    PATH=${PATH} ${BINMAKE} obj >/dev/null 2>&1 && \
-	    PATH=${PATH} ${BINMAKE} >/dev/null 2>&1); \
-	then \
-	    (cd ${.CURDIR} && ${MAKE} make); \
-	fi
 .endif
 
 #
@@ -334,20 +336,21 @@ MMAKEENV=	MAKEOBJDIRPREFIX=${MYMAKE:H} \
 		DESTDIR= \
 		INSTALL="sh ${.CURDIR}/tools/install.sh"
 MMAKE=		${MMAKEENV} ${MAKE} \
-		-D_UPGRADING -DNO_MAN -DNO_SHARED \
+		-DNO_MAN -DNO_SHARED \
 		-DNO_CPU_CFLAGS -DNO_WERROR \
-		DESTDIR= MK_TESTS=no PROGNAME=${MYMAKE:T}
+		MK_TESTS=no \
+		DESTDIR= PROGNAME=${MYMAKE:T}
 
-make bmake: .PHONY
+bmake: .PHONY
 	@echo
 	@echo "--------------------------------------------------------------"
-	@echo ">>> Building an up-to-date make(1)"
+	@echo ">>> Building an up-to-date ${.TARGET}(1)"
 	@echo "--------------------------------------------------------------"
 	${_+_}@cd ${.CURDIR}/usr.bin/${.TARGET}; \
 		${MMAKE} obj && \
 		${MMAKE} depend && \
 		${MMAKE} all && \
-		${MMAKE} install DESTDIR=${MYMAKE:H} BINDIR= NO_MAN=t
+		${MMAKE} install DESTDIR=${MYMAKE:H} BINDIR=
 
 tinderbox toolchains kernel-toolchains: upgrade_checks
 
@@ -368,7 +371,7 @@ kernel-toolchains:
 # existing system is.
 #
 .if make(universe) || make(universe_kernels) || make(tinderbox) || make(targets)
-TARGETS?=amd64 arm i386 ia64 mips pc98 powerpc sparc64
+TARGETS?=amd64 arm i386 mips pc98 powerpc sparc64
 TARGET_ARCHES_arm?=	arm armeb armv6 armv6hf
 TARGET_ARCHES_mips?=	mipsel mips mips64el mips64 mipsn32
 TARGET_ARCHES_powerpc?=	powerpc powerpc64
@@ -457,7 +460,7 @@ TARGET!=	uname -m
 .if defined(MAKE_ALL_KERNELS)
 _THINNER=cat
 .else
-_THINNER=xargs grep -L "^.NO_UNIVERSE"
+_THINNER=xargs grep -L "^.NO_UNIVERSE" || true
 .endif
 KERNCONFS!=	cd ${KERNSRCDIR}/${TARGET}/conf && \
 		find [A-Z0-9]*[A-Z0-9] -type f -maxdepth 0 \

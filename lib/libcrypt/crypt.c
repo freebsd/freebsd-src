@@ -104,12 +104,16 @@ char *
 crypt(const char *passwd, const char *salt)
 {
 	const struct crypt_format *cf;
+#ifdef HAS_DES
+	int len;
+#endif
 
 	for (cf = crypt_formats; cf->name != NULL; ++cf)
 		if (cf->magic != NULL && strstr(salt, cf->magic) == salt)
 			return (cf->func(passwd, salt));
 #ifdef HAS_DES
-	if (strlen(salt) == 13 && strspn(salt, DES_SALT_ALPHABET) == 13)
+	len = strlen(salt);
+	if ((len == 13 || len == 2) && strspn(salt, DES_SALT_ALPHABET) == len)
 		return (crypt_des(passwd, salt));
 #endif
 	return (crypt_format->func(passwd, salt));

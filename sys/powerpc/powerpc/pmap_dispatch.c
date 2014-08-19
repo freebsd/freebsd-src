@@ -361,6 +361,14 @@ pmap_remove_write(vm_page_t m)
 }
 
 void
+pmap_unwire(pmap_t pmap, vm_offset_t start, vm_offset_t end)
+{
+
+	CTR4(KTR_PMAP, "%s(%p, %#x, %#x)", __func__, pmap, start, end);
+	MMU_UNWIRE(mmu_obj, pmap, start, end);
+}
+
+void
 pmap_zero_page(vm_page_t m)
 {
 

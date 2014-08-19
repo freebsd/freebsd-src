@@ -40,12 +40,17 @@ __<bsd.opts.mk>__:
 # that haven't been converted over.
 #
 
-# Only these options are used by bsd.*.mk. Most seem legit, except maybe
-# OPENSSH.
+# Only these options are used by bsd.*.mk. KERBEROS and OPENSSH are
+# unforutnately needed to support statically linking the entire
+# tree. su(1) wouldn't link since it depends on PAM which depends on
+# ssh libraries when building with OPENSSH, and likewise for KERBEROS.
+
+# All other variables used to build /usr/src live in src.opts.mk
+# and variables from both files are documented in src.conf(5).
 
 __DEFAULT_YES_OPTIONS = \
     ASSERT_DEBUG \
-    INFO \
+    DOCCOMPRESS \
     INSTALLLIB \
     KERBEROS \
     MAN \
@@ -56,12 +61,15 @@ __DEFAULT_YES_OPTIONS = \
     PROFILE \
     SSP \
     SYMVER \
-    TOOLCHAIN
+    TOOLCHAIN \
+    WARNS
 
 __DEFAULT_NO_OPTIONS = \
     CTF \
     DEBUG_FILES \
-    INSTALL_AS_USER
+    INSTALL_AS_USER \
+    INFO \
+    PIE
 
 
 # meta mode related
@@ -84,7 +92,8 @@ __DEFAULT_NO_OPTIONS += \
     DEBUG_FILES \
     INSTALLLIB \
     MAN \
-    PROFILE
+    PROFILE \
+    WARNS
 .if defined(NO_${var})
 # This warning may be premature...
 #.warning "NO_${var} is defined, but deprecated. Please use MK_${var}=no instead."

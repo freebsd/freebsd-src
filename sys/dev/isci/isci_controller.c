@@ -300,6 +300,8 @@ SCI_STATUS isci_controller_initialize(struct ISCI_CONTROLLER *controller)
 	SCI_CONTROLLER_HANDLE_T scic_controller_handle;
 	char led_name[64];
 	unsigned long tunable;
+	uint32_t io_shortage;
+	uint32_t fail_on_timeout;
 	int i;
 
 	scic_controller_handle =
@@ -365,10 +367,12 @@ SCI_STATUS isci_controller_initialize(struct ISCI_CONTROLLER *controller)
 	 *  this io_shortage parameter, which will tell CAM that we have a
 	 *  large queue depth than we really do.
 	 */
-	uint32_t io_shortage = 0;
+	io_shortage = 0;
 	TUNABLE_INT_FETCH("hw.isci.io_shortage", &io_shortage);
 	controller->sim_queue_depth += io_shortage;
 
+	fail_on_timeout = 1;
+	TUNABLE_INT_FETCH("hw.isci.fail_on_task_timeout", &fail_on_timeout);
 	/* Attach to CAM using xpt_bus_register now, then immediately freeze
 	 *  the simq.  It will get released later when initial domain discovery
 	 *  is complete.

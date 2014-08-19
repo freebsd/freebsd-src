@@ -3,6 +3,7 @@
 DEP_RELDIR := ${_PARSEDIR:S,${SRCTOP}/,,}
 
 DIRDEPS = \
+	bin/cat.host \
 	gnu/lib/csu \
 	gnu/lib/libgcc \
 	include \
@@ -15,7 +16,7 @@ DIRDEPS = \
 	lib/libedit/edit/readline \
 	lib/libmd \
 	lib/msun \
-	lib/ncurses/ncurses \
+	lib/ncurses/ncursesw \
 	secure/lib/libcrypto \
 	usr.sbin/ntp/libntp \
 	usr.sbin/ntp/libopts \

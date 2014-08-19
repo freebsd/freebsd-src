@@ -445,9 +445,10 @@ static int sa_allow_io_split = SA_DEFAULT_IO_SPLIT;
  * is bad behavior, because it hides the true tape block size from the
  * application.
  */
-TUNABLE_INT("kern.cam.sa.allow_io_split", &sa_allow_io_split);
 static SYSCTL_NODE(_kern_cam, OID_AUTO, sa, CTLFLAG_RD, 0,
 		  "CAM Sequential Access Tape Driver");
+SYSCTL_INT(_kern_cam_sa, OID_AUTO, allow_io_split, CTLFLAG_RDTUN,
+    &sa_allow_io_split, 0, "Default I/O split value");
 
 static struct periph_driver sadriver =
 {
@@ -1494,7 +1495,7 @@ sasysctlinit(void *context, int pending)
 		goto bailout;
 
 	SYSCTL_ADD_INT(&softc->sysctl_ctx, SYSCTL_CHILDREN(softc->sysctl_tree),
-	    OID_AUTO, "allow_io_split", CTLTYPE_INT | CTLFLAG_RDTUN, 
+	    OID_AUTO, "allow_io_split", CTLTYPE_INT | CTLFLAG_RDTUN | CTLFLAG_NOFETCH, 
 	    &softc->allow_io_split, 0, "Allow Splitting I/O");
 	SYSCTL_ADD_INT(&softc->sysctl_ctx, SYSCTL_CHILDREN(softc->sysctl_tree),
 	    OID_AUTO, "maxio", CTLTYPE_INT | CTLFLAG_RD, 

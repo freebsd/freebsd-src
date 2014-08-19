@@ -6,4 +6,6 @@ DPADD=		${LIBGROFF}
 LDADD=		${LIBGROFF}
 MAN=
 
+NO_PIE=	yes
+
 .include <bsd.prog.mk>

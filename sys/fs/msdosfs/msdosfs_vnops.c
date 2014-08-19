@@ -501,12 +501,9 @@ msdosfs_setattr(ap)
 	if (vap->va_atime.tv_sec != VNOVAL || vap->va_mtime.tv_sec != VNOVAL) {
 		if (vp->v_mount->mnt_flag & MNT_RDONLY)
 			return (EROFS);
-		if (vap->va_vaflags & VA_UTIMES_NULL) {
-			error = VOP_ACCESS(vp, VADMIN, cred, td); 
-			if (error)
-				error = VOP_ACCESS(vp, VWRITE, cred, td);
-		} else
-			error = VOP_ACCESS(vp, VADMIN, cred, td);
+		error = vn_utimes_perm(vp, vap, cred, td);
+		if (error != 0)
+			return (error);
 		if ((pmp->pm_flags & MSDOSFSMNT_NOWIN95) == 0 &&
 		    vap->va_atime.tv_sec != VNOVAL) {
 			dep->de_flag &= ~DE_ACCESS;

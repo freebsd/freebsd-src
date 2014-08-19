@@ -128,7 +128,7 @@
 # override default of no subsystems
 Subsystem	sftp	/usr/libexec/sftp-server
 
-# Disable HPN tuning improvements.
+# Change to yes to disable HPN tuning improvements.
 #HPNDisabled no
 
 # Buffer size for HPN to non-HPN connections.

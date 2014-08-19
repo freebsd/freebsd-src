@@ -30,7 +30,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)term.h	8.1 (Berkeley) 6/4/93
- *	$NetBSD: term.h,v 1.18 2006/11/24 00:01:17 christos Exp $
+ *	$NetBSD: term.h,v 1.20 2009/03/31 17:38:27 christos Exp $
  * $FreeBSD$
  */
 

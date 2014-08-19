@@ -10,7 +10,6 @@ DIRDEPS = \
 	include/xlocale \
 	kerberos5/lib/libasn1 \
 	kerberos5/lib/libheimbase \
-	kerberos5/lib/libheimipcc \
 	kerberos5/lib/libhx509 \
 	kerberos5/lib/libkrb5 \
 	kerberos5/lib/libroken \
@@ -22,13 +21,12 @@ DIRDEPS = \
 	lib/libcrypt \
 	lib/libedit \
 	lib/libgssapi \
-	lib/libldns \
 	lib/libmd \
 	lib/libpam/libpam \
 	lib/libthr \
 	lib/libutil \
 	lib/libz \
-	lib/ncurses/ncurses \
+	lib/ncurses/ncursesw \
 	secure/lib/libcrypto \
 	secure/lib/libssh \
 

@@ -119,8 +119,7 @@ SYSCTL_PROC(_hw_snd, OID_AUTO, timeout, CTLTYPE_INT | CTLFLAG_RW,
 #endif
 
 static int chn_vpc_autoreset = 1;
-TUNABLE_INT("hw.snd.vpc_autoreset", &chn_vpc_autoreset);
-SYSCTL_INT(_hw_snd, OID_AUTO, vpc_autoreset, CTLFLAG_RW,
+SYSCTL_INT(_hw_snd, OID_AUTO, vpc_autoreset, CTLFLAG_RWTUN,
 	&chn_vpc_autoreset, 0, "automatically reset channels volume to 0db");
 
 static int chn_vol_0db_pcm = SND_VOL_0DB_PCM;

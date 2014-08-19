@@ -231,4 +231,4 @@ Note that the filter example.c may not be thread safe on some operating
 systems.  You should check your system man pages for the functions used
 below to verify the functions are thread safe.
 
-$Revision: 8.42 $, Last updated $Date: 2006/06/29 17:10:16 $
+$Revision: 8.42 $, Last updated $Date: 2006-06-29 17:10:16 $

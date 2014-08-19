@@ -299,7 +299,7 @@ interrupt_polarity(UINT16 IntiFlags, UINT8 Source)
 
 	switch (IntiFlags & ACPI_MADT_POLARITY_MASK) {
 	default:
-		printf("WARNING: Bogus Interrupt Polarity. Assume CONFORMS");
+		printf("WARNING: Bogus Interrupt Polarity. Assume CONFORMS\n");
 		/* FALLTHROUGH*/
 	case ACPI_MADT_POLARITY_CONFORMS:
 		if (Source == AcpiGbl_FADT.SciInterrupt)
@@ -319,7 +319,7 @@ interrupt_trigger(UINT16 IntiFlags, UINT8 Source)
 
 	switch (IntiFlags & ACPI_MADT_TRIGGER_MASK) {
 	default:
-		printf("WARNING: Bogus Interrupt Trigger Mode. Assume CONFORMS.");
+		printf("WARNING: Bogus Interrupt Trigger Mode. Assume CONFORMS.\n");
 		/*FALLTHROUGH*/
 	case ACPI_MADT_TRIGGER_CONFORMS:
 		if (Source == AcpiGbl_FADT.SciInterrupt)

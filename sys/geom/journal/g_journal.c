@@ -84,7 +84,6 @@ const struct g_journal_desc *g_journal_filesystems[] = {
 SYSCTL_DECL(_kern_geom);
 
 int g_journal_debug = 0;
-TUNABLE_INT("kern.geom.journal.debug", &g_journal_debug);
 static u_int g_journal_switch_time = 10;
 static u_int g_journal_force_switch = 70;
 static u_int g_journal_parallel_flushes = 16;
@@ -95,7 +94,7 @@ static u_int g_journal_do_optimize = 1;
 
 static SYSCTL_NODE(_kern_geom, OID_AUTO, journal, CTLFLAG_RW, 0,
     "GEOM_JOURNAL stuff");
-SYSCTL_INT(_kern_geom_journal, OID_AUTO, debug, CTLFLAG_RW, &g_journal_debug, 0,
+SYSCTL_INT(_kern_geom_journal, OID_AUTO, debug, CTLFLAG_RWTUN, &g_journal_debug, 0,
     "Debug level");
 SYSCTL_UINT(_kern_geom_journal, OID_AUTO, switch_time, CTLFLAG_RW,
     &g_journal_switch_time, 0, "Switch journals every N seconds");
@@ -133,9 +132,7 @@ SYSCTL_UINT(_kern_geom_journal, OID_AUTO, optimize, CTLFLAG_RW,
 
 static u_int g_journal_cache_used = 0;
 static u_int g_journal_cache_limit = 64 * 1024 * 1024;
-TUNABLE_INT("kern.geom.journal.cache.limit", &g_journal_cache_limit);
 static u_int g_journal_cache_divisor = 2;
-TUNABLE_INT("kern.geom.journal.cache.divisor", &g_journal_cache_divisor);
 static u_int g_journal_cache_switch = 90;
 static u_int g_journal_cache_misses = 0;
 static u_int g_journal_cache_alloc_failures = 0;
@@ -160,7 +157,7 @@ g_journal_cache_limit_sysctl(SYSCTL_HANDLER_ARGS)
 	return (0);
 }
 SYSCTL_PROC(_kern_geom_journal_cache, OID_AUTO, limit,
-    CTLTYPE_UINT | CTLFLAG_RW, NULL, 0, g_journal_cache_limit_sysctl, "I",
+    CTLTYPE_UINT | CTLFLAG_RWTUN, NULL, 0, g_journal_cache_limit_sysctl, "I",
     "Maximum number of allocated bytes");
 SYSCTL_UINT(_kern_geom_journal_cache, OID_AUTO, divisor, CTLFLAG_RDTUN,
     &g_journal_cache_divisor, 0,

@@ -91,8 +91,7 @@ __FBSDID("$FreeBSD$");
 long physmem;
 
 static int exec_map_entries = 16;
-TUNABLE_INT("vm.exec_map_entries", &exec_map_entries);
-SYSCTL_INT(_vm, OID_AUTO, exec_map_entries, CTLFLAG_RD, &exec_map_entries, 0,
+SYSCTL_INT(_vm, OID_AUTO, exec_map_entries, CTLFLAG_RDTUN, &exec_map_entries, 0,
     "Maximum number of simultaneous execs");
 
 /*

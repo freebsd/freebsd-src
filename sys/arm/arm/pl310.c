@@ -350,6 +350,18 @@ pl310_inv_range(vm_paddr_t start, vm_size_t size)
 }
 
 static void
+pl310_drain_writebuf(void)
+{
+
+	if ((pl310_softc == NULL) || !pl310_softc->sc_enabled)
+		return;
+
+	PL310_LOCK(pl310_softc);
+	pl310_cache_sync();
+	PL310_UNLOCK(pl310_softc);
+}
+
+static void
 pl310_set_way_sizes(struct pl310_softc *sc)
 {
 	uint32_t aux_value;
@@ -484,6 +496,7 @@ pl310_attach(device_t dev)
 	cpufuncs.cf_l2cache_wbinv_range = pl310_wbinv_range;
 	cpufuncs.cf_l2cache_inv_range = pl310_inv_range;
 	cpufuncs.cf_l2cache_wb_range = pl310_wb_range;
+	cpufuncs.cf_l2cache_drain_writebuf = pl310_drain_writebuf;
 
 	return (0);
 }

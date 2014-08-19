@@ -3,6 +3,7 @@
 DEP_RELDIR := ${_PARSEDIR:S,${SRCTOP}/,,}
 
 DIRDEPS = \
+	bin/cat.host \
 	share/i18n/esdb/APPLE \
 	share/i18n/esdb/AST \
 	share/i18n/esdb/BIG5 \

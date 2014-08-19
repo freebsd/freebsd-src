@@ -63,12 +63,12 @@ alphabetic characters is ignored.
 .Pp
 The following options are available:
 .Bl -tag -width indent
-.It Fl d
+.It Fl d , -alphanum
 Dictionary character set and order, i.e., only alphanumeric characters
 are compared.
-.It Fl f
+.It Fl f , -ignore-case
 Ignore the case of alphabetic characters.
-.It Fl t
+.It Fl t , -terminate Ar termchar
 Specify a string termination character, i.e., only the characters
 in
 .Ar string
@@ -103,6 +103,12 @@ in comparisons when the
 option was specified.
 This was incorrect and the current man page matches the historic
 implementation.
+.Pp
+The
+.Fl a
+and
+.Fl -alternative
+flags are ignored for compability.
 .Sh SEE ALSO
 .Xr grep 1 ,
 .Xr sort 1

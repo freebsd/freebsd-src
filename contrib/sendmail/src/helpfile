@@ -11,7 +11,7 @@ cpyr	By using this file, you agree to the terms and conditions set
 cpyr	forth in the LICENSE file which can be found at the top level of
 cpyr	the sendmail distribution.
 cpyr
-cpyr	$$Id: helpfile,v 8.49 2013/11/22 20:51:55 ca Exp $$
+cpyr	$$Id: helpfile,v 8.49 2013-11-22 20:51:55 ca Exp $$
 cpyr
 smtp	This is sendmail version $v
 smtp	Topics:

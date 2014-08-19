@@ -35,8 +35,4 @@ SRCS=	bus_if.h device_if.h usb_if.h \
 	dwc_otg.c dwc_otg_fdt.c \
 	pci_if.h
 
-.if defined(HAS_ATMELARM)
-SRCS+=	dwc_otg_atmelarm.c
-.endif
-
 .include <bsd.kmod.mk>

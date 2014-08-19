@@ -28,12 +28,13 @@
 extern "C" {
 #endif
 
-#define LDNS_MAX_RDFLEN	8192
+#define LDNS_MAX_RDFLEN	65535
 
 #define LDNS_RDF_SIZE_BYTE              1
 #define LDNS_RDF_SIZE_WORD              2
 #define LDNS_RDF_SIZE_DOUBLEWORD        4
 #define LDNS_RDF_SIZE_6BYTES            6
+#define LDNS_RDF_SIZE_8BYTES            8
 #define LDNS_RDF_SIZE_16BYTES           16
 
 #define LDNS_NSEC3_VARS_OPTOUT_MASK 0x01
@@ -85,7 +86,10 @@ enum ldns_enum_rdf_type
 	LDNS_RDF_TYPE_PERIOD,
 	/** tsig time 48 bits */
 	LDNS_RDF_TYPE_TSIGTIME,
-	LDNS_RDF_TYPE_TSIG,
+	/** Represents the Public Key Algorithm, HIT and Public Key fields
+	    for the HIP RR types.  A HIP specific rdf type is used because of
+	    the unusual layout in wireformat (see RFC 5205 Section 5) */
+	LDNS_RDF_TYPE_HIP,
 	/** variable length any type rdata where the length
 	    is specified by the first 2 bytes */
 	LDNS_RDF_TYPE_INT16_DATA,
@@ -104,7 +108,31 @@ enum ldns_enum_rdf_type
 	/** nsec3 hash salt */
 	LDNS_RDF_TYPE_NSEC3_SALT,
 	/** nsec3 base32 string (with length byte on wire */
-	LDNS_RDF_TYPE_NSEC3_NEXT_OWNER
+	LDNS_RDF_TYPE_NSEC3_NEXT_OWNER,
+
+	/** 4 shorts represented as 4 * 16 bit hex numbers
+	 *  separated by colons. For NID and L64.
+	 */
+	LDNS_RDF_TYPE_ILNP64,
+
+	/** 6 * 8 bit hex numbers separated by dashes. For EUI48. */
+	LDNS_RDF_TYPE_EUI48,
+	/** 8 * 8 bit hex numbers separated by dashes. For EUI64. */
+	LDNS_RDF_TYPE_EUI64,
+
+	/** A non-zero sequence of US-ASCII letters and numbers in lower case.
+	 *  For CAA.
+	 */
+	LDNS_RDF_TYPE_TAG,
+
+	/** A <character-string> encoding of the value field as specified 
+	 * [RFC1035], Section 5.1., encoded as remaining rdata.
+	 * For CAA.
+	 */
+	LDNS_RDF_TYPE_LONG_STR,
+
+	/* Aliases */
+	LDNS_RDF_TYPE_BITMAP = LDNS_RDF_TYPE_NSEC
 };
 typedef enum ldns_enum_rdf_type ldns_rdf_type;
 
@@ -379,6 +407,34 @@ ldns_rdf *ldns_rdf_clone(const ldns_rdf *rd);
  * \return +1 if rd2 comes before rd1
  */
 int ldns_rdf_compare(const ldns_rdf *rd1, const ldns_rdf *rd2);
+
+/**
+ * Gets the algorithm value, the HIT and Public Key data from the rdf with
+ * type LDNS_RDF_TYPE_HIP.
+ * \param[in] rdf the rdf with type LDNS_RDF_TYPE_HIP
+ * \param[out] alg      the algorithm
+ * \param[out] hit_size the size of the HIT data
+ * \param[out] hit      the hit data
+ * \param[out] pk_size  the size of the Public Key data
+ * \param[out] pk       the  Public Key data
+ * \return LDNS_STATUS_OK on success, and the error otherwise
+ */
+ldns_status ldns_rdf_hip_get_alg_hit_pk(ldns_rdf *rdf, uint8_t* alg,
+		uint8_t *hit_size, uint8_t** hit,
+		uint16_t *pk_size, uint8_t** pk);
+
+/**
+ * Creates a new LDNS_RDF_TYPE_HIP rdf from given data.
+ * \param[out] rdf      the newly created LDNS_RDF_TYPE_HIP rdf
+ * \param[in]  alg      the algorithm
+ * \param[in]  hit_size the size of the HIT data
+ * \param[in]  hit      the hit data
+ * \param[in]  pk_size  the size of the Public Key data
+ * \param[in]  pk       the  Public Key data
+ * \return LDNS_STATUS_OK on success, and the error otherwise
+ */
+ldns_status ldns_rdf_hip_new_frm_alg_hit_pk(ldns_rdf** rdf, uint8_t alg,
+		uint8_t hit_size, uint8_t *hit, uint16_t pk_size, uint8_t *pk);
 
 #ifdef __cplusplus
 }

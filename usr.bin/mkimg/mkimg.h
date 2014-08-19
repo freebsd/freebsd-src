@@ -31,8 +31,6 @@
 
 #include <sys/queue.h>
 
-typedef int64_t	lba_t;
-
 struct part {
 	STAILQ_ENTRY(part) link;
 	char	*alias;		/* Partition type alias. */
@@ -52,6 +50,7 @@ struct part {
 extern STAILQ_HEAD(partlisthead, part) partlist;
 extern u_int nparts;
 
+extern u_int unit_testing;
 extern u_int verbose;
 
 extern u_int ncyls;
@@ -67,6 +66,13 @@ round_block(lba_t n)
 	return ((n + b - 1) & ~(b - 1));
 }
 
-int mkimg_write(int fd, lba_t blk, void *buf, ssize_t len);
+#if !defined(SPARSE_WRITE)
+#define	sparse_write	write
+#else
+ssize_t sparse_write(int, const void *, size_t);
+#endif
+
+struct uuid;
+void mkimg_uuid(struct uuid *);
 
 #endif /* _MKIMG_MKIMG_H_ */

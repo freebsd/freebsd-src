@@ -323,7 +323,6 @@ struct sctp_paddr_change {
 	uint32_t spc_state;
 	uint32_t spc_error;
 	sctp_assoc_t spc_assoc_id;
-	uint8_t spc_padding[4];
 };
 
 /* paddr state values */
@@ -346,7 +345,7 @@ struct sctp_remote_error {
 	uint32_t sre_length;
 	uint16_t sre_error;
 	sctp_assoc_t sre_assoc_id;
-	uint8_t sre_data[4];
+	uint8_t sre_data[];
 };
 
 /* data send failure event (deprecated) */

@@ -59,7 +59,7 @@ extern char	command_errbuf[];	/* XXX blah, length */
 #define CMD_ERROR	1
 
 /* interp.c */
-void	interact(void);
+void	interact(const char *rc);
 int	include(const char *filename);
 
 /* interp_backslash.c */
@@ -69,7 +69,7 @@ char	*backslash(char *str);
 int	parse(int *argc, char ***argv, char *str);
 
 /* interp_forth.c */
-void	bf_init(void);
+void	bf_init(const char *rc);
 int	bf_run(char *line);
 
 /* boot.c */

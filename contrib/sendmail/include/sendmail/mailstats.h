@@ -10,7 +10,7 @@
  * the sendmail distribution.
  *
  *
- *	$Id: mailstats.h,v 8.20 2013/11/22 20:51:30 ca Exp $
+ *	$Id: mailstats.h,v 8.20 2013-11-22 20:51:30 ca Exp $
  */
 
 #define STAT_VERSION	4

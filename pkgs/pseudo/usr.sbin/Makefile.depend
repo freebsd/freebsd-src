@@ -54,6 +54,7 @@ DIRDEPS = \
 	usr.sbin/bsnmpd/modules/snmp_atm \
 	usr.sbin/bsnmpd/modules/snmp_bridge \
 	usr.sbin/bsnmpd/modules/snmp_hostres \
+	usr.sbin/bsnmpd/modules/snmp_lm75 \
 	usr.sbin/bsnmpd/modules/snmp_mibII \
 	usr.sbin/bsnmpd/modules/snmp_pf \
 	usr.sbin/bsnmpd/modules/snmp_target \

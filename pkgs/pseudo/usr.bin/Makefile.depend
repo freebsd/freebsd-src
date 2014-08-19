@@ -13,7 +13,6 @@ DIRDEPS = \
 	usr.bin/atf/atf-config \
 	usr.bin/atf/atf-report \
 	usr.bin/atf/atf-run \
-	usr.bin/atf/atf-sh \
 	usr.bin/atf/atf-version \
 	usr.bin/atm/sscop \
 	usr.bin/awk \
@@ -202,6 +201,7 @@ DIRDEPS = \
 	usr.bin/telnet \
 	usr.bin/tftp \
 	usr.bin/time \
+	usr.bin/timeout \
 	usr.bin/tip/tip \
 	usr.bin/top \
 	usr.bin/touch \
@@ -231,6 +231,7 @@ DIRDEPS = \
 	usr.bin/vi \
 	usr.bin/vis \
 	usr.bin/vmstat \
+	usr.bin/vtfontcvt \
 	usr.bin/w \
 	usr.bin/wall \
 	usr.bin/wc \

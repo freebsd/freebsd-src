@@ -51,8 +51,9 @@ CLEANFILES+=	unwind.h
 
 VERSION_MAP=	${.CURDIR}/Version.map
 
+CXXFLAGS.clang+= -stdlib=libstdc++
 
 .include <bsd.lib.mk>
 
-CXXFLAGS.clang+= -stdlib=libstdc++
-CXXFLAGS+= -std=gnu++98
+# Filter out libc++-specific flags, and -std= flags above c++98 or gnu++98.
+CXXFLAGS:=	${CXXFLAGS:N-stdlib=libc++:N-std=c++[01][13x]:N-std=gnu++[01][13x]}

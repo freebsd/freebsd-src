@@ -1,6 +1,17 @@
 WITH_INSTALL_AS_USER= yes
 
 .if defined(.PARSEDIR)		# bmake
+.if !defined(_TARGETS)
+# some things we do only once
+_TARGETS := ${.TARGETS}
+.export _TARGETS
+.endif
+.if ${_TARGETS:Mbuildworld}
+WITHOUT_STAGING=
+WITHOUT_SYSROOT=
+UPDATE_DEPENDFILE=NO
+NO_AUTO_OBJ=
+.endif
 SRCCONF:= ${.PARSEDIR}/src.conf
 # ensure we are self contained
 __MAKE_CONF:= ${SRCCONF}
@@ -83,9 +94,8 @@ MACHINE_ARCH:= ${MACHINE_ARCH}
 MACHINE_ARCH:= ${MACHINE_ARCH.${MACHINE}}
 .endif
 
-.if !defined(_TARGETS)
-# some things we do only once
-_TARGETS := ${.TARGETS}
+.if ${.MAKE.LEVEL} == 0
+# 1st time only
 .-include <sys.env.mk>
 .if !empty(OBJROOT) 
 .if ${OBJROOT:M*/} != ""
@@ -160,6 +170,9 @@ MKOBJDIRS=auto
 .ifndef WITHOUT_META_MODE
 WITH_META_MODE= yes
 
+.ifndef WITHOUT_SYSROOT
+WITH_SYSROOT= yes
+.endif
 .ifndef WITHOUT_STAGING
 WITH_STAGING= yes
 .ifndef WITHOUT_STAGING_PROG
@@ -198,7 +211,7 @@ STAGE_ROOT?= ${OBJROOT}stage
 .endif
 .endif
 
-.if !empty(STAGE_ROOT)
+.if !empty(STAGE_ROOT) && !defined(WITHOUT_STAGING)
 .if ${MACHINE} == "host"
 STAGE_MACHINE= ${HOST_TARGET}
 .else
@@ -225,10 +238,6 @@ STAGED_INCLUDE_DIR= ${STAGE_OBJTOP}/usr/include
 .endif
 .endif				# EARLY_BUILD for host
 
-.if ${USE_META:Uyes} == "yes"
-.include "meta.sys.mk"
-.endif
-
 # this is sufficient for most of the tree.
 .MAKE.DEPENDFILE_DEFAULT = ${.MAKE.DEPENDFILE_PREFIX}
 
@@ -240,6 +249,8 @@ STAGED_INCLUDE_DIR= ${STAGE_OBJTOP}/usr/include
 .undef .MAKE.DEPENDFILE
 
 .include "sys.dependfile.mk"
+
+.include "meta.sys.mk"
 
 .if ${.MAKE.LEVEL} > 0 && ${MACHINE} == "host" && ${.MAKE.DEPENDFILE:E} != "host"
 # we can use this but should not update it.

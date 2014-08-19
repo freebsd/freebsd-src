@@ -598,10 +598,16 @@ handle_identify(struct ahci_port *p, int slot, uint8_t *cfis)
 	} else {
 		uint16_t buf[256];
 		uint64_t sectors;
+		uint16_t cyl;
+		uint8_t sech, heads;
 
 		sectors = blockif_size(p->bctx) / blockif_sectsz(p->bctx);
+		blockif_chs(p->bctx, &cyl, &heads, &sech);
 		memset(buf, 0, sizeof(buf));
 		buf[0] = 0x0040;
+		buf[1] = cyl;
+		buf[3] = heads;
+		buf[6] = sech;
 		/* TODO emulate different serial? */
 		ata_string((uint8_t *)(buf+10), "123456", 20);
 		ata_string((uint8_t *)(buf+23), "001", 8);

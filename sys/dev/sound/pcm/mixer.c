@@ -40,8 +40,7 @@ SND_DECLARE_FILE("$FreeBSD$");
 static MALLOC_DEFINE(M_MIXER, "mixer", "mixer");
 
 static int mixer_bypass = 1;
-TUNABLE_INT("hw.snd.vpc_mixer_bypass", &mixer_bypass);
-SYSCTL_INT(_hw_snd, OID_AUTO, vpc_mixer_bypass, CTLFLAG_RW,
+SYSCTL_INT(_hw_snd, OID_AUTO, vpc_mixer_bypass, CTLFLAG_RWTUN,
     &mixer_bypass, 0,
     "control channel pcm/rec volume, bypassing real mixer device");
 

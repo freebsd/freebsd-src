@@ -1,10 +1,10 @@
-#!/usr/bin/ksh
+#!/bin/sh
 #
 # rwsnoop - snoop read/write events.
-#           Written using DTrace (Solaris 10 3/05).
+#           Originally written using DTrace (Solaris 10 3/05).
 #
 # This is measuring reads and writes at the application level. This matches
-# the syscalls read, write, pread and pwrite.
+# the syscalls read, and write.
 #
 # $Id: rwsnoop 3 2007-08-01 10:50:08Z brendan $
 #
@@ -12,15 +12,14 @@
 # 
 #		rwsnoop		# default output
 #
-#		-j		# print project ID
 #		-P		# print parent process ID
 #		-t		# print timestamp, us
 #		-v		# print time, string
-#		-Z		# print zone ID
+#		-J		# print jail ID
 #		-n name		# this process name only
 #		-p PID		# this PID only
 #	eg,
-#		rwsnoop -Z		# print zone ID
+#		rwsnoop -J		# print jail ID
 #		rwsnoop -n bash 	# monitor processes named "bash"
 #		rwsnoop > out.txt	# recommended
 #
@@ -32,8 +31,7 @@
 # FIELDS:
 #		TIME		Timestamp, us
 #		TIMESTR		Time, string
-#		ZONE		Zone ID
-#		PROJ		Project ID
+#		JAIL		JAIL ID
 #		UID		User ID
 #		PID		Process ID
 #		PPID		Parent Process ID
@@ -71,6 +69,7 @@
 # 24-Jul-2005   Brendan Gregg   Created this.
 # 17-Sep-2005	   "      "	Increased switchrate.
 # 17-Sep-2005	   "      "	Last update.
+# 26-Jul-2014   George Neville-Neil	Port to FreeBSD
 #
 
 
@@ -79,8 +78,8 @@
 #
 
 ### default variables
-opt_name=0; opt_pid=0; opt_proj=0; opt_zone=0; opt_time=0; opt_timestr=0
-opt_bytes=1; filter=0; pname=.; pid=0; opt_ppid=0
+opt_name=0; opt_pid=0; opt_jailid=0; opt_time=0; opt_timestr=0
+opt_bytes=1; filter=0; pname=.; pid=0; opt_ppid=0;
 
 ### process options
 while getopts n:Pp:jtvZ name
@@ -89,23 +88,21 @@ do
 	n)	opt_name=1; pname=$OPTARG ;;
 	p)	opt_pid=1; pid=$OPTARG ;;
 	P)	opt_ppid=1 ;;
-	j)	opt_proj=1 ;;
 	t)	opt_time=1 ;;
 	v)	opt_timestr=1 ;;
-	Z)	opt_zone=1 ;;
+	J)	opt_jailid=1 ;;
 	h|?)	cat <<-END >&2
 		USAGE: rwsnoop [-jPtvZ] [-n name] [-p pid]
  
-		                -j       # print project ID
 		                -P       # print parent process ID
 		                -t       # print timestamp, us
 		                -v       # print time, string
-		                -Z       # print zone ID
+		                -J       # print jail ID
 		                -n name  # this process name only
 		                -p PID   # this PID only
 		   eg,
 		        rwsnoop          # default output
-		        rwsnoop -Z       # print zone ID
+		        rwsnoop -J       # print jail ID
 		        rwsnoop -n bash  # monitor processes named "bash"
 		END
 		exit 1
@@ -115,11 +112,13 @@ done
 shift $(( $OPTIND - 1 ))
 
 ### option logic
-if (( opt_name || opt_pid )); then
+if [ $opt_name -ne 0 ]; then
 	filter=1
 fi
 
-
+if [ $opt_pid -ne 0 ]; then
+	filter=1
+fi
 
 #################################
 # --- Main Program, DTrace ---
@@ -128,8 +127,7 @@ fi
  /*
   * Command line arguments
   */
- inline int OPT_proj 	= '$opt_proj';
- inline int OPT_zone 	= '$opt_zone';
+ inline int OPT_jailid 	= '$opt_jailid';
  inline int OPT_bytes 	= '$opt_bytes';
  inline int OPT_name 	= '$opt_name';
  inline int OPT_ppid 	= '$opt_ppid';
@@ -151,11 +149,10 @@ fi
 	/* print header */
 	OPT_time    ? printf("%-14s ", "TIME") : 1;
 	OPT_timestr ? printf("%-20s ", "TIMESTR") : 1;
-	OPT_proj    ? printf("%5s ", "PROJ") : 1;
-	OPT_zone    ? printf("%5s ", "ZONE") : 1;
+	OPT_jailid    ? printf("%5s ", "JAILID") : 1;
 	OPT_ppid    ? printf("%6s ", "PPID") : 1;
-	printf("%5s %6s %-12s %1s %7s %s\n",
-	    "UID", "PID", "CMD", "D", "BYTES", "FILE");
+	printf("%5s %6s %-12s %4s %1s %7s\n",
+	    "UID", "PID", "CMD", "FD", "D", "BYTES");
  }
 
  /*
@@ -205,7 +202,10 @@ fi
  {
 	/*
 	 * Fetch filename
+         * XXX Not yet implemented.
 	 */
+/*
+
 	this->filistp = curthread->t_procp->p_user.u_finfo.fi_list;
 	this->ufentryp = (uf_entry_t *)((uint64_t)this->filistp +
 	    (uint64_t)self->fd * (uint64_t)sizeof(uf_entry_t));
@@ -213,17 +213,16 @@ fi
 	this->vnodep = this->filep != 0 ? this->filep->f_vnode : 0;
 	self->vpath = this->vnodep ? (this->vnodep->v_path != 0 ? 
 	    cleanpath(this->vnodep->v_path) : "<unknown>") : "<unknown>";
-
+*/
 	/*
 	 * Print details
 	 */
 	OPT_time    ? printf("%-14d ", timestamp / 1000) : 1;
 	OPT_timestr ? printf("%-20Y ", walltimestamp) : 1;
-	OPT_proj    ? printf("%5d ", curpsinfo->pr_projid) : 1;
-	OPT_zone    ? printf("%5d ", curpsinfo->pr_zoneid) : 1;
+	OPT_jailid    ? printf("%5d ", curpsinfo->pr_jailid) : 1;
 	OPT_ppid    ? printf("%6d ", ppid) : 1;
-	printf("%5d %6d %-12.12s %1s %7d %s\n",
-	    uid, pid, execname, self->rw, (int)self->size, self->vpath);
+	printf("%5d %6d %-12.12s %4d %1s %7d\n",
+	    uid, pid, execname, self->fd, self->rw, (int)self->size);
 	
 	self->ok = 0;
 	self->fd = 0;

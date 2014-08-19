@@ -703,6 +703,9 @@ arge_attach(device_t dev)
 	ifp->if_snd.ifq_maxlen = ifqmaxlen;
 	IFQ_SET_READY(&ifp->if_snd);
 
+	/* Tell the upper layer(s) we support long frames. */
+	ifp->if_capabilities |= IFCAP_VLAN_MTU;
+
 	ifp->if_capenable = ifp->if_capabilities;
 #ifdef DEVICE_POLLING
 	ifp->if_capabilities |= IFCAP_POLLING;
@@ -1823,31 +1826,29 @@ arge_dma_free(struct arge_softc *sc)
 
 	/* Tx ring. */
 	if (sc->arge_cdata.arge_tx_ring_tag) {
-		if (sc->arge_cdata.arge_tx_ring_map)
+		if (sc->arge_rdata.arge_tx_ring_paddr)
 			bus_dmamap_unload(sc->arge_cdata.arge_tx_ring_tag,
 			    sc->arge_cdata.arge_tx_ring_map);
-		if (sc->arge_cdata.arge_tx_ring_map &&
-		    sc->arge_rdata.arge_tx_ring)
+		if (sc->arge_rdata.arge_tx_ring)
 			bus_dmamem_free(sc->arge_cdata.arge_tx_ring_tag,
 			    sc->arge_rdata.arge_tx_ring,
 			    sc->arge_cdata.arge_tx_ring_map);
 		sc->arge_rdata.arge_tx_ring = NULL;
-		sc->arge_cdata.arge_tx_ring_map = NULL;
+		sc->arge_rdata.arge_tx_ring_paddr = 0;
 		bus_dma_tag_destroy(sc->arge_cdata.arge_tx_ring_tag);
 		sc->arge_cdata.arge_tx_ring_tag = NULL;
 	}
 	/* Rx ring. */
 	if (sc->arge_cdata.arge_rx_ring_tag) {
-		if (sc->arge_cdata.arge_rx_ring_map)
+		if (sc->arge_rdata.arge_rx_ring_paddr)
 			bus_dmamap_unload(sc->arge_cdata.arge_rx_ring_tag,
 			    sc->arge_cdata.arge_rx_ring_map);
-		if (sc->arge_cdata.arge_rx_ring_map &&
-		    sc->arge_rdata.arge_rx_ring)
+		if (sc->arge_rdata.arge_rx_ring)
 			bus_dmamem_free(sc->arge_cdata.arge_rx_ring_tag,
 			    sc->arge_rdata.arge_rx_ring,
 			    sc->arge_cdata.arge_rx_ring_map);
 		sc->arge_rdata.arge_rx_ring = NULL;
-		sc->arge_cdata.arge_rx_ring_map = NULL;
+		sc->arge_rdata.arge_rx_ring_paddr = 0;
 		bus_dma_tag_destroy(sc->arge_cdata.arge_rx_ring_tag);
 		sc->arge_cdata.arge_rx_ring_tag = NULL;
 	}

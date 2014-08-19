@@ -66,7 +66,7 @@ TAP_TESTS_PERL_SRC_${_T}?= ${_T}.pl
 ${_T}: ${TAP_TESTS_PERL_SRC_${_T}}
 	{ \
 	    echo '#! ${TAP_PERL_INTERPRETER}'; \
-	    cat ${.ALLSRC} | sed ${TAP_TESTS_PERL_SED_${_T}}; \
+	    cat ${.ALLSRC:N*Makefile*} | sed ${TAP_TESTS_PERL_SED_${_T}}; \
 	} >${.TARGET}.tmp
 	chmod +x ${.TARGET}.tmp
 	mv ${.TARGET}.tmp ${.TARGET}

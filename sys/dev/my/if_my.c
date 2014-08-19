@@ -658,10 +658,8 @@ static void
 my_setmode_mii(struct my_softc * sc, int media)
 {
 	u_int16_t       bmcr;
-	struct ifnet   *ifp;
 
 	MY_LOCK_ASSERT(sc);
-	ifp = sc->my_ifp;
 	/*
 	 * If an autoneg session is in progress, stop it.
 	 */

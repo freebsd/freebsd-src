@@ -38,6 +38,7 @@ __FBSDID("$FreeBSD$");
 #include <fcntl.h>
 #include <sys/kbio.h>
 #include <sys/consio.h>
+#include <sys/sysctl.h>
 #include "path.h"
 #include "lex.h"
 
@@ -140,6 +141,18 @@ static void	set_keyboard(char *device);
 static void	set_keyrates(char *opt);
 static void	show_kbd_info(void);
 static void	usage(void) __dead2;
+
+/* Detect presence of vt(4). */
+static int
+is_vt4(void)
+{
+	char vty_name[4] = "";
+	size_t len = sizeof(vty_name);
+
+	if (sysctlbyname("kern.vty", vty_name, &len, NULL, 0) != 0)
+		return (0);
+	return (strcmp(vty_name, "vt") == 0);
+}
 
 static char *
 nextarg(int ac, char **av, int *indp, int oc)
@@ -785,10 +798,13 @@ load_keymap(char *opt, int dumponly)
 	FILE	*fd;
 	int	i, j;
 	char	*name, *cp;
-	char	blank[] = "", keymap_path[] = KEYMAP_PATH, dotkbd[] = ".kbd";
-	char	*prefix[]  = {blank, blank, keymap_path, NULL};
+	char	blank[] = "", keymap_path[] = KEYMAP_PATH;
+	char	vt_keymap_path[] = VT_KEYMAP_PATH, dotkbd[] = ".kbd";
+	char	*prefix[]  = {blank, blank, blank, keymap_path, NULL};
 	char	*postfix[] = {blank, dotkbd, NULL};
 
+	if (is_vt4())
+		prefix[2] = vt_keymap_path;
 	cp = getenv("KEYMAP_PATH");
 	if (cp != NULL)
 		asprintf(&(prefix[0]), "%s/", cp);

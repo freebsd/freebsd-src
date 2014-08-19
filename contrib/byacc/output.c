@@ -1,4 +1,4 @@
-/* $Id: output.c,v 1.65 2014/04/09 21:10:48 tom Exp $ */
+/* $Id: output.c,v 1.67 2014/04/22 23:16:57 tom Exp $ */
 
 #include "defs.h"
 
@@ -315,9 +315,9 @@ output_accessing_symbols(void)
 }
 
 static Value_t
-find_conflict_base(Value_t cbase)
+find_conflict_base(int cbase)
 {
-    Value_t i, j;
+    int i, j;
 
     for (i = 0; i < cbase; i++)
     {
@@ -327,9 +327,9 @@ find_conflict_base(Value_t cbase)
 		break;
 	}
 	if (j + cbase >= nconflicts)
-	    return i;
+	    break;
     }
-    return cbase;
+    return (Value_t) i;
 }
 #endif
 

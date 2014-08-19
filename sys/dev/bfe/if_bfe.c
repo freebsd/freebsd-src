@@ -364,12 +364,12 @@ bfe_dma_free(struct bfe_softc *sc)
 
 	/* Tx ring. */
 	if (sc->bfe_tx_tag != NULL) {
-		if (sc->bfe_tx_map != NULL)
+		if (sc->bfe_tx_dma != 0)
 			bus_dmamap_unload(sc->bfe_tx_tag, sc->bfe_tx_map);
-		if (sc->bfe_tx_map != NULL && sc->bfe_tx_list != NULL)
+		if (sc->bfe_tx_list != NULL)
 			bus_dmamem_free(sc->bfe_tx_tag, sc->bfe_tx_list,
 			    sc->bfe_tx_map);
-		sc->bfe_tx_map = NULL;
+		sc->bfe_tx_dma = 0;
 		sc->bfe_tx_list = NULL;
 		bus_dma_tag_destroy(sc->bfe_tx_tag);
 		sc->bfe_tx_tag = NULL;
@@ -377,12 +377,12 @@ bfe_dma_free(struct bfe_softc *sc)
 
 	/* Rx ring. */
 	if (sc->bfe_rx_tag != NULL) {
-		if (sc->bfe_rx_map != NULL)
+		if (sc->bfe_rx_dma != 0)
 			bus_dmamap_unload(sc->bfe_rx_tag, sc->bfe_rx_map);
-		if (sc->bfe_rx_map != NULL && sc->bfe_rx_list != NULL)
+		if (sc->bfe_rx_list != NULL)
 			bus_dmamem_free(sc->bfe_rx_tag, sc->bfe_rx_list,
 			    sc->bfe_rx_map);
-		sc->bfe_rx_map = NULL;
+		sc->bfe_rx_dma = 0;
 		sc->bfe_rx_list = NULL;
 		bus_dma_tag_destroy(sc->bfe_rx_tag);
 		sc->bfe_rx_tag = NULL;

@@ -1,4 +1,4 @@
-/*	$NetBSD: parse.c,v 1.192 2013/10/18 20:47:06 christos Exp $	*/
+/*	$NetBSD: parse.c,v 1.194 2014/02/15 00:17:17 christos Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990, 1993
@@ -69,14 +69,14 @@
  */
 
 #ifndef MAKE_NATIVE
-static char rcsid[] = "$NetBSD: parse.c,v 1.192 2013/10/18 20:47:06 christos Exp $";
+static char rcsid[] = "$NetBSD: parse.c,v 1.194 2014/02/15 00:17:17 christos Exp $";
 #else
 #include <sys/cdefs.h>
 #ifndef lint
 #if 0
 static char sccsid[] = "@(#)parse.c	8.3 (Berkeley) 3/19/94";
 #else
-__RCSID("$NetBSD: parse.c,v 1.192 2013/10/18 20:47:06 christos Exp $");
+__RCSID("$NetBSD: parse.c,v 1.194 2014/02/15 00:17:17 christos Exp $");
 #endif
 #endif /* not lint */
 #endif
@@ -366,6 +366,7 @@ static int ParseAddCmd(void *, void *);
 static void ParseHasCommands(void *);
 static void ParseDoInclude(char *);
 static void ParseSetParseFile(const char *);
+static void ParseSetIncludedFile(void);
 #ifdef SYSVINCLUDE
 static void ParseTraditionalInclude(char *);
 #endif
@@ -857,7 +858,8 @@ ParseLinkSrc(void *pgnp, void *cgnp)
 	    (void)Lst_AtEnd(cgn->parents, pgn);
     pgn->unmade += 1;
     if (DEBUG(PARSE)) {
-	fprintf(debug_file, "# ParseLinkSrc: added child %s - %s\n", pgn->name, cgn->name);
+	fprintf(debug_file, "# %s: added child %s - %s\n", __func__,
+	    pgn->name, cgn->name);
 	Targ_PrintNode(pgn, 0);
 	Targ_PrintNode(cgn, 0);
     }
@@ -1032,8 +1034,8 @@ ParseDoSrc(int tOp, const char *src)
 	    (void)Lst_AtEnd(predecessor->order_succ, gn);
 	    (void)Lst_AtEnd(gn->order_pred, predecessor);
 	    if (DEBUG(PARSE)) {
-		fprintf(debug_file, "# ParseDoSrc: added Order dependency %s - %s\n",
-			predecessor->name, gn->name);
+		fprintf(debug_file, "# %s: added Order dependency %s - %s\n",
+		    __func__, predecessor->name, gn->name);
 		Targ_PrintNode(predecessor, 0);
 		Targ_PrintNode(gn, 0);
 	    }
@@ -2176,6 +2178,7 @@ Parse_include_file(char *file, Boolean isSystem, int silent)
     /* load it */
     lf = loadfile(fullname, fd);
 
+    ParseSetIncludedFile();
     /* Start reading from this file next */
     Parse_SetInput(fullname, 0, -1, loadedfile_nextbuf, lf);
     curFile->lf = lf;
@@ -2235,6 +2238,41 @@ ParseDoInclude(char *line)
 
 /*-
  *---------------------------------------------------------------------
+ * ParseSetIncludedFile  --
+ *	Set the .INCLUDEDFROMFILE variable to the contents of .PARSEFILE
+ *	and the .INCLUDEDFROMDIR variable to the contents of .PARSEDIR
+ *
+ * Results:
+ *	None
+ *
+ * Side Effects:
+ *	The .INCLUDEDFROMFILE variable is overwritten by the contents
+ *	of .PARSEFILE and the .INCLUDEDFROMDIR variable is overwriten
+ *	by the contents of .PARSEDIR
+ *---------------------------------------------------------------------
+ */
+static void
+ParseSetIncludedFile(void)
+{
+    char *pf, *fp = NULL;
+    char *pd, *dp = NULL;
+
+    pf = Var_Value(".PARSEFILE", VAR_GLOBAL, &fp);
+    Var_Set(".INCLUDEDFROMFILE", pf, VAR_GLOBAL, 0);
+    pd = Var_Value(".PARSEDIR", VAR_GLOBAL, &dp);
+    Var_Set(".INCLUDEDFROMDIR", pd, VAR_GLOBAL, 0);
+
+    if (DEBUG(PARSE))
+	fprintf(debug_file, "%s: ${.INCLUDEDFROMDIR} = `%s' "
+	    "${.INCLUDEDFROMFILE} = `%s'\n", __func__, pd, pf);
+
+    if (fp)
+	free(fp);
+    if (dp)
+	free(dp);
+}
+/*-
+ *---------------------------------------------------------------------
  * ParseSetParseFile  --
  *	Set the .PARSEDIR and .PARSEFILE variables to the dirname and
  *	basename of the given filename
@@ -2268,8 +2306,8 @@ ParseSetParseFile(const char *filename)
 	Var_Set(".PARSEFILE", pf = slash + 1, VAR_GLOBAL, 0);
     }
     if (DEBUG(PARSE))
-	fprintf(debug_file, "ParseSetParseFile: ${.PARSEDIR} = `%s' "
-	    "${.PARSEFILE} = `%s'\n", pd, pf);
+	fprintf(debug_file, "%s: ${.PARSEDIR} = `%s' ${.PARSEFILE} = `%s'\n",
+	    __func__, pd, pf);
     free(dirname);
 }
 
@@ -2331,8 +2369,8 @@ Parse_SetInput(const char *name, int line, int fd,
 	ParseTrackInput(name);
 
     if (DEBUG(PARSE))
-	fprintf(debug_file, "Parse_SetInput: file %s, line %d, fd %d, nextbuf %p, arg %p\n",
-		name, line, fd, nextbuf, arg);
+	fprintf(debug_file, "%s: file %s, line %d, fd %d, nextbuf %p, arg %p\n",
+	    __func__, name, line, fd, nextbuf, arg);
 
     if (fd == -1 && nextbuf == NULL)
 	/* sanity */
@@ -2404,7 +2442,7 @@ ParseTraditionalInclude(char *line)
     char	  *all_files;
 
     if (DEBUG(PARSE)) {
-	    fprintf(debug_file, "ParseTraditionalInclude: %s\n", file);
+	    fprintf(debug_file, "%s: %s\n", __func__, file);
     }
 
     /*
@@ -2463,7 +2501,7 @@ ParseGmakeExport(char *line)
     char	  *value;
 
     if (DEBUG(PARSE)) {
-	    fprintf(debug_file, "ParseGmakeExport: %s\n", variable);
+	    fprintf(debug_file, "%s: %s\n", __func__, variable);
     }
 
     /*
@@ -2543,6 +2581,8 @@ ParseEOF(void)
 	/* We've run out of input */
 	Var_Delete(".PARSEDIR", VAR_GLOBAL);
 	Var_Delete(".PARSEFILE", VAR_GLOBAL);
+	Var_Delete(".INCLUDEDFROMDIR", VAR_GLOBAL);
+	Var_Delete(".INCLUDEDFROMFILE", VAR_GLOBAL);
 	return DONE;
     }
 

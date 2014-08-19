@@ -76,9 +76,9 @@ static inline void __mbq_enqueue(struct mbq *q, struct mbuf *m)
 
 void mbq_safe_enqueue(struct mbq *q, struct mbuf *m)
 {
-    mtx_lock(&q->lock);
+    mbq_lock(q);
     __mbq_enqueue(q, m);
-    mtx_unlock(&q->lock);
+    mbq_unlock(q);
 }
 
 
@@ -110,9 +110,9 @@ struct mbuf *mbq_safe_dequeue(struct mbq *q)
 {
     struct mbuf *ret;
 
-    mtx_lock(&q->lock);
+    mbq_lock(q);
     ret =  __mbq_dequeue(q);
-    mtx_unlock(&q->lock);
+    mbq_unlock(q);
 
     return ret;
 }

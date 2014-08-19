@@ -34,16 +34,14 @@ __FBSDID("$FreeBSD$");
  * Note that this file is compiled into the kernel and into libc.
  */
 
-#ifdef _KERNEL
 #include <sys/types.h>
 #include <sys/capsicum.h>
+
+#ifdef _KERNEL
 #include <sys/systm.h>
 
 #include <machine/stdarg.h>
 #else	/* !_KERNEL */
-#include <sys/types.h>
-#include <sys/capsicum.h>
-
 #include <assert.h>
 #include <stdarg.h>
 #include <stdbool.h>

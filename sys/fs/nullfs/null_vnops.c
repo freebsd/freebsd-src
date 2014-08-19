@@ -372,6 +372,10 @@ null_lookup(struct vop_lookup_args *ap)
 	 */
 	ldvp = NULLVPTOLOWERVP(dvp);
 	vp = lvp = NULL;
+	KASSERT((ldvp->v_vflag & VV_ROOT) == 0 ||
+	    ((dvp->v_vflag & VV_ROOT) != 0 && (flags & ISDOTDOT) == 0),
+	    ("ldvp %p fl %#x dvp %p fl %#x flags %#x", ldvp, ldvp->v_vflag,
+	     dvp, dvp->v_vflag, flags));
 	error = VOP_LOOKUP(ldvp, &lvp, cnp);
 	if (error == EJUSTRETURN && (flags & ISLASTCN) &&
 	    (dvp->v_mount->mnt_flag & MNT_RDONLY) &&
@@ -738,7 +742,7 @@ null_reclaim(struct vop_reclaim_args *ap)
 	lowervp = xp->null_lowervp;
 
 	KASSERT(lowervp != NULL && vp->v_vnlock != &vp->v_lock,
-	    ("Reclaiming inclomplete null vnode %p", vp));
+	    ("Reclaiming incomplete null vnode %p", vp));
 
 	null_hashrem(xp);
 	/*
@@ -858,15 +862,6 @@ null_vptocnp(struct vop_vptocnp_args *ap)
 	return (error);
 }
 
-static int
-null_link(struct vop_link_args *ap)
-{
-
-	if (ap->a_tdvp->v_mount != ap->a_vp->v_mount)
-		return (EXDEV);
-	return (null_bypass((struct vop_generic_args *)ap));
-}
-
 /*
  * Global vfs data structures
  */
@@ -880,7 +875,6 @@ struct vop_vector null_vnodeops = {
 	.vop_getwritemount =	null_getwritemount,
 	.vop_inactive =		null_inactive,
 	.vop_islocked =		vop_stdislocked,
-	.vop_link =		null_link,
 	.vop_lock1 =		null_lock,
 	.vop_lookup =		null_lookup,
 	.vop_open =		null_open,

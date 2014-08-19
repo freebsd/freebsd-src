@@ -62,12 +62,6 @@ export UNAME_S="$( uname -s )" # Operating System (i.e. FreeBSD)
 export UNAME_P="$( uname -p )" # Processor Architecture (i.e. i386)
 export UNAME_M="$( uname -m )" # Machine platform (i.e. i386)
 export UNAME_R="$( uname -r )" # Release Level (i.e. X.Y-RELEASE)
-if [ ! "${PKG_ABI+set}" ]; then
-	export PKG_ABI="$(
-		ASSUME_ALWAYS_YES=1 pkg -vv 2> /dev/null |
-			awk '$1=="ABI"{print $3;exit}'
-	)"
-fi
 
 #
 # Default behavior is to call f_debug_init() automatically when loaded.

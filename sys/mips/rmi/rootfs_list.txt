@@ -64,8 +64,6 @@
 ./etc/defaults/rc.conf
 ./etc/devd
 ./etc/devd/asus.conf
-./etc/gnats
-./etc/gnats/freefall
 ./etc/gss
 ./etc/gss/mech
 ./etc/gss/qop

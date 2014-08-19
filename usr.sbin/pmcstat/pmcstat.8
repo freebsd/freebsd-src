@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 29, 2014
+.Dd May 16, 2014
 .Dt PMCSTAT 8
 .Os
 .Sh NAME
@@ -52,6 +52,7 @@
 .Op Fl f Ar pluginopt
 .Op Fl g
 .Op Fl k Ar kerneldir
+.Op Fl l Ar secs
 .Op Fl m Ar pathname
 .Op Fl n Ar rate
 .Op Fl o Ar outputfile
@@ -274,6 +275,13 @@ This directory specifies where
 should look for the kernel and its modules.
 The default is
 .Pa /boot/kernel .
+.It Fl l Ar secs
+Set system-wide performance measurement duration for
+.Ar secs
+seconds.
+The argument
+.Ar secs
+may be a fractional value.
 .It Fl m Ar pathname
 Print the sampled PCs with the name, the start and ending addresses
 of the function within they live.
@@ -463,7 +471,7 @@ utility first appeared in
 It is
 .Ud
 .Sh AUTHORS
-.An Joseph Koshy Aq jkoshy@FreeBSD.org
+.An Joseph Koshy Aq Mt jkoshy@FreeBSD.org
 .Sh BUGS
 The
 .Nm

@@ -21,16 +21,16 @@
  * specific prior written permission.
  * 
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
- * TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE
- * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
- * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
- * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
- * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
+ * TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+ * PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+ * LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+ * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+ * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
 /**
@@ -41,18 +41,22 @@
 
 #include "config.h"
 #include <ctype.h>
-#include <ldns/ldns.h>
+#include <stdarg.h>
+#ifdef HAVE_TIME_H
+#include <time.h>
+#endif
 #include "util/log.h"
-
 #include "util/configyyrename.h"
 #include "util/config_file.h"
-#include "util/configparser.h"
+#include "configparser.h"
 #include "util/net_help.h"
 #include "util/data/msgparse.h"
 #include "util/module.h"
 #include "util/regional.h"
 #include "util/fptr_wlist.h"
 #include "util/data/dname.h"
+#include "ldns/wire2str.h"
+#include "ldns/parseutil.h"
 #ifdef HAVE_GLOB_H
 # include <glob.h>
 #endif
@@ -122,6 +126,7 @@ config_create(void)
 	cfg->prefetch_key = 0;
 	cfg->infra_cache_slabs = 4;
 	cfg->infra_cache_numhosts = 10000;
+	cfg->delay_close = 0;
 	if(!(cfg->outgoing_avail_ports = (int*)calloc(65536, sizeof(int))))
 		goto error_exit;
 	init_outgoing_availports(cfg->outgoing_avail_ports, 65536);
@@ -140,6 +145,7 @@ config_create(void)
 	cfg->if_automatic = 0;
 	cfg->so_rcvbuf = 0;
 	cfg->so_sndbuf = 0;
+	cfg->so_reuseport = 0;
 	cfg->num_ifs = 0;
 	cfg->ifs = NULL;
 	cfg->num_out_ifs = 0;
@@ -185,12 +191,14 @@ config_create(void)
 	cfg->local_zones = NULL;
 	cfg->local_zones_nodefault = NULL;
 	cfg->local_data = NULL;
+	cfg->unblock_lan_zones = 0;
 	cfg->python_script = NULL;
 	cfg->remote_control_enable = 0;
 	cfg->control_ifs = NULL;
 	cfg->control_port = UNBOUND_CONTROL_PORT;
 	cfg->minimal_responses = 0;
 	cfg->rrset_roundrobin = 0;
+	cfg->max_udp_size = 4096;
 	if(!(cfg->server_key_file = strdup(RUN_DIR"/unbound_server.key"))) 
 		goto error_exit;
 	if(!(cfg->server_cert_file = strdup(RUN_DIR"/unbound_server.pem"))) 
@@ -317,7 +325,11 @@ int config_set_option(struct config_file* cfg, const char* opt,
 		cfg->use_syslog = 0;
 		free(cfg->logfile);
 		return (cfg->logfile = strdup(val)) != NULL;
-	} 
+	}
+	else if(strcmp(opt, "log-time-ascii:") == 0)
+	{ IS_YES_OR_NO; cfg->log_time_ascii = (strcmp(val, "yes") == 0);
+	  log_set_time_asc(cfg->log_time_ascii); }
+	else S_SIZET_NONZERO("max-udp-size:", max_udp_size)
 	else S_YNO("use-syslog:", use_syslog)
 	else S_YNO("extended-statistics:", stat_extended)
 	else S_YNO("statistics-cumulative:", stat_cumulative)
@@ -344,14 +356,19 @@ int config_set_option(struct config_file* cfg, const char* opt,
 	else S_SIZET_OR_ZERO("jostle-timeout:", jostle_time)
 	else S_MEMSIZE("so-rcvbuf:", so_rcvbuf)
 	else S_MEMSIZE("so-sndbuf:", so_sndbuf)
+	else S_YNO("so-reuseport:", so_reuseport)
 	else S_MEMSIZE("rrset-cache-size:", rrset_cache_size)
 	else S_POW2("rrset-cache-slabs:", rrset_cache_slabs)
 	else S_YNO("prefetch:", prefetch)
 	else S_YNO("prefetch-key:", prefetch_key)
-	else S_NUMBER_OR_ZERO("cache-max-ttl:", max_ttl)
+	else if(strcmp(opt, "cache-max-ttl:") == 0)
+	{ IS_NUMBER_OR_ZERO; cfg->max_ttl = atoi(val); MAX_TTL=(time_t)cfg->max_ttl;}
+	else if(strcmp(opt, "cache-min-ttl:") == 0)
+	{ IS_NUMBER_OR_ZERO; cfg->min_ttl = atoi(val); MIN_TTL=(time_t)cfg->min_ttl;}
 	else S_NUMBER_OR_ZERO("infra-host-ttl:", host_ttl)
 	else S_POW2("infra-cache-slabs:", infra_cache_slabs)
 	else S_SIZET_NONZERO("infra-cache-numhosts:", infra_cache_numhosts)
+	else S_NUMBER_OR_ZERO("delay-close:", delay_close)
 	else S_STR("chroot:", chrootdir)
 	else S_STR("username:", username)
 	else S_STR("directory:", directory)
@@ -398,6 +415,7 @@ int config_set_option(struct config_file* cfg, const char* opt,
 	else S_YNO("minimal-responses:", minimal_responses)
 	else S_YNO("rrset-roundrobin:", rrset_roundrobin)
 	else S_STRLIST("local-data:", local_data)
+	else S_YNO("unblock-lan-zones:", unblock_lan_zones)
 	else S_YNO("control-enable:", remote_control_enable)
 	else S_STRLIST("control-interface:", control_ifs)
 	else S_NUMBER_NONZERO("control-port:", control_port)
@@ -407,6 +425,12 @@ int config_set_option(struct config_file* cfg, const char* opt,
 	else S_STR("control-cert-file:", control_cert_file)
 	else S_STR("module-config:", module_conf)
 	else S_STR("python-script:", python_script)
+	/* val_sig_skew_min and max are copied into val_env during init,
+	 * so this does not update val_env with set_option */
+	else if(strcmp(opt, "val-sig-skew-min:") == 0)
+	{ IS_NUMBER_OR_ZERO; cfg->val_sig_skew_min = (int32_t)atoi(val); }
+	else if(strcmp(opt, "val-sig-skew-max:") == 0)
+	{ IS_NUMBER_OR_ZERO; cfg->val_sig_skew_max = (int32_t)atoi(val); }
 	else if (strcmp(opt, "outgoing-interface:") == 0) {
 		char* d = strdup(val);
 		char** oi = (char**)malloc((cfg->num_out_ifs+1)*sizeof(char*));
@@ -506,8 +530,9 @@ config_collate_cat(struct config_strlist* list)
 			return NULL;
 		}
 		snprintf(w, left, "%s\n", s->str);
-		w += this+1;
-		left -= this+1;
+		this = strlen(w);
+		w += this;
+		left -= this;
 	}
 	return r;
 }
@@ -562,6 +587,7 @@ config_get_option(struct config_file* cfg, const char* opt,
 	else O_YNO(opt, "statistics-cumulative", stat_cumulative)
 	else O_YNO(opt, "extended-statistics", stat_extended)
 	else O_YNO(opt, "use-syslog", use_syslog)
+	else O_YNO(opt, "log-time-ascii", log_time_ascii)
 	else O_DEC(opt, "num-threads", num_threads)
 	else O_IFC(opt, "interface", num_ifs, ifs)
 	else O_IFC(opt, "outgoing-interface", num_out_ifs, out_ifs)
@@ -578,14 +604,17 @@ config_get_option(struct config_file* cfg, const char* opt,
 	else O_UNS(opt, "jostle-timeout", jostle_time)
 	else O_MEM(opt, "so-rcvbuf", so_rcvbuf)
 	else O_MEM(opt, "so-sndbuf", so_sndbuf)
+	else O_YNO(opt, "so-reuseport", so_reuseport)
 	else O_MEM(opt, "rrset-cache-size", rrset_cache_size)
 	else O_DEC(opt, "rrset-cache-slabs", rrset_cache_slabs)
 	else O_YNO(opt, "prefetch-key", prefetch_key)
 	else O_YNO(opt, "prefetch", prefetch)
 	else O_DEC(opt, "cache-max-ttl", max_ttl)
+	else O_DEC(opt, "cache-min-ttl", min_ttl)
 	else O_DEC(opt, "infra-host-ttl", host_ttl)
 	else O_DEC(opt, "infra-cache-slabs", infra_cache_slabs)
 	else O_MEM(opt, "infra-cache-numhosts", infra_cache_numhosts)
+	else O_UNS(opt, "delay-close", delay_close)
 	else O_YNO(opt, "do-ip4", do_ip4)
 	else O_YNO(opt, "do-ip6", do_ip6)
 	else O_YNO(opt, "do-udp", do_udp)
@@ -651,6 +680,11 @@ config_get_option(struct config_file* cfg, const char* opt,
 	else O_UNS(opt, "val-override-date", val_date_override)
 	else O_YNO(opt, "minimal-responses", minimal_responses)
 	else O_YNO(opt, "rrset-roundrobin", rrset_roundrobin)
+	else O_YNO(opt, "unblock-lan-zones", unblock_lan_zones)
+	else O_DEC(opt, "max-udp-size", max_udp_size)
+	else O_STR(opt, "python-script", python_script)
+	else O_DEC(opt, "val-sig-skew-min", val_sig_skew_min)
+	else O_DEC(opt, "val-sig-skew-max", val_sig_skew_max)
 	/* not here:
 	 * outgoing-permit, outgoing-avoid - have list of ports
 	 * local-zone - zones and nodefault variables
@@ -674,6 +708,7 @@ create_cfg_parser(struct config_file* cfg, char* filename, const char* chroot)
 	cfg_parser->errors = 0;
 	cfg_parser->cfg = cfg;
 	cfg_parser->chroot = chroot;
+	init_cfg_parse();
 }
 
 int 
@@ -1030,10 +1065,10 @@ cfg_str2list_insert(struct config_str2list** head, char* item, char* i2)
 	return 1;
 }
 
-uint32_t 
+time_t 
 cfg_convert_timeval(const char* str)
 {
-	uint32_t t;
+	time_t t;
 	struct tm tm;
 	memset(&tm, 0, sizeof(tm));
 	if(strlen(str) < 14)
@@ -1051,7 +1086,7 @@ cfg_convert_timeval(const char* str)
 	if (tm.tm_min < 0 || tm.tm_min > 59)	return 0;
 	if (tm.tm_sec < 0 || tm.tm_sec > 59)	return 0;
 	/* call ldns conversion function */
-	t = mktime_from_utc(&tm);
+	t = sldns_mktime_from_utc(&tm);
 	return t;
 }
 
@@ -1137,8 +1172,8 @@ cfg_parse_memsize(const char* str, size_t* res)
 void 
 config_apply(struct config_file* config)
 {
-	MAX_TTL = (uint32_t)config->max_ttl;
-	MIN_TTL = (uint32_t)config->min_ttl;
+	MAX_TTL = (time_t)config->max_ttl;
+	MIN_TTL = (time_t)config->min_ttl;
 	EDNS_ADVERTISED_SIZE = (uint16_t)config->edns_buffer_size;
 	MINIMAL_RESPONSES = config->minimal_responses;
 	RRSET_ROUNDROBIN = config->rrset_roundrobin;
@@ -1199,9 +1234,9 @@ strlen_after_chroot(const char* fname, struct config_file* cfg, int use_chdir)
 char*
 fname_after_chroot(const char* fname, struct config_file* cfg, int use_chdir)
 {
-	size_t len = strlen_after_chroot(fname, cfg, use_chdir);
+	size_t len = strlen_after_chroot(fname, cfg, use_chdir)+1;
 	int slashit = 0;
-	char* buf = (char*)malloc(len+1);
+	char* buf = (char*)malloc(len);
 	if(!buf)
 		return NULL;
 	buf[0] = 0;
@@ -1209,14 +1244,14 @@ fname_after_chroot(const char* fname, struct config_file* cfg, int use_chdir)
 	if(cfg->chrootdir && cfg->chrootdir[0] && 
 		strncmp(cfg->chrootdir, fname, strlen(cfg->chrootdir)) == 0) {
 		/* already full pathname, return it */
-		strncpy(buf, fname, len);
-		buf[len] = 0;
+		(void)strlcpy(buf, fname, len);
+		buf[len-1] = 0;
 		return buf;
 	}
 	/* chroot */
 	if(cfg->chrootdir && cfg->chrootdir[0]) {
 		/* start with chrootdir */
-		strncpy(buf, cfg->chrootdir, len);
+		(void)strlcpy(buf, cfg->chrootdir, len);
 		slashit = 1;
 	}
 #ifdef UB_ON_WINDOWS
@@ -1230,21 +1265,21 @@ fname_after_chroot(const char* fname, struct config_file* cfg, int use_chdir)
 	} else if(cfg->directory && cfg->directory[0]) {
 		/* prepend chdir */
 		if(slashit && cfg->directory[0] != '/')
-			strncat(buf, "/", len-strlen(buf));
+			(void)strlcat(buf, "/", len);
 		/* is the directory already in the chroot? */
 		if(cfg->chrootdir && cfg->chrootdir[0] && 
 			strncmp(cfg->chrootdir, cfg->directory, 
 			strlen(cfg->chrootdir)) == 0)
-			strncat(buf, cfg->directory+strlen(cfg->chrootdir), 
-				   len-strlen(buf));
-		else strncat(buf, cfg->directory, len-strlen(buf));
+			(void)strlcat(buf, cfg->directory+strlen(cfg->chrootdir), 
+				   len);
+		else (void)strlcat(buf, cfg->directory, len);
 		slashit = 1;
 	}
 	/* fname */
 	if(slashit && fname[0] != '/')
-		strncat(buf, "/", len-strlen(buf));
-	strncat(buf, fname, len-strlen(buf));
-	buf[len] = 0;
+		(void)strlcat(buf, "/", len);
+	(void)strlcat(buf, fname, len);
+	buf[len-1] = 0;
 	return buf;
 }
 
@@ -1295,7 +1330,7 @@ cfg_parse_local_zone(struct config_file* cfg, const char* val)
 		log_err("syntax error: bad zone name: %s", val);
 		return 0;
 	}
-	strncpy(buf, name, (size_t)(name_end-name));
+	(void)strlcpy(buf, name, sizeof(buf));
 	buf[name_end-name] = '\0';
 
 	type = last_space_pos(name_end);
@@ -1485,18 +1520,11 @@ char* errinf_to_str(struct module_qstate* qstate)
 	size_t left = sizeof(buf);
 	struct config_strlist* s;
 	char dname[LDNS_MAX_DOMAINLEN+1];
-	char* t = ldns_rr_type2str(qstate->qinfo.qtype);
-	char* c = ldns_rr_class2str(qstate->qinfo.qclass);
-	if(!t || !c) {
-		free(t);
-		free(c);
-		log_err("malloc failure in errinf_to_str");
-		return NULL;
-	}
+	char t[16], c[16];
+	sldns_wire2str_type_buf(qstate->qinfo.qtype, t, sizeof(t));
+	sldns_wire2str_class_buf(qstate->qinfo.qclass, c, sizeof(c));
 	dname_str(qstate->qinfo.qname, dname);
 	snprintf(p, left, "validation failure <%s %s %s>:", dname, t, c);
-	free(t);
-	free(c);
 	left -= strlen(p); p += strlen(p);
 	if(!qstate->errinf)
 		snprintf(p, left, " misc failure");
@@ -1514,21 +1542,13 @@ void errinf_rrset(struct module_qstate* qstate, struct ub_packed_rrset_key *rr)
 {
 	char buf[1024];
 	char dname[LDNS_MAX_DOMAINLEN+1];
-	char *t, *c;
+	char t[16], c[16];
 	if(qstate->env->cfg->val_log_level < 2 || !rr)
 		return;
-	t = ldns_rr_type2str(ntohs(rr->rk.type));
-	c = ldns_rr_class2str(ntohs(rr->rk.rrset_class));
-	if(!t || !c) {
-		free(t);
-		free(c);
-		log_err("malloc failure in errinf_rrset");
-		return;
-	}
+	sldns_wire2str_type_buf(ntohs(rr->rk.type), t, sizeof(t));
+	sldns_wire2str_class_buf(ntohs(rr->rk.rrset_class), c, sizeof(c));
 	dname_str(rr->rk.dname, dname);
 	snprintf(buf, sizeof(buf), "for <%s %s %s>", dname, t, c);
-	free(t);
-	free(c);
 	errinf(qstate, buf);
 }
 

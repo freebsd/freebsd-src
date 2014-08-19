@@ -3,6 +3,7 @@
 DEP_RELDIR := ${_PARSEDIR:S,${SRCTOP}/,,}
 
 DIRDEPS = \
+	bin/cat.host \
 	gnu/lib/csu \
 	gnu/lib/libgcc \
 	include \
@@ -11,7 +12,7 @@ DIRDEPS = \
 	lib/libc \
 	lib/libcompiler_rt \
 	lib/libedit \
-	lib/ncurses/ncurses \
+	lib/ncurses/ncursesw \
 
 
 .include <dirdeps.mk>

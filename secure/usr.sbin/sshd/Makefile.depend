@@ -24,7 +24,6 @@ DIRDEPS = \
 	lib/libcompiler_rt \
 	lib/libcrypt \
 	lib/libgssapi \
-	lib/libldns \
 	lib/libmd \
 	lib/libpam/libpam \
 	lib/libthr \

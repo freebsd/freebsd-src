@@ -12,7 +12,6 @@
 SUBDIR=	alias \
 	apply \
 	asa \
-	${_atf} \
 	awk \
 	banner \
 	basename \
@@ -144,6 +143,7 @@ SUBDIR=	alias \
 	rwall \
 	script \
 	sed \
+	send-pr \
 	seq \
 	shar \
 	showmount \
@@ -163,6 +163,7 @@ SUBDIR=	alias \
 	${_tests} \
 	tftp \
 	time \
+	timeout \
 	tip \
 	top \
 	touch \
@@ -230,6 +231,10 @@ SUBDIR+=	calendar
 _clang=		clang
 .endif
 
+.if ${MK_FMAKE} != "no"
+SUBDIR+=	make
+.endif
+
 .if ${MK_GPL_DTC} != "yes"
 SUBDIR+=	dtc
 .endif
@@ -260,10 +265,6 @@ SUBDIR+=	compile_et
 .if ${MK_LDNS_UTILS} != "no"
 SUBDIR+=	drill
 SUBDIR+=	host
-.endif
-
-.if ${MK_LIBTHR} != "no"
-SUBDIR+=	csup
 .endif
 
 .if ${MK_LOCATE} != "no"
@@ -329,7 +330,6 @@ SUBDIR+=	telnet
 .endif
 
 .if ${MK_TESTS} != "no"
-_atf=		atf
 _tests=		tests
 .endif
 
@@ -358,6 +358,10 @@ SUBDIR+=	yacc
 
 .if ${MK_VI} != "no"
 SUBDIR+=	vi
+.endif
+
+.if ${MK_VT} != "no"
+SUBDIR+=	vtfontcvt
 .endif
 
 .if ${MK_USB} != "no"

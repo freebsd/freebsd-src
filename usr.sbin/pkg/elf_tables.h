@@ -42,7 +42,6 @@ static struct _elf_corres mach_corres[] = {
 	{ EM_PPC, "powerpc" },
 	{ EM_PPC64, "powerpc" },
 	{ EM_SPARCV9, "sparc64" },
-	{ EM_IA_64, "ia64" },
 	{ -1, NULL },
 };
 
