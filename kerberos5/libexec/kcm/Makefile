@@ -26,8 +26,6 @@ LDADD=	-lhdb -lkrb5 -lroken -lasn1 -lheimntlm ${LDHEIMIPCS} \
 USEPRIVATELIB= heimipcs
 LDFLAGS=${LDAPLDFLAGS}
 
-NO_PIE=	yes
-
 .include <bsd.prog.mk>
 
 .PATH: ${KRB5DIR}/kcm
