@@ -57,7 +57,6 @@ __FBSDID("$FreeBSD$");
 #include <arm/samsung/exynos/exynos5_combiner.h>
 
 #define NGRP		32
-#define ITABLE_LEN	24
 
 #define	IESR(n)	(0x10 * n + 0x0)	/* Interrupt enable set */
 #define	IECR(n)	(0x10 * n + 0x4)	/* Interrupt enable clear */
@@ -118,7 +117,7 @@ struct combiner_entry {
 	char *source_name;
 };
 
-static struct combiner_entry interrupt_table[ITABLE_LEN] = {
+static struct combiner_entry interrupt_table[] = {
 	{ 63, 1, "EINT[15]" },
 	{ 63, 0, "EINT[14]" },
 	{ 62, 1, "EINT[13]" },
@@ -143,8 +142,116 @@ static struct combiner_entry interrupt_table[ITABLE_LEN] = {
 	{ 55, 4, "MCT_G1" },
 	{ 55, 3, "MCT_G0" },
 	{ 55, 0, "EINT[0]" },
+	{ 54, 7, "CPU_nCNTVIRQ[1]" },
+	{ 54, 6, "CPU_nCTIIRQ[1]" },
+	{ 54, 5, "CPU_nCNTPSIRQ[1]" },
+	{ 54, 4, "CPU_nPMUIRQ[1]" },
+	{ 54, 3, "CPU_nCNTPNSIRQ[1]" },
+	{ 54, 2, "CPU_PARITYFAILSCU[1]" },
+	{ 54, 1, "CPU_nCNTHPIRQ[1]" },
+	{ 54, 0, "PARITYFAIL[1]" },
+	{ 53, 1, "CPU_nIRQ[1]" },
+	{ 52, 0, "CPU_nIRQ[0]" },
+	{ 51, 7, "CPU_nRAMERRIRQ" },
+	{ 51, 6, "CPU_nAXIERRIRQ" },
+	{ 51, 4, "INT_COMB_ISP_GIC" },
+	{ 51, 3, "INT_COMB_IOP_GIC" },
+	{ 51, 2, "CCI_nERRORIRQ" },
+	{ 51, 1, "INT_COMB_ARMISP_GIC" },
+	{ 51, 0, "INT_COMB_ARMIOP_GIC" },
+	{ 50, 7, "DISP1[3]" },
+	{ 50, 6, "DISP1[2]" },
+	{ 50, 5, "DISP1[1]" },
+	{ 50, 4, "DISP1[0]" },
+	{ 49, 3, "SSCM_PULSE_IRQ_C2CIF[1]" },
+	{ 49, 2, "SSCM_PULSE_IRQ_C2CIF[0]" },
+	{ 49, 1, "SSCM_IRQ_C2CIF[1]" },
+	{ 49, 0, "SSCM_IRQ_C2CIF[0]" },
+	{ 48, 3, "PEREV_M1_CDREX" },
+	{ 48, 2, "PEREV_M0_CDREX" },
+	{ 48, 1, "PEREV_A1_CDREX" },
+	{ 48, 0, "PEREV_A0_CDREX" },
+	{ 47, 3, "MDMA0_ABORT" },
+	/* 46 is fully reserved */
+	{ 45, 1, "MDMA1_ABORT" },
+	/* 44 is fully reserved */
+	{ 43, 7, "SYSMMU_DRCISP[1]" },
+	{ 43, 6, "SYSMMU_DRCISP[0]" },
+	{ 43, 1, "SYSMMU_ODC[1]" },
+	{ 43, 0, "SYSMMU_ODC[0]" },
+	{ 42, 7, "SYSMMU_ISP[1]" },
+	{ 42, 6, "SYSMMU_ISP[0]" },
+	{ 42, 5, "SYSMMU_DIS0[1]" },
+	{ 42, 4, "SYSMMU_DIS0[0]" },
+	{ 42, 3, "DP1" },
+	{ 41, 5, "SYSMMU_DIS1[1]" },
+	{ 41, 4, "SYSMMU_DIS1[0]" },
+	{ 40, 6, "SYSMMU_MFCL[1]" },
+	{ 40, 5, "SYSMMU_MFCL[0]" },
+	{ 39, 5, "SYSMMU_TV_M0[1]" },
+	{ 39, 4, "SYSMMU_TV_M0[0]" },
+	{ 39, 3, "SYSMMU_MDMA1[1]" },
+	{ 39, 2, "SYSMMU_MDMA1[0]" },
+	{ 39, 1, "SYSMMU_MDMA0[1]" },
+	{ 39, 0, "SYSMMU_MDMA0[0]" },
+	{ 38, 7, "SYSMMU_SSS[1]" },
+	{ 38, 6, "SYSMMU_SSS[0]" },
+	{ 38, 5, "SYSMMU_RTIC[1]" },
+	{ 38, 4, "SYSMMU_RTIC[0]" },
+	{ 38, 3, "SYSMMU_MFCR[1]" },
+	{ 38, 2, "SYSMMU_MFCR[0]" },
+	{ 38, 1, "SYSMMU_ARM[1]" },
+	{ 38, 0, "SYSMMU_ARM[0]" },
+	{ 37, 7, "SYSMMU_3DNR[1]" },
+	{ 37, 6, "SYSMMU_3DNR[0]" },
+	{ 37, 5, "SYSMMU_MCUISP[1]" },
+	{ 37, 4, "SYSMMU_MCUISP[0]" },
+	{ 37, 3, "SYSMMU_SCALERCISP[1]" },
+	{ 37, 2, "SYSMMU_SCALERCISP[0]" },
+	{ 37, 1, "SYSMMU_FDISP[1]" },
+	{ 37, 0, "SYSMMU_FDISP[0]" },
+	{ 36, 7, "MCUIOP_CTIIRQ" },
+	{ 36, 6, "MCUIOP_PMUIRQ" },
+	{ 36, 5, "MCUISP_CTIIRQ" },
+	{ 36, 4, "MCUISP_PMUIRQ" },
+	{ 36, 3, "SYSMMU_JPEGX[1]" },
+	{ 36, 2, "SYSMMU_JPEGX[0]" },
+	{ 36, 1, "SYSMMU_ROTATOR[1]" },
+	{ 36, 0, "SYSMMU_ROTATOR[0]" },
+	{ 35, 7, "SYSMMU_SCALERPISP[1]" },
+	{ 35, 6, "SYSMMU_SCALERPISP[0]" },
+	{ 35, 5, "SYSMMU_FIMC_LITE0[1]" },
+	{ 35, 4, "SYSMMU_FIMC_LITE0[0]" },
+	{ 35, 3, "SYSMMU_DISP1_M0[1]" },
+	{ 35, 2, "SYSMMU_DISP1_M0[0]" },
+	{ 35, 1, "SYSMMU_FIMC_LITE2[1]" },
+	{ 35, 0, "SYSMMU_FIMC_LITE2[0]" },
+	{ 34, 7, "SYSMMU_GSCL3[1]" },
+	{ 34, 6, "SYSMMU_GSCL3[0]" },
+	{ 34, 5, "SYSMMU_GSCL2[1]" },
+	{ 34, 4, "SYSMMU_GSCL2[0]" },
+	{ 34, 3, "SYSMMU_GSCL1[1]" },
+	{ 34, 2, "SYSMMU_GSCL1[0]" },
+	{ 34, 1, "SYSMMU_GSCL0[1]" },
+	{ 34, 0, "SYSMMU_GSCL0[0]" },
+	{ 33, 7, "CPU_nCNTVIRQ[0]" },
+	{ 33, 6, "CPU_nCNTPSIRQ[0]" },
+	{ 33, 5, "CPU_nCNTPSNIRQ[0]" },
+	{ 33, 4, "CPU_nCNTHPIRQ[0]" },
+	{ 33, 3, "CPU_nCTIIRQ[0]" },
+	{ 33, 2, "CPU_nPMUIRQ[0]" },
+	{ 33, 1, "CPU_PARITYFAILSCU[0]" },
+	{ 33, 0, "CPU_PARITYFAIL0" },
+	{ 32, 7, "TZASC_XR1BXW" },
+	{ 32, 6, "TZASC_XR1BXR" },
+	{ 32, 5, "TZASC_XLBXW" },
+	{ 32, 4, "TZASC_XLBXR" },
+	{ 32, 3, "TZASC_DRBXW" },
+	{ 32, 2, "TZASC_DRBXR" },
+	{ 32, 1, "TZASC_CBXW" },
+	{ 32, 0, "TZASC_CBXR" },
 
-	/* TODO: add groups 54-32 */
+	{ -1, -1, NULL },
 };
 
 struct combined_intr {
@@ -212,7 +319,7 @@ combiner_setup_intr(char *source_name, void (*ih)(void *), void *ih_user)
 
 	entry = NULL;
 
-	for (i = 0; i < ITABLE_LEN; i++) {
+	for (i = 0; i < NGRP && interrupt_table[i].bit != -1; i++) {
 		if (strcmp(interrupt_table[i].source_name, source_name) == 0) {
 			entry = &interrupt_table[i];
 		}

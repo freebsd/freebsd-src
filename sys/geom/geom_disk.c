@@ -223,7 +223,7 @@ g_disk_done(struct bio *bp)
 	if (bp2->bio_error == 0)
 		bp2->bio_error = bp->bio_error;
 	bp2->bio_completed += bp->bio_completed;
-	if ((bp->bio_cmd & (BIO_READ|BIO_WRITE|BIO_DELETE)) != 0)
+	if ((bp->bio_cmd & (BIO_READ|BIO_WRITE|BIO_DELETE|BIO_FLUSH)) != 0)
 		devstat_end_transaction_bio_bt(sc->dp->d_devstat, bp, &now);
 	bp2->bio_inbed++;
 	if (bp2->bio_children == bp2->bio_inbed) {
@@ -244,7 +244,7 @@ g_disk_done_single(struct bio *bp)
 	bp->bio_completed = bp->bio_length - bp->bio_resid;
 	bp->bio_done = (void *)bp->bio_to;
 	bp->bio_to = LIST_FIRST(&bp->bio_disk->d_geom->provider);
-	if ((bp->bio_cmd & (BIO_READ|BIO_WRITE|BIO_DELETE)) != 0) {
+	if ((bp->bio_cmd & (BIO_READ|BIO_WRITE|BIO_DELETE|BIO_FLUSH)) != 0) {
 		binuptime(&now);
 		sc = bp->bio_to->private;
 		mtx_lock(&sc->done_mtx);
@@ -418,6 +418,9 @@ g_disk_start(struct bio *bp)
 		bp->bio_disk = dp;
 		bp->bio_to = (void *)bp->bio_done;
 		bp->bio_done = g_disk_done_single;
+		mtx_lock(&sc->start_mtx); 
+		devstat_start_transaction_bio(dp->d_devstat, bp);
+		mtx_unlock(&sc->start_mtx); 
 		dp->d_strategy(bp);
 		break;
 	default:
@@ -558,12 +561,9 @@ g_disk_create(void *arg, int flag)
 		SYSCTL_STATIC_CHILDREN(_kern_geom_disk), OID_AUTO, gp->name,
 		CTLFLAG_RD, 0, tmpstr);
 	if (sc->sysctl_tree != NULL) {
-		snprintf(tmpstr, sizeof(tmpstr),
-		    "kern.geom.disk.%s.led", gp->name);
-		TUNABLE_STR_FETCH(tmpstr, sc->led, sizeof(sc->led));
 		SYSCTL_ADD_STRING(&sc->sysctl_ctx,
 		    SYSCTL_CHILDREN(sc->sysctl_tree), OID_AUTO, "led",
-		    CTLFLAG_RW | CTLFLAG_TUN, sc->led, sizeof(sc->led),
+		    CTLFLAG_RWTUN, sc->led, sizeof(sc->led),
 		    "LED name");
 	}
 	pp->private = sc;

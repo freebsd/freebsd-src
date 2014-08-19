@@ -55,6 +55,9 @@ CFLAGS+=	-I${.CURDIR}/../../common -I${.CURDIR}/../common \
 # the location of libstand
 CFLAGS+=	-I${.CURDIR}/../../../../lib/libstand/
 
+# Suppress warning from clang for FreeBSD %b and %D formats
+CFLAGS+= -fformat-extensions
+
 .if ${MACHINE_CPUARCH} == "amd64"
 CLEANFILES+=	machine
 machine:

@@ -47,7 +47,7 @@ typedef	__size_t	size_t;
 #define	_SIZE_T_DECLARED
 #endif
 
-#if __BSD_VISIBLE || __POSIX_VISIBLE >= 200809
+#if __POSIX_VISIBLE >= 200809
 #ifndef _OFF_T_DECLARED
 #define	_OFF_T_DECLARED
 typedef	__off_t		off_t;
@@ -58,7 +58,7 @@ typedef	__ssize_t	ssize_t;
 #endif
 #endif
 
-#if __BSD_VISIBLE || __POSIX_VISIBLE >= 200112 || __XSI_VISIBLE
+#if __POSIX_VISIBLE >= 200112 || __XSI_VISIBLE
 #ifndef _VA_LIST_DECLARED
 typedef	__va_list	va_list;
 #define	_VA_LIST_DECLARED
@@ -290,7 +290,7 @@ int	 vsscanf(const char * __restrict, const char * __restrict, __va_list)
 /*
  * Functions defined in all versions of POSIX 1003.1.
  */
-#if __BSD_VISIBLE || __POSIX_VISIBLE <= 199506
+#if __BSD_VISIBLE || (__POSIX_VISIBLE && __POSIX_VISIBLE <= 199506)
 #define	L_cuserid	17	/* size for cuserid(3); MAXLOGNAME, legacy */
 #endif
 
@@ -342,7 +342,7 @@ int	 putw(int, FILE *);
 char	*tempnam(const char *, const char *);
 #endif
 
-#if __BSD_VISIBLE || __POSIX_VISIBLE >= 200809
+#if __POSIX_VISIBLE >= 200809
 FILE	*fmemopen(void * __restrict, size_t, const char * __restrict);
 ssize_t	 getdelim(char ** __restrict, size_t * __restrict, int,
 	    FILE * __restrict);
@@ -387,7 +387,7 @@ ssize_t	 getline(char ** __restrict, size_t * __restrict, FILE * __restrict);
 int	 (dprintf)(int, const char * __restrict, ...);
 #endif
 
-#endif /* __BSD_VISIBLE || __POSIX_VISIBLE >= 200809 */
+#endif /* __POSIX_VISIBLE >= 200809 */
 
 /*
  * Routines that are purely local.

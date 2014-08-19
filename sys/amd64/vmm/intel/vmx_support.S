@@ -37,6 +37,10 @@
 #define	LK
 #endif
 
+/* Be friendly to DTrace FBT's prologue/epilogue pattern matching */
+#define VENTER  push %rbp ; mov %rsp,%rbp
+#define VLEAVE  pop %rbp
+
 /*
  * Assumes that %rdi holds a pointer to the 'vmxctx'.
  *
@@ -98,6 +102,7 @@
  * Interrupts must be disabled on entry.
  */
 ENTRY(vmx_enter_guest)
+	VENTER
 	/*
 	 * Save host state before doing anything else.
 	 */
@@ -183,14 +188,17 @@ inst_error:
 	LK btrl	%r10d, PM_ACTIVE(%r11)
 
 	VMX_HOST_RESTORE
+	VLEAVE
 	ret
-END(vmx_enter_guest)
 
 /*
- * void vmx_exit_guest(void)
- * %rsp points to the struct vmxctx
+ * Non-error VM-exit from the guest. Make this a label so it can
+ * be used by C code when setting up the VMCS.
+ * The VMCS-restored %rsp points to the struct vmxctx
  */
-ENTRY(vmx_exit_guest)
+	ALIGN_TEXT
+	.globl	vmx_exit_guest
+vmx_exit_guest:
 	/*
 	 * Save guest state that is not automatically saved in the vmcs.
 	 */
@@ -229,8 +237,9 @@ ENTRY(vmx_exit_guest)
 	 * value of VMX_GUEST_VMEXIT.
 	 */
 	movl	$VMX_GUEST_VMEXIT, %eax
+	VLEAVE
 	ret
-END(vmx_exit_guest)
+END(vmx_enter_guest)
 
 /*
  * %rdi = interrupt handler entry point
@@ -239,6 +248,7 @@ END(vmx_exit_guest)
  * instruction in Intel SDM, Vol 2.
  */
 ENTRY(vmx_call_isr)
+	VENTER
 	mov	%rsp, %r11			/* save %rsp */
 	and	$~0xf, %rsp			/* align on 16-byte boundary */
 	pushq	$KERNEL_SS			/* %ss */
@@ -247,5 +257,6 @@ ENTRY(vmx_call_isr)
 	pushq	$KERNEL_CS			/* %cs */
 	cli					/* disable interrupts */
 	callq	*%rdi				/* push %rip and call isr */
+	VLEAVE
 	ret
 END(vmx_call_isr)

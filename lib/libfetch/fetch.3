@@ -627,6 +627,7 @@ the document URL will be used as referrer URL.
 Specifies the User-Agent string to use for HTTP requests.
 This can be useful when working with HTTP origin or proxy servers that
 differentiate between user agents.
+If defined but empty, no User-Agent header is sent.
 .It Ev NETRC
 Specifies a file to use instead of
 .Pa ~/.netrc
@@ -773,27 +774,27 @@ library first appeared in
 The
 .Nm fetch
 library was mostly written by
-.An Dag-Erling Sm\(/orgrav Aq des@FreeBSD.org
+.An Dag-Erling Sm\(/orgrav Aq Mt des@FreeBSD.org
 with numerous suggestions and contributions from
-.An Jordan K. Hubbard Aq jkh@FreeBSD.org ,
-.An Eugene Skepner Aq eu@qub.com ,
-.An Hajimu Umemoto Aq ume@FreeBSD.org ,
-.An Henry Whincup Aq henry@techiebod.com ,
-.An Jukka A. Ukkonen Aq jau@iki.fi ,
-.An Jean-Fran\(,cois Dockes Aq jf@dockes.org ,
-.An Michael Gmelin Aq freebsd@grem.de
+.An Jordan K. Hubbard Aq Mt jkh@FreeBSD.org ,
+.An Eugene Skepner Aq Mt eu@qub.com ,
+.An Hajimu Umemoto Aq Mt ume@FreeBSD.org ,
+.An Henry Whincup Aq Mt henry@techiebod.com ,
+.An Jukka A. Ukkonen Aq Mt jau@iki.fi ,
+.An Jean-Fran\(,cois Dockes Aq Mt jf@dockes.org ,
+.An Michael Gmelin Aq Mt freebsd@grem.de
 and others.
 It replaces the older
 .Nm ftpio
 library written by
-.An Poul-Henning Kamp Aq phk@FreeBSD.org
+.An Poul-Henning Kamp Aq Mt phk@FreeBSD.org
 and
-.An Jordan K. Hubbard Aq jkh@FreeBSD.org .
+.An Jordan K. Hubbard Aq Mt jkh@FreeBSD.org .
 .Pp
 This manual page was written by
-.An Dag-Erling Sm\(/orgrav Aq des@FreeBSD.org
+.An Dag-Erling Sm\(/orgrav Aq Mt des@FreeBSD.org
 and
-.An Michael Gmelin Aq freebsd@grem.de .
+.An Michael Gmelin Aq Mt freebsd@grem.de .
 .Sh BUGS
 Some parts of the library are not yet implemented.
 The most notable

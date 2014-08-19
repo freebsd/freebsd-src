@@ -236,6 +236,9 @@ ng_eiface_start2(node_p node, hook_p hook, void *arg1, int arg2)
 		if (m == NULL)
 			break;
 
+		/* Peel the mbuf off any stale tags */
+		m_tag_delete_chain(m, NULL);
+
 		/*
 		 * Berkeley packet filter.
 		 * Pass packet to bpf if there is a listener.

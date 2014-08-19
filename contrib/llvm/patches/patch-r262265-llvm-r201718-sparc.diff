@@ -2,7 +2,7 @@ Pull in r201718 from upstream llvm trunk (by Roman Divacky):
 
   Expand 64bit {SHL,SHR,SRA}_PARTS on sparcv9.
 
-Introduced here: http://svn.freebsd.org/changeset/base/262265
+Introduced here: http://svnweb.freebsd.org/changeset/base/262265
 
 Index: test/CodeGen/SPARC/parts.ll
 ===================================================================

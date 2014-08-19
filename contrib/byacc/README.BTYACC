@@ -1,4 +1,4 @@
--- $Id: README.BTYACC,v 1.1 2014/03/25 19:21:31 Tom.Shields Exp $
+-- $Id: README.BTYACC,v 1.2 2014/04/22 08:18:57 Tom.Shields Exp $
 
 The original README from btyacc is below.
 
@@ -7,6 +7,20 @@ byacc baseline.
 
 The %include and %define/%ifdef enhancements described below are not currently
 incorporated.
+
+The position management functionality ("YYPOSN", "yyposn", "YYREDUCEPOSNFUNC",
+"YYREDUCEPOSNFUNCARG" & "YYCALLREDUCEPOSN") is replaced by a bison-compatible
+"%locations" implementation.
+
+The memory management functionality ("YYDELETEVAL" & "YYDELETEPOSN") is
+replaced by a bison-compatible "%destructor" implementation.
+
+The detailed syntax error processing functionality ("YYERROR_DETAILED"
+& "yyerror_detailed()") is subsumed by the bison-compatible "yyerror()"
+implementation, as modified by the %parse-param and %locations directives.
+
+The debugging macro "YYDBPR()" in the parser skeleton is renamed
+"YYSTYPE_TOSTRING()".
 
 -------------------------------------------------------------------------------
 	     BTYACC -- backtracking yacc

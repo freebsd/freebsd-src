@@ -86,6 +86,8 @@ cam/ctl/ctl_frontend_cam_sim.c	optional ctl
 cam/ctl/ctl_frontend_internal.c	optional ctl
 cam/ctl/ctl_frontend_iscsi.c	optional ctl
 cam/ctl/ctl_scsi_all.c		optional ctl
+cam/ctl/ctl_tpc.c		optional ctl
+cam/ctl/ctl_tpc_local.c		optional ctl
 cam/ctl/ctl_error.c		optional ctl
 cam/ctl/ctl_util.c		optional ctl
 cam/ctl/scsi_ctl.c		optional ctl
@@ -138,6 +140,7 @@ cddl/contrib/opensolaris/common/zfs/zprop_common.c			optional zfs compile-with "
 cddl/contrib/opensolaris/uts/common/fs/gfs.c				optional zfs compile-with "${ZFS_C}"
 cddl/contrib/opensolaris/uts/common/fs/vnode.c				optional zfs compile-with "${ZFS_C}"
 cddl/contrib/opensolaris/uts/common/fs/zfs/arc.c			optional zfs compile-with "${ZFS_C}"
+cddl/contrib/opensolaris/uts/common/fs/zfs/blkptr.c			optional zfs compile-with "${ZFS_C}"
 cddl/contrib/opensolaris/uts/common/fs/zfs/bplist.c			optional zfs compile-with "${ZFS_C}"
 cddl/contrib/opensolaris/uts/common/fs/zfs/bpobj.c			optional zfs compile-with "${ZFS_C}"
 cddl/contrib/opensolaris/uts/common/fs/zfs/bptree.c			optional zfs compile-with "${ZFS_C}"
@@ -1127,6 +1130,8 @@ dev/cxgb/cxgb_t3fw.c		optional cxgb cxgb_t3fw \
 	compile-with "${NORMAL_C} -I$S/dev/cxgb"
 dev/cxgbe/t4_main.c		optional cxgbe pci \
 	compile-with "${NORMAL_C} -I$S/dev/cxgbe"
+dev/cxgbe/t4_netmap.c		optional cxgbe pci \
+	compile-with "${NORMAL_C} -I$S/dev/cxgbe"
 dev/cxgbe/t4_sge.c		optional cxgbe pci \
 	compile-with "${NORMAL_C} -I$S/dev/cxgbe"
 dev/cxgbe/t4_l2t.c		optional cxgbe pci \
@@ -1165,7 +1170,7 @@ t4fw.fwo		optional cxgbe					\
 	no-implicit-rule						\
 	clean		"t4fw.fwo"
 t4fw.fw			optional cxgbe					\
-	dependency	"$S/dev/cxgbe/firmware/t4fw-1.9.12.0.bin.uu"	\
+	dependency	"$S/dev/cxgbe/firmware/t4fw-1.11.27.0.bin.uu"	\
 	compile-with	"${NORMAL_FW}"					\
 	no-obj no-implicit-rule						\
 	clean		"t4fw.fw"
@@ -1189,7 +1194,7 @@ t5fw.fwo		optional cxgbe					\
 	no-implicit-rule						\
 	clean		"t5fw.fwo"
 t5fw.fw			optional cxgbe					\
-	dependency	"$S/dev/cxgbe/firmware/t5fw-1.9.12.0.bin.uu"	\
+	dependency	"$S/dev/cxgbe/firmware/t5fw-1.11.27.0.bin.uu"	\
 	compile-with	"${NORMAL_FW}"					\
 	no-obj no-implicit-rule						\
 	clean		"t5fw.fw"
@@ -1417,6 +1422,22 @@ dev/hptiop/hptiop.c		optional hptiop scbus
 dev/hwpmc/hwpmc_logging.c	optional hwpmc
 dev/hwpmc/hwpmc_mod.c		optional hwpmc
 dev/hwpmc/hwpmc_soft.c		optional hwpmc
+dev/i40e/if_i40e.c		optional i40e inet \
+	compile-with "${NORMAL_C} -I$S/dev/i40e -DSMP"
+dev/i40e/i40e_txrx.c		optional i40e inet \
+	compile-with "${NORMAL_C} -I$S/dev/i40e -DSMP"
+dev/i40e/i40e_osdep.c		optional i40e inet \
+	compile-with "${NORMAL_C} -I$S/dev/i40e -DSMP"
+dev/i40e/i40e_nvm.c		optional i40e inet \
+	compile-with "${NORMAL_C} -I$S/dev/i40e -DSMP"
+dev/i40e/i40e_lan_hmc.c		optional i40e inet \
+	compile-with "${NORMAL_C} -I$S/dev/i40e -DSMP"
+dev/i40e/i40e_hmc.c		optional i40e inet \
+	compile-with "${NORMAL_C} -I$S/dev/i40e -DSMP"
+dev/i40e/i40e_common.c		optional i40e inet \
+	compile-with "${NORMAL_C} -I$S/dev/i40e -DSMP"
+dev/i40e/i40e_adminq.c		optional i40e inet \
+	compile-with "${NORMAL_C} -I$S/dev/i40e -DSMP"
 dev/ichsmb/ichsmb.c		optional ichsmb
 dev/ichsmb/ichsmb_pci.c		optional ichsmb pci
 dev/ida/ida.c			optional ida
@@ -1444,6 +1465,7 @@ dev/iicbus/iiconf.c		optional iicbus
 dev/iicbus/iicsmb.c		optional iicsmb				\
 	dependency	"iicbus_if.h"
 dev/iicbus/iicoc.c		optional iicoc
+dev/iicbus/lm75.c		optional lm75
 dev/iicbus/pcf8563.c		optional pcf8563
 dev/iicbus/s35390a.c		optional s35390a
 dev/iir/iir.c			optional iir
@@ -1508,6 +1530,7 @@ dev/iscsi_initiator/isc_cam.c	optional iscsi_initiator scbus
 dev/iscsi_initiator/isc_soc.c	optional iscsi_initiator scbus
 dev/iscsi_initiator/isc_sm.c	optional iscsi_initiator scbus
 dev/iscsi_initiator/isc_subr.c	optional iscsi_initiator scbus
+dev/ismt/ismt.c			optional ismt
 dev/isp/isp.c			optional isp
 dev/isp/isp_freebsd.c		optional isp
 dev/isp/isp_library.c		optional isp
@@ -2285,6 +2308,7 @@ dev/usb/controller/at91dci_atmelarm.c	optional at91dci at91rm9200
 dev/usb/controller/musb_otg.c		optional musb
 dev/usb/controller/musb_otg_atmelarm.c	optional musb at91rm9200
 dev/usb/controller/dwc_otg.c		optional dwcotg
+dev/usb/controller/dwc_otg_fdt.c	optional dwcotg fdt
 dev/usb/controller/ehci.c		optional ehci
 dev/usb/controller/ehci_pci.c		optional ehci pci
 dev/usb/controller/ohci.c		optional ohci
@@ -2294,6 +2318,8 @@ dev/usb/controller/uhci.c		optional uhci
 dev/usb/controller/uhci_pci.c		optional uhci pci
 dev/usb/controller/xhci.c		optional xhci
 dev/usb/controller/xhci_pci.c		optional xhci pci
+dev/usb/controller/saf1761_otg.c	optional saf1761otg
+dev/usb/controller/saf1761_otg_fdt.c	optional saf1761otg fdt
 dev/usb/controller/uss820dci.c		optional uss820dci
 dev/usb/controller/uss820dci_atmelarm.c	optional uss820dci at91rm9200
 dev/usb/controller/usb_controller.c	optional usb
@@ -2503,7 +2529,7 @@ dev/vt/font/vt_font_default.c	optional vt
 dev/vt/font/vt_mouse_cursor.c	optional vt
 dev/vt/hw/efifb/efifb.c		optional vt_efifb
 dev/vt/hw/fb/vt_fb.c		optional vt
-dev/vt/hw/vga/vga.c		optional vt vt_vga
+dev/vt/hw/vga/vt_vga.c		optional vt vt_vga
 dev/vt/logo/logo_freebsd.c	optional vt splash
 dev/vt/vt_buf.c			optional vt
 dev/vt/vt_consolectl.c		optional vt
@@ -2566,6 +2592,7 @@ dev/xen/netback/netback.c	optional xen | xenhvm
 dev/xen/netfront/netfront.c	optional xen | xenhvm
 dev/xen/xenpci/xenpci.c		optional xenpci
 dev/xen/timer/timer.c		optional xen | xenhvm
+dev/xen/pvcpu/pvcpu.c		optional xen | xenhvm
 dev/xl/if_xl.c			optional xl pci
 dev/xl/xlphy.c			optional xl pci
 fs/deadfs/dead_vnops.c		standard
@@ -2577,6 +2604,7 @@ fs/devfs/devfs_vnops.c		standard
 fs/fdescfs/fdesc_vfsops.c	optional fdescfs
 fs/fdescfs/fdesc_vnops.c	optional fdescfs
 fs/fifofs/fifo_vnops.c		standard
+fs/cuse/cuse.c			optional cuse
 fs/fuse/fuse_device.c		optional fuse
 fs/fuse/fuse_file.c		optional fuse
 fs/fuse/fuse_internal.c		optional fuse
@@ -2732,6 +2760,7 @@ geom/part/g_part.c		standard
 geom/part/g_part_if.m		standard
 geom/part/g_part_apm.c		optional geom_part_apm
 geom/part/g_part_bsd.c		optional geom_part_bsd
+geom/part/g_part_bsd64.c	optional geom_part_bsd64
 geom/part/g_part_ebr.c		optional geom_part_ebr
 geom/part/g_part_gpt.c		optional geom_part_gpt
 geom/part/g_part_ldm.c		optional geom_part_ldm
@@ -2832,6 +2861,7 @@ kern/bus_if.m			standard
 kern/clock_if.m			standard
 kern/cpufreq_if.m		standard
 kern/device_if.m		standard
+kern/imgact_binmisc.c		optional	imagact_binmisc
 kern/imgact_elf.c		standard
 kern/imgact_elf32.c		optional compat_freebsd32
 kern/imgact_shell.c		standard
@@ -2987,7 +3017,7 @@ kern/tty_outq.c			standard
 kern/tty_pts.c			standard
 kern/tty_tty.c			standard
 kern/tty_ttydisc.c		standard
-kern/uipc_accf.c		optional inet
+kern/uipc_accf.c		standard
 kern/uipc_debug.c		optional ddb
 kern/uipc_domain.c		standard
 kern/uipc_mbuf.c		standard
@@ -3782,6 +3812,7 @@ pci/viapm.c			optional viapm pci
 rpc/auth_none.c			optional krpc | nfslockd | nfsclient | nfsserver | nfscl | nfsd
 rpc/auth_unix.c			optional krpc | nfslockd | nfsclient | nfscl | nfsd
 rpc/authunix_prot.c		optional krpc | nfslockd | nfsclient | nfsserver | nfscl | nfsd
+rpc/clnt_bck.c			optional krpc | nfslockd | nfsserver | nfscl | nfsd
 rpc/clnt_dg.c			optional krpc | nfslockd | nfsclient | nfscl | nfsd
 rpc/clnt_rc.c			optional krpc | nfslockd | nfsclient | nfscl | nfsd
 rpc/clnt_vc.c			optional krpc | nfslockd | nfsclient | nfsserver | nfscl | nfsd
@@ -3858,7 +3889,7 @@ ufs/ffs/ffs_subr.c		optional ffs
 ufs/ffs/ffs_tables.c		optional ffs
 ufs/ffs/ffs_vfsops.c		optional ffs
 ufs/ffs/ffs_vnops.c		optional ffs
-ufs/ffs/ffs_rawread.c		optional directio
+ufs/ffs/ffs_rawread.c		optional ffs directio
 ufs/ffs/ffs_suspend.c		optional ffs
 ufs/ufs/ufs_acl.c		optional ffs
 ufs/ufs/ufs_bmap.c		optional ffs

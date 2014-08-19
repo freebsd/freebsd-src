@@ -1,4 +1,4 @@
-# $Id: meta.autodep.mk,v 1.32 2012/11/13 00:44:26 sjg Exp $
+# $Id: meta.autodep.mk,v 1.36 2014/08/02 23:10:29 sjg Exp $
 
 #
 #	@(#) Copyright (c) 2010, Simon J. Gerraty
@@ -120,7 +120,7 @@ FORCE_DPADD += ${_nonlibs:@x@${DPADD:M*/$x}@}
 # some makefiles and/or targets contain
 # circular dependencies if you dig too deep 
 # (as meta mode is apt to do) 
-# so we provide a means of supressing them.
+# so we provide a means of suppressing them.
 # the input to the loop below is target: dependency
 # with just one dependency per line.
 # Also some targets are not really local, or use random names.
@@ -137,7 +137,7 @@ SUPPRESS_DEPEND += \
 # the double $$ defers initial evaluation
 # if necessary, we fake .po dependencies, just so the result 
 # in Makefile.depend* is stable
-# The current objdir may be refered to in various ways
+# The current objdir may be referred to in various ways
 OBJDIR_REFS += ${.OBJDIR} ${.OBJDIR:tA} ${_OBJDIR} ${RELOBJTOP}/${RELDIR}
 _depend = .depend
 # it would be nice to be able to get .SUFFIXES as ${.SUFFIXES}
@@ -254,6 +254,9 @@ ${_DEPENDFILE}: ${_depend} ${.PARSEDIR}/gendirdeps.mk  ${META2DEPS} $${.MAKE.MET
 .endif
 
 .if ${_bootstrap_dirdeps} == "yes"
+.if ${BUILD_AT_LEVEL0:Uno} == "no"
+DIRDEPS+= ${RELDIR}.${TARGET_SPEC:U${MACHINE}}
+.endif
 # make sure this is included at least once
 .include <dirdeps.mk>
 .else

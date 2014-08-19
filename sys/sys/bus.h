@@ -122,8 +122,7 @@ typedef struct kobj_class	driver_t;
 typedef struct devclass		*devclass_t;
 
 /**
- * @brief A device method (included mainly for compatibility with
- * FreeBSD 4.x).
+ * @brief A device method
  */
 #define device_method_t		kobj_method_t
 

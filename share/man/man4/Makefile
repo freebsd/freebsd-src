@@ -207,6 +207,7 @@ MAN=	aac.4 \
 	ipwfw.4 \
 	isci.4 \
 	iscsi_initiator.4 \
+	ismt.4 \
 	isp.4 \
 	ispfw.4 \
 	iwi.4 \
@@ -228,6 +229,7 @@ MAN=	aac.4 \
 	led.4 \
 	lge.4 \
 	${_linux.4} \
+	lm75.4 \
 	lmc.4 \
 	lo.4 \
 	lp.4 \
@@ -564,6 +566,7 @@ MAN=	aac.4 \
 	${_vmx.4} \
 	vpo.4 \
 	vr.4 \
+	vt.4 \
 	vte.4 \
 	${_vtnet.4} \
 	${_vxge.4} \

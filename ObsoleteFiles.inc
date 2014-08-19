@@ -38,6 +38,92 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20140723: renamed to PCBGROUP.9
+OLD_FILES+=usr/share/man/man9/PCBGROUPS.9.gz
+# 20140718: Remove obsolete man pages
+OLD_FILES+=usr/share/man/man9/zero_copy.9.gz
+OLD_FILES+=usr/share/man/man9/zero_copy_sockets.9.gz
+# 20140718: Remove an obsolete man page
+OLD_FILES+=usr/share/man/man9/pmap_page_protect.9.gz
+# 20140717: Remove an obsolete man page
+OLD_FILES+=usr/share/man/man9/pmap_clear_reference.9.gz
+# 20140716: Remove an incorrectly named man page
+OLD_FILES+=usr/share/man/man9/pmap_ts_modified.9.gz
+# 20140712: Removal of bsd.dtrace.mk
+OLD_FILES+=usr/share/mk/bsd.dtrace.mk
+# 20140705: turn libreadline into an internal lib
+OLD_LIBS+=lib/libreadline.so.8
+OLD_FILES+=usr/lib/libreadline.a
+OLD_FILES+=usr/lib/libreadline_p.a
+OLD_FILES+=usr/lib/libreadline.so
+OLD_FILES+=usr/lib/libhistory.a
+OLD_FILES+=usr/lib/libhistory_p.a
+OLD_FILES+=usr/lib/libhistory.so
+OLD_LIBS+=usr/lib/libhistory.so.8
+OLD_FILES+=usr/include/readline/chardefs.h
+OLD_FILES+=usr/include/readline/history.h
+OLD_FILES+=usr/include/readline/keymaps.h
+OLD_FILES+=usr/include/readline/readline.h
+OLD_FILES+=usr/include/readline/rlconf.h
+OLD_FILES+=usr/include/readline/rlstdc.h
+OLD_FILES+=usr/include/readline/rltypedefs.h
+OLD_FILES+=usr/include/readline/rltypedefs.h
+OLD_FILES+=usr/share/info/readline.info.gz
+OLD_FILES+=usr/share/man/man3/readline.3.gz
+# 20140625: csup removal
+OLD_FILES+=usr/bin/csup
+OLD_FILES+=usr/bin/cpasswd
+OLD_FILES+=usr/share/man/man1/csup.1.gz
+OLD_FILES+=usr/share/man/man1/cpasswd.1.gz
+OLD_FILES+=usr/share/examples/cvsup/README
+OLD_FILES+=usr/share/examples/cvsup/cvs-supfile
+OLD_FILES+=usr/share/examples/cvsup/stable-supfile
+OLD_FILES+=usr/share/examples/cvsup/standard-supfile
+OLD_DIRS+=usr/share/examples/cvsup
+# 20140614: send-pr removal
+OLD_FILES+=usr/bin/sendbug
+OLD_FILES+=usr/share/info/send-pr.info.gz
+OLD_FILES+=usr/share/man/man1/send-pr.1.gz
+OLD_FILES+=usr/share/man/man1/sendbug.1.gz
+OLD_FILES+=etc/gnats/freefall
+OLD_DIRS+=etc/gnats
+# 20140512: new clang import which bumps version from 3.4 to 3.4.1.
+OLD_FILES+=usr/include/clang/3.4/__wmmintrin_aes.h
+OLD_FILES+=usr/include/clang/3.4/__wmmintrin_pclmul.h
+OLD_FILES+=usr/include/clang/3.4/altivec.h
+OLD_FILES+=usr/include/clang/3.4/ammintrin.h
+OLD_FILES+=usr/include/clang/3.4/avx2intrin.h
+OLD_FILES+=usr/include/clang/3.4/avxintrin.h
+OLD_FILES+=usr/include/clang/3.4/bmi2intrin.h
+OLD_FILES+=usr/include/clang/3.4/bmiintrin.h
+OLD_FILES+=usr/include/clang/3.4/cpuid.h
+OLD_FILES+=usr/include/clang/3.4/emmintrin.h
+OLD_FILES+=usr/include/clang/3.4/f16cintrin.h
+OLD_FILES+=usr/include/clang/3.4/fma4intrin.h
+OLD_FILES+=usr/include/clang/3.4/fmaintrin.h
+OLD_FILES+=usr/include/clang/3.4/immintrin.h
+OLD_FILES+=usr/include/clang/3.4/lzcntintrin.h
+OLD_FILES+=usr/include/clang/3.4/mm3dnow.h
+OLD_FILES+=usr/include/clang/3.4/mm_malloc.h
+OLD_FILES+=usr/include/clang/3.4/mmintrin.h
+OLD_FILES+=usr/include/clang/3.4/module.map
+OLD_FILES+=usr/include/clang/3.4/nmmintrin.h
+OLD_FILES+=usr/include/clang/3.4/pmmintrin.h
+OLD_FILES+=usr/include/clang/3.4/popcntintrin.h
+OLD_FILES+=usr/include/clang/3.4/prfchwintrin.h
+OLD_FILES+=usr/include/clang/3.4/rdseedintrin.h
+OLD_FILES+=usr/include/clang/3.4/rtmintrin.h
+OLD_FILES+=usr/include/clang/3.4/shaintrin.h
+OLD_FILES+=usr/include/clang/3.4/smmintrin.h
+OLD_FILES+=usr/include/clang/3.4/tbmintrin.h
+OLD_FILES+=usr/include/clang/3.4/tmmintrin.h
+OLD_FILES+=usr/include/clang/3.4/wmmintrin.h
+OLD_FILES+=usr/include/clang/3.4/x86intrin.h
+OLD_FILES+=usr/include/clang/3.4/xmmintrin.h
+OLD_FILES+=usr/include/clang/3.4/xopintrin.h
+OLD_FILES+=usr/include/clang/3.4/arm_neon.h
+OLD_FILES+=usr/include/clang/3.4/module.map
+OLD_DIRS+=usr/include/clang/3.4
 # 20140505: Bogusly installing src.opts.mk
 OLD_FILES+=usr/share/mk/src.opts.mk
 # 20140505: Reject PR kern/187551
@@ -507,6 +593,7 @@ OLD_FILES+=usr/share/man/man9/vfs_mount.9.gz
 OLD_FILES+=usr/bin/cvs
 OLD_FILES+=usr/bin/cvsbug
 OLD_FILES+=usr/share/doc/psd/28.cvs/paper.ascii.gz
+OLD_FILES+=usr/share/doc/psd/28.cvs/paper.ps.gz
 OLD_DIRS+=usr/share/doc/psd/28.cvs
 OLD_FILES+=usr/share/examples/cvs/contrib/README
 OLD_FILES+=usr/share/examples/cvs/contrib/clmerge
@@ -1127,9 +1214,6 @@ OLD_FILES+=usr/include/xmmintrin.h
 .if ${TARGET_ARCH} == "amd64" || ${TARGET_ARCH} == "i386" || ${TARGET_ARCH} == "arm"
 OLD_FILES+=usr/include/mmintrin.h
 .endif
-.if ${TARGET_ARCH} == "ia64"
-OLD_FILES+=usr/include/ia64intrin.h
-.endif
 .if ${TARGET_ARCH} == "powerpc"
 OLD_FILES+=usr/include/altivec.h
 OLD_FILES+=usr/include/ppc-asm.h
@@ -1147,10 +1231,6 @@ OLD_FILES+=usr/include/machine/rm7000.h
 OLD_FILES+=usr/include/machine/defs.h
 OLD_FILES+=usr/include/machine/queue.h
 .endif
-# 20100326: [ia64] removed <machine/nexusvar.h>
-.if ${TARGET_ARCH} == "ia64"
-OLD_FILES+=usr/include/machine/nexusvar.h
-.endif
 # 20100326: gcpio removal
 OLD_FILES+=usr/bin/gcpio
 OLD_FILES+=usr/share/info/cpio.info.gz
@@ -1164,11 +1244,6 @@ OLD_FILES+=usr/share/man/man3/regexp.3.gz
 OLD_FILES+=usr/share/man/man3/regsub.3.gz
 # 20100303: actual removal of utmp.h
 OLD_FILES+=usr/include/utmp.h
-# 20100227: [ia64] removed <machine/sapicreg.h> and <machine/sapicvar.h>
-.if ${TARGET_ARCH} == "ia64"
-OLD_FILES+=usr/include/machine/sapicreg.h
-OLD_FILES+=usr/include/machine/sapicvar.h
-.endif
 # 20100208: man pages moved
 .if ${TARGET_ARCH} == "i386"
 OLD_FILES+=usr/share/man/man4/i386/alpm.4.gz
@@ -1861,14 +1936,6 @@ OLD_FILES+=usr/share/man/man8/arlcontrol.8.gz
 OLD_FILES+=sbin/sunlabel
 OLD_FILES+=usr/share/man/man8/sunlabel.8.gz
 .endif
-# 20080703: bsdlabel & fdisk removed on ia64
-.if ${TARGET_ARCH} == "ia64"
-OLD_FILES+=sbin/bsdlabel
-OLD_FILES+=usr/share/man/man8/bsdlabel.8.gz
-OLD_FILES+=usr/share/man/man8/disklabel.8.gz
-OLD_FILES+=sbin/fdisk
-OLD_FILES+=usr/share/man/man8/fdisk.8.gz
-.endif
 # 20080701: wpa_supplicant.conf moved to share/examples/etc/
 OLD_FILES+=usr/share/examples/wpa_supplicant/wpa_supplicant.conf
 OLD_DIRS+=usr/share/examples/wpa_supplicant
@@ -2077,12 +2144,6 @@ OLD_FILES+=usr/include/sys/_elf_solaris.h
 OLD_FILES+=usr/share/man/man3/pmc_x86_get_msr.3.gz
 # 20071108: Removed very crunch OLDCARD support file
 OLD_FILES+=etc/defaults/pccard.conf
-# 20071104: Removed bsdlabel, fdisk and gpt from rescue on ia64.
-.if ${TARGET_ARCH} == "ia64"
-OLD_FILES+=rescue/bsdlabel
-OLD_FILES+=rescue/fdisk
-OLD_FILES+=rescue/gpt
-.endif
 # 20071025: rc.d/nfslocking superceeded by rc.d/lockd and rc.d/statd
 OLD_FILES+=etc/rc.d/nfslocking
 # 20070930: rename of cached to nscd
@@ -2743,10 +2804,6 @@ OLD_FILES+=usr/share/man/man8/mount_std.8.gz
 OLD_FILES+=usr/share/man/man4/uhidev.4.gz
 # 20061106: archive_write_prepare.3 removed
 OLD_FILES+=usr/share/man/man3/archive_write_prepare.3.gz
-.if ${TARGET_ARCH} == "ia64"
-# 20061104: skiload.help removed
-OLD_FILES+=boot/skiload.help
-.endif
 # 20061018: pccardc removed
 OLD_FILES+=usr/sbin/pccardc usr/share/man/man8/pccardc.8.gz
 # 20060930: demangle.h from contrib/libstdc++/include/ext/
@@ -2817,7 +2874,6 @@ OLD_DIRS+=usr/share/misc/pcvtfonts
 OLD_FILES+=usr/share/misc/keycap.pcvt
 OLD_FILES+=usr/share/man/man8/ispcvt.8.gz
 OLD_FILES+=usr/share/man/man5/keycap.5.gz
-OLD_FILES+=usr/share/man/man4/vt.4.gz
 OLD_FILES+=usr/share/man/man4/pcvt.4.gz
 OLD_FILES+=usr/share/man/man3/kgetstr.3.gz
 OLD_FILES+=usr/share/man/man3/kgetnum.3.gz

@@ -186,6 +186,7 @@ int	format1(const struct stat *,	/* stat info */
 	    char *, size_t,		/* a place to put the output */
 	    int, int, int, int,		/* the parsed format */
 	    int, int);
+int	hex2byte(const char [2]);
 #if HAVE_STRUCT_STAT_ST_FLAGS
 char   *xfflagstostr(unsigned long);
 #endif
@@ -214,7 +215,7 @@ main(int argc, char *argv[])
 	lsF = 0;
 	fmtchar = '\0';
 	usestat = 0;
-        nfs_handle = 0;
+	nfs_handle = 0;
 	nonl = 0;
 	quiet = 0;
 	linkfail = 0;
@@ -327,32 +328,27 @@ main(int argc, char *argv[])
 			rc = fstat(STDIN_FILENO, &st);
 		} else {
 			int j;
-			char *inval;
 
 			file = argv[0];
 			if (nfs_handle) {
 				rc = 0;
-				bzero (&fhnd, sizeof fhnd);
-				j = MIN(2 * sizeof fhnd, strlen(file));
-				if (j & 1) {
+				bzero(&fhnd, sizeof(fhnd));
+				j = MIN(2 * sizeof(fhnd), strlen(file));
+				if ((j & 1) != 0) {
 					rc = -1;
 				} else {
 					while (j) {
-						((char*) &fhnd)[j / 2 - 1] =
-						    strtol(&file[j - 2],
-						           &inval, 16);
-						if (inval != NULL) {
-							rc = -1;
+						rc = hex2byte(&file[j - 2]);
+						if (rc == -1)
 							break;
-						}
-						argv[0][j - 2] = '\0';
+						((char*) &fhnd)[j / 2 - 1] = rc;
 						j -= 2;
 					}
-					if (!rc)
-						rc = fhstat(&fhnd, &st);
-					else
-						errno = EINVAL;
 				}
+				if (rc == -1)
+					errno = EINVAL;
+				else
+					rc = fhstat(&fhnd, &st);
 
 			} else if (usestat) {
 				/*
@@ -1090,4 +1086,13 @@ format1(const struct stat *st,
 	}
 
 	return (snprintf(buf, blen, lfmt, data));
+}
+
+
+#define hex2nibble(c) (c <= '9' ? c - '0' : toupper(c) - 'A' + 10)
+int
+hex2byte(const char c[2]) {
+	if (!(ishexnumber(c[0]) && ishexnumber(c[1])))
+		return -1;
+	return (hex2nibble(c[0]) << 4) + hex2nibble(c[1]);
 }

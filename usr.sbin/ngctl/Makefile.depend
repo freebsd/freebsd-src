@@ -13,7 +13,7 @@ DIRDEPS = \
 	lib/libedit \
 	lib/libnetgraph \
 	lib/libthr \
-	lib/ncurses/ncurses \
+	lib/ncurses/ncursesw \
 
 
 .include <dirdeps.mk>

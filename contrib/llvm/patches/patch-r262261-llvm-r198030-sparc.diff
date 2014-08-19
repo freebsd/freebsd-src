@@ -2,7 +2,7 @@ Pull in r198030 from upstream llvm trunk (by Venkatraman Govindaraju):
 
   [Sparc] Lower and MachineInstr to MC and print assembly using MCInstPrinter.
 
-Introduced here: http://svn.freebsd.org/changeset/base/262261
+Introduced here: http://svnweb.freebsd.org/changeset/base/262261
 
 Index: lib/Target/Sparc/MCTargetDesc/SparcTargetStreamer.cpp
 ===================================================================

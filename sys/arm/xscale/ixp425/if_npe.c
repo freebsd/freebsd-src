@@ -255,9 +255,8 @@ static SYSCTL_NODE(_hw, OID_AUTO, npe, CTLFLAG_RD, 0,
     "IXP4XX NPE driver parameters");
 
 static int npe_debug = 0;
-SYSCTL_INT(_hw_npe, OID_AUTO, debug, CTLFLAG_RW, &npe_debug,
+SYSCTL_INT(_hw_npe, OID_AUTO, debug, CTLFLAG_RWTUN, &npe_debug,
 	   0, "IXP4XX NPE network interface debug msgs");
-TUNABLE_INT("hw.npe.debug", &npe_debug);
 #define	DPRINTF(sc, fmt, ...) do {					\
 	if (sc->sc_debug) device_printf(sc->sc_dev, fmt, __VA_ARGS__);	\
 } while (0)
@@ -265,18 +264,15 @@ TUNABLE_INT("hw.npe.debug", &npe_debug);
 	if (sc->sc_debug >= n) device_printf(sc->sc_dev, fmt, __VA_ARGS__);\
 } while (0)
 static int npe_tickinterval = 3;		/* npe_tick frequency (secs) */
-SYSCTL_INT(_hw_npe, OID_AUTO, tickinterval, CTLFLAG_RD, &npe_tickinterval,
+SYSCTL_INT(_hw_npe, OID_AUTO, tickinterval, CTLFLAG_RDTUN, &npe_tickinterval,
 	    0, "periodic work interval (secs)");
-TUNABLE_INT("hw.npe.tickinterval", &npe_tickinterval);
 
 static	int npe_rxbuf = 64;		/* # rx buffers to allocate */
-SYSCTL_INT(_hw_npe, OID_AUTO, rxbuf, CTLFLAG_RD, &npe_rxbuf,
+SYSCTL_INT(_hw_npe, OID_AUTO, rxbuf, CTLFLAG_RDTUN, &npe_rxbuf,
 	    0, "rx buffers allocated");
-TUNABLE_INT("hw.npe.rxbuf", &npe_rxbuf);
 static	int npe_txbuf = 128;		/* # tx buffers to allocate */
-SYSCTL_INT(_hw_npe, OID_AUTO, txbuf, CTLFLAG_RD, &npe_txbuf,
+SYSCTL_INT(_hw_npe, OID_AUTO, txbuf, CTLFLAG_RDTUN, &npe_txbuf,
 	    0, "tx buffers allocated");
-TUNABLE_INT("hw.npe.txbuf", &npe_txbuf);
 
 static int
 unit2npeid(int unit)

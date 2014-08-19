@@ -1976,10 +1976,6 @@ nfs_link(struct vop_link_args *ap)
 	struct nfsvattr nfsva, dnfsva;
 	int error = 0, attrflag, dattrflag;
 
-	if (vp->v_mount != tdvp->v_mount) {
-		return (EXDEV);
-	}
-
 	/*
 	 * Push all writes to the server, so that the attribute cache
 	 * doesn't get "out of sync" with the server.

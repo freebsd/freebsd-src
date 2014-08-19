@@ -33,6 +33,7 @@ DIRDEPS = \
 	lib/libcompat \
 	lib/libcompiler_rt \
 	lib/libcrypt \
+	lib/libcuse \
 	lib/libcxxrt \
 	lib/libdevinfo \
 	lib/libdevstat \

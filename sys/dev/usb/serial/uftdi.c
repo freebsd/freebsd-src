@@ -932,7 +932,6 @@ static const struct jtag_by_name {
  * creation of tty devices for jtag interfaces.  Enabled by default.
  */
 static int skip_jtag_interfaces = 1;
-TUNABLE_INT("hw.usb.uftdi.skip_jtag_interfaces", &skip_jtag_interfaces);
 SYSCTL_INT(_hw_usb_uftdi, OID_AUTO, skip_jtag_interfaces, CTLFLAG_RWTUN,
     &skip_jtag_interfaces, 1, "Skip creating tty devices for jtag interfaces");
 

@@ -124,7 +124,7 @@ static const struct arm_devmap_entry iq81342_devmap[] = {
 		    IOP34X_HWADDR,
 		    IOP34X_SIZE,
 		    VM_PROT_READ|VM_PROT_WRITE,
-		    PTE_NOCACHE,
+		    PTE_DEVICE,
 	    },
 	    {
 		    /*
@@ -135,14 +135,14 @@ static const struct arm_devmap_entry iq81342_devmap[] = {
 		    IOP34X_PCIX_OIOBAR &~ (0x100000 - 1),
 		    0x100000,
 		    VM_PROT_READ|VM_PROT_WRITE,
-		    PTE_NOCACHE,
+		    PTE_DEVICE,
 	    },
 	    {
 		    IOP34X_PCE1_VADDR,
 		    IOP34X_PCE1,
 		    IOP34X_PCE1_SIZE,
 		    VM_PROT_READ|VM_PROT_WRITE,
-		    PTE_NOCACHE,
+		    PTE_DEVICE,
 	    },
 	    {	
 		    0,
@@ -323,6 +323,10 @@ initarm(struct arm_boot_params *abp)
 	 * Prepare the list of physical memory available to the vm subsystem.
 	 */
 	arm_physmem_hardware_region(SDRAM_START, memsize);
+	arm_physmem_exclude_region(freemem_pt, KERNPHYSADDR -
+	    freemem_pt, EXFLAG_NOALLOC);
+	arm_physmem_exclude_region(freemempos, KERNPHYSADDR - 0x100000 -
+	    freemempos, EXFLAG_NOALLOC);
 	arm_physmem_exclude_region(abp->abp_physaddr, 
 	    virtual_avail - KERNVIRTADDR, EXFLAG_NOALLOC);
 	arm_physmem_init_kernel_globals();

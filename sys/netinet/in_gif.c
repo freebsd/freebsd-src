@@ -170,6 +170,7 @@ in_gif_output(struct ifnet *ifp, int family, struct mbuf *m)
  			return ENOBUFS;
  		bcopy(&eiphdr, mtod(m, struct etherip_header *),
 		    sizeof(struct etherip_header));
+		tos = 0;
 		break;
 
 	default:
@@ -257,6 +258,7 @@ in_gif_output(struct ifnet *ifp, int family, struct mbuf *m)
 #endif
 	}
 
+	m->m_flags &= ~(M_BCAST|M_MCAST);
 	error = ip_output(m, NULL, &sc->gif_ro, 0, NULL, NULL);
 
 	if (!(GIF2IFP(sc)->if_flags & IFF_LINK0) &&

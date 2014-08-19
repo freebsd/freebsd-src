@@ -2,7 +2,7 @@ Pull in r199399 from upstream clang trunk (by Jakob Stoklund Olesen):
 
   SPARCv9 implements long double as an IEEE quad.
 
-Introduced here: http://svn.freebsd.org/changeset/base/262262
+Introduced here: http://svnweb.freebsd.org/changeset/base/262262
 
 Index: tools/clang/test/CodeGen/sparcv9-abi.c
 ===================================================================

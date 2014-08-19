@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 2, 2014
+.Dd May 17, 2014
 .Dt MAKE.CONF 5
 .Os
 .Sh NAME
@@ -145,7 +145,7 @@ are not supported.
 is provided as a set of
 .Xr cc 1
 settings suggested by
-.An "Bruce Evans" Aq bde@FreeBSD.org
+.An Bruce Evans Aq Mt bde@FreeBSD.org
 for developing and testing changes.
 They can be used, if set, by:
 .Bd -literal -offset indent
@@ -658,6 +658,14 @@ for simple printers, or
 for postscript or graphics printers with a ghostscript
 filter, or both.
 .El
+.Ss "BUILDING PORTS"
+Several make variables can be set that affect the building of ports.
+These variables and their effects are documented in
+.Xr ports 7 ,
+.Pa ${PORTSDIR}/Mk/*
+and the
+.Fx
+Porter's Handbook.
 .Sh FILES
 .Bl -tag -width ".Pa /usr/share/examples/etc/make.conf" -compact
 .It Pa /etc/make.conf
@@ -684,7 +692,7 @@ file appeared sometime before
 .Sh AUTHORS
 This
 manual page was written by
-.An Mike W. Meyer Aq mwm@mired.org .
+.An Mike W. Meyer Aq Mt mwm@mired.org .
 .Sh CAVEATS
 Note, that
 .Ev MAKEOBJDIRPREFIX

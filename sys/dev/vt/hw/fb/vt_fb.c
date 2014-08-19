@@ -41,10 +41,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/vt/hw/fb/vt_fb.h>
 #include <dev/vt/colors/vt_termcolors.h>
 
-static int vt_fb_ioctl(struct vt_device *vd, u_long cmd, caddr_t data,
-    struct thread *td);
-static int vt_fb_mmap(struct vt_device *vd, vm_ooffset_t offset,
-    vm_paddr_t *paddr, int prot, vm_memattr_t *memattr);
 void vt_fb_drawrect(struct vt_device *vd, int x1, int y1, int x2, int y2,
     int fill, term_color_t color);
 void vt_fb_setpixel(struct vt_device *vd, int x, int y, term_color_t color);
@@ -65,20 +61,47 @@ static struct vt_driver vt_fb_driver = {
 
 VT_DRIVER_DECLARE(vt_fb, vt_fb_driver);
 
-static int
+int
 vt_fb_ioctl(struct vt_device *vd, u_long cmd, caddr_t data, struct thread *td)
 {
 	struct fb_info *info;
+	int error = 0;
 
 	info = vd->vd_softc;
 
-	if (info->fb_ioctl == NULL)
-		return (-1);
+	switch (cmd) {
+	case FBIOGTYPE:
+		bcopy(info, (struct fbtype *)data, sizeof(struct fbtype));
+		break;
 
-	return (info->fb_ioctl(info->fb_cdev, cmd, data, 0, td));
+	case FBIO_GETWINORG:	/* get frame buffer window origin */
+		*(u_int *)data = 0;
+		break;
+
+	case FBIO_GETDISPSTART:	/* get display start address */
+		((video_display_start_t *)data)->x = 0;
+		((video_display_start_t *)data)->y = 0;
+		break;
+
+	case FBIO_GETLINEWIDTH:	/* get scan line width in bytes */
+		*(u_int *)data = info->fb_stride;
+		break;
+
+	case FBIO_BLANK:	/* blank display */
+		if (vd->vd_driver->vd_blank == NULL)
+			return (ENODEV);
+		vd->vd_driver->vd_blank(vd, TC_BLACK);
+		break;
+
+	default:
+		error = ENOIOCTL;
+		break;
+	}
+
+	return (error);
 }
 
-static int
+int
 vt_fb_mmap(struct vt_device *vd, vm_ooffset_t offset, vm_paddr_t *paddr,
     int prot, vm_memattr_t *memattr)
 {
@@ -86,10 +109,18 @@ vt_fb_mmap(struct vt_device *vd, vm_ooffset_t offset, vm_paddr_t *paddr,
 
 	info = vd->vd_softc;
 
-	if (info->fb_ioctl == NULL)
-		return (ENXIO);
+	if (info->fb_flags & FB_FLAG_NOMMAP)
+		return (ENODEV);
 
-	return (info->fb_mmap(info->fb_cdev, offset, paddr, prot, memattr));
+	if (offset >= 0 && offset < info->fb_size) {
+		*paddr = info->fb_pbase + offset;
+	#ifdef VM_MEMATTR_WRITE_COMBINING
+		*memattr = VM_MEMATTR_WRITE_COMBINING;
+	#endif
+		return (0);
+	}
+
+	return (EINVAL);
 }
 
 void
@@ -147,40 +178,41 @@ vt_fb_blank(struct vt_device *vd, term_color_t color)
 {
 	struct fb_info *info;
 	uint32_t c;
-	u_int o;
+	u_int o, h;
 
 	info = vd->vd_softc;
 	c = info->fb_cmap[color];
 
 	switch (FBTYPE_GET_BYTESPP(info)) {
 	case 1:
-		for (o = 0; o < info->fb_stride; o++)
-			info->wr1(info, o, c);
+		for (h = 0; h < info->fb_height; h++)
+			for (o = 0; o < info->fb_stride; o++)
+				info->wr1(info, h*info->fb_stride + o, c);
 		break;
 	case 2:
-		for (o = 0; o < info->fb_stride; o += 2)
-			info->wr2(info, o, c);
+		for (h = 0; h < info->fb_height; h++)
+			for (o = 0; o < info->fb_stride; o += 2)
+				info->wr2(info, h*info->fb_stride + o, c);
 		break;
 	case 3:
-		/* line 0 */
-		for (o = 0; o < info->fb_stride; o += 3) {
-			info->wr1(info, o, (c >> 16) & 0xff);
-			info->wr1(info, o + 1, (c >> 8) & 0xff);
-			info->wr1(info, o + 2, c & 0xff);
-		}
+		for (h = 0; h < info->fb_height; h++)
+			for (o = 0; o < info->fb_stride; o += 3) {
+				info->wr1(info, h*info->fb_stride + o,
+				    (c >> 16) & 0xff);
+				info->wr1(info, h*info->fb_stride + o + 1,
+				    (c >> 8) & 0xff);
+				info->wr1(info, h*info->fb_stride + o + 2,
+				    c & 0xff);
+			}
 		break;
 	case 4:
-		for (o = 0; o < info->fb_stride; o += 4)
-			info->wr4(info, o, c);
+		for (h = 0; h < info->fb_height; h++)
+			for (o = 0; o < info->fb_stride; o += 4)
+				info->wr4(info, h*info->fb_stride + o, c);
 		break;
 	default:
 		/* panic? */
 		return;
-	}
-	/* Copy line0 to all other lines. */
-	/* XXX will copy with borders. */
-	for (o = info->fb_stride; o < info->fb_size; o += info->fb_stride) {
-		info->copy(info, o, 0, info->fb_stride);
 	}
 }
 

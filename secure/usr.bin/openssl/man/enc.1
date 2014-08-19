@@ -124,7 +124,7 @@
 .\" ========================================================================
 .\"
 .IX Title "ENC 1"
-.TH ENC 1 "2014-04-07" "1.0.1g" "OpenSSL"
+.TH ENC 1 "2014-06-05" "1.0.1h" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -310,6 +310,10 @@ in the configuration file. The output of the \fBenc\fR command run with
 unsupported options (for example \fBopenssl enc \-help\fR) includes a
 list of ciphers, supported by your versesion of OpenSSL, including
 ones provided by configured engines.
+.PP
+The \fBenc\fR program does not support authenticated encryption modes
+like \s-1CCM\s0 and \s-1GCM\s0. The utility does not store or retrieve the
+authentication tag.
 .PP
 .Vb 1
 \& base64             Base 64

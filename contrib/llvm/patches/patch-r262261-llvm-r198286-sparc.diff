@@ -2,7 +2,7 @@ Pull in r198286 from upstream llvm trunk (by Venkatraman Govindaraju):
 
   [Sparc] Handle atomic loads/stores in sparc backend.
 
-Introduced here: http://svn.freebsd.org/changeset/base/262261
+Introduced here: http://svnweb.freebsd.org/changeset/base/262261
 
 Index: lib/Target/Sparc/SparcInstrInfo.td
 ===================================================================

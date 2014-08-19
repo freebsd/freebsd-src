@@ -28,6 +28,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <sys/endian.h>
 #include <sys/param.h>
 #include <sys/procfs.h>
 #include <sys/ptrace.h>
@@ -73,6 +74,22 @@ struct sseg_closure {
 	size_t size;		/* Total size of all writable segments. */
 };
 
+#ifdef ELFCORE_COMPAT_32
+typedef struct fpreg32 elfcore_fpregset_t;
+typedef struct reg32   elfcore_gregset_t;
+typedef struct prpsinfo32 elfcore_prpsinfo_t;
+typedef struct prstatus32 elfcore_prstatus_t;
+static void elf_convert_gregset(elfcore_gregset_t *rd, struct reg *rs);
+static void elf_convert_fpregset(elfcore_fpregset_t *rd, struct fpreg *rs);
+#else
+typedef fpregset_t elfcore_fpregset_t;
+typedef gregset_t  elfcore_gregset_t;
+typedef prpsinfo_t elfcore_prpsinfo_t;
+typedef prstatus_t elfcore_prstatus_t;
+#define elf_convert_gregset(d,s)	*d = *s
+#define elf_convert_fpregset(d,s)	*d = *s
+#endif
+
 typedef void* (*notefunc_t)(void *, size_t *);
 
 static void cb_put_phdr(vm_map_entry_t, void *);
@@ -108,13 +125,28 @@ elf_ident(int efd, pid_t pid __unused, char *binfile __unused)
 {
 	Elf_Ehdr hdr;
 	int cnt;
+	uint16_t machine;
 
 	cnt = read(efd, &hdr, sizeof(hdr));
 	if (cnt != sizeof(hdr))
 		return (0);
-	if (IS_ELF(hdr))
-		return (1);
-	return (0);
+	if (!IS_ELF(hdr))
+		return (0);
+	switch (hdr.e_ident[EI_DATA]) {
+	case ELFDATA2LSB:
+		machine = le16toh(hdr.e_machine);
+		break;
+	case ELFDATA2MSB:
+		machine = be16toh(hdr.e_machine);
+		break;
+	default:
+		return (0);
+	}
+	if (!ELF_MACHINE_OK(machine))
+		return (0);
+
+	/* Looks good. */
+	return (1);
 }
 
 static void
@@ -194,7 +226,7 @@ elf_coredump(int efd __unused, int fd, pid_t pid)
 		uintmax_t nleft = php->p_filesz;
 
 		iorequest.piod_op = PIOD_READ_D;
-		iorequest.piod_offs = (caddr_t)php->p_vaddr;
+		iorequest.piod_offs = (caddr_t)(uintptr_t)php->p_vaddr;
 		while (nleft > 0) {
 			char buf[8*1024];
 			size_t nwant;
@@ -311,6 +343,7 @@ elf_putnotes(pid_t pid, struct sbuf *sb, size_t *sizep)
 		elf_putnote(NT_THRMISC, elf_note_thrmisc, tids + i, sb);
 	}
 
+#ifndef ELFCORE_COMPAT_32
 	elf_putnote(NT_PROCSTAT_PROC, elf_note_procstat_proc, &pid, sb);
 	elf_putnote(NT_PROCSTAT_FILES, elf_note_procstat_files, &pid, sb);
 	elf_putnote(NT_PROCSTAT_VMMAP, elf_note_procstat_vmmap, &pid, sb);
@@ -321,6 +354,7 @@ elf_putnotes(pid_t pid, struct sbuf *sb, size_t *sizep)
 	elf_putnote(NT_PROCSTAT_PSSTRINGS, elf_note_procstat_psstrings, &pid,
 	    sb);
 	elf_putnote(NT_PROCSTAT_AUXV, elf_note_procstat_auxv, &pid, sb);
+#endif
 
 	size = sbuf_end_section(sb, old_len, 1, 0);
 	if (size == -1)
@@ -491,7 +525,7 @@ static void *
 elf_note_prpsinfo(void *arg, size_t *sizep)
 {
 	pid_t pid;
-	prpsinfo_t *psinfo;
+	elfcore_prpsinfo_t *psinfo;
 	struct kinfo_proc kip;
 	size_t len;
 	int name[4];
@@ -501,7 +535,7 @@ elf_note_prpsinfo(void *arg, size_t *sizep)
 	if (psinfo == NULL)
 		errx(1, "out of memory");
 	psinfo->pr_version = PRPSINFO_VERSION;
-	psinfo->pr_psinfosz = sizeof(prpsinfo_t);
+	psinfo->pr_psinfosz = sizeof(*psinfo);
 
 	name[0] = CTL_KERN;
 	name[1] = KERN_PROC;
@@ -523,19 +557,21 @@ static void *
 elf_note_prstatus(void *arg, size_t *sizep)
 {
 	lwpid_t tid;
-	prstatus_t *status;
+	elfcore_prstatus_t *status;
+	struct reg greg;
 
 	tid = *(lwpid_t *)arg;
 	status = calloc(1, sizeof(*status));
 	if (status == NULL)
 		errx(1, "out of memory");
 	status->pr_version = PRSTATUS_VERSION;
-	status->pr_statussz = sizeof(prstatus_t);
-	status->pr_gregsetsz = sizeof(gregset_t);
-	status->pr_fpregsetsz = sizeof(fpregset_t);
+	status->pr_statussz = sizeof(*status);
+	status->pr_gregsetsz = sizeof(elfcore_gregset_t);
+	status->pr_fpregsetsz = sizeof(elfcore_fpregset_t);
 	status->pr_osreldate = __FreeBSD_version;
 	status->pr_pid = tid;
-	ptrace(PT_GETREGS, tid, (void *)&status->pr_reg, 0);
+	ptrace(PT_GETREGS, tid, (void *)&greg, 0);
+	elf_convert_gregset(&status->pr_reg, &greg);
 
 	*sizep = sizeof(*status);
 	return (status);
@@ -545,13 +581,15 @@ static void *
 elf_note_fpregset(void *arg, size_t *sizep)
 {
 	lwpid_t tid;
-	prfpregset_t *fpregset;
+	elfcore_fpregset_t *fpregset;
+	fpregset_t fpreg;
 
 	tid = *(lwpid_t *)arg;
 	fpregset = calloc(1, sizeof(*fpregset));
 	if (fpregset == NULL)
 		errx(1, "out of memory");
-	ptrace(PT_GETFPREGS, tid, (void *)fpregset, 0);
+	ptrace(PT_GETFPREGS, tid, (void *)&fpreg, 0);
+	elf_convert_fpregset(fpregset, &fpreg);
 
 	*sizep = sizeof(*fpregset);
 	return (fpregset);
@@ -700,5 +738,5 @@ elf_note_procstat_rlimit(void *arg, size_t *sizep)
 	return (buf);
 }
 
-struct dumpers elfdump = { elf_ident, elf_coredump };
-TEXT_SET(dumpset, elfdump);
+struct dumpers __elfN(dump) = { elf_ident, elf_coredump };
+TEXT_SET(dumpset, __elfN(dump));

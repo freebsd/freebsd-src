@@ -12,7 +12,7 @@
 #include <sysexits.h>
 
 #ifndef lint
-static char id[] = "@(#)$Id: t_snprintf.c,v 8.5 2013/11/22 20:52:01 ca Exp $";
+static char id[] = "@(#)$Id: t_snprintf.c,v 8.5 2013-11-22 20:52:01 ca Exp $";
 #endif /* ! lint */
 
 #define TEST_STRING	"1234567890"

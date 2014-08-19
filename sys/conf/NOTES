@@ -162,6 +162,7 @@ options 	GEOM_MULTIPATH		# Disk multipath
 options 	GEOM_NOP		# Test class.
 options 	GEOM_PART_APM		# Apple partitioning
 options 	GEOM_PART_BSD		# BSD disklabel
+options 	GEOM_PART_BSD64		# BSD disklabel64
 options 	GEOM_PART_EBR		# Extended Boot Records
 options 	GEOM_PART_EBR_COMPAT	# Backward compatible partition names
 options 	GEOM_PART_GPT		# GPT partitioning
@@ -1451,6 +1452,20 @@ options 	SC_NO_SUSPEND_VTYSWITCH
 options 	TEKEN_CONS25		# cons25-style terminal emulation
 options 	TEKEN_UTF8		# UTF-8 output handling
 
+# The vt video console driver.
+device		vt
+options		VT_ALT_TO_ESC_HACK=1	# Prepend ESC sequence to ALT keys
+options		VT_MAXWINDOWS=16	# Number of virtual consoles
+options		VT_TWOBUTTON_MOUSE	# Use right mouse button to paste
+
+# The following options set the default framebuffer size.
+options		VT_FB_DEFAULT_HEIGHT=480
+options		VT_FB_DEFAULT_WIDTH=640
+
+# The following options will let you change the default vt terminal colors.
+options		TERMINAL_NORM_ATTR=(FG_GREEN|BG_BLACK)
+options		TERMINAL_KERN_ATTR=(FG_LIGHTRED|BG_BLACK)
+
 #
 # Optional devices:
 #
@@ -1808,7 +1823,7 @@ hint.uart.0.baud="115200"
 #
 
 # Options for serial drivers that support consoles:
-options 	BREAK_TO_DEBUGGER	# A BREAK on a serial console goes to
+options 	BREAK_TO_DEBUGGER	# A BREAK/DBG on the console goes to
 					# ddb, if available.
 
 # Solaris implements a new BREAK which is initiated by a character
@@ -2467,6 +2482,7 @@ device		sdhci
 # amdsmb	AMD 8111 SMBus 2.0 Controller
 # nfpm		NVIDIA nForce Power Management Unit
 # nfsmb		NVIDIA nForce2/3/4 MCP SMBus 2.0 Controller
+# ismt		Intel SMBus 2.0 controller chips (on Atom S1200, C2000)
 #
 device		smbus		# Bus support, required for smb below.
 
@@ -2478,6 +2494,7 @@ device		amdpm
 device		amdsmb
 device		nfpm
 device		nfsmb
+device		ismt
 
 device		smb
 
@@ -2686,6 +2703,8 @@ device		aue
 # ASIX Electronics AX88172 USB 2.0 ethernet driver. Used in the
 # LinkSys USB200M and various other adapters.
 device		axe
+# ASIX Electronics AX88178A/AX88179 USB 2.0/3.0 gigabit ethernet driver.
+device		axge
 
 #
 # Devices which communicate using Ethernet over USB, particularly
@@ -2964,3 +2983,6 @@ options 	RANDOM_YARROW	# Yarrow RNG
 ##options 	RANDOM_FORTUNA	# Fortuna RNG - not yet implemented
 options 	RANDOM_DEBUG	# Debugging messages
 options 	RANDOM_RWFILE	# Read and write entropy cache
+
+# Module to enable execution of application via emulators like QEMU
+options         IMAGACT_BINMISC

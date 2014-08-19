@@ -438,7 +438,6 @@ dev/virtio/scsi/virtio_scsi.c		optional	virtio_scsi
 dev/virtio/random/virtio_random.c	optional	virtio_random
 isa/syscons_isa.c		optional	sc
 isa/vga_isa.c			optional	vga
-kern/imgact_binmisc.c		optional	imagact_binmisc
 kern/kern_clocksource.c		standard
 kern/link_elf_obj.c		standard
 #
@@ -558,3 +557,6 @@ x86/xen/hvm.c			optional	xenhvm
 x86/xen/xen_intr.c		optional	xen | xenhvm
 x86/xen/pv.c			optional	xenhvm
 x86/xen/pvcpu_enum.c		optional	xenhvm
+x86/xen/xen_apic.c		optional	xenhvm
+x86/xen/xenpv.c			optional	xenhvm
+x86/xen/xen_nexus.c		optional	xenhvm

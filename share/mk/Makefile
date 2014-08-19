@@ -11,7 +11,6 @@ FILES=	\
 	bsd.crunchgen.mk \
 	bsd.dep.mk \
 	bsd.doc.mk \
-	bsd.dtrace.mk \
 	bsd.endian.mk \
 	bsd.files.mk \
 	bsd.incs.mk \
@@ -42,9 +41,7 @@ FILES=	\
 	sys.mk \
 	version_gen.awk
 
-# Installed for the moment, but not may not be in the future.
-#FILES+=	src.opts.mk
-
+NO_OBJ=
 FILESDIR=	${BINDIR}/mk
 
 .if ${MK_TESTS} != "no"
@@ -53,7 +50,5 @@ FILES+=	plain.test.mk
 FILES+=	suite.test.mk
 FILES+=	tap.test.mk
 .endif
-
-UPDATE_DEPENDFILE= no
 
 .include <bsd.prog.mk>

@@ -4391,6 +4391,9 @@ const template i386_optab[] =
   {"rdrand", 1, 0x0fc7, 0x6, CpuRdRnd,
     Modrm|NoSuf,
     { Reg16|Reg32|Reg64 } },
+  {"rdseed", 1, 0x0fc7, 0x7, CpuRdRnd,
+    Modrm|NoSuf,
+    { Reg16|Reg32|Reg64 } },
 
   /* Intel Supervisor Mode Access Prevention extensions */
   {"clac", 0, 0x0f01, 0xca, CpuSMAP,

@@ -9,7 +9,10 @@ DIRDEPS = \
 	include/xlocale \
 	lib/${CSU_DIR} \
 	lib/libc \
+	lib/libc++ \
 	lib/libcompiler_rt \
+	lib/libcxxrt \
+	lib/msun \
 
 
 .include <dirdeps.mk>

@@ -4,7 +4,7 @@
 # sources.
 
 # Enable various levels of compiler warning checks.  These may be
-# overridden (e.g. if using a non-gcc compiler) by defining NO_WARNS.
+# overridden (e.g. if using a non-gcc compiler) by defining MK_WARNS=no.
 
 # for GCC:   http://gcc.gnu.org/onlinedocs/gcc-4.2.1/gcc/Warning-Options.html
 
@@ -65,8 +65,8 @@ CWARNFLAGS+=	-Wno-pointer-sign
 # is set to low values, these have to be disabled explicitly.
 .if ${WARNS} <= 6
 CWARNFLAGS.clang+=	-Wno-empty-body -Wno-string-plus-int
-.if ${COMPILER_VERSION} > 3.3
-CWARNFLAGS.clang+=	-Wno-unused-const-variable
+.if ${COMPILER_TYPE} == "clang" && ${COMPILER_VERSION} > 30300
+CWARNFLAGS.clang+= -Wno-unused-const-variable
 .endif
 .endif # WARNS <= 6
 .if ${WARNS} <= 3
@@ -126,54 +126,36 @@ CFLAGS.clang+=	 -fno-dwarf2-cfi-asm
 # but not yet.
 CXXFLAGS.clang+=	 -Wno-c++11-extensions
 
-.if ${MK_SSP} != "no" && ${MACHINE_CPUARCH} != "ia64" && \
+.if ${MK_SSP} != "no" && \
     ${MACHINE_CPUARCH} != "arm" && ${MACHINE_CPUARCH} != "mips"
 # Don't use -Wstack-protector as it breaks world with -Werror.
 SSP_CFLAGS?=	-fstack-protector
 CFLAGS+=	${SSP_CFLAGS}
-.endif # SSP && !IA64 && !ARM && !MIPS
+.endif # SSP && !ARM && !MIPS
 
 # Allow user-specified additional warning flags, plus compiler specific flag overrides.
-# Unless we're early in the build, in which case don't (which is lame, this should
-# be handled by NO_WARNS which needs to migrate to something else.
-.if !defined(NO_WARNS) && !defined(EARLY_BUILD)
+# Unless we've overriden this...
+.if ${MK_WARNS} != "no"
 CFLAGS+=	${CWARNFLAGS} ${CWARNFLAGS.${COMPILER_TYPE}}
 .endif
 
-# Not sure this is 100% kosher, but I think that EARLY_BUILD must be only
-# defined when we're not building programs that use the CFLAGS.foo feature.
-.if !defined(EARLY_BUILD)
 CFLAGS+=	 ${CFLAGS.${COMPILER_TYPE}}
 CXXFLAGS+=	 ${CXXFLAGS.${COMPILER_TYPE}}
-.endif
 
 # Tell bmake not to mistake standard targets for things to be searched for
 # or expect to ever be up-to-date.
 PHONY_NOTMAIN = afterdepend afterinstall all beforedepend beforeinstall \
 		beforelinking build build-tools buildfiles buildincludes \
 		checkdpadd clean cleandepend cleandir cleanobj configure \
-		depend dependall distclean distribute exe extract \
+		depend dependall distclean distribute exe \
 		html includes install installfiles installincludes lint \
 		obj objlink objs objwarn realall realdepend \
 		realinstall regress subdir-all subdir-depend subdir-install \
 		tags whereobj
 
-.if defined(PORTNAME)
-PHONY_NOTMAIN+=	fetch patch
-.endif
-
-.if defined(.PARSEDIR)
 # we don't want ${PROG} to be PHONY
 .PHONY: ${PHONY_NOTMAIN:N${PROG:U}}
-.else
-.PHONY: ${PHONY_NOTMAIN}
-.endif
 .NOTMAIN: ${PHONY_NOTMAIN:Nall}
-
-.if !defined(.PARSEDIR)
-# this is a no-op
-.WAIT:
-.endif
 
 .if ${MK_STAGING} != "no"
 .if defined(_SKIP_BUILD) || (!make(all) && !make(clean*))

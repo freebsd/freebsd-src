@@ -2016,7 +2016,7 @@ hpt_probe(device_t dev)
 	{
 		KdPrintI((CONTROLLER_NAME " found\n"));
 		device_set_desc(dev, CONTROLLER_NAME);
-		return 0;
+		return (BUS_PROBE_DEFAULT);
 	}
 	else
 		return(ENXIO);
@@ -2623,7 +2623,14 @@ launch_worker_thread(void)
 
 int HPTLIBAPI fOsBuildSgl(_VBUS_ARG PCommand pCmd, FPSCAT_GATH pSg, int logical)
 {
-
+	union ccb *ccb = (union ccb *)pCmd->pOrgCommand;
+ 
+	if (logical) {
+		pSg->dSgAddress = (ULONG_PTR)(UCHAR *)ccb->csio.data_ptr;
+		pSg->wSgSize = ccb->csio.dxfer_len;
+		pSg->wSgFlag = SG_FLAG_EOT;
+		return TRUE;
+	}
 	/* since we have provided physical sg, nobody will ask us to build physical sg */
 	HPT_ASSERT(0);
 	return FALSE;

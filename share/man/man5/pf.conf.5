@@ -342,7 +342,6 @@ set limit states 10000
 .Pp
 With 9000 state table entries, the timeout values are scaled to 50%
 (tcp.first 60, tcp.established 43200).
-.Pp
 .It Ar set loginterface
 Enable collection of packet and byte count statistics for the given
 interface or interface group.
@@ -362,7 +361,6 @@ One can disable the loginterface using:
 .Bd -literal -offset indent
 set loginterface none
 .Ed
-.Pp
 .It Ar set limit
 Sets hard limits on the memory pools used by the packet filter.
 See
@@ -415,7 +413,6 @@ Various limits can be combined on a single line:
 .Bd -literal -offset indent
 set limit { states 20000, frags 20000, src-nodes 2000 }
 .Ed
-.Pp
 .It Ar set ruleset-optimization
 .Bl -tag -width xxxxxxxx -compact
 .It Ar none
@@ -481,7 +478,6 @@ For example:
 .Bd -literal -offset indent
 set optimization aggressive
 .Ed
-.Pp
 .It Ar set block-policy
 The
 .Ar block-policy
@@ -573,7 +569,6 @@ ruleset finishes loading.
 For example:
 .Pp
 .Dl set fingerprints \&"/etc/pf.os.devel\&"
-.Pp
 .It Ar set skip on Aq Ar ifspec
 List interfaces for which packets should not be filtered.
 Packets passing in or out on such interfaces are passed as if pf was
@@ -583,7 +578,6 @@ packet filtering is not desired and can have unexpected effects.
 For example:
 .Pp
 .Dl set skip on lo0
-.Pp
 .It Ar set debug
 Set the debug
 .Ar level
@@ -693,7 +687,6 @@ are received.
 The
 .Ar fragment crop
 reassembly mechanism does not yet work with NAT.
-.Pp
 .It Ar fragment drop-ovl
 This option is similar to the
 .Ar fragment crop

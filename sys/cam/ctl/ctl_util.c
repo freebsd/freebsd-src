@@ -84,6 +84,7 @@ static struct ctl_task_desc ctl_task_table[] = {
 	{CTL_TASK_ABORT_TASK_SET, "Abort Task Set"},
 	{CTL_TASK_CLEAR_ACA, "Clear ACA"},
 	{CTL_TASK_CLEAR_TASK_SET, "Clear Task Set"},
+	{CTL_TASK_I_T_NEXUS_RESET, "I_T Nexus Reset"},
 	{CTL_TASK_LUN_RESET, "LUN Reset"},
 	{CTL_TASK_TARGET_RESET, "Target Reset"},
 	{CTL_TASK_BUS_RESET, "Bus Reset"},

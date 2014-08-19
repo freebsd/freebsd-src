@@ -7,7 +7,6 @@ DIRDEPS = \
 	include/xlocale \
 	lib/libc++ \
 	lib/msun \
-	tools/usr/bin.host \
 	usr.bin/clang/tblgen.host \
 
 

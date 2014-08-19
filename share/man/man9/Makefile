@@ -112,6 +112,7 @@ MAN=	accept_filter.9 \
 	fail.9 \
 	fetch.9 \
 	firmware.9 \
+	fpu_kern.9 \
 	g_access.9 \
 	g_attach.9 \
 	g_bio.9 \
@@ -187,6 +188,7 @@ MAN=	accept_filter.9 \
 	osd.9 \
 	panic.9 \
 	pbuf.9 \
+	PCBGROUP.9 \
 	p_candebug.9 \
 	p_cansee.9 \
 	pci.9 \
@@ -211,12 +213,13 @@ MAN=	accept_filter.9 \
 	pmap_object_init_pt.9 \
 	pmap_page_exists_quick.9 \
 	pmap_page_init.9 \
-	pmap_page_protect.9 \
 	pmap_pinit.9 \
+	pmap_protect.9 \
 	pmap_qenter.9 \
 	pmap_release.9 \
 	pmap_remove.9 \
 	pmap_resident_count.9 \
+	pmap_unwire.9 \
 	pmap_zero_page.9 \
 	printf.9 \
 	prison_check.9 \
@@ -355,7 +358,6 @@ MAN=	accept_filter.9 \
 	VOP_GETACL.9 \
 	VOP_GETEXTATTR.9 \
 	VOP_GETPAGES.9 \
-	VOP_GETVOBJECT.9 \
 	VOP_INACTIVE.9 \
 	VOP_IOCTL.9 \
 	VOP_LINK.9 \
@@ -382,7 +384,6 @@ MAN=	accept_filter.9 \
 	vrele.9 \
 	vslock.9 \
 	watchdog.9 \
-	zero_copy.9 \
 	zone.9
 
 MLINKS=	unr.9 alloc_unr.9 \
@@ -670,6 +671,12 @@ MLINKS+=fetch.9 fubyte.9 \
 	fetch.9 fuword16.9 \
 	fetch.9 fuword32.9 \
 	fetch.9 fuword64.9
+MLINKS+=fpu_kern.9 fpu_kern_alloc_ctx.9 \
+	fpu_kern.9 fpu_kern_free_ctx.9 \
+	fpu_kern.9 fpu_kern_enter.9 \
+	fpu_kern.9 fpu_kern_leave.9 \
+	fpu_kern.9 fpu_kern_thread.9 \
+	fpu_kern.9 is_fpu_kern_thread.9
 MLINKS+=g_attach.9 g_detach.9
 MLINKS+=g_bio.9 g_clone_bio.9 \
 	g_bio.9 g_destroy_bio.9 \
@@ -918,10 +925,12 @@ MLINKS+=\
 	mbuf.9 m_move_pkthdr.9 \
 	mbuf.9 M_PREPEND.9 \
 	mbuf.9 m_prepend.9 \
+	mbuf.9 m_pulldown.9 \
 	mbuf.9 m_pullup.9 \
 	mbuf.9 m_split.9 \
 	mbuf.9 mtod.9 \
 	mbuf.9 M_TRAILINGSPACE.9 \
+	mbuf.9 m_unshare.9 \
 	mbuf.9 M_WRITABLE.9
 MLINKS+=\
 	mbuf_tags.9 m_tag_alloc.9 \
@@ -1035,12 +1044,10 @@ MLINKS+=pfil.9 pfil_add_hook.9 \
 	pfil.9 pfil_hook_get.9 \
 	pfil.9 pfil_remove_hook.9
 MLINKS+=pfind.9 zpfind.9
-MLINKS+=pmap_clear_modify.9 pmap_clear_reference.9
 MLINKS+=pmap_copy.9 pmap_copy_page.9
 MLINKS+=pmap_extract.9 pmap_extract_and_hold.9
 MLINKS+=pmap_init.9 pmap_init2.9
-MLINKS+=pmap_is_modified.9 pmap_ts_modified.9
-MLINKS+=pmap_page_protect.9 pmap_protect.9
+MLINKS+=pmap_is_modified.9 pmap_ts_referenced.9
 MLINKS+=pmap_pinit.9 pmap_pinit0.9 \
 	pmap_pinit.9 pmap_pinit2.9
 MLINKS+=pmap_qenter.9 pmap_qremove.9
@@ -1260,15 +1267,41 @@ MLINKS+=sleepqueue.9 init_sleepqueues.9 \
 	sleepqueue.9 sleepq_timedwait_sig.9 \
 	sleepqueue.9 sleepq_wait.9 \
 	sleepqueue.9 sleepq_wait_sig.9
-MLINKS+=socket.9 sobind.9 \
+MLINKS+=socket.9 soabort.9 \
+	socket.9 soaccept.9 \
+	socket.9 sobind.9 \
+	socket.9 socheckuid.9 \
 	socket.9 soclose.9 \
 	socket.9 soconnect.9 \
 	socket.9 socreate.9 \
+	socket.9 sodisconnect.9 \
+	socket.9 sodupsockaddr.9 \
+	socket.9 sofree.9 \
 	socket.9 sogetopt.9 \
+	socket.9 sohasoutofband.9 \
+	socket.9 solisten.9 \
+	socket.9 solisten_proto.9 \
+	socket.9 solisten_proto_check.9 \
+	socket.9 sonewconn.9 \
+	socket.9 sooptcopyin.9 \
+	socket.9 sooptcopyout.9 \
+	socket.9 sopoll.9 \
+	socket.9 sopoll_generic.9 \
 	socket.9 soreceive.9 \
+	socket.9 soreceive_dgram.9 \
+	socket.9 soreceive_generic.9 \
+	socket.9 soreceive_stream.9 \
+	socket.9 soreserve.9 \
+	socket.9 sorflush.9 \
 	socket.9 sosend.9 \
+	socket.9 sosend_dgram.9 \
+	socket.9 sosend_generic.9 \
 	socket.9 sosetopt.9 \
-	socket.9 soshutdown.9
+	socket.9 soshutdown.9 \
+	socket.9 sotoxsocket.9 \
+	socket.9 soupcall_clear.9 \
+	socket.9 soupcall_set.9 \
+	socket.9 sowakeup.9
 MLINKS+=spl.9 spl0.9 \
 	spl.9 splbio.9 \
 	spl.9 splclock.9 \
@@ -1525,8 +1558,6 @@ MLINKS+=VOP_CREATE.9 VOP_MKDIR.9 \
 	VOP_CREATE.9 VOP_MKNOD.9 \
 	VOP_CREATE.9 VOP_SYMLINK.9
 MLINKS+=VOP_GETPAGES.9 VOP_PUTPAGES.9
-MLINKS+=VOP_GETVOBJECT.9 VOP_CREATEVOBJECT.9 \
-	VOP_GETVOBJECT.9 VOP_DESTROYVOBJECT.9
 MLINKS+=VOP_INACTIVE.9 VOP_RECLAIM.9
 MLINKS+=VOP_LOCK.9 vn_lock.9 \
 	VOP_LOCK.9 VOP_ISLOCKED.9 \
@@ -1540,7 +1571,6 @@ MLINKS+=vref.9 VREF.9
 MLINKS+=vrele.9 vput.9 \
 	vrele.9 vunref.9
 MLINKS+=vslock.9 vsunlock.9
-MLINKS+=zero_copy.9 zero_copy_sockets.9
 MLINKS+=zone.9 uma.9 \
 	zone.9 uma_zalloc.9 \
 	zone.9 uma_zalloc_arg.9 \

@@ -1,4 +1,4 @@
-# Kernel configuration for Samsung Chromebook (Exynos5 Dual machine).
+# Kernel configuration for Chromebook (Exynos5 Dual machine).
 #
 # For more information on this file, please read the config(5) manual page,
 # and/or the handbook section on Kernel Configuration Files:
@@ -17,7 +17,7 @@
 #
 # $FreeBSD$
 
-include		"EXYNOS5250.common"
+include		"EXYNOS5250"
 ident		CHROMEBOOK
 
 hints		"CHROMEBOOK.hints"
@@ -34,5 +34,3 @@ device		ukbd
 
 #FDT
 options 	FDT
-options 	FDT_DTB_STATIC
-makeoptions	FDT_DTS_FILE=exynos5250-chromebook.dts

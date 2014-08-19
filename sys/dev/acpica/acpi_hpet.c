@@ -29,7 +29,7 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_acpi.h"
-#if defined(__amd64__) || defined(__ia64__)
+#if defined(__amd64__)
 #define	DEV_APIC
 #else
 #include "opt_apic.h"

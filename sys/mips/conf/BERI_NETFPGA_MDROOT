@@ -23,6 +23,7 @@ device		bpf
 
 options 	DEVICE_POLLING
 device		netfpga10g_nf10bmac
+options 	NF10BMAC_64BIT
 
 #
 # This kernel configuration uses an embedded memory root file system.

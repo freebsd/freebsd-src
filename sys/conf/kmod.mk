@@ -60,19 +60,13 @@
 #		Unload a module.
 #
 
-# backwards compat option for older systems.
-MACHINE_CPUARCH?=${MACHINE_ARCH:C/mips(n32|64)?(el)?/mips/:C/arm(v6)?(eb)?/arm/:C/powerpc64/powerpc/}
-
 AWK?=		awk
 KMODLOAD?=	/sbin/kldload
 KMODUNLOAD?=	/sbin/kldunload
 OBJCOPY?=	objcopy
 
-.if defined(KMODDEPS)
-.error "Do not use KMODDEPS on 5.0+; use MODULE_VERSION/MODULE_DEPEND"
-.endif
-
-.include <src.opts.mk>
+# Grab all the options for a kernel build.
+.include "kern.opts.mk"
 .include <bsd.init.mk>
 .include <bsd.compiler.mk>
 
@@ -110,11 +104,9 @@ CFLAGS+=	-I. -I@
 # for example.
 CFLAGS+=	-I@/contrib/altq
 
-.if ${COMPILER_TYPE} != "clang"
-CFLAGS+=	-finline-limit=${INLINE_LIMIT}
-CFLAGS+= --param inline-unit-growth=100
-CFLAGS+= --param large-function-growth=1000
-.endif
+CFLAGS.gcc+=	-finline-limit=${INLINE_LIMIT}
+CFLAGS.gcc+= --param inline-unit-growth=100
+CFLAGS.gcc+= --param large-function-growth=1000
 
 # Disallow common variables, and if we end up with commons from
 # somewhere unexpected, allocate storage for them in the module itself.
@@ -154,11 +146,11 @@ CLEANFILES+=	${KMOD:S/$/.c/}
 ${_firmw:C/\:.*$/.fwo/}:	${_firmw:C/\:.*$//}
 	@${ECHO} ${_firmw:C/\:.*$//} ${.ALLSRC:M*${_firmw:C/\:.*$//}}
 	@if [ -e ${_firmw:C/\:.*$//} ]; then			\
-		${LD} -b binary --no-warn-mismatch ${LDFLAGS}	\
+		${LD} -b binary --no-warn-mismatch ${_LDFLAGS}	\
 		    -r -d -o ${.TARGET}	${_firmw:C/\:.*$//};	\
 	else							\
 		ln -s ${.ALLSRC:M*${_firmw:C/\:.*$//}} ${_firmw:C/\:.*$//}; \
-		${LD} -b binary --no-warn-mismatch ${LDFLAGS}	\
+		${LD} -b binary --no-warn-mismatch ${_LDFLAGS}	\
 		    -r -d -o ${.TARGET}	${_firmw:C/\:.*$//};	\
 		rm ${_firmw:C/\:.*$//};				\
 	fi
@@ -186,7 +178,7 @@ ${PROG}.symbols: ${FULLPROG}
 
 .if ${__KLD_SHARED} == yes
 ${FULLPROG}: ${KMOD}.kld
-	${LD} -Bshareable ${LDFLAGS} -o ${.TARGET} ${KMOD}.kld
+	${LD} -Bshareable ${_LDFLAGS} -o ${.TARGET} ${KMOD}.kld
 .if !defined(DEBUG_FLAGS)
 	${OBJCOPY} --strip-debug ${.TARGET}
 .endif
@@ -202,8 +194,8 @@ ${KMOD}.kld: ${OBJS}
 .else
 ${FULLPROG}: ${OBJS}
 .endif
-	${LD} ${LDFLAGS} -r -d -o ${.TARGET} ${OBJS}
-.if defined(MK_CTF) && ${MK_CTF} != "no"
+	${LD} ${_LDFLAGS} -r -d -o ${.TARGET} ${OBJS}
+.if ${MK_CTF} != "no"
 	${CTFMERGE} ${CTFFLAGS} -o ${.TARGET} ${OBJS}
 .endif
 .if defined(EXPORT_SYMS)
@@ -230,6 +222,7 @@ _ILINKS+=${MACHINE_CPUARCH}
 .if ${MACHINE_CPUARCH} == "i386" || ${MACHINE_CPUARCH} == "amd64"
 _ILINKS+=x86
 .endif
+CLEANFILES+=${_ILINKS}
 
 all: objwarn ${PROG}
 

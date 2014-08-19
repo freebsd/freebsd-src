@@ -199,6 +199,7 @@ uiomove_object_page(vm_object_t obj, size_t len, struct uio *uio)
 	if (uio->uio_rw == UIO_WRITE && error == 0) {
 		VM_OBJECT_WLOCK(obj);
 		vm_page_dirty(m);
+		vm_pager_page_unswapped(m);
 		VM_OBJECT_WUNLOCK(obj);
 	}
 	vm_page_lock(m);

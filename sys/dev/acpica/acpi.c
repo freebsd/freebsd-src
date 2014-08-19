@@ -1196,15 +1196,24 @@ acpi_set_resource(device_t dev, device_t child, int type, int rid,
 	return (0);
 
     /*
-     * Ignore memory resources for PCI root bridges.  Some BIOSes
+     * Ignore most resources for PCI root bridges.  Some BIOSes
      * incorrectly enumerate the memory ranges they decode as plain
-     * memory resources instead of as a ResourceProducer range.
+     * memory resources instead of as ResourceProducer ranges.  Other
+     * BIOSes incorrectly list system resource entries for I/O ranges
+     * under the PCI bridge.  Do allow the one known-correct case on
+     * x86 of a PCI bridge claiming the I/O ports used for PCI config
+     * access.
      */
-    if (type == SYS_RES_MEMORY) {
+    if (type == SYS_RES_MEMORY || type == SYS_RES_IOPORT) {
 	if (ACPI_SUCCESS(AcpiGetObjectInfo(ad->ad_handle, &devinfo))) {
 	    if ((devinfo->Flags & ACPI_PCI_ROOT_BRIDGE) != 0) {
-		AcpiOsFree(devinfo);
-		return (0);
+#if defined(__i386__) || defined(__amd64__)
+		if (!(type == SYS_RES_IOPORT && start == CONF1_ADDR_PORT))
+#endif
+		{
+		    AcpiOsFree(devinfo);
+		    return (0);
+		}
 	    }
 	    AcpiOsFree(devinfo);
 	}

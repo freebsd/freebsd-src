@@ -1,7 +1,7 @@
 .if !target(_DIRDEP_USE)
 # we are the 1st makefile
 
-.if !defined(MK_CTF)
+.if !defined(MK_CLANG)
 .include "${SRCTOP}/share/mk/src.opts.mk"
 .endif
 

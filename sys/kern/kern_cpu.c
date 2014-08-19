@@ -133,13 +133,11 @@ DRIVER_MODULE(cpufreq, cpu, cpufreq_driver, cpufreq_dc, 0, 0);
 
 static int		cf_lowest_freq;
 static int		cf_verbose;
-TUNABLE_INT("debug.cpufreq.lowest", &cf_lowest_freq);
-TUNABLE_INT("debug.cpufreq.verbose", &cf_verbose);
 static SYSCTL_NODE(_debug, OID_AUTO, cpufreq, CTLFLAG_RD, NULL,
     "cpufreq debugging");
-SYSCTL_INT(_debug_cpufreq, OID_AUTO, lowest, CTLFLAG_RW, &cf_lowest_freq, 1,
+SYSCTL_INT(_debug_cpufreq, OID_AUTO, lowest, CTLFLAG_RWTUN, &cf_lowest_freq, 1,
     "Don't provide levels below this frequency.");
-SYSCTL_INT(_debug_cpufreq, OID_AUTO, verbose, CTLFLAG_RW, &cf_verbose, 1,
+SYSCTL_INT(_debug_cpufreq, OID_AUTO, verbose, CTLFLAG_RWTUN, &cf_verbose, 1,
     "Print verbose debugging messages");
 
 static int
@@ -418,7 +416,7 @@ cf_get_method(device_t dev, struct cf_level *level)
 	struct cf_setting *curr_set, set;
 	struct pcpu *pc;
 	device_t *devs;
-	int count, error, i, n, numdevs;
+	int bdiff, count, diff, error, i, n, numdevs;
 	uint64_t rate;
 
 	sc = device_get_softc(dev);
@@ -494,14 +492,15 @@ cf_get_method(device_t dev, struct cf_level *level)
 	}
 	cpu_est_clockrate(pc->pc_cpuid, &rate);
 	rate /= 1000000;
+	bdiff = 1 << 30;
 	for (i = 0; i < count; i++) {
-		if (CPUFREQ_CMP(rate, levels[i].total_set.freq)) {
+		diff = abs(levels[i].total_set.freq - rate);
+		if (diff < bdiff) {
+			bdiff = diff;
 			sc->curr_level = levels[i];
-			CF_DEBUG("get estimated freq %d\n", curr_set->freq);
-			goto out;
 		}
 	}
-	error = ENXIO;
+	CF_DEBUG("get estimated freq %d\n", curr_set->freq);
 
 out:
 	if (error == 0)

@@ -86,13 +86,11 @@ CTASSERT(NUM_CPL_HANDLERS >= NUM_CPL_CMDS);
 
 extern struct sysctl_oid_list sysctl__hw_cxgb_children;
 int cxgb_txq_buf_ring_size = TX_ETH_Q_SIZE;
-TUNABLE_INT("hw.cxgb.txq_mr_size", &cxgb_txq_buf_ring_size);
 SYSCTL_INT(_hw_cxgb, OID_AUTO, txq_mr_size, CTLFLAG_RDTUN, &cxgb_txq_buf_ring_size, 0,
     "size of per-queue mbuf ring");
 
 static int cxgb_tx_coalesce_force = 0;
-TUNABLE_INT("hw.cxgb.tx_coalesce_force", &cxgb_tx_coalesce_force);
-SYSCTL_INT(_hw_cxgb, OID_AUTO, tx_coalesce_force, CTLFLAG_RW,
+SYSCTL_INT(_hw_cxgb, OID_AUTO, tx_coalesce_force, CTLFLAG_RWTUN,
     &cxgb_tx_coalesce_force, 0,
     "coalesce small packets into a single work request regardless of ring state");
 
@@ -106,19 +104,15 @@ SYSCTL_INT(_hw_cxgb, OID_AUTO, tx_coalesce_force, CTLFLAG_RW,
 
 
 static int cxgb_tx_coalesce_enable_start = COALESCE_START_DEFAULT;
-TUNABLE_INT("hw.cxgb.tx_coalesce_enable_start",
-    &cxgb_tx_coalesce_enable_start);
-SYSCTL_INT(_hw_cxgb, OID_AUTO, tx_coalesce_enable_start, CTLFLAG_RW,
+SYSCTL_INT(_hw_cxgb, OID_AUTO, tx_coalesce_enable_start, CTLFLAG_RWTUN,
     &cxgb_tx_coalesce_enable_start, 0,
     "coalesce enable threshold");
 static int cxgb_tx_coalesce_enable_stop = COALESCE_STOP_DEFAULT;
-TUNABLE_INT("hw.cxgb.tx_coalesce_enable_stop", &cxgb_tx_coalesce_enable_stop);
-SYSCTL_INT(_hw_cxgb, OID_AUTO, tx_coalesce_enable_stop, CTLFLAG_RW,
+SYSCTL_INT(_hw_cxgb, OID_AUTO, tx_coalesce_enable_stop, CTLFLAG_RWTUN,
     &cxgb_tx_coalesce_enable_stop, 0,
     "coalesce disable threshold");
 static int cxgb_tx_reclaim_threshold = TX_RECLAIM_DEFAULT;
-TUNABLE_INT("hw.cxgb.tx_reclaim_threshold", &cxgb_tx_reclaim_threshold);
-SYSCTL_INT(_hw_cxgb, OID_AUTO, tx_reclaim_threshold, CTLFLAG_RW,
+SYSCTL_INT(_hw_cxgb, OID_AUTO, tx_reclaim_threshold, CTLFLAG_RWTUN,
     &cxgb_tx_reclaim_threshold, 0,
     "tx cleaning minimum threshold");
 

@@ -1,10 +1,16 @@
 # $FreeBSD$
 
 PROG=	mkimg
-SRCS=	mkimg.c scheme.c
+SRCS=	format.c image.c mkimg.c scheme.c
 MAN=	mkimg.1
 
 CFLAGS+=-DSPARSE_WRITE
+
+# List of formats to support
+SRCS+= \
+	raw.c \
+	vhd.c \
+	vmdk.c
 
 # List of schemes to support
 SRCS+=	\

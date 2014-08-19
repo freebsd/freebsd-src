@@ -27,7 +27,7 @@ DIRDEPS = \
 	lib/libcrypt \
 	lib/libedit \
 	lib/libthr \
-	lib/ncurses/ncurses \
+	lib/ncurses/ncursesw \
 	secure/lib/libcrypto \
 
 

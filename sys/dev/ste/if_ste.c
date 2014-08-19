@@ -1344,31 +1344,29 @@ ste_dma_free(struct ste_softc *sc)
 	}
 	/* Tx descriptor list. */
 	if (sc->ste_cdata.ste_tx_list_tag != NULL) {
-		if (sc->ste_cdata.ste_tx_list_map != NULL)
+		if (sc->ste_ldata.ste_tx_list_paddr != 0)
 			bus_dmamap_unload(sc->ste_cdata.ste_tx_list_tag,
 			    sc->ste_cdata.ste_tx_list_map);
-		if (sc->ste_cdata.ste_tx_list_map != NULL &&
-		    sc->ste_ldata.ste_tx_list != NULL)
+		if (sc->ste_ldata.ste_tx_list != NULL)
 			bus_dmamem_free(sc->ste_cdata.ste_tx_list_tag,
 			    sc->ste_ldata.ste_tx_list,
 			    sc->ste_cdata.ste_tx_list_map);
 		sc->ste_ldata.ste_tx_list = NULL;
-		sc->ste_cdata.ste_tx_list_map = NULL;
+		sc->ste_ldata.ste_tx_list_paddr = 0;
 		bus_dma_tag_destroy(sc->ste_cdata.ste_tx_list_tag);
 		sc->ste_cdata.ste_tx_list_tag = NULL;
 	}
 	/* Rx descriptor list. */
 	if (sc->ste_cdata.ste_rx_list_tag != NULL) {
-		if (sc->ste_cdata.ste_rx_list_map != NULL)
+		if (sc->ste_ldata.ste_rx_list_paddr != 0)
 			bus_dmamap_unload(sc->ste_cdata.ste_rx_list_tag,
 			    sc->ste_cdata.ste_rx_list_map);
-		if (sc->ste_cdata.ste_rx_list_map != NULL &&
-		    sc->ste_ldata.ste_rx_list != NULL)
+		if (sc->ste_ldata.ste_rx_list != NULL)
 			bus_dmamem_free(sc->ste_cdata.ste_rx_list_tag,
 			    sc->ste_ldata.ste_rx_list,
 			    sc->ste_cdata.ste_rx_list_map);
 		sc->ste_ldata.ste_rx_list = NULL;
-		sc->ste_cdata.ste_rx_list_map = NULL;
+		sc->ste_ldata.ste_rx_list_paddr = 0;
 		bus_dma_tag_destroy(sc->ste_cdata.ste_rx_list_tag);
 		sc->ste_cdata.ste_rx_list_tag = NULL;
 	}

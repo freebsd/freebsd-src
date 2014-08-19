@@ -113,11 +113,8 @@ CFLAGS+=	-DDEFSHELLNAME=\"${MAKE_SHELL}\"
 
 # if we are here we don't want this called 'make'
 PROG=	fmake
+CLEANFILES+=	fmake.1
 fmake.1: make.1
 	cp ${.ALLSRC} ${.TARGET}
-
-.if ${MK_TESTS} != "no"
-SUBDIR+= tests
-.endif
 
 .include <bsd.prog.mk>

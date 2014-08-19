@@ -16,10 +16,6 @@ unix		?=	We run FreeBSD, not UNIX.
 MACHINE_CPUARCH=${MACHINE_ARCH:C/mips(n32|64)?(el)?/mips/:C/arm(v6)?(eb|hf)?/arm/:C/powerpc64/powerpc/}
 .endif
 
-# Set any local definitions first. Place this early, but it needs
-# MACHINE_CPUARCH to be defined.
-.sinclude <local.sys.mk>
-
 # If the special target .POSIX appears (without prerequisites or
 # commands) before the first noncomment line in the makefile, make shall
 # process the makefile as specified by the Posix 1003.2 specification.
@@ -74,10 +70,6 @@ CTFMERGE	?=	ctfmerge
 DTRACE		?=	dtrace
 .if defined(CFLAGS) && (${CFLAGS:M-g} != "")
 CTFFLAGS	+=	-g
-.else
-# XXX: What to do here? Is removing the CFLAGS part completely ok here?
-# For now comment it out to not compile with -g unconditionally.
-#CFLAGS		+=	-g
 .endif
 
 CXX		?=	c++
@@ -125,7 +117,8 @@ LEX		?=	lex
 LFLAGS		?=
 
 LD		?=	ld
-LDFLAGS		?=
+LDFLAGS		?=				# LDFLAGS is for CC, 
+_LDFLAGS	=	${LDFLAGS:S/-Wl,//g}	# strip -Wl, for LD
 
 LINT		?=	lint
 LINTFLAGS	?=	-cghapbx
@@ -318,11 +311,20 @@ YFLAGS		?=	-d
 	rm -f ${.PREFIX}.tmp.c
 	${CTFCONVERT_CMD}
 
-# FreeBSD build pollution.  Hide it in the non-POSIX part of the ifdef.
+# Set any local definitions first. Place this early, but it needs
+# MACHINE_CPUARCH to be defined.
+.sinclude <local.sys.mk>
+
+# Pull in global settings.
 __MAKE_CONF?=/etc/make.conf
 .if exists(${__MAKE_CONF})
 .include "${__MAKE_CONF}"
 .endif
+
+# Setup anything for the FreeBSD source build, if we're building
+# inside the source tree. Needs to be after make.conf, but before
+# local stuff.
+.sinclude <src.sys.mk>
 
 .if defined(__MAKE_SHELL) && !empty(__MAKE_SHELL)
 SHELL=	${__MAKE_SHELL}
@@ -338,11 +340,7 @@ SHELL=	${__MAKE_SHELL}
 
 # Toggle on warnings
 .WARN: dirsyntax
-.endif
-
-.endif
-
-.if defined(.PARSEDIR)
+.else # is bmake
 # Tell bmake to expand -V VAR by default
 .MAKE.EXPAND_VARIABLES= yes
 
@@ -359,7 +357,8 @@ SHELL=	${__MAKE_SHELL}
 	echoFlag=v errFlag=e \
 	path=${__MAKE_SHELL:U/bin/sh}
 .endif
-
-.endif
+.endif # bmake
 
 .include <bsd.cpu.mk>
+
+.endif # ! Posix

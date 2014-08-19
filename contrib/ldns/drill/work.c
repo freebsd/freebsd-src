@@ -235,6 +235,7 @@ dump_hex(const ldns_pkt *pkt, const char *filename)
 	if (status != LDNS_STATUS_OK) {
 		error("Unable to convert packet: error code %u", status);
 		LDNS_FREE(wire);
+		fclose(fp);
 		return;
 	}
 	

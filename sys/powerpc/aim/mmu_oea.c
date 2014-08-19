@@ -297,6 +297,7 @@ void moea_release(mmu_t, pmap_t);
 void moea_remove(mmu_t, pmap_t, vm_offset_t, vm_offset_t);
 void moea_remove_all(mmu_t, vm_page_t);
 void moea_remove_write(mmu_t, vm_page_t);
+void moea_unwire(mmu_t, pmap_t, vm_offset_t, vm_offset_t);
 void moea_zero_page(mmu_t, vm_page_t);
 void moea_zero_page_area(mmu_t, vm_page_t, int, int);
 void moea_zero_page_idle(mmu_t, vm_page_t);
@@ -345,6 +346,7 @@ static mmu_method_t moea_methods[] = {
 	MMUMETHOD(mmu_remove_all,      	moea_remove_all),
 	MMUMETHOD(mmu_remove_write,	moea_remove_write),
 	MMUMETHOD(mmu_sync_icache,	moea_sync_icache),
+	MMUMETHOD(mmu_unwire,		moea_unwire),
 	MMUMETHOD(mmu_zero_page,       	moea_zero_page),
 	MMUMETHOD(mmu_zero_page_area,	moea_zero_page_area),
 	MMUMETHOD(mmu_zero_page_idle,	moea_zero_page_idle),
@@ -1036,6 +1038,24 @@ moea_change_wiring(mmu_t mmu, pmap_t pm, vm_offset_t va, boolean_t wired)
 }
 
 void
+moea_unwire(mmu_t mmu, pmap_t pm, vm_offset_t sva, vm_offset_t eva)
+{
+	struct	pvo_entry key, *pvo;
+
+	PMAP_LOCK(pm);
+	key.pvo_vaddr = sva;
+	for (pvo = RB_NFIND(pvo_tree, &pm->pmap_pvo, &key);
+	    pvo != NULL && PVO_VADDR(pvo) < eva;
+	    pvo = RB_NEXT(pvo_tree, &pm->pmap_pvo, pvo)) {
+		if ((pvo->pvo_vaddr & PVO_WIRED) == 0)
+			panic("moea_unwire: pvo %p is missing PVO_WIRED", pvo);
+		pvo->pvo_vaddr &= ~PVO_WIRED;
+		pm->pm_stats.wired_count--;
+	}
+	PMAP_UNLOCK(pm);
+}
+
+void
 moea_copy_page(mmu_t mmu, vm_page_t msrc, vm_page_t mdst)
 {
 	vm_offset_t	dst;
@@ -1121,7 +1141,7 @@ moea_enter(mmu_t mmu, pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
  * target pmap with the protection requested.  If specified the page
  * will be wired down.
  *
- * The page queues and pmap must be locked.
+ * The global pvh and pmap must be locked.
  */
 static void
 moea_enter_locked(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
@@ -1129,7 +1149,6 @@ moea_enter_locked(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 {
 	struct		pvo_head *pvo_head;
 	uma_zone_t	zone;
-	vm_page_t	pg;
 	u_int		pte_lo, pvo_flags;
 	int		error;
 
@@ -1137,10 +1156,8 @@ moea_enter_locked(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 		pvo_head = &moea_pvo_kunmanaged;
 		zone = moea_upvo_zone;
 		pvo_flags = 0;
-		pg = NULL;
 	} else {
 		pvo_head = vm_page_to_pvoh(m);
-		pg = m;
 		zone = moea_mpvo_zone;
 		pvo_flags = PVO_MANAGED;
 	}
@@ -1150,7 +1167,7 @@ moea_enter_locked(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 	if ((m->oflags & VPO_UNMANAGED) == 0 && !vm_page_xbusied(m))
 		VM_OBJECT_ASSERT_LOCKED(m->object);
 
-	/* XXX change the pvo head for fake pages */
+	/* XXX change the pvo head for unmanaged pages */
 	if ((m->oflags & VPO_UNMANAGED) != 0) {
 		pvo_flags &= ~PVO_MANAGED;
 		pvo_head = &moea_pvo_kunmanaged;
@@ -1992,7 +2009,7 @@ moea_pvo_enter(pmap_t pm, uma_zone_t zone, struct pvo_head *pvo_head,
 		first = 1;
 	LIST_INSERT_HEAD(pvo_head, pvo, pvo_vlink);
 
-	if (pvo->pvo_pte.pte.pte_lo & PVO_WIRED)
+	if (pvo->pvo_vaddr & PVO_WIRED)
 		pm->pm_stats.wired_count++;
 	pm->pm_stats.resident_count++;
 
@@ -2031,7 +2048,7 @@ moea_pvo_remove(struct pvo_entry *pvo, int pteidx)
 	 * Update our statistics.
 	 */
 	pvo->pvo_pmap->pm_stats.resident_count--;
-	if (pvo->pvo_pte.pte.pte_lo & PVO_WIRED)
+	if (pvo->pvo_vaddr & PVO_WIRED)
 		pvo->pvo_pmap->pm_stats.wired_count--;
 
 	/*

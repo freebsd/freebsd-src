@@ -55,35 +55,35 @@ __FBSDID("$FreeBSD$");
 #include <sys/sx.h>
 #include <sys/unistd.h>
 
-SYSCTL_NODE(, 0,	  sysctl, CTLFLAG_RW, 0,
+SYSCTL_ROOT_NODE(0,	  sysctl, CTLFLAG_RW, 0,
 	"Sysctl internal magic");
-SYSCTL_NODE(, CTL_KERN,	  kern,   CTLFLAG_RW|CTLFLAG_CAPRD, 0,
+SYSCTL_ROOT_NODE(CTL_KERN,	  kern,   CTLFLAG_RW|CTLFLAG_CAPRD, 0,
 	"High kernel, proc, limits &c");
-SYSCTL_NODE(, CTL_VM,	  vm,     CTLFLAG_RW, 0,
+SYSCTL_ROOT_NODE(CTL_VM,	  vm,     CTLFLAG_RW, 0,
 	"Virtual memory");
-SYSCTL_NODE(, CTL_VFS,	  vfs,     CTLFLAG_RW, 0,
+SYSCTL_ROOT_NODE(CTL_VFS,	  vfs,     CTLFLAG_RW, 0,
 	"File system");
-SYSCTL_NODE(, CTL_NET,	  net,    CTLFLAG_RW, 0,
+SYSCTL_ROOT_NODE(CTL_NET,	  net,    CTLFLAG_RW, 0,
 	"Network, (see socket.h)");
-SYSCTL_NODE(, CTL_DEBUG,  debug,  CTLFLAG_RW, 0,
+SYSCTL_ROOT_NODE(CTL_DEBUG,  debug,  CTLFLAG_RW, 0,
 	"Debugging");
 SYSCTL_NODE(_debug, OID_AUTO,  sizeof,  CTLFLAG_RW, 0,
 	"Sizeof various things");
-SYSCTL_NODE(, CTL_HW,	  hw,     CTLFLAG_RW, 0,
+SYSCTL_ROOT_NODE(CTL_HW,	  hw,     CTLFLAG_RW, 0,
 	"hardware");
-SYSCTL_NODE(, CTL_MACHDEP, machdep, CTLFLAG_RW, 0,
+SYSCTL_ROOT_NODE(CTL_MACHDEP, machdep, CTLFLAG_RW, 0,
 	"machine dependent");
-SYSCTL_NODE(, CTL_USER,	  user,   CTLFLAG_RW, 0,
+SYSCTL_ROOT_NODE(CTL_USER,	  user,   CTLFLAG_RW, 0,
 	"user-level");
-SYSCTL_NODE(, CTL_P1003_1B,  p1003_1b,   CTLFLAG_RW, 0,
+SYSCTL_ROOT_NODE(CTL_P1003_1B,  p1003_1b,   CTLFLAG_RW, 0,
 	"p1003_1b, (see p1003_1b.h)");
 
-SYSCTL_NODE(, OID_AUTO,  compat, CTLFLAG_RW, 0,
+SYSCTL_ROOT_NODE(OID_AUTO,  compat, CTLFLAG_RW, 0,
 	"Compatibility code");
-SYSCTL_NODE(, OID_AUTO, security, CTLFLAG_RW, 0, 
+SYSCTL_ROOT_NODE(OID_AUTO, security, CTLFLAG_RW, 0, 
      	"Security");
 #ifdef REGRESSION
-SYSCTL_NODE(, OID_AUTO, regression, CTLFLAG_RW, 0,
+SYSCTL_ROOT_NODE(OID_AUTO, regression, CTLFLAG_RW, 0,
      "Regression test MIB");
 #endif
 
@@ -112,13 +112,13 @@ SYSCTL_STRING(_kern, KERN_OSTYPE, ostype, CTLFLAG_RD|CTLFLAG_MPSAFE|
 SYSCTL_INT(_kern, KERN_OSRELDATE, osreldate, CTLFLAG_RD|CTLFLAG_CAPRD,
     &osreldate, 0, "Kernel release date");
 
-SYSCTL_INT(_kern, KERN_MAXPROC, maxproc, CTLFLAG_RDTUN,
+SYSCTL_INT(_kern, KERN_MAXPROC, maxproc, CTLFLAG_RDTUN | CTLFLAG_NOFETCH,
     &maxproc, 0, "Maximum number of processes");
 
 SYSCTL_INT(_kern, KERN_MAXPROCPERUID, maxprocperuid, CTLFLAG_RW,
     &maxprocperuid, 0, "Maximum processes allowed per userid");
 
-SYSCTL_INT(_kern, OID_AUTO, maxusers, CTLFLAG_RDTUN,
+SYSCTL_INT(_kern, OID_AUTO, maxusers, CTLFLAG_RDTUN | CTLFLAG_NOFETCH,
     &maxusers, 0, "Hint for kernel tuning");
 
 SYSCTL_INT(_kern, KERN_ARGMAX, argmax, CTLFLAG_RD|CTLFLAG_CAPRD,
@@ -127,8 +127,8 @@ SYSCTL_INT(_kern, KERN_ARGMAX, argmax, CTLFLAG_RD|CTLFLAG_CAPRD,
 SYSCTL_INT(_kern, KERN_POSIX1, posix1version, CTLFLAG_RD|CTLFLAG_CAPRD,
     0, _POSIX_VERSION, "Version of POSIX attempting to comply to");
 
-SYSCTL_INT(_kern, KERN_NGROUPS, ngroups, CTLFLAG_RDTUN|CTLFLAG_CAPRD,
-    &ngroups_max, 0,
+SYSCTL_INT(_kern, KERN_NGROUPS, ngroups, CTLFLAG_RDTUN |
+    CTLFLAG_NOFETCH | CTLFLAG_CAPRD, &ngroups_max, 0,
     "Maximum number of supplemental groups a user can belong to");
 
 SYSCTL_INT(_kern, KERN_JOB_CONTROL, job_control, CTLFLAG_RD|CTLFLAG_CAPRD,
@@ -526,9 +526,9 @@ sysctl_kern_pid_max(SYSCTL_HANDLER_ARGS)
 	sx_xunlock(&proctree_lock);
 	return (error);
 }
-SYSCTL_PROC(_kern, OID_AUTO, pid_max, CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_TUN |
-    CTLFLAG_MPSAFE, 0, 0, sysctl_kern_pid_max, "I",
-    "Maximum allowed pid");
+SYSCTL_PROC(_kern, OID_AUTO, pid_max, CTLTYPE_INT |
+    CTLFLAG_RWTUN | CTLFLAG_NOFETCH | CTLFLAG_MPSAFE,
+    0, 0, sysctl_kern_pid_max, "I", "Maximum allowed pid");
 
 #include <sys/bio.h>
 #include <sys/buf.h>

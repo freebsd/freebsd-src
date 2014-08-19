@@ -13,7 +13,6 @@ DIRDEPS = \
 	lib/libcompiler_rt \
 	lib/libedit \
 	lib/libutil \
-	lib/ncurses/ncurses \
 	lib/ncurses/ncursesw \
 
 

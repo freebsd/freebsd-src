@@ -31,49 +31,49 @@
 /*
  * Convert a TCP state value to a string.
  */
-#pragma D binding "1.0" TCPS_CLOSED
+#pragma D binding "1.6.3" TCPS_CLOSED
 inline int TCPS_CLOSED =	0;
-#pragma D binding "1.0" TCPS_LISTEN
+#pragma D binding "1.6.3" TCPS_LISTEN
 inline int TCPS_LISTEN =	1;
-#pragma D binding "1.0" TCPS_SYN_SENT
+#pragma D binding "1.6.3" TCPS_SYN_SENT
 inline int TCPS_SYN_SENT =	2;
-#pragma D binding "1.0" TCPS_SYN_RECEIVED
+#pragma D binding "1.6.3" TCPS_SYN_RECEIVED
 inline int TCPS_SYN_RECEIVED =	3;
-#pragma D binding "1.0" TCPS_ESTABLISHED
+#pragma D binding "1.6.3" TCPS_ESTABLISHED
 inline int TCPS_ESTABLISHED =	4;
-#pragma D binding "1.0" TCPS_CLOSE_WAIT
+#pragma D binding "1.6.3" TCPS_CLOSE_WAIT
 inline int TCPS_CLOSE_WAIT =	5;
-#pragma D binding "1.0" TCPS_FIN_WAIT_1
+#pragma D binding "1.6.3" TCPS_FIN_WAIT_1
 inline int TCPS_FIN_WAIT_1 =	6;
-#pragma D binding "1.0" TCPS_CLOSING
+#pragma D binding "1.6.3" TCPS_CLOSING
 inline int TCPS_CLOSING =	7;
-#pragma D binding "1.0" TCPS_LAST_ACK
+#pragma D binding "1.6.3" TCPS_LAST_ACK
 inline int TCPS_LAST_ACK =	8;
-#pragma D binding "1.0" TCPS_FIN_WAIT_2
+#pragma D binding "1.6.3" TCPS_FIN_WAIT_2
 inline int TCPS_FIN_WAIT_2 =	9;
-#pragma D binding "1.0" TCPS_TIME_WAIT
+#pragma D binding "1.6.3" TCPS_TIME_WAIT
 inline int TCPS_TIME_WAIT =	10;
 
 /* TCP segment flags. */
-#pragma D binding "1.0" TH_FIN
+#pragma D binding "1.6.3" TH_FIN
 inline uint8_t TH_FIN =		0x01;
-#pragma D binding "1.0" TH_SYN
+#pragma D binding "1.6.3" TH_SYN
 inline uint8_t TH_SYN =		0x02;
-#pragma D binding "1.0" TH_RST
+#pragma D binding "1.6.3" TH_RST
 inline uint8_t TH_RST =		0x04;
-#pragma D binding "1.0" TH_PUSH
+#pragma D binding "1.6.3" TH_PUSH
 inline uint8_t TH_PUSH =	0x08;
-#pragma D binding "1.0" TH_ACK
+#pragma D binding "1.6.3" TH_ACK
 inline uint8_t TH_ACK =		0x10;
-#pragma D binding "1.0" TH_URG
+#pragma D binding "1.6.3" TH_URG
 inline uint8_t TH_URG =		0x20;
-#pragma D binding "1.0" TH_ECE
+#pragma D binding "1.6.3" TH_ECE
 inline uint8_t TH_ECE =		0x40;
-#pragma D binding "1.0" TH_CWR
+#pragma D binding "1.6.3" TH_CWR
 inline uint8_t TH_CWR =		0x80;
 
 /* TCP connection state strings. */
-#pragma D binding "1.0" tcp_state_string
+#pragma D binding "1.6.3" tcp_state_string
 inline string tcp_state_string[int32_t state] =
 	state == TCPS_CLOSED ?		"state-closed" :
 	state == TCPS_LISTEN ?		"state-listen" :
@@ -160,7 +160,7 @@ typedef struct tcpinfoh {
 	struct tcphdr *tcp_hdr;		/* raw TCP header */
 } tcpinfoh_t;
 
-#pragma D binding "1.0" translator
+#pragma D binding "1.6.3" translator
 translator csinfo_t < struct tcpcb *p > {
 	cs_addr =	NULL;
 	cs_cid =	(uint64_t)(p == NULL ? 0 : p->t_inpcb);
@@ -168,7 +168,7 @@ translator csinfo_t < struct tcpcb *p > {
 	cs_zoneid =	0;
 };
 
-#pragma D binding "1.0" translator
+#pragma D binding "1.6.3" translator
 translator tcpsinfo_t < struct tcpcb *p > {
 	tcps_addr =		(uintptr_t)p;
 	tcps_local =		-1; /* XXX */
@@ -202,7 +202,7 @@ translator tcpsinfo_t < struct tcpcb *p > {
 	tcps_retransmit =	p == NULL ? -1 : p->t_rxtshift > 0 ? 1 : 0;
 };
 
-#pragma D binding "1.0" translator
+#pragma D binding "1.6.3" translator
 translator tcpinfo_t < struct tcphdr *p > {
 	tcp_sport =	p == NULL ? 0  : ntohs(p->th_sport);
 	tcp_dport =	p == NULL ? 0  : ntohs(p->th_dport);
@@ -221,7 +221,7 @@ translator tcpinfo_t < struct tcphdr *p > {
  * number, acknowledgement number, window size and urgent pointer are already
  * in host order and thus don't need to be converted.
  */
-#pragma D binding "1.0" translator
+#pragma D binding "1.6.3" translator
 translator tcpinfoh_t < struct tcphdr *p > {
 	tcp_sport =	p == NULL ? 0  : ntohs(p->th_sport);
 	tcp_dport =	p == NULL ? 0  : ntohs(p->th_dport);
@@ -235,7 +235,7 @@ translator tcpinfoh_t < struct tcphdr *p > {
 	tcp_hdr =	(struct tcphdr *)p;
 };
 
-#pragma D binding "1.0" translator
+#pragma D binding "1.6.3" translator
 translator tcplsinfo_t < int s > {
 	tcps_state =	s;
 };
