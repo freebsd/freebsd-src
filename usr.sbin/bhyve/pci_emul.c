@@ -109,16 +109,20 @@ static uint64_t pci_emul_membase64;
 #define	PCI_EMUL_IOBASE		0x2000
 #define	PCI_EMUL_IOLIMIT	0x10000
 
-#define	PCI_EMUL_MEMLIMIT32	0xE0000000	/* 3.5GB */
+#define	PCI_EMUL_ECFG_BASE	0xE0000000		    /* 3.5GB */
+#define	PCI_EMUL_ECFG_SIZE	(MAXBUSES * 1024 * 1024)    /* 1MB per bus */
+SYSRES_MEM(PCI_EMUL_ECFG_BASE, PCI_EMUL_ECFG_SIZE);
+
+#define	PCI_EMUL_MEMLIMIT32	PCI_EMUL_ECFG_BASE
 
 #define	PCI_EMUL_MEMBASE64	0xD000000000UL
 #define	PCI_EMUL_MEMLIMIT64	0xFD00000000UL
 
 static struct pci_devemu *pci_emul_finddev(char *name);
-static void	pci_lintr_route(struct pci_devinst *pi);
-static void	pci_lintr_update(struct pci_devinst *pi);
-
-static struct mem_range pci_mem_hole;
+static void pci_lintr_route(struct pci_devinst *pi);
+static void pci_lintr_update(struct pci_devinst *pi);
+static void pci_cfgrw(struct vmctx *ctx, int vcpu, int in, int bus, int slot,
+    int func, int coff, int bytes, uint32_t *val);
 
 /*
  * I/O access
@@ -1023,12 +1027,37 @@ pci_emul_fallback_handler(struct vmctx *ctx, int vcpu, int dir, uint64_t addr,
 	return (0);
 }
 
+static int
+pci_emul_ecfg_handler(struct vmctx *ctx, int vcpu, int dir, uint64_t addr,
+    int bytes, uint64_t *val, void *arg1, long arg2)
+{
+	int bus, slot, func, coff, in;
+
+	coff = addr & 0xfff;
+	func = (addr >> 12) & 0x7;
+	slot = (addr >> 15) & 0x1f;
+	bus = (addr >> 20) & 0xff;
+	in = (dir == MEM_F_READ);
+	if (in)
+		*val = ~0UL;
+	pci_cfgrw(ctx, vcpu, in, bus, slot, func, coff, bytes, (uint32_t *)val);
+	return (0);
+}
+
+uint64_t
+pci_ecfg_base(void)
+{
+
+	return (PCI_EMUL_ECFG_BASE);
+}
+
 #define	BUSIO_ROUNDUP		32
 #define	BUSMEM_ROUNDUP		(1024 * 1024)
 
 int
 init_pci(struct vmctx *ctx)
 {
+	struct mem_range mr;
 	struct pci_devemu *pde;
 	struct businfo *bi;
 	struct slotinfo *si;
@@ -1112,22 +1141,34 @@ init_pci(struct vmctx *ctx)
 	 * The guest physical memory map looks like the following:
 	 * [0,		    lowmem)		guest system memory
 	 * [lowmem,	    lowmem_limit)	memory hole (may be absent)
-	 * [lowmem_limit,   4GB)		PCI hole (32-bit BAR allocation)
+	 * [lowmem_limit,   0xE0000000)		PCI hole (32-bit BAR allocation)
+	 * [0xE0000000,	    0xF0000000)		PCI extended config window
+	 * [0xF0000000,	    4GB)		LAPIC, IOAPIC, HPET, firmware
 	 * [4GB,	    4GB + highmem)
-	 *
+	 */
+
+	/*
 	 * Accesses to memory addresses that are not allocated to system
 	 * memory or PCI devices return 0xff's.
 	 */
 	lowmem = vm_get_lowmem_size(ctx);
+	bzero(&mr, sizeof(struct mem_range));
+	mr.name = "PCI hole";
+	mr.flags = MEM_F_RW | MEM_F_IMMUTABLE;
+	mr.base = lowmem;
+	mr.size = (4ULL * 1024 * 1024 * 1024) - lowmem;
+	mr.handler = pci_emul_fallback_handler;
+	error = register_mem_fallback(&mr);
+	assert(error == 0);
 
-	memset(&pci_mem_hole, 0, sizeof(struct mem_range));
-	pci_mem_hole.name = "PCI hole";
-	pci_mem_hole.flags = MEM_F_RW;
-	pci_mem_hole.base = lowmem;
-	pci_mem_hole.size = (4ULL * 1024 * 1024 * 1024) - lowmem;
-	pci_mem_hole.handler = pci_emul_fallback_handler;
-
-	error = register_mem_fallback(&pci_mem_hole);
+	/* PCI extended config space */
+	bzero(&mr, sizeof(struct mem_range));
+	mr.name = "PCI ECFG";
+	mr.flags = MEM_F_RW | MEM_F_IMMUTABLE;
+	mr.base = PCI_EMUL_ECFG_BASE;
+	mr.size = PCI_EMUL_ECFG_SIZE;
+	mr.handler = pci_emul_ecfg_handler;
+	error = register_mem(&mr);
 	assert(error == 0);
 
 	return (0);
@@ -1612,41 +1653,6 @@ pci_emul_hdrtype_fixup(int bus, int slot, int off, int bytes, uint32_t *rv)
 	}
 }
 
-static int cfgenable, cfgbus, cfgslot, cfgfunc, cfgoff;
-
-static int
-pci_emul_cfgaddr(struct vmctx *ctx, int vcpu, int in, int port, int bytes,
-		 uint32_t *eax, void *arg)
-{
-	uint32_t x;
-
-	if (bytes != 4) {
-		if (in)
-			*eax = (bytes == 2) ? 0xffff : 0xff;
-		return (0);
-	}
-
-	if (in) {
-		x = (cfgbus << 16) |
-		    (cfgslot << 11) |
-		    (cfgfunc << 8) |
-		    cfgoff;
-                if (cfgenable)
-			x |= CONF1_ENABLE;	       
-		*eax = x;
-	} else {
-		x = *eax;
-		cfgenable = (x & CONF1_ENABLE) == CONF1_ENABLE;
-		cfgoff = x & PCI_REGMAX;
-		cfgfunc = (x >> 8) & PCI_FUNCMAX;
-		cfgslot = (x >> 11) & PCI_SLOTMAX;
-		cfgbus = (x >> 16) & PCI_BUSMAX;
-	}
-
-	return (0);
-}
-INOUT_PORT(pci_cfgaddr, CONF1_ADDR_PORT, IOPORT_F_INOUT, pci_emul_cfgaddr);
-
 static uint32_t
 bits_changed(uint32_t old, uint32_t new, uint32_t mask)
 {
@@ -1709,41 +1715,51 @@ pci_emul_cmdwrite(struct pci_devinst *pi, uint32_t new, int bytes)
 	pci_lintr_update(pi);
 }	
 
-static int
-pci_emul_cfgdata(struct vmctx *ctx, int vcpu, int in, int port, int bytes,
-		 uint32_t *eax, void *arg)
+static void
+pci_cfgrw(struct vmctx *ctx, int vcpu, int in, int bus, int slot, int func,
+    int coff, int bytes, uint32_t *eax)
 {
 	struct businfo *bi;
 	struct slotinfo *si;
 	struct pci_devinst *pi;
 	struct pci_devemu *pe;
-	int coff, idx, needcfg;
+	int idx, needcfg;
 	uint64_t addr, bar, mask;
 
-	assert(bytes == 1 || bytes == 2 || bytes == 4);
-
-	if ((bi = pci_businfo[cfgbus]) != NULL) {
-		si = &bi->slotinfo[cfgslot];
-		pi = si->si_funcs[cfgfunc].fi_devi;
+	if ((bi = pci_businfo[bus]) != NULL) {
+		si = &bi->slotinfo[slot];
+		pi = si->si_funcs[func].fi_devi;
 	} else
 		pi = NULL;
 
-	coff = cfgoff + (port - CONF1_DATA_PORT);
-
-#if 0
-	printf("pcicfg-%s from 0x%0x of %d bytes (%d/%d/%d)\n\r",
-		in ? "read" : "write", coff, bytes, cfgbus, cfgslot, cfgfunc);
-#endif
-
 	/*
-	 * Just return if there is no device at this cfgslot:cfgfunc,
-	 * if the guest is doing an un-aligned access, or if the config
-	 * address word isn't enabled.
+	 * Just return if there is no device at this slot:func or if the
+	 * the guest is doing an un-aligned access.
 	 */
-	if (!cfgenable || pi == NULL || (coff & (bytes - 1)) != 0) {
+	if (pi == NULL || (bytes != 1 && bytes != 2 && bytes != 4) ||
+	    (coff & (bytes - 1)) != 0) {
 		if (in)
 			*eax = 0xffffffff;
-		return (0);
+		return;
+	}
+
+	/*
+	 * Ignore all writes beyond the standard config space and return all
+	 * ones on reads.
+	 */
+	if (coff >= PCI_REGMAX + 1) {
+		if (in) {
+			*eax = 0xffffffff;
+			/*
+			 * Extended capabilities begin at offset 256 in config
+			 * space. Absence of extended capabilities is signaled
+			 * with all 0s in the extended capability header at
+			 * offset 256.
+			 */
+			if (coff <= PCI_REGMAX + 4)
+				*eax = 0x00000000;
+		}
+		return;
 	}
 
 	pe = pi->pi_d;
@@ -1754,8 +1770,8 @@ pci_emul_cfgdata(struct vmctx *ctx, int vcpu, int in, int port, int bytes,
 	if (in) {
 		/* Let the device emulation override the default handler */
 		if (pe->pe_cfgread != NULL) {
-			needcfg = pe->pe_cfgread(ctx, vcpu, pi,
-						    coff, bytes, eax);
+			needcfg = pe->pe_cfgread(ctx, vcpu, pi, coff, bytes,
+			    eax);
 		} else {
 			needcfg = 1;
 		}
@@ -1769,12 +1785,12 @@ pci_emul_cfgdata(struct vmctx *ctx, int vcpu, int in, int port, int bytes,
 				*eax = pci_get_cfgdata32(pi, coff);
 		}
 
-		pci_emul_hdrtype_fixup(cfgbus, cfgslot, coff, bytes, eax);
+		pci_emul_hdrtype_fixup(bus, slot, coff, bytes, eax);
 	} else {
 		/* Let the device emulation override the default handler */
 		if (pe->pe_cfgwrite != NULL &&
 		    (*pe->pe_cfgwrite)(ctx, vcpu, pi, coff, bytes, *eax) == 0)
-			return (0);
+			return;
 
 		/*
 		 * Special handling for write to BAR registers
@@ -1785,7 +1801,7 @@ pci_emul_cfgdata(struct vmctx *ctx, int vcpu, int in, int port, int bytes,
 			 * 4-byte aligned.
 			 */
 			if (bytes != 4 || (coff & 0x3) != 0)
-				return (0);
+				return;
 			idx = (coff - PCIR_BAR(0)) / 4;
 			mask = ~(pi->pi_bar[idx].size - 1);
 			switch (pi->pi_bar[idx].type) {
@@ -1843,7 +1859,57 @@ pci_emul_cfgdata(struct vmctx *ctx, int vcpu, int in, int port, int bytes,
 			CFGWRITE(pi, coff, *eax, bytes);
 		}
 	}
+}
 
+static int cfgenable, cfgbus, cfgslot, cfgfunc, cfgoff;
+
+static int
+pci_emul_cfgaddr(struct vmctx *ctx, int vcpu, int in, int port, int bytes,
+		 uint32_t *eax, void *arg)
+{
+	uint32_t x;
+
+	if (bytes != 4) {
+		if (in)
+			*eax = (bytes == 2) ? 0xffff : 0xff;
+		return (0);
+	}
+
+	if (in) {
+		x = (cfgbus << 16) | (cfgslot << 11) | (cfgfunc << 8) | cfgoff;
+		if (cfgenable)
+			x |= CONF1_ENABLE;
+		*eax = x;
+	} else {
+		x = *eax;
+		cfgenable = (x & CONF1_ENABLE) == CONF1_ENABLE;
+		cfgoff = x & PCI_REGMAX;
+		cfgfunc = (x >> 8) & PCI_FUNCMAX;
+		cfgslot = (x >> 11) & PCI_SLOTMAX;
+		cfgbus = (x >> 16) & PCI_BUSMAX;
+	}
+
+	return (0);
+}
+INOUT_PORT(pci_cfgaddr, CONF1_ADDR_PORT, IOPORT_F_INOUT, pci_emul_cfgaddr);
+
+static int
+pci_emul_cfgdata(struct vmctx *ctx, int vcpu, int in, int port, int bytes,
+		 uint32_t *eax, void *arg)
+{
+	int coff;
+
+	assert(bytes == 1 || bytes == 2 || bytes == 4);
+
+	coff = cfgoff + (port - CONF1_DATA_PORT);
+	if (cfgenable) {
+		pci_cfgrw(ctx, vcpu, in, cfgbus, cfgslot, cfgfunc, coff, bytes,
+		    eax);
+	} else {
+		/* Ignore accesses to cfgdata if not enabled by cfgaddr */
+		if (in)
+			*eax = 0xffffffff;
+	}
 	return (0);
 }
 
