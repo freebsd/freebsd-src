@@ -115,9 +115,9 @@
 			#address-cells = <0>;
 			#interrupt-cells = <1>;
 			reg = <0x7f808000 0x400
-			       0x7f80b000 0x10
-			       0x7f80b080 0x10
-			       0x7f80b100 0x10>;
+			       0x7f80a000 0x10
+			       0x7f80a080 0x10
+			       0x7f80a100 0x10>;
 			interrupts = <0 1 2 3 4>;
 			hard-interrupt-sources = <64>;
 			soft-interrupt-sources = <64>;
