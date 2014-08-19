@@ -6,8 +6,6 @@
 
 PROG=	svn${SVNLITE}
 
-NO_PIE=	yes
-
 SRCS=	add-cmd.c blame-cmd.c cat-cmd.c changelist-cmd.c checkout-cmd.c \
 	cl-conflicts.c cleanup-cmd.c commit-cmd.c conflict-callbacks.c \
 	copy-cmd.c delete-cmd.c deprecated.c diff-cmd.c export-cmd.c \
