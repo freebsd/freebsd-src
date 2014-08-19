@@ -6,7 +6,8 @@ SRCS=	cheri_helloworld-helper.c
 
 INCS=	cheri_helloworld-helper.h
 
-LDFLAGS+=	-Wl,--script=${.CURDIR}/sandbox.ld -nostdlib
+LDFLAGS+=	-Wl,--script=${.CURDIR}/../../lib/libc_cheri/sandbox.ld \
+		-nostdlib
 MAN=
 DPADD=	${LIBC_CHERI}
 LDADD=	-lc_cheri

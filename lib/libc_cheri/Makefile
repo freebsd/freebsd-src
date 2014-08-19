@@ -302,3 +302,10 @@ CFLAGS+=	-Wno-cast-align -DFORCE_C_LOCALE
 .include <bsd.lib.mk>
 
 CFLAGS+= ${CFLAGS.${.IMPSRC:T}}
+
+SCRIPTDIR=	/usr/libdata/ldscripts
+LDSCRIPTS=	sandbox.ld
+
+afterinstall:
+	${INSTALL} -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE} \
+	    ${.CURDIR}/${LDSCRIPTS} ${DESTDIR}${SCRIPTDIR}

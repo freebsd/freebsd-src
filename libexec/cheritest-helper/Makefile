@@ -7,7 +7,8 @@ SRCS=	cheritest-helper.c			\
 
 INCS=	cheritest-helper.h
 
-LDFLAGS+=	-Wl,--script=${.CURDIR}/sandbox.ld -nostdlib
+LDFLAGS+=	-Wl,--script=${.CURDIR}/../../lib/libc_cheri/sandbox.ld \
+		-nostdlib
 MAN=
 #STRIP=
 DPADD=	${LIBMD} ${LIBC_CHERI}
