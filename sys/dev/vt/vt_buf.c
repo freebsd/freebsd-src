@@ -228,10 +228,9 @@ vtbuf_dirty_axis(unsigned int begin, unsigned int end)
 }
 
 static inline void
-vtbuf_dirty(struct vt_buf *vb, const term_rect_t *area)
+vtbuf_dirty_locked(struct vt_buf *vb, const term_rect_t *area)
 {
 
-	VTBUF_LOCK(vb);
 	if (vb->vb_dirtyrect.tr_begin.tp_row > area->tr_begin.tp_row)
 		vb->vb_dirtyrect.tr_begin.tp_row = area->tr_begin.tp_row;
 	if (vb->vb_dirtyrect.tr_begin.tp_col > area->tr_begin.tp_col)
@@ -244,18 +243,26 @@ vtbuf_dirty(struct vt_buf *vb, const term_rect_t *area)
 	    vtbuf_dirty_axis(area->tr_begin.tp_row, area->tr_end.tp_row);
 	vb->vb_dirtymask.vbm_col |=
 	    vtbuf_dirty_axis(area->tr_begin.tp_col, area->tr_end.tp_col);
+}
+
+static inline void
+vtbuf_dirty(struct vt_buf *vb, const term_rect_t *area)
+{
+
+	VTBUF_LOCK(vb);
+	vtbuf_dirty_locked(vb, area);
 	VTBUF_UNLOCK(vb);
 }
 
 static inline void
-vtbuf_dirty_cell(struct vt_buf *vb, const term_pos_t *p)
+vtbuf_dirty_cell_locked(struct vt_buf *vb, const term_pos_t *p)
 {
 	term_rect_t area;
 
 	area.tr_begin = *p;
 	area.tr_end.tp_row = p->tp_row + 1;
 	area.tr_end.tp_col = p->tp_col + 1;
-	vtbuf_dirty(vb, &area);
+	vtbuf_dirty_locked(vb, &area);
 }
 
 static void
@@ -372,9 +379,8 @@ vtbuf_fill_locked(struct vt_buf *vb, const term_rect_t *r, term_char_t c)
 
 	VTBUF_LOCK(vb);
 	vtbuf_fill(vb, r, c);
+	vtbuf_dirty_locked(vb, r);
 	VTBUF_UNLOCK(vb);
-
-	vtbuf_dirty(vb, r);
 }
 
 static void
@@ -515,8 +521,8 @@ vtbuf_putchar(struct vt_buf *vb, const term_pos_t *p, term_char_t c)
 	if (row[p->tp_col] != c) {
 		VTBUF_LOCK(vb);
 		row[p->tp_col] = c;
+		vtbuf_dirty_cell_locked(vb, p);
 		VTBUF_UNLOCK(vb);
-		vtbuf_dirty_cell(vb, p);
 	}
 }
 
@@ -525,9 +531,11 @@ vtbuf_cursor_position(struct vt_buf *vb, const term_pos_t *p)
 {
 
 	if (vb->vb_flags & VBF_CURSOR) {
-		vtbuf_dirty_cell(vb, &vb->vb_cursor);
+		VTBUF_LOCK(vb);
+		vtbuf_dirty_cell_locked(vb, &vb->vb_cursor);
 		vb->vb_cursor = *p;
-		vtbuf_dirty_cell(vb, &vb->vb_cursor);
+		vtbuf_dirty_cell_locked(vb, &vb->vb_cursor);
+		VTBUF_UNLOCK(vb);
 	} else {
 		vb->vb_cursor = *p;
 	}
@@ -708,10 +716,10 @@ vtbuf_cursor_visibility(struct vt_buf *vb, int yes)
 	else
 		vb->vb_flags &= ~VBF_CURSOR;
 	nflags = vb->vb_flags;
-	VTBUF_UNLOCK(vb);
 
 	if (oflags != nflags)
-		vtbuf_dirty_cell(vb, &vb->vb_cursor);
+		vtbuf_dirty_cell_locked(vb, &vb->vb_cursor);
+	VTBUF_UNLOCK(vb);
 }
 
 void
@@ -726,9 +734,9 @@ vtbuf_scroll_mode(struct vt_buf *vb, int yes)
 	else
 		vb->vb_flags &= ~VBF_SCROLL;
 	nflags = vb->vb_flags;
-	VTBUF_UNLOCK(vb);
 
 	if (oflags != nflags)
-		vtbuf_dirty_cell(vb, &vb->vb_cursor);
+		vtbuf_dirty_cell_locked(vb, &vb->vb_cursor);
+	VTBUF_UNLOCK(vb);
 }
 
