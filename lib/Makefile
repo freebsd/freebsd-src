@@ -57,6 +57,7 @@ SUBDIR=	${SUBDIR_ORDERED} \
 	${_libiconv_modules} \
 	libipsec \
 	libjail \
+	${_libjpeg} \
 	libkiconv \
 	libkvm \
 	${_libldns} \
@@ -189,6 +190,9 @@ _libcasper=	libcasper
 _libc_cheri=	libc_cheri
 _libcheri=	libcheri
 _libz_cheri=	libz-cheri
+# XXXBD: not really CHERI specific, but currently using USE_CHERI to get
+# clang on mips.
+_libjpeg=	libjpeg
 .endif
 
 .if ${MK_CLANG} != "no" && !defined(COMPAT_32BIT)
