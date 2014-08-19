@@ -10,6 +10,8 @@
     games
     ..
     include
+	curl
+	..
     ..
     lib
         aout

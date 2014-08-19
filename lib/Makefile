@@ -43,6 +43,7 @@ SUBDIR=	${SUBDIR_ORDERED} \
 	${_libcom_err} \
 	libcompat \
 	libcrypt \
+	${_libcurl} \
 	libdevinfo \
 	libdevstat \
 	libdwarf \
@@ -192,6 +193,7 @@ _libcheri=	libcheri
 _libz_cheri=	libz-cheri
 # XXXBD: not really CHERI specific, but currently using USE_CHERI to get
 # clang on mips.
+_libcurl=	libcurl
 _libjpeg=	libjpeg
 .endif
 
