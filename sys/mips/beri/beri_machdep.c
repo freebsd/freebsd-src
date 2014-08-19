@@ -274,6 +274,11 @@ platform_start(__register_t a0, __register_t a1,  __register_t a2,
 	cninit();
 	printf("entry: platform_start()\n");
 
+#ifdef FDT
+	if (dtbp != (vm_offset_t)NULL)
+		printf("Using FDT at %p\n", (void *)dtbp);
+#endif
+
 	bootverbose = 1;
 	if (bootverbose) {
 		printf("cmd line: ");
