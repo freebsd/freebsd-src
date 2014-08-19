@@ -347,6 +347,18 @@ install_kernel ( ) (
 	) > ${NANO_OBJ}/_.ik 2>&1
 )
 
+native_xtools ( ) (
+	print 2 "Installing the optimized native build tools for cross env"
+	pprint 3 "log: ${NANO_OBJ}/_.native_xtools"
+
+	cd ${NANO_SRC}
+	env TARGET_ARCH=${NANO_ARCH} \
+	${NANO_MAKE} SRCCONF=${SRCCONF} \
+		__MAKE_CONF=${NANO_MAKE_CONF_INSTALL} native-xtools \
+		DESTDIR=${NANO_WORLDDIR} \
+		> ${NANO_OBJ}/_.native_xtools 2>&1
+)
+
 run_customize() (
 
 	pprint 2 "run customize scripts"
@@ -920,9 +932,10 @@ do_installkernel=true
 do_world=true
 do_image=true
 do_copyout_partition=true
+do_native_xtools=false
 
 set +e
-args=`getopt Kbc:fhiknqvw $*`
+args=`getopt KXbc:fhiknqvw $*`
 if [ $? -ne 0 ] ; then
 	usage
 	exit 2
@@ -936,6 +949,10 @@ do
 	in
 	-K)
 		do_installkernel=false
+		shift
+		;;
+	-X)
+		do_native_xtools=true
 		shift
 		;;
 	-b)
@@ -1089,6 +1106,9 @@ clean_world
 make_conf_install
 install_world
 install_etc
+if $do_native_xtools ; then
+	native_xtools
+fi
 setup_nanobsd_etc
 if $do_installkernel ; then
 	install_kernel
