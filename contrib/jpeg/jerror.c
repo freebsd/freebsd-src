@@ -47,7 +47,7 @@
 
 #define JMESSAGE(code,string)	string ,
 
-const char * const jpeg_std_message_table[] = {
+static const char * const jpeg_std_message_table[] = {
 #include "jerror.h"
   NULL
 };
