@@ -174,7 +174,10 @@ afterinstall:
 .endif
 
 distribute:
-	${_+_}cd ${.CURDIR} ; ${MAKE} install DESTDIR=${DISTDIR}/${DISTRIBUTION}
+	# Avoid installing tests here; "make distribution" will do this and
+	# correctly place them in the right location.
+	${_+_}cd ${.CURDIR} ; ${MAKE} MK_TESTS=no install \
+	    DESTDIR=${DISTDIR}/${DISTRIBUTION}
 	${_+_}cd ${.CURDIR} ; ${MAKE} distribution DESTDIR=${DISTDIR}/${DISTRIBUTION}
 
 .include <bsd.endian.mk>
