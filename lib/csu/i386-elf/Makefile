@@ -13,8 +13,6 @@ CFLAGS+=	-I${.CURDIR}/../common \
 CLEANFILES=	${FILES} crt1_c.o crt1_s.o gcrt1_c.o Scrt1_c.o
 CLEANFILES+=	crt1_c.s gcrt1_c.s Scrt1_c.s
 
-NO_PIE=	yes
-
 # See the comment in lib/csu/common/crtbrand.c for the reason crt1_c.c is not
 # directly compiled to .o files.
 

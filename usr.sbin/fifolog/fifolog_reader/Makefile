@@ -9,8 +9,6 @@ MAN=
 DPADD=	${LIBFIFOLOG} ${LIBUTIL} ${LIBZ}
 LDADD=	${LIBFIFOLOG} -lutil -lz
 
-NO_PIE=	yes
-
 regress:
 	./${PROG} /tmp/fifolog.0
 	./${PROG} -t /tmp/fifolog.0

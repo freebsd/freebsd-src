@@ -78,8 +78,6 @@ beforeinstall:
 
 .PATH: ${.CURDIR}/${RTLD_ARCH}
 
-NO_PIE=	yes
-
 .if ${MK_TESTS} != "no"
 SUBDIR+=	tests
 .endif

@@ -23,6 +23,4 @@ LDADD+=		${LIBNETBSD}
 LINKS=		${BINDIR}/mtree ${BINDIR}/nmtree
 MLINKS=		mtree.8 nmtree.8
 
-NO_PIE=	yes
-
 .include <bsd.prog.mk>
