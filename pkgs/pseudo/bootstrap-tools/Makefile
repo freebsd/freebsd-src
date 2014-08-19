@@ -1,9 +1,8 @@
 # $FreeBSD$
 
 # building clang is particularly tedious - so avoid re-inventing wheels
-# the end result is 
 
-all: cross-tools build-tools
+all: bootstrap-toolchain
 
 UPDATE_DEPENDFILE= no
 .export UPDATE_DEPENDFILE
@@ -28,6 +27,7 @@ BSARGS= \
 	SSP_CFLAGS= \
 	MK_HTML=no MK_INFO=no NO_LINT=yes MK_MAN=no \
 	-DNO_PIC MK_PROFILE=no -DNO_SHARED \
+	-DWITH_CLANG_BOOTSTRAP \
 	-DNO_CPU_CFLAGS -DNO_WARNS MK_CTF=no -DEARLY_BUILD MK_TESTS=no
 
 
@@ -45,3 +45,22 @@ cross-tools: build-tools
 cross-tools build-tools bootstrap-tools: .MAKE .META
 	${BSENV} ${MAKE} -C ${SRCTOP} -f Makefile.inc1 ${BSARGS} $@
 	touch $@
+
+# MAKELEVEL=0 so that dirdeps.mk does its thing
+# LEGACY_TOOLS lets us use the bootstaped stuff above
+# TARGET* is so that MK_CLANG gets set correctly.
+BSTCENV= \
+	MAKELEVEL=0 \
+	MACHINE=host \
+	LEGACY_TOOLS=${LEGACY_TOOLS} \
+	TARGET=${HOST_MACHINE} \
+	TARGET_ARCH=${HOST_MACHINE_ARCH}
+
+BSTCARGS= \
+	${BSARGS} \
+	-DWITH_STAGING \
+	-DWITH_TOOLSDIR
+
+# finally we build toolchain leveraging the above.
+bootstrap-toolchain:	.MAKE cross-tools
+	${BSTCENV} ${MAKE} -C ${.CURDIR:H:H} ${BSTCARGS} toolchain
