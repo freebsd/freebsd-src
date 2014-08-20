@@ -843,17 +843,50 @@ void
 pmap_enter(pmap_t pmap, vm_offset_t va, vm_prot_t access, vm_page_t m,
     vm_prot_t prot, boolean_t wired)
 {
-	vm_paddr_t pa;
-	pt_entry_t *l3, opte;
+	pt_entry_t *l1, *l2, *l3, opte;
+	vm_paddr_t pa, pte_pa;
+	vm_page_t pte_m;
 
 	PMAP_LOCK(pmap);
-	pa = VM_PAGE_TO_PHYS(m);
 	l3 = pmap_l3(pmap, va);
-	KASSERT(l3 != NULL, ("TODO: grow va"));
-	KASSERT(pmap == pmap_kernel(), ("Only kernel mappings for now"));
+
+	/* TODO: This is not optimal, but should mostly work */
+	if (l3 == NULL) {
+		l2 = pmap_l2(pmap, va);
+
+		if (l2 == NULL) {
+			pte_m = vm_page_alloc(NULL, 0, VM_ALLOC_NORMAL |
+			    VM_ALLOC_NOOBJ | VM_ALLOC_WIRED | VM_ALLOC_ZERO);
+			if (pte_m == NULL)
+				panic("pmap_enter: l2 pte_m == NULL");
+			if ((pte_m->flags & PG_ZERO) == 0)
+				pmap_zero_page(pte_m);
+
+			pte_pa = VM_PAGE_TO_PHYS(pte_m);
+			l1 = pmap_l1(pmap, va);
+			*l1 = pte_pa | ATTR_AF | L1_TABLE;
+			l2 = pmap_l2(pmap, va);
+		}
+		KASSERT(l2 != NULL, ("TODO: grow l2 va"));
+
+		pte_m = vm_page_alloc(NULL, 0, VM_ALLOC_NORMAL |
+		    VM_ALLOC_NOOBJ | VM_ALLOC_WIRED | VM_ALLOC_ZERO);
+		if (pte_m == NULL)
+			panic("pmap_enter: l3 pte_m == NULL");
+		if ((pte_m->flags & PG_ZERO) == 0)
+			pmap_zero_page(pte_m);
+
+		pte_pa = VM_PAGE_TO_PHYS(pte_m);
+		*l2 = pte_pa | ATTR_AF | L2_TABLE;
+		l3 = pmap_l3(pmap, va);
+	}
+
+	KASSERT(l3 != NULL, ("TODO: grow l3 va"));
 
 	opte = *l3;
+	if (opte != 0) printf("%llx\n", opte);
 	KASSERT(opte == 0, ("TODO: Update the entry"));
+	pa = VM_PAGE_TO_PHYS(m);
 	*l3 = (pa & ~L3_OFFSET) | ATTR_AF | L3_PAGE;
 
 	PMAP_UNLOCK(pmap);
