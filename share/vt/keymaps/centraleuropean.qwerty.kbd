@@ -5,7 +5,7 @@
 #
 # $FreeBSD$
 #
-# This map uses a QWERTZ keyboard for its basic layout.
+# This map uses the US QWERTY keyboard for its basic layout.
 # It adds a "third row" to the top of the PC keyboard. To
 # access the third row, press and hold the Alt key, then
 # strike a key in the top row.
@@ -58,7 +58,7 @@
 # This layout offers access to the entire character set of
 # ISO 8859-2, used by Slovak, Czech, German, Polish, Croatian,
 # Slovenian, Rumanian, Hungarian, and probably other languages,
-# while remaining mostly compatible with the default US QWERTY
+# while remaining fully compatible with the default US QWERTY
 # keyboard.
 #
 #                                                         alt
@@ -86,7 +86,7 @@
   018   'e'    'E'    enq    enq    'e'    'E'    enq    enq     C
   019   'r'    'R'    dc2    dc2    'r'    'R'    dc2    dc2     C
   020   't'    'T'    dc4    dc4    't'    'T'    dc4    dc4     C
-  021   'z'    'Z'    sub    sub    'z'    'Z'    sub    sub     C
+  021   'y'    'Y'    em     em     'y'    'Y'    em     em      C
   022   'u'    'U'    nak    nak    'u'    'U'    nak    nak     C
   023   'i'    'I'    ht     ht     'i'    'I'    ht     ht      C
   024   'o'    'O'    si     si     'o'    'O'    si     si      C
@@ -109,7 +109,7 @@
   041   '`'    '~'    nop    nop    dogo   dced   nop    nop     O
   042   lshift lshift lshift lshift lshift lshift lshift lshift  O
   043   '\'    '|'    fs     fs     dsla   dsla   fs     fs      O
-  044   'y'    'Y'    em     em     'y'    'Y'    em     em      C
+  044   'z'    'Z'    sub    sub    'z'    'Z'    sub    sub     C
   045   'x'    'X'    can    can    'x'    'X'    can    can     C
   046   'c'    'C'    etx    etx    'c'    'C'    etx    etx     C
   047   'v'    'V'    syn    syn    'v'    'V'    syn    syn     C

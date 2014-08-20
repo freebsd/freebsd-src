@@ -130,7 +130,7 @@
   dtil '~'     ( 'a'    0xe3    ) ( 'A'    0xc3    ) ( 'n'    0xf1    ) ( 'N'    0xd1    )
                ( 'o'    0xf5    ) ( 'O'    0xd5    )
 
-  duml 0x0161  ( 'a'    0xe4    ) ( 'A'    0xc4    ) ( 'e'    0xeb    ) ( 'E'    0xcb    )
+  duml 0xa8    ( 'a'    0xe4    ) ( 'A'    0xc4    ) ( 'e'    0xeb    ) ( 'E'    0xcb    )
                ( 'i'    0xef    ) ( 'I'    0xcf    ) ( 'o'    0xf6    ) ( 'O'    0xd6    )
                ( 'u'    0xfc    ) ( 'U'    0xdc    ) ( 'y'    0xff    )
 

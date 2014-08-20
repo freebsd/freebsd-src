@@ -77,6 +77,11 @@ centraleuropean.kbd:de:Zentral Europäisch
 centraleuropean.kbd:fr:Centre européen
 centraleuropean.kbd:es:Centroeuropeo
 
+centraleuropean.qwerty.kbd:en:Central European (QWERTY)
+centraleuropean.qwerty.kbd:de:Zentral Europäisch (QWERTY)
+centraleuropean.qwerty.kbd:fr:Centre européen (QWERTY)
+centraleuropean.qwerty.kbd:es:Centroeuropeo (QWERTY)
+
 colemak.kbd:en:Colemak ergonomic alternative
 
 cz.kbd:en:Czech (QWERTZ, accent keys)
@@ -88,6 +93,11 @@ cz.kbd.from-ce:en:Czech
 cz.kbd.from-ce:de:Tschechisch
 cz.kbd.from-ce:fr:Tchèque
 cz.kbd.from-ce:es:Checo
+
+cz.qwerty.kbd.from-ce:en:Czech (QWERTY)
+cz.qwerty.kbd.from-ce:de:Tschechisch (QWERTY)
+cz.qwerty.kbd.from-ce:fr:Tchèquey (QWERTY)
+cz.qwerty.kbd.from-ce:es:Checo (QWERTY)
 
 dk.kbd:en:Danish
 dk.kbd:da:Dansk
@@ -207,6 +217,13 @@ de.acc.kbd:fr:Allemand (avec accents)
 de.acc.kbd:pt:Alemão (com acentos)
 de.acc.kbd:es:Alemán (con acentos)
 de.acc.kbd:uk:Німецька (accent keys)
+
+de.noacc.kbd:en:German (no accent keys)
+de.noacc.kbd:de:Deutsch (ohne Akzente)
+de.noacc.kbd:fr:Allemand (sans accents)
+de.noacc.kbd:pt:Alemão (no accent keys)
+de.noacc.kbd:es:Alemán (no accent keys)
+de.noacc.kbd:uk:Німецька (no accent keys)
 
 de.kbd.from-cp850:en:German
 de.kbd.from-cp850:de:Deutsch
@@ -500,18 +517,6 @@ uk.capsctrl.kbd:de:Vereinigtes Königreich (Caps Lock als linke Strg)
 #uk.iso-ctrl.kbd:fr:Royaume Uni (caps lock acts as Left Ctrl)
 #uk.iso-ctrl.kbd:pt:Reino Unido (caps lock acts as Left Ctrl)
 #uk.iso-ctrl.kbd:es:Brit�nico (caps lock acts as Left Ctrl)
-
-uk.kbd.from-cp850:en:United Kingdom
-uk.kbd.from-cp850:de:Vereinigtes Königreich
-uk.kbd.from-cp850:fr:Royaume Uni
-uk.kbd.from-cp850:pt:Reino Unido
-uk.kbd.from-cp850:es:Británico
-
-uk.capsctrl.kbd.from-cp850:en:United Kingdom (Caps Lock acts as Left Ctrl)
-uk.kbd.from-cp850:de:Vereinigtes Königreich (Caps Lock als linke Strg)
-#uk.cp850.kbd:fr:Royaume Uni (caps lock acts as Left Ctrl)
-#uk.cp850.kbd:pt:Reino Unido (caps lock acts as Left Ctrl)
-#uk.cp850.kbd:es:Brit�nico (caps lock acts as Left Ctrl)
 
 uk.dvorak.kbd:en:United Kingdom Dvorak
 uk.dvorak.kbd:de:Vereinigtes Königreich Dvorak

@@ -33,7 +33,7 @@
   002   '1'    '!'    nop    nop    0xa1   0xb9   nop    nop     O
   003   '2'    '"'    nul    nul    '@'    0xb2   nul    nul     O
   004   '3'    '#'    nop    nop    0x9e   0xb3   nop    nop     O
-  005   '4'    0x20ac nop    nop    '$'    0x20ac nop    nop     O
+  005   '4'    0xa4   nop    nop    '$'    0xa4   nop    nop     O
   006   '5'    '%'    nop    nop    '5'    '%'    nop    nop     O
   007   '6'    '&'    nop    nop    '6'    '&'    nop    nop     O
   008   '7'    '/'    nop    nop    '{'    '/'    nop    nop     O
@@ -69,7 +69,7 @@
   038   'l'    'L'    ff     ff     'l'    'L'    ff     ff      C
   039   0xe6   0xc6   nop    nop    0x91   0x92   nop    nop     C
   040   0xf8   0xd8   nop    nop    0x9b   0x9d   nop    nop     C
-  041   0x0153 0xa7   nop    nop    0x0153 0xa7   nop    nop     O
+  041   0xbd   0xa7   nop    nop    0xbd   0xa7   nop    nop     O
   042   lshift lshift lshift lshift lshift lshift lshift lshift  O
   043   '''    '*'    nop    nop    '''    '*'    nop    nop     O
   044   'z'    'Z'    sub    sub    'z'    'Z'    sub    sub     C
@@ -153,7 +153,7 @@
                ( 'i'    0xec    ) ( 'I'    0xcc    ) ( 'o'    0xf2    ) ( 'O'    0xd2    )
                ( 'u'    0xf9    ) ( 'U'    0xd9    )
 
-  dacu 0xb4    ( 'a'    0xe1    ) ( 'A'    0xc1    ) ( 'e'    0xe9    ) ( 'E'    0xc9    )
+  dacu '''     ( 'a'    0xe1    ) ( 'A'    0xc1    ) ( 'e'    0xe9    ) ( 'E'    0xc9    )
                ( 'i'    0xed    ) ( 'I'    0xcd    ) ( 'o'    0xf3    ) ( 'O'    0xd3    )
                ( 'u'    0xfa    ) ( 'U'    0xda    ) ( 'y'    0xfd    ) ( 'Y'    0xdd    )
 
