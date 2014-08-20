@@ -10,7 +10,10 @@
 #include <stdio.h>
 #include <unistd.h>
 #include <stdlib.h>
+#include <sys/types.h>
+#include <fcntl.h>
 #include <string.h>
+#include <sys/mman.h>
 
 #include "surface.h"
 #include "plot.h"
@@ -47,7 +50,8 @@ void _nsfb_register_surface(const enum nsfb_type_e type,
 static int surface_defaults(nsfb_t *nsfb)
 {
     nsfb->width = 800;
-    nsfb->height = 600;
+    /* XXX nsfb->height = 600; */
+    nsfb->height = 480;
     nsfb->format = NSFB_FMT_XRGB8888;
 
     /* select default sw plotters for bpp */

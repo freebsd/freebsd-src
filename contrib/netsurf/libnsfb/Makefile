@@ -20,16 +20,25 @@ WARNFLAGS := -Wall -Wextra -Wundef -Wpointer-arith -Wcast-align \
 # would like these flags but gcc earlier than 4.4 fail
 #-pedantic -Wno-overlength-strings # For nsglobe.c
 
-CFLAGS := -g -std=c99 -D_BSD_SOURCE -D_POSIX_C_SOURCE=200112L \
+CFLAGS := -g -std=c99 \
 	-I$(CURDIR)/include/ -I$(CURDIR)/src $(WARNFLAGS) $(CFLAGS) -Wno-error
+
+#ifeq ($(HOST),FreeBSD)
+#	CFLAGS := -D_BSD_SOURCE -D_XOPEN_SOURCE=600 -D_POSIX_C_SOURCE=200112L $(CFLAGS)
+#else
+#	CFLAGS := -D_BSD_SOURCE -D_POSIX_C_SOURCE=200112L $(CFLAGS)
+#endif
 
 NSFB_XCB_PKG_NAMES := xcb xcb-icccm xcb-image xcb-keysyms xcb-atom
 
 # determine which surface handlers can be compiled based upon avalable library
 $(eval $(call pkg_config_package_available,NSFB_VNC_AVAILABLE,libvncserver))
-$(eval $(call pkg_config_package_available,NSFB_SDL_AVAILABLE,sdl))
-$(eval $(call pkg_config_package_available,NSFB_XCB_AVAILABLE,$(NSFB_XCB_PKG_NAMES)))
+#$(eval $(call pkg_config_package_available,NSFB_SDL_AVAILABLE,sdl))
+#$(eval $(call pkg_config_package_available,NSFB_XCB_AVAILABLE,$(NSFB_XCB_PKG_NAMES)))
 $(eval $(call pkg_config_package_available,NSFB_WLD_AVAILABLE,wayland-client))
+
+NSFB_XCB_AVAILABLE := no
+NSFB_SDL_AVAILABLE := no
 
 # surfaces not detectable via pkg-config 
 NSFB_ABLE_AVAILABLE := no

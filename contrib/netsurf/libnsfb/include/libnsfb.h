@@ -41,7 +41,8 @@ enum nsfb_type_e {
     NSFB_SURFACE_VNC, /**< VNC surface */
     NSFB_SURFACE_ABLE, /**< ABLE framebuffer surface */
     NSFB_SURFACE_X, /**< X windows surface */
-    NSFB_SURFACE_WL /**< Wayland surface */
+    NSFB_SURFACE_WL, /**< Wayland surface */
+    NSFB_SURFACE_MTL /**< DE4 MTL surface */
 };
 
 enum nsfb_format_e {

@@ -439,7 +439,7 @@ process_cmdline(int argc, char** argv)
 
 	LOG(("argc %d, argv %p", argc, argv));
 
-	fename = "sdl";
+	fename = "mtl";
 	febpp = 32;
 
 	fewidth = nsoption_int(window_width);
@@ -625,6 +625,7 @@ fb_browser_window_click(fbtk_widget_t *widget, fbtk_callback_info *cbi)
 			gui_drag.y = y;
 			break;
 
+#if 0
 		case NSFB_KEY_MOUSE_3:
 			browser_window_mouse_click(gw->bw,
 					BROWSER_MOUSE_PRESS_2, x, y);
@@ -633,6 +634,22 @@ fb_browser_window_click(fbtk_widget_t *widget, fbtk_callback_info *cbi)
 			gui_drag.x = x;
 			gui_drag.y = y;
 			break;
+#else
+
+		case NSFB_KEY_MOUSE_2:
+			/* scroll right */
+			if (browser_window_scroll_at_point(gw->bw, x, y,
+					100, 0) == false)
+				widget_scroll_x(gw, 100, false);
+			break;
+
+		case NSFB_KEY_MOUSE_3:
+			/* scroll left */
+			if (browser_window_scroll_at_point(gw->bw, x, y,
+					-100, 0) == false)
+				widget_scroll_x(gw, -100, false);
+			break;
+#endif
 
 		case NSFB_KEY_MOUSE_4:
 			/* scroll up */
@@ -682,6 +699,7 @@ fb_browser_window_click(fbtk_widget_t *widget, fbtk_callback_info *cbi)
 			mouse = BROWSER_MOUSE_CLICK_1;
 			break;
 
+#if 0
 		case NSFB_KEY_MOUSE_3:
 			if (gui_drag.state == GUI_DRAG_DRAG) {
 				/* End of a drag, rather than click */
@@ -702,6 +720,7 @@ fb_browser_window_click(fbtk_widget_t *widget, fbtk_callback_info *cbi)
 			gui_drag.state = GUI_DRAG_NONE;
 			mouse = BROWSER_MOUSE_CLICK_2;
 			break;
+#endif
 
 		default:
 			break;

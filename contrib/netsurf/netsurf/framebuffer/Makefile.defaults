@@ -7,7 +7,7 @@ CFLAGS += -O2
 
 # Framebuffer default surface provider.
 # Valid values are: x, sdl, linux, vnc, able,
-NETSURF_FB_FRONTEND := sdl
+NETSURF_FB_FRONTEND := mtl
 
 # Use libharu to enable PDF export and GTK printing support.
 # Valid options: YES, NO
