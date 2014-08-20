@@ -3389,10 +3389,10 @@ em_setup_transmit_ring(struct tx_ring *txr)
 			uint64_t paddr;
 			void *addr;
 
-			addr = PNMB(slot + si, &paddr);
+			addr = PNMB(na, slot + si, &paddr);
 			txr->tx_base[i].buffer_addr = htole64(paddr);
 			/* reload the map for netmap mode */
-			netmap_load_map(txr->txtag, txbuf->map, addr);
+			netmap_load_map(na, txr->txtag, txbuf->map, addr);
 		}
 #endif /* DEV_NETMAP */
 
@@ -4131,8 +4131,8 @@ em_setup_receive_ring(struct rx_ring *rxr)
 			uint64_t paddr;
 			void *addr;
 
-			addr = PNMB(slot + si, &paddr);
-			netmap_load_map(rxr->rxtag, rxbuf->map, addr);
+			addr = PNMB(na, slot + si, &paddr);
+			netmap_load_map(na, rxr->rxtag, rxbuf->map, addr);
 			/* Update descriptor */
 			rxr->rx_base[j].buffer_addr = htole64(paddr);
 			continue;
