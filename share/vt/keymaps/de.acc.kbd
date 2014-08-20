@@ -49,7 +49,7 @@
   043   '#'    '''    nop    nop    '#'    '''    nop    nop     O
   044   'y'    'Y'    em     em     'y'    'Y'    em     em      C
   045   'x'    'X'    can    can    'x'    'X'    can    can     C
-  046   'c'    'C'    etx    etx    'c'    'C'    etx    etx     C
+  046   'c'    'C'    etx    etx    0xa2   'C'    etx    etx     C
   047   'v'    'V'    syn    syn    'v'    'V'    syn    syn     C
   048   'b'    'B'    stx    stx    'b'    'B'    stx    stx     C
   049   'n'    'N'    so     so     'n'    'N'    so     so      C
@@ -89,7 +89,7 @@
   083   del    '.'    '.'    '.'    '.'    '.'    boot   boot    N
   084   nop    nop    nop    nop    nop    nop    nop    nop     O
   085   nop    nop    nop    nop    nop    nop    nop    nop     O
-  086   '<'    '>'    nop    nop    '|'    0x0160 nop    nop     O
+  086   '<'    '>'    nop    nop    '|'    0xa6   nop    nop     O
   087   fkey11 fkey23 fkey35 fkey47 scr11  scr11  scr11  scr11   O
   088   fkey12 fkey24 fkey36 fkey48 scr12  scr12  scr12  scr12   O
   089   cr     cr     nl     nl     cr     cr     nl     nl      O

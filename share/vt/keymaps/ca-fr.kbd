@@ -15,14 +15,14 @@
   003   '2'    '"'    nul    nul    '@'    '"'    nul    nul     O
   004   '3'    '/'    nop    nop    0xa3   '/'    nop    nop     O
   005   '4'    '$'    nop    nop    0xa2   '$'    nop    nop     O
-  006   '5'    '%'    nop    nop    0x20ac '%'    nop    nop     O
+  006   '5'    '%'    nop    nop    0xa4   '%'    nop    nop     O
   007   '6'    '?'    nop    nop    0xac   '?'    nop    nop     O
   008   '7'    '&'    nop    nop    '|'    '&'    nop    nop     O
   009   '8'    '*'    nop    nop    0xb2   '*'    nop    nop     O
   010   '9'    '('    nop    nop    0xb3   '('    nop    nop     O
-  011   '0'    ')'    nop    nop    0x0152 ')'    nop    nop     O
-  012   '-'    '_'    nop    nop    0x0153 '_'    nop    nop     O
-  013   '='    '+'    nop    nop    0x0178 '+'    nop    nop     O
+  011   '0'    ')'    nop    nop    0xbc   ')'    nop    nop     O
+  012   '-'    '_'    nop    nop    0xbd   '_'    nop    nop     O
+  013   '='    '+'    nop    nop    0xbe   '+'    nop    nop     O
   014   bs     bs     del    del    bs     bs     del    del     O
   015   ht     btab   nop    nop    ht     btab   nop    nop     O
   016   'q'    'Q'    dc1    dc1    'q'    'Q'    dc1    dc1     C

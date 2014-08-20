@@ -8,6 +8,7 @@ FILES=	INDEX.keymaps \
 	ca.kbd \
 	ca-fr.kbd \
 	centraleuropean.kbd \
+	centraleuropean.qwerty.kbd \
 	ch-fr.acc.kbd \
 	ch-fr.kbd \
 	ch.acc.kbd \
