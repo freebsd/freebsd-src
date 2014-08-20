@@ -35,33 +35,50 @@ sub local_to_UCS_code
     return prettyprint_token(ord(Encode::decode("UTF-8", local_to_UCS_string($char))));
 }
 
+sub malformed_to_UCS_code
+{
+    my ($char) = @_;
+
+    return prettyprint_token(ord(Encode::decode("UTF-8", $char)));
+}
 
 sub convert_token
 {
     my ($C) = @_;
 
     return $1
-        if $C =~ m/^([a-z][a-z0-9]*)$/; # key token
+        if $C =~ m/^([a-z][a-z0-9]*)$/;		# key token
     return local_to_UCS_code(chr($1))
-        if $C =~ m/^(\d+)$/;            # decimal number
+        if $C =~ m/^(\d+)$/;			# decimal number
     return local_to_UCS_code(chr(hex($1)))
-        if $C =~ m/^0x([0-9a-f]+)$/i;   # hex number
+        if $C =~ m/^0x([0-9a-f]+)$/i;		# hex number
     return local_to_UCS_code(chr(ord($1)))
-        if $C =~ m/^'(.)'$/;            # character
-    return "<?$C?>";                    # uncovered case
+        if $C =~ m/^'(.)'$/;			# character
+    return malformed_to_UCS_code($1)
+        if $C =~ m/^'(.+)'$/;			# character
+    return "<?$C?>";				# uncovered case
 }
 
 sub tokenize { # split on white space and parentheses (but not within token)
     my ($line) = @_;
 
-    $line =~ s/' '/ _spc_ /g; # prevent splitting of ' '
+#print "<< $line";
     $line =~ s/'\('/ _lpar_ /g; # prevent splitting of '('
     $line =~ s/'\)'/ _rpar_ /g; # prevent splitting of ')'
+    $line =~ s/'''/'_squote_'/g; # remove quoted single quotes from matches below
     $line =~ s/([()])/ $1 /g; # insert blanks around remaining parentheses
+    my $matches;
+    do {
+	$matches = ($line =~ s/^([^']*)'([^']+)'/$1_squoteL_$2_squoteR_/g);
+#	print "-> $line<> $matches: ('$1','$2')\n";
+    } while $matches;
+    $line =~ s/_squoteL_ _squoteR_/ _spc_ /g; # prevent splitting of ' '
     my @KEYTOKEN = split (" ", $line);
+    grep(s/_squote[LR]?_/'/g, @KEYTOKEN);
     grep(s/_spc_/' '/, @KEYTOKEN);
     grep(s/_lpar_/'('/, @KEYTOKEN);
     grep(s/_rpar_/')'/, @KEYTOKEN);
+#printf ">> $line%s\n", join('|', @KEYTOKEN);
     return @KEYTOKEN;
 }
 
@@ -85,7 +102,7 @@ while (<FH>) {
 		} elsif ($C eq "(") {
 		    printf "%17s", "( "; # paren continues accent definition
 		} else {
-		    print "UNKNOWN DEFINITION: $_";
+		    print "Unknown input line format: $_";
 		}
 		$at_bol = 0;
 	    } else {
