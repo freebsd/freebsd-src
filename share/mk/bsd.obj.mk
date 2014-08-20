@@ -50,6 +50,9 @@ CANONICALOBJDIR:=${MAKEOBJDIR}
 CANONICALOBJDIR:=/usr/obj${.CURDIR}
 .endif
 
+EXTRAOBJDIRS+=	${SRCS:C|[^/]*$||:S|/$||:O:u}
+CLEANDIRS+=	${EXTRAOBJDIRS}
+
 #
 # Warn of unorthodox object directory.
 #
@@ -88,6 +91,10 @@ obj: .PHONY
 			exit 1; \
 		fi; \
 		${ECHO} "${CANONICALOBJDIR} created for ${.CURDIR}"; \
+		if [ -n "${EXTRAOBJDIRS}" ]; then \
+			(cd ${CANONICALOBJDIR}; mkdir -p ${EXTRAOBJDIRS}); \
+			${ECHO} "Created ${EXTRAOBJDIRS} in ${CANONICALOBJDIR}"; \
+		fi; \
 	fi
 .endif
 
