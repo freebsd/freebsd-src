@@ -110,7 +110,7 @@ invoke(register_t a0, register_t a1, register_t a2 __unused,
 	if (is.error == 0)
 		memcpy_tocap(3, ids.buffer, 0, sizeof(uint32_t) * a0 * a1);
 
-	memcpy_tocap(5, __DEVOLATILE(void *, is.times + 1), 0, sizeof(uint32_t) * 2);
+	memcpy_tocap(5, (uint32_t*)is.times + 1, 0, sizeof(uint32_t) * 2);
 
 	return (is.error);
 }
