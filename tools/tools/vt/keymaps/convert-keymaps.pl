@@ -94,6 +94,6 @@ foreach $kbdfile (glob("$dir_keymaps_syscons/*.kbd")) {
 	    print "$kbdfile not found\n";
 	}
     } else {
-	print "Unknown input file: $basename\n";
+	print "Ignore '$basename': No encoding defined in KBDFILES.map\n";
     }
 }
