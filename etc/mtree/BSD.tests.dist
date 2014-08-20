@@ -95,6 +95,8 @@
         sbin
             dhclient
             ..
+            devd
+            ..
             growfs
             ..
             mdconfig
