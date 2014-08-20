@@ -29,10 +29,11 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/kernel.h>
-#include <sys/module.h>
 #include <sys/bus.h>
+#include <sys/kernel.h>
+#include <sys/limits.h>
 #include <sys/lock.h>
+#include <sys/module.h>
 #include <sys/mutex.h>
 #include <sys/resource.h>
 #include <sys/rman.h>
@@ -53,12 +54,13 @@ __FBSDID("$FreeBSD$");
 
 /* In ticks */
 #define	DEFAULT_PWM_PERIOD	1000
+#define	PWM_CLOCK		100000000UL
 
 #define	PWM_LOCK(_sc)		mtx_lock(&(_sc)->sc_mtx)
 #define	PWM_UNLOCK(_sc)		mtx_unlock(&(_sc)->sc_mtx)
 #define	PWM_LOCK_INIT(_sc)	mtx_init(&(_sc)->sc_mtx, \
     device_get_nameunit(_sc->sc_dev), "am335x_pwm softc", MTX_DEF)
-#define	PWM_LOCK_DESTROY(_sc)	mtx_destroy(&(_sc)->sc_mtx);
+#define	PWM_LOCK_DESTROY(_sc)	mtx_destroy(&(_sc)->sc_mtx)
 
 static struct resource_spec am335x_pwm_mem_spec[] = {
 	{ SYS_RES_MEMORY, 0, RF_ACTIVE }, /* PWMSS */
@@ -170,6 +172,8 @@ static struct resource_spec am335x_pwm_mem_spec[] = {
 static device_probe_t am335x_pwm_probe;
 static device_attach_t am335x_pwm_attach;
 static device_detach_t am335x_pwm_detach;
+        
+static int am335x_pwm_clkdiv[8] = { 1, 2, 4, 8, 16, 32, 64, 128 };
 
 struct am335x_pwm_softc {
 	device_t		sc_dev;
@@ -177,6 +181,10 @@ struct am335x_pwm_softc {
 	struct resource		*sc_mem_res[4];
 	int			sc_id;
 	/* sysctl for configuration */
+	int			sc_pwm_clkdiv;
+	int			sc_pwm_freq;
+	struct sysctl_oid	*sc_clkdiv_oid;
+	struct sysctl_oid	*sc_freq_oid;
 	struct sysctl_oid	*sc_period_oid;
 	struct sysctl_oid	*sc_chanA_oid;
 	struct sysctl_oid	*sc_chanB_oid;
@@ -241,6 +249,98 @@ am335x_pwm_config_ecas(int unit, int period, int duty)
 	return (0);
 }
 
+static void
+am335x_pwm_freq(struct am335x_pwm_softc *sc)
+{
+	int clkdiv;
+
+	clkdiv = am335x_pwm_clkdiv[sc->sc_pwm_clkdiv];
+	sc->sc_pwm_freq = PWM_CLOCK / (1 * clkdiv) / sc->sc_pwm_period;
+}
+
+static int
+am335x_pwm_sysctl_freq(SYSCTL_HANDLER_ARGS)
+{
+	int clkdiv, error, freq, i, period;
+	struct am335x_pwm_softc *sc;
+	uint32_t reg;
+
+	sc = (struct am335x_pwm_softc *)arg1;
+
+	PWM_LOCK(sc);
+	freq = sc->sc_pwm_freq;
+	PWM_UNLOCK(sc);
+
+	error = sysctl_handle_int(oidp, &freq, sizeof(freq), req);
+	if (error != 0 || req->newptr == NULL)
+		return (error);
+
+	if (freq > PWM_CLOCK)
+		freq = PWM_CLOCK;
+
+	PWM_LOCK(sc);
+	if (freq != sc->sc_pwm_freq) {
+		for (i = nitems(am335x_pwm_clkdiv) - 1; i >= 0; i--) {
+			clkdiv = am335x_pwm_clkdiv[i];
+			period = PWM_CLOCK / clkdiv / freq;
+			if (period > USHRT_MAX)
+				break;
+			sc->sc_pwm_clkdiv = i;
+			sc->sc_pwm_period = period;
+		}
+		/* Reset the duty cycle settings. */
+		sc->sc_pwm_dutyA = 0;
+		sc->sc_pwm_dutyB = 0;
+		EPWM_WRITE2(sc, EPWM_CMPA, sc->sc_pwm_dutyA);
+		EPWM_WRITE2(sc, EPWM_CMPB, sc->sc_pwm_dutyB);
+		/* Update the clkdiv settings. */
+		reg = EPWM_READ2(sc, EPWM_TBCTL);
+		reg &= ~TBCTL_CLKDIV_MASK;
+		reg |= TBCTL_CLKDIV(sc->sc_pwm_clkdiv);
+		EPWM_WRITE2(sc, EPWM_TBCTL, reg);
+		/* Update the period settings. */
+		EPWM_WRITE2(sc, EPWM_TBPRD, sc->sc_pwm_period - 1);
+		am335x_pwm_freq(sc);
+	}
+	PWM_UNLOCK(sc);
+
+	return (0);
+}
+
+static int
+am335x_pwm_sysctl_clkdiv(SYSCTL_HANDLER_ARGS)
+{
+	int error, i, clkdiv;
+	struct am335x_pwm_softc *sc;
+	uint32_t reg;
+
+	sc = (struct am335x_pwm_softc *)arg1;
+
+	PWM_LOCK(sc);
+	clkdiv = am335x_pwm_clkdiv[sc->sc_pwm_clkdiv];
+	PWM_UNLOCK(sc);
+
+	error = sysctl_handle_int(oidp, &clkdiv, sizeof(clkdiv), req);
+	if (error != 0 || req->newptr == NULL)
+		return (error);
+
+	PWM_LOCK(sc);
+	if (clkdiv != am335x_pwm_clkdiv[sc->sc_pwm_clkdiv]) {
+		for (i = 0; i < nitems(am335x_pwm_clkdiv); i++)
+			if (clkdiv >= am335x_pwm_clkdiv[i])
+				sc->sc_pwm_clkdiv = i;
+
+		reg = EPWM_READ2(sc, EPWM_TBCTL);
+		reg &= ~TBCTL_CLKDIV_MASK;
+		reg |= TBCTL_CLKDIV(sc->sc_pwm_clkdiv);
+		EPWM_WRITE2(sc, EPWM_TBCTL, reg);
+		am335x_pwm_freq(sc);
+	}
+	PWM_UNLOCK(sc);
+
+	return (0);
+}
+
 static int
 am335x_pwm_sysctl_duty(SYSCTL_HANDLER_ARGS)
 {
@@ -292,15 +392,19 @@ am335x_pwm_sysctl_period(SYSCTL_HANDLER_ARGS)
 	if (period < 1)
 		return (EINVAL);
 
-	if ((period < sc->sc_pwm_dutyA) || (period < sc->sc_pwm_dutyB)) {
-		device_printf(sc->sc_dev, "Period can't be less then duty cycle\n");
-		return (EINVAL);
-	}
-
+	if (period > USHRT_MAX)
+		period = USHRT_MAX;
 
 	PWM_LOCK(sc);
+	/* Reset the duty cycle settings. */
+	sc->sc_pwm_dutyA = 0;
+	sc->sc_pwm_dutyB = 0;
+	EPWM_WRITE2(sc, EPWM_CMPA, sc->sc_pwm_dutyA);
+	EPWM_WRITE2(sc, EPWM_CMPB, sc->sc_pwm_dutyB);
+	/* Update the period settings. */
 	sc->sc_pwm_period = period;
 	EPWM_WRITE2(sc, EPWM_TBPRD, period - 1);
+	am335x_pwm_freq(sc);
 	PWM_UNLOCK(sc);
 
 	return (error);
@@ -360,6 +464,14 @@ am335x_pwm_attach(device_t dev)
 	ctx = device_get_sysctl_ctx(sc->sc_dev);
 	tree = device_get_sysctl_tree(sc->sc_dev);
 
+	sc->sc_clkdiv_oid = SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
+	    "clkdiv", CTLTYPE_INT | CTLFLAG_RW, sc, 0,
+	    am335x_pwm_sysctl_clkdiv, "I", "PWM clock prescaler");
+
+	sc->sc_freq_oid = SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
+	    "freq", CTLTYPE_INT | CTLFLAG_RW, sc, 0,
+	    am335x_pwm_sysctl_freq, "I", "PWM frequency");
+
 	sc->sc_period_oid = SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
 	    "period", CTLTYPE_INT | CTLFLAG_RW, sc, 0,
 	    am335x_pwm_sysctl_period, "I", "PWM period");
@@ -372,7 +484,6 @@ am335x_pwm_attach(device_t dev)
 	    "dutyB", CTLTYPE_INT | CTLFLAG_RW, sc, 0,
 	    am335x_pwm_sysctl_duty, "I", "Channel B duty cycles");
 
-
 	/* CONFIGURE EPWM1 */
 	reg = EPWM_READ2(sc, EPWM_TBCTL);
 	reg &= ~(TBCTL_CLKDIV_MASK | TBCTL_HSPCLKDIV_MASK);
@@ -381,6 +492,7 @@ am335x_pwm_attach(device_t dev)
 	sc->sc_pwm_period = DEFAULT_PWM_PERIOD;
 	sc->sc_pwm_dutyA = 0;
 	sc->sc_pwm_dutyB = 0;
+	am335x_pwm_freq(sc);
 
 	EPWM_WRITE2(sc, EPWM_TBPRD, sc->sc_pwm_period - 1);
 	EPWM_WRITE2(sc, EPWM_CMPA, sc->sc_pwm_dutyA);
