@@ -160,11 +160,7 @@ fts_open(argv, options, compar)
 
 	/* Allocate/initialize root(s). */
 	for (root = NULL, nitems = 0; *argv != NULL; ++argv, ++nitems) {
-		/* Don't allow zero-length paths. */
-		if ((len = strlen(*argv)) == 0) {
-			errno = ENOENT;
-			goto mem3;
-		}
+		len = strlen(*argv);
 
 		p = fts_alloc(sp, *argv, len);
 		p->fts_level = FTS_ROOTLEVEL;
