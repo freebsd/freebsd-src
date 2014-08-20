@@ -35,19 +35,69 @@
  */
 
 __code_base__ = 0x8000;
+CAP_ALIGN = 0x20;
 
 SECTIONS
 {
 	. = __code_base__;
 
-	.text ALIGN(0x8): { crt_sb.o }
-	.text ALIGN(0x8): { *(.text) }
-	.MIPS.options ALIGN(0x8): { *(.MIPS.options) }
-	.bss ALIGN(0x8): { *(.bss) }
-	.data ALIGN(0x8): { *(.data) }
-
-	_gp = ALIGN(16) + 0x7ff0;
-	.got : { *(.got.plt) *(.got) }
+	.text ALIGN(CAP_ALIGN): {
+		crt_sb.o
+	}
+	.MIPS.options ALIGN(CAP_ALIGN): {
+		*(.MIPS.options)
+	}
+	.init : {
+		KEEP (*(.init))
+	} = 0
+	.text ALIGN(CAP_ALIGN): {
+		*(.text)
+	}
+	.fini ALIGN(CAP_ALIGN): {
+		KEEP (*(.fini))
+	} = 0
+	.preinit_array ALIGN(CAP_ALIGN) : {
+		PROVIDE_HIDDEN (__preinit_array_start = .);
+		KEEP (*(.preinit_array))
+		PROVIDE_HIDDEN (__preinit_array_end = .);
+	}
+	.init_array ALIGN(CAP_ALIGN) : {
+		PROVIDE_HIDDEN (__init_array_start = .);
+		KEEP (*(SORT(.init_array.*)))
+		KEEP (*(.init_array))
+		PROVIDE_HIDDEN (__init_array_end = .);
+	}
+	.fini_array ALIGN(CAP_ALIGN) : {
+		PROVIDE_HIDDEN (__fini_array_start = .);
+		KEEP (*(.fini_array))
+		KEEP (*(SORT(.fini_array.*)))
+		PROVIDE_HIDDEN (__fini_array_end = .);
+	}
+	.ctors ALIGN(CAP_ALIGN) : {
+		KEEP (*crtbegin.o(.ctors))
+		KEEP (*crtbegin?.o(.ctors))
+		KEEP (*(EXCLUDE_FILE (*crtend.o *crtend?.o ) .ctors))
+		KEEP (*(SORT(.ctors.*)))
+		KEEP (*(.ctors))
+	}
+	.dtors ALIGN(CAP_ALIGN) : {
+		KEEP (*crtbegin.o(.dtors))
+		KEEP (*crtbegin?.o(.dtors))
+		KEEP (*(EXCLUDE_FILE (*crtend.o *crtend?.o ) .dtors))
+		KEEP (*(SORT(.dtors.*)))
+		KEEP (*(.dtors))
+	}
+	.bss ALIGN(CAP_ALIGN): {
+		*(.bss)
+	}
+	.data ALIGN(CAP_ALIGN): {
+		*(.data)
+	}
+	_gp = ALIGN(CAP_ALIGN) + 0x7fc0;
+	.got : {
+		*(.got.plt)
+		*(.got)
+	}
 
 	/*
 	 * Force zero-filling of previous segments in generated image.
