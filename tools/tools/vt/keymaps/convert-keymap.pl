@@ -6,9 +6,26 @@ use Encode;
 use strict;
 use utf8;
 
-die "Usage: $0 filename.kbd CHARSET" unless ($ARGV[1]);
-my $converter = Text::Iconv->new($ARGV[1], "UTF-8");
+# command line parsing
+die "Usage: $0 filename.kbd CHARSET [EURO]"
+    unless ($ARGV[1]);
 
+my $inputfile = shift;					# first command argument
+my $converter = Text::Iconv->new(shift, "UTF-8");	# second argument
+my $use_euro;
+my $use_yen;
+my $current_char;
+my $current_scancode;
+
+while (my $arg = shift) {
+    $use_euro = 1, next
+	if $arg eq "EURO";
+    $use_yen = 1, next
+	if $arg eq "YEN";
+    die "Unknown encoding option '$arg'\n";
+}
+
+# converter functions
 sub local_to_UCS_string
 {
     my ($string) = @_;
@@ -18,21 +35,35 @@ sub local_to_UCS_string
 
 sub prettyprint_token
 {
-    my ($code) = @_;
+    my ($ucs_char) = @_;
 
-    return "'" . chr($code) . "'"
-        if 32 <= $code and $code <= 126; # print as ASCII if possible
-#    return sprintf "%d", $code; # <---- temporary decimal
-    return sprintf "0x%02x", $code
-        if $code <= 255;        # print as hex number, else
-    return sprintf "0x%04x", $code;
+    return "'" . chr($ucs_char) . "'"
+        if 32 <= $ucs_char and $ucs_char <= 126; # print as ASCII if possible
+#    return sprintf "%d", $ucs_char; # <---- temporary decimal
+    return sprintf "0x%02x", $ucs_char
+        if $ucs_char <= 255;        # print as hex number, else
+    return sprintf "0x%04x", $ucs_char;
 }
 
 sub local_to_UCS_code
 {
     my ($char) = @_;
 
-    return prettyprint_token(ord(Encode::decode("UTF-8", local_to_UCS_string($char))));
+    my $ucs_char = ord(Encode::decode("UTF-8", local_to_UCS_string($char)));
+
+    $current_char = lc(chr($ucs_char)), print("SETCUR: $ucs_char\n")
+	if $current_char eq "";
+
+    $ucs_char = 0x20ac	# replace with Euro character
+	if $ucs_char == 0xa4 and $use_euro and $current_char eq "e";
+
+    $ucs_char = 0xa5	# replace with Jap. Yen character on PC kbd
+	if $ucs_char == ord('\\') and $use_yen and $current_scancode == 125;
+
+    $ucs_char = 0xa5	# replace with Jap. Yen character on PC98x1 kbd
+	if $ucs_char == ord('\\') and $use_yen and $current_scancode == 13;
+
+    return prettyprint_token($ucs_char);
 }
 
 sub malformed_to_UCS_code
@@ -62,7 +93,6 @@ sub convert_token
 sub tokenize { # split on white space and parentheses (but not within token)
     my ($line) = @_;
 
-#print "<< $line";
     $line =~ s/'\('/ _lpar_ /g; # prevent splitting of '('
     $line =~ s/'\)'/ _rpar_ /g; # prevent splitting of ')'
     $line =~ s/'''/'_squote_'/g; # remove quoted single quotes from matches below
@@ -70,7 +100,6 @@ sub tokenize { # split on white space and parentheses (but not within token)
     my $matches;
     do {
 	$matches = ($line =~ s/^([^']*)'([^']+)'/$1_squoteL_$2_squoteR_/g);
-#	print "-> $line<> $matches: ('$1','$2')\n";
     } while $matches;
     $line =~ s/_squoteL_ _squoteR_/ _spc_ /g; # prevent splitting of ' '
     my @KEYTOKEN = split (" ", $line);
@@ -78,12 +107,11 @@ sub tokenize { # split on white space and parentheses (but not within token)
     grep(s/_spc_/' '/, @KEYTOKEN);
     grep(s/_lpar_/'('/, @KEYTOKEN);
     grep(s/_rpar_/')'/, @KEYTOKEN);
-#printf ">> $line%s\n", join('|', @KEYTOKEN);
     return @KEYTOKEN;
 }
 
 # main program
-open FH, "<$ARGV[0]";
+open FH, "<$inputfile";
 while (<FH>) {
     if (m/^#/) {
 	print local_to_UCS_string($_);
@@ -95,7 +123,10 @@ while (<FH>) {
 	my $C;
 	foreach $C (@KEYTOKEN) {
 	    if ($at_bol) {
+		$current_char = "";
+		$current_scancode = -1;
 		if ($C =~ m/^\s*\d/) { # line begins with key code number
+		    $current_scancode = $C;
 		    printf "  %03d   ", $C;
 		} elsif ($C =~ m/^[a-z]/) { # line begins with accent name or paren
 		    printf "  %-4s ", $C; # accent name starts accent definition
@@ -109,6 +140,7 @@ while (<FH>) {
 		if ($C =~ m/^([BCNO])$/) {
 		    print " $1"; # special case: effect of Caps Lock/Num Lock
 		} elsif ($C eq "(") {
+		    $current_char = "";
 		    print " ( ";
 		} elsif ($C eq ")") {
 		    print " )";
