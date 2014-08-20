@@ -33,7 +33,7 @@
   024   'o'    'O'    si     si     nop    nop    nop    nop     C
   025   'p'    'P'    dle    dle    nop    nop    nop    nop     C
   026   0xe5   nop    nop    nop    nop    nop    nop    nop     C
-  027   0x0161 '^'    nop    nop    '~'    '^'    '~'    '~'     O
+  027   0xa8   '^'    nop    nop    '~'    '^'    '~'    '~'     O
   028   cr     cr     nl     nl     cr     cr     nl     nl      O
   029   lctrl  lctrl  lctrl  lctrl  lctrl  lctrl  lctrl  lctrl   O
   030   'a'    'A'    soh    soh    0xaa   nop    nop    nop     C
@@ -50,7 +50,7 @@
   041   '$'    0xa7   '0'    '0'    nop    '''    nop    nop     O
   042   lshift lshift lshift lshift lshift lshift lshift lshift  O
   043   '''    '*'    nop    nop    '@'    nop    nop    nop     O
-  044   'z'    'Z'    sub    sub    nop    0x017e nop    nop     C
+  044   'z'    'Z'    sub    sub    nop    0xb8   nop    nop     C
   045   'x'    'X'    can    can    nop    nop    nop    nop     C
   046   'c'    'C'    etx    etx    0xe7   nop    nop    nop     C
   047   'v'    'V'    syn    syn    'v'    'V'    nop    nop     C
