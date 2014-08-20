@@ -747,7 +747,7 @@ ti_i2c_transfer(device_t dev, struct iic_msg *msgs, uint32_t nmsgs)
 		}
 
 		/* set the slave address */
-		ti_i2c_write_reg(sc, I2C_REG_SA, msgs[i].slave);
+		ti_i2c_write_reg(sc, I2C_REG_SA, msgs[i].slave >> 1);
 
 		/* perform the read or write */
 		if (msgs[i].flags & IIC_M_RD) {
