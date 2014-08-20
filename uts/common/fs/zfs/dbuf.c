@@ -70,8 +70,6 @@ dbuf_cons(void *vdb, void *unused, int kmflag)
 	cv_init(&db->db_changed, NULL, CV_DEFAULT, NULL);
 	refcount_create(&db->db_holds);
 
-	db->db_creation = gethrtime();
-
 	return (0);
 }
 
@@ -819,7 +817,7 @@ dbuf_free_range(dnode_t *dn, uint64_t start_blkid, uint64_t end_blkid,
 
 	db_search.db_level = 0;
 	db_search.db_blkid = start_blkid;
-	db_search.db_creation = 0;
+	db_search.db_state = DB_SEARCH;
 
 	mutex_enter(&dn->dn_dbufs_mtx);
 	if (start_blkid >= dn->dn_unlisted_l0_blkid) {
