@@ -37,6 +37,7 @@ struct trapframe;
 struct pcb {
 	uint64_t	pcb_x[31];
 	uint64_t	pcb_sp;
+	vm_offset_t	pcb_l1addr;
 } __aligned(64);
 
 #ifdef _KERNEL

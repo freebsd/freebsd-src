@@ -63,6 +63,8 @@ cpu_fork(struct thread *td1, struct proc *p2, struct thread *td2, int flags)
 	td2->td_pcb = pcb2;
 	bcopy(td1->td_pcb, pcb2, sizeof(*pcb2));
 
+	pmap_activate(td2);
+
 	/* Set the return value registers for fork() */
 	td2->td_pcb->pcb_x[8] = (uintptr_t)fork_return;
 	td2->td_pcb->pcb_x[9] = (uintptr_t)td2;

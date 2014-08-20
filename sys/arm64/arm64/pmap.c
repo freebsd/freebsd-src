@@ -33,6 +33,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/lock.h>
 #include <sys/msgbuf.h>
 #include <sys/mutex.h>
+#include <sys/proc.h>
 
 #include <vm/vm.h>
 #include <vm/vm_page.h>
@@ -41,6 +42,7 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/devmap.h>
 #include <machine/machdep.h>
+#include <machine/pcb.h>
 #include <machine/vmparam.h>
 
 /*
@@ -1124,8 +1126,16 @@ pmap_mincore(pmap_t pmap, vm_offset_t addr, vm_paddr_t *locked_pa)
 void
 pmap_activate(struct thread *td)
 {
+	struct pcb *pcb;
+	pmap_t pmap;
 
-	panic("pmap_activate");
+	critical_enter();
+	pmap = vmspace_pmap(td->td_proc->p_vmspace);
+	pcb = td->td_pcb;
+
+	pcb->pcb_l1addr = vtophys(pmap->pm_l1);
+
+	critical_exit();
 }
 
 void

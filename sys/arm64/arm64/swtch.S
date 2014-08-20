@@ -104,6 +104,14 @@ ENTRY(cpu_switch)
 	 * to a user process.
 	 */
 
+	/* Switch to the new pmap */
+	ldr	x5, [x4, #PCB_L1ADDR]
+	msr	ttbr0_el1, x5
+	isb
+
+	/* Invalidate the TLB */
+	tlbi	vmalle1is
+
 	/* Release the old thread */
 	str	x2, [x0, #TD_LOCK]
 #if defined(SCHED_ULE) && defined(SMP)
