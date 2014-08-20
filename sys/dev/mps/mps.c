@@ -140,6 +140,7 @@ mps_diag_reset(struct mps_softc *sc,int sleep_flag)
 {
 	uint32_t reg;
 	int i, error, tries = 0;
+	uint8_t first_wait_done = FALSE;
 
 	mps_dprint(sc, MPS_TRACE, "%s\n", __func__);
 
@@ -182,15 +183,32 @@ mps_diag_reset(struct mps_softc *sc,int sleep_flag)
 
 	/* Wait up to 300 seconds in 50ms intervals */
 	error = ETIMEDOUT;
-	for (i = 0; i < 60000; i++) {
-		/* wait 50 msec */
-		if (mtx_owned(&sc->mps_mtx) && sleep_flag == CAN_SLEEP)
-			msleep(&sc->msleep_fake_chan, &sc->mps_mtx, 0,
-			    "mpsdiag", hz/20);
-		else if (sleep_flag == CAN_SLEEP)
-			pause("mpsdiag", hz/20);
-		else
-			DELAY(50 * 1000);
+	for (i = 0; i < 6000; i++) {
+		/*
+		 * Wait 50 msec. If this is the first time through, wait 256
+		 * msec to satisfy Diag Reset timing requirements.
+		 */
+		if (first_wait_done) {
+			if (mtx_owned(&sc->mps_mtx) && sleep_flag == CAN_SLEEP)
+				msleep(&sc->msleep_fake_chan, &sc->mps_mtx, 0,
+				    "mpsdiag", hz/20);
+			else if (sleep_flag == CAN_SLEEP)
+				pause("mpsdiag", hz/20);
+			else
+				DELAY(50 * 1000);
+		} else {
+			DELAY(256 * 1000);
+			first_wait_done = TRUE;
+		}
+		/*
+		 * Check for the RESET_ADAPTER bit to be cleared first, then
+		 * wait for the RESET state to be cleared, which takes a little
+		 * longer.
+		 */
+		reg = mps_regread(sc, MPI2_HOST_DIAGNOSTIC_OFFSET);
+		if (reg & MPI2_DIAG_RESET_ADAPTER) {
+			continue;
+		}
 		reg = mps_regread(sc, MPI2_DOORBELL_OFFSET);
 		if ((reg & MPI2_IOC_STATE_MASK) != MPI2_IOC_STATE_RESET) {
 			error = 0;
@@ -236,7 +254,7 @@ mps_transition_ready(struct mps_softc *sc)
 	sleep_flags = (sc->mps_flags & MPS_FLAGS_ATTACH_DONE)
 					? CAN_SLEEP:NO_SLEEP;
 	error = 0;
-	while (tries++ < 5) {
+	while (tries++ < 1200) {
 		reg = mps_regread(sc, MPI2_DOORBELL_OFFSET);
 		mps_dprint(sc, MPS_INIT, "Doorbell= 0x%x\n", reg);
 
@@ -592,7 +610,7 @@ mps_iocfacts_free(struct mps_softc *sc)
 
 	mps_dprint(sc, MPS_TRACE, "%s\n", __func__);
 
-	if (sc->post_busaddr != 0)
+	if (sc->free_busaddr != 0)
 		bus_dmamap_unload(sc->queues_dmat, sc->queues_map);
 	if (sc->free_queue != NULL)
 		bus_dmamem_free(sc->queues_dmat, sc->free_queue,
@@ -656,6 +674,9 @@ int
 mps_reinit(struct mps_softc *sc)
 {
 	int error;
+	struct mpssas_softc *sassc;
+
+	sassc = sc->sassc;
 
 	MPS_FUNCTRACE(sc);
 
@@ -735,6 +756,8 @@ mps_reinit(struct mps_softc *sc)
 	/* the end of discovery will release the simq, so we're done. */
 	mps_dprint(sc, MPS_INFO, "%s finished sc %p post %u free %u\n", 
 	    __func__, sc, sc->replypostindex, sc->replyfreeindex);
+
+	mpssas_release_simq_reinit(sassc);
 
 	return 0;
 }
@@ -2510,6 +2533,7 @@ int
 mps_request_polled(struct mps_softc *sc, struct mps_command *cm)
 {
 	int error, timeout = 0, rc;
+	struct timeval cur_time, start_time;
 
 	error = 0;
 
@@ -2517,22 +2541,33 @@ mps_request_polled(struct mps_softc *sc, struct mps_command *cm)
 	cm->cm_complete = NULL;
 	mps_map_command(sc, cm);
 
+	getmicrotime(&start_time);
 	while ((cm->cm_flags & MPS_CM_FLAGS_COMPLETE) == 0) {
 		mps_intr_locked(sc);
 
-		DELAY(50 * 1000);
-		if (timeout++ > 1000) {
+		if (mtx_owned(&sc->mps_mtx))
+			msleep(&sc->msleep_fake_chan, &sc->mps_mtx, 0,
+			    "mpspoll", hz/20);
+		else
+			pause("mpsdiag", hz/20);
+
+		/*
+		 * Check for real-time timeout and fail if more than 60 seconds.
+		 */
+		getmicrotime(&cur_time);
+		timeout = cur_time.tv_sec - start_time.tv_sec;
+		if (timeout > 60) {
 			mps_dprint(sc, MPS_FAULT, "polling failed\n");
 			error = ETIMEDOUT;
 			break;
 		}
 	}
-	
+
 	if (error) {
 		mps_dprint(sc, MPS_FAULT, "Calling Reinit from %s\n", __func__);
 		rc = mps_reinit(sc);
-		mps_dprint(sc, MPS_FAULT, "Reinit %s\n", 
-				(rc == 0) ? "success" : "failed");
+		mps_dprint(sc, MPS_FAULT, "Reinit %s\n", (rc == 0) ? "success" :
+		    "failed");
 	}
 
 	return (error);
