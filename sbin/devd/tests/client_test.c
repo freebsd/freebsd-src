@@ -58,6 +58,7 @@ create_two_events(void)
 
 	snprintf(destroy_cmd, nitems(destroy_cmd), "mdconfig -d -u %s", mdname);
 	destroy_stdout = popen(destroy_cmd, "r");
+	ATF_REQUIRE(destroy_stdout != NULL);
 	/* We expect no output */
 	ATF_REQUIRE_EQ(0, pclose(destroy_stdout));
 }
@@ -105,7 +106,8 @@ ATF_TC_BODY(seqpacket, tc)
 		ssize_t len;
 		char event[1024];
 
-		len = recv(s, event, sizeof(event), MSG_WAITALL);
+		/* Read 1 less than sizeof(event) to allow space for NULL */
+		len = recv(s, event, sizeof(event) - 1, MSG_WAITALL);
 		ATF_REQUIRE(len != -1);
 		/* NULL terminate the result */
 		event[len] = '\0';
@@ -118,6 +120,8 @@ ATF_TC_BODY(seqpacket, tc)
 		if (cmp == 0)
 			got_destroy_event = true;
 	}
+
+	close(s);
 }
 
 /*
@@ -160,7 +164,8 @@ ATF_TC_BODY(stream, tc)
 		ssize_t newlen;
 		char *create_pos, *destroy_pos;
 
-		newlen = read(s, &event[len], sizeof(event) - len);
+		/* Read 1 less than sizeof(event) to allow space for NULL */
+		newlen = read(s, &event[len], sizeof(event) - len - 1);
 		ATF_REQUIRE(newlen != -1);
 		len += newlen;
 		/* NULL terminate the result */
@@ -174,8 +179,9 @@ ATF_TC_BODY(stream, tc)
 		destroy_pos = strstr(event, destroy_pat);
 		if (destroy_pos != NULL)
 			got_destroy_event = true;
-
 	}
+
+	close(s);
 }
 
 /*
