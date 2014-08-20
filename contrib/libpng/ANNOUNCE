@@ -1,0 +1,70 @@
+
+Libpng 1.5.18 - February 6, 2014
+
+This is a public release of libpng, intended for use in production codes.
+
+Files available for download:
+
+Source files with LF line endings (for Unix/Linux) and with a
+"configure" script
+
+   libpng-1.5.18.tar.xz (LZMA-compressed, recommended)
+   libpng-1.5.18.tar.gz
+   libpng-1.5.18.tar.bz2
+
+Source files with CRLF line endings (for Windows), without the
+"configure" script
+
+   lpng1518.7z  (LZMA-compressed, recommended)
+   lpng1518.zip
+
+Other information:
+
+   libpng-1.5.18-README.txt
+   libpng-1.5.18-LICENSE.txt
+
+Changes since the last public release (1.5.17):
+
+  Delay calling png_init_filter_functions() until a row with nonzero filter
+    is found.
+  Changed tabs to 3 spaces in png_debug macros and changed '"%s"m'
+    to '"%s" m' to improve portability among compilers.
+  Added "-Wall" to CFLAGS in contrib/pngminim/*/makefile
+  Conditionally compile some unused functions reported by -Wall in
+    pngminim.
+  Rebuilt configure scripts with automake-1.14.1 and autoconf-2.69
+    in the tar distributions.
+  Fixed 'unused' warnings and merged with libpng16 pngvalid.
+    Various warnings revealed by configurations added to the tested
+    configurations in libpng 1.6 need corresponding fixes in libpng 1.5.
+    This takes the libpng 1.6 pngvalid.c and adds it back to libpng 1.5,
+    however one write-only test is currently disabled because it does not
+    work; possibly because of failures to reset or initialize the deflate
+    stream correctly in write-only cases.
+  Merged libpng-1.7 changes and created a single pngvalid.c
+  Merged pngvalid and pngtest from libpng-1.5; made compressed chunks
+    after IDAT work with the progressive read code (this is a minor and
+    somewhat ugly fix-up; the proper fix is in 1.6).
+  The 'make all-am' command no longer builds $(check_PROGRAMS), leading
+    to a lack of checks on cross-builds such as ARM.  Makefile.am also
+    requires correct dependencies for the check programs on pnglibconf.h
+    otherwise parallel builds on fast machines can sometimes pick up the
+    system pnglibconf.h.
+  Rebuilt configure scripts with automake 1.14.1 and autoconf-2.69.
+  Require automake-1.13 and enable automake "subdirs" feature in autoconf.ac.
+  Allow unversioned links created on install to be disabled in configure.
+    In configure builds 'make install' changes/adds links like png.h
+    and libpng.a to point to the newly installed, versioned, files (e.g.
+    libpng17/png.h and libpng17.a). Three new configure options and some
+    rearrangement of Makefile.am allow creation of these links to be disabled.
+  Removed potentially misleading warning from png_check_IHDR().
+  Updated scripts/makefile.* to use CPPFLAGS (Cosmin)
+  Quiet an uninitialized memory warning from VC2013 in png_get_png().
+
+Send comments/corrections/commendations to png-mng-implement at lists.sf.net
+(subscription required; visit
+https://lists.sourceforge.net/lists/listinfo/png-mng-implement
+to subscribe)
+or to glennrp at users.sourceforge.net
+
+Glenn R-P

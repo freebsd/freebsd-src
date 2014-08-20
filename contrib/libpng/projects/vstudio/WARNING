@@ -1,0 +1,23 @@
+WARNING
+=======
+Libpng 1.5 erroneously uses /MD when building debug DLL versions of libpng.
+It should use /MDd - you can change this under properties\C/C++\Code
+Generation\Runtime Library if you need to use the debug runtime for debug
+builds.  This will be changed in libpng 1.6 but is currently retained for
+compatibility with older libpng 1.5 releases.
+
+The runtime library settings for each build are as follows:
+
+           Release        Debug
+DLL         /MD            /MD
+Library     /MT            /MTd
+
+The Visual Studio 2010 defaults for a Win32 DLL or Static Library project are
+as follows:
+
+                 Release     Debug
+DLL               /MD         /MDd
+Static Library    /MD         /MDd
+
+Notice that by default static library builds use the DLL runtime, not the
+static library runtime.

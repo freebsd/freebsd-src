@@ -1,0 +1,92 @@
+40
+projectIdent
+0
+VpeMain
+1
+WRect
+256
+0
+8960
+9284
+2
+MProject
+3
+MCommand
+322
+# Locations of zlib and (if required) awk (change as required:)
+set zlib=..\..\..\zlib
+set awk=
+#
+@if not exist pngconfig.dfa $(MAKE) $(__MAKEOPTS__) -f pngconfig.mak defaults
+@if exist config.inf type config.inf
+@echo Checking for the libpng configuration file pnglibconf.h
+$(MAKE) $(__MAKEOPTS__) -f pngconfig.mak
+4
+MCommand
+19
+@type pngconfig.inf
+3
+5
+WFileName
+10
+libpng.tgt
+6
+WFileName
+11
+pngtest.tgt
+7
+WFileName
+12
+pngvalid.tgt
+8
+WVList
+3
+9
+VComponent
+10
+WRect
+0
+0
+5632
+4164
+0
+0
+11
+WFileName
+10
+libpng.tgt
+0
+0
+12
+VComponent
+13
+WRect
+1280
+1540
+5632
+4164
+0
+0
+14
+WFileName
+11
+pngtest.tgt
+0
+1
+15
+VComponent
+16
+WRect
+518
+487
+5632
+4164
+0
+0
+17
+WFileName
+12
+pngvalid.tgt
+0
+1
+9
