@@ -82,6 +82,7 @@ access(const char *path __unused, int mode __unused)
 	return (-1);
 }
 
+int _close(int d __unused);
 int
 _close(int d __unused)
 {
@@ -151,6 +152,7 @@ getenv(const char *name __unused)
 	return NULL;
 }
 
+ssize_t getline(char **linep __unused, size_t *linecapp __unused, FILE *stream __unused);
 ssize_t
 getline(char **linep __unused, size_t *linecapp __unused, FILE *stream __unused)
 {
@@ -207,6 +209,7 @@ fprintf(FILE *stream __unused, const char *format __unused, ...)
 	return (-1);
 }
 
+int fprintf_l(FILE *stream __unused, locale_t loc __unused, const char *format __unused, ...);
 int
 fprintf_l(FILE *stream __unused, locale_t loc __unused,
     const char *format __unused, ...)
@@ -233,6 +236,7 @@ fread(void *ptr __unused, size_t size __unused, size_t nmemb __unused,
 	return (-1);
 }
 
+int _fstat(int fd __unused, struct stat *sb __unused);
 int
 _fstat(int fd __unused, struct stat *sb __unused)
 {
@@ -322,6 +326,7 @@ munmap(void *addr __unused, size_t len __unused)
 	return (-1);
 }
 
+int _open(const char *path __unused, int flags __unused, ...);
 int
 _open(const char *path __unused, int flags __unused, ...)
 {
@@ -378,6 +383,7 @@ puts(const char *str __unused)
 	return (-1);
 }
 
+int raise(int sig __unused);
 int
 raise(int sig __unused)
 {
@@ -386,6 +392,7 @@ raise(int sig __unused)
 	return (-1);
 }
 
+ssize_t _read(int d __unused, void *buf __unused, size_t nbytes __unused);
 ssize_t
 _read(int d __unused, void *buf __unused, size_t nbytes __unused)
 {
@@ -446,7 +453,7 @@ char *
 strerror(int errnum __unused)
 {
 
-	return ("");
+	return ((char *)"");
 }
 
 time_t
@@ -454,7 +461,7 @@ time(time_t *tloc)
 {
 
 	if (tloc != NULL)
-		tloc = -1;
+		*tloc = -1;
 	return (-1);
 }
 
@@ -483,6 +490,7 @@ __unused)
 	return (-1);
 }
 
+ssize_t _write(int d __unused, const void *buf __unused, size_t nbytes __unused);
 ssize_t
 _write(int d __unused, const void *buf __unused, size_t nbytes __unused)
 {
@@ -499,6 +507,7 @@ write(int d __unused, const void *buf __unused, size_t nbytes __unused)
 	return (-1);
 }
 
+pid_t waitpid(pid_t pid __unused, int *stat_loc __unused, int options __unused);
 pid_t
 waitpid(pid_t pid __unused, int *stat_loc __unused, int options __unused)
 {
