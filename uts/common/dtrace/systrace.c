@@ -164,11 +164,11 @@ systrace_enable(void *arg, dtrace_id_t id, void *parg)
 		return (0);
 	}
 
-	(void) casptr(&sysent[sysnum].sy_callc,
+	(void) atomic_cas_ptr(&sysent[sysnum].sy_callc,
 	    (void *)systrace_sysent[sysnum].stsy_underlying,
 	    (void *)dtrace_systrace_syscall);
 #ifdef _SYSCALL32_IMPL
-	(void) casptr(&sysent32[sysnum].sy_callc,
+	(void) atomic_cas_ptr(&sysent32[sysnum].sy_callc,
 	    (void *)systrace_sysent32[sysnum].stsy_underlying,
 	    (void *)dtrace_systrace_syscall32);
 #endif
@@ -184,12 +184,12 @@ systrace_disable(void *arg, dtrace_id_t id, void *parg)
 	    systrace_sysent[sysnum].stsy_return == DTRACE_IDNONE);
 
 	if (disable) {
-		(void) casptr(&sysent[sysnum].sy_callc,
+		(void) atomic_cas_ptr(&sysent[sysnum].sy_callc,
 		    (void *)dtrace_systrace_syscall,
 		    (void *)systrace_sysent[sysnum].stsy_underlying);
 
 #ifdef _SYSCALL32_IMPL
-		(void) casptr(&sysent32[sysnum].sy_callc,
+		(void) atomic_cas_ptr(&sysent32[sysnum].sy_callc,
 		    (void *)dtrace_systrace_syscall32,
 		    (void *)systrace_sysent32[sysnum].stsy_underlying);
 #endif
