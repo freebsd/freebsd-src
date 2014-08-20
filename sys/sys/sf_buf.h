@@ -113,7 +113,7 @@ sf_buf_kva(struct sf_buf *sf)
 {
 #ifdef SFBUF_OPTIONAL_DIRECT_MAP
 	if (SFBUF_OPTIONAL_DIRECT_MAP)
-		return (VM_PAGE_TO_PHYS((vm_page_t)sf));
+		return (SFBUF_PHYS_DMAP(VM_PAGE_TO_PHYS((vm_page_t)sf)));
 #endif
 
         return (sf->kva);
