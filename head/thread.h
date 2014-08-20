@@ -20,14 +20,14 @@
  */
 
 /*
+ * Copyright 2014 Garrett D'Amore <garrett@damore.org>
+ *
  * Copyright 2007 Sun Microsystems, Inc.  All rights reserved.
  * Use is subject to license terms.
  */
 
 #ifndef	_THREAD_H
 #define	_THREAD_H
-
-#pragma ident	"%Z%%M%	%I%	%E% SMI"
 
 /*
  * thread.h:
@@ -48,10 +48,6 @@ extern "C" {
 #ifndef _ASM
 typedef unsigned int thread_t;
 typedef unsigned int thread_key_t;
-#endif /* _ASM */
-
-#ifndef _ASM
-#ifdef __STDC__
 
 extern int thr_create(void *, size_t, void *(*)(void *), void *, long,
 			thread_t *);
@@ -92,30 +88,6 @@ extern int thr_setspecific(thread_key_t, void *);
 extern int thr_getspecific(thread_key_t, void **);
 extern size_t thr_min_stack(void);
 
-#else /* __STDC */
-
-extern int thr_create();
-extern int thr_join();
-extern int thr_setconcurrency();
-extern int thr_getconcurrency();
-extern void thr_exit();
-extern thread_t	thr_self();
-extern int thr_sigsetmask();
-extern int thr_stksegment();
-extern int thr_main();
-extern int thr_kill();
-extern int thr_suspend();
-extern int thr_continue();
-extern void thr_yield();
-extern int thr_setprio();
-extern int thr_getprio();
-extern int thr_keycreate();
-extern int thr_keycreate_once();
-extern int thr_setspecific();
-extern int thr_getspecific();
-extern size_t thr_min_stack();
-
-#endif /* __STDC */
 #endif /* _ASM */
 
 #define	THR_MIN_STACK	thr_min_stack()
