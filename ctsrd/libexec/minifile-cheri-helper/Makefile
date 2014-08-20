@@ -187,7 +187,8 @@ LDADD+=		-lvuln_magic -lz -lcompiler_rt
 
 NO_SHARED=	yes
 
-#USE_CHERI=	yes
+USE_CHERI=	yes
+USE_CHERI_STACK=yes
 
 WARNS=4
 

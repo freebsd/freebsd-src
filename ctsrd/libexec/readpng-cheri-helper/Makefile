@@ -7,6 +7,9 @@ SRCS=	readpng-cheri.c				\
 	setjmp.S				\
 	sysarch.S
 
+USE_CHERI=      yes
+USE_CHERI_STACK=yes
+
 .PATH: ${.CURDIR}/../../lib/libimagebox
 SRCS+=	decode_png.c
 
@@ -47,4 +50,5 @@ ${PROG}.dump: ${PROG}
 .PATH: ${.CURDIR}/../../../lib/libc/${MACHINE}/sys
 .PATH: ${.CURDIR}/../../../lib/libc/string
 
+.include <src.opts.mk>
 .include <bsd.prog.mk>
