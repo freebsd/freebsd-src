@@ -458,12 +458,18 @@ negotiate:
 		    0, 0x02);
 		break;
 	case PROBE_SETAN:
-		/* Remember what transport thinks about AEN. */
-		if (softc->caps & CTS_SATA_CAPS_H_AN)
+		/* 
+		 * Only ATAPI defines this bit to mean AEN, but remember
+		 * what transport thinks about AEN.
+		 */
+		if ((softc->caps & CTS_SATA_CAPS_H_AN) && 
+		    periph->path->device->protocol == PROTO_ATAPI)
 			path->device->inq_flags |= SID_AEN;
 		else
 			path->device->inq_flags &= ~SID_AEN;
 		xpt_async(AC_GETDEV_CHANGED, path, NULL);
+		if (periph->path->device->protocol != PROTO_ATAPI)
+			break;
 		cam_fill_ataio(ataio,
 		    1,
 		    probedone,
@@ -746,14 +752,6 @@ out:
 		 * but return ABORT on attempt to enable it.
 		 */
 		} else if (softc->action == PROBE_SETDMAAA &&
-		    status == CAM_ATA_STATUS_ERROR) {
-			goto noerror;
-
-		/*
-		 * Some Samsung SSDs report supported Asynchronous Notification,
-		 * but return ABORT on attempt to enable it.
-		 */
-		} else if (softc->action == PROBE_SETAN &&
 		    status == CAM_ATA_STATUS_ERROR) {
 			goto noerror;
 
