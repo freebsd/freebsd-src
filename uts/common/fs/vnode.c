@@ -2837,11 +2837,12 @@ vn_setops(vnode_t *vp, vnodeops_t *vnodeops)
 	op = vp->v_op;
 	membar_consumer();
 	/*
-	 * If vp->v_femhead == NULL, then we'll call casptr() to do the
-	 * compare-and-swap on vp->v_op.  If either fails, then FEM is
+	 * If vp->v_femhead == NULL, then we'll call atomic_cas_ptr() to do
+	 * the compare-and-swap on vp->v_op.  If either fails, then FEM is
 	 * in effect on the vnode and we need to have FEM deal with it.
 	 */
-	if (vp->v_femhead != NULL || casptr(&vp->v_op, op, vnodeops) != op) {
+	if (vp->v_femhead != NULL || atomic_cas_ptr(&vp->v_op, op, vnodeops) !=
+	    op) {
 		fem_setvnops(vp, vnodeops);
 	}
 }
