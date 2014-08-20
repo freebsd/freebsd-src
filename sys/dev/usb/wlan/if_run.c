@@ -3255,13 +3255,13 @@ run_set_tx_desc(struct run_softc *sc, struct run_tx_data *data)
 	txwi = (struct rt2860_txwi *)(txd + 1);
 	txwi->len = htole16(m->m_pkthdr.len - pad);
 	if (rt2860_rates[ridx].phy == IEEE80211_T_DS) {
-		txwi->phy = htole16(RT2860_PHY_CCK);
+		mcs |= RT2860_PHY_CCK;
 		if (ridx != RT2860_RIDX_CCK1 &&
 		    (ic->ic_flags & IEEE80211_F_SHPREAMBLE))
 			mcs |= RT2860_PHY_SHPRE;
 	} else
-		txwi->phy = htole16(RT2860_PHY_OFDM);
-	txwi->phy |= htole16(mcs);
+		mcs |= RT2860_PHY_OFDM;
+	txwi->phy = htole16(mcs);
 
 	/* check if RTS/CTS or CTS-to-self protection is required */
 	if (!IEEE80211_IS_MULTICAST(wh->i_addr1) &&
@@ -3338,7 +3338,7 @@ run_tx(struct run_softc *sc, struct mbuf *m, struct ieee80211_node *ni)
 
 	/* pickup a rate index */
 	if (IEEE80211_IS_MULTICAST(wh->i_addr1) ||
-	    type != IEEE80211_FC0_TYPE_DATA) {
+	    type != IEEE80211_FC0_TYPE_DATA || m->m_flags & M_EAPOL) {
 		ridx = (ic->ic_curmode == IEEE80211_MODE_11A) ?
 		    RT2860_RIDX_OFDM6 : RT2860_RIDX_CCK1;
 		ctl_ridx = rt2860_rates[ridx].ctl_ridx;
@@ -4998,7 +4998,7 @@ run_updateprot_cb(void *arg)
 	tmp = RT2860_RTSTH_EN | RT2860_PROT_NAV_SHORT | RT2860_TXOP_ALLOW_ALL;
 	/* setup protection frame rate (MCS code) */
 	tmp |= (ic->ic_curmode == IEEE80211_MODE_11A) ?
-	    rt2860_rates[RT2860_RIDX_OFDM6].mcs :
+	    rt2860_rates[RT2860_RIDX_OFDM6].mcs | RT2860_PHY_OFDM :
 	    rt2860_rates[RT2860_RIDX_CCK11].mcs;
 
 	/* CCK frames don't require protection */
