@@ -374,7 +374,7 @@ CC:=    ${CHERI_CC} -integrated-as --target=cheri-unknown-freebsd
 CC+=    --sysroot=${SYSROOT}
 .endif
 .if defined(USE_CHERI_STACK)
-CC+=    -mllvm -cheri-stack-cap
+CC+=    -mllvm -cheri-stack-cap -mabi=sandbox
 .endif
 # XXXRW: Needed as Clang rejects -G0 when using $CC to link.
 CFLAGS+=        -Qunused-arguments
