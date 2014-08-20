@@ -1244,9 +1244,9 @@ vn_open_upgrade(
 	ASSERT(vp->v_type == VREG);
 
 	if (filemode & FREAD)
-		atomic_add_32(&(vp->v_rdcnt), 1);
+		atomic_inc_32(&vp->v_rdcnt);
 	if (filemode & FWRITE)
-		atomic_add_32(&(vp->v_wrcnt), 1);
+		atomic_inc_32(&vp->v_wrcnt);
 
 }
 
@@ -1259,11 +1259,11 @@ vn_open_downgrade(
 
 	if (filemode & FREAD) {
 		ASSERT(vp->v_rdcnt > 0);
-		atomic_add_32(&(vp->v_rdcnt), -1);
+		atomic_dec_32(&vp->v_rdcnt);
 	}
 	if (filemode & FWRITE) {
 		ASSERT(vp->v_wrcnt > 0);
-		atomic_add_32(&(vp->v_wrcnt), -1);
+		atomic_dec_32(&vp->v_wrcnt);
 	}
 
 }
@@ -2918,7 +2918,7 @@ fs_new_caller_id()
 {
 	static uint64_t next_caller_id = 0LL; /* First call returns 1 */
 
-	return ((u_longlong_t)atomic_add_64_nv(&next_caller_id, 1));
+	return ((u_longlong_t)atomic_inc_64_nv(&next_caller_id));
 }
 
 /*
@@ -3146,9 +3146,9 @@ fop_open(
 	 */
 	if ((*vpp)->v_type == VREG) {
 		if (mode & FREAD)
-			atomic_add_32(&((*vpp)->v_rdcnt), 1);
+			atomic_inc_32(&(*vpp)->v_rdcnt);
 		if (mode & FWRITE)
-			atomic_add_32(&((*vpp)->v_wrcnt), 1);
+			atomic_inc_32(&(*vpp)->v_wrcnt);
 	}
 
 	VOPXID_MAP_CR(vp, cr);
@@ -3162,9 +3162,9 @@ fop_open(
 		 */
 		VOPSTATS_UPDATE(vp, open);
 		if ((vp->v_type == VREG) && (mode & FREAD))
-			atomic_add_32(&(vp->v_rdcnt), -1);
+			atomic_dec_32(&vp->v_rdcnt);
 		if ((vp->v_type == VREG) && (mode & FWRITE))
-			atomic_add_32(&(vp->v_wrcnt), -1);
+			atomic_dec_32(&vp->v_wrcnt);
 	} else {
 		/*
 		 * Some filesystems will return a different vnode,
@@ -3178,13 +3178,13 @@ fop_open(
 		if (*vpp != vp && *vpp != NULL) {
 			vn_copypath(vp, *vpp);
 			if (((*vpp)->v_type == VREG) && (mode & FREAD))
-				atomic_add_32(&((*vpp)->v_rdcnt), 1);
+				atomic_inc_32(&(*vpp)->v_rdcnt);
 			if ((vp->v_type == VREG) && (mode & FREAD))
-				atomic_add_32(&(vp->v_rdcnt), -1);
+				atomic_dec_32(&vp->v_rdcnt);
 			if (((*vpp)->v_type == VREG) && (mode & FWRITE))
-				atomic_add_32(&((*vpp)->v_wrcnt), 1);
+				atomic_inc_32(&(*vpp)->v_wrcnt);
 			if ((vp->v_type == VREG) && (mode & FWRITE))
-				atomic_add_32(&(vp->v_wrcnt), -1);
+				atomic_dec_32(&vp->v_wrcnt);
 		}
 	}
 	VN_RELE(vp);
@@ -3213,11 +3213,11 @@ fop_close(
 	if ((vp->v_type == VREG) && (count == 1))  {
 		if (flag & FREAD) {
 			ASSERT(vp->v_rdcnt > 0);
-			atomic_add_32(&(vp->v_rdcnt), -1);
+			atomic_dec_32(&vp->v_rdcnt);
 		}
 		if (flag & FWRITE) {
 			ASSERT(vp->v_wrcnt > 0);
-			atomic_add_32(&(vp->v_wrcnt), -1);
+			atomic_dec_32(&vp->v_wrcnt);
 		}
 	}
 	return (err);
