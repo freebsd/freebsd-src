@@ -80,6 +80,7 @@ SUBDIR=	${SUBDIR_ORDERED} \
 	libpcap \
 	libpjdlog \
 	${_libpmc} \
+	${_libpng} \
 	${_libproc} \
 	libprocstat \
 	libradius \
@@ -195,6 +196,7 @@ _libz_cheri=	libz-cheri
 # clang on mips.
 _libcurl=	libcurl
 _libjpeg=	libjpeg
+_libpng=	libpng
 .endif
 
 .if ${MK_CLANG} != "no" && !defined(COMPAT_32BIT)
