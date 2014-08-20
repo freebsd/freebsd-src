@@ -166,7 +166,7 @@ malloc(nbytes)
 	if (pagesz == 0) {
 		pagesz = n = 0x1000;
 		pagepool_start = _sb_heapbase;
-		pagepool_end = _sb_heapbase + _sb_heaplen;
+		pagepool_end = (char *)_sb_heapbase + _sb_heaplen;
 		op = (union overhead *)(pagepool_start);
 		n = n - sizeof (*op) - ((long)op & (n - 1));
 		if (n < 0)
